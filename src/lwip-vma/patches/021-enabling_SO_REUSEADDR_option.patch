@@ -1,0 +1,27 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+
+This patch enables SO_REUSEADDR socket option.
+
+
+--- lwip.orig/src/include/lwip/opt.h	2012-05-09 14:01:39.624853000 +0300
++++ lwip/src/include/lwip/opt.h	        2012-04-22 14:29:51.320053000 +0300
+@@ -1428,7 +1428,7 @@
+  * SO_REUSE==1: Enable SO_REUSEADDR option.
+  */
+ #ifndef SO_REUSE
+-#define SO_REUSE                        0
++#define SO_REUSE                        1
+ #endif
+ 
+ /**

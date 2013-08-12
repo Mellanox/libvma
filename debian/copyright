@@ -1,0 +1,21 @@
+Copyright: GPLv2
+
+Information from the binary package:
+Name        : libvma
+Version     : __DEB_VMA_VERSION
+Release     : __DEB_VMA_RELEASE
+Architecture: __DEB_VMA_ARCH
+Install Date: (not installed)
+Group       : Acceleration
+License     : GPLv2
+Build Date  : __DEB_VMA_DATE
+Vendor      : Mellanox
+Summary     : Enhanced Service library for boosting TCP and UDP traffic (over OFED)
+Description :
+
+VMA library is a performance booster of TCP and UDP traffic
+Part of Mellanox's enhanced services
+Allows application written over standard socket API
+To run over Infiniband/Ethernet from userspace with full network stack bypass
+and get better throughput, latency and packets/sec rate
+

@@ -1,0 +1,79 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+
+Bug Fix: Add support of sending data larger than 64k in a single send call.
+
+
+--- lwip.orig/src/core/tcp_out.c	2011-12-14 09:35:53.536049000 +0200
++++ lwip/src/core/tcp_out.c	2011-12-13 15:45:53.864429000 +0200
+@@ -289,7 +289,7 @@
+  * @return ERR_OK if tcp_write is allowed to proceed, another err_t otherwise
+  */
+ static err_t
+-tcp_write_checks(struct tcp_pcb *pcb, u16_t len)
++tcp_write_checks(struct tcp_pcb *pcb, u32_t len)
+ {
+   /* connection is in invalid state for data transmission? */
+   if ((pcb->state != ESTABLISHED) &&
+@@ -304,7 +304,7 @@
+ 
+   /* fail on too much data */
+   if (len > pcb->snd_buf) {
+-    LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 3, ("tcp_write: too much data (len=%"U16_F" > snd_buf=%"U16_F")\n",
++    LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 3, ("tcp_write: too much data (len=%"U32_F" > snd_buf=%"U32_F")\n",
+       len, pcb->snd_buf));
+     pcb->flags |= TF_NAGLEMEMERR;
+     return ERR_MEM;
+@@ -347,11 +347,11 @@
+  * @return ERR_OK if enqueued, another err_t on error
+  */
+ err_t
+-tcp_write(struct tcp_pcb *pcb, const void *arg, u16_t len, u8_t apiflags)
++tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
+ {
+   struct pbuf *concat_p = NULL;
+   struct tcp_seg *seg = NULL, *prev_seg = NULL, *queue = NULL;
+-  u16_t pos = 0; /* position in 'arg' data */
++  u32_t pos = 0; /* position in 'arg' data */
+   u16_t queuelen;
+   u8_t optlen = 0;
+   u8_t optflags = 0;
+@@ -517,7 +517,7 @@
+    */
+   while (pos < len) {
+     struct pbuf *p;
+-    u16_t left = len - pos;
++    u32_t left = len - pos;
+     u16_t max_len = pcb->mss - optlen;
+     u16_t seglen = left > max_len ? max_len : left;
+ #if TCP_CHECKSUM_ON_COPY
+--- lwip.orig/src/include/lwip/tcp.h	2011-12-14 09:35:53.900054000 +0200
++++ lwip/src/include/lwip/tcp.h	2011-12-13 15:47:32.496909000 +0200
+@@ -215,7 +215,7 @@
+   u8_t dupacks;
+   
+   /* congestion avoidance/control variables */
+-  u16_t cwnd;  
++  u16_t cwnd;
+   u16_t ssthresh;
+ 
+   /* sender variables */
+@@ -356,7 +356,7 @@
+ #define TCP_WRITE_FLAG_COPY 0x01
+ #define TCP_WRITE_FLAG_MORE 0x02
+ 
+-err_t            tcp_write   (struct tcp_pcb *pcb, const void *dataptr, u16_t len,
++err_t            tcp_write   (struct tcp_pcb *pcb, const void *dataptr, u32_t len,
+                               u8_t apiflags);
+ 
+ void             tcp_setprio (struct tcp_pcb *pcb, u8_t prio);

@@ -1,0 +1,43 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+
+This patch disable the L2 layer of the lwip stack.
+
+--- lwip.orig/src/include/lwip/opt.h	2011-09-14 11:17:58.104134000 +0300
++++ lwip/src/include/lwip/opt.h	2011-09-14 11:19:09.980388000 +0300
+@@ -421,14 +421,14 @@
+  * LWIP_ARP==1: Enable ARP functionality.
+  */
+ #ifndef LWIP_ARP
+-#define LWIP_ARP                        1
++#define LWIP_ARP                        0
+ #endif
+ 
+ /**
+  * ARP_TABLE_SIZE: Number of active MAC-IP address pairs cached.
+  */
+ #ifndef ARP_TABLE_SIZE
+-#define ARP_TABLE_SIZE                  10
++#define ARP_TABLE_SIZE                  0
+ #endif
+ 
+ /**
+@@ -436,7 +436,7 @@
+  * resolution.
+  */
+ #ifndef ARP_QUEUEING
+-#define ARP_QUEUEING                    1
++#define ARP_QUEUEING                    0
+ #endif
+ 
+ /**

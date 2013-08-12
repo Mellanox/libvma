@@ -1,0 +1,158 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+/*
+* For the receiving side, use correctly scaled TCP_WND instead of the MAX TCP_WND.
+*/
+
+--- orig_lwip/arch/lwipopts.h	2013-03-24 16:10:40.258600000 +0200
++++ lwip/arch/lwipopts.h	2013-03-24 16:47:47.327931000 +0200
+@@ -405,8 +405,7 @@
+  * TCP_WND: The size of a TCP window.  This must be at least
+  * (2 * TCP_MSS) for things to work well
+  */
+-//todo
+-#define TCP_WND                         0xFFFF00
++#define TCP_WND                         0xFFFF
+ 
+ /**
+  * TCP_MSS: TCP Maximum segment size. (default is 536, a conservative default,
+--- orig_lwip/src/core/tcp.c	2013-03-24 16:10:40.252604000 +0200
++++ lwip/src/core/tcp.c	2013-03-24 16:50:35.760686000 +0200
+@@ -143,7 +143,7 @@ tcp_close_shutdown(struct tcp_pcb *pcb, 
+   err_t err;
+ 
+   if (rst_on_unacked_data && (pcb->state != LISTEN)) {
+-    if ((pcb->refused_data != NULL) || (pcb->rcv_wnd != TCP_WND)) {
++    if ((pcb->refused_data != NULL) || (pcb->rcv_wnd != TCP_WND_SCALED)) {
+       /* Not all data received by application, send RST to tell the remote
+          side about this. */
+       LWIP_ASSERT("pcb->flags & TF_RXCLOSED", pcb->flags & TF_RXCLOSED);
+@@ -467,7 +467,7 @@ u32_t tcp_update_rcv_ann_wnd(struct tcp_
+ {
+   u32_t new_right_edge = pcb->rcv_nxt + pcb->rcv_wnd;
+ 
+-  if (TCP_SEQ_GEQ(new_right_edge, pcb->rcv_ann_right_edge + LWIP_MIN((TCP_WND / 2), pcb->mss))) {
++  if (TCP_SEQ_GEQ(new_right_edge, pcb->rcv_ann_right_edge + LWIP_MIN((TCP_WND_SCALED / 2), pcb->mss))) {
+     /* we can advertise more window */
+     pcb->rcv_ann_wnd = pcb->rcv_wnd;
+     return new_right_edge - pcb->rcv_ann_right_edge;
+@@ -512,8 +512,8 @@ tcp_recved(struct tcp_pcb *pcb, u32_t le
+ #endif
+ 
+   pcb->rcv_wnd += len;
+-  if (pcb->rcv_wnd > TCP_WND) {
+-    pcb->rcv_wnd = TCP_WND;
++  if (pcb->rcv_wnd > TCP_WND_SCALED) {
++    pcb->rcv_wnd = TCP_WND_SCALED;
+   }
+ 
+   wnd_inflation = tcp_update_rcv_ann_wnd(pcb);
+@@ -528,7 +528,7 @@ tcp_recved(struct tcp_pcb *pcb, u32_t le
+   }
+ 
+   LWIP_DEBUGF(TCP_DEBUG, ("tcp_recved: recveived %"U16_F" bytes, wnd %"U16_F" (%"U16_F").\n",
+-         len, pcb->rcv_wnd, TCP_WND - pcb->rcv_wnd));
++         len, pcb->rcv_wnd, TCP_WND_SCALED - pcb->rcv_wnd));
+ }
+ 
+ /**
+@@ -618,8 +618,8 @@ tcp_connect(struct tcp_pcb *pcb, ip_addr
+   pcb->snd_nxt = iss;
+   pcb->lastack = iss - 1;
+   pcb->snd_lbb = iss - 1;
+-  pcb->rcv_wnd = TCP_WND;
+-  pcb->rcv_ann_wnd = TCP_WND;
++  pcb->rcv_wnd = TCP_WND_SCALED;
++  pcb->rcv_ann_wnd = TCP_WND_SCALED;
+   pcb->rcv_ann_right_edge = pcb->rcv_nxt;
+   pcb->snd_wnd = TCP_WND;
+   /* As initial send MSS, we use TCP_MSS but limit it to 536.
+@@ -1065,8 +1065,8 @@ void tcp_pcb_init (struct tcp_pcb* pcb, 
+ 	pcb->prio = prio;
+ 	pcb->snd_buf = pcb->max_snd_buff;
+ 	pcb->snd_queuelen = 0;
+-	pcb->rcv_wnd = TCP_WND;
+-	pcb->rcv_ann_wnd = TCP_WND;
++	pcb->rcv_wnd = TCP_WND_SCALED;
++	pcb->rcv_ann_wnd = TCP_WND_SCALED;
+ #if TCP_RCVSCALE
+ 	pcb->snd_scale = 0;
+   	pcb->rcv_scale = 0;
+--- orig_lwip/src/core/tcp_in.c	2013-03-24 16:10:40.255602000 +0200
++++ lwip/src/core/tcp_in.c	2013-03-24 16:50:50.951937000 +0200
+@@ -390,7 +390,7 @@ tcp_input(struct pbuf *p, struct netif *
+         if (recv_flags & TF_GOT_FIN) {
+           /* correct rcv_wnd as the application won't call tcp_recved()
+              for the FIN's seqno */
+-          if (pcb->rcv_wnd != TCP_WND) {
++          if (pcb->rcv_wnd != TCP_WND_SCALED) {
+             pcb->rcv_wnd++;
+           }
+           TCP_EVENT_CLOSED(pcb, err);
+@@ -616,7 +616,7 @@ L3_level_tcp_input(struct pbuf *p, struc
+ 					if (recv_flags & TF_GOT_FIN) {
+ 						/* correct rcv_wnd as the application won't call tcp_recved()
+ 						   for the FIN's seqno */
+-						if (pcb->rcv_wnd != TCP_WND) {
++						if (pcb->rcv_wnd != TCP_WND_SCALED) {
+ 							pcb->rcv_wnd++;
+ 						}
+ 						TCP_EVENT_CLOSED(pcb, err);
+--- orig_lwip/src/core/tcp_out.c	2013-03-24 16:10:40.244599000 +0200
++++ lwip/src/core/tcp_out.c	2013-03-24 10:26:20.704042000 +0200
+@@ -1282,7 +1282,7 @@ tcp_rst(u32_t seqno, u32_t ackno,
+   tcphdr->ackno = htonl(ackno);
+   TCPH_HDRLEN_FLAGS_SET(tcphdr, TCP_HLEN/4, TCP_RST | TCP_ACK);
+ #if TCP_RCVSCALE
+-  tcphdr->wnd = PP_HTONS( ( ( TCP_WND >> rcv_wnd_scale ) & 0xFFFF ) );
++  tcphdr->wnd = PP_HTONS(( TCP_WND  & 0xFFFF ));
+ #else
+   tcphdr->wnd = PP_HTONS(TCP_WND);
+ #endif
+--- orig_lwip/src/include/lwip/opt.h	2013-03-24 16:10:40.247608000 +0200
++++ lwip/src/include/lwip/opt.h	2013-03-24 16:56:32.382529000 +0200
+@@ -903,6 +903,12 @@
+ #define TCP_RCVSCALE 1
+ #endif
+ 
++#ifdef TCP_RCVSCALE
++#define TCP_WND_SCALED 			(TCP_WND << rcv_wnd_scale)
++#else
++#define TCP_WND_SCALED 			TCP_WND
++#endif
++
+ /**
+  * TCP_MAXRTX: Maximum number of retransmissions of data segments.
+  */
+@@ -1030,7 +1036,7 @@
+  * explicit window update
+  */
+ #ifndef TCP_WND_UPDATE_THRESHOLD
+-#define TCP_WND_UPDATE_THRESHOLD   (TCP_WND / 4)
++#define TCP_WND_UPDATE_THRESHOLD   (TCP_WND_SCALED / 4)
+ #endif
+ 
+ /**
+--- orig_lwip/src/include/lwip/tcp.h	2013-03-24 16:10:40.249600000 +0200
++++ lwip/src/include/lwip/tcp.h	2013-03-24 16:37:38.125987000 +0200
+@@ -207,8 +207,8 @@ enum tcp_state {
+   u16_t local_port
+ 
+ #if TCP_RCVSCALE
+-#define RCV_WND_SCALE(pcb, wnd) (htons((wnd) >> (pcb)->rcv_scale))
+-#define SND_WND_SCALE(pcb, wnd) ((wnd) << (pcb)->snd_scale)
++#define RCV_WND_SCALE(pcb, wnd) (htons((u16_t)((wnd) >> (pcb)->rcv_scale)))
++#define SND_WND_SCALE(pcb, wnd) ((u32_t)(wnd) << (pcb)->snd_scale)
+ #else
+ #define RCV_WND_SCALE(pcb, wnd) (wnd)
+ #define SND_WND_SCALE(pcb, wnd) (wnd)

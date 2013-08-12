@@ -1,0 +1,25 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+/* FIX: 1. Do not increment tcp_ticks in slow_timer. Instead, tcp_ticks is incremented by VMA timer. */ 
+
+--- orig_lwip/src/core/tcp.c	2012-11-27 08:41:28.207330000 +0200
++++ lwip/src/core/tcp.c	2012-12-03 16:24:19.879823000 +0200
+@@ -650,8 +650,6 @@ tcp_slowtmr(struct tcp_pcb* pcb)
+   u8_t pcb_reset;       /* flag if a RST should be sent when removing */
+   err_t err;
+ 
+-  ++tcp_ticks;
+-
+   err = ERR_OK;
+ 
+   if (pcb == NULL) {

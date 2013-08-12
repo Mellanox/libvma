@@ -1,0 +1,25 @@
+{
+   epoll_ctl_event_union
+   Memcheck:Param
+   epoll_ctl(event)
+   fun:epoll_ctl
+}
+
+{
+   rdma_cm_modify_qp_command
+   Memcheck:Param
+   write(buf)
+   obj:/lib64/libpthread-2.12.so
+   fun:ibv_cmd_modify_qp
+   fun:mlx4_modify_qp
+   fun:ibv_modify_qp@@IBVERBS_1.1
+   fun:rdma_create_qp
+   fun:_ZN6qp_mgrC1ER4ringR14ib_ctx_handlerjj
+   fun:_ZN4ringC1EP14ib_ctx_handler16transport_type_tjR10L2_address
+   fun:_ZN14net_device_val12reserve_ringEi
+   fun:_ZN8sockinfo15attach_receiverER24flow_tuple_with_local_if
+   fun:_ZN8sockinfo21attach_as_uc_receiverE6role_t
+   fun:_ZN12sockinfo_tcp6listenEi
+   fun:_ZN10ServerBase14initBeforeLoopEv
+}
+

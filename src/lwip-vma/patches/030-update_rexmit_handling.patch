@@ -1,0 +1,66 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+/* FIX:  
+*	VMA needs to know if lwip sends a packet for retransmission, because VMA give back the buffer to lwip before it was actually sent. 
+*	Then, in case that an ack for this packet have arrived to lwip before we actually sent the retransimisson, lwip will reuse the buffer and we will send garbage by accident.
+*	In order to avoid such cases, ip_output have been changed to let VMA know that it retransmit a packet, so VMA can make a copy of the buffer before returning to lwip.  */
+
+--- orig_lwip/src/core/tcp_out.c	2012-11-27 08:41:28.156329000 +0200
++++ lwip/src/core/tcp_out.c	2012-12-03 16:24:19.844825000 +0200
+@@ -899,7 +899,7 @@ tcp_send_empty_ack(struct tcp_pcb *pcb)
+   ip_output_hinted(p, &(pcb->local_ip), &(pcb->remote_ip), pcb->ttl, pcb->tos,
+       IP_PROTO_TCP, &(pcb->addr_hint));
+ #elif LWIP_3RD_PARTY_L3
+-  external_ip_output(p, pcb);
++  external_ip_output(p, pcb, 0);
+ #else /* LWIP_NETIF_HWADDRHINT*/
+   ip_output(p, &(pcb->local_ip), &(pcb->remote_ip), pcb->ttl, pcb->tos, IP_PROTO_TCP);
+ #endif /* LWIP_NETIF_HWADDRHINT*/
+@@ -1189,7 +1189,7 @@ tcp_output_segment(struct tcp_seg *seg, 
+   ip_output_hinted(seg->p, &(pcb->local_ip), &(pcb->remote_ip), pcb->ttl, pcb->tos,
+       IP_PROTO_TCP, &(pcb->addr_hint));
+ #elif LWIP_3RD_PARTY_L3
+-  external_ip_output(seg->p, pcb);
++  external_ip_output(seg->p, pcb, seg->seqno < pcb->snd_nxt);
+ #else /* LWIP_NETIF_HWADDRHINT*/
+   ip_output(seg->p, &(pcb->local_ip), &(pcb->remote_ip), pcb->ttl, pcb->tos, IP_PROTO_TCP);
+ #endif /* LWIP_NETIF_HWADDRHINT*/
+@@ -1413,7 +1413,7 @@ tcp_keepalive(struct tcp_pcb *pcb)
+   ip_output_hinted(p, &pcb->local_ip, &pcb->remote_ip, pcb->ttl, 0, IP_PROTO_TCP,
+     &(pcb->addr_hint));
+ #elif LWIP_3RD_PARTY_L3
+-  external_ip_output(p, pcb);
++  external_ip_output(p, pcb, 0);
+ #else /* LWIP_NETIF_HWADDRHINT*/
+   ip_output(p, &pcb->local_ip, &pcb->remote_ip, pcb->ttl, 0, IP_PROTO_TCP);
+ #endif /* LWIP_NETIF_HWADDRHINT*/
+@@ -1492,7 +1492,7 @@ tcp_zero_window_probe(struct tcp_pcb *pc
+   ip_output_hinted(p, &pcb->local_ip, &pcb->remote_ip, pcb->ttl, 0, IP_PROTO_TCP,
+     &(pcb->addr_hint));
+ #elif LWIP_3RD_PARTY_L3
+-  external_ip_output(p, pcb);
++  external_ip_output(p, pcb, 0);
+ #else /* LWIP_NETIF_HWADDRHINT*/
+   ip_output(p, &pcb->local_ip, &pcb->remote_ip, pcb->ttl, 0, IP_PROTO_TCP);
+ #endif /* LWIP_NETIF_HWADDRHINT*/
+--- orig_lwip/src/include/lwip/tcp.h	2012-11-27 08:41:23.101254000 +0200
++++ lwip/src/include/lwip/tcp.h	2012-12-03 16:24:14.551746000 +0200
+@@ -48,7 +48,7 @@ extern "C" {
+ #endif
+ 
+ #if LWIP_3RD_PARTY_L3
+-typedef err_t (*ip_output_fn)(struct pbuf *p, void* p_conn);
++typedef err_t (*ip_output_fn)(struct pbuf *p, void* p_conn, int is_rexmit);
+           
+ void register_ip_output(ip_output_fn fn);
+ 

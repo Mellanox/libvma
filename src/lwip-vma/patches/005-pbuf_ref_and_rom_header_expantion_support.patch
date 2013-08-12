@@ -1,0 +1,37 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+ 
+This patch adds header expantion support for pbufs which belong to
+REF and ROM types.
+
+Index: lwip/src/core/pbuf.c
+===================================================================
+--- lwip/src/core/pbuf.c	(revision 2714)
++++ lwip/src/core/pbuf.c	(working copy)
+@@ -535,14 +535,10 @@ pbuf_header(struct pbuf *p, s16_t header
+   /* pbuf types refering to external payloads? */
+   } else if (type == PBUF_REF || type == PBUF_ROM) {
+     /* hide a header in the payload? */
+-    if ((header_size_increment < 0) && (increment_magnitude <= p->len)) {
+-      /* increase payload pointer */
+-      p->payload = (u8_t *)p->payload - header_size_increment;
+-    } else {
+-      /* cannot expand payload to front (yet!)
+-       * bail out unsuccesfully */
++    if ((header_size_increment < 0) && (increment_magnitude > p->len))
+       return 1;
+-    }
++    /* AlexV: we need to check that the header EXPANTION is legal for PBUF_REF & PBUF_ROM pbufs! */
++    p->payload = (u8_t *)p->payload - header_size_increment;
+   } else {
+     /* Unknown type */
+     LWIP_ASSERT("bad pbuf type", 0);

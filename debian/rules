@@ -1,0 +1,60 @@
+#!/usr/bin/make -f
+# debian/rules for alien - originally created by alien version 8.86
+#sudo DEB_VMA_VERSION="6.3.28" DEB_VMA_RELEASE="0" DEB_VMA_DATE="`date -R`" DEB_VMA_ARCH="amd64" DEB_VMA_USERNAME="Or Kehati" DEB_VMA_USER_EMAIL="ork@mellanox.com" debian/rules binary
+
+PACKAGE=$(shell dh_listpackages)
+
+build:
+	dh_testdir
+
+clean:
+	dh_testdir
+	dh_testroot
+	dh_clean -d
+
+binary-replace:
+	mv debian/postinst debian/postinst.template
+	mv debian/postrm debian/postrm.template
+	mv debian/changelog debian/changelog.template
+	mv debian/control debian/control.template
+	mv debian/copyright debian/copyright.template
+	sed  -e "s/__DEB_VMA_VERSION/${DEB_VMA_VERSION}/g" -e "s/__DEB_VMA_RELEASE/${DEB_VMA_RELEASE}/g" debian/postinst.template > debian/postinst
+	sed  -e "s/__DEB_VMA_VERSION/${DEB_VMA_VERSION}/g" -e "s/__DEB_VMA_RELEASE/${DEB_VMA_RELEASE}/g" debian/postrm.template > debian/postrm
+	sed  -e "s/__DEB_VMA_VERSION/${DEB_VMA_VERSION}/g" -e "s/__DEB_VMA_RELEASE/${DEB_VMA_RELEASE}/g" -e "s/__DEB_VMA_DATE/${DEB_VMA_DATE}/g" -e "s/__DEB_VMA_USERNAME/${DEB_VMA_USERNAME}/g" -e "s/__DEB_VMA_USER_EMAIL/${DEB_VMA_USER_EMAIL}/g" debian/changelog.template > debian/changelog
+	sed  -e "s/__DEB_VMA_ARCH/${DEB_VMA_ARCH}/g" -e "s/__DEB_VMA_USERNAME/${DEB_VMA_USERNAME}/g" -e "s/__DEB_VMA_USER_EMAIL/${DEB_VMA_USER_EMAIL}/g" debian/control.template > debian/control
+	sed  -e "s/__DEB_VMA_VERSION/${DEB_VMA_VERSION}/g" -e "s/__DEB_VMA_RELEASE/${DEB_VMA_RELEASE}/g" -e "s/__DEB_VMA_DATE/${DEB_VMA_DATE}/g" -e "s/__DEB_VMA_ARCH/${DEB_VMA_ARCH}/g" debian/copyright.template > debian/copyright
+
+binary-indep: build
+
+binary-arch: build
+	dh_testdir
+	dh_testroot
+	dh_prep
+	dh_installdirs
+
+	dh_installdocs
+	dh_installchangelogs
+
+# Copy the packages's files.
+	find . -maxdepth 1 -mindepth 1 -not -name debian -print0 | \
+		xargs -0 -r -i cp -a {} debian/$(PACKAGE)
+
+#
+# If you need to move files around in debian/$(PACKAGE) or do some
+# binary patching, do it here
+#
+
+
+# This has been known to break on some wacky binaries.
+#	dh_strip
+	dh_compress
+#	dh_fixperms
+	dh_makeshlibs
+	dh_installdeb
+	-dh_shlibdeps
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+binary: binary-replace binary-indep binary-arch
+.PHONY: build clean binary-replace binary-indep binary-arch binary

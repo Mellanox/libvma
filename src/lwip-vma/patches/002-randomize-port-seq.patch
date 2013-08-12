@@ -1,0 +1,38 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+
+use getpid() as a seed for port allocator instead of always starting from the same port number.
+
+Index: lwip/src/core/tcp.c
+===================================================================
+--- lwip.orig/src/core/tcp.c	2011-03-03 18:27:06.000000000 +0200
++++ lwip/src/core/tcp.c	2011-03-03 18:28:06.754957000 +0200
+@@ -608,10 +608,15 @@ tcp_new_port(void)
+   int i;
+   struct tcp_pcb *pcb;
+ #ifndef TCP_LOCAL_PORT_RANGE_START
+-#define TCP_LOCAL_PORT_RANGE_START 4096
+-#define TCP_LOCAL_PORT_RANGE_END   0x7fff
++#define TCP_LOCAL_PORT_RANGE_START 0x2000
++#define TCP_LOCAL_PORT_RANGE_END   0xFFFF
+ #endif
+-  static u16_t port = TCP_LOCAL_PORT_RANGE_START;
++  extern int getpid(void);
++  static u16_t port;
++
++  /* use getpid() as a seed for the port sequence. Insure we will always use different first port */
++  if (port == 0)
++    port = TCP_LOCAL_PORT_RANGE_START + getpid() % (TCP_LOCAL_PORT_RANGE_END - TCP_LOCAL_PORT_RANGE_START);
+   
+  again:
+   if (++port > TCP_LOCAL_PORT_RANGE_END) {

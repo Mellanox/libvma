@@ -1,0 +1,26 @@
+
+{
+   # this is a single drop of memory in dlsym
+   # it only consumes O(1) memory even if you have multiple calls to dlopen/dlsym/dlclose
+   dlsym_O(1)_leak
+   Memcheck:Leak
+   fun:calloc
+   fun:_dlerror_run
+   fun:dlsym
+}
+
+{
+   dlopen_O(1)_leak
+   Memcheck:Leak
+   fun:calloc
+   fun:_dl_new_object
+   fun:_dl_map_object_from_fd
+   fun:_dl_map_object
+   fun:dl_open_worker
+   fun:_dl_catch_error
+   fun:_dl_open
+   fun:dlopen_doit
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlopen@@GLIBC_2.2.5
+}

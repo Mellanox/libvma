@@ -1,0 +1,79 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+/* FIX: When slow timer recognize connect timeout, call err_lwip_cb with err=ERR_TIMEOUT  */
+
+--- orig_lwip/src/core/tcp.c	2012-11-13 14:45:15.909940000 +0200
++++ lwip/src/core/tcp.c	2012-11-15 09:47:33.346209000 +0200
+@@ -669,10 +669,12 @@ tcp_slowtmr(struct tcp_pcb* pcb)
+ 
+ 	if (pcb->state == SYN_SENT && pcb->nrtx == TCP_SYNMAXRTX) {
+ 	  ++pcb_remove;
++	  err = ERR_TIMEOUT;
+ 	  LWIP_DEBUGF(TCP_DEBUG, ("tcp_slowtmr: max SYN retries reached\n"));
+ 	}
+ 	else if (pcb->nrtx == TCP_MAXRTX) {
+ 	  ++pcb_remove;
++	  err = ERR_ABRT;
+ 	  LWIP_DEBUGF(TCP_DEBUG, ("tcp_slowtmr: max DATA retries reached\n"));
+ 	} else {
+ 	  if (pcb->persist_backoff > 0) {
+@@ -728,6 +730,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
+ 	  if ((u32_t)(tcp_ticks - pcb->tmr) >
+ 		  TCP_FIN_WAIT_TIMEOUT / TCP_SLOW_INTERVAL) {
+ 		++pcb_remove;
++		err = ERR_ABRT;
+ 		LWIP_DEBUGF(TCP_DEBUG, ("tcp_slowtmr: removing pcb stuck in FIN-WAIT-2\n"));
+ 	  }
+ 	}
+@@ -750,6 +753,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
+ 								ip4_addr3_16(&pcb->remote_ip), ip4_addr4_16(&pcb->remote_ip)));
+ 
+ 		++pcb_remove;
++		err = ERR_ABRT;
+ 		++pcb_reset;
+ 	  }
+ #if LWIP_TCP_KEEPALIVE
+@@ -784,6 +788,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
+ 	  if ((u32_t)(tcp_ticks - pcb->tmr) >
+ 		  TCP_SYN_RCVD_TIMEOUT / TCP_SLOW_INTERVAL) {
+ 		++pcb_remove;
++		err = ERR_ABRT;
+ 		LWIP_DEBUGF(TCP_DEBUG, ("tcp_slowtmr: removing pcb stuck in SYN-RCVD\n"));
+ 	  }
+ 	}
+@@ -792,6 +797,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
+ 	if (pcb->state == LAST_ACK) {
+ 	  if ((u32_t)(tcp_ticks - pcb->tmr) > 2 * TCP_MSL / TCP_SLOW_INTERVAL) {
+ 		++pcb_remove;
++		err = ERR_ABRT;
+ 		LWIP_DEBUGF(TCP_DEBUG, ("tcp_slowtmr: removing pcb stuck in LAST-ACK\n"));
+ 	  }
+ 	}
+@@ -800,7 +806,8 @@ tcp_slowtmr(struct tcp_pcb* pcb)
+ 	if (pcb_remove) {
+ 	  tcp_pcb_purge(pcb);
+ 
+-	  TCP_EVENT_ERR(pcb->errf, pcb->callback_arg, ERR_ABRT);
++	  TCP_EVENT_ERR(pcb->errf, pcb->callback_arg, err);
++
+ 	  if (pcb_reset) {
+ 		tcp_rst(pcb->snd_nxt, pcb->rcv_nxt, &pcb->local_ip, &pcb->remote_ip,
+ 		  pcb->local_port, pcb->remote_port);
+@@ -829,6 +836,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
+ 	/* Check if this PCB has stayed long enough in TIME-WAIT */
+ 	if ((u32_t)(tcp_ticks - pcb->tmr) > 2 * TCP_MSL / TCP_SLOW_INTERVAL) {
+ 	  ++pcb_remove;
++	  err = ERR_ABRT;
+ 	}
+ 
+ 	/* If the PCB should be removed, do it. */

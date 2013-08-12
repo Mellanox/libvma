@@ -1,0 +1,54 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+/* FIX bug #90701: tcp_timer was global variable. In case there are even number of sockets, tcp_slowtmr() will not be caled for every socket/pcb. */
+
+--- orig_lwip/src/core/tcp.c	2012-10-22 10:36:26.000000000 +0200
++++ lwip/src/core/tcp.c	2012-10-22 11:26:01.000000000 +0200
+@@ -97,8 +97,6 @@ struct tcp_pcb **tcp_pcb_lists[] = {&tcp
+ /** Only used for temporary storage. */
+ struct tcp_pcb *tcp_tmp_pcb;
+ 
+-/** Timer counter to handle calling slow-timer from tcp_tmr() */ 
+-static u8_t tcp_timer;
+ static u16_t tcp_new_port(void);
+ 
+ /**
+@@ -111,7 +109,7 @@ tcp_tmr(struct tcp_pcb* pcb)
+   /* Call tcp_fasttmr() every 250 ms */
+   tcp_fasttmr(pcb);
+ 
+-  if (++tcp_timer & 1) {
++  if (++(pcb->tcp_timer) & 1) {
+     /* Call tcp_tmr() every 500 ms, i.e., every other timer
+        tcp_tmr() is called. */
+     tcp_slowtmr(pcb);
+@@ -1057,7 +1055,7 @@ void tcp_pcb_init (struct tcp_pcb* pcb, 
+ 	pcb->snd_sml_add = 0;
+ 
+ 	pcb->polltmr = 0;
+-
++	pcb->tcp_timer = 0;
+ #if LWIP_CALLBACK_API
+ 	pcb->recv = tcp_recv_null;
+ #endif /* LWIP_CALLBACK_API */
+
+--- orig_lwip/src/include/lwip/tcp.h	2012-10-22 10:36:26.000000000 +0200
++++ lwip/src/include/lwip/tcp.h	2012-10-22 10:45:22.000000000 +0200
+@@ -234,6 +234,7 @@ struct tcp_pcb {
+   u32_t rcv_ann_right_edge; /* announced right edge of window */
+ 
+   /* Timers */
++  u8_t tcp_timer; /* Timer counter to handle calling slow-timer from tcp_tmr() */
+   u32_t tmr;
+   u8_t polltmr, pollinterval;
+   

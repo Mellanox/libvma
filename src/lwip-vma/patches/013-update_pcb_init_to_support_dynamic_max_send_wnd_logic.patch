@@ -1,0 +1,30 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+
+This patches inits the new pcb fields: max_snd_buff and max_unsent_len, which were added in order to
+support the dynamic max send wnd logic.
+
+--- lwip.orig/src/core/tcp.c	2011-06-05 13:11:19.512565000 +0300
++++ lwip/src/core/tcp.c	2011-06-05 13:10:52.424722000 +0300
+@@ -1201,8 +1201,10 @@
+   }
+   if (pcb != NULL) {
+     memset(pcb, 0, sizeof(struct tcp_pcb));
++    pcb->max_snd_buff = TCP_SND_BUF;
++    pcb->max_unsent_len = TCP_SND_QUEUELEN;
+     pcb->prio = prio;
+-    pcb->snd_buf = TCP_SND_BUF;
++    pcb->snd_buf = pcb->max_snd_buff;
+     pcb->snd_queuelen = 0;
+     pcb->rcv_wnd = TCP_WND;
+     pcb->rcv_ann_wnd = TCP_WND;

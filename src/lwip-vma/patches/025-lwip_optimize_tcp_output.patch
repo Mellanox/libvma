@@ -1,0 +1,206 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+Optimize tcp_output:
+* Keep additional field "seqno" in each segment, which is the sequence number in little
+  endian - to save byte swapping during comparations.
+* Keep a "last_unacked" segment pointer in pcb, to avoid going over the unacked segments
+  list every time just to find the tail. The pointer is considered valid iff pcb->unacked
+  is not NULL.
+
+
+diff -urN -x '*.*o' -x '*.*a' -x 'Makefile*' -x .svn lwip.orig/src/core/tcp_in.c lwip/src/core/tcp_in.c
+--- lwip.orig/src/core/tcp_in.c	2012-08-31 17:22:30.576426000 +0300
++++ lwip/src/core/tcp_in.c	2012-08-31 17:21:10.364284000 +0300
+@@ -853,7 +853,7 @@
+      pcb->snd_nxt, ntohl(pcb->unacked->tcphdr->seqno)));
+     /* received SYN ACK with expected sequence number? */
+     if ((flags & TCP_ACK) && (flags & TCP_SYN)
+-        && ackno == ntohl(pcb->unacked->tcphdr->seqno) + 1) {
++        && ackno == pcb->unacked->seqno + 1) {
+       pcb->snd_buf++;
+       pcb->rcv_nxt = seqno + 1;
+       pcb->rcv_ann_right_edge = pcb->rcv_nxt;
+@@ -879,9 +879,9 @@
+ 
+       /* If there's nothing left to acknowledge, stop the retransmit
+          timer, otherwise reset it to start again */
+-      if(pcb->unacked == NULL)
++      if(pcb->unacked == NULL) {
+         pcb->rtime = -1;
+-      else {
++      } else {
+         pcb->rtime = 0;
+         pcb->nrtx = 0;
+       }
+@@ -1204,8 +1204,7 @@
+       /* Remove segment from the unacknowledged list if the incoming
+          ACK acknowlegdes them. */
+       while (pcb->unacked != NULL &&
+-             TCP_SEQ_LEQ(ntohl(pcb->unacked->tcphdr->seqno) +
+-                         TCP_TCPLEN(pcb->unacked), ackno)) {
++             TCP_SEQ_LEQ(pcb->unacked->seqno + TCP_TCPLEN(pcb->unacked), ackno)) {
+         LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_receive: removing %"U32_F":%"U32_F" from pcb->unacked\n",
+                                       ntohl(pcb->unacked->tcphdr->seqno),
+                                       ntohl(pcb->unacked->tcphdr->seqno) +
+@@ -1229,10 +1228,11 @@
+ 
+       /* If there's nothing left to acknowledge, stop the retransmit
+          timer, otherwise reset it to start again */
+-      if(pcb->unacked == NULL)
++      if(pcb->unacked == NULL) {
+         pcb->rtime = -1;
+-      else
++      } else {
+         pcb->rtime = 0;
++      }
+ 
+       pcb->polltmr = 0;
+     } else {
+diff -urN -x '*.*o' -x '*.*a' -x 'Makefile*' -x .svn lwip.orig/src/core/tcp_out.c lwip/src/core/tcp_out.c
+--- lwip.orig/src/core/tcp_out.c	2012-08-31 17:22:30.591426000 +0300
++++ lwip/src/core/tcp_out.c	2012-08-31 17:21:10.414286000 +0300
+@@ -194,6 +194,7 @@
+   LWIP_ASSERT("invalid optflags passed: TF_SEG_DATA_CHECKSUMMED",
+               (optflags & TF_SEG_DATA_CHECKSUMMED) == 0);
+ #endif /* TCP_CHECKSUM_ON_COPY */
++  seg->seqno = seqno;
+ 
+   /* build TCP header */
+   if (pbuf_header(p, TCP_HLEN)) {
+@@ -943,16 +944,10 @@
+    */
+   if (pcb->flags & TF_ACK_NOW &&
+      (seg == NULL ||
+-      ntohl(seg->tcphdr->seqno) - pcb->lastack + seg->len > wnd)) {
++      seg->seqno - pcb->lastack + seg->len > wnd)) {
+      return tcp_send_empty_ack(pcb);
+   }
+ 
+-  /* useg should point to last segment on unacked queue */
+-  useg = pcb->unacked;
+-  if (useg != NULL) {
+-    for (; useg->next != NULL; useg = useg->next);
+-  }
+-
+ #if TCP_OUTPUT_DEBUG
+   if (seg == NULL) {
+     LWIP_DEBUGF(TCP_OUTPUT_DEBUG, ("tcp_output: nothing to send (%p)\n",
+@@ -976,7 +971,7 @@
+ #endif /* TCP_CWND_DEBUG */
+   /* data available and window allows it to be sent? */
+   while (seg != NULL &&
+-         ntohl(seg->tcphdr->seqno) - pcb->lastack + seg->len <= wnd) {
++         seg->seqno - pcb->lastack + seg->len <= wnd) {
+     LWIP_ASSERT("RST not expected here!", 
+                 (TCPH_FLAGS(seg->tcphdr) & TCP_RST) == 0);
+     /* Stop sending if the nagle algorithm would prevent it
+@@ -1015,7 +1010,7 @@
+     }
+ 
+     tcp_output_segment(seg, pcb);
+-    snd_nxt = ntohl(seg->tcphdr->seqno) + TCP_TCPLEN(seg);
++    snd_nxt = seg->seqno + TCP_TCPLEN(seg);
+     if (TCP_SEQ_LT(pcb->snd_nxt, snd_nxt)) {
+       pcb->snd_nxt = snd_nxt;
+     }
+@@ -1025,25 +1020,28 @@
+       /* unacked list is empty? */
+       if (pcb->unacked == NULL) {
+         pcb->unacked = seg;
+-        useg = seg;
++        pcb->last_unacked = seg;
+       /* unacked list is not empty? */
+       } else {
+         /* In the case of fast retransmit, the packet should not go to the tail
+          * of the unacked queue, but rather somewhere before it. We need to check for
+          * this case. -STJ Jul 27, 2004 */
+-        if (TCP_SEQ_LT(ntohl(seg->tcphdr->seqno), ntohl(useg->tcphdr->seqno))) {
++        useg =  pcb->last_unacked;
++        if (TCP_SEQ_LT(seg->seqno, useg->seqno)) {
+           /* add segment to before tail of unacked list, keeping the list sorted */
+           struct tcp_seg **cur_seg = &(pcb->unacked);
+           while (*cur_seg &&
+-            TCP_SEQ_LT(ntohl((*cur_seg)->tcphdr->seqno), ntohl(seg->tcphdr->seqno))) {
++            TCP_SEQ_LT((*cur_seg)->seqno, seg->seqno)) {
+               cur_seg = &((*cur_seg)->next );
+           }
++          LWIP_ASSERT("Value of last_unacked is invalid",
++                      *cur_seg != pcb->last_unacked->next);
+           seg->next = (*cur_seg);
+           (*cur_seg) = seg;
+         } else {
+           /* add segment to tail of unacked list */
+           useg->next = seg;
+-          useg = useg->next;
++          pcb->last_unacked = seg;
+         }
+       }
+     /* do not queue empty segments on the unacked list */
+@@ -1060,7 +1058,7 @@
+ #endif /* TCP_OVERSIZE */
+ 
+   if (seg != NULL && pcb->persist_backoff == 0 && 
+-      ntohl(seg->tcphdr->seqno) - pcb->lastack + seg->len > pcb->snd_wnd) {
++      seg->seqno - pcb->lastack + seg->len > pcb->snd_wnd) {
+     /* prepare for persist timer */
+     pcb->persist_cnt = 0;
+     pcb->persist_backoff = 1;
+@@ -1129,7 +1127,7 @@
+ 
+   if (pcb->rttest == 0) {
+     pcb->rttest = tcp_ticks;
+-    pcb->rtseq = ntohl(seg->tcphdr->seqno);
++    pcb->rtseq = seg->seqno;
+ 
+     LWIP_DEBUGF(TCP_RTO_DEBUG, ("tcp_output_segment: rtseq %"U32_F"\n", pcb->rtseq));
+   }
+@@ -1317,7 +1315,7 @@
+ 
+   cur_seg = &(pcb->unsent);
+   while (*cur_seg &&
+-    TCP_SEQ_LT(ntohl((*cur_seg)->tcphdr->seqno), ntohl(seg->tcphdr->seqno))) {
++    TCP_SEQ_LT((*cur_seg)->seqno, seg->seqno)) {
+       cur_seg = &((*cur_seg)->next );
+   }
+   seg->next = *cur_seg;
+@@ -1349,7 +1347,7 @@
+                 ("tcp_receive: dupacks %"U16_F" (%"U32_F
+                  "), fast retransmit %"U32_F"\n",
+                  (u16_t)pcb->dupacks, pcb->lastack,
+-                 ntohl(pcb->unacked->tcphdr->seqno)));
++                 pcb->unacked->seqno));
+     tcp_rexmit(pcb);
+ 
+     /* Set ssthresh to half of the minimum of the current
+diff -urN -x '*.*o' -x '*.*a' -x 'Makefile*' -x .svn lwip.orig/src/include/lwip/tcp.h lwip/src/include/lwip/tcp.h
+--- lwip.orig/src/include/lwip/tcp.h	2012-08-31 17:22:30.667459000 +0300
++++ lwip/src/include/lwip/tcp.h	2012-08-31 17:21:10.544291000 +0300
+@@ -286,6 +286,7 @@
+   struct tcp_seg *unsent;   /* Unsent (queued) segments. */
+   struct tcp_seg *last_unsent;   /* Last unsent (queued) segment. */
+   struct tcp_seg *unacked;  /* Sent but unacknowledged segments. */
++  struct tcp_seg *last_unacked;  /* Lase element in unacknowledged segments list. */
+ #if TCP_QUEUE_OOSEQ  
+   struct tcp_seg *ooseq;    /* Received out of sequence segments. */
+ #endif /* TCP_QUEUE_OOSEQ */
+diff -urN -x '*.*o' -x '*.*a' -x 'Makefile*' -x .svn lwip.orig/src/include/lwip/tcp_impl.h lwip/src/include/lwip/tcp_impl.h
+--- lwip.orig/src/include/lwip/tcp_impl.h	2012-08-31 17:22:30.735429000 +0300
++++ lwip/src/include/lwip/tcp_impl.h	2012-08-31 17:21:10.582299000 +0300
+@@ -296,6 +296,7 @@
+   struct tcp_seg *next;    /* used when putting segements on a queue */
+   struct pbuf *p;          /* buffer containing data + TCP header */
+   void *dataptr;           /* pointer to the TCP data in the pbuf */
++  u32_t seqno;
+   u16_t len;               /* the TCP length of this segment */
+ #if TCP_OVERSIZE_DBGCHECK
+   u16_t oversize_left;     /* Extra bytes available at the end of the last

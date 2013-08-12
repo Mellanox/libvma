@@ -1,0 +1,30 @@
+# ==32634== Syscall param write(buf) points to uninitialised byte(s)
+# ==32634==    at 0x304800E48D: ??? (in /lib64/libpthread-2.12.so)
+# ==32634==    by 0x4CAE17A: write (sock-redirect.cpp:999)
+# ==32634==    by 0x5148503: ibv_cmd_modify_qp (cmd.c:796)
+# ==32634==    by 0x575B4EB: mlx4_modify_qp (verbs.c:851)
+# ==32634==    by 0x514C723: ibv_modify_qp@@IBVERBS_1.1 (verbs.c:548)
+# ==32634==    by 0x4CB8C5E: priv_ibv_modify_qp_from_err_to_init_raw(ibv_qp*, unsigned char) (verbs_extra.cpp:142)
+# ==32634==    by 0x4C53476: qp_mgr_eth::prepare_ibv_qp(ibv_qp_init_attr&) (qp_mgr.cpp:527)
+# ==32634==    by 0x4C53764: qp_mgr::configure(ibv_comp_channel*) (qp_mgr.cpp:127)
+# ==32634==    by 0x4C5430A: ring_eth::create_qp_mgr(ring_resource_definition&, ibv_comp_channel*) (qp_mgr.h:152)
+# ==32634==    by 0x4C58123: ring::create_resources(ring_resource_creation_info_t*, int) (ring.cpp:173)
+# ==32634==    by 0x4C5E51B: net_device_val_eth::create_ring() (ring.h:293)
+# ==32634==    by 0x4C5FB1D: net_device_val::reserve_ring(int) (net_device_val.cpp:273)
+# ==32634==  Location 0x7feffe978 is 0 bytes inside cmd.dest.dgid[0],
+# ==32634==  declared at verbs.c:818, in frame #3 of thread 1
+# ==32634==  Uninitialised value was created by a stack allocation
+# ==32634==    at 0x3047014625: _dl_runtime_resolve (in /lib64/ld-2.12.so)
+# ==32634==
+# ==32634==
+# ==32634== ---- Attach to debugger ? --- [Return/N/n/Y/y/C/c] ----
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   write(buf)
+   obj:/lib64/libpthread-2.12.so
+   fun:write
+   fun:ibv_cmd_modify_qp
+   fun:mlx4_modify_qp
+   fun:ibv_modify_qp@@IBVERBS_1.1
+}

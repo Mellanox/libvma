@@ -1,0 +1,172 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+/* Support for outgoing TCP RST when pcb (and dst_entry) is valid. Required for TCP closure. */
+
+--- orig_lwip/src/core/tcp.c	2013-02-14 19:19:22.024133000 +0200
++++ lwip/src/core/tcp.c	2013-03-07 18:03:50.592966000 +0200
+@@ -109,11 +109,11 @@ static u16_t tcp_new_port(void);
+ void
+ tcp_tmr(struct tcp_pcb* pcb)
+ {
+-  /* Call tcp_fasttmr() every 250 ms */
++  /* Call tcp_fasttmr() every 100 ms */
+   tcp_fasttmr(pcb);
+ 
+   if (++(pcb->tcp_timer) & 1) {
+-    /* Call tcp_tmr() every 500 ms, i.e., every other timer
++    /* Call tcp_tmr() every 200 ms, i.e., every other timer
+        tcp_tmr() is called. */
+     tcp_slowtmr(pcb);
+   }
+@@ -149,7 +149,7 @@ tcp_close_shutdown(struct tcp_pcb *pcb, 
+       /* don't call tcp_abort here: we must not deallocate the pcb since
+          that might not be expected when calling tcp_close */
+       tcp_rst(pcb->snd_nxt, pcb->rcv_nxt, &pcb->local_ip, &pcb->remote_ip,
+-        pcb->local_port, pcb->remote_port);
++        pcb->local_port, pcb->remote_port, pcb);
+ 
+       tcp_pcb_purge(pcb);
+ 
+@@ -352,7 +352,7 @@ tcp_abandon(struct tcp_pcb *pcb, int res
+     TCP_EVENT_ERR(errf, errf_arg, ERR_ABRT);
+     if (reset) {
+       LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_abandon: sending RST\n"));
+-      tcp_rst(seqno, ackno, &local_ip, &remote_ip, local_port, remote_port);
++      tcp_rst(seqno, ackno, &local_ip, &remote_ip, local_port, remote_port, pcb);
+     }
+   }
+ }
+@@ -824,7 +824,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
+ 
+ 	  if (pcb_reset) {
+ 		tcp_rst(pcb->snd_nxt, pcb->rcv_nxt, &pcb->local_ip, &pcb->remote_ip,
+-		  pcb->local_port, pcb->remote_port);
++		  pcb->local_port, pcb->remote_port, pcb);
+ 	  }
+ 	  pcb->state = CLOSED;
+ 	} else {
+--- orig_lwip/src/core/tcp_in.c	2013-02-14 19:19:22.027131000 +0200
++++ lwip/src/core/tcp_in.c	2013-02-28 16:16:58.293457000 +0200
+@@ -431,7 +431,7 @@ aborted:
+       TCP_STATS_INC(tcp.drop);
+       tcp_rst(ackno, seqno + tcplen,
+         ip_current_dest_addr(), ip_current_src_addr(),
+-        tcphdr->dest, tcphdr->src);
++        tcphdr->dest, tcphdr->src, pcb);
+     }
+     pbuf_free(p);
+   }
+@@ -673,7 +673,7 @@ L3_level_tcp_input(struct pbuf *p, struc
+             TCP_STATS_INC(tcp.drop);
+             tcp_rst(ackno, seqno + tcplen,
+                     ip_current_dest_addr(), ip_current_src_addr(),
+-                    tcphdr->dest, tcphdr->src);
++                    tcphdr->dest, tcphdr->src, pcb);
+         }
+         pbuf_free(p);
+     }
+@@ -697,7 +697,7 @@ L3_level_tcp_input(struct pbuf *p, struc
+ static err_t
+ tcp_listen_input(struct tcp_pcb_listen *pcb)
+ {
+-  struct tcp_pcb *npcb;
++  struct tcp_pcb *npcb = NULL;
+   err_t rc;
+ 
+   /* In the LISTEN state, we check for incoming SYN segments,
+@@ -708,7 +708,7 @@ tcp_listen_input(struct tcp_pcb_listen *
+     LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_listen_input: ACK in LISTEN, sending reset\n"));
+     tcp_rst(ackno + 1, seqno + tcplen,
+       ip_current_dest_addr(), ip_current_src_addr(),
+-      tcphdr->dest, tcphdr->src);
++      tcphdr->dest, tcphdr->src, NULL);
+   } else if (flags & TCP_SYN) {
+     LWIP_DEBUGF(TCP_DEBUG, ("TCP connection request %"U16_F" -> %"U16_F".\n", tcphdr->src, tcphdr->dest));
+ #if TCP_LISTEN_BACKLOG
+@@ -751,6 +751,9 @@ tcp_listen_input(struct tcp_pcb_listen *
+     /* Register the new PCB so that we can begin receiving segments
+      for it. */
+     TCP_EVENT_SYN_RECEIVED(pcb, npcb, ERR_OK, rc);
++    if (rc != ERR_OK) {
++          return rc;
++    }
+ 
+     #if TCP_RCVSCALE
+       npcb->snd_scale = 0;
+@@ -807,7 +810,7 @@ tcp_timewait_input(struct tcp_pcb *pcb)
+     if (TCP_SEQ_BETWEEN(seqno, pcb->rcv_nxt, pcb->rcv_nxt+pcb->rcv_wnd)) {
+       /* If the SYN is in the window it is an error, send a reset */
+       tcp_rst(ackno, seqno + tcplen, ip_current_dest_addr(), ip_current_src_addr(),
+-        tcphdr->dest, tcphdr->src);
++        tcphdr->dest, tcphdr->src, pcb);
+       return ERR_OK;
+     }
+   } else if (flags & TCP_FIN) {
+@@ -945,7 +948,7 @@ tcp_process(struct tcp_pcb *pcb)
+     else if (flags & TCP_ACK) {
+       /* send a RST to bring the other side in a non-synchronized state. */
+       tcp_rst(ackno, seqno + tcplen, ip_current_dest_addr(), ip_current_src_addr(),
+-        tcphdr->dest, tcphdr->src);
++        tcphdr->dest, tcphdr->src, pcb);
+     }
+     break;
+   case SYN_RCVD:
+@@ -992,7 +995,7 @@ tcp_process(struct tcp_pcb *pcb)
+       } else {
+         /* incorrect ACK number, send RST */
+         tcp_rst(ackno, seqno + tcplen, ip_current_dest_addr(), ip_current_src_addr(),
+-                tcphdr->dest, tcphdr->src);
++                tcphdr->dest, tcphdr->src, pcb);
+       }
+     } else if ((flags & TCP_SYN) && (seqno == pcb->rcv_nxt - 1)) {
+       /* Looks like another copy of the SYN - retransmit our SYN-ACK */
+--- orig_lwip/src/core/tcp_out.c	2013-02-14 19:19:22.029130000 +0200
++++ lwip/src/core/tcp_out.c	2013-02-27 08:52:06.224686000 +0200
+@@ -1250,6 +1250,9 @@ tcp_output_segment(struct tcp_seg *seg, 
+  * tcp_rst() has a number of arguments that are taken from a tcp_pcb for
+  * most other segment output functions.
+  *
++ * The pcb is given only when its valid and from an output context.
++ * It is used with the external_ip_output function.
++ *
+  * @param seqno the sequence number to use for the outgoing segment
+  * @param ackno the acknowledge number to use for the outgoing segment
+  * @param local_ip the local IP address to send the segment from
+@@ -1260,7 +1263,7 @@ tcp_output_segment(struct tcp_seg *seg, 
+ void
+ tcp_rst(u32_t seqno, u32_t ackno,
+   ip_addr_t *local_ip, ip_addr_t *remote_ip,
+-  u16_t local_port, u16_t remote_port)
++  u16_t local_port, u16_t remote_port, struct tcp_pcb *pcb)
+ {
+   struct pbuf *p;
+   struct tcp_hdr *tcphdr;
+@@ -1294,6 +1297,7 @@ tcp_rst(u32_t seqno, u32_t ackno,
+   snmp_inc_tcpoutrsts();
+    /* Send output with hardcoded TTL since we have no access to the pcb */
+ #if LWIP_3RD_PARTY_L3
++  if(pcb) external_ip_output(p, pcb, 0);
+   /* external_ip_output(p, NULL, local_ip, remote_ip, TCP_TTL, 0, IP_PROTO_TCP) */;
+ #else /* LWIP_NETIF_HWADDRHINT*/
+   ip_output(p, local_ip, remote_ip, TCP_TTL, 0, IP_PROTO_TCP);
+--- orig_lwip/src/include/lwip/tcp_impl.h	2013-02-14 19:19:22.036129000 +0200
++++ lwip/src/include/lwip/tcp_impl.h	2013-02-27 08:48:21.056727000 +0200
+@@ -458,7 +458,7 @@ void tcp_rexmit_seg(struct tcp_pcb *pcb,
+ 
+ void tcp_rst(u32_t seqno, u32_t ackno,
+        ip_addr_t *local_ip, ip_addr_t *remote_ip,
+-       u16_t local_port, u16_t remote_port);
++       u16_t local_port, u16_t remote_port, struct tcp_pcb *pcb);
+ 
+ u32_t tcp_next_iss(void);
+ 

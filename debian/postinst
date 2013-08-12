@@ -1,0 +1,22 @@
+#!/bin/bash
+#define from outside:
+DEB_VMA_VERSION="__DEB_VMA_VERSION"
+DEB_VMA_RELEASE="__DEB_VMA_RELEASE"
+DEB_VMA_NAME="libvma"
+DEB_VMA_DOC_DIR="/usr/share/doc/$DEB_VMA_NAME-$DEB_VMA_VERSION-$DEB_VMA_RELEASE"
+
+
+if [ `grep memlock /etc/security/limits.conf |grep unlimited |wc -l` -le 0 ]; then 
+	echo "*             -   memlock        unlimited" >> /etc/security/limits.conf
+	echo "*          soft   memlock        unlimited" >> /etc/security/limits.conf
+	echo "*          hard   memlock        unlimited" >> /etc/security/limits.conf
+fi
+
+echo "/usr/lib64/" > /etc/ld.so.conf.d/libvma.conf
+ldconfig
+echo "- Changing max locked memory to unlimited (in /etc/security/limits.conf)"
+echo "  Please log out from the shell and login again in order to update this change "
+echo "  Read more about this topic in the VMA's User Manual"
+echo ""
+echo "- VMA README.txt is installed at: $DEB_VMA_DOC_DIR/README.txt"
+echo "- Please refer to VMA journal for the latest changes: $DEB_VMA_DOC_DIR/journal.txt"

@@ -1,0 +1,1030 @@
+Version 6.4.9-0:
+Date + Time 2013-8-5
+=======================
+Added:
+        - enable fork support by default (VMA_FORK=1)
+
+Fixed:
+        - RM #276253 segmentation fault in igmp handler
+
+Version 6.4.8-0:
+Date + Time 2013-7-29
+=======================
+Added:
+        - RM #100793 Support for getsockopt() SOL_SOCKET-SO_ERROR
+        - RM #227794 add TCP remote side ip+port to vma_stats -v 3
+        - RM #216735 OFED 2.0 flow steering ABI change - pass parameters as big endian
+        - RM #213355 add support for 'make install'
+        - RM #214079 add "max locked memory" to limits.conf by rpm/deb installation
+        - RM #213361 Add VMA_RX_WRE_BATCHING parameter
+
+Fixed:
+        - RM #229405 return ECONNREFUSED when writing on "failed to connect" TCP socket, instead of ECONNRESET
+        - RM #227821 IGMP packets are not freed - buffer leak when having IB MC over IPR to a router
+        - RM #226212 misssing reset send in lwip
+        - RM #226017 memaslap - segmentation fault when exiting with ctrl+c
+        - RM #120784 sendto() flag "MSG_OOB " works with VMA on a UDP socket,which shouldn't work
+        - RM #221942 TCP close socket - buffer leak
+        - RM #216807 Ubuntu: Two threads, epoll with EPOLLIN that is doesn't triggered on some connections even if there is a data
+        - RM #216614 ring migration with ring limiter - VMA PANIC when trying to release non-existing key
+        - RM #216612 segmentation fault when registering more than 32 sockets to the same MC group (ip+port)
+        - RM #91672 Support for qpid-latency-test (VMA get segmentation fault)
+        - RM #215175 [BGATE 2408] Shutdown UDP socket returns VMA ERROR
+        - fixed SLES11.1 compilation issue
+
+Version 6.4.7-0:
+Date + Time 2013-6-24
+=======================
+Added:
+        - RM #202651 support epoll_pwait, pselect and ppoll
+        - imported VMA_TX_NONBLOCKED_EAGAINS from 6.1
+        - RM #206064 - Start multithread support
+        - RM #100988 Dynamic ring migration
+        - RM #206655 Ring amount limiter
+        - RM #212516 remove VMA license
+        - RM #212407 performance improvment for apps with #threads > #cores
+
+Fixed:
+        - RM #94303 reduce our default inline to 220
+        - RM #206247 fail to read a big routing table
+        - RM #199075 TX sendmsg UDP,  address struct len not equal to
+          sizeof(struct sockaddr_in) - VMA crash
+        - RM #206261 Epoll - epfd_info DEADLOCK
+        - RM #209004 lock reordering
+        - RM #6961 VMA does not handle MSG_TRUNC correctly
+        - RM #122619 error in getsockname
+
+Version 6.4.6-0:
+Date + Time 2013-5-23
+=======================
+Added:
+        - RM #200376 accepted sockets should inherit TCP_NODELAY from listen socket
+        - RM #198501 Warn the user when there is a mismatch between interface
+          MTU and VMA_MTU
+
+Fixed:
+        - RM #199075 TX sendmsg UDP, IPV6 address struct len - VMA crash
+        - RM #198500 epoll ctl ADD/MOD epfd with events without EPOLLIN/OUT
+          fails
+        - RM #197925 set recv timeout to zero (blocking), recv do
+          not get blocking and return -1 EAGAIN.
+        - RM #123608 TCP EPOLL on not offloaded listen socket
+        - RM #97050 in epoll, poll only the relevent rings instead of polling
+          all using the global functions
+        - RM #199819 TCP trying to read/write while asyc-connect should return EAGAIN and not EPIPE/ENOTCONN
+        - RM #200374 TX while async connect should poll the CQ
+
+Version 6.4.5-0:
+Date + Time 2013-5-09
+=======================
+Added:
+	- RM #195165 Support sendmmsg
+	- Changed epoll events handling to be able to handle all events and
+	  not only EPOLLIN/OUT.
+	- RM #122159 Added support for TCP send with MSG_DONTWAIT
+	- RM #864 add wakeup mechanism to epoll
+	- RM #101647 - Support Memcached UDP PORT MAP
+	- RM #4608 vma_stats - add socket type (TCP/UDP) to description
+	  (vma_stats -v 3)
+
+Fixed:
+        - RM #190075 ibv_destroy_cq fails with EBUSY (errno=-16) when working
+          with multicast rules of same ip diff port
+        - RM #195755 Multicast, buffer panic
+        - RM #195157 Sockperf end with connection refused when
+          running client with 1000 TCP sockets for the same interface
+        - RM #195079 IB, Sockperf PP with 1000 multicast sockets
+          block when loading VMA in client side
+        - RM #194815 epoll with EPOLLIN after shutdown RD returns timeout instead of EOF
+        - RM #191882 multiple non blocking connects
+        - RM #191428 Multicast, VMA couldn't send data on
+          Non-offloaded interface when set the outgoing interface
+
+Version 6.4.4-0:
+Date + Time 2013-4-14
+=======================
+Added:
+	- RM #51147 - Added support for IB BC ARP on deafult pkey
+	- RM #30701 - TCP window scaling
+	- RM #10449 - Support TCP MSG_PEEK recv flag
+	- New sockperf 2.5.208 - which can run multiple sockperf MC server to receive an ingress MC stream on single machine
+	- RM #165464 - implement new flow steering API
+	- RM #86123 - insert VLAN to rfs
+	- RM #101288 - tcp closure - many bug fixes - see full list in RM
+	- RM #51148 - support neigh sends packets from his own QP, also when dst_entry was removed
+	- Support runtime configuration of TCP MSS and LWIP TX buffer pool
+	- Increase TCP_SND_BUF for better throughput
+	- RM #190096 - support ip_mreqn in setsockopt ADD/DROP_MEMBERSHIP and MULTICAST_IF
+	- RM #100700 - Ubuntu installer support	 
+Fixed:
+        - Disable lwip_buf_pool that is not in use and consume a lot of memory
+	- RM #185253 - Segfault during MC ETH neigh removal
+
+Version 6.4.3-0:
+Date + Time 2013-2-07
+=======================
+Added: 
+	- New sockperf 2.5.200 - new options: '--client_port' and '--client_ip'. Allow loopback tests.
+	- RM #169015: Feature - first step - internal thread progress engine with interrupt coalescing - fesability study
+Fixed: 
+	- RM #168879 - TCP, not-offloaded interface, bind()+connect() - connect faild
+	
+Version 6.4.2-0:
+Date + Time 2013-1-28
+=======================
+Added: 
+	- Redirection of vfork() to fork()
+Fixed: 
+	- RM #131373 - epoll_wait_call:37:epoll_wait_call() epfd 148 not found
+	- RM #130599 - vma_stats -v 4 is not working
+
+
+Version 6.4.1-0:
+Date + Time 2013-1-21
+=======================
+Added:
+	- Added VMA time measuring code (instrumental VMA)
+	- RM #130201: Auto route Eth loopback traffic to/from OS without dedicated libvma.conf rule
+Fixed: 
+	- RM #125279: libvma.conf: Multicast tx traffic should go through OS but it is going through VMA
+	- RM #130192: Fixed IB UC loopback
+
+
+Version 6.4.0-0:
+Date + Time 2013-1-3
+=======================
+	- First VMA 6.4 build
+	- Copy of VMA 6.3.28-0
+	- Moved to git: /.autodirect/mswg/git/accl/vma.git/ 
+
+
+Version 6.3.25-0:
+Date + Time 2012-12-25
+=======================
+Fixed:
+	-RM #30235: Async connect is broken
+	-RM #120561: VMA_ERROR whan running on alias interface
+
+
+Version 6.3.24-0:
+Date + Time 2012-12-24
+=======================
+Added:
+	- RM #104427: Added support for host report to igmp query comming from router (IB only)
+Fixed:
+	- RM #111761: ETH unicast. No traffic to host behind router over VMA
+	- RM #111816: Iomux: Low polling works as high polling 
+	- RM #112805, #111738, #4497: epoll perfromnce degradation
+	- BGATE RM #969: Epoll TCP with EPOLLIN, one shot and edge trigger, triggered only once even if the event is modified by epoll_ctl()
+	- RM #111750 and #112038: IB- PKEY, UC&MC - no traffic while using vma/nonvma server/client
+	- RM #112891: LBM is not working when running with VMA_SPEC=29
+	- RM #112530: Untagged interface receives tagged traffic while it shouldn't. 
+
+
+Version 6.3.23-0:
+Date + Time 2012-12-15
+=======================
+Added:
+	- Support for epoll EPOLLOUT ET.
+	  Known limitation: In socket UDP, both the OS and VMA will announce an fd as ready to write for the first time.
+	- RM #109300: Add enviroment variable VMA_TCP_TIMER_RESOLUTION_MSEC,  to allow control of TCP timer rate.
+	
+Changed: 
+	- RM #101701:
+		1. United VMA params: VMA_RX_POLL_OS_RATIO and VMA_RX_SKIP_OS into one
+		parameter: VMA_RX_UDP_POLL_OS_RATIO
+		2. VMA_RX_UDP_POLL_OS_RATIO value will determine after how many CQ polls will
+		OS fd be polled. No matter if hit or miss. No matter if socket is blocking or non-blocking.
+
+Fixed:	
+	- RM #104860: Fixed TCP socket connect hang in case connection has failed
+	- RM #106790: Fixed VMA_INTERNAL_THREAD_AFFINITY option generates a core dump, when it's set by a hexadecimal value
+	- RM #95010, #95010 : Fixed TCP retransmition mechanism. 
+	- RM 101701: non blocking iomux should only poll once
+	- RM #110853: Fixed panic in case of drop_membership without add_membership first
+	- RM #91299: Fixed OS stats. We counted cases of EAGAIN as os_errors instead of os_eagain
+
+	
+Version 6.3.22-0:
+Date + Time 2012-11-30
+=======================
+Added:
+	-Enabled fragmentation handling
+	-Added enviroment variable flag: VMA_SUPPRESS_IGMP_WARNING
+
+Fixed:
+	-RM #101397: Pure virtual function was called in: return_buffers_to_owners, because mem_buf_desc_owner was freed earlier.
+
+
+Version 6.3.21-0:
+Date + Time 2012-11-29
+=======================
+Added:
+	-Enabled Loopback support in IB MC.
+	-RM #101284: Added warning print in case umcast is enabled
+	-RM #102181: Added support for MSG_DONTWAIT with TCP socket
+	-New Sockperf - 2.5.193
+		Major Changes:
+    		- Bug fix: warmup messages were counted as duplicated/out-of-order messages.
+    		- Bug fix: sockperf flags (-p -m -r) parsing
+    		- Bug fix: negative valid run time of dropped packet
+	
+Fixed:
+	-RM #101405: Fixed libvma.conf bug: Changed the multicast rule check to mc ip address instead of local interface ip address.
+		     The rules shoudl address the packet's dest ip address.
+	-RM #94993: Prioritizing OS in non-blocking sockets that were mapped in select/poll/epoll.
+	 This will fix the following bug (example scenario):
+	 1. Non-blocking UDP socket binds to INADDR_ANY.
+	 2. Socket is mapped in iomux.
+	 3. Not-offloaded traffic arrives. iomux notifies that fd is ready
+	 4. Because the fd is mapped as offloaded, in rx flow, we check the OS once
+	    each 'rx_poll_os_ratio' times, and sampling it once each 'rx_skip_os' times.
+   	    Because it's a non-blocking fd, we'll get EAGAIN although iomux already
+	    notified this fd as ready. (Very problematic when using EPOLLET)
+	 
+	-RM #101397:Removed the code that deals with fragmentation and added a warning printout and drop packet in case of a fragmented packet
+		     Added warning printout with packet info in case of drop due to fragmentation 
+	-RM #102178: Fixed UDP MSG_DONTWAIT flag support in VMA 
+	-RM #102182: Fixed non blocking logic in TCP socket
+	-RM #101874: Fix to perforomnce bug in select and poll that coused by latest commit that fixes functionality bug 
+
+Version 6.3.20-0:
+Date + Time 2012-11-18
+=======================
+Added: 	
+	-RM #100602: Support for LD_BIND_NOW=1
+	-RM #100485: Added printout for user to correctly use Rx buffs env param in case not enough available Rx buffs for cq allocation
+Removed:
+	-VMA mechanism of connect timeout that was based on measuring time, and rely only on the mechanism of lwip which count SYN retransmissions
+	-RM#100754: VMA_IGMP support.Not relevant for this version and when disabled, prevents receiving traffic.
+
+Fixed:
+	-RM #97234, RM #101069: Fixed coverity error in vlogger.h
+	-RM #94996 (RM BGATE #1217): Avoid binding twice in case of calling connect again after previous call failed.
+	-RM #4547:  Partial fix for segfault in accept.  
+
+Version 6.3.19-0:
+Date + Time 2112-11-11
+=======================
+Added:
+	-RM #31007: change ARP related neigh_entry memebers m_uc_arp_quata, m_wait_till_send_arp_msec to be VMA params
+
+Changed:
+	New sockperf version 2.5.190
+
+	Major Changes:
+        - Bug fix to enable running with feed file containing multiple multicast groups
+        - Bug fix of memory leaks
+        - Added few initializations of errno in order to discard previous value
+	- RM #96487: VPI, Sockperf, MC feed file IB&ETH, big drops - MC statistics bug
+	
+Fixed: 
+	-RM #97098: VPI, UC , TCP+ UDP, sockperf over VMA, msg size > MTU , Client run more than one time --> Traffic stops
+	-RM #97043: Deadlock in code
+	-RM #94487: Wrong VMA warning log when checking interface mode in case of bonding over ib 
+	-RM #99187: libvma.conf rules- no matching APPLICATION_ID in libvma.conf caused traffic to go via os
+	-RM #97096, #31008: IB, Segmentation fault durin HA event, call for pure virtual function
+ 	-RM #97408: VMA Error that accures because of Multicast ARP that shouldn't be sent
+	-RM #79770: Eth, UC- TCP, sockperf over VMA, Big spikes - performance
+	-RM #97226: Coverity bug:  Added initialization of members in the CTOR of ib_ctx_handler
+	
+Version 6.3.18-0:
+=================
+Date + Time 2112-10-31
+
+Fixed:
+	-RM #97108: Segmentation fault during HA event
+	-RM #97420, #97238: TCP traffic on IB wasn't resumed after HA event 
+	-RM #97776 (BGATE #1537) : TCP ACK wasn't resent - cause to connection hang 
+
+Version 6.3.17-0:
+=================
+Date + Time 2112-10-30
+
+Added: 	- RM #93517, #96182:  Manual route suppport for IB 
+       	- RM 		   : Support for UC IB ARP (internal implementation)
+	- QPN and block loopback in ibv_attach_flow() (internal implementation) 
+Fixed:
+	- RM #94694: Segmenattaion fault in select 
+	- RM #90795, #31702: sfnt-pingpong app: client get segfault when loading 
+	- RM #96824: Fixed debug print of IPoIB MAC address
+	- RM #97101: IB MC traffic - low performance
+
+Version 6.3.16-0:
+=================
+Date + Time 2112-10-28
+
+Removed: Disabling MC loopback for IB. MC loopback is not supported both over
+ 	 IB and over ETH.
+
+Fixed:  
+	- RM #96292: Segmentation fault when running traffic via bond interface	over vlan
+	- RM #96396: TCP traffic over 10 nonblocked sockets via IB is stacked
+	- RM #96162, #94455: There is VMA_ERROR and traffic stops after ETH HA event.
+	- RM #94455, RM#96922 : Fixed IB HA and potential ETH HA bug.
+	- RM #7880: Rsync basic test get VMA error
+	- RM #96822: Added ring release in neigh_entry DTOR.
+	- Changed prefix_dir to /usr/ so that the installation of libvma will always be under /usr/lib64
+	- Use same resource_allocation_key (=0) for neigh, dst_entry and sockinf(rfs) 
+	  so we don't create more then a single ring per interface (local ip)
+	- Fixed IPoIB L2 address print
+	- Internal logic fixes for clean_obj(), that can cause to segmentation fault
+	- Update README.txt with latest VMA_PARAMETERS
+
+Version 6.3.15-0:
+=================
+Date + Time 2112-10-25
+
+Added:
+	- Support for SLES11 SP1 (RM#96188)
+
+Fixed:  
+	- RM #40904: Now traffic after HA event when running VMA over bond interface over 2 HCAs
+	- RM #96266 /Bgate #1518: Segmentation fault in timer handler in multiple scenarious
+	- RM #95007 / Bgate #1479, RM #95006 / Bgate #1493: No traffic and TCP error when using select with mixed TCP sockets over offloaded and non-offloaded interfaces.  
+	  fds were mistakingly left out of the fd_set.
+  	- Several internal fixes to qp_mngr and cq_mngr
+ 
+Version 6.3.14-0:
+================
+Date + Time 2112-10-24
+
+Removed: Umcast validation logic, since umcast is not relevant anymore
+
+Fixed:
+	- Bgate #1310: Sockperf client hangs when running MC traffic,  throughput or latency tests, with 1000 sockets
+	  Now VMA supports  2000 sockets
+	- RM #93425: Netperf server stuck and gets YO!TIMESUP!
+	- RM #90701: Traffic over more then 2 TCP sockets after HA event from server side will not resume.
+		     Bug in TCP retransmit mechanism
+	- RM #93293, #93425: The handle_timer_expired function was called after deleteing the object.
+	- RM #94263:  valgrand: invalid read after free
+	- RM #51113: epoll with more then 1024 sockets crushes with segfault 
+	- RM #33909: Sockperf over VMA with mixed feed file, traffic stuck in the middle of the run
+		     Bug: Sometimes packet will not be sent becaouse of the wrong lkey
+ 	 -RM #94572: valgrand
+	 -RM #93244: When using libvma.conf to redirect listen socket to OS, traffic goes through VMA
+	 -RM #95058 (Bgate #1501):  Broken TCP beacouse of memory corruption.  	
+
+
+Version 6.3.13-0:
+================
+Date + Time 2112-10-17
+
+Added:
+	- Enabling IPOIB support by default, compatible with MLNX_OFED_LINUX-1.8.6-0.0.8 
+
+Fixed:
+	- Fixing IPOIB support
+
+Version 6.3.12-0:
+================
+Date + Time 2112-10-16
+
+Fixed:
+        - Bgate RM #1235: select() returns more than one socket ready to write even if one socket is monitored by select(). 
+	- Bgate RM #935 where epoll returns with ready events that weren't added in epoll_ctl
+	- Fix race between new TCP connection on server and quick FIN from client: RM #51103, #89799, #89788.
+	- RM #89714 - can't run vma server over vlan interface.
+	- RM #26237 - receiving segmentation fault when running long command line (over 512 bytes)
+	- RM #33104 - ETH UC TCP - no connection when using nonblocked traffic 
+	- RM #89795 - Sockperf over VMA with low polling gives ring VMA error on both sided
+	- RM #89853 - possible invalid free of memory in TCP server
+	- RM #31492 - Add IGMP protocol logging to ring::rx_process_buffer()
+	- RM #30419 - Eth, MC, 2 HCA, sockperf over VMA- client get VMA ERROR
+
+Internal:
+        - Reduce ERROR and WARN log level of ring in cases we handle it properly
+	- Add netlink periodic cache update with notification for neigh entries to support unreported kernel events when  neigh state change directly from STALE to REACHABLE.
+
+Version 6.3.11-0:
+================
+Date + Time 2112-10-09
+
+Added:
+	- Updated new sockperf 2.5.186 that fixes redmine issue #34180
+
+Fixed:
+	- Disabled IPOIB by default
+	- Completed fix for redmine issue #51103 - TCP - 1 server 2 clients recvfrom, server gives core dump
+
+Version 6.3.10-0:
+================
+Date + Time 2112-10-04
+
+Fixed:
+	-Fixed TCP ETH HA
+	-Fixed HA over more then one NIC
+	-Fix for redmine issue #85559 - sfnt-pingpong failed when running the client first
+	-Fix for redmine issue #51103 - TCP - 1 server 2 clients recvfrom, server gives core dump.
+
+Version 6.3.9-0:
+================
+Date + Time 2112-09-27
+
+Added:
+	-Updated new sockperf 2.5.185 that fixes 
+	bug: #34180: Eth, Sockperf over VMA, UL muti-thread, 5 MC&5 TCP sockets, Close server before client gives
+	Segmentation fault
+
+Fixed: 
+	-IB wasn't enabled be default
+	
+Version 6.3.8-0
+================
+Date + Time: 2012-09-27
+Added:
+	- Support for IB.
+Fixes:
+	- Bug #30038:  Eth, TCP, Sockperf over VMA with libvma.conf: server over VMA and client over OS, client failes to connect
+	  The Fix: Changed server to skip checking transport rules for accepted sockets
+	- Bugs: #30057,  #33911: VMA_ERROR on application exit "Error when blocking for next tx buffer"
+	- Fix for Tx buffer cleanup logic 
+	- Bugs #31491, #29983: VMA ERROR "setsockopt(DROP_MEMBERSHIP) failed (errno=99 Cannot assign requested address)" when running VMA
+	  with VMA_IGMP=0 (IGMP disabled) 
+	
+
+Version 6.3.7-0
+===============
+Date + Time: 2012-09-23
+Added:
+	- Added support for MSG_WAITALL flag of tcp recvfrom(). 
+	  Bug fix #31708: sfnt-pingpong failed for message sizes larger then MTU
+	- Update to sockperf_2.5.184
+
+Fixed:
+	- Bug #65022: Fix iomux TCP support
+	- Bug Fix: (redmine #78428, bgate: #1320) : Eth, UC, TCP, sockperf over VMA, server stuck after client's second run
+	- Changing dst_entry prepare_to_send logic to support lockless notify_cb()
+	- Changed fd_collection lock to be recursive do to a potential deadlock on
+	  The Fix: handling fd_collection timer on fd close
+	- Reduce the VMA license + details log output on default run (for RPM
+	  releases)
+	- Bug #85398: Eth, MC, sockperf TP, nonblocked, Client gets Segmentation fault
+	- Bug #33104: ETH UC TCP- no connection when using nonblocked traffic (happened with more than 1 socket).
+	  The Fix: Non blocking socket should return with error and set errno when out of buffer space. 
+	- Bgate Redmine bug #1239 where recvfrom with MSG_DONTWAIT for not offloaded sockets failed
+	
+================
+Date + Time: 2012-09-13
+Added: 
+	- Check for bonding mode. If the mode is
+	  not active-backup or failover_mac!=1, VMA prints warning
+	- Added support for contiguous pages.
+		Changed memory allocation logic:
+
+	  VMA_MEM_ALLOC_TYPE will now replace VMA_HUGETBL:
+          0 - "ANON" -using malloc.
+          1 - "CONTIG" -using contiguous pages.
+          2 - "HUGEPAGE" -using huge pages.
+	  The default is 1 
+
+	- Increase number of CQ in vma_stats to 8 (used to be 2)
+	  Now we can monitor 8 rings (which is 2 ports x 4 NICs) without a wanring
+
+Removed:
+	- Disable ip frag periodic timer until HW/SW supports ip frag offload
+	  in (Rx path)
+Fixed:
+	- Fixed segmentation fault in ring diring HA event
+	- Bgate Redmine bug #1239: recvfrom with MSG_DONTWAIT for not offloaded sockets failed
+	- Bug #47527: Deadlock between dst_entry and route_entry
+	- Fixed bug in iomux - this cause to slight performnce degradation, Ported from VMA_6.1 
+	- Fixed several iperf bugs: #33905 
+	- Fixed global buffer pool thread safe usage
+	- Bgate Redmine bug #1251:  Multicast: sendto() through specific inteface eturns number of sent data 
+	  but actually it doesn't send data
+	- Bug #29996: VMA WARNING: "Buffer CQ owner not found" 
+	- 2~3% PPS improvement in small msg sizes
+	- Bug #51073: Error in case of IPv6 interface
+	- Fixing lock and resource free issues in dst_entry
+	- Bug: #34427: Netperf Server gets segmentation fault
+	- Fixed a lot of valgrind issues that cause to glibc crush
+ 	- Bgate Redmine bug #1305: TCP over non offloaded interface doesn't work
+	- Removed several locks in dest_entry to prevent deadlocks 
+
+Version 6.3.5-0
+=================
+Date + Time: 2012-09-06
+Fixed:
+	- Improved send performance by fixing double_lock occurance in tx flow (ring tx_lock and buffer_pool_tx_lock)
+	- Improved TCP throughput performance
+	- Redmine bug #33866: Eth, Netperf, Server gets VMA WARNING and there is no traffic 
+	- Redmine (bgate) bug #1286: Fixed vma panic when opening more than 32 sockets on the same IP+PORT
+	- bug #31281: No traffic over VLAN-tagged interface
+	- Fixed HA bugs that fix the following Redmine bugs: 
+		#31422: HA event on client side during UDP traffic - the traffic is not comming back 
+		#31421: HA event on server side during UDP traffic - the traffic is going through OS 
+
+
+Version 6.3.4-0
+=================
+Date + Time: 2012-09-03
+Changes:
+	- Added check for port status, if port (IB) status is not active - net_device_val_ib object will not be created
+	- Fixed bug when handling IPv6 address in sockinfo::getsockname(), this is part of fix to bug #30632 (netserver side)
+	- In case of non offloaded device- create_new_entry for net_device returns NULL
+	- Removed handling interface down/up events
+	- Fixed a bug in tx-buffers release when there are still unsent
+	  packets in the qp
+	- Fixed deadlock in ring by changing func all to direct cq funcs
+	- Fixed access to resolve_ring() calls from dst_entry
+	- Fixed vargrind warnings about uninitialized values, mismatched new [] / delete
+	- Unregister sockinfo_tcp timer at destruction
+	- Added lock on send function
+	- Fixed net_device_entry registration to event_handler_manager to enable multiple events
+	- Added ring locks around tx buffers get and release to prevent a missing buffer while draining buffers on ring->restart
+	- Added a direct call to poll_and_process_element through the cq
+	- Added inline flag to the dummy packet in the qp triger_completion_for_all_sent_packets()
+	- Fixed coverity errors
+	- Make p_buffer and sz_buffer constant in mem_buf_desc_t, and add a constructor to initialize them
+	- Move lwip_pbuf initialization from sockinfo_tcp to ring.cpp, avoid changing sz_data because we don't change p_buffer any more
+	- Fixed bug in ring that accurs during  local bonding event
+	- Remove Rx CQ size configuration (Default is now like in Tx which is equal to size of QP).
+	  In new design we have CQ (Rx + Tx) per single QP inside the ring. There is no point having a CQ larger then the QP (RQ or SQ)
+	- Remove qp_mgr locks. All locks are in ring.
+	- Func set_default_lkey(ib_ctx_handler* p_ib_ctx_h) was added to
+	  buffer pool. The purpose is to allow change of lkey by ring in case of local bonding event.
+	- Fixed dead lock in dest-entry - removed lock in route_entry
+	- Added support for tx buffers in case of local bonding event between different devices
+	- Fixed L2_address::compare() function
+	- Fixed bug in UC traffic in case of remote bonging event
+	- Fixed broken tcp flow because of wrong lwip_buffer_tx_lkey
+	- Force TCP data out before going to wait(). Fixes #30632
+	- Bind can be called twice since we silently call bind on connect. Fixes: #30632 
+	- Fixed deadlock in local bonding event in tcp
+	- Added ethertype fiels assignment in ibv_flow_spec struct, before call to ibv_attach_flow()
+
+Version 6.3.3-0
+==================
+Date + Time: 2012-08-21
+Added:
+        - Added verification logic that IPoIB is running in datagram mode on all IB interfaces
+        - Moved TX buffers management from qp_mgr to ring
+        - Added support to interface up/down events
+Fixed:
+        - Fix bug #25890. 
+        - fix bug #30140. 
+        - fix for bugs: # 30110, 30121
+        - Fix IB MC send 
+        - Fix race conditions in dst_entry/neigh send logic
+        - fix: #30608, #30237
+
+
+Version 6.3.1-0
+==================
+Date + Time: 2012-08-02
+Added:
+        - First 6.3 version to QA and verification
+
+
+Version 6.1.8-0
+==================
+Date + Time: 2012-05-14
+Added:
+	- journal.txt added to VMA rpm
+	- Added new parameter VMA_MAX_INLINE (replacing VMA_TX_SGE) it will be
+	  used to set max message size that can be send using inline.
+	  Default 224 bytes
+	- Added new parameter VMA_BF it enables / disables Blue Flame usage of
+	  the ConnectX. The default is on 
+	- Added support for REUSEADDR in TCP socket
+	- Added support for push flag in last packet of TCP segment. (When not
+	  doing so can cause to delays when working with systems that relay on this) 
+	
+Fixed:
+	- Fixed epoll behavior in case we got FIN on one of the TCP sockets
+	- Fixes to TCP socket close logic
+	- Fixed bug: If we accept connection with OS, this doesn't mean we won't accept
+	  the next connection with VMA 
+	- Fixed hang when SO_RCVTIMEO was used :Added a missing taking lock action when SO_RCVTIMEO timed out.
+	- Fixed: ibcm getting deleted while having a rcv sink (TCP only).
+	  Added two protections:
+		1. Deleting ibcm from remove list when adding a sink.
+		2. Confirming there are no sinks just before deleting the ibcm.
+	- Fixed vma_stats prints:  Need to print RX statistics in case that sockinfo queue 
+	  has packets but there was no recv on this socket
+Changed:
+	- VMA will be compiled with debug symbols, by default
+	- New sockperf version 
+	- Removed rx (VMA_RX_SGE)  and tx sge (VMA_TX_SGE) user parameters, rx_sge will be set to 1 and
+	  can't be changed by user any more
+	- Changed default of VMA_RX_BYTE_MIN_LIMIT from 2000000 to 64K
+
+Version 6.1.7-0
+==================
+Date + Time: 2012-04-16
+Added:
+        - Add support for TCP ioctl FIONBIO.
+        - Add Minshall algorithm to tcp_out.
+        - Support udp port mapping - redirecting UDP traffic to other sockets
+          by round-robin - special setsockopt.
+        - HW handles tx checksum for unfragmented traffic.
+Fixed:
+        - fixed alias devices handling.
+        - Thread wakeup cleanup and fixes.
+        - Remove socket from fd collection when it fallbacks to OS(server side)
+        - FIX: vma uses select with more then 1024 fd's, change to poll.
+        - Set lwip mss according to net device mtu.
+        - Remove unneeded locking from iomux.
+
+
+Version 6.1.6-0
+==================
+Date + Time: 2012-03-18
+Added:	- Support setting a different cpuset for vma internal thread
+	
+Fixed:	- TCP bind that was broken in a previous build
+	- Fix missing lock in stat_publisher for select and poll creation 
+
+Version 6.1.5-0
+==================
+Date + Time: 2012-03-15
+Added:	- Support for loopback (still will not be offloaded but
+	  redirected to the OS)
+	- Support SO_RCVTIMEO
+	- Add support for QP per application thread (VMA_QP_LOGIC=2) 
+	  This will work good when combined with VMA_CQ_LOGIC=2
+	  Only relevant for application that have dedicated thread that
+	  handling specific set of sockets  
+	- Option to run without VMA internal thread affinity
+	  (VMA_INTERNAL_THREAD_AFFINITY -1)
+	- Backlogging UDP packets when connection is not ready , instead
+	  of dropping them
+Fixes:	- Minor fixes in statistics
+       	- Setsockopt should fail with bad address in case of NULL optval
+       	- Segfault when calling setsockopt on non connected socket
+	- Several segmentation faults with multithreaded applications
+	- Bug in epoll - number of return fds sometimes was bigger then
+	  the actual number of readt fds
+	- epoll statistics (Weren't initialized right therefore
+	  presented garbage info)
+	- Fix segmentation fault when run application with cset by
+	  adding fall back mode if CPU Thread affinity value is not in the	
+	  cpu-set of the process
+	- Blocking TCP socket should return only when sent all data
+	- Alias route resolution
+	
+
+Version 6.1.4-0
+================
+Date + Time: 2012-02-16
+Added:  - Async Connect/Listen support
+        - Support for TCP listen() on both offloaded and not-offloaded interfaces.
+Fixes:  - Fixed broken M/C support
+Changes:- Removed VMA_TX_IP_CHECKSUM logic
+
+
+Version 6.1.3-0
+================
+Date + Time: 2012-02-07
+Added:
+	- IPoIB support
+	- TCP linger timeout
+Fixes:
+	- Fixed bug occured when VMA was loaded with dlopen (instead of LD_PRELOAD)
+	- Fixed hang on exit. The issue was related to TCP cleanup.
+	- Optimization of UDP TX flow
+Changes:
+	- Optimization of vma_stats mechanism to reduce outliers.
+
+
+Version: 6.1.2-0
+================
+Date + Time: 2012-01-30
+Fixes:
+	- Fixed VMA_RX_POLL=-1 behavior for non-blocking sockets - it should not loop forever
+	- Added rules check in register_as_uc_receiver() when binding to INADDR_ANY. (#4085)
+	- If the first call to listen succeeded then the second call should succeed as well
+	- Fixed: If libvma.conf didn't exist nothing was offloaded. In case that libvma.conf doesn't exist target_family = TRANS_VMA). Means that everything will be offloaded (#5000)
+	- Fixed UDP connect. In case that UDP connect has been called by the app, VMA should search at 5 tuple level first.
+	
+	
+Changes:	
+	- Added support for vma_stats history. When setting VMA_STATS_FILE flag, 
+	  VMA will dump each socket's statistics into a file just before closing that socket
+	- VMA handles L3, LWIP only does TCP - this allows VMA to support
+	  Multiple Default Gateways
+	- Removed igmp logic except for warning message regarding igmpV2 over IB - 
+	  this is not needed with ConnectX3 Flow Steering
+	- Added limited support for SO_RCVTIMEO socket option
+	- Added support for async connect/listen
+	- Added Internal Thread Affinity support
+	- Added support for RDMA_CM_EVENT_ADDR_CHANGE event in UC conn_mgr -
+	  Support for bonding Active / Passive (no mac - default mode) in Ethernet. 
+	- Updated sockperf to 2.5.156
+
+Version: 6.0.7-0
+=================
+Date + Time: 2011-12-19
+Fixes:
+	- Segmentation fault when running multy threaded server with iomux (#4607) 
+	- Fixed several bugs in VMA conf file (libvma.conf) (#4087, #4611)
+Changes:
+	- Update sockperf version to 2.5.149
+
+Version: 6.0.6-0
+=================
+Date + Time: 2011-12-15
+Fixes:
+	- Resolves number of multithreaded issues
+	- Issues with libvma.conf file parsing
+	- Add support of large TCP send (bigger than 64k)
+	- Fix failure related to async connect (handled by os)
+	- Drop packet in case of buffer shortage in TX flow
+Changes:
+	- Add 32 bit support
+	- Increase the default value of VMA_TX_WRE parameter to 16000
+	- Removed 'udp_lat' and 'tcp_lat' from rpm installation
+	- Update sockperf version to 2.5.148
+
+Version: 6.0.5-0
+=================
+Date + Time: 2011-12-08
+Fixes:
+	- Removed VMA panic raised in accept_clone() if parent's socket local address is NULL.
+	- BugFix #3720 - set epoll ready events of a newly added fd.
+	- BugFixes #(4468, 4225,3419) - seg fault during vma process exit (main_destroy()).
+	- Ported the recmmsg/recmsg fix from 4.5.
+
+Changes:
+	
+	- Added support for SUSE (Sles) operating system.
+	- Increased RX_POLL and SELECT_POLL values to 100000. 
+	- Moved from MAC validation license mechanism to Customer details logging.
+	- Added statistics details per epfd on vma_stats.
+	- Reversed umcast logic. Removed preload scripts.
+	- Updated sockperf version to 2.5.146.
+	- Added support for different file systems (xfs, reiserfs, etc ..) when reading license file.
+	 (Also fixes #4276)
+	- Added tcp socket to server test.
+	- Enhanced lock statistics: add (optional) name to each lock, and measure average lock wait time.
+
+Version: 6.0.4-0
+=================
+Date + Time: 2011-11-28
+Fixes:
+	- QP attach/detach error flow - drop lock on error
+	- Removed empty VMA_WARNING in case there is a connection error
+	- Compilation error of VMA on SUSE 11  (#3807)
+	- Compilation error of sockperf on SUSE 11 and RH5 (
+	- Application hang in case that connect has failed (#4007)
+	- ERROR log replaced with DBG log if UDP socket is ruled to use OS instead of VMA (#4052)
+	- Removed unnecessary unlock /lock to p_cq_mgr lock in vma_outpout()
+	  This fixes segfault in several case when stopping application with (#3999)
+	- Moved several internal errors prints to debug 
+	- Fixed application hang in iomuxes (relevant to all) in case it got FIN from the other end (#3721)
+	- Fixed vma_recvfom_zcopy documentation (#612)
+	- Return ENOTCONN instead of ECONNRESET, on attemp to write on a socket which is still is not connected (#4029)
+	- listen without bind / bind to port 0 caused to appl hang (#3996)
+	- getsockname and getpeername functions (#4199)
+
+Changes:
+
+	- Added support for 32bit 
+	- Replace clock_gettime by rdtsc in internal VMA code this improves 
+	  spikes in latency
+	- Added error message  when flow steering option is disabled
+	- VMA license modification process - phase 1:
+		Disabling mac validation in rpm installation
+	- Added implemenation of __read_chk() which is required for netcat support (#4066)
+	- Added implemenation of  __recv_chk() and __recvfrom_chk()	
+	- More scalable  select and poll (#3327)
+
+
+Version: 6.0.3-0
+=================
+Date + Time: 2011-11-09
+Fixes:
+	- Spelling mistake in libvma.conf.
+	- Tcp socket close hangs since it fails to flush the unset queue on exit.
+	- ibv_post_receive() returns with EAGAIN.
+	- An attemp to establsih a connection over not supported (not
+	  ConnectX) interface failed. Added mechanism which fallbacks the connection to OS
+	  if VMA fails to handlle it by itself.
+	- Multi threaded issues that was reproduced with iperf tcp multi
+	  threaded : hangs, errors, segmenation faults...:
+	  a. Change rt_table_handler to be thread safe
+	  b. Change the state of the ibcm to UC_ST_TX_READY and only then empty the unsent queue
+	  c. Put under lwip lock new pcb creation
+	  d. Add wakeup() to accept and conect cb
+	 - Segmentation fault which occurs when application is closed
+	   while it receives traffic
+	 -VMA ERROR when running application over multiple interfaces / vlan
+	  interface 
+	 -Deadlock that was reproduced by running sockperf pp test with 50 sockets 
+	  By remove unlock and lock of lwip lock in vma_output()
+
+Changes:
+	- Incsreased timeout of rdma_cm to 3500 to allow kernel
+	  retransmission mechanism to be carried out before rdma_cm raises an error
+          event, for example to resend an ARP query
+
+Version: 6.0.2-0
+=================
+Date + Time: 2011-10-27
+Changes:
+	- Added: progress engine logic, which allows VMA to progress the stack
+	  even when no context is provided by the application.
+	- BugFix: Fixed segfault occured on epoll notification attemp 
+	  done for a closed socket.
+	- BugFix: Fixed segmentation fault occured in infinite polling
+	  mode.
+	- BugFix: When VMA fails to read the configuration file (libvma.conf)
+ 	  it just prints a warning message instead of aborting.
+	
+
+=================
+Date + Time: 2011-10-18
+Changes:
+	- Added Poll support.
+	- Added Vlan and alias support.
+	- Added new Epoll infrastructure:
+		1. Edge triggering support.
+		2. One shot support.
+		3. Better scalability for larger numbers of file descriptors.
+		4. Fairness between registered sockets when receiving events.
+		5. Epoll_create1() support.
+	- Added OS Eagain support to vma_stats.
+	- Added support for setsockopt SO_RCVBUF.
+	- Added ttl support in TX according to user request.
+	- Added possibility to change qp lock (spin,mutex) with env flag.
+	- Disabled CQ drain thread by default.
+	- Changed epoll_create() size to match userspace max.
+	- Changed wakeup mechanism for TCP.
+	- Updated sockperf 2.5.137.
+	- BugFix: Fixed bug when enlarging message size using INLINE.
+	- BugFix: Fixed segfault caused by calling epoll (NULL,NULL,NULL).
+	- BugFix: Fixed bug when posting a SR without any s/g to a RAW QP.
+	- BugFix: Close stderr on child process.
+	- BugFix: Fixed segfault in select when readfds = NULL.
+	- BugFix: VMA warning regarding IGMP version of aliased/Vlan interface.
+
+Version: 6.0.0-0
+=================
+Date + Time: 2011-09-19
+Added:
+     - First VMA version which supports the new flow steering over CX3.
+     - Alias interface support.
+     
+ 
+Version: 5.0.9-0
+=================
+Date + Time: 2011-06-19
+Changes:
+	- Added: a new environment variable - VMA_CLOSE_ON_DUP2.
+          This will treat all of the dup2() calls as close calls, internally. 
+	  This ONLY deals with the case of using dup2() for closing files.
+          Enabled by default.
+	- BugFix: Fixed issue which caused VMA to drop in some scenarios the 
+	  ARP packets.	
+	- BugFix: When VMA is interrupted on accept() call instead of raising
+	  an abort it sets the errno to EINTR and returns with -1.
+	- BugFix: Fixed segfault occured on TCP listen socket close().
+
+Version: 5.0.8-0
+=================
+Date + Time: 2011-06-05
+Changes:
+	- Added: Throughput enhacment.
+	- Changed: sockperf version. The version was upgraded from 2.5.30
+	  to 2.5.58- this new version resolves the TCP partial send bug.
+	- BugFix: Fixed core dump which occured on lwip's buffers allocation 
+	  failure.
+	- BugFix: Before closing the socket VMA sends all the unsent segments,
+	  this mechanism allows VMA to send the FIN and to close the connection 
+	  properly.
+	- BugFix: Fixed bug in CQ statistics managment.
+
+Version: 5.0.7-0
+=================
+Date + Time: 2011-05-31
+Changes:
+	- Added: New benchmark utility for measuring performance- sockperf,
+	  which will be installed as part of the VMA package.	 
+	- Added: New VMA environmen parameter: VMA_STATS_FD_NUM- which allows
+          to modify the max number of file descriptors which are monitored by
+          VMA statistics.
+	- BugFix: Fixed bug in sendmsg() socket call.
+	- BugFix: Fixed failure which has occured when an applciation called to listen
+	  socket call multiple times, from the same socket.
+	- Changed: Default multicast TTL fomr 32 to 64.
+
+Version: 5.0.6-0
+=================
+Date + Time: 2011-04-14
+Changes:
+        - BugFix: [#107131, #107080, #106197] We have enlarged the VMA buffers
+	  pools in order to avoid core dumps in throughput tests with multiple
+ 	  sockets.
+	- BugFix: [#106593] Enabled periodic CQ drain mechanism in VMA which
+	  wake ups each 10 msecs and polls the CQ- this allows VMA to progress
+	  the stack even when applciation doesn't call to recive.
+	- BugFix: Setting the port to INPORT_ANY while calling to rdma_bind
+	  has resolved the failure of calling to rdma_bind multiple times.
+	- BugFix: Fixed issue which caused to segmentation fault on application
+	  attemp to monitor more than 50 sockets by means of epoll mechanism.
+	- BugFix: Fixed bug related to VMA internal hash table cache
+	  managment.
+	- Added: Zero copy API support for UDP socket.
+
+
+Version: 5.0.5-0
+=================
+Date + Time: 2011-04-05
+Version: 5.0.5-0
+	- BugFix: [#106055] Fixed issue that caused to, application which
+	  listens in the same time to kernel's and VMA virtual interfaces, 
+	  to hang.
+	- BugFix: Fix of the epoll event mask validation, which VMA performs
+	  in epoll_ctl(EPOLL_CTL_MOD) function.
+	- BugFix: [#105923] Fixed UDP connect flow.
+	- BugFix: [#104678, 104511] Fix in the the mechanism which queries the
+	  interface bonding configuration.
+	- BugFix: [#106027, 105664] Forked VMA image havent inherited the
+	  LD_PRELOAD environment parameter of its parent, because it was
+	  unsetted and never reconstructed in parent's VMA constructor.
+	  VMA was modified to restore the LD_PRELOAD environment parameter.
+	- BugFix: [#104688] Fix of VMA socket's multicast ingress/outgress intreface 
+          update done by means of socket calls (setsockopts).
+	- BugFix: [#1046107] VMA was modified to put the VMA interface IP
+	  and MAC in transmitted, over its virtual inerface, multicast packet, 
+          instead of IP and MAC of the "base" interface.
+	
+
+=================
+Date + Time: 2011-03-27
+Changes:
+	- Added:   Support of UDP offloading policy configuration, in the
+	           libvma.comf file (this is relevant both for unicast &
+                   multicast).
+	- Added:   Initial VMA TCP statistic managment.
+	- Changes: VMA_UC_OFFLOAD environment parameter was removed. VMA will
+	           offload the UDP unicast traffic by default. VMA offload policy 
+                   can be configured now by means of VMA configuration file.
+	- Changes: Merge of various commits from VMA 4.5 branch.
+	- BugFix:  [#105612, 104750] Call to select/epoll has caused to segmentation
+	           fault.Correction of, the sanity check in select flow and the initialization 
+                   of the VMA listen socket on listen call, has resolved the issue.
+	- BugFix:  [#105371] Bind of UDP socket to local VMA interface was fixed.
+	- BugFix:  [#104682] Fix of the rx multicast statistic counters managment.	
+
+Version: 5.0.3-1
+=================
+Date + Time: 2011-03-20
+Changes:
+        - BugFix: [Bug #104540] Various error/warning message printed by vma on
+                   startup/exit were removed.
+	- Changed: Documentation in libvma.conf was adjusted to the new
+	           configure file format.
+
+Version: 5.0.3-0
+=================
+Date + Time: 2011-03-16
+Changes:
+	- Added:   Full UDP unicast support- both, the transmit and the receive path, are
+	           offloaded by VMA.
+	- Added:   Support of asyncronous TCP connect.
+	- Added:   Support of TCP connect on already bounded TCP socket.
+	- Added:   Default gateway support in TCP and UC UDP flows.
+	- Added:   Epoll support in TCP.
+	- Added:   VMA rpm installs the libvma.conf file in /etc/.
+	- Added:   Environment parameter- VMA_CONFIG_FILE, which allows
+	           migration of the libvma.conf.
+	- Changed: Enhancment of the VMA buffer managment mechanism.
+	- Changes: Enhancment of VMA config file format.
+	- BugFix:  A number of fixes related to TCP connection
+	           establishment/termination.
+
+Version: 5.0.2-0
+=================
+Date + Time: 2011-02-17
+Changes:
+	- BugFix: Transmition of a big stream burst caused to segmentation fault.
+		  Fix of the stream offset calculation resolved the issue.
+
+Version: 5.0.1-0
+=================
+Date + Time: 2011-02-14
+Changes:
+	Work with vanilla OFED-1.5.3-rc3 firmware 2.8.0
+	Preformance optimization:
+		- inline + blueflame
+		- hw checksum ofload
+		- tcp stack performance optimizations
+	Better support for multithreaded apps:
+		- iperf (accept thread/worker thread)
+		- send/recv in separate threads
+	Memory footprint reduced to about 600k
+	License check is does not require python anymore
+	tcp_lat uses rdtsc to get more precise latency measurements
+	Various bugfixes	
+
+Version: 5.0.0-0
+================
+Date + Time:  2011-01-16
+SVN Revision: 2653
+
+Changes:
+        Added:  - First TCP Demo
+

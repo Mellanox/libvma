@@ -1,0 +1,186 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+/* Support configuring the MSS and TX buffer pool in runtime.  */
+
+--- orig_lwip/arch/lwipopts.h	2013-03-10 12:47:28.512573000 +0200
++++ lwip/arch/lwipopts.h	2013-03-10 11:04:29.758110000 +0200
+@@ -208,7 +208,8 @@
+  * designed to accomodate single full size TCP frame in one pbuf, including
+  * TCP_MSS, IP header, and link header.
+  */
+-#define PBUF_POOL_BUFSIZE               LWIP_MEM_ALIGN_SIZE(TCP_MSS+40+PBUF_LINK_HLEN)
++//#define PBUF_POOL_BUFSIZE               LWIP_MEM_ALIGN_SIZE(TCP_MSS+40+PBUF_LINK_HLEN)
++#define PBUF_POOL_BUFSIZE               LWIP_MEM_ALIGN_SIZE(CONST_TCP_MSS+40+PBUF_LINK_HLEN)
+ //#define PBUF_POOL_BUFSIZE              	2048 
+ 
+ 
+@@ -414,8 +415,12 @@
+  * when opening a connection. For the transmit size, this MSS sets
+  * an upper limit on the MSS advertised by the remote host.
+  */
+-#define TCP_MSS                         1460
+-
++/*
++ * If you don't want to use lwip_tcp_mss for setting the mss during runtime, define TCP_MSS to the DEFAULT_TCP_MSS
++ */
++#define CONST_TCP_MSS 		1460
++#define TCP_MSS                         (lwip_tcp_mss)
++//#define TCP_MSS 			CONST_TCP_MSS 
+ 
+ /**
+  * TCP_SND_BUF: TCP sender buffer space (bytes).
+--- orig_lwip/arch/lwippools.h	2013-03-10 12:47:28.482566000 +0200
++++ lwip/arch/lwippools.h	2013-03-08 15:59:49.664741000 +0200
+@@ -6,8 +6,13 @@
+  * LWIP_MALLOC_MEMPOOL(number_elements, element_size)
+  */
+ #if MEM_USE_POOLS
++#ifndef CUSTOM_POOL_SIZE
++#define CUSTOM_POOL_SIZE 1552
++#define CUSTOM_POOL_NUM  130000
++#define CUSTOM_POOL_NAME MEMP_POOL_##CUSTOM_POOL_SIZE
++#endif
+ LWIP_MALLOC_MEMPOOL_START
+-LWIP_MALLOC_MEMPOOL(130000, 1552) // was 1544: we had to increase it to support tot_len in pbuf of 32 bit (instead of 16); TODO: try optimize size!
++LWIP_MALLOC_MEMPOOL(CUSTOM_POOL_NUM, CUSTOM_POOL_SIZE) // was 1544: we had to increase it to support tot_len in pbuf of 32 bit (instead of 16); TODO: try optimize size!
+ LWIP_MALLOC_MEMPOOL_END
+ #endif /* MEM_USE_POOLS */
+ 
+--- orig_lwip/src/core/init.c	2013-03-10 12:47:28.483569000 +0200
++++ lwip/src/core/init.c	2013-03-09 19:13:44.617372000 +0200
+@@ -103,14 +103,14 @@
+ #if (LWIP_TCP && (TCP_WND > 0xffffffff))
+   #error "If you want to use TCP, TCP_WND must fit in an u32_t, so, you have to reduce it in your lwipopts.h"
+ #endif
+-#if (LWIP_TCP && (TCP_SND_QUEUELEN > 0xffffffff))
++#if (LWIP_TCP && (CONST_TCP_SND_QUEUELEN > 0xffffffff))
+   #error "If you want to use TCP, TCP_SND_QUEUELEN must fit in an u32_t, so, you have to reduce it in your lwipopts.h"
+ #endif
+ #else
+ #if (LWIP_TCP && (TCP_WND > 0xffff))
+   #error "If you want to use TCP, TCP_WND must fit in an u16_t, so, you have to reduce it in your lwipopts.h"
+ #endif
+-#if (LWIP_TCP && (TCP_SND_QUEUELEN > 0xffff))
++#if (LWIP_TCP && (CONST_TCP_SND_QUEUELEN > 0xffff))
+   #error "If you want to use TCP, TCP_SND_QUEUELEN must fit in an u16_t, so, you have to reduce it in your lwipopts.h"
+ #endif
+ #endif //TCP_RCVSCALE
+--- orig_lwip/src/core/memp.c	2013-03-10 12:47:28.459570000 +0200
++++ lwip/src/core/memp.c	2013-03-10 10:35:08.023078000 +0200
+@@ -128,7 +128,7 @@ static struct memp *memp_tab[MEMP_MAX];
+ #if !MEM_USE_POOLS && !MEMP_MEM_MALLOC
+ static
+ #endif
+-const u16_t memp_sizes[MEMP_MAX] = {
++u16_t memp_sizes[MEMP_MAX] = {
+ #define LWIP_MEMPOOL(name,num,size,desc)  LWIP_MEM_ALIGN_SIZE(size),
+ #include "lwip/memp_std.h"
+ };
+@@ -136,7 +136,7 @@ const u16_t memp_sizes[MEMP_MAX] = {
+ #if !MEMP_MEM_MALLOC /* don't build if not configured for use in lwipopts.h */
+ 
+ /** This array holds the number of elements in each pool. */
+-static const u32_t memp_num[MEMP_MAX] = {
++static u32_t memp_num[MEMP_MAX] = {
+ #define LWIP_MEMPOOL(name,num,size,desc)  (num),
+ #include "lwip/memp_std.h"
+ };
+@@ -494,6 +494,14 @@ if (type == MEMP_TCP_PCB)
+  pthread_mutex_unlock(&memory_pool_lock);
+ }
+ 
++void
++memp_update_custom_pool(u32_t num, u16_t size)
++{
++	memp_sizes[CUSTOM_POOL_NAME] = LWIP_MEM_ALIGN_SIZE((size + sizeof(struct memp_malloc_helper)));
++	memp_num[CUSTOM_POOL_NAME] = num;
++	memp_size = memp_size - ((CUSTOM_POOL_NUM) * (MEMP_SIZE + MEMP_ALIGN_SIZE(CUSTOM_POOL_SIZE))) + ((num) * (MEMP_SIZE + MEMP_ALIGN_SIZE(size + sizeof(struct memp_malloc_helper))));
++}
++
+ size_t
+ memp_get_pool_size(void)
+ {
+--- orig_lwip/src/core/tcp.c	2013-03-10 12:47:28.503560000 +0200
++++ lwip/src/core/tcp.c	2013-03-09 20:30:51.860859000 +0200
+@@ -69,6 +69,8 @@ const char * const tcp_state_str[] = {
+   "TIME_WAIT"   
+ };
+ 
++u16_t lwip_tcp_mss = CONST_TCP_MSS;
++
+ int32_t enable_wnd_scale = 0;
+ u32_t rcv_wnd_scale = 0;
+ 
+--- orig_lwip/src/core/tcp_out.c	2013-03-10 12:47:28.509558000 +0200
++++ lwip/src/core/tcp_out.c	2013-03-10 11:45:55.278237000 +0200
+@@ -268,7 +268,7 @@ tcp_pbuf_prealloc(pbuf_layer layer, u16_
+          (!first_seg ||
+           pcb->unsent != NULL ||
+           pcb->unacked != NULL))) {
+-      alloc = LWIP_MIN(max_length, LWIP_MEM_ALIGN_SIZE(length + TCP_OVERSIZE));
++      alloc = LWIP_MIN(max_length, LWIP_MEM_ALIGN_SIZE(length + TCP_OVERSIZE_VAL));
+     }
+   }
+ #endif /* LWIP_NETIF_TX_SINGLE_PBUF */
+--- orig_lwip/src/include/lwip/memp.h	2013-03-10 12:47:28.461557000 +0200
++++ lwip/src/include/lwip/memp.h	2013-03-08 16:08:15.918139000 +0200
+@@ -77,7 +77,7 @@ typedef enum {
+ #endif /* MEM_USE_POOLS */
+ 
+ #if MEMP_MEM_MALLOC || MEM_USE_POOLS
+-extern const u16_t memp_sizes[MEMP_MAX];
++extern u16_t memp_sizes[MEMP_MAX];
+ #endif /* MEMP_MEM_MALLOC || MEM_USE_POOLS */
+ 
+ #if MEMP_MEM_MALLOC
+@@ -108,6 +108,7 @@ void *memp_malloc(memp_t type);
+ #endif
+ void  memp_free(memp_t type, void *mem);
+ 
++void memp_update_custom_pool(u32_t num, u16_t size);
+ size_t memp_get_pool_size(void);
+ u8_t *memp_get_pool_start(void);
+ void  memp_set_pool_start(void * addr);
+--- orig_lwip/src/include/lwip/opt.h	2013-03-10 12:47:28.495567000 +0200
++++ lwip/src/include/lwip/opt.h	2013-03-10 11:26:18.163406000 +0200
+@@ -961,7 +961,8 @@
+  * as much as (2 * TCP_SND_BUF/TCP_MSS) for things to work.
+  */
+ #ifndef TCP_SND_QUEUELEN
+-#define TCP_SND_QUEUELEN                (4 * (TCP_SND_BUF)/(TCP_MSS))
++#define CONST_TCP_SND_QUEUELEN                (4 * (TCP_SND_BUF)/(CONST_TCP_MSS))
++#define TCP_SND_QUEUELEN                	(4 * (TCP_SND_BUF)/(TCP_MSS))
+ #endif
+ 
+ /**
+@@ -1013,7 +1014,8 @@
+  * TCP_MSS/4: Try to create 4 fragments or less per TCP packet.
+  */
+ #ifndef TCP_OVERSIZE
+-#define TCP_OVERSIZE                    TCP_MSS
++#define TCP_OVERSIZE                    CONST_TCP_MSS
++#define TCP_OVERSIZE_VAL		TCP_MSS
+ #endif
+ 
+ /**
+--- orig_lwip/src/include/lwip/tcp.h	2013-03-10 12:47:28.498566000 +0200
++++ lwip/src/include/lwip/tcp.h	2013-03-09 20:12:54.074230000 +0200
+@@ -47,6 +47,8 @@
+ extern "C" {
+ #endif
+ 
++extern u16_t lwip_tcp_mss;
++
+ #if LWIP_3RD_PARTY_L3
+ typedef err_t (*ip_output_fn)(struct pbuf *p, void* p_conn, int is_rexmit);
+           

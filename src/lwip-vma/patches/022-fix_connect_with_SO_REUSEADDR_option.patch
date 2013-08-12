@@ -1,0 +1,30 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+
+This patch fixes a bug in connect() when SO_REUSEADDR is enabled.
+When calling to bind() before connect() the pcb is added the bounded list.
+when SO_REUSEADDR is enabled we confirm that the 5 tuple is unique.
+because the pcb is in the bounded list we will always find a match (same pcb) and return ERR_USE.
+
+--- lwip.orig/src/lwip/src/core/tcp.c	2012-05-09 15:46:26.000000000 +0300
++++ lwip/src/core/tcp.c			2012-05-10 11:19:14.248001000 +0300
+@@ -687,7 +687,8 @@ tcp_connect(struct tcp_pcb *pcb, ip_addr
+     /* Don't check listen PCBs, check bound-, active- and TIME-WAIT PCBs. */
+     for (i = 1; i < NUM_TCP_PCB_LISTS; i++) {
+       for(cpcb = *tcp_pcb_lists[i]; cpcb != NULL; cpcb = cpcb->next) {
+-        if ((cpcb->local_port == pcb->local_port) &&
++        if ((cpcb != pcb) &&
++        	(cpcb->local_port == pcb->local_port) &&
+             (cpcb->remote_port == port) &&
+             ip_addr_cmp(&cpcb->local_ip, &pcb->local_ip) &&
+             ip_addr_cmp(&cpcb->remote_ip, ipaddr)) {

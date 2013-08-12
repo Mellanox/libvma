@@ -1,0 +1,69 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+diff -ru lwip.orig/src/core/tcp.c lwip/src/core/tcp.c
+--- lwip.orig/src/core/tcp.c	2012-04-02 06:43:28.000000000 +0300
++++ lwip/src/core/tcp.c	2012-04-02 06:43:34.000000000 +0300
+@@ -1225,6 +1225,8 @@
+     pcb->lastack = iss;
+     pcb->snd_lbb = iss;
+     pcb->tmr = tcp_ticks;
++    pcb->snd_sml_snt = 0;
++    pcb->snd_sml_add = 0;
+
+     pcb->polltmr = 0;
+
+diff -ru lwip.orig/src/core/tcp_out.c lwip/src/core/tcp_out.c
+--- lwip.orig/src/core/tcp_out.c	2012-04-02 06:43:28.000000000 +0300
++++ lwip/src/core/tcp_out.c	2012-04-02 06:43:34.000000000 +0300
+@@ -382,6 +382,10 @@
+ #endif /* TCP_CHECKSUM_ON_COPY */
+   err_t err;
+
++  int byte_queued = pcb->snd_nxt - pcb->lastack;
++  if ( len < pcb->mss)
++          pcb->snd_sml_add = (pcb->unacked ? pcb->unacked->len : 0) + byte_queued;
++
+ #if LWIP_NETIF_TX_SINGLE_PBUF
+   /* Always copy to try to create single pbufs for TX */
+   apiflags |= TCP_WRITE_FLAG_COPY;
+@@ -984,8 +988,16 @@
+      */
+     if((tcp_do_output_nagle(pcb) == 0) &&
+       ((pcb->flags & (TF_NAGLEMEMERR | TF_FIN)) == 0)){
+-      break;
++            if ( pcb->snd_sml_snt > (pcb->unacked ? pcb->unacked->len : 0) ) {
++                    break;
++            }
++            else {
++                    if ( (seg->next ? seg->next->len : 0) + seg->len <= pcb->snd_sml_add ) {
++                            pcb->snd_sml_snt = pcb->snd_sml_add;
++                    }
++            }
+     }
++
+ #if TCP_CWND_DEBUG
+     LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_output: snd_wnd %"U16_F", cwnd %"U16_F", wnd %"U32_F", effwnd %"U32_F", seq %"U32_F", ack %"U32_F", i %"S16_F"\n",
+                             pcb->snd_wnd, pcb->cwnd, wnd,
+diff -ru lwip.orig/src/include/lwip/tcp.h lwip/src/include/lwip/tcp.h
+--- lwip.orig/src/include/lwip/tcp.h	2012-04-02 06:43:28.000000000 +0300
++++ lwip/src/include/lwip/tcp.h	2012-04-02 06:43:34.000000000 +0300
+@@ -242,6 +242,9 @@
+   u32_t snd_buf;   /* Available buffer space for sending (in bytes). */
+   u32_t max_snd_buff;
+
++  u32_t snd_sml_snt; /* maintain state for minshall's algorithm */
++  u32_t snd_sml_add; /* maintain state for minshall's algorithm */
++
+ #define TCP_SNDQUEUELEN_OVERFLOW (0xffff-3)
+   u16_t snd_queuelen; /* Available buffer space for sending (in tcp_segs). */
+

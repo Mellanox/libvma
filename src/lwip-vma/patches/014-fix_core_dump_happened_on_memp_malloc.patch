@@ -1,0 +1,25 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+
+This patch fixes the core dump which occured on memory allocation failure.
+
+--- lwip.orig/src/core/memp.c	2011-06-05 13:11:19.520564000 +0300
++++ lwip/src/core/memp.c	2011-06-05 16:04:01.743410000 +0300
+@@ -470,7 +470,6 @@
+     LWIP_DEBUGF(MEMP_DEBUG | LWIP_DBG_LEVEL_SERIOUS, ("memp_malloc: out of memory in pool %s\n", memp_desc[type]));
+     MEMP_STATS_INC(err, type);
+ 	stats_display();
+-	abort();
+   }
+ 
+   SYS_ARCH_UNPROTECT(old_level);

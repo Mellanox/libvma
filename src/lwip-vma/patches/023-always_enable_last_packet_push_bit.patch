@@ -1,0 +1,11 @@
+--- a/src/core/tcp_out.c	2012-05-14 10:22:39.904591000 +0300
++++ b/src/core/tcp_out.c	2012-05-14 10:24:26.667492000 +0300
+@@ -704,7 +704,7 @@
+   }
+ 
+   /* Set the PSH flag in the last segment that we enqueued. */
+-  if (seg != NULL && seg->tcphdr != NULL && ((apiflags & TCP_WRITE_FLAG_MORE)==0)) {
++  if (seg != NULL && seg->tcphdr != NULL) {
+     TCPH_SET_FLAG(seg->tcphdr, TCP_PSH);
+   }
+ 

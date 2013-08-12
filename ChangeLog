@@ -1,0 +1,10 @@
+2008-08-22  AlexR
+	* Add mce_stats and get all ongoing MCE trafic information
+
+2008-07-09  AlexR
+
+	* Release version 2.0.0.
+	* All new objects: sock-redirct, sockinfo, ib_conn_mgr, qp_mgr, cq_mgr
+
+
+

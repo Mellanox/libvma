@@ -1,0 +1,71 @@
+# ring::rx_process_buffer casts a struct in MC flow which holds 2 members, the first of size 4
+# and the seconf of size 2, but the compiler adds 2 more bytes so the struct size is 8 and the
+# 2 bytes added as padding by the compiler are considered uninitialized by valgrind
+{
+   ring rx process buffer uninitialized value of size 8
+   Memcheck:Value8
+   fun:_ZN4ring17rx_process_bufferEP14mem_buf_desc_t16transport_type_tPv
+}
+
+{
+   epoll_ctl_event_union
+   Memcheck:Param
+   epoll_ctl(event)
+   fun:epoll_ctl
+}
+
+{
+   alic_vma_license_check_library
+   Memcheck:Leak
+   fun:malloc
+   fun:alic_sys_malloc
+   fun:alic_sys_strdup
+   fun:__xml2data
+   fun:__vlicense_read
+   fun:alic_layout_read
+   fun:alic_lic2data
+   fun:vma_lic_check_dir
+   fun:_Z13check_licensev
+   fun:main_init
+   obj:/volt/alexr/development/repos_enterprise/mce/branches/vma_6.3/src/vma/.libs/libvma.so.6.3.5
+   obj:/volt/alexr/development/repos_enterprise/mce/branches/vma_6.3/src/vma/.libs/libvma.so.6.3.5
+}
+
+{
+   rdma_bind_addr
+   Memcheck:Param
+   write(buf)
+   obj:/lib64/libpthread-2.12.so
+   fun:write
+   fun:rdma_bind_addr
+}
+
+{
+   rdma_create_qp
+   Memcheck:Param
+   write(buf)
+   obj:/lib64/libpthread-2.12.so
+   fun:ibv_cmd_modify_qp
+   fun:mlx4_modify_qp
+   fun:ibv_modify_qp@@IBVERBS_1.1
+   fun:rdma_create_qp
+}
+
+{
+   ibv_cmd_attach_flow
+   Memcheck:Param
+   write(buf)
+   obj:/lib64/libpthread-2.12.so
+   fun:write
+   fun:ibv_cmd_attach_flow
+}
+
+{
+   ibv_cmd_detach_flow
+   Memcheck:Param
+   write(buf)
+   obj:/lib64/libpthread-2.12.so
+   fun:write
+   fun:ibv_cmd_detach_flow
+}
+

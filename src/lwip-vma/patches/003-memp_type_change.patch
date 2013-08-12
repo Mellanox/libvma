@@ -1,0 +1,121 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+
+added support to >65K blocks to lwip mempool allocator.
+Basically switch from u16 to u32 data type.
+Use err counter to count ‘memp_free’ calls in addition to errors. (debugging hack)
+
+Index: lwip/src/core/memp.c
+===================================================================
+--- lwip.orig/src/core/memp.c	2011-03-03 18:47:51.000000000 +0200
++++ lwip/src/core/memp.c	2011-03-03 18:24:06.481914000 +0200
+@@ -134,7 +134,7 @@ const u16_t memp_sizes[MEMP_MAX] = {
+ #if !MEMP_MEM_MALLOC /* don't build if not configured for use in lwipopts.h */
+ 
+ /** This array holds the number of elements in each pool. */
+-static const u16_t memp_num[MEMP_MAX] = {
++static const u32_t memp_num[MEMP_MAX] = {
+ #define LWIP_MEMPOOL(name,num,size,desc)  (num),
+ #include "lwip/memp_std.h"
+ };
+@@ -181,7 +181,7 @@ static u8_t memp_memory[MEM_ALIGNMENT -
+ static int
+ memp_sanity(void)
+ {
+-  s16_t i, c;
++  s32_t i, c;
+   struct memp *m, *n;
+ 
+   for (i = 0; i < MEMP_MAX; i++) {
+@@ -215,7 +215,7 @@ static const char * memp_overflow_names[
+ static void
+ memp_overflow_check_element_overflow(struct memp *p, u16_t memp_type)
+ {
+-  u16_t k;
++  u32_t k;
+   u8_t *m;
+ #if MEMP_SANITY_REGION_AFTER_ALIGNED > 0
+   m = (u8_t*)p + MEMP_SIZE + memp_sizes[memp_type];
+@@ -248,7 +248,7 @@ memp_overflow_check_element_overflow(str
+ static void
+ memp_overflow_check_element_underflow(struct memp *p, u16_t memp_type)
+ {
+-  u16_t k;
++  u32_t k;
+   u8_t *m;
+ #if MEMP_SANITY_REGION_BEFORE_ALIGNED > 0
+   m = (u8_t*)p + MEMP_SIZE - MEMP_SANITY_REGION_BEFORE_ALIGNED;
+@@ -279,7 +279,7 @@ memp_overflow_check_element_underflow(st
+ static void
+ memp_overflow_check_all(void)
+ {
+-  u16_t i, j;
++  u32_t i, j;
+   struct memp *p;
+ 
+   p = (struct memp *)LWIP_MEM_ALIGN(memp_memory);
+@@ -306,7 +306,7 @@ memp_overflow_check_all(void)
+ static void
+ memp_overflow_init(void)
+ {
+-  u16_t i, j;
++  u32_t i, j;
+   struct memp *p;
+   u8_t *m;
+ 
+@@ -337,7 +337,7 @@ void
+ memp_init(void)
+ {
+   struct memp *memp;
+-  u16_t i, j;
++  u32_t i, j;
+ 
+   for (i = 0; i < MEMP_MAX; ++i) {
+     MEMP_STATS_AVAIL(used, i, 0);
+@@ -413,10 +413,16 @@ memp_malloc_fn(memp_t type, const char*
+     MEMP_STATS_INC_USED(used, type);
+     LWIP_ASSERT("memp_malloc: memp properly aligned",
+                 ((mem_ptr_t)memp % MEM_ALIGNMENT) == 0);
++if (type == MEMP_TCP_PCB)
++	LWIP_PLATFORM_DIAG(("%s:%d alloc cb %p\n", __FUNCTION__, __LINE__, memp));
+     memp = (struct memp*)(void *)((u8_t*)memp + MEMP_SIZE);
++if (type == MEMP_TCP_PCB)
++	LWIP_PLATFORM_DIAG(("%s:%d alloc return %p\n", __FUNCTION__, __LINE__, memp));
+   } else {
+     LWIP_DEBUGF(MEMP_DEBUG | LWIP_DBG_LEVEL_SERIOUS, ("memp_malloc: out of memory in pool %s\n", memp_desc[type]));
+     MEMP_STATS_INC(err, type);
++	stats_display();
++	abort();
+   }
+ 
+   SYS_ARCH_UNPROTECT(old_level);
+@@ -442,7 +448,11 @@ memp_free(memp_t type, void *mem)
+   LWIP_ASSERT("memp_free: mem properly aligned",
+                 ((mem_ptr_t)mem % MEM_ALIGNMENT) == 0);
+ 
++if (type == MEMP_TCP_PCB)
++	LWIP_PLATFORM_DIAG(("%s:%d alloc free %p\n", __FUNCTION__, __LINE__, mem));
+   memp = (struct memp *)(void *)((u8_t*)mem - MEMP_SIZE);
++if (type == MEMP_TCP_PCB)
++	LWIP_PLATFORM_DIAG(("%s:%d alloc cb %p\n", __FUNCTION__, __LINE__, memp));
+ 
+   SYS_ARCH_PROTECT(old_level);
+ #if MEMP_OVERFLOW_CHECK
+@@ -455,6 +465,7 @@ memp_free(memp_t type, void *mem)
+ #endif /* MEMP_OVERFLOW_CHECK */
+ 
+   MEMP_STATS_DEC(used, type); 
++  MEMP_STATS_INC(err, type);
+   
+   memp->next = memp_tab[type]; 
+   memp_tab[type] = memp;

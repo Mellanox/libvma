@@ -1,0 +1,26 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+
+This patch enables the "try bigger pool" logic in lwip.
+
+--- lwip.orig/src/include/lwip/opt.h	2010-07-16 17:10:57.000000000 +0300
++++ lwip/src/include/lwip/opt.h	2011-06-05 14:27:47.123371000 +0300
+@@ -177,7 +177,7 @@
+  * bigger pool - WARNING: THIS MIGHT WASTE MEMORY but it can make a system more
+  * reliable. */
+ #ifndef MEM_USE_POOLS_TRY_BIGGER_POOL
+-#define MEM_USE_POOLS_TRY_BIGGER_POOL   0
++#define MEM_USE_POOLS_TRY_BIGGER_POOL   1
+ #endif
+ 
+ /**

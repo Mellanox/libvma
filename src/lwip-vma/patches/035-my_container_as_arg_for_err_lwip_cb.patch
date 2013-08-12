@@ -1,0 +1,58 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+/* 
+*  The callback argument of a new child pcb should point to the parent pcb (listen socket) until the child is 
+*  independent. However, if an error occured in the child connection, we should pass the error to the child
+*  and not to the parent. Therfore, pass my_container to err_lwip_cb instead of callback_arg.
+*/
+
+--- orig_lwip/src/core/tcp.c	2013-03-10 13:16:40.121895000 +0200
++++ lwip/src/core/tcp.c	2013-03-12 14:02:03.151435000 +0200
+@@ -338,7 +338,7 @@ tcp_abandon(struct tcp_pcb *pcb, int res
+ #if LWIP_CALLBACK_API
+     errf = pcb->errf;
+ #endif /* LWIP_CALLBACK_API */
+-    errf_arg = pcb->callback_arg;
++    errf_arg = pcb->my_container;
+     tcp_pcb_remove(pcb);
+     if (pcb->unacked != NULL) {
+       tcp_segs_free(pcb->unacked);
+@@ -822,7 +822,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
+ 	if (pcb_remove) {
+ 	  tcp_pcb_purge(pcb);
+ 
+-	  TCP_EVENT_ERR(pcb->errf, pcb->callback_arg, err);
++	  TCP_EVENT_ERR(pcb->errf, pcb->my_container, err);
+ 
+ 	  if (pcb_reset) {
+ 		tcp_rst(pcb->snd_nxt, pcb->rcv_nxt, &pcb->local_ip, &pcb->remote_ip,
+--- orig_lwip/src/core/tcp_in.c	2013-03-10 13:16:40.031894000 +0200
++++ lwip/src/core/tcp_in.c	2013-03-12 13:59:58.799097000 +0200
+@@ -331,7 +331,7 @@ tcp_input(struct pbuf *p, struct netif *
+            end. We then call the error callback to inform the
+            application that the connection is dead before we
+            deallocate the PCB. */
+-        TCP_EVENT_ERR(pcb->errf, pcb->callback_arg, ERR_RST);
++        TCP_EVENT_ERR(pcb->errf, pcb->my_container, ERR_RST);
+         tcp_pcb_remove(pcb);
+       } else if (recv_flags & TF_CLOSED) {
+         /* The connection has been closed and we will deallocate the
+@@ -559,7 +559,7 @@ L3_level_tcp_input(struct pbuf *p, struc
+ 					   end. We then call the error callback to inform the
+ 					   application that the connection is dead before we
+ 					   deallocate the PCB. */
+-					TCP_EVENT_ERR(pcb->errf, pcb->callback_arg, ERR_RST);
++					TCP_EVENT_ERR(pcb->errf, pcb->my_container, ERR_RST);
+ 					tcp_pcb_remove(pcb);
+ 				} else if (recv_flags & TF_CLOSED) {
+ 					/* The connection has been closed and we will deallocate the

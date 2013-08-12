@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE coverity SYSTEM "coverity_config.dtd">
+<coverity>
+<!-- Version 5.5.1 -->
+<config>
+<include>/hpc/local/commercial/coverity/cov-sa/config/coverity_config.xml</include>
+      <build>
+        <options>
+          <skip_file>.*src/lwip.*</skip_file>
+          <skip_file>.*src/license/.*</skip_file>
+        </options>
+     </build>
+</config>
+</coverity>
+

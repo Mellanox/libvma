@@ -1,0 +1,19 @@
+#!/bin/bash
+DEB_VMA_VERSION="__DEB_VMA_VERSION"
+DEB_VMA_RELEASE="__DEB_VMA_RELEASE"
+DEB_VMA_NAME="libvma"
+DEB_VMA_LIB_DIR="/usr/share/$DEB_VMA_NAME-$DEB_VMA_VERSION-$DEB_VMA_RELEASE"
+DEB_VMA_DOC_DIR="/usr/share/doc/$DEB_VMA_NAME-$DEB_VMA_VERSION-$DEB_VMA_RELEASE"
+
+if [ -d $DEB_VMA_LIB_DIR/scripts/license ]; then
+	rmdir --ignore-fail-on-non-empty $DEB_VMA_LIB_DIR/scripts/license
+fi
+if [ -d $DEB_VMA_LIB_DIR/scripts/ ]; then 
+	rmdir --ignore-fail-on-non-empty $DEB_VMA_LIB_DIR/scripts
+fi
+if [ -d $DEB_VMA_LIB_DIR ]; then
+	rmdir --ignore-fail-on-non-empty $DEB_VMA_LIB_DIR
+fi
+if [ -d $DEB_VMA_DOC_DIR ]; then
+	rmdir --ignore-fail-on-non-empty $DEB_VMA_DOC_DIR
+fi

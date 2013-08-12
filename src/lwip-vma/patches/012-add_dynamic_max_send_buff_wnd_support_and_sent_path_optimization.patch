@@ -1,0 +1,189 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+
+This makes the following changes:
+* Adds support of dynamic max send buff window size.
+* Optimization of last unsent buffer loopkup algorithm done in send path.
+
+--- lwip.orig/src/core/tcp_out.c	2011-06-05 13:11:19.505558000 +0300
++++ lwip/src/core/tcp_out.c	2011-06-05 13:10:52.330724000 +0300
+@@ -315,9 +315,9 @@
+   /* If total number of pbufs on the unsent/unacked queues exceeds the
+    * configured maximum, return an error */
+   /* check for configured max queuelen and possible overflow */
+-  if ((pcb->snd_queuelen >= TCP_SND_QUEUELEN) || (pcb->snd_queuelen > TCP_SNDQUEUELEN_OVERFLOW)) {
++  if ((pcb->snd_queuelen >= pcb->max_unsent_len) || (pcb->snd_queuelen > TCP_SNDQUEUELEN_OVERFLOW)) {
+     LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 3, ("tcp_write: too long queue %"U16_F" (max %"U16_F")\n",
+-      pcb->snd_queuelen, TCP_SND_QUEUELEN));
++      pcb->snd_queuelen, pcb->max_unsent_len));
+     TCP_STATS_INC(tcp.memerr);
+     pcb->flags |= TF_NAGLEMEMERR;
+     return ERR_MEM;
+@@ -350,7 +350,7 @@
+ tcp_write(struct tcp_pcb *pcb, const void *arg, u16_t len, u8_t apiflags)
+ {
+   struct pbuf *concat_p = NULL;
+-  struct tcp_seg *last_unsent = NULL, *seg = NULL, *prev_seg = NULL, *queue = NULL;
++  struct tcp_seg *seg = NULL, *prev_seg = NULL, *queue = NULL;
+   u16_t pos = 0; /* position in 'arg' data */
+   u16_t queuelen;
+   u8_t optlen = 0;
+@@ -417,13 +417,14 @@
+     u16_t space;
+     u16_t unsent_optlen;
+ 
+-    /* @todo: this could be sped up by keeping last_unsent in the pcb */
+-    for (last_unsent = pcb->unsent; last_unsent->next != NULL;
+-         last_unsent = last_unsent->next);
+-
++    if (!pcb->last_unsent || pcb->last_unsent->next) {
++      /* @todo: this could be sped up by keeping last_unsent in the pcb */
++      for (pcb->last_unsent = pcb->unsent; pcb->last_unsent->next != NULL;
++           pcb->last_unsent = pcb->last_unsent->next);
++    }
+     /* Usable space at the end of the last unsent segment */
+-    unsent_optlen = LWIP_TCP_OPT_LENGTH(last_unsent->flags);
+-    space = pcb->mss - (last_unsent->len + unsent_optlen);
++    unsent_optlen = LWIP_TCP_OPT_LENGTH(pcb->last_unsent->flags);
++    space = pcb->mss - (pcb->last_unsent->len + unsent_optlen);
+ 
+     /*
+      * Phase 1: Copy data directly into an oversized pbuf.
+@@ -436,12 +437,12 @@
+ #if TCP_OVERSIZE_DBGCHECK
+     /* check that pcb->unsent_oversize matches last_unsent->unsent_oversize */
+     LWIP_ASSERT("unsent_oversize mismatch (pcb vs. last_unsent)",
+-                pcb->unsent_oversize == last_unsent->oversize_left);
++                pcb->unsent_oversize == pcb->last_unsent->oversize_left);
+ #endif /* TCP_OVERSIZE_DBGCHECK */
+     oversize = pcb->unsent_oversize;
+     if (oversize > 0) {
+       LWIP_ASSERT("inconsistent oversize vs. space", oversize_used <= space);
+-      seg = last_unsent;
++      seg = pcb->last_unsent;
+       oversize_used = oversize < len ? oversize : len;
+       pos += oversize_used;
+       oversize -= oversize_used;
+@@ -458,9 +459,9 @@
+      * (len==0). The new pbuf is kept in concat_p and pbuf_cat'ed at
+      * the end.
+      */
+-    if ((pos < len) && (space > 0) && (last_unsent->len > 0)) {
++    if ((pos < len) && (space > 0) && (pcb->last_unsent->len > 0)) {
+       u16_t seglen = space < len - pos ? space : len - pos;
+-      seg = last_unsent;
++      seg = pcb->last_unsent;
+ 
+       /* Create a pbuf with a copy or reference to seglen bytes. We
+        * can use PBUF_RAW here since the data appears in the middle of
+@@ -474,7 +475,7 @@
+           goto memerr;
+         }
+ #if TCP_OVERSIZE_DBGCHECK
+-        last_unsent->oversize_left = oversize;
++        pcb->last_unsent->oversize_left = oversize;
+ #endif /* TCP_OVERSIZE_DBGCHECK */
+         TCP_DATA_COPY2(concat_p->payload, (u8_t*)arg + pos, seglen, &concat_chksum, &concat_chksum_swapped);
+ #if TCP_CHECKSUM_ON_COPY
+@@ -502,6 +503,7 @@
+     }
+   } else {
+ #if TCP_OVERSIZE
++    pcb->last_unsent = NULL;
+     LWIP_ASSERT("unsent_oversize mismatch (pcb->unsent is NULL)",
+                 pcb->unsent_oversize == 0);
+ #endif /* TCP_OVERSIZE */
+@@ -571,8 +573,8 @@
+     /* Now that there are more segments queued, we check again if the
+      * length of the queue exceeds the configured maximum or
+      * overflows. */
+-    if ((queuelen > TCP_SND_QUEUELEN) || (queuelen > TCP_SNDQUEUELEN_OVERFLOW)) {
+-      LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_write: queue too long %"U16_F" (%"U16_F")\n", queuelen, TCP_SND_QUEUELEN));
++    if ((queuelen > pcb->max_unsent_len) || (queuelen > TCP_SNDQUEUELEN_OVERFLOW)) {
++      LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_write: queue too long %"U16_F" (%"U16_F")\n", queuelen, pcb->max_unsent_len));
+       pbuf_free(p);
+       goto memerr;
+     }
+@@ -624,34 +626,34 @@
+   if (oversize_used > 0) {
+     struct pbuf *p;
+     /* Bump tot_len of whole chain, len of tail */
+-    for (p = last_unsent->p; p; p = p->next) {
++    for (p = pcb->last_unsent->p; p; p = p->next) {
+       p->tot_len += oversize_used;
+       if (p->next == NULL) {
+-        TCP_DATA_COPY((char *)p->payload + p->len, arg, oversize_used, last_unsent);
++        TCP_DATA_COPY((char *)p->payload + p->len, arg, oversize_used, pcb->last_unsent);
+         p->len += oversize_used;
+       }
+     }
+-    last_unsent->len += oversize_used;
++    pcb->last_unsent->len += oversize_used;
+ #if TCP_OVERSIZE_DBGCHECK
+-    last_unsent->oversize_left -= oversize_used;
++    pcb->last_unsent->oversize_left -= oversize_used;
+ #endif /* TCP_OVERSIZE_DBGCHECK */
+   }
+   pcb->unsent_oversize = oversize;
+ #endif /* TCP_OVERSIZE */
+ 
+   /*
+-   * Phase 2: concat_p can be concatenated onto last_unsent->p
++   * Phase 2: concat_p can be concatenated onto pcb->last_unsent->p
+    */
+   if (concat_p != NULL) {
+     LWIP_ASSERT("tcp_write: cannot concatenate when pcb->unsent is empty",
+-      (last_unsent != NULL));
+-    pbuf_cat(last_unsent->p, concat_p);
+-    last_unsent->len += concat_p->tot_len;
++      (pcb->last_unsent != NULL));
++    pbuf_cat(pcb->last_unsent->p, concat_p);
++    pcb->last_unsent->len += concat_p->tot_len;
+ #if TCP_CHECKSUM_ON_COPY
+     if (concat_chksummed) {
+-      tcp_seg_add_chksum(concat_chksum, concat_chksummed, &last_unsent->chksum,
+-        &last_unsent->chksum_swapped);
+-      last_unsent->flags |= TF_SEG_DATA_CHECKSUMMED;
++      tcp_seg_add_chksum(concat_chksum, concat_chksummed, &pcb->last_unsent->chksum,
++        &pcb->last_unsent->chksum_swapped);
++      pcb->last_unsent->flags |= TF_SEG_DATA_CHECKSUMMED;
+     }
+ #endif /* TCP_CHECKSUM_ON_COPY */
+   }
+@@ -660,11 +662,12 @@
+    * Phase 3: Append queue to pcb->unsent. Queue may be NULL, but that
+    * is harmless
+    */
+-  if (last_unsent == NULL) {
++  if (pcb->last_unsent == NULL) {
+     pcb->unsent = queue;
+   } else {
+-    last_unsent->next = queue;
++    pcb->last_unsent->next = queue;
+   }
++  pcb->last_unsent = seg;
+ 
+   /*
+    * Finally update the pcb state.
+@@ -728,9 +731,9 @@
+               (flags & (TCP_SYN | TCP_FIN)) != 0);
+ 
+   /* check for configured max queuelen and possible overflow */
+-  if ((pcb->snd_queuelen >= TCP_SND_QUEUELEN) || (pcb->snd_queuelen > TCP_SNDQUEUELEN_OVERFLOW)) {
++  if ((pcb->snd_queuelen >= pcb->max_unsent_len) || (pcb->snd_queuelen > TCP_SNDQUEUELEN_OVERFLOW)) {
+     LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 3, ("tcp_enqueue_flags: too long queue %"U16_F" (max %"U16_F")\n",
+-                                       pcb->snd_queuelen, TCP_SND_QUEUELEN));
++                                       pcb->snd_queuelen, pcb->max_unsent_len));
+     TCP_STATS_INC(tcp.memerr);
+     pcb->flags |= TF_NAGLEMEMERR;
+     return ERR_MEM;

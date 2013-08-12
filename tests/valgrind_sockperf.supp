@@ -1,0 +1,60 @@
+{
+   sockperf - false alarm - Syscall param socketcall.sendto(to.sa_family) points to uninitialised byte(s)
+   #
+   # Avner: this looks to me as false alarm, since packets do arrive to destination
+   # perhaps it is because valgrind is confused between sin_family and sa_family
+   # (the struct is casted form sockaddr_in to sockaddr)
+   # I could not find report about valgrind and sendto.
+   #
+   # TODO: perhaps move it to libc.supp
+   #
+   # location is here:
+   # ==6699== Syscall param socketcall.sendto(to.sa_family) points to uninitialised byte(s)
+   # ==6699==    at 0x30D9E0EB23: __sendto_nocancel (in /lib64/libpthread-2.12.so)
+   # ==6699==    by 0x659312: Server<IoRecvfrom, SwitchOff, SwitchOff>::doLoop() (common.h:168)
+   # ==6699==    by 0x65B789: void server_handler<IoRecvfrom, SwitchOff, SwitchOff>(int, int, int) (Server.h:58)
+   # ==6699==    by 0x66AAB9: main (SockPerf.cpp:2818)
+   # ==6699==  Address 0x7fefff450 is on thread 1's stack
+   # ==6699==  Uninitialised value was created by a stack allocation
+   # ==6699==    at 0x658F50: Server<IoRecvfrom, SwitchOff, SwitchOff>::doLoop() (Server.cpp:160)
+   #    
+   Memcheck:Param
+   socketcall.sendto(to.sa_family)
+   fun:__sendto_nocancel
+   fun:_ZN6ServerI10IoRecvfrom9SwitchOffS1_E6doLoopEv
+   fun:_Z14server_handlerI10IoRecvfrom9SwitchOffS1_Eviii
+   fun:main
+}
+
+
+{
+   sockperf - 1_time_128KB_leak - TODO: clean it!
+   # 2*64KB leak at initialization that is not reclaimed at exit
+   # Notice, that this leak was introduced in revision 133 of sockperf in order to support TCP messages that are larger than 64KB. 
+   # The leak is in SockPerf.cpp in the following line: 
+   #        tmp->recv.buf = (uint8_t*) malloc(sizeof(uint8_t)*2*MAX_PAYLOAD_SIZE);
+   # It will be nicer to clean this leak, instead of suppressing it!
+   # 
+   # location is here:
+   # ==6994== 131,012 bytes in 1 blocks are definitely lost in loss record 2 of 2
+   # ==6994==    at 0x4A05FDE: malloc (vg_replace_malloc.c:236)
+   # ==6994==    by 0x66AC65: main (SockPerf.cpp:2691)
+   # 
+   Memcheck:Leak
+   fun:malloc
+   fun:main
+}
+
+{
+   sockperf - temp suppress for "possibly lost: 288 bytes" in pthread_create 
+   # NOTE: this rule can be removed when we install the new sockperf that already contains pthread_detach for silencing it!
+   Memcheck:Leak
+   fun:calloc
+   fun:_dl_allocate_tls
+   fun:pthread_create@@GLIBC_2.2.5
+   fun:_ZN6ClientI10IoRecvfrom9SwitchOffS1_21SwitchOnCycleDurationS1_14PongModeNormalE14initBeforeLoopEv
+   fun:_ZN6ClientI10IoRecvfrom9SwitchOffS1_21SwitchOnCycleDurationS1_14PongModeNormalE9doHandlerEv
+   fun:_Z14client_handlerI10IoRecvfrom9SwitchOffS1_21SwitchOnCycleDurationS1_Eviii
+   fun:main
+}
+
