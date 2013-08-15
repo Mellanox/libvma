@@ -671,7 +671,7 @@ int ioctl (int __fd, unsigned long int __request, ...)
 
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
-	if (p_socket_object)
+	if (p_socket_object && arg)
 		res = p_socket_object->ioctl(__request, arg);
 	else
 		res = orig_os_api.ioctl(__fd, __request, arg);
