@@ -2,7 +2,7 @@ Version 6.4.10-0:
 Date + Time 2013-8-20
 =======================
 Fixed:
-        - compatability with new MLNX_OFED ABI
+        - compatability with new MLNX_OFED 2.0-2.6.8 ABI 
         - RM #306332 ioct with null parameter generates a core dumped
 
 Version 6.4.9-0:
