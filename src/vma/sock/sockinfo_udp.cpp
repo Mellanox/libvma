@@ -1845,6 +1845,8 @@ int sockinfo_udp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *p_desc, int *p_flag
 size_t sockinfo_udp::handle_msg_trunc(size_t total_rx, size_t payload_size, int* p_flags)
 {
 	if (payload_size > total_rx) {
+		m_rx_ready_byte_count -= (payload_size-total_rx);
+		m_p_socket_stats->n_rx_ready_byte_count -= (payload_size-total_rx);
 		if (*p_flags & MSG_TRUNC) return payload_size;
 		else *p_flags |= MSG_TRUNC;
 	} else {
