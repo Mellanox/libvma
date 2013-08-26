@@ -58,10 +58,12 @@ libvma_la_SOURCES := \
 	dev/buffer_pool.cpp \
 	dev/cq_mgr.cpp \
 	dev/qp_mgr.cpp \
+	dev/gro_mgr.cpp \
 	dev/ring.cpp \
 	dev/ring_allocation_logic.cpp \
 	dev/rfs.cpp \
 	dev/rfs_uc.cpp \
+	dev/rfs_uc_tcp_gro.cpp \
 	dev/rfs_mc.cpp \
 	dev/ib_ctx_handler.cpp \
 	dev/ib_ctx_handler_collection.cpp \

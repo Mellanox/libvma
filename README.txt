@@ -98,6 +98,7 @@ Example:
  VMA DEBUG  : Rx Poll Yield                  Disabled                   [VMA_RX_POLL_YIELD]
  VMA DEBUG  : Rx Prefetch Bytes              256                        [VMA_RX_PREFETCH_BYTES]
  VMA DEBUG  : Rx CQ Drain Rate               Disabled                   [VMA_RX_CQ_DRAIN_RATE_NSEC]
+ VMA DEBUG  : GRO max streams                32                         [VMA_GRO_STREAMS_MAX]
  VMA DEBUG  : Select Poll (usec)             100000                     [VMA_SELECT_POLL]
  VMA DEBUG  : Select Poll OS Force           Disabled                   [VMA_SELECT_POLL_OS_FORCE]
  VMA DEBUG  : Select Poll OS Ratio           10                         [VMA_SELECT_POLL_OS_RATIO]
@@ -404,6 +405,11 @@ of over CQ polling. This will enable a more 'real time' monitoring of the
 sockets ready packet queue.
 Recommended value is 100-5000 (nsec)
 Default value is 0 (Disable)
+
+VMA_GRO_STREAMS_MAX
+Control the number of TCP streams to perform GRO (generic receive offload) simultaneously.
+Disable GRO with a value of 0.
+Default value is 32
 
 VMA_SELECT_POLL
 The duration in micro-seconds (usec) in which to poll the hardware on Rx path before

@@ -475,7 +475,11 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 				temp = buff;
 				buff = temp->p_next_desc;
 				temp->p_next_desc = NULL;
+				temp->p_prev_desc = NULL;
 				temp->reset_ref_count();
+				temp->path.rx.gro = 0;
+				temp->path.rx.p_ip_h = NULL;
+				temp->path.rx.p_tcp_h = NULL;
 				free_lwip_pbuf(&temp->lwip_pbuf);
 				m_rx_pool.push_back(temp);
 			}
@@ -577,6 +581,7 @@ int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready
 	}
 
 out:
+	m_p_ring->m_gro_mgr.flush_all(pv_fd_ready_array);
 	return ret_rx_processed;
 }
 
@@ -711,6 +716,7 @@ int cq_mgr::drain_and_proccess(bool b_recycle_buffers /*=false*/)
 		int ret = poll(wce, MCE_MAX_CQ_POLL_BATCH, &cq_poll_sn);
 		if (ret <= 0) {
 			m_b_was_drained = true;
+			m_p_ring->m_gro_mgr.flush_all(NULL);
 			return ret_total;
 		}
 
@@ -749,6 +755,8 @@ int cq_mgr::drain_and_proccess(bool b_recycle_buffers /*=false*/)
 		}
 		ret_total += ret;
 	}
+	m_p_ring->m_gro_mgr.flush_all(NULL);
+
 	m_n_wce_counter = 0;
 	m_b_was_drained = false;
 

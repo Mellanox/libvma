@@ -1015,7 +1015,8 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 
 	p_rx_pkt_mem_buf_desc_info->inc_ref_count();
 
-	init_pbuf_custom(p_rx_pkt_mem_buf_desc_info);
+	if (!p_rx_pkt_mem_buf_desc_info->path.rx.gro) init_pbuf_custom(p_rx_pkt_mem_buf_desc_info);
+
 	L3_level_tcp_input((pbuf *)p_rx_pkt_mem_buf_desc_info, pcb);
 
 	m_iomux_ready_fd_array = NULL;

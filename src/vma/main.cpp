@@ -474,6 +474,8 @@ void print_vma_global_settings()
 		VLOG_PARAM_NUMBER("Rx CQ Drain Rate (nsec)", mce_sys.rx_cq_drain_rate_nsec, MCE_DEFAULT_RX_CQ_DRAIN_RATE, SYS_VAR_RX_CQ_DRAIN_RATE_NSEC);
 	}
 
+	VLOG_PARAM_NUMBER("GRO max streams", mce_sys.gro_streams_max, MCE_DEFAULT_GRO_STREAMS_MAX, SYS_VAR_GRO_STREAMS_MAX);
+
 	VLOG_PARAM_NUMBER("Select Poll (usec)", mce_sys.select_poll_num, MCE_DEFAULT_SELECT_NUM_POLLS, SYS_VAR_SELECT_NUM_POLLS);
 	VLOG_PARAM_STRING("Select Poll OS Force", mce_sys.select_poll_os_force, MCE_DEFAULT_SELECT_POLL_OS_FORCE, SYS_VAR_SELECT_POLL_OS_FORCE, mce_sys.select_poll_os_force ? "Enabled " : "Disabled");
 
@@ -636,6 +638,8 @@ void get_env_params()
 	mce_sys.rx_prefetch_bytes	= MCE_DEFAULT_RX_PREFETCH_BYTES;
 	mce_sys.rx_cq_drain_rate_nsec 	= MCE_DEFAULT_RX_CQ_DRAIN_RATE;
 	mce_sys.rx_delta_tsc_between_cq_polls = 0;
+
+	mce_sys.gro_streams_max		= MCE_DEFAULT_GRO_STREAMS_MAX;
 
 	mce_sys.select_poll_num		= MCE_DEFAULT_SELECT_NUM_POLLS;
 	mce_sys.select_poll_os_force	= MCE_DEFAULT_SELECT_POLL_OS_FORCE;
@@ -901,6 +905,9 @@ void get_env_params()
 	// Update the rx cq polling rate for draining logic
 	tscval_t tsc_per_second = get_tsc_rate_per_second();
 	mce_sys.rx_delta_tsc_between_cq_polls = tsc_per_second * mce_sys.rx_cq_drain_rate_nsec / NSEC_PER_SEC;
+
+	if ((env_ptr = getenv(SYS_VAR_GRO_STREAMS_MAX)) != NULL)
+		mce_sys.gro_streams_max = MAX(atoi(env_ptr), 0);
 
 	if ((env_ptr = getenv(SYS_VAR_SELECT_NUM_POLLS)) != NULL)
 		mce_sys.select_poll_num = atoi(env_ptr);

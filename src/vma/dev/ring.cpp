@@ -18,16 +18,17 @@
 #include <netinet/igmp.h>
 
 #include "vma/util/utils.h"
+#include "vma/util/bullseye.h"
 #include "vma/proto/ip_frag.h"
 #include "vma/proto/L2_address.h"
+#include "vma/proto/igmp_mgr.h"
 #include "vma/sock/sockinfo_tcp.h"
 #include "vma/sock/fd_collection.h"
 #include "vma/dev/rfs_mc.h"
 #include "vma/dev/rfs_uc.h"
+#include "vma/dev/rfs_uc_tcp_gro.h"
 #include "vma/dev/cq_mgr.h"
-#include "vma/proto/igmp_mgr.h"
 #include "lwip/src/include/lwip/tcp.h"
-#include "vma/util/bullseye.h"
 
 
 #undef  MODULE_NAME
@@ -77,7 +78,8 @@ qp_mgr* ring_ib::create_qp_mgr(ring_resource_definition& key, struct ibv_comp_ch
 ring::ring(in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type) :
 		m_local_if(local_if), m_transport_type(transport_type), m_n_num_resources(count),
 		m_lock_ring_rx("ring:lock_rx"), m_lock_ring_tx("ring:lock_tx"), m_lock_ring_tx_buf_wait("ring:lock_tx_buf_wait"),
-		m_p_buffer_pool_tx(NULL), m_b_qp_tx_first_flushed_completion_handled(false), m_missing_buf_ref_count(0), m_partition(partition_sn)
+		m_p_buffer_pool_tx(NULL), m_b_qp_tx_first_flushed_completion_handled(false), m_missing_buf_ref_count(0), m_partition(partition_sn),
+		m_gro_mgr(mce_sys.gro_streams_max, MAX_GRO_BUFS)
 {
 }
 
@@ -327,7 +329,11 @@ bool ring::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		flow_spec_tcp_key_t key_tcp = {flow_spec_5t.get_src_ip(), flow_spec_5t.get_dst_port(), flow_spec_5t.get_src_port()};
 		p_rfs = m_flow_tcp_map.get(key_tcp, NULL);
 		if (p_rfs == NULL) {		// It means that no rfs object exists so I need to create a new one and insert it to the flow map
-			p_rfs = new rfs_uc(&flow_spec_5t, this);
+			if(mce_sys.gro_streams_max && flow_spec_5t.is_5_tuple()) {
+				p_rfs = new rfs_uc_tcp_gro(&flow_spec_5t, this);
+			} else {
+				p_rfs = new rfs_uc(&flow_spec_5t, this);
+			}
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (p_rfs == NULL) {
 				ring_logpanic("Failed to allocate rfs!");
@@ -764,6 +770,9 @@ bool ring::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_type_t 
 		p_rx_wc_buf_desc->path.rx.dst.sin_port        = p_tcp_h->dest;
 		p_rx_wc_buf_desc->path.rx.sz_payload          = sz_payload;
 
+		p_rx_wc_buf_desc->path.rx.p_ip_h = p_ip_h;
+		p_rx_wc_buf_desc->path.rx.p_tcp_h = p_tcp_h;
+
 		// Find the relevant hash map and pass the packet to the rfs for dispatching
 		p_rfs = m_flow_tcp_map.get((flow_spec_tcp_key_t){p_rx_wc_buf_desc->path.rx.src.sin_addr.s_addr,
 			p_rx_wc_buf_desc->path.rx.dst.sin_port, p_rx_wc_buf_desc->path.rx.src.sin_port}, NULL);
@@ -878,6 +887,11 @@ bool ring::reclaim_recv_buffers(descq_t *rx_reuse)
 bool ring::reclaim_recv_buffers_no_lock(descq_t *rx_reuse)
 {
 	return m_active_cq_mgr_rx->reclaim_recv_buffers_no_lock(rx_reuse);
+}
+
+bool ring::reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst)
+{
+	return m_active_cq_mgr_rx->reclaim_recv_buffers(rx_reuse_lst);
 }
 
 void ring::mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc)

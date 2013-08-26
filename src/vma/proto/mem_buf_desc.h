@@ -57,6 +57,7 @@ public:
 
 	struct pbuf_custom lwip_pbuf;	//Do not change the location of this field.
 	mem_buf_desc_t* p_next_desc;	// A general purpose linked list of mem_buf_desc
+	mem_buf_desc_t* p_prev_desc;
 	uint8_t* const	p_buffer;
 	size_t const	sz_buffer; 	// this is the size of the buffer
 	size_t		sz_data;   	// this is the amount of data inside the buffer (sz_data <= sz_buffer)
@@ -79,6 +80,10 @@ public:
 
 	union {
 		struct {
+			struct iphdr* 	p_ip_h;
+			struct tcphdr* 	p_tcp_h;
+			uint32_t	gro;		// is gro buff
+
 			// In network byte ordering
 			sockaddr_in	src;
 			sockaddr_in	dst;
@@ -101,8 +106,8 @@ public:
 			// We use these pointer when we want to copy the users
 			// tx data buffer once into the INLINE area in the SGE
 			uint8_t*	p_buffer_header;
-			size_t		sz_data_header;  // this is the amount of data inside the header buffer
 			uint8_t*	p_buffer_user;
+			size_t		sz_data_header;  // this is the amount of data inside the header buffer
 			size_t		sz_data_user;  // this is the amount of data inside the users buffer
 			bool		is_signaled; // send signaled or not?
 			bool		hwcsum;		// do hardware checksums

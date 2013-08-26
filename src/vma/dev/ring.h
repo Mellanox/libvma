@@ -14,6 +14,7 @@
 #ifndef RING_H
 #define RING_H
 
+#include "vma/dev/gro_mgr.h"
 #include "vma/util/hash_map.h"
 #include "vma/util/lock_wrapper.h"
 #include "vma/util/verbs_extra.h"
@@ -274,6 +275,7 @@ public:
 	int 		poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	bool		reclaim_recv_buffers(descq_t *rx_reuse);
 	bool		reclaim_recv_buffers_no_lock(descq_t *rx_reuse); // No locks
+	bool		reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst); // No locks
 	int		drain_and_proccess(cq_type_t cq_type);
 
 	void		mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc); // Assume locked...
@@ -286,6 +288,7 @@ public:
 	friend class qp_mgr;
 	friend class rfs;
 	friend class rfs_uc;
+	friend class rfs_uc_tcp_gro;
 	friend class rfs_mc;
 
 protected:
@@ -319,6 +322,8 @@ protected:
 	uint32_t				m_tx_lkey_lwip_buffer; // this is the lwip buffers registered memory lkey for a given specific device (drawn from the qp)
 
 	uint16_t 				m_partition; //vlan or pkey
+
+	gro_mgr					m_gro_mgr;
 
 	// Internal functions. No need for locks mechanism.
 	transport_type_t 	 get_transport_type() { return m_transport_type; }	// TODO ODEDS: move to ctor...

@@ -149,6 +149,8 @@ struct mce_sys_var {
 						// Else (Default: Disbaled) it will return when first ready packet is in socket queue
 	uint32_t	rx_delta_tsc_between_cq_polls;
 
+	uint32_t	gro_streams_max;
+
 	int32_t		select_poll_num;
 	bool		select_poll_os_force;
 	uint32_t	select_poll_os_ratio;
@@ -236,6 +238,7 @@ struct mce_sys_var {
 #define SYS_VAR_RX_BYTE_MIN_LIMIT			"VMA_RX_BYTES_MIN"
 #define SYS_VAR_RX_PREFETCH_BYTES			"VMA_RX_PREFETCH_BYTES"
 #define SYS_VAR_RX_CQ_DRAIN_RATE_NSEC			"VMA_RX_CQ_DRAIN_RATE_NSEC"
+#define SYS_VAR_GRO_STREAMS_MAX				"VMA_GRO_STREAMS_MAX"
 
 #define SYS_VAR_SELECT_CPU_USAGE_STATS			"VMA_CPU_USAGE_STATS"
 #define SYS_VAR_SELECT_NUM_POLLS			"VMA_SELECT_POLL"
@@ -318,6 +321,7 @@ struct mce_sys_var {
 #define MCE_DEFAULT_RX_BYTE_MIN_LIMIT			(65536)
 #define MCE_DEFAULT_RX_PREFETCH_BYTES			(256)
 #define MCE_DEFAULT_RX_CQ_DRAIN_RATE			(MCE_RX_CQ_DRAIN_RATE_DISABLED)
+#define MCE_DEFAULT_GRO_STREAMS_MAX			(32)
 #define MCE_DEFAULT_SELECT_NUM_POLLS			(100000)
 #define MCE_DEFAULT_SELECT_POLL_OS_FORCE		(0)
 #define MCE_DEFAULT_SELECT_POLL_OS_RATIO		(10)
