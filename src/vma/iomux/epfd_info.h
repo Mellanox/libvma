@@ -94,9 +94,9 @@ public:
 	 * @param fd File descriptor.
 	 * @param data Pointer to fill with user data.
 	 */
-	void get_data_by_fd(int fd, epoll_data *data);
+	bool get_data_by_fd(int fd, epoll_data *data);
 
-	void get_fd_rec_by_fd(int fd, epoll_fd_rec& fd_rec);
+	bool get_fd_rec_by_fd(int fd, epoll_fd_rec& fd_rec);
 
 	/**
 	 * @param fd File descriptor.

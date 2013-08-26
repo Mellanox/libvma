@@ -72,7 +72,7 @@ int epoll_wait_call::get_current_events()
 		p_socket_object = fd_collection_get_sockfd(iter_cpy->first);
 		if (p_socket_object)
 		{
-			m_epfd_info->get_fd_rec_by_fd(iter_cpy->first, fd_rec);
+			if(!m_epfd_info->get_fd_rec_by_fd(iter_cpy->first, fd_rec)) continue;
 
 			m_events[i].events = 0; //initialize
 
@@ -205,7 +205,10 @@ bool epoll_wait_call::_wait(int timeout)
 
 		// Copy event bits and data
 		m_events[i].events = m_p_ready_events[i].events;
-		m_epfd_info->get_data_by_fd(fd, &m_events[i].data);
+		if (!m_epfd_info->get_data_by_fd(fd, &m_events[i].data)) {
+			m_p_ready_events[i] = m_p_ready_events[--m_n_all_ready_fds];
+			continue;
+		}
 		i++;
 	}
 	

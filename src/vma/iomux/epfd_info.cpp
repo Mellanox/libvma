@@ -184,7 +184,7 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 		// Checking for duplicate fds
 		if (m_fd_info.find(fd) != m_fd_info.end()) {
 			__log_dbg("epoll_ctl: tried to add an existing fd. (%d)", fd);
-			errno = ENOSPC;
+			errno = ENOENT;
 			return -1;
 		}
 	}
@@ -473,16 +473,31 @@ int epfd_info::mod_fd(int fd, epoll_event *event)
 	return 0;
 }
 
-void epfd_info::get_fd_rec_by_fd(int fd, epoll_fd_rec& fd_rec)
+bool epfd_info::get_fd_rec_by_fd(int fd, epoll_fd_rec& fd_rec)
 {
-	fd_rec = m_fd_info[fd];
+	fd_info_map_t::iterator iter = m_fd_info.find(fd);
+	if (iter != m_fd_info.end())
+		fd_rec = iter->second;
+	else {
+		__log_dbg("error - could not found fd %d in m_fd_info of epfd %d", fd, m_epfd);
+		return false;
+	}
+	return true;
 }
 
-void epfd_info::get_data_by_fd(int fd, epoll_data *data)
+bool epfd_info::get_data_by_fd(int fd, epoll_data *data)
 {
 	lock();
-	*data = m_fd_info[fd].epdata;
+	fd_info_map_t::iterator iter = m_fd_info.find(fd);
+	if (iter != m_fd_info.end())
+		*data = m_fd_info[fd].epdata;
+	else {
+		__log_dbg("error - could not found fd %d in m_fd_info of epfd %d", fd, m_epfd);
+		unlock();
+		return false;
+	}
 	unlock();
+	return true;
 }
 
 #if _BullseyeCoverage
@@ -532,10 +547,13 @@ inline int epfd_info::remove_fd_from_epoll_os(int fd)
 void epfd_info::insert_epoll_event_cb(int fd, uint32_t event_flags)
 {
 	lock();
-	epoll_fd_rec fd_rec;
-	get_fd_rec_by_fd(fd, fd_rec);
+	fd_info_map_t::iterator fd_iter = m_fd_info.find(fd);
+	if (fd_iter == m_fd_info.end()) {
+		unlock();
+		return;
+	}
 	//EPOLLHUP | EPOLLERR are reported without user request
-	if(event_flags & (fd_rec.events | EPOLLHUP | EPOLLERR)){
+	if(event_flags & (fd_iter->second.events | EPOLLHUP | EPOLLERR)){
 		insert_epoll_event(fd, event_flags);
 	}
 	unlock();
