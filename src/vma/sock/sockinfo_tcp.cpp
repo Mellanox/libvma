@@ -1016,6 +1016,7 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	p_rx_pkt_mem_buf_desc_info->inc_ref_count();
 
 	if (!p_rx_pkt_mem_buf_desc_info->path.rx.gro) init_pbuf_custom(p_rx_pkt_mem_buf_desc_info);
+	else p_rx_pkt_mem_buf_desc_info->path.rx.gro = 0;
 
 	L3_level_tcp_input((pbuf *)p_rx_pkt_mem_buf_desc_info, pcb);
 
@@ -2451,7 +2452,7 @@ mem_buf_desc_t* sockinfo_tcp::get_next_desc(mem_buf_desc_t *p_desc)
 	m_p_socket_stats->n_rx_ready_pkt_count--;
 
 	m_n_rx_pkt_ready_list_count--;
-	if (unlikely(p_desc->p_next_desc)) {
+	if (p_desc->p_next_desc) {
 		//vlog_printf(VLOG_ERROR, "detected chained pbufs! REF %u", p_desc->lwip_pbuf.pbuf.ref);
 		mem_buf_desc_t *prev = p_desc;
 		p_desc = p_desc->p_next_desc;

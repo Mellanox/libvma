@@ -89,7 +89,7 @@ void rfs_uc_tcp_gro::add_packet(mem_buf_desc_t* mem_buf_desc, struct iphdr* p_ip
 		m_gro_desc.tsecr = *(topt + 2);
 	}
 
-	mem_buf_desc->path.rx.gro = 1;
+	mem_buf_desc->reset_ref_count();
 
 	mem_buf_desc->lwip_pbuf.pbuf.flags = PBUF_FLAG_IS_CUSTOM;
 	mem_buf_desc->lwip_pbuf.pbuf.len = mem_buf_desc->lwip_pbuf.pbuf.tot_len = mem_buf_desc->path.rx.sz_payload;
@@ -100,7 +100,7 @@ void rfs_uc_tcp_gro::add_packet(mem_buf_desc_t* mem_buf_desc, struct iphdr* p_ip
 
 
 	m_gro_desc.p_last->lwip_pbuf.pbuf.next = &(mem_buf_desc->lwip_pbuf.pbuf);
-	m_gro_desc.p_last->p_next_desc = mem_buf_desc;
+	m_gro_desc.p_last->p_next_desc = NULL;
 	mem_buf_desc->p_prev_desc = m_gro_desc.p_last;
 	m_gro_desc.p_last = mem_buf_desc;
 }

@@ -1,0 +1,27 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+/*
+* grow is negative, should not be cast to unsigned.
+*/
+
+--- orig_lwip/src/core/pbuf.c	2013-08-20 09:37:37.358048000 +0300
++++ lwip/src/core/pbuf.c	2013-08-28 16:21:41.659016000 +0300
+@@ -435,7 +435,7 @@ pbuf_realloc(struct pbuf *p, u16_t new_l
+     rem_len -= q->len;
+     /* decrease total length indicator */
+     LWIP_ASSERT("grow < max_u16_t", grow < 0xffff);
+-    q->tot_len += (u16_t)grow;
++    q->tot_len += grow;
+     /* proceed to next pbuf in chain */
+     q = q->next;
+     LWIP_ASSERT("pbuf_realloc: q != NULL", q != NULL);
