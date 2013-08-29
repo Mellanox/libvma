@@ -1,0 +1,31 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+/*
+* for gro, where we have batched packets, we should not delay the ack.
+*/
+
+--- orig_lwip/src/core/tcp_in.c	2013-08-20 09:37:37.448046000 +0300
++++ lwip/src/core/tcp_in.c	2013-08-29 13:28:15.209452000 +0300
+@@ -1650,7 +1650,11 @@ tcp_receive(struct tcp_pcb *pcb)
+ 
+ 
+         /* Acknowledge the segment(s). */
+-        tcp_ack(pcb);
++        if (recv_data && recv_data->next) {
++        	tcp_ack_now(pcb);
++        } else {
++        	tcp_ack(pcb);
++        }
+ 
+       } else {
+         /* We get here if the incoming segment is out-of-sequence. */
