@@ -1,6 +1,6 @@
 SUBDIRS := latency_test pps_test throughput_test
 
-SOCKPERF_VERSION := 2.5.230
+SOCKPERF_VERSION := 2.5.231
 
 sockperf: 
 	@(tar xfz sockperf-$(SOCKPERF_VERSION).tar.gz && mv sockperf-$(SOCKPERF_VERSION) sockperf && cd sockperf && ./configure --prefix $(prefix) $(SOCKPERF_FLAG) && make)
