@@ -467,6 +467,8 @@ void print_vma_global_settings()
 	}
 	VLOG_PARAM_NUMBER("Rx Prefetch Bytes", mce_sys.rx_prefetch_bytes, MCE_DEFAULT_RX_PREFETCH_BYTES, SYS_VAR_RX_PREFETCH_BYTES);
 
+	VLOG_PARAM_NUMBER("Rx Prefetch Bytes Before Poll", mce_sys.rx_prefetch_bytes_before_poll, MCE_DEFAULT_RX_PREFETCH_BYTES_BEFORE_POLL, SYS_VAR_RX_PREFETCH_BYTES_BEFORE_POLL);
+
 	if (mce_sys.rx_cq_drain_rate_nsec == MCE_RX_CQ_DRAIN_RATE_DISABLED) {
 		VLOG_PARAM_STRING("Rx CQ Drain Rate", mce_sys.rx_cq_drain_rate_nsec, MCE_DEFAULT_RX_CQ_DRAIN_RATE, SYS_VAR_RX_CQ_DRAIN_RATE_NSEC, "Disabled");
 	}
@@ -636,6 +638,7 @@ void get_env_params()
 	mce_sys.select_handle_cpu_usage_stats   = MCE_DEFAULT_SELECT_CPU_USAGE_STATS;
 	mce_sys.rx_ready_byte_min_limit = MCE_DEFAULT_RX_BYTE_MIN_LIMIT;
 	mce_sys.rx_prefetch_bytes	= MCE_DEFAULT_RX_PREFETCH_BYTES;
+	mce_sys.rx_prefetch_bytes_before_poll = MCE_DEFAULT_RX_PREFETCH_BYTES_BEFORE_POLL;
 	mce_sys.rx_cq_drain_rate_nsec 	= MCE_DEFAULT_RX_CQ_DRAIN_RATE;
 	mce_sys.rx_delta_tsc_between_cq_polls = 0;
 
@@ -898,6 +901,13 @@ void get_env_params()
 	if (mce_sys.rx_prefetch_bytes < MCE_MIN_RX_PREFETCH_BYTES || mce_sys.rx_prefetch_bytes >  MCE_MAX_RX_PREFETCH_BYTES) {
 		vlog_printf(VLOG_WARNING," Rx prefetch bytes size out of range [%d] (min=%d, max=%d)\n", mce_sys.rx_prefetch_bytes, MCE_MIN_RX_PREFETCH_BYTES, MCE_MAX_RX_PREFETCH_BYTES);
 		mce_sys.rx_prefetch_bytes = MCE_DEFAULT_RX_PREFETCH_BYTES;
+	}
+
+	if ((env_ptr = getenv(SYS_VAR_RX_PREFETCH_BYTES_BEFORE_POLL)) != NULL)
+		mce_sys.rx_prefetch_bytes_before_poll = (uint32_t)atoi(env_ptr);
+	if (mce_sys.rx_prefetch_bytes_before_poll != 0 && (mce_sys.rx_prefetch_bytes_before_poll < MCE_MIN_RX_PREFETCH_BYTES || mce_sys.rx_prefetch_bytes_before_poll >  MCE_MAX_RX_PREFETCH_BYTES)) {
+		vlog_printf(VLOG_WARNING," Rx prefetch bytes size out of range [%d] (min=%d, max=%d, disabled=0)\n", mce_sys.rx_prefetch_bytes_before_poll, MCE_MIN_RX_PREFETCH_BYTES, MCE_MAX_RX_PREFETCH_BYTES);
+		mce_sys.rx_prefetch_bytes_before_poll = MCE_DEFAULT_RX_PREFETCH_BYTES_BEFORE_POLL;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_RX_CQ_DRAIN_RATE_NSEC)) != NULL)

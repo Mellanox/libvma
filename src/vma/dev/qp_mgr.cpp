@@ -44,7 +44,7 @@
 qp_mgr::qp_mgr(const ring* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num, const uint32_t tx_num_wr):
 	m_p_ring((ring*)p_ring), m_port_num((uint8_t)port_num), m_p_ib_ctx_handler((ib_ctx_handler*)p_context), m_max_inline_data(0),
 	m_rx_num_wr(mce_sys.rx_num_wr), m_tx_num_wr(tx_num_wr), m_rx_num_wr_to_post_recv(mce_sys.rx_num_wr_to_post_recv), 
-	m_n_unsignaled_count(0), m_p_last_tx_mem_buf_desc(NULL)
+	m_n_unsignaled_count(0), m_p_last_tx_mem_buf_desc(NULL), m_p_prev_rx_desc_pushed(NULL)
 {
 	m_ibv_rx_sg_array = new ibv_sge[m_rx_num_wr_to_post_recv];
 	m_ibv_rx_wr_array = new ibv_recv_wr[m_rx_num_wr_to_post_recv];
@@ -393,12 +393,22 @@ int qp_mgr::post_recv(mem_buf_desc_t* p_mem_buf_desc)
 		next = p_mem_buf_desc->p_next_desc;
 		p_mem_buf_desc->p_next_desc = NULL;
 
+		if (mce_sys.rx_prefetch_bytes_before_poll) {
+			if (m_p_prev_rx_desc_pushed)
+				m_p_prev_rx_desc_pushed->p_prev_desc = p_mem_buf_desc;
+			m_p_prev_rx_desc_pushed = p_mem_buf_desc;
+		}
+
 		m_ibv_rx_wr_array[m_curr_rx_wr].wr_id  = (uintptr_t)p_mem_buf_desc;
 		m_ibv_rx_sg_array[m_curr_rx_wr].addr   = (uintptr_t)p_mem_buf_desc->p_buffer;
 		m_ibv_rx_sg_array[m_curr_rx_wr].length = p_mem_buf_desc->sz_buffer;
 		m_ibv_rx_sg_array[m_curr_rx_wr].lkey   = p_mem_buf_desc->lkey;
 
 		if (m_curr_rx_wr == m_rx_num_wr_to_post_recv-1) {
+
+			m_p_prev_rx_desc_pushed = NULL;
+			p_mem_buf_desc->p_prev_desc = NULL;
+
 			m_curr_rx_wr = 0;
 			struct ibv_recv_wr *bad_wr = NULL;
 			IF_VERBS_FAILURE(ibv_post_recv(m_qp, &m_ibv_rx_wr_array[0], &bad_wr)) {

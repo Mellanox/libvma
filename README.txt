@@ -97,6 +97,7 @@ Example:
  VMA DEBUG  : Rx UDP Poll OS Ratio           100                        [VMA_RX_UDP_POLL_OS_RATIO]
  VMA DEBUG  : Rx Poll Yield                  Disabled                   [VMA_RX_POLL_YIELD]
  VMA DEBUG  : Rx Prefetch Bytes              256                        [VMA_RX_PREFETCH_BYTES]
+ VMA DEBUG  : Rx Prefetch Bytes Before Poll  256                        [VMA_RX_PREFETCH_BYTES_BEFORE_POLL]
  VMA DEBUG  : Rx CQ Drain Rate               Disabled                   [VMA_RX_CQ_DRAIN_RATE_NSEC]
  VMA DEBUG  : GRO max streams                32                         [VMA_GRO_STREAMS_MAX]
  VMA DEBUG  : Select Poll (usec)             100000                     [VMA_SELECT_POLL]
@@ -391,6 +392,13 @@ The default is a single cache line of 64 bytes which should be at least 32
 bytes to cover the IPoIB+IP+UDP headers and a small part of the users payload.
 Increasing this can help improve performance for larger user payload sizes.
 Value range is 32 bytes to MTU size
+Default value is 256 bytes
+
+VMA_RX_PREFETCH_BYTES_BEFORE_POLL
+Same as the above VMA_RX_PREFETCH_BYTES, only that prefetch is done before 
+acutally getting the packets.
+This benefit low pps traffic latency.
+Disable with 0.
 Default value is 256 bytes
 
 VMA_RX_CQ_DRAIN_RATE_NSEC

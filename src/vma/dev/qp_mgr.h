@@ -138,7 +138,9 @@ protected:
 	uint32_t		m_n_unsignaled_count;
 	uint32_t		m_n_tx_count;
 	mem_buf_desc_t*		m_p_last_tx_mem_buf_desc; // Remembered so we can list several mem_buf_desc_t on a single notification request
-	
+
+	mem_buf_desc_t*		m_p_prev_rx_desc_pushed;
+
 	// generating packet IDs
 	uint16_t		m_n_ip_id_base;
 	uint16_t		m_n_ip_id_offset;

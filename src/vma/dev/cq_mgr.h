@@ -158,6 +158,8 @@ private:
 	uint32_t			m_n_wce_counter;
 	qp_rec				m_qp_rec;
 
+	mem_buf_desc_t*			m_p_next_rx_desc_poll;
+
 	descq_t				m_rx_queue;
 	descq_t				m_rx_pool;
 	int32_t				m_n_out_of_free_bufs_warning;

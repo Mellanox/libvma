@@ -145,6 +145,7 @@ struct mce_sys_var {
 	uint32_t 	rx_skip_os_fd_check;
 	uint32_t 	rx_ready_byte_min_limit;
 	uint32_t 	rx_prefetch_bytes;
+	uint32_t 	rx_prefetch_bytes_before_poll;
 	uint32_t	rx_cq_drain_rate_nsec;	// If enabled this will cause the Rx to drain all wce in CQ before returning to user, 
 						// Else (Default: Disbaled) it will return when first ready packet is in socket queue
 	uint32_t	rx_delta_tsc_between_cq_polls;
@@ -237,6 +238,7 @@ struct mce_sys_var {
 #define SYS_VAR_RX_POLL_YIELD				"VMA_RX_POLL_YIELD"
 #define SYS_VAR_RX_BYTE_MIN_LIMIT			"VMA_RX_BYTES_MIN"
 #define SYS_VAR_RX_PREFETCH_BYTES			"VMA_RX_PREFETCH_BYTES"
+#define SYS_VAR_RX_PREFETCH_BYTES_BEFORE_POLL		"VMA_RX_PREFETCH_BYTES_BEFORE_POLL"
 #define SYS_VAR_RX_CQ_DRAIN_RATE_NSEC			"VMA_RX_CQ_DRAIN_RATE_NSEC"
 #define SYS_VAR_GRO_STREAMS_MAX				"VMA_GRO_STREAMS_MAX"
 
@@ -320,6 +322,7 @@ struct mce_sys_var {
 #define MCE_DEFAULT_RX_POLL_YIELD			(0)
 #define MCE_DEFAULT_RX_BYTE_MIN_LIMIT			(65536)
 #define MCE_DEFAULT_RX_PREFETCH_BYTES			(256)
+#define MCE_DEFAULT_RX_PREFETCH_BYTES_BEFORE_POLL	(256)
 #define MCE_DEFAULT_RX_CQ_DRAIN_RATE			(MCE_RX_CQ_DRAIN_RATE_DISABLED)
 #define MCE_DEFAULT_GRO_STREAMS_MAX			(32)
 #define MCE_DEFAULT_SELECT_NUM_POLLS			(100000)

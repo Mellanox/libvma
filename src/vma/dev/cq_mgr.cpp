@@ -48,7 +48,7 @@ atomic_t cq_mgr::m_n_cq_id_counter = ATOMIC_DECLARE_INIT(1);
 uint64_t cq_mgr::m_n_global_sn = 0;
 
 cq_mgr::cq_mgr(ring* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx) :
-		m_p_ring(p_ring), m_p_ib_ctx_handler(p_ib_ctx_handler), m_b_is_rx(is_rx), m_comp_event_channel(p_comp_event_channel)
+		m_p_ring(p_ring), m_p_ib_ctx_handler(p_ib_ctx_handler), m_b_is_rx(is_rx), m_comp_event_channel(p_comp_event_channel), m_p_next_rx_desc_poll(NULL)
 {
 	cq_logfunc("");
 
@@ -377,6 +377,8 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(struct ibv_wc* p_wce)
 	if (unlikely(p_wce->status != IBV_WC_SUCCESS)) {
 		process_cq_element_log_helper(p_mem_buf_desc, p_wce);
 
+		m_p_next_rx_desc_poll = NULL;
+
 		if (p_mem_buf_desc == NULL) {
 			cq_logdbg("wce->wr_id = 0!!! When status != IBV_WC_SUCCESS");
 			return NULL;
@@ -392,8 +394,17 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(struct ibv_wc* p_wce)
 	}
 
 	if (p_mem_buf_desc == NULL) {
+		m_p_next_rx_desc_poll = NULL;
 		cq_logdbg("wce->wr_id = 0!!! When status == IBV_WC_SUCCESS");
 		return NULL;
+	}
+
+	if (mce_sys.rx_prefetch_bytes_before_poll) {
+		if (m_p_next_rx_desc_poll && m_p_next_rx_desc_poll != p_mem_buf_desc) {
+			cq_logwarn("prefetched wrong buffer");
+		}
+		m_p_next_rx_desc_poll = p_mem_buf_desc->p_prev_desc;
+		p_mem_buf_desc->p_prev_desc = NULL;
 	}
 
 	if (p_wce->opcode & IBV_WC_RECV) {
@@ -559,6 +570,10 @@ int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready
 	uint32_t ret_rx_processed = process_recv_queue(pv_fd_ready_array);
 	if (ret_rx_processed >= mce_sys.cq_poll_batch_max) {
 		goto out;
+	}
+
+	if (m_p_next_rx_desc_poll) {
+		prefetch_range((uint8_t*)m_p_next_rx_desc_poll->p_buffer,mce_sys.rx_prefetch_bytes_before_poll);
 	}
 
 	ret = poll(wce, mce_sys.cq_poll_batch_max, p_cq_poll_sn);
