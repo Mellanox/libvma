@@ -116,7 +116,7 @@ Example:
  VMA DEBUG  : Delay after rereg (msec)       500                        [VMA_WAIT_AFTER_REREG_MSEC]
  VMA DEBUG  : Internal Thread Affinity       0                          [VMA_INTERNAL_THREAD_AFFINITY]
  VMA DEBUG  : Internal Thread Cpuset                                    [VMA_INTERNAL_THREAD_CPUSET]
- VMA DEBUG  : Internal Thread Arm CQ	     1				[VMA_INTERNAL_THREAD_ARM_CQ]
+ VMA DEBUG  : Internal Thread Arm CQ	     Disabled			[VMA_INTERNAL_THREAD_ARM_CQ]
  VMA DEBUG  : Thread mode                    Multi spin lock            [VMA_THREAD_MODE]
  VMA DEBUG  : Mem Allocate type              1 (Contig Pages)           [VMA_MEM_ALLOC_TYPE]
  VMA DEBUG  : Num of UC ARPs                 3                          [VMA_NEIGH_UC_ARP_QUATA]
@@ -124,7 +124,7 @@ Example:
  VMA DEBUG  : Num of neigh restart retries   1                          [VMA_NEIGH_NUM_ERR_RETRIES]
  VMA DEBUG  : IPOIB support                  Enabled                    [VMA_IPOIB]
  VMA DEBUG  : BF (Blue Flame)                Enabled                    [VMA_BF]
- VMA DEBUG  : fork() support                 Disabled                   [VMA_FORK]
+ VMA DEBUG  : fork() support                 Enabled                    [VMA_FORK]
  VMA DEBUG  : close on dup2()                Enabled                    [VMA_CLOSE_ON_DUP2]
  VMA DEBUG  : MTU                            1500                       [VMA_MTU]
  VMA DEBUG  : MSS                            0 (follow VMA_MTU)         [VMA_MSS]
@@ -591,7 +591,8 @@ This parameter indicates number of msec to wait betwen every UC ARP.
 
 VMA_NEIGH_NUM_ERR_RETRIES
 This number inidcates number of retries to restart neigh state machine in case neigh got ERROR event.
-	
+Deafult value is 1
+
 VMA_BF
 This flag enables / disables BF (Blue Flame) usage of the ConnectX
 Deafult value is 1 (Enabled)
