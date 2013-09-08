@@ -1,3 +1,14 @@
+Version 6.4.11-0:
+Date + Time 2013-9-8
+=======================
+Added:
+        - RM #322103 Add GRO support in VMA
+        - RM #330660 improve low pps latency by prefetching the next packet buffer before poll
+	- RM #327504 update sockperf version 2.5.231
+Fixed:
+        - RM #326897 ADD/DEL descriptor many times on same efd failed
+        - RM #331250 segmentation fault when using VMA_INTERNAL_THREAD_ARM_CQ=1
+
 Version 6.4.10-0:
 Date + Time 2013-8-20
 =======================
