@@ -400,9 +400,10 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(struct ibv_wc* p_wce)
 	}
 
 	if (mce_sys.rx_prefetch_bytes_before_poll) {
+		/*for debug:
 		if (m_p_next_rx_desc_poll && m_p_next_rx_desc_poll != p_mem_buf_desc) {
 			cq_logerr("prefetched wrong buffer");
-		}
+		}*/
 		m_p_next_rx_desc_poll = p_mem_buf_desc->p_prev_desc;
 		p_mem_buf_desc->p_prev_desc = NULL;
 	}
