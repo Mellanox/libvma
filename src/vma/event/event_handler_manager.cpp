@@ -783,7 +783,7 @@ void* event_handler_manager::thread_loop()
 		}
 
 
-		if( mce_sys.internal_thread_arm_cq_enabled && m_cq_epfd == 0 ) {
+		if( mce_sys.internal_thread_arm_cq_enabled && m_cq_epfd == 0 && g_p_net_device_table_mgr) {
 			m_cq_epfd = g_p_net_device_table_mgr->global_ring_epfd_get();
 			if( m_cq_epfd > 0 ) {
 				epoll_event evt;
@@ -794,9 +794,8 @@ void* event_handler_manager::thread_loop()
 		}
 
 		uint64_t poll_sn = 0;
-		if( mce_sys.internal_thread_arm_cq_enabled && m_cq_epfd > 0 ) {
+		if( mce_sys.internal_thread_arm_cq_enabled && m_cq_epfd > 0 && g_p_net_device_table_mgr) {
 			g_p_net_device_table_mgr->global_ring_poll_and_process_element(&poll_sn, NULL);
-
 			int ret = g_p_net_device_table_mgr->global_ring_request_notification(poll_sn);
 			if (ret > 0) {
 				g_p_net_device_table_mgr->global_ring_poll_and_process_element(&poll_sn, NULL);
@@ -820,7 +819,7 @@ void* event_handler_manager::thread_loop()
 
 		// check pipe
 		for (int idx = 0; idx < ret ; ++idx) {
-			if(mce_sys.internal_thread_arm_cq_enabled && p_events[idx].data.fd == m_cq_epfd){
+			if(mce_sys.internal_thread_arm_cq_enabled && p_events[idx].data.fd == m_cq_epfd && g_p_net_device_table_mgr){
 				g_p_net_device_table_mgr->global_ring_wait_for_notification_and_process_element(&poll_sn, NULL);
 			}
 			else if (p_events[idx].data.fd == m_fd_check_new_event) {
