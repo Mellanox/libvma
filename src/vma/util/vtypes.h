@@ -46,10 +46,10 @@
 
 
 // printf formating when IP is in network byte ordering (for LITTLE_ENDIAN)
-#define NETWORK_IP_PRINTQUAD_LITTLE_ENDIAN(ip)     		(uint8_t)(ip&0xff), (uint8_t)((ip>>8)&0xff),(uint8_t)((ip>>16)&0xff),(uint8_t)((ip>>24)&0xff)
+#define NETWORK_IP_PRINTQUAD_LITTLE_ENDIAN(ip)     		(uint8_t)((ip)&0xff), (uint8_t)(((ip)>>8)&0xff),(uint8_t)(((ip)>>16)&0xff),(uint8_t)(((ip)>>24)&0xff)
 
 // printf formating when IP is in host byte ordering (for LITTLE_ENDIAN)
-#define HOST_IP_PRINTQUAD_LITTLE_ENDIAN(ip)     		(uint8_t)((ip>>24)&0xff),(uint8_t)((ip>>16)&0xff),(uint8_t)((ip>>8)&0xff),(uint8_t)(ip&0xff)
+#define HOST_IP_PRINTQUAD_LITTLE_ENDIAN(ip)     		(uint8_t)(((ip)>>24)&0xff),(uint8_t)(((ip)>>16)&0xff),(uint8_t)(((ip)>>8)&0xff),(uint8_t)((ip)&0xff)
 
 
 
