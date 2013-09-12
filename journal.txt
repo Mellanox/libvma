@@ -1,3 +1,12 @@
+Version 6.5.0-0:
+Date + Time 2013-9-12
+=======================
+Added:
+        - RM #327504 update sockperf version 2.5.232
+
+Fixed:
+        - RM #332451 wrong MACRO for printing IP address
+
 Version 6.4.11-0:
 Date + Time 2013-9-8
 =======================
