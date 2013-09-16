@@ -115,8 +115,8 @@ public:
 	 * -> meaning, we got a ready rx packet
 	 */
 	bool tx_check_if_would_not_block();
-	void rx_add_ring_cb(flow_tuple_with_local_if& flow_key, ring* p_ring);
-	void rx_del_ring_cb(flow_tuple_with_local_if& flow_key, ring* p_ring, bool remove_ready_descs = true);
+	void rx_add_ring_cb(flow_tuple_with_local_if& flow_key, ring* p_ring, bool is_migration = false);
+	void rx_del_ring_cb(flow_tuple_with_local_if& flow_key, ring* p_ring, bool is_migration = false);
 
 	// This callback will handle ready rx packet notification from any ib_conn_mgr
 	bool rx_input_cb(mem_buf_desc_t *p_rx_pkt_mem_buf_desc_info, void *pv_fd_ready_array = NULL);

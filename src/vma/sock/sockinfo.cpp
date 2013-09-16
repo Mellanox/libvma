@@ -516,7 +516,7 @@ void sockinfo::do_rings_migration()
 
 			flow_tuple_with_local_if flow_key = rx_flow_iter->first;
 			// Save the new CQ from ring
-			rx_add_ring_cb(flow_key, new_ring);
+			rx_add_ring_cb(flow_key, new_ring, true);
 
 			// Attach tuple
 			BULLSEYE_EXCLUDE_BLOCK_START
@@ -540,7 +540,7 @@ void sockinfo::do_rings_migration()
 			unlock_rx_q();
 			p_old_ring->detach_flow(flow_key, this);
 			lock_rx_q();
-			rx_del_ring_cb(flow_key, p_old_ring, false);
+			rx_del_ring_cb(flow_key, p_old_ring, true);
 
 			rx_flow_iter++; // Pop next flow rule;
 		}
@@ -622,10 +622,11 @@ void sockinfo::remove_epoll_context(epfd_info *epfd)
 	m_rx_ring_map_lock.unlock();
 }
 
-void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring)
+void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool is_migration /*= false*/)
 {
 	si_logdbg("");
 	NOT_IN_USE(flow_key);
+	NOT_IN_USE(is_migration);
 
 	// Add the rx ring to our rx ring map
 	unlock_rx_q();
@@ -668,7 +669,7 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring)
 	lock_rx_q();
 }
 
-void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool remove_ready_descs /* = true */)
+void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool is_migration /* = false */)
 {
 	si_logdbg("");
 	NOT_IN_USE(flow_key);
@@ -691,7 +692,7 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 		if (p_ring_info->refcnt == 0) {
 
 			// Get rid of all rx ready buffers from this cq_mgr owner
-			if (remove_ready_descs) move_owned_rx_ready_descs(p_ring, &temp_rx_reuse);
+			if (!is_migration) move_owned_rx_ready_descs(p_ring, &temp_rx_reuse);
 
 			// Move all cq_mgr->rx_reuse buffers to temp reuse queue related to p_rx_cq_mgr
 			move_owned_descs(p_ring, &temp_rx_reuse, &p_ring_info->rx_reuse_info.rx_reuse);

@@ -1428,10 +1428,10 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 	return true;
 }
 
-void sockinfo_udp::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring)
+void sockinfo_udp::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool is_migration /* = false */)
 {
 	si_udp_logdbg("");
-	sockinfo::rx_add_ring_cb(flow_key, p_ring);
+	sockinfo::rx_add_ring_cb(flow_key, p_ring, is_migration);
 
 	//Now that we got at least 1 CQ attached enable the skip os mechanism.
 	m_rx_udp_poll_os_ratio_counter = mce_sys.rx_udp_poll_os_ratio;
@@ -1446,7 +1446,7 @@ void sockinfo_udp::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ri
 	// Multicast Only:
 	// Check and Issue ADD_MEMBERSHIP to OS
 
-	if (!flow_key.is_udp_mc())
+	if (!flow_key.is_udp_mc() || is_migration)
 		return;
 
 	// Validate that the IGMP flags in the interface is set correctly
@@ -1464,13 +1464,13 @@ void sockinfo_udp::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ri
 	// Now we're done with the IP_ADD_MEMBERSHIP
 }
 
-void sockinfo_udp::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool remove_ready_descs /* = true */)
+void sockinfo_udp::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool is_migration /* = false */)
 {
 	si_udp_logdbg("");
 	
 	// Multicast Only: 
 	// Check and Issue DROP_MEMBERSHIP to OS
-	if (flow_key.is_udp_mc()) {
+	if (flow_key.is_udp_mc() && !is_migration) {
 
 		// Issue kernel IP_DROP_MEMBERSHIP for IGMP cleanup in case this is a re-play scenario
 		struct ip_mreq mreq;
@@ -1484,7 +1484,7 @@ void sockinfo_udp::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ri
 		BULLSEYE_EXCLUDE_BLOCK_END
 	}
 
-	sockinfo::rx_del_ring_cb(flow_key, p_ring, remove_ready_descs);
+	sockinfo::rx_del_ring_cb(flow_key, p_ring, is_migration);
 
 	// If no more CQ's are attached on this socket, return CQ polling loops ot init state
 	if (m_rx_ring_map.size() <= 0) {

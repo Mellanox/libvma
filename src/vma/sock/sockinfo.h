@@ -167,8 +167,8 @@ protected:
 	transport_t 		find_target_family(role_t role, struct sockaddr *sock_addr);
 
 	// This callback will notify that socket is ready to receive and map the cq.
-	virtual void		rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring);
-	virtual void 		rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool remove_ready_descs = true);
+	virtual void		rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool is_migration = false);
+	virtual void 		rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool is_migration = false);
 
 	virtual void		lock_rx_q() {m_lock_rcv.lock();}
 	virtual void		unlock_rx_q() {m_lock_rcv.unlock();}

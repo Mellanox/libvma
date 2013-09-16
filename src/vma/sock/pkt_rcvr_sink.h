@@ -40,10 +40,10 @@ public:
 	virtual bool rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void* pv_fd_ready_array = NULL) = 0;
 
 	// Callback from lower layer notifying completion of RX registration process
-	virtual void rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring) = 0;
+	virtual void rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool is_migration = false) = 0;
 	
 	// Callback from lower layer notifying before RX resources deallocation
-	virtual void rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool remove_ready_descs = true) = 0;
+	virtual void rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool is_migration = false) = 0;
 };
 
 #endif
