@@ -342,6 +342,9 @@ uint32_t buffer_pool::find_lkey_by_ib_ctx(ib_ctx_handler* p_ib_ctx_h)
 	return lkey;
 }
 
+#if _BullseyeCoverage
+    #pragma BullseyeCoverage off
+#endif
 /*
  * this function is minimal C version of Floyd's cycle-finding algorithm
  * just for determining whether a circle exists or not.
@@ -363,6 +366,9 @@ bool isCircle (mem_buf_desc_t *pNode) {
 	}
 	return false;
 }
+#if _BullseyeCoverage
+    #pragma BullseyeCoverage on
+#endif
 
 typedef mem_buf_desc_t* Node;
 
@@ -371,6 +377,9 @@ static inline Node f(Node x) {
 	return x->p_next_desc;
 }
 
+#if _BullseyeCoverage
+    #pragma BullseyeCoverage off
+#endif
 // full version of Floyd's cycle-finding algorithm
 // see: http://en.wikipedia.org/wiki/Cycle_detection#Tortoise_and_hare
 void Floyd_LogCircleInfo(Node x0) {
@@ -444,7 +453,9 @@ void buffer_pool::buffersPanic()
 
 	__log_info_panic("m_n_buffers(%lu) > m_n_buffers_created(%lu)", m_n_buffers, m_n_buffers_created);
 }
-
+#if _BullseyeCoverage
+    #pragma BullseyeCoverage on
+#endif
 
 inline void buffer_pool::put_buffer_helper(mem_buf_desc_t *buff)
 {
