@@ -1,4 +1,4 @@
-Updated: 20 Oct 2012
+Updated: 18 Sep 2013
 
 Introduction
 ============
@@ -56,14 +56,13 @@ VMA_LOG_FILE, VMA logs just those parameters whose value != default.
 
 Example:
  VMA INFO   : ---------------------------------------------------------------------------
- VMA INFO   : VMA_VERSION: 6.3.18-0
- VMA INFO   : Current Time: Thu Nov  1 17:22:37 2012
+ VMA INFO   : VMA_VERSION: 6.4.11-0
  VMA INFO   : Cmd Line: sockperf sr
- VMA INFO   : Pid:  7093
- VMA INFO   : OFED Version: MLNX_OFED_LINUX-1.8.6
- VMA DEBUG  : System: 2.6.32-220.el6.x86_64
+ VMA INFO   : Current Time: Tue Sep 17 13:09:29 2013
+ VMA INFO   : Pid:  7256
+ VMA INFO   : OFED Version: MLNX_OFED_LINUX-2.0-3.0.0:
  VMA INFO   : Architecture: x86_64
- VMA INFO   : Node: hail12
+ VMA INFO   : Node: r-sw-bolt4 
  VMA INFO   : ---------------------------------------------------------------------------
  VMA INFO   : Log Level                      4                          [VMA_TRACELEVEL]
  VMA DEBUG  : Log Details                    0                          [VMA_LOG_DETAILS]
