@@ -295,14 +295,14 @@ void check_flow_steering_log_num_mgm_entry_size()
 		vlog_printf(VLOG_DEBUG, "Flow steering option does not exist in current OFED version");
 	}
 	else if (flow_steering_val[0] != '-' || flow_steering_val[1] != '1') {
-		vlog_printf(VLOG_WARNING, "***********************************************************************************************\n");
-		vlog_printf(VLOG_WARNING, "* VMA will not operate properly while flow steering option is disabled!                       *\n");
-		vlog_printf(VLOG_WARNING, "* Please restart your VMA applications after running the following:                           *\n");
-		vlog_printf(VLOG_WARNING, "* WARNING: the following steps will restart your network interface!                           *\n");
-		vlog_printf(VLOG_WARNING, "* 1. \"echo options mlx4_core log_num_mgm_entry_size=-1 > /etc/modprobe.d/mlx4_core.conf\"    *\n");
-		vlog_printf(VLOG_WARNING, "* 2. \"/etc/init.d/openibd restart\"                                                          *\n");
-		vlog_printf(VLOG_WARNING, "* Read more about the Flow Steering support in the VMA's User Manual                          *\n");
-		vlog_printf(VLOG_WARNING, "***********************************************************************************************\n");
+		vlog_printf(VLOG_WARNING, "***************************************************************************************\n");
+		vlog_printf(VLOG_WARNING, "* VMA will not operate properly while flow steering option is disabled!               *\n");
+		vlog_printf(VLOG_WARNING, "* Please restart your VMA applications after running the following:                   *\n");
+		vlog_printf(VLOG_WARNING, "* WARNING: the following steps will restart your network interface!                   *\n");
+		vlog_printf(VLOG_WARNING, "* 1. \"echo options mlx4_core log_num_mgm_entry_size=-1 > /etc/modprobe.d/mlnx.conf\" *\n");
+		vlog_printf(VLOG_WARNING, "* 2. \"/etc/init.d/openibd restart\"                                                  *\n");
+		vlog_printf(VLOG_WARNING, "* Read more about the Flow Steering support in the VMA's User Manual                  *\n");
+		vlog_printf(VLOG_WARNING, "***************************************************************************************\n");
 	}
 }
 
