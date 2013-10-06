@@ -917,9 +917,7 @@ ssize_t recvmsg(int __fd, struct msghdr *__msg, int __flags)
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
 	if (p_socket_object) {
-		ssize_t ret = p_socket_object->rx(RX_RECVMSG, __msg->msg_iov, __msg->msg_iovlen, &__flags, (__SOCKADDR_ARG)__msg->msg_name, (socklen_t*)&__msg->msg_namelen);
-		__msg->msg_flags = __flags & MSG_TRUNC; //only MSG_TRUNC is supported;
-		return ret;
+		return p_socket_object->rx(RX_RECVMSG, __msg->msg_iov, __msg->msg_iovlen, &__flags, (__SOCKADDR_ARG)__msg->msg_name, (socklen_t*)&__msg->msg_namelen, __msg);
 	}
 
 	return orig_os_api.recvmsg(__fd, __msg, __flags);
@@ -969,13 +967,12 @@ int recvmmsg(int __fd, struct mmsghdr *__mmsghdr, unsigned int __vlen, int __fla
         	int ret = 0;
                 for (unsigned int i=0; i<__vlen; i++) {
                        ret = p_socket_object->rx(RX_RECVMSG, __mmsghdr[i].msg_hdr.msg_iov, __mmsghdr[i].msg_hdr.msg_iovlen, &__flags,
-                                                         (__SOCKADDR_ARG)__mmsghdr[i].msg_hdr.msg_name, (socklen_t*)&__mmsghdr[i].msg_hdr.msg_namelen);
+                                                         (__SOCKADDR_ARG)__mmsghdr[i].msg_hdr.msg_name, (socklen_t*)&__mmsghdr[i].msg_hdr.msg_namelen,  &__mmsghdr[i].msg_hdr);
                        if (ret < 0){
                                break;
                        }
                        num_of_msg++;
                        __mmsghdr[i].msg_len = ret;
-                       __mmsghdr[i].msg_hdr.msg_flags = __flags & MSG_TRUNC; //only MSG_TRUNC is supported;
                        if ((i==0) && (__flags & MSG_WAITFORONE)) {
                                __flags |= MSG_DONTWAIT;
                        }

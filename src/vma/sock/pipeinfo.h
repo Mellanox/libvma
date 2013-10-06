@@ -33,7 +33,7 @@ public:
 	// Process a Rx request, we might have a ready packet, or we might block until
 	// we have one (if sockinfo::m_b_blocking == true)
 	ssize_t	rx(const rx_call_t call_type, struct iovec* p_iov, ssize_t sz_iov, 
-	       	   int* p_flags, struct sockaddr *__from = NULL, socklen_t *__fromlen = NULL);
+	       	   int* p_flags, struct sockaddr *__from = NULL, socklen_t *__fromlen = NULL, struct msghdr *__msg = NULL);
 
 	// Process a Tx request, handle all that is needed to send the packet, we might block
 	// until the connection info is ready or a tx buffer is releast (if sockinfo::m_b_blocking == true)

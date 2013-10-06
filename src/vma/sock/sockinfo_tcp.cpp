@@ -862,7 +862,7 @@ err_t sockinfo_tcp::rx_drop_lwip_cb(void *arg, struct tcp_pcb *tpcb,
 //
 // FIXME: we should not require lwip lock for rx
 //
-ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov, int* p_flags, sockaddr *__from, socklen_t *__fromlen)
+ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov, int* p_flags, sockaddr *__from, socklen_t *__fromlen, struct msghdr *__msg)
 {
 	int total_rx = 0;
 	int ret = 0;
@@ -878,7 +878,7 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 #ifdef VMA_TIME_MEASURE
 		INC_GO_TO_OS_RX_COUNT;
 #endif
-		ret = socket_fd_api::rx_os(call_type, p_iov, sz_iov, p_flags, __from, __fromlen);
+		ret = socket_fd_api::rx_os(call_type, p_iov, sz_iov, p_flags, __from, __fromlen, __msg);
 		save_stats_rx_os(ret);
 		return ret;
 	}

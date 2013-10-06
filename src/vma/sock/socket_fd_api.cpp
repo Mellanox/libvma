@@ -202,7 +202,7 @@ void socket_fd_api::statistics_print()
 
 ssize_t socket_fd_api::rx_os(const rx_call_t call_type, iovec* p_iov,
 			     ssize_t sz_iov, int* p_flags, sockaddr *__from,
-			     socklen_t *__fromlen)
+			     socklen_t *__fromlen, struct msghdr *__msg)
 {
 	errno = 0;
 	switch (call_type) {
@@ -225,17 +225,8 @@ ssize_t socket_fd_api::rx_os(const rx_call_t call_type, iovec* p_iov,
 		                            *p_flags, __from, __fromlen);
 
 	case RX_RECVMSG: {
-		struct msghdr __message;
-		memset(&__message, 0, sizeof(struct msghdr));
-		__message.msg_iov = p_iov;
-		__message.msg_iovlen = sz_iov;
-		if (__fromlen) {
-			__message.msg_namelen = *__fromlen;
-			__message.msg_name = (void*) __from;
-		}
-
 		__log_info_func("calling os receive with orig recvmsg");
-		return orig_os_api.recvmsg(m_fd, &__message, *p_flags);
+		return orig_os_api.recvmsg(m_fd, __msg, *p_flags);
 	}
 	}
 	return (ssize_t) -1;

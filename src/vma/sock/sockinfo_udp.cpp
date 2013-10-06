@@ -109,6 +109,8 @@ sockinfo_udp::sockinfo_udp(int fd) :
 	m_b_mc_tx_loop = mce_sys.tx_mc_loopback_default; // default value is 'true'. User can change this with config parameter SYS_VAR_TX_MC_LOOPBACK
 	m_n_mc_ttl = DEFAULT_MC_TTL;
 
+	m_b_pktinfo = false;
+
 	m_rx_callback = NULL;
 
 	// Update MC related stats (default values)
@@ -612,6 +614,14 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 				}
 				break;
 
+			case IP_PKTINFO:
+				if (__optval) {
+					if(*(int*)__optval)
+						m_b_pktinfo = true;
+					else
+						m_b_pktinfo = false;
+				}
+				break;
 			default:
 				{
 					si_udp_logdbg("IPPROTO_IP, optname=%s (%d)", setsockopt_ip_opt_to_str(__optname), __optname);
@@ -927,7 +937,7 @@ inline int sockinfo_udp::rx_wait(bool blocking)
 }
 
 ssize_t sockinfo_udp::rx(const rx_call_t call_type, iovec* p_iov,ssize_t sz_iov, 
-                     int* p_flags, sockaddr *__from ,socklen_t *__fromlen)
+                     int* p_flags, sockaddr *__from ,socklen_t *__fromlen, struct msghdr *__msg)
 {
 	int ret;
 	uint64_t poll_sn;
@@ -977,6 +987,7 @@ ssize_t sockinfo_udp::rx(const rx_call_t call_type, iovec* p_iov,ssize_t sz_iov,
 		m_rx_udp_poll_os_ratio_counter++;
 		if (m_n_rx_pkt_ready_list_count > 0) {
 			// Found a ready packet in the list
+			if (m_b_pktinfo && __msg) handle_ip_pktinfo(__msg);
 			ret = dequeue_packet(p_iov, sz_iov, (sockaddr_in *)__from, __fromlen, p_flags);
 			goto out;
 		}
@@ -993,6 +1004,7 @@ ssize_t sockinfo_udp::rx(const rx_call_t call_type, iovec* p_iov,ssize_t sz_iov,
 
 	if (likely(rx_wait_ret == 0)) {
 		// Got 0, means we must have a ready packet
+		if (m_b_pktinfo && __msg) handle_ip_pktinfo(__msg);
 		ret = dequeue_packet(p_iov, sz_iov, (sockaddr_in *)__from, __fromlen, p_flags);
 		goto out;
 	}
@@ -1017,7 +1029,7 @@ os:
 #endif
 
 	*p_flags &= ~MSG_VMA_ZCOPY;
-	ret = socket_fd_api::rx_os(call_type, p_iov, sz_iov, p_flags, __from, __fromlen);
+	ret = socket_fd_api::rx_os(call_type, p_iov, sz_iov, p_flags, __from, __fromlen, __msg);
 	save_stats_rx_os(ret);
 	if (ret > 0) {
 		// This will cause the next non-blocked read to check the OS again.
@@ -1027,6 +1039,9 @@ os:
 
 out:
 	m_lock_rcv.unlock();
+
+	if (__msg)
+		__msg->msg_flags |= (*p_flags) & MSG_TRUNC;
 
 	if (ret < 0) {
 #ifdef VMA_TIME_MEASURE
@@ -1041,6 +1056,55 @@ out:
 		si_udp_logfunc("returning with: %d", ret);
 	}
 	return ret;
+}
+
+void sockinfo_udp::handle_ip_pktinfo(struct msghdr * msg)
+{
+	struct in_pktinfo in_pktinfo;
+	rx_net_device_map_t::iterator iter = m_rx_nd_map.find(m_rx_pkt_ready_list.front()->path.rx.dst.sin_addr.s_addr);
+	if (iter == m_rx_nd_map.end()) {
+		si_udp_logerr("could not find net device for ip %d.%d.%d.%d", NIPQUAD(m_rx_pkt_ready_list.front()->path.rx.dst.sin_addr.s_addr));
+		return;
+	}
+	in_pktinfo.ipi_ifindex = iter->second.p_ndv->get_if_idx();
+	in_pktinfo.ipi_addr = in_pktinfo.ipi_spec_dst = m_rx_pkt_ready_list.front()->path.rx.dst.sin_addr;
+	insert_cmsg(msg, IPPROTO_IP, IP_PKTINFO, &in_pktinfo, sizeof(struct in_pktinfo));
+}
+
+void sockinfo_udp::insert_cmsg(struct msghdr * msg, int level, int type, void *data, int len)
+{
+
+	if ( msg->msg_control == NULL || msg->msg_controllen < sizeof(struct cmsghdr)) {
+		msg->msg_flags |= MSG_CTRUNC;
+		return;
+	}
+
+	unsigned int cmsg_len = CMSG_LEN(len);
+
+	if (msg->msg_controllen < cmsg_len) {
+		msg->msg_flags |= MSG_CTRUNC;
+		cmsg_len = msg->msg_controllen;
+	}
+
+	struct cmsghdr cmghdr;
+	cmghdr.cmsg_level = level;
+	cmghdr.cmsg_type = type;
+	cmghdr.cmsg_len = cmsg_len;
+
+	memcpy(msg->msg_control, &cmghdr, sizeof(struct cmsghdr));
+	memcpy((void*)((char*)msg->msg_control + CMSG_LEN(0)), data, cmsg_len - sizeof(struct cmsghdr));
+
+	//todo when we'll have several messages in the control message - need to advance pointer,
+	//and bring it back to start before returning from RX
+	/*
+	cmsg_len = CMSG_SPACE(len);
+
+	if (msg->msg_controllen < cmsg_len)
+		cmsg_len = msg->msg_controllen;
+
+	msg->msg_control = (void*)((char*)msg->msg_control +cmsg_len);
+	msg->msg_controllen -= cmsg_len;
+	*/
 }
 
 // This function is relevant only for non-blocking socket

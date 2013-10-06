@@ -114,7 +114,7 @@ public:
 	struct tcp_pcb* get_syn_received_pcb(in_addr_t src_addr, in_port_t src_port, in_addr_t dest_addr, in_port_t dest_port);
 
 	ssize_t tx(const tx_call_t call_type, const struct iovec *p_iov, const ssize_t sz_iov, const int flags = 0, const struct sockaddr *__to = NULL, const socklen_t __tolen = NULL);
-	ssize_t rx(const rx_call_t call_type, iovec *p_iov, ssize_t sz_iov, int *p_flags, sockaddr *__from = NULL, socklen_t *__fromlen = NULL);
+	ssize_t rx(const rx_call_t call_type, iovec *p_iov, ssize_t sz_iov, int *p_flags, sockaddr *__from = NULL, socklen_t *__fromlen = NULL, struct msghdr *__msg = NULL);
 	static err_t ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit);
 	virtual bool rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void* pv_fd_ready_array = NULL);
 	inline void init_pbuf_custom(mem_buf_desc_t *p_desc);

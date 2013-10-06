@@ -101,7 +101,8 @@ public:
 	virtual ssize_t rx(const rx_call_t call_type, iovec* iov,
 			   const ssize_t iovlen, int* p_flags = 0,
 			   sockaddr *__from = NULL,
-			   socklen_t *__fromlen = NULL) = 0;
+			   socklen_t *__fromlen = NULL,
+			   struct msghdr *__msg = NULL) = 0;
 
 	virtual bool is_readable(uint64_t *p_poll_sn, 
 				 fd_array_t* p_fd_array = NULL);
@@ -185,7 +186,7 @@ protected:
 
 	// Calling OS receive
 	ssize_t rx_os(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov,
-		      int* p_flags, sockaddr *__from, socklen_t *__fromlen);
+		      int* p_flags, sockaddr *__from, socklen_t *__fromlen, struct msghdr *__msg);
 
 
 private:

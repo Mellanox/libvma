@@ -89,7 +89,7 @@ public:
 	 * Process a Rx request, we might have a ready packet, or we might block until
 	 * we have one (if sockinfo::m_b_blocking == true)
 	 */
-	ssize_t rx(const rx_call_t call_type, iovec *p_iov, ssize_t sz_iov, int *p_flags, sockaddr *__from = NULL, socklen_t *__fromlen = NULL);
+	ssize_t rx(const rx_call_t call_type, iovec *p_iov, ssize_t sz_iov, int *p_flags, sockaddr *__from = NULL, socklen_t *__fromlen = NULL, struct msghdr *__msg = NULL);
 	/**
 	 * Check that a call to this sockinfo rx() will not block
 	 * -> meaning, we got an offloaded ready rx datagram
@@ -170,6 +170,8 @@ private:
 
 	dst_entry_map_t	m_dst_entry_map;
 
+	bool		m_b_pktinfo;
+
 	int mc_change_membership(const struct ip_mreq *p_mreq, int optname);
 	void handle_pending_mreq();
 
@@ -195,5 +197,8 @@ private:
 	virtual void 	post_deqeue (bool release_buff);
 	virtual int 	zero_copy_rx (iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags);
 	virtual size_t	handle_msg_trunc(size_t total_rx, size_t payload_size, int* p_flags);
+
+	inline void	handle_ip_pktinfo(struct msghdr * msg);
+	inline void	insert_cmsg(struct msghdr * msg, int level, int type, void *data, int len);
 };
 #endif
