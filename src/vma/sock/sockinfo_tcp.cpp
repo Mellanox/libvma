@@ -1108,7 +1108,16 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 	create_dst_entry();
 	m_p_connected_dst_entry->prepare_to_send();
 
-	if (!m_p_connected_dst_entry->is_offloaded()) {
+	sockaddr_in remote_addr;
+	remote_addr.sin_family = AF_INET;
+	remote_addr.sin_addr.s_addr = m_p_connected_dst_entry->get_dst_addr();
+	remote_addr.sin_port = m_p_connected_dst_entry->get_dst_port();
+	sock_addr local_addr(m_bound.get_p_sa());
+	if (local_addr.is_anyaddr())
+		local_addr.set_in_addr(m_p_connected_dst_entry->get_src_addr());
+
+	if (!m_p_connected_dst_entry->is_offloaded()
+			|| find_target_family(ROLE_TCP_CLIENT, (sockaddr*)&remote_addr, local_addr.get_p_sa()) != TRANS_VMA) {
 		setPassthrough();
 		unlock_tcp_con();
 		si_tcp_logdbg("non offloaded socket --> connect only via OS");
@@ -1123,7 +1132,7 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 		tcp_bind(&m_pcb, (ip_addr_t*)(&ip), (ntohs(m_bound.get_in_port())));
 	}
 	m_conn_state = TCP_CONN_CONNECTING;
-	attach_as_uc_receiver(ROLE_TCP_CLIENT);
+	attach_as_uc_receiver((role_t)NULL, true);
 
 	if (m_rx_ring_map.size() == 1) {
 		rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.begin();
@@ -1269,7 +1278,7 @@ int sockinfo_tcp::prepareListen(){
 	memset(&tmp_sin, 0, tmp_sin_len);
 	getsockname((struct sockaddr *)&tmp_sin, &tmp_sin_len);
 	lock_tcp_con();
-	target_family = __vma_match_tcp_server(TRANS_VMA, (struct sockaddr *) &tmp_sin, tmp_sin_len, mce_sys.app_id);
+	target_family = __vma_match_tcp_server(TRANS_VMA, mce_sys.app_id, (struct sockaddr *) &tmp_sin, tmp_sin_len);
 	si_tcp_logdbg("TRANSPORT: %s, sock state = %d", __vma_get_transport_str(target_family), m_pcb.state);
 
 	if (target_family == TRANS_OS || m_sock_offload == TCP_SOCK_PASSTHROUGH) {
@@ -1514,7 +1523,7 @@ int sockinfo_tcp::accept(struct sockaddr *__addr, socklen_t *__addrlen)
 	}
 //*/
 	ns->lock_tcp_con();
-	ns->attach_as_uc_receiver(role_t (NULL)); // TODO ALEXR
+	ns->attach_as_uc_receiver(role_t (NULL), true); // TODO ALEXR
 	ns->unlock_tcp_con();
 
 	if (ns->m_rx_ring_map.size() == 1) {

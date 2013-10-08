@@ -577,7 +577,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 
 				// Check MC rules for offloading
 				sock_addr tmp_grp_addr(AF_INET, mc_grp, m_bound.get_in_port());
-				if (__vma_match_udp_receiver(TRANS_VMA, tmp_grp_addr.get_p_sa(), tmp_grp_addr.get_socklen(), mce_sys.app_id) == TRANS_OS) {
+				if (__vma_match_udp_receiver(TRANS_VMA, mce_sys.app_id, tmp_grp_addr.get_p_sa(), tmp_grp_addr.get_socklen()) == TRANS_OS) {
 					// Break so we call orig setsockopt() and don't try to offlaod
 					si_udp_logdbg("setsockopt(%s) will be passed to OS for handling due to rule matching", setsockopt_ip_opt_to_str(__optname));
 					break;
@@ -1609,7 +1609,7 @@ int sockinfo_udp::mc_change_membership(const struct ip_mreq *p_mreq, int optname
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	sock_addr tmp_grp_addr(AF_INET, mc_grp, m_bound.get_in_port());
-	if (__vma_match_udp_receiver(TRANS_VMA, tmp_grp_addr.get_p_sa(), tmp_grp_addr.get_socklen(), mce_sys.app_id) == TRANS_OS) {
+	if (__vma_match_udp_receiver(TRANS_VMA, mce_sys.app_id, tmp_grp_addr.get_p_sa(), tmp_grp_addr.get_socklen()) == TRANS_OS) {
 		// Break so we call orig setsockopt() and don't try to offlaod
 		si_udp_logdbg("setsockopt(%s) will be passed to OS for handling due to rule matching", setsockopt_ip_opt_to_str(optname));
 		return -1;

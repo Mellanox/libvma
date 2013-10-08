@@ -773,13 +773,14 @@ void sockinfo::move_owned_rx_ready_descs(const mem_buf_desc_owner* p_desc_owner,
 	}
 }
 
-void sockinfo::attach_as_uc_receiver(role_t role)
+void sockinfo::attach_as_uc_receiver(role_t role, bool skip_rules /* = false */)
 {
 	sock_addr addr(m_bound.get_p_sa());
 
 	if (addr.get_in_addr() != INADDR_ANY) {
 		si_logdbg("Attaching to specific local if: %s", addr.to_str());
-		transport_t target_family = find_target_family(role, addr.get_p_sa());
+		transport_t target_family = TRANS_VMA;
+		if (!skip_rules) target_family = find_target_family(role, addr.get_p_sa());
 		if (target_family == TRANS_VMA) {
 			// bind to specific local if
 			flow_tuple_with_local_if flow_key(m_bound, m_connected, m_protocol, addr.get_in_addr());
@@ -796,7 +797,8 @@ void sockinfo::attach_as_uc_receiver(role_t role)
 		{
 			in_addr_t local_if = *lip_iter;
 			addr.set_in_addr(local_if);
-			transport_t target_family = find_target_family(role, addr.get_p_sa());
+			transport_t target_family = TRANS_VMA;
+			if (!skip_rules) target_family = find_target_family(role, addr.get_p_sa());
 			if (target_family == TRANS_VMA) {
 				flow_tuple_with_local_if flow_key(addr, m_connected, m_protocol, local_if);
 				attach_receiver(flow_key);
@@ -805,21 +807,21 @@ void sockinfo::attach_as_uc_receiver(role_t role)
 	}
 }
 
-transport_t sockinfo::find_target_family(role_t role, struct sockaddr* sock_addr)
+transport_t sockinfo::find_target_family(role_t role, struct sockaddr* sock_addr_first, struct sockaddr* sock_addr_second /* = NULL */)
 {
 	transport_t target_family = TRANS_DEFAULT;
 	switch (role) {
 	case ROLE_TCP_SERVER:
-		target_family = __vma_match_tcp_server(TRANS_VMA, sock_addr, sizeof(struct sockaddr), mce_sys.app_id);
+		target_family = __vma_match_tcp_server(TRANS_VMA, mce_sys.app_id, sock_addr_first, sizeof(struct sockaddr));
 		break;
 	case ROLE_TCP_CLIENT:
-		target_family = __vma_match_tcp_client(TRANS_VMA, sock_addr, sizeof(struct sockaddr), mce_sys.app_id);
+		target_family = __vma_match_tcp_client(TRANS_VMA, mce_sys.app_id, sock_addr_first, sizeof(struct sockaddr), sock_addr_second, sizeof(struct sockaddr));
 		break;
 	case ROLE_UDP_RECEIVER:
-		target_family = __vma_match_udp_receiver(TRANS_VMA, sock_addr, sizeof(struct sockaddr), mce_sys.app_id);
+		target_family = __vma_match_udp_receiver(TRANS_VMA, mce_sys.app_id, sock_addr_first, sizeof(struct sockaddr));
 		break;
 	case ROLE_UDP_SENDER:
-		target_family = __vma_match_udp_sender(TRANS_VMA, sock_addr, sizeof(struct sockaddr), mce_sys.app_id);
+		target_family = __vma_match_udp_sender(TRANS_VMA, mce_sys.app_id, sock_addr_first, sizeof(struct sockaddr));
 		break;
 	BULLSEYE_EXCLUDE_BLOCK_START
 	default:

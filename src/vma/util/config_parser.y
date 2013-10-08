@@ -63,6 +63,8 @@ struct dbl_lst	__instance_list;
 
 /* some globals to store intermidiate parser state */
 static struct use_family_rule __vma_rule;
+static struct address_port_rule *__vma_address_port_rule = NULL;
+static int __vma_rule_push_head = 0;
 static int current_role = 0;
 static configuration_t current_conf_type = CONF_RULE;
 static struct instance *curr_instance = NULL;
@@ -78,7 +80,7 @@ static void __vma_set_ipv4_addr(short a0, short a1, short a2, short a3)
 	char buf[16];
 	struct in_addr *p_ipv4 = NULL;
   
-	p_ipv4 = &(__vma_rule.ipv4);
+	p_ipv4 = &(__vma_address_port_rule->ipv4);
   
 	sprintf(buf,"%d.%d.%d.%d", a0, a1, a2, a3);
 	if (!inet_aton(buf, p_ipv4))
@@ -93,11 +95,30 @@ static void __vma_set_inet_addr_prefix_len(unsigned char prefixlen)
 	if (prefixlen > 32)
 		prefixlen = 32;
 	
-	__vma_rule.prefixlen = prefixlen;
+	__vma_address_port_rule->prefixlen = prefixlen;
 }
 
 // SM: log part is  not used...
 int __vma_min_level = 9;
+
+void __vma_dump_address_port_rule_config_state(char *buf) {
+	if (__vma_address_port_rule->match_by_addr) {
+		if ( __vma_address_port_rule->prefixlen != 32 )
+ 			sprintf(buf+strlen(buf), " %s/%d", inet_ntoa( __vma_address_port_rule->ipv4 ), 
+					__vma_address_port_rule->prefixlen);
+		else
+			sprintf(buf+strlen(buf), " %s", inet_ntoa( __vma_address_port_rule->ipv4 ));
+	} else
+		sprintf(buf+strlen(buf), " *");
+	
+	if (__vma_address_port_rule->match_by_port) {
+		sprintf(buf+strlen(buf), ":%d",__vma_address_port_rule->sport);
+		if (__vma_address_port_rule->eport > __vma_address_port_rule->sport) 
+			sprintf(buf+strlen(buf), "-%d",__vma_address_port_rule->eport);
+	}
+	else
+		sprintf(buf+strlen(buf), ":*");
+}
 
 /* dump the current state in readable format */
 static void  __vma_dump_rule_config_state() {
@@ -106,22 +127,12 @@ static void  __vma_dump_rule_config_state() {
 			__vma_get_transport_str(__vma_rule.target_transport), 
 			__vma_get_role_str(current_role),
 			__vma_get_protocol_str(__vma_rule.protocol));
-	if (__vma_rule.match_by_addr) {
-		if ( __vma_rule.prefixlen != 32 )
- 			sprintf(buf+strlen(buf), " %s/%d", inet_ntoa( __vma_rule.ipv4 ), 
-					__vma_rule.prefixlen);
-		else
-			sprintf(buf+strlen(buf), " %s", inet_ntoa( __vma_rule.ipv4 ));
-	} else
-		sprintf(buf+strlen(buf), " *");
-	
-	if (__vma_rule.match_by_port) {
-		sprintf(buf+strlen(buf), ":%d",__vma_rule.sport);
-		if (__vma_rule.eport > __vma_rule.sport) 
-			sprintf(buf+strlen(buf), "-%d",__vma_rule.eport);
+	__vma_address_port_rule = &(__vma_rule.first);
+	__vma_dump_address_port_rule_config_state(buf);
+	if (__vma_rule.use_second) {
+		__vma_address_port_rule = &(__vma_rule.second);
+		__vma_dump_address_port_rule_config_state(buf);
 	}
-	else
-		sprintf(buf+strlen(buf), ":*");
 	sprintf(buf+strlen(buf), "\n");
 	__vma_log(1, buf);
 }
@@ -138,6 +149,22 @@ static void  __vma_dump_instance() {
 			sprintf(buf+strlen(buf), "%s", curr_instance->id.user_defined_id);
 		sprintf(buf+strlen(buf), ":\n");
 		__vma_log(1, buf);
+	}
+}
+
+static void __vma_add_dbl_lst_node_head(struct dbl_lst *lst, struct dbl_lst_node *node)
+{
+	if (node && lst) {
+	
+		node->prev = NULL;
+		node->next = lst->head;
+		
+		if (!lst->head)
+			lst->tail = node;
+		else 
+			lst->head->prev = node;	
+					
+		lst->head = node;
 	}
 }
 
@@ -264,7 +291,10 @@ static void __vma_add_rule() {
 	memset(rule, 0, sizeof(*rule));
 	new_node->data = (void*)rule;
 	*((struct use_family_rule *)new_node->data) = __vma_rule; 
-	__vma_add_dbl_lst_node(p_lst, new_node);
+	if (__vma_rule_push_head)
+		__vma_add_dbl_lst_node_head(p_lst, new_node);
+	else
+		__vma_add_dbl_lst_node(p_lst, new_node);
 }
 
 %}
@@ -360,9 +390,9 @@ app_id:
 
 
 socket_statement: 
-    use transport role address ':' ports NL { __vma_add_rule(); }
+    use transport role tuple NL { __vma_add_rule(); }
  	;
-
+ 	
 use:
 	USE { current_conf_type = CONF_RULE; }
  	; 
@@ -383,11 +413,31 @@ role:
 	| UDP_SENDER 	{ current_role = ROLE_UDP_SENDER;	__vma_rule.protocol = PROTO_UDP; }
 	;
 
+tuple:
+	  three_tuple
+	| five_tuple
+	;
+
+three_tuple:
+	address_first ':' ports
+	;
+
+five_tuple:
+	address_first ':' ports ':' address_second ':' ports
+	;
+
+address_first:
+	{ __vma_address_port_rule = &(__vma_rule.first); __vma_rule.use_second = 0; } address
+	;
+
+address_second:
+	{ __vma_address_port_rule = &(__vma_rule.second); __vma_rule.use_second = 1; } address
+	;
 
 address:
-	  ipv4         { if (current_conf_type == CONF_RULE) __vma_rule.match_by_addr = 1; __vma_set_inet_addr_prefix_len(32); }
-	| ipv4 '/' INT { if (current_conf_type == CONF_RULE) __vma_rule.match_by_addr = 1; __vma_set_inet_addr_prefix_len($3); }
-	| '*'          { if (current_conf_type == CONF_RULE) __vma_rule.match_by_addr = 0; __vma_set_inet_addr_prefix_len(32); }
+	  ipv4         { if (current_conf_type == CONF_RULE) __vma_address_port_rule->match_by_addr = 1; __vma_set_inet_addr_prefix_len(32); }
+	| ipv4 '/' INT { if (current_conf_type == CONF_RULE) __vma_address_port_rule->match_by_addr = 1; __vma_set_inet_addr_prefix_len($3); }
+	| '*'          { if (current_conf_type == CONF_RULE) __vma_address_port_rule->match_by_addr = 0; __vma_set_inet_addr_prefix_len(32); }
 	;
 
 ipv4:
@@ -395,9 +445,9 @@ ipv4:
  	;
 
 ports:
-	  INT         { __vma_rule.match_by_port = 1; __vma_rule.sport= $1; __vma_rule.eport= $1; }
-	| INT '-' INT { __vma_rule.match_by_port = 1; __vma_rule.sport= $1; __vma_rule.eport= $3; }
-	| '*'         { __vma_rule.match_by_port = 0; __vma_rule.sport= 0;  __vma_rule.eport= 0;	  }
+	  INT         { __vma_address_port_rule->match_by_port = 1; __vma_address_port_rule->sport= $1; __vma_address_port_rule->eport= $1; }
+	| INT '-' INT { __vma_address_port_rule->match_by_port = 1; __vma_address_port_rule->sport= $1; __vma_address_port_rule->eport= $3; }
+	| '*'         { __vma_address_port_rule->match_by_port = 0; __vma_address_port_rule->sport= 0;  __vma_address_port_rule->eport= 0;  }
 	;
 
 %%
@@ -436,7 +486,7 @@ int yyerror(char *msg)
 #include <errno.h>
 
 /* parse apollo route dump file */
-int __vma_parse_config (const char *fileName) {
+int __vma_parse_config_file (const char *fileName) {
 	extern FILE * libvma_yyin;
    
 	/* open the file */
@@ -463,4 +513,22 @@ int __vma_parse_config (const char *fileName) {
 	return(parse_err);
 }
 
-
+int __vma_parse_config_line (char *line) {
+	extern FILE * libvma_yyin;
+	
+	__vma_rule_push_head = 1;
+	
+	libvma_yyin = fmemopen(line, strlen(line), "r");
+	
+	if (!libvma_yyin) {
+		printf("libvma Error: Fail to parse line:%s\n", line);
+		return(1);
+	}
+	
+	parse_err = 0;
+	yyparse();
+	
+	fclose(libvma_yyin);
+	
+	return(parse_err);
+}

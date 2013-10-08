@@ -1313,7 +1313,7 @@ void do_global_ctors()
 		if (strcmp (MCE_DEFAULT_CONF_FILE, mce_sys.conf_filename))
 			vlog_printf(VLOG_INFO,"Please see README.txt section regarding VMA_CONFIG_FILE\n");
 	}
-	else if (__vma_parse_config(mce_sys.conf_filename))
+	else if (__vma_parse_config_file(mce_sys.conf_filename))
 		vlog_printf(VLOG_WARNING,"FAILED to read VMA configuration file: %s\n", mce_sys.conf_filename);
 
 

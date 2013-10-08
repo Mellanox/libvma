@@ -330,6 +330,20 @@ int vma_free_datagrams(int __fd, void **pkt_desc_ids, size_t count)
 	return -1;
 }
 
+extern "C"
+int vma_add_conf_rule(char *config_line)
+{
+	do_global_ctors();
+
+	srdr_logdbg("adding conf rule: %s", config_line);
+
+	int ret = __vma_parse_config_line(config_line);
+
+	if (*g_p_vlogger_level >= VLOG_DEBUG)
+		__vma_print_conf_file(__instance_list);
+
+	return ret;
+}
 
 //-----------------------------------------------------------------------------
 //  replacement functions
@@ -597,6 +611,7 @@ int getsockopt(int __fd, int __level, int __optname,
 		vma_api->register_recv_callback = vma_register_recv_callback;
 		vma_api->recvfrom_zcopy = vma_recvfrom_zcopy;
 		vma_api->free_datagrams = vma_free_datagrams;
+		vma_api->add_conf_rule = vma_add_conf_rule;
 		*((vma_api_t**)__optval) = vma_api;
 		return 0;
 	}

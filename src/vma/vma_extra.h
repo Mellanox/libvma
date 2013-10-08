@@ -33,7 +33,7 @@ typedef enum {
 	                        The application will read it with the usual recv socket APIs */
 
 	VMA_PACKET_HOLD      /* Application will handle the queuing of the received datagram. The application
-	                        must return the descriptor to VMA using setsockopt(SO_VMA_RCV_PKT_ZCOPY_DEQUEUE)
+	                        must return the descriptor to VMA using the free_datagram function
 				But not in the context of VMA's callback itself. */
 } vma_recv_callback_retval_t;
 
@@ -55,8 +55,7 @@ struct __attribute__ ((packed)) vma_datagram_t {
  */
 struct __attribute__ ((packed)) vma_info_t {
 	size_t 			struct_sz;	/* Compare this value with sizeof(vma_info_t) to check version compatability */
-	void*			datagram_id;	/* VMA's handle to received packet buffer to be return if zero copy logic
-						   is used (See VMA_RCV_PKT_NOTIFY_ZCOPY & SO_VMA_RCV_PKT_ZCOPY_DEQUEUE) */
+	void*			datagram_id;	/* VMA's handle to received packet buffer to be return if zero copy logic is used */
 
 	/* Packet addressing information (in network byte order) */
 	struct sockaddr_in*	src;
@@ -162,6 +161,16 @@ struct __attribute__ ((packed)) vma_api_t {
 	 *                  ENOENT - the datagram was not received from `s'.
 	 */
 	int (*free_datagrams)(int s, void **datagram_ids, size_t count);
+
+
+	/*
+	 * Add a libvma.conf rule to the top of the list.
+	 * This rule will not apply to existing sockets which already considered the conf rules.
+	 * (around connect/listen/send/recv ..)
+	 * @param config_line A char buffer with the exact format as defined in libvma.conf, and should end with '\0'.
+	 * @return 0 on success, or error code on failure.
+	 */
+	int (*add_conf_rule)(char *config_line);
 };
 
 
@@ -211,7 +220,7 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_notify_callback(
 	if (vma_info->struct_sz < sizeof(vma_info_t)) {
 		printf("VMA's info struct is not something we recognize so un register the application's callback function");
 		void* option_value = NULL;
-		setsockopt(fd, SOL_SOCKET, SO_VMA_RCV_PKT_NOTIFY_REGISTER, option_value, sizeof(option_value))
+		vma_api->register_recv_callback(fd, option_value, &fd);
 		return VMA_PACKET_RECV;
 	}
 

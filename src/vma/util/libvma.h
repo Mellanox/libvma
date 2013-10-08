@@ -185,15 +185,22 @@ struct dbl_lst
 	struct dbl_lst_node *tail;
 };
 
-/* data structure for holding address family mapping rules */
-/* note we filter non relevant programs during parsing ...  */
-struct use_family_rule
+struct address_port_rule
 {
 	int match_by_addr;			/* if 0 ignore address match		*/
 	struct in_addr ipv4;			/* IPv4 address for mapping		*/
 	unsigned char prefixlen;		/* length of CIDR prefix (ie /24)	*/
 	int match_by_port;			/* if 0 ignore port match		*/
 	unsigned short sport, eport;		/* start port - end port, inclusive	*/
+};
+
+/* data structure for holding address family mapping rules */
+/* note we filter non relevant programs during parsing ...  */
+struct use_family_rule
+{
+	struct address_port_rule first;
+	struct address_port_rule second;
+	unsigned char use_second;
 	transport_t target_transport;		/* if match - use this transport	*/
 	in_protocol_t protocol;			/* protocol family for mapping		*/
 };
@@ -234,18 +241,20 @@ extern int __vma_min_level;
 #define IF_NAME_LEN 10
 
 /* match.cpp */
-transport_t __vma_match_tcp_client(transport_t my_transport, const struct sockaddr *sin, const socklen_t  addrlen, const char *app_id);
+transport_t __vma_match_tcp_client(transport_t my_transport, const char *app_id, const struct sockaddr *sin_first, const socklen_t  sin_addrlen_first, const struct sockaddr *sin_second, const socklen_t  sin_addrlen_second);
 
-transport_t __vma_match_tcp_server(transport_t my_transport, const struct sockaddr *sin, const socklen_t  addrlen, const char *app_id );
+transport_t __vma_match_tcp_server(transport_t my_transport, const char *app_id, const struct sockaddr *sin, const socklen_t  addrlen);
 
-transport_t __vma_match_udp_sender(transport_t my_transport, const struct sockaddr * sin, const socklen_t addrlen, const char *app_id);
+transport_t __vma_match_udp_sender(transport_t my_transport, const char *app_id, const struct sockaddr * sin, const socklen_t addrlen);
 
-transport_t __vma_match_udp_receiver(transport_t my_transport, const struct sockaddr * sin, const socklen_t addrlen, const char *app_id);
+transport_t __vma_match_udp_receiver(transport_t my_transport, const char *app_id, const struct sockaddr * sin, const socklen_t addrlen);
 
 /* config.c */
 int __vma_config_empty();
 
-int __vma_parse_config(const char *config_file);
+int __vma_parse_config_file(const char *config_file);
+
+int __vma_parse_config_line(char *config_line);
 
 void __vma_print_conf_file(struct dbl_lst conf_lst);
 

@@ -162,9 +162,9 @@ protected:
 	// Attach to all relevant rings for offloading receive flows - always used from slow path
 	// According to bounded information we need to attach to all UC relevant flows
 	// If local_ip is ANY then we need to attach to all offloaded interfaces OR to the one our connected_ip is routed to
-	void			attach_as_uc_receiver(role_t role);
+	void			attach_as_uc_receiver(role_t role, bool skip_rules = false);
 
-	transport_t 		find_target_family(role_t role, struct sockaddr *sock_addr);
+	transport_t 		find_target_family(role_t role, struct sockaddr *sock_addr_first, struct sockaddr *sock_addr_second = NULL);
 
 	// This callback will notify that socket is ready to receive and map the cq.
 	virtual void		rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool is_migration = false);

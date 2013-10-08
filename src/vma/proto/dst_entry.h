@@ -53,6 +53,8 @@ public:
 
 	bool 		is_offloaded() { return m_b_is_offloaded; }
 	in_addr_t	get_src_addr();
+	in_addr_t	get_dst_addr();
+	uint16_t	get_dst_port();
 
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off

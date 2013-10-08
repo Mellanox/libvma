@@ -105,18 +105,8 @@ void __vma_free_resources()
 	__instance_list.tail = NULL;
 }
 
-static void get_rule_str(struct use_family_rule *rule, char *buf, size_t len)
+void get_address_port_rule_str(char *addr_buf, char *ports_buf, struct address_port_rule *rule)
 {
-	if (!rule) {
-		snprintf(buf, len, " ");
-		return;
-	}
-
-	char addr_buf[MAX_ADDR_STR_LEN];
-	char ports_buf[16];
-	const char *target = __vma_get_transport_str(rule->target_transport);
-	const char *protocol = __vma_get_protocol_str(rule->protocol);
-
 	/* TODO: handle IPv6 in rule */
 	if (rule->match_by_addr) {
 		if (rule->prefixlen != 32)
@@ -133,8 +123,29 @@ static void get_rule_str(struct use_family_rule *rule, char *buf, size_t len)
 			sprintf(ports_buf, "%d", rule->sport);
 	else
 		sprintf(ports_buf, "*");
+}
 
-	snprintf(buf, len, "use %s %s %s:%s", target, protocol, addr_buf, ports_buf);
+static void get_rule_str(struct use_family_rule *rule, char *buf, size_t len)
+{
+	if (!rule) {
+		snprintf(buf, len, " ");
+		return;
+	}
+
+	char addr_buf_first[MAX_ADDR_STR_LEN];
+	char ports_buf_first[16];
+	char addr_buf_second[MAX_ADDR_STR_LEN];
+	char ports_buf_second[16];
+	const char *target = __vma_get_transport_str(rule->target_transport);
+	const char *protocol = __vma_get_protocol_str(rule->protocol);
+
+	get_address_port_rule_str(addr_buf_first, ports_buf_first, &(rule->first));
+	if (rule->use_second) {
+		get_address_port_rule_str(addr_buf_second, ports_buf_second, &(rule->second));
+		snprintf(buf, len, "use %s %s %s:%s:%s:%s", target, protocol, addr_buf_first, ports_buf_first, addr_buf_second, ports_buf_second);
+	} else {
+		snprintf(buf, len, "use %s %s %s:%s", target, protocol, addr_buf_first, ports_buf_first);
+	}
 }
 
 static void get_instance_id_str(struct instance *instance, char *buf, size_t len)
@@ -214,57 +225,103 @@ void __vma_print_conf_file(struct dbl_lst conf_lst)
 }
 
 /* return 0 if the addresses match */
-static inline int match_ipv4_addr(struct use_family_rule *rule, const struct sockaddr_in *sin)
+static inline int match_ipv4_addr(struct address_port_rule *rule, const struct sockaddr_in *sin)
 {
 	// Added netmask on rule side to avoid user mistake when configuring ip rule: 1.1.1.x/24 instead of 1.1.1.0/24
 	match_logdbg("rule ip address:%d.%d.%d.%d, socket ip address:%d.%d.%d.%d ", NIPQUAD(rule->ipv4.s_addr & htonl(VMA_NETMASK(rule->prefixlen))), NIPQUAD(sin->sin_addr.s_addr & htonl(VMA_NETMASK(rule->prefixlen))));
 	return ( (rule->ipv4.s_addr & htonl(VMA_NETMASK(rule->prefixlen))) != (sin->sin_addr.s_addr & htonl(VMA_NETMASK(rule->prefixlen))));
 }
 
-static int match_ip_addr_and_port(transport_t my_transport, struct use_family_rule *rule, const struct sockaddr *addr_in, const socklen_t addrlen)
+static int match_ip_addr_and_port(transport_t my_transport, struct use_family_rule *rule, const struct sockaddr *addr_in_first, const socklen_t addrlen_first, const struct sockaddr *addr_in_second = NULL, const socklen_t addrlen_second = 0)
 {
-	const struct sockaddr_in *sin = ( const struct sockaddr_in * )addr_in;
-	const struct sockaddr_in6 *sin6 = ( const struct sockaddr_in6 * )addr_in;
-	struct sockaddr_in tmp_sin;
-	unsigned short port;
+	const struct sockaddr_in *sin_first = ( const struct sockaddr_in * )addr_in_first;
+	const struct sockaddr_in *sin_second = ( const struct sockaddr_in * )addr_in_second;
+	const struct sockaddr_in6 *sin6_first = ( const struct sockaddr_in6 * )addr_in_first;
+	const struct sockaddr_in6 *sin6_second = ( const struct sockaddr_in6 * )addr_in_second;
+	struct sockaddr_in tmp_sin_first;
+	struct sockaddr_in tmp_sin_second;
+	unsigned short port_first;
+	unsigned short port_second;
 	int match = 1;
-	char addr_buf[MAX_ADDR_STR_LEN];
-	const char *addr_str;
+	char addr_buf_first[MAX_ADDR_STR_LEN];
+	const char *addr_str_first;
+	char addr_buf_second[MAX_ADDR_STR_LEN];
+	const char *addr_str_second;
 	char rule_str[512];
 
 	if ( g_vlogger_level >= VLOG_DEBUG ){
-		if ( sin6->sin6_family == AF_INET6 ) {
-			addr_str = inet_ntop( AF_INET6, (void *)&(sin6->sin6_addr), addr_buf, MAX_ADDR_STR_LEN);
-			port = ntohs(sin6->sin6_port);
-		} else {
-			addr_str = inet_ntop( AF_INET, (void *)&(sin->sin_addr), addr_buf, MAX_ADDR_STR_LEN);
-			port = ntohs(sin->sin_port);
-		}
-		if (addr_str == NULL)
-			addr_str = "INVALID_ADDR";
 
 		get_rule_str(rule, rule_str, sizeof(rule_str));
-		match_logdbg("MATCH: matching %s:%d to %s => ", addr_str, port, rule_str);
+
+		if ( sin6_first->sin6_family == AF_INET6 ) {
+			addr_str_first = inet_ntop( AF_INET6, (void *)&(sin6_first->sin6_addr), addr_buf_first, MAX_ADDR_STR_LEN);
+			port_first = ntohs(sin6_first->sin6_port);
+		} else {
+			addr_str_first = inet_ntop( AF_INET, (void *)&(sin_first->sin_addr), addr_buf_first, MAX_ADDR_STR_LEN);
+			port_first = ntohs(sin_first->sin_port);
+		}
+		if (addr_str_first == NULL)
+			addr_str_first = "INVALID_ADDR";
+
+		if (addr_in_second) {
+			if ( sin6_second->sin6_family == AF_INET6 ) {
+				addr_str_second = inet_ntop( AF_INET6, (void *)&(sin6_second->sin6_addr), addr_buf_second, MAX_ADDR_STR_LEN);
+				port_second = ntohs(sin6_second->sin6_port);
+			} else {
+				addr_str_second = inet_ntop( AF_INET, (void *)&(sin_second->sin_addr), addr_buf_second, MAX_ADDR_STR_LEN);
+				port_second = ntohs(sin_second->sin_port);
+			}
+			if (addr_str_second == NULL)
+				addr_str_second = "INVALID_ADDR";
+
+			match_logdbg("MATCH: matching %s:%d:%s:%d to %s => ", addr_str_first, port_first, addr_str_second, port_second, rule_str);
+
+		} else {
+			match_logdbg("MATCH: matching %s:%d to %s => ", addr_str_first, port_first, rule_str);
+		}
+
 	}
 
 	/* We currently only support IPv4 and IPv4 embedded in IPv6 */
-	if ( rule->match_by_port ) {
-		if ( sin6->sin6_family == AF_INET6 )
-			port = ntohs( sin6->sin6_port );
+	if ( rule->first.match_by_port ) {
+		if ( sin6_first->sin6_family == AF_INET6 )
+			port_first = ntohs( sin6_first->sin6_port );
 		else
-			port = ntohs( sin->sin_port );
+			port_first = ntohs( sin_first->sin_port );
 
-		if ((port < rule->sport) || (port > rule->eport)) {
+		if ((port_first < rule->first.sport) || (port_first > rule->first.eport)) {
 			match_logdbg("NEGATIVE MATCH by port range" );
 			match = 0;
 		}
 	}
 
-	if ( match && rule->match_by_addr ) {
-		if ( __vma_sockaddr_to_vma( addr_in, addrlen, &tmp_sin, NULL ) ||
-			  match_ipv4_addr(rule, &tmp_sin)) {
+	if ( match && rule->first.match_by_addr ) {
+		if ( __vma_sockaddr_to_vma( addr_in_first, addrlen_first, &tmp_sin_first, NULL ) ||
+				match_ipv4_addr(&(rule->first), &tmp_sin_first)) {
 			match_logdbg("NEGATIVE MATCH by address" );
 			match = 0;
+		}
+	}
+
+	if (match && rule->use_second && addr_in_second) {
+		if ( rule->second.match_by_port ) {
+			if ( sin6_second->sin6_family == AF_INET6 )
+				port_second = ntohs( sin6_second->sin6_port );
+			else
+				port_second = ntohs( sin_second->sin_port );
+
+			if ((port_second < rule->second.sport) || (port_second > rule->second.eport)) {
+				match_logdbg("NEGATIVE MATCH by port range" );
+				match = 0;
+			}
+		}
+
+		if ( match && rule->second.match_by_addr ) {
+			if ( __vma_sockaddr_to_vma( addr_in_second, addrlen_second, &tmp_sin_second, NULL ) ||
+					match_ipv4_addr(&(rule->second), &tmp_sin_second)) {
+				match_logdbg("NEGATIVE MATCH by address" );
+				match = 0;
+			}
 		}
 	}
 
@@ -307,7 +364,7 @@ int __vma_match_user_defined_id(struct instance *instance, const char *app_id)
 	return ret_val;
 }
 
-static transport_t get_family_by_first_matching_rule(transport_t my_transport, const struct sockaddr *sin, const socklen_t addrlen, struct dbl_lst rules_lst)
+static transport_t get_family_by_first_matching_rule(transport_t my_transport, struct dbl_lst rules_lst, const struct sockaddr *sin_first, const socklen_t addrlen_first, const struct sockaddr *sin_second = NULL, const socklen_t addrlen_second = 0)
 {
 	struct dbl_lst_node *node;
 
@@ -315,7 +372,7 @@ static transport_t get_family_by_first_matching_rule(transport_t my_transport, c
 		/* first rule wins */
 		struct use_family_rule *rule = (struct use_family_rule *)node->data;
 		if (rule)
-			if (match_ip_addr_and_port(my_transport, rule, sin, addrlen))
+			if (match_ip_addr_and_port(my_transport, rule, sin_first, addrlen_first, sin_second, addrlen_second))
 				return rule->target_transport;
 	}
 
@@ -323,7 +380,7 @@ static transport_t get_family_by_first_matching_rule(transport_t my_transport, c
 	return TRANS_VMA; //No matching rule or no rule at all. Don't continue to next application-id
 }
 
-static transport_t get_family_by_instance_first_matching_rule(transport_t my_transport, const struct sockaddr *sin, const socklen_t addrlen, role_t role, const char *app_id)
+static transport_t get_family_by_instance_first_matching_rule(transport_t my_transport, role_t role, const char *app_id, const struct sockaddr *sin_first, const socklen_t addrlen_first, const struct sockaddr *sin_second = NULL, const socklen_t addrlen_second = 0)
 {
 	transport_t target_family = TRANS_DEFAULT;
 
@@ -342,16 +399,16 @@ static transport_t get_family_by_instance_first_matching_rule(transport_t my_tra
 					match_logdbg("MATCHING program name: %s, application-id: %s",curr_instance->id.prog_name_expr, curr_instance->id.user_defined_id);
 					switch (role) {
 						case ROLE_TCP_SERVER:
-							target_family =	get_family_by_first_matching_rule(my_transport, sin, addrlen, curr_instance->tcp_srv_rules_lst);
+							target_family =	get_family_by_first_matching_rule(my_transport, curr_instance->tcp_srv_rules_lst, sin_first, addrlen_first);
 							break;
 						case ROLE_TCP_CLIENT:
-							target_family =	get_family_by_first_matching_rule(my_transport, sin, addrlen, curr_instance->tcp_clt_rules_lst);
+							target_family =	get_family_by_first_matching_rule(my_transport, curr_instance->tcp_clt_rules_lst, sin_first, addrlen_first, sin_second, addrlen_second);
 							break;
 						case ROLE_UDP_SENDER:
-							target_family =	get_family_by_first_matching_rule(my_transport, sin, addrlen, curr_instance->udp_snd_rules_lst);
+							target_family =	get_family_by_first_matching_rule(my_transport, curr_instance->udp_snd_rules_lst, sin_first, addrlen_first);
 							break;
 						case ROLE_UDP_RECEIVER:
-							target_family =	get_family_by_first_matching_rule(my_transport, sin, addrlen, curr_instance->udp_rcv_rules_lst);
+							target_family =	get_family_by_first_matching_rule(my_transport, curr_instance->udp_rcv_rules_lst, sin_first, addrlen_first);
 							break;
 						BULLSEYE_EXCLUDE_BLOCK_START
 						default:
@@ -370,22 +427,22 @@ static transport_t get_family_by_instance_first_matching_rule(transport_t my_tra
 }
 
 /* return the result of the first matching rule found */
-transport_t __vma_match_tcp_server(transport_t my_transport, const struct sockaddr * sin, const socklen_t addrlen, const char *app_id)
+transport_t __vma_match_tcp_server(transport_t my_transport, const char *app_id, const struct sockaddr * sin, const socklen_t addrlen)
 {
 	transport_t target_family;
 
-	target_family = get_family_by_instance_first_matching_rule(my_transport, sin, addrlen, ROLE_TCP_SERVER, app_id);
+	target_family = get_family_by_instance_first_matching_rule(my_transport, ROLE_TCP_SERVER, app_id, sin, addrlen);
 
 	match_logdbg("MATCH TCP SERVER (LISTEN): => %s", __vma_get_transport_str(target_family));
 
 	return target_family;
 }
 
-transport_t __vma_match_tcp_client(transport_t my_transport, const struct sockaddr * sin, const socklen_t addrlen, const char *app_id)
+transport_t __vma_match_tcp_client(transport_t my_transport, const char *app_id, const struct sockaddr * sin_first, const socklen_t addrlen_first, const struct sockaddr * sin_second, const socklen_t addrlen_second)
 {
 	transport_t target_family;
 
-	target_family = get_family_by_instance_first_matching_rule(my_transport, sin, addrlen, ROLE_TCP_CLIENT, app_id);
+	target_family = get_family_by_instance_first_matching_rule(my_transport, ROLE_TCP_CLIENT, app_id, sin_first, addrlen_first, sin_second, addrlen_second);
 
 	match_logdbg("MATCH TCP CLIENT (CONNECT): => %s", __vma_get_transport_str(target_family));
 
@@ -393,22 +450,22 @@ transport_t __vma_match_tcp_client(transport_t my_transport, const struct sockad
 }
 
 /* return the result of the first matching rule found */
-transport_t __vma_match_udp_sender(transport_t my_transport, const struct sockaddr * sin, const socklen_t addrlen, const char *app_id)
+transport_t __vma_match_udp_sender(transport_t my_transport, const char *app_id, const struct sockaddr * sin, const socklen_t addrlen)
 {
 	transport_t target_family;
 
-	target_family = get_family_by_instance_first_matching_rule(my_transport, sin, addrlen, ROLE_UDP_SENDER, app_id);
+	target_family = get_family_by_instance_first_matching_rule(my_transport, ROLE_UDP_SENDER, app_id, sin, addrlen);
 
 	match_logdbg("MATCH UDP SENDER: => %s", __vma_get_transport_str(target_family));
 
 	return target_family;
 }
 
-transport_t __vma_match_udp_receiver(transport_t my_transport, const struct sockaddr * sin, const socklen_t addrlen, const char *app_id)
+transport_t __vma_match_udp_receiver(transport_t my_transport, const char *app_id, const struct sockaddr * sin, const socklen_t addrlen)
 {
 	transport_t target_family;
 
-	target_family = get_family_by_instance_first_matching_rule(my_transport, sin, addrlen, ROLE_UDP_RECEIVER, app_id);
+	target_family = get_family_by_instance_first_matching_rule(my_transport, ROLE_UDP_RECEIVER, app_id, sin, addrlen);
 
 	match_logdbg("MATCH UDP RECEIVER: => %s", __vma_get_transport_str(target_family));
 
@@ -436,13 +493,13 @@ static transport_t match_by_all_rules_program(in_protocol_t my_protocol, struct 
 		if (!rule)
 			continue;
 		if ((rule->protocol == my_protocol || my_protocol == PROTO_ALL) &&
-				(rule->match_by_addr || rule->match_by_port)) {
+				(rule->first.match_by_addr || rule->first.match_by_port || (rule->use_second && (rule->second.match_by_addr || rule->second.match_by_port )))) {
 			/* not a global match rule - just track the target family */
 			if (rule->target_transport == TRANS_VMA || rule->target_transport == TRANS_ULP)
 				any_vma++;
 			else if (rule->target_transport == TRANS_OS)
 				any_os++;
-		} else if (rule->protocol == my_protocol && ((!rule->match_by_addr && !rule->match_by_port))){
+		} else if (rule->protocol == my_protocol && !(rule->first.match_by_addr || rule->first.match_by_port || (rule->use_second && (rule->second.match_by_addr || rule->second.match_by_port )))){
 			/* a global match so we can declare a match by program */
 			if ((rule->target_transport == TRANS_VMA || rule->target_transport == TRANS_ULP) && (any_os == 0))
 				target_family = TRANS_VMA;

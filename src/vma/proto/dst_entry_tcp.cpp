@@ -39,7 +39,8 @@ dst_entry_tcp::~dst_entry_tcp()
 
 transport_t dst_entry_tcp::get_transport(sockaddr_in to)
 {
-	return  __vma_match_tcp_client(TRANS_VMA, (sockaddr *)(&to), sizeof to, mce_sys.app_id);
+	NOT_IN_USE(to);
+	return TRANS_VMA;
 }
 
 ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov, bool b_blocked /*= true*/, bool is_rexmit /*= false*/, bool dont_inline /*= false*/)
@@ -132,7 +133,7 @@ ssize_t dst_entry_tcp::slow_send(const iovec* p_iov, size_t sz_iov, bool b_block
 
 	m_slow_path_lock.lock();
 
-	prepare_to_send();
+	prepare_to_send(true);
 
 	if (m_b_is_offloaded) {
 		if (!is_valid()) { // That means that the neigh is not resolved yet

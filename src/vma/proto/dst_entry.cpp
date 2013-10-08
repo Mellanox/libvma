@@ -533,6 +533,16 @@ in_addr_t dst_entry::get_src_addr()
 	return ret_val;
 }
 
+in_addr_t dst_entry::get_dst_addr()
+{
+	return m_dst_ip.get_in_addr();
+}
+
+uint16_t dst_entry::get_dst_port()
+{
+	return m_dst_port;
+}
+
 ssize_t dst_entry::pass_buff_to_neigh(const iovec * p_iov, size_t & sz_iov, uint16_t packet_id)
 {
 	ssize_t ret_val = 0;
