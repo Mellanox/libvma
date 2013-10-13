@@ -55,7 +55,7 @@ typedef enum
 
 #define YYERROR_VERBOSE 1
 
-extern int yyerror(char *msg);
+extern int yyerror(const char *msg);
 extern int yylex(void);
 static int parse_err = 0;
 
@@ -452,7 +452,7 @@ ports:
 
 %%
 
-int yyerror(char *msg)
+int yyerror(const char *msg)
 {
 	/* replace the $undefined and $end if exists */
 	char *orig_msg = (char*)malloc(strlen(msg)+25);

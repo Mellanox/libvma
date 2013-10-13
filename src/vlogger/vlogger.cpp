@@ -30,7 +30,7 @@
 
 char         g_vlogger_module_name[VLOG_MODULE_MAX_LEN] = VLOG_DEFAULT_MODULE_NAME;
 int          g_vlogger_fd = -1;
-FILE*        g_vlogger_file = stderr;
+FILE*        g_vlogger_file = NULL;
 uint8_t      g_vlogger_level = VLOG_INFO;
 uint8_t*     g_p_vlogger_level = NULL;
 uint8_t      g_vlogger_details = 0;
@@ -135,6 +135,8 @@ static vma_log_cb_t vma_log_get_cb_func()
 
 void vlog_start(const char* log_module_name, int log_level, const char* log_filename, int log_details, bool log_in_colors)
 {
+	g_vlogger_file = stderr;
+
 	g_vlogger_cb = vma_log_get_cb_func();
 
 	strncpy(g_vlogger_module_name, log_module_name, VLOG_MODULE_MAX_LEN);

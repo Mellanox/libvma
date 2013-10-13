@@ -154,8 +154,23 @@ CFLAGS="-D_GNU_SOURCE -fPIC $CFLAGS -I$ac_cv_ofed_path/include"
 CXXFLAGS="-D_GNU_SOURCE -fPIC $CXXFLAGS -I$ac_cv_ofed_path/include"
 
 if test "x${GCC}" = "xyes" ; then
-	CFLAGS="-Wall -Wextra -Werror $CFLAGS"
-	CXXFLAGS="-Wall -Wextra -Werror $CXXFLAGS"
+        AC_MSG_CHECKING([for gcc version])
+        GCC_VER="`${CC} -dumpversion`"
+        GCC_MAJOR_VER="`echo ${GCC_VER} | cut -d. -f1`"
+        GCC_MINOR_VER="`echo ${GCC_VER} | cut -d. -f2`"
+        if test "${GCC_MAJOR_VER}" -ge "4" ; then
+                if test "${GCC_MINOR_VER}" -ge "6" ; then
+                        WNO_FLAGS="-Wno-format-security -Wno-unused-result -Wno-unused-but-set-variable -Wno-array-bounds"
+                        AC_MSG_RESULT([>= 4.6])
+                else
+                        WNO_FLAGS=""
+                        AC_MSG_RESULT([< 4.6])
+                fi
+        else
+                AC_MSG_RESULT([< 4])
+        fi
+        CFLAGS="-Wall -Wextra -Werror $WNO_FLAGS $CFLAGS"
+        CXXFLAGS="-Wall -Wextra -Werror $WNO_FLAGS $CXXFLAGS"
 fi
 
 AC_HEADER_STDC

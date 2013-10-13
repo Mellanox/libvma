@@ -1680,7 +1680,7 @@ err_t sockinfo_tcp::clone_conn_cb(void *arg, struct tcp_pcb **newpcb, err_t err)
 	}
 
 	conn->unlock_tcp_con();
-	return ERR_OK;
+	return ret_val;
 }
 
 err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_t err)

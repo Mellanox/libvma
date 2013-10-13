@@ -14,6 +14,7 @@
 #ifndef VMA_EXTRA_H
 #define VMA_EXTRA_H
 
+#include <stddef.h>
 #include <stdint.h>
 /*
  * Flags for recvfrom_zcopy()

@@ -325,7 +325,7 @@ const char* thread_mode_str(thread_mode_t thread_mode)
 
 #define VLOG_STR_PARAM_DETAILS(param_val, param_def_val, args...)						\
 	do {	                                 								\
-		if (strcmp(param_val, param_def_val))	{							\
+		if (param_val && strcmp(param_val, param_def_val))	{							\
 			vlog_printf(VLOG_INFO, ##args);								\
 		}												\
 		else {												\

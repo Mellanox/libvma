@@ -19,6 +19,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "rdtsc.h"
+#include <vma/util/vtypes.h>
 
 #define likely(x)			__builtin_expect(!!(x), 1)
 #define unlikely(x)			__builtin_expect(!!(x), 0)
@@ -46,7 +47,7 @@ public:
 #endif
 protected:
 	tscval_t                start_lock_wait() { return 0; };
-	void                    end_lock_wait(tscval_t start_time) {start_time = 0;};
+	void                    end_lock_wait(tscval_t start_time) {start_time = 0; NOT_IN_USE(start_time);};
 private:
 	const char*             m_lock_name;
 };

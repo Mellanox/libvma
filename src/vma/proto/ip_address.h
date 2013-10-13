@@ -27,7 +27,7 @@ public:
 
 	const std::string to_str() const
 	{
-		char s[10];
+		char s[20];
 		sprintf(s, "%d.%d.%d.%d", NIPQUAD(m_ip));
 		return(std::string(s));
 	}
