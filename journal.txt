@@ -1,3 +1,15 @@
+Version 6.5.1-0:
+Date + Time 2013-10-15
+=======================
+Added:
+        - RM #327504 update sockperf version 2.5.233
+        - RM #216808 Support VMA compilation on Ubuntu
+        - RM #340484 improve VMA blacklist - libvma.conf
+        - RM #339564 support IP_PKTINFO in UDP recvmsg
+        - RM #333651 improve TCP recv latency
+Fixed:
+        - RM #333393 Multithread, fix IGMP handling
+
 Version 6.5.0-0:
 Date + Time 2013-9-12
 =======================
