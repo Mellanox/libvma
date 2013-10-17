@@ -7,8 +7,7 @@
 #override_dh_auto_clean:
 
 override_dh_auto_configure:
-	./autogen.sh
-	revision=1 ./configure --with-ofed=/usr --prefix=$(CURDIR)/debian/libvma/usr --libdir=$(CURDIR)/debian/libvma/usr/lib64 --includedir=$(CURDIR)/debian/libvma/usr/include/mellanox --docdir="$(CURDIR)/debian/libvma/usr/share/doc/libvma-__DEB_VMA_VERSION-__DEB_VMA_RELEASE" --sysconfdir=$(CURDIR)/debian/libvma/etc
+	date="__VMA_DEB_DATE" time="__VMA_DEB_TIME" revision=1 ./configure --with-ofed=/usr --prefix=$(CURDIR)/debian/libvma/usr --libdir=$(CURDIR)/debian/libvma/usr/lib64 --includedir=$(CURDIR)/debian/libvma/usr/include/mellanox --sysconfdir=$(CURDIR)/debian/libvma/etc
 
 override_dh_auto_build:
 	make

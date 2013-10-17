@@ -61,8 +61,6 @@ and get better throughput, latency and packets/sec rate
 %define build_32 %(eval echo ${BUILD_32:-0})
 %define build_bullseye %(eval echo ${BUILD_BULLSEYE:-0})
 # in case of 64-bit arch - build it both fot 32 and 64 bit
-cd build/vma
-./autogen.sh
 #edit version.h
 export date=%{date}
 export time=%{time}
@@ -106,7 +104,6 @@ export revision=1
 
 %install
 [ "${RPM_BUILD_ROOT}" != "/" -a -d ${RPM_BUILD_ROOT} ] && rm -rf ${RPM_BUILD_ROOT}
-cd build/vma
 mkdir -p $RPM_BUILD_ROOT/%{dest_dir}
 mkdir -p $RPM_BUILD_ROOT/%{prefix_dir}/bin/
 

@@ -2,7 +2,7 @@ SUBDIRS := src
 
 .PHONY: sockperf tests
 
-mydocdir = $(if $(docdir),$(docdir),${datadir}/doc/${PACKAGE})
+mydocdir = $(if $(docdir),$(docdir),${datadir}/doc/$(distdir))
 mydoc_DATA = README.txt journal.txt
 
 sockperf :

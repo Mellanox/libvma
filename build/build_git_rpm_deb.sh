@@ -524,7 +524,6 @@ cd build
 grep -e "VMA_LIBRARY_MAJOR=" -e "VMA_LIBRARY_MINOR=" -e "VMA_LIBRARY_REVISION=" -e "VMA_LIBRARY_RELEASE=" $VMA_DIR/configure.ac |head -4 > temp
 . ./temp
 VERSION=$VMA_LIBRARY_MAJOR.$VMA_LIBRARY_MINOR.$VMA_LIBRARY_REVISION
-
 #VERSION=`grep "VMA_VERSION" $VMA_DIR/version.h |awk -F "\""  '{print $2'}`
 #RELEASE=`grep "VMA_RELEASE" $VMA_DIR/version.h |awk -F "\""  '{print $2'}`
 
@@ -547,8 +546,16 @@ rm -rf $VMA_DIR_NAME  > /dev/null > /dev/null 2>&1
 mkdir $VMA_DIR_NAME
 mkdir $VMA_DIR_NAME/build
 cp -r build_vma_udp_rpm.sh $APP_NAME.spec $VMA_DIR_NAME/build
-cp -r $VMA_DIR  $VMA_DIR_NAME/build/   # copy vma & udp_test
-tar zcvf $VMA_DIR_NAME.tar.gz --exclude .git $VMA_DIR_NAME > /dev/null > /dev/null 2>&1
+cp -r $VMA_DIR  $VMA_DIR_NAME/build/$VMA_DIR_NAME/   # copy vma & udp_test
+cd $VMA_DIR_NAME
+cd build
+cd $VMA_DIR_NAME
+./autogen.sh
+prepare_debian_files "debian"
+cd ..
+tar zcvf ../../$VMA_DIR_NAME.tar.gz --exclude .git $VMA_DIR_NAME > /dev/null > /dev/null 2>&1
+cd ..
+cd ..
 
 sudo cp *.gz $APP_NAME-$VERSION.spec $RPM_DIR/SOURCES/ > /dev/null > /dev/null 2>&1
 sudo rpmbuild --define "_topdir $RPM_DIR" -bs $APP_NAME-$VERSION.spec
@@ -761,6 +768,24 @@ function prepare_deb_tarball {
 	cp -rf $pathToWorkspace libvma-$DEB_VMA_VERSION.$DEB_VMA_RELEASE
 	rm -rf libvma-$DEB_VMA_VERSION.$DEB_VMA_RELEASE/.git
 
+	cd libvma-$DEB_VMA_VERSION.$DEB_VMA_RELEASE
+	./autogen.sh
+	cd ..
+
+	prepare_debian_files "libvma-$DEB_VMA_VERSION.$DEB_VMA_RELEASE/debian"
+
+        srcDebTarName=libvma_$DEB_VMA_VERSION.$DEB_VMA_RELEASE.orig.tar.gz
+        currpwd=`pwd`
+        srcDebTarPath="$currpwd/$srcDebTarName"
+
+        tar czvf $srcDebTarName libvma-$DEB_VMA_VERSION.$DEB_VMA_RELEASE
+
+}
+
+
+function prepare_debian_files {
+
+	pathToDebianDir=$1 
 	debUserName="Or Kehati"
         debUserEmail="ork@mellanox.com"
         localArch="`eval arch`"
@@ -772,12 +797,13 @@ function prepare_deb_tarball {
         fi
         debDate=`date -R`
 
+        DEB_VMA_VERSION="$vma_ver_major.$vma_ver_minor.$vma_ver_revision"
+        DEB_VMA_RELEASE="$vma_ver_release"
         DEB_VMA_DATE="$debDate"
         DEB_VMA_ARCH="$debArch"
         DEB_VMA_USERNAME="$debUserName"
         DEB_VMA_USER_EMAIL="$debUserEmail"
-
-	pathToDebianDir="libvma-$DEB_VMA_VERSION.$DEB_VMA_RELEASE/debian"
+	
         mv $pathToDebianDir/postinst $pathToDebianDir/postinst.template
         mv $pathToDebianDir/postrm $pathToDebianDir/postrm.template
         mv $pathToDebianDir/changelog $pathToDebianDir/changelog.template
@@ -793,7 +819,7 @@ function prepare_deb_tarball {
 
         sed  -e "s/__DEB_VMA_VERSION/$DEB_VMA_VERSION/g" -e "s/__DEB_VMA_RELEASE/$DEB_VMA_RELEASE/g" -e "s/__DEB_VMA_DATE/$DEB_VMA_DATE/g" -e "s/__DEB_VMA_ARCH/$DEB_VMA_ARCH/g" $pathToDebianDir/copyright.template > $pathToDebianDir/copyright
 
-	sed  -e "s/__DEB_VMA_VERSION/$DEB_VMA_VERSION/g" -e "s/__DEB_VMA_RELEASE/$DEB_VMA_RELEASE/g" $pathToDebianDir/rules.template > $pathToDebianDir/rules
+	sed  -e "s/__VMA_DEB_DATE/$DATE/g" -e "s/__VMA_DEB_TIME/$TIME/g" $pathToDebianDir/rules.template > $pathToDebianDir/rules
 
         rm -f $pathToDebianDir/postinst.template
         rm -f $pathToDebianDir/postrm.template
@@ -802,31 +828,27 @@ function prepare_deb_tarball {
         rm -f $pathToDebianDir/copyright.template
 	rm -f $pathToDebianDir/rules.template
 
-	srcDebTarName=libvma_$DEB_VMA_VERSION.$DEB_VMA_RELEASE.orig.tar.gz
-	currpwd=`pwd`
-	srcDebTarPath="$currpwd/$srcDebTarName"
-
-	tar czvf $srcDebTarName libvma-$DEB_VMA_VERSION.$DEB_VMA_RELEASE
 }
 
 function build_deb {
-        tarFile=$1
+        srcRpmFile=$1
         pathToFinalDir=$2
 	debFinalFile=$pathToFinalDir
         ubuntuMachine="hail14-vm03-ub12-x64-ofed20"
         debBuildDir="/tmp"
         debBuildContainer="deb_build"
         debBuildDirFinal="$debBuildDir/$debBuildContainer/"
-        libvmaDir="libvma"-"$vma_ver_major"."$vma_ver_minor"."$vma_ver_revision"."$vma_ver_release"
+        libvmaDir="libvma"-"$vma_ver_major"."$vma_ver_minor"."$vma_ver_revision"
 	ssh $ubuntuMachine "cd $debBuildDir; sudo rm -rf $debBuildContainer"
         ssh $ubuntuMachine "cd $debBuildDir; mkdir $debBuildContainer"
-        ssh $ubuntuMachine "cp $tarFile $debBuildDirFinal"
-        ssh $ubuntuMachine "cd $debBuildDirFinal; tar xzvf $tarFile > /dev/null 2>&1"
+        ssh $ubuntuMachine "cp $srcRpmFile $debBuildDirFinal"
+        ssh $ubuntuMachine "cd $debBuildDirFinal; rpm2cpio *.rpm | cpio -idmv > /dev/null 2>&1"
+        ssh $ubuntuMachine "cd $debBuildDirFinal; tar xzvf *.tar.gz > /dev/null 2>&1"
         ssh $ubuntuMachine "cd $debBuildDirFinal$libvmaDir; sudo dpkg-buildpackage -us -uc 2>&1"
         ssh $ubuntuMachine "cd $debBuildDirFinal; cp *.deb "$pathToFinalDir""
         ssh $ubuntuMachine "cd $debBuildDir; sudo rm -rf $debBuildContainer"
 
-	sudo rm -rf $debBuildDirFinal
+	#sudo rm -rf $debBuildDirFinal
 }
 
 function runStep {
@@ -888,9 +910,9 @@ if [ $RELEASE_MODE == 1 ]; then
         isReleaseExists
 fi
 
-currPwd=`pwd`
-prepare_deb_tarball "$currPwd"
-cd $currPwd
+#currPwd=`pwd`
+#prepare_deb_tarball "$currPwd"
+#cd $currPwd
 
 echoStep "clean project"
 make clean
@@ -987,7 +1009,6 @@ if [ "$DAILY_MODE" == 1 ]; then #daily
         else
 		cp $path* daily/"$branch_folder"/"$date"/libvma-"$fullVersion"-"$machine"-"$name"."$date".rpm
 		cp $srcRpm daily/"$branch_folder"/"$date"/libvma-"$fullVersion"-"$machine"-"$name"."$date".src.rpm
-		cp $srcDebTarPath daily/"$branch_folder"/"$date"/
 	fi
 	#cp $path* daily/"$branch_folder"/"$date"/
 	if [[ $? != 0 ]]; then
@@ -1004,8 +1025,7 @@ if [ "$DAILY_MODE" == 1 ]; then #daily
         	cp "/tmp/test.cov" daily/"$branch_folder"/"$date"/libvma-"$fullVersion"-"$machine"-"$name"."$date".cov
 		finalBullseye=$mswg_vma_folder/daily/"$branch_folder"/"$date"/libvma-"$fullVersion"-"$machine"-"$name"."$date".bullseye.cov
 	fi
-	build_deb "$mswg_vma_folder/daily/$branch_folder/$date/$srcDebTarName" "$mswg_vma_folder/daily/$branch_folder/$date/libvma-$fullVersion-$machine-$name.$date.deb"
-	mv daily/"$branch_folder"/"$date"/$srcDebTarName daily/"$branch_folder"/"$date"/libvma-"$fullVersion"-"$machine"-"$name"."$date".src.tar.gz
+	build_deb "$mswg_vma_folder/daily/$branch_folder/$date/libvma-$fullVersion-$machine-$name.$date.src.rpm" "$mswg_vma_folder/daily/$branch_folder/$date/libvma-$fullVersion-$machine-$name.$date.deb"
 
         if [ "$copy_to_bgate" == 1 ]; then
 		bgate_branch_folder=$branch_folder
@@ -1033,12 +1053,6 @@ if [ "$RELEASE_MODE" == 1 ]; then #release
         #copy the rpm (short name) to vma dir
         ln -s src/*"$(uname -n)".rpm libvma-""$fullVersion"-"$machine"".rpm
         
-	cp $srcDebTarPath src/
-        if [[ $? != 0 ]]; then
-                err=1;
-                echo "Machine: $name - failed on step: cp $srcDebTarPath src/" >> $log_file
-        fi
-	
 	cp "$workspace_folder"/README.txt .
         cp "$workspace_folder"/journal.txt .
         if [ "$make_cov" == 1 ]; then
@@ -1049,7 +1063,7 @@ if [ "$RELEASE_MODE" == 1 ]; then #release
         fi
 	localPath=`pwd`
 	finalRpm="$localPath/libvma-""$fullVersion"-"$machine"".rpm"
-	build_deb "$localPath/src/$srcDebTarName" "$localPath/libvma-$fullVersion-$machine.deb"
+	build_deb "$localPath/src/libvma-$fullVersion.src.rpm" "$localPath/libvma-$fullVersion-$machine.deb"
 fi
 if [ "$LOCAL_MODE" == 1 ]; then #local
         cp $path* "$target_dir"/libvma-""$fullVersion"-"$machine""$rpm_name"".rpm
