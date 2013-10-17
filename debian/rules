@@ -1,60 +1,35 @@
 #!/usr/bin/make -f
-# debian/rules for alien - originally created by alien version 8.86
-#sudo DEB_VMA_VERSION="6.3.28" DEB_VMA_RELEASE="0" DEB_VMA_DATE="`date -R`" DEB_VMA_ARCH="amd64" DEB_VMA_USERNAME="Or Kehati" DEB_VMA_USER_EMAIL="ork@mellanox.com" debian/rules binary
+# -*- mode: makefile; coding: utf-8 -*-
 
-PACKAGE=$(shell dh_listpackages)
+%:
+	dh $@
 
-build:
-	dh_testdir
+#override_dh_auto_clean:
 
-clean:
-	dh_testdir
-	dh_testroot
-	dh_clean -d
+override_dh_auto_configure:
+	./autogen.sh
+	revision=1 ./configure --with-ofed=/usr --prefix=$(CURDIR)/debian/libvma/usr --libdir=$(CURDIR)/debian/libvma/usr/lib64 --includedir=$(CURDIR)/debian/libvma/usr/include/mellanox --docdir="$(CURDIR)/debian/libvma/usr/share/doc/libvma-__DEB_VMA_VERSION-__DEB_VMA_RELEASE" --sysconfdir=$(CURDIR)/debian/libvma/etc
 
-binary-replace:
-	mv debian/postinst debian/postinst.template
-	mv debian/postrm debian/postrm.template
-	mv debian/changelog debian/changelog.template
-	mv debian/control debian/control.template
-	mv debian/copyright debian/copyright.template
-	sed  -e "s/__DEB_VMA_VERSION/${DEB_VMA_VERSION}/g" -e "s/__DEB_VMA_RELEASE/${DEB_VMA_RELEASE}/g" debian/postinst.template > debian/postinst
-	sed  -e "s/__DEB_VMA_VERSION/${DEB_VMA_VERSION}/g" -e "s/__DEB_VMA_RELEASE/${DEB_VMA_RELEASE}/g" debian/postrm.template > debian/postrm
-	sed  -e "s/__DEB_VMA_VERSION/${DEB_VMA_VERSION}/g" -e "s/__DEB_VMA_RELEASE/${DEB_VMA_RELEASE}/g" -e "s/__DEB_VMA_DATE/${DEB_VMA_DATE}/g" -e "s/__DEB_VMA_USERNAME/${DEB_VMA_USERNAME}/g" -e "s/__DEB_VMA_USER_EMAIL/${DEB_VMA_USER_EMAIL}/g" debian/changelog.template > debian/changelog
-	sed  -e "s/__DEB_VMA_ARCH/${DEB_VMA_ARCH}/g" -e "s/__DEB_VMA_USERNAME/${DEB_VMA_USERNAME}/g" -e "s/__DEB_VMA_USER_EMAIL/${DEB_VMA_USER_EMAIL}/g" debian/control.template > debian/control
-	sed  -e "s/__DEB_VMA_VERSION/${DEB_VMA_VERSION}/g" -e "s/__DEB_VMA_RELEASE/${DEB_VMA_RELEASE}/g" -e "s/__DEB_VMA_DATE/${DEB_VMA_DATE}/g" -e "s/__DEB_VMA_ARCH/${DEB_VMA_ARCH}/g" debian/copyright.template > debian/copyright
+override_dh_auto_build:
+	make
+	make sockperf
 
-binary-indep: build
+override_dh_auto_install:
+	$(MAKE) prefix=$(CURDIR)/debian/libvma/usr install install-sockperf
 
-binary-arch: build
-	dh_testdir
-	dh_testroot
-	dh_prep
-	dh_installdirs
+override_dh_auto_installchangelogs:
+	
 
-	dh_installdocs
-	dh_installchangelogs
+override_dh_installchangelogs:
+	
 
-# Copy the packages's files.
-	find . -maxdepth 1 -mindepth 1 -not -name debian -print0 | \
-		xargs -0 -r -i cp -a {} debian/$(PACKAGE)
+override_dh_auto_installdocs:
+	
 
-#
-# If you need to move files around in debian/$(PACKAGE) or do some
-# binary patching, do it here
-#
+override_dh_installdocs:
+	
 
+override_dh_compress:
+	
 
-# This has been known to break on some wacky binaries.
-#	dh_strip
-	dh_compress
-#	dh_fixperms
-	dh_makeshlibs
-	dh_installdeb
-	-dh_shlibdeps
-	dh_gencontrol
-	dh_md5sums
-	dh_builddeb
-
-binary: binary-replace binary-indep binary-arch
-.PHONY: build clean binary-replace binary-indep binary-arch binary
+#override_dh_auto_test:
