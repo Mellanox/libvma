@@ -345,6 +345,20 @@ int vma_add_conf_rule(char *config_line)
 	return ret;
 }
 
+extern "C"
+int vma_thread_offload(int offload, pthread_t tid)
+{
+	do_global_ctors();
+
+	if (g_p_fd_collection) {
+		g_p_fd_collection->offloading_rule_change_thread(offload, tid);
+	} else {
+		return -1;
+	}
+
+	return 0;
+}
+
 //-----------------------------------------------------------------------------
 //  replacement functions
 //-----------------------------------------------------------------------------
@@ -612,6 +626,7 @@ int getsockopt(int __fd, int __level, int __optname,
 		vma_api->recvfrom_zcopy = vma_recvfrom_zcopy;
 		vma_api->free_datagrams = vma_free_datagrams;
 		vma_api->add_conf_rule = vma_add_conf_rule;
+		vma_api->thread_offload = vma_thread_offload;
 		*((vma_api_t**)__optval) = vma_api;
 		return 0;
 	}

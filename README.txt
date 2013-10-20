@@ -1,4 +1,4 @@
-Updated: 18 Sep 2013
+Updated: 20 Oct 2013
 
 Introduction
 ============
@@ -110,6 +110,7 @@ Example:
  VMA DEBUG  : CQ Poll Batch (max)            16                         [VMA_CQ_POLL_BATCH_MAX]
  VMA DEBUG  : CQ Keeps QP Full               Enabled                    [VMA_CQ_KEEP_QP_FULL]
  VMA DEBUG  : QP Compensation Level          256                        [VMA_QP_COMPENSATION_LEVEL]
+ VMA DEBUG  : Offloaded Sockets              Enabled                    [VMA_OFFLOADED_SOCKETS]
  VMA DEBUG  : Timer Resolution (msec)        10                         [VMA_TIMER_RESOLUTION_MSEC]
  VMA DEBUG  : TCP Timer Resolution (msec)    100                        [VMA_TCP_TIMER_RESOLUTION_MSEC]
  VMA DEBUG  : Delay after join (msec)        0                          [VMA_WAIT_AFTER_JOIN_MSEC]
@@ -509,6 +510,11 @@ VMA_QP_COMPENSATION_LEVEL
 Number of spare receive buffer CQ holds to allow for filling up QP while full 
 receive buffers are being processes inside VMA. 
 Default value is 256 buffers
+
+VMA_OFFLOADED_SOCKETS
+Create all sockets as offloaded/not-offloaded by default.
+Value of 1 is for offloaded, 0 for not-offloaded.
+Default value is 1 (Enabled)
 
 VMA_TIMER_RESOLUTION_MSEC
 Control VMA internal thread wakeup timer resolution (in milli seconds)

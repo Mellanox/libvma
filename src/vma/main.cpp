@@ -513,6 +513,7 @@ void print_vma_global_settings()
 	VLOG_PARAM_NUMBER("CQ Poll Batch (max)", mce_sys.cq_poll_batch_max, MCE_DEFAULT_CQ_POLL_BATCH, SYS_VAR_CQ_POLL_BATCH_MAX);
 	VLOG_PARAM_STRING("CQ Keeps QP Full", mce_sys.cq_keep_qp_full, MCE_DEFAULT_CQ_KEEP_QP_FULL, SYS_VAR_CQ_KEEP_QP_FULL, mce_sys.cq_keep_qp_full ? "Enabled" : "Disabled");
 	VLOG_PARAM_NUMBER("QP Compensation Level", mce_sys.qp_compensation_level, MCE_DEFAULT_QP_COMPENSATION_LEVEL, SYS_VAR_QP_COMPENSATION_LEVEL);
+	VLOG_PARAM_STRING("Offloaded Sockets", mce_sys.offloaded_sockets, MCE_DEFAULT_OFFLOADED_SOCKETS, SYS_VAR_OFFLOADED_SOCKETS, mce_sys.offloaded_sockets ? "Enabled" : "Disabled");
 	VLOG_PARAM_NUMBER("Timer Resolution (msec)", mce_sys.timer_resolution_msec, MCE_DEFAULT_TIMER_RESOLUTION_MSEC, SYS_VAR_TIMER_RESOLUTION_MSEC);
 	VLOG_PARAM_NUMBER("TCP Timer Resolution (msec)", mce_sys.tcp_timer_resolution_msec, MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC, SYS_VAR_TCP_TIMER_RESOLUTION_MSEC);
 	VLOG_PARAM_NUMBER("Delay after join (msec)", mce_sys.wait_after_join_msec, MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC, SYS_VAR_WAIT_AFTER_JOIN_MSEC);
@@ -658,6 +659,7 @@ void get_env_params()
 	mce_sys.qp_compensation_level	= MCE_DEFAULT_QP_COMPENSATION_LEVEL;
 	mce_sys.internal_thread_arm_cq_enabled	= MCE_DEFAULT_INTERNAL_THREAD_ARM_CQ_ENABLED;
 
+	mce_sys.offloaded_sockets	= MCE_DEFAULT_OFFLOADED_SOCKETS;
 	mce_sys.timer_resolution_msec	= MCE_DEFAULT_TIMER_RESOLUTION_MSEC;
 	mce_sys.tcp_timer_resolution_msec	= MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC;
 	mce_sys.wait_after_join_msec	= MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC;
@@ -966,6 +968,9 @@ void get_env_params()
 		mce_sys.qp_compensation_level = (uint32_t)atoi(env_ptr);
 	if (mce_sys.qp_compensation_level < mce_sys.rx_num_wr_to_post_recv)
 		mce_sys.qp_compensation_level = mce_sys.rx_num_wr_to_post_recv;
+
+	if ((env_ptr = getenv(SYS_VAR_OFFLOADED_SOCKETS)) != NULL)
+		mce_sys.offloaded_sockets = atoi(env_ptr) ? true : false;
 
 	if ((env_ptr = getenv(SYS_VAR_TIMER_RESOLUTION_MSEC)) != NULL)
 			mce_sys.timer_resolution_msec = atoi(env_ptr);

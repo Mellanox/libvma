@@ -166,6 +166,7 @@ struct mce_sys_var {
 	bool		cq_keep_qp_full;
 	uint32_t	qp_compensation_level;
 
+	bool		offloaded_sockets;
 	uint32_t	timer_resolution_msec;
 	uint32_t	tcp_timer_resolution_msec;
 	uint32_t	wait_after_join_msec;
@@ -254,6 +255,7 @@ struct mce_sys_var {
 #define SYS_VAR_PROGRESS_ENGINE_WCE_MAX			"VMA_PROGRESS_ENGINE_WCE_MAX"
 #define SYS_VAR_CQ_KEEP_QP_FULL				"VMA_CQ_KEEP_QP_FULL"
 #define SYS_VAR_QP_COMPENSATION_LEVEL			"VMA_QP_COMPENSATION_LEVEL"
+#define SYS_VAR_OFFLOADED_SOCKETS			"VMA_OFFLOADED_SOCKETS"
 #define SYS_VAR_TIMER_RESOLUTION_MSEC			"VMA_TIMER_RESOLUTION_MSEC"
 #define SYS_VAR_TCP_TIMER_RESOLUTION_MSEC		"VMA_TCP_TIMER_RESOLUTION_MSEC"
 #define SYS_VAR_WAIT_AFTER_JOIN_MSEC			"VMA_WAIT_AFTER_JOIN_MSEC"
@@ -339,6 +341,7 @@ struct mce_sys_var {
 #define MCE_DEFAULT_QP_COMPENSATION_LEVEL		(256)
 #define MCE_DEFAULT_INTERNAL_THREAD_ARM_CQ_ENABLED	(false)
 #define MCE_DEFAULT_QP_FORCE_MC_ATTACH			(false)
+#define MCE_DEFAULT_OFFLOADED_SOCKETS			(true)
 #define MCE_DEFAULT_TIMER_RESOLUTION_MSEC		(10)
 #define MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC		(100)
 #define MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC		(0)

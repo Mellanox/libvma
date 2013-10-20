@@ -183,6 +183,11 @@ int fd_collection::addsocket(int fd, int domain, int type)
 {
 	transport_t transport;
 
+	if (!create_offloaded_sockets()) {
+		fdcoll_logdbg("socket [fd=%d, domain=%d, type=%d] is not offloaded by thread rules or by VMA_OFFLOADED_SOCKETS", fd, domain, type);
+		return -1;
+	}
+
 	// IPV4 domain only (at least today)
 	if (domain != AF_INET)
 		return -1;
@@ -258,6 +263,37 @@ int fd_collection::addsocket(int fd, int domain, int type)
 	if (p_sfd_api_obj)
 		return fd;
 	return -1;
+}
+
+bool fd_collection::create_offloaded_sockets()
+{
+	bool ret = mce_sys.offloaded_sockets;
+
+	lock();
+	if (m_offload_thread_rule.find(pthread_self()) == m_offload_thread_rule.end()) {
+		unlock();
+		return ret;
+	}
+	unlock();
+
+	return !ret;
+}
+
+/*
+ * Create sockets on the given thread as offloaded/not-offloaded.
+ * pass true for offloaded, false for not-offloaded.
+ */
+void fd_collection::offloading_rule_change_thread(bool offloaded, pthread_t tid)
+{
+	fdcoll_logdbg("tid=%ul, offloaded=%d", tid, offloaded);
+
+	lock();
+	if (offloaded == mce_sys.offloaded_sockets) {
+		m_offload_thread_rule.erase(tid);
+	} else {
+		m_offload_thread_rule[tid] = 1;
+	}
+	unlock();
 }
 
 int fd_collection::addpipe(int fdrd, int fdwr)

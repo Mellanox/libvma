@@ -172,6 +172,16 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * @return 0 on success, or error code on failure.
 	 */
 	int (*add_conf_rule)(char *config_line);
+
+
+	/*
+	 * Create sockets on pthread tid as offloaded/not-offloaded.
+	 * This does not affect existing sockets.
+	 * Offloaded sockets are still subject to libvma.conf rules.
+	 * @param offload 1 for offloaded, 0 for not-offloaded.
+	 * @return 0 on success, or error code on failure.
+	 */
+	int (*thread_offload)(int offload, pthread_t tid);
 };
 
 

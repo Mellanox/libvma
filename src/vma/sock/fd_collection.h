@@ -29,6 +29,8 @@
 
 typedef std::list<socket_fd_api*> sock_fd_api_list_t;
 
+typedef std::tr1::unordered_map<pthread_t, int> offload_thread_rule_t;
+
 #define fdcoll_logfuncall(log_fmt, log_args...)		do { if (g_vlogger_level >= VLOG_FUNC_ALL) vlog_printf(VLOG_FUNC_ALL, "fdc:%d:%s() " log_fmt "\n", __LINE__, __FUNCTION__, ##log_args); } while (0)
 
 
@@ -128,6 +130,8 @@ public:
 	void 			clear();
 	void 			prepare_to_close();
 
+	void			offloading_rule_change_thread(bool offloaded, pthread_t tid);
+
 private:
 	template <typename cls>	int del(int fd, bool b_cleanup, cls **map_type);
 	template <typename cls>	inline cls* get(int fd, cls **map_type);
@@ -143,7 +147,13 @@ private:
 	rdma_event_channel* 		m_p_cma_event_channel;
 	void*				m_timer_handle;
 
+	//if (mce_sys.offloaded_sockets is true) contain all threads that need not be offloaded.
+	//else contain all threads that need to be offloaded.
+	offload_thread_rule_t		m_offload_thread_rule;
+
 	inline bool  			is_valid_fd(int fd);
+
+	inline bool			create_offloaded_sockets();
 
 	//Fd collection timer implementation
 	//This gives context to handle pending to remove fds.
