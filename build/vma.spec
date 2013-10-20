@@ -22,7 +22,8 @@
 %define arch %(eval arch)
 %define ofed_ver %(eval ofed_info|grep OFED|head -1)
 %define hostname %(eval hostname)
-%define _build_name_fmt %%{ARCH}/%%{NAME}-%%{VERSION}-%%{RELEASE}-%{os_release}-%%{ARCH}-%{ofed_ver}-%{hostname}.rpm
+#%define _build_name_fmt %%{ARCH}/%%{NAME}-%%{VERSION}-%%{RELEASE}-%{os_release}-%%{ARCH}-%{ofed_ver}-%{hostname}.rpm
+%define _build_name_fmt %%{ARCH}/%%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm
 
 %define prefix_dir /usr 
 %ifarch x86_64 ppc64
@@ -44,7 +45,7 @@ Vendor: Mellanox
 Group: Acceleration
 BuildRoot: %{_tmppath}/%{name}-%{version}-root
 Source: %{name}-%{version}.tar.gz
-requires: librdmacm, libibverbs
+requires: librdmacm, libibverbs, libnl-devel
 
 %description
 

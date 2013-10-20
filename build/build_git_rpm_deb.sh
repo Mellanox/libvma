@@ -1063,7 +1063,10 @@ if [ "$RELEASE_MODE" == 1 ]; then #release
         fi
 	localPath=`pwd`
 	finalRpm="$localPath/libvma-""$fullVersion"-"$machine"".rpm"
+
 	build_deb "$localPath/src/libvma-$fullVersion.src.rpm" "$localPath/libvma-$fullVersion-$machine.deb"
+
+	echo "libvma-$fullVersion.src.rpm" > $localPath/src/latest.txt
 fi
 if [ "$LOCAL_MODE" == 1 ]; then #local
         cp $path* "$target_dir"/libvma-""$fullVersion"-"$machine""$rpm_name"".rpm

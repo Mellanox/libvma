@@ -4,7 +4,7 @@ Maintainer: __DEB_VMA_USERNAME <__DEB_VMA_USER_EMAIL>
 
 Package: libvma
 Architecture: __DEB_VMA_ARCH
-Depends: libnl1, ${shlibs:Depends}
+Depends: librdmacm, libibverbs, libnl-dev, ${shlibs:Depends}
 Description: Enhanced Service library for boosting TCP and UDP traffic (over OFED)
  .
  VMA library is a performance booster of TCP and UDP traffic
