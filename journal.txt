@@ -1,3 +1,10 @@
+Version 6.5.2-0:
+Date + Time 2013-10-21
+=======================
+Added:
+        - RM #343162 Support creating all sockets on a given thread as offloaded/not-offloaded
+        - RM #342335 Support debian packaging from source tarball
+
 Version 6.5.1-0:
 Date + Time 2013-10-15
 =======================
