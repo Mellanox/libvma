@@ -140,7 +140,7 @@ void handle_close(int fd, bool cleanup = false, bool passthrough = false);
 // allow calling our socket(...) implementation safely from within libvma.so
 // this is critical in case VMA was loaded using dlopen and not using LD_PRELOAD
 // TODO: look for additional such functions/calls
-int socket_internal(int __domain, int __type, int __protocol);
+int socket_internal(int __domain, int __type, int __protocol, bool check_offload = false);
 
 #endif  //SOCK_REDIRECT_H
 

@@ -58,7 +58,7 @@ public:
 	 * @param type e.g SOCK_DGRAM.
 	 * @return socket fd or -1 on failure.
 	 */
-	int			addsocket(int fd, int domain, int type);
+	int			addsocket(int fd, int domain, int type, bool check_offload = false);
 	
 	/**
 	 * Create pipeinfo. Use get_sock() to get it.

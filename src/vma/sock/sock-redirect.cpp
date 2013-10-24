@@ -369,13 +369,13 @@ int vma_thread_offload(int offload, pthread_t tid)
 extern "C"
 int socket(int __domain, int __type, int __protocol)
 {
-	return socket_internal(__domain, __type, __protocol);
+	return socket_internal(__domain, __type, __protocol, true);
 }
 
 // allow calling our socket(...) implementation safely from within libvma.so
 // this is critical in case VMA was loaded using dlopen and not using LD_PRELOAD
 // TODO: look for additional such functions/calls
-int socket_internal(int __domain, int __type, int __protocol)
+int socket_internal(int __domain, int __type, int __protocol, bool check_offload /*= false*/)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.socket) get_orig_funcs();
@@ -393,7 +393,7 @@ int socket_internal(int __domain, int __type, int __protocol)
 		handle_close(fd, true);
 
 		// Create new sockinfo object for this new socket
-		g_p_fd_collection->addsocket(fd, __domain, __type);
+		g_p_fd_collection->addsocket(fd, __domain, __type, check_offload);
 	}
 
 	return fd;

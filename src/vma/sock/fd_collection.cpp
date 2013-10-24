@@ -179,11 +179,11 @@ void fd_collection::clear()
 	fdcoll_logfunc("done");
 }
 
-int fd_collection::addsocket(int fd, int domain, int type)
+int fd_collection::addsocket(int fd, int domain, int type, bool check_offload /*= false*/)
 {
 	transport_t transport;
 
-	if (!create_offloaded_sockets()) {
+	if (check_offload && !create_offloaded_sockets()) {
 		fdcoll_logdbg("socket [fd=%d, domain=%d, type=%d] is not offloaded by thread rules or by VMA_OFFLOADED_SOCKETS", fd, domain, type);
 		return -1;
 	}
