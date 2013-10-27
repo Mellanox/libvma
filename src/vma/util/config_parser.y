@@ -341,7 +341,8 @@ static void __vma_add_rule() {
 
 NL:
 	  LINE
-	| NL LINE;
+	| NL LINE
+	|;
     
 ONL:
 	| NL;
