@@ -1361,24 +1361,6 @@ int sockinfo_tcp::listen(int backlog)
 	m_backlog = backlog;
 	m_ready_conn_cnt = 0;
 
-	// Calling to orig_listen() by default to monitor connection requests for not offloaded sockets
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (orig_os_api.listen(m_fd, backlog)) {
-		si_tcp_logerr("orig_listen failed");
-		unlock_tcp_con();
-		return -1;
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-
-	// Add the user's orig fd to the rx epfd handle
-	struct epoll_event ev;
-	ev.events = EPOLLIN;
-	ev.data.fd = m_fd;
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (unlikely(orig_os_api.epoll_ctl(m_rx_epfd, EPOLL_CTL_ADD, ev.data.fd, &ev)))
-		si_tcp_logpanic("failed to add user's fd to internal epfd errno=%d (%m)", errno);
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	if (m_pcb.state != LISTEN) {
 
 		//Now we know that it is listen socket so we have to treate m_pcb as listen pcb
@@ -1416,6 +1398,25 @@ int sockinfo_tcp::listen(int backlog)
 		unlock_tcp_con();
 		return orig_os_api.listen(m_fd, backlog);
 	}
+
+	// Calling to orig_listen() by default to monitor connection requests for not offloaded sockets
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (orig_os_api.listen(m_fd, backlog)) {
+		si_tcp_logerr("orig_listen failed");
+		unlock_tcp_con();
+		return -1;
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	// Add the user's orig fd to the rx epfd handle
+	struct epoll_event ev;
+	ev.events = EPOLLIN;
+	ev.data.fd = m_fd;
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (unlikely(orig_os_api.epoll_ctl(m_rx_epfd, EPOLL_CTL_ADD, ev.data.fd, &ev)))
+		si_tcp_logpanic("failed to add user's fd to internal epfd errno=%d (%m)", errno);
+	BULLSEYE_EXCLUDE_BLOCK_END
+
 	unlock_tcp_con();
 	return 0;
 
