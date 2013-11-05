@@ -308,6 +308,11 @@ bool sockinfo::attach_receiver(flow_tuple_with_local_if &flow_key)
 		return false;
 	}
 
+	if (m_rx_flow_map.find(flow_key) != m_rx_flow_map.end()) {
+		si_logdbg("already attached %s", flow_key.to_str());
+		return false;
+	}
+
 	net_device_resources_t* p_nd_resources = NULL;
 
 	// Check if we are already registered to net_device with the local ip as observers
@@ -368,8 +373,6 @@ bool sockinfo::attach_receiver(flow_tuple_with_local_if &flow_key)
 	// Now we have the net_device object (created or found)
 	p_nd_resources = &rx_nd_iter->second;
 	p_nd_resources->refcnt++;
-
-	//TODO ALEXR need to verify if we already got a copy of this flow_key in m_rx_flow_map
 
 	// Map flow in local map
 	m_rx_flow_map[flow_key] = p_nd_resources->p_ring;
