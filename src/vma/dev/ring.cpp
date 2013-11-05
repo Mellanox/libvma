@@ -723,6 +723,7 @@ bool ring::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_type_t 
 	p_rx_wc_buf_desc->path.rx.src.sin_addr.s_addr = p_ip_h->saddr;
 	p_rx_wc_buf_desc->path.rx.dst.sin_family      = AF_INET;
 	p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr = p_ip_h->daddr;
+	p_rx_wc_buf_desc->path.rx.local_if            = m_local_if;
 
 	switch (p_ip_h->protocol) {
 	case IPPROTO_UDP:

@@ -87,6 +87,7 @@ public:
 			// In network byte ordering
 			sockaddr_in	src;
 			sockaddr_in	dst;
+			in_addr_t	local_if;
 			uint16_t	vlan;
 			uint32_t	qpn;
 

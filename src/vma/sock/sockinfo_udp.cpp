@@ -1061,13 +1061,14 @@ out:
 void sockinfo_udp::handle_ip_pktinfo(struct msghdr * msg)
 {
 	struct in_pktinfo in_pktinfo;
-	rx_net_device_map_t::iterator iter = m_rx_nd_map.find(m_rx_pkt_ready_list.front()->path.rx.dst.sin_addr.s_addr);
+	rx_net_device_map_t::iterator iter = m_rx_nd_map.find(m_rx_pkt_ready_list.front()->path.rx.local_if);
 	if (iter == m_rx_nd_map.end()) {
-		si_udp_logerr("could not find net device for ip %d.%d.%d.%d", NIPQUAD(m_rx_pkt_ready_list.front()->path.rx.dst.sin_addr.s_addr));
+		si_udp_logerr("could not find net device for ip %d.%d.%d.%d", NIPQUAD(m_rx_pkt_ready_list.front()->path.rx.local_if));
 		return;
 	}
 	in_pktinfo.ipi_ifindex = iter->second.p_ndv->get_if_idx();
-	in_pktinfo.ipi_addr = in_pktinfo.ipi_spec_dst = m_rx_pkt_ready_list.front()->path.rx.dst.sin_addr;
+	in_pktinfo.ipi_addr = m_rx_pkt_ready_list.front()->path.rx.dst.sin_addr;
+	in_pktinfo.ipi_spec_dst.s_addr = m_rx_pkt_ready_list.front()->path.rx.local_if;
 	insert_cmsg(msg, IPPROTO_IP, IP_PKTINFO, &in_pktinfo, sizeof(struct in_pktinfo));
 }
 
