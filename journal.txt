@@ -1,3 +1,14 @@
+Version 6.5.3-0:
+Date + Time 2013-11-07
+=======================
+Fixed:
+        - RM #348637 IP_PKTINFO doesn't work properly with multicast
+        - RM #348638 Add member ship for the same socket twice should fail
+        - RM #347702 TCP listen socket accept socket on offloaded interface, but the
+          accepted socket is not offloaded
+        - RM #340484 Extra API libvma.conf rules - required to end with "\n"
+        - RM #343162 Extra API offload_thread should not affect accepted sockets
+
 Version 6.5.2-0:
 Date + Time 2013-10-21
 =======================
