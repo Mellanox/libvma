@@ -39,7 +39,7 @@ public:
 	// until the connection info is ready or a tx buffer is releast (if sockinfo::m_b_blocking == true)
 	ssize_t	tx(const tx_call_t call_type, const struct iovec* p_iov, 
 	       	   const ssize_t sz_iov, const int flags = 0, 
-	       	   const struct sockaddr *__to = NULL, const socklen_t __tolen = NULL);
+	       	   const struct sockaddr *__to = NULL, const socklen_t __tolen = 0);
 
 	void	statistics_print();
 
