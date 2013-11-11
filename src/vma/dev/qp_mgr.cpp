@@ -331,6 +331,8 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 		m_n_unsignaled_count = 0;
 		m_p_last_tx_mem_buf_desc = NULL;
 
+		m_p_ring->m_tx_num_wr_free--;
+
 		IF_VERBS_FAILURE(ibv_post_send(m_qp, &send_wr, &bad_wr)) {
 			qp_logerr("failed post_send%s (errno=%d %m)", ((send_wr.send_flags & IBV_SEND_INLINE)?"(+inline)":""), errno);
 			qp_logerr("bad_wr info: wr_id=%#x, send_flags=%#x, addr=%#x, length=%d, lkey=%#x, max_inline_data=%d",

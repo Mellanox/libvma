@@ -191,7 +191,7 @@ bool igmp_handler::tx_igmp_report()
 	m_p_send_igmp_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
 
 	igmp_hdlr_logdbg("Sending igmp report");
-	m_p_ring->send_ring_buffer(&m_p_send_igmp_wqe);
+	m_p_ring->send_ring_buffer(&m_p_send_igmp_wqe, false);
 	return true;
 }
 

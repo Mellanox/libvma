@@ -261,9 +261,9 @@ public:
 	// Funcs taken from qp_mgr.h
 	// Get/Release memory buffer descriptor with a linked data memory buffer
 	mem_buf_desc_t* mem_buf_tx_get(bool b_block, int n_num_mem_bufs = 1);
-	void		mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting = false);
-	virtual void 	send_ring_buffer(ibv_send_wr* p_send_wqe);
-	virtual void 	send_lwip_buffer(ibv_send_wr* p_send_wqe);
+	int		mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting = false);
+	virtual void 	send_ring_buffer(ibv_send_wr* p_send_wqe, bool b_block);
+	virtual void 	send_lwip_buffer(ibv_send_wr* p_send_wqe, bool b_block);
 
 	// Funcs taken from cq_mgr.h
 	int		get_num_resources() const { return m_n_num_resources; };
@@ -314,7 +314,9 @@ protected:
 	lock_mutex				m_lock_ring_tx_buf_wait;
 	int*					m_p_n_rx_channel_fds;
 	buffer_pool*		 		m_p_buffer_pool_tx;
+	uint32_t				m_tx_num_bufs;
 	uint32_t 		 		m_tx_num_wr;
+	int32_t 		 		m_tx_num_wr_free;
 	bool					m_b_qp_tx_first_flushed_completion_handled;
 	uint32_t		 		m_missing_buf_ref_count;
 
@@ -339,6 +341,8 @@ protected:
 
 private:
 	inline void 		 send_status_handler(int ret, ibv_send_wr* p_send_wqe);
+	inline bool		 is_available_qp_wr(bool b_block);
+	inline int		 send_buffer(ibv_send_wr* p_send_wqe, bool b_block);
 };
 
 class ring_eth : public ring

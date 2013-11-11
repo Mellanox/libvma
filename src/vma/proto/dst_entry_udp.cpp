@@ -109,7 +109,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 		}
 
 		m_inline_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
-		m_p_ring->send_ring_buffer(m_p_send_wqe);
+		m_p_ring->send_ring_buffer(m_p_send_wqe, b_blocked);
 	}
 	else {
 		// Find number of ip fragments (-> packets, buffers, buffer descs...)
@@ -224,7 +224,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 			p_mem_buf_desc->p_next_desc = NULL;
 
 			// We don't check the return valuse of post send when we reach the HW we consider that we completed our job
-			m_p_ring->send_ring_buffer(m_p_send_wqe);
+			m_p_ring->send_ring_buffer(m_p_send_wqe, b_blocked);
 
 			p_mem_buf_desc = tmp;
 

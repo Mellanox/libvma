@@ -84,7 +84,7 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 			m_p_send_wqe = &m_not_inline_send_wqe;
 		}
                 m_p_send_wqe->wr_id = (uintptr_t)p_mem_buf_desc;
-                m_p_ring->send_lwip_buffer(m_p_send_wqe);
+                m_p_ring->send_lwip_buffer(m_p_send_wqe, b_blocked);
 	}
 	else { // We don'nt support inline in this case, since we believe that this a very rare case
 		m_header.copy_l2_ip_hdr((tx_packet_template_t*)p_mem_buf_desc->p_buffer);
@@ -105,7 +105,7 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 		p_pkt->hdr.m_ip_hdr.tot_len = (htons)(m_sge[0].length - m_header.m_transport_header_len);
 		m_p_send_wqe = &m_not_inline_send_wqe;
                 m_p_send_wqe->wr_id = (uintptr_t)p_mem_buf_desc;
-                m_p_ring->send_ring_buffer(m_p_send_wqe);
+                m_p_ring->send_ring_buffer(m_p_send_wqe, b_blocked);
 	}
 
         struct tcphdr* p_tcp_h = (struct tcphdr*)(((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr)));

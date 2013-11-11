@@ -362,7 +362,7 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 		p_mem_buf_desc->p_next_desc = NULL;
 
 		// We don't check the return value of post send when we reach the HW we consider that we completed our job
-		m_p_ring->send_ring_buffer(&m_send_wqe);
+		m_p_ring->send_ring_buffer(&m_send_wqe, false);
 
 		p_mem_buf_desc = tmp;
 
@@ -414,7 +414,7 @@ bool neigh_entry::post_send_tcp(iovec *iov, header *h)
 	m_sge.length = total_packet_len;
 
 	m_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
-	m_p_ring->send_ring_buffer(&m_send_wqe);
+	m_p_ring->send_ring_buffer(&m_send_wqe, false);
 	struct tcphdr* p_tcp_h = (struct tcphdr*)(((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr)));
 	neigh_logdbg("Tx TCP segment info: src_port=%d, dst_port=%d, flags='%s%s%s%s%s%s' seq=%u, ack=%u, win=%u, payload_sz=%u",
 			ntohs(p_tcp_h->source), ntohs(p_tcp_h->dest),
@@ -1295,7 +1295,7 @@ bool neigh_eth::post_send_arp(bool is_broadcast)
 	p_mem_buf_desc->p_next_desc = NULL;
 	m_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
 
-	m_p_ring->send_ring_buffer(&m_send_wqe);
+	m_p_ring->send_ring_buffer(&m_send_wqe, false);
 
 	neigh_logdbg("ARP Sent");
 	return true;
@@ -1533,7 +1533,7 @@ bool neigh_ib::post_send_arp(bool is_broadcast)
 	p_mem_buf_desc->p_next_desc = NULL;
 	m_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
 
-	m_p_ring->send_ring_buffer(&m_send_wqe);
+	m_p_ring->send_ring_buffer(&m_send_wqe, false);
 
 	neigh_logdbg("ARP Sent");
 	return true;
