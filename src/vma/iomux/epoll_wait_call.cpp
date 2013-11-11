@@ -164,7 +164,16 @@ bool epoll_wait_call::_wait(int timeout)
 
 	__log_func("calling os epoll: %d", m_epfd);
 
-	if (timeout) m_epfd_info->going_to_sleep();
+	if (timeout) {
+		lock();
+		if (m_epfd_info->m_ready_fds.empty()) {
+			m_epfd_info->going_to_sleep();
+		} else {
+			timeout = 0;
+		}
+		unlock();
+	}
+
 	if (m_sigmask) {
 		m_n_all_ready_fds = orig_os_api.epoll_pwait(m_epfd, m_p_ready_events, m_maxevents, timeout, m_sigmask);
 	} else {
