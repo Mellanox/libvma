@@ -848,7 +848,14 @@ inline int sockinfo_udp::rx_wait(bool blocking)
 		// Block with epoll_wait()
 		// on all rx_cq's notification channels and the socket's OS fd until we get an ip packet
 		// release lock so other threads that wait on this socket will not consume CPU
-		going_to_sleep();
+		m_lock_rcv.lock();
+		if (!m_n_rx_pkt_ready_list_count) {
+			going_to_sleep();
+			m_lock_rcv.unlock();
+		} else {
+			m_lock_rcv.unlock();
+			continue;
+		}
 
 		ret = orig_os_api.epoll_wait(m_rx_epfd, rx_epfd_events, SI_RX_EPFD_EVENT_MAX, m_loops_timer.time_left_msec());
 
