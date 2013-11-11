@@ -16,7 +16,9 @@
 
 #include <map>
 #include <list>
+#include <deque>
 #include "vma/util/lock_wrapper.h"
+#include "vma/util/wakeup.h"
 #include "vma/netlink/netlink_wrapper.h"
 #include "vma/infra/subject_observer.h"
 #include "vma/event/command.h"
@@ -101,6 +103,8 @@ struct reg_action_t {
 	} info;
 };
 
+typedef std::deque<struct reg_action_t>	reg_action_q_t;
+
 enum {
 	EV_IBVERBS,
 	EV_RDMA_CM,
@@ -125,7 +129,7 @@ typedef std::map<timer_handler*, void *> timer_list_t;
 ** to the appropriate registered event_handlers objects by their registered id's.
 ** All registered objects must implememtn the event_handler class which is the registered callback function.
 */
-class event_handler_manager
+class event_handler_manager : public wakeup
 {
 public:
 	event_handler_manager();
@@ -154,8 +158,8 @@ private:
 	int			m_epfd;
 
 	// pipe for the event registration handling
-	int			m_fd_notify_new_event;
-	int			m_fd_check_new_event;
+	reg_action_q_t		m_reg_action_q;
+	lock_spin		m_reg_action_q_lock;
 	timer*			m_timer; 
 
 	event_handler_map_t	m_event_handler_map;

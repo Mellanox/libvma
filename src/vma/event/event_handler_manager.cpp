@@ -181,7 +181,7 @@ void event_handler_manager::unregister_command_event(int fd)
     #pragma BullseyeCoverage on
 #endif
 
-event_handler_manager::event_handler_manager()
+event_handler_manager::event_handler_manager() : m_reg_action_q_lock("reg_action_q_lock")
 {
 	evh_logfunc("");
 
@@ -197,19 +197,9 @@ event_handler_manager::event_handler_manager()
 	m_b_continue_running = true;
 	m_event_handler_tid = 0;
 
-	// pipe for the event registration handling
-	int filedes[2];
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (orig_os_api.pipe(filedes)) {
-		evh_logpanic("failed to create internal pipe (errno=%d %m)", errno);
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-	m_fd_check_new_event = filedes[0];
-	m_fd_notify_new_event = filedes[1];
+	wakeup_set_epoll_fd(m_epfd);
+	going_to_sleep();
 
-	// Change m_fd_check_new_event to non-blocking
-	set_fd_block_mode(m_fd_check_new_event, false);
-	update_epfd(m_fd_check_new_event, EPOLL_CTL_ADD);
 	m_timer = new timer;
 
 	return;
@@ -309,15 +299,7 @@ void event_handler_manager::stop_thread()
 
 	if(!g_is_forked_child){
 
-		//we stop reading the pipe, so a write call can block forever
-		set_fd_block_mode(m_fd_notify_new_event, false);
-
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (orig_os_api.write(m_fd_notify_new_event, "z", sizeof(char)) <= 0) {
-			evh_logerr("write failure (errno=%d %m)", errno);
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-		sched_yield();
+		do_wakeup();
 
 		// Wait for thread exit
 		if (m_event_handler_tid) {
@@ -332,9 +314,7 @@ void event_handler_manager::stop_thread()
 
 	// Close main epfd and signaling socket
 	orig_os_api.close(m_epfd);
-	orig_os_api.close(m_fd_notify_new_event);
-	orig_os_api.close(m_fd_check_new_event);
-	m_epfd = m_fd_notify_new_event = m_fd_check_new_event = -1;
+	m_epfd = -1;
 }
 
 void event_handler_manager::update_epfd(int fd, int operation)
@@ -378,17 +358,11 @@ void event_handler_manager::post_new_reg_action(reg_action_t& reg_action)
 	start_thread();
 
 	evh_logfunc("add event action %s (%d)", reg_action_str(reg_action.type), reg_action.type);
-	if (orig_os_api.write(m_fd_notify_new_event, (void*)&reg_action, sizeof(reg_action_t)) <= 0) {
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (!m_b_continue_running) {
-			evh_logdbg("internal thread stopped. write action %s (%d) failure (errno=%d %m)",
-				reg_action_str(reg_action.type), reg_action.type, errno);
-		} else {
-			evh_logerr("write action %s (%d) failure (errno=%d %m)",
-				reg_action_str(reg_action.type), reg_action.type, errno);
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-	}
+
+	m_reg_action_q_lock.lock();
+	m_reg_action_q.push_back(reg_action);
+	m_reg_action_q_lock.unlock();
+	do_wakeup();
 }
 
 void event_handler_manager::priv_register_timer_handler(timer_reg_info_t& info)
@@ -822,10 +796,19 @@ void* event_handler_manager::thread_loop()
 			if(mce_sys.internal_thread_arm_cq_enabled && p_events[idx].data.fd == m_cq_epfd && g_p_net_device_table_mgr){
 				g_p_net_device_table_mgr->global_ring_wait_for_notification_and_process_element(&poll_sn, NULL);
 			}
-			else if (p_events[idx].data.fd == m_fd_check_new_event) {
+			else if (is_wakeup_fd(p_events[idx].data.fd)) {
 				// a request for registration was sent
 				reg_action_t reg_action;
-				while (orig_os_api.read(m_fd_check_new_event, &reg_action, sizeof(reg_action_t)) > 0) {
+				while (1) {
+					m_reg_action_q_lock.lock();
+					if (m_reg_action_q.empty()) {
+						going_to_sleep();
+						m_reg_action_q_lock.unlock();
+						break;
+					}
+					reg_action = m_reg_action_q.front();
+					m_reg_action_q.pop_front();
+					m_reg_action_q_lock.unlock();
 					handle_registration_action(reg_action);
 				}
 				break;
@@ -852,7 +835,7 @@ void* event_handler_manager::thread_loop()
 			if (!m_b_continue_running) // the thread isn't getting out! TODO: find nicer way
 				break;
 
-			if (fd == m_fd_check_new_event)	// the pipe was already handled
+			if (is_wakeup_fd(fd))	// the pipe was already handled
 				continue;
 
 			event_handler_map_t::iterator i = m_event_handler_map.find(fd);
