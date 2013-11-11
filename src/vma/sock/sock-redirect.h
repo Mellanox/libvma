@@ -14,6 +14,21 @@
 #ifndef SOCK_REDIRECT_H
 #define SOCK_REDIRECT_H
 
+
+//if you need select with more than 1024 sockets - enable this
+#ifndef SELECT_BIG_SETSIZE
+#define SELECT_BIG_SETSIZE 0
+#endif
+
+#if SELECT_BIG_SETSIZE
+#include <features.h>
+#if  (__GLIBC__ > 2) || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 2)
+#include <bits/types.h>
+#undef __FD_SETSIZE
+#define __FD_SETSIZE 32768
+#endif
+#endif //SELECT_BIG_SETSIZE
+
 #include <stdint.h>
 #include <fcntl.h>
 #include <stdarg.h>
