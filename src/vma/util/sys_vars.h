@@ -177,6 +177,7 @@ struct mce_sys_var {
 	bool		handle_fork;
 	bool		close_on_dup2;
 	uint32_t 	mtu;
+	uint32_t	lwip_cc_algo_mod;
 	uint32_t 	lwip_mss;
 	int32_t 	window_scaling;
 	char		internal_thread_affinity_str[CPU_SETSIZE/4];
@@ -268,6 +269,7 @@ struct mce_sys_var {
 #define SYS_VAR_CLOSE_ON_DUP2				"VMA_CLOSE_ON_DUP2"
 #define SYS_VAR_MTU					"VMA_MTU"
 #define SYS_VAR_MSS					"VMA_MSS"
+#define SYS_VAR_TCP_CC_ALGO					"VMA_TCP_CC_ALGO"
 #define SYS_VAR_WINDOW_SCALING				"VMA_WINDOW_SCALING"
 #define SYS_VAR_SPEC					"VMA_SPEC"
 #define SYS_VAR_SPEC_PARAM1				"VMA_SPEC_PARAM1"
@@ -353,6 +355,7 @@ struct mce_sys_var {
 #define MCE_DEFAULT_CLOSE_ON_DUP2			(true)
 #define MCE_DEFAULT_MTU					(1500)
 #define MCE_DEFAULT_MSS					(0)
+#define MCE_DEFAULT_LWIP_CC_ALGO_MOD			(0)
 #define MCE_DEFAULT_WINDOW_SCALING			(3)
 #define MCE_DEFAULT_QP_LOGIC				(QP_ALLOC_LOGIC__SINGLE_QP_PER_PORT_PER_LOCAL_IP)
 #define MCE_DEFAULT_CQ_LOGIC				(CQ_ALLOC_LOGIC__CQ_PER_HCA)

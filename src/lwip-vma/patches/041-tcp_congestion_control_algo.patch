@@ -1,0 +1,1285 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+/*
+* Add infrastructure for congestion control algorithms, and add the cubic algorithm.
+*/
+
+--- orig_lwip/src/core/cc/cc.c	1970-01-01 02:00:00.000000000 +0200
++++ lwip/src/core/cc/cc.c	2013-11-11 12:11:39.494093000 +0200
+@@ -0,0 +1,110 @@
++/*-
++ * Copyright (c) 2007-2008
++ * 	Swinburne University of Technology, Melbourne, Australia.
++ * Copyright (c) 2009-2010 Lawrence Stewart <lstewart@freebsd.org>
++ * Copyright (c) 2010 The FreeBSD Foundation
++ * All rights reserved.
++ *
++ * This software was developed at the Centre for Advanced Internet
++ * Architectures, Swinburne University of Technology, by Lawrence Stewart and
++ * James Healy, made possible in part by a grant from the Cisco University
++ * Research Program Fund at Community Foundation Silicon Valley.
++ *
++ * Portions of this software were developed at the Centre for Advanced
++ * Internet Architectures, Swinburne University of Technology, Melbourne,
++ * Australia by David Hayes under sponsorship from the FreeBSD Foundation.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ *
++ * $FreeBSD$
++ */
++
++/*
++ * This software was first released in 2007 by James Healy and Lawrence Stewart
++ * whilst working on the NewTCP research project at Swinburne University of
++ * Technology's Centre for Advanced Internet Architectures, Melbourne,
++ * Australia, which was made possible in part by a grant from the Cisco
++ * University Research Program Fund at Community Foundation Silicon Valley.
++ * More details are available at:
++ *   http://caia.swin.edu.au/urp/newtcp/
++ */
++
++/*
++ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
++ *
++ * This software product is a proprietary product of Mellanox Technologies Ltd.
++ * (the "Company") and all right, title, and interest in and to the software product,
++ * including all associated intellectual property rights, are and shall
++ * remain exclusively with the Company.
++ *
++ * This software is made available under either the GPL v2 license or a commercial license.
++ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
++ */
++
++#include "lwip/cc.h"
++
++#if TCP_CC_ALGO_MOD
++
++void inline cc_init(struct tcp_pcb *pcb)
++{
++	if (pcb->cc_algo->init != NULL) {
++		pcb->cc_algo->init(pcb);
++	}
++}
++
++void inline cc_destroy(struct tcp_pcb *pcb)
++{
++	if (pcb->cc_algo->destroy != NULL) {
++		pcb->cc_algo->destroy(pcb);
++	}
++}
++
++void inline cc_ack_received(struct tcp_pcb *pcb, uint16_t type)
++{
++	if (pcb->cc_algo->ack_received != NULL) {
++		pcb->cc_algo->ack_received(pcb, type);
++	}
++}
++
++void inline cc_conn_init(struct tcp_pcb *pcb)
++{
++	if (pcb->cc_algo->conn_init != NULL) {
++		pcb->cc_algo->conn_init(pcb);
++	}
++}
++
++void inline cc_cong_signal(struct tcp_pcb *pcb, uint32_t type)
++{
++
++	if (pcb->cc_algo->cong_signal != NULL) {
++		pcb->cc_algo->cong_signal(pcb, type);
++	}
++}
++
++void inline cc_post_recovery(struct tcp_pcb *pcb)
++{
++	if (pcb->cc_algo->post_recovery != NULL) {
++		pcb->cc_algo->post_recovery(pcb);
++	}
++}
++
++#endif //TCP_CC_ALGO_MOD
+--- orig_lwip/src/core/cc/cc_cubic.c	1970-01-01 02:00:00.000000000 +0200
++++ lwip/src/core/cc/cc_cubic.c	2013-11-11 12:12:07.646501000 +0200
+@@ -0,0 +1,381 @@
++/*-
++ * Copyright (c) 2007-2008
++ * 	Swinburne University of Technology, Melbourne, Australia.
++ * Copyright (c) 2009-2010 Lawrence Stewart <lstewart@freebsd.org>
++ * Copyright (c) 2010 The FreeBSD Foundation
++ * All rights reserved.
++ *
++ * This software was developed at the Centre for Advanced Internet
++ * Architectures, Swinburne University of Technology, by Lawrence Stewart and
++ * James Healy, made possible in part by a grant from the Cisco University
++ * Research Program Fund at Community Foundation Silicon Valley.
++ *
++ * Portions of this software were developed at the Centre for Advanced
++ * Internet Architectures, Swinburne University of Technology, Melbourne,
++ * Australia by David Hayes under sponsorship from the FreeBSD Foundation.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ *
++ * $FreeBSD$
++ */
++
++/*
++ * This software was first released in 2007 by James Healy and Lawrence Stewart
++ * whilst working on the NewTCP research project at Swinburne University of
++ * Technology's Centre for Advanced Internet Architectures, Melbourne,
++ * Australia, which was made possible in part by a grant from the Cisco
++ * University Research Program Fund at Community Foundation Silicon Valley.
++ * More details are available at:
++ *   http://caia.swin.edu.au/urp/newtcp/
++ */
++
++/*
++ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
++ *
++ * This software product is a proprietary product of Mellanox Technologies Ltd.
++ * (the "Company") and all right, title, and interest in and to the software product,
++ * including all associated intellectual property rights, are and shall
++ * remain exclusively with the Company.
++ *
++ * This software is made available under either the GPL v2 license or a commercial license.
++ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
++ */
++
++#include "cc_cubic.h"
++#include "errno.h"
++
++#if TCP_CC_ALGO_MOD
++
++#define ticks tcp_ticks
++
++static int	cubic_cb_init(struct tcp_pcb *pcb);
++static void	cubic_cb_destroy(struct tcp_pcb *pcb);
++static void	cubic_ack_received(struct tcp_pcb *pcb, uint16_t type);
++static void	cubic_cong_signal(struct tcp_pcb *pcb, uint32_t type);
++static void	cubic_conn_init(struct tcp_pcb *pcb);
++static void	cubic_post_recovery(struct tcp_pcb *pcb);
++static void	cubic_record_rtt(struct tcp_pcb *pcb);
++static void	cubic_ssthresh_update(struct tcp_pcb *pcb);
++
++struct cubic {
++	/* Cubic K in fixed point form with CUBIC_SHIFT worth of precision. */
++	int64_t		K;
++	/* Sum of RTT samples across an epoch in ticks. */
++	tscval_t	sum_rtt_ticks;
++	/* cwnd at the most recent congestion event. */
++	unsigned long	max_cwnd;
++	/* cwnd at the previous congestion event. */
++	unsigned long	prev_max_cwnd;
++	/* Number of congestion events. */
++	uint32_t	num_cong_events;
++	/* Minimum observed rtt in ticks. */
++	tscval_t	min_rtt_ticks;
++	/* Mean observed rtt between congestion epochs. */
++	tscval_t	mean_rtt_ticks;
++	/* ACKs since last congestion event. */
++	int		epoch_ack_count;
++	/* Time of last congestion event in ticks. */
++	tscval_t	t_last_cong;
++};
++
++struct cc_algo cubic_cc_algo = {
++		.name = "cubic",
++		.init = cubic_cb_init,
++		.destroy = cubic_cb_destroy,
++		.ack_received = cubic_ack_received,
++		.cong_signal = cubic_cong_signal,
++		.conn_init = cubic_conn_init,
++		.post_recovery = cubic_post_recovery
++};
++
++static void
++cubic_ack_received(struct tcp_pcb *pcb, uint16_t type)
++{
++	struct cubic *cubic_data;
++	unsigned long w_tf, w_cubic_next;
++	tscval_t ticks_since_cong;
++
++	cubic_data = pcb->cc_data;
++	cubic_record_rtt(pcb);
++
++	/*
++	 * Regular ACK and we're not in cong/fast recovery and we're cwnd
++	 * limited and we're either not doing ABC or are slow starting or are
++	 * doing ABC and we've sent a cwnd's worth of bytes.
++	 */
++	if (type == CC_ACK && !(pcb->flags & TF_INFR) &&
++			(pcb->cwnd < pcb->snd_wnd)) {
++		/* Use the logic in NewReno ack_received() for slow start. */
++		if (pcb->cwnd <= pcb->ssthresh /*||
++		    cubic_data->min_rtt_ticks == 0*/)
++			pcb->cwnd += pcb->mss;
++		else if (cubic_data->min_rtt_ticks > 0) {
++			ticks_since_cong = ticks - cubic_data->t_last_cong;
++
++			/*
++			 * The mean RTT is used to best reflect the equations in
++			 * the I-D. Using min_rtt in the tf_cwnd calculation
++			 * causes w_tf to grow much faster than it should if the
++			 * RTT is dominated by network buffering rather than
++			 * propogation delay.
++			 */
++			w_tf = tf_cwnd(ticks_since_cong,
++					cubic_data->mean_rtt_ticks, cubic_data->max_cwnd, pcb->mss);
++
++			w_cubic_next = cubic_cwnd(ticks_since_cong +
++					cubic_data->mean_rtt_ticks, cubic_data->max_cwnd,
++					pcb->mss, cubic_data->K);
++
++			if (w_cubic_next < w_tf)
++				/*
++				 * TCP-friendly region, follow tf
++				 * cwnd growth.
++				 */
++				pcb->cwnd = w_tf;
++
++			else if (pcb->cwnd < w_cubic_next) {
++				/*
++				 * Concave or convex region, follow CUBIC
++				 * cwnd growth.
++				 */
++				pcb->cwnd += ((w_cubic_next - pcb->cwnd) * pcb->mss) / pcb->cwnd;
++			}
++
++			/*
++			 * If we're not in slow start and we're probing for a
++			 * new cwnd limit at the start of a connection
++			 * (happens when hostcache has a relevant entry),
++			 * keep updating our current estimate of the
++			 * max_cwnd.
++			 */
++			if (cubic_data->num_cong_events == 0 &&
++					cubic_data->max_cwnd < pcb->cwnd)
++				cubic_data->max_cwnd = pcb->cwnd;
++		}
++	}
++}
++
++static void
++cubic_cb_destroy(struct tcp_pcb *pcb)
++{
++	if (pcb->cc_data != NULL) {
++		free(pcb->cc_data);
++		pcb->cc_data = NULL;
++	}
++}
++
++static int
++cubic_cb_init(struct tcp_pcb *pcb)
++{
++	struct cubic *cubic_data;
++
++	cubic_data = malloc(sizeof(struct cubic));
++	memset(cubic_data, 0, sizeof(struct cubic));
++	if (cubic_data == NULL)
++		return (ENOMEM);
++
++	/* Init some key variables with sensible defaults. */
++	cubic_data->t_last_cong = ticks;
++	cubic_data->min_rtt_ticks = 0;
++	cubic_data->mean_rtt_ticks = 1;
++
++	pcb->cc_data = cubic_data;
++
++	return (0);
++}
++
++/*
++ * Perform any necessary tasks before we enter congestion recovery.
++ */
++static void
++cubic_cong_signal(struct tcp_pcb *pcb, uint32_t type)
++{
++	struct cubic *cubic_data = pcb->cc_data;
++
++	switch (type) {
++	case CC_NDUPACK:
++
++		if (!(pcb->flags & TF_INFR)) {
++			cubic_ssthresh_update(pcb);
++			cubic_data->num_cong_events++;
++			cubic_data->prev_max_cwnd = cubic_data->max_cwnd;
++			cubic_data->max_cwnd = pcb->cwnd;
++		}
++		break;
++
++	case CC_RTO:
++		/* Set ssthresh to half of the minimum of the current
++		 * cwnd and the advertised window */
++		if (pcb->cwnd > pcb->snd_wnd) {
++			pcb->ssthresh = pcb->snd_wnd / 2;
++		} else {
++			pcb->ssthresh = pcb->cwnd / 2;
++		}
++
++		/* The minimum value for ssthresh should be 2 MSS */
++		if (pcb->ssthresh < 2*pcb->mss) {
++			LWIP_DEBUGF(TCP_FR_DEBUG,
++					("tcp_receive: The minimum value for ssthresh %"U16_F
++							" should be min 2 mss %"U16_F"...\n",
++							pcb->ssthresh, 2*pcb->mss));
++			pcb->ssthresh = 2*pcb->mss;
++		}
++
++		pcb->cwnd = pcb->mss;
++
++		/*
++		 * Grab the current time and record it so we know when the
++		 * most recent congestion event was. Only record it when the
++		 * timeout has fired more than once, as there is a reasonable
++		 * chance the first one is a false alarm and may not indicate
++		 * congestion.
++		 */
++		if (pcb->nrtx >= 1)
++			cubic_data->num_cong_events++;
++		cubic_data->t_last_cong = ticks;
++
++		break;
++	}
++}
++
++static void
++cubic_conn_init(struct tcp_pcb *pcb)
++{
++	struct cubic *cubic_data = pcb->cc_data;
++
++	pcb->cwnd = ((pcb->cwnd == 1) ? (pcb->mss * 2) : pcb->mss);
++	pcb->ssthresh = pcb->mss * 3;
++	/*
++	 * Ensure we have a sane initial value for max_cwnd recorded. Without
++	 * this here bad things happen when entries from the TCP hostcache
++	 * get used.
++	 */
++	cubic_data->max_cwnd = pcb->cwnd;
++}
++
++/*
++ * Perform any necessary tasks before we exit congestion recovery.
++ */
++static void
++cubic_post_recovery(struct tcp_pcb *pcb)
++{
++	struct cubic *cubic_data = pcb->cc_data;
++
++	/* Fast convergence heuristic. */
++	if (cubic_data->max_cwnd < cubic_data->prev_max_cwnd)
++		cubic_data->max_cwnd = (cubic_data->max_cwnd * CUBIC_FC_FACTOR) >> CUBIC_SHIFT;
++
++	if (pcb->flags & TF_INFR) {
++		/*
++		 * If inflight data is less than ssthresh, set cwnd
++		 * conservatively to avoid a burst of data, as suggested in
++		 * the NewReno RFC. Otherwise, use the CUBIC method.
++		 *
++		 * XXXLAS: Find a way to do this without needing curack
++		 */
++		if (pcb->last_unacked && TCP_SEQ_GT(pcb->lastack + pcb->ssthresh, pcb->last_unacked->seqno))
++			pcb->cwnd = pcb->last_unacked->seqno - pcb->lastack + pcb->mss;
++		else {
++			/* Update cwnd based on beta and adjusted max_cwnd. */
++			if (((CUBIC_BETA * cubic_data->max_cwnd) >> CUBIC_SHIFT) > 1)
++				pcb->cwnd = ((CUBIC_BETA * cubic_data->max_cwnd) >> CUBIC_SHIFT);
++			else
++				pcb->cwnd = pcb->mss;
++		}
++	}
++	cubic_data->t_last_cong = ticks;
++
++	/* Calculate the average RTT between congestion epochs. */
++	if (cubic_data->epoch_ack_count > 0 &&
++			cubic_data->sum_rtt_ticks >= cubic_data->epoch_ack_count) {
++		cubic_data->mean_rtt_ticks = (cubic_data->sum_rtt_ticks/cubic_data->epoch_ack_count);
++	}
++
++	cubic_data->epoch_ack_count = 0;
++	cubic_data->sum_rtt_ticks = 0;
++	cubic_data->K = cubic_k(cubic_data->max_cwnd / pcb->mss);
++}
++
++/*
++ * Record the min RTT and sum samples for the epoch average RTT calculation.
++ */
++static void
++cubic_record_rtt(struct tcp_pcb *pcb)
++{
++	struct cubic *cubic_data = pcb->cc_data;
++	tscval_t t_srtt_ticks;
++
++	/* Ignore srtt until a min number of samples have been taken. */
++	if (pcb->t_rttupdated >= CUBIC_MIN_RTT_SAMPLES) {
++
++		t_srtt_ticks = pcb->rttest;
++
++		/*
++		 * Record the current SRTT as our minrtt if it's the smallest
++		 * we've seen or minrtt is currently equal to its initialised
++		 * value.
++		 *
++		 * XXXLAS: Should there be some hysteresis for minrtt?
++		 */
++		if ((t_srtt_ticks < cubic_data->min_rtt_ticks ||
++				cubic_data->min_rtt_ticks == 0)) {
++			if (t_srtt_ticks > 1)
++				cubic_data->min_rtt_ticks = t_srtt_ticks;
++			else
++				cubic_data->min_rtt_ticks = 1;
++
++			/*
++			 * If the connection is within its first congestion
++			 * epoch, ensure we prime mean_rtt_ticks with a
++			 * reasonable value until the epoch average RTT is
++			 * calculated in cubic_post_recovery().
++			 */
++			if (cubic_data->min_rtt_ticks > cubic_data->mean_rtt_ticks) {
++				cubic_data->mean_rtt_ticks = cubic_data->min_rtt_ticks;
++			}
++		}
++
++		/* Sum samples for epoch average RTT calculation. */
++		cubic_data->sum_rtt_ticks += t_srtt_ticks;
++		cubic_data->epoch_ack_count++;
++	}
++}
++
++/*
++ * Update the ssthresh in the event of congestion.
++ */
++static void
++cubic_ssthresh_update(struct tcp_pcb *pcb)
++{
++	struct cubic *cubic_data = pcb->cc_data;
++
++	/*
++	 * On the first congestion event, set ssthresh to cwnd * 0.5, on
++	 * subsequent congestion events, set it to cwnd * beta.
++	 */
++	if (cubic_data->num_cong_events == 0)
++		pcb->ssthresh = pcb->cwnd >> 1;
++	else
++		pcb->ssthresh = (pcb->cwnd * CUBIC_BETA) >> CUBIC_SHIFT;
++}
++
++#endif //TCP_CC_ALGO_MOD
+--- orig_lwip/src/core/cc/cc_cubic.h	1970-01-01 02:00:00.000000000 +0200
++++ lwip/src/core/cc/cc_cubic.h	2013-11-11 11:25:56.673856000 +0200
+@@ -0,0 +1,200 @@
++/*-
++ * Copyright (c) 2007-2008
++ * 	Swinburne University of Technology, Melbourne, Australia.
++ * Copyright (c) 2009-2010 Lawrence Stewart <lstewart@freebsd.org>
++ * Copyright (c) 2010 The FreeBSD Foundation
++ * All rights reserved.
++ *
++ * This software was developed at the Centre for Advanced Internet
++ * Architectures, Swinburne University of Technology, by Lawrence Stewart and
++ * James Healy, made possible in part by a grant from the Cisco University
++ * Research Program Fund at Community Foundation Silicon Valley.
++ *
++ * Portions of this software were developed at the Centre for Advanced
++ * Internet Architectures, Swinburne University of Technology, Melbourne,
++ * Australia by David Hayes under sponsorship from the FreeBSD Foundation.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ *
++ * $FreeBSD$
++ */
++
++/*
++ * This software was first released in 2007 by James Healy and Lawrence Stewart
++ * whilst working on the NewTCP research project at Swinburne University of
++ * Technology's Centre for Advanced Internet Architectures, Melbourne,
++ * Australia, which was made possible in part by a grant from the Cisco
++ * University Research Program Fund at Community Foundation Silicon Valley.
++ * More details are available at:
++ *   http://caia.swin.edu.au/urp/newtcp/
++ */
++
++/*
++ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
++ *
++ * This software product is a proprietary product of Mellanox Technologies Ltd.
++ * (the "Company") and all right, title, and interest in and to the software product,
++ * including all associated intellectual property rights, are and shall
++ * remain exclusively with the Company.
++ *
++ * This software is made available under either the GPL v2 license or a commercial license.
++ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
++ */
++
++#ifndef CC_CUBIC_H_
++#define CC_CUBIC_H_
++
++#include "lwip/cc.h"
++#include "lwip/tcp_impl.h"
++#include "lwip/timers.h"
++#include <math.h>
++
++/*
++ * once we add support for ECN and ABC rfc in VMA/LWIP, need to add support in the algorithm.
++ */
++
++typedef unsigned long long tscval_t;
++
++#define hz 100 //according to VMA internal thread
++
++
++/* Number of bits of precision for fixed point math calcs. */
++#define	CUBIC_SHIFT		8
++
++#define	CUBIC_SHIFT_4		32
++
++/* 0.5 << CUBIC_SHIFT. */
++#define	RENO_BETA		128
++
++/* ~0.8 << CUBIC_SHIFT. */
++#define	CUBIC_BETA		204
++
++/* ~0.2 << CUBIC_SHIFT. */
++#define	ONE_SUB_CUBIC_BETA	51
++
++/* 3 * ONE_SUB_CUBIC_BETA. */
++#define	THREE_X_PT2		153
++
++/* (2 << CUBIC_SHIFT) - ONE_SUB_CUBIC_BETA. */
++#define	TWO_SUB_PT2		461
++
++/* ~0.4 << CUBIC_SHIFT. */
++#define	CUBIC_C_FACTOR		102
++
++/* CUBIC fast convergence factor: ~0.9 << CUBIC_SHIFT. */
++#define	CUBIC_FC_FACTOR		230
++
++/* Don't trust s_rtt until this many rtt samples have been taken. */
++#define	CUBIC_MIN_RTT_SAMPLES	8
++
++
++/*
++ * Implementation based on the formulae found in the CUBIC Internet Draft
++ * "draft-rhee-tcpm-cubic-02".
++ *
++ * Note BETA used in cc_cubic is equal to (1-beta) in the I-D
++ */
++
++/*
++ * Compute the CUBIC K value used in the cwnd calculation, using an
++ * implementation of eqn 2 in the I-D. The method used
++ * here is adapted from Apple Computer Technical Report #KT-32.
++ */
++static inline int64_t
++cubic_k(unsigned long wmax_pkts)
++{
++	int64_t s, K;
++	uint16_t p;
++
++	K = s = 0;
++	p = 0;
++
++	/* (wmax * beta)/C with CUBIC_SHIFT worth of precision. */
++	s = ((wmax_pkts * ONE_SUB_CUBIC_BETA) << CUBIC_SHIFT) / CUBIC_C_FACTOR;
++
++	/* Rebase s to be between 1 and 1/8 with a shift of CUBIC_SHIFT. */
++	while (s >= 256) {
++		s >>= 3;
++		p++;
++	}
++
++	/*
++	 * Some magic constants taken from the Apple TR with appropriate
++	 * shifts: 275 == 1.072302 << CUBIC_SHIFT, 98 == 0.3812513 <<
++	 * CUBIC_SHIFT, 120 == 0.46946116 << CUBIC_SHIFT.
++	 */
++	K = (((s * 275) >> CUBIC_SHIFT) + 98) -
++	    (((s * s * 120) >> CUBIC_SHIFT) >> CUBIC_SHIFT);
++
++	/* Multiply by 2^p to undo the rebasing of s from above. */
++	return (K <<= p);
++}
++
++/*
++ * Compute the new cwnd value using an implementation of eqn 1 from the I-D.
++ * Thanks to Kip Macy for help debugging this function.
++ *
++ * XXXLAS: Characterise bounds for overflow.
++ */
++static inline unsigned long
++cubic_cwnd(tscval_t ticks_since_cong, unsigned long wmax, uint32_t smss, int64_t K)
++{
++	int64_t cwnd;
++
++	/* K is in fixed point form with CUBIC_SHIFT worth of precision. */
++
++	/* t - K, with CUBIC_SHIFT worth of precision. */
++	cwnd = ((int64_t)(ticks_since_cong << CUBIC_SHIFT) - (K * hz)) / hz;
++
++	/* (t - K)^3, with CUBIC_SHIFT^3 worth of precision. */
++	cwnd *= (cwnd * cwnd);
++
++	/*
++	 * C(t - K)^3 + wmax
++	 * The down shift by CUBIC_SHIFT_4 is because cwnd has 4 lots of
++	 * CUBIC_SHIFT included in the value. 3 from the cubing of cwnd above,
++	 * and an extra from multiplying through by CUBIC_C_FACTOR.
++	 */
++	cwnd = ((cwnd * CUBIC_C_FACTOR * smss) >> CUBIC_SHIFT_4) + wmax;
++
++	return ((unsigned long)cwnd);
++}
++
++/*
++ * Compute an approximation of the "TCP friendly" cwnd some number of ticks
++ * after a congestion event that is designed to yield the same average cwnd as
++ * NewReno while using CUBIC's beta of 0.8. RTT should be the average RTT
++ * estimate for the path measured over the previous congestion epoch and wmax is
++ * the value of cwnd at the last congestion event.
++ */
++static inline unsigned long
++tf_cwnd(tscval_t ticks_since_cong, tscval_t rtt_ticks, unsigned long wmax,
++    uint32_t smss)
++{
++
++	/* Equation 4 of I-D. */
++	return (((wmax * CUBIC_BETA) + (((THREE_X_PT2 * ticks_since_cong *
++	    smss) << CUBIC_SHIFT) / TWO_SUB_PT2 / rtt_ticks)) >> CUBIC_SHIFT);
++}
++
++
++#endif /* CC_CUBIC_H_ */
+--- orig_lwip/src/core/cc/cc_lwip.c	1970-01-01 02:00:00.000000000 +0200
++++ lwip/src/core/cc/cc_lwip.c	2013-11-11 13:52:17.224610000 +0200
+@@ -0,0 +1,167 @@
++/*-
++ * Copyright (c) 2007-2008
++ * 	Swinburne University of Technology, Melbourne, Australia.
++ * Copyright (c) 2009-2010 Lawrence Stewart <lstewart@freebsd.org>
++ * Copyright (c) 2010 The FreeBSD Foundation
++ * All rights reserved.
++ *
++ * This software was developed at the Centre for Advanced Internet
++ * Architectures, Swinburne University of Technology, by Lawrence Stewart and
++ * James Healy, made possible in part by a grant from the Cisco University
++ * Research Program Fund at Community Foundation Silicon Valley.
++ *
++ * Portions of this software were developed at the Centre for Advanced
++ * Internet Architectures, Swinburne University of Technology, Melbourne,
++ * Australia by David Hayes under sponsorship from the FreeBSD Foundation.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ *
++ * $FreeBSD$
++ */
++
++/*
++ * This software was first released in 2007 by James Healy and Lawrence Stewart
++ * whilst working on the NewTCP research project at Swinburne University of
++ * Technology's Centre for Advanced Internet Architectures, Melbourne,
++ * Australia, which was made possible in part by a grant from the Cisco
++ * University Research Program Fund at Community Foundation Silicon Valley.
++ * More details are available at:
++ *   http://caia.swin.edu.au/urp/newtcp/
++ */
++
++/*
++ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
++ *
++ * This software product is a proprietary product of Mellanox Technologies Ltd.
++ * (the "Company") and all right, title, and interest in and to the software product,
++ * including all associated intellectual property rights, are and shall
++ * remain exclusively with the Company.
++ *
++ * This software is made available under either the GPL v2 license or a commercial license.
++ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
++ */
++
++#include "lwip/cc.h"
++
++#if TCP_CC_ALGO_MOD
++
++static void	lwip_ack_received(struct tcp_pcb *pcb, uint16_t type);
++static void	lwip_cong_signal(struct tcp_pcb *pcb, uint32_t type);
++static void	lwip_conn_init(struct tcp_pcb *pcb);
++static void	lwip_post_recovery(struct tcp_pcb *pcb);
++
++struct cc_algo lwip_cc_algo = {
++		.name = "lwip",
++		.ack_received = lwip_ack_received,
++		.cong_signal = lwip_cong_signal,
++		.conn_init = lwip_conn_init,
++		.post_recovery = lwip_post_recovery
++};
++
++static void
++lwip_ack_received(struct tcp_pcb *pcb, uint16_t type)
++{
++
++	/* Inflate the congestion window, but not if it means that
++           the value overflows. */
++
++	if (type == CC_DUPACK) {
++#if TCP_RCVSCALE
++		if ((u32_t)(pcb->cwnd + pcb->mss) > pcb->cwnd) {
++			pcb->cwnd += pcb->mss;
++		}
++#else
++		if ((u16_t)(pcb->cwnd + pcb->mss) > pcb->cwnd) {
++			pcb->cwnd += pcb->mss;
++		}
++#endif
++	} else if (type == CC_ACK) {
++		if (pcb->cwnd < pcb->ssthresh) {
++#if TCP_RCVSCALE
++			if ((u32_t)(pcb->cwnd + pcb->mss) > pcb->cwnd) {
++				pcb->cwnd += pcb->mss;
++			}
++			LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_receive: slow start cwnd %"U32_F"\n", pcb->cwnd));
++#else
++			if ((u16_t)(pcb->cwnd + pcb->mss) > pcb->cwnd) {
++				pcb->cwnd += pcb->mss;
++			}
++			LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_receive: slow start cwnd %"U16_F"\n", pcb->cwnd));
++#endif
++		} else {
++#if TCP_RCVSCALE
++			u32_t new_cwnd = (pcb->cwnd + ((u32_t)pcb->mss * (u32_t)pcb->mss) / pcb->cwnd);
++			if (new_cwnd > pcb->cwnd) {
++				pcb->cwnd = new_cwnd;
++			}
++			LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_receive: congestion avoidance cwnd %"U32_F"\n", pcb->cwnd));
++#else
++			u16_t new_cwnd = (pcb->cwnd + pcb->mss * pcb->mss / pcb->cwnd);
++			if (new_cwnd > pcb->cwnd) {
++				pcb->cwnd = new_cwnd;
++			}
++			LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_receive: congestion avoidance cwnd %"U16_F"\n", pcb->cwnd));
++#endif
++		}
++	}
++}
++
++static void
++lwip_cong_signal(struct tcp_pcb *pcb, uint32_t type)
++{
++	/* Set ssthresh to half of the minimum of the current
++	 * cwnd and the advertised window */
++	if (pcb->cwnd > pcb->snd_wnd) {
++		pcb->ssthresh = pcb->snd_wnd / 2;
++	} else {
++		pcb->ssthresh = pcb->cwnd / 2;
++	}
++
++	/* The minimum value for ssthresh should be 2 MSS */
++	if (pcb->ssthresh < 2*pcb->mss) {
++		LWIP_DEBUGF(TCP_FR_DEBUG,
++				("tcp_receive: The minimum value for ssthresh %"U16_F
++						" should be min 2 mss %"U16_F"...\n",
++						pcb->ssthresh, 2*pcb->mss));
++		pcb->ssthresh = 2*pcb->mss;
++	}
++
++	if (type == CC_NDUPACK) {
++		pcb->cwnd = pcb->ssthresh + 3 * pcb->mss;
++	} else if (type == CC_RTO) {
++		pcb->cwnd = pcb->mss;
++	}
++}
++
++static void
++lwip_post_recovery(struct tcp_pcb *pcb)
++{
++	pcb->cwnd = pcb->ssthresh;
++}
++
++static void
++lwip_conn_init(struct tcp_pcb *pcb)
++{
++	pcb->cwnd = ((pcb->cwnd == 1) ? (pcb->mss * 2) : pcb->mss);
++}
++
++#endif //TCP_CC_ALGO_MOD
+--- orig_lwip/src/core/tcp.c	2013-10-16 07:34:02.604146000 +0200
++++ lwip/src/core/tcp.c	2013-11-11 13:08:54.860475000 +0200
+@@ -69,6 +69,8 @@ const char * const tcp_state_str[] = {
+   "TIME_WAIT"   
+ };
+ 
++enum cc_algo_mod lwip_cc_algo_module = CC_MOD_LWIP;
++
+ u16_t lwip_tcp_mss = CONST_TCP_MSS;
+ 
+ int32_t enable_wnd_scale = 0;
+@@ -659,11 +661,13 @@ tcp_connect(struct tcp_pcb *pcb, ip_addr
+ void
+ tcp_slowtmr(struct tcp_pcb* pcb)
+ {
++#if !TCP_CC_ALGO_MOD
+ #if TCP_RCVSCALE
+   u32_t eff_wnd;
+ #else
+   u16_t eff_wnd;
+ #endif
++#endif //!TCP_CC_ALGO_MOD
+   u8_t pcb_remove;      /* flag if a PCB should be removed */
+   u8_t pcb_reset;       /* flag if a RST should be sent when removing */
+   err_t err;
+@@ -724,6 +728,9 @@ tcp_slowtmr(struct tcp_pcb* pcb)
+ 		  /* Reset the retransmission timer. */
+ 		  pcb->rtime = 0;
+ 
++#if TCP_CC_ALGO_MOD
++		  cc_cong_signal(pcb, CC_RTO);
++#else
+ 		  /* Reduce congestion window and ssthresh. */
+ 		  eff_wnd = LWIP_MIN(pcb->cwnd, pcb->snd_wnd);
+ 		  pcb->ssthresh = eff_wnd >> 1;
+@@ -731,6 +738,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
+ 			pcb->ssthresh = (pcb->mss << 1);
+ 		  }
+ 		  pcb->cwnd = pcb->mss;
++#endif
+ 		  LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_slowtmr: cwnd %"U16_F
+ 									   " ssthresh %"U16_F"\n",
+ 									   pcb->cwnd, pcb->ssthresh));
+@@ -1080,6 +1088,18 @@ void tcp_pcb_init (struct tcp_pcb* pcb, 
+ 	pcb->sa = 0;
+ 	pcb->sv = 3000 / TCP_SLOW_INTERVAL;
+ 	pcb->rtime = -1;
++#if TCP_CC_ALGO_MOD
++	switch (lwip_cc_algo_module) {
++	case CC_MOD_CUBIC:
++		pcb->cc_algo = &cubic_cc_algo;
++		break;
++	case CC_MOD_LWIP:
++	default:
++		pcb->cc_algo = &lwip_cc_algo;
++		break;
++	}
++	cc_init(pcb);
++#endif
+ 	pcb->cwnd = 1;
+ 	iss = tcp_next_iss();
+ 	pcb->snd_wl2 = iss;
+@@ -1343,6 +1363,9 @@ tcp_pcb_purge(struct tcp_pcb *pcb)
+ #if TCP_OVERSIZE
+     pcb->unsent_oversize = 0;
+ #endif /* TCP_OVERSIZE */
++#if TCP_CC_ALGO_MOD
++    cc_destroy(pcb);
++#endif
+   }
+ }
+ 
+--- orig_lwip/src/core/tcp_in.c	2013-10-16 07:34:02.629147000 +0200
++++ lwip/src/core/tcp_in.c	2013-11-11 12:07:39.665678000 +0200
+@@ -918,8 +918,11 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_
+       /* Set ssthresh again after changing pcb->mss (already set in tcp_connect
+        * but for the default value of pcb->mss) */
+       pcb->ssthresh = pcb->mss * 10;
+-
++#if TCP_CC_ALGO_MOD
++      cc_conn_init(pcb);
++#else
+       pcb->cwnd = ((pcb->cwnd == 1) ? (pcb->mss * 2) : pcb->mss);
++#endif
+       LWIP_ASSERT("pcb->snd_queuelen > 0", (pcb->snd_queuelen > 0));
+       --pcb->snd_queuelen;
+       LWIP_DEBUGF(TCP_QLEN_DEBUG, ("tcp_process: SYN-SENT --queuelen %"U16_F"\n", (u16_t)pcb->snd_queuelen));
+@@ -986,9 +989,12 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_
+         if (pcb->acked != 0) {
+           pcb->acked--;
+         }
+-
++#if TCP_CC_ALGO_MOD
++        pcb->cwnd = old_cwnd;
++        cc_conn_init(pcb);
++#else
+         pcb->cwnd = ((old_cwnd == 1) ? (pcb->mss * 2) : pcb->mss);
+-
++#endif
+         if (in_data->recv_flags & TF_GOT_FIN) {
+           tcp_ack_now(pcb);
+           pcb->state = CLOSE_WAIT;
+@@ -1191,6 +1197,9 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_
+               if (pcb->dupacks + 1 > pcb->dupacks)
+                 ++pcb->dupacks;
+               if (pcb->dupacks > 3) {
++#if TCP_CC_ALGO_MOD
++        	cc_ack_received(pcb, CC_DUPACK);
++#else
+                 /* Inflate the congestion window, but not if it means that
+                    the value overflows. */
+ #if TCP_RCVSCALE
+@@ -1202,9 +1211,14 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_
+                   pcb->cwnd += pcb->mss;
+                 }
+ #endif
++#endif //TCP_CC_ALGO_MOD
+               } else if (pcb->dupacks == 3) {
+                 /* Do fast retransmit */
+                 tcp_rexmit_fast(pcb);
++#if TCP_CC_ALGO_MOD
++                cc_ack_received(pcb, 0);
++                //cc_ack_received(pcb, CC_DUPACK);
++#endif
+               }
+             }
+           }
+@@ -1222,8 +1236,12 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_
+          in fast retransmit. Also reset the congestion window to the
+          slow start threshold. */
+       if (pcb->flags & TF_INFR) {
+-        pcb->flags &= ~TF_INFR;
++#if TCP_CC_ALGO_MOD
++	cc_post_recovery(pcb);
++#else
+         pcb->cwnd = pcb->ssthresh;
++#endif
++        pcb->flags &= ~TF_INFR;
+       }
+ 
+       /* Reset the number of retransmissions. */
+@@ -1248,6 +1266,9 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_
+       /* Update the congestion control variables (cwnd and
+          ssthresh). */
+       if (pcb->state >= ESTABLISHED) {
++#if TCP_CC_ALGO_MOD
++	 cc_ack_received(pcb, CC_ACK);
++#else
+         if (pcb->cwnd < pcb->ssthresh) {
+ #if TCP_RCVSCALE
+           if ((u32_t)(pcb->cwnd + pcb->mss) > pcb->cwnd) {
+@@ -1275,6 +1296,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_
+           LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_receive: congestion avoidance cwnd %"U16_F"\n", pcb->cwnd));
+ #endif
+         }
++#endif //TCP_CC_ALGO_MOD
+       }
+       LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_receive: ACK for %"U32_F", unacked->seqno %"U32_F":%"U32_F"\n",
+                                     in_data->ackno,
+@@ -1378,6 +1400,9 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_
+     if (pcb->rttest && TCP_SEQ_LT(pcb->rtseq, in_data->ackno)) {
+       /* diff between this shouldn't exceed 32K since this are tcp timer ticks
+          and a round-trip shouldn't be that long... */
++#if TCP_CC_ALGO_MOD
++      pcb->t_rttupdated++;
++#endif
+       m = (s16_t)(tcp_ticks - pcb->rttest);
+ 
+       LWIP_DEBUGF(TCP_RTO_DEBUG, ("tcp_receive: experienced rtt %"U16_F" ticks (%"U16_F" msec).\n",
+--- orig_lwip/src/core/tcp_out.c	2013-10-16 07:34:02.610146000 +0200
++++ lwip/src/core/tcp_out.c	2013-11-11 12:08:40.613541000 +0200
+@@ -1399,7 +1399,9 @@ tcp_rexmit_fast(struct tcp_pcb *pcb)
+                  (u16_t)pcb->dupacks, pcb->lastack,
+                  pcb->unacked->seqno));
+     tcp_rexmit(pcb);
+-
++#if TCP_CC_ALGO_MOD
++    cc_cong_signal(pcb, CC_NDUPACK);
++#else
+     /* Set ssthresh to half of the minimum of the current
+      * cwnd and the advertised window */
+     if (pcb->cwnd > pcb->snd_wnd) {
+@@ -1418,6 +1420,7 @@ tcp_rexmit_fast(struct tcp_pcb *pcb)
+     }
+     
+     pcb->cwnd = pcb->ssthresh + 3 * pcb->mss;
++#endif
+     pcb->flags |= TF_INFR;
+   } 
+ }
+--- orig_lwip/src/include/lwip/cc.h	1970-01-01 02:00:00.000000000 +0200
++++ lwip/src/include/lwip/cc.h	2013-11-11 13:05:02.987112000 +0200
+@@ -0,0 +1,140 @@
++/*-
++ * Copyright (c) 2007-2008
++ * 	Swinburne University of Technology, Melbourne, Australia.
++ * Copyright (c) 2009-2010 Lawrence Stewart <lstewart@freebsd.org>
++ * Copyright (c) 2010 The FreeBSD Foundation
++ * All rights reserved.
++ *
++ * This software was developed at the Centre for Advanced Internet
++ * Architectures, Swinburne University of Technology, by Lawrence Stewart and
++ * James Healy, made possible in part by a grant from the Cisco University
++ * Research Program Fund at Community Foundation Silicon Valley.
++ *
++ * Portions of this software were developed at the Centre for Advanced
++ * Internet Architectures, Swinburne University of Technology, Melbourne,
++ * Australia by David Hayes under sponsorship from the FreeBSD Foundation.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions and the following disclaimer.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
++ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
++ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++ * SUCH DAMAGE.
++ *
++ * $FreeBSD$
++ */
++
++/*
++ * This software was first released in 2007 by James Healy and Lawrence Stewart
++ * whilst working on the NewTCP research project at Swinburne University of
++ * Technology's Centre for Advanced Internet Architectures, Melbourne,
++ * Australia, which was made possible in part by a grant from the Cisco
++ * University Research Program Fund at Community Foundation Silicon Valley.
++ * More details are available at:
++ *   http://caia.swin.edu.au/urp/newtcp/
++ */
++
++/*
++ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
++ *
++ * This software product is a proprietary product of Mellanox Technologies Ltd.
++ * (the "Company") and all right, title, and interest in and to the software product,
++ * including all associated intellectual property rights, are and shall
++ * remain exclusively with the Company.
++ *
++ * This software is made available under either the GPL v2 license or a commercial license.
++ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
++ */
++
++#ifndef CC_H_
++#define CC_H_
++
++
++struct cc_algo;
++
++#include <stdint.h>
++#include "lwip/tcp.h"
++
++/* types of different cc algorithms */
++enum cc_algo_mod {
++	CC_MOD_LWIP,
++	CC_MOD_CUBIC
++};
++
++/* ACK types passed to the ack_received() hook. */
++#define	CC_ACK		0x0001	/* Regular in sequence ACK. */
++#define	CC_DUPACK	0x0002	/* Duplicate ACK. */
++#define	CC_PARTIALACK	0x0004	/* Not yet. */
++#define	CC_SACK		0x0008	/* Not yet. */
++
++/*
++ * Congestion signal types passed to the cong_signal() hook. The highest order 8
++ * bits (0x01000000 - 0x80000000) are reserved for CC algos to declare their own
++ * congestion signal types.
++ */
++#define	CC_ECN		0x00000001	/* ECN marked packet received. */
++#define	CC_RTO		0x00000002	/* RTO fired. */
++#define	CC_RTO_ERR	0x00000004	/* RTO fired in error. */
++#define	CC_NDUPACK	0x00000008	/* Threshold of dupack's reached. */
++
++#define	CC_SIGPRIVMASK	0xFF000000	/* Mask to check if sig is private. */
++
++
++#define	TCP_CA_NAME_MAX	16	/* max congestion control name length */
++
++/*
++ * Structure to hold data and function pointers that together represent a
++ * congestion control algorithm.
++ */
++struct cc_algo {
++	char	name[TCP_CA_NAME_MAX];
++
++	/* Init cc_data */
++	int	(*init)(struct tcp_pcb *pcb);
++
++	/* Destroy cc_data */
++	void	(*destroy)(struct tcp_pcb *pcb);
++
++	/* Init variables for a newly established connection. */
++	void	(*conn_init)(struct tcp_pcb *pcb);
++
++	/* Called on receipt of an ack. */
++	void	(*ack_received)(struct tcp_pcb *pcb, uint16_t type);
++
++	/* Called on detection of a congestion signal. */
++	void	(*cong_signal)(struct tcp_pcb *pcb, uint32_t type);
++
++	/* Called after exiting congestion recovery. */
++	void	(*post_recovery)(struct tcp_pcb *pcb);
++
++	/* Called when data transfer resumes after an idle period. */
++	void	(*after_idle)(struct tcp_pcb *pcb);
++
++};
++
++extern struct cc_algo ork_cc_algo;
++extern struct cc_algo lwip_cc_algo;
++extern struct cc_algo cubic_cc_algo;
++
++void inline cc_init(struct tcp_pcb *pcb);
++void inline cc_destroy(struct tcp_pcb *pcb);
++void inline cc_ack_received(struct tcp_pcb *pcb, uint16_t type);
++void inline cc_conn_init(struct tcp_pcb *pcb);
++void inline cc_cong_signal(struct tcp_pcb *pcb, uint32_t type);
++void inline cc_post_recovery(struct tcp_pcb *pcb);
++
++#endif /* CC_H_ */
+--- orig_lwip/src/include/lwip/opt.h	2013-10-16 07:34:02.612151000 +0200
++++ lwip/src/include/lwip/opt.h	2013-11-11 13:57:46.234013000 +0200
+@@ -896,6 +896,13 @@
+ #define TCP_WND                         (4 * TCP_MSS)
+ #endif 
+ 
++/*
++ * use custom congestion control algorithms
++ */
++#ifndef TCP_CC_ALGO_MOD
++#define TCP_CC_ALGO_MOD 1
++#endif
++
+  /**
+  * window scaling parameter
+  */
+--- orig_lwip/src/include/lwip/tcp.h	2013-10-16 07:34:02.615148000 +0200
++++ lwip/src/include/lwip/tcp.h	2013-11-11 13:16:43.332309000 +0200
+@@ -62,6 +62,10 @@ void register_ip_route_mtu(ip_route_mtu_
+ 
+ struct tcp_pcb;
+ 
++#include "lwip/cc.h"
++
++extern enum cc_algo_mod lwip_cc_algo_module;
++
+ /** Function prototype for tcp accept callback functions. Called when a new
+  * connection can be accepted on a listening pcb.
+  *
+@@ -259,8 +263,11 @@ struct tcp_pcb {
+   u16_t advtsd_mss; /* advertised maximum segment size */
+   
+   /* RTT (round trip time) estimation variables */
+-  u32_t rttest; /* RTT estimate in 500ms ticks */
++  u32_t rttest; /* RTT estimate in 10ms ticks */
+   u32_t rtseq;  /* sequence number being timed */
++#if TCP_CC_ALGO_MOD
++  u32_t t_rttupdated; /* number of RTT estimations taken so far */
++#endif
+   s16_t sa, sv; /* @todo document this */
+ 
+   s16_t rto;    /* retransmission time-out */
+@@ -271,6 +278,10 @@ struct tcp_pcb {
+   u8_t dupacks;
+   
+   /* congestion avoidance/control variables */
++#if TCP_CC_ALGO_MOD
++  struct cc_algo* cc_algo;
++  void* cc_data;
++#endif
+ #if TCP_RCVSCALE
+   u32_t cwnd;
+   u32_t ssthresh;
+--- orig_lwip/src/Makefile.am	2013-10-16 07:34:02.340145000 +0200
++++ lwip/src/Makefile.am	2013-11-11 11:04:14.139303000 +0200
+@@ -7,7 +7,9 @@ COREFILES=$(LWIPDIR)/core/mem.c $(LWIPDI
+         $(LWIPDIR)/core/pbuf.c $(LWIPDIR)/core/stats.c $(LWIPDIR)/core/sys.c \
+         $(LWIPDIR)/core/tcp.c $(LWIPDIR)/core/tcp_in.c $(LWIPDIR)/core/raw.c \
+         $(LWIPDIR)/core/tcp_out.c $(LWIPDIR)/core/udp.c $(LWIPDIR)/core/init.c \
+-        $(LWIPDIR)/core/def.c $(LWIPDIR)/core/timers.c
++        $(LWIPDIR)/core/def.c $(LWIPDIR)/core/timers.c \
++        $(LWIPDIR)/core/cc/cc.c $(LWIPDIR)/core/cc/cc_lwip.c \
++        $(LWIPDIR)/core/cc/cc_cubic.c
+ 
+ CORE4FILES=$(LWIPDIR)/core/ipv4/icmp.c $(LWIPDIR)/core/ipv4/ip.c \
+         $(LWIPDIR)/core/ipv4/inet.c $(LWIPDIR)/core/ipv4/ip_addr.c \

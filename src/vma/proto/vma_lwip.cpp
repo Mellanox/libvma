@@ -92,6 +92,8 @@ vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip"), m_tx_bufs(NULL)
 
 	lwip_logdbg("");
 
+	lwip_cc_algo_module = (enum cc_algo_mod)mce_sys.lwip_cc_algo_mod;
+
 	switch (mce_sys.lwip_mss) {
 	case MSS_FOLLOW_MTU:
 		// set MSS to match VMA_MTU, MSS is equal to (VMA_MTU-40), but forced to be at least 1.

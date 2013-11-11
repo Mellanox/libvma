@@ -129,6 +129,7 @@ Example:
  VMA DEBUG  : close on dup2()                Enabled                    [VMA_CLOSE_ON_DUP2]
  VMA DEBUG  : MTU                            1500                       [VMA_MTU]
  VMA DEBUG  : MSS                            0 (follow VMA_MTU)         [VMA_MSS]
+ VMA DEBUG  : TCP CC Algorithm               0 (LWIP)                   [VMA_TCP_CC_ALGO]
  VMA DEBUG  : TCP scaling window             3		                [VMA_WINDOW_SCALING]
  VMA DEBUG  : Suppress IGMP ver. warning     Disabled                   [VMA_SUPPRESS_IGMP_WARNING]
  VMA INFO   : ---------------------------------------------------------------------------
@@ -642,6 +643,14 @@ Value of 0 will set VMA's TCP MSS to be aligned with VMA_MTU configuration
 (leaving 40 bytes room for IP + TCP headers; "TCP MSS = VMA_MTU - 40").
 Other VMA_MSS values will force VMA's TCP MSS to that specific value.
 Default value is 0 (following VMA_MTU)
+
+VMA_TCP_CC_ALGO
+TCP congestion control algorithm.
+The default algorithm coming with LWIP is a variation of Reno/New-Reno.
+The new Cubic algorithm was adapted from FreeBsd implementation.
+Use value of 0 for LWIP algorithm.
+Use value of 1 for the Cubic algorithm.
+Default value is 0 (LWIP).
 
 VMA_WINDOW_SCALING
 TCP scaling window. 

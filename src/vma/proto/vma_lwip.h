@@ -43,6 +43,16 @@ static inline int is_bcast_mac(const uint8_t *addr)
         return (addr[0] & addr[1] & addr[2] & addr[3] & addr[4] & addr[5]) == 0xff;
 }
 
+static inline const char* lwip_cc_algo_str(uint32_t algo)
+{
+	switch (algo) {
+	case CC_MOD_CUBIC:	return "(CUBIC)";
+	case CC_MOD_LWIP:
+	default:		return "(LWIP)";
+	}
+	return "unsupported";
+}
+
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif
