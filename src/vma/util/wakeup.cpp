@@ -93,12 +93,14 @@ void wakeup::do_wakeup()
 
 	wkup_entry_dbg("");
 
+	int errno_tmp = errno; //don't let wakeup affect errno, as this can fail with EEXIST
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if ((orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_ADD, g_wakeup_pipes[0], &m_ev)) && (errno != EEXIST)) {
 		wkup_logerr("Failed to add wakeup fd to internal epfd (errno=%d %m)", errno);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-
+	errno = errno_tmp;
+	
 	m_is_sleeping = false;
 
 	//m_wakeup_lock.unlock();
