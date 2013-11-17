@@ -2373,7 +2373,7 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 	//this code and wakeup mechanism.
 
 	lock_tcp_con();
-	if (!m_n_rx_pkt_ready_list_count)
+	if (!m_n_rx_pkt_ready_list_count && !m_ready_conn_cnt)
 	{
 		going_to_sleep();
 		unlock_tcp_con();
@@ -2398,7 +2398,9 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 		int fd = rx_epfd_events[event_idx].data.fd;
 		if (is_wakeup_fd(fd))
 		{ // wakeup event
+			lock_tcp_con();
 			remove_wakeup_fd();
+			unlock_tcp_con();
 			continue;
 		}
 

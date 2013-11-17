@@ -191,7 +191,9 @@ bool epoll_wait_call::_wait(int timeout)
 		// wakeup event
 		if(m_epfd_info->is_wakeup_fd(fd))
 		{
+			lock();
 			m_epfd_info->remove_wakeup_fd();
+			unlock();
 			m_p_ready_events[i] = m_p_ready_events[--m_n_all_ready_fds];
 			continue;
 		}

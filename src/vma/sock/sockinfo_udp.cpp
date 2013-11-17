@@ -892,7 +892,9 @@ inline int sockinfo_udp::rx_wait(bool blocking)
 			for (int event_idx = 0; event_idx < ret; ++event_idx) {
 				int fd = rx_epfd_events[event_idx].data.fd;
 				if (is_wakeup_fd(fd)) {
+					m_lock_rcv.lock();
 					remove_wakeup_fd();
+					m_lock_rcv.unlock();
 					continue;
 				}
 

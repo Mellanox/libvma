@@ -36,7 +36,7 @@ public:
 
 protected:
 	void wakeup_set_epoll_fd(int epfd);
-	bool m_is_sleeping;
+	int m_is_sleeping;
 
 	//lock_spin_recursive m_wakeup_lock; This lock is not needed for now. Maybe we will need it for epoll.
 

@@ -37,7 +37,7 @@ int wakeup::g_wakeup_pipes[2] = {-1,-1};
 wakeup::wakeup()
 {
 	m_epfd = 0;
-	m_is_sleeping = false;
+        m_is_sleeping = 0;
 
 	if (g_wakeup_pipes[0] == -1 && g_wakeup_pipes[1] == -1) {
 		BULLSEYE_EXCLUDE_BLOCK_START
@@ -62,11 +62,11 @@ void wakeup::going_to_sleep()
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if(likely(m_epfd))
-		m_is_sleeping=true;
+		m_is_sleeping++;
 	else
 	{
 		wkup_logerr(" m_epfd is not initialized - cannot use wakeup mechanism\n");
-		m_is_sleeping = false;
+                m_is_sleeping = 0;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 }
@@ -100,15 +100,14 @@ void wakeup::do_wakeup()
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 	errno = errno_tmp;
-	
-	m_is_sleeping = false;
 
 	//m_wakeup_lock.unlock();
-	sched_yield();
+	//sched_yield();
 }
 
 void wakeup::remove_wakeup_fd()
 {
+	if (--m_is_sleeping) return;
 	wkup_entry_dbg("");
 	if (orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_DEL, g_wakeup_pipes[0], NULL))
 	{
