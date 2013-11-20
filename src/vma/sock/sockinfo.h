@@ -285,6 +285,9 @@ protected:
             if(iter->second.rx_reuse_info.n_buff_num > m_rx_num_buffs_reuse){
                 if (p_ring->reclaim_recv_buffers(rx_reuse)) {
                     iter->second.rx_reuse_info.n_buff_num = 0;
+                } else if (iter->second.rx_reuse_info.n_buff_num > 2 * m_rx_num_buffs_reuse) {
+                	g_buffer_pool_rx->put_buffers_thread_safe(rx_reuse, rx_reuse->size());
+                	iter->second.rx_reuse_info.n_buff_num = 0;
                 }
             }
 
