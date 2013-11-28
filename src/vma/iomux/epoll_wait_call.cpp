@@ -179,6 +179,13 @@ bool epoll_wait_call::_wait(int timeout)
 	} else {
 		m_n_all_ready_fds = orig_os_api.epoll_wait(m_epfd, m_p_ready_events, m_maxevents, timeout);
 	}
+
+	if (timeout) {
+		lock();
+		m_epfd_info->remove_wakeup_fd();
+		unlock();
+	}
+
 	if (m_n_all_ready_fds < 0) {
 		throw io_mux_call::io_error();
 	} 
@@ -191,9 +198,6 @@ bool epoll_wait_call::_wait(int timeout)
 		// wakeup event
 		if(m_epfd_info->is_wakeup_fd(fd))
 		{
-			lock();
-			m_epfd_info->remove_wakeup_fd();
-			unlock();
 			m_p_ready_events[i] = m_p_ready_events[--m_n_all_ready_fds];
 			continue;
 		}

@@ -2386,6 +2386,11 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 
 	//sleep on different CQs and OS listen socket
 	ret = orig_os_api.epoll_wait(m_rx_epfd, rx_epfd_events, SI_RX_EPFD_EVENT_MAX, m_loops_timer.time_left_msec());
+
+	lock_tcp_con();
+	remove_wakeup_fd();
+	unlock_tcp_con();
+
 	if (ret <= 0)
 		return ret;
 
@@ -2398,9 +2403,6 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 		int fd = rx_epfd_events[event_idx].data.fd;
 		if (is_wakeup_fd(fd))
 		{ // wakeup event
-			lock_tcp_con();
-			remove_wakeup_fd();
-			unlock_tcp_con();
 			continue;
 		}
 
