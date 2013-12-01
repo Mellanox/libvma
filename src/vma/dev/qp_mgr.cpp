@@ -162,9 +162,6 @@ void qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 		m_p_cq_mgr_tx->add_qp_tx(this);
 	}
 
-	// Add a network interface to the list of lwIP netifs.
-	set_lwip_buffer_tx_lkey();
-
 	qp_logdbg("Created QP (num=%x) with %d tx wre and inline=%d and %d rx wre and %d sge", m_qp->qp_num, m_tx_num_wr, m_max_inline_data, m_rx_num_wr, rx_num_sge);
 }
 
@@ -514,24 +511,6 @@ int qp_mgr::send(ibv_send_wr* p_send_wqe)
 
 	return 0;
 }
-
-void qp_mgr::set_lwip_buffer_tx_lkey()
-{
-	ibv_device *ibv_device = m_p_ib_ctx_handler->get_ibv_device();
-	const deque<ibv_mr*> *p_mrs = g_p_lwip->get_memory_regions();
-
-	std::deque<ibv_mr*>::const_iterator iter;
-
-	for (iter = p_mrs->begin(); iter != p_mrs->end(); ++iter) {
-		ibv_mr *mr = *iter;
-		if (mr->context->device == ibv_device) {
-			m_lwip_buffer_tx_lkey =  mr->lkey;
-		}
-	}
-}
-
-
-
 
 void qp_mgr_eth::modify_qp_to_ready_state()
 {

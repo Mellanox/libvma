@@ -16,6 +16,13 @@
 
 #include "vma/proto/dst_entry.h"
 
+/* Structure for TCP scatter/gather I/O.  */
+typedef struct tcp_iovec
+{
+	struct iovec iovec;
+	mem_buf_desc_t* p_desc;
+}tcp_iovec;
+
 class dst_entry_tcp : public dst_entry
 {
 public:
@@ -24,6 +31,9 @@ public:
 
 	virtual ssize_t fast_send(const struct iovec* p_iov, const ssize_t sz_iov, bool b_blocked = true, bool is_rexmit = false, bool dont_inline = false);
 	ssize_t slow_send(const iovec* p_iov, size_t sz_iov, bool b_blocked = true, bool is_rexmit = false, int flags = 0, socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF);
+
+	mem_buf_desc_t* get_buffer(bool b_blocked = false);
+	void put_buffer(mem_buf_desc_t * p_desc);
 
 protected:
 	transport_t 		get_transport(sockaddr_in to);

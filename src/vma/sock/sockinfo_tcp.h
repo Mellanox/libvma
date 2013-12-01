@@ -118,6 +118,10 @@ public:
 	static err_t ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit);
 	virtual bool rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void* pv_fd_ready_array = NULL);
 	inline void init_pbuf_custom(mem_buf_desc_t *p_desc);
+	static struct pbuf * tcp_tx_pbuf_alloc(void* p_conn);
+	static void tcp_tx_pbuf_free(void* p_conn, struct pbuf *p_buff);
+	static struct tcp_seg * tcp_seg_alloc(void* p_conn);
+	static void tcp_seg_free(void* p_conn, struct tcp_seg * seg);
 
 	bool is_readable(uint64_t *p_poll_sn, fd_array_t *p_fd_array = NULL);
 	bool is_writeable();
@@ -230,6 +234,10 @@ private:
 
 	int m_error_status;
 
+	struct tcp_seg * m_tcp_seg_list;
+	int m_tcp_seg_count;
+	int m_tcp_seg_in_use;
+
 	inline void lock_tcp_con();
 	inline void unlock_tcp_con();
 	void tcp_timer();
@@ -306,6 +314,26 @@ private:
 	int 		rx_wait(int & poll_count, bool is_blocking);
 	int 		rx_wait_helper(int & poll_count, bool is_blocking);
 	void 		fit_snd_bufs_to_nagle(bool disable_nagle);
+
+	inline struct tcp_seg * get_tcp_seg();
+	inline void put_tcp_seg(struct tcp_seg * seg);
 };
+
+typedef struct tcp_seg tcp_seg;
+
+class tcp_seg_pool : lock_spin {
+public:
+	tcp_seg_pool(int size);
+	virtual ~tcp_seg_pool();
+
+	tcp_seg * get_tcp_segs(int amount);
+	void put_tcp_segs(tcp_seg * seg_list);
+	
+private:
+	tcp_seg *	m_tcp_segs_array;
+	tcp_seg *	m_p_head;
+};
+
+extern tcp_seg_pool* g_tcp_seg_pool;
 
 #endif

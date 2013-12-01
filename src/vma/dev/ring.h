@@ -313,7 +313,7 @@ protected:
 	lock_mutex_recursive			m_lock_ring_tx;
 	lock_mutex				m_lock_ring_tx_buf_wait;
 	int*					m_p_n_rx_channel_fds;
-	buffer_pool*		 		m_p_buffer_pool_tx;
+	descq_t					m_tx_pool;
 	uint32_t				m_tx_num_bufs;
 	uint32_t 		 		m_tx_num_wr;
 	int32_t 		 		m_tx_num_wr_free;
@@ -342,6 +342,9 @@ protected:
 private:
 	inline void 		 send_status_handler(int ret, ibv_send_wr* p_send_wqe);
 	inline bool		 is_available_qp_wr(bool b_block);
+	inline bool		 request_more_tx_buffers(uint32_t count);
+	inline mem_buf_desc_t*	 get_tx_buffers(uint32_t n_num_mem_bufs);
+	inline int		 put_tx_buffers(mem_buf_desc_t* buff_list);
 	inline int		 send_buffer(ibv_send_wr* p_send_wqe, bool b_block);
 };
 

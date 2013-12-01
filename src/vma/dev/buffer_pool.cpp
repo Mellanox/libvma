@@ -28,15 +28,21 @@
 #define MODULE_NAME 	"bpool"
 
 buffer_pool *g_buffer_pool_rx = NULL;
+buffer_pool *g_buffer_pool_tx = NULL;
 
 /** Free-callback function to free a 'struct pbuf_custom_ref', called by
  * pbuf_free. */
-void buffer_pool::free_lwip_pbuf_custom(struct pbuf *p_buff)
+void buffer_pool::free_rx_lwip_pbuf_custom(struct pbuf *p_buff)
 {
 	g_buffer_pool_rx->put_buffers_thread_safe((mem_buf_desc_t *)p_buff);
 }
 
-buffer_pool::buffer_pool(size_t buffer_count, ib_ctx_handler *p_ib_ctx_h, mem_buf_desc_owner *owner, size_t size) :
+void buffer_pool::free_tx_lwip_pbuf_custom(struct pbuf *p_buff)
+{
+	g_buffer_pool_tx->put_buffers_thread_safe((mem_buf_desc_t *)p_buff);
+}
+
+buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p_ib_ctx_h, mem_buf_desc_owner *owner, pbuf_free_custom_fn custom_free_function) :
 			m_lock_spin("buffer_pool"), m_is_contig_alloc(true), m_shmid(-1), m_lkey(0), m_p_ib_ctx_h(p_ib_ctx_h),
 			m_p_head(NULL), m_n_buffers(0), m_n_buffers_created(buffer_count)
 {
@@ -48,9 +54,12 @@ buffer_pool::buffer_pool(size_t buffer_count, ib_ctx_handler *p_ib_ctx_h, mem_bu
 
 	__log_info_func("count = %d", buffer_count);
 
-	if (!size){ // Size will be zero if not called from lwip context.
-		sz_aligned_element = (RX_BUF_SIZE(mce_sys.mtu) + MCE_ALIGNMENT) & (~MCE_ALIGNMENT);
+	size_t size;
+	if (buffer_count) {
+		sz_aligned_element = (buf_size + MCE_ALIGNMENT) & (~MCE_ALIGNMENT);
 		size = (sizeof(mem_buf_desc_t) + sz_aligned_element) * buffer_count + MCE_ALIGNMENT;
+	} else {
+		size = buf_size;
 	}
 
 	//
@@ -96,24 +105,24 @@ buffer_pool::buffer_pool(size_t buffer_count, ib_ctx_handler *p_ib_ctx_h, mem_bu
 		break;
 	}
 
+	if (!buffer_count) return;
+
 	// Align pointers
-	if (sz_aligned_element){
-		ptr_buff = (uint8_t *)((unsigned long)((char*)m_data_block + MCE_ALIGNMENT) & (~MCE_ALIGNMENT));
-		ptr_desc = ptr_buff + sz_aligned_element * buffer_count;
+	ptr_buff = (uint8_t *)((unsigned long)((char*)m_data_block + MCE_ALIGNMENT) & (~MCE_ALIGNMENT));
+	ptr_desc = ptr_buff + sz_aligned_element * buffer_count;
 
-		// Split the block to buffers
-		for (size_t i = 0; i < buffer_count; ++i) {
+	// Split the block to buffers
+	for (size_t i = 0; i < buffer_count; ++i) {
 
-			memset(ptr_desc, 0, sizeof (mem_buf_desc_t));
-			mem_buf_desc_t *desc = new (ptr_desc) mem_buf_desc_t(ptr_buff, RX_BUF_SIZE(mce_sys.mtu));
-			desc->serial_num = i;
-			desc->p_desc_owner = owner;
-			desc->lwip_pbuf.custom_free_function = free_lwip_pbuf_custom;
-			put_buffer_helper(desc);
+		memset(ptr_desc, 0, sizeof (mem_buf_desc_t));
+		mem_buf_desc_t *desc = new (ptr_desc) mem_buf_desc_t(ptr_buff, buf_size);
+		desc->serial_num = i;
+		desc->p_desc_owner = owner;
+		desc->lwip_pbuf.custom_free_function = custom_free_function;
+		put_buffer_helper(desc);
 
-			ptr_buff += sz_aligned_element;
-			ptr_desc += sizeof(mem_buf_desc_t);
-		}
+		ptr_buff += sz_aligned_element;
+		ptr_desc += sizeof(mem_buf_desc_t);
 	}
 
 	__log_info_func("done");
@@ -278,8 +287,19 @@ uint32_t buffer_pool::set_default_lkey_thread_safe(const ib_ctx_handler* p_ib_ct
 
 mem_buf_desc_t *buffer_pool::get_buffers(size_t count, ib_ctx_handler *p_ib_ctx_h/*=NULL*/)
 {
-	mem_buf_desc_t *next, *head;
 	uint32_t lkey = m_lkey;
+
+	// find lkey if have a device
+	if (unlikely(p_ib_ctx_h)) {
+		lkey = find_lkey_by_ib_ctx(p_ib_ctx_h);
+	}
+
+	return get_buffers(count, lkey);
+}
+
+mem_buf_desc_t *buffer_pool::get_buffers(size_t count, uint32_t lkey)
+{
+	mem_buf_desc_t *next, *head;
 
 	__log_info_funcall("requested %lu, present %lu, created %lu", count, m_n_buffers, m_n_buffers_created);
 
@@ -289,14 +309,9 @@ mem_buf_desc_t *buffer_pool::get_buffers(size_t count, ib_ctx_handler *p_ib_ctx_
 		return NULL;
 	}
 
-	// find lkey if have a device
-	if (unlikely(p_ib_ctx_h)) {
-		lkey = find_lkey_by_ib_ctx(p_ib_ctx_h);
-	}
-
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (lkey == 0) {
-		__log_info_panic("No lkey found! count = %d, p_ib_ctx_h = %p", count, p_ib_ctx_h);
+		__log_info_panic("No lkey found! count = %d", count);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
@@ -326,6 +341,17 @@ mem_buf_desc_t *buffer_pool::get_buffers_thread_safe(size_t count, ib_ctx_handle
 	return ret;
 }
 
+mem_buf_desc_t *buffer_pool::get_buffers_thread_safe(size_t count, uint32_t lkey)
+{
+	mem_buf_desc_t *ret;
+
+	m_lock_spin.lock();
+	ret = get_buffers(count, lkey);
+	m_lock_spin.unlock();
+
+	return ret;
+}
+
 uint32_t buffer_pool::find_lkey_by_ib_ctx(ib_ctx_handler* p_ib_ctx_h)
 {
 	uint32_t lkey = 0;
@@ -340,6 +366,17 @@ uint32_t buffer_pool::find_lkey_by_ib_ctx(ib_ctx_handler* p_ib_ctx_h)
 		}
 	}
 	return lkey;
+}
+
+uint32_t buffer_pool::find_lkey_by_ib_ctx_thread_safe(const ib_ctx_handler* p_ib_ctx_h)
+{
+	uint32_t ret;
+
+	m_lock_spin.lock();
+	ret = find_lkey_by_ib_ctx((ib_ctx_handler*)p_ib_ctx_h);
+	m_lock_spin.unlock();
+
+	return ret;
 }
 
 #if _BullseyeCoverage

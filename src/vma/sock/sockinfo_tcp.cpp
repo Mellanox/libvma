@@ -50,6 +50,10 @@
 #define si_tcp_logfuncall           __log_info_funcall
 
 
+#define TCP_SEG_COMPENSATION 64
+
+tcp_seg_pool *g_tcp_seg_pool = NULL;
+
 
 sockinfo_tcp::sockinfo_tcp(int fd) :
         sockinfo(fd),
@@ -97,6 +101,10 @@ sockinfo_tcp::sockinfo_tcp(int fd) :
 
 	m_error_status = 0;
 
+	m_tcp_seg_count = 0;
+	m_tcp_seg_in_use = 0;
+	m_tcp_seg_list = g_tcp_seg_pool->get_tcp_segs(TCP_SEG_COMPENSATION);
+
 	si_tcp_logfunc("done");
 }
 
@@ -111,6 +119,13 @@ sockinfo_tcp::~sockinfo_tcp()
 
 	lock_tcp_con();
 	destructor_helper();
+
+	if (m_tcp_seg_in_use) {
+		si_tcp_logwarn("still %d tcp segs in use!", m_tcp_seg_in_use);
+	}
+	if (m_tcp_seg_count) {
+		g_tcp_seg_pool->put_tcp_segs(m_tcp_seg_list);
+	}
 	unlock_tcp_con();
 
 	// hack to close conn as our tcp state machine is not really persistent
@@ -531,18 +546,20 @@ err:
 
 err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit)
 {
-	iovec iovec[64];
+	tcp_iovec iovec[64];
 	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)(((struct tcp_pcb*)v_p_conn)->my_container);
 	dst_entry *p_dst = p_si_tcp->m_p_connected_dst_entry;
 	int count = 1;
 
 	if (likely(!p->next)) { // We should hit this case 99% of cases
-		iovec[0].iov_base = p->payload;
-		iovec[0].iov_len = p->len;
+		iovec[0].iovec.iov_base = p->payload;
+		iovec[0].iovec.iov_len = p->len;
+		iovec[0].p_desc = (mem_buf_desc_t*)p;
 	} else {
 		for (count = 0; count < 64 && p; ++count) {
-			iovec[count].iov_base = p->payload;
-			iovec[count].iov_len = p->len;
+			iovec[count].iovec.iov_base = p->payload;
+			iovec[count].iovec.iov_len = p->len;
+			iovec[count].p_desc = (mem_buf_desc_t*)p;
 			p = p->next;
 		}
 
@@ -559,9 +576,9 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit)
 	}
 
 	if (likely((p_dst->is_valid()))) {
-		p_dst->fast_send(iovec, count, false, is_rexmit);
+		p_dst->fast_send((struct iovec*)iovec, count, false, is_rexmit);
 	} else {
-		p_dst->slow_send(iovec, count, false, is_rexmit);
+		p_dst->slow_send((struct iovec*)iovec, count, false, is_rexmit);
 	}
 	return ERR_OK;
 }
@@ -2532,3 +2549,123 @@ int sockinfo_tcp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif
+
+struct pbuf * sockinfo_tcp::tcp_tx_pbuf_alloc(void* p_conn)
+{
+	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)(((struct tcp_pcb*)p_conn)->my_container);
+	dst_entry_tcp *p_dst = (dst_entry_tcp *)(p_si_tcp->m_p_connected_dst_entry);
+	mem_buf_desc_t* p_desc = p_dst->get_buffer();
+	return (struct pbuf *)p_desc;
+}
+
+void sockinfo_tcp::tcp_tx_pbuf_free(void* p_conn, struct pbuf *p_buff)
+{
+	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)(((struct tcp_pcb*)p_conn)->my_container);
+	dst_entry_tcp *p_dst = (dst_entry_tcp *)(p_si_tcp->m_p_connected_dst_entry);
+	p_dst->put_buffer((mem_buf_desc_t *)p_buff);
+}
+
+struct tcp_seg * sockinfo_tcp::tcp_seg_alloc(void* p_conn)
+{
+	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)(((struct tcp_pcb*)p_conn)->my_container);
+	return p_si_tcp->get_tcp_seg();
+}
+
+void sockinfo_tcp::tcp_seg_free(void* p_conn, struct tcp_seg * seg)
+{
+	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)(((struct tcp_pcb*)p_conn)->my_container);
+	p_si_tcp->put_tcp_seg(seg);
+}
+
+struct tcp_seg * sockinfo_tcp::get_tcp_seg()
+{
+	struct tcp_seg * head = NULL;
+	if (!m_tcp_seg_list) {
+		m_tcp_seg_list = g_tcp_seg_pool->get_tcp_segs(TCP_SEG_COMPENSATION);
+		if (unlikely(!m_tcp_seg_list)) return NULL;
+		m_tcp_seg_count += TCP_SEG_COMPENSATION;
+	}
+
+	head = m_tcp_seg_list;
+	m_tcp_seg_list = head->next;
+	head->next = NULL;
+	m_tcp_seg_in_use++;
+
+	return head;
+}
+
+void sockinfo_tcp::put_tcp_seg(struct tcp_seg * seg)
+{
+	if (unlikely(!seg)) return;
+
+	seg->next = m_tcp_seg_list;
+	m_tcp_seg_list = seg;
+	m_tcp_seg_in_use--;
+	if (m_tcp_seg_count > 2 * TCP_SEG_COMPENSATION && m_tcp_seg_in_use < m_tcp_seg_count / 2) {
+		int count = (m_tcp_seg_count - m_tcp_seg_in_use) / 2;
+		struct tcp_seg * next = m_tcp_seg_list;
+		for (int i = 0; i < count - 1; i++) {
+			next = next->next;
+		}
+		struct tcp_seg * head = m_tcp_seg_list;
+		m_tcp_seg_list = next->next;
+		next->next = NULL;
+		g_tcp_seg_pool->put_tcp_segs(head);
+		m_tcp_seg_count -= count;
+	}
+	return;
+}
+
+
+//tcp_seg_pool
+
+tcp_seg_pool::tcp_seg_pool(int size) {
+	m_tcp_segs_array = new struct tcp_seg[size];
+	if (m_tcp_segs_array == NULL) {
+		__log_panic("TCP segments allocation failed");
+	}
+	memset(m_tcp_segs_array, 0, sizeof(tcp_seg) * size);
+	for (int i = 0; i < size - 1; i++) {
+		m_tcp_segs_array[i].next = &m_tcp_segs_array[i + 1];
+	}
+	m_p_head = &m_tcp_segs_array[0];
+}
+
+tcp_seg_pool::~tcp_seg_pool() {
+	delete [] m_tcp_segs_array;
+}
+
+tcp_seg * tcp_seg_pool::get_tcp_segs(int amount) {
+	tcp_seg *head, *next, *prev;
+	if (unlikely(amount <= 0))
+		return NULL;
+	lock();
+	head = next = m_p_head;
+	prev = NULL;
+	while (amount > 0 && next) {
+		prev = next;
+		next = next->next;
+		amount--;
+	}
+	if (amount) {
+		unlock();
+		return NULL;
+	}
+	prev->next = NULL;
+	m_p_head = next;
+	unlock();
+	return head;
+}
+
+void tcp_seg_pool::put_tcp_segs(tcp_seg * seg_list) {
+	tcp_seg * next = seg_list;
+	if (unlikely(!seg_list))
+		return;
+	lock();
+	while (next->next) {
+		next = next->next;
+	}
+	next->next = m_p_head;
+	m_p_head = seg_list;
+	unlock();
+}

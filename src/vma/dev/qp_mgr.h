@@ -97,7 +97,6 @@ public:
 	struct cq_mgr*  	get_tx_cq_mgr() const { return m_p_cq_mgr_tx; }
 	struct cq_mgr*  	get_rx_cq_mgr() const { return m_p_cq_mgr_rx; }
 	uint32_t		get_rx_max_wr_num();
-	uint32_t 		get_lwip_buffer_tx_lkey()	const { return m_lwip_buffer_tx_lkey; }
 
 	// create a AH cleaner object which will be linked to the following post send (if any)
 	void                    ah_cleanup(struct ibv_ah* ah);
@@ -147,12 +146,9 @@ protected:
 
 	mgid_ref_count_map_t	m_attach_mc_grp_ref_cnt;
 
-	uint32_t		m_lwip_buffer_tx_lkey;
-
 	void 			configure(struct ibv_comp_channel* p_rx_comp_event_channel);
 	virtual void		prepare_ibv_qp(struct ibv_qp_init_attr& qp_init_attr) = 0;
 
-	void			set_lwip_buffer_tx_lkey();
 	void 			validate_raw_qp_privliges();
 };
 

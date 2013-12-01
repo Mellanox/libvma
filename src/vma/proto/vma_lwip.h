@@ -17,6 +17,7 @@
 #include <list>
 #include <deque>
 #include <net/ethernet.h>
+#include <sys/param.h>
 #include "vma/event/timer_handler.h"
 #include "vma/util/hash_map.h"
 #include "vma/util/libvma.h"
@@ -69,11 +70,6 @@ public:
 	static int sockaddr2ipaddr(const sockaddr *__to, socklen_t __tolen, ip_addr_t & ip, uint16_t & port);
 	void do_timers();
 
-	const std::deque<ibv_mr*> *get_memory_regions() const
-	{
-	    return &m_mrs;
-	}
-
 	static err_t vma_lwip_netif_init(struct netif *lwip_if);
 	static u16_t vma_ip_route_mtu(ip_addr_t *dest);
 
@@ -84,14 +80,13 @@ public:
 
 private:
 
-	/// List of memory regions
-	std::deque<ibv_mr*> m_mrs;
-
-	buffer_pool     *m_tx_bufs;
+	char     	*m_lwip_bufs;
 
 	bool		m_run_timers;
 };
 
 extern vma_lwip *g_p_lwip;
+
+uint32_t get_lwip_tcp_mss(uint32_t mtu, uint32_t lwip_mss);
 
 #endif

@@ -83,7 +83,7 @@ vma_lwip *g_p_lwip = 0;
  * LWIP "network" driver code
  */
 
-vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip"), m_tx_bufs(NULL)
+vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip"), m_lwip_bufs(NULL)
 {
 	m_run_timers = false;
 
@@ -94,24 +94,14 @@ vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip"), m_tx_bufs(NULL)
 
 	lwip_cc_algo_module = (enum cc_algo_mod)mce_sys.lwip_cc_algo_mod;
 
-	switch (mce_sys.lwip_mss) {
-	case MSS_FOLLOW_MTU:
-		// set MSS to match VMA_MTU, MSS is equal to (VMA_MTU-40), but forced to be at least 1.
-		lwip_tcp_mss = (MAX(mce_sys.mtu, (40+1)) - 40);
-		break;
-	default:
-		lwip_tcp_mss = (MAX(mce_sys.lwip_mss, 1));
-		break;
-	}
-	u16_t size = lwip_tcp_mss + 92;         //set LWIP TX BUFFERS to match the MSS
-	u32_t num = mce_sys.tx_num_bufs_tcp;   //set the number of LWIP TX BUFFERS
-	memp_update_custom_pool(num,size);
+	lwip_tcp_mss = get_lwip_tcp_mss(mce_sys.mtu, mce_sys.lwip_mss);
 
-	m_tx_bufs = new buffer_pool( 0/*num_of_bufs*/ ,NULL /*device*/, NULL /*mem_buf_desc_owner*/, memp_get_pool_size());
+	memp_update_custom_pool(0,0);
+
+	m_lwip_bufs = new char[memp_get_pool_size()];
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (m_tx_bufs){
-		m_mrs = m_tx_bufs->get_memory_regions();
-		memp_set_pool_start(m_mrs[0]->addr);
+	if (m_lwip_bufs){
+		memp_set_pool_start(m_lwip_bufs);
 	} else
 		lwip_logerr("failed allocting memory for lwip\n");
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -133,6 +123,10 @@ vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip"), m_tx_bufs(NULL)
 
 	lwip_logdbg("LWIP subsystem initialized");
 
+	register_tcp_tx_pbuf_alloc(sockinfo_tcp::tcp_tx_pbuf_alloc);
+	register_tcp_tx_pbuf_free(sockinfo_tcp::tcp_tx_pbuf_free);
+	register_tcp_seg_alloc(sockinfo_tcp::tcp_seg_alloc);
+	register_tcp_seg_free(sockinfo_tcp::tcp_seg_free);
 	register_ip_output(sockinfo_tcp::ip_output);
 	register_ip_route_mtu(vma_ip_route_mtu);
 
@@ -142,9 +136,9 @@ vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip"), m_tx_bufs(NULL)
 
 vma_lwip::~vma_lwip()
 {
-	if (m_tx_bufs) {
-		delete m_tx_bufs;
-		m_tx_bufs = NULL;
+	if (m_lwip_bufs) {
+		delete m_lwip_bufs;
+		m_lwip_bufs = NULL;
 	}
 
 	__vma_free_resources();
@@ -217,4 +211,19 @@ u16_t vma_lwip::vma_ip_route_mtu(ip_addr_t *dest)
 void vma_lwip::handle_timer_expired(void* user_data) {
 	NOT_IN_USE(user_data);
 	tcp_ticks++;
+}
+
+uint32_t get_lwip_tcp_mss(uint32_t mtu, uint32_t lwip_mss)
+{
+	uint32_t  lwip_tcp_mss;
+	switch (lwip_mss) {
+	case MSS_FOLLOW_MTU:
+		// set MSS to match VMA_MTU, MSS is equal to (VMA_MTU-40), but forced to be at least 1.
+		lwip_tcp_mss = (MAX(mtu, (40+1)) - 40);
+		break;
+	default:
+		lwip_tcp_mss = (MAX(lwip_mss, 1));
+		break;
+	}
+	return lwip_tcp_mss;
 }

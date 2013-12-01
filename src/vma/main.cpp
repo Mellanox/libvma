@@ -48,6 +48,7 @@
 
 #include "vma/sock/sock-redirect.h"
 #include "vma/sock/fd_collection.h"
+#include "vma/sock/sockinfo_tcp.h"
 #include "vma/iomux/io_mux_call.h"
 
 #include "vma/util/instrumentation.h"
@@ -438,7 +439,7 @@ void print_vma_global_settings()
 		VLOG_PARAM_NUMSTR("Ring limit per interface", mce_sys.ring_limit_per_interface, MCE_DEFAULT_RING_LIMIT_PER_INTERFACE, SYS_VAR_RING_LIMIT_PER_INTERFACE, "(no limit)");
 	}
 
-	VLOG_PARAM_NUMBER("Tx Mem Bufs TCP", mce_sys.tx_num_bufs_tcp, MCE_DEFAULT_TX_NUM_BUFS_TCP, SYS_VAR_TX_NUM_BUFS_TCP);
+	VLOG_PARAM_NUMBER("Tx Mem Segs TCP", mce_sys.tx_num_segs_tcp, MCE_DEFAULT_TX_NUM_SEGS_TCP, SYS_VAR_TX_NUM_SEGS_TCP);
 	VLOG_PARAM_NUMBER("Tx Mem Bufs", mce_sys.tx_num_bufs, MCE_DEFAULT_TX_NUM_BUFS, SYS_VAR_TX_NUM_BUFS);
 	VLOG_PARAM_NUMBER("Tx QP WRE", mce_sys.tx_num_wr, MCE_DEFAULT_TX_NUM_WRE, SYS_VAR_TX_NUM_WRE);
 	VLOG_PARAM_NUMBER("Tx Max QP INLINE", mce_sys.tx_max_inline, MCE_DEFAULT_TX_MAX_INLINE, SYS_VAR_TX_MAX_INLINE);
@@ -620,7 +621,7 @@ void get_env_params()
 	mce_sys.ring_migration_ratio_rx = MCE_DEFAULT_RING_MIGRATION_RATIO_RX;
 	mce_sys.ring_limit_per_interface= MCE_DEFAULT_RING_LIMIT_PER_INTERFACE;
 
-	mce_sys.tx_num_bufs_tcp         = MCE_DEFAULT_TX_NUM_BUFS_TCP;
+	mce_sys.tx_num_segs_tcp         = MCE_DEFAULT_TX_NUM_SEGS_TCP;
 	mce_sys.tx_num_bufs             = MCE_DEFAULT_TX_NUM_BUFS;
 	mce_sys.tx_num_wr               = MCE_DEFAULT_TX_NUM_WRE;
 	mce_sys.tx_max_inline		= MCE_DEFAULT_TX_MAX_INLINE;
@@ -780,8 +781,8 @@ void get_env_params()
 	}
 
 
-	if ((env_ptr = getenv(SYS_VAR_TX_NUM_BUFS_TCP)) != NULL)
-		mce_sys.tx_num_bufs_tcp = (uint32_t)atoi(env_ptr);
+	if ((env_ptr = getenv(SYS_VAR_TX_NUM_SEGS_TCP)) != NULL)
+		mce_sys.tx_num_segs_tcp = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_TX_NUM_BUFS)) != NULL)
 		mce_sys.tx_num_bufs = (uint32_t)atoi(env_ptr);
@@ -1304,7 +1305,13 @@ void do_global_ctors()
         }
 
  	if (!g_buffer_pool_rx)
-		g_buffer_pool_rx = new buffer_pool(mce_sys.rx_num_bufs, NULL, NULL);
+		g_buffer_pool_rx = new buffer_pool(mce_sys.rx_num_bufs, RX_BUF_SIZE(mce_sys.mtu), NULL, NULL, buffer_pool::free_rx_lwip_pbuf_custom);
+
+ 	if (!g_buffer_pool_tx)
+ 		g_buffer_pool_tx = new buffer_pool(mce_sys.tx_num_bufs, get_lwip_tcp_mss(mce_sys.mtu, mce_sys.lwip_mss) + 92, NULL, NULL, buffer_pool::free_tx_lwip_pbuf_custom);
+
+ 	if (!g_tcp_seg_pool)
+ 		g_tcp_seg_pool = new tcp_seg_pool(mce_sys.tx_num_segs_tcp);
 
 	if (!g_p_vlogger_timer_handler)
 		g_p_vlogger_timer_handler = new vlogger_timer_handler();
@@ -1539,6 +1546,12 @@ extern "C" int main_destroy(void)
 	ip_frag_manager* g_p_ip_frag_manager_temp = g_p_ip_frag_manager;
 	g_p_ip_frag_manager = NULL;
 	if (g_p_ip_frag_manager_temp) delete g_p_ip_frag_manager_temp;
+	
+	if (g_tcp_seg_pool) delete g_tcp_seg_pool;
+	g_tcp_seg_pool = NULL;
+
+	if (g_buffer_pool_tx) delete g_buffer_pool_tx;
+	g_buffer_pool_tx = NULL;
 
 	if (g_buffer_pool_rx) delete g_buffer_pool_rx;
 	g_buffer_pool_rx = NULL;

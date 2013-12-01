@@ -63,6 +63,9 @@
 #define m_active_cq_mgr_tx		m_ring_active_resource->second.m_p_cq_mgr_tx
 
 
+#define RING_TX_BUFS_COMPENSATE 256
+
+
 qp_mgr* ring_eth::create_qp_mgr(ring_resource_definition& key, struct ibv_comp_channel* p_rx_comp_event_channel)
 {
 	return new qp_mgr_eth(this, key.get_ib_ctx_handle(), key.get_port_num(), p_rx_comp_event_channel, m_tx_num_wr, m_partition);
@@ -78,7 +81,7 @@ qp_mgr* ring_ib::create_qp_mgr(ring_resource_definition& key, struct ibv_comp_ch
 ring::ring(in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type) :
 		m_local_if(local_if), m_transport_type(transport_type), m_n_num_resources(count),
 		m_lock_ring_rx("ring:lock_rx"), m_lock_ring_tx("ring:lock_tx"), m_lock_ring_tx_buf_wait("ring:lock_tx_buf_wait"),
-		m_p_buffer_pool_tx(NULL), m_b_qp_tx_first_flushed_completion_handled(false), m_missing_buf_ref_count(0), m_partition(partition_sn),
+		m_b_qp_tx_first_flushed_completion_handled(false), m_missing_buf_ref_count(0), m_partition(partition_sn),
 		m_gro_mgr(mce_sys.gro_streams_max, MAX_GRO_BUFS)
 {
 }
@@ -113,18 +116,17 @@ ring::~ring()
 		m_ring_resources_map.erase(ring_resource_iter);
 	}
 
-	int buffer_accounting = m_tx_num_bufs - m_p_buffer_pool_tx->get_free_count() - m_missing_buf_ref_count;
+	int buffer_accounting = m_tx_num_bufs - m_tx_pool.size() - m_missing_buf_ref_count;
 	ring_logdbg("Tx buffer poll: free count = %u, sender_has = %d, total = %d, %s (%d)",
-			m_p_buffer_pool_tx->get_free_count(), m_missing_buf_ref_count, m_tx_num_bufs,
+			m_tx_pool.size(), m_missing_buf_ref_count, m_tx_num_bufs,
 			(buffer_accounting?"bad accounting!!":"good accounting"), buffer_accounting);
 	ring_logdbg("Tx WR num: free count = %d, total = %d, %s (%d)",
 			m_tx_num_wr_free, m_tx_num_wr,
 			((m_tx_num_wr - m_tx_num_wr_free) ? "bad accounting!!":"good accounting"), (m_tx_num_wr - m_tx_num_wr_free));
-	ring_logdbg("Rx buffer pool: %d free global buffers available", g_buffer_pool_rx->get_free_count());
+	ring_logdbg("Rx buffer pool: %d free global buffers available", m_tx_pool.size());
 
 	// Release Tx buffers
-	delete m_p_buffer_pool_tx;
-	m_p_buffer_pool_tx = NULL;
+	g_buffer_pool_tx->put_buffers_thread_safe(&m_tx_pool, m_tx_pool.size());
 
 	// Release verbs resources
 	IF_VERBS_FAILURE(ibv_destroy_comp_channel(m_p_tx_comp_event_channel)) {
@@ -168,14 +170,7 @@ void ring::create_resources(ring_resource_creation_info_t* p_ring_info, int acti
 	}
 
 	m_tx_num_wr_free = m_tx_num_wr;
-	m_tx_num_bufs = m_tx_num_wr > mce_sys.tx_num_bufs ? m_tx_num_wr : mce_sys.tx_num_bufs;
-
-	m_p_buffer_pool_tx = new buffer_pool(m_tx_num_bufs, NULL, this);	// Passing NULL instead of m_p_ib_ctx_handler so the tx buffer pool will register memory on all devices
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!m_p_buffer_pool_tx) {
-		ring_logpanic("m_p_buffer_pool_tx allocation failed (num tx buffer = %d) (errno=%d %m)", m_tx_num_wr, errno);
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
+	
 	m_p_n_rx_channel_fds = new int[m_n_num_resources];
 
 	m_ring_active_resource = m_ring_resources_map.end();
@@ -225,8 +220,10 @@ void ring::create_resources(ring_resource_creation_info_t* p_ring_info, int acti
 		ring_logpanic("Failed to find the active resource");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-	m_tx_lkey = m_p_buffer_pool_tx->set_default_lkey(m_ring_active_resource->first.get_ib_ctx_handle());
-	m_tx_lkey_lwip_buffer = m_active_qp_mgr->get_lwip_buffer_tx_lkey();
+	m_tx_lkey = g_buffer_pool_tx->find_lkey_by_ib_ctx_thread_safe(m_ring_active_resource->first.get_ib_ctx_handle());
+
+	request_more_tx_buffers(RING_TX_BUFS_COMPENSATE);
+	m_tx_num_bufs = m_tx_pool.size();
 
 	// 'up' the active QP/CQ resource
 	m_active_qp_mgr->up();
@@ -243,14 +240,14 @@ void ring::restart(ring_resource_creation_info_t* p_ring_info)
 
 	// 'down' the active QP/CQ
 	m_active_qp_mgr->down();
-	int buffer_accounting = m_tx_num_bufs - m_p_buffer_pool_tx->get_free_count() - m_missing_buf_ref_count;
+	int buffer_accounting = m_tx_num_bufs - m_tx_pool.size() - m_missing_buf_ref_count;
 	ring_logdbg("Tx buffer poll: free count = %u, sender_has = %d, total = %d, %s (%d)",
-			m_p_buffer_pool_tx->get_free_count(), m_missing_buf_ref_count, m_tx_num_bufs,
+			m_tx_pool.size(), m_missing_buf_ref_count, m_tx_num_bufs,
 			(buffer_accounting?"bad accounting!!":"good accounting"), buffer_accounting);
 	ring_logdbg("Tx WR num: free count = %d, total = %d, %s (%d)",
 			m_tx_num_wr_free, m_tx_num_wr,
 			((m_tx_num_wr - m_tx_num_wr_free) ? "bad accounting!!":"good accounting"), (m_tx_num_wr - m_tx_num_wr_free));
-	ring_logdbg("Rx buffer pool: %d free global buffers available", g_buffer_pool_rx->get_free_count());
+	ring_logdbg("Rx buffer pool: %d free global buffers available", m_tx_pool.size());
 
 	// Find the new current active resource iterator
 	ring_resource_definition key(p_ring_info);
@@ -262,8 +259,7 @@ void ring::restart(ring_resource_creation_info_t* p_ring_info)
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	m_tx_lkey = m_p_buffer_pool_tx->set_default_lkey(m_ring_active_resource->first.get_ib_ctx_handle());
-	m_tx_lkey_lwip_buffer = m_active_qp_mgr->get_lwip_buffer_tx_lkey();
+	m_tx_lkey = g_buffer_pool_tx->find_lkey_by_ib_ctx_thread_safe(m_ring_active_resource->first.get_ib_ctx_handle());
 
 
 	//TODO ALEXR: need to check is old active Rx CQ was armed and then arm new active Rx CQ
@@ -932,7 +928,7 @@ void ring::mem_buf_desc_return_to_owner_rx(mem_buf_desc_t* p_mem_buf_desc, void*
 void ring::mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc)
 {
 	ring_logfuncall("");
-	RING_LOCK_AND_RUN(m_lock_ring_tx, m_tx_num_wr_free += m_p_buffer_pool_tx->put_buffers(p_mem_buf_desc));
+	RING_LOCK_AND_RUN(m_lock_ring_tx, m_tx_num_wr_free += put_tx_buffers(p_mem_buf_desc));
 }
 
 int ring::drain_and_proccess(cq_type_t cq_type)
@@ -956,7 +952,7 @@ mem_buf_desc_t* ring::mem_buf_tx_get(bool b_block, int n_num_mem_bufs /* default
 	ring_logfuncall("n_num_mem_bufs=%d", n_num_mem_bufs);
 
 	m_lock_ring_tx.lock();
-	buff_list = m_p_buffer_pool_tx->get_buffers(n_num_mem_bufs);
+	buff_list = get_tx_buffers(n_num_mem_bufs);
 	while (!buff_list) {
 
 		// Try to poll once in the hope that we get a few freed tx mem_buf_desc
@@ -968,7 +964,7 @@ mem_buf_desc_t* ring::mem_buf_tx_get(bool b_block, int n_num_mem_bufs /* default
 		}
 		else if (ret > 0) {
 			ring_logfunc("polling succeeded on tx cq_mgr (%d wce)", ret);
-			buff_list = m_p_buffer_pool_tx->get_buffers(n_num_mem_bufs);
+			buff_list = get_tx_buffers(n_num_mem_bufs);
 		}
 		else if (b_block) { // (ret == 0)
 			// Arm & Block on tx cq_mgr notification channel
@@ -980,7 +976,7 @@ mem_buf_desc_t* ring::mem_buf_tx_get(bool b_block, int n_num_mem_bufs /* default
 			m_lock_ring_tx.lock();
 
 			// poll once more (in the hope that we get a few freed tx mem_buf_desc)
-			buff_list = m_p_buffer_pool_tx->get_buffers(n_num_mem_bufs);
+			buff_list = get_tx_buffers(n_num_mem_bufs);
 			if (!buff_list) {
 				// Arm the CQ event channel for next Tx buffer release (tx cqe)
 				ret = m_active_cq_mgr_tx->request_notification(poll_sn);
@@ -1026,7 +1022,7 @@ mem_buf_desc_t* ring::mem_buf_tx_get(bool b_block, int n_num_mem_bufs /* default
 						ring_logfunc("polling/blocking succeeded on tx cq_mgr (we got %d wce)", ret);
 					}
 				}
-				buff_list = m_p_buffer_pool_tx->get_buffers(n_num_mem_bufs);
+				buff_list = get_tx_buffers(n_num_mem_bufs);
 			}
 			m_lock_ring_tx.unlock();
 			m_lock_ring_tx_buf_wait.unlock();
@@ -1051,7 +1047,7 @@ int ring::mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_account
 {
 	ring_logfuncall("");
 	m_lock_ring_tx.lock();
-	int accounting = m_p_buffer_pool_tx->put_buffers(p_mem_buf_desc_list);
+	int accounting = put_tx_buffers(p_mem_buf_desc_list);
 	if (b_accounting)
 		m_missing_buf_ref_count -= accounting;
 	m_lock_ring_tx.unlock();
@@ -1094,7 +1090,9 @@ void ring::send_ring_buffer(ibv_send_wr* p_send_wqe, bool b_block)
 void ring::send_lwip_buffer(ibv_send_wr* p_send_wqe, bool b_block)
 {
 	m_lock_ring_tx.lock();
-	p_send_wqe->sg_list[0].lkey = m_tx_lkey_lwip_buffer;	// The ring keeps track of the current device lkey (In case of bonding event...)
+	p_send_wqe->sg_list[0].lkey = m_tx_lkey; // The ring keeps track of the current device lkey (In case of bonding event...)
+	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
+	p_mem_buf_desc->lwip_pbuf.pbuf.ref++;
 	int ret = send_buffer(p_send_wqe, b_block);
 	send_status_handler(ret, p_send_wqe);
 	m_lock_ring_tx.unlock();
@@ -1255,4 +1253,87 @@ bool ring::is_available_qp_wr(bool b_block)
 
 	--m_tx_num_wr_free;
 	return true;
+}
+
+//call under m_lock_ring_tx lock
+bool ring::request_more_tx_buffers(uint32_t count)
+{
+	mem_buf_desc_t *p_temp_desc_list, *p_temp_buff;
+
+	ring_logfuncall("Allocating additional %d buffers for internal use", count);
+
+	//todo have get_buffers_thread_safe with given m_tx_pool as parameter, to save assembling and disassembling of buffer chain
+	p_temp_desc_list = g_buffer_pool_tx->get_buffers_thread_safe(count, m_tx_lkey);
+	if (p_temp_desc_list == NULL) {
+		ring_logfunc("Out of mem_buf_desc from TX free pool for internal object pool");
+		return false;
+	}
+
+	while (p_temp_desc_list) {
+		p_temp_buff = p_temp_desc_list;
+		p_temp_desc_list = p_temp_buff->p_next_desc;
+		p_temp_buff->p_desc_owner = this;
+		p_temp_buff->p_next_desc = NULL;
+		m_tx_pool.push_back(p_temp_buff);
+	}
+
+	return true;
+}
+
+//call under m_lock_ring_tx lock
+mem_buf_desc_t* ring::get_tx_buffers(uint32_t n_num_mem_bufs)
+{
+	mem_buf_desc_t* head = NULL;
+	if (unlikely(m_tx_pool.size() < n_num_mem_bufs)) {
+		int count = MAX(RING_TX_BUFS_COMPENSATE, n_num_mem_bufs);
+		if (request_more_tx_buffers(count)) {
+			m_tx_num_bufs += count;
+		}
+	}
+
+	if (unlikely(m_tx_pool.size() < n_num_mem_bufs)) {
+		return head;
+	}
+
+	head = m_tx_pool.back();
+	m_tx_pool.pop_back();
+	head->lwip_pbuf.pbuf.ref = 1;
+	n_num_mem_bufs--;
+
+	mem_buf_desc_t* next = head;
+	while (n_num_mem_bufs) {
+		next->p_next_desc = m_tx_pool.back();
+		m_tx_pool.pop_back();
+		next = next->p_next_desc;
+		next->lwip_pbuf.pbuf.ref = 1;
+		n_num_mem_bufs--;
+	}
+
+	return head;
+}
+
+//call under m_lock_ring_tx lock
+int ring::put_tx_buffers(mem_buf_desc_t* buff_list)
+{
+	int count = 0;
+	mem_buf_desc_t *next;
+
+	while (buff_list) {
+		next = buff_list->p_next_desc;
+		buff_list->p_next_desc = NULL;
+		if (buff_list->lwip_pbuf.pbuf.ref-- <= 1) {
+			free_lwip_pbuf(&buff_list->lwip_pbuf);
+			m_tx_pool.push_back(buff_list);
+			count++;
+		}
+		buff_list = next;
+	}
+
+	if (unlikely(m_tx_pool.size() > (m_tx_num_bufs / 2) &&  m_tx_num_bufs >= RING_TX_BUFS_COMPENSATE * 2)) {
+		int return_to_global_pool = m_tx_pool.size() / 2;
+		m_tx_num_bufs -= return_to_global_pool;
+		g_buffer_pool_tx->put_buffers_thread_safe(&m_tx_pool, return_to_global_pool);
+	}
+
+	return count;
 }

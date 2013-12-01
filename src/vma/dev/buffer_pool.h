@@ -36,7 +36,7 @@ inline static void free_lwip_pbuf(struct pbuf_custom *pbuf_custom)
 class buffer_pool
 {
 public:
-	buffer_pool(size_t buffer_count, ib_ctx_handler *p_ib_ctx_h, mem_buf_desc_owner *owner,  size_t size = 0);
+	buffer_pool(size_t buffer_count, size_t size, ib_ctx_handler *p_ib_ctx_h, mem_buf_desc_owner *owner, pbuf_free_custom_fn custom_free_function);
 	virtual ~buffer_pool();
 
 	/**
@@ -46,6 +46,7 @@ public:
 	 */
 	uint32_t 	set_default_lkey(const ib_ctx_handler* p_ib_ctx_h);
 	uint32_t 	set_default_lkey_thread_safe(const ib_ctx_handler* p_ib_ctx_h);
+	uint32_t 	find_lkey_by_ib_ctx_thread_safe(const ib_ctx_handler* p_ib_ctx_h);
 
 	/**
 	 * Get buffers from the pool
@@ -53,7 +54,9 @@ public:
 	 * @return List of buffers, or NULL if don't have enough buffers.
 	 */
 	mem_buf_desc_t*	get_buffers(size_t count, ib_ctx_handler *p_ib_ctx_h = NULL);
+	mem_buf_desc_t *get_buffers(size_t count, uint32_t lkey);
 	mem_buf_desc_t*	get_buffers_thread_safe(size_t count, ib_ctx_handler *p_ib_ctx_h = NULL);
+	mem_buf_desc_t *get_buffers_thread_safe(size_t count, uint32_t lkey);
 
 	/**
 	 * Return buffers to the pool.
@@ -62,7 +65,8 @@ public:
 	void 		put_buffers_thread_safe(std::deque<mem_buf_desc_t*> *buffers, size_t count);
 	int 		put_buffers(mem_buf_desc_t *buff_list);
 	int 		put_buffers_thread_safe(mem_buf_desc_t *buff_list);
-	static void 	free_lwip_pbuf_custom(struct pbuf *p_buff);
+	static void 	free_rx_lwip_pbuf_custom(struct pbuf *p_buff);
+	static void 	free_tx_lwip_pbuf_custom(struct pbuf *p_buff);
 
 	/**
 	 * Assume locked owner!!! Return buffers to the pool with ref_count check.
@@ -128,6 +132,7 @@ private:
 };
 
 extern buffer_pool* g_buffer_pool_rx;
+extern buffer_pool* g_buffer_pool_tx;
 
 
 #endif
