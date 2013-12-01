@@ -204,6 +204,8 @@ bool sockinfo_tcp::prepare_to_close()
 		abort_connection();
 	}
 
+	m_rx_ready_byte_count += m_rx_pkt_ready_offset;
+	m_p_socket_stats->n_rx_ready_byte_count += m_rx_pkt_ready_offset;
 	while (m_n_rx_pkt_ready_list_count)
 	{
 		mem_buf_desc_t* p_rx_pkt_desc = m_rx_pkt_ready_list.front();
