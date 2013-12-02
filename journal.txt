@@ -1,3 +1,18 @@
+Version 6.5.4-0:
+Date + Time 2013-12-02
+=======================
+Added:
+        - RM #349852 Add congestion control algorithms to LWIP
+Fixed:
+        - RM #349737 ubuntu13.10 compilation errors
+        - RM #349765 VMA does not support select with more than 1024 sockets
+        - RM #349767 internal thread does not able to handle thouthands of request
+        - RM #349924 wakeup mechanism - race condition when going to sleep
+        - RM #349769 separate TX buffer managment from QP WR credits
+        - RM #351353 wakeup mechanism is not fit for multithread access to the same fd
+        - RM #352158 logical resource deadlock - multithread access to the same ring
+        - RM #355154 TCP recv part of sent data and close the socket raises "VMA ERROR"
+
 Version 6.5.3-0:
 Date + Time 2013-11-07
 =======================
