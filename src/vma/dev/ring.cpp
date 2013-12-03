@@ -994,8 +994,13 @@ mem_buf_desc_t* ring::mem_buf_tx_get(bool b_block, int n_num_mem_bufs /* default
 					// Now it is time to release the ring lock (for restart events to be handled while this thread block on CQ channel)
 					m_lock_ring_tx.unlock();
 
-					ret = orig_os_api.poll(&poll_fd, 1, -1);
-					if (ret <= 0) {
+					ret = orig_os_api.poll(&poll_fd, 1, 100);
+					if (ret == 0) {
+						m_lock_ring_tx_buf_wait.unlock();
+						m_lock_ring_tx.lock();
+						buff_list = get_tx_buffers(n_num_mem_bufs);
+						continue;
+					} else if (ret < 0) {
 						ring_logdbg("failed blocking on tx cq_mgr (errno=%d %m)", errno);
 						m_lock_ring_tx_buf_wait.unlock();
 						return NULL;

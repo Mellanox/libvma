@@ -80,8 +80,8 @@ Example:
  VMA DEBUG  : Ring migration ratio TX        100                        [VMA_RING_MIGRATION_RATIO_TX]
  VMA DEBUG  : Ring migration ratio RX        100                        [VMA_RING_MIGRATION_RATIO_RX]
  VMA DEBUG  : Ring limit per interface       0 (no limit)               [VMA_RING_LIMIT_PER_INTERFACE]
- VMA DEBUG  : Tx Mem Bufs TCP                130000                     [VMA_TX_BUFS_TCP]
- VMA DEBUG  : Tx Mem Bufs                    16000                      [VMA_TX_BUFS]
+ VMA DEBUG  : Tx Mem Segs TCP                1000000                    [VMA_TX_SEGS_TCP]
+ VMA DEBUG  : Tx Mem Bufs                    200000                     [VMA_TX_BUFS]
  VMA DEBUG  : Tx QP WRE                      16000                      [VMA_TX_WRE]
  VMA DEBUG  : Tx Max QP INLINE               224                        [VMA_TX_MAX_INLINE]
  VMA DEBUG  : Tx MC Loopback                 Enabled                    [VMA_TX_MC_LOOPBACK]
@@ -230,14 +230,12 @@ Value range is 0 to 1
 Default value is 0 (Disabled)
 
 VMA_TX_BUFS_TCP
-Number of TCP LWIP Tx data buffer elements allocation for each VMA process. 
-The size of each buffer is determine by the TCP MSS which is determined by VMA_MSS. 
-Default value is 130000
+Number of TCP LWIP segments allocation for each VMA process.  
+Default value is 1000000
 
 VMA_TX_BUFS
-Number of Tx data buffer elements allocation for each VMA ring (network 
-interface). ConnectX HCA limit if 16K, Arble HCA limit is 64K
-Default value is 16000
+Number of global Tx data buffer elements allocation.
+Default value is 200000
 
 VMA_TX_WRE
 Number of Work Request Elements allocated in all transmit QP's.

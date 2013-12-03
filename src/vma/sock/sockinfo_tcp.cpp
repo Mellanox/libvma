@@ -548,20 +548,22 @@ err:
 
 err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit)
 {
-	tcp_iovec iovec[64];
+	iovec iovec[64];
+	struct iovec* p_iovec = iovec;
+	tcp_iovec tcp_iovec; //currently we pass p_desc only for 1 size iovec, since for bigger size we allocate new buffers
 	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)(((struct tcp_pcb*)v_p_conn)->my_container);
 	dst_entry *p_dst = p_si_tcp->m_p_connected_dst_entry;
 	int count = 1;
 
 	if (likely(!p->next)) { // We should hit this case 99% of cases
-		iovec[0].iovec.iov_base = p->payload;
-		iovec[0].iovec.iov_len = p->len;
-		iovec[0].p_desc = (mem_buf_desc_t*)p;
+		tcp_iovec.iovec.iov_base = p->payload;
+		tcp_iovec.iovec.iov_len = p->len;
+		tcp_iovec.p_desc = (mem_buf_desc_t*)p;
+		p_iovec = (struct iovec*)&tcp_iovec;
 	} else {
 		for (count = 0; count < 64 && p; ++count) {
-			iovec[count].iovec.iov_base = p->payload;
-			iovec[count].iovec.iov_len = p->len;
-			iovec[count].p_desc = (mem_buf_desc_t*)p;
+			iovec[count].iov_base = p->payload;
+			iovec[count].iov_len = p->len;
 			p = p->next;
 		}
 
@@ -578,9 +580,9 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit)
 	}
 
 	if (likely((p_dst->is_valid()))) {
-		p_dst->fast_send((struct iovec*)iovec, count, false, is_rexmit);
+		p_dst->fast_send(p_iovec, count, false, is_rexmit);
 	} else {
-		p_dst->slow_send((struct iovec*)iovec, count, false, is_rexmit);
+		p_dst->slow_send(p_iovec, count, false, is_rexmit);
 	}
 	return ERR_OK;
 }
@@ -2663,10 +2665,12 @@ void tcp_seg_pool::put_tcp_segs(tcp_seg * seg_list) {
 	tcp_seg * next = seg_list;
 	if (unlikely(!seg_list))
 		return;
-	lock();
+
 	while (next->next) {
 		next = next->next;
 	}
+
+	lock();
 	next->next = m_p_head;
 	m_p_head = seg_list;
 	unlock();
