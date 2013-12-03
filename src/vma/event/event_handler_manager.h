@@ -23,6 +23,7 @@
 #include "vma/infra/subject_observer.h"
 #include "vma/event/command.h"
 #include "vma/event/delta_timer.h"
+#include "vma/event/timers_group.h"
 
 class timer_handler;
 class event_handler_ibverbs;
@@ -71,6 +72,7 @@ struct timer_reg_info_t {
 	void* 			node;
 	unsigned int		timeout_msec;
 	void*			user_data;
+	timers_group*		group;
 	timer_req_type_t	req_type;
 };
 
@@ -135,7 +137,7 @@ public:
 	event_handler_manager();
 	~event_handler_manager();
 
-	void*	register_timer_event(int timeout_msec, timer_handler* handler, timer_req_type_t req_type, void* user_data);
+	void*	register_timer_event(int timeout_msec, timer_handler* handler, timer_req_type_t req_type, void* user_data, timers_group* group = NULL);
 	void	unregister_timer_event(timer_handler* handler, void* node);
 	void 	unregister_timers_event_and_delete(timer_handler* handler);
 

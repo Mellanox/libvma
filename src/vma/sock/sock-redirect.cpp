@@ -1779,6 +1779,7 @@ pid_t fork(void)
 		g_buffer_pool_rx = NULL;
 		g_buffer_pool_tx = NULL;
 		g_tcp_seg_pool = NULL;
+		g_tcp_timers_collection = NULL;
 		g_p_vlogger_timer_handler = NULL;
 		g_p_event_handler_manager = NULL;
 		g_p_route_table_mgr = NULL;
@@ -1835,6 +1836,7 @@ int daemon(int __nochdir, int __noclose)
 		g_buffer_pool_rx = NULL;
 		g_buffer_pool_tx = NULL;
 		g_tcp_seg_pool = NULL;
+		g_tcp_timers_collection = NULL;
 		g_p_vlogger_timer_handler = NULL;	
 		g_p_event_handler_manager = NULL;
 		g_p_route_table_mgr = NULL;

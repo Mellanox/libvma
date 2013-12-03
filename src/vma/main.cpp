@@ -1313,6 +1313,9 @@ void do_global_ctors()
  	if (!g_tcp_seg_pool)
  		g_tcp_seg_pool = new tcp_seg_pool(mce_sys.tx_num_segs_tcp);
 
+ 	if (!g_tcp_timers_collection)
+ 		g_tcp_timers_collection = new tcp_timers_collection(mce_sys.tcp_timer_resolution_msec, mce_sys.timer_resolution_msec);
+
 	if (!g_p_vlogger_timer_handler)
 		g_p_vlogger_timer_handler = new vlogger_timer_handler();
 
@@ -1482,6 +1485,10 @@ extern "C" int main_destroy(void)
 		g_p_fd_collection->prepare_to_close();
 	}
 	g_b_exit = true;
+
+	if (g_tcp_timers_collection) g_tcp_timers_collection->clean_obj();
+	g_tcp_timers_collection = NULL;
+
 	usleep(50000);
 
 	//Handle pending received data, this is critical for proper TCP connection termination

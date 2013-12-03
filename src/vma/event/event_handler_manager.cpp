@@ -52,7 +52,8 @@ pthread_t g_n_internal_thread_id = 0;
 
 
 void* event_handler_manager::register_timer_event(int timeout_msec, timer_handler* handler, 
-						  timer_req_type_t req_type, void* user_data)
+						  timer_req_type_t req_type, void* user_data,
+						  timers_group* group /* = NULL */)
 {
 	evh_logdbg("timer handler '%p' registered %s timer for %d msec (user data: %X)",
 		   handler, timer_req_type_str(req_type), timeout_msec, user_data);
@@ -75,6 +76,7 @@ void* event_handler_manager::register_timer_event(int timeout_msec, timer_handle
 	reg_action.type = REGISTER_TIMER;
 	reg_action.info.timer.handler = handler;
 	reg_action.info.timer.user_data = user_data;
+	reg_action.info.timer.group = group;
 	reg_action.info.timer.node = node;
 	reg_action.info.timer.timeout_msec = timeout_msec;
 	reg_action.info.timer.req_type = req_type;
@@ -367,13 +369,22 @@ void event_handler_manager::post_new_reg_action(reg_action_t& reg_action)
 
 void event_handler_manager::priv_register_timer_handler(timer_reg_info_t& info)
 {
-	m_timer->add_new_timer(info.timeout_msec, (timer_node_t*)info.node,
+	if (info.group) {
+		info.group->add_new_timer((timer_node_t*)info.node, info.handler, info.user_data);
+	} else {
+		m_timer->add_new_timer(info.timeout_msec, (timer_node_t*)info.node,
 			       info.handler, info.user_data, info.req_type);
+	}
 }
 
 void event_handler_manager::priv_unregister_timer_handler(timer_reg_info_t& info)
 {
-	m_timer->remove_timer((timer_node_t*)info.node, info.handler);
+	timer_node_t* node = (timer_node_t*)info.node;
+	if (node && node->group) {
+		node->group->remove_timer((timer_node_t*)info.node);
+	} else {
+		m_timer->remove_timer(node, info.handler);
+	}
 }
 
 void event_handler_manager::priv_unregister_all_handler_timers(timer_reg_info_t& info)
@@ -802,6 +813,7 @@ void* event_handler_manager::thread_loop()
 				while (1) {
 					m_reg_action_q_lock.lock();
 					if (m_reg_action_q.empty()) {
+						remove_wakeup_fd();
 						going_to_sleep();
 						m_reg_action_q_lock.unlock();
 						break;

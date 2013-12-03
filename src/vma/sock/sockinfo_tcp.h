@@ -336,4 +336,34 @@ private:
 
 extern tcp_seg_pool* g_tcp_seg_pool;
 
+
+class tcp_timers_collection : public timers_group , public cleanable_obj {
+public:
+	tcp_timers_collection(int period, int resolution);
+	virtual ~tcp_timers_collection();
+
+	void clean_obj();
+
+	virtual void handle_timer_expired(void* user_data);
+
+protected:
+	// add a new timer
+	void add_new_timer(timer_node_t* node, timer_handler* handler, void* user_data);
+
+	// remove timer from list and free it.
+	// called for stopping (unregistering) a timer
+	void remove_timer(timer_node_t* node);
+
+private:
+	int m_n_period;
+	int m_n_resolution;
+	int m_n_intervals_size;
+	timer_node_t** m_p_intervals;
+	int m_n_location;
+	int m_n_count;
+	int m_n_next_insert_bucket;
+};
+
+extern tcp_timers_collection* g_tcp_timers_collection;
+
 #endif
