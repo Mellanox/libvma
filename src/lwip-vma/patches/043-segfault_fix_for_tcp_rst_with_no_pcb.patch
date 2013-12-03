@@ -1,0 +1,29 @@
+/*
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ *
+ * This software product is a proprietary product of Mellanox Technologies Ltd.
+ * (the "Company") and all right, title, and interest in and to the software product,
+ * including all associated intellectual property rights, are and shall
+ * remain exclusively with the Company.
+ *
+ * This software is made available under either the GPL v2 license or a commercial license.
+ * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+ */
+
+/*
+* If there is no PCB (listen socket) do not call tcp_tx_pbuf_alloc which assume valid pcb.
+* We also can't send the rst packet without pcb anyway, so just return.
+*/
+
+--- orig_lwip/src/core/tcp_out.c	2013-12-03 16:58:10.415366000 +0200
++++ lwip/src/core/tcp_out.c	2013-12-03 16:51:59.673676000 +0200
+@@ -1271,6 +1271,9 @@ tcp_rst(u32_t seqno, u32_t ackno,
+ {
+   struct pbuf *p;
+   struct tcp_hdr *tcphdr;
++#if LWIP_3RD_PARTY_BUFS
++  if (!pcb) return;
++#endif
+   p = tcp_tx_pbuf_alloc(pcb, PBUF_IP, TCP_HLEN, PBUF_RAM);
+   if (p == NULL) {
+       LWIP_DEBUGF(TCP_DEBUG, ("tcp_rst: could not allocate memory for pbuf\n"));
