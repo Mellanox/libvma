@@ -2697,7 +2697,7 @@ tcp_timers_collection::tcp_timers_collection(int period, int resolution)
 tcp_timers_collection::~tcp_timers_collection()
 {
 	if (m_n_count) {
-		__log_warn("not all TCP timers have been removed, count=%d", m_n_count);
+		__log_dbg("not all TCP timers have been removed, count=%d", m_n_count);
 	}
 
 	delete m_p_intervals;

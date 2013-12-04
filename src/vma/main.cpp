@@ -1486,9 +1486,6 @@ extern "C" int main_destroy(void)
 	}
 	g_b_exit = true;
 
-	if (g_tcp_timers_collection) g_tcp_timers_collection->clean_obj();
-	g_tcp_timers_collection = NULL;
-
 	usleep(50000);
 
 	//Handle pending received data, this is critical for proper TCP connection termination
@@ -1502,6 +1499,9 @@ extern "C" int main_destroy(void)
 		delete g_p_igmp_mgr_tmp;
 		usleep(50000);
 	}
+
+	if (g_tcp_timers_collection) g_tcp_timers_collection->clean_obj();
+	g_tcp_timers_collection = NULL;
 
 	if (g_p_event_handler_manager)
 		g_p_event_handler_manager->stop_thread();
