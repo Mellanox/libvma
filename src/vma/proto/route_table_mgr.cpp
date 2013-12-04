@@ -412,20 +412,21 @@ void route_table_mgr::update_entry(INOUT route_entry* p_rte, bool b_register_to_
 		if (find_route_val(peer_ip, p_rtv)) {
 			p_rte->set_val(p_rtv);
 			if (b_register_to_net_dev) {
-				in_addr_t src_addr = p_rtv->get_src_addr();
-				net_device_val* p_ndv = g_p_net_device_table_mgr->get_net_device_val(src_addr);
+				//in_addr_t src_addr = p_rtv->get_src_addr();
+				//net_device_val* p_ndv = g_p_net_device_table_mgr->get_net_device_val(src_addr);
+				
 				// Check if broadcast IP which is NOT supported
 				if (IS_BROADCAST_N(peer_ip)) {
 					rt_mgr_logdbg("Disabling Offload for route_entry '%s' - this is BC address", p_rte->to_str().c_str());
 					// Need to route traffic to/from OS
 					// Prevent registering of net_device to route entry
 				}
-				// Check if: Local loopback over Ethernet case which is NOT supported yet
-				else if (p_ndv && (p_ndv->get_transport_type() == VMA_TRANSPORT_ETH) &&  (peer_ip == src_addr)) {
+				// Check if: Local loopback over Ethernet case which was not supported before OFED 2.1
+				/*else if (p_ndv && (p_ndv->get_transport_type() == VMA_TRANSPORT_ETH) &&  (peer_ip == src_addr)) {
 					rt_mgr_logdbg("Disabling Offload for route_entry '%s' - this is an Ethernet unicast loopback route", p_rte->to_str().c_str());
 					// Need to route traffic to/from OS
 					// Prevent registering of net_device to route entry
-				}
+				}*/
 				else {
 					// register to net device for bonding events
 					p_rte->register_to_net_device();
