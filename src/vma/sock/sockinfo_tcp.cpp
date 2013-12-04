@@ -2698,6 +2698,13 @@ tcp_timers_collection::~tcp_timers_collection()
 {
 	if (m_n_count) {
 		__log_dbg("not all TCP timers have been removed, count=%d", m_n_count);
+
+		for (int i = 0; i < m_n_intervals_size; i++) {
+			while (m_p_intervals[i]) {
+				m_p_intervals[i]->group = NULL;
+				m_p_intervals[i] = m_p_intervals[i]->next;
+			}
+		}
 	}
 
 	delete m_p_intervals;
@@ -2747,6 +2754,8 @@ void tcp_timers_collection::add_new_timer(timer_node_t* node, timer_handler* han
 void tcp_timers_collection::remove_timer(timer_node_t* node)
 {
 	if (!node) return;
+
+	node->group = NULL;
 
 	if (node->prev) {
 		node->prev->next = node->next;
