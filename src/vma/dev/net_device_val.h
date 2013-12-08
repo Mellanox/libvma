@@ -93,6 +93,7 @@ public:
 	virtual bool            handle_event_rdma_cm(struct rdma_cm_event* p_event);
 	bool 			handle_event_ADDR_CHANGE();
 	in_addr_t               get_local_addr() {return m_local_addr;};
+	in_addr_t               get_netmask() {return m_netmask;};
 	bool                    is_valid() { return true; };
 	int                     global_ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array = NULL);
 	int                     global_ring_request_notification(uint64_t poll_sn) ;

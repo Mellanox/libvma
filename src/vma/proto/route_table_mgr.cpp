@@ -137,8 +137,93 @@ void route_table_mgr::rt_mgr_update_tbl()
 
 	rt_mgr_parse_tbl(len, &counter);
 	m_rt_tab.entries_num = counter;
+	rt_mgr_update_source_ip();
 
 	return;
+}
+
+void route_table_mgr::rt_mgr_update_source_ip()
+{
+	route_val *p_rtv;
+	//for route entries which still have no src ip and no gw
+	for (int i = 0; i < m_rt_tab.entries_num; i++) {
+		p_rtv = &m_rt_tab.rtv[i];
+		if (p_rtv->get_src_addr() || p_rtv->get_gw_addr()) continue;
+		if (g_p_net_device_table_mgr) { //try to get src ip from net_dev list of the interface
+			in_addr_t longest_prefix = 0;
+			in_addr_t correct_src = 0;
+			net_dev_lst_t* nd_lst = g_p_net_device_table_mgr->get_net_device_val_lst_from_index(p_rtv->get_if_index());
+			if (nd_lst) {
+				net_dev_lst_t::iterator iter = nd_lst->begin();
+				while (iter != nd_lst->end()) {
+					if((p_rtv->get_dst_addr() & (*iter)->get_netmask()) == ((*iter)->get_local_addr() & (*iter)->get_netmask())) { //found a match in routing table
+						if(((*iter)->get_netmask() | longest_prefix) != longest_prefix){
+							longest_prefix = (*iter)->get_netmask(); // this is the longest prefix match
+							correct_src = (*iter)->get_local_addr();
+						}
+					}
+					iter++;
+				}
+				if (correct_src) {
+					p_rtv->set_src_addr(correct_src);
+					continue;
+				}
+			}
+		}
+		// if still no src ip, get it from ioctl
+		struct sockaddr_in src_addr;
+		char *if_name = (char *)p_rtv->get_if_name();
+		if (!get_ipv4_from_ifname(if_name, &src_addr)) {
+			p_rtv->set_src_addr(src_addr.sin_addr.s_addr);
+		}
+		else {
+			// Failed mapping if_name to IPv4 address
+			rt_mgr_logwarn("could not figure out source ip for rtv = %s", p_rtv->to_str());
+		}
+	}
+
+	//for route entries with gateway, do recursive search for src ip
+	int num_unresolved_src = m_rt_tab.entries_num;
+	int prev_num_unresolved_src = 0;
+	do {
+		prev_num_unresolved_src = num_unresolved_src;
+		num_unresolved_src = 0;
+		for (int i = 0; i < m_rt_tab.entries_num; i++) {
+			p_rtv = &m_rt_tab.rtv[i];
+			if (p_rtv->get_gw_addr() && !p_rtv->get_src_addr()) {
+				route_val* p_rtv_dst;
+				in_addr_t in_addr = p_rtv->get_gw_addr();
+				if (find_route_val(in_addr, p_rtv_dst)) {
+					if (p_rtv_dst->get_src_addr()) {
+						p_rtv->set_src_addr(p_rtv_dst->get_src_addr());
+					} else {
+						num_unresolved_src++;
+					}
+				} else {
+					num_unresolved_src++;
+				}
+			}
+		}
+	} while (num_unresolved_src && prev_num_unresolved_src > num_unresolved_src);
+
+	//for route entries which still have no src ip
+	for (int i = 0; i < m_rt_tab.entries_num; i++) {
+		p_rtv = &m_rt_tab.rtv[i];
+		if (p_rtv->get_src_addr()) continue;
+		if (p_rtv->get_gw_addr()) {
+			rt_mgr_logwarn("could not figure out source ip for gw address. rtv = %s", p_rtv->to_str());
+		}
+		// if still no src ip, get it from ioctl
+		struct sockaddr_in src_addr;
+		char *if_name = (char *)p_rtv->get_if_name();
+		if (!get_ipv4_from_ifname(if_name, &src_addr)) {
+			p_rtv->set_src_addr(src_addr.sin_addr.s_addr);
+		}
+		else {
+			// Failed mapping if_name to IPv4 address
+			rt_mgr_logwarn("could not figure out source ip for rtv = %s", p_rtv->to_str());
+		}
+	}
 }
 
 void route_table_mgr::rt_mgr_build_request(rt_req_type_t type, rt_req_info_t *req_info, struct nlmsghdr **nl_msg)
@@ -307,19 +392,6 @@ bool route_table_mgr::rt_mgr_parse_enrty(nlmsghdr *nl_header, route_val *p_rtv)
 		rt_mgr_parse_attr(rt_attribute, p_rtv);
 	}
 	p_rtv->set_state(true);
-
-	if (!p_rtv->get_src_addr()) {
-		struct sockaddr_in src_addr;
-		char *if_name = (char *)p_rtv->get_if_name();
-		if (!get_ipv4_from_ifname(if_name, &src_addr)) {
-			p_rtv->set_src_addr(src_addr.sin_addr.s_addr);
-		}
-		else {
-			// Failed mapping if_name to IPv4 address
-			// Should we log or return error also from here?
-		}
-	}
-
 	p_rtv->set_str();
 	return true;
 }

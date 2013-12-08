@@ -86,6 +86,7 @@ private:
 	void		rt_mgr_parse_tbl(int len, int *rt_entry_num = NULL);
 	bool		rt_mgr_parse_enrty(nlmsghdr *nl_header, route_val *p_rtv);
 	void		rt_mgr_parse_attr(struct rtattr *rt_attribute, route_val *p_rtv);
+	void		rt_mgr_update_source_ip();
 
 	void 		update_invalid_entries();
 	void 		delete_rt_entry_val(route_val *p_rtv);
