@@ -2558,7 +2558,10 @@ struct pbuf * sockinfo_tcp::tcp_tx_pbuf_alloc(void* p_conn)
 {
 	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)(((struct tcp_pcb*)p_conn)->my_container);
 	dst_entry_tcp *p_dst = (dst_entry_tcp *)(p_si_tcp->m_p_connected_dst_entry);
-	mem_buf_desc_t* p_desc = p_dst->get_buffer();
+	mem_buf_desc_t* p_desc = NULL;
+	if (likely(p_dst)) {
+		p_desc = p_dst->get_buffer();
+	}
 	return (struct pbuf *)p_desc;
 }
 
@@ -2566,7 +2569,20 @@ void sockinfo_tcp::tcp_tx_pbuf_free(void* p_conn, struct pbuf *p_buff)
 {
 	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)(((struct tcp_pcb*)p_conn)->my_container);
 	dst_entry_tcp *p_dst = (dst_entry_tcp *)(p_si_tcp->m_p_connected_dst_entry);
-	p_dst->put_buffer((mem_buf_desc_t *)p_buff);
+	if (likely(p_dst)) {
+		p_dst->put_buffer((mem_buf_desc_t *)p_buff);
+	} else {
+		mem_buf_desc_t * next;
+		mem_buf_desc_t * p_desc = (mem_buf_desc_t *)p_buff;
+		while (p_desc) {
+			next = p_desc->p_next_desc;
+			p_desc->p_next_desc = NULL;
+			if (p_desc->lwip_pbuf.pbuf.ref-- <= 1) {
+				g_buffer_pool_tx->put_buffers_thread_safe(p_desc);
+			}
+			p_desc = next;
+		}
+	}
 }
 
 struct tcp_seg * sockinfo_tcp::tcp_seg_alloc(void* p_conn)
