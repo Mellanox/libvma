@@ -1,3 +1,10 @@
+Version 6.5.6-0:
+Date + Time 2013-12-11
+=======================
+Fixed:
+        - RM #359314 TCP migration + new TX buffer management - segfault
+        - RM #359330 seg-fault when trying to close tcp socket in the middle of connect.
+
 Version 6.5.5-0:
 Date + Time 2013-12-11
 =======================
