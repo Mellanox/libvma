@@ -53,9 +53,22 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 	// The header is aligned for fast copy but we need to maintain this diff in order to get the real header pointer easily
 	size_t hdr_alignment_diff = m_header.m_aligned_l2_l3_len - m_header.m_total_hdr_len;
 
+	tcp_iovec* p_tcp_iov = NULL;
+	bool no_copy = true;
 	if (likely(sz_iov == 1)) {
-		tcp_iovec* p_tcp_iov = (tcp_iovec*)p_iov;
-		p_pkt = (tx_packet_template_t*)((uint8_t*)p_iov[0].iov_base - m_header.m_aligned_l2_l3_len);
+		p_tcp_iov = (tcp_iovec*)p_iov;
+		if (unlikely(p_tcp_iov->p_desc->p_desc_owner != m_p_ring)){
+			p_tcp_iov->p_desc->p_desc_owner = NULL;
+			no_copy = false;
+			dst_tcp_logdbg("p_desc=%p wrong desc_owner=%p, this ring=%p. did migration occurred?", p_tcp_iov->p_desc, p_tcp_iov->p_desc->p_desc_owner, m_p_ring);
+			//todo can we handle this in migration (by going over all buffers lwip hold) instead for every send?
+		}
+	} else {
+		no_copy = false;
+	}
+
+	if (likely(no_copy)) {
+		p_pkt = (tx_packet_template_t*)((uint8_t*)p_tcp_iov[0].iovec.iov_base - m_header.m_aligned_l2_l3_len);
 		total_packet_len = p_tcp_iov[0].iovec.iov_len + m_header.m_total_hdr_len;
 		m_header.copy_l2_ip_hdr(p_pkt);
 		// We've copied to aligned address, and now we must update p_pkt to point to real
