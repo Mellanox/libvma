@@ -8,6 +8,8 @@
         <options>
           <skip_file>.*src/lwip.*</skip_file>
           <skip_file>.*src/license/.*</skip_file>
+          <skip_file>.*src/vma/config_parser.*</skip_file>
+          <skip_file>.*src/vma/config_scanner.*</skip_file>
         </options>
      </build>
 </config>

@@ -1,4 +1,4 @@
-Updated: 20 Oct 2013
+Updated: 11 Dec 2013
 
 Introduction
 ============
@@ -229,7 +229,7 @@ When Enabled, print backtrace if segmentation fault happens.
 Value range is 0 to 1
 Default value is 0 (Disabled)
 
-VMA_TX_BUFS_TCP
+VMA_TX_SEGS_TCP
 Number of TCP LWIP segments allocation for each VMA process.  
 Default value is 1000000
 
