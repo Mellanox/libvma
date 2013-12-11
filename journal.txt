@@ -1,3 +1,14 @@
+Version 6.5.5-0:
+Date + Time 2013-12-11
+=======================
+Added:
+        - RM #100993 New TX Buffers Managment Logic
+        - RM #355605 create timers groups to lower to load of handling many timers
+        - RM #317 Loopback support on Ethernet (Multicast & Unicast)
+Fixed:
+        - RM #357115 VMA does not consider gateway information in route table
+          in case there are multiple source ip for the interface
+
 Version 6.5.4-0:
 Date + Time 2013-12-02
 =======================
