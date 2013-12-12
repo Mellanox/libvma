@@ -146,18 +146,8 @@ ssize_t dst_entry_tcp::slow_send(const iovec* p_iov, size_t sz_iov, bool b_block
 
 	if (m_b_is_offloaded) {
 		if (!is_valid()) { // That means that the neigh is not resolved yet
-			/*if(is_rexmit){
-				//drop retransmit packet, and don't save in neigh. if we will want to save in neigh, we need to make copy in save_iovec..()
-				m_slow_path_lock.unlock();
-				return ret_val;
-			}
-			ret_val = pass_buff_to_neigh(p_iov, sz_iov);*/
-			//TODO pass_buff_to_neigh should be adapted for:
-			// 1. iovec with size greater than 1
-			// 2. new TX buffer management logic - need to allocate another ring buffer up-front
-			// and copy into, to avoid LWIP non-valid buffers and ref-count confusions.
-			// 3. after that, no need to discriminate retransmit packets.
-			dst_tcp_logdbg("slow_send non-valid, dropping packet");
+			//there is a copy inside so we should not update any ref-counts
+			ret_val = pass_buff_to_neigh(p_iov, sz_iov);
 		}
 		else {
 			ret_val = fast_send(p_iov, sz_iov, b_blocked, is_rexmit);
