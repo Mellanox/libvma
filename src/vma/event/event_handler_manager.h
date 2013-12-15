@@ -162,7 +162,7 @@ private:
 	// pipe for the event registration handling
 	reg_action_q_t		m_reg_action_q;
 	lock_spin		m_reg_action_q_lock;
-	timer*			m_timer; 
+	timer			m_timer;
 
 	event_handler_map_t	m_event_handler_map;
 

@@ -71,6 +71,7 @@ void* event_handler_manager::register_timer_event(int timeout_msec, timer_handle
 		evh_logpanic("malloc failure");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
+	memset(node, 0, sizeof(timer_node_t));
 	reg_action_t reg_action;
 	memset(&reg_action, 0, sizeof(reg_action));
 	reg_action.type = REGISTER_TIMER;
@@ -201,8 +202,6 @@ event_handler_manager::event_handler_manager() : m_reg_action_q_lock("reg_action
 
 	wakeup_set_epoll_fd(m_epfd);
 	going_to_sleep();
-
-	m_timer = new timer;
 
 	return;
 }
@@ -372,7 +371,7 @@ void event_handler_manager::priv_register_timer_handler(timer_reg_info_t& info)
 	if (info.group) {
 		info.group->add_new_timer((timer_node_t*)info.node, info.handler, info.user_data);
 	} else {
-		m_timer->add_new_timer(info.timeout_msec, (timer_node_t*)info.node,
+		m_timer.add_new_timer(info.timeout_msec, (timer_node_t*)info.node,
 			       info.handler, info.user_data, info.req_type);
 	}
 }
@@ -383,13 +382,13 @@ void event_handler_manager::priv_unregister_timer_handler(timer_reg_info_t& info
 	if (node && node->group) {
 		node->group->remove_timer((timer_node_t*)info.node);
 	} else {
-		m_timer->remove_timer(node, info.handler);
+		m_timer.remove_timer(node, info.handler);
 	}
 }
 
 void event_handler_manager::priv_unregister_all_handler_timers(timer_reg_info_t& info)
 {
-	m_timer->remove_all_timers(info.handler);
+	m_timer.remove_all_timers(info.handler);
 }
 
 void event_handler_manager::priv_prepare_ibverbs_async_event_queue(event_handler_map_t::iterator& i)
@@ -760,10 +759,10 @@ void* event_handler_manager::thread_loop()
 #endif
 
 		// update timer and get timeout
-		timeout_msec = m_timer->update_timeout();
+		timeout_msec = m_timer.update_timeout();
 		if (timeout_msec == 0) {
 			// at least one timer has expired!
-			m_timer->process_registered_timers();
+			m_timer.process_registered_timers();
 			continue;
 		}
 
@@ -827,9 +826,9 @@ void* event_handler_manager::thread_loop()
 			}
 		}
 
-		if (m_timer->update_timeout() == 0) {
+		if (m_timer.update_timeout() == 0) {
 			// at least one timer has expired!
-			m_timer->process_registered_timers(); 
+			m_timer.process_registered_timers();
 		}
 
 
