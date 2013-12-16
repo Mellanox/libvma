@@ -30,7 +30,8 @@ public:
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif
-	sock_addr(const struct sockaddr* other) : m_sa(*other), m_p_sa_in((struct sockaddr_in*)&m_sa) { m_str[0]='\0'; /* coverity[uninit_member] */};
+	// coverity[uninit_member]
+	sock_addr(const struct sockaddr* other) : m_sa(*other), m_p_sa_in((struct sockaddr_in*)&m_sa) { m_str[0]='\0'; };
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
 #endif
