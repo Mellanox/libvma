@@ -421,8 +421,8 @@ void event_handler_manager::priv_register_ibverbs_events(ibverbs_reg_info_t& inf
 	event_handler_map_t::iterator i;
 	i = m_event_handler_map.find(info.fd);
 	if (i == m_event_handler_map.end()) {
+		// coverity[var_decl]
 		event_data_t v;
-		memset(&v, 0, sizeof(event_data_t));
 		v.type                  = EV_IBVERBS;
 		v.ibverbs_ev.fd         = info.fd;
 		v.ibverbs_ev.channel    = info.channel;
@@ -508,8 +508,8 @@ void event_handler_manager::priv_register_rdma_cm_events(rdma_cm_reg_info_t& inf
 	event_handler_map_t::iterator iter_fd = m_event_handler_map.find(info.fd);
 	if (iter_fd == m_event_handler_map.end()) {
 		evh_logdbg("Adding new channel (fd %d, id %#x, handler %p)", info.fd, info.id, info.handler);
+		// coverity[var_decl]
 		event_data_t map_value;
-		memset(&map_value, 0, sizeof(event_data_t));
 		map_value.type = EV_RDMA_CM;
 		map_value.rdma_cm_ev.n_ref_count = 1;
 		map_value.rdma_cm_ev.map_rdma_cm_id[info.id] = info.handler;
