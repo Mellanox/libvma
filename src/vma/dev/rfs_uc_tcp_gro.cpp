@@ -21,10 +21,11 @@
 #define TCP_H_LEN_TIMESTAMP 8
 
 
-rfs_uc_tcp_gro::rfs_uc_tcp_gro(flow_tuple *flow_spec_5t, ring *p_ring) : rfs_uc(flow_spec_5t, p_ring), m_p_gro_mgr(&(p_ring->m_gro_mgr)), m_b_active(false), m_b_reserved(false)
+rfs_uc_tcp_gro::rfs_uc_tcp_gro(flow_tuple *flow_spec_5t, ring *p_ring) : rfs_uc(flow_spec_5t, p_ring), m_p_orig_sink(NULL), m_p_gro_mgr(&(p_ring->m_gro_mgr)), m_b_active(false), m_b_reserved(false)
 {
 	m_n_buf_max = m_p_gro_mgr->get_buf_max();
 	m_n_byte_max = m_p_gro_mgr->get_byte_max() - mce_sys.mtu;
+	memset(&m_gro_desc, 0, sizeof(m_gro_desc));
 }
 
 bool rfs_uc_tcp_gro::rx_dispatch_packet(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void* pv_fd_ready_array /* = NULL */)

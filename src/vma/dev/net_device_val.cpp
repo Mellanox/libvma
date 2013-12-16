@@ -48,7 +48,7 @@
 #define nd_logfuncall         __log_info_funcall
 
 
-net_device_val::net_device_val(transport_type_t transport_type) : m_p_L2_addr(NULL), m_p_br_addr(NULL), m_transport_type(transport_type),  m_lock("net_device_val lock")
+net_device_val::net_device_val(transport_type_t transport_type) : m_if_idx(0), m_local_addr(0), m_netmask(0), m_mtu(0), m_state(INVALID), m_p_L2_addr(NULL), m_p_br_addr(NULL), m_transport_type(transport_type),  m_lock("net_device_val lock"), m_cma_id(NULL)
 {
 }
 
@@ -77,15 +77,24 @@ net_device_val::~net_device_val()
 
 void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 {
-	m_name = ifa->ifa_name;
 	nd_logdbg("");
 
-	if (NULL == ifa || NULL == cma_id) {
+	if (NULL == ifa) {
 		// invalid net_device_val
-		nd_logerr("Invalid net_device_val name=%s", ifa ? ifa->ifa_name : "NA");
+		nd_logerr("Invalid net_device_val name=%s", "NA");
 		m_state = INVALID;
 		return;
 	}
+
+	m_name = ifa->ifa_name;
+
+	if (NULL == cma_id) {
+		// invalid net_device_val
+		nd_logerr("Invalid net_device_val name=%s", ifa->ifa_name);
+		m_state = INVALID;
+		return;
+	}
+
 	m_p_L2_addr	= NULL;
 	m_cma_id        = cma_id;
 	m_if_idx        = if_nametoindex(m_name.c_str());

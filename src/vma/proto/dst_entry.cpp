@@ -83,11 +83,17 @@ void dst_entry::init_members()
 	m_p_neigh_entry = NULL;
 	m_p_neigh_val = NULL;
 	m_p_rt_entry = NULL;
+	m_num_sge = 0;
+	memset(&m_inline_send_wqe, 0, sizeof(struct ibv_send_wr));
+	memset(&m_not_inline_send_wqe, 0, sizeof(struct ibv_send_wr));
 	m_p_send_wqe_handler = NULL;
+	memset(&m_sge, 0, sizeof(m_sge));
 	m_tos = 0;
 	m_ttl = 64;
 	m_b_is_offloaded = true;
 	m_b_is_initialized = false;
+	m_p_send_wqe = NULL;
+	m_max_inline = 0;
 	m_b_force_os = false;
 }
 
@@ -415,6 +421,7 @@ bool dst_entry::offloaded_according_to_rules()
 	to.sin_family = AF_INET;
 	to.sin_addr.s_addr = m_dst_ip.get_in_addr();
 	to.sin_port = m_dst_port;
+	memset(&to.sin_zero, 0, sizeof(to.sin_zero));
 
 
 	target_transport = get_transport(to);

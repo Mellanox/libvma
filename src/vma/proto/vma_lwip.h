@@ -51,7 +51,10 @@ static inline const char* lwip_cc_algo_str(uint32_t algo)
 	case CC_MOD_LWIP:
 	default:		return "(LWIP)";
 	}
+//unreachable code
+#ifndef __COVERITY__
 	return "unsupported";
+#endif
 }
 
 #if _BullseyeCoverage

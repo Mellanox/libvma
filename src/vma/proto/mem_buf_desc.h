@@ -53,6 +53,7 @@ struct ibv_send_wr_ud {
 class mem_buf_desc_t {
 public:
 	mem_buf_desc_t(uint8_t *buffer, size_t size) : p_buffer(buffer), sz_buffer(size) {
+		// coverity[uninit_member]
 	}
 
 	struct pbuf_custom lwip_pbuf;	//Do not change the location of this field.

@@ -56,7 +56,9 @@ public:
 	};
 
 	struct pair {
+		// coverity[member_decl]
 		K first;
+		// coverity[member_decl]
 		V second;
 	};
 

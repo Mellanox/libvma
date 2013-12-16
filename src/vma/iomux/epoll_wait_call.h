@@ -99,7 +99,6 @@ private:
 
 	epoll_event *m_p_ready_events;
 	epfd_info *m_epfd_info;
-	uint64_t m_cqepfd_event_data;
 };
 
 #endif

@@ -57,6 +57,8 @@ route_table_mgr::route_table_mgr() : cache_table_mgr<ip_address,route_val*>("rou
 	m_buff_size = MSG_BUFF_SIZE;
 	m_seq_num = 0;
 
+	memset(m_msg_buf, 0, m_buff_size);
+
 	// Create Socket
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if ((m_fd = orig_os_api.socket(PF_NETLINK, SOCK_DGRAM, NETLINK_ROUTE)) < 0) {

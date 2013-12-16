@@ -42,9 +42,11 @@
 
 
 qp_mgr::qp_mgr(const ring* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num, const uint32_t tx_num_wr):
-	m_p_ring((ring*)p_ring), m_port_num((uint8_t)port_num), m_p_ib_ctx_handler((ib_ctx_handler*)p_context), m_max_inline_data(0),
+	m_qp(NULL), m_p_ring((ring*)p_ring), m_port_num((uint8_t)port_num), m_p_ib_ctx_handler((ib_ctx_handler*)p_context),
+	m_p_ahc_head(NULL), m_p_ahc_tail(NULL), m_max_inline_data(0), m_max_qp_wr(0), m_p_cq_mgr_rx(NULL), m_p_cq_mgr_tx(NULL),
 	m_rx_num_wr(mce_sys.rx_num_wr), m_tx_num_wr(tx_num_wr), m_rx_num_wr_to_post_recv(mce_sys.rx_num_wr_to_post_recv), 
-	m_n_unsignaled_count(0), m_p_last_tx_mem_buf_desc(NULL), m_p_prev_rx_desc_pushed(NULL)
+	m_curr_rx_wr(0), m_n_unsignaled_count(0), m_n_tx_count(0), m_p_last_tx_mem_buf_desc(NULL), m_p_prev_rx_desc_pushed(NULL),
+	m_n_ip_id_base(0), m_n_ip_id_offset(0)
 {
 	m_ibv_rx_sg_array = new ibv_sge[m_rx_num_wr_to_post_recv];
 	m_ibv_rx_wr_array = new ibv_recv_wr[m_rx_num_wr_to_post_recv];
@@ -243,7 +245,7 @@ void qp_mgr::release_rx_buffers()
 	}
 
 	qp_logdbg("draining rx cq_mgr %p", m_p_cq_mgr_rx);
-	while ((ret = m_p_cq_mgr_rx->drain_and_proccess(true)) > 0) {
+	while (m_p_cq_mgr_rx && (ret = m_p_cq_mgr_rx->drain_and_proccess(true)) > 0) {
 		qp_logdbg("draining completed on rx cq_mgr (%d wce)", ret);
 		total_ret += ret;
 	}
@@ -255,7 +257,7 @@ void qp_mgr::release_tx_buffers()
 	int ret = 0;
 	uint64_t poll_sn;
 	qp_logdbg("draining tx cq_mgr %p", m_p_cq_mgr_tx);
-	while ((ret = m_p_cq_mgr_tx->poll_and_process_element_tx(&poll_sn)) > 0) {
+	while (m_p_cq_mgr_tx && (ret = m_p_cq_mgr_tx->poll_and_process_element_tx(&poll_sn)) > 0) {
 		qp_logdbg("draining completed on tx cq_mgr (%d wce)", ret);
 	}
 }

@@ -1027,7 +1027,7 @@ void get_env_params()
 		mce_sys.neigh_uc_arp_quata = (uint32_t)atoi(env_ptr);
 	}
 
-	if ((env_ptr = getenv(SYS_VAR_HUGETBL)) != NULL)
+	if ((getenv(SYS_VAR_HUGETBL)) != NULL)
 	{
 		vlog_printf(VLOG_WARNING, "**********************************************************************************************************************\n");
 		vlog_printf(VLOG_WARNING, "The '%s' paramaeter is no longer supported, please refer to '%s' in README.txt for more info\n", SYS_VAR_HUGETBL, SYS_VAR_MEM_ALLOC_TYPE);
@@ -1115,6 +1115,7 @@ void get_env_params()
 void register_handler_segv()
 {
 	struct sigaction act;
+	memset(&act, 0, sizeof(struct sigaction));
 	act.sa_handler = handle_segfault;
 	act.sa_flags = 0;
 	sigemptyset(&act.sa_mask);

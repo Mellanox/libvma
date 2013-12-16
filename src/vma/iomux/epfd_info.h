@@ -34,7 +34,7 @@ struct epoll_fd_rec
 	uint32_t events;
 	epoll_data 	epdata;
 	int		offloaded_index; // offloaded fd index + 1
-	epoll_fd_rec():events(0){}
+	epoll_fd_rec():events(0), offloaded_index(0){}
 };
 
 

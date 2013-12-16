@@ -36,7 +36,7 @@ select_call::select_call(int *off_fds_buffer, offloaded_mode_t *off_modes_buffer
                          fd_set *exceptfds, timeval *timeout, const sigset_t *__sigmask /* = NULL */) :
 	io_mux_call(off_fds_buffer, off_modes_buffer, nfds, __sigmask),
 	m_nfds(nfds), m_readfds(readfds), m_writefds(writefds),
-	m_exceptfds(exceptfds), m_timeout(timeout), m_b_run_prepare_to_poll(false)
+	m_exceptfds(exceptfds), m_timeout(timeout), m_nfds_with_cq(0), m_b_run_prepare_to_poll(false)
 {
 	int fd;
 	//socket_fd_api* temp_sock_fd_api = NULL; 
@@ -159,6 +159,7 @@ select_call::select_call(int *off_fds_buffer, offloaded_mode_t *off_modes_buffer
 	}
 	__log_dbg("offloaded_rfds=%d; offloaded_wfds=%d", m_num_all_offloaded_fds, m_num_offloaded_wfds);
 #endif
+	// coverity[uninit_member]
 }
 
 

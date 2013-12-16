@@ -36,6 +36,7 @@ typedef enum {
 
 #define FD_ARRAY_MAX	24
 typedef struct {
+	// coverity[member_decl]
 	int fd_list[FD_ARRAY_MAX]; // Note: An FD might appear twice in the list,
 	//  the user of this array will need to handle it correctly
 	int fd_max;

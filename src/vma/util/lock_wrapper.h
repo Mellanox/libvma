@@ -214,7 +214,6 @@ public:
 	};
 
 protected:
-	pthread_spinlock_t	m_lock;
 	pthread_t		m_owner;
 	pthread_t		m_invalid_owner;
 	int			m_lock_count;

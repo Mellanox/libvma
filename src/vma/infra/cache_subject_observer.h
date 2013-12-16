@@ -34,7 +34,7 @@ typedef uint64_t ticks_t;
 class cache_observer : public observer
 {
 public:
-	cache_observer() {};
+	cache_observer() : m_last_access_time(0), m_is_valid(false) {};
 	virtual 		~cache_observer() {};
 
 	inline bool 		is_valid() { return m_is_valid; };
@@ -80,6 +80,7 @@ protected:
 	//typename cannot shadow the class's typename
 	template <typename Key_, typename Val_> friend class 	cache_table_mgr;
 
+	// coverity[member_decl]
 	Val 			m_val;
 
 	inline Key		get_key() const { return m_key; };

@@ -76,6 +76,17 @@
 	((unsigned char *)(__addr))[4], ((unsigned char *)(__addr))[5]
 
 
+#define IPOIB_HW_ADDR_PRINT_FMT_16		"%02X%02X:%02X%02X:%02X%02X:%02X%02X:%02X%02X:%02X%02X:%02X%02X:%02X%02X"
+#define IPOIB_HW_ADDR_PRINT_ADDR_16(__addr) \
+	((unsigned char *)(__addr))[0],((unsigned char *)(__addr))[1],   \
+	((unsigned char *)(__addr))[2],((unsigned char *)(__addr))[3],   \
+	((unsigned char *)(__addr))[4],((unsigned char *)(__addr))[5],   \
+	((unsigned char *)(__addr))[6],((unsigned char *)(__addr))[7],   \
+	((unsigned char *)(__addr))[8],((unsigned char *)(__addr))[9],   \
+	((unsigned char *)(__addr))[10],((unsigned char *)(__addr))[11], \
+	((unsigned char *)(__addr))[12],((unsigned char *)(__addr))[13], \
+	((unsigned char *)(__addr))[14],((unsigned char *)(__addr))[15]
+
 #define IPOIB_HW_ADDR_PRINT_FMT		"%02X%02X:%02X%02X:%02X%02X:%02X%02X:%02X%02X:%02X%02X:%02X%02X:%02X%02X:%02X%02X:%02X%02X"
 #define IPOIB_HW_ADDR_PRINT_ADDR(__addr) \
 	((unsigned char *)(__addr))[0],((unsigned char *)(__addr))[1],   \

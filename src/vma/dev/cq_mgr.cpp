@@ -541,7 +541,7 @@ void cq_mgr::process_tx_buffer_list(mem_buf_desc_t* p_mem_buf_desc)
 		p_mem_buf_desc->p_desc_owner->mem_buf_desc_return_to_owner_tx(p_mem_buf_desc);
 	}
 	else {
-		cq_logerr("got error %p %p", p_mem_buf_desc, p_mem_buf_desc->p_desc_owner);
+		cq_logerr("got error %p %p", p_mem_buf_desc, p_mem_buf_desc ? p_mem_buf_desc->p_desc_owner : NULL);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 }

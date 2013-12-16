@@ -45,9 +45,11 @@
 #define IGMPV1_MAX_RESPONSE_TIME 100
 
 igmp_handler::igmp_handler(const igmp_key &key, uint8_t	igmp_code) : m_mc_addr (key.get_in_addr()), m_p_ndvl (key.get_net_device_val()),
-					   m_ignore_timer(false), m_p_neigh_entry(NULL), m_p_neigh_val(NULL),
+					   m_ignore_timer(false), m_timer_handle(NULL), m_p_neigh_entry(NULL), m_p_neigh_val(NULL),
 					   m_p_ring(NULL), m_igmp_code(igmp_code ? igmp_code : IGMPV1_MAX_RESPONSE_TIME)
 {
+	memset(&m_sge, 0, sizeof(struct ibv_sge));
+	memset(&m_p_send_igmp_wqe, 0, sizeof(struct ibv_send_wr));
 }
 
 igmp_handler::~igmp_handler()

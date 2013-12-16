@@ -325,6 +325,7 @@ int ip_frag_manager::add_frag(iphdr *hdr, mem_buf_desc_t *frag, mem_buf_desc_t *
 			destroy_frag_desc(desc);
 			free_frag_desc(desc);
 			m_frags.erase(i);
+			i = m_frags.end();
 			// Add new fregment
 			frag_dbg("> new fragmented packet");
 			desc = new_frag_desc(key);
@@ -431,8 +432,9 @@ int ip_frag_manager::add_frag(iphdr *hdr, mem_buf_desc_t *frag, mem_buf_desc_t *
 		if (i == m_frags.end()){
 			MEMBUF_DEBUG_REF_DEC(frag);
 			frag_panic("frag desc lost from map???");
-			unlock();
-			return -1;
+			//coverity unreachable
+			/*unlock();
+			return -1;*/
 		}
 		MEMBUF_DEBUG_REF_DEC(desc->frag_list);
 		m_frags.erase(i);

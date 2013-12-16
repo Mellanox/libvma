@@ -489,11 +489,14 @@ retry_write:
 					BULLSEYE_EXCLUDE_BLOCK_START
 					si_tcp_logpanic("tcp_write return: %d", err);
 					BULLSEYE_EXCLUDE_BLOCK_END
+					//coverity unreachable code
+					/*
 					unlock_tcp_con();
 #ifdef VMA_TIME_MEASURE
 					INC_ERR_TX_COUNT;
 #endif					
 					return -1;
+					*/
 				}
 				if (total_tx > 0) 
 					goto done;
@@ -1710,13 +1713,14 @@ err_t sockinfo_tcp::clone_conn_cb(void *arg, struct tcp_pcb **newpcb, err_t err)
 err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_t err)
 {
 	sockinfo_tcp *listen_sock = (sockinfo_tcp *)((arg));
-	sockinfo_tcp *new_sock = (sockinfo_tcp *)((newpcb->my_container));
-
-	NOT_IN_USE(err);
 
 	if (!listen_sock || !newpcb) {
 		return ERR_VAL;
 	}
+
+	sockinfo_tcp *new_sock = (sockinfo_tcp *)((newpcb->my_container));
+
+	NOT_IN_USE(err);
 
 	listen_sock->lock_tcp_con();
 
@@ -1739,13 +1743,14 @@ err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_
 err_t sockinfo_tcp::syn_received_drop_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_t err)
 {
 	sockinfo_tcp *listen_sock = (sockinfo_tcp *)((arg));
-	sockinfo_tcp *new_sock = (sockinfo_tcp *)((newpcb->my_container));
-
-	NOT_IN_USE(err);
 
 	if (!listen_sock || !newpcb) {
 		return ERR_VAL;
 	}
+
+	sockinfo_tcp *new_sock = (sockinfo_tcp *)((newpcb->my_container));
+
+	NOT_IN_USE(err);
 
 	listen_sock->lock_tcp_con();
 
@@ -2326,7 +2331,8 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 		for (rx_ring_iter = m_rx_ring_map.begin(); rx_ring_iter != m_rx_ring_map.end(); rx_ring_iter++) {
 			if (unlikely(rx_ring_iter->second.refcnt <= 0)) {
 				__log_panic("Attempt to poll illegal cq");
-				continue;
+				//coverity unreachable code
+				//continue;
 			}
 			ring* p_ring =  rx_ring_iter->first;
 			//g_p_lwip->do_timers();

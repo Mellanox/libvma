@@ -57,9 +57,12 @@ neigh_entry* neigh_table_mgr::create_new_entry(neigh_key neigh_key, const observ
 	observer * tmp = const_cast<observer *>(new_observer);
 	const neigh_observer * dst = dynamic_cast<const neigh_observer *>(tmp) ;
 
-	//if (dst == NULL)
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (dst == NULL) {
 		//TODO: Need to add handling of this case
-		//neigh_mgr_logpanic("dynamic_casr failed, new_observer type is not neigh_observer");
+		neigh_mgr_logpanic("dynamic_casr failed, new_observer type is not neigh_observer");
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
 
 
 	transport_type_t transport = dst->get_obs_transport_type();

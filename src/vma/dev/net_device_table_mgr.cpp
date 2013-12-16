@@ -207,6 +207,11 @@ void net_device_table_mgr::map_net_devices()
 		else {
 			p_net_device_val = new net_device_val_eth();
 		}
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (!p_net_device_val) {
+			ndtm_logpanic("failed allocating new net_device!");
+		}
+		BULLSEYE_EXCLUDE_BLOCK_END
 		p_net_device_val->configure(ifa, cma_id);
 		m_net_device_map[((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr] = p_net_device_val;
 		m_if_indx_to_nd_val_lst[p_net_device_val->get_if_idx()].push_back(p_net_device_val);
@@ -214,16 +219,9 @@ void net_device_table_mgr::map_net_devices()
 
 		verify_bonding_mode(p_net_device_val->get_local_addr());
 
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (!p_net_device_val) {
-			ndtm_logpanic("failed allocating new net_device!");
-		BULLSEYE_EXCLUDE_BLOCK_END
-		}
-		else {
-			ibv_device* ibvdevice = ib_ctx->get_ibv_device();
-			ndtm_logdbg("Offload interface '%s': Mapped to ibv device '%s' [%p] on port %d",
-					ifa->ifa_name, ibvdevice->name, ibvdevice, cma_id->port_num);
-		}
+		ibv_device* ibvdevice = ib_ctx->get_ibv_device();
+		ndtm_logdbg("Offload interface '%s': Mapped to ibv device '%s' [%p] on port %d",
+				ifa->ifa_name, ibvdevice->name, ibvdevice, cma_id->port_num);
 	} //for
 
 	freeifaddrs(ifaddr);

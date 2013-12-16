@@ -321,7 +321,6 @@ protected:
 	uint32_t		 		m_missing_buf_ref_count;
 
 	uint32_t				m_tx_lkey; // this is the registered memory lkey for a given specific device for the buffer pool use
-	uint32_t				m_tx_lkey_lwip_buffer; // this is the lwip buffers registered memory lkey for a given specific device (drawn from the qp)
 
 	uint16_t 				m_partition; //vlan or pkey
 

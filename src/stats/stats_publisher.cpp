@@ -304,13 +304,14 @@ void vma_stats_instance_remove_socket_block(socket_stats_t* local_addr)
 		return;
 	}
 
-	BULLSEYE_EXCLUDE_BLOCK_START
+	//coverity - g_sh_mem->skt_inst_arr cannot be null
+	/*BULLSEYE_EXCLUDE_BLOCK_START
 	if (g_sh_mem->skt_inst_arr == NULL) {
 		vlog_printf(VLOG_ERROR,"%s:%d: g_sh_mem->instances_arr not init\n", __func__, __LINE__);
 		g_lock_skt_stats.unlock();
 		return;
 	}
-	BULLSEYE_EXCLUDE_BLOCK_END
+	BULLSEYE_EXCLUDE_BLOCK_END*/
 
 	// Search sh_mem block to release
 	for (uint32_t i = 0; i < g_sh_mem->max_skt_inst_num; i++) {
@@ -404,13 +405,14 @@ void vma_stats_instance_remove_cq_block(cq_stats_t* local_stats_addr)
 		return;
 	}
 
-	BULLSEYE_EXCLUDE_BLOCK_START
+	//coverity - g_sh_mem->cq_inst_arr cannot be null
+	/*BULLSEYE_EXCLUDE_BLOCK_START
 	if (g_sh_mem->cq_inst_arr == NULL) {
 		vlog_printf(VLOG_ERROR,"%s:%d: g_sh_mem->instances_arr not init\n", __func__, __LINE__);
                 g_lock_skt_stats.unlock();
 		return;
 	}
-	BULLSEYE_EXCLUDE_BLOCK_END
+	BULLSEYE_EXCLUDE_BLOCK_END*/
 	
 	// Search sh_mem block to release
 	for (int i=0; i<NUM_OF_SUPPORTED_CQS; i++) {

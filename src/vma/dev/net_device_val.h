@@ -129,7 +129,7 @@ protected:
 class net_device_val_eth : public net_device_val
 {
 public:
-	net_device_val_eth() : net_device_val(VMA_TRANSPORT_ETH) {};
+	net_device_val_eth() : net_device_val(VMA_TRANSPORT_ETH), m_vlan(0) {};
 	virtual void 		configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id);
 	uint16_t		get_vlan() {return m_vlan;}
 	std::string		to_str();
@@ -147,7 +147,7 @@ private:
 class net_device_val_ib : public net_device_val,  public neigh_observer, public cache_observer
 {
 public:
-	net_device_val_ib() : net_device_val(VMA_TRANSPORT_IB), m_br_neigh(NULL) {};
+	net_device_val_ib() : net_device_val(VMA_TRANSPORT_IB), m_pkey(0), m_br_neigh(NULL) {};
 	~net_device_val_ib();
 
 	virtual void 		configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id);

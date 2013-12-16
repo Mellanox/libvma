@@ -57,7 +57,11 @@ neigh_val & neigh_ib_val::operator=(const neigh_val & val)
 	IPoIB_addr* l2_addr = NULL;
 	neigh_val* tmp_val = const_cast<neigh_val *>(&val);
 	const neigh_ib_val* ib_val = dynamic_cast<const neigh_ib_val*>(tmp_val);
-
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (ib_val == NULL) {
+		__log_panic("neigh_ib_val is NULL");
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
 	m_l2_address = new IPoIB_addr((ib_val->get_l2_address())->get_address());
 	l2_addr = (IPoIB_addr *)m_l2_address; //no need to do dynamic casting here
 	m_ah = ib_val->get_ah(); //TODO: we need to handle this - in case ah is used in post_send we cannot destroy it
@@ -69,7 +73,7 @@ neigh_val & neigh_ib_val::operator=(const neigh_val & val)
 
 neigh_entry::neigh_entry(neigh_key key, transport_type_t type, bool is_init_resources):
 	cache_entry_subject<neigh_key, neigh_val *>(key),
-	m_cma_id(NULL), m_state_machine(NULL), m_type(UNKNOWN), m_trans_type(type),
+	m_cma_id(NULL), m_rdma_port_space((enum rdma_port_space)0), m_state_machine(NULL), m_type(UNKNOWN), m_trans_type(type),
 	m_state(false), m_err_counter(0), m_timer_handle(NULL),
 	m_arp_counter(0), m_p_dev(NULL), m_p_ring(NULL), m_is_loopback(false),
 	m_to_str(std::string(priv_vma_transport_type_str(m_trans_type)) + ":" + get_key().to_str()),
@@ -98,6 +102,9 @@ neigh_entry::neigh_entry(neigh_key key, transport_type_t type, bool is_init_reso
 
 	m_src_addr.sin_addr.s_addr = m_p_dev->get_local_addr();
 	m_src_addr.sin_family = AF_INET;
+
+	memset(&m_send_wqe, 0, sizeof(struct ibv_send_wr));
+	memset(&m_sge, 0, sizeof(struct ibv_sge));
 
 	if (m_dst_addr.sin_addr.s_addr == m_src_addr.sin_addr.s_addr) {
 		neigh_logdbg("This is loopback neigh");
@@ -415,6 +422,7 @@ bool neigh_entry::post_send_tcp(iovec *iov, header *h)
 
 	m_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
 	m_p_ring->send_ring_buffer(&m_send_wqe, false);
+#ifndef __COVERITY__
 	struct tcphdr* p_tcp_h = (struct tcphdr*)(((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr)));
 	neigh_logdbg("Tx TCP segment info: src_port=%d, dst_port=%d, flags='%s%s%s%s%s%s' seq=%u, ack=%u, win=%u, payload_sz=%u",
 			ntohs(p_tcp_h->source), ntohs(p_tcp_h->dest),
@@ -422,7 +430,7 @@ bool neigh_entry::post_send_tcp(iovec *iov, header *h)
 			p_tcp_h->rst?"R":"", p_tcp_h->syn?"S":"", p_tcp_h->fin?"F":"",
 			ntohl(p_tcp_h->seq), ntohl(p_tcp_h->ack_seq), ntohs(p_tcp_h->window),
 			total_packet_len- p_tcp_h->doff*4 -34);
-
+#endif
 	return true;
 }
 
@@ -1124,12 +1132,14 @@ inline int neigh_eth::build_mc_neigh_val()
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_val->m_l2_address == NULL) {
 		neigh_logdbg("m_val->m_l2_address allocation has failed");
+		delete [] address;
 		return -1;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	m_state = true;
 	neigh_logdbg("Peer MAC = %s", m_val->m_l2_address->to_str().c_str());
+	delete [] address;
 	return 0;
 
 }
@@ -1720,10 +1730,10 @@ int neigh_ib::build_mc_neigh_val(struct rdma_cm_event* event_data,
 		return -1;
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	neigh_logdbg("IB multicast neigh params are : ah=%#x, qkey=%#x, sl=%#x, rate=%#x, port_num = %#x,  qpn=%#x dlid=%#x dgid = " IPOIB_HW_ADDR_PRINT_FMT,
+	neigh_logdbg("IB multicast neigh params are : ah=%#x, qkey=%#x, sl=%#x, rate=%#x, port_num = %#x,  qpn=%#x dlid=%#x dgid = " IPOIB_HW_ADDR_PRINT_FMT_16,
 				((neigh_ib_val *) m_val)->m_ah, ((neigh_ib_val *) m_val)->m_qkey, ((neigh_ib_val *) m_val)->m_ah_attr.sl, ((neigh_ib_val *) m_val)->m_ah_attr.static_rate,
 				((neigh_ib_val *) m_val)->m_ah_attr.port_num, ((neigh_ib_val *) m_val)->get_qpn(), ((neigh_ib_val *) m_val)->m_ah_attr.dlid,
-				IPOIB_HW_ADDR_PRINT_ADDR(((neigh_ib_val *) m_val)->m_ah_attr.grh.dgid.raw));
+				IPOIB_HW_ADDR_PRINT_ADDR_16(((neigh_ib_val *) m_val)->m_ah_attr.grh.dgid.raw));
 	/*neigh_logerr("flow_label = %#x, sgid_index=%#x, hop_limit=%#x, traffic_class=%#x", ((neigh_ib_val *) m_val)->m_ah_attr.grh.flow_label, ((neigh_ib_val *) m_val)->m_ah_attr.grh.sgid_index,
 				((neigh_ib_val *) m_val)->m_ah_attr.grh.hop_limit, ((neigh_ib_val *) m_val)->m_ah_attr.grh.traffic_class);
 	*/
@@ -1763,7 +1773,7 @@ int neigh_ib::build_uc_neigh_val(struct rdma_cm_event* event_data,
 	//memcpy(&m_val.ib_addr.m_ah_attr, &event_data->param.ud.ah_attr, sizeof(struct ibv_ah_attr));
 
 	if (!m_cma_id || m_cma_id->route.num_paths <= 0) {
-		neigh_logdbg("Can't prepare AH attr (cma_id=%p, num_paths=%d)", m_cma_id, m_cma_id->route.num_paths);
+		neigh_logdbg("Can't prepare AH attr (cma_id=%p, num_paths=%d)", m_cma_id, m_cma_id ? m_cma_id->route.num_paths : 0);
 		return -1;
 	}
 
@@ -1835,6 +1845,8 @@ int neigh_ib::destroy_ah()
 	//We cannot destroy ah till each post_send with this ah has ended
 	//TODO: Need to think how to  handle this - for now there will be ah leak
 	return 0;
+//unreachable code
+#ifndef __COVERITY__
 	if (m_val && ((neigh_ib_val *) m_val)->m_ah) {
 		IF_VERBS_FAILURE(ibv_destroy_ah(((neigh_ib_val *) m_val)->m_ah))
 		{
@@ -1843,6 +1855,7 @@ int neigh_ib::destroy_ah()
 		}ENDIF_VERBS_FAILURE;
 	}
 	return 0;
+#endif
 }
 
 //==================================================================================================================
@@ -1908,10 +1921,10 @@ void neigh_ib_broadcast::build_mc_neigh_val()
 	if (create_ah())
 		return;
 
-	neigh_logdbg("IB broadcast neigh params are : ah=%#x, qkey=%#x, sl=%#x, rate=%#x, port_num = %#x,  qpn=%#x,  dlid=%#x dgid = " IPOIB_HW_ADDR_PRINT_FMT,
+	neigh_logdbg("IB broadcast neigh params are : ah=%#x, qkey=%#x, sl=%#x, rate=%#x, port_num = %#x,  qpn=%#x,  dlid=%#x dgid = " IPOIB_HW_ADDR_PRINT_FMT_16,
 			((neigh_ib_val *) m_val)->m_ah, ((neigh_ib_val *) m_val)->m_qkey, ((neigh_ib_val *) m_val)->m_ah_attr.sl,
 			((neigh_ib_val *) m_val)->m_ah_attr.static_rate,((neigh_ib_val *) m_val)->m_ah_attr.port_num,
-			((neigh_ib_val *) m_val)->get_qpn(), ((neigh_ib_val *) m_val)->m_ah_attr.dlid, IPOIB_HW_ADDR_PRINT_ADDR(((neigh_ib_val *) m_val)->m_ah_attr.grh.dgid.raw) );
+			((neigh_ib_val *) m_val)->get_qpn(), ((neigh_ib_val *) m_val)->m_ah_attr.dlid, IPOIB_HW_ADDR_PRINT_ADDR_16(((neigh_ib_val *) m_val)->m_ah_attr.grh.dgid.raw) );
 
 
 }

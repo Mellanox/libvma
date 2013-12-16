@@ -112,6 +112,7 @@ sockinfo_udp::sockinfo_udp(int fd) :
 	m_b_pktinfo = false;
 
 	m_rx_callback = NULL;
+	m_rx_callback_context = NULL;
 
 	// Update MC related stats (default values)
 	m_p_socket_stats->mc_tx_if = m_mc_tx_if;
@@ -430,6 +431,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
                                     si_udp_logdbg("SOL_SOCKET: SO_RCVTIMEO=%d", m_loops_timer.get_timeout_msec());
 
                                 }
+                                break;
 
 			case SO_TIMESTAMP:
 				if (__optval) {
@@ -1098,6 +1100,7 @@ void sockinfo_udp::insert_cmsg(struct msghdr * msg, int level, int type, void *d
 	}
 
 	struct cmsghdr cmghdr;
+	memset(&cmghdr, 0, sizeof(struct cmsghdr));
 	cmghdr.cmsg_level = level;
 	cmghdr.cmsg_type = type;
 	cmghdr.cmsg_len = cmsg_len;

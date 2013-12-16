@@ -117,6 +117,7 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
                 m_p_ring->send_ring_buffer(m_p_send_wqe, b_blocked);
 	}
 
+#ifndef __COVERITY__
         struct tcphdr* p_tcp_h = (struct tcphdr*)(((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr)));
         dst_tcp_logfunc("Tx TCP segment info: src_port=%d, dst_port=%d, flags='%s%s%s%s%s%s' seq=%u, ack=%u, win=%u, payload_sz=%u",
                         ntohs(p_tcp_h->source), ntohs(p_tcp_h->dest),
@@ -124,7 +125,7 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
                         p_tcp_h->rst?"R":"", p_tcp_h->syn?"S":"", p_tcp_h->fin?"F":"",
                         ntohl(p_tcp_h->seq), ntohl(p_tcp_h->ack_seq), ntohs(p_tcp_h->window),
                         total_packet_len- p_tcp_h->doff*4 -34);
-
+#endif
 
 
 	return 0;

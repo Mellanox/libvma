@@ -79,10 +79,10 @@ qp_mgr* ring_ib::create_qp_mgr(ring_resource_definition& key, struct ibv_comp_ch
 
 
 ring::ring(in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type) :
-		m_local_if(local_if), m_transport_type(transport_type), m_n_num_resources(count),
+		m_local_if(local_if), m_transport_type(transport_type), m_n_num_resources(count), m_p_tx_comp_event_channel(NULL),
 		m_lock_ring_rx("ring:lock_rx"), m_lock_ring_tx("ring:lock_tx"), m_lock_ring_tx_buf_wait("ring:lock_tx_buf_wait"),
-		m_b_qp_tx_first_flushed_completion_handled(false), m_missing_buf_ref_count(0), m_partition(partition_sn),
-		m_gro_mgr(mce_sys.gro_streams_max, MAX_GRO_BUFS)
+		m_p_n_rx_channel_fds(NULL), m_tx_num_bufs(0), m_tx_num_wr(0), m_tx_num_wr_free(0), m_b_qp_tx_first_flushed_completion_handled(false),
+		m_missing_buf_ref_count(0), m_tx_lkey(0), m_partition(partition_sn), m_gro_mgr(mce_sys.gro_streams_max, MAX_GRO_BUFS)
 {
 }
 
@@ -1126,7 +1126,7 @@ void ring::flow_udp_uc_del_all()
 	flow_spec_udp_uc_map_t::iterator itr_udp_uc;
 
 	itr_udp_uc = m_flow_udp_uc_map.begin();
-	for (; itr_udp_uc != m_flow_udp_uc_map.end(); ++itr_udp_uc) {
+	while (itr_udp_uc != m_flow_udp_uc_map.end()) {
 		rfs *p_rfs = itr_udp_uc->second;
 		map_key_udp_uc = itr_udp_uc->first;
 		if (p_rfs) {
@@ -1135,7 +1135,7 @@ void ring::flow_udp_uc_del_all()
 		if (!(m_flow_udp_uc_map.del(map_key_udp_uc))) {
 			ring_logdbg("Could not find rfs object to delete in ring udp uc hash map!");
 		}
-		break;
+		itr_udp_uc =  m_flow_udp_uc_map.begin();
 	}
 }
 
@@ -1145,7 +1145,7 @@ void ring::flow_udp_mc_del_all()
 	flow_spec_udp_mc_map_t::iterator itr_udp_mc;
 
 	itr_udp_mc = m_flow_udp_mc_map.begin();
-	for (; itr_udp_mc != m_flow_udp_mc_map.end(); ++itr_udp_mc) {
+	while (itr_udp_mc != m_flow_udp_mc_map.end()) {
 		rfs *p_rfs = itr_udp_mc->second;
 		map_key_udp_mc = itr_udp_mc->first;
 		if (p_rfs) {
@@ -1154,6 +1154,7 @@ void ring::flow_udp_mc_del_all()
 		if (!(m_flow_udp_mc_map.del(map_key_udp_mc))) {
 			ring_logdbg("Could not find rfs object to delete in ring udp mc hash map!");
 		}
+		itr_udp_mc = m_flow_udp_mc_map.begin();
 	}
 }
 

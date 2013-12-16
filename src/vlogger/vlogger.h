@@ -236,7 +236,7 @@ static inline void vlog_print_buffer(vlog_levels_t log_level, const char* msg_he
 	if (msg_header)
 		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, "%s", msg_header);
 
-	for (int c = 0; c < buf_len && len < (VLOGGER_STR_SIZE-1); c++) {
+	for (int c = 0; c < buf_len && len < (VLOGGER_STR_SIZE-1-6); c++) {
 		len += sprintf(buf+len, "%2.2X ", (unsigned char)buf_user[c]);
 		if ((c % 8) == 7) 
 			len += sprintf(buf+len, " ");

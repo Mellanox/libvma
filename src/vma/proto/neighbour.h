@@ -130,7 +130,7 @@ private:
 class neigh_ib_val : public neigh_val
 {
 public:
-				neigh_ib_val() { zero_all_members(); };
+				neigh_ib_val() : m_ah(NULL) { zero_all_members(); };
 
 	ibv_ah* 		get_ah()const		{ return m_ah; };
 	ibv_ah_attr 		get_ah_attr() const	{ return m_ah_attr; };

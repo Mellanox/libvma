@@ -260,9 +260,8 @@ int fd_collection::addsocket(int fd, int domain, int type, bool check_offload /*
 	m_p_sockfd_map[fd] = p_sfd_api_obj;
 
 	unlock();
-	if (p_sfd_api_obj)
-		return fd;
-	return -1;
+
+	return fd;
 }
 
 bool fd_collection::create_offloaded_sockets()
@@ -343,9 +342,8 @@ int fd_collection::addpipe(int fdrd, int fdwr)
 	m_p_sockfd_map[fdwr] = p_fdwr_api_obj;
 
 	unlock();
-	if (p_fdwr_api_obj && p_fdwr_api_obj)
-		return 0;
-	return -1;
+
+	return 0;
 }
 
 int fd_collection::addepfd(int epfd, int size)
@@ -378,9 +376,8 @@ int fd_collection::addepfd(int epfd, int size)
 	m_p_epfd_map[epfd] = p_fd_info;
 
 	unlock();
-	if (p_fd_info)
-		return 0;
-	return -1;
+
+	return 0;
 }
 
 int fd_collection::add_cq_channel_fd(int cq_ch_fd, ring* p_ring)
@@ -436,9 +433,8 @@ int fd_collection::add_cq_channel_fd(int cq_ch_fd, ring* p_ring)
 	m_p_cq_channel_map[cq_ch_fd] = p_cq_ch_info;
 
 	unlock();
-	if (p_cq_ch_info)
-		return 0;
-	return -1;
+
+	return 0;
 }
 
 int fd_collection::del_sockfd(int fd, bool b_cleanup /*=false*/)

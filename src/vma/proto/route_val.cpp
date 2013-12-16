@@ -32,10 +32,15 @@ route_val::route_val(): cache_observer()
 	m_dst_pref_len = 0;
 	m_src_addr = 0;
 	m_gw = 0;
-
+	m_protocol = 0;
+	m_scope = 0;
+	m_type = 0;
+	memset(m_if_name, 0, IF_NAMESIZE * sizeof(char));
+	m_if_index = 0;
 	m_is_valid = false;
 	m_b_deleted = false;
 	m_b_if_up = true;
+	memset(m_str, 0, BUFF_SIZE * sizeof(char));
 }
 
 void route_val::set_str()

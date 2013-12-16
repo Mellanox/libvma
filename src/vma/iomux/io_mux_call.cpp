@@ -41,6 +41,8 @@ io_mux_call::io_mux_call(int *off_fds_buffer, offloaded_mode_t *off_modes_buffer
 	m_p_offloaded_modes(off_modes_buffer),
 	m_num_all_offloaded_fds(0),
 	m_cqepfd(-1),
+	m_poll_sn(0),
+	m_p_stats(NULL),
 	m_n_all_ready_fds(0),
 	m_n_ready_rfds(0),
 	m_n_ready_wfds(0),
