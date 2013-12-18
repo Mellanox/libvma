@@ -198,8 +198,27 @@ void route_table_mgr::rt_mgr_update_source_ip()
 				if (find_route_val(in_addr, p_rtv_dst)) {
 					if (p_rtv_dst->get_src_addr()) {
 						p_rtv->set_src_addr(p_rtv_dst->get_src_addr());
+					} else if (p_rtv == p_rtv_dst) { //gateway of the entry lead to same entry
+						net_dev_lst_t* nd_lst = g_p_net_device_table_mgr->get_net_device_val_lst_from_index(p_rtv->get_if_index());
+						if (nd_lst) {
+							net_dev_lst_t::iterator iter = nd_lst->begin();
+							while (iter != nd_lst->end()) {
+								if(p_rtv->get_gw_addr() == (*iter)->get_local_addr()) {
+									p_rtv->set_gw(0);
+									p_rtv->set_src_addr((*iter)->get_local_addr());
+									break;
+								}
+								iter++;
+							}
+						}
+						if (!p_rtv->get_src_addr())
+							num_unresolved_src++;
 					} else {
 						num_unresolved_src++;
+					}
+					// gateway and source are equal, no need of gw.
+					if (p_rtv->get_src_addr() == p_rtv->get_gw_addr()) {
+						p_rtv->set_gw(0);
 					}
 				} else {
 					num_unresolved_src++;
