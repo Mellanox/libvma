@@ -34,7 +34,7 @@ epoll_wait_call::epoll_wait_call(epoll_event *extra_events_buffer, offloaded_mod
 	// get epfd_info
 	m_epfd_info = fd_collection_get_epfd(epfd);
 	if (!m_epfd_info || maxevents <= 0) {
-		__log_err("epfd %d not found", epfd);
+		__log_dbg("error, epfd %d not found or maxevents <= 0 (=%d)", epfd, maxevents);
 		errno = EINVAL;
 		throw io_mux_call::io_error();
 	}
