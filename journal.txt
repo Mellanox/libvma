@@ -1,3 +1,10 @@
+Version 6.5.7-0:
+Date + Time 2013-12-18
+=======================
+Fixed:
+        - RM #360098 fix coverity errors
+        - RM #359537 IB, non-blocking TCP connect take long time
+
 Version 6.5.6-0:
 Date + Time 2013-12-11
 =======================
