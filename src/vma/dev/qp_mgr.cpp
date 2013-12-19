@@ -200,7 +200,10 @@ void qp_mgr::validate_raw_qp_privliges()
 	// RAW_QP_PRIVLIGES_PARAM_FILE: "/sys/module/ib_uverbs/parameters/disable_raw_qp_enforcement"
 	char raw_qp_privliges_value = 0;
 	if (priv_read_file((const char*)RAW_QP_PRIVLIGES_PARAM_FILE, &raw_qp_privliges_value, 1) <= 0) {
-		vlog_printf(VLOG_DEBUG, "RAW_PACKET QP type enforcement option does not exist in current OFED version");
+		vlog_printf(VLOG_WARNING,"******************************************************************************\n");
+		vlog_printf(VLOG_WARNING,"* RAW_PACKET QP type enforcement option does not exist in current OFED version*\n");
+		vlog_printf(VLOG_WARNING,"* Usage will be restricted to root or CAP_NET_RAW privileges.                *\n");
+		vlog_printf(VLOG_WARNING,"******************************************************************************\n");
 		return;
 	}
 	if (raw_qp_privliges_value != '1') {
