@@ -78,6 +78,9 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 			break;
 		}
 	case ALLOC_TYPE_CONTIG:
+#ifndef DEFINED_IBV_ACCESS_ALLOCATE_MR
+		m_is_contig_alloc = false;
+#else
 		m_data_block = NULL;
 		access |= IBV_ACCESS_ALLOCATE_MR; // for contiguous pages use only
 		if (!register_memory(size, m_p_ib_ctx_h, access)) {
@@ -88,10 +91,13 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 			__log_info_dbg("Contiguous pages allocation passed successfully");
 			break;
 		}
+#endif
 	case ALLOC_TYPE_ANON:
 	default:
 		__log_info_dbg("allocating memory using malloc()");
+#ifdef DEFINED_IBV_ACCESS_ALLOCATE_MR
 		access &= ~IBV_ACCESS_ALLOCATE_MR;
+#endif
 		m_data_block = malloc(size);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (m_data_block == NULL) {

@@ -223,6 +223,22 @@ AC_TRY_LINK(
   AC_MSG_RESULT([no])
 ])
 
+AC_MSG_CHECKING([if IBV_ACCESS_ALLOCATE_MR is defined])
+AC_TRY_LINK(
+#include <infiniband/verbs.h>
+,
+[
+  int access = (int)IBV_ACCESS_ALLOCATE_MR;
+  return access;
+],
+[
+  AC_MSG_RESULT([yes])
+  AC_DEFINE(DEFINED_IBV_ACCESS_ALLOCATE_MR, 1, [Define to 1 if IBV_ACCESS_ALLOCATE_MR is defined])
+],
+[
+  AC_MSG_RESULT([no])
+])
+
 AC_MSG_CHECKING([if 'struct mmsghdr' for recvmmsg() is defined])
 AC_TRY_LINK(
 #include <sys/socket.h>
