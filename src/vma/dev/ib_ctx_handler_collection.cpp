@@ -90,7 +90,7 @@ size_t ib_ctx_handler_collection::mem_reg_on_all_devices(void* addr, size_t leng
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		errno = 0; //ibv_reg_mr() set errno=12 despite successful returning
-#ifdef DEFINED_IBV_ACESS_ALLOCATE_MR
+#ifdef DEFINED_IBV_ACCESS_ALLOCATE_MR
 		if ((access & IBV_ACCESS_ALLOCATE_MR) != 0) { // contig pages mode
 			// When using 'IBV_ACCESS_ALLOCATE_MR', ibv_reg_mr will return a pointer that its 'addr' field will hold the address of the allocated memory.
 			// Second registration and above is done using 'IBV_ACCESS_LOCAL_WRITE' and the 'addr' we received from the first registration.
