@@ -1,3 +1,9 @@
+Version 6.5.9-0:
+Date + Time 2013-12-23
+=======================
+Fixed:
+        - RM #361117 fixed a typo causing contiguous pages allocation issues
+
 Version 6.5.8-0:
 Date + Time 2013-12-22
 =======================
