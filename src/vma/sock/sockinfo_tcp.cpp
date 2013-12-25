@@ -105,6 +105,7 @@ sockinfo_tcp::sockinfo_tcp(int fd) :
 	m_tcp_seg_count = 0;
 	m_tcp_seg_in_use = 0;
 	m_tcp_seg_list = g_tcp_seg_pool->get_tcp_segs(TCP_SEG_COMPENSATION);
+	if (m_tcp_seg_list) m_tcp_seg_count += TCP_SEG_COMPENSATION;
 
 	si_tcp_logfunc("done");
 }
@@ -1171,7 +1172,7 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 	if (err != ERR_OK) {
 		destructor_helper();
 		errno = ECONNREFUSED;
-		si_tcp_logerr("bad connect");
+		si_tcp_logerr("bad connect, err=%d", err);
 		unlock_tcp_con();
 		return -1;
 	}
