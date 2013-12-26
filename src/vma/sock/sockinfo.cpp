@@ -682,6 +682,7 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 	m_rx_ring_map_lock.lock();
 	lock_rx_q();
 	descq_t temp_rx_reuse;
+	descq_t temp_rx_reuse_global;
 	rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.find(p_ring);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (rx_ring_iter != m_rx_ring_map.end()) {
@@ -699,6 +700,9 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 
 			// Move all cq_mgr->rx_reuse buffers to temp reuse queue related to p_rx_cq_mgr
 			move_owned_descs(p_ring, &temp_rx_reuse, &p_ring_info->rx_reuse_info.rx_reuse);
+			if (p_ring_info->rx_reuse_info.rx_reuse.size()) {
+				si_logerr("possible buffer leak, p_ring_info->rx_reuse_buff still contain %d buffers.", p_ring_info->rx_reuse_info.rx_reuse.size());
+			}
 
 			int num_ring_rx_fds = p_ring->get_num_resources();
 			int *ring_rx_fds_array = p_ring->get_rx_channel_fds();
@@ -716,18 +720,16 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 
 			m_rx_ring_map.erase(p_ring);
 			if (m_p_rx_ring == p_ring) {
-				move_owned_descs(p_ring, &temp_rx_reuse, &m_rx_reuse_buff.rx_reuse);
-				if (m_rx_reuse_buff.rx_reuse.size()) {
-					si_logerr("possible buffer leak, m_rx_reuse_buff still contain %d buffers.", m_rx_reuse_buff.rx_reuse.size());
-				} else {
-					m_rx_reuse_buff.n_buff_num = 0;
-				}
-
 				if (m_rx_ring_map.size() == 1) {
 					m_p_rx_ring = m_rx_ring_map.begin()->first;
 				} else {
 					m_p_rx_ring = NULL;
 				}
+
+				move_owned_descs(p_ring, &temp_rx_reuse, &m_rx_reuse_buff.rx_reuse);
+				move_not_owned_descs(m_p_rx_ring, &temp_rx_reuse_global, &m_rx_reuse_buff.rx_reuse);
+
+				m_rx_reuse_buff.n_buff_num = m_rx_reuse_buff.rx_reuse.size();
 			}
 		}
 	}
@@ -749,6 +751,11 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 		if (temp_rx_reuse.size() > 0) //Awareness: we do this without buffer_poll lock after all other tries failed
 			g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&temp_rx_reuse);
 	}
+
+	if (temp_rx_reuse_global.size() > 0) {
+		g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&temp_rx_reuse_global);
+	}
+
 	lock_rx_q();
 }
 

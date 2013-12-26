@@ -141,6 +141,21 @@ inline void move_owned_descs(const mem_buf_desc_owner* p_desc_owner, descq_t *to
 	}
 }
 
+inline void move_not_owned_descs(const mem_buf_desc_owner* p_desc_owner, descq_t *toq, descq_t *fromq)
+{
+	// Assume locked by owner!!!
+
+	mem_buf_desc_t *temp;
+	const size_t size = fromq->size();
+	for (size_t i = 0 ; i < size; i++) {
+		temp = fromq->front();
+		fromq->pop_front();
+		if (temp->p_desc_owner == p_desc_owner)
+			fromq->push_back(temp);
+		else
+			toq->push_back(temp);
+	}
+}
 
 
 #endif
