@@ -497,6 +497,7 @@ void sockinfo::do_rings_migration()
 		if (new_ring == p_old_ring) {
 			p_nd_resources->p_ndv->release_ring(old_key);
 			lock_rx_q();
+			rx_nd_iter++;
 			continue;
 		}
 		lock_rx_q();
