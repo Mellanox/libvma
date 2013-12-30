@@ -479,16 +479,16 @@ bool dst_entry::prepare_to_send(bool skip_rules)
 	return m_b_is_offloaded;
 }
 
-bool dst_entry::try_migrate_ring()
+bool dst_entry::try_migrate_ring(lock_base& socket_lock)
 {
 	if (m_ring_alloc_logic.should_migrate_ring()) {
-		do_ring_migration();
+		do_ring_migration(socket_lock);
 		return true;
 	}
 	return false;
 }
 
-void dst_entry::do_ring_migration()
+void dst_entry::do_ring_migration(lock_base& socket_lock)
 {
 	m_slow_path_lock.lock();
 
@@ -505,29 +505,40 @@ void dst_entry::do_ring_migration()
 		return;
 	}
 
+	m_slow_path_lock.unlock();
+	socket_lock.unlock();
+
 	ring* new_ring = m_p_net_dev_val->reserve_ring(new_key);
 	if (new_ring == m_p_ring) {
 		m_p_net_dev_val->release_ring(old_key);
-		m_slow_path_lock.unlock();
 		return;
 	}
 
 	dst_logdbg("migrating from key=%lu and ring=%p to key=%lu and ring=%p", old_key, m_p_ring, new_key, new_ring);
 
+	socket_lock.lock();
+	m_slow_path_lock.lock();
+
 	set_state(false);
 
-	if (m_p_tx_mem_buf_desc_list) {
-		m_p_ring->mem_buf_tx_release(m_p_tx_mem_buf_desc_list, true);
-		m_p_tx_mem_buf_desc_list = NULL;
-	}
-
-	m_p_net_dev_val->release_ring(old_key);
-
+	ring* old_ring = m_p_ring;
 	m_p_ring = new_ring;
 	m_max_inline = m_p_ring->get_max_tx_inline();
 	m_max_inline = std::min(m_max_inline, m_p_net_dev_val->get_mtu() + (uint32_t)m_header.m_transport_header_len);
 
+	mem_buf_desc_t* tmp_list = m_p_tx_mem_buf_desc_list;
+	m_p_tx_mem_buf_desc_list = NULL;
+
 	m_slow_path_lock.unlock();
+	socket_lock.unlock();
+
+	if (tmp_list) {
+		old_ring->mem_buf_tx_release(tmp_list, true);
+	}
+
+	m_p_net_dev_val->release_ring(old_key);
+
+	socket_lock.lock();
 }
 
 in_addr_t dst_entry::get_src_addr()

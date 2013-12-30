@@ -579,7 +579,7 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit)
 #endif
 	}
 
-	if (p_dst->try_migrate_ring()) {
+	if (p_dst->try_migrate_ring(p_si_tcp->m_tcp_con_lock)) {
 		p_si_tcp->m_p_socket_stats->counters.n_tx_migrations++;
 	}
 

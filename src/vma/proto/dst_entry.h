@@ -49,7 +49,7 @@ public:
 	virtual ssize_t slow_send(const iovec* p_iov, size_t sz_iov, bool b_blocked = true, bool is_rexmit = false, int flags = 0, socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF) = 0 ;
 	virtual ssize_t fast_send(const struct iovec* p_iov, const ssize_t sz_iov, bool b_blocked = true, bool is_rexmit = false, bool dont_inline = false) = 0;
 
-	bool		try_migrate_ring();
+	bool		try_migrate_ring(lock_base& socket_lock);
 
 	bool 		is_offloaded() { return m_b_is_offloaded; }
 	in_addr_t	get_src_addr();
@@ -125,7 +125,7 @@ protected:
 	bool 			alloc_transport_dep_res();
 	bool 			alloc_neigh_val(transport_type_t tranport);
 
-	void			do_ring_migration();
+	void			do_ring_migration(lock_base& socket_lock);
 };
 
 

@@ -1240,7 +1240,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 
 	si_udp_logfunc("");
 
-	auto_unlocker lock(m_lock_snd);
+	m_lock_snd.lock();
 
 	save_stats_threadid_tx();
 
@@ -1289,6 +1289,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 					INC_ERR_TX_COUNT;
 #endif
 					errno = EAGAIN;
+					m_lock_snd.unlock();
 					return -1;
 				}
 			}
@@ -1327,7 +1328,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 		if (unlikely(__flags & MSG_DONTWAIT))
 			b_blocking = false;
 
-		if (p_dst_entry->try_migrate_ring()) {
+		if (p_dst_entry->try_migrate_ring(m_lock_snd)) {
 			m_p_socket_stats->counters.n_tx_migrations++;
 		}
 
@@ -1355,6 +1356,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 #ifdef VMA_TIME_MEASURE
 		TAKE_T_TX_END;
 #endif
+		m_lock_snd.unlock();
 
 		return ret;
 	}
@@ -1371,6 +1373,7 @@ tx_packet_to_os:
 
 tx_packet_to_os_stats:
 	save_stats_tx_os(ret);
+	m_lock_snd.unlock();
 	return ret;
 }
 
