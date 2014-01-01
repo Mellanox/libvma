@@ -1,0 +1,55 @@
+timetest:
+Compile timetest: g++ -O3 -lrt timetest.cpp -o timetest
+Run timetest: ./timetest
+
+Example output:
+ork@r-sw-bolt3 timetest $ taskset -c 9 ./timetest
+--------------------------------------------------------------------------------
+
+
+Get time using clock_gettime(CLOCK_MONOTONIC):
+clock_gettime(CLOCK_MONOTONIC)  AVG: 31.5657 nsec
+--------------------------------------------------------------------------------
+
+
+Get time using RDTSC:
+RDTSC  AVG: 20.4524 nsec
+--------------------------------------------------------------------------------
+
+
+Get time using gettimeofday:
+gettimeofday  AVG: 31.3642 nsec
+--------------------------------------------------------------------------------
+
+
+Get time using clock_gettime(CLOCK_MONOTONIC) - low pps:
+clock_gettime(CLOCK_MONOTONIC) - low pps  AVG: 73.6869 nsec
+--------------------------------------------------------------------------------
+
+
+Get time using RDTSC - low pps:
+RDTSC - low pps  AVG: 47.3776 nsec
+--------------------------------------------------------------------------------
+
+
+Get time using gettimeofday - low pps:
+gettimeofday - low pps  AVG: 90.9091 nsec
+--------------------------------------------------------------------------------
+
+
+
+SUMMARY:
+
+Timer resolution:
+------------------
+clock_gettime(CLOCK_MONOTONIC)  AVG: 31.5657 nsec
+RDTSC  AVG: 20.4524 nsec
+gettimeofday  AVG: 31.3642 nsec
+
+Timer resolution - 100 samples per sec:
+----------------------------------------
+clock_gettime(CLOCK_MONOTONIC) - low pps  AVG: 73.6869 nsec
+RDTSC - low pps  AVG: 47.3776 nsec
+gettimeofday - low pps  AVG: 90.9091 nsec
+
+
