@@ -39,16 +39,16 @@ typedef enum {
 } cq_type_t;
 
 /* udp uc key, only by destination port as we already know the rest */
-typedef struct {
+typedef struct __attribute__((packed)) {
 	in_port_t 	dst_port;
 } flow_spec_udp_uc_key_t;
 
-typedef struct {
+typedef struct __attribute__((packed)) {
 	in_addr_t	dst_ip;
 	in_port_t	dst_port;
 } flow_spec_udp_mc_key_t;
 
-typedef struct {
+typedef struct __attribute__((packed)) {
 	in_addr_t	src_ip;
 	in_port_t	dst_port;
 	in_port_t	src_port;
