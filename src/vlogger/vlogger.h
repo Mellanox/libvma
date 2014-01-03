@@ -195,7 +195,7 @@ static inline void vlog_printf(vlog_levels_t log_level, const char* fmt , ... )
 	else if (g_vlogger_file)
 	{
 		// Print out
-		fprintf(g_vlogger_file, buf);
+		fprintf(g_vlogger_file, "%s", buf);
 		fflush(g_vlogger_file);
 	}
 	else {
@@ -254,7 +254,7 @@ static inline void vlog_print_buffer(vlog_levels_t log_level, const char* msg_he
 	}
 	else if (g_vlogger_file)
 	{
-		fprintf(g_vlogger_file, buf);
+		fprintf(g_vlogger_file, "%s", buf);
 		fflush(g_vlogger_file);
 	}
 	else
