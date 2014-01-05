@@ -28,7 +28,7 @@
 
 
 dst_entry::dst_entry(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, int owner_fd):
-	m_dst_ip(dst_ip), m_dst_port(dst_port), m_src_port(src_port), m_ring_alloc_logic(owner_fd, this), m_p_tx_mem_buf_desc_list(NULL)
+	m_dst_ip(dst_ip), m_dst_port(dst_port), m_src_port(src_port), m_bound_ip(0), m_ring_alloc_logic(owner_fd, this), m_p_tx_mem_buf_desc_list(NULL)
 {
 	dst_logdbg("dst:%s:%d src: %d", m_dst_ip.to_str().c_str(), ntohs(m_dst_port), ntohs(m_src_port));
 	init_members();
@@ -102,14 +102,22 @@ bool dst_entry::update_net_dev_val()
 {
 	bool ret_val = false;
 
-	if (m_p_rt_entry && (m_p_net_dev_val != m_p_rt_entry->get_net_dev_val())) {
+	net_device_val* new_nd_val = m_p_net_dev_val;
+	if (m_p_rt_entry) {
+		new_nd_val = m_p_rt_entry->get_net_dev_val();
+	} else if (m_bound_ip && g_p_net_device_table_mgr) {
+		new_nd_val = g_p_net_device_table_mgr->get_net_device_val(m_bound_ip);
+		dst_logdbg("getting net_dev_val by bounded ip");
+	}
+
+	if (m_p_net_dev_val != new_nd_val) {
 		dst_logdbg("updating net_device");
 
 		// Change the net_device, clean old resources...
 		release_ring();
 
 		// Save the new net_device
-		m_p_net_dev_val = m_p_rt_entry->get_net_dev_val();
+		m_p_net_dev_val = new_nd_val;
 
 		if (m_p_net_dev_val) {
 			// more resource clean and alloc...
@@ -160,7 +168,10 @@ bool dst_entry::resolve_net_dev()
 	bool ret_val = false;
 
 	cache_entry_subject<ip_address, route_val*>* p_ces = NULL;
-	if (m_p_rt_entry || g_p_route_table_mgr->register_observer(m_dst_ip, this, &p_ces)) {
+
+	if (m_bound_ip) {
+		ret_val = update_net_dev_val();
+	} else if (m_p_rt_entry || g_p_route_table_mgr->register_observer(m_dst_ip, this, &p_ces)) {
 		if (m_p_rt_entry == NULL) {
 			// In case this is the first time we trying to resolve route entry,
 			// means that register_observer was run
@@ -539,6 +550,13 @@ void dst_entry::do_ring_migration(lock_base& socket_lock)
 	m_p_net_dev_val->release_ring(old_key);
 
 	socket_lock.lock();
+}
+
+void dst_entry::set_bound_addr(in_addr_t addr)
+{
+	dst_logdbg("");
+	m_bound_ip = addr;
+	set_state(false);
 }
 
 in_addr_t dst_entry::get_src_addr()

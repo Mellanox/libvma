@@ -206,6 +206,15 @@ int sockinfo_udp::bind(const struct sockaddr *__addr, socklen_t __addrlen)
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 	si_udp_logdbg("bound to %s", m_bound.to_str());
+
+	dst_entry_map_t::iterator dst_entry_iter = m_dst_entry_map.begin();
+	while (dst_entry_iter != m_dst_entry_map.end()) {
+		if (!m_bound.is_anyaddr() && !m_bound.is_mc()) {
+			dst_entry_iter->second->set_bound_addr(m_bound.get_in_addr());
+		}
+		dst_entry_iter++;
+	}
+
 	return 0;
 }
 
@@ -297,6 +306,9 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 			si_udp_logpanic("Failed to create dst_entry(dst_ip:%s, dst_port:%d, src_port:%d)", NIPQUAD(dst_ip), ntohs(dst_port), ntohs(src_port));
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
+		if (!m_bound.is_anyaddr() && !m_bound.is_mc()) {
+			m_p_connected_dst_entry->set_bound_addr(m_bound.get_in_addr());
+		}
 
 		return 0;
 	}
@@ -1309,7 +1321,9 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 				si_udp_logpanic("Failed to create dst_entry(dst_ip:%s, dst_port:%d, src_port:%d)", dst.to_str_in_addr(), dst.to_str_in_port(), ntohs(src_port));
 			}
 			BULLSEYE_EXCLUDE_BLOCK_END
-
+			if (!m_bound.is_anyaddr() && !m_bound.is_mc()) {
+				p_dst_entry->set_bound_addr(m_bound.get_in_addr());
+			}
 			// Save new dst_entry in map
 			m_dst_entry_map[dst] = p_dst_entry;
 			/* ADD logging

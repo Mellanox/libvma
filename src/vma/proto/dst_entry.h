@@ -52,6 +52,7 @@ public:
 	bool		try_migrate_ring(lock_base& socket_lock);
 
 	bool 		is_offloaded() { return m_b_is_offloaded; }
+	void		set_bound_addr(in_addr_t addr);
 	in_addr_t	get_src_addr();
 	in_addr_t	get_dst_addr();
 	uint16_t	get_dst_port();
@@ -74,6 +75,8 @@ protected:
 	ip_address 		m_dst_ip;
 	uint16_t 		m_dst_port;
 	uint16_t 		m_src_port;
+
+	in_addr_t		m_bound_ip;
 
 	lock_mutex_recursive 	m_slow_path_lock;
 	struct ibv_send_wr 	m_inline_send_wqe;

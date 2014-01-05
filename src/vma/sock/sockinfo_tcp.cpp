@@ -298,6 +298,9 @@ void sockinfo_tcp::create_dst_entry()
 			si_tcp_logpanic("Failed to allocate m_p_connected_dst_entry");
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
+		if (!m_bound.is_anyaddr()) {
+			m_p_connected_dst_entry->set_bound_addr(m_bound.get_in_addr());
+		}
 	}
 }
 
