@@ -1040,6 +1040,8 @@ void get_env_params()
 	if (tempVal < 0 || tempVal >= ALLOC_TYPE_LAST)
 		tempVal = MCE_DEFAULT_MEM_ALLOC_TYPE;
 
+	mce_sys.mem_alloc_type = (alloc_mode_t)tempVal;
+
 	if ((env_ptr = getenv(SYS_VAR_BF)) != NULL)
 		mce_sys.handle_bf = atoi(env_ptr) ? true : false;
 
@@ -1082,34 +1084,35 @@ void get_env_params()
 	}
 #endif
 
-	if(mce_sys.handle_bf){
-		setenv("MLX4_POST_SEND_PREFER_BF", "1", 1);
-	} else {
-		setenv("MLX4_POST_SEND_PREFER_BF", "0", 1);
-	}
+}
 
+void set_env_params()
+{
 	// Need to call setenv() only after getenv() is done, because /bin/sh has
 	// a custom setenv() which overrides original environment.
 
-	mce_sys.mem_alloc_type = (alloc_mode_t)tempVal;
+	if(mce_sys.handle_bf){
+                setenv("MLX4_POST_SEND_PREFER_BF", "1", 1);
+        } else {
+                setenv("MLX4_POST_SEND_PREFER_BF", "0", 1);
+        }
 
-	switch (mce_sys.mem_alloc_type) {
-	case ALLOC_TYPE_ANON:
-		setenv("MLX_QP_ALLOC_TYPE", "ANON", 0);
-		setenv("MLX_CQ_ALLOC_TYPE", "ANON", 0);
-		break;
-	case ALLOC_TYPE_HUGEPAGES:
-		setenv("RDMAV_HUGEPAGES_SAFE", "1", 0);
-		setenv("MLX_QP_ALLOC_TYPE", "ALL", 0);
-		setenv("MLX_CQ_ALLOC_TYPE", "ALL", 0);
-		break;
-	case ALLOC_TYPE_CONTIG:
-	default:
-		setenv("MLX_QP_ALLOC_TYPE", "PREFER_CONTIG", 0);
-		setenv("MLX_CQ_ALLOC_TYPE", "PREFER_CONTIG", 0);
-		break;
-	}
-
+        switch (mce_sys.mem_alloc_type) {
+        case ALLOC_TYPE_ANON:
+                setenv("MLX_QP_ALLOC_TYPE", "ANON", 0);
+                setenv("MLX_CQ_ALLOC_TYPE", "ANON", 0);
+                break;
+        case ALLOC_TYPE_HUGEPAGES:
+                setenv("RDMAV_HUGEPAGES_SAFE", "1", 0);
+                setenv("MLX_QP_ALLOC_TYPE", "ALL", 0);
+                setenv("MLX_CQ_ALLOC_TYPE", "ALL", 0);
+                break;
+        case ALLOC_TYPE_CONTIG:
+        default:
+                setenv("MLX_QP_ALLOC_TYPE", "PREFER_CONTIG", 0);
+                setenv("MLX_CQ_ALLOC_TYPE", "PREFER_CONTIG", 0);
+                break;
+        }
 }
 
 void register_handler_segv()
@@ -1250,6 +1253,8 @@ void do_global_ctors()
 	}
 	g_init_global_ctors_done = true;
 
+	set_env_params();
+	
 	if (g_is_forked_child == true)
 		g_is_forked_child = false;
 
