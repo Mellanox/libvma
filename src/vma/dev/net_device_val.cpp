@@ -98,7 +98,7 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 	m_p_L2_addr	= NULL;
 	m_cma_id        = cma_id;
 	m_if_idx        = if_nametoindex(m_name.c_str());
-	m_mtu           = get_if_mtu_from_ifname(m_name.c_str());
+	m_mtu           = get_if_mtu_from_ifname(m_name.c_str(), (m_transport_type != VMA_TRANSPORT_IB));
 	if (m_mtu != (int)mce_sys.mtu) {
 		nd_logwarn("Mismatch between interface %s MTU=%d and VMA_MTU=%d. Make sure VMA_MTU and all offloaded interfaces MTUs match.", m_name.c_str(), m_mtu, mce_sys.mtu);
 	}

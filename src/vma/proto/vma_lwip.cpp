@@ -186,21 +186,17 @@ err_t vma_lwip::vma_lwip_netif_init(struct netif *lwip_if)
 
 u16_t vma_lwip::vma_ip_route_mtu(ip_addr_t *dest)
 {
-	char ifname[IFNAMSIZ];
-	uint32_t ifflags;
 	struct sockaddr_in addr;
-	int ifmtu;
+	int ifmtu = 0;
 
 	addr.sin_family = AF_INET;
 	addr.sin_port = 0;
 	g_p_route_table_mgr->route_resolve(dest->addr, &addr.sin_addr.s_addr);
-
-	struct sockaddr* local_if = (struct sockaddr*)(&addr);
-	if (get_ifinfo_from_ip(*local_if, ifname, ifflags)) {
-		return 0;
+	net_device_val* ndv = g_p_net_device_table_mgr->get_net_device_val(addr.sin_addr.s_addr);
+	if (ndv) {
+		ifmtu = ndv->get_mtu();
 	}
 
-	ifmtu = get_if_mtu_from_ifname(ifname);
 	if (ifmtu <= 0) {
 		return 0;
 	}
