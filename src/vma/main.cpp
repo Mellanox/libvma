@@ -1091,7 +1091,7 @@ void set_env_params()
 	// Need to call setenv() only after getenv() is done, because /bin/sh has
 	// a custom setenv() which overrides original environment.
 
-	setenv("MLX4_SINGLE_THREADED", "1", 0);
+	//setenv("MLX4_SINGLE_THREADED", "1", 0);
 
 	if(mce_sys.handle_bf){
                 setenv("MLX4_POST_SEND_PREFER_BF", "1", 1);
