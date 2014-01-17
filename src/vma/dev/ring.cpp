@@ -110,11 +110,18 @@ ring::~ring()
 	// Release QP/CQ resources
 	while ((ring_resource_iter = m_ring_resources_map.begin()) != m_ring_resources_map.end()) {
 		delete ring_resource_iter->second.m_p_qp_mgr;
+
+		// Delete the rx channel fd from the global fd collection
+		if (g_p_fd_collection) {
+			g_p_fd_collection->del_cq_channel_fd(ring_resource_iter->second.m_p_rx_comp_event_channel->fd, true);
+		}
+
 		IF_VERBS_FAILURE(ibv_destroy_comp_channel(ring_resource_iter->second.m_p_rx_comp_event_channel)) {
 			ring_logdbg("destroy comp channel failed (errno=%d %m)", errno);
 		} ENDIF_VERBS_FAILURE;
 		m_ring_resources_map.erase(ring_resource_iter);
 	}
+	delete[] m_p_n_rx_channel_fds;
 
 	int buffer_accounting = m_tx_num_bufs - m_tx_pool.size() - m_missing_buf_ref_count;
 	ring_logdbg("Tx buffer poll: free count = %u, sender_has = %d, total = %d, %s (%d)",

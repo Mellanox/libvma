@@ -412,14 +412,14 @@ int fd_collection::add_cq_channel_fd(int cq_ch_fd, ring* p_ring)
 
 	// Check if cq_channel_info was already created
 	cq_channel_info* p_cq_ch_info = get_cq_channel_fd(cq_ch_fd);
+	BULLSEYE_EXCLUDE_BLOCK_START
 	if (p_cq_ch_info) {
-		fdcoll_logdbg("cq channel fs already exists in fd_collection");
+		fdcoll_logwarn("cq channel fd already exists in fd_collection");
 		m_p_cq_channel_map[cq_ch_fd] = NULL;
 		delete p_cq_ch_info;
 		p_cq_ch_info = NULL;
-		unlock();
-		return 0;
 	}
+	BULLSEYE_EXCLUDE_BLOCK_END
 
 	unlock();
 	p_cq_ch_info = new cq_channel_info(p_ring);
@@ -480,16 +480,10 @@ int fd_collection::del_epfd(int fd, bool b_cleanup /*=false*/)
 	return del(fd, b_cleanup, m_p_epfd_map);
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
 int fd_collection::del_cq_channel_fd(int fd, bool b_cleanup /*=false*/)
 {
 	return del(fd, b_cleanup, m_p_cq_channel_map);
 }
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 template <typename cls>
 int fd_collection::del(int fd, bool b_cleanup, cls **map_type)
