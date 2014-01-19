@@ -115,7 +115,7 @@ public:
 	flow_tuple_with_local_if(sock_addr& dst, sock_addr& src, in_protocol_t protocol, in_addr_t local_if) :
 		flow_tuple(dst, src, protocol), m_local_if(local_if) { set_str(); };
 	flow_tuple_with_local_if(in_addr_t dst_ip, in_addr_t src_ip, in_port_t dst_port, in_port_t src_port, in_protocol_t protocol, in_addr_t local_if) :
-		flow_tuple(dst_ip, src_ip, dst_port, src_port, protocol), m_local_if(local_if) { set_str(); };
+		flow_tuple(dst_ip, dst_port, src_ip, src_port, protocol), m_local_if(local_if) { set_str(); };
 
 	in_addr_t	get_local_if() { return m_local_if; }
 
