@@ -68,7 +68,7 @@ int epoll_wait_call::get_current_events()
 	ep_ready_fd_map_t::iterator iter = m_epfd_info->m_ready_fds.begin();
 	while (iter != m_epfd_info->m_ready_fds.end() && i < m_maxevents) {
 		ep_ready_fd_map_t::iterator iter_cpy = iter; // for protection needs
-		iter++;
+		++iter;
 		p_socket_object = fd_collection_get_sockfd(iter_cpy->first);
 		if (p_socket_object)
 		{
@@ -110,7 +110,7 @@ int epoll_wait_call::get_current_events()
 
 			if (got_event) {
 				socket_fd_vec.push_back(p_socket_object);
-				i++;
+				++i;
 			}
 		}
 		else {

@@ -444,16 +444,9 @@ int epfd_info::mod_fd(int fd, epoll_event *event)
 	
 	bool is_offloaded = temp_sock_fd_api && temp_sock_fd_api->get_type()== FD_TYPE_SOCKET;
 
-	if(event->events == 0 || is_offloaded){
-		ep_ready_fd_map_t::iterator iter = m_ready_fds.find(fd);
-		if (iter != m_ready_fds.end()) {
-			m_ready_fds.erase(iter);
-		}
-	}
-
+	uint32_t events = 0;
 	if (is_offloaded) {
 		// if the socket is ready, add it to ready events
-		uint32_t events = 0;
 		if ((event->events & EPOLLIN) && temp_sock_fd_api->is_readable(NULL, NULL)) {
 			events |=  EPOLLIN;
 		}
@@ -466,6 +459,10 @@ int epfd_info::mod_fd(int fd, epoll_event *event)
 		if (events != 0) {
 			insert_epoll_event(fd, events); // mutex is recursive
 		}
+	}
+
+	if(event->events == 0 || events == 0){
+		m_ready_fds.erase(fd);
 	}
 
 	__log_func("fd %d modified in epfd %d with events=%#x and data=%#x", 
