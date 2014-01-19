@@ -980,10 +980,10 @@ void get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_TCP_TIMER_RESOLUTION_MSEC)) != NULL) {
 			mce_sys.tcp_timer_resolution_msec = atoi(env_ptr);
-			if(mce_sys.tcp_timer_resolution_msec < mce_sys.timer_resolution_msec){
-				vlog_printf(VLOG_WARNING," TCP timer resolution [%s=%d] cannot be smaller than timer resolution [%s=%d]. Setting TCP timer resolution to %d msec.\n", SYS_VAR_TCP_TIMER_RESOLUTION_MSEC, mce_sys.tcp_timer_resolution_msec, SYS_VAR_TIMER_RESOLUTION_MSEC, mce_sys.timer_resolution_msec, mce_sys.timer_resolution_msec);
-				mce_sys.tcp_timer_resolution_msec = mce_sys.timer_resolution_msec;
-			}
+	}
+	if(mce_sys.tcp_timer_resolution_msec < mce_sys.timer_resolution_msec){
+		vlog_printf(VLOG_WARNING," TCP timer resolution [%s=%d] cannot be smaller than timer resolution [%s=%d]. Setting TCP timer resolution to %d msec.\n", SYS_VAR_TCP_TIMER_RESOLUTION_MSEC, mce_sys.tcp_timer_resolution_msec, SYS_VAR_TIMER_RESOLUTION_MSEC, mce_sys.timer_resolution_msec, mce_sys.timer_resolution_msec);
+		mce_sys.tcp_timer_resolution_msec = mce_sys.timer_resolution_msec;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_INTERNAL_THREAD_ARM_CQ)) != NULL)
