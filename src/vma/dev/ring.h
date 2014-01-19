@@ -86,8 +86,8 @@ typedef hash_map<flow_spec_udp_uc_key_t, rfs*> flow_spec_udp_uc_map_t;
 inline bool
 operator==(flow_spec_udp_mc_key_t const& key1, flow_spec_udp_mc_key_t const& key2)
 {
-	return 	(key1.dst_ip == key2.dst_ip) &&
-		(key1.dst_port == key2.dst_port);
+	return 	(key1.dst_port == key2.dst_port) &&
+		(key1.dst_ip == key2.dst_ip);
 }
 
 #if _BullseyeCoverage
@@ -114,9 +114,9 @@ typedef hash_map<flow_spec_udp_mc_key_t, rfs*> flow_spec_udp_mc_map_t;
 inline bool
 operator==(flow_spec_tcp_key_t const& key1, flow_spec_tcp_key_t const& key2)
 {
-	return	(key1.src_ip == key2.src_ip) &&
-		(key1.dst_port == key2.dst_port) &&
-		(key1.src_port == key2.src_port);
+	return	(key1.src_port == key2.src_port) &&
+		(key1.src_ip == key2.src_ip) &&
+		(key1.dst_port == key2.dst_port);
 }
 
 #if _BullseyeCoverage
