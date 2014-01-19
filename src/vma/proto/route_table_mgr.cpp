@@ -528,6 +528,8 @@ void route_table_mgr::update_entry(INOUT route_entry* p_rte, bool b_register_to_
 
 			// All good, validate the new route entry
 			p_rte->set_entry_valid();
+		} else {
+			rt_mgr_logdbg("ERROR: could not find route val for route_entry '%s'", p_rte->to_str().c_str());
 		}
 	}
 }

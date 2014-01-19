@@ -76,6 +76,11 @@ void route_entry::register_to_net_device()
 
 void route_entry::unregister_to_net_device()
 {
+	if (!m_val) {
+		rt_entry_logdbg("ERROR: failed to find route val");
+		return;
+	}
+
 	ip_address src_addr = m_val->get_src_addr();
 
 	if (m_b_offloaded_net_dev) {
