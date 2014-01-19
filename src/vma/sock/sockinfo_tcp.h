@@ -123,8 +123,8 @@ public:
 	static struct tcp_seg * tcp_seg_alloc(void* p_conn);
 	static void tcp_seg_free(void* p_conn, struct tcp_seg * seg);
 
-	bool is_readable(uint64_t *p_poll_sn, fd_array_t *p_fd_array = NULL);
-	bool is_writeable();
+	bool inline is_readable(uint64_t *p_poll_sn, fd_array_t *p_fd_array = NULL);
+	bool inline is_writeable();
 	bool is_closable() { return m_pcb.state == CLOSED && m_syn_received.empty() && m_accepted_conns.empty(); }
 	int rx_request_notification(uint64_t poll_sn);
 	bool skip_os_select()

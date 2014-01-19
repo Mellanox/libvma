@@ -1878,7 +1878,7 @@ bool sockinfo_tcp::is_readable(uint64_t *p_poll_sn, fd_array_t* p_fd_array)
 		state = m_ready_conn_cnt == 0 ? false : true; 
 		if (state) {
 			si_tcp_logdbg("accept ready");
-			goto noblock;
+			goto noblock_nolock;
 		}
 
 		if (m_sock_state == TCP_SOCK_ACCEPT_SHUT) goto noblock;
@@ -1894,11 +1894,11 @@ bool sockinfo_tcp::is_readable(uint64_t *p_poll_sn, fd_array_t* p_fd_array)
 		// unconnected tcp sock is always ready for read!
 		// return its fd as ready
 		si_tcp_logdbg("block check on unconnected socket");
-		goto noblock;
+		goto noblock_nolock;
 	}
 
 	if (m_n_rx_pkt_ready_list_count)
-		goto noblock;
+		goto noblock_nolock;
 
 	if (!p_poll_sn)
 		return false;
@@ -1938,8 +1938,9 @@ bool sockinfo_tcp::is_readable(uint64_t *p_poll_sn, fd_array_t* p_fd_array)
 	}
 noblock:
 	m_rx_ring_map_lock.unlock();
+noblock_nolock:
 	return true;
-	}
+}
 
 bool sockinfo_tcp::is_writeable()
 {
