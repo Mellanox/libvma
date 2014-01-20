@@ -127,6 +127,16 @@ typedef struct __attribute__ ((packed)) attach_flow_data_t {
 
 typedef std::vector<attach_flow_data_t*> attach_flow_data_vector_t;
 
+
+class rfs_rule_filter
+{
+public:
+	rfs_rule_filter(rule_filter_map_t& map, uint32_t key, flow_tuple& flow_tuple) : m_map(map), m_key(key), m_flow_tuple(flow_tuple) {}
+	rule_filter_map_t& m_map;
+	uint32_t m_key;
+	flow_tuple m_flow_tuple;
+};
+
 /**
  * @class rfs
  *
@@ -139,7 +149,7 @@ typedef std::vector<attach_flow_data_t*> attach_flow_data_vector_t;
 class rfs
 {
 public:
-	rfs(flow_tuple *flow_spec_5t, ring *p_ring);
+	rfs(flow_tuple *flow_spec_5t, ring *p_ring, rfs_rule_filter* rule_filter = NULL);
 	virtual ~rfs();
 
 	/**
@@ -159,6 +169,7 @@ public:
 protected:
 	flow_tuple		m_flow_tuple;
 	ring*			m_p_ring;
+	rfs_rule_filter*	m_p_rule_filter;
 	attach_flow_data_vector_t m_attach_flow_data_vector;
 	pkt_rcvr_sink**		m_sinks_list;
 	uint32_t 		m_n_sinks_list_entries; // Number of actual sinks in the array (we shrink the array if a sink is removed)
@@ -173,9 +184,9 @@ protected:
 
 private:
 	rfs();		// I don't want anyone to use the default constructor
-	inline void 		prepare_ib_mc_attach(int& ib_mc_counter, ib_mc_ip_attach_map_t::iterator& ib_mc_ip_iter);
-	inline void 		ib_mc_keep_attached(ib_mc_ip_attach_map_t::iterator& ib_mc_ip_iter);
-	inline void 		prepare_ib_mc_detach(int& ib_mc_counter);
+	inline void 		prepare_filter_attach(int& filter_counter, rule_filter_map_t::iterator& filter_iter);
+	inline void 		filter_keep_attached(rule_filter_map_t::iterator& filter_iter);
+	inline void 		prepare_filter_detach(int& filter_counter);
 
 };
 

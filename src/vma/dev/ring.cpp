@@ -319,17 +319,19 @@ bool ring::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		// For IB MC flow, the port is zeroed in the ibv_flow_spec when calling to ibv_flow_spec().
 		// It means that for every MC group, even if we have sockets with different ports - only one rule in the HW.
 		// So the hash map below keeps track of the number of sockets per rule so we know when to call ibv_attach and ibv_detach
+		rfs_rule_filter* ib_mc_ip_filter = NULL;
 		if (m_transport_type == VMA_TRANSPORT_IB) {
-			ib_mc_ip_attach_map_t::iterator ib_mc_iter = m_ib_mc_ip_attach_map.find(key_udp_mc.dst_ip);
+			rule_filter_map_t::iterator ib_mc_iter = m_ib_mc_ip_attach_map.find(key_udp_mc.dst_ip);
 			if (ib_mc_iter == m_ib_mc_ip_attach_map.end()) { // It means that this is the first time attach called with this MC ip
 				m_ib_mc_ip_attach_map[key_udp_mc.dst_ip].counter = 1;
 			} else {
 				m_ib_mc_ip_attach_map[key_udp_mc.dst_ip].counter = ((ib_mc_iter->second.counter) + 1);
 			}
+			ib_mc_ip_filter = new rfs_rule_filter(m_ib_mc_ip_attach_map, key_udp_mc.dst_ip, flow_spec_5t);
 		}
 		p_rfs = m_flow_udp_mc_map.get(key_udp_mc, NULL);
 		if (p_rfs == NULL) {		// It means that no rfs object exists so I need to create a new one and insert it to the flow map
-			p_rfs = new rfs_mc(&flow_spec_5t, this);
+			p_rfs = new rfs_mc(&flow_spec_5t, this, ib_mc_ip_filter);
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (p_rfs == NULL) {
 				ring_logpanic("Failed to allocate rfs!");
@@ -339,12 +341,24 @@ bool ring::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		}
 	} else if (flow_spec_5t.is_tcp()) {
 		flow_spec_tcp_key_t key_tcp = {flow_spec_5t.get_src_ip(), flow_spec_5t.get_dst_port(), flow_spec_5t.get_src_port()};
+		rfs_rule_filter* tcp_dst_port_filter = NULL;
+		if (mce_sys.tcp_3t_rules) {
+			rule_filter_map_t::iterator tcp_dst_port_iter = m_tcp_dst_port_attach_map.find(key_tcp.dst_port);
+			if (tcp_dst_port_iter == m_tcp_dst_port_attach_map.end()) {
+				m_tcp_dst_port_attach_map[key_tcp.dst_port].counter = 1;
+			} else {
+				m_tcp_dst_port_attach_map[key_tcp.dst_port].counter = ((tcp_dst_port_iter->second.counter) + 1);
+			}
+			flow_tuple tcp_3t_only(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port(), 0, 0, flow_spec_5t.get_protocol());
+			tcp_dst_port_filter = new rfs_rule_filter(m_tcp_dst_port_attach_map, key_tcp.dst_port, tcp_3t_only);
+		}
+
 		p_rfs = m_flow_tcp_map.get(key_tcp, NULL);
 		if (p_rfs == NULL) {		// It means that no rfs object exists so I need to create a new one and insert it to the flow map
 			if(mce_sys.gro_streams_max && flow_spec_5t.is_5_tuple()) {
-				p_rfs = new rfs_uc_tcp_gro(&flow_spec_5t, this);
+				p_rfs = new rfs_uc_tcp_gro(&flow_spec_5t, this, tcp_dst_port_filter);
 			} else {
-				p_rfs = new rfs_uc(&flow_spec_5t, this);
+				p_rfs = new rfs_uc(&flow_spec_5t, this, tcp_dst_port_filter);
 			}
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (p_rfs == NULL) {
@@ -394,7 +408,7 @@ bool ring::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 		int keep_in_map = 1;
 		flow_spec_udp_mc_key_t key_udp_mc = {flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port()};
 		if (m_transport_type == VMA_TRANSPORT_IB) {
-			ib_mc_ip_attach_map_t::iterator ib_mc_iter = m_ib_mc_ip_attach_map.find(key_udp_mc.dst_ip);
+			rule_filter_map_t::iterator ib_mc_iter = m_ib_mc_ip_attach_map.find(key_udp_mc.dst_ip);
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (ib_mc_iter == m_ib_mc_ip_attach_map.end()) {
 				ring_logdbg("Could not find matching counter for the MC group!");
@@ -423,7 +437,18 @@ bool ring::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 			delete p_rfs;
 		}
 	} else if (flow_spec_5t.is_tcp()) {
+		int keep_in_map = 1;
 		flow_spec_tcp_key_t key_tcp = {flow_spec_5t.get_src_ip(), flow_spec_5t.get_dst_port(), flow_spec_5t.get_src_port()};
+		if (mce_sys.tcp_3t_rules) {
+			rule_filter_map_t::iterator tcp_dst_port_iter = m_tcp_dst_port_attach_map.find(key_tcp.dst_port);
+			BULLSEYE_EXCLUDE_BLOCK_START
+			if (tcp_dst_port_iter == m_tcp_dst_port_attach_map.end()) {
+				ring_logdbg("Could not find matching counter for TCP src port!");
+				BULLSEYE_EXCLUDE_BLOCK_END
+			} else {
+				keep_in_map = m_tcp_dst_port_attach_map[key_tcp.dst_port].counter = MAX(0 , ((tcp_dst_port_iter->second.counter) - 1));
+			}
+		}
 		p_rfs = m_flow_tcp_map.get(key_tcp, NULL);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (p_rfs == NULL) {
@@ -432,6 +457,9 @@ bool ring::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		p_rfs->detach_flow(sink);
+		if(!keep_in_map){
+			m_tcp_dst_port_attach_map.erase(m_tcp_dst_port_attach_map.find(key_tcp.dst_port));
+		}
 		if (p_rfs->get_num_of_sinks() == 0) {
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (!(m_flow_tcp_map.del(key_tcp))) {

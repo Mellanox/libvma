@@ -228,11 +228,13 @@ typedef std::tr1::unordered_map<ring_resource_definition, ring_resources_info_t>
 
 typedef std::tr1::unordered_map<int, ring_resources_map_t::iterator> p_rx_channel_fd_to_ring_resources_t;
 
-struct mc_ip_attach_counter_and_ibv_flow {
+
+struct counter_and_ibv_flows {
 	int counter;
 	std::vector<struct ibv_flow*> ibv_flows;
 };
-typedef std::tr1::unordered_map<in_addr_t, struct mc_ip_attach_counter_and_ibv_flow> ib_mc_ip_attach_map_t;
+
+typedef std::tr1::unordered_map<uint32_t, struct counter_and_ibv_flows> rule_filter_map_t;
 
 /**
  * @class ring
@@ -304,7 +306,8 @@ protected:
 	// For IB MC flow, the port is zeroed in the ibv_flow_spec when calling to ibv_flow_spec().
 	// It means that for every MC group, even if we have sockets with different ports - only one rule in the HW.
 	// So the hash map below keeps track of the number of sockets per rule so we know when to call ibv_attach and ibv_detach
-	ib_mc_ip_attach_map_t			m_ib_mc_ip_attach_map;
+	rule_filter_map_t			m_ib_mc_ip_attach_map;
+	rule_filter_map_t			m_tcp_dst_port_attach_map;
 	struct ibv_comp_channel* 		m_p_tx_comp_event_channel;
 	flow_spec_tcp_map_t 	 		m_flow_tcp_map;
 	flow_spec_udp_mc_map_t 	 		m_flow_udp_mc_map;

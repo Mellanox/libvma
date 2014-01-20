@@ -18,12 +18,10 @@
 
 #define MODULE_NAME 		"rfs"
 
-#define IB_MC_MAP_NULL m_p_ring->m_ib_mc_ip_attach_map.end()
 
-
-rfs::rfs(flow_tuple *flow_spec_5t, ring *p_ring):
-	m_flow_tuple(*flow_spec_5t), m_p_ring(p_ring),
-	m_n_sinks_list_entries(0), m_n_sinks_list_max_length(RFS_SINKS_LIST_DEFAULT_LEN),
+rfs::rfs(flow_tuple *flow_spec_5t, ring *p_ring, rfs_rule_filter* rule_filter /*= NULL*/):
+	m_flow_tuple(rule_filter ? rule_filter->m_flow_tuple : *flow_spec_5t), m_p_ring(p_ring),
+	m_p_rule_filter(rule_filter), m_n_sinks_list_entries(0), m_n_sinks_list_max_length(RFS_SINKS_LIST_DEFAULT_LEN),
 	m_b_tmp_is_attached(false)
 {
 	m_sinks_list = new pkt_rcvr_sink*[m_n_sinks_list_max_length];
@@ -39,14 +37,14 @@ rfs::rfs(flow_tuple *flow_spec_5t, ring *p_ring):
 
 rfs::~rfs()
 {
-	// If IB MC flow, need to detach flow only if this is the last attached rule for this specific MC group (i.e. counter == 0)
-	if ((m_p_ring->get_transport_type() == VMA_TRANSPORT_IB) && (m_flow_tuple.is_udp_mc())) {
-		ib_mc_ip_attach_map_t::iterator ib_mc_iter = m_p_ring->m_ib_mc_ip_attach_map.find(m_flow_tuple.get_dst_ip());
-		if (ib_mc_iter != IB_MC_MAP_NULL && (m_b_tmp_is_attached == true)) {
-			m_p_ring->m_ib_mc_ip_attach_map[m_flow_tuple.get_dst_ip()].counter = (ib_mc_iter->second.counter > 0 ? ((ib_mc_iter->second.counter) - 1) : 0);
-			if (ib_mc_iter->second.counter == 0) {
+	// If filter, need to detach flow only if this is the last attached rule for this specific filter group (i.e. counter == 0)
+	if (m_p_rule_filter) {
+		rule_filter_map_t::iterator filter_iter = m_p_rule_filter->m_map.find(m_p_rule_filter->m_key);
+		if (filter_iter !=  m_p_rule_filter->m_map.end() && (m_b_tmp_is_attached == true)) {
+			filter_iter->second.counter = (filter_iter->second.counter > 0 ? ((filter_iter->second.counter) - 1) : 0);
+			if (filter_iter->second.counter == 0) {
 				destroy_ibv_flow();
-				m_p_ring->m_ib_mc_ip_attach_map.erase(m_flow_tuple.get_dst_ip());
+				m_p_rule_filter->m_map.erase(m_p_rule_filter->m_key);
 			}
 		}
 	} else {
@@ -55,6 +53,10 @@ rfs::~rfs()
 		}
 	}
 
+	if (m_p_rule_filter) {
+		delete m_p_rule_filter;
+		m_p_rule_filter = NULL;
+	}
 	delete[] m_sinks_list;
 
 	while (m_attach_flow_data_vector.size() > 0) {
@@ -133,15 +135,15 @@ bool rfs::del_sink(pkt_rcvr_sink* p_sink)
 bool rfs::attach_flow(pkt_rcvr_sink *sink)
 {
 	bool ret;
-	int ib_mc_counter = 1;
-	ib_mc_ip_attach_map_t::iterator ib_mc_ip_iter = IB_MC_MAP_NULL;
+	int filter_counter = 1;
+	rule_filter_map_t::iterator filter_iter;
 
-	prepare_ib_mc_attach(ib_mc_counter, ib_mc_ip_iter);
+	prepare_filter_attach(filter_counter, filter_iter);
 
 	// We also check if this is the FIRST sink so we need to call ibv_attach_flow
-	if ((m_n_sinks_list_entries == 0) && (!m_b_tmp_is_attached) && (ib_mc_counter == 1)) {
+	if ((m_n_sinks_list_entries == 0) && (!m_b_tmp_is_attached) && (filter_counter == 1)) {
 		ret = create_ibv_flow();
-		ib_mc_keep_attached(ib_mc_ip_iter);
+		filter_keep_attached(filter_iter);
 	}
 
 	if (sink) {
@@ -157,7 +159,7 @@ bool rfs::attach_flow(pkt_rcvr_sink *sink)
 bool rfs::detach_flow(pkt_rcvr_sink *sink)
 {
 	bool ret = false;
-	int ib_mc_counter = 0;
+	int filter_counter = 0;
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (sink) {
@@ -167,10 +169,10 @@ bool rfs::detach_flow(pkt_rcvr_sink *sink)
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	prepare_ib_mc_detach(ib_mc_counter);
+	prepare_filter_detach(filter_counter);
 
 	// We also need to check if this is the LAST sink so we need to call ibv_attach_flow
-	if ((m_n_sinks_list_entries == 0) && (ib_mc_counter == 0)) {
+	if ((m_n_sinks_list_entries == 0) && (filter_counter == 0)) {
 		ret = destroy_ibv_flow();
 	}
 
@@ -212,49 +214,49 @@ bool rfs::destroy_ibv_flow()
 	return true;
 }
 
-inline void rfs::prepare_ib_mc_attach(int& ib_mc_counter, ib_mc_ip_attach_map_t::iterator& ib_mc_ip_iter)
+inline void rfs::prepare_filter_attach(int& filter_counter, rule_filter_map_t::iterator& filter_iter)
 {
-	// If IB MC flow, need to attach flow only if this is the first request for this specific MC group (i.e. counter == 1)
-	if ((m_p_ring->get_transport_type() != VMA_TRANSPORT_IB) || !(m_flow_tuple.is_udp_mc())) return;
+	// If filter flow, need to attach flow only if this is the first request for this specific group (i.e. counter == 1)
+	if (!m_p_rule_filter) return;
 
-	ib_mc_ip_iter = m_p_ring->m_ib_mc_ip_attach_map.find(m_flow_tuple.get_dst_ip());
-	if (ib_mc_ip_iter == IB_MC_MAP_NULL) {
-		rfs_logdbg("No matching counter for IB MC IP!!!");
+	filter_iter = m_p_rule_filter->m_map.find(m_p_rule_filter->m_key);
+	if (filter_iter == m_p_rule_filter->m_map.end()) {
+		rfs_logdbg("No matching counter for filter!!!");
 		return;
 	}
 
-	ib_mc_counter = ib_mc_ip_iter->second.counter;
-	m_b_tmp_is_attached = (ib_mc_counter > 1) || m_b_tmp_is_attached;
+	filter_counter = filter_iter->second.counter;
+	m_b_tmp_is_attached = (filter_counter > 1) || m_b_tmp_is_attached;
 }
 
-inline void rfs::ib_mc_keep_attached(ib_mc_ip_attach_map_t::iterator& ib_mc_ip_iter)
+inline void rfs::filter_keep_attached(rule_filter_map_t::iterator& filter_iter)
 {
-	if (ib_mc_ip_iter == IB_MC_MAP_NULL) return;
+	if (!m_p_rule_filter || filter_iter == m_p_rule_filter->m_map.end()) return;
 
-	//save all ibv_flow rules only for mc ip
+	//save all ibv_flow rules only for filter
 	for (size_t i = 0; i < m_attach_flow_data_vector.size(); i++) {
-		ib_mc_ip_iter->second.ibv_flows.push_back(m_attach_flow_data_vector[i]->ibv_flow);
+		filter_iter->second.ibv_flows.push_back(m_attach_flow_data_vector[i]->ibv_flow);
 	}
 }
 
-inline void rfs::prepare_ib_mc_detach(int& ib_mc_counter)
+inline void rfs::prepare_filter_detach(int& filter_counter)
 {
-	// If IB MC flow, need to detach flow only if this is the last attached rule for this specific MC group (i.e. counter == 0)
-	if ((m_p_ring->get_transport_type() != VMA_TRANSPORT_IB) || !(m_flow_tuple.is_udp_mc())) return;
+	// If filter, need to detach flow only if this is the last attached rule for this specific group (i.e. counter == 0)
+	if (!m_p_rule_filter) return;
 
-	ib_mc_ip_attach_map_t::iterator ib_mc_iter = m_p_ring->m_ib_mc_ip_attach_map.find(m_flow_tuple.get_dst_ip());
-	if (ib_mc_iter == IB_MC_MAP_NULL) {
-		rfs_logdbg("No matching counter for IB MC IP!!!");
+	rule_filter_map_t::iterator filter_iter = m_p_rule_filter->m_map.find(m_p_rule_filter->m_key);
+	if (filter_iter == m_p_rule_filter->m_map.end()) {
+		rfs_logdbg("No matching counter for filter!!!");
 		return;
 	}
 
-	ib_mc_counter = ib_mc_iter->second.counter;
+	filter_counter = filter_iter->second.counter;
 	//if we do not need to detach_ibv_flow, still mark this rfs as detached
-	m_b_tmp_is_attached = (ib_mc_counter == 0) && m_b_tmp_is_attached;
-	if (ib_mc_counter != 0 || ib_mc_iter->second.ibv_flows.empty()) return;
+	m_b_tmp_is_attached = (filter_counter == 0) && m_b_tmp_is_attached;
+	if (filter_counter != 0 || filter_iter->second.ibv_flows.empty()) return;
 
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (m_attach_flow_data_vector.size() != ib_mc_iter->second.ibv_flows.size()) {
+	if (m_attach_flow_data_vector.size() != filter_iter->second.ibv_flows.size()) {
 		//sanity check for having the same number of qps on all rfs objects
 		rfs_logerr("all rfs objects in the ring should have the same number of elements");
 	}
@@ -262,10 +264,10 @@ inline void rfs::prepare_ib_mc_detach(int& ib_mc_counter)
 
 	for (size_t i = 0; i < m_attach_flow_data_vector.size(); i++) {
 		BULLSEYE_EXCLUDE_BLOCK_START
-		if (m_attach_flow_data_vector[i]->ibv_flow && m_attach_flow_data_vector[i]->ibv_flow != ib_mc_iter->second.ibv_flows[i]) {
-			rfs_logerr("our assumption that there should be only one rules for mc ip is wrong");
-		} else if (ib_mc_iter->second.ibv_flows[i]) {
-			m_attach_flow_data_vector[i]->ibv_flow = ib_mc_iter->second.ibv_flows[i];
+		if (m_attach_flow_data_vector[i]->ibv_flow && m_attach_flow_data_vector[i]->ibv_flow != filter_iter->second.ibv_flows[i]) {
+			rfs_logerr("our assumption that there should be only one rule for filter group is wrong");
+		} else if (filter_iter->second.ibv_flows[i]) {
+			m_attach_flow_data_vector[i]->ibv_flow = filter_iter->second.ibv_flows[i];
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 	}

@@ -29,7 +29,7 @@
 class rfs_mc : public rfs
 {
 public:
-	rfs_mc(flow_tuple *flow_spec_5t, ring *p_ring);
+	rfs_mc(flow_tuple *flow_spec_5t, ring *p_ring, rfs_rule_filter* rule_filter = NULL);
 
 	virtual bool rx_dispatch_packet(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array);
 

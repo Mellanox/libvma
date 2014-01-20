@@ -18,7 +18,7 @@
 #define MODULE_NAME 		"rfs_mc"
 
 
-rfs_mc::rfs_mc(flow_tuple *flow_spec_5t, ring *p_ring) : rfs (flow_spec_5t, p_ring)
+rfs_mc::rfs_mc(flow_tuple *flow_spec_5t, ring *p_ring, rfs_rule_filter* rule_filter /*= NULL*/) : rfs (flow_spec_5t, p_ring, rule_filter)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_flow_tuple.is_udp_mc()) {

@@ -479,6 +479,8 @@ void print_vma_global_settings()
 
 	VLOG_PARAM_NUMBER("GRO max streams", mce_sys.gro_streams_max, MCE_DEFAULT_GRO_STREAMS_MAX, SYS_VAR_GRO_STREAMS_MAX);
 
+	VLOG_PARAM_STRING("TCP 3T rules", mce_sys.tcp_3t_rules, MCE_DEFAULT_TCP_3T_RULES, SYS_VAR_TCP_3T_RULES, mce_sys.tcp_3t_rules ? "Enabled " : "Disabled");
+
 	VLOG_PARAM_NUMBER("Select Poll (usec)", mce_sys.select_poll_num, MCE_DEFAULT_SELECT_NUM_POLLS, SYS_VAR_SELECT_NUM_POLLS);
 	VLOG_PARAM_STRING("Select Poll OS Force", mce_sys.select_poll_os_force, MCE_DEFAULT_SELECT_POLL_OS_FORCE, SYS_VAR_SELECT_POLL_OS_FORCE, mce_sys.select_poll_os_force ? "Enabled " : "Disabled");
 
@@ -646,6 +648,8 @@ void get_env_params()
 	mce_sys.rx_delta_tsc_between_cq_polls = 0;
 
 	mce_sys.gro_streams_max		= MCE_DEFAULT_GRO_STREAMS_MAX;
+
+	mce_sys.tcp_3t_rules		= MCE_DEFAULT_TCP_3T_RULES;
 
 	mce_sys.select_poll_num		= MCE_DEFAULT_SELECT_NUM_POLLS;
 	mce_sys.select_poll_os_force	= MCE_DEFAULT_SELECT_POLL_OS_FORCE;
@@ -923,6 +927,9 @@ void get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_GRO_STREAMS_MAX)) != NULL)
 		mce_sys.gro_streams_max = MAX(atoi(env_ptr), 0);
+
+	if ((env_ptr = getenv(SYS_VAR_TCP_3T_RULES)) != NULL)
+		mce_sys.tcp_3t_rules = atoi(env_ptr) ? true : false;
 
 	if ((env_ptr = getenv(SYS_VAR_SELECT_NUM_POLLS)) != NULL)
 		mce_sys.select_poll_num = atoi(env_ptr);
