@@ -112,17 +112,23 @@ void hash_map<K, V>::set_replace(const K &key, V value, V null_value) {
 
 template <typename K, typename V>
 inline int hash_map<K, V>::calc_hash(const K &key) {
-	uint8_t csum, *pval;
-	size_t i;
+	uint8_t *pval, *csum8;
+	uint16_t csum;
+	size_t i, j;
 
 	// uint32_t-size checksum on key
 	csum = 0;
+	csum8 = (uint8_t*)&csum;
 	pval = (uint8_t*)&key;
-	for (i = 0; i < sizeof(K); ++i) {
-		csum ^= *pval;
+	// start toggle from 1, as the keys are usually succeders, and gone through htons 
+	for (i = 0, j = 1; i < sizeof(K); ++i, j ^= 1) {
+		csum8[j] ^= *pval;
 		++pval;
 	}
-
+	// to 12 bit
+	csum = (csum8[0] ^ csum8[1]) | ((((csum >> 4) ^ (csum >> 8)) & 0xf) << 8);
+	// or modolu prime close to 4096
+	//csum %= 4093;
 	return csum;
 }
 

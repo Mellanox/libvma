@@ -40,7 +40,7 @@
  * @param NULL_VALUE invalid (sentinel) value for type V, i.e NULL for pointers.
  */
 
-#define HASH_MAP_SIZE	256
+#define HASH_MAP_SIZE	4096
 
 template <typename K, typename V>
 class hash_map {
