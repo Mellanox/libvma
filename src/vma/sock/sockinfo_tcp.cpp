@@ -1442,9 +1442,15 @@ int sockinfo_tcp::listen(int backlog)
 	struct epoll_event ev;
 	ev.events = EPOLLIN;
 	ev.data.fd = m_fd;
+	int ret = orig_os_api.epoll_ctl(m_rx_epfd, EPOLL_CTL_ADD, ev.data.fd, &ev);
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (unlikely(orig_os_api.epoll_ctl(m_rx_epfd, EPOLL_CTL_ADD, ev.data.fd, &ev)))
-		si_tcp_logpanic("failed to add user's fd to internal epfd errno=%d (%m)", errno);
+	if (unlikely(ret)) {
+		if (errno == EEXIST) {
+			si_tcp_logdbg("failed to add user's fd to internal epfd errno=%d (%m)", errno);
+		} else {
+			si_tcp_logpanic("failed to add user's fd to internal epfd errno=%d (%m)", errno);
+		}
+	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	unlock_tcp_con();
