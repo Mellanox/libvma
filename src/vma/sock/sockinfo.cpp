@@ -65,6 +65,7 @@ sockinfo::sockinfo(int fd):
 	m_p_socket_stats->fd = m_fd;
 	m_p_socket_stats->b_blocking = m_b_blocking;
 	m_p_connected_dst_entry = NULL;
+	m_so_bindtodevice_ip = 0;
 	m_rx_reuse_buff.n_buff_num = 0;
 	m_b_closed = false;
 }

@@ -301,6 +301,9 @@ void sockinfo_tcp::create_dst_entry()
 		if (!m_bound.is_anyaddr()) {
 			m_p_connected_dst_entry->set_bound_addr(m_bound.get_in_addr());
 		}
+		if (m_so_bindtodevice_ip) {
+			m_p_connected_dst_entry->set_so_bindtodevice_addr(m_so_bindtodevice_ip);
+		}
 	}
 }
 
@@ -2188,7 +2191,29 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
                             si_tcp_logdbg("SOL_SOCKET: SO_RCVTIMEO=%d", m_loops_timer.get_timeout_msec());
 
                         }
-						break;
+			break;
+
+                case SO_BINDTODEVICE:
+                	if (__optval) {
+                		struct sockaddr_in sockaddr;
+                		if (__optlen == 0 || ((char*)__optval)[0] == '\0') {
+                			m_so_bindtodevice_ip = 0;
+                		} else if (get_ipv4_from_ifname((char*)__optval, &sockaddr)) {
+                			si_tcp_logdbg("SOL_SOCKET, SO_BINDTODEVICE - NOT HANDLED, cannot find if_name");
+                			break;
+                		} else {
+                			m_so_bindtodevice_ip = sockaddr.sin_addr.s_addr;
+                		}
+                		// handle TX side
+                		if (m_p_connected_dst_entry) {
+                			m_p_connected_dst_entry->set_so_bindtodevice_addr(m_so_bindtodevice_ip);
+                		}
+                		// TODO handle RX side
+                	}
+                	else {
+                		si_tcp_logdbg("SOL_SOCKET, SO_BINDTODEVICE - NOT HANDLED, optval == NULL");
+                	}
+                	break;
 
 		default:
 			break;

@@ -28,7 +28,8 @@
 
 
 dst_entry::dst_entry(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, int owner_fd):
-	m_dst_ip(dst_ip), m_dst_port(dst_port), m_src_port(src_port), m_bound_ip(0), m_ring_alloc_logic(owner_fd, this), m_p_tx_mem_buf_desc_list(NULL)
+	m_dst_ip(dst_ip), m_dst_port(dst_port), m_src_port(src_port), m_bound_ip(0),
+	m_so_bindtodevice_ip(0), m_ring_alloc_logic(owner_fd, this), m_p_tx_mem_buf_desc_list(NULL)
 {
 	dst_logdbg("dst:%s:%d src: %d", m_dst_ip.to_str().c_str(), ntohs(m_dst_port), ntohs(m_src_port));
 	init_members();
@@ -105,9 +106,11 @@ bool dst_entry::update_net_dev_val()
 	net_device_val* new_nd_val = m_p_net_dev_val;
 	if (m_p_rt_entry) {
 		new_nd_val = m_p_rt_entry->get_net_dev_val();
-	} else if (m_bound_ip && g_p_net_device_table_mgr) {
-		new_nd_val = g_p_net_device_table_mgr->get_net_device_val(m_bound_ip);
-		dst_logdbg("getting net_dev_val by bounded ip");
+	} else if (m_so_bindtodevice_ip && g_p_net_device_table_mgr) {
+		new_nd_val = g_p_net_device_table_mgr->get_net_device_val(m_so_bindtodevice_ip);
+		// TODO should we register to g_p_net_device_table_mgr  with m_p_net_dev_entry?
+		// what should we do with an old one?
+		dst_logdbg("getting net_dev_val by bindtodevice ip");
 	}
 
 	if (m_p_net_dev_val != new_nd_val) {
@@ -169,7 +172,7 @@ bool dst_entry::resolve_net_dev()
 
 	cache_entry_subject<ip_address, route_val*>* p_ces = NULL;
 
-	if (m_bound_ip) {
+	if (m_so_bindtodevice_ip) {
 		ret_val = update_net_dev_val();
 	} else if (m_p_rt_entry || g_p_route_table_mgr->register_observer(m_dst_ip, this, &p_ces)) {
 		if (m_p_rt_entry == NULL) {
@@ -257,7 +260,7 @@ void dst_entry::notify_cb()
 
 void dst_entry::configure_ip_header(uint16_t packet_id)
 {
-	m_header.configure_ip_header(get_protocol_type(), m_p_net_dev_val->get_local_addr(), m_dst_ip.get_in_addr(), m_ttl, m_tos, packet_id);
+	m_header.configure_ip_header(get_protocol_type(), m_bound_ip ? m_bound_ip : m_p_net_dev_val->get_local_addr(), m_dst_ip.get_in_addr(), m_ttl, m_tos, packet_id);
 }
 
 bool dst_entry::conf_l2_hdr_and_snd_wqe_eth()
@@ -556,6 +559,13 @@ void dst_entry::set_bound_addr(in_addr_t addr)
 {
 	dst_logdbg("");
 	m_bound_ip = addr;
+	set_state(false);
+}
+
+void dst_entry::set_so_bindtodevice_addr(in_addr_t addr)
+{
+	dst_logdbg("");
+	m_so_bindtodevice_ip = addr;
 	set_state(false);
 }
 

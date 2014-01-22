@@ -296,7 +296,7 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 		// Create the new dst_entry
 		if (IN_MULTICAST_N(dst_ip)) {
 			m_p_connected_dst_entry = new dst_entry_udp_mc(dst_ip, dst_port, src_port,
-					m_mc_tx_if, m_b_mc_tx_loop, m_n_mc_ttl, m_fd);
+					m_mc_tx_if ? m_mc_tx_if : m_bound.get_in_addr(), m_b_mc_tx_loop, m_n_mc_ttl, m_fd);
 		}
 		else {
 			m_p_connected_dst_entry = new dst_entry_udp(dst_ip, dst_port, src_port, m_fd);
@@ -308,6 +308,9 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 		BULLSEYE_EXCLUDE_BLOCK_END
 		if (!m_bound.is_anyaddr() && !m_bound.is_mc()) {
 			m_p_connected_dst_entry->set_bound_addr(m_bound.get_in_addr());
+		}
+		if (m_so_bindtodevice_ip) {
+			m_p_connected_dst_entry->set_so_bindtodevice_addr(m_so_bindtodevice_ip);
 		}
 
 		return 0;
@@ -452,6 +455,34 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 				}
 				else {
 					si_udp_loginfo("SOL_SOCKET, %s=\"???\" - NOT HANDLED", setsockopt_so_opt_to_str(__optname));
+				}
+				break;
+
+			case SO_BINDTODEVICE:
+				if (__optval) {
+					struct sockaddr_in sockaddr;
+					if (__optlen == 0 || ((char*)__optval)[0] == '\0') {
+						m_so_bindtodevice_ip = 0;
+					} else if (get_ipv4_from_ifname((char*)__optval, &sockaddr)) {
+						si_udp_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, cannot find if_name", setsockopt_so_opt_to_str(__optname));
+						break;
+					} else {
+						m_so_bindtodevice_ip = sockaddr.sin_addr.s_addr;
+					}
+					// handle TX side
+					if (m_p_connected_dst_entry) {
+						m_p_connected_dst_entry->set_so_bindtodevice_addr(m_so_bindtodevice_ip);
+					} else {
+						dst_entry_map_t::iterator dst_entry_iter = m_dst_entry_map.begin();
+						while (dst_entry_iter != m_dst_entry_map.end()) {
+							dst_entry_iter->second->set_so_bindtodevice_addr(m_so_bindtodevice_ip);
+							dst_entry_iter++;
+						}
+					}
+					// TODO handle RX side
+				}
+				else {
+					si_udp_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
 				}
 				break;
 
@@ -1310,7 +1341,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 			// Create the new dst_entry
 			if (dst.is_mc()) {
 				p_dst_entry = new dst_entry_udp_mc(dst.get_in_addr(), dst.get_in_port(), src_port,
-						m_mc_tx_if, m_b_mc_tx_loop, m_n_mc_ttl, m_fd);
+						m_mc_tx_if ? m_mc_tx_if : m_bound.get_in_addr(), m_b_mc_tx_loop, m_n_mc_ttl, m_fd);
 			}
 			else {
 				p_dst_entry = new dst_entry_udp(dst.get_in_addr(), dst.get_in_port(),
@@ -1323,6 +1354,9 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 			BULLSEYE_EXCLUDE_BLOCK_END
 			if (!m_bound.is_anyaddr() && !m_bound.is_mc()) {
 				p_dst_entry->set_bound_addr(m_bound.get_in_addr());
+			}
+			if (m_so_bindtodevice_ip) {
+				p_dst_entry->set_so_bindtodevice_addr(m_so_bindtodevice_ip);
 			}
 			// Save new dst_entry in map
 			m_dst_entry_map[dst] = p_dst_entry;

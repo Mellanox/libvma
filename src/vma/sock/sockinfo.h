@@ -109,6 +109,8 @@ protected:
 	sock_addr 		m_connected;
 	dst_entry*		m_p_connected_dst_entry;
 
+	in_addr_t 		m_so_bindtodevice_ip;
+
 	socket_stats_t		m_socket_stats;
 	socket_stats_t*		m_p_socket_stats;
 

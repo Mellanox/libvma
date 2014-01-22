@@ -53,6 +53,7 @@ public:
 
 	bool 		is_offloaded() { return m_b_is_offloaded; }
 	void		set_bound_addr(in_addr_t addr);
+	void		set_so_bindtodevice_addr(in_addr_t addr);
 	in_addr_t	get_src_addr();
 	in_addr_t	get_dst_addr();
 	uint16_t	get_dst_port();
@@ -77,6 +78,7 @@ protected:
 	uint16_t 		m_src_port;
 
 	in_addr_t		m_bound_ip;
+	in_addr_t		m_so_bindtodevice_ip;
 
 	lock_mutex_recursive 	m_slow_path_lock;
 	struct ibv_send_wr 	m_inline_send_wqe;
