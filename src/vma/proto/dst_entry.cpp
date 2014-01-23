@@ -172,6 +172,16 @@ bool dst_entry::resolve_net_dev()
 
 	cache_entry_subject<ip_address, route_val*>* p_ces = NULL;
 
+	if (ZERONET_N(m_dst_ip.get_in_addr())) {
+		dst_logdbg("VMA does not offload zero net IP address");
+		return ret_val;
+	}
+
+	if (LOOPBACK_N(m_dst_ip.get_in_addr())) {
+		dst_logdbg("VMA does not offload local loopback IP address");
+		return ret_val;
+	}
+
 	if (m_so_bindtodevice_ip) {
 		ret_val = update_net_dev_val();
 	} else if (m_p_rt_entry || g_p_route_table_mgr->register_observer(m_dst_ip, this, &p_ces)) {
