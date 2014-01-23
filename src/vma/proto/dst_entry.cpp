@@ -182,21 +182,28 @@ bool dst_entry::resolve_net_dev()
 		return ret_val;
 	}
 
-	if (m_so_bindtodevice_ip) {
-		ret_val = update_net_dev_val();
-	} else if (m_p_rt_entry || g_p_route_table_mgr->register_observer(m_dst_ip, this, &p_ces)) {
+	if (m_p_rt_entry || g_p_route_table_mgr->register_observer(m_dst_ip, this, &p_ces)) {
 		if (m_p_rt_entry == NULL) {
 			// In case this is the first time we trying to resolve route entry,
 			// means that register_observer was run
 			m_p_rt_entry = dynamic_cast<route_entry*>(p_ces);
 		}
+
+		bool update_ndv = false;
+		if (m_so_bindtodevice_ip) {
+			update_ndv = true;
+		}
 		if (m_p_rt_entry) {
 			if(update_rt_val()) {
-				ret_val = update_net_dev_val();
+				update_ndv = true;
 			}
 		}
 		else {
 			dst_logdbg("Route entry is not exist");
+		}
+
+		if (update_ndv) {
+			ret_val = update_net_dev_val();
 		}
 	}
 	return ret_val;
