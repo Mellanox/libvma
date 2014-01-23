@@ -221,6 +221,34 @@ void* event_handler_thread(void *_p_tgtObject)
 	event_handler_manager* p_tgtObject = (event_handler_manager*)_p_tgtObject;
 	g_n_internal_thread_id = pthread_self();
 	evh_logdbg("Entering internal thread, id = %lu", g_n_internal_thread_id);
+
+	if (!mce_sys.internal_thread_cpuset.empty()) {
+		std::string tasks_file = mce_sys.internal_thread_cpuset + "/tasks";
+		FILE *fp = fopen(tasks_file.c_str(), "w");
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (fp == NULL) {
+			evh_logpanic("Failed to open %s for writing", tasks_file.c_str());
+		}
+		if (fprintf(fp, "%d", gettid()) <= 0) {
+			evh_logpanic("Failed to add internal thread id to %s", tasks_file.c_str());
+		}
+		BULLSEYE_EXCLUDE_BLOCK_END
+		fclose(fp);
+		evh_logdbg("VMA Internal thread added to cpuset %s.", mce_sys.internal_thread_cpuset.c_str());
+
+		// do set affinity now that we are on correct cpuset
+		cpu_set_t cpu_set = mce_sys.internal_thread_affinity;
+		if ( strcmp(mce_sys.internal_thread_affinity_str, "-1")) {
+			if (pthread_setaffinity_np(g_n_internal_thread_id, sizeof(cpu_set), &cpu_set)) {
+				evh_logdbg("VMA Internal thread affinity failed. Did you try to set affinity outside of cpuset?");
+			} else {
+				evh_logdbg("VMA Internal thread affinity is set.");
+			}
+		} else {
+			evh_logdbg("VMA Internal thread affinity not set.");
+		}
+	}
+
 	void* ret = p_tgtObject->thread_loop();
 	evh_logdbg("Ending internal thread");
 	return ret;
@@ -243,23 +271,8 @@ int event_handler_manager::start_thread()
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	if (!mce_sys.internal_thread_cpuset.empty()) {
-		std::string tasks_file = mce_sys.internal_thread_cpuset + "/tasks";
-		FILE *fp = fopen(tasks_file.c_str(), "w");
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (fp == NULL) {
-			evh_logpanic("Failed to open %s for writing", tasks_file.c_str());
-		}
-		if (fprintf(fp, "%d", gettid()) <= 0) {
-			evh_logpanic("Failed to add internal thread id to %s", tasks_file.c_str());
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-		fclose(fp);
-		evh_logdbg("VMA Internal thread added to cpuset %s.", mce_sys.internal_thread_cpuset.c_str());
-	}
-
 	cpu_set = mce_sys.internal_thread_affinity;
-	if ( strcmp(mce_sys.internal_thread_affinity_str, "-1")) { // no affinity
+	if ( strcmp(mce_sys.internal_thread_affinity_str, "-1") && mce_sys.internal_thread_cpuset.empty()) { // no affinity
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (pthread_attr_setaffinity_np(&tattr, sizeof(cpu_set), &cpu_set)) {
 			evh_logpanic("Failed to set CPU affinity");
