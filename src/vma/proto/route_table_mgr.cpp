@@ -139,6 +139,11 @@ void route_table_mgr::rt_mgr_update_tbl()
 
 	rt_mgr_parse_tbl(len, &counter);
 	m_rt_tab.entries_num = counter;
+
+	if (counter >= MAX_RT_SIZE) {
+		rt_mgr_logwarn("reached the maximum route table size");
+	}
+
 	rt_mgr_update_source_ip();
 
 	return;

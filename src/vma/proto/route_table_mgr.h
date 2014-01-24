@@ -22,7 +22,7 @@
 #include "vma/event/netlink_event.h"
 #include "route_entry.h"
 
-#define MAX_RT_SIZE 255
+#define MAX_RT_SIZE 4096
 #define MSG_BUFF_SIZE 81920
 #define ADDR_LEN 46 // needs 16-bytes for IPv4, and 46-bytes for IPv6
 
@@ -30,7 +30,7 @@
 typedef struct
 {
 	route_val rtv[MAX_RT_SIZE];
-	uint8_t entries_num;
+	uint16_t entries_num;
 } routing_table_t;
 
 // routing query request information
