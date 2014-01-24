@@ -104,17 +104,22 @@ bool dst_entry::update_net_dev_val()
 	bool ret_val = false;
 
 	net_device_val* new_nd_val = m_p_net_dev_val;
-	if (m_p_rt_entry) {
-		new_nd_val = m_p_rt_entry->get_net_dev_val();
-	} else if (m_so_bindtodevice_ip && g_p_net_device_table_mgr) {
+	if (m_so_bindtodevice_ip && g_p_net_device_table_mgr) {
 		new_nd_val = g_p_net_device_table_mgr->get_net_device_val(m_so_bindtodevice_ip);
 		// TODO should we register to g_p_net_device_table_mgr  with m_p_net_dev_entry?
 		// what should we do with an old one?
 		dst_logdbg("getting net_dev_val by bindtodevice ip");
+	} else if (m_p_rt_entry) {
+		new_nd_val = m_p_rt_entry->get_net_dev_val();
 	}
 
 	if (m_p_net_dev_val != new_nd_val) {
 		dst_logdbg("updating net_device");
+
+		if (m_p_neigh_entry) {
+			g_p_neigh_table_mgr->unregister_observer(neigh_key(m_dst_ip, m_p_net_dev_val),this);
+			m_p_neigh_entry = NULL;
+		}
 
 		// Change the net_device, clean old resources...
 		release_ring();
