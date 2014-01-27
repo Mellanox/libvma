@@ -327,10 +327,12 @@ bool ring::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 			} else {
 				m_ib_mc_ip_attach_map[key_udp_mc.dst_ip].counter = ((ib_mc_iter->second.counter) + 1);
 			}
-			ib_mc_ip_filter = new rfs_rule_filter(m_ib_mc_ip_attach_map, key_udp_mc.dst_ip, flow_spec_5t);
 		}
 		p_rfs = m_flow_udp_mc_map.get(key_udp_mc, NULL);
 		if (p_rfs == NULL) {		// It means that no rfs object exists so I need to create a new one and insert it to the flow map
+			if (m_transport_type == VMA_TRANSPORT_IB) {
+				ib_mc_ip_filter = new rfs_rule_filter(m_ib_mc_ip_attach_map, key_udp_mc.dst_ip, flow_spec_5t);
+			}
 			p_rfs = new rfs_mc(&flow_spec_5t, this, ib_mc_ip_filter);
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (p_rfs == NULL) {
@@ -349,12 +351,14 @@ bool ring::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 			} else {
 				m_tcp_dst_port_attach_map[key_tcp.dst_port].counter = ((tcp_dst_port_iter->second.counter) + 1);
 			}
-			flow_tuple tcp_3t_only(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port(), 0, 0, flow_spec_5t.get_protocol());
-			tcp_dst_port_filter = new rfs_rule_filter(m_tcp_dst_port_attach_map, key_tcp.dst_port, tcp_3t_only);
 		}
 
 		p_rfs = m_flow_tcp_map.get(key_tcp, NULL);
 		if (p_rfs == NULL) {		// It means that no rfs object exists so I need to create a new one and insert it to the flow map
+			if (mce_sys.tcp_3t_rules) {
+				flow_tuple tcp_3t_only(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port(), 0, 0, flow_spec_5t.get_protocol());
+				tcp_dst_port_filter = new rfs_rule_filter(m_tcp_dst_port_attach_map, key_tcp.dst_port, tcp_3t_only);
+			}
 			if(mce_sys.gro_streams_max && flow_spec_5t.is_5_tuple()) {
 				p_rfs = new rfs_uc_tcp_gro(&flow_spec_5t, this, tcp_dst_port_filter);
 			} else {
