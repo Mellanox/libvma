@@ -177,6 +177,9 @@ private:
 	dst_entry_map_t	m_dst_entry_map;
 
 	bool		m_b_pktinfo;
+	bool		m_b_rcvtstamp;
+	bool		m_b_rcvtstampns;
+	uint8_t		m_n_tsing_flags;
 
 	int mc_change_membership(const struct ip_mreq *p_mreq, int optname);
 	void handle_pending_mreq();
@@ -205,6 +208,7 @@ private:
 	virtual size_t	handle_msg_trunc(size_t total_rx, size_t payload_size, int* p_flags);
 
 	inline void	handle_ip_pktinfo(struct cmsg_state *cm_state);
+	inline void	handle_recv_timestamping(struct cmsg_state *cm_state);
 	inline void	insert_cmsg(struct cmsg_state *cm_state, int level, int type, void *data, int len);
 	inline void	handle_cmsg(struct msghdr * msg);
 };

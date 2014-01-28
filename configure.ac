@@ -239,6 +239,22 @@ AC_TRY_LINK(
   AC_MSG_RESULT([no])
 ])
 
+AC_MSG_CHECKING([if SOF_TIMESTAMPING_SOFTWARE is defined])
+AC_TRY_LINK(
+#include <linux/net_tstamp.h>
+,
+[
+  int ts = (int)SOF_TIMESTAMPING_SOFTWARE;
+  return ts;
+],
+[
+  AC_MSG_RESULT([yes])
+],
+[
+  AC_MSG_RESULT([no])
+  AC_DEFINE(DEFINED_MISSING_NET_TSTAMP, 1, [Define to 1 if linux/net_tstamp.h is missing])
+])
+
 AC_MSG_CHECKING([if 'struct mmsghdr' for recvmmsg() is defined])
 AC_TRY_LINK(
 #include <sys/socket.h>

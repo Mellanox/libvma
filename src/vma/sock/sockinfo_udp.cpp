@@ -38,6 +38,23 @@
 #include "vma/util/instrumentation.h"
 #include "vma/util/bullseye.h"
 
+#if DEFINED_MISSING_NET_TSTAMP
+enum {
+	SOF_TIMESTAMPING_TX_HARDWARE = (1<<0),
+	SOF_TIMESTAMPING_TX_SOFTWARE = (1<<1),
+	SOF_TIMESTAMPING_RX_HARDWARE = (1<<2),
+	SOF_TIMESTAMPING_RX_SOFTWARE = (1<<3),
+	SOF_TIMESTAMPING_SOFTWARE = (1<<4),
+	SOF_TIMESTAMPING_SYS_HARDWARE = (1<<5),
+	SOF_TIMESTAMPING_RAW_HARDWARE = (1<<6),
+	SOF_TIMESTAMPING_MASK =
+			(SOF_TIMESTAMPING_RAW_HARDWARE - 1) |
+			SOF_TIMESTAMPING_RAW_HARDWARE
+};
+#else
+#include <linux/net_tstamp.h>
+#endif
+
 /* useful debugging macros */
 
 #define MODULE_NAME 		"si_udp"
@@ -69,6 +86,7 @@ const char * setsockopt_so_opt_to_str(int opt)
 	case SO_RCVBUF:			return "SO_RCVBUF";
 	case SO_SNDBUF:			return "SO_SNDBUF";
 	case SO_TIMESTAMP:		return "SO_TIMESTAMP";
+	case SO_TIMESTAMPNS:		return "SO_TIMESTAMPNS";
 	default:			break;
 	}
 	return "UNKNOWN SO opt";
@@ -94,30 +112,31 @@ const char * setsockopt_ip_opt_to_str(int opt)
 tscval_t g_si_tscv_last_poll = 0;
 
 sockinfo_udp::sockinfo_udp(int fd) :
-	sockinfo(fd),
-	m_rx_udp_poll_os_ratio_counter(0), m_port_map_lock("sockinfo_udp::m_ports_map_lock"), m_port_map_index(0)
+	sockinfo(fd)
+	,m_mc_tx_if(INADDR_ANY)
+	,m_b_mc_tx_loop(mce_sys.tx_mc_loopback_default) // default value is 'true'. User can change this with config parameter SYS_VAR_TX_MC_LOOPBACK
+	,m_n_mc_ttl(DEFAULT_MC_TTL)
+	,m_loops_to_go(mce_sys.rx_poll_num_init) // Start up with a init polling loops value
+	,m_rx_udp_poll_os_ratio_counter(0)
+	,m_sock_offload(true)
+	,m_rx_callback(NULL)
+	,m_rx_callback_context(NULL)
+	,m_port_map_lock("sockinfo_udp::m_ports_map_lock")
+	,m_port_map_index(0)
+	,m_b_pktinfo(false)
+	,m_b_rcvtstamp(false)
+	,m_b_rcvtstampns(false)
+	,m_n_tsing_flags(0)
 {
 	si_udp_logfunc("");
 
 	m_protocol = PROTO_UDP;
 	m_p_socket_stats->socket_type = SOCK_DGRAM;
 
-	m_sock_offload = true;
-	m_loops_to_go = mce_sys.rx_poll_num_init; // Start up with a init polling loops value
-
-	m_mc_tx_if = INADDR_ANY;
-	m_b_mc_tx_loop = mce_sys.tx_mc_loopback_default; // default value is 'true'. User can change this with config parameter SYS_VAR_TX_MC_LOOPBACK
-	m_n_mc_ttl = DEFAULT_MC_TTL;
-
-	m_b_pktinfo = false;
-
-	m_rx_callback = NULL;
-	m_rx_callback_context = NULL;
-
 	// Update MC related stats (default values)
 	m_p_socket_stats->mc_tx_if = m_mc_tx_if;
 	m_p_socket_stats->b_mc_loop = m_b_mc_tx_loop;
-	
+
 	int n_so_rcvbuf_bytes = 0;
 	socklen_t option_len = sizeof(n_so_rcvbuf_bytes);
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -449,12 +468,19 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
                                 break;
 
 			case SO_TIMESTAMP:
+			case SO_TIMESTAMPNS:
 				if (__optval) {
-					bool b_timestamp = *(bool*)__optval;
-					si_udp_logdbg("SOL_SOCKET, %s=%s - NOT HANDLED", setsockopt_so_opt_to_str(__optname), (b_timestamp ? "true" : "false"));
+					m_b_rcvtstamp = *(bool*)__optval;
+					if (__optname == SO_TIMESTAMPNS)
+						m_b_rcvtstampns = m_b_rcvtstamp;
+					si_udp_logdbg("SOL_SOCKET, %s=%s", setsockopt_so_opt_to_str(__optname), (m_b_rcvtstamp ? "true" : "false"));
 				}
-				else {
-					si_udp_loginfo("SOL_SOCKET, %s=\"???\" - NOT HANDLED", setsockopt_so_opt_to_str(__optname));
+				break;
+
+			case SO_TIMESTAMPING:
+				if (__optval) {
+					m_n_tsing_flags  = *(uint8_t*)__optval;
+					si_udp_logdbg("SOL_SOCKET, SO_TIMESTAMPING=%u", m_n_tsing_flags);
 				}
 				break;
 
@@ -1113,6 +1139,35 @@ out:
 	return ret;
 }
 
+void sockinfo_udp::handle_recv_timestamping(struct cmsg_state *cm_state)
+{
+	struct {
+		struct timespec systime;
+		struct timespec hwtimetrans;
+		struct timespec hwtimeraw;
+	} tsing;
+
+	tsing.systime = m_rx_pkt_ready_list.front()->path.rx.timestamp;
+
+	// Only fill in SO_TIMESTAMPNS if both requested.
+	// This matches the kernel behavior.
+	if (m_b_rcvtstampns) {
+		insert_cmsg(cm_state, SOL_SOCKET, SO_TIMESTAMPNS, &tsing.systime, sizeof(tsing.systime));
+	} else if (m_b_rcvtstamp) {
+		struct timeval tv;
+		tv.tv_sec = tsing.systime.tv_sec;
+		tv.tv_usec = tsing.systime.tv_nsec/1000;
+		insert_cmsg(cm_state, SOL_SOCKET, SO_TIMESTAMP, &tv, sizeof(tv));
+	}
+
+	// Only support software timestamps at this time
+	if (!(m_n_tsing_flags & (SOF_TIMESTAMPING_RX_SOFTWARE | SOF_TIMESTAMPING_SOFTWARE))) {
+		return;
+	}
+
+	insert_cmsg(cm_state, SOL_SOCKET, SO_TIMESTAMPING, &tsing, sizeof(tsing));
+}
+
 void sockinfo_udp::handle_ip_pktinfo(struct cmsg_state * cm_state)
 {
 	struct in_pktinfo in_pktinfo;
@@ -1169,6 +1224,7 @@ void sockinfo_udp::handle_cmsg(struct msghdr * msg)
 	cm_state.cmsg_bytes_consumed = 0;
 
 	if (m_b_pktinfo) handle_ip_pktinfo(&cm_state);
+	if (m_b_rcvtstamp || m_n_tsing_flags) handle_recv_timestamping(&cm_state);
 
 	cm_state.mhdr->msg_controllen = cm_state.cmsg_bytes_consumed;
 }
@@ -1539,6 +1595,11 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 	// And we must increment ref_counter before pushing this packet into the ready queue
 	//  to prevent race condition with the 'if( (--ref_count) <= 0)' in ib_comm_mgr
 	p_desc->inc_ref_count();
+
+	if (m_b_rcvtstamp || (m_n_tsing_flags & (SOF_TIMESTAMPING_RX_SOFTWARE | SOF_TIMESTAMPING_SOFTWARE))) {
+		memset(&(p_desc->path.rx.timestamp), 0, sizeof(struct timespec));
+		clock_gettime(CLOCK_REALTIME, &(p_desc->path.rx.timestamp));
+	}
 
 	// In ZERO COPY case we let the user's application manage the ready queue
 	if (callback_retval != VMA_PACKET_HOLD) {
