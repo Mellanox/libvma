@@ -55,6 +55,12 @@ typedef std::tr1::unordered_map<sock_addr, dst_entry*> dst_entry_map_t;
 // Multicast Request list
 typedef std::list<struct ip_mreq> ip_mreq_list_t;
 
+struct cmsg_state
+{
+	struct msghdr	*mhdr;
+	struct cmsghdr	*cmhdr;
+	size_t		cmsg_bytes_consumed;
+};
 
 /**
  * @class udp sockinfo
@@ -198,7 +204,8 @@ private:
 	virtual int 	zero_copy_rx (iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags);
 	virtual size_t	handle_msg_trunc(size_t total_rx, size_t payload_size, int* p_flags);
 
-	inline void	handle_ip_pktinfo(struct msghdr * msg);
-	inline void	insert_cmsg(struct msghdr * msg, int level, int type, void *data, int len);
+	inline void	handle_ip_pktinfo(struct cmsg_state *cm_state);
+	inline void	insert_cmsg(struct cmsg_state *cm_state, int level, int type, void *data, int len);
+	inline void	handle_cmsg(struct msghdr * msg);
 };
 #endif

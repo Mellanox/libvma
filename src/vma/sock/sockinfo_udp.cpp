@@ -1042,7 +1042,7 @@ ssize_t sockinfo_udp::rx(const rx_call_t call_type, iovec* p_iov,ssize_t sz_iov,
 		m_rx_udp_poll_os_ratio_counter++;
 		if (m_n_rx_pkt_ready_list_count > 0) {
 			// Found a ready packet in the list
-			if (m_b_pktinfo && __msg) handle_ip_pktinfo(__msg);
+			if (__msg) handle_cmsg(__msg);
 			ret = dequeue_packet(p_iov, sz_iov, (sockaddr_in *)__from, __fromlen, p_flags);
 			goto out;
 		}
@@ -1059,7 +1059,7 @@ ssize_t sockinfo_udp::rx(const rx_call_t call_type, iovec* p_iov,ssize_t sz_iov,
 
 	if (likely(rx_wait_ret == 0)) {
 		// Got 0, means we must have a ready packet
-		if (m_b_pktinfo && __msg) handle_ip_pktinfo(__msg);
+		if (__msg) handle_cmsg(__msg);
 		ret = dequeue_packet(p_iov, sz_iov, (sockaddr_in *)__from, __fromlen, p_flags);
 		goto out;
 	}
@@ -1113,7 +1113,7 @@ out:
 	return ret;
 }
 
-void sockinfo_udp::handle_ip_pktinfo(struct msghdr * msg)
+void sockinfo_udp::handle_ip_pktinfo(struct cmsg_state * cm_state)
 {
 	struct in_pktinfo in_pktinfo;
 	rx_net_device_map_t::iterator iter = m_rx_nd_map.find(m_rx_pkt_ready_list.front()->path.rx.local_if);
@@ -1124,44 +1124,53 @@ void sockinfo_udp::handle_ip_pktinfo(struct msghdr * msg)
 	in_pktinfo.ipi_ifindex = iter->second.p_ndv->get_if_idx();
 	in_pktinfo.ipi_addr = m_rx_pkt_ready_list.front()->path.rx.dst.sin_addr;
 	in_pktinfo.ipi_spec_dst.s_addr = m_rx_pkt_ready_list.front()->path.rx.local_if;
-	insert_cmsg(msg, IPPROTO_IP, IP_PKTINFO, &in_pktinfo, sizeof(struct in_pktinfo));
+	insert_cmsg(cm_state, IPPROTO_IP, IP_PKTINFO, &in_pktinfo, sizeof(struct in_pktinfo));
 }
 
-void sockinfo_udp::insert_cmsg(struct msghdr * msg, int level, int type, void *data, int len)
+void sockinfo_udp::insert_cmsg(struct cmsg_state * cm_state, int level, int type, void *data, int len)
 {
+	if (!cm_state->cmhdr ||
+	    cm_state->mhdr->msg_flags & MSG_CTRUNC)
+		return;
 
-	if ( msg->msg_control == NULL || msg->msg_controllen < sizeof(struct cmsghdr)) {
-		msg->msg_flags |= MSG_CTRUNC;
+	// Ensure there is enough space for the data payload
+	const unsigned int cmsg_len = CMSG_LEN(len);
+	if (cmsg_len > cm_state->mhdr->msg_controllen - cm_state->cmsg_bytes_consumed) {
+	    cm_state->mhdr->msg_flags |= MSG_CTRUNC;
 		return;
 	}
 
-	unsigned int cmsg_len = CMSG_LEN(len);
+	// Fill in the cmsghdr
+	cm_state->cmhdr->cmsg_level = level;
+	cm_state->cmhdr->cmsg_type = type;
+	cm_state->cmhdr->cmsg_len = cmsg_len;
+	memcpy(CMSG_DATA(cm_state->cmhdr), data, len);
 
-	if (msg->msg_controllen < cmsg_len) {
-		msg->msg_flags |= MSG_CTRUNC;
-		cmsg_len = msg->msg_controllen;
-	}
+	// Update bytes consumed to update msg_controllen later
+	cm_state->cmsg_bytes_consumed += CMSG_SPACE(len);
 
-	struct cmsghdr cmghdr;
-	memset(&cmghdr, 0, sizeof(struct cmsghdr));
-	cmghdr.cmsg_level = level;
-	cmghdr.cmsg_type = type;
-	cmghdr.cmsg_len = cmsg_len;
+	// Advance to next cmsghdr
+	// can't simply use CMSG_NXTHDR() due to glibc bug 13500
+	struct cmsghdr *next = (struct cmsghdr*)((char*)cm_state->cmhdr +
+						 CMSG_ALIGN(cm_state->cmhdr->cmsg_len));
+	if ((char*)(next + 1) >
+	    ((char*)cm_state->mhdr->msg_control + cm_state->mhdr->msg_controllen))
+		cm_state->cmhdr = NULL;
+	else
+		cm_state->cmhdr = next;
+}
 
-	memcpy(msg->msg_control, &cmghdr, sizeof(struct cmsghdr));
-	memcpy((void*)((char*)msg->msg_control + CMSG_LEN(0)), data, cmsg_len - sizeof(struct cmsghdr));
+void sockinfo_udp::handle_cmsg(struct msghdr * msg)
+{
+	struct cmsg_state cm_state;
 
-	//todo when we'll have several messages in the control message - need to advance pointer,
-	//and bring it back to start before returning from RX
-	/*
-	cmsg_len = CMSG_SPACE(len);
+	cm_state.mhdr = msg;
+	cm_state.cmhdr = CMSG_FIRSTHDR(msg);
+	cm_state.cmsg_bytes_consumed = 0;
 
-	if (msg->msg_controllen < cmsg_len)
-		cmsg_len = msg->msg_controllen;
+	if (m_b_pktinfo) handle_ip_pktinfo(&cm_state);
 
-	msg->msg_control = (void*)((char*)msg->msg_control +cmsg_len);
-	msg->msg_controllen -= cmsg_len;
-	*/
+	cm_state.mhdr->msg_controllen = cm_state.cmsg_bytes_consumed;
 }
 
 // This function is relevant only for non-blocking socket
