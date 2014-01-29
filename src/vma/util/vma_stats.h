@@ -111,6 +111,7 @@ struct user_params_t {
 	bool 			zero_counters;
 	proc_ident_mode_t	proc_ident_mode;
 	bool 			write_auth;
+	int			cycles;
 };
 
 extern user_params_t user_params;

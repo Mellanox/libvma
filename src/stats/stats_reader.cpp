@@ -85,6 +85,7 @@ typedef enum {
 #define PRINT_DETAILS_MODES_NUM		2	
 #define VIEW_MODES_NUM			4
 #define DEFAULT_DELAY_SEC		1
+#define DEFAULT_CYCLES			0
 #define DEFAULT_VIEW_MODE		e_basic
 #define DEFAULT_DETAILS_MODE		e_totals
 #define	 DEFAULT_PROC_IDENT_MODE	e_by_runn_proccess
@@ -135,6 +136,7 @@ void usage(const char *argv0)
 	printf("  -f, --find_pid\t\tFind and show statistics for VMA instance running (default)\n");
 	printf("  -F, --forbid_clean\t\tBy setting this flag inactive shared objects would not be removed\n");
 	printf("  -i, --interval=<n>\t\tPrint report every <n> seconds\n");
+	printf("  -c, --cycles=<n>\t\tDo <n> report print cycles and exit, use 0 value for infinite (default)\n");
 	printf("  -v, --view=<1|2|3|4>\t\tSet view type:1- basic info,2- extra info,3- full info,4- mc groups\n");
 	printf("  -d, --details=<1|2>\t\tSet details mode:1- to see totals,2- to see deltas\t\t\n");
 	printf("  -z, --zero\t\t\tZero counters\n");
@@ -773,6 +775,7 @@ void set_defaults()
 	user_params.forbid_cleaning = false;	
 	user_params.zero_counters = false;
 	user_params.write_auth = true; //needed to set read flag on
+	user_params.cycles = DEFAULT_CYCLES;
 	alloc_fd_mask();
 	if (g_fd_mask)
 		memset((void*)g_fd_mask, 1, sizeof(uint8_t) * g_fd_map_size);
@@ -800,6 +803,7 @@ bool check_if_process_running(int pid)
 void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 {
 	int num_act_inst = 0;
+	int cycles = 0;
 	int printed_line_num = SCREEN_SIZE;
 	struct timespec start, end;	
 	bool proc_running = true;
@@ -829,8 +833,10 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 	
 	set_signal_action();
 	
-	while (!g_b_exit && proc_running)
+	while (!g_b_exit && proc_running && (user_params.cycles ? (cycles < user_params.cycles) : (true)))
 	{
+		++cycles;
+
 		if (gettime(&start)) {
 			log_system_err("gettime()");
 			return;
@@ -1145,6 +1151,7 @@ int main (int argc, char **argv)
 		
 		static struct option long_options[] = {
 			{"interval",		1,	NULL,	'i'},
+			{"cycles",		1,	NULL,	'c'},
 			{"view",		1,	NULL,	'v'},
 			{"details",		1,	NULL,	'd'},
 			{"pid",			1,	NULL,	'p'},
@@ -1160,7 +1167,7 @@ int main (int argc, char **argv)
 			{0,0,0,0}
 		};
 		
-		if ((c = getopt_long(argc, argv, "i:v:d:p:s:Vzl:D:n:fFh?", long_options, NULL)) == -1)
+		if ((c = getopt_long(argc, argv, "i:c:v:d:p:s:Vzl:D:n:fFh?", long_options, NULL)) == -1)
 			break;
 
 		switch (c) {
@@ -1174,6 +1181,18 @@ int main (int argc, char **argv)
 				return 1;
 			}
 			user_params.interval = interval;    
+		}
+			break;
+		case 'c': {
+			errno = 0;
+			int cycles = strtol(optarg, NULL, 0);
+			if (errno != 0  || cycles < 0) {
+				log_err("'-%c' Invalid cycles val: %s", c,optarg);
+				usage(argv[0]);
+				cleanup(NULL);
+				return 1;
+			}
+			user_params.cycles = cycles;
 		}
 			break;
 		case 'v': {			
