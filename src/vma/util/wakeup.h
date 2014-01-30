@@ -33,6 +33,7 @@ public:
 	};
 	void remove_wakeup_fd();
 	void going_to_sleep();
+	void return_from_sleep() { --m_is_sleeping; };
 
 protected:
 	void wakeup_set_epoll_fd(int epfd);

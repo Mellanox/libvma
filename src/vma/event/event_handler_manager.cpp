@@ -825,6 +825,7 @@ void* event_handler_manager::thread_loop()
 				while (1) {
 					m_reg_action_q_lock.lock();
 					if (m_reg_action_q.empty()) {
+						return_from_sleep();
 						remove_wakeup_fd();
 						going_to_sleep();
 						m_reg_action_q_lock.unlock();

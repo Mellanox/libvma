@@ -939,7 +939,7 @@ inline int sockinfo_udp::rx_wait(bool blocking)
 		ret = orig_os_api.epoll_wait(m_rx_epfd, rx_epfd_events, SI_RX_EPFD_EVENT_MAX, m_loops_timer.time_left_msec());
 
 		m_lock_rcv.lock();
-		remove_wakeup_fd();
+		return_from_sleep();
 		m_lock_rcv.unlock();
 
 		if ( ret == 0 ) { //timeout
@@ -975,6 +975,9 @@ inline int sockinfo_udp::rx_wait(bool blocking)
 			for (int event_idx = 0; event_idx < ret; ++event_idx) {
 				int fd = rx_epfd_events[event_idx].data.fd;
 				if (is_wakeup_fd(fd)) {
+					m_lock_rcv.lock();
+					remove_wakeup_fd();
+					m_lock_rcv.unlock();
 					continue;
 				}
 

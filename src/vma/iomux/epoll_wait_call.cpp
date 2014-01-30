@@ -159,7 +159,7 @@ void epoll_wait_call::prepare_to_block()
 
 bool epoll_wait_call::_wait(int timeout) 
 {
-	int i, fd;
+	int i, ready_fds, fd;
 	bool cq_ready = false;
 
 	__log_func("calling os epoll: %d", m_epfd);
@@ -175,36 +175,37 @@ bool epoll_wait_call::_wait(int timeout)
 	}
 
 	if (m_sigmask) {
-		m_n_all_ready_fds = orig_os_api.epoll_pwait(m_epfd, m_p_ready_events, m_maxevents, timeout, m_sigmask);
+		ready_fds = orig_os_api.epoll_pwait(m_epfd, m_p_ready_events, m_maxevents, timeout, m_sigmask);
 	} else {
-		m_n_all_ready_fds = orig_os_api.epoll_wait(m_epfd, m_p_ready_events, m_maxevents, timeout);
+		ready_fds = orig_os_api.epoll_wait(m_epfd, m_p_ready_events, m_maxevents, timeout);
 	}
 
 	if (timeout) {
 		lock();
-		m_epfd_info->remove_wakeup_fd();
+		m_epfd_info->return_from_sleep();
 		unlock();
 	}
 
-	if (m_n_all_ready_fds < 0) {
+	if (ready_fds < 0) {
 		throw io_mux_call::io_error();
 	} 
 	
 	// convert the returned events to user events and mark offloaded fds
-	i = 0;
-	while (i < m_n_all_ready_fds) {
+	m_n_all_ready_fds = 0;
+	for (i = 0; i < ready_fds; ++i) {
 		fd = m_p_ready_events[i].data.fd;
 
 		// wakeup event
 		if(m_epfd_info->is_wakeup_fd(fd))
 		{
-			m_p_ready_events[i] = m_p_ready_events[--m_n_all_ready_fds];
+			lock();
+			m_epfd_info->remove_wakeup_fd();
+			unlock();
 			continue;
 		}
 
-		// If it's CQ - replace by last result and shrink the array
+		// If it's CQ
 		if (fd == m_epfd_info->get_cq_epfd()) {
-			m_p_ready_events[i] = m_p_ready_events[--m_n_all_ready_fds];
 			cq_ready = true;
 			continue;
 		}
@@ -219,12 +220,11 @@ bool epoll_wait_call::_wait(int timeout)
 		}
 
 		// Copy event bits and data
-		m_events[i].events = m_p_ready_events[i].events;
-		if (!m_epfd_info->get_data_by_fd(fd, &m_events[i].data)) {
-			m_p_ready_events[i] = m_p_ready_events[--m_n_all_ready_fds];
+		m_events[m_n_all_ready_fds].events = m_p_ready_events[i].events;
+		if (!m_epfd_info->get_data_by_fd(fd, &m_events[m_n_all_ready_fds].data)) {
 			continue;
 		}
-		i++;
+		++m_n_all_ready_fds;
 	}
 	
 	return cq_ready;
