@@ -1,0 +1,14 @@
+--memcheck:leak-check=full
+
+--track-origins=yes
+--read-var-info=yes
+
+--undef-value-errors=yes
+--db-attach=yes
+--track-fds=yes
+--show-reachable=yes
+--gen-suppressions=all
+--suppressions=tests/valgrind_vma.supp
+--suppressions=tests/valgrind_libc.supp
+--suppressions=tests/valgrind_sockperf.supp
+--suppressions=tests/valgrind_rdma.supp

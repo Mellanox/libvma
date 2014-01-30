@@ -28,3 +28,147 @@
    fun:mlx4_modify_qp
    fun:ibv_modify_qp@@IBVERBS_1.1
 }
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   write(buf)
+   ...
+   obj:*/libmlx4-rdmav2.so*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   write(buf)
+   ...
+   obj:*/libmlx4.so*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   write(buf)
+   ...
+   obj:*/librdmacm.so*
+   ...
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   write(buf)
+   ...
+   obj:*/libibverbs.so*
+   ...
+}
+{
+   ignore_rdma_libs_value8
+   Memcheck:Value8
+   ...
+   obj:*/libmlx4-rdmav2.so*
+   ...
+}
+{
+   ignore_rdma_libs_value8
+   Memcheck:Value8
+   ...
+   obj:*/libmlx4.so*
+   ...
+}
+{
+   ignore_rdma_libs_value8
+   Memcheck:Value8
+   ...
+   obj:*/libibverbs.so*
+   ...
+}
+{
+   ignore_rdma_libs_value8
+   Memcheck:Value8
+   ...
+   obj:*/librdmacm.so*
+   ...
+}
+{
+   ignore_rdma_libs_param
+   Memcheck:Param
+   ...
+   obj:*/libmlx4-rdmav2.so*
+   ...
+}
+{
+   ignore_rdma_libs_param
+   Memcheck:Param
+   ...
+   obj:*/libmlx4.so*
+   ...
+}
+{
+   ignore_rdma_libs_param
+   Memcheck:Param
+   ...
+   obj:*/libibverbs.so*
+   ...
+}
+{
+   ignore_rdma_libs_param
+   Memcheck:Param
+   ...
+   obj:*/librdmacm.so*
+   ...
+}
+{
+   ignore_rdma_libs_leak
+   Memcheck:Leak
+   ...
+   obj:*/libmlx4-rdmav2.so*
+   ...
+}
+{
+   ignore_rdma_libs_leak
+   Memcheck:Leak
+   ...
+   obj:*/libmlx4.so*
+   ...
+}
+{
+   ignore_rdma_libs_leak
+   Memcheck:Leak
+   ...
+   obj:*/libibverbs.so*
+   ...
+}
+{
+   ignore_rdma_libs_leak
+   Memcheck:Leak
+   ...
+   obj:*/librdmacm.so*
+   ...
+}
+{
+   ignore_rdma_libs_cond
+   Memcheck:Cond
+   ...
+   obj:*/libmlx4-rdmav2.so*
+   ...
+}
+{
+   ignore_rdma_libs_cond
+   Memcheck:Cond
+   ...
+   obj:*/libmlx4.so*
+   ...
+}
+{
+   ignore_rdma_libs_cond
+   Memcheck:Cond
+   ...
+   obj:*/libibverbs.so*
+   ...
+}
+{
+   ignore_rdma_libs_cond
+   Memcheck:Cond
+   ...
+   obj:*/librdmacm.so*
+   ...
+}
