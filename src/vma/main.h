@@ -23,6 +23,7 @@ void print_vma_global_settings();
 void check_locked_mem();
 void get_env_params();
 void set_env_params();
+void prepare_fork();
 
 extern "C" void sock_redirect_main(void);
 extern "C" void sock_redirect_exit(void);

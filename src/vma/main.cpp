@@ -1124,6 +1124,23 @@ void set_env_params()
         }
 }
 
+void prepare_fork()
+{
+	if (mce_sys.handle_fork && !g_init_ibv_fork_done) {
+                IF_VERBS_FAILURE(ibv_fork_init()) {
+                        vlog_printf(VLOG_DEBUG,"ibv_fork_init failed (errno=%d %m)\n", errno);
+                        vlog_printf(VLOG_ERROR, "************************************************************************\n");
+                        vlog_printf(VLOG_ERROR, "ibv_fork_init() failed! The effect of the application calling 'fork()' is undefined!\n");
+                        vlog_printf(VLOG_ERROR, "Read the fork section in the VMA's User Manual for more information\n");
+                        vlog_printf(VLOG_ERROR, "************************************************************************\n");
+                }
+                else {
+                        g_init_ibv_fork_done = true;
+                        vlog_printf(VLOG_DEBUG,"ibv_fork_init() succeeded, fork() may be used safely!!\n");
+                } ENDIF_VERBS_FAILURE;
+        }
+}
+
 void register_handler_segv()
 {
 	struct sigaction act;
@@ -1263,6 +1280,7 @@ void do_global_ctors()
 	g_init_global_ctors_done = true;
 
 	set_env_params();
+	prepare_fork();
 	
 	if (g_is_forked_child == true)
 		g_is_forked_child = false;
@@ -1470,20 +1488,6 @@ extern "C" int main_init(void)
 			vlog_printf(VLOG_WARNING,"FAILED to create VMA statistics file. %s is not a regular file.\n", mce_sys.stats_filename);
 		else if (!(g_stats_file = fopen(mce_sys.stats_filename, "w")))
 				vlog_printf(VLOG_WARNING," Couldn't open statistics file: %s\n", mce_sys.stats_filename);
-	}
-
-	if (mce_sys.handle_fork && !g_init_ibv_fork_done) {
-		IF_VERBS_FAILURE(ibv_fork_init()) {
-			vlog_printf(VLOG_DEBUG,"ibv_fork_init failed (errno=%d %m)\n", errno);
-			vlog_printf(VLOG_ERROR, "************************************************************************\n");
-			vlog_printf(VLOG_ERROR, "ibv_fork_init() failed! The effect of the application calling 'fork()' is undefined!\n");
-			vlog_printf(VLOG_ERROR, "Read the fork section in the VMA's User Manual for more information\n");
-			vlog_printf(VLOG_ERROR, "************************************************************************\n");
-		}
-		else {
-			g_init_ibv_fork_done = true;
-			vlog_printf(VLOG_DEBUG,"ibv_fork_init() succeeded, fork() may be used safely!!\n");
-		} ENDIF_VERBS_FAILURE;
 	}
 
 	sock_redirect_main();
