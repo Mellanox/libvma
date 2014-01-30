@@ -995,7 +995,11 @@ void* neigh_entry::priv_register_timer_event(int timeout_msec, timer_handler* ha
 void neigh_entry::priv_unregister_timer()
 {
 	if (m_timer_handle) {
-		g_p_event_handler_manager->unregister_timer_event(this, m_timer_handle);
+		// All timers in neigh are currently ONESHOT timers.
+		// Unregister of ONESHOT timer can lead to double free of timer,
+		// as ONESHOT timer free itself after it run.
+		// TODO: unregister all timers? is there just one or more?
+		//g_p_event_handler_manager->unregister_timer_event(this, m_timer_handle);
 		m_timer_handle = NULL;
 	}
 }
