@@ -1763,7 +1763,10 @@ pid_t fork(void)
 
 	vlog_printf(VLOG_DEBUG, "ENTER: ***** %s *****\n", __func__);
 
-	prepare_fork();
+	if (!g_init_global_ctors_done) {
+		set_env_params();
+		prepare_fork();
+	}
 
 	if (!g_init_ibv_fork_done)
 		vlog_printf(VLOG_ERROR, "ibv_fork_init failed, the effect of an application calling fork() is undefined!!\n");
@@ -1826,7 +1829,10 @@ int daemon(int __nochdir, int __noclose)
 	BULLSEYE_EXCLUDE_BLOCK_END
 	vlog_printf(VLOG_DEBUG, "ENTER: ***** %s(%d, %d) *****\n", __func__, __nochdir, __noclose);
 
-	prepare_fork();
+	if (!g_init_global_ctors_done) {
+		set_env_params();
+		prepare_fork();
+	}
 
 	int ret = orig_os_api.daemon(__nochdir, __noclose);
 	if (ret == 0) {
