@@ -55,6 +55,14 @@ enum {
 #include <linux/net_tstamp.h>
 #endif
 
+#ifndef SO_TIMESTAMPNS
+#define SO_TIMESTAMPNS		35
+#endif
+
+#ifndef SO_TIMESTAMPING
+#define SO_TIMESTAMPING		37
+#endif
+
 /* useful debugging macros */
 
 #define MODULE_NAME 		"si_udp"
