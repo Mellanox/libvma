@@ -383,7 +383,7 @@ make_cov=0
 make_bullseye=0
 copy_to_bgate=0
 
-master_name="vma_6.5"
+master_name="vma_6.6"
 buildTime="18:00:00"
 
 LOG_SCRIPT_STATUS=0

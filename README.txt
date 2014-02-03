@@ -1,4 +1,4 @@
-Updated: 11 Dec 2013
+Updated: 2 Feb 2014
 
 Introduction
 ============
@@ -99,6 +99,7 @@ Example:
  VMA DEBUG  : Rx Prefetch Bytes Before Poll  256                        [VMA_RX_PREFETCH_BYTES_BEFORE_POLL]
  VMA DEBUG  : Rx CQ Drain Rate               Disabled                   [VMA_RX_CQ_DRAIN_RATE_NSEC]
  VMA DEBUG  : GRO max streams                32                         [VMA_GRO_STREAMS_MAX]
+ VMA DEBUG  : TCP 3T rules                   Disabled                   [VMA_TCP_3T_RULES]
  VMA DEBUG  : Select Poll (usec)             100000                     [VMA_SELECT_POLL]
  VMA DEBUG  : Select Poll OS Force           Disabled                   [VMA_SELECT_POLL_OS_FORCE]
  VMA DEBUG  : Select Poll OS Ratio           10                         [VMA_SELECT_POLL_OS_RATIO]
@@ -417,6 +418,11 @@ VMA_GRO_STREAMS_MAX
 Control the number of TCP streams to perform GRO (generic receive offload) simultaneously.
 Disable GRO with a value of 0.
 Default value is 32
+
+VMA_TCP_3T_RULES
+Use only 3 tuple rules for TCP, instead of using 5 tuple rules.
+This can improve performance for a server with listen socket which accept many
+connections.
 
 VMA_SELECT_POLL
 The duration in micro-seconds (usec) in which to poll the hardware on Rx path before

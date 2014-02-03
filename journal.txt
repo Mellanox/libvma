@@ -1,3 +1,49 @@
+Version 6.6.0-0:
+Date + Time 2014-2-2
+=======================
+Added:
+        - RM #371374 Add software UDP RX packet timestamp support
+        - RM #371550 improve wakeup mechanism
+        - RM #371337 support multiple cmsg messages
+        - RM #371081 vma stats: add a parameter for number of print cycles
+        - RM #34322 Add support for SO_BINDTODEVICE
+        - RM #368408 allow 3 tuple rules for TCP (dst ip, dst port), instead
+          of 5 tuple rules
+        - RM #368154 enlrage hash-map bucket numbers to 4096 (from 256)
+        - RM #367852 minor performance improvment in flow tuple comparison
+        - RM #367852 minor performance improvment in epoll/epfd
+        - RM #363758 Add the low_pps_tcp_send and time_measurements tests to
+          VMA repo
+Fixed:
+        - RM #360776 epoll_pwait/epoll_wait with bad flow return wrong errno
+        - RM #371207 Seg-fault as a result of a race in ONESHOT timer removal
+        - RM #369921 route table is too small, new limit is 4096
+        - RM #368906 VMA_INTERNAL_THREAD_CPUSET does not working correctly
+        - RM #368905 local loopback (127.0.0.1) try to follow route table and
+          might reach an offloaded interface
+        - RM #368597 calling listen() for the second time when the socket is
+          in ready to listen state, generate VMA PANIC
+        - RM #367849 flow-tuple second ctor parameter list - wrong order
+        - RM #367857 tcp is_readable, ring_map_lock might be unlocked without taking the lock
+        - RM #367755 using "VMA_TIMER_RESOLUTION_MSEC=1000" with TCP causes
+          seg-fault
+        - RM #367744 route entry might not have valid route val, which can
+          lead to seg-fault
+        - RM #367697 Delete rx channel from global fd collection
+        - RM #365650 Issues with MLX4_SINGLE_THREADED=1
+        - RM #367389 IB pkey interface MTU is not read correctly
+        - RM #365538 Loading VMA with Redis server give a seg-fault
+        - RM #364303 bounded socket should send with bounded interface src ip,
+          even if routing table lead to different one
+        - RM #364174 vlogger: pass buffer as string in fprintf
+        - RM #364015 Seg-fault, missing initialization of a key for an
+          hash-map
+        - RM #363470 DEADLOCK in TX ring migration
+        - RM #362475 In ring migration, with limited number of rings, there
+          might be infinite loop
+        - RM #362368 In ring migration, buffers from previous rings might be
+          lost.
+
 Version 6.5.9-0:
 Date + Time 2013-12-23
 =======================
