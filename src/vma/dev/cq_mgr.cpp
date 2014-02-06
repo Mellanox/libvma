@@ -492,6 +492,8 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 				temp->path.rx.gro = 0;
 				temp->path.rx.p_ip_h = NULL;
 				temp->path.rx.p_tcp_h = NULL;
+				temp->path.rx.timestamp.tv_nsec = 0;
+				temp->path.rx.timestamp.tv_sec = 0;
 				free_lwip_pbuf(&temp->lwip_pbuf);
 				m_rx_pool.push_back(temp);
 			}

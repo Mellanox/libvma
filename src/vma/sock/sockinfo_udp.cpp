@@ -1160,6 +1160,15 @@ void sockinfo_udp::handle_recv_timestamping(struct cmsg_state *cm_state)
 
 	tsing.systime = m_rx_pkt_ready_list.front()->path.rx.timestamp;
 
+	//TODO match linux kernel behavior?
+	/*
+	// timestamping was requested after packet arrived
+	if (!tsing.systime.tv_nsec && !tsing.systime.tv_sec) {
+		//this mean that a packet which came first might have later timestamp than a packet which came second.
+		clock_gettime(CLOCK_REALTIME, &(tsing.systime));
+	}
+	*/
+
 	// Only fill in SO_TIMESTAMPNS if both requested.
 	// This matches the kernel behavior.
 	if (m_b_rcvtstampns) {
@@ -1608,7 +1617,6 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 	p_desc->inc_ref_count();
 
 	if (m_b_rcvtstamp || (m_n_tsing_flags & (SOF_TIMESTAMPING_RX_SOFTWARE | SOF_TIMESTAMPING_SOFTWARE))) {
-		memset(&(p_desc->path.rx.timestamp), 0, sizeof(struct timespec));
 		clock_gettime(CLOCK_REALTIME, &(p_desc->path.rx.timestamp));
 	}
 
