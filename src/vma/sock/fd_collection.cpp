@@ -36,6 +36,12 @@
 #define fdcoll_logdbg		__log_dbg
 #define fdcoll_logfunc		__log_func
 
+#ifndef SOCK_NONBLOCK
+#define SOCK_NONBLOCK 04000
+#endif
+#ifndef SOCK_CLOEXEC
+#define SOCK_CLOEXEC 02000000
+#endif
 
 
 fd_collection* g_p_fd_collection = NULL;
@@ -182,6 +188,9 @@ void fd_collection::clear()
 int fd_collection::addsocket(int fd, int domain, int type, bool check_offload /*= false*/)
 {
 	transport_t transport;
+	const int SOCK_TYPE_MASK = 0xf;
+	int sock_type = type & SOCK_TYPE_MASK;
+	int sock_flags = type & ~SOCK_TYPE_MASK;
 
 	if (check_offload && !create_offloaded_sockets()) {
 		fdcoll_logdbg("socket [fd=%d, domain=%d, type=%d] is not offloaded by thread rules or by VMA_OFFLOADED_SOCKETS", fd, domain, type);
@@ -222,7 +231,7 @@ int fd_collection::addsocket(int fd, int domain, int type, bool check_offload /*
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	unlock();
-	switch (type) {
+	switch (sock_type) {
 		case SOCK_DGRAM:
 		{	transport = __vma_match_by_program(PROTO_UDP, mce_sys.app_id);
 			if (transport == TRANS_OS) {
@@ -245,7 +254,7 @@ int fd_collection::addsocket(int fd, int domain, int type, bool check_offload /*
 			break;
 		}
 		default:
-			fdcoll_logdbg("unsupported socket type=%d", type);
+			fdcoll_logdbg("unsupported socket type=%d", sock_type);
 			return -1;
 	}
 
@@ -256,6 +265,13 @@ int fd_collection::addsocket(int fd, int domain, int type, bool check_offload /*
 		fdcoll_logpanic("[fd=%d] Failed creating new sockinfo (%m)", fd);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
+
+	if (sock_flags) {
+		if (sock_flags & SOCK_NONBLOCK)
+			p_sfd_api_obj->fcntl(F_SETFL, O_NONBLOCK);
+		if (sock_flags & SOCK_CLOEXEC)
+			p_sfd_api_obj->fcntl(F_SETFD, FD_CLOEXEC);
+	}
 
 	m_p_sockfd_map[fd] = p_sfd_api_obj;
 
