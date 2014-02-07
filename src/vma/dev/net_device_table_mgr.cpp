@@ -478,10 +478,6 @@ int net_device_table_mgr::global_ring_wait_for_notification_and_process_element(
 				BULLSEYE_EXCLUDE_BLOCK_END
 			}
 		}
-		if (mce_sys.select_poll_num) {
-			// An additional epoll_wait to clear the nested set fd
-			orig_os_api.epoll_wait(global_ring_epfd_get(), events, max_fd, 0);
-		}
 	}
 	if (ret_total)
 		ndtm_logfunc("ret_total=%d", ret_total);
