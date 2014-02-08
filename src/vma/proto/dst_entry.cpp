@@ -220,7 +220,7 @@ bool dst_entry::resolve_neigh()
 	bool ret_val = false;
 	ip_address dst_addr = m_dst_ip;
 
-	if (m_p_rt_val && m_p_rt_val->get_gw_addr() != INADDR_ANY) {
+	if (m_p_rt_val && m_p_rt_val->get_gw_addr() != INADDR_ANY && !dst_addr.is_mc()) {
 		dst_addr = m_p_rt_val->get_gw_addr();
 	}
 	cache_entry_subject<neigh_key, neigh_val*>* p_ces = NULL;
