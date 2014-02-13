@@ -835,6 +835,9 @@ transport_t sockinfo::find_target_family(role_t role, struct sockaddr* sock_addr
 	case ROLE_UDP_SENDER:
 		target_family = __vma_match_udp_sender(TRANS_VMA, mce_sys.app_id, sock_addr_first, sizeof(struct sockaddr));
 		break;
+	case ROLE_UDP_CONNECT:
+		target_family = __vma_match_udp_connect(TRANS_VMA, mce_sys.app_id, sock_addr_first, sizeof(struct sockaddr), sock_addr_second, sizeof(struct sockaddr));
+		break;
 	BULLSEYE_EXCLUDE_BLOCK_START
 	default:
 		break;

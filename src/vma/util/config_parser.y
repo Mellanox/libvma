@@ -272,6 +272,9 @@ static void __vma_add_rule() {
 	case ROLE_UDP_RECEIVER:
 		p_lst = &curr_instance->udp_rcv_rules_lst;
 		break;
+	case ROLE_UDP_CONNECT:
+		p_lst = &curr_instance->udp_con_rules_lst;
+		break;
 	default:
 		yyerror("ignoring unknown role");
 		parse_err = 1;
@@ -310,6 +313,7 @@ static void __vma_add_rule() {
 %token TCP_SERVER "tcp server"
 %token UDP_SENDER "udp sender"
 %token UDP_RECEIVER "udp receiver"
+%token UDP_CONNECT "udp connect"
 %token TCP "tcp"
 %token UDP "udp"
 %token OS "os"
@@ -329,7 +333,7 @@ static void __vma_add_rule() {
 %token LEVEL "min-level"
 %token LINE "new line"
 %type <sval> NAME PROGRAM USER_DEFINED_ID_STR
-%type <ival> INT LOG DEST STDERR SYSLOG FILENAME APP_ID USE OS VMA SDP TCP UDP TCP_CLIENT TCP_SERVER UDP_SENDER UDP_RECEIVER LEVEL LINE 
+%type <ival> INT LOG DEST STDERR SYSLOG FILENAME APP_ID USE OS VMA SDP TCP UDP TCP_CLIENT TCP_SERVER UDP_SENDER UDP_RECEIVER UDP_CONNECT LEVEL LINE 
 %debug
 %error-verbose
 %start config
@@ -412,6 +416,7 @@ role:
 	| TCP_CLIENT 	{ current_role = ROLE_TCP_CLIENT; 	__vma_rule.protocol = PROTO_TCP; }
 	| UDP_RECEIVER	{ current_role = ROLE_UDP_RECEIVER; __vma_rule.protocol = PROTO_UDP; }
 	| UDP_SENDER 	{ current_role = ROLE_UDP_SENDER;	__vma_rule.protocol = PROTO_UDP; }
+	| UDP_CONNECT 	{ current_role = ROLE_UDP_CONNECT;	__vma_rule.protocol = PROTO_UDP; }
 	;
 
 tuple:

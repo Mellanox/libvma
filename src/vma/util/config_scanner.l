@@ -234,6 +234,14 @@ udp_receiver {
 	return UDP_RECEIVER;
 }
 
+udp_connect {
+	yylval.ival = UDP_CONNECT;
+#ifdef DEBUG
+	printf("UDP CONNECT\n");
+#endif
+	return UDP_CONNECT;
+}
+
 <CANNAME>[^ \t\n]+ {
 	yylval.sval = (char *)malloc(strlen(yytext) + 1);
 	strcpy(yylval.sval, yytext);

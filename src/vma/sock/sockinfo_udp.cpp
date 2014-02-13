@@ -319,6 +319,10 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 		si_udp_logdbg("bound to %s", m_bound.to_str());
 		in_port_t src_port = m_bound.get_in_port();
 
+		if (TRANS_VMA != find_target_family(ROLE_UDP_CONNECT, m_connected.get_p_sa(), m_bound.get_p_sa())) {
+			setPassthrough();
+			return 0;
+		}
 
 		// Create the new dst_entry
 		if (IN_MULTICAST_N(dst_ip)) {

@@ -208,6 +208,10 @@ static void print_instance_conf(struct instance *instance)
 		match_logdbg("\tudp sender rules:");
 		print_rules_lst(node);
 
+		node = instance->udp_con_rules_lst.head;
+		match_logdbg("\tudp connect rules:");
+		print_rules_lst(node);
+
 		match_logdbg(" ");
 	}
 }
@@ -410,6 +414,9 @@ static transport_t get_family_by_instance_first_matching_rule(transport_t my_tra
 						case ROLE_UDP_RECEIVER:
 							target_family =	get_family_by_first_matching_rule(my_transport, curr_instance->udp_rcv_rules_lst, sin_first, addrlen_first);
 							break;
+						case ROLE_UDP_CONNECT:
+							target_family =	get_family_by_first_matching_rule(my_transport, curr_instance->udp_con_rules_lst, sin_first, addrlen_first, sin_second, addrlen_second);
+							break;
 						BULLSEYE_EXCLUDE_BLOCK_START
 						default:
 							break;
@@ -468,6 +475,17 @@ transport_t __vma_match_udp_receiver(transport_t my_transport, const char *app_i
 	target_family = get_family_by_instance_first_matching_rule(my_transport, ROLE_UDP_RECEIVER, app_id, sin, addrlen);
 
 	match_logdbg("MATCH UDP RECEIVER: => %s", __vma_get_transport_str(target_family));
+
+	return target_family;
+}
+
+transport_t __vma_match_udp_connect(transport_t my_transport, const char *app_id, const struct sockaddr * sin_first, const socklen_t addrlen_first, const struct sockaddr * sin_second, const socklen_t addrlen_second)
+{
+	transport_t target_family;
+
+	target_family = get_family_by_instance_first_matching_rule(my_transport, ROLE_UDP_CONNECT, app_id, sin_first, addrlen_first, sin_second, addrlen_second);
+
+	match_logdbg("MATCH UDP CONNECT: => %s", __vma_get_transport_str(target_family));
 
 	return target_family;
 }

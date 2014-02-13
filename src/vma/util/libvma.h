@@ -42,7 +42,8 @@ typedef enum
 	ROLE_TCP_SERVER,
 	ROLE_TCP_CLIENT,
 	ROLE_UDP_RECEIVER,
-	ROLE_UDP_SENDER
+	ROLE_UDP_SENDER,
+	ROLE_UDP_CONNECT
 } role_t;
 
 typedef enum {
@@ -165,7 +166,10 @@ static inline const char *__vma_get_role_str(int role)
 			return("udp_receiver");
 			break;
 		case ROLE_UDP_SENDER:
-			 return("udp_sender");
+			return("udp_sender");
+			break;
+		case ROLE_UDP_CONNECT:
+			return("udp_connect");
 			break;
 		default:
 			break;
@@ -232,6 +236,7 @@ struct instance
 	struct dbl_lst tcp_srv_rules_lst;	/* tcp server's rules list		*/
 	struct dbl_lst udp_snd_rules_lst;	/* udp sender rules list		*/
 	struct dbl_lst udp_rcv_rules_lst;	/* udp receiver rules list		*/
+	struct dbl_lst udp_con_rules_lst;	/* udp connect rules list		*/
 };
 
 extern struct dbl_lst __instance_list;
@@ -248,6 +253,8 @@ transport_t __vma_match_tcp_server(transport_t my_transport, const char *app_id,
 transport_t __vma_match_udp_sender(transport_t my_transport, const char *app_id, const struct sockaddr * sin, const socklen_t addrlen);
 
 transport_t __vma_match_udp_receiver(transport_t my_transport, const char *app_id, const struct sockaddr * sin, const socklen_t addrlen);
+
+transport_t __vma_match_udp_connect(transport_t my_transport, const char *app_id, const struct sockaddr *sin_first, const socklen_t  sin_addrlen_first, const struct sockaddr *sin_second, const socklen_t  sin_addrlen_second);
 
 /* config.c */
 int __vma_config_empty();
