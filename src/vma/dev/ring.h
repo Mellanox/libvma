@@ -231,7 +231,7 @@ typedef std::tr1::unordered_map<int, ring_resources_map_t::iterator> p_rx_channe
 
 struct counter_and_ibv_flows {
 	int counter;
-	std::vector<struct ibv_flow*> ibv_flows;
+	std::vector<vma_ibv_flow*> ibv_flows;
 };
 
 typedef std::tr1::unordered_map<uint32_t, struct counter_and_ibv_flows> rule_filter_map_t;
@@ -264,8 +264,8 @@ public:
 	// Get/Release memory buffer descriptor with a linked data memory buffer
 	mem_buf_desc_t* mem_buf_tx_get(bool b_block, int n_num_mem_bufs = 1);
 	int		mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting = false);
-	virtual void 	send_ring_buffer(ibv_send_wr* p_send_wqe, bool b_block);
-	virtual void 	send_lwip_buffer(ibv_send_wr* p_send_wqe, bool b_block);
+	virtual void 	send_ring_buffer(vma_ibv_send_wr* p_send_wqe, bool b_block);
+	virtual void 	send_lwip_buffer(vma_ibv_send_wr* p_send_wqe, bool b_block);
 
 	// Funcs taken from cq_mgr.h
 	int		get_num_resources() const { return m_n_num_resources; };
@@ -342,12 +342,12 @@ protected:
 	void			 flow_tcp_del_all();
 
 private:
-	inline void 		 send_status_handler(int ret, ibv_send_wr* p_send_wqe);
+	inline void 		 send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe);
 	inline bool		 is_available_qp_wr(bool b_block);
 	inline bool		 request_more_tx_buffers(uint32_t count);
 	inline mem_buf_desc_t*	 get_tx_buffers(uint32_t n_num_mem_bufs);
 	inline int		 put_tx_buffers(mem_buf_desc_t* buff_list);
-	inline int		 send_buffer(ibv_send_wr* p_send_wqe, bool b_block);
+	inline int		 send_buffer(vma_ibv_send_wr* p_send_wqe, bool b_block);
 };
 
 class ring_eth : public ring

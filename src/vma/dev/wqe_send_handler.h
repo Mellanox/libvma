@@ -12,7 +12,7 @@
 
 
 #include "util/to_str.h"
-#include <infiniband/verbs.h>
+#include "util/verbs_extra.h"
 #include <string.h>
 
 #ifndef IB_WQE_TEMPLATE_H
@@ -24,16 +24,16 @@ public:
 	wqe_send_handler();
 	virtual ~wqe_send_handler();
 
-	virtual void init_wqe(struct ibv_send_wr &wqe_to_init, struct ibv_sge* sge_list, uint32_t num_sge);
-	virtual void init_inline_wqe(struct ibv_send_wr &wqe_to_init, struct ibv_sge* sge_list, uint32_t num_sge);
+	virtual void init_wqe(vma_ibv_send_wr &wqe_to_init, struct ibv_sge* sge_list, uint32_t num_sge);
+	virtual void init_inline_wqe(vma_ibv_send_wr &wqe_to_init, struct ibv_sge* sge_list, uint32_t num_sge);
 
-	inline void enable_hw_csum (struct ibv_send_wr &send_wqe) { send_wqe.send_flags |= IBV_SEND_IP_CSUM; };
-	inline void disable_hw_csum (struct ibv_send_wr &send_wqe) { send_wqe.send_flags &= ~IBV_SEND_IP_CSUM; };
-	inline void enable_inline (struct ibv_send_wr &send_wqe) { send_wqe.send_flags |= IBV_SEND_INLINE; };
+	inline void enable_hw_csum (vma_ibv_send_wr &send_wqe) { vma_send_wr_exp_send_flags(send_wqe) |= VMA_IBV_SEND_IP_CSUM; };
+	inline void disable_hw_csum (vma_ibv_send_wr &send_wqe) { vma_send_wr_exp_send_flags(send_wqe) &= ~VMA_IBV_SEND_IP_CSUM; };
+	inline void enable_inline (vma_ibv_send_wr &send_wqe) { send_wqe.send_flags |= IBV_SEND_INLINE; };
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
 #endif
-	inline void disable_inline (struct ibv_send_wr &send_wqe) { send_wqe.send_flags &= ~IBV_SEND_INLINE; };
+	inline void disable_inline (vma_ibv_send_wr &send_wqe) { send_wqe.send_flags &= ~IBV_SEND_INLINE; };
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif

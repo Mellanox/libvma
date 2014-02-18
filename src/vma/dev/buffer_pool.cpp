@@ -48,8 +48,9 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 {
 	size_t sz_aligned_element = 0;
 	uint8_t *ptr_buff, *ptr_desc;
-	int access;
+	int access, exp_access;
 	access = IBV_ACCESS_LOCAL_WRITE;
+	exp_access = 0;
 
 
 	__log_info_func("count = %d", buffer_count);
@@ -72,18 +73,18 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 		}
 		else {
 			__log_info_dbg("Huge pages allocation passed successfully");
-			if (!register_memory(size, m_p_ib_ctx_h, access)) {
+			if (!register_memory(size, m_p_ib_ctx_h, access, exp_access)) {
 				__log_info_panic("failed registering huge pages data memory block");
 			}
 			break;
 		}
 	case ALLOC_TYPE_CONTIG:
-#ifndef DEFINED_IBV_ACCESS_ALLOCATE_MR
+#ifndef VMA_IBV_ACCESS_ALLOCATE_MR
 		m_is_contig_alloc = false;
 #else
 		m_data_block = NULL;
-		access |= IBV_ACCESS_ALLOCATE_MR; // for contiguous pages use only
-		if (!register_memory(size, m_p_ib_ctx_h, access)) {
+		exp_access |= VMA_IBV_ACCESS_ALLOCATE_MR; // for contiguous pages use only
+		if (!register_memory(size, m_p_ib_ctx_h, access, exp_access)) {
 			__log_info_dbg("Failed allocating contiguous pages");
 			m_is_contig_alloc = false;
 		}
@@ -95,8 +96,8 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 	case ALLOC_TYPE_ANON:
 	default:
 		__log_info_dbg("allocating memory using malloc()");
-#ifdef DEFINED_IBV_ACCESS_ALLOCATE_MR
-		access &= ~IBV_ACCESS_ALLOCATE_MR;
+#ifdef VMA_IBV_ACCESS_ALLOCATE_MR
+		exp_access &= ~VMA_IBV_ACCESS_ALLOCATE_MR;
 #endif
 		m_data_block = malloc(size);
 		BULLSEYE_EXCLUDE_BLOCK_START
@@ -105,7 +106,7 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 					size/1024, errno);
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
-		if (!register_memory(size, m_p_ib_ctx_h, access)) {
+		if (!register_memory(size, m_p_ib_ctx_h, access, exp_access)) {
 			__log_info_panic("failed registering data memory block");
 		}
 		break;
@@ -215,11 +216,11 @@ bool buffer_pool::hugetlb_alloc(size_t sz_bytes)
 	return true;
 }
 
-bool buffer_pool::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, int access)
+bool buffer_pool::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, int access, int exp_access)
 {
 
 	if (p_ib_ctx_h) {
-		ibv_mr *mr = p_ib_ctx_h->mem_reg(m_data_block, size, access);
+		ibv_mr *mr = p_ib_ctx_h->mem_reg(m_data_block, size, access, exp_access);
 		if (mr == NULL){
 			if (m_data_block) {
 				__log_info_warn("Failed registering memory, This might happen due to low MTT entries. Please refer to README.txt for more info");
@@ -242,7 +243,7 @@ bool buffer_pool::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, int a
 
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (g_p_ib_ctx_handler_collection->mem_reg_on_all_devices(m_data_block, size, mrs,
-				num_devices, access) != num_devices) {
+				num_devices, access, exp_access) != num_devices) {
 			if (m_data_block) {
 				__log_info_warn("Failed registering memory, This might happen due to low MTT entries. Please refer to README.txt for more info");
 				__log_info_panic("Failed registering memory block with device (ptr=%p size=%ld%s) (errno=%d %m)",

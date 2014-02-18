@@ -38,8 +38,8 @@ void rfs_uc::prepare_flow_spec()
 		attach_flow_data_t* 		       p_attach_flow_data = NULL;
 		attach_flow_data_ib_ipv4_tcp_udp_t*    attach_flow_data_ib = NULL;
 		attach_flow_data_eth_ipv4_tcp_udp_t*   attach_flow_data_eth = NULL;
-		struct ibv_flow_spec_ipv4*             p_ipv4 = NULL;
-		struct ibv_flow_spec_tcp_udp*          p_tcp_udp = NULL;
+		vma_ibv_flow_spec_ipv4*             p_ipv4 = NULL;
+		vma_ibv_flow_spec_tcp_udp*          p_tcp_udp = NULL;
 
 		switch (type) {
 			case VMA_TRANSPORT_IB:

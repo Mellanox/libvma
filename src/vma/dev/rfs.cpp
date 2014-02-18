@@ -183,7 +183,7 @@ bool rfs::create_ibv_flow()
 {
 	for (size_t i = 0; i < m_attach_flow_data_vector.size(); i++) {
 		attach_flow_data_t* iter = m_attach_flow_data_vector[i];
-		iter->ibv_flow = ibv_create_flow(iter->p_qp_mgr->get_ibv_qp(), &(iter->ibv_flow_attr));
+		iter->ibv_flow = vma_ibv_create_flow(iter->p_qp_mgr->get_ibv_qp(), &(iter->ibv_flow_attr));
 		if (!iter->ibv_flow) {
 			rfs_logerr("Create of QP flow ID failed with flow %s", m_flow_tuple.to_str()); //TODO ALEXR - Add info about QP, spec, priority into log msg
 			return false;
@@ -203,7 +203,7 @@ bool rfs::destroy_ibv_flow()
 			rfs_logdbg("Destroy of QP flow ID failed - QP flow ID that was not created. This is OK for MC same ip diff port scenario."); //TODO ALEXR - Add info about QP, spec, priority into log msg
 			return false;
 		}
-		IF_VERBS_FAILURE(ibv_destroy_flow(iter->ibv_flow)) {
+		IF_VERBS_FAILURE(vma_ibv_destroy_flow(iter->ibv_flow)) {
 			rfs_logerr("Destroy of QP flow ID failed"); //TODO ALEXR - Add info about QP, spec, priority into log msg
 			return false;
 		} ENDIF_VERBS_FAILURE;

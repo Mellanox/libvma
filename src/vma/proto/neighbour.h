@@ -279,7 +279,7 @@ protected:
 	uint32_t		m_arp_counter;
 	net_device_val*		m_p_dev;
 	ring* 			m_p_ring;
-	ibv_send_wr 		m_send_wqe;
+	vma_ibv_send_wr 	m_send_wqe;
 	ibv_sge 		m_sge;
 	bool 			m_is_loopback;
 

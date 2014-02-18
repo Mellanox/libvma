@@ -39,50 +39,50 @@ class pkt_rcvr_sink;
 
 //for mc
 typedef struct __attribute__ ((packed)) ibv_flow_attr_ib {
-	struct ibv_flow_attr             attr;
-	struct ibv_flow_spec_ib          ib;
+	vma_ibv_flow_attr             attr;
+	vma_ibv_flow_spec_ib          ib;
 
 	ibv_flow_attr_ib(uint8_t port) {
 		memset(this, 0, sizeof(struct ibv_flow_attr_ib));
 		attr.size = sizeof(struct ibv_flow_attr_ib);
 		attr.num_of_specs = 1;
-		attr.type = IBV_FLOW_ATTR_NORMAL;
+		attr.type = VMA_IBV_FLOW_ATTR_NORMAL;
 		attr.priority = 0; // highest priority for all offloaded rules
 		attr.port = port;
-		attr.flags = IBV_FLOW_ATTR_FLAGS_ALLOW_LOOP_BACK;
+		attr.flags = VMA_IBV_FLOW_ATTR_FLAGS_ALLOW_LOOP_BACK;
 	}
 } ibv_flow_attr_ib;
 
 //for uc
 typedef struct __attribute__ ((packed)) ibv_flow_attr_ib_ipv4_tcp_udp {
 
-	struct ibv_flow_attr             attr;
-	struct ibv_flow_spec_ib          ib;
-	struct ibv_flow_spec_ipv4        ipv4;
-	struct ibv_flow_spec_tcp_udp     tcp_udp;
+	vma_ibv_flow_attr             attr;
+	vma_ibv_flow_spec_ib          ib;
+	vma_ibv_flow_spec_ipv4        ipv4;
+	vma_ibv_flow_spec_tcp_udp     tcp_udp;
 
 	ibv_flow_attr_ib_ipv4_tcp_udp(uint8_t port) {
 		memset(this, 0, sizeof(struct ibv_flow_attr_ib_ipv4_tcp_udp));
 		attr.size = sizeof(struct ibv_flow_attr_ib_ipv4_tcp_udp);
 		attr.num_of_specs = 3;
-		attr.type = IBV_FLOW_ATTR_NORMAL;
+		attr.type = VMA_IBV_FLOW_ATTR_NORMAL;
 		attr.priority = 0; // highest priority for all offloaded rules
 		attr.port = port;
-		attr.flags = IBV_FLOW_ATTR_FLAGS_ALLOW_LOOP_BACK;
+		attr.flags = VMA_IBV_FLOW_ATTR_FLAGS_ALLOW_LOOP_BACK;
 	}
 } ibv_flow_attr_ib_ipv4_tcp_udp;
 
 typedef struct __attribute__ ((packed)) ibv_flow_attr_eth_ipv4_tcp_udp {
-	struct ibv_flow_attr             attr;
-	struct ibv_flow_spec_eth         eth;
-	struct ibv_flow_spec_ipv4        ipv4;
-	struct ibv_flow_spec_tcp_udp     tcp_udp;
+	vma_ibv_flow_attr             attr;
+	vma_ibv_flow_spec_eth         eth;
+	vma_ibv_flow_spec_ipv4        ipv4;
+	vma_ibv_flow_spec_tcp_udp     tcp_udp;
 
 	ibv_flow_attr_eth_ipv4_tcp_udp(uint8_t port) {
 		memset(this, 0, sizeof(struct ibv_flow_attr_eth_ipv4_tcp_udp));
 		attr.size = sizeof(struct ibv_flow_attr_eth_ipv4_tcp_udp);
 		attr.num_of_specs = 3;
-		attr.type = IBV_FLOW_ATTR_NORMAL;
+		attr.type = VMA_IBV_FLOW_ATTR_NORMAL;
 		attr.priority = 0; // highest priority for all offloaded rules
 		attr.port = port;
 	}
@@ -120,9 +120,9 @@ typedef struct __attribute__ ((packed)) attach_flow_data_eth_ipv4_tcp_udp_t {
 } attach_flow_data_eth_ipv4_tcp_udp_t;
 
 typedef struct __attribute__ ((packed)) attach_flow_data_t {
-	struct ibv_flow *                       ibv_flow;
+	vma_ibv_flow *                       ibv_flow;
 	qp_mgr*                                 p_qp_mgr;
-	struct ibv_flow_attr                    ibv_flow_attr;
+	vma_ibv_flow_attr                    ibv_flow_attr;
 } attach_flow_data_t;
 
 typedef std::vector<attach_flow_data_t*> attach_flow_data_vector_t;

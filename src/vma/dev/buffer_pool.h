@@ -121,7 +121,7 @@ private:
 	/**
 	 * Register memory
 	 */
-	bool	register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, int access);
+	bool	register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, int access, int exp_access);
 
 	/**
 	 * Add a buffer to the pool

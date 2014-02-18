@@ -64,7 +64,7 @@ private:
 	ring* 			m_p_ring;
 	header			m_header;
 	ibv_sge 		m_sge;
-	ibv_send_wr		m_p_send_igmp_wqe;
+	vma_ibv_send_wr		m_p_send_igmp_wqe;
 	uint8_t			m_igmp_code;
 
 	void 				set_timer(); //called by tx_igmp_report

@@ -31,7 +31,7 @@ public:
 	size_t		get_num_devices() {return m_n_num_devices; };
 	size_t          mem_reg_on_all_devices(void* addr, size_t length,
 			ibv_mr** mr_array, size_t mr_array_sz,
-			int access);
+			int access, int exp_access);
 
 private:
 	ib_context_map_t        m_ib_ctx_map;

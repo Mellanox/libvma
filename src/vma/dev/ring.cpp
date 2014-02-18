@@ -1103,7 +1103,7 @@ int ring::get_max_tx_inline()
 	return m_active_qp_mgr->get_max_inline_tx_data();
 }
 
-inline void ring::send_status_handler(int ret, ibv_send_wr* p_send_wqe)
+inline void ring::send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (unlikely(ret)) {
@@ -1121,7 +1121,7 @@ inline void ring::send_status_handler(int ret, ibv_send_wr* p_send_wqe)
 	BULLSEYE_EXCLUDE_BLOCK_END
 }
 
-void ring::send_ring_buffer(ibv_send_wr* p_send_wqe, bool b_block)
+void ring::send_ring_buffer(vma_ibv_send_wr* p_send_wqe, bool b_block)
 {
 	m_lock_ring_tx.lock();
 	p_send_wqe->sg_list[0].lkey = m_tx_lkey;	// The ring keeps track of the current device lkey (In case of bonding event...)
@@ -1131,7 +1131,7 @@ void ring::send_ring_buffer(ibv_send_wr* p_send_wqe, bool b_block)
 	return;
 }
 
-void ring::send_lwip_buffer(ibv_send_wr* p_send_wqe, bool b_block)
+void ring::send_lwip_buffer(vma_ibv_send_wr* p_send_wqe, bool b_block)
 {
 	m_lock_ring_tx.lock();
 	p_send_wqe->sg_list[0].lkey = m_tx_lkey; // The ring keeps track of the current device lkey (In case of bonding event...)
@@ -1143,7 +1143,7 @@ void ring::send_lwip_buffer(ibv_send_wr* p_send_wqe, bool b_block)
 	return;
 }
 
-int ring::send_buffer(ibv_send_wr* p_send_wqe, bool b_block)
+int ring::send_buffer(vma_ibv_send_wr* p_send_wqe, bool b_block)
 {
 	int ret = 0;
 	if (is_available_qp_wr(b_block)) {

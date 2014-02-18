@@ -16,6 +16,9 @@
 
 #include <rdma/rdma_cma.h>
 #include <infiniband/verbs.h>
+#ifndef DEFINED_IBV_OLD_VERBS_MLX_OFED
+#include <infiniband/verbs_exp.h>
+#endif
 #include <config.h>
 #include <string.h>
 #include <netinet/in.h>
@@ -75,10 +78,70 @@ int priv_ibv_query_qp_state(struct ibv_qp *qp);
 #define FS_MASK_ON_16     (0xffff)
 #define FS_MASK_ON_32     (0xffffffff)
 
-static inline void ibv_flow_spec_ib_set_by_dst_gid(struct ibv_flow_spec_ib* ib, uint8_t* dst_gid)
+//old MLNX_OFED verbs (2.1 and older)
+#ifdef DEFINED_IBV_OLD_VERBS_MLX_OFED
+//ibv_post_send
+#define VMA_IBV_SEND_IP_CSUM			IBV_SEND_IP_CSUM
+#define vma_send_wr_exp_send_flags(wr)		wr.send_flags
+#define VMA_IBV_WR_SEND				IBV_WR_SEND
+#define vma_send_wr_opcode(wr)			wr.opcode
+#define vma_ibv_post_send(qp, wr, bad_wr)	ibv_post_send(qp, wr, bad_wr)
+typedef struct ibv_send_wr			vma_ibv_send_wr;
+//ibv_reg_mr
+#ifdef DEFINED_IBV_ACCESS_ALLOCATE_MR
+#define VMA_IBV_ACCESS_ALLOCATE_MR		IBV_ACCESS_ALLOCATE_MR
+#endif
+//flow steering
+#define VMA_IBV_FLOW_ATTR_NORMAL		IBV_FLOW_ATTR_NORMAL
+#define VMA_IBV_FLOW_ATTR_FLAGS_ALLOW_LOOP_BACK	IBV_FLOW_ATTR_FLAGS_ALLOW_LOOP_BACK
+#define VMA_IBV_FLOW_SPEC_IB			IBV_FLOW_SPEC_IB
+#define VMA_IBV_FLOW_SPEC_ETH			IBV_FLOW_SPEC_ETH
+#define VMA_IBV_FLOW_SPEC_IPV4			IBV_FLOW_SPEC_IPV4
+#define VMA_IBV_FLOW_SPEC_TCP			IBV_FLOW_SPEC_TCP
+#define VMA_IBV_FLOW_SPEC_UDP			IBV_FLOW_SPEC_UDP
+#define vma_ibv_create_flow(qp, flow)		ibv_create_flow(qp, flow)
+#define vma_ibv_destroy_flow(flow_id)		ibv_destroy_flow(flow_id)
+typedef struct ibv_flow				vma_ibv_flow;
+typedef struct ibv_flow_attr			vma_ibv_flow_attr;
+typedef struct ibv_flow_spec_ib			vma_ibv_flow_spec_ib;
+typedef struct ibv_flow_spec_eth		vma_ibv_flow_spec_eth;
+typedef struct ibv_flow_spec_ipv4		vma_ibv_flow_spec_ipv4;
+typedef struct ibv_flow_spec_tcp_udp		vma_ibv_flow_spec_tcp_udp;
+#else //new MLNX_OFED verbs (2.2 and newer)
+//ibv_post_send
+#define VMA_IBV_SEND_IP_CSUM			IBV_EXP_SEND_IP_CSUM
+#define vma_send_wr_exp_send_flags(wr)		wr.exp_send_flags
+#define VMA_IBV_WR_SEND				IBV_EXP_WR_SEND
+#define vma_send_wr_opcode(wr)			wr.exp_opcode
+#define vma_ibv_post_send(qp, wr, bad_wr)	ibv_exp_post_send(qp, wr, bad_wr)
+typedef struct ibv_exp_send_wr			vma_ibv_send_wr;
+//ibv_reg_mr
+#ifdef DEFINED_IBV_EXP_ACCESS_ALLOCATE_MR
+#define VMA_IBV_ACCESS_ALLOCATE_MR		IBV_EXP_ACCESS_ALLOCATE_MR
+#endif
+//flow steering
+#define VMA_IBV_FLOW_ATTR_NORMAL		IBV_EXP_FLOW_ATTR_NORMAL
+#define VMA_IBV_FLOW_ATTR_FLAGS_ALLOW_LOOP_BACK	IBV_EXP_FLOW_ATTR_FLAGS_ALLOW_LOOP_BACK
+#define VMA_IBV_FLOW_SPEC_IB			IBV_EXP_FLOW_SPEC_IB
+#define VMA_IBV_FLOW_SPEC_ETH			IBV_EXP_FLOW_SPEC_ETH
+#define VMA_IBV_FLOW_SPEC_IPV4			IBV_EXP_FLOW_SPEC_IPV4
+#define VMA_IBV_FLOW_SPEC_TCP			IBV_EXP_FLOW_SPEC_TCP
+#define VMA_IBV_FLOW_SPEC_UDP			IBV_EXP_FLOW_SPEC_UDP
+#define vma_ibv_create_flow(qp, flow)		ibv_exp_create_flow(qp, flow)
+#define vma_ibv_destroy_flow(flow_id)		ibv_exp_destroy_flow(flow_id)
+typedef struct ibv_exp_flow			vma_ibv_flow;
+typedef struct ibv_exp_flow_attr		vma_ibv_flow_attr;
+typedef struct ibv_exp_flow_spec_ib		vma_ibv_flow_spec_ib;
+typedef struct ibv_exp_flow_spec_eth		vma_ibv_flow_spec_eth;
+typedef struct ibv_exp_flow_spec_ipv4		vma_ibv_flow_spec_ipv4;
+typedef struct ibv_exp_flow_spec_tcp_udp	vma_ibv_flow_spec_tcp_udp;
+#endif
+
+
+static inline void ibv_flow_spec_ib_set_by_dst_gid(vma_ibv_flow_spec_ib* ib, uint8_t* dst_gid)
 {
-	ib->type = IBV_FLOW_SPEC_IB;
-	ib->size = sizeof(struct ibv_flow_spec_ib);
+	ib->type = VMA_IBV_FLOW_SPEC_IB;
+	ib->size = sizeof(vma_ibv_flow_spec_ib);
 	if (dst_gid)
 	{
 		memcpy(ib->val.dst_gid, dst_gid, 16);
@@ -86,18 +149,18 @@ static inline void ibv_flow_spec_ib_set_by_dst_gid(struct ibv_flow_spec_ib* ib, 
 	}
 }
 
-static inline void ibv_flow_spec_ib_set_by_dst_qpn(struct ibv_flow_spec_ib* ib, uint32_t dst_qpn)
+static inline void ibv_flow_spec_ib_set_by_dst_qpn(vma_ibv_flow_spec_ib* ib, uint32_t dst_qpn)
 {
-	ib->type = IBV_FLOW_SPEC_IB;
-	ib->size = sizeof(struct ibv_flow_spec_ib);
+	ib->type = VMA_IBV_FLOW_SPEC_IB;
+	ib->size = sizeof(vma_ibv_flow_spec_ib);
 	ib->val.qpn = dst_qpn;
 	ib->mask.qpn = FS_MASK_ON_32;
 }
 
-static inline void ibv_flow_spec_eth_set(struct ibv_flow_spec_eth* eth, uint8_t* dst_mac, uint16_t vlan_tag)
+static inline void ibv_flow_spec_eth_set(vma_ibv_flow_spec_eth* eth, uint8_t* dst_mac, uint16_t vlan_tag)
 {
-	eth->type = IBV_FLOW_SPEC_ETH;
-	eth->size = sizeof(struct ibv_flow_spec_eth);
+	eth->type = VMA_IBV_FLOW_SPEC_ETH;
+	eth->size = sizeof(vma_ibv_flow_spec_eth);
 	eth->val.ether_type = ntohs(ETH_P_IP);
 	eth->mask.ether_type = FS_MASK_ON_16;
 	memcpy(eth->val.dst_mac, dst_mac, ETH_ALEN);
@@ -106,20 +169,20 @@ static inline void ibv_flow_spec_eth_set(struct ibv_flow_spec_eth* eth, uint8_t*
 	eth->mask.vlan_tag = eth->val.vlan_tag ? htons(VLAN_VID_MASK) : 0; //we do not support vlan options
 }
 
-static inline void ibv_flow_spec_ipv4_set(struct ibv_flow_spec_ipv4* ipv4, uint32_t dst_ip, uint32_t src_ip)
+static inline void ibv_flow_spec_ipv4_set(vma_ibv_flow_spec_ipv4* ipv4, uint32_t dst_ip, uint32_t src_ip)
 {
-	ipv4->type = IBV_FLOW_SPEC_IPV4;
-	ipv4->size = sizeof(struct ibv_flow_spec_ipv4);
+	ipv4->type = VMA_IBV_FLOW_SPEC_IPV4;
+	ipv4->size = sizeof(vma_ibv_flow_spec_ipv4);
 	ipv4->val.src_ip = src_ip;
 	if (ipv4->val.src_ip) ipv4->mask.src_ip = FS_MASK_ON_32;
 	ipv4->val.dst_ip = dst_ip;
 	if (ipv4->val.dst_ip) ipv4->mask.dst_ip = FS_MASK_ON_32;
 }
 
-static inline void ibv_flow_spec_tcp_udp_set(struct ibv_flow_spec_tcp_udp* tcp_udp, bool is_tcp, uint16_t dst_port, uint16_t src_port)
+static inline void ibv_flow_spec_tcp_udp_set(vma_ibv_flow_spec_tcp_udp* tcp_udp, bool is_tcp, uint16_t dst_port, uint16_t src_port)
 {
-	tcp_udp->type = is_tcp ? IBV_FLOW_SPEC_TCP : IBV_FLOW_SPEC_UDP;
-	tcp_udp->size = sizeof(struct ibv_flow_spec_tcp_udp);
+	tcp_udp->type = is_tcp ? VMA_IBV_FLOW_SPEC_TCP : VMA_IBV_FLOW_SPEC_UDP;
+	tcp_udp->size = sizeof(vma_ibv_flow_spec_tcp_udp);
 	tcp_udp->val.src_port = src_port;
 	if(tcp_udp->val.src_port) tcp_udp->mask.src_port = FS_MASK_ON_16;
 	tcp_udp->val.dst_port = dst_port;

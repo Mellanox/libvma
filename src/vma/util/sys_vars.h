@@ -21,6 +21,7 @@
 
 #include "vtypes.h"
 #include "config.h"
+#include "verbs_extra.h"
 
 
 typedef enum {
@@ -353,7 +354,7 @@ struct mce_sys_var {
 #define MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC		(0)
 #define MCE_DEFAULT_WAIT_AFTER_REREG_MSEC		(500)
 #define MCE_DEFAULT_THREAD_MODE				(THREAD_MODE_MULTI)
-#ifndef DEFINED_IBV_ACCESS_ALLOCATE_MR
+#ifndef VMA_IBV_ACCESS_ALLOCATE_MR
 #define MCE_DEFAULT_MEM_ALLOC_TYPE			(ALLOC_TYPE_HUGEPAGES)
 #else
 #define MCE_DEFAULT_MEM_ALLOC_TYPE			(ALLOC_TYPE_CONTIG)

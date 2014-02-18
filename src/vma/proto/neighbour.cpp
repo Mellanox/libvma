@@ -103,7 +103,7 @@ neigh_entry::neigh_entry(neigh_key key, transport_type_t type, bool is_init_reso
 	m_src_addr.sin_addr.s_addr = m_p_dev->get_local_addr();
 	m_src_addr.sin_family = AF_INET;
 
-	memset(&m_send_wqe, 0, sizeof(struct ibv_send_wr));
+	memset(&m_send_wqe, 0, sizeof(vma_ibv_send_wr));
 	memset(&m_sge, 0, sizeof(struct ibv_sge));
 
 	if (m_dst_addr.sin_addr.s_addr == m_src_addr.sin_addr.s_addr) {

@@ -29,7 +29,7 @@ public:
 	 * */
 	//void execute(struct ibv_async_event ibv_event) { handle_ibv_event(ibv_event); }
 	void                    set_dev_configuration();
-	ibv_mr*                 mem_reg(void *addr, size_t length, int access);
+	ibv_mr*                 mem_reg(void *addr, size_t length, int access, int exp_access);
 	ibv_port_state          get_port_state(int port_num);
 	ibv_device*             get_ibv_device() { return m_p_ibv_device;}
 	ibv_pd*			get_ibv_pd() { return m_p_ibv_pd;}

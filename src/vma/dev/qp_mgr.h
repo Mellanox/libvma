@@ -81,7 +81,7 @@ public:
 	void 			down();
 
 	int			post_recv(mem_buf_desc_t* p_mem_buf_desc); // Post for receive a list of mem_buf_desc
-	int 			send(ibv_send_wr* p_send_wqe);
+	int 			send(vma_ibv_send_wr* p_send_wqe);
 
 	uint32_t		get_max_inline_tx_data() const {return m_max_inline_data; }
 	int			get_port_num() const { return m_port_num; }

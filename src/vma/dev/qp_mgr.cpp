@@ -267,7 +267,7 @@ void qp_mgr::release_tx_buffers()
 
 void qp_mgr::trigger_completion_for_all_sent_packets()
 {
-	ibv_send_wr send_wr, *bad_wr = NULL;
+	vma_ibv_send_wr send_wr, *bad_wr = NULL;
 	ibv_sge sge[1];
 
 	// Handle releasing of Tx buffers
@@ -325,7 +325,7 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 		send_wr.sg_list = sge;
 		send_wr.num_sge = 1;
 		send_wr.next = NULL;
-		send_wr.opcode = IBV_WR_SEND;
+		vma_send_wr_opcode(send_wr) = VMA_IBV_WR_SEND;
 		send_wr.send_flags = (ibv_send_flags)(IBV_SEND_SIGNALED | IBV_SEND_INLINE);
 		qp_logdbg("IBV_SEND_SIGNALED");
 
@@ -335,7 +335,7 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 
 		m_p_ring->m_tx_num_wr_free--;
 
-		IF_VERBS_FAILURE(ibv_post_send(m_qp, &send_wr, &bad_wr)) {
+		IF_VERBS_FAILURE(vma_ibv_post_send(m_qp, &send_wr, &bad_wr)) {
 			qp_logerr("failed post_send%s (errno=%d %m)", ((send_wr.send_flags & IBV_SEND_INLINE)?"(+inline)":""), errno);
 			qp_logerr("bad_wr info: wr_id=%#x, send_flags=%#x, addr=%#x, length=%d, lkey=%#x, max_inline_data=%d",
 				  bad_wr->wr_id, bad_wr->send_flags, bad_wr->sg_list[0].addr, bad_wr->sg_list[0].length, bad_wr->sg_list[0].lkey, m_max_inline_data);
@@ -441,9 +441,9 @@ int qp_mgr::post_recv(mem_buf_desc_t* p_mem_buf_desc)
 	return 0;
 }
 
-int qp_mgr::send(ibv_send_wr* p_send_wqe)
+int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 {
-	ibv_send_wr *bad_wr = NULL;
+	vma_ibv_send_wr *bad_wr = NULL;
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t *)p_send_wqe->wr_id;
 	bool is_signaled;
 	int ret;
@@ -483,7 +483,7 @@ int qp_mgr::send(ibv_send_wr* p_send_wqe)
 	TAKE_T_TX_POST_SEND_START;
 #endif
 
-	IF_VERBS_FAILURE(ibv_post_send(m_qp, p_send_wqe, &bad_wr)) {
+	IF_VERBS_FAILURE(vma_ibv_post_send(m_qp, p_send_wqe, &bad_wr)) {
 #ifdef VMA_TIME_MEASURE
 		INC_ERR_TX_COUNT;
 #endif

@@ -81,8 +81,8 @@ protected:
 	in_addr_t		m_so_bindtodevice_ip;
 
 	lock_mutex_recursive 	m_slow_path_lock;
-	struct ibv_send_wr 	m_inline_send_wqe;
-	struct ibv_send_wr 	m_not_inline_send_wqe;
+	vma_ibv_send_wr 	m_inline_send_wqe;
+	vma_ibv_send_wr 	m_not_inline_send_wqe;
 	wqe_send_handler*	m_p_send_wqe_handler;
 	ibv_sge 		m_sge[2];
 	uint8_t 		m_num_sge;
@@ -102,7 +102,7 @@ protected:
 	uint8_t 		m_tos;
 	bool 			m_b_is_initialized;
 
-	ibv_send_wr* 		m_p_send_wqe;
+	vma_ibv_send_wr* 		m_p_send_wqe;
 	uint32_t 		m_max_inline;
 
 	virtual transport_t 	get_transport(sockaddr_in to) = 0;

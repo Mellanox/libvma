@@ -85,8 +85,8 @@ void dst_entry::init_members()
 	m_p_neigh_val = NULL;
 	m_p_rt_entry = NULL;
 	m_num_sge = 0;
-	memset(&m_inline_send_wqe, 0, sizeof(struct ibv_send_wr));
-	memset(&m_not_inline_send_wqe, 0, sizeof(struct ibv_send_wr));
+	memset(&m_inline_send_wqe, 0, sizeof(vma_ibv_send_wr));
+	memset(&m_not_inline_send_wqe, 0, sizeof(vma_ibv_send_wr));
 	m_p_send_wqe_handler = NULL;
 	memset(&m_sge, 0, sizeof(m_sge));
 	m_tos = 0;
