@@ -67,7 +67,7 @@ bool dst_entry_udp_mc::resolve_net_dev()
 	bool ret_val = false;
 	cache_entry_subject<ip_address, net_device_val*>* p_ces = NULL;
 
-	if (m_mc_tx_if_ip.get_in_addr() != INADDR_ANY) {
+	if (m_mc_tx_if_ip.get_in_addr() != INADDR_ANY && !m_mc_tx_if_ip.is_mc()) {
 		if(m_p_net_dev_entry == NULL && g_p_net_device_table_mgr->register_observer(m_mc_tx_if_ip.get_in_addr(), this, &p_ces)) {
 			m_p_net_dev_entry = dynamic_cast<net_device_entry*>(p_ces);
 		}
