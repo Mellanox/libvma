@@ -1,3 +1,16 @@
+Version 6.6.1-0:
+Date + Time 2014-2-25
+=======================
+Added:
+        - RM #375244 Align VMA with latest MLNX_OFED 2.2 experimental verbs
+        - RM #374399 Add udp_connect rule to libvma.conf
+        - RM #372972 handle SOCK_NONBLOCK and SOCK_CLOEXEC socket() flags
+Fixed:
+        - RM #376409 bind to MC address might lead to not-offloaded TX traffic
+        - RM #372976 multicast dest should ignore gateway when registering neigh
+        - RM #372792 net_device_table_mgr: Remove unnecessary epoll_wait
+        - RM #371374 small modification to UDP RX software packet timestamp support
+
 Version 6.6.0-0:
 Date + Time 2014-2-2
 =======================
