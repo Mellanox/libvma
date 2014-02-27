@@ -2206,7 +2206,12 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
                 		}
                 		// handle TX side
                 		if (m_p_connected_dst_entry) {
-                			m_p_connected_dst_entry->set_so_bindtodevice_addr(m_so_bindtodevice_ip);
+					if (m_p_connected_dst_entry->is_offloaded()) {
+                				si_tcp_logdbg("SO_BINDTODEVICE will not work on already offloaded TCP socket");
+						return -1;
+                			} else {
+                				m_p_connected_dst_entry->set_so_bindtodevice_addr(m_so_bindtodevice_ip);
+					}
                 		}
                 		// TODO handle RX side
                 	}
