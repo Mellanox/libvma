@@ -306,7 +306,7 @@ protected:
 	// For IB MC flow, the port is zeroed in the ibv_flow_spec when calling to ibv_flow_spec().
 	// It means that for every MC group, even if we have sockets with different ports - only one rule in the HW.
 	// So the hash map below keeps track of the number of sockets per rule so we know when to call ibv_attach and ibv_detach
-	rule_filter_map_t			m_ib_mc_ip_attach_map;
+	rule_filter_map_t			m_l2_mc_ip_attach_map;
 	rule_filter_map_t			m_tcp_dst_port_attach_map;
 	struct ibv_comp_channel* 		m_p_tx_comp_event_channel;
 	flow_spec_tcp_map_t 	 		m_flow_tcp_map;

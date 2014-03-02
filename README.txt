@@ -100,6 +100,7 @@ Example:
  VMA DEBUG  : Rx CQ Drain Rate               Disabled                   [VMA_RX_CQ_DRAIN_RATE_NSEC]
  VMA DEBUG  : GRO max streams                32                         [VMA_GRO_STREAMS_MAX]
  VMA DEBUG  : TCP 3T rules                   Disabled                   [VMA_TCP_3T_RULES]
+ VMA DEBUG  : ETH MC L2 only rules           Disabled                   [VMA_ETH_MC_L2_ONLY_RULES]
  VMA DEBUG  : Select Poll (usec)             100000                     [VMA_SELECT_POLL]
  VMA DEBUG  : Select Poll OS Force           Disabled                   [VMA_SELECT_POLL_OS_FORCE]
  VMA DEBUG  : Select Poll OS Ratio           10                         [VMA_SELECT_POLL_OS_RATIO]
@@ -423,6 +424,10 @@ VMA_TCP_3T_RULES
 Use only 3 tuple rules for TCP, instead of using 5 tuple rules.
 This can improve performance for a server with listen socket which accept many
 connections.
+
+VMA_ETH_MC_L2_ONLY_RULES
+Use only L2 rules for Ethernet Multicast.
+All loopback traffic will be handled by VMA instead of OS.
 
 VMA_SELECT_POLL
 The duration in micro-seconds (usec) in which to poll the hardware on Rx path before

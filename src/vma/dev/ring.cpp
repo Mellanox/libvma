@@ -319,21 +319,21 @@ bool ring::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		// For IB MC flow, the port is zeroed in the ibv_flow_spec when calling to ibv_flow_spec().
 		// It means that for every MC group, even if we have sockets with different ports - only one rule in the HW.
 		// So the hash map below keeps track of the number of sockets per rule so we know when to call ibv_attach and ibv_detach
-		rfs_rule_filter* ib_mc_ip_filter = NULL;
-		if (m_transport_type == VMA_TRANSPORT_IB) {
-			rule_filter_map_t::iterator ib_mc_iter = m_ib_mc_ip_attach_map.find(key_udp_mc.dst_ip);
-			if (ib_mc_iter == m_ib_mc_ip_attach_map.end()) { // It means that this is the first time attach called with this MC ip
-				m_ib_mc_ip_attach_map[key_udp_mc.dst_ip].counter = 1;
+		rfs_rule_filter* l2_mc_ip_filter = NULL;
+		if (m_transport_type == VMA_TRANSPORT_IB || mce_sys.eth_mc_l2_only_rules) {
+			rule_filter_map_t::iterator l2_mc_iter = m_l2_mc_ip_attach_map.find(key_udp_mc.dst_ip);
+			if (l2_mc_iter == m_l2_mc_ip_attach_map.end()) { // It means that this is the first time attach called with this MC ip
+				m_l2_mc_ip_attach_map[key_udp_mc.dst_ip].counter = 1;
 			} else {
-				m_ib_mc_ip_attach_map[key_udp_mc.dst_ip].counter = ((ib_mc_iter->second.counter) + 1);
+				m_l2_mc_ip_attach_map[key_udp_mc.dst_ip].counter = ((l2_mc_iter->second.counter) + 1);
 			}
 		}
 		p_rfs = m_flow_udp_mc_map.get(key_udp_mc, NULL);
 		if (p_rfs == NULL) {		// It means that no rfs object exists so I need to create a new one and insert it to the flow map
-			if (m_transport_type == VMA_TRANSPORT_IB) {
-				ib_mc_ip_filter = new rfs_rule_filter(m_ib_mc_ip_attach_map, key_udp_mc.dst_ip, flow_spec_5t);
+			if (m_transport_type == VMA_TRANSPORT_IB || mce_sys.eth_mc_l2_only_rules) {
+				l2_mc_ip_filter = new rfs_rule_filter(m_l2_mc_ip_attach_map, key_udp_mc.dst_ip, flow_spec_5t);
 			}
-			p_rfs = new rfs_mc(&flow_spec_5t, this, ib_mc_ip_filter);
+			p_rfs = new rfs_mc(&flow_spec_5t, this, l2_mc_ip_filter);
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (p_rfs == NULL) {
 				ring_logpanic("Failed to allocate rfs!");
@@ -411,14 +411,14 @@ bool ring::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 	} else if (flow_spec_5t.is_udp_mc()) {
 		int keep_in_map = 1;
 		flow_spec_udp_mc_key_t key_udp_mc = {flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port()};
-		if (m_transport_type == VMA_TRANSPORT_IB) {
-			rule_filter_map_t::iterator ib_mc_iter = m_ib_mc_ip_attach_map.find(key_udp_mc.dst_ip);
+		if (m_transport_type == VMA_TRANSPORT_IB || mce_sys.eth_mc_l2_only_rules) {
+			rule_filter_map_t::iterator l2_mc_iter = m_l2_mc_ip_attach_map.find(key_udp_mc.dst_ip);
 			BULLSEYE_EXCLUDE_BLOCK_START
-			if (ib_mc_iter == m_ib_mc_ip_attach_map.end()) {
+			if (l2_mc_iter == m_l2_mc_ip_attach_map.end()) {
 				ring_logdbg("Could not find matching counter for the MC group!");
 			BULLSEYE_EXCLUDE_BLOCK_END
 			} else {
-				keep_in_map = m_ib_mc_ip_attach_map[key_udp_mc.dst_ip].counter = MAX(0 , ((ib_mc_iter->second.counter) - 1));
+				keep_in_map = m_l2_mc_ip_attach_map[key_udp_mc.dst_ip].counter = MAX(0 , ((l2_mc_iter->second.counter) - 1));
 			}
 		}
 		p_rfs = m_flow_udp_mc_map.get(key_udp_mc, NULL);
@@ -430,7 +430,7 @@ bool ring::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 		BULLSEYE_EXCLUDE_BLOCK_END
 		p_rfs->detach_flow(sink);
 		if(!keep_in_map){
-			m_ib_mc_ip_attach_map.erase(m_ib_mc_ip_attach_map.find(key_udp_mc.dst_ip));
+			m_l2_mc_ip_attach_map.erase(m_l2_mc_ip_attach_map.find(key_udp_mc.dst_ip));
 		}
 		if (p_rfs->get_num_of_sinks() == 0) {
 			BULLSEYE_EXCLUDE_BLOCK_START
@@ -839,8 +839,8 @@ bool ring::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_type_t 
 		ring_logdbg("Rx IGMP packet info: type=%s (%d), group=%d.%d.%d.%d, code=%d",
 				priv_igmp_type_tostr(p_igmp_h->igmp_type), p_igmp_h->igmp_type,
 				NIPQUAD(p_igmp_h->igmp_group.s_addr), p_igmp_h->igmp_code);
-		if (transport_type == VMA_TRANSPORT_IB) {
-			ring_logdbg("Transport type is IB, passing igmp packet to igmp_manager to process");
+		if (transport_type == VMA_TRANSPORT_IB  || mce_sys.eth_mc_l2_only_rules) {
+			ring_logdbg("Transport type is IB (or eth_mc_l2_only_rules), passing igmp packet to igmp_manager to process");
 			if(g_p_igmp_mgr) {
 				(g_p_igmp_mgr->process_igmp_packet(p_ip_h, m_local_if));
 				return false; // we return false in order to free the buffer, although we handled the packet

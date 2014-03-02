@@ -46,7 +46,7 @@ public:
 
 	virtual transport_type_t 	get_obs_transport_type() const
 	{
-		return VMA_TRANSPORT_IB;
+		return m_p_ndvl->get_transport_type();
 	}
 
 	void 				handle_query(uint8_t igmp_code); // handle queries coming from router
