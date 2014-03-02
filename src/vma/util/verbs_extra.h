@@ -15,11 +15,11 @@
 #define VERBS_EXTRA_H
 
 #include <rdma/rdma_cma.h>
+#include <config.h>
 #include <infiniband/verbs.h>
 #ifndef DEFINED_IBV_OLD_VERBS_MLX_OFED
 #include <infiniband/verbs_exp.h>
 #endif
-#include <config.h>
 #include <string.h>
 #include <netinet/in.h>
 #include <linux/if_ether.h>
