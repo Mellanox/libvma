@@ -1548,6 +1548,15 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 		}
 	}
 
+	// if loopback is disabled, discard loopback packets.
+	// in linux, loopback control (set by setsockopt) is done in TX flow.
+	// since we currently can't control it in TX, we behave like windows, which filter on RX
+	if (!m_b_mc_tx_loop && p_desc->path.rx.local_if == p_desc->path.rx.src.sin_addr.s_addr) {
+		si_udp_logfunc("rx packet discarded - loopback is disabled (pkt: [%d:%d:%d:%d], sock:%s)",
+			NIPQUAD(p_desc->path.rx.src.sin_addr.s_addr), m_bound.to_str_in_addr());
+		return false;
+	}
+
 	// Check port mapping - redirecting packets to another socket
 	while (!m_port_map.empty()) {
 		m_port_map_lock.lock();
