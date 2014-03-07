@@ -358,7 +358,7 @@ const char* thread_mode_str(thread_mode_t thread_mode)
 
 int get_ofed_version_info(char* ofed_version_str, int len)
 {
-	return run_and_retreive_system_command("ofed_info -s | grep OFED | head -1", ofed_version_str, len);
+	return run_and_retreive_system_command("ofed_info -s 2>/dev/null | grep OFED | head -1", ofed_version_str, len);
 }
 
 
