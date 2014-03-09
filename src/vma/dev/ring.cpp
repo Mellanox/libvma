@@ -93,9 +93,11 @@ ring::~ring()
 
 	// Go over all hash and for each flow: 1.Detach from qp 2.Delete related rfs object 3.Remove flow from hash
 
+	m_lock_ring_rx.lock();
 	flow_udp_uc_del_all();
 	flow_udp_mc_del_all();
 	flow_tcp_del_all();
+	m_lock_ring_rx.unlock();
 
 	// Allow last few post sends to be sent by HCA.
 	// Was done in order to allow iperf's FIN packet to be sent.
