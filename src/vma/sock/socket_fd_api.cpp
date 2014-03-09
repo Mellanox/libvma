@@ -86,6 +86,16 @@ int socket_fd_api::accept(struct sockaddr *__addr, socklen_t *__addrlen)
        return ret;
 }
 
+int socket_fd_api::accept4(struct sockaddr *__addr, socklen_t *__addrlen, int __flags)
+{
+       __log_info_func("");
+       int ret = orig_os_api.accept4(m_fd, __addr, __addrlen, __flags);
+       if (ret < 0) {
+               __log_info_err("accept4 failed (ret=%d %m)", ret);
+       }
+       return ret;
+}
+
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif

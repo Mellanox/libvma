@@ -36,13 +36,6 @@
 #define fdcoll_logdbg		__log_dbg
 #define fdcoll_logfunc		__log_func
 
-#ifndef SOCK_NONBLOCK
-#define SOCK_NONBLOCK 04000
-#endif
-#ifndef SOCK_CLOEXEC
-#define SOCK_CLOEXEC 02000000
-#endif
-
 
 fd_collection* g_p_fd_collection = NULL;
 

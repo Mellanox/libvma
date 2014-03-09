@@ -87,6 +87,7 @@ struct os_api {
 	int (*shutdown) (int __fd, int __how);
 
 	int (*accept) (int __fd, struct sockaddr *__addr, socklen_t *__addrlen);
+	int (*accept4) (int __fd, struct sockaddr *__addr, socklen_t *__addrlen, int __flags);
 	int (*bind) (int __fd, const struct sockaddr *__addr, socklen_t __addrlen);
 	int (*connect) (int __fd, const struct sockaddr *__to, socklen_t __tolen);
 	int (*listen) (int __fd, int __backlog);

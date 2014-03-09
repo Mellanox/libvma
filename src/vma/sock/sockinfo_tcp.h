@@ -105,6 +105,7 @@ public:
 	int bind(const sockaddr *__addr, socklen_t __addrlen);
 	int listen(int backlog);
 	int accept(struct sockaddr *__addr, socklen_t *__addrlen);
+	int accept4(struct sockaddr *__addr, socklen_t *__addrlen, int __flags);
 	int getsockname(sockaddr *__name, socklen_t *__namelen);
 	int getpeername(sockaddr *__name, socklen_t *__namelen);
 

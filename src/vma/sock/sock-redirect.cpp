@@ -499,6 +499,20 @@ int accept(int __fd, struct sockaddr *__addr, socklen_t *__addrlen)
        return orig_os_api.accept(__fd, __addr, __addrlen);
 }
 
+extern "C"
+int accept4(int __fd, struct sockaddr *__addr, socklen_t *__addrlen, int __flags)
+{
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.accept4) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	socket_fd_api* p_socket_object = NULL;
+	p_socket_object = fd_collection_get_sockfd(__fd);
+	if (p_socket_object)
+		return p_socket_object->accept4(__addr, __addrlen, __flags);
+
+	return orig_os_api.accept4(__fd, __addr, __addrlen, __flags);
+}
 
 /* Give the socket FD the local address ADDR (which is LEN bytes long).  */
 extern "C"

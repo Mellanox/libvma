@@ -21,6 +21,13 @@
 #include <vma/dev/buffer_pool.h>
 #include <vma/sock/cleanable_obj.h>
 
+#ifndef SOCK_NONBLOCK
+#define SOCK_NONBLOCK 04000
+#endif
+#ifndef SOCK_CLOEXEC
+#define SOCK_CLOEXEC 02000000
+#endif
+
 class cq_mgr;
 class epfd_info;
 
@@ -82,6 +89,8 @@ public:
 	virtual int listen(int backlog);
 	
 	virtual int accept(struct sockaddr *__addr, socklen_t *__addrlen);
+
+	virtual int accept4(struct sockaddr *__addr, socklen_t *__addrlen, int __flags);
 
 	virtual int bind(const sockaddr *__addr, socklen_t __addrlen);
 

@@ -1593,6 +1593,30 @@ int sockinfo_tcp::accept(struct sockaddr *__addr, socklen_t *__addrlen)
 	return ns->m_fd;
 }
 
+int sockinfo_tcp::accept4(struct sockaddr *__addr, socklen_t *__addrlen, int __flags)
+{
+	si_tcp_logfuncall("");
+	si_tcp_logdbg("socket accept4");
+
+	// if in os pathrough just redirect to os
+	if (m_sock_offload == TCP_SOCK_PASSTHROUGH) {
+		si_tcp_logdbg("passthrough - go to OS accept4()");
+		return orig_os_api.accept4(m_fd, __addr, __addrlen, __flags);
+	}
+
+	int fd = accept(__addr, __addrlen);
+	if (fd < 0) return fd;
+
+	if (__flags) {
+		if (__flags & SOCK_NONBLOCK)
+			fcntl(F_SETFL, O_NONBLOCK);
+		if (__flags & SOCK_CLOEXEC)
+			fcntl(F_SETFD, FD_CLOEXEC);
+	}
+
+	return fd;
+}
+
 sockinfo_tcp *sockinfo_tcp::accept_clone()
 {
         sockinfo_tcp *si;
