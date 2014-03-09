@@ -460,7 +460,7 @@ int get_ipv4_from_ifname(char *ifname, struct sockaddr_in *addr)
 	ret = orig_os_api.ioctl(fd, SIOCGIFADDR, &req);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (ret < 0) {
-		if (errno != EADDRNOTAVAIL) {
+		if (errno != ENODEV) {
 			__log_err("Failed getting ipv4 from interface '%s' (errno=%d %m)", ifname, errno);
 		}
 		else {
