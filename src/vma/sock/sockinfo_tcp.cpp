@@ -2252,7 +2252,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
         ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
         BULLSEYE_EXCLUDE_BLOCK_START
         if (ret) {
-                si_tcp_logerr("setsockopt failed (ret=%d %m)", ret);
+                si_tcp_logdbg("setsockopt failed (ret=%d %m)", ret);
         }
         BULLSEYE_EXCLUDE_BLOCK_END
         return ret;
