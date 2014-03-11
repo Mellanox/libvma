@@ -382,7 +382,7 @@ void print_vma_global_settings()
 	vlog_printf(log_level,"Pid: %5u\n", getpid());
 
 	if (!get_ofed_version_info(ofed_version_info, MAX_VERSION_STR_LEN))
-		vlog_printf(log_level,"OFED Version: %s", ofed_version_info);
+		vlog_printf(VLOG_INFO,"OFED Version: %s", ofed_version_info);
 
 	if (!uname(&sys_info)) {
 		vlog_printf(VLOG_DEBUG,"System: %s\n", sys_info.release);
