@@ -146,7 +146,7 @@ void vlog_start(const char* log_module_name, int log_level, const char* log_file
 	char local_log_filename[255];
 	if (log_filename != NULL && strcmp(log_filename,"")) {
 		sprintf(local_log_filename, "%s", log_filename);
-		g_vlogger_fd = open(local_log_filename, O_WRONLY|O_CREAT, 0644);
+		g_vlogger_fd = open(local_log_filename, O_WRONLY|O_CREAT|O_TRUNC, 0644);
 		if (g_vlogger_fd < 0) {
 			vlog_printf(VLOG_PANIC, "Failed to open logfile: %s\n",local_log_filename);
 			exit(1);
