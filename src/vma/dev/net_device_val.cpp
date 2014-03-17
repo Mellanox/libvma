@@ -478,6 +478,17 @@ int net_device_val::ring_drain_and_proccess()
 	return ret_total;
 }
 
+void net_device_val::ring_adapt_cq_moderation()
+{
+	nd_logfuncall();
+
+	auto_unlocker lock(m_lock);
+	rings_hash_map_t::iterator ring_iter;
+	for (ring_iter = m_h_ring_map.begin(); ring_iter != m_h_ring_map.end(); ring_iter++) {
+		THE_RING->adapt_cq_moderation();
+	}
+}
+
 void net_device_val::delete_L2_address()
 {
 	if (m_p_L2_addr) {

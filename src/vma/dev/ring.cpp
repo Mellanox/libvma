@@ -180,6 +180,8 @@ void ring::create_resources(ring_resource_creation_info_t* p_ring_info, int acti
 
 	m_tx_num_wr_free = m_tx_num_wr;
 	
+	memset(&m_cq_moderation_info, 0, sizeof(struct cq_moderation_info));
+
 	m_p_n_rx_channel_fds = new int[m_n_num_resources];
 
 	m_ring_active_resource = m_ring_resources_map.end();
@@ -237,6 +239,10 @@ void ring::create_resources(ring_resource_creation_info_t* p_ring_info, int acti
 	// 'up' the active QP/CQ resource
 	m_active_qp_mgr->up();
 
+	if (mce_sys.cq_moderation_enable) {
+		modify_cq_moderation(mce_sys.cq_moderation_period_usec, mce_sys.cq_moderation_count);
+	}
+
 	ring_logdbg("new ring() completed");
 }
 
@@ -287,6 +293,10 @@ void ring::restart(ring_resource_creation_info_t* p_ring_info)
 	ret = m_active_cq_mgr_tx->request_notification(poll_sn);
 	if (ret < 0) {
 		ring_logdbg("failed arming tx cq_mgr (qp_mgr=%p, cq_mgr_tx=%p) (errno=%d %m)", m_active_qp_mgr, m_active_cq_mgr_tx, errno);
+	}
+
+	if (mce_sys.cq_moderation_enable) {
+		modify_cq_moderation(mce_sys.cq_moderation_period_usec, mce_sys.cq_moderation_count);
 	}
 
 	m_lock_ring_tx.unlock();
@@ -610,6 +620,9 @@ bool ring::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_type_t 
 			ring_logwarn("Rx buffer dropped - buffer too small (%d, %d)", sz_data, p_rx_wc_buf_desc->sz_buffer);
 		return false;
 	}
+
+	m_cq_moderation_info.bytes += sz_data;
+	++m_cq_moderation_info.packets;
 
 	// Validate transport type headers
 	switch (transport_type) {
@@ -1383,4 +1396,70 @@ int ring::put_tx_buffers(mem_buf_desc_t* buff_list)
 	}
 
 	return count;
+}
+
+void ring::modify_cq_moderation(uint32_t period, uint32_t count)
+{
+	uint32_t period_diff = period > m_cq_moderation_info.period ?
+			period - m_cq_moderation_info.period : m_cq_moderation_info.period - period;
+	uint32_t count_diff = count > m_cq_moderation_info.count ?
+			count - m_cq_moderation_info.count : m_cq_moderation_info.count - count;
+
+	if (period_diff < (m_cq_moderation_info.period / 20) && (count_diff < m_cq_moderation_info.count / 20))
+		return;
+
+	m_cq_moderation_info.period = period;
+	m_cq_moderation_info.count = count;
+
+	//todo all cqs or just active? what about HA?
+	m_active_cq_mgr_rx->modify_cq_moderation(period, count);
+}
+
+void ring::adapt_cq_moderation()
+{
+	if (m_lock_ring_rx.trylock()) {
+		++m_cq_moderation_info.missed_rounds;
+		return; //todo try again sooner?
+	}
+
+	uint32_t missed_rounds = m_cq_moderation_info.missed_rounds;
+
+	//todo collect bytes and packets from all rings ??
+	int64_t interval_bytes = m_cq_moderation_info.bytes - m_cq_moderation_info.prev_bytes;
+	int64_t interval_packets = m_cq_moderation_info.packets - m_cq_moderation_info.prev_packets;
+
+	m_cq_moderation_info.prev_bytes = m_cq_moderation_info.bytes;
+	m_cq_moderation_info.prev_packets = m_cq_moderation_info.packets;
+	m_cq_moderation_info.missed_rounds = 0;
+
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (interval_bytes < 0 || interval_packets < 0) {
+		//rare wrap-around of 64 bit, just ignore
+		m_lock_ring_rx.unlock();
+		return;
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	if (interval_packets == 0) {
+		// todo if no traffic, set moderation to default?
+		modify_cq_moderation(mce_sys.cq_moderation_period_usec, mce_sys.cq_moderation_count);
+		m_lock_ring_rx.unlock();
+		return;
+	}
+
+	uint32_t avg_packet_size = interval_bytes / interval_packets;
+	uint32_t avg_packet_rate = (interval_packets * 1000) / (mce_sys.cq_aim_interval_msec * (1 + missed_rounds));
+
+	uint32_t ir_rate = mce_sys.cq_aim_interrupts_rate_per_sec;
+
+	int count = MIN(avg_packet_rate / ir_rate, mce_sys.cq_aim_max_count);
+	int period = MIN(mce_sys.cq_aim_max_period_usec, ((1000000 / ir_rate) - (1000000 / MAX(avg_packet_rate, ir_rate))));
+
+	if (avg_packet_size > 1024) {
+		modify_cq_moderation(period, count);
+	} else {
+		modify_cq_moderation(0, 0);
+	}
+
+	m_lock_ring_rx.unlock();
 }

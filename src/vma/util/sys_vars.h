@@ -164,6 +164,15 @@ struct mce_sys_var {
 	bool		select_arm_cq;
 	bool            select_handle_cpu_usage_stats;
 
+	bool		cq_moderation_enable;
+	uint32_t	cq_moderation_count;
+	uint32_t	cq_moderation_period_usec;
+	uint32_t	cq_aim_max_count;
+	uint32_t	cq_aim_max_period_usec;
+	uint32_t	cq_aim_interval_msec;
+	uint32_t	cq_aim_interrupts_rate_per_sec;
+
+
 	uint32_t	cq_poll_batch_max;
 	uint32_t	progress_engine_interval_msec;
 	uint32_t	progress_engine_wce_max;
@@ -257,6 +266,15 @@ struct mce_sys_var {
 #define SYS_VAR_SELECT_POLL_YIELD			"VMA_SELECT_POLL_YIELD"
 #define SYS_VAR_SELECT_SKIP_OS				"VMA_SELECT_SKIP_OS"
 #define SYS_VAR_SELECT_CQ_IRQ				"VMA_SELECT_CQ_IRQ"
+
+#define SYS_VAR_CQ_MODERATION_ENABLE			"VMA_CQ_MODERATION_ENABLE"
+#define SYS_VAR_CQ_MODERATION_COUNT			"VMA_CQ_MODERATION_COUNT"
+#define SYS_VAR_CQ_MODERATION_PERIOD_USEC		"VMA_CQ_MODERATION_PERIOD_USEC"
+#define SYS_VAR_CQ_AIM_MAX_COUNT			"VMA_CQ_AIM_MAX_COUNT"
+#define SYS_VAR_CQ_AIM_MAX_PERIOD_USEC			"VMA_CQ_AIM_MAX_PERIOD_USEC"
+#define SYS_VAR_CQ_AIM_INTERVAL_MSEC			"VMA_CQ_AIM_INTERVAL_MSEC"
+#define SYS_VAR_CQ_AIM_INTERRUPTS_RATE_PER_SEC		"VMA_CQ_AIM_INTERRUPTS_RATE_PER_SEC"
+
 #define SYS_VAR_CQ_POLL_BATCH_MAX			"VMA_CQ_POLL_BATCH_MAX"
 #define SYS_VAR_PROGRESS_ENGINE_INTERVAL		"VMA_PROGRESS_ENGINE_INTERVAL"
 #define SYS_VAR_PROGRESS_ENGINE_WCE_MAX			"VMA_PROGRESS_ENGINE_WCE_MAX"
@@ -344,6 +362,13 @@ struct mce_sys_var {
 #define MCE_DEFAULT_SELECT_SKIP_OS			(4)
 #define MCE_DEFAULT_SELECT_ARM_CQ			(true)
 #define MCE_DEFAULT_SELECT_CPU_USAGE_STATS		(false)
+#define MCE_DEFAULT_CQ_MODERATION_ENABLE		(true)
+#define MCE_DEFAULT_CQ_MODERATION_COUNT			(48)
+#define MCE_DEFAULT_CQ_MODERATION_PERIOD_USEC		(50)
+#define MCE_DEFAULT_CQ_AIM_MAX_COUNT			(560)
+#define MCE_DEFAULT_CQ_AIM_MAX_PERIOD_USEC		(250)
+#define MCE_DEFAULT_CQ_AIM_INTERVAL_MSEC		(250)
+#define MCE_DEFAULT_CQ_AIM_INTERRUPTS_RATE_PER_SEC	(5000)
 #define MCE_DEFAULT_CQ_POLL_BATCH			(16)
 #define MCE_DEFAULT_PROGRESS_ENGINE_INTERVAL_MSEC	(10)
 #define MCE_DEFAULT_PROGRESS_ENGINE_WCE_MAX		(10000)
@@ -393,6 +418,7 @@ struct mce_sys_var {
 #define MCE_MAX_RX_PREFETCH_BYTES			(2044)
 #define MCE_RX_CQ_DRAIN_RATE_DISABLED			(0)
 #define MCE_CQ_DRAIN_INTERVAL_DISABLED			(0)
+#define MCE_CQ_ADAPTIVE_MODERATION_DISABLED		(0)
 #define MCE_MIN_CQ_POLL_BATCH				(1)
 #define MCE_MAX_CQ_POLL_BATCH				(128)
 #define MCE_DEFAULT_IPOIB_FLAG				(1)

@@ -514,6 +514,18 @@ void print_vma_global_settings()
 		VLOG_PARAM_NUMBER("CQ Drain WCE (max)", mce_sys.progress_engine_wce_max, MCE_DEFAULT_PROGRESS_ENGINE_WCE_MAX, SYS_VAR_PROGRESS_ENGINE_WCE_MAX);
 	}
 
+	VLOG_PARAM_STRING("CQ Interrupts Moderation", mce_sys.cq_moderation_enable, MCE_DEFAULT_CQ_MODERATION_ENABLE, SYS_VAR_CQ_MODERATION_ENABLE, mce_sys.cq_moderation_enable ? "Enabled " : "Disabled");
+	VLOG_PARAM_NUMBER("CQ Moderation Count", mce_sys.cq_moderation_count, MCE_DEFAULT_CQ_MODERATION_COUNT, SYS_VAR_CQ_MODERATION_COUNT);
+	VLOG_PARAM_NUMBER("CQ Moderation Period (usec)", mce_sys.cq_moderation_period_usec, MCE_DEFAULT_CQ_MODERATION_PERIOD_USEC, SYS_VAR_CQ_MODERATION_PERIOD_USEC);
+	VLOG_PARAM_NUMBER("CQ AIM Max Count", mce_sys.cq_aim_max_count, MCE_DEFAULT_CQ_AIM_MAX_COUNT, SYS_VAR_CQ_AIM_MAX_COUNT);
+	VLOG_PARAM_NUMBER("CQ AIM Max Period (usec)", mce_sys.cq_aim_max_period_usec, MCE_DEFAULT_CQ_AIM_MAX_PERIOD_USEC, SYS_VAR_CQ_AIM_MAX_PERIOD_USEC);
+	if (mce_sys.cq_aim_interval_msec == MCE_CQ_ADAPTIVE_MODERATION_DISABLED) {
+		vlog_printf(VLOG_INFO, FORMAT_STRING, "CQ Adaptive Moderation", "Disabled", SYS_VAR_CQ_AIM_INTERVAL_MSEC);
+	} else {
+		VLOG_PARAM_NUMBER("CQ AIM Interval (msec)", mce_sys.cq_aim_interval_msec, MCE_DEFAULT_CQ_AIM_INTERVAL_MSEC, SYS_VAR_CQ_AIM_INTERVAL_MSEC);
+	}
+	VLOG_PARAM_NUMBER("CQ AIM Interrupts Rate (per sec)", mce_sys.cq_aim_interrupts_rate_per_sec, MCE_DEFAULT_CQ_AIM_INTERRUPTS_RATE_PER_SEC, SYS_VAR_CQ_AIM_INTERRUPTS_RATE_PER_SEC);
+
 	VLOG_PARAM_NUMBER("CQ Poll Batch (max)", mce_sys.cq_poll_batch_max, MCE_DEFAULT_CQ_POLL_BATCH, SYS_VAR_CQ_POLL_BATCH_MAX);
 	VLOG_PARAM_STRING("CQ Keeps QP Full", mce_sys.cq_keep_qp_full, MCE_DEFAULT_CQ_KEEP_QP_FULL, SYS_VAR_CQ_KEEP_QP_FULL, mce_sys.cq_keep_qp_full ? "Enabled" : "Disabled");
 	VLOG_PARAM_NUMBER("QP Compensation Level", mce_sys.qp_compensation_level, MCE_DEFAULT_QP_COMPENSATION_LEVEL, SYS_VAR_QP_COMPENSATION_LEVEL);
@@ -659,6 +671,14 @@ void get_env_params()
 	mce_sys.select_poll_yield_loops	= MCE_DEFAULT_SELECT_POLL_YIELD;
 	mce_sys.select_skip_os_fd_check	= MCE_DEFAULT_SELECT_SKIP_OS;
 	mce_sys.select_arm_cq		= MCE_DEFAULT_SELECT_ARM_CQ;
+
+	mce_sys.cq_moderation_enable	= MCE_DEFAULT_CQ_MODERATION_ENABLE;
+	mce_sys.cq_moderation_count = MCE_DEFAULT_CQ_MODERATION_COUNT;
+	mce_sys.cq_moderation_period_usec = MCE_DEFAULT_CQ_MODERATION_PERIOD_USEC;
+	mce_sys.cq_aim_max_count	= MCE_DEFAULT_CQ_AIM_MAX_COUNT;
+	mce_sys.cq_aim_max_period_usec = MCE_DEFAULT_CQ_AIM_MAX_PERIOD_USEC;
+	mce_sys.cq_aim_interval_msec = MCE_DEFAULT_CQ_AIM_INTERVAL_MSEC;
+	mce_sys.cq_aim_interrupts_rate_per_sec = MCE_DEFAULT_CQ_AIM_INTERRUPTS_RATE_PER_SEC;
 
 	mce_sys.cq_poll_batch_max	= MCE_DEFAULT_CQ_POLL_BATCH;
 	mce_sys.progress_engine_interval_msec	= MCE_DEFAULT_PROGRESS_ENGINE_INTERVAL_MSEC;
@@ -962,6 +982,47 @@ void get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_SELECT_CQ_IRQ)) != NULL)
 		mce_sys.select_arm_cq = atoi(env_ptr) ? true : false;
+
+
+
+	if (mce_sys.rx_poll_num < 0 ||  mce_sys.select_poll_num < 0) {
+		mce_sys.cq_moderation_enable = false;
+	}
+	if ((env_ptr = getenv(SYS_VAR_CQ_MODERATION_ENABLE)) != NULL)
+		mce_sys.cq_moderation_enable = atoi(env_ptr) ? true : false;
+#ifndef DEFINED_IBV_EXP_CQ_MODERATION
+	mce_sys.cq_moderation_enable = false;
+#endif
+
+	if ((env_ptr = getenv(SYS_VAR_CQ_MODERATION_COUNT)) != NULL)
+		mce_sys.cq_moderation_count = (uint32_t)atoi(env_ptr);
+	if (mce_sys.cq_moderation_count > mce_sys.rx_num_wr / 2) {
+		mce_sys.cq_moderation_count = mce_sys.rx_num_wr / 2;
+	}
+
+	if ((env_ptr = getenv(SYS_VAR_CQ_MODERATION_PERIOD_USEC)) != NULL)
+		mce_sys.cq_moderation_period_usec = (uint32_t)atoi(env_ptr);
+
+	if ((env_ptr = getenv(SYS_VAR_CQ_AIM_MAX_COUNT)) != NULL)
+		mce_sys.cq_aim_max_count = (uint32_t)atoi(env_ptr);
+	if (mce_sys.cq_aim_max_count > mce_sys.rx_num_wr / 2){
+		mce_sys.cq_aim_max_count = mce_sys.rx_num_wr / 2;
+	}
+
+	if ((env_ptr = getenv(SYS_VAR_CQ_AIM_MAX_PERIOD_USEC)) != NULL)
+		mce_sys.cq_aim_max_period_usec = (uint32_t)atoi(env_ptr);
+
+	if ((env_ptr = getenv(SYS_VAR_CQ_AIM_INTERVAL_MSEC)) != NULL)
+		mce_sys.cq_aim_interval_msec = (uint32_t)atoi(env_ptr);
+
+	if (!mce_sys.cq_moderation_enable) {
+		mce_sys.cq_aim_interval_msec = MCE_CQ_ADAPTIVE_MODERATION_DISABLED;
+	}
+
+	if ((env_ptr = getenv(SYS_VAR_CQ_AIM_INTERRUPTS_RATE_PER_SEC)) != NULL)
+		mce_sys.cq_aim_interrupts_rate_per_sec = (uint32_t)atoi(env_ptr);
+
+
 
 	if ((env_ptr = getenv(SYS_VAR_CQ_POLL_BATCH_MAX)) != NULL)
 		mce_sys.cq_poll_batch_max = (uint32_t)atoi(env_ptr);

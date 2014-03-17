@@ -41,6 +41,11 @@
 
 net_device_table_mgr* g_p_net_device_table_mgr = NULL;
 
+enum net_device_table_mgr_timers {
+	RING_PROGRESS_ENGINE_TIMER,
+	RING_ADAPT_CQ_MODERATION_TIMER
+};
+
 net_device_table_mgr::net_device_table_mgr() : cache_table_mgr<ip_address,net_device_val*>(), m_lock("net_device_table_mgr")
 {
 	m_num_devices = 0;
@@ -72,7 +77,12 @@ net_device_table_mgr::net_device_table_mgr() : cache_table_mgr<ip_address,net_de
 
 	if (mce_sys.progress_engine_interval_msec != MCE_CQ_DRAIN_INTERVAL_DISABLED && mce_sys.progress_engine_wce_max != 0) {
 		ndtm_logdbg("registering timer for ring draining with %d msec intervales", mce_sys.progress_engine_interval_msec);
-		g_p_event_handler_manager->register_timer_event(mce_sys.progress_engine_interval_msec, this, PERIODIC_TIMER, 0);
+		g_p_event_handler_manager->register_timer_event(mce_sys.progress_engine_interval_msec, this, PERIODIC_TIMER, (void*)RING_PROGRESS_ENGINE_TIMER);
+	}
+
+	if (mce_sys.cq_aim_interval_msec != MCE_CQ_ADAPTIVE_MODERATION_DISABLED) {
+		ndtm_logdbg("registering timer for cq adaptive moderation with %d msec intervales", mce_sys.cq_aim_interval_msec);
+		g_p_event_handler_manager->register_timer_event(mce_sys.cq_aim_interval_msec, this, PERIODIC_TIMER, (void*)RING_ADAPT_CQ_MODERATION_TIMER);
 	}
 }
 
@@ -507,10 +517,29 @@ int net_device_table_mgr::global_ring_drain_and_procces()
 	return ret_total;
 }
 
+void net_device_table_mgr::global_ring_adapt_cq_moderation()
+{
+	ndtm_logfuncall("");
+
+	net_device_map_t::iterator net_dev_iter;
+	for (net_dev_iter=m_net_device_map.begin(); m_net_device_map.end() != net_dev_iter; net_dev_iter++) {
+		net_dev_iter->second->ring_adapt_cq_moderation();
+	}
+}
+
 void net_device_table_mgr::handle_timer_expired(void* user_data)
 {
-	NOT_IN_USE(user_data);
-	global_ring_drain_and_procces();
+	int timer_type = (uint64_t)user_data;
+	switch (timer_type) {
+	case RING_PROGRESS_ENGINE_TIMER:
+		global_ring_drain_and_procces();
+		break;
+	case RING_ADAPT_CQ_MODERATION_TIMER:
+		global_ring_adapt_cq_moderation();
+		break;
+	default:
+		ndtm_logerr("unrecognized timer %d", timer_type);
+	}
 }
 
 void net_device_table_mgr::global_ring_wakeup()

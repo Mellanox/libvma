@@ -147,6 +147,8 @@ public:
 	//unmaps the qpn and vlan id
 	void 	unmap_vlan_and_qpn(int qp_num, uint16_t vlan_id);
 
+	void 	modify_cq_moderation(uint32_t period, uint32_t count);
+
 private:
 	ring*				m_p_ring;
 	ib_ctx_handler*			m_p_ib_ctx_handler;

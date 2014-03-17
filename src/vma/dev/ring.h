@@ -236,6 +236,18 @@ struct counter_and_ibv_flows {
 
 typedef std::tr1::unordered_map<uint32_t, struct counter_and_ibv_flows> rule_filter_map_t;
 
+
+struct cq_moderation_info {
+	uint32_t period;
+	uint32_t count;
+	uint64_t packets;
+	uint64_t bytes;
+	uint64_t prev_packets;
+	uint64_t prev_bytes;
+	uint32_t missed_rounds;
+};
+
+
 /**
  * @class ring
  *
@@ -280,6 +292,8 @@ public:
 	bool		reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst); // No locks
 	int		drain_and_proccess(cq_type_t cq_type);
 
+	void		adapt_cq_moderation();
+
 	void		mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc); // Assume locked...
 	// Tx completion handling at the qp_mgr level is just re listing the desc+data buffer in the free lists
 	void		mem_buf_desc_completion_with_error_tx(mem_buf_desc_t* p_tx_wc_buf_desc); // Assume locked...
@@ -323,6 +337,8 @@ protected:
 	bool					m_b_qp_tx_first_flushed_completion_handled;
 	uint32_t		 		m_missing_buf_ref_count;
 
+	struct cq_moderation_info		m_cq_moderation_info;
+
 	uint32_t				m_tx_lkey; // this is the registered memory lkey for a given specific device for the buffer pool use
 
 	uint16_t 				m_partition; //vlan or pkey
@@ -348,6 +364,8 @@ private:
 	inline mem_buf_desc_t*	 get_tx_buffers(uint32_t n_num_mem_bufs);
 	inline int		 put_tx_buffers(mem_buf_desc_t* buff_list);
 	inline int		 send_buffer(vma_ibv_send_wr* p_send_wqe, bool b_block);
+
+	void			 modify_cq_moderation(uint32_t period, uint32_t count);
 };
 
 class ring_eth : public ring

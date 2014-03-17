@@ -109,6 +109,13 @@ Example:
  VMA DEBUG  : Select CQ Interrupts           Enabled                    [VMA_SELECT_CQ_IRQ]
  VMA DEBUG  : CQ Drain Interval (msec)       10                         [VMA_PROGRESS_ENGINE_INTERVAL]
  VMA DEBUG  : CQ Drain WCE (max)             10000                      [VMA_PROGRESS_ENGINE_WCE_MAX]
+ VMA DEBUG  : CQ Interrupts Moderation       Enabled                    [VMA_CQ_MODERATION_ENABLE]
+ VMA DEBUG  : CQ Moderation Count            48                         [VMA_CQ_MODERATION_COUNT]
+ VMA DEBUG  : CQ Moderation Period (usec)    50                         [VMA_CQ_MODERATION_PERIOD_USEC]
+ VMA DEBUG  : CQ AIM Max Count               160                        [VMA_CQ_AIM_MAX_COUNT]
+ VMA DEBUG  : CQ AIM Max Period (usec)       200                        [VMA_CQ_AIM_MAX_PERIOD_USEC]
+ VMA INFO   : CQ AIM Interval (msec)         250                        [VMA_CQ_AIM_INTERVAL_MSEC]
+ VMA DEBUG  : CQ AIM Interrupts Rate (per sec) 5000                       [VMA_CQ_AIM_INTERRUPTS_RATE_PER_SEC]
  VMA DEBUG  : CQ Poll Batch (max)            16                         [VMA_CQ_POLL_BATCH_MAX]
  VMA DEBUG  : CQ Keeps QP Full               Enabled                    [VMA_CQ_KEEP_QP_FULL]
  VMA DEBUG  : QP Compensation Level          256                        [VMA_QP_COMPENSATION_LEVEL]
@@ -502,6 +509,39 @@ reach this max value.
 The application is not limited by this value in the number of CQ elements
 it can ProcessId form calling any of the receive path socket APIs.
 Default value is 2048
+
+VMA_CQ_MODERATION_ENABLE
+Enable CQ interrupt moderation.
+Supported from MLNX_OFED 2.2.
+Default value is 1 (Enabled)
+
+VMA_CQ_MODERATION_COUNT
+Number of packets to hold before generating interrupt.
+Default value is 48
+
+VMA_CQ_MODERATION_PERIOD_USEC
+Period in micro-seconds for holding the packet before generating interrupt.
+Default value is 50
+
+VMA_CQ_AIM_MAX_COUNT
+Maximum count value to use in the adaptive interrupt moderation algorithm.
+Default value is 560
+
+VMA_CQ_AIM_MAX_PERIOD_USEC
+Maximum period value to use in the adaptive interrupt moderation algorithm.
+Default value is 250
+
+VMA_CQ_AIM_INTERVAL_MSEC
+Frequency of interrupt moderation adaptation.
+Intervall in milli-seconds between adaptation attempts.
+Use value of 0 to disable adaptive interrupt moderation.
+Default value is 250
+
+VMA_CQ_AIM_INTERRUPTS_RATE_PER_SEC
+Desired interrupts rate per second for each ring (CQ).
+The count and period parameters for CQ moderation will change automatically
+to achieve the desired interrupt rate for the current traffic rate.
+Default value is 5000
 
 VMA_CQ_POLL_BATCH_MAX
 Max size of the array while polling the CQs in the VMA

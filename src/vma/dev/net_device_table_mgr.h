@@ -78,6 +78,8 @@ public:
 	 */
 	int 	global_ring_drain_and_procces();
 
+	void	global_ring_adapt_cq_moderation();
+
 	void	global_ring_wakeup();
 
 	int 	global_ring_epfd_get();
