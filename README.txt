@@ -512,7 +512,6 @@ Default value is 2048
 
 VMA_CQ_MODERATION_ENABLE
 Enable CQ interrupt moderation.
-Supported from MLNX_OFED 2.2.
 Default value is 1 (Enabled)
 
 VMA_CQ_MODERATION_COUNT
@@ -774,6 +773,33 @@ the Internet.
 In order to enable this behavior at applications running over IPoIB networks 
 please use IGMPv2 on the network:
    'echo 2 > /proc/sys/net/ipv4/conf/ibX/force_igmp_version'
+
+
+
+Interrupt Moderation
+====================
+The basic idea behind interrupt moderation is that the HW will not generate
+interrupt for each packet, but instead only after some amount of packets received 
+or after the packet was held for some time.
+
+The adaptive interrupt moderation change this packet count and time period
+automatically to reach a desired rate of interrupts.
+
+
+1. Use VMA_RX_POLL=0 and VMA_SELECT_POLL=0 to work in interrupt driven mode.
+
+2. Control the period and frame count parameters with:
+    VMA_CQ_MODERATION_COUNT - hold #count frames before interrupt
+    VMA_CQ_MODERATION_PERIOD_USEC - hold #usec before interrupt
+
+3. Control the adaptive algorithm with the following:
+    VMA_CQ_AIM_MAX_COUNT - max possible #count frames to hold
+    VMA_CQ_AIM_MAX_PERIOD_USEC - max possible #usec to hold
+    VMA_CQ_AIM_INTERRUPTS_RATE_PER_SEC - desired interrupt rate
+    VMA_CQ_AIM_INTERVAL_MSEC - frequency of adaptation
+
+4. Disable CQ moderation with VMA_CQ_MODERATION_ENABLE=0
+5. Disable Adaptive CQ moderation with VMA_CQ_AIM_INTERVAL_MSEC=0
 
 
 
