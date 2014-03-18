@@ -345,6 +345,9 @@ protected:
 
 	gro_mgr					m_gro_mgr;
 
+	ring_stats_t*				m_p_ring_stat;
+	ring_stats_t				m_ring_stat_static;
+
 	// Internal functions. No need for locks mechanism.
 	transport_type_t 	 get_transport_type() { return m_transport_type; }	// TODO ODEDS: move to ctor...
 	struct ibv_comp_channel* get_tx_comp_event_channel() { return m_p_tx_comp_event_channel; }

@@ -196,6 +196,17 @@ void update_delta_iomux_stat(iomux_func_stats_t* p_curr_stats, iomux_func_stats_
 	p_prev_stats->threadid_last = p_curr_stats->threadid_last;
 }
 
+void update_delta_ring_stat(ring_stats_t* p_curr_ring_stats, ring_stats_t* p_prev_ring_stats)
+{
+	int delay = INTERVAL;
+	p_prev_ring_stats->n_rx_byte_count = (p_curr_ring_stats->n_rx_byte_count - p_prev_ring_stats->n_rx_byte_count) / delay;
+	p_prev_ring_stats->n_rx_pkt_count = (p_curr_ring_stats->n_rx_pkt_count - p_prev_ring_stats->n_rx_pkt_count) / delay;
+	p_prev_ring_stats->n_rx_interrupt_received = (p_curr_ring_stats->n_rx_interrupt_received - p_prev_ring_stats->n_rx_interrupt_received) / delay;
+	p_prev_ring_stats->n_rx_interrupt_requests = (p_curr_ring_stats->n_rx_interrupt_requests - p_prev_ring_stats->n_rx_interrupt_requests) / delay;
+	p_prev_ring_stats->n_rx_cq_moderation_count = p_curr_ring_stats->n_rx_cq_moderation_count;
+	p_prev_ring_stats->n_rx_cq_moderation_period = p_curr_ring_stats->n_rx_cq_moderation_period;
+}
+
 void update_delta_cq_stat(cq_stats_t* p_curr_cq_stats, cq_stats_t* p_prev_cq_stats)
 {
 	int delay = INTERVAL;
@@ -204,6 +215,30 @@ void update_delta_cq_stat(cq_stats_t* p_curr_cq_stats, cq_stats_t* p_prev_cq_sta
 	p_prev_cq_stats->n_rx_sw_queue_len = p_curr_cq_stats->n_rx_sw_queue_len;
 	p_prev_cq_stats->n_buffer_pool_len = p_curr_cq_stats->n_buffer_pool_len;
 	p_prev_cq_stats->buffer_miss_rate = p_curr_cq_stats->buffer_miss_rate;
+}
+
+void print_ring_stats(ring_instance_block_t* p_ring_inst_arr)
+{
+	ring_stats_t* p_ring_stats = NULL;
+	char post_fix[3] = "";
+
+	if (user_params.print_details_mode == e_deltas)
+		strcpy(post_fix, "/s");
+
+	for (int i = 0; i < NUM_OF_SUPPORTED_RINGS; i++) {
+		if (p_ring_inst_arr[i].b_enabled) {
+			p_ring_stats = &p_ring_inst_arr[i].ring_stats;
+			printf("======================================================\n");
+			printf("\tRING=[%u]\n", i);
+			printf(FORMAT_CQ_STATS_64bit, "Packets count:", (unsigned long long int)p_ring_stats->n_rx_pkt_count, post_fix);
+			printf(FORMAT_CQ_STATS_64bit, "Packets bytes:", (unsigned long long int)p_ring_stats->n_rx_byte_count, post_fix);
+			printf(FORMAT_CQ_STATS_64bit, "Interrupt requests:", (unsigned long long int)p_ring_stats->n_rx_interrupt_requests, post_fix);
+			printf(FORMAT_CQ_STATS_64bit, "Interrupt received:", (unsigned long long int)p_ring_stats->n_rx_interrupt_received, post_fix);
+			printf(FORMAT_CQ_STATS_32bit, "Moderation frame count:",p_ring_stats->n_rx_cq_moderation_count);
+			printf(FORMAT_CQ_STATS_32bit, "Moderation usec period:",p_ring_stats->n_rx_cq_moderation_period);
+		}
+	}
+	printf("======================================================\n");
 }
 
 void print_cq_stats(cq_instance_block_t* p_cq_inst_arr)
@@ -543,12 +578,32 @@ void print_full_iomux_stats(iomux_stats_t* p_curr_stats, iomux_stats_t* p_prev_s
 	}
 }
 
+void print_ring_deltas(ring_instance_block_t* p_curr_ring_stats, ring_instance_block_t* p_prev_ring_stats)
+{
+	for (int i = 0; i < NUM_OF_SUPPORTED_RINGS; i++) {
+		update_delta_ring_stat(&p_curr_ring_stats[i].ring_stats,&p_prev_ring_stats[i].ring_stats);
+	}
+	print_ring_stats(p_prev_ring_stats);
+}
+
 void print_cq_deltas(cq_instance_block_t* p_curr_cq_stats, cq_instance_block_t* p_prev_cq_stats)
 {
 	for (int i = 0; i < NUM_OF_SUPPORTED_CQS; i++) {
 		update_delta_cq_stat(&p_curr_cq_stats[i].cq_stats,&p_prev_cq_stats[i].cq_stats);
 	}
 	print_cq_stats(p_prev_cq_stats);
+}
+
+void show_ring_stats(ring_instance_block_t* p_curr_ring_blocks, ring_instance_block_t* p_prev_ring_blocks)
+{
+	switch (user_params.print_details_mode) {
+		case e_totals:
+			print_ring_stats(p_curr_ring_blocks);
+			break;
+		default:
+			print_ring_deltas(p_curr_ring_blocks, p_prev_ring_blocks);
+			break;
+	}
 }
 
 void show_cq_stats(cq_instance_block_t* p_curr_cq_blocks, cq_instance_block_t* p_prev_cq_blocks)
@@ -811,6 +866,8 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 	socket_instance_block_t curr_instance_blocks[p_sh_mem->max_skt_inst_num];
 	cq_instance_block_t prev_cq_blocks[NUM_OF_SUPPORTED_CQS];
 	cq_instance_block_t curr_cq_blocks[NUM_OF_SUPPORTED_CQS];
+	ring_instance_block_t prev_ring_blocks[NUM_OF_SUPPORTED_RINGS];
+	ring_instance_block_t curr_ring_blocks[NUM_OF_SUPPORTED_RINGS];
 	iomux_stats_t prev_iomux_blocks;
 	iomux_stats_t curr_iomux_blocks;
 	
@@ -818,12 +875,15 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 	memset((void*)curr_instance_blocks,0, sizeof(socket_instance_block_t) * p_sh_mem->max_skt_inst_num);
 	memset((void*)prev_cq_blocks,0, sizeof(cq_instance_block_t) * NUM_OF_SUPPORTED_CQS);
 	memset((void*)curr_cq_blocks,0, sizeof(cq_instance_block_t) * NUM_OF_SUPPORTED_CQS);
+	memset((void*)prev_ring_blocks,0, sizeof(ring_instance_block_t) * NUM_OF_SUPPORTED_RINGS);
+	memset((void*)curr_ring_blocks,0, sizeof(ring_instance_block_t) * NUM_OF_SUPPORTED_RINGS);
 	memset(&prev_iomux_blocks,0, sizeof(prev_iomux_blocks));
 	memset(&curr_iomux_blocks,0, sizeof(curr_iomux_blocks));
 	
 	if (user_params.print_details_mode == e_deltas) {
 		memcpy((void*)prev_instance_blocks,(void*)p_sh_mem->skt_inst_arr, p_sh_mem->max_skt_inst_num * sizeof(socket_instance_block_t));
 		memcpy((void*)prev_cq_blocks,(void*)p_sh_mem->cq_inst_arr, NUM_OF_SUPPORTED_CQS * sizeof(cq_instance_block_t));
+		memcpy((void*)prev_ring_blocks,(void*)p_sh_mem->ring_inst_arr, NUM_OF_SUPPORTED_RINGS * sizeof(ring_instance_block_t));
 		prev_iomux_blocks = curr_iomux_blocks;
 		uint64_t delay_int_micro = SEC_TO_MICRO(user_params.interval);
 		if (!g_b_exit && check_if_process_running(pid)){
@@ -845,6 +905,7 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 		if (user_params.print_details_mode == e_deltas) {
 			memcpy((void*)curr_instance_blocks,(void*)p_sh_mem->skt_inst_arr, p_sh_mem->max_skt_inst_num * sizeof(socket_instance_block_t));
 			memcpy((void*)curr_cq_blocks,(void*)p_sh_mem->cq_inst_arr, NUM_OF_SUPPORTED_CQS * sizeof(cq_instance_block_t));
+			memcpy((void*)curr_ring_blocks,(void*)p_sh_mem->ring_inst_arr, NUM_OF_SUPPORTED_RINGS * sizeof(ring_instance_block_t));
 			curr_iomux_blocks = p_sh_mem->iomux;
 		}
 		switch (user_params.view_mode) {
@@ -862,16 +923,21 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 			case e_totals:
 				num_act_inst = show_socket_stats(p_sh_mem->skt_inst_arr, NULL, p_sh_mem->max_skt_inst_num, &printed_line_num, &p_sh_mem->mc_info);
 				show_iomux_stats(&p_sh_mem->iomux, NULL, &printed_line_num);
-				if (user_params.view_mode == e_full)
+				if (user_params.view_mode == e_full) {
 					show_cq_stats(p_sh_mem->cq_inst_arr,NULL);
+					show_ring_stats(p_sh_mem->ring_inst_arr,NULL);
+				}
 				break;
 			case e_deltas:
 				num_act_inst = show_socket_stats(curr_instance_blocks, prev_instance_blocks, p_sh_mem->max_skt_inst_num, &printed_line_num, &p_sh_mem->mc_info);
 				show_iomux_stats(&curr_iomux_blocks, &prev_iomux_blocks, &printed_line_num);
-				if (user_params.view_mode == e_full)
+				if (user_params.view_mode == e_full) {
 					show_cq_stats(curr_cq_blocks, prev_cq_blocks);
+					show_ring_stats(curr_ring_blocks, prev_ring_blocks);
+				}
 				memcpy((void*)prev_instance_blocks,(void*)curr_instance_blocks, p_sh_mem->max_skt_inst_num * sizeof(socket_instance_block_t));
 				memcpy((void*)prev_cq_blocks,(void*)curr_cq_blocks, NUM_OF_SUPPORTED_CQS * sizeof(cq_instance_block_t));
+				memcpy((void*)prev_ring_blocks,(void*)curr_ring_blocks, NUM_OF_SUPPORTED_RINGS * sizeof(ring_instance_block_t));
 				prev_iomux_blocks = curr_iomux_blocks;
 				break;
 			default:
@@ -1064,6 +1130,14 @@ void zero_iomux_stats(iomux_stats_t* p_iomux_stats)
 	//memset(p_iomux_stats, 0, sizeof(*p_iomux_stats));
 }
 
+void zero_ring_stats(ring_stats_t* p_ring_stats)
+{
+	p_ring_stats->n_rx_pkt_count = 0;
+	p_ring_stats->n_rx_byte_count = 0;
+	p_ring_stats->n_rx_interrupt_received = 0;
+	p_ring_stats->n_rx_interrupt_requests = 0;
+}
+
 void zero_cq_stats(cq_stats_t* p_cq_stats)
 {
 	p_cq_stats->n_rx_pkt_drop = 0;
@@ -1083,6 +1157,9 @@ void zero_counters(sh_mem_t* p_sh_mem)
 	zero_iomux_stats(&p_sh_mem->iomux);
 	for (i = 0; i < NUM_OF_SUPPORTED_CQS; i++) {
 		zero_cq_stats(&p_sh_mem->cq_inst_arr[i].cq_stats);
+	}
+	for (i = 0; i < NUM_OF_SUPPORTED_RINGS; i++) {
+		zero_ring_stats(&p_sh_mem->ring_inst_arr[i].ring_stats);
 	}
 }
 

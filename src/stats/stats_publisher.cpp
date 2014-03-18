@@ -370,6 +370,63 @@ void vma_stats_mc_group_remove(in_addr_t mc_grp, socket_stats_t* p_socket_stats)
 	g_lock_mc_grp_info.unlock();
 }
 
+void vma_stats_instance_create_ring_block(ring_stats_t* local_stats_addr)
+{
+	ring_stats_t* p_instance_ring = NULL;
+	g_lock_skt_stats.lock();
+	for (int i=0; i < NUM_OF_SUPPORTED_RINGS; i++) {
+		if (!g_sh_mem->ring_inst_arr[i].b_enabled) {
+			g_sh_mem->ring_inst_arr[i].b_enabled = true;
+			p_instance_ring = &g_sh_mem->ring_inst_arr[i].ring_stats;
+			memset(p_instance_ring, 0, sizeof(ring_stats_t));
+			break;
+		}
+	}
+	if (p_instance_ring == NULL) {
+		vlog_printf(VLOG_WARNING, "Can only monitor %d ring elements for statistics !\n", NUM_OF_SUPPORTED_RINGS);
+	}
+        else {
+                g_p_stats_data_reader->add_data_reader(local_stats_addr, p_instance_ring, sizeof(ring_stats_t));
+                vlog_printf(VLOG_DEBUG, "%s:%d: Added ring local=%p shm=%p\n", __func__, __LINE__, local_stats_addr, p_instance_ring);
+        }
+	g_lock_skt_stats.unlock();
+}
+
+void vma_stats_instance_remove_ring_block(ring_stats_t* local_stats_addr)
+{
+	g_lock_skt_stats.lock();
+        vlog_printf(VLOG_DEBUG, "%s:%d: Remove ring local=%p\n", __func__, __LINE__, local_stats_addr);
+
+        ring_stats_t* p_ring_stats = (ring_stats_t*)g_p_stats_data_reader->pop_p_skt_stats(local_stats_addr);
+
+	if (p_ring_stats == NULL) { // happens on the tx cq (why don't we keep tx cq stats?)
+		vlog_printf(VLOG_DEBUG, "%s:%d: application vma_stats pointer is NULL\n", __func__, __LINE__);
+                g_lock_skt_stats.unlock();
+		return;
+	}
+
+	//coverity - g_sh_mem->ring_inst_arr cannot be null
+	/*BULLSEYE_EXCLUDE_BLOCK_START
+	if (g_sh_mem->ring_inst_arr == NULL) {
+		vlog_printf(VLOG_ERROR,"%s:%d: g_sh_mem->instances_arr not init\n", __func__, __LINE__);
+                g_lock_skt_stats.unlock();
+		return;
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END*/
+
+	// Search sh_mem block to release
+	for (int i=0; i<NUM_OF_SUPPORTED_RINGS; i++) {
+		if (&g_sh_mem->ring_inst_arr[i].ring_stats == p_ring_stats) {
+			g_sh_mem->ring_inst_arr[i].b_enabled = false;
+			g_lock_skt_stats.unlock();
+			return;
+		}
+	}
+
+	vlog_printf(VLOG_ERROR, "%s:%d: Could not find user pointer (%p)", __func__, __LINE__, p_ring_stats);
+	g_lock_skt_stats.unlock();
+}
+
 void vma_stats_instance_create_cq_block(cq_stats_t* local_stats_addr)
 {
 	cq_stats_t* p_instance_cq = NULL;

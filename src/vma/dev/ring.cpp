@@ -82,7 +82,7 @@ ring::ring(in_addr_t local_if, uint16_t partition_sn, int count, transport_type_
 		m_local_if(local_if), m_transport_type(transport_type), m_n_num_resources(count), m_p_tx_comp_event_channel(NULL),
 		m_lock_ring_rx("ring:lock_rx"), m_lock_ring_tx("ring:lock_tx"), m_lock_ring_tx_buf_wait("ring:lock_tx_buf_wait"),
 		m_p_n_rx_channel_fds(NULL), m_tx_num_bufs(0), m_tx_num_wr(0), m_tx_num_wr_free(0), m_b_qp_tx_first_flushed_completion_handled(false),
-		m_missing_buf_ref_count(0), m_tx_lkey(0), m_partition(partition_sn), m_gro_mgr(mce_sys.gro_streams_max, MAX_GRO_BUFS)
+		m_missing_buf_ref_count(0), m_tx_lkey(0), m_partition(partition_sn), m_gro_mgr(mce_sys.gro_streams_max, MAX_GRO_BUFS), m_p_ring_stat(NULL)
 {
 }
 
@@ -142,6 +142,8 @@ ring::~ring()
 		ring_logdbg("destroy comp channel failed (errno=%d %m)", errno);
 	} ENDIF_VERBS_FAILURE;
 	m_p_tx_comp_event_channel = NULL;
+
+	vma_stats_instance_remove_ring_block(m_p_ring_stat);
 
 	m_lock_ring_rx.unlock();
 	m_lock_ring_tx.unlock();
@@ -239,9 +241,15 @@ void ring::create_resources(ring_resource_creation_info_t* p_ring_info, int acti
 	// 'up' the active QP/CQ resource
 	m_active_qp_mgr->up();
 
+	// use local copy of stats by default
+	m_p_ring_stat = &m_ring_stat_static;
+	memset(m_p_ring_stat , 0, sizeof(*m_p_ring_stat));
+
 	if (mce_sys.cq_moderation_enable) {
 		modify_cq_moderation(mce_sys.cq_moderation_period_usec, mce_sys.cq_moderation_count);
 	}
+
+	vma_stats_instance_create_ring_block(m_p_ring_stat);
 
 	ring_logdbg("new ring() completed");
 }
@@ -624,6 +632,9 @@ bool ring::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_type_t 
 	m_cq_moderation_info.bytes += sz_data;
 	++m_cq_moderation_info.packets;
 
+	m_ring_stat_static.n_rx_byte_count += sz_data;
+	++m_ring_stat_static.n_rx_pkt_count;
+
 	// Validate transport type headers
 	switch (transport_type) {
 	case VMA_TRANSPORT_IB:
@@ -888,7 +899,9 @@ int ring::request_notification(cq_type_t cq_type, uint64_t poll_sn)
 {
 	int ret = 1;
 	if (likely(CQT_RX == cq_type)) {
-		RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_rx, m_active_cq_mgr_rx->request_notification(poll_sn));
+		RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_rx,
+				m_active_cq_mgr_rx->request_notification(poll_sn);
+				++m_ring_stat_static.n_rx_interrupt_requests);
 	}
 	else {
 		RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_tx, m_active_cq_mgr_tx->request_notification(poll_sn));
@@ -929,7 +942,9 @@ int ring::wait_for_notification_and_process_element(cq_type_t cq_type, int cq_ch
 			p_cq_mgr = iter->second.m_p_cq_mgr_rx;
 		}
 		if (p_cq_mgr != NULL) {
-			RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_rx, p_cq_mgr->wait_for_notification_and_process_element(p_cq_poll_sn, pv_fd_ready_array));
+			RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_rx,
+					p_cq_mgr->wait_for_notification_and_process_element(p_cq_poll_sn, pv_fd_ready_array);
+					++m_ring_stat_static.n_rx_interrupt_received);
 		} else {
 			ring_logerr("Can't find rx_cq for the rx_comp_event_channel_fd (= %d)", cq_channel_fd);
 		}
@@ -1410,6 +1425,9 @@ void ring::modify_cq_moderation(uint32_t period, uint32_t count)
 
 	m_cq_moderation_info.period = period;
 	m_cq_moderation_info.count = count;
+
+	m_ring_stat_static.n_rx_cq_moderation_period = period;
+	m_ring_stat_static.n_rx_cq_moderation_count = count;
 
 	//todo all cqs or just active? what about HA?
 	m_active_cq_mgr_rx->modify_cq_moderation(period, count);

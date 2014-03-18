@@ -59,8 +59,9 @@ using namespace std;
 //   ------------------------------
 
 #define NUM_OF_SUPPORTED_CQS 		8 
+#define NUM_OF_SUPPORTED_RINGS 		8
 #define NUM_OF_SUPPORTED_EPFDS          15
-#define MIN_STATS_SIZE	 		((sizeof(uint32_t)  + sizeof(size_t) + 6*sizeof(uint8_t) + sizeof(cq_instance_block_t)*NUM_OF_SUPPORTED_CQS + sizeof(mc_grp_info_t) + sizeof(iomux_stats_t)))
+#define MIN_STATS_SIZE	 		((sizeof(uint32_t)  + sizeof(size_t) + 6*sizeof(uint8_t) + sizeof(ring_instance_block_t)*NUM_OF_SUPPORTED_RINGS + sizeof(cq_instance_block_t)*NUM_OF_SUPPORTED_CQS + sizeof(mc_grp_info_t) + sizeof(iomux_stats_t)))
 #define SHMEM_STATS_SIZE(fds_num)	MIN_STATS_SIZE + (fds_num * sizeof(socket_instance_block_t))
 #define FILE_NAME_MAX_SIZE		256
 #define MC_TABLE_SIZE			1024
@@ -220,6 +221,23 @@ typedef struct {
 } cq_instance_block_t;
 
 //
+// Ring stat info
+//
+typedef struct {
+	uint64_t	n_rx_pkt_count;
+	uint64_t	n_rx_byte_count;
+	uint64_t	n_rx_interrupt_requests;
+	uint64_t	n_rx_interrupt_received;
+	uint32_t	n_rx_cq_moderation_count;
+	uint32_t	n_rx_cq_moderation_period;
+} ring_stats_t;
+
+typedef struct {
+	bool 		b_enabled;
+	ring_stats_t 	ring_stats;
+} ring_instance_block_t;
+
+//
 // Version info
 //
 typedef struct {
@@ -236,6 +254,7 @@ typedef struct sh_mem_t {
 	uint8_t				log_level;
 	uint8_t 			log_details_level;
 	cq_instance_block_t		cq_inst_arr[NUM_OF_SUPPORTED_CQS];
+	ring_instance_block_t		ring_inst_arr[NUM_OF_SUPPORTED_RINGS];
 	mc_grp_info_t			mc_info;
 	iomux_stats_t                   iomux;
 	socket_instance_block_t  	skt_inst_arr[]; //sockets statistics array
@@ -258,6 +277,9 @@ void 			vma_stats_instance_remove_socket_block(socket_stats_t*);
 
 void 			vma_stats_mc_group_add(in_addr_t mc_grp, socket_stats_t* p_socket_stats);
 void 			vma_stats_mc_group_remove(in_addr_t mc_grp, socket_stats_t* p_socket_stats);
+
+void     		vma_stats_instance_create_ring_block(ring_stats_t*);
+void 			vma_stats_instance_remove_ring_block(ring_stats_t*);
 
 void     		vma_stats_instance_create_cq_block(cq_stats_t*);
 void 			vma_stats_instance_remove_cq_block(cq_stats_t*);
