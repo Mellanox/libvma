@@ -89,6 +89,7 @@ void get_orig_funcs()
 	GET_ORIG_FUNC(shutdown);
 	GET_ORIG_FUNC(listen);
 	GET_ORIG_FUNC(accept);
+	GET_ORIG_FUNC(accept4);
 	GET_ORIG_FUNC(bind);
 	GET_ORIG_FUNC(connect);
 	GET_ORIG_FUNC(setsockopt);

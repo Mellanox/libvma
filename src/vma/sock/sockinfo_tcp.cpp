@@ -1607,11 +1607,20 @@ int sockinfo_tcp::accept4(struct sockaddr *__addr, socklen_t *__addrlen, int __f
 	int fd = accept(__addr, __addrlen);
 	if (fd < 0) return fd;
 
+	socket_fd_api* p_socket_object = NULL;
+	p_socket_object = fd_collection_get_sockfd(fd);
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!p_socket_object) {
+		si_tcp_logerr("could not find offloaded accepted fd=%d", fd);
+		return fd;
+	}
+	 BULLSEYE_EXCLUDE_BLOCK_END
+
 	if (__flags) {
 		if (__flags & SOCK_NONBLOCK)
-			fcntl(F_SETFL, O_NONBLOCK);
+			p_socket_object->fcntl(F_SETFL, O_NONBLOCK);
 		if (__flags & SOCK_CLOEXEC)
-			fcntl(F_SETFD, FD_CLOEXEC);
+			p_socket_object->fcntl(F_SETFD, FD_CLOEXEC);
 	}
 
 	return fd;
