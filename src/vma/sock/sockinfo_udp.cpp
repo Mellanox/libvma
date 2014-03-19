@@ -85,6 +85,7 @@ enum {
 #define UDP_MAP_ADD             101
 #define UDP_MAP_REMOVE          102
 
+int g_n_os_igmp_max_membership;
 
 const char * setsockopt_so_opt_to_str(int opt)
 {
@@ -658,12 +659,8 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					si_udp_logdbg("IPPROTO_IP, %s=%d.%d.%d.%d, mc_if:%d.%d.%d.%d", setsockopt_ip_opt_to_str(__optname), NIPQUAD(mc_grp), NIPQUAD(mc_if));
 				}
 
-				// Check MC rules for offloading
-				sock_addr tmp_grp_addr(AF_INET, mc_grp, m_bound.get_in_port());
-				if (__vma_match_udp_receiver(TRANS_VMA, mce_sys.app_id, tmp_grp_addr.get_p_sa(), tmp_grp_addr.get_socklen()) == TRANS_OS) {
-					// Break so we call orig setsockopt() and don't try to offlaod
-					si_udp_logdbg("setsockopt(%s) will be passed to OS for handling due to rule matching", setsockopt_ip_opt_to_str(__optname));
-					break;
+				if (mc_change_membership_start_helper(mc_grp, __optname)) {
+					return -1;
 				}
 
 				// MNY: TODO: Check rules for local_if (blacklist interface feature)
@@ -674,25 +671,39 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					break;
 				}*/
 
-				// Check if local_if is offloadable
-				if (!g_p_net_device_table_mgr->get_net_device_val(mc_if)) {
-					// Break so we call orig setsockopt() and don't try to offlaod
-					si_udp_logdbg("setsockopt(%s) will be passed to OS for handling - not offload interface (%d.%d.%d.%d)", setsockopt_ip_opt_to_str(__optname), NIPQUAD(mc_if));
-					break;
-				}
+				bool goto_os = false;
 
-				if (m_bound.get_in_port() == INPORT_ANY) {
+				// Check MC rules for not offloading
+				sock_addr tmp_grp_addr(AF_INET, mc_grp, m_bound.get_in_port());
+				if (__vma_match_udp_receiver(TRANS_VMA, mce_sys.app_id, tmp_grp_addr.get_p_sa(), tmp_grp_addr.get_socklen()) == TRANS_OS) {
+					// call orig setsockopt() and don't try to offlaod
+					si_udp_logdbg("setsockopt(%s) will be passed to OS for handling due to rule matching", setsockopt_ip_opt_to_str(__optname));
+					goto_os = true;
+				}
+				// Check if local_if is not offloadable
+				else if (!g_p_net_device_table_mgr->get_net_device_val(mc_if)) {
+					// call orig setsockopt() and don't try to offlaod
+					si_udp_logdbg("setsockopt(%s) will be passed to OS for handling - not offload interface (%d.%d.%d.%d)", setsockopt_ip_opt_to_str(__optname), NIPQUAD(mc_if));
+					goto_os = true;
+				}
+				// offloaded, check if need to pend
+				else if (m_bound.get_in_port() == INPORT_ANY) {
 					// Delay attaching to this MC group until we have bound UDP port
-					si_udp_logdbg("setsockopt(%s) will be pending until bound to UDP port", setsockopt_ip_opt_to_str(__optname));
-					m_pending_mreqs.push_back(mreq);
+					mc_change_pending_mreq(&mreq, __optname);
 				}
 				// Handle attach to this MC group now
 				else if (mc_change_membership(&mreq, __optname)) {
-					// Opps, failed in attaching??? Break so we call orig setsockopt()
-					break;
+					// Opps, failed in attaching??? call orig setsockopt()
+					goto_os = true;
 				}
-				// We're going to finish handling the IP_ADD_MEMBERSHIP in the rx_ready_notify_cb()
-				// Anyway we sure don't want to call the orig_setsockopt here!
+
+				if (goto_os) {
+					int ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
+					if (ret) return ret;
+				}
+
+				mc_change_membership_end_helper(mc_grp, __optname);
+
 				return 0;
 				}
 				break;
@@ -1760,6 +1771,74 @@ void sockinfo_udp::handle_pending_mreq()
 		++mreq_iter;
 		m_pending_mreqs.erase(mreq_iter_temp);
 	}
+}
+
+int sockinfo_udp::mc_change_pending_mreq(const struct ip_mreq *p_mreq, int optname)
+{
+	si_udp_logdbg("setsockopt(%s) will be pending until bound to UDP port", setsockopt_ip_opt_to_str(optname));
+
+	ip_mreq_list_t::iterator mreq_iter, mreq_iter_temp;
+	switch (optname) {
+	case IP_ADD_MEMBERSHIP:
+		m_pending_mreqs.push_back(*p_mreq);
+		break;
+	case IP_DROP_MEMBERSHIP:
+		for (mreq_iter = m_pending_mreqs.begin(); mreq_iter != m_pending_mreqs.end();) {
+			if (mreq_iter->imr_multiaddr.s_addr == p_mreq->imr_multiaddr.s_addr) {
+				mreq_iter_temp = mreq_iter;
+				++mreq_iter;
+				m_pending_mreqs.erase(mreq_iter_temp);
+			} else {
+				++mreq_iter;
+			}
+		}
+		break;
+	BULLSEYE_EXCLUDE_BLOCK_START
+	default:
+		si_udp_logerr("setsockopt(%s) illegal", setsockopt_ip_opt_to_str(optname));
+		return -1;
+	BULLSEYE_EXCLUDE_BLOCK_END
+	}
+	return 0;
+}
+
+int sockinfo_udp::mc_change_membership_start_helper(in_addr_t mc_grp, int optname)
+{
+	switch (optname) {
+	case IP_ADD_MEMBERSHIP:
+		if (m_mc_memberships_map.find(mc_grp) == m_mc_memberships_map.end()
+				&&  m_mc_memberships_map.size() >= (size_t)g_n_os_igmp_max_membership) {
+			errno = ENOBUFS;
+			return -1;
+		}
+		break;
+	case IP_DROP_MEMBERSHIP:
+		break;
+		BULLSEYE_EXCLUDE_BLOCK_START
+	default:
+		si_udp_logerr("setsockopt(%s) will be passed to OS for handling", setsockopt_ip_opt_to_str(optname));
+		return -1;
+		BULLSEYE_EXCLUDE_BLOCK_END
+	}
+	return 0;
+}
+
+int sockinfo_udp::mc_change_membership_end_helper(in_addr_t mc_grp, int optname)
+{
+	switch (optname) {
+	case IP_ADD_MEMBERSHIP:
+		m_mc_memberships_map[mc_grp] = 1;
+		break;
+	case IP_DROP_MEMBERSHIP:
+		m_mc_memberships_map.erase(mc_grp);
+		break;
+		BULLSEYE_EXCLUDE_BLOCK_START
+	default:
+		si_udp_logerr("setsockopt(%s) will be passed to OS for handling", setsockopt_ip_opt_to_str(optname));
+		return -1;
+		BULLSEYE_EXCLUDE_BLOCK_END
+	}
+	return 0;
 }
 
 int sockinfo_udp::mc_change_membership(const struct ip_mreq *p_mreq, int optname)

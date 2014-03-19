@@ -35,6 +35,8 @@
 
 #define MAX_RX_MEM_BUF_DESC	32
 
+extern int g_n_os_igmp_max_membership;
+
 // Send flow dst_entry map
 namespace std {
  namespace tr1 {
@@ -54,6 +56,7 @@ typedef std::tr1::unordered_map<sock_addr, dst_entry*> dst_entry_map_t;
 
 // Multicast Request list
 typedef std::list<struct ip_mreq> ip_mreq_list_t;
+typedef std::tr1::unordered_map<in_addr_t, int> mc_memberships_map_t;
 
 struct cmsg_state
 {
@@ -169,6 +172,7 @@ private:
 	vma_recv_callback_t m_rx_callback;
 	void *m_rx_callback_context; // user context
 	ip_mreq_list_t 	m_pending_mreqs;
+	mc_memberships_map_t m_mc_memberships_map;
 
 	lock_spin 	m_port_map_lock;
 	std::vector<struct port_socket_t> m_port_map;
@@ -182,6 +186,9 @@ private:
 	uint8_t		m_n_tsing_flags;
 
 	int mc_change_membership(const struct ip_mreq *p_mreq, int optname);
+	int mc_change_membership_start_helper(in_addr_t mc_grp, int optname);
+	int mc_change_membership_end_helper(in_addr_t mc_grp, int optname);
+	int mc_change_pending_mreq(const struct ip_mreq *p_mreq, int optname);
 	void handle_pending_mreq();
 
 	/* helper functions */

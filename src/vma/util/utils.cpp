@@ -401,6 +401,21 @@ int get_if_mtu_from_ifname(const char* ifname, bool use_base_if)
 	return if_mtu_value;
 }
 
+int get_igmp_max_membership()
+{
+	__log_func("find OS igmp_max_membership");
+
+	char igmp_max_membership_str[32];
+	int igmp_max_membership_value = 0;
+
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (priv_read_file(IGMP_MAX_MEMBERSHIP_FILE, igmp_max_membership_str, sizeof(igmp_max_membership_str)) > 0) {
+		igmp_max_membership_value = atoi(igmp_max_membership_str);
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+	return igmp_max_membership_value;
+}
+
 int get_window_scaling_factor()
 {
 	__log_func("find OS tcp scaling window factor");

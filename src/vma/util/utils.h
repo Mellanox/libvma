@@ -177,6 +177,13 @@ int get_ifaddr_len_from_ifname(const char* ifname);
 int get_if_mtu_from_ifname(const char* ifname, bool use_base_if);
 
 /**
+ * Get the OS max IGMP membership per socket.
+ *
+ * @return the OS max IGMP membership per socket, or -1 for disabled or failures
+ */
+int get_igmp_max_membership();
+
+/**
  * Get the OS TCP window scaling factor.
  * The value is calculated from the maximum receive buffer value.
  *

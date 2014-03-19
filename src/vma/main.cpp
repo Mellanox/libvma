@@ -49,6 +49,7 @@
 #include "vma/sock/sock-redirect.h"
 #include "vma/sock/fd_collection.h"
 #include "vma/sock/sockinfo_tcp.h"
+#include "vma/sock/sockinfo_udp.h"
 #include "vma/iomux/io_mux_call.h"
 
 #include "vma/util/instrumentation.h"
@@ -1474,6 +1475,13 @@ void do_global_ctors()
 				NULL);
 
 	}
+
+	g_n_os_igmp_max_membership = get_igmp_max_membership();
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (g_n_os_igmp_max_membership < 0) {
+		vlog_printf(VLOG_WARNING,"failed to read igmp_max_membership value");
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
 
 // 	neigh_test();
 //	igmp_test();
