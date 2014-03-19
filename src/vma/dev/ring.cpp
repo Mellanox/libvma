@@ -1473,10 +1473,13 @@ void ring::adapt_cq_moderation()
 	int count = MIN(avg_packet_rate / ir_rate, mce_sys.cq_aim_max_count);
 	int period = MIN(mce_sys.cq_aim_max_period_usec, ((1000000 / ir_rate) - (1000000 / MAX(avg_packet_rate, ir_rate))));
 
-	if (avg_packet_size > 1024) {
-		modify_cq_moderation(period, count);
+	if (avg_packet_size < 1024 && avg_packet_rate < 450000) {
+		modify_cq_moderation(0, 0); //latency mode
+		//todo latency for big messages is not good
+		// the rate is affected by the moderation and the moderation by the rate..
+		// so each cycle change from 0 to max, and max to 0, ..
 	} else {
-		modify_cq_moderation(0, 0);
+		modify_cq_moderation(period, count); //throughput mode
 	}
 
 	m_lock_ring_rx.unlock();
