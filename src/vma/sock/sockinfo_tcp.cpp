@@ -1461,7 +1461,7 @@ int sockinfo_tcp::listen(int backlog)
 
 }
 
-int sockinfo_tcp::accept(struct sockaddr *__addr, socklen_t *__addrlen)
+int sockinfo_tcp::accept(struct sockaddr *__addr, socklen_t *__addrlen, int __flags /* = 0 */)
 {
 	sockinfo_tcp *ns;
 	int poll_count = 0;
@@ -1472,7 +1472,10 @@ int sockinfo_tcp::accept(struct sockaddr *__addr, socklen_t *__addrlen)
 	// if in os pathrough just redirect to os
 	if (m_sock_offload == TCP_SOCK_PASSTHROUGH) {
 		si_tcp_logdbg("passthrough - go to OS accept()");
-		return orig_os_api.accept(m_fd, __addr, __addrlen);
+		if (__flags)
+			return orig_os_api.accept4(m_fd, __addr, __addrlen, __flags);
+		else
+			return orig_os_api.accept(m_fd, __addr, __addrlen);
 	}
 
 	if (!is_server()) {
@@ -1508,7 +1511,10 @@ int sockinfo_tcp::accept(struct sockaddr *__addr, socklen_t *__addrlen)
 		if (ret == 1) {
 			si_tcp_logdbg("orig_os_api.poll returned with packet");
 			unlock_tcp_con();
-			return orig_os_api.accept(m_fd, __addr, __addrlen);
+			if (__flags)
+				return orig_os_api.accept4(m_fd, __addr, __addrlen, __flags);
+			else
+				return orig_os_api.accept(m_fd, __addr, __addrlen);
 		}
 
 		if (rx_wait(poll_count, m_b_blocking) < 0) {
@@ -1589,6 +1595,11 @@ int sockinfo_tcp::accept(struct sockaddr *__addr, socklen_t *__addrlen)
 	ns->m_p_socket_stats->connected_ip = ns->m_connected.get_in_addr();
 	ns->m_p_socket_stats->connected_port = ns->m_connected.get_in_port();
 
+	if (__flags & SOCK_NONBLOCK)
+		ns->fcntl(F_SETFL, O_NONBLOCK);
+	if (__flags & SOCK_CLOEXEC)
+		ns->fcntl(F_SETFD, FD_CLOEXEC);
+
         si_tcp_logdbg("CONN ACCEPTED: TCP PCB FLAGS: acceptor:0x%x newsock: fd=%d 0x%x new state: %d", m_pcb.flags, ns->m_fd, ns->m_pcb.flags, ns->m_pcb.state);
 	return ns->m_fd;
 }
@@ -1596,34 +1607,9 @@ int sockinfo_tcp::accept(struct sockaddr *__addr, socklen_t *__addrlen)
 int sockinfo_tcp::accept4(struct sockaddr *__addr, socklen_t *__addrlen, int __flags)
 {
 	si_tcp_logfuncall("");
-	si_tcp_logdbg("socket accept4");
+	si_tcp_logdbg("socket accept4, flags=%d", __flags);
 
-	// if in os pathrough just redirect to os
-	if (m_sock_offload == TCP_SOCK_PASSTHROUGH) {
-		si_tcp_logdbg("passthrough - go to OS accept4()");
-		return orig_os_api.accept4(m_fd, __addr, __addrlen, __flags);
-	}
-
-	int fd = accept(__addr, __addrlen);
-	if (fd < 0) return fd;
-
-	socket_fd_api* p_socket_object = NULL;
-	p_socket_object = fd_collection_get_sockfd(fd);
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!p_socket_object) {
-		si_tcp_logerr("could not find offloaded accepted fd=%d", fd);
-		return fd;
-	}
-	 BULLSEYE_EXCLUDE_BLOCK_END
-
-	if (__flags) {
-		if (__flags & SOCK_NONBLOCK)
-			p_socket_object->fcntl(F_SETFL, O_NONBLOCK);
-		if (__flags & SOCK_CLOEXEC)
-			p_socket_object->fcntl(F_SETFD, FD_CLOEXEC);
-	}
-
-	return fd;
+	return accept(__addr, __addrlen, __flags);
 }
 
 sockinfo_tcp *sockinfo_tcp::accept_clone()
