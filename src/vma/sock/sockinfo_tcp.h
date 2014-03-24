@@ -99,15 +99,15 @@ public:
 	void create_dst_entry();
 	bool prepare_dst_to_send(bool is_accepted_socket = false);
 
-	int setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen);
-	int getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen);
-	int connect(const sockaddr*, socklen_t);
-	int bind(const sockaddr *__addr, socklen_t __addrlen);
-	int listen(int backlog);
-	int accept(struct sockaddr *__addr, socklen_t *__addrlen, int __flags = 0);
-	int accept4(struct sockaddr *__addr, socklen_t *__addrlen, int __flags);
-	int getsockname(sockaddr *__name, socklen_t *__namelen);
-	int getpeername(sockaddr *__name, socklen_t *__namelen);
+	virtual int setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen);
+	virtual int getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen);
+	virtual int connect(const sockaddr*, socklen_t);
+	virtual int bind(const sockaddr *__addr, socklen_t __addrlen);
+	virtual int listen(int backlog);
+	virtual int accept(struct sockaddr *__addr, socklen_t *__addrlen);
+	virtual int accept4(struct sockaddr *__addr, socklen_t *__addrlen, int __flags);
+	virtual int getsockname(sockaddr *__name, socklen_t *__namelen);
+	virtual int getpeername(sockaddr *__name, socklen_t *__namelen);
 
 	//Returns the connected pcb, with 5 tuple which matches the input arguments,
 	//in state "SYN Received" or NULL if pcb wasn't found
@@ -258,6 +258,8 @@ private:
 	static err_t syn_received_drop_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_t err);
 
 	static err_t clone_conn_cb(void *arg, struct tcp_pcb **newpcb, err_t err);
+
+	int accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, int __flags = 0);
 
 	// clone socket in accept call
 	sockinfo_tcp *accept_clone();

@@ -1461,7 +1461,7 @@ int sockinfo_tcp::listen(int backlog)
 
 }
 
-int sockinfo_tcp::accept(struct sockaddr *__addr, socklen_t *__addrlen, int __flags /* = 0 */)
+int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, int __flags /* = 0 */)
 {
 	sockinfo_tcp *ns;
 	int poll_count = 0;
@@ -1604,12 +1604,19 @@ int sockinfo_tcp::accept(struct sockaddr *__addr, socklen_t *__addrlen, int __fl
 	return ns->m_fd;
 }
 
+int sockinfo_tcp::accept(struct sockaddr *__addr, socklen_t *__addrlen)
+{
+	si_tcp_logfuncall("");
+
+	return accept_helper(__addr, __addrlen);
+}
+
 int sockinfo_tcp::accept4(struct sockaddr *__addr, socklen_t *__addrlen, int __flags)
 {
 	si_tcp_logfuncall("");
 	si_tcp_logdbg("socket accept4, flags=%d", __flags);
 
-	return accept(__addr, __addrlen, __flags);
+	return accept_helper(__addr, __addrlen, __flags);
 }
 
 sockinfo_tcp *sockinfo_tcp::accept_clone()
