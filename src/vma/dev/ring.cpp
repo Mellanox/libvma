@@ -84,6 +84,7 @@ ring::ring(in_addr_t local_if, uint16_t partition_sn, int count, transport_type_
 		m_p_n_rx_channel_fds(NULL), m_tx_num_bufs(0), m_tx_num_wr(0), m_tx_num_wr_free(0), m_b_qp_tx_first_flushed_completion_handled(false),
 		m_missing_buf_ref_count(0), m_tx_lkey(0), m_partition(partition_sn), m_gro_mgr(mce_sys.gro_streams_max, MAX_GRO_BUFS), m_p_ring_stat(NULL)
 {
+	 // coverity[uninit_member]
 }
 
 ring::~ring()
