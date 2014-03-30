@@ -300,6 +300,8 @@ public:
 	void		mem_buf_desc_return_to_owner_rx(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array = NULL);
 	void		mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc);
 
+	void		mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc);
+
 	friend class cq_mgr;
 	friend class qp_mgr;
 	friend class rfs;
@@ -366,6 +368,7 @@ private:
 	inline bool		 request_more_tx_buffers(uint32_t count);
 	inline mem_buf_desc_t*	 get_tx_buffers(uint32_t n_num_mem_bufs);
 	inline int		 put_tx_buffers(mem_buf_desc_t* buff_list);
+	inline int		 put_tx_single_buffer(mem_buf_desc_t* buff);
 	inline int		 send_buffer(vma_ibv_send_wr* p_send_wqe, bool b_block);
 
 	void			 modify_cq_moderation(uint32_t period, uint32_t count);

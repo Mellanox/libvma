@@ -1001,6 +1001,12 @@ void ring::mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc)
 	RING_LOCK_AND_RUN(m_lock_ring_tx, m_tx_num_wr_free += put_tx_buffers(p_mem_buf_desc));
 }
 
+void ring::mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc)
+{
+	ring_logfuncall("");
+	RING_LOCK_AND_RUN(m_lock_ring_tx, m_tx_num_wr_free += put_tx_single_buffer(p_mem_buf_desc));
+}
+
 int ring::drain_and_proccess(cq_type_t cq_type)
 {
 	int ret = 0;
@@ -1397,12 +1403,49 @@ int ring::put_tx_buffers(mem_buf_desc_t* buff_list)
 	while (buff_list) {
 		next = buff_list->p_next_desc;
 		buff_list->p_next_desc = NULL;
-		if (buff_list->lwip_pbuf.pbuf.ref-- <= 1) {
+
+		//potential race, ref is protected here by ring_tx lock, and in dst_entry_tcp & sockinfo_tcp by tcp lock
+		if (likely(buff_list->lwip_pbuf.pbuf.ref))
+			buff_list->lwip_pbuf.pbuf.ref--;
+		else
+			ring_logerr("ref count of %p is already zero, double free??", buff_list);
+
+		if (buff_list->lwip_pbuf.pbuf.ref == 0) {
 			free_lwip_pbuf(&buff_list->lwip_pbuf);
 			m_tx_pool.push_back(buff_list);
 			count++;
 		}
 		buff_list = next;
+	}
+
+	if (unlikely(m_tx_pool.size() > (m_tx_num_bufs / 2) &&  m_tx_num_bufs >= RING_TX_BUFS_COMPENSATE * 2)) {
+		int return_to_global_pool = m_tx_pool.size() / 2;
+		m_tx_num_bufs -= return_to_global_pool;
+		g_buffer_pool_tx->put_buffers_thread_safe(&m_tx_pool, return_to_global_pool);
+	}
+
+	return count;
+}
+
+//call under m_lock_ring_tx lock
+int ring::put_tx_single_buffer(mem_buf_desc_t* buff)
+{
+	int count = 0;
+
+	if (likely(buff)) {
+
+		//potential race, ref is protected here by ring_tx lock, and in dst_entry_tcp & sockinfo_tcp by tcp lock
+		if (likely(buff->lwip_pbuf.pbuf.ref))
+			buff->lwip_pbuf.pbuf.ref--;
+		else
+			ring_logerr("ref count of %p is already zero, double free??", buff);
+
+		if (buff->lwip_pbuf.pbuf.ref == 0) {
+			buff->p_next_desc = NULL;
+			free_lwip_pbuf(&buff->lwip_pbuf);
+			m_tx_pool.push_back(buff);
+			count++;
+		}
 	}
 
 	if (unlikely(m_tx_pool.size() > (m_tx_num_bufs / 2) &&  m_tx_num_bufs >= RING_TX_BUFS_COMPENSATE * 2)) {

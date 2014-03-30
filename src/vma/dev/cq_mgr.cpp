@@ -540,7 +540,7 @@ void cq_mgr::process_tx_buffer_list(mem_buf_desc_t* p_mem_buf_desc)
 {
 	// Assume locked!!!
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (p_mem_buf_desc && p_mem_buf_desc->p_desc_owner) {
+	if (p_mem_buf_desc && p_mem_buf_desc->p_desc_owner == m_p_ring) {
 		p_mem_buf_desc->p_desc_owner->mem_buf_desc_return_to_owner_tx(p_mem_buf_desc);
 	}
 	else {

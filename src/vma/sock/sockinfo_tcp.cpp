@@ -2641,22 +2641,25 @@ struct pbuf * sockinfo_tcp::tcp_tx_pbuf_alloc(void* p_conn)
 	return (struct pbuf *)p_desc;
 }
 
+//single buffer only
 void sockinfo_tcp::tcp_tx_pbuf_free(void* p_conn, struct pbuf *p_buff)
 {
 	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)(((struct tcp_pcb*)p_conn)->my_container);
 	dst_entry_tcp *p_dst = (dst_entry_tcp *)(p_si_tcp->m_p_connected_dst_entry);
 	if (likely(p_dst)) {
 		p_dst->put_buffer((mem_buf_desc_t *)p_buff);
-	} else {
-		mem_buf_desc_t * next;
+	} else if (p_buff){
 		mem_buf_desc_t * p_desc = (mem_buf_desc_t *)p_buff;
-		while (p_desc) {
-			next = p_desc->p_next_desc;
+
+		//potential race, ref is protected here by tcp lock, and in ring by ring_tx lock
+		if (likely(p_desc->lwip_pbuf.pbuf.ref))
+			p_desc->lwip_pbuf.pbuf.ref--;
+		else
+			__log_err("ref count of %p is already zero, double free??", p_desc);
+
+		if (p_desc->lwip_pbuf.pbuf.ref == 0) {
 			p_desc->p_next_desc = NULL;
-			if (p_desc->lwip_pbuf.pbuf.ref-- <= 1) {
-				g_buffer_pool_tx->put_buffers_thread_safe(p_desc);
-			}
-			p_desc = next;
+			g_buffer_pool_tx->put_buffers_thread_safe(p_desc);
 		}
 	}
 }

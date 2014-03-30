@@ -55,10 +55,9 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 
 	tcp_iovec* p_tcp_iov = NULL;
 	bool no_copy = true;
-	if (likely(sz_iov == 1)) {
+	if (likely(sz_iov == 1 && !is_rexmit)) {
 		p_tcp_iov = (tcp_iovec*)p_iov;
-		if (unlikely(p_tcp_iov->p_desc->p_desc_owner != m_p_ring)){
-			p_tcp_iov->p_desc->p_desc_owner = NULL;
+		if (unlikely(p_tcp_iov->p_desc->p_desc_owner != m_p_ring)) {
 			no_copy = false;
 			dst_tcp_logdbg("p_desc=%p wrong desc_owner=%p, this ring=%p. did migration occurred?", p_tcp_iov->p_desc, p_tcp_iov->p_desc->p_desc_owner, m_p_ring);
 			//todo can we handle this in migration (by going over all buffers lwip hold) instead for every send?
@@ -204,22 +203,25 @@ mem_buf_desc_t* dst_entry_tcp::get_buffer(bool b_blocked /*=false*/)
 }
 
 //called from lwip under sockinfo_tcp lock
-//handle un-chained pbuf (p_desc might be chained)
+//handle un-chained pbuf
+// only single p_desc
 void dst_entry_tcp::put_buffer(mem_buf_desc_t * p_desc)
 {
 	//todo accumulate buffers?
 
-	if (p_desc->p_desc_owner == m_p_ring) {
-		m_p_ring->mem_buf_desc_return_to_owner_tx(p_desc);
-	} else {
-		mem_buf_desc_t * next;
-		while (p_desc) {
-			next = p_desc->p_next_desc;
+	if (likely(p_desc->p_desc_owner == m_p_ring)) {
+		m_p_ring->mem_buf_desc_return_single_to_owner_tx(p_desc);
+	} else if (p_desc){
+
+		//potential race, ref is protected here by tcp lock, and in ring by ring_tx lock
+		if (likely(p_desc->lwip_pbuf.pbuf.ref))
+			p_desc->lwip_pbuf.pbuf.ref--;
+		else
+			dst_tcp_logerr("ref count of %p is already zero, double free??", p_desc);
+
+		if (p_desc->lwip_pbuf.pbuf.ref == 0) {
 			p_desc->p_next_desc = NULL;
-			if (p_desc->lwip_pbuf.pbuf.ref-- <= 1) {
-				g_buffer_pool_tx->put_buffers_thread_safe(p_desc);
-			}
-			p_desc = next;
+			g_buffer_pool_tx->put_buffers_thread_safe(p_desc);
 		}
 	}
 }
