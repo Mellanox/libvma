@@ -415,7 +415,7 @@
        }
        pcb->snd_queuelen -= pbuf_clen(next->p);
 -      tcp_seg_free(next);
-+      tcp_seg_free(pcb, next);
++      tcp_tx_seg_free(pcb, next);
  #if TCP_RCVSCALE
        LWIP_DEBUGF(TCP_QLEN_DEBUG, ("%"U16_F" (after freeing unsent)\n", (u32_t)pcb->snd_queuelen));
  #else
