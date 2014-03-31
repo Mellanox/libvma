@@ -1,3 +1,26 @@
+Version 6.6.2-0:
+Date + Time 2014-3-31
+=======================
+Added:
+        - RM #379150 support for accept4
+        - RM #381520 Support adaptive interrupt moderation per CQ
+        - RM #381708 Add ring statistics to vma_stats
+        - RM #378076 Allow L2 only rules for ETH MC
+        - RM #375244 Align VMA with latest MLNX_OFED 2.2 experimental verbs
+
+Fixed:
+        - RM #384372 lwip unsent queue might be released to the RX buffer pool
+          instead of TX
+        - RM #384370 TCP TX buffer management issues - multiple parallel usage
+          of the mem_buf_desc->next pointer
+        - RM #381917 lacking consideration of igmp_max_memberships parameter
+        - RM #380783 Truncate existing VMA logs
+        - RM #379169 VMA ERROR is raised when trying to get IPV4 of non
+          existing interface
+        - RM #379080 rfs access is not protected in ring dtor
+        - RM #378103 filter MC loopback on RX flow
+        - RM #34322 No support for SO_BINDTODEVICE on already offloaded connected TCP socket
+
 Version 6.6.1-0:
 Date + Time 2014-2-25
 =======================
