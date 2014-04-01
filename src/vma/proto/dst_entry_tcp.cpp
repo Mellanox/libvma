@@ -209,9 +209,12 @@ void dst_entry_tcp::put_buffer(mem_buf_desc_t * p_desc)
 {
 	//todo accumulate buffers?
 
+	if (unlikely(p_desc == NULL))
+		return;
+
 	if (likely(p_desc->p_desc_owner == m_p_ring)) {
 		m_p_ring->mem_buf_desc_return_single_to_owner_tx(p_desc);
-	} else if (p_desc){
+	} else {
 
 		//potential race, ref is protected here by tcp lock, and in ring by ring_tx lock
 		if (likely(p_desc->lwip_pbuf.pbuf.ref))
