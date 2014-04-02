@@ -406,7 +406,7 @@ void io_mux_call::blocking_loops()
 			__log_func("wait() returned %d, m_n_all_ready_fds=%d", cq_ready, m_n_all_ready_fds);
 			if (cq_ready) {
 				fd_ready_array.fd_count = 0;
-				g_p_net_device_table_mgr->global_ring_wait_for_notification_and_process_element(&m_poll_sn, &fd_ready_array);
+				ring_wait_for_notification_and_process_element(&m_poll_sn, &fd_ready_array);
 				// tcp sockets can be accept ready!
 				__log_func("before check_all_offloaded_sockets");
 				check_all_offloaded_sockets(&m_poll_sn);
@@ -496,6 +496,11 @@ int io_mux_call::ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_
 int io_mux_call::ring_request_notification(uint64_t poll_sn)
 {
 	return g_p_net_device_table_mgr->global_ring_request_notification(poll_sn);
+}
+
+int io_mux_call::ring_wait_for_notification_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array /* = NULL*/)
+{
+	return g_p_net_device_table_mgr->global_ring_wait_for_notification_and_process_element(p_poll_sn, pv_fd_ready_array);
 }
 
 bool io_mux_call::is_sig_pending()

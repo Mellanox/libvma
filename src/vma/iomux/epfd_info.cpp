@@ -26,8 +26,10 @@
 
 #define NUM_LOG_INVALID_EVENTS 10
 
+#define CQ_FD_MARK 0xabcd
+
 epfd_info::epfd_info(int epfd, int size) :
-	lock_mutex_recursive("epfd_info"), m_epfd(epfd), m_size(size), m_ring_map_lock("epfd_ring_map_lock"), m_cq_epfd(-1)
+	lock_mutex_recursive("epfd_info"), m_epfd(epfd), m_size(size), m_ring_map_lock("epfd_ring_map_lock")
 {
 	__log_funcall("");
 	int max_sys_fd = get_sys_max_fd_num();
@@ -151,9 +153,17 @@ void epfd_info::get_offloaded_fds_arr_and_size(int **p_p_num_offloaded_fds,
 	*p_p_offloadded_fds = m_p_offloaded_fds;
 }
 
-int epfd_info::get_cq_epfd()
+bool epfd_info::is_cq_fd(uint64_t data)
 {
-	return m_cq_epfd;
+	uint32_t* data_32 = (uint32_t*)&data;
+	if (data_32[1] != CQ_FD_MARK)
+		return false;
+
+	lock();
+	m_ready_cq_fd_q.push_back((int)(data_32[0]));
+	unlock();
+
+	return true;
 }
 
 int epfd_info::add_fd(int fd, epoll_event *event)
@@ -191,6 +201,7 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 	else {
 		// Add an event which indirectly point to our event
 		evt.events = event->events;
+		evt.data.u64 = 0; //zero all data
 		evt.data.fd = fd;
 		ret = orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_ADD, fd, &evt);
 		BULLSEYE_EXCLUDE_BLOCK_START
@@ -213,23 +224,6 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 		m_p_offloaded_fds[m_n_offloaded_fds] = fd;
 		++m_n_offloaded_fds;
 		m_fd_info[fd].offloaded_index = m_n_offloaded_fds;
-		
-		// add cq epfd, if was not added before
-		if (m_cq_epfd == -1) {
-			m_cq_epfd = g_p_net_device_table_mgr->global_ring_epfd_get();
-			
-			evt.events = EPOLLIN | EPOLLPRI;
-
-			evt.data.fd = m_cq_epfd;
-			ret = orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_ADD, m_cq_epfd, &evt);
-			BULLSEYE_EXCLUDE_BLOCK_START
-			if (ret < 0) {
-				__log_dbg("failed to add cq fd=%d to epoll epfd=%d (errno=%d %m)", 
-				          m_cq_epfd, m_epfd, errno);
-				return ret;
-			}
-			BULLSEYE_EXCLUDE_BLOCK_END
-		}
 
 		//NOTE: when supporting epoll on epfd, need to add epfd ring list
 		//NOTE: when having rings in pipes, need to overload add_epoll_context
@@ -267,6 +261,27 @@ inline void epfd_info::increase_ring_ref_count_no_lock(ring* ring)
 		iter->second++;
 	} else {
 		m_ring_map[ring] = 1;
+
+		// add cq channel fd to the epfd
+		int num_ring_rx_fds = ring->get_num_resources();
+		int *ring_rx_fds_array = ring->get_rx_channel_fds();
+		for (int i = 0; i < num_ring_rx_fds; i++) {
+			epoll_event evt;
+			evt.events = EPOLLIN | EPOLLPRI;
+			int fd = ring_rx_fds_array[i];
+			uint32_t* data = (uint32_t*)&(evt.data.u64);
+			data[0] = fd;
+			data[1] = CQ_FD_MARK;
+			int ret = orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_ADD, fd, &evt);
+			BULLSEYE_EXCLUDE_BLOCK_START
+			if (ret < 0) {
+				__log_dbg("failed to add cq fd=%d to epoll epfd=%d (errno=%d %m)",
+						fd, m_epfd, errno);
+			} else {
+				__log_dbg("add cq fd=%d to epfd=%d", fd, m_epfd);
+			}
+			BULLSEYE_EXCLUDE_BLOCK_END
+		}
 	}
 }
 
@@ -292,6 +307,22 @@ inline void epfd_info::decrease_ring_ref_count_no_lock(ring* ring)
 
 	if (iter->second == 0) {
 		m_ring_map.erase(iter);
+
+		// remove cq channel fd from the epfd
+		int num_ring_rx_fds = ring->get_num_resources();
+		int *ring_rx_fds_array = ring->get_rx_channel_fds();
+		for (int i = 0; i < num_ring_rx_fds; i++) {
+			// delete cq fd from epfd
+			int ret = orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_DEL, ring_rx_fds_array[i], NULL);
+			BULLSEYE_EXCLUDE_BLOCK_START
+			if (ret < 0) {
+				__log_dbg("failed to remove cq fd=%d from epfd=%d (errno=%d %m)",
+						ring_rx_fds_array[i], m_epfd, errno);
+			} else {
+				__log_dbg("remove cq fd=%d from epfd=%d", ring_rx_fds_array[i], m_epfd);
+			}
+			BULLSEYE_EXCLUDE_BLOCK_END
+		}
 	}
 }
 
@@ -360,18 +391,7 @@ int epfd_info::del_fd(int fd, bool passthrough)
 			}
 		}
 
-		if (--m_n_offloaded_fds <= 0) {
-			// delete cq epfd for OS
-			ret = orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_DEL, m_cq_epfd, NULL);
-			BULLSEYE_EXCLUDE_BLOCK_START
-			if (ret < 0) {
-				__log_dbg("failed to remove cq fd=%d from epfd=%d (errno=%d %m)",
-				          m_cq_epfd, m_epfd, errno);
-				return ret;
-			}
-			BULLSEYE_EXCLUDE_BLOCK_END
-			m_cq_epfd = -1;
-		}
+		--m_n_offloaded_fds;
 	}
 
 	if (temp_sock_fd_api) {
@@ -428,6 +448,7 @@ int epfd_info::mod_fd(int fd, epoll_event *event)
 	else {
 		// modify fd
 		evt.events = event->events;
+		evt.data.u64 = 0; //zero all data
 		evt.data.fd = fd;
 		ret = orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_MOD, fd, &evt);
 		BULLSEYE_EXCLUDE_BLOCK_START
@@ -649,5 +670,58 @@ int epfd_info::ring_request_notification(uint64_t poll_sn)
 
 	m_ring_map_lock.unlock();
 
+	return ret_total;
+}
+
+int epfd_info::ring_wait_for_notification_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array /* = NULL*/)
+{
+	__log_func("");
+	int ret_total = 0;
+
+	while (!m_ready_cq_fd_q.empty()) {
+
+		lock();
+		if (m_ready_cq_fd_q.empty()) {
+			unlock();
+			break;
+		}
+		int fd = m_ready_cq_fd_q.back();
+		m_ready_cq_fd_q.pop_back();
+		unlock();
+
+		cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(fd);
+		if (p_cq_ch_info) {
+			ring* p_ready_ring = p_cq_ch_info->get_ring();
+			// Handle the CQ notification channel
+			int ret = p_ready_ring->wait_for_notification_and_process_element(CQT_RX, fd, p_poll_sn, pv_fd_ready_array);
+			if (ret < 0) {
+				if (errno == EAGAIN || errno == EBUSY) {
+					__log_dbg("Error in ring->wait_for_notification_and_process_element() of %p (errno=%d %m)", p_ready_ring, errno);
+				}
+				else {
+					__log_err("Error in ring->wait_for_notification_and_process_element() of %p (errno=%d %m)", p_ready_ring, errno);
+				}
+				return ret;
+			}
+			if (ret > 0) {
+				__log_func("ring[%p] Returned with: %d (sn=%d)", p_ready_ring, ret, *p_poll_sn);
+			}
+			ret_total += ret;
+		}
+		else {
+			__log_dbg("failed to find channel fd. removing cq fd=%d from epfd=%d", fd, m_epfd);
+			BULLSEYE_EXCLUDE_BLOCK_START
+			if ((orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_DEL,
+					fd, NULL)) && (errno != ENOENT)) {
+				__log_err("failed to del cq channel fd=%d from os epfd=%d (errno=%d %m)", fd, m_epfd, errno);
+			}
+			BULLSEYE_EXCLUDE_BLOCK_END
+		}
+	}
+
+	if (ret_total)
+		__log_func("ret_total=%d", ret_total);
+	else
+		__log_funcall("ret_total=%d", ret_total);
 	return ret_total;
 }

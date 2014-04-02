@@ -153,8 +153,7 @@ void epoll_wait_call::prepare_to_poll()
 
 void epoll_wait_call::prepare_to_block()
 {
-	// CQ epfd was already added if m_epfd_info has any offloaded fd's
-	m_cqepfd = m_epfd_info->get_cq_epfd();
+	// Empty
 }
 
 bool epoll_wait_call::_wait(int timeout) 
@@ -205,7 +204,7 @@ bool epoll_wait_call::_wait(int timeout)
 		}
 
 		// If it's CQ
-		if (fd == m_epfd_info->get_cq_epfd()) {
+		if (m_epfd_info->is_cq_fd(m_p_ready_events[i].data.u64)) {
 			cq_ready = true;
 			continue;
 		}
@@ -351,4 +350,9 @@ int epoll_wait_call::ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv
 int epoll_wait_call::ring_request_notification(uint64_t poll_sn)
 {
 	return m_epfd_info->ring_request_notification(poll_sn);
+}
+
+int epoll_wait_call::ring_wait_for_notification_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array /* = NULL*/)
+{
+	return m_epfd_info->ring_wait_for_notification_and_process_element(p_poll_sn, pv_fd_ready_array);
 }

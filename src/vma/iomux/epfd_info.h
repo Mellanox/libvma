@@ -40,7 +40,7 @@ struct epoll_fd_rec
 
 typedef std::tr1::unordered_map<int, epoll_fd_rec> fd_info_map_t;
 typedef std::tr1::unordered_map<ring*, int /*ref count*/> ring_map_t;
-
+typedef std::deque<int> ready_cq_fd_q_t;
 
 class epfd_info : public lock_mutex_recursive, public cleanable_obj, public wakeup
 {
@@ -79,9 +79,12 @@ public:
 
 
 	/**
-	 * @return cq epfd
+	 * check if fd is cq fd according to the data.
+	 * if it is, save the fd in ready cq fds queue.
+	 * @param data field from event data
+	 * @return true if fd is cq fd
 	 */
-	int get_cq_epfd();
+	bool is_cq_fd(uint64_t data);
 	
 	/**
 	 * Translates events from returned data to original user data
@@ -123,6 +126,8 @@ public:
 
 	int ring_request_notification(uint64_t poll_sn);
 
+	int ring_wait_for_notification_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array = NULL);
+
 private:
 
 	const int			m_epfd;
@@ -132,7 +137,7 @@ private:
 	fd_info_map_t                   m_fd_info;
 	ring_map_t			m_ring_map;
 	lock_mutex_recursive		m_ring_map_lock;
-	int 				m_cq_epfd;
+	ready_cq_fd_q_t			m_ready_cq_fd_q;
 	epoll_stats_t                   m_local_stats;
 	epoll_stats_t                   *m_stats;
 	int				m_log_invalid_events;
