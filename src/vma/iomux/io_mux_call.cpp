@@ -268,7 +268,7 @@ void io_mux_call::polling_loops()
 			if (cq_ready) {
 				// This will empty the cqepfd
 				// (most likely in case of a wakeup and probably only under epoll_wait (Not select/poll))
-				g_p_net_device_table_mgr->global_ring_wait_for_notification_and_process_element(&m_poll_sn, NULL);
+				ring_wait_for_notification_and_process_element(&m_poll_sn, NULL);
 			}
 			/* Before we exit with ready OS fd's we'll check the CQs once more and exit
 			* below after calling check_all_offloaded_sockets();
