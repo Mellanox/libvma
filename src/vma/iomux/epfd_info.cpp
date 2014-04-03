@@ -155,12 +155,11 @@ void epfd_info::get_offloaded_fds_arr_and_size(int **p_p_num_offloaded_fds,
 
 bool epfd_info::is_cq_fd(uint64_t data)
 {
-	uint32_t* data_32 = (uint32_t*)&data;
-	if (data_32[1] != CQ_FD_MARK)
+	if ((data >> 32) != CQ_FD_MARK)
 		return false;
 
 	lock();
-	m_ready_cq_fd_q.push_back((int)(data_32[0]));
+	m_ready_cq_fd_q.push_back((int)(data & 0xffff));
 	unlock();
 
 	return true;
