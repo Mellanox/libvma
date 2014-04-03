@@ -268,9 +268,7 @@ inline void epfd_info::increase_ring_ref_count_no_lock(ring* ring)
 			epoll_event evt;
 			evt.events = EPOLLIN | EPOLLPRI;
 			int fd = ring_rx_fds_array[i];
-			uint32_t* data = (uint32_t*)&(evt.data.u64);
-			data[0] = fd;
-			data[1] = CQ_FD_MARK;
+			evt.data.u64 = (((uint64_t)CQ_FD_MARK << 32) | fd);
 			int ret = orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_ADD, fd, &evt);
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (ret < 0) {
