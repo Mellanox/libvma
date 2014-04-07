@@ -51,6 +51,9 @@ static int      reader_counter = 0;
 int             ten_sec_counter = 0;
 bool            active_reading = false;
 
+bool		printed_sock_limit_info = false;
+bool		printed_ring_limit_info = false;
+bool		printed_cq_limit_info = false;
 
 
 stats_data_reader::stats_data_reader()
@@ -276,7 +279,10 @@ void vma_stats_instance_create_socket_block(socket_stats_t* local_stats_addr)
 		goto out;
 	}
 	else {
-		vlog_printf(VLOG_WARNING, "Can only monitor %d socket in statistics - increase VMA_STATS_FD_NUM!\n", mce_sys.stats_fd_num_max);
+		if (!printed_sock_limit_info) {
+			printed_sock_limit_info = true;
+			vlog_printf(VLOG_INFO, "Can only monitor %d socket in statistics - increase VMA_STATS_FD_NUM!\n", mce_sys.stats_fd_num_max);
+		}
 		goto out;
 	}
 
@@ -383,7 +389,10 @@ void vma_stats_instance_create_ring_block(ring_stats_t* local_stats_addr)
 		}
 	}
 	if (p_instance_ring == NULL) {
-		vlog_printf(VLOG_WARNING, "Can only monitor %d ring elements for statistics !\n", NUM_OF_SUPPORTED_RINGS);
+		if (!printed_ring_limit_info) {
+			printed_ring_limit_info = true;
+			vlog_printf(VLOG_INFO, "Can only monitor %d ring elements for statistics !\n", NUM_OF_SUPPORTED_RINGS);
+		}
 	}
         else {
                 g_p_stats_data_reader->add_data_reader(local_stats_addr, p_instance_ring, sizeof(ring_stats_t));
@@ -440,7 +449,10 @@ void vma_stats_instance_create_cq_block(cq_stats_t* local_stats_addr)
 		}
 	}
 	if (p_instance_cq == NULL) {
-		vlog_printf(VLOG_WARNING, "Can only monitor %d cq elements for statistics !\n", NUM_OF_SUPPORTED_CQS);
+		if (!printed_cq_limit_info) {
+			printed_cq_limit_info = true;
+			vlog_printf(VLOG_INFO, "Can only monitor %d cq elements for statistics !\n", NUM_OF_SUPPORTED_CQS);
+		}
 	}
         else {
                 g_p_stats_data_reader->add_data_reader(local_stats_addr, p_instance_cq, sizeof(cq_stats_t));
