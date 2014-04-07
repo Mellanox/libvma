@@ -403,6 +403,12 @@ void print_vma_global_settings()
 	case MCE_SPEC_RTI_784:
 		vlog_printf(VLOG_INFO, " RTI Logic Spec\n");
 		break;
+	case MCE_SPEC_MCD_623:
+		vlog_printf(VLOG_INFO, " Memcached Logic Spec\n");
+		break;
+	case MCE_SPEC_MCD_IRQ_624:
+		vlog_printf(VLOG_INFO, " Memcached Interrupt Mode Logic Spec\n");
+		break;
 	default:
 		break;
 	}
@@ -752,6 +758,20 @@ void get_env_params()
 //		mce_sys.qp_allocation_logic 	= QP_ALLOC_LOGIC__QP_PER_PEER_IP_PER_LOCAL_IP;
 //		mce_sys.cq_allocation_logic	= CQ_ALLOC_LOGIC__CQ_PER_QP;
 		break;
+
+	case MCE_SPEC_MCD_623:
+		mce_sys.ring_allocation_logic_rx = RING_LOGIC_PER_CORE_ATTACH_THREADS;
+		mce_sys.ring_allocation_logic_tx = RING_LOGIC_PER_CORE_ATTACH_THREADS;
+		break;
+
+	case MCE_SPEC_MCD_IRQ_624:
+		mce_sys.ring_allocation_logic_rx = RING_LOGIC_PER_CORE_ATTACH_THREADS;
+		mce_sys.ring_allocation_logic_tx = RING_LOGIC_PER_CORE_ATTACH_THREADS;
+		mce_sys.select_poll_num = 0;
+		mce_sys.rx_poll_num = 0;
+		mce_sys.cq_moderation_enable = false;
+		break;
+
 	case 0:
 	default:
 		break;

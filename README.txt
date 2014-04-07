@@ -1,4 +1,4 @@
-Updated: 25 Feb 2014
+Updated: 7 Apr 2014
 
 Introduction
 ============
@@ -56,11 +56,11 @@ VMA_LOG_FILE, VMA logs just those parameters whose value != default.
 
 Example:
  VMA INFO   : ---------------------------------------------------------------------------
- VMA INFO   : VMA_VERSION: 6.4.11-0
+ VMA INFO   : VMA_VERSION: 6.6.3-0
  VMA INFO   : Cmd Line: sockperf sr
- VMA INFO   : Current Time: Tue Sep 17 13:09:29 2013
+ VMA INFO   : Current Time: Mon Apr 7 13:09:29 2014
  VMA INFO   : Pid:  7256
- VMA INFO   : OFED Version: MLNX_OFED_LINUX-2.0-3.0.0:
+ VMA INFO   : OFED Version: MLNX_OFED_LINUX-2.2-0.0.8:
  VMA INFO   : Architecture: x86_64
  VMA INFO   : Node: r-sw-bolt4 
  VMA INFO   : ---------------------------------------------------------------------------
