@@ -81,13 +81,17 @@ int priv_ibv_query_qp_state(struct ibv_qp *qp);
 //old MLNX_OFED verbs (2.1 and older)
 #ifdef DEFINED_IBV_OLD_VERBS_MLX_OFED
 //ibv_post_send
+#define VMA_IBV_SEND_SIGNALED			IBV_SEND_SIGNALED
+#define VMA_IBV_SEND_INLINE			IBV_SEND_INLINE
 #define VMA_IBV_SEND_IP_CSUM			IBV_SEND_IP_CSUM
-#define vma_send_wr_exp_send_flags(wr)		wr.send_flags
+#define vma_ibv_send_flags			ibv_send_flags
+#define vma_send_wr_send_flags(wr)		(wr).send_flags
 #define VMA_IBV_WR_SEND				IBV_WR_SEND
-#define vma_send_wr_opcode(wr)			wr.opcode
+#define vma_send_wr_opcode(wr)			(wr).opcode
 #define vma_ibv_post_send(qp, wr, bad_wr)	ibv_post_send(qp, wr, bad_wr)
 typedef struct ibv_send_wr			vma_ibv_send_wr;
 //ibv_reg_mr
+#define VMA_IBV_ACCESS_LOCAL_WRITE		IBV_ACCESS_LOCAL_WRITE
 #ifdef DEFINED_IBV_ACCESS_ALLOCATE_MR
 #define VMA_IBV_ACCESS_ALLOCATE_MR		IBV_ACCESS_ALLOCATE_MR
 #endif
@@ -109,13 +113,17 @@ typedef struct ibv_flow_spec_ipv4		vma_ibv_flow_spec_ipv4;
 typedef struct ibv_flow_spec_tcp_udp		vma_ibv_flow_spec_tcp_udp;
 #else //new MLNX_OFED verbs (2.2 and newer)
 //ibv_post_send
+#define VMA_IBV_SEND_SIGNALED			IBV_EXP_SEND_SIGNALED
+#define VMA_IBV_SEND_INLINE			IBV_EXP_SEND_INLINE
 #define VMA_IBV_SEND_IP_CSUM			IBV_EXP_SEND_IP_CSUM
-#define vma_send_wr_exp_send_flags(wr)		wr.exp_send_flags
+#define vma_ibv_send_flags			ibv_exp_send_flags
+#define vma_send_wr_send_flags(wr)		(wr).exp_send_flags
 #define VMA_IBV_WR_SEND				IBV_EXP_WR_SEND
-#define vma_send_wr_opcode(wr)			wr.exp_opcode
+#define vma_send_wr_opcode(wr)			(wr).exp_opcode
 #define vma_ibv_post_send(qp, wr, bad_wr)	ibv_exp_post_send(qp, wr, bad_wr)
 typedef struct ibv_exp_send_wr			vma_ibv_send_wr;
 //ibv_reg_mr
+#define VMA_IBV_ACCESS_LOCAL_WRITE		IBV_EXP_ACCESS_LOCAL_WRITE
 #ifdef DEFINED_IBV_EXP_ACCESS_ALLOCATE_MR
 #define VMA_IBV_ACCESS_ALLOCATE_MR		IBV_EXP_ACCESS_ALLOCATE_MR
 #endif

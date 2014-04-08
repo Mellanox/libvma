@@ -76,21 +76,19 @@ ib_ctx_handler::~ib_ctx_handler() {
 	BULLSEYE_EXCLUDE_BLOCK_END
 }
 
-ibv_mr* ib_ctx_handler::mem_reg(void *addr, size_t length, int access, int exp_access)
+ibv_mr* ib_ctx_handler::mem_reg(void *addr, size_t length, uint64_t access)
 {
 	// Register the memory block with the HCA on this ibv_device
 	ibch_logfunc("(dev=%p) addr=%p, length=%d, m_p_ibv_pd=%p on dev=%p", m_p_ibv_device, addr, length, m_p_ibv_pd, m_p_ibv_pd->context->device);
 #ifdef DEFINED_IBV_EXP_ACCESS_ALLOCATE_MR
 	struct ibv_exp_reg_mr_in in;
 	memset(&in, 0 ,sizeof(in));
-	in.access = access;
-	in.exp_access = exp_access;
+	in.exp_access = access;
 	in.addr = addr;
 	in.length = length;
 	in.pd = m_p_ibv_pd;
 	return ibv_exp_reg_mr(&in);
 #else
-	access |= exp_access;
 	return ibv_reg_mr(m_p_ibv_pd, addr, length, access);
 #endif
 }
