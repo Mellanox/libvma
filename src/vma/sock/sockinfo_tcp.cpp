@@ -1276,6 +1276,9 @@ int sockinfo_tcp::bind(const sockaddr *__addr, socklen_t __addrlen)
 	m_bound.set(tmp_sin);
 	si_tcp_logdbg("socket bound");
 
+	m_p_socket_stats->bound_if = m_bound.get_in_addr();
+	m_p_socket_stats->bound_port = m_bound.get_in_port();
+
 	unlock_tcp_con();
 	return 0;
 }
@@ -1594,6 +1597,9 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 
 	ns->m_p_socket_stats->connected_ip = ns->m_connected.get_in_addr();
 	ns->m_p_socket_stats->connected_port = ns->m_connected.get_in_port();
+
+	ns->m_p_socket_stats->bound_if = ns->m_bound.get_in_addr();
+	ns->m_p_socket_stats->bound_port = ns->m_bound.get_in_port();
 
 	if (__flags & SOCK_NONBLOCK)
 		ns->fcntl(F_SETFL, O_NONBLOCK);
