@@ -1,4 +1,4 @@
-Updated: 7 Apr 2014
+Updated: 10 Apr 2014
 
 Introduction
 ============
@@ -58,9 +58,9 @@ Example:
  VMA INFO   : ---------------------------------------------------------------------------
  VMA INFO   : VMA_VERSION: 6.6.3-0
  VMA INFO   : Cmd Line: sockperf sr
- VMA INFO   : Current Time: Mon Apr 7 13:09:29 2014
+ VMA INFO   : Current Time: Mon Apr 10 13:09:29 2014
  VMA INFO   : Pid:  7256
- VMA INFO   : OFED Version: MLNX_OFED_LINUX-2.2-0.0.8:
+ VMA INFO   : OFED Version: MLNX_OFED_LINUX-2.2-0.1.0:
  VMA INFO   : Architecture: x86_64
  VMA INFO   : Node: r-sw-bolt4 
  VMA INFO   : ---------------------------------------------------------------------------

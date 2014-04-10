@@ -1,3 +1,16 @@
+Version 6.6.3-0:
+Date + Time 2014-4-10
+=======================
+Added:
+        - RM #386387 add vma_spec parameter for memcached
+
+Fixed:
+        - RM #375244 Align VMA with latest MLNX_OFED 2.2 experimental verbs - round #2
+        - RM #363428 TCP Listen port not seen in vma_stats
+        - RM #386389 print monitoring warnings only once, and in INFO log level
+        - RM #385473 Epoll, process interrupts per ring, instead of globaly
+          for all rings
+
 Version 6.6.2-0:
 Date + Time 2014-3-31
 =======================
