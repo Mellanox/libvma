@@ -843,7 +843,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *tpcb,
 	conn->m_n_rx_pkt_ready_list_count++;
 	conn->m_rx_ready_byte_count += p->tot_len;
 	conn->m_p_socket_stats->n_rx_ready_byte_count += p->tot_len;
-	conn->m_p_socket_stats->n_rx_ready_pkt_count += p_first_desc->n_frags;
+	conn->m_p_socket_stats->n_rx_ready_pkt_count++;
 	conn->m_p_socket_stats->counters.n_rx_ready_pkt_max = max((uint32_t)conn->m_p_socket_stats->n_rx_ready_pkt_count, conn->m_p_socket_stats->counters.n_rx_ready_pkt_max);
 	conn->m_p_socket_stats->counters.n_rx_ready_byte_max = max((uint32_t)conn->m_p_socket_stats->n_rx_ready_byte_count, conn->m_p_socket_stats->counters.n_rx_ready_byte_max);
 	conn->return_rx_buffs((ring*)p_first_desc->p_desc_owner);
