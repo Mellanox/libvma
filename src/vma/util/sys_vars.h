@@ -195,9 +195,9 @@ struct mce_sys_var {
 	uint32_t	lwip_cc_algo_mod;
 	uint32_t 	lwip_mss;
 	int32_t 	window_scaling;
+	char		internal_thread_cpuset[FILENAME_MAX];
 	char		internal_thread_affinity_str[CPU_SETSIZE/4];
 	cpu_set_t	internal_thread_affinity;
-	std::string	internal_thread_cpuset;
 	bool		internal_thread_arm_cq_enabled;
 	bool 		handle_bf;
 

@@ -222,8 +222,9 @@ void* event_handler_thread(void *_p_tgtObject)
 	g_n_internal_thread_id = pthread_self();
 	evh_logdbg("Entering internal thread, id = %lu", g_n_internal_thread_id);
 
-	if (!mce_sys.internal_thread_cpuset.empty()) {
-		std::string tasks_file = mce_sys.internal_thread_cpuset + "/tasks";
+	if (strcmp(mce_sys.internal_thread_cpuset, MCE_DEFAULT_INTERNAL_THREAD_CPUSET)) {
+		std::string tasks_file(mce_sys.internal_thread_cpuset);
+		tasks_file += "/tasks";
 		FILE *fp = fopen(tasks_file.c_str(), "w");
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (fp == NULL) {
@@ -234,7 +235,7 @@ void* event_handler_thread(void *_p_tgtObject)
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		fclose(fp);
-		evh_logdbg("VMA Internal thread added to cpuset %s.", mce_sys.internal_thread_cpuset.c_str());
+		evh_logdbg("VMA Internal thread added to cpuset %s.", mce_sys.internal_thread_cpuset);
 
 		// do set affinity now that we are on correct cpuset
 		cpu_set_t cpu_set = mce_sys.internal_thread_affinity;
@@ -272,7 +273,7 @@ int event_handler_manager::start_thread()
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	cpu_set = mce_sys.internal_thread_affinity;
-	if ( strcmp(mce_sys.internal_thread_affinity_str, "-1") && mce_sys.internal_thread_cpuset.empty()) { // no affinity
+	if ( strcmp(mce_sys.internal_thread_affinity_str, "-1") && !strcmp(mce_sys.internal_thread_cpuset, MCE_DEFAULT_INTERNAL_THREAD_CPUSET)) { // no affinity
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (pthread_attr_setaffinity_np(&tattr, sizeof(cpu_set), &cpu_set)) {
 			evh_logpanic("Failed to set CPU affinity");

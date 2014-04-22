@@ -542,7 +542,7 @@ void print_vma_global_settings()
 	VLOG_PARAM_NUMBER("Delay after join (msec)", mce_sys.wait_after_join_msec, MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC, SYS_VAR_WAIT_AFTER_JOIN_MSEC);
 	VLOG_PARAM_NUMBER("Delay after rereg (msec)", mce_sys.wait_after_rereg_msec, MCE_DEFAULT_WAIT_AFTER_REREG_MSEC, SYS_VAR_WAIT_AFTER_REREG_MSEC);
 	VLOG_STR_PARAM_STRING("Internal Thread Affinity", mce_sys.internal_thread_affinity_str, MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR, SYS_VAR_INTERNAL_THREAD_AFFINITY, mce_sys.internal_thread_affinity_str);
-	VLOG_STR_PARAM_STRING("Internal Thread Cpuset", mce_sys.internal_thread_cpuset.c_str(), MCE_DEFAULT_INTERNAL_THREAD_CPUSET, SYS_VAR_INTERNAL_THREAD_CPUSET, mce_sys.internal_thread_cpuset.c_str());
+	VLOG_STR_PARAM_STRING("Internal Thread Cpuset", mce_sys.internal_thread_cpuset, MCE_DEFAULT_INTERNAL_THREAD_CPUSET, SYS_VAR_INTERNAL_THREAD_CPUSET, mce_sys.internal_thread_cpuset);
 	VLOG_PARAM_STRING("Internal Thread Arm CQ", mce_sys.internal_thread_arm_cq_enabled, MCE_DEFAULT_INTERNAL_THREAD_ARM_CQ_ENABLED, SYS_VAR_INTERNAL_THREAD_ARM_CQ, mce_sys.internal_thread_arm_cq_enabled ? "Enabled " : "Disabled");
 	VLOG_PARAM_STRING("Thread mode", mce_sys.thread_mode, MCE_DEFAULT_THREAD_MODE, SYS_VAR_THREAD_MODE, thread_mode_str(mce_sys.thread_mode));
 	switch (mce_sys.mem_alloc_type) {
@@ -628,6 +628,7 @@ void get_env_params()
 	strcpy(mce_sys.stats_filename, MCE_DEFAULT_STATS_FILE);
 	strcpy(mce_sys.conf_filename, MCE_DEFAULT_CONF_FILE);
 	strcpy(mce_sys.app_id, MCE_DEFAULT_APP_ID);
+	strcpy(mce_sys.internal_thread_cpuset, MCE_DEFAULT_INTERNAL_THREAD_CPUSET);
 	strcpy(mce_sys.internal_thread_affinity_str, MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR);
 
 	mce_sys.log_level               = VLOG_INFO;
@@ -1083,6 +1084,10 @@ void get_env_params()
 	if ((env_ptr = getenv(SYS_VAR_INTERNAL_THREAD_ARM_CQ)) != NULL)
 		mce_sys.internal_thread_arm_cq_enabled = atoi(env_ptr) ? true : false;
 
+        if ((env_ptr = getenv(SYS_VAR_INTERNAL_THREAD_CPUSET)) != NULL) {
+        	strcpy(mce_sys.internal_thread_cpuset, env_ptr);
+        }
+
 	// handle internal thread affinity - default is CPU-0
 	if ((env_ptr = getenv(SYS_VAR_INTERNAL_THREAD_AFFINITY)) != NULL) {
 		strcpy(mce_sys.internal_thread_affinity_str, env_ptr);
@@ -1090,9 +1095,6 @@ void get_env_params()
 	if (env_to_cpuset(mce_sys.internal_thread_affinity_str, &mce_sys.internal_thread_affinity)) {
 		vlog_printf(VLOG_WARNING," Failed to set internal thread affinity: %s...  deferring to cpu-0.\n",
 		            mce_sys.internal_thread_affinity_str);
-	}
-	if ((env_ptr = getenv(SYS_VAR_INTERNAL_THREAD_CPUSET)) != NULL) {
-		mce_sys.internal_thread_cpuset = env_ptr;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_WAIT_AFTER_JOIN_MSEC)) != NULL)
