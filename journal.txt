@@ -1,3 +1,10 @@
+Version 6.6.4-0:
+Date + Time 2014-4-23
+=======================
+Fixed:
+        - RM #387249 wrong tcp packet count for vma_stats
+        - RM #387745 VMA_INTERNAL_THREAD_CPUSET causes seg-fault
+
 Version 6.6.3-0:
 Date + Time 2014-4-10
 =======================
