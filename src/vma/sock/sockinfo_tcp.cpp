@@ -1922,7 +1922,7 @@ bool sockinfo_tcp::is_readable(uint64_t *p_poll_sn, fd_array_t* p_fd_array)
 			goto noblock_nolock;
 		}
 
-		if (m_sock_state == TCP_SOCK_ACCEPT_SHUT) goto noblock;
+		if (m_sock_state == TCP_SOCK_ACCEPT_SHUT) goto noblock_nolock;
 
 		return false;
 	} 
