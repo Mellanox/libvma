@@ -130,7 +130,7 @@ public:
 	//(for example STREAME sockets)
 	//This prepares the socket for termination and return true if the
 	//Return val: true is the socket is already closable and false otherwise
-	virtual bool prepare_to_close() { return is_closable(); }
+	virtual bool prepare_to_close(bool process_shutdown = false) { NOT_IN_USE(process_shutdown); return is_closable(); }
 
 	// this function is called when you can't go through destructor
 	// it should be called only once

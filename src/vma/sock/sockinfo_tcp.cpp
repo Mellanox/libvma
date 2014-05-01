@@ -200,7 +200,7 @@ bool sockinfo_tcp::prepare_listen_to_close()
 	return true;
 }
 
-bool sockinfo_tcp::prepare_to_close()
+bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 {
 	int poll_cnt;
 	poll_cnt = 0;
@@ -212,8 +212,15 @@ bool sockinfo_tcp::prepare_to_close()
 
 	bool is_listen_socket = is_server() || m_pcb.state == LISTEN;
 
+	/*
+	 * consider process_shutdown:
+	 * workaround for LBM which does not close the listen sockets properly on process shutdown.
+	 * as a result they become ready for select, but calling accept return failure.
+	 * see RM#390019
+	 */
+
 	// listen, accepted or connected socket
-	if (is_listen_socket || m_sock_state == TCP_SOCK_CONNECTED_RD
+	if ((is_listen_socket && !process_shutdown) || m_sock_state == TCP_SOCK_CONNECTED_RD
 			|| m_sock_state == TCP_SOCK_CONNECTED_WR || m_sock_state == TCP_SOCK_CONNECTED_RDWR) {
 		m_sock_state = TCP_SOCK_BOUND;
 	}

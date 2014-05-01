@@ -90,7 +90,7 @@ void fd_collection::prepare_to_close()
 			if(!g_is_forked_child) {
 				socket_fd_api *p_sfd_api = get_sockfd(fd);
 				if (p_sfd_api) {
-					p_sfd_api->prepare_to_close();
+					p_sfd_api->prepare_to_close(true);
 				}
 			}
 		}
