@@ -1784,7 +1784,7 @@ pid_t fork(void)
 	}
 
 	if (!g_init_ibv_fork_done)
-		vlog_printf(VLOG_ERROR, "ibv_fork_init failed, the effect of an application calling fork() is undefined!!\n");
+		vlog_printf(VLOG_DEBUG, "ERROR: ibv_fork_init failed, the effect of an application calling fork() is undefined!!\n");
 
 	pid_t pid = orig_os_api.fork();
 	if (pid == 0) {

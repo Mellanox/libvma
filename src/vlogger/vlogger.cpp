@@ -184,7 +184,7 @@ void vlog_stop(void)
 	strcpy(g_vlogger_module_name, VLOG_DEFAULT_MODULE_NAME);
 
 	// Close output stream
-	if(g_vlogger_file != stderr)
+	if(g_vlogger_file && g_vlogger_file != stderr)
 		fclose(g_vlogger_file);
 
 	//fix for using LD_PRELOAD with LBM. Unset the pointer given by the parent process, so a child could get his own pointer without issues.
