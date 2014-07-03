@@ -13,7 +13,7 @@ AC_DEFINE(VMA_LIBRARY_MINOR, vma_ver_minor, [VMA Minor Version])
 AC_DEFINE(VMA_LIBRARY_REVISION, vma_ver_revision, [VMA Revision])
 AC_DEFINE(VMA_LIBRARY_RELEASE, vma_ver_release, [VMA Release])
 
-AM_SILENT_RULES([yes])
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 AC_CONFIG_SRCDIR(src)
 AC_CONFIG_AUX_DIR(config)
