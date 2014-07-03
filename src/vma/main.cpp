@@ -734,7 +734,6 @@ void get_env_params()
 	case MCE_SPEC_29WEST_LBM_29:
 		mce_sys.mce_spec_param1         = 5000;	// [u-sec] Time out to send next pipe_write
 		mce_sys.mce_spec_param2         = 50;	// Num of max sequential pipe_write to drop
-		mce_sys.tx_num_bufs             = 2048;
 		mce_sys.rx_poll_num             = 0;
 		mce_sys.rx_udp_poll_os_ratio    = 100;
 		mce_sys.select_poll_num         = 100000;
@@ -745,7 +744,6 @@ void get_env_params()
 	case MCE_SPEC_WOMBAT_FH_LBM_554:
 		mce_sys.mce_spec_param1         = 5000;	// [u-sec] Time out to send next pipe_write
 		mce_sys.mce_spec_param2         = 50;	// Num of max sequential pipe_write to drop
-		mce_sys.tx_num_bufs             = 2048;
 		mce_sys.rx_poll_num             = 0;
 		mce_sys.rx_udp_poll_os_ratio    = 100;
 		mce_sys.select_poll_num         = 0;
