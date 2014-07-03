@@ -35,6 +35,7 @@
 %define ofed_dir %{prefix_dir}
 %define vma_conf_dir %{_sysconfdir}
 
+%define _use_internal_dependency_generator 0
 
 Summary: Enhanced Service library for boosting TCP and UDP traffic (over OFED)
 Name: libvma
