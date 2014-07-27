@@ -39,6 +39,7 @@ public:
 	inline void set_protocol(unsigned char protocol) 	{ m_protocol = protocol; };
 	inline void set_scope(unsigned char scope) 		{ m_scope = scope; };
 	inline void set_type(unsigned char type) 		{ m_type = type; };
+	inline void set_table_id(unsigned char table_id)	{ m_table_id = table_id; };
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif
@@ -54,6 +55,7 @@ public:
 	inline unsigned char 	get_protocol() const		{ return m_protocol; };
 	inline unsigned char 	get_scope() const		{ return m_scope; };
 	inline unsigned char 	get_type() const		{ return m_type; };
+	inline unsigned char 	get_table_id() const		{ return m_table_id; };
 	inline int 		get_if_index() const		{ return m_if_index; };
 	inline const char* 	get_if_name() const		{ return m_if_name; };
 
@@ -71,7 +73,7 @@ public:
 
 	inline bool is_if_up() const		 		{ return m_b_if_up; };
 
-	void 	print_route_val();
+	void 	print_val();
 	char* 	to_str() { return m_str; };
 
 private:
@@ -85,6 +87,7 @@ private:
 	unsigned char	m_protocol;
 	unsigned char	m_scope;
 	unsigned char	m_type;
+	unsigned char	m_table_id;
 
 	char 		m_if_name[IF_NAMESIZE];
 	int 		m_if_index;

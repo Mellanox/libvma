@@ -23,6 +23,7 @@
 #include "vma/util/utils.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/proto/route_table_mgr.h"
+#include "vma/proto/rule_table_mgr.h"
 #include "vma/event/event_handler_manager.h"
 #include <vma/dev/ib_ctx_handler_collection.h>
 #include "vma/sock/sock-redirect.h"
@@ -191,7 +192,19 @@ u16_t vma_lwip::vma_ip_route_mtu(ip_addr_t *dest)
 
 	addr.sin_family = AF_INET;
 	addr.sin_port = 0;
-	g_p_route_table_mgr->route_resolve(dest->addr, &addr.sin_addr.s_addr);
+	
+	in_addr_t dst_ip	= dest->addr;
+	in_addr_t src_ip	= 0;
+	uint8_t tos		= 0;
+	uint8_t table_id 	= 0;
+
+	if (!g_p_rule_table_mgr->rule_resolve(rule_table_key(dst_ip, src_ip, tos), &table_id))
+	{
+		lwip_logdbg("Unable to find table ID : No rule match destination IP");
+		return 0;
+	}
+	
+	g_p_route_table_mgr->route_resolve(dest->addr, table_id, &addr.sin_addr.s_addr);
 	net_device_val* ndv = g_p_net_device_table_mgr->get_net_device_val(addr.sin_addr.s_addr);
 	if (ndv) {
 		ifmtu = ndv->get_mtu();

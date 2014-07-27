@@ -40,6 +40,7 @@
 #include "vma/proto/ip_frag.h"
 #include "vma/proto/vma_lwip.h"
 #include "vma/proto/route_table_mgr.h"
+#include "vma/proto/rule_table_mgr.h"
 #include "vma/proto/igmp_mgr.h"
 
 #include "vma/proto/neighbour_table_mgr.h"
@@ -1396,24 +1397,34 @@ void do_global_ctors()
         	BULLSEYE_EXCLUDE_BLOCK_END
         }
 
-        // net_device should be initialized after event_handler and before buffer pool and g_p_neigh_table_mgr.
-        if (!g_p_net_device_table_mgr) {
-        	g_p_net_device_table_mgr = new net_device_table_mgr();
-        	BULLSEYE_EXCLUDE_BLOCK_START
-                if (g_p_net_device_table_mgr == NULL) {
-                	vlog_printf(VLOG_PANIC, "Failed allocate net_device_table_mgr");
-                }
-        	BULLSEYE_EXCLUDE_BLOCK_END
-        }
+	// net_device should be initialized after event_handler and before buffer pool and g_p_neigh_table_mgr.
+	if (!g_p_net_device_table_mgr) {
+		g_p_net_device_table_mgr = new net_device_table_mgr();
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (g_p_net_device_table_mgr == NULL) {
+			vlog_printf(VLOG_PANIC, "Failed allocate net_device_table_mgr");
+		}
+		BULLSEYE_EXCLUDE_BLOCK_END
+	}
 
-        if (!g_p_route_table_mgr) {
-        	g_p_route_table_mgr = new route_table_mgr();
-        	BULLSEYE_EXCLUDE_BLOCK_START
-                if (g_p_route_table_mgr == NULL) {
-                	vlog_printf(VLOG_PANIC, "Failed allocate route_table_mgr");
-                }
-        	BULLSEYE_EXCLUDE_BLOCK_END
-        }
+	if (!g_p_route_table_mgr) {
+		g_p_route_table_mgr = new route_table_mgr();
+
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (g_p_route_table_mgr == NULL) {
+			vlog_printf(VLOG_PANIC, "Failed allocate route_table_mgr");
+		}
+		BULLSEYE_EXCLUDE_BLOCK_END
+	}
+
+	if (!g_p_rule_table_mgr) {
+		g_p_rule_table_mgr = new rule_table_mgr();
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (g_p_rule_table_mgr == NULL) {
+			vlog_printf(VLOG_PANIC, "Failed allocate rule_table_mgr");
+		}
+		BULLSEYE_EXCLUDE_BLOCK_END
+	}
 
 	if(g_p_igmp_mgr == NULL) {
 		g_p_igmp_mgr = new igmp_mgr();
@@ -1624,6 +1635,9 @@ extern "C" int main_destroy(void)
 	if (g_p_fd_collection_temp) delete g_p_fd_collection_temp;
 
 	usleep(50000);
+
+	if (g_p_rule_table_mgr) delete g_p_rule_table_mgr;
+	g_p_rule_table_mgr = NULL;
 
 	if (g_p_route_table_mgr) delete g_p_route_table_mgr;
 	g_p_route_table_mgr = NULL;

@@ -17,15 +17,16 @@
 #include <net/if.h>
 #include <netinet/in.h>
 
+#include "vma/proto/route_table_key.h"
 #include "vma/infra/cache_subject_observer.h"
 #include "route_val.h"
 
-class route_entry : public cache_entry_subject<ip_address,route_val*>, public cache_observer
+class route_entry : public cache_entry_subject<route_table_key,route_val*>, public cache_observer
 {
 public:
 	friend class route_table_mgr;
 
-	route_entry(ip_address p_ip);
+	route_entry(route_table_key rtk);
 	virtual ~route_entry() { unregister_to_net_device(); };
 
 	bool 		get_val(INOUT route_val* &val);

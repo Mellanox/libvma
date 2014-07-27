@@ -35,6 +35,7 @@ route_val::route_val(): cache_observer()
 	m_protocol = 0;
 	m_scope = 0;
 	m_type = 0;
+	m_table_id	= 0;
 	memset(m_if_name, 0, IF_NAMESIZE * sizeof(char));
 	m_if_index = 0;
 	m_is_valid = false;
@@ -64,6 +65,11 @@ void route_val::set_str()
                 sprintf(m_str, "%s src: %-15s", m_str, inet_ntoa(*((in_addr *)&m_src_addr)));
         else
                 sprintf(m_str, "%s                     ", m_str);
+				
+	if (m_table_id != RT_TABLE_MAIN)
+		sprintf(m_str, "%s table :%-10u", m_str, m_table_id);
+       	else
+		sprintf(m_str, "%s table :%-10s", m_str, "main");		
 
         sprintf(m_str, "%s scope %3d type %2d index %2d", m_str, m_scope, m_type, m_if_index);
 
@@ -71,7 +77,7 @@ void route_val::set_str()
         	sprintf(m_str, "%s ---> DELETED", m_str);
 }
 
-void route_val::print_route_val()
+void route_val::print_val()
 {
 	set_str();
 	rt_val_logdbg("%s", to_str());

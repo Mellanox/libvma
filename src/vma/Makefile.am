@@ -94,6 +94,9 @@ libvma_la_SOURCES := \
 	proto/route_table_mgr.cpp \
 	proto/route_entry.cpp \
 	proto/route_val.cpp \
+	proto/rule_table_mgr.cpp \
+	proto/rule_entry.cpp \
+	proto/rule_val.cpp \
 	proto/dst_entry.cpp \
 	proto/dst_entry_udp.cpp \
 	proto/dst_entry_udp_mc.cpp \

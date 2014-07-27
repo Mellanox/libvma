@@ -12,6 +12,7 @@
 
 
 #include "dst_entry.h"
+#include "vma/proto/rule_table_mgr.h"
 #include "vma/proto/route_table_mgr.h"
 #include "vma/util/utils.h"
 #include "vma/util/bullseye.h"
@@ -44,8 +45,16 @@ dst_entry::~dst_entry()
 	}
 
 	if (m_p_rt_entry) {
-		g_p_route_table_mgr->unregister_observer(m_dst_ip, this);
+		g_p_route_table_mgr->unregister_observer(route_table_key(m_dst_ip.get_in_addr(),
+				m_p_rr_val->get_table_id()), this);
 		m_p_rt_entry = NULL;
+	}
+
+	if (m_p_rr_entry) {
+		g_p_rule_table_mgr->unregister_observer(
+				rule_table_key(m_dst_ip.get_in_addr(), m_bound_ip ? m_bound_ip : m_so_bindtodevice_ip, m_tos),
+				this);
+		m_p_rr_entry = NULL;
 	}
 
 	if (m_p_ring) {
@@ -78,12 +87,14 @@ void dst_entry::init_members()
 {
 	set_state(false);
 	m_p_rt_val = NULL;
+	m_p_rr_val = NULL;
 	m_p_net_dev_val = NULL;
 	m_p_ring = NULL;
 	m_p_net_dev_entry = NULL;
 	m_p_neigh_entry = NULL;
 	m_p_neigh_val = NULL;
 	m_p_rt_entry = NULL;
+	m_p_rr_entry = NULL;
 	m_num_sge = 0;
 	memset(&m_inline_send_wqe, 0, sizeof(vma_ibv_send_wr));
 	memset(&m_not_inline_send_wqe, 0, sizeof(vma_ibv_send_wr));
@@ -175,8 +186,9 @@ bool dst_entry::resolve_net_dev()
 {
 	bool ret_val = false;
 
-	cache_entry_subject<ip_address, route_val*>* p_ces = NULL;
-
+	cache_entry_subject<rule_table_key, rule_val*>* rr_entry = NULL;
+	cache_entry_subject<route_table_key, route_val*>* p_ces = NULL;
+	
 	if (ZERONET_N(m_dst_ip.get_in_addr())) {
 		dst_logdbg("VMA does not offload zero net IP address");
 		return ret_val;
@@ -186,28 +198,34 @@ bool dst_entry::resolve_net_dev()
 		dst_logdbg("VMA does not offload local loopback IP address");
 		return ret_val;
 	}
-
-	if (m_p_rt_entry || g_p_route_table_mgr->register_observer(m_dst_ip, this, &p_ces)) {
+		
+	if (m_p_rr_entry == NULL) {
+	
+		rule_table_key rrk(m_dst_ip.get_in_addr(), m_bound_ip ? m_bound_ip : m_so_bindtodevice_ip, m_tos);
+		g_p_rule_table_mgr->register_observer(rrk, this, &rr_entry);
+		m_p_rr_entry = dynamic_cast<rule_entry*>(rr_entry);
+	
+		if (m_p_rr_entry) {
+			m_p_rr_entry->get_val(m_p_rr_val);
+		}
+		else {
+			dst_logdbg("rule entry is not exist");
+			return ret_val;
+		}
+	}
+	
+	
+	route_table_key rtk(m_dst_ip.get_in_addr(), m_p_rr_val->get_table_id());
+	
+	if (m_p_rt_entry || g_p_route_table_mgr->register_observer(rtk, this, &p_ces)) {
+	
 		if (m_p_rt_entry == NULL) {
 			// In case this is the first time we trying to resolve route entry,
 			// means that register_observer was run
 			m_p_rt_entry = dynamic_cast<route_entry*>(p_ces);
 		}
 
-		bool update_ndv = false;
-		if (m_so_bindtodevice_ip) {
-			update_ndv = true;
-		}
-		if (m_p_rt_entry) {
-			if(update_rt_val()) {
-				update_ndv = true;
-			}
-		}
-		else {
-			dst_logdbg("Route entry is not exist");
-		}
-
-		if (update_ndv) {
+		if(update_rt_val()) {
 			ret_val = update_net_dev_val();
 		}
 	}
