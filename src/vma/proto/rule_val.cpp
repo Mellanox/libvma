@@ -32,6 +32,7 @@ rule_val::rule_val(): cache_observer()
 	m_dst_addr = 0;
 	m_src_addr = 0;
 	memset(m_oif_name, 0, IF_NAMESIZE * sizeof(char));
+	memset(m_iif_name, 0, IF_NAMESIZE * sizeof(char));
 	m_priority = 0;
 	m_tos = 0;
 	m_table_id = 0;
