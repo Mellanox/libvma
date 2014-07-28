@@ -326,16 +326,14 @@ static void __vma_add_rule() {
 %token USER_DEFINED_ID_STR "userdefined id str"
 %token LOG "log statement"
 %token DEST "destination"
-%token STDERR "stderr"
+%token STDERR "ystderr"
 %token SYSLOG "syslog"
-%token FILENAME "file"
+%token FILENAME "yfile"
 %token NAME "a name"
 %token LEVEL "min-level"
 %token LINE "new line"
 %type <sval> NAME PROGRAM USER_DEFINED_ID_STR
 %type <ival> INT LOG DEST STDERR SYSLOG FILENAME APP_ID USE OS VMA SDP TCP UDP TCP_CLIENT TCP_SERVER UDP_SENDER UDP_RECEIVER UDP_CONNECT LEVEL LINE 
-%debug
-%error-verbose
 %start config
 
 %{

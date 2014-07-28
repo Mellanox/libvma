@@ -119,7 +119,7 @@ min-level {
 	return LEVEL;
 }
 
-stderr {
+ystderr {
 	yylval.ival = STDERR;
 #ifdef DEBUG
 	printf("STDERR\n");
@@ -135,7 +135,7 @@ syslog {
 	return SYSLOG;
 }
 
-file {
+yfile {
 	yylval.ival = FILENAME;
 #ifdef DEBUG
 	printf("FILENAME\n");
