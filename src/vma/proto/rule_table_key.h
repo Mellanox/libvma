@@ -33,7 +33,7 @@ public:
 	
 	const std::string to_str() const
 	{
-		char s[40];
+		char s[100];
 		sprintf(s, "Destination IP:%d.%d.%d.%d", NIPQUAD(m_dst_ip));
 		if (m_src_ip)
 			sprintf(s, "%s Source IP:%d.%d.%d.%d", s, NIPQUAD(m_src_ip));	

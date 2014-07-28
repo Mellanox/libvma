@@ -33,7 +33,7 @@ public:
 	
 	const std::string to_str() const
 	{
-		char s[25];
+		char s[40];
 		sprintf(s, "Address :%d.%d.%d.%d Table :%u", NIPQUAD(m_ip), m_table_id);
 		return(std::string(s));
 	}
