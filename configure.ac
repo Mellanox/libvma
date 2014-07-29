@@ -274,6 +274,38 @@ AC_TRY_LINK(
   AC_DEFINE(DEFINED_IBV_OLD_VERBS_MLX_OFED, 1, [Define to 1 if IBV_EXP_ACCESS_ALLOCATE_MR is defined])
 ])
 
+AC_MSG_CHECKING([if IBV_EXP_FLOW_SPEC_IB is defined])
+AC_TRY_LINK(
+#include <infiniband/verbs_exp.h>
+,
+[
+  int access = (int)IBV_EXP_FLOW_SPEC_IB;
+  return access;
+],
+[
+  AC_MSG_RESULT([yes])
+  AC_DEFINE(DEFINED_IBV_FLOW_SPEC_IB, 1, [Define to 1 if IBV_EXP_FLOW_SPEC_IB is defined])
+],
+[
+  AC_MSG_RESULT([no])
+])
+
+AC_MSG_CHECKING([if IBV_FLOW_SPEC_IB is defined])
+AC_TRY_LINK(
+#include <infiniband/verbs.h>
+,
+[
+  int access = (int)IBV_FLOW_SPEC_IB;
+  return access;
+],
+[
+  AC_MSG_RESULT([yes])
+  AC_DEFINE(DEFINED_IBV_FLOW_SPEC_IB, 1, [Define to 1 if IBV_FLOW_SPEC_IB is defined])
+],
+[
+  AC_MSG_RESULT([no])
+])
+
 AC_MSG_CHECKING([if SOF_TIMESTAMPING_SOFTWARE is defined])
 AC_TRY_LINK(
 #include <linux/net_tstamp.h>

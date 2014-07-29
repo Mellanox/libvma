@@ -36,13 +36,16 @@ void rfs_mc::prepare_flow_spec()
 	ring_resources_map_t::iterator ring_resource_iter = m_p_ring->m_ring_resources_map.begin();
 	for (; ring_resource_iter != m_p_ring->m_ring_resources_map.end(); ring_resource_iter++) {
 		attach_flow_data_t* 		      p_attach_flow_data = NULL;
+#ifdef DEFINED_IBV_FLOW_SPEC_IB
 		attach_flow_data_ib_t*  	      attach_flow_data_ib = NULL;
+#endif
 		attach_flow_data_eth_ipv4_tcp_udp_t*  attach_flow_data_eth = NULL;
 
 		switch (type) {
 			case VMA_TRANSPORT_IB:
 				// IB MC flow steering is done only on L2 --> need to zero other fields to get correct behaviour
 				// CX3 HW does not support L3+L4 MC flow steering rule
+#ifdef DEFINED_IBV_FLOW_SPEC_IB
 				attach_flow_data_ib = new attach_flow_data_ib_t(ring_resource_iter->second.m_p_qp_mgr);
 
 				uint8_t dst_gid[16];
@@ -51,6 +54,9 @@ void rfs_mc::prepare_flow_spec()
 							dst_gid);
 
 				p_attach_flow_data = (attach_flow_data_t*)attach_flow_data_ib;
+#else
+				rfs_logerr("IB multicast offload is not supported");
+#endif
 				break;
 			case VMA_TRANSPORT_ETH:
 				attach_flow_data_eth = new attach_flow_data_eth_ipv4_tcp_udp_t(ring_resource_iter->second.m_p_qp_mgr);

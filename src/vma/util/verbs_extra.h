@@ -98,7 +98,9 @@ typedef struct ibv_send_wr			vma_ibv_send_wr;
 //flow steering
 #define VMA_IBV_FLOW_ATTR_NORMAL		IBV_FLOW_ATTR_NORMAL
 #define VMA_IBV_FLOW_ATTR_FLAGS_ALLOW_LOOP_BACK	IBV_FLOW_ATTR_FLAGS_ALLOW_LOOP_BACK
+#ifdef DEFINED_IBV_FLOW_SPEC_IB
 #define VMA_IBV_FLOW_SPEC_IB			IBV_FLOW_SPEC_IB
+#endif
 #define VMA_IBV_FLOW_SPEC_ETH			IBV_FLOW_SPEC_ETH
 #define VMA_IBV_FLOW_SPEC_IPV4			IBV_FLOW_SPEC_IPV4
 #define VMA_IBV_FLOW_SPEC_TCP			IBV_FLOW_SPEC_TCP
@@ -130,7 +132,9 @@ typedef struct ibv_exp_send_wr			vma_ibv_send_wr;
 //flow steering
 #define VMA_IBV_FLOW_ATTR_NORMAL		IBV_EXP_FLOW_ATTR_NORMAL
 #define VMA_IBV_FLOW_ATTR_FLAGS_ALLOW_LOOP_BACK	IBV_EXP_FLOW_ATTR_FLAGS_ALLOW_LOOP_BACK
+#ifdef DEFINED_IBV_FLOW_SPEC_IB
 #define VMA_IBV_FLOW_SPEC_IB			IBV_EXP_FLOW_SPEC_IB
+#endif
 #define VMA_IBV_FLOW_SPEC_ETH			IBV_EXP_FLOW_SPEC_ETH
 #define VMA_IBV_FLOW_SPEC_IPV4			IBV_EXP_FLOW_SPEC_IPV4
 #define VMA_IBV_FLOW_SPEC_TCP			IBV_EXP_FLOW_SPEC_TCP
@@ -145,7 +149,7 @@ typedef struct ibv_exp_flow_spec_ipv4		vma_ibv_flow_spec_ipv4;
 typedef struct ibv_exp_flow_spec_tcp_udp	vma_ibv_flow_spec_tcp_udp;
 #endif
 
-
+#ifdef DEFINED_IBV_FLOW_SPEC_IB
 static inline void ibv_flow_spec_ib_set_by_dst_gid(vma_ibv_flow_spec_ib* ib, uint8_t* dst_gid)
 {
 	ib->type = VMA_IBV_FLOW_SPEC_IB;
@@ -164,6 +168,7 @@ static inline void ibv_flow_spec_ib_set_by_dst_qpn(vma_ibv_flow_spec_ib* ib, uin
 	ib->val.qpn = dst_qpn;
 	ib->mask.qpn = FS_MASK_ON_32;
 }
+#endif
 
 static inline void ibv_flow_spec_eth_set(vma_ibv_flow_spec_eth* eth, uint8_t* dst_mac, uint16_t vlan_tag)
 {

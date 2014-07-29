@@ -45,9 +45,10 @@ void rfs_uc::prepare_flow_spec()
 			case VMA_TRANSPORT_IB:
 				attach_flow_data_ib = new attach_flow_data_ib_ipv4_tcp_udp_t(ring_resource_iter->second.m_p_qp_mgr);
 
+#ifdef DEFINED_IBV_FLOW_SPEC_IB
 				ibv_flow_spec_ib_set_by_dst_qpn(&(attach_flow_data_ib->ibv_flow_attr.ib),
 							htonl(((IPoIB_addr*)ring_resource_iter->first.get_l2_addr())->get_qpn()));
-
+#endif
 				p_ipv4 = &(attach_flow_data_ib->ibv_flow_attr.ipv4);
 				p_tcp_udp = &(attach_flow_data_ib->ibv_flow_attr.tcp_udp);
 				p_attach_flow_data = (attach_flow_data_t*)attach_flow_data_ib;
