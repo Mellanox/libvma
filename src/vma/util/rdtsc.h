@@ -15,8 +15,7 @@
 #define V_RDTSC_H
 
 #include "clock.h"
-#include <stdint.h>
-#include <unistd.h>
+#include "asm.h"
 
 /**
  * RDTSC extensions
@@ -24,20 +23,6 @@
 typedef unsigned long long tscval_t;
 
 #define TSCVAL_INITIALIZER	(0)
-
-/**
- * Read RDTSC register
- */
-static inline void gettimeoftsc(tscval_t *p_tscval)
-{
-	register uint32_t upper_32, lower_32;
-
-	// ReaD Time Stamp Counter (RDTCS)
-	__asm__ __volatile__("rdtsc" : "=a" (lower_32), "=d" (upper_32));
-
-	// Copy to user
-	*p_tscval = (((tscval_t)upper_32) << 32) | lower_32;
-}
 
 /**
  * Calibrate RDTSC with CPU speed 

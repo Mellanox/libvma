@@ -14,7 +14,7 @@
 #ifndef ATOMIC_H_
 #define ATOMIC_H_
 
-#include "asm-x86.h"
+#include "asm.h"
 
 struct atomic_t {
 	__volatile__ int counter;
@@ -40,9 +40,8 @@ struct atomic_t {
  */
 #define atomic_set(v,i) (((v)->counter) = (i))
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
+#if 0
+
 /**
  *  Returns current contents of addr and replaces contents with value.
  *  @param value Values to set.
@@ -71,16 +70,7 @@ static bool atomic_cas(T old_value, T new_value, T *addr)
     #pragma BullseyeCoverage on
 #endif
 
-/**
- * Add to the atomic variable.
- * @param i integer value to add.
- * @param v pointer of type atomic_t.
- * @return Value before add.
- */
-static inline int atomic_fetch_and_add(atomic_t *v, int i)
-{
-	return xaddl(i, &v->counter);
-}
+#endif
 
 /**
  * Add to the atomic variable.
@@ -90,7 +80,7 @@ static inline int atomic_fetch_and_add(atomic_t *v, int i)
  */
 static inline int atomic_fetch_and_inc(atomic_t *v)
 {
-	return atomic_fetch_and_add(v, 1);
+	return atomic_fetch_and_add(1, &v->counter);
 }
 
 #if _BullseyeCoverage
@@ -104,7 +94,7 @@ static inline int atomic_fetch_and_inc(atomic_t *v)
  */
 static inline int atomic_fetch_and_dec(atomic_t *v)
 {
-	return atomic_fetch_and_add(v, -1);
+	return atomic_fetch_and_add(-1, &v->counter);
 }
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on

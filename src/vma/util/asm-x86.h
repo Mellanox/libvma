@@ -14,6 +14,8 @@
 #ifndef ASMX86_H_
 #define ASMX86_H_
 
+#include <stdint.h>
+#include <unistd.h>
 
 #define __xg(x) ((volatile long *)(x))
 
@@ -49,15 +51,32 @@ static inline bool cmpxchg(unsigned long old_value, unsigned long new_value, vol
 #endif
 
 /**
- * Atomic fetch-and-add
+ * Add to the atomic variable.
+ * @param i integer value to add.
+ * @param v pointer of type atomic_t.
+ * @return Value before add.
  */
-static inline int xaddl(int x, volatile int *ptr)
+static inline int atomic_fetch_and_add(int x, volatile int *ptr)
 {
 	__asm__ __volatile__("lock; xaddl %0,%1"
 			    : "=r"(x)
 			    : "m"(*ptr), "0"(x)
 			    : "memory");
 	return x;
+}
+
+/**
+ * Read RDTSC register
+ */
+static inline void gettimeoftsc(unsigned long long *p_tscval)
+{
+	register uint32_t upper_32, lower_32;
+
+	// ReaD Time Stamp Counter (RDTCS)
+	__asm__ __volatile__("rdtsc" : "=a" (lower_32), "=d" (upper_32));
+
+	// Copy to user
+	*p_tscval = (((unsigned long long)upper_32) << 32) | lower_32;
 }
 
 /**
