@@ -61,7 +61,7 @@ static inline void gettimeoftsc(unsigned long long *p_tscval)
 static inline void prefetch(void *x)
 {
 	//__builtin_prefetch();
-	asm volatile("prfm pldl1keep, %a0\n" : : "p" (ptr));
+	asm volatile("prfm pldl1keep, %a0\n" : : "p" (x));
 }
 
 static inline void prefetch_range(void *addr, size_t len)
