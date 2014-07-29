@@ -25,20 +25,7 @@
  */
 static inline int atomic_fetch_and_add(int i, volatile int *ptr)
 {
-	unsigned long tmp;
-	int result;
-
-	asm volatile("// atomic_add_return\n"
-	"1:     ldxr    %w0, %2\n"
-	"       add     %w0, %w0, %w3\n"
-	"       stlxr   %w1, %w0, %2\n"
-	"       cbnz    %w1, 1b"
-	               : "=&r" (result), "=&r" (tmp), "+Q" (*ptr)
-	               : "Ir" (i)
-	               : "cc", "memory");
-
-	asm volatile("dmb ish" : : : "memory");
-	return result;
+	return __atomic_fetch_add(ptr, i, __ATOMIC_ACQUIRE);
 }
 
 /**
