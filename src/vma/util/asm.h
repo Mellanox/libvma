@@ -16,6 +16,8 @@
 
 #if defined(__aarch64__)
 #include "asm-arm64.h"
+#elif defined(__powerpc64__)
+#include "asm-ppc64.h"
 #else
 #include "asm-x86.h"
 #endif
