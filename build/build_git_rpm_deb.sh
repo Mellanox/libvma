@@ -791,12 +791,13 @@ function prepare_debian_files {
 	debUserName="Or Kehati"
         debUserEmail="ork@mellanox.com"
         localArch="`eval arch`"
-        debArch="$localArch"
-        if [[ "$localArch" == "x86_64" ]]; then
-                debArch="amd64";
-        elif [[ "$localArch" == "x86" ]]; then
-                debArch="i386";
-        fi
+        debArch="any"
+	#debArch="$localArch"
+        #if [[ "$localArch" == "x86_64" ]]; then
+        #        debArch="amd64";
+        #elif [[ "$localArch" == "x86" ]]; then
+        #        debArch="i386";
+        #fi
         debDate=`date -R`
 
         DEB_VMA_VERSION="$vma_ver_major.$vma_ver_minor.$vma_ver_revision"
