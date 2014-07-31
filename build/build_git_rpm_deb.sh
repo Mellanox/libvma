@@ -550,7 +550,8 @@ cp -r $VMA_DIR  $VMA_DIR_NAME/build/$VMA_DIR_NAME/   # copy vma & udp_test
 cd $VMA_DIR_NAME
 cd build
 cd $VMA_DIR_NAME
-./autogen.sh
+#./autogen.sh
+autogenWrap
 prepare_debian_files "debian"
 cd ..
 tar zcvf ../../$VMA_DIR_NAME.tar.gz --exclude .git $VMA_DIR_NAME > /dev/null > /dev/null 2>&1
@@ -769,7 +770,8 @@ function prepare_deb_tarball {
 	rm -rf libvma-$DEB_VMA_VERSION.$DEB_VMA_RELEASE/.git
 
 	cd libvma-$DEB_VMA_VERSION.$DEB_VMA_RELEASE
-	./autogen.sh
+	#./autogen.sh
+	autogenWrap
 	cd ..
 
 	prepare_debian_files "libvma-$DEB_VMA_VERSION.$DEB_VMA_RELEASE/debian"
@@ -868,6 +870,15 @@ function pathadd {
     #fi
 }
 
+function autogenWrap {
+	mv ./config/config.guess ./config/config.guess.override
+	mv ./config/config.sub ./config/config.sub.override
+	./autogen.sh
+	rm ./config/config.guess
+	rm ./config/config.sub
+	mv ./config/config.guess.override ./config/config.guess
+	mv ./config/config.sub.override ./config/config.sub
+}
 ################################## main ##################################
 script=`basename $0`
 script_dir=`dirname $(readlink -f $0)`
@@ -926,7 +937,8 @@ mkdir -p build/vma
 cp -r /tmp/vma/* build/vma/
 rm -rf /tmp/vma
 
-runStep "./autogen.sh"
+#runStep "./autogen.sh"
+autogenWrap
 
 runStep "./configure --enable-debug"
 
@@ -1051,7 +1063,7 @@ if [ "$RELEASE_MODE" == 1 ]; then #release
         fi
         cp $path* src/
         #copy the rpm (short name) to vma dir
-        ln -s src/*"$(uname -n)".rpm libvma-""$fullVersion"-"$machine"".rpm
+        ln -s src/*x86_64.rpm libvma-""$fullVersion"-"$machine"".rpm
         
 	cp "$workspace_folder"/README.txt .
         cp "$workspace_folder"/journal.txt .
@@ -1067,6 +1079,10 @@ if [ "$RELEASE_MODE" == 1 ]; then #release
 	build_deb "$localPath/src/libvma-$fullVersion.src.rpm" "$localPath/libvma-$fullVersion-$machine.deb"
 
 	echo "libvma-$fullVersion.src.rpm" > $localPath/src/latest.txt
+
+	echo "libvma-$fullVersion.src.rpm" > $mswg_vma_folder/source_rpms/latest.txt
+	ln -s $localPath/src/libvma-$fullVersion.src.rpm $mswg_vma_folder/source_rpms/libvma-$fullVersion.src.rpm
+
 fi
 if [ "$LOCAL_MODE" == 1 ]; then #local
         cp $path* "$target_dir"/libvma-""$fullVersion"-"$machine""$rpm_name"".rpm
