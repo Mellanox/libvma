@@ -13,7 +13,7 @@ if [ ! -e ./configure ]; then
 fi
 
 set -x
-mkdir -p config
+test -d ./config || mkdir -p config
 aclocal -I config
 libtoolize --force --copy
 autoheader
