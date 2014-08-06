@@ -1,3 +1,19 @@
+Version 6.7.1-0:
+Date + Time 2014-8-6
+=======================
+Added:
+        - RM #408075 Add support for ARM64
+        - RM #408235 Add support for PPC64
+        - RM #408072 Align to upstream ETH flow steering
+        - RM #407928 Add support for Ubuntu14.04
+        - RM #407742 Add support for routing rules and secondary tables
+
+Fixed:
+        - RM #401603 VMA_SPEC=29 should not set tx bufs
+        - RM #390002 loading libhugetlbfs with libvma crash on startup
+        - RM #390019 unclosed listen socket become ready at process shutdown
+        - RM #389691 shutdown listen socket - freeing a lock by mistake
+
 Version 6.6.4-0:
 Date + Time 2014-4-23
 =======================
