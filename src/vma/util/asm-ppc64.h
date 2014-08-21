@@ -25,7 +25,11 @@
  */
 static inline int atomic_fetch_and_add(int i, volatile int *ptr)
 {
+#ifdef __ATOMIC_ACQUIRE
 	return __atomic_fetch_add(ptr, i, __ATOMIC_ACQUIRE);
+#else
+        return __sync_fetch_and_add(ptr, i);
+#endif
 }
 
 
