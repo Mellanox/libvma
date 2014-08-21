@@ -1,3 +1,9 @@
+Version 6.7.2-0:
+Date + Time 2014-8-21
+=======================
+Fixed:
+        - RM #408235 Support for PPC64 on older GCC
+
 Version 6.7.1-0:
 Date + Time 2014-8-6
 =======================
