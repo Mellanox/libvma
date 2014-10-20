@@ -27,28 +27,36 @@
  * Return values for the receive packet notify callback function
  */
 typedef enum {
-	VMA_PACKET_DROP,     /* VMA will drop the received datagram and recycle 
+	VMA_PACKET_DROP,     /* VMA will drop the received packet and recycle 
 	                        the buffer if no other socket needs it */
 
-	VMA_PACKET_RECV,     /* VMA will queue the received datagram on this socket ready queue.
+	VMA_PACKET_RECV,     /* VMA will queue the received packet on this socket ready queue.
 	                        The application will read it with the usual recv socket APIs */
 
-	VMA_PACKET_HOLD      /* Application will handle the queuing of the received datagram. The application
-	                        must return the descriptor to VMA using the free_datagram function
+	VMA_PACKET_HOLD      /* Application will handle the queuing of the received packet. The application
+	                        must return the descriptor to VMA using the free_packet function
 				But not in the context of VMA's callback itself. */
 } vma_recv_callback_retval_t;
 
-
 /**
- * Represents a VMA datagram.
+ * Represents one VMA packets 
  * Used in zero-copy extended API.
  */
-struct __attribute__ ((packed)) vma_datagram_t {
-	void*		datagram_id;		// datagram identifier
+struct __attribute__ ((packed)) vma_packet_t {
+	void*		packet_id;		// packet identifier
 	size_t		sz_iov;			// number of fragments
 	struct iovec	iov[];			// fragments size+data
 };
 
+
+/**
+ * Represents received packets in VMA
+ * Used in zero-copy extended API.
+ */
+struct __attribute__ ((packed)) vma_packets_t {
+	size_t n_packet_num;		// number of received packets
+	struct vma_packet_t	pkts[];	// array of received packets
+};
 
 /* 
  * Structure holding additional information on the packet and socket
@@ -56,7 +64,7 @@ struct __attribute__ ((packed)) vma_datagram_t {
  */
 struct __attribute__ ((packed)) vma_info_t {
 	size_t 			struct_sz;	/* Compare this value with sizeof(vma_info_t) to check version compatability */
-	void*			datagram_id;	/* VMA's handle to received packet buffer to be return if zero copy logic is used */
+	void*			packet_id;	/* VMA's handle to received packet buffer to be return if zero copy logic is used */
 
 	/* Packet addressing information (in network byte order) */
 	struct sockaddr_in*	src;
@@ -73,9 +81,9 @@ struct __attribute__ ((packed)) vma_info_t {
 
 /** 
  *  
- * VMA Notification callback for incoming datagram on socket
+ * VMA Notification callback for incoming packet on socket
  * @param fd Socket's file descriptor which this packet refers to
- * @param iov iovector structure array point holding the datagram 
+ * @param iov iovector structure array point holding the packet 
  *            received data buffer pointers and size of each buffer
  * @param iov_sz Size of iov array
  * @param vma_info Additional information on the packet and socket
@@ -110,7 +118,7 @@ typedef vma_recv_callback_retval_t
  */
 struct __attribute__ ((packed)) vma_api_t {
 	/**
-	 * Register a received datagram notification callback.
+	 * Register a received packet notification callback.
 	 * 
 	 * @param s Socket file descriptor.
 	 * @param callback Callback function.
@@ -130,7 +138,7 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * @param from If not NULL, will be filled with source address (same as recvfrom).
 	 * @param fromlen If not NULL, will be filled with source address size (same as recvfrom).
 	 * 
-	 * This function attempts to receive a datagram without doing data copy.
+	 * This function attempts to receive a packet without doing data copy.
 	 * The flags argument can contain the usual flags of recvmsg(), and also the
 	 * MSG_VMA_ZCOPY_FORCE flag. If the latter is set, the function will not
 	 * fall back to data copy. Otherwise, the function falls back to data copy
@@ -138,30 +146,30 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * flag is set upon exit.
 	 * 
 	 * If zero copy is performed (MSG_VMA_ZCOPY flag is returned), the buffer 
-	 * is filled with a vma_datagram_t structure, holding as much fragments 
+	 * is filled with a vma_packets_t structure, holding as much fragments 
          * as `len' allows. The total size of all fragments is returned.
          * Otherwise the MSG_VMA_ZCOPY flag is not set and the buffer is filled
          * with actual data and it's size is returned (same as recvfrom())
 	 * If no data was received the return value is zero.
 	 * 
-	 * NOTE: The returned datagram must be freed with free_datagram() after
+	 * NOTE: The returned packet must be freed with free_packet() after
 	 * the application finished using it.
 	 */
 	int (*recvfrom_zcopy)(int s, void *buf, size_t len, int *flags,
                               struct sockaddr *from, socklen_t *fromlen);
 	
 	/**
-	 * Frees a datagram received by recvfrom_zcopy() or held by receive callback.
+	 * Frees a packet received by recvfrom_zcopy() or held by receive callback.
 	 * 
-	 * @param s Socket from which the datagram was received.
-	 * @param datagram_ids Array of datagram identifiers.
-	 * @param count Number of datagrams in the array.
+	 * @param s Socket from which the packet was received.
+	 * @param pkts Array of packet.
+	 * @param count Number of packets in the array.
 	 * @return 0 on success, -1 on failure
 	 * 
 	 * errno is set to: EINVAL - not a VMA offloaded socket
-	 *                  ENOENT - the datagram was not received from `s'.
+	 *                  ENOENT - the packet was not received from `s'.
 	 */
-	int (*free_datagrams)(int s, void **datagram_ids, size_t count);
+	int (*free_packets)(int s, struct vma_packet_t *pkts, size_t count);
 
 
 	/*
@@ -243,7 +251,7 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_notify_callback(
 		// Application must duplicate the iov' & 'vma_info' parameters for later usage
 		struct iovec* my_iov = calloc(iov_sz, sizeof(struct iovec));
 		memcpy(my_iov, iov, sizeof(struct iovec)*iov_sz);
-		myapp_processes_packet_func(my_iov, iov_sz, vma_info->datagram_id);
+		myapp_processes_packet_func(my_iov, iov_sz, vma_info->packet_id);
 		return VMA_PACKET_HOLD;
 	}
 
@@ -282,9 +290,12 @@ myapp_socket_main_loop()
 		flags = 0;
 		int ret = vma_api->recvfrom_zcopy(fd, buf, 256, &flags, NULL, NULL);
 		if (flags == MSG_VMA_ZCOPY) {
-			vma_datagram_t* vma_datagram = (vma_datagram_t*)buf;
-			myapp_processes_packet_func(vma_datagram->iov, vma_datagram->iov_sz, 
-						     vma_datagram->datagram_id);
+			vma_packets_t* vma_packets = (vma_packets_t*)buf;
+			for (int i = 0; i < vma_packets->n_packet_num; i++) {
+				vma_packet_t* vma_packet = &vma_packets->pkts[i];
+				myapp_processes_packet_func(vma_packet->iov, vma_packet->iov_sz,
+							    vma_packet->packet_id);
+			}
 		}
 	}
 }
@@ -297,14 +308,14 @@ myapp_socket_main_loop()
 myapp_processes_packet_func(
 	struct iovec* iov, 
 	size_t iov_sz, 
-	void* datagram_id)
+	void* packet_id)
 {
 	myapp_processes_packet_func(.....);
 
 	// Return zero copied datagram buffer back to VMA
 	// Would be better to collect a bunch of buffers and return them all at once
 	// which will save locks inside VMA
-	vma_api->free_datagrams(s, &datagram_id, 1);
+	vma_api->free_datagrams(s, &packet_id, 1);
 }
 
 

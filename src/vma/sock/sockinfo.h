@@ -139,6 +139,10 @@ protected:
 
 	int			m_rx_num_buffs_reuse;
 
+	// Callback function pointer to support VMA extra API (vma_extra.h)
+	vma_recv_callback_t	m_rx_callback;
+	void*			m_rx_callback_context; // user context
+
 	virtual void 		set_blocking(bool is_blocked);
 	virtual int 		fcntl(int __cmd, unsigned long int __arg);
 	virtual int 		ioctl(unsigned long int __request, unsigned long int __arg);
@@ -153,8 +157,12 @@ protected:
 
 	virtual mem_buf_desc_t *get_next_desc (mem_buf_desc_t *p_desc) = 0;
 	virtual	mem_buf_desc_t* get_next_desc_peek(mem_buf_desc_t *p_desc, int& rx_pkt_ready_list_idx) = 0;
-	virtual void 		post_deqeue (bool release_buff) = 0;
-	virtual int 		zero_copy_rx (iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags) = 0;
+	
+	virtual void 	post_deqeue (bool release_buff) = 0;
+	
+	virtual int 	zero_copy_rx (iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags) = 0;
+	int 			register_callback(vma_recv_callback_t callback, void *context);
+
 	virtual size_t		handle_msg_trunc(size_t total_rx, size_t payload_size, int* p_flags);
 
 	bool 			attach_receiver(flow_tuple_with_local_if &flow_key);
@@ -229,6 +237,7 @@ protected:
 			total_rx = zero_copy_rx(p_iov, pdesc, p_flags);
 			if (unlikely(total_rx < 0))
 				return -1;
+			m_rx_pkt_ready_offset = 0;	
 		}
 		else {
 			for (int i = 0; i < sz_iov && pdesc; i++) {

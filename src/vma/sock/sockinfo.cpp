@@ -49,7 +49,9 @@ sockinfo::sockinfo(int fd):
 		m_rx_ring_map_lock(MODULE_NAME "::m_rx_ring_map_lock"),
 		m_ring_alloc_logic(fd, this),
 		m_n_rx_pkt_ready_list_count(0), m_rx_pkt_ready_offset(0), m_rx_ready_byte_count(0),
-		m_rx_num_buffs_reuse(mce_sys.rx_num_wr_to_post_recv)
+		m_rx_num_buffs_reuse(mce_sys.rx_num_wr_to_post_recv),
+		m_rx_callback(NULL),
+		m_rx_callback_context(NULL)
 {
 	m_rx_epfd = orig_os_api.epoll_create(128);
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -861,4 +863,12 @@ void sockinfo::destructor_helper()
 	if (m_p_connected_dst_entry)
 		delete m_p_connected_dst_entry;
 	m_p_connected_dst_entry = NULL;
+}
+
+
+int sockinfo::register_callback(vma_recv_callback_t callback, void *context)
+{
+	m_rx_callback = callback;
+	m_rx_callback_context = context;
+	return 0;
 }

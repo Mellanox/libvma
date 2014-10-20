@@ -133,6 +133,7 @@ void rfs_uc_tcp_gro::flush_gro_desc(void* pv_fd_ready_array)
 		m_gro_desc.p_first->lwip_pbuf.pbuf.ref = 1;
 		m_gro_desc.p_first->lwip_pbuf.pbuf.type = PBUF_REF;
 		m_gro_desc.p_first->lwip_pbuf.pbuf.payload = (u8_t *)(m_gro_desc.p_first->p_buffer + m_gro_desc.p_first->transport_header_len);
+		m_gro_desc.p_first->path.rx.is_vma_thr = m_gro_desc.p_last->path.rx.is_vma_thr;
 
 		for (mem_buf_desc_t* p_desc = m_gro_desc.p_last; p_desc != m_gro_desc.p_first; p_desc = p_desc->p_prev_desc) {
 			p_desc->p_prev_desc->lwip_pbuf.pbuf.tot_len += p_desc->lwip_pbuf.pbuf.tot_len;

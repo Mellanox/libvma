@@ -109,6 +109,8 @@ public:
 	virtual int getsockname(sockaddr *__name, socklen_t *__namelen);
 	virtual int getpeername(sockaddr *__name, socklen_t *__namelen);
 
+	virtual	int	free_packets(struct vma_packet_t *pkts, size_t count);
+
 	//Returns the connected pcb, with 5 tuple which matches the input arguments,
 	//in state "SYN Received" or NULL if pcb wasn't found
 
@@ -198,6 +200,8 @@ private:
 	tcp_sock_offload_e m_sock_offload;
 	tcp_sock_state_e m_sock_state;
 	sockinfo_tcp *m_parent;
+	//received packet source (true if its from internal thread) 
+	bool m_vma_thr;
 	/* connection state machine */
 	int m_conn_timeout;
 	/* RCVBUF acconting */

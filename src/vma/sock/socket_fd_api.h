@@ -147,7 +147,7 @@ public:
 
 	virtual int register_callback(vma_recv_callback_t callback, void *context);
 	
-	virtual int free_datagrams(void **pkt_desc_ids, size_t count);
+	virtual int free_packets(struct vma_packet_t *pkts, size_t count);
 
 	virtual int get_fd( ) const { return m_fd; };
 

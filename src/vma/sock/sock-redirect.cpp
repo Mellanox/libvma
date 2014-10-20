@@ -321,12 +321,12 @@ int vma_recvfrom_zcopy(int __fd, void *__buf, size_t __nbytes, int *__flags,
 }
 
 extern "C"
-int vma_free_datagrams(int __fd, void **pkt_desc_ids, size_t count)
+int vma_free_packets(int __fd, struct vma_packet_t *pkts, size_t count)
 {
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
 	if (p_socket_object) {
-		return p_socket_object->free_datagrams(pkt_desc_ids, count);
+		return p_socket_object->free_packets(pkts, count);
 	}
 
 	errno = EINVAL;
@@ -641,7 +641,7 @@ int getsockopt(int __fd, int __level, int __optname,
 		struct vma_api_t *vma_api = new struct vma_api_t();
 		vma_api->register_recv_callback = vma_register_recv_callback;
 		vma_api->recvfrom_zcopy = vma_recvfrom_zcopy;
-		vma_api->free_datagrams = vma_free_datagrams;
+		vma_api->free_packets = vma_free_packets;
 		vma_api->add_conf_rule = vma_add_conf_rule;
 		vma_api->thread_offload = vma_thread_offload;
 		*((vma_api_t**)__optval) = vma_api;

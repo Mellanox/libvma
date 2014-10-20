@@ -133,8 +133,7 @@ public:
 	void validate_igmpv2(flow_tuple_with_local_if& flow_key);
 	int validate_igmpv2(char *ifname);
 	void statistics_print();
-	int register_callback(vma_recv_callback_t callback, void *context);
-	int free_datagrams(void **pkt_desc_ids, size_t count);
+	virtual	int free_packets(struct vma_packet_t *pkts, size_t count);
 	virtual inline fd_type_t get_type()
 	{
 		return FD_TYPE_SOCKET;
@@ -168,9 +167,6 @@ private:
 							// we want to do before doing an OS poll, on this socket
 	bool 		m_sock_offload;
 
-	// Callback function pointer to support VMA extra API (vma_extra.h)
-	vma_recv_callback_t m_rx_callback;
-	void *m_rx_callback_context; // user context
 	ip_mreq_list_t 	m_pending_mreqs;
 	mc_memberships_map_t m_mc_memberships_map;
 

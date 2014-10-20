@@ -425,6 +425,8 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(struct ibv_wc* p_wce)
 		//we use context to verify that on reclaim rx buffer path we return the buffer to the right CQ
 		p_mem_buf_desc->path.rx.context = this;
 
+		p_mem_buf_desc->path.rx.is_vma_thr = false;
+
 		VALGRIND_MAKE_MEM_DEFINED(p_mem_buf_desc->p_buffer, p_mem_buf_desc->sz_data);
 
 		prefetch_range((uint8_t*)p_mem_buf_desc->p_buffer + m_sz_transport_header, 
@@ -491,6 +493,7 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 				temp->p_prev_desc = NULL;
 				temp->reset_ref_count();
 				temp->path.rx.gro = 0;
+				temp->path.rx.is_vma_thr = false;
 				temp->path.rx.p_ip_h = NULL;
 				temp->path.rx.p_tcp_h = NULL;
 				temp->path.rx.timestamp.tv_nsec = 0;
@@ -759,6 +762,7 @@ int cq_mgr::drain_and_proccess(bool b_recycle_buffers /*=false*/)
 					}
 					// We process immediately all non udp/ip traffic..
 					if (procces_now) {
+						buff->path.rx.is_vma_thr = true;
 						if (!compensate_qp_post_recv(buff)) {
 							process_recv_buffer(buff, NULL);
 						}

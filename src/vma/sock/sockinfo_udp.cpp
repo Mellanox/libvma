@@ -129,8 +129,6 @@ sockinfo_udp::sockinfo_udp(int fd) :
 	,m_loops_to_go(mce_sys.rx_poll_num_init) // Start up with a init polling loops value
 	,m_rx_udp_poll_os_ratio_counter(0)
 	,m_sock_offload(true)
-	,m_rx_callback(NULL)
-	,m_rx_callback_context(NULL)
 	,m_port_map_lock("sockinfo_udp::m_ports_map_lock")
 	,m_port_map_index(0)
 	,m_b_pktinfo(false)
@@ -1624,7 +1622,7 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 		int nr_frags = 0;
 
 		pkt_info.struct_sz = sizeof(pkt_info);
-		pkt_info.datagram_id = (void*)p_desc;
+		pkt_info.packet_id = (void*)p_desc;
 		pkt_info.src = &p_desc->path.rx.src;
 		pkt_info.dst = &p_desc->path.rx.dst;
 		pkt_info.socket_ready_queue_pkt_count = m_p_socket_stats->n_rx_ready_pkt_count;
@@ -1643,8 +1641,6 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 
 		if (callback_retval == VMA_PACKET_DROP) {
 			si_udp_logfunc("rx packet discarded - by user callback");
-			m_p_socket_stats->counters.n_rx_ready_byte_drop += p_desc->path.rx.sz_payload;
-			m_p_socket_stats->counters.n_rx_ready_pkt_drop++;
 			return false;
 		}
 	}
@@ -1671,6 +1667,8 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 		m_p_socket_stats->counters.n_rx_ready_byte_max = max((uint32_t)m_p_socket_stats->n_rx_ready_byte_count, m_p_socket_stats->counters.n_rx_ready_byte_max);
 		do_wakeup();
 		m_lock_rcv.unlock();
+	} else {
+		m_p_socket_stats->n_rx_zcopy_pkt_count++;
 	}
 
 	notify_epoll_context(EPOLLIN);
@@ -2099,21 +2097,15 @@ void sockinfo_udp::save_stats_tx_offload(int bytes, bool is_dropped)
 	}
 }
 
-int sockinfo_udp::register_callback(vma_recv_callback_t callback, void *context)
-{
-	m_rx_callback = callback;
-	m_rx_callback_context = context;
-	return 0;
-}
-
-int sockinfo_udp::free_datagrams(void **pkt_desc_ids, size_t count)
+int sockinfo_udp::free_packets(struct vma_packet_t *pkts, size_t count)
 {
 	int ret = 0;
-	mem_buf_desc_t *buff;
+	unsigned int 	index = 0;
+	mem_buf_desc_t 	*buff;
 	
 	m_lock_rcv.lock();
-	while (count--) {
-		buff = (mem_buf_desc_t*)*(pkt_desc_ids++);
+	for(index=0; index < count; index++){
+		buff = (mem_buf_desc_t*)pkts[index].packet_id;
 		if (m_rx_ring_map.find((ring*)buff->p_desc_owner) == m_rx_ring_map.end()) {
 			errno = ENOENT;
 			ret = -1;
@@ -2152,7 +2144,7 @@ int sockinfo_udp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *p_desc, int *p_flag
 {
 	mem_buf_desc_t* p_desc_iter;
 	int total_rx = 0;
-	int len = p_iov[0].iov_len - sizeof(vma_datagram_t);
+	int len = p_iov[0].iov_len - sizeof(vma_packets_t) - sizeof(vma_packet_t);
 
 	// Make sure there is enough room for the header
 	if (len < 0) {
@@ -2161,16 +2153,17 @@ int sockinfo_udp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *p_desc, int *p_flag
 	}
 
 	// Copy iov pointers to user buffer
-	vma_datagram_t *p_dgram = (vma_datagram_t*)p_iov[0].iov_base;
-	p_dgram->datagram_id = (void*)p_desc;
-	p_dgram->sz_iov = 0;
+	vma_packets_t *p_packets = (vma_packets_t*)p_iov[0].iov_base;
+	p_packets->n_packet_num = 1;	
+	p_packets->pkts[0].packet_id = (void*)p_desc;
+	p_packets->pkts[0].sz_iov = 0;
 	for (p_desc_iter = p_desc; p_desc_iter; p_desc_iter = p_desc_iter->p_next_desc) {
-		len -= sizeof(p_dgram->iov[0]);
+		len -= sizeof(p_packets->pkts[0].iov[0]);
 		if (len < 0) {
 			*p_flags = MSG_TRUNC;
 			break;
 		}
-		p_dgram->iov[p_dgram->sz_iov++] = p_desc_iter->path.rx.frag;
+		p_packets->pkts[0].iov[p_packets->pkts[0].sz_iov++] = p_desc_iter->path.rx.frag;
 		total_rx += p_desc_iter->path.rx.frag.iov_len;
 	}
 

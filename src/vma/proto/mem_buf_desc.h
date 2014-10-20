@@ -84,6 +84,7 @@ public:
 			struct iphdr* 	p_ip_h;
 			struct tcphdr* 	p_tcp_h;
 			uint32_t	gro;		// is gro buff
+			bool 		is_vma_thr; 	// specify whether packet drained from VMA internal thread or from user app thread
 
 			// In network byte ordering
 			sockaddr_in	src;

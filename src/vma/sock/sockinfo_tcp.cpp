@@ -95,6 +95,7 @@ sockinfo_tcp::sockinfo_tcp(int fd) :
 	m_rcvbuff_current = 0;
 	m_rcvbuff_non_tcp_recved = 0;
 	m_received_syn_num = 0;
+	m_vma_thr = false;
 
 	report_connected = false;
 
@@ -844,36 +845,76 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *tpcb,
 		p_curr_buff = p_curr_buff->next;
 		p_curr_desc = p_curr_desc->p_next_desc;
 	}
+		
+	vma_recv_callback_retval_t callback_retval = VMA_PACKET_RECV;
+	
+	if (conn->m_rx_callback && !conn->m_vma_thr && !conn->m_n_rx_pkt_ready_list_count) {
+		mem_buf_desc_t *tmp;
+		vma_info_t pkt_info;
+		int nr_frags = 0;
 
-	// Save rx packet info in our ready list
-	conn->m_rx_pkt_ready_list.push_back(p_first_desc);
-	conn->m_n_rx_pkt_ready_list_count++;
-	conn->m_rx_ready_byte_count += p->tot_len;
-	conn->m_p_socket_stats->n_rx_ready_byte_count += p->tot_len;
-	conn->m_p_socket_stats->n_rx_ready_pkt_count++;
-	conn->m_p_socket_stats->counters.n_rx_ready_pkt_max = max((uint32_t)conn->m_p_socket_stats->n_rx_ready_pkt_count, conn->m_p_socket_stats->counters.n_rx_ready_pkt_max);
-	conn->m_p_socket_stats->counters.n_rx_ready_byte_max = max((uint32_t)conn->m_p_socket_stats->n_rx_ready_byte_count, conn->m_p_socket_stats->counters.n_rx_ready_byte_max);
-	conn->return_rx_buffs((ring*)p_first_desc->p_desc_owner);
+		pkt_info.struct_sz = sizeof(pkt_info);
+		pkt_info.packet_id = (void*)p_first_desc;
+		pkt_info.src = &p_first_desc->path.rx.src;
+		pkt_info.dst = &p_first_desc->path.rx.dst;
+		pkt_info.socket_ready_queue_pkt_count = conn->m_p_socket_stats->n_rx_ready_pkt_count;
+		pkt_info.socket_ready_queue_byte_count = conn->m_p_socket_stats->n_rx_ready_byte_count;
 
-        // notify io_mux
-	conn->notify_epoll_context(EPOLLIN);
-	io_mux_call::update_fd_array(conn->m_iomux_ready_fd_array, conn->m_fd);
+		// fill io vector array with data buffer pointers
+		iovec iov[p_first_desc->n_frags];
+		nr_frags = 0;
+		for (tmp = p_first_desc; tmp; tmp = tmp->p_next_desc) {
+			iov[nr_frags++] = tmp->path.rx.frag;
+		}
 
+		// call user callback
+		callback_retval = conn->m_rx_callback(conn->m_fd, nr_frags, iov, &pkt_info, conn->m_rx_callback_context);
+	}
+	
+	if (callback_retval == VMA_PACKET_DROP) {
+		conn->reuse_buffer(p_first_desc);
+	}
+	// In ZERO COPY case we let the user's application manage the ready queue
+	else {
+		if (callback_retval == VMA_PACKET_RECV) {
+			// Save rx packet info in our ready list
+			conn->m_rx_pkt_ready_list.push_back(p_first_desc);
+			conn->m_n_rx_pkt_ready_list_count++;
+			conn->m_rx_ready_byte_count += p->tot_len;
+			conn->m_p_socket_stats->n_rx_ready_byte_count += p->tot_len;
+			conn->m_p_socket_stats->n_rx_ready_pkt_count++;
+			conn->m_p_socket_stats->counters.n_rx_ready_pkt_max = max((uint32_t)conn->m_p_socket_stats->n_rx_ready_pkt_count, conn->m_p_socket_stats->counters.n_rx_ready_pkt_max);
+			conn->m_p_socket_stats->counters.n_rx_ready_byte_max = max((uint32_t)conn->m_p_socket_stats->n_rx_ready_byte_count, conn->m_p_socket_stats->counters.n_rx_ready_byte_max);
+			conn->return_rx_buffs((ring*)p_first_desc->p_desc_owner);
+		}
+		// notify io_mux
+		conn->notify_epoll_context(EPOLLIN);
+		io_mux_call::update_fd_array(conn->m_iomux_ready_fd_array, conn->m_fd);
 
-	//OLG: Now we should wakeup all threads that are sleeping on this socket.
-	conn->do_wakeup();
+		if (callback_retval != VMA_PACKET_HOLD) {
+			//OLG: Now we should wakeup all threads that are sleeping on this socket.
+			conn->do_wakeup();			
+		} else {
+			conn->m_p_socket_stats->n_rx_zcopy_pkt_count++;
+		}
+	}	
+	
 	/*
 	* RCVBUFF Accounting: tcp_recved here(stream into the 'internal' buffer) only if the user buffer is not 'filled'
 	*/
 	rcv_buffer_space = max(0, conn->m_rcvbuff_max-conn->m_rcvbuff_current);
-	bytes_to_tcp_recved = min(rcv_buffer_space, (int)p->tot_len); 
-        
+	if (callback_retval == VMA_PACKET_DROP) {
+		bytes_to_tcp_recved = (int)p->tot_len;
+	} else {
+		bytes_to_tcp_recved = min(rcv_buffer_space, (int)p->tot_len);
+		conn->m_rcvbuff_current += p->tot_len;
+	}
+	
 	if (likely(bytes_to_tcp_recved > 0)) {
 	    tcp_recved(&(conn->m_pcb), bytes_to_tcp_recved);
 	}
 	if (p->tot_len-bytes_to_tcp_recved > 0)
 	    conn->m_rcvbuff_non_tcp_recved += p->tot_len-bytes_to_tcp_recved;
-	conn->m_rcvbuff_current += p->tot_len;
 
 	conn->unlock_tcp_con();
 
@@ -978,7 +1019,7 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 	* The packet might not be 'acked' (tcp_recved) 
 	* 
 	*/
-	if (!(*p_flags & MSG_PEEK)) {
+	if (!(*p_flags & (MSG_PEEK | MSG_VMA_ZCOPY))) {
 		m_rcvbuff_current -= total_rx;
 
 
@@ -1053,6 +1094,8 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 		pcb = &m_pcb;
 	}
 
+	m_vma_thr = p_rx_pkt_mem_buf_desc_info->path.rx.is_vma_thr;
+	
 	p_rx_pkt_mem_buf_desc_info->inc_ref_count();
 
 	if (!p_rx_pkt_mem_buf_desc_info->path.rx.gro) init_pbuf_custom(p_rx_pkt_mem_buf_desc_info);
@@ -1060,6 +1103,7 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 
 	L3_level_tcp_input((pbuf *)p_rx_pkt_mem_buf_desc_info, pcb);
 
+	m_vma_thr = false;
 	m_iomux_ready_fd_array = NULL;
 
 	unlock_tcp_con();
@@ -2630,18 +2674,111 @@ void sockinfo_tcp::post_deqeue(bool release_buff)
 	NOT_IN_USE(release_buff);
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
 int sockinfo_tcp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags) {
-	NOT_IN_USE(p_iov);
-	NOT_IN_USE(pdesc);
 	NOT_IN_USE(p_flags);
-	return 0;
+	int index, total_rx = 0;
+	int len = p_iov[0].iov_len - sizeof(vma_packets_t) - sizeof(vma_packet_t) - sizeof(iovec);
+	mem_buf_desc_t* p_desc_iter;
+	mem_buf_desc_t* prev;
+
+	// Make sure there is enough room for the header
+	if (len  < 0) {
+		errno = ENOBUFS;
+		return -1;
+	}
+	
+	pdesc->path.rx.frag.iov_base 	= (uint8_t*)pdesc->path.rx.frag.iov_base + m_rx_pkt_ready_offset;
+	pdesc->path.rx.frag.iov_len 	-= m_rx_pkt_ready_offset;
+	p_desc_iter = pdesc;
+	
+	// Copy iov pointers to user buffer
+	vma_packets_t *p_packets = (vma_packets_t*)p_iov[0].iov_base;
+	p_packets->n_packet_num = 0;
+	
+	while(len >= 0 && m_n_rx_pkt_ready_list_count) {
+
+		index = p_packets->n_packet_num++;
+		p_packets->pkts[index].packet_id = (void*)p_desc_iter;
+		p_packets->pkts[index].sz_iov = 0;
+		while(len >= 0 && p_desc_iter) {
+		
+			p_packets->pkts[index].iov[p_packets->pkts[index].sz_iov++] = p_desc_iter->path.rx.frag;
+			total_rx += p_desc_iter->path.rx.frag.iov_len;
+			
+			prev 		= p_desc_iter;
+			p_desc_iter = p_desc_iter->p_next_desc;	
+			if (p_desc_iter) {
+				p_desc_iter->lwip_pbuf.pbuf.tot_len = prev->lwip_pbuf.pbuf.tot_len - prev->lwip_pbuf.pbuf.len;
+				p_desc_iter->n_frags = --prev->n_frags;
+				p_desc_iter->path.rx.src = prev->path.rx.src;
+				p_desc_iter->inc_ref_count();
+				prev->lwip_pbuf.pbuf.next = NULL;
+				prev->p_next_desc = NULL;
+				prev->n_frags = 1;
+			}
+			len -= sizeof(iovec);
+		}
+		
+		if (len < 0 && p_desc_iter){
+			m_rx_pkt_ready_list.pop_front();
+			m_rx_pkt_ready_list.push_front(p_desc_iter);
+			break;
+		}	
+		m_rx_pkt_ready_list.pop_front();
+		m_n_rx_pkt_ready_list_count--;
+		m_p_socket_stats->n_rx_ready_pkt_count--;
+		m_p_socket_stats->n_rx_zcopy_pkt_count++;
+
+		if (m_n_rx_pkt_ready_list_count) 	
+			p_desc_iter = m_rx_pkt_ready_list.front();
+			
+		len -= sizeof(vma_packet_t);
+	}
+
+	return total_rx;
 }
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
+
+int sockinfo_tcp::free_packets(struct vma_packet_t *pkts, size_t count)
+{
+	int ret = 0;
+	unsigned int 	index = 0;
+	int bytes_to_tcp_recved;
+	int total_rx = 0;
+	mem_buf_desc_t 	*buff;
+	
+	lock_tcp_con();
+	for(index=0; index < count; index++){
+		buff = (mem_buf_desc_t*)pkts[index].packet_id;
+		
+		if (m_p_rx_ring && m_p_rx_ring != (ring*)buff->p_desc_owner){
+			errno = ENOENT;
+			ret = -1;
+			break;
+		}		
+		else if (m_rx_ring_map.find((ring*)buff->p_desc_owner) == m_rx_ring_map.end()) {
+			errno = ENOENT;
+			ret = -1;
+			break;
+		}
+		
+		total_rx += buff->path.rx.sz_payload;
+		reuse_buffer(buff);
+		m_p_socket_stats->n_rx_zcopy_pkt_count--;
+	}
+		
+	if (total_rx > 0) {
+		m_rcvbuff_current -= total_rx;
+		// data that was not tcp_recved should do it now.
+		if ( m_rcvbuff_non_tcp_recved > 0 ) {
+			bytes_to_tcp_recved = min(m_rcvbuff_non_tcp_recved, total_rx);
+			tcp_recved(&m_pcb, bytes_to_tcp_recved);
+			m_rcvbuff_non_tcp_recved -= bytes_to_tcp_recved;
+		}
+	}
+	
+	unlock_tcp_con();
+	return ret;
+}
 
 struct pbuf * sockinfo_tcp::tcp_tx_pbuf_alloc(void* p_conn)
 {
