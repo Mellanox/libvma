@@ -1,0 +1,27 @@
+Test Name:
+        extra_APIs_callback
+
+Author(s):
+        Ahmad Shanably ashanably@asaltech.com
+
+Short description:
+	This is a client server test built to test callback  functionality 
+	of VMA extra API for TCP connection.
+
+Supported OSes:
+        Linux
+
+Description:
+	This test used to filter received packet using user defined function that is registered 
+	by extra vma APIs (register_recv_callback()) and then choose one of following action:
+		- receive packet using general receive functions.
+		- free buffer that contain previously held packet, and then hold new received packet
+		- drop received packet
+			
+        This test uses TCP connection that have empty queue and handle received packet from application thread
+			
+Known issues:
+        None.
+
+To do:
+        None
