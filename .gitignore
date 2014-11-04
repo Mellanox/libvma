@@ -34,7 +34,6 @@ libtool
 .project
 
 # VMA specific
-src/lwip/
 src/state_machine/state_machine_test
 src/stats/vma_stats
 src/vlogger/vlogger_test

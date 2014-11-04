@@ -10,8 +10,6 @@ if [ ! -d "$DIR" ]; then
 fi
 
 cd $DIR
-unzip -q lwip-1.4.0.rc1.zip
-mv lwip-1.4.0.rc1 lwip
 cp -r lwip-vma/arch  lwip/arch
 for i in $(find lwip-vma/ -name Makefile.am); do 
 	cp $i ${i/-vma/}
