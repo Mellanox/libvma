@@ -1201,8 +1201,10 @@ tcp_alloc(u8_t prio)
   }
   if (pcb != NULL) {
     memset(pcb, 0, sizeof(struct tcp_pcb));
+    pcb->max_snd_buff = TCP_SND_BUF;
+    pcb->max_unsent_len = TCP_SND_QUEUELEN;
     pcb->prio = prio;
-    pcb->snd_buf = TCP_SND_BUF;
+    pcb->snd_buf = pcb->max_snd_buff;
     pcb->snd_queuelen = 0;
     pcb->rcv_wnd = TCP_WND;
     pcb->rcv_ann_wnd = TCP_WND;
