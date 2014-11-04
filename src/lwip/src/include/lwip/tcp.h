@@ -220,14 +220,16 @@ struct tcp_pcb {
 
   /* sender variables */
   u32_t snd_nxt;   /* next new seqno to be sent */
-  u16_t snd_wnd;   /* sender window */
+  u32_t snd_wnd;   /* sender window */
   u32_t snd_wl1, snd_wl2; /* Sequence and acknowledgement numbers of last
                              window update. */
   u32_t snd_lbb;       /* Sequence number of next byte to be buffered. */
 
   u16_t acked;
   
-  u16_t snd_buf;   /* Available buffer space for sending (in bytes). */
+  u32_t snd_buf;   /* Available buffer space for sending (in bytes). */
+  u32_t max_snd_buff;
+
 #define TCP_SNDQUEUELEN_OVERFLOW (0xffff-3)
   u16_t snd_queuelen; /* Available buffer space for sending (in tcp_segs). */
 
@@ -235,9 +237,10 @@ struct tcp_pcb {
   /* Extra bytes available at the end of the last pbuf in unsent. */
   u16_t unsent_oversize;
 #endif /* TCP_OVERSIZE */ 
-
+  u16_t max_unsent_len;
   /* These are ordered by sequence number: */
   struct tcp_seg *unsent;   /* Unsent (queued) segments. */
+  struct tcp_seg *last_unsent;   /* Last unsent (queued) segment. */
   struct tcp_seg *unacked;  /* Sent but unacknowledged segments. */
 #if TCP_QUEUE_OOSEQ  
   struct tcp_seg *ooseq;    /* Received out of sequence segments. */
