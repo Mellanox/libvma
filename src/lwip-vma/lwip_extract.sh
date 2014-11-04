@@ -10,10 +10,6 @@ if [ ! -d "$DIR" ]; then
 fi
 
 cd $DIR
-cp -r lwip-vma/arch  lwip/arch
-for i in $(find lwip-vma/ -name Makefile.am); do 
-	cp $i ${i/-vma/}
-done
 
 for p in $(cat lwip-vma/patches/series); do
 	echo "Applying $p."
