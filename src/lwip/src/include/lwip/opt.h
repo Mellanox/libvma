@@ -421,14 +421,14 @@
  * LWIP_ARP==1: Enable ARP functionality.
  */
 #ifndef LWIP_ARP
-#define LWIP_ARP                        1
+#define LWIP_ARP                        0
 #endif
 
 /**
  * ARP_TABLE_SIZE: Number of active MAC-IP address pairs cached.
  */
 #ifndef ARP_TABLE_SIZE
-#define ARP_TABLE_SIZE                  10
+#define ARP_TABLE_SIZE                  0
 #endif
 
 /**
@@ -436,7 +436,7 @@
  * resolution.
  */
 #ifndef ARP_QUEUEING
-#define ARP_QUEUEING                    1
+#define ARP_QUEUEING                    0
 #endif
 
 /**
