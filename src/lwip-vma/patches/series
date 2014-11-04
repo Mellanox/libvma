@@ -1,4 +1,3 @@
-010-enable_try_bigger_pool_logic.patch
 011-pcb_struct_modifications_for_throghput_optimization.patch
 012-add_dynamic_max_send_buff_wnd_support_and_sent_path_optimization.patch
 013-update_pcb_init_to_support_dynamic_max_send_wnd_logic.patch
