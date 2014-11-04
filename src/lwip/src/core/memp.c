@@ -470,7 +470,6 @@ if (type == MEMP_TCP_PCB)
     LWIP_DEBUGF(MEMP_DEBUG | LWIP_DBG_LEVEL_SERIOUS, ("memp_malloc: out of memory in pool %s\n", memp_desc[type]));
     MEMP_STATS_INC(err, type);
 	stats_display();
-	abort();
   }
 
   SYS_ARCH_UNPROTECT(old_level);

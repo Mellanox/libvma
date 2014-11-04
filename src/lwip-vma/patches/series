@@ -1,4 +1,3 @@
-014-fix_core_dump_happened_on_memp_malloc.patch
 015-disable_lwip_L2_layer.patch
 016-bug_fix_which_adds_a_missing_endif.patch
 018-large_send_support.patch
