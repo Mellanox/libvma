@@ -1,4 +1,3 @@
-016-bug_fix_which_adds_a_missing_endif.patch
 018-large_send_support.patch
 019-disable_lwip_L3_layer.patch
 020-support-minshall.patch
