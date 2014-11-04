@@ -215,7 +215,7 @@ struct tcp_pcb {
   u8_t dupacks;
   
   /* congestion avoidance/control variables */
-  u16_t cwnd;  
+  u16_t cwnd;
   u16_t ssthresh;
 
   /* sender variables */
@@ -356,7 +356,7 @@ err_t            tcp_shutdown(struct tcp_pcb *pcb, int shut_rx, int shut_tx);
 #define TCP_WRITE_FLAG_COPY 0x01
 #define TCP_WRITE_FLAG_MORE 0x02
 
-err_t            tcp_write   (struct tcp_pcb *pcb, const void *dataptr, u16_t len,
+err_t            tcp_write   (struct tcp_pcb *pcb, const void *dataptr, u32_t len,
                               u8_t apiflags);
 
 void             tcp_setprio (struct tcp_pcb *pcb, u8_t prio);

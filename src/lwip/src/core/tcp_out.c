@@ -289,7 +289,7 @@ tcp_seg_add_chksum(u16_t chksum, u16_t len, u16_t *seg_chksum,
  * @return ERR_OK if tcp_write is allowed to proceed, another err_t otherwise
  */
 static err_t
-tcp_write_checks(struct tcp_pcb *pcb, u16_t len)
+tcp_write_checks(struct tcp_pcb *pcb, u32_t len)
 {
   /* connection is in invalid state for data transmission? */
   if ((pcb->state != ESTABLISHED) &&
@@ -304,7 +304,7 @@ tcp_write_checks(struct tcp_pcb *pcb, u16_t len)
 
   /* fail on too much data */
   if (len > pcb->snd_buf) {
-    LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 3, ("tcp_write: too much data (len=%"U16_F" > snd_buf=%"U16_F")\n",
+    LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 3, ("tcp_write: too much data (len=%"U32_F" > snd_buf=%"U32_F")\n",
       len, pcb->snd_buf));
     pcb->flags |= TF_NAGLEMEMERR;
     return ERR_MEM;
@@ -347,11 +347,11 @@ tcp_write_checks(struct tcp_pcb *pcb, u16_t len)
  * @return ERR_OK if enqueued, another err_t on error
  */
 err_t
-tcp_write(struct tcp_pcb *pcb, const void *arg, u16_t len, u8_t apiflags)
+tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
 {
   struct pbuf *concat_p = NULL;
   struct tcp_seg *seg = NULL, *prev_seg = NULL, *queue = NULL;
-  u16_t pos = 0; /* position in 'arg' data */
+  u32_t pos = 0; /* position in 'arg' data */
   u16_t queuelen;
   u8_t optlen = 0;
   u8_t optflags = 0;
@@ -517,7 +517,7 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u16_t len, u8_t apiflags)
    */
   while (pos < len) {
     struct pbuf *p;
-    u16_t left = len - pos;
+    u32_t left = len - pos;
     u16_t max_len = pcb->mss - optlen;
     u16_t seglen = left > max_len ? max_len : left;
 #if TCP_CHECKSUM_ON_COPY

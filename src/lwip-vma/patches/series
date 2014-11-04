@@ -1,4 +1,3 @@
-018-large_send_support.patch
 019-disable_lwip_L3_layer.patch
 020-support-minshall.patch
 021-enabling_SO_REUSEADDR_option.patch
