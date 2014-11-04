@@ -1,4 +1,3 @@
-002-randomize-port-seq.patch
 003-memp_type_change.patch
 004-pbufs_pool_huge_tlb_and_mem_reg_support.patch
 005-pbuf_ref_and_rom_header_expantion_support.patch

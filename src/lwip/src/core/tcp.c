@@ -608,10 +608,15 @@ tcp_new_port(void)
   int i;
   struct tcp_pcb *pcb;
 #ifndef TCP_LOCAL_PORT_RANGE_START
-#define TCP_LOCAL_PORT_RANGE_START 4096
-#define TCP_LOCAL_PORT_RANGE_END   0x7fff
+#define TCP_LOCAL_PORT_RANGE_START 0x2000
+#define TCP_LOCAL_PORT_RANGE_END   0xFFFF
 #endif
-  static u16_t port = TCP_LOCAL_PORT_RANGE_START;
+  extern int getpid(void);
+  static u16_t port;
+
+  /* use getpid() as a seed for the port sequence. Insure we will always use different first port */
+  if (port == 0)
+    port = TCP_LOCAL_PORT_RANGE_START + getpid() % (TCP_LOCAL_PORT_RANGE_END - TCP_LOCAL_PORT_RANGE_START);
   
  again:
   if (++port > TCP_LOCAL_PORT_RANGE_END) {
