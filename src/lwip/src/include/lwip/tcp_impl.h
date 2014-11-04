@@ -63,6 +63,9 @@ void             tcp_fasttmr (void);
 
 /* Only used by IP to pass a TCP segment to TCP: */
 void             tcp_input   (struct pbuf *p, struct netif *inp);
+#if LWIP_3RD_PARTY_L3
+void             L3_level_tcp_input   (struct pbuf *p, struct tcp_pcb *pcb);
+#endif
 /* Used within the TCP code only: */
 struct tcp_pcb * tcp_alloc   (u8_t prio);
 void             tcp_abandon (struct tcp_pcb *pcb, int reset);
@@ -302,14 +305,16 @@ struct tcp_seg {
   (flags & TF_SEG_OPTS_TS  ? 12 : 0)
 
 /** This returns a TCP header option for MSS in an u32_t */
-#define TCP_BUILD_MSS_OPTION(x) (x) = PP_HTONL(((u32_t)2 << 24) |          \
-                                               ((u32_t)4 << 16) |          \
-                                               (((u32_t)TCP_MSS / 256) << 8) | \
-                                               (TCP_MSS & 255))
+#define TCP_BUILD_MSS_OPTION(x, mss) (x) = PP_HTONL(((u32_t)2 << 24) |          \
+                                                   ((u32_t)4 << 16) |          \
+                                                   (((u32_t)mss / 256) << 8) | \
+                                                   (mss & 255))
 
 /* Global variables: */
 extern struct tcp_pcb *tcp_input_pcb;
 extern u32_t tcp_ticks;
+extern ip_route_mtu_fn external_ip_route_mtu;
+
 
 /* The TCP PCB lists. */
 union tcp_listen_pcbs_t { /* List of all TCP PCBs in LISTEN state. */

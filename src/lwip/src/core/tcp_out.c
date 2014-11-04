@@ -75,6 +75,22 @@
 #define TCP_CHECKSUM_ON_COPY_SANITY_CHECK   0
 #endif
 
+#if LWIP_3RD_PARTY_L3
+ip_output_fn external_ip_output;
+
+void register_ip_output(ip_output_fn fn)
+{
+    external_ip_output = fn;
+}
+
+ip_route_mtu_fn external_ip_route_mtu;
+
+void register_ip_route_mtu(ip_route_mtu_fn fn)
+{
+    external_ip_route_mtu = fn;
+}
+#endif
+
 /* Forward declarations.*/
 static void tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb);
 
@@ -877,9 +893,10 @@ tcp_send_empty_ack(struct tcp_pcb *pcb)
 #if LWIP_NETIF_HWADDRHINT
   ip_output_hinted(p, &(pcb->local_ip), &(pcb->remote_ip), pcb->ttl, pcb->tos,
       IP_PROTO_TCP, &(pcb->addr_hint));
+#elif LWIP_3RD_PARTY_L3
+  external_ip_output(p, pcb);
 #else /* LWIP_NETIF_HWADDRHINT*/
-  ip_output(p, &(pcb->local_ip), &(pcb->remote_ip), pcb->ttl, pcb->tos,
-      IP_PROTO_TCP);
+  ip_output(p, &(pcb->local_ip), &(pcb->remote_ip), pcb->ttl, pcb->tos, IP_PROTO_TCP);
 #endif /* LWIP_NETIF_HWADDRHINT*/
   pbuf_free(p);
 
@@ -1071,7 +1088,7 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
   LWIP_ASSERT("seg->tcphdr not aligned", ((mem_ptr_t)(seg->tcphdr + 1) % 4) == 0);
   opts = (u32_t *)(void *)(seg->tcphdr + 1);
   if (seg->flags & TF_SEG_OPTS_MSS) {
-    TCP_BUILD_MSS_OPTION(*opts);
+    TCP_BUILD_MSS_OPTION(*opts, pcb->advtsd_mss);
     opts += 1;
   }
 #if LWIP_TCP_TIMESTAMPS
@@ -1161,9 +1178,10 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
 #if LWIP_NETIF_HWADDRHINT
   ip_output_hinted(seg->p, &(pcb->local_ip), &(pcb->remote_ip), pcb->ttl, pcb->tos,
       IP_PROTO_TCP, &(pcb->addr_hint));
+#elif LWIP_3RD_PARTY_L3
+  external_ip_output(seg->p, pcb);
 #else /* LWIP_NETIF_HWADDRHINT*/
-  ip_output(seg->p, &(pcb->local_ip), &(pcb->remote_ip), pcb->ttl, pcb->tos,
-      IP_PROTO_TCP);
+  ip_output(seg->p, &(pcb->local_ip), &(pcb->remote_ip), pcb->ttl, pcb->tos, IP_PROTO_TCP);
 #endif /* LWIP_NETIF_HWADDRHINT*/
 }
 
@@ -1219,7 +1237,11 @@ tcp_rst(u32_t seqno, u32_t ackno,
   TCP_STATS_INC(tcp.xmit);
   snmp_inc_tcpoutrsts();
    /* Send output with hardcoded TTL since we have no access to the pcb */
+#if LWIP_3RD_PARTY_L3
+  /* external_ip_output(p, NULL, local_ip, remote_ip, TCP_TTL, 0, IP_PROTO_TCP) */;
+#else /* LWIP_NETIF_HWADDRHINT*/
   ip_output(p, local_ip, remote_ip, TCP_TTL, 0, IP_PROTO_TCP);
+#endif
   pbuf_free(p);
   LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_rst: seqno %"U32_F" ackno %"U32_F".\n", seqno, ackno));
 }
@@ -1380,6 +1402,8 @@ tcp_keepalive(struct tcp_pcb *pcb)
 #if LWIP_NETIF_HWADDRHINT
   ip_output_hinted(p, &pcb->local_ip, &pcb->remote_ip, pcb->ttl, 0, IP_PROTO_TCP,
     &(pcb->addr_hint));
+#elif LWIP_3RD_PARTY_L3
+  external_ip_output(p, pcb);
 #else /* LWIP_NETIF_HWADDRHINT*/
   ip_output(p, &pcb->local_ip, &pcb->remote_ip, pcb->ttl, 0, IP_PROTO_TCP);
 #endif /* LWIP_NETIF_HWADDRHINT*/
@@ -1457,6 +1481,8 @@ tcp_zero_window_probe(struct tcp_pcb *pcb)
 #if LWIP_NETIF_HWADDRHINT
   ip_output_hinted(p, &pcb->local_ip, &pcb->remote_ip, pcb->ttl, 0, IP_PROTO_TCP,
     &(pcb->addr_hint));
+#elif LWIP_3RD_PARTY_L3
+  external_ip_output(p, pcb);
 #else /* LWIP_NETIF_HWADDRHINT*/
   ip_output(p, &pcb->local_ip, &pcb->remote_ip, pcb->ttl, 0, IP_PROTO_TCP);
 #endif /* LWIP_NETIF_HWADDRHINT*/

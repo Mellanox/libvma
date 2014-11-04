@@ -59,15 +59,15 @@
 /* These variables are global to all functions involved in the input
    processing of TCP segments. They are set by the tcp_input()
    function. */
-static struct tcp_seg inseg;
-static struct tcp_hdr *tcphdr;
-static struct ip_hdr *iphdr;
-static u32_t seqno, ackno;
-static u8_t flags;
-static u16_t tcplen;
+static __thread struct tcp_seg inseg;
+static __thread struct tcp_hdr *tcphdr;
+static __thread struct ip_hdr *iphdr;
+static __thread u32_t seqno, ackno;
+static __thread u8_t flags;
+static __thread u16_t tcplen;
 
-static u8_t recv_flags;
-static struct pbuf *recv_data;
+static __thread u8_t recv_flags;
+static __thread struct pbuf *recv_data;
 
 struct tcp_pcb *tcp_input_pcb;
 
@@ -425,6 +425,257 @@ aborted:
   PERF_STOP("tcp_input");
 }
 
+#if LWIP_3RD_PARTY_L3
+void
+L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb)
+{
+    u8_t hdrlen;
+    err_t err;
+    u16_t iphdr_len;
+    struct tcp_pcb *tpcb;
+
+    PERF_START;
+
+    TCP_STATS_INC(tcp.recv);
+    snmp_inc_tcpinsegs();
+    iphdr = (struct ip_hdr *)p->payload;
+
+
+    iphdr_len = ntohs(IPH_LEN(iphdr));
+    /* Trim pbuf. This should have been done at the netif layer,
+     * but we'll do it anyway just to be sure that its done. */
+    pbuf_realloc(p, iphdr_len);
+
+
+
+    tcphdr = (struct tcp_hdr *)((u8_t *)p->payload + IPH_HL(iphdr) * 4);
+
+#if TCP_INPUT_DEBUG
+    tcp_debug_print(tcphdr);
+#endif
+
+
+    /* remove header from payload */
+    if (pbuf_header(p, -((s16_t)(IPH_HL(iphdr) * 4))) || (p->tot_len < sizeof(struct tcp_hdr))) {
+        /* drop short packets */
+        LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_input: short packet (%"U16_F" bytes) discarded\n", p->tot_len));
+        TCP_STATS_INC(tcp.lenerr);
+        TCP_STATS_INC(tcp.drop);
+        snmp_inc_tcpinerrs();
+        pbuf_free(p);
+        return;
+    }
+
+
+
+    /* Move the payload pointer in the pbuf so that it points to the
+       TCP data instead of the TCP header. */
+    hdrlen = TCPH_HDRLEN(tcphdr);
+    if(pbuf_header(p, -(hdrlen * 4))){
+        /* drop short packets */
+        LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_input: short packet\n"));
+        TCP_STATS_INC(tcp.lenerr);
+        TCP_STATS_INC(tcp.drop);
+        snmp_inc_tcpinerrs();
+        pbuf_free(p);
+        return;
+    }
+
+    /* Convert fields in TCP header to host byte order. */
+    tcphdr->src = ntohs(tcphdr->src);
+    tcphdr->dest = ntohs(tcphdr->dest);
+    seqno = tcphdr->seqno = ntohl(tcphdr->seqno);
+    ackno = tcphdr->ackno = ntohl(tcphdr->ackno);
+    tcphdr->wnd = ntohs(tcphdr->wnd);
+
+    flags = TCPH_FLAGS(tcphdr);
+    tcplen = p->tot_len + ((flags & (TCP_FIN | TCP_SYN)) ? 1 : 0);
+
+
+
+    /* copy IP addresses to aligned ip_addr_t */
+    ip_addr_copy(current_iphdr_dest, iphdr->dest);
+    ip_addr_copy(current_iphdr_src, iphdr->src);
+    //there might be a pcb in the active list - this list now holds only TCP_RCVD state pcbs
+    for(tpcb = tcp_active_pcbs; tpcb != NULL; tpcb = tpcb->next) {
+        if (tpcb->remote_port == tcphdr->src &&
+                tpcb->local_port == tcphdr->dest &&
+                ip_addr_cmp(&(tpcb->remote_ip), &current_iphdr_src) &&
+                ip_addr_cmp(&(tpcb->local_ip), &current_iphdr_dest)) {
+            // in the case of TCP_RCVD - use this pcb and remove it from the list(it will be stored in the sockinfo)
+            pcb = tpcb;
+            //TCP_RMV(&tcp_active_pcbs, tpcb); removing make more sense - but need to update timer logic
+
+        }
+    }
+
+    //TODO: it seems logical to handle LISTEN and TIME_WAIT first but it is not since
+    // the active connections are more important(fast path). so a performance test is needed here...
+
+    if (pcb && pcb->state == TIME_WAIT)
+    {
+        LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_input: packed for TIME_WAITing connection.\n"));
+        tcp_timewait_input(pcb);
+        pbuf_free(p);
+        return;
+    }
+    if (pcb && pcb->state == LISTEN)
+    {
+      LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_input: packed for LISTENing connection.\n"));
+      // TODO: tcp_listen_input creates a pcb and puts in the active pcb list.
+      // how should we approach?
+      tcp_listen_input(pcb);
+      pbuf_free(p);
+      return;
+    }
+
+
+
+    if (pcb != NULL) {
+        /* The incoming segment belongs to a connection. */
+#if TCP_INPUT_DEBUG
+#if TCP_DEBUG
+        tcp_debug_print_state(pcb->state);
+#endif /* TCP_DEBUG */
+#endif /* TCP_INPUT_DEBUG */
+
+        /* Set up a tcp_seg structure. */
+        inseg.next = NULL;
+        inseg.len = p->tot_len;
+        inseg.dataptr = p->payload;
+        inseg.p = p;
+        inseg.tcphdr = tcphdr;
+
+        recv_data = NULL;
+        recv_flags = 0;
+
+        /* If there is data which was previously "refused" by upper layer */
+        if (pcb->refused_data != NULL) {
+            /* Notify again application with data previously received. */
+            LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_input: notify kept packet\n"));
+            TCP_EVENT_RECV(pcb, pcb->refused_data, ERR_OK, err);
+            if (err == ERR_OK) {
+                pcb->refused_data = NULL;
+            } else {
+                /* if err == ERR_ABRT, 'pcb' is already deallocated */
+                /* drop incoming packets, because pcb is "full" */
+                LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_input: drop incoming packets, because pcb is \"full\"\n"));
+                TCP_STATS_INC(tcp.drop);
+                snmp_inc_tcpinerrs();
+                pbuf_free(p);
+                return;
+            }
+        }
+        tcp_input_pcb = pcb;
+        err = tcp_process(pcb);
+        /* A return value of ERR_ABRT means that tcp_abort() was called
+           and that the pcb has been freed. If so, we don't do anything. */
+        if (err != ERR_ABRT) {
+            if (recv_flags & TF_RESET) {
+                /* TF_RESET means that the connection was reset by the other
+                   end. We then call the error callback to inform the
+                   application that the connection is dead before we
+                   deallocate the PCB. */
+                TCP_EVENT_ERR(pcb->errf, pcb->callback_arg, ERR_RST);
+                tcp_pcb_remove(&tcp_active_pcbs, pcb);
+                memp_free(MEMP_TCP_PCB, pcb);
+            } else if (recv_flags & TF_CLOSED) {
+                /* The connection has been closed and we will deallocate the
+                   PCB. */
+                tcp_pcb_remove(&tcp_active_pcbs, pcb);
+                memp_free(MEMP_TCP_PCB, pcb);
+            } else {
+                err = ERR_OK;
+                /* If the application has registered a "sent" function to be
+                   called when new send buffer space is available, we call it
+                   now. */
+                if (pcb->acked > 0) {
+                    TCP_EVENT_SENT(pcb, pcb->acked, err);
+                    if (err == ERR_ABRT) {
+                        goto aborted;
+                    }
+                }
+
+                if (recv_data != NULL) {
+                    if (pcb->flags & TF_RXCLOSED) {
+                        /* received data although already closed -> abort (send RST) to
+                           notify the remote host that not all data has been processed */
+                        pbuf_free(recv_data);
+                        tcp_abort(pcb);
+                        goto aborted;
+                    }
+                    if (flags & TCP_PSH) {
+                        recv_data->flags |= PBUF_FLAG_PUSH;
+                    }
+
+                    /* Notify application that data has been received. */
+                    TCP_EVENT_RECV(pcb, recv_data, ERR_OK, err);
+                    if (err == ERR_ABRT) {
+                        goto aborted;
+                    }
+
+                    /* If the upper layer can't receive this data, store it */
+                    if (err != ERR_OK) {
+                        pcb->refused_data = recv_data;
+                        LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_input: keep incoming packet, because pcb is \"full\"\n"));
+                    }
+                }
+
+                /* If a FIN segment was received, we call the callback
+                   function with a NULL buffer to indicate EOF. */
+                if (recv_flags & TF_GOT_FIN) {
+                    /* correct rcv_wnd as the application won't call tcp_recved()
+                       for the FIN's seqno */
+                    if (pcb->rcv_wnd != TCP_WND) {
+                        pcb->rcv_wnd++;
+                    }
+                    TCP_EVENT_CLOSED(pcb, err);
+                    if (err == ERR_ABRT) {
+                        goto aborted;
+                    }
+                }
+
+                tcp_input_pcb = NULL;
+                /* Try to send something out. */
+                tcp_output(pcb);
+#if TCP_INPUT_DEBUG
+#if TCP_DEBUG
+                tcp_debug_print_state(pcb->state);
+#endif /* TCP_DEBUG */
+#endif /* TCP_INPUT_DEBUG */
+            }
+        }
+        /* Jump target if pcb has been aborted in a callback (by calling tcp_abort()).
+           Below this line, 'pcb' may not be dereferenced! */
+aborted:
+        tcp_input_pcb = NULL;
+        recv_data = NULL;
+
+        /* give up our reference to inseg.p */
+        if (inseg.p != NULL)
+        {
+            pbuf_free(inseg.p);
+            inseg.p = NULL;
+        }
+    } else {
+
+        /* If no matching PCB was found, send a TCP RST (reset) to the
+           sender. */
+        LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_input: no PCB match found, resetting.\n"));
+        if (!(TCPH_FLAGS(tcphdr) & TCP_RST)) {
+            TCP_STATS_INC(tcp.proterr);
+            TCP_STATS_INC(tcp.drop);
+            tcp_rst(ackno, seqno + tcplen,
+                    ip_current_dest_addr(), ip_current_src_addr(),
+                    tcphdr->dest, tcphdr->src);
+        }
+        pbuf_free(p);
+    }
+
+    LWIP_ASSERT("tcp_input: tcp_pcbs_sane()", tcp_pcbs_sane());
+    PERF_STOP("tcp_input");
+}
+#endif //LWIP_3RD_PARTY_L3
 /**
  * Called by tcp_input() when a segment arrives for a listening
  * connection (from tcp_input()).
@@ -496,7 +747,7 @@ tcp_listen_input(struct tcp_pcb_listen *pcb)
     /* Parse any options in the SYN. */
     tcp_parseopt(npcb);
 #if TCP_CALCULATE_EFF_SEND_MSS
-    npcb->mss = tcp_eff_send_mss(npcb->mss, &(npcb->remote_ip));
+    npcb->advtsd_mss = npcb->mss = tcp_eff_send_mss(npcb->mss, &(npcb->remote_ip));
 #endif /* TCP_CALCULATE_EFF_SEND_MSS */
 
     snmp_inc_tcppassiveopens();

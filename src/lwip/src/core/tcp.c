@@ -709,9 +709,10 @@ tcp_connect(struct tcp_pcb *pcb, ip_addr_t *ipaddr, u16_t port,
   pcb->snd_wnd = TCP_WND;
   /* As initial send MSS, we use TCP_MSS but limit it to 536.
      The send MSS is updated when an MSS option is received. */
-  pcb->mss = (TCP_MSS > 536) ? 536 : TCP_MSS;
+  pcb->advtsd_mss = pcb->mss = (TCP_MSS > 536) ? 536 : TCP_MSS;
 #if TCP_CALCULATE_EFF_SEND_MSS
   pcb->mss = tcp_eff_send_mss(pcb->mss, ipaddr);
+  pcb->advtsd_mss = TCP_MSS;
 #endif /* TCP_CALCULATE_EFF_SEND_MSS */
   pcb->cwnd = 1;
   pcb->ssthresh = pcb->mss * 10;
@@ -1212,7 +1213,7 @@ tcp_alloc(u8_t prio)
     pcb->ttl = TCP_TTL;
     /* As initial send MSS, we use TCP_MSS but limit it to 536.
        The send MSS is updated when an MSS option is received. */
-    pcb->mss = (TCP_MSS > 536) ? 536 : TCP_MSS;
+    pcb->advtsd_mss = pcb->mss = (TCP_MSS > 536) ? 536 : TCP_MSS;
     pcb->rto = 3000 / TCP_SLOW_INTERVAL;
     pcb->sa = 0;
     pcb->sv = 3000 / TCP_SLOW_INTERVAL;
@@ -1474,8 +1475,16 @@ tcp_next_iss(void)
 u16_t
 tcp_eff_send_mss(u16_t sendmss, ip_addr_t *addr)
 {
-  u16_t mss_s;
+  u16_t mtu;
+
+#if LWIP_3RD_PARTY_L3
+  mtu = external_ip_route_mtu(addr);
+  if (mtu != 0) {
+    sendmss = LWIP_MIN(sendmss, mtu - IP_HLEN - TCP_HLEN);
+  }
+#else
   struct netif *outif;
+  u16_t mss_s;
 
   outif = ip_route(addr);
   if ((outif != NULL) && (outif->mtu != 0)) {
@@ -1486,6 +1495,7 @@ tcp_eff_send_mss(u16_t sendmss, ip_addr_t *addr)
      */
     sendmss = LWIP_MIN(sendmss, mss_s);
   }
+#endif
   return sendmss;
 }
 #endif /* TCP_CALCULATE_EFF_SEND_MSS */

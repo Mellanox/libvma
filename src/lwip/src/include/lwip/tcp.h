@@ -47,6 +47,17 @@
 extern "C" {
 #endif
 
+#if LWIP_3RD_PARTY_L3
+typedef err_t (*ip_output_fn)(struct pbuf *p, void* p_conn);
+          
+void register_ip_output(ip_output_fn fn);
+
+typedef u16_t (*ip_route_mtu_fn)(ip_addr_t *dest);
+void register_ip_route_mtu(ip_route_mtu_fn fn);
+
+#endif
+
+
 struct tcp_pcb;
 
 /** Function prototype for tcp accept callback functions. Called when a new
@@ -201,6 +212,7 @@ struct tcp_pcb {
   s16_t rtime;
   
   u16_t mss;   /* maximum segment size */
+  u16_t advtsd_mss; /* advertised maximum segment size */
   
   /* RTT (round trip time) estimation variables */
   u32_t rttest; /* RTT estimate in 500ms ticks */
