@@ -535,14 +535,10 @@ pbuf_header(struct pbuf *p, s16_t header_size_increment)
   /* pbuf types refering to external payloads? */
   } else if (type == PBUF_REF || type == PBUF_ROM) {
     /* hide a header in the payload? */
-    if ((header_size_increment < 0) && (increment_magnitude <= p->len)) {
-      /* increase payload pointer */
-      p->payload = (u8_t *)p->payload - header_size_increment;
-    } else {
-      /* cannot expand payload to front (yet!)
-       * bail out unsuccesfully */
+    if ((header_size_increment < 0) && (increment_magnitude > p->len))
       return 1;
-    }
+    /* AlexV: we need to check that the header EXPANTION is legal for PBUF_REF & PBUF_ROM pbufs! */
+    p->payload = (u8_t *)p->payload - header_size_increment;
   } else {
     /* Unknown type */
     LWIP_ASSERT("bad pbuf type", 0);
