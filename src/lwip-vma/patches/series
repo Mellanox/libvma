@@ -1,4 +1,3 @@
-004-pbufs_pool_huge_tlb_and_mem_reg_support.patch
 005-pbuf_ref_and_rom_header_expantion_support.patch
 010-enable_try_bigger_pool_logic.patch
 011-pcb_struct_modifications_for_throghput_optimization.patch

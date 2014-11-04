@@ -58,8 +58,10 @@
 #include "lwip/snmp_msg.h"
 #include "lwip/dns.h"
 #include "netif/ppp_oe.h"
+#include <sys/shm.h>
 
 #include <string.h>
+#include <errno.h>
 
 #if !MEMP_MEM_MALLOC /* don't build if not configured for use in lwipopts.h */
 
@@ -167,10 +169,13 @@ static u8_t *const memp_bases[] = {
 #else /* MEMP_SEPARATE_POOLS */
 
 /** This is the actual memory used by the pools (all pools in one big block). */
-static u8_t memp_memory[MEM_ALIGNMENT - 1 
+int memp_size = MEM_ALIGNMENT - 1
 #define LWIP_MEMPOOL(name,num,size,desc) + ( (num) * (MEMP_SIZE + MEMP_ALIGN_SIZE(size) ) )
 #include "lwip/memp_std.h"
-];
+;
+
+static u8_t *memp_memory;
+int memp_shmid;
 
 #endif /* MEMP_SEPARATE_POOLS */
 
@@ -328,6 +333,44 @@ memp_overflow_init(void)
 }
 #endif /* MEMP_OVERFLOW_CHECK */
 
+
+int
+static memp_hugetlb_alloc(void)
+{
+	size_t hugepagemask = 4 * 1024 * 1024 - 1;
+	memp_size = (memp_size + hugepagemask) & (~hugepagemask);
+
+	memp_shmid = shmget(IPC_PRIVATE, memp_size, SHM_HUGETLB | IPC_CREAT | SHM_R | SHM_W);
+	if (memp_shmid < 0) {
+		LWIP_DEBUGF(PBUF_DEBUG | LWIP_DBG_LEVEL_SERIOUS, ("memp_malloc: huge table allocation failed"));
+		return -1;
+	}
+	memp_memory = shmat(memp_shmid, NULL, 0);
+	if (memp_memory == (void*)-1) {
+		LWIP_DEBUGF(PBUF_DEBUG | LWIP_DBG_LEVEL_SERIOUS, ("memp_malloc: shared memory attach failure"));
+		return -1;
+	}
+	if (shmctl(memp_shmid, IPC_RMID, NULL)) {
+		LWIP_DEBUGF(PBUF_DEBUG | LWIP_DBG_LEVEL_SERIOUS,("memp_malloc: shared memory control mark 'to be destroyed' failed"));
+	}
+	return 0;
+}
+
+void
+memp_cleanup(void)
+{
+	if (memp_shmid >= 0) {
+		if (shmdt(memp_memory) != 0)
+			LWIP_DEBUGF(PBUF_DEBUG | LWIP_DBG_LEVEL_SERIOUS, ("memp_cleanup: shmem detach failure"));
+	}
+	 else {
+		 if (memp_memory) {
+			 free(memp_memory);
+			 memp_memory = NULL;
+		 }
+	 }
+}
+
 /**
  * Initialize this module.
  * 
@@ -338,6 +381,11 @@ memp_init(void)
 {
   struct memp *memp;
   u32_t i, j;
+
+  if (memp_hugetlb_alloc())
+	  memp_memory = malloc(memp_size);
+
+  LWIP_ERROR("Memory allocation failed failed", memp_memory != NULL, return);
 
   for (i = 0; i < MEMP_MAX; ++i) {
     MEMP_STATS_AVAIL(used, i, 0);
@@ -475,6 +523,18 @@ if (type == MEMP_TCP_PCB)
 #endif /* MEMP_SANITY_CHECK */
 
   SYS_ARCH_UNPROTECT(old_level);
+}
+
+size_t
+memp_get_pool_size(void)
+{
+	return memp_size;
+}
+
+u8_t *
+memp_get_pool_start(void)
+{
+	return memp_memory;
 }
 
 #endif /* MEMP_MEM_MALLOC */
