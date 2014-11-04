@@ -1004,10 +1004,6 @@ tcp_receive(struct tcp_pcb *pcb)
         tcp_seg_free(next);
 
         LWIP_DEBUGF(TCP_QLEN_DEBUG, ("%"U16_F" (after freeing unacked)\n", (u16_t)pcb->snd_queuelen));
-        if (pcb->snd_queuelen != 0) {
-          LWIP_ASSERT("tcp_receive: valid queue length", pcb->unacked != NULL ||
-                      pcb->unsent != NULL);
-        }
       }
 
       /* If there's nothing left to acknowledge, stop the retransmit

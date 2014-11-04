@@ -339,6 +339,7 @@ extern struct tcp_pcb *tcp_tmp_pcb;      /* Only used for temporary storage. */
 #if TCP_DEBUG_PCB_LISTS
 #define TCP_REG(pcbs, npcb) do {\
                             LWIP_DEBUGF(TCP_DEBUG, ("TCP_REG %p local port %d\n", (npcb), (npcb)->local_port)); \
+                            LWIP_PLATFORM_DIAG(("%s:%d TCP_REG %p local port %d\n", __FUNCTION__, __LINE__, (npcb), (npcb)->local_port)); \
                             for(tcp_tmp_pcb = *(pcbs); \
           tcp_tmp_pcb != NULL; \
         tcp_tmp_pcb = tcp_tmp_pcb->next) { \
@@ -352,8 +353,8 @@ extern struct tcp_pcb *tcp_tmp_pcb;      /* Only used for temporary storage. */
               tcp_timer_needed(); \
                             } while(0)
 #define TCP_RMV(pcbs, npcb) do { \
-                            LWIP_ASSERT("TCP_RMV: pcbs != NULL", *(pcbs) != NULL); \
                             LWIP_DEBUGF(TCP_DEBUG, ("TCP_RMV: removing %p from %p\n", (npcb), *(pcbs))); \
+                            LWIP_PLATFORM_DIAG(("%s:%d TCP_RMV: removing %p from %p\n", __FUNCTION__, __LINE__, (npcb), *(pcbs))); \
                             if(*(pcbs) == (npcb)) { \
                                *(pcbs) = (*pcbs)->next; \
                             } else for(tcp_tmp_pcb = *(pcbs); tcp_tmp_pcb != NULL; tcp_tmp_pcb = tcp_tmp_pcb->next) { \
