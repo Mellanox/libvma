@@ -1225,6 +1225,8 @@ tcp_alloc(u8_t prio)
     pcb->lastack = iss;
     pcb->snd_lbb = iss;   
     pcb->tmr = tcp_ticks;
+    pcb->snd_sml_snt = 0;
+    pcb->snd_sml_add = 0;
 
     pcb->polltmr = 0;
 

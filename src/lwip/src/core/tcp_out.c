@@ -382,6 +382,10 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
 #endif /* TCP_CHECKSUM_ON_COPY */
   err_t err;
 
+  int byte_queued = pcb->snd_nxt - pcb->lastack;
+  if ( len < pcb->mss)
+          pcb->snd_sml_add = (pcb->unacked ? pcb->unacked->len : 0) + byte_queued;
+
 #if LWIP_NETIF_TX_SINGLE_PBUF
   /* Always copy to try to create single pbufs for TX */
   apiflags |= TCP_WRITE_FLAG_COPY;
@@ -984,8 +988,16 @@ tcp_output(struct tcp_pcb *pcb)
      */
     if((tcp_do_output_nagle(pcb) == 0) &&
       ((pcb->flags & (TF_NAGLEMEMERR | TF_FIN)) == 0)){
-      break;
+            if ( pcb->snd_sml_snt > (pcb->unacked ? pcb->unacked->len : 0) ) {
+                    break;
+            }
+            else {
+                    if ( (seg->next ? seg->next->len : 0) + seg->len <= pcb->snd_sml_add ) {
+                            pcb->snd_sml_snt = pcb->snd_sml_add;
+                    }
+            }
     }
+
 #if TCP_CWND_DEBUG
     LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_output: snd_wnd %"U16_F", cwnd %"U16_F", wnd %"U32_F", effwnd %"U32_F", seq %"U32_F", ack %"U32_F", i %"S16_F"\n",
                             pcb->snd_wnd, pcb->cwnd, wnd,

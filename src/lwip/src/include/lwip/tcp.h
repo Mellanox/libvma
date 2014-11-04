@@ -242,6 +242,9 @@ struct tcp_pcb {
   u32_t snd_buf;   /* Available buffer space for sending (in bytes). */
   u32_t max_snd_buff;
 
+  u32_t snd_sml_snt; /* maintain state for minshall's algorithm */
+  u32_t snd_sml_add; /* maintain state for minshall's algorithm */
+
 #define TCP_SNDQUEUELEN_OVERFLOW (0xffff-3)
   u16_t snd_queuelen; /* Available buffer space for sending (in tcp_segs). */
 

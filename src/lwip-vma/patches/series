@@ -1,4 +1,3 @@
-020-support-minshall.patch
 021-enabling_SO_REUSEADDR_option.patch
 022-fix_connect_with_SO_REUSEADDR_option.patch
 023-always_enable_last_packet_push_bit.patch
