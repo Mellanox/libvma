@@ -1,4 +1,3 @@
-038-pbuf_realloc_fix.patch
 039-gro_delay_ack.patch
 040-tcp_input_tls_to_local.patch
 041-tcp_congestion_control_algo.patch

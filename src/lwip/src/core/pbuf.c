@@ -435,7 +435,7 @@ pbuf_realloc(struct pbuf *p, u16_t new_len)
     rem_len -= q->len;
     /* decrease total length indicator */
     LWIP_ASSERT("grow < max_u16_t", grow < 0xffff);
-    q->tot_len += (u16_t)grow;
+    q->tot_len += grow;
     /* proceed to next pbuf in chain */
     q = q->next;
     LWIP_ASSERT("pbuf_realloc: q != NULL", q != NULL);
