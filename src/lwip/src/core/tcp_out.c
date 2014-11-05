@@ -1271,6 +1271,9 @@ tcp_rst(u32_t seqno, u32_t ackno,
 {
   struct pbuf *p;
   struct tcp_hdr *tcphdr;
+#if LWIP_3RD_PARTY_BUFS
+  if (!pcb) return;
+#endif
   p = tcp_tx_pbuf_alloc(pcb, PBUF_IP, TCP_HLEN, PBUF_RAM);
   if (p == NULL) {
       LWIP_DEBUGF(TCP_DEBUG, ("tcp_rst: could not allocate memory for pbuf\n"));
