@@ -853,7 +853,7 @@ tcp_process(struct tcp_pcb *pcb)
      pcb->snd_nxt, ntohl(pcb->unacked->tcphdr->seqno)));
     /* received SYN ACK with expected sequence number? */
     if ((flags & TCP_ACK) && (flags & TCP_SYN)
-        && ackno == ntohl(pcb->unacked->tcphdr->seqno) + 1) {
+        && ackno == pcb->unacked->seqno + 1) {
       pcb->snd_buf++;
       pcb->rcv_nxt = seqno + 1;
       pcb->rcv_ann_right_edge = pcb->rcv_nxt;
@@ -879,9 +879,9 @@ tcp_process(struct tcp_pcb *pcb)
 
       /* If there's nothing left to acknowledge, stop the retransmit
          timer, otherwise reset it to start again */
-      if(pcb->unacked == NULL)
+      if(pcb->unacked == NULL) {
         pcb->rtime = -1;
-      else {
+      } else {
         pcb->rtime = 0;
         pcb->nrtx = 0;
       }
@@ -1204,8 +1204,7 @@ tcp_receive(struct tcp_pcb *pcb)
       /* Remove segment from the unacknowledged list if the incoming
          ACK acknowlegdes them. */
       while (pcb->unacked != NULL &&
-             TCP_SEQ_LEQ(ntohl(pcb->unacked->tcphdr->seqno) +
-                         TCP_TCPLEN(pcb->unacked), ackno)) {
+             TCP_SEQ_LEQ(pcb->unacked->seqno + TCP_TCPLEN(pcb->unacked), ackno)) {
         LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_receive: removing %"U32_F":%"U32_F" from pcb->unacked\n",
                                       ntohl(pcb->unacked->tcphdr->seqno),
                                       ntohl(pcb->unacked->tcphdr->seqno) +
@@ -1229,10 +1228,11 @@ tcp_receive(struct tcp_pcb *pcb)
 
       /* If there's nothing left to acknowledge, stop the retransmit
          timer, otherwise reset it to start again */
-      if(pcb->unacked == NULL)
+      if(pcb->unacked == NULL) {
         pcb->rtime = -1;
-      else
+      } else {
         pcb->rtime = 0;
+      }
 
       pcb->polltmr = 0;
     } else {

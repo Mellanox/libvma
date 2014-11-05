@@ -194,6 +194,7 @@ tcp_create_segment(struct tcp_pcb *pcb, struct pbuf *p, u8_t flags, u32_t seqno,
   LWIP_ASSERT("invalid optflags passed: TF_SEG_DATA_CHECKSUMMED",
               (optflags & TF_SEG_DATA_CHECKSUMMED) == 0);
 #endif /* TCP_CHECKSUM_ON_COPY */
+  seg->seqno = seqno;
 
   /* build TCP header */
   if (pbuf_header(p, TCP_HLEN)) {
@@ -943,14 +944,8 @@ tcp_output(struct tcp_pcb *pcb)
    */
   if (pcb->flags & TF_ACK_NOW &&
      (seg == NULL ||
-      ntohl(seg->tcphdr->seqno) - pcb->lastack + seg->len > wnd)) {
+      seg->seqno - pcb->lastack + seg->len > wnd)) {
      return tcp_send_empty_ack(pcb);
-  }
-
-  /* useg should point to last segment on unacked queue */
-  useg = pcb->unacked;
-  if (useg != NULL) {
-    for (; useg->next != NULL; useg = useg->next);
   }
 
 #if TCP_OUTPUT_DEBUG
@@ -976,7 +971,7 @@ tcp_output(struct tcp_pcb *pcb)
 #endif /* TCP_CWND_DEBUG */
   /* data available and window allows it to be sent? */
   while (seg != NULL &&
-         ntohl(seg->tcphdr->seqno) - pcb->lastack + seg->len <= wnd) {
+         seg->seqno - pcb->lastack + seg->len <= wnd) {
     LWIP_ASSERT("RST not expected here!", 
                 (TCPH_FLAGS(seg->tcphdr) & TCP_RST) == 0);
     /* Stop sending if the nagle algorithm would prevent it
@@ -1015,7 +1010,7 @@ tcp_output(struct tcp_pcb *pcb)
     }
 
     tcp_output_segment(seg, pcb);
-    snd_nxt = ntohl(seg->tcphdr->seqno) + TCP_TCPLEN(seg);
+    snd_nxt = seg->seqno + TCP_TCPLEN(seg);
     if (TCP_SEQ_LT(pcb->snd_nxt, snd_nxt)) {
       pcb->snd_nxt = snd_nxt;
     }
@@ -1025,25 +1020,28 @@ tcp_output(struct tcp_pcb *pcb)
       /* unacked list is empty? */
       if (pcb->unacked == NULL) {
         pcb->unacked = seg;
-        useg = seg;
+        pcb->last_unacked = seg;
       /* unacked list is not empty? */
       } else {
         /* In the case of fast retransmit, the packet should not go to the tail
          * of the unacked queue, but rather somewhere before it. We need to check for
          * this case. -STJ Jul 27, 2004 */
-        if (TCP_SEQ_LT(ntohl(seg->tcphdr->seqno), ntohl(useg->tcphdr->seqno))) {
+        useg =  pcb->last_unacked;
+        if (TCP_SEQ_LT(seg->seqno, useg->seqno)) {
           /* add segment to before tail of unacked list, keeping the list sorted */
           struct tcp_seg **cur_seg = &(pcb->unacked);
           while (*cur_seg &&
-            TCP_SEQ_LT(ntohl((*cur_seg)->tcphdr->seqno), ntohl(seg->tcphdr->seqno))) {
+            TCP_SEQ_LT((*cur_seg)->seqno, seg->seqno)) {
               cur_seg = &((*cur_seg)->next );
           }
+          LWIP_ASSERT("Value of last_unacked is invalid",
+                      *cur_seg != pcb->last_unacked->next);
           seg->next = (*cur_seg);
           (*cur_seg) = seg;
         } else {
           /* add segment to tail of unacked list */
           useg->next = seg;
-          useg = useg->next;
+          pcb->last_unacked = seg;
         }
       }
     /* do not queue empty segments on the unacked list */
@@ -1060,7 +1058,7 @@ tcp_output(struct tcp_pcb *pcb)
 #endif /* TCP_OVERSIZE */
 
   if (seg != NULL && pcb->persist_backoff == 0 && 
-      ntohl(seg->tcphdr->seqno) - pcb->lastack + seg->len > pcb->snd_wnd) {
+      seg->seqno - pcb->lastack + seg->len > pcb->snd_wnd) {
     /* prepare for persist timer */
     pcb->persist_cnt = 0;
     pcb->persist_backoff = 1;
@@ -1129,7 +1127,7 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
 
   if (pcb->rttest == 0) {
     pcb->rttest = tcp_ticks;
-    pcb->rtseq = ntohl(seg->tcphdr->seqno);
+    pcb->rtseq = seg->seqno;
 
     LWIP_DEBUGF(TCP_RTO_DEBUG, ("tcp_output_segment: rtseq %"U32_F"\n", pcb->rtseq));
   }
@@ -1317,7 +1315,7 @@ tcp_rexmit(struct tcp_pcb *pcb)
 
   cur_seg = &(pcb->unsent);
   while (*cur_seg &&
-    TCP_SEQ_LT(ntohl((*cur_seg)->tcphdr->seqno), ntohl(seg->tcphdr->seqno))) {
+    TCP_SEQ_LT((*cur_seg)->seqno, seg->seqno)) {
       cur_seg = &((*cur_seg)->next );
   }
   seg->next = *cur_seg;
@@ -1349,7 +1347,7 @@ tcp_rexmit_fast(struct tcp_pcb *pcb)
                 ("tcp_receive: dupacks %"U16_F" (%"U32_F
                  "), fast retransmit %"U32_F"\n",
                  (u16_t)pcb->dupacks, pcb->lastack,
-                 ntohl(pcb->unacked->tcphdr->seqno)));
+                 pcb->unacked->seqno));
     tcp_rexmit(pcb);
 
     /* Set ssthresh to half of the minimum of the current

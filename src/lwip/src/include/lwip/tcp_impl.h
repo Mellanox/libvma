@@ -296,6 +296,7 @@ struct tcp_seg {
   struct tcp_seg *next;    /* used when putting segements on a queue */
   struct pbuf *p;          /* buffer containing data + TCP header */
   void *dataptr;           /* pointer to the TCP data in the pbuf */
+  u32_t seqno;
   u16_t len;               /* the TCP length of this segment */
 #if TCP_OVERSIZE_DBGCHECK
   u16_t oversize_left;     /* Extra bytes available at the end of the last
