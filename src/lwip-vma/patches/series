@@ -1,4 +1,3 @@
-033-disable_pool_not_in_use.patch
 034-runtime_configurable_mss_and_tx_bufs.patch
 035-my_container_as_arg_for_err_lwip_cb.patch
 036-increase_tcp_snd_buf_for_better_throughput.patch

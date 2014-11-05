@@ -200,7 +200,7 @@
 #ifdef _LWIP_MIN_MEM_MODE
 #define PBUF_POOL_SIZE                  32
 #else
-#define PBUF_POOL_SIZE                 	131072 //256000 
+#define PBUF_POOL_SIZE                 	0 //256000
 #endif
 
 /**
