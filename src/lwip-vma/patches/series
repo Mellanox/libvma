@@ -1,4 +1,3 @@
-027-fix_tcp_timer_that_caused_to_hang_in_retransmit.patch
 028-report_connect_timeout.patch
 029-update_tcp_ticks.patch
 030-update_rexmit_handling.patch

@@ -97,8 +97,6 @@ struct tcp_pcb **tcp_pcb_lists[] = {&tcp_listen_pcbs.pcbs, &tcp_bound_pcbs,
 /** Only used for temporary storage. */
 struct tcp_pcb *tcp_tmp_pcb;
 
-/** Timer counter to handle calling slow-timer from tcp_tmr() */ 
-static u8_t tcp_timer;
 static u16_t tcp_new_port(void);
 
 /**
@@ -111,7 +109,7 @@ tcp_tmr(struct tcp_pcb* pcb)
   /* Call tcp_fasttmr() every 250 ms */
   tcp_fasttmr(pcb);
 
-  if (++tcp_timer & 1) {
+  if (++(pcb->tcp_timer) & 1) {
     /* Call tcp_tmr() every 500 ms, i.e., every other timer
        tcp_tmr() is called. */
     tcp_slowtmr(pcb);
@@ -1057,7 +1055,7 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio)
 	pcb->snd_sml_add = 0;
 
 	pcb->polltmr = 0;
-
+	pcb->tcp_timer = 0;
 #if LWIP_CALLBACK_API
 	pcb->recv = tcp_recv_null;
 #endif /* LWIP_CALLBACK_API */

@@ -234,6 +234,7 @@ struct tcp_pcb {
   u32_t rcv_ann_right_edge; /* announced right edge of window */
 
   /* Timers */
+  u8_t tcp_timer; /* Timer counter to handle calling slow-timer from tcp_tmr() */
   u32_t tmr;
   u8_t polltmr, pollinterval;
   
