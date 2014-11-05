@@ -903,6 +903,12 @@
 #define TCP_RCVSCALE 1
 #endif
 
+#ifdef TCP_RCVSCALE
+#define TCP_WND_SCALED 			(TCP_WND << rcv_wnd_scale)
+#else
+#define TCP_WND_SCALED 			TCP_WND
+#endif
+
 /**
  * TCP_MAXRTX: Maximum number of retransmissions of data segments.
  */
@@ -1030,7 +1036,7 @@
  * explicit window update
  */
 #ifndef TCP_WND_UPDATE_THRESHOLD
-#define TCP_WND_UPDATE_THRESHOLD   (TCP_WND / 4)
+#define TCP_WND_UPDATE_THRESHOLD   (TCP_WND_SCALED / 4)
 #endif
 
 /**

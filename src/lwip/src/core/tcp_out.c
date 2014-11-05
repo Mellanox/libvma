@@ -1282,7 +1282,7 @@ tcp_rst(u32_t seqno, u32_t ackno,
   tcphdr->ackno = htonl(ackno);
   TCPH_HDRLEN_FLAGS_SET(tcphdr, TCP_HLEN/4, TCP_RST | TCP_ACK);
 #if TCP_RCVSCALE
-  tcphdr->wnd = PP_HTONS( ( ( TCP_WND >> rcv_wnd_scale ) & 0xFFFF ) );
+  tcphdr->wnd = PP_HTONS(( TCP_WND  & 0xFFFF ));
 #else
   tcphdr->wnd = PP_HTONS(TCP_WND);
 #endif

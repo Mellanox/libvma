@@ -405,8 +405,7 @@
  * TCP_WND: The size of a TCP window.  This must be at least
  * (2 * TCP_MSS) for things to work well
  */
-//todo
-#define TCP_WND                         0xFFFF00
+#define TCP_WND                         0xFFFF
 
 /**
  * TCP_MSS: TCP Maximum segment size. (default is 536, a conservative default,

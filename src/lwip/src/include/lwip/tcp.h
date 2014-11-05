@@ -207,8 +207,8 @@ enum tcp_state {
   u16_t local_port
 
 #if TCP_RCVSCALE
-#define RCV_WND_SCALE(pcb, wnd) (htons((wnd) >> (pcb)->rcv_scale))
-#define SND_WND_SCALE(pcb, wnd) ((wnd) << (pcb)->snd_scale)
+#define RCV_WND_SCALE(pcb, wnd) (htons((u16_t)((wnd) >> (pcb)->rcv_scale)))
+#define SND_WND_SCALE(pcb, wnd) ((u32_t)(wnd) << (pcb)->snd_scale)
 #else
 #define RCV_WND_SCALE(pcb, wnd) (wnd)
 #define SND_WND_SCALE(pcb, wnd) (wnd)

@@ -143,7 +143,7 @@ tcp_close_shutdown(struct tcp_pcb *pcb, u8_t rst_on_unacked_data)
   err_t err;
 
   if (rst_on_unacked_data && (pcb->state != LISTEN)) {
-    if ((pcb->refused_data != NULL) || (pcb->rcv_wnd != TCP_WND)) {
+    if ((pcb->refused_data != NULL) || (pcb->rcv_wnd != TCP_WND_SCALED)) {
       /* Not all data received by application, send RST to tell the remote
          side about this. */
       LWIP_ASSERT("pcb->flags & TF_RXCLOSED", pcb->flags & TF_RXCLOSED);
@@ -467,7 +467,7 @@ u32_t tcp_update_rcv_ann_wnd(struct tcp_pcb *pcb)
 {
   u32_t new_right_edge = pcb->rcv_nxt + pcb->rcv_wnd;
 
-  if (TCP_SEQ_GEQ(new_right_edge, pcb->rcv_ann_right_edge + LWIP_MIN((TCP_WND / 2), pcb->mss))) {
+  if (TCP_SEQ_GEQ(new_right_edge, pcb->rcv_ann_right_edge + LWIP_MIN((TCP_WND_SCALED / 2), pcb->mss))) {
     /* we can advertise more window */
     pcb->rcv_ann_wnd = pcb->rcv_wnd;
     return new_right_edge - pcb->rcv_ann_right_edge;
@@ -512,8 +512,8 @@ tcp_recved(struct tcp_pcb *pcb, u32_t len)
 #endif
 
   pcb->rcv_wnd += len;
-  if (pcb->rcv_wnd > TCP_WND) {
-    pcb->rcv_wnd = TCP_WND;
+  if (pcb->rcv_wnd > TCP_WND_SCALED) {
+    pcb->rcv_wnd = TCP_WND_SCALED;
   }
 
   wnd_inflation = tcp_update_rcv_ann_wnd(pcb);
@@ -528,7 +528,7 @@ tcp_recved(struct tcp_pcb *pcb, u32_t len)
   }
 
   LWIP_DEBUGF(TCP_DEBUG, ("tcp_recved: recveived %"U16_F" bytes, wnd %"U16_F" (%"U16_F").\n",
-         len, pcb->rcv_wnd, TCP_WND - pcb->rcv_wnd));
+         len, pcb->rcv_wnd, TCP_WND_SCALED - pcb->rcv_wnd));
 }
 
 /**
@@ -618,8 +618,8 @@ tcp_connect(struct tcp_pcb *pcb, ip_addr_t *ipaddr, u16_t port,
   pcb->snd_nxt = iss;
   pcb->lastack = iss - 1;
   pcb->snd_lbb = iss - 1;
-  pcb->rcv_wnd = TCP_WND;
-  pcb->rcv_ann_wnd = TCP_WND;
+  pcb->rcv_wnd = TCP_WND_SCALED;
+  pcb->rcv_ann_wnd = TCP_WND_SCALED;
   pcb->rcv_ann_right_edge = pcb->rcv_nxt;
   pcb->snd_wnd = TCP_WND;
   /* As initial send MSS, we use TCP_MSS but limit it to 536.
@@ -1065,8 +1065,8 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio)
 	pcb->prio = prio;
 	pcb->snd_buf = pcb->max_snd_buff;
 	pcb->snd_queuelen = 0;
-	pcb->rcv_wnd = TCP_WND;
-	pcb->rcv_ann_wnd = TCP_WND;
+	pcb->rcv_wnd = TCP_WND_SCALED;
+	pcb->rcv_ann_wnd = TCP_WND_SCALED;
 #if TCP_RCVSCALE
 	pcb->snd_scale = 0;
   	pcb->rcv_scale = 0;
