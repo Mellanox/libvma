@@ -69,6 +69,8 @@ const char * const tcp_state_str[] = {
   "TIME_WAIT"   
 };
 
+enum cc_algo_mod lwip_cc_algo_module = CC_MOD_LWIP;
+
 u16_t lwip_tcp_mss = CONST_TCP_MSS;
 
 int32_t enable_wnd_scale = 0;
@@ -659,11 +661,13 @@ tcp_connect(struct tcp_pcb *pcb, ip_addr_t *ipaddr, u16_t port,
 void
 tcp_slowtmr(struct tcp_pcb* pcb)
 {
+#if !TCP_CC_ALGO_MOD
 #if TCP_RCVSCALE
   u32_t eff_wnd;
 #else
   u16_t eff_wnd;
 #endif
+#endif //!TCP_CC_ALGO_MOD
   u8_t pcb_remove;      /* flag if a PCB should be removed */
   u8_t pcb_reset;       /* flag if a RST should be sent when removing */
   err_t err;
@@ -724,6 +728,9 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 		  /* Reset the retransmission timer. */
 		  pcb->rtime = 0;
 
+#if TCP_CC_ALGO_MOD
+		  cc_cong_signal(pcb, CC_RTO);
+#else
 		  /* Reduce congestion window and ssthresh. */
 		  eff_wnd = LWIP_MIN(pcb->cwnd, pcb->snd_wnd);
 		  pcb->ssthresh = eff_wnd >> 1;
@@ -731,6 +738,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 			pcb->ssthresh = (pcb->mss << 1);
 		  }
 		  pcb->cwnd = pcb->mss;
+#endif
 		  LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_slowtmr: cwnd %"U16_F
 									   " ssthresh %"U16_F"\n",
 									   pcb->cwnd, pcb->ssthresh));
@@ -1080,6 +1088,18 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio)
 	pcb->sa = 0;
 	pcb->sv = 3000 / TCP_SLOW_INTERVAL;
 	pcb->rtime = -1;
+#if TCP_CC_ALGO_MOD
+	switch (lwip_cc_algo_module) {
+	case CC_MOD_CUBIC:
+		pcb->cc_algo = &cubic_cc_algo;
+		break;
+	case CC_MOD_LWIP:
+	default:
+		pcb->cc_algo = &lwip_cc_algo;
+		break;
+	}
+	cc_init(pcb);
+#endif
 	pcb->cwnd = 1;
 	iss = tcp_next_iss();
 	pcb->snd_wl2 = iss;
@@ -1343,6 +1363,9 @@ tcp_pcb_purge(struct tcp_pcb *pcb)
 #if TCP_OVERSIZE
     pcb->unsent_oversize = 0;
 #endif /* TCP_OVERSIZE */
+#if TCP_CC_ALGO_MOD
+    cc_destroy(pcb);
+#endif
   }
 }
 

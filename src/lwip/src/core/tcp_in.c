@@ -918,8 +918,11 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
       /* Set ssthresh again after changing pcb->mss (already set in tcp_connect
        * but for the default value of pcb->mss) */
       pcb->ssthresh = pcb->mss * 10;
-
+#if TCP_CC_ALGO_MOD
+      cc_conn_init(pcb);
+#else
       pcb->cwnd = ((pcb->cwnd == 1) ? (pcb->mss * 2) : pcb->mss);
+#endif
       LWIP_ASSERT("pcb->snd_queuelen > 0", (pcb->snd_queuelen > 0));
       --pcb->snd_queuelen;
       LWIP_DEBUGF(TCP_QLEN_DEBUG, ("tcp_process: SYN-SENT --queuelen %"U16_F"\n", (u16_t)pcb->snd_queuelen));
@@ -986,9 +989,12 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
         if (pcb->acked != 0) {
           pcb->acked--;
         }
-
+#if TCP_CC_ALGO_MOD
+        pcb->cwnd = old_cwnd;
+        cc_conn_init(pcb);
+#else
         pcb->cwnd = ((old_cwnd == 1) ? (pcb->mss * 2) : pcb->mss);
-
+#endif
         if (in_data->recv_flags & TF_GOT_FIN) {
           tcp_ack_now(pcb);
           pcb->state = CLOSE_WAIT;
@@ -1191,6 +1197,9 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
               if (pcb->dupacks + 1 > pcb->dupacks)
                 ++pcb->dupacks;
               if (pcb->dupacks > 3) {
+#if TCP_CC_ALGO_MOD
+        	cc_ack_received(pcb, CC_DUPACK);
+#else
                 /* Inflate the congestion window, but not if it means that
                    the value overflows. */
 #if TCP_RCVSCALE
@@ -1202,9 +1211,14 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
                   pcb->cwnd += pcb->mss;
                 }
 #endif
+#endif //TCP_CC_ALGO_MOD
               } else if (pcb->dupacks == 3) {
                 /* Do fast retransmit */
                 tcp_rexmit_fast(pcb);
+#if TCP_CC_ALGO_MOD
+                cc_ack_received(pcb, 0);
+                //cc_ack_received(pcb, CC_DUPACK);
+#endif
               }
             }
           }
@@ -1222,8 +1236,12 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
          in fast retransmit. Also reset the congestion window to the
          slow start threshold. */
       if (pcb->flags & TF_INFR) {
-        pcb->flags &= ~TF_INFR;
+#if TCP_CC_ALGO_MOD
+	cc_post_recovery(pcb);
+#else
         pcb->cwnd = pcb->ssthresh;
+#endif
+        pcb->flags &= ~TF_INFR;
       }
 
       /* Reset the number of retransmissions. */
@@ -1248,6 +1266,9 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
       /* Update the congestion control variables (cwnd and
          ssthresh). */
       if (pcb->state >= ESTABLISHED) {
+#if TCP_CC_ALGO_MOD
+	 cc_ack_received(pcb, CC_ACK);
+#else
         if (pcb->cwnd < pcb->ssthresh) {
 #if TCP_RCVSCALE
           if ((u32_t)(pcb->cwnd + pcb->mss) > pcb->cwnd) {
@@ -1275,6 +1296,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
           LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_receive: congestion avoidance cwnd %"U16_F"\n", pcb->cwnd));
 #endif
         }
+#endif //TCP_CC_ALGO_MOD
       }
       LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_receive: ACK for %"U32_F", unacked->seqno %"U32_F":%"U32_F"\n",
                                     in_data->ackno,
@@ -1378,6 +1400,9 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
     if (pcb->rttest && TCP_SEQ_LT(pcb->rtseq, in_data->ackno)) {
       /* diff between this shouldn't exceed 32K since this are tcp timer ticks
          and a round-trip shouldn't be that long... */
+#if TCP_CC_ALGO_MOD
+      pcb->t_rttupdated++;
+#endif
       m = (s16_t)(tcp_ticks - pcb->rttest);
 
       LWIP_DEBUGF(TCP_RTO_DEBUG, ("tcp_receive: experienced rtt %"U16_F" ticks (%"U16_F" msec).\n",

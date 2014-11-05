@@ -896,6 +896,13 @@
 #define TCP_WND                         (4 * TCP_MSS)
 #endif 
 
+/*
+ * use custom congestion control algorithms
+ */
+#ifndef TCP_CC_ALGO_MOD
+#define TCP_CC_ALGO_MOD 1
+#endif
+
  /**
  * window scaling parameter
  */

@@ -62,6 +62,10 @@ void register_ip_route_mtu(ip_route_mtu_fn fn);
 
 struct tcp_pcb;
 
+#include "lwip/cc.h"
+
+extern enum cc_algo_mod lwip_cc_algo_module;
+
 /** Function prototype for tcp accept callback functions. Called when a new
  * connection can be accepted on a listening pcb.
  *
@@ -259,8 +263,11 @@ struct tcp_pcb {
   u16_t advtsd_mss; /* advertised maximum segment size */
   
   /* RTT (round trip time) estimation variables */
-  u32_t rttest; /* RTT estimate in 500ms ticks */
+  u32_t rttest; /* RTT estimate in 10ms ticks */
   u32_t rtseq;  /* sequence number being timed */
+#if TCP_CC_ALGO_MOD
+  u32_t t_rttupdated; /* number of RTT estimations taken so far */
+#endif
   s16_t sa, sv; /* @todo document this */
 
   s16_t rto;    /* retransmission time-out */
@@ -271,6 +278,10 @@ struct tcp_pcb {
   u8_t dupacks;
   
   /* congestion avoidance/control variables */
+#if TCP_CC_ALGO_MOD
+  struct cc_algo* cc_algo;
+  void* cc_data;
+#endif
 #if TCP_RCVSCALE
   u32_t cwnd;
   u32_t ssthresh;

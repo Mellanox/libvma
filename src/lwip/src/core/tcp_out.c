@@ -1399,7 +1399,9 @@ tcp_rexmit_fast(struct tcp_pcb *pcb)
                  (u16_t)pcb->dupacks, pcb->lastack,
                  pcb->unacked->seqno));
     tcp_rexmit(pcb);
-
+#if TCP_CC_ALGO_MOD
+    cc_cong_signal(pcb, CC_NDUPACK);
+#else
     /* Set ssthresh to half of the minimum of the current
      * cwnd and the advertised window */
     if (pcb->cwnd > pcb->snd_wnd) {
@@ -1418,6 +1420,7 @@ tcp_rexmit_fast(struct tcp_pcb *pcb)
     }
     
     pcb->cwnd = pcb->ssthresh + 3 * pcb->mss;
+#endif
     pcb->flags |= TF_INFR;
   } 
 }
