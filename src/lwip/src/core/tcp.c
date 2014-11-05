@@ -338,7 +338,7 @@ tcp_abandon(struct tcp_pcb *pcb, int reset)
 #if LWIP_CALLBACK_API
     errf = pcb->errf;
 #endif /* LWIP_CALLBACK_API */
-    errf_arg = pcb->callback_arg;
+    errf_arg = pcb->my_container;
     tcp_pcb_remove(pcb);
     if (pcb->unacked != NULL) {
       tcp_segs_free(pcb->unacked);
@@ -822,7 +822,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 	if (pcb_remove) {
 	  tcp_pcb_purge(pcb);
 
-	  TCP_EVENT_ERR(pcb->errf, pcb->callback_arg, err);
+	  TCP_EVENT_ERR(pcb->errf, pcb->my_container, err);
 
 	  if (pcb_reset) {
 		tcp_rst(pcb->snd_nxt, pcb->rcv_nxt, &pcb->local_ip, &pcb->remote_ip,
