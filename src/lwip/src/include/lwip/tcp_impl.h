@@ -312,12 +312,14 @@ struct tcp_seg {
 #define TF_SEG_OPTS_TS          (u8_t)0x02U /* Include timestamp option. */
 #define TF_SEG_DATA_CHECKSUMMED (u8_t)0x04U /* ALL data (not the header) is
                                                checksummed into 'chksum' */
+#define TF_SEG_OPTS_WNDSCALE	(u8_t)0x08U /* Include window scaling option */
   struct tcp_hdr *tcphdr;  /* the TCP header */
 };
 
-#define LWIP_TCP_OPT_LENGTH(flags)              \
-  (flags & TF_SEG_OPTS_MSS ? 4  : 0) +          \
-  (flags & TF_SEG_OPTS_TS  ? 12 : 0)
+#define LWIP_TCP_OPT_LENGTH(flags)                    \
+		  (flags & TF_SEG_OPTS_MSS ? 4  : 0) +        \
+		  (flags & TF_SEG_OPTS_WNDSCALE  ? 1+3 : 0) + \
+		  (flags & TF_SEG_OPTS_TS  ? 12 : 0)
 
 /** This returns a TCP header option for MSS in an u32_t */
 #define TCP_BUILD_MSS_OPTION(x, mss) (x) = PP_HTONL(((u32_t)2 << 24) |          \
@@ -325,8 +327,16 @@ struct tcp_seg {
                                                    (((u32_t)mss / 256) << 8) | \
                                                    (mss & 255))
 
+/** This returns a TCP header option for WINDOW SCALING in an u32_t - NOTE: the 1 at MSB serves as NOOP */
+#define TCP_BUILD_WNDSCALE_OPTION(x, scale) (x) = PP_HTONL( ( ((u32_t)1 << 24) | \
+                                                   ((u32_t)3 << 16) |           \
+                                                   ((u32_t)3 << 8) ) |           \
+                                                   ((u32_t)scale ))
+
 /* Global variables: */
 extern struct tcp_pcb *tcp_input_pcb;
+extern int32_t enable_wnd_scale;
+extern u32_t rcv_wnd_scale;
 extern u32_t tcp_ticks;
 extern ip_route_mtu_fn external_ip_route_mtu;
 

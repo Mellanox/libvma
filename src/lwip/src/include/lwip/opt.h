@@ -896,6 +896,13 @@
 #define TCP_WND                         (4 * TCP_MSS)
 #endif 
 
+ /**
+ * window scaling parameter
+ */
+#ifndef TCP_RCVSCALE
+#define TCP_RCVSCALE 1
+#endif
+
 /**
  * TCP_MAXRTX: Maximum number of retransmissions of data segments.
  */

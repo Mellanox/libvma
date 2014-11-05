@@ -84,7 +84,7 @@ struct pbuf {
    * For non-queue packet chains this is the invariant:
    * p->tot_len == p->len + (p->next? p->next->tot_len: 0)
    */
-  u16_t tot_len;
+  u32_t tot_len; // windows scale needs large pbuf
 
   /** length of this buffer */
   u16_t len;
@@ -146,6 +146,7 @@ u8_t pbuf_get_at(struct pbuf* p, u16_t offset);
 u16_t pbuf_memcmp(struct pbuf* p, u16_t offset, const void* s2, u16_t n);
 u16_t pbuf_memfind(struct pbuf* p, const void* mem, u16_t mem_len, u16_t start_offset);
 u16_t pbuf_strstr(struct pbuf* p, const char* substr);
+void pbuf_split_64k(struct pbuf *p, struct pbuf **rest); // windows scale needs large pbuf
 
 #ifdef __cplusplus
 }

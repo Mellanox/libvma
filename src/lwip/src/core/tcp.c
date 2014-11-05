@@ -69,8 +69,11 @@ const char * const tcp_state_str[] = {
   "TIME_WAIT"   
 };
 
+int32_t enable_wnd_scale = 0;
+u32_t rcv_wnd_scale = 0;
+
 /* Incremented every coarse grained timer shot (typically every 500 ms). */
-u32_t tcp_ticks;
+u32_t tcp_ticks = 0;
 const u8_t tcp_backoff[13] =
     { 1, 2, 3, 4, 5, 6, 7, 7, 7, 7, 7, 7, 7};
  /* Times per slowtmr hits */
@@ -474,8 +477,12 @@ u32_t tcp_update_rcv_ann_wnd(struct tcp_pcb *pcb)
     } else {
       /* keep the right edge of window constant */
       u32_t new_rcv_ann_wnd = pcb->rcv_ann_right_edge - pcb->rcv_nxt;
+#if TCP_RCVSCALE
+      LWIP_ASSERT("new_rcv_ann_wnd <= 0xffff00", new_rcv_ann_wnd <= 0xffff00);
+#else
       LWIP_ASSERT("new_rcv_ann_wnd <= 0xffff", new_rcv_ann_wnd <= 0xffff);
-      pcb->rcv_ann_wnd = (u16_t)new_rcv_ann_wnd;
+#endif
+      pcb->rcv_ann_wnd = new_rcv_ann_wnd;
     }
     return 0;
   }
@@ -490,12 +497,17 @@ u32_t tcp_update_rcv_ann_wnd(struct tcp_pcb *pcb)
  * @param len the amount of bytes that have been read by the application
  */
 void
-tcp_recved(struct tcp_pcb *pcb, u16_t len)
+tcp_recved(struct tcp_pcb *pcb, u32_t len)
 {
   int wnd_inflation;
 
+#if TCP_RCVSCALE
+  LWIP_ASSERT("tcp_recved: len would wrap rcv_wnd\n",
+              len <= 0xffffffffU - pcb->rcv_wnd );
+#else
   LWIP_ASSERT("tcp_recved: len would wrap rcv_wnd\n",
               len <= 0xffff - pcb->rcv_wnd );
+#endif
 
   pcb->rcv_wnd += len;
   if (pcb->rcv_wnd > TCP_WND) {
@@ -645,7 +657,11 @@ tcp_connect(struct tcp_pcb *pcb, ip_addr_t *ipaddr, u16_t port,
 void
 tcp_slowtmr(struct tcp_pcb* pcb)
 {
+#if TCP_RCVSCALE
+  u32_t eff_wnd;
+#else
   u16_t eff_wnd;
+#endif
   u8_t pcb_remove;      /* flag if a PCB should be removed */
   u8_t pcb_reset;       /* flag if a RST should be sent when removing */
   err_t err;
@@ -858,17 +874,25 @@ tcp_fasttmr(struct tcp_pcb* pcb)
 {
   if(pcb != NULL && PCB_IN_ACTIVE_STATE(pcb)) {
     /* If there is data which was previously "refused" by upper layer */
-    if (pcb->refused_data != NULL) {
-      /* Notify again application with data previously received. */
-      err_t err;
-      LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_fasttmr: notify kept packet\n"));
-      TCP_EVENT_RECV(pcb, pcb->refused_data, ERR_OK, err);
-      if (err == ERR_OK) {
-        pcb->refused_data = NULL;
-      } else if (err == ERR_ABRT) {
-        /* if err == ERR_ABRT, 'pcb' is already deallocated */
-        pcb = NULL;
-      }
+	  while (pcb->refused_data != NULL) { // 'while' instead of 'if' because windows scale uses large pbuf
+		  struct pbuf *rest;
+		  /* Notify again application with data previously received. */
+		  err_t err;
+		  pbuf_split_64k(pcb->refused_data, &rest);
+		  LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_fasttmr: notify kept packet\n"));
+		  TCP_EVENT_RECV(pcb, pcb->refused_data, ERR_OK, err);
+		  if (err == ERR_OK) {
+			  pcb->refused_data = rest;
+		  } else {
+			  if (rest) {
+				  pbuf_cat(pcb->refused_data, rest); /* undo splitting */
+			  }
+			  if (err == ERR_ABRT) {
+				  /* if err == ERR_ABRT, 'pcb' is already deallocated */
+				  pcb = NULL;
+			  }
+			  break;
+		  }
     }
 
     /* send delayed ACKs */
@@ -960,7 +984,7 @@ tcp_recv_null(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err)
 {
   LWIP_UNUSED_ARG(arg);
   if (p != NULL) {
-    tcp_recved(pcb, p->tot_len);
+    tcp_recved(pcb, (u32_t)p->tot_len);
     pbuf_free(p);
   } else if (err == ERR_OK) {
     return tcp_close(pcb);
@@ -1041,6 +1065,10 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio)
 	pcb->snd_queuelen = 0;
 	pcb->rcv_wnd = TCP_WND;
 	pcb->rcv_ann_wnd = TCP_WND;
+#if TCP_RCVSCALE
+	pcb->snd_scale = 0;
+  	pcb->rcv_scale = 0;
+#endif
 	pcb->tos = 0;
 	pcb->ttl = TCP_TTL;
 	/* As initial send MSS, we use TCP_MSS but limit it to 536.

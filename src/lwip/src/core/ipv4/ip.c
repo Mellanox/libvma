@@ -281,7 +281,7 @@ ip_input(struct pbuf *p, struct netif *inp)
     if (iphdr_len > p->tot_len) {
       LWIP_DEBUGF(IP_DEBUG | LWIP_DBG_LEVEL_SERIOUS,
         ("IP (len %"U16_F") is longer than pbuf (len %"U16_F"), IP packet dropped.\n",
-        iphdr_len, p->tot_len));
+        iphdr_len, (u16_t)p->tot_len));
     }
     /* free (drop) packet pbufs */
     pbuf_free(p);
@@ -437,7 +437,7 @@ ip_input(struct pbuf *p, struct netif *inp)
   if ((IPH_OFFSET(iphdr) & PP_HTONS(IP_OFFMASK | IP_MF)) != 0) {
 #if IP_REASSEMBLY /* packet fragment reassembly code present? */
     LWIP_DEBUGF(IP_DEBUG, ("IP packet is a fragment (id=0x%04"X16_F" tot_len=%"U16_F" len=%"U16_F" MF=%"U16_F" offset=%"U16_F"), calling ip_reass()\n",
-      ntohs(IPH_ID(iphdr)), p->tot_len, ntohs(IPH_LEN(iphdr)), !!(IPH_OFFSET(iphdr) & PP_HTONS(IP_MF)), (ntohs(IPH_OFFSET(iphdr)) & IP_OFFMASK)*8));
+      ntohs(IPH_ID(iphdr)), (u16_t)p->tot_len, ntohs(IPH_LEN(iphdr)), !!(IPH_OFFSET(iphdr) & PP_HTONS(IP_MF)), (ntohs(IPH_OFFSET(iphdr)) & IP_OFFMASK)*8));
     /* reassemble the packet*/
     p = ip_reass(p);
     /* packet not fully reassembled yet? */
@@ -478,7 +478,7 @@ ip_input(struct pbuf *p, struct netif *inp)
   /* send to upper layers */
   LWIP_DEBUGF(IP_DEBUG, ("ip_input: \n"));
   ip_debug_print(p);
-  LWIP_DEBUGF(IP_DEBUG, ("ip_input: p->len %"U16_F" p->tot_len %"U16_F"\n", p->len, p->tot_len));
+  LWIP_DEBUGF(IP_DEBUG, ("ip_input: p->len %"U16_F" p->tot_len %"U16_F"\n", p->len, (u16_t)p->tot_len));
 
   current_netif = inp;
   current_header = iphdr;
@@ -661,7 +661,7 @@ err_t ip_output_if_opt(struct pbuf *p, ip_addr_t *src, ip_addr_t *dest,
 #if CHECKSUM_GEN_IP_INLINE
     chk_sum += iphdr->_v_hl_tos;
 #endif /* CHECKSUM_GEN_IP_INLINE */
-    IPH_LEN_SET(iphdr, htons(p->tot_len));
+    IPH_LEN_SET(iphdr, htons((u16_t)p->tot_len));
 #if CHECKSUM_GEN_IP_INLINE
     chk_sum += iphdr->_len;
 #endif /* CHECKSUM_GEN_IP_INLINE */

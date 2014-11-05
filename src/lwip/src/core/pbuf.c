@@ -1150,3 +1150,44 @@ pbuf_strstr(struct pbuf* p, const char* substr)
   }
   return pbuf_memfind(p, substr, (u16_t)substr_len, 0);
 }
+
+// windows scale needs large pbuf
+/**
+ * This method modifies a 'pbuf chain', so that its total length is
+ * smaller than 64K. The remainder of the original pbuf chain is stored
+ * in *rest.
+ * This function never creates new pbufs, but splits an existing chain
+ * in two parts. The tot_len of the modified packet queue will likely be
+ * smaller than 64K.
+ * 'packet queues' are not supported by this function.
+ */
+void pbuf_split_64k(struct pbuf *p, struct pbuf **rest)
+{
+	if (p == NULL ||
+			p->tot_len < 0xffff) {
+		// pbuf is smaller than 64K
+		*rest = NULL;
+	} else {
+		u32_t tot_len_front = 0;
+		struct pbuf *i = NULL;
+
+		*rest = p;
+		while (*rest != NULL &&
+				tot_len_front + (*rest)->len <= 0xffff) {
+			tot_len_front += (*rest)->len;
+			i = *rest;
+			*rest = (*rest)->next;
+		}
+		/* i now points to last packet of the first segment. Set next
+		 * pointer to NULL */
+		i->next = NULL;
+
+		/* Update the tot_len field in the first part */
+		for (i = p; i && i->next != *rest; i = i->next) {
+			i->tot_len -= (*rest)->tot_len;
+		}
+
+		/* tot_len field in rest does not need modifications */
+		/* reference counters do not need modifications */
+	}
+}
