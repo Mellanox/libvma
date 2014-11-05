@@ -650,8 +650,6 @@ tcp_slowtmr(struct tcp_pcb* pcb)
   u8_t pcb_reset;       /* flag if a RST should be sent when removing */
   err_t err;
 
-  ++tcp_ticks;
-
   err = ERR_OK;
 
   if (pcb == NULL) {
