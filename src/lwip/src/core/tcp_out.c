@@ -704,7 +704,7 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
   }
 
   /* Set the PSH flag in the last segment that we enqueued. */
-  if (seg != NULL && seg->tcphdr != NULL && ((apiflags & TCP_WRITE_FLAG_MORE)==0)) {
+  if (seg != NULL && seg->tcphdr != NULL) {
     TCPH_SET_FLAG(seg->tcphdr, TCP_PSH);
   }
 
