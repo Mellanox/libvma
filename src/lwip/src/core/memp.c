@@ -174,6 +174,7 @@ int memp_size = MEM_ALIGNMENT - 1
 #include "lwip/memp_std.h"
 ;
 
+pthread_mutex_t memory_pool_lock = PTHREAD_MUTEX_INITIALIZER;
 static u8_t *memp_memory;
 int memp_shmid;
 
@@ -359,6 +360,7 @@ static memp_hugetlb_alloc(void)
 void
 memp_cleanup(void)
 {
+	pthread_mutex_lock(&memory_pool_lock);
 	if (memp_shmid >= 0) {
 		if (shmdt(memp_memory) != 0)
 			LWIP_DEBUGF(PBUF_DEBUG | LWIP_DBG_LEVEL_SERIOUS, ("memp_cleanup: shmem detach failure"));
@@ -369,6 +371,7 @@ memp_cleanup(void)
 			 memp_memory = NULL;
 		 }
 	 }
+	pthread_mutex_unlock(&memory_pool_lock);
 }
 
 /**
@@ -381,6 +384,8 @@ memp_init(void)
 {
   struct memp *memp;
   u32_t i, j;
+
+  pthread_mutex_lock(&memory_pool_lock);
 
   if (memp_hugetlb_alloc())
 	  memp_memory = malloc(memp_size);
@@ -419,6 +424,7 @@ memp_init(void)
   /* check everything a first time to see if it worked */
   memp_overflow_check_all();
 #endif /* MEMP_OVERFLOW_CHECK */
+  pthread_mutex_unlock(&memory_pool_lock);
 }
 
 /**
@@ -440,6 +446,9 @@ memp_malloc_fn(memp_t type, const char* file, const int line)
 #endif
 {
   struct memp *memp;
+
+  pthread_mutex_lock(&memory_pool_lock);
+
   SYS_ARCH_DECL_PROTECT(old_level);
  
   LWIP_ERROR("memp_malloc: type < MEMP_MAX", (type < MEMP_MAX), return NULL;);
@@ -474,6 +483,8 @@ if (type == MEMP_TCP_PCB)
 
   SYS_ARCH_UNPROTECT(old_level);
 
+  pthread_mutex_unlock(&memory_pool_lock);
+
   return memp;
 }
 
@@ -487,11 +498,14 @@ void
 memp_free(memp_t type, void *mem)
 {
   struct memp *memp;
+ 
   SYS_ARCH_DECL_PROTECT(old_level);
 
   if (mem == NULL) {
     return;
   }
+ pthread_mutex_lock(&memory_pool_lock);
+
   LWIP_ASSERT("memp_free: mem properly aligned",
                 ((mem_ptr_t)mem % MEM_ALIGNMENT) == 0);
 
@@ -522,6 +536,7 @@ if (type == MEMP_TCP_PCB)
 #endif /* MEMP_SANITY_CHECK */
 
   SYS_ARCH_UNPROTECT(old_level);
+ pthread_mutex_unlock(&memory_pool_lock);
 }
 
 size_t

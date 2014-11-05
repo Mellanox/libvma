@@ -79,8 +79,8 @@ tcpip_tcp_timer(void *arg)
   LWIP_UNUSED_ARG(arg);
 
   /* call TCP timer handler */
-  tcp_tmr();
   /* timer still needed? */
+
   if (tcp_active_pcbs || tcp_tw_pcbs) {
     /* restart timer */
     sys_timeout(TCP_TMR_INTERVAL, tcpip_tcp_timer, NULL);

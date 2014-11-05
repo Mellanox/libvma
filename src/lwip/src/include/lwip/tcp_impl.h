@@ -52,13 +52,13 @@ extern "C" {
 
 /* Lower layer interface to TCP: */
 #define tcp_init() /* Compatibility define, no init needed. */
-void             tcp_tmr     (void);  /* Must be called every
+void             tcp_tmr     (struct tcp_pcb* pcb);  /* Must be called every
                                          TCP_TMR_INTERVAL
                                          ms. (Typically 250 ms). */
 /* It is also possible to call these two functions at the right
    intervals (instead of calling tcp_tmr()). */
-void             tcp_slowtmr (void);
-void             tcp_fasttmr (void);
+void             tcp_slowtmr (struct tcp_pcb* pcb);
+void             tcp_fasttmr (struct tcp_pcb* pcb);
 
 
 /* Only used by IP to pass a TCP segment to TCP: */
@@ -213,11 +213,25 @@ PACK_STRUCT_END
 
 #else /* LWIP_EVENT_API */
 
-#define TCP_EVENT_ACCEPT(pcb,err,ret)                          \
-  do {                                                         \
-    if((pcb)->accept != NULL)                                  \
+#define TCP_EVENT_ACCEPT(pcb,err,ret)                            \
+  do {                                                         			  \
+    if((pcb)->accept != NULL)                                  			  \
       (ret) = (pcb)->accept((pcb)->callback_arg,(pcb),(err));  \
-    else (ret) = ERR_ARG;                                      \
+    else (ret) = ERR_ARG;                                      			  \
+  } while (0)
+
+#define TCP_EVENT_SYN_RECEIVED(pcb,p_npcb,err,ret)               \
+  do {                                                         \
+    if((pcb)->syn_handled_cb != NULL)                            \
+      (ret) = (pcb)->syn_handled_cb((pcb)->callback_arg,(p_npcb),(err)); \
+    else (ret) = ERR_ARG;                                           \
+  } while (0)
+
+#define TCP_EVENT_CLONE_PCB(pcb,p_npcb,err,ret)               \
+  do {                                                         \
+    if((pcb)->clone_conn != NULL)                            \
+      (ret) = (pcb)->clone_conn((pcb)->callback_arg,(p_npcb),(err)); \
+    else (ret) = ERR_ARG;                                           \
   } while (0)
 
 #define TCP_EVENT_SENT(pcb,space,ret)                          \
@@ -379,8 +393,7 @@ extern struct tcp_pcb *tcp_tmp_pcb;      /* Only used for temporary storage. */
   do {                                             \
     (npcb)->next = *pcbs;                          \
     *(pcbs) = (npcb);                              \
-    tcp_timer_needed();                            \
-  } while (0)
+   } while (0)
 
 #define TCP_RMV(pcbs, npcb)                        \
   do {                                             \
@@ -402,11 +415,10 @@ extern struct tcp_pcb *tcp_tmp_pcb;      /* Only used for temporary storage. */
 
 #endif /* LWIP_DEBUG */
 
-
 /* Internal functions: */
 struct tcp_pcb *tcp_pcb_copy(struct tcp_pcb *pcb);
 void tcp_pcb_purge(struct tcp_pcb *pcb);
-void tcp_pcb_remove(struct tcp_pcb **pcblist, struct tcp_pcb *pcb);
+void tcp_pcb_remove(struct tcp_pcb *pcb);
 
 void tcp_segs_free(struct tcp_seg *seg);
 void tcp_seg_free(struct tcp_seg *seg);

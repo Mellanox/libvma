@@ -71,6 +71,29 @@ struct tcp_pcb;
  */
 typedef err_t (*tcp_accept_fn)(void *arg, struct tcp_pcb *newpcb, err_t err);
 
+/** Function prototype for tcp syn received callback functions. Called when a new
+ * syn is received.
+ *
+ * @param arg Additional argument to pass to the callback function (@see tcp_arg())
+ * @param newpcb The new connection pcb
+ * @param err An error code if there has been an error.
+ *            Only return ERR_ABRT if you have called tcp_abort from within the
+ *            callback function!
+ */
+typedef err_t (*tcp_syn_handled_fn)(void *arg, struct tcp_pcb *newpcb, err_t err);
+
+/** Function prototype for tcp clone callback functions. Called to clone listen pcb
+ * on connection establishment.
+ * @param arg Additional argument to pass to the callback function (@see tcp_arg())
+ * @param newpcb The new connection pcb
+ * @param err An error code if there has been an error.
+ *            Only return ERR_ABRT if you have called tcp_abort from within the
+ *            callback function!
+ *
+ */
+typedef err_t (*tcp_clone_conn_fn)(void *arg, struct tcp_pcb **newpcb, err_t err);
+
+
 /** Function prototype for tcp receive callback functions. Called when data has
  * been received.
  *
@@ -149,6 +172,11 @@ enum tcp_state {
   TIME_WAIT   = 10
 };
 
+#define PCB_IN_CLOSED_STATE(pcb) (pcb->state == CLOSED)
+#define PCB_IN_LISTEN_STATE(pcb) (pcb->state == LISTEN)
+#define PCB_IN_ACTIVE_STATE(pcb) (pcb->state > LISTEN && pcb->state < TIME_WAIT)
+#define PCB_IN_TIME_WAIT_STATE(pcb) (pcb->state == TIME_WAIT)
+
 #if LWIP_CALLBACK_API
   /* Function to call when a listener has been connected.
    * @param arg user-supplied argument (tcp_pcb.callback_arg)
@@ -170,6 +198,7 @@ enum tcp_state {
   enum tcp_state state; /* TCP state */ \
   u8_t prio; \
   void *callback_arg; \
+  void *my_container; \
   /* the accept callback for listen- and normal pcbs, if LWIP_CALLBACK_API */ \
   DEF_ACCEPT_CALLBACK \
   /* ports are in host byte order */ \
@@ -302,6 +331,8 @@ struct tcp_pcb_listen {
   IP_PCB;
 /* Protocol specific PCB members */
   TCP_PCB_COMMON(struct tcp_pcb_listen);
+  tcp_syn_handled_fn syn_handled_cb;
+  tcp_clone_conn_fn clone_conn;
 
 #if TCP_LISTEN_BACKLOG
   u8_t backlog;
@@ -330,13 +361,19 @@ err_t lwip_tcp_event(void *arg, struct tcp_pcb *pcb,
 
 /* Application program's interface: */
 struct tcp_pcb * tcp_new     (void);
+/* Application program's interface: */
 
-void             tcp_arg     (struct tcp_pcb *pcb, void *arg);
-void             tcp_accept  (struct tcp_pcb *pcb, tcp_accept_fn accept);
-void             tcp_recv    (struct tcp_pcb *pcb, tcp_recv_fn recv);
-void             tcp_sent    (struct tcp_pcb *pcb, tcp_sent_fn sent);
-void             tcp_poll    (struct tcp_pcb *pcb, tcp_poll_fn poll, u8_t interval);
-void             tcp_err     (struct tcp_pcb *pcb, tcp_err_fn err);
+/*Initialization of tcp_pcb structure*/
+void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio);
+
+void             tcp_arg     		(struct tcp_pcb *pcb, void *arg);
+void             tcp_accept  		(struct tcp_pcb *pcb, tcp_accept_fn accept);
+void             tcp_syn_handled	(struct tcp_pcb_listen *pcb, tcp_syn_handled_fn syn_handled);
+void             tcp_clone_conn		(struct tcp_pcb_listen *pcb, tcp_clone_conn_fn clone_conn);
+void             tcp_recv    		(struct tcp_pcb *pcb, tcp_recv_fn recv);
+void             tcp_sent    		(struct tcp_pcb *pcb, tcp_sent_fn sent);
+void             tcp_poll    		(struct tcp_pcb *pcb, tcp_poll_fn poll, u8_t interval);
+void             tcp_err     		(struct tcp_pcb *pcb, tcp_err_fn err);
 
 #define          tcp_mss(pcb)             (((pcb)->flags & TF_TIMESTAMP) ? ((pcb)->mss - 12)  : (pcb)->mss)
 #define          tcp_sndbuf(pcb)          ((pcb)->snd_buf)
@@ -360,8 +397,8 @@ err_t            tcp_bind    (struct tcp_pcb *pcb, ip_addr_t *ipaddr,
 err_t            tcp_connect (struct tcp_pcb *pcb, ip_addr_t *ipaddr,
                               u16_t port, tcp_connected_fn connected);
 
-struct tcp_pcb * tcp_listen_with_backlog(struct tcp_pcb *pcb, u8_t backlog);
-#define          tcp_listen(pcb) tcp_listen_with_backlog(pcb, TCP_DEFAULT_LISTEN_BACKLOG)
+err_t			tcp_listen_with_backlog(struct tcp_pcb_listen *listen_pcb, struct tcp_pcb *conn_pcb, u8_t backlog);
+#define			tcp_listen(listen_pcb, conn_pcb) tcp_listen_with_backlog(listen_pcb, conn_pcb, TCP_DEFAULT_LISTEN_BACKLOG)
 
 void             tcp_abort (struct tcp_pcb *pcb);
 err_t            tcp_close   (struct tcp_pcb *pcb);

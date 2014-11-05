@@ -33,6 +33,7 @@
 #ifndef __LWIP_MEMP_H__
 #define __LWIP_MEMP_H__
 
+#include <pthread.h>
 #include "lwip/opt.h"
 
 #ifdef __cplusplus

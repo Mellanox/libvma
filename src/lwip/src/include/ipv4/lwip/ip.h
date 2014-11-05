@@ -164,9 +164,9 @@ extern struct netif *current_netif;
 /** Header of the input packet currently being processed. */
 extern const struct ip_hdr *current_header;
 /** Source IP address of current_header */
-extern ip_addr_t current_iphdr_src;
+extern __thread ip_addr_t current_iphdr_src;
 /** Destination IP address of current_header */
-extern ip_addr_t current_iphdr_dest;
+extern __thread ip_addr_t current_iphdr_dest;
 
 #define ip_init() /* Compatibility define, not init needed. */
 struct netif *ip_route(ip_addr_t *dest);

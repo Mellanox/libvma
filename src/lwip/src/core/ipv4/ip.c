@@ -104,9 +104,9 @@ struct netif *current_netif;
  */
 const struct ip_hdr *current_header;
 /** Source IP address of current_header */
-ip_addr_t current_iphdr_src;
+__thread ip_addr_t current_iphdr_src;
 /** Destination IP address of current_header */
-ip_addr_t current_iphdr_dest;
+__thread ip_addr_t current_iphdr_dest;
 
 /** The IP header ID of the next outgoing IP packet */
 static u16_t ip_id;
