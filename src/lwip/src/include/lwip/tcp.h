@@ -47,6 +47,8 @@
 extern "C" {
 #endif
 
+extern u16_t lwip_tcp_mss;
+
 #if LWIP_3RD_PARTY_L3
 typedef err_t (*ip_output_fn)(struct pbuf *p, void* p_conn, int is_rexmit);
           

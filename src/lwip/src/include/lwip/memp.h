@@ -77,7 +77,7 @@ typedef enum {
 #endif /* MEM_USE_POOLS */
 
 #if MEMP_MEM_MALLOC || MEM_USE_POOLS
-extern const u16_t memp_sizes[MEMP_MAX];
+extern u16_t memp_sizes[MEMP_MAX];
 #endif /* MEMP_MEM_MALLOC || MEM_USE_POOLS */
 
 #if MEMP_MEM_MALLOC
@@ -108,6 +108,7 @@ void *memp_malloc(memp_t type);
 #endif
 void  memp_free(memp_t type, void *mem);
 
+void memp_update_custom_pool(u32_t num, u16_t size);
 size_t memp_get_pool_size(void);
 u8_t *memp_get_pool_start(void);
 void  memp_set_pool_start(void * addr);

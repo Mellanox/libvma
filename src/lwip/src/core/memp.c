@@ -128,7 +128,7 @@ static struct memp *memp_tab[MEMP_MAX];
 #if !MEM_USE_POOLS && !MEMP_MEM_MALLOC
 static
 #endif
-const u16_t memp_sizes[MEMP_MAX] = {
+u16_t memp_sizes[MEMP_MAX] = {
 #define LWIP_MEMPOOL(name,num,size,desc)  LWIP_MEM_ALIGN_SIZE(size),
 #include "lwip/memp_std.h"
 };
@@ -136,7 +136,7 @@ const u16_t memp_sizes[MEMP_MAX] = {
 #if !MEMP_MEM_MALLOC /* don't build if not configured for use in lwipopts.h */
 
 /** This array holds the number of elements in each pool. */
-static const u32_t memp_num[MEMP_MAX] = {
+static u32_t memp_num[MEMP_MAX] = {
 #define LWIP_MEMPOOL(name,num,size,desc)  (num),
 #include "lwip/memp_std.h"
 };
@@ -492,6 +492,14 @@ if (type == MEMP_TCP_PCB)
 
   SYS_ARCH_UNPROTECT(old_level);
  pthread_mutex_unlock(&memory_pool_lock);
+}
+
+void
+memp_update_custom_pool(u32_t num, u16_t size)
+{
+	memp_sizes[CUSTOM_POOL_NAME] = LWIP_MEM_ALIGN_SIZE((size + sizeof(struct memp_malloc_helper)));
+	memp_num[CUSTOM_POOL_NAME] = num;
+	memp_size = memp_size - ((CUSTOM_POOL_NUM) * (MEMP_SIZE + MEMP_ALIGN_SIZE(CUSTOM_POOL_SIZE))) + ((num) * (MEMP_SIZE + MEMP_ALIGN_SIZE(size + sizeof(struct memp_malloc_helper))));
 }
 
 size_t

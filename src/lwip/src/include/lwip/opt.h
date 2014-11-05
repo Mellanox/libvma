@@ -961,7 +961,8 @@
  * as much as (2 * TCP_SND_BUF/TCP_MSS) for things to work.
  */
 #ifndef TCP_SND_QUEUELEN
-#define TCP_SND_QUEUELEN                (4 * (TCP_SND_BUF)/(TCP_MSS))
+#define CONST_TCP_SND_QUEUELEN                (4 * (TCP_SND_BUF)/(CONST_TCP_MSS))
+#define TCP_SND_QUEUELEN                	(4 * (TCP_SND_BUF)/(TCP_MSS))
 #endif
 
 /**
@@ -1013,7 +1014,8 @@
  * TCP_MSS/4: Try to create 4 fragments or less per TCP packet.
  */
 #ifndef TCP_OVERSIZE
-#define TCP_OVERSIZE                    TCP_MSS
+#define TCP_OVERSIZE                    CONST_TCP_MSS
+#define TCP_OVERSIZE_VAL		TCP_MSS
 #endif
 
 /**

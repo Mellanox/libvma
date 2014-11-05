@@ -103,14 +103,14 @@
 #if (LWIP_TCP && (TCP_WND > 0xffffffff))
   #error "If you want to use TCP, TCP_WND must fit in an u32_t, so, you have to reduce it in your lwipopts.h"
 #endif
-#if (LWIP_TCP && (TCP_SND_QUEUELEN > 0xffffffff))
+#if (LWIP_TCP && (CONST_TCP_SND_QUEUELEN > 0xffffffff))
   #error "If you want to use TCP, TCP_SND_QUEUELEN must fit in an u32_t, so, you have to reduce it in your lwipopts.h"
 #endif
 #else
 #if (LWIP_TCP && (TCP_WND > 0xffff))
   #error "If you want to use TCP, TCP_WND must fit in an u16_t, so, you have to reduce it in your lwipopts.h"
 #endif
-#if (LWIP_TCP && (TCP_SND_QUEUELEN > 0xffff))
+#if (LWIP_TCP && (CONST_TCP_SND_QUEUELEN > 0xffff))
   #error "If you want to use TCP, TCP_SND_QUEUELEN must fit in an u16_t, so, you have to reduce it in your lwipopts.h"
 #endif
 #endif //TCP_RCVSCALE

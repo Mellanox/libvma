@@ -208,7 +208,8 @@
  * designed to accomodate single full size TCP frame in one pbuf, including
  * TCP_MSS, IP header, and link header.
  */
-#define PBUF_POOL_BUFSIZE               LWIP_MEM_ALIGN_SIZE(TCP_MSS+40+PBUF_LINK_HLEN)
+//#define PBUF_POOL_BUFSIZE               LWIP_MEM_ALIGN_SIZE(TCP_MSS+40+PBUF_LINK_HLEN)
+#define PBUF_POOL_BUFSIZE               LWIP_MEM_ALIGN_SIZE(CONST_TCP_MSS+40+PBUF_LINK_HLEN)
 //#define PBUF_POOL_BUFSIZE              	2048 
 
 
@@ -414,8 +415,12 @@
  * when opening a connection. For the transmit size, this MSS sets
  * an upper limit on the MSS advertised by the remote host.
  */
-#define TCP_MSS                         1460
-
+/*
+ * If you don't want to use lwip_tcp_mss for setting the mss during runtime, define TCP_MSS to the DEFAULT_TCP_MSS
+ */
+#define CONST_TCP_MSS 		1460
+#define TCP_MSS                         (lwip_tcp_mss)
+//#define TCP_MSS 			CONST_TCP_MSS 
 
 /**
  * TCP_SND_BUF: TCP sender buffer space (bytes).

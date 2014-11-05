@@ -69,6 +69,8 @@ const char * const tcp_state_str[] = {
   "TIME_WAIT"   
 };
 
+u16_t lwip_tcp_mss = CONST_TCP_MSS;
+
 int32_t enable_wnd_scale = 0;
 u32_t rcv_wnd_scale = 0;
 

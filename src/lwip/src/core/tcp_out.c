@@ -268,7 +268,7 @@ tcp_pbuf_prealloc(pbuf_layer layer, u16_t length, u16_t max_length,
          (!first_seg ||
           pcb->unsent != NULL ||
           pcb->unacked != NULL))) {
-      alloc = LWIP_MIN(max_length, LWIP_MEM_ALIGN_SIZE(length + TCP_OVERSIZE));
+      alloc = LWIP_MIN(max_length, LWIP_MEM_ALIGN_SIZE(length + TCP_OVERSIZE_VAL));
     }
   }
 #endif /* LWIP_NETIF_TX_SINGLE_PBUF */
