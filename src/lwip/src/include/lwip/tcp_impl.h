@@ -68,6 +68,8 @@ void             L3_level_tcp_input   (struct pbuf *p, struct tcp_pcb *pcb);
 #endif
 /* Used within the TCP code only: */
 struct tcp_pcb * tcp_alloc   (u8_t prio);
+struct pbuf *    tcp_tx_pbuf_alloc(struct tcp_pcb * pcb, pbuf_layer layer, u16_t length, pbuf_type type);
+void		 tcp_tx_pbuf_free(struct tcp_pcb * pcb, struct pbuf * pbuf);
 void             tcp_abandon (struct tcp_pcb *pcb, int reset);
 err_t            tcp_send_empty_ack(struct tcp_pcb *pcb);
 void             tcp_rexmit  (struct tcp_pcb *pcb);
@@ -431,9 +433,11 @@ struct tcp_pcb *tcp_pcb_copy(struct tcp_pcb *pcb);
 void tcp_pcb_purge(struct tcp_pcb *pcb);
 void tcp_pcb_remove(struct tcp_pcb *pcb);
 
-void tcp_segs_free(struct tcp_seg *seg);
-void tcp_seg_free(struct tcp_seg *seg);
-struct tcp_seg *tcp_seg_copy(struct tcp_seg *seg);
+void tcp_segs_free(struct tcp_pcb *pcb, struct tcp_seg *seg);
+void tcp_seg_free(struct tcp_pcb *pcb, struct tcp_seg *seg);
+void tcp_tx_segs_free(struct tcp_pcb * pcb, struct tcp_seg *seg);
+void tcp_tx_seg_free(struct tcp_pcb * pcb, struct tcp_seg *seg);
+struct tcp_seg *tcp_seg_copy(struct tcp_pcb* pcb, struct tcp_seg *seg);
 
 #define tcp_ack(pcb)                               \
   do {                                             \

@@ -938,7 +938,7 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
         pcb->nrtx = 0;
       }
 
-      tcp_seg_free(rseg);
+      tcp_tx_seg_free(pcb, rseg);
 
       /* Call the user specified function to call when sucessfully
        * connected. */
@@ -1073,13 +1073,13 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
  * Called from tcp_receive()
  */
 static void
-tcp_oos_insert_segment(struct tcp_seg *cseg, struct tcp_seg *next, tcp_in_data* in_data)
+tcp_oos_insert_segment(struct tcp_pcb *pcb, struct tcp_seg *cseg, struct tcp_seg *next, tcp_in_data* in_data)
 {
   struct tcp_seg *old_seg;
 
   if (TCPH_FLAGS(cseg->tcphdr) & TCP_FIN) {
     /* received segment overlaps all following segments */
-    tcp_segs_free(next);
+    tcp_segs_free(pcb, next);
     next = NULL;
   }
   else {
@@ -1094,7 +1094,7 @@ tcp_oos_insert_segment(struct tcp_seg *cseg, struct tcp_seg *next, tcp_in_data* 
       }
       old_seg = next;
       next = next->next;
-      tcp_seg_free(old_seg);
+      tcp_seg_free(pcb, old_seg);
     }
     if (next &&
         TCP_SEQ_GT(in_data->seqno + cseg->len, next->tcphdr->seqno)) {
@@ -1329,7 +1329,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
         }
 
         pcb->snd_queuelen -= pbuf_clen(next->p);
-        tcp_seg_free(next);
+        tcp_tx_seg_free(pcb, next);
 #if TCP_RCVSCALE
         LWIP_DEBUGF(TCP_QLEN_DEBUG, ("%"U32_F" (after freeing unacked)\n", (u32_t)pcb->snd_queuelen));
 #else
@@ -1378,7 +1378,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
         pcb->acked--;
       }
       pcb->snd_queuelen -= pbuf_clen(next->p);
-      tcp_seg_free(next);
+      tcp_tx_seg_free(pcb, next);
 #if TCP_RCVSCALE
       LWIP_DEBUGF(TCP_QLEN_DEBUG, ("%"U16_F" (after freeing unsent)\n", (u32_t)pcb->snd_queuelen));
 #else
@@ -1566,7 +1566,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
             while (pcb->ooseq != NULL) {
               struct tcp_seg *old_ooseq = pcb->ooseq;
               pcb->ooseq = pcb->ooseq->next;
-              tcp_seg_free(old_ooseq);
+              tcp_seg_free(pcb, old_ooseq);
             }
           }
           else {
@@ -1584,7 +1584,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
               }
               prev = next;
               next = next->next;
-              tcp_seg_free(prev);
+              tcp_seg_free(pcb, prev);
             }
             /* Now trim right side of inseg if it overlaps with the first
              * segment on ooseq */
@@ -1670,7 +1670,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
           }
 
           pcb->ooseq = cseg->next;
-          tcp_seg_free(cseg);
+          tcp_seg_free(pcb, cseg);
         }
 #endif /* TCP_QUEUE_OOSEQ */
 
@@ -1688,7 +1688,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
 #if TCP_QUEUE_OOSEQ
         /* We queue the segment on the ->ooseq queue. */
         if (pcb->ooseq == NULL) {
-          pcb->ooseq = tcp_seg_copy(&in_data->inseg);
+          pcb->ooseq = tcp_seg_copy(pcb, &in_data->inseg);
         } else {
           /* If the queue is not empty, we walk through the queue and
              try to find a place where the sequence number of the
@@ -1713,14 +1713,14 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
                 /* The incoming segment is larger than the old
                    segment. We replace some segments with the new
                    one. */
-                cseg = tcp_seg_copy(&in_data->inseg);
+                cseg = tcp_seg_copy(pcb, &in_data->inseg);
                 if (cseg != NULL) {
                   if (prev != NULL) {
                     prev->next = cseg;
                   } else {
                     pcb->ooseq = cseg;
                   }
-                  tcp_oos_insert_segment(cseg, next, in_data);
+                  tcp_oos_insert_segment(pcb, cseg, next, in_data);
                 }
                 break;
               } else {
@@ -1736,10 +1736,10 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
                      than the sequence number of the first segment on the
                      queue. We put the incoming segment first on the
                      queue. */
-                  cseg = tcp_seg_copy(&in_data->inseg);
+                  cseg = tcp_seg_copy(pcb, &in_data->inseg);
                   if (cseg != NULL) {
                     pcb->ooseq = cseg;
-                    tcp_oos_insert_segment(cseg, next, in_data);
+                    tcp_oos_insert_segment(pcb, cseg, next, in_data);
                   }
                   break;
                 }
@@ -1752,7 +1752,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
                      the next segment on ->ooseq. We trim trim the previous
                      segment, delete next segments that included in received segment
                      and trim received, if needed. */
-                  cseg = tcp_seg_copy(&in_data->inseg);
+                  cseg = tcp_seg_copy(pcb, &in_data->inseg);
                   if (cseg != NULL) {
                     if (TCP_SEQ_GT(prev->tcphdr->seqno + prev->len, in_data->seqno)) {
                       /* We need to trim the prev segment. */
@@ -1760,7 +1760,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
                       pbuf_realloc(prev->p, prev->len);
                     }
                     prev->next = cseg;
-                    tcp_oos_insert_segment(cseg, next, in_data);
+                    tcp_oos_insert_segment(pcb, cseg, next, in_data);
                   }
                   break;
                 }
@@ -1774,7 +1774,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
                   /* segment "next" already contains all data */
                   break;
                 }
-                next->next = tcp_seg_copy(&in_data->inseg);
+                next->next = tcp_seg_copy(pcb, &in_data->inseg);
                 if (next->next != NULL) {
                   if (TCP_SEQ_GT(next->tcphdr->seqno + next->len, in_data->seqno)) {
                     /* We need to trim the last segment. */

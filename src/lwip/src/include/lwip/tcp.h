@@ -59,6 +59,30 @@ void register_ip_route_mtu(ip_route_mtu_fn fn);
 
 #endif
 
+#if LWIP_3RD_PARTY_BUFS
+typedef struct pbuf * (*tcp_tx_pbuf_alloc_fn)(void* p_conn);
+
+void register_tcp_tx_pbuf_alloc(tcp_tx_pbuf_alloc_fn fn);
+
+typedef void (*tcp_tx_pbuf_free_fn)(void* p_conn, struct pbuf * p);
+
+void register_tcp_tx_pbuf_free(tcp_tx_pbuf_free_fn fn);
+
+typedef struct tcp_seg * (*tcp_seg_alloc_fn)(void* p_conn);
+
+void register_tcp_seg_alloc(tcp_seg_alloc_fn fn);
+
+typedef void (*tcp_seg_free_fn)(void* p_conn, struct tcp_seg * seg);
+
+void register_tcp_seg_free(tcp_seg_free_fn fn);
+
+
+extern tcp_tx_pbuf_alloc_fn external_tcp_tx_pbuf_alloc;
+extern tcp_tx_pbuf_free_fn external_tcp_tx_pbuf_free;
+extern tcp_seg_alloc_fn external_tcp_seg_alloc;
+extern tcp_seg_free_fn external_tcp_seg_free;
+#endif
+
 
 struct tcp_pcb;
 

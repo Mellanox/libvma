@@ -69,6 +69,36 @@ const char * const tcp_state_str[] = {
   "TIME_WAIT"   
 };
 
+#if LWIP_3RD_PARTY_BUFS
+tcp_tx_pbuf_alloc_fn external_tcp_tx_pbuf_alloc;
+
+void register_tcp_tx_pbuf_alloc(tcp_tx_pbuf_alloc_fn fn)
+{
+    external_tcp_tx_pbuf_alloc = fn;
+}
+
+tcp_tx_pbuf_free_fn external_tcp_tx_pbuf_free;
+
+void register_tcp_tx_pbuf_free(tcp_tx_pbuf_free_fn fn)
+{
+    external_tcp_tx_pbuf_free = fn;
+}
+
+tcp_seg_alloc_fn external_tcp_seg_alloc;
+
+void register_tcp_seg_alloc(tcp_seg_alloc_fn fn)
+{
+    external_tcp_seg_alloc = fn;
+}
+
+tcp_seg_free_fn external_tcp_seg_free;
+
+void register_tcp_seg_free(tcp_seg_free_fn fn)
+{
+    external_tcp_seg_free = fn;
+}
+#endif
+
 enum cc_algo_mod lwip_cc_algo_module = CC_MOD_LWIP;
 
 u16_t lwip_tcp_mss = CONST_TCP_MSS;
@@ -343,14 +373,14 @@ tcp_abandon(struct tcp_pcb *pcb, int reset)
     errf_arg = pcb->my_container;
     tcp_pcb_remove(pcb);
     if (pcb->unacked != NULL) {
-      tcp_segs_free(pcb->unacked);
+      tcp_tx_segs_free(pcb, pcb->unacked);
     }
     if (pcb->unsent != NULL) {
-      tcp_segs_free(pcb->unsent);
+      tcp_tx_segs_free(pcb, pcb->unsent);
     }
 #if TCP_QUEUE_OOSEQ    
     if (pcb->ooseq != NULL) {
-      tcp_segs_free(pcb->ooseq);
+      tcp_segs_free(pcb, pcb->ooseq);
     }
 #endif /* TCP_QUEUE_OOSEQ */
     TCP_EVENT_ERR(errf, errf_arg, ERR_ABRT);
@@ -801,7 +831,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 #if TCP_QUEUE_OOSEQ
 	if (pcb->ooseq != NULL &&
 		(u32_t)tcp_ticks - pcb->tmr >= pcb->rto * TCP_OOSEQ_TIMEOUT) {
-	  tcp_segs_free(pcb->ooseq);
+	  tcp_segs_free(pcb, pcb->ooseq);
 	  pcb->ooseq = NULL;
 	  LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_slowtmr: dropping OOSEQ queued data\n"));
 	}
@@ -921,11 +951,12 @@ tcp_fasttmr(struct tcp_pcb* pcb)
  * @param seg tcp_seg list of TCP segments to free
  */
 void
-tcp_segs_free(struct tcp_seg *seg)
+tcp_segs_free(struct tcp_pcb *pcb, struct tcp_seg *seg)
 {
   while (seg != NULL) {
     struct tcp_seg *next = seg->next;
-    tcp_seg_free(seg);
+    seg->next = NULL;
+    tcp_seg_free(pcb, seg);
     seg = next;
   }
 }
@@ -936,7 +967,7 @@ tcp_segs_free(struct tcp_seg *seg)
  * @param seg single tcp_seg to free
  */
 void
-tcp_seg_free(struct tcp_seg *seg)
+tcp_seg_free(struct tcp_pcb *pcb, struct tcp_seg *seg)
 {
   if (seg != NULL) {
     if (seg->p != NULL) {
@@ -945,7 +976,50 @@ tcp_seg_free(struct tcp_seg *seg)
       seg->p = NULL;
 #endif /* TCP_DEBUG */
     }
+#if LWIP_3RD_PARTY_BUFS
+    external_tcp_seg_free(pcb, seg);
+#else
     memp_free(MEMP_TCP_SEG, seg);
+#endif
+  }
+}
+
+/**
+ * Deallocates a list of TCP segments (tcp_seg structures).
+ *
+ * @param seg tcp_seg list of TCP segments to free
+ */
+void
+tcp_tx_segs_free(struct tcp_pcb * pcb, struct tcp_seg *seg)
+{
+  while (seg != NULL) {
+    struct tcp_seg *next = seg->next;
+    seg->next = NULL;
+    tcp_tx_seg_free(pcb, seg);
+    seg = next;
+  }
+}
+
+/**
+ * Frees a TCP segment (tcp_seg structure).
+ *
+ * @param seg single tcp_seg to free
+ */
+void
+tcp_tx_seg_free(struct tcp_pcb * pcb, struct tcp_seg *seg)
+{
+  if (seg != NULL) {
+    if (seg->p != NULL) {
+      tcp_tx_pbuf_free(pcb, seg->p);
+#if TCP_DEBUG
+      seg->p = NULL;
+#endif /* TCP_DEBUG */
+    }
+#if LWIP_3RD_PARTY_BUFS
+    external_tcp_seg_free(pcb, seg);
+#else
+    memp_free(MEMP_TCP_SEG, seg);
+#endif
   }
 }
 
@@ -970,11 +1044,15 @@ tcp_setprio(struct tcp_pcb *pcb, u8_t prio)
  * @return a copy of seg
  */ 
 struct tcp_seg *
-tcp_seg_copy(struct tcp_seg *seg)
+tcp_seg_copy(struct tcp_pcb* pcb, struct tcp_seg *seg)
 {
   struct tcp_seg *cseg;
 
+#if LWIP_3RD_PARTY_BUFS
+  cseg = external_tcp_seg_alloc(pcb);
+#else
   cseg = (struct tcp_seg *)memp_malloc(MEMP_TCP_SEG);
+#endif
   if (cseg == NULL) {
     return NULL;
   }
@@ -1167,6 +1245,47 @@ tcp_alloc(u8_t prio)
   return pcb;
 }
 
+struct pbuf *
+tcp_tx_pbuf_alloc(struct tcp_pcb * pcb, pbuf_layer layer, u16_t length, pbuf_type type)
+{
+#if LWIP_3RD_PARTY_BUFS
+	if (type == PBUF_RAM) {
+		struct pbuf * p = external_tcp_tx_pbuf_alloc(pcb);
+		if (!p) return NULL;
+		/* Set up internal structure of the pbuf. */
+		p->len = p->tot_len = length;
+		p->next = NULL;
+		p->type = type;
+		/* set reference count */
+		p->ref = 1;
+		/* set flags */
+		p->flags = 0;
+		return p;
+	}
+#endif
+	return pbuf_alloc(layer, length, type);
+}
+
+void
+tcp_tx_pbuf_free(struct tcp_pcb * pcb, struct pbuf * p)
+{
+#if LWIP_3RD_PARTY_BUFS
+	struct pbuf * p_next = NULL;
+	while (p) {
+		p_next = p->next;
+		p->next = NULL;
+		if (p->type  == PBUF_RAM) {
+			external_tcp_tx_pbuf_free(pcb, p);
+		} else {
+			pbuf_free(p);
+		}
+		p = p_next;
+	}
+#else
+	pbuf_free(p);
+#endif
+}
+
 /**
  * Creates a new TCP protocol control block but doesn't place it on
  * any of the TCP PCB lists.
@@ -1349,7 +1468,7 @@ tcp_pcb_purge(struct tcp_pcb *pcb)
     if (pcb->ooseq != NULL) {
       LWIP_DEBUGF(TCP_DEBUG, ("tcp_pcb_purge: data left on ->ooseq\n"));
     }
-    tcp_segs_free(pcb->ooseq);
+    tcp_segs_free(pcb, pcb->ooseq);
     pcb->ooseq = NULL;
 #endif /* TCP_QUEUE_OOSEQ */
 
@@ -1357,8 +1476,8 @@ tcp_pcb_purge(struct tcp_pcb *pcb)
        queue if it fires */
     pcb->rtime = -1;
 
-    tcp_segs_free(pcb->unsent);
-    tcp_segs_free(pcb->unacked);
+    tcp_tx_segs_free(pcb, pcb->unsent);
+    tcp_tx_segs_free(pcb, pcb->unacked);
     pcb->unacked = pcb->unsent = NULL;
 #if TCP_OVERSIZE
     pcb->unsent_oversize = 0;

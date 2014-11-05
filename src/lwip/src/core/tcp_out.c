@@ -109,7 +109,7 @@ tcp_output_alloc_header(struct tcp_pcb *pcb, u16_t optlen, u16_t datalen,
                       u32_t seqno_be /* already in network byte order */)
 {
   struct tcp_hdr *tcphdr;
-  struct pbuf *p = pbuf_alloc(PBUF_IP, TCP_HLEN + optlen + datalen, PBUF_RAM);
+  struct pbuf *p = tcp_tx_pbuf_alloc(pcb, PBUF_IP, TCP_HLEN + optlen + datalen, PBUF_RAM);
   if (p != NULL) {
     LWIP_ASSERT("check that first pbuf can hold struct tcp_hdr",
                  (p->len >= TCP_HLEN + optlen));
@@ -179,9 +179,13 @@ tcp_create_segment(struct tcp_pcb *pcb, struct pbuf *p, u8_t flags, u32_t seqno,
   struct tcp_seg *seg;
   u8_t optlen = LWIP_TCP_OPT_LENGTH(optflags);
 
+#if LWIP_3RD_PARTY_BUFS
+  if ((seg = external_tcp_seg_alloc(pcb)) == NULL) {
+#else
   if ((seg = (struct tcp_seg *)memp_malloc(MEMP_TCP_SEG)) == NULL) {
+#endif
     LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_create_segment: no memory.\n"));
-    pbuf_free(p);
+    tcp_tx_pbuf_free(pcb, p);
     return NULL;
   }
   seg->flags = optflags;
@@ -205,7 +209,7 @@ tcp_create_segment(struct tcp_pcb *pcb, struct pbuf *p, u8_t flags, u32_t seqno,
   if (pbuf_header(p, TCP_HLEN)) {
     LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_create_segment: no room for TCP header in pbuf.\n"));
     TCP_STATS_INC(tcp.err);
-    tcp_seg_free(seg);
+    tcp_tx_seg_free(pcb, seg);
     return NULL;
   }
   seg->tcphdr = (struct tcp_hdr *)seg->p->payload;
@@ -272,7 +276,7 @@ tcp_pbuf_prealloc(pbuf_layer layer, u16_t length, u16_t max_length,
     }
   }
 #endif /* LWIP_NETIF_TX_SINGLE_PBUF */
-  p = pbuf_alloc(layer, alloc, PBUF_RAM);
+  p = tcp_tx_pbuf_alloc(pcb, layer, alloc, PBUF_RAM);
   if (p == NULL) {
     return NULL;
   }
@@ -520,7 +524,7 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
 #endif /* TCP_CHECKSUM_ON_COPY */
       } else {
         /* Data is not copied */
-        if ((concat_p = pbuf_alloc(PBUF_RAW, seglen, PBUF_ROM)) == NULL) {
+        if ((concat_p = tcp_tx_pbuf_alloc(pcb, PBUF_RAW, seglen, PBUF_ROM)) == NULL) {
           LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2,
                       ("tcp_write: could not allocate memory for zero-copy pbuf\n"));
           goto memerr;
@@ -597,7 +601,7 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
       if ((p = pbuf_alloc(PBUF_TRANSPORT, optlen, PBUF_RAM)) == NULL) {
         /* If allocation fails, we have to deallocate the data pbuf as
          * well. */
-        pbuf_free(p2);
+        tcp_tx_pbuf_free(pcb, p2);
         LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_write: could not allocate memory for header pbuf\n"));
         goto memerr;
       }
@@ -616,7 +620,7 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
 #else
       LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_write: queue too long %"U16_F" (%"U16_F")\n", queuelen, pcb->max_unsent_len));
 #endif
-      pbuf_free(p);
+      tcp_tx_pbuf_free(pcb, p);
       goto memerr;
     }
 
@@ -735,10 +739,10 @@ memerr:
   TCP_STATS_INC(tcp.memerr);
 
   if (concat_p != NULL) {
-    pbuf_free(concat_p);
+    tcp_tx_pbuf_free(pcb, concat_p);
   }
   if (queue != NULL) {
-    tcp_segs_free(queue);
+    tcp_tx_segs_free(pcb, queue);
   }
   if (pcb->snd_queuelen != 0) {
     LWIP_ASSERT("tcp_write: valid queue length", pcb->unacked != NULL ||
@@ -804,7 +808,7 @@ tcp_enqueue_flags(struct tcp_pcb *pcb, u8_t flags)
   }
 
   /* Allocate pbuf with room for TCP header + options */
-  if ((p = pbuf_alloc(PBUF_TRANSPORT, optlen, PBUF_RAM)) == NULL) {
+  if ((p = tcp_tx_pbuf_alloc(pcb, PBUF_TRANSPORT, optlen, PBUF_RAM)) == NULL) {
     pcb->flags |= TF_NAGLEMEMERR;
     TCP_STATS_INC(tcp.memerr);
     return ERR_MEM;
@@ -930,7 +934,7 @@ tcp_send_empty_ack(struct tcp_pcb *pcb)
 #else /* LWIP_NETIF_HWADDRHINT*/
   ip_output(p, &(pcb->local_ip), &(pcb->remote_ip), pcb->ttl, pcb->tos, IP_PROTO_TCP);
 #endif /* LWIP_NETIF_HWADDRHINT*/
-  pbuf_free(p);
+  tcp_tx_pbuf_free(pcb, p);
 
   return ERR_OK;
 }
@@ -1075,7 +1079,7 @@ tcp_output(struct tcp_pcb *pcb)
       }
     /* do not queue empty segments on the unacked list */
     } else {
-      tcp_seg_free(seg);
+      tcp_tx_seg_free(pcb, seg);
     }
     seg = pcb->unsent;
   }
@@ -1267,7 +1271,7 @@ tcp_rst(u32_t seqno, u32_t ackno,
 {
   struct pbuf *p;
   struct tcp_hdr *tcphdr;
-  p = pbuf_alloc(PBUF_IP, TCP_HLEN, PBUF_RAM);
+  p = tcp_tx_pbuf_alloc(pcb, PBUF_IP, TCP_HLEN, PBUF_RAM);
   if (p == NULL) {
       LWIP_DEBUGF(TCP_DEBUG, ("tcp_rst: could not allocate memory for pbuf\n"));
       return;
@@ -1302,7 +1306,7 @@ tcp_rst(u32_t seqno, u32_t ackno,
 #else /* LWIP_NETIF_HWADDRHINT*/
   ip_output(p, local_ip, remote_ip, TCP_TTL, 0, IP_PROTO_TCP);
 #endif
-  pbuf_free(p);
+  tcp_tx_pbuf_free(pcb, p);
   LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_rst: seqno %"U32_F" ackno %"U32_F".\n", seqno, ackno));
 }
 
@@ -1471,7 +1475,7 @@ tcp_keepalive(struct tcp_pcb *pcb)
   ip_output(p, &pcb->local_ip, &pcb->remote_ip, pcb->ttl, 0, IP_PROTO_TCP);
 #endif /* LWIP_NETIF_HWADDRHINT*/
 
-  pbuf_free(p);
+  tcp_tx_pbuf_free(pcb, p);
 
   LWIP_DEBUGF(TCP_DEBUG, ("tcp_keepalive: seqno %"U32_F" ackno %"U32_F".\n",
                           pcb->snd_nxt - 1, pcb->rcv_nxt));
@@ -1550,7 +1554,7 @@ tcp_zero_window_probe(struct tcp_pcb *pcb)
   ip_output(p, &pcb->local_ip, &pcb->remote_ip, pcb->ttl, 0, IP_PROTO_TCP);
 #endif /* LWIP_NETIF_HWADDRHINT*/
 
-  pbuf_free(p);
+  tcp_tx_pbuf_free(pcb, p);
 
   LWIP_DEBUGF(TCP_DEBUG, ("tcp_zero_window_probe: seqno %"U32_F
                           " ackno %"U32_F".\n",

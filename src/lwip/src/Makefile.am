@@ -24,7 +24,7 @@ NETIFFILES=$(LWIPDIR)/netif/etharp.c
 
 CFLAGS=
 liblwip_la_CFLAGS = \
-	-Wall -g -O3 $(LDFLAGS) -DIPv4 -DLWIP_DEBUG -fPIC \
+	-Wall -g -O3 $(LDFLAGS) -DIPv4 -fPIC \
 	-I$(LWIPDIR)/include -I$(LWIPDIR)/include/ipv4 \
         -I$(LWIPDIR) -I. -I$(LWIPDIR)/../arch -I.. 
 	

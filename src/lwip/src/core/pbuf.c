@@ -522,6 +522,7 @@ pbuf_header(struct pbuf *p, s16_t header_size_increment)
   if (type == PBUF_RAM || type == PBUF_POOL) {
     /* set new payload pointer */
     p->payload = (u8_t *)p->payload - header_size_increment;
+#if !LWIP_3RD_PARTY_BUFS
     /* boundary check fails? */
     if ((u8_t *)p->payload < (u8_t *)p + SIZEOF_STRUCT_PBUF) {
       LWIP_DEBUGF( PBUF_DEBUG | LWIP_DBG_LEVEL_SERIOUS,
@@ -532,6 +533,7 @@ pbuf_header(struct pbuf *p, s16_t header_size_increment)
       /* bail out unsuccesfully */
       return 1;
     }
+#endif
   /* pbuf types refering to external payloads? */
   } else if (type == PBUF_REF || type == PBUF_ROM) {
     /* hide a header in the payload? */

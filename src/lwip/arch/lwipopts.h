@@ -114,7 +114,7 @@
 #ifdef _LWIP_MIN_MEM_MODE
 #define MEMP_NUM_PBUF                   30
 #else
-#define MEMP_NUM_PBUF                   1024
+#define MEMP_NUM_PBUF                   0 //1024
 #endif
 
 /**
@@ -134,13 +134,13 @@
  * MEMP_NUM_TCP_PCB: the number of simulatenously active TCP connections.
  * (requires the LWIP_TCP option)
  */
-#define MEMP_NUM_TCP_PCB               	32768 
+#define MEMP_NUM_TCP_PCB               	1 //32768
 
 /**
  * MEMP_NUM_TCP_PCB_LISTEN: the number of listening TCP connections.
  * (requires the LWIP_TCP option)
  */
-#define MEMP_NUM_TCP_PCB_LISTEN         1024
+#define MEMP_NUM_TCP_PCB_LISTEN         1 //1024
 
 /**
  * MEMP_NUM_TCP_SEG: the number of simultaneously queued TCP segments.
@@ -150,7 +150,7 @@
 #ifdef _LWIP_MIN_MEM_MODE
 #define MEMP_NUM_TCP_SEG                64
 #else
-#define MEMP_NUM_TCP_SEG                16384
+#define MEMP_NUM_TCP_SEG                0 //16384
 #endif
 
 
@@ -256,14 +256,14 @@
  * this option does not affect outgoing packet sizes, which can be controlled
  * via IP_FRAG.
  */
-#define IP_REASSEMBLY                   1
+#define IP_REASSEMBLY                   0
 
 /**
  * IP_FRAG==1: Fragment outgoing IP packets if their size exceeds MTU. Note
  * that this option does not affect incoming packet sizes, which can be
  * controlled via IP_REASSEMBLY.
  */
-#define IP_FRAG                         1
+#define IP_FRAG                         0
 
 /**
  * IP_REASS_MAXAGE: Maximum time (in multiples of IP_TMR_INTERVAL - so seconds, normally)
@@ -379,7 +379,7 @@
 /**
  * LWIP_UDP==1: Turn on UDP.
  */
-#define LWIP_UDP                        1
+#define LWIP_UDP                        0
 
 /**
  * LWIP_UDPLITE==1: Turn on UDP-Lite. (Requires LWIP_UDP)
@@ -428,7 +428,7 @@
 #ifdef _LWIP_MIN_MEM_MODE
 #define TCP_SND_BUF                     4096 //256*1024
 #else
-#define TCP_SND_BUF                     100000 //256000
+#define TCP_SND_BUF                     1000000 //100000 //256000
 #endif
 
 #define TCP_SND_BUF_NO_NAGLE 256000
@@ -552,6 +552,7 @@
 #define LWIP_PLATFORM_HTONL(x) bswap_32(x)
 
 #define LWIP_3RD_PARTY_L3 1
+#define LWIP_3RD_PARTY_BUFS 1
 
 //debugging
 //#define ETHARP_DEBUG	LWIP_DBG_ON
