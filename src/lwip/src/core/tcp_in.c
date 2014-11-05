@@ -1650,7 +1650,11 @@ tcp_receive(struct tcp_pcb *pcb)
 
 
         /* Acknowledge the segment(s). */
-        tcp_ack(pcb);
+        if (recv_data && recv_data->next) {
+        	tcp_ack_now(pcb);
+        } else {
+        	tcp_ack(pcb);
+        }
 
       } else {
         /* We get here if the incoming segment is out-of-sequence. */
