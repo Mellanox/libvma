@@ -458,7 +458,7 @@ void tcp_rexmit_seg(struct tcp_pcb *pcb, struct tcp_seg *seg);
 
 void tcp_rst(u32_t seqno, u32_t ackno,
        ip_addr_t *local_ip, ip_addr_t *remote_ip,
-       u16_t local_port, u16_t remote_port);
+       u16_t local_port, u16_t remote_port, struct tcp_pcb *pcb);
 
 u32_t tcp_next_iss(void);
 

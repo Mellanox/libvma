@@ -109,11 +109,11 @@ static u16_t tcp_new_port(void);
 void
 tcp_tmr(struct tcp_pcb* pcb)
 {
-  /* Call tcp_fasttmr() every 250 ms */
+  /* Call tcp_fasttmr() every 100 ms */
   tcp_fasttmr(pcb);
 
   if (++(pcb->tcp_timer) & 1) {
-    /* Call tcp_tmr() every 500 ms, i.e., every other timer
+    /* Call tcp_tmr() every 200 ms, i.e., every other timer
        tcp_tmr() is called. */
     tcp_slowtmr(pcb);
   }
@@ -149,7 +149,7 @@ tcp_close_shutdown(struct tcp_pcb *pcb, u8_t rst_on_unacked_data)
       /* don't call tcp_abort here: we must not deallocate the pcb since
          that might not be expected when calling tcp_close */
       tcp_rst(pcb->snd_nxt, pcb->rcv_nxt, &pcb->local_ip, &pcb->remote_ip,
-        pcb->local_port, pcb->remote_port);
+        pcb->local_port, pcb->remote_port, pcb);
 
       tcp_pcb_purge(pcb);
 
@@ -352,7 +352,7 @@ tcp_abandon(struct tcp_pcb *pcb, int reset)
     TCP_EVENT_ERR(errf, errf_arg, ERR_ABRT);
     if (reset) {
       LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_abandon: sending RST\n"));
-      tcp_rst(seqno, ackno, &local_ip, &remote_ip, local_port, remote_port);
+      tcp_rst(seqno, ackno, &local_ip, &remote_ip, local_port, remote_port, pcb);
     }
   }
 }
@@ -824,7 +824,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 
 	  if (pcb_reset) {
 		tcp_rst(pcb->snd_nxt, pcb->rcv_nxt, &pcb->local_ip, &pcb->remote_ip,
-		  pcb->local_port, pcb->remote_port);
+		  pcb->local_port, pcb->remote_port, pcb);
 	  }
 	  pcb->state = CLOSED;
 	} else {

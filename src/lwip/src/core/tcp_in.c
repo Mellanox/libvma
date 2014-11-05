@@ -431,7 +431,7 @@ aborted:
       TCP_STATS_INC(tcp.drop);
       tcp_rst(ackno, seqno + tcplen,
         ip_current_dest_addr(), ip_current_src_addr(),
-        tcphdr->dest, tcphdr->src);
+        tcphdr->dest, tcphdr->src, pcb);
     }
     pbuf_free(p);
   }
@@ -673,7 +673,7 @@ L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb)
             TCP_STATS_INC(tcp.drop);
             tcp_rst(ackno, seqno + tcplen,
                     ip_current_dest_addr(), ip_current_src_addr(),
-                    tcphdr->dest, tcphdr->src);
+                    tcphdr->dest, tcphdr->src, pcb);
         }
         pbuf_free(p);
     }
@@ -697,7 +697,7 @@ L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb)
 static err_t
 tcp_listen_input(struct tcp_pcb_listen *pcb)
 {
-  struct tcp_pcb *npcb;
+  struct tcp_pcb *npcb = NULL;
   err_t rc;
 
   /* In the LISTEN state, we check for incoming SYN segments,
@@ -708,7 +708,7 @@ tcp_listen_input(struct tcp_pcb_listen *pcb)
     LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_listen_input: ACK in LISTEN, sending reset\n"));
     tcp_rst(ackno + 1, seqno + tcplen,
       ip_current_dest_addr(), ip_current_src_addr(),
-      tcphdr->dest, tcphdr->src);
+      tcphdr->dest, tcphdr->src, NULL);
   } else if (flags & TCP_SYN) {
     LWIP_DEBUGF(TCP_DEBUG, ("TCP connection request %"U16_F" -> %"U16_F".\n", tcphdr->src, tcphdr->dest));
 #if TCP_LISTEN_BACKLOG
@@ -751,6 +751,9 @@ tcp_listen_input(struct tcp_pcb_listen *pcb)
     /* Register the new PCB so that we can begin receiving segments
      for it. */
     TCP_EVENT_SYN_RECEIVED(pcb, npcb, ERR_OK, rc);
+    if (rc != ERR_OK) {
+          return rc;
+    }
 
     #if TCP_RCVSCALE
       npcb->snd_scale = 0;
@@ -807,7 +810,7 @@ tcp_timewait_input(struct tcp_pcb *pcb)
     if (TCP_SEQ_BETWEEN(seqno, pcb->rcv_nxt, pcb->rcv_nxt+pcb->rcv_wnd)) {
       /* If the SYN is in the window it is an error, send a reset */
       tcp_rst(ackno, seqno + tcplen, ip_current_dest_addr(), ip_current_src_addr(),
-        tcphdr->dest, tcphdr->src);
+        tcphdr->dest, tcphdr->src, pcb);
       return ERR_OK;
     }
   } else if (flags & TCP_FIN) {
@@ -945,7 +948,7 @@ tcp_process(struct tcp_pcb *pcb)
     else if (flags & TCP_ACK) {
       /* send a RST to bring the other side in a non-synchronized state. */
       tcp_rst(ackno, seqno + tcplen, ip_current_dest_addr(), ip_current_src_addr(),
-        tcphdr->dest, tcphdr->src);
+        tcphdr->dest, tcphdr->src, pcb);
     }
     break;
   case SYN_RCVD:
@@ -992,7 +995,7 @@ tcp_process(struct tcp_pcb *pcb)
       } else {
         /* incorrect ACK number, send RST */
         tcp_rst(ackno, seqno + tcplen, ip_current_dest_addr(), ip_current_src_addr(),
-                tcphdr->dest, tcphdr->src);
+                tcphdr->dest, tcphdr->src, pcb);
       }
     } else if ((flags & TCP_SYN) && (seqno == pcb->rcv_nxt - 1)) {
       /* Looks like another copy of the SYN - retransmit our SYN-ACK */
