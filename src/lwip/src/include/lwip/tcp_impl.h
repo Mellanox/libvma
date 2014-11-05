@@ -89,15 +89,16 @@ u32_t            tcp_update_rcv_ann_wnd(struct tcp_pcb *pcb);
 #define tcp_do_output_nagle(tpcb) ((((tpcb)->unacked == NULL) || \
                             ((tpcb)->flags & (TF_NODELAY | TF_INFR)) || \
                             (((tpcb)->unsent != NULL) && (((tpcb)->unsent->next != NULL) || \
-                              ((tpcb)->unsent->len >= (tpcb)->mss))) \
+                              ((tpcb)->unsent->len >= (tpcb)->mss))) || \
+                              ((tcp_sndbuf(tpcb) == 0) || (tcp_sndqueuelen(tpcb) >= TCP_SND_QUEUELEN)) \
                             ) ? 1 : 0)
 #define tcp_output_nagle(tpcb) (tcp_do_output_nagle(tpcb) ? tcp_output(tpcb) : ERR_OK)
 
 
-#define TCP_SEQ_LT(a,b)     ((s32_t)((a)-(b)) < 0)
-#define TCP_SEQ_LEQ(a,b)    ((s32_t)((a)-(b)) <= 0)
-#define TCP_SEQ_GT(a,b)     ((s32_t)((a)-(b)) > 0)
-#define TCP_SEQ_GEQ(a,b)    ((s32_t)((a)-(b)) >= 0)
+#define TCP_SEQ_LT(a,b)     ((s32_t)((u32_t)(a)-(u32_t)(b)) < 0)
+#define TCP_SEQ_LEQ(a,b)    ((s32_t)((u32_t)(a)-(u32_t)(b)) <= 0)
+#define TCP_SEQ_GT(a,b)     ((s32_t)((u32_t)(a)-(u32_t)(b)) > 0)
+#define TCP_SEQ_GEQ(a,b)    ((s32_t)((u32_t)(a)-(u32_t)(b)) >= 0)
 /* is b<=a<=c? */
 #if 0 /* see bug #10548 */
 #define TCP_SEQ_BETWEEN(a,b,c) ((c)-(b) >= (a)-(b))
@@ -187,7 +188,7 @@ PACK_STRUCT_END
 #define TCPH_SET_FLAG(phdr, flags ) (phdr)->_hdrlen_rsvd_flags = ((phdr)->_hdrlen_rsvd_flags | htons(flags))
 #define TCPH_UNSET_FLAG(phdr, flags) (phdr)->_hdrlen_rsvd_flags = htons(ntohs((phdr)->_hdrlen_rsvd_flags) | (TCPH_FLAGS(phdr) & ~(flags)) )
 
-#define TCP_TCPLEN(seg) ((seg)->len + ((TCPH_FLAGS((seg)->tcphdr) & (TCP_FIN | TCP_SYN)) != 0))
+#define TCP_TCPLEN(seg) ((seg)->len + (((TCPH_FLAGS((seg)->tcphdr) & (TCP_FIN | TCP_SYN)) != 0) ? 1U : 0U))
 
 /** Flags used on input processing, not on pcb->flags
 */

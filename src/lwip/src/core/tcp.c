@@ -174,7 +174,7 @@ tcp_close_shutdown(struct tcp_pcb *pcb, u8_t rst_on_unacked_data)
 {
   err_t err;
 
-  if (rst_on_unacked_data && (pcb->state != LISTEN)) {
+  if (rst_on_unacked_data && ((pcb->state == ESTABLISHED) || (pcb->state == CLOSE_WAIT))) {
     if ((pcb->refused_data != NULL) || (pcb->rcv_wnd != TCP_WND_SCALED)) {
       /* Not all data received by application, send RST to tell the remote
          side about this. */
@@ -187,10 +187,12 @@ tcp_close_shutdown(struct tcp_pcb *pcb, u8_t rst_on_unacked_data)
 
       tcp_pcb_purge(pcb);
 
-      /* TODO: to which state do we move now? */
-
-      /* move to TIME_WAIT since we close actively */
-      pcb->state = TIME_WAIT;
+      if (pcb->state == ESTABLISHED) {
+              /* move to TIME_WAIT since we close actively */
+              pcb->state = TIME_WAIT;
+      } else {
+              /* CLOSE_WAIT: deallocate the pcb since we already sent a RST for it */
+      }
 
       return ERR_OK;
     }
@@ -308,13 +310,17 @@ tcp_shutdown(struct tcp_pcb *pcb, int shut_rx, int shut_tx)
     return ERR_CONN;
   }
   if (shut_rx) {
-    /* shut down the receive side: free buffered data... */
+    /* shut down the receive side: set a flag not to receive any more data... */
+    pcb->flags |= TF_RXCLOSED;
+    if (shut_tx) {
+      /* shutting down the tx AND rx side is the same as closing for the raw API */
+      return tcp_close_shutdown(pcb, 1);
+    }
+    /* ... and free buffered data */
     if (pcb->refused_data != NULL) {
       pbuf_free(pcb->refused_data);
       pcb->refused_data = NULL;
     }
-    /* ... and set a flag not to receive any more data */
-    pcb->flags |= TF_RXCLOSED;
   }
   if (shut_tx) {
     /* This can't happen twice since if it succeeds, the pcb's state is changed.
@@ -325,8 +331,9 @@ tcp_shutdown(struct tcp_pcb *pcb, int shut_rx, int shut_tx)
   case CLOSE_WAIT:
     return tcp_close_shutdown(pcb, 0);
   default:
-    /* don't shut down other states */
-    break;
+      /* Not (yet?) connected, cannot shutdown the TX side as that would bring us
+	into CLOSED state, where the PCB is deallocated. */
+      return ERR_CONN;
     }
   }
   /* @todo: return another err_t if not in correct state or already shut? */
@@ -361,6 +368,7 @@ tcp_abandon(struct tcp_pcb *pcb, int reset)
   if (pcb->state == TIME_WAIT) {
     tcp_pcb_remove(pcb);
   } else {
+    int send_rst = reset && (pcb->state != CLOSED);
     seqno = pcb->snd_nxt;
     ackno = pcb->rcv_nxt;
     ip_addr_copy(local_ip, pcb->local_ip);
@@ -384,7 +392,7 @@ tcp_abandon(struct tcp_pcb *pcb, int reset)
     }
 #endif /* TCP_QUEUE_OOSEQ */
     TCP_EVENT_ERR(errf, errf_arg, ERR_ABRT);
-    if (reset) {
+    if (send_rst) {
       LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_abandon: sending RST\n"));
       tcp_rst(seqno, ackno, &local_ip, &remote_ip, local_port, remote_port, pcb);
     }
@@ -548,6 +556,16 @@ tcp_recved(struct tcp_pcb *pcb, u32_t len)
   pcb->rcv_wnd += len;
   if (pcb->rcv_wnd > TCP_WND_SCALED) {
     pcb->rcv_wnd = TCP_WND_SCALED;
+  } else if(pcb->rcv_wnd == 0) {
+  /* rcv_wnd overflowed */
+    if ((pcb->state == CLOSE_WAIT) || (pcb->state == LAST_ACK)) {
+      /* In passive close, we allow this, since the FIN bit is added to rcv_wnd
+         by the stack itself, since it is not mandatory for an application
+         to call tcp_recved() for the FIN bit, but e.g. the netconn API does so. */
+      pcb->rcv_wnd = TCP_WND_SCALED;
+    } else {
+      LWIP_ASSERT("tcp_recved: len wrapped rcv_wnd\n", 0);
+    }
   }
 
   wnd_inflation = tcp_update_rcv_ann_wnd(pcb);
@@ -783,12 +801,17 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 	}
 	/* Check if this PCB has stayed too long in FIN-WAIT-2 */
 	if (pcb->state == FIN_WAIT_2) {
-	  if ((u32_t)(tcp_ticks - pcb->tmr) >
-		  TCP_FIN_WAIT_TIMEOUT / TCP_SLOW_INTERVAL) {
-		++pcb_remove;
-		err = ERR_ABRT;
-		LWIP_DEBUGF(TCP_DEBUG, ("tcp_slowtmr: removing pcb stuck in FIN-WAIT-2\n"));
-	  }
+		/* If this PCB is in FIN_WAIT_2 because of SHUT_WR don't let it time out. */
+		if (pcb->flags & TF_RXCLOSED) {
+			/* PCB was fully closed (either through close() or SHUT_RDWR):
+	   	   	   normal FIN-WAIT timeout handling. */
+			if ((u32_t)(tcp_ticks - pcb->tmr) >
+			TCP_FIN_WAIT_TIMEOUT / TCP_SLOW_INTERVAL) {
+				++pcb_remove;
+				err = ERR_ABRT;
+				LWIP_DEBUGF(TCP_DEBUG, ("tcp_slowtmr: removing pcb stuck in FIN-WAIT-2\n"));
+			}
+		}
 	}
 
 	/* Check if KEEPALIVE should be sent */

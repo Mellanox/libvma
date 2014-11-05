@@ -761,6 +761,7 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
     tcp_parseopt(npcb, in_data);
 #if TCP_RCVSCALE
      npcb->snd_wnd = SND_WND_SCALE(npcb, in_data->tcphdr->wnd);
+     npcb->snd_wnd_max = npcb->snd_wnd;
      npcb->ssthresh = npcb->snd_wnd;
 #endif
 #if TCP_CALCULATE_EFF_SEND_MSS
@@ -902,6 +903,7 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
       pcb->lastack = in_data->ackno;
       #if TCP_RCVSCALE
             pcb->snd_wnd = SND_WND_SCALE(pcb, in_data->tcphdr->wnd);        // Which means: tcphdr->wnd << pcb->snd_scale;
+            pcb->snd_wnd_max = pcb->snd_wnd;
       #else
             pcb->snd_wnd = in_data->tcphdr->wnd;
       #endif
@@ -1141,12 +1143,24 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
        (pcb->snd_wl2 == in_data->ackno && SND_WND_SCALE(pcb, in_data->tcphdr->wnd) > pcb->snd_wnd)) {
       #if TCP_RCVSCALE
 	  pcb->snd_wnd = SND_WND_SCALE(pcb, in_data->tcphdr->wnd);        // Which means: tcphdr->wnd << pcb->snd_scale;
+          /* keep track of the biggest window announced by the remote host to calculate
+	   the maximum segment size */
+          if (pcb->snd_wnd_max < pcb->snd_wnd) {
+	    pcb->snd_wnd_max = pcb->snd_wnd;
+          }
       #else
 	  pcb->snd_wnd = in_data->tcphdr->wnd;
       #endif
       pcb->snd_wl1 = in_data->seqno;
       pcb->snd_wl2 = in_data->ackno;
-      if (pcb->snd_wnd > 0 && pcb->persist_backoff > 0) {
+      if (pcb->snd_wnd == 0) {
+        if (pcb->persist_backoff == 0) {
+          /* start persist timer */
+          pcb->persist_cnt = 0;
+          pcb->persist_backoff = 1;
+        }
+      } else if (pcb->persist_backoff > 0) {
+        /* stop persist timer */
           pcb->persist_backoff = 0;
       }
       LWIP_DEBUGF(TCP_WND_DEBUG, ("tcp_receive: window update %"U16_F"\n", pcb->snd_wnd));
@@ -1193,7 +1207,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
             /* Clause 5 */
             if (pcb->lastack == in_data->ackno) {
               found_dupack = 1;
-              if (pcb->dupacks + 1 > pcb->dupacks)
+              if ((u8_t)(pcb->dupacks + 1) > pcb->dupacks)
                 ++pcb->dupacks;
               if (pcb->dupacks > 3) {
 #if TCP_CC_ALGO_MOD
@@ -1346,8 +1360,9 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
 
       pcb->polltmr = 0;
     } else {
-      /* Fix bug bug #21582: out of sequence ACK, didn't really ack anything */
+      /* Out of sequence ACK, didn't really ack anything */
       pcb->acked = 0;
+      tcp_send_empty_ack(pcb);
     }
 
     /* We go through the ->unsent list to see if any of the segments
@@ -1365,6 +1380,11 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
 
       next = pcb->unsent;
       pcb->unsent = pcb->unsent->next;
+#if TCP_OVERSIZE
+      if (pcb->unsent == NULL) {
+        pcb->unsent_oversize = 0;
+      }
+#endif /* TCP_OVERSIZE */
 #if TCP_RCVSCALE
       LWIP_DEBUGF(TCP_QLEN_DEBUG, ("tcp_receive: queuelen %"U32_F" ... ", (u32_t)pcb->snd_queuelen));
       LWIP_ASSERT("pcb->snd_queuelen >= pbuf_clen(next->p)", (pcb->snd_queuelen >= pbuf_clen(next->p)));
@@ -1425,8 +1445,10 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
   }
 
   /* If the incoming segment contains data, we must process it
-     further. */
-  if (in_data->tcplen > 0) {
+     further unless the pcb already received a FIN.
+     (RFC 793, chapter 3.9, "SEGMENT ARRIVES" in states CLOSE-WAIT, CLOSING,
+     LAST-ACK and TIME-WAIT: "Ignore the segment text.") */
+  if ((in_data->tcplen > 0) && (pcb->state < CLOSE_WAIT)) {
     /* This code basically does three things:
 
     +) If the incoming segment contains data that is the next

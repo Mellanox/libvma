@@ -317,6 +317,7 @@ struct tcp_pcb {
   /* sender variables */
   u32_t snd_nxt;   /* next new seqno to be sent */
   u32_t snd_wnd;   /* sender window */
+  u32_t snd_wnd_max;   /* the maximum sender window announced by the remote host */
   u32_t snd_wl1, snd_wl2; /* Sequence and acknowledgement numbers of last
                              window update. */
   u32_t snd_lbb;       /* Sequence number of next byte to be buffered. */

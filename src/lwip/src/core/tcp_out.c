@@ -403,6 +403,9 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
   u16_t concat_chksummed = 0;
 #endif /* TCP_CHECKSUM_ON_COPY */
   err_t err;
+  /* don't allocate segments bigger than half the maximum window we ever received */
+  u16_t mss_local = LWIP_MIN(pcb->mss, pcb->snd_wnd_max/2);
+  mss_local = mss_local ? mss_local : pcb->mss;
 
   int byte_queued = pcb->snd_nxt - pcb->lastack;
   if ( len < pcb->mss)
@@ -428,6 +431,8 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
   if ((pcb->flags & TF_TIMESTAMP)) {
     optflags = TF_SEG_OPTS_TS;
   }
+  /* ensure that segments can hold at least one data byte... */
+  mss_local = LWIP_MAX(mss_local, LWIP_TCP_OPT_LEN_TS + 1);
 #endif /* LWIP_TCP_TIMESTAMPS */
   optlen = LWIP_TCP_OPT_LENGTH( optflags );
 
@@ -465,7 +470,8 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
     }
     /* Usable space at the end of the last unsent segment */
     unsent_optlen = LWIP_TCP_OPT_LENGTH(pcb->last_unsent->flags);
-    space = pcb->mss - (pcb->last_unsent->len + unsent_optlen);
+    LWIP_ASSERT("mss_local is too small", mss_local >= pcb->last_unsent->len + unsent_optlen);
+    space = mss_local - (pcb->last_unsent->len + unsent_optlen);
 
     /*
      * Phase 1: Copy data directly into an oversized pbuf.
@@ -516,7 +522,7 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
           goto memerr;
         }
 #if TCP_OVERSIZE_DBGCHECK
-        pcb->last_unsent->oversize_left = oversize;
+        pcb->last_unsent->oversize_left += oversize;
 #endif /* TCP_OVERSIZE_DBGCHECK */
         TCP_DATA_COPY2(concat_p->payload, (u8_t*)arg + pos, seglen, &concat_chksum, &concat_chksum_swapped);
 #if TCP_CHECKSUM_ON_COPY
@@ -559,7 +565,7 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
   while (pos < len) {
     struct pbuf *p;
     u32_t left = len - pos;
-    u16_t max_len = pcb->mss - optlen;
+    u16_t max_len = mss_local - optlen;
     u16_t seglen = left > max_len ? max_len : left;
 #if TCP_CHECKSUM_ON_COPY
     u16_t chksum = 0;
@@ -569,7 +575,7 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
     if (apiflags & TCP_WRITE_FLAG_COPY) {
       /* If copy is set, memory should be allocated and data copied
        * into pbuf */
-      if ((p = tcp_pbuf_prealloc(PBUF_TRANSPORT, seglen + optlen, pcb->mss, &oversize, pcb, apiflags, queue == NULL)) == NULL) {
+      if ((p = tcp_pbuf_prealloc(PBUF_TRANSPORT, seglen + optlen, mss_local, &oversize, pcb, apiflags, queue == NULL)) == NULL) {
         LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_write : could not allocate memory for pbuf copy size %"U16_F"\n", seglen));
         goto memerr;
       }
@@ -775,8 +781,9 @@ tcp_enqueue_flags(struct tcp_pcb *pcb, u8_t flags)
   LWIP_ASSERT("tcp_enqueue_flags: need either TCP_SYN or TCP_FIN in flags (programmer violates API)",
               (flags & (TCP_SYN | TCP_FIN)) != 0);
 
-  /* check for configured max queuelen and possible overflow */
-  if ((pcb->snd_queuelen >= pcb->max_unsent_len) || (pcb->snd_queuelen > TCP_SNDQUEUELEN_OVERFLOW)) {
+  /* check for configured max queuelen and possible overflow (FIN flag should always come through!)*/
+  if (((pcb->snd_queuelen >= pcb->max_unsent_len) || (pcb->snd_queuelen > TCP_SNDQUEUELEN_OVERFLOW)) &&
+		  ((flags & TCP_FIN) == 0)) {
     LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 3, ("tcp_enqueue_flags: too long queue %"U16_F" (max %"U16_F")\n",
                                        pcb->snd_queuelen, pcb->max_unsent_len));
     TCP_STATS_INC(tcp.memerr);
@@ -1042,6 +1049,9 @@ tcp_output(struct tcp_pcb *pcb)
       pcb->flags &= ~(TF_ACK_DELAY | TF_ACK_NOW);
     }
 
+#if TCP_OVERSIZE_DBGCHECK
+    seg->oversize_left = 0;
+#endif /* TCP_OVERSIZE_DBGCHECK */
     tcp_output_segment(seg, pcb);
     snd_nxt = seg->seqno + TCP_TCPLEN(seg);
     if (TCP_SEQ_LT(pcb->snd_nxt, snd_nxt)) {
@@ -1089,13 +1099,6 @@ tcp_output(struct tcp_pcb *pcb)
     pcb->unsent_oversize = 0;
   }
 #endif /* TCP_OVERSIZE */
-
-  if (seg != NULL && pcb->persist_backoff == 0 && 
-      seg->seqno - pcb->lastack + seg->len > pcb->snd_wnd) {
-    /* prepare for persist timer */
-    pcb->persist_cnt = 0;
-    pcb->persist_backoff = 1;
-  }
 
   pcb->flags &= ~TF_NAGLEMEMERR;
   return ERR_OK;
@@ -1333,6 +1336,12 @@ tcp_rexmit_rto(struct tcp_pcb *pcb)
   for (seg = pcb->unacked; seg->next != NULL; seg = seg->next);
   /* concatenate unsent queue after unacked queue */
   seg->next = pcb->unsent;
+#if TCP_OVERSIZE && TCP_OVERSIZE_DBGCHECK
+  /* if last unsent changed, we need to update unsent_oversize */
+  if (pcb->unsent == NULL) {
+    pcb->unsent_oversize = seg->oversize_left;
+  }
+#endif /* TCP_OVERSIZE && TCP_OVERSIZE_DBGCHECK*/
   /* unsent queue is the concatenated queue (of unacked, unsent) */
   pcb->unsent = pcb->unacked;
   /* unacked queue is now empty */
@@ -1377,6 +1386,12 @@ tcp_rexmit(struct tcp_pcb *pcb)
   }
   seg->next = *cur_seg;
   *cur_seg = seg;
+#if TCP_OVERSIZE
+  if (seg->next == NULL) {
+    /* the retransmitted segment is last in unsent, so reset unsent_oversize */
+    pcb->unsent_oversize = 0;
+  }
+#endif /* TCP_OVERSIZE */
 
   ++pcb->nrtx;
 
@@ -1418,7 +1433,7 @@ tcp_rexmit_fast(struct tcp_pcb *pcb)
     }
     
     /* The minimum value for ssthresh should be 2 MSS */
-    if (pcb->ssthresh < 2*pcb->mss) {
+    if (pcb->ssthresh < (2U * pcb->mss)) {
       LWIP_DEBUGF(TCP_FR_DEBUG, 
                   ("tcp_receive: The minimum value for ssthresh %"U16_F
                    " should be min 2 mss %"U16_F"...\n",
