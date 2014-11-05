@@ -502,10 +502,6 @@ L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb)
     in_data.flags = TCPH_FLAGS(in_data.tcphdr);
     in_data.tcplen = p->tot_len + ((in_data.flags & (TCP_FIN | TCP_SYN)) ? 1 : 0);
 
-    /* copy IP addresses to aligned ip_addr_t */
-	ip_addr_copy(current_iphdr_dest, in_data.iphdr->dest);
-	ip_addr_copy(current_iphdr_src, in_data.iphdr->src);
-
     if (pcb != NULL) {
 
     	if (PCB_IN_ACTIVE_STATE(pcb))
@@ -673,7 +669,7 @@ L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb)
             TCP_STATS_INC(tcp.proterr);
             TCP_STATS_INC(tcp.drop);
             tcp_rst(in_data.ackno, in_data.seqno + in_data.tcplen,
-                    ip_current_dest_addr(), ip_current_src_addr(),
+        	    (ip_addr_t *)&in_data.iphdr->dest, (ip_addr_t *)&in_data.iphdr->src,
                     in_data.tcphdr->dest, in_data.tcphdr->src, pcb);
         }
         pbuf_free(p);
@@ -708,7 +704,7 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
        RST. */
     LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_listen_input: ACK in LISTEN, sending reset\n"));
     tcp_rst(in_data->ackno + 1, in_data->seqno + in_data->tcplen,
-      ip_current_dest_addr(), ip_current_src_addr(),
+      (ip_addr_t *)&in_data->iphdr->dest, (ip_addr_t *)&in_data->iphdr->src,
       in_data->tcphdr->dest, in_data->tcphdr->src, NULL);
   } else if (in_data->flags & TCP_SYN) {
     LWIP_DEBUGF(TCP_DEBUG, ("TCP connection request %"U16_F" -> %"U16_F".\n", in_data->tcphdr->src, in_data->tcphdr->dest));
@@ -732,9 +728,9 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
     pcb->accepts_pending++;
 #endif /* TCP_LISTEN_BACKLOG */
     /* Set up the new PCB. */
-    ip_addr_copy(npcb->local_ip, current_iphdr_dest);
+    ip_addr_copy(npcb->local_ip, in_data->iphdr->dest);
     npcb->local_port = pcb->local_port;
-    ip_addr_copy(npcb->remote_ip, current_iphdr_src);
+    ip_addr_copy(npcb->remote_ip, in_data->iphdr->src);
     npcb->remote_port = in_data->tcphdr->src;
     npcb->state = SYN_RCVD;
     npcb->rcv_nxt = in_data->seqno + 1;
@@ -810,7 +806,8 @@ tcp_timewait_input(struct tcp_pcb *pcb, tcp_in_data* in_data)
        should be sent in reply */
     if (TCP_SEQ_BETWEEN(in_data->seqno, pcb->rcv_nxt, pcb->rcv_nxt+pcb->rcv_wnd)) {
       /* If the SYN is in the window it is an error, send a reset */
-      tcp_rst(in_data->ackno, in_data->seqno + in_data->tcplen, ip_current_dest_addr(), ip_current_src_addr(),
+      tcp_rst(in_data->ackno, in_data->seqno + in_data->tcplen,
+	(ip_addr_t *)&in_data->iphdr->dest, (ip_addr_t *)&in_data->iphdr->src,
         in_data->tcphdr->dest, in_data->tcphdr->src, pcb);
       return ERR_OK;
     }
@@ -951,7 +948,8 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
     /* received ACK? possibly a half-open connection */
     else if (in_data->flags & TCP_ACK) {
       /* send a RST to bring the other side in a non-synchronized state. */
-      tcp_rst(in_data->ackno, in_data->seqno + in_data->tcplen, ip_current_dest_addr(), ip_current_src_addr(),
+      tcp_rst(in_data->ackno, in_data->seqno + in_data->tcplen,
+	(ip_addr_t *)&in_data->iphdr->dest, (ip_addr_t *)&in_data->iphdr->src,
         in_data->tcphdr->dest, in_data->tcphdr->src, pcb);
     }
     break;
@@ -1001,7 +999,8 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
         }
       } else {
         /* incorrect ACK number, send RST */
-        tcp_rst(in_data->ackno, in_data->seqno + in_data->tcplen, ip_current_dest_addr(), ip_current_src_addr(),
+        tcp_rst(in_data->ackno, in_data->seqno + in_data->tcplen,
+        	(ip_addr_t *)&in_data->iphdr->dest, (ip_addr_t *)&in_data->iphdr->src,
                 in_data->tcphdr->dest, in_data->tcphdr->src, pcb);
       }
     } else if ((in_data->flags & TCP_SYN) && (in_data->seqno == pcb->rcv_nxt - 1)) {
