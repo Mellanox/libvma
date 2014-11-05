@@ -1,4 +1,3 @@
-022-fix_connect_with_SO_REUSEADDR_option.patch
 023-always_enable_last_packet_push_bit.patch
 024-remove_global_lists.patch
 025-lwip_optimize_tcp_output.patch

@@ -687,7 +687,8 @@ tcp_connect(struct tcp_pcb *pcb, ip_addr_t *ipaddr, u16_t port,
     /* Don't check listen PCBs, check bound-, active- and TIME-WAIT PCBs. */
     for (i = 1; i < NUM_TCP_PCB_LISTS; i++) {
       for(cpcb = *tcp_pcb_lists[i]; cpcb != NULL; cpcb = cpcb->next) {
-        if ((cpcb->local_port == pcb->local_port) &&
+        if ((cpcb != pcb) &&
+        	(cpcb->local_port == pcb->local_port) &&
             (cpcb->remote_port == port) &&
             ip_addr_cmp(&cpcb->local_ip, &pcb->local_ip) &&
             ip_addr_cmp(&cpcb->remote_ip, ipaddr)) {
