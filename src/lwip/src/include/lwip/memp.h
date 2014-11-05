@@ -98,7 +98,6 @@ struct memp_malloc_helper
 };
 #endif /* MEM_USE_POOLS */
 
-void  memp_cleanup(void);
 void  memp_init(void);
 
 #if MEMP_OVERFLOW_CHECK
@@ -111,6 +110,7 @@ void  memp_free(memp_t type, void *mem);
 
 size_t memp_get_pool_size(void);
 u8_t *memp_get_pool_start(void);
+void  memp_set_pool_start(void * addr);
 
 #endif /* MEMP_MEM_MALLOC */
 

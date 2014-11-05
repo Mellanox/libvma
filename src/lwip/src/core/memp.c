@@ -334,46 +334,6 @@ memp_overflow_init(void)
 }
 #endif /* MEMP_OVERFLOW_CHECK */
 
-
-int
-static memp_hugetlb_alloc(void)
-{
-	size_t hugepagemask = 4 * 1024 * 1024 - 1;
-	memp_size = (memp_size + hugepagemask) & (~hugepagemask);
-
-	memp_shmid = shmget(IPC_PRIVATE, memp_size, SHM_HUGETLB | IPC_CREAT | SHM_R | SHM_W);
-	if (memp_shmid < 0) {
-		LWIP_DEBUGF(PBUF_DEBUG | LWIP_DBG_LEVEL_SERIOUS, ("memp_malloc: huge table allocation failed"));
-		return -1;
-	}
-	memp_memory = shmat(memp_shmid, NULL, 0);
-	if (memp_memory == (void*)-1) {
-		LWIP_DEBUGF(PBUF_DEBUG | LWIP_DBG_LEVEL_SERIOUS, ("memp_malloc: shared memory attach failure"));
-		return -1;
-	}
-	if (shmctl(memp_shmid, IPC_RMID, NULL)) {
-		LWIP_DEBUGF(PBUF_DEBUG | LWIP_DBG_LEVEL_SERIOUS,("memp_malloc: shared memory control mark 'to be destroyed' failed"));
-	}
-	return 0;
-}
-
-void
-memp_cleanup(void)
-{
-	pthread_mutex_lock(&memory_pool_lock);
-	if (memp_shmid >= 0) {
-		if (shmdt(memp_memory) != 0)
-			LWIP_DEBUGF(PBUF_DEBUG | LWIP_DBG_LEVEL_SERIOUS, ("memp_cleanup: shmem detach failure"));
-	}
-	 else {
-		 if (memp_memory) {
-			 free(memp_memory);
-			 memp_memory = NULL;
-		 }
-	 }
-	pthread_mutex_unlock(&memory_pool_lock);
-}
-
 /**
  * Initialize this module.
  * 
@@ -386,11 +346,6 @@ memp_init(void)
   u32_t i, j;
 
   pthread_mutex_lock(&memory_pool_lock);
-
-  if (memp_hugetlb_alloc())
-	  memp_memory = malloc(memp_size);
-
-  LWIP_ERROR("Memory allocation failed failed", memp_memory != NULL, return);
 
   for (i = 0; i < MEMP_MAX; ++i) {
     MEMP_STATS_AVAIL(used, i, 0);
@@ -549,6 +504,12 @@ u8_t *
 memp_get_pool_start(void)
 {
 	return memp_memory;
+}
+
+void
+memp_set_pool_start(void * addr)
+{
+       memp_memory = (u8_t *) addr;
 }
 
 #endif /* MEMP_MEM_MALLOC */
