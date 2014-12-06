@@ -383,7 +383,7 @@ make_cov=0
 make_bullseye=0
 copy_to_bgate=0
 
-master_name="vma_6.6"
+master_name="vma_6.7"
 buildTime="18:00:00"
 
 LOG_SCRIPT_STATUS=0
@@ -818,7 +818,7 @@ function prepare_debian_files {
 
         sed  -e "s/__DEB_VMA_VERSION/$DEB_VMA_VERSION/g" -e "s/__DEB_VMA_RELEASE/$DEB_VMA_RELEASE/g" -e "s/__DEB_VMA_DATE/$DEB_VMA_DATE/g" -e "s/__DEB_VMA_USERNAME/$DEB_VMA_USERNAME/g" -e "s/__DEB_VMA_USER_EMAIL/$DEB_VMA_USER_EMAIL/g" $pathToDebianDir/changelog.template > $pathToDebianDir/changelog
 
-        sed  -e "s/__DEB_VMA_ARCH/$DEB_VMA_ARCH/g" -e "s/__DEB_VMA_USERNAME/$DEB_VMA_USERNAME/g" -e "s/__DEB_VMA_USER_EMAIL/$DEB_VMA_USER_EMAIL/g" $pathToDebianDir/control.template > $pathToDebianDir/control
+        sed  -e "s/__DEB_VMA_ARCH/$DEB_VMA_ARCH/g" -e "s/__DEB_VMA_USERNAME/$DEB_VMA_USERNAME/g" -e "s/__DEB_VMA_USER_EMAIL/$DEB_VMA_USER_EMAIL/g" -e "s/__DEB_VMA_VERSION/$DEB_VMA_VERSION/g" -e "s/__DEB_VMA_RELEASE/$DEB_VMA_RELEASE/g" $pathToDebianDir/control.template > $pathToDebianDir/control
 
         sed  -e "s/__DEB_VMA_VERSION/$DEB_VMA_VERSION/g" -e "s/__DEB_VMA_RELEASE/$DEB_VMA_RELEASE/g" -e "s/__DEB_VMA_DATE/$DEB_VMA_DATE/g" -e "s/__DEB_VMA_ARCH/$DEB_VMA_ARCH/g" $pathToDebianDir/copyright.template > $pathToDebianDir/copyright
 

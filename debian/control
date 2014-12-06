@@ -1,8 +1,12 @@
 Source: libvma
+Section: libs
 Priority: extra
-Maintainer: __DEB_VMA_USERNAME <__DEB_VMA_USER_EMAIL>
+Maintainer: Mellanox Technologies Ltd. <support@mellanox.com>, __DEB_VMA_USERNAME <__DEB_VMA_USER_EMAIL>
+Standards-Version: __DEB_VMA_VERSION.__DEB_VMA_RELEASE
+Homepage: http://www.mellanox.com https://libvma.googlecode.com/
 
 Package: libvma
+Section: libs
 Architecture: __DEB_VMA_ARCH
 Depends: librdmacm1, libibverbs1, libnl1, ${shlibs:Depends}
 Description: Enhanced Service library for boosting TCP and UDP traffic (over OFED)
