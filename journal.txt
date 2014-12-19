@@ -1,3 +1,11 @@
+Version 6.8.0-0:
+Date + Time 2014-12-19
+=======================
+Added:
+        - RM #429310 Support TCP zero copy
+        - RM #434108 extract lwip patchs and backport some of latest lwip
+                     changes
+
 Version 6.7.2-0:
 Date + Time 2014-8-21
 =======================
