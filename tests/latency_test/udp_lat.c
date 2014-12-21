@@ -167,8 +167,8 @@ fd_set readfds;
 unsigned char *msgbuf = NULL;
 
 #ifdef  USING_VMA_EXTRA_API
-unsigned char* dgram_buf = NULL;
-struct vma_datagram_t *dgram = NULL;
+unsigned char* pkt_buf = NULL;
+struct vma_packets_t* pkts = NULL;
 #endif
 
 int max_buff_size = 0;
@@ -361,9 +361,9 @@ void cleanup()
 		msgbuf = NULL;
 	}
 #ifdef USING_VMA_EXTRA_API
-	if (dgram_buf) {
-		free(dgram_buf);
-		dgram_buf = NULL;
+	if (pkt_buf) {
+		free(pkt_buf);
+		pkt_buf = NULL;
 	}
 #endif
 	if (pattern) {
@@ -693,17 +693,19 @@ static inline int check_data_integrity(unsigned char *pattern_buf, size_t buf_si
 		to_print = 0;
 	}*/
 #ifdef USING_VMA_EXTRA_API
-	if (dgram) {
+	if (pkts && pkts->n_packet_num > 0) {
 		size_t i, pos, len;
+		struct vma_packet_t *pkt;
 
-		((char*)dgram->iov[0].iov_base)[1] = CLIENT_MASK; /*match to client so data_integrity will pass*/
+		pkt = &pkts->pkts[0];
+		((char*)pkt->iov[0].iov_base)[1] = CLIENT_MASK; /*match to client so data_integrity will pass*/
 
 		pos = 0;
-		for (i = 0; i < dgram->sz_iov; ++i) {
-			len = dgram->iov[i].iov_len;
+		for (i = 0; i < pkt->sz_iov; ++i) {
+			len = pkt->iov[i].iov_len;
 			
 			if (buf_size < pos + len ||
-			    memcmp((char*)dgram->iov[i].iov_base, 
+			    memcmp((char*)pkt->iov[i].iov_base, 
 			           (char*)pattern_buf + pos, len)) {
 				return 0;
 			}
@@ -711,7 +713,7 @@ static inline int check_data_integrity(unsigned char *pattern_buf, size_t buf_si
 		}
 		return pos == buf_size;
 	} else {
-		printf("dgram is NULL\n");
+		printf("pkts is NULL\n");
 	}
 #endif
 	msgbuf[1] = CLIENT_MASK; /*match to client so data_integrity will pass*/
@@ -1017,27 +1019,29 @@ static inline int msg_recvfrom(int fd, struct sockaddr_in *recvfrom_addr)
 		int flags = 0;
 
 		// Free VMA's previously received zero copied datagram
-		if (dgram) {
-			vma_api->free_datagrams(fd, &dgram->datagram_id, 1);
-			dgram = NULL;
+		if (pkts) {
+			vma_api->free_packets(fd, pkts->pkts, pkts->n_packet_num);
+			pkts = NULL;
 		}
 
 		// Receive the next datagram with zero copy API
-		ret = vma_api->recvfrom_zcopy(fd, dgram_buf, max_buff_size,
+		ret = vma_api->recvfrom_zcopy(fd, pkt_buf, max_buff_size,
 		                                  &flags, (struct sockaddr*)recvfrom_addr, &size);
 		if (ret >= 2) {
 			if (flags & MSG_VMA_ZCOPY) {
 				// zcopy
-				dgram = (struct vma_datagram_t*)dgram_buf;
-
+				struct vma_packet_t *pkt;
+				
+				pkts = (struct vma_packets_t*)pkt_buf;
+				pkt = &pkts->pkts[0];
 				// copy signature
-				msgbuf[0] = ((uint8_t*)dgram->iov[0].iov_base)[0];
-				msgbuf[1] = ((uint8_t*)dgram->iov[0].iov_base)[1];
+				msgbuf[0] = ((uint8_t*)pkt->iov[0].iov_base)[0];
+				msgbuf[1] = ((uint8_t*)pkt->iov[0].iov_base)[1];
 			}
 			else {
 				// copy signature
-				msgbuf[0] = dgram_buf[0];
-				msgbuf[1] = dgram_buf[1];
+				msgbuf[0] = pkt_buf[0];
+				msgbuf[1] = pkt_buf[1];
 			}
 
 		}
@@ -2300,7 +2304,7 @@ int main(int argc, char *argv[])
 		else
 			log_msg("VMA Extra API found - using VMA's receive zero copy and packet filter APIs");
 
-		vma_dgram_desc_size = sizeof(struct vma_datagram_t) + sizeof(struct iovec) * 16;
+		vma_dgram_desc_size = sizeof(struct vma_packets_t) + sizeof(struct vma_packet_t) + sizeof(struct iovec) * 16;
 #else
 		log_msg("This udp_lat version is not compiled with VMA extra API");
 #endif
@@ -2357,7 +2361,7 @@ int main(int argc, char *argv[])
 	
 #ifdef  USING_VMA_EXTRA_API
 	if (user_params.is_vmazcopyread && vma_api){
-		   dgram_buf = malloc(max_buff_size);
+		   pkt_buf = malloc(max_buff_size);
 	}
 #endif
 
