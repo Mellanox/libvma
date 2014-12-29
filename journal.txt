@@ -1,3 +1,12 @@
+Version 6.8.1-0:
+Date + Time 2014-12-29
+=======================
+Added:
+        - RM #327504 update sockperf version 2.5.253
+
+Fixed:
+        - RM #429310 Modify udp_lat test to latest VMA extra API
+
 Version 6.8.0-0:
 Date + Time 2014-12-19
 =======================
