@@ -243,6 +243,8 @@ private:
 	int m_tcp_seg_count;
 	int m_tcp_seg_in_use;
 
+	vma_desc_list_t m_rx_cb_dropped_list;
+
 	inline void lock_tcp_con();
 	inline void unlock_tcp_con();
 	void tcp_timer();

@@ -243,6 +243,12 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 		reuse_buffer(p_rx_pkt_desc);
 	}
 
+	while (!m_rx_cb_dropped_list.empty()) {
+		mem_buf_desc_t* p_rx_pkt_desc = m_rx_cb_dropped_list.front();
+		m_rx_cb_dropped_list.pop_front();
+		reuse_buffer(p_rx_pkt_desc);
+	}
+
 	tcp_close(&m_pcb);
 
 	if (is_listen_socket) {
@@ -871,9 +877,9 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *tpcb,
 		callback_retval = conn->m_rx_callback(conn->m_fd, nr_frags, iov, &pkt_info, conn->m_rx_callback_context);
 	}
 	
-	if (callback_retval == VMA_PACKET_DROP) {
-		conn->reuse_buffer(p_first_desc);
-	}
+	if (callback_retval == VMA_PACKET_DROP)
+		conn->m_rx_cb_dropped_list.push_back(p_first_desc);
+
 	// In ZERO COPY case we let the user's application manage the ready queue
 	else {
 		if (callback_retval == VMA_PACKET_RECV) {
@@ -1077,6 +1083,7 @@ void sockinfo_tcp::register_timer()
 bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void* pv_fd_ready_array)
 {
 	struct tcp_pcb* pcb = NULL;
+	int dropped_count = 0;
 
 	lock_tcp_con();
 	m_iomux_ready_fd_array = (fd_array_t*)pv_fd_ready_array;
@@ -1101,10 +1108,18 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	if (!p_rx_pkt_mem_buf_desc_info->path.rx.gro) init_pbuf_custom(p_rx_pkt_mem_buf_desc_info);
 	else p_rx_pkt_mem_buf_desc_info->path.rx.gro = 0;
 
+	dropped_count = m_rx_cb_dropped_list.size();
+
 	L3_level_tcp_input((pbuf *)p_rx_pkt_mem_buf_desc_info, pcb);
 
 	m_vma_thr = false;
 	m_iomux_ready_fd_array = NULL;
+
+	while (dropped_count--) {
+		mem_buf_desc_t* p_rx_pkt_desc = m_rx_cb_dropped_list.front();
+		m_rx_cb_dropped_list.pop_front();
+		reuse_buffer(p_rx_pkt_desc);
+	}
 
 	unlock_tcp_con();
 
