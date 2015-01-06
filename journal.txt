@@ -1,3 +1,9 @@
+Version 6.8.3-0:
+Date + Time 2015-1-6
+=======================
+Fixed:
+        - RM #429310 Fix bug in TCP zero callback DROP case
+
 Version 6.8.2-0:
 Date + Time 2014-12-29
 =======================
