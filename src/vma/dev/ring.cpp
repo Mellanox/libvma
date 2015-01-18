@@ -1004,7 +1004,7 @@ void ring::mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc)
 void ring::mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc)
 {
 	ring_logfuncall("");
-	RING_LOCK_AND_RUN(m_lock_ring_tx, m_tx_num_wr_free += put_tx_single_buffer(p_mem_buf_desc));
+	RING_LOCK_AND_RUN(m_lock_ring_tx, put_tx_single_buffer(p_mem_buf_desc));
 }
 
 int ring::drain_and_proccess(cq_type_t cq_type)
@@ -1413,8 +1413,8 @@ int ring::put_tx_buffers(mem_buf_desc_t* buff_list)
 		if (buff_list->lwip_pbuf.pbuf.ref == 0) {
 			free_lwip_pbuf(&buff_list->lwip_pbuf);
 			m_tx_pool.push_back(buff_list);
-			count++;
 		}
+		count++;
 		buff_list = next;
 	}
 
