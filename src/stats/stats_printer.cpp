@@ -229,6 +229,11 @@ void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, 
 		fprintf(filename, "Ring migrations Rx: %u, Tx: %u\n", p_si_stats->counters.n_rx_migrations, p_si_stats->counters.n_tx_migrations);
 	}
 
+	if (p_si_stats->counters.n_tx_retransmits)
+	{
+		fprintf(filename, "Retransmissions: %u\n", p_si_stats->counters.n_tx_retransmits);
+	}
+
 	if (b_any_activiy == false) {
 		fprintf(filename, "Rx and Tx where not active\n");
 	}

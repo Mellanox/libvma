@@ -605,6 +605,9 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit)
 		p_si_tcp->m_p_socket_stats->counters.n_tx_migrations++;
 	}
 
+	if (is_rexmit)
+		p_si_tcp->m_p_socket_stats->counters.n_tx_retransmits++;
+
 	if (likely((p_dst->is_valid()))) {
 		p_dst->fast_send(p_iovec, count, false, is_rexmit);
 	} else {

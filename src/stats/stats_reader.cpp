@@ -182,6 +182,7 @@ void update_delta_stat(socket_stats_t* p_curr_stat, socket_stats_t* p_prev_stat)
 
 	p_prev_stat->counters.n_rx_migrations = (p_curr_stat->counters.n_rx_migrations - p_prev_stat->counters.n_rx_migrations) / delay;
 	p_prev_stat->counters.n_tx_migrations = (p_curr_stat->counters.n_tx_migrations - p_prev_stat->counters.n_tx_migrations) / delay;
+	p_prev_stat->counters.n_tx_retransmits = (p_curr_stat->counters.n_tx_retransmits - p_prev_stat->counters.n_tx_retransmits) / delay;
 }
 
 void update_delta_iomux_stat(iomux_func_stats_t* p_curr_stats, iomux_func_stats_t* p_prev_stats)
@@ -205,6 +206,8 @@ void update_delta_ring_stat(ring_stats_t* p_curr_ring_stats, ring_stats_t* p_pre
 	p_prev_ring_stats->n_rx_interrupt_requests = (p_curr_ring_stats->n_rx_interrupt_requests - p_prev_ring_stats->n_rx_interrupt_requests) / delay;
 	p_prev_ring_stats->n_rx_cq_moderation_count = p_curr_ring_stats->n_rx_cq_moderation_count;
 	p_prev_ring_stats->n_rx_cq_moderation_period = p_curr_ring_stats->n_rx_cq_moderation_period;
+	p_prev_ring_stats->n_tx_retransmits = (p_curr_ring_stats->n_tx_retransmits - p_prev_ring_stats->n_tx_retransmits) / delay;
+
 }
 
 void update_delta_cq_stat(cq_stats_t* p_curr_cq_stats, cq_stats_t* p_prev_cq_stats)
@@ -236,6 +239,7 @@ void print_ring_stats(ring_instance_block_t* p_ring_inst_arr)
 			printf(FORMAT_CQ_STATS_64bit, "Interrupt received:", (unsigned long long int)p_ring_stats->n_rx_interrupt_received, post_fix);
 			printf(FORMAT_CQ_STATS_32bit, "Moderation frame count:",p_ring_stats->n_rx_cq_moderation_count);
 			printf(FORMAT_CQ_STATS_32bit, "Moderation usec period:",p_ring_stats->n_rx_cq_moderation_period);
+			printf(FORMAT_CQ_STATS_64bit, "Retransmissions:", (unsigned long long int)p_ring_stats->n_tx_retransmits, post_fix);
 		}
 	}
 	printf("======================================================\n");
@@ -1136,6 +1140,7 @@ void zero_ring_stats(ring_stats_t* p_ring_stats)
 	p_ring_stats->n_rx_byte_count = 0;
 	p_ring_stats->n_rx_interrupt_received = 0;
 	p_ring_stats->n_rx_interrupt_requests = 0;
+	p_ring_stats->n_tx_retransmits = 0;
 }
 
 void zero_cq_stats(cq_stats_t* p_cq_stats)

@@ -66,6 +66,9 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 		no_copy = false;
 	}
 
+	if (is_rexmit)
+		m_p_ring->m_p_ring_stat->n_tx_retransmits++;
+
 	if (likely(no_copy)) {
 		p_pkt = (tx_packet_template_t*)((uint8_t*)p_tcp_iov[0].iovec.iov_base - m_header.m_aligned_l2_l3_len);
 		total_packet_len = p_tcp_iov[0].iovec.iov_len + m_header.m_total_hdr_len;

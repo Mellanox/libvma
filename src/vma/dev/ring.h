@@ -309,6 +309,8 @@ public:
 	friend class rfs_uc_tcp_gro;
 	friend class rfs_mc;
 
+	ring_stats_t*				m_p_ring_stat;
+
 protected:
 	void 		create_resources(ring_resource_creation_info_t* p_ring_info, int active);
 	virtual qp_mgr* create_qp_mgr(ring_resource_definition& key, struct ibv_comp_channel* p_rx_comp_event_channel) = 0;
@@ -347,7 +349,6 @@ protected:
 
 	gro_mgr					m_gro_mgr;
 
-	ring_stats_t*				m_p_ring_stat;
 	ring_stats_t				m_ring_stat_static;
 
 	// Internal functions. No need for locks mechanism.

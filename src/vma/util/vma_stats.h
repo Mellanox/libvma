@@ -172,6 +172,7 @@ typedef struct {
 	uint32_t		n_tx_sent_byte_count;
 	uint32_t		n_tx_errors;
 	uint32_t		n_tx_drops;
+	uint32_t		n_tx_retransmits;
 	uint32_t		n_tx_os_packets;
 	uint32_t		n_tx_os_bytes;
 	uint32_t		n_tx_os_errors;
@@ -230,6 +231,7 @@ typedef struct {
 	uint64_t	n_rx_interrupt_received;
 	uint32_t	n_rx_cq_moderation_count;
 	uint32_t	n_rx_cq_moderation_period;
+	uint64_t	n_tx_retransmits;
 } ring_stats_t;
 
 typedef struct {

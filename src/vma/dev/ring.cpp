@@ -79,10 +79,10 @@ qp_mgr* ring_ib::create_qp_mgr(ring_resource_definition& key, struct ibv_comp_ch
 
 
 ring::ring(in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type) :
-		m_local_if(local_if), m_transport_type(transport_type), m_n_num_resources(count), m_p_tx_comp_event_channel(NULL),
+		m_p_ring_stat(NULL), m_local_if(local_if), m_transport_type(transport_type), m_n_num_resources(count), m_p_tx_comp_event_channel(NULL),
 		m_lock_ring_rx("ring:lock_rx"), m_lock_ring_tx("ring:lock_tx"), m_lock_ring_tx_buf_wait("ring:lock_tx_buf_wait"),
 		m_p_n_rx_channel_fds(NULL), m_tx_num_bufs(0), m_tx_num_wr(0), m_tx_num_wr_free(0), m_b_qp_tx_first_flushed_completion_handled(false),
-		m_missing_buf_ref_count(0), m_tx_lkey(0), m_partition(partition_sn), m_gro_mgr(mce_sys.gro_streams_max, MAX_GRO_BUFS), m_p_ring_stat(NULL)
+		m_missing_buf_ref_count(0), m_tx_lkey(0), m_partition(partition_sn), m_gro_mgr(mce_sys.gro_streams_max, MAX_GRO_BUFS)
 {
 	 // coverity[uninit_member]
 }
