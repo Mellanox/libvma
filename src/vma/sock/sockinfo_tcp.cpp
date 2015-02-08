@@ -688,13 +688,14 @@ void sockinfo_tcp::handle_timer_expired(void* user_data)
 	// Set the pending flag before getting the lock, so in the rare case of
 	// a race with unlock_tcp_con(), the timer will be called twice. If we set
 	// the flag after trylock(), the timer may not be called in case of a race.
-	m_timer_pending = true;
-	if (m_tcp_con_lock.trylock()) {
-		return;
+	if (m_timer_pending) {
+		if (m_tcp_con_lock.trylock()) {
+			return;
+		}
+		tcp_timer();
+		m_tcp_con_lock.unlock();
 	}
-
-	tcp_timer();
-	m_tcp_con_lock.unlock();
+	m_timer_pending = true;
 }
 
 #if _BullseyeCoverage
