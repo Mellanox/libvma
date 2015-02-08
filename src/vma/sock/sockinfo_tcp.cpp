@@ -90,6 +90,8 @@ sockinfo_tcp::sockinfo_tcp(int fd) :
 	m_parent = NULL;
 	m_iomux_ready_fd_array = NULL;
 
+	/* SNDBUF accounting */
+	m_sndbuff_max = 0;
 	/* RCVBUF accounting */
 	m_rcvbuff_max = 2*64*1024*1024; // defaults?
 	m_rcvbuff_current = 0;
@@ -1718,6 +1720,13 @@ sockinfo_tcp *sockinfo_tcp::accept_clone()
         si->m_sock_state = TCP_SOCK_BOUND;
         si->m_sock_offload = TCP_SOCK_LWIP;
 
+        si->m_rcvbuff_max = m_rcvbuff_max;
+        si->fit_rcv_wnd(m_rcvbuff_max);
+
+        si->m_sndbuff_max = m_sndbuff_max;
+        if (m_sndbuff_max)
+        	si->fit_snd_bufs(m_sndbuff_max);
+
         return si;
 }
 
@@ -2217,21 +2226,35 @@ bad_state:
 #define TCP_INFO         11     /* Information about this connection. */
 #define TCP_QUICKACK     12     /* Bock/reenable quick ACKs.  */
 
-void sockinfo_tcp::fit_snd_bufs_to_nagle(bool disable_nagle)
+void sockinfo_tcp::fit_rcv_wnd(unsigned int new_max_rcv_buff)
 {
-	uint32_t new_max_snd_buff = 0;
+        if (new_max_rcv_buff < m_pcb.rcv_wnd)
+        	m_pcb.rcv_wnd = new_max_rcv_buff;
+        if (new_max_rcv_buff < m_pcb.rcv_ann_wnd)
+        	m_pcb.rcv_ann_wnd = new_max_rcv_buff;
+}
+
+void sockinfo_tcp::fit_snd_bufs(unsigned int new_max_snd_buff)
+{
 	uint32_t sent_buffs_num = 0;
 
-	if (disable_nagle) {
-		new_max_snd_buff = TCP_SND_BUF_NO_NAGLE;
-	} else {
-		new_max_snd_buff = TCP_SND_BUF;
-	}
 	sent_buffs_num = m_pcb.max_snd_buff - m_pcb.snd_buf;
 	if (sent_buffs_num <= new_max_snd_buff) {
 		m_pcb.max_snd_buff = new_max_snd_buff;
 		m_pcb.max_unsent_len = (16 * (m_pcb.snd_buf)/(TCP_MSS));
 		m_pcb.snd_buf = m_pcb.max_snd_buff - sent_buffs_num;
+	}
+}
+
+void sockinfo_tcp::fit_snd_bufs_to_nagle(bool disable_nagle)
+{
+	if (m_sndbuff_max)
+		return;
+
+	if (disable_nagle) {
+		fit_snd_bufs(TCP_SND_BUF_NO_NAGLE);
+	} else {
+		fit_snd_bufs(TCP_SND_BUF);
 	}
 }
 
@@ -2276,9 +2299,17 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 		case SO_RCVBUF:
 			// OS allocates double the size of memory requested by the application - not sure we need it.
 			m_rcvbuff_max = *(int*)__optval;
+			m_rcvbuff_max = MAX(2*m_pcb.mss, m_rcvbuff_max);
+			fit_rcv_wnd(m_rcvbuff_max);
 			si_tcp_logdbg("setsockopt SO_RCVBUF: %d", m_rcvbuff_max);
 			break;
-
+		case SO_SNDBUF:
+			// OS allocates double the size of memory requested by the application - not sure we need it.
+			m_sndbuff_max = *(int*)__optval;
+			m_sndbuff_max = MAX(2*m_pcb.mss, 2*m_sndbuff_max);
+			fit_snd_bufs(m_sndbuff_max);
+			si_tcp_logdbg("setsockopt SO_SNDBUF: %d", m_sndbuff_max);
+			break;
                 case SO_RCVTIMEO:
                         if (__optval) {
                             struct timeval* tv = (struct timeval*)__optval;
