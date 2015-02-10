@@ -273,6 +273,7 @@ struct tcp_pcb {
   u16_t rcv_wnd;   /* receiver window available */
   u16_t rcv_ann_wnd; /* receiver window to announce */
 #endif
+  u32_t rcv_wnd_max; /* maximum available receive window */
   u32_t rcv_ann_right_edge; /* announced right edge of window */
 
   /* Timers */

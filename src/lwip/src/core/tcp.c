@@ -175,7 +175,7 @@ tcp_close_shutdown(struct tcp_pcb *pcb, u8_t rst_on_unacked_data)
   err_t err;
 
   if (rst_on_unacked_data && ((pcb->state == ESTABLISHED) || (pcb->state == CLOSE_WAIT))) {
-    if ((pcb->refused_data != NULL) || (pcb->rcv_wnd != TCP_WND_SCALED)) {
+    if ((pcb->refused_data != NULL) || (pcb->rcv_wnd != pcb->rcv_wnd_max)) {
       /* Not all data received by application, send RST to tell the remote
          side about this. */
       LWIP_ASSERT("pcb->flags & TF_RXCLOSED", pcb->flags & TF_RXCLOSED);
@@ -509,7 +509,7 @@ u32_t tcp_update_rcv_ann_wnd(struct tcp_pcb *pcb)
 {
   u32_t new_right_edge = pcb->rcv_nxt + pcb->rcv_wnd;
 
-  if (TCP_SEQ_GEQ(new_right_edge, pcb->rcv_ann_right_edge + LWIP_MIN((TCP_WND_SCALED / 2), pcb->mss))) {
+  if (TCP_SEQ_GEQ(new_right_edge, pcb->rcv_ann_right_edge + LWIP_MIN((pcb->rcv_wnd_max / 2), pcb->mss))) {
     /* we can advertise more window */
     pcb->rcv_ann_wnd = pcb->rcv_wnd;
     return new_right_edge - pcb->rcv_ann_right_edge;
@@ -554,15 +554,15 @@ tcp_recved(struct tcp_pcb *pcb, u32_t len)
 #endif
 
   pcb->rcv_wnd += len;
-  if (pcb->rcv_wnd > TCP_WND_SCALED) {
-    pcb->rcv_wnd = TCP_WND_SCALED;
+  if (pcb->rcv_wnd > pcb->rcv_wnd_max) {
+    pcb->rcv_wnd = pcb->rcv_wnd_max;
   } else if(pcb->rcv_wnd == 0) {
   /* rcv_wnd overflowed */
     if ((pcb->state == CLOSE_WAIT) || (pcb->state == LAST_ACK)) {
       /* In passive close, we allow this, since the FIN bit is added to rcv_wnd
          by the stack itself, since it is not mandatory for an application
          to call tcp_recved() for the FIN bit, but e.g. the netconn API does so. */
-      pcb->rcv_wnd = TCP_WND_SCALED;
+      pcb->rcv_wnd = pcb->rcv_wnd_max;
     } else {
       LWIP_ASSERT("tcp_recved: len wrapped rcv_wnd\n", 0);
     }
@@ -672,6 +672,7 @@ tcp_connect(struct tcp_pcb *pcb, ip_addr_t *ipaddr, u16_t port,
   pcb->snd_lbb = iss - 1;
   pcb->rcv_wnd = TCP_WND_SCALED;
   pcb->rcv_ann_wnd = TCP_WND_SCALED;
+  pcb->rcv_wnd_max = TCP_WND_SCALED;
   pcb->rcv_ann_right_edge = pcb->rcv_nxt;
   pcb->snd_wnd = TCP_WND;
   /* As initial send MSS, we use TCP_MSS but limit it to 536.
@@ -1178,6 +1179,7 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio)
 	pcb->snd_queuelen = 0;
 	pcb->rcv_wnd = TCP_WND_SCALED;
 	pcb->rcv_ann_wnd = TCP_WND_SCALED;
+	pcb->rcv_wnd_max = TCP_WND_SCALED;
 #if TCP_RCVSCALE
 	pcb->snd_scale = 0;
   	pcb->rcv_scale = 0;

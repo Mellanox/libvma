@@ -390,7 +390,7 @@ tcp_input(struct pbuf *p, struct netif *inp)
         if (in_data.recv_flags & TF_GOT_FIN) {
           /* correct rcv_wnd as the application won't call tcp_recved()
              for the FIN's seqno */
-          if (pcb->rcv_wnd != TCP_WND_SCALED) {
+          if (pcb->rcv_wnd != pcb->rcv_wnd_max) {
             pcb->rcv_wnd++;
           }
           TCP_EVENT_CLOSED(pcb, err);
@@ -613,7 +613,7 @@ L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb)
 					if (in_data.recv_flags & TF_GOT_FIN) {
 						/* correct rcv_wnd as the application won't call tcp_recved()
 						   for the FIN's seqno */
-						if (pcb->rcv_wnd != TCP_WND_SCALED) {
+						if (pcb->rcv_wnd != pcb->rcv_wnd_max) {
 							pcb->rcv_wnd++;
 						}
 						TCP_EVENT_CLOSED(pcb, err);

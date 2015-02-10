@@ -2232,10 +2232,18 @@ bad_state:
 
 void sockinfo_tcp::fit_rcv_wnd(unsigned int new_max_rcv_buff)
 {
-        if (new_max_rcv_buff < m_pcb.rcv_wnd)
-        	m_pcb.rcv_wnd = new_max_rcv_buff;
-        if (new_max_rcv_buff < m_pcb.rcv_ann_wnd)
-        	m_pcb.rcv_ann_wnd = new_max_rcv_buff;
+	unsigned int max_wnd = new_max_rcv_buff;
+	if (max_wnd > (unsigned int)TCP_WND_SCALED)
+		max_wnd = TCP_WND_SCALED;
+
+	if (m_pcb.rcv_wnd_max - m_pcb.rcv_wnd > max_wnd)
+		max_wnd = m_pcb.rcv_wnd_max - m_pcb.rcv_wnd;
+	if (m_pcb.rcv_wnd_max - m_pcb.rcv_ann_wnd > max_wnd)
+		max_wnd = m_pcb.rcv_wnd_max - m_pcb.rcv_ann_wnd;
+
+	m_pcb.rcv_wnd += max_wnd - m_pcb.rcv_wnd_max;
+	m_pcb.rcv_ann_wnd += max_wnd - m_pcb.rcv_wnd_max;
+	m_pcb.rcv_wnd_max = max_wnd;
 }
 
 void sockinfo_tcp::fit_snd_bufs(unsigned int new_max_snd_buff)
@@ -2303,7 +2311,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 		case SO_RCVBUF:
 			// OS allocates double the size of memory requested by the application - not sure we need it.
 			m_rcvbuff_max = *(int*)__optval;
-			m_rcvbuff_max = MAX(2*m_pcb.mss, m_rcvbuff_max);
+			m_rcvbuff_max = MAX(2*m_pcb.mss, 2*m_rcvbuff_max);
 			fit_rcv_wnd(m_rcvbuff_max);
 			si_tcp_logdbg("setsockopt SO_RCVBUF: %d", m_rcvbuff_max);
 			break;
