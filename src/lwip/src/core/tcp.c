@@ -382,9 +382,11 @@ tcp_abandon(struct tcp_pcb *pcb, int reset)
     tcp_pcb_remove(pcb);
     if (pcb->unacked != NULL) {
       tcp_tx_segs_free(pcb, pcb->unacked);
+      pcb->unacked = NULL;
     }
     if (pcb->unsent != NULL) {
       tcp_tx_segs_free(pcb, pcb->unsent);
+      pcb->unsent = NULL;
     }
 #if TCP_QUEUE_OOSEQ    
     if (pcb->ooseq != NULL) {

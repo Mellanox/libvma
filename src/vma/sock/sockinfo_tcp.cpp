@@ -269,7 +269,8 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 	//todo should we do this each time we get into prepare_to_close ?
 	memset(&elapsed, 0,sizeof(timeval));
 	gettime(&start);
-	while (tv_to_msec(&elapsed) <= TCP_LINGER_TIME_MSEC && m_pcb.state != LISTEN && (m_pcb.unsent || m_pcb.unacked)) {
+	while (tv_to_msec(&elapsed) <= TCP_LINGER_TIME_MSEC && m_pcb.state != LISTEN &&
+			(m_pcb.unsent || (m_pcb.unacked && m_pcb.unacked->len))) {
 		rx_wait(poll_cnt, false);
 		tcp_output(&m_pcb);
 		gettime(&current);
