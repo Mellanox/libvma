@@ -201,16 +201,14 @@ bool rfs::destroy_ibv_flow()
 		attach_flow_data_t* iter = m_attach_flow_data_vector[i];
 		if (unlikely(!iter->ibv_flow)) {
 			rfs_logdbg("Destroy of QP flow ID failed - QP flow ID that was not created. This is OK for MC same ip diff port scenario."); //TODO ALEXR - Add info about QP, spec, priority into log msg
-			return false;
 		}
 		IF_VERBS_FAILURE(vma_ibv_destroy_flow(iter->ibv_flow)) {
 			rfs_logerr("Destroy of QP flow ID failed"); //TODO ALEXR - Add info about QP, spec, priority into log msg
-			return false;
 		} ENDIF_VERBS_FAILURE;
 	}
 
 	m_b_tmp_is_attached = false;
-	rfs_logdbg("ibv_destroy_flow succeeded with flow %s", m_flow_tuple.to_str());
+	rfs_logdbg("ibv_destroy_flow with flow %s", m_flow_tuple.to_str());
 	return true;
 }
 
