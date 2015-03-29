@@ -636,7 +636,9 @@ int get_peer_unicast_mac(const in_addr_t p_peer_addr, unsigned char peer_mac[ETH
 		goto out;
 	fd = fileno(fp);
 
-	read(fd, buff, 4096);
+	// coverity[check_return]
+	if (read(fd, buff, 4096) < 0)
+		__log_err("error reading arp table, errno %d %m", errno);
 	peer_mac_str = (char *)strstr((const char*)buff, (const char*)peer_ip_str);
 	if (!peer_mac_str)
 		goto out;
@@ -674,7 +676,9 @@ int get_peer_ipoib_qpn(const struct sockaddr* p_peer_addr, uint32_t & remote_qpn
 		goto out;
 	fd = fileno(fp);
 
-	read(fd, buff, 4096);
+	// coverity[check_return]
+	if (read(fd, buff, 4096) < 0)
+		__log_err("error reading arp table, errno %d %m", errno);
 	str = (char *)strstr((const char*)buff, peer_ip_str);
 	if (!str)
 		goto out;
@@ -711,7 +715,9 @@ int get_peer_ipoib_address(const struct sockaddr* p_peer_addr, unsigned char pee
 		goto out;
 	fd = fileno(fp);
 
-	read(fd, buff, 4096);
+	// coverity[check_return]
+	if (read(fd, buff, 4096) < 0)
+		__log_err("error reading arp table, errno %d %m", errno);
 	peer_l2 = (unsigned char *)strstr((const char*)buff, peer_ip_str);
 	if (!peer_l2)
 		goto out;

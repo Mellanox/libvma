@@ -210,7 +210,8 @@ void dbg_send_mcpkt()
 	const char msgbuf[256] = "Hello Alex";
 
 	vlog_printf(VLOG_WARNING, "send_mc_packet_test:%d: Sending MC test packet to address: %d.%d.%d.%d [%s]\n", __LINE__, NIPQUAD(get_sa_ipv4_addr(p_addr)), VMA_DBG_SEND_MCPKT_MCGROUP_STR);
-	sendto(fd, msgbuf, strlen(msgbuf), 0, p_addr, sizeof(struct sockaddr));
+	if (sendto(fd, msgbuf, strlen(msgbuf), 0, p_addr, sizeof(struct sockaddr)) < 0)
+		vlog_printf(VLOG_ERROR, "sendto mc_packet failed! errno %m\n", errno);
 	close(fd);
 }
 #if _BullseyeCoverage

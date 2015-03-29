@@ -222,7 +222,8 @@ int sockinfo::rx_wait_helper(int &poll_count, bool is_blocking)
 		if (rx_ring_iter->second.refcnt <= 0) {
 			continue;
 		}
-		ret = rx_ring_iter->first->request_notification(CQT_RX, poll_sn);
+		// coverity[check_return]
+		rx_ring_iter->first->request_notification(CQT_RX, poll_sn);
 	}
 
 	ret = orig_os_api.epoll_wait(m_rx_epfd, rx_epfd_events, SI_RX_EPFD_EVENT_MAX, -1);

@@ -1275,7 +1275,8 @@ void vma_mcheck_abort_cb(enum mcheck_status status)
 {
 	printf("mcheck abort! Got %d\n", status);
 	printf("Press ENTER to continue...\n");
-	getchar();
+	if (getchar() < 0)
+		printf("error reading char, errno %d %m!\n", errno);
 	handle_segfault(0);
 }
 

@@ -199,7 +199,8 @@ int cpu_manager::reserve_cpu_for_thread(pthread_t tid, int suggested_cpu /* = NO
 
 	CPU_FREE(cpu_set);
 	g_n_thread_cpu_core = cpu;
-	m_cpu_thread_count[cpu]++;
+	if (cpu > NO_CPU && cpu < MAX_CPU)
+		m_cpu_thread_count[cpu]++;
 	unlock();
 	return cpu;
 }
