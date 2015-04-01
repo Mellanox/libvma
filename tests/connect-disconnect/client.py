@@ -1,13 +1,29 @@
 #!/usr/bin/env python
-import socket, select, os, time, sys
-import datetime as dt
 #
-# Written by Avner BenHanoch 31Mar2015
+#
+#@copyright:
+#        Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+#        This software product is a proprietary product of Mellanox Technologies Ltd.
+#        (the Company) and all right, title, and interest in and to the software product,
+#        including all associated intellectual property rights, are and shall
+#        remain exclusively with the Company.
+#
+#        This software product is governed by the End User License Agreement
+#        provided with the software product.
+#
+#@author: Avner BenHanoch
+
+#@date: 31Mar2015
+#
 # This script performs non blocking connect (and disconnect) to a given TCP server
-# It can serve for checking [latency] effect of connect/disconnect on a standard [sockperf] client
+# It can serve for checking [latency] effect of connect/disconnect on other client (sockperf)
 # Also it can be used directly with [sockperf] server by adding debug calls to LogDuration in vma code
 # (note: most effect is expected by 1st packet from a machine; hence, feel free to decrease num sockets)
 #
+#
+#
+import socket, select, os, time, sys
+import datetime as dt
 NUM_SOCKETS=70
 DURATION=10 # seconds
 
