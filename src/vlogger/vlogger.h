@@ -124,6 +124,21 @@ void printf_backtrace(void);
 void vlog_start(const char* log_module_name, int log_level = VLOG_INFO, const char* log_filename = NULL, int log_details = 0, bool colored_log = true);
 void vlog_stop(void);
 
+class LogDuration {
+	static const tscval_t TSC_RATE_PER_USEC;
+
+	const char * m_label;
+	vlog_levels_t m_log_level;
+	tscval_t m_startTime;
+	tscval_t m_lastPrint;
+	unsigned m_printCounter;
+public:
+	LogDuration(const char * label = "", vlog_levels_t log_level = VLOG_DEBUG);
+	void print();
+	~LogDuration(); // no need for virtual
+};
+
+
 static inline uint32_t vlog_get_usec_since_start()
 {
 	struct timespec ts_now;
