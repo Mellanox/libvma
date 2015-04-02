@@ -193,6 +193,7 @@ public:
 	{
 		ST_NOT_ACTIVE = 0,
 		ST_INIT = 1,
+		ST_INIT_RESOLUTION,
 		ST_ARP_RESOLVED,
 		ST_PATH_RESOLVED,
 		ST_READY,
@@ -203,6 +204,7 @@ public:
 	enum event_t
 	{
 		EV_KICK_START = 0,
+		EV_START_RESOLUTION,
 		EV_ARP_RESOLVED,
 		EV_ADDR_RESOLVED,
 		EV_PATH_RESOLVED,
@@ -254,6 +256,7 @@ public:
 	static void		general_st_leave(const sm_info_t& func_info);
 	static void 		print_event_info(int state, int event, void* app_data);
 	static void 		dofunc_enter_init(const sm_info_t& func_info);
+	static void 		dofunc_enter_init_resolution(const sm_info_t& func_info);
 	static void 		dofunc_enter_error(const sm_info_t& func_info);
 	static void		dofunc_enter_not_active(const sm_info_t& func_info);
 	static void		dofunc_enter_ready(const sm_info_t& func_info);
@@ -292,6 +295,7 @@ protected:
 	virtual void		priv_enter_not_active();
 	virtual void		priv_enter_error();
 	virtual int 		priv_enter_init();
+	virtual int 		priv_enter_init_resolution();
 	virtual int 		priv_enter_ready();
 
 	bool 			priv_get_neigh_state(int & state);
@@ -400,6 +404,7 @@ private:
 	//Overriding neigh_entry priv_enter_ready
 	virtual int 		priv_enter_ready();
 	virtual int 		priv_enter_init();
+	virtual int 		priv_enter_init_resolution();
 	virtual bool 		priv_handle_neigh_is_l2_changed(address_t);
 	virtual bool 		post_send_arp(bool is_broadcast);
 	virtual bool 		prepare_to_send_packet(header *);

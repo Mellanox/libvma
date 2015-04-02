@@ -205,6 +205,10 @@ void neigh_entry::handle_timer_expired(void* ctx)
 	// Clear Timer Handler
 	m_timer_handle = NULL;
 
+	if(m_state_machine->get_curr_state() == ST_INIT) {
+		event_handler(EV_START_RESOLUTION);
+	}
+
 	// Check if neigh_entry state is reachable
 	int state;
 	if(!priv_get_neigh_state(state)) {
@@ -758,6 +762,14 @@ void neigh_entry::dofunc_enter_init(const sm_info_t& func_info)
 	run_helper_func(priv_enter_init(), EV_ERROR);
 }
 
+//Static enter function for INIT state
+void neigh_entry::dofunc_enter_init_resolution(const sm_info_t& func_info)
+{
+	neigh_entry * my_neigh = (neigh_entry *) func_info.app_hndl;
+	general_st_entry(func_info);
+	run_helper_func(priv_enter_init_resolution(), EV_ERROR);
+}
+
 //Static enter function for READY state
 void neigh_entry::dofunc_enter_ready(const sm_info_t& func_info)
 {
@@ -797,6 +809,13 @@ void neigh_entry::priv_kick_start_sm()
 //Private enter function for INIT state
 int neigh_entry::priv_enter_init()
 {
+	m_timer_handle = priv_register_timer_event(0, this, ONE_SHOT_TIMER, NULL);
+	return 0;
+}
+
+//Private enter function for INIT_RESOLUTION state
+int neigh_entry::priv_enter_init_resolution()
+{
 	// 1. Delete old cma_id
 	priv_destroy_cma_id();
 
@@ -827,7 +846,6 @@ int neigh_entry::priv_enter_init()
 
 	return 0;
 }
-
 
 //Private enter function for NOT_ACTIVE state
 void neigh_entry::priv_enter_not_active()
@@ -1027,11 +1045,15 @@ neigh_eth::neigh_eth(neigh_key key) :
 				{ ST_NOT_ACTIVE, 	EV_KICK_START, 		ST_INIT, 		NULL },
 				{ ST_ERROR, 		EV_KICK_START, 		ST_INIT, 		NULL },
 				{ ST_INIT, 		EV_ARP_RESOLVED,	ST_READY,		NULL },
+				{ ST_INIT, 		EV_START_RESOLUTION,	ST_INIT_RESOLUTION,	NULL },
+				{ ST_INIT_RESOLUTION, 	EV_ARP_RESOLVED,	ST_READY,		NULL },
 				{ ST_READY, 		EV_ERROR, 		ST_ERROR,		NULL },
 				{ ST_INIT, 		EV_ERROR, 		ST_ERROR, 		NULL },
+				{ ST_INIT_RESOLUTION, 	EV_ERROR, 		ST_ERROR, 		NULL },
 				{ ST_ERROR, 		EV_ERROR, 		ST_NOT_ACTIVE, 		NULL },
 	                 //Entry functions
 	                        { ST_INIT, 		SM_STATE_ENTRY, 	SM_NO_ST,		neigh_entry::dofunc_enter_init },
+	                        { ST_INIT_RESOLUTION, 	SM_STATE_ENTRY, 	SM_NO_ST,		neigh_entry::dofunc_enter_init_resolution },
 	                        { ST_ERROR, 		SM_STATE_ENTRY, 	SM_NO_ST,		neigh_entry::dofunc_enter_error },
 	                        { ST_NOT_ACTIVE, 	SM_STATE_ENTRY,		SM_NO_ST,		neigh_entry::dofunc_enter_not_active },
 	                        { ST_READY, 		SM_STATE_ENTRY, 	SM_NO_ST,		neigh_entry::dofunc_enter_ready },
@@ -1157,7 +1179,14 @@ int neigh_eth::priv_enter_init()
 		return 0;
 	}
 
-	if (!(neigh_entry::priv_enter_init())) {
+	return neigh_entry::priv_enter_init();
+}
+
+int neigh_eth::priv_enter_init_resolution()
+{
+	int state;
+
+	if (!(neigh_entry::priv_enter_init_resolution())) {
 		// query netlink - if this entry already exist and REACHABLE we can use it
 		if (priv_get_neigh_state(state) && (state != NUD_FAILED)) {
 				event_handler(EV_ARP_RESOLVED);
@@ -1381,16 +1410,19 @@ neigh_ib::neigh_ib(neigh_key key, bool is_init_resources) :
 			// 	{curr state,            event,                  next state,             action func   }
 			{ ST_NOT_ACTIVE, 	EV_KICK_START, 		ST_INIT,		NULL },
 			{ ST_ERROR, 		EV_KICK_START, 		ST_INIT, 		NULL },
-			{ ST_INIT, 		EV_ADDR_RESOLVED,	ST_ARP_RESOLVED, 	NULL },
+			{ ST_INIT, 		EV_START_RESOLUTION,	ST_INIT_RESOLUTION, 	NULL },
+			{ ST_INIT_RESOLUTION, 	EV_ADDR_RESOLVED,	ST_ARP_RESOLVED, 	NULL },
 			{ ST_ARP_RESOLVED, 	EV_PATH_RESOLVED,	ST_PATH_RESOLVED, 	NULL },
 			{ ST_PATH_RESOLVED, 	EV_TIMEOUT_EXPIRED,	ST_READY, 		NULL },
 			{ ST_PATH_RESOLVED, 	EV_ERROR,		ST_ERROR, 		NULL },
 			{ ST_ARP_RESOLVED, 	EV_ERROR,		ST_ERROR, 		NULL },
 			{ ST_READY, 		EV_ERROR, 		ST_ERROR,		NULL },
 			{ ST_INIT, 		EV_ERROR, 		ST_ERROR, 		NULL },
+			{ ST_INIT_RESOLUTION, 	EV_ERROR, 		ST_ERROR, 		NULL },
 			{ ST_ERROR, 		EV_ERROR, 		ST_NOT_ACTIVE, 		NULL },
 			//Entry functions
 			{ ST_INIT, 		SM_STATE_ENTRY, 	SM_NO_ST,		neigh_entry::dofunc_enter_init },
+			{ ST_INIT_RESOLUTION, 	SM_STATE_ENTRY, 	SM_NO_ST,		neigh_entry::dofunc_enter_init_resolution },
 			{ ST_ARP_RESOLVED, 	SM_STATE_ENTRY,		SM_NO_ST,		neigh_ib::dofunc_enter_arp_resolved },
 			{ ST_PATH_RESOLVED, 	SM_STATE_ENTRY,		SM_NO_ST, 		neigh_ib::dofunc_enter_path_resolved },
 			{ ST_READY, 		SM_STATE_ENTRY, 	SM_NO_ST,		neigh_entry::dofunc_enter_ready },
@@ -1443,6 +1475,11 @@ void neigh_ib::handle_timer_expired(void* ctx)
 	}
 	else if(state == ST_READY) {
 		neigh_entry::handle_timer_expired(ctx);
+	}
+	else if(state == ST_INIT) {
+		// Clear Timer Handler
+		m_timer_handle = NULL;
+		event_handler(EV_START_RESOLUTION);
 	}
 }
 
