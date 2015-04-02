@@ -162,6 +162,7 @@ private:
 
 	mem_buf_desc_t*			m_p_next_rx_desc_poll;
 
+	descq_t				m_syn_queue;
 	descq_t				m_rx_queue;
 	descq_t				m_rx_pool;
 	int32_t				m_n_out_of_free_bufs_warning;
@@ -199,6 +200,8 @@ private:
 	/**
 	 * Helper function wrapping the poll and the process functionality in single call
 	 */
+	//a sub helper for poll_and_process_helper_rx in order to shorten the function
+	void		handle_syn(uint32_t rx_processed, void* pv_fd_ready_array);
 	int		poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	int		poll_and_process_helper_tx(uint64_t* p_cq_poll_sn);
 

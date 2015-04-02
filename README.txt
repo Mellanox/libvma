@@ -115,7 +115,7 @@ Example:
  VMA DEBUG  : CQ AIM Max Count               160                        [VMA_CQ_AIM_MAX_COUNT]
  VMA DEBUG  : CQ AIM Max Period (usec)       200                        [VMA_CQ_AIM_MAX_PERIOD_USEC]
  VMA INFO   : CQ AIM Interval (msec)         250                        [VMA_CQ_AIM_INTERVAL_MSEC]
- VMA DEBUG  : CQ AIM Interrupts Rate (per sec) 5000                       [VMA_CQ_AIM_INTERRUPTS_RATE_PER_SEC]
+ VMA DEBUG  : CQ AIM Interrupts Rate (per sec) 5000                     [VMA_CQ_AIM_INTERRUPTS_RATE_PER_SEC]
  VMA DEBUG  : CQ Poll Batch (max)            16                         [VMA_CQ_POLL_BATCH_MAX]
  VMA DEBUG  : CQ Keeps QP Full               Enabled                    [VMA_CQ_KEEP_QP_FULL]
  VMA DEBUG  : QP Compensation Level          256                        [VMA_QP_COMPENSATION_LEVEL]
@@ -126,7 +126,7 @@ Example:
  VMA DEBUG  : Delay after rereg (msec)       500                        [VMA_WAIT_AFTER_REREG_MSEC]
  VMA DEBUG  : Internal Thread Affinity       0                          [VMA_INTERNAL_THREAD_AFFINITY]
  VMA DEBUG  : Internal Thread Cpuset                                    [VMA_INTERNAL_THREAD_CPUSET]
- VMA DEBUG  : Internal Thread Arm CQ	     Disabled			[VMA_INTERNAL_THREAD_ARM_CQ]
+ VMA DEBUG  : Internal Thread Arm CQ	     Disabled                   [VMA_INTERNAL_THREAD_ARM_CQ]
  VMA DEBUG  : Thread mode                    Multi spin lock            [VMA_THREAD_MODE]
  VMA DEBUG  : Mem Allocate type              1 (Contig Pages)           [VMA_MEM_ALLOC_TYPE]
  VMA DEBUG  : Num of UC ARPs                 3                          [VMA_NEIGH_UC_ARP_QUATA]
@@ -139,7 +139,8 @@ Example:
  VMA DEBUG  : MTU                            1500                       [VMA_MTU]
  VMA DEBUG  : MSS                            0 (follow VMA_MTU)         [VMA_MSS]
  VMA DEBUG  : TCP CC Algorithm               0 (LWIP)                   [VMA_TCP_CC_ALGO]
- VMA DEBUG  : TCP scaling window             3		                [VMA_WINDOW_SCALING]
+ VMA DEBUG  : TCP scaling window             3                          [VMA_WINDOW_SCALING]
+ VMA INFO   : TCP max Accept rate            0 (no limit)               [VMA_TCP_MAX_ACCEPT_RATE]
  VMA DEBUG  : Suppress IGMP ver. warning     Disabled                   [VMA_SUPPRESS_IGMP_WARNING]
  VMA INFO   : ---------------------------------------------------------------------------
 
@@ -710,6 +711,15 @@ Value of -1 disable both direction.
 Value of -2 use the OS maximum receive buffer value to calculate the factor.
 Make sure that VMA buffers are big enough to support the window.
 Default value is 3 
+
+VMA_TCP_MAX_ACCEPT_RATE
+Limit the number of new TCP connections (TCP SYN packets) that VMA will handle
+per second per thread.
+For example, in case you use 10 for this value than VMA will accept at most 10
+new connections per second per thread.
+Use a value of 0 for un-limiting the number of new connections that can be accepted.
+Value range is 0 to 100000.
+Default value is 0 (no limit)
 
 VMA_IPERF
 Support iperf server default test which is multithreaded. 
