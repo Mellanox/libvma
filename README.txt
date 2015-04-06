@@ -69,6 +69,7 @@ Example:
  VMA DEBUG  : Log Colors                     Enabled                    [VMA_LOG_COLORS]
  VMA DEBUG  : Log File                                                  [VMA_LOG_FILE]
  VMA DEBUG  : Stats File                                                [VMA_STATS_FILE]
+ VMA DEBUG  : Stats shared memory directory  /tmp/			[VMA_STATS_SHMEM_DIR]
  VMA DEBUG  : Stats FD Num (max)             100                        [VMA_STATS_FD_NUM]
  VMA DEBUG  : Conf File                      /etc/libvma.conf           [VMA_CONFIG_FILE]
  VMA DEBUG  : Application ID                 VMA_DEFAULT_APPLICATION_ID [VMA_APPLICATION_ID]
@@ -207,6 +208,11 @@ VMA_STATS_FILE
 Redirect socket statistics to a specific user defined file.
 VMA will dump each socket's statistics into a file when closing the socket.
 Example:  VMA_STATS_FILE=/tmp/stats
+
+VMA_STATS_SHMEM_DIR
+Set the directory path for vma to create the shared memory files for vma_stats.
+No files will be created when setting this value to empty string "". 
+Default value is /tmp/
 
 VMA_STATS_FD_NUM
 Max number of sockets monitored by VMA statistic mechanism.

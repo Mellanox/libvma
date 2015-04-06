@@ -147,7 +147,8 @@ void write_version_details_to_shmem(version_info_t* p_ver_info)
 
 void vma_shmem_stats_open(uint8_t** p_p_vma_log_level, uint8_t** p_p_vma_log_details)
 {
-	void* buf;
+	void *buf = NULL;
+ 	void *p_shmem = NULL;
 	int ret;
 	size_t shmem_size = 0;
         mode_t saved_mode;
@@ -161,30 +162,37 @@ void vma_shmem_stats_open(uint8_t** p_p_vma_log_level, uint8_t** p_p_vma_log_det
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
+	shmem_size = SHMEM_STATS_SIZE(mce_sys.stats_fd_num_max);
+	buf = malloc(shmem_size);
+	if (buf == NULL)
+		goto shmem_error;
+	memset(buf, 0, shmem_size);
+	
+	if (strlen(mce_sys.stats_shmem_dirname) <= 0)
+		goto no_shmem;
+
 	g_sh_mem_info.filename_sh_stats[0] = '\0';
 	g_sh_mem_info.p_sh_stats = MAP_FAILED;
-	sprintf(g_sh_mem_info.filename_sh_stats, "/tmp/vmastat.%d", getpid());
-        saved_mode = umask(0);
+	sprintf(g_sh_mem_info.filename_sh_stats, "%s/vmastat.%d", mce_sys.stats_shmem_dirname, getpid());
+	saved_mode = umask(0);
 	g_sh_mem_info.fd_sh_stats = open(g_sh_mem_info.filename_sh_stats, O_CREAT|O_RDWR, S_IRWXU | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-        umask(saved_mode);
+	umask(saved_mode);
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (g_sh_mem_info.fd_sh_stats < 0) {
 		vlog_printf(VLOG_ERROR, "%s: Could not open %s %m\n", __func__, g_sh_mem_info.filename_sh_stats, errno);
-		goto shmem_error;
+		goto no_shmem;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	shmem_size = SHMEM_STATS_SIZE(mce_sys.stats_fd_num_max);
-	buf = malloc(shmem_size);
-	memset(buf, 0, shmem_size);
 	ret = write(g_sh_mem_info.fd_sh_stats, buf, shmem_size);
 	free(buf);
+	buf = NULL;
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (ret < 0) {
 		vlog_printf(VLOG_ERROR, "%s: Could not write to %s - %m\n", __func__, g_sh_mem_info.filename_sh_stats, errno);
-		goto shmem_error;
+		goto no_shmem;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
@@ -193,11 +201,28 @@ void vma_shmem_stats_open(uint8_t** p_p_vma_log_level, uint8_t** p_p_vma_log_det
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (g_sh_mem_info.p_sh_stats == MAP_FAILED) {
 		vlog_printf(VLOG_ERROR, "%s: MAP_FAILED for %s - %m\n", __func__, g_sh_mem_info.filename_sh_stats);
-		goto shmem_error;
+		goto no_shmem;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	MAP_SH_MEM(g_sh_mem, g_sh_mem_info.p_sh_stats);
+	p_shmem = g_sh_mem_info.p_sh_stats;
+
+	goto success;
+
+no_shmem:
+	if (g_sh_mem_info.p_sh_stats == MAP_FAILED) {
+		if (g_sh_mem_info.fd_sh_stats > 0) {
+			close(g_sh_mem_info.fd_sh_stats);
+			unlink(g_sh_mem_info.filename_sh_stats);
+		}
+	}
+
+	g_sh_mem_info.p_sh_stats = 0;
+	p_shmem = buf;
+
+success:
+
+	MAP_SH_MEM(g_sh_mem, p_shmem);
 	
 	write_version_details_to_shmem(&g_sh_mem->ver_info);
 	g_sh_mem->max_skt_inst_num = mce_sys.stats_fd_num_max;
@@ -219,9 +244,8 @@ void vma_shmem_stats_open(uint8_t** p_p_vma_log_level, uint8_t** p_p_vma_log_det
 shmem_error:
 
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (g_sh_mem_info.fd_sh_stats > 0) {
-		close(g_sh_mem_info.fd_sh_stats);
-		unlink(g_sh_mem_info.filename_sh_stats);
+	if (buf) {
+		free(buf);
 	}
 	g_sh_mem_info.fd_sh_stats = -1;
 	g_sh_mem_info.p_sh_stats = MAP_FAILED;
@@ -250,6 +274,8 @@ void vma_shmem_stats_close()
 
 		if(!g_is_forked_child)
 			unlink(g_sh_mem_info.filename_sh_stats);
+	} else if (g_sh_mem_info.p_sh_stats != MAP_FAILED) {
+		free(g_sh_mem);
 	}
 	g_sh_mem = NULL;
 	g_p_vlogger_level = NULL;

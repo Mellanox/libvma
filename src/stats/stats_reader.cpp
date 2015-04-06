@@ -56,8 +56,6 @@ typedef enum {
 #define log_system_err(log_fmt, log_args...)	fprintf(stderr,MODULE_NAME ": " log_fmt " (errno=%d %s)\n", ##log_args, errno, strerror(errno))
 #define log_dbg(log_fmt, log_args...)		printf(MODULE_NAME ": " log_fmt "\n", ##log_args)
 
-#define VMA_SH_OBJ_DIR			"/tmp"
-
 #define BASE_HEADERS_NUM		2
 #define BASIC_STATS_LINES_NUM		2
 #define	 UPPER_SHORT_VIEW_HEADER	" %-7s %42s %31s\n"
@@ -121,17 +119,20 @@ uint32_t 	g_fd_map_size = e_K;
 //statistic file
 FILE* g_stats_file = stdout;
 
+char g_vma_shmem_dir[FILE_NAME_MAX_SIZE];
+
 void usage(const char *argv0)
 {
 	printf("\nVMA Statistics\n");
 	printf("Usage:\n");
-	printf("\t%s [-p pid] [-v view] [-d details] [-i interval]\n", argv0);
+	printf("\t%s [-p pid] [-k directory] [-v view] [-d details] [-i interval] \n", argv0);
 	printf("\n");
 	printf("Defaults:\n");
-	printf("\tfind_pid=enabled, view=1, details=1, interval=1\n");
+	printf("\tfind_pid=enabled, directory=\"%s\", view=1, details=1, interval=1, \n", MCE_DEFAULT_STATS_SHMEM_DIR);
 	printf("\n");
 	printf("Options:\n");
 	printf("  -p, --pid=<pid>\t\tShow VMA statistics for proccess with pid: <pid>\n");
+	printf("  -k, --directory=<directory>\tSet shared memory directory path to <directory>\n");
 	printf("  -n, --name=<application>\tShow VMA statistics for application: <application>\n");
 	printf("  -f, --find_pid\t\tFind and show statistics for VMA instance running (default)\n");
 	printf("  -F, --forbid_clean\t\tBy setting this flag inactive shared objects would not be removed\n");
@@ -835,6 +836,9 @@ void set_defaults()
 	user_params.zero_counters = false;
 	user_params.write_auth = true; //needed to set read flag on
 	user_params.cycles = DEFAULT_CYCLES;
+	
+	strcpy(g_vma_shmem_dir, MCE_DEFAULT_STATS_SHMEM_DIR);
+	
 	alloc_fd_mask();
 	if (g_fd_mask)
 		memset((void*)g_fd_mask, 1, sizeof(uint8_t) * g_fd_map_size);
@@ -993,9 +997,9 @@ void clean_inactive_sh_ibj()
 	int module_name_size = strlen(MODULE_NAME);
 	int pid_offset = module_name_size + 1;
 	
-	dir = opendir(VMA_SH_OBJ_DIR);	
+	dir = opendir(g_vma_shmem_dir);	
 	if (dir == NULL){ 
-		log_system_err("opendir %s failed\n", VMA_SH_OBJ_DIR);
+		log_system_err("opendir %s failed\n", g_vma_shmem_dir);
 		return;
 	}
 	dirent = readdir(dir);
@@ -1006,7 +1010,7 @@ void clean_inactive_sh_ibj()
 			if (!proccess_running) {
 				char to_delete[FILE_NAME_MAX_SIZE];
 				memset((void*)to_delete,0,sizeof(char) * FILE_NAME_MAX_SIZE);
-				unlink(strcat(strcat(strcpy(to_delete, VMA_SH_OBJ_DIR), "/"),dirent->d_name));
+				unlink(strcat(strcat(strcpy(to_delete, g_vma_shmem_dir), "/"),dirent->d_name));
 			}		
 		}
 		dirent = readdir(dir);
@@ -1023,9 +1027,9 @@ char* look_for_vma_stat_active_sh_obj(char* app_name)
 	int module_name_size = strlen(MODULE_NAME);
 	int pid_offset = module_name_size + 1;
 	
-	dir = opendir(VMA_SH_OBJ_DIR);	
+	dir = opendir(g_vma_shmem_dir);	
 	if (dir == NULL){ 
-		log_system_err("opendir %s failed\n", VMA_SH_OBJ_DIR);
+		log_system_err("opendir %s failed\n", g_vma_shmem_dir);
 		return NULL;
 	}
 	dirent = readdir(dir);
@@ -1223,7 +1227,7 @@ int main (int argc, char **argv)
 	sh_mem_t* sh_mem;
 	int pid = -1;
 	char proc_desc[MAX_BUFF_SIZE];
-	
+
 	memset((void*)proc_desc, 0, sizeof(char) * MAX_BUFF_SIZE);
 	set_defaults();	
 	if (!g_fd_mask)
@@ -1237,6 +1241,7 @@ int main (int argc, char **argv)
 			{"view",		1,	NULL,	'v'},
 			{"details",		1,	NULL,	'd'},
 			{"pid",			1,	NULL,	'p'},
+			{"directory",		1,	NULL,	'k'},
 			{"sockets",		1,	NULL,	's'},
 			{"version",		0,	NULL,	'V'},
 			{"zero",		0,	NULL,	'z'},
@@ -1249,7 +1254,7 @@ int main (int argc, char **argv)
 			{0,0,0,0}
 		};
 		
-		if ((c = getopt_long(argc, argv, "i:c:v:d:p:s:Vzl:D:n:fFh?", long_options, NULL)) == -1)
+		if ((c = getopt_long(argc, argv, "i:c:v:d:p:k:s:Vzl:D:n:fFh?", long_options, NULL)) == -1)
 			break;
 
 		switch (c) {
@@ -1306,6 +1311,9 @@ int main (int argc, char **argv)
 			user_params.proc_ident_mode = e_by_pid_str;
 			strcpy(proc_desc, optarg);
 			break;	
+		case 'k': 
+			strcpy(g_vma_shmem_dir, optarg);
+			break;			
 		case 's': {
 			if (update_fds_mask(optarg)) {
 				usage(argv[0]); 
@@ -1378,7 +1386,7 @@ int main (int argc, char **argv)
 		return 1;
 	}
 		
-	sprintf(sh_mem_info.filename_sh_stats, "/tmp/vmastat.%d",pid);
+	sprintf(sh_mem_info.filename_sh_stats, "%s/vmastat.%d", g_vma_shmem_dir, pid);
 	
 	if (user_params.write_auth)
 		sh_mem_info.fd_sh_stats = open(sh_mem_info.filename_sh_stats,O_RDWR, S_IRWXU|S_IROTH);

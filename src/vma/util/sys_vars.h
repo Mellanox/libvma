@@ -116,6 +116,7 @@ struct mce_sys_var {
 	uint32_t	log_details;
 	char 		log_filename[FILENAME_MAX];
 	char		stats_filename[FILENAME_MAX];
+	char		stats_shmem_dirname[FILENAME_MAX];
 	char 		conf_filename[FILENAME_MAX];
 	bool		log_colors;
 	bool 		handle_sigintr;
@@ -221,6 +222,7 @@ struct mce_sys_var {
 #define SYS_VAR_LOG_DETAILS				"VMA_LOG_DETAILS"
 #define SYS_VAR_LOG_FILENAME				"VMA_LOG_FILE"
 #define SYS_VAR_STATS_FILENAME				"VMA_STATS_FILE"
+#define SYS_VAR_STATS_SHMEM_DIRNAME			"VMA_STATS_SHMEM_DIR"
 #define SYS_VAR_CONF_FILENAME				"VMA_CONFIG_FILE"
 #define SYS_VAR_LOG_COLORS				"VMA_LOG_COLORS"
 #define SYS_VAR_APPLICATION_ID				"VMA_APPLICATION_ID"
@@ -324,6 +326,7 @@ struct mce_sys_var {
 #define MCE_DEFAULT_LOG_FILE				("")
 #define MCE_DEFAULT_CONF_FILE				("/etc/libvma.conf")
 #define MCE_DEFAULT_STATS_FILE				("")
+#define MCE_DEFAULT_STATS_SHMEM_DIR			("/tmp/")
 #define MCE_DEFAULT_LOG_DETAILS				(0)
 #define MCE_DEFAULT_LOG_COLORS				(true)
 #define MCE_DEFAULT_APP_ID				("VMA_DEFAULT_APPLICATION_ID")

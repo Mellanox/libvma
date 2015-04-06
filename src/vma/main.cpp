@@ -427,6 +427,7 @@ void print_vma_global_settings()
 	VLOG_PARAM_STRING("Log Colors", mce_sys.log_colors, MCE_DEFAULT_LOG_COLORS, SYS_VAR_LOG_COLORS, mce_sys.log_colors ? "Enabled " : "Disabled");
 	VLOG_STR_PARAM_STRING("Log File", mce_sys.log_filename, MCE_DEFAULT_LOG_FILE, SYS_VAR_LOG_FILENAME, mce_sys.log_filename);
 	VLOG_STR_PARAM_STRING("Stats File", mce_sys.stats_filename, MCE_DEFAULT_STATS_FILE, SYS_VAR_STATS_FILENAME, mce_sys.stats_filename);
+	VLOG_STR_PARAM_STRING("Stats shared memory directory", mce_sys.stats_shmem_dirname, MCE_DEFAULT_STATS_SHMEM_DIR, SYS_VAR_STATS_SHMEM_DIRNAME, mce_sys.stats_shmem_dirname);
 	VLOG_PARAM_NUMBER("Stats FD Num (max)", mce_sys.stats_fd_num_max, MCE_DEFAULT_STATS_FD_NUM, SYS_VAR_STATS_FD_NUM);
 	VLOG_STR_PARAM_STRING("Conf File", mce_sys.conf_filename, MCE_DEFAULT_CONF_FILE, SYS_VAR_CONF_FILENAME, mce_sys.conf_filename);
 	VLOG_STR_PARAM_STRING("Application ID", mce_sys.app_id, MCE_DEFAULT_APP_ID, SYS_VAR_APPLICATION_ID, mce_sys.app_id);
@@ -632,7 +633,9 @@ void get_env_params()
 	strcpy(mce_sys.vma_time_measure_filename, MCE_DEFAULT_TIME_MEASURE_DUMP_FILE);
 	bzero(mce_sys.log_filename, sizeof(mce_sys.log_filename));
 	bzero(mce_sys.stats_filename, sizeof(mce_sys.stats_filename));
+	bzero(mce_sys.stats_shmem_dirname, sizeof(mce_sys.stats_shmem_dirname));
 	strcpy(mce_sys.stats_filename, MCE_DEFAULT_STATS_FILE);
+	strcpy(mce_sys.stats_shmem_dirname, MCE_DEFAULT_STATS_SHMEM_DIR);
 	strcpy(mce_sys.conf_filename, MCE_DEFAULT_CONF_FILE);
 	strcpy(mce_sys.app_id, MCE_DEFAULT_APP_ID);
 	strcpy(mce_sys.internal_thread_cpuset, MCE_DEFAULT_INTERNAL_THREAD_CPUSET);
@@ -797,6 +800,10 @@ void get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_STATS_FILENAME)) != NULL){
 		snprintf(mce_sys.stats_filename, sizeof(mce_sys.stats_filename), env_ptr, getpid());
+	}
+	
+	if ((env_ptr = getenv(SYS_VAR_STATS_SHMEM_DIRNAME)) != NULL){
+		snprintf(mce_sys.stats_shmem_dirname, sizeof(mce_sys.stats_shmem_dirname), env_ptr, getpid());
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_CONF_FILENAME)) != NULL){
