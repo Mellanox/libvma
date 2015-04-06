@@ -354,7 +354,7 @@ protected:
 	// Internal functions. No need for locks mechanism.
 	transport_type_t 	 get_transport_type() { return m_transport_type; }	// TODO ODEDS: move to ctor...
 	struct ibv_comp_channel* get_tx_comp_event_channel() { return m_p_tx_comp_event_channel; }
-	bool			 rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_type_t m_transport_type, void* pv_fd_ready_array, descq_t *syn_q);
+	bool			 rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_type_t m_transport_type, void* pv_fd_ready_array, descq_t *tcp_ctl_q);
 	void 			 print_flow_to_rfs_udp_uc_map(flow_spec_udp_uc_map_t *p_flow_map);
 	void 			 print_flow_to_rfs_tcp_map(flow_spec_tcp_map_t *p_flow_map);
 	//	void	print_ring_flow_to_rfs_map(flow_spec_map_t *p_flow_map);

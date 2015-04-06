@@ -606,7 +606,7 @@ const char* priv_igmp_type_tostr(uint8_t igmptype)
 
 // All CQ wce come here for some basic sanity checks and then are distributed to the correct ring handler
 // Return values: false = Reuse this data buffer & mem_buf_desc
-bool ring::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_type_t transport_type, void* pv_fd_ready_array /*=NULL*/, descq_t *syn_q)
+bool ring::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_type_t transport_type, void* pv_fd_ready_array /*=NULL*/, descq_t *tcp_ctl_q)
 {
 	size_t sz_data = 0;
 	size_t transport_header_len = 0;
@@ -836,12 +836,12 @@ bool ring::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_type_t 
 				ntohl(p_tcp_h->seq), ntohl(p_tcp_h->ack_seq), ntohs(p_tcp_h->window),
 				sz_payload);
 
-		if (mce_sys.tcp_max_accept_rate && p_tcp_h->syn) {
-			if (p_rx_wc_buf_desc->path.rx.is_syn) {
-				p_rx_wc_buf_desc->path.rx.is_syn = false;
+		if (mce_sys.tcp_max_syn_fin_rate && (p_tcp_h->syn || p_tcp_h->fin || p_tcp_h->rst)) {
+			if (p_rx_wc_buf_desc->path.rx.is_tcp_ctl) {
+				p_rx_wc_buf_desc->path.rx.is_tcp_ctl = false;
 			} else {
-				syn_q->push_back(p_rx_wc_buf_desc);
-				p_rx_wc_buf_desc->path.rx.is_syn = true;
+				tcp_ctl_q->push_back(p_rx_wc_buf_desc);
+				p_rx_wc_buf_desc->path.rx.is_tcp_ctl = true;
 				return true;
 			}
 		}

@@ -718,12 +718,12 @@ Value of -2 use the OS maximum receive buffer value to calculate the factor.
 Make sure that VMA buffers are big enough to support the window.
 Default value is 3 
 
-VMA_TCP_MAX_ACCEPT_RATE
-Limit the number of new TCP connections (TCP SYN packets) that VMA will handle
+VMA_TCP_MAX_SYN_FIN_RATE
+Limit the number of TCP control packets (TCP SYN/FIN/RST packets) that VMA will handle
 per second per thread.
 For example, in case you use 10 for this value than VMA will accept at most 10
 new connections per second per thread.
-Use a value of 0 for un-limiting the number of new connections that can be accepted.
+Use a value of 0 for un-limiting the number of TCP control packets that can be handled.
 Value range is 0 to 100000.
 Default value is 0 (no limit)
 
