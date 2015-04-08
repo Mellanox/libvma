@@ -207,6 +207,7 @@ void neigh_entry::handle_timer_expired(void* ctx)
 
 	if(m_state_machine->get_curr_state() == ST_INIT) {
 		event_handler(EV_START_RESOLUTION);
+		return;
 	}
 
 	// Check if neigh_entry state is reachable
