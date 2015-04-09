@@ -1858,9 +1858,20 @@ err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_
 
 	new_sock->set_conn_properties_from_pcb();
 	new_sock->create_dst_entry();
-	new_sock->prepare_dst_to_send(true); // true for passive socket to skip the transport rules checking
+	bool is_new_offloaded = new_sock->prepare_dst_to_send(true); // pass true for passive socket to skip the transport rules checking
 
 	listen_sock->unlock_tcp_con();
+
+	/* this can happen if there is no route back to the syn sender.
+	/* so we just need to ignore it.
+	 * we set the state to close so we won't try to send fin when we don't
+	 * have route. */
+	if (!is_new_offloaded) {
+		new_sock->setPassthrough();
+		new_sock->m_pcb.state = CLOSED;
+		close(new_sock->get_fd());
+		return ERR_ABRT;
+	}
 
 	return ERR_OK;
 }
