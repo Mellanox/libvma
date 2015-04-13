@@ -594,7 +594,7 @@ Bitmask Examples:
 Comma Delimited Examples:
 0,4,8      - Run on processors 0,4, and 8.
 0,1,7-10   - Run on processors 0,1,7,8,9 and 10.
-Default value is cpu-0.
+Default value is -1 (Disabled).
 
 VMA_INTERNAL_THREAD_CPUSET
 Select a cpuset for VMA internal thread (see man page of cpuset).
