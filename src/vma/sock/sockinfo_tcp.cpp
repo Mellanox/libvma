@@ -1863,7 +1863,7 @@ err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_
 	listen_sock->unlock_tcp_con();
 
 	/* this can happen if there is no route back to the syn sender.
-	/* so we just need to ignore it.
+	 * so we just need to ignore it.
 	 * we set the state to close so we won't try to send fin when we don't
 	 * have route. */
 	if (!is_new_offloaded) {
