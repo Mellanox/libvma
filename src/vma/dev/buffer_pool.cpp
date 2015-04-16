@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <sys/param.h> // for MIN
 #include <sys/shm.h>
+#include <sys/mman.h>
 
 #include "vlogger/vlogger.h"
 #include "vma/util/sys_vars.h"
@@ -208,6 +209,18 @@ bool buffer_pool::hugetlb_alloc(size_t sz_bytes)
 	// this will clear the HugePage resources even if process if killed not nicely
 	if (shmctl(m_shmid, IPC_RMID, NULL)) {
 		__log_info_warn("Shared memory contrl mark 'to be destroyed' failed (errno=%d %m)", errno);
+	}
+
+	// We want to determine now that we can lock it. Note: it was claimed that without actual mlock, linux might be buggy on this with huge-pages
+	int rc = mlock(m_data_block, sz_bytes);
+	if (rc!=0) {
+		__log_info_warn("mlock of shared memory failure (errno=%d %m)", errno);
+		if (shmdt(m_data_block) != 0) {
+			__log_info_err("shmem detach failure %m");
+		}
+		m_data_block = NULL; // no value to try shmdt later
+		m_shmid = -1;
+		return false;
 	}
 
 	return true;
