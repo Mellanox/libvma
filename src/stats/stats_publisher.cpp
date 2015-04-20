@@ -167,6 +167,8 @@ void vma_shmem_stats_open(uint8_t** p_p_vma_log_level, uint8_t** p_p_vma_log_det
 	if (buf == NULL)
 		goto shmem_error;
 	memset(buf, 0, shmem_size);
+
+	p_shmem = buf;
 	
 	if (strlen(mce_sys.stats_shmem_dirname) <= 0)
 		goto no_shmem;
@@ -186,8 +188,6 @@ void vma_shmem_stats_open(uint8_t** p_p_vma_log_level, uint8_t** p_p_vma_log_det
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	ret = write(g_sh_mem_info.fd_sh_stats, buf, shmem_size);
-	free(buf);
-	buf = NULL;
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (ret < 0) {
@@ -207,6 +207,9 @@ void vma_shmem_stats_open(uint8_t** p_p_vma_log_level, uint8_t** p_p_vma_log_det
 
 	p_shmem = g_sh_mem_info.p_sh_stats;
 
+	free(buf);
+        buf = NULL;
+
 	goto success;
 
 no_shmem:
@@ -218,7 +221,6 @@ no_shmem:
 	}
 
 	g_sh_mem_info.p_sh_stats = 0;
-	p_shmem = buf;
 
 success:
 
@@ -244,9 +246,6 @@ success:
 shmem_error:
 
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (buf) {
-		free(buf);
-	}
 	g_sh_mem_info.fd_sh_stats = -1;
 	g_sh_mem_info.p_sh_stats = MAP_FAILED;
 	g_sh_mem = &g_local_sh_mem;
