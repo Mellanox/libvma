@@ -192,7 +192,7 @@ void route_table_mgr::rt_mgr_update_source_ip()
 		p_val = &m_tab.value[i];
 		if (p_val->get_src_addr()) continue;
 		if (p_val->get_gw_addr()) {
-			rt_mgr_logwarn("could not figure out source ip for gw address. rtv = %s", p_val->to_str());
+			rt_mgr_logdbg("could not figure out source ip for gw address. rtv = %s", p_val->to_str());
 		}
 		// if still no src ip, get it from ioctl
 		struct sockaddr_in src_addr;
