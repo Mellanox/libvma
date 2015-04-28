@@ -47,6 +47,7 @@ Group: Acceleration
 BuildRoot: %{_tmppath}/%{name}-%{version}-root
 Source: %{name}-%{version}.tar.gz
 requires: librdmacm, libibverbs, libnl
+conflicts: sockperf
 
 %description
 
