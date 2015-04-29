@@ -172,7 +172,7 @@ void ring::create_resources(ring_resource_creation_info_t* p_ring_info, int acti
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	// Check device capabilities for max QP work requests
-	ibv_device_attr& r_ibv_dev_attr = p_ring_info[0].p_ib_ctx->get_ibv_device_attr();
+	vma_ibv_device_attr& r_ibv_dev_attr = p_ring_info[0].p_ib_ctx->get_ibv_device_attr();
 	uint32_t max_qp_wr = ALIGN_WR_DOWN(r_ibv_dev_attr.max_qp_wr - 1);
 	m_tx_num_wr = mce_sys.tx_num_wr;
 	if (m_tx_num_wr > max_qp_wr) {

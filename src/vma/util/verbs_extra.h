@@ -80,6 +80,22 @@ int priv_ibv_query_qp_state(struct ibv_qp *qp);
 
 //old MLNX_OFED verbs (2.1 and older)
 #ifdef DEFINED_IBV_OLD_VERBS_MLX_OFED
+//ibv_query_device
+#define vma_ibv_query_device(context, attr)	ibv_query_device(context, attr)
+typedef struct ibv_device_attr			vma_ibv_device_attr;
+#define vma_ibv_device_attr_comp_mask(attr)	NOT_IN_USE(attr)
+#define vma_is_rx_csum_supported(attr)		0
+//ibv_modify_qp
+#define vma_ibv_modify_qp(qp, attr, mask)	ibv_modify_qp(qp, attr, mask)
+typedef struct ibv_qp_attr			vma_ibv_qp_attr;
+//ibv_poll_cq
+#define vma_ibv_poll_cq(cq, num, wc)		ibv_poll_cq(cq, num, wc)
+typedef struct ibv_wc				vma_ibv_wc;
+#define vma_wc_flags(wc)			(wc).wc_flags
+#define vma_wc_opcode(wc)			(wc).opcode
+#define VMA_IBV_WC_RECV				IBV_WC_RECV
+#define VMA_IBV_L3_RX_CSUM_OK			0
+#define VMA_IBV_L4_RX_CSUM_OK			0
 //ibv_post_send
 #define VMA_IBV_SEND_SIGNALED			IBV_SEND_SIGNALED
 #define VMA_IBV_SEND_INLINE			IBV_SEND_INLINE
@@ -114,6 +130,32 @@ typedef struct ibv_flow_spec_eth		vma_ibv_flow_spec_eth;
 typedef struct ibv_flow_spec_ipv4		vma_ibv_flow_spec_ipv4;
 typedef struct ibv_flow_spec_tcp_udp		vma_ibv_flow_spec_tcp_udp;
 #else //new MLNX_OFED verbs (2.2 and newer)
+//ibv_query_device
+#define vma_ibv_query_device(context, attr)	ibv_exp_query_device(context, attr)
+typedef struct ibv_exp_device_attr		vma_ibv_device_attr;
+#define vma_ibv_device_attr_comp_mask(attr)	(attr).comp_mask = IBV_EXP_DEVICE_ATTR_EXP_CAP_FLAGS
+#ifdef DEFINED_IBV_EXP_DEVICE_RX_CSUM_L4_PKT
+#define vma_is_rx_csum_supported(attr)		(((attr).exp_device_cap_flags & IBV_EXP_DEVICE_RX_CSUM_L3_PKT) \
+						&& ((attr).exp_device_cap_flags & IBV_EXP_DEVICE_RX_CSUM_L4_PKT))
+#else
+#define vma_is_rx_csum_supported(attr)		0
+#endif
+//ibv_modify_qp
+#define vma_ibv_modify_qp(qp, attr, mask)	ibv_exp_modify_qp(qp, attr, mask)
+typedef struct ibv_exp_qp_attr			vma_ibv_qp_attr;
+//ibv_poll_cq
+#define vma_ibv_poll_cq(cq, num, wc)		ibv_exp_poll_cq(cq, num, wc, sizeof(struct ibv_exp_wc))
+typedef struct ibv_exp_wc			vma_ibv_wc;
+#define vma_wc_flags(wc)			(wc).exp_wc_flags
+#define vma_wc_opcode(wc)			(wc).exp_opcode
+#define VMA_IBV_WC_RECV				IBV_EXP_WC_RECV
+#ifdef DEFINED_IBV_EXP_DEVICE_RX_CSUM_L4_PKT
+#define VMA_IBV_L3_RX_CSUM_OK			IBV_EXP_L3_RX_CSUM_OK
+#define VMA_IBV_L4_RX_CSUM_OK			IBV_EXP_L4_RX_CSUM_OK
+#else
+#define VMA_IBV_L3_RX_CSUM_OK			0
+#define VMA_IBV_L4_RX_CSUM_OK			0
+#endif
 //ibv_post_send
 #define VMA_IBV_SEND_SIGNALED			IBV_EXP_SEND_SIGNALED
 #define VMA_IBV_SEND_INLINE			IBV_EXP_SEND_INLINE

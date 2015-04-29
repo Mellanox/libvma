@@ -92,7 +92,7 @@ void qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 			p_ibv_device->name, p_ibv_device, m_port_num);
 
 	// Check device capabilities for max QP work requests
-	ibv_device_attr& r_ibv_dev_attr = m_p_ib_ctx_handler->get_ibv_device_attr();
+	vma_ibv_device_attr& r_ibv_dev_attr = m_p_ib_ctx_handler->get_ibv_device_attr();
 	m_max_qp_wr = ALIGN_WR_DOWN(r_ibv_dev_attr.max_qp_wr - 1);;
 	if (m_rx_num_wr > m_max_qp_wr) {
 		qp_logwarn("Allocating only %d Rx QP work requests while user requested %s=%d for QP on <%p, %d>",

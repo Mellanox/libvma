@@ -274,6 +274,22 @@ AC_TRY_LINK(
   AC_DEFINE(DEFINED_IBV_OLD_VERBS_MLX_OFED, 1, [Define to 1 if IBV_EXP_ACCESS_ALLOCATE_MR is defined])
 ])
 
+AC_MSG_CHECKING([if IBV_EXP_DEVICE_RX_CSUM_L4_PKT is defined])
+AC_TRY_LINK(
+#include <infiniband/verbs_exp.h>
+,
+[
+  int access = (int)IBV_EXP_DEVICE_RX_CSUM_L4_PKT;
+  return access;
+],
+[
+  AC_MSG_RESULT([yes])
+  AC_DEFINE(DEFINED_IBV_EXP_DEVICE_RX_CSUM_L4_PKT, 1, [Define to 1 if IBV_EXP_DEVICE_RX_CSUM_L4_PKT is defined])
+],
+[
+  AC_MSG_RESULT([no])
+])
+
 AC_MSG_CHECKING([if IBV_EXP_FLOW_SPEC_IB is defined])
 AC_TRY_LINK(
 #include <infiniband/verbs_exp.h>

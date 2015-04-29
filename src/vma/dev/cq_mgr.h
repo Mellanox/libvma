@@ -153,6 +153,7 @@ private:
 	ring*				m_p_ring;
 	ib_ctx_handler*			m_p_ib_ctx_handler;
 	bool				m_b_is_rx;
+	bool				m_b_is_rx_csum_on;
 	struct ibv_comp_channel*	m_comp_event_channel;
 	struct ibv_cq*			m_p_ibv_cq;
 	bool				m_b_notification_armed;
@@ -187,15 +188,15 @@ private:
 	 * @p_cq_poll_sn global unique wce id that maps last wce polled
 	 * @return Number of successfully polled wce
 	 */
-	int		poll(ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn);
+	int		poll(vma_ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn);
 
 	/* Process a WCE... meaning...
 	 * - extract the mem_buf_desc from the wce.wr_id and then loop on all linked mem_buf_desc
 	 *   and deliver them to their owner for further processing (sockinfo on Tx path and ib_conn_mgr on Rx path)
 	 * - for Tx wce the data buffers will be released to the associated ring before the mem_buf_desc are returned
 	 */
-	mem_buf_desc_t*	process_cq_element_tx(struct ibv_wc* p_wce);
-	mem_buf_desc_t*	process_cq_element_rx(struct ibv_wc* p_wce);
+	mem_buf_desc_t*	process_cq_element_tx(vma_ibv_wc* p_wce);
+	mem_buf_desc_t*	process_cq_element_rx(vma_ibv_wc* p_wce);
 
 	/**
 	 * Helper function wrapping the poll and the process functionality in single call
@@ -232,7 +233,7 @@ private:
 	//Finds and sets the vma if to which the buff is addressed (according to qpn).
 	inline void 	find_buff_dest_vma_if_ctx(mem_buf_desc_t * buff);
 
-	void		process_cq_element_log_helper(mem_buf_desc_t* p_mem_buf_desc, struct ibv_wc* p_wce);
+	void		process_cq_element_log_helper(mem_buf_desc_t* p_mem_buf_desc, vma_ibv_wc* p_wce);
 };
 
 // Helper gunction to extract the Tx cq_mgr from the CQ event,

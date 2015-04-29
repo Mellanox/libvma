@@ -52,7 +52,9 @@ ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx) :
 		ibch_logpanic("ibv device %p pd allocation failure (ibv context %p) (errno=%d %m)", 
 			    m_p_ibv_device, m_p_ibv_context, errno);
 
-	IF_VERBS_FAILURE(ibv_query_device(m_p_ibv_context, &m_ibv_device_attr)) {
+	memset(&m_ibv_device_attr, 0, sizeof(vma_ibv_device_attr));
+	vma_ibv_device_attr_comp_mask(m_ibv_device_attr);
+	IF_VERBS_FAILURE(vma_ibv_query_device(m_p_ibv_context, &m_ibv_device_attr)) {
 		ibch_logerr("ibv_query_device failed on ibv device %p (ibv context %p) (errno=%d %m)", 
 			  m_p_ibv_device, m_p_ibv_context, errno);
 		return;

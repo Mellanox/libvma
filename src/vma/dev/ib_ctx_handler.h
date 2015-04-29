@@ -34,14 +34,14 @@ public:
 	ibv_device*             get_ibv_device() { return m_p_ibv_device;}
 	ibv_pd*			get_ibv_pd() { return m_p_ibv_pd;}
 	struct ibv_context*     get_ibv_context() { return m_p_ibv_context;}
-	ibv_device_attr&        get_ibv_device_attr() { return m_ibv_device_attr;}
+	vma_ibv_device_attr&    get_ibv_device_attr() { return m_ibv_device_attr;}
 	struct ibv_port_attr    get_ibv_port_attr(int port_num);
 
 private:
 	struct ibv_context*     m_p_ibv_context;
 	struct ibv_port_attr    m_ibv_port_attr;
 	ibv_device*             m_p_ibv_device; // HCA handle
-	ibv_device_attr         m_ibv_device_attr;
+	vma_ibv_device_attr     m_ibv_device_attr;
 	ibv_pd*                 m_p_ibv_pd;
 	int                     m_channel; // fd channel
 

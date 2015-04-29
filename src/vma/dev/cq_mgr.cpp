@@ -102,6 +102,12 @@ cq_mgr::cq_mgr(ring* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, stru
 	if (m_b_is_rx)
 		vma_stats_instance_create_cq_block(m_p_cq_stat);
 
+	m_b_is_rx_csum_on = false;
+	if (m_b_is_rx) {
+		m_b_is_rx_csum_on = vma_is_rx_csum_supported(m_p_ib_ctx_handler->get_ibv_device_attr());
+		cq_logdbg("RX CSUM support = %d", m_b_is_rx_csum_on);
+	}
+
 	cq_logdbg("Created CQ as %s with fd[%d] and of size %d elements (ibv_cq_hndl=%p)", (m_b_is_rx?"Rx":"Tx"), get_channel_fd(), cq_size, m_p_ibv_cq);
 }
 
@@ -113,7 +119,7 @@ cq_mgr::~cq_mgr()
 	uint32_t ret_total = 0;
 	uint64_t cq_poll_sn = 0;
 	mem_buf_desc_t* buff = NULL;
-	struct ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
+	vma_ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
 	while ((ret = poll(wce, MCE_MAX_CQ_POLL_BATCH, &cq_poll_sn)) > 0) {
 		for (int i = 0; i < ret; i++) {
 			if (m_b_is_rx) {
@@ -273,12 +279,12 @@ void cq_mgr::return_extra_buffers()
 	m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
 }
 
-int cq_mgr::poll(ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn)
+int cq_mgr::poll(vma_ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn)
 {
 	// Assume locked!!!
 	cq_logfuncall("");
 
-	int ret = ibv_poll_cq(m_p_ibv_cq, num_entries, p_wce);
+	int ret = vma_ibv_poll_cq(m_p_ibv_cq, num_entries, p_wce);
 	if (ret <= 0) {
 		// Zero polled wce    OR    ibv_poll_cq() has driver specific errors
 		// so we can't really do anything with them
@@ -295,8 +301,8 @@ int cq_mgr::poll(ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn)
 
 	if (unlikely(g_vlogger_level >= VLOG_FUNC_ALL)) {
 		for (int i = 0; i < ret; i++) {
-			cq_logfuncall("wce[%d] info wr_id=%x, status=%x, opcode=%x, vendor_err=%x, byte_len=%d, imm_data=%x", i, p_wce[i].wr_id, p_wce[i].status, p_wce[i].opcode, p_wce[i].vendor_err, p_wce[i].byte_len, p_wce[i].imm_data);
-			cq_logfuncall("qp_num=%x, src_qp=%x, wc_flags=%x, pkey_index=%x, slid=%x, sl=%x, dlid_path_bits=%x", p_wce[i].qp_num, p_wce[i].src_qp, p_wce[i].wc_flags, p_wce[i].pkey_index, p_wce[i].slid, p_wce[i].sl, p_wce[i].dlid_path_bits);
+			cq_logfuncall("wce[%d] info wr_id=%x, status=%x, opcode=%x, vendor_err=%x, byte_len=%d, imm_data=%x", i, p_wce[i].wr_id, p_wce[i].status, vma_wc_opcode(p_wce[i]), p_wce[i].vendor_err, p_wce[i].byte_len, p_wce[i].imm_data);
+			cq_logfuncall("qp_num=%x, src_qp=%x, wc_flags=%x, pkey_index=%x, slid=%x, sl=%x, dlid_path_bits=%x", p_wce[i].qp_num, p_wce[i].src_qp, vma_wc_flags(p_wce[i]), p_wce[i].pkey_index, p_wce[i].slid, p_wce[i].sl, p_wce[i].dlid_path_bits);
 		}
 	}
 
@@ -316,13 +322,18 @@ int cq_mgr::poll(ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn)
 	return ret;
 }
 
-void cq_mgr::process_cq_element_log_helper(mem_buf_desc_t* p_mem_buf_desc, struct ibv_wc* p_wce)
+void cq_mgr::process_cq_element_log_helper(mem_buf_desc_t* p_mem_buf_desc, vma_ibv_wc* p_wce)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	// wce with bad status value
-	if (p_wce->status != IBV_WC_WR_FLUSH_ERR) {
+	if (p_wce->status == IBV_WC_SUCCESS) {
+		cq_logdbg("wce: wr_id=%#x, status=%#x, vendor_err=%#x, qp_num=%#x", p_wce->wr_id, p_wce->status, p_wce->vendor_err, p_wce->qp_num);
+		cq_logdbg("wce: opcode=%#x, byte_len=%#d, src_qp=%#x, wc_flags=%#x", vma_wc_opcode(*p_wce), p_wce->byte_len, p_wce->src_qp, vma_wc_flags(*p_wce));
+		cq_logdbg("wce: pkey_index=%#x, slid=%#x, sl=%#x, dlid_path_bits=%#x, imm_data=%#x", p_wce->pkey_index, p_wce->slid, p_wce->sl, p_wce->dlid_path_bits, p_wce->imm_data);
+		cq_logdbg("mem_buf_desc: lkey=%#x, p_buffer=%p, sz_buffer=%#x", p_mem_buf_desc->lkey, p_mem_buf_desc->p_buffer, p_mem_buf_desc->sz_buffer);
+	} else if (p_wce->status != IBV_WC_WR_FLUSH_ERR) {
 		cq_logwarn("wce: wr_id=%#x, status=%#x, vendor_err=%#x, qp_num=%#x", p_wce->wr_id, p_wce->status, p_wce->vendor_err, p_wce->qp_num);
-		cq_loginfo("wce: opcode=%#x, byte_len=%#d, src_qp=%#x, wc_flags=%#x", p_wce->opcode, p_wce->byte_len, p_wce->src_qp, p_wce->wc_flags);
+		cq_loginfo("wce: opcode=%#x, byte_len=%#d, src_qp=%#x, wc_flags=%#x", vma_wc_opcode(*p_wce), p_wce->byte_len, p_wce->src_qp, vma_wc_flags(*p_wce));
 		cq_loginfo("wce: pkey_index=%#x, slid=%#x, sl=%#x, dlid_path_bits=%#x, imm_data=%#x", p_wce->pkey_index, p_wce->slid, p_wce->sl, p_wce->dlid_path_bits, p_wce->imm_data);
 
 		if (p_mem_buf_desc) {
@@ -334,7 +345,7 @@ void cq_mgr::process_cq_element_log_helper(mem_buf_desc_t* p_mem_buf_desc, struc
 	cq_logfunc("wce error status '%s' [%d] (wr_id=%p, qp_num=%x)", priv_ibv_wc_status_str(p_wce->status), p_wce->status, p_wce->wr_id, p_wce->qp_num);
 }
 
-mem_buf_desc_t* cq_mgr::process_cq_element_tx(struct ibv_wc* p_wce)
+mem_buf_desc_t* cq_mgr::process_cq_element_tx(vma_ibv_wc* p_wce)
 {
 	// Assume locked!!!
 	cq_logfuncall("");
@@ -367,7 +378,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_tx(struct ibv_wc* p_wce)
 	return p_mem_buf_desc;
 }
 
-mem_buf_desc_t* cq_mgr::process_cq_element_rx(struct ibv_wc* p_wce)
+mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 {
 	// Assume locked!!!
 	cq_logfuncall("");
@@ -375,7 +386,11 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(struct ibv_wc* p_wce)
 	// Get related mem_buf_desc pointer from the wr_id
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(uintptr_t)p_wce->wr_id;
 
-	if (unlikely(p_wce->status != IBV_WC_SUCCESS)) {
+	bool bad_wce = (p_wce->status != IBV_WC_SUCCESS) ||
+			(m_b_is_rx_csum_on && (!(vma_wc_flags(*p_wce) & IBV_EXP_L3_RX_CSUM_OK)
+					|| !(vma_wc_flags(*p_wce) & IBV_EXP_L4_RX_CSUM_OK)));
+
+	if (unlikely(bad_wce)) {
 		process_cq_element_log_helper(p_mem_buf_desc, p_wce);
 
 		m_p_next_rx_desc_poll = NULL;
@@ -409,7 +424,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(struct ibv_wc* p_wce)
 		p_mem_buf_desc->p_prev_desc = NULL;
 	}
 
-	if (p_wce->opcode & IBV_WC_RECV) {
+	if (vma_wc_opcode(*p_wce) & VMA_IBV_WC_RECV) {
 		p_mem_buf_desc->path.rx.qpn = p_wce->qp_num;
 #if 0 // Removed VLAN support in VMA, until we start using the new OFED vlan scheme.
 		if(p_wce->wc_flags & IBV_WC_WITH_VLAN) {
@@ -602,7 +617,7 @@ int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready
 {
 	// Assume locked!!!
 	cq_logfuncall("");
-	struct ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
+	vma_ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
 
 	int ret;
 	uint32_t ret_rx_processed = process_recv_queue(pv_fd_ready_array);
@@ -623,7 +638,7 @@ int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready
 		for (int i = 0; i < ret; i++) {
 			mem_buf_desc_t *buff = process_cq_element_rx((&wce[i]));
 			if (buff) {
-				if (wce[i].opcode & IBV_WC_RECV) {
+				if (vma_wc_opcode(wce[i]) & VMA_IBV_WC_RECV) {
 					if (!compensate_qp_post_recv(buff)) {
 						process_recv_buffer(buff, pv_fd_ready_array);
 					}
@@ -645,7 +660,7 @@ int cq_mgr::poll_and_process_helper_tx(uint64_t* p_cq_poll_sn)
 {
 	// Assume locked!!!
 	cq_logfuncall("");
-	struct ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
+	vma_ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
 	int ret = poll(wce, mce_sys.cq_poll_batch_max, p_cq_poll_sn);
 	if (ret > 0) {
 		m_n_wce_counter += ret;
@@ -768,7 +783,7 @@ int cq_mgr::drain_and_proccess(bool b_recycle_buffers /*=false*/)
 	while ((mce_sys.progress_engine_wce_max && (mce_sys.progress_engine_wce_max > m_n_wce_counter)) && 
 		!m_b_was_drained) {
 
-		struct ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
+		vma_ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
 		int ret = poll(wce, MCE_MAX_CQ_POLL_BATCH, &cq_poll_sn);
 		if (ret <= 0) {
 			m_b_was_drained = true;
