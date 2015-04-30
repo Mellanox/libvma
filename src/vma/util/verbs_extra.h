@@ -94,8 +94,7 @@ typedef struct ibv_wc				vma_ibv_wc;
 #define vma_wc_flags(wc)			(wc).wc_flags
 #define vma_wc_opcode(wc)			(wc).opcode
 #define VMA_IBV_WC_RECV				IBV_WC_RECV
-#define VMA_IBV_L3_RX_CSUM_OK			0
-#define VMA_IBV_L4_RX_CSUM_OK			0
+#define vma_wc_rx_csum_ok(wc)			(1)
 //ibv_post_send
 #define VMA_IBV_SEND_SIGNALED			IBV_SEND_SIGNALED
 #define VMA_IBV_SEND_INLINE			IBV_SEND_INLINE
@@ -150,11 +149,9 @@ typedef struct ibv_exp_wc			vma_ibv_wc;
 #define vma_wc_opcode(wc)			(wc).exp_opcode
 #define VMA_IBV_WC_RECV				IBV_EXP_WC_RECV
 #ifdef DEFINED_IBV_EXP_DEVICE_RX_CSUM_L4_PKT
-#define VMA_IBV_L3_RX_CSUM_OK			IBV_EXP_L3_RX_CSUM_OK
-#define VMA_IBV_L4_RX_CSUM_OK			IBV_EXP_L4_RX_CSUM_OK
+#define vma_wc_rx_csum_ok(wc)			((vma_wc_flags(wc) & IBV_EXP_L3_RX_CSUM_OK) && (vma_wc_flags(wc) & IBV_EXP_L4_RX_CSUM_OK))
 #else
-#define VMA_IBV_L3_RX_CSUM_OK			0
-#define VMA_IBV_L4_RX_CSUM_OK			0
+#define vma_wc_rx_csum_ok(wc)			(1)
 #endif
 //ibv_post_send
 #define VMA_IBV_SEND_SIGNALED			IBV_EXP_SEND_SIGNALED
