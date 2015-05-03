@@ -1,30 +1,70 @@
-Updated: 10 Apr 2014
+Updated: 3 May 2014
 
 Introduction
 ============
 
-libvma is a Mellanox multicast-offload, dynamically linked user space Linux library
-for transparently enhancing the performance of multicast networking-heavy
-applications over the InfiniBand networkinterface and OFED.
+Mellanox's Messaging Accelerator (VMA) is dynamically linked user space Linux
+library for transparently enhancing the performance of networking-heavy
+applications. It boosts performance for message-based and streaming applications
+such as those found in financial services market data environments and Web2.0
+clusters.
+It allows application written over standard socket API to run over Infiniband 
+and/or Ethernet from user-space with full network stack bypass.
+The result is a reduction in latency by as much as 300%, 
+an increase in application throughput by as much as 200%,
+higher packets rates and better CPU utilization as compared to applications
+running on standard Ethernet or InfiniBand interconnect networks.
+
+Build libvma from source
+========================
+
+Prerequisites:
+1. MLNX_OFED as described in the "Pre Installation" step of next section.
+2. Or, upstream kernel and userspace verbs libraries (libibverbs, libmlx4, librdmacm)
+3. Autoconf, Automake, libtool, unzip, patch, libnl-devel (netlink 1)
+
+Build:
+1. ./autogen.sh
+2. ./configure --with-ofed=/usr --prefix=/usr --libdir=/usr/lib64 --includedir=/usr/include/mellanox --docdir=/usr/share/doc/libvma --sysconfdir=/etc
+3. make
+4. make sockperf (to build sockperf)
+
+You will find libvma.so in path_to_vma_dir/src/vma/.libs/libvma.so.
+
+Install:
+1. sudo make install
+2. sudo make install-sockperf (to install sockperf)
+
+Tip:
+./install.sh can do the build and install steps for you.
 
 
-Using libvma
-============
+Install libvma from rpm or debian
+=================================
+
+Pre Installation:
+1. If possible, install latest MLNX_OFED with the --vma option.
+   This will also install libvma, and you can skip to "Running" step.
+2. If installing over existing MLNX_OFED, add the following to
+   /etc/modprobe.d/mlnx.conf:
+   options ib_uverbs disable_raw_qp_enforcement=1
+   options mlx4_core fast_drop=1
+   options mlx4_core log_num_mgm_entry_size=-1
+   And restart the driver: /etc/init.d/openibd restart
 
 Installing:
 Install the package as any other rpm package [rpm -i libvma.X.Y.Z-R.rpm].
 The installation copies the VMA library to: /usr/lib[64]/libvma.so
 The VMA monitoring utility is installed at: /usr/bin/vma_stat
 The VMA extra socket API is located at: /usr/include/mellanox/vma_extra.h
-A proprietary synthetic latency test for multicast is installed at: /usr/bin/udp_lat
+Sockperf network benchmark tool is installed at: /usr/bin/sockperf
 The installation location of the README.txt and version information file 
-(VMA_VERSION), latneyc testing tool source code (udp_lat.c) and a VMA performance 
-envelop script (vma_perf_envelope.sh) files are as follows:
+(VMA_VERSION), are as follows:
 - Redhat: /usr/share/doc/libvma-X.Y.Z-R/
 - SuSE:   /usr/share/doc/packages/libvma-X.Y.Z-R/
 
 Post Installation:
-After the installation is finished we recommend to manually add persistence
+When working over Infiniband, we recommend to manually add persistence
 for the following system parameters:
 1. Force IPoIB to work in 'datagram' mode (disabling IPoIB 'connected' mode)
    Modify "SET_IPOIB_CM=no" in file "/etc/infiniband/openib.conf"
