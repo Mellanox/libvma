@@ -147,11 +147,13 @@ cq_mgr::~cq_mgr()
 		m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
 	}
 
-	cq_logfunc("destroying ibv_cq");
-	IF_VERBS_FAILURE(ibv_destroy_cq(m_p_ibv_cq)) {
-		cq_logerr("destroy cq failed (errno=%d %m)", errno);
-	} ENDIF_VERBS_FAILURE;
-
+	if (!m_p_ib_ctx_handler->is_removed()) {
+		cq_logfunc("destroying ibv_cq");
+		IF_VERBS_FAILURE(ibv_destroy_cq(m_p_ibv_cq)) {
+			cq_logerr("destroy cq failed (errno=%d %m)", errno);
+		} ENDIF_VERBS_FAILURE;
+	}
+	
 	statistics_print();
 	if (m_b_is_rx)
 		vma_stats_instance_remove_cq_block(m_p_cq_stat);
@@ -946,9 +948,12 @@ void cq_mgr::modify_cq_moderation(uint32_t period, uint32_t count)
 
 	cq_logfunc("modify cq moderation, period=%d, count=%d", period, count);
 
-	IF_VERBS_FAILURE(ibv_exp_modify_cq(m_p_ibv_cq, &cq_attr, IBV_EXP_CQ_MODERATION)) {
-		cq_logerr("Failure modifying cq moderation (errno=%d %m)", errno);
-	} ENDIF_VERBS_FAILURE;
+	if (!m_p_ib_ctx_handler->is_removed()) {
+		IF_VERBS_FAILURE(ibv_exp_modify_cq(m_p_ibv_cq, &cq_attr, IBV_EXP_CQ_MODERATION)) {
+			cq_logdbg("Failure modifying cq moderation (errno=%d %m)", errno);
+		} ENDIF_VERBS_FAILURE;
+	}
+
 #else
 	NOT_IN_USE(count);
 	NOT_IN_USE(period);

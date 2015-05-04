@@ -15,10 +15,11 @@
 #define IB_CTX_HANDLER_H
 
 #include <infiniband/verbs.h>
+#include "vma/event/event_handler_ibverbs.h"
 
 // client to event manager 'command' invoker (??)
 //
-class ib_ctx_handler
+class ib_ctx_handler : public event_handler_ibverbs
 {
 public:
 	ib_ctx_handler(struct ibv_context* ctx);
@@ -36,6 +37,9 @@ public:
 	struct ibv_context*     get_ibv_context() { return m_p_ibv_context;}
 	vma_ibv_device_attr&    get_ibv_device_attr() { return m_ibv_device_attr;}
 	struct ibv_port_attr    get_ibv_port_attr(int port_num);
+	bool                    is_removed() { return m_removed;}
+	virtual void            handle_event_ibverbs_cb(void *ev_data, void *ctx);
+	void                    handle_event_DEVICE_FATAL();
 
 private:
 	struct ibv_context*     m_p_ibv_context;
@@ -44,6 +48,7 @@ private:
 	vma_ibv_device_attr     m_ibv_device_attr;
 	ibv_pd*                 m_p_ibv_pd;
 	int                     m_channel; // fd channel
+	bool                    m_removed;
 
 	bool                    update_port_attr(int port_num);
 

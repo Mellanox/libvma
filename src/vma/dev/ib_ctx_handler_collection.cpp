@@ -15,6 +15,7 @@
 #include "vma/util/verbs_extra.h"
 #include "ib_ctx_handler_collection.h"
 #include "vma/util/bullseye.h"
+#include "vma/event/event_handler_manager.h"
 
 #define MODULE_NAME             "ib_ctx_collection"
 

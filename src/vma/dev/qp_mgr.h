@@ -96,6 +96,7 @@ public:
 	struct ibv_qp*		get_ibv_qp() const { return m_qp; };
 	struct cq_mgr*  	get_tx_cq_mgr() const { return m_p_cq_mgr_tx; }
 	struct cq_mgr*  	get_rx_cq_mgr() const { return m_p_cq_mgr_rx; }
+	ib_ctx_handler* 	get_ib_ctx_handler() const { return m_p_ib_ctx_handler; }
 	uint32_t		get_rx_max_wr_num();
 
 	// create a AH cleaner object which will be linked to the following post send (if any)

@@ -20,6 +20,7 @@
 #include "vma/dev/ib_ctx_handler.h"
 #include "vma/util/bullseye.h"
 #include "vma/util/verbs_extra.h"
+#include "vma/event/event_handler_manager.h"
 
 #define MODULE_NAME             "ib_ctx_handler"
 
@@ -35,7 +36,7 @@
 
 
 ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx) :
-	m_channel(0), m_conf_attr_rx_num_wre(0), m_conf_attr_tx_num_post_send_notify(0),
+	m_channel(0), m_removed(false), m_conf_attr_rx_num_wre(0), m_conf_attr_tx_num_post_send_notify(0),
 	m_conf_attr_tx_max_inline(0), m_conf_attr_tx_num_wre(0)
 {
 	memset(&m_ibv_port_attr, 0, sizeof(struct ibv_port_attr));
@@ -67,9 +68,12 @@ ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx) :
 			m_ibv_device_attr.vendor_part_id, m_ibv_device_attr.fw_ver);
 
 	set_dev_configuration();
+
+	g_p_event_handler_manager->register_ibverbs_event(m_p_ibv_context->async_fd, this, m_p_ibv_context, 0);
 }
 
 ib_ctx_handler::~ib_ctx_handler() {
+	g_p_event_handler_manager->unregister_ibverbs_event(m_p_ibv_context->async_fd, this);
 	// must delete ib_ctx_handler only after freeing all resources that
 	// are still associated with the PD m_p_ibv_pd
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -137,4 +141,22 @@ void ib_ctx_handler::set_dev_configuration()
 		ibch_loginfo("%s Setting the %s to %d according to the device specific configuration:",
 			   m_p_ibv_device->name, SYS_VAR_TX_NUM_WRE, mce_sys.tx_num_wr);
 	}
+}
+
+void ib_ctx_handler::handle_event_ibverbs_cb(void *ev_data, void *ctx)
+{
+ 	NOT_IN_USE(ctx);
+
+	struct ibv_async_event *ibv_event = (struct ibv_async_event*)ev_data;
+	ibch_logdbg("received ibv_event '%s' (%d)", priv_ibv_event_desc_str(ibv_event->event_type), ibv_event->event_type);
+		
+	if (ibv_event->event_type == IBV_EVENT_DEVICE_FATAL) {
+		handle_event_DEVICE_FATAL();
+	}
+}
+
+void ib_ctx_handler::handle_event_DEVICE_FATAL()
+{
+	m_removed = true;
+	g_p_event_handler_manager->unregister_ibverbs_event(m_p_ibv_context->async_fd, this);
 }

@@ -145,9 +145,13 @@ buffer_pool::~buffer_pool()
 	// Unregister memory
 	std::deque<ibv_mr*>::iterator iter_mrs;
 	for (iter_mrs = m_mrs.begin(); iter_mrs != m_mrs.end(); ++iter_mrs) {
-		IF_VERBS_FAILURE(ibv_dereg_mr(*iter_mrs)) {
-			__log_info_err("failed de-registering a memory region (errno=%d %m)", errno);
-		} ENDIF_VERBS_FAILURE;
+		ibv_mr *mr = *iter_mrs;
+		ib_ctx_handler* p_ib_ctx_handler = g_p_ib_ctx_handler_collection->get_ib_ctx(mr->context); 
+		if (!p_ib_ctx_handler->is_removed()) {
+			IF_VERBS_FAILURE(ibv_dereg_mr(mr)) {
+				__log_info_err("failed de-registering a memory region (errno=%d %m)", errno);
+			} ENDIF_VERBS_FAILURE;
+		}
 	}
 	// Release memory
 	if (m_shmid >= 0) { // Huge pages mode

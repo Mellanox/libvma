@@ -222,11 +222,13 @@ void qp_mgr::validate_raw_qp_privliges()
 void qp_mgr::modify_qp_to_error_state()
 {
 	qp_logdbg("");
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (priv_ibv_modify_qp_to_err(m_qp)) {
-		qp_logerr("ibv_modify_qp failure (errno = %d %m)", errno);
+	if (!m_p_ib_ctx_handler->is_removed()) {
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (priv_ibv_modify_qp_to_err(m_qp)) {
+			qp_logdbg("ibv_modify_qp failure (errno = %d %m)", errno);
+		}
+		BULLSEYE_EXCLUDE_BLOCK_END
 	}
-	BULLSEYE_EXCLUDE_BLOCK_END
 }
 
 void qp_mgr::release_rx_buffers()
