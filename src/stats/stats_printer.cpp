@@ -83,7 +83,6 @@ user_params_t user_params;
 #define SCREEN_SIZE			24
 #define MAX_BUFF_SIZE			256
 #define PRINT_DETAILS_MODES_NUM		2
-#define VIEW_MODES_NUM			4
 #define DEFAULT_DELAY_SEC		1
 #define DEFAULT_VIEW_MODE		e_basic
 #define DEFAULT_DETAILS_MODE		e_totals
@@ -130,6 +129,18 @@ const char* to_str_socket_type(int type)
 	return "???";
 }
 
+const char* to_str_socket_type_netstat_like(int type)
+{
+	switch (type) {
+	case SOCK_STREAM:	return "tcp";
+	case SOCK_DGRAM:	return "udp";
+	case SOCK_RAW:		return "raw";
+	default:
+		break;
+	}
+	return "???";
+}
+
 
 // Print statistics for offloaded sockets
 void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, FILE* filename)
@@ -166,10 +177,10 @@ void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, 
 	// Bounded + Connected information
 	//
 	if (p_si_stats->bound_if || p_si_stats->bound_port) {
-		fprintf(filename, "- Bound IF  = [%d.%d.%d.%d:%d]\n", NIPQUAD(p_si_stats->bound_if), ntohs(p_si_stats->bound_port));
+		fprintf(filename, "- Local Address   = [%d.%d.%d.%d:%d]\n", NIPQUAD(p_si_stats->bound_if), ntohs(p_si_stats->bound_port));
 	}
 	if (p_si_stats->connected_ip || p_si_stats->connected_port) {
-		fprintf(filename, "- Connected = [%d.%d.%d.%d:%d]\n", NIPQUAD(p_si_stats->connected_ip), ntohs(p_si_stats->connected_port));
+		fprintf(filename, "- Foreign Address = [%d.%d.%d.%d:%d]\n", NIPQUAD(p_si_stats->connected_ip), ntohs(p_si_stats->connected_port));
 	}
 	if (p_mc_grp_info){
 		for (int grp_idx = 0; grp_idx < p_mc_grp_info->max_grp_num; grp_idx++) {
@@ -237,6 +248,82 @@ void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, 
 	if (b_any_activiy == false) {
 		fprintf(filename, "Rx and Tx where not active\n");
 	}
+}
+
+// this enum is copied from tcp.c in lwip project
+enum tcp_state {
+	CLOSED      = 0,
+	LISTEN      = 1,
+	SYN_SENT    = 2,
+	SYN_RCVD    = 3,
+	ESTABLISHED = 4,
+	FIN_WAIT_1  = 5,
+	FIN_WAIT_2  = 6,
+	CLOSE_WAIT  = 7,
+	CLOSING     = 8,
+	LAST_ACK    = 9,
+	TIME_WAIT   = 10
+};
+
+// for lwip's tcp_state only
+static const char *state2str(tcp_state state)
+{
+	switch(state){
+	case CLOSED:	return "CLOSED";
+	case LISTEN:	return "LISTEN";
+	case SYN_SENT:	return "SYN_SENT";
+	case SYN_RCVD:	return "SYN_RCVD";
+	case ESTABLISHED:return "ESTABLISHED";
+	case FIN_WAIT_1:return "FIN_WAIT_1";
+	case FIN_WAIT_2:return "FIN_WAIT_2";
+	case CLOSE_WAIT:return "CLOSE_WAIT";
+	case CLOSING:	return "CLOSING";
+	case LAST_ACK:	return "LAST_ACK";
+	case TIME_WAIT:	return "TIME_WAIT";
+	default:		return "UNKNOWN";
+    }
+}
+
+// Print statistics headers for all sockets - used in case view mode is e_netstat_like
+void print_netstat_like_headers(FILE* file)
+{
+	fprintf(file, "Proto Offloaded Local Address          Foreign Address       State       Inode      PID\n");
+}
+
+// Print statistics of a single socket - used in case view mode is e_netstat_like
+void print_netstat_like(socket_stats_t* p_si_stats, mc_grp_info_t* , FILE* file, int pid)
+{
+	static const int MAX_ADDR_LEN = strlen("123.123.123.123:12345"); // for max len of ip address and port together
+
+	// header is: "Proto Offloaded Local Address          Foreign Address       State       Inode      PID\n"
+	fprintf(file, "%-5s %-9s ", to_str_socket_type_netstat_like(p_si_stats->socket_type), p_si_stats->b_is_offloaded ? "Yes" : "No");
+
+	//
+	// Bounded + Connected information
+	//
+	int len = 0;
+	if (p_si_stats->bound_if || p_si_stats->bound_port) {
+		len = fprintf(file, "%d.%d.%d.%d:%-5d", NIPQUAD(p_si_stats->bound_if), ntohs(p_si_stats->bound_port));
+		if (len < 0) len = 0; // error
+	}
+	if (len < MAX_ADDR_LEN )fprintf(file, "%*s ", MAX_ADDR_LEN-len, ""); // pad and delimiter
+
+	fprintf(file, " ");
+	len = 0;
+	if (p_si_stats->connected_ip || p_si_stats->connected_port) {
+		len = fprintf(file, "%d.%d.%d.%d:%-5d", NIPQUAD(p_si_stats->connected_ip), ntohs(p_si_stats->connected_port));
+	}
+	else {
+		len = fprintf(file, "0.0.0.0:*");
+	}
+	if (len < 0) len = 0; // error
+	if (len < MAX_ADDR_LEN )fprintf(file, "%*s ", MAX_ADDR_LEN-len, ""); // pad and delimiter
+
+	const char * tcp_state = "";
+	if (p_si_stats->socket_type == SOCK_STREAM) {
+		tcp_state = state2str((enum tcp_state)p_si_stats->tcp_state);
+	}
+	fprintf(file, "%-11s %-10lu %d\n", tcp_state, (u_long)p_si_stats->inode, pid); // max tcp state len is 11 characters = ESTABLISHED
 }
 
 

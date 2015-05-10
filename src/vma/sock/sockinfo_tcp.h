@@ -84,7 +84,10 @@ public:
 
 	virtual void clean_obj();
 
-	void setPassthrough() {m_sock_offload = TCP_SOCK_PASSTHROUGH;}
+	void setPassthrough(bool isPassthrough = true) {
+		m_sock_offload = isPassthrough ? TCP_SOCK_PASSTHROUGH : TCP_SOCK_LWIP;
+		m_p_socket_stats->b_is_offloaded = ! isPassthrough;
+	}
 	bool isPassthrough()  {return m_sock_offload == TCP_SOCK_PASSTHROUGH;}
 
 	int prepareConnect(const sockaddr *__to, socklen_t __tolen);
@@ -119,6 +122,8 @@ public:
 	ssize_t tx(const tx_call_t call_type, const struct iovec *p_iov, const ssize_t sz_iov, const int flags = 0, const struct sockaddr *__to = NULL, const socklen_t __tolen = 0);
 	ssize_t rx(const rx_call_t call_type, iovec *p_iov, ssize_t sz_iov, int *p_flags, sockaddr *__from = NULL, socklen_t *__fromlen = NULL, struct msghdr *__msg = NULL);
 	static err_t ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit);
+	static void tcp_state_observer(void* pcb_container, enum tcp_state new_state);
+
 	virtual bool rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void* pv_fd_ready_array = NULL);
 	inline void init_pbuf_custom(mem_buf_desc_t *p_desc);
 	static struct pbuf * tcp_tx_pbuf_alloc(void* p_conn);
@@ -128,7 +133,7 @@ public:
 
 	bool inline is_readable(uint64_t *p_poll_sn, fd_array_t *p_fd_array = NULL);
 	bool inline is_writeable();
-	bool is_closable() { return m_pcb.state == CLOSED && m_syn_received.empty() && m_accepted_conns.empty(); }
+	bool is_closable() { return get_tcp_state(&m_pcb) == CLOSED && m_syn_received.empty() && m_accepted_conns.empty(); }
 	int rx_request_notification(uint64_t poll_sn);
 	bool skip_os_select()
 	{

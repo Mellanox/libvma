@@ -318,10 +318,10 @@ static err_t
 tcp_write_checks(struct tcp_pcb *pcb, u32_t len)
 {
   /* connection is in invalid state for data transmission? */
-  if ((pcb->state != ESTABLISHED) &&
-      (pcb->state != CLOSE_WAIT) &&
-      (pcb->state != SYN_SENT) &&
-      (pcb->state != SYN_RCVD)) {
+  if ((get_tcp_state(pcb) != ESTABLISHED) &&
+      (get_tcp_state(pcb) != CLOSE_WAIT) &&
+      (get_tcp_state(pcb) != SYN_SENT) &&
+      (get_tcp_state(pcb) != SYN_RCVD)) {
     LWIP_DEBUGF(TCP_OUTPUT_DEBUG | LWIP_DBG_STATE | LWIP_DBG_LEVEL_SEVERE, ("tcp_write() called in invalid state\n"));
     return ERR_CONN;
   } else if (len == 0) {
@@ -1044,7 +1044,7 @@ tcp_output(struct tcp_pcb *pcb)
 
     pcb->unsent = seg->next;
 
-    if (pcb->state != SYN_SENT) {
+    if (get_tcp_state(pcb) != SYN_SENT) {
       TCPH_SET_FLAG(seg->tcphdr, TCP_ACK);
       pcb->flags &= ~(TF_ACK_DELAY | TF_ACK_NOW);
     }

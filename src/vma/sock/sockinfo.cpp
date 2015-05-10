@@ -65,6 +65,7 @@ sockinfo::sockinfo(int fd):
 	vma_stats_instance_create_socket_block(m_p_socket_stats);
 	memset(m_p_socket_stats, 0, sizeof(socket_stats_t));
 	m_p_socket_stats->fd = m_fd;
+	m_p_socket_stats->inode = fd2inode(m_fd);
 	m_p_socket_stats->b_blocking = m_b_blocking;
 	m_p_connected_dst_entry = NULL;
 	m_so_bindtodevice_ip = 0;

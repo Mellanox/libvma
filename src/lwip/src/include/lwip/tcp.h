@@ -202,10 +202,11 @@ enum tcp_state {
   TIME_WAIT   = 10
 };
 
-#define PCB_IN_CLOSED_STATE(pcb) (pcb->state == CLOSED)
-#define PCB_IN_LISTEN_STATE(pcb) (pcb->state == LISTEN)
-#define PCB_IN_ACTIVE_STATE(pcb) (pcb->state > LISTEN && pcb->state < TIME_WAIT)
-#define PCB_IN_TIME_WAIT_STATE(pcb) (pcb->state == TIME_WAIT)
+
+#define PCB_IN_CLOSED_STATE(pcb) (get_tcp_state(pcb) == CLOSED)
+#define PCB_IN_LISTEN_STATE(pcb) (get_tcp_state(pcb) == LISTEN)
+#define PCB_IN_ACTIVE_STATE(pcb) (get_tcp_state(pcb) > LISTEN && get_tcp_state(pcb) < TIME_WAIT)
+#define PCB_IN_TIME_WAIT_STATE(pcb) (get_tcp_state(pcb) == TIME_WAIT)
 
 #if LWIP_CALLBACK_API
   /* Function to call when a listener has been connected.
@@ -220,12 +221,18 @@ enum tcp_state {
 #define DEF_ACCEPT_CALLBACK
 #endif /* LWIP_CALLBACK_API */
 
+
+/* allow user to be notified upon tcp_state changes */
+typedef void (*tcp_state_observer_fn)(void* pcb_container, enum tcp_state new_state);
+void register_tcp_state_observer(tcp_state_observer_fn fn);
+extern tcp_state_observer_fn external_tcp_state_observer;
+
 /**
  * members common to struct tcp_pcb and struct tcp_listen_pcb
  */
 #define TCP_PCB_COMMON(type) \
   type *next; /* for the linked list */ \
-  enum tcp_state state; /* TCP state */ \
+  enum tcp_state private_state; /* TCP state - should only be touched thru get/set functions */ \
   u8_t prio; \
   void *callback_arg; \
   void *my_container; \
@@ -456,11 +463,11 @@ void             tcp_err     		(struct tcp_pcb *pcb, tcp_err_fn err);
 
 #if TCP_LISTEN_BACKLOG
 #define          tcp_accepted(pcb) do { \
-  LWIP_ASSERT("pcb->state == LISTEN (called for wrong pcb?)", pcb->state == LISTEN); \
+  LWIP_ASSERT("get_tcp_state(pcb) == LISTEN (called for wrong pcb?)", get_tcp_state(pcb) == LISTEN); \
   (((struct tcp_pcb_listen *)(pcb))->accepts_pending--); } while(0)
 #else  /* TCP_LISTEN_BACKLOG */
-#define          tcp_accepted(pcb) LWIP_ASSERT("pcb->state == LISTEN (called for wrong pcb?)", \
-                                               pcb->state == LISTEN)
+#define          tcp_accepted(pcb) LWIP_ASSERT("get_tcp_state(pcb) == LISTEN (called for wrong pcb?)", \
+		get_tcp_state(pcb) == LISTEN)
 #endif /* TCP_LISTEN_BACKLOG */
 
 void             tcp_recved  (struct tcp_pcb *pcb, u32_t len);
@@ -491,6 +498,9 @@ void             tcp_setprio (struct tcp_pcb *pcb, u8_t prio);
 
 err_t            tcp_output  (struct tcp_pcb *pcb);
 
+
+#define get_tcp_state(pcb) ((pcb)->private_state)
+#define set_tcp_state(pcb, state) external_tcp_state_observer((pcb)->my_container, (pcb)->private_state = state)
 
 const char* tcp_debug_state_str(enum tcp_state s);
 

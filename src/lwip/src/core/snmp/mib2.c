@@ -3687,8 +3687,8 @@ tcp_get_value(struct obj_def *od, u16_t len, void *value)
         struct tcp_pcb *pcb = tcp_active_pcbs;
         while (pcb != NULL)
         {
-          if ((pcb->state == ESTABLISHED) ||
-              (pcb->state == CLOSE_WAIT))
+          if ((get_tcp_state(pcb) == ESTABLISHED) ||
+              (get_tcp_state(pcb) == CLOSE_WAIT))
           {
             tcpcurrestab++;
           }

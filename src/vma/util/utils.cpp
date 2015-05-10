@@ -944,3 +944,10 @@ int loops_timer::time_left_msec()
 	return (m_timeout_msec-ts_to_msec(&m_elapsed))>0 ? m_timeout_msec-ts_to_msec(&m_elapsed) : 0;
 }
 
+///////////////////////////////////////////
+uint32_t fd2inode(int fd)
+{
+	struct stat buf;
+	int rc = fstat(fd, &buf);
+	return rc==0 ? buf.st_ino : 0; // no inode is 0
+}

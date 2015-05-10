@@ -129,6 +129,7 @@ vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip"), m_lwip_bufs(NULL)
 	register_tcp_seg_alloc(sockinfo_tcp::tcp_seg_alloc);
 	register_tcp_seg_free(sockinfo_tcp::tcp_seg_free);
 	register_ip_output(sockinfo_tcp::ip_output);
+	register_tcp_state_observer(sockinfo_tcp::tcp_state_observer);
 	register_ip_route_mtu(vma_ip_route_mtu);
 
 	//tcp_ticks increases in the rate of tcp slow_timer

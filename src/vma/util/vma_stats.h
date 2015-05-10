@@ -17,6 +17,7 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <bitset>
+#include <sys/stat.h>
 
 using namespace std;
 
@@ -93,7 +94,8 @@ typedef enum {
 	e_basic = 1,
 	e_medium,
 	e_full,
-	e_mc_groups
+	e_mc_groups,
+	e_netstat_like
 } view_mode_t;
 
 typedef enum {
@@ -182,7 +184,10 @@ typedef struct {
 
 typedef struct {
 	int			fd;
+	uint32_t		inode;
+	uint32_t		tcp_state; // 	enum tcp_state
 	uint8_t			socket_type; // SOCK_STREAM, SOCK_DGRAM, ...
+	bool			b_is_offloaded;
 	bool			b_blocking;
 	bool			b_mc_loop;
 	in_addr_t		bound_if;
@@ -295,6 +300,8 @@ void			vma_stats_instance_remove_epoll_block(iomux_func_stats_t* ep_stats);
 //reader functions
 
 void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, FILE* filename);
+void print_netstat_like(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, FILE* file, int pid);
+void print_netstat_like_headers(FILE* file);
 
 #endif //V_VMA_STATS_H
 

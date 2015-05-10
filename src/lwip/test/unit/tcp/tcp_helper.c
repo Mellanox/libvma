@@ -103,7 +103,7 @@ tcp_set_state(struct tcp_pcb* pcb, enum tcp_state state, ip_addr_t* local_ip,
 {
   /* @todo: are these all states? */
   /* @todo: remove from previous list */
-  pcb->state = state;
+  set_tcp_state(pcb, state);
   if (state == ESTABLISHED) {
     TCP_REG(&tcp_active_pcbs, pcb);
     pcb->local_ip.addr = local_ip->addr;

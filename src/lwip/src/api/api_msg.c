@@ -428,7 +428,7 @@ accept_function(void *arg, struct tcp_pcb *newpcb, err_t err)
   struct netconn *newconn;
   struct netconn *conn = (struct netconn *)arg;
 
-  LWIP_DEBUGF(API_MSG_DEBUG, ("accept_function: newpcb->tate: %s\n", tcp_debug_state_str(newpcb->state)));
+  LWIP_DEBUGF(API_MSG_DEBUG, ("accept_function: get_tcp_state(newpcb): %s\n", tcp_debug_state_str(get_tcp_state(newpcb))));
 
   if (!sys_mbox_valid(&conn->acceptmbox)) {
     LWIP_DEBUGF(API_MSG_DEBUG, ("accept_function: acceptmbox already deleted\n"));

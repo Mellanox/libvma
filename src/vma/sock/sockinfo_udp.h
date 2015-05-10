@@ -75,7 +75,7 @@ public:
 	sockinfo_udp(int fd);
 	virtual ~sockinfo_udp();
 
-	void 	setPassthrough() { m_sock_offload = false;}
+	void 	setPassthrough() { m_p_socket_stats->b_is_offloaded = m_sock_offload = false;}
 	bool 	isPassthrough()  { return ! m_sock_offload;}
 
 	int 	prepare_to_connect(const sockaddr *__to, socklen_t __tolen);

@@ -563,4 +563,3 @@ void vma_stats_instance_remove_epoll_block(iomux_func_stats_t* local_stats_addr)
                 ep_stats->enabled = false;
 	g_lock_ep_stats.unlock();
 }
-

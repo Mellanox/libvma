@@ -386,4 +386,9 @@ class loops_timer {
                 int m_timeout_msec;
 };
 
+// Returns the filesystem's inode number for the given 'fd' using 'fstat' system call that assumes 32 bit inodes
+// This should be safe for 'proc' filesytem and for standard filesystems
+uint32_t fd2inode(int fd);
+
+
 #endif

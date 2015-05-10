@@ -71,12 +71,12 @@ sockinfo_tcp::sockinfo_tcp(int fd) :
 	m_sock_state = TCP_SOCK_INITED;
 	m_conn_state = TCP_CONN_INIT;
 	m_conn_timeout = CONNECT_DEFAULT_TIMEOUT_MS;
-	m_sock_offload = TCP_SOCK_LWIP; // by default we try to accelerate
+	setPassthrough(false); // by default we try to accelerate
 	si_tcp_logdbg("tcp socket created");
 
 	tcp_pcb_init(&m_pcb, TCP_PRIO_NORMAL);
 
-	si_tcp_logdbg("new pcb %p pcb state %d", &m_pcb, m_pcb.state);
+	si_tcp_logdbg("new pcb %p pcb state %d", &m_pcb, get_tcp_state(&m_pcb));
 	tcp_arg(&m_pcb, this);
 	tcp_recv(&m_pcb, sockinfo_tcp::rx_lwip_cb);
 	tcp_err(&m_pcb, sockinfo_tcp::err_lwip_cb);
@@ -213,7 +213,7 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 
 	si_tcp_logdbg("");
 
-	bool is_listen_socket = is_server() || m_pcb.state == LISTEN;
+	bool is_listen_socket = is_server() || get_tcp_state(&m_pcb) == LISTEN;
 
 	/*
 	 * consider process_shutdown:
@@ -269,7 +269,7 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 	//todo should we do this each time we get into prepare_to_close ?
 	memset(&elapsed, 0,sizeof(timeval));
 	gettime(&start);
-	while (tv_to_msec(&elapsed) <= TCP_LINGER_TIME_MSEC && m_pcb.state != LISTEN &&
+	while (tv_to_msec(&elapsed) <= TCP_LINGER_TIME_MSEC && get_tcp_state(&m_pcb) != LISTEN &&
 			(m_pcb.unsent || (m_pcb.unacked && m_pcb.unacked->len))) {
 		rx_wait(poll_cnt, false);
 		tcp_output(&m_pcb);
@@ -617,6 +617,12 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit)
 	return ERR_OK;
 }
 
+/*static*/void sockinfo_tcp::tcp_state_observer(void* pcb_container, enum tcp_state new_state)
+{
+	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)pcb_container;
+	p_si_tcp->m_p_socket_stats->tcp_state = new_state;
+}
+
 void sockinfo_tcp::err_lwip_cb(void *arg, err_t err)
 {
 
@@ -624,7 +630,7 @@ void sockinfo_tcp::err_lwip_cb(void *arg, err_t err)
 	sockinfo_tcp *conn = (sockinfo_tcp *)arg;
 	vlog_printf(VLOG_DEBUG, "%s:%d [fd=%d] sock=%p lwip_pcb=%p err=%d\n", __func__, __LINE__, conn->m_fd, conn, &(conn->m_pcb), err);
 
-	if (conn->m_pcb.state == LISTEN && err == ERR_RST) {
+	if (get_tcp_state(&conn->m_pcb) == LISTEN && err == ERR_RST) {
 		vlog_printf(VLOG_ERROR, "listen socket should not receive RST");
 		return;
 	}
@@ -646,7 +652,7 @@ void sockinfo_tcp::err_lwip_cb(void *arg, err_t err)
 	 * In case we got RESET from the other end we need to marked this socket as ready to read for epoll
 	 */
 	if ((conn->m_sock_state == TCP_SOCK_CONNECTED_RD || conn->m_sock_state == TCP_SOCK_CONNECTED_RDWR)
-		&& conn->m_pcb.state != ESTABLISHED) {
+		&& get_tcp_state(&conn->m_pcb) != ESTABLISHED) {
 		if (err == ERR_RST)
 			conn->notify_epoll_context(EPOLLIN|EPOLLRDHUP);
 		else
@@ -1095,7 +1101,7 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	lock_tcp_con();
 	m_iomux_ready_fd_array = (fd_array_t*)pv_fd_ready_array;
 
-	if (unlikely(m_pcb.state == LISTEN)) {
+	if (unlikely(get_tcp_state(&m_pcb) == LISTEN)) {
 		pcb = get_syn_received_pcb(p_rx_pkt_mem_buf_desc_info->path.rx.src.sin_addr.s_addr,
 				p_rx_pkt_mem_buf_desc_info->path.rx.src.sin_port,
 				p_rx_pkt_mem_buf_desc_info->path.rx.dst.sin_addr.s_addr,
@@ -1150,14 +1156,14 @@ int sockinfo_tcp::prepareConnect(const sockaddr *, socklen_t ){
 	target_family = __vma_match_tcp_client(TRANS_VMA, __to, __tolen, mce_sys.app_id);
 	si_tcp_logdbg("TRANSPORT: %s",__vma_get_transport_str(target_family));
 	if (target_family == TRANS_OS) {
-		m_sock_offload = TCP_SOCK_PASSTHROUGH;
+		setPassthrough();
 		return 1; //passthrough
 	}
 
 	// if (target_family == USE_VMA || target_family == USE_ULP || arget_family == USE_DEFAULT)
 
 	// find our local address
-	m_sock_offload = TCP_SOCK_LWIP;
+	setPassthrough(false);
 #endif
 	return 0; //offloaded
 }
@@ -1213,6 +1219,9 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 
 	create_dst_entry();
 	m_p_connected_dst_entry->prepare_to_send();
+
+	// update it after route was resolved and device was updated
+	m_p_socket_stats->bound_if = m_p_connected_dst_entry->get_src_addr();
 
 	sockaddr_in remote_addr;
 	remote_addr.sin_family = AF_INET;
@@ -1280,7 +1289,7 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 	        unlock_tcp_con();
                 return -1;
 	}
-	m_sock_offload = TCP_SOCK_LWIP;	
+	setPassthrough(false);
 	unlock_tcp_con();
 	return 0;
 }
@@ -1331,7 +1340,7 @@ int sockinfo_tcp::bind(const sockaddr *__addr, socklen_t __addrlen)
 	in_addr_t ip = m_bound.get_in_addr();
 
 	if (!m_bound.is_anyaddr() && !g_p_net_device_table_mgr->get_net_device_val(ip)) { //if socket is not bound to INADDR_ANY and not offloaded socket- only bind OS
-		m_sock_offload = TCP_SOCK_PASSTHROUGH;
+		setPassthrough(true);
 		m_sock_state = TCP_SOCK_BOUND;
 		si_tcp_logdbg("socket bound only via OS");
 		unlock_tcp_con();
@@ -1388,16 +1397,16 @@ int sockinfo_tcp::prepareListen(){
 	getsockname((struct sockaddr *)&tmp_sin, &tmp_sin_len);
 	lock_tcp_con();
 	target_family = __vma_match_tcp_server(TRANS_VMA, mce_sys.app_id, (struct sockaddr *) &tmp_sin, tmp_sin_len);
-	si_tcp_logdbg("TRANSPORT: %s, sock state = %d", __vma_get_transport_str(target_family), m_pcb.state);
+	si_tcp_logdbg("TRANSPORT: %s, sock state = %d", __vma_get_transport_str(target_family), get_tcp_state(&m_pcb));
 
 	if (target_family == TRANS_OS || m_sock_offload == TCP_SOCK_PASSTHROUGH) {
-		m_sock_offload = TCP_SOCK_PASSTHROUGH;
+		setPassthrough();
 		m_sock_state = TCP_SOCK_ACCEPT_READY;
 	}
 	else {
 
 		// if (target_family == USE_VMA || target_family == USE_ULP || arget_family == USE_DEFAULT)
-		m_sock_offload = TCP_SOCK_LWIP;
+		setPassthrough(false);
 		m_sock_state = TCP_SOCK_LISTEN_READY;
 	}
 
@@ -1439,13 +1448,13 @@ int sockinfo_tcp::listen(int backlog)
 			unlock();
 			return -1;
 		}
-		m_sock_offload = TCP_SOCK_PASSTHROUGH;
+		setPassthrough();
 		m_sock_state = TCP_SOCK_ACCEPT_READY;
 		unlock();
 		return 0;
 	}
 	// if (target_family == USE_VMA || target_family == USE_ULP || arget_family == USE_DEFAULT)
-	m_sock_offload = TCP_SOCK_LWIP;
+	setPassthrough(false);
 	//TODO unlock();
 #endif
 	//
@@ -1470,7 +1479,7 @@ int sockinfo_tcp::listen(int backlog)
 	m_backlog = backlog;
 	m_ready_conn_cnt = 0;
 
-	if (m_pcb.state != LISTEN) {
+	if (get_tcp_state(&m_pcb) != LISTEN) {
 
 		//Now we know that it is listen socket so we have to treate m_pcb as listen pcb
 		//and update the relevant fields of tcp_listen_pcb.
@@ -1490,7 +1499,7 @@ int sockinfo_tcp::listen(int backlog)
  *
  	if (attach_as_uc_receiver(ROLE_TCP_SERVER)) {
 		si_tcp_logdbg("Fallback the connection to os");
-		m_sock_offload = TCP_SOCK_PASSTHROUGH;
+		setPassthrough();
 		return orig_os_api.listen(m_fd, backlog);
 	}
 //*/
@@ -1499,11 +1508,11 @@ int sockinfo_tcp::listen(int backlog)
 			rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.begin();
 			m_p_rx_ring = rx_ring_iter->first;
 		}
-		si_tcp_logdbg("sock state = %d", m_pcb.state);
+		si_tcp_logdbg("sock state = %d", get_tcp_state(&m_pcb));
 	}
 	else {
 		si_tcp_logdbg("Fallback the connection to os");
-		m_sock_offload = TCP_SOCK_PASSTHROUGH;
+		setPassthrough();
 		unlock_tcp_con();
 		return orig_os_api.listen(m_fd, backlog);
 	}
@@ -1565,7 +1574,7 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 
 	lock_tcp_con();
 
-	si_tcp_logdbg("sock state = %d", m_pcb.state);
+	si_tcp_logdbg("sock state = %d", get_tcp_state(&m_pcb));
 	while (m_ready_conn_cnt == 0 && !g_b_exit) {
 		if (m_sock_state == TCP_SOCK_ACCEPT_SHUT) {
 			unlock_tcp_con();
@@ -1606,7 +1615,7 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 		return -1;
 	}
 
-	si_tcp_logdbg("sock state = %d", m_pcb.state);
+	si_tcp_logdbg("sock state = %d", get_tcp_state(&m_pcb));
 	si_tcp_logdbg("socket accept - has some!!!");
 	ns = m_accepted_conns.front();
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -1679,7 +1688,7 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 	if (__flags & SOCK_CLOEXEC)
 		ns->fcntl(F_SETFD, FD_CLOEXEC);
 
-        si_tcp_logdbg("CONN ACCEPTED: TCP PCB FLAGS: acceptor:0x%x newsock: fd=%d 0x%x new state: %d", m_pcb.flags, ns->m_fd, ns->m_pcb.flags, ns->m_pcb.state);
+        si_tcp_logdbg("CONN ACCEPTED: TCP PCB FLAGS: acceptor:0x%x newsock: fd=%d 0x%x new state: %d", m_pcb.flags, ns->m_fd, ns->m_pcb.flags, get_tcp_state(&ns->m_pcb));
 	return ns->m_fd;
 }
 
@@ -1723,7 +1732,7 @@ sockinfo_tcp *sockinfo_tcp::accept_clone()
         si->m_parent = this;
 
         si->m_sock_state = TCP_SOCK_BOUND;
-        si->m_sock_offload = TCP_SOCK_LWIP;
+        si->setPassthrough(false);
 
         si->m_rcvbuff_max = m_rcvbuff_max;
         si->fit_rcv_wnd(m_rcvbuff_max);
@@ -1746,7 +1755,7 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 	}
 	conn->lock_tcp_con();
 
-	vlog_printf(VLOG_DEBUG, "%s:%d: initial state=%x\n", __func__, __LINE__, conn->m_pcb.state);
+	vlog_printf(VLOG_DEBUG, "%s:%d: initial state=%x\n", __func__, __LINE__, get_tcp_state(&conn->m_pcb));
 	vlog_printf(VLOG_DEBUG, "%s:%d: accept cb: arg=%p, new pcb=%p err=%d\n",
 			__func__, __LINE__, arg, child_pcb, err);
 	if (err != ERR_OK) {
@@ -1760,7 +1769,7 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 		return ERR_RST;
 	}
 	// make new socket
-	vlog_printf(VLOG_DEBUG, "%s:%d: new stateb4clone=%x\n", __func__, __LINE__, child_pcb->state);
+	vlog_printf(VLOG_DEBUG, "%s:%d: new stateb4clone=%x\n", __func__, __LINE__, get_tcp_state(child_pcb));
 	new_sock = (sockinfo_tcp*)child_pcb->my_container;
 
 	if (!new_sock) {
@@ -1776,7 +1785,7 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 	conn->m_ready_conn_cnt++;
 	new_sock->m_sock_state = TCP_SOCK_CONNECTED_RDWR;
 
-	vlog_printf(VLOG_DEBUG, "%s:%d: listen(fd=%d) state=%x: new sock(fd=%d) state=%x\n", __func__, __LINE__, conn->m_fd, conn->m_pcb.state, new_sock->m_fd, new_sock->m_pcb.state);
+	vlog_printf(VLOG_DEBUG, "%s:%d: listen(fd=%d) state=%x: new sock(fd=%d) state=%x\n", __func__, __LINE__, conn->m_fd, get_tcp_state(&conn->m_pcb), new_sock->m_fd, get_tcp_state(&new_sock->m_pcb));
 	conn->notify_epoll_context(EPOLLIN);
 
 	//OLG: Now we should wakeup all threads that are sleeping on this socket.
@@ -1868,7 +1877,7 @@ err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_
 	 * have route. */
 	if (!is_new_offloaded) {
 		new_sock->setPassthrough();
-		new_sock->m_pcb.state = CLOSED;
+		set_tcp_state(&new_sock->m_pcb, CLOSED);
 		close(new_sock->get_fd());
 		return ERR_ABRT;
 	}
@@ -2202,7 +2211,7 @@ int sockinfo_tcp::shutdown(int __how)
 			tcp_syn_handled((struct tcp_pcb_listen*)(&m_pcb), sockinfo_tcp::syn_received_drop_lwip_cb);
 		}
 	} else {
-		if (m_pcb.state != LISTEN && shut_rx && m_n_rx_pkt_ready_list_count) {
+		if (get_tcp_state(&m_pcb) != LISTEN && shut_rx && m_n_rx_pkt_ready_list_count) {
 			abort_connection();
 		} else {
 			err = tcp_shutdown(&m_pcb, shut_rx, shut_tx);

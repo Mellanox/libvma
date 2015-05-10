@@ -81,7 +81,7 @@ typedef enum {
 #define SCREEN_SIZE			24 
 #define MAX_BUFF_SIZE			256
 #define PRINT_DETAILS_MODES_NUM		2	
-#define VIEW_MODES_NUM			4
+#define VIEW_MODES_NUM			5
 #define DEFAULT_DELAY_SEC		1
 #define DEFAULT_CYCLES			0
 #define DEFAULT_VIEW_MODE		e_basic
@@ -138,7 +138,7 @@ void usage(const char *argv0)
 	printf("  -F, --forbid_clean\t\tBy setting this flag inactive shared objects would not be removed\n");
 	printf("  -i, --interval=<n>\t\tPrint report every <n> seconds\n");
 	printf("  -c, --cycles=<n>\t\tDo <n> report print cycles and exit, use 0 value for infinite (default)\n");
-	printf("  -v, --view=<1|2|3|4>\t\tSet view type:1- basic info,2- extra info,3- full info,4- mc groups\n");
+	printf("  -v, --view=<1|2|3|4|5>\tSet view type:1- basic info,2- extra info,3- full info,4- mc groups,5- similar to 'netstat -tunaep'\n");
 	printf("  -d, --details=<1|2>\t\tSet details mode:1- to see totals,2- to see deltas\t\t\n");
 	printf("  -z, --zero\t\t\tZero counters\n");
 	printf("  -l, --log_level=<level>\tSet VMA log level to <level>(1 <= level <= 7)\n");
@@ -378,6 +378,9 @@ void print_headers()
 		case e_medium:
 			print_medium_mode_headers();
 			break;
+		case e_netstat_like:
+			print_netstat_like_headers(g_stats_file);
+			break;
 		default:
 			break;	
 	}
@@ -425,7 +428,7 @@ void show_full_stats(socket_instance_block_t* p_instance, socket_instance_block_
 	}
 }
 
-int show_socket_stats(socket_instance_block_t* p_instance, socket_instance_block_t* p_prev_instance_block,uint32_t num_of_obj, int* p_printed_lines_num, mc_grp_info_t* p_mc_grp_info)
+int show_socket_stats(socket_instance_block_t* p_instance, socket_instance_block_t* p_prev_instance_block,uint32_t num_of_obj, int* p_printed_lines_num, mc_grp_info_t* p_mc_grp_info, int pid)
 {
 	int num_act_inst = 0;
 	
@@ -458,6 +461,9 @@ int show_socket_stats(socket_instance_block_t* p_instance, socket_instance_block
 					break;
 				case e_full:
 					show_full_stats(&p_instance[i], &p_prev_instance_block[i], p_mc_grp_info);	
+					break;
+				case e_netstat_like:
+					print_netstat_like(&p_instance[i].skt_stats, p_mc_grp_info, g_stats_file, pid);
 					break;
 				default:
 					break;
@@ -918,6 +924,7 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 		}
 		switch (user_params.view_mode) {
 			case e_full:
+			case e_netstat_like:
 				system("clear");
 				break;
 			case e_mc_groups:
@@ -929,7 +936,7 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 		}
 		switch (user_params.print_details_mode) {
 			case e_totals:
-				num_act_inst = show_socket_stats(p_sh_mem->skt_inst_arr, NULL, p_sh_mem->max_skt_inst_num, &printed_line_num, &p_sh_mem->mc_info);
+				num_act_inst = show_socket_stats(p_sh_mem->skt_inst_arr, NULL, p_sh_mem->max_skt_inst_num, &printed_line_num, &p_sh_mem->mc_info, pid);
 				show_iomux_stats(&p_sh_mem->iomux, NULL, &printed_line_num);
 				if (user_params.view_mode == e_full) {
 					show_cq_stats(p_sh_mem->cq_inst_arr,NULL);
@@ -937,7 +944,7 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 				}
 				break;
 			case e_deltas:
-				num_act_inst = show_socket_stats(curr_instance_blocks, prev_instance_blocks, p_sh_mem->max_skt_inst_num, &printed_line_num, &p_sh_mem->mc_info);
+				num_act_inst = show_socket_stats(curr_instance_blocks, prev_instance_blocks, p_sh_mem->max_skt_inst_num, &printed_line_num, &p_sh_mem->mc_info, pid);
 				show_iomux_stats(&curr_iomux_blocks, &prev_iomux_blocks, &printed_line_num);
 				if (user_params.view_mode == e_full) {
 					show_cq_stats(curr_cq_blocks, prev_cq_blocks);

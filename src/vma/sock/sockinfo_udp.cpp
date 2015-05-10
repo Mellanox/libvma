@@ -140,6 +140,7 @@ sockinfo_udp::sockinfo_udp(int fd) :
 
 	m_protocol = PROTO_UDP;
 	m_p_socket_stats->socket_type = SOCK_DGRAM;
+	m_p_socket_stats->b_is_offloaded = m_sock_offload;
 
 	// Update MC related stats (default values)
 	m_p_socket_stats->mc_tx_if = m_mc_tx_if;
