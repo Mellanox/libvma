@@ -96,11 +96,11 @@ VMA_LOG_FILE, VMA logs just those parameters whose value != default.
 
 Example:
  VMA INFO   : ---------------------------------------------------------------------------
- VMA INFO   : VMA_VERSION: 6.6.3-0
+ VMA INFO   : VMA_VERSION: 6.9.0-0
  VMA INFO   : Cmd Line: sockperf sr
- VMA INFO   : Current Time: Mon Apr 10 13:09:29 2014
+ VMA INFO   : Current Time: Sun May 10 13:09:29 2015
  VMA INFO   : Pid:  7256
- VMA INFO   : OFED Version: MLNX_OFED_LINUX-2.2-0.1.0:
+ VMA INFO   : OFED Version: MLNX_OFED_LINUX-3.0-0.2.5:
  VMA INFO   : Architecture: x86_64
  VMA INFO   : Node: r-sw-bolt4 
  VMA INFO   : ---------------------------------------------------------------------------
@@ -121,6 +121,7 @@ Example:
  VMA DEBUG  : Ring migration ratio TX        100                        [VMA_RING_MIGRATION_RATIO_TX]
  VMA DEBUG  : Ring migration ratio RX        100                        [VMA_RING_MIGRATION_RATIO_RX]
  VMA DEBUG  : Ring limit per interface       0 (no limit)               [VMA_RING_LIMIT_PER_INTERFACE]
+ VMA DEBUG  : TCP max syn-fin rate           0 (no limit)               [VMA_TCP_MAX_SYN_FIN_RATE]
  VMA DEBUG  : Tx Mem Segs TCP                1000000                    [VMA_TX_SEGS_TCP]
  VMA DEBUG  : Tx Mem Bufs                    200000                     [VMA_TX_BUFS]
  VMA DEBUG  : Tx QP WRE                      16000                      [VMA_TX_WRE]
@@ -155,7 +156,7 @@ Example:
  VMA DEBUG  : CQ Moderation Period (usec)    50                         [VMA_CQ_MODERATION_PERIOD_USEC]
  VMA DEBUG  : CQ AIM Max Count               160                        [VMA_CQ_AIM_MAX_COUNT]
  VMA DEBUG  : CQ AIM Max Period (usec)       200                        [VMA_CQ_AIM_MAX_PERIOD_USEC]
- VMA INFO   : CQ AIM Interval (msec)         250                        [VMA_CQ_AIM_INTERVAL_MSEC]
+ VMA DEBUG  : CQ AIM Interval (msec)         250                        [VMA_CQ_AIM_INTERVAL_MSEC]
  VMA DEBUG  : CQ AIM Interrupts Rate (per sec) 5000                     [VMA_CQ_AIM_INTERRUPTS_RATE_PER_SEC]
  VMA DEBUG  : CQ Poll Batch (max)            16                         [VMA_CQ_POLL_BATCH_MAX]
  VMA DEBUG  : CQ Keeps QP Full               Enabled                    [VMA_CQ_KEEP_QP_FULL]
@@ -181,7 +182,6 @@ Example:
  VMA DEBUG  : MSS                            0 (follow VMA_MTU)         [VMA_MSS]
  VMA DEBUG  : TCP CC Algorithm               0 (LWIP)                   [VMA_TCP_CC_ALGO]
  VMA DEBUG  : TCP scaling window             3                          [VMA_WINDOW_SCALING]
- VMA INFO   : TCP max Accept rate            0 (no limit)               [VMA_TCP_MAX_ACCEPT_RATE]
  VMA DEBUG  : Suppress IGMP ver. warning     Disabled                   [VMA_SUPPRESS_IGMP_WARNING]
  VMA INFO   : ---------------------------------------------------------------------------
 

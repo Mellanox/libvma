@@ -1,3 +1,26 @@
+Version 6.9.0-0:
+Date + Time 2015-5-10
+=======================
+Added:
+        - RM #543022 handle DEVICE_FATAL event to support hot-unplug
+        - RM #541581 Support RX CSUM verification offload
+        - RM #533217 Support creating vma_stats shared memory files in a given
+          directory
+        - RM #531820 Add syn/fin throttling support
+        - RM #501215 let the tcp timer run from the user thread when possible
+        - RM #501210 Add retransmission counters
+
+Fixed:
+        - RM #535204 fix crash when there is no route back to syn sender
+        - RM #531810 address resolution for new neighbor block for 1 msec
+        - RM #509794 Don't wait in tcp prepare_to_close for last ack
+          it will be handled by the tcp timer.
+        - RM #515391 if destroy flow failed, continue destroying the rfs
+          object
+        - RM #501206 fix SO_RCVBUF and SO_SNDBUF for TCP
+        - RM #491134 Available send work requestes are affected by return time
+          of buffers to pool
+
 Version 6.8.4-0:
 Date + Time 2015-3-24
 =======================
