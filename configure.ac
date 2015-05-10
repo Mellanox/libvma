@@ -3,8 +3,8 @@ AC_PREREQ(2.59)
 # Update version number here:
 #
 define([vma_ver_major], 6)
-define([vma_ver_minor], 8)
-define([vma_ver_revision], 4)
+define([vma_ver_minor], 9)
+define([vma_ver_revision], 0)
 define([vma_ver_release], 0)
 
 AC_INIT(libvma, [vma_ver_major.vma_ver_minor.vma_ver_revision], support@mellanox.com)
@@ -34,11 +34,11 @@ VMA_LIBRARY_MAJOR=6
 AC_SUBST(VMA_LIBRARY_MAJOR)
 
 #VMA_LIBRARY_MINOR-vma_ver_minor
-VMA_LIBRARY_MINOR=8
+VMA_LIBRARY_MINOR=9
 AC_SUBST(VMA_LIBRARY_MINOR)
 
 #VMA_LIBRARY_REVISION-vma_ver_revision
-VMA_LIBRARY_REVISION=4
+VMA_LIBRARY_REVISION=0
 AC_SUBST(VMA_LIBRARY_REVISION)
 
 #VMA_LIBRARY_RELEASE-vma_ver_release
