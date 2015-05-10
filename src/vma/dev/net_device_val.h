@@ -92,6 +92,9 @@ public:
 	transport_type_t        get_transport_type() const { return m_transport_type; }
 	virtual bool            handle_event_rdma_cm(struct rdma_cm_event* p_event);
 	bool 			handle_event_ADDR_CHANGE();
+	bool 			recreate_cma_id();
+	bool 			bind_cma_id();
+	void 			update_active_slave();
 	in_addr_t               get_local_addr() {return m_local_addr;};
 	in_addr_t               get_netmask() {return m_netmask;};
 	bool                    is_valid() { return true; };
@@ -101,6 +104,7 @@ public:
 	void			ring_adapt_cq_moderation();
 	L2_address*		get_l2_address() { return m_p_L2_addr; };
 	L2_address* 		get_br_address() { return m_p_br_addr; };
+	bool			is_cma_id_created() { return m_cma_id_created; };
 
 protected:
 	int                     m_if_idx; // not unique: eth4 and eth4:5 has the same idx
@@ -116,6 +120,7 @@ protected:
 	rings_key_redirection_hash_map_t        m_h_ring_key_redirection_map;
         slave_data_vector_t	m_slaves;
 	rdma_cm_id*             m_cma_id;
+	bool                    m_cma_id_created;
 	std::string             m_name;
 
 	virtual ring*		create_ring() = 0;

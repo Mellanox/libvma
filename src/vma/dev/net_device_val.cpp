@@ -48,7 +48,7 @@
 #define nd_logfuncall         __log_info_funcall
 
 
-net_device_val::net_device_val(transport_type_t transport_type) : m_if_idx(0), m_local_addr(0), m_netmask(0), m_mtu(0), m_state(INVALID), m_p_L2_addr(NULL), m_p_br_addr(NULL), m_transport_type(transport_type),  m_lock("net_device_val lock"), m_cma_id(NULL)
+net_device_val::net_device_val(transport_type_t transport_type) : m_if_idx(0), m_local_addr(0), m_netmask(0), m_mtu(0), m_state(INVALID), m_p_L2_addr(NULL), m_p_br_addr(NULL), m_transport_type(transport_type),  m_lock("net_device_val lock"), m_cma_id(NULL), m_cma_id_created(false)
 {
 }
 
@@ -92,11 +92,14 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 		// invalid net_device_val
 		nd_logerr("Invalid net_device_val name=%s", ifa->ifa_name);
 		m_state = INVALID;
+		m_cma_id_created = false;
 		return;
 	}
 
 	m_p_L2_addr	= NULL;
 	m_cma_id        = cma_id;
+	m_cma_id_created = true;
+
 	m_if_idx        = if_nametoindex(m_name.c_str());
 	m_mtu           = get_if_mtu_from_ifname(m_name.c_str(), (m_transport_type != VMA_TRANSPORT_IB));
 	if (m_mtu != (int)mce_sys.mtu) {
@@ -222,6 +225,16 @@ bool net_device_val::handle_event_ADDR_CHANGE()
 	// locked by caller
 	nd_logdbg("Handling RDMA_CM_EVENT_ADDR_CHANGE");
 
+	if ((!recreate_cma_id()) || (!bind_cma_id()))
+		return false;
+	
+	update_active_slave();
+
+	return true;
+}
+
+bool net_device_val::recreate_cma_id()
+{
 	// save the event channel
 	struct rdma_event_channel* saved_channel = m_cma_id->channel;
 
@@ -229,23 +242,38 @@ bool net_device_val::handle_event_ADDR_CHANGE()
 	IF_RDMACM_FAILURE(rdma_destroy_id(m_cma_id)) {
 		nd_logerr("Handling RDMA_CM_EVENT_ADDR_CHANGE Event: Failed in rdma_destroy_id (errno=%d %m)", errno);
 	} ENDIF_RDMACM_FAILURE;
+	
+	m_cma_id_created = false;
 
 	// create new cma_id
 	IF_RDMACM_FAILURE(rdma_create_id(saved_channel, &m_cma_id, NULL, RDMA_PS_UDP)) { // UDP vs IP_OVER_IB?
 		nd_logerr("Handling RDMA_CM_EVENT_ADDR_CHANGE Event: Failed in rdma_create_id (RDMA_PS_UDP) (errno=%d %m)", errno);
 		return false;
 	} ENDIF_RDMACM_FAILURE;
+	
+	m_cma_id_created = true;
 
+	return true;
+}	
+	
+bool net_device_val::bind_cma_id() 
+{
 	struct sockaddr_in local_sockaddr;
 	local_sockaddr.sin_family = AF_INET;
 	local_sockaddr.sin_port = INPORT_ANY;
 	local_sockaddr.sin_addr.s_addr = m_local_addr;
 
 	IF_RDMACM_FAILURE(rdma_bind_addr(m_cma_id, (struct sockaddr*)&local_sockaddr)) {
-		nd_logerr("Handling RDMA_CM_EVENT_ADDR_CHANGE Event: Failed in rdma_bind_addr (src=%d.%d.%d.%d) (errno=%d %m)", NIPQUAD(m_local_addr), errno);
+		nd_logdbg("Handling RDMA_CM_EVENT_ADDR_CHANGE Event: Failed in rdma_bind_addr (src=%d.%d.%d.%d) (errno=%d %m)", NIPQUAD(m_local_addr), errno);
 		return false;
-	} ENDIF_RDMACM_FAILURE;
+	} ENDIF_RDMACM_FAILURE;	
+	
+	nd_logdbg("Handling RDMA_CM_EVENT_ADDR_CHANGE Event: rdma_bind_addr (src=%d.%d.%d.%d) succeed", NIPQUAD(m_local_addr));
+	return true;
+}
 
+void net_device_val::update_active_slave()
+{
 	// update the active slave
 	// /sys/class/net/bond0/bonding/active_slave
 	char active_slave[IFNAMSIZ] = {0};
@@ -261,12 +289,15 @@ bool net_device_val::handle_event_ADDR_CHANGE()
 	size_t slave_count = m_slaves.size();
 	ring_resource_creation_info_t p_ring_info[1];
 	for (size_t i = 0; i<slave_count; i++) {
+		if (m_slaves[i]->is_active_slave)
+			m_slaves[i]->is_active_slave = false;
+		
 		if (strcmp(active_slave, m_slaves[i]->if_name) == 0) {
+			m_slaves[i]->is_active_slave = true;
 			p_ring_info[0].p_ib_ctx = m_slaves[i]->p_ib_ctx;
 			p_ring_info[0].port_num = m_slaves[i]->port_num;
 			p_ring_info[0].p_l2_addr = m_slaves[i]->p_L2_addr;
 			found_active_slave = true;
-			break;
 		}
 	}
 
@@ -283,10 +314,8 @@ bool net_device_val::handle_event_ADDR_CHANGE()
 		for (ring_iter = m_h_ring_map.begin(); ring_iter != m_h_ring_map.end(); ring_iter++) {
 			THE_RING->restart(p_ring_info);
 		}
-	}
-
-	return true;
-}
+	}	
+}	
 
 std::string net_device_val::to_str()
 {

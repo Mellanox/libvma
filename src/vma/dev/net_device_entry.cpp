@@ -27,7 +27,7 @@ net_device_entry::net_device_entry(in_addr_t local_ip, net_device_val* ndv) : ca
 	nde_logdbg("");
 	m_val = ndv;
 	m_is_valid = false;
-
+	m_cma_id_bind_trial_count = 0;
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_val) {
 		nde_logdbg("ERROR: received m_val = NULL");
@@ -88,20 +88,60 @@ void net_device_entry::handle_event_rdma_cm_cb(struct rdma_cm_event* p_event)
 	rdma_cm_id *old_cma_id = m_val->get_cma_id();
 
 	net_device_val* p_ndv = dynamic_cast<net_device_val*>(m_val);
-	if ((p_ndv) && (p_ndv->handle_event_rdma_cm(p_event))) {
+	if (p_ndv) {
+		m_cma_id_bind_trial_count = 0;
+		
+		if (p_ndv->handle_event_rdma_cm(p_event)) {
+			m_is_valid = true;
 
-		m_is_valid = true;
+			// re-new RDMA_CM registration to events (replace old with new cma_id)
+			rdma_cm_id *new_cma_id = m_val->get_cma_id();
 
-		// re-new RDMA_CM registration to events (replace old with new cma_id)
-		rdma_cm_id *new_cma_id = m_val->get_cma_id();
+			// unregister old cma_id
+			rdma_event_channel *old_cma_event_channel = new_cma_id->channel; // channel is the same for all cma_ids
+			g_p_event_handler_manager->unregister_rdma_cm_event(old_cma_event_channel->fd, (void*)old_cma_id);
 
-		// unregister old cma_id
-		rdma_event_channel *old_cma_event_channel = new_cma_id->channel; // channel is the same for all cma_ids
-		g_p_event_handler_manager->unregister_rdma_cm_event(old_cma_event_channel->fd, (void*)old_cma_id);
+			// register new cma_id
+			g_p_event_handler_manager->register_rdma_cm_event(new_cma_id->channel->fd, (void*)new_cma_id, (void*)(new_cma_id->channel), this);
+		}
+		else if (p_ndv->is_cma_id_created()) {
+			// re-new RDMA_CM registration to events (replace old with new cma_id)
+			rdma_cm_id *new_cma_id = m_val->get_cma_id();
 
-		// register new cma_id
-		g_p_event_handler_manager->register_rdma_cm_event(new_cma_id->channel->fd, (void*)new_cma_id, (void*)(new_cma_id->channel), this);
+			// unregister old cma_id
+			rdma_event_channel *old_cma_event_channel = new_cma_id->channel; // channel is the same for all cma_ids
+			g_p_event_handler_manager->unregister_rdma_cm_event(old_cma_event_channel->fd, (void*)old_cma_id);
+
+			//Register timer to retry to bind cma_id to specific address and continue handling address change event in case of succeed
+			g_p_event_handler_manager->register_timer_event(CMA_ID_BIND_TIMER_PERIOD_MSEC, this, ONE_SHOT_TIMER, NULL);
+		}
 	}
 
 	notify_observers();
+}
+
+void net_device_entry::handle_timer_expired(void* user_data)
+{
+	NOT_IN_USE(user_data);
+	
+	auto_unlocker lock(m_lock);
+	
+	net_device_val* p_ndv = dynamic_cast<net_device_val*>(m_val);
+	if ((p_ndv) && (p_ndv->bind_cma_id())) {
+		p_ndv->update_active_slave();
+		m_is_valid = true;
+		m_cma_id_bind_trial_count = 0;
+		// re-new RDMA_CM registration to events (replace old with new cma_id)
+		rdma_cm_id *new_cma_id = m_val->get_cma_id();
+		// register new cma_id
+		g_p_event_handler_manager->register_rdma_cm_event(new_cma_id->channel->fd, (void*)new_cma_id, (void*)(new_cma_id->channel), this);
+		notify_observers();
+	}
+	else if (m_cma_id_bind_trial_count < MAX_CMA_ID_BIND_TRIAL_COUNT) {
+		m_cma_id_bind_trial_count++;
+		g_p_event_handler_manager->register_timer_event(CMA_ID_BIND_TIMER_PERIOD_MSEC, this, ONE_SHOT_TIMER, NULL);
+	}
+	else {
+		nde_logerr("Unable to bind cma_id");
+	}
 }

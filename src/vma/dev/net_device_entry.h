@@ -18,8 +18,12 @@
 #include "vma/infra/cache_subject_observer.h"
 #include "vma/proto/ip_address.h"
 #include "vma/event/route_net_dev_event.h"
+#include "vma/event/timer_handler.h"
 
-class net_device_entry : public cache_entry_subject<ip_address, net_device_val*> , public event_handler_ibverbs, public event_handler_rdma_cm
+#define MAX_CMA_ID_BIND_TRIAL_COUNT 10
+#define CMA_ID_BIND_TIMER_PERIOD_MSEC 100
+
+class net_device_entry : public cache_entry_subject<ip_address, net_device_val*> , public event_handler_ibverbs, public event_handler_rdma_cm, public timer_handler
 {
 public:
 	friend class net_device_table_mgr;
@@ -33,10 +37,12 @@ public:
 	virtual void	handle_event_ibverbs_cb(void *ev_data, void *ctx);
 	// handles rdma_cm events and notifies observers only after re-validating the net_device_val
 	virtual void	handle_event_rdma_cm_cb(struct rdma_cm_event* p_event);
+	void		handle_timer_expired(void* user_data);
 
 private:
 
 	bool m_is_valid;
+	size_t m_cma_id_bind_trial_count;
 };
 
 #endif 
