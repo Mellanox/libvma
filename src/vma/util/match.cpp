@@ -114,7 +114,7 @@ void get_address_port_rule_str(char *addr_buf, char *ports_buf, struct address_p
 		else
 			sprintf(addr_buf, "%s", inet_ntoa(rule->ipv4));
 	} else
-		strcpy(addr_buf, "*");
+		sprintf(addr_buf, "%s" ,"*");
 
 	if (rule->match_by_port)
 		if (rule->eport > rule->sport)

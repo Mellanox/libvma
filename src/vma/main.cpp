@@ -363,6 +363,18 @@ int get_ofed_version_info(char* ofed_version_str, int len)
 	return run_and_retreive_system_command("ofed_info -s 2>/dev/null | grep OFED | head -1", ofed_version_str, len);
 }
 
+void read_env_variable_with_pid(char* mce_sys_name, size_t mce_sys_max_size, char* env_ptr)
+{
+	char* d_pos = strstr(env_ptr, "%d");
+	if (!d_pos) { // no %d in the string
+		snprintf(mce_sys_name, mce_sys_max_size, "%s", env_ptr);
+	} else { // has at least one occurrence of %d - replace the first one with the process PID
+		size_t bytes_num = MIN((size_t)(d_pos - env_ptr), mce_sys_max_size - 1);
+		strncpy(mce_sys_name, env_ptr, bytes_num);
+		bytes_num += snprintf(mce_sys_name + bytes_num, mce_sys_max_size - bytes_num - 1, "%d", getpid());
+		snprintf(mce_sys_name + bytes_num, mce_sys_max_size - bytes_num, "%s", d_pos + 2);
+	}
+}
 
 void print_vma_global_settings()
 {
@@ -794,20 +806,19 @@ void get_env_params()
 		mce_sys.mce_spec_param2 = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_LOG_FILENAME)) != NULL){
-        	// 'snprintf & getpid' will allow the use of a '%d' in the file name that will be replaced with the PID value
-		snprintf(mce_sys.log_filename, sizeof(mce_sys.log_filename), env_ptr, getpid());
+		read_env_variable_with_pid(mce_sys.log_filename, FILENAME_MAX, env_ptr);
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_STATS_FILENAME)) != NULL){
-		snprintf(mce_sys.stats_filename, sizeof(mce_sys.stats_filename), env_ptr, getpid());
+		read_env_variable_with_pid(mce_sys.stats_filename, FILENAME_MAX, env_ptr);
 	}
-	
+
 	if ((env_ptr = getenv(SYS_VAR_STATS_SHMEM_DIRNAME)) != NULL){
-		snprintf(mce_sys.stats_shmem_dirname, sizeof(mce_sys.stats_shmem_dirname), env_ptr, getpid());
+		read_env_variable_with_pid(mce_sys.stats_shmem_dirname, FILENAME_MAX, env_ptr);
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_CONF_FILENAME)) != NULL){
-		snprintf(mce_sys.conf_filename, sizeof(mce_sys.conf_filename), env_ptr, getpid());
+		read_env_variable_with_pid(mce_sys.conf_filename, FILENAME_MAX, env_ptr);
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_LOG_LEVEL)) != NULL)
@@ -823,8 +834,7 @@ void get_env_params()
 		mce_sys.log_colors = atoi(env_ptr) ? true : false;
 	
 	if ((env_ptr = getenv(SYS_VAR_APPLICATION_ID)) != NULL){
-		// 'snprintf & getpid' will allow the use of a '%d' in the file name that will be replaced with the PID value
-		snprintf(mce_sys.app_id, sizeof(mce_sys.app_id), env_ptr);
+		read_env_variable_with_pid(mce_sys.app_id, MAX_APP_ID_LENGHT, env_ptr);
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_HANDLE_SIGINTR)) != NULL)
@@ -1101,12 +1111,12 @@ void get_env_params()
 		mce_sys.internal_thread_arm_cq_enabled = atoi(env_ptr) ? true : false;
 
         if ((env_ptr = getenv(SYS_VAR_INTERNAL_THREAD_CPUSET)) != NULL) {
-        	strcpy(mce_sys.internal_thread_cpuset, env_ptr);
+               snprintf(mce_sys.internal_thread_cpuset, FILENAME_MAX, "%s", env_ptr);
         }
 
 	// handle internal thread affinity - default is CPU-0
 	if ((env_ptr = getenv(SYS_VAR_INTERNAL_THREAD_AFFINITY)) != NULL) {
-		strcpy(mce_sys.internal_thread_affinity_str, env_ptr);
+		snprintf(mce_sys.internal_thread_affinity_str, CPU_SETSIZE/4, "%s", env_ptr);
 	}
 	if (env_to_cpuset(mce_sys.internal_thread_affinity_str, &mce_sys.internal_thread_affinity)) {
 		vlog_printf(VLOG_WARNING," Failed to set internal thread affinity: %s...  deferring to cpu-0.\n",
@@ -1192,7 +1202,7 @@ void get_env_params()
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_VMA_TIME_MEASURE_DUMP_FILE)) != NULL){
-		snprintf(mce_sys.vma_time_measure_filename, sizeof(mce_sys.vma_time_measure_filename), env_ptr, getpid());
+		read_env_variable_with_pid(mce_sys.vma_time_measure_filename, FILENAME_MAX, env_ptr);
 	}
 #endif
 

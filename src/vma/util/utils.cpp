@@ -90,7 +90,7 @@ int get_base_interface_name(const char *if_name, char *base_ifname, size_t sz_ba
 			unsigned char tmp_mac[ETH_ALEN];
 			get_local_ll_addr(ifa->ifa_name, tmp_mac, ETH_ALEN, false);
 			if (!memcmp((const void*) vlan_if_address, (const void*) tmp_mac, ETH_ALEN)) {
-				strcpy(base_ifname, ifa->ifa_name);
+				snprintf(base_ifname, sz_base_ifname, "%s" ,ifa->ifa_name);
 				freeifaddrs(ifaddr);
 				__log_dbg("Found base_ifname %s for vlan interface %s", base_ifname, if_name);
 				return 0;
@@ -627,6 +627,7 @@ int get_peer_unicast_mac(const in_addr_t p_peer_addr, unsigned char peer_mac[ETH
 	char *peer_mac_str = NULL;
 	char buff[4096];
 	char peer_ip_str[20];
+	int bytes_read = 0;
 	int fd = 0;
 	int ret_val = -1;
 
@@ -637,8 +638,12 @@ int get_peer_unicast_mac(const in_addr_t p_peer_addr, unsigned char peer_mac[ETH
 	fd = fileno(fp);
 
 	// coverity[check_return]
-	if (read(fd, buff, 4096) < 0)
+	if ((bytes_read = read(fd, buff, 4095)) < 0) {
 		__log_err("error reading arp table, errno %d %m", errno);
+		buff[0] = '\0';
+	} else {
+		buff[bytes_read] = '\0';
+	}
 	peer_mac_str = (char *)strstr((const char*)buff, (const char*)peer_ip_str);
 	if (!peer_mac_str)
 		goto out;
@@ -667,6 +672,7 @@ int get_peer_ipoib_qpn(const struct sockaddr* p_peer_addr, uint32_t & remote_qpn
 	char rem_qpn_str[7] = "";
 	char* p_ch = NULL;
 	char* str = NULL;
+	int bytes_read = 0;
 	int fd = 0;
 	int ret_val = -1;
 
@@ -677,8 +683,12 @@ int get_peer_ipoib_qpn(const struct sockaddr* p_peer_addr, uint32_t & remote_qpn
 	fd = fileno(fp);
 
 	// coverity[check_return]
-	if (read(fd, buff, 4096) < 0)
+	if ((bytes_read = read(fd, buff, 4095)) < 0) {
 		__log_err("error reading arp table, errno %d %m", errno);
+		buff[0] = '\0';
+	} else {
+		buff[bytes_read] = '\0';
+	}
 	str = (char *)strstr((const char*)buff, peer_ip_str);
 	if (!str)
 		goto out;
@@ -706,6 +716,7 @@ int get_peer_ipoib_address(const struct sockaddr* p_peer_addr, unsigned char pee
 
 	char peer_ip_str[20];
 	char buff[4096];
+	int bytes_read = 0;
 	int fd = 0;
 	int ret_val = -1;
 
@@ -716,8 +727,12 @@ int get_peer_ipoib_address(const struct sockaddr* p_peer_addr, unsigned char pee
 	fd = fileno(fp);
 
 	// coverity[check_return]
-	if (read(fd, buff, 4096) < 0)
+	if ((bytes_read = read(fd, buff, 4095)) < 0) {
 		__log_err("error reading arp table, errno %d %m", errno);
+		buff[0] = '\0';
+	} else {
+		buff[bytes_read] = '\0';
+	}
 	peer_l2 = (unsigned char *)strstr((const char*)buff, peer_ip_str);
 	if (!peer_l2)
 		goto out;

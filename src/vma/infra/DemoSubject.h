@@ -29,8 +29,8 @@ public:
 
 	const std::string to_str() const
 	{
-		char s[10];
-		sprintf(s, "%d.%d.%d.%d", NIPQUAD(m_key));
+		char s[20];
+		snprintf(s, sizeof(s), "%d.%d.%d.%d", NIPQUAD(m_key));
 		return(std::string(s));
 	}
 

@@ -112,6 +112,12 @@ void rfs_uc_tcp_gro::flush(void* pv_fd_ready_array)
 	m_b_reserved = false;
 }
 
+struct __attribute__((packed)) tcphdr_ts
+{
+	tcphdr p_tcp_h;
+	uint32_t popts[3];
+};
+
 void rfs_uc_tcp_gro::flush_gro_desc(void* pv_fd_ready_array)
 {
 	if (!m_b_active) return;
@@ -122,8 +128,8 @@ void rfs_uc_tcp_gro::flush_gro_desc(void* pv_fd_ready_array)
 		m_gro_desc.p_tcp_h->window = m_gro_desc.wnd;
 
 		if (m_gro_desc.ts_present) {
-			uint32_t* popt = (uint32_t *)(m_gro_desc.p_tcp_h + 1);
-			*(popt+2) = m_gro_desc.tsecr;
+			tcphdr_ts* p_tcp_ts_h = (tcphdr_ts*) m_gro_desc.p_tcp_h;
+			p_tcp_ts_h->popts[2] = m_gro_desc.tsecr;
 		}
 
 		m_gro_desc.p_first->path.rx.gro = 1;
