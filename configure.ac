@@ -371,8 +371,6 @@ AC_CONFIG_FILES([
 		src/vlogger/Makefile
 		src/stats/Makefile
 		src/state_machine/Makefile
-		src/lwip/Makefile
-		src/lwip/src/Makefile
 		tests/Makefile
 		tests/pps_test/Makefile
 		tests/latency_test/Makefile

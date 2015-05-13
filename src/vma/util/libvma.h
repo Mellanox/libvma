@@ -17,12 +17,7 @@
 #include <netinet/in.h>
 
 #include "vtypes.h"
-
-/*
- * VMA specific includes
- */
-#include "lwip/netif.h"
-
+#include "vma/lwip/opt.h"
 
 /* --------------------------------------------------------------------- */
 /* library static and global variables                                   */
@@ -32,6 +27,8 @@
 #define MAX_ADDR_STR_LEN 49
 #define MAX_IF_NAME_LEN 10
 #define MAX_CONF_FILE_ENTRY_STR_LEN 512
+// from lwip
+#define NETIF_MAX_HWADDR_LEN 6U
 
 #ifdef __cplusplus
 extern "C" {

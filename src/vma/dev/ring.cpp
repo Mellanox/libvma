@@ -28,7 +28,6 @@
 #include "vma/dev/rfs_uc.h"
 #include "vma/dev/rfs_uc_tcp_gro.h"
 #include "vma/dev/cq_mgr.h"
-#include "lwip/src/include/lwip/tcp.h"
 
 
 #undef  MODULE_NAME

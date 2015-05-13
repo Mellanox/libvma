@@ -24,13 +24,8 @@
 #include "vma/dev/cq_mgr.h"
 
 // LWIP includes
-#include <lwip/opt.h>
-#include <lwip/init.h>
-#include <lwip/sys.h>
-#include <lwip/tcp_impl.h>
-#include <netif/etharp.h>
-#include <lwip/stats.h>
-#include <lwip/tcp.h>
+#include "vma/lwip/opt.h"
+#include "vma/lwip/tcp_impl.h"
 
 #include "sockinfo.h"
 

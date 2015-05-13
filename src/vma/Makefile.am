@@ -33,10 +33,6 @@ lib_LTLIBRARIES = libvma.la
 INCLUDES := \
 	-I$(top_builddir) \
 	-I$(top_builddir)/src \
-	-I$(top_builddir)/src/lwip/src/include \
-	-I$(top_builddir)/src/lwip/src/include/ipv4 \
-	-I$(top_builddir)/src/lwip/arch \
-	-I$(top_builddir)/src/lwip/ \
 	-I$(top_builddir)/src/netlink/
 
 if IS_RELEASE_ZERO
@@ -49,7 +45,6 @@ libvma_la_LIBADD = \
 	-lrt -ldl -lpthread -libverbs -lrdmacm -lnl \
 	$(top_builddir)/src/vlogger/libvlogger.la \
 	$(top_builddir)/src/state_machine/libstate_machine.la \
-	$(top_builddir)/src/lwip/src/liblwip.la \
 	libconfig_parser.la
 	
 
@@ -84,6 +79,15 @@ libvma_la_SOURCES := \
 	iomux/io_mux_call.cpp \
 	iomux/poll_call.cpp \
 	iomux/select_call.cpp \
+	\
+	lwip/pbuf.c \
+	lwip/tcp.c \
+	lwip/tcp_in.c \
+	lwip/tcp_out.c \
+	lwip/cc.c \
+	lwip/cc_lwip.c \
+	lwip/cc_cubic.c \
+	lwip/init.c \
 	\
 	proto/ip_frag.cpp \
 	proto/flow_tuple.cpp \
@@ -136,6 +140,5 @@ libvma_la_SOURCES := \
 libvma_la_DEPENDENCIES = \
 	$(top_builddir)/src/vlogger/libvlogger.la \
 	$(top_builddir)/src/state_machine/libstate_machine.la \
-	$(top_builddir)/src/lwip/src/liblwip.la \
 	libconfig_parser.la
 

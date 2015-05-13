@@ -18,7 +18,7 @@
 #include <netinet/in.h>
 #include "vma/util/vtypes.h" // for unlikely
 
-#include "lwip/pbuf.h"
+#include "vma/lwip/pbuf.h"
 
 struct mem_buf_desc_t;
 

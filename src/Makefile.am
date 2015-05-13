@@ -1,1 +1,1 @@
-SUBDIRS := vlogger lwip state_machine stats vma
+SUBDIRS := vlogger state_machine stats vma

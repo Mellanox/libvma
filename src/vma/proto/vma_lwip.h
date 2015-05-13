@@ -23,8 +23,7 @@
 #include "vma/util/libvma.h"
 #include "vma/proto/mem_buf_desc.h"
 #include "vma/sock/pkt_rcvr_sink.h"
-#include "lwip/ip_addr.h"
-#include "lwip/tcp.h"
+#include "vma/lwip/tcp.h"
 
 class buffer_pool;
 
@@ -73,7 +72,6 @@ public:
 	static int sockaddr2ipaddr(const sockaddr *__to, socklen_t __tolen, ip_addr_t & ip, uint16_t & port);
 	void do_timers();
 
-	static err_t vma_lwip_netif_init(struct netif *lwip_if);
 	static u16_t vma_ip_route_mtu(ip_addr_t *dest);
 
 	//RX: feed packet to the LWIP stack
@@ -82,9 +80,6 @@ public:
 	virtual void handle_timer_expired(void* user_data);
 
 private:
-
-	char     	*m_lwip_bufs;
-
 	bool		m_run_timers;
 };
 

@@ -35,7 +35,6 @@
 #include "vma/proto/dst_entry_udp_mc.h"
 #include "vma/iomux/epfd_info.h"
 #include "vma/iomux/io_mux_call.h"
-#include "lwip/udp.h"
 #include "vma/util/instrumentation.h"
 #include "vma/util/bullseye.h"
 

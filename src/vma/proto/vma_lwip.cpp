@@ -15,7 +15,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <netif/etharp.h>
 
 #include <vlogger/vlogger.h>
 #include "vma/util/rdtsc.h"
@@ -31,13 +30,8 @@
 #include "vma_lwip.h"
 #include "vma/sock/sockinfo_tcp.h"
 #include "vma/util/bullseye.h"
-
-#include "lwip/opt.h"
-#include "lwip/init.h"
-#include "lwip/sys.h"
-#include "lwip/tcp_impl.h"
-#include "lwip/stats.h"
-#include "lwip/memp.h"
+#include "vma/lwip/init.h"
+#include "vma/lwip/tcp_impl.h"
 
 // debugging macros
 #define MODULE_NAME 		"lwip"
@@ -84,7 +78,7 @@ vma_lwip *g_p_lwip = 0;
  * LWIP "network" driver code
  */
 
-vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip"), m_lwip_bufs(NULL)
+vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip")
 {
 	m_run_timers = false;
 
@@ -96,15 +90,6 @@ vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip"), m_lwip_bufs(NULL)
 	lwip_cc_algo_module = (enum cc_algo_mod)mce_sys.lwip_cc_algo_mod;
 
 	lwip_tcp_mss = get_lwip_tcp_mss(mce_sys.mtu, mce_sys.lwip_mss);
-
-	memp_update_custom_pool(0,0);
-
-	m_lwip_bufs = new char[memp_get_pool_size()];
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (m_lwip_bufs){
-		memp_set_pool_start(m_lwip_bufs);
-	} else
-		lwip_logerr("failed allocting memory for lwip\n");
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	if(mce_sys.window_scaling == USE_OS_WINDOW_SCALING) {
@@ -119,9 +104,8 @@ vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip"), m_lwip_bufs(NULL)
 		rcv_wnd_scale = mce_sys.window_scaling;
 	}
 
-	//Bring up LWIP
+	 //Bring up LWIP
 	lwip_init();
-
 	lwip_logdbg("LWIP subsystem initialized");
 
 	register_tcp_tx_pbuf_alloc(sockinfo_tcp::tcp_tx_pbuf_alloc);
@@ -138,11 +122,6 @@ vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip"), m_lwip_bufs(NULL)
 
 vma_lwip::~vma_lwip()
 {
-	if (m_lwip_bufs) {
-		delete m_lwip_bufs;
-		m_lwip_bufs = NULL;
-	}
-
 	__vma_free_resources();
 }
 
@@ -159,27 +138,6 @@ int vma_lwip::sockaddr2ipaddr(const sockaddr *__to, socklen_t __tolen, ip_addr_t
 	ip.addr = get_sa_ipv4_addr(__to);
 	port = htons(get_sa_port(__to));
 	return 0;
-}
-
-err_t vma_lwip::vma_lwip_netif_init(struct netif *lwip_if)
-{
-	qp_mgr *p_qp_mgr = (qp_mgr *)lwip_if->state;
-
-	if (!p_qp_mgr)
-		lwip_logpanic("Failed to init lwip netif since it state is not initialized properly");
-
-/* TODO ALEXR TX
-	struct net_dev_info_t* p_net_dev_info = p_qp_mgr->get_netdev_info();
-	//lwip_if->linkoutput = vma_output;
-	lwip_if->output = vma_output;
-	lwip_if->mtu = p_net_dev_info->if_mtu;
-	lwip_if->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_LINK_UP;
-	lwip_if->hwaddr_len = p_net_dev_info->hw_addr_len;
-	lwip_if->name[0] = p_net_dev_info->if_name[0];
-        lwip_if->name[1] = p_net_dev_info->if_name[strlen(p_net_dev_info->if_name) - 1];
-	memcpy(lwip_if->hwaddr, p_net_dev_info->hw_addr, p_net_dev_info->hw_addr_len);
-//*/
-	return ERR_OK;
 }
 
 #if _BullseyeCoverage

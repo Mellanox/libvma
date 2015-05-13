@@ -31,7 +31,6 @@
 #include "rule_table_mgr.h"
 #include "vma/sock/socket_fd_api.h"
 #include "vma/sock/sock-redirect.h"
-#include "lwip/ip_addr.h"
 #include "ip_address.h"
 #include "vma/util/bullseye.h"
 

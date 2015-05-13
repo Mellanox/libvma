@@ -17,7 +17,7 @@
 #include <errno.h>
 #include <ifaddrs.h>
 #include <net/if.h>
-#include <netif/etharp.h>
+#include "vma/lwip/opt.h"
 
 #include "vlogger/vlogger.h"
 #include "vma/util/vtypes.h"
