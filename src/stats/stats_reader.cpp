@@ -34,6 +34,7 @@
 #include <vma/util/vma_stats.h>
 #include <vma/util/rdtsc.h>
 #include <vma/util/sys_vars.h>
+#include <vector>
 
 using namespace std;
 
@@ -780,8 +781,6 @@ int check_vma_ver_compatability(version_info_t* p_stat_ver_info)
 
 void cleanup(sh_mem_info* p_sh_mem_info)
 {
-	if (g_fd_mask)
-		free(g_fd_mask);
 	if (p_sh_mem_info == NULL)
 		return;
 	if (p_sh_mem_info->p_sh_stats != MAP_FAILED)
@@ -924,7 +923,6 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 		}
 		switch (user_params.view_mode) {
 			case e_full:
-			case e_netstat_like:
 				system("clear");
 				break;
 			case e_mc_groups:
@@ -958,6 +956,8 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 			default:
 				break;
 		}
+		if (user_params.view_mode == e_netstat_like)
+			break;
 		if (num_act_inst) {
 			printf(CYCLES_SEPARATOR);
 			printed_line_num++;
@@ -970,7 +970,7 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 		uint64_t adjasted_delay = delay_int_micro - TIME_DIFF_in_MICRO(start, end);
 		if (!g_b_exit && proc_running){
 			usleep(adjasted_delay);
-                        inc_read_counter(p_sh_mem);
+            inc_read_counter(p_sh_mem);
 		}
 		proc_running = check_if_process_running(pid);
 	}
@@ -1228,17 +1228,19 @@ void set_vma_log_details_level(sh_mem_t* p_sh_mem)
 	p_sh_mem->log_details_level = (int)user_params.vma_details_level;
 }
 
+//////////////////forward declarations /////////////////////////////
+void get_all_processes_pids(std::vector<int> &pids);
+int print_processes_stats(const std::vector<int> &pids);
+
+////////////////////////////////////////////////////////////////////
 int main (int argc, char **argv)
 {
-	sh_mem_info_t sh_mem_info;
-	sh_mem_t* sh_mem;
-	int pid = -1;
-	char proc_desc[MAX_BUFF_SIZE];
+	char proc_desc[MAX_BUFF_SIZE] = {0};
 
-	memset((void*)proc_desc, 0, sizeof(char) * MAX_BUFF_SIZE);
 	set_defaults();	
-	if (!g_fd_mask)
-		return 1;
+	if (!g_fd_mask) return 1;
+	clean_inactive_sh_ibj();
+
 	while (1) {
 		int c = 0;
 		
@@ -1386,13 +1388,37 @@ int main (int argc, char **argv)
 			return 1;
 		}
 	}
-	pid = get_pid(proc_desc, argv[0]);
-	if ( pid == -1 ){
+
+	std::vector<int> pids;
+	if(user_params.view_mode == e_netstat_like) {
+		get_all_processes_pids(pids);
+	}
+	else {
+		int pid = get_pid(proc_desc, argv[0]);
+		if (pid != -1) pids.push_back(pid);
+	}
+
+	if ( pids.size() == 0 ){
 		usage(argv[0]);
-		cleanup(NULL);
+		free(g_fd_mask);
 		return 1;
 	}
-		
+
+	if(user_params.view_mode == e_netstat_like)
+		user_params.cycles =1;// print once and exit
+
+	int ret = print_processes_stats(pids);
+
+	free(g_fd_mask);
+	return ret;
+}
+
+/////////////////////////////////
+int  init_print_process_stats(sh_mem_info_t & sh_mem_info)
+{
+	sh_mem_t* sh_mem;
+	int pid = sh_mem_info.pid;
+
 	sprintf(sh_mem_info.filename_sh_stats, "%s/vmastat.%d", g_vma_shmem_dir, pid);
 	
 	if (user_params.write_auth)
@@ -1438,8 +1464,8 @@ int main (int argc, char **argv)
 		return 1;
 	}
 	MAP_SH_MEM(sh_mem,sh_mem_info.p_sh_stats);
-	clean_inactive_sh_ibj();
-	print_version(pid);
+	if(user_params.view_mode != e_netstat_like)
+		print_version(pid);
 	if (user_params.zero_counters == true)
 		zero_counters(sh_mem);
 	if (user_params.vma_log_level != INIT_VMA_LOG_LEVEL_VAL)
@@ -1448,12 +1474,75 @@ int main (int argc, char **argv)
 		set_vma_log_details_level(sh_mem);
 
 
+	// here we indicate VMA to write to shmem
 	inc_read_counter(sh_mem);
-        usleep(500000); // give publisher enough time to update shm counters - so the first read won't be zero
-	stats_reader_handler(sh_mem, pid);
-
-	cleanup(&sh_mem_info);
-			
 	return 0;
 }
 
+////////////////////////////////////////////////////////////////////
+int  complete_print_process_stats(sh_mem_info_t & sh_mem_info)
+{
+	sh_mem_t* sh_mem;
+	MAP_SH_MEM(sh_mem,sh_mem_info.p_sh_stats);
+
+	stats_reader_handler(sh_mem, sh_mem_info.pid);
+	cleanup(&sh_mem_info);
+	return 0;
+}
+
+
+///////////////////////////
+void get_all_processes_pids(std::vector<int> &pids)
+{
+	const int MODULE_NAME_SIZE = strlen(MODULE_NAME);
+	const int PID_OFFSET = MODULE_NAME_SIZE + 1;
+
+	DIR *dir = opendir(g_vma_shmem_dir);
+	if (dir == NULL){
+		log_system_err("opendir %s failed\n", g_vma_shmem_dir);
+		return;
+	}
+
+	for( struct dirent *dirent = readdir(dir); dirent != NULL ; dirent = readdir(dir) ) {
+		if(!strncmp("vmastat.", dirent->d_name, MODULE_NAME_SIZE)) {
+			char* pid_str = dirent->d_name + PID_OFFSET;
+			if (check_if_process_running(pid_str)) {
+				errno = 0;
+				int pid = strtol(pid_str, NULL, 0);
+				if (errno == 0) {
+					pids.push_back(pid);
+				}
+				else {
+					log_system_err("Failed to convert:%s", pid_str);
+				}
+			}
+		}
+	}
+	closedir(dir);
+}
+
+///////////////////////////
+int print_processes_stats(const std::vector<int> &pids)
+{
+	const int SIZE = pids.size();
+
+	int num_instances = 0;
+	sh_mem_info_t sh_mem_info[SIZE];
+
+	// 1. N * prepare shmem and indicate VMA to update shmem
+	for (int i = 0; i < SIZE; ++i){
+		sh_mem_info[num_instances].pid = pids[i];
+		if (0 == init_print_process_stats(sh_mem_info[num_instances]))
+			++num_instances;
+	}
+
+	// 2. one sleep to rule them all
+	usleep(2 * STATS_PUBLISHER_TIMER_PERIOD * 1000);// After 'init_print_process_stats' we wait for VMA publisher to recognize
+	                                                // that we asked for statistics, otherwise, the first read will be zero
+
+	// 3. N * read from shmem, write to user, and shmem cleanup
+	for (int i = 0; i < num_instances; ++i)
+		complete_print_process_stats(sh_mem_info[i]);
+
+	return 0;
+}

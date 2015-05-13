@@ -67,6 +67,7 @@ using namespace std;
 #define FILE_NAME_MAX_SIZE		256
 #define MC_TABLE_SIZE			1024
 #define MAP_SH_MEM(var,sh_stats)	(var = (sh_mem_t*)sh_stats)
+#define STATS_PUBLISHER_TIMER_PERIOD    200
 
 //statistic file
 extern FILE* g_stats_file;
@@ -272,6 +273,7 @@ typedef struct sh_mem_info {
 	size_t 		shmem_size;
 	int		fd_sh_stats;
 	void*		p_sh_stats;
+	int pid;
 } sh_mem_info_t;
 
 // publisher functions

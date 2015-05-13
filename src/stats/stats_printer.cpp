@@ -287,7 +287,9 @@ static const char *state2str(tcp_state state)
 // Print statistics headers for all sockets - used in case view mode is e_netstat_like
 void print_netstat_like_headers(FILE* file)
 {
-	fprintf(file, "Proto Offloaded Local Address          Foreign Address       State       Inode      PID\n");
+	static bool already_printed = false;
+	if(!already_printed) fprintf(file, "Proto Offloaded Local Address          Foreign Address       State       Inode      PID\n");
+	already_printed = true;
 }
 
 // Print statistics of a single socket - used in case view mode is e_netstat_like
@@ -295,7 +297,8 @@ void print_netstat_like(socket_stats_t* p_si_stats, mc_grp_info_t* , FILE* file,
 {
 	static const int MAX_ADDR_LEN = strlen("123.123.123.123:12345"); // for max len of ip address and port together
 
-	// header is: "Proto Offloaded Local Address          Foreign Address       State       Inode      PID\n"
+	if(! p_si_stats->inode) return; // shmem is not updated yet
+
 	fprintf(file, "%-5s %-9s ", to_str_socket_type_netstat_like(p_si_stats->socket_type), p_si_stats->b_is_offloaded ? "Yes" : "No");
 
 	//

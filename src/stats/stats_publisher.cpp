@@ -44,7 +44,6 @@ static sh_mem_t		g_local_sh_mem;
 FILE* g_stats_file = NULL;
 stats_data_reader*  g_p_stats_data_reader = NULL;
 
-#define STATS_PUBLISHER_TIMER_PERIOD    200
 #define TEN_SECS                        10*1000/STATS_PUBLISHER_TIMER_PERIOD
 
 static int      reader_counter = 0;
@@ -96,6 +95,7 @@ bool active_reader_on()
 }
 
 
+// TODO: change STATS_PUBLISHER_TIMER_PERIOD: 200 -> 50, than 2nd timer will be every 500msec
 void stats_data_reader::handle_timer_expired(void *ctx)
 {
         NOT_IN_USE(ctx); 
