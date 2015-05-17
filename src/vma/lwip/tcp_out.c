@@ -845,6 +845,7 @@ tcp_send_empty_ack(struct tcp_pcb *pcb)
     opts += 3;
   }
 #endif 
+  external_ip_output(p, pcb, 0);
   tcp_tx_pbuf_free(pcb, p);
 
   return ERR_OK;
