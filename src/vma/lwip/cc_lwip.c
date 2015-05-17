@@ -137,7 +137,7 @@ lwip_cong_signal(struct tcp_pcb *pcb, uint32_t type)
 	}
 
 	/* The minimum value for ssthresh should be 2 MSS */
-	if (pcb->ssthresh < 2*pcb->mss) {
+	if ((u32_t)pcb->ssthresh < (u32_t)2*pcb->mss) {
 		LWIP_DEBUGF(TCP_FR_DEBUG,
 				("tcp_receive: The minimum value for ssthresh %"U16_F
 						" should be min 2 mss %"U16_F"...\n",
