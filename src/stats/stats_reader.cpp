@@ -1537,8 +1537,8 @@ int print_processes_stats(const std::vector<int> &pids)
 	}
 
 	// 2. one sleep to rule them all
-	usleep(2 * STATS_PUBLISHER_TIMER_PERIOD * 1000);// After 'init_print_process_stats' we wait for VMA publisher to recognize
-	                                                // that we asked for statistics, otherwise, the first read will be zero
+	usleep(STATS_READER_DELAY * 1000);// After 'init_print_process_stats' we wait for VMA publisher to recognize
+	                                  // that we asked for statistics, otherwise, the first read will be zero
 
 	// 3. N * read from shmem, write to user, and shmem cleanup
 	for (int i = 0; i < num_instances; ++i)

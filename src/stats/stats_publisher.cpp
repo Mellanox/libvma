@@ -44,11 +44,13 @@ static sh_mem_t		g_local_sh_mem;
 FILE* g_stats_file = NULL;
 stats_data_reader*  g_p_stats_data_reader = NULL;
 
-#define TEN_SECS                        10*1000/STATS_PUBLISHER_TIMER_PERIOD
 
-static int      reader_counter = 0;
-int             ten_sec_counter = 0;
-bool            active_reading = false;
+// keep writing statistics after a request for "duration" with "interval"
+#define STATS_PUBLISH_DURATION    (10*1000) // 10 sec
+#define STATS_PUBLISH_INTERVAL    500       // 500 msec
+
+#define TIMERS_IN_STATS_PUBLISH_DURATION    (STATS_PUBLISH_DURATION/STATS_PUBLISHER_TIMER_PERIOD)
+#define TIMERS_IN_STATS_PUBLISH_INTERVAL    (STATS_PUBLISH_INTERVAL/STATS_PUBLISHER_TIMER_PERIOD)
 
 bool		printed_sock_limit_info = false;
 bool		printed_ring_limit_info = false;
@@ -65,42 +67,34 @@ stats_data_reader::stats_data_reader()
 #define SHM_DATA_ADDRESS        iter->second.first
 #define COPY_SIZE               iter->second.second 
 
-bool active_reader_on()
+bool should_write()
 {
-        bool rv = true;
+	// initial value that will prevent write to shmem before an explicit request
+	static int timers_counter = TIMERS_IN_STATS_PUBLISH_DURATION + 1;
 
-        //if there is an active reader - test the counter at 10 secs interval
-        if (active_reading) {
-                ten_sec_counter++;
-                if (ten_sec_counter == TEN_SECS) {
-                        ten_sec_counter = 0;
-                        if (reader_counter == g_sh_mem->reader_counter) { // after ten secs - test for active reader
-                                rv = false;
-                                active_reading = false;
-                        }
-                }
-        }
-        else { // no active reader - test for one every STATS_PUBLISHER_TIMER_PERIOD
-                if (reader_counter == g_sh_mem->reader_counter){
-                        rv = false;
-                     
-                }
-                else {
-                        active_reading = true;
-                }
-        }
-        // set for next round
-        reader_counter = g_sh_mem->reader_counter;
-        return rv;
+	static int reader_counter = 0;
+	int prev_reader_counter = reader_counter;
+	reader_counter = g_sh_mem->reader_counter;
+
+	if (prev_reader_counter != reader_counter) {
+		timers_counter = 0; // will allow writing without new request for "duration"
+		return true;
+	}
+
+	if (timers_counter > TIMERS_IN_STATS_PUBLISH_DURATION)
+		return false; // don't write until we'll see explicit request
+
+	++timers_counter;
+
+	return (timers_counter % TIMERS_IN_STATS_PUBLISH_INTERVAL == 0); // write once in interval
 }
 
 
-// TODO: change STATS_PUBLISHER_TIMER_PERIOD: 200 -> 50, than 2nd timer will be every 500msec
 void stats_data_reader::handle_timer_expired(void *ctx)
 {
         NOT_IN_USE(ctx); 
         
-        if (!active_reader_on()) {
+        if (!should_write()) {
                 return;
         }
 

@@ -67,7 +67,8 @@ using namespace std;
 #define FILE_NAME_MAX_SIZE		256
 #define MC_TABLE_SIZE			1024
 #define MAP_SH_MEM(var,sh_stats)	(var = (sh_mem_t*)sh_stats)
-#define STATS_PUBLISHER_TIMER_PERIOD    200
+#define STATS_PUBLISHER_TIMER_PERIOD    10 // publisher will check for stats request every 10 msec
+#define STATS_READER_DELAY      (STATS_PUBLISHER_TIMER_PERIOD + 5) // reader will wait for vma to wakeup and write statistics to shmem (with extra 5 msec overhead)
 
 //statistic file
 extern FILE* g_stats_file;
