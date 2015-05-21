@@ -170,7 +170,10 @@ int neigh_entry::send(neigh_send_info &s_info)
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	m_unsent_queue.push_back(ns_data);
-	return ns_data->m_iov.iov_len;
+	int ret = ns_data->m_iov.iov_len;
+	if (m_state)
+		empty_unsent_queue();
+	return ret;
 }
 
 void neigh_entry::empty_unsent_queue()
@@ -400,6 +403,8 @@ bool neigh_entry::post_send_tcp(iovec *iov, header *h)
 	wqe_sh.enable_hw_csum(m_send_wqe);
 
 	p_mem_buf_desc = m_p_ring->mem_buf_tx_get(false, 1);
+	p_mem_buf_desc->lwip_pbuf.pbuf.payload = (u8_t *)p_mem_buf_desc->p_buffer + h->m_total_hdr_len;
+
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (unlikely(p_mem_buf_desc == NULL)) {
 		neigh_logdbg("Packet dropped. not enough tx buffers");

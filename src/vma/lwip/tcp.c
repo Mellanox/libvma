@@ -1248,6 +1248,19 @@ tcp_accept(struct tcp_pcb *pcb, tcp_accept_fn accept)
 }
 
 /**
+ * Used for specifying the function that should be called 
+ * for sending packets.
+ *
+ * @param pcb tcp_pcb to set the outputcallback
+ * @param output callback function
+ */ 
+void
+tcp_ip_output(struct tcp_pcb *pcb, ip_output_fn ip_output)
+{
+  pcb->ip_output = ip_output;
+}
+
+/**
  * Used for specifying the function that should be called when a
  * SYN was received.
  *

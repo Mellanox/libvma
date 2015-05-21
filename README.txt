@@ -164,6 +164,7 @@ Example:
  VMA DEBUG  : Offloaded Sockets              Enabled                    [VMA_OFFLOADED_SOCKETS]
  VMA DEBUG  : Timer Resolution (msec)        10                         [VMA_TIMER_RESOLUTION_MSEC]
  VMA DEBUG  : TCP Timer Resolution (msec)    100                        [VMA_TCP_TIMER_RESOLUTION_MSEC]
+ VMA DEBUG  : TCP control thread             Disabled                   [VMA_TCP_CTL_THREAD]
  VMA DEBUG  : Delay after join (msec)        0                          [VMA_WAIT_AFTER_JOIN_MSEC]
  VMA DEBUG  : Delay after rereg (msec)       500                        [VMA_WAIT_AFTER_REREG_MSEC]
  VMA DEBUG  : Internal Thread Affinity       -1                         [VMA_INTERNAL_THREAD_AFFINITY]
@@ -620,6 +621,10 @@ VMA_TCP_TIMER_RESOLUTION_MSEC
 Control VMA internal TCP timer resolution (fast timer) (in milli seconds).
 Minimum value is the internal thread wakeup timer resolution (VMA_TIMER_RESOLUTION_MSEC).
 Default value is 100 (milli-sec)
+
+VMA_TCP_CTL_THREAD
+Do all tcp control flows in the internal thread,
+Default value is disabled
 
 VMA_INTERNAL_THREAD_AFFINITY
 Control which CPU core(s) the VMA internal thread is serviced on. The cpu set

@@ -78,6 +78,7 @@ sockinfo_tcp::sockinfo_tcp(int fd) :
 
 	si_tcp_logdbg("new pcb %p pcb state %d", &m_pcb, get_tcp_state(&m_pcb));
 	tcp_arg(&m_pcb, this);
+	tcp_ip_output(&m_pcb, sockinfo_tcp::ip_output);
 	tcp_recv(&m_pcb, sockinfo_tcp::rx_lwip_cb);
 	tcp_err(&m_pcb, sockinfo_tcp::err_lwip_cb);
 	tcp_sent(&m_pcb, sockinfo_tcp::ack_recvd_lwip_cb);
@@ -242,6 +243,18 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 		m_p_socket_stats->n_rx_ready_pkt_count--;
 		m_rx_ready_byte_count -= p_rx_pkt_desc->path.rx.sz_payload;
 		m_p_socket_stats->n_rx_ready_byte_count -= p_rx_pkt_desc->path.rx.sz_payload;
+		reuse_buffer(p_rx_pkt_desc);
+	}
+
+	while (!m_rx_ctl_packets_list.empty()) {
+		mem_buf_desc_t* p_rx_pkt_desc = m_rx_ctl_packets_list.front();
+		m_rx_ctl_packets_list.pop_front();
+		reuse_buffer(p_rx_pkt_desc);
+	}
+
+	while (!m_rx_ctl_reuse_list.empty()) {
+		mem_buf_desc_t* p_rx_pkt_desc = m_rx_ctl_reuse_list.front();
+		m_rx_ctl_reuse_list.pop_front();
 		reuse_buffer(p_rx_pkt_desc);
 	}
 
@@ -617,6 +630,44 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit)
 	return ERR_OK;
 }
 
+err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rexmit)
+{
+	iovec iovec[64];
+	struct iovec* p_iovec = iovec;
+	tcp_iovec tcp_iovec; //currently we pass p_desc only for 1 size iovec, since for bigger size we allocate new buffers
+	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)(((struct tcp_pcb*)v_p_conn)->my_container);
+	dst_entry *p_dst = p_si_tcp->m_p_connected_dst_entry;
+	int count = 1;
+
+	if (likely(!p->next)) { // We should hit this case 99% of cases
+		tcp_iovec.iovec.iov_base = p->payload;
+		tcp_iovec.iovec.iov_len = p->len;
+		tcp_iovec.p_desc = (mem_buf_desc_t*)p;
+		vlog_printf(VLOG_DEBUG, "p_desc=%p,p->len=%d ", p, p->len);
+		p_iovec = (struct iovec*)&tcp_iovec;
+	} else {
+		for (count = 0; count < 64 && p; ++count) {
+			iovec[count].iov_base = p->payload;
+			iovec[count].iov_len = p->len;
+			p = p->next;
+		}
+
+#if 1 // We don't expcet pbuf chain at all since we enabled  TCP_WRITE_FLAG_COPY and TCP_WRITE_FLAG_MORE in lwip
+		if (p) {
+			vlog_printf(VLOG_ERROR, "pbuf chain size > 64!!! silently dropped.");
+			return ERR_OK;
+		}
+#endif
+	}
+
+	if (is_rexmit)
+		p_si_tcp->m_p_socket_stats->counters.n_tx_retransmits++;
+
+	((dst_entry_tcp*)p_dst)->slow_send_neigh(p_iovec, count);
+
+	return ERR_OK;
+}
+
 /*static*/void sockinfo_tcp::tcp_state_observer(void* pcb_container, enum tcp_state new_state)
 {
 	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)pcb_container;
@@ -686,11 +737,82 @@ void sockinfo_tcp::err_lwip_cb(void *arg, err_t err)
 	conn->unlock_tcp_con();
 }
 
+void sockinfo_tcp::process_rx_ctl_packets()
+{
+	si_tcp_logfunc("");
+
+	while (!m_rx_ctl_packets_list.empty()) {
+		if (m_tcp_con_lock.trylock()) {
+			return;
+		}
+		mem_buf_desc_t* desc = m_rx_ctl_packets_list.front();
+		m_rx_ctl_packets_list.pop_front();
+		struct tcp_pcb *pcb = get_syn_received_pcb(desc->path.rx.src.sin_addr.s_addr,
+				desc->path.rx.src.sin_port,
+				desc->path.rx.dst.sin_addr.s_addr,
+				desc->path.rx.dst.sin_port);
+		if (!pcb) {
+			pcb = &m_pcb;
+		}
+		m_tcp_con_lock.unlock();
+		L3_level_tcp_input((pbuf *)desc, pcb);
+		/*if (desc->get_ref_count() <= 0) //todo reuse needed?
+			m_rx_ctl_reuse_list.push_back(desc);
+		*/
+
+	}
+	while (!m_ready_pcbs.empty()) {
+		if (m_tcp_con_lock.trylock()) {
+			return;
+		}
+		ready_pcb_map_t::iterator itr = m_ready_pcbs.begin();
+		if (itr == m_ready_pcbs.end()) {
+			m_tcp_con_lock.unlock();
+			break;
+		}
+		sockinfo_tcp *sock = (sockinfo_tcp*)itr->first->my_container;
+		m_tcp_con_lock.unlock();
+
+		if (sock->m_tcp_con_lock.trylock()) {
+			break;
+		}
+		sock->m_vma_thr = true;
+		while (!sock->m_rx_ctl_packets_list.empty()) {
+			mem_buf_desc_t* desc = sock->m_rx_ctl_packets_list.front();
+			sock->m_rx_ctl_packets_list.pop_front();
+			L3_level_tcp_input((pbuf *)desc, &sock->m_pcb);
+			if (desc->get_ref_count() <= 0) //todo reuse needed?
+				sock->m_rx_ctl_reuse_list.push_back(desc);
+		}
+		sock->m_vma_thr = false;
+		if (m_tcp_con_lock.trylock()) {
+			sock->m_tcp_con_lock.unlock();
+			break;
+		}
+		m_ready_pcbs.erase(itr);
+		m_tcp_con_lock.unlock();
+		sock->m_tcp_con_lock.unlock();
+	}
+	while (!m_rx_ctl_reuse_list.empty()) { //todo needed?
+		si_tcp_logwarn("!m_rx_ctl_reuse_list.empty");
+		if (m_tcp_con_lock.trylock()) {
+			return;
+		}
+		mem_buf_desc_t* desc = m_rx_ctl_reuse_list.front();
+		m_rx_ctl_reuse_list.pop_front();
+		reuse_buffer(desc);
+		m_tcp_con_lock.unlock();
+	}
+}
+
 //Execute TCP timers of this connection
 void sockinfo_tcp::handle_timer_expired(void* user_data)
 {
 	NOT_IN_USE(user_data);
 	si_tcp_logfunc("");
+
+	if (mce_sys.tcp_ctl_thread)
+		process_rx_ctl_packets();
 
 	// Set the pending flag before getting the lock, so in the rare case of
 	// a race with unlock_tcp_con(), the timer will be called twice. If we set
@@ -738,6 +860,11 @@ int sockinfo_tcp::handle_child_FIN(sockinfo_tcp* child_conn)
 			return 0; //don't close conn, it can be accepted
 		}
 	}
+
+	if (m_ready_pcbs.find(&child_conn->m_pcb) != m_ready_pcbs.end()) {
+		m_ready_pcbs.erase(&child_conn->m_pcb);
+	}
+
 	// remove the connection from m_syn_received and close it by caller
 	struct flow_tuple key;
 	sockinfo_tcp::create_flow_tuple_key_from_pcb(key, &(child_conn->m_pcb));
@@ -1093,6 +1220,36 @@ void sockinfo_tcp::register_timer()
 	}
 }
 
+void sockinfo_tcp::queue_rx_ctl_packet(struct tcp_pcb* pcb, mem_buf_desc_t *p_desc)
+{
+	/* in tcp_ctl_thread mode, always lock the child first*/
+	unlock_tcp_con();
+	p_desc->inc_ref_count();
+	if (!p_desc->path.rx.gro)
+		init_pbuf_custom(p_desc);
+	else
+		p_desc->path.rx.gro = 0;
+	sockinfo_tcp *sock = (sockinfo_tcp*)pcb->my_container;
+	sock->lock_tcp_con();
+	if (sock->m_conn_state == TCP_CONN_CONNECTED) {
+		m_vma_thr = p_desc->path.rx.is_vma_thr;
+		L3_level_tcp_input((pbuf *)p_desc, pcb);
+		m_vma_thr = false;
+		sock->unlock_tcp_con();
+		return;
+	}
+	//todo do we need a lock to protect the list, as the tcp lock might be unlocked in some internal flows
+	sock->m_rx_ctl_packets_list.push_back(p_desc);
+	if (sock != this) {
+		lock_tcp_con();
+		m_ready_pcbs[pcb] = 1;
+		unlock_tcp_con();
+	}
+
+	sock->unlock_tcp_con();
+	return;
+}
+
 bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void* pv_fd_ready_array)
 {
 	struct tcp_pcb* pcb = NULL;
@@ -1108,6 +1265,10 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 				p_rx_pkt_mem_buf_desc_info->path.rx.dst.sin_port);
 		if (!pcb) {
 			pcb = &m_pcb;
+		}
+		if (mce_sys.tcp_ctl_thread) {
+			queue_rx_ctl_packet(pcb, p_rx_pkt_mem_buf_desc_info);
+			return true;
 		}
 	}
 	else {
@@ -1541,6 +1702,9 @@ int sockinfo_tcp::listen(int backlog)
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
+	if (mce_sys.tcp_ctl_thread)
+		m_timer_handle = g_p_event_handler_manager->register_timer_event(MCE_DEFAULT_TCP_LISTEN_TIMER_RESOLUTION_MSEC , this, PERIODIC_TIMER, 0, NULL);
+
 	unlock_tcp_con();
 	return 0;
 
@@ -1633,34 +1797,7 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 	m_ready_conn_cnt--;
 	tcp_accepted(m_sock);
 
-	//inherit TCP_NODELAY
-	if (tcp_nagle_disabled(&m_pcb)) {
-		tcp_nagle_disable(&(ns->m_pcb));
-		ns->fit_snd_bufs_to_nagle(true);
-	}
-
-	if (ns->m_conn_state == TCP_CONN_INIT) { //in case m_conn_state is not in one of the error states
-		ns->m_conn_state = TCP_CONN_CONNECTED;
-	}
-
 	unlock_tcp_con();
-/*TODO ALEXR TX
-	if (ns->register_as_uc_transmiter()) {
-		return ERR_IF;
-	}
-	if (ns->attach_as_uc_receiver(role_t (NULL))) {
-		//AlexV:TODO unregister the transmitter
-		return ERR_IF;
-	}
-//*/
-	ns->lock_tcp_con();
-	ns->attach_as_uc_receiver(role_t (NULL), true); // TODO ALEXR
-	ns->unlock_tcp_con();
-
-	if (ns->m_rx_ring_map.size() == 1) {
-		rx_ring_map_t::iterator rx_ring_iter = ns->m_rx_ring_map.begin();
-		ns->m_p_rx_ring = rx_ring_iter->first;
-	}
 
 	struct flow_tuple key;
 	sockinfo_tcp::create_flow_tuple_key_from_pcb(key, &(ns->m_pcb));
@@ -1741,6 +1878,10 @@ sockinfo_tcp *sockinfo_tcp::accept_clone()
         if (m_sndbuff_max)
         	si->fit_snd_bufs(m_sndbuff_max);
 
+        if (mce_sys.tcp_ctl_thread) {
+        	tcp_ip_output(&si->m_pcb, sockinfo_tcp::ip_output_syn_ack);
+        }
+
         return si;
 }
 
@@ -1753,19 +1894,16 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 	if (!conn || !child_pcb) {
 		return ERR_VAL;
 	}
-	conn->lock_tcp_con();
 
 	vlog_printf(VLOG_DEBUG, "%s:%d: initial state=%x\n", __func__, __LINE__, get_tcp_state(&conn->m_pcb));
 	vlog_printf(VLOG_DEBUG, "%s:%d: accept cb: arg=%p, new pcb=%p err=%d\n",
 			__func__, __LINE__, arg, child_pcb, err);
 	if (err != ERR_OK) {
 		vlog_printf(VLOG_ERROR, "%s:d: accept cb failed\n", __func__, __LINE__);
-		conn->unlock_tcp_con();
 		return err;
 	}
 	if (conn->m_sock_state != TCP_SOCK_ACCEPT_READY) {
 		vlog_printf(VLOG_DEBUG, "%s:%d: socket is not accept ready!\n", __func__, __LINE__);
-		conn->unlock_tcp_con();
 		return ERR_RST;
 	}
 	// make new socket
@@ -1774,24 +1912,50 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 
 	if (!new_sock) {
 		vlog_printf(VLOG_ERROR, "%s:d: failed to clone socket\n", __func__, __LINE__);
-		conn->unlock_tcp_con();
 		return ERR_RST;
 	}
 
+	tcp_ip_output(&(new_sock->m_pcb), sockinfo_tcp::ip_output);
 	tcp_arg(&(new_sock->m_pcb), new_sock);
 	tcp_recv(&(new_sock->m_pcb), sockinfo_tcp::rx_lwip_cb);
 	tcp_err(&(new_sock->m_pcb), sockinfo_tcp::err_lwip_cb);
-	conn->m_accepted_conns.push_back(new_sock);
-	conn->m_ready_conn_cnt++;
+
+	new_sock->lock_tcp_con();
+
 	new_sock->m_sock_state = TCP_SOCK_CONNECTED_RDWR;
 
 	vlog_printf(VLOG_DEBUG, "%s:%d: listen(fd=%d) state=%x: new sock(fd=%d) state=%x\n", __func__, __LINE__, conn->m_fd, get_tcp_state(&conn->m_pcb), new_sock->m_fd, get_tcp_state(&new_sock->m_pcb));
+
+	new_sock->register_timer();
+
+	if (tcp_nagle_disabled(&(conn->m_pcb))) {
+		tcp_nagle_disable(&(new_sock->m_pcb));
+		new_sock->fit_snd_bufs_to_nagle(true);
+	}
+
+	if (new_sock->m_conn_state == TCP_CONN_INIT) { //in case m_conn_state is not in one of the error states
+		new_sock->m_conn_state = TCP_CONN_CONNECTED;
+	}
+
+	new_sock->attach_as_uc_receiver(role_t (NULL), true);
+
+	if (new_sock->m_rx_ring_map.size() == 1) {
+		rx_ring_map_t::iterator rx_ring_iter = new_sock->m_rx_ring_map.begin();
+		new_sock->m_p_rx_ring = rx_ring_iter->first;
+	}
+
+	new_sock->unlock_tcp_con();
+
+	conn->lock_tcp_con();
+
+	conn->m_accepted_conns.push_back(new_sock);
+	conn->m_ready_conn_cnt++;
+
 	conn->notify_epoll_context(EPOLLIN);
 
 	//OLG: Now we should wakeup all threads that are sleeping on this socket.
 	conn->do_wakeup();
 	//Now we should register the child socket to TCP timer
-	new_sock->register_timer();
 
 	conn->unlock_tcp_con();
 	return ERR_OK;
@@ -1828,8 +1992,6 @@ err_t sockinfo_tcp::clone_conn_cb(void *arg, struct tcp_pcb **newpcb, err_t err)
 		return ERR_VAL;
 	}
 
-	conn->lock_tcp_con();
-
 	new_sock = conn->accept_clone();
 
 	if (new_sock) {
@@ -1840,7 +2002,6 @@ err_t sockinfo_tcp::clone_conn_cb(void *arg, struct tcp_pcb **newpcb, err_t err)
 		ret_val = ERR_MEM;
 	}
 
-	conn->unlock_tcp_con();
 	return ret_val;
 }
 
@@ -1856,20 +2017,9 @@ err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_
 
 	NOT_IN_USE(err);
 
-	listen_sock->lock_tcp_con();
-
-	flow_tuple key;
-	create_flow_tuple_key_from_pcb(key, newpcb);
-
-	listen_sock->m_syn_received[key] =  newpcb;
-
-	listen_sock->m_received_syn_num++;
-
 	new_sock->set_conn_properties_from_pcb();
 	new_sock->create_dst_entry();
 	bool is_new_offloaded = new_sock->prepare_dst_to_send(true); // pass true for passive socket to skip the transport rules checking
-
-	listen_sock->unlock_tcp_con();
 
 	/* this can happen if there is no route back to the syn sender.
 	 * so we just need to ignore it.
@@ -1881,6 +2031,17 @@ err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_
 		close(new_sock->get_fd());
 		return ERR_ABRT;
 	}
+
+	listen_sock->lock_tcp_con();
+
+	flow_tuple key;
+	create_flow_tuple_key_from_pcb(key, newpcb);
+
+	listen_sock->m_syn_received[key] =  newpcb;
+
+	listen_sock->m_received_syn_num++;
+
+	listen_sock->unlock_tcp_con();
 
 	return ERR_OK;
 }

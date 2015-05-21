@@ -101,6 +101,7 @@ protected:
 	ring_allocation_logic_tx m_ring_alloc_logic;
 	mem_buf_desc_t* 	m_p_tx_mem_buf_desc_list;
 	header 			m_header;
+	header 			m_header_neigh;
 	uint8_t 		m_ttl;
 	uint8_t 		m_tos;
 	bool 			m_b_is_initialized;
@@ -124,7 +125,7 @@ protected:
 	virtual bool 		resolve_ring();
 	virtual bool 		release_ring();
 	virtual ssize_t 	pass_buff_to_neigh(const iovec *p_iov, size_t & sz_iov, uint16_t packet_id = 0);
-	virtual void 		configure_ip_header(uint16_t packet_id = 0);
+	virtual void 		configure_ip_header(header *h, uint16_t packet_id = 0);
 	virtual void 		configure_headers() { conf_hdrs_and_snd_wqe();};
 	virtual bool 		conf_hdrs_and_snd_wqe();
 	virtual bool 		conf_l2_hdr_and_snd_wqe_eth();

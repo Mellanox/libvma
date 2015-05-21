@@ -163,6 +163,25 @@ ssize_t dst_entry_tcp::slow_send(const iovec* p_iov, size_t sz_iov, bool b_block
 	return ret_val;
 }
 
+ssize_t dst_entry_tcp::slow_send_neigh(const iovec* p_iov, size_t sz_iov)
+{
+	ssize_t ret_val = -1;
+
+	m_slow_path_lock.lock();
+
+	prepare_to_send(true);
+
+	if (m_b_is_offloaded) {
+		ret_val = pass_buff_to_neigh(p_iov, sz_iov);
+	}
+	else {
+		dst_tcp_logdbg("Dst_entry is not offloaded, bug?");
+	}
+
+	m_slow_path_lock.unlock();
+	return ret_val;
+}
+
 //The following function supposed to be called under m_lock
 void dst_entry_tcp::configure_headers()
 {
@@ -181,7 +200,8 @@ bool dst_entry_tcp::conf_hdrs_and_snd_wqe()
 ssize_t dst_entry_tcp::pass_buff_to_neigh(const iovec * p_iov, size_t & sz_iov, uint16_t packet_id)
 {
 	NOT_IN_USE(packet_id);
-	m_header.init();
+	m_header_neigh.init();
+
 	return(dst_entry::pass_buff_to_neigh(p_iov, sz_iov));
 }
 

@@ -186,6 +186,7 @@ struct mce_sys_var {
 	bool		offloaded_sockets;
 	uint32_t	timer_resolution_msec;
 	uint32_t	tcp_timer_resolution_msec;
+	bool		tcp_ctl_thread;
 	uint32_t	wait_after_join_msec;
 	uint32_t	wait_after_rereg_msec;
 	in_port_t	block_udp_port;
@@ -288,6 +289,7 @@ struct mce_sys_var {
 #define SYS_VAR_OFFLOADED_SOCKETS			"VMA_OFFLOADED_SOCKETS"
 #define SYS_VAR_TIMER_RESOLUTION_MSEC			"VMA_TIMER_RESOLUTION_MSEC"
 #define SYS_VAR_TCP_TIMER_RESOLUTION_MSEC		"VMA_TCP_TIMER_RESOLUTION_MSEC"
+#define SYS_VAR_TCP_CTL_THREAD				"VMA_TCP_CTL_THREAD"
 #define SYS_VAR_WAIT_AFTER_JOIN_MSEC			"VMA_WAIT_AFTER_JOIN_MSEC"
 #define SYS_VAR_WAIT_AFTER_REREG_MSEC			"VMA_WAIT_AFTER_REREG_MSEC"
 #define SYS_VAR_THREAD_MODE				"VMA_THREAD_MODE"
@@ -387,6 +389,8 @@ struct mce_sys_var {
 #define MCE_DEFAULT_OFFLOADED_SOCKETS			(true)
 #define MCE_DEFAULT_TIMER_RESOLUTION_MSEC		(10)
 #define MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC		(100)
+#define MCE_DEFAULT_TCP_CTL_THREAD			(false)
+#define MCE_DEFAULT_TCP_LISTEN_TIMER_RESOLUTION_MSEC	(10)
 #define MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC		(0)
 #define MCE_DEFAULT_WAIT_AFTER_REREG_MSEC		(500)
 #define MCE_DEFAULT_THREAD_MODE				(THREAD_MODE_MULTI)

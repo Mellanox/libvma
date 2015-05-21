@@ -234,6 +234,8 @@ extern tcp_state_observer_fn external_tcp_state_observer;
   u8_t prio; \
   void *callback_arg; \
   void *my_container; \
+  /* Function to be called when sending data. */ \
+  ip_output_fn ip_output; \
   /* the accept callback for listen- and normal pcbs, if LWIP_CALLBACK_API */ \
   DEF_ACCEPT_CALLBACK \
   /* ports are in host byte order */ \
@@ -444,6 +446,7 @@ struct tcp_pcb * tcp_new     (void);
 void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio);
 
 void             tcp_arg     		(struct tcp_pcb *pcb, void *arg);
+void             tcp_ip_output          (struct tcp_pcb *pcb, ip_output_fn ip_output);
 void             tcp_accept  		(struct tcp_pcb *pcb, tcp_accept_fn accept);
 void             tcp_syn_handled	(struct tcp_pcb_listen *pcb, tcp_syn_handled_fn syn_handled);
 void             tcp_clone_conn		(struct tcp_pcb_listen *pcb, tcp_clone_conn_fn clone_conn);

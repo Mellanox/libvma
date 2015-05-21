@@ -31,6 +31,7 @@ public:
 
 	virtual ssize_t fast_send(const struct iovec* p_iov, const ssize_t sz_iov, bool b_blocked = true, bool is_rexmit = false, bool dont_inline = false);
 	ssize_t slow_send(const iovec* p_iov, size_t sz_iov, bool b_blocked = true, bool is_rexmit = false, int flags = 0, socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF);
+	ssize_t slow_send_neigh(const iovec* p_iov, size_t sz_iov);
 
 	mem_buf_desc_t* get_buffer(bool b_blocked = false);
 	void put_buffer(mem_buf_desc_t * p_desc);

@@ -68,6 +68,7 @@ enum tcp_conn_state_e {
 
 class sockinfo_tcp;
 
+typedef std::map<tcp_pcb*, int>		ready_pcb_map_t;
 typedef std::map<flow_tuple, tcp_pcb*>	syn_received_map_t;
 typedef std::deque<sockinfo_tcp*>	accepted_conns_deque_t;
 
@@ -117,6 +118,7 @@ public:
 	ssize_t tx(const tx_call_t call_type, const struct iovec *p_iov, const ssize_t sz_iov, const int flags = 0, const struct sockaddr *__to = NULL, const socklen_t __tolen = 0);
 	ssize_t rx(const rx_call_t call_type, iovec *p_iov, ssize_t sz_iov, int *p_flags, sockaddr *__from = NULL, socklen_t *__fromlen = NULL, struct msghdr *__msg = NULL);
 	static err_t ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit);
+	static err_t ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rexmit);
 	static void tcp_state_observer(void* pcb_container, enum tcp_state new_state);
 
 	virtual bool rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void* pv_fd_ready_array = NULL);
@@ -247,6 +249,10 @@ private:
 
 	vma_desc_list_t m_rx_cb_dropped_list;
 
+	vma_desc_list_t m_rx_ctl_packets_list;
+	vma_desc_list_t m_rx_ctl_reuse_list;
+	ready_pcb_map_t m_ready_pcbs;
+
 	inline void lock_tcp_con();
 	inline void unlock_tcp_con();
 	void tcp_timer();
@@ -330,6 +336,9 @@ private:
 
 	inline struct tcp_seg * get_tcp_seg();
 	inline void put_tcp_seg(struct tcp_seg * seg);
+
+	void queue_rx_ctl_packet(struct tcp_pcb* pcb, mem_buf_desc_t *p_desc);
+	void process_rx_ctl_packets();
 };
 
 typedef struct tcp_seg tcp_seg;
