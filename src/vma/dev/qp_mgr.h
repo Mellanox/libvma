@@ -16,7 +16,7 @@
 
 #include <errno.h>
 #include <ifaddrs.h>
-#include <net/if.h>
+#include "vma/util/if.h"
 #include "vma/lwip/opt.h"
 
 #include "vlogger/vlogger.h"

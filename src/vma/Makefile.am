@@ -32,8 +32,7 @@ lib_LTLIBRARIES = libvma.la
 
 INCLUDES := \
 	-I$(top_builddir) \
-	-I$(top_builddir)/src \
-	-I$(top_builddir)/src/netlink/
+	-I$(top_builddir)/src ${LIBNL_CFLAGS}
 
 if IS_RELEASE_ZERO
 libvma_la_LDFLAGS := -no-undefined -version-number @VMA_LIBRARY_MAJOR@:@VMA_LIBRARY_MINOR@:@VMA_LIBRARY_REVISION@ 
@@ -42,7 +41,7 @@ libvma_la_LDFLAGS := -no-undefined -version-number @VMA_LIBRARY_MAJOR@:@VMA_LIBR
 endif
 
 libvma_la_LIBADD = \
-	-lrt -ldl -lpthread -libverbs -lrdmacm -lnl \
+	-lrt -ldl -lpthread -libverbs -lrdmacm $(LIBNL_LIBS) \
 	$(top_builddir)/src/vlogger/libvlogger.la \
 	$(top_builddir)/src/state_machine/libstate_machine.la \
 	libconfig_parser.la
@@ -134,7 +133,8 @@ libvma_la_SOURCES := \
 	netlink/netlink_wrapper.cpp \
 	netlink/neigh_info.cpp \
 	netlink/link_info.cpp \
-	netlink/route_info.cpp 
+	netlink/route_info.cpp \
+	netlink/netlink_compatibility.cpp 
 	
 	
 libvma_la_DEPENDENCIES = \

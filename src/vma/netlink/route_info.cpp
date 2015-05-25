@@ -12,7 +12,9 @@
 
 
 #include "route_info.h"
-
+#include "config.h"
+#include "vma/util/if.h"
+#include "netlink_compatibility.h"
 #define ADDR_MAX_STR_LEN (128)
 
 
@@ -22,7 +24,7 @@ netlink_route_info::netlink_route_info(struct rtnl_route* route) :
 		                0), src_addr_str(""), src_addr(NULL), src_addr_len(
 		                0), src_prefixlen(0), type(0), flags(0), pref_src_addr_str(
 		                ""), pref_src_addr(NULL), pref_src_addr_len(0), pref_src_prefixlen(
-		                0), iif_name(""), oif(0)
+		                0), iif_name("")
 {
 	fill(route);
 }
@@ -35,15 +37,14 @@ void netlink_route_info::fill(struct rtnl_route* route) {
 		scope=rtnl_route_get_scope(route);
 		tos=rtnl_route_get_tos(route);
 		protocol=rtnl_route_get_protocol(route);
-		priority=rtnl_route_get_prio(route);
 		family=rtnl_route_get_family(route);
 		type=rtnl_route_get_type(route);
 		flags=rtnl_route_get_flags(route);
-		const char* iifstr=rtnl_route_get_iif(route);
-		if(iifstr) {
+		const char* iifstr=get_rtnl_route_iif_name(route);
+		if (iifstr) {
 			iif_name=iifstr;
 		}
-		oif=rtnl_route_get_oif(route);
+		priority=rtnl_compatible_route_get_priority(route);
 		addr=rtnl_route_get_dst(route);
 		if (addr) {
 			dst_addr_str = nl_addr2str(addr, addr_str, ADDR_MAX_STR_LEN);

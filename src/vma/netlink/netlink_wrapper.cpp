@@ -62,32 +62,42 @@ void netlink_wrapper::notify_observers(netlink_event *p_new_event, e_netlink_eve
 	g_nl_rcv_arg.netlink->m_cache_lock.lock();
 }
 
-void netlink_wrapper::neigh_cache_callback(nl_cache* , nl_object* obj, int)
+extern void link_event_callback(nl_object* obj) {
+		netlink_wrapper::link_cache_callback(obj);
+}
+extern void neigh_event_callback(nl_object* obj) {
+	netlink_wrapper::neigh_cache_callback(obj);
+}
+extern void route_event_callback(nl_object* obj) {
+	netlink_wrapper::route_cache_callback(obj);
+}
+
+void netlink_wrapper::neigh_cache_callback(nl_object* obj)
 {
 	nl_logfunc( "---> neigh_cache_callback");
 	struct rtnl_neigh* neigh = (struct rtnl_neigh*)obj;
 	neigh_nl_event new_event(g_nl_rcv_arg.msghdr, neigh, g_nl_rcv_arg.netlink);
 
-	notify_observers(&new_event, nlgrpNEIGH);
+	netlink_wrapper::notify_observers(&new_event, nlgrpNEIGH);
 
 	g_nl_rcv_arg.msghdr = NULL;
 	nl_logfunc( "<--- neigh_cache_callback");
 
 }
 
-void netlink_wrapper::link_cache_callback(nl_cache* , nl_object* obj, int)
+void netlink_wrapper::link_cache_callback(nl_object* obj)
 {
 	nl_logfunc( "---> link_cache_callback");
 	struct rtnl_link* link = (struct rtnl_link*) obj;
 	link_nl_event new_event(g_nl_rcv_arg.msghdr, link, g_nl_rcv_arg.netlink);
 
-	notify_observers(&new_event, nlgrpLINK);
+	netlink_wrapper::notify_observers(&new_event, nlgrpLINK);
 
 	g_nl_rcv_arg.msghdr = NULL;
 	nl_logfunc( "<--- link_cache_callback");
 }
 
-void netlink_wrapper::route_cache_callback(nl_cache* , nl_object* obj, int)
+void netlink_wrapper::route_cache_callback(nl_object* obj)
 {
 	nl_logfunc( "---> route_cache_callback");
 	struct rtnl_route* route = (struct rtnl_route*) obj;
@@ -95,7 +105,7 @@ void netlink_wrapper::route_cache_callback(nl_cache* , nl_object* obj, int)
 	// notify only route events of main table
 	const netlink_route_info* info =  new_event.get_route_info();
 	if (info->table == ROUTE_MAIN_TABLE_ID) {
-		notify_observers(&new_event, nlgrpROUTE);
+		netlink_wrapper::notify_observers(&new_event, nlgrpROUTE);
 	}
 	else {
 		nl_logfunc("ROUTE events from non-main route table are filtered: table_id=%d", info->table);
@@ -106,7 +116,7 @@ void netlink_wrapper::route_cache_callback(nl_cache* , nl_object* obj, int)
 
 
 netlink_wrapper::netlink_wrapper() :
-		m_handle(NULL), m_mngr(NULL), m_cache_link(NULL), m_cache_neigh(
+		m_socket_handle(NULL), m_mngr(NULL), m_cache_link(NULL), m_cache_neigh(
 		                NULL), m_cache_route(NULL)
 {
 	nl_logdbg( "---> netlink_route_listener CTOR");
@@ -123,8 +133,7 @@ netlink_wrapper::~netlink_wrapper()
 	nl_cache_free(m_cache_link);
 	nl_cache_free(m_cache_neigh);
 	nl_cache_free(m_cache_route);
-	nl_handle_destroy(m_handle);
-
+	nl_socket_handle_free(m_socket_handle);
 	subject_map_iter iter = m_subjects_map.begin();
 	while (iter != m_subjects_map.end()) {
 		delete iter->second;
@@ -165,54 +174,57 @@ int netlink_wrapper::open_channel()
 	 }
 	 */
 
-	// Allocate a new netlink handle
-	m_handle = nl_handle_alloc();
+	// Allocate a new netlink socket/handle
+	m_socket_handle = nl_socket_handle_alloc();
 
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (m_handle == NULL) {
-		nl_logerr("failed to allocate netlink handle, nl_errno=%d", nl_get_errno());
+	if (m_socket_handle == NULL) {
+		nl_logerr("failed to allocate netlink handle");
 		return -1;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	// set internal structure to pass the handle with callbacks from netlink
-	g_nl_rcv_arg.handle = m_handle;
+	g_nl_rcv_arg.socket_handle = m_socket_handle;
 
 	// if multiple handles being allocated then a unique netlink PID need to be provided
 	// If port is 0, a unique port identifier will be generated automatically as a unique PID
-	nl_socket_set_local_port(m_handle, 0);
+	nl_socket_set_local_port(m_socket_handle, 0);
 
 
 	//Disables checking of sequence numbers on the netlink handle.
 	//This is required to allow messages to be processed which were not requested by a preceding request message, e.g. netlink events.
-	nl_disable_sequence_check(m_handle);
+	nl_socket_handle_disable_seq_check(m_socket_handle);
 
 	//joining group
 	//nl_join_groups(m_handle, 0);
 
 	// Allocate a new cache manager for RTNETLINK
 	// NL_AUTO_PROVIDE = automatically provide the caches added to the manager.
-	m_mngr = nl_cache_mngr_alloc(m_handle, NETLINK_ROUTE, NL_AUTO_PROVIDE);
-
+	m_mngr = nl_cache_mngr_compatible_alloc(m_socket_handle, NETLINK_ROUTE, NL_AUTO_PROVIDE);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_mngr) {
-		nl_logerr("Fail to allocate cac he manager");
+		nl_logerr("Fail to allocate cache manager");
 		return -1;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	nl_logdbg("netlink socket is open");
 
-	m_cache_neigh = nl_cache_mngr_add(m_mngr, "route/neigh", neigh_cache_callback);
-	m_cache_link = nl_cache_mngr_add(m_mngr, "route/link", link_cache_callback);
-	m_cache_route = nl_cache_mngr_add(m_mngr, "route/route", route_cache_callback);
+
+	if (nl_cache_mngr_compatible_add(m_mngr, "route/neigh", neigh_callback, NULL, &m_cache_neigh))
+		return -1;
+	if (nl_cache_mngr_compatible_add(m_mngr, "route/link", link_callback, NULL, &m_cache_link))
+		return -1;
+	if (nl_cache_mngr_compatible_add(m_mngr, "route/route", route_callback, NULL, &m_cache_route))
+		return -1;
 
 	// set custom callback for every message to update message
-	nl_socket_modify_cb(m_handle, NL_CB_MSG_IN, NL_CB_CUSTOM, nl_msg_rcv_cb ,NULL);
+	nl_socket_modify_cb(m_socket_handle, NL_CB_MSG_IN, NL_CB_CUSTOM, nl_msg_rcv_cb ,NULL);
 
 	// set the socket non-blocking
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (nl_socket_set_nonblocking(m_handle)) {
+	if (nl_socket_set_nonblocking(m_socket_handle)) {
 		nl_logerr("Failed to set the socket non-blocking");
 		return -1;
 	}
@@ -225,8 +237,8 @@ int netlink_wrapper::open_channel()
 int netlink_wrapper::get_channel()
 {
 	auto_unlocker lock(m_cache_lock);
-	if (m_handle)
-		return nl_socket_get_fd(m_handle);
+	if (m_socket_handle)
+		return nl_socket_get_fd(m_socket_handle);
 	else
 		return -1;
 }
@@ -238,7 +250,7 @@ int netlink_wrapper::handle_events()
 	nl_logfunc("--->handle_events");
 
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!m_handle) {
+	if (!m_socket_handle) {
 		nl_logerr("Cannot handle events before opening the channel. please call first open_channel()");
 		m_cache_lock.unlock();
 		return -1;
@@ -334,20 +346,20 @@ void netlink_wrapper::neigh_timer_expired() {
 	m_cache_lock.lock();
 
 	nl_logfunc("--->netlink_wrapper::neigh_timer_expired");
-	nl_cache_refill(m_handle, m_cache_neigh);
-	notify_cache_entries(m_cache_neigh);
+	nl_cache_refill(m_socket_handle, m_cache_neigh);
+	notify_neigh_cache_entries();
 	nl_logfunc("<---netlink_wrapper::neigh_timer_expired");
 
 	m_cache_lock.unlock();
 }
 
-void netlink_wrapper::notify_cache_entries(struct nl_cache* cache) {
+void netlink_wrapper::notify_neigh_cache_entries() {
 	nl_logfunc("--->netlink_wrapper::notify_cache_entries");
 	g_nl_rcv_arg.msghdr = NULL;
 	nl_object* obj = nl_cache_get_first(m_cache_neigh);
 	while (obj) {
 		nl_object_get(obj);
-		neigh_cache_callback(cache, obj, 0);
+		neigh_event_callback(obj);
 		nl_object_put(obj);
 		obj = nl_cache_get_next(obj);
 	}

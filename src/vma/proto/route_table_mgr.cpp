@@ -254,7 +254,7 @@ void route_table_mgr::parse_attr(struct rtattr *rt_attribute, route_val *p_val)
 	// unique ID associated with the network interface
 	case RTA_OIF:
 		p_val->set_if_index(*(int *)RTA_DATA(rt_attribute));
-		char if_name[IF_NAMESIZE];
+		char if_name[IFNAMSIZ];
 		if_indextoname(p_val->get_if_index(),if_name);
 		p_val->set_if_name(if_name);
 		break;
@@ -461,7 +461,7 @@ void route_table_mgr::create_route_val_from_info(const netlink_route_info *netli
 	int if_index = netlink_route_info->oif;
 	netlink_route_val.set_if_index(if_index);
 
-	char if_name[IF_NAMESIZE];
+	char if_name[IFNAMSIZ];
 	if_indextoname(if_index,if_name);
 	netlink_route_val.set_if_name(if_name);
 

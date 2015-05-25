@@ -673,10 +673,10 @@ tcp_connect(struct tcp_pcb *pcb, ip_addr_t *ipaddr, u16_t port,
   pcb->snd_wnd = TCP_WND;
   /* As initial send MSS, we use TCP_MSS but limit it to 536.
      The send MSS is updated when an MSS option is received. */
-  pcb->advtsd_mss = pcb->mss = (TCP_MSS > 536) ? 536 : TCP_MSS;
+  pcb->advtsd_mss = pcb->mss = (LWIP_TCP_MSS > 536) ? 536 : LWIP_TCP_MSS;
 #if TCP_CALCULATE_EFF_SEND_MSS
   pcb->mss = tcp_eff_send_mss(pcb->mss, ipaddr);
-  pcb->advtsd_mss = TCP_MSS;
+  pcb->advtsd_mss = LWIP_TCP_MSS;
 #endif /* TCP_CALCULATE_EFF_SEND_MSS */
   pcb->cwnd = 1;
   pcb->ssthresh = pcb->mss * 10;
@@ -1103,7 +1103,7 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio)
 	pcb->ttl = TCP_TTL;
 	/* As initial send MSS, we use TCP_MSS but limit it to 536.
 	   The send MSS is updated when an MSS option is received. */
-	pcb->advtsd_mss = pcb->mss = (TCP_MSS > 536) ? 536 : TCP_MSS;
+	pcb->advtsd_mss = pcb->mss = (LWIP_TCP_MSS > 536) ? 536 : LWIP_TCP_MSS;
 	pcb->rto = 3000 / TCP_SLOW_INTERVAL;
 	pcb->sa = 0;
 	pcb->sv = 3000 / TCP_SLOW_INTERVAL;

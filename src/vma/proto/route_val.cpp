@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <net/if.h>
+#include "vma/util/if.h"
 
 #include "route_val.h"
 #include "route_table_mgr.h"
@@ -36,7 +36,7 @@ route_val::route_val(): cache_observer()
 	m_scope = 0;
 	m_type = 0;
 	m_table_id	= 0;
-	memset(m_if_name, 0, IF_NAMESIZE * sizeof(char));
+	memset(m_if_name, 0, IFNAMSIZ * sizeof(char));
 	m_if_index = 0;
 	m_is_valid = false;
 	m_b_deleted = false;

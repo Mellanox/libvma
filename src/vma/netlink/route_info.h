@@ -24,7 +24,7 @@ public:
 	netlink_route_info() :
 			table(0), scope(0), tos(0), protocol(0), priority(0), family(
 			                0), dst_addr_str(""), dst_addr(NULL), dst_addr_len(0), dst_prefixlen(0), src_addr_str(""), src_addr(NULL), src_addr_len(0), src_prefixlen(0), type(0), flags(
-			                0), pref_src_addr_str(""),pref_src_addr(NULL), pref_src_addr_len(0), pref_src_prefixlen(0), iif_name(""), oif(0)
+			                0), pref_src_addr_str(""),pref_src_addr(NULL), pref_src_addr_len(0), pref_src_prefixlen(0), iif_name("")
 	{
 	}
 
@@ -106,8 +106,6 @@ public:
 	// incoming interface name of the route
 	std::string iif_name;
 
-	// outgoing interface index of the route
-	int oif;
 };
 
 #endif /* NETLINK_ROUTE_INFO_H_ */

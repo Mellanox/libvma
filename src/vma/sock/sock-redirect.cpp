@@ -989,7 +989,11 @@ struct mmsghdr {
    This function is a cancellation point and therefore not marked with
    __THROW.  */
 extern "C"
+#ifdef RECVMMSG_WITH_CONST_TIMESPEC
 int recvmmsg(int __fd, struct mmsghdr *__mmsghdr, unsigned int __vlen, int __flags, const struct timespec *__timeout)
+#else
+int recvmmsg(int __fd, struct mmsghdr *__mmsghdr, unsigned int __vlen, int __flags, struct timespec *__timeout)
+#endif
 {
         int num_of_msg=0;
         struct timespec start_time = TIMESPEC_INITIALIZER, current_time = TIMESPEC_INITIALIZER, delta_time = TIMESPEC_INITIALIZER;

@@ -15,9 +15,8 @@
 #if 0
 
 #define STR_SIZE 255
-#define IF_NAMESIZE 255
 
-#include <net/if.h>
+#include "vma/util/if.h"
 
 #include "route_net_dev_event.h"
 #include "vma/util/utils.h"
@@ -36,7 +35,7 @@ route_net_dev_event::~route_net_dev_event()
 const std::string route_net_dev_event::to_str() const
 {
 	char outstr[STR_SIZE];
-	char if_name[IF_NAMESIZE];
+	char if_name[IFNAMSIZ];
 	if_indextoname(m_if_index_down, if_name);
 	sprintf(outstr, "interface %s [index %d] is down", if_name, m_if_index_down);
 	return std::string(outstr);

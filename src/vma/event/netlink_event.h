@@ -15,18 +15,15 @@
 #define NETLINK_EVENT_H_
 
 #include <netlink/msg.h>
+#include "config.h"
 #include "vma/event/event.h"
 #include "vma/netlink/neigh_info.h"
 #include "vma/netlink/route_info.h"
 #include "vma/netlink/link_info.h"
 #include <linux/rtnetlink.h>
-#include <netlink/object-api.h>
-
 
 class netlink_link;
 class netlink_neigh;
-
-typedef struct { NLHDR_COMMON } _nl_object;
 
 class netlink_event: public event
 {
@@ -77,7 +74,6 @@ public:
 	 */
 	uint16_t nl_type;
 
-	uint16_t nl_flags;
 	uint32_t nl_pid;
 	uint32_t nl_seq;
 

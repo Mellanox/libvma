@@ -13,7 +13,7 @@
 
 #include <stdio.h>
 #include <sys/time.h>
-#include <net/if.h>
+#include "vma/util/if.h"
 
 #include "vlogger/vlogger.h"
 #include "vma/util/rdtsc.h"
@@ -2431,7 +2431,7 @@ void sockinfo_tcp::fit_snd_bufs(unsigned int new_max_snd_buff)
 	sent_buffs_num = m_pcb.max_snd_buff - m_pcb.snd_buf;
 	if (sent_buffs_num <= new_max_snd_buff) {
 		m_pcb.max_snd_buff = new_max_snd_buff;
-		m_pcb.max_unsent_len = (16 * (m_pcb.snd_buf)/(TCP_MSS));
+		m_pcb.max_unsent_len = (16 * (m_pcb.snd_buf)/(LWIP_TCP_MSS));
 		m_pcb.snd_buf = m_pcb.max_snd_buff - sent_buffs_num;
 	}
 }

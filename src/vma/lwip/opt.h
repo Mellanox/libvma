@@ -404,7 +404,7 @@
  * If you don't want to use lwip_tcp_mss for setting the mss during runtime, define TCP_MSS to the DEFAULT_TCP_MSS
  */
 #define CONST_TCP_MSS 		1460
-#define TCP_MSS                         (lwip_tcp_mss)
+#define LWIP_TCP_MSS                         (lwip_tcp_mss)
 //#define TCP_MSS 			CONST_TCP_MSS
 
 /**
@@ -1402,7 +1402,7 @@
  * (2 * TCP_MSS) for things to work well
  */
 #ifndef TCP_WND
-#define TCP_WND                         (4 * TCP_MSS)
+#define TCP_WND                         (4 * LWIP_TCP_MSS)
 #endif 
 
 /*
@@ -1454,8 +1454,8 @@
  * when opening a connection. For the transmit size, this MSS sets
  * an upper limit on the MSS advertised by the remote host.
  */
-#ifndef TCP_MSS
-#define TCP_MSS                         536
+#ifndef LWIP_TCP_MSS
+#define LWIP_TCP_MSS                         536
 #endif
 
 /**
@@ -1484,7 +1484,7 @@
  */
 #ifndef TCP_SND_QUEUELEN
 #define CONST_TCP_SND_QUEUELEN                (4 * (TCP_SND_BUF)/(CONST_TCP_MSS))
-#define TCP_SND_QUEUELEN                	(4 * (TCP_SND_BUF)/(TCP_MSS))
+#define TCP_SND_QUEUELEN                	(4 * (TCP_SND_BUF)/(LWIP_TCP_MSS))
 #endif
 
 /**
@@ -1537,7 +1537,7 @@
  */
 #ifndef TCP_OVERSIZE
 #define TCP_OVERSIZE                    CONST_TCP_MSS
-#define TCP_OVERSIZE_VAL		TCP_MSS
+#define TCP_OVERSIZE_VAL		LWIP_TCP_MSS
 #endif
 
 /**
@@ -1591,7 +1591,7 @@
  * TCP_MSS, IP header, and link header.
  */
 #ifndef PBUF_POOL_BUFSIZE
-#define PBUF_POOL_BUFSIZE               LWIP_MEM_ALIGN_SIZE(TCP_MSS+40+PBUF_LINK_HLEN)
+#define PBUF_POOL_BUFSIZE               LWIP_MEM_ALIGN_SIZE(LWIP_TCP_MSS+40+PBUF_LINK_HLEN)
 #endif
 
 /*

@@ -15,7 +15,7 @@
 
 #include <sys/epoll.h>
 #include <netdb.h>
-#include <net/if.h>
+#include "vma/util/if.h"
 
 #include "vlogger/vlogger.h"
 #include "vma/proto/route_table_mgr.h"

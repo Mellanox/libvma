@@ -17,36 +17,19 @@
 
 #include <netlink/netlink.h>
 #include <netlink/cache.h>
-#include <netlink/cache-api.h>
 #include <netlink/route/neighbour.h>
 #include "neigh_info.h"
-#include "vma/infra/subject_observer.h"
 #include "vma/util/lock_wrapper.h"
 #include "vma/event/netlink_event.h"
-#include <map>
-using namespace std;
-
-enum e_netlink_event_type
-{
-	nlgrpNEIGH = 0,
-	nlgrpLINK = 1,
-	nlgrpROUTE = 2,
-	/* TODO: not supported yet
-	nlgrpADDRESS=3,
-	nlgrpPREFIX=4,
-	*/
-};
+#include "netlink_compatibility.h"
 
 #define	subject_map_iter map<e_netlink_event_type, subject*>::iterator
-
-class netlink_wrapper;
-
 
 // structure to pass arguments on internal netlink callbacks handling
 typedef struct rcv_msg_arg
 {
 	netlink_wrapper* netlink;
-	struct nl_handle* handle;
+	nl_socket_handle* socket_handle;
 	map<e_netlink_event_type, subject*>* subjects_map;
 	nlmsghdr* msghdr;
 } rcv_msg_arg_t;
@@ -71,9 +54,9 @@ public:
 	netlink_wrapper();
 	virtual ~netlink_wrapper();
 
-	static void neigh_cache_callback(nl_cache* , nl_object* obj, int);
-	static void link_cache_callback(nl_cache* , nl_object* obj, int);
-	static void route_cache_callback(nl_cache* , nl_object* obj, int);
+	static void neigh_cache_callback(nl_object* obj);
+	static void link_cache_callback(nl_object* obj);
+	static void route_cache_callback(nl_object* obj);
 
 	/* return fd for the specific netlink instace's channel to kernel
 	 * the channel is a NON_BLOCKING socket opened as socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE)
@@ -126,7 +109,7 @@ public:
 	void neigh_timer_expired();
 
 private:
-	struct nl_handle* m_handle;
+	nl_socket_handle* m_socket_handle;
 
 	struct nl_cache_mngr* m_mngr;
 	struct nl_cache* m_cache_link;
@@ -140,7 +123,7 @@ private:
 	//This method should be called with m_cache_lock held!
 	static void notify_observers(netlink_event *p_new_event, e_netlink_event_type type);
 
-	void notify_cache_entries(struct nl_cache* cache);
+	void notify_neigh_cache_entries();
 
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off

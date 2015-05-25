@@ -22,7 +22,7 @@
 #include <netinet/in.h>
 #include <netinet/ether.h>
 #include <arpa/inet.h>
-#include <net/if.h>
+#include "vma/util/if.h"
 
 #include "vlogger/vlogger.h"
 #include "vma/util/vtypes.h"

@@ -17,7 +17,7 @@
 #include <sys/resource.h>
 #include <string.h>
 #include <iostream>
-#include <net/if.h>
+#include "vma/util/if.h"
 #include <sys/stat.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>

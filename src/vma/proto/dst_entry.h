@@ -15,7 +15,8 @@
 #define DST_ENTRY_H
 
 #include <unistd.h>
-#include <net/if.h>
+#include <sys/socket.h>
+#include "vma/util/if.h"
 #include <netinet/in.h>
 
 #include "vlogger/vlogger.h"

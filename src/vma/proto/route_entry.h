@@ -14,7 +14,7 @@
 #ifndef ROUTE_ENTRY_H
 #define ROUTE_ENTRY_H
 
-#include <net/if.h>
+#include "vma/util/if.h"
 #include <netinet/in.h>
 
 #include "vma/proto/route_rule_table_key.h"

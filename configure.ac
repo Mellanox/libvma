@@ -354,6 +354,23 @@ AC_TRY_LINK(
   AC_DEFINE(DEFINED_MISSING_STRUCT_MMSGHDR, 1, [Define to 1 if 'struct mmsghdr' is missing])
 ])
 
+AC_MSG_CHECKING([if 'struct timespec' for recvmmsg() is const])
+AC_TRY_LINK(
+#include <sys/socket.h>
+,
+[
+  const struct timespec ts = {0,0};
+  recvmmsg(0,0,0,0,&ts);
+],
+[
+  AC_MSG_RESULT([yes])
+  AC_DEFINE(RECVMMSG_WITH_CONST_TIMESPEC, 1, [Define to 1 if 'struct timespec' for recvmmsg() is 'const struct timespec'])
+],
+[
+  AC_MSG_RESULT([no])
+])
+
+
 AC_CHECK_LIB([stdc++], [atoi])
 AC_CHECK_LIB([dl], [dlsym])
 AC_CHECK_LIB([rt], [clock_gettime])
@@ -361,6 +378,18 @@ AC_CHECK_LIB([pthread], [pthread_create])
 #AC_CHECK_LIB([rdmacm], [rdma_create_id]) - doing it here requires rdmacm & libibverbs for udp_lat even on Ethernet only machines
 #AC_CHECK_LIB([ibverbs], [ibv_cmd_poll_cq])
 
+have_libnl=no
+PKG_CHECK_MODULES([LIBNL3],[libnl-route-3.0], have_libnl=yes AC_DEFINE([HAVE_LIBNL3], [1], [Use libnl-route-3.0]), [:])
+if test "$have_libnl" = yes; then
+	AC_SUBST([LIBNL_LIBS], "$LIBNL3_LIBS")
+	AC_SUBST([LIBNL_CFLAGS], "$LIBNL3_CFLAGS")
+else
+	PKG_CHECK_MODULES([LIBNL1],[libnl-1], have_libnl=yes AC_DEFINE([HAVE_LIBNL1], [1], [Use libnl-1]),  AC_MSG_ERROR([libnl-devel is required]))
+	AC_SUBST([LIBNL_LIBS], "$LIBNL1_LIBS")
+	AC_SUBST([LIBNL_CFLAGS], "$LIBNL1_CFLAGS")
+fi
+
+AM_CONDITIONAL([HAVE_LIBNL], [test "$have_libnl" = "yes"])
 
 AC_CONFIG_FILES([
 		Makefile

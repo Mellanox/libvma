@@ -44,7 +44,7 @@ public:
     #pragma BullseyeCoverage on
 #endif
 	inline void set_if_index(int if_index)			{ m_if_index = if_index; };
-	inline void set_if_name(char *if_name) 			{ memcpy(m_if_name, if_name, IF_NAMESIZE); };
+	inline void set_if_name(char *if_name) 			{ memcpy(m_if_name, if_name, IFNAMSIZ); };
 	void 	set_str();
 
 	inline in_addr_t 	get_dst_addr()	const		{ return m_dst_addr; };
@@ -89,7 +89,7 @@ private:
 	unsigned char	m_type;
 	unsigned char	m_table_id;
 
-	char 		m_if_name[IF_NAMESIZE];
+	char 		m_if_name[IFNAMSIZ];
 	int 		m_if_index;
 
 	bool 		m_is_valid;

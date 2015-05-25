@@ -1506,7 +1506,7 @@ tcp_parseopt(struct tcp_pcb *pcb, tcp_in_data* in_data)
         /* An MSS option with the right option length. */
         mss = (opts[c + 2] << 8) | opts[c + 3];
         /* Limit the mss to the configured TCP_MSS and prevent division by zero */
-        pcb->mss = ((mss > TCP_MSS) || (mss == 0)) ? TCP_MSS : mss;
+        pcb->mss = ((mss > LWIP_TCP_MSS) || (mss == 0)) ? LWIP_TCP_MSS : mss;
         /* Advance to next option */
         c += 0x04;
         break;

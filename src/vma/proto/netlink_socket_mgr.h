@@ -28,7 +28,7 @@
 #include <netinet/in.h>
 #include <netinet/ether.h>
 #include <arpa/inet.h>
-#include <net/if.h>
+#include "vma/util/if.h"
 
 #include "vma/netlink/netlink_wrapper.h"
 #include "vma/event/netlink_event.h"

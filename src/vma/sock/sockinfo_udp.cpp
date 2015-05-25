@@ -16,7 +16,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <ifaddrs.h>
-#include <net/if.h>
+#include "vma/util/if.h"
 #include <net/if_arp.h>
 #include <sys/epoll.h>
 #include <algorithm>

@@ -15,7 +15,7 @@
 #include "vma/dev/net_device_val.h"
 
 #include <ifaddrs.h>
-#include <net/if.h>
+#include "vma/util/if.h"
 #include <linux/if_infiniband.h>
 #include <linux/if_ether.h>
 #include <sys/epoll.h>

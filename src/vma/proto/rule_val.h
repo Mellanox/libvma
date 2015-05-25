@@ -16,7 +16,7 @@
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <net/if.h>
+#include "vma/util/if.h"
 #include "vma/infra/cache_subject_observer.h"
 
 #define BUFF_SIZE 255
@@ -43,8 +43,8 @@ public:
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif
-	inline void set_iif_name(char *iif_name) 		{ memcpy(m_iif_name, iif_name, IF_NAMESIZE); };
-	inline void set_oif_name(char *oif_name) 		{ memcpy(m_oif_name, oif_name, IF_NAMESIZE); };
+	inline void set_iif_name(char *iif_name) 		{ memcpy(m_iif_name, iif_name, IFNAMSIZ); };
+	inline void set_oif_name(char *oif_name) 		{ memcpy(m_oif_name, oif_name, IFNAMSIZ); };
 	inline void set_priority(uint32_t priority) 		{ m_priority = priority; };
 
 	void 	set_str();
@@ -75,8 +75,8 @@ private:
 
 	in_addr_t 	m_dst_addr;
 	in_addr_t 	m_src_addr;
-	char 		m_iif_name[IF_NAMESIZE];
-	char 		m_oif_name[IF_NAMESIZE];
+	char 		m_iif_name[IFNAMSIZ];
+	char 		m_oif_name[IFNAMSIZ];
 	uint32_t	m_priority;
 	unsigned char	m_table_id;
 	

@@ -16,15 +16,15 @@
 #include <netlink/route/neighbour.h>
 #include <netlink/route/link.h>
 #include "stdio.h"
+#include "vma/netlink/netlink_compatibility.h"
 
 #define TOSTR_MAX_SIZE 4096
 
 netlink_event::netlink_event(struct nlmsghdr* hdr, void* notifier) :
-		event(notifier), nl_type(0), nl_flags(0), nl_pid(0), nl_seq(0)
+		event(notifier), nl_type(0), nl_pid(0), nl_seq(0)
 {
 	if (hdr) {
 		nl_type = hdr->nlmsg_type;
-		nl_flags = hdr->nlmsg_flags;
 		nl_pid = hdr->nlmsg_pid;
 		nl_seq = hdr->nlmsg_seq;
 	}
@@ -32,15 +32,11 @@ netlink_event::netlink_event(struct nlmsghdr* hdr, void* notifier) :
 }
 
 netlink_event::netlink_event(struct nl_object* obj, void* notifier) :
-		event(notifier), nl_type(0), nl_flags(0), nl_pid(0), nl_seq(0)
+		event(notifier), nl_type(0), nl_pid(0), nl_seq(0)
 {
 	if (obj) {
-		_nl_object* _obj = (_nl_object*)obj;
-
-		nl_type = _obj->ce_msgtype;
-		nl_flags = _obj->ce_flags;
+		nl_type = nl_object_get_compatible_msgtype(obj);
 	}
-
 }
 
 
@@ -51,8 +47,8 @@ netlink_event::netlink_event(struct nl_object* obj, void* notifier) :
 const std::string netlink_event::to_str() const
 {
 	char outstr[TOSTR_MAX_SIZE];
-	sprintf(outstr, "%s. NETLINK: TYPE=%u, FLAGS=%u PID=%u SEQ=%u",
-	                event::to_str().c_str(),  nl_type, nl_flags, nl_pid,
+	sprintf(outstr, "%s. NETLINK: TYPE=%u, PID=%u SEQ=%u",
+	                event::to_str().c_str(),  nl_type, nl_pid,
 	                nl_seq);
 	return std::string(outstr);
 }
@@ -75,14 +71,14 @@ const std::string route_nl_event::to_str() const
 {
 	char outstr[TOSTR_MAX_SIZE];
 	sprintf(outstr,
-	                "%s. ROUTE: TABBLE=%u SCOPE=%u TOS=%u PROTOCOL=%u PRIORITY=%u FAMILY=%u DST_ADDR=%s DST_PREFIX=%u SRC_ADDR=%s SRC_PREFIX=%u TYPE=%u FALGS=%u PREF_SRC=%s IFF_NAME=%s OIF=%d",
+	                "%s. ROUTE: TABBLE=%u SCOPE=%u TOS=%u PROTOCOL=%u PRIORITY=%u FAMILY=%u DST_ADDR=%s DST_PREFIX=%u SRC_ADDR=%s SRC_PREFIX=%u TYPE=%u FALGS=%u PREF_SRC=%s IFF_NAME=%s",
 	                netlink_event::to_str().c_str(), m_route_info->table,
 	                m_route_info->scope, m_route_info->tos,
 	                m_route_info->protocol, m_route_info->priority,
 	                m_route_info->family, m_route_info->dst_addr_str.c_str(), m_route_info->dst_prefixlen,
 	                m_route_info->src_addr_str.c_str(), m_route_info->src_prefixlen, m_route_info->type,
 	                m_route_info->flags, m_route_info->pref_src_addr_str.c_str(),
-	                m_route_info->iif_name.c_str(), m_route_info->oif);
+	                m_route_info->iif_name.c_str());
 	return std::string(outstr);
 }
 
@@ -97,7 +93,6 @@ neigh_nl_event::neigh_nl_event(struct nlmsghdr* hdr, struct rtnl_neigh* neigh,
 	m_neigh_info = new netlink_neigh_info(neigh);
 	if ((!hdr) && (neigh)) {
 		nl_type = rtnl_neigh_get_type(neigh);
-		nl_flags = rtnl_neigh_get_flags(neigh);
 	}
 }
 
