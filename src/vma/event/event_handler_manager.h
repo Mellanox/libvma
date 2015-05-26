@@ -15,7 +15,6 @@
 #define EVENT_HANDLER_MANAGER_H
 
 #include <map>
-#include <list>
 #include <deque>
 #include "vma/util/lock_wrapper.h"
 #include "vma/util/wakeup.h"

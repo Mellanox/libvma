@@ -14,11 +14,12 @@
 #ifndef MEM_BUF_DESC_H
 #define MEM_BUF_DESC_H
 
-#include <deque>
+#include "vma/util/vma_list.h"
 #include <netinet/in.h>
 #include "vma/util/vtypes.h" // for unlikely
 
 #include "vma/lwip/pbuf.h"
+#include "vma/util/atomic.h"
 
 struct mem_buf_desc_t;
 
@@ -64,12 +65,12 @@ public:
 	size_t		sz_data;   	// this is the amount of data inside the buffer (sz_data <= sz_buffer)
 	uint32_t	lkey;      	// Buffers lkey for QP access
 private:
-	int16_t		n_ref_count;	// number of interested receivers (sockinfo) [can be modified only in cq_mgr context]
+	atomic_t	n_ref_count;	// number of interested receivers (sockinfo) [can be modified only in cq_mgr context]
 public:
-	inline int16_t get_ref_count() const {return n_ref_count;}
-	inline void  reset_ref_count() {n_ref_count = 0;}
-	inline int16_t inc_ref_count() {return ++n_ref_count;}
-	inline int16_t dec_ref_count() {return --n_ref_count;}
+	inline int get_ref_count() const {return atomic_read(&n_ref_count);}
+	inline void  reset_ref_count() {atomic_set(&n_ref_count, 0);}
+	inline int inc_ref_count() {return atomic_fetch_and_inc(&n_ref_count);}
+	inline int dec_ref_count() {return atomic_fetch_and_dec(&n_ref_count);}
 
 	bool		b_is_tx_mc_loop_dis; // if the mc loop on the tx side is disabled (the loop is per interface)
 	int8_t		n_frags;	//number of fragments
@@ -120,13 +121,13 @@ public:
 	} path;
 	
 	int		serial_num;
+	list_node<mem_buf_desc_t> node;
 #ifdef _DEBUG
 	uint8_t		n_ref_count_dbg;	// Debug mode following the desc usage
 #endif
 };
 
-
-typedef std::deque<mem_buf_desc_t*> descq_t;
+typedef vma_list_t<mem_buf_desc_t> descq_t;
 
 inline void move_owned_descs(const mem_buf_desc_owner* p_desc_owner, descq_t *toq, descq_t *fromq)
 {

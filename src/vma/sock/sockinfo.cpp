@@ -75,10 +75,6 @@ sockinfo::sockinfo(int fd):
 
 sockinfo::~sockinfo()
 {
-	if (m_n_rx_pkt_ready_list_count || m_rx_ready_byte_count || m_rx_pkt_ready_list.size() || m_rx_ring_map.size() || m_rx_reuse_buff.n_buff_num)
-		si_logerr("not all buffers were freed. protocol=%s. m_n_rx_pkt_ready_list_count=%d, m_rx_ready_byte_count=%d, m_rx_pkt_ready_list.size()=%d, m_rx_ring_map.size()=%d, m_rx_reuse_buff.n_buff_num=%d",
-				m_protocol == PROTO_TCP ? "TCP" : "UDP", m_n_rx_pkt_ready_list_count, m_rx_ready_byte_count, (int)m_rx_pkt_ready_list.size(), (int)m_rx_ring_map.size(), m_rx_reuse_buff.n_buff_num);
-
 	m_b_closed = true;
 
 	// Change to non-blocking socket so calling threads can exit
@@ -193,7 +189,7 @@ int sockinfo::rx_wait_helper(int &poll_count, bool is_blocking)
 
 	for (rx_ring_iter = m_rx_ring_map.begin(); rx_ring_iter != m_rx_ring_map.end(); rx_ring_iter++) {
 		//BULLSEYE_EXCLUDE_BLOCK_START
-		if (unlikely(rx_ring_iter->second.refcnt <= 0)) {
+		if (unlikely(rx_ring_iter->second->refcnt <= 0)) {
 			si_logpanic("Attempted to poll illegal cq");
 		}
 		//BULLSEYE_EXCLUDE_BLOCK_END
@@ -220,7 +216,7 @@ int sockinfo::rx_wait_helper(int &poll_count, bool is_blocking)
 	}
 
 	for (rx_ring_iter = m_rx_ring_map.begin(); rx_ring_iter != m_rx_ring_map.end(); rx_ring_iter++) {
-		if (rx_ring_iter->second.refcnt <= 0) {
+		if (rx_ring_iter->second->refcnt <= 0) {
 			continue;
 		}
 		// coverity[check_return]
@@ -644,8 +640,10 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 	rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.find(p_ring);
 	if (rx_ring_iter == m_rx_ring_map.end()) {
 		// First map of this cq mgr
-		m_rx_ring_map[p_ring].refcnt = 1;
-		m_rx_ring_map[p_ring].rx_reuse_info.n_buff_num = 0;
+		ring_info_t* p_ring_info = new ring_info_t();
+		m_rx_ring_map[p_ring] = p_ring_info;
+		p_ring_info->refcnt = 1;
+		p_ring_info->rx_reuse_info.n_buff_num = 0;
 
 		notify_epoll_context_add_ring(p_ring);
 
@@ -671,7 +669,7 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 	}
 	else {
 		// Increase ref count on cq_mgr object
-		rx_ring_iter->second.refcnt++;
+		rx_ring_iter->second->refcnt++;
 	}
 	unlock_rx_q();
 	m_rx_ring_map_lock.unlock();
@@ -693,7 +691,7 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (rx_ring_iter != m_rx_ring_map.end()) {
 	BULLSEYE_EXCLUDE_BLOCK_END
-		ring_info_t* p_ring_info = &rx_ring_iter->second;
+		ring_info_t* p_ring_info = rx_ring_iter->second;
 
 		// Decrease ref count on cq_mgr object
 		p_ring_info->refcnt--;
@@ -725,6 +723,8 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 			notify_epoll_context_remove_ring(p_ring);
 
 			m_rx_ring_map.erase(p_ring);
+			delete p_ring_info;
+
 			if (m_p_rx_ring == p_ring) {
 				if (m_rx_ring_map.size() == 1) {
 					m_p_rx_ring = m_rx_ring_map.begin()->first;
@@ -771,13 +771,12 @@ void sockinfo::move_owned_rx_ready_descs(const mem_buf_desc_owner* p_desc_owner,
 	// Assume locked by owner!!!
 
 	mem_buf_desc_t *temp;
-	descq_t *fromq = &m_rx_pkt_ready_list;
-	const size_t size = fromq->size();
+	const size_t size = get_size_m_rx_pkt_ready_list();
 	for (size_t i = 0 ; i < size; i++) {
-		temp = fromq->front();
-		fromq->pop_front();
+		temp = get_front_m_rx_pkt_ready_list();
+		pop_front_m_rx_pkt_ready_list();
 		if (temp->p_desc_owner != p_desc_owner) {
-			fromq->push_back(temp);
+			push_back_m_rx_pkt_ready_list(temp);
 			continue;
 		}
 		m_n_rx_pkt_ready_list_count--;

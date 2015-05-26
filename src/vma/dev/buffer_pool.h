@@ -61,8 +61,8 @@ public:
 	/**
 	 * Return buffers to the pool.
 	 */
-	void 		put_buffers(std::deque<mem_buf_desc_t*> *buffers, size_t count);
-	void 		put_buffers_thread_safe(std::deque<mem_buf_desc_t*> *buffers, size_t count);
+	void 		put_buffers(descq_t *buffers, size_t count);
+	void 		put_buffers_thread_safe(descq_t *buffers, size_t count);
 	int 		put_buffers(mem_buf_desc_t *buff_list);
 	int 		put_buffers_thread_safe(mem_buf_desc_t *buff_list);
 	static void 	free_rx_lwip_pbuf_custom(struct pbuf *p_buff);

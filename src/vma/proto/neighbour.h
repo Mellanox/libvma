@@ -14,7 +14,6 @@
 #ifndef NEIGHBOUR_H
 #define NEIGHBOUR_H
 
-#include <deque>
 #include <rdma/rdma_cma.h>
 #include <tr1/unordered_map>
 
@@ -177,7 +176,7 @@ private:
  * Key = address (peer IP)
  * Val = class neigh_val
  */
-typedef std::deque<neigh_send_data *> unsent_queue_t;
+typedef vma_list_t<neigh_send_data> unsent_queue_t;
 
 class neigh_entry : public cache_entry_subject<neigh_key, neigh_val *>, public event_handler_rdma_cm, public timer_handler
 {

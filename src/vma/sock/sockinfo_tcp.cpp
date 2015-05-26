@@ -153,6 +153,10 @@ sockinfo_tcp::~sockinfo_tcp()
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
+	if (m_n_rx_pkt_ready_list_count || m_rx_ready_byte_count || m_rx_pkt_ready_list.size() || m_rx_ring_map.size() || m_rx_reuse_buff.n_buff_num)
+		si_tcp_logerr("not all buffers were freed. protocol=TCP. m_n_rx_pkt_ready_list_count=%d, m_rx_ready_byte_count=%d, m_rx_pkt_ready_list.size()=%d, m_rx_ring_map.size()=%d, m_rx_reuse_buff.n_buff_num=%d",
+				m_n_rx_pkt_ready_list_count, m_rx_ready_byte_count, (int)m_rx_pkt_ready_list.size() ,(int)m_rx_ring_map.size(), m_rx_reuse_buff.n_buff_num);
+
 	si_tcp_logdbg("sock closed");
 }
 
@@ -849,7 +853,7 @@ int sockinfo_tcp::handle_child_FIN(sockinfo_tcp* child_conn)
 {
 	lock_tcp_con();
 
-	accepted_conns_deque_t::iterator conns_iter;
+	list_iterator_t<sockinfo_tcp> conns_iter;
 	for(conns_iter = m_accepted_conns.begin(); conns_iter != m_accepted_conns.end(); conns_iter++) {
 		if (*(conns_iter) == child_conn) {
 			unlock_tcp_con();
@@ -1962,6 +1966,22 @@ void sockinfo_tcp::create_flow_tuple_key_from_pcb(flow_tuple &key, struct tcp_pc
 	key = flow_tuple(pcb->local_ip.addr, htons(pcb->local_port), pcb->remote_ip.addr, htons(pcb->remote_port), PROTO_TCP);
 }
 
+mem_buf_desc_t* sockinfo_tcp::get_front_m_rx_pkt_ready_list(){
+	return m_rx_pkt_ready_list.front();
+}
+
+size_t sockinfo_tcp::get_size_m_rx_pkt_ready_list(){
+	return m_rx_pkt_ready_list.size();
+}
+
+void sockinfo_tcp::pop_front_m_rx_pkt_ready_list(){
+	m_rx_pkt_ready_list.pop_front();
+}
+
+void sockinfo_tcp::push_back_m_rx_pkt_ready_list(mem_buf_desc_t* buff){
+	m_rx_pkt_ready_list.push_back(buff);
+}
+
 struct tcp_pcb* sockinfo_tcp::get_syn_received_pcb(in_addr_t peer_ip, in_port_t peer_port, in_addr_t local_ip, in_port_t local_port)
 {
 	struct tcp_pcb* ret_val = NULL;
@@ -2217,7 +2237,7 @@ bool sockinfo_tcp::is_readable(uint64_t *p_poll_sn, fd_array_t* p_fd_array)
 		else {
 			rx_ring_map_t::iterator rx_ring_iter;
 			for (rx_ring_iter = m_rx_ring_map.begin(); rx_ring_iter != m_rx_ring_map.end(); rx_ring_iter++) {
-				if (rx_ring_iter->second.refcnt <= 0) {
+				if (rx_ring_iter->second->refcnt <= 0) {
 					continue;
 				}
 				ring* p_ring =  rx_ring_iter->first;
@@ -2689,7 +2709,7 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 	}
 	else { //There's more than one CQ, go over each one
 		for (rx_ring_iter = m_rx_ring_map.begin(); rx_ring_iter != m_rx_ring_map.end(); rx_ring_iter++) {
-			if (unlikely(rx_ring_iter->second.refcnt <= 0)) {
+			if (unlikely(rx_ring_iter->second->refcnt <= 0)) {
 				__log_panic("Attempt to poll illegal cq");
 				//coverity unreachable code
 				//continue;
@@ -2742,7 +2762,7 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 	}
 	else {
 		for (rx_ring_iter = m_rx_ring_map.begin(); rx_ring_iter != m_rx_ring_map.end(); rx_ring_iter++) {
-			if (rx_ring_iter->second.refcnt <= 0) {
+			if (rx_ring_iter->second->refcnt <= 0) {
 				continue;
 			}
 			ring* p_ring = rx_ring_iter->first;
@@ -2830,10 +2850,10 @@ inline void sockinfo_tcp::return_rx_buffs(ring* p_ring)
 			rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.find(p_ring);
 
 			if (likely(rx_ring_iter != m_rx_ring_map.end())) {
-				std::deque<mem_buf_desc_t*> *rx_reuse = &rx_ring_iter->second.rx_reuse_info.rx_reuse;
-				if (rx_ring_iter->second.rx_reuse_info.n_buff_num > m_rx_num_buffs_reuse) {
+				descq_t *rx_reuse = &rx_ring_iter->second->rx_reuse_info.rx_reuse;
+				if (rx_ring_iter->second->rx_reuse_info.n_buff_num > m_rx_num_buffs_reuse) {
 					if (p_ring->reclaim_recv_buffers_no_lock(rx_reuse)) {
-						rx_ring_iter->second.rx_reuse_info.n_buff_num = 0;
+						rx_ring_iter->second->rx_reuse_info.n_buff_num = 0;
 					}
 				}
 			}

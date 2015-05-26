@@ -15,7 +15,6 @@
 #define FD_COLLECTION_H
 
 #include <map>
-#include <list>
 #include <rdma/rdma_cma.h>
 #include "vlogger/vlogger.h"
 
@@ -27,7 +26,7 @@
 #include "vma/event/event_handler_manager.h"
 #include <vma/sock/cleanable_obj.h>
 
-typedef std::list<socket_fd_api*> sock_fd_api_list_t;
+typedef vma_list_t<socket_fd_api> sock_fd_api_list_t;
 
 typedef std::tr1::unordered_map<pthread_t, int> offload_thread_rule_t;
 

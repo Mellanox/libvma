@@ -14,9 +14,6 @@
 #ifndef TCP_SOCKINFO_H
 #define TCP_SOCKINFO_H
 
-#include <list>
-#include <deque>
-
 #include "vma/util/lock_wrapper.h"
 #include "vma/proto/mem_buf_desc.h"
 #include "vma/sock/socket_fd_api.h"
@@ -70,7 +67,7 @@ class sockinfo_tcp;
 
 typedef std::map<tcp_pcb*, int>		ready_pcb_map_t;
 typedef std::map<flow_tuple, tcp_pcb*>	syn_received_map_t;
-typedef std::deque<sockinfo_tcp*>	accepted_conns_deque_t;
+typedef vma_list_t<sockinfo_tcp>      accepted_conns_deque_t;
 
 class sockinfo_tcp : public sockinfo, public timer_handler
 {
@@ -192,6 +189,8 @@ public:
 
 	virtual bool delay_orig_close_to_dtor();
 
+	list_node<sockinfo_tcp> node;
+
 protected:
 	virtual void		lock_rx_q();
 	virtual void		unlock_rx_q();
@@ -247,6 +246,7 @@ private:
 	int m_tcp_seg_count;
 	int m_tcp_seg_in_use;
 
+	vma_desc_list_t	m_rx_pkt_ready_list;
 	vma_desc_list_t m_rx_cb_dropped_list;
 
 	vma_desc_list_t m_rx_ctl_packets_list;
@@ -321,6 +321,11 @@ private:
 	virtual int 	zero_copy_rx(iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags);
 	struct tcp_pcb* get_syn_received_pcb(in_addr_t src_addr, in_port_t src_port, in_addr_t dest_addr,
             							 in_port_t dest_port, int protocol, in_addr_t local_addr);
+
+	virtual	mem_buf_desc_t* get_front_m_rx_pkt_ready_list();
+	virtual	size_t get_size_m_rx_pkt_ready_list();
+	virtual	void pop_front_m_rx_pkt_ready_list();
+	virtual	void push_back_m_rx_pkt_ready_list(mem_buf_desc_t* buff);
 
 	// stats
 	uint64_t m_n_pbufs_rcvd;

@@ -15,7 +15,6 @@
 #define CQ_MGR_H
 
 #include <map>
-#include <deque>
 
 #include "vma/util/sys_vars.h"
 #include "vma/util/verbs_extra.h"

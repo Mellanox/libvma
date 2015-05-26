@@ -547,7 +547,7 @@ int buffer_pool::put_buffers_thread_safe(mem_buf_desc_t *buff_list)
 	return put_buffers(buff_list);
 }
 
-void buffer_pool::put_buffers(std::deque<mem_buf_desc_t*> *buffers, size_t count)
+void buffer_pool::put_buffers(descq_t *buffers, size_t count)
 {
 	mem_buf_desc_t *buff_list, *next;
 	__log_info_funcall("returning %lu, present %lu, created %lu", count, m_n_buffers, m_n_buffers_created);
@@ -567,7 +567,7 @@ void buffer_pool::put_buffers(std::deque<mem_buf_desc_t*> *buffers, size_t count
 	}
 }
 
-void buffer_pool::put_buffers_thread_safe(std::deque<mem_buf_desc_t*> *buffers, size_t count)
+void buffer_pool::put_buffers_thread_safe(descq_t *buffers, size_t count)
 {
 	auto_unlocker lock(m_lock_spin);
 	put_buffers(buffers, count);
@@ -576,10 +576,10 @@ void buffer_pool::put_buffers_thread_safe(std::deque<mem_buf_desc_t*> *buffers, 
 void buffer_pool::put_buffers_after_deref(descq_t *pDeque)
 {
 	// Assume locked owner!!!
-	std::deque<mem_buf_desc_t*>::iterator iter;
+	list_iterator_t<mem_buf_desc_t> iter;
 	for (iter = pDeque->begin(); iter != pDeque->end(); ++iter) {
 		mem_buf_desc_t * list = *iter;
-		if (list->dec_ref_count() <= 0 && (list->lwip_pbuf.pbuf.ref-- <= 1)) {
+		if (list->dec_ref_count() <= 1 && (list->lwip_pbuf.pbuf.ref-- <= 1)) {
 			put_buffers(list);
 		}
 	}

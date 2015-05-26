@@ -11,7 +11,6 @@
  */
 
 
-#include <list>
 #include <tr1/unordered_map>
 #include <ifaddrs.h>
 
@@ -42,7 +41,7 @@
 
 struct buff_info_t {
        int     n_buff_num;
-       std::deque<mem_buf_desc_t*>     rx_reuse;
+       descq_t     rx_reuse;
 };
 
 typedef struct {
@@ -74,7 +73,7 @@ typedef struct {
 	buff_info_t 		rx_reuse_info;
 } ring_info_t;
 
-typedef std::tr1::unordered_map<ring*, ring_info_t> rx_ring_map_t;
+typedef std::tr1::unordered_map<ring*, ring_info_t*> rx_ring_map_t;
 
 class sockinfo : public socket_fd_api, public pkt_rcvr_sink, public pkt_sndr_source, public wakeup
 {
@@ -133,7 +132,6 @@ protected:
 	 * each element is a pointer to the ib_conn_mgr that holds this ready rx datagram
 	 */
 	int			m_n_rx_pkt_ready_list_count;
-	vma_desc_list_t		m_rx_pkt_ready_list;
 	size_t 			m_rx_pkt_ready_offset;
 	size_t			m_rx_ready_byte_count;
 
@@ -147,6 +145,10 @@ protected:
 	virtual int 		fcntl(int __cmd, unsigned long int __arg);
 	virtual int 		ioctl(unsigned long int __request, unsigned long int __arg);
 
+	virtual	mem_buf_desc_t* get_front_m_rx_pkt_ready_list() = 0;
+	virtual	size_t get_size_m_rx_pkt_ready_list() = 0;
+	virtual	void pop_front_m_rx_pkt_ready_list() = 0;
+	virtual	void push_back_m_rx_pkt_ready_list(mem_buf_desc_t* buff) = 0;
 
 	int 			rx_wait(int &poll_count, bool is_blocking = true);
 	int 			rx_wait_helper(int &poll_count, bool is_blocking = true);
@@ -224,7 +226,7 @@ protected:
 		int rx_pkt_ready_list_idx = 1;
 		int rx_pkt_ready_offset = m_rx_pkt_ready_offset;
 
-		pdesc = m_rx_pkt_ready_list.front();
+		pdesc = get_front_m_rx_pkt_ready_list();
 		void *iov_base = (uint8_t*)pdesc->path.rx.frag.iov_base + m_rx_pkt_ready_offset;
 		size_t bytes_left = pdesc->path.rx.frag.iov_len - m_rx_pkt_ready_offset;
 		size_t payload_size = pdesc->path.rx.sz_payload;
@@ -290,15 +292,15 @@ protected:
         ring* p_ring = (ring*)(buff->p_desc_owner);
         rx_ring_map_t::iterator iter = m_rx_ring_map.find(p_ring);
         if(likely(iter != m_rx_ring_map.end())){
-            std::deque<mem_buf_desc_t*> *rx_reuse = &iter->second.rx_reuse_info.rx_reuse;
+        	descq_t *rx_reuse = &iter->second->rx_reuse_info.rx_reuse;
             rx_reuse->push_back(buff);
-            iter->second.rx_reuse_info.n_buff_num += buff->n_frags;
-            if(iter->second.rx_reuse_info.n_buff_num > m_rx_num_buffs_reuse){
+            iter->second->rx_reuse_info.n_buff_num += buff->n_frags;
+            if(iter->second->rx_reuse_info.n_buff_num > m_rx_num_buffs_reuse){
                 if (p_ring->reclaim_recv_buffers(rx_reuse)) {
-                    iter->second.rx_reuse_info.n_buff_num = 0;
-                } else if (iter->second.rx_reuse_info.n_buff_num > 2 * m_rx_num_buffs_reuse) {
+                    iter->second->rx_reuse_info.n_buff_num = 0;
+                } else if (iter->second->rx_reuse_info.n_buff_num > 2 * m_rx_num_buffs_reuse) {
                 	g_buffer_pool_rx->put_buffers_thread_safe(rx_reuse, rx_reuse->size());
-                	iter->second.rx_reuse_info.n_buff_num = 0;
+                	iter->second->rx_reuse_info.n_buff_num = 0;
                 }
             }
 
@@ -308,7 +310,7 @@ protected:
             // In case ring was deleted while buffers where still queued
             vlog_printf(VLOG_DEBUG, "Buffer owner not found\n");
             // Awareness: these are best efforts: decRef without lock in case no CQ
-            if(buff->dec_ref_count() <= 0 && (buff->lwip_pbuf.pbuf.ref-- <= 1))
+            if(buff->dec_ref_count() <= 1 && (buff->lwip_pbuf.pbuf.ref-- <= 1))
                 g_buffer_pool_rx->put_buffers_thread_safe(buff);
 
         }

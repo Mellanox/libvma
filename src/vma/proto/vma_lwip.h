@@ -15,7 +15,6 @@
 #define _VMA_LWIP_H
 
 #include <list>
-#include <deque>
 #include <net/ethernet.h>
 #include <sys/param.h>
 #include "vma/event/timer_handler.h"
@@ -60,7 +59,6 @@ static inline const char* lwip_cc_algo_str(uint32_t algo)
     #pragma BullseyeCoverage on
 #endif
 
-typedef deque<pbuf*> pbuf_queueu_t;
 
 class vma_lwip : 
 	public lock_spin_recursive, public timer_handler

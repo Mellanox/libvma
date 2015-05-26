@@ -14,6 +14,7 @@
 #ifndef SEND_INFO
 #define SEND_INFO
 
+#include "vma/util/vma_list.h"
 #include "vma/util/to_str.h"
 #include "vma/event/event.h"
 #include "vma/proto/header.h"
@@ -72,6 +73,7 @@ public:
 
 	header  *m_header;
 	uint8_t m_protocol;
+	list_node<neigh_send_data> node;
 };
 
 class send_event : public event

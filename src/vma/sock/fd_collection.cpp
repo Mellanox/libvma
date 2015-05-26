@@ -115,7 +115,7 @@ void fd_collection::clear()
 	}
 
 	//internal thread should be already dead and these sockets should have been deleted through the internal thread.
-	sock_fd_api_list_t::iterator itr;
+	list_iterator_t<socket_fd_api> itr;
 	for (itr = m_pendig_to_remove_lst.begin(); itr != m_pendig_to_remove_lst.end(); itr++) {
 		(*itr)->force_close();
 	}
@@ -520,7 +520,7 @@ int fd_collection::del(int fd, bool b_cleanup, cls **map_type)
 
 void  fd_collection::handle_timer_expired(void* user_data)
 {
-	sock_fd_api_list_t::iterator itr;
+	list_iterator_t<socket_fd_api> itr;
 	fdcoll_logfunc();
 
 	lock();
@@ -531,15 +531,14 @@ void  fd_collection::handle_timer_expired(void* user_data)
 		if((*itr)->is_closable()) {
 			fdcoll_logfunc("Closing:%d", (*itr)->get_fd());
 			//The socket is ready to be closed, remove it from the list + delete it
-			sock_fd_api_list_t::iterator to_delete = itr;
-			socket_fd_api* p_sock_fd = *to_delete;
+			socket_fd_api* p_sock_fd = *itr;
+			itr++;
+			m_pendig_to_remove_lst.erase(p_sock_fd);
 
 			if (p_sock_fd) {
 				p_sock_fd->clean_obj();
 				p_sock_fd = NULL;
 			}
-			itr++;
-			m_pendig_to_remove_lst.erase(to_delete);
 
 			//Deactivate the timer since there are no any pending to remove socket to handle anymore
 			if (!m_pendig_to_remove_lst.size()) {

@@ -204,6 +204,11 @@ sockinfo_udp::~sockinfo_udp()
 	m_lock_rcv.unlock();
 
 	statistics_print();
+
+	if (m_n_rx_pkt_ready_list_count || m_rx_ready_byte_count || m_rx_pkt_ready_list.size() || m_rx_ring_map.size() || m_rx_reuse_buff.n_buff_num)
+		si_udp_logerr("not all buffers were freed. protocol=UDP. m_n_rx_pkt_ready_list_count=%d, m_rx_ready_byte_count=%d, m_rx_pkt_ready_list.size()=%d, m_rx_ring_map.size()=%d, m_rx_reuse_buff.n_buff_num=%d",
+				m_n_rx_pkt_ready_list_count, m_rx_ready_byte_count, (int)m_rx_pkt_ready_list.size() ,(int)m_rx_ring_map.size(), m_rx_reuse_buff.n_buff_num);
+
 	si_udp_logfunc("done");
 }
 
@@ -1318,7 +1323,7 @@ bool sockinfo_udp::is_readable(uint64_t *p_poll_sn, fd_array_t* p_fd_ready_array
 		rx_ring_map_t::iterator rx_ring_iter;
 		m_rx_ring_map_lock.lock();
 		for (rx_ring_iter = m_rx_ring_map.begin(); rx_ring_iter != m_rx_ring_map.end(); rx_ring_iter++) {
-			if (rx_ring_iter->second.refcnt <= 0)
+			if (rx_ring_iter->second->refcnt <= 0)
 				continue;
 
 			ring* p_ring = rx_ring_iter->first;
@@ -2108,6 +2113,14 @@ int sockinfo_udp::free_packets(struct vma_packet_t *pkts, size_t count)
 	return ret;
 }
 
+inline void	sockinfo_udp::reuse_buffer(mem_buf_desc_t *buff)
+{
+	if(buff->dec_ref_count() <= 1) {
+		buff->inc_ref_count();
+		sockinfo::reuse_buffer(buff);
+	}
+}
+
 mem_buf_desc_t* sockinfo_udp::get_next_desc(mem_buf_desc_t *p_desc)
 {
 	return p_desc->p_next_desc;
@@ -2196,4 +2209,20 @@ inline ssize_t sockinfo_udp::poll_os()
 		return 1;
 	}
 	return 0;
+}
+
+mem_buf_desc_t* sockinfo_udp::get_front_m_rx_pkt_ready_list(){
+	return m_rx_pkt_ready_list.front();
+}
+
+size_t sockinfo_udp::get_size_m_rx_pkt_ready_list(){
+	return m_rx_pkt_ready_list.size();
+}
+
+void sockinfo_udp::pop_front_m_rx_pkt_ready_list(){
+	m_rx_pkt_ready_list.pop_front();
+}
+
+void sockinfo_udp::push_back_m_rx_pkt_ready_list(mem_buf_desc_t* buff){
+	m_rx_pkt_ready_list.push_back(buff);
 }

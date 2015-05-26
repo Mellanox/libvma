@@ -175,6 +175,7 @@ private:
 	unsigned 	m_port_map_index;
 
 	dst_entry_map_t	m_dst_entry_map;
+	std::deque<mem_buf_desc_t *>	m_rx_pkt_ready_list;
 
 	bool		m_b_pktinfo;
 	bool		m_b_rcvtstamp;
@@ -203,6 +204,7 @@ private:
 	inline int 	rx_wait(bool blocking);
 	inline ssize_t	poll_os();
 
+	virtual inline void			reuse_buffer(mem_buf_desc_t *buff);
 	virtual 	mem_buf_desc_t*	get_next_desc (mem_buf_desc_t *p_desc);
 	virtual		mem_buf_desc_t* get_next_desc_peek(mem_buf_desc_t *p_desc, int& rx_pkt_ready_list_idx);
 
@@ -214,5 +216,10 @@ private:
 	inline void	handle_recv_timestamping(struct cmsg_state *cm_state);
 	inline void	insert_cmsg(struct cmsg_state *cm_state, int level, int type, void *data, int len);
 	inline void	handle_cmsg(struct msghdr * msg);
+
+	virtual	mem_buf_desc_t* get_front_m_rx_pkt_ready_list();
+	virtual	size_t get_size_m_rx_pkt_ready_list();
+	virtual	void pop_front_m_rx_pkt_ready_list();
+	virtual	void push_back_m_rx_pkt_ready_list(mem_buf_desc_t* buff);
 };
 #endif

@@ -15,7 +15,6 @@
 #define SOCKET_FD_API_H
 
 #include <sys/socket.h>
-#include <deque>
 #include <vma/vma_extra.h>
 #include <vma/dev/cq_mgr.h>
 #include <vma/dev/buffer_pool.h>
@@ -55,7 +54,7 @@ enum fd_type_t{
 	FD_TYPE_PIPE,
 };
 
-typedef std::deque<mem_buf_desc_t*> vma_desc_list_t;
+typedef vma_list_t<mem_buf_desc_t> vma_desc_list_t;
 
 /**
  *
@@ -183,6 +182,8 @@ public:
 	ssize_t tx_os(const tx_call_t call_type, const iovec* p_iov,
 		      const ssize_t sz_iov, const int __flags,
 		      const sockaddr *__to, const socklen_t __tolen);
+
+	list_node<socket_fd_api> node;
 
 protected:
 	void notify_epoll_context(uint32_t events);

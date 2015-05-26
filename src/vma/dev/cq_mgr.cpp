@@ -498,7 +498,7 @@ bool cq_mgr::compensate_qp_post_recv(mem_buf_desc_t* buff_cur)
 void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 {
 	// Assume locked!!!
-	if (buff->dec_ref_count() <= 0 && (buff->lwip_pbuf.pbuf.ref-- <= 1)) {
+	if (buff->dec_ref_count() <= 1 && (buff->lwip_pbuf.pbuf.ref-- <= 1)) {
 		//we need to verify that the buffer is returned to the right CQ (in case of HA ring's active CQ can change)
 		if (likely(buff->path.rx.context == this)) {
 			mem_buf_desc_t* temp = NULL;
@@ -707,26 +707,28 @@ bool cq_mgr::reclaim_recv_buffers(mem_buf_desc_t *rx_reuse_lst)
     #pragma BullseyeCoverage on
 #endif
 
-bool cq_mgr::reclaim_recv_buffers_no_lock(std::deque<mem_buf_desc_t*> *rx_reuse)
+bool cq_mgr::reclaim_recv_buffers_no_lock(descq_t *rx_reuse)
 {
 	//Assume locked
 	cq_logfuncall("");
 	while (!rx_reuse->empty()) {
-		reclaim_recv_buffer_helper(rx_reuse->front());
+		mem_buf_desc_t* buff = rx_reuse->front();
 		rx_reuse->pop_front();
+		reclaim_recv_buffer_helper(buff);
 	}
 	//return_extra_buffers();
 
 	return true;
 }
 
-bool cq_mgr::reclaim_recv_buffers(std::deque<mem_buf_desc_t*> *rx_reuse)
+bool cq_mgr::reclaim_recv_buffers(descq_t *rx_reuse)
 {
 	cq_logfuncall("");
 	// Called from outside cq_mgr context which is not locked!!
 	while (!rx_reuse->empty()) {
-		reclaim_recv_buffer_helper(rx_reuse->front());
+		mem_buf_desc_t* buff = rx_reuse->front();
 		rx_reuse->pop_front();
+		reclaim_recv_buffer_helper(buff);
 	}
 	return_extra_buffers();
 

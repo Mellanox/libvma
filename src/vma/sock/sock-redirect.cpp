@@ -259,8 +259,6 @@ void dbg_check_if_need_to_send_mcpkt()
 
 void handle_close(int fd, bool cleanup, bool passthrough)
 {
-	std::deque<epfd_info*> epfds;
-	std::deque<epfd_info*>::iterator iter;
 	
 	srdr_logfunc("Cleanup fd=%d", fd);
 
