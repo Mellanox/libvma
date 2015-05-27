@@ -70,36 +70,36 @@ int get_base_interface_name(const char *if_name, char *base_ifname, size_t sz_ba
 	BULLSEYE_EXCLUDE_BLOCK_END
 	memset(base_ifname, 0, sz_base_ifname);
 
-	//Check whether interface name is "vlan#ID"  (Usually used in SLES)
-	if (strstr(if_name, "vlan")) {
-		unsigned char vlan_if_address[ETH_ALEN];
-		get_local_ll_addr(if_name, vlan_if_address, ETH_ALEN, false);
-		struct ifaddrs *ifaddr, *ifa;
+	unsigned char vlan_if_address[MAX_L2_ADDR_LEN];
+	const size_t ADDR_LEN = get_local_ll_addr(if_name, vlan_if_address, MAX_L2_ADDR_LEN, false);
 
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (getifaddrs(&ifaddr) == -1) {
-			__log_err("getifaddrs failed");
-			return -1;
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-
-		for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-			if (ifa->ifa_flags & IFF_SLAVE) {
-				continue;
-			}
-			unsigned char tmp_mac[ETH_ALEN];
-			get_local_ll_addr(ifa->ifa_name, tmp_mac, ETH_ALEN, false);
-			if (!memcmp((const void*) vlan_if_address, (const void*) tmp_mac, ETH_ALEN)) {
-				snprintf(base_ifname, sz_base_ifname, "%s" ,ifa->ifa_name);
-				freeifaddrs(ifaddr);
-				__log_dbg("Found base_ifname %s for vlan interface %s", base_ifname, if_name);
-				return 0;
-			}
-		}
-		__log_err("Failed to find base_ifname for vlan interface %s", if_name);
-		freeifaddrs(ifaddr);
+	struct ifaddrs *ifaddr, *ifa;
+	int rc = getifaddrs(&ifaddr);
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (rc == -1) {
+		__log_err("getifaddrs failed");
 		return -1;
 	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+		if (ifa->ifa_flags & IFF_SLAVE) {
+			continue;
+		}
+		unsigned char tmp_mac[ADDR_LEN];
+		if (ADDR_LEN == get_local_ll_addr(ifa->ifa_name, tmp_mac, ADDR_LEN, false) &&
+						0 == memcmp(vlan_if_address, tmp_mac, ADDR_LEN)) {
+			snprintf(base_ifname, sz_base_ifname, "%s" ,ifa->ifa_name);
+			freeifaddrs(ifaddr);
+			__log_dbg("Found base_ifname %s for interface %s", base_ifname, if_name);
+			return 0;
+		}
+	}
+
+	freeifaddrs(ifaddr);
+	__log_dbg("Did not find base_ifname for if_name =%s. Will try string logic...", if_name);
+
+	// keep old code till we are sure that this is not needed any more since we have the above new code
 	size_t pos = strcspn(if_name,":");
 	if (pos == strlen(if_name))
 		pos = strcspn(if_name,".");
@@ -588,35 +588,24 @@ int get_netmask_from_ifname(const char* ifname, in_addr_t *netmask)
 
 uint16_t get_vlan_id_from_ifname(const char* ifname)
 {
-	// find vlan id from interface name
-	char ifname_tmp[IFNAMSIZ];
+        // find vlan id from interface name
+        struct vlan_ioctl_args ifr;
+        int fd = orig_os_api.socket(AF_INET, SOCK_DGRAM, 0);
 
-	strcpy(ifname_tmp, ifname);
-	strtok(ifname_tmp, ".");
-	char * vid = strtok(NULL, ".");
-	//There is no "." in an interface name
-	if (vid == NULL) {
-		//Check whether interface name includes "vlan"
-		if(strstr(ifname, "vlan")) {
-			strcpy(ifname_tmp, ifname);
-			vid = (char *)strtok(ifname_tmp, "vlan");
-			BULLSEYE_EXCLUDE_BLOCK_START
-			if(vid == NULL){
-				//No vlan!
-				__log_err("Not a vlan interface '%s'", ifname);
-				return 0;
-			}
-			BULLSEYE_EXCLUDE_BLOCK_END
-		}
-		else {
-			//No vlan!
-			__log_dbg("Not a vlan interface '%s'", ifname);
-			return 0;
-		}
-	}
-	uint16_t vlan_id = (uint16_t)atoi(vid);
-	__log_dbg("found vlan id '%d' for interface '%s'", vlan_id, ifname);
-	return vlan_id;
+        memset(&ifr,0, sizeof(ifr));
+        ifr.cmd = GET_VLAN_VID_CMD;
+        strncpy(ifr.device1, ifname, sizeof(ifr.device1));
+
+        if (orig_os_api.ioctl(fd, SIOCGIFVLAN, &ifr) < 0)
+        {
+            __log_warn("Failure in ioctl(SIOCGIFVLAN, cmd=GET_VLAN_VID_CMD) for interface '%s'", ifname);
+            orig_os_api.close(fd);
+            return 0;
+        }
+
+        __log_dbg("found vlan id '%d' for interface '%s'", ifr.u.VID, ifname);
+        orig_os_api.close(fd);
+        return ifr.u.VID;
 }
 
 #if _BullseyeCoverage
@@ -809,41 +798,38 @@ bool get_local_if_info(in_addr_t local_if, char* ifname, unsigned int &ifflags)
 	return ret_val;
 }
 
-bool get_local_ll_addr(IN const char * ifname, OUT unsigned char* addr, IN int addr_len, bool is_broadcast)
+size_t get_local_ll_addr(IN const char * ifname, OUT unsigned char* addr, IN int addr_len, bool is_broadcast)
 {
 	char l2_addr_path[256] = {0};
 	char buf[256] = {0};
-	char ifname_tmp[IFNAMSIZ];
-	char *base_ifname;
 
 	// In case of alias (ib0/eth0:xx) take only the device name for that interface (ib0/eth0)
-	strcpy(ifname_tmp, ifname);
-	base_ifname = strtok(ifname_tmp, ":");
+	size_t ifname_len = strcspn(ifname, ":"); // TODO: this is temp code till we get base interface for any alias format of an interface
+	const char * l2_addr_path_fmt = is_broadcast ? L2_BR_ADDR_FILE_FMT : L2_ADDR_FILE_FMT;
+	snprintf(l2_addr_path, sizeof(l2_addr_path)-1, l2_addr_path_fmt, ifname_len, ifname);
 
-	if (is_broadcast) {
-		sprintf(l2_addr_path, L2_BR_ADDR_FILE, base_ifname);
-	} else {
-		sprintf(l2_addr_path, L2_ADDR_FILE, base_ifname);
-	}
+	int len = priv_read_file(l2_addr_path, buf, sizeof(buf));
+	int bytes_len = (len + 1) / 3; // convert len from semantic of hex format L2 address with ':' delimiter (and optional newline character) into semantic of byte array
+	__log_dbg("ifname=%s un-aliased-ifname=%.*s l2_addr_path=%s l2-addr=%s (addr-bytes_len=%d)", ifname, ifname_len, ifname, l2_addr_path, buf, bytes_len);
+
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (priv_read_file(l2_addr_path, buf, sizeof(buf)) < 0) {
-		return false;
-	}
+	if (len < 0) return 0; // failure in priv_read_file
+	if (addr_len < bytes_len) return 0; // error not enough room was provided by caller
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	if (addr_len == IPOIB_HW_ADDR_LEN) {
+	if (bytes_len == IPOIB_HW_ADDR_LEN) {
 		sscanf(buf, IPOIB_HW_ADDR_SSCAN_FMT, IPOIB_HW_ADDR_SSCAN(addr));
 		__log_dbg("found IB %s address " IPOIB_HW_ADDR_PRINT_FMT " for interface %s", is_broadcast?"BR":"UC", IPOIB_HW_ADDR_PRINT_ADDR(addr), ifname);
 	}
-	else if (addr_len == ETH_ALEN) {
+	else if (bytes_len == ETH_ALEN) {
 		sscanf(buf, ETH_HW_ADDR_SSCAN_FMT, ETH_HW_ADDR_SSCAN(addr));
 		__log_dbg("found ETH %s address" ETH_HW_ADDR_PRINT_FMT " for interface %s", is_broadcast?"BR":"UC", ETH_HW_ADDR_PRINT_ADDR(addr), ifname);
 	}
 	else {
-		return false;
+		return 0; // error
 	}
 
-	return true;
+	return bytes_len; // success
 }
 
 bool get_bond_active_slave_name(IN const char* bond_name, OUT char* active_slave_name, IN int sz)

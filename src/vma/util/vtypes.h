@@ -127,6 +127,7 @@
 #define IPOIB_HEADER			((uint32_t)0x08000000)
 #define IPOIB_ARP_HEADER		((uint32_t)0x08060000)
 #define IPOIB_HW_ADDR_LEN		20
+#define MAX_L2_ADDR_LEN			(MAX(IPOIB_HW_ADDR_LEN, ETH_ALEN))
 #define IPV4_VERSION			0x4
 #define IPV4_HDR_LEN			(sizeof(struct iphdr))
 #define IPV4_HDR_LEN_WORDS		(IPV4_HDR_LEN / sizeof(uint32_t))

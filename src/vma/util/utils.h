@@ -257,7 +257,8 @@ int get_peer_unicast_mac(const in_addr_t p_peer_addr, unsigned char peer_mac[ETH
 
 int get_peer_ipoib_address(const struct sockaddr* p_peer_addr, unsigned char peer_l2[IPOIB_HW_ADDR_LEN]);
 
-bool get_local_ll_addr(const char* ifname, unsigned char* addr, int addr_len,  bool is_broadcast);
+/* Upon success - returns the actual address len in bytes; Upon error - returns zero*/
+size_t get_local_ll_addr(const char* ifname, unsigned char* addr, int addr_len,  bool is_broadcast);
 
 // This function translates the interface ipv4 address to IF name and queries the IF
 // Input params:
