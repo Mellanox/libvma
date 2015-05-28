@@ -598,7 +598,7 @@ uint16_t get_vlan_id_from_ifname(const char* ifname)
 
         if (orig_os_api.ioctl(fd, SIOCGIFVLAN, &ifr) < 0)
         {
-            __log_warn("Failure in ioctl(SIOCGIFVLAN, cmd=GET_VLAN_VID_CMD) for interface '%s'", ifname);
+            __log_dbg("Failure in ioctl(SIOCGIFVLAN, cmd=GET_VLAN_VID_CMD) for interface '%s' (errno=%d %m)", ifname, errno);
             orig_os_api.close(fd);
             return 0;
         }
