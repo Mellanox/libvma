@@ -2874,7 +2874,8 @@ mem_buf_desc_t* sockinfo_tcp::get_next_desc(mem_buf_desc_t *p_desc)
 		//vlog_printf(VLOG_ERROR, "detected chained pbufs! REF %u", p_desc->lwip_pbuf.pbuf.ref);
 		mem_buf_desc_t *prev = p_desc;
 		p_desc = p_desc->p_next_desc;
-		p_desc->lwip_pbuf.pbuf.tot_len = prev->lwip_pbuf.pbuf.tot_len - prev->lwip_pbuf.pbuf.len;
+		prev->path.rx.sz_payload = prev->lwip_pbuf.pbuf.len;
+		p_desc->path.rx.sz_payload = p_desc->lwip_pbuf.pbuf.tot_len = prev->lwip_pbuf.pbuf.tot_len - prev->lwip_pbuf.pbuf.len;
 		p_desc->n_frags = --prev->n_frags;
 		p_desc->path.rx.src = prev->path.rx.src;
 		p_desc->inc_ref_count();
