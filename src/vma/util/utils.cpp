@@ -817,7 +817,7 @@ size_t get_local_ll_addr(IN const char * ifname, OUT unsigned char* addr, IN int
 	if (addr_len < bytes_len) return 0; // error not enough room was provided by caller
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	if (bytes_len == IPOIB_HW_ADDR_LEN) {
+	if (bytes_len == IPOIB_HW_ADDR_LEN && addr_len >= IPOIB_HW_ADDR_LEN) { // addr_len >= IPOIB_HW_ADDR_LEN is just for silencing coverity
 		sscanf(buf, IPOIB_HW_ADDR_SSCAN_FMT, IPOIB_HW_ADDR_SSCAN(addr));
 		__log_dbg("found IB %s address " IPOIB_HW_ADDR_PRINT_FMT " for interface %s", is_broadcast?"BR":"UC", IPOIB_HW_ADDR_PRINT_ADDR(addr), ifname);
 	}
