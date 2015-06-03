@@ -208,7 +208,6 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 {
 	int poll_cnt;
 	poll_cnt = 0;
-	timeval start, current, elapsed;
 
 	lock_tcp_con();
 
@@ -280,14 +279,10 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 	notify_epoll_context(EPOLLHUP);
 
 	//todo should we do this each time we get into prepare_to_close ?
-	memset(&elapsed, 0,sizeof(timeval));
-	gettime(&start);
-	while (tv_to_msec(&elapsed) <= TCP_LINGER_TIME_MSEC && get_tcp_state(&m_pcb) != LISTEN &&
-			(m_pcb.unsent || (m_pcb.unacked && m_pcb.unacked->len))) {
+	if (get_tcp_state(&m_pcb) != LISTEN &&
+		(m_pcb.unsent || (m_pcb.unacked && m_pcb.unacked->len))) {
 		rx_wait(poll_cnt, false);
 		tcp_output(&m_pcb);
-		gettime(&current);
-		tv_sub(&current, &start, &elapsed);
 	}
 
 	unlock_tcp_con();

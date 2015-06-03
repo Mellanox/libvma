@@ -469,7 +469,6 @@ struct mce_sys_var {
 
 #define MAX_STATS_FD_NUM				1024
 #define UNSENT_QUEUEU_SIZE				1024
-#define TCP_LINGER_TIME_MSEC				2000
 #define DISABLE_WINDOW_SCALING				(-1)
 #define USE_OS_WINDOW_SCALING				(-2)
 #define MAX_WINDOW_SCALING				14
