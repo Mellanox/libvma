@@ -695,14 +695,15 @@ void sockinfo_tcp::err_lwip_cb(void *arg, err_t err)
 	}
 
 	/*
-	 * In case we got RESET from the other end we need to marked this socket as ready to read for epoll
+	 * In case we got RST from the other end we need to marked this socket as ready to read for epoll
 	 */
 	if ((conn->m_sock_state == TCP_SOCK_CONNECTED_RD || conn->m_sock_state == TCP_SOCK_CONNECTED_RDWR)
-		&& get_tcp_state(&conn->m_pcb) != ESTABLISHED) {
+		&& PCB_IN_ACTIVE_STATE(&conn->m_pcb)) {
 		if (err == ERR_RST)
 			conn->notify_epoll_context(EPOLLIN|EPOLLRDHUP);
 		else
 			conn->notify_epoll_context(EPOLLIN|EPOLLHUP);
+		io_mux_call::update_fd_array(conn->m_iomux_ready_fd_array, conn->m_fd);
 	}
 
 	conn->m_conn_state = TCP_CONN_FAILED;
