@@ -81,6 +81,15 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 		m_sge[0].addr = (uintptr_t)((uint8_t*)p_pkt + hdr_alignment_diff);
 		m_sge[0].length = total_packet_len;
 
+		/* for DEBUG */
+		if ((uint8_t*)m_sge[0].addr < p_tcp_iov[0].p_desc->p_buffer || (uint8_t*)p_pkt < p_tcp_iov[0].p_desc->p_buffer) {
+			dst_tcp_logerr("p_buffer - addr=%d, m_total_hdr_len=%zd, p_buffer=%p, type=%d, len=%d, tot_len=%d, payload=%p, hdr_alignment_diff=%zd\n",
+					(int)(p_tcp_iov[0].p_desc->p_buffer - (uint8_t*)m_sge[0].addr), m_header.m_total_hdr_len,
+					p_tcp_iov[0].p_desc->p_buffer, p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.type,
+					p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.len, p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.tot_len,
+					p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.payload, hdr_alignment_diff);
+		}
+
 		if (!dont_inline && (total_packet_len < m_max_inline)) { // inline send
 			m_p_send_wqe = &m_inline_send_wqe;
 
@@ -111,6 +120,15 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 		m_sge[0].addr = (uintptr_t)(p_mem_buf_desc->p_buffer + hdr_alignment_diff);
 		m_sge[0].length = total_packet_len - hdr_alignment_diff;
 		// LKey will be updated in ring->send() // m_sge[0].lkey = p_mem_buf_desc->lkey; 
+
+		/* for DEBUG */
+		if ((uint8_t*)m_sge[0].addr < p_mem_buf_desc->p_buffer) {
+			dst_tcp_logerr("p_buffer - addr=%d, m_total_hdr_len=%zd, p_buffer=%p, type=%d, len=%d, tot_len=%d, payload=%p, hdr_alignment_diff=%zd\n",
+					(int)(p_mem_buf_desc->p_buffer - (uint8_t*)m_sge[0].addr), m_header.m_total_hdr_len,
+					p_mem_buf_desc->p_buffer, p_mem_buf_desc->lwip_pbuf.pbuf.type,
+					p_mem_buf_desc->lwip_pbuf.pbuf.len, p_mem_buf_desc->lwip_pbuf.pbuf.tot_len,
+					p_mem_buf_desc->lwip_pbuf.pbuf.payload, hdr_alignment_diff);
+		}
 
 		p_pkt = (tx_packet_template_t*)((uint8_t*)p_mem_buf_desc->p_buffer);
 		p_pkt->hdr.m_ip_hdr.tot_len = (htons)(m_sge[0].length - m_header.m_transport_header_len);
@@ -213,13 +231,15 @@ mem_buf_desc_t* dst_entry_tcp::get_buffer(bool b_blocked /*=false*/)
 	}
 
 	mem_buf_desc_t* p_mem_buf_desc = m_p_tx_mem_buf_desc_list;
-	if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
+	if (unlikely(p_mem_buf_desc == NULL)) {
 		dst_tcp_logfunc("silent packet drop, no buffers!");
 	}
 	else {
 		m_p_tx_mem_buf_desc_list = m_p_tx_mem_buf_desc_list->p_next_desc;
 		p_mem_buf_desc->p_next_desc = NULL;
-		p_mem_buf_desc->lwip_pbuf.pbuf.payload = (u8_t *)p_mem_buf_desc->p_buffer + m_header.m_total_hdr_len;
+		// for TX, set lwip payload to the data segment.
+		// lwip will send it with payload pointing to the tcp header.
+		p_mem_buf_desc->lwip_pbuf.pbuf.payload = (u8_t *)p_mem_buf_desc->p_buffer + m_header.m_aligned_l2_l3_len + sizeof(struct tcphdr);
 	}
 
 	return p_mem_buf_desc;

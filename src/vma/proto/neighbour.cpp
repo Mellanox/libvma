@@ -430,6 +430,15 @@ bool neigh_entry::post_send_tcp(iovec *iov, header *h)
 	m_sge.addr = (uintptr_t)((uint8_t*)p_pkt + hdr_alignment_diff);
 	m_sge.length = total_packet_len;
 
+	/* for DEBUG */
+	if ((uint8_t*)m_sge.addr < p_mem_buf_desc->p_buffer) {
+		neigh_logerr("p_buffer - addr=%d, m_total_hdr_len=%zd, p_buffer=%p, type=%d, len=%d, tot_len=%d, payload=%p, hdr_alignment_diff=%zd\n",
+				(int)(p_mem_buf_desc->p_buffer - (uint8_t*)m_sge.addr), h->m_total_hdr_len,
+				p_mem_buf_desc->p_buffer, p_mem_buf_desc->lwip_pbuf.pbuf.type,
+				p_mem_buf_desc->lwip_pbuf.pbuf.len, p_mem_buf_desc->lwip_pbuf.pbuf.tot_len,
+				p_mem_buf_desc->lwip_pbuf.pbuf.payload, hdr_alignment_diff);
+	}
+
 	m_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
 	m_p_ring->send_ring_buffer(&m_send_wqe, false);
 #ifndef __COVERITY__
