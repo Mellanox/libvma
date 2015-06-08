@@ -83,7 +83,7 @@ int get_base_interface_name(const char *if_name, char *base_ifname, size_t sz_ba
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-		if (ifa->ifa_flags & IFF_SLAVE) {
+		if (ifa->ifa_flags & (IFF_SLAVE | IFF_MASTER)) {
 			continue;
 		}
 		unsigned char tmp_mac[ADDR_LEN];
