@@ -26,14 +26,27 @@
 
 #define rt_entry_logdbg		__log_info_dbg
 
-route_entry::route_entry(route_table_key rtk) :
-	cache_entry_subject<route_table_key,route_val*>(rtk), cache_observer(),
+route_entry::route_entry(route_rule_table_key rtk) :
+	cache_entry_subject<route_rule_table_key,route_val*>(rtk), cache_observer(),
 	m_p_net_dev_entry(NULL),
 	m_p_net_dev_val(NULL),
 	m_b_offloaded_net_dev(false),
 	m_is_valid(false)
 {
 	m_val = NULL;
+	m_p_rr_entry = NULL;
+	cache_entry_subject<route_rule_table_key, std::deque<rule_val*>*>* rr_entry = NULL;
+	g_p_rule_table_mgr->register_observer(rtk, this, &rr_entry);
+	m_p_rr_entry = dynamic_cast<rule_entry*>(rr_entry);
+}
+
+route_entry::~route_entry() 
+{ 
+	unregister_to_net_device(); 
+	if (m_p_rr_entry) {
+		g_p_rule_table_mgr->unregister_observer(get_key(), this);
+		m_p_rr_entry = NULL;
+	}
 }
 
 bool route_entry::get_val(INOUT route_val* &val)
@@ -50,7 +63,7 @@ void route_entry::set_str()
 
 void route_entry::set_val(IN route_val* &val)
 {
-	cache_entry_subject<route_table_key, route_val*>::set_val(val);
+	cache_entry_subject<route_rule_table_key, route_val*>::set_val(val);
 	set_str();
 }
 

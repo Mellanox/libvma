@@ -11,8 +11,8 @@
  */
 
 
-#ifndef RULE_TABLE_KEY_H
-#define RULE_TABLE_KEY_H
+#ifndef ROUTE_RULE_TABLE_KEY_H
+#define ROUTE_RULE_TABLE_KEY_H
 
 #include <stdio.h>
 #include <string>
@@ -22,14 +22,14 @@
 #include <tr1/unordered_map>
 
 /*
-* This class is used as key for rule table cashed history
+* This class is used as key for route and rule table cashed history
 * and its consist from destination IP, source IP and TOS.
 */
-class rule_table_key : public tostr
+class route_rule_table_key : public tostr
 {
 public:
-	rule_table_key(in_addr_t dst_ip, in_addr_t src_ip, uint8_t tos): m_dst_ip(dst_ip), m_src_ip(src_ip), m_tos(tos){};
-	~rule_table_key(){};
+	route_rule_table_key(in_addr_t dst_ip, in_addr_t src_ip, uint8_t tos): m_dst_ip(dst_ip), m_src_ip(src_ip), m_tos(tos){};
+	~route_rule_table_key(){};
 	
 	const std::string to_str() const
 	{
@@ -47,7 +47,7 @@ public:
 	in_addr_t	get_src_ip()	const 	{ return m_src_ip; };
 	uint8_t		get_tos()		const 	{ return m_tos; };
 
-	bool operator==(const rule_table_key &rrk) const { 
+	bool operator==(const route_rule_table_key &rrk) const { 
 	return (m_dst_ip == rrk.get_dst_ip() && m_src_ip == rrk.get_src_ip() && m_tos == rrk.get_tos()); 
 	};
 	
@@ -59,16 +59,16 @@ private:
 
 namespace std { namespace tr1 {
 template<>
-class hash<rule_table_key>
+class hash<route_rule_table_key>
 {
 public:
-	size_t operator()(const rule_table_key &key) const
+	size_t operator()(const route_rule_table_key &key) const
 	{
 		hash<string>hash;
 		char s[40];
 		/*
 		Build string from exist parameter (destination IP, source IP, TOS)
-		which is unique for different rule entries.
+		which is unique for different route-rule entries.
 		*/
 		sprintf(s, "%d.%d.%d.%d", NIPQUAD(key.get_dst_ip()));
 		if (key.get_src_ip())
@@ -81,4 +81,4 @@ public:
 }}
 
 
-#endif /* RULE_TABLE_KEY_H */
+#endif /* ROUTE_RULE_TABLE_KEY_H */

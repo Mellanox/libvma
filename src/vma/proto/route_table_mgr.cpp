@@ -46,7 +46,7 @@
 
 route_table_mgr* g_p_route_table_mgr = NULL;
 
-route_table_mgr::route_table_mgr() : netlink_socket_mgr<route_val>(ROUTE_DATA_TYPE), cache_table_mgr<route_table_key, route_val*>("route_table_mgr")
+route_table_mgr::route_table_mgr() : netlink_socket_mgr<route_val>(ROUTE_DATA_TYPE), cache_table_mgr<route_rule_table_key, route_val*>("route_table_mgr")
 {
 	rt_mgr_logdbg("");
 
@@ -62,8 +62,10 @@ route_table_mgr::route_table_mgr() : netlink_socket_mgr<route_val>(ROUTE_DATA_TY
 		std::tr1::unordered_map<in_addr_t, route_entry*>::iterator iter = m_rte_list_for_each_net_dev.find(src_addr);
 		// if src_addr of interface exists in the map, no need to create another route_entry
 		if (iter == m_rte_list_for_each_net_dev.end()) {
-			//Use main route table on initialize.
-			m_rte_list_for_each_net_dev.insert(pair<in_addr_t, route_entry*> (src_addr, create_new_entry(route_table_key(src_addr, RT_TABLE_MAIN), NULL)));
+			in_addr_t dst_ip	= src_addr;
+			in_addr_t src_ip	= 0;
+			uint8_t tos		= 0;
+			m_rte_list_for_each_net_dev.insert(pair<in_addr_t, route_entry*> (src_addr, create_new_entry(route_rule_table_key(dst_ip, src_ip, tos), NULL)));
 		}
 	}
 
@@ -297,23 +299,30 @@ bool route_table_mgr::find_route_val(in_addr_t &dst, unsigned char table_id, rou
 	return false;
 }
 
-bool route_table_mgr::route_resolve(IN in_addr_t dst, unsigned char table_id, OUT in_addr_t *p_src, OUT in_addr_t *p_gw /*NULL*/)
+bool route_table_mgr::route_resolve(IN route_rule_table_key key, OUT in_addr_t *p_src, OUT in_addr_t *p_gw /*NULL*/)
 {
+	in_addr_t dst = key.get_dst_ip();
 	ip_address dst_addr = dst;
 	rt_mgr_logdbg("dst addr '%s'", dst_addr.to_str().c_str());
 
 	route_val *p_val = NULL;
+	std::deque<unsigned char> table_id_list;
+	
+	g_p_rule_table_mgr->rule_resolve(key, table_id_list);
+
 	auto_unlocker lock(m_lock);
-	if (find_route_val(dst, table_id, p_val)) {
-		if (p_src) {
-			*p_src = p_val->get_src_addr();
-			rt_mgr_logdbg("dst ip '%s' resolved to src addr '%d.%d.%d.%d'", dst_addr.to_str().c_str(), NIPQUAD(*p_src));
+	for (std::deque<unsigned char>::iterator table_id_iter = table_id_list.begin(); table_id_iter != table_id_list.end(); table_id_iter++) {
+		if (find_route_val(dst, *table_id_iter, p_val)) {
+			if (p_src) {
+				*p_src = p_val->get_src_addr();
+				rt_mgr_logdbg("dst ip '%s' resolved to src addr '%d.%d.%d.%d'", dst_addr.to_str().c_str(), NIPQUAD(*p_src));
+			}
+			if (p_gw) {
+				*p_gw = p_val->get_gw_addr();
+				rt_mgr_logdbg("dst ip '%s' resolved to gw addr '%d.%d.%d.%d'", dst_addr.to_str().c_str(), NIPQUAD(*p_gw));
+			}
+			return true;
 		}
-		if (p_gw) {
-			*p_gw = p_val->get_gw_addr();
-			rt_mgr_logdbg("dst ip '%s' resolved to gw addr '%d.%d.%d.%d'", dst_addr.to_str().c_str(), NIPQUAD(*p_gw));
-		}
-		return true;
 	}
 	return false;
 }
@@ -324,38 +333,47 @@ void route_table_mgr::update_entry(INOUT route_entry* p_ent, bool b_register_to_
 	auto_unlocker lock(m_lock);
 	if (p_ent && !p_ent->is_valid()) { //if entry is found in the collection and is not valid
 		rt_mgr_logdbg("route_entry is not valid-> update value");
-		route_val* p_val = NULL;
-		in_addr_t peer_ip = p_ent->get_key().get_in_addr();
-		unsigned char table_id = p_ent->get_key().get_table_id();
-
-		if (find_route_val(peer_ip, table_id, p_val)) {
-			p_ent->set_val(p_val);
-			if (b_register_to_net_dev) {
-				//in_addr_t src_addr = p_val->get_src_addr();
-				//net_device_val* p_ndv = g_p_net_device_table_mgr->get_net_device_val(src_addr);
-				
-				// Check if broadcast IP which is NOT supported
-				if (IS_BROADCAST_N(peer_ip)) {
-					rt_mgr_logdbg("Disabling Offload for route_entry '%s' - this is BC address", p_ent->to_str().c_str());
-					// Need to route traffic to/from OS
-					// Prevent registering of net_device to route entry
-				}
-				// Check if: Local loopback over Ethernet case which was not supported before OFED 2.1
-				/*else if (p_ndv && (p_ndv->get_transport_type() == VMA_TRANSPORT_ETH) &&  (peer_ip == src_addr)) {
-					rt_mgr_logdbg("Disabling Offload for route_entry '%s' - this is an Ethernet unicast loopback route", p_ent->to_str().c_str());
-					// Need to route traffic to/from OS
-					// Prevent registering of net_device to route entry
-				}*/
-				else {
-					// register to net device for bonding events
-					p_ent->register_to_net_device();
+		rule_entry* p_rr_entry = p_ent->get_rule_entry();
+		std::deque<rule_val*>* p_rr_val;
+		if (p_rr_entry && p_rr_entry->get_val(p_rr_val)) {
+			route_val* p_val = NULL;
+			in_addr_t peer_ip = p_ent->get_key().get_dst_ip();
+			unsigned char table_id;
+			for (std::deque<rule_val*>::iterator p_rule_val = p_rr_val->begin(); p_rule_val != p_rr_val->end(); p_rule_val++) {
+				table_id = (*p_rule_val)->get_table_id();
+				if (find_route_val(peer_ip, table_id, p_val)) {
+					p_ent->set_val(p_val);
+					if (b_register_to_net_dev) {
+						//in_addr_t src_addr = p_val->get_src_addr();
+						//net_device_val* p_ndv = g_p_net_device_table_mgr->get_net_device_val(src_addr);
+						
+						// Check if broadcast IP which is NOT supported
+						if (IS_BROADCAST_N(peer_ip)) {
+							rt_mgr_logdbg("Disabling Offload for route_entry '%s' - this is BC address", p_ent->to_str().c_str());
+							// Need to route traffic to/from OS
+							// Prevent registering of net_device to route entry
+						}
+						// Check if: Local loopback over Ethernet case which was not supported before OFED 2.1
+						/*else if (p_ndv && (p_ndv->get_transport_type() == VMA_TRANSPORT_ETH) &&  (peer_ip == src_addr)) {
+							rt_mgr_logdbg("Disabling Offload for route_entry '%s' - this is an Ethernet unicast loopback route", p_ent->to_str().c_str());
+							// Need to route traffic to/from OS
+							// Prevent registering of net_device to route entry
+						}*/
+						else {
+							// register to net device for bonding events
+							p_ent->register_to_net_device();
+						}
+					}
+					// All good, validate the new route entry
+					p_ent->set_entry_valid();
+					break;
+				} else {
+					rt_mgr_logdbg("could not find route val for route_entry '%s in table %u'", p_ent->to_str().c_str(), table_id);
 				}
 			}
-
-			// All good, validate the new route entry
-			p_ent->set_entry_valid();
-		} else {
-			rt_mgr_logdbg("ERROR: could not find route val for route_entry '%s'", p_ent->to_str().c_str());
+		}
+		else {
+			rt_mgr_logdbg("rule entry is not valid");
 		}
 	}
 }
@@ -382,7 +400,7 @@ void route_table_mgr::get_default_gw(in_addr_t *p_gw_ip, int *p_if_index)
 }
 #endif
 
-route_entry* route_table_mgr::create_new_entry(route_table_key key, const observer *obs)
+route_entry* route_table_mgr::create_new_entry(route_rule_table_key key, const observer *obs)
 {
 	// no need for lock - lock is activated in cache_collection_mgr::register_observer
 
@@ -466,7 +484,7 @@ void route_table_mgr::create_route_val_from_info(const netlink_route_info *netli
 void route_table_mgr::update_invalid_entries()
 {
 	route_entry *p_ent;
-	std::tr1::unordered_map<route_table_key, cache_entry_subject<route_table_key, route_val*> *>::iterator cache_itr;
+	std::tr1::unordered_map<route_rule_table_key, cache_entry_subject<route_rule_table_key, route_val*> *>::iterator cache_itr;
 	for (cache_itr = m_cache_tbl.begin(); cache_itr != m_cache_tbl.end(); cache_itr++) {
 		p_ent = (route_entry *)cache_itr->second;
 		if(!p_ent->is_valid()) {

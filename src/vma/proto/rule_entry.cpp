@@ -19,31 +19,20 @@
 #undef  MODULE_HDR_INFO
 #define MODULE_HDR_INFO         MODULE_NAME "[%s]:%d:%s() "
 #undef	__INFO__
-#define __INFO__		m_str.c_str()
+#define __INFO__		to_str().c_str()
 
 #define rr_entry_logdbg		__log_info_dbg
 
-rule_entry::rule_entry(rule_table_key rrk) :
-	cache_entry_subject<rule_table_key, rule_val*>(rrk),
-	m_is_valid(false)
+rule_entry::rule_entry(route_rule_table_key rrk) :
+	cache_entry_subject<route_rule_table_key, std::deque<rule_val*>*>(rrk)
 {
-	m_val = NULL;
+	m_val = &values;
 }
 
-bool rule_entry::get_val(INOUT rule_val* &val)
+bool rule_entry::get_val(INOUT std::deque<rule_val*>* &val)
 {
 	rr_entry_logdbg("");
 	val = m_val;
 	return is_valid();
 }
 
-void rule_entry::set_str()
-{
-	m_str = get_key().to_str() ;
-}
-
-void rule_entry::set_val(IN rule_val* &val)
-{
-	cache_entry_subject<rule_table_key, rule_val*>::set_val(val);
-	set_str();
-}

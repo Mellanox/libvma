@@ -1442,21 +1442,21 @@ void do_global_ctors()
 		BULLSEYE_EXCLUDE_BLOCK_END
 	}
 
+	if (!g_p_rule_table_mgr) {
+		g_p_rule_table_mgr = new rule_table_mgr();
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (g_p_rule_table_mgr == NULL) {
+			vlog_printf(VLOG_PANIC, "Failed allocate rule_table_mgr");
+		}
+		BULLSEYE_EXCLUDE_BLOCK_END
+	}
+	
 	if (!g_p_route_table_mgr) {
 		g_p_route_table_mgr = new route_table_mgr();
 
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (g_p_route_table_mgr == NULL) {
 			vlog_printf(VLOG_PANIC, "Failed allocate route_table_mgr");
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-	}
-
-	if (!g_p_rule_table_mgr) {
-		g_p_rule_table_mgr = new rule_table_mgr();
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (g_p_rule_table_mgr == NULL) {
-			vlog_printf(VLOG_PANIC, "Failed allocate rule_table_mgr");
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 	}
@@ -1671,12 +1671,12 @@ extern "C" int main_destroy(void)
 
 	usleep(50000);
 
-	if (g_p_rule_table_mgr) delete g_p_rule_table_mgr;
-	g_p_rule_table_mgr = NULL;
-
 	if (g_p_route_table_mgr) delete g_p_route_table_mgr;
 	g_p_route_table_mgr = NULL;
 
+	if (g_p_rule_table_mgr) delete g_p_rule_table_mgr;
+	g_p_rule_table_mgr = NULL;
+	
 	//if(g_p_net_device_table_mgr) delete g_p_net_device_table_mgr;
 	//g_p_net_device_table_mgr = NULL;
 

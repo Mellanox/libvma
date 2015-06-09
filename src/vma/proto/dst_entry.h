@@ -24,7 +24,6 @@
 #include "vma/sock/socket_fd_api.h"
 #include "vma/proto/route_entry.h"
 #include "vma/proto/route_val.h"
-#include "vma/proto/rule_entry.h"
 #include "vma/proto/neighbour_table_mgr.h"
 #include "vma/dev/net_device_val.h"
 #include "vma/dev/net_device_table_mgr.h"
@@ -87,8 +86,6 @@ protected:
 	wqe_send_handler*	m_p_send_wqe_handler;
 	ibv_sge 		m_sge[2];
 	uint8_t 		m_num_sge;
-	rule_entry*		m_p_rr_entry;
-	rule_val*		m_p_rr_val;
 	route_entry*		m_p_rt_entry;
 	route_val*		m_p_rt_val;
 	net_device_entry*	m_p_net_dev_entry;

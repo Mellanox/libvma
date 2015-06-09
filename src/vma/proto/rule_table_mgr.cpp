@@ -47,7 +47,7 @@
 	
 rule_table_mgr* g_p_rule_table_mgr = NULL;
 
-rule_table_mgr::rule_table_mgr() : netlink_socket_mgr<rule_val>(RULE_DATA_TYPE), cache_table_mgr<rule_table_key, rule_val*>("rule_table_mgr")
+rule_table_mgr::rule_table_mgr() : netlink_socket_mgr<rule_val>(RULE_DATA_TYPE), cache_table_mgr<route_rule_table_key, std::deque<rule_val*>*>("rule_table_mgr")
 {
 
 	rr_mgr_logdbg("");
@@ -139,7 +139,7 @@ void rule_table_mgr::parse_attr(struct rtattr *rt_attribute, rule_val *p_val)
 //		key		: key object that contain information about destination.
 //		obs		: object that contain observer for specific rule entry.
 //	Returns created rule entry object.
-rule_entry* rule_table_mgr::create_new_entry(rule_table_key key, const observer *obs)
+rule_entry* rule_table_mgr::create_new_entry(route_rule_table_key key, const observer *obs)
 {
 	rr_mgr_logdbg("");
 	NOT_IN_USE(obs);
@@ -160,14 +160,10 @@ void rule_table_mgr::update_entry(rule_entry* p_ent)
 	if (p_ent && !p_ent->is_valid()) { //if entry is found in the collection and is not valid
 		
 		rr_mgr_logdbg("rule_entry is not valid-> update value");
-		rule_val* p_rrv = NULL;
-		
-		if (find_rule_val(p_ent->get_key(), p_rrv)) {
-			p_ent->set_val(p_rrv);
-			// All good, validate the new rule entry
-			p_ent->set_entry_valid();
-		}
-		else {
+		std::deque<rule_val*>* p_rrv;
+		p_ent->get_val(p_rrv);
+		/* p_rrv->clear(); TODO for future rule live updates */
+		if (!find_rule_val(p_ent->get_key(), p_rrv)) {
 			rr_mgr_logdbg("ERROR: could not find rule val for rule_entry '%s'", p_ent->to_str().c_str());
 		}
 	} 
@@ -176,22 +172,21 @@ void rule_table_mgr::update_entry(rule_entry* p_ent)
 // Find rule form rule table that match given destination info. 
 // Parameters: 
 //		key		: key object that contain information about destination.
-//		p_val	: rule_val object that will contain information about first rule that match destination info    
+//		p_val	: list of rule_val object that will contain information about all rule that match destination info    
 // Returns true if at least one rule match destination info, false otherwise.
-bool rule_table_mgr::find_rule_val(rule_table_key key, rule_val* &p_val)
+bool rule_table_mgr::find_rule_val(route_rule_table_key key, std::deque<rule_val*>* &p_val)
 {
 	rr_mgr_logfunc("destination info :", key.to_str().c_str());
 
 	for (int index = 0; index < m_tab.entries_num; index++) {
 		rule_val* p_val_from_tbl = &m_tab.value[index];
-		if (is_matching_rule(key, p_val_from_tbl)) {
-		p_val = p_val_from_tbl;
-		rr_mgr_logdbg("found rule val[%p]: %s", p_val, p_val->to_str());
-		return true;
+		if (p_val_from_tbl->is_valid() && is_matching_rule(key, p_val_from_tbl)) {
+			p_val->push_back(p_val_from_tbl);
+			rr_mgr_logdbg("found rule val[%p]: %s", p_val_from_tbl, p_val_from_tbl->to_str());
 		}
 	}
 
-	return false;
+	return !p_val->empty();
 }
 
 // Check matching between given destination info. and specific rule from rule table. 
@@ -199,7 +194,7 @@ bool rule_table_mgr::find_rule_val(rule_table_key key, rule_val* &p_val)
 //		key		: key object that contain information about destination.
 //		p_val	: rule_val object that contain information about specific rule from rule table   
 // Returns true if destination info match rule value, false otherwise.
-bool rule_table_mgr::is_matching_rule(rule_table_key key, rule_val* p_val)
+bool rule_table_mgr::is_matching_rule(route_rule_table_key key, rule_val* p_val)
 {
 
 	in_addr_t	m_dst_ip	= key.get_dst_ip();
@@ -237,20 +232,22 @@ bool rule_table_mgr::is_matching_rule(rule_table_key key, rule_val* p_val)
 // Find table ID for given destination info.
 // Parameters: 
 //		key			: key object that contain information about destination.
-//		table_id	: object that will contain table ID for first rule that match destination info   
+//		table_id_list	: list that will contain table ID for all rule that match destination info   
 // Returns true if at least one rule match destination info, false otherwise.
-bool rule_table_mgr::rule_resolve(rule_table_key key, unsigned char *table_id)
+bool rule_table_mgr::rule_resolve(route_rule_table_key key, std::deque<unsigned char> &table_id_list)
 {
 	rr_mgr_logdbg("dst info: '%s'", key.to_str().c_str());
 
-	rule_val *p_val = NULL;
+	std::deque<rule_val*> values;
+	std::deque<rule_val*>* p_values = &values;
 	auto_unlocker lock(m_lock);
-	if (find_rule_val(key, p_val)) {
-		*table_id = p_val->get_table_id();
-		rr_mgr_logdbg("dst info: '%s' resolved to table ID '%u'", key.to_str().c_str(), (*table_id));
-		return true;
+	if (find_rule_val(key, p_values)) {
+		for (std::deque<rule_val*>::iterator val = values.begin(); val != values.end(); val++) {
+			table_id_list.push_back((*val)->get_table_id());
+			rr_mgr_logdbg("dst info: '%s' resolved to table ID '%u'", key.to_str().c_str(), (*val)->get_table_id());
+		}
 	}
 	
-	return false;
+	return !table_id_list.empty();
 }
 

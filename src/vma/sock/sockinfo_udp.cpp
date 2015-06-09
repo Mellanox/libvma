@@ -653,19 +653,14 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					in_addr_t dst_ip	= mc_grp;
 					in_addr_t src_ip	= 0;
 					uint8_t tos		= 0;
-					uint8_t table_id 	= 0;
 					
 					if (!m_bound.is_anyaddr() && !m_bound.is_mc()) {
 						src_ip = m_bound.get_in_addr();
 					}else if (m_so_bindtodevice_ip) {
 						src_ip = m_so_bindtodevice_ip;
 					}
-					if (!g_p_rule_table_mgr->rule_resolve(rule_table_key(dst_ip, src_ip, tos), &table_id))
-					{
-						si_udp_logdbg("Unable to find table ID : No rule match destination Info");
-					}
 					// Find local if for this MC ADD/DROP
-					g_p_route_table_mgr->route_resolve(mc_grp, table_id, &mc_if);
+					g_p_route_table_mgr->route_resolve(route_rule_table_key(dst_ip, src_ip, tos), &mc_if);
 					si_udp_logdbg("IPPROTO_IP, %s=%d.%d.%d.%d, mc_if:INADDR_ANY (resolved to: %d.%d.%d.%d)", setsockopt_ip_opt_to_str(__optname), NIPQUAD(mc_grp), NIPQUAD(mc_if));
 				}
 				else {
@@ -1877,19 +1872,14 @@ int sockinfo_udp::mc_change_membership(const struct ip_mreq *p_mreq, int optname
 		in_addr_t dst_ip	= mc_grp;
 		in_addr_t src_ip	= 0;
 		uint8_t tos		= 0;
-		uint8_t table_id 	= 0;
 		
 		if (!m_bound.is_anyaddr() && !m_bound.is_mc()) {
 			src_ip = m_bound.get_in_addr();
 		}else if (m_so_bindtodevice_ip) {
 			src_ip = m_so_bindtodevice_ip;
 		}
-		if (!g_p_rule_table_mgr->rule_resolve(rule_table_key(dst_ip, src_ip, tos), &table_id))
-		{
-			si_udp_logdbg("Unable to find table ID : No rule match destination Info");
-		}
 		// Find local if for this MC ADD/DROP
-		g_p_route_table_mgr->route_resolve(mc_grp, table_id, &mc_if);
+		g_p_route_table_mgr->route_resolve(route_rule_table_key(dst_ip, src_ip, tos), &mc_if);
 	}
 
 	// MNY: TODO: Check rules for local_if (blacklist interface feature)
