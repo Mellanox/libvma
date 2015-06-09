@@ -1,3 +1,17 @@
+Version 7.0.0-0:
+Date + Time 2015-6-09
+=======================
+Added:
+        - RM #549313 Improve latency spikes in connection establishment
+        - RM #553380 Improve high jitter on close
+
+Fixed:
+        - RM #550706 vlan not using the naming conventions
+        - RM #548134 error: ~sockinfo() not all buffers were freed for TCP
+        - RM #554592 connection hangs in closed state when using epoll
+        - RM #548131 cqe status is Local Protection Error
+        - RM #551630 VMA not reading routing tables properly
+
 Version 6.9.1-0:
 Date + Time 2015-5-21
 =======================
