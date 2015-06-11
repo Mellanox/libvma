@@ -73,30 +73,32 @@ int get_base_interface_name(const char *if_name, char *base_ifname, size_t sz_ba
 	unsigned char vlan_if_address[MAX_L2_ADDR_LEN];
 	const size_t ADDR_LEN = get_local_ll_addr(if_name, vlan_if_address, MAX_L2_ADDR_LEN, false);
 
-	struct ifaddrs *ifaddr, *ifa;
-	int rc = getifaddrs(&ifaddr);
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (rc == -1) {
-		__log_err("getifaddrs failed");
-		return -1;
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-
-	for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-		if (ifa->ifa_flags & (IFF_SLAVE | IFF_MASTER)) {
-			continue;
+	if (ADDR_LEN > 0) {
+		struct ifaddrs *ifaddr, *ifa;
+		int rc = getifaddrs(&ifaddr);
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (rc == -1) {
+			__log_err("getifaddrs failed");
+			return -1;
 		}
-		unsigned char tmp_mac[ADDR_LEN];
-		if (ADDR_LEN == get_local_ll_addr(ifa->ifa_name, tmp_mac, ADDR_LEN, false) &&
-						0 == memcmp(vlan_if_address, tmp_mac, ADDR_LEN)) {
-			snprintf(base_ifname, sz_base_ifname, "%s" ,ifa->ifa_name);
-			freeifaddrs(ifaddr);
-			__log_dbg("Found base_ifname %s for interface %s", base_ifname, if_name);
-			return 0;
-		}
-	}
+		BULLSEYE_EXCLUDE_BLOCK_END
 
-	freeifaddrs(ifaddr);
+		for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+			if (ifa->ifa_flags & (IFF_SLAVE | IFF_MASTER)) {
+				continue;
+			}
+			unsigned char tmp_mac[ADDR_LEN];
+			if (ADDR_LEN == get_local_ll_addr(ifa->ifa_name, tmp_mac, ADDR_LEN, false) &&
+							0 == memcmp(vlan_if_address, tmp_mac, ADDR_LEN)) {
+				snprintf(base_ifname, sz_base_ifname, "%s" ,ifa->ifa_name);
+				freeifaddrs(ifaddr);
+				__log_dbg("Found base_ifname %s for interface %s", base_ifname, if_name);
+				return 0;
+			}
+		}
+
+		freeifaddrs(ifaddr);
+	}
 	__log_dbg("Did not find base_ifname for if_name =%s. Will try string logic...", if_name);
 
 	// keep old code till we are sure that this is not needed any more since we have the above new code
