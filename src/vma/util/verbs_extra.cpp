@@ -60,12 +60,12 @@ const char* priv_ibv_event_desc_str(enum ibv_event_type type)
 	case IBV_EVENT_CQ_ERR:			return "CQ_ERR";
 	case IBV_EVENT_QP_FATAL:		return "QP_FATAL";
 	case IBV_EVENT_QP_REQ_ERR:		return "QP_REQ_ERR";
-	case IBV_EVENT_QP_ACCESS_ERR:		return "QP_ACCESS_ERR";
+	case IBV_EVENT_QP_ACCESS_ERR:	return "QP_ACCESS_ERR";
 	case IBV_EVENT_COMM_EST:		return "COMM_EST";
 	case IBV_EVENT_SQ_DRAINED:		return "SQ_DRAINED";
 	case IBV_EVENT_PATH_MIG:		return "PATH_MIG";
-	case IBV_EVENT_PATH_MIG_ERR:		return "PATH_MIG_ERR";
-	case IBV_EVENT_DEVICE_FATAL:		return "DEVICE_FATAL";
+	case IBV_EVENT_PATH_MIG_ERR:	return "PATH_MIG_ERR";
+	case IBV_EVENT_DEVICE_FATAL:	return "DEVICE_FATAL";
 	case IBV_EVENT_PORT_ACTIVE:		return "PORT_ACTIVE";
 	case IBV_EVENT_PORT_ERR:		return "PORT_ERR";
 	case IBV_EVENT_LID_CHANGE:		return "LID_CHANGE";
@@ -75,6 +75,7 @@ const char* priv_ibv_event_desc_str(enum ibv_event_type type)
 	case IBV_EVENT_SRQ_LIMIT_REACHED:	return "SRQ_LIMIT_REACHED";
 	case IBV_EVENT_QP_LAST_WQE_REACHED:	return "QP_LAST_WQE_REACHED";
 	case IBV_EVENT_CLIENT_REREGISTER:	return "CLIENT_REREGISTER";
+	case IBV_EVENT_GID_CHANGE:		return "GID_CHANGE";
 	default:				break;
 	}
 	return "UNKNOWN";

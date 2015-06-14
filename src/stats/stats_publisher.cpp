@@ -221,6 +221,7 @@ success:
 	MAP_SH_MEM(g_sh_mem, p_shmem);
 	
 	write_version_details_to_shmem(&g_sh_mem->ver_info);
+	memcpy(g_sh_mem->stats_protocol_ver, STATS_PROTOCOL_VER, min(sizeof(g_sh_mem->stats_protocol_ver), sizeof(STATS_PROTOCOL_VER)));
 	g_sh_mem->max_skt_inst_num = mce_sys.stats_fd_num_max;
         g_sh_mem->reader_counter = 0;
 	vlog_printf(VLOG_DEBUG, "%s: file '%s' fd %d shared memory at %p with %d max blocks\n", __func__, g_sh_mem_info.filename_sh_stats, g_sh_mem_info.fd_sh_stats, g_sh_mem_info.p_sh_stats, mce_sys.stats_fd_num_max);

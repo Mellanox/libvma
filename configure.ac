@@ -56,6 +56,11 @@ AC_SUBST(LIBALIC_FLAG)
 with_debug_info=yes
 with_debug=no
 
+STATS_PROTOCOL_VER=`md5sum src/vma/util/vma_stats.h | awk '{ print $1}'`
+AC_DEFINE_UNQUOTED(STATS_PROTOCOL_VER, "${STATS_PROTOCOL_VER}", [Stats Protocol Version])
+AC_SUBST(STATS_PROTOCOL_VER)
+
+
 OS=`cat /etc/issue | awk '{ print $3}'`
 OFED_VERSION=`ofed_info | grep "^OFED" | cut -d '-' -f 2,3 | cut -d '-' -f 2| sed 's/\.//'`
 AC_DEFINE_UNQUOTED(OFED_VERSION, ${OFED_VERSION}, [OFED Version])

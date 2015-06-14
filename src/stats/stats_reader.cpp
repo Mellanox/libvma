@@ -1437,18 +1437,32 @@ int  init_print_process_stats(sh_mem_info_t & sh_mem_info)
 		close(sh_mem_info.fd_sh_stats);
 		return 1;
 	}
-	if (!check_vma_ver_compatability(&sh_mem->ver_info)) {
-		log_err("Version %d.%d.%d.%d is not compatible with VMA version %d.%d.%d.%d\n",
-		        VMA_LIBRARY_MAJOR, VMA_LIBRARY_MINOR,
-			VMA_LIBRARY_REVISION, VMA_LIBRARY_RELEASE,
-			sh_mem->ver_info.vma_lib_maj, sh_mem->ver_info.vma_lib_min,
-			sh_mem->ver_info.vma_lib_rev, sh_mem->ver_info.vma_lib_rel);
+
+	int version_check = 1;
+	if (sizeof(STATS_PROTOCOL_VER) > 1) {
+		if (memcmp(sh_mem->stats_protocol_ver, STATS_PROTOCOL_VER, min(sizeof(sh_mem->stats_protocol_ver), sizeof(STATS_PROTOCOL_VER)))) {
+			log_err("Version %s is not compatible with stats protocol version %s\n",
+					STATS_PROTOCOL_VER, sh_mem->stats_protocol_ver);
+			version_check = 0;
+		}
+	} else {
+		if (!check_vma_ver_compatability(&sh_mem->ver_info)) {
+			log_err("Version %d.%d.%d.%d is not compatible with VMA version %d.%d.%d.%d\n",
+					VMA_LIBRARY_MAJOR, VMA_LIBRARY_MINOR,
+					VMA_LIBRARY_REVISION, VMA_LIBRARY_RELEASE,
+					sh_mem->ver_info.vma_lib_maj, sh_mem->ver_info.vma_lib_min,
+					sh_mem->ver_info.vma_lib_rev, sh_mem->ver_info.vma_lib_rel);
+			version_check = 0;
+		}
+	}
+	if (!version_check) {
 		if (munmap(sh_mem_info.p_sh_stats, sizeof(sh_mem_t)) != 0) {
-			log_system_err("file='%s' sh_mem_info.fd_sh_stats=%d; error while munmap shared memory at [%p]\n", sh_mem_info.filename_sh_stats, sh_mem_info.fd_sh_stats, sh_mem_info.p_sh_stats);
+				log_system_err("file='%s' sh_mem_info.fd_sh_stats=%d; error while munmap shared memory at [%p]\n", sh_mem_info.filename_sh_stats, sh_mem_info.fd_sh_stats, sh_mem_info.p_sh_stats);
 		}
 		close(sh_mem_info.fd_sh_stats);
 		return 1;
 	}
+
 	sh_mem_info.shmem_size = SHMEM_STATS_SIZE(sh_mem->max_skt_inst_num);
 	if (munmap(sh_mem_info.p_sh_stats, sizeof(sh_mem_t)) != 0) {
 		log_system_err("file='%s' sh_mem_info.fd_sh_stats=%d; error while munmap shared memory at [%p]\n", sh_mem_info.filename_sh_stats, sh_mem_info.fd_sh_stats, sh_mem_info.p_sh_stats);

@@ -62,7 +62,7 @@ using namespace std;
 #define NUM_OF_SUPPORTED_CQS 		8 
 #define NUM_OF_SUPPORTED_RINGS 		8
 #define NUM_OF_SUPPORTED_EPFDS          15
-#define MIN_STATS_SIZE	 		((sizeof(uint32_t)  + sizeof(size_t) + 6*sizeof(uint8_t) + sizeof(ring_instance_block_t)*NUM_OF_SUPPORTED_RINGS + sizeof(cq_instance_block_t)*NUM_OF_SUPPORTED_CQS + sizeof(mc_grp_info_t) + sizeof(iomux_stats_t)))
+#define MIN_STATS_SIZE	 		((sizeof(uint32_t)  + sizeof(size_t) + 6*sizeof(uint8_t) + sizeof(ring_instance_block_t)*NUM_OF_SUPPORTED_RINGS + sizeof(cq_instance_block_t)*NUM_OF_SUPPORTED_CQS + sizeof(mc_grp_info_t) + sizeof(iomux_stats_t) + 32*sizeof(char)))
 #define SHMEM_STATS_SIZE(fds_num)	MIN_STATS_SIZE + (fds_num * sizeof(socket_instance_block_t))
 #define FILE_NAME_MAX_SIZE		256
 #define MC_TABLE_SIZE			1024
@@ -257,8 +257,9 @@ typedef struct {
 } version_info_t;
 
 typedef struct sh_mem_t {
-        int                            reader_counter; //only copy to shm upon active reader
+    int                            reader_counter; //only copy to shm upon active reader
 	version_info_t			ver_info;
+	char		stats_protocol_ver[32];
 	size_t				max_skt_inst_num;
 	uint8_t				log_level;
 	uint8_t 			log_details_level;
