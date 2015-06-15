@@ -126,6 +126,7 @@ int sockinfo::fcntl(int __cmd, unsigned long int __arg)
 		si_logfunc("cmd=%d, arg=%#x", __cmd, __arg);
 		break;
 	}
+	si_logdbg("going to OS for fcntl cmd=%d, arg=%#x", __cmd, __arg);
 	return orig_os_api.fcntl(m_fd, __cmd, __arg);
 }
 
@@ -146,10 +147,11 @@ int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg)
 		break;
 
 	default:
-	        si_logdbg("unimplemented ioctl request=%d, flags=%x", __request, __arg);
+	        si_logfunc("unimplemented ioctl request=%d, flags=%x", __request, __arg);
 		break;
 	}
 
+	si_logdbg("going to OS for ioctl request=%d, flags=%x", __request, __arg);
 	return orig_os_api.ioctl(m_fd, __request, __arg);
 }
 

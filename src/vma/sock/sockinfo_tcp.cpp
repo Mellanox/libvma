@@ -2428,6 +2428,61 @@ bad_state:
 #define TCP_INFO         11     /* Information about this connection. */
 #define TCP_QUICKACK     12     /* Bock/reenable quick ACKs.  */
 
+int sockinfo_tcp::fcntl(int __cmd, unsigned long int __arg)
+{
+	if (!mce_sys.avoid_sys_calls_on_tcp_fd || isPassthrough())
+		return sockinfo::fcntl(__cmd, __arg);
+
+	switch (__cmd) {
+	case F_SETFL:		/* Set file status flags.  */
+		{
+			si_tcp_logdbg("cmd=F_SETFL, arg=%#x", __arg);
+			if (__arg & O_NONBLOCK)
+				set_blocking(false);
+			else
+				set_blocking(true);
+			return 0;
+		}
+		break;
+	case F_GETFL:		/* Get file status flags.  */
+		{
+			si_tcp_logdbg("cmd=F_GETFL");
+			if (m_b_blocking)
+				return O_NONBLOCK;
+			else
+				return 0;
+		}
+		break;
+	default:
+		break;
+	}
+	return sockinfo::fcntl(__cmd, __arg);
+}
+
+int sockinfo_tcp::ioctl(unsigned long int __request, unsigned long int __arg)
+{
+	if (!mce_sys.avoid_sys_calls_on_tcp_fd || isPassthrough())
+		return sockinfo::ioctl(__request, __arg);
+
+	int *p_arg = (int *)__arg;
+
+	switch (__request) {
+	case FIONBIO:
+		{
+			si_tcp_logdbg("request=FIONBIO, arg=%d", *p_arg);
+			if (*p_arg)
+				set_blocking(false);
+			else
+				set_blocking(true);
+			return 0;
+		}
+		break;
+	default:
+		break;
+	}
+	return sockinfo::ioctl(__request, __arg);
+}
+
 void sockinfo_tcp::fit_rcv_wnd(unsigned int new_max_rcv_buff)
 {
 	unsigned int max_wnd = new_max_rcv_buff;
@@ -2468,10 +2523,13 @@ void sockinfo_tcp::fit_snd_bufs_to_nagle(bool disable_nagle)
 	}
 }
 
+#define SOCKOPT_NO_OFFLOAD_SUPPORT -2
 int sockinfo_tcp::setsockopt(int __level, int __optname,
                               __const void *__optval, socklen_t __optlen)
 {
-	int val, ret;
+	//todo check optlen and set proper errno on failure
+
+	int val, ret = 0;
 
 	if (__level == IPPROTO_TCP) {
 		switch(__optname) {
@@ -2487,6 +2545,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			unlock_tcp_con();
 			break;	
 		default:
+			ret = SOCKOPT_NO_OFFLOAD_SUPPORT;
 			break;	
 		}
 	}
@@ -2494,6 +2553,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 		switch(__optname) {
 		case SO_REUSEADDR:
 			val = *(int *)__optval;
+			si_tcp_logdbg("(SO_REUSEADDR) val: %d", val);
 			if (val) 
 				m_pcb.so_options |= SOF_REUSEADDR;
 			else
@@ -2501,6 +2561,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			break;
 		case SO_KEEPALIVE:
 			val = *(int *)__optval;
+			si_tcp_logdbg("(SO_KEEPALIVE) val: %d", val);
 			if (val) 
 				m_pcb.so_options |= SOF_KEEPALIVE;
 			else
@@ -2521,49 +2582,54 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			si_tcp_logdbg("setsockopt SO_SNDBUF: %d", m_sndbuff_max);
 			break;
                 case SO_RCVTIMEO:
-                        if (__optval) {
-                            struct timeval* tv = (struct timeval*)__optval;
-                            if (tv->tv_sec || tv->tv_usec)
-                        	    m_loops_timer.set_timeout_msec(tv->tv_sec*1000 + (tv->tv_usec ? tv->tv_usec/1000 : 0));
-                            else
-                        	    m_loops_timer.set_timeout_msec(-1);
-                            si_tcp_logdbg("SOL_SOCKET: SO_RCVTIMEO=%d", m_loops_timer.get_timeout_msec());
-
-                        }
-			break;
-
-                case SO_BINDTODEVICE:
-                	if (__optval) {
-                		struct sockaddr_in sockaddr;
-                		if (__optlen == 0 || ((char*)__optval)[0] == '\0') {
-                			m_so_bindtodevice_ip = 0;
-                		} else if (get_ipv4_from_ifname((char*)__optval, &sockaddr)) {
-                			si_tcp_logdbg("SOL_SOCKET, SO_BINDTODEVICE - NOT HANDLED, cannot find if_name");
-                			break;
-                		} else {
-                			m_so_bindtodevice_ip = sockaddr.sin_addr.s_addr;
-                		}
-                		// handle TX side
-                		if (m_p_connected_dst_entry) {
-					if (m_p_connected_dst_entry->is_offloaded()) {
-                				si_tcp_logdbg("SO_BINDTODEVICE will not work on already offloaded TCP socket");
-						return -1;
-                			} else {
-                				m_p_connected_dst_entry->set_so_bindtodevice_addr(m_so_bindtodevice_ip);
-					}
-                		}
-                		// TODO handle RX side
+                {
+                	if (__optlen < sizeof(struct timeval)) {
+                		errno = EINVAL;
+                		break;
                 	}
-                	else {
-                		si_tcp_logdbg("SOL_SOCKET, SO_BINDTODEVICE - NOT HANDLED, optval == NULL");
-                	}
+                	struct timeval* tv = (struct timeval*)__optval;
+                	if (tv->tv_sec || tv->tv_usec)
+                		m_loops_timer.set_timeout_msec(tv->tv_sec*1000 + (tv->tv_usec ? tv->tv_usec/1000 : 0));
+                	else
+                		m_loops_timer.set_timeout_msec(-1);
+                	si_tcp_logdbg("SOL_SOCKET: SO_RCVTIMEO=%d", m_loops_timer.get_timeout_msec());
                 	break;
-
+                }
+                case SO_BINDTODEVICE:
+                	struct sockaddr_in sockaddr;
+                	if (__optlen == 0 || ((char*)__optval)[0] == '\0') {
+                		m_so_bindtodevice_ip = 0;
+                	} else if (get_ipv4_from_ifname((char*)__optval, &sockaddr)) {
+                		si_tcp_logdbg("SOL_SOCKET, SO_BINDTODEVICE - NOT HANDLED, cannot find if_name");
+                		errno = EINVAL;
+                		ret = -1;
+                		break;
+                	} else {
+                		m_so_bindtodevice_ip = sockaddr.sin_addr.s_addr;
+                	}
+                	// handle TX side
+                	if (m_p_connected_dst_entry) {
+                		if (m_p_connected_dst_entry->is_offloaded()) {
+                			si_tcp_logdbg("SO_BINDTODEVICE will not work on already offloaded TCP socket");
+                			errno = EINVAL;
+                			return -1;
+                		} else {
+                			m_p_connected_dst_entry->set_so_bindtodevice_addr(m_so_bindtodevice_ip);
+                		}
+                	}
+                	// TODO handle RX side
+                	si_tcp_logdbg("(SO_BINDTODEVICE) interface=%s", (char*)__optval);
+                	break;
 		default:
+			ret = SOCKOPT_NO_OFFLOAD_SUPPORT;
 			break;
 		}
 	}
-	si_tcp_logdbg("level %d optname %d", __level, __optname);
+
+	if (mce_sys.avoid_sys_calls_on_tcp_fd && ret != SOCKOPT_NO_OFFLOAD_SUPPORT && !isPassthrough())
+		return ret;
+
+	si_tcp_logdbg("going to OS for setsockopt level %d optname %d", __level, __optname);
         ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
         BULLSEYE_EXCLUDE_BLOCK_START
         if (ret) {
@@ -2573,10 +2639,123 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
         return ret;
 }
 
+int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
+					socklen_t *__optlen)
+{
+	int ret = -1;
+
+	if (!__optval || !__optlen) {
+		errno = EFAULT;
+		return ret;
+	}
+
+	if (__level == IPPROTO_TCP) {
+		switch(__optname) {
+		case TCP_NODELAY:
+        		if (*__optlen >= sizeof(int)) {
+        			*(int *)__optval = tcp_nagle_disabled(&m_pcb);
+        			si_tcp_logdbg("(TCP_NODELAY) nagle: %d", *(int *)__optval);
+        			ret = 0;
+        		} else {
+        			errno = EINVAL;
+        		}
+        		break;
+		default:
+			ret = SOCKOPT_NO_OFFLOAD_SUPPORT;
+			break;
+		}
+	}
+
+        if (__level == SOL_SOCKET) {
+        	switch(__optname) {
+        	case SO_ERROR:
+        		if (*__optlen >= sizeof(int)) {
+        			*(int *)__optval = m_error_status;
+        			si_tcp_logdbg("(SO_ERROR) status: %d", m_error_status);
+        			m_error_status = 0;
+        			ret = 0;
+        		} else {
+        			errno = EINVAL;
+        		}
+        		break;
+        	case SO_REUSEADDR:
+        		if (*__optlen >= sizeof(int)) {
+        			*(int *)__optval = m_pcb.so_options & SOF_REUSEADDR;
+        			si_tcp_logdbg("(SO_REUSEADDR) reuse: %d", *(int *)__optval);
+        			ret = 0;
+        		} else {
+        			errno = EINVAL;
+        		}
+        		break;
+        	case SO_KEEPALIVE:
+        		if (*__optlen >= sizeof(int)) {
+        			*(int *)__optval = m_pcb.so_options & SOF_KEEPALIVE;
+        			si_tcp_logdbg("(SO_KEEPALIVE) keepalive: %d", *(int *)__optval);
+        			ret = 0;
+        		} else {
+        			errno = EINVAL;
+        		}
+        		break;
+        	case SO_RCVBUF:
+        		if (*__optlen >= sizeof(int)) {
+        			*(int *)__optval = m_rcvbuff_max;
+        			si_tcp_logdbg("(SO_RCVBUF) rcvbuf=%d", m_rcvbuff_max);
+        			ret = 0;
+        		} else {
+        			errno = EINVAL;
+        		}
+        		break;
+        	case SO_SNDBUF:
+        		if (*__optlen >= sizeof(int)) {
+        			*(int *)__optval = m_sndbuff_max;
+        			si_tcp_logdbg("(SO_SNDBUF) sndbuf=%d", m_sndbuff_max);
+        			ret = 0;
+        		} else {
+        			errno = EINVAL;
+        		}
+        		break;
+        	case SO_RCVTIMEO:
+        		if (*__optlen >= sizeof(struct timeval)) {
+        			struct timeval* tv = (struct timeval*)__optval;
+        			tv->tv_sec = m_loops_timer.get_timeout_msec() / 1000;
+        			tv->tv_usec = (m_loops_timer.get_timeout_msec() % 1000) * 1000;
+        			si_tcp_logdbg("(SO_RCVTIMEO) msec=%d", m_loops_timer.get_timeout_msec());
+        			ret = 0;
+        		} else {
+        			errno = EINVAL;
+        		}
+        		break;
+
+        	case SO_BINDTODEVICE:
+        		//todo add support
+        		errno = ENOPROTOOPT;
+        		break;
+        	default:
+        		ret = SOCKOPT_NO_OFFLOAD_SUPPORT;
+        		break;
+        	}
+        }
+
+        BULLSEYE_EXCLUDE_BLOCK_START
+        if (ret && ret != SOCKOPT_NO_OFFLOAD_SUPPORT) {
+                si_tcp_logdbg("getsockopt failed (ret=%d %m)", ret);
+        }
+        BULLSEYE_EXCLUDE_BLOCK_END
+        return ret;
+}
+
 int sockinfo_tcp::getsockopt(int __level, int __optname, void *__optval,
                               socklen_t *__optlen)
 {
-        int ret = orig_os_api.getsockopt(m_fd, __level, __optname, __optval, __optlen);
+	int ret = 0;
+
+	if (mce_sys.avoid_sys_calls_on_tcp_fd && !isPassthrough()) {
+		ret = getsockopt_offload(__level, __optname, __optval, __optlen);
+		if (ret != SOCKOPT_NO_OFFLOAD_SUPPORT)
+			return ret;
+	}
+
+	ret = orig_os_api.getsockopt(m_fd, __level, __optname, __optval, __optlen);
 
         if (__level == SOL_SOCKET) {
         	switch(__optname) {

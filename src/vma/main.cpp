@@ -560,6 +560,7 @@ void print_vma_global_settings()
 	VLOG_PARAM_NUMBER("Timer Resolution (msec)", mce_sys.timer_resolution_msec, MCE_DEFAULT_TIMER_RESOLUTION_MSEC, SYS_VAR_TIMER_RESOLUTION_MSEC);
 	VLOG_PARAM_NUMBER("TCP Timer Resolution (msec)", mce_sys.tcp_timer_resolution_msec, MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC, SYS_VAR_TCP_TIMER_RESOLUTION_MSEC);
 	VLOG_PARAM_STRING("TCP control thread", mce_sys.tcp_ctl_thread, MCE_DEFAULT_TCP_CTL_THREAD, SYS_VAR_TCP_CTL_THREAD, mce_sys.tcp_ctl_thread ? "Enabled" : "Disabled");
+	VLOG_PARAM_STRING("Avoid sys-calls on tcp fd", mce_sys.avoid_sys_calls_on_tcp_fd, MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD, SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD, mce_sys.avoid_sys_calls_on_tcp_fd ? "Enabled" : "Disabled");
 	VLOG_PARAM_NUMBER("Delay after join (msec)", mce_sys.wait_after_join_msec, MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC, SYS_VAR_WAIT_AFTER_JOIN_MSEC);
 	VLOG_PARAM_NUMBER("Delay after rereg (msec)", mce_sys.wait_after_rereg_msec, MCE_DEFAULT_WAIT_AFTER_REREG_MSEC, SYS_VAR_WAIT_AFTER_REREG_MSEC);
 	VLOG_STR_PARAM_STRING("Internal Thread Affinity", mce_sys.internal_thread_affinity_str, MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR, SYS_VAR_INTERNAL_THREAD_AFFINITY, mce_sys.internal_thread_affinity_str);
@@ -723,6 +724,7 @@ void get_env_params()
 	mce_sys.timer_resolution_msec	= MCE_DEFAULT_TIMER_RESOLUTION_MSEC;
 	mce_sys.tcp_timer_resolution_msec	= MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC;
 	mce_sys.tcp_ctl_thread		= MCE_DEFAULT_TCP_CTL_THREAD;
+	mce_sys.avoid_sys_calls_on_tcp_fd = MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD;
 	mce_sys.wait_after_join_msec	= MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC;
 	mce_sys.wait_after_rereg_msec 	= MCE_DEFAULT_WAIT_AFTER_REREG_MSEC;
 	mce_sys.thread_mode		= MCE_DEFAULT_THREAD_MODE;
@@ -1107,6 +1109,10 @@ void get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_TCP_CTL_THREAD)) != NULL) {
 			mce_sys.tcp_ctl_thread = atoi(env_ptr) ? true : false;
+	}
+
+	if ((env_ptr = getenv(SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD)) != NULL) {
+			mce_sys.avoid_sys_calls_on_tcp_fd = atoi(env_ptr) ? true : false;
 	}
 
 	if(mce_sys.tcp_timer_resolution_msec < mce_sys.timer_resolution_msec){

@@ -165,6 +165,7 @@ Example:
  VMA DEBUG  : Timer Resolution (msec)        10                         [VMA_TIMER_RESOLUTION_MSEC]
  VMA DEBUG  : TCP Timer Resolution (msec)    100                        [VMA_TCP_TIMER_RESOLUTION_MSEC]
  VMA DEBUG  : TCP control thread             Disabled                   [VMA_TCP_CTL_THREAD]
+ VMA DEBUG  : Avoid sys-calls on tcp fd      Disabled			[VMA_AVOID_SYS_CALLS_ON_TCP_FD]
  VMA DEBUG  : Delay after join (msec)        0                          [VMA_WAIT_AFTER_JOIN_MSEC]
  VMA DEBUG  : Delay after rereg (msec)       500                        [VMA_WAIT_AFTER_REREG_MSEC]
  VMA DEBUG  : Internal Thread Affinity       -1                         [VMA_INTERNAL_THREAD_AFFINITY]
@@ -624,6 +625,13 @@ Default value is 100 (milli-sec)
 
 VMA_TCP_CTL_THREAD
 Do all tcp control flows in the internal thread,
+Default value is disabled
+
+VMA_AVOID_SYS_CALLS_ON_TCP_FD
+For TCP fd, avoid system calls for the supported options of:
+ioctl, fcntl, getsockopt, setsockopt.
+Non-supported options will go to OS.
+To activate, use VMA_AVOID_SYS_CALLS_ON_TCP_FD=1.
 Default value is disabled
 
 VMA_INTERNAL_THREAD_AFFINITY
