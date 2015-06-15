@@ -56,9 +56,11 @@ AC_SUBST(LIBALIC_FLAG)
 with_debug_info=yes
 with_debug=no
 
+AC_MSG_CHECKING([md5 version of VMA statistics is])
 STATS_PROTOCOL_VER=`md5sum src/vma/util/vma_stats.h | awk '{ print $1}'`
 AC_DEFINE_UNQUOTED(STATS_PROTOCOL_VER, "${STATS_PROTOCOL_VER}", [Stats Protocol Version])
 AC_SUBST(STATS_PROTOCOL_VER)
+AC_MSG_RESULT(${STATS_PROTOCOL_VER})
 
 
 OS=`cat /etc/issue | awk '{ print $3}'`
