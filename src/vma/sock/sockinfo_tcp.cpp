@@ -367,6 +367,8 @@ void sockinfo_tcp::tcp_timer()
 
 	tcp_tmr(&m_pcb);
 	m_timer_pending = false;
+
+	return_pending_rx_buffs();
 }
 
 bool sockinfo_tcp::prepare_dst_to_send(bool is_accepted_socket)
@@ -3014,9 +3016,30 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 	return ret;
 }
 
+// TODO: probably it is not helpful to implement inline functions after the code that calls them
+inline void sockinfo_tcp::return_pending_rx_buffs()
+{
+    // force reuse of buffers especially for avoiding deadlock in case all buffers were taken and we can NOT get new FIN packets that will release buffers
+	if (!mce_sys.buffer_batching_mode || !m_rx_reuse_buff.n_buff_num)
+		return;
+
+    if (m_rx_reuse_buf_pending) {
+            if (m_p_rx_ring && m_p_rx_ring->reclaim_recv_buffers(&m_rx_reuse_buff.rx_reuse)) {
+            } else {
+                    g_buffer_pool_rx->put_buffers_thread_safe(&m_rx_reuse_buff.rx_reuse, m_rx_reuse_buff.rx_reuse.size());
+            }
+            m_rx_reuse_buff.n_buff_num = 0;
+            set_rx_reuse_pending(false);
+    }
+    else {
+    	set_rx_reuse_pending(true);
+    }
+}
+
 //This method should be called with the CQ manager lock.
 inline void sockinfo_tcp::return_rx_buffs(ring* p_ring)
 {
+	set_rx_reuse_pending(false);
 	if (likely(m_p_rx_ring == p_ring)) {
 		if (unlikely(m_rx_reuse_buff.n_buff_num > m_rx_num_buffs_reuse)) {
 			if (p_ring->reclaim_recv_buffers_no_lock(&m_rx_reuse_buff.rx_reuse)) {
@@ -3042,6 +3065,7 @@ inline void sockinfo_tcp::return_rx_buffs(ring* p_ring)
 
 inline void sockinfo_tcp::reuse_buffer(mem_buf_desc_t *buff)
 {
+	set_rx_reuse_pending(false);
 	if (likely(m_p_rx_ring)) {
 		m_rx_reuse_buff.n_buff_num += buff->n_frags;
 		m_rx_reuse_buff.rx_reuse.push_back(buff);

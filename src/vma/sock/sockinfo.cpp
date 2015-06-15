@@ -42,10 +42,13 @@
 
 sockinfo::sockinfo(int fd):
 		socket_fd_api(fd),
-		m_b_closed(true), m_b_blocking(true), m_protocol(PROTO_UNDEFINED),
+		m_b_closed(false), m_b_blocking(true), m_protocol(PROTO_UNDEFINED),
 		m_lock_rcv(MODULE_NAME "::m_lock_rcv"),
 		m_lock_snd(MODULE_NAME "::m_lock_snd"),
+		m_p_connected_dst_entry(NULL),
+		m_so_bindtodevice_ip(0),
 		m_p_rx_ring(0),
+		m_rx_reuse_buf_pending(false),
 		m_rx_ring_map_lock(MODULE_NAME "::m_rx_ring_map_lock"),
 		m_ring_alloc_logic(fd, this),
 		m_n_rx_pkt_ready_list_count(0), m_rx_pkt_ready_offset(0), m_rx_ready_byte_count(0),
@@ -61,16 +64,13 @@ sockinfo::sockinfo(int fd):
 
 	wakeup_set_epoll_fd(m_rx_epfd);
 
-        m_p_socket_stats = &m_socket_stats; // Save stats as local copy and allow state publisher to copy from this location
+	m_p_socket_stats = &m_socket_stats; // Save stats as local copy and allow state publisher to copy from this location
 	vma_stats_instance_create_socket_block(m_p_socket_stats);
 	memset(m_p_socket_stats, 0, sizeof(socket_stats_t));
 	m_p_socket_stats->fd = m_fd;
 	m_p_socket_stats->inode = fd2inode(m_fd);
 	m_p_socket_stats->b_blocking = m_b_blocking;
-	m_p_connected_dst_entry = NULL;
-	m_so_bindtodevice_ip = 0;
 	m_rx_reuse_buff.n_buff_num = 0;
-	m_b_closed = false;
 }
 
 sockinfo::~sockinfo()

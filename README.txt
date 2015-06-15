@@ -172,6 +172,7 @@ Example:
  VMA DEBUG  : Internal Thread Cpuset                                    [VMA_INTERNAL_THREAD_CPUSET]
  VMA DEBUG  : Internal Thread Arm CQ	     Disabled                   [VMA_INTERNAL_THREAD_ARM_CQ]
  VMA DEBUG  : Thread mode                    Multi spin lock            [VMA_THREAD_MODE]
+ VMA DEBUG  : Buffers batch mode             1 (Batch return Rx buffers)[VMA_BUFFER_BATCHING_MODE]
  VMA DEBUG  : Mem Allocate type              1 (Contig Pages)           [VMA_MEM_ALLOC_TYPE]
  VMA DEBUG  : Num of UC ARPs                 3                          [VMA_NEIGH_UC_ARP_QUATA]
  VMA DEBUG  : UC ARP delay (msec)            10000                      [VMA_NEIGH_UC_ARP_DELAY_MSEC]
@@ -684,6 +685,13 @@ Multi threaded application using spin lock value is 1
 Multi threaded application using mutex lock value is 2 
 Multi threaded application with more threads than cores using spin lock value is 3
 Default value is 1 (Multi with spin lock)
+
+VMA_BUFFER_BATCHING_MODE
+Batching of returning Rx buffers per socket.
+In case the value is 0 then VMA will not use buffer batching mode for returning Rx buffers.
+In case the value is 1 then VMA will use buffer batching mode for returning Rx buffers.
+[future: other values are reserved]
+Default value is 1
 
 VMA_MEM_ALLOC_TYPE
 This replaces the VMA_HUGETBL parameter logic.

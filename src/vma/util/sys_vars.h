@@ -93,6 +93,12 @@ typedef enum {
 	THREAD_MODE_LAST
 } thread_mode_t;
 
+typedef enum {
+	BUFFER_BATCHING_NONE = 0,
+	BUFFER_BATCHING_RX_RETURN,
+	BUFFER_BATCHING_LAST,
+} buffer_batching_mode_t;
+
 // See ibv_transport_type for general verbs transport types
 typedef enum {
 	VMA_TRANSPORT_UNKNOWN	= -1,
@@ -192,6 +198,7 @@ struct mce_sys_var {
 	uint32_t	wait_after_rereg_msec;
 	in_port_t	block_udp_port;
 	thread_mode_t	thread_mode;
+	buffer_batching_mode_t buffer_batching_mode;
 	alloc_mode_t	mem_alloc_type;
 	bool		handle_fork;
 	bool		close_on_dup2;
@@ -295,6 +302,7 @@ struct mce_sys_var {
 #define SYS_VAR_WAIT_AFTER_JOIN_MSEC			"VMA_WAIT_AFTER_JOIN_MSEC"
 #define SYS_VAR_WAIT_AFTER_REREG_MSEC			"VMA_WAIT_AFTER_REREG_MSEC"
 #define SYS_VAR_THREAD_MODE				"VMA_THREAD_MODE"
+#define SYS_VAR_BUFFER_BATCHING_MODE	"VMA_BUFFER_BATCHING_MODE"
 #define SYS_VAR_HUGETBL					"VMA_HUGETBL"
 #define SYS_VAR_MEM_ALLOC_TYPE				"VMA_MEM_ALLOC_TYPE"
 #define SYS_VAR_FORK					"VMA_FORK"
@@ -397,6 +405,7 @@ struct mce_sys_var {
 #define MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC		(0)
 #define MCE_DEFAULT_WAIT_AFTER_REREG_MSEC		(500)
 #define MCE_DEFAULT_THREAD_MODE				(THREAD_MODE_MULTI)
+#define MCE_DEFAULT_BUFFER_BATCHING_MODE	(BUFFER_BATCHING_RX_RETURN)
 #ifndef VMA_IBV_ACCESS_ALLOCATE_MR
 #define MCE_DEFAULT_MEM_ALLOC_TYPE			(ALLOC_TYPE_HUGEPAGES)
 #else

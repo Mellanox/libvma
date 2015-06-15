@@ -317,6 +317,8 @@ private:
 	 */
 	struct sockaddr *sockaddr_realloc(struct sockaddr *old_addr, socklen_t & old_len, socklen_t new_len);
 	inline void 	return_rx_buffs(ring *p_ring);
+	// TODO: it is misleading to declare inline in file that doesn't contain the implementation as it can't help callers
+	inline void 	return_pending_rx_buffs();
 	inline void 	reuse_buffer(mem_buf_desc_t *buff);
 	virtual mem_buf_desc_t *get_next_desc(mem_buf_desc_t *p_desc);
 	virtual	mem_buf_desc_t* get_next_desc_peek(mem_buf_desc_t *p_desc, int& rx_pkt_ready_list_idx);

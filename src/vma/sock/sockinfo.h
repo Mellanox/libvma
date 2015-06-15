@@ -120,6 +120,9 @@ protected:
 	// we either listen on ALL system cqs or bound to the specific cq
 	ring*			m_p_rx_ring; //used in TCP instead of m_rx_ring_map
 	buff_info_t		m_rx_reuse_buff; //used in TCP instead of m_rx_ring_map
+    bool 			m_rx_reuse_buf_pending;
+    void 			set_rx_reuse_pending(bool is_pending = true) {m_rx_reuse_buf_pending = is_pending;}
+
 
 	rx_ring_map_t		m_rx_ring_map; // CQ map
 	lock_mutex_recursive	m_rx_ring_map_lock;
@@ -289,6 +292,7 @@ protected:
 
     inline void reuse_buffer(mem_buf_desc_t *buff)
     {
+    	set_rx_reuse_pending(false);
         ring* p_ring = (ring*)(buff->p_desc_owner);
         rx_ring_map_t::iterator iter = m_rx_ring_map.find(p_ring);
         if(likely(iter != m_rx_ring_map.end())){
