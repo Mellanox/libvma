@@ -173,6 +173,7 @@ int neigh_entry::send(neigh_send_info &s_info)
 	int ret = ns_data->m_iov.iov_len;
 	if (m_state)
 		empty_unsent_queue();
+	// coverity[leaked_storage]
 	return ret;
 }
 
