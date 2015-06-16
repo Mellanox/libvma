@@ -369,6 +369,7 @@ void sockinfo_tcp::tcp_timer()
 	m_timer_pending = false;
 
 	return_pending_rx_buffs();
+	return_pending_tx_buffs();
 }
 
 bool sockinfo_tcp::prepare_dst_to_send(bool is_accepted_socket)
@@ -3020,7 +3021,7 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 inline void sockinfo_tcp::return_pending_rx_buffs()
 {
     // force reuse of buffers especially for avoiding deadlock in case all buffers were taken and we can NOT get new FIN packets that will release buffers
-	if (!mce_sys.buffer_batching_mode || !m_rx_reuse_buff.n_buff_num)
+	if (mce_sys.buffer_batching_mode != BUFFER_BATCHING_WITH_RECLAIM || !m_rx_reuse_buff.n_buff_num)
 		return;
 
     if (m_rx_reuse_buf_pending) {
@@ -3035,6 +3036,16 @@ inline void sockinfo_tcp::return_pending_rx_buffs()
     	set_rx_reuse_pending(true);
     }
 }
+
+inline void sockinfo_tcp::return_pending_tx_buffs()
+{
+	if (mce_sys.buffer_batching_mode != BUFFER_BATCHING_WITH_RECLAIM || !m_p_connected_dst_entry)
+		return;
+
+	m_p_connected_dst_entry->return_buffers_pool();
+}
+
+//todo inline void sockinfo_tcp::return_pending_tcp_segs()
 
 //This method should be called with the CQ manager lock.
 inline void sockinfo_tcp::return_rx_buffs(ring* p_ring)

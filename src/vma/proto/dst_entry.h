@@ -73,6 +73,8 @@ public:
 	virtual transport_type_t get_obs_transport_type() const;
 	virtual flow_tuple get_flow_tuple() const;
 
+	void	return_buffers_pool();
+
 protected:
 	ip_address 		m_dst_ip;
 	uint16_t 		m_dst_port;
@@ -98,13 +100,14 @@ protected:
 	ring*			m_p_ring;
 	ring_allocation_logic_tx m_ring_alloc_logic;
 	mem_buf_desc_t* 	m_p_tx_mem_buf_desc_list;
+	int			m_b_tx_mem_buf_desc_list_pending;
 	header 			m_header;
 	header 			m_header_neigh;
 	uint8_t 		m_ttl;
 	uint8_t 		m_tos;
 	bool 			m_b_is_initialized;
 
-	vma_ibv_send_wr* 		m_p_send_wqe;
+	vma_ibv_send_wr* 	m_p_send_wqe;
 	uint32_t 		m_max_inline;
 
 	virtual transport_t 	get_transport(sockaddr_in to) = 0;
@@ -133,6 +136,7 @@ protected:
 	bool 			alloc_neigh_val(transport_type_t tranport);
 
 	void			do_ring_migration(lock_base& socket_lock);
+	inline void		set_tx_buff_list_pending(bool is_pending = true) {m_b_tx_mem_buf_desc_list_pending = is_pending;}
 };
 
 

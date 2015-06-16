@@ -324,8 +324,9 @@ const char* thread_mode_str(thread_mode_t thread_mode)
 const char* buffer_batching_mode_str(buffer_batching_mode_t buffer_batching_mode)
 {
 	switch (buffer_batching_mode) {
-	case BUFFER_BATCHING_NONE:		return "No batch return for Rx buffers";
-	case BUFFER_BATCHING_RX_RETURN:			return "Batch return Rx buffers";
+	case BUFFER_BATCHING_NONE:		return "(No batching buffers)";
+	case BUFFER_BATCHING_WITH_RECLAIM:	return "(Batch and reclaim buffers)";
+	case BUFFER_BATCHING_NO_RECLAIM:	return "(Batch and don't reclaim buffers)";
 	default:				break;
 	}
 	return "";
@@ -577,7 +578,7 @@ void print_vma_global_settings()
 	VLOG_STR_PARAM_STRING("Internal Thread Cpuset", mce_sys.internal_thread_cpuset, MCE_DEFAULT_INTERNAL_THREAD_CPUSET, SYS_VAR_INTERNAL_THREAD_CPUSET, mce_sys.internal_thread_cpuset);
 	VLOG_PARAM_STRING("Internal Thread Arm CQ", mce_sys.internal_thread_arm_cq_enabled, MCE_DEFAULT_INTERNAL_THREAD_ARM_CQ_ENABLED, SYS_VAR_INTERNAL_THREAD_ARM_CQ, mce_sys.internal_thread_arm_cq_enabled ? "Enabled " : "Disabled");
 	VLOG_PARAM_STRING("Thread mode", mce_sys.thread_mode, MCE_DEFAULT_THREAD_MODE, SYS_VAR_THREAD_MODE, thread_mode_str(mce_sys.thread_mode));
-	VLOG_PARAM_STRING("Buffer batching mode", mce_sys.buffer_batching_mode, MCE_DEFAULT_BUFFER_BATCHING_MODE, SYS_VAR_BUFFER_BATCHING_MODE, buffer_batching_mode_str(mce_sys.buffer_batching_mode));
+	VLOG_PARAM_NUMSTR("Buffer batching mode", mce_sys.buffer_batching_mode, MCE_DEFAULT_BUFFER_BATCHING_MODE, SYS_VAR_BUFFER_BATCHING_MODE, buffer_batching_mode_str(mce_sys.buffer_batching_mode));
 	switch (mce_sys.mem_alloc_type) {
 	case ALLOC_TYPE_HUGEPAGES:
 		VLOG_PARAM_NUMSTR("Mem Allocate type", mce_sys.mem_alloc_type, MCE_DEFAULT_MEM_ALLOC_TYPE, SYS_VAR_MEM_ALLOC_TYPE, "(Huge Pages)");     break;
@@ -689,8 +690,11 @@ void get_env_params()
 	mce_sys.tx_nonblocked_eagains   = MCE_DEFAULT_TX_NONBLOCKED_EAGAINS;
 	mce_sys.tx_prefetch_bytes 	= MCE_DEFAULT_TX_PREFETCH_BYTES;
 	mce_sys.tx_backlog_max          = MCE_DEFAULT_TX_BACKLOG_MAX;
+	mce_sys.tx_bufs_batch_udp	= MCE_DEFAULT_TX_BUFS_BATCH_UDP;
+	mce_sys.tx_bufs_batch_tcp	= MCE_DEFAULT_TX_BUFS_BATCH_TCP;
 
 	mce_sys.rx_num_bufs             = MCE_DEFAULT_RX_NUM_BUFS;
+	mce_sys.rx_bufs_batch           = MCE_DEFAULT_RX_BUFS_BATCH;
 	mce_sys.rx_num_wr               = MCE_DEFAULT_RX_NUM_WRE;
 	mce_sys.rx_num_wr_to_post_recv  = MCE_DEFAULT_RX_NUM_WRE_TO_POST_RECV;
 	mce_sys.rx_poll_num             = MCE_DEFAULT_RX_NUM_POLLS;
@@ -1164,6 +1168,11 @@ void get_env_params()
 		mce_sys.buffer_batching_mode = (buffer_batching_mode_t)atoi(env_ptr);
 		if (mce_sys.buffer_batching_mode < 0 || mce_sys.buffer_batching_mode >= BUFFER_BATCHING_LAST)
 			mce_sys.buffer_batching_mode = MCE_DEFAULT_BUFFER_BATCHING_MODE;
+		if (mce_sys.buffer_batching_mode == BUFFER_BATCHING_NONE) {
+			mce_sys.tx_bufs_batch_tcp = 1;
+			mce_sys.tx_bufs_batch_udp = 1;
+			mce_sys.rx_bufs_batch = 1;
+		}
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_NETLINK_TIMER_MSEC)) != NULL)

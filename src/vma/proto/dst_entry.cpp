@@ -30,7 +30,7 @@
 
 dst_entry::dst_entry(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, int owner_fd):
 	m_dst_ip(dst_ip), m_dst_port(dst_port), m_src_port(src_port), m_bound_ip(0),
-	m_so_bindtodevice_ip(0), m_ring_alloc_logic(owner_fd, this), m_p_tx_mem_buf_desc_list(NULL)
+	m_so_bindtodevice_ip(0), m_ring_alloc_logic(owner_fd, this), m_p_tx_mem_buf_desc_list(NULL), m_b_tx_mem_buf_desc_list_pending(false)
 {
 	dst_logdbg("dst:%s:%d src: %d", m_dst_ip.to_str().c_str(), ntohs(m_dst_port), ntohs(m_src_port));
 	init_members();
@@ -650,4 +650,19 @@ bool dst_entry::alloc_neigh_val(transport_type_t tranport)
 		ret_val = true;
 	}
 	return ret_val;
+}
+
+void dst_entry::return_buffers_pool()
+{
+	if (m_p_tx_mem_buf_desc_list == NULL) {
+		return;
+	}
+
+	if (m_b_tx_mem_buf_desc_list_pending && m_p_ring &&
+		m_p_ring->mem_buf_tx_release(m_p_tx_mem_buf_desc_list, true, true)) {
+		m_p_tx_mem_buf_desc_list = NULL;
+		set_tx_buff_list_pending(false);
+	} else {
+		set_tx_buff_list_pending(true);
+	}
 }

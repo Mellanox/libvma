@@ -225,9 +225,11 @@ ssize_t dst_entry_tcp::pass_buff_to_neigh(const iovec * p_iov, size_t & sz_iov, 
 
 mem_buf_desc_t* dst_entry_tcp::get_buffer(bool b_blocked /*=false*/)
 {
+	set_tx_buff_list_pending(false);
+
 	// Get a bunch of tx buf descriptor and data buffers
 	if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
-		m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(b_blocked, 16);
+		m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(b_blocked, mce_sys.tx_bufs_batch_tcp);
 	}
 
 	mem_buf_desc_t* p_mem_buf_desc = m_p_tx_mem_buf_desc_list;

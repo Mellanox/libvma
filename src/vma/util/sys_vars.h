@@ -95,7 +95,8 @@ typedef enum {
 
 typedef enum {
 	BUFFER_BATCHING_NONE = 0,
-	BUFFER_BATCHING_RX_RETURN,
+	BUFFER_BATCHING_WITH_RECLAIM,
+	BUFFER_BATCHING_NO_RECLAIM,
 	BUFFER_BATCHING_LAST,
 } buffer_batching_mode_t;
 
@@ -145,8 +146,11 @@ struct mce_sys_var {
 	bool		tx_nonblocked_eagains;
 	uint32_t	tx_prefetch_bytes;
 	int32_t         tx_backlog_max;
+	uint32_t        tx_bufs_batch_udp;
+	uint32_t        tx_bufs_batch_tcp;
 
 	uint32_t 	rx_num_bufs;
+	uint32_t        rx_bufs_batch;
 	uint32_t 	rx_num_wr;
 	uint32_t	rx_num_wr_to_post_recv;
 	int32_t		rx_poll_num;
@@ -302,7 +306,7 @@ struct mce_sys_var {
 #define SYS_VAR_WAIT_AFTER_JOIN_MSEC			"VMA_WAIT_AFTER_JOIN_MSEC"
 #define SYS_VAR_WAIT_AFTER_REREG_MSEC			"VMA_WAIT_AFTER_REREG_MSEC"
 #define SYS_VAR_THREAD_MODE				"VMA_THREAD_MODE"
-#define SYS_VAR_BUFFER_BATCHING_MODE	"VMA_BUFFER_BATCHING_MODE"
+#define SYS_VAR_BUFFER_BATCHING_MODE			"VMA_BUFFER_BATCHING_MODE"
 #define SYS_VAR_HUGETBL					"VMA_HUGETBL"
 #define SYS_VAR_MEM_ALLOC_TYPE				"VMA_MEM_ALLOC_TYPE"
 #define SYS_VAR_FORK					"VMA_FORK"
@@ -360,7 +364,10 @@ struct mce_sys_var {
 #define MCE_DEFAULT_TX_NONBLOCKED_EAGAINS		(false)
 #define MCE_DEFAULT_TX_PREFETCH_BYTES			(256)
 #define MCE_DEFAULT_TX_BACKLOG_MAX                      (100)
+#define MCE_DEFAULT_TX_BUFS_BATCH_UDP			(8)
+#define MCE_DEFAULT_TX_BUFS_BATCH_TCP			(16)
 #define MCE_DEFAULT_RX_NUM_BUFS				(200000)
+#define MCE_DEFAULT_RX_BUFS_BATCH			(64)
 #define MCE_DEFAULT_RX_NUM_WRE				(16000)
 #define MCE_DEFAULT_RX_NUM_WRE_TO_POST_RECV		(64)
 #define MCE_DEFAULT_RX_NUM_SGE				(1)
@@ -405,7 +412,7 @@ struct mce_sys_var {
 #define MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC		(0)
 #define MCE_DEFAULT_WAIT_AFTER_REREG_MSEC		(500)
 #define MCE_DEFAULT_THREAD_MODE				(THREAD_MODE_MULTI)
-#define MCE_DEFAULT_BUFFER_BATCHING_MODE	(BUFFER_BATCHING_RX_RETURN)
+#define MCE_DEFAULT_BUFFER_BATCHING_MODE		(BUFFER_BATCHING_WITH_RECLAIM)
 #ifndef VMA_IBV_ACCESS_ALLOCATE_MR
 #define MCE_DEFAULT_MEM_ALLOC_TYPE			(ALLOC_TYPE_HUGEPAGES)
 #else

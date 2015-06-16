@@ -994,7 +994,7 @@ void ring::mem_buf_desc_completion_with_error_tx(mem_buf_desc_t* p_tx_wc_buf_des
 	else {
 		m_b_qp_tx_first_flushed_completion_handled = true; // This is true for all wr except for the first one which might point to already sent wr
 	}
-	m_tx_num_wr_free += mem_buf_tx_release(p_tx_wc_buf_desc);
+	m_tx_num_wr_free += mem_buf_tx_release(p_tx_wc_buf_desc, false);
 }
 
 void ring::mem_buf_desc_return_to_owner_rx(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array /*NULL*/)
@@ -1132,10 +1132,15 @@ mem_buf_desc_t* ring::mem_buf_tx_get(bool b_block, int n_num_mem_bufs /* default
 	return buff_list;
 }
 
-int ring::mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting/*=false*/)
+int ring::mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting, bool trylock/*=false*/)
 {
 	ring_logfuncall("");
-	m_lock_ring_tx.lock();
+
+	if (!trylock)
+		m_lock_ring_tx.lock();
+	else if (m_lock_ring_tx.trylock())
+		return 0;
+
 	int accounting = put_tx_buffers(p_mem_buf_desc_list);
 	if (b_accounting)
 		m_missing_buf_ref_count -= accounting;

@@ -172,7 +172,7 @@ Example:
  VMA DEBUG  : Internal Thread Cpuset                                    [VMA_INTERNAL_THREAD_CPUSET]
  VMA DEBUG  : Internal Thread Arm CQ	     Disabled                   [VMA_INTERNAL_THREAD_ARM_CQ]
  VMA DEBUG  : Thread mode                    Multi spin lock            [VMA_THREAD_MODE]
- VMA DEBUG  : Buffers batch mode             1 (Batch return Rx buffers)[VMA_BUFFER_BATCHING_MODE]
+ VMA DEBUG  : Buffers batch mode             1 (Batch and reclaim buffers)  [VMA_BUFFER_BATCHING_MODE]
  VMA DEBUG  : Mem Allocate type              1 (Contig Pages)           [VMA_MEM_ALLOC_TYPE]
  VMA DEBUG  : Num of UC ARPs                 3                          [VMA_NEIGH_UC_ARP_QUATA]
  VMA DEBUG  : UC ARP delay (msec)            10000                      [VMA_NEIGH_UC_ARP_DELAY_MSEC]
@@ -687,9 +687,10 @@ Multi threaded application with more threads than cores using spin lock value is
 Default value is 1 (Multi with spin lock)
 
 VMA_BUFFER_BATCHING_MODE
-Batching of returning Rx buffers per socket.
-In case the value is 0 then VMA will not use buffer batching mode for returning Rx buffers.
-In case the value is 1 then VMA will use buffer batching mode for returning Rx buffers.
+Batching of returning Rx buffers and pulling Tx buffers per socket.
+In case the value is 0 then VMA will not use buffer batching.
+In case the value is 1 then VMA will use buffer batching and will try to periodically reclaim unused buffers.
+In case the value is 2 then VMA will use buffer batching with no reclaim.
 [future: other values are reserved]
 Default value is 1
 

@@ -52,7 +52,7 @@ sockinfo::sockinfo(int fd):
 		m_rx_ring_map_lock(MODULE_NAME "::m_rx_ring_map_lock"),
 		m_ring_alloc_logic(fd, this),
 		m_n_rx_pkt_ready_list_count(0), m_rx_pkt_ready_offset(0), m_rx_ready_byte_count(0),
-		m_rx_num_buffs_reuse(mce_sys.rx_num_wr_to_post_recv),
+		m_rx_num_buffs_reuse(mce_sys.rx_bufs_batch),
 		m_rx_callback(NULL),
 		m_rx_callback_context(NULL)
 {
