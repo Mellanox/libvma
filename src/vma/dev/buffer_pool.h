@@ -17,6 +17,7 @@
 #include <deque>
 #include "vma/util/lock_wrapper.h"
 #include "vma/util/verbs_extra.h"
+#include "vma/util/vma_stats.h"
 #include "vma/proto/mem_buf_desc.h"
 
 
@@ -86,6 +87,8 @@ public:
 
 	void 		buffersPanic();
 
+	void		set_RX_TX_for_stats(bool rx = true);
+
 private:
 
 	lock_spin	m_lock_spin;
@@ -112,6 +115,9 @@ private:
 	mem_buf_desc_t *m_p_head;
 	size_t		m_n_buffers;
 	size_t		m_n_buffers_created;
+
+	bpool_stats_t* 	m_p_bpool_stat;
+	bpool_stats_t 	m_bpool_stat_static;
 
 	/**
 	 * Allocate data block in hugetlb memory

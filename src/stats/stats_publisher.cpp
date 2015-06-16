@@ -55,7 +55,7 @@ stats_data_reader*  g_p_stats_data_reader = NULL;
 bool		printed_sock_limit_info = false;
 bool		printed_ring_limit_info = false;
 bool		printed_cq_limit_info = false;
-
+bool		printed_bpool_limit_info = false;
 
 stats_data_reader::stats_data_reader()
 {
@@ -513,6 +513,57 @@ void vma_stats_instance_remove_cq_block(cq_stats_t* local_stats_addr)
 	}
 
 	vlog_printf(VLOG_ERROR, "%s:%d: Could not find user pointer (%p)", __func__, __LINE__, p_cq_stats);
+	g_lock_skt_stats.unlock();
+}
+
+void vma_stats_instance_create_bpool_block(bpool_stats_t* local_stats_addr)
+{
+	bpool_stats_t* p_instance_bpool = NULL;
+	g_lock_skt_stats.lock();
+	for (int i=0; i < NUM_OF_SUPPORTED_BPOOLS; i++) {
+		if (!g_sh_mem->bpool_inst_arr[i].b_enabled) {
+			g_sh_mem->bpool_inst_arr[i].b_enabled = true;
+			p_instance_bpool = &g_sh_mem->bpool_inst_arr[i].bpool_stats;
+			memset(p_instance_bpool, 0, sizeof(bpool_stats_t));
+			break;
+		}
+	}
+	if (p_instance_bpool == NULL) {
+		if (!printed_bpool_limit_info) {
+			printed_bpool_limit_info = true;
+			vlog_printf(VLOG_INFO, "Can only monitor %d buffer pool elements for statistics !\n", NUM_OF_SUPPORTED_BPOOLS);
+		}
+	}
+        else {
+                g_p_stats_data_reader->add_data_reader(local_stats_addr, p_instance_bpool, sizeof(bpool_stats_t));
+                vlog_printf(VLOG_DEBUG, "%s:%d: Added bpool local=%p shm=%p\n", __func__, __LINE__, local_stats_addr, p_instance_bpool);
+        }
+	g_lock_skt_stats.unlock();
+}
+
+void vma_stats_instance_remove_bpool_block(bpool_stats_t* local_stats_addr)
+{
+	g_lock_skt_stats.lock();
+        vlog_printf(VLOG_DEBUG, "%s:%d: Remove bpool local=%p\n", __func__, __LINE__, local_stats_addr);
+
+        bpool_stats_t* p_bpool_stats = (bpool_stats_t*)g_p_stats_data_reader->pop_p_skt_stats(local_stats_addr);
+
+	if (p_bpool_stats == NULL) {
+		vlog_printf(VLOG_DEBUG, "%s:%d: application vma_stats pointer is NULL\n", __func__, __LINE__);
+                g_lock_skt_stats.unlock();
+		return;
+	}
+
+	// Search sh_mem block to release
+	for (int i=0; i<NUM_OF_SUPPORTED_BPOOLS; i++) {
+		if (&g_sh_mem->bpool_inst_arr[i].bpool_stats == p_bpool_stats) {
+			g_sh_mem->bpool_inst_arr[i].b_enabled = false;
+			g_lock_skt_stats.unlock();
+			return;
+		}
+	}
+
+	vlog_printf(VLOG_ERROR, "%s:%d: Could not find user pointer (%p)", __func__, __LINE__, p_bpool_stats);
 	g_lock_skt_stats.unlock();
 }
 

@@ -53,6 +53,10 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 
 	__log_info_func("count = %d", buffer_count);
 
+	m_p_bpool_stat = &m_bpool_stat_static;
+	memset(m_p_bpool_stat , 0, sizeof(*m_p_bpool_stat));
+	vma_stats_instance_create_bpool_block(m_p_bpool_stat);
+
 	size_t size;
 	if (buffer_count) {
 		sz_aligned_element = (buf_size + MCE_ALIGNMENT) & (~MCE_ALIGNMENT);
@@ -163,6 +167,8 @@ buffer_pool::~buffer_pool()
 	} else if (!m_is_contig_alloc){ // in contig mode 'ibv_dereg_mr' will free all allocates resources
 		free(m_data_block);
 	}
+
+	vma_stats_instance_remove_bpool_block(m_p_bpool_stat);
 
 	__log_info_func("done");
 }
@@ -325,12 +331,15 @@ mem_buf_desc_t *buffer_pool::get_buffers(size_t count, uint32_t lkey)
 	__log_info_funcall("requested %lu, present %lu, created %lu", count, m_n_buffers, m_n_buffers_created);
 
 	if (m_n_buffers < count) {
-		static vlog_levels_t log_severity = VLOG_WARNING; // WARNING severity will be used only once - at the 1st time
+		static vlog_levels_t log_severity = VLOG_DEBUG; // DEBUG severity will be used only once - at the 1st time
 
 		VLOG_PRINTF_INFO(log_severity, "not enough buffers in the pool (requested: %lu, have: %lu, created: %lu isRx=%d isTx=%d)",
 				count, m_n_buffers, m_n_buffers_created, (int)(this==g_buffer_pool_rx), (int)(this==g_buffer_pool_tx));
 
 		log_severity = VLOG_FUNC; // for all times but the 1st one
+
+		m_p_bpool_stat->n_buffer_pool_no_bufs++;
+
 		return NULL;
 	}
 
@@ -343,6 +352,7 @@ mem_buf_desc_t *buffer_pool::get_buffers(size_t count, uint32_t lkey)
 	// pop buffers from the list
 	head = NULL;
 	m_n_buffers -= count;
+	m_p_bpool_stat->n_buffer_pool_size -= count;
 	while (count > 0) {
 		next = m_p_head->p_next_desc;
 		m_p_head->p_next_desc = head;
@@ -525,6 +535,7 @@ inline void buffer_pool::put_buffer_helper(mem_buf_desc_t *buff)
 	free_lwip_pbuf(&buff->lwip_pbuf);
 	m_p_head = buff;
 	m_n_buffers++;
+	m_p_bpool_stat->n_buffer_pool_size++;
 }
 
 int buffer_pool::put_buffers(mem_buf_desc_t *buff_list)
@@ -604,5 +615,13 @@ size_t buffer_pool::get_free_count()
 std::deque<ibv_mr*> buffer_pool::get_memory_regions()
 {
 	return m_mrs;
+}
+
+void buffer_pool::set_RX_TX_for_stats(bool rx /*= true*/)
+{
+	if (rx)
+		m_p_bpool_stat->is_rx = true;
+	else
+		m_p_bpool_stat->is_tx = true;
 }
 

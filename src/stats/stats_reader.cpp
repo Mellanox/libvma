@@ -222,6 +222,13 @@ void update_delta_cq_stat(cq_stats_t* p_curr_cq_stats, cq_stats_t* p_prev_cq_sta
 	p_prev_cq_stats->buffer_miss_rate = p_curr_cq_stats->buffer_miss_rate;
 }
 
+void update_delta_bpool_stat(bpool_stats_t* p_curr_bpool_stats, bpool_stats_t* p_prev_bpool_stats)
+{
+	int delay = INTERVAL;
+	p_prev_bpool_stats->n_buffer_pool_size = p_curr_bpool_stats->n_buffer_pool_size;
+	p_prev_bpool_stats->n_buffer_pool_no_bufs = (p_curr_bpool_stats->n_buffer_pool_no_bufs - p_prev_bpool_stats->n_buffer_pool_no_bufs) / delay;
+}
+
 void print_ring_stats(ring_instance_block_t* p_ring_inst_arr)
 {
 	ring_stats_t* p_ring_stats = NULL;
@@ -265,6 +272,31 @@ void print_cq_stats(cq_instance_block_t* p_cq_inst_arr)
 			printf(FORMAT_CQ_STATS_32bit, "Drained max:", p_cq_stats->n_rx_drained_at_once_max);
 			printf(FORMAT_CQ_STATS_32bit, "Buffer pool size:",p_cq_stats->n_buffer_pool_len);
 			printf(FORMAT_CQ_STATS_percent,"Buffer disorder:",p_cq_stats->buffer_miss_rate*100);
+		}
+	}
+	printf("======================================================\n");
+}
+
+void print_bpool_stats(bpool_instance_block_t* p_bpool_inst_arr)
+{
+	bpool_stats_t* p_bpool_stats = NULL;
+	char post_fix[3] = "";
+
+	if (user_params.print_details_mode == e_deltas)
+		strcpy(post_fix, "/s");
+
+	for (int i = 0; i < NUM_OF_SUPPORTED_BPOOLS; i++) {
+		if (p_bpool_inst_arr[i].b_enabled) {
+			p_bpool_stats = &p_bpool_inst_arr[i].bpool_stats;
+			printf("======================================================\n");
+			if (p_bpool_stats->is_rx)
+				printf("\tBUFFER_POOL(RX)=[%u]\n", i);
+			else if (p_bpool_stats->is_tx)
+				printf("\tBUFFER_POOL(TX)=[%u]\n", i);
+			else
+				printf("\tBUFFER_POOL=[%u]\n", i);
+			printf(FORMAT_CQ_STATS_32bit, "Size:", p_bpool_stats->n_buffer_pool_size);
+			printf(FORMAT_CQ_STATS_32bit, "No buffers error:", p_bpool_stats->n_buffer_pool_no_bufs);
 		}
 	}
 	printf("======================================================\n");
@@ -606,6 +638,14 @@ void print_cq_deltas(cq_instance_block_t* p_curr_cq_stats, cq_instance_block_t* 
 	print_cq_stats(p_prev_cq_stats);
 }
 
+void print_bpool_deltas(bpool_instance_block_t* p_curr_bpool_stats, bpool_instance_block_t* p_prev_bpool_stats)
+{
+	for (int i = 0; i < NUM_OF_SUPPORTED_BPOOLS; i++) {
+		update_delta_bpool_stat(&p_curr_bpool_stats[i].bpool_stats,&p_prev_bpool_stats[i].bpool_stats);
+	}
+	print_bpool_stats(p_prev_bpool_stats);
+}
+
 void show_ring_stats(ring_instance_block_t* p_curr_ring_blocks, ring_instance_block_t* p_prev_ring_blocks)
 {
 	switch (user_params.print_details_mode) {
@@ -626,6 +666,18 @@ void show_cq_stats(cq_instance_block_t* p_curr_cq_blocks, cq_instance_block_t* p
 			break;
 		default:
 			print_cq_deltas(p_curr_cq_blocks, p_prev_cq_blocks);
+			break;
+	}
+}
+
+void show_bpool_stats(bpool_instance_block_t* p_curr_bpool_blocks, bpool_instance_block_t* p_prev_bpool_blocks)
+{
+	switch (user_params.print_details_mode) {
+		case e_totals:
+			print_bpool_stats(p_curr_bpool_blocks);
+			break;
+		default:
+			print_bpool_deltas(p_curr_bpool_blocks, p_prev_bpool_blocks);
 			break;
 	}
 }
@@ -881,6 +933,8 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 	cq_instance_block_t curr_cq_blocks[NUM_OF_SUPPORTED_CQS];
 	ring_instance_block_t prev_ring_blocks[NUM_OF_SUPPORTED_RINGS];
 	ring_instance_block_t curr_ring_blocks[NUM_OF_SUPPORTED_RINGS];
+	bpool_instance_block_t prev_bpool_blocks[NUM_OF_SUPPORTED_BPOOLS];
+	bpool_instance_block_t curr_bpool_blocks[NUM_OF_SUPPORTED_BPOOLS];
 	iomux_stats_t prev_iomux_blocks;
 	iomux_stats_t curr_iomux_blocks;
 	
@@ -890,6 +944,8 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 	memset((void*)curr_cq_blocks,0, sizeof(cq_instance_block_t) * NUM_OF_SUPPORTED_CQS);
 	memset((void*)prev_ring_blocks,0, sizeof(ring_instance_block_t) * NUM_OF_SUPPORTED_RINGS);
 	memset((void*)curr_ring_blocks,0, sizeof(ring_instance_block_t) * NUM_OF_SUPPORTED_RINGS);
+	memset((void*)prev_bpool_blocks,0, sizeof(bpool_instance_block_t) * NUM_OF_SUPPORTED_BPOOLS);
+	memset((void*)curr_bpool_blocks,0, sizeof(bpool_instance_block_t) * NUM_OF_SUPPORTED_BPOOLS);
 	memset(&prev_iomux_blocks,0, sizeof(prev_iomux_blocks));
 	memset(&curr_iomux_blocks,0, sizeof(curr_iomux_blocks));
 	
@@ -897,6 +953,7 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 		memcpy((void*)prev_instance_blocks,(void*)p_sh_mem->skt_inst_arr, p_sh_mem->max_skt_inst_num * sizeof(socket_instance_block_t));
 		memcpy((void*)prev_cq_blocks,(void*)p_sh_mem->cq_inst_arr, NUM_OF_SUPPORTED_CQS * sizeof(cq_instance_block_t));
 		memcpy((void*)prev_ring_blocks,(void*)p_sh_mem->ring_inst_arr, NUM_OF_SUPPORTED_RINGS * sizeof(ring_instance_block_t));
+		memcpy((void*)prev_bpool_blocks,(void*)p_sh_mem->bpool_inst_arr, NUM_OF_SUPPORTED_BPOOLS * sizeof(bpool_instance_block_t));
 		prev_iomux_blocks = curr_iomux_blocks;
 		uint64_t delay_int_micro = SEC_TO_MICRO(user_params.interval);
 		if (!g_b_exit && check_if_process_running(pid)){
@@ -919,6 +976,7 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 			memcpy((void*)curr_instance_blocks,(void*)p_sh_mem->skt_inst_arr, p_sh_mem->max_skt_inst_num * sizeof(socket_instance_block_t));
 			memcpy((void*)curr_cq_blocks,(void*)p_sh_mem->cq_inst_arr, NUM_OF_SUPPORTED_CQS * sizeof(cq_instance_block_t));
 			memcpy((void*)curr_ring_blocks,(void*)p_sh_mem->ring_inst_arr, NUM_OF_SUPPORTED_RINGS * sizeof(ring_instance_block_t));
+			memcpy((void*)curr_bpool_blocks,(void*)p_sh_mem->bpool_inst_arr, NUM_OF_SUPPORTED_BPOOLS * sizeof(bpool_instance_block_t));
 			curr_iomux_blocks = p_sh_mem->iomux;
 		}
 		switch (user_params.view_mode) {
@@ -939,6 +997,7 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 				if (user_params.view_mode == e_full) {
 					show_cq_stats(p_sh_mem->cq_inst_arr,NULL);
 					show_ring_stats(p_sh_mem->ring_inst_arr,NULL);
+					show_bpool_stats(p_sh_mem->bpool_inst_arr,NULL);
 				}
 				break;
 			case e_deltas:
@@ -947,6 +1006,7 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 				if (user_params.view_mode == e_full) {
 					show_cq_stats(curr_cq_blocks, prev_cq_blocks);
 					show_ring_stats(curr_ring_blocks, prev_ring_blocks);
+					show_bpool_stats(curr_bpool_blocks, prev_bpool_blocks);
 				}
 				memcpy((void*)prev_instance_blocks,(void*)curr_instance_blocks, p_sh_mem->max_skt_inst_num * sizeof(socket_instance_block_t));
 				memcpy((void*)prev_cq_blocks,(void*)curr_cq_blocks, NUM_OF_SUPPORTED_CQS * sizeof(cq_instance_block_t));
@@ -1160,6 +1220,12 @@ void zero_cq_stats(cq_stats_t* p_cq_stats)
 	p_cq_stats->n_rx_drained_at_once_max = 0;
 }
 
+void zero_bpool_stats(bpool_stats_t* p_bpool_stats)
+{
+	p_bpool_stats->n_buffer_pool_size = 0;
+	p_bpool_stats->n_buffer_pool_no_bufs = 0;
+}
+
 void zero_counters(sh_mem_t* p_sh_mem)
 {
 	int i;
@@ -1176,6 +1242,9 @@ void zero_counters(sh_mem_t* p_sh_mem)
 	}
 	for (i = 0; i < NUM_OF_SUPPORTED_RINGS; i++) {
 		zero_ring_stats(&p_sh_mem->ring_inst_arr[i].ring_stats);
+	}
+	for (i = 0; i < NUM_OF_SUPPORTED_BPOOLS; i++) {
+		zero_bpool_stats(&p_sh_mem->bpool_inst_arr[i].bpool_stats);
 	}
 }
 

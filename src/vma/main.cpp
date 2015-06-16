@@ -1445,6 +1445,10 @@ void do_global_ctors()
 	if (!g_p_event_handler_manager)
 		g_p_event_handler_manager = new event_handler_manager();
 
+	vma_shmem_stats_open(&g_p_vlogger_level, &g_p_vlogger_details);
+	*g_p_vlogger_level = g_vlogger_level;
+	*g_p_vlogger_details = g_vlogger_details;
+
 	  //Create new netlink listener
 	if (!g_p_netlink_handler) {
 		g_p_netlink_handler = new netlink_wrapper();
@@ -1505,9 +1509,11 @@ void do_global_ctors()
 
  	if (!g_buffer_pool_rx)
 		g_buffer_pool_rx = new buffer_pool(mce_sys.rx_num_bufs, RX_BUF_SIZE(mce_sys.mtu), NULL, NULL, buffer_pool::free_rx_lwip_pbuf_custom);
+ 	g_buffer_pool_rx->set_RX_TX_for_stats(true);
 
  	if (!g_buffer_pool_tx)
  		g_buffer_pool_tx = new buffer_pool(mce_sys.tx_num_bufs, get_lwip_tcp_mss(mce_sys.mtu, mce_sys.lwip_mss) + 92, NULL, NULL, buffer_pool::free_tx_lwip_pbuf_custom);
+ 	g_buffer_pool_tx->set_RX_TX_for_stats(false);
 
  	if (!g_tcp_seg_pool)
  		g_tcp_seg_pool = new tcp_seg_pool(mce_sys.tx_num_segs_tcp);
@@ -1539,10 +1545,7 @@ void do_global_ctors()
 	// initialize LWIP tcp/ip stack
 	if (!g_p_lwip)
 		g_p_lwip = new vma_lwip();
-        
-	vma_shmem_stats_open(&g_p_vlogger_level, &g_p_vlogger_details);
-	*g_p_vlogger_level = g_vlogger_level;
-	*g_p_vlogger_details = g_vlogger_details;
+
 
 	if (g_p_netlink_handler) {
 		// Open netlink socket

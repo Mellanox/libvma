@@ -61,6 +61,7 @@ using namespace std;
 
 #define NUM_OF_SUPPORTED_CQS 		8 
 #define NUM_OF_SUPPORTED_RINGS 		8
+#define NUM_OF_SUPPORTED_BPOOLS		2
 #define NUM_OF_SUPPORTED_EPFDS          15
 #define MIN_STATS_SIZE	 		((sizeof(uint32_t)  + sizeof(size_t) + 6*sizeof(uint8_t) + sizeof(ring_instance_block_t)*NUM_OF_SUPPORTED_RINGS + sizeof(cq_instance_block_t)*NUM_OF_SUPPORTED_CQS + sizeof(mc_grp_info_t) + sizeof(iomux_stats_t) + 32*sizeof(char)))
 #define SHMEM_STATS_SIZE(fds_num)	MIN_STATS_SIZE + (fds_num * sizeof(socket_instance_block_t))
@@ -247,6 +248,21 @@ typedef struct {
 } ring_instance_block_t;
 
 //
+// Buffer Pool stat info
+//
+typedef struct {
+	bool		is_rx;
+	bool		is_tx;
+	uint32_t	n_buffer_pool_size;
+	uint32_t	n_buffer_pool_no_bufs;
+} bpool_stats_t;
+
+typedef struct {
+	bool 		b_enabled;
+	bpool_stats_t 	bpool_stats;
+} bpool_instance_block_t;
+
+//
 // Version info
 //
 typedef struct {
@@ -265,6 +281,7 @@ typedef struct sh_mem_t {
 	uint8_t 			log_details_level;
 	cq_instance_block_t		cq_inst_arr[NUM_OF_SUPPORTED_CQS];
 	ring_instance_block_t		ring_inst_arr[NUM_OF_SUPPORTED_RINGS];
+	bpool_instance_block_t		bpool_inst_arr[NUM_OF_SUPPORTED_BPOOLS];
 	mc_grp_info_t			mc_info;
 	iomux_stats_t                   iomux;
 	socket_instance_block_t  	skt_inst_arr[]; //sockets statistics array
@@ -294,6 +311,9 @@ void 			vma_stats_instance_remove_ring_block(ring_stats_t*);
 
 void     		vma_stats_instance_create_cq_block(cq_stats_t*);
 void 			vma_stats_instance_remove_cq_block(cq_stats_t*);
+
+void     		vma_stats_instance_create_bpool_block(bpool_stats_t*);
+void 			vma_stats_instance_remove_bpool_block(bpool_stats_t*);
 
 void             	vma_stats_instance_get_poll_block(iomux_func_stats_t*);
 void             	vma_stats_instance_get_select_block(iomux_func_stats_t*);
