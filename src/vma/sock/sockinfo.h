@@ -40,6 +40,11 @@
 #define SI_RX_EPFD_EVENT_MAX		16
 
 struct buff_info_t {
+		buff_info_t(){
+			rx_reuse.set_id("buff_info_t (%p) : rx_reuse", this);
+			n_buff_num = 0;
+		}
+
        int     n_buff_num;
        descq_t     rx_reuse;
 };

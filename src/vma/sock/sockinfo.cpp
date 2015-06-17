@@ -686,8 +686,12 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 	unlock_rx_q();
 	m_rx_ring_map_lock.lock();
 	lock_rx_q();
+
 	descq_t temp_rx_reuse;
+	temp_rx_reuse.set_id("sockinfo (%p), fd = %d : rx_del_ring_cb temp_rx_reuse", this, m_fd);
 	descq_t temp_rx_reuse_global;
+	temp_rx_reuse_global.set_id("sockinfo (%p), fd = %d : rx_del_ring_cb temp_rx_reuse_global", this, m_fd);
+
 	rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.find(p_ring);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (rx_ring_iter != m_rx_ring_map.end()) {

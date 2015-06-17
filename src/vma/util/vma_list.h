@@ -16,6 +16,15 @@
 #include "vma/util/list.h"
 #include "vlogger/vlogger.h"
 
+#define _VMA_LIST_DEBUG 0
+#define ID_MAX_SIZE 200
+
+#if _VMA_LIST_DEBUG
+template <class T>
+class vma_list_t;
+
+#endif
+
 template <class T>
 class list_node {
 public :
@@ -24,10 +33,23 @@ public :
 	struct list_head head;
 	T *obj_ptr;
 
+#if _VMA_LIST_DEBUG
+	vma_list_t<T>* list;
+
+	char* list_id(){
+		return this->list->list_id();
+	}
+
+#endif
+
 	list_node() {
 		this->head.next = &this->head;
 		this->head.prev = &this->head;
 		this->obj_ptr = NULL;
+
+	#if _VMA_LIST_DEBUG
+		list = NULL;
+	#endif
 	}
 
 	/* is_list_member - check if the node is already a member in a list. */
@@ -109,6 +131,17 @@ public:
 		init_list();
 	}
 
+	void set_id(const char *format, ...){
+		if (format) {
+	#if _VMA_LIST_DEBUG
+			va_list arg;
+			va_start (arg, format);
+			vsnprintf (id, sizeof(id) ,format, arg);
+			va_end (arg);
+	#endif
+		}
+	}
+
 	vma_list_t(const vma_list_t& obj) {
 		vlog_printf(VLOG_WARNING,"vma_list_t copy constructor is not supported, initialize an empty list.\n");
 		list_counter = obj.list_counter;
@@ -127,80 +160,89 @@ public:
 		return get(idx);
 	}
 
-	T* front() {
-		if (empty()){
-			return NULL;
-		} else {
-			return ((list_node<T> *)list_t.head.next)->obj_ptr;
-		}
-	}
-
-	T* back() {
-		if (empty()){
-			return NULL;
-		} else {
-			return ((list_node<T> *)list_t.head.prev)->obj_ptr;
-		}
-	}
-
-	bool empty(){
+	inline bool empty(){
 		return list_empty(&list_t.head);
 	}
 
-	size_t size(){
+	inline size_t size(){
 		return list_counter;
 	}
 
-	void pop_front(){
-		if (!empty()){
-			list_del_init(list_t.head.next);
-			list_counter--;
-		}
+	inline T* front() {
+		if (this->empty())
+			return NULL;
+		return ((list_node<T> *)list_t.head.next)->obj_ptr;
 	}
 
-	void pop_back(){
-		if (!empty()){
-			list_del_init(list_t.head.prev);
-			list_counter--;
-		}
+	inline T* back() {
+		if (this->empty())
+			return NULL;
+		return ((list_node<T> *)list_t.head.prev)->obj_ptr;
 	}
 
-	void erase(T* obj){
+	inline void erase(T* obj){
 		if (!obj) {
 			vlog_printf(VLOG_WARNING,"vma_list_t.erase() got NULL object - ignoring.\n");
 			return;
 		}
+	#if _VMA_LIST_DEBUG
+		obj->node.list = NULL;
+	#endif
 		list_del_init(&obj->node.head);
 		list_counter--;
 	}
 
-	void push_back(T* obj){
+	inline void pop_front(){
+		erase(this->front());
+	}
+
+	inline void pop_back(){
+		erase(this->back());
+	}
+
+	inline void push_back(T* obj){
 		if (!obj) {
 			vlog_printf(VLOG_WARNING,"vma_list_t.push_back() got NULL object - ignoring.\n");
 			return;
 		}
 		if (obj->node.is_list_member()) {
-			vlog_printf(VLOG_ERROR,"vma_list_t.push_back() - object is in more then one list.\n");
+		#if _VMA_LIST_DEBUG
+			vlog_printf(VLOG_ERROR,"vma_list_t.push_back() - buff is already a member in a list (list id = %s), (this.id = %s)\n", obj->node.list_id(), this->list_id());
+		#else
+			vlog_printf(VLOG_ERROR,"vma_list_t.push_back() - buff is already a member in a list.\n");
+		#endif
 		}
+	#if _VMA_LIST_DEBUG
+		obj->node.list = this;
+	#endif
+
 		obj->node.obj_ptr = obj;
 		list_add_tail(&obj->node.head, &list_t.head);
 		list_counter++;
 	}
 
-	void push_front(T* obj){
+	inline void push_front(T* obj){
 		if (!obj) {
 			vlog_printf(VLOG_WARNING,"vma_list_t.push_front() got NULL object - ignoring.\n");
 			return;
 		}
 		if (obj->node.is_list_member()) {
-			vlog_printf(VLOG_ERROR,"vma_list_t.push_front() - object is in more then one list.\n");
+		#if _VMA_LIST_DEBUG
+			vlog_printf(VLOG_ERROR,"vma_list_t.push_front() - buff is already a member in a list (list id = %s), (this.id = %s)\n", obj->node.list_id(), this->list_id());
+		#else
+			vlog_printf(VLOG_ERROR,"vma_list_t.push_front() - buff is already a member in a list.\n");
+		#endif
 		}
+
+	#if _VMA_LIST_DEBUG
+		obj->node.list = this;
+	#endif
 		obj->node.obj_ptr = obj;
 		list_add(&obj->node.head, &list_t.head);
 		list_counter++;
 	}
 
-	T* get(size_t index) {
+	inline T* get(size_t index) {
 		if (list_counter <= index) {
 			return NULL;
 		} else {
@@ -212,22 +254,35 @@ public:
 		}
 	}
 
-	list_iterator_t<T> begin(){
+	inline list_iterator_t<T> begin(){
 		return list_iterator_t<T>(front());
 	}
 
-	list_iterator_t<T> end(){
+	inline list_iterator_t<T> end(){
 		return list_iterator_t<T>(NULL);
 	}
+
+#if _VMA_LIST_DEBUG
+	char* list_id(){
+		return (char*)&id;
+	}
+#endif
 
 private:
 
 	list_node<T> list_t;
 	size_t list_counter;
 
+#if _VMA_LIST_DEBUG
+	char id[ID_MAX_SIZE];
+#endif
+
 	void init_list(){
 		list_counter = 0;
 		INIT_LIST_HEAD(&list_t.head);
+	#if _VMA_LIST_DEBUG
+		id[0] = '\0';
+	#endif
 	}
 
 };

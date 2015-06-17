@@ -64,6 +64,12 @@ sockinfo_tcp::sockinfo_tcp(int fd) :
 {
 	si_tcp_logfuncall("");
 
+	m_accepted_conns.set_id("sockinfo_tcp (%p), fd = %d : m_accepted_conns", this, m_fd);
+	m_rx_pkt_ready_list.set_id("sockinfo_tcp (%p), fd = %d : m_rx_pkt_ready_list", this, m_fd);
+	m_rx_cb_dropped_list.set_id("sockinfo_tcp (%p), fd = %d : m_rx_cb_dropped_list", this, m_fd);
+	m_rx_ctl_packets_list.set_id("sockinfo_tcp (%p), fd = %d : m_rx_ctl_packets_list", this, m_fd);
+	m_rx_ctl_reuse_list.set_id("sockinfo_tcp (%p), fd = %d : m_rx_ctl_reuse_list", this, m_fd);
+
 	m_bound.set_sa_family(AF_INET);
 	m_protocol = PROTO_TCP;
 	m_p_socket_stats->socket_type = SOCK_STREAM;

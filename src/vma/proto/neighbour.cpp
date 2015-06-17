@@ -79,6 +79,8 @@ neigh_entry::neigh_entry(neigh_key key, transport_type_t type, bool is_init_reso
 	m_to_str(std::string(priv_vma_transport_type_str(m_trans_type)) + ":" + get_key().to_str()),
 	m_is_first_send_arp(true)
 {
+	m_unsent_queue.set_id("neigh_entry (%p) : m_unsent_queue", this);
+
 	m_val = NULL;
 	m_p_dev = key.get_net_device_val();
 

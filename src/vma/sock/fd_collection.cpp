@@ -46,6 +46,8 @@ fd_collection::fd_collection() :
 {
 	fdcoll_logfunc("");
 
+	m_pendig_to_remove_lst.set_id("fd_collection (%p) : m_pendig_to_remove_lst", this);
+
 	m_n_fd_map_size = 1024;
 	struct rlimit rlim;
 	if ((getrlimit(RLIMIT_NOFILE, &rlim) == 0) && ((int)rlim.rlim_max > m_n_fd_map_size))

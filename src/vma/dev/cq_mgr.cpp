@@ -52,6 +52,10 @@ cq_mgr::cq_mgr(ring* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, stru
 {
 	cq_logfunc("");
 
+	m_tcp_ctl_queue.set_id("cq_mgr (%p) : m_tcp_ctl_queue", this);
+	m_rx_queue.set_id("cq_mgr (%p) : m_rx_queue", this);
+	m_rx_pool.set_id("cq_mgr (%p) : m_rx_pool", this);
+
 	m_n_wce_counter = 0;
 	m_b_was_drained = false;
 
@@ -502,6 +506,11 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 		if (likely(buff->path.rx.context == this)) {
 			mem_buf_desc_t* temp = NULL;
 			while (buff) {
+			#if _VMA_LIST_DEBUG
+				if (buff->node.is_list_member()) {
+					vlog_printf(VLOG_WARNING, "cq_mgr::reclaim_recv_buffer_helper - buff is already a member in a list , id = %s\n", buff->node.list_id());
+				}
+			#endif
 				temp = buff;
 				buff = temp->p_next_desc;
 				temp->p_next_desc = NULL;

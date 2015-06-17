@@ -84,6 +84,7 @@ ring::ring(in_addr_t local_if, uint16_t partition_sn, int count, transport_type_
 		m_missing_buf_ref_count(0), m_tx_lkey(0), m_partition(partition_sn), m_gro_mgr(mce_sys.gro_streams_max, MAX_GRO_BUFS)
 {
 	 // coverity[uninit_member]
+	m_tx_pool.set_id("ring (%p) : m_tx_pool", this);
 }
 
 ring::~ring()
