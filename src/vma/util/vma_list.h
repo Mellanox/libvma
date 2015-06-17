@@ -30,6 +30,11 @@ public :
 		this->obj_ptr = NULL;
 	}
 
+	/* is_list_member - check if the node is already a member in a list. */
+	bool is_list_member(){
+		return this->head.next != &this->head || this->head.prev != &this->head;
+	}
+
 };
 
 template<typename T>
@@ -174,8 +179,8 @@ public:
 			vlog_printf(VLOG_WARNING,"vma_list_t.push_back() got NULL object - ignoring.\n");
 			return;
 		}
-		if (check_node(obj)) {
-			vlog_printf(VLOG_WARNING,"vma_list_t.push_back() - object is in more then one list.\n");
+		if (obj->node.is_list_member()) {
+			vlog_printf(VLOG_ERROR,"vma_list_t.push_back() - object is in more then one list.\n");
 		}
 		obj->node.obj_ptr = obj;
 		list_add_tail(&obj->node.head, &list_t.head);
@@ -187,8 +192,8 @@ public:
 			vlog_printf(VLOG_WARNING,"vma_list_t.push_front() got NULL object - ignoring.\n");
 			return;
 		}
-		if (check_node(obj)) {
-			vlog_printf(VLOG_WARNING,"vma_list_t.push_front() - object is in more then one list.\n");
+		if (obj->node.is_list_member()) {
+			vlog_printf(VLOG_ERROR,"vma_list_t.push_front() - object is in more then one list.\n");
 		}
 		obj->node.obj_ptr = obj;
 		list_add(&obj->node.head, &list_t.head);
@@ -225,10 +230,6 @@ private:
 		INIT_LIST_HEAD(&list_t.head);
 	}
 
-	bool check_node(T* obj){
-		list_head* ptr = &obj->node.head;
-		return ptr->next != ptr && ptr->prev != ptr;
-	}
 };
 
 #endif /* VMA_LIST */

@@ -92,10 +92,11 @@ bool rfs_uc::rx_dispatch_packet(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_re
 
 	for (uint32_t i=0; i < m_n_sinks_list_entries; ++i) {
 		if (m_sinks_list[i]) {
+			p_rx_wc_buf_desc->inc_ref_count();
 			m_sinks_list[i]->rx_input_cb(p_rx_wc_buf_desc, pv_fd_ready_array);
 
 			// Check packet ref_count to see the last receiver is interested in this packet
-			if (p_rx_wc_buf_desc->get_ref_count() > 0) {
+			if (p_rx_wc_buf_desc->dec_ref_count() > 1) {
 				// The sink will be responsible to return the buffer to CQ for reuse
 				return true;
 			}

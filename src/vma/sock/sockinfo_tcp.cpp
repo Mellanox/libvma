@@ -3167,10 +3167,10 @@ inline void sockinfo_tcp::reuse_buffer(mem_buf_desc_t *buff)
 		if (m_rx_reuse_buff.n_buff_num > m_rx_num_buffs_reuse) {
 			if (m_p_rx_ring->reclaim_recv_buffers(&m_rx_reuse_buff.rx_reuse)) {
 				m_rx_reuse_buff.n_buff_num = 0;
-	                } else if (m_rx_reuse_buff.n_buff_num > 2 * m_rx_num_buffs_reuse) {
-	                	g_buffer_pool_rx->put_buffers_thread_safe(&m_rx_reuse_buff.rx_reuse, m_rx_reuse_buff.rx_reuse.size());
-	                	m_rx_reuse_buff.n_buff_num = 0;
-	                }
+			} else if (m_rx_reuse_buff.n_buff_num > 2 * m_rx_num_buffs_reuse) {
+				g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&m_rx_reuse_buff.rx_reuse);
+				m_rx_reuse_buff.n_buff_num = 0;
+			}
 		}
 	}
 	else {

@@ -568,6 +568,7 @@ void buffer_pool::put_buffers(descq_t *buffers, size_t count)
 	__log_info_funcall("returning %lu, present %lu, created %lu", count, m_n_buffers, m_n_buffers_created);
 	while (count > 0 && !buffers->empty()) {
 		buff_list = buffers->back();
+		buffers->pop_back();
 		while (buff_list) {
 			next = buff_list->p_next_desc;
 			put_buffer_helper(buff_list);
@@ -577,7 +578,6 @@ void buffer_pool::put_buffers(descq_t *buffers, size_t count)
 				buffersPanic();
 			}
 		}
-		buffers->pop_back();
 		--count;
 	}
 }
@@ -591,9 +591,9 @@ void buffer_pool::put_buffers_thread_safe(descq_t *buffers, size_t count)
 void buffer_pool::put_buffers_after_deref(descq_t *pDeque)
 {
 	// Assume locked owner!!!
-	list_iterator_t<mem_buf_desc_t> iter;
-	for (iter = pDeque->begin(); iter != pDeque->end(); ++iter) {
-		mem_buf_desc_t * list = *iter;
+	while (!pDeque->empty()) {
+		mem_buf_desc_t * list = pDeque->front();
+		pDeque->pop_front();
 		if (list->dec_ref_count() <= 1 && (list->lwip_pbuf.pbuf.ref-- <= 1)) {
 			put_buffers(list);
 		}

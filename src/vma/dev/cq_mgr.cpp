@@ -485,7 +485,6 @@ bool cq_mgr::compensate_qp_post_recv(mem_buf_desc_t* buff_cur)
 		}
 		else if (mce_sys.cq_keep_qp_full ||
 				m_qp_rec.debth + MCE_MAX_CQ_POLL_BATCH > (int)m_qp_rec.qp->get_rx_max_wr_num()) {
-
 			m_p_cq_stat->n_rx_pkt_drop++;
 			post_recv_qp(&m_qp_rec, buff_cur);
 			--m_qp_rec.debth;
@@ -821,8 +820,10 @@ int cq_mgr::drain_and_proccess(bool b_recycle_buffers /*=false*/)
 					}
 					else { //udp/ip traffic we just put in the cq's rx queueu
 						m_rx_queue.push_back(buff);
-						if (compensate_qp_post_recv(m_rx_queue.front())) {
-							m_rx_queue.pop_front();
+						mem_buf_desc_t* buff_cur = m_rx_queue.front();
+						m_rx_queue.pop_front();
+						if (!compensate_qp_post_recv(buff_cur)) {
+							m_rx_queue.push_front(buff_cur);
 						}
 					}
 				}
