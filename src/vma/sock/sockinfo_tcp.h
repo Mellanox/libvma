@@ -252,6 +252,7 @@ private:
 	vma_desc_list_t	m_rx_pkt_ready_list;
 	vma_desc_list_t m_rx_cb_dropped_list;
 
+	lock_spin_recursive m_rx_ctl_packets_list_lock;
 	vma_desc_list_t m_rx_ctl_packets_list;
 	vma_desc_list_t m_rx_ctl_reuse_list;
 	ready_pcb_map_t m_ready_pcbs;

@@ -153,9 +153,9 @@ sockinfo_tcp::~sockinfo_tcp()
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	if (m_n_rx_pkt_ready_list_count || m_rx_ready_byte_count || m_rx_pkt_ready_list.size() || m_rx_ring_map.size() || m_rx_reuse_buff.n_buff_num)
-		si_tcp_logerr("not all buffers were freed. protocol=TCP. m_n_rx_pkt_ready_list_count=%d, m_rx_ready_byte_count=%d, m_rx_pkt_ready_list.size()=%d, m_rx_ring_map.size()=%d, m_rx_reuse_buff.n_buff_num=%d",
-				m_n_rx_pkt_ready_list_count, m_rx_ready_byte_count, (int)m_rx_pkt_ready_list.size() ,(int)m_rx_ring_map.size(), m_rx_reuse_buff.n_buff_num);
+	if (m_n_rx_pkt_ready_list_count || m_rx_ready_byte_count || m_rx_pkt_ready_list.size() || m_rx_ring_map.size() || m_rx_reuse_buff.n_buff_num || m_rx_reuse_buff.rx_reuse.size() || m_rx_cb_dropped_list.size() || m_rx_ctl_packets_list.size() || m_rx_ctl_reuse_list.size())
+		si_tcp_logerr("not all buffers were freed. protocol=TCP. m_n_rx_pkt_ready_list_count=%d, m_rx_ready_byte_count=%d, m_rx_pkt_ready_list.size()=%d, m_rx_ring_map.size()=%d, m_rx_reuse_buff.n_buff_num=%d, m_rx_reuse_buff.rx_reuse.size=%d, m_rx_cb_dropped_list.size=%d, m_rx_ctl_packets_list.size=%d, m_rx_ctl_reuse_list.size=%d",
+				m_n_rx_pkt_ready_list_count, m_rx_ready_byte_count, (int)m_rx_pkt_ready_list.size() ,(int)m_rx_ring_map.size(), m_rx_reuse_buff.n_buff_num, m_rx_reuse_buff.rx_reuse.size(), m_rx_cb_dropped_list.size(), m_rx_ctl_packets_list.size(), m_rx_ctl_reuse_list.size());
 
 	si_tcp_logdbg("sock closed");
 }
@@ -185,8 +185,10 @@ bool sockinfo_tcp::prepare_listen_to_close()
 		m_syn_received.erase(key);
 		m_accepted_conns.pop_front();
 		m_ready_conn_cnt--;
+		new_sock->lock_tcp_con();
 		new_sock->m_parent = NULL;
 		new_sock->abort_connection();
+		new_sock->unlock_tcp_con();
 		close(new_sock->get_fd());
 	}
 
@@ -200,8 +202,10 @@ bool sockinfo_tcp::prepare_listen_to_close()
 		syn_received_itr++;
 		m_syn_received.erase(syn_received_itr_erase);
 		m_received_syn_num--;
+		new_sock->lock_tcp_con();
 		new_sock->m_parent = NULL;
 		new_sock->abort_connection();
+		new_sock->unlock_tcp_con();
 		close(new_sock->get_fd());
 	}
 
@@ -250,8 +254,14 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 	}
 
 	while (!m_rx_ctl_packets_list.empty()) {
+		m_rx_ctl_packets_list_lock.lock();
+		if (m_rx_ctl_packets_list.empty()) {
+			m_rx_ctl_packets_list_lock.unlock();
+			break;
+		}
 		mem_buf_desc_t* p_rx_pkt_desc = m_rx_ctl_packets_list.front();
 		m_rx_ctl_packets_list.pop_front();
+		m_rx_ctl_packets_list_lock.unlock();
 		reuse_buffer(p_rx_pkt_desc);
 	}
 
@@ -641,6 +651,8 @@ err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rex
 	dst_entry *p_dst = p_si_tcp->m_p_connected_dst_entry;
 	int count = 1;
 
+	ASSERT_NOT_LOCKED(p_si_tcp->m_tcp_con_lock);
+
 	if (likely(!p->next)) { // We should hit this case 99% of cases
 		tcp_iovec.iovec.iov_base = p->payload;
 		tcp_iovec.iovec.iov_len = p->len;
@@ -676,11 +688,11 @@ err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rex
 	p_si_tcp->m_p_socket_stats->tcp_state = new_state;
 }
 
-void sockinfo_tcp::err_lwip_cb(void *arg, err_t err)
+void sockinfo_tcp::err_lwip_cb(void *pcb_container, err_t err)
 {
 
-	if (!arg) return;
-	sockinfo_tcp *conn = (sockinfo_tcp *)arg;
+	if (!pcb_container) return;
+	sockinfo_tcp *conn = (sockinfo_tcp *)pcb_container;
 	vlog_printf(VLOG_DEBUG, "%s:%d [fd=%d] sock=%p lwip_pcb=%p err=%d\n", __func__, __LINE__, conn->m_fd, conn, &(conn->m_pcb), err);
 
 	if (get_tcp_state(&conn->m_pcb) == LISTEN && err == ERR_RST) {
@@ -688,17 +700,20 @@ void sockinfo_tcp::err_lwip_cb(void *arg, err_t err)
 		return;
 	}
 
-	conn->lock_tcp_con();
+	ASSERT_LOCKED(conn->m_tcp_con_lock);
 
 	if (conn->m_parent != NULL) {
 		//in case we got RST before we accepted the connection
 		int delete_fd = 0;
-		if ((delete_fd = conn->m_parent->handle_child_FIN(conn))) {
+		sockinfo_tcp *parent = conn->m_parent;
+		conn->unlock_tcp_con();
+		if ((delete_fd = parent->handle_child_FIN(conn))) {
 			//close will clean sockinfo_tcp object and the opened OS socket
-			conn->unlock_tcp_con();
 			close(delete_fd);
+			conn->lock_tcp_con(); //todo sock and fd_collection destruction race? if so, conn might be invalid? delay close to internal thread?
 			return;
 		}
+		conn->lock_tcp_con();
 	}
 
 	/*
@@ -737,7 +752,6 @@ void sockinfo_tcp::err_lwip_cb(void *arg, err_t err)
 	}
 
 	conn->do_wakeup();
-	conn->unlock_tcp_con();
 }
 
 void sockinfo_tcp::process_rx_ctl_packets()
@@ -748,8 +762,9 @@ void sockinfo_tcp::process_rx_ctl_packets()
 		if (m_tcp_con_lock.trylock()) {
 			return;
 		}
+		m_rx_ctl_packets_list_lock.lock();
 		mem_buf_desc_t* desc = m_rx_ctl_packets_list.front();
-		m_rx_ctl_packets_list.pop_front();
+		m_rx_ctl_packets_list_lock.unlock();
 		struct tcp_pcb *pcb = get_syn_received_pcb(desc->path.rx.src.sin_addr.s_addr,
 				desc->path.rx.src.sin_port,
 				desc->path.rx.dst.sin_addr.s_addr,
@@ -757,12 +772,33 @@ void sockinfo_tcp::process_rx_ctl_packets()
 		if (!pcb) {
 			pcb = &m_pcb;
 		}
-		m_tcp_con_lock.unlock();
-		L3_level_tcp_input((pbuf *)desc, pcb);
-		/*if (desc->get_ref_count() <= 0) //todo reuse needed?
-			m_rx_ctl_reuse_list.push_back(desc);
-		*/
 
+		sockinfo_tcp *sock = (sockinfo_tcp*)pcb->my_container;
+
+		if (sock != this) {
+			m_tcp_con_lock.unlock();
+			if (sock->m_tcp_con_lock.trylock()) {
+				return;
+			}
+		}
+
+		m_rx_ctl_packets_list_lock.lock();
+		if (desc != m_rx_ctl_packets_list.front()) {
+			m_rx_ctl_packets_list_lock.unlock();
+			sock->m_tcp_con_lock.unlock();
+			return;
+		}
+		m_rx_ctl_packets_list.pop_front();
+		m_rx_ctl_packets_list_lock.unlock();
+
+		sock->m_vma_thr = true;
+		desc->inc_ref_count();
+		L3_level_tcp_input((pbuf *)desc, pcb);
+		if (desc->dec_ref_count() <= 1)
+			m_rx_ctl_reuse_list.push_back(desc);
+		sock->m_vma_thr = false;
+
+		sock->m_tcp_con_lock.unlock();
 	}
 	while (!m_ready_pcbs.empty()) {
 		if (m_tcp_con_lock.trylock()) {
@@ -781,23 +817,34 @@ void sockinfo_tcp::process_rx_ctl_packets()
 		}
 		sock->m_vma_thr = true;
 		while (!sock->m_rx_ctl_packets_list.empty()) {
+			sock->m_rx_ctl_packets_list_lock.lock();
+			if (sock->m_rx_ctl_packets_list.empty()) {
+				sock->m_rx_ctl_packets_list_lock.unlock();
+				break;
+			}
 			mem_buf_desc_t* desc = sock->m_rx_ctl_packets_list.front();
 			sock->m_rx_ctl_packets_list.pop_front();
+			sock->m_rx_ctl_packets_list_lock.unlock();
+			desc->inc_ref_count();
 			L3_level_tcp_input((pbuf *)desc, &sock->m_pcb);
-			if (desc->get_ref_count() <= 0) //todo reuse needed?
+			if (desc->dec_ref_count() <= 1) //todo reuse needed?
 				sock->m_rx_ctl_reuse_list.push_back(desc);
 		}
 		sock->m_vma_thr = false;
+		sock->m_tcp_con_lock.unlock();
+
 		if (m_tcp_con_lock.trylock()) {
-			sock->m_tcp_con_lock.unlock();
 			break;
 		}
-		m_ready_pcbs.erase(itr);
+
+		sock->m_rx_ctl_packets_list_lock.lock();
+		if (sock->m_rx_ctl_packets_list.empty())
+			m_ready_pcbs.erase(&sock->m_pcb);
+		sock->m_rx_ctl_packets_list_lock.unlock();
+
 		m_tcp_con_lock.unlock();
-		sock->m_tcp_con_lock.unlock();
 	}
-	while (!m_rx_ctl_reuse_list.empty()) { //todo needed?
-		si_tcp_logwarn("!m_rx_ctl_reuse_list.empty");
+	while (!m_rx_ctl_reuse_list.empty()) {
 		if (m_tcp_con_lock.trylock()) {
 			return;
 		}
@@ -879,7 +926,9 @@ int sockinfo_tcp::handle_child_FIN(sockinfo_tcp* child_conn)
 		m_received_syn_num--;
 		child_conn->m_parent = NULL;
 		unlock_tcp_con();
+		child_conn->lock_tcp_con();
 		child_conn->abort_connection();
+		child_conn->unlock_tcp_con();
 		return (child_conn->get_fd());
 	}
 	unlock_tcp_con();
@@ -893,43 +942,36 @@ err_t sockinfo_tcp::ack_recvd_lwip_cb(void *arg, struct tcp_pcb *tpcb, u16_t ack
 	sockinfo_tcp *conn = (sockinfo_tcp *)arg;
 
 	vlog_func_enter();
-	conn->lock_tcp_con();
+
+	ASSERT_LOCKED(conn->m_tcp_con_lock);
 
 	// notify epoll
 	conn->notify_epoll_context(EPOLLOUT);
-
-	conn->unlock_tcp_con();
 
 	vlog_func_exit();
 
 	return ERR_OK;
 }
 
-err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *tpcb,
+err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
                         struct pbuf *p, err_t err)
 {
 
 	int bytes_to_tcp_recved;
 	int rcv_buffer_space;
-	sockinfo_tcp *conn = (sockinfo_tcp *)arg;
+	sockinfo_tcp *conn = (sockinfo_tcp *)pcb->my_container;
+	NOT_IN_USE(arg);
 
 	//vlog_printf(VLOG_ERROR, "%s:%d %s\n", __func__, __LINE__, "RX CB");
 	vlog_func_enter();
-	conn->lock_tcp_con();
+	ASSERT_LOCKED(conn->m_tcp_con_lock);
 
 	//if is FIN
 	if (unlikely(!p)) {
 
 		if (conn->is_server()) {
-			conn->unlock_tcp_con();
 			vlog_printf(VLOG_ERROR, "listen socket should not receive FIN");
-			if (tpcb->my_container != tpcb->callback_arg) {
-				//make sure the child connection will get the fin, and will be closed properly.
-				conn = (sockinfo_tcp *)(tpcb->my_container);
-				conn->lock_tcp_con();
-			} else {
-				return ERR_OK;
-			}
+			return ERR_OK;
 		}
 
 		conn->notify_epoll_context(EPOLLIN|EPOLLRDHUP);
@@ -939,7 +981,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *tpcb,
 		//tcp_close(&(conn->m_pcb));
 		//TODO: should be a move into half closed state (shut rx) instead of complete close
 		tcp_shutdown(&(conn->m_pcb), 1, 0);
-		vlog_printf(VLOG_DEBUG, "%s:%d [fd=%d] null pbuf sock(%p %p) err=%d\n", __func__, __LINE__, conn->m_fd, &(conn->m_pcb), tpcb, err);
+		vlog_printf(VLOG_DEBUG, "%s:%d [fd=%d] null pbuf sock(%p %p) err=%d\n", __func__, __LINE__, conn->m_fd, &(conn->m_pcb), pcb, err);
 
 		if (conn->is_rts() || ((conn->m_sock_state == TCP_SOCK_ASYNC_CONNECT) && (conn->m_conn_state == TCP_CONN_CONNECTED))) {
 			conn->m_sock_state = TCP_SOCK_CONNECTED_WR;
@@ -955,15 +997,18 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *tpcb,
 		if (conn->m_parent != NULL) {
 			//in case we got FIN before we accepted the connection
 			int delete_fd = 0;
-			if ((delete_fd = conn->m_parent->handle_child_FIN(conn))) {
+			sockinfo_tcp *parent = conn->m_parent;
+			/* TODO need to add some refcount inside parent in case parent and child are closed together*/
+			conn->unlock_tcp_con();
+			if ((delete_fd = parent->handle_child_FIN(conn))) {
 				//close will clean sockinfo_tcp object and the opened OS socket
-				conn->unlock_tcp_con();
 				close(delete_fd);
+				conn->lock_tcp_con(); //todo sock and fd_collection destruction race? if so, conn might be invalid? delay close to internal thread?
 				return ERR_ABRT;
 			}
+			conn->lock_tcp_con();
 		}
 
-		conn->unlock_tcp_con();
 		return ERR_OK;
 	}
 	if (unlikely(err != ERR_OK)) {
@@ -973,7 +1018,6 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *tpcb,
 		vlog_printf(VLOG_ERROR, "%s:%d %s\n", __func__, __LINE__, "recv error!!!\n");
 		pbuf_free(p);
 		conn->m_sock_state = TCP_SOCK_INITED;
-		conn->unlock_tcp_con();
 		return err;
 	}
 	mem_buf_desc_t *p_first_desc = (mem_buf_desc_t *)p;
@@ -1064,8 +1108,6 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *tpcb,
 	}
 	if (p->tot_len-bytes_to_tcp_recved > 0)
 	    conn->m_rcvbuff_non_tcp_recved += p->tot_len-bytes_to_tcp_recved;
-
-	conn->unlock_tcp_con();
 
 	vlog_func_exit();
 	return ERR_OK;
@@ -1226,30 +1268,21 @@ void sockinfo_tcp::register_timer()
 void sockinfo_tcp::queue_rx_ctl_packet(struct tcp_pcb* pcb, mem_buf_desc_t *p_desc)
 {
 	/* in tcp_ctl_thread mode, always lock the child first*/
-	unlock_tcp_con();
 	p_desc->inc_ref_count();
 	if (!p_desc->path.rx.gro)
 		init_pbuf_custom(p_desc);
 	else
 		p_desc->path.rx.gro = 0;
 	sockinfo_tcp *sock = (sockinfo_tcp*)pcb->my_container;
-	sock->lock_tcp_con();
-	if (sock->m_conn_state == TCP_CONN_CONNECTED) {
-		m_vma_thr = p_desc->path.rx.is_vma_thr;
-		L3_level_tcp_input((pbuf *)p_desc, pcb);
-		m_vma_thr = false;
-		sock->unlock_tcp_con();
-		return;
-	}
-	//todo do we need a lock to protect the list, as the tcp lock might be unlocked in some internal flows
+
+	sock->m_rx_ctl_packets_list_lock.lock();
 	sock->m_rx_ctl_packets_list.push_back(p_desc);
+	sock->m_rx_ctl_packets_list_lock.unlock();
+
 	if (sock != this) {
-		lock_tcp_con();
 		m_ready_pcbs[pcb] = 1;
-		unlock_tcp_con();
 	}
 
-	sock->unlock_tcp_con();
 	return;
 }
 
@@ -1271,14 +1304,13 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 		}
 		if (mce_sys.tcp_ctl_thread) {
 			queue_rx_ctl_packet(pcb, p_rx_pkt_mem_buf_desc_info);
+			unlock_tcp_con();
 			return true;
 		}
 	}
 	else {
 		pcb = &m_pcb;
 	}
-
-	m_vma_thr = p_rx_pkt_mem_buf_desc_info->path.rx.is_vma_thr;
 	
 	p_rx_pkt_mem_buf_desc_info->inc_ref_count();
 
@@ -1287,9 +1319,21 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 
 	dropped_count = m_rx_cb_dropped_list.size();
 
+	sockinfo_tcp *sock = (sockinfo_tcp*)pcb->my_container;
+	if (sock != this) {
+		sock->m_tcp_con_lock.lock();
+	}
+
+	sock->m_vma_thr = p_rx_pkt_mem_buf_desc_info->path.rx.is_vma_thr;
+
 	L3_level_tcp_input((pbuf *)p_rx_pkt_mem_buf_desc_info, pcb);
 
-	m_vma_thr = false;
+	sock->m_vma_thr = false;
+
+	if (sock != this) {
+		sock->m_tcp_con_lock.unlock();
+	}
+
 	m_iomux_ready_fd_array = NULL;
 
 	while (dropped_count--) {
@@ -1791,16 +1835,9 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	// as long as we did not accept the new socket, the listen socket( AKA the parent) was responsible to pass all communication to the new socket.
-	// once we done accepting it, we do not need the parent anymore. we set the pointer to the parent to NULL,
-	// so we wont notify the parent with changes occurring to the new socket (such as receiving FIN, in rx_lwip_cb()), since the parent is not responsible for it anymore.
-	ns->m_parent = NULL;
-
 	m_accepted_conns.pop_front();
 	m_ready_conn_cnt--;
 	tcp_accepted(m_sock);
-
-	unlock_tcp_con();
 
 	struct flow_tuple key;
 	sockinfo_tcp::create_flow_tuple_key_from_pcb(key, &(ns->m_pcb));
@@ -1813,6 +1850,14 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 	else {
 		m_received_syn_num--;
 	}
+
+	unlock_tcp_con();
+
+	ns->lock_tcp_con();
+	// as long as we did not accept the new socket, the listen socket( AKA the parent) was responsible to pass all communication to the new socket.
+	// once we done accepting it, we do not need the parent anymore. we set the pointer to the parent to NULL,
+	// so we wont notify the parent with changes occurring to the new socket (such as receiving FIN, in rx_lwip_cb()), since the parent is not responsible for it anymore.
+	ns->m_parent = NULL;
 
 	if (__addr && __addrlen)
 		ns->getpeername(__addr, __addrlen);	
@@ -1827,6 +1872,8 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 		ns->fcntl(F_SETFL, O_NONBLOCK);
 	if (__flags & SOCK_CLOEXEC)
 		ns->fcntl(F_SETFD, FD_CLOEXEC);
+
+	ns->unlock_tcp_con();
 
         si_tcp_logdbg("CONN ACCEPTED: TCP PCB FLAGS: acceptor:0x%x newsock: fd=%d 0x%x new state: %d", m_pcb.flags, ns->m_fd, ns->m_pcb.flags, get_tcp_state(&ns->m_pcb));
 	return ns->m_fd;
@@ -1923,7 +1970,7 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 	tcp_recv(&(new_sock->m_pcb), sockinfo_tcp::rx_lwip_cb);
 	tcp_err(&(new_sock->m_pcb), sockinfo_tcp::err_lwip_cb);
 
-	new_sock->lock_tcp_con();
+	ASSERT_LOCKED(new_sock->m_tcp_con_lock);
 
 	new_sock->m_sock_state = TCP_SOCK_CONNECTED_RDWR;
 
@@ -1947,10 +1994,31 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 		new_sock->m_p_rx_ring = rx_ring_iter->first;
 	}
 
+	if (mce_sys.tcp_ctl_thread) {
+		new_sock->m_vma_thr = true;
+		while (!new_sock->m_rx_ctl_packets_list.empty()) {
+			new_sock->m_rx_ctl_packets_list_lock.lock();
+			if (new_sock->m_rx_ctl_packets_list.empty()) {
+				new_sock->m_rx_ctl_packets_list_lock.unlock();
+				break;
+			}
+			mem_buf_desc_t* desc = new_sock->m_rx_ctl_packets_list.front();
+			new_sock->m_rx_ctl_packets_list.pop_front();
+			new_sock->m_rx_ctl_packets_list_lock.unlock();
+
+			desc->inc_ref_count();
+			L3_level_tcp_input((pbuf *)desc, &new_sock->m_pcb);
+			if (desc->dec_ref_count() <= 1) //todo reuse needed?
+				new_sock->m_rx_ctl_reuse_list.push_back(desc);
+		}
+		new_sock->m_vma_thr = false;
+	}
+
 	new_sock->unlock_tcp_con();
 
 	conn->lock_tcp_con();
 
+	conn->m_ready_pcbs.erase(&new_sock->m_pcb);
 	conn->m_accepted_conns.push_back(new_sock);
 	conn->m_ready_conn_cnt++;
 
@@ -1961,6 +2029,9 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 	//Now we should register the child socket to TCP timer
 
 	conn->unlock_tcp_con();
+
+	new_sock->lock_tcp_con();
+
 	return ERR_OK;
 }
 
@@ -2011,6 +2082,9 @@ err_t sockinfo_tcp::clone_conn_cb(void *arg, struct tcp_pcb **newpcb, err_t err)
 		return ERR_VAL;
 	}
 
+	ASSERT_LOCKED(conn->m_tcp_con_lock);
+	conn->m_tcp_con_lock.unlock();
+
 	new_sock = conn->accept_clone();
 
 	if (new_sock) {
@@ -2020,6 +2094,8 @@ err_t sockinfo_tcp::clone_conn_cb(void *arg, struct tcp_pcb **newpcb, err_t err)
 	else {
 		ret_val = ERR_MEM;
 	}
+
+	conn->m_tcp_con_lock.lock();
 
 	return ret_val;
 }
@@ -2036,6 +2112,9 @@ err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_
 
 	NOT_IN_USE(err);
 
+	ASSERT_LOCKED(listen_sock->m_tcp_con_lock);
+	listen_sock->m_tcp_con_lock.unlock();
+
 	new_sock->set_conn_properties_from_pcb();
 	new_sock->create_dst_entry();
 	bool is_new_offloaded = new_sock->prepare_dst_to_send(true); // pass true for passive socket to skip the transport rules checking
@@ -2048,10 +2127,11 @@ err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_
 		new_sock->setPassthrough();
 		set_tcp_state(&new_sock->m_pcb, CLOSED);
 		close(new_sock->get_fd());
+		listen_sock->m_tcp_con_lock.lock();
 		return ERR_ABRT;
 	}
 
-	listen_sock->lock_tcp_con();
+	listen_sock->m_tcp_con_lock.lock();
 
 	flow_tuple key;
 	create_flow_tuple_key_from_pcb(key, newpcb);
@@ -2059,8 +2139,6 @@ err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_
 	listen_sock->m_syn_received[key] =  newpcb;
 
 	listen_sock->m_received_syn_num++;
-
-	listen_sock->unlock_tcp_con();
 
 	return ERR_OK;
 }
@@ -2077,7 +2155,8 @@ err_t sockinfo_tcp::syn_received_drop_lwip_cb(void *arg, struct tcp_pcb *newpcb,
 
 	NOT_IN_USE(err);
 
-	listen_sock->lock_tcp_con();
+	ASSERT_LOCKED(listen_sock->m_tcp_con_lock);
+	listen_sock->m_tcp_con_lock.unlock();
 
 	new_sock->set_conn_properties_from_pcb();
 	new_sock->create_dst_entry();
@@ -2086,9 +2165,9 @@ err_t sockinfo_tcp::syn_received_drop_lwip_cb(void *arg, struct tcp_pcb *newpcb,
 	tcp_arg(&(new_sock->m_pcb), new_sock);
 	new_sock->abort_connection();
 
-	listen_sock->unlock_tcp_con();
-
 	close(new_sock->get_fd());
+
+	listen_sock->m_tcp_con_lock.lock();
 
 	return ERR_ABRT;
 }
@@ -3047,13 +3126,12 @@ inline void sockinfo_tcp::return_pending_tx_buffs()
 
 //todo inline void sockinfo_tcp::return_pending_tcp_segs()
 
-//This method should be called with the CQ manager lock.
 inline void sockinfo_tcp::return_rx_buffs(ring* p_ring)
 {
 	set_rx_reuse_pending(false);
 	if (likely(m_p_rx_ring == p_ring)) {
 		if (unlikely(m_rx_reuse_buff.n_buff_num > m_rx_num_buffs_reuse)) {
-			if (p_ring->reclaim_recv_buffers_no_lock(&m_rx_reuse_buff.rx_reuse)) {
+			if (p_ring->reclaim_recv_buffers(&m_rx_reuse_buff.rx_reuse)) {
 				m_rx_reuse_buff.n_buff_num = 0;
 			}
 		}
@@ -3065,7 +3143,7 @@ inline void sockinfo_tcp::return_rx_buffs(ring* p_ring)
 			if (likely(rx_ring_iter != m_rx_ring_map.end())) {
 				descq_t *rx_reuse = &rx_ring_iter->second->rx_reuse_info.rx_reuse;
 				if (rx_ring_iter->second->rx_reuse_info.n_buff_num > m_rx_num_buffs_reuse) {
-					if (p_ring->reclaim_recv_buffers_no_lock(rx_reuse)) {
+					if (p_ring->reclaim_recv_buffers(rx_reuse)) {
 						rx_ring_iter->second->rx_reuse_info.n_buff_num = 0;
 					}
 				}

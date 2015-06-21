@@ -18,6 +18,7 @@
 #include <execinfo.h>
 #include <string.h>
 #include <stdio.h>
+#include <assert.h>
 #include "rdtsc.h"
 #include <vma/util/vtypes.h>
 
@@ -164,6 +165,12 @@ protected:
 	pthread_spinlock_t	m_lock;
 };
 
+//todo disable assert
+#define ASSERT_LOCKED(lock) assert((lock).is_locked_by_me())
+#define ASSERT_NOT_LOCKED(lock) assert(!(lock).is_locked_by_me())
+// #define ASSERT_LOCKED(lock)
+// #define ASSERT_NOT_LOCKED(lock)
+
 /**
  * pthread spinlock
  */
@@ -211,6 +218,10 @@ public:
 			return lock_spin::unlock();
 		}
 		return 0;
+	};
+	inline int is_locked_by_me() {
+		pthread_t self = pthread_self();
+		return (m_owner == self && m_lock_count);
 	};
 
 protected:

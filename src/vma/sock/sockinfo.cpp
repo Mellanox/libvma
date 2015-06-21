@@ -503,7 +503,6 @@ void sockinfo::do_rings_migration()
 			rx_nd_iter++;
 			continue;
 		}
-		lock_rx_q();
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (!new_ring) {
 			ip_address ip_local(rx_nd_iter->first);
@@ -511,7 +510,7 @@ void sockinfo::do_rings_migration()
 			return;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
-
+		lock_rx_q();
 		rx_flow_map_t::iterator rx_flow_iter = m_rx_flow_map.begin();
 		while (rx_flow_iter !=  m_rx_flow_map.end()) {
 
