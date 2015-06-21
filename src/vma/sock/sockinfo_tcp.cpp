@@ -719,12 +719,18 @@ void sockinfo_tcp::err_lwip_cb(void *pcb_container, err_t err)
 	/*
 	 * In case we got RST from the other end we need to marked this socket as ready to read for epoll
 	 */
-	if ((conn->m_sock_state == TCP_SOCK_CONNECTED_RD || conn->m_sock_state == TCP_SOCK_CONNECTED_RDWR)
+	if ((conn->m_sock_state == TCP_SOCK_CONNECTED_RD
+		|| conn->m_sock_state == TCP_SOCK_CONNECTED_RDWR
+		|| conn->m_sock_state == TCP_SOCK_ASYNC_CONNECT)
 		&& PCB_IN_ACTIVE_STATE(&conn->m_pcb)) {
-		if (err == ERR_RST)
-			conn->notify_epoll_context(EPOLLIN|EPOLLRDHUP);
-		else
+		if (err == ERR_RST) {
+			if (conn->m_sock_state == TCP_SOCK_ASYNC_CONNECT)
+				conn->notify_epoll_context(EPOLLIN|EPOLLERR|EPOLLHUP);
+			else
+				conn->notify_epoll_context(EPOLLIN|EPOLLRDHUP);
+		} else {
 			conn->notify_epoll_context(EPOLLIN|EPOLLHUP);
+		}
 		io_mux_call::update_fd_array(conn->m_iomux_ready_fd_array, conn->m_fd);
 	}
 
