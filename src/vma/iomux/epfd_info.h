@@ -128,6 +128,10 @@ public:
 
 	int ring_wait_for_notification_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array = NULL);
 
+	virtual void clean_obj();
+
+	list_node<epfd_info>	node;
+
 private:
 
 	const int			m_epfd;

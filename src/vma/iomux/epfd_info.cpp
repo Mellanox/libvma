@@ -722,3 +722,10 @@ int epfd_info::ring_wait_for_notification_and_process_element(uint64_t *p_poll_s
 		__log_funcall("ret_total=%d", ret_total);
 	return ret_total;
 }
+
+void epfd_info::clean_obj()
+{
+	if (g_p_fd_collection)
+		g_p_fd_collection->remove_epfd_from_list(this);
+	cleanable_obj::clean_obj();
+}

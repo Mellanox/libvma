@@ -27,6 +27,7 @@
 #include <vma/sock/cleanable_obj.h>
 
 typedef vma_list_t<socket_fd_api> sock_fd_api_list_t;
+typedef vma_list_t<epfd_info> epfd_info_list_t;
 
 typedef std::tr1::unordered_map<pthread_t, int> offload_thread_rule_t;
 
@@ -92,6 +93,7 @@ public:
 	 * Remove epfd_info.
 	 */
 	int			del_epfd(int fd, bool b_cleanup = false);
+	void			remove_epfd_from_list(epfd_info* epfd);
 
 	/**
 	 * Remove cq_channel_info.
@@ -140,6 +142,7 @@ private:
 	epfd_info**			m_p_epfd_map;
 	cq_channel_info**		m_p_cq_channel_map;
 
+	epfd_info_list_t		m_epfd_lst;
 	//Contains fds which are in closing process
 	sock_fd_api_list_t		m_pendig_to_remove_lst;
 

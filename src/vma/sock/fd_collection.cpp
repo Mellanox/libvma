@@ -383,6 +383,7 @@ int fd_collection::addepfd(int epfd, int size)
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 	m_p_epfd_map[epfd] = p_fd_info;
+	m_epfd_lst.push_back(p_fd_info);
 
 	unlock();
 
@@ -489,6 +490,13 @@ int fd_collection::del_epfd(int fd, bool b_cleanup /*=false*/)
 	return del(fd, b_cleanup, m_p_epfd_map);
 }
 
+void fd_collection::remove_epfd_from_list(epfd_info* epfd)
+{
+	lock();
+	m_epfd_lst.erase(epfd);
+	unlock();
+}
+
 int fd_collection::del_cq_channel_fd(int fd, bool b_cleanup /*=false*/)
 {
 	return del(fd, b_cleanup, m_p_cq_channel_map);
@@ -565,13 +573,11 @@ void  fd_collection::handle_timer_expired(void* user_data)
 
 void fd_collection::remove_from_all_epfds(int fd, bool passthrough)
 {
-	int epfd;
+	list_iterator_t<epfd_info> itr;
 
 	lock();
-	for (epfd = 0; epfd < m_n_fd_map_size; ++epfd) {
-		if (m_p_epfd_map[epfd]) {
-			m_p_epfd_map[epfd]->fd_closed(fd, passthrough);
-		}
+	for (itr = m_epfd_lst.begin(); itr != m_epfd_lst.end(); itr++) {
+		itr->fd_closed(fd, passthrough);
 	}
 	unlock();
 
