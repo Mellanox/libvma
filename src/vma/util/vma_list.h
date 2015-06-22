@@ -169,19 +169,19 @@ public:
 	}
 
 	inline T* front() {
-		if (this->empty())
+		if (unlikely(empty()))
 			return NULL;
 		return ((list_node<T> *)list_t.head.next)->obj_ptr;
 	}
 
 	inline T* back() {
-		if (this->empty())
+		if (unlikely(empty()))
 			return NULL;
 		return ((list_node<T> *)list_t.head.prev)->obj_ptr;
 	}
 
 	inline void erase(T* obj){
-		if (!obj) {
+		if (unlikely(!obj)) {
 			vlog_printf(VLOG_WARNING,"vma_list_t.erase() got NULL object - ignoring.\n");
 			return;
 		}
@@ -193,19 +193,19 @@ public:
 	}
 
 	inline void pop_front(){
-		erase(this->front());
+		erase(front());
 	}
 
 	inline void pop_back(){
-		erase(this->back());
+		erase(back());
 	}
 
 	inline void push_back(T* obj){
-		if (!obj) {
+		if (unlikely(!obj)) {
 			vlog_printf(VLOG_WARNING,"vma_list_t.push_back() got NULL object - ignoring.\n");
 			return;
 		}
-		if (obj->node.is_list_member()) {
+		if (unlikely(obj->node.is_list_member())) {
 		#if _VMA_LIST_DEBUG
 			vlog_printf(VLOG_ERROR,"vma_list_t.push_back() - buff is already a member in a list (list id = %s), (this.id = %s)\n", obj->node.list_id(), this->list_id());
 		#else
@@ -222,11 +222,11 @@ public:
 	}
 
 	inline void push_front(T* obj){
-		if (!obj) {
+		if (unlikely(!obj)) {
 			vlog_printf(VLOG_WARNING,"vma_list_t.push_front() got NULL object - ignoring.\n");
 			return;
 		}
-		if (obj->node.is_list_member()) {
+		if (unlikely(obj->node.is_list_member())) {
 		#if _VMA_LIST_DEBUG
 			vlog_printf(VLOG_ERROR,"vma_list_t.push_front() - buff is already a member in a list (list id = %s), (this.id = %s)\n", obj->node.list_id(), this->list_id());
 		#else
