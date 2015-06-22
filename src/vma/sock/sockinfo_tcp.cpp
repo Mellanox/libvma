@@ -313,7 +313,10 @@ void sockinfo_tcp::force_close()
 	//if the socket is not closed yet, send RST to remote host before exit.
 	//we have to do this because we don't have VMA deamon
 	//to progress connection closure after process termination
+
+	lock_tcp_con();
 	if (!is_closable()) abort_connection();
+	unlock_tcp_con();
 
 	//print the statistics of the socket to vma_stats file
 	vma_stats_instance_remove_socket_block(m_p_socket_stats);
@@ -651,7 +654,7 @@ err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rex
 	dst_entry *p_dst = p_si_tcp->m_p_connected_dst_entry;
 	int count = 1;
 
-	ASSERT_NOT_LOCKED(p_si_tcp->m_tcp_con_lock);
+	//ASSERT_NOT_LOCKED(p_si_tcp->m_tcp_con_lock);
 
 	if (likely(!p->next)) { // We should hit this case 99% of cases
 		tcp_iovec.iovec.iov_base = p->payload;
@@ -700,20 +703,24 @@ void sockinfo_tcp::err_lwip_cb(void *pcb_container, err_t err)
 		return;
 	}
 
-	ASSERT_LOCKED(conn->m_tcp_con_lock);
-
 	if (conn->m_parent != NULL) {
 		//in case we got RST before we accepted the connection
 		int delete_fd = 0;
 		sockinfo_tcp *parent = conn->m_parent;
-		conn->unlock_tcp_con();
+		bool locked_by_me = false;
+		if (conn->m_tcp_con_lock.is_locked_by_me()) {
+			locked_by_me = true;
+			conn->unlock_tcp_con();
+		}
 		if ((delete_fd = parent->handle_child_FIN(conn))) {
 			//close will clean sockinfo_tcp object and the opened OS socket
 			close(delete_fd);
-			conn->lock_tcp_con(); //todo sock and fd_collection destruction race? if so, conn might be invalid? delay close to internal thread?
+			if (locked_by_me)
+				conn->lock_tcp_con(); //todo sock and fd_collection destruction race? if so, conn might be invalid? delay close to internal thread?
 			return;
 		}
-		conn->lock_tcp_con();
+		if (locked_by_me)
+			conn->lock_tcp_con();
 	}
 
 	/*
