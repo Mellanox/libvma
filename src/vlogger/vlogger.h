@@ -239,10 +239,10 @@ static inline void vlog_print_buffer(vlog_levels_t log_level, const char* msg_he
 	// Format header
 	if (g_vlogger_level >= VLOG_DEBUG) {
 		//vlog_time(log_level, log_msg);
-		len = snprintf(buf, VLOGGER_STR_SIZE, " Tid: %11lx : %s %s: ",
+		len = snprintf(buf, sizeof(buf)-1, " Tid: %11lx : %s %s: ",
 			       pthread_self(), g_vlogger_module_name, g_vlogger_level_names[log_level]);
 	} else {
-		len = snprintf(buf, VLOGGER_STR_SIZE, "%s %s: ",
+		len = snprintf(buf, sizeof(buf)-1, "%s %s: ",
 			       g_vlogger_module_name, g_vlogger_level_names[log_level]);
 	}
 	buf[len+1] = '\0';

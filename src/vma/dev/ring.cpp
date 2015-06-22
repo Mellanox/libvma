@@ -183,7 +183,7 @@ void ring::create_resources(ring_resource_creation_info_t* p_ring_info, int acti
 
 	m_tx_num_wr_free = m_tx_num_wr;
 	
-	memset(&m_cq_moderation_info, 0, sizeof(struct cq_moderation_info));
+	memset(&m_cq_moderation_info, 0, sizeof(m_cq_moderation_info));
 
 	m_p_n_rx_channel_fds = new int[m_n_num_resources];
 

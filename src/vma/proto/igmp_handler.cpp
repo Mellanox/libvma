@@ -48,8 +48,8 @@ igmp_handler::igmp_handler(const igmp_key &key, uint8_t	igmp_code) : m_mc_addr (
 					   m_ignore_timer(false), m_timer_handle(NULL), m_p_neigh_entry(NULL), m_p_neigh_val(NULL),
 					   m_p_ring(NULL), m_igmp_code(igmp_code ? igmp_code : IGMPV1_MAX_RESPONSE_TIME)
 {
-	memset(&m_sge, 0, sizeof(struct ibv_sge));
-	memset(&m_p_send_igmp_wqe, 0, sizeof(vma_ibv_send_wr));
+	memset(&m_sge, 0, sizeof(m_sge));
+	memset(&m_p_send_igmp_wqe, 0, sizeof(m_p_send_igmp_wqe));
 }
 
 igmp_handler::~igmp_handler()

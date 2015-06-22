@@ -66,7 +66,7 @@ sockinfo::sockinfo(int fd):
 
 	m_p_socket_stats = &m_socket_stats; // Save stats as local copy and allow state publisher to copy from this location
 	vma_stats_instance_create_socket_block(m_p_socket_stats);
-	memset(m_p_socket_stats, 0, sizeof(socket_stats_t));
+	memset(m_p_socket_stats, 0, sizeof(*m_p_socket_stats));
 	m_p_socket_stats->fd = m_fd;
 	m_p_socket_stats->inode = fd2inode(m_fd);
 	m_p_socket_stats->b_blocking = m_b_blocking;

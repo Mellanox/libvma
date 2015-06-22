@@ -244,7 +244,7 @@ shmem_error:
 	g_sh_mem_info.fd_sh_stats = -1;
 	g_sh_mem_info.p_sh_stats = MAP_FAILED;
 	g_sh_mem = &g_local_sh_mem;
-	memset((void*)g_sh_mem, 0, sizeof(sh_mem_t));
+	memset(g_sh_mem, 0, sizeof(*g_sh_mem));
 	*p_p_vma_log_level = &g_sh_mem->log_level;
 	*p_p_vma_log_details = &g_sh_mem->log_details_level;
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -308,7 +308,7 @@ void vma_stats_instance_create_socket_block(socket_stats_t* local_stats_addr)
 
 out:
 	if (p_skt_stats) {
-		memset(p_skt_stats, 0, sizeof(socket_stats_t));
+		memset(p_skt_stats, 0, sizeof(*p_skt_stats));
 		p_skt_stats->mc_grp_map.reset();
                 g_p_stats_data_reader->add_data_reader(local_stats_addr, p_skt_stats, sizeof(socket_stats_t));
 	}
@@ -404,7 +404,7 @@ void vma_stats_instance_create_ring_block(ring_stats_t* local_stats_addr)
 		if (!g_sh_mem->ring_inst_arr[i].b_enabled) {
 			g_sh_mem->ring_inst_arr[i].b_enabled = true;
 			p_instance_ring = &g_sh_mem->ring_inst_arr[i].ring_stats;
-			memset(p_instance_ring, 0, sizeof(ring_stats_t));
+			memset(p_instance_ring, 0, sizeof(*p_instance_ring));
 			break;
 		}
 	}
@@ -464,7 +464,7 @@ void vma_stats_instance_create_cq_block(cq_stats_t* local_stats_addr)
 		if (!g_sh_mem->cq_inst_arr[i].b_enabled) {
 			g_sh_mem->cq_inst_arr[i].b_enabled = true;
 			p_instance_cq = &g_sh_mem->cq_inst_arr[i].cq_stats;
-			memset(p_instance_cq, 0, sizeof(cq_stats_t));
+			memset(p_instance_cq, 0, sizeof(*p_instance_cq));
 			break;
 		}
 	}

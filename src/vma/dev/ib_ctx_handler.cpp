@@ -39,7 +39,7 @@ ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx) :
 	m_channel(0), m_removed(false), m_conf_attr_rx_num_wre(0), m_conf_attr_tx_num_post_send_notify(0),
 	m_conf_attr_tx_max_inline(0), m_conf_attr_tx_num_wre(0)
 {
-	memset(&m_ibv_port_attr, 0, sizeof(struct ibv_port_attr));
+	memset(&m_ibv_port_attr, 0, sizeof(m_ibv_port_attr));
 	m_p_ibv_context = ctx;
         m_p_ibv_device = ctx->device;
 
@@ -53,7 +53,7 @@ ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx) :
 		ibch_logpanic("ibv device %p pd allocation failure (ibv context %p) (errno=%d %m)", 
 			    m_p_ibv_device, m_p_ibv_context, errno);
 
-	memset(&m_ibv_device_attr, 0, sizeof(vma_ibv_device_attr));
+	memset(&m_ibv_device_attr, 0, sizeof(m_ibv_device_attr));
 	vma_ibv_device_attr_comp_mask(m_ibv_device_attr);
 	IF_VERBS_FAILURE(vma_ibv_query_device(m_p_ibv_context, &m_ibv_device_attr)) {
 		ibch_logerr("ibv_query_device failed on ibv device %p (ibv context %p) (errno=%d %m)", 

@@ -71,7 +71,8 @@ void* event_handler_manager::register_timer_event(int timeout_msec, timer_handle
 		evh_logpanic("malloc failure");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-	memset(node, 0, sizeof(timer_node_t));
+	timer_node_t* timer_node = (timer_node_t*)node;
+	memset(timer_node, 0, sizeof(*timer_node));
 	reg_action_t reg_action;
 	memset(&reg_action, 0, sizeof(reg_action));
 	reg_action.type = REGISTER_TIMER;
@@ -718,7 +719,7 @@ void event_handler_manager::process_rdma_cm_event(event_handler_map_t::iterator 
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	// Duplicate rdma_cm event to local memory
-	memcpy(&cma_event, p_tmp_cm_event, sizeof(struct rdma_cm_event));
+	memcpy(&cma_event, p_tmp_cm_event, sizeof(cma_event));
 
 	// Ack  rdma_cm event (free)
 	rdma_ack_cm_event(p_tmp_cm_event);

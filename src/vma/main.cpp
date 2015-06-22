@@ -826,19 +826,19 @@ void get_env_params()
 		mce_sys.mce_spec_param2 = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_LOG_FILENAME)) != NULL){
-		read_env_variable_with_pid(mce_sys.log_filename, FILENAME_MAX, env_ptr);
+		read_env_variable_with_pid(mce_sys.log_filename, sizeof(mce_sys.log_filename), env_ptr);
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_STATS_FILENAME)) != NULL){
-		read_env_variable_with_pid(mce_sys.stats_filename, FILENAME_MAX, env_ptr);
+		read_env_variable_with_pid(mce_sys.stats_filename, sizeof(mce_sys.stats_filename), env_ptr);
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_STATS_SHMEM_DIRNAME)) != NULL){
-		read_env_variable_with_pid(mce_sys.stats_shmem_dirname, FILENAME_MAX, env_ptr);
+		read_env_variable_with_pid(mce_sys.stats_shmem_dirname, sizeof(mce_sys.stats_shmem_dirname), env_ptr);
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_CONF_FILENAME)) != NULL){
-		read_env_variable_with_pid(mce_sys.conf_filename, FILENAME_MAX, env_ptr);
+		read_env_variable_with_pid(mce_sys.conf_filename, sizeof(mce_sys.conf_filename), env_ptr);
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_LOG_LEVEL)) != NULL)
@@ -854,7 +854,7 @@ void get_env_params()
 		mce_sys.log_colors = atoi(env_ptr) ? true : false;
 	
 	if ((env_ptr = getenv(SYS_VAR_APPLICATION_ID)) != NULL){
-		read_env_variable_with_pid(mce_sys.app_id, MAX_APP_ID_LENGHT, env_ptr);
+		read_env_variable_with_pid(mce_sys.app_id, sizeof(mce_sys.app_id), env_ptr);
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_HANDLE_SIGINTR)) != NULL)
@@ -1145,7 +1145,7 @@ void get_env_params()
 
 	// handle internal thread affinity - default is CPU-0
 	if ((env_ptr = getenv(SYS_VAR_INTERNAL_THREAD_AFFINITY)) != NULL) {
-		snprintf(mce_sys.internal_thread_affinity_str, CPU_SETSIZE/4, "%s", env_ptr);
+		snprintf(mce_sys.internal_thread_affinity_str, sizeof(mce_sys.internal_thread_affinity_str), "%s", env_ptr);
 	}
 	if (env_to_cpuset(mce_sys.internal_thread_affinity_str, &mce_sys.internal_thread_affinity)) {
 		vlog_printf(VLOG_WARNING," Failed to set internal thread affinity: %s...  deferring to cpu-0.\n",
@@ -1242,7 +1242,7 @@ void get_env_params()
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_VMA_TIME_MEASURE_DUMP_FILE)) != NULL){
-		read_env_variable_with_pid(mce_sys.vma_time_measure_filename, FILENAME_MAX, env_ptr);
+		read_env_variable_with_pid(mce_sys.vma_time_measure_filename, sizeof(mce_sys.vma_time_measure_filename), env_ptr);
 	}
 #endif
 
@@ -1299,7 +1299,7 @@ void prepare_fork()
 void register_handler_segv()
 {
 	struct sigaction act;
-	memset(&act, 0, sizeof(struct sigaction));
+	memset(&act, 0, sizeof(act));
 	act.sa_handler = handle_segfault;
 	act.sa_flags = 0;
 	sigemptyset(&act.sa_mask);

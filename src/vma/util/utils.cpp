@@ -494,7 +494,7 @@ int get_ipv4_from_ifname(char *ifname, struct sockaddr_in *addr)
 		return -1;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-	memcpy(addr, &req.ifr_addr, sizeof(struct sockaddr_in));
+	memcpy(addr, &req.ifr_addr, sizeof(*addr));
 	orig_os_api.close(fd);
 	return 0;
 }

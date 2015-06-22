@@ -119,7 +119,7 @@ void qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 
 	// Create QP
 	struct ibv_qp_init_attr qp_init_attr;
-	memset((void *)&qp_init_attr, 0, sizeof(qp_init_attr));
+	memset(&qp_init_attr, 0, sizeof(qp_init_attr));
 
 	// Check device capabilities for max SG elements
 	uint32_t tx_max_inline = mce_sys.tx_max_inline;;
@@ -291,7 +291,8 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 		// For ETH it replaces the MAC header!! (Nothing is going on the wire, QP in error state)
 		// For IB it replaces the IPoIB header.
 
-		memset(p_mem_buf_desc->p_buffer, 0, sizeof(ethhdr));
+		ethhdr* p_buffer_ethhdr = (ethhdr *)p_mem_buf_desc->p_buffer;
+		memset(p_buffer_ethhdr, 0, sizeof(*p_buffer_ethhdr));
 		sge[0].length = sizeof(ethhdr);
 		sge[0].addr = (uintptr_t)(p_mem_buf_desc->p_buffer);
 		sge[0].lkey = m_p_ring->m_tx_lkey;

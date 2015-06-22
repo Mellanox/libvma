@@ -63,7 +63,7 @@ flow_tuple& flow_tuple::operator=(const flow_tuple &ft)
 	m_dst_port = ft.m_dst_port;
 	m_src_ip = ft.m_src_ip;
 	m_src_port = ft.m_src_port;
-	memcpy(m_str, ft.m_str, STR_MAX_LENGTH);
+	memcpy(m_str, ft.m_str, sizeof(m_str));
 
 	return *this;
 }

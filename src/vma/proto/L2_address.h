@@ -48,7 +48,7 @@ public:
 #endif
 	virtual void 	operator=(L2_address const& other) const
 	{
-		memcpy((void*)this, (void*)&other, sizeof(L2_address));
+		memcpy((void*)this, (void*)&other, sizeof(*this));
 	}
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
@@ -108,7 +108,7 @@ public:
 #endif
 	virtual void 	operator=(IPoIB_addr const& other) const
 	{
-		memcpy((void*)this, (void*)&other, sizeof(IPoIB_addr));
+		memcpy((void*)this, (void*)&other, sizeof(*this));
 	}
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on

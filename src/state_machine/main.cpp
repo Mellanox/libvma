@@ -167,6 +167,7 @@ int main(int argc, char *argv[])
 
 	g_sm->process_event(SM_EV_2,(void *)"event 2");
 
+	delete g_sm;
 }
 
 

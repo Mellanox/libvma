@@ -97,16 +97,16 @@ neigh_entry::neigh_entry(neigh_key key, transport_type_t type, bool is_init_reso
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	memset(&m_dst_addr, 0, sizeof(struct sockaddr_in));
-	memset(&m_src_addr, 0, sizeof(struct sockaddr_in));
+	memset(&m_dst_addr, 0, sizeof(m_dst_addr));
+	memset(&m_src_addr, 0, sizeof(m_src_addr));
 	m_dst_addr.sin_addr.s_addr = get_key().get_in_addr(); /*(peer_ip)*/
 	m_dst_addr.sin_family = AF_INET;
 
 	m_src_addr.sin_addr.s_addr = m_p_dev->get_local_addr();
 	m_src_addr.sin_family = AF_INET;
 
-	memset(&m_send_wqe, 0, sizeof(vma_ibv_send_wr));
-	memset(&m_sge, 0, sizeof(struct ibv_sge));
+	memset(&m_send_wqe, 0, sizeof(m_send_wqe));
+	memset(&m_sge, 0, sizeof(m_sge));
 
 	if (m_dst_addr.sin_addr.s_addr == m_src_addr.sin_addr.s_addr) {
 		neigh_logdbg("This is loopback neigh");
@@ -1782,7 +1782,7 @@ int neigh_ib::build_mc_neigh_val(struct rdma_cm_event* event_data,
 
 	memcpy(&((neigh_ib_val *) m_val)->m_ah_attr,
 			&event_data->param.ud.ah_attr,
-			sizeof(struct ibv_ah_attr));
+			sizeof(((neigh_ib_val *) m_val)->m_ah_attr));
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (create_ah())

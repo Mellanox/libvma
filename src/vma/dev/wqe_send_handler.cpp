@@ -23,7 +23,7 @@ wqe_send_handler::~wqe_send_handler()
 
 void wqe_send_handler::init_inline_wqe(vma_ibv_send_wr &wqe_to_init, struct ibv_sge* sge_list, uint32_t num_sge)
 {
-	memset(&wqe_to_init, 0, sizeof(vma_ibv_send_wr));
+	memset(&wqe_to_init, 0, sizeof(wqe_to_init));
 
 	wqe_to_init.num_sge = num_sge;
 	vma_send_wr_opcode(wqe_to_init) = VMA_IBV_WR_SEND;
@@ -36,7 +36,7 @@ void wqe_send_handler::init_inline_wqe(vma_ibv_send_wr &wqe_to_init, struct ibv_
 
 void wqe_send_handler::init_wqe(vma_ibv_send_wr &wqe_to_init, struct ibv_sge* sge_list, uint32_t num_sge)
 {
-	memset(&wqe_to_init, 0, sizeof(vma_ibv_send_wr));
+	memset(&wqe_to_init, 0, sizeof(wqe_to_init));
 
 	wqe_to_init.num_sge = num_sge;
 	vma_send_wr_opcode(wqe_to_init) = VMA_IBV_WR_SEND;

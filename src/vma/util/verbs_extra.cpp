@@ -119,7 +119,7 @@ int priv_ibv_find_pkey_index(struct ibv_context *verbs, uint8_t port_num, uint16
 int priv_ibv_modify_qp_to_err(struct ibv_qp *qp)
 {
 	vma_ibv_qp_attr qp_attr;
-	memset(&qp_attr, 0, sizeof(vma_ibv_qp_attr));
+	memset(&qp_attr, 0, sizeof(qp_attr));
 	qp_attr.qp_state = IBV_QPS_ERR;
 	BULLSEYE_EXCLUDE_BLOCK_START
 	IF_VERBS_FAILURE(vma_ibv_modify_qp(qp, &qp_attr, IBV_QP_STATE)) {
@@ -133,7 +133,7 @@ int priv_ibv_modify_qp_to_err(struct ibv_qp *qp)
 int priv_ibv_modify_qp_to_reset(struct ibv_qp *qp)
 {
 	vma_ibv_qp_attr qp_attr;
-	memset(&qp_attr, 0, sizeof(vma_ibv_qp_attr));
+	memset(&qp_attr, 0, sizeof(qp_attr));
 	qp_attr.qp_state = IBV_QPS_RESET;
 	BULLSEYE_EXCLUDE_BLOCK_START
 	IF_VERBS_FAILURE(vma_ibv_modify_qp(qp, &qp_attr, IBV_QP_STATE)) {
@@ -156,7 +156,7 @@ int priv_ibv_modify_qp_from_err_to_init_raw(struct ibv_qp *qp, uint8_t port_num)
 		}
 	}
 
-	memset(&qp_attr, 0, sizeof(vma_ibv_qp_attr));
+	memset(&qp_attr, 0, sizeof(qp_attr));
 	qp_attr.qp_state = IBV_QPS_INIT;
 	qp_attr.port_num = port_num;
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -181,7 +181,7 @@ int priv_ibv_modify_qp_from_err_to_init_ud(struct ibv_qp *qp, uint8_t port_num, 
 		}
 	}
 
-	memset(&qp_attr, 0, sizeof(vma_ibv_qp_attr));
+	memset(&qp_attr, 0, sizeof(qp_attr));
 	qp_attr.qp_state = IBV_QPS_INIT;
 	qp_attr.qkey = IPOIB_QKEY;
 	qp_attr.pkey_index = pkey_index;
@@ -202,7 +202,7 @@ int priv_ibv_modify_qp_from_init_to_rts(struct ibv_qp *qp)
 	}
 
 	vma_ibv_qp_attr qp_attr;
-	memset(&qp_attr, 0, sizeof(vma_ibv_qp_attr));
+	memset(&qp_attr, 0, sizeof(qp_attr));
 	qp_attr.qp_state = IBV_QPS_RTR;
 	BULLSEYE_EXCLUDE_BLOCK_START
 	IF_VERBS_FAILURE(vma_ibv_modify_qp(qp, &qp_attr, (ibv_qp_attr_mask)IBV_QP_STATE)) {

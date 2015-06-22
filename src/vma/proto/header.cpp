@@ -16,7 +16,7 @@
 
 void header::init()
 {
-	memset(&m_header, 0, sizeof(tx_packet_template_t));
+	memset(&m_header, 0, sizeof(m_header));
 	m_ip_header_len = 0;
 	m_transport_header_len = 0;
 	m_udp_header_len = 0;
@@ -46,7 +46,7 @@ void header::configure_udp_header(uint16_t dest_port, uint16_t src_port)
 {
 	udphdr *p_udp_hdr = &m_header.hdr.m_udp_hdr;
 
-	memset(p_udp_hdr, 0 , (sizeof(struct udphdr)));
+	memset(p_udp_hdr, 0 , (sizeof(*p_udp_hdr)));
 
 	p_udp_hdr->dest = dest_port;
 	p_udp_hdr->source = src_port;
@@ -60,7 +60,7 @@ void header::configure_ip_header(uint8_t protocol, in_addr_t src_addr, in_addr_t
 {
 	iphdr* p_hdr = &m_header.hdr.m_ip_hdr;
 
-	memset(p_hdr, 0 , (sizeof(struct iphdr)));
+	memset(p_hdr, 0 , (sizeof(*p_hdr)));
 
 	// build ip header
 	p_hdr->ihl = IPV4_HDR_LEN_WORDS; // 5 * 4 bytes (32 bit words) = 20 bytes = regular iph length with out any optionals

@@ -632,7 +632,7 @@ int __vma_sockaddr_to_vma(const struct sockaddr *addr_in, socklen_t addrlen, str
 			return -1;
 		}
 
-	memcpy(addr_out, sin, sizeof(struct sockaddr_in));
+	memcpy(addr_out, sin, sizeof(*addr_out));
 	if (was_ipv6)
 		*was_ipv6 = 0;
 	} else if (sin6->sin6_family == AF_INET6) {
@@ -651,7 +651,7 @@ int __vma_sockaddr_to_vma(const struct sockaddr *addr_in, socklen_t addrlen, str
 			errno = EINVAL;
 			return -1;
 		}
-		memset(addr_out, 0, sizeof(struct sockaddr_in));
+		memset(addr_out, 0, sizeof(*addr_out));
 		memcpy(&addr_out->sin_addr, &(sin6->sin6_addr.s6_addr[12]), 4);
 
 		if (addr_out->sin_addr.s_addr == ntohl(1)) {

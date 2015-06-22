@@ -43,7 +43,7 @@ epfd_info::epfd_info(int epfd, int size) :
 	m_n_offloaded_fds = 0;
 	m_ready_fd = 0;
 
-	memset(&(m_local_stats.stats), 0, sizeof(iomux_func_stats_t));
+	memset(&(m_local_stats.stats), 0, sizeof(m_local_stats.stats));
 
 	/* This initialization is not needed (because it is also done in shmem) but for proper code
 	 * we do it in any case

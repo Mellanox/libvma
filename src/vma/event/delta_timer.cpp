@@ -63,7 +63,7 @@ timer::~timer()
 
 void timer::add_new_timer(unsigned int timeout_msec, timer_node_t* node, timer_handler* handler, void* user_data, timer_req_type_t req_type)
 {
-	memset(node, 0, sizeof(timer_node_t));
+	memset(node, 0, sizeof(*node));
 	node->handler = handler;
 	node->req_type = req_type;
 	node->user_data = user_data;

@@ -86,8 +86,8 @@ void dst_entry::init_members()
 	m_p_neigh_val = NULL;
 	m_p_rt_entry = NULL;
 	m_num_sge = 0;
-	memset(&m_inline_send_wqe, 0, sizeof(vma_ibv_send_wr));
-	memset(&m_not_inline_send_wqe, 0, sizeof(vma_ibv_send_wr));
+	memset(&m_inline_send_wqe, 0, sizeof(m_inline_send_wqe));
+	memset(&m_not_inline_send_wqe, 0, sizeof(m_not_inline_send_wqe));
 	m_p_send_wqe_handler = NULL;
 	memset(&m_sge, 0, sizeof(m_sge));
 	m_tos = 0;
@@ -446,10 +446,10 @@ bool dst_entry::offloaded_according_to_rules()
 	transport_t target_transport;
 
 	sockaddr_in to;
+	memset(&to, 0, sizeof(to));
 	to.sin_family = AF_INET;
 	to.sin_addr.s_addr = m_dst_ip.get_in_addr();
 	to.sin_port = m_dst_port;
-	memset(&to.sin_zero, 0, sizeof(to.sin_zero));
 
 
 	target_transport = get_transport(to);

@@ -29,6 +29,11 @@ int main()
 
 	o1->start_test(coll_for_subjects_1, coll_for_subjects_2);
 
+	delete o1;
+	delete o2;
+	delete coll_for_subjects_1;
+	delete coll_for_subjects_2;
+
 	return 0;
 }
 

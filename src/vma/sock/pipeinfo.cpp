@@ -52,7 +52,7 @@ pipeinfo::pipeinfo(int fd) : socket_fd_api(fd),
 		// pi_logdbg("Got NULL from mce_stats_instance_create_socket_block, using local member");
 		m_p_socket_stats = &m_socket_stats;
 	}
-	memset(m_p_socket_stats, 0, sizeof(socket_stats_t));
+	memset(m_p_socket_stats, 0, sizeof(*m_p_socket_stats));
 	m_p_socket_stats->fd = m_fd;
 	m_p_socket_stats->b_blocking = m_b_blocking;
 	m_p_socket_stats->n_rx_ready_pkt_count = 0;

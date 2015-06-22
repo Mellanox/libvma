@@ -269,7 +269,7 @@ ssize_t socket_fd_api::tx_os(const tx_call_t call_type,
 
 	case TX_SENDMSG: {
 		msghdr __message;
-		memset(&__message, 0, sizeof(struct msghdr));
+		memset(&__message, 0, sizeof(__message));
 		__message.msg_iov = (iovec*) p_iov;
 		__message.msg_iovlen = sz_iov;
 		__message.msg_name = (void*) __to;

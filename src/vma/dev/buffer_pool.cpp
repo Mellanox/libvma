@@ -123,7 +123,8 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 	// Split the block to buffers
 	for (size_t i = 0; i < buffer_count; ++i) {
 
-		memset(ptr_desc, 0, sizeof (mem_buf_desc_t));
+		mem_buf_desc_t* ptr_desc_mbdt = (mem_buf_desc_t*)ptr_desc;
+		memset(ptr_desc_mbdt, 0, sizeof (*ptr_desc_mbdt));
 		mem_buf_desc_t *desc = new (ptr_desc) mem_buf_desc_t(ptr_buff, buf_size);
 		desc->serial_num = i;
 		desc->p_desc_owner = owner;

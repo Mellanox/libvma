@@ -1086,7 +1086,7 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio)
 {
 	u32_t iss;
 
-	memset(pcb, 0, sizeof(struct tcp_pcb));
+	memset(pcb, 0, sizeof(*pcb));
 	pcb->max_snd_buff = TCP_SND_BUF;
 	pcb->max_unsent_len = TCP_SND_QUEUELEN;
 	pcb->prio = prio;
