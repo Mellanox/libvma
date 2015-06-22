@@ -168,19 +168,27 @@ public:
 		return list_counter;
 	}
 
-	inline T* front() {
+	T* front() {
 		if (unlikely(empty()))
 			return NULL;
 		return ((list_node<T> *)list_t.head.next)->obj_ptr;
 	}
 
-	inline T* back() {
+	T* back() {
 		if (unlikely(empty()))
 			return NULL;
 		return ((list_node<T> *)list_t.head.prev)->obj_ptr;
 	}
 
-	inline void erase(T* obj){
+	void pop_front(){
+		erase(front());
+	}
+
+	void pop_back(){
+		erase(back());
+	}
+
+	void erase(T* obj){
 		if (unlikely(!obj)) {
 			vlog_printf(VLOG_WARNING,"vma_list_t.erase() got NULL object - ignoring.\n");
 			return;
@@ -192,15 +200,7 @@ public:
 		list_counter--;
 	}
 
-	inline void pop_front(){
-		erase(front());
-	}
-
-	inline void pop_back(){
-		erase(back());
-	}
-
-	inline void push_back(T* obj){
+	void push_back(T* obj){
 		if (unlikely(!obj)) {
 			vlog_printf(VLOG_WARNING,"vma_list_t.push_back() got NULL object - ignoring.\n");
 			return;
@@ -221,7 +221,7 @@ public:
 		list_counter++;
 	}
 
-	inline void push_front(T* obj){
+	void push_front(T* obj){
 		if (unlikely(!obj)) {
 			vlog_printf(VLOG_WARNING,"vma_list_t.push_front() got NULL object - ignoring.\n");
 			return;
@@ -242,7 +242,7 @@ public:
 		list_counter++;
 	}
 
-	inline T* get(size_t index) {
+	T* get(size_t index) {
 		if (list_counter <= index) {
 			return NULL;
 		} else {
@@ -254,11 +254,11 @@ public:
 		}
 	}
 
-	inline list_iterator_t<T> begin(){
+	list_iterator_t<T> begin(){
 		return list_iterator_t<T>(front());
 	}
 
-	inline list_iterator_t<T> end(){
+	list_iterator_t<T> end(){
 		return list_iterator_t<T>(NULL);
 	}
 
