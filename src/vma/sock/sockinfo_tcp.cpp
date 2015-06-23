@@ -2658,6 +2658,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 				m_pcb.so_options |= SOF_REUSEADDR;
 			else
 				m_pcb.so_options &= ~SOF_REUSEADDR;
+			ret = SOCKOPT_NO_OFFLOAD_SUPPORT; //we must apply reuseaddr on OS
 			break;
 		case SO_KEEPALIVE:
 			val = *(int *)__optval;
