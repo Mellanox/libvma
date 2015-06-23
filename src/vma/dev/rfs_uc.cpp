@@ -33,6 +33,12 @@ void rfs_uc::prepare_flow_spec()
 {
 	transport_type_t type = m_p_ring->get_transport_type();
 
+	/*
+	 * todo note that ring is not locked here.
+	 * we touch members that should not change during the ring life.
+	 * the ring will not be deleted as we increased refcnt.
+	 * if one of these assumptions change, we must lock.
+	 */
 	ring_resources_map_t::iterator ring_resource_iter = m_p_ring->m_ring_resources_map.begin();
 	for (; ring_resource_iter != m_p_ring->m_ring_resources_map.end(); ring_resource_iter++) {
 		attach_flow_data_t* 		       p_attach_flow_data = NULL;
