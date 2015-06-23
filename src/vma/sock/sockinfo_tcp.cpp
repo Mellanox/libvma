@@ -1873,10 +1873,6 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 	unlock_tcp_con();
 
 	ns->lock_tcp_con();
-	// as long as we did not accept the new socket, the listen socket( AKA the parent) was responsible to pass all communication to the new socket.
-	// once we done accepting it, we do not need the parent anymore. we set the pointer to the parent to NULL,
-	// so we wont notify the parent with changes occurring to the new socket (such as receiving FIN, in rx_lwip_cb()), since the parent is not responsible for it anymore.
-	ns->m_parent = NULL;
 
 	if (__addr && __addrlen)
 		ns->getpeername(__addr, __addrlen);	
@@ -2006,6 +2002,8 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 		new_sock->m_conn_state = TCP_CONN_CONNECTED;
 	}
 
+	new_sock->m_parent = NULL;
+
 	new_sock->attach_as_uc_receiver(role_t (NULL), true);
 
 	if (new_sock->m_rx_ring_map.size() == 1) {
@@ -2037,6 +2035,7 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 
 	conn->lock_tcp_con();
 
+	//todo check that listen socket was not closed by now ? (is_server())
 	conn->m_ready_pcbs.erase(&new_sock->m_pcb);
 	conn->m_accepted_conns.push_back(new_sock);
 	conn->m_ready_conn_cnt++;
