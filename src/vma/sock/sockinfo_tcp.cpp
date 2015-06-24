@@ -2530,7 +2530,7 @@ bad_state:
 
 int sockinfo_tcp::fcntl(int __cmd, unsigned long int __arg)
 {
-	if (!mce_sys.avoid_sys_calls_on_tcp_fd || isPassthrough())
+	if (!mce_sys.avoid_sys_calls_on_tcp_fd || !is_connected())
 		return sockinfo::fcntl(__cmd, __arg);
 
 	switch (__cmd) {
@@ -2548,9 +2548,9 @@ int sockinfo_tcp::fcntl(int __cmd, unsigned long int __arg)
 		{
 			si_tcp_logdbg("cmd=F_GETFL");
 			if (m_b_blocking)
-				return O_NONBLOCK;
-			else
 				return 0;
+			else
+				return O_NONBLOCK;
 		}
 		break;
 	default:
@@ -2561,7 +2561,7 @@ int sockinfo_tcp::fcntl(int __cmd, unsigned long int __arg)
 
 int sockinfo_tcp::ioctl(unsigned long int __request, unsigned long int __arg)
 {
-	if (!mce_sys.avoid_sys_calls_on_tcp_fd || isPassthrough())
+	if (!mce_sys.avoid_sys_calls_on_tcp_fd || !is_connected())
 		return sockinfo::ioctl(__request, __arg);
 
 	int *p_arg = (int *)__arg;
@@ -2682,52 +2682,52 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			fit_snd_bufs(m_sndbuff_max);
 			si_tcp_logdbg("setsockopt SO_SNDBUF: %d", m_sndbuff_max);
 			break;
-                case SO_RCVTIMEO:
-                {
-                	if (__optlen < sizeof(struct timeval)) {
-                		errno = EINVAL;
-                		break;
-                	}
-                	struct timeval* tv = (struct timeval*)__optval;
-                	if (tv->tv_sec || tv->tv_usec)
-                		m_loops_timer.set_timeout_msec(tv->tv_sec*1000 + (tv->tv_usec ? tv->tv_usec/1000 : 0));
-                	else
-                		m_loops_timer.set_timeout_msec(-1);
-                	si_tcp_logdbg("SOL_SOCKET: SO_RCVTIMEO=%d", m_loops_timer.get_timeout_msec());
-                	break;
-                }
-                case SO_BINDTODEVICE:
-                	struct sockaddr_in sockaddr;
-                	if (__optlen == 0 || ((char*)__optval)[0] == '\0') {
-                		m_so_bindtodevice_ip = 0;
-                	} else if (get_ipv4_from_ifname((char*)__optval, &sockaddr)) {
-                		si_tcp_logdbg("SOL_SOCKET, SO_BINDTODEVICE - NOT HANDLED, cannot find if_name");
-                		errno = EINVAL;
-                		ret = -1;
-                		break;
-                	} else {
-                		m_so_bindtodevice_ip = sockaddr.sin_addr.s_addr;
-                	}
-                	// handle TX side
-                	if (m_p_connected_dst_entry) {
-                		if (m_p_connected_dst_entry->is_offloaded()) {
-                			si_tcp_logdbg("SO_BINDTODEVICE will not work on already offloaded TCP socket");
-                			errno = EINVAL;
-                			return -1;
-                		} else {
-                			m_p_connected_dst_entry->set_so_bindtodevice_addr(m_so_bindtodevice_ip);
-                		}
-                	}
-                	// TODO handle RX side
-                	si_tcp_logdbg("(SO_BINDTODEVICE) interface=%s", (char*)__optval);
-                	break;
+		case SO_RCVTIMEO:
+		{
+			if (__optlen < sizeof(struct timeval)) {
+				errno = EINVAL;
+				break;
+			}
+			struct timeval* tv = (struct timeval*)__optval;
+			if (tv->tv_sec || tv->tv_usec)
+				m_loops_timer.set_timeout_msec(tv->tv_sec*1000 + (tv->tv_usec ? tv->tv_usec/1000 : 0));
+			else
+				m_loops_timer.set_timeout_msec(-1);
+			si_tcp_logdbg("SOL_SOCKET: SO_RCVTIMEO=%d", m_loops_timer.get_timeout_msec());
+			break;
+		}
+		case SO_BINDTODEVICE:
+			struct sockaddr_in sockaddr;
+			if (__optlen == 0 || ((char*)__optval)[0] == '\0') {
+				m_so_bindtodevice_ip = 0;
+			} else if (get_ipv4_from_ifname((char*)__optval, &sockaddr)) {
+				si_tcp_logdbg("SOL_SOCKET, SO_BINDTODEVICE - NOT HANDLED, cannot find if_name");
+				errno = EINVAL;
+				ret = -1;
+				break;
+			} else {
+				m_so_bindtodevice_ip = sockaddr.sin_addr.s_addr;
+			}
+			// handle TX side
+			if (m_p_connected_dst_entry) {
+				if (m_p_connected_dst_entry->is_offloaded()) {
+					si_tcp_logdbg("SO_BINDTODEVICE will not work on already offloaded TCP socket");
+					errno = EINVAL;
+					return -1;
+				} else {
+					m_p_connected_dst_entry->set_so_bindtodevice_addr(m_so_bindtodevice_ip);
+				}
+			}
+			// TODO handle RX side
+			si_tcp_logdbg("(SO_BINDTODEVICE) interface=%s", (char*)__optval);
+			break;
 		default:
 			ret = SOCKOPT_NO_OFFLOAD_SUPPORT;
 			break;
 		}
 	}
 
-	if (mce_sys.avoid_sys_calls_on_tcp_fd && ret != SOCKOPT_NO_OFFLOAD_SUPPORT && !isPassthrough())
+	if (mce_sys.avoid_sys_calls_on_tcp_fd && ret != SOCKOPT_NO_OFFLOAD_SUPPORT && is_connected())
 		return ret;
 
 	si_tcp_logdbg("going to OS for setsockopt level %d optname %d", __level, __optname);
@@ -2850,7 +2850,7 @@ int sockinfo_tcp::getsockopt(int __level, int __optname, void *__optval,
 {
 	int ret = 0;
 
-	if (mce_sys.avoid_sys_calls_on_tcp_fd && !isPassthrough()) {
+	if (mce_sys.avoid_sys_calls_on_tcp_fd && is_connected()) {
 		ret = getsockopt_offload(__level, __optname, __optval, __optlen);
 		if (ret != SOCKOPT_NO_OFFLOAD_SUPPORT)
 			return ret;
