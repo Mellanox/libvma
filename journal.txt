@@ -1,3 +1,23 @@
+Version 7.0.1-0:
+Date + Time 2015-6-24
+=======================
+Added:
+        - RM #557948 Option to avoid system calls on tcp fd
+        - RM #549313 Improve latency spikes in connection establishment - continue
+        - RM #58689 Add buffer pool statistics to vma_stats
+        - RM #555850 keep hash on vma_stats header and check for version
+                     compatibility based on it
+        - RM #Convert std::deque into an improved version of Linux kernel list
+        - RM #545457 libnl dependency - add libnl3
+        - RM #50714 expand vma batching mode to reclaim unused buffers
+
+Fixed:
+        - RM #559303 Wrong handling with the reference count of the memory buffers
+        - RM #543246 Clean VMA Checkmarx vulnerability report
+        - RM #558710 Non-blocked TCP connection attempt to non-existing server
+                     does not wake up with failure
+        - RM #550714 VMA stops accepting connections after large number of connections
+
 Version 7.0.0-0:
 Date + Time 2015-6-09
 =======================
