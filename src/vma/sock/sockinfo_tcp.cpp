@@ -1183,6 +1183,8 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 		for (int i = 0; i < sz_iov; i++) {
 			total_iov_sz += p_iov[i].iov_len;
 		}
+		if (total_iov_sz == 0)
+			return 0;
 	}
 
 	si_tcp_logfunc("rx: iov=%p niovs=%d", p_iov, sz_iov);
