@@ -18,6 +18,7 @@
 #include <asm/types.h>
 #include <sys/socket.h>
 #include "config.h"
+#include <netlink/netlink.h>
 #include <netlink/socket.h>
 #include <netlink/object-api.h>
 #include <netlink/route/rtnl.h>
