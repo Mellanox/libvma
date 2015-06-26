@@ -1,3 +1,11 @@
+Version 7.0.2-0:
+Date + Time 2015-6-26
+=======================
+Fixed:
+        - RM #545457 libnl dependency - fix headers mismatch
+        - RM #560835 crash in tcp socket when calling recv with 0 length buffer
+        - RM #557948 Avoid system calls on tcp fd - fixes
+
 Version 7.0.1-0:
 Date + Time 2015-6-24
 =======================
