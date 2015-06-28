@@ -232,6 +232,10 @@ void net_device_table_mgr::map_net_devices()
 		ibv_device* ibvdevice = ib_ctx->get_ibv_device();
 		ndtm_logdbg("Offload interface '%s': Mapped to ibv device '%s' [%p] on port %d",
 				ifa->ifa_name, ibvdevice->name, ibvdevice, cma_id->port_num);
+
+		IF_RDMACM_FAILURE(rdma_destroy_id(cma_id)) {
+			ndtm_logerr("Failed in rdma_destroy_id (errno=%d %m)", errno);
+		} ENDIF_RDMACM_FAILURE;
 	} //for
 
 	freeifaddrs(ifaddr);

@@ -23,7 +23,7 @@
 #define MAX_CMA_ID_BIND_TRIAL_COUNT 10
 #define CMA_ID_BIND_TIMER_PERIOD_MSEC 100
 
-class net_device_entry : public cache_entry_subject<ip_address, net_device_val*> , public event_handler_ibverbs, public event_handler_rdma_cm, public timer_handler
+class net_device_entry : public cache_entry_subject<ip_address, net_device_val*> , public event_handler_ibverbs, public timer_handler
 {
 public:
 	friend class net_device_table_mgr;
@@ -35,14 +35,14 @@ public:
 	bool is_valid()	{ return m_is_valid; }; // m_val is NULL at first
 
 	virtual void	handle_event_ibverbs_cb(void *ev_data, void *ctx);
-	// handles rdma_cm events and notifies observers only after re-validating the net_device_val
-	virtual void	handle_event_rdma_cm_cb(struct rdma_cm_event* p_event);
-	void		handle_timer_expired(void* user_data);
+
+	void handle_timer_expired(void* user_data);
 
 private:
 
 	bool m_is_valid;
 	size_t m_cma_id_bind_trial_count;
+	void* m_timer_handle;
 };
 
 #endif 

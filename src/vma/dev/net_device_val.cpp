@@ -47,8 +47,7 @@
 #define nd_logfunc            __log_info_func
 #define nd_logfuncall         __log_info_funcall
 
-
-net_device_val::net_device_val(transport_type_t transport_type) : m_if_idx(0), m_local_addr(0), m_netmask(0), m_mtu(0), m_state(INVALID), m_p_L2_addr(NULL), m_p_br_addr(NULL), m_transport_type(transport_type),  m_lock("net_device_val lock"), m_cma_id(NULL), m_cma_id_created(false)
+net_device_val::net_device_val(transport_type_t transport_type) : m_if_idx(0), m_local_addr(0), m_netmask(0), m_mtu(0), m_state(INVALID), m_p_L2_addr(NULL), m_p_br_addr(NULL), m_transport_type(transport_type),  m_lock("net_device_val lock"), m_b_is_bond_device(false)
 {
 }
 
@@ -70,9 +69,6 @@ net_device_val::~net_device_val()
 		delete m_p_L2_addr;
 		m_p_L2_addr = NULL;
 	}
-	IF_RDMACM_FAILURE(rdma_destroy_id(m_cma_id)) {
-		nd_logerr("Failed in rdma_destroy_id (errno=%d %m)", errno);
-	} ENDIF_RDMACM_FAILURE;
 }
 
 void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
@@ -92,13 +88,10 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 		// invalid net_device_val
 		nd_logerr("Invalid net_device_val name=%s", ifa->ifa_name);
 		m_state = INVALID;
-		m_cma_id_created = false;
 		return;
 	}
 
 	m_p_L2_addr	= NULL;
-	m_cma_id        = cma_id;
-	m_cma_id_created = true;
 
 	m_if_idx        = if_nametoindex(m_name.c_str());
 	m_mtu           = get_if_mtu_from_ifname(m_name.c_str(), (m_transport_type != VMA_TRANSPORT_IB));
@@ -147,6 +140,8 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 		// find the active slave
 		if (get_bond_active_slave_name(base_ifname, active_slave, sizeof(active_slave))) {
 			nd_logdbg("found the active slave: '%s'", active_slave);
+			strncpy(m_active_slave_name, active_slave, sizeof(m_active_slave_name));
+			m_b_is_bond_device = true;
 		}
 		else {
 			nd_logdbg("failed to find the active slave!");
@@ -200,91 +195,24 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 	rdma_free_devices(pp_ibv_context_list);
 }
 
-bool net_device_val::handle_event_rdma_cm(struct rdma_cm_event* p_event)
-{
-	// locked by caller
-	nd_logdbg("Got event %s (%d)", rdma_event_str(p_event->event), p_event->event);
-
-	bool ret = false;
-
-	switch(p_event->event) {
-	case RDMA_CM_EVENT_ADDR_CHANGE:
-		delete_L2_address();
-		m_p_L2_addr = create_L2_address(m_name.c_str());
-		ret = handle_event_ADDR_CHANGE();
-		break;
-	default:
-		break;
-	}
-
-	return ret;
-}
-
-bool net_device_val::handle_event_ADDR_CHANGE()
-{
-	// locked by caller
-	nd_logdbg("Handling RDMA_CM_EVENT_ADDR_CHANGE");
-
-	if ((!recreate_cma_id()) || (!bind_cma_id()))
-		return false;
-	
-	update_active_slave();
-
-	return true;
-}
-
-bool net_device_val::recreate_cma_id()
-{
-	// save the event channel
-	struct rdma_event_channel* saved_channel = m_cma_id->channel;
-
-	// release the old cma_id
-	IF_RDMACM_FAILURE(rdma_destroy_id(m_cma_id)) {
-		nd_logerr("Handling RDMA_CM_EVENT_ADDR_CHANGE Event: Failed in rdma_destroy_id (errno=%d %m)", errno);
-	} ENDIF_RDMACM_FAILURE;
-	
-	m_cma_id_created = false;
-
-	// create new cma_id
-	IF_RDMACM_FAILURE(rdma_create_id(saved_channel, &m_cma_id, NULL, RDMA_PS_UDP)) { // UDP vs IP_OVER_IB?
-		nd_logerr("Handling RDMA_CM_EVENT_ADDR_CHANGE Event: Failed in rdma_create_id (RDMA_PS_UDP) (errno=%d %m)", errno);
-		return false;
-	} ENDIF_RDMACM_FAILURE;
-	
-	m_cma_id_created = true;
-
-	return true;
-}	
-	
-bool net_device_val::bind_cma_id() 
-{
-	struct sockaddr_in local_sockaddr;
-	local_sockaddr.sin_family = AF_INET;
-	local_sockaddr.sin_port = INPORT_ANY;
-	local_sockaddr.sin_addr.s_addr = m_local_addr;
-
-	IF_RDMACM_FAILURE(rdma_bind_addr(m_cma_id, (struct sockaddr*)&local_sockaddr)) {
-		nd_logdbg("Handling RDMA_CM_EVENT_ADDR_CHANGE Event: Failed in rdma_bind_addr (src=%d.%d.%d.%d) (errno=%d %m)", NIPQUAD(m_local_addr), errno);
-		return false;
-	} ENDIF_RDMACM_FAILURE;	
-	
-	nd_logdbg("Handling RDMA_CM_EVENT_ADDR_CHANGE Event: rdma_bind_addr (src=%d.%d.%d.%d) succeed", NIPQUAD(m_local_addr));
-	return true;
-}
-
-void net_device_val::update_active_slave()
+bool net_device_val::update_active_slave()
 {
 	// update the active slave
 	// /sys/class/net/bond0/bonding/active_slave
 	char active_slave[IFNAMSIZ] = {0};
-	if (get_bond_active_slave_name(m_name.c_str(), active_slave, IFNAMSIZ)) {
-		nd_logdbg("Found the active slave: '%s'", active_slave);
-	}
-	else {
-		nd_logdbg("failed to find the active slave!");
-
+	if (!get_bond_active_slave_name(m_name.c_str(), active_slave, IFNAMSIZ)) {
+		nd_logerr("failed to find the active slave!");
+		return 0;
 	}
 
+	//nothing changed
+	if (strcmp(m_active_slave_name, active_slave) == 0) {
+		return 0;
+	}
+
+	delete_L2_address();
+	m_p_L2_addr = create_L2_address(m_name.c_str());
+	nd_logdbg("Slave changed old=%s new=%s",m_active_slave_name, active_slave);
 	bool found_active_slave = false;
 	size_t slave_count = m_slaves.size();
 	ring_resource_creation_info_t p_ring_info[1];
@@ -298,23 +226,25 @@ void net_device_val::update_active_slave()
 			p_ring_info[0].port_num = m_slaves[i]->port_num;
 			p_ring_info[0].p_l2_addr = m_slaves[i]->p_L2_addr;
 			found_active_slave = true;
+			break;
 		}
 	}
-
+	strncpy(m_active_slave_name,  active_slave, sizeof(m_active_slave_name));
 	if (!found_active_slave) {
 		nd_logdbg("Failed to locate new active slave details");
+		return 0;
 	}
-	else {
-		struct ibv_device* p_ibv_device = p_ring_info[0].p_ib_ctx->get_ibv_device();
-		nd_logdbg("Offload interface '%s': Re-mapped to ibv device '%s' [%p] on port %d",
-				m_name.c_str(), p_ibv_device->name, p_ibv_device, p_ring_info[0].port_num);
 
-		// restart rings
-		rings_hash_map_t::iterator ring_iter;
-		for (ring_iter = m_h_ring_map.begin(); ring_iter != m_h_ring_map.end(); ring_iter++) {
-			THE_RING->restart(p_ring_info);
-		}
-	}	
+	struct ibv_device* p_ibv_device = p_ring_info[0].p_ib_ctx->get_ibv_device();
+	nd_logdbg("Offload interface '%s': Re-mapped to ibv device '%s' [%p] on port %d",
+			m_name.c_str(), p_ibv_device->name, p_ibv_device, p_ring_info[0].port_num);
+
+	// restart rings
+	rings_hash_map_t::iterator ring_iter;
+	for (ring_iter = m_h_ring_map.begin(); ring_iter != m_h_ring_map.end(); ring_iter++) {
+		THE_RING->restart(p_ring_info);
+	}
+	return 1;
 }	
 
 std::string net_device_val::to_str()
@@ -623,7 +553,7 @@ void net_device_val_ib::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id
 	g_p_neigh_table_mgr->register_observer(neigh_key(ip_address((in_addr_t)(inet_addr(BROADCAST_IP))), this), this, &p_ces);
 	m_br_neigh = dynamic_cast<neigh_ib_broadcast*>(p_ces);
 
-	m_pkey = m_cma_id->route.addr.addr.ibaddr.pkey; // In order to create a UD QP outside the RDMA_CM API we need the pkey value (qp_mgr will convert it to pkey_index)
+	m_pkey = cma_id->route.addr.addr.ibaddr.pkey; // In order to create a UD QP outside the RDMA_CM API we need the pkey value (qp_mgr will convert it to pkey_index)
 }
 
 ring* net_device_val_ib::create_ring()

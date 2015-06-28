@@ -22,6 +22,8 @@
 #define nde_logdbg             __log_info_dbg
 #define nde_logerr             __log_info_err
 
+#define SLAVE_CHECK_TIMER_PERIOD 1000
+
 net_device_entry::net_device_entry(in_addr_t local_ip, net_device_val* ndv) : cache_entry_subject<ip_address,net_device_val*>(ip_address(local_ip))
 {
 	nde_logdbg("");
@@ -35,27 +37,23 @@ net_device_entry::net_device_entry(in_addr_t local_ip, net_device_val* ndv) : ca
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	// register to handle events
-	rdma_cm_id *cma_id = ndv->get_cma_id();
-	g_p_event_handler_manager->register_rdma_cm_event(cma_id->channel->fd, (void*)cma_id, (void*)(cma_id->channel), this);
-
 	// ALEXR: TODO, enable once we handle verbs event again
 	// This can help handle Link Up/Down
 	// We'll need to review this: like handle the un-register calls
 	// g_p_event_handler_manager->register_ibverbs_event(cma_id->verbs->async_fd, this, cma_id->verbs, 0);
 
 	m_is_valid = true;
+	if(ndv->get_is_bond())
+		m_timer_handle = g_p_event_handler_manager->register_timer_event(SLAVE_CHECK_TIMER_PERIOD, this, PERIODIC_TIMER, 0);
 	nde_logdbg("Done");
 }
 
 net_device_entry::~net_device_entry()
 {
-	nde_logdbg("");
-
-	// un-register from handle events
-	rdma_cm_id *cma_id = m_val->get_cma_id();
-	g_p_event_handler_manager->unregister_rdma_cm_event(cma_id->channel->fd, (void*)cma_id);
-
+	if (m_timer_handle) {
+		g_p_event_handler_manager->unregister_timer_event(this, m_timer_handle);
+		m_timer_handle = NULL;
+	}
 	nde_logdbg("Done");
 }
 
@@ -74,74 +72,15 @@ void net_device_entry::handle_event_ibverbs_cb(void *ev_data, void *ctx)
 	nde_logdbg("received ibv_event '%s' (%d)", priv_ibv_event_desc_str(ibv_event->event_type), ibv_event->event_type);
 }
 
-void net_device_entry::handle_event_rdma_cm_cb(struct rdma_cm_event* p_event)
-{
-	nde_logdbg("Got event '%s' (%d)", rdma_event_str(p_event->event), p_event->event);
-
-	if (p_event->event != RDMA_CM_EVENT_ADDR_CHANGE) {
-		nde_logdbg("event '%s' (%d) is not handled", rdma_event_str(p_event->event), p_event->event);
-		return;
-	}
-
-	auto_unlocker lock(m_lock);
-	m_is_valid = false;
-	rdma_cm_id *old_cma_id = m_val->get_cma_id();
-
-	net_device_val* p_ndv = dynamic_cast<net_device_val*>(m_val);
-	if (p_ndv) {
-		m_cma_id_bind_trial_count = 0;
-		
-		if (p_ndv->handle_event_rdma_cm(p_event)) {
-			m_is_valid = true;
-
-			// re-new RDMA_CM registration to events (replace old with new cma_id)
-			rdma_cm_id *new_cma_id = m_val->get_cma_id();
-
-			// unregister old cma_id
-			rdma_event_channel *old_cma_event_channel = new_cma_id->channel; // channel is the same for all cma_ids
-			g_p_event_handler_manager->unregister_rdma_cm_event(old_cma_event_channel->fd, (void*)old_cma_id);
-
-			// register new cma_id
-			g_p_event_handler_manager->register_rdma_cm_event(new_cma_id->channel->fd, (void*)new_cma_id, (void*)(new_cma_id->channel), this);
-		}
-		else if (p_ndv->is_cma_id_created()) {
-			// re-new RDMA_CM registration to events (replace old with new cma_id)
-			rdma_cm_id *new_cma_id = m_val->get_cma_id();
-
-			// unregister old cma_id
-			rdma_event_channel *old_cma_event_channel = new_cma_id->channel; // channel is the same for all cma_ids
-			g_p_event_handler_manager->unregister_rdma_cm_event(old_cma_event_channel->fd, (void*)old_cma_id);
-
-			//Register timer to retry to bind cma_id to specific address and continue handling address change event in case of succeed
-			g_p_event_handler_manager->register_timer_event(CMA_ID_BIND_TIMER_PERIOD_MSEC, this, ONE_SHOT_TIMER, NULL);
-		}
-	}
-
-	notify_observers();
-}
-
 void net_device_entry::handle_timer_expired(void* user_data)
 {
 	NOT_IN_USE(user_data);
-	
 	auto_unlocker lock(m_lock);
-	
 	net_device_val* p_ndv = dynamic_cast<net_device_val*>(m_val);
-	if ((p_ndv) && (p_ndv->bind_cma_id())) {
-		p_ndv->update_active_slave();
-		m_is_valid = true;
-		m_cma_id_bind_trial_count = 0;
-		// re-new RDMA_CM registration to events (replace old with new cma_id)
-		rdma_cm_id *new_cma_id = m_val->get_cma_id();
-		// register new cma_id
-		g_p_event_handler_manager->register_rdma_cm_event(new_cma_id->channel->fd, (void*)new_cma_id, (void*)(new_cma_id->channel), this);
-		notify_observers();
-	}
-	else if (m_cma_id_bind_trial_count < MAX_CMA_ID_BIND_TRIAL_COUNT) {
-		m_cma_id_bind_trial_count++;
-		g_p_event_handler_manager->register_timer_event(CMA_ID_BIND_TIMER_PERIOD_MSEC, this, ONE_SHOT_TIMER, NULL);
-	}
-	else {
-		nde_logerr("Unable to bind cma_id");
+	if (p_ndv) {
+		if(p_ndv->update_active_slave()) {
+			//active slave was changed
+			notify_observers();
+		}
 	}
 }
