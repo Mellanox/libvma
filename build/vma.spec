@@ -46,7 +46,7 @@ Vendor: Mellanox
 Group: Acceleration
 BuildRoot: %{_tmppath}/%{name}-%{version}-root
 Source: %{name}-%{version}.tar.gz
-requires: librdmacm, libibverbs, libnl
+requires: librdmacm, libibverbs
 conflicts: sockperf
 
 %description
