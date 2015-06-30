@@ -1511,7 +1511,7 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 	ret = wait_for_conn_ready();
 	// handle ret from async connect
 	if (ret < 0) {
-	        m_conn_state = TCP_CONN_ERROR;
+	        //m_conn_state = TCP_CONN_ERROR;
                 // errno is set and connect call must fail.
 	        destructor_helper();
 	        errno = ECONNREFUSED;
@@ -2364,6 +2364,9 @@ noblock_nolock:
 
 bool sockinfo_tcp::is_writeable()
 {
+	if (m_conn_state == TCP_CONN_ERROR) {
+		return false;
+	}
 	if (m_sock_state == TCP_SOCK_ASYNC_CONNECT) {
 		if (m_conn_state == TCP_CONN_CONNECTED) {
 			si_tcp_logdbg("++++ async connect ready");
