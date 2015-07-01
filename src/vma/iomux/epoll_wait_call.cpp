@@ -82,7 +82,7 @@ int epoll_wait_call::get_current_events()
 			uint32_t mutual_events = iter_cpy->second & (fd_rec.events | EPOLLERR | EPOLLHUP);
 
 			//EPOLLHUP & EPOLLOUT are mutually exclusive. see poll man pages. epoll adapt poll behavior.
-			if (mutual_events & EPOLLHUP & EPOLLOUT) {
+			if ((mutual_events & EPOLLHUP) &&  (mutual_events & EPOLLOUT)) {
 				mutual_events &= ~EPOLLOUT;
 			}
 

@@ -734,14 +734,16 @@ void sockinfo_tcp::err_lwip_cb(void *pcb_container, err_t err)
 	 */
 	if ((conn->m_sock_state == TCP_SOCK_CONNECTED_RD
 		|| conn->m_sock_state == TCP_SOCK_CONNECTED_RDWR
-		|| conn->m_sock_state == TCP_SOCK_ASYNC_CONNECT)
+		|| conn->m_sock_state == TCP_SOCK_ASYNC_CONNECT
+		|| conn->m_conn_state == TCP_CONN_CONNECTING)
 		&& PCB_IN_ACTIVE_STATE(&conn->m_pcb)) {
 		if (err == ERR_RST) {
 			if (conn->m_sock_state == TCP_SOCK_ASYNC_CONNECT)
 				conn->notify_epoll_context(EPOLLIN|EPOLLERR|EPOLLHUP);
 			else
-				conn->notify_epoll_context(EPOLLIN|EPOLLRDHUP);
-		} else {
+				conn->notify_epoll_context(EPOLLIN|EPOLLHUP|EPOLLRDHUP);
+		/* TODO what about no route to host type of errors, need to add EPOLLERR in this case ? */
+		} else { // ERR_TIMEOUT
 			conn->notify_epoll_context(EPOLLIN|EPOLLHUP);
 		}
 		io_mux_call::update_fd_array(conn->m_iomux_ready_fd_array, conn->m_fd);
@@ -2276,6 +2278,8 @@ int sockinfo_tcp::wait_for_conn_ready()
 	}
 	if (m_conn_state != TCP_CONN_CONNECTED) {
 		errno = ECONNREFUSED;
+		if (m_conn_state == TCP_CONN_TIMEOUT)
+			m_conn_state = TCP_CONN_FAILED;
 		si_tcp_logdbg("bad connect -> timeout or none listening");
 		return -1;
 	}
@@ -2364,7 +2368,7 @@ noblock_nolock:
 
 bool sockinfo_tcp::is_writeable()
 {
-	if (m_conn_state == TCP_CONN_ERROR) {
+	if (m_conn_state == TCP_CONN_ERROR || m_conn_state == TCP_CONN_TIMEOUT) {
 		return false;
 	}
 	if (m_sock_state == TCP_SOCK_ASYNC_CONNECT) {
