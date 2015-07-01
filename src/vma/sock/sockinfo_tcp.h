@@ -218,6 +218,7 @@ private:
 	lock_mutex_cond m_conn_cond;
 	tcp_conn_state_e m_conn_state;
 	fd_array_t* m_iomux_ready_fd_array;
+	struct linger m_linger;
 
 	/* local & peer addresses */
 /*	struct sockaddr *m_addr_local;
@@ -302,6 +303,8 @@ private:
 
 	//Register to timer
 	void register_timer();
+
+	void handle_socket_linger();
 
 	/** Function prototype for tcp error callback functions. Called when the pcb
 	 * receives a RST or is unexpectedly closed for any other reason.

@@ -70,6 +70,9 @@ sockinfo_tcp::sockinfo_tcp(int fd) :
 	m_rx_ctl_packets_list.set_id("sockinfo_tcp (%p), fd = %d : m_rx_ctl_packets_list", this, m_fd);
 	m_rx_ctl_reuse_list.set_id("sockinfo_tcp (%p), fd = %d : m_rx_ctl_reuse_list", this, m_fd);
 
+	m_linger.l_linger = 0;
+	m_linger.l_onoff = 0;
+
 	m_bound.set_sa_family(AF_INET);
 	m_protocol = PROTO_TCP;
 	m_p_socket_stats->socket_type = SOCK_STREAM;
@@ -220,8 +223,6 @@ bool sockinfo_tcp::prepare_listen_to_close()
 
 bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 {
-	int poll_cnt;
-	poll_cnt = 0;
 
 	lock_tcp_con();
 
@@ -299,15 +300,38 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 	notify_epoll_context(EPOLLHUP);
 
 	//todo should we do this each time we get into prepare_to_close ?
-	if (get_tcp_state(&m_pcb) != LISTEN &&
-		(m_pcb.unsent || (m_pcb.unacked && m_pcb.unacked->len))) {
-		rx_wait(poll_cnt, false);
-		tcp_output(&m_pcb);
+	if (get_tcp_state(&m_pcb) != LISTEN) {
+		handle_socket_linger();
 	}
 
 	unlock_tcp_con();
 
 	return (is_closable());
+}
+
+void sockinfo_tcp::handle_socket_linger() {
+	timeval start, current, elapsed;
+	long int linger_time_usec;
+	int poll_cnt = 0;
+
+	linger_time_usec = (!m_linger.l_onoff || !m_b_blocking) ? 0 : m_linger.l_linger * USEC_PER_SEC;
+	si_tcp_logdbg("Going to linger for max time of %lu usec", linger_time_usec);
+	memset(&elapsed, 0,sizeof(elapsed));
+	gettime(&start);
+	while ((tv_to_usec(&elapsed) <= linger_time_usec) && (m_pcb.unsent || m_pcb.unacked)) {
+		rx_wait(poll_cnt, false);
+		tcp_output(&m_pcb);
+		gettime(&current);
+		tv_sub(&current, &start, &elapsed);
+	}
+
+	if (m_linger.l_onoff && (m_pcb.unsent || m_pcb.unacked)) {
+		if (m_linger.l_linger > 0 && !m_b_blocking) {
+			errno = ERR_WOULDBLOCK;
+		} else {
+			abort_connection();
+		}
+	}
 }
 
 // call this function if you won't be able to go through si_tcp dtor
@@ -2516,6 +2540,9 @@ int sockinfo_tcp::shutdown(int __how)
 			abort_connection();
 		} else {
 			err = tcp_shutdown(&m_pcb, shut_rx, shut_tx);
+			if (shut_tx && get_tcp_state(&m_pcb) != LISTEN) {
+				handle_socket_linger();
+			}
 		}
 	}
 
@@ -2706,6 +2733,14 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			fit_snd_bufs(m_sndbuff_max);
 			si_tcp_logdbg("setsockopt SO_SNDBUF: %d", m_sndbuff_max);
 			break;
+		case SO_LINGER:
+			if (__optlen < sizeof(struct linger)) {
+				errno = EINVAL;
+				break;
+			}
+			m_linger = *(struct linger*)__optval;
+			si_tcp_logdbg("setsockopt SO_LINGER: l_onoff = %d, l_linger = %d", m_linger.l_onoff, m_linger.l_linger);
+			break;
 		case SO_RCVTIMEO:
 		{
 			if (__optlen < sizeof(struct timeval)) {
@@ -2791,82 +2826,91 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 		}
 	}
 
-        if (__level == SOL_SOCKET) {
-        	switch(__optname) {
-        	case SO_ERROR:
-        		if (*__optlen >= sizeof(int)) {
-        			*(int *)__optval = m_error_status;
-        			si_tcp_logdbg("(SO_ERROR) status: %d", m_error_status);
-        			m_error_status = 0;
-        			ret = 0;
-        		} else {
-        			errno = EINVAL;
-        		}
-        		break;
-        	case SO_REUSEADDR:
-        		if (*__optlen >= sizeof(int)) {
-        			*(int *)__optval = m_pcb.so_options & SOF_REUSEADDR;
-        			si_tcp_logdbg("(SO_REUSEADDR) reuse: %d", *(int *)__optval);
-        			ret = 0;
-        		} else {
-        			errno = EINVAL;
-        		}
-        		break;
-        	case SO_KEEPALIVE:
-        		if (*__optlen >= sizeof(int)) {
-        			*(int *)__optval = m_pcb.so_options & SOF_KEEPALIVE;
-        			si_tcp_logdbg("(SO_KEEPALIVE) keepalive: %d", *(int *)__optval);
-        			ret = 0;
-        		} else {
-        			errno = EINVAL;
-        		}
-        		break;
-        	case SO_RCVBUF:
-        		if (*__optlen >= sizeof(int)) {
-        			*(int *)__optval = m_rcvbuff_max;
-        			si_tcp_logdbg("(SO_RCVBUF) rcvbuf=%d", m_rcvbuff_max);
-        			ret = 0;
-        		} else {
-        			errno = EINVAL;
-        		}
-        		break;
-        	case SO_SNDBUF:
-        		if (*__optlen >= sizeof(int)) {
-        			*(int *)__optval = m_sndbuff_max;
-        			si_tcp_logdbg("(SO_SNDBUF) sndbuf=%d", m_sndbuff_max);
-        			ret = 0;
-        		} else {
-        			errno = EINVAL;
-        		}
-        		break;
-        	case SO_RCVTIMEO:
-        		if (*__optlen >= sizeof(struct timeval)) {
-        			struct timeval* tv = (struct timeval*)__optval;
-        			tv->tv_sec = m_loops_timer.get_timeout_msec() / 1000;
-        			tv->tv_usec = (m_loops_timer.get_timeout_msec() % 1000) * 1000;
-        			si_tcp_logdbg("(SO_RCVTIMEO) msec=%d", m_loops_timer.get_timeout_msec());
-        			ret = 0;
-        		} else {
-        			errno = EINVAL;
-        		}
-        		break;
+	if (__level == SOL_SOCKET) {
+		switch(__optname) {
+		case SO_ERROR:
+			if (*__optlen >= sizeof(int)) {
+				*(int *)__optval = m_error_status;
+				si_tcp_logdbg("(SO_ERROR) status: %d", m_error_status);
+				m_error_status = 0;
+				ret = 0;
+			} else {
+				errno = EINVAL;
+			}
+			break;
+		case SO_REUSEADDR:
+			if (*__optlen >= sizeof(int)) {
+				*(int *)__optval = m_pcb.so_options & SOF_REUSEADDR;
+				si_tcp_logdbg("(SO_REUSEADDR) reuse: %d", *(int *)__optval);
+				ret = 0;
+			} else {
+				errno = EINVAL;
+			}
+			break;
+		case SO_KEEPALIVE:
+			if (*__optlen >= sizeof(int)) {
+				*(int *)__optval = m_pcb.so_options & SOF_KEEPALIVE;
+				si_tcp_logdbg("(SO_KEEPALIVE) keepalive: %d", *(int *)__optval);
+				ret = 0;
+			} else {
+				errno = EINVAL;
+			}
+			break;
+		case SO_RCVBUF:
+			if (*__optlen >= sizeof(int)) {
+				*(int *)__optval = m_rcvbuff_max;
+				si_tcp_logdbg("(SO_RCVBUF) rcvbuf=%d", m_rcvbuff_max);
+				ret = 0;
+			} else {
+				errno = EINVAL;
+			}
+			break;
+		case SO_SNDBUF:
+			if (*__optlen >= sizeof(int)) {
+				*(int *)__optval = m_sndbuff_max;
+				si_tcp_logdbg("(SO_SNDBUF) sndbuf=%d", m_sndbuff_max);
+				ret = 0;
+			} else {
+				errno = EINVAL;
+			}
+			break;
+		case SO_LINGER:
+			if (*__optlen >= sizeof(struct linger)) {
+				*(struct linger *)__optval = m_linger;
+				si_tcp_logdbg("(SO_LINGER) l_onoff = %d, l_linger = %d", m_linger.l_onoff, m_linger.l_linger);
+				ret = 0;
+			} else {
+				errno = EINVAL;
+			}
+			break;
+		case SO_RCVTIMEO:
+			if (*__optlen >= sizeof(struct timeval)) {
+				struct timeval* tv = (struct timeval*)__optval;
+				tv->tv_sec = m_loops_timer.get_timeout_msec() / 1000;
+				tv->tv_usec = (m_loops_timer.get_timeout_msec() % 1000) * 1000;
+				si_tcp_logdbg("(SO_RCVTIMEO) msec=%d", m_loops_timer.get_timeout_msec());
+				ret = 0;
+			} else {
+				errno = EINVAL;
+			}
+			break;
 
-        	case SO_BINDTODEVICE:
-        		//todo add support
-        		errno = ENOPROTOOPT;
-        		break;
-        	default:
-        		ret = SOCKOPT_NO_OFFLOAD_SUPPORT;
-        		break;
-        	}
-        }
+		case SO_BINDTODEVICE:
+			//todo add support
+			errno = ENOPROTOOPT;
+			break;
+		default:
+			ret = SOCKOPT_NO_OFFLOAD_SUPPORT;
+			break;
+		}
+	}
 
-        BULLSEYE_EXCLUDE_BLOCK_START
-        if (ret && ret != SOCKOPT_NO_OFFLOAD_SUPPORT) {
-                si_tcp_logdbg("getsockopt failed (ret=%d %m)", ret);
-        }
-        BULLSEYE_EXCLUDE_BLOCK_END
-        return ret;
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (ret && ret != SOCKOPT_NO_OFFLOAD_SUPPORT) {
+		si_tcp_logdbg("getsockopt failed (ret=%d %m)", ret);
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+	return ret;
 }
 
 int sockinfo_tcp::getsockopt(int __level, int __optname, void *__optval,
