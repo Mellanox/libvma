@@ -73,20 +73,21 @@ def main():
 	#	epoll.register(sock_fd, select.EPOLLOUT | select.EPOLLET)
 		epoll.register(sock_fd, select.EPOLLOUT )
 
-
-		print "calling epoll - for getting for connect result (this is expected to return immediately in case the server is up)"
-		eevents = epoll.poll(1)
-		print "- epoll returned: %s" % str(eevents)
-		if len(eevents) == 0: continue
-		fd, event = eevents[0]
-
-		if is_connected( sock ):
-			success = True
-		else:
-			print counter, "connection was NOT established successfully (will retry in 1 second) - Is the server up?"
-			sock.close()
-			time.sleep(1)
-			counter += 1		
+		while not success:
+			print "calling epoll - for getting for connect result (this is expected to return immediately in case the server is up)"
+			eevents = epoll.poll(1)
+			print "- epoll returned: %s" % str(eevents)
+			if len(eevents) == 0: continue
+			fd, event = eevents[0]
+	
+			if is_connected( sock ):
+				success = True
+			else:
+				print counter, "connection was NOT established successfully (will retry in 1 second) - Is the server up?"
+				sock.close()
+				time.sleep(1)
+				counter += 1
+				break		
 
 	print " **** connection established successfully after %d failures" % counter
 
