@@ -130,6 +130,7 @@ public:
 
 	bool inline is_readable(uint64_t *p_poll_sn, fd_array_t *p_fd_array = NULL);
 	bool inline is_writeable();
+	bool inline is_errorable(int *errors);
 	bool is_closable() { return get_tcp_state(&m_pcb) == CLOSED && m_syn_received.empty() && m_accepted_conns.empty(); }
 	int rx_request_notification(uint64_t poll_sn);
 	bool skip_os_select()

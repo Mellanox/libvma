@@ -57,6 +57,7 @@ public:
 	/// @override
 	virtual void set_rfd_ready(int fd);
 	virtual void set_wfd_ready(int fd);
+	virtual void set_efd_ready(int fd, int errors);
 
 private:
 	/// Parameters for the call

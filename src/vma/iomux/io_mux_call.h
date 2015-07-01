@@ -79,6 +79,7 @@ public:
 	 */
 	virtual void set_rfd_ready(int fd) = 0;
 	virtual void set_wfd_ready(int fd) = 0;
+	virtual void set_efd_ready(int fd, int errors) = 0;
 	/**
 	 * Prepare to poll on fds
 	 */
@@ -177,6 +178,7 @@ private:
 	 */
    	virtual bool check_all_offloaded_sockets(uint64_t *p_poll_sn);
 	inline void check_offloaded_wsockets(uint64_t *p_poll_sn);
+	inline void check_offloaded_esockets(uint64_t *p_poll_sn);
 
 
 	/**
@@ -260,6 +262,9 @@ protected:
 
 	/// number of ready w fds
 	int	m_n_ready_wfds;
+
+	/// number of ready e fds
+	int	m_n_ready_efds;
 
 	/// collect the ready fds in the begining of the call
 	fd_array_t 	m_fd_ready_array;

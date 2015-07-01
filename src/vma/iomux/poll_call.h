@@ -40,7 +40,8 @@ public:
 	/// @override
 	virtual void set_offloaded_rfd_ready(int fd_index);
 	virtual void set_offloaded_wfd_ready(int fd_index);
-        
+	virtual void set_offloaded_efd_ready(int fd_index, int errors);
+
 	/// @override
 	virtual void prepare_to_poll();
 
@@ -61,6 +62,9 @@ public:
         
 	/// @override
 	virtual void set_wfd_ready(int fd);
+
+	/// @override
+	virtual void set_efd_ready(int fd, int errors);
 
 private:
 	/// Parameters for the call

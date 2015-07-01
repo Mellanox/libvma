@@ -284,6 +284,13 @@ void epoll_wait_call::set_wfd_ready(int fd)
 	NOT_IN_USE(fd);
 }
 
+void epoll_wait_call::set_efd_ready(int fd, int errors)
+{
+	// Empty
+	NOT_IN_USE(fd);
+	NOT_IN_USE(errors);
+}
+
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif

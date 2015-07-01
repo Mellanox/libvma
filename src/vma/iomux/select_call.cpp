@@ -397,3 +397,10 @@ void select_call::set_wfd_ready(int fd)
 		__log_func("ready w fd: %d", fd);
 	}
 }
+
+void select_call::set_efd_ready(int fd, int errors)
+{
+	/* TODO currently consider errors as ready to write OR read */
+	NOT_IN_USE(errors);
+	NOT_IN_USE(fd);
+}

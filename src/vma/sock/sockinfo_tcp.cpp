@@ -2368,9 +2368,6 @@ noblock_nolock:
 
 bool sockinfo_tcp::is_writeable()
 {
-	if (m_conn_state == TCP_CONN_ERROR || m_conn_state == TCP_CONN_TIMEOUT) {
-		return false;
-	}
 	if (m_sock_state == TCP_SOCK_ASYNC_CONNECT) {
 		if (m_conn_state == TCP_CONN_CONNECTED) {
 			si_tcp_logdbg("++++ async connect ready");
@@ -2409,6 +2406,24 @@ noblock:
 */
 	__log_funcall("--->>> tcp_sndbuf(&m_pcb)=%d", tcp_sndbuf(&m_pcb));
 	return true;
+}
+
+bool sockinfo_tcp::is_errorable(int *errors)
+{
+	*errors = 0;
+
+	if (m_conn_state == TCP_CONN_ERROR ||
+	    m_conn_state == TCP_CONN_TIMEOUT ||
+	    m_conn_state == TCP_CONN_RESETED ||
+	    m_conn_state == TCP_CONN_FAILED) {
+		*errors |= POLLHUP;
+	}
+
+	if (m_conn_state == TCP_CONN_ERROR) {
+		*errors |= POLLERR;
+	}
+
+	return *errors;
 }
 
 #if _BullseyeCoverage

@@ -66,6 +66,9 @@ public:
 	virtual void set_wfd_ready(int fd);
 
 	/// @override
+	virtual void set_efd_ready(int fd, int errors);
+
+	/// @override
 	virtual void lock();
 
 	/// @override

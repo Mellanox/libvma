@@ -190,11 +190,12 @@ void poll_call::set_offloaded_rfd_ready(int fd_index)
 	if (m_p_offloaded_modes[fd_index] & OFF_READ){
 
 		int evt_index = m_lookup_buffer[fd_index];
+		if (!m_orig_fds[evt_index].revents)
+			++m_n_all_ready_fds;
 		if ((m_orig_fds[evt_index].events & POLLIN) &&
 				!(m_orig_fds[evt_index].revents & POLLIN)){
 			m_orig_fds[evt_index].revents |= POLLIN;
 			++m_n_ready_rfds;
-			++m_n_all_ready_fds;
 		}
 	}
 }
@@ -203,11 +204,41 @@ void poll_call::set_offloaded_wfd_ready(int fd_index)
 {
 	if (m_p_offloaded_modes[fd_index] & OFF_WRITE) {
 		int evt_index = m_lookup_buffer[fd_index];
+		if (!m_orig_fds[evt_index].revents)
+			++m_n_all_ready_fds;
 		if ((m_orig_fds[evt_index].events & POLLOUT) &&
-				!(m_orig_fds[evt_index].revents & POLLOUT)){
+				!(m_orig_fds[evt_index].revents & POLLOUT) &&
+				!(m_orig_fds[evt_index].revents & POLLHUP)){
+			/* POLLOUT and POLLHUP are mutually exclusive */
 			m_orig_fds[evt_index].revents |= POLLOUT;
 			++m_n_ready_wfds;
+		}
+	}
+}
+
+void poll_call::set_offloaded_efd_ready(int fd_index, int errors)
+{
+	if (m_p_offloaded_modes[fd_index] & OFF_RDWR) {
+		int evt_index = m_lookup_buffer[fd_index];
+		if (!m_orig_fds[evt_index].revents)
 			++m_n_all_ready_fds;
+		bool got_errors = false;
+		if ((errors & POLLHUP) &&
+				!(m_orig_fds[evt_index].revents & POLLHUP)){
+			m_orig_fds[evt_index].revents |= POLLHUP;
+			if (m_orig_fds[evt_index].revents & POLLOUT) {
+				/* POLLOUT and POLLHUP are mutually exclusive */
+				m_orig_fds[evt_index].revents &= ~POLLOUT;
+			}
+			got_errors = true;
+		}
+		if ((errors & POLLERR) &&
+				!(m_orig_fds[evt_index].revents & POLLERR)){
+			m_orig_fds[evt_index].revents |= POLLERR;
+			got_errors = true;
+		}
+		if (got_errors) {
+			++m_n_ready_efds;
 		}
 	}
 }
@@ -231,6 +262,18 @@ void poll_call::set_wfd_ready(int fd)
 	for (fd_index = 0; fd_index < *m_p_num_all_offloaded_fds; ++fd_index) {
 		if (m_p_all_offloaded_fds[fd_index] == fd) {
 			set_offloaded_wfd_ready(fd_index);
+		}
+	}
+}
+
+void poll_call::set_efd_ready(int fd, int errors)
+{
+	int fd_index;
+
+	// TODO make this more efficient
+	for (fd_index = 0; fd_index < *m_p_num_all_offloaded_fds; ++fd_index) {
+		if (m_p_all_offloaded_fds[fd_index] == fd) {
+			set_offloaded_efd_ready(fd_index, errors);
 		}
 	}
 }

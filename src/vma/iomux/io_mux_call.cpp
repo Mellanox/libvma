@@ -46,6 +46,7 @@ io_mux_call::io_mux_call(int *off_fds_buffer, offloaded_mode_t *off_modes_buffer
 	m_n_all_ready_fds(0),
 	m_n_ready_rfds(0),
 	m_n_ready_wfds(0),
+	m_n_ready_efds(0),
 	m_sigmask(sigmask)
 {
 	m_p_num_all_offloaded_fds = &m_num_all_offloaded_fds;
@@ -163,6 +164,28 @@ inline void io_mux_call::check_offloaded_wsockets(uint64_t */*p_poll_sn*/)
 	}
 }
 
+inline void io_mux_call::check_offloaded_esockets(uint64_t */*p_poll_sn*/)
+{
+	for (int offloaded_index = 0; offloaded_index < *m_p_num_all_offloaded_fds; ++offloaded_index) {
+		if (m_p_offloaded_modes[offloaded_index] & OFF_RDWR) {
+			int fd = m_p_all_offloaded_fds[offloaded_index];
+			socket_fd_api *p_socket_object = fd_collection_get_sockfd(fd);
+			if (!p_socket_object) {
+				// If we can't find this previously mapped offloaded socket
+				// then it was probably closed. We need to get out with error code
+				errno = EBADF;
+				throw io_mux_call::io_error();
+			}
+
+			// Poll the socket object
+			int errors = 0;
+			if (p_socket_object->is_errorable(&errors)) {
+				set_efd_ready(fd, errors);
+			}
+		}
+	}
+}
+
 inline bool io_mux_call::check_all_offloaded_sockets(uint64_t *p_poll_sn)
 {
 	check_offloaded_rsockets(p_poll_sn);
@@ -172,9 +195,10 @@ inline bool io_mux_call::check_all_offloaded_sockets(uint64_t *p_poll_sn)
 		// check cq for acks
 		ring_poll_and_process_element(&m_poll_sn, NULL);
 		check_offloaded_wsockets(p_poll_sn);
+		check_offloaded_esockets(p_poll_sn);
 	}
 
-	__log_func("m_n_all_ready_fds=%d, m_n_ready_rfds=%d, m_n_ready_wfds=%d", m_n_all_ready_fds, m_n_ready_rfds, m_n_ready_wfds);
+	__log_func("m_n_all_ready_fds=%d, m_n_ready_rfds=%d, m_n_ready_wfds=%d, m_n_ready_efds=%d", m_n_all_ready_fds, m_n_ready_rfds, m_n_ready_wfds, m_n_ready_efds);
 	return m_n_all_ready_fds;
 }
 
@@ -255,9 +279,9 @@ void io_mux_call::polling_loops()
 #endif
 		__log_funcall("2nd scenario loop %d", poll_counter);
 		__log_funcall("poll_os_countdown=%d, select_poll_os_ratio=%d, check_timer_countdown=%d, m_num_offloaded_rfds=%d,"
-		              "  m_n_all_ready_fds=%d, m_n_ready_rfds=%d, m_n_ready_wfds=%d, multiple_polling_loops=%d",
+		              "  m_n_all_ready_fds=%d, m_n_ready_rfds=%d, m_n_ready_wfds=%d, m_n_ready_efds=%d, multiple_polling_loops=%d",
 		              poll_os_countdown, mce_sys.select_poll_os_ratio, check_timer_countdown, *m_p_num_all_offloaded_fds,
-		              m_n_all_ready_fds, m_n_ready_rfds, m_n_ready_wfds, multiple_polling_loops);
+		              m_n_all_ready_fds, m_n_ready_rfds, m_n_ready_wfds, m_n_ready_efds, multiple_polling_loops);
 
 		/*
 		* Poll OS when count down reaches zero. This honors CQ-OS ratio.
@@ -344,7 +368,7 @@ void io_mux_call::polling_loops()
 
 	if (m_n_all_ready_fds) {//TODO: verify!
 		++m_p_stats->n_iomux_poll_hit;
-		__log_func("polling_loops found %d ready fds (rfds=%d, wfds=%d)", m_n_all_ready_fds, m_n_ready_rfds, m_n_ready_wfds);
+		__log_func("polling_loops found %d ready fds (rfds=%d, wfds=%d, efds=%d)", m_n_all_ready_fds, m_n_ready_rfds, m_n_ready_wfds, m_n_ready_efds);
 #ifdef VMA_TIME_MEASURE				
 		TAKE_T_POLL_END;
 #endif

@@ -118,6 +118,8 @@ public:
 
 	virtual bool is_writeable();
 
+	virtual bool is_errorable(int *errors);
+
 	// Instructing the socket to immediately sample/un-sample the OS in receive flow
 	virtual void set_immediate_os_sample();
 	virtual void unset_immediate_os_sample();

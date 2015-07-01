@@ -200,6 +200,13 @@ bool socket_fd_api::is_writeable()
 	return true;
 }
 
+bool socket_fd_api::is_errorable(int *errors)
+{
+	NOT_IN_USE(errors);
+	__log_info_funcall("");
+	return false;
+}
+
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
 #endif
