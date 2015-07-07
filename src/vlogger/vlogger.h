@@ -16,8 +16,6 @@
 
 #include <iostream>
 
-using namespace std;
-
 #include <fstream>
 #include <time.h>
 #include <stdarg.h>

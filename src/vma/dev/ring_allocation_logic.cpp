@@ -30,8 +30,8 @@
 #define ral_logfuncall		__log_info_funcall
 
 
-ring_allocation_logic::ring_allocation_logic(ring_logic_t ring_allocation_logic, int ring_migration_ratio, int fd):
-	m_tostr("base"), m_ring_allocation_logic(ring_allocation_logic), m_ring_migration_ratio(ring_migration_ratio),
+ring_allocation_logic::ring_allocation_logic(ring_logic_t _ring_allocation_logic, int ring_migration_ratio, int fd):
+	m_tostr("base"), m_ring_allocation_logic(_ring_allocation_logic), m_ring_migration_ratio(ring_migration_ratio),
 	m_fd(fd), m_migration_try_count(ring_migration_ratio), m_migration_candidate(0)
 {
 	m_res_key = get_res_key_by_logic();

@@ -1228,22 +1228,22 @@ void zero_bpool_stats(bpool_stats_t* p_bpool_stats)
 
 void zero_counters(sh_mem_t* p_sh_mem)
 {
-	int i;
 	log_msg("Zero counters...");
-	for (uint32_t i=0; i < p_sh_mem->max_skt_inst_num; i++) {
+	for (size_t i=0; i < p_sh_mem->max_skt_inst_num; i++) {
 		size_t fd = (size_t)p_sh_mem->skt_inst_arr[i].skt_stats.fd;
 		if (p_sh_mem->skt_inst_arr[i].b_enabled && g_fd_mask[fd]){
 			zero_socket_stats(&p_sh_mem->skt_inst_arr[i].skt_stats);
 		}
 	}	
 	zero_iomux_stats(&p_sh_mem->iomux);
-	for (i = 0; i < NUM_OF_SUPPORTED_CQS; i++) {
+
+	for (int i = 0; i < NUM_OF_SUPPORTED_CQS; i++) {
 		zero_cq_stats(&p_sh_mem->cq_inst_arr[i].cq_stats);
 	}
-	for (i = 0; i < NUM_OF_SUPPORTED_RINGS; i++) {
+	for (int i = 0; i < NUM_OF_SUPPORTED_RINGS; i++) {
 		zero_ring_stats(&p_sh_mem->ring_inst_arr[i].ring_stats);
 	}
-	for (i = 0; i < NUM_OF_SUPPORTED_BPOOLS; i++) {
+	for (int i = 0; i < NUM_OF_SUPPORTED_BPOOLS; i++) {
 		zero_bpool_stats(&p_sh_mem->bpool_inst_arr[i].bpool_stats);
 	}
 }

@@ -153,7 +153,12 @@ void net_device_table_mgr::map_net_devices()
 			continue;
 		} ENDIF_RDMACM_FAILURE;
 
+		// avoid nesting calls to IF_RDMACM_FAILURE macro - because it will raise gcc warning "declaration of '__ret__' shadows a previous local" in case -Wshadow is used
+		bool rdma_bind_addr_failed = false;
 		IF_RDMACM_FAILURE(rdma_bind_addr(cma_id, (struct sockaddr*)ifa->ifa_addr)) {
+			rdma_bind_addr_failed = true;
+		} ENDIF_RDMACM_FAILURE;
+		if (rdma_bind_addr_failed) {
 			ndtm_logdbg("Failed in rdma_bind_addr (src=%d.%d.%d.%d) (errno=%d %m)", NIPQUAD(((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr), errno);
 			errno = 0; //in case of not-offloade, resource is not available (errno=11), but this is normal and we don't want the user to know about this
 			// Close the cma_id which does not support offload
@@ -161,7 +166,7 @@ void net_device_table_mgr::map_net_devices()
 				ndtm_logerr("Failed in rdma_destroy_id (errno=%d %m)", errno);
 			} ENDIF_RDMACM_FAILURE;
 			continue;
-		} ENDIF_RDMACM_FAILURE;
+		}
 
 		// loopback might get here but without ibv_context in the cma_id
 		if (NULL == cma_id->verbs) {

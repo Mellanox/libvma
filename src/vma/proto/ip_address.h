@@ -65,8 +65,8 @@ class hash<ip_address>
 public:
 	size_t operator()(const ip_address &key) const
 	{
-		hash<int>hash;
-		return hash(key.get_in_addr());
+		hash<int>_hash;
+		return _hash(key.get_in_addr());
 	}
 };
 }}

@@ -77,9 +77,9 @@ public:
 
 	virtual void clean_obj();
 
-	void setPassthrough(bool isPassthrough = true) {
-		m_sock_offload = isPassthrough ? TCP_SOCK_PASSTHROUGH : TCP_SOCK_LWIP;
-		m_p_socket_stats->b_is_offloaded = ! isPassthrough;
+	void setPassthrough(bool _isPassthrough = true) {
+		m_sock_offload = _isPassthrough ? TCP_SOCK_PASSTHROUGH : TCP_SOCK_LWIP;
+		m_p_socket_stats->b_is_offloaded = ! _isPassthrough;
 	}
 	bool isPassthrough()  {return m_sock_offload == TCP_SOCK_PASSTHROUGH;}
 

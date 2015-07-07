@@ -64,7 +64,7 @@ class hash<route_rule_table_key>
 public:
 	size_t operator()(const route_rule_table_key &key) const
 	{
-		hash<string>hash;
+		hash<string>_hash;
 		char s[40];
 		/*
 		Build string from exist parameter (destination IP, source IP, TOS)
@@ -75,7 +75,7 @@ public:
 			sprintf(s, "%s %d.%d.%d.%d", s, NIPQUAD(key.get_src_ip()));	
 		if (key.get_tos())
 			sprintf(s, "%s %u", s, key.get_tos());		
-		return hash(std::string(s));// Use built in hash function for string input.
+		return _hash(std::string(s));// Use built in hash function for string input.
 	}
 };
 }}

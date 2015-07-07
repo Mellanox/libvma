@@ -34,7 +34,7 @@
 class lock_base
 {
 public:
-	lock_base(const char *m_lock_name = NULL) : m_lock_name(m_lock_name) {};
+	lock_base(const char *_lock_name = NULL) : m_lock_name(_lock_name) {};
 	virtual ~lock_base() {};
 	virtual inline int      lock() { return 0; };
 	virtual inline int      trylock() { return 0; };

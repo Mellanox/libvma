@@ -71,9 +71,9 @@ neigh_val & neigh_ib_val::operator=(const neigh_val & val)
 	return *this;
 }
 
-neigh_entry::neigh_entry(neigh_key key, transport_type_t type, bool is_init_resources):
+neigh_entry::neigh_entry(neigh_key key, transport_type_t _type, bool is_init_resources):
 	cache_entry_subject<neigh_key, neigh_val *>(key),
-	m_cma_id(NULL), m_rdma_port_space((enum rdma_port_space)0), m_state_machine(NULL), m_type(UNKNOWN), m_trans_type(type),
+	m_cma_id(NULL), m_rdma_port_space((enum rdma_port_space)0), m_state_machine(NULL), m_type(UNKNOWN), m_trans_type(_type),
 	m_state(false), m_err_counter(0), m_timer_handle(NULL),
 	m_arp_counter(0), m_p_dev(NULL), m_p_ring(NULL), m_is_loopback(false),
 	m_to_str(std::string(priv_vma_transport_type_str(m_trans_type)) + ":" + get_key().to_str()),
@@ -1019,13 +1019,13 @@ void neigh_entry::priv_destroy_cma_id()
 }
 
 void* neigh_entry::priv_register_timer_event(int timeout_msec, timer_handler* handler, timer_req_type_t req_type, void* user_data){
-	void* timer_handler = NULL;
+	void* _timer_handler = NULL;
 	m_lock.lock();
 	if(!is_cleaned()){
-		timer_handler = g_p_event_handler_manager->register_timer_event(timeout_msec, handler, req_type, user_data);
+		_timer_handler = g_p_event_handler_manager->register_timer_event(timeout_msec, handler, req_type, user_data);
 	}
 	m_lock.unlock();
-	return timer_handler;
+	return _timer_handler;
 }
 
 void neigh_entry::priv_unregister_timer()

@@ -176,15 +176,15 @@ void vma_lwip::handle_timer_expired(void* user_data) {
 
 uint32_t get_lwip_tcp_mss(uint32_t mtu, uint32_t lwip_mss)
 {
-	uint32_t  lwip_tcp_mss;
+	uint32_t  _lwip_tcp_mss;
 	switch (lwip_mss) {
 	case MSS_FOLLOW_MTU:
 		// set MSS to match VMA_MTU, MSS is equal to (VMA_MTU-40), but forced to be at least 1.
-		lwip_tcp_mss = (MAX(mtu, (40+1)) - 40);
+		_lwip_tcp_mss = (MAX(mtu, (40+1)) - 40);
 		break;
 	default:
-		lwip_tcp_mss = (MAX(lwip_mss, 1));
+		_lwip_tcp_mss = (MAX(lwip_mss, 1));
 		break;
 	}
-	return lwip_tcp_mss;
+	return _lwip_tcp_mss;
 }

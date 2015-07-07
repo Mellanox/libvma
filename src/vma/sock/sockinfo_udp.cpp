@@ -267,7 +267,7 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 		return -1; // zero returned from orig_connect()
 	}
 
-	auto_unlocker lock(m_lock_snd);
+	auto_unlocker _lock(m_lock_snd);
 
 	// Dissolve the current connection setting if it's not AF_INET
 	// (this also support the default dissolve by AF_UNSPEC)
@@ -394,7 +394,7 @@ int sockinfo_udp::getsockname(struct sockaddr *__name /*=NULL*/, socklen_t *__na
 	in_addr_t bound_if = bindname.get_in_addr();
 	in_port_t bound_port = bindname.get_in_port();
 
-	auto_unlocker lock(m_lock_rcv);
+	auto_unlocker _lock(m_lock_rcv);
 
 	// Check & Save bind port info
 	if (m_bound.get_in_port() != bound_port) {
