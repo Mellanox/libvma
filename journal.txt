@@ -1,3 +1,19 @@
+Version 7.0.3-0:
+Date + Time 2015-7-8
+=======================
+Added:
+        - RM #561831 add a script for testing epoll and poll returned events
+        - RM #561831 Support returning error events for poll
+        - RM #560658 support SO_LINGER socket option
+
+Fixed:
+        - RM #560210 periodic monitoring of active slave changes on bond interfaces
+                     to support proper device removal and bond events without rdma_cm
+        - RM #561831 fix error events for epoll
+        - RM #545457 fix libnl rpm&deb dependency
+        - RM #560940 fix compilation warnings
+        - RM #547669 "netstat like" vma_stats to work when no process running
+
 Version 7.0.2-0:
 Date + Time 2015-6-26
 =======================
