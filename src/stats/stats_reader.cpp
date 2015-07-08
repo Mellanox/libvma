@@ -1468,9 +1468,15 @@ int main (int argc, char **argv)
 	}
 
 	if ( pids.size() == 0 ){
-		usage(argv[0]);
 		free(g_fd_mask);
-		return 1;
+		if(user_params.view_mode == e_netstat_like) {
+			print_headers();
+			return 0;
+		}
+		else {
+			usage(argv[0]);
+			return 1;
+		}
 	}
 
 	if(user_params.view_mode == e_netstat_like)
