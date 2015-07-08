@@ -60,12 +60,12 @@ public :
 };
 
 template<typename T>
-class list_iterator_t : public std::iterator<std::random_access_iterator_tag, T, ptrdiff_t, T*, T&>
+class list_iterator_t : public std::iterator<std::random_access_iterator_tag, T, std::ptrdiff_t, T*, T&>
 {
 public:
 
     list_iterator_t(T* ptr = NULL){m_ptr = ptr;}
-    list_iterator_t(const list_iterator_t<T>& iterator){m_ptr = iterator.m_ptr;}
+    list_iterator_t(const list_iterator_t<T>& __iterator){m_ptr = __iterator.m_ptr;}
     ~list_iterator_t(){}
 
     list_iterator_t<T>&                  operator=(T* ptr){m_ptr = ptr;return (*this);}
@@ -77,8 +77,8 @@ public:
             return false;
     }
 
-    bool	operator==(const list_iterator_t<T>& iterator)const{return (m_ptr == iterator.getConstPtr());}
-    bool	operator!=(const list_iterator_t<T>& iterator)const{return (m_ptr != iterator.getConstPtr());}
+    bool	operator==(const list_iterator_t<T>& __iterator)const{return (m_ptr == __iterator.getConstPtr());}
+    bool	operator!=(const list_iterator_t<T>& __iterator)const{return (m_ptr != __iterator.getConstPtr());}
 
     list_iterator_t<T> operator++(int){
     	list_iterator_t<T> tmp(*this);

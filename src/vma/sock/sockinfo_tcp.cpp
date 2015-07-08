@@ -678,7 +678,7 @@ err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rex
 {
 	iovec iovec[64];
 	struct iovec* p_iovec = iovec;
-	tcp_iovec tcp_iovec; //currently we pass p_desc only for 1 size iovec, since for bigger size we allocate new buffers
+	tcp_iovec tcp_iovec_temp; //currently we pass p_desc only for 1 size iovec, since for bigger size we allocate new buffers
 	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)(((struct tcp_pcb*)v_p_conn)->my_container);
 	dst_entry *p_dst = p_si_tcp->m_p_connected_dst_entry;
 	int count = 1;
@@ -686,11 +686,11 @@ err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rex
 	//ASSERT_NOT_LOCKED(p_si_tcp->m_tcp_con_lock);
 
 	if (likely(!p->next)) { // We should hit this case 99% of cases
-		tcp_iovec.iovec.iov_base = p->payload;
-		tcp_iovec.iovec.iov_len = p->len;
-		tcp_iovec.p_desc = (mem_buf_desc_t*)p;
+		tcp_iovec_temp.iovec.iov_base = p->payload;
+		tcp_iovec_temp.iovec.iov_len = p->len;
+		tcp_iovec_temp.p_desc = (mem_buf_desc_t*)p;
 		vlog_printf(VLOG_DEBUG, "p_desc=%p,p->len=%d ", p, p->len);
-		p_iovec = (struct iovec*)&tcp_iovec;
+		p_iovec = (struct iovec*)&tcp_iovec_temp;
 	} else {
 		for (count = 0; count < 64 && p; ++count) {
 			iovec[count].iov_base = p->payload;
