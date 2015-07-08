@@ -922,6 +922,7 @@ bool check_if_process_running(int pid)
 
 void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 {
+	int ret;
 	int num_act_inst = 0;
 	int cycles = 0;
 	int printed_line_num = SCREEN_SIZE;
@@ -981,7 +982,8 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 		}
 		switch (user_params.view_mode) {
 			case e_full:
-				system("clear");
+				ret = system("clear");
+				NOT_IN_USE(ret);
 				break;
 			case e_mc_groups:
 				show_mc_group_stats(&p_sh_mem->mc_info, p_sh_mem->skt_inst_arr, p_sh_mem->max_skt_inst_num);

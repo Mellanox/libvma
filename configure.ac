@@ -142,7 +142,7 @@ AM_CONDITIONAL(IS_RELEASE_ZERO, test $VMA_LIBRARY_RELEASE -eq 0)
 if test -e "/etc/infiniband/info" ; then
         ac_cv_ofed_path=`grep prefix /etc/infiniband/info | awk -F "=" '{print $2}'`
 else
-        ac_cv_ofed_path="/usr/local/ofed"
+        ac_cv_ofed_path="/usr"
 fi
 
 if test -e "include/voltaire/vma_extra.h" ; then
@@ -178,7 +178,7 @@ if test "x${GCC}" = "xyes" ; then
         else
                 AC_MSG_RESULT([< 4])
         fi
-        SHARED_FLAGS="-Wall -Wextra -Werror -ffunction-sections -fdata-sections -Wsequence-point -pipe -Winit-self -Wmissing-include-dirs -msse4.2"
+        SHARED_FLAGS="-Wall -Wextra -Werror -ffunction-sections -fdata-sections -Wsequence-point -pipe -Winit-self -Wmissing-include-dirs"
         CFLAGS="$SHARED_FLAGS $CFLAGS $WNO_FLAGS"
         CXXFLAGS="$SHARED_FLAGS -Wshadow $CXXFLAGS"
 fi
