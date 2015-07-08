@@ -338,8 +338,6 @@ void epfd_info::decrease_ring_ref_count(ring* ring)
  */
 int epfd_info::del_fd(int fd, bool passthrough)
 {
-	int ret;
-	
 	__log_funcall("fd=%d", fd);
 
 	socket_fd_api* temp_sock_fd_api = fd_collection_get_sockfd(fd);
@@ -347,7 +345,7 @@ int epfd_info::del_fd(int fd, bool passthrough)
 		__log_dbg("fd=%d must be skipped from os epoll()", fd);
 	}
 	else if (!passthrough) {
-		ret = remove_fd_from_epoll_os(fd);
+		remove_fd_from_epoll_os(fd);
 	}
 	
 	fd_info_map_t::iterator fd_iter = m_fd_info.find(fd);

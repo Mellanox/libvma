@@ -116,11 +116,13 @@ public:
 
 	inline void copy_l2_hdr(tx_packet_template_t *p_hdr)
 	{
-		p_hdr->words[0] = m_header.words[0]; // dummy(16) + l2(16) (mac / dummy)
-		p_hdr->words[1] = m_header.words[1]; // l2 (32)            (mac / dummy)
-		p_hdr->words[2] = m_header.words[2]; // l2 (32)            (mac / dummy)
-		p_hdr->words[3] = m_header.words[3]; // l2 (32)            (mac / dummy)
-		p_hdr->words[4] = m_header.words[4]; // l2 (32)            (mac / vlan / ipoib)
+		uint32_t *to_words   = p_hdr->words;
+		uint32_t *from_words = m_header.words;
+		to_words[0] = from_words[0]; // dummy(16) + l2(16) (mac / dummy)
+		to_words[1] = from_words[1]; // l2 (32)            (mac / dummy)
+		to_words[2] = from_words[2]; // l2 (32)            (mac / dummy)
+		to_words[3] = from_words[3]; // l2 (32)            (mac / dummy)
+		to_words[4] = from_words[4]; // l2 (32)            (mac / vlan / ipoib)
 	}
 
 	uintptr_t m_actual_hdr_addr;
