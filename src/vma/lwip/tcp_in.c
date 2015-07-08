@@ -278,11 +278,12 @@ L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb)
     	}
     	else if (PCB_IN_TIME_WAIT_STATE(pcb)){
     		LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_input: packed for TIME_WAITing connection.\n"));
-											tcp_timewait_input(pcb, &in_data);
-											pbuf_free(p);
+    		tcp_timewait_input(pcb, &in_data);
+		pbuf_free(p);
     	}
     	else {
     		LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_input: illegal get_tcp_state(pcb).\n"));
+    		pbuf_free(p);
     	}
     } else {
 
