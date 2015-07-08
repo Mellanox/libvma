@@ -169,16 +169,14 @@ if test "x${GCC}" = "xyes" ; then
         GCC_MINOR_VER="`echo ${GCC_VER} | cut -d. -f2`"
         if test "${GCC_MAJOR_VER}" -ge "4" ; then
                 if test "${GCC_MINOR_VER}" -ge "6" ; then
-                        WNO_FLAGS="-Wno-format-security -Wno-unused-result -Wno-unused-but-set-variable -Wno-array-bounds"
                         AC_MSG_RESULT([>= 4.6])
                 else
-                        WNO_FLAGS=""
                         AC_MSG_RESULT([< 4.6])
                 fi
         else
                 AC_MSG_RESULT([< 4])
         fi
-        SHARED_FLAGS="-Wall -Wextra -Werror -ffunction-sections -fdata-sections -Wsequence-point -pipe -Winit-self -Wmissing-include-dirs -msse4.2 $WNO_FLAGS"
+        SHARED_FLAGS="-Wall -Wextra -Werror -ffunction-sections -fdata-sections -Wsequence-point -pipe -Winit-self -Wmissing-include-dirs -msse4.2"
         CFLAGS="$SHARED_FLAGS $CFLAGS"
         CXXFLAGS="$SHARED_FLAGS -Wshadow $CXXFLAGS"
 fi
