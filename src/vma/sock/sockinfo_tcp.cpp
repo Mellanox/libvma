@@ -3186,7 +3186,7 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 inline void sockinfo_tcp::return_pending_rx_buffs()
 {
     // force reuse of buffers especially for avoiding deadlock in case all buffers were taken and we can NOT get new FIN packets that will release buffers
-	if (mce_sys.buffer_batching_mode != BUFFER_BATCHING_WITH_RECLAIM || !m_rx_reuse_buff.n_buff_num)
+	if (mce_sys.buffer_batching_mode == BUFFER_BATCHING_NO_RECLAIM || !m_rx_reuse_buff.n_buff_num)
 		return;
 
     if (m_rx_reuse_buf_pending) {
@@ -3204,7 +3204,7 @@ inline void sockinfo_tcp::return_pending_rx_buffs()
 
 inline void sockinfo_tcp::return_pending_tx_buffs()
 {
-	if (mce_sys.buffer_batching_mode != BUFFER_BATCHING_WITH_RECLAIM || !m_p_connected_dst_entry)
+	if (mce_sys.buffer_batching_mode == BUFFER_BATCHING_NO_RECLAIM || !m_p_connected_dst_entry)
 		return;
 
 	m_p_connected_dst_entry->return_buffers_pool();
