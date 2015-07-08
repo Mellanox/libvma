@@ -178,8 +178,9 @@ if test "x${GCC}" = "xyes" ; then
         else
                 AC_MSG_RESULT([< 4])
         fi
-        CFLAGS="-Wall -Wextra -Werror $WNO_FLAGS $CFLAGS"
-        CXXFLAGS="-Wall -Wextra -Wshadow -Werror $WNO_FLAGS $CXXFLAGS"
+        SHARED_FLAGS="-Wall -Wextra -Werror -ffunction-sections -fdata-sections -Wsequence-point -pipe -Winit-self -Wmissing-include-dirs -msse4.2 $WNO_FLAGS"
+        CFLAGS="$SHARED_FLAGS $CFLAGS"
+        CXXFLAGS="$SHARED_FLAGS -Wshadow $CXXFLAGS"
 fi
 
 AC_HEADER_STDC
