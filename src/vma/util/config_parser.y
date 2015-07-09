@@ -134,7 +134,7 @@ static void  __vma_dump_rule_config_state() {
 		__vma_dump_address_port_rule_config_state(buf);
 	}
 	sprintf(buf+strlen(buf), "\n");
-	__vma_log(1, buf);
+	__vma_log(1, "%s", buf);
 }
 
 /* dump configuration properites of new instance */
@@ -148,7 +148,7 @@ static void  __vma_dump_instance() {
 		if (curr_instance->id.user_defined_id)
 			sprintf(buf+strlen(buf), "%s", curr_instance->id.user_defined_id);
 		sprintf(buf+strlen(buf), ":\n");
-		__vma_log(1, buf);
+		__vma_log(1, "%s", buf);
 	}
 }
 
