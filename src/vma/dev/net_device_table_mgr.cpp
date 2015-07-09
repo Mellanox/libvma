@@ -133,14 +133,14 @@ void net_device_table_mgr::map_net_devices()
 			ndtm_logdbg("Blocking offload: Interface ('%s') is not of type AF_INET", ifa->ifa_name);
 			continue;
 		}
-                if (ifa->ifa_flags & IFF_SLAVE) {
+		if (ifa->ifa_flags & IFF_SLAVE) {
 			ndtm_logdbg("Blocking offload: Interface ('%s') is a bonding slave", ifa->ifa_name);
-                        continue;
-                }
-                if (!(ifa->ifa_flags & IFF_RUNNING)) {
+			continue;
+		}
+		if (!(ifa->ifa_flags & IFF_RUNNING)) {
 			ndtm_logdbg("Blocking offload: Interface ('%s') is not running", ifa->ifa_name);
-                        continue;
-                }
+			continue;
+		}
 
 		// I have no idea why - but if I do it in the c'tor - it doesn't bind well - grrrr
 		if (m_p_cma_event_channel == NULL) {

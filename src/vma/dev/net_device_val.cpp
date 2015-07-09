@@ -115,18 +115,17 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 
 	// gather the slave data -
 	char active_slave[IFNAMSIZ] = {0};
+
 	if (ifa->ifa_flags & IFF_MASTER) {
 		// bond device
-
-		char base_ifname[IFNAMSIZ];
-		if (get_base_interface_name(m_name.c_str(), base_ifname, sizeof(base_ifname))) {
+		if (get_base_interface_name(m_name.c_str(), m_base_name, sizeof(m_base_name))) {
 			nd_logerr("couldn't resolve bonding base interface name from %s", m_name.c_str());
 			return;
 		}
 
 		// get list of all slave devices
 		char slaves_list[IFNAMSIZ*16] = {0};
-		get_bond_slaves_name_list(base_ifname, slaves_list, sizeof(slaves_list));
+		get_bond_slaves_name_list(m_base_name, slaves_list, sizeof(slaves_list));
 		char* slave = strtok(slaves_list, " ");
 		while (slave) {
 			slave_data_t* s = new slave_data_t;
@@ -138,7 +137,7 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 		}
 
 		// find the active slave
-		if (get_bond_active_slave_name(base_ifname, active_slave, sizeof(active_slave))) {
+		if (get_bond_active_slave_name(m_base_name, active_slave, sizeof(active_slave))) {
 			nd_logdbg("found the active slave: '%s'", active_slave);
 			strncpy(m_active_slave_name, active_slave, sizeof(m_active_slave_name));
 			m_b_is_bond_device = true;
@@ -200,7 +199,7 @@ bool net_device_val::update_active_slave()
 	// update the active slave
 	// /sys/class/net/bond0/bonding/active_slave
 	char active_slave[IFNAMSIZ] = {0};
-	if (!get_bond_active_slave_name(m_name.c_str(), active_slave, IFNAMSIZ)) {
+	if (!get_bond_active_slave_name(m_base_name, active_slave, IFNAMSIZ)) {
 		nd_logerr("failed to find the active slave!");
 		return 0;
 	}

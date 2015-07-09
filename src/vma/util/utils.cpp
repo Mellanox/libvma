@@ -65,14 +65,20 @@ int get_sys_max_fd_num(int def_max_fd /*=1024*/)
 int get_base_interface_name(const char *if_name, char *base_ifname, size_t sz_base_ifname)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if ((!if_name) || (!base_ifname))
+	if ((!if_name) || (!base_ifname)) {
 		return -1;
+	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 	memset(base_ifname, 0, sz_base_ifname);
+	//Am I already the base (not virtual, not alias, can be bond)
+	if ((!check_device_exist(if_name, VIRTUAL_DEVICE_FOLDER) ||
+		check_device_exist(if_name, BOND_DEVICE_FILE)) && !strstr(if_name, ":")) {
+		snprintf(base_ifname, sz_base_ifname, "%s" ,if_name);
+		return 0;
+	}
 
 	unsigned char vlan_if_address[MAX_L2_ADDR_LEN];
 	const size_t ADDR_LEN = get_local_ll_addr(if_name, vlan_if_address, MAX_L2_ADDR_LEN, false);
-
 	if (ADDR_LEN > 0) {
 		struct ifaddrs *ifaddr, *ifa;
 		int rc = getifaddrs(&ifaddr);
@@ -84,32 +90,45 @@ int get_base_interface_name(const char *if_name, char *base_ifname, size_t sz_ba
 		BULLSEYE_EXCLUDE_BLOCK_END
 
 		for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-			if (ifa->ifa_flags & (IFF_SLAVE | IFF_MASTER)) {
+			if (!strcmp(ifa->ifa_name, if_name)) {
 				continue;
 			}
+			if (ifa->ifa_flags & IFF_SLAVE) {
+				//bond slave
+				continue;
+			}
+
+			if (strstr(ifa->ifa_name, ":")) {
+				//alias
+				continue;
+			}
+
+			if (check_device_exist(ifa->ifa_name, VIRTUAL_DEVICE_FOLDER)) {
+				//virtual
+				if (!check_device_exist(ifa->ifa_name, BOND_DEVICE_FILE)) {
+					continue;
+				}
+			}
+
 			unsigned char tmp_mac[ADDR_LEN];
-			if (ADDR_LEN == get_local_ll_addr(ifa->ifa_name, tmp_mac, ADDR_LEN, false) &&
-							0 == memcmp(vlan_if_address, tmp_mac, ADDR_LEN)) {
-				snprintf(base_ifname, sz_base_ifname, "%s" ,ifa->ifa_name);
-				freeifaddrs(ifaddr);
-				__log_dbg("Found base_ifname %s for interface %s", base_ifname, if_name);
-				return 0;
+			if (ADDR_LEN == get_local_ll_addr(ifa->ifa_name, tmp_mac, ADDR_LEN, false)) {
+				int size_to_compare;
+				if (ADDR_LEN == ETH_ALEN) size_to_compare = ETH_ALEN;
+				else size_to_compare = IPOIB_HW_ADDR_GID_LEN;
+				int offset = ADDR_LEN - size_to_compare;
+				if (0 == memcmp(vlan_if_address + offset, tmp_mac + offset, size_to_compare)) {
+					snprintf(base_ifname, sz_base_ifname, "%s" ,ifa->ifa_name);
+					freeifaddrs(ifaddr);
+					__log_dbg("Found base_ifname %s for interface %s", base_ifname, if_name);
+					return 0;
+				}
 			}
 		}
 
 		freeifaddrs(ifaddr);
 	}
-	__log_dbg("Did not find base_ifname for if_name =%s. Will try string logic...", if_name);
-
-	// keep old code till we are sure that this is not needed any more since we have the above new code
-	size_t pos = strcspn(if_name,":");
-	if (pos == strlen(if_name))
-		pos = strcspn(if_name,".");
-	if (pos >= sz_base_ifname)
-		return -1;
-	strncpy(base_ifname, if_name, pos);
-	if (strcmp(base_ifname,if_name))
-		__log_dbg("Found base_ifname %s for if_name =%s", base_ifname, if_name);
+	snprintf(base_ifname, sz_base_ifname, "%s" ,if_name);
+	__log_dbg("no base for %s", base_ifname, if_name);
 	return 0;
 }
 
@@ -858,6 +877,17 @@ bool get_bond_slaves_name_list(IN const char* bond_name, OUT char* slaves_list, 
 	char* p = strchr(slaves_list, '\n');
 	if (p) *p = '\0'; // Remove the tailing 'new line" char
 	return true;
+}
+
+bool check_device_exist(const char* ifname, const char *path) {
+	char device_path[256] = {0};
+	sprintf(device_path, path, ifname);
+	int fd = orig_os_api.open(device_path, O_RDONLY);
+	orig_os_api.close(fd);
+	if (fd < 0 && errno == EMFILE) {
+		__log_warn("There are no free fds in the system. This may cause unexpected behavior");
+	}
+	return (fd > 0);
 }
 
 int validate_ipoib_prop(const char* ifname, unsigned int ifflags,

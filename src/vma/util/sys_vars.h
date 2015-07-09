@@ -476,6 +476,7 @@ struct mce_sys_var {
 #define BONDING_FAILOVER_MAC_PARAM_FILE			"/sys/class/net/%s/bonding/fail_over_mac"
 #define L2_ADDR_FILE_FMT                                "/sys/class/net/%.*s/address"
 #define L2_BR_ADDR_FILE_FMT                                   "/sys/class/net/%.*s/broadcast"
+#define FLAGS_PARAM_FILE				"/sys/class/net/%s/flags"
 #define IGMP_FORCE_PARAM_FILE				"/proc/sys/net/ipv4/conf/%s/force_igmp_version"
 #define IGMP_MAX_MEMBERSHIP_FILE			"/proc/sys/net/ipv4/igmp_max_memberships"
 #define TCP_SCALING_WINDOW_MAX_RECV_MEM_FILE		"/proc/sys/net/core/rmem_max"
@@ -485,6 +486,8 @@ struct mce_sys_var {
 #define FLOW_STEERING_PARAM_FILE			"/sys/module/mlx4_core/parameters/flow_steering"
 #define FLOW_STEERING_HASH_PARAM_FILE			"/sys/module/mlx4_core/parameters/flow_steering_hash"
 #define FLOW_STEERING_MGM_ENTRY_SIZE_PARAM_FILE		"/sys/module/mlx4_core/parameters/log_num_mgm_entry_size"
+#define VIRTUAL_DEVICE_FOLDER			"/sys/devices/virtual/net/%s/"
+#define BOND_DEVICE_FILE				"/proc/net/bonding/%s"
 
 #define MAX_STATS_FD_NUM				1024
 #define UNSENT_QUEUEU_SIZE				1024

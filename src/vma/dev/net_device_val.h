@@ -115,6 +115,7 @@ protected:
 	rings_key_redirection_hash_map_t        m_h_ring_key_redirection_map;
     slave_data_vector_t	m_slaves;
 	std::string             m_name;
+	char           			m_base_name[IFNAMSIZ];
 	char 					m_active_slave_name[IFNAMSIZ];
 
 	virtual ring*		create_ring() = 0;

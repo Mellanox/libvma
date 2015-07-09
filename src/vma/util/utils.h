@@ -273,6 +273,7 @@ bool get_local_if_info(in_addr_t local_if, char* ifname, unsigned int &ifflags);
 
 bool get_bond_active_slave_name(IN const char* bond_name, OUT char* active_slave_name, IN int sz);
 bool get_bond_slaves_name_list(IN const char* bond_name, OUT char* slaves_list, IN int sz);
+bool check_device_exist(const char* ifname, const char *path);
 
 int validate_ipoib_prop(const char* ifname, unsigned int ifflags,
 		const char prop_file[], const char *expected_val,
