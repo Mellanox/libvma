@@ -13,6 +13,7 @@
 
 #include <stdio.h>
 #include <sys/time.h>
+#include <netinet/tcp.h>
 #include "vma/util/if.h"
 
 #include "vlogger/vlogger.h"
@@ -109,6 +110,7 @@ sockinfo_tcp::sockinfo_tcp(int fd) :
 	m_received_syn_num = 0;
 	m_vma_thr = false;
 
+	m_backlog = INT_MAX; // init with no limit
 	report_connected = false;
 
 	m_call_orig_close_on_dtor = 0;
@@ -802,7 +804,7 @@ void sockinfo_tcp::process_rx_ctl_packets()
 {
 	si_tcp_logfunc("");
 
-	while (!m_rx_ctl_packets_list.empty()) {
+	while (!m_rx_ctl_packets_list.empty() && m_syn_received.size() < (size_t)m_backlog) {
 		if (m_tcp_con_lock.trylock()) {
 			return;
 		}
@@ -1345,11 +1347,33 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 				p_rx_pkt_mem_buf_desc_info->path.rx.src.sin_port,
 				p_rx_pkt_mem_buf_desc_info->path.rx.dst.sin_addr.s_addr,
 				p_rx_pkt_mem_buf_desc_info->path.rx.dst.sin_port);
+		bool established_backlog_full = false;
 		if (!pcb) {
 			pcb = &m_pcb;
+
+			/// respect TCP listen backlog - See redmine issue #565962
+			/// distinguish between backlog of established sockets vs. backlog of syn-rcvd
+			static const int MAX_SYN_RCVD = mce_sys.tcp_ctl_thread ? 512 : 0; // TODO: consider reading it from /proc/sys/net/ipv4/tcp_max_syn_backlog
+							// NOTE: currently, in case tcp_ctl_thread is disabled, only established backlog is supported (no syn-rcvd backlog)
+
+			static const size_t MAX_CTL_RCVD = 3*MAX_SYN_RCVD;
+			size_t num_ctrl_pckts = this->m_rx_ctl_packets_list.size();
+			// 1st - check established backlog
+			if(num_ctrl_pckts > 0 || (m_syn_received.size() >= (size_t)m_backlog && p_rx_pkt_mem_buf_desc_info->path.rx.p_tcp_h->syn) ) {
+				established_backlog_full = true;
+			}
+
+			// 2nd - check syn_rcvd backlog and drop packet accordingly
+			if ( (MAX_CTL_RCVD == 0 && established_backlog_full) || (MAX_CTL_RCVD > 0 && num_ctrl_pckts >= MAX_CTL_RCVD) ) {
+				// TODO: consider check if we can now drain into Q of established
+				si_tcp_logdbg("SYN/CTL packet drop. established-backlog=%d (limit=%d) ctrl-backlog=%d (limit=%d)",
+								(int)m_syn_received.size(), m_backlog, (int)m_rx_ctl_packets_list.size(), (int)MAX_CTL_RCVD);
+				unlock_tcp_con();
+				return false;// return without inc_ref_count() => packet will be dropped
+			}
 		}
-		if (mce_sys.tcp_ctl_thread) {
-			queue_rx_ctl_packet(pcb, p_rx_pkt_mem_buf_desc_info);
+		if (mce_sys.tcp_ctl_thread || established_backlog_full) { /* 2nd check only worth when MAX_SYN_RCVD>0 for non tcp_ctl_thread  */
+			queue_rx_ctl_packet(pcb, p_rx_pkt_mem_buf_desc_info); // TODO: need to trigger queue pulling from accept in case no tcp_ctl_thread
 			unlock_tcp_con();
 			return true;
 		}
@@ -1357,7 +1381,6 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	else {
 		pcb = &m_pcb;
 	}
-	
 	p_rx_pkt_mem_buf_desc_info->inc_ref_count();
 
 	if (!p_rx_pkt_mem_buf_desc_info->path.rx.gro) init_pbuf_custom(p_rx_pkt_mem_buf_desc_info);
@@ -1677,7 +1700,7 @@ int sockinfo_tcp::listen(int backlog)
 	struct sockaddr_storage tmp_sin;
 	socklen_t tmp_sinlen = sizeof(tmp_sin);
 
-	if (m_sock_offload == TCP_SOCK_PASSTHROUGH) 
+	if (m_sock_offload == TCP_SOCK_PASSTHROUGH)
 		return orig_os_api.listen(m_fd, backlog);
 
 	if (m_sock_state != TCP_SOCK_BOUND) {
@@ -1712,7 +1735,16 @@ int sockinfo_tcp::listen(int backlog)
 	//TODO unlock();
 #endif
 	//
-        
+
+	int orig_backlog = backlog;
+
+	if (backlog > SOMAXCONN) { // = 128 - TODO: read it at runtime from /proc/sys/net/core/somaxconn
+		si_tcp_logdbg("truncating listen backlog=%d to the maximun=%d", backlog, SOMAXCONN);
+		backlog = SOMAXCONN;
+	}
+	backlog = 10 + 2 * backlog; // allow grace, inspired by Linux
+
+
 	lock_tcp_con();
 
 
@@ -1754,7 +1786,7 @@ int sockinfo_tcp::listen(int backlog)
  	if (attach_as_uc_receiver(ROLE_TCP_SERVER)) {
 		si_tcp_logdbg("Fallback the connection to os");
 		setPassthrough();
-		return orig_os_api.listen(m_fd, backlog);
+		return orig_os_api.listen(m_fd, orig_backlog);
 	}
 //*/
 	if (m_rx_ring_map.size()) {
@@ -1768,12 +1800,12 @@ int sockinfo_tcp::listen(int backlog)
 		si_tcp_logdbg("Fallback the connection to os");
 		setPassthrough();
 		unlock_tcp_con();
-		return orig_os_api.listen(m_fd, backlog);
+		return orig_os_api.listen(m_fd, orig_backlog);
 	}
 
 	// Calling to orig_listen() by default to monitor connection requests for not offloaded sockets
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (orig_os_api.listen(m_fd, backlog)) {
+	if (orig_os_api.listen(m_fd, orig_backlog)) {
 		si_tcp_logerr("orig_listen failed");
 		unlock_tcp_con();
 		return -1;
