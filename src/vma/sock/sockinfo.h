@@ -26,6 +26,7 @@
 #include "vma/dev/net_device_table_mgr.h"
 #include "vma/dev/ring.h"
 #include "vma/dev/ring_allocation_logic.h"
+#include "vma/dev/dynamic_buffer_pool.h"
 
 #include "socket_fd_api.h"
 #include "pkt_rcvr_sink.h"

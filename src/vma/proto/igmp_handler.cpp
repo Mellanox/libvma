@@ -21,6 +21,7 @@
 #include "vma/proto/neighbour_table_mgr.h"
 #include "vma/dev/wqe_send_handler.h"
 #include "vma/dev/wqe_send_ib_handler.h"
+#include "vma/dev/buffer_pool.h"
 #include "vma/util/utils.h"
 #include "vma/util/bullseye.h"
 
@@ -189,7 +190,7 @@ bool igmp_handler::tx_igmp_report()
 
 	m_sge.addr = (uintptr_t)(p_mem_buf_desc->p_buffer + (uint8_t)m_header.m_transport_header_tx_offset);
 	m_sge.length = m_header.m_total_hdr_len + sizeof(uint32_t /*m_ip_hdr_ext*/) + sizeof (igmphdr /*m_igmp_hdr*/);
-	m_sge.lkey = p_mem_buf_desc->lkey;
+	m_sge.lkey = p_mem_buf_desc->p_bpool->get_lkey_by_ctx(m_p_ring->get_active_ctx_handle(m_id));
 	p_mem_buf_desc->p_next_desc = NULL;
 	m_p_send_igmp_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
 

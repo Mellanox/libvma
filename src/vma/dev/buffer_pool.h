@@ -15,13 +15,11 @@
 #define BUFFER_POOL_H
 
 #include <deque>
-#include "vma/util/lock_wrapper.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/util/vma_stats.h"
+#include "vma/util/lock_wrapper.h"
 #include "vma/proto/mem_buf_desc.h"
 
-
-class net_device;
 class mem_buf_desc_owner;
 class ib_ctx_handler;
 
@@ -31,86 +29,60 @@ inline static void free_lwip_pbuf(struct pbuf_custom *pbuf_custom)
 	pbuf_custom->pbuf.ref = 0;
 }
 
+
+class net_device;
+
 /**
  * A buffer pool which internally sorts the buffers.
  */
 class buffer_pool
 {
 public:
-	buffer_pool(size_t buffer_count, size_t size, ib_ctx_handler *p_ib_ctx_h, mem_buf_desc_owner *owner, pbuf_free_custom_fn custom_free_function);
+	buffer_pool(size_t buffer_count, size_t size, mem_buf_desc_owner *owner, pbuf_free_custom_fn custom_free_function);
 	virtual ~buffer_pool();
 
 	/**
-	 * Set a specific ib_ctx (default lkey) if buffer pool was created without one
-	 * @return new default lkey relevant for the requested context
-	 * This will make the get_buffers() more efficient
-	 */
-	uint32_t 	set_default_lkey(const ib_ctx_handler* p_ib_ctx_h);
-	uint32_t 	set_default_lkey_thread_safe(const ib_ctx_handler* p_ib_ctx_h);
-	uint32_t 	find_lkey_by_ib_ctx_thread_safe(const ib_ctx_handler* p_ib_ctx_h);
-
-	/**
-	 * Get buffers from the pool - thread safe
+	 * Get buffers from the pool 
 	 * @param count Number of buffers required.
 	 * @return List of buffers, or NULL if don't have enough buffers.
 	 */
-	mem_buf_desc_t*	get_buffers_thread_safe(size_t count, ib_ctx_handler *p_ib_ctx_h = NULL);
-	mem_buf_desc_t *get_buffers_thread_safe(size_t count, uint32_t lkey);
+	virtual mem_buf_desc_t*	get_buffers(size_t count, const ib_ctx_handler *p_ib_ctx_h);
 
 	/**
 	 * Return buffers to the pool.
 	 */
-	void 		put_buffers(descq_t *buffers, size_t count);
-	void 		put_buffers_thread_safe(descq_t *buffers, size_t count);
-	int 		put_buffers(mem_buf_desc_t *buff_list);
-	int 		put_buffers_thread_safe(mem_buf_desc_t *buff_list);
-	static void 	free_rx_lwip_pbuf_custom(struct pbuf *p_buff);
-	static void 	free_tx_lwip_pbuf_custom(struct pbuf *p_buff);
+	virtual void 		put_buffers(descq_t *buffers, size_t count);
+	virtual int 		put_buffers(mem_buf_desc_t *buff_list);
 
 	/**
-	 * Assume locked owner!!! Return buffers to the pool with ref_count check.
+	 * @returns the matching memory region for specific device
 	 */
-	void 		put_buffers_after_deref(descq_t *pDeque);
-	void 		put_buffers_after_deref_thread_safe(descq_t *pDeque);
-
-	/**
-	 * @return Number of free buffers in the pool.
-	 */
-	size_t		get_free_count();
-
-	/**
-	 * @returns list of memory regions
-	 */
-	std::deque<ibv_mr*> get_memory_regions();
+	uint32_t get_lkey_by_ctx(const ib_ctx_handler* ctx);
 
 	void		set_RX_TX_for_stats(bool rx = true);
+	size_t		get_free_count();
+
 
 private:
-
-	lock_spin	m_lock_spin;
+	size_t          m_n_buffers;
+	size_t          m_n_buffers_created;
 
 	// pointer to data block
 	void		*m_data_block;
 	
-        // contiguous pages allocation indicator
-        bool m_is_contig_alloc;
+    // contiguous pages allocation indicator
+    bool m_is_contig_alloc;
 
 	// Shared memory ID, if allocated in hugetlb
 	int		m_shmid;
 
-	// List of memory regions
-	std::deque<ibv_mr*> m_mrs;
+	// map of device to memory region
+	ibv_mr** m_p_mr_arr;
+	size_t m_mr_arr_size;
 	
-	// If the pool was given a specific device, this is the registered memory lkey
-	uint32_t	m_lkey;
-
-	ib_ctx_handler* m_p_ib_ctx_h;
-
 	// XXX-dummy buffer list head and count
 	// to be replaced with a bucket-sorted array
 	mem_buf_desc_t *m_p_head;
-	size_t		m_n_buffers;
-	size_t		m_n_buffers_created;
 
 	bpool_stats_t* 	m_p_bpool_stat;
 	bpool_stats_t 	m_bpool_stat_static;
@@ -123,33 +95,16 @@ private:
 	/**
 	 * Register memory
 	 */
-	bool	register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint64_t access);
+	bool	register_memory(size_t size, uint64_t access);
 
 	/**
 	 * Add a buffer to the pool
 	 */
 	inline void 	put_buffer_helper(mem_buf_desc_t *buff);
 
-	uint32_t 	find_lkey_by_ib_ctx(ib_ctx_handler* p_ib_ctx_h);
-
-	/**
-	 * Get buffers from the pool - no thread safe
-	 * @param count Number of buffers required.
-	 * @return List of buffers, or NULL if don't have enough buffers.
-	 */
-	mem_buf_desc_t*	get_buffers(size_t count, ib_ctx_handler *p_ib_ctx_h = NULL);
-	mem_buf_desc_t *get_buffers(size_t count, uint32_t lkey);
-
 	void 		buffersPanic();
 
-	/**
-	 * dtor
-	 */
 	void		free_bpool_resources();
 };
-
-extern buffer_pool* g_buffer_pool_rx;
-extern buffer_pool* g_buffer_pool_tx;
-
 
 #endif

@@ -78,7 +78,7 @@ void ib_ctx_handler_collection::map_ib_devices() //return num_devices, can use r
 
 	ibchc_logdbg("Mapping %d ibv devices", m_n_num_devices);
 	for (int i = 0; i < m_n_num_devices; i++) {
-		m_ib_ctx_map[pp_ibv_context_list[i]] = new ib_ctx_handler(pp_ibv_context_list[i], m_ctx_time_conversion_mode);
+		m_ib_ctx_map[pp_ibv_context_list[i]] = new ib_ctx_handler(pp_ibv_context_list[i], i, m_ctx_time_conversion_mode);
 	}
 
 	rdma_free_devices(pp_ibv_context_list);

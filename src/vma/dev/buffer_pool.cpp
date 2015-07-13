@@ -28,39 +28,10 @@
 
 #define MODULE_NAME 	"bpool"
 
-buffer_pool *g_buffer_pool_rx = NULL;
-buffer_pool *g_buffer_pool_tx = NULL;
-
-// inlining a function only help in case it come before using it...
-inline void buffer_pool::put_buffer_helper(mem_buf_desc_t *buff)
-{
-#if _VMA_LIST_DEBUG
-	if (buff->node.is_list_member()) {
-		vlog_printf(VLOG_WARNING, "buffer_pool::put_buffer_helper - buff is already a member in a list (list id = %s)\n", buff->node.list_id());
-	}
-#endif
-	buff->p_next_desc = m_p_head;
-	free_lwip_pbuf(&buff->lwip_pbuf);
-	m_p_head = buff;
-	m_n_buffers++;
-	m_p_bpool_stat->n_buffer_pool_size++;
-}
-
-/** Free-callback function to free a 'struct pbuf_custom_ref', called by
- * pbuf_free. */
-void buffer_pool::free_rx_lwip_pbuf_custom(struct pbuf *p_buff)
-{
-	g_buffer_pool_rx->put_buffers_thread_safe((mem_buf_desc_t *)p_buff);
-}
-
-void buffer_pool::free_tx_lwip_pbuf_custom(struct pbuf *p_buff)
-{
-	g_buffer_pool_tx->put_buffers_thread_safe((mem_buf_desc_t *)p_buff);
-}
-
-buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p_ib_ctx_h, mem_buf_desc_owner *owner, pbuf_free_custom_fn custom_free_function) :
-			m_lock_spin("buffer_pool"), m_is_contig_alloc(true), m_shmid(-1), m_lkey(0), m_p_ib_ctx_h(p_ib_ctx_h),
-			m_p_head(NULL), m_n_buffers(0), m_n_buffers_created(buffer_count)
+buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, mem_buf_desc_owner *owner, pbuf_free_custom_fn custom_free_function) :
+			m_n_buffers(0), m_n_buffers_created(buffer_count),
+			m_is_contig_alloc(true), m_shmid(-1),
+			m_p_mr_arr(NULL), m_mr_arr_size(0), m_p_head(NULL)
 {
 	size_t sz_aligned_element = 0;
 	uint8_t *ptr_buff, *ptr_desc;
@@ -90,7 +61,7 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 		}
 		else {
 			__log_info_dbg("Huge pages allocation passed successfully");
-			if (!register_memory(size, m_p_ib_ctx_h, access)) {
+			if (!register_memory(size, access)) {
 				__log_info_dbg("failed registering huge pages data memory block");
 				free_bpool_resources();
 				throw_vma_exception_no_msg();
@@ -103,7 +74,7 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 #else
 		m_data_block = NULL;
 		access |= VMA_IBV_ACCESS_ALLOCATE_MR; // for contiguous pages use only
-		if (!register_memory(size, m_p_ib_ctx_h, access)) {
+		if (!register_memory(size, access)) {
 			__log_info_dbg("Failed allocating contiguous pages");
 			m_is_contig_alloc = false;
 		}
@@ -127,7 +98,7 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 			throw_vma_exception_no_msg();
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
-		if (!register_memory(size, m_p_ib_ctx_h, access)) {
+		if (!register_memory(size, access)) {
 			__log_info_dbg("failed registering data memory block");
 			free_bpool_resources();
 			throw_vma_exception_no_msg();
@@ -150,6 +121,7 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 		desc->serial_num = i;
 		desc->p_desc_owner = owner;
 		desc->lwip_pbuf.custom_free_function = custom_free_function;
+		desc->p_bpool=this;
 		put_buffer_helper(desc);
 
 		ptr_buff += sz_aligned_element;
@@ -174,9 +146,8 @@ void buffer_pool::free_bpool_resources()
 	}
 
 	// Unregister memory
-	std::deque<ibv_mr*>::iterator iter_mrs;
-	for (iter_mrs = m_mrs.begin(); iter_mrs != m_mrs.end(); ++iter_mrs) {
-		ibv_mr *mr = *iter_mrs;
+	for (uint i=0; i < m_mr_arr_size; i++) {
+		ibv_mr *mr = m_p_mr_arr[i];
 		ib_ctx_handler* p_ib_ctx_handler = g_p_ib_ctx_handler_collection->get_ib_ctx(mr->context); 
 		if (!p_ib_ctx_handler->is_removed()) {
 			IF_VERBS_FAILURE(ibv_dereg_mr(mr)) {
@@ -184,6 +155,10 @@ void buffer_pool::free_bpool_resources()
 			} ENDIF_VERBS_FAILURE;
 		}
 	}
+
+	// Release mr array
+	delete[] m_p_mr_arr;
+
 	// Release memory
 	if (m_shmid >= 0) { // Huge pages mode
 		BULLSEYE_EXCLUDE_BLOCK_START
@@ -263,101 +238,43 @@ bool buffer_pool::hugetlb_alloc(size_t sz_bytes)
 	return true;
 }
 
-bool buffer_pool::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint64_t access)
+bool buffer_pool::register_memory(size_t size, uint64_t access)
 {
-	if (p_ib_ctx_h) {
-		ibv_mr *mr = p_ib_ctx_h->mem_reg(m_data_block, size, access);
-		if (mr == NULL){
-			if (m_data_block) {
-				__log_info_warn("Failed registering memory, This might happen due to low MTT entries. Please refer to README.txt for more info");
-				__log_info_dbg("Failed registering memory block with device (ptr=%p size=%ld%s) (errno=%d %m)",
-						m_data_block, size, errno);
-				free_bpool_resources();
-				throw_vma_exception_no_msg();
-			} else {
-				__log_info_warn("Failed allocating or registering memory in contiguous mode. Please refer to README.txt for more info");
-				return false;
-			}
-		}
-		m_mrs.push_back(mr);
-		m_lkey = mr->lkey;
-		if (!m_data_block) { // contig pages mode
-			m_data_block = mr->addr;
+	m_mr_arr_size = g_p_ib_ctx_handler_collection->get_num_devices();;
+	m_p_mr_arr = new ibv_mr*[m_mr_arr_size];
+
+
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (g_p_ib_ctx_handler_collection->mem_reg_on_all_devices(m_data_block, size, m_p_mr_arr,
+			m_mr_arr_size, access) != m_mr_arr_size) {
+		if (m_data_block) {
+			__log_info_warn("Failed registering memory, This might happen due to low MTT entries. Please refer to README.txt for more info");
+			__log_info_dbg("Failed registering memory block with device (ptr=%p size=%ld%s) (errno=%d %m)",
+					m_data_block, size, errno);
+			free_bpool_resources();
+			throw_vma_exception_no_msg();
+		} else {
+			__log_info_warn("Failed allocating or registering memory in contiguous mode. Please refer to README.txt for more info");
+			return false;
 		}
 	}
-	else {
-		size_t num_devices = g_p_ib_ctx_handler_collection->get_num_devices();
-		ibv_mr *mrs[num_devices];
+	BULLSEYE_EXCLUDE_BLOCK_END
 
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (g_p_ib_ctx_handler_collection->mem_reg_on_all_devices(m_data_block, size, mrs,
-				num_devices, access) != num_devices) {
-			if (m_data_block) {
-				__log_info_warn("Failed registering memory, This might happen due to low MTT entries. Please refer to README.txt for more info");
-				__log_info_dbg("Failed registering memory block with device (ptr=%p size=%ld%s) (errno=%d %m)",
-						m_data_block, size, errno);
-				free_bpool_resources();
-				throw_vma_exception_no_msg();
-			} else {
-				__log_info_warn("Failed allocating or registering memory in contiguous mode. Please refer to README.txt for more info");
-				return false;
-			}
+	if (!m_data_block) { // contig pages mode
+		m_data_block = m_p_mr_arr[0]->addr;
+		if (!m_data_block) {
+			__log_info_dbg("Failed registering memory, check that OFED is loaded successfully");
+			free_bpool_resources();
+			throw_vma_exception_no_msg();
 		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-
-		if (!m_data_block) { // contig pages mode
-			m_data_block = mrs[0]->addr;
-			if (!m_data_block) {
-				__log_info_dbg("Failed registering memory, check that OFED is loaded successfully");
-				free_bpool_resources();
-				throw_vma_exception_no_msg();
-			}
-		}
-		for (size_t i = 0; i < num_devices; ++i) {
-			m_mrs.push_back(mrs[i]);
-		}
-		m_lkey = 0;
 	}
 
 	return true;
 }
 
-uint32_t buffer_pool::set_default_lkey(const ib_ctx_handler* p_ib_ctx_h)
+mem_buf_desc_t *buffer_pool::get_buffers(size_t count, const ib_ctx_handler *p_ib_ctx_h)
 {
-	m_lkey = find_lkey_by_ib_ctx((ib_ctx_handler*)p_ib_ctx_h);
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (m_lkey == 0) {
-		__log_info_warn("No lkey found! p_ib_ctx_h = %p", p_ib_ctx_h);
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-	return m_lkey;
-}
-
-uint32_t buffer_pool::set_default_lkey_thread_safe(const ib_ctx_handler* p_ib_ctx_h)
-{
-	uint32_t ret;
-
-	m_lock_spin.lock();
-	ret = set_default_lkey(p_ib_ctx_h);
-	m_lock_spin.unlock();
-
-	return ret;
-}
-
-mem_buf_desc_t *buffer_pool::get_buffers(size_t count, ib_ctx_handler *p_ib_ctx_h/*=NULL*/)
-{
-	uint32_t lkey = m_lkey;
-
-	// find lkey if have a device
-	if (unlikely(p_ib_ctx_h)) {
-		lkey = find_lkey_by_ib_ctx(p_ib_ctx_h);
-	}
-
-	return get_buffers(count, lkey);
-}
-
-mem_buf_desc_t *buffer_pool::get_buffers(size_t count, uint32_t lkey)
-{
+	NOT_IN_USE(p_ib_ctx_h);
 	mem_buf_desc_t *next, *head;
 
 	__log_info_funcall("requested %lu, present %lu, created %lu", count, m_n_buffers, m_n_buffers_created);
@@ -365,8 +282,8 @@ mem_buf_desc_t *buffer_pool::get_buffers(size_t count, uint32_t lkey)
 	if (m_n_buffers < count) {
 		static vlog_levels_t log_severity = VLOG_DEBUG; // DEBUG severity will be used only once - at the 1st time
 
-		VLOG_PRINTF_INFO(log_severity, "not enough buffers in the pool (requested: %lu, have: %lu, created: %lu isRx=%d isTx=%d)",
-				count, m_n_buffers, m_n_buffers_created, (int)(this==g_buffer_pool_rx), (int)(this==g_buffer_pool_tx));
+		VLOG_PRINTF_INFO(log_severity, "not enough buffers in the pool (requested: %lu, have: %lu, created: %lu )",
+				count, m_n_buffers, m_n_buffers_created);
 
 		log_severity = VLOG_FUNC; // for all times but the 1st one
 
@@ -374,12 +291,6 @@ mem_buf_desc_t *buffer_pool::get_buffers(size_t count, uint32_t lkey)
 
 		return NULL;
 	}
-
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (lkey == 0) {
-		__log_info_panic("No lkey found! count = %d", count);
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
 
 	// pop buffers from the list
 	head = NULL;
@@ -390,60 +301,10 @@ mem_buf_desc_t *buffer_pool::get_buffers(size_t count, uint32_t lkey)
 		m_p_head->p_next_desc = head;
 		head = m_p_head;
 		m_p_head = next;
-		head->lkey = lkey;
 		--count;
 	}
 
 	return head;
-}
-
-mem_buf_desc_t *buffer_pool::get_buffers_thread_safe(size_t count, ib_ctx_handler *p_ib_ctx_h/*=NULL*/)
-{
-	mem_buf_desc_t *ret;
-
-	m_lock_spin.lock();
-	ret = get_buffers(count, p_ib_ctx_h);
-	m_lock_spin.unlock();
-
-	return ret;
-}
-
-mem_buf_desc_t *buffer_pool::get_buffers_thread_safe(size_t count, uint32_t lkey)
-{
-	mem_buf_desc_t *ret;
-
-	m_lock_spin.lock();
-	ret = get_buffers(count, lkey);
-	m_lock_spin.unlock();
-
-	return ret;
-}
-
-uint32_t buffer_pool::find_lkey_by_ib_ctx(ib_ctx_handler* p_ib_ctx_h)
-{
-	uint32_t lkey = 0;
-	if (likely(p_ib_ctx_h)) {
-		std::deque<ibv_mr*>::iterator iter;
-		for (iter = m_mrs.begin(); iter != m_mrs.end(); ++iter) {
-			ibv_mr *mr = *iter;
-			if (mr->context->device == p_ib_ctx_h->get_ibv_device()) {
-				lkey = mr->lkey;
-				break;
-			}
-		}
-	}
-	return lkey;
-}
-
-uint32_t buffer_pool::find_lkey_by_ib_ctx_thread_safe(const ib_ctx_handler* p_ib_ctx_h)
-{
-	uint32_t ret;
-
-	m_lock_spin.lock();
-	ret = find_lkey_by_ib_ctx((ib_ctx_handler*)p_ib_ctx_h);
-	m_lock_spin.unlock();
-
-	return ret;
 }
 
 #if _BullseyeCoverage
@@ -561,6 +422,20 @@ void buffer_pool::buffersPanic()
     #pragma BullseyeCoverage on
 #endif
 
+inline void buffer_pool::put_buffer_helper(mem_buf_desc_t *buff)
+{
+#if _VMA_LIST_DEBUG
+	if (buff->node.is_list_member()) {
+		vlog_printf(VLOG_WARNING, "buffer_pool::put_buffer_helper - buff is already a member in a list (list id = %s)\n", buff->node.list_id());
+	}
+#endif
+	buff->p_next_desc = m_p_head;
+	free_lwip_pbuf(&buff->lwip_pbuf);
+	m_p_head = buff;
+	m_n_buffers++;
+	m_p_bpool_stat->n_buffer_pool_size++;
+}
+
 int buffer_pool::put_buffers(mem_buf_desc_t *buff_list)
 {
 	int count = 0;
@@ -577,12 +452,6 @@ int buffer_pool::put_buffers(mem_buf_desc_t *buff_list)
 		}
 	}
 	return count;
-}
-
-int buffer_pool::put_buffers_thread_safe(mem_buf_desc_t *buff_list)
-{
-	auto_unlocker lock(m_lock_spin);
-	return put_buffers(buff_list);
 }
 
 void buffer_pool::put_buffers(descq_t *buffers, size_t count)
@@ -605,39 +474,9 @@ void buffer_pool::put_buffers(descq_t *buffers, size_t count)
 	}
 }
 
-void buffer_pool::put_buffers_thread_safe(descq_t *buffers, size_t count)
+ uint32_t buffer_pool::get_lkey_by_ctx(const ib_ctx_handler* ctx)
 {
-	auto_unlocker lock(m_lock_spin);
-	put_buffers(buffers, count);
-}
-
-void buffer_pool::put_buffers_after_deref(descq_t *pDeque)
-{
-	// Assume locked owner!!!
-	while (!pDeque->empty()) {
-		mem_buf_desc_t * list = pDeque->front();
-		pDeque->pop_front();
-		if (list->dec_ref_count() <= 1 && (list->lwip_pbuf.pbuf.ref-- <= 1)) {
-			put_buffers(list);
-		}
-	}
-}
-
-void buffer_pool::put_buffers_after_deref_thread_safe(descq_t *pDeque)
-{
-	m_lock_spin.lock();
-	put_buffers_after_deref(pDeque);
-	m_lock_spin.unlock();
-}
-
-size_t buffer_pool::get_free_count()
-{
-	return m_n_buffers;
-}
-
-std::deque<ibv_mr*> buffer_pool::get_memory_regions()
-{
-	return m_mrs;
+	return m_p_mr_arr[ctx->get_dev_index()]->lkey;
 }
 
 void buffer_pool::set_RX_TX_for_stats(bool rx /*= true*/)
@@ -646,5 +485,10 @@ void buffer_pool::set_RX_TX_for_stats(bool rx /*= true*/)
 		m_p_bpool_stat->is_rx = true;
 	else
 		m_p_bpool_stat->is_tx = true;
+}
+
+size_t buffer_pool::get_free_count()
+{
+	return m_n_buffers;
 }
 

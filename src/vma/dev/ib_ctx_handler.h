@@ -23,7 +23,7 @@
 class ib_ctx_handler : public event_handler_ibverbs
 {
 public:
-	ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx_time_converter_mode);
+	ib_ctx_handler(struct ibv_context* ctx, size_t dev_index, ts_conversion_mode_t ctx_time_converter_mode);
 	virtual ~ib_ctx_handler();
 	/*
 	 * on init or constructor:
@@ -33,7 +33,8 @@ public:
 	void                    set_dev_configuration();
 	ibv_mr*                 mem_reg(void *addr, size_t length, uint64_t access);
 	ibv_port_state          get_port_state(int port_num);
-	ibv_device*             get_ibv_device() { return m_p_ibv_device;}
+	ibv_device*             get_ibv_device() const { return m_p_ibv_device;}
+	size_t					get_dev_index() const { return m_dev_index; }
 	ibv_pd*			get_ibv_pd() { return m_p_ibv_pd;}
 	struct ibv_context*     get_ibv_context() { return m_p_ibv_context;}
 	vma_ibv_device_attr&    get_ibv_device_attr() { return m_ibv_device_attr;}
@@ -51,6 +52,7 @@ private:
 	struct ibv_context*     m_p_ibv_context;
 	struct ibv_port_attr    m_ibv_port_attr;
 	ibv_device*             m_p_ibv_device; // HCA handle
+	size_t					m_dev_index; // for mr arr on buffer pool
 	vma_ibv_device_attr     m_ibv_device_attr;
 	ibv_pd*                 m_p_ibv_pd;
 	int                     m_channel; // fd channel

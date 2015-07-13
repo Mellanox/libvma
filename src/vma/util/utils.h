@@ -17,6 +17,8 @@
 #include <time.h>
 #include <string>
 #include <string.h>
+#include <sstream>
+#include <vector>
 #include <ifaddrs.h>
 
 #include "vtypes.h"
@@ -26,6 +28,12 @@
 #include <exception>
 
 #define VMA_ALIGN(x, y) ((((x) + (y) - 1) / (y)) * (y) )
+
+/*
+ * split string by delimiters
+ */
+std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems);
+std::vector<std::string> split(const std::string &s, char delim);
 
 /**
 * Check if file type is regular

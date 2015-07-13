@@ -12,6 +12,7 @@
 
 
 
+#include "vma/dev/dynamic_buffer_pool.h"
 #include "dst_entry_tcp.h"
 #include <netinet/tcp.h>
 

@@ -32,11 +32,10 @@
 #define ibch_logfunc            __log_info_func
 #define ibch_logfuncall         __log_info_funcall
 
-
-
-ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx_time_converter_mode) :
-	m_channel(0), m_removed(false), m_conf_attr_rx_num_wre(0), m_conf_attr_tx_num_post_send_notify(0),
-	m_conf_attr_tx_max_inline(0), m_conf_attr_tx_num_wre(0), ctx_time_converter(ctx, ctx_time_converter_mode)
+ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, size_t dev_index, ts_conversion_mode_t ctx_time_converter_mode) :
+	m_dev_index(dev_index), m_channel(0), m_removed(false), m_conf_attr_rx_num_wre(0),
+	m_conf_attr_tx_num_post_send_notify(0),	m_conf_attr_tx_max_inline(0), m_conf_attr_tx_num_wre(0),
+	ctx_time_converter(ctx, ctx_time_converter_mode)
 {
 	memset(&m_ibv_port_attr, 0, sizeof(m_ibv_port_attr));
 	m_p_ibv_context = ctx;

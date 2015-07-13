@@ -264,17 +264,20 @@ struct mce_sys_var {
 	int		tcp_max_syn_rate;
 
 	uint32_t 	tx_num_segs_tcp;
-	uint32_t 	tx_num_bufs;
+	uint32_t 	tx_num_bufs_init;
+	uint32_t 	tx_num_bufs_max;
+	uint32_t 	tx_num_bufs_min_threshold;
 	uint32_t 	tx_num_wr;
 	uint32_t 	tx_max_inline;
 	bool 		tx_mc_loopback_default;
 	bool		tx_nonblocked_eagains;
 	uint32_t	tx_prefetch_bytes;
-	int32_t         tx_backlog_max;
 	uint32_t        tx_bufs_batch_udp;
 	uint32_t        tx_bufs_batch_tcp;
 
-	uint32_t 	rx_num_bufs;
+	uint32_t 	rx_num_bufs_init;
+	uint32_t 	rx_num_bufs_max;
+	uint32_t 	rx_num_bufs_min_threshold;
 	uint32_t        rx_bufs_batch;
 	uint32_t 	rx_num_wr;
 	uint32_t	rx_num_wr_to_post_recv;
@@ -343,6 +346,7 @@ struct mce_sys_var {
 
 	bool 		enable_ipoib;
 	uint32_t	timer_netlink_update_msec;
+	uint32_t	timer_bpool_aloc_msec;
 
 	//Neigh parameters
 	uint32_t 	neigh_uc_arp_quata;
@@ -383,6 +387,10 @@ private:
 #define SYS_VAR_RING_MIGRATION_RATIO_RX                 "VMA_RING_MIGRATION_RATIO_RX"
 #define SYS_VAR_RING_LIMIT_PER_INTERFACE                "VMA_RING_LIMIT_PER_INTERFACE"
 
+#define SYS_VAR_NUM_BUFS_INIT_TOKEN_NAME "init_n_bufs"
+#define SYS_VAR_NUM_BUFS_MAX_TOKEN_NAME "max_n_bufs"
+#define SYS_VAR_NUM_BUFS_MIN_THRESHOLD_TOKEN_NAME "min_threshold"
+
 #define SYS_VAR_TX_NUM_SEGS_TCP				"VMA_TX_SEGS_TCP"
 #define SYS_VAR_TX_NUM_BUFS				"VMA_TX_BUFS"
 #define SYS_VAR_TX_NUM_WRE				"VMA_TX_WRE"
@@ -390,7 +398,6 @@ private:
 #define SYS_VAR_TX_MC_LOOPBACK				"VMA_TX_MC_LOOPBACK"
 #define SYS_VAR_TX_NONBLOCKED_EAGAINS			"VMA_TX_NONBLOCKED_EAGAINS"
 #define SYS_VAR_TX_PREFETCH_BYTES			"VMA_TX_PREFETCH_BYTES"
-#define SYS_VAR_TX_BACKLOG_MAX                          "VMA_TX_BACKLOG_MAX"
 
 #define SYS_VAR_RX_NUM_BUFS				"VMA_RX_BUFS"
 #define SYS_VAR_RX_NUM_WRE				"VMA_RX_WRE"
@@ -460,6 +467,7 @@ private:
 #define SYS_VAR_INTERNAL_THREAD_ARM_CQ			"VMA_INTERNAL_THREAD_ARM_CQ"
 
 #define SYS_VAR_NETLINK_TIMER_MSEC			"VMA_NETLINK_TIMER"
+#define SYS_VAR_BPOOL_TIMER_MSEC			"VMA_NETLINK_TIMER"
 
 #define SYS_VAR_NEIGH_UC_ARP_QUATA			"VMA_NEIGH_UC_ARP_QUATA"
 #define SYS_VAR_NEIGH_UC_ARP_DELAY_MSEC			"VMA_NEIGH_UC_ARP_DELAY_MSEC"
@@ -470,6 +478,11 @@ private:
 #define SYS_VAR_VMA_TIME_MEASURE_NUM_SAMPLES		"VMA_TIME_MEASURE_NUM_SAMPLES"
 #define SYS_VAR_VMA_TIME_MEASURE_DUMP_FILE		"VMA_TIME_MEASURE_DUMP_FILE"
 
+#define STRINGIZE_NX(A) #A
+#define STRINGIZE(A) STRINGIZE_NX(A)
+#define MCE_MEM_BUFS_PPCAT_NX(init, max, min) init:max:min
+#define MCE_MEM_BUFS_PPCAT(init, max, min) MCE_MEM_BUFS_PPCAT_NX(init, max, min)
+#define MCE_MEM_BUFS_FORMAT(init, max, min) STRINGIZE(MCE_MEM_BUFS_PPCAT(init,max,min))
 
 #define MCE_DEFAULT_LOG_FILE				("")
 #define MCE_DEFAULT_CONF_FILE				("/etc/libvma.conf")
@@ -488,8 +501,11 @@ private:
 #define MCE_DEFAULT_RING_LIMIT_PER_INTERFACE            (0)
 #define MCE_DEFAULT_TCP_MAX_SYN_RATE                	(0)
 #define MCE_DEFAULT_TX_NUM_SEGS_TCP			(1000000)
-#define MCE_DEFAULT_TX_NUM_BUFS				(200000)
-#define MCE_DEFAULT_TX_NUM_WRE				(3000)
+#define MCE_DEFAULT_TX_NUM_BUFS_INIT			(200000)
+#define MCE_DEFAULT_TX_NUM_BUFS_MAX			MCE_DEFAULT_TX_NUM_BUFS_INIT
+#define MCE_DEFAULT_TX_NUM_BUFS_MIN_THRESHOLD		(0)
+#define MCE_DEFAULT_TX_NUM_BUFS		MCE_MEM_BUFS_FORMAT(MCE_DEFAULT_TX_NUM_BUFS_INIT, MCE_DEFAULT_TX_NUM_BUFS_MAX, MCE_DEFAULT_TX_NUM_BUFS_MIN_THRESHOLD)
+#define MCE_DEFAULT_TX_NUM_WRE				(16000)
 #define MCE_DEFAULT_TX_MAX_INLINE			(220) //224
 #define MCE_DEFAULT_TX_BUILD_IP_CHKSUM			(true)
 #define MCE_DEFAULT_TX_MC_LOOPBACK			(true)
@@ -497,7 +513,10 @@ private:
 #define MCE_DEFAULT_TX_PREFETCH_BYTES			(256)
 #define MCE_DEFAULT_TX_BUFS_BATCH_UDP			(8)
 #define MCE_DEFAULT_TX_BUFS_BATCH_TCP			(16)
-#define MCE_DEFAULT_RX_NUM_BUFS				(200000)
+#define MCE_DEFAULT_RX_NUM_BUFS_INIT			200000
+#define MCE_DEFAULT_RX_NUM_BUFS_MAX				MCE_DEFAULT_RX_NUM_BUFS_INIT
+#define MCE_DEFAULT_RX_NUM_BUFS_MIN_THRESHOLD	0
+#define MCE_DEFAULT_RX_NUM_BUFS		MCE_MEM_BUFS_FORMAT(MCE_DEFAULT_RX_NUM_BUFS_INIT, MCE_DEFAULT_RX_NUM_BUFS_MAX, MCE_DEFAULT_RX_NUM_BUFS_MIN_THRESHOLD)
 #define MCE_DEFAULT_RX_BUFS_BATCH			(64)
 #define MCE_DEFAULT_RX_NUM_WRE				(16000)
 #define MCE_DEFAULT_RX_NUM_WRE_TO_POST_RECV		(64)
@@ -560,6 +579,7 @@ private:
 #define MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR	("-1")
 #define MCE_DEFAULT_INTERNAL_THREAD_CPUSET		("")
 #define MCE_DEFAULT_NETLINK_TIMER_MSEC			(10000)
+#define MCE_DEFAULT_BPOOL_TIMER_MSEC			(500)
 
 #define MCE_DEFAULT_NEIGH_UC_ARP_QUATA			3
 #define MCE_DEFAULT_NEIGH_UC_ARP_DELAY_MSEC	10000
