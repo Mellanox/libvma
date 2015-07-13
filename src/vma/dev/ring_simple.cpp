@@ -76,7 +76,7 @@ ring_simple::ring_simple(in_addr_t local_if, uint16_t partition_sn, int count, t
 	m_p_qp_mgr(NULL), m_p_cq_mgr_rx(NULL), m_p_cq_mgr_tx(NULL),
 	m_lock_ring_tx_buf_wait("ring:lock_tx_buf_wait"), m_tx_num_bufs(0), m_tx_num_wr(0), m_tx_num_wr_free(0),
 	m_b_qp_tx_first_flushed_completion_handled(false), m_missing_buf_ref_count(0),
-	m_tx_lkey(0), m_partition(partition_sn), m_gro_mgr(mce_sys.gro_streams_max, MAX_GRO_BUFS), m_up(false),
+	m_partition(partition_sn), m_gro_mgr(mce_sys.gro_streams_max, MAX_GRO_BUFS), m_up(false),
 	m_p_rx_comp_event_channel(NULL), m_p_tx_comp_event_channel(NULL), m_p_l2_addr(NULL), m_p_ring_stat(NULL),
 	m_local_if(local_if), m_transport_type(transport_type) {
 
@@ -230,7 +230,7 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 	m_p_cq_mgr_rx = m_p_qp_mgr->get_rx_cq_mgr();
 	m_p_cq_mgr_tx = m_p_qp_mgr->get_tx_cq_mgr();
 
-	m_tx_lkey = g_buffer_pool_tx->find_lkey_by_ib_ctx_thread_safe(p_ring_info->p_ib_ctx);
+	m_p_ib_ctx = p_ring_info->p_ib_ctx;
 
 	request_more_tx_buffers(RING_TX_BUFS_COMPENSATE);
 	m_tx_num_bufs = m_tx_pool.size();
@@ -1135,7 +1135,8 @@ void ring_simple::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wq
 {
 	NOT_IN_USE(id);
 	m_lock_ring_tx.lock();
-	p_send_wqe->sg_list[0].lkey = m_tx_lkey;	// The ring keeps track of the current device lkey (In case of bonding event...)
+	mem_buf_desc_t* desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
+	p_send_wqe->sg_list[0].lkey = desc->p_bpool->get_lkey_by_ctx(m_p_ib_ctx);
 	int ret = send_buffer(p_send_wqe, b_block);
 	send_status_handler(ret, p_send_wqe);
 	m_lock_ring_tx.unlock();
@@ -1146,8 +1147,8 @@ void ring_simple::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wq
 {
 	NOT_IN_USE(id);
 	m_lock_ring_tx.lock();
-	p_send_wqe->sg_list[0].lkey = m_tx_lkey; // The ring keeps track of the current device lkey (In case of bonding event...)
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
+	p_send_wqe->sg_list[0].lkey = p_mem_buf_desc->p_bpool->get_lkey_by_ctx(m_p_ib_ctx);
 	p_mem_buf_desc->lwip_pbuf.pbuf.ref++;
 	int ret = send_buffer(p_send_wqe, b_block);
 	send_status_handler(ret, p_send_wqe);
@@ -1304,7 +1305,7 @@ bool ring_simple::request_more_tx_buffers(uint32_t count)
 	ring_logfuncall("Allocating additional %d buffers for internal use", count);
 
 	//todo have get_buffers_thread_safe with given m_tx_pool as parameter, to save assembling and disassembling of buffer chain
-	p_temp_desc_list = g_buffer_pool_tx->get_buffers_thread_safe(count, m_tx_lkey);
+	p_temp_desc_list = g_buffer_pool_tx->get_buffers_thread_safe(count, m_p_ib_ctx);
 	if (p_temp_desc_list == NULL) {
 		ring_logfunc("Out of mem_buf_desc from TX free pool for internal object pool");
 		return false;
@@ -1544,4 +1545,10 @@ ring_user_id_t ring_simple::generate_id(const address_t src_mac, const address_t
 	NOT_IN_USE(src_port);
 	NOT_IN_USE(dst_port);
 	return 0;
+}
+
+const ib_ctx_handler* ring_simple::get_active_ctx_handle(ring_user_id_t id)
+{
+	NOT_IN_USE(id);
+	return m_p_ib_ctx;
 }

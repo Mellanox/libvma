@@ -120,13 +120,13 @@ Example:
  VMA DEBUG  : Ring limit per interface       0 (no limit)               [VMA_RING_LIMIT_PER_INTERFACE]
  VMA DEBUG  : TCP max syn rate               0 (no limit)               [VMA_TCP_MAX_SYN_RATE]
  VMA DEBUG  : Tx Mem Segs TCP                1000000                    [VMA_TX_SEGS_TCP]
- VMA DEBUG  : Tx Mem Bufs                    200000                     [VMA_TX_BUFS]
- VMA DEBUG  : Tx QP WRE                      3000                       [VMA_TX_WRE]
- VMA DEBUG  : Tx Max QP INLINE               220                        [VMA_TX_MAX_INLINE]
+ VMA DEBUG  : Tx Mem Bufs                    200000:0:200000:0          [VMA_TX_BUFS] <init:quanta:max:threshold>
+ VMA DEBUG  : Tx QP WRE                      16000                      [VMA_TX_WRE]
+ VMA DEBUG  : Tx Max QP INLINE               224                        [VMA_TX_MAX_INLINE]
  VMA DEBUG  : Tx MC Loopback                 Enabled                    [VMA_TX_MC_LOOPBACK]
  VMA DEBUG  : Tx non-blocked eagains         Disabled                   [VMA_TX_NONBLOCKED_EAGAINS]
  VMA DEBUG  : Tx Prefetch Bytes              256                        [VMA_TX_PREFETCH_BYTES]
- VMA DEBUG  : Rx Mem Bufs                    200000                     [VMA_RX_BUFS]
+ VMA DEBUG  : Rx Mem Bufs                    200000:0:200000:0          [VMA_RX_BUFS] <init:quanta:max:threshold>
  VMA DEBUG  : Rx QP WRE                      16000                      [VMA_RX_WRE]
  VMA DEBUG  : Rx QP WRE BATCHING             64                         [VMA_RX_WRE_BATCHING]
  VMA DEBUG  : Rx Byte Min Limit              65536                      [VMA_RX_BYTES_MIN]
@@ -289,8 +289,17 @@ Number of TCP LWIP segments allocation for each VMA process.
 Default value is 1000000
 
 VMA_TX_BUFS
-Number of global Tx data buffer elements allocation.
-Default value is 200000
+<init:quanta:max:threshold>
+Number of global Tx data buffer elements allocation divided to initial amount of elements to be
+allocated at first, number of additional elements to allocate when required, maximum limit of
+elements in case of additional dynamic allocations and minimum threshold of free elements
+to triger asynchroniuosly addtional allocation. When buffer pool is exhausted and more are
+requested - additional pools are allocated synchroniously.
+Can also accept a single integer as an argument, in which case it will be used
+as init and max, and quanta and threshold will be set to 0.
+If bad values are given (such as init/max == 0 or max<init), will revert to default values.
+Default value is 200000:0:200000:0 (200000 buffers are allocated initially and no additional
+buffers will be allocated).
 
 VMA_TX_WRE
 Number of Work Request Elements allocated in all transmit QP's.
@@ -367,9 +376,18 @@ Use a value of 0 for unlimited number of rings.
 Default value is 0 (no limit)
 
 VMA_RX_BUFS
-Number Rx data buffer elements allocation for the processes. These data buffers
-will be used by all QPs on all HCAs as determined by the VMA_QP_LOGIC.
-Default value is 200000
+<init:quanta:max:threshold>
+Number of global Rx data buffer elements allocation divided to initial amount of elements to be
+allocated at first, number of additional elements to allocate when required, maximum limit of
+elements in case of additional dynamic allocations and minimum threshold of free elements to
+trigger asynchroniuosly addtional allocation. When buffer pool is exhausted and more are
+requested - additional pools are allocated synchroniously.
+Can also accept a single integer as an argument, in which case it will be used
+as init and max, and quanta and threshold will be set to 0.
+If bad values are given (such as init/max == 0 or max<init), will revert to default values.
+Default value is 200000:0:200000:0 (200000 buffers are allocated initially and no additional
+buffers will be allocated)
+
 
 VMA_RX_WRE
 Number of Work Request Elements allocated in all receive QP's. 

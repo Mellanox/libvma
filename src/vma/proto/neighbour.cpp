@@ -24,6 +24,7 @@
 #include "vma/dev/wqe_send_handler.h"
 #include "vma/dev/wqe_send_ib_handler.h"
 #include "vma/util/bullseye.h"
+#include "vma/dev/buffer_pool.h"
 
 //This include should be after vma includes
 #include <netinet/tcp.h>
@@ -1408,7 +1409,7 @@ bool neigh_eth::post_send_arp(bool is_broadcast)
 
 	m_sge.addr = (uintptr_t)(p_mem_buf_desc->p_buffer + (uint8_t)h.m_transport_header_tx_offset);
 	m_sge.length = sizeof(eth_arp_hdr) + h.m_total_hdr_len;
-	m_sge.lkey = p_mem_buf_desc->lkey;
+	m_sge.lkey = p_mem_buf_desc->p_bpool->get_lkey_by_ctx(m_p_ring->get_active_ctx_handle(m_id));
 	p_mem_buf_desc->p_next_desc = NULL;
 	m_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
 
@@ -1673,7 +1674,7 @@ bool neigh_ib::post_send_arp(bool is_broadcast)
 
 	m_sge.addr = (uintptr_t)(p_mem_buf_desc->p_buffer + (uint8_t)h.m_transport_header_tx_offset);
 	m_sge.length = sizeof(ib_arp_hdr) + h.m_total_hdr_len;
-	m_sge.lkey = p_mem_buf_desc->lkey;
+	m_sge.lkey = p_mem_buf_desc->p_bpool->get_lkey_by_ctx(m_p_ring->get_active_ctx_handle(m_id));
 	p_mem_buf_desc->p_next_desc = NULL;
 	m_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
 

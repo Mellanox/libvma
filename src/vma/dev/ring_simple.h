@@ -55,6 +55,7 @@ public:
 	virtual ring_user_id_t	generate_id();
 	virtual ring_user_id_t	generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port);
 	transport_type_t	get_transport_type() const { return m_transport_type; }
+	virtual const ib_ctx_handler* get_active_ctx_handle(ring_user_id_t id = 0);
 
 	friend class cq_mgr;
 	friend class qp_mgr;
@@ -104,7 +105,7 @@ private:
 	int32_t			m_tx_num_wr_free;
 	bool			m_b_qp_tx_first_flushed_completion_handled;
 	uint32_t		m_missing_buf_ref_count;
-	uint32_t		m_tx_lkey; // this is the registered memory lkey for a given specific device for the buffer pool use
+	ib_ctx_handler*		m_p_ib_ctx;
 	uint16_t		m_partition; //vlan or pkey
 	gro_mgr			m_gro_mgr;
 	ring_stats_t		m_ring_stat_static;

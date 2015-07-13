@@ -1766,6 +1766,7 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 		//todo consider setPassthrough and go to OS
 		destructor_helper();
 		errno = ECONNREFUSED;
+		printf_backtrace();
 		si_tcp_logerr("bad connect, err=%d", err);
 		unlock_tcp_con();
 		return -1;
