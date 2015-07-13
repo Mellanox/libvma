@@ -112,8 +112,8 @@ private:
 	// pointer to data block
 	void		*m_data_block;
 	
-        // contiguous pages allocation indicator
-        bool m_is_contig_alloc;
+    // contiguous pages allocation indicator
+    bool m_is_contig_alloc;
 
 	// Shared memory ID, if allocated in hugetlb
 	int		m_shmid;
@@ -131,9 +131,6 @@ private:
 	mem_buf_desc_t *m_p_head;
 	size_t		m_n_buffers;
 	size_t		m_n_buffers_created;
-
-	bpool_stats_t* 	m_p_bpool_stat;
-	bpool_stats_t 	m_bpool_stat_static;
 
 	/**
 	 * Allocate data block in hugetlb memory
@@ -167,9 +164,5 @@ private:
 	 */
 	void		free_bpool_resources();
 };
-
-extern buffer_pool* g_buffer_pool_rx;
-extern buffer_pool* g_buffer_pool_tx;
-
 
 #endif

@@ -46,6 +46,7 @@
 #include <execinfo.h>
 #include <libgen.h>
 #include <linux/igmp.h>
+#include <string>
 
 #include "vlogger/vlogger.h"
 #include "utils/rdtsc.h"
@@ -321,6 +322,54 @@ int mce_sys_var::env_to_cpuset(char *orig_start, cpu_set_t *cpu_set)
 	return ret;
 }
 
+/*
+ * Parse num_bufs_param to init, quanta, max and min values.
+ * num_bufs_param is expected to be a ':' delimited string of 1 or 4 tokens - "<n_bufs_init>:<n_bufs_quanta>:<n_bufs_max>:<n_bufs_min_threshold>".
+ * if providing only 1 token ("<n_bufs_init>") then it is used for n_bufs_init and n_bufs_max and rest will be set to 0.
+ *
+ * The function returns TRUE for success or FALSE for illegal input:
+ * 		- number of tokens is not 1 or 4
+ * 		- n_bufs_max < n_bufs_init
+ * 	Using atoi() that might throw in case on non-numeric chars
+ */
+bool mce_sys_var::parse_num_bufs_parameter(const char* num_bufs_param, uint32_t& n_bufs_init, uint32_t& n_bufs_quanta, uint32_t& n_bufs_max, uint32_t& n_bufs_min_threshold)
+{
+	std::vector<std::string> n_bufs_tokens = split(num_bufs_param, ':');
+	n_bufs_init = n_bufs_quanta = n_bufs_max = n_bufs_min_threshold = 0;
+	bool result = true;
+
+	if (n_bufs_tokens.size() != 1 && n_bufs_tokens.size() != 4) {
+		return false;
+	}
+
+	const char* token = n_bufs_tokens.front().c_str();
+	n_bufs_tokens.erase(n_bufs_tokens.begin());
+	n_bufs_init=(uint32_t)atoi(token);
+
+	if (!n_bufs_tokens.size()) {
+		n_bufs_max = n_bufs_init;
+		return true;
+	}
+
+	token = n_bufs_tokens.front().c_str();
+	n_bufs_tokens.erase(n_bufs_tokens.begin());
+	n_bufs_quanta=(uint32_t)atoi(token);
+
+	token = n_bufs_tokens.front().c_str();
+	n_bufs_tokens.erase(n_bufs_tokens.begin());
+	n_bufs_max=(uint32_t)atoi(token);
+
+	token = n_bufs_tokens.front().c_str();
+	n_bufs_tokens.erase(n_bufs_tokens.begin());
+	n_bufs_min_threshold=(uint32_t)atoi(token);
+
+	if (n_bufs_init == 0 || n_bufs_max == 0 || n_bufs_max < n_bufs_init){
+		result = false;
+	}
+
+	return result;
+}
+
 void mce_sys_var::read_env_variable_with_pid(char* mce_sys_name, size_t mce_sys_max_size, char* env_ptr)
 {
 	char* d_pos = strstr(env_ptr, "%d");
@@ -402,7 +451,10 @@ void mce_sys_var::get_env_params()
 	tcp_max_syn_rate	= MCE_DEFAULT_TCP_MAX_SYN_RATE;
 
 	tx_num_segs_tcp         = MCE_DEFAULT_TX_NUM_SEGS_TCP;
-	tx_num_bufs             = MCE_DEFAULT_TX_NUM_BUFS;
+	tx_num_bufs_init        = MCE_DEFAULT_TX_NUM_BUFS_INIT;
+	tx_num_bufs_quanta      = MCE_DEFAULT_TX_NUM_BUFS_QUANTA;
+	tx_num_bufs_max         = MCE_DEFAULT_TX_NUM_BUFS_MAX;
+	tx_num_bufs_min_threshold = MCE_DEFAULT_TX_NUM_BUFS_MIN_THRESHOLD;
 	tx_num_wr               = MCE_DEFAULT_TX_NUM_WRE;
 	tx_num_wr_to_signal     = MCE_DEFAULT_TX_NUM_WRE_TO_SIGNAL;
 	tx_max_inline		= MCE_DEFAULT_TX_MAX_INLINE;
@@ -412,7 +464,10 @@ void mce_sys_var::get_env_params()
 	tx_bufs_batch_udp	= MCE_DEFAULT_TX_BUFS_BATCH_UDP;
 	tx_bufs_batch_tcp	= MCE_DEFAULT_TX_BUFS_BATCH_TCP;
 
-	rx_num_bufs             = MCE_DEFAULT_RX_NUM_BUFS;
+	rx_num_bufs_init       = MCE_DEFAULT_RX_NUM_BUFS_INIT;
+	rx_num_bufs_quanta     = MCE_DEFAULT_RX_NUM_BUFS_QUANTA;
+	rx_num_bufs_max        = MCE_DEFAULT_RX_NUM_BUFS_MAX;
+	rx_num_bufs_min_threshold = MCE_DEFAULT_RX_NUM_BUFS_MIN_THRESHOLD;
 	rx_bufs_batch           = MCE_DEFAULT_RX_BUFS_BATCH;
 	rx_num_wr               = MCE_DEFAULT_RX_NUM_WRE;
 	rx_num_wr_to_post_recv  = MCE_DEFAULT_RX_NUM_WRE_TO_POST_RECV;
@@ -483,6 +538,7 @@ void mce_sys_var::get_env_params()
 	neigh_wait_till_send_arp_msec = MCE_DEFAULT_NEIGH_UC_ARP_DELAY_MSEC;
 
 	timer_netlink_update_msec = MCE_DEFAULT_NETLINK_TIMER_MSEC;
+	timer_bpool_aloc_msec = MCE_DEFAULT_BPOOL_TIMER_MSEC;
 
 	suppress_igmp_warning	= MCE_DEFAULT_SUPPRESS_IGMP_WARNING;
 
@@ -497,13 +553,15 @@ void mce_sys_var::get_env_params()
 	switch (mce_spec) {
 	case MCE_SPEC_SOCKPERF_ULTRA_LATENCY_10:
 		tx_num_segs_tcp         = 512; //MCE_DEFAULT_TX_NUM_SEGS_TCP (1000000)
-		tx_num_bufs             = 512; //MCE_DEFAULT_TX_NUM_BUFS (200000)
+		tx_num_bufs_init        = 512; //MCE_DEFAULT_TX_NUM_BUFS_INIT (200000)
+		tx_num_bufs_max         = 512; //MCE_DEFAULT_TX_NUM_BUFS_MAX (200000)
 		tx_num_wr               = 256; //MCE_DEFAULT_TX_NUM_WRE (3000)
 		tx_num_wr_to_signal     = 4; //MCE_DEFAULT_TX_NUM_WRE_TO_SIGNAL (64)
 		tx_prefetch_bytes 	= MCE_DEFAULT_TX_PREFETCH_BYTES; //(256)
 		tx_bufs_batch_udp	= 1; //MCE_DEFAULT_TX_BUFS_BATCH_UDP (8)
 		tx_bufs_batch_tcp	= 1; //MCE_DEFAULT_TX_BUFS_BATCH_TCP;
-		rx_num_bufs             = 1024; //MCE_DEFAULT_RX_NUM_BUFS (200000)
+		rx_num_bufs_init        = 1024; //MCE_DEFAULT_RX_NUM_BUFS_INIT (200000)
+		rx_num_bufs_max         = 1024; //MCE_DEFAULT_RX_NUM_BUFS_MAX (200000)
 		rx_bufs_batch           = 4; //MCE_DEFAULT_RX_BUFS_BATCH (64)
 		rx_num_wr               = 256; //MCE_DEFAULT_RX_NUM_WRE (16000)
 		rx_num_wr_to_post_recv  = 4; //MCE_DEFAULT_RX_NUM_WRE_TO_POST_RECV (64)
@@ -585,8 +643,10 @@ void mce_sys_var::get_env_params()
 		break;
 
 	case MCE_SPEC_LL_6973:
-		tx_num_bufs               = 8192; // MCE_DEFAULT_TX_NUM_BUFS (200000), Global TX data buffers allocated
-		rx_num_bufs               = 204800; // MCE_DEFAULT_RX_NUM_BUFS (200000), RX data buffers used on all QPs on all HCAs
+		tx_num_bufs_init        = 8192; //MCE_DEFAULT_TX_NUM_BUFS_INIT (200000)
+		tx_num_bufs_max         = 8192; //MCE_DEFAULT_TX_NUM_BUFS_MAX (200000)
+		rx_num_bufs_init        = 204800; //MCE_DEFAULT_RX_NUM_BUFS_INIT (200000)
+		rx_num_bufs_max         = 204800; //MCE_DEFAULT_RX_NUM_BUFS_MAX (200000)
 		log_level                 = VLOG_WARNING; //VLOG_DEFAULT(VLOG_INFO) VMA_TRACELEVEL
 		stats_fd_num_max          = 1024; //MCE_DEFAULT_STATS_FD_NUM(100), max. number of sockets monitored by VMA stats
 		strcpy(internal_thread_affinity_str, "0x3"); // MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR(-1), first 2 cores
@@ -660,8 +720,16 @@ void mce_sys_var::get_env_params()
 	if ((env_ptr = getenv(SYS_VAR_TX_NUM_SEGS_TCP)) != NULL)
 		tx_num_segs_tcp = (uint32_t)atoi(env_ptr);
 
-	if ((env_ptr = getenv(SYS_VAR_TX_NUM_BUFS)) != NULL)
-		tx_num_bufs = (uint32_t)atoi(env_ptr);
+	if ((env_ptr = getenv(SYS_VAR_TX_NUM_BUFS)) != NULL) {
+		bool parse_success = parse_num_bufs_parameter(env_ptr, safe_mce_sys().tx_num_bufs_init, safe_mce_sys().tx_num_bufs_quanta, safe_mce_sys().tx_num_bufs_max, safe_mce_sys().tx_num_bufs_min_threshold);
+		if (!parse_success){
+			vlog_printf(VLOG_WARNING,"Illegal TX_NUM_BUFS parameter: %s. reverting to default values\n", env_ptr);
+			tx_num_bufs_init        = MCE_DEFAULT_TX_NUM_BUFS_INIT;
+			tx_num_bufs_quanta      = MCE_DEFAULT_TX_NUM_BUFS_QUANTA;
+			tx_num_bufs_max         = MCE_DEFAULT_TX_NUM_BUFS_MAX;
+			tx_num_bufs_min_threshold = MCE_DEFAULT_TX_NUM_BUFS_MIN_THRESHOLD;
+		}
+	}
 
 	if ((env_ptr = getenv(SYS_VAR_TX_NUM_WRE)) != NULL)
 		tx_num_wr = (uint32_t)atoi(env_ptr);
@@ -727,8 +795,16 @@ void mce_sys_var::get_env_params()
 	if ((env_ptr = getenv(SYS_VAR_TCP_MAX_SYN_RATE)) != NULL)
 		tcp_max_syn_rate = MIN(TCP_MAX_SYN_RATE_TOP_LIMIT, MAX(0, (int32_t)atoi(env_ptr)));
 
-	if ((env_ptr = getenv(SYS_VAR_RX_NUM_BUFS)) != NULL)
-		rx_num_bufs = (uint32_t)atoi(env_ptr);
+	if ((env_ptr = getenv(SYS_VAR_RX_NUM_BUFS)) != NULL) {
+		bool parse_success = parse_num_bufs_parameter(env_ptr, safe_mce_sys().rx_num_bufs_init, safe_mce_sys().rx_num_bufs_quanta, safe_mce_sys().rx_num_bufs_max, safe_mce_sys().rx_num_bufs_min_threshold);
+		if (!parse_success){
+			vlog_printf(VLOG_WARNING,"Illegal RX_NUM_BUFS parameter: %s. reverting to default values\n", env_ptr);
+			rx_num_bufs_init       = MCE_DEFAULT_RX_NUM_BUFS_INIT;
+			rx_num_bufs_quanta     = MCE_DEFAULT_RX_NUM_BUFS_QUANTA;
+			rx_num_bufs_max        = MCE_DEFAULT_RX_NUM_BUFS_MAX;
+			rx_num_bufs_min_threshold = MCE_DEFAULT_RX_NUM_BUFS_MIN_THRESHOLD;
+		}
+	}
 
 	if ((env_ptr = getenv(SYS_VAR_RX_NUM_WRE_TO_POST_RECV)) != NULL)
 		rx_num_wr_to_post_recv = MIN(NUM_RX_WRE_TO_POST_RECV_MAX, MAX(1, (uint32_t)atoi(env_ptr)));
@@ -1001,6 +1077,8 @@ void mce_sys_var::get_env_params()
 	if ((env_ptr = getenv(SYS_VAR_NETLINK_TIMER_MSEC)) != NULL)
 		timer_netlink_update_msec = (uint32_t)atoi(env_ptr);
 
+	if ((env_ptr = getenv(SYS_VAR_BPOOL_TIMER_MSEC)) != NULL)
+			timer_bpool_aloc_msec = (uint32_t)atoi(env_ptr);
 
 	if((env_ptr = getenv(SYS_VAR_NEIGH_NUM_ERR_RETRIES))!= NULL)  {
 		neigh_num_err_retries = (uint32_t)atoi(env_ptr);

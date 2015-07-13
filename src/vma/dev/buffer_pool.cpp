@@ -47,9 +47,6 @@
 
 #define MODULE_NAME 	"bpool"
 
-buffer_pool *g_buffer_pool_rx = NULL;
-buffer_pool *g_buffer_pool_tx = NULL;
-
 // inlining a function only help in case it come before using it...
 inline void buffer_pool::put_buffer_helper(mem_buf_desc_t *buff)
 {
@@ -62,7 +59,6 @@ inline void buffer_pool::put_buffer_helper(mem_buf_desc_t *buff)
 	free_lwip_pbuf(&buff->lwip_pbuf);
 	m_p_head = buff;
 	m_n_buffers++;
-	m_p_bpool_stat->n_buffer_pool_size++;
 }
 
 /** Free-callback function to free a 'struct pbuf_custom_ref', called by
@@ -86,10 +82,6 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 	uint64_t access = VMA_IBV_ACCESS_LOCAL_WRITE;
 
 	__log_info_func("count = %d", buffer_count);
-
-	m_p_bpool_stat = &m_bpool_stat_static;
-	memset(m_p_bpool_stat , 0, sizeof(*m_p_bpool_stat));
-	vma_stats_instance_create_bpool_block(m_p_bpool_stat);
 
 	size_t size;
 	if (buffer_count) {
@@ -216,8 +208,6 @@ void buffer_pool::free_bpool_resources()
 	} else if (!m_is_contig_alloc){ // in contig mode 'ibv_dereg_mr' will free all allocates resources
 		free(m_data_block);
 	}
-
-	vma_stats_instance_remove_bpool_block(m_p_bpool_stat);
 
 	__log_info_func("done");
 }
@@ -393,8 +383,6 @@ mem_buf_desc_t *buffer_pool::get_buffers(size_t count, uint32_t lkey)
 
 		log_severity = VLOG_FUNC; // for all times but the 1st one
 
-		m_p_bpool_stat->n_buffer_pool_no_bufs++;
-
 		return NULL;
 	}
 
@@ -407,7 +395,6 @@ mem_buf_desc_t *buffer_pool::get_buffers(size_t count, uint32_t lkey)
 	// pop buffers from the list
 	head = NULL;
 	m_n_buffers -= count;
-	m_p_bpool_stat->n_buffer_pool_size -= count;
 	while (count > 0) {
 		next = m_p_head->p_next_desc;
 		m_p_head->p_next_desc = head;
@@ -662,12 +649,3 @@ std::deque<ibv_mr*> buffer_pool::get_memory_regions()
 {
 	return m_mrs;
 }
-
-void buffer_pool::set_RX_TX_for_stats(bool rx /*= true*/)
-{
-	if (rx)
-		m_p_bpool_stat->is_rx = true;
-	else
-		m_p_bpool_stat->is_tx = true;
-}
-

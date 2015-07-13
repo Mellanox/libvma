@@ -313,7 +313,10 @@ struct mce_sys_var {
 	int		tcp_max_syn_rate;
 
 	uint32_t 	tx_num_segs_tcp;
-	uint32_t 	tx_num_bufs;
+	uint32_t 	tx_num_bufs_init;
+	uint32_t	tx_num_bufs_quanta;
+	uint32_t 	tx_num_bufs_max;
+	uint32_t 	tx_num_bufs_min_threshold;
 	uint32_t 	tx_num_wr;
 	uint32_t	tx_num_wr_to_signal;
 	uint32_t 	tx_max_inline;
@@ -324,7 +327,10 @@ struct mce_sys_var {
 	uint32_t        tx_bufs_batch_udp;
 	uint32_t        tx_bufs_batch_tcp;
 
-	uint32_t 	rx_num_bufs;
+	uint32_t 	rx_num_bufs_init;
+	uint32_t	rx_num_bufs_quanta;
+	uint32_t 	rx_num_bufs_max;
+	uint32_t 	rx_num_bufs_min_threshold;
 	uint32_t        rx_bufs_batch;
 	uint32_t 	rx_num_wr;
 	uint32_t	rx_num_wr_to_post_recv;
@@ -396,6 +402,7 @@ struct mce_sys_var {
 
 	bool 		enable_ipoib;
 	uint32_t	timer_netlink_update_msec;
+	uint32_t	timer_bpool_aloc_msec;
 
 	//Neigh parameters
 	uint32_t 	neigh_uc_arp_quata;
@@ -413,6 +420,8 @@ private:
 	int list_to_cpuset(char *cpulist, cpu_set_t *cpu_set);
 	int hex_to_cpuset(char *start, cpu_set_t *cpu_set);
 	int env_to_cpuset(char *orig_start, cpu_set_t *cpu_set);
+	bool parse_num_bufs_parameter(const char* num_bufs_param, uint32_t& n_bufs_init, uint32_t& n_bufs_quanta, uint32_t& n_bufs_max, uint32_t& n_bufs_min_threshold)
+
 	void read_env_variable_with_pid(char* mce_sys_name, size_t mce_sys_max_size, char* env_ptr);
 
 	// prevent unautothrized creation of objects
@@ -527,7 +536,7 @@ extern mce_sys_var & safe_mce_sys();
 #define SYS_VAR_INTERNAL_THREAD_TCP_TIMER_HANDLING	"VMA_INTERNAL_THREAD_TCP_TIMER_HANDLING"
 
 #define SYS_VAR_NETLINK_TIMER_MSEC			"VMA_NETLINK_TIMER"
-
+#define SYS_VAR_BPOOL_TIMER_MSEC			"VMA_BPOOL_TIMER"
 #define SYS_VAR_NEIGH_UC_ARP_QUATA			"VMA_NEIGH_UC_ARP_QUATA"
 #define SYS_VAR_NEIGH_UC_ARP_DELAY_MSEC			"VMA_NEIGH_UC_ARP_DELAY_MSEC"
 #define SYS_VAR_NEIGH_NUM_ERR_RETRIES			"VMA_NEIGH_NUM_ERR_RETRIES"
@@ -535,6 +544,11 @@ extern mce_sys_var & safe_mce_sys();
 #define SYS_VAR_VMA_TIME_MEASURE_NUM_SAMPLES		"VMA_TIME_MEASURE_NUM_SAMPLES"
 #define SYS_VAR_VMA_TIME_MEASURE_DUMP_FILE		"VMA_TIME_MEASURE_DUMP_FILE"
 
+#define STRINGIZE_NX(A) #A
+#define STRINGIZE(A) STRINGIZE_NX(A)
+#define MCE_MEM_BUFS_PPCAT_NX(init, quanta, max, min) init:quanta:max:min
+#define MCE_MEM_BUFS_PPCAT(init, quanta, max, min) MCE_MEM_BUFS_PPCAT_NX(init, quanta, max, min)
+#define MCE_MEM_BUFS_FORMAT(init, quanta, max, min) STRINGIZE(MCE_MEM_BUFS_PPCAT(init, quanta, max, min))
 
 #define MCE_DEFAULT_LOG_FILE				("")
 #define MCE_DEFAULT_CONF_FILE				("/etc/libvma.conf")
@@ -553,7 +567,11 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_RING_LIMIT_PER_INTERFACE            (0)
 #define MCE_DEFAULT_TCP_MAX_SYN_RATE                	(0)
 #define MCE_DEFAULT_TX_NUM_SEGS_TCP			(1000000)
-#define MCE_DEFAULT_TX_NUM_BUFS				(200000)
+#define MCE_DEFAULT_TX_NUM_BUFS_INIT			(200000)
+#define MCE_DEFAULT_TX_NUM_BUFS_QUANTA			(0)
+#define MCE_DEFAULT_TX_NUM_BUFS_MAX			MCE_DEFAULT_TX_NUM_BUFS_INIT
+#define MCE_DEFAULT_TX_NUM_BUFS_MIN_THRESHOLD		(0)
+#define MCE_DEFAULT_TX_NUM_BUFS				MCE_MEM_BUFS_FORMAT(MCE_DEFAULT_TX_NUM_BUFS_INIT, MCE_DEFAULT_TX_NUM_BUFS_QUANTA, MCE_DEFAULT_TX_NUM_BUFS_MAX, MCE_DEFAULT_TX_NUM_BUFS_MIN_THRESHOLD)
 #ifdef DEFINED_VMAPOLL
 #define MCE_DEFAULT_TX_NUM_WRE				(1024)
 #else
@@ -572,7 +590,11 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_TX_BUFS_BATCH_UDP			(8)
 #define MCE_DEFAULT_TX_BUFS_BATCH_TCP			(16)
 #define MCE_DEFAULT_TX_NUM_SGE				(2)
-#define MCE_DEFAULT_RX_NUM_BUFS				(200000)
+#define MCE_DEFAULT_RX_NUM_BUFS_INIT			(200000)
+#define MCE_DEFAULT_RX_NUM_BUFS_QUANTA			(0)
+#define MCE_DEFAULT_RX_NUM_BUFS_MAX			MCE_DEFAULT_RX_NUM_BUFS_INIT
+#define MCE_DEFAULT_RX_NUM_BUFS_MIN_THRESHOLD		(0)
+#define MCE_DEFAULT_RX_NUM_BUFS				MCE_MEM_BUFS_FORMAT(MCE_DEFAULT_RX_NUM_BUFS_INIT, MCE_DEFAULT_RX_NUM_BUFS_QUANTA, MCE_DEFAULT_RX_NUM_BUFS_MAX, MCE_DEFAULT_RX_NUM_BUFS_MIN_THRESHOLD)
 #define MCE_DEFAULT_RX_BUFS_BATCH			(64)
 #ifdef DEFINED_VMAPOLL
 #define MCE_DEFAULT_RX_NUM_WRE				(1024)
@@ -651,6 +673,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_INTERNAL_THREAD_CPUSET		("")
 #define MCE_DEFAULT_INTERNAL_THREAD_TCP_TIMER_HANDLING	(INTERNAL_THREAD_TCP_TIMER_HANDLING_DEFERRED)
 #define MCE_DEFAULT_NETLINK_TIMER_MSEC			(10000)
+#define MCE_DEFAULT_BPOOL_TIMER_MSEC			(500)
 
 #define MCE_DEFAULT_NEIGH_UC_ARP_QUATA			3
 #define MCE_DEFAULT_NEIGH_UC_ARP_DELAY_MSEC		10000
