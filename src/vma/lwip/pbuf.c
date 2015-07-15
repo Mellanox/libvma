@@ -282,6 +282,7 @@ pbuf_header(struct pbuf *p, s16_t header_size_increment)
 
   LWIP_DEBUGF(PBUF_DEBUG | LWIP_DBG_TRACE, ("pbuf_header: old %p new %p (%"S16_F")\n",
     (void *)payload, (void *)p->payload, header_size_increment));
+  (void)payload; /* Fix warning -Wunused-but-set-variable */
 
   return 0;
 }
@@ -372,6 +373,7 @@ pbuf_free(struct pbuf *p)
     }
   }
 
+  (void)type;
   /* return number of de-allocated pbufs */
   return count;
 }

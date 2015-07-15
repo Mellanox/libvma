@@ -49,6 +49,8 @@
 #include "vma/lwip/stats.h"
 
 #include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 const char * const tcp_state_str[] = {
   "CLOSED",      
@@ -398,6 +400,8 @@ tcp_abandon(struct tcp_pcb *pcb, int reset)
       tcp_rst(seqno, ackno, local_port, remote_port, pcb);
     }
   }
+  (void)local_ip;  /* Fix warning -Wunused-but-set-variable */
+  (void)remote_ip; /* Fix warning -Wunused-but-set-variable */
 }
 
 /**
@@ -599,7 +603,6 @@ tcp_new_port(void)
 #define TCP_LOCAL_PORT_RANGE_START 0x2000
 #define TCP_LOCAL_PORT_RANGE_END   0xFFFF
 #endif
-  extern int getpid(void);
   static u16_t port;
 
   /* use getpid() as a seed for the port sequence. Insure we will always use different first port */
@@ -776,7 +779,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 		  /* Reduce congestion window and ssthresh. */
 		  eff_wnd = LWIP_MIN(pcb->cwnd, pcb->snd_wnd);
 		  pcb->ssthresh = eff_wnd >> 1;
-		  if (pcb->ssthresh < (pcb->mss << 1)) {
+		  if (pcb->ssthresh < (u32_t)(pcb->mss << 1)) {
 			pcb->ssthresh = (pcb->mss << 1);
 		  }
 		  pcb->cwnd = pcb->mss;

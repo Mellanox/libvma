@@ -849,6 +849,8 @@ tcp_send_empty_ack(struct tcp_pcb *pcb)
   pcb->ip_output(p, pcb, 0);
   tcp_tx_pbuf_free(pcb, p);
 
+  (void)opts; /* Fix warning -Wunused-but-set-variable */
+
   return ERR_OK;
 }
 
@@ -1341,6 +1343,7 @@ tcp_keepalive(struct tcp_pcb *pcb)
 
   LWIP_DEBUGF(TCP_DEBUG, ("tcp_keepalive: seqno %"U32_F" ackno %"U32_F".\n",
                           pcb->snd_nxt - 1, pcb->rcv_nxt));
+  (void)tcphdr; /* Fix warning -Wunused-but-set-variable*/
 }
 
 
