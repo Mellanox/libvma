@@ -969,17 +969,17 @@ ssize_t recvmsg(int __fd, struct msghdr *__msg, int __flags)
 	return orig_os_api.recvmsg(__fd, __msg, __flags);
 }
 
-
-#ifdef DEFINED_MISSING_STRUCT_MMSGHDR
-/* MeravH: The following definitions are for kernels previous to 2.6.32 which dont support recvmmsg */
+/* The following definitions are for kernels previous to 2.6.32 which dont support recvmmsg */
+#ifndef HAVE_STRUCT_MMSGHDR
 struct mmsghdr {
     struct msghdr msg_hdr;  // Message header
     unsigned int  msg_len;  // Number of received bytes for header
 };
+#endif
 
+#ifndef MSG_WAITFORONE
 #define MSG_WAITFORONE  0x10000 //recvmmsg(): block until 1+ packets avail
-
-#endif //DEFINED_STRUCT_MMSGHDR
+#endif
 
 /* Receive multiple messages as described by MESSAGE from socket FD.
    Returns the number of messages received or -1 for errors.

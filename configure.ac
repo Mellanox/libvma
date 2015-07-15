@@ -346,21 +346,7 @@ AC_TRY_LINK(
   AC_DEFINE(DEFINED_MISSING_NET_TSTAMP, 1, [Define to 1 if linux/net_tstamp.h is missing])
 ])
 
-AC_MSG_CHECKING([if 'struct mmsghdr' for recvmmsg() is defined])
-AC_TRY_LINK(
-#include <sys/socket.h>
-,
-[
-  struct mmsghdr my_mmsghdr;
-  my_mmsghdr.msg_len = 0;
-],
-[
-  AC_MSG_RESULT([yes])
-],
-[
-  AC_MSG_RESULT([no])
-  AC_DEFINE(DEFINED_MISSING_STRUCT_MMSGHDR, 1, [Define to 1 if 'struct mmsghdr' is missing])
-])
+AC_CHECK_TYPES([struct mmsghdr],,, [#include <sys/socket.h>])
 
 AC_MSG_CHECKING([if 'struct timespec' for recvmmsg() is const])
 AC_TRY_LINK(
