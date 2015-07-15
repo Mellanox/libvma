@@ -328,7 +328,7 @@ cubic_record_rtt(struct tcp_pcb *pcb)
 	/* Ignore srtt until a min number of samples have been taken. */
 	if (pcb->t_rttupdated >= CUBIC_MIN_RTT_SAMPLES) {
 
-		t_srtt_ticks = pcb->rttest;
+		t_srtt_ticks = (pcb->sa >> 3);
 
 		/*
 		 * Record the current SRTT as our minrtt if it's the smallest
