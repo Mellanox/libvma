@@ -33,13 +33,14 @@
 // Wrapper for all IBVERBS & RDMA_CM API to normalize the return code and errno value
 // With these marco all ibverbs & rdma_cm failures are caugth and errno is updated
 // Without this marco ibverbs & rdma_cm returns sometimes with -1 and sometimes with -errno
-#define IF_VERBS_FAILURE(__func__)		\
-        { int __ret__;				\
-	if ((__ret__ = (__func__)) < -1) { 	\
-		errno = -__ret__;	       	\
-	}					\
-	if (__ret__)
+inline int _errnocheck(int rc) {
+    if (rc < -1) {
+        errno = -rc;
+    }
+    return rc;
+}
 
+#define IF_VERBS_FAILURE(__func__)  { if (_errnocheck(__func__))
 #define ENDIF_VERBS_FAILURE			}
 
 
