@@ -256,6 +256,7 @@ private:
 
 	lock_spin_recursive m_rx_ctl_packets_list_lock;
 	vma_desc_list_t m_rx_ctl_packets_list;
+	unsigned int m_num_syn_in_rx_ctl_list;
 	vma_desc_list_t m_rx_ctl_reuse_list;
 	ready_pcb_map_t m_ready_pcbs;
 

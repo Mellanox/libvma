@@ -111,6 +111,7 @@ sockinfo_tcp::sockinfo_tcp(int fd) :
 	m_vma_thr = false;
 
 	m_backlog = INT_MAX; // init with no limit
+	m_num_syn_in_rx_ctl_list = 0;
 	report_connected = false;
 
 	m_call_orig_close_on_dtor = 0;
@@ -835,6 +836,8 @@ void sockinfo_tcp::process_rx_ctl_packets()
 			return;
 		}
 		m_rx_ctl_packets_list.pop_front();
+		if(desc->path.rx.p_tcp_h->syn)
+			--m_num_syn_in_rx_ctl_list;
 		m_rx_ctl_packets_list_lock.unlock();
 
 		sock->m_vma_thr = true;
@@ -1325,6 +1328,8 @@ void sockinfo_tcp::queue_rx_ctl_packet(struct tcp_pcb* pcb, mem_buf_desc_t *p_de
 
 	sock->m_rx_ctl_packets_list_lock.lock();
 	sock->m_rx_ctl_packets_list.push_back(p_desc);
+	if(p_desc->path.rx.p_tcp_h->syn)
+		++m_num_syn_in_rx_ctl_list;
 	sock->m_rx_ctl_packets_list_lock.unlock();
 
 	if (sock != this) {
@@ -1353,23 +1358,24 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 
 			/// respect TCP listen backlog - See redmine issue #565962
 			/// distinguish between backlog of established sockets vs. backlog of syn-rcvd
-			static const int MAX_SYN_RCVD = mce_sys.tcp_ctl_thread ? 512 : 0; // TODO: consider reading it from /proc/sys/net/ipv4/tcp_max_syn_backlog
+			static const unsigned int MAX_SYN_RCVD = mce_sys.tcp_ctl_thread ? 512 : 0; // TODO: consider reading it from /proc/sys/net/ipv4/tcp_max_syn_backlog
 							// NOTE: currently, in case tcp_ctl_thread is disabled, only established backlog is supported (no syn-rcvd backlog)
 
-			static const size_t MAX_CTL_RCVD = 3*MAX_SYN_RCVD;
-			size_t num_ctrl_pckts = this->m_rx_ctl_packets_list.size();
+			unsigned int num_syn_waiting = m_num_syn_in_rx_ctl_list;
 			// 1st - check established backlog
-			if(num_ctrl_pckts > 0 || (m_syn_received.size() >= (size_t)m_backlog && p_rx_pkt_mem_buf_desc_info->path.rx.p_tcp_h->syn) ) {
+			if(num_syn_waiting > 0 || (m_syn_received.size() >= (size_t)m_backlog && p_rx_pkt_mem_buf_desc_info->path.rx.p_tcp_h->syn) ) {
 				established_backlog_full = true;
 			}
 
 			// 2nd - check syn_rcvd backlog and drop packet accordingly
-			if ( (MAX_CTL_RCVD == 0 && established_backlog_full) || (MAX_CTL_RCVD > 0 && num_ctrl_pckts >= MAX_CTL_RCVD) ) {
-				// TODO: consider check if we can now drain into Q of established
-				si_tcp_logdbg("SYN/CTL packet drop. established-backlog=%d (limit=%d) ctrl-backlog=%d (limit=%d)",
-								(int)m_syn_received.size(), m_backlog, (int)m_rx_ctl_packets_list.size(), (int)MAX_CTL_RCVD);
-				unlock_tcp_con();
-				return false;// return without inc_ref_count() => packet will be dropped
+			if ( p_rx_pkt_mem_buf_desc_info->path.rx.p_tcp_h->syn) {
+				if ( (MAX_SYN_RCVD == 0 && established_backlog_full) || (MAX_SYN_RCVD > 0 && num_syn_waiting >= MAX_SYN_RCVD) ) {
+					// TODO: consider check if we can now drain into Q of established
+					si_tcp_logdbg("SYN/CTL packet drop. established-backlog=%d (limit=%d) num_syn_waiting=%d (limit=%d)",
+									(int)m_syn_received.size(), m_backlog, num_syn_waiting, MAX_SYN_RCVD);
+					unlock_tcp_con();
+					return false;// return without inc_ref_count() => packet will be dropped
+				}
 			}
 		}
 		if (mce_sys.tcp_ctl_thread || established_backlog_full) { /* 2nd check only worth when MAX_SYN_RCVD>0 for non tcp_ctl_thread  */
