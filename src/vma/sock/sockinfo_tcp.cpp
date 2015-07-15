@@ -1112,7 +1112,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
                         struct pbuf *p, err_t err)
 {
 
-	int bytes_to_tcp_recved;
+	uint32_t bytes_to_tcp_recved, non_tcp_receved_bytes_remaining, bytes_to_shrink;
 	int rcv_buffer_space;
 	sockinfo_tcp *conn = (sockinfo_tcp *)pcb->my_container;
 	NOT_IN_USE(arg);
@@ -1250,7 +1250,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 	/*
 	* RCVBUFF Accounting: tcp_recved here(stream into the 'internal' buffer) only if the user buffer is not 'filled'
 	*/
-	rcv_buffer_space = max(0, conn->m_rcvbuff_max-conn->m_rcvbuff_current);
+	rcv_buffer_space = max(0, conn->m_rcvbuff_max - conn->m_rcvbuff_current - (int)conn->m_pcb.rcv_wnd_max_desired);
 	if (callback_retval == VMA_PACKET_DROP) {
 		bytes_to_tcp_recved = (int)p->tot_len;
 	} else {
@@ -1261,8 +1261,17 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 	if (likely(bytes_to_tcp_recved > 0)) {
 	    tcp_recved(&(conn->m_pcb), bytes_to_tcp_recved);
 	}
-	if (p->tot_len-bytes_to_tcp_recved > 0)
-	    conn->m_rcvbuff_non_tcp_recved += p->tot_len-bytes_to_tcp_recved;
+
+	non_tcp_receved_bytes_remaining = p->tot_len - bytes_to_tcp_recved;
+
+	if (non_tcp_receved_bytes_remaining > 0) {
+		bytes_to_shrink = 0;
+		if (conn->m_pcb.rcv_wnd_max > conn->m_pcb.rcv_wnd_max_desired) {
+	    	bytes_to_shrink = MIN(conn->m_pcb.rcv_wnd_max - conn->m_pcb.rcv_wnd_max_desired, non_tcp_receved_bytes_remaining);
+	    	conn->m_pcb.rcv_wnd_max -= bytes_to_shrink;
+		}
+	    conn->m_rcvbuff_non_tcp_recved += non_tcp_receved_bytes_remaining - bytes_to_shrink;
+	}
 
 	vlog_func_exit();
 	return ERR_OK;
@@ -1643,6 +1652,7 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 	}
 
 	in_addr_t peer_ip_addr = m_connected.get_in_addr();
+	fit_rcv_wnd(true);
 
 	int err = tcp_connect(&m_pcb, (ip_addr_t*)(&peer_ip_addr), ntohs(m_connected.get_in_port()), /*(tcp_connected_fn)*/sockinfo_tcp::connect_lwip_cb);
 	if (err != ERR_OK) {
@@ -2330,12 +2340,12 @@ err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_
 	listen_sock->m_tcp_con_lock.lock();
 
 	new_sock->m_rcvbuff_max = MAX(listen_sock->m_rcvbuff_max, 2 * new_sock->m_pcb.mss);
-	new_sock->fit_rcv_wnd(listen_sock->m_rcvbuff_max);
+	new_sock->fit_rcv_wnd(true);
 
 	new_sock->m_sndbuff_max = listen_sock->m_sndbuff_max;
 	if (listen_sock->m_sndbuff_max) {
 		new_sock->m_sndbuff_max = MAX(listen_sock->m_sndbuff_max, 2 * new_sock->m_pcb.mss);
-		new_sock->fit_snd_bufs(listen_sock->m_sndbuff_max);
+		new_sock->fit_snd_bufs(new_sock->m_sndbuff_max);
 	}
 
 	flow_tuple key;
@@ -2412,8 +2422,12 @@ err_t sockinfo_tcp::connect_lwip_cb(void *arg, struct tcp_pcb *tpcb, err_t err)
 	}
 	if (err == ERR_OK) {
 		conn->m_conn_state = TCP_CONN_CONNECTED;
-                conn->m_sock_state = TCP_SOCK_CONNECTED_RDWR; // async connect verification
-                conn->m_error_status = 0;
+		conn->m_sock_state = TCP_SOCK_CONNECTED_RDWR; // async connect verification
+		conn->m_error_status = 0;
+		if (conn->m_rcvbuff_max <  2 * conn->m_pcb.mss) {
+			conn->m_rcvbuff_max = 2 * conn->m_pcb.mss;
+			conn->fit_rcv_wnd(false);
+		}
 	}
 	else {
 		conn->m_error_status = ECONNREFUSED;
@@ -2790,20 +2804,27 @@ int sockinfo_tcp::ioctl(unsigned long int __request, unsigned long int __arg)
 	return sockinfo::ioctl(__request, __arg);
 }
 
-void sockinfo_tcp::fit_rcv_wnd(unsigned int new_max_rcv_buff)
+void sockinfo_tcp::fit_rcv_wnd(bool force_fit)
 {
-	unsigned int max_wnd = new_max_rcv_buff;
-	if (max_wnd > (unsigned int)TCP_WND_SCALED(&m_pcb))
-		max_wnd = TCP_WND_SCALED(&m_pcb);
+	m_pcb.rcv_wnd_max_desired = MIN(TCP_WND_SCALED(&m_pcb), m_rcvbuff_max);
 
-	if (m_pcb.rcv_wnd_max - m_pcb.rcv_wnd > max_wnd)
-		max_wnd = m_pcb.rcv_wnd_max - m_pcb.rcv_wnd;
-	if (m_pcb.rcv_wnd_max - m_pcb.rcv_ann_wnd > max_wnd)
-		max_wnd = m_pcb.rcv_wnd_max - m_pcb.rcv_ann_wnd;
+	if (force_fit) {
+		int rcv_wnd_max_diff = m_pcb.rcv_wnd_max_desired - m_pcb.rcv_wnd_max;
 
-	m_pcb.rcv_wnd += max_wnd - m_pcb.rcv_wnd_max;
-	m_pcb.rcv_ann_wnd += max_wnd - m_pcb.rcv_wnd_max;
-	m_pcb.rcv_wnd_max = max_wnd;
+		m_pcb.rcv_wnd_max = m_pcb.rcv_wnd_max_desired;
+		m_pcb.rcv_wnd = MAX(0, (int)m_pcb.rcv_wnd + rcv_wnd_max_diff);
+		m_pcb.rcv_ann_wnd = MAX(0, (int)m_pcb.rcv_ann_wnd + rcv_wnd_max_diff);
+
+		if (!m_pcb.rcv_wnd) {
+			m_rcvbuff_non_tcp_recved = m_pcb.rcv_wnd_max;
+		}
+	} else if (m_pcb.rcv_wnd_max_desired >  m_pcb.rcv_wnd_max) {
+		uint32_t rcv_wnd_max_diff = m_pcb.rcv_wnd_max_desired - m_pcb.rcv_wnd_max;
+		m_pcb.rcv_wnd_max = m_pcb.rcv_wnd_max_desired;
+		m_pcb.rcv_wnd += rcv_wnd_max_diff;
+		m_pcb.rcv_ann_wnd += rcv_wnd_max_diff;
+	}
+
 }
 
 void sockinfo_tcp::fit_snd_bufs(unsigned int new_max_snd_buff)
@@ -2883,7 +2904,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			// OS allocates double the size of memory requested by the application - not sure we need it.
 			m_rcvbuff_max = MAX(2 * m_pcb.mss, 2 * val);
 
-			fit_rcv_wnd(m_rcvbuff_max);
+			fit_rcv_wnd(!is_connected());
 			si_tcp_logdbg("setsockopt SO_RCVBUF: %d", m_rcvbuff_max);
 			break;
 		case SO_SNDBUF:

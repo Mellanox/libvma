@@ -1099,6 +1099,7 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio)
 	pcb->rcv_wnd = TCP_WND_SCALED(pcb);
 	pcb->rcv_ann_wnd = TCP_WND_SCALED(pcb);
 	pcb->rcv_wnd_max = TCP_WND_SCALED(pcb);
+	pcb->rcv_wnd_max_desired = TCP_WND_SCALED(pcb);
 	pcb->tos = 0;
 	pcb->ttl = TCP_TTL;
 	/* As initial send MSS, we use TCP_MSS but limit it to 536.

@@ -351,7 +351,7 @@ private:
 	/* pick all cqs that match given address */
 	int 		rx_wait(int & poll_count, bool is_blocking);
 	int 		rx_wait_helper(int & poll_count, bool is_blocking);
-	void 		fit_rcv_wnd(unsigned int new_max_rcv_buff);
+	void 		fit_rcv_wnd(bool force_fit);
 	void 		fit_snd_bufs(unsigned int new_max);
 	void 		fit_snd_bufs_to_nagle(bool disable_nagle);
 

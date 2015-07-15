@@ -378,6 +378,7 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
   	npcb->rcv_wnd = TCP_WND_SCALED(npcb);
   	npcb->rcv_ann_wnd = TCP_WND_SCALED(npcb);
   	npcb->rcv_wnd_max = TCP_WND_SCALED(npcb);
+  	npcb->rcv_wnd_max_desired = TCP_WND_SCALED(npcb);
 
 #if TCP_RCVSCALE
      npcb->snd_wnd = SND_WND_SCALE(npcb, in_data->tcphdr->wnd);
