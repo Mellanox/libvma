@@ -22,6 +22,7 @@
 #include "vtypes.h"
 #include "config.h"
 #include "verbs_extra.h"
+#include "vma/util/sysctl_reader.h"
 
 
 typedef enum {
@@ -228,6 +229,7 @@ struct mce_sys_var {
 
 	uint32_t 	vma_time_measure_num_samples;
 	char 		vma_time_measure_filename[FILENAME_MAX];
+	sysctl_reader_t sysctl_reader;
 };
 
 

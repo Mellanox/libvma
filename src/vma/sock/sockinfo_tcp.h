@@ -212,7 +212,7 @@ private:
 	/* SNDBUF acconting */
 	int m_sndbuff_max;
 	/* RCVBUF acconting */
-	int m_rcvbuff_max; // defaults?
+	int m_rcvbuff_max;
 	int m_rcvbuff_current;
 	int m_rcvbuff_non_tcp_recved;
 	lock_mutex_cond m_conn_cond;

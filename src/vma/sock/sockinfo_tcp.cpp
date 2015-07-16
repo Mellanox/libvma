@@ -104,7 +104,10 @@ sockinfo_tcp::sockinfo_tcp(int fd) :
 	/* SNDBUF accounting */
 	m_sndbuff_max = 0;
 	/* RCVBUF accounting */
-	m_rcvbuff_max = 2*64*1024*1024; // defaults?
+	sysctl_tcp_mem sysctl_rmem;
+	mce_sys.sysctl_reader.get(SYSCTL_NET_TCP_RMEM, &sysctl_rmem, sizeof(sysctl_rmem));
+	m_rcvbuff_max = sysctl_rmem.default_value;
+
 	m_rcvbuff_current = 0;
 	m_rcvbuff_non_tcp_recved = 0;
 	m_received_syn_num = 0;
