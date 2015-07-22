@@ -30,6 +30,7 @@ net_device_entry::net_device_entry(in_addr_t local_ip, net_device_val* ndv) : ca
 	m_val = ndv;
 	m_is_valid = false;
 	m_cma_id_bind_trial_count = 0;
+	m_timer_handle = NULL;
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_val) {
 		nde_logdbg("ERROR: received m_val = NULL");
