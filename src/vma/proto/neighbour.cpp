@@ -406,7 +406,7 @@ bool neigh_entry::post_send_tcp(iovec *iov, header *h)
 	wqe_sh.enable_hw_csum(m_send_wqe);
 
 	p_mem_buf_desc = m_p_ring->mem_buf_tx_get(false, 1);
-	p_mem_buf_desc->lwip_pbuf.pbuf.payload = (u8_t *)p_mem_buf_desc->p_buffer + h->m_total_hdr_len;
+
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (unlikely(p_mem_buf_desc == NULL)) {
@@ -414,6 +414,8 @@ bool neigh_entry::post_send_tcp(iovec *iov, header *h)
 		return false;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
+
+	p_mem_buf_desc->lwip_pbuf.pbuf.payload = (u8_t *)p_mem_buf_desc->p_buffer + h->m_total_hdr_len;
 
 	p_mem_buf_desc->p_next_desc = NULL;
 
