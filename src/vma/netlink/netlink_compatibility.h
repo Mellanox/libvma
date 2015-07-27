@@ -15,8 +15,10 @@
 #ifndef NETLINK_COMPATIBILITY_H_
 #define NETLINK_COMPATIBILITY_H_
 
+#include <unistd.h>
 #include <asm/types.h>
 #include <sys/socket.h>
+#include <fcntl.h>
 #include "config.h"
 #include <netlink/netlink.h>
 #include <netlink/socket.h>

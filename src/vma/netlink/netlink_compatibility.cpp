@@ -17,6 +17,7 @@
 
 #define MODULE_NAME 		"nl_wrapper:"
 #define nl_logerr		__log_err
+#define nl_logwarn		__log_warn
 
 
 extern void link_event_callback(nl_object* obj);
@@ -71,6 +72,10 @@ nl_cache_mngr* nl_cache_mngr_compatible_alloc(nl_socket_handle* handle, int prot
 	if (err) {
 		nl_logerr("Fail to allocate cache manager, error=%s", nl_geterror(err));
 		return NULL;
+	}
+	int nl_socket_fd = nl_socket_get_fd(handle);
+	if (fcntl(nl_socket_fd, F_SETFD, FD_CLOEXEC) != 0) {
+		nl_logwarn("Fail in fctl, error = %d", errno);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
@@ -138,6 +143,11 @@ nl_cache_mngr* nl_cache_mngr_compatible_alloc(nl_socket_handle* handle, int prot
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!cache_mgr) {
 		nl_logerr("Fail to allocate cache manager");
+	}
+	
+	int nl_socket_fd = nl_socket_get_fd(handle);
+	if (fcntl(nl_socket_fd, F_SETFD, FD_CLOEXEC) != 0) {
+		nl_logwarn("Fail in fctl, error = %d", errno);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 

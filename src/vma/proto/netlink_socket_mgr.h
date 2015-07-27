@@ -28,6 +28,7 @@
 #include <netinet/in.h>
 #include <netinet/ether.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include "vma/util/if.h"
 
 #include "vma/netlink/netlink_wrapper.h"
@@ -114,6 +115,10 @@ netlink_socket_mgr <Type>::netlink_socket_mgr(nl_data_t data_type)
 	if ((m_fd = orig_os_api.socket(PF_NETLINK, SOCK_DGRAM, NETLINK_ROUTE)) < 0) {
 		__log_err("NL socket Creation: ");
 		return;
+	}
+
+	if (fcntl(m_fd, F_SETFD, FD_CLOEXEC) != 0) {
+		__log_warn("Fail in fctl, error = %d", errno);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
