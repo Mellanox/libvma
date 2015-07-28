@@ -646,7 +646,7 @@ tcp_connect(struct tcp_pcb *pcb, ip_addr_t *ipaddr, u16_t port,
   err_t ret;
   u32_t iss;
 
-  LWIP_ERROR("tcp_connect: can only connected from state CLOSED", get_tcp_state(pcb) == CLOSED, return ERR_ISCONN);
+  LWIP_ERROR_NO_ABORT("tcp_connect: can only connected from state CLOSED", get_tcp_state(pcb) == CLOSED, return ERR_ISCONN);
 
   LWIP_DEBUGF(TCP_DEBUG, ("tcp_connect to port %"U16_F"\n", port));
   if (ipaddr != NULL) {

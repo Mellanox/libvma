@@ -2353,7 +2353,7 @@ typedef unsigned long mem_ptr_t;
 #define LWIP_PLATFORM_DIAG(x)
 
 #define LWIP_PLATFORM_ASSERT(x) do {printf("Assertion \"%s\" failed at line %d in %s\n", \
-                                     x, __LINE__, __FILE__); fflush(NULL); abort();} while(0)
+                                     x, __LINE__, __FILE__); fflush(NULL);} while(0)
 
 //#define LWIP_PLATFORM_DIAG(x) __log_err x
 //#define LWIP_PLATFORM_ASSERT(x) __log_panic(x)
@@ -2402,12 +2402,17 @@ typedef unsigned long mem_ptr_t;
 
 #define LWIP_ASSERT(message, assertion)
 
-
-/** if "expression" isn't true, then print "message" and execute "handler" expression */
+/** if "expression" isn't true, then print "message" and abort process*/
 #ifndef LWIP_ERROR
 #define LWIP_ERROR(message, expression, handler) do { if (!(expression)) { \
-  LWIP_PLATFORM_ASSERT(message); handler;}} while(0)
+  LWIP_PLATFORM_ASSERT(message); abort(); handler;}} while(0)
 #endif /* LWIP_ERROR */
+
+/** if "expression" isn't true, then print "message" and execute "handler" expression */
+#ifndef LWIP_ERROR_NO_ABORT
+#define LWIP_ERROR_NO_ABORT(message, expression, handler) do { if (!(expression)) { \
+  LWIP_PLATFORM_ASSERT(message); handler;}} while(0)
+#endif /* LWIP_ERROR_NO_ABORT */
 
 #define LWIP_DEBUGF(debug, message)
 
