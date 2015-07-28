@@ -1420,9 +1420,9 @@
 #endif
 
 #ifdef TCP_RCVSCALE
-#define TCP_WND_SCALED 			(TCP_WND << rcv_wnd_scale)
+#define TCP_WND_SCALED(pcb) 			(TCP_WND << (pcb)->rcv_scale)
 #else
-#define TCP_WND_SCALED 			TCP_WND
+#define TCP_WND_SCALED(pcb) 			TCP_WND
 #endif
 
 /**

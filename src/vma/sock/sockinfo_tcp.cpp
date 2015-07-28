@@ -2004,13 +2004,6 @@ sockinfo_tcp *sockinfo_tcp::accept_clone()
         si->m_sock_state = TCP_SOCK_BOUND;
         si->setPassthrough(false);
 
-        si->m_rcvbuff_max = m_rcvbuff_max;
-        si->fit_rcv_wnd(m_rcvbuff_max);
-
-        si->m_sndbuff_max = m_sndbuff_max;
-        if (m_sndbuff_max)
-        	si->fit_snd_bufs(m_sndbuff_max);
-
         if (mce_sys.tcp_ctl_thread) {
         	tcp_ip_output(&si->m_pcb, sockinfo_tcp::ip_output_syn_ack);
         }
@@ -2218,6 +2211,13 @@ err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_
 	}
 
 	listen_sock->m_tcp_con_lock.lock();
+
+	new_sock->m_rcvbuff_max = listen_sock->m_rcvbuff_max;
+	new_sock->fit_rcv_wnd(listen_sock->m_rcvbuff_max);
+
+	new_sock->m_sndbuff_max = listen_sock->m_sndbuff_max;
+	if (listen_sock->m_sndbuff_max)
+		new_sock->fit_snd_bufs(listen_sock->m_sndbuff_max);
 
 	flow_tuple key;
 	create_flow_tuple_key_from_pcb(key, newpcb);
@@ -2677,8 +2677,8 @@ int sockinfo_tcp::ioctl(unsigned long int __request, unsigned long int __arg)
 void sockinfo_tcp::fit_rcv_wnd(unsigned int new_max_rcv_buff)
 {
 	unsigned int max_wnd = new_max_rcv_buff;
-	if (max_wnd > (unsigned int)TCP_WND_SCALED)
-		max_wnd = TCP_WND_SCALED;
+	if (max_wnd > (unsigned int)TCP_WND_SCALED(&m_pcb))
+		max_wnd = TCP_WND_SCALED(&m_pcb);
 
 	if (m_pcb.rcv_wnd_max - m_pcb.rcv_wnd > max_wnd)
 		max_wnd = m_pcb.rcv_wnd_max - m_pcb.rcv_wnd;

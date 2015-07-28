@@ -1049,7 +1049,7 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
 #if TCP_RCVSCALE
   /* If RCV_SCALE is set then prepare segment for window scaling option */
   if (seg->flags & TF_SEG_OPTS_WNDSCALE) {
-    TCP_BUILD_WNDSCALE_OPTION(*opts, rcv_wnd_scale);
+    TCP_BUILD_WNDSCALE_OPTION(*opts, pcb->rcv_scale);
     opts += 1;	// Move to the next line (meaning next 32 bit) as this option is 3 bytes long + we added 1 byte NOOP padding => total 4 bytes
   }
 #endif

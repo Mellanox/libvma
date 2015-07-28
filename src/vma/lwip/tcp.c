@@ -669,9 +669,6 @@ tcp_connect(struct tcp_pcb *pcb, ip_addr_t *ipaddr, u16_t port,
   pcb->snd_nxt = iss;
   pcb->lastack = iss - 1;
   pcb->snd_lbb = iss - 1;
-  pcb->rcv_wnd = TCP_WND_SCALED;
-  pcb->rcv_ann_wnd = TCP_WND_SCALED;
-  pcb->rcv_wnd_max = TCP_WND_SCALED;
   pcb->rcv_ann_right_edge = pcb->rcv_nxt;
   pcb->snd_wnd = TCP_WND;
   /* As initial send MSS, we use TCP_MSS but limit it to 536.
@@ -1095,13 +1092,13 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio)
 	pcb->prio = prio;
 	pcb->snd_buf = pcb->max_snd_buff;
 	pcb->snd_queuelen = 0;
-	pcb->rcv_wnd = TCP_WND_SCALED;
-	pcb->rcv_ann_wnd = TCP_WND_SCALED;
-	pcb->rcv_wnd_max = TCP_WND_SCALED;
 #if TCP_RCVSCALE
 	pcb->snd_scale = 0;
-  	pcb->rcv_scale = 0;
+  	pcb->rcv_scale = rcv_wnd_scale;
 #endif
+	pcb->rcv_wnd = TCP_WND_SCALED(pcb);
+	pcb->rcv_ann_wnd = TCP_WND_SCALED(pcb);
+	pcb->rcv_wnd_max = TCP_WND_SCALED(pcb);
 	pcb->tos = 0;
 	pcb->ttl = TCP_TTL;
 	/* As initial send MSS, we use TCP_MSS but limit it to 536.

@@ -367,13 +367,6 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
     /* inherit socket options */
     npcb->so_options = pcb->so_options & SOF_INHERITED;
 
-    /* Register the new PCB so that we can begin receiving segments
-     for it. */
-    TCP_EVENT_SYN_RECEIVED(pcb, npcb, ERR_OK, rc);
-    if (rc != ERR_OK) {
-          return rc;
-    }
-
     #if TCP_RCVSCALE
       npcb->snd_scale = 0;
       npcb->rcv_scale = 0;
@@ -381,6 +374,11 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
 
     /* Parse any options in the SYN. */
     tcp_parseopt(npcb, in_data);
+
+  	npcb->rcv_wnd = TCP_WND_SCALED(npcb);
+  	npcb->rcv_ann_wnd = TCP_WND_SCALED(npcb);
+  	npcb->rcv_wnd_max = TCP_WND_SCALED(npcb);
+
 #if TCP_RCVSCALE
      npcb->snd_wnd = SND_WND_SCALE(npcb, in_data->tcphdr->wnd);
      npcb->snd_wnd_max = npcb->snd_wnd;
@@ -389,6 +387,13 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
 #if TCP_CALCULATE_EFF_SEND_MSS
     npcb->advtsd_mss = npcb->mss = tcp_eff_send_mss(npcb->mss, &(npcb->remote_ip));
 #endif /* TCP_CALCULATE_EFF_SEND_MSS */
+
+    /* Register the new PCB so that we can begin sending segments
+     for it. */
+    TCP_EVENT_SYN_RECEIVED(pcb, npcb, ERR_OK, rc);
+    if (rc != ERR_OK) {
+          return rc;
+    }
 
     /* Send a SYN|ACK together with the MSS option. */
     rc = tcp_enqueue_flags(npcb, TCP_SYN | TCP_ACK);
