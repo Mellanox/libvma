@@ -2958,7 +2958,7 @@ int sockinfo_tcp::getsockopt(int __level, int __optname, void *__optval,
 {
 	int ret = 0;
 
-	if (mce_sys.avoid_sys_calls_on_tcp_fd && is_connected()) {
+	if (is_connected()) {
 		ret = getsockopt_offload(__level, __optname, __optval, __optlen);
 		if (ret != SOCKOPT_NO_OFFLOAD_SUPPORT)
 			return ret;
