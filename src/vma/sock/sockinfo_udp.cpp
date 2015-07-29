@@ -1114,6 +1114,7 @@ ssize_t sockinfo_udp::rx(const rx_call_t call_type, iovec* p_iov,ssize_t sz_iov,
 		m_lock_rcv.unlock();
 	}
 
+wait:
 	/*
 	 * We (probably) do not have a ready packet.
 	 * Wait for RX to become ready.
@@ -1123,10 +1124,15 @@ ssize_t sockinfo_udp::rx(const rx_call_t call_type, iovec* p_iov,ssize_t sz_iov,
 	m_lock_rcv.lock();
 
 	if (likely(rx_wait_ret == 0)) {
-		// Got 0, means we must have a ready packet
-		if (__msg) handle_cmsg(__msg);
-		ret = dequeue_packet(p_iov, sz_iov, (sockaddr_in *)__from, __fromlen, p_flags);
-		goto out;
+		// Got 0, means we might have a ready packet
+		if (m_n_rx_pkt_ready_list_count > 0) {
+			if (__msg) handle_cmsg(__msg);
+			ret = dequeue_packet(p_iov, sz_iov, (sockaddr_in *)__from, __fromlen, p_flags);
+			goto out;
+		} else {
+			m_lock_rcv.unlock();
+			goto wait;
+		}
 	}
 	else if (unlikely(rx_wait_ret < 0)) {
 		// Got < 0, means an error occurred
