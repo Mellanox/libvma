@@ -320,7 +320,7 @@ void sockinfo_tcp::handle_socket_linger() {
 	long int linger_time_usec;
 	int poll_cnt = 0;
 
-	linger_time_usec = (!m_linger.l_onoff || !m_b_blocking) ? 0 : m_linger.l_linger * USEC_PER_SEC;
+	linger_time_usec = (!m_linger.l_onoff /*|| !m_b_blocking */) ? 0 : m_linger.l_linger * USEC_PER_SEC;
 	si_tcp_logdbg("Going to linger for max time of %lu usec", linger_time_usec);
 	memset(&elapsed, 0,sizeof(elapsed));
 	gettime(&start);
@@ -332,9 +332,9 @@ void sockinfo_tcp::handle_socket_linger() {
 	}
 
 	if (m_linger.l_onoff && (m_pcb.unsent || m_pcb.unacked)) {
-		if (m_linger.l_linger > 0 && !m_b_blocking) {
+		if (m_linger.l_linger > 0  /*&& m_b_blocking*/) {
 			errno = ERR_WOULDBLOCK;
-		} else {
+		} else if (m_linger.l_linger == 0) {
 			abort_connection();
 		}
 	}
@@ -2580,9 +2580,6 @@ int sockinfo_tcp::shutdown(int __how)
 			abort_connection();
 		} else {
 			err = tcp_shutdown(&m_pcb, shut_rx, shut_tx);
-			if (shut_tx && get_tcp_state(&m_pcb) != LISTEN) {
-				handle_socket_linger();
-			}
 		}
 	}
 
