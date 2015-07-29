@@ -521,7 +521,7 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
     /* received SYN ACK with expected sequence number? */
     if ((in_data->flags & TCP_ACK) && (in_data->flags & TCP_SYN)
         && in_data->ackno == pcb->unacked->seqno + 1) {
-      pcb->snd_buf++;
+      // pcb->snd_buf++; SND_BUF_FOR_SYN_FIN
       pcb->rcv_nxt = in_data->seqno + 1;
       pcb->rcv_ann_right_edge = pcb->rcv_nxt;
       pcb->lastack = in_data->ackno;
