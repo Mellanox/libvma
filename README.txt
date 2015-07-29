@@ -184,7 +184,6 @@ Example:
  VMA DEBUG  : MTU                            1500                       [VMA_MTU]
  VMA DEBUG  : MSS                            0 (follow VMA_MTU)         [VMA_MSS]
  VMA DEBUG  : TCP CC Algorithm               0 (LWIP)                   [VMA_TCP_CC_ALGO]
- VMA DEBUG  : TCP scaling window             3                          [VMA_WINDOW_SCALING]
  VMA DEBUG  : Suppress IGMP ver. warning     Disabled                   [VMA_SUPPRESS_IGMP_WARNING]
  VMA INFO   : ---------------------------------------------------------------------------
 
@@ -768,17 +767,6 @@ The new Cubic algorithm was adapted from FreeBsd implementation.
 Use value of 0 for LWIP algorithm.
 Use value of 1 for the Cubic algorithm.
 Default value is 0 (LWIP).
-
-VMA_WINDOW_SCALING
-TCP scaling window. 
-This value (factor range from 0 to 14, -1 to disable, -2 to use OS value) set
-the factor in which the TCP window is scaled.
-Factor of 0 allow using the tcp scaling window of the remote host, while not
-changing the window of the local host. 
-Value of -1 disable both direction.
-Value of -2 use the OS maximum receive buffer value to calculate the factor.
-Make sure that VMA buffers are big enough to support the window.
-Default value is 3 
 
 VMA_TCP_MAX_SYN_FIN_RATE
 Limit the number of TCP control packets (TCP SYN/FIN/RST packets) that VMA will handle

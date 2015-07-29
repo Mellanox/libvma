@@ -605,7 +605,6 @@ void print_vma_global_settings()
 		VLOG_PARAM_NUMBER("MSS", mce_sys.lwip_mss, MCE_DEFAULT_MSS, SYS_VAR_MSS);	break;
 	}
 	VLOG_PARAM_NUMSTR("TCP CC Algorithm", mce_sys.lwip_cc_algo_mod, MCE_DEFAULT_LWIP_CC_ALGO_MOD, SYS_VAR_TCP_CC_ALGO, lwip_cc_algo_str(mce_sys.lwip_cc_algo_mod));
-	VLOG_PARAM_NUMBER("TCP scaling window", mce_sys.window_scaling, MCE_DEFAULT_WINDOW_SCALING, SYS_VAR_WINDOW_SCALING);
 	VLOG_PARAM_STRING("Suppress IGMP ver. warning", mce_sys.suppress_igmp_warning, MCE_DEFAULT_SUPPRESS_IGMP_WARNING, SYS_VAR_SUPPRESS_IGMP_WARNING, mce_sys.suppress_igmp_warning ? "Enabled " : "Disabled");
 
 #ifdef VMA_TIME_MEASURE
@@ -752,7 +751,6 @@ void get_env_params()
 	mce_sys.mtu			= MCE_DEFAULT_MTU;
 	mce_sys.lwip_mss		= MCE_DEFAULT_MSS;
 	mce_sys.lwip_cc_algo_mod	= MCE_DEFAULT_LWIP_CC_ALGO_MOD;
-	mce_sys.window_scaling		= MCE_DEFAULT_WINDOW_SCALING;
 	mce_sys.mce_spec		= 0;
 	mce_sys.mce_spec_param1		= 1;
 	mce_sys.mce_spec_param2		= 1;
@@ -1224,14 +1222,6 @@ void get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_TCP_CC_ALGO)) != NULL)
 		mce_sys.lwip_cc_algo_mod = (uint32_t)atoi(env_ptr);
-
-	if ((env_ptr = getenv(SYS_VAR_WINDOW_SCALING)) != NULL) {
-		mce_sys.window_scaling = (int32_t)atoi(env_ptr);
-		if(mce_sys.window_scaling > MAX_WINDOW_SCALING){
-			mce_sys.window_scaling = MAX_WINDOW_SCALING;
-			vlog_printf(VLOG_WARNING, "Window scaling is limited to %d. The value of '%s' is set to %d.\n", MAX_WINDOW_SCALING, SYS_VAR_WINDOW_SCALING, MAX_WINDOW_SCALING);
-		}
-	}
 
 #ifdef VMA_TIME_MEASURE
 	if ((env_ptr = getenv(SYS_VAR_VMA_TIME_MEASURE_NUM_SAMPLES)) != NULL) {

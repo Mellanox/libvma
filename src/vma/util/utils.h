@@ -193,12 +193,15 @@ int get_if_mtu_from_ifname(const char* ifname, bool use_base_if);
 int get_igmp_max_membership();
 
 /**
- * Get the OS TCP window scaling factor.
+ * Get the OS TCP window scaling factor when tcp_window_scaling is enabled.
  * The value is calculated from the maximum receive buffer value.
  *
- * @return TCP window scaling factor, or -1 for disabled or failures
+ * @param tcp_rmem_max the maximum size of the receive buffer used by each TCP socket
+ * @parma core_rmem_max contains the maximum socket receive buffer size in bytes which a user may set by using the SO_RCVBUF socket option.
+ *
+ * @return TCP window scaling factor
  */
-int get_window_scaling_factor();
+int get_window_scaling_factor(int tcp_rmem_max, int core_rmem_max);
 
 /**
  * Get Ethernet ipv4 address from interface name

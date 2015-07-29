@@ -210,7 +210,6 @@ struct mce_sys_var {
 	uint32_t 	mtu;
 	uint32_t	lwip_cc_algo_mod;
 	uint32_t 	lwip_mss;
-	int32_t 	window_scaling;
 	char		internal_thread_cpuset[FILENAME_MAX];
 	char		internal_thread_affinity_str[CPU_SETSIZE/4];
 	cpu_set_t	internal_thread_affinity;
@@ -318,7 +317,6 @@ struct mce_sys_var {
 #define SYS_VAR_TCP_MAX_SYN_FIN_RATE			"VMA_TCP_MAX_SYN_FIN_RATE"
 #define SYS_VAR_MSS					"VMA_MSS"
 #define SYS_VAR_TCP_CC_ALGO					"VMA_TCP_CC_ALGO"
-#define SYS_VAR_WINDOW_SCALING				"VMA_WINDOW_SCALING"
 #define SYS_VAR_SPEC					"VMA_SPEC"
 #define SYS_VAR_SPEC_PARAM1				"VMA_SPEC_PARAM1"
 #define SYS_VAR_SPEC_PARAM2				"VMA_SPEC_PARAM2"
@@ -426,7 +424,6 @@ struct mce_sys_var {
 #define MCE_DEFAULT_MTU					(1500)
 #define MCE_DEFAULT_MSS					(0)
 #define MCE_DEFAULT_LWIP_CC_ALGO_MOD			(0)
-#define MCE_DEFAULT_WINDOW_SCALING			(3)
 #define MCE_DEFAULT_QP_LOGIC				(QP_ALLOC_LOGIC__SINGLE_QP_PER_PORT_PER_LOCAL_IP)
 #define MCE_DEFAULT_CQ_LOGIC				(CQ_ALLOC_LOGIC__CQ_PER_HCA)
 #define MCE_DEFAULT_INTERNAL_THREAD_AFFINITY		(-1)
@@ -494,8 +491,6 @@ struct mce_sys_var {
 
 #define MAX_STATS_FD_NUM				1024
 #define UNSENT_QUEUEU_SIZE				1024
-#define DISABLE_WINDOW_SCALING				(-1)
-#define USE_OS_WINDOW_SCALING				(-2)
 #define MAX_WINDOW_SCALING				14
 
 /**

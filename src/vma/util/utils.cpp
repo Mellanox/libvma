@@ -452,42 +452,18 @@ int get_igmp_max_membership()
 	return igmp_max_membership_value;
 }
 
-int get_window_scaling_factor()
+int get_window_scaling_factor(int tcp_rmem_max, int core_rmem_max)
 {
-	__log_func("find OS tcp scaling window factor");
+	__log_func("calculate OS tcp scaling window factor");
 
-	char window_scaling_filename[100];
-	char rmem_max_filename[100];
-	char window_scaling_value_str[32];
-	char rmem_max_value_str[32];
-	int rmem_max_value = 0;
-	int window_scaling_value = 0;
 	int scaling_factor = 0;
+	int space = MAX(tcp_rmem_max, core_rmem_max);
 
-	sprintf(window_scaling_filename, TCP_SCALING_WINDOW_FILE);
-	if (priv_read_file(window_scaling_filename, window_scaling_value_str, sizeof(window_scaling_value_str)) > 0) {
-		window_scaling_value = atoi(window_scaling_value_str);
-		if (window_scaling_value <= 0){
-			__log_dbg("TCP scaling window factor is set to -1 (disabled)");
-			return -1;
-		}
-	} else {
-		__log_dbg("Could not read tcp scaling window file = %s, disabling tcp window scaling",window_scaling_filename);
-		return -1;
+	while (space > 0xffff && scaling_factor < MAX_WINDOW_SCALING) {
+		space >>= 1;
+		scaling_factor++;
 	}
-	sprintf(rmem_max_filename, TCP_SCALING_WINDOW_MAX_RECV_MEM_FILE);
-	if (priv_read_file(rmem_max_filename, rmem_max_value_str, sizeof(rmem_max_value_str)) > 0) {
-		rmem_max_value = atoi(rmem_max_value_str);
-		if (rmem_max_value <= 0xffff) {
-			__log_dbg("TCP scaling window factor is set to 0");
-			return 0;
-		} else {
-			scaling_factor = MIN((int)log2((double)(rmem_max_value/0xffff)) + 1, 14);
-		}
-	} else {
-		__log_dbg("Could not read max recv memory file = %s for tcp scaling window factor. Setting tcp window scaling factor to 0.",rmem_max_filename);
-		return 0;
-	}
+
 	__log_dbg("TCP scaling window factor is set to %d", scaling_factor);
 	return scaling_factor;
 }
