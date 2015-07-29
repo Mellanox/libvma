@@ -11,7 +11,7 @@
 
 %define lib_dir /usr/share/%{name}-%{vma_ver}-%{release}
 
-%if %{distribution}==suse
+%if "%{distribution}"=="suse"
 %define os_release %(VER_MAJOR="`cat /etc/SuSE-release | grep VERSION | awk -F "= " ' { print $2 }'`" ; echo "sles${VER_MAJOR}")
 %define doc_dir /usr/share/doc/packages/%{name}-%{vma_ver}-%{release}
 %else
