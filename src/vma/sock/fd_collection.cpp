@@ -79,6 +79,11 @@ fd_collection::~fd_collection()
 
 	delete [] m_p_cq_channel_map;
 	m_p_cq_channel_map = NULL;
+
+	// TODO: check if NOT empty - apparently one of them contains 1 element according to debug printout from ~vma_list_t
+	m_epfd_lst.clear_without_cleanup();
+	m_pendig_to_remove_lst.clear_without_cleanup();
+
 }
 
 //Triggers connection close of all handled fds.

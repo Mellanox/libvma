@@ -208,6 +208,14 @@ public:
 		list_counter--;
 	}
 
+	/**
+	 * Clear content
+	 * Removes all elements from the list container (which are NOT destroyed), and leaving the container with a size of 0.
+	 */
+	void clear_without_cleanup() {
+		init_list();
+	}
+
 	void push_back(T* obj){
 		if (unlikely(!obj)) {
 			vlog_printf(VLOG_WARNING,"vma_list_t.push_back() got NULL object - ignoring.\n");
