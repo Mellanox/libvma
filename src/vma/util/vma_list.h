@@ -34,10 +34,10 @@ public :
 	T *obj_ptr;
 
 #if _VMA_LIST_DEBUG
-	vma_list_t<T>* list;
+	vma_list_t<T>* parent;
 
 	char* list_id(){
-		return this->list->list_id();
+		return this->parent->list_id();
 	}
 
 #endif
@@ -48,7 +48,7 @@ public :
 		this->obj_ptr = NULL;
 
 	#if _VMA_LIST_DEBUG
-		list = NULL;
+		parent = NULL;
 	#endif
 	}
 
@@ -144,19 +144,19 @@ public:
 
 	~vma_list_t() {
 		if (! empty()) {
-			vlog_printf(VLOG_WARNING,"vma_list_t destructor is not supported for non-empty list (list_counter=%d).\n", (int)list_counter);
+			vlog_printf(VLOG_WARNING,"vma_list_t destructor is not supported for non-empty list (list_counter=%d).\n", (int)m_size);
 		}
 	}
 
 	vma_list_t(const vma_list_t& other) {
 		if (!other.empty())
-			vlog_printf(VLOG_WARNING,"vma_list_t copy constructor is not supported for non-empty list (other.list_counter=%d).\n", (int)other.list_counter);
+			vlog_printf(VLOG_WARNING,"vma_list_t copy constructor is not supported for non-empty list (other.list_counter=%d).\n", (int)other.m_size);
 		init_list();
 	}
 
 	vma_list_t& operator=(const vma_list_t& other) {
 		if (!empty() || !other.empty())
-			vlog_printf(VLOG_WARNING,"vma_list_t operator= is not supported for non-empty list (list_counter=%d, other.list_counter=%d).\n", (int)list_counter, (int)other.list_counter);
+			vlog_printf(VLOG_WARNING,"vma_list_t operator= is not supported for non-empty list (list_counter=%d, other.list_counter=%d).\n", (int)m_size, (int)other.m_size);
 		if (this != &other) {
 			init_list();
 		}
@@ -168,23 +168,23 @@ public:
 	}
 
 	inline bool empty() const {
-		return list_counter == 0;
+		return m_size == 0;
 	}
 
 	inline size_t size(){
-		return list_counter;
+		return m_size;
 	}
 
 	T* front() {
 		if (unlikely(empty()))
 			return NULL;
-		return ((list_node<T> *)list_t.head.next)->obj_ptr;
+		return ((list_node<T> *)m_list.head.next)->obj_ptr;
 	}
 
 	T* back() {
 		if (unlikely(empty()))
 			return NULL;
-		return ((list_node<T> *)list_t.head.prev)->obj_ptr;
+		return ((list_node<T> *)m_list.head.prev)->obj_ptr;
 	}
 
 	void pop_front(){
@@ -201,10 +201,10 @@ public:
 			return;
 		}
 	#if _VMA_LIST_DEBUG
-		obj->node.list = NULL;
+		obj->node.parent = NULL;
 	#endif
 		list_del_init(&obj->node.head);
-		list_counter--;
+		m_size--;
 	}
 
 	/**
@@ -228,12 +228,12 @@ public:
 		#endif
 		}
 	#if _VMA_LIST_DEBUG
-		obj->node.list = this;
+		obj->node.parent = this;
 	#endif
 
 		obj->node.obj_ptr = obj;
-		list_add_tail(&obj->node.head, &list_t.head);
-		list_counter++;
+		list_add_tail(&obj->node.head, &m_list.head);
+		m_size++;
 	}
 
 	void push_front(T* obj){
@@ -250,18 +250,18 @@ public:
 		}
 
 	#if _VMA_LIST_DEBUG
-		obj->node.list = this;
+		obj->node.parent = this;
 	#endif
 		obj->node.obj_ptr = obj;
-		list_add(&obj->node.head, &list_t.head);
-		list_counter++;
+		list_add(&obj->node.head, &m_list.head);
+		m_size++;
 	}
 
 	T* get(size_t index) {
-		if (list_counter <= index) {
+		if (m_size <= index) {
 			return NULL;
 		} else {
-			list_head* ans = list_t.head.next;
+			list_head* ans = m_list.head.next;
 			for (size_t i = 0 ; i < index ; i++){
 				ans = ans->next;
 			}
@@ -272,16 +272,16 @@ public:
 	// concatenate 'from' at the head of this list
 	void splice_head(vma_list_t & from) {
 
-		this->list_counter += from.list_counter;
-		list_splice(&from.list_t.head, &this->list_t.head);
+		this->m_size += from.m_size;
+		list_splice(&from.m_list.head, &this->m_list.head);
 		from.init_list();
 		// TODO: in case _VMA_LIST_DEBUG, this invalidates parent list of all nodes in the list
 	}
 
 	// concatenate 'from' at the tail of this list
 	void splice_tail(vma_list_t & from) {
-		this->list_counter += from.list_counter;
-		list_splice_tail(&from.list_t.head, &this->list_t.head);
+		this->m_size += from.m_size;
+		list_splice_tail(&from.m_list.head, &this->m_list.head);
 		from.init_list();
 		// TODO: in case _VMA_LIST_DEBUG, this invalidates parent list of all nodes in the list
 	}
@@ -317,8 +317,8 @@ public:
 
 private:
 
-	list_node<T> list_t;
-	size_t list_counter;
+	list_node<T> m_list;
+	size_t m_size;
 
 #if _VMA_LIST_DEBUG
 	char id[ID_MAX_SIZE];
@@ -326,14 +326,14 @@ private:
 
 	void move_to_empty(vma_list_t & to) {
 		assert(to.empty());
-		to.list_counter   = this->list_counter;
-		list_splice_tail(&this->list_t.head, &to.list_t.head);
+		to.m_size   = this->m_size;
+		list_splice_tail(&this->m_list.head, &to.m_list.head);
 		this->init_list();
 		// TODO: in case _VMA_LIST_DEBUG, this invalidates parent list of all nodes in the list
 	}
 	void init_list(){
-		list_counter = 0;
-		INIT_LIST_HEAD(&list_t.head);
+		m_size = 0;
+		INIT_LIST_HEAD(&m_list.head);
 	#if _VMA_LIST_DEBUG
 		id[0] = '\0';
 	#endif
