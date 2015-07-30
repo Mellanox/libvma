@@ -120,7 +120,16 @@ const char* priv_vma_transport_type_str(transport_type_t trans_type);
 
 /** 
  * Read a sysfs param from file detailed in 'path' and read the 
- * value stored in the file into the 'buf' up to 'size' 
+ * value stored in the file into the 'buf' up to 'size'.
+ * print debug message in case of failure.
+ * @return length of data stored in buf
+ */
+int priv_try_read_file(const char *path, char *buf, size_t size);
+
+/**
+ * Read a sysfs param from file detailed in 'path' and read the
+ * value stored in the file into the 'buf' up to 'size'.
+ * print error in case of failure.
  * @return length of data stored in buf
  */
 int priv_read_file(const char *path, char *buf, size_t size);

@@ -241,6 +241,21 @@ const char* priv_vma_transport_type_str(transport_type_t transport_type)
 	BULLSEYE_EXCLUDE_BLOCK_END
 }
 
+int priv_try_read_file(const char *path, char *buf, size_t size)
+{
+	int len = -1;
+	int fd = orig_os_api.open(path, O_RDONLY);
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (fd < 0) {
+		__log_dbg("failed opening file %s", path);
+		return -1;
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+	len = orig_os_api.read(fd, buf, size);
+	orig_os_api.close(fd);
+	return len;
+}
+
 int priv_read_file(const char *path, char *buf, size_t size)
 {
 	int len = -1;

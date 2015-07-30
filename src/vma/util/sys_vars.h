@@ -470,6 +470,7 @@ struct mce_sys_var {
 #define IFADDR_MTU_PARAM_FILE				"/sys/class/net/%s/mtu"
 #define UMCAST_PARAM_FILE				"/sys/class/net/%s/umcast"
 #define IPOIB_MODE_PARAM_FILE				"/sys/class/net/%s/mode"
+#define VERBS_DEVICE_PORT_PARAM_FILE			"/sys/class/net/%s/dev_port"
 #define VERBS_DEVICE_ID_PARAM_FILE			"/sys/class/net/%s/dev_id"
 #define VERBS_DEVICE_RESOURCE_PARAM_FILE		"/sys/class/net/%s/device/resource"
 #define BONDING_MODE_PARAM_FILE				"/sys/class/net/%s/bonding/mode"

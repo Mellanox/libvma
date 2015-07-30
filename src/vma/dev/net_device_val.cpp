@@ -181,8 +181,11 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 				m_slaves[i]->p_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(pp_ibv_context_list[j]);
 				char num_buf[24] = {0};
 				char dev_id_path[256] = {0};
-				sprintf(dev_id_path, VERBS_DEVICE_ID_PARAM_FILE, base_ifname);
-				priv_read_file(dev_id_path, num_buf, 24);
+				sprintf(dev_id_path, VERBS_DEVICE_PORT_PARAM_FILE, base_ifname);
+				if (priv_try_read_file(dev_id_path, num_buf, 24) <= 0) {
+					sprintf(dev_id_path, VERBS_DEVICE_ID_PARAM_FILE, base_ifname);
+					priv_read_file(dev_id_path, num_buf, 24);
+				}
 				int port_num;
 				char *endptr;
 				port_num = strtol(num_buf, &endptr, 16);
