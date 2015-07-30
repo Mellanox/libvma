@@ -142,26 +142,32 @@ public:
 		}
 	}
 
-	vma_list_t(const vma_list_t& obj) {
-		vlog_printf(VLOG_WARNING,"vma_list_t copy constructor is not supported, initialize an empty list.\n");
-		list_counter = obj.list_counter;
+	~vma_list_t() {
+		if (! empty())
+			vlog_printf(VLOG_WARNING,"vma_list_t destructor is not supported for non-empty list (list_counter=%d).\n", (int)list_counter);
+	}
+
+	vma_list_t(const vma_list_t& other) {
+		if (!other.empty())
+			vlog_printf(VLOG_WARNING,"vma_list_t copy constructor is not supported for non-empty list (other.list_counter=%d).\n", (int)other.list_counter);
 		init_list();
 	}
 
 	vma_list_t& operator=(const vma_list_t& other) {
-		vlog_printf(VLOG_WARNING,"vma_list_t operator= is not supported, initialize an empty list.\n");
-	    if (this != &other) {
-	    	init_list();
-	    }
-	    return *this;
+		if (!empty() || !other.empty())
+			vlog_printf(VLOG_WARNING,"vma_list_t operator= is not supported for non-empty list (list_counter=%d, other.list_counter=%d).\n", (int)list_counter, (int)other.list_counter);
+		if (this != &other) {
+			init_list();
+		}
+		return *this;
 	}
 
 	T* operator[](size_t idx) {
 		return get(idx);
 	}
 
-	inline bool empty(){
-		return list_empty(&list_t.head);
+	inline bool empty() const {
+		return list_counter == 0;
 	}
 
 	inline size_t size(){
@@ -284,7 +290,6 @@ private:
 		id[0] = '\0';
 	#endif
 	}
-
 };
 
 #endif /* VMA_LIST */
