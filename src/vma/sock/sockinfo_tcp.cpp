@@ -113,8 +113,7 @@ sockinfo_tcp::sockinfo_tcp(int fd) :
 	m_received_syn_num = 0;
 	m_vma_thr = false;
 
-	m_backlog = INT_MAX; // init with no limit
-	m_num_syn_in_rx_ctl_list = 0;
+	m_backlog = INT_MAX;
 	report_connected = false;
 
 	m_call_orig_close_on_dtor = 0;
@@ -168,9 +167,9 @@ sockinfo_tcp::~sockinfo_tcp()
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	if (m_n_rx_pkt_ready_list_count || m_rx_ready_byte_count || m_rx_pkt_ready_list.size() || m_rx_ring_map.size() || m_rx_reuse_buff.n_buff_num || m_rx_reuse_buff.rx_reuse.size() || m_rx_cb_dropped_list.size() || m_rx_ctl_packets_list.size() || m_rx_ctl_reuse_list.size())
-		si_tcp_logerr("not all buffers were freed. protocol=TCP. m_n_rx_pkt_ready_list_count=%d, m_rx_ready_byte_count=%d, m_rx_pkt_ready_list.size()=%d, m_rx_ring_map.size()=%d, m_rx_reuse_buff.n_buff_num=%d, m_rx_reuse_buff.rx_reuse.size=%d, m_rx_cb_dropped_list.size=%d, m_rx_ctl_packets_list.size=%d, m_rx_ctl_reuse_list.size=%d",
-				m_n_rx_pkt_ready_list_count, m_rx_ready_byte_count, (int)m_rx_pkt_ready_list.size() ,(int)m_rx_ring_map.size(), m_rx_reuse_buff.n_buff_num, m_rx_reuse_buff.rx_reuse.size(), m_rx_cb_dropped_list.size(), m_rx_ctl_packets_list.size(), m_rx_ctl_reuse_list.size());
+	if (m_n_rx_pkt_ready_list_count || m_rx_ready_byte_count || m_rx_pkt_ready_list.size() || m_rx_ring_map.size() || m_rx_reuse_buff.n_buff_num || m_rx_reuse_buff.rx_reuse.size() || m_rx_cb_dropped_list.size() || m_rx_ctl_packets_list.size() || m_rx_peer_packets.size() || m_rx_ctl_reuse_list.size())
+		si_tcp_logerr("not all buffers were freed. protocol=TCP. m_n_rx_pkt_ready_list_count=%d, m_rx_ready_byte_count=%d, m_rx_pkt_ready_list.size()=%d, m_rx_ring_map.size()=%d, m_rx_reuse_buff.n_buff_num=%d, m_rx_reuse_buff.rx_reuse.size=%d, m_rx_cb_dropped_list.size=%d, m_rx_ctl_packets_list.size=%d, m_rx_peer_packets.size=%d, m_rx_ctl_reuse_list.size=%d",
+				m_n_rx_pkt_ready_list_count, m_rx_ready_byte_count, (int)m_rx_pkt_ready_list.size() ,(int)m_rx_ring_map.size(), m_rx_reuse_buff.n_buff_num, m_rx_reuse_buff.rx_reuse.size(), m_rx_cb_dropped_list.size(), m_rx_ctl_packets_list.size(), m_rx_peer_packets.size(), m_rx_ctl_reuse_list.size());
 
 	si_tcp_logdbg("sock closed");
 }
@@ -277,6 +276,18 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 		m_rx_ctl_packets_list_lock.unlock();
 		reuse_buffer(p_rx_pkt_desc);
 	}
+
+	for (peer_map_t::iterator itr = m_rx_peer_packets.begin(); itr != m_rx_peer_packets.end(); ++itr) {
+		vma_desc_list_t &peer_packets = itr->second;
+		// loop on packets of a peer
+		while (!peer_packets.empty()) {
+			// get packet from list and reuse them
+			mem_buf_desc_t* desc = peer_packets.front();
+			peer_packets.pop_front();
+			reuse_buffer(desc);
+		}
+	}
+	m_rx_peer_packets.clear();
 
 	while (!m_rx_ctl_reuse_list.empty()) {
 		mem_buf_desc_t* p_rx_pkt_desc = m_rx_ctl_reuse_list.front();
@@ -804,54 +815,132 @@ void sockinfo_tcp::err_lwip_cb(void *pcb_container, err_t err)
 	conn->do_wakeup();
 }
 
-void sockinfo_tcp::process_rx_ctl_packets()
+bool sockinfo_tcp::process_peer_ctl_packets(vma_desc_list_t &peer_packets)
 {
-	si_tcp_logfunc("");
+	// 2.1 loop on packets of a peer
+	while (!peer_packets.empty()) {
+		// 2.1.1 get packet from list and find its pcb
+		mem_buf_desc_t* desc = peer_packets.front();
 
-	while (!m_rx_ctl_packets_list.empty() && m_syn_received.size() < (size_t)m_backlog) {
 		if (m_tcp_con_lock.trylock()) {
-			return;
+			return false;
 		}
-		m_rx_ctl_packets_list_lock.lock();
-		mem_buf_desc_t* desc = m_rx_ctl_packets_list.front();
-		m_rx_ctl_packets_list_lock.unlock();
+
 		struct tcp_pcb *pcb = get_syn_received_pcb(desc->path.rx.src.sin_addr.s_addr,
 				desc->path.rx.src.sin_port,
 				desc->path.rx.dst.sin_addr.s_addr,
 				desc->path.rx.dst.sin_port);
+
+		// 2.1.2 get the pcb and sockinfo
 		if (!pcb) {
 			pcb = &m_pcb;
 		}
-
 		sockinfo_tcp *sock = (sockinfo_tcp*)pcb->my_container;
 
-		if (sock != this) {
+		if (sock == this) { // my socket - consider the backlog for the case I am listen socket
+			if (m_syn_received.size() >= (size_t)m_backlog && desc->path.rx.p_tcp_h->syn) {
+				m_tcp_con_lock.unlock();
+				break; // skip to next peer
+			}
+		}
+		else { // child socket from a listener context - switch to child lock
 			m_tcp_con_lock.unlock();
 			if (sock->m_tcp_con_lock.trylock()) {
-				return;
+				break; // skip to next peer
 			}
 		}
 
-		m_rx_ctl_packets_list_lock.lock();
-		if (desc != m_rx_ctl_packets_list.front()) {
-			m_rx_ctl_packets_list_lock.unlock();
-			sock->m_tcp_con_lock.unlock();
-			return;
-		}
-		m_rx_ctl_packets_list.pop_front();
-		if(desc->path.rx.p_tcp_h->syn)
-			--m_num_syn_in_rx_ctl_list;
-		m_rx_ctl_packets_list_lock.unlock();
-
+		// 2.1.3 process the packet and remove it from list
+		peer_packets.pop_front();
 		sock->m_vma_thr = true;
+		// -- start loop
 		desc->inc_ref_count();
 		L3_level_tcp_input((pbuf *)desc, pcb);
+
 		if (desc->dec_ref_count() <= 1)
-			m_rx_ctl_reuse_list.push_back(desc);
+			sock->m_rx_ctl_reuse_list.push_back(desc); // under sock's lock
+		// -- end loop
 		sock->m_vma_thr = false;
 
 		sock->m_tcp_con_lock.unlock();
+
 	}
+	return true;
+}
+
+void sockinfo_tcp::process_my_ctl_packets()
+{
+	si_tcp_logfunc("");
+
+	// 0. fast swap of m_rx_ctl_packets_list with temp_list under lock
+	vma_desc_list_t temp_list;
+
+	m_rx_ctl_packets_list_lock.lock();
+	temp_list.splice_tail(m_rx_ctl_packets_list);
+	m_rx_ctl_packets_list_lock.unlock();
+
+
+	if (m_backlog == INT_MAX) { // this is a child - no need to demux packets
+		process_peer_ctl_packets(temp_list);
+
+		if (!temp_list.empty()) {
+			m_rx_ctl_packets_list_lock.lock();
+			m_rx_ctl_packets_list.splice_head(temp_list);
+			m_rx_ctl_packets_list_lock.unlock();
+		}
+		return;
+	}
+
+	// 1. demux packets in the listener list to map of list per peer (for child this will be skipped)
+	while (!temp_list.empty()) {
+		mem_buf_desc_t* desc = temp_list.front();
+		temp_list.pop_front();
+		peer_key pk(desc->path.rx.src.sin_addr.s_addr, desc->path.rx.src.sin_port);
+
+
+		// TODO: very temp - duplicated !!!!
+		static const unsigned int MAX_SYN_RCVD = mce_sys.tcp_ctl_thread ? 512 : 0; // TODO: consider reading it from /proc/sys/net/ipv4/tcp_max_syn_backlog
+		// NOTE: currently, in case tcp_ctl_thread is disabled, only established backlog is supported (no syn-rcvd backlog)
+		unsigned int num_con_waiting = m_rx_peer_packets.size();
+
+		if (num_con_waiting < MAX_SYN_RCVD) {
+			m_rx_peer_packets[pk].push_back(desc);
+		}
+		else { // map is full
+			peer_map_t::iterator iter = m_rx_peer_packets.find(pk);
+			if(iter != m_rx_peer_packets.end())
+			{
+				// entry already exists, we can concatenate our packet
+				iter->second.push_back(desc);
+			}
+			else {
+				// drop the packet
+				if (desc->dec_ref_count() <= 1) {
+					si_tcp_logdbg("CTL packet drop. established-backlog=%d (limit=%d) num_con_waiting=%d (limit=%d)",
+							(int)m_syn_received.size(), m_backlog, num_con_waiting, MAX_SYN_RCVD);
+					m_rx_ctl_reuse_list.push_back(desc);
+				}
+			}
+		}
+	}
+
+	// 2. loop on map of peers and process list of packets per peer
+	peer_map_t::iterator itr = m_rx_peer_packets.begin();
+	while (itr != m_rx_peer_packets.end()) {
+		vma_desc_list_t &peer_packets = itr->second;
+		if (!process_peer_ctl_packets(peer_packets))
+			return;
+		// prepare for next map iteration
+		if (peer_packets.empty())
+			m_rx_peer_packets.erase(itr++); // // advance itr before invalidating it by erase (itr++ returns the value before advance)
+		else
+			++itr;
+	}
+}
+
+void sockinfo_tcp::process_children_ctl_packets()
+{
+	// handle children
 	while (!m_ready_pcbs.empty()) {
 		if (m_tcp_con_lock.trylock()) {
 			return;
@@ -868,6 +957,7 @@ void sockinfo_tcp::process_rx_ctl_packets()
 			break;
 		}
 		sock->m_vma_thr = true;
+
 		while (!sock->m_rx_ctl_packets_list.empty()) {
 			sock->m_rx_ctl_packets_list_lock.lock();
 			if (sock->m_rx_ctl_packets_list.empty()) {
@@ -896,6 +986,10 @@ void sockinfo_tcp::process_rx_ctl_packets()
 
 		m_tcp_con_lock.unlock();
 	}
+}
+
+void sockinfo_tcp::process_reuse_ctl_packets()
+{
 	while (!m_rx_ctl_reuse_list.empty()) {
 		if (m_tcp_con_lock.trylock()) {
 			return;
@@ -905,6 +999,15 @@ void sockinfo_tcp::process_rx_ctl_packets()
 		reuse_buffer(desc);
 		m_tcp_con_lock.unlock();
 	}
+}
+
+void sockinfo_tcp::process_rx_ctl_packets()
+{
+	si_tcp_logfunc("");
+
+	process_my_ctl_packets();
+	process_children_ctl_packets();
+	process_reuse_ctl_packets();
 }
 
 //Execute TCP timers of this connection
@@ -1331,8 +1434,6 @@ void sockinfo_tcp::queue_rx_ctl_packet(struct tcp_pcb* pcb, mem_buf_desc_t *p_de
 
 	sock->m_rx_ctl_packets_list_lock.lock();
 	sock->m_rx_ctl_packets_list.push_back(p_desc);
-	if(p_desc->path.rx.p_tcp_h->syn)
-		++m_num_syn_in_rx_ctl_list;
 	sock->m_rx_ctl_packets_list_lock.unlock();
 
 	if (sock != this) {
@@ -1364,18 +1465,20 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 			static const unsigned int MAX_SYN_RCVD = mce_sys.tcp_ctl_thread ? 512 : 0; // TODO: consider reading it from /proc/sys/net/ipv4/tcp_max_syn_backlog
 							// NOTE: currently, in case tcp_ctl_thread is disabled, only established backlog is supported (no syn-rcvd backlog)
 
-			unsigned int num_syn_waiting = m_num_syn_in_rx_ctl_list;
+			unsigned int num_con_waiting = m_rx_peer_packets.size();
+
 			// 1st - check established backlog
-			if(num_syn_waiting > 0 || (m_syn_received.size() >= (size_t)m_backlog && p_rx_pkt_mem_buf_desc_info->path.rx.p_tcp_h->syn) ) {
+			if(num_con_waiting > 0 || (m_syn_received.size() >= (size_t)m_backlog && p_rx_pkt_mem_buf_desc_info->path.rx.p_tcp_h->syn) ) {
 				established_backlog_full = true;
 			}
 
 			// 2nd - check syn_rcvd backlog and drop packet accordingly
-			if ( p_rx_pkt_mem_buf_desc_info->path.rx.p_tcp_h->syn) {
-				if ( (MAX_SYN_RCVD == 0 && established_backlog_full) || (MAX_SYN_RCVD > 0 && num_syn_waiting >= MAX_SYN_RCVD) ) {
+			if ( (MAX_SYN_RCVD == 0 && established_backlog_full) || (MAX_SYN_RCVD > 0 && num_con_waiting >= MAX_SYN_RCVD) ) {
+				peer_key pk(p_rx_pkt_mem_buf_desc_info->path.rx.src.sin_addr.s_addr, p_rx_pkt_mem_buf_desc_info->path.rx.src.sin_port);
+				if (m_rx_peer_packets.find(pk) == m_rx_peer_packets.end()) {
 					// TODO: consider check if we can now drain into Q of established
-					si_tcp_logdbg("SYN/CTL packet drop. established-backlog=%d (limit=%d) num_syn_waiting=%d (limit=%d)",
-									(int)m_syn_received.size(), m_backlog, num_syn_waiting, MAX_SYN_RCVD);
+					si_tcp_logdbg("SYN/CTL packet drop. established-backlog=%d (limit=%d) num_con_waiting=%d (limit=%d)",
+							(int)m_syn_received.size(), m_backlog, num_con_waiting, MAX_SYN_RCVD);
 					unlock_tcp_con();
 					return false;// return without inc_ref_count() => packet will be dropped
 				}
@@ -1751,14 +1854,18 @@ int sockinfo_tcp::listen(int backlog)
 		si_tcp_logdbg("truncating listen backlog=%d to the maximun=%d", backlog, SOMAXCONN);
 		backlog = SOMAXCONN;
 	}
-	backlog = 10 + 2 * backlog; // allow grace, inspired by Linux
-
+	else if (backlog <= 0) {
+		si_tcp_logdbg("changing listen backlog=%d to the minimum=%d", backlog, 1);
+		backlog = 1;
+	}
+	if (backlog >= 5)
+		backlog = 10 + 2 * backlog; // allow grace, inspired by Linux
 
 	lock_tcp_con();
 
-
 	if (is_server()) {
-	// if listen is called again - only update the backlog
+		// if listen is called again - only update the backlog
+		// TODO: check if need to drop item in existing queues
 		m_backlog = backlog;
 		unlock_tcp_con();
 		return 0;
@@ -2074,20 +2181,22 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 
 	if (mce_sys.tcp_ctl_thread) {
 		new_sock->m_vma_thr = true;
+
+		// Before handling packets from flow steering the child should process everything it got from parent
 		while (!new_sock->m_rx_ctl_packets_list.empty()) {
+			vma_desc_list_t temp_list;
 			new_sock->m_rx_ctl_packets_list_lock.lock();
-			if (new_sock->m_rx_ctl_packets_list.empty()) {
-				new_sock->m_rx_ctl_packets_list_lock.unlock();
-				break;
-			}
-			mem_buf_desc_t* desc = new_sock->m_rx_ctl_packets_list.front();
-			new_sock->m_rx_ctl_packets_list.pop_front();
+			temp_list.splice_tail(new_sock->m_rx_ctl_packets_list);
 			new_sock->m_rx_ctl_packets_list_lock.unlock();
 
-			desc->inc_ref_count();
-			L3_level_tcp_input((pbuf *)desc, &new_sock->m_pcb);
-			if (desc->dec_ref_count() <= 1) //todo reuse needed?
-				new_sock->m_rx_ctl_reuse_list.push_back(desc);
+			while (!temp_list.empty()) {
+				mem_buf_desc_t* desc = temp_list.front();
+				temp_list.pop_front();
+				desc->inc_ref_count();
+				L3_level_tcp_input((pbuf *)desc, &new_sock->m_pcb);
+				if (desc->dec_ref_count() <= 1) //todo reuse needed?
+					new_sock->m_rx_ctl_reuse_list.push_back(desc);
+			}
 		}
 		new_sock->m_vma_thr = false;
 	}
@@ -2135,18 +2244,24 @@ void sockinfo_tcp::push_back_m_rx_pkt_ready_list(mem_buf_desc_t* buff){
 	m_rx_pkt_ready_list.push_back(buff);
 }
 
-struct tcp_pcb* sockinfo_tcp::get_syn_received_pcb(in_addr_t peer_ip, in_port_t peer_port, in_addr_t local_ip, in_port_t local_port)
+
+
+struct tcp_pcb* sockinfo_tcp::get_syn_received_pcb(const flow_tuple &key) const
 {
 	struct tcp_pcb* ret_val = NULL;
-	syn_received_map_t::iterator itr;
-
-	flow_tuple key(local_ip, local_port, peer_ip, peer_port, PROTO_TCP);
+	syn_received_map_t::const_iterator itr;
 
 	itr = m_syn_received.find(key);
 	if (itr != m_syn_received.end()) {
 		ret_val = itr->second;
 	}
 	return ret_val;
+}
+
+struct tcp_pcb* sockinfo_tcp::get_syn_received_pcb(in_addr_t peer_ip, in_port_t peer_port, in_addr_t local_ip, in_port_t local_port)
+{
+	flow_tuple key(local_ip, local_port, peer_ip, peer_port, PROTO_TCP);
+	return get_syn_received_pcb(key);
 }
 
 err_t sockinfo_tcp::clone_conn_cb(void *arg, struct tcp_pcb **newpcb, err_t err)

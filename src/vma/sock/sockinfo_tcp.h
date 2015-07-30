@@ -14,6 +14,7 @@
 #ifndef TCP_SOCKINFO_H
 #define TCP_SOCKINFO_H
 
+#include "vma/proto/peer_key.h"
 #include "vma/util/lock_wrapper.h"
 #include "vma/proto/mem_buf_desc.h"
 #include "vma/sock/socket_fd_api.h"
@@ -68,6 +69,8 @@ class sockinfo_tcp;
 typedef std::map<tcp_pcb*, int>		ready_pcb_map_t;
 typedef std::map<flow_tuple, tcp_pcb*>	syn_received_map_t;
 typedef vma_list_t<sockinfo_tcp>      accepted_conns_deque_t;
+typedef std::map<peer_key, vma_desc_list_t> peer_map_t;
+
 
 class sockinfo_tcp : public sockinfo, public timer_handler
 {
@@ -256,7 +259,7 @@ private:
 
 	lock_spin_recursive m_rx_ctl_packets_list_lock;
 	vma_desc_list_t m_rx_ctl_packets_list;
-	unsigned int m_num_syn_in_rx_ctl_list;
+	peer_map_t      m_rx_peer_packets;
 	vma_desc_list_t m_rx_ctl_reuse_list;
 	ready_pcb_map_t m_ready_pcbs;
 
@@ -331,6 +334,7 @@ private:
 	virtual	mem_buf_desc_t* get_next_desc_peek(mem_buf_desc_t *p_desc, int& rx_pkt_ready_list_idx);
 	virtual void 	post_deqeue(bool release_buff);
 	virtual int 	zero_copy_rx(iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags);
+	struct tcp_pcb* get_syn_received_pcb(const flow_tuple &key) const;
 	struct tcp_pcb* get_syn_received_pcb(in_addr_t src_addr, in_port_t src_port, in_addr_t dest_addr,
             							 in_port_t dest_port, int protocol, in_addr_t local_addr);
 
@@ -355,6 +359,10 @@ private:
 	inline void put_tcp_seg(struct tcp_seg * seg);
 
 	void queue_rx_ctl_packet(struct tcp_pcb* pcb, mem_buf_desc_t *p_desc);
+	bool process_peer_ctl_packets(vma_desc_list_t &peer_packets);
+	void process_my_ctl_packets();
+	void process_children_ctl_packets();
+	void process_reuse_ctl_packets();
 	void process_rx_ctl_packets();
 };
 

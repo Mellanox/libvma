@@ -145,7 +145,6 @@ public:
 	~vma_list_t() {
 		if (! empty()) {
 			vlog_printf(VLOG_WARNING,"vma_list_t destructor is not supported for non-empty list (list_counter=%d).\n", (int)list_counter);
-			printf_backtrace(); // temp
 		}
 	}
 
@@ -270,11 +269,20 @@ public:
 		}
 	}
 
-	// concatenate this at the tail of 'to'
-	void splice_tail(vma_list_t & to) {
-		to.list_counter   += this->list_counter;
-		list_splice_tail(&this->list_t.head, &to.list_t.head);
-		this->init_list();
+	// concatenate 'from' at the head of this list
+	void splice_head(vma_list_t & from) {
+
+		this->list_counter += from.list_counter;
+		list_splice(&from.list_t.head, &this->list_t.head);
+		from.init_list();
+		// TODO: in case _VMA_LIST_DEBUG, this invalidates parent list of all nodes in the list
+	}
+
+	// concatenate 'from' at the tail of this list
+	void splice_tail(vma_list_t & from) {
+		this->list_counter += from.list_counter;
+		list_splice_tail(&from.list_t.head, &this->list_t.head);
+		from.init_list();
 		// TODO: in case _VMA_LIST_DEBUG, this invalidates parent list of all nodes in the list
 	}
 
