@@ -260,6 +260,36 @@ public:
 		}
 	}
 
+	void move_to_empty(vma_list_t & to) {
+		assert(to.empty());
+
+		to.list_t.obj_ptr = this->list_t.obj_ptr;
+		to.list_counter   = this->list_counter;
+
+#if _VMA_LIST_DEBUG
+		memmove(to.id, this->id, ID_MAX_SIZE);
+		this->list_t.list.move_to_empty(to.list_t.list);
+#endif
+
+		list_splice(&this->list_t.head, &to.list_t.head);
+		this->init_list();
+	}
+
+	/**
+	 * Swap content
+	 * Exchanges the content of the container by the content of x, which is another list of the same type. Sizes may differ.
+	 *
+	 * After the call to this member function, the elements in this container are those which were in x before the call, and
+	 * the elements of x are those which were in this. All iterators, references and pointers remain valid for the swapped objects.
+	 */
+	void swap (vma_list_t& x) {
+
+		vma_list_t temp_list;
+		this->move_to_empty(temp_list);
+		x.move_to_empty(*this);
+		temp_list.move_to_empty(x);
+	}
+
 	list_iterator_t<T> begin(){
 		return list_iterator_t<T>(front());
 	}
