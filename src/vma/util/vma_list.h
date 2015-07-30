@@ -143,8 +143,10 @@ public:
 	}
 
 	~vma_list_t() {
-		if (! empty())
+		if (! empty()) {
 			vlog_printf(VLOG_WARNING,"vma_list_t destructor is not supported for non-empty list (list_counter=%d).\n", (int)list_counter);
+			printf_backtrace(); // temp
+		}
 	}
 
 	vma_list_t(const vma_list_t& other) {
@@ -260,19 +262,12 @@ public:
 		}
 	}
 
-	void move_to_empty(vma_list_t & to) {
-		assert(to.empty());
-
-		to.list_t.obj_ptr = this->list_t.obj_ptr;
-		to.list_counter   = this->list_counter;
-
-#if _VMA_LIST_DEBUG
-		memmove(to.id, this->id, ID_MAX_SIZE);
-		this->list_t.list.move_to_empty(to.list_t.list);
-#endif
-
-		list_splice(&this->list_t.head, &to.list_t.head);
+	// concatenate this at the tail of 'to'
+	void splice_tail(vma_list_t & to) {
+		to.list_counter   += this->list_counter;
+		list_splice_tail(&this->list_t.head, &to.list_t.head);
 		this->init_list();
+		// TODO: in case _VMA_LIST_DEBUG, this invalidates parent list of all nodes in the list
 	}
 
 	/**
@@ -313,6 +308,13 @@ private:
 	char id[ID_MAX_SIZE];
 #endif
 
+	void move_to_empty(vma_list_t & to) {
+		assert(to.empty());
+		to.list_counter   = this->list_counter;
+		list_splice_tail(&this->list_t.head, &to.list_t.head);
+		this->init_list();
+		// TODO: in case _VMA_LIST_DEBUG, this invalidates parent list of all nodes in the list
+	}
 	void init_list(){
 		list_counter = 0;
 		INIT_LIST_HEAD(&list_t.head);
