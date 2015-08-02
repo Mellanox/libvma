@@ -30,6 +30,8 @@
 
 #define SYSCTL_DEFAULT_NET_CORE_RMEM_MAX		229376
 
+#define SYSCTL_DEFAULT_NET_CORE_WMEM_MAX		229376
+
 struct sysctl_tcp_mem {
 	int min_value;
 	int default_value;
@@ -42,6 +44,7 @@ typedef enum {
 	SYSCTL_NET_TCP_WMEM,
 	SYSCTL_WINDOW_SCALING,
 	SYSCTL_NET_CORE_RMEM_MAX,
+	SYSCTL_NET_CORE_WMEM_MAX,
 	SYSCTL_ENUM_TYPE_END // SYSCTL_ENUM_TYPE_END must be the last ENUM
 } sysctl_var_enum;
 
@@ -54,6 +57,7 @@ private:
 	sysctl_tcp_mem wmem;
 	bool tcp_window_scaling;
 	int net_core_rmem_max;
+	int net_core_wmem_max;
 
 	void init_sysctl_args(struct __sysctl_args* args, int* name, size_t nlen, void* oldval, size_t oldlen){
 		memset(args, 0, sizeof(*args));
@@ -70,6 +74,7 @@ public :
 		memset(&wmem, 0 , sizeof(wmem));
 		memset(&tcp_window_scaling, 0, sizeof(tcp_window_scaling));
 		memset(&net_core_rmem_max, 0, sizeof(net_core_rmem_max));
+		memset(&net_core_wmem_max, 0, sizeof(net_core_wmem_max));
 
 		this->update_all();
 	}
@@ -134,6 +139,17 @@ public :
 			}
 			break;
 
+		case SYSCTL_NET_CORE_WMEM_MAX:
+			name[0] = CTL_NET;
+			name[1] = NET_CORE;
+			name[2] = NET_CORE_WMEM_MAX;
+			init_sysctl_args(&args, name, 3, &net_core_wmem_max, sizeof(net_core_wmem_max));
+			if (syscall(SYS__sysctl, &args) == -1) {
+				net_core_wmem_max = SYSCTL_DEFAULT_NET_CORE_WMEM_MAX;
+				vlog_printf(VLOG_WARNING," sysctl failed to read net.core.wmem_max - Using default : %d\n", net_core_wmem_max);
+				return -1;
+			}
+			break;
 
 		default:
 			// Invalid argument.
@@ -177,6 +193,15 @@ public :
 			option_size =  sizeof(net_core_rmem_max);
 			if (len >=  option_size){
 				memcpy(val, &net_core_rmem_max , option_size);
+			} else {
+				return -1;
+			}
+			break;
+
+		case SYSCTL_NET_CORE_WMEM_MAX:
+			option_size =  sizeof(net_core_wmem_max);
+			if (len >=  option_size){
+				memcpy(val, &net_core_wmem_max , option_size);
 			} else {
 				return -1;
 			}

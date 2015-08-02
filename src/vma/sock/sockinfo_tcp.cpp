@@ -2329,12 +2329,14 @@ err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_
 
 	listen_sock->m_tcp_con_lock.lock();
 
-	new_sock->m_rcvbuff_max = listen_sock->m_rcvbuff_max;
+	new_sock->m_rcvbuff_max = MAX(listen_sock->m_rcvbuff_max, 2 * new_sock->m_pcb.mss);
 	new_sock->fit_rcv_wnd(listen_sock->m_rcvbuff_max);
 
 	new_sock->m_sndbuff_max = listen_sock->m_sndbuff_max;
-	if (listen_sock->m_sndbuff_max)
+	if (listen_sock->m_sndbuff_max) {
+		new_sock->m_sndbuff_max = MAX(listen_sock->m_sndbuff_max, 2 * new_sock->m_pcb.mss);
 		new_sock->fit_snd_bufs(listen_sock->m_sndbuff_max);
+	}
 
 	flow_tuple key;
 	create_flow_tuple_key_from_pcb(key, newpcb);
@@ -2874,16 +2876,23 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 				m_pcb.so_options &= ~SOF_KEEPALIVE;
 			break;
 		case SO_RCVBUF:
+			int sysctl_rmem_max;
+			mce_sys.sysctl_reader.get(SYSCTL_NET_CORE_RMEM_MAX, &sysctl_rmem_max, sizeof(sysctl_rmem_max));
+
+			val = MIN(*(int *)__optval, sysctl_rmem_max);
 			// OS allocates double the size of memory requested by the application - not sure we need it.
-			m_rcvbuff_max = *(int*)__optval;
-			m_rcvbuff_max = MAX(2*m_pcb.mss, 2*m_rcvbuff_max);
+			m_rcvbuff_max = MAX(2 * m_pcb.mss, 2 * val);
+
 			fit_rcv_wnd(m_rcvbuff_max);
 			si_tcp_logdbg("setsockopt SO_RCVBUF: %d", m_rcvbuff_max);
 			break;
 		case SO_SNDBUF:
+			int sysctl_wmem_max;
+			mce_sys.sysctl_reader.get(SYSCTL_NET_CORE_WMEM_MAX, &sysctl_wmem_max, sizeof(sysctl_wmem_max));
+
+			val = MIN(*(int *)__optval, sysctl_wmem_max);
 			// OS allocates double the size of memory requested by the application - not sure we need it.
-			m_sndbuff_max = *(int*)__optval;
-			m_sndbuff_max = MAX(2*m_pcb.mss, 2*m_sndbuff_max);
+			m_sndbuff_max = MAX(2 * m_pcb.mss, 2 * val);
 			fit_snd_bufs(m_sndbuff_max);
 			si_tcp_logdbg("setsockopt SO_SNDBUF: %d", m_sndbuff_max);
 			break;
@@ -3070,13 +3079,9 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 int sockinfo_tcp::getsockopt(int __level, int __optname, void *__optval,
                               socklen_t *__optlen)
 {
-	int ret = 0;
-
-	if (is_connected()) {
-		ret = getsockopt_offload(__level, __optname, __optval, __optlen);
-		if (ret != SOCKOPT_NO_OFFLOAD_SUPPORT)
-			return ret;
-	}
+	int ret = getsockopt_offload(__level, __optname, __optval, __optlen);
+	if (ret != SOCKOPT_NO_OFFLOAD_SUPPORT)
+		return ret;
 
 	ret = orig_os_api.getsockopt(m_fd, __level, __optname, __optval, __optlen);
 
