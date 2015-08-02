@@ -1472,16 +1472,13 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 				established_backlog_full = true;
 			}
 
-			// 2nd - check syn_rcvd backlog and drop packet accordingly
-			if ( (MAX_SYN_RCVD == 0 && established_backlog_full) || (MAX_SYN_RCVD > 0 && num_con_waiting >= MAX_SYN_RCVD) ) {
-				peer_key pk(p_rx_pkt_mem_buf_desc_info->path.rx.src.sin_addr.s_addr, p_rx_pkt_mem_buf_desc_info->path.rx.src.sin_port);
-				if (m_rx_peer_packets.find(pk) == m_rx_peer_packets.end()) {
-					// TODO: consider check if we can now drain into Q of established
-					si_tcp_logdbg("SYN/CTL packet drop. established-backlog=%d (limit=%d) num_con_waiting=%d (limit=%d)",
-							(int)m_syn_received.size(), m_backlog, num_con_waiting, MAX_SYN_RCVD);
-					unlock_tcp_con();
-					return false;// return without inc_ref_count() => packet will be dropped
-				}
+			// 2nd - check that we allow secondary backlog (don't check map of peer packets to avoid races)
+			if (MAX_SYN_RCVD == 0 && established_backlog_full) {
+				// TODO: consider check if we can now drain into Q of established
+				si_tcp_logdbg("SYN/CTL packet drop. established-backlog=%d (limit=%d) num_con_waiting=%d (limit=%d)",
+						(int)m_syn_received.size(), m_backlog, num_con_waiting, MAX_SYN_RCVD);
+				unlock_tcp_con();
+				return false;// return without inc_ref_count() => packet will be dropped
 			}
 		}
 		if (mce_sys.tcp_ctl_thread || established_backlog_full) { /* 2nd check only worth when MAX_SYN_RCVD>0 for non tcp_ctl_thread  */
