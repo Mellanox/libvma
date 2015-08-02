@@ -210,6 +210,8 @@ public:
 	/**
 	 * Clear content
 	 * Removes all elements from the list container (which are NOT destroyed), and leaving the container with a size of 0.
+	 *
+	 * NOTE: we don't expect calling this method in normal situations (it is workaround at application shutdown); Hence, there is no cleanup of node.parent
 	 */
 	void clear_without_cleanup() {
 		init_list();
