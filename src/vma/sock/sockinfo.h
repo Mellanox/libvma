@@ -20,7 +20,7 @@
 #include "vma/util/lock_wrapper.h"
 #include "vma/util/vma_stats.h"
 #include "vma/util/sys_vars.h"
-#include "vma/util/wakeup.h"
+#include "vma/util/wakeup_pipe.h"
 #include "vma/proto/flow_tuple.h"
 #include "vma/proto/mem_buf_desc.h"
 #include "vma/proto/dst_entry.h"
@@ -80,7 +80,7 @@ typedef struct {
 
 typedef std::tr1::unordered_map<ring*, ring_info_t*> rx_ring_map_t;
 
-class sockinfo : public socket_fd_api, public pkt_rcvr_sink, public pkt_sndr_source, public wakeup
+class sockinfo : public socket_fd_api, public pkt_rcvr_sink, public pkt_sndr_source, public wakeup_pipe
 {
 public:
 	sockinfo(int fd);

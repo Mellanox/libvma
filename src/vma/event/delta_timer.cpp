@@ -80,6 +80,24 @@ void timer::add_new_timer(unsigned int timeout_msec, timer_node_t* node, timer_h
 	return;
 }
 
+void timer::wakeup_timer(timer_node_t* node)
+{
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (IS_NODE_INVALID(node)) {
+		return;
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	remove_from_list(node);
+
+	unsigned int orig_time = node->orig_time_msec;
+	node->orig_time_msec = 0;
+	insert_to_list(node);
+	node->orig_time_msec = orig_time;
+
+	return;
+}
+
 void timer::remove_timer(timer_node_t* node, timer_handler *handler)
 {       
 	// Look for handler in the list if node wasen't indicated

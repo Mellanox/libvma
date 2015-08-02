@@ -86,6 +86,24 @@ void* event_handler_manager::register_timer_event(int timeout_msec, timer_handle
 	return node;
 }
 
+void event_handler_manager::wakeup_timer_event(timer_handler* handler, void* node)
+{
+	evh_logdbg("timer handler '%p'", handler);
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!handler) {
+		evh_logwarn("bad handler (%p)", handler);
+		return;
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+	reg_action_t reg_action;
+	memset(&reg_action, 0, sizeof(reg_action));
+	reg_action.type = WAKEUP_TIMER;
+	reg_action.info.timer.handler = handler;
+	reg_action.info.timer.node = node;
+	post_new_reg_action(reg_action);
+	return;
+}
+
 void event_handler_manager::unregister_timer_event(timer_handler* handler, void* node)
 {
 	evh_logdbg("timer handler '%p'", handler);
@@ -267,6 +285,8 @@ int event_handler_manager::start_thread()
 	if (m_event_handler_tid != 0)
 		return 0;
 
+	//m_reg_action_q.reserve(); //todo change to vector and reserve
+
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (pthread_attr_init(&tattr)) {
 		evh_logpanic("Failed to initialize thread attributes");
@@ -388,6 +408,14 @@ void event_handler_manager::priv_register_timer_handler(timer_reg_info_t& info)
 	} else {
 		m_timer.add_new_timer(info.timeout_msec, (timer_node_t*)info.node,
 			       info.handler, info.user_data, info.req_type);
+	}
+}
+
+void event_handler_manager::priv_wakeup_timer_handler(timer_reg_info_t& info)
+{
+	timer_node_t* node = (timer_node_t*)info.node;
+	if (node && !node->group) {
+		m_timer.wakeup_timer(node);
 	}
 }
 
@@ -630,6 +658,9 @@ void event_handler_manager::handle_registration_action(reg_action_t& reg_action)
 	switch (reg_action.type) {
 	case REGISTER_TIMER:
 		priv_register_timer_handler(reg_action.info.timer);
+		break;
+	case WAKEUP_TIMER:
+		priv_wakeup_timer_handler(reg_action.info.timer);
 		break;
 	case UNREGISTER_TIMER:
 		priv_unregister_timer_handler(reg_action.info.timer);

@@ -121,6 +121,7 @@ libvma_la_SOURCES := \
 	infra/sender.cpp \
 	\
 	util/wakeup.cpp \
+	util/wakeup_pipe.cpp \
 	util/match.cpp \
 	util/utils.cpp \
 	util/verbs_extra.cpp \

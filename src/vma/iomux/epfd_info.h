@@ -20,7 +20,7 @@
 #include <vma/util/lock_wrapper.h>
 #include <vma/util/vma_stats.h>
 #include <vma/sock/cleanable_obj.h>
-#include <vma/util/wakeup.h>
+#include <vma/util/wakeup_pipe.h>
 #include <vma/dev/ring.h>
 #include <vma/sock/sockinfo.h>
 #include <tr1/unordered_map>
@@ -42,7 +42,7 @@ typedef std::tr1::unordered_map<int, epoll_fd_rec> fd_info_map_t;
 typedef std::tr1::unordered_map<ring*, int /*ref count*/> ring_map_t;
 typedef std::deque<int> ready_cq_fd_q_t;
 
-class epfd_info : public lock_mutex_recursive, public cleanable_obj, public wakeup
+class epfd_info : public lock_mutex_recursive, public cleanable_obj, public wakeup_pipe
 {
 public:
 	epfd_info(int epfd, int size);

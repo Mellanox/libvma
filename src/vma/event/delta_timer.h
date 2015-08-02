@@ -53,6 +53,9 @@ public:
 	void    add_new_timer(unsigned int timeout, timer_node_t* node, timer_handler* handler,
 			      void* user_data, timer_req_type_t req_type);
 
+	// wakeup existing timer
+	void    wakeup_timer(timer_node_t* node);
+
 	// remove timer from list and free it.
 	// called for stopping (unregistering) a timer
 	void    remove_timer(timer_node_t* node, timer_handler* handler);

@@ -32,31 +32,12 @@
 #undef	__INFO__
 #define __INFO__	m_epfd
 
-int wakeup::g_wakeup_pipes[2] = {-1,-1};
-
 wakeup::wakeup()
 {
 	m_epfd = 0;
         m_is_sleeping = 0;
-
-	if (g_wakeup_pipes[0] == -1 && g_wakeup_pipes[1] == -1) {
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (orig_os_api.pipe(g_wakeup_pipes)) {
-			wkup_logpanic("wakeup pipe create failed (errno=%d %m)", errno);
-		}
-		if (orig_os_api.write(g_wakeup_pipes[1], "^", 1) != 1) {
-			wkup_logpanic("wakeup pipe write failed(errno=%d %m)", errno);
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-		wkup_logdbg("created wakeup pipe [RD=%d, WR=%d]", g_wakeup_pipes[0], g_wakeup_pipes[1]);
-
-		// ToDo - these pipe should be closed at some point
-		// orig_os_api.close(g_si_wakeup_pipes[1]);
-		// orig_os_api.close(g_si_wakeup_pipes[0]);
-	}
-
-	m_ev.events = EPOLLIN;
-	m_ev.data.fd = g_wakeup_pipes[0];
+	m_ev.events = 0;
+	m_ev.data.fd = -1;
 }
 void wakeup::going_to_sleep()
 {
@@ -74,50 +55,4 @@ void wakeup::going_to_sleep()
 void wakeup::wakeup_set_epoll_fd(int epfd)
 {
 	m_epfd = epfd;
-}
-
-void wakeup::do_wakeup()
-{
-	wkup_logfuncall("");
-
-	//m_wakeup_lock.lock();
-	//This func should be called under socket / epoll lock
-
-	//Call to wakeup only in case there is some thread that is sleeping on epoll
-	if (!m_is_sleeping)
-	{
-		wkup_logfunc("There is no thread in epoll_wait, therefore not calling for wakeup");
-		//m_wakeup_lock.unlock();
-		return;
-	}
-
-	wkup_entry_dbg("");
-
-	int errno_tmp = errno; //don't let wakeup affect errno, as this can fail with EEXIST
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if ((orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_ADD, g_wakeup_pipes[0], &m_ev)) && (errno != EEXIST)) {
-		wkup_logerr("Failed to add wakeup fd to internal epfd (errno=%d %m)", errno);
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-	errno = errno_tmp;
-
-	//m_wakeup_lock.unlock();
-	//sched_yield();
-}
-
-void wakeup::remove_wakeup_fd()
-{
-	if (m_is_sleeping) return;
-	wkup_entry_dbg("");
-	int tmp_errno = errno;
-	if (orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_DEL, g_wakeup_pipes[0], NULL))
-	{
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (errno == ENOENT)
-			wkup_logdbg("Failed to delete global pipe from internal epfd it was already deleted");
-		else
-			wkup_logerr("failed to delete global pipe from internal epfd (errno=%d %m)", errno);
-		BULLSEYE_EXCLUDE_BLOCK_END
-	}
-	errno = tmp_errno;
 }

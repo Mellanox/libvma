@@ -17,7 +17,7 @@
 #include <map>
 #include <deque>
 #include "vma/util/lock_wrapper.h"
-#include "vma/util/wakeup.h"
+#include "vma/util/wakeup_pipe.h"
 #include "vma/netlink/netlink_wrapper.h"
 #include "vma/infra/subject_observer.h"
 #include "vma/event/command.h"
@@ -32,6 +32,7 @@ typedef std::map<void* /*event_handler_id*/, event_handler_rdma_cm* /*p_event_ha
 
 typedef enum {
 	REGISTER_TIMER,
+	WAKEUP_TIMER, /* NOT AVAILABLE FOR GROUPED TIMERS */
 	UNREGISTER_TIMER,
 	UNREGISTER_TIMERS_AND_DELETE,
 	REGISTER_IBVERBS,
@@ -130,13 +131,14 @@ typedef std::map<timer_handler*, void *> timer_list_t;
 ** to the appropriate registered event_handlers objects by their registered id's.
 ** All registered objects must implememtn the event_handler class which is the registered callback function.
 */
-class event_handler_manager : public wakeup
+class event_handler_manager : public wakeup_pipe
 {
 public:
 	event_handler_manager();
 	~event_handler_manager();
 
 	void*	register_timer_event(int timeout_msec, timer_handler* handler, timer_req_type_t req_type, void* user_data, timers_group* group = NULL);
+	void	wakeup_timer_event(timer_handler* handler, void* node);
 	void	unregister_timer_event(timer_handler* handler, void* node);
 	void 	unregister_timers_event_and_delete(timer_handler* handler);
 
@@ -166,6 +168,7 @@ private:
 	event_handler_map_t	m_event_handler_map;
 
 	void	priv_register_timer_handler(timer_reg_info_t& info);
+	void	priv_wakeup_timer_handler(timer_reg_info_t& info);
 	void	priv_unregister_timer_handler(timer_reg_info_t& info);
 	void	priv_unregister_all_handler_timers(timer_reg_info_t& info);
 	void	priv_register_ibverbs_events(ibverbs_reg_info_t& info);

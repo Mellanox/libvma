@@ -24,28 +24,20 @@ class wakeup
 {
 public:
 	wakeup(void);
-	void do_wakeup();
-	inline bool is_wakeup_fd(int fd)
-	{
-		if (fd != g_wakeup_pipes[0])
-			return false;
-		return true;
-	};
-	void remove_wakeup_fd();
+	virtual void do_wakeup() = 0;
+	virtual bool is_wakeup_fd(int fd) = 0;
+	virtual void remove_wakeup_fd() = 0;
 	void going_to_sleep();
 	void return_from_sleep() { --m_is_sleeping; };
 
 protected:
-	void wakeup_set_epoll_fd(int epfd);
+	virtual void wakeup_set_epoll_fd(int epfd);
 	int m_is_sleeping;
 
 	//lock_spin_recursive m_wakeup_lock; This lock is not needed for now. Maybe we will need it for epoll.
 
-private:
 	int m_epfd;
 	struct epoll_event m_ev;
-
-	static int g_wakeup_pipes[2];
 };
 
 #endif /* WAKEUP_H */
