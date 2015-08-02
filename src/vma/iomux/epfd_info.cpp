@@ -159,6 +159,7 @@ bool epfd_info::is_cq_fd(uint64_t data)
 		return false;
 
 	lock();
+	//todo consider making m_ready_cq_fd_q a set instead of queue
 	m_ready_cq_fd_q.push_back((int)(data & 0xffff));
 	unlock();
 
@@ -696,7 +697,7 @@ int epfd_info::ring_wait_for_notification_and_process_element(uint64_t *p_poll_s
 				else {
 					__log_err("Error in ring->wait_for_notification_and_process_element() of %p (errno=%d %m)", p_ready_ring, errno);
 				}
-				return ret;
+				continue;
 			}
 			if (ret > 0) {
 				__log_func("ring[%p] Returned with: %d (sn=%d)", p_ready_ring, ret, *p_poll_sn);
@@ -707,7 +708,7 @@ int epfd_info::ring_wait_for_notification_and_process_element(uint64_t *p_poll_s
 			__log_dbg("failed to find channel fd. removing cq fd=%d from epfd=%d", fd, m_epfd);
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if ((orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_DEL,
-					fd, NULL)) && (errno != ENOENT)) {
+					fd, NULL)) && (!(errno == ENOENT || errno == EBADF))) {
 				__log_err("failed to del cq channel fd=%d from os epfd=%d (errno=%d %m)", fd, m_epfd, errno);
 			}
 			BULLSEYE_EXCLUDE_BLOCK_END

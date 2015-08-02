@@ -480,7 +480,7 @@ int net_device_table_mgr::global_ring_wait_for_notification_and_process_element(
 					else {
 						ndtm_logerr("Error in ring[%d]->wait_for_notification_and_process_element() of %p (errno=%d %m)", event_idx, p_ready_ring, errno);
 					}
-					return ret;
+					continue;
 				}
 				if (ret > 0) {
 					ndtm_logfunc("ring[%p] Returned with: %d (sn=%d)", p_ready_ring, ret, *p_poll_sn);
@@ -491,7 +491,7 @@ int net_device_table_mgr::global_ring_wait_for_notification_and_process_element(
 				ndtm_logdbg("removing wakeup fd from epfd");
 				BULLSEYE_EXCLUDE_BLOCK_START
 				if ((orig_os_api.epoll_ctl(m_global_ring_epfd, EPOLL_CTL_DEL,
-						m_global_ring_pipe_fds[0], NULL)) && (errno != ENOENT)) {
+						m_global_ring_pipe_fds[0], NULL)) && (!(errno == ENOENT || errno == EBADF))) {
 					ndtm_logerr("failed to del pipe channel fd from internal epfd (errno=%d %m)", errno);
 				}
 				BULLSEYE_EXCLUDE_BLOCK_END
