@@ -1440,6 +1440,8 @@ void sockinfo_tcp::queue_rx_ctl_packet(struct tcp_pcb* pcb, mem_buf_desc_t *p_de
 		m_ready_pcbs[pcb] = 1;
 	}
 
+	g_p_event_handler_manager->wakeup_timer_event(this, m_timer_handle);
+
 	return;
 }
 
@@ -2041,6 +2043,9 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 	else {
 		m_received_syn_num--;
 	}
+
+	if (mce_sys.tcp_ctl_thread && !m_rx_peer_packets.empty())
+		g_p_event_handler_manager->wakeup_timer_event(this, m_timer_handle);
 
 	unlock_tcp_con();
 
