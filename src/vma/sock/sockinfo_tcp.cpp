@@ -2161,8 +2161,6 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 
 	vlog_printf(VLOG_DEBUG, "%s:%d: listen(fd=%d) state=%x: new sock(fd=%d) state=%x\n", __func__, __LINE__, conn->m_fd, get_tcp_state(&conn->m_pcb), new_sock->m_fd, get_tcp_state(&new_sock->m_pcb));
 
-	new_sock->register_timer();
-
 	if (tcp_nagle_disabled(&(conn->m_pcb))) {
 		tcp_nagle_disable(&(new_sock->m_pcb));
 		new_sock->fit_snd_bufs_to_nagle(true);
@@ -2326,6 +2324,8 @@ err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_
 		listen_sock->m_tcp_con_lock.lock();
 		return ERR_ABRT;
 	}
+
+	new_sock->register_timer();
 
 	listen_sock->m_tcp_con_lock.lock();
 
