@@ -2403,16 +2403,16 @@ typedef unsigned long mem_ptr_t;
 #define LWIP_ASSERT(message, assertion)
 
 /** if "expression" isn't true, then print "message" and abort process*/
-#ifndef LWIP_ERROR
-#define LWIP_ERROR(message, expression, handler) do { if (!(expression)) { \
+#ifndef LWIP_ERROR_ABORT
+#define LWIP_ERROR_ABORT(message, expression, handler) do { if (!(expression)) { \
   LWIP_PLATFORM_ASSERT(message); abort(); handler;}} while(0)
-#endif /* LWIP_ERROR */
+#endif /* LWIP_ERROR_ABORT */
 
 /** if "expression" isn't true, then print "message" and execute "handler" expression */
-#ifndef LWIP_ERROR_NO_ABORT
-#define LWIP_ERROR_NO_ABORT(message, expression, handler) do { if (!(expression)) { \
+#ifndef LWIP_ERROR
+#define LWIP_ERROR(message, expression, handler) do { if (!(expression)) { \
   LWIP_PLATFORM_ASSERT(message); handler;}} while(0)
-#endif /* LWIP_ERROR_NO_ABORT */
+#endif /* LWIP_ERROR */
 
 #define LWIP_DEBUGF(debug, message)
 

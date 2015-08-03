@@ -251,7 +251,7 @@ pbuf_header(struct pbuf *p, s16_t header_size_increment)
   if (header_size_increment < 0){
     increment_magnitude = -header_size_increment;
     /* Check that we aren't going to move off the end of the pbuf */
-    LWIP_ERROR_NO_ABORT("increment_magnitude <= p->len", (increment_magnitude <= p->len), return 1;);
+    LWIP_ERROR("increment_magnitude <= p->len", (increment_magnitude <= p->len), return 1;);
   } else {
     increment_magnitude = header_size_increment;
   }
@@ -428,7 +428,7 @@ pbuf_cat(struct pbuf *h, struct pbuf *t)
 {
   struct pbuf *p;
 
-  LWIP_ERROR("(h != NULL) && (t != NULL) (programmer violates API)",
+  LWIP_ERROR_ABORT("(h != NULL) && (t != NULL) (programmer violates API)",
              ((h != NULL) && (t != NULL)), return;);
 
   /* proceed to last pbuf of chain */
@@ -539,7 +539,7 @@ pbuf_copy(struct pbuf *p_to, struct pbuf *p_from)
     (void*)p_to, (void*)p_from));
 
   /* is the target big enough to hold the source? */
-  LWIP_ERROR_NO_ABORT("pbuf_copy: target not big enough to hold source", ((p_to != NULL) &&
+  LWIP_ERROR("pbuf_copy: target not big enough to hold source", ((p_to != NULL) &&
              (p_from != NULL) && (p_to->tot_len >= p_from->tot_len)), return ERR_ARG;);
 
   /* iterate through pbuf chain */
@@ -572,12 +572,12 @@ pbuf_copy(struct pbuf *p_to, struct pbuf *p_from)
 
     if((p_from != NULL) && (p_from->len == p_from->tot_len)) {
       /* don't copy more than one packet! */
-      LWIP_ERROR_NO_ABORT("pbuf_copy() does not allow packet queues!\n",
+      LWIP_ERROR("pbuf_copy() does not allow packet queues!\n",
                  (p_from->next == NULL), return ERR_VAL;);
     }
     if((p_to != NULL) && (p_to->len == p_to->tot_len)) {
       /* don't copy more than one packet! */
-      LWIP_ERROR_NO_ABORT("pbuf_copy() does not allow packet queues!\n",
+      LWIP_ERROR("pbuf_copy() does not allow packet queues!\n",
                   (p_to->next == NULL), return ERR_VAL;);
     }
   } while (p_from);
@@ -604,8 +604,8 @@ pbuf_copy_partial(struct pbuf *buf, void *dataptr, u16_t len, u16_t offset)
   u16_t buf_copy_len;
   u16_t copied_total = 0;
 
-  LWIP_ERROR_NO_ABORT("pbuf_copy_partial: invalid buf", (buf != NULL), return 0;);
-  LWIP_ERROR_NO_ABORT("pbuf_copy_partial: invalid dataptr", (dataptr != NULL), return 0;);
+  LWIP_ERROR("pbuf_copy_partial: invalid buf", (buf != NULL), return 0;);
+  LWIP_ERROR("pbuf_copy_partial: invalid dataptr", (dataptr != NULL), return 0;);
 
   left = 0;
 
@@ -652,8 +652,8 @@ pbuf_take(struct pbuf *buf, const void *dataptr, u16_t len)
   u16_t total_copy_len = len;
   u16_t copied_total = 0;
 
-  LWIP_ERROR_NO_ABORT("pbuf_take: invalid buf", (buf != NULL), return 0;);
-  LWIP_ERROR_NO_ABORT("pbuf_take: invalid dataptr", (dataptr != NULL), return 0;);
+  LWIP_ERROR("pbuf_take: invalid buf", (buf != NULL), return 0;);
+  LWIP_ERROR("pbuf_take: invalid dataptr", (dataptr != NULL), return 0;);
 
   if ((buf == NULL) || (dataptr == NULL) || (buf->tot_len < len)) {
     return ERR_ARG;
