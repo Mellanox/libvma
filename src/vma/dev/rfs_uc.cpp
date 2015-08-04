@@ -86,7 +86,13 @@ void rfs_uc::prepare_flow_spec()
 					(m_flow_tuple.get_protocol() == PROTO_TCP),
 					m_flow_tuple.get_dst_port(),
 					m_flow_tuple.get_src_port());
-
+		
+		if (m_flow_tuple.get_src_port() || m_flow_tuple.get_src_ip()) {
+			// set priority of 5-tuple to be higher than 3-tuple
+			// to make sure 5-tuple have higher priority on ConnectX-4 
+			p_attach_flow_data->ibv_flow_attr.priority = 0;
+		}
+		
 		m_attach_flow_data_vector.push_back(p_attach_flow_data);
 	}
 }
