@@ -2987,9 +2987,7 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 			ret = SOCKOPT_NO_OFFLOAD_SUPPORT;
 			break;
 		}
-	}
-
-	if (__level == SOL_SOCKET) {
+	} else if (__level == SOL_SOCKET) {
 		switch(__optname) {
 		case SO_ERROR:
 			if (*__optlen >= sizeof(int)) {
@@ -3066,6 +3064,8 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 			ret = SOCKOPT_NO_OFFLOAD_SUPPORT;
 			break;
 		}
+	} else {
+		ret = SOCKOPT_NO_OFFLOAD_SUPPORT;
 	}
 
 	BULLSEYE_EXCLUDE_BLOCK_START
