@@ -56,6 +56,13 @@ AC_SUBST(LIBALIC_FLAG)
 with_debug_info=yes
 with_debug=no
 
+AC_CHECK_HEADERS([infiniband/verbs.h], 1,
+                 [AC_MSG_ERROR([Unable to find the libibverbs-devel header files])])
+
+AC_CHECK_HEADERS([rdma/rdma_cma.h], 1,
+                 [AC_MSG_ERROR([Unable to find the librdma_cm-devel header files])])
+
+
 AC_MSG_CHECKING([md5 version of VMA statistics is])
 STATS_PROTOCOL_VER=`md5sum src/vma/util/vma_stats.h | awk '{ print $1}'`
 AC_DEFINE_UNQUOTED(STATS_PROTOCOL_VER, "${STATS_PROTOCOL_VER}", [Stats Protocol Version])
