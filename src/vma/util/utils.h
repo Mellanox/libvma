@@ -24,6 +24,8 @@
 #include <linux/if_ether.h>
 #include <vlogger/vlogger.h>
 
+#define VMA_ALIGN(x, y) ((((x) + (y) - 1) / (y)) * (y) )
+
 /**
 * Check if file type is regular
 **/

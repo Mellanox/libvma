@@ -62,10 +62,10 @@ ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx) :
 	} ENDIF_VERBS_FAILURE;
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	ibch_logdbg("ibv device '%s' [%p] has %d port%s. Vendor Part Id: %d, FW Ver: %s",
+	ibch_logdbg("ibv device '%s' [%p] has %d port%s. Vendor Part Id: %d, FW Ver: %s, max_qp_wr=%d",
 			m_p_ibv_device->name, m_p_ibv_device,
 			m_ibv_device_attr.phys_port_cnt, ((m_ibv_device_attr.phys_port_cnt>1)?"s":""),
-			m_ibv_device_attr.vendor_part_id, m_ibv_device_attr.fw_ver);
+			m_ibv_device_attr.vendor_part_id, m_ibv_device_attr.fw_ver, m_ibv_device_attr.max_qp_wr);
 
 	set_dev_configuration();
 

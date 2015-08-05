@@ -144,8 +144,8 @@ void qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	} ENDIF_VERBS_FAILURE;
 
 	m_max_inline_data = min(tmp_ibv_qp_init_attr.cap.max_inline_data, tx_max_inline);
-	qp_logdbg("requested max inline = %d QP, actual max inline = %d, VMA max inline set to %d",
-			tx_max_inline, tmp_ibv_qp_init_attr.cap.max_inline_data, m_max_inline_data);
+	qp_logdbg("requested max inline = %d QP, actual max inline = %d, VMA max inline set to %d, max_send_wr=%d, max_recv_wr=%d, max_recv_sge=%d",
+			tx_max_inline, tmp_ibv_qp_init_attr.cap.max_inline_data, m_max_inline_data, qp_init_attr.cap.max_send_wr, qp_init_attr.cap.max_recv_wr, qp_init_attr.cap.max_recv_sge);
 
 	// All buffers will be allocated from this qp_mgr buffer pool so we can already set the Rx & Tx lkeys
 	for (uint32_t wr_idx = 0; wr_idx < m_rx_num_wr_to_post_recv; wr_idx++) {
@@ -291,9 +291,13 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 		// For ETH it replaces the MAC header!! (Nothing is going on the wire, QP in error state)
 		// For IB it replaces the IPoIB header.
 
+		/* need to send at least eth+ip, since libmlx5 will drop just eth header */
 		ethhdr* p_buffer_ethhdr = (ethhdr *)p_mem_buf_desc->p_buffer;
 		memset(p_buffer_ethhdr, 0, sizeof(*p_buffer_ethhdr));
-		sge[0].length = sizeof(ethhdr);
+		p_buffer_ethhdr->h_proto = htons(ETH_P_IP);
+		iphdr* p_buffer_iphdr = (iphdr *)(p_mem_buf_desc->p_buffer + sizeof(*p_buffer_ethhdr));
+		memset(p_buffer_iphdr, 0, sizeof(*p_buffer_iphdr));
+		sge[0].length = sizeof(ethhdr) + sizeof(iphdr);
 		sge[0].addr = (uintptr_t)(p_mem_buf_desc->p_buffer);
 		sge[0].lkey = m_p_ring->m_tx_lkey;
 
@@ -329,7 +333,7 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 		send_wr.num_sge = 1;
 		send_wr.next = NULL;
 		vma_send_wr_opcode(send_wr) = VMA_IBV_WR_SEND;
-		vma_send_wr_send_flags(send_wr) = (vma_ibv_send_flags)(VMA_IBV_SEND_SIGNALED | VMA_IBV_SEND_INLINE);
+		vma_send_wr_send_flags(send_wr) = (vma_ibv_send_flags)(VMA_IBV_SEND_SIGNALED /*| VMA_IBV_SEND_INLINE*/); //todo inline only if inline is on
 		qp_logdbg("IBV_SEND_SIGNALED");
 
 		// Close the Tx unsignaled send list

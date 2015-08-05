@@ -357,7 +357,7 @@ struct mce_sys_var {
 #define MCE_DEFAULT_TCP_MAX_SYN_FIN_RATE                (0)
 #define MCE_DEFAULT_TX_NUM_SEGS_TCP			(1000000)
 #define MCE_DEFAULT_TX_NUM_BUFS				(200000)
-#define MCE_DEFAULT_TX_NUM_WRE				(16000)
+#define MCE_DEFAULT_TX_NUM_WRE				(3000)
 #define MCE_DEFAULT_TX_MAX_INLINE			(220) //224
 #define MCE_DEFAULT_TX_BUILD_IP_CHKSUM			(true)
 #define MCE_DEFAULT_TX_MC_LOOPBACK			(true)

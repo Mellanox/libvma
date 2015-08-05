@@ -880,10 +880,17 @@ void get_env_params()
 		mce_sys.tx_num_wr = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_TX_MAX_INLINE)) != NULL)
-			mce_sys.tx_max_inline = (uint32_t)atoi(env_ptr);
-	if(mce_sys.tx_max_inline > MAX_SUPPORTED_IB_INLINE_SIZE){
-		vlog_printf(VLOG_WARNING,"MAX_INLINE  must be smaller or equal to 884 [%d]\n", mce_sys.tx_max_inline);
+		mce_sys.tx_max_inline = (uint32_t)atoi(env_ptr);
+	if (mce_sys.tx_max_inline > MAX_SUPPORTED_IB_INLINE_SIZE) {
+		vlog_printf(VLOG_WARNING,"VMA_TX_MAX_INLINE  must be smaller or equal to %d [%d]\n",
+				MAX_SUPPORTED_IB_INLINE_SIZE, mce_sys.tx_max_inline);
 		mce_sys.tx_max_inline = MAX_SUPPORTED_IB_INLINE_SIZE;
+	}
+	unsigned int cx4_max_tx_wre_for_inl = (16 * 1024 * 64) / (VMA_ALIGN(VMA_ALIGN(mce_sys.tx_max_inline - 12, 64) + 12, 64));
+	if (mce_sys.tx_num_wr > cx4_max_tx_wre_for_inl) {
+		vlog_printf(VLOG_WARNING,"For the given VMA_TX_MAX_INLINE [%d], VMA_TX_WRE [%d] must be smaller than %d\n",
+				mce_sys.tx_max_inline, mce_sys.tx_num_wr, cx4_max_tx_wre_for_inl);
+		mce_sys.tx_num_wr = cx4_max_tx_wre_for_inl;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_TX_DROP)) != NULL)
@@ -946,14 +953,6 @@ void get_env_params()
 		mce_sys.rx_num_wr = (uint32_t)atoi(env_ptr);
 	if (mce_sys.rx_num_wr <= (mce_sys.rx_num_wr_to_post_recv * 2))
 		mce_sys.rx_num_wr = mce_sys.rx_num_wr_to_post_recv * 2;
-
-	if ((env_ptr = getenv(SYS_VAR_TX_MAX_INLINE)) != NULL)
-		mce_sys.tx_max_inline = (uint32_t)atoi(env_ptr);
-	if(mce_sys.tx_max_inline > MAX_SUPPORTED_IB_INLINE_SIZE){
-		vlog_printf(VLOG_WARNING,"MAX INLINE  must be smaller or equal to %d [%d]\n",
-				MAX_SUPPORTED_IB_INLINE_SIZE, mce_sys.tx_max_inline);
-		mce_sys.tx_max_inline = MAX_SUPPORTED_IB_INLINE_SIZE;
-	}
 
 	if ((env_ptr = getenv(SYS_VAR_RX_NUM_POLLS)) != NULL) {
 		mce_sys.rx_poll_num = atoi(env_ptr);
@@ -1247,8 +1246,11 @@ void set_env_params()
 
 	if(mce_sys.handle_bf){
                 setenv("MLX4_POST_SEND_PREFER_BF", "1", 1);
+		setenv("MLX5_POST_SEND_PREFER_BF", "1", 1);
         } else {
+		/* todo - these seem not to work if inline is on, since libmlx is doing (inl || bf) when deciding to bf*/
                 setenv("MLX4_POST_SEND_PREFER_BF", "0", 1);
+		setenv("MLX5_POST_SEND_PREFER_BF", "0", 1);
         }
 
         switch (mce_sys.mem_alloc_type) {
