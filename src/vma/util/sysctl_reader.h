@@ -14,23 +14,34 @@
 #ifndef SYSCNTL_READER_H_
 #define SYSCNTL_READER_H_
 
-#include <linux/sysctl.h>
-#include <sys/syscall.h>
 #include "vlogger/vlogger.h"
 
-#define SYSCTL_DEFAULT_TCP_RMEM_MIN				4096
-#define SYSCTL_DEFAULT_TCP_RMEM_DEFAULT			87380
-#define SYSCTL_DEFAULT_TCP_RMEM_MAX				4194304
+#define SYSCTL_INT_FORMAT 						"%d"
+#define SYSCTL_3_INT_FORMAT 					"%d %d %d"
 
-#define SYSCTL_DEFAULT_TCP_WMEM_MIN				4096
-#define SYSCTL_DEFAULT_TCP_WMEM_DEFAULT			16384
-#define SYSCTL_DEFAULT_TCP_WMEM_MAX				4194304
+#define SYSCTL_TCP_RMEM_MIN_DEFAULT				4096
+#define SYSCTL_TCP_RMEM_DEFAULT_DEFAULT			87380
+#define SYSCTL_TCP_RMEM_MAX_DEFAULT				4194304
+#define SYSCTL_TCP_RMEM_PATH 					"/proc/sys/net/ipv4/tcp_rmem"
+#define SYSCTL_TCP_RMEM_FORMAT 					SYSCTL_3_INT_FORMAT
 
-#define SYSCTL_DEFAULT_WINDOW_SCALING			0
+#define SYSCTL_TCP_WMEM_MIN_DEFAULT				4096
+#define SYSCTL_TCP_WMEM_DEFAULT_DEFAULT			16384
+#define SYSCTL_TCP_WMEM_MAX_DEFAULT				4194304
+#define SYSCTL_TCP_WMEM_PATH 					"/proc/sys/net/ipv4/tcp_wmem"
+#define SYSCTL_TCP_WMEM_FORMAT 					SYSCTL_3_INT_FORMAT
 
-#define SYSCTL_DEFAULT_NET_CORE_RMEM_MAX		229376
+#define SYSCTL_WINDOW_SCALING_DEFAULT			0
+#define SYSCTL_WINDOW_SCALING_PATH 				"/proc/sys/net/ipv4/tcp_window_scaling"
+#define SYSCTL_WINDOW_SCALING_FORMAT 			SYSCTL_INT_FORMAT
 
-#define SYSCTL_DEFAULT_NET_CORE_WMEM_MAX		229376
+#define SYSCTL_NET_CORE_RMEM_MAX_DEFAULT		229376
+#define SYSCTL_NET_CORE_RMEM_MAX_PATH			"/proc/sys/net/core/rmem_max"
+#define SYSCTL_NET_CORE_RMEM_MAX_FORMAT			SYSCTL_INT_FORMAT
+
+#define SYSCTL_NET_CORE_WMEM_MAX_DEFAULT		229376
+#define SYSCTL_NET_CORE_WMEM_MAX_PATH			"/proc/sys/net/core/wmem_max"
+#define SYSCTL_NET_CORE_WMEM_MAX_FORMAT			SYSCTL_INT_FORMAT
 
 struct sysctl_tcp_mem {
 	int min_value;
@@ -53,25 +64,39 @@ class sysctl_reader_t {
 
 private:
 
-	sysctl_tcp_mem rmem;
-	sysctl_tcp_mem wmem;
-	bool tcp_window_scaling;
+	sysctl_tcp_mem tcp_rmem;
+	sysctl_tcp_mem tcp_wmem;
+	int tcp_window_scaling;
 	int net_core_rmem_max;
 	int net_core_wmem_max;
 
-	void init_sysctl_args(struct __sysctl_args* args, int* name, size_t nlen, void* oldval, size_t oldlen){
-		memset(args, 0, sizeof(*args));
-		args->name = name;
-		args->nlen = nlen;
-		args->oldval = oldval;
-		args->oldlenp = &oldlen;
+	int sysctl_read(const char* path, int argument_num ,const char *format, ...){
+
+		FILE* pfile = fopen (path, "r");
+		int ans;
+
+		if (pfile == NULL) {
+			return -1;
+		}
+
+		va_list arg;
+		va_start (arg, format);
+		ans = vfscanf(pfile, format, arg);
+		va_end (arg);
+
+		if (ans != argument_num) {
+			return -1;
+		}
+
+		return 0;
 	}
 
 public :
 
 	sysctl_reader_t(){
-		memset(&rmem, 0 , sizeof(rmem));
-		memset(&wmem, 0 , sizeof(wmem));
+
+		memset(&tcp_rmem, 0 , sizeof(tcp_rmem));
+		memset(&tcp_wmem, 0 , sizeof(tcp_wmem));
 		memset(&tcp_window_scaling, 0, sizeof(tcp_window_scaling));
 		memset(&net_core_rmem_max, 0, sizeof(net_core_rmem_max));
 		memset(&net_core_wmem_max, 0, sizeof(net_core_wmem_max));
@@ -80,75 +105,60 @@ public :
 	}
 
 	int update(sysctl_var_enum requested_var) {
-		struct __sysctl_args args;
-		int name[3];
 
 		switch(requested_var) {
 		case SYSCTL_NET_TCP_RMEM:
-			name[0] = CTL_NET;
-			name[1] = NET_IPV4;
-			name[2] = NET_TCP_RMEM;
-			init_sysctl_args(&args, name, 3, &rmem, sizeof(rmem));
 
-			if (syscall(SYS__sysctl, &args) == -1) {
-				rmem.min_value = SYSCTL_DEFAULT_TCP_RMEM_MIN;
-				rmem.default_value = SYSCTL_DEFAULT_TCP_RMEM_DEFAULT;
-				rmem.max_value = SYSCTL_DEFAULT_TCP_RMEM_MAX;
-				vlog_printf(VLOG_WARNING," sysctl failed to read net.ipv4.tcp_rmem values - Using defaults : %d %d %d\n", rmem.min_value ,rmem.default_value , rmem.max_value);
+			if (sysctl_read(SYSCTL_TCP_RMEM_PATH, 3, SYSCTL_TCP_RMEM_FORMAT, &tcp_rmem.min_value, &tcp_rmem.default_value, &tcp_rmem.max_value) == -1) {
+				tcp_rmem.min_value = SYSCTL_TCP_RMEM_MIN_DEFAULT;
+				tcp_rmem.default_value = SYSCTL_TCP_RMEM_DEFAULT_DEFAULT;
+				tcp_rmem.max_value = SYSCTL_TCP_RMEM_MAX_DEFAULT;
+				vlog_printf(VLOG_WARNING, "sysctl_reader failed to read net.ipv4.tcp_rmem values - Using defaults : %d %d %d\n", tcp_rmem.min_value, tcp_rmem.default_value, tcp_rmem.max_value);
 				return -1;
 			}
+
 			break;
 
 		case SYSCTL_NET_TCP_WMEM:
-			name[0] = CTL_NET;
-			name[1] = NET_IPV4;
-			name[2] = NET_TCP_WMEM;
-			init_sysctl_args(&args, name, 3, &wmem, sizeof(wmem));
 
-			if (syscall(SYS__sysctl, &args) == -1) {
-				wmem.min_value = SYSCTL_DEFAULT_TCP_WMEM_MIN;
-				wmem.default_value = SYSCTL_DEFAULT_TCP_WMEM_DEFAULT;
-				wmem.max_value = SYSCTL_DEFAULT_TCP_WMEM_DEFAULT;
-				vlog_printf(VLOG_WARNING," sysctl failed to read net.ipv4.tcp_wmem values - Using defaults : %d %d %d\n", wmem.min_value ,wmem.default_value , wmem.max_value);
+			if (sysctl_read(SYSCTL_TCP_WMEM_PATH, 3, SYSCTL_TCP_WMEM_FORMAT, &tcp_wmem.min_value, &tcp_wmem.default_value, &tcp_wmem.max_value) == -1) {
+				tcp_wmem.min_value = SYSCTL_TCP_WMEM_MIN_DEFAULT;
+				tcp_wmem.default_value = SYSCTL_TCP_WMEM_DEFAULT_DEFAULT;
+				tcp_wmem.max_value = SYSCTL_TCP_WMEM_MAX_DEFAULT;
+				vlog_printf(VLOG_WARNING, "sysctl_reader failed to read net.ipv4.tcp_wmem values - Using defaults : %d %d %d\n", tcp_wmem.min_value, tcp_wmem.default_value, tcp_wmem.max_value);
 				return -1;
 			}
+
 			break;
 
 		case SYSCTL_WINDOW_SCALING:
-			name[0] = CTL_NET;
-			name[1] = NET_IPV4;
-			name[2] = NET_IPV4_TCP_WINDOW_SCALING;
-			init_sysctl_args(&args, name, 3, &tcp_window_scaling, sizeof(tcp_window_scaling));
 
-			if (syscall(SYS__sysctl, &args) == -1) {
-				tcp_window_scaling = SYSCTL_DEFAULT_WINDOW_SCALING;
-				vlog_printf(VLOG_WARNING," sysctl failed to read net.ipv4.tcp_window_scaling - Using default : %d\n", tcp_window_scaling);
+			if (sysctl_read(SYSCTL_WINDOW_SCALING_PATH, 1, SYSCTL_WINDOW_SCALING_FORMAT, &tcp_window_scaling) == -1) {
+				tcp_window_scaling = SYSCTL_WINDOW_SCALING_DEFAULT;
+				vlog_printf(VLOG_WARNING, "sysctl_reader failed to read net.ipv4.tcp_window_scaling - Using default : %d\n", tcp_window_scaling);
 				return -1;
 			}
+
 			break;
 
 		case SYSCTL_NET_CORE_RMEM_MAX:
-			name[0] = CTL_NET;
-			name[1] = NET_CORE;
-			name[2] = NET_CORE_RMEM_MAX;
-			init_sysctl_args(&args, name, 3, &net_core_rmem_max, sizeof(net_core_rmem_max));
-			if (syscall(SYS__sysctl, &args) == -1) {
-				net_core_rmem_max = SYSCTL_DEFAULT_NET_CORE_RMEM_MAX;
-				vlog_printf(VLOG_WARNING," sysctl failed to read net.core.rmem_max - Using default : %d\n", net_core_rmem_max);
+
+			if (sysctl_read(SYSCTL_NET_CORE_RMEM_MAX_PATH, 1, SYSCTL_NET_CORE_RMEM_MAX_FORMAT, &net_core_rmem_max) == -1) {
+				net_core_rmem_max = SYSCTL_NET_CORE_RMEM_MAX_DEFAULT;
+				vlog_printf(VLOG_WARNING, "sysctl_reader failed to read net.core.rmem_max - Using default : %d\n", net_core_rmem_max);
 				return -1;
 			}
+
 			break;
 
 		case SYSCTL_NET_CORE_WMEM_MAX:
-			name[0] = CTL_NET;
-			name[1] = NET_CORE;
-			name[2] = NET_CORE_WMEM_MAX;
-			init_sysctl_args(&args, name, 3, &net_core_wmem_max, sizeof(net_core_wmem_max));
-			if (syscall(SYS__sysctl, &args) == -1) {
-				net_core_wmem_max = SYSCTL_DEFAULT_NET_CORE_WMEM_MAX;
-				vlog_printf(VLOG_WARNING," sysctl failed to read net.core.wmem_max - Using default : %d\n", net_core_wmem_max);
+
+			if (sysctl_read(SYSCTL_NET_CORE_WMEM_MAX_PATH, 1, SYSCTL_NET_CORE_WMEM_MAX_FORMAT, &net_core_wmem_max) == -1) {
+				net_core_wmem_max = SYSCTL_NET_CORE_WMEM_MAX_DEFAULT;
+				vlog_printf(VLOG_WARNING, "sysctl_reader failed to read net.core.wmem_max - Using default : %d\n", net_core_wmem_max);
 				return -1;
 			}
+
 			break;
 
 		default:
@@ -163,18 +173,18 @@ public :
 		size_t option_size;
 		switch(requested_var) {
 		case SYSCTL_NET_TCP_RMEM:
-			option_size =  sizeof(rmem);
+			option_size =  sizeof(tcp_rmem);
 			if (len >=  option_size){
-				memcpy(val, &rmem , option_size);
+				memcpy(val, &tcp_rmem , option_size);
 			} else {
 				return -1;
 			}
 			break;
 
 		case SYSCTL_NET_TCP_WMEM:
-			option_size =  sizeof(wmem);
+			option_size =  sizeof(tcp_wmem);
 			if (len >=  option_size){
-				memcpy(val, &wmem , option_size);
+				memcpy(val, &tcp_wmem , option_size);
 			} else {
 				return -1;
 			}

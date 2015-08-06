@@ -92,7 +92,7 @@ vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip")
 	lwip_tcp_mss = get_lwip_tcp_mss(mce_sys.mtu, mce_sys.lwip_mss);
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	bool is_window_scaling_enabled;
+	int is_window_scaling_enabled;
 	mce_sys.sysctl_reader.get(SYSCTL_WINDOW_SCALING, &is_window_scaling_enabled, sizeof(is_window_scaling_enabled));
 
 	if(is_window_scaling_enabled) {
