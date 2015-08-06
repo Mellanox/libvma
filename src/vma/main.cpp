@@ -1193,7 +1193,7 @@ void get_env_params()
 		vlog_printf(VLOG_WARNING, "**********************************************************************************************************************\n");
 	}
 
-	int tempVal = MCE_DEFAULT_MEM_ALLOC_TYPE;
+	int tempVal = ALLOC_TYPE_LAST;
 	if ((env_ptr = getenv(SYS_VAR_MEM_ALLOC_TYPE)) != NULL)
 		tempVal = atoi(env_ptr);
 	if (tempVal < 0 || tempVal >= ALLOC_TYPE_LAST)
