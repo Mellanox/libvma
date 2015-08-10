@@ -162,7 +162,6 @@ private:
 
 	mem_buf_desc_t*			m_p_next_rx_desc_poll;
 
-	descq_t				m_tcp_ctl_queue;
 	descq_t				m_rx_queue;
 	descq_t				m_rx_pool;
 	int32_t				m_n_out_of_free_bufs_warning;

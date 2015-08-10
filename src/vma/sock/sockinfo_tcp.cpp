@@ -71,6 +71,8 @@ sockinfo_tcp::sockinfo_tcp(int fd) :
 	m_rx_ctl_packets_list.set_id("sockinfo_tcp (%p), fd = %d : m_rx_ctl_packets_list", this, m_fd);
 	m_rx_ctl_reuse_list.set_id("sockinfo_tcp (%p), fd = %d : m_rx_ctl_reuse_list", this, m_fd);
 
+	m_last_syn_tsc = 0;
+
 	m_linger.l_linger = 0;
 	m_linger.l_onoff = 0;
 
@@ -841,6 +843,16 @@ bool sockinfo_tcp::process_peer_ctl_packets(vma_desc_list_t &peer_packets)
 			if (m_syn_received.size() >= (size_t)m_backlog && desc->path.rx.p_tcp_h->syn) {
 				m_tcp_con_lock.unlock();
 				break; // skip to next peer
+			} else if (mce_sys.tcp_max_syn_rate && desc->path.rx.p_tcp_h->syn) {
+				static tscval_t tsc_delay = get_tsc_rate_per_second() / mce_sys.tcp_max_syn_rate;
+				tscval_t tsc_now;
+				gettimeoftsc(&tsc_now);
+				if (tsc_now - m_last_syn_tsc < tsc_delay) {
+					m_tcp_con_lock.unlock();
+					break;
+				} else {
+					m_last_syn_tsc = tsc_now;
+				}
 			}
 		}
 		else { // child socket from a listener context - switch to child lock

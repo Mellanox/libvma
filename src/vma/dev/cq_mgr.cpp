@@ -52,7 +52,6 @@ cq_mgr::cq_mgr(ring* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, stru
 {
 	cq_logfunc("");
 
-	m_tcp_ctl_queue.set_id("cq_mgr (%p) : m_tcp_ctl_queue", this);
 	m_rx_queue.set_id("cq_mgr (%p) : m_rx_queue", this);
 	m_rx_pool.set_id("cq_mgr (%p) : m_rx_pool", this);
 
@@ -557,7 +556,7 @@ inline void cq_mgr::process_recv_buffer(mem_buf_desc_t* p_mem_buf_desc, void* pv
 	// Assume locked!!!
 
 	// Pass the Rx buffer ib_comm_mgr for further IP processing
-	if (!m_p_ring->rx_process_buffer(p_mem_buf_desc, m_transport_type, pv_fd_ready_array, &m_tcp_ctl_queue)) {
+	if (!m_p_ring->rx_process_buffer(p_mem_buf_desc, m_transport_type, pv_fd_ready_array)) {
 		// If buffer is dropped by callback - return to RX pool
 		reclaim_recv_buffer_helper(p_mem_buf_desc);
 	}
@@ -589,37 +588,6 @@ void cq_mgr::mem_buf_desc_return_to_owner(mem_buf_desc_t* p_mem_buf_desc, void* 
 	cq_logfuncall("");
 	NOT_IN_USE(pv_fd_ready_array);
 	reclaim_recv_buffer_helper(p_mem_buf_desc);
-}
-
-//a sub helper for poll_and_process_helper_rx in order to shorten the function
-void cq_mgr::handle_tcp_ctl_packets(uint32_t rx_processed, void* pv_fd_ready_array)
-{
-	static const tscval_t DELTA_TSC_BETWEEN_CTL_PACKETS =
-			get_tsc_rate_per_second() / mce_sys.tcp_max_syn_fin_rate;
-
-	static __thread tscval_t tsc_prev; // TLS - keep state per thread without locks
-	// no need to initialize tsc_prev for our check below, since tscval_t is unsigned
-
-	bool process_ctl_packets = true;
-	// cq-is-not-empty (while tcp syn throttling is set)
-	if (rx_processed) {
-		tscval_t tsc_now;
-		gettimeoftsc(&tsc_now);
-		if (tsc_now - tsc_prev  < DELTA_TSC_BETWEEN_CTL_PACKETS) {
-			process_ctl_packets = false;
-		}
-		else {
-			tsc_prev = tsc_now;
-		}
-	}
-
-	if (process_ctl_packets) {
-		mem_buf_desc_t* buff = m_tcp_ctl_queue.front();
-		m_tcp_ctl_queue.pop_front();
-		process_recv_buffer(buff, pv_fd_ready_array);
-		m_p_ring->m_gro_mgr.flush_all(pv_fd_ready_array);
-		gettimeoftsc(&tsc_prev); // for next time
-	}
 }
 
 int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array)
@@ -659,9 +627,7 @@ int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready
 
 out:
 	m_p_ring->m_gro_mgr.flush_all(pv_fd_ready_array);
-	if (!m_tcp_ctl_queue.empty()) {
-		handle_tcp_ctl_packets(ret_rx_processed, pv_fd_ready_array);
-	}
+
 	return ret_rx_processed;
 }
 
@@ -858,7 +824,7 @@ int cq_mgr::request_notification(uint64_t poll_sn)
 	int ret = -1;
 	cq_logfuncall("");
 
-	if ((m_n_global_sn > 0 && poll_sn != m_n_global_sn) || !m_tcp_ctl_queue.empty()) {
+	if ((m_n_global_sn > 0 && poll_sn != m_n_global_sn)) {
 		// The cq_mgr's has receive packets pending processing (or got processed since cq_poll_sn)
 		cq_logfunc("miss matched poll sn (user=0x%lx, cq=0x%lx)", poll_sn, m_n_cq_poll_sn);
 		return 1;

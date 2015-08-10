@@ -121,7 +121,7 @@ Example:
  VMA DEBUG  : Ring migration ratio TX        100                        [VMA_RING_MIGRATION_RATIO_TX]
  VMA DEBUG  : Ring migration ratio RX        100                        [VMA_RING_MIGRATION_RATIO_RX]
  VMA DEBUG  : Ring limit per interface       0 (no limit)               [VMA_RING_LIMIT_PER_INTERFACE]
- VMA DEBUG  : TCP max syn-fin rate           0 (no limit)               [VMA_TCP_MAX_SYN_FIN_RATE]
+ VMA DEBUG  : TCP max syn rate               0 (no limit)               [VMA_TCP_MAX_SYN_RATE]
  VMA DEBUG  : Tx Mem Segs TCP                1000000                    [VMA_TX_SEGS_TCP]
  VMA DEBUG  : Tx Mem Bufs                    200000                     [VMA_TX_BUFS]
  VMA DEBUG  : Tx QP WRE                      16000                      [VMA_TX_WRE]
@@ -768,12 +768,12 @@ Use value of 0 for LWIP algorithm.
 Use value of 1 for the Cubic algorithm.
 Default value is 0 (LWIP).
 
-VMA_TCP_MAX_SYN_FIN_RATE
-Limit the number of TCP control packets (TCP SYN/FIN/RST packets) that VMA will handle
-per second per thread.
+VMA_TCP_MAX_SYN_RATE
+Limit the number of TCP SYN packets that VMA will handle
+per second per listen socket.
 For example, in case you use 10 for this value than VMA will accept at most 10
-new connections per second per thread.
-Use a value of 0 for un-limiting the number of TCP control packets that can be handled.
+(could be less) new connections per second per listen socket.
+Use a value of 0 for un-limiting the number of TCP SYN packets that can be handled.
 Value range is 0 to 100000.
 Default value is 0 (no limit)
 

@@ -136,7 +136,7 @@ struct mce_sys_var {
 	int		ring_migration_ratio_tx;
 	int		ring_migration_ratio_rx;
 	int		ring_limit_per_interface;
-	int		tcp_max_syn_fin_rate;
+	int		tcp_max_syn_rate;
 
 	uint32_t 	tx_num_segs_tcp;
 	uint32_t 	tx_num_bufs;
@@ -314,7 +314,7 @@ struct mce_sys_var {
 #define SYS_VAR_BF					"VMA_BF"
 #define SYS_VAR_CLOSE_ON_DUP2				"VMA_CLOSE_ON_DUP2"
 #define SYS_VAR_MTU					"VMA_MTU"
-#define SYS_VAR_TCP_MAX_SYN_FIN_RATE			"VMA_TCP_MAX_SYN_FIN_RATE"
+#define SYS_VAR_TCP_MAX_SYN_RATE			"VMA_TCP_MAX_SYN_RATE"
 #define SYS_VAR_MSS					"VMA_MSS"
 #define SYS_VAR_TCP_CC_ALGO					"VMA_TCP_CC_ALGO"
 #define SYS_VAR_SPEC					"VMA_SPEC"
@@ -354,7 +354,7 @@ struct mce_sys_var {
 #define MCE_DEFAULT_RING_MIGRATION_RATIO_TX             (100)
 #define MCE_DEFAULT_RING_MIGRATION_RATIO_RX             (100)
 #define MCE_DEFAULT_RING_LIMIT_PER_INTERFACE            (0)
-#define MCE_DEFAULT_TCP_MAX_SYN_FIN_RATE                (0)
+#define MCE_DEFAULT_TCP_MAX_SYN_RATE                	(0)
 #define MCE_DEFAULT_TX_NUM_SEGS_TCP			(1000000)
 #define MCE_DEFAULT_TX_NUM_BUFS				(200000)
 #define MCE_DEFAULT_TX_NUM_WRE				(3000)
@@ -458,7 +458,7 @@ struct mce_sys_var {
 #define TX_BUF_SIZE(mtu)				(mtu + ETH_HDR_LEN) // Tx buffers are larger in Ethernet (they include L2 for RAW QP)
 #define NUM_TX_POST_SEND_NOTIFY				64
 #define NUM_RX_WRE_TO_POST_RECV_MAX			1024
-#define TCP_MAX_SYN_FIN_RATE_TOP_LIMIT			100000
+#define TCP_MAX_SYN_RATE_TOP_LIMIT			100000
 #define DEFAULT_MC_TTL					64
 #define MAX_FREG_MEM_BUF				(MCE_DEFAULT_RX_NUM_BUFS/100)
 #define IBVERBS_ABI_VER_PARAM_FILE			"/sys/class/infiniband_verbs/abi_version"

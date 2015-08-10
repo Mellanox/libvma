@@ -258,6 +258,7 @@ private:
 	vma_desc_list_t m_rx_cb_dropped_list;
 
 	lock_spin_recursive m_rx_ctl_packets_list_lock;
+	tscval_t	m_last_syn_tsc;
 	vma_desc_list_t m_rx_ctl_packets_list;
 	peer_map_t      m_rx_peer_packets;
 	vma_desc_list_t m_rx_ctl_reuse_list;

@@ -471,10 +471,10 @@ void print_vma_global_settings()
 		VLOG_PARAM_NUMSTR("Ring limit per interface", mce_sys.ring_limit_per_interface, MCE_DEFAULT_RING_LIMIT_PER_INTERFACE, SYS_VAR_RING_LIMIT_PER_INTERFACE, "(no limit)");
 	}
 
-	if (mce_sys.tcp_max_syn_fin_rate) {
-		VLOG_PARAM_NUMSTR("TCP max syn-fin rate", mce_sys.tcp_max_syn_fin_rate, MCE_DEFAULT_TCP_MAX_SYN_FIN_RATE, SYS_VAR_TCP_MAX_SYN_FIN_RATE, "(per sec)");
+	if (mce_sys.tcp_max_syn_rate) {
+		VLOG_PARAM_NUMSTR("TCP max syn rate", mce_sys.tcp_max_syn_rate, MCE_DEFAULT_TCP_MAX_SYN_RATE, SYS_VAR_TCP_MAX_SYN_RATE, "(per sec)");
 	}else {
-		VLOG_PARAM_NUMSTR("TCP max syn-fin rate", mce_sys.tcp_max_syn_fin_rate, MCE_DEFAULT_TCP_MAX_SYN_FIN_RATE, SYS_VAR_TCP_MAX_SYN_FIN_RATE, "(no limit)");
+		VLOG_PARAM_NUMSTR("TCP max syn rate", mce_sys.tcp_max_syn_rate, MCE_DEFAULT_TCP_MAX_SYN_RATE, SYS_VAR_TCP_MAX_SYN_RATE, "(no limit)");
 	}
 
 	VLOG_PARAM_NUMBER("Tx Mem Segs TCP", mce_sys.tx_num_segs_tcp, MCE_DEFAULT_TX_NUM_SEGS_TCP, SYS_VAR_TX_NUM_SEGS_TCP);
@@ -678,7 +678,7 @@ void get_env_params()
 	mce_sys.ring_migration_ratio_tx = MCE_DEFAULT_RING_MIGRATION_RATIO_TX;
 	mce_sys.ring_migration_ratio_rx = MCE_DEFAULT_RING_MIGRATION_RATIO_RX;
 	mce_sys.ring_limit_per_interface= MCE_DEFAULT_RING_LIMIT_PER_INTERFACE;
-	mce_sys.tcp_max_syn_fin_rate	= MCE_DEFAULT_TCP_MAX_SYN_FIN_RATE;
+	mce_sys.tcp_max_syn_rate	= MCE_DEFAULT_TCP_MAX_SYN_RATE;
 
 	mce_sys.tx_num_segs_tcp         = MCE_DEFAULT_TX_NUM_SEGS_TCP;
 	mce_sys.tx_num_bufs             = MCE_DEFAULT_TX_NUM_BUFS;
@@ -940,8 +940,8 @@ void get_env_params()
 	if ((env_ptr = getenv(SYS_VAR_RING_LIMIT_PER_INTERFACE)) != NULL)
 		mce_sys.ring_limit_per_interface = MAX(0, (int32_t)atoi(env_ptr));
 
-	if ((env_ptr = getenv(SYS_VAR_TCP_MAX_SYN_FIN_RATE)) != NULL)
-		mce_sys.tcp_max_syn_fin_rate = MIN(TCP_MAX_SYN_FIN_RATE_TOP_LIMIT, MAX(0, (int32_t)atoi(env_ptr)));
+	if ((env_ptr = getenv(SYS_VAR_TCP_MAX_SYN_RATE)) != NULL)
+		mce_sys.tcp_max_syn_rate = MIN(TCP_MAX_SYN_RATE_TOP_LIMIT, MAX(0, (int32_t)atoi(env_ptr)));
 
 	if ((env_ptr = getenv(SYS_VAR_RX_NUM_BUFS)) != NULL)
 		mce_sys.rx_num_bufs = (uint32_t)atoi(env_ptr);
