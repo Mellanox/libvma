@@ -112,6 +112,24 @@ typedef enum {
 	MSS_FOLLOW_MTU = 0
 } mss_mode_t;
 
+typedef enum {
+	CTL_THREAD_DISABLE = 0,
+	CTL_THREAD_WITH_WAKEUP,
+	CTL_THREAD_NO_WAKEUP,
+	CTL_THREAD_LAST
+} tcp_ctl_thread_t;
+
+static inline const char* ctl_thread_str(tcp_ctl_thread_t logic)
+{
+	switch (logic) {
+	case CTL_THREAD_DISABLE:		return "(Disabled)";
+	case CTL_THREAD_WITH_WAKEUP:		return "(Enabled - with wakeup)";
+	case CTL_THREAD_NO_WAKEUP:		return "(Enabled - no wakeup)";
+	default:				break;
+	}
+	return "unsupported";
+}
+
 struct mce_sys_var {
 	char 		*app_name;
 	char 		app_id[MAX_APP_ID_LENGHT];
@@ -197,7 +215,7 @@ struct mce_sys_var {
 	bool		offloaded_sockets;
 	uint32_t	timer_resolution_msec;
 	uint32_t	tcp_timer_resolution_msec;
-	bool		tcp_ctl_thread;
+	tcp_ctl_thread_t tcp_ctl_thread;
 	bool		avoid_sys_calls_on_tcp_fd;
 	uint32_t	wait_after_join_msec;
 	uint32_t	wait_after_rereg_msec;
@@ -406,9 +424,8 @@ struct mce_sys_var {
 #define MCE_DEFAULT_OFFLOADED_SOCKETS			(true)
 #define MCE_DEFAULT_TIMER_RESOLUTION_MSEC		(10)
 #define MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC		(100)
-#define MCE_DEFAULT_TCP_CTL_THREAD			(false)
+#define MCE_DEFAULT_TCP_CTL_THREAD			(CTL_THREAD_DISABLE)
 #define MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD		(false)
-#define MCE_DEFAULT_TCP_LISTEN_TIMER_RESOLUTION_MSEC	(10)
 #define MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC		(0)
 #define MCE_DEFAULT_WAIT_AFTER_REREG_MSEC		(500)
 #define MCE_DEFAULT_THREAD_MODE				(THREAD_MODE_MULTI)

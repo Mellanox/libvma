@@ -911,7 +911,7 @@ void sockinfo_tcp::process_my_ctl_packets()
 
 
 		// TODO: very temp - duplicated !!!!
-		static const unsigned int MAX_SYN_RCVD = mce_sys.tcp_ctl_thread ? 512 : 0; // TODO: consider reading it from /proc/sys/net/ipv4/tcp_max_syn_backlog
+		static const unsigned int MAX_SYN_RCVD = mce_sys.tcp_ctl_thread > CTL_THREAD_DISABLE ? 512 : 0; // TODO: consider reading it from /proc/sys/net/ipv4/tcp_max_syn_backlog
 		// NOTE: currently, in case tcp_ctl_thread is disabled, only established backlog is supported (no syn-rcvd backlog)
 		unsigned int num_con_waiting = m_rx_peer_packets.size();
 
@@ -1028,7 +1028,7 @@ void sockinfo_tcp::handle_timer_expired(void* user_data)
 	NOT_IN_USE(user_data);
 	si_tcp_logfunc("");
 
-	if (mce_sys.tcp_ctl_thread)
+	if (mce_sys.tcp_ctl_thread > CTL_THREAD_DISABLE)
 		process_rx_ctl_packets();
 
 	// Set the pending flag before getting the lock, so in the rare case of
@@ -1461,7 +1461,8 @@ void sockinfo_tcp::queue_rx_ctl_packet(struct tcp_pcb* pcb, mem_buf_desc_t *p_de
 		m_ready_pcbs[pcb] = 1;
 	}
 
-	g_p_event_handler_manager->wakeup_timer_event(this, m_timer_handle);
+	if (mce_sys.tcp_ctl_thread == CTL_THREAD_WITH_WAKEUP)
+		g_p_event_handler_manager->wakeup_timer_event(this, m_timer_handle);
 
 	return;
 }
@@ -1485,7 +1486,7 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 
 			/// respect TCP listen backlog - See redmine issue #565962
 			/// distinguish between backlog of established sockets vs. backlog of syn-rcvd
-			static const unsigned int MAX_SYN_RCVD = mce_sys.tcp_ctl_thread ? 512 : 0; // TODO: consider reading it from /proc/sys/net/ipv4/tcp_max_syn_backlog
+			static const unsigned int MAX_SYN_RCVD = mce_sys.tcp_ctl_thread > CTL_THREAD_DISABLE ? 512 : 0; // TODO: consider reading it from /proc/sys/net/ipv4/tcp_max_syn_backlog
 							// NOTE: currently, in case tcp_ctl_thread is disabled, only established backlog is supported (no syn-rcvd backlog)
 
 			unsigned int num_con_waiting = m_rx_peer_packets.size();
@@ -1504,7 +1505,7 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 				return false;// return without inc_ref_count() => packet will be dropped
 			}
 		}
-		if (mce_sys.tcp_ctl_thread || established_backlog_full) { /* 2nd check only worth when MAX_SYN_RCVD>0 for non tcp_ctl_thread  */
+		if (mce_sys.tcp_ctl_thread > CTL_THREAD_DISABLE || established_backlog_full) { /* 2nd check only worth when MAX_SYN_RCVD>0 for non tcp_ctl_thread  */
 			queue_rx_ctl_packet(pcb, p_rx_pkt_mem_buf_desc_info); // TODO: need to trigger queue pulling from accept in case no tcp_ctl_thread
 			unlock_tcp_con();
 			return true;
@@ -1964,8 +1965,8 @@ int sockinfo_tcp::listen(int backlog)
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	if (mce_sys.tcp_ctl_thread)
-		m_timer_handle = g_p_event_handler_manager->register_timer_event(MCE_DEFAULT_TCP_LISTEN_TIMER_RESOLUTION_MSEC , this, PERIODIC_TIMER, 0, NULL);
+	if (mce_sys.tcp_ctl_thread > CTL_THREAD_DISABLE)
+		m_timer_handle = g_p_event_handler_manager->register_timer_event(mce_sys.timer_resolution_msec , this, PERIODIC_TIMER, 0, NULL);
 
 	unlock_tcp_con();
 	return 0;
@@ -2066,7 +2067,7 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 		m_received_syn_num--;
 	}
 
-	if (mce_sys.tcp_ctl_thread && !m_rx_peer_packets.empty())
+	if (mce_sys.tcp_ctl_thread == CTL_THREAD_WITH_WAKEUP && !m_rx_peer_packets.empty())
 		g_p_event_handler_manager->wakeup_timer_event(this, m_timer_handle);
 
 	unlock_tcp_con();
@@ -2135,7 +2136,7 @@ sockinfo_tcp *sockinfo_tcp::accept_clone()
         si->m_sock_state = TCP_SOCK_BOUND;
         si->setPassthrough(false);
 
-        if (mce_sys.tcp_ctl_thread) {
+        if (mce_sys.tcp_ctl_thread  > CTL_THREAD_DISABLE) {
         	tcp_ip_output(&si->m_pcb, sockinfo_tcp::ip_output_syn_ack);
         }
 
@@ -2201,7 +2202,7 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 		new_sock->m_p_rx_ring = rx_ring_iter->first;
 	}
 
-	if (mce_sys.tcp_ctl_thread) {
+	if (mce_sys.tcp_ctl_thread > CTL_THREAD_DISABLE) {
 		new_sock->m_vma_thr = true;
 
 		// Before handling packets from flow steering the child should process everything it got from parent

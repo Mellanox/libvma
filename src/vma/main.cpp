@@ -570,7 +570,7 @@ void print_vma_global_settings()
 	VLOG_PARAM_STRING("Offloaded Sockets", mce_sys.offloaded_sockets, MCE_DEFAULT_OFFLOADED_SOCKETS, SYS_VAR_OFFLOADED_SOCKETS, mce_sys.offloaded_sockets ? "Enabled" : "Disabled");
 	VLOG_PARAM_NUMBER("Timer Resolution (msec)", mce_sys.timer_resolution_msec, MCE_DEFAULT_TIMER_RESOLUTION_MSEC, SYS_VAR_TIMER_RESOLUTION_MSEC);
 	VLOG_PARAM_NUMBER("TCP Timer Resolution (msec)", mce_sys.tcp_timer_resolution_msec, MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC, SYS_VAR_TCP_TIMER_RESOLUTION_MSEC);
-	VLOG_PARAM_STRING("TCP control thread", mce_sys.tcp_ctl_thread, MCE_DEFAULT_TCP_CTL_THREAD, SYS_VAR_TCP_CTL_THREAD, mce_sys.tcp_ctl_thread ? "Enabled" : "Disabled");
+	VLOG_PARAM_NUMSTR("TCP control thread", mce_sys.tcp_ctl_thread, MCE_DEFAULT_TCP_CTL_THREAD, SYS_VAR_TCP_CTL_THREAD, ctl_thread_str(mce_sys.tcp_ctl_thread));
 	VLOG_PARAM_STRING("Avoid sys-calls on tcp fd", mce_sys.avoid_sys_calls_on_tcp_fd, MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD, SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD, mce_sys.avoid_sys_calls_on_tcp_fd ? "Enabled" : "Disabled");
 	VLOG_PARAM_NUMBER("Delay after join (msec)", mce_sys.wait_after_join_msec, MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC, SYS_VAR_WAIT_AFTER_JOIN_MSEC);
 	VLOG_PARAM_NUMBER("Delay after rereg (msec)", mce_sys.wait_after_rereg_msec, MCE_DEFAULT_WAIT_AFTER_REREG_MSEC, SYS_VAR_WAIT_AFTER_REREG_MSEC);
@@ -1121,7 +1121,9 @@ void get_env_params()
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_TCP_CTL_THREAD)) != NULL) {
-			mce_sys.tcp_ctl_thread = atoi(env_ptr) ? true : false;
+			mce_sys.tcp_ctl_thread = (tcp_ctl_thread_t)atoi(env_ptr);
+			if (mce_sys.tcp_ctl_thread > CTL_THREAD_LAST || mce_sys.tcp_ctl_thread < 0)
+				mce_sys.tcp_ctl_thread = MCE_DEFAULT_TCP_CTL_THREAD;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD)) != NULL) {

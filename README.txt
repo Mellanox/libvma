@@ -624,7 +624,10 @@ Minimum value is the internal thread wakeup timer resolution (VMA_TIMER_RESOLUTI
 Default value is 100 (milli-sec)
 
 VMA_TCP_CTL_THREAD
-Do all tcp control flows in the internal thread,
+Do all tcp control flows in the internal thread.
+Use value of 0 to disable.
+Use value of 1 for waking up the thread when there is work to do.
+Use value of 2 for waiting for thread timer to expire.
 Default value is disabled
 
 VMA_AVOID_SYS_CALLS_ON_TCP_FD
