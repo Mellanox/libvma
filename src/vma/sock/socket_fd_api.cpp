@@ -61,7 +61,7 @@ int socket_fd_api::bind(const sockaddr *__addr, socklen_t __addrlen)
 	__log_info_func("");
 	int ret = orig_os_api.bind(m_fd, __addr, __addrlen);
 	if (ret) {
-		__log_info_err("bind failed (ret=%d %m)", ret);
+		__log_info_dbg("bind failed (ret=%d %m)", ret);
 	}
 	return ret;
 }
@@ -71,7 +71,7 @@ int socket_fd_api::connect(const sockaddr *__to, socklen_t __tolen)
 	__log_info_func("");
 	int ret = orig_os_api.connect(m_fd, __to, __tolen);
 	if (ret) {
-		__log_info_err("connect failed (ret=%d %m)", ret);
+		__log_info_dbg("connect failed (ret=%d %m)", ret);
 	}
 	return ret;
 }
@@ -81,7 +81,7 @@ int socket_fd_api::accept(struct sockaddr *__addr, socklen_t *__addrlen)
        __log_info_func("");
        int ret = orig_os_api.accept(m_fd, __addr, __addrlen);
        if (ret < 0) {
-               __log_info_err("accept failed (ret=%d %m)", ret);
+               __log_info_dbg("accept failed (ret=%d %m)", ret);
        }
        return ret;
 }
@@ -91,7 +91,7 @@ int socket_fd_api::accept4(struct sockaddr *__addr, socklen_t *__addrlen, int __
        __log_info_func("");
        int ret = orig_os_api.accept4(m_fd, __addr, __addrlen, __flags);
        if (ret < 0) {
-               __log_info_err("accept4 failed (ret=%d %m)", ret);
+               __log_info_dbg("accept4 failed (ret=%d %m)", ret);
        }
        return ret;
 }
@@ -105,7 +105,7 @@ int socket_fd_api::listen(int backlog)
        __log_info_func("");
        int ret = orig_os_api.listen(m_fd, backlog);
        if (ret < 0) {
-               __log_info_err("listen failed (ret=%d %m)", ret);
+               __log_info_dbg("listen failed (ret=%d %m)", ret);
        }
        return ret;
 }
@@ -119,7 +119,7 @@ int socket_fd_api::getsockname(sockaddr *__name, socklen_t *__namelen)
 	__log_info_func("");
 	int ret = orig_os_api.getsockname(m_fd, __name, __namelen);
 	if (ret) {
-		__log_info_err("getsockname failed (ret=%d %m)", ret);
+		__log_info_dbg("getsockname failed (ret=%d %m)", ret);
 	}
 	return ret;
 }
@@ -129,7 +129,7 @@ int socket_fd_api::getpeername(sockaddr *__name, socklen_t *__namelen)
 	__log_info_func("");
 	int ret = orig_os_api.getpeername(m_fd, __name, __namelen);
 	if (ret) {
-		__log_info_err("getpeername failed (ret=%d %m)", ret);
+		__log_info_dbg("getpeername failed (ret=%d %m)", ret);
 	}
 	return ret;
 }
@@ -140,7 +140,7 @@ int socket_fd_api::setsockopt(int __level, int __optname,
 	__log_info_func("");
 	int ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
 	if (ret) {
-		__log_info_err("setsockopt failed (ret=%d %m)", ret);
+		__log_info_dbg("setsockopt failed (ret=%d %m)", ret);
 	}
 	return ret;
 }
@@ -151,7 +151,7 @@ int socket_fd_api::getsockopt(int __level, int __optname, void *__optval,
 	__log_info_func("");
 	int ret = orig_os_api.getsockopt(m_fd, __level, __optname, __optval, __optlen);
 	if (ret) {
-		__log_info_err("getsockopt failed (ret=%d %m)", ret);
+		__log_info_dbg("getsockopt failed (ret=%d %m)", ret);
 	}
 	return ret;
 }
