@@ -96,11 +96,11 @@ VMA_LOG_FILE, VMA logs just those parameters whose value != default.
 
 Example:
  VMA INFO   : ---------------------------------------------------------------------------
- VMA INFO   : VMA_VERSION: 6.9.1-0
+ VMA INFO   : VMA_VERSION: 7.0.5-0
  VMA INFO   : Cmd Line: sockperf sr
- VMA INFO   : Current Time: Sun May 21 13:09:29 2015
+ VMA INFO   : Current Time: Tue Aug 11 12:09:29 2015
  VMA INFO   : Pid:  7256
- VMA INFO   : OFED Version: MLNX_OFED_LINUX-3.0-3.0.0:
+ VMA INFO   : OFED Version: MLNX_OFED_LINUX-3.1-0.0.2:
  VMA INFO   : Architecture: x86_64
  VMA INFO   : Node: r-sw-bolt4 
  VMA INFO   : ---------------------------------------------------------------------------

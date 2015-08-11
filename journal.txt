@@ -1,3 +1,32 @@
+Version 7.0.5-0:
+Date + Time 2015-8-11
+=======================
+Added:
+        - RM #561857 Support non-standard vlan names
+        - RM #564158 provide 'sysctl' services for the rest of VMA objects to access
+        - RM #557948 Option to avoid system calls on tcp fd
+        - RM #562770 improve connection establishment rate
+        - RM #582394 Support flow-steering priority scheme on ConnectX-4
+        - RM #587515 Adapt vma to ConnectX-4 send inline demands
+        - RM #531820 Modify the syn throttling feature
+
+Fixed:
+        - RM #565962 Wrong TCP backlog handling
+        - RM #349852 fix cubic congestion control algorithm
+        - RM #549313 neigh post_send_tcp, fix check buffer validity
+        - RM #559589 Close on exec for netlink sockets, to fix crash on exec
+        - RM #554834 Fix issue when tcp header bigger than packet length
+        - RM #575582 Wrong handling of TCP window scale option
+        - RM #575697 VMA can't send FIN while snd_buf is full
+        - RM #552441 fix a possible crash in case of multithread udp recvfrom
+        - RM #565588 fix SO_LINGER functionality different than OS
+        - RM #576497 for upstream RH7.2 look at interface dev_port and not dev_id
+        - RM #559317 Continue processing CQ for ready FD after failure on one of them
+        - RM #560899 tcp socket hang in syn_recv state
+        - RM #501206 fix SO_RCVBUF and SO_SNDBUF for TCP
+        - RM #581915 incorrect errno when giving getsockopt an invalid level value
+        - RM #588042 Adjust tcp receive window to the socket receive buffer size
+
 Version 7.0.4-0:
 Date + Time 2015-7-8
 =======================
