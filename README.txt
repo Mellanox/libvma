@@ -625,6 +625,7 @@ Default value is 100 (milli-sec)
 
 VMA_TCP_CTL_THREAD
 Do all tcp control flows in the internal thread.
+This feature should be kept disabled if using blocking poll/select (epoll is OK).
 Use value of 0 to disable.
 Use value of 1 for waking up the thread when there is work to do.
 Use value of 2 for waiting for thread timer to expire.
