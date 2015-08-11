@@ -120,21 +120,36 @@ static inline int memcpy_toiovec(u_int8_t* p_src, iovec* p_iov, size_t sz_iov,
 const char* iphdr_protocol_type_to_str(const int type);
 const char* priv_vma_transport_type_str(transport_type_t trans_type);
 
-/** 
- * Read a sysfs param from file detailed in 'path' and read the 
- * value stored in the file into the 'buf' up to 'size'.
- * print debug message in case of failure.
- * @return length of data stored in buf
+/**
+ * Read content of file detailed in 'path' (usually a sysfs file) and
+ * store the file content into the given 'buf' up to 'size' characters.
+ * print log in case of failure according to the given 'log_level' argument.
+ * @return length of content that was read, or -1 upon any error
  */
-int priv_try_read_file(const char *path, char *buf, size_t size);
+int priv_read_file(const char *path, char *buf, size_t size, vlog_levels_t log_level = VLOG_ERROR);
 
 /**
- * Read a sysfs param from file detailed in 'path' and read the
- * value stored in the file into the 'buf' up to 'size'.
- * print error in case of failure.
- * @return length of data stored in buf
+ * like above 'priv_read_file' however make sure that upon success the result in buf is a null terminated string
  */
-int priv_read_file(const char *path, char *buf, size_t size);
+inline int priv_safe_read_file(const char *path, char *buf, size_t size, vlog_levels_t log_level = VLOG_ERROR){
+	int ret = priv_read_file(path, buf, size-1, log_level);
+	if (0 <= ret && size) buf[ret] = '\0';
+	return ret;
+}
+
+/**
+ * like above 'priv_read_file' only diff is that the log will go in DEBUG
+ */
+inline int priv_try_read_file(const char *path, char *buf, size_t size) {
+	return priv_read_file(path, buf, size, VLOG_DEBUG);
+}
+
+/**
+ * Read content of file detailed in 'path' (usually a sysfs file)
+ * upon failure print error
+ * @return int value (atoi) of the file content, or 'default_value' upon failure
+ */
+int read_file_to_int(const char *path, int default_value);
 
 
 

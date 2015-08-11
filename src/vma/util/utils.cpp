@@ -241,34 +241,30 @@ const char* priv_vma_transport_type_str(transport_type_t transport_type)
 	BULLSEYE_EXCLUDE_BLOCK_END
 }
 
-int priv_try_read_file(const char *path, char *buf, size_t size)
+int priv_read_file(const char *path, char *buf, size_t size, vlog_levels_t log_level /*= VLOG_ERROR*/)
 {
 	int len = -1;
 	int fd = orig_os_api.open(path, O_RDONLY);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (fd < 0) {
-		__log_dbg("failed opening file %s", path);
+		VLOG_PRINTF(log_level, "ERROR while opening file %s (errno %d %m)", path, errno);
 		return -1;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 	len = orig_os_api.read(fd, buf, size);
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (len < 0) {
+		VLOG_PRINTF(log_level, "ERROR while reading from file %s (errno %d %m)", path, errno);
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
 	orig_os_api.close(fd);
 	return len;
 }
 
-int priv_read_file(const char *path, char *buf, size_t size)
-{
-	int len = -1;
-	int fd = orig_os_api.open(path, O_RDONLY);
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (fd < 0) {
-		__log_err("ERROR while opening file %s", path);
-		return -1;
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-	len = orig_os_api.read(fd, buf, size);
-	orig_os_api.close(fd);
-	return len;
+int read_file_to_int(const char *path, int default_value){
+	char buf[25];
+	int rc = priv_safe_read_file(path, buf, sizeof buf);
+	return rc == -1 ? default_value : atoi(buf);
 }
 
 #if _BullseyeCoverage
