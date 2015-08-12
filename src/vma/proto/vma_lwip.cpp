@@ -92,18 +92,12 @@ vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip")
 	lwip_tcp_mss = get_lwip_tcp_mss(mce_sys.mtu, mce_sys.lwip_mss);
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	int is_window_scaling_enabled;
-	mce_sys.sysctl_reader.get(SYSCTL_WINDOW_SCALING, &is_window_scaling_enabled, sizeof(is_window_scaling_enabled));
-
+	int is_window_scaling_enabled = mce_sys.sysctl_reader.get_tcp_window_scaling();
 	if(is_window_scaling_enabled) {
-		sysctl_tcp_mem sysctl_rmem;
-		mce_sys.sysctl_reader.get(SYSCTL_NET_TCP_RMEM, &sysctl_rmem, sizeof(sysctl_rmem));
-
-		int core_rmem_max;
-		mce_sys.sysctl_reader.get(SYSCTL_NET_CORE_RMEM_MAX, &core_rmem_max, sizeof(core_rmem_max));
-
+		int rmem_max_value = mce_sys.sysctl_reader.get_tcp_rmem()->max_value;
+		int core_rmem_max = mce_sys.sysctl_reader.get_net_core_rmem_max();
 		enable_wnd_scale = 1;
-		rcv_wnd_scale = get_window_scaling_factor(sysctl_rmem.max_value, core_rmem_max);
+		rcv_wnd_scale = get_window_scaling_factor(rmem_max_value, core_rmem_max);
 	} else {
 		enable_wnd_scale = 0;
 		rcv_wnd_scale = 0;

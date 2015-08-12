@@ -106,9 +106,7 @@ sockinfo_tcp::sockinfo_tcp(int fd) :
 	/* SNDBUF accounting */
 	m_sndbuff_max = 0;
 	/* RCVBUF accounting */
-	sysctl_tcp_mem sysctl_rmem;
-	mce_sys.sysctl_reader.get(SYSCTL_NET_TCP_RMEM, &sysctl_rmem, sizeof(sysctl_rmem));
-	m_rcvbuff_max = sysctl_rmem.default_value;
+	m_rcvbuff_max = mce_sys.sysctl_reader.get_tcp_rmem()->default_value;
 
 	m_rcvbuff_current = 0;
 	m_rcvbuff_non_tcp_recved = 0;
@@ -2910,10 +2908,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 				m_pcb.so_options &= ~SOF_KEEPALIVE;
 			break;
 		case SO_RCVBUF:
-			int sysctl_rmem_max;
-			mce_sys.sysctl_reader.get(SYSCTL_NET_CORE_RMEM_MAX, &sysctl_rmem_max, sizeof(sysctl_rmem_max));
-
-			val = MIN(*(int *)__optval, sysctl_rmem_max);
+			val = MIN(*(int *)__optval, mce_sys.sysctl_reader.get_net_core_rmem_max());
 			// OS allocates double the size of memory requested by the application - not sure we need it.
 			m_rcvbuff_max = MAX(2 * m_pcb.mss, 2 * val);
 
@@ -2921,10 +2916,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			si_tcp_logdbg("setsockopt SO_RCVBUF: %d", m_rcvbuff_max);
 			break;
 		case SO_SNDBUF:
-			int sysctl_wmem_max;
-			mce_sys.sysctl_reader.get(SYSCTL_NET_CORE_WMEM_MAX, &sysctl_wmem_max, sizeof(sysctl_wmem_max));
-
-			val = MIN(*(int *)__optval, sysctl_wmem_max);
+			val = MIN(*(int *)__optval, mce_sys.sysctl_reader.get_net_core_wmem_max());
 			// OS allocates double the size of memory requested by the application - not sure we need it.
 			m_sndbuff_max = MAX(2 * m_pcb.mss, 2 * val);
 			fit_snd_bufs(m_sndbuff_max);

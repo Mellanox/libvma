@@ -144,6 +144,11 @@ static inline const char* ctl_thread_str(tcp_ctl_thread_t logic)
 }
 
 struct mce_sys_var {
+
+	mce_sys_var () : sysctl_reader(sysctl_reader_t::instance()){
+
+	}
+
 	char 		*app_name;
 	char 		app_id[MAX_APP_ID_LENGHT];
 
@@ -259,7 +264,7 @@ struct mce_sys_var {
 
 	uint32_t 	vma_time_measure_num_samples;
 	char 		vma_time_measure_filename[FILENAME_MAX];
-	sysctl_reader_t sysctl_reader;
+	sysctl_reader_t & sysctl_reader;
 };
 
 
