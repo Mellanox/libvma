@@ -244,20 +244,20 @@ const char* priv_vma_transport_type_str(transport_type_t transport_type)
 int priv_read_file(const char *path, char *buf, size_t size, vlog_levels_t log_level /*= VLOG_ERROR*/)
 {
 	int len = -1;
-	int fd = orig_os_api.open(path, O_RDONLY);
+	int fd = open(path, O_RDONLY);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (fd < 0) {
 		VLOG_PRINTF(log_level, "ERROR while opening file %s (errno %d %m)", path, errno);
 		return -1;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-	len = orig_os_api.read(fd, buf, size);
+	len = read(fd, buf, size);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (len < 0) {
 		VLOG_PRINTF(log_level, "ERROR while reading from file %s (errno %d %m)", path, errno);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-	orig_os_api.close(fd);
+	close(fd);
 	return len;
 }
 

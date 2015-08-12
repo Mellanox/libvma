@@ -85,7 +85,8 @@ const char *vma_version_str = "VMA_VERSION: " PACKAGE_VERSION "-" STR(VMA_LIBRAR
 			      ;	// End of vma_version_str - used in "$ strings libvma.so | grep VMA_VERSION"
 
 
-struct mce_sys_var mce_sys;
+struct mce_sys_var mce_sys; // TODO: don't use global variable because we can't control order of global variable initialization
+                            // currently, CTOR of mce_sys and all its members may conflict with things like orig_os_api and with vlogger global variables
 bool g_handle_iperf = false;
 bool g_b_exit = false;
 bool g_init_ibv_fork_done = false;
