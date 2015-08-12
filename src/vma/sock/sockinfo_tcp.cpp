@@ -908,8 +908,7 @@ void sockinfo_tcp::process_my_ctl_packets()
 		peer_key pk(desc->path.rx.src.sin_addr.s_addr, desc->path.rx.src.sin_port);
 
 
-		// TODO: very temp - duplicated !!!!
-		static const unsigned int MAX_SYN_RCVD = mce_sys.tcp_ctl_thread > CTL_THREAD_DISABLE ? 512 : 0; // TODO: consider reading it from /proc/sys/net/ipv4/tcp_max_syn_backlog
+		static const unsigned int MAX_SYN_RCVD = mce_sys.tcp_ctl_thread > CTL_THREAD_DISABLE ? mce_sys.sysctl_reader.get_tcp_max_syn_backlog() : 0;
 		// NOTE: currently, in case tcp_ctl_thread is disabled, only established backlog is supported (no syn-rcvd backlog)
 		unsigned int num_con_waiting = m_rx_peer_packets.size();
 
@@ -1484,7 +1483,7 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 
 			/// respect TCP listen backlog - See redmine issue #565962
 			/// distinguish between backlog of established sockets vs. backlog of syn-rcvd
-			static const unsigned int MAX_SYN_RCVD = mce_sys.tcp_ctl_thread > CTL_THREAD_DISABLE ? 512 : 0; // TODO: consider reading it from /proc/sys/net/ipv4/tcp_max_syn_backlog
+			static const unsigned int MAX_SYN_RCVD = mce_sys.tcp_ctl_thread > CTL_THREAD_DISABLE ? mce_sys.sysctl_reader.get_tcp_max_syn_backlog() : 0;
 							// NOTE: currently, in case tcp_ctl_thread is disabled, only established backlog is supported (no syn-rcvd backlog)
 
 			unsigned int num_con_waiting = m_rx_peer_packets.size();
@@ -1870,9 +1869,9 @@ int sockinfo_tcp::listen(int backlog)
 
 	int orig_backlog = backlog;
 
-	if (backlog > SOMAXCONN) { // = 128 - TODO: read it at runtime from /proc/sys/net/core/somaxconn
-		si_tcp_logdbg("truncating listen backlog=%d to the maximun=%d", backlog, SOMAXCONN);
-		backlog = SOMAXCONN;
+	if (backlog > mce_sys.sysctl_reader.get_listen_maxconn()) {
+		si_tcp_logdbg("truncating listen backlog=%d to the maximun=%d", backlog, mce_sys.sysctl_reader.get_listen_maxconn());
+		backlog = mce_sys.sysctl_reader.get_listen_maxconn();
 	}
 	else if (backlog <= 0) {
 		si_tcp_logdbg("changing listen backlog=%d to the minimum=%d", backlog, 1);
