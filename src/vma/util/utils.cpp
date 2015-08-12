@@ -228,19 +228,6 @@ const char* iphdr_protocol_type_to_str(const int type)
 	BULLSEYE_EXCLUDE_BLOCK_END
 }
 
-const char* priv_vma_transport_type_str(transport_type_t transport_type)
-{
-	BULLSEYE_EXCLUDE_BLOCK_START
-	switch (transport_type) {
-	case VMA_TRANSPORT_IB: 			return "IB";
-	case VMA_TRANSPORT_ETH: 		return "ETH";
-	case VMA_TRANSPORT_UNKNOWN:
-	default:				break;
-	}
-	return "UNKNOWN";
-	BULLSEYE_EXCLUDE_BLOCK_END
-}
-
 int priv_read_file(const char *path, char *buf, size_t size, vlog_levels_t log_level /*= VLOG_ERROR*/)
 {
 	int len = -1;

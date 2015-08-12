@@ -24,6 +24,7 @@
 
 #include "vma/util/utils.h"
 #include "vma/util/bullseye.h"
+#include "vma/util/sys_vars.h"
 
 #define VLOG_DEFAULT_MODULE_NAME "VMA"
 #define VMA_LOG_CB_ENV_VAR "VMA_LOG_CB_FUNC_PTR"

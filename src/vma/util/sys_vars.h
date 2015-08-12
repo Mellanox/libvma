@@ -108,6 +108,19 @@ typedef enum {
 	VMA_TRANSPORT_ETH
 } transport_type_t;
 
+static inline const char* priv_vma_transport_type_str(transport_type_t transport_type)
+{
+	BULLSEYE_EXCLUDE_BLOCK_START
+	switch (transport_type) {
+	case VMA_TRANSPORT_IB: 			return "IB";
+	case VMA_TRANSPORT_ETH: 		return "ETH";
+	case VMA_TRANSPORT_UNKNOWN:
+	default:				break;
+	}
+	return "UNKNOWN";
+	BULLSEYE_EXCLUDE_BLOCK_END
+}
+
 typedef enum {
 	MSS_FOLLOW_MTU = 0
 } mss_mode_t;

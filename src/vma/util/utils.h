@@ -19,7 +19,7 @@
 #include <string.h>
 #include <ifaddrs.h>
 
-#include "sys_vars.h"
+#include "vtypes.h"
 #include <vma/util/rdtsc.h>
 #include <linux/if_ether.h>
 #include <vlogger/vlogger.h>
@@ -118,7 +118,6 @@ static inline int memcpy_toiovec(u_int8_t* p_src, iovec* p_iov, size_t sz_iov,
 #endif
 
 const char* iphdr_protocol_type_to_str(const int type);
-const char* priv_vma_transport_type_str(transport_type_t trans_type);
 
 /**
  * Read content of file detailed in 'path' (usually a sysfs file) and
