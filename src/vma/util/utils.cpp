@@ -264,7 +264,10 @@ int priv_read_file(const char *path, char *buf, size_t size, vlog_levels_t log_l
 int read_file_to_int(const char *path, int default_value){
 	char buf[25];
 	int rc = priv_safe_read_file(path, buf, sizeof buf);
-	return rc == -1 ? default_value : atoi(buf);
+	if (rc < 0) {
+		__log_warn("ERROR while getting int from from file %s, we'll use default %d", path, default_value);
+	}
+	return (rc < 0) ? default_value : atoi(buf);
 }
 
 #if _BullseyeCoverage
