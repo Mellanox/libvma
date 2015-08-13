@@ -58,8 +58,13 @@ sockinfo::sockinfo(int fd):
 {
 	m_rx_epfd = orig_os_api.epoll_create(128);
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (unlikely(m_rx_epfd == -1))
-		si_logpanic("failed to create internal epoll (ret=%d %m)", m_rx_epfd);
+	if (unlikely(m_rx_epfd == -1)) {
+		if (errno == EMFILE) {
+			si_logerr("Process file table overflow. Consider increasing ulimit -n");
+		}
+		// TODO: instead of panic, socket_internal in sock-redirect should return -1
+		si_logpanic("failed to create internal epoll (errno=%d %m)", errno);
+	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	wakeup_set_epoll_fd(m_rx_epfd);
