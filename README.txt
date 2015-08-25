@@ -1,4 +1,4 @@
-Updated: 3 May 2014
+Updated: 25 Aug 2015
 
 Introduction
 ============
@@ -21,7 +21,7 @@ Build libvma from source
 Prerequisites:
 1. MLNX_OFED as described in the "Pre Installation" step of next section.
 2. Or, upstream kernel and userspace verbs libraries (libibverbs, libmlx4, librdmacm)
-3. Autoconf, Automake, libtool, unzip, patch, libnl-devel (netlink 1)
+3. Autoconf, Automake, libtool, unzip, patch, libnl-devel (netlink 1 or 3)
 
 Build:
 1. ./autogen.sh
@@ -53,7 +53,7 @@ Pre Installation:
    And restart the driver: /etc/init.d/openibd restart
 
 Installing:
-Install the package as any other rpm package [rpm -i libvma.X.Y.Z-R.rpm].
+Install the package as any other rpm or debian package [rpm -i libvma.X.Y.Z-R.rpm].
 The installation copies the VMA library to: /usr/lib[64]/libvma.so
 The VMA monitoring utility is installed at: /usr/bin/vma_stat
 The VMA extra socket API is located at: /usr/include/mellanox/vma_extra.h
@@ -105,7 +105,7 @@ Example:
  VMA INFO   : Node: r-sw-bolt4 
  VMA INFO   : ---------------------------------------------------------------------------
  VMA INFO   : Log Level                      4                          [VMA_TRACELEVEL]
- VMA DEBUG  : Log Details                    0                          [VMA_LOG_DETAILS]
+ VMA DEBUG  : Log Details                    2                          [VMA_LOG_DETAILS]
  VMA DEBUG  : Log Colors                     Enabled                    [VMA_LOG_COLORS]
  VMA DEBUG  : Log File                                                  [VMA_LOG_FILE]
  VMA DEBUG  : Stats File                                                [VMA_STATS_FILE]
@@ -124,21 +124,21 @@ Example:
  VMA DEBUG  : TCP max syn rate               0 (no limit)               [VMA_TCP_MAX_SYN_RATE]
  VMA DEBUG  : Tx Mem Segs TCP                1000000                    [VMA_TX_SEGS_TCP]
  VMA DEBUG  : Tx Mem Bufs                    200000                     [VMA_TX_BUFS]
- VMA DEBUG  : Tx QP WRE                      16000                      [VMA_TX_WRE]
- VMA DEBUG  : Tx Max QP INLINE               224                        [VMA_TX_MAX_INLINE]
+ VMA DEBUG  : Tx QP WRE                      3000                       [VMA_TX_WRE]
+ VMA DEBUG  : Tx Max QP INLINE               220                        [VMA_TX_MAX_INLINE]
  VMA DEBUG  : Tx MC Loopback                 Enabled                    [VMA_TX_MC_LOOPBACK]
  VMA DEBUG  : Tx non-blocked eagains         Disabled                   [VMA_TX_NONBLOCKED_EAGAINS]
  VMA DEBUG  : Tx Prefetch Bytes              256                        [VMA_TX_PREFETCH_BYTES]
- VMA DEBUG  : Tx backlog max                 100                        [VMA_TX_BACKLOG_MAX]
  VMA DEBUG  : Rx Mem Bufs                    200000                     [VMA_RX_BUFS]
  VMA DEBUG  : Rx QP WRE                      16000                      [VMA_RX_WRE]
+ VMA DEBUG  : Rx QP WRE BATCHING             64                         [VMA_RX_WRE_BATCHING]
  VMA DEBUG  : Rx Byte Min Limit              65536                      [VMA_RX_BYTES_MIN]
  VMA DEBUG  : Rx Poll Loops                  100000                     [VMA_RX_POLL]
  VMA DEBUG  : Rx Poll Init Loops             0                          [VMA_RX_POLL_INIT]
  VMA DEBUG  : Rx UDP Poll OS Ratio           100                        [VMA_RX_UDP_POLL_OS_RATIO]
  VMA DEBUG  : Rx Poll Yield                  Disabled                   [VMA_RX_POLL_YIELD]
  VMA DEBUG  : Rx Prefetch Bytes              256                        [VMA_RX_PREFETCH_BYTES]
- VMA DEBUG  : Rx Prefetch Bytes Before Poll  256                        [VMA_RX_PREFETCH_BYTES_BEFORE_POLL]
+ VMA DEBUG  : Rx Prefetch Bytes Before Poll  0                          [VMA_RX_PREFETCH_BYTES_BEFORE_POLL]
  VMA DEBUG  : Rx CQ Drain Rate               Disabled                   [VMA_RX_CQ_DRAIN_RATE_NSEC]
  VMA DEBUG  : GRO max streams                32                         [VMA_GRO_STREAMS_MAX]
  VMA DEBUG  : TCP 3T rules                   Disabled                   [VMA_TCP_3T_RULES]
@@ -146,16 +146,14 @@ Example:
  VMA DEBUG  : Select Poll (usec)             100000                     [VMA_SELECT_POLL]
  VMA DEBUG  : Select Poll OS Force           Disabled                   [VMA_SELECT_POLL_OS_FORCE]
  VMA DEBUG  : Select Poll OS Ratio           10                         [VMA_SELECT_POLL_OS_RATIO]
- VMA DEBUG  : Select Poll Yield              Disabled                   [VMA_SELECT_POLL_YIELD]
  VMA DEBUG  : Select Skip OS                 4                          [VMA_SELECT_SKIP_OS]
- VMA DEBUG  : Select CQ Interrupts           Enabled                    [VMA_SELECT_CQ_IRQ]
  VMA DEBUG  : CQ Drain Interval (msec)       10                         [VMA_PROGRESS_ENGINE_INTERVAL]
  VMA DEBUG  : CQ Drain WCE (max)             10000                      [VMA_PROGRESS_ENGINE_WCE_MAX]
  VMA DEBUG  : CQ Interrupts Moderation       Enabled                    [VMA_CQ_MODERATION_ENABLE]
  VMA DEBUG  : CQ Moderation Count            48                         [VMA_CQ_MODERATION_COUNT]
  VMA DEBUG  : CQ Moderation Period (usec)    50                         [VMA_CQ_MODERATION_PERIOD_USEC]
- VMA DEBUG  : CQ AIM Max Count               160                        [VMA_CQ_AIM_MAX_COUNT]
- VMA DEBUG  : CQ AIM Max Period (usec)       200                        [VMA_CQ_AIM_MAX_PERIOD_USEC]
+ VMA DEBUG  : CQ AIM Max Count               560                        [VMA_CQ_AIM_MAX_COUNT]
+ VMA DEBUG  : CQ AIM Max Period (usec)       250                        [VMA_CQ_AIM_MAX_PERIOD_USEC]
  VMA DEBUG  : CQ AIM Interval (msec)         250                        [VMA_CQ_AIM_INTERVAL_MSEC]
  VMA DEBUG  : CQ AIM Interrupts Rate (per sec) 5000                     [VMA_CQ_AIM_INTERRUPTS_RATE_PER_SEC]
  VMA DEBUG  : CQ Poll Batch (max)            16                         [VMA_CQ_POLL_BATCH_MAX]
@@ -164,10 +162,9 @@ Example:
  VMA DEBUG  : Offloaded Sockets              Enabled                    [VMA_OFFLOADED_SOCKETS]
  VMA DEBUG  : Timer Resolution (msec)        10                         [VMA_TIMER_RESOLUTION_MSEC]
  VMA DEBUG  : TCP Timer Resolution (msec)    100                        [VMA_TCP_TIMER_RESOLUTION_MSEC]
- VMA DEBUG  : TCP control thread             Disabled                   [VMA_TCP_CTL_THREAD]
+ VMA DEBUG  : TCP control thread             0 (Disabled)               [VMA_TCP_CTL_THREAD]
  VMA DEBUG  : Avoid sys-calls on tcp fd      Disabled			[VMA_AVOID_SYS_CALLS_ON_TCP_FD]
  VMA DEBUG  : Delay after join (msec)        0                          [VMA_WAIT_AFTER_JOIN_MSEC]
- VMA DEBUG  : Delay after rereg (msec)       500                        [VMA_WAIT_AFTER_REREG_MSEC]
  VMA DEBUG  : Internal Thread Affinity       -1                         [VMA_INTERNAL_THREAD_AFFINITY]
  VMA DEBUG  : Internal Thread Cpuset                                    [VMA_INTERNAL_THREAD_CPUSET]
  VMA DEBUG  : Internal Thread Arm CQ	     Disabled                   [VMA_INTERNAL_THREAD_ARM_CQ]
@@ -299,7 +296,7 @@ VMA_TX_WRE
 Number of Work Request Elements allocated in all transmit QP's.
 The number of QP's can change according to the number of network offloaded
 interfaces.
-Default value is 16000
+Default value is 3000
 
 VMA_TX_MAX_INLINE
 Max send inline data set for QP. 
@@ -307,7 +304,7 @@ Data copied into the INLINE space is at least 32 bytes of headers and
 the rest can be user datagram payload.
 VMA_TX_MAX_INLINE=0 disables INLINEing on the tx transmit path.
 In older releases this parameter was called: VMA_MAX_INLINE
-Default VMA_TX_MAX_INLINE is 224
+Default VMA_TX_MAX_INLINE is 220
 
 VMA_TX_MC_LOOPBACK
 This parameter sets the initial value used by VMA internally to controls the
@@ -333,15 +330,6 @@ for your specific hardware.
 Value range is 0 to MTU size
 Disable with a value of 0
 Default value is 256 bytes
-
-VMA_TX_DROP_MODE
-Debug parameter used to check various sent packet dropping modules. Assigning this
-parameter any value other than 0 (zero) makes it visible on the VMA startup log.
-0 - Disabled (Don't drop anything)
-1 - Drop All
-2 - Drop only MC offloaded traffic
-3 - Drop only UC offloaded traffic
-Default value is 0 (Disabled) which is not shown on the VMA startup log.
 
 VMA_RING_ALLOCATION_LOGIC_TX
 VMA_RING_ALLOCATION_LOGIC_RX
@@ -456,7 +444,7 @@ Same as the above VMA_RX_PREFETCH_BYTES, only that prefetch is done before
 acutally getting the packets.
 This benefit low pps traffic latency.
 Disable with 0.
-Default value is 256 bytes
+Default value is 0
 
 VMA_RX_CQ_DRAIN_RATE_NSEC
 Socket's receive path CQ drain logic rate control. 
@@ -522,25 +510,11 @@ When disabled, only offlaoded sockets are polled.
 Disable with 0
 Default value is 10
 
-VMA_SELECT_POLL_YIELD
-When an application is running with multiple threads, on a limited number 
-of cores, there is a need for each thread polling inside the VMA (select, 
-poll & epoll) to yield the CPU to other polling thread so not to starve 
-them from processing incoming packets.
-Default value is 0 (Disable)
-
 VMA_SELECT_SKIP_OS
 Similar to VMA_RX_SKIP_OS, but in select(), poll() or epoll_wait() this will
 force the VMA to check the non offloaded fd even though an offloaded socket
 has ready packets found while polling.
 Default value is 4
-
-VMA_SELECT_CQ_IRQ
-When disbaled no IB interrupts will be used during select(), poll() or
-epoll_wait() socket calls. This mode of work is not recommended. 
-It can be used by applications that use select(), poll() or epoll_wait()
-as polling.
-Default value is 1 (Enabled)
 
 VMA_PROGRESS_ENGINE_INTERVAL
 VMA Internal thread safe check that the CQ is drained at least onse
@@ -674,11 +648,6 @@ This is helpful to over come loss of first few packets of an outgoing stream
 due to SM lengthy handling of MFT configuration on the switch chips
 Default value is 0 (milli-sec)
 
-VMA_WAIT_AFTER_REREG_MSEC
-This parameter indicates the time of delay before and after sending 
-a multicast LEAVE (after sm restart / failover event).
-Default value is 500 (milli-sec)
-
 VMA_THREAD_MODE
 By default VMA is ready for multi-threaded applications, meaning it is thread safe.
 If the users application is a single threaded one, then using this configuration
@@ -795,19 +764,38 @@ Default value is 0 (Disabled)
 
 VMA Monitoring & Performance Counters
 =====================================
-The VMA internal performance counters include information per user DATAGRAM
+The VMA internal performance counters include information per user
 sockets and a global view on select() and epoll_wait() usage by the application.
+
 Use the 'vma_stats' included utility to view the per socket information and
 performance counters during run time.
-usage: vma_stats <pid> [<info_level>]
-- where pid is the process id that is using libvma.so
-- info_level = 0 Show runtime performance counters (default)
-- info_level = 1 Show additional application runtime configuration information
-- info_level = 2 Show multicast group membership information (similar to 'netstat -g')
+Usage:
+        vma_stats [-p pid] [-k directory] [-v view] [-d details] [-i interval]
 
-If the user application performed transmite or receive activity on a socket
-then these values will be logs once the sockets are closed. The VMA logs its
-internal performance counters if VMA_TRACELEVEL=4.
+Defaults:
+        find_pid=enabled, directory="/tmp/", view=1, details=1, interval=1,
+
+Options:
+  -p, --pid=<pid>               Show VMA statistics for proccess with pid: <pid>
+  -k, --directory=<directory>   Set shared memory directory path to <directory>
+  -n, --name=<application>      Show VMA statistics for application: <application>
+  -f, --find_pid                Find and show statistics for VMA instance running (default)
+  -F, --forbid_clean            By setting this flag inactive shared objects would not be removed
+  -i, --interval=<n>            Print report every <n> seconds
+  -c, --cycles=<n>              Do <n> report print cycles and exit, use 0 value for infinite (default)
+  -v, --view=<1|2|3|4|5>        Set view type:1- basic info,2- extra info,3- full info,4- mc groups,5- similar to 'netstat -tunaep'
+  -d, --details=<1|2>           Set details mode:1- to see totals,2- to see deltas
+  -z, --zero                    Zero counters
+  -l, --log_level=<level>       Set VMA log level to <level>(1 <= level <= 7)
+  -D, --details_level=<level>   Set VMA log details level to <level>(0 <= level <= 3)
+  -s, --sockets=<list|range>    Log only sockets that match <list> or <range>, format: 4-16 or 1,9 (or combination)
+  -V, --version                 Print version
+  -h, --help                    Print this help message
+
+
+Use VMA_STATS_FILE to get internal VMA statistics like vma_stats provide.
+If this parameter is set and the user application performed transmite or receive
+activity on a socket, then these values will be logs once the sockets are closed.
 
 Below is a logout example of a socket performance counters.
 Below the logout example there is some explanations about the numbers.
@@ -984,7 +972,8 @@ Below is a short script to help you release VMAs unused huge pages resources:
 
  VMA WARNING:******************************************************************************
  VMA WARNING: VMA doesn't support current bonding configuration of bond0.
- VMA WARNING: The only supported bonding mode is "active-backup(#1)" with "fail_over_mac=1".
+ VMA WARNING: The only supported bonding mode is "active-backup(#1)" with "fail_over_mac=1"
+ VMA WARNING: or "fail_over_mac=0".
  VMA WARNING: The effect of working in unsupported bonding mode is undefined.
  VMA WARNING: Read more about Bonding in the VMA's User Manual
  VMA WARNING: ******************************************************************************
@@ -992,7 +981,7 @@ Below is a short script to help you release VMAs unused huge pages resources:
 This warning message means that VMA has detected bonding device which is configured 
 to work in mode which is not supported by VMA, this means that VMA will not support 
 high avilability events for that interface. 
-VMA currently supports just active-backup(#1) fail_over_mac = 'active'(#1) mode.
+VMA currently supports just active-backup(#1) and fail_over_mac = 1 or 0 mode.
 In order to fix this issue please change the bonding configuration.
 
 Example:

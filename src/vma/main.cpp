@@ -485,7 +485,6 @@ void print_vma_global_settings()
 	VLOG_PARAM_STRING("Tx MC Loopback", mce_sys.tx_mc_loopback_default, MCE_DEFAULT_TX_MC_LOOPBACK, SYS_VAR_TX_MC_LOOPBACK, mce_sys.tx_mc_loopback_default ? "Enabled " : "Disabled");
 	VLOG_PARAM_STRING("Tx non-blocked eagains", mce_sys.tx_nonblocked_eagains, MCE_DEFAULT_TX_NONBLOCKED_EAGAINS, SYS_VAR_TX_NONBLOCKED_EAGAINS, mce_sys.tx_nonblocked_eagains ? "Enabled " : "Disabled");
 	VLOG_PARAM_NUMBER("Tx Prefetch Bytes", mce_sys.tx_prefetch_bytes, MCE_DEFAULT_TX_PREFETCH_BYTES, SYS_VAR_TX_PREFETCH_BYTES);
-	VLOG_PARAM_NUMBER("Tx backlog max", mce_sys.tx_backlog_max, MCE_DEFAULT_TX_BACKLOG_MAX, SYS_VAR_TX_BACKLOG_MAX);
 
 	VLOG_PARAM_NUMBER("Rx Mem Bufs", mce_sys.rx_num_bufs, MCE_DEFAULT_RX_NUM_BUFS, SYS_VAR_RX_NUM_BUFS);
 	VLOG_PARAM_NUMBER("Rx QP WRE", mce_sys.rx_num_wr, MCE_DEFAULT_RX_NUM_WRE, SYS_VAR_RX_NUM_WRE);
@@ -530,20 +529,13 @@ void print_vma_global_settings()
 	else {
 		VLOG_PARAM_STRING("Select Poll OS Ratio", mce_sys.select_poll_os_ratio, MCE_DEFAULT_SELECT_POLL_OS_RATIO, SYS_VAR_SELECT_POLL_OS_RATIO, "Disabled");
 	}
-	if (mce_sys.select_poll_yield_loops) {
-		VLOG_PARAM_NUMBER("Select Poll Yield", mce_sys.select_poll_yield_loops, MCE_DEFAULT_SELECT_POLL_YIELD, SYS_VAR_SELECT_POLL_YIELD);
-	}
-	else {
-		VLOG_PARAM_STRING("Select Poll Yield", mce_sys.select_poll_yield_loops, MCE_DEFAULT_SELECT_POLL_YIELD, SYS_VAR_SELECT_POLL_YIELD, "Disabled");
-	}
+
 	if (mce_sys.select_skip_os_fd_check) {
 		VLOG_PARAM_NUMBER("Select Skip OS", mce_sys.select_skip_os_fd_check, MCE_DEFAULT_SELECT_SKIP_OS, SYS_VAR_SELECT_SKIP_OS);
 	}
 	else {
 		VLOG_PARAM_STRING("Select Skip OS", mce_sys.select_skip_os_fd_check, MCE_DEFAULT_SELECT_SKIP_OS, SYS_VAR_SELECT_SKIP_OS, "Disabled");
 	}
-
-	VLOG_PARAM_STRING("Select CQ Interrupts", mce_sys.select_arm_cq, MCE_DEFAULT_SELECT_ARM_CQ, SYS_VAR_SELECT_CQ_IRQ, mce_sys.select_arm_cq ? "Enabled " : "Disabled");
 
 	if (mce_sys.progress_engine_interval_msec == MCE_CQ_DRAIN_INTERVAL_DISABLED || mce_sys.progress_engine_wce_max == 0) {
 		vlog_printf(VLOG_INFO, FORMAT_STRING, "CQ Drain Thread", "Disabled", SYS_VAR_PROGRESS_ENGINE_INTERVAL);	
@@ -574,7 +566,6 @@ void print_vma_global_settings()
 	VLOG_PARAM_NUMSTR("TCP control thread", mce_sys.tcp_ctl_thread, MCE_DEFAULT_TCP_CTL_THREAD, SYS_VAR_TCP_CTL_THREAD, ctl_thread_str(mce_sys.tcp_ctl_thread));
 	VLOG_PARAM_STRING("Avoid sys-calls on tcp fd", mce_sys.avoid_sys_calls_on_tcp_fd, MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD, SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD, mce_sys.avoid_sys_calls_on_tcp_fd ? "Enabled" : "Disabled");
 	VLOG_PARAM_NUMBER("Delay after join (msec)", mce_sys.wait_after_join_msec, MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC, SYS_VAR_WAIT_AFTER_JOIN_MSEC);
-	VLOG_PARAM_NUMBER("Delay after rereg (msec)", mce_sys.wait_after_rereg_msec, MCE_DEFAULT_WAIT_AFTER_REREG_MSEC, SYS_VAR_WAIT_AFTER_REREG_MSEC);
 	VLOG_STR_PARAM_STRING("Internal Thread Affinity", mce_sys.internal_thread_affinity_str, MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR, SYS_VAR_INTERNAL_THREAD_AFFINITY, mce_sys.internal_thread_affinity_str);
 	VLOG_STR_PARAM_STRING("Internal Thread Cpuset", mce_sys.internal_thread_cpuset, MCE_DEFAULT_INTERNAL_THREAD_CPUSET, SYS_VAR_INTERNAL_THREAD_CPUSET, mce_sys.internal_thread_cpuset);
 	VLOG_PARAM_STRING("Internal Thread Arm CQ", mce_sys.internal_thread_arm_cq_enabled, MCE_DEFAULT_INTERNAL_THREAD_ARM_CQ_ENABLED, SYS_VAR_INTERNAL_THREAD_ARM_CQ, mce_sys.internal_thread_arm_cq_enabled ? "Enabled " : "Disabled");
@@ -685,11 +676,9 @@ void get_env_params()
 	mce_sys.tx_num_bufs             = MCE_DEFAULT_TX_NUM_BUFS;
 	mce_sys.tx_num_wr               = MCE_DEFAULT_TX_NUM_WRE;
 	mce_sys.tx_max_inline		= MCE_DEFAULT_TX_MAX_INLINE;
-	mce_sys.tx_drop_mode            = TX_DROP_NOTHING;
 	mce_sys.tx_mc_loopback_default  = MCE_DEFAULT_TX_MC_LOOPBACK;
 	mce_sys.tx_nonblocked_eagains   = MCE_DEFAULT_TX_NONBLOCKED_EAGAINS;
 	mce_sys.tx_prefetch_bytes 	= MCE_DEFAULT_TX_PREFETCH_BYTES;
-	mce_sys.tx_backlog_max          = MCE_DEFAULT_TX_BACKLOG_MAX;
 	mce_sys.tx_bufs_batch_udp	= MCE_DEFAULT_TX_BUFS_BATCH_UDP;
 	mce_sys.tx_bufs_batch_tcp	= MCE_DEFAULT_TX_BUFS_BATCH_TCP;
 
@@ -716,9 +705,7 @@ void get_env_params()
 	mce_sys.select_poll_num		= MCE_DEFAULT_SELECT_NUM_POLLS;
 	mce_sys.select_poll_os_force	= MCE_DEFAULT_SELECT_POLL_OS_FORCE;
 	mce_sys.select_poll_os_ratio	= MCE_DEFAULT_SELECT_POLL_OS_RATIO;
-	mce_sys.select_poll_yield_loops	= MCE_DEFAULT_SELECT_POLL_YIELD;
 	mce_sys.select_skip_os_fd_check	= MCE_DEFAULT_SELECT_SKIP_OS;
-	mce_sys.select_arm_cq		= MCE_DEFAULT_SELECT_ARM_CQ;
 
 	mce_sys.cq_moderation_enable	= MCE_DEFAULT_CQ_MODERATION_ENABLE;
 	mce_sys.cq_moderation_count = MCE_DEFAULT_CQ_MODERATION_COUNT;
@@ -741,7 +728,6 @@ void get_env_params()
 	mce_sys.tcp_ctl_thread		= MCE_DEFAULT_TCP_CTL_THREAD;
 	mce_sys.avoid_sys_calls_on_tcp_fd = MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD;
 	mce_sys.wait_after_join_msec	= MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC;
-	mce_sys.wait_after_rereg_msec 	= MCE_DEFAULT_WAIT_AFTER_REREG_MSEC;
 	mce_sys.thread_mode		= MCE_DEFAULT_THREAD_MODE;
 	mce_sys.buffer_batching_mode	= MCE_DEFAULT_BUFFER_BATCHING_MODE;
 	mce_sys.mem_alloc_type          = MCE_DEFAULT_MEM_ALLOC_TYPE;
@@ -790,7 +776,6 @@ void get_env_params()
 		mce_sys.rx_udp_poll_os_ratio    = 100;
 		mce_sys.select_poll_num         = 0;
 		mce_sys.select_skip_os_fd_check = 20;
-		mce_sys.select_arm_cq           = false;
 		break;
 
 	case MCE_SPEC_RTI_784:
@@ -893,11 +878,6 @@ void get_env_params()
 				mce_sys.tx_max_inline, mce_sys.tx_num_wr, cx4_max_tx_wre_for_inl);
 		mce_sys.tx_num_wr = cx4_max_tx_wre_for_inl;
 	}
-
-	if ((env_ptr = getenv(SYS_VAR_TX_DROP)) != NULL)
-		mce_sys.tx_drop_mode = (tx_drop_mode_t)atoi(env_ptr);
-	if (mce_sys.tx_drop_mode >= TX_DROP_LAST)
-		mce_sys.tx_drop_mode = TX_DROP_NOTHING;
 
 	if ((env_ptr = getenv(SYS_VAR_TX_MC_LOOPBACK)) != NULL)
 		mce_sys.tx_mc_loopback_default = atoi(env_ptr) ? true : false;
@@ -1040,15 +1020,8 @@ void get_env_params()
 	if ((env_ptr = getenv(SYS_VAR_SELECT_POLL_OS_RATIO)) != NULL)
 		mce_sys.select_poll_os_ratio = (uint32_t)atoi(env_ptr);
 
-	if ((env_ptr = getenv(SYS_VAR_SELECT_POLL_YIELD)) != NULL)
-		mce_sys.select_poll_yield_loops = (uint32_t)atoi(env_ptr);
-
 	if ((env_ptr = getenv(SYS_VAR_SELECT_SKIP_OS)) != NULL)
 		mce_sys.select_skip_os_fd_check = (uint32_t)atoi(env_ptr);
-
-	if ((env_ptr = getenv(SYS_VAR_SELECT_CQ_IRQ)) != NULL)
-		mce_sys.select_arm_cq = atoi(env_ptr) ? true : false;
-
 
 
 	if (mce_sys.rx_poll_num < 0 ||  mce_sys.select_poll_num < 0) {
@@ -1154,9 +1127,6 @@ void get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_WAIT_AFTER_JOIN_MSEC)) != NULL)
 		mce_sys.wait_after_join_msec = (uint32_t)atoi(env_ptr);
-
-	if ((env_ptr = getenv(SYS_VAR_WAIT_AFTER_REREG_MSEC)) != NULL)
-		mce_sys.wait_after_rereg_msec = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_THREAD_MODE)) != NULL) {
 		mce_sys.thread_mode = (thread_mode_t)atoi(env_ptr);

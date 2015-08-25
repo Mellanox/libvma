@@ -287,13 +287,16 @@ void net_device_table_mgr::verify_bonding_mode(in_addr_t l_if)
 			if (bond_mode && !strcmp(bond_mode, "active-backup"))
 				if (priv_read_file(bond_failover_mac_param_file, bond_failover_mac_file_content, FILENAME_MAX) > 0) {
 					p_failover_mac_value = strstr(bond_failover_mac_file_content, "1");
+					if (!p_failover_mac_value)
+						p_failover_mac_value = strstr(bond_failover_mac_file_content, "0");
 				}
 		}
 
 		if (!p_failover_mac_value) {
 			vlog_printf(VLOG_WARNING,"******************************************************************************\n");
 			vlog_printf(VLOG_WARNING,"VMA doesn't support current bonding configuration of %s.\n", base_ifname);
-			vlog_printf(VLOG_WARNING,"The only supported bonding mode is \"active-backup(#1)\" with \"fail_over_mac=1\".\n");
+			vlog_printf(VLOG_WARNING,"The only supported bonding mode is \"active-backup(#1)\" with \"fail_over_mac=1\"\n");
+			vlog_printf(VLOG_WARNING,"or \"fail_over_mac=0\".\n");
 			vlog_printf(VLOG_WARNING,"The effect of working in unsupported bonding mode is undefined.\n");
 			vlog_printf(VLOG_WARNING,"Read more about Bonding in the VMA's User Manual\n");
 			vlog_printf(VLOG_WARNING,"******************************************************************************\n");

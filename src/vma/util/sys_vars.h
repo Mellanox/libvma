@@ -43,14 +43,6 @@ typedef enum {
 } alloc_mode_t;
 
 typedef enum {
-	TX_DROP_NOTHING = 0, 		// Test Mode: Null TX - Drop all Tx'ed buffers
-	TX_DROP_ALL     = 1,
-	TX_DROP_MC      = 2,
-	TX_DROP_UC      = 3,
-	TX_DROP_LAST
-} tx_drop_mode_t;
-
-typedef enum {
 	RING_LOGIC_PER_INTERFACE = 0,
 	RING_LOGIC_PER_SOCKET = 10,
 	RING_LOGIC_PER_THREAD = 20,
@@ -178,7 +170,6 @@ struct mce_sys_var {
 	uint32_t 	tx_num_bufs;
 	uint32_t 	tx_num_wr;
 	uint32_t 	tx_max_inline;
-	tx_drop_mode_t	tx_drop_mode;
 	bool 		tx_mc_loopback_default;
 	bool		tx_nonblocked_eagains;
 	uint32_t	tx_prefetch_bytes;
@@ -211,7 +202,6 @@ struct mce_sys_var {
 	bool		select_poll_os_force;
 	uint32_t	select_poll_os_ratio;
 	uint32_t 	select_skip_os_fd_check;
-	uint32_t 	select_poll_yield_loops;
 	bool		select_arm_cq;
 	bool            select_handle_cpu_usage_stats;
 
@@ -236,7 +226,6 @@ struct mce_sys_var {
 	tcp_ctl_thread_t tcp_ctl_thread;
 	bool		avoid_sys_calls_on_tcp_fd;
 	uint32_t	wait_after_join_msec;
-	uint32_t	wait_after_rereg_msec;
 	in_port_t	block_udp_port;
 	thread_mode_t	thread_mode;
 	buffer_batching_mode_t buffer_batching_mode;
@@ -290,7 +279,6 @@ struct mce_sys_var {
 #define SYS_VAR_TX_NUM_BUFS				"VMA_TX_BUFS"
 #define SYS_VAR_TX_NUM_WRE				"VMA_TX_WRE"
 #define SYS_VAR_TX_MAX_INLINE				"VMA_TX_MAX_INLINE"
-#define SYS_VAR_TX_DROP					"VMA_TX_DROP_MODE"
 #define SYS_VAR_TX_MC_LOOPBACK				"VMA_TX_MC_LOOPBACK"
 #define SYS_VAR_TX_NONBLOCKED_EAGAINS			"VMA_TX_NONBLOCKED_EAGAINS"
 #define SYS_VAR_TX_PREFETCH_BYTES			"VMA_TX_PREFETCH_BYTES"
@@ -318,9 +306,7 @@ struct mce_sys_var {
 #define SYS_VAR_SELECT_NUM_POLLS			"VMA_SELECT_POLL"
 #define SYS_VAR_SELECT_POLL_OS_FORCE			"VMA_SELECT_POLL_OS_FORCE"
 #define SYS_VAR_SELECT_POLL_OS_RATIO			"VMA_SELECT_POLL_OS_RATIO"
-#define SYS_VAR_SELECT_POLL_YIELD			"VMA_SELECT_POLL_YIELD"
 #define SYS_VAR_SELECT_SKIP_OS				"VMA_SELECT_SKIP_OS"
-#define SYS_VAR_SELECT_CQ_IRQ				"VMA_SELECT_CQ_IRQ"
 
 #define SYS_VAR_CQ_MODERATION_ENABLE			"VMA_CQ_MODERATION_ENABLE"
 #define SYS_VAR_CQ_MODERATION_COUNT			"VMA_CQ_MODERATION_COUNT"
@@ -341,7 +327,6 @@ struct mce_sys_var {
 #define SYS_VAR_TCP_CTL_THREAD				"VMA_TCP_CTL_THREAD"
 #define SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD		"VMA_AVOID_SYS_CALLS_ON_TCP_FD"
 #define SYS_VAR_WAIT_AFTER_JOIN_MSEC			"VMA_WAIT_AFTER_JOIN_MSEC"
-#define SYS_VAR_WAIT_AFTER_REREG_MSEC			"VMA_WAIT_AFTER_REREG_MSEC"
 #define SYS_VAR_THREAD_MODE				"VMA_THREAD_MODE"
 #define SYS_VAR_BUFFER_BATCHING_MODE			"VMA_BUFFER_BATCHING_MODE"
 #define SYS_VAR_HUGETBL					"VMA_HUGETBL"
@@ -399,7 +384,6 @@ struct mce_sys_var {
 #define MCE_DEFAULT_TX_MC_LOOPBACK			(true)
 #define MCE_DEFAULT_TX_NONBLOCKED_EAGAINS		(false)
 #define MCE_DEFAULT_TX_PREFETCH_BYTES			(256)
-#define MCE_DEFAULT_TX_BACKLOG_MAX                      (100)
 #define MCE_DEFAULT_TX_BUFS_BATCH_UDP			(8)
 #define MCE_DEFAULT_TX_BUFS_BATCH_TCP			(16)
 #define MCE_DEFAULT_RX_NUM_BUFS				(200000)
@@ -421,9 +405,7 @@ struct mce_sys_var {
 #define MCE_DEFAULT_SELECT_NUM_POLLS			(100000)
 #define MCE_DEFAULT_SELECT_POLL_OS_FORCE		(0)
 #define MCE_DEFAULT_SELECT_POLL_OS_RATIO		(10)
-#define MCE_DEFAULT_SELECT_POLL_YIELD			(0)
 #define MCE_DEFAULT_SELECT_SKIP_OS			(4)
-#define MCE_DEFAULT_SELECT_ARM_CQ			(true)
 #define MCE_DEFAULT_SELECT_CPU_USAGE_STATS		(false)
 #define MCE_DEFAULT_CQ_MODERATION_ENABLE		(true)
 #define MCE_DEFAULT_CQ_MODERATION_COUNT			(48)
@@ -445,7 +427,6 @@ struct mce_sys_var {
 #define MCE_DEFAULT_TCP_CTL_THREAD			(CTL_THREAD_DISABLE)
 #define MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD		(false)
 #define MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC		(0)
-#define MCE_DEFAULT_WAIT_AFTER_REREG_MSEC		(500)
 #define MCE_DEFAULT_THREAD_MODE				(THREAD_MODE_MULTI)
 #define MCE_DEFAULT_BUFFER_BATCHING_MODE		(BUFFER_BATCHING_WITH_RECLAIM)
 #ifndef VMA_IBV_ACCESS_ALLOCATE_MR
