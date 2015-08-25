@@ -45,8 +45,6 @@ transport_t dst_entry_tcp::get_transport(sockaddr_in to)
 
 ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov, bool b_blocked /*= true*/, bool is_rexmit /*= false*/, bool dont_inline /*= false*/)
 {
-	NOT_IN_USE(is_rexmit);
-
 	tx_packet_template_t* p_pkt;
 	mem_buf_desc_t *p_mem_buf_desc;
 	size_t total_packet_len = 0;
@@ -57,7 +55,7 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 	bool no_copy = true;
 	if (likely(sz_iov == 1 && !is_rexmit)) {
 		p_tcp_iov = (tcp_iovec*)p_iov;
-		if (unlikely(p_tcp_iov->p_desc->p_desc_owner != m_p_ring)) {
+		if (unlikely(!m_p_ring->is_member(p_tcp_iov->p_desc->p_desc_owner))) {
 			no_copy = false;
 			dst_tcp_logdbg("p_desc=%p wrong desc_owner=%p, this ring=%p. did migration occurred?", p_tcp_iov->p_desc, p_tcp_iov->p_desc->p_desc_owner, m_p_ring);
 			//todo can we handle this in migration (by going over all buffers lwip hold) instead for every send?
@@ -67,7 +65,7 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 	}
 
 	if (is_rexmit)
-		m_p_ring->m_p_ring_stat->n_tx_retransmits++;
+		m_p_ring->inc_ring_stats(m_id);
 
 	if (likely(no_copy)) {
 		p_pkt = (tx_packet_template_t*)((uint8_t*)p_tcp_iov[0].iovec.iov_base - m_header.m_aligned_l2_l3_len);
@@ -97,9 +95,9 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 			m_p_send_wqe = &m_not_inline_send_wqe;
 		}
 
-                m_p_send_wqe->wr_id = (uintptr_t)p_tcp_iov[0].p_desc;
+		m_p_send_wqe->wr_id = (uintptr_t)p_tcp_iov[0].p_desc;
 
-                m_p_ring->send_lwip_buffer(m_p_send_wqe, b_blocked);
+		m_p_ring->send_lwip_buffer(m_id, m_p_send_wqe, b_blocked);
 	}
 	else { // We don'nt support inline in this case, since we believe that this a very rare case
 		p_mem_buf_desc = get_buffer(b_blocked);
@@ -134,7 +132,7 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 		p_pkt->hdr.m_ip_hdr.tot_len = (htons)(m_sge[0].length - m_header.m_transport_header_len);
 		m_p_send_wqe = &m_not_inline_send_wqe;
                 m_p_send_wqe->wr_id = (uintptr_t)p_mem_buf_desc;
-                m_p_ring->send_ring_buffer(m_p_send_wqe, b_blocked);
+                m_p_ring->send_ring_buffer(m_id, m_p_send_wqe, b_blocked);
 	}
 
 #ifndef __COVERITY__
@@ -229,7 +227,7 @@ mem_buf_desc_t* dst_entry_tcp::get_buffer(bool b_blocked /*=false*/)
 
 	// Get a bunch of tx buf descriptor and data buffers
 	if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
-		m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(b_blocked, mce_sys.tx_bufs_batch_tcp);
+		m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, mce_sys.tx_bufs_batch_tcp);
 	}
 
 	mem_buf_desc_t* p_mem_buf_desc = m_p_tx_mem_buf_desc_list;
@@ -257,7 +255,7 @@ void dst_entry_tcp::put_buffer(mem_buf_desc_t * p_desc)
 	if (unlikely(p_desc == NULL))
 		return;
 
-	if (likely(p_desc->p_desc_owner == m_p_ring)) {
+	if (likely(m_p_ring->is_member(p_desc->p_desc_owner))) {
 		m_p_ring->mem_buf_desc_return_single_to_owner_tx(p_desc);
 	} else {
 

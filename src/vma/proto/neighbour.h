@@ -286,6 +286,7 @@ protected:
 	bool 			m_is_loopback;
 
 	const std::string	m_to_str;
+	ring_user_id_t		m_id;
 
 	virtual void 		priv_general_st_entry(const sm_info_t& func_info);
 	virtual void 		priv_general_st_leave(const sm_info_t& func_info);
@@ -323,6 +324,7 @@ protected:
 
 private:
 	bool 			m_is_first_send_arp;
+
 	event_t 		rdma_event_mapping(struct rdma_cm_event* p_event);
 	void 			empty_unsent_queue();
 	bool 			post_send_packet(uint8_t protocol, iovec * iov, header *h);

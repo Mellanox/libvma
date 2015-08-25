@@ -641,7 +641,7 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 	unlock_rx_q();
 	m_rx_ring_map_lock.lock();
 	lock_rx_q();
-	rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.find(p_ring);
+	rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.find(p_ring->get_parent());
 	if (rx_ring_iter == m_rx_ring_map.end()) {
 		// First map of this cq mgr
 		ring_info_t* p_ring_info = new ring_info_t();
@@ -670,8 +670,7 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 		}
 
 		do_wakeup(); // A ready wce can be pending due to the drain logic (cq channel will not wake up by itself)
-	}
-	else {
+	} else {
 		// Increase ref count on cq_mgr object
 		rx_ring_iter->second->refcnt++;
 	}
@@ -705,12 +704,12 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 	descq_t temp_rx_reuse_global;
 	temp_rx_reuse_global.set_id("sockinfo (%p), fd = %d : rx_del_ring_cb temp_rx_reuse_global", this, m_fd);
 
-	rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.find(p_ring);
+	ring* base_ring = p_ring->get_parent();
+	rx_ring_map_t::iterator rx_ring_iter =  m_rx_ring_map.find(base_ring);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (rx_ring_iter != m_rx_ring_map.end()) {
 	BULLSEYE_EXCLUDE_BLOCK_END
 		ring_info_t* p_ring_info = rx_ring_iter->second;
-
 		// Decrease ref count on cq_mgr object
 		p_ring_info->refcnt--;
 
@@ -718,16 +717,16 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 		if (p_ring_info->refcnt == 0) {
 
 			// Get rid of all rx ready buffers from this cq_mgr owner
-			if (!is_migration) move_owned_rx_ready_descs(p_ring, &temp_rx_reuse);
+			if (!is_migration) move_owned_rx_ready_descs(base_ring, &temp_rx_reuse);
 
 			// Move all cq_mgr->rx_reuse buffers to temp reuse queue related to p_rx_cq_mgr
-			move_owned_descs(p_ring, &temp_rx_reuse, &p_ring_info->rx_reuse_info.rx_reuse);
+			move_owned_descs(base_ring, &temp_rx_reuse, &p_ring_info->rx_reuse_info.rx_reuse);
 			if (p_ring_info->rx_reuse_info.rx_reuse.size()) {
 				si_logerr("possible buffer leak, p_ring_info->rx_reuse_buff still contain %d buffers.", p_ring_info->rx_reuse_info.rx_reuse.size());
 			}
 
-			int num_ring_rx_fds = p_ring->get_num_resources();
-			int *ring_rx_fds_array = p_ring->get_rx_channel_fds();
+			int num_ring_rx_fds = base_ring->get_num_resources();
+			int *ring_rx_fds_array = base_ring->get_rx_channel_fds();
 
 			for (int i = 0; i < num_ring_rx_fds; i++) {
 				int cq_ch_fd = ring_rx_fds_array[i];
@@ -740,18 +739,18 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 
 			notify_epoll = true;
 
-			m_rx_ring_map.erase(p_ring);
+			m_rx_ring_map.erase(base_ring);
 			delete p_ring_info;
 
-			if (m_p_rx_ring == p_ring) {
+			if (m_p_rx_ring == base_ring) {
 				if (m_rx_ring_map.size() == 1) {
 					m_p_rx_ring = m_rx_ring_map.begin()->first;
 				} else {
 					m_p_rx_ring = NULL;
 				}
 
-				move_owned_descs(p_ring, &temp_rx_reuse, &m_rx_reuse_buff.rx_reuse);
-				move_not_owned_descs(m_p_rx_ring, &temp_rx_reuse_global, &m_rx_reuse_buff.rx_reuse);
+				move_owned_descs(base_ring, &temp_rx_reuse, &m_rx_reuse_buff.rx_reuse);
+				move_not_owned_descs(base_ring, &temp_rx_reuse_global, &m_rx_reuse_buff.rx_reuse);
 
 				m_rx_reuse_buff.n_buff_num = m_rx_reuse_buff.rx_reuse.size();
 			}
@@ -767,7 +766,7 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 		// todo m_econtext is not protected by socket lock because epfd->m_ring_map_lock should be first in order.
 		// possible race between removal of fd from epoll (epoll_ctl del, or epoll close) and here.
 		// need to add a third-side lock (fd_collection?) to sync between epoll and socket.
-		notify_epoll_context_remove_ring(p_ring);
+		notify_epoll_context_remove_ring(base_ring);
 	}
 
 	if (temp_rx_reuse.size() > 0) { // no need for m_lock_rcv since temp_rx_reuse is on the stack
@@ -775,7 +774,7 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 		// Without m_lock_rcv.lock()!!!
 		unsigned int counter = 1<<20;
 		while (temp_rx_reuse.size() > 0 && counter--) {
-			if (p_ring->reclaim_recv_buffers(&temp_rx_reuse))
+			if (base_ring->reclaim_recv_buffers(&temp_rx_reuse))
 				break;
 			sched_yield();
 		}

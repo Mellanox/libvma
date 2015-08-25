@@ -25,10 +25,10 @@
 #include "vma/proto/vma_lwip.h"
 #include "vma/dev/ib_ctx_handler.h"
 
-
 class net_device_mgr;
 class ring;
 class qp_mgr;
+class ring_simple;
 
 #define LOCAL_IF_INFO_INVALID (local_if_info_t){0,0}
 
@@ -75,10 +75,12 @@ struct qp_rec {
 class cq_mgr
 {
 	friend class ring; // need to expose the m_n_global_sn only to ring 
+	friend class ring_simple; // need to expose the m_n_global_sn only to ring
+	friend class ring_bond; // need to expose the m_n_global_sn only to ring
 
 public:
 
-	cq_mgr(ring* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx);
+	cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx);
 	~cq_mgr();
 
 	ibv_cq *get_ibv_cq_hndl();
@@ -149,7 +151,7 @@ public:
 	void 	modify_cq_moderation(uint32_t period, uint32_t count);
 
 private:
-	ring*				m_p_ring;
+	ring_simple*		m_p_ring;
 	ib_ctx_handler*			m_p_ib_ctx_handler;
 	bool				m_b_is_rx;
 	bool				m_b_is_rx_csum_on;

@@ -109,6 +109,7 @@ protected:
 
 	vma_ibv_send_wr* 	m_p_send_wqe;
 	uint32_t 		m_max_inline;
+	ring_user_id_t 	m_id;
 
 	virtual transport_t 	get_transport(sockaddr_in to) = 0;
 	virtual uint8_t 	get_protocol_type() const = 0;

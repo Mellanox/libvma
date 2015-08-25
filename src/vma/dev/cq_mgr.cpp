@@ -26,7 +26,7 @@
 
 #include "buffer_pool.h"
 #include "qp_mgr.h"
-
+#include "ring_simple.h"
 #include "vma/util/instrumentation.h"
 
 #define BUFF_STAT_REFRESH	65536
@@ -47,7 +47,7 @@
 atomic_t cq_mgr::m_n_cq_id_counter = ATOMIC_DECLARE_INIT(1);
 uint64_t cq_mgr::m_n_global_sn = 0;
 
-cq_mgr::cq_mgr(ring* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx) :
+cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx) :
 		m_p_ring(p_ring), m_p_ib_ctx_handler(p_ib_ctx_handler), m_b_is_rx(is_rx), m_comp_event_channel(p_comp_event_channel), m_p_next_rx_desc_poll(NULL)
 {
 	cq_logfunc("");

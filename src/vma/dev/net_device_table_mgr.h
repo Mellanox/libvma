@@ -106,7 +106,6 @@ private:
 #endif
 
 	void 			verify_ipoib_mode(struct ifaddrs* ifa);
-	void 			verify_bonding_mode(in_addr_t l_if);
 };
 
 extern net_device_table_mgr* g_p_net_device_table_mgr; 

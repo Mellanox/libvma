@@ -35,6 +35,7 @@
 
 class qp_mgr;
 class pkt_rcvr_sink;
+class ring_simple;
 
 #ifdef DEFINED_IBV_FLOW_SPEC_IB
 //for mc
@@ -170,7 +171,7 @@ public:
 class rfs
 {
 public:
-	rfs(flow_tuple *flow_spec_5t, ring *p_ring, rfs_rule_filter* rule_filter = NULL);
+	rfs(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* rule_filter = NULL);
 	virtual ~rfs();
 
 	/**
@@ -189,7 +190,7 @@ public:
 
 protected:
 	flow_tuple		m_flow_tuple;
-	ring*			m_p_ring;
+	ring_simple*			m_p_ring;
 	rfs_rule_filter*	m_p_rule_filter;
 	attach_flow_data_vector_t m_attach_flow_data_vector;
 	pkt_rcvr_sink**		m_sinks_list;

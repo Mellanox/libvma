@@ -68,9 +68,9 @@ select_call::select_call(int *off_fds_buffer, offloaded_mode_t *off_modes_buffer
 
 			if (psock && psock->get_type() == FD_TYPE_SOCKET) {
 
-                                offloaded_mode_t off_mode  = OFF_NONE;
-                                if (check_read)  off_mode = (offloaded_mode_t)(off_mode | OFF_READ);
-                                if (check_write) off_mode = (offloaded_mode_t)(off_mode | OFF_WRITE);
+				offloaded_mode_t off_mode  = OFF_NONE;
+				if (check_read)  off_mode = (offloaded_mode_t)(off_mode | OFF_READ);
+				if (check_write) off_mode = (offloaded_mode_t)(off_mode | OFF_WRITE);
 
 				if (off_mode) {
 					__log_dbg("---> fd=%d IS SET for read or write!", fd);

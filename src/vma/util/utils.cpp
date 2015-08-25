@@ -838,6 +838,8 @@ bool get_bond_active_slave_name(IN const char* bond_name, OUT char* active_slave
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (priv_read_file(active_slave_path, active_slave_name, sz) < 0)
 		return false;
+	if (strlen(active_slave_name) == 0)
+		return false;
 	BULLSEYE_EXCLUDE_BLOCK_END
 	char* p = strchr(active_slave_name, '\n');
 	if (p) *p = '\0'; // Remove the tailing 'new line" char
@@ -866,6 +868,19 @@ bool check_device_exist(const char* ifname, const char *path) {
 		__log_warn("There are no free fds in the system. This may cause unexpected behavior");
 	}
 	return (fd > 0);
+}
+
+bool get_interface_oper_state(IN const char* interface_name, OUT char* curr_state, IN int sz)
+{
+	char interface_state_path[256] = {0};
+	sprintf(interface_state_path, OPER_STATE_PARAM_FILE, interface_name);
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (priv_read_file(interface_state_path, curr_state, sz) < 0)
+		return false;
+	BULLSEYE_EXCLUDE_BLOCK_END
+	char* p = strchr(curr_state, '\n');
+	if (p) *p = '\0'; // Remove the tailing 'new line" char
+	return true;
 }
 
 int validate_ipoib_prop(const char* ifname, unsigned int ifflags,

@@ -30,7 +30,8 @@
 
 dst_entry::dst_entry(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, int owner_fd):
 	m_dst_ip(dst_ip), m_dst_port(dst_port), m_src_port(src_port), m_bound_ip(0),
-	m_so_bindtodevice_ip(0), m_ring_alloc_logic(owner_fd, this), m_p_tx_mem_buf_desc_list(NULL), m_b_tx_mem_buf_desc_list_pending(false)
+	m_so_bindtodevice_ip(0), m_ring_alloc_logic(owner_fd, this), m_p_tx_mem_buf_desc_list(NULL),
+	m_b_tx_mem_buf_desc_list_pending(false), m_id(0)
 {
 	dst_logdbg("dst:%s:%d src: %d", m_dst_ip.to_str().c_str(), ntohs(m_dst_port), ntohs(m_src_port));
 	init_members();
@@ -240,6 +241,7 @@ bool dst_entry::resolve_ring()
 		if (!m_p_ring) {
 			dst_logdbg("getting a ring");
 			m_p_ring = m_p_net_dev_val->reserve_ring(m_ring_alloc_logic.create_new_key());
+			m_id = m_p_ring->generate_id();
 			m_max_inline = m_p_ring->get_max_tx_inline();
 			m_max_inline = std::min(m_max_inline, m_p_net_dev_val->get_mtu() + (uint32_t)m_header.m_transport_header_len);
 		}
@@ -463,9 +465,7 @@ bool dst_entry::offloaded_according_to_rules()
 bool dst_entry::prepare_to_send(bool skip_rules)
 {
 	bool resolved = false;
-
 	m_slow_path_lock.lock();
-
 	if (!m_b_is_initialized) {
 		if((!skip_rules) && (!offloaded_according_to_rules())) {
 			dst_logdbg("dst_entry in BLACK LIST!");
@@ -551,6 +551,7 @@ void dst_entry::do_ring_migration(lock_base& socket_lock)
 
 	ring* old_ring = m_p_ring;
 	m_p_ring = new_ring;
+	m_id = m_p_ring->generate_id();
 	m_max_inline = m_p_ring->get_max_tx_inline();
 	m_max_inline = std::min(m_max_inline, m_p_net_dev_val->get_mtu() + (uint32_t)m_header.m_transport_header_len);
 

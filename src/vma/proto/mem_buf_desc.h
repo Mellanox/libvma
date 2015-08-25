@@ -119,7 +119,7 @@ public:
 			bool		hwcsum;		// do hardware checksums
 		} tx;
 	} path;
-	
+
 	int		serial_num;
 	list_node<mem_buf_desc_t> node;
 #ifdef _DEBUG
@@ -128,38 +128,5 @@ public:
 };
 
 typedef vma_list_t<mem_buf_desc_t> descq_t;
-
-inline void move_owned_descs(const mem_buf_desc_owner* p_desc_owner, descq_t *toq, descq_t *fromq)
-{
-	// Assume locked by owner!!!
-
-	mem_buf_desc_t *temp;
-	const size_t size = fromq->size();
-	for (size_t i = 0 ; i < size; i++) {
-		temp = fromq->front();
-		fromq->pop_front();
-		if (temp->p_desc_owner == p_desc_owner)
-			toq->push_back(temp);
-		else
-			fromq->push_back(temp);
-	}
-}
-
-inline void move_not_owned_descs(const mem_buf_desc_owner* p_desc_owner, descq_t *toq, descq_t *fromq)
-{
-	// Assume locked by owner!!!
-
-	mem_buf_desc_t *temp;
-	const size_t size = fromq->size();
-	for (size_t i = 0 ; i < size; i++) {
-		temp = fromq->front();
-		fromq->pop_front();
-		if (temp->p_desc_owner == p_desc_owner)
-			fromq->push_back(temp);
-		else
-			toq->push_back(temp);
-	}
-}
-
 
 #endif

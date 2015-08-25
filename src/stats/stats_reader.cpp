@@ -241,7 +241,11 @@ void print_ring_stats(ring_instance_block_t* p_ring_inst_arr)
 		if (p_ring_inst_arr[i].b_enabled) {
 			p_ring_stats = &p_ring_inst_arr[i].ring_stats;
 			printf("======================================================\n");
-			printf("\tRING=[%u]\n", i);
+			if (p_ring_stats->p_ring_master) {
+				printf("\tRING=[%u], MASTER=[%p]\n", i, p_ring_stats->p_ring_master);
+			} else {
+				printf("\tRING=[%u]\n", i);
+			}
 			printf(FORMAT_CQ_STATS_64bit, "Packets count:", (unsigned long long int)p_ring_stats->n_rx_pkt_count, post_fix);
 			printf(FORMAT_CQ_STATS_64bit, "Packets bytes:", (unsigned long long int)p_ring_stats->n_rx_byte_count, post_fix);
 			printf(FORMAT_CQ_STATS_64bit, "Interrupt requests:", (unsigned long long int)p_ring_stats->n_rx_interrupt_requests, post_fix);

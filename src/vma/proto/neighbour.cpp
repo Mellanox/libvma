@@ -76,7 +76,7 @@ neigh_entry::neigh_entry(neigh_key key, transport_type_t _type, bool is_init_res
 	m_cma_id(NULL), m_rdma_port_space((enum rdma_port_space)0), m_state_machine(NULL), m_type(UNKNOWN), m_trans_type(_type),
 	m_state(false), m_err_counter(0), m_timer_handle(NULL),
 	m_arp_counter(0), m_p_dev(NULL), m_p_ring(NULL), m_is_loopback(false),
-	m_to_str(std::string(priv_vma_transport_type_str(m_trans_type)) + ":" + get_key().to_str()),
+	m_to_str(std::string(priv_vma_transport_type_str(m_trans_type)) + ":" + get_key().to_str()), m_id(0),
 	m_is_first_send_arp(true)
 {
 	m_unsent_queue.set_id("neigh_entry (%p) : m_unsent_queue", this);
@@ -94,6 +94,7 @@ neigh_entry::neigh_entry(neigh_key key, transport_type_t _type, bool is_init_res
 		if (m_p_ring == NULL) {
 			neigh_logpanic("reserve_ring return NULL");
 		}
+		m_id = m_p_ring->generate_id();
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
@@ -303,7 +304,7 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 	neigh_logdbg("udp info: payload_sz=%d, frags=%d, scr_port=%d, dst_port=%d", sz_data_payload, n_num_frags, ntohs(h->m_header.hdr.m_udp_hdr.source), ntohs(h->m_header.hdr.m_udp_hdr.dest));
 
 	// Get all needed tx buf descriptor and data buffers
-	p_mem_buf_desc = m_p_ring->mem_buf_tx_get(false, n_num_frags);
+	p_mem_buf_desc = m_p_ring->mem_buf_tx_get(m_id, false, n_num_frags);
 
 	if (unlikely(p_mem_buf_desc == NULL)) {
 		neigh_logdbg("Packet dropped. not enough tx buffers");
@@ -384,7 +385,7 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 		p_mem_buf_desc->p_next_desc = NULL;
 
 		// We don't check the return value of post send when we reach the HW we consider that we completed our job
-		m_p_ring->send_ring_buffer(&m_send_wqe, false);
+		m_p_ring->send_ring_buffer(m_id, &m_send_wqe, false);
 
 		p_mem_buf_desc = tmp;
 
@@ -409,8 +410,7 @@ bool neigh_entry::post_send_tcp(iovec *iov, header *h)
 	wqe_send_handler wqe_sh;
 	wqe_sh.enable_hw_csum(m_send_wqe);
 
-	p_mem_buf_desc = m_p_ring->mem_buf_tx_get(false, 1);
-
+	p_mem_buf_desc = m_p_ring->mem_buf_tx_get(m_id, false, 1);
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (unlikely(p_mem_buf_desc == NULL)) {
@@ -449,7 +449,7 @@ bool neigh_entry::post_send_tcp(iovec *iov, header *h)
 	}
 
 	m_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
-	m_p_ring->send_ring_buffer(&m_send_wqe, false);
+	m_p_ring->send_ring_buffer(m_id, &m_send_wqe, false);
 #ifndef __COVERITY__
 	struct tcphdr* p_tcp_h = (struct tcphdr*)(((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr)));
 	neigh_logdbg("Tx TCP segment info: src_port=%d, dst_port=%d, flags='%s%s%s%s%s%s' seq=%u, ack=%u, win=%u, payload_sz=%u",
@@ -1306,7 +1306,7 @@ bool neigh_eth::post_send_arp(bool is_broadcast)
 	header h;
 	neigh_logdbg("Sending %s ARP", is_broadcast?"BC":"UC");
 
-	mem_buf_desc_t* p_mem_buf_desc = m_p_ring->mem_buf_tx_get(false, 1);
+	mem_buf_desc_t* p_mem_buf_desc = m_p_ring->mem_buf_tx_get(m_id, false, 1);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (unlikely(p_mem_buf_desc == NULL)) {
 		neigh_logdbg("No free TX buffer, not sending ARP");
@@ -1362,7 +1362,7 @@ bool neigh_eth::post_send_arp(bool is_broadcast)
 	p_mem_buf_desc->p_next_desc = NULL;
 	m_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
 
-	m_p_ring->send_ring_buffer(&m_send_wqe, false);
+	m_p_ring->send_ring_buffer(m_id, &m_send_wqe, false);
 
 	neigh_logdbg("ARP Sent");
 	return true;
@@ -1542,7 +1542,7 @@ bool neigh_ib::post_send_arp(bool is_broadcast)
 {
 	neigh_logdbg("Sending %s ARP", is_broadcast?"BC":"UC");
 
-	mem_buf_desc_t* p_mem_buf_desc = m_p_ring->mem_buf_tx_get(false, 1);
+	mem_buf_desc_t* p_mem_buf_desc = m_p_ring->mem_buf_tx_get(m_id, false, 1);
 	if (unlikely(p_mem_buf_desc == NULL)) {
 		neigh_logdbg("No free TX buffer, not sending ARP");
 		return false;
@@ -1611,7 +1611,7 @@ bool neigh_ib::post_send_arp(bool is_broadcast)
 	p_mem_buf_desc->p_next_desc = NULL;
 	m_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
 
-	m_p_ring->send_ring_buffer(&m_send_wqe, false);
+	m_p_ring->send_ring_buffer(m_id, &m_send_wqe, false);
 
 	neigh_logdbg("ARP Sent");
 	return true;

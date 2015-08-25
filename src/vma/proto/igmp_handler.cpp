@@ -46,7 +46,7 @@
 
 igmp_handler::igmp_handler(const igmp_key &key, uint8_t	igmp_code) : m_mc_addr (key.get_in_addr()), m_p_ndvl (key.get_net_device_val()),
 					   m_ignore_timer(false), m_timer_handle(NULL), m_p_neigh_entry(NULL), m_p_neigh_val(NULL),
-					   m_p_ring(NULL), m_igmp_code(igmp_code ? igmp_code : IGMPV1_MAX_RESPONSE_TIME)
+					   m_p_ring(NULL), m_igmp_code(igmp_code ? igmp_code : IGMPV1_MAX_RESPONSE_TIME), m_id(0)
 {
 	memset(&m_sge, 0, sizeof(m_sge));
 	memset(&m_p_send_igmp_wqe, 0, sizeof(m_p_send_igmp_wqe));
@@ -94,6 +94,7 @@ bool igmp_handler::init(const igmp_key &key)
 		igmp_hdlr_logerr("Ring was not reserved");
 		return false;
 	}
+	m_id = m_p_ring->generate_id();
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	return true;
@@ -167,7 +168,7 @@ bool igmp_handler::tx_igmp_report()
 		return false;
 	}
 
-	mem_buf_desc_t* p_mem_buf_desc = m_p_ring->mem_buf_tx_get(false, 1);
+	mem_buf_desc_t* p_mem_buf_desc = m_p_ring->mem_buf_tx_get(m_id, false, 1);
 	if (unlikely(p_mem_buf_desc == NULL)) {
 		igmp_hdlr_logdbg("No free TX buffer, not sending igmp report");
 		return false;
@@ -193,7 +194,7 @@ bool igmp_handler::tx_igmp_report()
 	m_p_send_igmp_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
 
 	igmp_hdlr_logdbg("Sending igmp report");
-	m_p_ring->send_ring_buffer(&m_p_send_igmp_wqe, false);
+	m_p_ring->send_ring_buffer(m_id, &m_p_send_igmp_wqe, false);
 	return true;
 }
 

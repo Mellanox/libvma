@@ -2599,14 +2599,14 @@ bool sockinfo_tcp::is_readable(uint64_t *p_poll_sn, fd_array_t* p_fd_array)
 
 	m_rx_ring_map_lock.lock();
 	while(!g_b_exit && is_rtr()) {
-	       if (likely(m_p_rx_ring)) {
-		       // likely scenario: rx socket bound to specific cq
-		       ret = m_p_rx_ring->poll_and_process_element_rx(p_poll_sn, p_fd_array);
-		       if (m_n_rx_pkt_ready_list_count)
-			       goto noblock;
-		       if (ret <= 0) {
-			       break;
-		       }
+	   if (likely(m_p_rx_ring)) {
+		   // likely scenario: rx socket bound to specific cq
+		   ret = m_p_rx_ring->poll_and_process_element_rx(p_poll_sn, p_fd_array);
+		   if (m_n_rx_pkt_ready_list_count)
+			   goto noblock;
+		   if (ret <= 0) {
+			   break;
+		   }
 		}
 		else {
 			rx_ring_map_t::iterator rx_ring_iter;
@@ -3460,7 +3460,7 @@ inline void sockinfo_tcp::return_pending_tx_buffs()
 inline void sockinfo_tcp::return_rx_buffs(ring* p_ring)
 {
 	set_rx_reuse_pending(false);
-	if (likely(m_p_rx_ring == p_ring)) {
+	if (m_p_rx_ring->is_member(p_ring)) {
 		if (unlikely(m_rx_reuse_buff.n_buff_num > m_rx_num_buffs_reuse)) {
 			if (p_ring->reclaim_recv_buffers(&m_rx_reuse_buff.rx_reuse)) {
 				m_rx_reuse_buff.n_buff_num = 0;
@@ -3469,12 +3469,11 @@ inline void sockinfo_tcp::return_rx_buffs(ring* p_ring)
 	}
 	else {
 		if (likely(p_ring)) {
-			rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.find(p_ring);
-
+			rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.find(p_ring->get_parent());
 			if (likely(rx_ring_iter != m_rx_ring_map.end())) {
 				descq_t *rx_reuse = &rx_ring_iter->second->rx_reuse_info.rx_reuse;
 				if (rx_ring_iter->second->rx_reuse_info.n_buff_num > m_rx_num_buffs_reuse) {
-					if (p_ring->reclaim_recv_buffers(rx_reuse)) {
+					if (rx_ring_iter->first->reclaim_recv_buffers(rx_reuse)) {
 						rx_ring_iter->second->rx_reuse_info.n_buff_num = 0;
 					}
 				}
@@ -3625,27 +3624,27 @@ int sockinfo_tcp::free_packets(struct vma_packet_t *pkts, size_t count)
 	int bytes_to_tcp_recved;
 	int total_rx = 0;
 	mem_buf_desc_t 	*buff;
-	
+
 	lock_tcp_con();
 	for(index=0; index < count; index++){
 		buff = (mem_buf_desc_t*)pkts[index].packet_id;
-		
-		if (m_p_rx_ring && m_p_rx_ring != (ring*)buff->p_desc_owner){
-			errno = ENOENT;
-			ret = -1;
-			break;
-		}		
-		else if (m_rx_ring_map.find((ring*)buff->p_desc_owner) == m_rx_ring_map.end()) {
+
+		if (m_p_rx_ring && !m_p_rx_ring->is_member((ring*)buff->p_desc_owner)){
 			errno = ENOENT;
 			ret = -1;
 			break;
 		}
-		
+		else if (m_rx_ring_map.find(((ring*)buff->p_desc_owner)->get_parent()) == m_rx_ring_map.end()) {
+			errno = ENOENT;
+			ret = -1;
+			break;
+		}
+
 		total_rx += buff->path.rx.sz_payload;
 		reuse_buffer(buff);
 		m_p_socket_stats->n_rx_zcopy_pkt_count--;
 	}
-		
+
 	if (total_rx > 0) {
 		m_rcvbuff_current -= total_rx;
 		// data that was not tcp_recved should do it now.
@@ -3744,7 +3743,6 @@ void sockinfo_tcp::put_tcp_seg(struct tcp_seg * seg)
 	}
 	return;
 }
-
 
 //tcp_seg_pool
 

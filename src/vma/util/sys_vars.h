@@ -493,6 +493,7 @@ struct mce_sys_var {
 #define L2_ADDR_FILE_FMT                                "/sys/class/net/%.*s/address"
 #define L2_BR_ADDR_FILE_FMT                                   "/sys/class/net/%.*s/broadcast"
 #define FLAGS_PARAM_FILE				"/sys/class/net/%s/flags"
+#define OPER_STATE_PARAM_FILE				"/sys/class/net/%s/operstate"
 #define IGMP_FORCE_PARAM_FILE				"/proc/sys/net/ipv4/conf/%s/force_igmp_version"
 #define IGMP_MAX_MEMBERSHIP_FILE			"/proc/sys/net/ipv4/igmp_max_memberships"
 #define TCP_SCALING_WINDOW_MAX_RECV_MEM_FILE		"/proc/sys/net/core/rmem_max"

@@ -31,6 +31,7 @@
 #include "vma/infra/cache_subject_observer.h"
 
 typedef unsigned long int resource_allocation_key;
+
 class L2_address;
 class ring;
 class neigh_ib_broadcast;
@@ -47,6 +48,7 @@ typedef std::tr1::unordered_map<resource_allocation_key, std::pair<resource_allo
 #define DEC_RING_REF_CNT	       	RING_REF_CNT--
 #define TEST_REF_CNT_ZERO       	RING_REF_CNT==0
 
+#define MAX_SLAVES 16
 
 typedef struct {
         char* 		if_name;
@@ -72,7 +74,13 @@ public:
 		RUNNING,
 		INVALID
 	};
+	enum bond_type {
+		OFF,
+		ACTIVE_BACKUP,
+		LAG_8023ad,
+	};
 public:
+
 	net_device_val(transport_type_t transport_type);
 	/* on init:
 	 *      get ibv, sys channel handlers from the relevant collections.
@@ -89,7 +97,7 @@ public:
 	int                     get_mtu() { return m_mtu; }
 	int                     get_if_idx() { return m_if_idx; }
 	transport_type_t        get_transport_type() const { return m_transport_type; }
-	bool 			update_active_slave();
+	bool 			update_active_backup_slaves();
 	in_addr_t               get_local_addr() {return m_local_addr;};
 	in_addr_t               get_netmask() {return m_netmask;};
 	bool                    is_valid() { return true; };
@@ -99,7 +107,10 @@ public:
 	void			ring_adapt_cq_moderation();
 	L2_address*		get_l2_address() { return m_p_L2_addr; };
 	L2_address* 		get_br_address() { return m_p_br_addr; };
-	bool 			get_is_bond() { return m_b_is_bond_device; };
+	bond_type 			get_is_bond() { return m_bond; };
+	bool 				update_active_slaves();
+	void 				register_to_ibverbs_events(event_handler_ibverbs *handler);
+	void 				unregister_to_ibverbs_events(event_handler_ibverbs *handler);
 
 protected:
 	int                     m_if_idx; // not unique: eth4 and eth4:5 has the same idx
@@ -116,7 +127,7 @@ protected:
     slave_data_vector_t	m_slaves;
 	std::string             m_name;
 	char           			m_base_name[IFNAMSIZ];
-	char 					m_active_slave_name[IFNAMSIZ];
+	char 					m_active_slave_name[IFNAMSIZ]; //only for active-backup
 
 	virtual ring*		create_ring() = 0;
 	virtual void		create_br_address(const char* ifname) = 0;
@@ -126,7 +137,8 @@ protected:
 	resource_allocation_key ring_key_redirection_reserve(IN resource_allocation_key key);
 	resource_allocation_key ring_key_redirection_release(IN resource_allocation_key key);
 
-	bool m_b_is_bond_device;
+	void verify_bonding_mode();
+	bond_type m_bond;
 };
 
 class net_device_val_eth : public net_device_val

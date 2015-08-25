@@ -13,13 +13,13 @@
 
 #include "vma/dev/rfs.h"
 #include "vma/dev/qp_mgr.h"
-#include "vma/dev/ring.h"
+#include "vma/dev/ring_simple.h"
 #include "vma/util/bullseye.h"
 
 #define MODULE_NAME 		"rfs"
 
 
-rfs::rfs(flow_tuple *flow_spec_5t, ring *p_ring, rfs_rule_filter* rule_filter /*= NULL*/):
+rfs::rfs(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* rule_filter /*= NULL*/):
 	m_flow_tuple(rule_filter ? rule_filter->m_flow_tuple : *flow_spec_5t), m_p_ring(p_ring),
 	m_p_rule_filter(rule_filter), m_n_sinks_list_entries(0), m_n_sinks_list_max_length(RFS_SINKS_LIST_DEFAULT_LEN),
 	m_b_tmp_is_attached(false)

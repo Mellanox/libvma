@@ -296,9 +296,9 @@ protected:
     inline void reuse_buffer(mem_buf_desc_t *buff)
     {
     	set_rx_reuse_pending(false);
-        ring* p_ring = (ring*)(buff->p_desc_owner);
-        rx_ring_map_t::iterator iter = m_rx_ring_map.find(p_ring);
-        if(likely(iter != m_rx_ring_map.end())){
+    	ring* p_ring = ((ring*)(buff->p_desc_owner))->get_parent();
+    	rx_ring_map_t::iterator iter = m_rx_ring_map.find(p_ring);
+    	if(likely(iter != m_rx_ring_map.end())){
         	descq_t *rx_reuse = &iter->second->rx_reuse_info.rx_reuse;
             rx_reuse->push_back(buff);
             iter->second->rx_reuse_info.n_buff_num += buff->n_frags;
@@ -322,6 +322,39 @@ protected:
 
         }
     }
+
+    inline void move_owned_descs(ring* p_desc_owner, descq_t *toq, descq_t *fromq)
+    {
+    	// Assume locked by owner!!!
+
+    	mem_buf_desc_t *temp;
+    	const size_t size = fromq->size();
+    	for (size_t i = 0 ; i < size; i++) {
+    		temp = fromq->front();
+    		fromq->pop_front();
+    		if (p_desc_owner->is_member(temp->p_desc_owner))
+    			toq->push_back(temp);
+    		else
+    			fromq->push_back(temp);
+    	}
+    }
+
+    inline void move_not_owned_descs(ring* p_desc_owner, descq_t *toq, descq_t *fromq)
+    {
+    	// Assume locked by owner!!!
+
+    	mem_buf_desc_t *temp;
+    	const size_t size = fromq->size();
+    	for (size_t i = 0 ; i < size; i++) {
+    		temp = fromq->front();
+    		fromq->pop_front();
+    		if (p_desc_owner->is_member(temp->p_desc_owner))
+    			fromq->push_back(temp);
+    		else
+    			toq->push_back(temp);
+    	}
+    }
+
 
     int			get_sock_by_L3_L4(in_protocol_t protocol, in_addr_t ip, in_port_t  port);
 };

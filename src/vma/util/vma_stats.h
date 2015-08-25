@@ -240,6 +240,7 @@ typedef struct {
 	uint32_t	n_rx_cq_moderation_count;
 	uint32_t	n_rx_cq_moderation_period;
 	uint64_t	n_tx_retransmits;
+	void*		p_ring_master;
 } ring_stats_t;
 
 typedef struct {

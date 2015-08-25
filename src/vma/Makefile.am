@@ -54,7 +54,6 @@ libvma_la_SOURCES := \
 	dev/cq_mgr.cpp \
 	dev/qp_mgr.cpp \
 	dev/gro_mgr.cpp \
-	dev/ring.cpp \
 	dev/ring_allocation_logic.cpp \
 	dev/rfs.cpp \
 	dev/rfs_uc.cpp \
@@ -67,6 +66,9 @@ libvma_la_SOURCES := \
 	dev/net_device_table_mgr.cpp \
 	dev/wqe_send_handler.cpp \
 	dev/wqe_send_ib_handler.cpp \
+	dev/ring.cpp \
+	dev/ring_simple.cpp \
+	dev/ring_bond.cpp \
 	\
 	event/delta_timer.cpp \
 	event/event_handler_manager.cpp \

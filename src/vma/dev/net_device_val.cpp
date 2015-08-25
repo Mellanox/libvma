@@ -13,9 +13,10 @@
 
 
 #include "vma/dev/net_device_val.h"
-
+#include <string.h>
 #include <ifaddrs.h>
 #include "vma/util/if.h"
+#include <sys/epoll.h>
 #include <linux/if_infiniband.h>
 #include <linux/if_ether.h>
 #include <sys/epoll.h>
@@ -24,7 +25,8 @@
 #include "vma/event/event_handler_manager.h"
 #include "vma/proto/L2_address.h"
 #include "vma/dev/ib_ctx_handler_collection.h"
-#include "vma/dev/ring.h"
+#include "vma/dev/ring_simple.h"
+#include "vma/dev/ring_bond.h"
 #include "vma/sock/sock-redirect.h"
 #include "vma/dev/net_device_table_mgr.h"
 #include "vma/proto/neighbour_table_mgr.h"
@@ -47,7 +49,7 @@
 #define nd_logfunc            __log_info_func
 #define nd_logfuncall         __log_info_funcall
 
-net_device_val::net_device_val(transport_type_t transport_type) : m_if_idx(0), m_local_addr(0), m_netmask(0), m_mtu(0), m_state(INVALID), m_p_L2_addr(NULL), m_p_br_addr(NULL), m_transport_type(transport_type),  m_lock("net_device_val lock"), m_b_is_bond_device(false)
+net_device_val::net_device_val(transport_type_t transport_type) : m_if_idx(0), m_local_addr(0), m_netmask(0), m_mtu(0), m_state(INVALID), m_p_L2_addr(NULL), m_p_br_addr(NULL), m_transport_type(transport_type),  m_lock("net_device_val lock"), m_bond(OFF)
 {
 }
 
@@ -113,7 +115,7 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 		}
 	}
 
-	// gather the slave data -
+	// gather the slave data (only for active-backup)-
 	char active_slave[IFNAMSIZ] = {0};
 
 	if (ifa->ifa_flags & IFF_MASTER) {
@@ -123,8 +125,9 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 			return;
 		}
 
+		verify_bonding_mode();
 		// get list of all slave devices
-		char slaves_list[IFNAMSIZ*16] = {0};
+		char slaves_list[IFNAMSIZ * MAX_SLAVES] = {0};
 		get_bond_slaves_name_list(m_base_name, slaves_list, sizeof(slaves_list));
 		char* slave = strtok(slaves_list, " ");
 		while (slave) {
@@ -140,10 +143,9 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 		if (get_bond_active_slave_name(m_base_name, active_slave, sizeof(active_slave))) {
 			nd_logdbg("found the active slave: '%s'", active_slave);
 			strncpy(m_active_slave_name, active_slave, sizeof(m_active_slave_name));
-			m_b_is_bond_device = true;
 		}
 		else {
-			nd_logdbg("failed to find the active slave!");
+			nd_logdbg("failed to find the active slave, Moving to LAG state");
 		}
 	}
 	else {
@@ -154,13 +156,21 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 	int num_devices = 0;
 	struct ibv_context** pp_ibv_context_list = rdma_get_devices(&num_devices);
 	for (uint16_t i=0; i<m_slaves.size(); i++) {
-
 		// Save L2 address
 		m_slaves[i]->p_L2_addr = create_L2_address(m_slaves[i]->if_name);
 		m_slaves[i]->is_active_slave = false;
 
-		if (strcmp(active_slave, m_slaves[i]->if_name) == 0)
+		if (m_bond == ACTIVE_BACKUP && strstr(active_slave, m_slaves[i]->if_name) != NULL){
 			m_slaves[i]->is_active_slave = true;
+		}
+
+		if (m_bond == LAG_8023ad) {
+			char current_state[5] = {0};
+			get_interface_oper_state(m_slaves[i]->if_name, current_state, sizeof(current_state));
+			if (strstr(current_state, "up")) {
+				m_slaves[i]->is_active_slave = true;
+			}
+		}
 
 		char base_ifname[IFNAMSIZ];
 		if (get_base_interface_name((const char*)m_slaves[i]->if_name, base_ifname, sizeof(base_ifname))) {
@@ -197,11 +207,58 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 	rdma_free_devices(pp_ibv_context_list);
 }
 
-bool net_device_val::update_active_slave()
+void net_device_val::verify_bonding_mode()
+{
+	// this is a bond interface, lets get its mode.
+	char bond_mode_file_content[FILENAME_MAX];
+	char bond_failover_mac_file_content[FILENAME_MAX];
+	char bond_mode_param_file[FILENAME_MAX];
+	char bond_failover_mac_param_file[FILENAME_MAX];
+	char *p_failover_mac_value = NULL;
+
+	memset(bond_mode_file_content, 0, FILENAME_MAX);
+	sprintf(bond_mode_param_file, BONDING_MODE_PARAM_FILE, m_base_name);
+	sprintf(bond_failover_mac_param_file, BONDING_FAILOVER_MAC_PARAM_FILE, m_base_name);
+
+	if (priv_read_file(bond_mode_param_file, bond_mode_file_content, FILENAME_MAX) > 0) {
+		char *bond_mode = NULL;
+		bond_mode = strtok(bond_mode_file_content, " ");
+		if (bond_mode) {
+			if (!strcmp(bond_mode, "active-backup")) {
+				if (priv_read_file(bond_failover_mac_param_file, bond_failover_mac_file_content, FILENAME_MAX) > 0) {
+					p_failover_mac_value = strstr(bond_failover_mac_file_content, "1");
+					if (!p_failover_mac_value) {
+						p_failover_mac_value = strstr(bond_failover_mac_file_content, "0");
+					}
+				}
+				if (p_failover_mac_value) {
+					m_bond = ACTIVE_BACKUP;
+				}
+			} else if (strstr(bond_mode, "802.3ad")) {
+				m_bond = LAG_8023ad;
+			}
+		}
+	}
+
+	if (m_bond == OFF) {
+		vlog_printf(VLOG_WARNING,"******************************************************************************\n");
+		vlog_printf(VLOG_WARNING,"VMA doesn't support current bonding configuration of %s.\n", m_base_name);
+		vlog_printf(VLOG_WARNING,"The only supported bonding mode is \"802.3ad 4(#4)\" or \"active-backup(#1)\"\n");
+		vlog_printf(VLOG_WARNING,"with \"fail_over_mac=1\" or \"fail_over_mac=0\".\n");
+		vlog_printf(VLOG_WARNING,"The effect of working in unsupported bonding mode is undefined.\n");
+		vlog_printf(VLOG_WARNING,"Read more about Bonding in the VMA's User Manual\n");
+		vlog_printf(VLOG_WARNING,"******************************************************************************\n");
+	}
+}
+
+/**
+ * only for active-backup bond
+ */
+bool net_device_val::update_active_backup_slaves()
 {
 	// update the active slave
 	// /sys/class/net/bond0/bonding/active_slave
-	char active_slave[IFNAMSIZ] = {0};
+	char active_slave[IFNAMSIZ*MAX_SLAVES] = {0};
 	if (!get_bond_active_slave_name(m_base_name, active_slave, IFNAMSIZ)) {
 		nd_logerr("failed to find the active slave!");
 		return 0;
@@ -217,37 +274,73 @@ bool net_device_val::update_active_slave()
 	nd_logdbg("Slave changed old=%s new=%s",m_active_slave_name, active_slave);
 	bool found_active_slave = false;
 	size_t slave_count = m_slaves.size();
-	ring_resource_creation_info_t p_ring_info[1];
+	ring_resource_creation_info_t p_ring_info[slave_count];
 	for (size_t i = 0; i<slave_count; i++) {
+		p_ring_info[i].p_ib_ctx = m_slaves[i]->p_ib_ctx;
+		p_ring_info[i].port_num = m_slaves[i]->port_num;
+		p_ring_info[i].p_l2_addr = m_slaves[i]->p_L2_addr;
 		if (m_slaves[i]->is_active_slave)
 			m_slaves[i]->is_active_slave = false;
-		
-		if (strcmp(active_slave, m_slaves[i]->if_name) == 0) {
+		if (strstr(active_slave, m_slaves[i]->if_name) != NULL) {
 			m_slaves[i]->is_active_slave = true;
-			p_ring_info[0].p_ib_ctx = m_slaves[i]->p_ib_ctx;
-			p_ring_info[0].port_num = m_slaves[i]->port_num;
-			p_ring_info[0].p_l2_addr = m_slaves[i]->p_L2_addr;
 			found_active_slave = true;
-			break;
+			struct ibv_device* p_ibv_device = p_ring_info[i].p_ib_ctx->get_ibv_device();
+			nd_logdbg("Offload interface '%s': Re-mapped to ibv device '%s' [%p] on port %d",
+					m_name.c_str(), p_ibv_device->name, p_ibv_device, p_ring_info[i].port_num);
+		} else {
+			m_slaves[i]->is_active_slave = false;
 		}
+		p_ring_info[i].active = m_slaves[i]->is_active_slave;
 	}
 	strncpy(m_active_slave_name,  active_slave, sizeof(m_active_slave_name));
 	if (!found_active_slave) {
 		nd_logdbg("Failed to locate new active slave details");
 		return 0;
 	}
-
-	struct ibv_device* p_ibv_device = p_ring_info[0].p_ib_ctx->get_ibv_device();
-	nd_logdbg("Offload interface '%s': Re-mapped to ibv device '%s' [%p] on port %d",
-			m_name.c_str(), p_ibv_device->name, p_ibv_device, p_ring_info[0].port_num);
-
 	// restart rings
 	rings_hash_map_t::iterator ring_iter;
 	for (ring_iter = m_h_ring_map.begin(); ring_iter != m_h_ring_map.end(); ring_iter++) {
 		THE_RING->restart(p_ring_info);
 	}
 	return 1;
-}	
+}
+
+bool net_device_val::update_active_slaves() {
+	bool changed = false;
+	char current_state[5] = {0};
+	ring_resource_creation_info_t p_ring_info[m_slaves.size()];
+	size_t i = 0;
+	for (i = 0; i< m_slaves.size(); i++) {
+		p_ring_info[i].p_ib_ctx = m_slaves[i]->p_ib_ctx;
+		p_ring_info[i].port_num = m_slaves[i]->port_num;
+		p_ring_info[i].p_l2_addr = m_slaves[i]->p_L2_addr;
+		//
+		get_interface_oper_state(m_slaves[i]->if_name, current_state, sizeof(current_state));
+		//slave came up
+		if (strstr(current_state, "up") && !m_slaves[i]->is_active_slave) {
+			nd_logdbg("slave %s is up ", m_slaves[i]->if_name);
+			m_slaves[i]->is_active_slave = true;
+			changed = true;
+		} //slave went down
+		else if(strstr(current_state, "down") && m_slaves[i]->is_active_slave){
+			nd_logdbg("slave %s is down ", m_slaves[i]->if_name);
+			m_slaves[i]->is_active_slave = false;
+			changed = true;
+		}
+		p_ring_info[i].active = m_slaves[i]->is_active_slave;
+	}
+	if (changed) {
+		delete_L2_address();
+		m_p_L2_addr = create_L2_address(m_name.c_str());
+		// restart rings
+		rings_hash_map_t::iterator ring_iter;
+		for (ring_iter = m_h_ring_map.begin(); ring_iter != m_h_ring_map.end(); ring_iter++) {
+			THE_RING->restart(p_ring_info);
+		}
+		return 1;
+	}
+	return 0;
+}
 
 std::string net_device_val::to_str()
 {
@@ -458,6 +551,20 @@ void net_device_val::delete_L2_address()
 	}
 }
 
+void net_device_val::register_to_ibverbs_events(event_handler_ibverbs *handler) {
+	for (size_t i = 0; i<m_slaves.size(); i++) {
+		nd_logfunc("registering slave to ibverbs events slave=%p", m_slaves[i]);
+		g_p_event_handler_manager->register_ibverbs_event(m_slaves[i]->p_ib_ctx->get_ibv_context()->async_fd, handler, m_slaves[i]->p_ib_ctx->get_ibv_context(), 0);
+	}
+}
+
+void net_device_val::unregister_to_ibverbs_events(event_handler_ibverbs *handler) {
+	for (size_t i = 0; i<m_slaves.size(); i++) {
+		nd_logfunc("unregistering slave to ibverbs events slave=%p", m_slaves[i]);
+		g_p_event_handler_manager->unregister_ibverbs_event(m_slaves[i]->p_ib_ctx->get_ibv_context()->async_fd, handler);
+	}
+}
+
 void net_device_val_eth::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 {
 	net_device_val::configure(ifa, cma_id);
@@ -482,22 +589,25 @@ void net_device_val_eth::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_i
 
 ring* net_device_val_eth::create_ring()
 {
-	// Prepare list of all slave
-	int active_slave = 0;
 	size_t slave_count = m_slaves.size();
 	if(slave_count == 0) {
 		nd_logpanic("Bonding configuration problem. No slave found.");
 	}
 	ring_resource_creation_info_t p_ring_info[slave_count];
+	bool active_slaves[slave_count];
 	for (size_t i = 0; i<slave_count; i++) {
 		p_ring_info[i].p_ib_ctx = m_slaves[i]->p_ib_ctx;
 		p_ring_info[i].port_num = m_slaves[i]->port_num;
 		p_ring_info[i].p_l2_addr = m_slaves[i]->p_L2_addr;
-		if (m_slaves[i]->is_active_slave)
-			active_slave = i;
+		active_slaves[i] = m_slaves[i]->is_active_slave;
 	}
 
-	return new ring_eth(m_local_addr, p_ring_info, slave_count, active_slave, get_vlan());
+	 //TODO check if need to create bond ring even if slave count is 1
+	if (m_bond != OFF) {
+		return new ring_bond_eth(m_local_addr, p_ring_info, slave_count, active_slaves, get_vlan(), m_bond);
+	} else {
+		return new ring_eth(m_local_addr, p_ring_info, slave_count, true, get_vlan());
+	}
 }
 
 L2_address* net_device_val_eth::create_L2_address(const char* ifname)
@@ -560,22 +670,24 @@ void net_device_val_ib::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id
 
 ring* net_device_val_ib::create_ring()
 {
-	// Prepare list of all slave
-	int active_slave = 0;
 	size_t slave_count = m_slaves.size();
 	if(slave_count == 0) {
 		nd_logpanic("Bonding configuration problem. No slave found.");
 	}
 	ring_resource_creation_info_t p_ring_info[slave_count];
+	bool active_slaves[slave_count];
 	for (size_t i = 0; i<slave_count; i++) {
 		p_ring_info[i].p_ib_ctx = m_slaves[i]->p_ib_ctx;
 		p_ring_info[i].port_num = m_slaves[i]->port_num;
 		p_ring_info[i].p_l2_addr = m_slaves[i]->p_L2_addr;
-		if (m_slaves[i]->is_active_slave)
-			active_slave = i;
+		active_slaves[i] = m_slaves[i]->is_active_slave;
 	}
 
-	return new ring_ib(m_local_addr, p_ring_info, slave_count, active_slave, m_pkey);
+	if (slave_count > 1) {
+		return new ring_bond_ib(m_local_addr, p_ring_info, slave_count, active_slaves, m_pkey, m_bond);
+	} else {
+		return new ring_ib(m_local_addr, p_ring_info, slave_count, true, m_pkey);
+	}
 }
 
 L2_address* net_device_val_ib::create_L2_address(const char* ifname)

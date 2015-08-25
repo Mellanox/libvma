@@ -89,7 +89,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 
 		// Get a bunch of tx buf descriptor and data buffers
 		if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
-			m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(b_blocked, mce_sys.tx_bufs_batch_udp);
+			m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, mce_sys.tx_bufs_batch_udp);
 		}
 		p_mem_buf_desc = m_p_tx_mem_buf_desc_list;
 
@@ -110,7 +110,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 		}
 
 		m_inline_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
-		m_p_ring->send_ring_buffer(m_p_send_wqe, b_blocked);
+		m_p_ring->send_ring_buffer(m_id, m_p_send_wqe, b_blocked);
 	}
 	else {
 		// Find number of ip fragments (-> packets, buffers, buffer descs...)
@@ -131,7 +131,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 		dst_udp_logfunc("udp info: payload_sz=%d, frags=%d, scr_port=%d, dst_port=%d, blocked=%s, ", sz_data_payload, n_num_frags, ntohs(m_header.m_header.hdr.m_udp_hdr.source), ntohs(m_dst_port), b_blocked?"true":"false");
 
 		// Get all needed tx buf descriptor and data buffers
-		p_mem_buf_desc = m_p_ring->mem_buf_tx_get(b_blocked, n_num_frags);
+		p_mem_buf_desc = m_p_ring->mem_buf_tx_get(m_id, b_blocked, n_num_frags);
 
 		if (unlikely(p_mem_buf_desc == NULL)) {
 			if (b_blocked) {
@@ -225,7 +225,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 			p_mem_buf_desc->p_next_desc = NULL;
 
 			// We don't check the return valuse of post send when we reach the HW we consider that we completed our job
-			m_p_ring->send_ring_buffer(m_p_send_wqe, b_blocked);
+			m_p_ring->send_ring_buffer(m_id, m_p_send_wqe, b_blocked);
 
 			p_mem_buf_desc = tmp;
 

@@ -35,6 +35,7 @@
 class buffer_pool;
 class cq_mgr;
 class ring;
+class ring_simple;
 
 #ifndef MAX_SUPPORTED_IB_INLINE_SIZE
 #define MAX_SUPPORTED_IB_INLINE_SIZE	884
@@ -74,7 +75,7 @@ typedef hash_map<ibv_gid, uint32_t> mgid_ref_count_map_t;
 class qp_mgr
 {
 public:
-	qp_mgr(const ring* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num, const uint32_t tx_num_wr);
+	qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num, const uint32_t tx_num_wr);
 	virtual ~qp_mgr();
 
 	void 			up();
@@ -111,7 +112,7 @@ public:
 
 protected:
 	struct ibv_qp*		m_qp;
-	ring*			m_p_ring;
+	ring_simple*		m_p_ring;
 	uint8_t 		m_port_num;
 	ib_ctx_handler*		m_p_ib_ctx_handler;
 
@@ -157,7 +158,7 @@ protected:
 class qp_mgr_eth : public qp_mgr
 {
 public:
-	qp_mgr_eth(const ring* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num,
+	qp_mgr_eth(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num,
 			struct ibv_comp_channel* p_rx_comp_event_channel, const uint32_t tx_num_wr, const uint16_t vlan) :
 		qp_mgr(p_ring, p_context, port_num, tx_num_wr), m_vlan(vlan) { configure(p_rx_comp_event_channel); };
 
@@ -174,7 +175,7 @@ private:
 class qp_mgr_ib : public qp_mgr
 {
 public:
-	qp_mgr_ib(const ring* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num,
+	qp_mgr_ib(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num,
 			struct ibv_comp_channel* p_rx_comp_event_channel, const uint32_t tx_num_wr, const uint16_t pkey) :
 		qp_mgr(p_ring, p_context, port_num, tx_num_wr), m_pkey(pkey) { update_pkey_index(); configure(p_rx_comp_event_channel); };
 

@@ -18,6 +18,7 @@
 #include "buffer_pool.h"
 #include "cq_mgr.h"
 #include "vma/util/instrumentation.h"
+#include "ring_simple.h"
 
 
 #undef  MODULE_NAME
@@ -41,8 +42,8 @@
 #define FICTIVE_AH_DLID		0x3
 
 
-qp_mgr::qp_mgr(const ring* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num, const uint32_t tx_num_wr):
-	m_qp(NULL), m_p_ring((ring*)p_ring), m_port_num((uint8_t)port_num), m_p_ib_ctx_handler((ib_ctx_handler*)p_context),
+qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num, const uint32_t tx_num_wr):
+	m_qp(NULL), m_p_ring((ring_simple*)p_ring), m_port_num((uint8_t)port_num), m_p_ib_ctx_handler((ib_ctx_handler*)p_context),
 	m_p_ahc_head(NULL), m_p_ahc_tail(NULL), m_max_inline_data(0), m_max_qp_wr(0), m_p_cq_mgr_rx(NULL), m_p_cq_mgr_tx(NULL),
 	m_rx_num_wr(mce_sys.rx_num_wr), m_tx_num_wr(tx_num_wr), m_rx_num_wr_to_post_recv(mce_sys.rx_num_wr_to_post_recv), 
 	m_curr_rx_wr(0), m_n_unsignaled_count(0), m_n_tx_count(0), m_p_last_tx_mem_buf_desc(NULL), m_p_prev_rx_desc_pushed(NULL),
@@ -282,7 +283,7 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 	if (m_p_last_tx_mem_buf_desc) { // Meaning that there is at least one post_send in the QP mem_buf_desc that wasn't signaled for completion
 		qp_logdbg("Need to send closing tx wr...");
 		// Allocate new send buffer
-		mem_buf_desc_t* p_mem_buf_desc = m_p_ring->mem_buf_tx_get(true);
+		mem_buf_desc_t* p_mem_buf_desc = m_p_ring->mem_buf_tx_get(0, true);
 		m_p_ring->m_missing_buf_ref_count--; // Align Tx buffer accounting since we will be bypassing the normal send calls
 
 		p_mem_buf_desc->p_next_desc = m_p_last_tx_mem_buf_desc;

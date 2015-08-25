@@ -232,8 +232,6 @@ void net_device_table_mgr::map_net_devices()
 		m_if_indx_to_nd_val_lst[p_net_device_val->get_if_idx()].push_back(p_net_device_val);
 		m_lock.unlock();
 
-		verify_bonding_mode(p_net_device_val->get_local_addr());
-
 		ibv_device* ibvdevice = ib_ctx->get_ibv_device();
 		ndtm_logdbg("Offload interface '%s': Mapped to ibv device '%s' [%p] on port %d",
 				ifa->ifa_name, ibvdevice->name, ibvdevice, cma_id->port_num);
@@ -244,64 +242,6 @@ void net_device_table_mgr::map_net_devices()
 	} //for
 
 	freeifaddrs(ifaddr);
-}
-
-void net_device_table_mgr::verify_bonding_mode(in_addr_t l_if)
-{
-	char if_name[IFNAMSIZ] = "\0";
-	unsigned int if_flags; /* Flags as from SIOCGIFFLAGS ioctl. */
-
-	sockaddr_in local_addr;
-	local_addr.sin_addr.s_addr = l_if;
-	struct sockaddr* local_sock_addr = (struct sockaddr*)&local_addr;  //m_local_sockaddr;
-
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (get_ifinfo_from_ip(*local_sock_addr, if_name, if_flags)) {
-		ndtm_logdbg("ERROR from get_ifaddrs_from_ip() (errno=%d %m)", errno);
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-
-	//verify that this is a bonding master device
-	if (if_flags & IFF_MASTER) {
-		// this is a bond interface, lets get its mode.
-		char bond_mode_file_content[FILENAME_MAX];
-		char bond_failover_mac_file_content[FILENAME_MAX];
-		char bond_mode_param_file[FILENAME_MAX];
-		char bond_failover_mac_param_file[FILENAME_MAX];
-		char *p_failover_mac_value = NULL;
-
-		char base_ifname[IFNAMSIZ];
-		if (get_base_interface_name((const char*)if_name, base_ifname, sizeof(base_ifname))) {
-			vlog_printf(VLOG_ERROR,"VMA couldn't map %s for bonding mode validation\n", if_name);
-			return;
-		}
-
-		memset(bond_mode_file_content, 0, FILENAME_MAX);
-		sprintf(bond_mode_param_file, BONDING_MODE_PARAM_FILE, base_ifname);
-		sprintf(bond_failover_mac_param_file, BONDING_FAILOVER_MAC_PARAM_FILE, base_ifname);
-
-		if (priv_read_file(bond_mode_param_file, bond_mode_file_content, FILENAME_MAX) > 0) {
-			char *bond_mode = NULL;
-
-			bond_mode = strtok(bond_mode_file_content, " ");
-			if (bond_mode && !strcmp(bond_mode, "active-backup"))
-				if (priv_read_file(bond_failover_mac_param_file, bond_failover_mac_file_content, FILENAME_MAX) > 0) {
-					p_failover_mac_value = strstr(bond_failover_mac_file_content, "1");
-					if (!p_failover_mac_value)
-						p_failover_mac_value = strstr(bond_failover_mac_file_content, "0");
-				}
-		}
-
-		if (!p_failover_mac_value) {
-			vlog_printf(VLOG_WARNING,"******************************************************************************\n");
-			vlog_printf(VLOG_WARNING,"VMA doesn't support current bonding configuration of %s.\n", base_ifname);
-			vlog_printf(VLOG_WARNING,"The only supported bonding mode is \"active-backup(#1)\" with \"fail_over_mac=1\"\n");
-			vlog_printf(VLOG_WARNING,"or \"fail_over_mac=0\".\n");
-			vlog_printf(VLOG_WARNING,"The effect of working in unsupported bonding mode is undefined.\n");
-			vlog_printf(VLOG_WARNING,"Read more about Bonding in the VMA's User Manual\n");
-			vlog_printf(VLOG_WARNING,"******************************************************************************\n");
-		}
-	}
 }
 
 // Verify IPoIB is in 'datagram mode' for proper VMA with flow steering operation
