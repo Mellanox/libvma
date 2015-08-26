@@ -798,9 +798,10 @@ void sockinfo::move_owned_rx_ready_descs(const mem_buf_desc_owner* p_desc_owner,
 	}
 }
 
-void sockinfo::attach_as_uc_receiver(role_t role, bool skip_rules /* = false */)
+bool sockinfo::attach_as_uc_receiver(role_t role, bool skip_rules /* = false */)
 {
 	sock_addr addr(m_bound.get_p_sa());
+	bool ret = true;
 
 	if (addr.get_in_addr() != INADDR_ANY) {
 		si_logdbg("Attaching to specific local if: %s", addr.to_str());
@@ -809,7 +810,7 @@ void sockinfo::attach_as_uc_receiver(role_t role, bool skip_rules /* = false */)
 		if (target_family == TRANS_VMA) {
 			// bind to specific local if
 			flow_tuple_with_local_if flow_key(m_bound, m_connected, m_protocol, addr.get_in_addr());
-			attach_receiver(flow_key);
+			ret = ret && attach_receiver(flow_key);
 		}
 	}
 	else {
@@ -818,7 +819,7 @@ void sockinfo::attach_as_uc_receiver(role_t role, bool skip_rules /* = false */)
 
 		local_ip_list_t::iterator lip_iter;
 		local_ip_list_t lip_offloaded_list = g_p_net_device_table_mgr->get_ip_list();
-		for (lip_iter = lip_offloaded_list.begin(); lip_offloaded_list.end() != lip_iter; lip_iter++)
+		for (lip_iter = lip_offloaded_list.begin(); ret && lip_offloaded_list.end() != lip_iter; lip_iter++)
 		{
 			in_addr_t local_if = *lip_iter;
 			addr.set_in_addr(local_if);
@@ -826,10 +827,11 @@ void sockinfo::attach_as_uc_receiver(role_t role, bool skip_rules /* = false */)
 			if (!skip_rules) target_family = find_target_family(role, addr.get_p_sa());
 			if (target_family == TRANS_VMA) {
 				flow_tuple_with_local_if flow_key(addr, m_connected, m_protocol, local_if);
-				attach_receiver(flow_key);
+				ret = ret && attach_receiver(flow_key);
 			}
 		}
 	}
+	return ret;
 }
 
 transport_t sockinfo::find_target_family(role_t role, struct sockaddr* sock_addr_first, struct sockaddr* sock_addr_second /* = NULL */)

@@ -142,7 +142,8 @@ bool rfs::attach_flow(pkt_rcvr_sink *sink)
 
 	// We also check if this is the FIRST sink so we need to call ibv_attach_flow
 	if ((m_n_sinks_list_entries == 0) && (!m_b_tmp_is_attached) && (filter_counter == 1)) {
-		create_ibv_flow();
+		if (!create_ibv_flow())
+			return false;
 		filter_keep_attached(filter_iter);
 	}
 

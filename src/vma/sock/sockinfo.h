@@ -181,7 +181,7 @@ protected:
 	// Attach to all relevant rings for offloading receive flows - always used from slow path
 	// According to bounded information we need to attach to all UC relevant flows
 	// If local_ip is ANY then we need to attach to all offloaded interfaces OR to the one our connected_ip is routed to
-	void			attach_as_uc_receiver(role_t role, bool skip_rules = false);
+	bool			attach_as_uc_receiver(role_t role, bool skip_rules = false);
 
 	transport_t 		find_target_family(role_t role, struct sockaddr *sock_addr_first, struct sockaddr *sock_addr_second = NULL);
 

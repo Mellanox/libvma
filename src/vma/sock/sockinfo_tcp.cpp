@@ -1585,7 +1585,6 @@ int sockinfo_tcp::prepareConnect(const sockaddr *, socklen_t ){
 int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 {
 
-	int ret;
 	lock_tcp_con();
 
 	// Calling connect more than once should return error codes
@@ -1654,7 +1653,13 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 		tcp_bind(&m_pcb, (ip_addr_t*)(&ip), (ntohs(m_bound.get_in_port())));
 	}
 	m_conn_state = TCP_CONN_CONNECTING;
-	attach_as_uc_receiver((role_t)NULL, true);
+	bool success = attach_as_uc_receiver((role_t)NULL, true);
+	if (!success) {
+		setPassthrough();
+		unlock_tcp_con();
+		si_tcp_logdbg("non offloaded socket --> connect only via OS");
+		return orig_os_api.connect(m_fd, __to, __tolen);
+	}
 
 	if (m_rx_ring_map.size() == 1) {
 		rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.begin();
@@ -1687,9 +1692,9 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 	}
 
 	// if (target_family == USE_VMA || target_family == USE_ULP || arget_family == USE_DEFAULT)
-	ret = wait_for_conn_ready();
+	int rc = wait_for_conn_ready();
 	// handle ret from async connect
-	if (ret < 0) {
+	if (rc < 0) {
 	        //m_conn_state = TCP_CONN_ERROR;
                 // errno is set and connect call must fail.
 	        destructor_helper();
