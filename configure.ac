@@ -56,10 +56,10 @@ AC_SUBST(LIBALIC_FLAG)
 with_debug_info=yes
 with_debug=no
 
-AC_CHECK_HEADERS([infiniband/verbs.h], 1,
+AC_CHECK_HEADERS([infiniband/verbs.h], ,
                  [AC_MSG_ERROR([Unable to find the libibverbs-devel header files])])
 
-AC_CHECK_HEADERS([rdma/rdma_cma.h], 1,
+AC_CHECK_HEADERS([rdma/rdma_cma.h], ,
                  [AC_MSG_ERROR([Unable to find the librdma_cm-devel header files])])
 
 
@@ -300,6 +300,22 @@ AC_TRY_LINK(
 [
   AC_MSG_RESULT([yes])
   AC_DEFINE(DEFINED_IBV_EXP_DEVICE_RX_CSUM_L4_PKT, 1, [Define to 1 if IBV_EXP_DEVICE_RX_CSUM_L4_PKT is defined])
+],
+[
+  AC_MSG_RESULT([no])
+])
+
+AC_MSG_CHECKING([if IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT is defined])
+AC_TRY_LINK(
+#include <infiniband/verbs_exp.h>
+,
+[
+  int access = (int)IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT;
+  return access;
+],
+[
+  AC_MSG_RESULT([yes])
+  AC_DEFINE(DEFINED_IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT, 1, [Define to 1 if IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT is defined])
 ],
 [
   AC_MSG_RESULT([no])

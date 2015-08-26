@@ -138,7 +138,12 @@ typedef struct ibv_exp_device_attr		vma_ibv_device_attr;
 #define vma_is_rx_csum_supported(attr)		(((attr).exp_device_cap_flags & IBV_EXP_DEVICE_RX_CSUM_L3_PKT) \
 						&& ((attr).exp_device_cap_flags & IBV_EXP_DEVICE_RX_CSUM_L4_PKT))
 #else
+#ifdef DEFINED_IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT
+#define vma_is_rx_csum_supported(attr)		(((attr).exp_device_cap_flags & IBV_EXP_DEVICE_RX_CSUM_IP_PKT) \
+						&& ((attr).exp_device_cap_flags & IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT))
+#else
 #define vma_is_rx_csum_supported(attr)		0
+#endif
 #endif
 //ibv_modify_qp
 #define vma_ibv_modify_qp(qp, attr, mask)	ibv_exp_modify_qp(qp, attr, mask)
@@ -152,7 +157,11 @@ typedef struct ibv_exp_wc			vma_ibv_wc;
 #ifdef DEFINED_IBV_EXP_DEVICE_RX_CSUM_L4_PKT
 #define vma_wc_rx_csum_ok(wc)			((vma_wc_flags(wc) & IBV_EXP_L3_RX_CSUM_OK) && (vma_wc_flags(wc) & IBV_EXP_L4_RX_CSUM_OK))
 #else
+#ifdef DEFINED_IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT
+#define vma_wc_rx_csum_ok(wc)			((vma_wc_flags(wc) & IBV_EXP_WC_RX_IP_CSUM_OK) && (vma_wc_flags(wc) & IBV_EXP_WC_RX_TCP_UDP_CSUM_OK))
+#else
 #define vma_wc_rx_csum_ok(wc)			(1)
+#endif
 #endif
 //ibv_post_send
 #define VMA_IBV_SEND_SIGNALED			IBV_EXP_SEND_SIGNALED
