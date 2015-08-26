@@ -204,7 +204,7 @@ bool rfs::destroy_ibv_flow()
 		}
 		
 		ib_ctx_handler* p_ib_ctx_handler = iter->p_qp_mgr->get_ib_ctx_handler(); 
-		if (!p_ib_ctx_handler->is_removed()) {
+		if (!p_ib_ctx_handler->is_removed() && iter->ibv_flow) {
 			IF_VERBS_FAILURE(vma_ibv_destroy_flow(iter->ibv_flow)) {
 				rfs_logerr("Destroy of QP flow ID failed"); //TODO ALEXR - Add info about QP, spec, priority into log msg
 			} ENDIF_VERBS_FAILURE;
