@@ -15,8 +15,9 @@ d = deque()
 while True:
 	#time.sleep(2)
 	conn, addr = s.accept()
-	print "%s: Closing accepted %s..." % (time.strftime("%Y-%m-%d %H:%M:%S"), str(addr))
-	if len(d) == 100: 
+	if len(d) == 100:
 		time.sleep(0.001)
-		d.pop().close()
+		sock=d.pop()
+		print "%s: Closing an accepted socket %s..." % (time.strftime("%Y-%m-%d %H:%M:%S"), str(sock))
+		sock.close()
 	d.append(conn)
