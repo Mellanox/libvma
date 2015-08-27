@@ -350,8 +350,10 @@ for (( i=0; i<$numOfBranches; i++ )); do
 			if [ "$curr_branch" == "master" ]; then
 				bgate_curr_branch=$master_name
 			fi
-                       ssh ork@bgate.mellanox.com mkdir -p /hpc/home/vma/daily/"$bgate_curr_branch"/"$folderName"
-                       scp -r . ork@bgate.mellanox.com:/hpc/home/vma/daily/"$bgate_curr_branch"/"$folderName"
+                       #ssh ork@bgate.mellanox.com mkdir -p /hpc/home/vma/daily/"$bgate_curr_branch"/"$folderName"
+                       #scp -r . ork@bgate.mellanox.com:/hpc/home/vma/daily/"$bgate_curr_branch"/"$folderName"
+			ssh ork@r-sw-hail25 mkdir -p /net/10.224.1.11/vol/asal_home/vma/daily/"$bgate_curr_branch"/"$folderName"
+			scp -r . ork@r-sw-hail25:/net/10.224.1.11/vol/asal_home/vma/daily/"$bgate_curr_branch"/"$folderName"
                 fi
                 cd -
         fi
@@ -1045,8 +1047,10 @@ if [ "$DAILY_MODE" == 1 ]; then #daily
                 if [ "$branch_folder" == "master" ]; then
                 	bgate_branch_folder=$master_name
                 fi
-                ssh ork@bgate.mellanox.com mkdir -p /hpc/home/vma/daily/"$bgate_branch_folder"/"$date"
-                scp -r daily/"$branch_folder"/"$date"/* ork@bgate.mellanox.com:/hpc/home/vma/daily/"$bgate_branch_folder"/"$date"
+                #ssh ork@bgate.mellanox.com mkdir -p /hpc/home/vma/daily/"$bgate_branch_folder"/"$date"
+		ssh ork@r-sw-hail25 mkdir -p /net/10.224.1.11/vol/asal_home/vma/daily/"$bgate_branch_folder"/"$date"
+                #scp -r daily/"$branch_folder"/"$date"/* ork@bgate.mellanox.com:/hpc/home/vma/daily/"$bgate_branch_folder"/"$date"
+		scp -r daily/"$branch_folder"/"$date"/* ork@r-sw-hail25:/net/10.224.1.11/vol/asal_home/vma/daily/"$bgate_branch_folder"/"$date"
 	fi
 fi
 if [ "$RELEASE_MODE" == 1 ]; then #release
