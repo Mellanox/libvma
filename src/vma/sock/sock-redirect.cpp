@@ -383,7 +383,10 @@ int socket_internal(int __domain, int __type, int __protocol, bool check_offload
 	if (!orig_os_api.socket) get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	do_global_ctors();
+	bool offload_sockets = (__type & 0xf) == SOCK_DGRAM || (__type & 0xf) == SOCK_STREAM;
+
+	if (offload_sockets)
+		do_global_ctors();
 
 	dbg_check_if_need_to_send_mcpkt();
 
@@ -1336,8 +1339,6 @@ int select_helper(int __nfds,
 	int off_rfds_buffer[__nfds];
 	io_mux_call::offloaded_mode_t off_modes_buffer[__nfds];
 
-	do_global_ctors();
-
 	if (g_vlogger_level >= VLOG_FUNC) {
 		const int tmpbufsize = 256;
 		char tmpbuf[tmpbufsize], tmpbuf2[tmpbufsize];
@@ -1377,6 +1378,9 @@ int select(int __nfds,
 	if (!orig_os_api.select)	get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
 
+	if (!g_p_fd_collection)
+		return orig_os_api.select(__nfds, __readfds, __writefds, __exceptfds, __timeout);
+
 	if (__timeout)
 		srdr_logfunc_entry("nfds=%d, timeout=(%d sec, %d usec)",
 				                   __nfds, __timeout->tv_sec, __timeout->tv_usec);
@@ -1398,6 +1402,9 @@ int pselect(int __nfds,
 	if (!orig_os_api.pselect) get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
 
+	if (!g_p_fd_collection)
+		return orig_os_api.pselect(__nfds, __readfds, __writefds, __errorfds, __timeout, __sigmask);
+
 	struct timeval select_time;
 	if (__timeout) {
 		srdr_logfunc_entry("nfds=%d, timeout=(%d sec, %d nsec)",
@@ -1417,8 +1424,6 @@ int pselect(int __nfds,
    or -1 for errors.  */
 int poll_helper(struct pollfd *__fds, nfds_t __nfds, int __timeout, const sigset_t *__sigmask = NULL)
 {
-	do_global_ctors();
-
 	int off_rfd_buffer[__nfds];
 	io_mux_call::offloaded_mode_t off_modes_buffer[__nfds];
 	int lookup_buffer[__nfds];
@@ -1442,6 +1447,9 @@ int poll(struct pollfd *__fds, nfds_t __nfds, int __timeout)
 	if (!orig_os_api.poll)	get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
 
+	if (!g_p_fd_collection)
+		return orig_os_api.poll(__fds, __nfds, __timeout);
+
 	if (__timeout == -1)
 		srdr_logfunc_entry("nfds=%d, timeout=(infinite)", __nfds);
 	else
@@ -1456,6 +1464,9 @@ int ppoll(struct pollfd *__fds, nfds_t __nfds, const struct timespec *__timeout,
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.ppoll)	get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
+
+	if (!g_p_fd_collection)
+		return orig_os_api.ppoll(__fds, __nfds, __timeout, __sigmask);
 
 	int timeout = (__timeout == NULL) ? -1 :
 	           (__timeout->tv_sec * 1000 + __timeout->tv_nsec / 1000000);
@@ -1659,7 +1670,10 @@ int pipe(int __filedes[2])
 	if (!orig_os_api.pipe)	get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	do_global_ctors();
+	bool offload_pipe = mce_sys.mce_spec == MCE_SPEC_29WEST_LBM_29 ||
+			    mce_sys.mce_spec == MCE_SPEC_WOMBAT_FH_LBM_554;
+	if (offload_pipe)
+		do_global_ctors();
 
 	int ret = orig_os_api.pipe(__filedes);
 	vlog_printf(VLOG_DEBUG, MODULE_HDR_ENTRY "%s(fd[%d,%d]) = %d\n", __func__, __filedes[0], __filedes[1], ret);
@@ -1672,8 +1686,7 @@ int pipe(int __filedes[2])
 		handle_close(fdwr, true);
 
 		// Create new pipeinfo object for this new fd pair
-		if (mce_sys.mce_spec == MCE_SPEC_29WEST_LBM_29 || 
-		    mce_sys.mce_spec == MCE_SPEC_WOMBAT_FH_LBM_554)
+		if (offload_pipe)
 			g_p_fd_collection->addpipe(fdrd, fdwr);
 	}
 
