@@ -197,7 +197,8 @@ void set_fd_block_mode(int fd, bool b_block)
 	int flags = orig_os_api.fcntl(fd, F_GETFL);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (flags < 0) {
-		__log_panic("failed reading fd[%d] flag (rc=%d errno=%d %m)", fd, flags, errno);
+		__log_err("failed reading fd[%d] flag (rc=%d errno=%d %m)", fd, flags, errno);
+		return;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
@@ -209,7 +210,7 @@ void set_fd_block_mode(int fd, bool b_block)
 	int ret = orig_os_api.fcntl(fd, F_SETFL, flags);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (ret < 0) {
-		__log_panic("failed changing fd[%d] to %sblocking mode (rc=%d errno=%d %m)", fd, b_block?"":"non-", flags, ret, errno);
+		__log_err("failed changing fd[%d] to %sblocking mode (rc=%d errno=%d %m)", fd, b_block?"":"non-", flags, ret, errno);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 

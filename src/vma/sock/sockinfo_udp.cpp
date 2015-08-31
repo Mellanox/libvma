@@ -339,7 +339,12 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 		}
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (!m_p_connected_dst_entry) {
-			si_udp_logpanic("Failed to create dst_entry(dst_ip:%s, dst_port:%d, src_port:%d)", NIPQUAD(dst_ip), ntohs(dst_port), ntohs(src_port));
+			si_udp_logerr("Failed to create dst_entry(dst_ip:%s, dst_port:%d, src_port:%d)", NIPQUAD(dst_ip), ntohs(dst_port), ntohs(src_port));
+			m_connected.set_in_addr(INADDR_ANY);
+			m_p_socket_stats->connected_ip = INADDR_ANY;
+			m_connected.set_in_port(INPORT_ANY);
+			m_p_socket_stats->connected_port = INPORT_ANY;
+			return 0;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		if (!m_bound.is_anyaddr() && !m_bound.is_mc()) {
@@ -1467,7 +1472,8 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 			}
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (!p_dst_entry) {
-				si_udp_logpanic("Failed to create dst_entry(dst_ip:%s, dst_port:%d, src_port:%d)", dst.to_str_in_addr(), dst.to_str_in_port(), ntohs(src_port));
+				si_udp_logerr("Failed to create dst_entry(dst_ip:%s, dst_port:%d, src_port:%d)", dst.to_str_in_addr(), dst.to_str_in_port(), ntohs(src_port));
+				goto tx_packet_to_os;
 			}
 			BULLSEYE_EXCLUDE_BLOCK_END
 			if (!m_bound.is_anyaddr() && !m_bound.is_mc()) {

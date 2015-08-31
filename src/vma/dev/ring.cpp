@@ -340,7 +340,8 @@ bool ring::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 			p_tmp_rfs = new rfs_uc(&flow_spec_5t, this);
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (p_tmp_rfs == NULL) {
-				ring_logpanic("Failed to allocate rfs!");
+				ring_logerr("Failed to allocate rfs!");
+				return false;
 			}
 			BULLSEYE_EXCLUDE_BLOCK_END
 			m_lock_ring_rx.lock();
@@ -375,7 +376,8 @@ bool ring::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 			p_tmp_rfs = new rfs_mc(&flow_spec_5t, this, l2_mc_ip_filter);
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (p_tmp_rfs == NULL) {
-				ring_logpanic("Failed to allocate rfs!");
+				ring_logerr("Failed to allocate rfs!");
+				return false;
 			}
 			BULLSEYE_EXCLUDE_BLOCK_END
 			m_lock_ring_rx.lock();
@@ -413,7 +415,8 @@ bool ring::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 			}
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (p_tmp_rfs == NULL) {
-				ring_logpanic("Failed to allocate rfs!");
+				ring_logerr("Failed to allocate rfs!");
+				return false;
 			}
 			BULLSEYE_EXCLUDE_BLOCK_END
 			m_lock_ring_rx.lock();

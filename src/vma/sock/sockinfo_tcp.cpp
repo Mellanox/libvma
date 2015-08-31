@@ -384,7 +384,8 @@ void sockinfo_tcp::create_dst_entry()
 				m_bound.get_in_port(), m_fd);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (!m_p_connected_dst_entry) {
-			si_tcp_logpanic("Failed to allocate m_p_connected_dst_entry");
+			si_tcp_logerr("Failed to allocate m_p_connected_dst_entry");
+			return;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		if (!m_bound.is_anyaddr()) {
@@ -1624,6 +1625,12 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 	m_connected.set(*((sockaddr *)__to));
 
 	create_dst_entry();
+	if (!m_p_connected_dst_entry) {
+		setPassthrough();
+		unlock_tcp_con();
+		si_tcp_logdbg("non offloaded socket --> connect only via OS");
+		return orig_os_api.connect(m_fd, __to, __tolen);
+	}
 	m_p_connected_dst_entry->prepare_to_send();
 
 	// update it after route was resolved and device was updated
@@ -1962,7 +1969,12 @@ int sockinfo_tcp::listen(int backlog)
 		if (errno == EEXIST) {
 			si_tcp_logdbg("failed to add user's fd to internal epfd errno=%d (%m)", errno);
 		} else {
-			si_tcp_logpanic("failed to add user's fd to internal epfd errno=%d (%m)", errno);
+			si_tcp_logerr("failed to add user's fd to internal epfd errno=%d (%m)", errno);
+			si_tcp_logdbg("Fallback the connection to os");
+			destructor_helper();
+			setPassthrough();
+			unlock_tcp_con();
+			return 0;
 		}
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -2336,7 +2348,7 @@ err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_
 
 	new_sock->set_conn_properties_from_pcb();
 	new_sock->create_dst_entry();
-	bool is_new_offloaded = new_sock->prepare_dst_to_send(true); // pass true for passive socket to skip the transport rules checking
+	bool is_new_offloaded = new_sock->m_p_connected_dst_entry && new_sock->prepare_dst_to_send(true); // pass true for passive socket to skip the transport rules checking
 
 	/* this can happen if there is no route back to the syn sender.
 	 * so we just need to ignore it.
@@ -2390,11 +2402,11 @@ err_t sockinfo_tcp::syn_received_drop_lwip_cb(void *arg, struct tcp_pcb *newpcb,
 
 	new_sock->set_conn_properties_from_pcb();
 	new_sock->create_dst_entry();
-	new_sock->prepare_dst_to_send(true); // true for passive socket to skip the transport rules checking
-
-	tcp_arg(&(new_sock->m_pcb), new_sock);
-	new_sock->abort_connection();
-
+	if (new_sock->m_p_connected_dst_entry) {
+		new_sock->prepare_dst_to_send(true); // true for passive socket to skip the transport rules checking
+		tcp_arg(&(new_sock->m_pcb), new_sock);
+		new_sock->abort_connection();
+	}
 	close(new_sock->get_fd());
 
 	listen_sock->m_tcp_con_lock.lock();
@@ -2713,7 +2725,7 @@ int sockinfo_tcp::shutdown(int __how)
 			break;
 		BULLSEYE_EXCLUDE_BLOCK_START
 		default:
-			si_tcp_logpanic("unknow shutdown option %d", __how);		
+			si_tcp_logerr("unknow shutdown option %d", __how);
 			break;
 		BULLSEYE_EXCLUDE_BLOCK_END
 	}	
@@ -3247,9 +3259,8 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 	else { //There's more than one CQ, go over each one
 		for (rx_ring_iter = m_rx_ring_map.begin(); rx_ring_iter != m_rx_ring_map.end(); rx_ring_iter++) {
 			if (unlikely(rx_ring_iter->second->refcnt <= 0)) {
-				__log_panic("Attempt to poll illegal cq");
-				//coverity unreachable code
-				//continue;
+				__log_err("Attempt to poll illegal cq");
+				continue;
 			}
 			ring* p_ring =  rx_ring_iter->first;
 			//g_p_lwip->do_timers();

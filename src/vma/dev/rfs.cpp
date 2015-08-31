@@ -85,7 +85,8 @@ bool rfs::add_sink(pkt_rcvr_sink* p_sink)
 
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (tmp_sinks_list == NULL) {
-			rfs_logpanic("sinks list allocation failed!");
+			rfs_logerr("sinks list allocation failed!");
+			return false;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 

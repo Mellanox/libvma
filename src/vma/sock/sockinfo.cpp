@@ -197,7 +197,8 @@ int sockinfo::rx_wait_helper(int &poll_count, bool is_blocking)
 	for (rx_ring_iter = m_rx_ring_map.begin(); rx_ring_iter != m_rx_ring_map.end(); rx_ring_iter++) {
 		//BULLSEYE_EXCLUDE_BLOCK_START
 		if (unlikely(rx_ring_iter->second->refcnt <= 0)) {
-			si_logpanic("Attempted to poll illegal cq");
+			si_logerr("Attempted to poll illegal cq");
+			continue;
 		}
 		//BULLSEYE_EXCLUDE_BLOCK_END
 		ret = rx_ring_iter->first->poll_and_process_element_rx(&poll_sn);
@@ -338,16 +339,16 @@ bool sockinfo::attach_receiver(flow_tuple_with_local_if &flow_key)
 		BULLSEYE_EXCLUDE_BLOCK_START
 		cache_entry_subject<ip_address, net_device_val*>* p_ces = NULL;
 		if (!g_p_net_device_table_mgr->register_observer(ip_local, &m_rx_nd_observer, &p_ces)) {
-			si_logpanic("Failed registering as observer for local ip %s", ip_local.to_str().c_str());
+			si_logerr("Failed registering as observer for local ip %s", ip_local.to_str().c_str());
 			return false;
 		}
 		nd_resources.p_nde = (net_device_entry*)p_ces;
 		if (!nd_resources.p_nde) {
-			si_logpanic("Got NULL net_devide_entry for local ip %s", ip_local.to_str().c_str());
+			si_logerr("Got NULL net_devide_entry for local ip %s", ip_local.to_str().c_str());
 			return false;
 		}
 		if (!nd_resources.p_nde->get_val(nd_resources.p_ndv)) {
-			si_logpanic("Got net_device_val=NULL (interface is not offloaded) for local ip %s", ip_local.to_str().c_str());
+			si_logerr("Got net_device_val=NULL (interface is not offloaded) for local ip %s", ip_local.to_str().c_str());
 			return false;
 		}
 
@@ -363,7 +364,7 @@ bool sockinfo::attach_receiver(flow_tuple_with_local_if &flow_key)
 		m_rx_ring_map_lock.unlock();
 		lock_rx_q();
 		if (!nd_resources.p_ring) {
-			si_logpanic("Failed to reserve ring for allocation key %d on lip %s", m_ring_alloc_logic.get_key(), ip_local.to_str().c_str());
+			si_logerr("Failed to reserve ring for allocation key %d on lip %s", m_ring_alloc_logic.get_key(), ip_local.to_str().c_str());
 			return false;
 		}
 
@@ -372,7 +373,8 @@ bool sockinfo::attach_receiver(flow_tuple_with_local_if &flow_key)
 
 		rx_nd_iter = m_rx_nd_map.find(ip_local.get_in_addr());
 		if (rx_nd_iter == m_rx_nd_map.end()) {
-			si_logpanic("Failed to find rx_nd_iter");
+			si_logerr("Failed to find rx_nd_iter");
+			return false;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 
@@ -451,7 +453,7 @@ bool sockinfo::detach_receiver(flow_tuple_with_local_if &flow_key)
 	rx_net_device_map_t::iterator rx_nd_iter = m_rx_nd_map.find(ip_local.get_in_addr());
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (rx_nd_iter == m_rx_nd_map.end()) {
-		si_logpanic("Failed to net_device associated with: %s", flow_key.to_str());
+		si_logerr("Failed to net_device associated with: %s", flow_key.to_str());
 		return false;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -464,14 +466,14 @@ bool sockinfo::detach_receiver(flow_tuple_with_local_if &flow_key)
 		unlock_rx_q();
 		if (!p_nd_resources->p_ndv->release_ring(m_ring_alloc_logic.get_key())) {
 			lock_rx_q();
-			si_logpanic("Failed to release ring for allocation key %d on lip %s", m_ring_alloc_logic.get_key(), ip_local.to_str().c_str());
+			si_logerr("Failed to release ring for allocation key %d on lip %s", m_ring_alloc_logic.get_key(), ip_local.to_str().c_str());
 			return false;
 		}
 		lock_rx_q();
 
 		// Release observer reference
 		if (!g_p_net_device_table_mgr->unregister_observer(ip_local, &m_rx_nd_observer)) {
-			si_logpanic("Failed registering as observer for lip %s", ip_local.to_str().c_str());
+			si_logerr("Failed registering as observer for lip %s", ip_local.to_str().c_str());
 			return false;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
@@ -511,8 +513,10 @@ void sockinfo::do_rings_migration()
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (!new_ring) {
 			ip_address ip_local(rx_nd_iter->first);
-			si_logpanic("Failed to reserve ring for allocation key %d on lip %s", new_key, ip_local.to_str().c_str());
-			return;
+			si_logerr("Failed to reserve ring for allocation key %d on lip %s", new_key, ip_local.to_str().c_str());
+			lock_rx_q();
+			rx_nd_iter++;
+			continue;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		lock_rx_q();
@@ -566,8 +570,7 @@ void sockinfo::do_rings_migration()
 		if (!p_nd_resources->p_ndv->release_ring(old_key)) {
 			lock_rx_q();
 			ip_address ip_local(rx_nd_iter->first);
-			si_logpanic("Failed to release ring for allocation key %d on lip %s", old_key, ip_local.to_str().c_str());
-			return;
+			si_logerr("Failed to release ring for allocation key %d on lip %s", old_key, ip_local.to_str().c_str());
 		}
 		lock_rx_q();
 		BULLSEYE_EXCLUDE_BLOCK_END
