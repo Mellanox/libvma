@@ -138,7 +138,7 @@ static inline const char* ctl_thread_str(tcp_ctl_thread_t logic)
 struct mce_sys_var {
 
 	mce_sys_var () : sysctl_reader(sysctl_reader_t::instance()){
-
+		// coverity[uninit_member]
 	}
 
 	char 		*app_name;

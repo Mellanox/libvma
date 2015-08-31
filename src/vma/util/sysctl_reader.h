@@ -41,6 +41,8 @@ private:
 		ans = vfscanf(pfile, format, arg);
 		va_end (arg);
 
+		fclose(pfile);
+
 		if (ans != argument_num) {
 			return -1;
 		}
