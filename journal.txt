@@ -1,3 +1,17 @@
+Version 7.0.6-0:
+Date + Time 2015-9-2
+=======================
+Added:
+        - RM #541581 Support RX CSUM verification offload - align to MLNX_OFED 3.1
+        - RM #597700 Handle VMA exception flows - patch 1
+
+Fixed:
+        - RM #577677 backlog params will now be taken from sysctl_reader.h
+        - RM #589972 provide info to the user if ulimit -n is too small
+        - RM #563682 fix a crash when ibv_create_flow failed 
+        - RM #596462 fallback to OS in case ibv_create_flow failed
+        - RM #597449 Do not load vma resources if not required
+
 Version 7.0.5-0:
 Date + Time 2015-8-11
 =======================
