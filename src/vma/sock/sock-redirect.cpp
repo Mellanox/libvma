@@ -535,6 +535,9 @@ int bind(int __fd, const struct sockaddr *__addr, socklen_t __addrlen)
 		ret = p_socket_object->bind(__addr, __addrlen);
 		if (p_socket_object->isPassthrough()) {
 			handle_close(__fd, false, true);
+			if (ret) {
+				ret = orig_os_api.bind(__fd, __addr, __addrlen);
+			}
 		}
 	}
 	else {
@@ -572,6 +575,9 @@ int connect(int __fd, const struct sockaddr *__to, socklen_t __tolen)
 		ret = p_socket_object->connect(__to, __tolen);
 		if (p_socket_object->isPassthrough()) {
 			handle_close(__fd, false, true);
+			if (ret) {
+				ret = orig_os_api.connect(__fd, __to, __tolen);
+			}
 		}
 	}
 	else {

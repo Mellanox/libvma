@@ -1586,6 +1586,8 @@ int sockinfo_tcp::prepareConnect(const sockaddr *, socklen_t ){
 int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 {
 
+	NOT_IN_USE(__tolen);
+
 	lock_tcp_con();
 
 	// Calling connect more than once should return error codes
@@ -1616,9 +1618,12 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 
 	// take local ip from new sock and local port from acceptor
 	if (m_sock_state != TCP_SOCK_BOUND && bind(m_bound.get_p_sa(), m_bound.get_socklen()) == -1) {
+		setPassthrough();
 		unlock_tcp_con();
+		si_tcp_logdbg("non offloaded socket --> connect only via OS");
 		return -1;
-	}
+        }
+
 	// setup peer address
 	// TODO: Currenlty we don't check the if __to is supported and legal
 	// socket-redirect probably should do this
@@ -1629,7 +1634,7 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 		setPassthrough();
 		unlock_tcp_con();
 		si_tcp_logdbg("non offloaded socket --> connect only via OS");
-		return orig_os_api.connect(m_fd, __to, __tolen);
+		return -1;
 	}
 	m_p_connected_dst_entry->prepare_to_send();
 
@@ -1649,7 +1654,7 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 		setPassthrough();
 		unlock_tcp_con();
 		si_tcp_logdbg("non offloaded socket --> connect only via OS");
-		return orig_os_api.connect(m_fd, __to, __tolen);
+		return -1;
 	} else {
 		notify_epoll_context_fd_is_offloaded(); //remove fd from os epoll
 	}
@@ -1665,7 +1670,7 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 		setPassthrough();
 		unlock_tcp_con();
 		si_tcp_logdbg("non offloaded socket --> connect only via OS");
-		return orig_os_api.connect(m_fd, __to, __tolen);
+		return -1;
 	}
 
 	if (m_rx_ring_map.size() == 1) {
@@ -1678,6 +1683,7 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 
 	int err = tcp_connect(&m_pcb, (ip_addr_t*)(&peer_ip_addr), ntohs(m_connected.get_in_port()), /*(tcp_connected_fn)*/sockinfo_tcp::connect_lwip_cb);
 	if (err != ERR_OK) {
+		//todo consider setPassthrough and go to OS
 		destructor_helper();
 		errno = ECONNREFUSED;
 		si_tcp_logerr("bad connect, err=%d", err);
@@ -1704,6 +1710,7 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 	if (rc < 0) {
 	        //m_conn_state = TCP_CONN_ERROR;
                 // errno is set and connect call must fail.
+		//todo consider setPassthrough and go to OS
 	        destructor_helper();
 	        errno = ECONNREFUSED;
 	        unlock_tcp_con();
@@ -1736,9 +1743,43 @@ int sockinfo_tcp::bind(const sockaddr *__addr, socklen_t __addrlen)
 
 	lock_tcp_con();
 
-	if (orig_os_api.bind(m_fd, __addr, __addrlen) < 0) {
+	uint16_t bind_to_port = (__addr && __addrlen) ? ((struct sockaddr_in*)__addr)->sin_port : INPORT_ANY; //todo verify __addr length
+	bool disable_reuse_option = (bind_to_port == INPORT_ANY) && (m_pcb.so_options & SOF_REUSEADDR);
+	int reuse, ret;
+
+	if (disable_reuse_option) {
+		reuse = 0;
+		ret = orig_os_api.setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (ret) {
+			si_tcp_logerr("Failed to disable SO_REUSEADDR option (ret=%d %m), connection will be handled by OS", ret);
+			setPassthrough();
+			si_tcp_logdbg("socket bound only via OS");
+			unlock_tcp_con();
+			return ret;
+		}
+		BULLSEYE_EXCLUDE_BLOCK_END
+	}
+
+	ret = orig_os_api.bind(m_fd, __addr, __addrlen);
+
+	if (disable_reuse_option) {
+		reuse = 1;
+		int rv = orig_os_api.setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (rv) {
+			si_tcp_logerr("Failed to enable SO_REUSEADDR option (ret=%d %m)", rv);
+		}
+		BULLSEYE_EXCLUDE_BLOCK_END
+		if (ret < 0) {
+			setPassthrough();
+			si_tcp_logdbg("socket bound only via OS");
+		}
+	}
+
+	if (ret < 0) {
 		unlock_tcp_con();
-		return -1;
+		return ret;
 	}
 
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -1760,7 +1801,7 @@ int sockinfo_tcp::bind(const sockaddr *__addr, socklen_t __addrlen)
 	in_addr_t ip = m_bound.get_in_addr();
 
 	if (!m_bound.is_anyaddr() && !g_p_net_device_table_mgr->get_net_device_val(ip)) { //if socket is not bound to INADDR_ANY and not offloaded socket- only bind OS
-		setPassthrough(true);
+		setPassthrough();
 		m_sock_state = TCP_SOCK_BOUND;
 		si_tcp_logdbg("socket bound only via OS");
 		unlock_tcp_con();
@@ -1809,7 +1850,7 @@ int sockinfo_tcp::prepareListen(){
 		tmp_sin.sin_addr.s_addr = INADDR_ANY;
 		if (bind((struct sockaddr *)&tmp_sin, tmp_sin_len) < 0) {
 			si_tcp_logdbg("bind failed");
-			return -1;
+			return 1;
 		}
 	}
 
