@@ -22,8 +22,9 @@ install-exec-hook:
 	rm -f $(DESTDIR)$(libdir)/libvlogger.*
 	rm -f $(DESTDIR)$(bindir)/state_machine_test
 	rm -f $(DESTDIR)$(bindir)/vlogger_test
-	echo "$(libdir)" > /etc/ld.so.conf.d/libvma.conf
-	/sbin/ldconfig
+	install -d $(sysconfdir)/ld.so.conf.d
+	echo "$(libdir)" > $(sysconfdir)/ld.so.conf.d/libvma.conf
+	if [[ `id -u` -eq 0 ]];then /sbin/ldconfig;fi
 
 uninstall-hook:
 	rm -f $(DESTDIR)$(libdir)/libvma.so*
