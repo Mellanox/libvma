@@ -82,7 +82,7 @@ public:
 
 	int	bind(const struct sockaddr *__addr, socklen_t __addrlen);
 	int	connect(const struct sockaddr *__to, socklen_t __tolen);
-	int	getsockname(struct sockaddr *__name = NULL, socklen_t *__namelen = NULL);
+	int	getsockname(struct sockaddr *__name, socklen_t *__namelen);
 	int	setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen);
 	int	getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen);
 
@@ -186,6 +186,7 @@ private:
 	int mc_change_membership_start_helper(in_addr_t mc_grp, int optname);
 	int mc_change_membership_end_helper(in_addr_t mc_grp, int optname);
 	int mc_change_pending_mreq(const struct ip_mreq *p_mreq, int optname);
+	int on_sockname_change(struct sockaddr *__name, socklen_t __namelen);
 	void handle_pending_mreq();
 
 	/* helper functions */

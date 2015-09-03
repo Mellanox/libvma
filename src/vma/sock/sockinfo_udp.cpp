@@ -229,14 +229,20 @@ int sockinfo_udp::bind(const struct sockaddr *__addr, socklen_t __addrlen)
 		return -1; // zero returned from orig_bind()
 	}
 
-	// Call our getsockname (this will get us and save the bound info and then attach to offload flows)
-	ret = getsockname();
+	struct sockaddr_in bound_addr;
+	socklen_t   boundlen = sizeof(struct sockaddr_in);
+	struct sockaddr *name = (struct sockaddr *)&bound_addr;
+	socklen_t *namelen = &boundlen;
+
+	ret = getsockname(name, namelen);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (ret) {
 		si_udp_logdbg("getsockname failed (ret=%d %m)", ret);
 		return -1; 
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
+	// save the bound info and then attach to offload flows
+	on_sockname_change(name, *namelen);
 	si_udp_logdbg("bound to %s", m_bound.to_str());
 
 	dst_entry_map_t::iterator dst_entry_iter = m_dst_entry_map.begin();
@@ -313,14 +319,20 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 
 		// Connect can change the OS bound address,
 		// lets check it and update our bound ip & port
-		// Call our getsockname (this will also save the bind information and attach to unicast flow)
-		ret = getsockname();
+		// Call on_sockname_change (this will save the bind information and attach to unicast flow)
+		struct sockaddr_in bound_addr;
+		socklen_t   boundlen = sizeof(struct sockaddr_in);
+		struct sockaddr *name = (struct sockaddr *)&bound_addr;
+		socklen_t *namelen = &boundlen;
+
+		ret = getsockname(name, namelen);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (ret) {
 			si_udp_logerr("getsockname failed (ret=%d %m)", ret);
 			return 0; // zero returned from orig_connect()
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
+		on_sockname_change(name, *namelen);
 		si_udp_logdbg("bound to %s", m_bound.to_str());
 		in_port_t src_port = m_bound.get_in_port();
 
@@ -359,40 +371,36 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 	return 0;
 }
 
-int sockinfo_udp::getsockname(struct sockaddr *__name /*=NULL*/, socklen_t *__namelen /*=NULL*/)
+int sockinfo_udp::getsockname(struct sockaddr *__name, socklen_t *__namelen)
 {
 	si_udp_logdbg("");
-
-	struct sockaddr_in bound_addr;
-	socklen_t boundlen = sizeof(struct sockaddr_in);
-	if (__name == NULL) {
-		memset(&bound_addr, 0, boundlen);
-		__name = (struct sockaddr*)&bound_addr;
-		__namelen = &boundlen;
-	}
-
-	int ret = orig_os_api.getsockname(m_fd, __name, __namelen);
-	if (ret) {
-		return ret;
-	}
-
-	if (*__namelen < sizeof(struct sockaddr)) {
-		si_udp_logerr("namelen too small (%d)", *__namelen);
-		errno = EINVAL;
-		return -1;
-	}
 
 	if (unlikely(m_b_closed) || unlikely(g_b_exit)) {
 		errno = EINTR;
 		return -1;
 	}
 
+	return orig_os_api.getsockname(m_fd, __name, __namelen);
+}
+
+int sockinfo_udp::on_sockname_change(struct sockaddr *__name, socklen_t __namelen)
+{
+	NOT_IN_USE(__namelen); /* TODO use __namelen for IPV6 */
+
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (__name == NULL) {
+		si_udp_logerr("invalid NULL __name");
+		errno = EFAULT;
+		return -1;
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+
 	sock_addr bindname(__name);
 
 	sa_family_t sin_family = bindname.get_sa_family();
 	if (sin_family != AF_INET) {
 		si_udp_logfunc("not AF_INET family (%d)", sin_family);
-		return ret;
+		return 0; 
 	}
 
 	bool is_bound_modified = false;
@@ -438,7 +446,7 @@ int sockinfo_udp::getsockname(struct sockaddr *__name /*=NULL*/, socklen_t *__na
 		handle_pending_mreq();
 	}
 
-	return ret;
+	return 0;
 }
 
 int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval, socklen_t __optlen)
@@ -707,6 +715,8 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 				// offloaded, check if need to pend
 				else if (m_bound.get_in_port() == INPORT_ANY) {
 					// Delay attaching to this MC group until we have bound UDP port
+					int ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
+					if (ret) return ret;
 					mc_change_pending_mreq(&mreq, __optname);
 				}
 				// Handle attach to this MC group now
@@ -1785,12 +1795,8 @@ void sockinfo_udp::handle_pending_mreq()
 
 	ip_mreq_list_t::iterator mreq_iter, mreq_iter_temp;
 	for (mreq_iter = m_pending_mreqs.begin(); mreq_iter != m_pending_mreqs.end();) {
-		if ((m_sock_offload == false) || mc_change_membership(&(*mreq_iter), IP_ADD_MEMBERSHIP)) {
-			BULLSEYE_EXCLUDE_BLOCK_START
-			if (orig_os_api.setsockopt(m_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &(*mreq_iter), sizeof(struct ip_mreq))) {
-				si_udp_logerr("orig setsockopt(ADD_MEMBERSHIP) failed (errno=%d %m)", errno);
-			}
-			BULLSEYE_EXCLUDE_BLOCK_END
+		if (m_sock_offload) {
+			mc_change_membership(&(*mreq_iter), IP_ADD_MEMBERSHIP);
 		}
 		mreq_iter_temp = mreq_iter;
 		++mreq_iter;
