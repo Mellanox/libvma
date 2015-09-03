@@ -2178,13 +2178,11 @@ sockinfo_tcp *sockinfo_tcp::accept_clone()
 	
         si = dynamic_cast<sockinfo_tcp *>(fd_collection_get_sockfd(fd));
 
-        BULLSEYE_EXCLUDE_BLOCK_START
         if (!si) {
-                si_tcp_logerr("can not get accept socket from FD collection");
+                si_tcp_logwarn("can not get accept socket from FD collection");
                 close(fd);
                 return 0;
         }
-        BULLSEYE_EXCLUDE_BLOCK_END
 
         si->m_parent = this;
 

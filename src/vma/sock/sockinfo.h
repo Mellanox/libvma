@@ -10,7 +10,7 @@
  * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
  */
 
-
+#include <exception>
 #include <tr1/unordered_map>
 #include <ifaddrs.h>
 
@@ -100,7 +100,18 @@ public:
 
 	virtual void add_epoll_context(epfd_info *epfd);
 	virtual void remove_epoll_context(epfd_info *epfd);
-
+        /**
+	 * @class sockinfo_error
+	 * Exception while create socket.
+	 */
+	class sockinfo_error : public std::exception {
+	    public:
+	    std::string message;
+	    sockinfo_error() : message("") {}
+	    sockinfo_error(char* p_message) : message(p_message) {}
+	    const char* what() const throw() { return message.c_str(); }
+	    ~sockinfo_error() throw() {}
+	};
 protected:
 	bool			m_b_closed;
 	bool 			m_b_blocking;

@@ -231,31 +231,36 @@ int fd_collection::addsocket(int fd, int domain, int type, bool check_offload /*
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	unlock();
-	switch (sock_type) {
-		case SOCK_DGRAM:
-		{	transport = __vma_match_by_program(PROTO_UDP, mce_sys.app_id);
-			if (transport == TRANS_OS) {
-				fdcoll_logdbg("All UDP rules are consistent and instructing to use OS. TRANSPORT: OS");
-				return -1;
+	try {
+		switch (sock_type) {
+			case SOCK_DGRAM:
+			{	transport = __vma_match_by_program(PROTO_UDP, mce_sys.app_id);
+				if (transport == TRANS_OS) {
+					fdcoll_logdbg("All UDP rules are consistent and instructing to use OS. TRANSPORT: OS");
+					return -1;
+				}
+				fdcoll_logdbg("UDP rules are either not consistent or instructing to use VMA. TRANSPORT: VMA");
+				p_sfd_api_obj = new sockinfo_udp(fd);
+				break;
 			}
-			fdcoll_logdbg("UDP rules are either not consistent or instructing to use VMA. TRANSPORT: VMA");
-			p_sfd_api_obj = new sockinfo_udp(fd);
-			break;
-		}
-		case SOCK_STREAM:
-		{
-			transport = __vma_match_by_program(PROTO_TCP, mce_sys.app_id);
-			if (transport == TRANS_OS) {
-				fdcoll_logdbg("All TCP rules are consistent and instructing to use OS.transport == USE_OS");
-				return -1;
+			case SOCK_STREAM:
+			{
+				transport = __vma_match_by_program(PROTO_TCP, mce_sys.app_id);
+				if (transport == TRANS_OS) {
+					fdcoll_logdbg("All TCP rules are consistent and instructing to use OS.transport == USE_OS");
+					return -1;
+				}
+				fdcoll_logdbg("TCP rules are either not consistent or instructing to use VMA.transport == USE_VMA");
+				p_sfd_api_obj = new sockinfo_tcp(fd);
+				break;
 			}
-			fdcoll_logdbg("TCP rules are either not consistent or instructing to use VMA.transport == USE_VMA");
-			p_sfd_api_obj = new sockinfo_tcp(fd);
-			break;
+			default:
+				fdcoll_logdbg("unsupported socket type=%d", sock_type);
+				return -1;
 		}
-		default:
-			fdcoll_logdbg("unsupported socket type=%d", sock_type);
-			return -1;
+	} catch (sockinfo::sockinfo_error& error) {
+	  fdcoll_logwarn("%s", error.what());
+	  return -1;
 	}
 
 	lock();
