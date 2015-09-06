@@ -962,3 +962,22 @@ uint32_t fd2inode(int fd)
 	int rc = fstat(fd, &buf);
 	return rc==0 ? buf.st_ino : 0; // no inode is 0
 }
+
+///////////////////////////////////////////
+vma_exception::vma_exception(const char* _message, const char* _function, const char* _filename, int _lineno, int _errnum) throw()
+	: message(_message), function(_function), filename(_filename), lineno(_lineno), errnum(_errnum)
+{
+	snprintf(formatted_message, sizeof(formatted_message), "vma_exception <%s> (errno=%d %s) in %s:%d", message, errnum, strerror(errnum), filename, lineno);
+	formatted_message[ sizeof(formatted_message)-1 ] = '\0';
+}
+
+vma_exception::~vma_exception() throw()
+{
+}
+
+const char* vma_exception::what() const throw()
+{
+	return formatted_message;
+}
+
+///////////////////////////////////////////

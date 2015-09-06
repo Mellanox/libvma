@@ -425,7 +425,7 @@ uint32_t fd2inode(int fd);
  * @class vma_exception
  */
 class vma_exception : public std::exception {
-	char full_message[512];
+	char formatted_message[512];
 public:
 	const char * const message;
 	const char * const function;
@@ -433,17 +433,20 @@ public:
 	const int lineno;
 	const int errnum;
 
-	vma_exception(const char* _message, const char* _function, const char* _filename, int _lineno, int _errnum) throw()
-		: message(_message), function(_function), filename(_filename), lineno(_lineno), errnum(_errnum) {
-		snprintf(full_message, sizeof(full_message), "vma_exception <%s> (errno=%d %s) in %s:%d", message, errnum, strerror(errnum), filename, lineno);
-		full_message[ sizeof(full_message)-1 ] = '\0';
-	}
+	/**
+	 * Create an object that contains const members for all the given arguments, plus a formatted message that will be
+	 * available thru the 'what()' method of base class.
+	 *
+	 * The formatted_message will look like this:
+	 * 		"vma_exception <create internal epoll> (errno=24 Too many open files) in sock/sockinfo.cpp:61"
+	 * catcher can print it to log like this:
+	 * 		fdcoll_loginfo("recovering from %s", e.what());
+	 */
+	vma_exception(const char* _message, const char* _function, const char* _filename, int _lineno, int _errnum) throw();
 
-	virtual ~vma_exception() throw() {}
+	virtual ~vma_exception() throw();
 
-	virtual const char* what() const throw() {
-		return full_message;
-	}
+	virtual const char* what() const throw();
 
 };
 
