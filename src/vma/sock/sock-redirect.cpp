@@ -392,6 +392,9 @@ int socket_internal(int __domain, int __type, int __protocol, bool check_offload
 
 	int fd = orig_os_api.socket(__domain, __type, __protocol);
 	vlog_printf(VLOG_DEBUG, "ENTER: %s(domain=%s(%d), type=%s(%d), protocol=%d) = %d\n",__func__, socket_get_domain_str(__domain), __domain, socket_get_type_str(__type), __type, __protocol, fd);
+	if (fd < 0) {
+		return fd;
+	}
 
 	if (g_p_fd_collection) {
 		// Sanity check to remove any old sockinfo object using the same fd!!
