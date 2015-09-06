@@ -479,7 +479,6 @@ bool sockinfo::detach_receiver(flow_tuple_with_local_if &flow_key)
 
 void sockinfo::do_rings_migration()
 {
-	m_rx_ring_map_lock.lock();
 	lock_rx_q();
 
 	resource_allocation_key old_key = m_ring_alloc_logic.get_key();
@@ -487,7 +486,6 @@ void sockinfo::do_rings_migration()
 
 	if (old_key == new_key) {
 		unlock_rx_q();
-		m_rx_ring_map_lock.unlock();
 		return;
 	}
 
@@ -553,15 +551,18 @@ void sockinfo::do_rings_migration()
 			rx_flow_iter++; // Pop next flow rule;
 		}
 
+		unlock_rx_q();
+		m_rx_ring_map_lock.lock();
+		lock_rx_q();
 		if (!m_p_rx_ring && m_rx_ring_map.size() == 1) {
 			m_p_rx_ring = m_rx_ring_map.begin()->first;
 		}
+		unlock_rx_q();
+		m_rx_ring_map_lock.unlock();
 
 		// Release ring reference
 		BULLSEYE_EXCLUDE_BLOCK_START
-		unlock_rx_q();
 		if (!p_nd_resources->p_ndv->release_ring(old_key)) {
-			lock_rx_q();
 			ip_address ip_local(rx_nd_iter->first);
 			si_logerr("Failed to release ring for allocation key %d on lip %s", old_key, ip_local.to_str().c_str());
 		}
@@ -572,7 +573,6 @@ void sockinfo::do_rings_migration()
 	}
 
 	unlock_rx_q();
-	m_rx_ring_map_lock.unlock();
 }
 
 void sockinfo::consider_rings_migration()
@@ -635,6 +635,8 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 	NOT_IN_USE(flow_key);
 	NOT_IN_USE(is_migration);
 
+	bool notify_epoll = false;
+
 	// Add the rx ring to our rx ring map
 	unlock_rx_q();
 	m_rx_ring_map_lock.lock();
@@ -647,7 +649,7 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 		p_ring_info->refcnt = 1;
 		p_ring_info->rx_reuse_info.n_buff_num = 0;
 
-		notify_epoll_context_add_ring(p_ring);
+		notify_epoll = true;
 
 		// Add this new CQ channel fd to the rx epfd handle (no need to wake up any sleeping thread about this new fd)
 		struct epoll_event ev;
@@ -675,6 +677,14 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 	}
 	unlock_rx_q();
 	m_rx_ring_map_lock.unlock();
+
+	if (notify_epoll) {
+		// todo m_econtext is not protected by socket lock because epfd->m_ring_map_lock should be first in order.
+		// possible race between removal of fd from epoll (epoll_ctl del, or epoll close) and here.
+		// need to add a third-side lock (fd_collection?) to sync between epoll and socket.
+		notify_epoll_context_add_ring(p_ring);
+	}
+
 	lock_rx_q();
 }
 
@@ -682,6 +692,8 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 {
 	si_logdbg("");
 	NOT_IN_USE(flow_key);
+
+	bool notify_epoll = false;
 
 	// Remove the rx cq_mgr from our rx cq map
 	unlock_rx_q();
@@ -726,7 +738,7 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 				BULLSEYE_EXCLUDE_BLOCK_END
 			}
 
-			notify_epoll_context_remove_ring(p_ring);
+			notify_epoll = true;
 
 			m_rx_ring_map.erase(p_ring);
 			delete p_ring_info;
@@ -750,6 +762,13 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 	}
 	unlock_rx_q();
 	m_rx_ring_map_lock.unlock();
+
+	if (notify_epoll) {
+		// todo m_econtext is not protected by socket lock because epfd->m_ring_map_lock should be first in order.
+		// possible race between removal of fd from epoll (epoll_ctl del, or epoll close) and here.
+		// need to add a third-side lock (fd_collection?) to sync between epoll and socket.
+		notify_epoll_context_remove_ring(p_ring);
+	}
 
 	if (temp_rx_reuse.size() > 0) { // no need for m_lock_rcv since temp_rx_reuse is on the stack
 		// Get rig of all rx reuse buffers from temp reuse queue
