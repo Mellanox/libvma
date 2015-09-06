@@ -75,7 +75,7 @@ typedef std::map<peer_key, vma_desc_list_t> peer_map_t;
 class sockinfo_tcp : public sockinfo, public timer_handler
 {
 public:
-	sockinfo_tcp(int fd);
+	sockinfo_tcp(int fd) throw (vma_exception);
 	virtual ~sockinfo_tcp();
 
 	virtual void clean_obj();

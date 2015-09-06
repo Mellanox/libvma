@@ -40,7 +40,7 @@
 
 #define si_logdbg_no_funcname(log_fmt, log_args...)	do { if (g_vlogger_level >= VLOG_DEBUG) vlog_printf(VLOG_DEBUG, MODULE_NAME "[fd=%d]:%d: " log_fmt "\n", m_fd, __LINE__, ##log_args); } while (0)
 
-sockinfo::sockinfo(int fd):
+sockinfo::sockinfo(int fd) throw (vma_exception):
 		socket_fd_api(fd),
 		m_b_closed(false), m_b_blocking(true), m_protocol(PROTO_UNDEFINED),
 		m_lock_rcv(MODULE_NAME "::m_lock_rcv"),
@@ -58,11 +58,8 @@ sockinfo::sockinfo(int fd):
 {
 	m_rx_epfd = orig_os_api.epoll_create(128);
 	if (unlikely(m_rx_epfd == -1)) {
-	  char msg[256] = {0};
-	  snprintf(msg, sizeof(msg)-1, "failed to create internal epoll (errno=%d %m)", errno);
-	  throw sockinfo::sockinfo_error(msg);
+	  throw_vma_exception("create internal epoll");
 	}
-
 	wakeup_set_epoll_fd(m_rx_epfd);
 
 	m_p_socket_stats = &m_socket_stats; // Save stats as local copy and allow state publisher to copy from this location

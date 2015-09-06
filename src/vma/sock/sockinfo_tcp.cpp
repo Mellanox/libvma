@@ -57,7 +57,7 @@ tcp_seg_pool *g_tcp_seg_pool = NULL;
 tcp_timers_collection* g_tcp_timers_collection = NULL;
 
 
-sockinfo_tcp::sockinfo_tcp(int fd) :
+sockinfo_tcp::sockinfo_tcp(int fd) throw (vma_exception) :
         sockinfo(fd),
         m_conn_cond("tcp_sockinfo::m_conn_cond"),
         m_timer_handle(NULL),

@@ -72,7 +72,7 @@ struct cmsg_state
 class sockinfo_udp : public sockinfo
 {
 public:
-	sockinfo_udp(int fd);
+	sockinfo_udp(int fd) throw (vma_exception);
 	virtual ~sockinfo_udp();
 
 	void 	setPassthrough() { m_p_socket_stats->b_is_offloaded = m_sock_offload = false;}

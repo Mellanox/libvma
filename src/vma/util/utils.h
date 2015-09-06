@@ -23,6 +23,7 @@
 #include <vma/util/rdtsc.h>
 #include <linux/if_ether.h>
 #include <vlogger/vlogger.h>
+#include <exception>
 
 #define VMA_ALIGN(x, y) ((((x) + (y) - 1) / (y)) * (y) )
 
@@ -420,5 +421,31 @@ class loops_timer {
 // This should be safe for 'proc' filesytem and for standard filesystems
 uint32_t fd2inode(int fd);
 
+/**
+ * @class vma_exception
+ */
+class vma_exception : public std::exception {
+	char full_message[512];
+public:
+	const char * const message;
+	const char * const function;
+	const char * const filename;
+	const int lineno;
+	const int errnum;
 
+	vma_exception(const char* _message, const char* _function, const char* _filename, int _lineno, int _errnum) throw()
+		: message(_message), function(_function), filename(_filename), lineno(_lineno), errnum(_errnum) {
+		snprintf(full_message, sizeof(full_message), "vma_exception <%s> (errno=%d %s) in %s:%d", message, errnum, strerror(errnum), filename, lineno);
+		full_message[ sizeof(full_message)-1 ] = '\0';
+	}
+
+	virtual ~vma_exception() throw() {}
+
+	virtual const char* what() const throw() {
+		return full_message;
+	}
+
+};
+
+#define throw_vma_exception(msg) throw vma_exception(msg, __PRETTY_FUNCTION__, __FILE__, __LINE__, errno)
 #endif

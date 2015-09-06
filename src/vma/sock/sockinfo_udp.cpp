@@ -120,7 +120,7 @@ const char * setsockopt_ip_opt_to_str(int opt)
 // Throttle the amount of ring polling we do (remember last time we check for receive packets)
 tscval_t g_si_tscv_last_poll = 0;
 
-sockinfo_udp::sockinfo_udp(int fd) :
+sockinfo_udp::sockinfo_udp(int fd) throw (vma_exception) :
 	sockinfo(fd)
 	,m_mc_tx_if(INADDR_ANY)
 	,m_b_mc_tx_loop(mce_sys.tx_mc_loopback_default) // default value is 'true'. User can change this with config parameter SYS_VAR_TX_MC_LOOPBACK

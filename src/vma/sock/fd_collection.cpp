@@ -258,11 +258,10 @@ int fd_collection::addsocket(int fd, int domain, int type, bool check_offload /*
 				fdcoll_logdbg("unsupported socket type=%d", sock_type);
 				return -1;
 		}
-	} catch (sockinfo::sockinfo_error& error) {
-	  fdcoll_logwarn("%s", error.what());
+	} catch (vma_exception& e) {
+	  fdcoll_loginfo("recovering from %s", e.what());
 	  return -1;
 	}
-
 	lock();
 
 	BULLSEYE_EXCLUDE_BLOCK_START
