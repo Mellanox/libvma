@@ -154,21 +154,20 @@ public:
 	virtual void check_offloaded_rsockets(uint64_t *p_poll_sn);
 
 	virtual bool immidiate_return();
-        /**
-         * @class io_error
-         * Exception by OS IO functions.
-         */
-        class io_error : public std::exception {
-        	/*
-        	public:
-        	std::string s;
-        	io_error() : s("") {}
-        	io_error(std::string ss) : s(ss) {}
-        	const char* what() const throw() { return s.c_str(); }
-        	~io_error() throw() {}
-        	*/
-        };
-        
+	/**
+	 * @class io_error
+	 * Exception by OS IO functions.
+	 */
+
+	class io_error : public vma_exception {
+	public:
+		io_error(const char* _message, const char* _function, const char* _filename, int _lineno, int _errnum) throw()
+		: vma_exception(_message, _function, _filename, _lineno, _errnum)
+	{
+
+	}
+	};
+
 private:
 
 	/**

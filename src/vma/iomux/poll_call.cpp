@@ -129,7 +129,7 @@ bool poll_call::wait_os(bool zero_timeout)
 		m_n_all_ready_fds = orig_os_api.poll(m_fds, m_nfds, zero_timeout ? 0 : m_timeout);
 	}
 	if (m_n_all_ready_fds < 0) {
-		throw io_mux_call::io_error();
+		vma_throw_object(io_mux_call::io_error);
 	}
 
 	if (m_n_all_ready_fds > 0) {
@@ -173,7 +173,7 @@ bool poll_call::wait(const timeval &elapsed)
 	}
 
 	if (m_n_all_ready_fds < 0) {
-		throw io_mux_call::io_error();
+		vma_throw_object(io_mux_call::io_error);
 	}
 
 	copy_to_orig_fds();

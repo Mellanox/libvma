@@ -451,4 +451,6 @@ public:
 };
 
 #define throw_vma_exception(msg) throw vma_exception(msg, __PRETTY_FUNCTION__, __FILE__, __LINE__, errno)
+// uses for throwing  something that is derived from vma_exception and has similar CTOR; msg will automatically be class name
+#define vma_throw_object(_class)  throw _class(#_class, __PRETTY_FUNCTION__, __FILE__, __LINE__, errno)
 #endif

@@ -238,7 +238,7 @@ bool select_call::wait_os(bool zero_timeout)
 		m_n_all_ready_fds = orig_os_api.select(m_nfds, m_readfds, m_writefds, m_exceptfds, pto);
 	}
 	if (m_n_all_ready_fds < 0) {
-		throw io_mux_call::io_error();
+		vma_throw_object(io_mux_call::io_error);
 	}
 	if (m_n_all_ready_fds > 0) {
 		__log_func("wait_os() returned with %d", m_n_all_ready_fds);
@@ -321,7 +321,7 @@ bool select_call::wait(const timeval &elapsed)
 	}
 	__log_func("done select CQ+OS nfds=%d cqfd=%d pto=%p ready=%d!!!", m_nfds_with_cq, m_cqepfd, pto, m_n_all_ready_fds);
 	if (m_n_all_ready_fds < 0) {
-		throw io_mux_call::io_error();
+		vma_throw_object(io_mux_call::io_error);
 	}
 
 	// Clear CQ from the set and don't count it

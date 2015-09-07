@@ -113,7 +113,7 @@ void io_mux_call::check_offloaded_rsockets(uint64_t *p_poll_sn)
 				// then it was probably closed. We need to get out with error code
 				errno = EBADF;
 				g_n_last_checked_index = offloaded_index;
-				throw io_mux_call::io_error();
+				vma_throw_object(io_mux_call::io_error);
 			}
 
 			fd_ready_array.fd_count = 0;
@@ -153,7 +153,7 @@ inline void io_mux_call::check_offloaded_wsockets(uint64_t */*p_poll_sn*/)
 				// If we can't find this previously mapped offloaded socket
 				// then it was probably closed. We need to get out with error code
 				errno = EBADF;
-				throw io_mux_call::io_error();
+				vma_throw_object(io_mux_call::io_error);
 			}
 
 			// Poll the socket object
@@ -174,7 +174,7 @@ inline void io_mux_call::check_offloaded_esockets(uint64_t */*p_poll_sn*/)
 				// If we can't find this previously mapped offloaded socket
 				// then it was probably closed. We need to get out with error code
 				errno = EBADF;
-				throw io_mux_call::io_error();
+				vma_throw_object(io_mux_call::io_error);
 			}
 
 			// Poll the socket object
@@ -350,7 +350,7 @@ void io_mux_call::polling_loops()
 
 		if (g_b_exit || is_sig_pending()) {
 			errno = EINTR;
-			throw io_mux_call::io_error();
+			vma_throw_object(io_mux_call::io_error);
 		}
 	} while (m_n_all_ready_fds == 0 && multiple_polling_loops);
 
@@ -397,7 +397,7 @@ void io_mux_call::blocking_loops()
 	do {
 		if (g_b_exit || is_sig_pending()) {
 			errno = EINTR;
-			throw io_mux_call::io_error();
+			vma_throw_object(io_mux_call::io_error);
 		}
 
 		woke_up_non_valid = false;
@@ -405,7 +405,7 @@ void io_mux_call::blocking_loops()
 		ret = ring_request_notification(m_poll_sn);
 		__log_func("arming cq with poll_sn=%lx ret=%d", m_poll_sn, ret);
 		if (ret < 0) {
-			throw io_mux_call::io_error();
+			vma_throw_object(io_mux_call::io_error);
 		}
 		else if (ret > 0) {
 			// arm failed - process pending wce
@@ -462,7 +462,7 @@ int io_mux_call::call()
 		wait_os(false);
 		if (g_b_exit || is_sig_pending()) {
 			errno = EINTR;
-			throw io_mux_call::io_error();
+			vma_throw_object(io_mux_call::io_error);
 		}
 		m_p_stats->n_iomux_os_rx_ready += m_n_ready_rfds; //TODO: check
 
