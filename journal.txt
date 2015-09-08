@@ -1,3 +1,17 @@
+Version 7.0.7-0:
+Date + Time 2015-9-8
+=======================
+Added:
+        - RM #591755 infrastructure for exception flow in vma
+        - RM #601270 optimize accept() call
+
+Fixed:
+        - RM #559317 duplicate tcp port when binding to INPORT_ANY while REUSEADDR is on
+        - RM #590813 MC ADD_MEMBERSHIP status to follow OS failure
+        - RM #599332 Fix install libvma.conf for PREFIX directory
+        - RM #599814 deadlock between epoll_wait and socket add/del from epfd
+        - RM #601200 use static cpuset allocation instead of dynamic
+
 Version 7.0.6-0:
 Date + Time 2015-9-2
 =======================
