@@ -58,6 +58,12 @@ ring_simple::ring_simple(in_addr_t local_if, uint16_t partition_sn, int count, t
 	} else {
 		m_parent = this;
 	}
+
+	m_p_qp_mgr = NULL;
+	m_p_cq_mgr_rx = NULL;
+	m_p_cq_mgr_tx = NULL;
+	m_p_rx_comp_event_channel = NULL;
+	m_p_l2_addr = NULL;
 }
 
 ring_simple::~ring_simple()
