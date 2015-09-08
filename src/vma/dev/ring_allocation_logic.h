@@ -24,7 +24,7 @@
 
 #define RAL_TOSTR(to, type, owner) {char buf[100];sprintf(buf, "[%s=%p]",(type),(owner));(to) = buf;}
 
-#define MAX_CPU 64
+#define MAX_CPU CPU_SETSIZE
 #define NO_CPU -1
 
 class ring_allocation_logic

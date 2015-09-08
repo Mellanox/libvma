@@ -149,57 +149,51 @@ int cpu_manager::reserve_cpu_for_thread(pthread_t tid, int suggested_cpu /* = NO
 		return cpu;
 	}
 
-	cpu_set_t* cpu_set = NULL;
-	cpu_set = CPU_ALLOC(MAX_CPU);
-	if (!cpu_set) {
+	cpu_set_t cpu_set;
+	CPU_ZERO(&cpu_set);
+
+	int ret = pthread_getaffinity_np(tid, sizeof(cpu_set_t), &cpu_set);
+	if (ret) {
 		unlock();
-		__log_err("failed to allocate cpu set");
-		return -1;
-	}
-	size_t cpu_set_size = CPU_ALLOC_SIZE(MAX_CPU);
-	CPU_ZERO_S(cpu_set_size, cpu_set);
-	if (pthread_getaffinity_np(tid, cpu_set_size, cpu_set)) {
-		unlock();
-		CPU_FREE(cpu_set);
-		__log_err("pthread_getaffinity_np failed for tid=%lu (errno=%d %m)", tid, errno);
+		__log_err("pthread_getaffinity_np failed for tid=%lu, ret=%d (errno=%d %m)", tid, ret, errno);
 		return -1;
 	}
 
-	if (CPU_COUNT_S(cpu_set_size, cpu_set) == 0) {
+	int avail_cpus = CPU_COUNT(&cpu_set);
+	if (avail_cpus == 0) {
 		unlock();
 		__log_err("no cpu available for tid=%lu", tid);
-		CPU_FREE(cpu_set);
 		return -1;
 	}
 
-	if (CPU_COUNT_S(cpu_set_size, cpu_set) == 1) { //already attached
-		for (cpu = 0; cpu < MAX_CPU && !CPU_ISSET_S(cpu, cpu_set_size, cpu_set); cpu++) {}
+	if (avail_cpus == 1) { //already attached
+		for (cpu = 0; cpu < MAX_CPU && !CPU_ISSET(cpu, &cpu_set); cpu++) {}
 	} else { //need to choose one cpu to attach to
 		int min_cpu_count = -1;
-		for (int i = 0; i < MAX_CPU; i++) {
-			if (!CPU_ISSET_S(i, cpu_set_size, cpu_set)) continue;
+		for (int i = 0, j = 0; i < MAX_CPU && j < avail_cpus; i++) {
+			if (!CPU_ISSET(i, &cpu_set)) continue;
+			j++;
 			if (min_cpu_count < 0 || m_cpu_thread_count[i] < min_cpu_count) {
 				min_cpu_count = m_cpu_thread_count[i];
 				cpu = i;
 			}
 		}
 		if (suggested_cpu >= 0
-			&& CPU_ISSET_S(suggested_cpu, cpu_set_size, cpu_set)
+			&& CPU_ISSET(suggested_cpu, &cpu_set)
 			&& m_cpu_thread_count[suggested_cpu] <= min_cpu_count + 1 ) {
 			cpu = suggested_cpu;
 		}
-		CPU_ZERO_S(cpu_set_size, cpu_set);
-		CPU_SET_S(cpu, cpu_set_size, cpu_set);
+		CPU_ZERO(&cpu_set);
+		CPU_SET(cpu, &cpu_set);
 		__log_dbg("attach tid=%lu running on cpu=%d to cpu=%d", tid, sched_getcpu(), cpu);
-		if (pthread_setaffinity_np(tid, cpu_set_size, cpu_set)) {
+		ret = pthread_setaffinity_np(tid, sizeof(cpu_set_t), &cpu_set);
+		if (ret) {
 			unlock();
-			CPU_FREE(cpu_set);
-			__log_err("pthread_setaffinity_np failed for tid=%lu to cpu=%d (errno=%d %m)", tid, cpu, errno);
+			__log_err("pthread_setaffinity_np failed for tid=%lu to cpu=%d, ret=%d (errno=%d %m)", tid, cpu, ret, errno);
 			return -1;
 		}
 	}
 
-	CPU_FREE(cpu_set);
 	g_n_thread_cpu_core = cpu;
 	if (cpu > NO_CPU && cpu < MAX_CPU)
 		m_cpu_thread_count[cpu]++;
