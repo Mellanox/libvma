@@ -115,15 +115,16 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 		}
 	}
 
+	if (get_base_interface_name(m_name.c_str(), m_base_name, sizeof(m_base_name))) {
+		nd_logerr("couldn't resolve bonding base interface name from %s", m_name.c_str());
+		return;
+	}
+
 	// gather the slave data (only for active-backup)-
 	char active_slave[IFNAMSIZ] = {0};
 
-	if (ifa->ifa_flags & IFF_MASTER) {
+	if (ifa->ifa_flags & IFF_MASTER || check_device_exist(m_base_name, BOND_DEVICE_FILE)) {
 		// bond device
-		if (get_base_interface_name(m_name.c_str(), m_base_name, sizeof(m_base_name))) {
-			nd_logerr("couldn't resolve bonding base interface name from %s", m_name.c_str());
-			return;
-		}
 
 		verify_bonding_mode();
 		// get list of all slave devices

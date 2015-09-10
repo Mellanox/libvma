@@ -50,13 +50,14 @@ typedef std::tr1::unordered_map<resource_allocation_key, std::pair<resource_allo
 
 #define MAX_SLAVES 16
 
-typedef struct {
+typedef struct slave_data {
         char* 		if_name;
         ib_ctx_handler* p_ib_ctx;
         int 		port_num;
         uint16_t	pkey;
         L2_address* 	p_L2_addr;
         bool 		is_active_slave;
+	slave_data() : if_name(NULL), p_ib_ctx(NULL), port_num(-1), pkey(0), p_L2_addr(NULL), is_active_slave(false) {}
 } slave_data_t;
 
 typedef std::vector<slave_data_t*> slave_data_vector_t;
