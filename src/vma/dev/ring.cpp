@@ -13,6 +13,6 @@
 
 #include "ring.h"
 
-ring::ring(int count) : m_n_num_resources(count), m_p_n_rx_channel_fds(NULL), m_parent(NULL)
+ring::ring(int count, uint32_t mtu) : m_n_num_resources(count), m_p_n_rx_channel_fds(NULL), m_parent(NULL), m_mtu(mtu)
 {
 }

@@ -81,7 +81,7 @@ u32_t            tcp_update_rcv_ann_wnd(struct tcp_pcb *pcb);
                             ((tpcb)->flags & (TF_NODELAY | TF_INFR)) || \
                             (((tpcb)->unsent != NULL) && (((tpcb)->unsent->next != NULL) || \
                               ((tpcb)->unsent->len >= (tpcb)->mss))) || \
-                              ((tcp_sndbuf(tpcb) == 0) || (tcp_sndqueuelen(tpcb) >= TCP_SND_QUEUELEN)) \
+                              ((tcp_sndbuf(tpcb) == 0) || (tcp_sndqueuelen(tpcb) >= (tpcb)->max_tcp_snd_queuelen)) \
                             ) ? 1 : 0)
 #define tcp_output_nagle(tpcb) (tcp_do_output_nagle(tpcb) ? tcp_output(tpcb) : ERR_OK)
 
@@ -457,6 +457,7 @@ void tcp_zero_window_probe(struct tcp_pcb *pcb);
 #if TCP_CALCULATE_EFF_SEND_MSS
 u16_t tcp_eff_send_mss(u16_t sendmss, ip_addr_t *addr);
 #endif /* TCP_CALCULATE_EFF_SEND_MSS */
+u16_t tcp_mss_follow_mtu_with_default(u16_t sendmss, ip_addr_t *addr);
 
 #if LWIP_CALLBACK_API
 err_t tcp_recv_null(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err);

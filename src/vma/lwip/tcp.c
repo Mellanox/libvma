@@ -671,12 +671,28 @@ tcp_connect(struct tcp_pcb *pcb, ip_addr_t *ipaddr, u16_t port,
   pcb->snd_lbb = iss - 1;
   pcb->rcv_ann_right_edge = pcb->rcv_nxt;
   pcb->snd_wnd = TCP_WND;
-  /* As initial send MSS, we use TCP_MSS but limit it to 536.
-     The send MSS is updated when an MSS option is received. */
-  pcb->advtsd_mss = pcb->mss = (LWIP_TCP_MSS > 536) ? 536 : LWIP_TCP_MSS;
+  /* 
+   * For effective and advertized MSS without MTU consideration:
+   * If MSS is configured - do not accept a higher value than 536 
+   * If MSS is not configured assume minimum value of 536 
+   * The send MSS is updated when an MSS option is received 
+   */
+  u16_t snd_mss = pcb->advtsd_mss = (LWIP_TCP_MSS) ? ((LWIP_TCP_MSS > 536) ? 536 : LWIP_TCP_MSS) : 536;
+  UPDATE_PCB_BY_MSS(pcb, snd_mss); 
 #if TCP_CALCULATE_EFF_SEND_MSS
-  pcb->mss = tcp_eff_send_mss(pcb->mss, ipaddr);
-  pcb->advtsd_mss = LWIP_TCP_MSS;
+  /* 
+   * For advertized MSS with MTU knowledge - it is highly likely that it can be derived from the MTU towards the remote IP address. 
+   * Otherwise (if unlikely MTU==0)
+   * If LWIP_TCP_MSS>0 use it as MSS 
+   * If LWIP_TCP_MSS==0 set advertized MSS value to default 536
+   */
+  pcb->advtsd_mss = (LWIP_TCP_MSS > 0) ? tcp_eff_send_mss(LWIP_TCP_MSS, ipaddr) : tcp_mss_follow_mtu_with_default(536, ipaddr); 
+  /* 
+   * For effective MSS with MTU knowledge - get the minimum between pcb->mss and the MSS derived from the 
+   * MTU towards the remote IP address 
+   * */
+  u16_t eff_mss = tcp_eff_send_mss(pcb->mss, ipaddr); 
+  UPDATE_PCB_BY_MSS(pcb, eff_mss);
 #endif /* TCP_CALCULATE_EFF_SEND_MSS */
   pcb->cwnd = 1;
   pcb->ssthresh = pcb->mss * 10;
@@ -1088,7 +1104,6 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio)
 
 	memset(pcb, 0, sizeof(*pcb));
 	pcb->max_snd_buff = TCP_SND_BUF;
-	pcb->max_unsent_len = TCP_SND_QUEUELEN;
 	pcb->prio = prio;
 	pcb->snd_buf = pcb->max_snd_buff;
 	pcb->snd_queuelen = 0;
@@ -1104,7 +1119,9 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio)
 	pcb->ttl = TCP_TTL;
 	/* As initial send MSS, we use TCP_MSS but limit it to 536.
 	   The send MSS is updated when an MSS option is received. */
-	pcb->advtsd_mss = pcb->mss = (LWIP_TCP_MSS > 536) ? 536 : LWIP_TCP_MSS;
+	u16_t snd_mss = pcb->advtsd_mss = (LWIP_TCP_MSS) ? ((LWIP_TCP_MSS > 536) ? 536 : LWIP_TCP_MSS) : 536;
+	UPDATE_PCB_BY_MSS(pcb, snd_mss);
+	pcb->max_unsent_len = pcb->max_tcp_snd_queuelen;
 	pcb->rto = 3000 / TCP_SLOW_INTERVAL;
 	pcb->sa = 0;
 	pcb->sv = 3000 / TCP_SLOW_INTERVAL;
@@ -1426,7 +1443,7 @@ tcp_next_iss(void)
 #if TCP_CALCULATE_EFF_SEND_MSS
 /**
  * Calcluates the effective send mss that can be used for a specific IP address
- * by using ip_route to determin the netif used to send to the address and
+ * by using ip_route to determine the netif used to send to the address and
  * calculating the minimum of TCP_MSS and that netif's mtu (if set).
  */
 u16_t
@@ -1439,6 +1456,24 @@ tcp_eff_send_mss(u16_t sendmss, ip_addr_t *addr)
     sendmss = LWIP_MIN(sendmss, mtu - IP_HLEN - TCP_HLEN);
   }
   return sendmss;
+}
+
+/**
+ * Calcluates the send mss that can be used for a specific IP address
+ * by using ip_route to determine the netif used to send to the address. 
+ * In case MTU is unkonw - return the default MSS 
+ */
+u16_t
+tcp_mss_follow_mtu_with_default(u16_t defsendmss, ip_addr_t *addr)
+{
+  u16_t mtu;
+
+  mtu = external_ip_route_mtu(addr);
+  if (mtu != 0) {
+    defsendmss = mtu - IP_HLEN - TCP_HLEN;
+    defsendmss = LWIP_MAX(defsendmss, 1); /* MSS must be a positive number */
+  }
+  return defsendmss;
 }
 #endif /* TCP_CALCULATE_EFF_SEND_MSS */
 

@@ -86,7 +86,11 @@ public:
 
 	void	handle_timer_expired(void* user_data);
 
+	uint32_t get_max_mtu();
+
 private:
+	void                            set_max_mtu(uint32_t);
+	
 	lock_mutex                      m_lock;
 	net_device_map_t                m_net_device_map;
 	if_index_to_net_dev_lst_t	m_if_indx_to_nd_val_lst;
@@ -95,7 +99,9 @@ private:
 	struct rdma_event_channel       *m_p_cma_event_channel;
 
 	int			        m_global_ring_epfd;
-	int 			        m_global_ring_pipe_fds[2];
+	int 			    m_global_ring_pipe_fds[2];
+
+	uint32_t			m_max_mtu;
 
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off

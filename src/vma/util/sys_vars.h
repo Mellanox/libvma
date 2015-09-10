@@ -118,6 +118,10 @@ typedef enum {
 } mss_mode_t;
 
 typedef enum {
+	MTU_FOLLOW_INTERFACE = 0
+} mtu_mode_t;
+
+typedef enum {
 	CTL_THREAD_DISABLE = 0,
 	CTL_THREAD_WITH_WAKEUP,
 	CTL_THREAD_NO_WAKEUP,
@@ -232,7 +236,7 @@ struct mce_sys_var {
 	alloc_mode_t	mem_alloc_type;
 	bool		handle_fork;
 	bool		close_on_dup2;
-	uint32_t 	mtu;
+	uint32_t 	mtu;     /* effective MTU. If mtu==0 then auto calculate the MTU */
 	uint32_t	lwip_cc_algo_mod;
 	uint32_t 	lwip_mss;
 	char		internal_thread_cpuset[FILENAME_MAX];
@@ -437,7 +441,7 @@ struct mce_sys_var {
 #define MCE_DEFAULT_FORK_SUPPORT			(true)
 #define MCE_DEFAULT_BF_FLAG				(true)
 #define MCE_DEFAULT_CLOSE_ON_DUP2			(true)
-#define MCE_DEFAULT_MTU					(1500)
+#define MCE_DEFAULT_MTU					(0)
 #define MCE_DEFAULT_MSS					(0)
 #define MCE_DEFAULT_LWIP_CC_ALGO_MOD			(0)
 #define MCE_DEFAULT_QP_LOGIC				(QP_ALLOC_LOGIC__SINGLE_QP_PER_PORT_PER_LOCAL_IP)

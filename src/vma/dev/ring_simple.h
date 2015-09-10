@@ -20,7 +20,7 @@
 class ring_simple : public ring
 {
 public:
-	ring_simple(in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, ring* parent = NULL);
+	ring_simple(in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, uint32_t mtu, ring* parent = NULL);
 	virtual ~ring_simple();
 
 	virtual int		request_notification(cq_type_t cq_type, uint64_t poll_sn);
@@ -128,8 +128,8 @@ private:
 class ring_eth : public ring_simple
 {
 public:
-	ring_eth(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count, bool active, uint16_t vlan, ring* parent = NULL) :
-		ring_simple(local_if, vlan, count, VMA_TRANSPORT_ETH, parent) { create_resources(p_ring_info, active); };
+	ring_eth(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count, bool active, uint16_t vlan, uint32_t mtu, ring* parent = NULL) :
+		ring_simple(local_if, vlan, count, VMA_TRANSPORT_ETH, mtu, parent) { create_resources(p_ring_info, active); };
 
 protected:
 	virtual qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel);
@@ -138,8 +138,8 @@ protected:
 class ring_ib : public ring_simple
 {
 public:
-	ring_ib(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count, bool active, uint16_t pkey, ring* parent = NULL) :
-		ring_simple(local_if, pkey, count, VMA_TRANSPORT_IB, parent) { create_resources(p_ring_info, active); };
+	ring_ib(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count, bool active, uint16_t pkey, uint32_t mtu, ring* parent = NULL) :
+		ring_simple(local_if, pkey, count, VMA_TRANSPORT_IB, mtu, parent) { create_resources(p_ring_info, active); };
 
 protected:
 	virtual qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel);

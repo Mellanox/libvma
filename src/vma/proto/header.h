@@ -35,7 +35,6 @@
 #define NET_ETH_IP_ALIGN_SZ		 6
 #define NET_ETH_VLAN_IP_ALIGN_SZ	 2
 
-#define MAX_IP_PAYLOAD_SZ   	((mce_sys.mtu - sizeof(struct iphdr)) & ~0x7)
 
 struct __attribute__ ((packed)) ib_hdr_template_t  {		// Offeset  Size
 	char		m_alignment[NET_IB_IP_ALIGN_SZ];	//    0      16  = 16

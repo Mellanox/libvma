@@ -51,6 +51,7 @@ net_device_table_mgr::net_device_table_mgr() : cache_table_mgr<ip_address,net_de
 	m_num_devices = 0;
 	m_p_cma_event_channel = NULL;
 	m_global_ring_epfd = 0;
+	m_max_mtu = 0;
 	/* I have no idea why - but if I create the channel here - it doesn't bind well - grrrr
         m_p_cma_event_channel = rdma_create_event_channel();
         if (m_p_cma_event_channel == NULL) {
@@ -228,6 +229,9 @@ void net_device_table_mgr::map_net_devices()
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		p_net_device_val->configure(ifa, cma_id);
+	        if ((int)get_max_mtu() < p_net_device_val->get_mtu()) {
+			set_max_mtu(p_net_device_val->get_mtu());
+		}
 		m_net_device_map[((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr] = p_net_device_val;
 		m_if_indx_to_nd_val_lst[p_net_device_val->get_if_idx()].push_back(p_net_device_val);
 		m_lock.unlock();
@@ -506,4 +510,14 @@ void net_device_table_mgr::global_ring_wakeup()
 		ndtm_logerr("failed to add pipe channel fd to internal epfd (errno=%d %m)", errno);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
+}
+
+void net_device_table_mgr::set_max_mtu(uint32_t mtu)
+{
+	m_max_mtu = mtu;
+}
+
+uint32_t net_device_table_mgr::get_max_mtu()
+{
+	return m_max_mtu;
 }

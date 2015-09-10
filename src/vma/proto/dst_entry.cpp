@@ -97,6 +97,7 @@ void dst_entry::init_members()
 	m_b_is_initialized = false;
 	m_p_send_wqe = NULL;
 	m_max_inline = 0;
+	m_max_ip_payload_size = 0;
 	m_b_force_os = false;
 }
 
@@ -478,6 +479,7 @@ bool dst_entry::prepare_to_send(bool skip_rules)
 		bool is_ofloaded = false;
 		set_state(true);
 		if (resolve_net_dev()) {
+			m_max_ip_payload_size = ((m_p_net_dev_val->get_mtu()-sizeof(struct iphdr)) & ~0x7);
 			if (resolve_ring()) {
 				is_ofloaded = true;
 				if (resolve_neigh()) {

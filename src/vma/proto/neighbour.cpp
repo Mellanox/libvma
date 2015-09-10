@@ -287,6 +287,7 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 	tx_packet_template_t *p_pkt;
 
 	size_t sz_data_payload = iov->iov_len;
+	size_t max_ip_payload_size = ((m_p_ring->get_mtu() - sizeof(struct iphdr)) & ~0x7);
 
 	if (sz_data_payload > 65536) {
 		neigh_logdbg("sz_data_payload=%d exceeds max of 64KB", sz_data_payload);
@@ -297,9 +298,9 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 	size_t sz_udp_payload = sz_data_payload + sizeof(struct udphdr);
 
 	// Usually max inline < MTU!
-	if (sz_udp_payload > MAX_IP_PAYLOAD_SZ) {
+	if (sz_udp_payload > max_ip_payload_size) {
 		b_need_to_fragment = true;
-		n_num_frags = (sz_udp_payload + MAX_IP_PAYLOAD_SZ - 1) / MAX_IP_PAYLOAD_SZ;
+		n_num_frags = (sz_udp_payload + max_ip_payload_size - 1) / max_ip_payload_size;
 	}
 
 	neigh_logdbg("udp info: payload_sz=%d, frags=%d, scr_port=%d, dst_port=%d", sz_data_payload, n_num_frags, ntohs(h->m_header.hdr.m_udp_hdr.source), ntohs(h->m_header.hdr.m_udp_hdr.dest));
@@ -318,7 +319,7 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 
 	while (n_num_frags--) {
 		// Calc this ip datagram fragment size (include any udp header)
-		size_t sz_ip_frag = min(MAX_IP_PAYLOAD_SZ, (sz_udp_payload - n_ip_frag_offset));
+		size_t sz_ip_frag = min(max_ip_payload_size, (sz_udp_payload - n_ip_frag_offset));
 		size_t sz_user_data_to_copy = sz_ip_frag;
 		size_t hdr_len = h->m_transport_header_len + IPV4_HDR_LEN; // Add count of L2 (ipoib or mac) header length
 

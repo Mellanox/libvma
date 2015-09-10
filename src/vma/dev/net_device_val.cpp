@@ -100,7 +100,7 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 
 	m_if_idx        = if_nametoindex(m_name.c_str());
 	m_mtu           = get_if_mtu_from_ifname(m_name.c_str(), (m_transport_type != VMA_TRANSPORT_IB));
-	if (m_mtu != (int)mce_sys.mtu) {
+	if (mce_sys.mtu != 0 && (int)mce_sys.mtu != m_mtu) {
 		nd_logwarn("Mismatch between interface %s MTU=%d and VMA_MTU=%d. Make sure VMA_MTU and all offloaded interfaces MTUs match.", m_name.c_str(), m_mtu, mce_sys.mtu);
 	}
 	m_local_addr    = ((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr;
@@ -651,9 +651,9 @@ ring* net_device_val_eth::create_ring()
 
 	 //TODO check if need to create bond ring even if slave count is 1
 	if (m_bond != NO_BOND) {
-		return new ring_bond_eth(m_local_addr, p_ring_info, slave_count, active_slaves, get_vlan(), m_bond, m_bond_xmit_hash_policy);
+		return new ring_bond_eth(m_local_addr, p_ring_info, slave_count, active_slaves, get_vlan(), m_bond, m_bond_xmit_hash_policy, m_mtu);
 	} else {
-		return new ring_eth(m_local_addr, p_ring_info, slave_count, true, get_vlan());
+		return new ring_eth(m_local_addr, p_ring_info, slave_count, true, get_vlan(), m_mtu);
 	}
 }
 
@@ -731,9 +731,9 @@ ring* net_device_val_ib::create_ring()
 	}
 
 	if (slave_count > 1) {
-		return new ring_bond_ib(m_local_addr, p_ring_info, slave_count, active_slaves, m_pkey, m_bond, m_bond_xmit_hash_policy);
+		return new ring_bond_ib(m_local_addr, p_ring_info, slave_count, active_slaves, m_pkey, m_bond, m_bond_xmit_hash_policy, m_mtu);
 	} else {
-		return new ring_ib(m_local_addr, p_ring_info, slave_count, true, m_pkey);
+		return new ring_ib(m_local_addr, p_ring_info, slave_count, true, m_pkey, m_mtu);
 	}
 }
 

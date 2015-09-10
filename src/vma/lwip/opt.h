@@ -1402,6 +1402,8 @@
  * (2 * TCP_MSS) for things to work well
  */
 #ifndef TCP_WND
+#error make sure TCP_WND is not defined here
+/* If ever this definition is effective - please note that LWIP_TCP_MSS may be 0 */
 #define TCP_WND                         (4 * LWIP_TCP_MSS)
 #endif 
 
@@ -1484,7 +1486,6 @@
  */
 #ifndef TCP_SND_QUEUELEN
 #define CONST_TCP_SND_QUEUELEN                (4 * (TCP_SND_BUF)/(CONST_TCP_MSS))
-#define TCP_SND_QUEUELEN                	(4 * (TCP_SND_BUF)/(LWIP_TCP_MSS))
 #endif
 
 /**
@@ -1537,7 +1538,6 @@
  */
 #ifndef TCP_OVERSIZE
 #define TCP_OVERSIZE                    CONST_TCP_MSS
-#define TCP_OVERSIZE_VAL		LWIP_TCP_MSS
 #endif
 
 /**
@@ -1591,6 +1591,8 @@
  * TCP_MSS, IP header, and link header.
  */
 #ifndef PBUF_POOL_BUFSIZE
+#error make sure PBUF_POLL_BUFSIZE is not defined here
+/* If ever this definition is effective - please note that LWIP_TCP_MSS may be 0 */
 #define PBUF_POOL_BUFSIZE               LWIP_MEM_ALIGN_SIZE(LWIP_TCP_MSS+40+PBUF_LINK_HLEN)
 #endif
 

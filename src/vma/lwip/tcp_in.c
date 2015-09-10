@@ -372,6 +372,9 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
       npcb->rcv_scale = 0;
     #endif
 
+    /* calculate advtsd_mss before parsing MSS option such that the resulting mss will take into account the updated advertized MSS */
+    npcb->advtsd_mss = (LWIP_TCP_MSS > 0) ? tcp_eff_send_mss(LWIP_TCP_MSS, &(npcb->remote_ip)) : tcp_mss_follow_mtu_with_default(536, &(npcb->remote_ip));
+
     /* Parse any options in the SYN. */
     tcp_parseopt(npcb, in_data);
 
@@ -386,7 +389,8 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
      npcb->ssthresh = npcb->snd_wnd;
 #endif
 #if TCP_CALCULATE_EFF_SEND_MSS
-    npcb->advtsd_mss = npcb->mss = tcp_eff_send_mss(npcb->mss, &(npcb->remote_ip));
+    u16_t snd_mss = tcp_eff_send_mss(npcb->mss, &(npcb->remote_ip));
+    UPDATE_PCB_BY_MSS(npcb, snd_mss); 
 #endif /* TCP_CALCULATE_EFF_SEND_MSS */
 
     /* Register the new PCB so that we can begin sending segments
@@ -536,7 +540,8 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
       set_tcp_state(pcb, ESTABLISHED);
 
 #if TCP_CALCULATE_EFF_SEND_MSS
-      pcb->mss = tcp_eff_send_mss(pcb->mss, &(pcb->remote_ip));
+      u16_t eff_mss = tcp_eff_send_mss(pcb->mss, &(pcb->remote_ip));
+      UPDATE_PCB_BY_MSS(pcb, eff_mss);
 #endif /* TCP_CALCULATE_EFF_SEND_MSS */
 
       /* Set ssthresh again after changing pcb->mss (already set in tcp_connect
@@ -1513,7 +1518,8 @@ tcp_parseopt(struct tcp_pcb *pcb, tcp_in_data* in_data)
         /* An MSS option with the right option length. */
         mss = (opts[c + 2] << 8) | opts[c + 3];
         /* Limit the mss to the configured TCP_MSS and prevent division by zero */
-        pcb->mss = ((mss > LWIP_TCP_MSS) || (mss == 0)) ? LWIP_TCP_MSS : mss;
+        u16_t snd_mss = ((mss > pcb->advtsd_mss) || (mss == 0)) ? pcb->advtsd_mss : mss;
+        UPDATE_PCB_BY_MSS(pcb, snd_mss);
         /* Advance to next option */
         c += 0x04;
         break;

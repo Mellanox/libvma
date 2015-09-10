@@ -2905,7 +2905,12 @@ void sockinfo_tcp::fit_snd_bufs(unsigned int new_max_snd_buff)
 	sent_buffs_num = m_pcb.max_snd_buff - m_pcb.snd_buf;
 	if (sent_buffs_num <= new_max_snd_buff) {
 		m_pcb.max_snd_buff = new_max_snd_buff;
-		m_pcb.max_unsent_len = (16 * (m_pcb.snd_buf)/(LWIP_TCP_MSS));
+		if (m_pcb.mss)
+			m_pcb.max_unsent_len = (16 * (m_pcb.max_snd_buff)/m_pcb.mss); 
+		else
+			m_pcb.max_unsent_len = (16 * (m_pcb.max_snd_buff)/536); /* should MSS be 0 use a const...very unlikely */
+		/* make sure max_unsent_len is not 0 */
+		m_pcb.max_unsent_len = MAX(m_pcb.max_unsent_len, 1);
 		m_pcb.snd_buf = m_pcb.max_snd_buff - sent_buffs_num;
 	}
 }

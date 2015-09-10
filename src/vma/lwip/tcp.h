@@ -249,6 +249,13 @@ extern tcp_state_observer_fn external_tcp_state_observer;
 #define SND_WND_SCALE(pcb, wnd) (wnd)
 #endif
 
+/* Note: max_tcp_snd_queuelen is now a multiple by 16 (was 4 before) to match max_unsent_len */
+#define UPDATE_PCB_BY_MSS(pcb, snd_mss) \
+	(pcb)->mss = (snd_mss); \
+	(pcb)->max_tcp_snd_queuelen = (16*((pcb)->max_snd_buff)/((pcb)->mss)) ; \
+	(pcb)->max_unsent_len = (16*((pcb)->max_snd_buff)/((pcb)->mss)); \
+	(pcb)->tcp_oversize_val = (pcb)->mss; 
+
 /* the TCP protocol control block */
 struct tcp_pcb {
 /** common PCB members */
@@ -346,14 +353,17 @@ struct tcp_pcb {
 #if TCP_RCVSCALE
 #define TCP_SNDQUEUELEN_OVERFLOW (0xffffffU-3)
   u32_t snd_queuelen; /* Available buffer space for sending (in tcp_segs). */
+  u32_t max_tcp_snd_queuelen; 
 #else
 #define TCP_SNDQUEUELEN_OVERFLOW (0xffff-3)
   u16_t snd_queuelen; /* Available buffer space for sending (in tcp_segs). */
+  u16_t max_tcp_snd_queuelen; 
 #endif
 
 #if TCP_OVERSIZE
   /* Extra bytes available at the end of the last pbuf in unsent. */
   u16_t unsent_oversize;
+  u16_t tcp_oversize_val;
 #endif /* TCP_OVERSIZE */ 
   u16_t max_unsent_len;
   /* These are ordered by sequence number: */

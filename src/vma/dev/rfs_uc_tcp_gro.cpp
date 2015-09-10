@@ -25,7 +25,7 @@
 rfs_uc_tcp_gro::rfs_uc_tcp_gro(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* rule_filter /*= NULL*/) : rfs_uc(flow_spec_5t, p_ring, rule_filter), m_p_orig_sink(NULL), m_p_gro_mgr(&(p_ring->m_gro_mgr)), m_b_active(false), m_b_reserved(false)
 {
 	m_n_buf_max = m_p_gro_mgr->get_buf_max();
-	m_n_byte_max = m_p_gro_mgr->get_byte_max() - mce_sys.mtu;
+	m_n_byte_max = m_p_gro_mgr->get_byte_max() - p_ring->get_mtu(); 
 	memset(&m_gro_desc, 0, sizeof(m_gro_desc));
 }
 

@@ -31,7 +31,7 @@ dst_entry_udp::dst_entry_udp(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_p
 {
 	dst_udp_logdbg("%s", to_str().c_str());
 	atomic_set(&m_a_tx_ip_id, 0);
-	m_n_tx_ip_id = 0;;
+	m_n_tx_ip_id = 0;
 }
 
 dst_entry_udp::~dst_entry_udp()
@@ -119,9 +119,9 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 		m_p_send_wqe = &m_not_inline_send_wqe;
 
 		// Usually max inline < MTU!
-		if (sz_udp_payload > MAX_IP_PAYLOAD_SZ) {
+		if (sz_udp_payload > m_max_ip_payload_size) {
 			b_need_to_fragment = true;
-			n_num_frags = (sz_udp_payload + MAX_IP_PAYLOAD_SZ - 1) / MAX_IP_PAYLOAD_SZ;
+			n_num_frags = (sz_udp_payload + m_max_ip_payload_size - 1) / m_max_ip_payload_size;
 			packet_id = (mce_sys.thread_mode > THREAD_MODE_SINGLE) ?
 					atomic_fetch_and_inc(&m_a_tx_ip_id) :
 					m_n_tx_ip_id++;
@@ -151,7 +151,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 
 		while (n_num_frags--) {
 			// Calc this ip datagram fragment size (include any udp header)
-			size_t sz_ip_frag = min(MAX_IP_PAYLOAD_SZ, (sz_udp_payload - n_ip_frag_offset));
+			size_t sz_ip_frag = min(m_max_ip_payload_size, (sz_udp_payload - n_ip_frag_offset));
 			size_t sz_user_data_to_copy = sz_ip_frag;
 			size_t hdr_len = m_header.m_transport_header_len + IPV4_HDR_LEN; // Add count of L2 (ipoib or mac) header length
 

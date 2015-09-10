@@ -256,7 +256,7 @@ tcp_pbuf_prealloc(u16_t length, u16_t max_length,
          (!first_seg ||
           pcb->unsent != NULL ||
           pcb->unacked != NULL))) {
-      alloc = LWIP_MIN(max_length, LWIP_MEM_ALIGN_SIZE(length + TCP_OVERSIZE_VAL));
+          alloc = LWIP_MIN(max_length, LWIP_MEM_ALIGN_SIZE(length + pcb->tcp_oversize_val));
     }
   }
   p = tcp_tx_pbuf_alloc(pcb, alloc, PBUF_RAM);

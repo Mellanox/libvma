@@ -589,7 +589,12 @@ void print_vma_global_settings()
 	VLOG_PARAM_STRING("BF (Blue Flame)", mce_sys.handle_bf, MCE_DEFAULT_BF_FLAG, SYS_VAR_BF, mce_sys.handle_bf ? "Enabled " : "Disabled");
 	VLOG_PARAM_STRING("fork() support", mce_sys.handle_fork, MCE_DEFAULT_FORK_SUPPORT, SYS_VAR_FORK, mce_sys.handle_fork ? "Enabled " : "Disabled");
 	VLOG_PARAM_STRING("close on dup2()", mce_sys.close_on_dup2, MCE_DEFAULT_CLOSE_ON_DUP2, SYS_VAR_CLOSE_ON_DUP2, mce_sys.close_on_dup2 ? "Enabled " : "Disabled");
-	VLOG_PARAM_NUMBER("MTU", mce_sys.mtu, MCE_DEFAULT_MTU, SYS_VAR_MTU);
+	switch (mce_sys.mtu) {
+	case MTU_FOLLOW_INTERFACE:
+		VLOG_PARAM_NUMSTR("MTU", mce_sys.mtu, MCE_DEFAULT_MTU, SYS_VAR_MTU, "(follow actual MTU)");	break;
+	default:
+		VLOG_PARAM_NUMBER("MTU", mce_sys.mtu, MCE_DEFAULT_MTU, SYS_VAR_MTU);	break;
+	}
 	switch (mce_sys.lwip_mss) {
 	case MSS_FOLLOW_MTU:
 		VLOG_PARAM_NUMSTR("MSS", mce_sys.lwip_mss, MCE_DEFAULT_MSS, SYS_VAR_MSS, "(follow VMA_MTU)");     break;
@@ -1473,11 +1478,11 @@ void do_global_ctors()
         }
 
  	if (!g_buffer_pool_rx)
-		g_buffer_pool_rx = new buffer_pool(mce_sys.rx_num_bufs, RX_BUF_SIZE(mce_sys.mtu), NULL, NULL, buffer_pool::free_rx_lwip_pbuf_custom);
+		g_buffer_pool_rx = new buffer_pool(mce_sys.rx_num_bufs, RX_BUF_SIZE(g_p_net_device_table_mgr->get_max_mtu()), NULL, NULL, buffer_pool::free_rx_lwip_pbuf_custom);
  	g_buffer_pool_rx->set_RX_TX_for_stats(true);
 
  	if (!g_buffer_pool_tx)
- 		g_buffer_pool_tx = new buffer_pool(mce_sys.tx_num_bufs, get_lwip_tcp_mss(mce_sys.mtu, mce_sys.lwip_mss) + 92, NULL, NULL, buffer_pool::free_tx_lwip_pbuf_custom);
+ 		g_buffer_pool_tx = new buffer_pool(mce_sys.tx_num_bufs, get_lwip_tcp_mss(g_p_net_device_table_mgr->get_max_mtu(), mce_sys.lwip_mss) + 92, NULL, NULL, buffer_pool::free_tx_lwip_pbuf_custom);
  	g_buffer_pool_tx->set_RX_TX_for_stats(false);
 
  	if (!g_tcp_seg_pool)

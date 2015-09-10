@@ -178,7 +178,7 @@ Example:
  VMA DEBUG  : BF (Blue Flame)                Enabled                    [VMA_BF]
  VMA DEBUG  : fork() support                 Enabled                    [VMA_FORK]
  VMA DEBUG  : close on dup2()                Enabled                    [VMA_CLOSE_ON_DUP2]
- VMA DEBUG  : MTU                            1500                       [VMA_MTU]
+ VMA DEBUG  : MTU                            0 (follow actual MTU)      [VMA_MTU]
  VMA DEBUG  : MSS                            0 (follow VMA_MTU)         [VMA_MSS]
  VMA DEBUG  : TCP CC Algorithm               0 (LWIP)                   [VMA_TCP_CC_ALGO]
  VMA DEBUG  : Suppress IGMP ver. warning     Disabled                   [VMA_SUPPRESS_IGMP_WARNING]
@@ -722,9 +722,11 @@ It only supports the case, where dup2 is used to close file descriptors,
 Default value is 1 (Enabled)
 
 VMA_MTU
-Size of each Rx and Tx data buffer. 
-This value set the fragmentation size the packets sent by the VMA library.
-Default value is 1500
+Size of each Rx and Tx data buffer (Maximum Transfer Unit).
+This value sets the fragmentation size of the packets sent by the VMA library.
+If VMA_MTU is 0 then for each inteterface VMA will follow the actual MTU.
+If VMA_MTU is greater than 0 then this MTU value is applicable to all interfaces regardless of their actual MTU
+Default value is 0 (following interface actual MTU)
 
 VMA_MSS
 VMA_MSS define the max TCP payload size that can sent without IP fragmentation.

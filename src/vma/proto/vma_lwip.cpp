@@ -176,10 +176,25 @@ void vma_lwip::handle_timer_expired(void* user_data) {
 uint32_t get_lwip_tcp_mss(uint32_t mtu, uint32_t lwip_mss)
 {
 	uint32_t  _lwip_tcp_mss;
+
+	/*	
+	 * lwip_tcp_mss calculation
+	 * 1. mce_sys.mtu==0 && mce_sys.lwip_mss==0 ==> lwip_tcp_mss = 0 (namelyl-must be calculated per interface)
+	 * 2. mce_sys.mtu==0 && mce_sys.lwip_mss!=0 ==> lwip_tcp_mss = mce_sys.lwip_mss
+	 * 3. mce_sys.mtu!=0 && mce_sys.lwip_mss==0 ==> lwip_tcp_mss = mce_sys.mtu - IP header len - TCP header len (must be positive)
+	 * 4. mce_sys.mtu!=0 && mce_sys.lwip_mss!=0 ==> lwip_tcp_mss = mce_sys.lwip_mss
+	 */
 	switch (lwip_mss) {
-	case MSS_FOLLOW_MTU:
-		// set MSS to match VMA_MTU, MSS is equal to (VMA_MTU-40), but forced to be at least 1.
-		_lwip_tcp_mss = (MAX(mtu, (40+1)) - 40);
+	case MSS_FOLLOW_MTU: /* 0 */
+		switch(mtu) {
+		case MTU_FOLLOW_INTERFACE:
+			_lwip_tcp_mss = 0; /* MSS must follow the specific MTU per interface */ 
+			break;
+		default:
+			// set MSS to match VMA_MTU, MSS is equal to (VMA_MTU-40), but forced to be at least 1.
+			_lwip_tcp_mss = (MAX(mtu, (IP_HLEN+TCP_HLEN+1)) - IP_HLEN-TCP_HLEN);
+			break;
+		}
 		break;
 	default:
 		_lwip_tcp_mss = (MAX(lwip_mss, 1));
