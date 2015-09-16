@@ -319,8 +319,9 @@ protected:
 	virtual bool 		prepare_to_send_packet(header *) {return true;};
 	void			handle_timer_expired(void* user_data);
 
+	lock_mutex_recursive    m_sm_lock;
+
 private:
-	lock_mutex_recursive 	m_sm_lock;
 	bool 			m_is_first_send_arp;
 	event_t 		rdma_event_mapping(struct rdma_cm_event* p_event);
 	void 			empty_unsent_queue();

@@ -211,7 +211,11 @@ void neigh_entry::handle_timer_expired(void* ctx)
 	// Clear Timer Handler
 	m_timer_handle = NULL;
 
-	if(m_state_machine->get_curr_state() == ST_INIT) {
+	m_sm_lock.lock();
+	int sm_state = m_state_machine->get_curr_state();
+	m_sm_lock.unlock();
+
+	if(sm_state == ST_INIT) {
 		event_handler(EV_START_RESOLUTION);
 		return;
 	}
@@ -1486,7 +1490,10 @@ void neigh_ib::handle_event_ibverbs_cb(void* ev_data, void* ctx)
 void neigh_ib::handle_timer_expired(void* ctx)
 {
 	neigh_logdbg("general timeout expired!");
+
+	m_sm_lock.lock();
 	int state = m_state_machine->get_curr_state();
+	m_sm_lock.unlock();
 
 	if(state == ST_PATH_RESOLVED) {
 		// Clear Timer Handler
