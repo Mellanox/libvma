@@ -241,7 +241,6 @@ bool dst_entry::resolve_ring()
 		if (!m_p_ring) {
 			dst_logdbg("getting a ring");
 			m_p_ring = m_p_net_dev_val->reserve_ring(m_ring_alloc_logic.create_new_key());
-			m_id = m_p_ring->generate_id();
 			m_max_inline = m_p_ring->get_max_tx_inline();
 			m_max_inline = std::min(m_max_inline, m_p_net_dev_val->get_mtu() + (uint32_t)m_header.m_transport_header_len);
 		}
@@ -487,6 +486,14 @@ bool dst_entry::prepare_to_send(bool skip_rules)
 					else
 						dst_logdbg("peer L2 address: %s", m_p_neigh_val->get_l2_address()->to_str().c_str());
 					configure_headers();
+					m_id = m_p_ring->generate_id(m_p_net_dev_val->get_l2_address()->get_address(),
+								     m_p_neigh_val->get_l2_address()->get_address(),
+								     ((ethhdr*)(m_header.m_actual_hdr_addr))->h_proto /* if vlan, use vlan proto */,
+								     htons(ETH_P_IP),
+								     m_bound_ip ? m_bound_ip : m_p_net_dev_val->get_local_addr(),
+								     m_dst_ip.get_in_addr(),
+								     m_src_port,
+								     m_dst_port);
 					resolved = true;
 				}
 			}
@@ -551,7 +558,6 @@ void dst_entry::do_ring_migration(lock_base& socket_lock)
 
 	ring* old_ring = m_p_ring;
 	m_p_ring = new_ring;
-	m_id = m_p_ring->generate_id();
 	m_max_inline = m_p_ring->get_max_tx_inline();
 	m_max_inline = std::min(m_max_inline, m_p_net_dev_val->get_mtu() + (uint32_t)m_header.m_transport_header_len);
 

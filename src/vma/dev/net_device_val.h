@@ -80,6 +80,13 @@ public:
 		ACTIVE_BACKUP,
 		LAG_8023ad,
 	};
+	enum bond_xmit_hash_policy {
+		XHP_LAYER_2,
+		XHP_LAYER_3_4,
+		XHP_LAYER_2_3,
+		XHP_ENCAP_2_3,
+		XHP_ENCAP_3_4
+	};
 public:
 
 	net_device_val(transport_type_t transport_type);
@@ -140,6 +147,7 @@ protected:
 
 	void verify_bonding_mode();
 	bond_type m_bond;
+	bond_xmit_hash_policy m_bond_xmit_hash_policy;
 };
 
 class net_device_val_eth : public net_device_val

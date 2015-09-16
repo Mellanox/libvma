@@ -320,6 +320,8 @@ protected:
 	virtual bool 		prepare_to_send_packet(header *) {return true;};
 	void			handle_timer_expired(void* user_data);
 
+	virtual ring_user_id_t	generate_ring_user_id(header *h = NULL) { NOT_IN_USE(h); return m_p_ring->generate_id(); };
+
 	lock_mutex_recursive    m_sm_lock;
 
 private:
@@ -398,6 +400,9 @@ public:
 	bool 			register_observer(const observer* const new_observer);
 	//Overriding neigh_entry is_deletable
 	virtual bool 		is_deletable();
+
+protected:
+	virtual ring_user_id_t	generate_ring_user_id(header * h = NULL);
 
 private:
 

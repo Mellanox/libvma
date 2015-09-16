@@ -263,6 +263,7 @@ void neigh_entry::send_arp()
 bool neigh_entry::post_send_packet(uint8_t protocol, iovec * iov, header * h)
 {
 	neigh_logdbg("ENTER post_send_packet protocol = %d", protocol);
+	m_id = generate_ring_user_id(h);
 	switch(protocol)
 	{
 		case  IPPROTO_UDP:
@@ -1306,16 +1307,8 @@ bool neigh_eth::post_send_arp(bool is_broadcast)
 	header h;
 	neigh_logdbg("Sending %s ARP", is_broadcast?"BC":"UC");
 
-	mem_buf_desc_t* p_mem_buf_desc = m_p_ring->mem_buf_tx_get(m_id, false, 1);
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (unlikely(p_mem_buf_desc == NULL)) {
-		neigh_logdbg("No free TX buffer, not sending ARP");
-		return false;
-	}
-
 	net_device_val_eth *netdevice_eth = dynamic_cast<net_device_val_eth*>(m_p_dev);
 	if (netdevice_eth == NULL) {
-		m_p_ring->mem_buf_tx_release(p_mem_buf_desc, true);
 		neigh_logdbg("Net dev is NULL not sending ARP");
 		return false;
 	}
@@ -1333,11 +1326,18 @@ bool neigh_eth::post_send_arp(bool is_broadcast)
 	const unsigned char* peer_mac = dst->get_address();
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (src == NULL || dst == NULL) {
-		m_p_ring->mem_buf_tx_release(p_mem_buf_desc, true);
 		neigh_logdbg("src or dst is NULL not sending ARP");
 		return false;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
+
+	m_id = m_p_ring->generate_id(src->get_address(), dst->get_address(), netdevice_eth->get_vlan() ? htons(ETH_P_8021Q) : htons(ETH_P_ARP), htons(ETH_P_ARP), 0, 0, 0, 0);
+	mem_buf_desc_t* p_mem_buf_desc = m_p_ring->mem_buf_tx_get(m_id, false, 1);
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (unlikely(p_mem_buf_desc == NULL)) {
+		neigh_logdbg("No free TX buffer, not sending ARP");
+		return false;
+	}
 
 	wqe_send_handler wqe_sh;
 	wqe_sh.init_wqe(m_send_wqe, &m_sge, 1);
@@ -1401,6 +1401,22 @@ bool neigh_eth::prepare_to_send_packet(header * h)
 	}
 
 	return(true);
+}
+
+ring_user_id_t neigh_eth::generate_ring_user_id(header * h /* = NULL */)
+{
+	if (!h)
+		return m_p_ring->generate_id();
+
+	ethhdr *actual_header = (ethhdr*)h->m_actual_hdr_addr;
+	return m_p_ring->generate_id(actual_header->h_source,
+				     actual_header->h_dest,
+				     actual_header->h_proto,
+				     htons(ETH_P_IP),
+				     h->m_header.hdr.m_ip_hdr.saddr,
+				     h->m_header.hdr.m_ip_hdr.daddr,
+				     h->m_header.hdr.m_udp_hdr.source,
+				     h->m_header.hdr.m_udp_hdr.dest);
 }
 
 //============================================================== neigh_ib ==================================================

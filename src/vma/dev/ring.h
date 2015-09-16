@@ -247,6 +247,7 @@ public:
 	virtual bool 	is_member(mem_buf_desc_owner* rng) = 0;
 	ring* 	get_parent();
 	virtual ring_user_id_t 	generate_id() = 0;
+	virtual ring_user_id_t 	generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port) = 0;
 
 	friend class cq_mgr;
 	friend class qp_mgr;

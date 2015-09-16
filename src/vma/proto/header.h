@@ -20,6 +20,7 @@
 #include <linux/if_vlan.h>
 #include <netinet/ip.h>
 #include <netinet/udp.h>
+#include <netinet/tcp.h>
 #include <netinet/igmp.h>
 
 #include "util/vtypes.h"
@@ -65,7 +66,10 @@ union __attribute__ ((packed)) l2_hdr_template_t  {
 struct __attribute__ ((packed)) tx_hdr_template_t  {		// Offeset  Size
 	l2_hdr_template_t	m_l2_hdr;			//    0      20
 	iphdr			m_ip_hdr;			//   20      20
+	union {
 	udphdr			m_udp_hdr;			//   40       8
+	tcphdr			m_tcp_hdr;
+	};
 };
 
 union tx_packet_template_t {
@@ -84,6 +88,7 @@ public:
 
 	void init();
 	void configure_udp_header(uint16_t dest_port, uint16_t src_port);
+	void configure_tcp_ports(uint16_t dest_port, uint16_t src_port);
 	void configure_ip_header(uint8_t protocol, in_addr_t src_addr, in_addr_t dest_addr, uint8_t ttl = 64, uint8_t tos = 0, uint16_t packet_id = 0);
 	void configure_ipoib_headers(uint32_t ipoib_header = IPOIB_HEADER);
 	void set_mac_to_eth_header(const L2_address &src, const L2_address &dst, ethhdr &eth_header);

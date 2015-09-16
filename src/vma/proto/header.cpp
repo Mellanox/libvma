@@ -56,6 +56,18 @@ void header::configure_udp_header(uint16_t dest_port, uint16_t src_port)
 	m_total_hdr_len += m_udp_header_len;
 }
 
+void header::configure_tcp_ports(uint16_t dest_port, uint16_t src_port)
+{
+	tcphdr *p_tcp_hdr = &m_header.hdr.m_tcp_hdr;
+
+	/* memset(p_tcp_hdr, 0 , (sizeof(*p_tcp_hdr))); */
+
+	p_tcp_hdr->dest = dest_port;
+	p_tcp_hdr->source = src_port;
+
+	/* don't increase header len, as the tcp stack is not using these ports */
+}
+
 void header::configure_ip_header(uint8_t protocol, in_addr_t src_addr, in_addr_t dest_addr, uint8_t ttl, uint8_t tos, uint16_t packet_id)
 {
 	iphdr* p_hdr = &m_header.hdr.m_ip_hdr;

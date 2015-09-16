@@ -49,7 +49,7 @@
 #define nd_logfunc            __log_info_func
 #define nd_logfuncall         __log_info_funcall
 
-net_device_val::net_device_val(transport_type_t transport_type) : m_if_idx(0), m_local_addr(0), m_netmask(0), m_mtu(0), m_state(INVALID), m_p_L2_addr(NULL), m_p_br_addr(NULL), m_transport_type(transport_type),  m_lock("net_device_val lock"), m_bond(OFF)
+net_device_val::net_device_val(transport_type_t transport_type) : m_if_idx(0), m_local_addr(0), m_netmask(0), m_mtu(0), m_state(INVALID), m_p_L2_addr(NULL), m_p_br_addr(NULL), m_transport_type(transport_type),  m_lock("net_device_val lock"), m_bond(OFF), m_bond_xmit_hash_policy(XHP_LAYER_2)
 {
 }
 
@@ -215,6 +215,8 @@ void net_device_val::verify_bonding_mode()
 	char bond_failover_mac_file_content[FILENAME_MAX];
 	char bond_mode_param_file[FILENAME_MAX];
 	char bond_failover_mac_param_file[FILENAME_MAX];
+	char bond_xmit_hash_policy_file_content[FILENAME_MAX];
+	char bond_xmit_hash_policy_param_file[FILENAME_MAX];
 	char *p_failover_mac_value = NULL;
 
 	memset(bond_mode_file_content, 0, FILENAME_MAX);
@@ -239,6 +241,25 @@ void net_device_val::verify_bonding_mode()
 				m_bond = LAG_8023ad;
 			}
 		}
+	}
+
+	memset(bond_xmit_hash_policy_file_content, 0, FILENAME_MAX);
+	sprintf(bond_xmit_hash_policy_param_file, BONDING_XMIT_HASH_POLICY_PARAM_FILE, m_base_name);
+	if (priv_try_read_file(bond_xmit_hash_policy_param_file, bond_xmit_hash_policy_file_content, FILENAME_MAX) > 0) {
+		char *bond_xhp = NULL;
+		//TODO use strtok_r instead of strtok
+		bond_xhp = strtok(bond_xmit_hash_policy_file_content, " ");
+		bond_xhp = strtok(NULL, " ");
+		if (bond_xhp) {
+			m_bond_xmit_hash_policy = (bond_xmit_hash_policy)strtol(bond_xhp, NULL , 10);
+			if (m_bond_xmit_hash_policy < XHP_LAYER_2 || m_bond_xmit_hash_policy > XHP_ENCAP_3_4) {
+				vlog_printf(VLOG_WARNING,"VMA does not support xmit hash policy = %d\n", m_bond_xmit_hash_policy);
+				m_bond_xmit_hash_policy = XHP_LAYER_2;
+			}
+		}
+		vlog_printf(VLOG_DEBUG, "got bond xmit hash policy = %d\n", m_bond_xmit_hash_policy);
+	} else {
+		vlog_printf(VLOG_DEBUG, "could not read bond xmit hash policy, staying with default (L2)\n");
 	}
 
 	if (m_bond == OFF) {
@@ -605,7 +626,7 @@ ring* net_device_val_eth::create_ring()
 
 	 //TODO check if need to create bond ring even if slave count is 1
 	if (m_bond != OFF) {
-		return new ring_bond_eth(m_local_addr, p_ring_info, slave_count, active_slaves, get_vlan(), m_bond);
+		return new ring_bond_eth(m_local_addr, p_ring_info, slave_count, active_slaves, get_vlan(), m_bond, m_bond_xmit_hash_policy);
 	} else {
 		return new ring_eth(m_local_addr, p_ring_info, slave_count, true, get_vlan());
 	}
@@ -685,7 +706,7 @@ ring* net_device_val_ib::create_ring()
 	}
 
 	if (slave_count > 1) {
-		return new ring_bond_ib(m_local_addr, p_ring_info, slave_count, active_slaves, m_pkey, m_bond);
+		return new ring_bond_ib(m_local_addr, p_ring_info, slave_count, active_slaves, m_pkey, m_bond, m_bond_xmit_hash_policy);
 	} else {
 		return new ring_ib(m_local_addr, p_ring_info, slave_count, true, m_pkey);
 	}

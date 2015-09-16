@@ -33,13 +33,13 @@
 #undef  MODULE_HDR
 #define MODULE_HDR	 	MODULE_NAME "%d:%s() "
 
-ring_bond::ring_bond(in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, net_device_val::bond_type type) :
+ring_bond::ring_bond(in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, net_device_val::bond_type type, net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy) :
 ring(local_if, partition_sn, count, transport_type) {
 	m_bond_rings = new ring_simple*[count];
 	m_active_rings = new ring_simple*[count];
 	m_parent = this;
-	m_next_id = -1;
 	m_type = type;
+	m_xmit_hash_policy = bond_xmit_hash_policy;
 	m_min_devices_tx_inline = 0;
 }
 
@@ -496,7 +496,49 @@ bool ring_bond::is_member(mem_buf_desc_owner* rng) {
 }
 
 ring_user_id_t ring_bond::generate_id() {
-	m_next_id ++;
-	m_next_id = m_next_id % m_n_num_resources;
-	return m_next_id;
+	return 0;
+}
+
+ring_user_id_t ring_bond::generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port) {
+
+	if (m_type != net_device_val::LAG_8023ad)
+		return 0;
+
+	ring_logdbg("generate_id for policy %d from src_mac=" ETH_HW_ADDR_PRINT_FMT ", dst_mac=" ETH_HW_ADDR_PRINT_FMT ", eth_proto=%#x, encap_proto=%#x, src_ip=%d.%d.%d.%d, dst_ip=%d.%d.%d.%d, src_port=%d, dst_port=%d",
+			m_xmit_hash_policy, ETH_HW_ADDR_PRINT_ADDR(src_mac), ETH_HW_ADDR_PRINT_ADDR(dst_mac), ntohs(eth_proto), ntohs(encap_proto), NIPQUAD(src_ip), NIPQUAD(dst_ip), ntohs(src_port), ntohs(dst_port));
+
+	uint32_t hash = 0;
+
+	if (m_xmit_hash_policy > net_device_val::XHP_LAYER_2_3 && eth_proto == ETH_P_8021Q) {
+		eth_proto = encap_proto;
+	}
+
+	if (eth_proto != ETH_P_IP) {
+		hash = dst_mac[5] ^ src_mac[5] ^ eth_proto;
+		return hash;
+	}
+
+	switch (m_xmit_hash_policy) {
+	case(net_device_val::XHP_LAYER_2):
+		hash = dst_mac[5] ^ src_mac[5] ^ eth_proto;
+		break;
+	case(net_device_val::XHP_LAYER_2_3):
+	case(net_device_val::XHP_ENCAP_2_3):
+		hash = dst_mac[5] ^ src_mac[5] ^ eth_proto;
+		hash ^= dst_ip ^ src_ip;
+		hash ^= (hash >> 16);
+		hash ^= (hash >> 8);
+		break;
+	case(net_device_val::XHP_LAYER_3_4):
+	case(net_device_val::XHP_ENCAP_3_4):
+		hash = src_port | (dst_port << 16);
+		hash ^= dst_ip ^ src_ip;
+		hash ^= (hash >> 16);
+		hash ^= (hash >> 8);
+		break;
+	default:
+		return generate_id();
+	}
+
+	return hash % m_n_num_resources;
 }

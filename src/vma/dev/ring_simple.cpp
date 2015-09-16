@@ -1497,3 +1497,15 @@ bool ring_simple::is_member(mem_buf_desc_owner* rng) {
 ring_user_id_t ring_simple::generate_id() {
 	return 0;
 }
+
+ring_user_id_t ring_simple::generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port) {
+	NOT_IN_USE(src_mac);
+	NOT_IN_USE(dst_mac);
+	NOT_IN_USE(eth_proto);
+	NOT_IN_USE(encap_proto);
+	NOT_IN_USE(src_ip);
+	NOT_IN_USE(dst_ip);
+	NOT_IN_USE(src_port);
+	NOT_IN_USE(dst_port);
+	return 0;
+}

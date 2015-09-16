@@ -217,7 +217,7 @@ ssize_t dst_entry_tcp::pass_buff_to_neigh(const iovec * p_iov, size_t & sz_iov, 
 {
 	NOT_IN_USE(packet_id);
 	m_header_neigh.init();
-
+	m_header_neigh.configure_tcp_ports(m_dst_port, m_src_port);
 	return(dst_entry::pass_buff_to_neigh(p_iov, sz_iov));
 }
 

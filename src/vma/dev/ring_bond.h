@@ -17,7 +17,7 @@ class ring_simple;
 class ring_bond : public ring {
 
 public:
-	ring_bond(in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, net_device_val::bond_type type);
+	ring_bond(in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, net_device_val::bond_type type, net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy);
 	virtual  ~ring_bond();
 	virtual int request_notification(cq_type_t cq_type, uint64_t poll_sn);
 	virtual int poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
@@ -45,6 +45,8 @@ public:
 	virtual void mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc);
 	virtual bool is_member(mem_buf_desc_owner* rng);
 	virtual ring_user_id_t generate_id();
+	virtual ring_user_id_t generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port);
+
 protected:
 	virtual void create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t partition) = 0;
 	void update_rx_channel_fds();
@@ -55,15 +57,15 @@ protected:
 private:
 	void devide_buffers_helper(descq_t *rx_reuse, descq_t *buffer_per_ring);
 	void devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_buf_desc_t** buffer_per_ring);
-	ring_user_id_t m_next_id;
 	net_device_val::bond_type m_type;
+	net_device_val::bond_xmit_hash_policy m_xmit_hash_policy;
 };
 
 class ring_bond_eth : public ring_bond
 {
 public:
-	ring_bond_eth(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count, bool active_slaves[], uint16_t vlan, net_device_val::bond_type type) :
-		ring_bond(local_if, vlan, count, VMA_TRANSPORT_ETH, type){
+	ring_bond_eth(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count, bool active_slaves[], uint16_t vlan, net_device_val::bond_type type, net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy) :
+		ring_bond(local_if, vlan, count, VMA_TRANSPORT_ETH, type, bond_xmit_hash_policy){
 		create_slave_list(local_if, p_ring_info, active_slaves, vlan);
 		update_rx_channel_fds();
 	};
@@ -74,8 +76,8 @@ protected:
 class ring_bond_ib : public ring_bond
 {
 public:
-	ring_bond_ib(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count, bool active_slaves[], uint16_t pkey, net_device_val::bond_type type) :
-		ring_bond(local_if, pkey, count, VMA_TRANSPORT_IB, type){
+	ring_bond_ib(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count, bool active_slaves[], uint16_t pkey, net_device_val::bond_type type, net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy) :
+		ring_bond(local_if, pkey, count, VMA_TRANSPORT_IB, type, bond_xmit_hash_policy){
 		create_slave_list(local_if, p_ring_info, active_slaves, pkey);
 		update_rx_channel_fds();
 	};

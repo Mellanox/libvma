@@ -490,6 +490,7 @@ struct mce_sys_var {
 #define BONDING_SLAVES_PARAM_FILE			"/sys/class/net/%s/bonding/slaves"
 #define BONDING_ACTIVE_SLAVE_PARAM_FILE			"/sys/class/net/%s/bonding/active_slave"
 #define BONDING_FAILOVER_MAC_PARAM_FILE			"/sys/class/net/%s/bonding/fail_over_mac"
+#define BONDING_XMIT_HASH_POLICY_PARAM_FILE		"/sys/class/net/%s/bonding/xmit_hash_policy"
 #define L2_ADDR_FILE_FMT                                "/sys/class/net/%.*s/address"
 #define L2_BR_ADDR_FILE_FMT                                   "/sys/class/net/%.*s/broadcast"
 #define FLAGS_PARAM_FILE				"/sys/class/net/%s/flags"
