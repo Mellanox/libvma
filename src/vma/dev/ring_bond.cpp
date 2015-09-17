@@ -515,7 +515,7 @@ ring_user_id_t ring_bond::generate_id(const address_t src_mac, const address_t d
 
 	if (eth_proto != ETH_P_IP) {
 		hash = dst_mac[5] ^ src_mac[5] ^ eth_proto;
-		return hash;
+		return hash % m_n_num_resources;
 	}
 
 	switch (m_xmit_hash_policy) {
