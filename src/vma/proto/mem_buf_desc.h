@@ -101,7 +101,8 @@ public:
 			// if (sz_payload>sz_data) means fragmented datagram packet )
 			size_t		sz_payload;
 
-			struct timespec timestamp;
+			struct timespec sw_timestamp;
+			struct timespec	hw_timestamp;
 
 			void* 		context;
 		} rx;

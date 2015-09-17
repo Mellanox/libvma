@@ -66,7 +66,11 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 
 	m_transport_type = m_p_ring->get_transport_type();
 
-	m_p_ibv_cq = ibv_create_cq(m_p_ib_ctx_handler->get_ibv_context(), cq_size, (void*)this, m_comp_event_channel, 0);
+	vma_ibv_cq_init_attr attr;
+	init_vma_ibv_cq_init_attr(&attr);
+
+	m_p_ibv_cq = vma_ibv_create_cq(m_p_ib_ctx_handler->get_ibv_context(), cq_size, (void*)this, m_comp_event_channel, 0, &attr);
+
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_p_ibv_cq) {
 		cq_logpanic("ibv_create_cq failed (errno=%d %m)", errno);
@@ -446,6 +450,10 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 
 		p_mem_buf_desc->path.rx.is_vma_thr = false;
 
+		if (vma_wc_flags(*p_wce) & VMA_IBV_WC_WITH_TIMESTAMP) {
+			m_p_ib_ctx_handler->convert_hw_time_to_system_time(vma_wc_timestamp(*p_wce) ,&p_mem_buf_desc->path.rx.hw_timestamp);
+		}
+
 		VALGRIND_MAKE_MEM_DEFINED(p_mem_buf_desc->p_buffer, p_mem_buf_desc->sz_data);
 
 		prefetch_range((uint8_t*)p_mem_buf_desc->p_buffer + m_sz_transport_header, 
@@ -519,8 +527,10 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 				temp->path.rx.is_vma_thr = false;
 				temp->path.rx.p_ip_h = NULL;
 				temp->path.rx.p_tcp_h = NULL;
-				temp->path.rx.timestamp.tv_nsec = 0;
-				temp->path.rx.timestamp.tv_sec = 0;
+				temp->path.rx.sw_timestamp.tv_nsec = 0;
+				temp->path.rx.sw_timestamp.tv_sec = 0;
+				temp->path.rx.hw_timestamp.tv_nsec = 0;
+				temp->path.rx.hw_timestamp.tv_sec = 0;
 				free_lwip_pbuf(&temp->lwip_pbuf);
 				m_rx_pool.push_back(temp);
 			}

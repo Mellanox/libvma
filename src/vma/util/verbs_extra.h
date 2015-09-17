@@ -96,6 +96,19 @@ typedef struct ibv_wc				vma_ibv_wc;
 #define vma_wc_opcode(wc)			(wc).opcode
 #define VMA_IBV_WC_RECV				IBV_WC_RECV
 #define vma_wc_rx_csum_ok(wc)			(1)
+
+typedef int            vma_ibv_cq_init_attr;
+#define vma_ibv_create_cq(context, cqe, cq_context, channel, comp_vector, attr) ibv_create_cq(context, cqe, cq_context, channel, comp_vector)
+
+static inline void init_vma_ibv_cq_init_attr(vma_ibv_cq_init_attr* attr)
+{
+	memset(attr, 0, sizeof(*attr));
+}
+
+//rx hw timestamp
+#define VMA_IBV_WC_WITH_TIMESTAMP              0
+#define vma_wc_timestamp(wc)			0
+
 //ibv_post_send
 #define VMA_IBV_SEND_SIGNALED			IBV_SEND_SIGNALED
 #define VMA_IBV_SEND_INLINE			IBV_SEND_INLINE
@@ -163,6 +176,29 @@ typedef struct ibv_exp_wc			vma_ibv_wc;
 #define vma_wc_rx_csum_ok(wc)			(1)
 #endif
 #endif
+
+// experimental cq
+typedef struct ibv_exp_cq_init_attr           vma_ibv_cq_init_attr;
+#define vma_ibv_create_cq(context, cqe, cq_context, channel, comp_vector, attr) ibv_exp_create_cq(context, cqe, cq_context, channel, comp_vector, attr)
+
+//rx hw timestamp
+static inline void init_vma_ibv_cq_init_attr(vma_ibv_cq_init_attr* attr)
+{
+	memset(attr, 0, sizeof(*attr));
+
+#ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
+	attr->flags = IBV_EXP_CQ_TIMESTAMP;
+	attr->comp_mask = IBV_EXP_CQ_INIT_ATTR_FLAGS;
+#endif
+}
+
+#ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
+#define VMA_IBV_WC_WITH_TIMESTAMP              IBV_EXP_WC_WITH_TIMESTAMP
+#else
+#define VMA_IBV_WC_WITH_TIMESTAMP              0
+#endif
+#define vma_wc_timestamp(wc)			(wc).timestamp
+
 //ibv_post_send
 #define VMA_IBV_SEND_SIGNALED			IBV_EXP_SEND_SIGNALED
 #define VMA_IBV_SEND_INLINE			IBV_EXP_SEND_INLINE

@@ -1209,28 +1209,33 @@ void sockinfo_udp::handle_recv_timestamping(struct cmsg_state *cm_state)
 
 	memset(&tsing, 0, sizeof(tsing));
 
-	tsing.systime = m_rx_pkt_ready_list.front()->path.rx.timestamp;
-
-	// timestamping was requested after packet arrived
-	if (!tsing.systime.tv_nsec && !tsing.systime.tv_sec) {
-		//this mean that a packet which came first might have later timestamp than a packet which came second.
-		clock_gettime(CLOCK_REALTIME, &(tsing.systime));
-	}
+	mem_buf_desc_t* packet = m_rx_pkt_ready_list.front();
+	struct timespec* packet_systime = &packet->path.rx.sw_timestamp;
 
 	// Only fill in SO_TIMESTAMPNS if both requested.
 	// This matches the kernel behavior.
 	if (m_b_rcvtstampns) {
-		insert_cmsg(cm_state, SOL_SOCKET, SO_TIMESTAMPNS, &tsing.systime, sizeof(tsing.systime));
+		insert_cmsg(cm_state, SOL_SOCKET, SO_TIMESTAMPNS, packet_systime, sizeof(*packet_systime));
 	} else if (m_b_rcvtstamp) {
 		struct timeval tv;
-		tv.tv_sec = tsing.systime.tv_sec;
-		tv.tv_usec = tsing.systime.tv_nsec/1000;
+		tv.tv_sec = packet_systime->tv_sec;
+		tv.tv_usec = packet_systime->tv_nsec/1000;
 		insert_cmsg(cm_state, SOL_SOCKET, SO_TIMESTAMP, &tv, sizeof(tv));
 	}
 
-	// Only support software timestamps at this time
-	if (!(m_n_tsing_flags & (SOF_TIMESTAMPING_RX_SOFTWARE | SOF_TIMESTAMPING_SOFTWARE))) {
+	// Handle timestamping options
+	// Only support rx time stamps at this time
+	int support = m_n_tsing_flags & (SOF_TIMESTAMPING_SOFTWARE | SOF_TIMESTAMPING_RAW_HARDWARE);
+	if (!support) {
 		return;
+	}
+
+	if (m_n_tsing_flags & SOF_TIMESTAMPING_SOFTWARE) {
+		tsing.systime = packet->path.rx.sw_timestamp;
+	}
+
+	if (m_n_tsing_flags & SOF_TIMESTAMPING_RAW_HARDWARE) {
+		tsing.hwtimeraw = packet->path.rx.hw_timestamp;
 	}
 
 	insert_cmsg(cm_state, SOL_SOCKET, SO_TIMESTAMPING, &tsing, sizeof(tsing));
@@ -1673,7 +1678,7 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 	p_desc->inc_ref_count();
 
 	if (m_b_rcvtstamp || (m_n_tsing_flags & (SOF_TIMESTAMPING_RX_SOFTWARE | SOF_TIMESTAMPING_SOFTWARE))) {
-		clock_gettime(CLOCK_REALTIME, &(p_desc->path.rx.timestamp));
+		clock_gettime(CLOCK_REALTIME, &(p_desc->path.rx.sw_timestamp));
 	}
 
 	// In ZERO COPY case we let the user's application manage the ready queue

@@ -24,6 +24,7 @@
 
 #define MODULE_NAME             "ib_ctx_handler"
 
+#define UPDATE_HW_TIMER_PERIOD_MS 10000
 
 #define ibch_logpanic           __log_panic
 #define ibch_logerr             __log_err
@@ -37,7 +38,7 @@
 
 ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx) :
 	m_channel(0), m_removed(false), m_conf_attr_rx_num_wre(0), m_conf_attr_tx_num_post_send_notify(0),
-	m_conf_attr_tx_max_inline(0), m_conf_attr_tx_num_wre(0)
+	m_conf_attr_tx_max_inline(0), m_conf_attr_tx_num_wre(0), m_ctx_parmeters_id(0)
 {
 	memset(&m_ibv_port_attr, 0, sizeof(m_ibv_port_attr));
 	m_p_ibv_context = ctx;
@@ -62,10 +63,13 @@ ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx) :
 	} ENDIF_VERBS_FAILURE;
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	ibch_logdbg("ibv device '%s' [%p] has %d port%s. Vendor Part Id: %d, FW Ver: %s, max_qp_wr=%d",
-			m_p_ibv_device->name, m_p_ibv_device,
-			m_ibv_device_attr.phys_port_cnt, ((m_ibv_device_attr.phys_port_cnt>1)?"s":""),
-			m_ibv_device_attr.vendor_part_id, m_ibv_device_attr.fw_ver, m_ibv_device_attr.max_qp_wr);
+	load_timestamp_params(true);
+	m_timer_handle = g_p_event_handler_manager->register_timer_event(UPDATE_HW_TIMER_PERIOD_MS, this, PERIODIC_TIMER, 0);
+
+	ibch_logdbg("ibv device '%s' [%p] has %d port%s. Vendor Part Id: %d, FW Ver: %s, max_qp_wr=%d, hca_core_clock (per sec)=%ld",
+			m_p_ibv_device->name, m_p_ibv_device, m_ibv_device_attr.phys_port_cnt, ((m_ibv_device_attr.phys_port_cnt>1)?"s":""),
+			m_ibv_device_attr.vendor_part_id, m_ibv_device_attr.fw_ver, m_ibv_device_attr.max_qp_wr,
+			m_ctx_convert_parmeters[m_ctx_parmeters_id].hca_core_clock);
 
 	set_dev_configuration();
 
@@ -80,6 +84,128 @@ ib_ctx_handler::~ib_ctx_handler() {
 	if (ibv_dealloc_pd(m_p_ibv_pd))
 		ibch_logdbg("pd deallocation failure (errno=%d %m)", errno);
 	BULLSEYE_EXCLUDE_BLOCK_END
+
+	if (m_timer_handle) {
+		g_p_event_handler_manager->unregister_timer_event(this, m_timer_handle);
+		m_timer_handle = NULL;
+	}
+}
+
+void ib_ctx_handler::handle_timer_expired(void* user_data) {
+	NOT_IN_USE(user_data);
+	fix_hw_clock_deviation();
+}
+
+#ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
+
+void ib_ctx_handler::load_timestamp_params(bool init = false){
+	ctx_timestamping_params_t* current_parameters_set = &m_ctx_convert_parmeters[m_ctx_parmeters_id];
+	int rval;
+	if (!current_parameters_set->hca_core_clock){
+		struct ibv_exp_device_attr device_attr;
+		memset(&device_attr, 0, sizeof(device_attr));
+		device_attr.comp_mask = IBV_EXP_DEVICE_ATTR_WITH_HCA_CORE_CLOCK;
+
+		if ((rval = ibv_exp_query_device(m_p_ibv_context ,&device_attr)) || !device_attr.hca_core_clock) {
+			if (init) {
+				ibch_logwarn("Error in querying hca core clock (ibv_exp_query_device() return value=%d ) (ibv context %p) "
+						"(errno=%d %m)", rval, m_p_ibv_context, errno);
+			}
+			return;
+		}
+		current_parameters_set->hca_core_clock = device_attr.hca_core_clock * USEC_PER_SEC;
+	}
+
+	if (!current_parameters_set->is_convertion_valid) {
+		struct ibv_exp_values queried_values;
+		memset(&queried_values, 0, sizeof(queried_values));
+		queried_values.comp_mask = IBV_EXP_VALUES_HW_CLOCK;
+
+		clock_gettime(CLOCK_REALTIME, &current_parameters_set->sync_systime);
+
+		if ((rval = ibv_exp_query_values(m_p_ibv_context,IBV_EXP_VALUES_HW_CLOCK, &queried_values)) || !queried_values.hwclock) {
+			if (init){
+				ibch_logwarn("Error in querying hw clock, can't convert hw time to system time (ibv_exp_query_values() "
+						"return value=%d ) (ibv context %p) (errno=%d %m)", rval, m_p_ibv_context, errno);
+			}
+		} else {
+			current_parameters_set->sync_hw_clock = queried_values.hwclock;
+			current_parameters_set->is_convertion_valid = true;
+		}
+	}
+}
+
+void ib_ctx_handler::fix_hw_clock_deviation(){
+	ctx_timestamping_params_t* current_parameters_set = &m_ctx_convert_parmeters[m_ctx_parmeters_id];
+
+	if (!current_parameters_set->hca_core_clock || !current_parameters_set->is_convertion_valid) {
+		load_timestamp_params();
+		return;
+	}
+	struct ibv_exp_values queried_values;
+	struct timespec current_time, diff_systime;
+	uint64_t diff_hw_time, diff_systime_nano, estimated_hw_time;
+	int next_id = (m_ctx_parmeters_id + 1) % 2;
+	ctx_timestamping_params_t* next_parameters_set = &m_ctx_convert_parmeters[next_id];
+
+	memset(&queried_values, 0, sizeof(queried_values));
+	queried_values.comp_mask = IBV_EXP_VALUES_HW_CLOCK;
+	clock_gettime(CLOCK_REALTIME, &current_time);
+
+	if (ibv_exp_query_values(m_p_ibv_context,IBV_EXP_VALUES_HW_CLOCK, &queried_values) || !queried_values.hwclock) {
+		next_parameters_set->is_convertion_valid = false;
+		return;
+	}
+
+	ts_sub(&current_time, &current_parameters_set->sync_systime, &diff_systime);
+	diff_hw_time = queried_values.hwclock - current_parameters_set->sync_hw_clock;
+	diff_systime_nano = diff_systime.tv_sec * NSEC_PER_SEC + diff_systime.tv_nsec;
+
+	estimated_hw_time = (diff_systime.tv_sec * current_parameters_set->hca_core_clock) + (diff_systime.tv_nsec * current_parameters_set->hca_core_clock / NSEC_PER_SEC);
+	ibch_logdbg("ibv device '%s' [%p] : fix_hw_clock_deviation parameters status :\nUPDATE_HW_TIMER_PERIOD_MS = %d, current_parameters_set = %p, "
+			"estimated_hw_time = %ld, diff_hw_time = %ld, diff = %ld ,m_hca_core_clock = %ld", m_p_ibv_device->name, m_p_ibv_device,
+			UPDATE_HW_TIMER_PERIOD_MS,  current_parameters_set ,estimated_hw_time, diff_hw_time, estimated_hw_time -  diff_hw_time , current_parameters_set->hca_core_clock);
+
+	next_parameters_set->hca_core_clock = (diff_hw_time * NSEC_PER_SEC) / diff_systime_nano;
+	next_parameters_set->sync_hw_clock = queried_values.hwclock;
+	next_parameters_set->sync_systime = current_time;
+	next_parameters_set->is_convertion_valid = true;
+
+	m_ctx_parmeters_id = next_id;
+}
+
+#else
+
+void ib_ctx_handler::load_timestamp_params(bool init){ NOT_IN_USE(init); }
+void ib_ctx_handler::fix_hw_clock_deviation(){}
+
+#endif
+
+void ib_ctx_handler::convert_hw_time_to_system_time(uint64_t packet_hw_time, struct timespec* packet_systime) {
+
+	ctx_timestamping_params_t* current_parameters_set = &m_ctx_convert_parmeters[m_ctx_parmeters_id];
+	if (current_parameters_set->hca_core_clock && packet_hw_time) {
+
+		struct timespec hw_to_timespec, sync_systime;
+		uint64_t hw_time_diff, hca_core_clock, sync_hw_clock;
+		int is_ts_convertion_valid = current_parameters_set->is_convertion_valid;
+
+		hca_core_clock = current_parameters_set->hca_core_clock;
+		sync_hw_clock = current_parameters_set->sync_hw_clock;
+		sync_systime = current_parameters_set->sync_systime;
+
+		hw_time_diff = is_ts_convertion_valid ? packet_hw_time - sync_hw_clock : packet_hw_time;
+
+		hw_to_timespec.tv_sec = hw_time_diff / hca_core_clock;
+		hw_time_diff -= hw_to_timespec.tv_sec * hca_core_clock;
+		hw_to_timespec.tv_nsec = (hw_time_diff * hca_core_clock) / NSEC_PER_SEC;
+
+		if (is_ts_convertion_valid) {
+			ts_add(&sync_systime, &hw_to_timespec, packet_systime);
+		} else {
+			*packet_systime = hw_to_timespec;
+		}
+	}
 }
 
 ibv_mr* ib_ctx_handler::mem_reg(void *addr, size_t length, uint64_t access)
