@@ -574,14 +574,32 @@ void net_device_val::delete_L2_address()
 }
 
 void net_device_val::register_to_ibverbs_events(event_handler_ibverbs *handler) {
-	for (size_t i = 0; i<m_slaves.size(); i++) {
+	for (size_t i = 0; i < m_slaves.size(); i++) {
+		bool found = false;
+		for (size_t j = 0; j < i; j++) {
+			if (m_slaves[i]->p_ib_ctx == m_slaves[j]->p_ib_ctx) {
+				found = true; //two slaves might be on two ports of the same device, register only once
+				break;
+			}
+		}
+		if (found)
+			continue;
 		nd_logfunc("registering slave to ibverbs events slave=%p", m_slaves[i]);
 		g_p_event_handler_manager->register_ibverbs_event(m_slaves[i]->p_ib_ctx->get_ibv_context()->async_fd, handler, m_slaves[i]->p_ib_ctx->get_ibv_context(), 0);
 	}
 }
 
 void net_device_val::unregister_to_ibverbs_events(event_handler_ibverbs *handler) {
-	for (size_t i = 0; i<m_slaves.size(); i++) {
+	for (size_t i = 0; i < m_slaves.size(); i++) {
+		bool found = false;
+		for (size_t j = 0; j < i; j++) {
+			if (m_slaves[i]->p_ib_ctx == m_slaves[j]->p_ib_ctx) {
+				found = true; //two slaves might be on two ports of the same device, unregister only once
+				break;
+			}
+		}
+		if (found)
+			continue;
 		nd_logfunc("unregistering slave to ibverbs events slave=%p", m_slaves[i]);
 		g_p_event_handler_manager->unregister_ibverbs_event(m_slaves[i]->p_ib_ctx->get_ibv_context()->async_fd, handler);
 	}
