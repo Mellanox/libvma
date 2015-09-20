@@ -123,25 +123,21 @@ void ring_bond::restart(ring_resource_creation_info_t* p_ring_info) {
 
 void ring_bond::adapt_cq_moderation()
 {
-	m_lock_ring_rx.lock();
-	//TODO check if lock is really required when passing over ring array (can we do best effort?)
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
 		if (m_bond_rings[i]->is_up())
 			m_bond_rings[i]->adapt_cq_moderation();
 	}
-	m_lock_ring_rx.unlock();
 }
 
 mem_buf_desc_t* ring_bond::mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_num_mem_bufs /* default = 1 */)
 {
 	mem_buf_desc_t* ret;
-	m_lock_ring_tx.lock();
-	if (likely(m_active_rings[id])) {
-		ret =  m_active_rings[id]->mem_buf_tx_get(id, b_block, n_num_mem_bufs);
+	ring_simple* active_ring = m_active_rings[id];
+	if (likely(active_ring)) {
+		ret =  active_ring->mem_buf_tx_get(id, b_block, n_num_mem_bufs);
 	} else {
 		ret = m_bond_rings[id]->mem_buf_tx_get(id, b_block, n_num_mem_bufs);
 	}
-	m_lock_ring_tx.unlock();
 	return ret;
 }
 
@@ -151,41 +147,36 @@ int ring_bond::mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_ac
 	memset(buffer_per_ring, 0, m_n_num_resources * sizeof(mem_buf_desc_t*));
 	devide_buffers_helper(p_mem_buf_desc_list, buffer_per_ring);
 	int ret = 0;
-	m_lock_ring_tx.lock();
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
 		if (buffer_per_ring[i])
 			ret += m_bond_rings[i]->mem_buf_tx_release(buffer_per_ring[i], b_accounting, trylock);
 	}
-	m_lock_ring_tx.unlock();
 	return ret;
 }
 
 void ring_bond::mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc)
 {
-	RING_LOCK_AND_RUN(m_lock_ring_tx, ((ring_simple*)p_mem_buf_desc->p_desc_owner)->mem_buf_desc_return_single_to_owner_tx(p_mem_buf_desc));
+	((ring_simple*)p_mem_buf_desc->p_desc_owner)->mem_buf_desc_return_single_to_owner_tx(p_mem_buf_desc);
 }
 
 void ring_bond::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block)
 {
-	m_lock_ring_tx.lock();
-
-	if (likely(m_active_rings[id])) {
-		m_active_rings[id]->send_ring_buffer(id, p_send_wqe, b_block);
+	ring_simple* active_ring = m_active_rings[id];
+	if (likely(active_ring)) {
+		active_ring->send_ring_buffer(id, p_send_wqe, b_block);
 	} else {
 		m_bond_rings[id]->send_ring_buffer(id, p_send_wqe, b_block);
 	}
-	m_lock_ring_tx.unlock();
 }
 
 void ring_bond::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block)
 {
-	m_lock_ring_tx.lock();
-	if (likely(m_active_rings[id])) {
-		m_active_rings[id]->send_lwip_buffer(id, p_send_wqe, b_block);
+	ring_simple* active_ring = m_active_rings[id];
+	if (likely(active_ring)) {
+		active_ring->send_lwip_buffer(id, p_send_wqe, b_block);
 	} else {
 		m_bond_rings[id]->send_lwip_buffer(id, p_send_wqe, b_block);
 	}
-	m_lock_ring_tx.unlock();
 }
 
 int ring_bond::get_max_tx_inline()
@@ -292,19 +283,19 @@ int ring_bond::request_notification(cq_type_t cq_type, uint64_t poll_sn)
 
 void ring_bond::inc_ring_stats(ring_user_id_t id)
 {
-	m_active_rings[id]->inc_ring_stats(id);
+	ring_simple* active_ring = m_active_rings[id];
+	if (likely(active_ring))
+		active_ring->inc_ring_stats(id);
 }
 
 bool ring_bond::reclaim_recv_buffers(descq_t *rx_reuse)
 {
-	m_lock_ring_rx.lock();
 	descq_t buffer_per_ring[m_n_num_resources];
 	devide_buffers_helper(rx_reuse, buffer_per_ring);
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
 		if (buffer_per_ring[i].size() > 0)
 			m_bond_rings[i]->reclaim_recv_buffers(&buffer_per_ring[i]);
 	}
-	m_lock_ring_rx.unlock();
 	return true;
 }
 
