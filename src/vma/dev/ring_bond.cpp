@@ -40,7 +40,7 @@ ring(count), m_lock_ring_rx("ring_bond:lock_rx"), m_lock_ring_tx("ring_bond:lock
 	m_parent = this;
 	m_type = type;
 	m_xmit_hash_policy = bond_xmit_hash_policy;
-	m_min_devices_tx_inline = 0;
+	m_min_devices_tx_inline = -1;
 }
 
 ring_bond::~ring_bond()
@@ -403,7 +403,10 @@ void ring_bond_eth::create_slave_list(in_addr_t local_if, ring_resource_creation
 {
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
 		m_bond_rings[i] = new ring_eth(local_if, &p_ring_info[i], 1, active_slaves[i], vlan, this);
-		m_min_devices_tx_inline = min(m_min_devices_tx_inline, m_bond_rings[i]->get_max_tx_inline());
+		if (m_min_devices_tx_inline < 0)
+			m_min_devices_tx_inline = m_bond_rings[i]->get_max_tx_inline();
+		else
+			m_min_devices_tx_inline = min(m_min_devices_tx_inline, m_bond_rings[i]->get_max_tx_inline());
 		if (active_slaves[i]) {
 			m_active_rings[i] = m_bond_rings[i];
 		} else {
@@ -417,7 +420,10 @@ void ring_bond_ib::create_slave_list(in_addr_t local_if, ring_resource_creation_
 {
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
 		m_bond_rings[i] = new ring_ib(local_if, &p_ring_info[i], 1, active_slaves[i], pkey, this);
-		m_min_devices_tx_inline = min(m_min_devices_tx_inline, m_bond_rings[i]->get_max_tx_inline());
+		if (m_min_devices_tx_inline < 0)
+			m_min_devices_tx_inline = m_bond_rings[i]->get_max_tx_inline();
+		else
+			m_min_devices_tx_inline = min(m_min_devices_tx_inline, m_bond_rings[i]->get_max_tx_inline());
 		if (active_slaves[i]) {
 			m_active_rings[i] = m_bond_rings[i];
 		} else {
