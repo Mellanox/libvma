@@ -40,17 +40,24 @@
 
 qp_mgr* ring_eth::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel)
 {
-	return new qp_mgr_eth(this, ib_ctx, port_num, p_rx_comp_event_channel, m_tx_num_wr, m_partition);
+	return new qp_mgr_eth(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), get_partition());
 }
 
 qp_mgr* ring_ib::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel)
 {
-	return new qp_mgr_ib(this, ib_ctx, port_num, p_rx_comp_event_channel, m_tx_num_wr, m_partition);
+	return new qp_mgr_ib(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), get_partition());
 }
 
 
 ring_simple::ring_simple(in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, ring* parent /*=NULL*/) :
-	ring(local_if, partition_sn, count, transport_type) {
+	ring(count), m_lock_ring_rx("ring_simple:lock_rx"), m_lock_ring_tx("ring_simple:lock_tx"),
+	m_p_qp_mgr(NULL), m_p_cq_mgr_rx(NULL), m_p_cq_mgr_tx(NULL),
+	m_lock_ring_tx_buf_wait("ring:lock_tx_buf_wait"), m_tx_num_bufs(0), m_tx_num_wr(0), m_tx_num_wr_free(0),
+	m_b_qp_tx_first_flushed_completion_handled(false), m_missing_buf_ref_count(0),
+	m_tx_lkey(0), m_partition(partition_sn), m_gro_mgr(mce_sys.gro_streams_max, MAX_GRO_BUFS), m_up(false),
+	m_p_rx_comp_event_channel(NULL), m_p_tx_comp_event_channel(NULL), m_p_l2_addr(NULL), m_p_ring_stat(NULL),
+	m_local_if(local_if), m_transport_type(transport_type) {
+
 	if (count != 1)
 		ring_logpanic("Error creating simple ring with more than 1 resource");
 	if (parent) {
@@ -59,11 +66,8 @@ ring_simple::ring_simple(in_addr_t local_if, uint16_t partition_sn, int count, t
 		m_parent = this;
 	}
 
-	m_p_qp_mgr = NULL;
-	m_p_cq_mgr_rx = NULL;
-	m_p_cq_mgr_tx = NULL;
-	m_p_rx_comp_event_channel = NULL;
-	m_p_l2_addr = NULL;
+	 // coverity[uninit_member]
+	m_tx_pool.set_id("ring (%p) : m_tx_pool", this);
 }
 
 ring_simple::~ring_simple()
@@ -1464,6 +1468,7 @@ void ring_simple::start_active_qp_mgr() {
 	m_lock_ring_tx.lock();
 	if (!m_up) {
 		m_up = true;
+		m_b_qp_tx_first_flushed_completion_handled = false;
 		m_p_qp_mgr->up();
 	}
 	m_lock_ring_tx.unlock();

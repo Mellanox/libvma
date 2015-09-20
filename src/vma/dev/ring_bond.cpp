@@ -33,8 +33,8 @@
 #undef  MODULE_HDR
 #define MODULE_HDR	 	MODULE_NAME "%d:%s() "
 
-ring_bond::ring_bond(in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, net_device_val::bond_type type, net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy) :
-ring(local_if, partition_sn, count, transport_type) {
+ring_bond::ring_bond(int count, net_device_val::bond_type type, net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy) :
+ring(count), m_lock_ring_rx("ring_bond:lock_rx"), m_lock_ring_tx("ring_bond:lock_tx") {
 	m_bond_rings = new ring_simple*[count];
 	m_active_rings = new ring_simple*[count];
 	m_parent = this;
@@ -56,7 +56,8 @@ bool ring_bond::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) {
 	bool ret = true;
 	m_lock_ring_rx.lock();
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
-		ret &= m_bond_rings[i]->attach_flow(flow_spec_5t, sink);
+		bool step_ret = m_bond_rings[i]->attach_flow(flow_spec_5t, sink);
+		ret = ret && step_ret;
 	}
 	m_lock_ring_rx.unlock();
 	return ret;
@@ -66,7 +67,8 @@ bool ring_bond::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) {
 	bool ret = true;
 	auto_unlocker lock(m_lock_ring_rx);
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
-		ret &= m_bond_rings[i]->detach_flow(flow_spec_5t, sink);
+		bool step_ret = m_bond_rings[i]->detach_flow(flow_spec_5t, sink);
+		ret = ret && step_ret;
 	}
 	return ret;
 }
@@ -93,8 +95,6 @@ void ring_bond::restart(ring_resource_creation_info_t* p_ring_info) {
 	}
 	close_gaps_active_rings();
 
-	m_b_qp_tx_first_flushed_completion_handled = false;
-
 	int ret = 0;
 	uint64_t poll_sn = cq_mgr::m_n_global_sn;
 	ret = request_notification(CQT_RX, poll_sn);
@@ -119,13 +119,6 @@ void ring_bond::restart(ring_resource_creation_info_t* p_ring_info) {
 	m_lock_ring_rx.unlock();
 
 	ring_logdbg("*** ring restart done! ***");
-}
-
-bool ring_bond::is_up() {
-	//if there's a ring up active_rings[0] will be initialized
-	if (m_active_rings[0])
-		return true;
-	return false;
 }
 
 void ring_bond::adapt_cq_moderation()
@@ -221,7 +214,7 @@ int ring_bond::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_r
 	}
 }
 
-int	ring_bond::drain_and_proccess(cq_type_t cq_type)
+int ring_bond::drain_and_proccess(cq_type_t cq_type)
 {
 	if (likely(CQT_RX == cq_type)) {
 		m_lock_ring_rx.lock();
@@ -250,7 +243,7 @@ int	ring_bond::drain_and_proccess(cq_type_t cq_type)
 	}
 }
 
-int	ring_bond::wait_for_notification_and_process_element(cq_type_t cq_type, int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array /*NULL*/) {
+int ring_bond::wait_for_notification_and_process_element(cq_type_t cq_type, int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array /*NULL*/) {
 	int ret = 0;
 	int temp = 0;
 	m_lock_ring_rx.lock();
@@ -302,17 +295,6 @@ void ring_bond::inc_ring_stats(ring_user_id_t id)
 	m_active_rings[id]->inc_ring_stats(id);
 }
 
-bool ring_bond::reclaim_recv_buffers_no_lock(descq_t *rx_reuse)
-{
-	descq_t buffer_per_ring[m_n_num_resources];
-	devide_buffers_helper(rx_reuse, buffer_per_ring);
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
-		if (buffer_per_ring[i].size() > 0)
-			m_bond_rings[i]->reclaim_recv_buffers_no_lock(&buffer_per_ring[i]);
-	}
-	return true;
-}
-
 bool ring_bond::reclaim_recv_buffers(descq_t *rx_reuse)
 {
 	m_lock_ring_rx.lock();
@@ -350,19 +332,6 @@ void ring_bond::devide_buffers_helper(descq_t *rx_reuse, descq_t* buffer_per_rin
 			g_buffer_pool_rx->put_buffers_thread_safe(buff);
 		}
 	}
-}
-
-bool ring_bond::reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst)
-{
-	mem_buf_desc_t* buffer_per_ring[m_n_num_resources];
-	memset(buffer_per_ring, 0, m_n_num_resources * sizeof(mem_buf_desc_t*));
-	devide_buffers_helper(rx_reuse_lst, buffer_per_ring);
-	bool ret = false;;
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
-		if (buffer_per_ring[i])
-			ret |= m_bond_rings[i]->reclaim_recv_buffers_no_lock(rx_reuse_lst);
-	}
-	return ret;
 }
 
 void ring_bond::devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_buf_desc_t **buffer_per_ring)
@@ -404,24 +373,30 @@ void ring_bond::devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_b
 	}
 }
 
+/* TODO consider only ring_simple to inherit mem_buf_desc_owner */
 void ring_bond::mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc)
 {
-	p_rx_wc_buf_desc->p_desc_owner->mem_buf_desc_completion_with_error_rx(p_rx_wc_buf_desc);
+	NOT_IN_USE(p_rx_wc_buf_desc);
+	ring_logpanic("programming error, how did we got here?");
 }
 
 void ring_bond::mem_buf_desc_completion_with_error_tx(mem_buf_desc_t* p_tx_wc_buf_desc)
 {
-	p_tx_wc_buf_desc->p_desc_owner->mem_buf_desc_completion_with_error_tx(p_tx_wc_buf_desc);
+	NOT_IN_USE(p_tx_wc_buf_desc);
+	ring_logpanic("programming error, how did we got here?");
 }
 
 void ring_bond::mem_buf_desc_return_to_owner_rx(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array /*NULL*/)
 {
-	p_mem_buf_desc->p_desc_owner->mem_buf_desc_return_to_owner_rx(p_mem_buf_desc, pv_fd_ready_array);
+	NOT_IN_USE(p_mem_buf_desc);
+	NOT_IN_USE(pv_fd_ready_array);
+	ring_logpanic("programming error, how did we got here?");
 }
 
 void ring_bond::mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc)
 {
-	p_mem_buf_desc->p_desc_owner->mem_buf_desc_return_to_owner_tx(p_mem_buf_desc);
+	NOT_IN_USE(p_mem_buf_desc);
+	ring_logpanic("programming error, how did we got here?");
 }
 
 void ring_bond_eth::create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t vlan)
