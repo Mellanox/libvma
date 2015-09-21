@@ -290,12 +290,19 @@ void ring_bond::inc_ring_stats(ring_user_id_t id)
 
 bool ring_bond::reclaim_recv_buffers(descq_t *rx_reuse)
 {
-	descq_t buffer_per_ring[m_n_num_resources];
+	descq_t buffer_per_ring[m_n_num_resources + 1];
 	devide_buffers_helper(rx_reuse, buffer_per_ring);
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
-		if (buffer_per_ring[i].size() > 0)
-			m_bond_rings[i]->reclaim_recv_buffers(&buffer_per_ring[i]);
+		if (buffer_per_ring[i].size() > 0) {
+			if (!m_bond_rings[i]->reclaim_recv_buffers(&buffer_per_ring[i])) {
+				g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&buffer_per_ring[i]);
+			}
+		}
 	}
+
+	if (buffer_per_ring[m_n_num_resources].size() > 0)
+		g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&buffer_per_ring[m_n_num_resources]);
+
 	return true;
 }
 
@@ -320,7 +327,7 @@ void ring_bond::devide_buffers_helper(descq_t *rx_reuse, descq_t* buffer_per_rin
 		//no owner
 		if (checked == m_n_num_resources) {
 			ring_logfunc("No matching ring %p to return buffer", buff->p_desc_owner);
-			g_buffer_pool_rx->put_buffers_thread_safe(buff);
+			buffer_per_ring[m_n_num_resources].push_back(buff);
 		}
 	}
 }
