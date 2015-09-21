@@ -3437,7 +3437,7 @@ inline void sockinfo_tcp::return_pending_rx_buffs()
     if (m_rx_reuse_buf_pending) {
             if (m_p_rx_ring && m_p_rx_ring->reclaim_recv_buffers(&m_rx_reuse_buff.rx_reuse)) {
             } else {
-                    g_buffer_pool_rx->put_buffers_thread_safe(&m_rx_reuse_buff.rx_reuse, m_rx_reuse_buff.rx_reuse.size());
+                    g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&m_rx_reuse_buff.rx_reuse);
             }
             m_rx_reuse_buff.n_buff_num = 0;
             set_rx_reuse_pending(false);
