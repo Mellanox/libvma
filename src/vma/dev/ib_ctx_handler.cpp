@@ -38,7 +38,7 @@
 
 ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx) :
 	m_channel(0), m_removed(false), m_conf_attr_rx_num_wre(0), m_conf_attr_tx_num_post_send_notify(0),
-	m_conf_attr_tx_max_inline(0), m_conf_attr_tx_num_wre(0), m_ctx_parmeters_id(0)
+	m_conf_attr_tx_max_inline(0), m_conf_attr_tx_num_wre(0), m_ctx_parmeters_id(0), m_timer_handle(NULL)
 {
 	memset(&m_ibv_port_attr, 0, sizeof(m_ibv_port_attr));
 	m_p_ibv_context = ctx;

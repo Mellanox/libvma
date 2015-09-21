@@ -66,6 +66,9 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 
 	m_transport_type = m_p_ring->get_transport_type();
 
+	m_qp_rec.qp = NULL;
+	m_qp_rec.debth = 0;
+
 	vma_ibv_cq_init_attr attr;
 	init_vma_ibv_cq_init_attr(&attr);
 
@@ -450,6 +453,8 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 
 		p_mem_buf_desc->path.rx.is_vma_thr = false;
 
+		//this is not a deadcode if timestamping is defined in verbs API
+		// coverity[dead_error_condition]
 		if (vma_wc_flags(*p_wce) & VMA_IBV_WC_WITH_TIMESTAMP) {
 			m_p_ib_ctx_handler->convert_hw_time_to_system_time(vma_wc_timestamp(*p_wce) ,&p_mem_buf_desc->path.rx.hw_timestamp);
 		}

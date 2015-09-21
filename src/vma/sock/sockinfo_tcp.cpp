@@ -3281,7 +3281,7 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 {
 	int ret;
 	int n;
-	uint64_t poll_sn;
+	uint64_t poll_sn = 0;
 	rx_ring_map_t::iterator rx_ring_iter;
 	epoll_event rx_epfd_events[SI_RX_EPFD_EVENT_MAX];
 
