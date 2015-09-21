@@ -49,7 +49,10 @@
 #define nd_logfunc            __log_info_func
 #define nd_logfuncall         __log_info_funcall
 
-net_device_val::net_device_val(transport_type_t transport_type) : m_if_idx(0), m_local_addr(0), m_netmask(0), m_mtu(0), m_state(INVALID), m_p_L2_addr(NULL), m_p_br_addr(NULL), m_transport_type(transport_type),  m_lock("net_device_val lock"), m_bond(OFF), m_bond_xmit_hash_policy(XHP_LAYER_2)
+net_device_val::net_device_val(transport_type_t transport_type) : m_if_idx(0), m_local_addr(0),
+m_netmask(0), m_mtu(0), m_state(INVALID), m_p_L2_addr(NULL), m_p_br_addr(NULL),
+m_transport_type(transport_type),  m_lock("net_device_val lock"), m_bond(NO_BOND),
+m_bond_xmit_hash_policy(XHP_LAYER_2), m_bond_fail_over_mac(0)
 {
 }
 
@@ -217,7 +220,6 @@ void net_device_val::verify_bonding_mode()
 	char bond_failover_mac_param_file[FILENAME_MAX];
 	char bond_xmit_hash_policy_file_content[FILENAME_MAX];
 	char bond_xmit_hash_policy_param_file[FILENAME_MAX];
-	char *p_failover_mac_value = NULL;
 
 	memset(bond_mode_file_content, 0, FILENAME_MAX);
 	sprintf(bond_mode_param_file, BONDING_MODE_PARAM_FILE, m_base_name);
@@ -228,17 +230,18 @@ void net_device_val::verify_bonding_mode()
 		bond_mode = strtok(bond_mode_file_content, " ");
 		if (bond_mode) {
 			if (!strcmp(bond_mode, "active-backup")) {
-				if (priv_read_file(bond_failover_mac_param_file, bond_failover_mac_file_content, FILENAME_MAX) > 0) {
-					p_failover_mac_value = strstr(bond_failover_mac_file_content, "1");
-					if (!p_failover_mac_value) {
-						p_failover_mac_value = strstr(bond_failover_mac_file_content, "0");
-					}
-				}
-				if (p_failover_mac_value) {
-					m_bond = ACTIVE_BACKUP;
-				}
+				m_bond = ACTIVE_BACKUP;
 			} else if (strstr(bond_mode, "802.3ad")) {
 				m_bond = LAG_8023ad;
+			}
+			if (priv_read_file(bond_failover_mac_param_file, bond_failover_mac_file_content, FILENAME_MAX) > 0) {
+				if(strstr(bond_failover_mac_file_content, "0")){
+					m_bond_fail_over_mac = 0;
+				} else if(strstr(bond_failover_mac_file_content, "1")){
+					m_bond_fail_over_mac = 1;
+				} else if(strstr(bond_failover_mac_file_content, "2")){
+					m_bond_fail_over_mac = 2;
+				}
 			}
 		}
 	}
@@ -262,7 +265,7 @@ void net_device_val::verify_bonding_mode()
 		vlog_printf(VLOG_DEBUG, "could not read bond xmit hash policy, staying with default (L2)\n");
 	}
 
-	if (m_bond == OFF) {
+	if (m_bond == NO_BOND || m_bond_fail_over_mac > 1) {
 		vlog_printf(VLOG_WARNING,"******************************************************************************\n");
 		vlog_printf(VLOG_WARNING,"VMA doesn't support current bonding configuration of %s.\n", m_base_name);
 		vlog_printf(VLOG_WARNING,"The only supported bonding mode is \"802.3ad 4(#4)\" or \"active-backup(#1)\"\n");
@@ -621,6 +624,10 @@ void net_device_val_eth::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_i
 	create_br_address(m_name.c_str());
 
 	m_vlan = get_vlan_id_from_ifname(m_name.c_str());
+	if (m_vlan && m_bond != NO_BOND && m_bond_fail_over_mac == 1) {
+		nd_logdbg("vlan over bond while fail_ove_mac=1 is not supported, fallback to OS");
+		m_state = INVALID;
+	}
 	if(!m_vlan && ifa->ifa_flags & IFF_MASTER) {
 		//in case vlan is configured on slave
 		m_vlan = get_vlan_id_from_ifname(m_slaves[0]->if_name);
@@ -643,7 +650,7 @@ ring* net_device_val_eth::create_ring()
 	}
 
 	 //TODO check if need to create bond ring even if slave count is 1
-	if (m_bond != OFF) {
+	if (m_bond != NO_BOND) {
 		return new ring_bond_eth(m_local_addr, p_ring_info, slave_count, active_slaves, get_vlan(), m_bond, m_bond_xmit_hash_policy);
 	} else {
 		return new ring_eth(m_local_addr, p_ring_info, slave_count, true, get_vlan());

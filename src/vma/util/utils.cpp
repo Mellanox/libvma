@@ -70,6 +70,11 @@ int get_base_interface_name(const char *if_name, char *base_ifname, size_t sz_ba
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 	memset(base_ifname, 0, sz_base_ifname);
+
+	if (get_vlan_base_name_from_ifname(if_name, base_ifname, sz_base_ifname)) {
+		return 0;
+	}
+
 	//Am I already the base (not virtual, not alias, can be bond)
 	if ((!check_device_exist(if_name, VIRTUAL_DEVICE_FOLDER) ||
 		check_device_exist(if_name, BOND_DEVICE_FILE)) && !strstr(if_name, ":")) {
@@ -602,9 +607,42 @@ uint16_t get_vlan_id_from_ifname(const char* ifname)
             return 0;
         }
 
-        __log_dbg("found vlan id '%d' for interface '%s'", ifr.u.VID, ifname);
         orig_os_api.close(fd);
+
+        __log_dbg("found vlan id '%d' for interface '%s'", ifr.u.VID, ifname);
+
         return ifr.u.VID;
+}
+
+size_t get_vlan_base_name_from_ifname(const char* ifname, char* base_ifname, size_t sz_base_ifname)
+{
+        // find vlan base name from interface name
+        struct vlan_ioctl_args ifr;
+        int fd = orig_os_api.socket(AF_INET, SOCK_DGRAM, 0);
+
+        memset(&ifr,0, sizeof(ifr));
+        ifr.cmd = GET_VLAN_REALDEV_NAME_CMD;
+        strncpy(ifr.device1, ifname, sizeof(ifr.device1));
+
+        if (orig_os_api.ioctl(fd, SIOCGIFVLAN, &ifr) < 0)
+        {
+            __log_dbg("Failure in ioctl(SIOCGIFVLAN, cmd=GET_VLAN_REALDEV_NAME_CMD) for interface '%s' (errno=%d %m)", ifname, errno);
+            orig_os_api.close(fd);
+            return 0;
+        }
+
+        orig_os_api.close(fd);
+
+        size_t name_len = strlen(ifr.u.device2);
+        if (base_ifname && name_len > 0) {
+        	__log_dbg("found vlan base name '%s' for interface '%s'", ifr.u.device2, ifname);
+        	strncpy(base_ifname, ifr.u.device2, sz_base_ifname);
+        	return name_len;
+        }
+
+        __log_dbg("did not find vlan base name for interface '%s'", ifname);
+
+        return 0;
 }
 
 #if _BullseyeCoverage

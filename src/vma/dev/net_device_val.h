@@ -76,7 +76,7 @@ public:
 		INVALID
 	};
 	enum bond_type {
-		OFF,
+		NO_BOND,
 		ACTIVE_BACKUP,
 		LAG_8023ad,
 	};
@@ -148,6 +148,7 @@ protected:
 	void verify_bonding_mode();
 	bond_type m_bond;
 	bond_xmit_hash_policy m_bond_xmit_hash_policy;
+	int m_bond_fail_over_mac;
 };
 
 class net_device_val_eth : public net_device_val

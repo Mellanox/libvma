@@ -45,7 +45,7 @@ net_device_entry::net_device_entry(in_addr_t local_ip, net_device_val* ndv) : ca
 
 	m_is_valid = true;
 	m_bond = ndv->get_is_bond();
-	if(m_bond != net_device_val::OFF) {
+	if(m_bond != net_device_val::NO_BOND) {
 		m_timer_handle = g_p_event_handler_manager->register_timer_event(SLAVE_CHECK_TIMER_PERIOD_MSEC, this, PERIODIC_TIMER, 0);
 	}
 	if(ndv->get_is_bond() == net_device_val::LAG_8023ad) {

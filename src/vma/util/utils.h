@@ -264,7 +264,7 @@ int get_mac_from_ifname(const char* ifname, uint8_t* ether_addr);
 int get_netmask_from_ifname(const char* ifname, in_addr_t *netmask);
 
 /** 
- * Get Ethernet mac address from interface name
+ * Get vlan id from interface name
  * 
  * @param ifname input interface name of device (e.g. eth2, eth2.5)
  * @return the vlan id or 0 if not a vlan
@@ -272,6 +272,16 @@ int get_netmask_from_ifname(const char* ifname, in_addr_t *netmask);
 uint16_t get_vlan_id_from_ifname(const char* ifname);
 
 /** 
+ * Get vlan base name from interface name
+ *
+ * @param ifname input interface name of device (e.g. eth2, eth2.5)
+ * @param base_ifname output base interface name of device (e.g. eth2)
+ * @param sz_base_ifname input the size of base_ifname param
+ * @return the vlan base name length or 0 if not a vlan
+ */
+size_t get_vlan_base_name_from_ifname(const char* ifname, char* base_ifname, size_t sz_base_ifname);
+
+/**
  * Get peer node IPoIB QP number (remote_qpn) from the peer's IP
  * address 
  * 
