@@ -285,7 +285,7 @@ bool net_device_val::update_active_backup_slaves()
 	// /sys/class/net/bond0/bonding/active_slave
 	char active_slave[IFNAMSIZ*MAX_SLAVES] = {0};
 	if (!get_bond_active_slave_name(m_base_name, active_slave, IFNAMSIZ)) {
-		nd_logerr("failed to find the active slave!");
+		nd_logdbg("failed to find the active slave!");
 		return 0;
 	}
 
