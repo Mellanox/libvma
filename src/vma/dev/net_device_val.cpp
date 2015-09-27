@@ -730,7 +730,7 @@ ring* net_device_val_ib::create_ring()
 		active_slaves[i] = m_slaves[i]->is_active_slave;
 	}
 
-	if (slave_count > 1) {
+	if (m_bond != NO_BOND) {
 		return new ring_bond_ib(m_local_addr, p_ring_info, slave_count, active_slaves, m_pkey, m_bond, m_bond_xmit_hash_policy, m_mtu);
 	} else {
 		return new ring_ib(m_local_addr, p_ring_info, slave_count, true, m_pkey, m_mtu);
