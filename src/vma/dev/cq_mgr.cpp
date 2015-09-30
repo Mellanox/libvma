@@ -584,8 +584,12 @@ void cq_mgr::process_tx_buffer_list(mem_buf_desc_t* p_mem_buf_desc)
 	if (p_mem_buf_desc && p_mem_buf_desc->p_desc_owner == m_p_ring) {
 		p_mem_buf_desc->p_desc_owner->mem_buf_desc_return_to_owner_tx(p_mem_buf_desc);
 	}
-	else {
-		cq_logerr("got error %p %p", p_mem_buf_desc, p_mem_buf_desc ? p_mem_buf_desc->p_desc_owner : NULL);
+	else if (p_mem_buf_desc && m_p_ring->get_parent()->is_member(p_mem_buf_desc->p_desc_owner)) {
+		cq_logdbg("got buffer of wrong owner, high-availability event? buf=%p, owner=%p", p_mem_buf_desc, p_mem_buf_desc ? p_mem_buf_desc->p_desc_owner : NULL);
+		g_buffer_pool_tx->put_buffers_thread_safe(p_mem_buf_desc);
+		//p_mem_buf_desc->p_desc_owner->mem_buf_desc_return_to_owner_tx(p_mem_buf_desc); /* this can cause a deadlock between rings, use trylock? */
+	} else {
+		cq_logerr("got buffer of wrong owner, buf=%p, owner=%p", p_mem_buf_desc, p_mem_buf_desc ? p_mem_buf_desc->p_desc_owner : NULL);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 }
