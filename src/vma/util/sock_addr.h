@@ -41,7 +41,7 @@ public:
 #endif
 	sock_addr(sa_family_t f, in_addr_t a, in_port_t p) : m_p_sa_in((struct sockaddr_in*)&m_sa)
 		{ memset(m_p_sa_in, 0, get_socklen()); set_sa_family(f); set_in_addr(a); set_in_port(p); m_str[0]='\0'; m_str_in_addr[0]='\0'; m_str_in_port[0]='\0'; };
-	virtual ~sock_addr() {};
+	~sock_addr() {};
 
 	struct sockaddr* get_p_sa() { return &m_sa; }
 	void 		get_sa(struct sockaddr* p_sa) { memcpy(p_sa, &m_sa, get_socklen()); }
@@ -78,7 +78,16 @@ public:
 	void 		set_in_addr(in_addr_t in_addr) { (*(struct sockaddr_in*)&m_sa).sin_addr.s_addr = in_addr;}
 	void 		set_in_port(in_port_t in_port) { (*(struct sockaddr_in*)&m_sa).sin_port = in_port;}
 
-	virtual bool operator==(sock_addr const& other) const
+	sock_addr& operator=(const sock_addr& other) {
+		m_sa = other.m_sa;
+		m_p_sa_in = (struct sockaddr_in*)&m_sa;
+		m_str[0]='\0';
+		m_str_in_addr[0]='\0';
+		m_str_in_port[0]='\0';
+		return *this;
+	}
+
+	bool operator==(sock_addr const& other) const
 	{
 		struct sockaddr_in* p_sa_in = (struct sockaddr_in*)&m_sa;
 		struct sockaddr_in* p_sa_in_other = (struct sockaddr_in*)&other.m_sa;
@@ -91,7 +100,7 @@ public:
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
 #endif
-	virtual bool operator <(sock_addr const& other) const
+	bool operator <(sock_addr const& other) const
 	{
 		struct sockaddr_in* p_sa_in = (struct sockaddr_in*)&m_sa;
 		struct sockaddr_in* p_sa_in_other = (struct sockaddr_in*)&other.m_sa;
@@ -107,7 +116,7 @@ public:
     #pragma BullseyeCoverage on
 #endif
 
-	virtual size_t hash(void)
+	size_t hash(void)
 	{
 		uint8_t csum = 0;
 		uint8_t* pval = (uint8_t*)this;

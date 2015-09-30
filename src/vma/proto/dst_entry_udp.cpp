@@ -66,7 +66,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 	for (ssize_t i = 0; i < sz_iov; i++)
 		sz_data_payload += p_iov[i].iov_len;
 
-	if (sz_data_payload > 65536) {
+	if (unlikely(sz_data_payload > 65536)) {
 		dst_udp_logfunc("sz_data_payload=%d, to_port=%d, local_port=%d, b_blocked=%s", sz_data_payload, ntohs(m_dst_port), ntohs(m_src_port), b_blocked?"true":"false");
 		dst_udp_logfunc("sz_data_payload=%d exceeds max of 64KB", sz_data_payload);
 		errno = EMSGSIZE;
@@ -111,6 +111,10 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 
 		m_inline_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
 		m_p_ring->send_ring_buffer(m_id, m_p_send_wqe, b_blocked);
+
+		if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
+			m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, mce_sys.tx_bufs_batch_udp);
+		}
 	}
 	else {
 		// Find number of ip fragments (-> packets, buffers, buffer descs...)

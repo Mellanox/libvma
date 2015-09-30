@@ -130,6 +130,7 @@ sockinfo_udp::sockinfo_udp(int fd) throw (vma_exception) :
 	,m_sock_offload(true)
 	,m_port_map_lock("sockinfo_udp::m_ports_map_lock")
 	,m_port_map_index(0)
+	,m_p_last_dst_entry(NULL)
 	,m_b_pktinfo(false)
 	,m_b_rcvtstamp(false)
 	,m_b_rcvtstampns(false)
@@ -431,7 +432,7 @@ int sockinfo_udp::on_sockname_change(struct sockaddr *__name, socklen_t __namele
 		// 1. Verify not binding to MC address in the UC case
 		// 2. Check if local_if is offloadable OR is on INADDR_ANY which means attach to ALL
 		if ((m_bound.is_anyaddr() || g_p_net_device_table_mgr->get_net_device_val(m_bound.get_in_addr()))) {
-			attach_as_uc_receiver(ROLE_UDP_RECEIVER);
+			attach_as_uc_receiver(ROLE_UDP_RECEIVER); // if failed, we will get RX from OS
 		}
 		else {
 			if (m_bound.is_mc()) {
@@ -1433,11 +1434,11 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 #endif
 
 	if (__dst != NULL) {
-		if (__dstlen < sizeof(struct sockaddr_in)) {
+		if (unlikely(__dstlen < sizeof(struct sockaddr_in))) {
 			si_udp_logdbg("going to os, dstlen < sizeof(struct sockaddr_in), dstlen = %d", __dstlen);
 			goto tx_packet_to_os;
 		}
-		if (get_sa_family(__dst) != AF_INET) {
+		if (unlikely(get_sa_family(__dst) != AF_INET)) {
 			si_udp_logdbg("to->sin_family != AF_INET (tx-ing to os)");
 			goto tx_packet_to_os;
 		}
@@ -1448,64 +1449,70 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 
 		sock_addr dst((struct sockaddr*)__dst);
 
-		// Find dst_entry in map (create one if needed)
-		dst_entry_map_t::iterator dst_entry_iter = m_dst_entry_map.find(dst);
+		if (dst == m_last_sock_addr && m_p_last_dst_entry) {
+			p_dst_entry = m_p_last_dst_entry;
+		} else {
 
-		if (likely(dst_entry_iter != m_dst_entry_map.end())) {
+			// Find dst_entry in map (create one if needed)
+			dst_entry_map_t::iterator dst_entry_iter = m_dst_entry_map.find(dst);
 
-			// Fast path
-			// We found our target dst_entry object
-			p_dst_entry = dst_entry_iter->second;
-		}
-		else {
-			// Slow path
-			// We do not have the correct dst_entry in the map and need to create a one
+			if (likely(dst_entry_iter != m_dst_entry_map.end())) {
 
-			// Verify we are bounded (got a local port)
-			// can happen in UDP sendto() directly after socket(DATAGRAM)
-			if (m_bound.get_in_port() == INPORT_ANY) {
-				struct sockaddr addr = {AF_INET, {0}};
-				if (bind(&addr, sizeof(struct sockaddr))) {
-#ifdef VMA_TIME_MEASURE
-					INC_ERR_TX_COUNT;
-#endif
-					errno = EAGAIN;
-					m_lock_snd.unlock();
-					return -1;
-				}
-			}
-			in_port_t src_port = m_bound.get_in_port();
-
-			// Create the new dst_entry
-			if (dst.is_mc()) {
-				p_dst_entry = new dst_entry_udp_mc(dst.get_in_addr(), dst.get_in_port(), src_port,
-						m_mc_tx_if ? m_mc_tx_if : m_bound.get_in_addr(), m_b_mc_tx_loop, m_n_mc_ttl, m_fd);
+				// Fast path
+				// We found our target dst_entry object
+				m_p_last_dst_entry = p_dst_entry = dst_entry_iter->second;
+				m_last_sock_addr = dst;
 			}
 			else {
-				p_dst_entry = new dst_entry_udp(dst.get_in_addr(), dst.get_in_port(),
-						src_port, m_fd);
-			}
-			BULLSEYE_EXCLUDE_BLOCK_START
-			if (!p_dst_entry) {
-				si_udp_logerr("Failed to create dst_entry(dst_ip:%s, dst_port:%d, src_port:%d)", dst.to_str_in_addr(), dst.to_str_in_port(), ntohs(src_port));
-				goto tx_packet_to_os;
-			}
-			BULLSEYE_EXCLUDE_BLOCK_END
-			if (!m_bound.is_anyaddr() && !m_bound.is_mc()) {
-				p_dst_entry->set_bound_addr(m_bound.get_in_addr());
-			}
-			if (m_so_bindtodevice_ip) {
-				p_dst_entry->set_so_bindtodevice_addr(m_so_bindtodevice_ip);
-			}
-			// Save new dst_entry in map
-			m_dst_entry_map[dst] = p_dst_entry;
-			/* ADD logging
+				// Slow path
+				// We do not have the correct dst_entry in the map and need to create a one
+
+				// Verify we are bounded (got a local port)
+				// can happen in UDP sendto() directly after socket(DATAGRAM)
+				if (m_bound.get_in_port() == INPORT_ANY) {
+					struct sockaddr addr = {AF_INET, {0}};
+					if (bind(&addr, sizeof(struct sockaddr))) {
+#ifdef VMA_TIME_MEASURE
+						INC_ERR_TX_COUNT;
+#endif
+						errno = EAGAIN;
+						m_lock_snd.unlock();
+						return -1;
+					}
+				}
+				in_port_t src_port = m_bound.get_in_port();
+
+				// Create the new dst_entry
+				if (dst.is_mc()) {
+					p_dst_entry = new dst_entry_udp_mc(dst.get_in_addr(), dst.get_in_port(), src_port,
+							m_mc_tx_if ? m_mc_tx_if : m_bound.get_in_addr(), m_b_mc_tx_loop, m_n_mc_ttl, m_fd);
+				}
+				else {
+					p_dst_entry = new dst_entry_udp(dst.get_in_addr(), dst.get_in_port(),
+							src_port, m_fd);
+				}
+				BULLSEYE_EXCLUDE_BLOCK_START
+				if (!p_dst_entry) {
+					si_udp_logerr("Failed to create dst_entry(dst_ip:%s, dst_port:%d, src_port:%d)", dst.to_str_in_addr(), dst.to_str_in_port(), ntohs(src_port));
+					goto tx_packet_to_os;
+				}
+				BULLSEYE_EXCLUDE_BLOCK_END
+				if (!m_bound.is_anyaddr() && !m_bound.is_mc()) {
+					p_dst_entry->set_bound_addr(m_bound.get_in_addr());
+				}
+				if (m_so_bindtodevice_ip) {
+					p_dst_entry->set_so_bindtodevice_addr(m_so_bindtodevice_ip);
+				}
+				// Save new dst_entry in map
+				m_dst_entry_map[dst] = p_dst_entry;
+				/* ADD logging
 				si_udp_logfunc("Address %d.%d.%d.%d failed resolving as Tx on supported devices for interfaces %d.%d.%d.%d (tx-ing to os)", NIPQUAD(to_ip), NIPQUAD(local_if));
 			//*/
+			}
 		}
 	}
 
-	if (!p_dst_entry) {
+	if (unlikely(!p_dst_entry)) {
 		si_udp_logdbg("going to os, __dst = %p, m_p_connected_dst_entry = %p", __dst, m_p_connected_dst_entry);
 		goto tx_packet_to_os;
 	}
@@ -1515,7 +1522,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 		if (unlikely(__flags & MSG_DONTWAIT))
 			b_blocking = false;
 
-		if (p_dst_entry->try_migrate_ring(m_lock_snd)) {
+		if (unlikely(p_dst_entry->try_migrate_ring(m_lock_snd))) {
 			m_p_socket_stats->counters.n_tx_migrations++;
 		}
 
@@ -1930,6 +1937,7 @@ int sockinfo_udp::mc_change_membership(const struct ip_mreq *p_mreq, int optname
 	switch (optname) {
 	case IP_ADD_MEMBERSHIP:
 		if (!attach_receiver(flow_key)) {
+			// we will get RX from OS
 			return -1;
 		}
 		vma_stats_mc_group_add(mc_grp, m_p_socket_stats);
