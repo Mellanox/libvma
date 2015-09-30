@@ -84,6 +84,7 @@ private:
 
 	void                    fix_hw_clock_deviation();
 	void                    load_timestamp_params(bool init);
+	bool                    sync_clocks(struct timespec* st, uint64_t* hw_clock, bool init);
 };
 
 #endif

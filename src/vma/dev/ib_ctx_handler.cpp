@@ -16,15 +16,16 @@
 #include <vlogger/vlogger.h>
 #include <vma/util/verbs_extra.h>
 #include <vma/util/sys_vars.h>
-#include <string.h>
 #include "vma/dev/ib_ctx_handler.h"
 #include "vma/util/bullseye.h"
+#include <stdlib.h>
 #include "vma/util/verbs_extra.h"
 #include "vma/event/event_handler_manager.h"
 
 #define MODULE_NAME             "ib_ctx_handler"
 
 #define UPDATE_HW_TIMER_PERIOD_MS 10000
+#define UPDATE_HW_TIMER_INIT_MS 1000
 
 #define ibch_logpanic           __log_panic
 #define ibch_logerr             __log_err
@@ -64,6 +65,8 @@ ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx) :
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	load_timestamp_params(true);
+
+	g_p_event_handler_manager->register_timer_event(UPDATE_HW_TIMER_INIT_MS, this, ONE_SHOT_TIMER, 0);
 	m_timer_handle = g_p_event_handler_manager->register_timer_event(UPDATE_HW_TIMER_PERIOD_MS, this, PERIODIC_TIMER, 0);
 
 	ibch_logdbg("ibv device '%s' [%p] has %d port%s. Vendor Part Id: %d, FW Ver: %s, max_qp_wr=%d, hca_core_clock (per sec)=%ld",
@@ -98,6 +101,41 @@ void ib_ctx_handler::handle_timer_expired(void* user_data) {
 
 #ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
 
+bool ib_ctx_handler::sync_clocks(struct timespec* st, uint64_t* hw_clock, bool init = false){
+	struct timespec st1, st2, diff, st_min = TIMESPEC_INITIALIZER;
+	struct ibv_exp_values queried_values;
+	int64_t rval, interval, best_interval = 0;
+	uint64_t hw_clock_min = 0;
+
+	memset(&queried_values, 0, sizeof(queried_values));
+	queried_values.comp_mask = IBV_EXP_VALUES_HW_CLOCK;
+	for (int i = 0 ; i < 10 ; i++) {
+		clock_gettime(CLOCK_REALTIME, &st1);
+		if ((rval = ibv_exp_query_values(m_p_ibv_context,IBV_EXP_VALUES_HW_CLOCK, &queried_values)) || !queried_values.hwclock) {
+			if (init) {
+				ibch_logwarn("Error in querying hw clock, can't convert hw time to system time (ibv_exp_query_values() "
+						"return value=%d ) (ibv context %p) (errno=%d %m)", rval, m_p_ibv_context, errno);
+			}
+			return false;
+		}
+		clock_gettime(CLOCK_REALTIME, &st2);
+
+		interval = (st2.tv_sec - st1.tv_sec) * NSEC_PER_SEC + (st2.tv_nsec - st1.tv_nsec);
+		if (!best_interval || interval < best_interval) {
+			best_interval = interval;
+			hw_clock_min = queried_values.hwclock;
+
+			interval /= 2;
+			diff.tv_sec = interval / NSEC_PER_SEC;
+			diff.tv_nsec = interval - (diff.tv_sec * NSEC_PER_SEC);
+			ts_add(&st1, &diff, &st_min);
+		}
+	}
+	*st = st_min;
+	*hw_clock = hw_clock_min;
+	return true;
+}
+
 void ib_ctx_handler::load_timestamp_params(bool init = false){
 	ctx_timestamping_params_t* current_parameters_set = &m_ctx_convert_parmeters[m_ctx_parmeters_id];
 	int rval;
@@ -117,19 +155,7 @@ void ib_ctx_handler::load_timestamp_params(bool init = false){
 	}
 
 	if (!current_parameters_set->is_convertion_valid) {
-		struct ibv_exp_values queried_values;
-		memset(&queried_values, 0, sizeof(queried_values));
-		queried_values.comp_mask = IBV_EXP_VALUES_HW_CLOCK;
-
-		clock_gettime(CLOCK_REALTIME, &current_parameters_set->sync_systime);
-
-		if ((rval = ibv_exp_query_values(m_p_ibv_context,IBV_EXP_VALUES_HW_CLOCK, &queried_values)) || !queried_values.hwclock) {
-			if (init){
-				ibch_logwarn("Error in querying hw clock, can't convert hw time to system time (ibv_exp_query_values() "
-						"return value=%d ) (ibv context %p) (errno=%d %m)", rval, m_p_ibv_context, errno);
-			}
-		} else {
-			current_parameters_set->sync_hw_clock = queried_values.hwclock;
+		if (sync_clocks(&current_parameters_set->sync_systime, &current_parameters_set->sync_hw_clock, init)) {
 			current_parameters_set->is_convertion_valid = true;
 		}
 	}
@@ -142,32 +168,35 @@ void ib_ctx_handler::fix_hw_clock_deviation(){
 		load_timestamp_params();
 		return;
 	}
-	struct ibv_exp_values queried_values;
+
 	struct timespec current_time, diff_systime;
-	uint64_t diff_hw_time, diff_systime_nano, estimated_hw_time;
+	uint64_t diff_hw_time, diff_systime_nano, estimated_hw_time, hw_clock;
 	int next_id = (m_ctx_parmeters_id + 1) % 2;
 	ctx_timestamping_params_t* next_parameters_set = &m_ctx_convert_parmeters[next_id];
+	int64_t deviation_hw;
 
-	memset(&queried_values, 0, sizeof(queried_values));
-	queried_values.comp_mask = IBV_EXP_VALUES_HW_CLOCK;
-	clock_gettime(CLOCK_REALTIME, &current_time);
-
-	if (ibv_exp_query_values(m_p_ibv_context,IBV_EXP_VALUES_HW_CLOCK, &queried_values) || !queried_values.hwclock) {
+	if (!sync_clocks(&current_time, &hw_clock)) {
 		next_parameters_set->is_convertion_valid = false;
 		return;
 	}
 
 	ts_sub(&current_time, &current_parameters_set->sync_systime, &diff_systime);
-	diff_hw_time = queried_values.hwclock - current_parameters_set->sync_hw_clock;
+	diff_hw_time = hw_clock - current_parameters_set->sync_hw_clock;
 	diff_systime_nano = diff_systime.tv_sec * NSEC_PER_SEC + diff_systime.tv_nsec;
 
 	estimated_hw_time = (diff_systime.tv_sec * current_parameters_set->hca_core_clock) + (diff_systime.tv_nsec * current_parameters_set->hca_core_clock / NSEC_PER_SEC);
-	ibch_logdbg("ibv device '%s' [%p] : fix_hw_clock_deviation parameters status :\nUPDATE_HW_TIMER_PERIOD_MS = %d, current_parameters_set = %p, "
-			"estimated_hw_time = %ld, diff_hw_time = %ld, diff = %ld ,m_hca_core_clock = %ld", m_p_ibv_device->name, m_p_ibv_device,
-			UPDATE_HW_TIMER_PERIOD_MS,  current_parameters_set ,estimated_hw_time, diff_hw_time, estimated_hw_time -  diff_hw_time , current_parameters_set->hca_core_clock);
+	deviation_hw = estimated_hw_time -  diff_hw_time;
+
+	ibch_logdbg("ibv device '%s' [%p] : fix_hw_clock_deviation parameters status : %ld.%09ld since last deviation fix, \nUPDATE_HW_TIMER_PERIOD_MS = %d, current_parameters_set = %p, "
+			"estimated_hw_time = %ld, diff_hw_time = %ld, diff = %ld ,m_hca_core_clock = %ld", m_p_ibv_device->name, m_p_ibv_device, diff_systime.tv_sec, diff_systime.tv_nsec,
+			UPDATE_HW_TIMER_PERIOD_MS, current_parameters_set, estimated_hw_time, diff_hw_time, deviation_hw, current_parameters_set->hca_core_clock);
+
+	if (abs(deviation_hw) < 10) {
+		return;
+	}
 
 	next_parameters_set->hca_core_clock = (diff_hw_time * NSEC_PER_SEC) / diff_systime_nano;
-	next_parameters_set->sync_hw_clock = queried_values.hwclock;
+	next_parameters_set->sync_hw_clock = hw_clock;
 	next_parameters_set->sync_systime = current_time;
 	next_parameters_set->is_convertion_valid = true;
 
@@ -178,6 +207,7 @@ void ib_ctx_handler::fix_hw_clock_deviation(){
 
 void ib_ctx_handler::load_timestamp_params(bool init){ NOT_IN_USE(init); }
 void ib_ctx_handler::fix_hw_clock_deviation(){}
+bool ib_ctx_handler::sync_clocks(struct timespec* ts, uint64_t* hw_clock, bool init = false){ NOT_IN_USE(ts); NOT_IN_USE(hw_clock); return init;}
 
 #endif
 
@@ -198,7 +228,7 @@ void ib_ctx_handler::convert_hw_time_to_system_time(uint64_t packet_hw_time, str
 
 		hw_to_timespec.tv_sec = hw_time_diff / hca_core_clock;
 		hw_time_diff -= hw_to_timespec.tv_sec * hca_core_clock;
-		hw_to_timespec.tv_nsec = (hw_time_diff * hca_core_clock) / NSEC_PER_SEC;
+		hw_to_timespec.tv_nsec = (hw_time_diff * NSEC_PER_SEC) / hca_core_clock;
 
 		if (is_ts_convertion_valid) {
 			ts_add(&sync_systime, &hw_to_timespec, packet_systime);
