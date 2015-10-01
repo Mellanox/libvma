@@ -42,7 +42,7 @@ public:
 	net_device_entry*	create_new_entry(in_addr_t local_ip);
 	net_device_entry*	create_new_entry(ip_address local_ip, const observer* dst);
 
-	void 			map_net_devices();
+	int			map_net_devices();
 	net_device_val* 	get_net_device_val(const in_addr_t local_ip);
 	net_dev_lst_t*		get_net_device_val_lst_from_index(int if_index);
 
@@ -89,6 +89,7 @@ public:
 	uint32_t get_max_mtu();
 
 private:
+	void                            free_ndtm_resources();
 	void                            set_max_mtu(uint32_t);
 	
 	lock_mutex                      m_lock;

@@ -97,6 +97,125 @@ bool g_init_global_ctors_done = true;
 #define MAX_VERSION_STR_LEN	128
 #define MAX_CMD_LINE		2048
 
+static void print_vma_load_failure_msg()
+{
+	vlog_printf(VLOG_ERROR,"***************************************************************************\n");
+	vlog_printf(VLOG_ERROR,"* Failed loading VMA library! Try executing the application without VMA.  *\n");
+	vlog_printf(VLOG_ERROR,"* 'unset LD_PRELOAD' environment variable and rerun the application.      *\n");
+	vlog_printf(VLOG_ERROR,"***************************************************************************\n");
+}
+
+static int free_libvma_resources()
+{
+	vlog_printf(VLOG_DEBUG, "%s: Closing libvma resources\n", __FUNCTION__);
+
+	//Triggers connection close, relevant for TCP which may need some time to terminate the connection.
+	if (g_p_fd_collection) {
+		g_p_fd_collection->prepare_to_close();
+	}
+	g_b_exit = true;
+
+	usleep(50000);
+
+	//Handle pending received data, this is critical for proper TCP connection termination
+	if (g_p_net_device_table_mgr) {
+		g_p_net_device_table_mgr->global_ring_drain_and_procces();
+	}
+
+	if(g_p_igmp_mgr) {
+		igmp_mgr* g_p_igmp_mgr_tmp = g_p_igmp_mgr;
+		g_p_igmp_mgr = NULL;
+		delete g_p_igmp_mgr_tmp;
+		usleep(50000);
+	}
+
+	if (g_tcp_timers_collection) g_tcp_timers_collection->clean_obj();
+	g_tcp_timers_collection = NULL;
+
+	if (g_p_event_handler_manager)
+		g_p_event_handler_manager->stop_thread();
+	// Block all sock-redicrt API calls into our offloading core
+	fd_collection* g_p_fd_collection_temp = g_p_fd_collection;
+	g_p_fd_collection = NULL;
+	if (g_p_fd_collection_temp) delete g_p_fd_collection_temp;
+
+	usleep(50000);
+
+	if (g_p_route_table_mgr) delete g_p_route_table_mgr;
+	g_p_route_table_mgr = NULL;
+
+	if (g_p_rule_table_mgr) delete g_p_rule_table_mgr;
+	g_p_rule_table_mgr = NULL;
+	
+	//if(g_p_net_device_table_mgr) delete g_p_net_device_table_mgr;
+	//g_p_net_device_table_mgr = NULL;
+
+	/*TODO: Need to handle this as part of  clean exit and destruction of all VMA data structures
+	 * 	if (g_p_lwip) delete g_p_lwip;
+	 *	g_p_lwip = NULL;
+	 */
+
+// XXX YossiE later- unite all stats to mux_stats
+#if 0
+	// Print select() related stat counters (only if we got some calls to select)
+	if (g_p_socket_select_stats != NULL) {
+		if (g_p_socket_select_stats->n_select_os_rx_ready || g_p_socket_select_stats->n_select_rx_ready)
+			vlog_printf(VLOG_DEBUG, "select() Rx fds ready: %d / %d [os/offload]\n", g_p_socket_select_stats->n_select_os_rx_ready, g_p_socket_select_stats->n_select_rx_ready);
+		if (g_p_socket_select_stats->n_select_timeouts || g_p_socket_select_stats->n_select_errors)
+			vlog_printf(VLOG_DEBUG, "select() : %d / %d [timeouts/errors]\n", g_p_socket_select_stats->n_select_timeouts, g_p_socket_select_stats->n_select_errors);
+		if (g_p_socket_select_stats->n_select_poll_miss + g_p_socket_select_stats->n_select_poll_hit) {
+			float select_poll_hit_percentage = (float)(g_p_socket_select_stats->n_select_poll_hit * 100) / (float)(g_p_socket_select_stats->n_select_poll_miss + g_p_socket_select_stats->n_select_poll_hit);
+			vlog_printf(VLOG_DEBUG, "select() poll: %d / %d (%2.2f%%) [miss/hit]\n", g_p_socket_select_stats->n_select_poll_miss, g_p_socket_select_stats->n_select_poll_hit, select_poll_hit_percentage);
+		}
+	}
+
+	// Print epoll() related stat counters (only if we got some calls to epoll)
+	if (g_p_socket_epoll_stats != NULL) {
+		if (g_p_socket_epoll_stats->n_select_os_rx_ready || g_p_socket_epoll_stats->n_select_rx_ready)
+			vlog_printf(VLOG_DEBUG, "epoll() Rx fds ready: %d / %d [os/offload]\n", g_p_socket_epoll_stats->n_select_os_rx_ready, g_p_socket_epoll_stats->n_select_rx_ready);
+		if (g_p_socket_epoll_stats->n_select_timeouts || g_p_socket_epoll_stats->n_select_errors)
+			vlog_printf(VLOG_DEBUG, "epoll() : %d / %d [timeouts/errors]\n", g_p_socket_epoll_stats->n_select_timeouts, g_p_socket_epoll_stats->n_select_errors);
+		if (g_p_socket_epoll_stats->n_select_poll_miss + g_p_socket_epoll_stats->n_select_poll_hit) {
+			float epoll_poll_hit_percentage = (float)(g_p_socket_epoll_stats->n_select_poll_hit * 100) / (float)(g_p_socket_epoll_stats->n_select_poll_miss + g_p_socket_epoll_stats->n_select_poll_hit);
+			vlog_printf(VLOG_DEBUG, "epoll() poll: %d / %d (%2.2f%%) [miss/hit]\n", g_p_socket_epoll_stats->n_select_poll_miss, g_p_socket_epoll_stats->n_select_poll_hit, epoll_poll_hit_percentage);
+		}
+	}
+#endif
+
+	ip_frag_manager* g_p_ip_frag_manager_temp = g_p_ip_frag_manager;
+	g_p_ip_frag_manager = NULL;
+	if (g_p_ip_frag_manager_temp) delete g_p_ip_frag_manager_temp;
+	
+	if (g_tcp_seg_pool) delete g_tcp_seg_pool;
+	g_tcp_seg_pool = NULL;
+
+	if (g_buffer_pool_tx) delete g_buffer_pool_tx;
+	g_buffer_pool_tx = NULL;
+
+	if (g_buffer_pool_rx) delete g_buffer_pool_rx;
+	g_buffer_pool_rx = NULL;
+
+	if (g_p_vlogger_timer_handler) delete g_p_vlogger_timer_handler;
+	g_p_vlogger_timer_handler = NULL;
+	
+	if (g_p_event_handler_manager) delete g_p_event_handler_manager;
+	g_p_event_handler_manager = NULL;
+
+	vlog_printf(VLOG_DEBUG, "Stopping logger module\n");
+
+	sock_redirect_exit();
+
+	vlog_stop();
+
+	if (g_stats_file) {
+		//cosmetics - remove when adding iomux block
+		fprintf(g_stats_file, "======================================================\n");
+		fclose (g_stats_file);
+	}
+
+	return 0;
+}
+
 static void handle_segfault(int)
 {
 	vlog_printf(VLOG_ERROR, "Segmentation Fault\n");
@@ -622,17 +741,17 @@ void get_env_params()
 
 	fp = fopen("/proc/self/cmdline", "r");
 	if (!fp) {
-		vlog_printf(VLOG_ERROR,"***************************************************************************\n");
-		vlog_printf(VLOG_ERROR,"* Failed loading VMA library! Try to execute the application without VMA. *\n");
-		vlog_printf(VLOG_ERROR,"* 'unset LD_PRELOAD' environment variable and rerun the application.      *\n");
-		vlog_printf(VLOG_ERROR,"***************************************************************************\n");
+		vlog_printf(VLOG_ERROR, "error while fopen\n");
+		print_vma_load_failure_msg();
 		exit(1);
 	}
 
 	mce_sys.app_name = (char *)malloc(app_name_size);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!mce_sys.app_name) {
-		vlog_printf(VLOG_PANIC, "error while malloc\n");
+		vlog_printf(VLOG_ERROR, "error while malloc\n");
+		print_vma_load_failure_msg();
+		exit(1);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 	while ((c = fgetc(fp)) != EOF){
@@ -642,7 +761,9 @@ void get_env_params()
 			mce_sys.app_name = (char*)realloc(mce_sys.app_name, app_name_size);
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (!mce_sys.app_name) {
-				vlog_printf(VLOG_PANIC, "error while malloc\n");
+				vlog_printf(VLOG_ERROR, "error while malloc\n");
+				print_vma_load_failure_msg();
+				exit(1);
 			}
 			BULLSEYE_EXCLUDE_BLOCK_END
 		}
@@ -1395,7 +1516,20 @@ void igmp_test()
 }
 */
 
-void do_global_ctors()
+#define NEW_CTOR(ctor) \
+do { \
+	if (!g_p_##ctor) { \
+		g_p_##ctor = new ctor(); \
+		BULLSEYE_EXCLUDE_BLOCK_START \
+		if (g_p_##ctor == NULL) { \
+			throw_vma_exception("Failed allocate " #ctor "\n"); \
+			return; \
+		} \
+		BULLSEYE_EXCLUDE_BLOCK_END \
+	} \
+} while (0);
+
+static void do_global_ctors_helper()
 {
 	static lock_spin_recursive g_globals_lock;
 	auto_unlocker lock(g_globals_lock);
@@ -1429,53 +1563,11 @@ void do_global_ctors()
         }
         g_p_ib_ctx_handler_collection->map_ib_devices();
 
-
-	if(g_p_neigh_table_mgr == NULL) {
-        	g_p_neigh_table_mgr = new neigh_table_mgr();
-        	BULLSEYE_EXCLUDE_BLOCK_START
-                if (g_p_neigh_table_mgr == NULL) {
-                	vlog_printf(VLOG_PANIC, "Failed allocate neigh_table_mgr");
-                }
-        	BULLSEYE_EXCLUDE_BLOCK_END
-        }
-
-	// net_device should be initialized after event_handler and before buffer pool and g_p_neigh_table_mgr.
-	if (!g_p_net_device_table_mgr) {
-		g_p_net_device_table_mgr = new net_device_table_mgr();
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (g_p_net_device_table_mgr == NULL) {
-			vlog_printf(VLOG_PANIC, "Failed allocate net_device_table_mgr");
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-	}
-
-	if (!g_p_rule_table_mgr) {
-		g_p_rule_table_mgr = new rule_table_mgr();
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (g_p_rule_table_mgr == NULL) {
-			vlog_printf(VLOG_PANIC, "Failed allocate rule_table_mgr");
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-	}
-	
-	if (!g_p_route_table_mgr) {
-		g_p_route_table_mgr = new route_table_mgr();
-
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (g_p_route_table_mgr == NULL) {
-			vlog_printf(VLOG_PANIC, "Failed allocate route_table_mgr");
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-	}
-
-	if(g_p_igmp_mgr == NULL) {
-		g_p_igmp_mgr = new igmp_mgr();
-		BULLSEYE_EXCLUDE_BLOCK_START
-                if (g_p_igmp_mgr == NULL) {
-                	vlog_printf(VLOG_PANIC, "Failed allocate igmp_mgr");
-                }
-		BULLSEYE_EXCLUDE_BLOCK_END
-        }
+	NEW_CTOR(neigh_table_mgr);
+	NEW_CTOR(net_device_table_mgr); // net_device should be initialized after event_handler and before buffer pool and g_p_neigh_table_mgr.
+	NEW_CTOR(rule_table_mgr);
+	NEW_CTOR(route_table_mgr);
+	NEW_CTOR(igmp_mgr);
 
  	if (!g_buffer_pool_rx)
 		g_buffer_pool_rx = new buffer_pool(mce_sys.rx_num_bufs, RX_BUF_SIZE(g_p_net_device_table_mgr->get_max_mtu()), NULL, NULL, buffer_pool::free_rx_lwip_pbuf_custom);
@@ -1516,27 +1608,23 @@ void do_global_ctors()
 	if (!g_p_lwip)
 		g_p_lwip = new vma_lwip();
 
-
 	if (g_p_netlink_handler) {
 		// Open netlink socket
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (g_p_netlink_handler->open_channel()) {
-			vlog_printf(VLOG_PANIC, "Failed in netlink open_channel()\n");
-			exit (1);
+			throw_vma_exception("Failed in netlink open_channel()\n");
 		}
 
 		int fd = g_p_netlink_handler->get_channel();
 		if(fd == -1) {
-			vlog_printf(VLOG_PANIC, "Netlink fd == -1\n");
-			exit(1);
+			throw_vma_exception("Netlink fd == -1\n");
 		}
 
 		// Register netlink fd to the event_manager
 		command_netlink * cmd_nl = NULL;
 		cmd_nl = new command_netlink(g_p_netlink_handler);
 		if (cmd_nl == NULL) {
-			vlog_printf(VLOG_PANIC,"Failed allocating command_netlink\n");
-			exit(1);
+			throw_vma_exception("Failed allocating command_netlink\n");
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		g_p_event_handler_manager->register_command_event(fd, cmd_nl);
@@ -1557,6 +1645,21 @@ void do_global_ctors()
 
 // 	neigh_test();
 //	igmp_test();
+}
+
+void do_global_ctors()
+{
+	try {
+		do_global_ctors_helper();
+	}
+	catch (const vma_exception& error) {
+		vlog_printf(VLOG_DEBUG, "Error: %s", error.what());
+		free_libvma_resources();
+	}
+	catch (const std::exception& error ) {
+		vlog_printf(VLOG_ERROR, "%s", error.what());
+		free_libvma_resources();
+	}
 }
 
 // checks that netserver runs with flags: -D, -f. Otherwise, warn user for wrong usage
@@ -1640,114 +1743,9 @@ extern "C" int main_init(void)
 
 	return 0;
 }
+
 //extern "C" int __attribute__((destructor)) sock_redirect_lib_load_destructor(void)
 extern "C" int main_destroy(void)
 {
-	vlog_printf(VLOG_DEBUG, "%s: Closing libvma resources\n", __FUNCTION__);
-
-	//Triggers connection close, relevant for TCP which may need some time to terminate the connection.
-	if (g_p_fd_collection) {
-		g_p_fd_collection->prepare_to_close();
-	}
-	g_b_exit = true;
-
-	usleep(50000);
-
-	//Handle pending received data, this is critical for proper TCP connection termination
-	if (g_p_net_device_table_mgr) {
-		g_p_net_device_table_mgr->global_ring_drain_and_procces();
-	}
-
-	if(g_p_igmp_mgr) {
-		igmp_mgr* g_p_igmp_mgr_tmp = g_p_igmp_mgr;
-		g_p_igmp_mgr = NULL;
-		delete g_p_igmp_mgr_tmp;
-		usleep(50000);
-	}
-
-	if (g_tcp_timers_collection) g_tcp_timers_collection->clean_obj();
-	g_tcp_timers_collection = NULL;
-
-	if (g_p_event_handler_manager)
-		g_p_event_handler_manager->stop_thread();
-	// Block all sock-redicrt API calls into our offloading core
-	fd_collection* g_p_fd_collection_temp = g_p_fd_collection;
-	g_p_fd_collection = NULL;
-	if (g_p_fd_collection_temp) delete g_p_fd_collection_temp;
-
-	usleep(50000);
-
-	if (g_p_route_table_mgr) delete g_p_route_table_mgr;
-	g_p_route_table_mgr = NULL;
-
-	if (g_p_rule_table_mgr) delete g_p_rule_table_mgr;
-	g_p_rule_table_mgr = NULL;
-	
-	//if(g_p_net_device_table_mgr) delete g_p_net_device_table_mgr;
-	//g_p_net_device_table_mgr = NULL;
-
-	/*TODO: Need to handle this as part of  clean exit and destruction of all VMA data structures
-	 * 	if (g_p_lwip) delete g_p_lwip;
-	 *	g_p_lwip = NULL;
-	 */
-
-// XXX YossiE later- unite all stats to mux_stats
-#if 0
-	// Print select() related stat counters (only if we got some calls to select)
-	if (g_p_socket_select_stats != NULL) {
-		if (g_p_socket_select_stats->n_select_os_rx_ready || g_p_socket_select_stats->n_select_rx_ready)
-			vlog_printf(VLOG_DEBUG, "select() Rx fds ready: %d / %d [os/offload]\n", g_p_socket_select_stats->n_select_os_rx_ready, g_p_socket_select_stats->n_select_rx_ready);
-		if (g_p_socket_select_stats->n_select_timeouts || g_p_socket_select_stats->n_select_errors)
-			vlog_printf(VLOG_DEBUG, "select() : %d / %d [timeouts/errors]\n", g_p_socket_select_stats->n_select_timeouts, g_p_socket_select_stats->n_select_errors);
-		if (g_p_socket_select_stats->n_select_poll_miss + g_p_socket_select_stats->n_select_poll_hit) {
-			float select_poll_hit_percentage = (float)(g_p_socket_select_stats->n_select_poll_hit * 100) / (float)(g_p_socket_select_stats->n_select_poll_miss + g_p_socket_select_stats->n_select_poll_hit);
-			vlog_printf(VLOG_DEBUG, "select() poll: %d / %d (%2.2f%%) [miss/hit]\n", g_p_socket_select_stats->n_select_poll_miss, g_p_socket_select_stats->n_select_poll_hit, select_poll_hit_percentage);
-		}
-	}
-
-	// Print epoll() related stat counters (only if we got some calls to epoll)
-	if (g_p_socket_epoll_stats != NULL) {
-		if (g_p_socket_epoll_stats->n_select_os_rx_ready || g_p_socket_epoll_stats->n_select_rx_ready)
-			vlog_printf(VLOG_DEBUG, "epoll() Rx fds ready: %d / %d [os/offload]\n", g_p_socket_epoll_stats->n_select_os_rx_ready, g_p_socket_epoll_stats->n_select_rx_ready);
-		if (g_p_socket_epoll_stats->n_select_timeouts || g_p_socket_epoll_stats->n_select_errors)
-			vlog_printf(VLOG_DEBUG, "epoll() : %d / %d [timeouts/errors]\n", g_p_socket_epoll_stats->n_select_timeouts, g_p_socket_epoll_stats->n_select_errors);
-		if (g_p_socket_epoll_stats->n_select_poll_miss + g_p_socket_epoll_stats->n_select_poll_hit) {
-			float epoll_poll_hit_percentage = (float)(g_p_socket_epoll_stats->n_select_poll_hit * 100) / (float)(g_p_socket_epoll_stats->n_select_poll_miss + g_p_socket_epoll_stats->n_select_poll_hit);
-			vlog_printf(VLOG_DEBUG, "epoll() poll: %d / %d (%2.2f%%) [miss/hit]\n", g_p_socket_epoll_stats->n_select_poll_miss, g_p_socket_epoll_stats->n_select_poll_hit, epoll_poll_hit_percentage);
-		}
-	}
-#endif
-
-	ip_frag_manager* g_p_ip_frag_manager_temp = g_p_ip_frag_manager;
-	g_p_ip_frag_manager = NULL;
-	if (g_p_ip_frag_manager_temp) delete g_p_ip_frag_manager_temp;
-	
-	if (g_tcp_seg_pool) delete g_tcp_seg_pool;
-	g_tcp_seg_pool = NULL;
-
-	if (g_buffer_pool_tx) delete g_buffer_pool_tx;
-	g_buffer_pool_tx = NULL;
-
-	if (g_buffer_pool_rx) delete g_buffer_pool_rx;
-	g_buffer_pool_rx = NULL;
-
-	if (g_p_vlogger_timer_handler) delete g_p_vlogger_timer_handler;
-	g_p_vlogger_timer_handler = NULL;
-	
-	if (g_p_event_handler_manager) delete g_p_event_handler_manager;
-	g_p_event_handler_manager = NULL;
-
-	vlog_printf(VLOG_DEBUG, "Stopping logger module\n");
-
-	sock_redirect_exit();
-
-	vlog_stop();
-
-	if (g_stats_file) {
-		//cosmetics - remove when adding iomux block
-		fprintf(g_stats_file, "======================================================\n");
-		fclose (g_stats_file);
-	}
-
-	return 0;
+	return free_libvma_resources();
 }

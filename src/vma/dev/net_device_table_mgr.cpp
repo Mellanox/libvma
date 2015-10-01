@@ -63,18 +63,28 @@ net_device_table_mgr::net_device_table_mgr() : cache_table_mgr<ip_address,net_de
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_global_ring_epfd == -1) {
-		ndtm_logpanic("epoll_create failed. (errno=%d %m)", errno);
+		ndtm_logerr("epoll_create failed. (errno=%d %m)", errno);
+		free_ndtm_resources(); 
+		throw_vma_exception("epoll_create failed"); 
 	}
 
 	if (orig_os_api.pipe(m_global_ring_pipe_fds)) {
-		ndtm_logpanic("pipe create failed. (errno=%d %m)", errno);
+		ndtm_logerr("pipe create failed. (errno=%d %m)", errno);
+		free_ndtm_resources();
+		throw_vma_exception("pipe creation failed");
 	}
 	if (orig_os_api.write(m_global_ring_pipe_fds[1], "#", 1) != 1) {
-		ndtm_logpanic("pipe write failed. (errno=%d %m)", errno);
+		ndtm_logerr("pipe write failed. (errno=%d %m)", errno);
+		free_ndtm_resources();
+		throw_vma_exception("pipe write failed");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	map_net_devices();
+	if (map_net_devices()) {
+		ndtm_logdbg("map_net_devices failed");
+		free_ndtm_resources();
+		throw_vma_exception("mapping network devices failed");
+	}
 
 	if (mce_sys.progress_engine_interval_msec != MCE_CQ_DRAIN_INTERVAL_DISABLED && mce_sys.progress_engine_wce_max != 0) {
 		ndtm_logdbg("registering timer for ring draining with %d msec intervales", mce_sys.progress_engine_interval_msec);
@@ -87,7 +97,7 @@ net_device_table_mgr::net_device_table_mgr() : cache_table_mgr<ip_address,net_de
 	}
 }
 
-net_device_table_mgr::~net_device_table_mgr()
+void net_device_table_mgr::free_ndtm_resources()
 {
 	m_lock.lock();
 
@@ -106,19 +116,25 @@ net_device_table_mgr::~net_device_table_mgr()
 	}
 	m_lock.unlock();
 
-	if (m_p_cma_event_channel == NULL) {
+	if (m_p_cma_event_channel != NULL) {
 		rdma_destroy_event_channel(m_p_cma_event_channel);
 		m_p_cma_event_channel = NULL;
 	}
 }
 
-void net_device_table_mgr::map_net_devices()
+net_device_table_mgr::~net_device_table_mgr()
+{
+	free_ndtm_resources();
+}
+
+int net_device_table_mgr::map_net_devices()
 {
 	struct ifaddrs *ifaddr, *ifa;
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (getifaddrs(&ifaddr) == -1) {
-		// log perror("getifaddrs");
+		ndtm_logerr("getifaddrs() failed (errno = %d %m)", errno); 
+		return -1;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
@@ -225,7 +241,10 @@ void net_device_table_mgr::map_net_devices()
 		}
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (!p_net_device_val) {
-			ndtm_logpanic("failed allocating new net_device!");
+			ndtm_logerr("failed allocating new net_device (errno=%d %m)", errno);
+			m_lock.unlock();
+			freeifaddrs(ifaddr);
+			return -1;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		p_net_device_val->configure(ifa, cma_id);
@@ -246,6 +265,8 @@ void net_device_table_mgr::map_net_devices()
 	} //for
 
 	freeifaddrs(ifaddr);
+
+	return 0;
 }
 
 // Verify IPoIB is in 'datagram mode' for proper VMA with flow steering operation
