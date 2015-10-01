@@ -113,7 +113,7 @@ bool ib_ctx_handler::sync_clocks(struct timespec* st, uint64_t* hw_clock, bool i
 		clock_gettime(CLOCK_REALTIME, &st1);
 		if ((rval = ibv_exp_query_values(m_p_ibv_context,IBV_EXP_VALUES_HW_CLOCK, &queried_values)) || !queried_values.hwclock) {
 			if (init) {
-				ibch_logwarn("Error in querying hw clock, can't convert hw time to system time (ibv_exp_query_values() "
+				ibch_logdbg("Error in querying hw clock, can't convert hw time to system time (ibv_exp_query_values() "
 						"return value=%d ) (ibv context %p) (errno=%d %m)", rval, m_p_ibv_context, errno);
 			}
 			return false;
@@ -146,7 +146,7 @@ void ib_ctx_handler::load_timestamp_params(bool init = false){
 
 		if ((rval = ibv_exp_query_device(m_p_ibv_context ,&device_attr)) || !device_attr.hca_core_clock) {
 			if (init) {
-				ibch_logwarn("Error in querying hca core clock (ibv_exp_query_device() return value=%d ) (ibv context %p) "
+				ibch_logdbg("Error in querying hca core clock (ibv_exp_query_device() return value=%d ) (ibv context %p) "
 						"(errno=%d %m)", rval, m_p_ibv_context, errno);
 			}
 			return;
