@@ -1,4 +1,5 @@
-AM_CFLAGS = -Wall -g#-O3
+AM_CFLAGS = -Wall -g -fPIC#-O3
+AM_CXXFLAGS = -Wall -g -fPIC#-O3
 
 lib_LTLIBRARIES = libstate_machine.la
 libstate_machine_la_LDFLAGS = -static

@@ -1,4 +1,5 @@
-AM_CFLAGS = -Wall -g#-O3
+AM_CFLAGS = -Wall -g -fPIC#-O3
+AM_CXXFLAGS = -Wall -g -fPIC#-O3
 
 INCLUDES := -I$(top_builddir)/src
 
