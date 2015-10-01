@@ -85,7 +85,6 @@ int priv_ibv_query_qp_state(struct ibv_qp *qp);
 #define vma_ibv_query_device(context, attr)	ibv_query_device(context, attr)
 typedef struct ibv_device_attr			vma_ibv_device_attr;
 #define vma_ibv_device_attr_comp_mask(attr)	NOT_IN_USE(attr)
-#define vma_is_rx_csum_supported(attr)		0
 //ibv_modify_qp
 #define vma_ibv_modify_qp(qp, attr, mask)	ibv_modify_qp(qp, attr, mask)
 typedef struct ibv_qp_attr			vma_ibv_qp_attr;
@@ -95,7 +94,14 @@ typedef struct ibv_wc				vma_ibv_wc;
 #define vma_wc_flags(wc)			(wc).wc_flags
 #define vma_wc_opcode(wc)			(wc).opcode
 #define VMA_IBV_WC_RECV				IBV_WC_RECV
+//csum offload
+#ifdef DEFINED_IBV_DEVICE_RAW_IP_CSUM
+#define vma_is_rx_csum_supported(attr)		((attr).device_cap_flags & (IBV_DEVICE_RAW_IP_CSUM | IBV_DEVICE_UD_IP_CSUM))
+#define vma_wc_rx_csum_ok(wc)			(vma_wc_flags(wc) & IBV_WC_IP_CSUM_OK)
+#else
+#define vma_is_rx_csum_supported(attr)		0
 #define vma_wc_rx_csum_ok(wc)			(1)
+#endif
 
 typedef int            vma_ibv_cq_init_attr;
 #define vma_ibv_create_cq(context, cqe, cq_context, channel, comp_vector, attr) ibv_create_cq(context, cqe, cq_context, channel, comp_vector)
