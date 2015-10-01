@@ -13,7 +13,8 @@ LEX_OUTPUT_ROOT=lex.libvma_yy
 BUILT_SOURCES = config_parser.h
 
 sysconf_DATA = util/libvma.conf
-include_HEADERS = vma_extra.h
+otherincludedir = $(includedir)/mellanox
+otherinclude_HEADERS = vma_extra.h
 
 install-exec-hook:
 	rm -f $(DESTDIR)$(libdir)/libvma.la
@@ -22,8 +23,6 @@ install-exec-hook:
 	rm -f $(DESTDIR)$(libdir)/libvlogger.*
 	rm -f $(DESTDIR)$(bindir)/state_machine_test
 	rm -f $(DESTDIR)$(bindir)/vlogger_test
-	install -d $(sysconfdir)/ld.so.conf.d
-	echo "$(libdir)" > $(sysconfdir)/ld.so.conf.d/libvma.conf
 	if [[ `id -u` -eq 0 ]];then /sbin/ldconfig;fi
 
 uninstall-hook:
