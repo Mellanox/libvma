@@ -481,9 +481,11 @@ int fd_collection::del_sockfd(int fd, bool b_cleanup /*=false*/)
 			//Delete it from fd_col and add it to pending_to_remove list.
 			//This socket will be handled and destroyed now by fd_col.
 			//This will be done from fd_col timer handler.
-			m_p_sockfd_map[fd] = NULL;
-			m_pendig_to_remove_lst.push_front(p_sfd_api);				
-			
+			if (m_p_sockfd_map[fd] == p_sfd_api) {
+				m_p_sockfd_map[fd] = NULL;
+				m_pendig_to_remove_lst.push_front(p_sfd_api);
+			}
+
 			if (m_pendig_to_remove_lst.size() == 1) {
 				//Activate timer
 				m_timer_handle = g_p_event_handler_manager->register_timer_event(250, this, PERIODIC_TIMER, 0);

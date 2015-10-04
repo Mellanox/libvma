@@ -138,6 +138,9 @@ sockinfo_tcp::~sockinfo_tcp()
 	}
 
 	lock_tcp_con();
+
+	do_wakeup();
+
 	destructor_helper();
 
 	if (m_tcp_seg_in_use) {
@@ -320,6 +323,8 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 	if (get_tcp_state(&m_pcb) != LISTEN) {
 		handle_socket_linger();
 	}
+
+	do_wakeup();
 
 	unlock_tcp_con();
 
@@ -1985,6 +1990,7 @@ int sockinfo_tcp::listen(int backlog)
 		si_tcp_logdbg("sock state = %d", get_tcp_state(&m_pcb));
 	}
 	else {
+		/* we will get here if attach_as_uc_receiver failed */
 		si_tcp_logdbg("Fallback the connection to os");
 		setPassthrough();
 		unlock_tcp_con();
@@ -2059,7 +2065,7 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 
 	si_tcp_logdbg("sock state = %d", get_tcp_state(&m_pcb));
 	while (m_ready_conn_cnt == 0 && !g_b_exit) {
-		if (m_sock_state == TCP_SOCK_ACCEPT_SHUT) {
+		if (m_sock_state != TCP_SOCK_ACCEPT_READY) {
 			unlock_tcp_con();
 			errno = EINVAL;
 			return -1;
@@ -2253,6 +2259,8 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 
 	new_sock->m_parent = NULL;
 
+	/* if attach failed, we should continue getting traffic through the listen socket */
+	// todo register as 3-tuple rule for the case the listener is gone?
 	new_sock->attach_as_uc_receiver(role_t (NULL), true);
 
 	if (new_sock->m_rx_ring_map.size() == 1) {
