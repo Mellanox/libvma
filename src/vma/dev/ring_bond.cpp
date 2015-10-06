@@ -187,7 +187,10 @@ int ring_bond::get_max_tx_inline()
 int ring_bond::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array /*NULL*/) {
 	int ret = 0;
 	int temp = 0;
-	m_lock_ring_rx.lock();
+	if (m_lock_ring_rx.trylock()) {
+		errno = EBUSY;
+		return 0;
+	}
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
 		if (m_bond_rings[i]->is_up()) {
 			//TODO consider returning immediately after finding something, continue next time from next ring
@@ -208,9 +211,15 @@ int ring_bond::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_r
 int ring_bond::drain_and_proccess(cq_type_t cq_type)
 {
 	if (likely(CQT_RX == cq_type)) {
-		m_lock_ring_rx.lock();
+		if (m_lock_ring_rx.trylock()) {
+			errno = EBUSY;
+			return 0;
+		}
 	} else {
-		m_lock_ring_tx.lock();
+		if (m_lock_ring_tx.trylock()) {
+			errno = EBUSY;
+			return 0;
+		}
 	}
 	int ret = 0;
 	int temp = 0;
@@ -237,7 +246,10 @@ int ring_bond::drain_and_proccess(cq_type_t cq_type)
 int ring_bond::wait_for_notification_and_process_element(cq_type_t cq_type, int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array /*NULL*/) {
 	int ret = 0;
 	int temp = 0;
-	m_lock_ring_rx.lock();
+	if(m_lock_ring_rx.trylock()) {
+		errno = EBUSY;
+		return -1;
+	}
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
 		if (m_bond_rings[i]->is_up()) {
 			temp = m_bond_rings[i]->wait_for_notification_and_process_element(cq_type, cq_channel_fd, p_cq_poll_sn, pv_fd_ready_array);
@@ -256,11 +268,17 @@ int ring_bond::wait_for_notification_and_process_element(cq_type_t cq_type, int 
 
 int ring_bond::request_notification(cq_type_t cq_type, uint64_t poll_sn)
 {
-	if (likely(CQT_RX == cq_type))
-		m_lock_ring_rx.lock();
-	else
-		m_lock_ring_tx.lock();
-
+	if (likely(CQT_RX == cq_type)) {
+		if (m_lock_ring_rx.trylock()) {
+			errno = EBUSY;
+			return 1;
+		}
+	} else {
+		if (m_lock_ring_tx.trylock()) {
+			errno = EBUSY;
+			return 1;
+		}
+	}
 	int ret = 0;
 	int temp;
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
