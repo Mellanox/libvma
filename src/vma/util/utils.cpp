@@ -405,7 +405,7 @@ int get_ifaddr_len_from_ifname(const char* ifname)
     #pragma BullseyeCoverage on
 #endif
 
-int get_if_mtu_from_ifname(const char* ifname, bool use_base_if)
+int get_if_mtu_from_ifname(const char* ifname)
 {
 	__log_func("find interface mtu for ifname '%s'", ifname);
 
@@ -414,18 +414,19 @@ int get_if_mtu_from_ifname(const char* ifname, bool use_base_if)
 	char base_ifname[32];
 	int if_mtu_value = 0;
 
-	if (use_base_if) {
-		get_base_interface_name(ifname, base_ifname, sizeof(base_ifname));
-		sprintf(if_mtu_len_filename, IFADDR_MTU_PARAM_FILE, base_ifname);
-	} else {
-		sprintf(if_mtu_len_filename, IFADDR_MTU_PARAM_FILE, ifname);
-	}
+	/* initially try reading MTU from ifname. In case of failure (expected in alias ifnames) - try reading MTU from base ifname */
+	sprintf(if_mtu_len_filename, IFADDR_MTU_PARAM_FILE, ifname);
 
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (priv_read_file(if_mtu_len_filename, if_mtu_value_str, sizeof(if_mtu_value_str)) > 0) {
+	if (priv_try_read_file(if_mtu_len_filename, if_mtu_value_str, sizeof(if_mtu_value_str)) > 0) {
 		if_mtu_value = atoi(if_mtu_value_str);
 	}
-	BULLSEYE_EXCLUDE_BLOCK_END
+	else {
+		get_base_interface_name(ifname, base_ifname, sizeof(base_ifname));
+		sprintf(if_mtu_len_filename, IFADDR_MTU_PARAM_FILE, base_ifname);
+		if (priv_try_read_file(if_mtu_len_filename, if_mtu_value_str, sizeof(if_mtu_value_str)) > 0) {
+			if_mtu_value = atoi(if_mtu_value_str);
+		}
+	}
 	return if_mtu_value;
 }
 

@@ -200,7 +200,7 @@ int get_ifaddr_len_from_ifname(const char* ifname);
  *  should be of size IFNAMSIZ
  * @return mtu length zero on failure
  */
-int get_if_mtu_from_ifname(const char* ifname, bool use_base_if);
+int get_if_mtu_from_ifname(const char* ifname);
 
 /**
  * Get the OS max IGMP membership per socket.
