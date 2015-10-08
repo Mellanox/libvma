@@ -57,7 +57,7 @@ poll_call::poll_call(int *off_rfds_buffer, offloaded_mode_t *off_modes_buffer, i
   					off_mode = (offloaded_mode_t)(off_mode | OFF_WRITE);
 
   				if (off_mode) {
-					__log_dbg("---> fd=%d IS SET for read or write!", fd);
+					__log_func("---> fd=%d IS SET for read or write!", fd);
 					m_lookup_buffer[m_num_all_offloaded_fds] = i;
 					m_p_all_offloaded_fds[m_num_all_offloaded_fds] = fd;
 					m_p_offloaded_modes[m_num_all_offloaded_fds] = off_mode;
@@ -72,7 +72,7 @@ poll_call::poll_call(int *off_rfds_buffer, offloaded_mode_t *off_modes_buffer, i
 					}
 
 					if (temp_sock_fd_api->skip_os_select()) {
-						__log_dbg("fd=%d must be skipped from os r poll()", fd);
+						__log_func("fd=%d must be skipped from os r poll()", fd);
 						 m_fds[i].fd = -1;
 					} else if (m_orig_fds[i].events & POLLIN){
 						if(temp_sock_fd_api->is_readable(NULL)){
@@ -92,7 +92,7 @@ poll_call::poll_call(int *off_rfds_buffer, offloaded_mode_t *off_modes_buffer, i
 	//TODO: No need to have two arrays m_fds and m_orig_fds in case there is no offloaded sockets
 	if(! m_num_all_offloaded_fds)
 		m_fds = m_orig_fds;
-	__log_dbg("num all offloaded_fds=%d", m_num_all_offloaded_fds);
+	__log_func("num all offloaded_fds=%d", m_num_all_offloaded_fds);
 }
 
 void poll_call::prepare_to_poll()

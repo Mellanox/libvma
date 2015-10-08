@@ -73,7 +73,7 @@ select_call::select_call(int *off_fds_buffer, offloaded_mode_t *off_modes_buffer
 				if (check_write) off_mode = (offloaded_mode_t)(off_mode | OFF_WRITE);
 
 				if (off_mode) {
-					__log_dbg("---> fd=%d IS SET for read or write!", fd);
+					__log_func("---> fd=%d IS SET for read or write!", fd);
 
 					m_p_all_offloaded_fds[m_num_all_offloaded_fds] = fd;
 					m_p_offloaded_modes[m_num_all_offloaded_fds] = off_mode;
@@ -96,7 +96,7 @@ select_call::select_call(int *off_fds_buffer, offloaded_mode_t *off_modes_buffer
 						}
 					}
 					else
-						__log_dbg("fd=%d must be skipped from os r select()", fd);
+						__log_func("fd=%d must be skipped from os r select()", fd);
 
 				}
 			}
@@ -111,7 +111,7 @@ select_call::select_call(int *off_fds_buffer, offloaded_mode_t *off_modes_buffer
 
 		}
 	}
-	__log_dbg("num all offloaded_fds=%d", m_num_all_offloaded_fds);
+	__log_func("num all offloaded_fds=%d", m_num_all_offloaded_fds);
 
 
 #if 0 //older code

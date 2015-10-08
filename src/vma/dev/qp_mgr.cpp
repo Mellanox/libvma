@@ -511,7 +511,7 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 		vma_send_wr_send_flags(*p_send_wqe) = (vma_ibv_send_flags)(vma_send_wr_send_flags(*p_send_wqe) & ~VMA_IBV_SEND_SIGNALED);
 
 		// Poll the Tx CQ
-		uint64_t dummy_poll_sn;
+		uint64_t dummy_poll_sn = 0;
 		m_n_tx_count = 0;
 		ret = m_p_cq_mgr_tx->poll_and_process_element_tx(&dummy_poll_sn);
 		BULLSEYE_EXCLUDE_BLOCK_START

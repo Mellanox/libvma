@@ -198,6 +198,8 @@ void cq_mgr::add_qp_rx(qp_mgr* qp)
 
 	m_p_cq_stat->n_rx_drained_at_once_max = 0;
 
+	/* return_extra_buffers(); */ //todo??
+
 	// Initial fill of receiver work requests
 	uint32_t qp_rx_wr_num = qp->get_rx_max_wr_num();
 	cq_logdbg("Trying to push %d WRE to allocated qp (%p)", qp_rx_wr_num, qp);
@@ -207,8 +209,8 @@ void cq_mgr::add_qp_rx(qp_mgr* qp)
 			n_num_mem_bufs = qp_rx_wr_num;
 		p_temp_desc_list = g_buffer_pool_rx->get_buffers_thread_safe(n_num_mem_bufs, m_p_ib_ctx_handler);
 		if (p_temp_desc_list == NULL) {
-			cq_logwarn("Out of mem_buf_desc from Rx buffer pool for qp_mgr qp_mgr initialization (qp=%p)", qp);
-			cq_logwarn("This might happen due to wrong setting of VMA_RX_BUFS and VMA_RX_WRE. Please refer to README.txt for more info");
+			cq_logdbg("WARNING Out of mem_buf_desc from Rx buffer pool for qp_mgr qp_mgr initialization (qp=%p)", qp);
+			cq_logdbg("WARNING This might happen due to wrong setting of VMA_RX_BUFS and VMA_RX_WRE. Please refer to README.txt for more info");
 			break;
 		}
 
@@ -581,12 +583,13 @@ void cq_mgr::process_tx_buffer_list(mem_buf_desc_t* p_mem_buf_desc)
 {
 	// Assume locked!!!
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (p_mem_buf_desc && p_mem_buf_desc->p_desc_owner == m_p_ring) {
-		p_mem_buf_desc->p_desc_owner->mem_buf_desc_return_to_owner_tx(p_mem_buf_desc);
+	if (p_mem_buf_desc && (p_mem_buf_desc->p_desc_owner == m_p_ring /*|| m_p_ring->get_parent()->is_member(p_mem_buf_desc->p_desc_owner)*/)) {
+		m_p_ring->mem_buf_desc_return_to_owner_tx(p_mem_buf_desc);
+		/* if decided to free buffers of another ring here, need to modify return_to_owner to check owner and return to gpool. */
 	}
 	else if (p_mem_buf_desc && m_p_ring->get_parent()->is_member(p_mem_buf_desc->p_desc_owner)) {
-		cq_logdbg("got buffer of wrong owner, high-availability event? buf=%p, owner=%p", p_mem_buf_desc, p_mem_buf_desc ? p_mem_buf_desc->p_desc_owner : NULL);
-		g_buffer_pool_tx->put_buffers_thread_safe(p_mem_buf_desc);
+		cq_logerr("got buffer of wrong owner, high-availability event? buf=%p, owner=%p", p_mem_buf_desc, p_mem_buf_desc ? p_mem_buf_desc->p_desc_owner : NULL);
+		/* if decided to free buffers here, remember its a list and need to deref members. */
 		//p_mem_buf_desc->p_desc_owner->mem_buf_desc_return_to_owner_tx(p_mem_buf_desc); /* this can cause a deadlock between rings, use trylock? */
 	} else {
 		cq_logerr("got buffer of wrong owner, buf=%p, owner=%p", p_mem_buf_desc, p_mem_buf_desc ? p_mem_buf_desc->p_desc_owner : NULL);

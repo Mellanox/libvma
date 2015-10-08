@@ -172,10 +172,14 @@ void ring_bond::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe,
 void ring_bond::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block)
 {
 	ring_simple* active_ring = m_active_rings[id];
-	if (likely(active_ring)) {
+	if (unlikely(!active_ring)) {
+		active_ring = m_bond_rings[id];
+	}
+	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
+	if (likely(p_mem_buf_desc->p_desc_owner == active_ring)) {
 		active_ring->send_lwip_buffer(id, p_send_wqe, b_block);
 	} else {
-		m_bond_rings[id]->send_lwip_buffer(id, p_send_wqe, b_block);
+		ring_logdbg("silent packet drop (%p), ring ID doesn't match buffer owner! (HA event?)", p_mem_buf_desc);
 	}
 }
 

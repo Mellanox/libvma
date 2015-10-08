@@ -912,7 +912,7 @@ void ring_simple::mem_buf_desc_completion_with_error_tx(mem_buf_desc_t* p_tx_wc_
 	else {
 		m_b_qp_tx_first_flushed_completion_handled = true; // This is true for all wr except for the first one which might point to already sent wr
 	}
-	m_tx_num_wr_free += mem_buf_tx_release(0, p_tx_wc_buf_desc, false);
+	m_tx_num_wr_free += mem_buf_tx_release(p_tx_wc_buf_desc, false, false);
 }
 
 void ring_simple::mem_buf_desc_return_to_owner_rx(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array /*NULL*/)
