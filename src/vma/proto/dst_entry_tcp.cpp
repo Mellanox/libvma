@@ -55,7 +55,7 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 	bool no_copy = true;
 	if (likely(sz_iov == 1 && !is_rexmit)) {
 		p_tcp_iov = (tcp_iovec*)p_iov;
-		if (unlikely(!m_p_ring->is_member(p_tcp_iov->p_desc->p_desc_owner))) {
+		if (unlikely(!m_p_ring->is_active_member(p_tcp_iov->p_desc->p_desc_owner, m_id))) {
 			no_copy = false;
 			dst_tcp_logdbg("p_desc=%p wrong desc_owner=%p, this ring=%p. did migration occurred?", p_tcp_iov->p_desc, p_tcp_iov->p_desc->p_desc_owner, m_p_ring);
 			//todo can we handle this in migration (by going over all buffers lwip hold) instead for every send?

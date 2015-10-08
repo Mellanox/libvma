@@ -1495,6 +1495,12 @@ void ring_simple::inc_ring_stats(ring_user_id_t id) {
 	m_p_ring_stat->n_tx_retransmits++;
 }
 
+bool ring_simple::is_active_member(mem_buf_desc_owner* rng, ring_user_id_t id)
+{
+	NOT_IN_USE(id);
+	return (this == rng);
+}
+
 bool ring_simple::is_member(mem_buf_desc_owner* rng) {
 	return (this == rng);
 }

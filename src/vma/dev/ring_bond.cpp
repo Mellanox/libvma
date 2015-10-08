@@ -162,10 +162,14 @@ void ring_bond::mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf
 void ring_bond::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block)
 {
 	ring_simple* active_ring = m_active_rings[id];
-	if (likely(active_ring)) {
+	if (unlikely(!active_ring)) {
+		active_ring = m_bond_rings[id];
+	}
+	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
+	if (likely(p_mem_buf_desc->p_desc_owner == active_ring)) {
 		active_ring->send_ring_buffer(id, p_send_wqe, b_block);
 	} else {
-		m_bond_rings[id]->send_ring_buffer(id, p_send_wqe, b_block);
+		ring_logdbg("silent packet drop (%p), ring ID doesn't match buffer owner! (HA event?)", p_mem_buf_desc);
 	}
 }
 
@@ -486,6 +490,11 @@ void ring_bond::update_rx_channel_fds() {
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
 		m_p_n_rx_channel_fds[i] = m_bond_rings[i]->get_rx_channel_fds()[0];
 	}
+}
+
+bool ring_bond::is_active_member(mem_buf_desc_owner* rng, ring_user_id_t id)
+{
+	return m_active_rings[id] == rng;
 }
 
 bool ring_bond::is_member(mem_buf_desc_owner* rng) {
