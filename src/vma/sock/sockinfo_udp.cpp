@@ -37,6 +37,7 @@
 #include "vma/iomux/io_mux_call.h"
 #include "vma/util/instrumentation.h"
 #include "vma/util/bullseye.h"
+#include "vma/dev/ib_ctx_handler_collection.h"
 
 #if DEFINED_MISSING_NET_TSTAMP
 enum {
@@ -510,7 +511,30 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 
 			case SO_TIMESTAMPING:
 				if (__optval) {
-					m_n_tsing_flags  = *(uint8_t*)__optval;
+					uint8_t val = *(uint8_t*)__optval;
+
+					// SOF_TIMESTAMPING_TX_SOFTWARE and SOF_TIMESTAMPING_TX_HARDWARE is NOT supported.
+					if (val & (SOF_TIMESTAMPING_TX_SOFTWARE | SOF_TIMESTAMPING_TX_HARDWARE)) {
+						errno = EOPNOTSUPP;
+						si_udp_logdbg("SOL_SOCKET, SOF_TIMESTAMPING_TX_SOFTWARE and SOF_TIMESTAMPING_TX_HARDWARE is not supported, errno set to EOPNOTSUPP");
+						return -1;
+					}
+
+					if (val & (SOF_TIMESTAMPING_RAW_HARDWARE | SOF_TIMESTAMPING_RX_HARDWARE)) {
+						if (g_p_ib_ctx_handler_collection->get_ctx_time_conversion_mode() == TS_CONVERSION_MODE_DISABLE){
+							if (mce_sys.rx_udp_hw_ts_conversion ==  TS_CONVERSION_MODE_DISABLE) {
+								errno = EPERM;
+								si_udp_logdbg("SOL_SOCKET, SOF_TIMESTAMPING_RAW_HARDWARE and SOF_TIMESTAMPING_RX_HARDWARE socket options were disabled (VMA_UDP_RX_HW_TS_CONVERSION = %d) , errno set to EPERM", TS_CONVERSION_MODE_DISABLE);
+								return -1;
+							} else {
+								errno = ENODEV;
+								si_udp_logdbg("SOL_SOCKET, SOF_TIMESTAMPING_RAW_HARDWARE and SOF_TIMESTAMPING_RX_HARDWARE is not supported by device(s), errno set to ENODEV");
+								return -1;
+							}
+						}
+					}
+
+					m_n_tsing_flags  = val;
 					si_udp_logdbg("SOL_SOCKET, SO_TIMESTAMPING=%u", m_n_tsing_flags);
 				}
 				break;

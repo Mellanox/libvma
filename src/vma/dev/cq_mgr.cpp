@@ -70,7 +70,11 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 	m_qp_rec.debth = 0;
 
 	vma_ibv_cq_init_attr attr;
-	init_vma_ibv_cq_init_attr(&attr);
+	memset(&attr, 0, sizeof(attr));
+
+	if (m_p_ib_ctx_handler->get_ctx_time_converter_status()) {
+		init_vma_ibv_cq_init_attr(&attr);
+	}
 
 	m_p_ibv_cq = vma_ibv_create_cq(m_p_ib_ctx_handler->get_ibv_context(), cq_size, (void*)this, m_comp_event_channel, 0, &attr);
 

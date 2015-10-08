@@ -617,6 +617,8 @@ void print_vma_global_settings()
 	else {
 		VLOG_PARAM_STRING("Rx UDP Poll OS Ratio", mce_sys.rx_udp_poll_os_ratio, MCE_DEFAULT_RX_UDP_POLL_OS_RATIO, SYS_VAR_RX_UDP_POLL_OS_RATIO, "Disabled");
 	}
+
+	VLOG_PARAM_NUMBER("Rx UDP HW TS Conversion", mce_sys.rx_udp_hw_ts_conversion, MCE_DEFAULT_RX_UDP_HW_TS_CONVERSION, SYS_VAR_RX_UDP_HW_TS_CONVERSION);
 	if (mce_sys.rx_poll_yield_loops) {
 		VLOG_PARAM_NUMBER("Rx Poll Yield", mce_sys.rx_poll_yield_loops, MCE_DEFAULT_RX_POLL_YIELD, SYS_VAR_RX_POLL_YIELD);
 	}
@@ -815,6 +817,7 @@ void get_env_params()
 	mce_sys.rx_poll_num             = MCE_DEFAULT_RX_NUM_POLLS;
 	mce_sys.rx_poll_num_init        = MCE_DEFAULT_RX_NUM_POLLS_INIT;
 	mce_sys.rx_udp_poll_os_ratio    = MCE_DEFAULT_RX_UDP_POLL_OS_RATIO;
+	mce_sys.rx_udp_hw_ts_conversion = MCE_DEFAULT_RX_UDP_HW_TS_CONVERSION;
 	mce_sys.rx_poll_yield_loops     = MCE_DEFAULT_RX_POLL_YIELD;
 	mce_sys.select_handle_cpu_usage_stats   = MCE_DEFAULT_SELECT_CPU_USAGE_STATS;
 	mce_sys.rx_ready_byte_min_limit = MCE_DEFAULT_RX_BYTE_MIN_LIMIT;
@@ -1079,6 +1082,14 @@ void get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_RX_UDP_POLL_OS_RATIO)) != NULL)
 		mce_sys.rx_udp_poll_os_ratio = (uint32_t)atoi(env_ptr);
+
+	if ((env_ptr = getenv(SYS_VAR_RX_UDP_HW_TS_CONVERSION)) != NULL) {
+		mce_sys.rx_udp_hw_ts_conversion = (ts_conversion_mode_t)atoi(env_ptr);
+		if ((uint32_t)mce_sys.rx_udp_hw_ts_conversion >= TS_CONVERSION_MODE_LAST) {
+			vlog_printf(VLOG_WARNING,"Rx UDP HW TS conversion size out of range [%d] (min=%d, max=%d). using default [%d]\n", mce_sys.rx_udp_hw_ts_conversion, TS_CONVERSION_MODE_DISABLE , TS_CONVERSION_MODE_LAST - 1, MCE_DEFAULT_RX_UDP_HW_TS_CONVERSION);
+			mce_sys.rx_udp_hw_ts_conversion = MCE_DEFAULT_RX_UDP_HW_TS_CONVERSION;
+		}
+	}
 
 	//The following 2 params were replaced by SYS_VAR_RX_UDP_POLL_OS_RATIO
 	if ((env_ptr = getenv(SYS_VAR_RX_POLL_OS_RATIO)) != NULL) {

@@ -30,8 +30,7 @@
 
 ib_ctx_handler_collection* g_p_ib_ctx_handler_collection = NULL;
 
-
-ib_ctx_handler_collection::ib_ctx_handler_collection() : m_n_num_devices(0)
+ib_ctx_handler_collection::ib_ctx_handler_collection() : m_n_num_devices(0), m_ctx_time_conversion_mode(TS_CONVERSION_MODE_DISABLE)
 {
 }
 
@@ -43,6 +42,10 @@ ib_ctx_handler_collection::~ib_ctx_handler_collection()
 		delete p_ib_ctx_handler;
 		m_ib_ctx_map.erase(ib_ctx_iter);
 	}
+}
+
+ts_conversion_mode_t ib_ctx_handler_collection::get_ctx_time_conversion_mode() {
+	return m_ctx_time_conversion_mode;
 }
 
 void ib_ctx_handler_collection::map_ib_devices() //return num_devices, can use rdma_get_devices()
@@ -58,9 +61,13 @@ void ib_ctx_handler_collection::map_ib_devices() //return num_devices, can use r
 		ibchc_logpanic("No RDMA capable devices found!");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
+
+	m_ctx_time_conversion_mode = ib_ctx_time_converter::get_devices_convertor_status(pp_ibv_context_list, m_n_num_devices);
+	ibchc_logdbg("TS converter status was set to %d", m_ctx_time_conversion_mode);
+
 	ibchc_logdbg("Mapping %d ibv devices", m_n_num_devices);
 	for (int i = 0; i < m_n_num_devices; i++) {
-		m_ib_ctx_map[pp_ibv_context_list[i]] = new ib_ctx_handler(pp_ibv_context_list[i]);
+		m_ib_ctx_map[pp_ibv_context_list[i]] = new ib_ctx_handler(pp_ibv_context_list[i], m_ctx_time_conversion_mode);
 	}
 
 	rdma_free_devices(pp_ibv_context_list);

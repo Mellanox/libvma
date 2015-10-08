@@ -51,6 +51,14 @@ typedef enum {
 	RING_LOGIC_LAST
 } ring_logic_t;
 
+typedef enum {
+	TS_CONVERSION_MODE_DISABLE = 0, // TS_CONVERSION_MODE_DISABLE must be the first enum
+	TS_CONVERSION_MODE_RAW,
+	TS_CONVERSION_MODE_BEST_POSSIBLE,
+	TS_CONVERSION_MODE_SYNC,
+	TS_CONVERSION_MODE_LAST
+} ts_conversion_mode_t;
+
 static inline bool is_ring_logic_valid(ring_logic_t logic)
 {
 	switch (logic) {
@@ -188,6 +196,7 @@ struct mce_sys_var {
 	int32_t		rx_poll_num;
 	int32_t		rx_poll_num_init;
 	uint32_t 	rx_udp_poll_os_ratio;
+	ts_conversion_mode_t	rx_udp_hw_ts_conversion;
 	uint32_t 	rx_poll_yield_loops;
 	uint32_t 	rx_skip_os_fd_check;
 	uint32_t 	rx_ready_byte_min_limit;
@@ -260,7 +269,6 @@ struct mce_sys_var {
 	sysctl_reader_t & sysctl_reader;
 };
 
-
 #define SYS_VAR_LOG_LEVEL				"VMA_TRACELEVEL"
 #define SYS_VAR_LOG_DETAILS				"VMA_LOG_DETAILS"
 #define SYS_VAR_LOG_FILENAME				"VMA_LOG_FILE"
@@ -294,6 +302,7 @@ struct mce_sys_var {
 #define SYS_VAR_RX_NUM_POLLS				"VMA_RX_POLL"
 #define SYS_VAR_RX_NUM_POLLS_INIT			"VMA_RX_POLL_INIT"
 #define SYS_VAR_RX_UDP_POLL_OS_RATIO			"VMA_RX_UDP_POLL_OS_RATIO"
+#define SYS_VAR_RX_UDP_HW_TS_CONVERSION		"VMA_RX_UDP_HW_TS_CONVERSION"
 // The following 2 params were replaced by VMA_RX_UDP_POLL_OS_RATIO
 #define SYS_VAR_RX_POLL_OS_RATIO                       "VMA_RX_POLL_OS_RATIO"
 #define SYS_VAR_RX_SKIP_OS                             "VMA_RX_SKIP_OS"
@@ -398,6 +407,7 @@ struct mce_sys_var {
 #define MCE_DEFAULT_RX_NUM_POLLS			(100000)
 #define MCE_DEFAULT_RX_NUM_POLLS_INIT			(0)
 #define MCE_DEFAULT_RX_UDP_POLL_OS_RATIO		(100)
+#define MCE_DEFAULT_RX_UDP_HW_TS_CONVERSION		(TS_CONVERSION_MODE_SYNC)
 #define MCE_DEFAULT_RX_POLL_YIELD			(0)
 #define MCE_DEFAULT_RX_BYTE_MIN_LIMIT			(65536)
 #define MCE_DEFAULT_RX_PREFETCH_BYTES			(256)

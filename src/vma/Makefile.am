@@ -59,6 +59,7 @@ libvma_la_SOURCES := \
 	dev/rfs_uc.cpp \
 	dev/rfs_uc_tcp_gro.cpp \
 	dev/rfs_mc.cpp \
+	dev/ib_ctx_time_converter.cpp \
 	dev/ib_ctx_handler.cpp \
 	dev/ib_ctx_handler_collection.cpp \
 	dev/net_device_val.cpp \

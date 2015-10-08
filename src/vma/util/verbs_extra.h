@@ -17,6 +17,7 @@
 #include <rdma/rdma_cma.h>
 #include <config.h>
 #include <infiniband/verbs.h>
+#include "vma/util/vtypes.h"
 #ifndef DEFINED_IBV_OLD_VERBS_MLX_OFED
 #include <infiniband/verbs_exp.h>
 #endif
@@ -106,11 +107,6 @@ typedef struct ibv_wc				vma_ibv_wc;
 typedef int            vma_ibv_cq_init_attr;
 #define vma_ibv_create_cq(context, cqe, cq_context, channel, comp_vector, attr) ibv_create_cq(context, cqe, cq_context, channel, comp_vector)
 
-static inline void init_vma_ibv_cq_init_attr(vma_ibv_cq_init_attr* attr)
-{
-	memset(attr, 0, sizeof(*attr));
-}
-
 //rx hw timestamp
 #define VMA_IBV_WC_WITH_TIMESTAMP              0
 #define vma_wc_timestamp(wc)			0
@@ -188,16 +184,6 @@ typedef struct ibv_exp_cq_init_attr           vma_ibv_cq_init_attr;
 #define vma_ibv_create_cq(context, cqe, cq_context, channel, comp_vector, attr) ibv_exp_create_cq(context, cqe, cq_context, channel, comp_vector, attr)
 
 //rx hw timestamp
-static inline void init_vma_ibv_cq_init_attr(vma_ibv_cq_init_attr* attr)
-{
-	memset(attr, 0, sizeof(*attr));
-
-#ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
-	attr->flags = IBV_EXP_CQ_TIMESTAMP;
-	attr->comp_mask = IBV_EXP_CQ_INIT_ATTR_FLAGS;
-#endif
-}
-
 #ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
 #define VMA_IBV_WC_WITH_TIMESTAMP              IBV_EXP_WC_WITH_TIMESTAMP
 #else
@@ -239,6 +225,16 @@ typedef struct ibv_exp_flow_spec_eth		vma_ibv_flow_spec_eth;
 typedef struct ibv_exp_flow_spec_ipv4		vma_ibv_flow_spec_ipv4;
 typedef struct ibv_exp_flow_spec_tcp_udp	vma_ibv_flow_spec_tcp_udp;
 #endif
+
+static inline void init_vma_ibv_cq_init_attr(vma_ibv_cq_init_attr* attr)
+{
+#ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
+		attr->flags = IBV_EXP_CQ_TIMESTAMP;
+		attr->comp_mask = IBV_EXP_CQ_INIT_ATTR_FLAGS;
+#else
+		NOT_IN_USE(attr);
+#endif
+}
 
 #ifdef DEFINED_IBV_FLOW_SPEC_IB
 static inline void ibv_flow_spec_ib_set_by_dst_gid(vma_ibv_flow_spec_ib* ib, uint8_t* dst_gid)

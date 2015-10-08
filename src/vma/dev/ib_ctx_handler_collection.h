@@ -32,10 +32,12 @@ public:
 	size_t          mem_reg_on_all_devices(void* addr, size_t length,
 			ibv_mr** mr_array, size_t mr_array_sz,
 			uint64_t access);
+	ts_conversion_mode_t    get_ctx_time_conversion_mode();
 
 private:
 	ib_context_map_t        m_ib_ctx_map;
 	int                     m_n_num_devices;
+	ts_conversion_mode_t    m_ctx_time_conversion_mode;
 };
 
 extern ib_ctx_handler_collection* g_p_ib_ctx_handler_collection;

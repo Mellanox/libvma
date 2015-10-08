@@ -136,6 +136,7 @@ Example:
  VMA DEBUG  : Rx Poll Loops                  100000                     [VMA_RX_POLL]
  VMA DEBUG  : Rx Poll Init Loops             0                          [VMA_RX_POLL_INIT]
  VMA DEBUG  : Rx UDP Poll OS Ratio           100                        [VMA_RX_UDP_POLL_OS_RATIO]
+ VMA DEBUG  : Rx UDP HW TS Conversion        3                          [VMA_RX_UDP_HW_TS_CONVERSION]
  VMA DEBUG  : Rx Poll Yield                  Disabled                   [VMA_RX_POLL_YIELD]
  VMA DEBUG  : Rx Prefetch Bytes              256                        [VMA_RX_PREFETCH_BYTES]
  VMA DEBUG  : Rx Prefetch Bytes Before Poll  0                          [VMA_RX_PREFETCH_BYTES_BEFORE_POLL]
@@ -423,6 +424,23 @@ This parameter replaces the two old parameters: VMA_RX_POLL_OS_RATIO and
 VMA_RX_SKIP_OS
 Disable with 0
 Default value is 100
+
+VMA_RX_UDP_HW_TS_CONVERSION
+The above param will define the udp hardware recive time stamp conversion method.
+Experimental verbs is required for converting the time stamp from hardware time (Hz) 
+to system time (seconds.nano_seconds). Hence, hardware support is not guaranteed.
+The value of VMA_RX_UDP_HW_TS_CONVERSION determined by all devices - i.e
+if the hardware of one device does not support the conversion, then it will
+be canceled for the other devices. 
+Disable with 0
+Raw HW time with 1            - only convert the time stamp to seconds.nano_seconds time
+                                units (or disable if hardware does not supports).
+Use best sync possible with 2 - Sync to system time, then Raw hardware time -
+                                disable if none of them are supported by hardware. 
+Sync to system time with 3    - convert the time stamp to seconds.nano_seconds time units.
+                                comparable to UDP recive software timestamp.
+                                disable if hardware does not supports.
+Default value 3
 
 VMA_RX_POLL_YIELD
 When an application is running with multiple threads, on a limited number of

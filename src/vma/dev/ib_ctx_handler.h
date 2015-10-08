@@ -15,29 +15,15 @@
 #define IB_CTX_HANDLER_H
 
 #include <infiniband/verbs.h>
-#include "vma/event/timer_handler.h"
 #include "vma/event/event_handler_ibverbs.h"
-
-class ctx_timestamping_params_t {
-public:
-
-	uint64_t                hca_core_clock;
-	uint64_t                sync_hw_clock;
-	struct timespec         sync_systime;
-	bool                    is_convertion_valid;
-
-	ctx_timestamping_params_t() : hca_core_clock(0), sync_hw_clock(0), is_convertion_valid(false) {
-		sync_systime.tv_sec = 0;
-		sync_systime.tv_nsec = 0;
-	}
-};
+#include "vma/dev/ib_ctx_time_converter.h"
 
 // client to event manager 'command' invoker (??)
 //
-class ib_ctx_handler : public event_handler_ibverbs, public timer_handler
+class ib_ctx_handler : public event_handler_ibverbs
 {
 public:
-	ib_ctx_handler(struct ibv_context* ctx);
+	ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx_time_converter_mode);
 	virtual ~ib_ctx_handler();
 	/*
 	 * on init or constructor:
@@ -55,9 +41,11 @@ public:
 	bool                    is_removed() { return m_removed;}
 	virtual void            handle_event_ibverbs_cb(void *ev_data, void *ctx);
 	void                    handle_event_DEVICE_FATAL();
+	ts_conversion_mode_t    get_ctx_time_converter_status();
 
-	void                    convert_hw_time_to_system_time(uint64_t packet_hw_time, struct timespec* packet_systime);
-	void                    handle_timer_expired(void* user_data);
+	inline void convert_hw_time_to_system_time(uint64_t packet_hw_time, struct timespec* packet_systime) {
+		ctx_time_converter.convert_hw_time_to_system_time(packet_hw_time, packet_systime);
+	}
 
 private:
 	struct ibv_context*     m_p_ibv_context;
@@ -78,13 +66,7 @@ private:
 	uint32_t                m_conf_attr_tx_max_inline;
 	uint32_t                m_conf_attr_tx_num_wre;
 
-	ctx_timestamping_params_t m_ctx_convert_parmeters[2];
-	int                     m_ctx_parmeters_id;
-	void*                   m_timer_handle;
-
-	void                    fix_hw_clock_deviation();
-	void                    load_timestamp_params(bool init);
-	bool                    sync_clocks(struct timespec* st, uint64_t* hw_clock, bool init);
+	ib_ctx_time_converter  ctx_time_converter;
 };
 
 #endif
