@@ -142,6 +142,8 @@ private:
 	void			destroy_frag_desc(ip_frag_desc_t *desc);
 
 	virtual void    	handle_timer_expired(void* user_data);
+
+	void			free_frag_resources(void);
 };
 
 extern ip_frag_manager * g_p_ip_frag_manager;

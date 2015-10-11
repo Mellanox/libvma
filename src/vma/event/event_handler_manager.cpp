@@ -68,7 +68,9 @@ void* event_handler_manager::register_timer_event(int timeout_msec, timer_handle
 	void* node = malloc(sizeof(struct timer_node_t)); 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!node) {
-		evh_logpanic("malloc failure");
+		evh_logdbg("malloc failure");
+		/* no resources to free before throwing exception from this method */
+		throw_vma_exception("malloc failure");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 	timer_node_t* timer_node = (timer_node_t*)node;
@@ -212,7 +214,9 @@ event_handler_manager::event_handler_manager() : m_reg_action_q_lock("reg_action
 	m_epfd = orig_os_api.epoll_create(INITIAL_EVENTS_NUM);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_epfd == -1) {
-		evh_logpanic("epoll_create failed on ibv device collection (errno=%d %m)", errno);
+		evh_logdbg("epoll_create failed on ibv device collection (errno=%d %m)", errno);
+		free_evh_resources();
+		throw_vma_exception_no_msg();
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
@@ -226,6 +230,11 @@ event_handler_manager::event_handler_manager() : m_reg_action_q_lock("reg_action
 }
 
 event_handler_manager::~event_handler_manager()
+{
+	free_evh_resources();
+}
+
+void event_handler_manager::free_evh_resources()
 {
 	evh_logfunc("");
 

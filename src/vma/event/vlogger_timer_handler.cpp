@@ -22,8 +22,10 @@ vlogger_timer_handler* g_p_vlogger_timer_handler = NULL;
 
 vlogger_timer_handler::vlogger_timer_handler():m_timer_handle(NULL)
 {	
-	if (g_p_event_handler_manager)
-		m_timer_handle = g_p_event_handler_manager->register_timer_event(UPDATE_VLOGGER_LEVELS_INTERVAL, this, PERIODIC_TIMER, 0);
+	if (g_p_event_handler_manager) {
+			/* failure in allocating m_timer_handle will result in throwing an exception by called methods */
+			m_timer_handle = g_p_event_handler_manager->register_timer_event(UPDATE_VLOGGER_LEVELS_INTERVAL, this, PERIODIC_TIMER, 0);
+		}
 }
 
 vlogger_timer_handler::~vlogger_timer_handler()

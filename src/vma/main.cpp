@@ -1527,12 +1527,12 @@ void igmp_test()
 }
 */
 
-#define NEW_CTOR(ctor) \
+#define NEW_CTOR(ptr, ctor) \
 do { \
-	if (!g_p_##ctor) { \
-		g_p_##ctor = new ctor(); \
+	if (!ptr) { \
+		ptr = new ctor; \
 		BULLSEYE_EXCLUDE_BLOCK_START \
-		if (g_p_##ctor == NULL) { \
+		if (ptr == NULL) { \
 			throw_vma_exception("Failed allocate " #ctor "\n"); \
 			return; \
 		} \
@@ -1557,52 +1557,42 @@ static void do_global_ctors_helper()
 		g_is_forked_child = false;
 
 	// Create all global managment objects
-	if (!g_p_event_handler_manager)
-		g_p_event_handler_manager = new event_handler_manager();
+	NEW_CTOR(g_p_event_handler_manager, event_handler_manager());
 
 	vma_shmem_stats_open(&g_p_vlogger_level, &g_p_vlogger_details);
 	*g_p_vlogger_level = g_vlogger_level;
 	*g_p_vlogger_details = g_vlogger_details;
 
-	  //Create new netlink listener
-	if (!g_p_netlink_handler) {
-		g_p_netlink_handler = new netlink_wrapper();
-	}
+	//Create new netlink listener
+	NEW_CTOR(g_p_netlink_handler, netlink_wrapper());
 
-        if (!g_p_ib_ctx_handler_collection) {
-                g_p_ib_ctx_handler_collection = new ib_ctx_handler_collection();
-        }
+	NEW_CTOR(g_p_ib_ctx_handler_collection, ib_ctx_handler_collection());
         g_p_ib_ctx_handler_collection->map_ib_devices();
 
-	NEW_CTOR(neigh_table_mgr);
-	NEW_CTOR(net_device_table_mgr); // net_device should be initialized after event_handler and before buffer pool and g_p_neigh_table_mgr.
-	NEW_CTOR(rule_table_mgr);
-	NEW_CTOR(route_table_mgr);
-	NEW_CTOR(igmp_mgr);
+	NEW_CTOR(g_p_neigh_table_mgr, neigh_table_mgr());
 
- 	if (!g_buffer_pool_rx)
-		g_buffer_pool_rx = new buffer_pool(mce_sys.rx_num_bufs, RX_BUF_SIZE(g_p_net_device_table_mgr->get_max_mtu()), NULL, NULL, buffer_pool::free_rx_lwip_pbuf_custom);
+	NEW_CTOR(g_p_net_device_table_mgr, net_device_table_mgr()); // net_device should be initialized after event_handler and before buffer pool and g_p_neigh_table_mgr.
+	NEW_CTOR(g_p_rule_table_mgr, rule_table_mgr());
+
+	NEW_CTOR(g_p_route_table_mgr, route_table_mgr());
+
+	NEW_CTOR(g_p_igmp_mgr, igmp_mgr());
+
+	NEW_CTOR(g_buffer_pool_rx, buffer_pool(mce_sys.rx_num_bufs, RX_BUF_SIZE(g_p_net_device_table_mgr->get_max_mtu()), NULL, NULL, buffer_pool::free_rx_lwip_pbuf_custom)); 	
  	g_buffer_pool_rx->set_RX_TX_for_stats(true);
 
- 	if (!g_buffer_pool_tx)
- 		g_buffer_pool_tx = new buffer_pool(mce_sys.tx_num_bufs, get_lwip_tcp_mss(g_p_net_device_table_mgr->get_max_mtu(), mce_sys.lwip_mss) + 92, NULL, NULL, buffer_pool::free_tx_lwip_pbuf_custom);
+ 	NEW_CTOR(g_buffer_pool_tx, buffer_pool(mce_sys.tx_num_bufs, get_lwip_tcp_mss(g_p_net_device_table_mgr->get_max_mtu(), mce_sys.lwip_mss) + 92, NULL, NULL, buffer_pool::free_tx_lwip_pbuf_custom));
  	g_buffer_pool_tx->set_RX_TX_for_stats(false);
 
- 	if (!g_tcp_seg_pool)
- 		g_tcp_seg_pool = new tcp_seg_pool(mce_sys.tx_num_segs_tcp);
+ 	NEW_CTOR(g_tcp_seg_pool,  tcp_seg_pool(mce_sys.tx_num_segs_tcp));
 
- 	if (!g_tcp_timers_collection)
- 		g_tcp_timers_collection = new tcp_timers_collection(mce_sys.tcp_timer_resolution_msec, mce_sys.timer_resolution_msec);
+ 	NEW_CTOR(g_tcp_timers_collection, tcp_timers_collection(mce_sys.tcp_timer_resolution_msec, mce_sys.timer_resolution_msec));
 
-	if (!g_p_vlogger_timer_handler)
-		g_p_vlogger_timer_handler = new vlogger_timer_handler();
+	NEW_CTOR(g_p_vlogger_timer_handler, vlogger_timer_handler()); 
 
-	if (!g_p_ip_frag_manager) {
-		g_p_ip_frag_manager = new ip_frag_manager();
-	}
+	NEW_CTOR(g_p_ip_frag_manager, ip_frag_manager());
 
-	if (!g_p_fd_collection)
-		g_p_fd_collection = new fd_collection();
+	NEW_CTOR(g_p_fd_collection, fd_collection());
 
 	if (check_if_regular_file (mce_sys.conf_filename))
 	{
@@ -1616,8 +1606,7 @@ static void do_global_ctors_helper()
 
 
 	// initialize LWIP tcp/ip stack
-	if (!g_p_lwip)
-		g_p_lwip = new vma_lwip();
+	NEW_CTOR(g_p_lwip, vma_lwip());
 
 	if (g_p_netlink_handler) {
 		// Open netlink socket

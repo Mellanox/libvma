@@ -76,7 +76,9 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 		else {
 			__log_info_dbg("Huge pages allocation passed successfully");
 			if (!register_memory(size, m_p_ib_ctx_h, access)) {
-				__log_info_panic("failed registering huge pages data memory block");
+				__log_info_dbg("failed registering huge pages data memory block");
+				free_bpool_resources();	
+				throw_vma_exception_no_msg();
 			}
 			break;
 		}
@@ -104,12 +106,16 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 		m_data_block = malloc(size);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (m_data_block == NULL) {
-			__log_info_panic("failed allocating data memory block (size=%d Kbytes) (errno=%d %m)",
+			__log_info_dbg("failed allocating data memory block (size=%d Kbytes) (errno=%d %m)",
 					size/1024, errno);
+			free_bpool_resources();
+			throw_vma_exception_no_msg();
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		if (!register_memory(size, m_p_ib_ctx_h, access)) {
-			__log_info_panic("failed registering data memory block");
+			__log_info_dbg("failed registering data memory block");
+			free_bpool_resources();
+			throw_vma_exception_no_msg();
 		}
 		break;
 	}
@@ -139,6 +145,11 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 }
 
 buffer_pool::~buffer_pool()
+{
+	free_bpool_resources();
+}
+
+void buffer_pool::free_bpool_resources()
 {
 	if (m_n_buffers == m_n_buffers_created) {
 		__log_info_func("count %lu, missing %lu", m_n_buffers, m_n_buffers_created-m_n_buffers);
@@ -239,14 +250,15 @@ bool buffer_pool::hugetlb_alloc(size_t sz_bytes)
 
 bool buffer_pool::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint64_t access)
 {
-
 	if (p_ib_ctx_h) {
 		ibv_mr *mr = p_ib_ctx_h->mem_reg(m_data_block, size, access);
 		if (mr == NULL){
 			if (m_data_block) {
 				__log_info_warn("Failed registering memory, This might happen due to low MTT entries. Please refer to README.txt for more info");
-				__log_info_panic("Failed registering memory block with device (ptr=%p size=%ld%s) (errno=%d %m)",
+				__log_info_dbg("Failed registering memory block with device (ptr=%p size=%ld%s) (errno=%d %m)",
 						m_data_block, size, errno);
+				free_bpool_resources();				
+				throw_vma_exception_no_msg();
 			} else {
 				__log_info_warn("Failed allocating or registering memory in contiguous mode. Please refer to README.txt for more info");
 				return false;
@@ -267,8 +279,10 @@ bool buffer_pool::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint6
 				num_devices, access) != num_devices) {
 			if (m_data_block) {
 				__log_info_warn("Failed registering memory, This might happen due to low MTT entries. Please refer to README.txt for more info");
-				__log_info_panic("Failed registering memory block with device (ptr=%p size=%ld%s) (errno=%d %m)",
+				__log_info_dbg("Failed registering memory block with device (ptr=%p size=%ld%s) (errno=%d %m)",
 						m_data_block, size, errno);
+				free_bpool_resources();				
+				throw_vma_exception_no_msg();
 			} else {
 				__log_info_warn("Failed allocating or registering memory in contiguous mode. Please refer to README.txt for more info");
 				return false;
@@ -279,7 +293,9 @@ bool buffer_pool::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint6
 		if (!m_data_block) { // contig pages mode
 			m_data_block = mrs[0]->addr;
 			if (!m_data_block) {
-				__log_info_panic("Failed registering memory, check that OFED is loaded successfully");
+				__log_info_dbg("Failed registering memory, check that OFED is loaded successfully");
+				free_bpool_resources();				
+				throw_vma_exception_no_msg();
 			}
 		}
 		for (size_t i = 0; i < num_devices; ++i) {

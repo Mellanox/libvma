@@ -454,6 +454,10 @@ public:
 	 * 		fdcoll_loginfo("recovering from %s", e.what());
 	 */
 	vma_exception(const char* _message, const char* _function, const char* _filename, int _lineno, int _errnum) throw();
+	/**
+	 * Create an object with no message
+	 */
+	vma_exception(void) throw();
 
 	virtual ~vma_exception() throw();
 
@@ -462,6 +466,7 @@ public:
 };
 
 #define throw_vma_exception(msg) throw vma_exception(msg, __PRETTY_FUNCTION__, __FILE__, __LINE__, errno)
+#define throw_vma_exception_no_msg() throw vma_exception()
 // uses for throwing  something that is derived from vma_exception and has similar CTOR; msg will automatically be class name
 #define vma_throw_object(_class)  throw _class(#_class, __PRETTY_FUNCTION__, __FILE__, __LINE__, errno)
 #endif

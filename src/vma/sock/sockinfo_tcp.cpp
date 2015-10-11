@@ -3762,7 +3762,9 @@ void sockinfo_tcp::put_tcp_seg(struct tcp_seg * seg)
 tcp_seg_pool::tcp_seg_pool(int size) {
 	m_tcp_segs_array = new struct tcp_seg[size];
 	if (m_tcp_segs_array == NULL) {
-		__log_panic("TCP segments allocation failed");
+		__log_dbg("TCP segments allocation failed");
+		free_tsp_resources();
+		throw_vma_exception_no_msg();
 	}
 	memset(m_tcp_segs_array, 0, sizeof(tcp_seg) * size);
 	for (int i = 0; i < size - 1; i++) {
@@ -3772,6 +3774,10 @@ tcp_seg_pool::tcp_seg_pool(int size) {
 }
 
 tcp_seg_pool::~tcp_seg_pool() {
+	free_tsp_resources();
+}
+
+void tcp_seg_pool::free_tsp_resources() {
 	delete [] m_tcp_segs_array;
 }
 
@@ -3821,8 +3827,11 @@ tcp_timers_collection::tcp_timers_collection(int period, int resolution)
 	m_p_intervals = new timer_node_t*[m_n_intervals_size];
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_p_intervals) {
-		__log_panic("failed to allocate memory");
+		__log_dbg("failed to allocate memory");
+		free_tta_resources();
+		throw_vma_exception_no_msg();
 	}
+
 	BULLSEYE_EXCLUDE_BLOCK_END
 	memset(m_p_intervals, 0, sizeof(timer_node_t*) * m_n_intervals_size);
 	m_n_location = 0;
@@ -3831,6 +3840,11 @@ tcp_timers_collection::tcp_timers_collection(int period, int resolution)
 }
 
 tcp_timers_collection::~tcp_timers_collection()
+{
+	free_tta_resources();
+}
+
+void tcp_timers_collection::free_tta_resources(void)
 {
 	if (m_n_count) {
 		__log_dbg("not all TCP timers have been removed, count=%d", m_n_count);

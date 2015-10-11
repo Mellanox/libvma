@@ -35,9 +35,10 @@ public:
 	ts_conversion_mode_t    get_ctx_time_conversion_mode();
 
 private:
-	ib_context_map_t        m_ib_ctx_map;
-	int                     m_n_num_devices;
+	ib_context_map_t	m_ib_ctx_map;
+	int			m_n_num_devices;
 	ts_conversion_mode_t    m_ctx_time_conversion_mode;
+	void			free_ibchc_resources(void);
 };
 
 extern ib_ctx_handler_collection* g_p_ib_ctx_handler_collection;

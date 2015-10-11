@@ -380,6 +380,7 @@ public:
 private:
 	tcp_seg *	m_tcp_segs_array;
 	tcp_seg *	m_p_head;
+	void		free_tsp_resources(void);
 };
 
 extern tcp_seg_pool* g_tcp_seg_pool;
@@ -410,6 +411,8 @@ private:
 	int m_n_location;
 	int m_n_count;
 	int m_n_next_insert_bucket;
+
+	void free_tta_resources();
 };
 
 extern tcp_timers_collection* g_tcp_timers_collection;

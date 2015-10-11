@@ -53,11 +53,11 @@ static int g_ip_frag_count_check = 0;
 
 ip_frag_manager * g_p_ip_frag_manager = NULL;
 
-ip_frag_hole_desc *hole_base;
+ip_frag_hole_desc *hole_base = NULL;
 ip_frag_hole_desc *hole_free_list_head = NULL;
 int hole_free_list_count = 0;
 
-ip_frag_desc *desc_base;
+ip_frag_desc *desc_base = NULL;
 ip_frag_desc *desc_free_list_head = NULL;
 int desc_free_list_count = 0;
 
@@ -77,11 +77,15 @@ ip_frag_manager::ip_frag_manager() : lock_spin("ip_frag_manager")
 	desc_base = new ip_frag_desc_t [IP_FRAG_MAX_DESC];
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!desc_base) {
-		frag_panic("Failed to allocate fragment list");
+		frag_dbg("Failed to allocate descriptor");
+		free_frag_resources();
+		throw_vma_exception_no_msg();
 	}
 	hole_base = new ip_frag_hole_desc [IP_FRAG_MAX_HOLES];
 	if (!hole_base) {
-		frag_panic("Failed to allocate fragment list");
+		frag_dbg("Failed to allocate hole descriptor");
+		free_frag_resources();
+		throw_vma_exception_no_msg();
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 	for (i = 0; i < IP_FRAG_MAX_DESC; i++) {
@@ -92,7 +96,7 @@ ip_frag_manager::ip_frag_manager() : lock_spin("ip_frag_manager")
 	}
 }
 
-ip_frag_manager::~ip_frag_manager()
+void ip_frag_manager::free_frag_resources(void)
 {
 
         ip_frags_list_t::iterator i;
@@ -122,6 +126,11 @@ ip_frag_manager::~ip_frag_manager()
 	delete [] desc_base;
 	delete [] hole_base;
 	frag_dbg("Deleted IPFRAG MANAGER instance");
+}
+
+ip_frag_manager::~ip_frag_manager()
+{
+	free_frag_resources();
 }
 
 #if _BullseyeCoverage

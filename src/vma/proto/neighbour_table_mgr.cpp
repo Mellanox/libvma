@@ -44,7 +44,7 @@ neigh_table_mgr::neigh_table_mgr():m_neigh_cma_event_channel(NULL)
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_neigh_cma_event_channel == NULL) {
 		neigh_mgr_logerr("Failed to create neigh_cma_event_channel (errno=%d %m)", errno);
-		throw_vma_exception("Failed to create neigh_cma_event_channel");
+		throw_vma_exception_no_msg();
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 

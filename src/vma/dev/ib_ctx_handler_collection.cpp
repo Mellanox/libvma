@@ -14,6 +14,7 @@
 #include "vlogger/vlogger.h"
 #include "vma/util/verbs_extra.h"
 #include "ib_ctx_handler_collection.h"
+#include "vma/util/utils.h"
 #include "vma/util/bullseye.h"
 #include "vma/event/event_handler_manager.h"
 
@@ -36,6 +37,11 @@ ib_ctx_handler_collection::ib_ctx_handler_collection() : m_n_num_devices(0), m_c
 
 ib_ctx_handler_collection::~ib_ctx_handler_collection()
 {
+	free_ibchc_resources();
+}
+
+void ib_ctx_handler_collection::free_ibchc_resources()
+{
 	ib_context_map_t::iterator ib_ctx_iter;
 	while ((ib_ctx_iter = m_ib_ctx_map.begin()) != m_ib_ctx_map.end()) {
 		ib_ctx_handler* p_ib_ctx_handler = ib_ctx_iter->second;
@@ -54,11 +60,16 @@ void ib_ctx_handler_collection::map_ib_devices() //return num_devices, can use r
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!pp_ibv_context_list) {
 		ibchc_logwarn("Failure in rdma_get_devices() (error=%d %m)", errno);
-		ibchc_logpanic("Please check OFED installation");
+		ibchc_logwarn("Please check OFED installation");
+		free_ibchc_resources();
+		throw_vma_exception_no_msg();
+
 	}
 	if (!m_n_num_devices) {
 		rdma_free_devices(pp_ibv_context_list);
-		ibchc_logpanic("No RDMA capable devices found!");
+		ibchc_logdbg("No RDMA capable devices found!");
+		free_ibchc_resources();
+		throw_vma_exception_no_msg();
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 

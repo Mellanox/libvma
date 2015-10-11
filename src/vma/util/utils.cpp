@@ -1025,6 +1025,12 @@ vma_exception::vma_exception(const char* _message, const char* _function, const 
 	formatted_message[ sizeof(formatted_message)-1 ] = '\0';
 }
 
+vma_exception::vma_exception(void) throw()
+	: message(""), function(""), filename(""), lineno(0), errnum(0)
+{
+	formatted_message[0] = '\0';
+}
+
 vma_exception::~vma_exception() throw()
 {
 }

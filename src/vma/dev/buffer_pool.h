@@ -50,12 +50,10 @@ public:
 	uint32_t 	find_lkey_by_ib_ctx_thread_safe(const ib_ctx_handler* p_ib_ctx_h);
 
 	/**
-	 * Get buffers from the pool
+	 * Get buffers from the pool - thread safe
 	 * @param count Number of buffers required.
 	 * @return List of buffers, or NULL if don't have enough buffers.
 	 */
-	mem_buf_desc_t*	get_buffers(size_t count, ib_ctx_handler *p_ib_ctx_h = NULL);
-	mem_buf_desc_t *get_buffers(size_t count, uint32_t lkey);
 	mem_buf_desc_t*	get_buffers_thread_safe(size_t count, ib_ctx_handler *p_ib_ctx_h = NULL);
 	mem_buf_desc_t *get_buffers_thread_safe(size_t count, uint32_t lkey);
 
@@ -84,8 +82,6 @@ public:
 	 * @returns list of memory regions
 	 */
 	std::deque<ibv_mr*> get_memory_regions();
-
-	void 		buffersPanic();
 
 	void		set_RX_TX_for_stats(bool rx = true);
 
@@ -135,6 +131,21 @@ private:
 	inline void 	put_buffer_helper(mem_buf_desc_t *buff);
 
 	uint32_t 	find_lkey_by_ib_ctx(ib_ctx_handler* p_ib_ctx_h);
+
+	/**
+	 * Get buffers from the pool - no thread safe
+	 * @param count Number of buffers required.
+	 * @return List of buffers, or NULL if don't have enough buffers.
+	 */
+	mem_buf_desc_t*	get_buffers(size_t count, ib_ctx_handler *p_ib_ctx_h = NULL);
+	mem_buf_desc_t *get_buffers(size_t count, uint32_t lkey);
+
+	void 		buffersPanic();
+
+	/**
+	 * dtor
+	 */
+	void		free_bpool_resources();
 };
 
 extern buffer_pool* g_buffer_pool_rx;
