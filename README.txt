@@ -27,13 +27,11 @@ Build:
 1. ./autogen.sh
 2. ./configure --with-ofed=/usr --prefix=/usr --libdir=/usr/lib64 --includedir=/usr/include/mellanox --docdir=/usr/share/doc/libvma --sysconfdir=/etc
 3. make
-4. make sockperf (to build sockperf)
 
 You will find libvma.so in path_to_vma_dir/src/vma/.libs/libvma.so.
 
 Install:
 1. sudo make install
-2. sudo make install-sockperf (to install sockperf)
 
 Tip:
 ./install.sh can do the build and install steps for you.
@@ -57,7 +55,6 @@ Install the package as any other rpm or debian package [rpm -i libvma.X.Y.Z-R.rp
 The installation copies the VMA library to: /usr/lib[64]/libvma.so
 The VMA monitoring utility is installed at: /usr/bin/vma_stat
 The VMA extra socket API is located at: /usr/include/mellanox/vma_extra.h
-Sockperf network benchmark tool is installed at: /usr/bin/sockperf
 The installation location of the README.txt and version information file 
 (VMA_VERSION), are as follows:
 - Redhat: /usr/share/doc/libvma-X.Y.Z-R/

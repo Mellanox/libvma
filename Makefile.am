@@ -1,23 +1,13 @@
-SUBDIRS := src 
+SUBDIRS := src
 
-.PHONY: sockperf tests
+.PHONY: tests
 
 mydocdir = $(if $(docdir),$(docdir),${datadir}/doc/$(distdir))
 mydoc_DATA = README.txt journal.txt
 
-sockperf :
-	$(MAKE)
-	$(MAKE) -C tests sockperf
+install-all: install
 
-install-sockperf:
-	$(MAKE) -C tests sockperf-install
-	
-install-all: install sockperf-install
-
-uninstall-sockperf:
-	$(MAKE) -C tests sockperf-uninstall
-
-uninstall-all: uninstall uninstall-sockperf
+uninstall-all: uninstall
 
 tests:
 	$(MAKE)

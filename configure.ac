@@ -45,10 +45,6 @@ AC_SUBST(VMA_LIBRARY_REVISION)
 VMA_LIBRARY_RELEASE=0
 AC_SUBST(VMA_LIBRARY_RELEASE)
 
-#SOCKPERF_FLAG-sockperf configure flags
-SOCKPERF_FLAG=""
-AC_SUBST(SOCKPERF_FLAG)
-
 #LIBALIC_FLAG
 LIBALIC_FLAG=""
 AC_SUBST(LIBALIC_FLAG)
@@ -77,8 +73,8 @@ AC_SUBST(OFED_VERSION)
 
 AC_ARG_ENABLE(build32,
         AC_HELP_STRING([--enable-build32], [Force build 32 bit]),
-        [CFLAGS="-m32 -L/usr/lib";CXXFLAGS="-m32 -L/usr/lib";SOCKPERF_FLAG="--enable-build32 $SOCKPERF_FLAG";LIBALIC_FLAG="--enable-build32 $LIBALIC_FLAG";LWIP_FLAG="-m32";LDFLAGS='-m32 -L/usr/lib';FFLAGS='-m32 -L/usr/lib'],
-        [CFLAGS="";CXXFLAGS="";SOCKPERF_FLAG="";LIBALIC_FLAG="";LWIP_FLAG=""])
+        [CFLAGS="-m32 -L/usr/lib";CXXFLAGS="-m32 -L/usr/lib";LIBALIC_FLAG="--enable-build32 $LIBALIC_FLAG";LWIP_FLAG="-m32";LDFLAGS='-m32 -L/usr/lib';FFLAGS='-m32 -L/usr/lib'],
+        [CFLAGS="";CXXFLAGS="";LIBALIC_FLAG="";LWIP_FLAG=""])
 
 # gcov support
 AC_ARG_ENABLE(gcov, AC_HELP_STRING([--enable-gcov], [turn on code coverage analysis tools]),[CFLAGS+="--coverage -O0";CPPFLAGS+="--coverage -O0";LIBS+="-lgcov";VMA_GCOV=1],[VMA_GCOV=0])
@@ -120,7 +116,6 @@ AC_ARG_ENABLE(debuginfo, AC_HELP_STRING([--disable-debuginfo], [Don't include de
 if test "x${with_debug}" = "xyes" ; then
 	CFLAGS="-g -D_DEBUG $CFLAGS"
 	CXXFLAGS="-g -D_DEBUG $CXXFLAGS"
-	SOCKPERF_FLAG="--enable-debug $SOCKPERF_FLAG"
 	LIBALIC_FLAG="--enable-debug $LIBALIC_FLAG"
 else
 	CFLAGS="-O3 $CFLAGS"
@@ -129,7 +124,6 @@ else
 	if test "x${with_debug_info}" = "xyes" ; then
 		CFLAGS="-g $CFLAGS"
         	CXXFLAGS="-g $CXXFLAGS"
-	        SOCKPERF_FLAG="--enable-debuginfo $SOCKPERF_FLAG"
         	LIBALIC_FLAG="--enable-debuginfo $LIBALIC_FLAG"
 	fi
 fi

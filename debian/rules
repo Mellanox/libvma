@@ -11,11 +11,10 @@ override_dh_auto_configure:
 
 override_dh_auto_build:
 	make
-	make sockperf
 
 override_dh_auto_install:
-	$(MAKE) prefix=$(CURDIR)/debian/libvma/usr install install-sockperf
-
+	$(MAKE) prefix=$(CURDIR)/debian/libvma/usr install 
+	
 override_dh_shlibdeps:
 	dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info
 

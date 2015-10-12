@@ -47,7 +47,6 @@ Group: Acceleration
 BuildRoot: %{_tmppath}/%{name}-%{version}-root
 Source: %{name}-%{version}.tar.gz
 requires: librdmacm, libibverbs
-conflicts: sockperf
 
 %description
 
@@ -73,10 +72,8 @@ export revision=%{revision}
 %if %{build_32}==1
 	CFLAGS='-O3 -m32 -L/usr/lib' CXXFLAGS='-O3 -m32 -L/usr/lib' LDFLAGS='-m32 -L/usr/lib' FFLAGS='-m32 -L/usr/lib' \
 	./configure --enable-build32 --with-ofed=%{ofed_dir} --prefix=%{prefix_dir} --libdir=%{dest_dir}
-	make sockperf
 	#rename all the 32 bit file
 	mv src/vma/.libs src/vma/.libs32
-	mv tests/sockperf/src/sockperf tests/sockperf32
 	make clean
 	make distclean
 %endif
@@ -87,10 +84,8 @@ export revision=%{revision}
 	export CC='gcc'
 	export CXX='g++'
 	./configure --with-ofed=%{ofed_dir} --prefix=%{prefix_dir} --libdir=%{dest_dir}
-	make sockperf
 	#rename all the 32 bit file
 	mv src/vma/.libs src/vma/.libs32
-	mv tests/sockperf/src/sockperf tests/sockperf32
 	make clean
 	make distclean
 	export CC='gcc -m64'
@@ -101,9 +96,6 @@ export revision=%{revision}
 # build the binaries
 export revision=1
 ./configure --with-ofed=%{ofed_dir} --prefix=%{prefix_dir} --libdir=%{dest_dir}
-%if %{build_bullseye}==0
-	make sockperf
-%endif
 
 %install
 [ "${RPM_BUILD_ROOT}" != "/" -a -d ${RPM_BUILD_ROOT} ] && rm -rf ${RPM_BUILD_ROOT}
@@ -140,7 +132,6 @@ make DESTDIR=${RPM_BUILD_ROOT} install
 	cp "$COVFILE" "/tmp/test.cov"
 	cov01 -0
 	#cd -
-	make sockperf
 	#cd build/vma
 %endif
 
@@ -156,7 +147,6 @@ chmod 6755 $RPM_BUILD_ROOT/%{dest_dir}/%{sec_file_name} $RPM_BUILD_ROOT%{dest_di
 
 	if [ -e /%{dest_dir32}/%{first_file_name} ]; then rm -f /%{dest_dir32}/%{first_file_name}; fi
 	#chmod 6755 $RPM_BUILD_ROOT/%{dest_dir32}/%{name}.so
-	install -m 755 tests/sockperf32 $RPM_BUILD_ROOT/%{prefix_dir}/bin/sockperf32
 %endif
 %endif
 
@@ -183,7 +173,6 @@ install -m 644 src/vma/vma_extra.h $RPM_BUILD_ROOT%{include_dir}/vma_extra.h
 
 install -m 755 src/vma/util/libvma.conf $RPM_BUILD_ROOT%{vma_conf_dir}
 
-install -m 755 tests/sockperf/src/sockperf $RPM_BUILD_ROOT/%{prefix_dir}/bin/sockperf
 
 
 cd src/stats
@@ -226,14 +215,12 @@ echo "- Please refer to VMA journal for the latest changes: %{doc_dir}/journal.t
 %{prefix}/%{lib_dir}/scripts/vma_perf_envelope.sh
 %{prefix}/%{include_dir}/vma_extra.h
 %{prefix}/%{prefix_dir}/bin/vma_stats
-%{prefix}/%{prefix_dir}/bin/sockperf
 
 %ifarch x86_64 ppc64
 %if %{build_32}==1
 %{prefix}/%{dest_dir32}/%{first_file_name}
 %{prefix}/%{dest_dir32}/%{sec_file_name}
 %{prefix}/%{dest_dir32}/%{third_file_name}
-%{prefix}/%{prefix_dir}/bin/sockperf32
 %endif
 %endif
 
