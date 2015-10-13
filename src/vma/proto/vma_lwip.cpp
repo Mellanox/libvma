@@ -119,14 +119,19 @@ vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip")
 	void *node = g_p_event_handler_manager->register_timer_event(mce_sys.tcp_timer_resolution_msec * 2, this, PERIODIC_TIMER, 0);
 	if (!node) {
 		lwip_logdbg("LWIP: failed to register timer event");
-		__vma_free_resources();
+		free_lwip_resources();
 		throw_vma_exception_no_msg();
 	}
 }
 
 vma_lwip::~vma_lwip()
 {
-	__vma_free_resources();
+	free_lwip_resources(); 
+}
+
+void vma_lwip::free_lwip_resources(void)
+{
+	/* TODO - revert the constructor */
 }
 
 #if _BullseyeCoverage

@@ -79,6 +79,7 @@ public:
 
 private:
 	bool		m_run_timers;
+	void		free_lwip_resources(void);
 };
 
 extern vma_lwip *g_p_lwip;

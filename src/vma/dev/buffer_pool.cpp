@@ -77,7 +77,7 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 			__log_info_dbg("Huge pages allocation passed successfully");
 			if (!register_memory(size, m_p_ib_ctx_h, access)) {
 				__log_info_dbg("failed registering huge pages data memory block");
-				free_bpool_resources();	
+				free_bpool_resources();
 				throw_vma_exception_no_msg();
 			}
 			break;
@@ -172,7 +172,7 @@ void buffer_pool::free_bpool_resources()
 	// Release memory
 	if (m_shmid >= 0) { // Huge pages mode
 		BULLSEYE_EXCLUDE_BLOCK_START
-		if (shmdt(m_data_block) != 0) {
+		if (m_data_block && (shmdt(m_data_block) != 0)) {
 			__log_info_err("shmem detach failure %m");
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
@@ -257,7 +257,7 @@ bool buffer_pool::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint6
 				__log_info_warn("Failed registering memory, This might happen due to low MTT entries. Please refer to README.txt for more info");
 				__log_info_dbg("Failed registering memory block with device (ptr=%p size=%ld%s) (errno=%d %m)",
 						m_data_block, size, errno);
-				free_bpool_resources();				
+				free_bpool_resources();
 				throw_vma_exception_no_msg();
 			} else {
 				__log_info_warn("Failed allocating or registering memory in contiguous mode. Please refer to README.txt for more info");
@@ -281,7 +281,7 @@ bool buffer_pool::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint6
 				__log_info_warn("Failed registering memory, This might happen due to low MTT entries. Please refer to README.txt for more info");
 				__log_info_dbg("Failed registering memory block with device (ptr=%p size=%ld%s) (errno=%d %m)",
 						m_data_block, size, errno);
-				free_bpool_resources();				
+				free_bpool_resources();
 				throw_vma_exception_no_msg();
 			} else {
 				__log_info_warn("Failed allocating or registering memory in contiguous mode. Please refer to README.txt for more info");
@@ -294,7 +294,7 @@ bool buffer_pool::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint6
 			m_data_block = mrs[0]->addr;
 			if (!m_data_block) {
 				__log_info_dbg("Failed registering memory, check that OFED is loaded successfully");
-				free_bpool_resources();				
+				free_bpool_resources();
 				throw_vma_exception_no_msg();
 			}
 		}

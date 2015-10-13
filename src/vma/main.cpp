@@ -141,20 +141,18 @@ static int free_libvma_resources()
 
 	usleep(50000);
 
+	if (g_p_lwip) delete g_p_lwip;
+	g_p_lwip = NULL;
+
 	if (g_p_route_table_mgr) delete g_p_route_table_mgr;
 	g_p_route_table_mgr = NULL;
 
 	if (g_p_rule_table_mgr) delete g_p_rule_table_mgr;
 	g_p_rule_table_mgr = NULL;
 	
-	//if(g_p_net_device_table_mgr) delete g_p_net_device_table_mgr;
-	//g_p_net_device_table_mgr = NULL;
-
-	/*TODO: Need to handle this as part of  clean exit and destruction of all VMA data structures
-	 * 	if (g_p_lwip) delete g_p_lwip;
-	 *	g_p_lwip = NULL;
-	 */
-
+	if(g_p_net_device_table_mgr) delete g_p_net_device_table_mgr;
+	g_p_net_device_table_mgr = NULL;
+	
 // XXX YossiE later- unite all stats to mux_stats
 #if 0
 	// Print select() related stat counters (only if we got some calls to select)
@@ -186,6 +184,9 @@ static int free_libvma_resources()
 	g_p_ip_frag_manager = NULL;
 	if (g_p_ip_frag_manager_temp) delete g_p_ip_frag_manager_temp;
 	
+	if (g_p_neigh_table_mgr) delete g_p_neigh_table_mgr;
+	g_p_neigh_table_mgr = NULL;
+
 	if (g_tcp_seg_pool) delete g_tcp_seg_pool;
 	g_tcp_seg_pool = NULL;
 
@@ -194,6 +195,12 @@ static int free_libvma_resources()
 
 	if (g_buffer_pool_rx) delete g_buffer_pool_rx;
 	g_buffer_pool_rx = NULL;
+
+	if (g_p_netlink_handler) delete g_p_netlink_handler;
+	g_p_netlink_handler = NULL;
+
+	if (g_p_ib_ctx_handler_collection) delete g_p_ib_ctx_handler_collection;
+	g_p_ib_ctx_handler_collection = NULL;
 
 	if (g_p_vlogger_timer_handler) delete g_p_vlogger_timer_handler;
 	g_p_vlogger_timer_handler = NULL;
@@ -1641,7 +1648,6 @@ static void do_global_ctors_helper()
 				cmd_nl,
 				PERIODIC_TIMER,
 				NULL);
-
 	}
 
 	g_n_os_igmp_max_membership = get_igmp_max_membership();

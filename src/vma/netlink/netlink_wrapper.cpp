@@ -128,16 +128,29 @@ netlink_wrapper::netlink_wrapper() :
 
 netlink_wrapper::~netlink_wrapper()
 {
-	nl_logdbg( "---> netlink_route_listener DTOR");
-	nl_cache_mngr_free(m_mngr);
+	/* different handling under LIBNL1 versus LIBNL3 */
+#ifdef HAVE_LIBNL3
+	nl_logdbg( "---> netlink_route_listener DTOR (LIBNL3)");
+	nl_socket_handle_free(m_socket_handle); 
+	/* should not call nl_cache_free() for link, neigh, route as nl_cach_mngr_free() does the freeing */
+	// nl_cache_free(m_cache_link);
+	// nl_cache_free(m_cache_neigh);
+	// nl_cache_free(m_cache_route);
+	nl_cache_mngr_free(m_mngr);	
+#else // HAVE_LINBL1
+	nl_logdbg( "---> netlink_route_listener DTOR (LIBNL1)");
+	/* should not call nl_socket_handle_free(m_socket_handle) as nl_cache_mngr_free() does the freeing */ 
+	/* nl_socket_handle_free(m_socket_handle); */
 	nl_cache_free(m_cache_link);
 	nl_cache_free(m_cache_neigh);
 	nl_cache_free(m_cache_route);
-	nl_socket_handle_free(m_socket_handle);
+	nl_cache_mngr_free(m_mngr);
+#endif // HAVE_LIBNL3
+
 	subject_map_iter iter = m_subjects_map.begin();
 	while (iter != m_subjects_map.end()) {
 		delete iter->second;
-		iter = iter++;
+		iter++;
 	}
 	nl_logdbg( "<--- netlink_route_listener DTOR");
 }
