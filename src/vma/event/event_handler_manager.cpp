@@ -754,7 +754,7 @@ void event_handler_manager::process_rdma_cm_event(event_handler_map_t::iterator 
 		return;
 	}
 	if (!p_tmp_cm_event) {
-		evh_logpanic("rdma_get_cm_event failed on cma_channel %d (fd = %d) (errno=%d %m)", cma_channel, cma_channel->fd, errno);
+		evh_logpanic("rdma_get_cm_event succeeded but the returned event is NULL on cma_channel %d (fd = %d) (errno=%d %m)", cma_channel, cma_channel->fd, errno);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
