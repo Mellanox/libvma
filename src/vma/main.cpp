@@ -1233,7 +1233,7 @@ void get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_TCP_CTL_THREAD)) != NULL) {
 			mce_sys.tcp_ctl_thread = (tcp_ctl_thread_t)atoi(env_ptr);
-			if (mce_sys.tcp_ctl_thread > CTL_THREAD_LAST || mce_sys.tcp_ctl_thread < 0)
+			if (mce_sys.tcp_ctl_thread >= CTL_THREAD_LAST || mce_sys.tcp_ctl_thread < 0)
 				mce_sys.tcp_ctl_thread = MCE_DEFAULT_TCP_CTL_THREAD;
 	}
 
