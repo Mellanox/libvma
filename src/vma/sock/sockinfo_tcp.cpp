@@ -113,6 +113,7 @@ sockinfo_tcp::sockinfo_tcp(int fd) throw (vma_exception) :
 	m_received_syn_num = 0;
 	m_vma_thr = false;
 
+	m_ready_conn_cnt = 0;
 	m_backlog = INT_MAX;
 	report_connected = false;
 
