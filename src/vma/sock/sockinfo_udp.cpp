@@ -487,17 +487,17 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 				si_udp_logdbg("SOL_SOCKET, %s=%d", setsockopt_so_opt_to_str(__optname), *(int*)__optval);
 				break;
 
-                        case SO_RCVTIMEO:
-                                if (__optval) {
-                                    struct timeval* tv = (struct timeval*)__optval;
-                                    if (tv->tv_sec || tv->tv_usec)
-                                	    m_loops_timer.set_timeout_msec(tv->tv_sec*1000 + (tv->tv_usec ? tv->tv_usec/1000 : 0));
-                                    else
-                                	    m_loops_timer.set_timeout_msec(-1);
-                                    si_udp_logdbg("SOL_SOCKET: SO_RCVTIMEO=%d", m_loops_timer.get_timeout_msec());
+			case SO_RCVTIMEO:
+				if (__optval) {
+					struct timeval* tv = (struct timeval*)__optval;
+					if (tv->tv_sec || tv->tv_usec)
+						m_loops_timer.set_timeout_msec(tv->tv_sec*1000 + (tv->tv_usec ? tv->tv_usec/1000 : 0));
+					else
+						m_loops_timer.set_timeout_msec(-1);
+					si_udp_logdbg("SOL_SOCKET: SO_RCVTIMEO=%d", m_loops_timer.get_timeout_msec());
 
-                                }
-                                break;
+				}
+				break;
 
 			case SO_TIMESTAMP:
 			case SO_TIMESTAMPNS:
