@@ -147,6 +147,26 @@ static inline const char* ctl_thread_str(tcp_ctl_thread_t logic)
 	return "unsupported";
 }
 
+typedef enum {
+	SOCK_CHECKS_UNOFFLOAD = 0,
+	SOCK_CHECKS_DEBUG,
+	SOCK_CHECKS_ERROR,
+	SOCK_CHECKS_ABORT,
+	SOCK_CHECKS_LAST
+} sock_checks_mode_t;
+
+static inline const char* sock_checks_str(sock_checks_mode_t mode)
+{
+	switch (mode) {
+	case SOCK_CHECKS_UNOFFLOAD:	return "(un-offload the socket)";
+	case SOCK_CHECKS_DEBUG:		return "(just log Debug message)";
+	case SOCK_CHECKS_ERROR:		return "(un-offload and Log Error)";
+	case SOCK_CHECKS_ABORT:		return "(Log error and Abort!)";
+	default:				break;
+	}
+	return "unsupported";
+}
+
 struct mce_sys_var {
 
 	mce_sys_var () : sysctl_reader(sysctl_reader_t::instance()){
@@ -237,6 +257,7 @@ struct mce_sys_var {
 	uint32_t	timer_resolution_msec;
 	uint32_t	tcp_timer_resolution_msec;
 	tcp_ctl_thread_t tcp_ctl_thread;
+	sock_checks_mode_t sock_checks_mode;
 	bool		avoid_sys_calls_on_tcp_fd;
 	uint32_t	wait_after_join_msec;
 	in_port_t	block_udp_port;
@@ -338,6 +359,7 @@ struct mce_sys_var {
 #define SYS_VAR_TIMER_RESOLUTION_MSEC			"VMA_TIMER_RESOLUTION_MSEC"
 #define SYS_VAR_TCP_TIMER_RESOLUTION_MSEC		"VMA_TCP_TIMER_RESOLUTION_MSEC"
 #define SYS_VAR_TCP_CTL_THREAD				"VMA_TCP_CTL_THREAD"
+#define SYS_VAR_SOCK_CHECKS_MODE			"VMA_SOCK_CHECKS_MODE"
 #define SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD		"VMA_AVOID_SYS_CALLS_ON_TCP_FD"
 #define SYS_VAR_WAIT_AFTER_JOIN_MSEC			"VMA_WAIT_AFTER_JOIN_MSEC"
 #define SYS_VAR_THREAD_MODE				"VMA_THREAD_MODE"
@@ -439,6 +461,7 @@ struct mce_sys_var {
 #define MCE_DEFAULT_TIMER_RESOLUTION_MSEC		(10)
 #define MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC		(100)
 #define MCE_DEFAULT_TCP_CTL_THREAD			(CTL_THREAD_DISABLE)
+#define MCE_DEFAULT_SOCK_CHECKS_MODE			(SOCK_CHECKS_DEBUG)
 #define MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD		(false)
 #define MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC		(0)
 #define MCE_DEFAULT_THREAD_MODE				(THREAD_MODE_MULTI)

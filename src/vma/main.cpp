@@ -685,6 +685,7 @@ void print_vma_global_settings()
 	VLOG_PARAM_NUMBER("Timer Resolution (msec)", mce_sys.timer_resolution_msec, MCE_DEFAULT_TIMER_RESOLUTION_MSEC, SYS_VAR_TIMER_RESOLUTION_MSEC);
 	VLOG_PARAM_NUMBER("TCP Timer Resolution (msec)", mce_sys.tcp_timer_resolution_msec, MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC, SYS_VAR_TCP_TIMER_RESOLUTION_MSEC);
 	VLOG_PARAM_NUMSTR("TCP control thread", mce_sys.tcp_ctl_thread, MCE_DEFAULT_TCP_CTL_THREAD, SYS_VAR_TCP_CTL_THREAD, ctl_thread_str(mce_sys.tcp_ctl_thread));
+	VLOG_PARAM_NUMSTR("Sock Checks Mode", mce_sys.sock_checks_mode, MCE_DEFAULT_SOCK_CHECKS_MODE, SYS_VAR_SOCK_CHECKS_MODE, sock_checks_str(mce_sys.sock_checks_mode));
 	VLOG_PARAM_STRING("Avoid sys-calls on tcp fd", mce_sys.avoid_sys_calls_on_tcp_fd, MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD, SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD, mce_sys.avoid_sys_calls_on_tcp_fd ? "Enabled" : "Disabled");
 	VLOG_PARAM_NUMBER("Delay after join (msec)", mce_sys.wait_after_join_msec, MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC, SYS_VAR_WAIT_AFTER_JOIN_MSEC);
 	VLOG_STR_PARAM_STRING("Internal Thread Affinity", mce_sys.internal_thread_affinity_str, MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR, SYS_VAR_INTERNAL_THREAD_AFFINITY, mce_sys.internal_thread_affinity_str);
@@ -855,6 +856,7 @@ void get_env_params()
 	mce_sys.timer_resolution_msec	= MCE_DEFAULT_TIMER_RESOLUTION_MSEC;
 	mce_sys.tcp_timer_resolution_msec	= MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC;
 	mce_sys.tcp_ctl_thread		= MCE_DEFAULT_TCP_CTL_THREAD;
+	mce_sys.sock_checks_mode	= MCE_DEFAULT_SOCK_CHECKS_MODE;
 	mce_sys.avoid_sys_calls_on_tcp_fd = MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD;
 	mce_sys.wait_after_join_msec	= MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC;
 	mce_sys.thread_mode		= MCE_DEFAULT_THREAD_MODE;
@@ -1235,6 +1237,12 @@ void get_env_params()
 			mce_sys.tcp_ctl_thread = (tcp_ctl_thread_t)atoi(env_ptr);
 			if (mce_sys.tcp_ctl_thread >= CTL_THREAD_LAST || mce_sys.tcp_ctl_thread < 0)
 				mce_sys.tcp_ctl_thread = MCE_DEFAULT_TCP_CTL_THREAD;
+	}
+
+	if ((env_ptr = getenv(SYS_VAR_SOCK_CHECKS_MODE)) != NULL) {
+			mce_sys.sock_checks_mode = (sock_checks_mode_t)atoi(env_ptr);
+			if (mce_sys.sock_checks_mode >= SOCK_CHECKS_LAST || mce_sys.sock_checks_mode < 0)
+				mce_sys.sock_checks_mode = MCE_DEFAULT_SOCK_CHECKS_MODE;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD)) != NULL) {

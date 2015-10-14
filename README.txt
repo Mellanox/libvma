@@ -161,6 +161,7 @@ Example:
  VMA DEBUG  : Timer Resolution (msec)        10                         [VMA_TIMER_RESOLUTION_MSEC]
  VMA DEBUG  : TCP Timer Resolution (msec)    100                        [VMA_TCP_TIMER_RESOLUTION_MSEC]
  VMA DEBUG  : TCP control thread             0 (Disabled)               [VMA_TCP_CTL_THREAD]
+ VMA DEBUG  : Sock Checks Mode               1 (just log Debug message) [VMA_SOCK_CHECKS_MODE]
  VMA DEBUG  : Avoid sys-calls on tcp fd      Disabled			[VMA_AVOID_SYS_CALLS_ON_TCP_FD]
  VMA DEBUG  : Delay after join (msec)        0                          [VMA_WAIT_AFTER_JOIN_MSEC]
  VMA DEBUG  : Internal Thread Affinity       -1                         [VMA_INTERNAL_THREAD_AFFINITY]
@@ -619,6 +620,18 @@ Use value of 0 to disable.
 Use value of 1 for waking up the thread when there is work to do.
 Use value of 2 for waiting for thread timer to expire.
 Default value is disabled
+
+VMA_SOCK_CHECKS_MODE
+Mode for checking and handling coverage of Socket API features by VMA.
+This feature should be kept 0 or 1 (Logging in Debug mode) in normal production
+environments.  Use the other values only for capturing unsupported Socket API
+features by VMA.
+Use value of 0 to un-offload the socket (if possible) and log DEBUG message.
+Use value of 1 for just Logging DEBUG message.
+Use value of 2 to un-offload the socket (if possible) and log ERROR message.
+Use value of 3 to log ERROR message and abort application (throw vma_error exception).
+Default value is 1 - just Logging DEBUG message.
+!!! NOTE: modes 0, 2, 3 - are under development and are not yet supported !!!
 
 VMA_AVOID_SYS_CALLS_ON_TCP_FD
 For TCP fd, avoid system calls for the supported options of:
