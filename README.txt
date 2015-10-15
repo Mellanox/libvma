@@ -161,6 +161,7 @@ Example:
  VMA DEBUG  : Timer Resolution (msec)        10                         [VMA_TIMER_RESOLUTION_MSEC]
  VMA DEBUG  : TCP Timer Resolution (msec)    100                        [VMA_TCP_TIMER_RESOLUTION_MSEC]
  VMA DEBUG  : TCP control thread             0 (Disabled)               [VMA_TCP_CTL_THREAD]
+ VMA DEBUG  : TCP timestamp option           0                          [VMA_TCP_TIMESTAMP_OPTION]
  VMA DEBUG  : Sock Checks Mode               1 (just log Debug message) [VMA_SOCK_CHECKS_MODE]
  VMA DEBUG  : Avoid sys-calls on tcp fd      Disabled			[VMA_AVOID_SYS_CALLS_ON_TCP_FD]
  VMA DEBUG  : Delay after join (msec)        0                          [VMA_WAIT_AFTER_JOIN_MSEC]
@@ -424,7 +425,7 @@ Disable with 0
 Default value is 100
 
 VMA_RX_UDP_HW_TS_CONVERSION
-The above param will define the udp hardware recive time stamp conversion method.
+The above param will define the udp hardware receive time stamp conversion method.
 Experimental verbs is required for converting the time stamp from hardware time (Hz) 
 to system time (seconds.nano_seconds). Hence, hardware support is not guaranteed.
 The value of VMA_RX_UDP_HW_TS_CONVERSION determined by all devices - i.e
@@ -436,7 +437,7 @@ Raw HW time with 1            - only convert the time stamp to seconds.nano_seco
 Use best sync possible with 2 - Sync to system time, then Raw hardware time -
                                 disable if none of them are supported by hardware. 
 Sync to system time with 3    - convert the time stamp to seconds.nano_seconds time units.
-                                comparable to UDP recive software timestamp.
+                                comparable to UDP receive software timestamp.
                                 disable if hardware does not supports.
 Default value 3
 
@@ -620,6 +621,15 @@ Use value of 0 to disable.
 Use value of 1 for waking up the thread when there is work to do.
 Use value of 2 for waiting for thread timer to expire.
 Default value is disabled
+
+VMA_TCP_TIMESTAMP_OPTION
+Currently, LWIP is not supporting RTTM and PAWS mechanisms. 
+see RFC1323 for info.
+Use value of 0 to disable.
+Use value of 1 for enable.
+Use value of 2 for OS follow up.
+Disabled by default (enabling causing a slight performance
+degradation of ~50-100 nano sec per half round trip)
 
 VMA_SOCK_CHECKS_MODE
 Mode for checking and handling coverage of Socket API features by VMA.

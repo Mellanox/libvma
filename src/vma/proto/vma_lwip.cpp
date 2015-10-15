@@ -64,12 +64,26 @@ u32_t sys_jiffies(void)
     #pragma BullseyeCoverage on
 #endif
 
-u32_t sys_now(void)
+u32_t vma_lwip::sys_now(void)
 {
 	struct timespec now;
 
 	gettimefromtsc(&now);
 	return now.tv_sec * 1000 + now.tv_nsec / 1000000;
+}
+
+u8_t vma_lwip::read_tcp_timestamp_option(void)
+{
+	u8_t res = (mce_sys.tcp_ts_opt == TCP_TS_OPTION_FOLLOW_OS) ? mce_sys.sysctl_reader.get_net_ipv4_tcp_timestamps() : (mce_sys.tcp_ts_opt == TCP_TS_OPTION_ENABLE ? 1 : 0);
+	if (res) {
+#if LWIP_TCP_TIMESTAMPS
+		lwip_logdbg("TCP timestamp option has been enabled");
+#else
+		lwip_logwarn("Cannot enable TCP timestamp option because LWIP_TCP_TIMESTAMPS is not defined");
+		res = 0;
+#endif
+	}
+	return res;
 }
 
 vma_lwip *g_p_lwip = 0;
@@ -92,6 +106,7 @@ vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip")
 	lwip_tcp_mss = get_lwip_tcp_mss(mce_sys.mtu, mce_sys.lwip_mss);
 	BULLSEYE_EXCLUDE_BLOCK_END
 
+	enable_ts_option = read_tcp_timestamp_option();
 	int is_window_scaling_enabled = mce_sys.sysctl_reader.get_tcp_window_scaling();
 	if(is_window_scaling_enabled) {
 		int rmem_max_value = mce_sys.sysctl_reader.get_tcp_rmem()->max_value;
@@ -114,6 +129,7 @@ vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip")
 	register_ip_output(sockinfo_tcp::ip_output);
 	register_tcp_state_observer(sockinfo_tcp::tcp_state_observer);
 	register_ip_route_mtu(vma_ip_route_mtu);
+	register_sys_now(sys_now);
 
 	//tcp_ticks increases in the rate of tcp slow_timer
 	void *node = g_p_event_handler_manager->register_timer_event(mce_sys.tcp_timer_resolution_msec * 2, this, PERIODIC_TIMER, 0);

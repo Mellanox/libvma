@@ -111,6 +111,7 @@ u16_t lwip_tcp_mss = CONST_TCP_MSS;
 
 int32_t enable_wnd_scale = 0;
 u32_t rcv_wnd_scale = 0;
+u8_t enable_ts_option = 0;
 
 /* Incremented every coarse grained timer shot (typically every 500 ms). */
 u32_t tcp_ticks = 0;
@@ -1163,6 +1164,7 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio)
 #endif /* LWIP_TCP_KEEPALIVE */
 
 	pcb->keep_cnt_sent = 0;
+	pcb->enable_ts_opt = enable_ts_option;
 }
 
 struct pbuf *

@@ -692,6 +692,7 @@ void print_vma_global_settings()
 	VLOG_PARAM_NUMBER("Timer Resolution (msec)", mce_sys.timer_resolution_msec, MCE_DEFAULT_TIMER_RESOLUTION_MSEC, SYS_VAR_TIMER_RESOLUTION_MSEC);
 	VLOG_PARAM_NUMBER("TCP Timer Resolution (msec)", mce_sys.tcp_timer_resolution_msec, MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC, SYS_VAR_TCP_TIMER_RESOLUTION_MSEC);
 	VLOG_PARAM_NUMSTR("TCP control thread", mce_sys.tcp_ctl_thread, MCE_DEFAULT_TCP_CTL_THREAD, SYS_VAR_TCP_CTL_THREAD, ctl_thread_str(mce_sys.tcp_ctl_thread));
+	VLOG_PARAM_NUMBER("TCP timestamp option", mce_sys.tcp_ts_opt, MCE_DEFAULT_TCP_TIMESTAMP_OPTION, SYS_VAR_TCP_TIMESTAMP_OPTION);
 	VLOG_PARAM_NUMSTR("Sock Checks Mode", mce_sys.sock_checks_mode, MCE_DEFAULT_SOCK_CHECKS_MODE, SYS_VAR_SOCK_CHECKS_MODE, sock_checks_str(mce_sys.sock_checks_mode));
 	VLOG_PARAM_STRING("Avoid sys-calls on tcp fd", mce_sys.avoid_sys_calls_on_tcp_fd, MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD, SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD, mce_sys.avoid_sys_calls_on_tcp_fd ? "Enabled" : "Disabled");
 	VLOG_PARAM_NUMBER("Delay after join (msec)", mce_sys.wait_after_join_msec, MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC, SYS_VAR_WAIT_AFTER_JOIN_MSEC);
@@ -863,6 +864,7 @@ void get_env_params()
 	mce_sys.timer_resolution_msec	= MCE_DEFAULT_TIMER_RESOLUTION_MSEC;
 	mce_sys.tcp_timer_resolution_msec	= MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC;
 	mce_sys.tcp_ctl_thread		= MCE_DEFAULT_TCP_CTL_THREAD;
+	mce_sys.tcp_ts_opt		= MCE_DEFAULT_TCP_TIMESTAMP_OPTION;
 	mce_sys.sock_checks_mode	= MCE_DEFAULT_SOCK_CHECKS_MODE;
 	mce_sys.avoid_sys_calls_on_tcp_fd = MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD;
 	mce_sys.wait_after_join_msec	= MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC;
@@ -1244,6 +1246,14 @@ void get_env_params()
 			mce_sys.tcp_ctl_thread = (tcp_ctl_thread_t)atoi(env_ptr);
 			if (mce_sys.tcp_ctl_thread >= CTL_THREAD_LAST || mce_sys.tcp_ctl_thread < 0)
 				mce_sys.tcp_ctl_thread = MCE_DEFAULT_TCP_CTL_THREAD;
+	}
+
+	if ((env_ptr = getenv(SYS_VAR_TCP_TIMESTAMP_OPTION)) != NULL) {
+		mce_sys.tcp_ts_opt = (tcp_ts_opt_t)atoi(env_ptr);
+		if ((uint32_t) mce_sys.tcp_ts_opt >= TCP_TS_OPTION_LAST) {
+			vlog_printf(VLOG_WARNING,"TCP timestamp option value is out of range [%d] (min=%d, max=%d). using default [%d]\n", mce_sys.tcp_ts_opt, TCP_TS_OPTION_DISABLE , TCP_TS_OPTION_LAST - 1, MCE_DEFAULT_TCP_TIMESTAMP_OPTION);
+			mce_sys.tcp_ts_opt = MCE_DEFAULT_TCP_TIMESTAMP_OPTION;
+		}
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_SOCK_CHECKS_MODE)) != NULL) {

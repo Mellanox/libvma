@@ -1544,7 +1544,7 @@
  * LWIP_TCP_TIMESTAMPS==1: support the TCP timestamp option.
  */
 #ifndef LWIP_TCP_TIMESTAMPS
-#define LWIP_TCP_TIMESTAMPS             0
+#define LWIP_TCP_TIMESTAMPS             1
 #endif
 
 /**

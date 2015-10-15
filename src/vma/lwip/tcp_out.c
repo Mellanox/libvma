@@ -67,6 +67,12 @@
 #define TCP_CHECKSUM_ON_COPY_SANITY_CHECK   0
 #endif
 
+sys_now_fn sys_now;
+void register_sys_now(sys_now_fn fn)
+{
+	sys_now = fn;
+}
+
 #if LWIP_3RD_PARTY_L3
 ip_output_fn external_ip_output;
 
@@ -392,9 +398,9 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
 #if LWIP_TCP_TIMESTAMPS
   if ((pcb->flags & TF_TIMESTAMP)) {
     optflags = TF_SEG_OPTS_TS;
+    /* ensure that segments can hold at least one data byte... */
+    mss_local = LWIP_MAX(mss_local, LWIP_TCP_OPT_LEN_TS + 1);
   }
-  /* ensure that segments can hold at least one data byte... */
-  mss_local = LWIP_MAX(mss_local, LWIP_TCP_OPT_LEN_TS + 1);
 #endif /* LWIP_TCP_TIMESTAMPS */
   optlen = LWIP_TCP_OPT_LENGTH( optflags );
 
@@ -714,6 +720,12 @@ tcp_enqueue_flags(struct tcp_pcb *pcb, u8_t flags)
     #if TCP_RCVSCALE
     	if(enable_wnd_scale) optflags |= TF_SEG_OPTS_WNDSCALE;
     #endif
+	#if LWIP_TCP_TIMESTAMPS
+    	if (pcb->enable_ts_opt && !(flags & TCP_ACK)) {
+    		// enable initial timestamp announcement only for the connecting side. accepting side reply accordingly.
+    		optflags |= TF_SEG_OPTS_TS;
+    	}
+	#endif
   }
 #if LWIP_TCP_TIMESTAMPS
   if ((pcb->flags & TF_TIMESTAMP)) {

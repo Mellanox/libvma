@@ -304,6 +304,10 @@ struct tcp_seg {
   struct tcp_hdr *tcphdr;  /* the TCP header */
 };
 
+#if LWIP_TCP_TIMESTAMPS
+#define LWIP_TCP_OPT_LEN_TS     10
+#endif
+
 #define LWIP_TCP_OPT_LENGTH(flags)                    \
 		  (flags & TF_SEG_OPTS_MSS ? 4  : 0) +        \
 		  (flags & TF_SEG_OPTS_WNDSCALE  ? 1+3 : 0) + \
@@ -325,6 +329,7 @@ struct tcp_seg {
 extern struct tcp_pcb *tcp_input_pcb;
 extern int32_t enable_wnd_scale;
 extern u32_t rcv_wnd_scale;
+extern u8_t enable_ts_option;
 extern u32_t tcp_ticks;
 extern ip_route_mtu_fn external_ip_route_mtu;
 

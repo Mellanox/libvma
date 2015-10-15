@@ -43,6 +43,9 @@
 extern "C" {
 #endif
 
+typedef u32_t (*sys_now_fn)(void);
+void register_sys_now(sys_now_fn fn);
+
 #define LWIP_MEM_ALIGN_SIZE(size) (((size) + MEM_ALIGNMENT - 1) & ~(MEM_ALIGNMENT-1))
 
 extern u16_t lwip_tcp_mss;
@@ -390,6 +393,7 @@ struct tcp_pcb {
   tcp_err_fn errf;
 #endif /* LWIP_CALLBACK_API */
 
+  u8_t enable_ts_opt;
 #if LWIP_TCP_TIMESTAMPS
   u32_t ts_lastacksent;
   u32_t ts_recent;

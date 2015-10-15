@@ -74,6 +74,7 @@ public :
 		get_tcp_window_scaling(true);
 		get_net_core_rmem_max(true);
 		get_net_core_wmem_max(true);
+		get_net_ipv4_tcp_timestamps(true);
 	}
 
 	int get_tcp_max_syn_backlog(bool update = false) {
@@ -135,6 +136,13 @@ public :
 		static int val;
 		if (update)
 			val = read_file_to_int("/proc/sys/net/core/wmem_max", 229376);
+		return val;
+	}
+
+	int get_net_ipv4_tcp_timestamps(bool update = false) {
+		static int val;
+		if (update)
+			val = read_file_to_int("/proc/sys/net/ipv4/tcp_timestamps", 0);
 		return val;
 	}
 };

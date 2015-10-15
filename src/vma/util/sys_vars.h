@@ -136,6 +136,13 @@ typedef enum {
 	CTL_THREAD_LAST
 } tcp_ctl_thread_t;
 
+typedef enum {
+	TCP_TS_OPTION_DISABLE = 0, // TCP_TS_OPTION_DISABLE must be the first enum
+	TCP_TS_OPTION_ENABLE,
+	TCP_TS_OPTION_FOLLOW_OS,
+	TCP_TS_OPTION_LAST
+} tcp_ts_opt_t;
+
 static inline const char* ctl_thread_str(tcp_ctl_thread_t logic)
 {
 	switch (logic) {
@@ -257,6 +264,7 @@ struct mce_sys_var {
 	uint32_t	timer_resolution_msec;
 	uint32_t	tcp_timer_resolution_msec;
 	tcp_ctl_thread_t tcp_ctl_thread;
+	tcp_ts_opt_t	tcp_ts_opt;
 	sock_checks_mode_t sock_checks_mode;
 	bool		avoid_sys_calls_on_tcp_fd;
 	uint32_t	wait_after_join_msec;
@@ -359,6 +367,7 @@ struct mce_sys_var {
 #define SYS_VAR_TIMER_RESOLUTION_MSEC			"VMA_TIMER_RESOLUTION_MSEC"
 #define SYS_VAR_TCP_TIMER_RESOLUTION_MSEC		"VMA_TCP_TIMER_RESOLUTION_MSEC"
 #define SYS_VAR_TCP_CTL_THREAD				"VMA_TCP_CTL_THREAD"
+#define SYS_VAR_TCP_TIMESTAMP_OPTION			"VMA_TCP_TIMESTAMP_OPTION"
 #define SYS_VAR_SOCK_CHECKS_MODE			"VMA_SOCK_CHECKS_MODE"
 #define SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD		"VMA_AVOID_SYS_CALLS_ON_TCP_FD"
 #define SYS_VAR_WAIT_AFTER_JOIN_MSEC			"VMA_WAIT_AFTER_JOIN_MSEC"
@@ -461,6 +470,7 @@ struct mce_sys_var {
 #define MCE_DEFAULT_TIMER_RESOLUTION_MSEC		(10)
 #define MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC		(100)
 #define MCE_DEFAULT_TCP_CTL_THREAD			(CTL_THREAD_DISABLE)
+#define MCE_DEFAULT_TCP_TIMESTAMP_OPTION		(TCP_TS_OPTION_DISABLE)
 #define MCE_DEFAULT_SOCK_CHECKS_MODE			(SOCK_CHECKS_DEBUG)
 #define MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD		(false)
 #define MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC		(0)

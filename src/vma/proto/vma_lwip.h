@@ -77,9 +77,14 @@ public:
 
 	virtual void handle_timer_expired(void* user_data);
 
+	static u32_t sys_now(void);
+
 private:
 	bool		m_run_timers;
+	
 	void		free_lwip_resources(void);
+
+	static u8_t read_tcp_timestamp_option(void);
 };
 
 extern vma_lwip *g_p_lwip;
