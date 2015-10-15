@@ -1,3 +1,24 @@
+Version 7.0.8-0:
+Date + Time 2015-10-15
+=======================
+Added:
+        - RM #591741 Support bonding LAG
+        - RM #591741 support vlan over bond
+        - RM #591738 Support UDP RX HW time stamping
+        - RM #591764 Make VMA_MTU not needed
+        - RM #610758 optimize UDP TX
+        - RM #611344 Align checksum offload with latest libibverbs 1.2.0
+        - RM #612658 Replace PANIC at VMA startup with gracefull resource releasing
+        - RM #591747 remove sockperf from VMA rpm/deb packaging
+        - RM #618636 Support TCP Timestamp option
+
+Fixed:
+        - RM #606490 possible race in neigh_entry state machine
+        - RM #612231 TCP accept() call does not exit when socket is closed
+        - RM #592216 Fix a crash when FD limit is less than required for initialization
+        - RM #612841 calculate MTU of VLAN interface rather than VLAN base interface
+        - RM #618624 TCP recv() might keep spining due to uninitialized member
+
 Version 7.0.7-0:
 Date + Time 2015-9-8
 =======================
