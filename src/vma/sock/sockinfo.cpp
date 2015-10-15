@@ -146,6 +146,9 @@ int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg)
 
 	default:
 	        si_logfunc("unimplemented ioctl request=%d, flags=%x", __request, __arg);
+	        if (mce_sys.is_vma_exception_handling_suit_un_offloading()) {
+				try_un_offloading();
+	        }
 		break;
 	}
 

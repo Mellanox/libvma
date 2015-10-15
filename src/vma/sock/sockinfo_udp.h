@@ -139,6 +139,9 @@ public:
 		return FD_TYPE_SOCKET;
 	}
 
+protected:
+	virtual bool try_un_offloading(); // do best efforts for un-offloading the socket
+
 private:
 
 	struct port_socket_t {

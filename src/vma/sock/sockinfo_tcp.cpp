@@ -2936,6 +2936,12 @@ void sockinfo_tcp::fit_snd_bufs_to_nagle(bool disable_nagle)
 	}
 }
 
+bool sockinfo_tcp::try_un_offloading() // do best efforts for un-offloading the socket
+{
+	// TODO: implement!!
+	return false;
+}
+
 #define SOCKOPT_NO_OFFLOAD_SUPPORT -2
 int sockinfo_tcp::setsockopt(int __level, int __optname,
                               __const void *__optval, socklen_t __optlen)
