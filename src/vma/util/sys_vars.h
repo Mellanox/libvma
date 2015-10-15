@@ -155,20 +155,22 @@ static inline const char* ctl_thread_str(tcp_ctl_thread_t logic)
 }
 
 typedef enum {
-	SOCK_CHECKS_UNOFFLOAD = 0,
-	SOCK_CHECKS_DEBUG,
-	SOCK_CHECKS_ERROR,
-	SOCK_CHECKS_ABORT,
-	SOCK_CHECKS_LAST
-} sock_checks_mode_t;
+	VMA_EXCEPTION_DEBUG = -1,
+	VMA_EXCEPTION_UNOFFLOAD = 0,
+	VMA_EXCEPTION_LOG_ERROR,
+	VMA_EXCEPTION_RETURN_ERROR,
+	VMA_EXCEPTION_ABORT,
+	VMA_EXCEPTION_LAST
+} vma_exception_handling_t;
 
-static inline const char* sock_checks_str(sock_checks_mode_t mode)
+static inline const char* vma_exception_handling_str(vma_exception_handling_t mode)
 {
 	switch (mode) {
-	case SOCK_CHECKS_UNOFFLOAD:	return "(un-offload the socket)";
-	case SOCK_CHECKS_DEBUG:		return "(just log Debug message)";
-	case SOCK_CHECKS_ERROR:		return "(un-offload and Log Error)";
-	case SOCK_CHECKS_ABORT:		return "(Log error and Abort!)";
+	case VMA_EXCEPTION_DEBUG:        return "(just log debug message)";
+	case VMA_EXCEPTION_UNOFFLOAD:    return "(log debug and un-offload)";
+	case VMA_EXCEPTION_LOG_ERROR:    return "(log error and un-offload)";
+	case VMA_EXCEPTION_RETURN_ERROR: return "(Log Error and return error)";
+	case VMA_EXCEPTION_ABORT:        return "(Log error and Abort!)";
 	default:				break;
 	}
 	return "unsupported";
@@ -178,6 +180,10 @@ struct mce_sys_var {
 
 	mce_sys_var () : sysctl_reader(sysctl_reader_t::instance()){
 		// coverity[uninit_member]
+	}
+
+	bool is_vma_exception_handling_suit_un_offloading() {
+		return vma_exception_handling ==  VMA_EXCEPTION_UNOFFLOAD || vma_exception_handling == VMA_EXCEPTION_LOG_ERROR;
 	}
 
 	char 		*app_name;
@@ -265,7 +271,7 @@ struct mce_sys_var {
 	uint32_t	tcp_timer_resolution_msec;
 	tcp_ctl_thread_t tcp_ctl_thread;
 	tcp_ts_opt_t	tcp_ts_opt;
-	sock_checks_mode_t sock_checks_mode;
+	vma_exception_handling_t vma_exception_handling;
 	bool		avoid_sys_calls_on_tcp_fd;
 	uint32_t	wait_after_join_msec;
 	in_port_t	block_udp_port;
@@ -368,7 +374,7 @@ struct mce_sys_var {
 #define SYS_VAR_TCP_TIMER_RESOLUTION_MSEC		"VMA_TCP_TIMER_RESOLUTION_MSEC"
 #define SYS_VAR_TCP_CTL_THREAD				"VMA_TCP_CTL_THREAD"
 #define SYS_VAR_TCP_TIMESTAMP_OPTION			"VMA_TCP_TIMESTAMP_OPTION"
-#define SYS_VAR_SOCK_CHECKS_MODE			"VMA_SOCK_CHECKS_MODE"
+#define SYS_VAR_VMA_EXCEPTION_HANDLING			"VMA_VMA_EXCEPTION_HANDLING"
 #define SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD		"VMA_AVOID_SYS_CALLS_ON_TCP_FD"
 #define SYS_VAR_WAIT_AFTER_JOIN_MSEC			"VMA_WAIT_AFTER_JOIN_MSEC"
 #define SYS_VAR_THREAD_MODE				"VMA_THREAD_MODE"
@@ -471,7 +477,7 @@ struct mce_sys_var {
 #define MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC		(100)
 #define MCE_DEFAULT_TCP_CTL_THREAD			(CTL_THREAD_DISABLE)
 #define MCE_DEFAULT_TCP_TIMESTAMP_OPTION		(TCP_TS_OPTION_DISABLE)
-#define MCE_DEFAULT_SOCK_CHECKS_MODE			(SOCK_CHECKS_DEBUG)
+#define MCE_DEFAULT_VMA_EXCEPTION_HANDLING	(VMA_EXCEPTION_DEBUG)
 #define MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD		(false)
 #define MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC		(0)
 #define MCE_DEFAULT_THREAD_MODE				(THREAD_MODE_MULTI)
