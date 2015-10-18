@@ -94,13 +94,13 @@ neigh_entry* neigh_table_mgr::create_new_entry(neigh_key neigh_key, const observ
 
 void neigh_table_mgr::notify_cb(event *ev)
 {
-	neigh_mgr_logfunc("");
+	neigh_mgr_logdbg("");
 	// Got event from netlink
 
 	neigh_nl_event* nl_ev = dynamic_cast <neigh_nl_event*> (ev);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (nl_ev == NULL) {
-		neigh_mgr_logfunc("Non neigh_nl_event type");
+		neigh_mgr_logdbg("Non neigh_nl_event type");
 		return;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -108,7 +108,7 @@ void neigh_table_mgr::notify_cb(event *ev)
 	const netlink_neigh_info* nl_info = nl_ev->get_neigh_info();
 	struct in_addr in;
 	if(! inet_aton((const char *)(nl_info->dst_addr_str.c_str()), &in)){
-		neigh_mgr_logfunc("Ignoring netlink neigh event for IP = %s, not a valid IP", nl_info->dst_addr_str.c_str());
+		neigh_mgr_logdbg("Ignoring netlink neigh event neigh for IP = %s, not a valid IP", nl_info->dst_addr_str.c_str());
 		return;
 	}
 
@@ -127,7 +127,7 @@ void neigh_table_mgr::notify_cb(event *ev)
 				std::tr1::unordered_map< neigh_key, cache_entry_subject<neigh_key,neigh_val*> *>::iterator cache_itr;
 				cache_itr = m_cache_tbl.find(neigh_key(ip_address(neigh_ip), p_ndev));
 				if (cache_itr == m_cache_tbl.end()) {
-					neigh_mgr_logfunc("Ignoring netlink neigh event for IP = %s if:%s", nl_info->dst_addr_str.c_str(), p_ndev->to_str().c_str());
+					neigh_mgr_logdbg("Ignoring netlink neigh event for IP = %s if:%s, index=%d, p_ndev=%p", nl_info->dst_addr_str.c_str(), p_ndev->to_str().c_str(), nl_info->ifindex, p_ndev);
 				}
 				else {
 
@@ -138,8 +138,13 @@ void neigh_table_mgr::notify_cb(event *ev)
 						p_ne->handle_neigh_event(nl_ev);
 					}
 				}
+			} else {
+				neigh_mgr_logdbg("could not find ndv_val for ifindex=%d", nl_info->ifindex);
 			}
+
 		}
+	} else {
+		neigh_mgr_logdbg("could not find ndv_val list for ifindex=%d", nl_info->ifindex);
 	}
 	m_lock.unlock();
 

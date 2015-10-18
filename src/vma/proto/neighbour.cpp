@@ -224,6 +224,7 @@ void neigh_entry::handle_timer_expired(void* ctx)
 	// Check if neigh_entry state is reachable
 	int state;
 	if(!priv_get_neigh_state(state)) {
+		neigh_logdbg("neigh state not valid!\n");
 		return;
 	}
 
@@ -624,6 +625,8 @@ const char* neigh_entry::event_to_str(event_t event) const
 	{
 	case EV_KICK_START:
 		return "EV_KICK_START";
+	case EV_START_RESOLUTION:
+		return "EV_START_RESOLUTION";
 	case EV_ARP_RESOLVED:
 		return "EV_ARP_RESOLVED";
 	case EV_ADDR_RESOLVED:
@@ -654,6 +657,10 @@ const char* neigh_entry::state_to_str(state_t state) const
 		return "NEIGH_ERROR";
 	case ST_INIT:
 		return "NEIGH_INIT";
+	case ST_INIT_RESOLUTION:
+		return "NEIGH_INIT_RESOLUTION";
+	case ST_ADDR_RESOLVED:
+		return "NEIGH_ADDR_RESOLVED";
 	case ST_ARP_RESOLVED:
 		return "NEIGH_ARP_RESOLVED";
 	case ST_PATH_RESOLVED:
@@ -788,12 +795,20 @@ void neigh_entry::dofunc_enter_init(const sm_info_t& func_info)
 	run_helper_func(priv_enter_init(), EV_ERROR);
 }
 
-//Static enter function for INIT state
+//Static enter function for INIT_RESOLUTION state
 void neigh_entry::dofunc_enter_init_resolution(const sm_info_t& func_info)
 {
 	neigh_entry * my_neigh = (neigh_entry *) func_info.app_hndl;
 	general_st_entry(func_info);
 	run_helper_func(priv_enter_init_resolution(), EV_ERROR);
+}
+
+//Static enter function for ADDR_RESOLVED state
+void neigh_entry::dofunc_enter_addr_resolved(const sm_info_t& func_info)
+{
+	neigh_entry * my_neigh = (neigh_entry *) func_info.app_hndl;
+	general_st_entry(func_info);
+	run_helper_func(priv_enter_addr_resolved(), EV_ERROR);
 }
 
 //Static enter function for READY state
@@ -862,7 +877,7 @@ int neigh_entry::priv_enter_init_resolution()
 			this);
 
 	//3. Start RDMA address resolution
-	neigh_logdbg("Calling rdma_resolve_addr");
+	neigh_logdbg("Calling rdma_resolve_addr, src=%d.%d.%d.%d, dst=%d.%d.%d.%d", NIPQUAD(m_src_addr.sin_addr.s_addr), NIPQUAD(m_dst_addr.sin_addr.s_addr));
 
 	IF_RDMACM_FAILURE(rdma_resolve_addr(m_cma_id, (struct sockaddr*)&m_src_addr, (struct sockaddr*)&m_dst_addr, 2000))
 	{
@@ -870,6 +885,28 @@ int neigh_entry::priv_enter_init_resolution()
 		return -1;
 	} ENDIF_RDMACM_FAILURE;
 
+	return 0;
+}
+
+//Private enter function for ADDR_RESOLVED state
+int neigh_entry::priv_enter_addr_resolved()
+{
+	neigh_logfunc("");
+
+	m_lock.lock();
+
+	int state;
+
+	if (!priv_get_neigh_state(state)) {
+		send_arp();
+		m_timer_handle = priv_register_timer_event(mce_sys.neigh_wait_till_send_arp_msec, this, ONE_SHOT_TIMER, NULL);
+		m_lock.unlock();
+		return 0;
+	} else {
+		event_handler(EV_ARP_RESOLVED);
+	}
+
+	m_lock.unlock();
 	return 0;
 }
 
@@ -1072,7 +1109,9 @@ neigh_eth::neigh_eth(neigh_key key) :
 				{ ST_ERROR, 		EV_KICK_START, 		ST_INIT, 		NULL },
 				{ ST_INIT, 		EV_ARP_RESOLVED,	ST_READY,		NULL },
 				{ ST_INIT, 		EV_START_RESOLUTION,	ST_INIT_RESOLUTION,	NULL },
+				{ ST_INIT_RESOLUTION, 	EV_ADDR_RESOLVED,	ST_ADDR_RESOLVED,	NULL },
 				{ ST_INIT_RESOLUTION, 	EV_ARP_RESOLVED,	ST_READY,		NULL },
+				{ ST_ADDR_RESOLVED, 	EV_ARP_RESOLVED,	ST_READY,		NULL },
 				{ ST_READY, 		EV_ERROR, 		ST_ERROR,		NULL },
 				{ ST_INIT, 		EV_ERROR, 		ST_ERROR, 		NULL },
 				{ ST_INIT_RESOLUTION, 	EV_ERROR, 		ST_ERROR, 		NULL },
@@ -1082,6 +1121,7 @@ neigh_eth::neigh_eth(neigh_key key) :
 	                        { ST_INIT_RESOLUTION, 	SM_STATE_ENTRY, 	SM_NO_ST,		neigh_entry::dofunc_enter_init_resolution },
 	                        { ST_ERROR, 		SM_STATE_ENTRY, 	SM_NO_ST,		neigh_entry::dofunc_enter_error },
 	                        { ST_NOT_ACTIVE, 	SM_STATE_ENTRY,		SM_NO_ST,		neigh_entry::dofunc_enter_not_active },
+	                        { ST_ADDR_RESOLVED, 	SM_STATE_ENTRY, 	SM_NO_ST,		neigh_entry::dofunc_enter_addr_resolved},
 	                        { ST_READY, 		SM_STATE_ENTRY, 	SM_NO_ST,		neigh_entry::dofunc_enter_ready },
 	                 SM_TABLE_END };
 

@@ -193,6 +193,7 @@ public:
 		ST_NOT_ACTIVE = 0,
 		ST_INIT = 1,
 		ST_INIT_RESOLUTION,
+		ST_ADDR_RESOLVED,
 		ST_ARP_RESOLVED,
 		ST_PATH_RESOLVED,
 		ST_READY,
@@ -256,6 +257,7 @@ public:
 	static void 		print_event_info(int state, int event, void* app_data);
 	static void 		dofunc_enter_init(const sm_info_t& func_info);
 	static void 		dofunc_enter_init_resolution(const sm_info_t& func_info);
+	static void 		dofunc_enter_addr_resolved(const sm_info_t& func_info);
 	static void 		dofunc_enter_error(const sm_info_t& func_info);
 	static void		dofunc_enter_not_active(const sm_info_t& func_info);
 	static void		dofunc_enter_ready(const sm_info_t& func_info);
@@ -296,6 +298,7 @@ protected:
 	virtual void		priv_enter_error();
 	virtual int 		priv_enter_init();
 	virtual int 		priv_enter_init_resolution();
+	virtual int 		priv_enter_addr_resolved();
 	virtual int 		priv_enter_ready();
 
 	bool 			priv_get_neigh_state(int & state);

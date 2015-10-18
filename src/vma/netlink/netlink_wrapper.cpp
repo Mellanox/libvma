@@ -74,14 +74,14 @@ extern void route_event_callback(nl_object* obj) {
 
 void netlink_wrapper::neigh_cache_callback(nl_object* obj)
 {
-	nl_logfunc( "---> neigh_cache_callback");
+	nl_logdbg( "---> neigh_cache_callback");
 	struct rtnl_neigh* neigh = (struct rtnl_neigh*)obj;
 	neigh_nl_event new_event(g_nl_rcv_arg.msghdr, neigh, g_nl_rcv_arg.netlink);
 
 	netlink_wrapper::notify_observers(&new_event, nlgrpNEIGH);
 
 	g_nl_rcv_arg.msghdr = NULL;
-	nl_logfunc( "<--- neigh_cache_callback");
+	nl_logdbg( "<--- neigh_cache_callback");
 
 }
 
