@@ -2,9 +2,9 @@ AM_CFLAGS = -Wall -g #-O3
 
 bin_PROGRAMS = nl_test
 
-INCLUDES := -I$(top_builddir) \
-	    -I$(top_builddir)/src \
-	    -I$(top_builddir)/include ${LIBNL_CFLAGS}
+INCLUDES := -I$(top_builddir) -I$(top_srcdir) \
+	    -I$(top_builddir)/src -I$(top_srcdir)/src \
+	    -I$(top_builddir)/include -I$(top_srcdir)/include ${LIBNL_CFLAGS}
 
 noinst_HEADERS = ../infra/subject_observer.h ../util/lock_wrapper.h 
 

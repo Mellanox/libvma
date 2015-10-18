@@ -1,7 +1,7 @@
 bin_PROGRAMS = udp_lat tcp_lat
 
-INCLUDES := -I$(top_builddir)/. \
-            -I$(top_builddir)/include
+INCLUDES := -I$(top_builddir)/. -I$(top_srcdir)/. \
+            -I$(top_builddir)/include -I$(top_srcdir)/include
 
 udp_lat_LDADD = -lrt
 udp_lat_SOURCES = udp_lat.c

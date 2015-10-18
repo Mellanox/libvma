@@ -2,9 +2,9 @@ AM_CFLAGS = -Wall -g #-O3
 
 bin_PROGRAMS = cache_test
 
-INCLUDES := -I$(top_builddir)/src \
-            -I$(top_builddir)/. \
-            -I$(top_builddir)/include
+INCLUDES := -I$(top_builddir)/src -I$(top_srcdir)/src \
+            -I$(top_builddir)/. -I$(top_srcdir)/. \
+            -I$(top_builddir)/include -I$(top_srcdir)/include
 
 noinst_HEADERS = \
 subject_observer.h \

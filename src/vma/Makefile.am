@@ -38,7 +38,9 @@ lib_LTLIBRARIES = libvma.la
 
 INCLUDES := \
 	-I$(top_builddir) \
-	-I$(top_builddir)/src ${LIBNL_CFLAGS}
+	-I$(top_srcdir) \
+	-I$(top_builddir)/src \
+	-I$(top_srcdir)/src ${LIBNL_CFLAGS}
 
 if IS_RELEASE_ZERO
 libvma_la_LDFLAGS := -no-undefined -version-number @VMA_LIBRARY_MAJOR@:@VMA_LIBRARY_MINOR@:@VMA_LIBRARY_REVISION@ 
@@ -52,7 +54,6 @@ libvma_la_LIBADD = \
 	$(top_builddir)/src/state_machine/libstate_machine.la \
 	libconfig_parser.la
 	
-
 libvma_la_SOURCES := \
 	dev/ah_cleaner.cpp \
 	dev/buffer_pool.cpp \
