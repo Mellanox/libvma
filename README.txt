@@ -638,7 +638,6 @@ Use value of -1 for just handling at DEBUG severity.
 Use value of 0 to log DEBUG message and try recovering via Kernel network stack (un-offloading the socket).
 Use value of 1 to log ERROR message and try recovering via Kernel network stack (un-offloading the socket).
 Use value of 2 to log ERROR message and return API respectful error code.
->>>>>>> issue: 618607 - renamed env var: VMA_SOCK_CHECKS_MODE -> VMA_EXCEPTION_HANDLING and changed
 Use value of 3 to log ERROR message and abort application (throw vma_error exception).
 Default value is -1 (until 0 is supported)
 !!! NOTE: modes 0, 1, 2, 3 - are under development and are not yet supported !!!
