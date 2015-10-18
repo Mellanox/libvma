@@ -1,5 +1,18 @@
 SUBDIRS := src
 
+DIST_SUBDIRS := src tests
+EXTRA_DIST = \
+	build \
+	debian \
+	BUILD \
+	coverity_vma_config.xml \
+	install.sh \
+	journal.txt \
+	LOC_exclude_VMA.txt \
+	LOC.sh \
+	README.txt \
+	vma_version_template	
+
 .PHONY: tests
 
 mydocdir = $(if $(docdir),$(docdir),${datadir}/doc/$(distdir))

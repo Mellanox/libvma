@@ -23,7 +23,10 @@ DemoSubject.cpp \
 DemoCollMgr.cpp \
 DemoObserver.cpp \
 ../../vlogger/vlogger.cpp \
-main.cpp
+main.cpp \
+DemoCollMgr.h \
+DemoObserver.h \
+DemoSubject.h
 
 cache_test_CXXFLAGS = -g
 

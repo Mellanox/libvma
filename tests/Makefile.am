@@ -1,1 +1,22 @@
 SUBDIRS := latency_test pps_test throughput_test
+
+EXTRA_DIST = \
+	async-echo-client \
+	benchmarking_test \
+	connect-disconnect \
+	extra_api_tests \
+	functionality \
+	listen \
+	low_pps_tcp_send_test \
+	mc_loop_test \
+	multithread_test \
+	server_test \
+	time_measurements_test \
+	vma_perf_envelope \
+	valgrind_libc.supp \
+	valgrind_rdma.supp \
+	valgrind_sockperf.supp \
+	valgrind_vma.supp \
+	vma.supp \
+	reuse_ud_test.c \
+	select_t1.c

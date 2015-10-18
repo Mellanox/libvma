@@ -3,7 +3,7 @@ AM_CXXFLAGS = -Wall -g -fPIC#-O3
 
 lib_LTLIBRARIES = libstate_machine.la
 libstate_machine_la_LDFLAGS = -static
-libstate_machine_la_SOURCES = sm_fifo.cpp sm.cpp
+libstate_machine_la_SOURCES = sm_fifo.cpp sm.cpp sm_fifo.h sm.h
 libstate_machine_la_DEPENDENCIES = Makefile.am Makefile.in Makefile
 INCLUDES := -I$(top_builddir)/src
 	

@@ -12,6 +12,12 @@ AM_YFLAGS = -plibvma_yy -d
 LEX_OUTPUT_ROOT=lex.libvma_yy
 BUILT_SOURCES = config_parser.h
 
+DIST_SUBDIRS := infra netlink
+EXTRA_DIST = \
+	util/hash_map.inl \
+	util/libvma.conf
+	
+
 sysconf_DATA = util/libvma.conf
 otherincludedir = $(includedir)/mellanox
 otherinclude_HEADERS = vma_extra.h
@@ -138,9 +144,132 @@ libvma_la_SOURCES := \
 	netlink/neigh_info.cpp \
 	netlink/link_info.cpp \
 	netlink/route_info.cpp \
-	netlink/netlink_compatibility.cpp 
-	
-	
+	netlink/netlink_compatibility.cpp \
+	dev/ah_cleaner.h \
+	dev/buffer_pool.h \
+	dev/cq_mgr.h \
+	dev/gro_mgr.h \
+	dev/ib_ctx_handler_collection.h \
+	dev/ib_ctx_handler.h \
+	dev/ib_ctx_time_converter.h \
+	dev/net_device_entry.h \
+	dev/net_device_table_mgr.h \
+	dev/net_device_val.h \
+	dev/qp_mgr.h \
+	dev/rfs.h \
+	dev/rfs_mc.h \
+	dev/rfs_uc.h \
+	dev/rfs_uc_tcp_gro.h \
+	dev/ring_allocation_logic.h \
+	dev/ring_bond.h \
+	dev/ring.h \
+	dev/ring_simple.h \
+	dev/wqe_send_handler.h \
+	dev/wqe_send_ib_handler.h \
+	event/command.h \
+	event/delta_timer.h \
+	event/event.h \
+	event/event_handler_ibverbs.h \
+	event/event_handler_manager.h \
+	event/event_handler_rdma_cm.h \
+	event/netlink_event.h \
+	event/route_net_dev_event.h \
+	event/timer_handler.h \
+	event/timers_group.h \
+	event/vlogger_timer_handler.h \
+	infra/sender.h \
+	infra/sender_info_dst.h \
+	infra/subject_observer.h \
+	infra/cache_subject_observer.h \
+	iomux/epfd_info.h \
+	iomux/epoll_wait_call.h \
+	iomux/io_mux_call.h \
+	iomux/poll_call.h \
+	iomux/select_call.h \
+	lwip/cc_cubic.h \
+	lwip/cc.h \
+	lwip/def.h \
+	lwip/err.h \
+	lwip/init.h \
+	lwip/ip_addr.h \
+	lwip/ip.h \
+	lwip/opt.h \
+	lwip/pbuf.h \
+	lwip/stats.h \
+	lwip/tcp.h \
+	lwip/tcp_impl.h \
+	netlink/link_info.h \
+	netlink/neigh_info.h \
+	netlink/netlink_compatibility.h \
+	netlink/netlink_wrapper.h \
+	netlink/route_info.h \
+	proto/arp.h \
+        proto/dst_entry.h \
+        proto/dst_entry_tcp.h \
+        proto/dst_entry_udp.h \
+        proto/dst_entry_udp_mc.h \
+        proto/flow_tuple.h \
+        proto/header.h \
+        proto/igmp_handler.h \
+        proto/igmp_mgr.h \
+        proto/ip_address.h \
+        proto/ip_frag.h \
+        proto/L2_address.h \
+	proto/mem_buf_desc.h \
+	proto/neighbour.h \
+	proto/neighbour_observer.h \
+	proto/neighbour_table_mgr.h \
+	proto/netlink_socket_mgr.h \
+	proto/peer_key.h \
+	proto/route_entry.h \
+	proto/route_rule_table_key.h \
+	proto/route_table_mgr.h \
+	proto/route_val.h \
+	proto/rule_entry.h \
+	proto/rule_table_mgr.h \
+	proto/rule_val.h \
+	proto/vma_lwip.h \
+	sock/cleanable_obj.h \
+        sock/fd_collection.h \
+        sock/pipeinfo.h \
+        sock/pkt_rcvr_sink.h \
+        sock/pkt_sndr_source.h \
+        sock/socket_fd_api.h \
+        sock/sockinfo.h \
+        sock/sockinfo_tcp.h \
+        sock/sockinfo_udp.h \
+        sock/sock-redirect.h \
+	util/asm-arm64.h \
+        util/asm.h \
+        util/asm-ppc64.h \
+        util/asm-x86.h \
+        util/atomic.h \
+        util/bullseye.h \
+        util/clock.h \
+        util/hash_map.h \
+        util/if.h \
+        util/instrumentation.h \
+        util/libvma.h \
+        util/linked_unordered_map.h \
+        util/list.h \
+        util/lock_wrapper.h \
+        util/rdtsc.h \
+        util/sock_addr.h \
+        util/sysctl_reader.h \
+        util/sys_vars.h \
+        util/to_str.h \
+        util/utils.h \
+        util/valgrind.h \
+        util/verbs_extra.h \
+        util/vma_list.h \
+        util/vma_stats.h \
+        util/vtypes.h \
+        util/wakeup.h \
+        util/wakeup_pipe.h \
+	config_parser.h \
+	main.h \
+	vma_extra.h
+
 libvma_la_DEPENDENCIES = \
 	$(top_builddir)/src/vlogger/libvlogger.la \
 	$(top_builddir)/src/state_machine/libstate_machine.la \

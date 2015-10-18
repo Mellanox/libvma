@@ -20,7 +20,12 @@ nl_test_SOURCES  =  \
 	../infra/subject_observer.cpp \
 	../event/netlink_event.cpp \
 	../../vlogger/vlogger.cpp \
-	test_main.cpp
+	test_main.cpp \
+	link_info.h \
+	neigh_info.h \
+	netlink_compatibility.h \
+	netlink_wrapper.h \
+	route_info.h
 
 nl_test_CXXFLAGS = -g
 
