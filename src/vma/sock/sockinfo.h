@@ -149,7 +149,7 @@ protected:
 
 	virtual void 		set_blocking(bool is_blocked);
 	virtual int 		fcntl(int __cmd, unsigned long int __arg);
-	virtual int 		ioctl(unsigned long int __request, unsigned long int __arg);
+	virtual int 		ioctl(unsigned long int __request, unsigned long int __arg) throw (vma_error);
 
 	virtual	mem_buf_desc_t* get_front_m_rx_pkt_ready_list() = 0;
 	virtual	size_t get_size_m_rx_pkt_ready_list() = 0;

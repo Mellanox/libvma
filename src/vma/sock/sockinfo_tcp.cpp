@@ -2860,7 +2860,7 @@ int sockinfo_tcp::fcntl(int __cmd, unsigned long int __arg)
 	return sockinfo::fcntl(__cmd, __arg);
 }
 
-int sockinfo_tcp::ioctl(unsigned long int __request, unsigned long int __arg)
+int sockinfo_tcp::ioctl(unsigned long int __request, unsigned long int __arg)  throw (vma_error)
 {
 	if (!mce_sys.avoid_sys_calls_on_tcp_fd || !is_connected())
 		return sockinfo::ioctl(__request, __arg);

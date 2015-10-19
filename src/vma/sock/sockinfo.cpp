@@ -128,7 +128,7 @@ int sockinfo::fcntl(int __cmd, unsigned long int __arg)
 	return orig_os_api.fcntl(m_fd, __cmd, __arg);
 }
 
-int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg)
+int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg) throw (vma_error)
 {
 
 	int *p_arg = (int *)__arg;
@@ -145,14 +145,25 @@ int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg)
 		break;
 
 	default:
-	        si_logfunc("unimplemented ioctl request=%d, flags=%x", __request, __arg);
-	        if (mce_sys.is_vma_exception_handling_suit_un_offloading()) {
-				try_un_offloading();
-	        }
+		char buf[128];
+		snprintf(buf, sizeof(buf), "unimplemented ioctl request=%lu, flags=%x", __request, (unsigned)__arg);
+		buf[ sizeof(buf)-1 ] = '\0';
+		VLOG_PRINTF_INFO(vma_exception_handling::get_log_severity(mce_sys.exception_handling), "%s", buf);
+
+		if (vma_exception_handling::is_suit_un_offloading(mce_sys.exception_handling)) {
+			try_un_offloading();
+		}
+		if (mce_sys.exception_handling == vma_exception_handling::MODE_RETURN_ERROR) {
+			errno = EINVAL;
+			return -1;
+		}
+		if (mce_sys.exception_handling == vma_exception_handling::MODE_ABORT) {
+			vma_throw_object_with_msg(vma_unsupported_api, buf);
+		}
 		break;
 	}
 
-	si_logdbg("going to OS for ioctl request=%d, flags=%x", __request, __arg);
+    si_logdbg("going to OS for ioctl request=%d, flags=%x", __request, __arg);
 	return orig_os_api.ioctl(m_fd, __request, __arg);
 }
 

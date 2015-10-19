@@ -99,7 +99,7 @@ public:
 	bool prepare_dst_to_send(bool is_accepted_socket = false);
 
 	virtual int fcntl(int __cmd, unsigned long int __arg);
-	virtual int ioctl(unsigned long int __request, unsigned long int __arg);
+	virtual int ioctl(unsigned long int __request, unsigned long int __arg)  throw (vma_error);
 	virtual int setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen);
 	virtual int getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen);
 	int getsockopt_offload(int __level, int __optname, void *__optval, socklen_t *__optlen);
