@@ -514,8 +514,8 @@ fi
 
 function build_vma_src_rpm {
 
-APP_NAME=vma
-VMA_DIR=$APP_NAME
+APP_NAME=libvma
+VMA_DIR=vma
 
 cd ..
 echoStep `pwd`
@@ -537,9 +537,9 @@ else
         RPM_DIR=$1;
 fi
 
-sed  -e 's/__VERSION/'$VERSION'/g' -e 's/__RELEASE/'$VMA_LIBRARY_RELEASE'/g' -e 's/__DATE/'$DATE'/g' -e 's/__TIME/'$TIME'/g' -e 's/__MAJOR/'$VMA_LIBRARY_MAJOR'/g' $APP_NAME.spec > $APP_NAME-$VERSION.spec
+#sed  -e 's/__VERSION/'$VERSION'/g' -e 's/__RELEASE/'$VMA_LIBRARY_RELEASE'/g' -e 's/__DATE/'$DATE'/g' -e 's/__TIME/'$TIME'/g' -e 's/__MAJOR/'$VMA_LIBRARY_MAJOR'/g' $APP_NAME.spec > $APP_NAME-$VERSION.spec
 #sed  -e 's/__VERSION/'$VERSION'/g' -e 's/__RELEASE/'$VMA_LIBRARY_RELEASE'/g'-e 's/__DATE/'$DATE'/g' -e 's/__TIME/'$TIME'/g' -e 's/__MAJOR/'$VMA_LIBRARY_MAJOR'/g' $APP_NAME.spec > $APP_NAME-$VERSION.spec
-sed  -e 's/__VERSION/'$VERSION'/g' -e 's/__RELEASE/'$VMA_LIBRARY_RELEASE'/g' -e 's/__DATE/'$DATE'/g' -e 's/__TIME/'$TIME'/g' $VMA_DIR/vma_version_template > $VMA_DIR/VMA_VERSION
+#sed  -e 's/__VERSION/'$VERSION'/g' -e 's/__RELEASE/'$VMA_LIBRARY_RELEASE'/g' -e 's/__DATE/'$DATE'/g' -e 's/__TIME/'$TIME'/g' $VMA_DIR/vma_version_template > $VMA_DIR/VMA_VERSION
 
 rm -f libvma*.tar.gz  > /dev/null > /dev/null 2>&1
 rm -f $RPM_DIR/SRPMS/libvma*  > /dev/null > /dev/null 2>&1
@@ -547,7 +547,7 @@ rm -rf $VMA_DIR_NAME  > /dev/null > /dev/null 2>&1
 
 mkdir $VMA_DIR_NAME
 mkdir $VMA_DIR_NAME/build
-cp -r build_vma_udp_rpm.sh $APP_NAME.spec $VMA_DIR_NAME/build
+#cp -r $APP_NAME.spec $VMA_DIR_NAME/build
 cp -r $VMA_DIR  $VMA_DIR_NAME/build/$VMA_DIR_NAME/   # copy vma & udp_test
 cd $VMA_DIR_NAME
 cd build
@@ -555,8 +555,13 @@ cd $VMA_DIR_NAME
 #./autogen.sh
 autogenWrap
 prepare_debian_files "debian"
+./configure > /dev/null > /dev/null 2>&1
+cp -r build/$APP_NAME.spec ../
+cp -r build/$APP_NAME.spec ../../../$APP_NAME-$VERSION.spec
+make dist > /dev/null > /dev/null 2>&1
+cp $VMA_DIR_NAME.tar.gz ../../../
 cd ..
-tar zcvf ../../$VMA_DIR_NAME.tar.gz --exclude .git $VMA_DIR_NAME > /dev/null > /dev/null 2>&1
+#tar zcvf ../../$VMA_DIR_NAME.tar.gz --exclude .git $VMA_DIR_NAME > /dev/null > /dev/null 2>&1
 cd ..
 cd ..
 
@@ -966,7 +971,7 @@ set_topdir
 #	cov01 -s
 #fi
 
-echoStep "./build_vma_udp_rpm.sh"
+echoStep "build_vma_src_rpm"
 if [ "$(rpm --eval '%{_topdir}')" == "$topdir" ]; then
         build_vma_src_rpm > /tmp/tmp_file
 #        build_vma_src_rpm
@@ -991,8 +996,8 @@ finalCoverity=
 finalBullseye=
 err=0
 # make rpm and output errors
-echoStep "sudo BUILD_32=$i BUILD_BULLSEYE=$make_bullseye rpmbuild --rebuild --define "_topdir $topdir"  libvma-"$fullVersion".src.rpm"
-sudo BUILD_32=$i BUILD_BULLSEYE=$make_bullseye rpmbuild --rebuild --define "_topdir $topdir" libvma-"$fullVersion".src.rpm > /tmp/build_vma_rpm.log
+echoStep "sudo BUILD_32=$i BUILD_BULLSEYE=$make_bullseye rpmbuild --rebuild --define _topdir $topdir  $srcRpm"
+sudo BUILD_32=$i BUILD_BULLSEYE=$make_bullseye rpmbuild --rebuild --define "_topdir $topdir" $srcRpm > /tmp/build_vma_rpm.log
 if [[ $? != 0 ]]; then
         errorOccured "sudo BUILD_32=$i BUILD_BULLSEYE=$make_bullseye rpmbuild --rebuild libvma-$fullVersion.src.rpm" $i
         i=`expr $i + 1`
@@ -1009,6 +1014,21 @@ if [[ $path =~ $pattern ]]; then # in case $path contains space
         path=`echo $path | awk '{print $1}'`
 fi
 echo "path=$path"
+
+path_devel=$(cat /tmp/build_vma_rpm.log | grep Wrote: | grep devel | grep -o '/.*')
+pattern=" |'"
+if [[ $path_devel =~ $pattern ]]; then # in case $path contains space
+        path_devel=`echo $path_devel | awk '{print $1}'`
+fi
+echo "path_devel=$path_devel"
+
+path_util=$(cat /tmp/build_vma_rpm.log | grep Wrote: | grep util | grep -o '/.*')
+pattern=" |'"
+if [[ $path_util =~ $pattern ]]; then # in case $path contains space
+        path_util=`echo $path_util | awk '{print $1}'`
+fi
+echo "path_util=$path_util"
+
 rm -f /tmp/build_vma_rpm.log
 
 # copy to correct location
@@ -1022,7 +1042,10 @@ if [ "$DAILY_MODE" == 1 ]; then #daily
 	if [ "$make_bullseye" == 1 ]; then
         	cp $path* daily/"$branch_folder"/"$date"/libvma-"$fullVersion"-"$machine"-"$name"."$date".bullseye.rpm
         else
-		cp $path* daily/"$branch_folder"/"$date"/libvma-"$fullVersion"-"$machine"-"$name"."$date".rpm
+		cp $path* daily/"$branch_folder"/"$date"/
+		cp $path_devel* daily/"$branch_folder"/"$date"/
+		cp $path_util* daily/"$branch_folder"/"$date"/
+		#cp $path* daily/"$branch_folder"/"$date"/libvma-"$fullVersion"-"$machine"-"$name"."$date".rpm
 		cp $srcRpm daily/"$branch_folder"/"$date"/libvma-"$fullVersion"-"$machine"-"$name"."$date".src.rpm
 	fi
 	#cp $path* daily/"$branch_folder"/"$date"/
@@ -1067,6 +1090,8 @@ if [ "$RELEASE_MODE" == 1 ]; then #release
                 echo "Machine: $name - failed on step: cp $srcRpm src/" >> $log_file
         fi
         cp $path* src/
+	cp $path_devel* src/
+	cp $path_util* src/
         #copy the rpm (short name) to vma dir
         ln -s src/*x86_64.rpm libvma-""$fullVersion"-"$machine"".rpm
         
@@ -1090,7 +1115,10 @@ if [ "$RELEASE_MODE" == 1 ]; then #release
 
 fi
 if [ "$LOCAL_MODE" == 1 ]; then #local
-        cp $path* "$target_dir"/libvma-""$fullVersion"-"$machine""$rpm_name"".rpm
+        #cp $path* "$target_dir"/libvma-""$fullVersion"-"$machine""$rpm_name"".rpm
+	cp $path* "$target_dir"/
+	cp $path_util* "$target_dir"/
+	cp $path_devel* "$target_dir"/
         if [[ $? != 0 ]]; then
                 err=1;
                 echo "Machine: $name -  failed on step: cp $path $target_dir/" >> $log_file

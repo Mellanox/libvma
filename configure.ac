@@ -48,6 +48,8 @@ AC_SUBST(VMA_LIBRARY_RELEASE)
 #LIBALIC_FLAG
 LIBALIC_FLAG=""
 AC_SUBST(LIBALIC_FLAG)
+AC_SUBST([BUILD_DATE], [$(date +'%b/%d/%Y')])
+AC_SUBST([BUILD_TIME], [$(date +'%H:%M:%S')])
 
 with_debug_info=yes
 with_debug=no
@@ -447,6 +449,8 @@ AC_CONFIG_FILES([
 		tests/pps_test/Makefile
 		tests/latency_test/Makefile
 		tests/throughput_test/Makefile
+		build/libvma.spec
+		VMA_VERSION
 		])
 
 AC_OUTPUT

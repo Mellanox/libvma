@@ -11,12 +11,12 @@ EXTRA_DIST = \
 	LOC_exclude_VMA.txt \
 	LOC.sh \
 	README.txt \
-	vma_version_template	
+	VMA_VERSION
 
 .PHONY: tests
 
 mydocdir = $(if $(docdir),$(docdir),${datadir}/doc/$(distdir))
-mydoc_DATA = README.txt journal.txt
+mydoc_DATA = README.txt journal.txt VMA_VERSION
 
 install-all: install
 
@@ -31,6 +31,8 @@ tests:
 demo:
 	$(MAKE)
 	$(MAKE) -C src/vma/infra
+
+rpmspec: build/libvma.spec
 
 cov:
 	PATH=/hpc/local/commercial/coverity/cov-sa/bin:$$PATH && rm -rf $(PWD)/cov-build && make clean && cov-build --dir $(PWD)/cov-build --config coverity_vma_config.xml make all && cov-analyze --dir $(PWD)/cov-build && cov-format-errors --dir $(PWD)/cov-build 

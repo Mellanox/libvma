@@ -1,0 +1,136 @@
+%global version @VERSION@
+%global release @VMA_LIBRARY_RELEASE@
+%global pkgname @PACKAGE@
+%global major_release @VMA_LIBRARY_MAJOR@
+%global revision @VMA_LIBRARY_REVISION@
+%define date __DATE
+%define time __TIME
+
+%global pmake %{__make} %{?_smp_mflags} %{?mflags} V=1
+
+%global include_dir %{_includedir}/mellanox
+%global vma_ver_rel %{name}-%{version}-%{release}
+%global vma_datadir %{_datadir}/%{vma_ver_rel}
+
+%global ofed_ver %(eval ofed_info -s)
+%global ofed_dir %{?_ofed_dir}%{?!_ofed_dir:%{_prefix}}
+
+%global _use_internal_dependency_generator 0
+
+Summary: A library for boosting TCP and UDP traffic (over RDMA hardware)
+Name: libvma
+Version: %{version}
+Release: 1%{?dist}
+License: GPLv2
+Group: System Environment/Libraries
+Url: https://github.com/Mellanox/libvma
+BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
+Source: %{pkgname}-%{version}.tar.gz
+#Requires: librdmacm, libibverbs
+#Requires: libnl
+#Requires: libnl3
+Requires(post): /sbin/ldconfig
+Requires(postun): /sbin/ldconfig
+#BuildRequires: gcc-c++  libstdc++-devel
+#%if (0%{?fedora} >= 18 || 0%{?rhel} >= 7)
+#BuildRequires: libnl3-devel
+#%endif
+#BuildRequires: libnl-devel
+#BuildRequires: libnl3-devel
+Prefix: %{_prefix}
+
+%description
+
+VMA library is a performance booster of TCP and UDP traffic
+Part of Mellanox's enhanced services
+Allows application written over standard socket API
+To run over Infiniband/Ethernet from userspace with full network stack bypass
+and get better throughput, latency and packets/sec rate
+
+%package devel
+Summary: Header files and link required to develop with Libvma
+Group: System Environment/Libraries
+Requires: %{name}%{?_isa} = %{version}-%{release}
+
+%description devel
+Headers and symbolink link required to compile and link with the Libvma library.
+
+%package utils
+Summary: Libvma utilities
+Group: System Environment/Libraries
+Requires: %{name}%{?_isa} = %{version}-%{release}
+
+%description utils
+Example tests and tools for collecting and analyzing Libvma statistic
+
+%prep
+%setup -q
+
+%build
+
+#CFLAGS=%{?cflags:%{cflags}}%{!?cflags:$RPM_OPT_FLAGS}
+#CXXFLAGS=%{?cxxflags:%{cxxflasg}}%{!?cxxflags:$RPM_OPT_FLAGS}
+#LDFLAGS=%{?ldflags:%{ldflags}}%{!?ldflags:$RPM_OPT_FLAGS}
+
+export revision=1
+#export CFLAGS CXXFLAGS LDFLAGS
+
+%configure --with-ofed=%{ofed_dir} --docdir=%{_docdir}/%{name}-%{version}
+#%{pmake} -C src CFLAGS="$CFLAGS" CXXFLAGS="$CXXFLAGS"  LDFLAGS="$LDFLAGS"
+%{pmake}
+
+%install
+[ "${RPM_BUILD_ROOT}" != "/" -a -d ${RPM_BUILD_ROOT} ] && rm -rf ${RPM_BUILD_ROOT}
+
+mkdir -p $RPM_BUILD_ROOT%{include_dir}
+mkdir -p $RPM_BUILD_ROOT%{vma_datadir}/scripts
+mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}
+
+#%{pmake} -C src DESTDIR=${RPM_BUILD_ROOT} install
+%{pmake} DESTDIR=${RPM_BUILD_ROOT} install
+
+rm -f $RPM_BUILD_ROOT%{_libdir}/*.la
+
+install -m 755 tests/vma_perf_envelope/vma_perf_envelope.sh $RPM_BUILD_ROOT/%{vma_datadir}/scripts/vma_perf_envelope.sh
+install -m 644 src/vma/vma_extra.h $RPM_BUILD_ROOT/%{include_dir}/vma_extra.h
+install -m 755 src/vma/util/libvma.conf $RPM_BUILD_ROOT/%{_sysconfdir}/
+install -s -m 755 src/stats/vma_stats $RPM_BUILD_ROOT/%{_bindir}/vma_stats
+
+
+%post
+if [ `grep memlock /etc/security/limits.conf |grep unlimited |wc -l` -le 0 ]; then 
+	echo "*             -   memlock        unlimited" >> /etc/security/limits.conf
+	echo "*          soft   memlock        unlimited" >> /etc/security/limits.conf
+	echo "*          hard   memlock        unlimited" >> /etc/security/limits.conf
+	echo "- Changing max locked memory to unlimited (in /etc/security/limits.conf)"
+	echo "  Please log out from the shell and login again in order to update this change "
+	echo "  Read more about this topic in the VMA's User Manual"
+fi
+/sbin/ldconfig
+
+%clean
+[ "${RPM_BUILD_ROOT}" != "/" -a -d ${RPM_BUILD_ROOT} ] && rm -rf ${RPM_BUILD_ROOT}
+
+%postun
+/sbin/ldconfig
+
+%files
+%defattr(-,root,root,-)
+%{_libdir}/%{name}*.so.*
+%{_libdir}/%{name}.so
+%doc README.txt
+%doc journal.txt
+%doc VMA_VERSION
+%config(noreplace) %{_sysconfdir}/libvma.conf
+#%{_sysconfdir}/ld.so.conf.d/libvma.conf
+
+%files devel
+%defattr(-,root,root,-)
+%{_libdir}/%{name}*.so.*
+%{_libdir}/%{name}.so
+%{include_dir}/vma_extra.h
+
+%files utils
+%defattr(-,root,root)
+%{_bindir}/vma_stats
+%{vma_datadir}/scripts/vma_perf_envelope.sh
