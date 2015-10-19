@@ -15,20 +15,21 @@
 #@date: 18Oct2015
 #
 # This script performs ioctl/fcntl/setsockopt tests for verifying VMA coverage and behavior
+
+# example for usage:
+# LD_PRELOAD=libvma.so VMA_EXCEPTION_HANDLING=2 ./tests/api-support-check.py
 #
 import socket, sys, fcntl
+import struct
 
-
-def main():
-	if (len(sys.argv) < 2):
-	    print "Incorrect Usage : " + sys.argv[0] + " Ofloaded IP"
-	    sys.exit(-1)
-	BIND_IP   = sys.argv[1]
-
-	sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-	sock.bind((BIND_IP, 0))
-	sock_fd = sock.fileno()
-	fcntl.ioctl(sock_fd, 12, 8)
+def get_ip_address(ifname):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    return socket.inet_ntoa(fcntl.ioctl(
+        s.fileno(),
+        0x8915,  # SIOCGIFADDR
+        struct.pack('256s', ifname)
+    )[20:24])
 
 if __name__ == "__main__":
-    main()
+    addr = get_ip_address('eth0')
+    print addr
