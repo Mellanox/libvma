@@ -22,8 +22,8 @@
 import socket, sys, fcntl
 import struct
 
-def get_ip_address(ifname):
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+def get_ip_address(ifname, sock_type):
+    s = socket.socket(socket.AF_INET, sock_type)
     return socket.inet_ntoa(fcntl.ioctl(
         s.fileno(),
         0x8915,  # SIOCGIFADDR
@@ -31,5 +31,6 @@ def get_ip_address(ifname):
     )[20:24])
 
 if __name__ == "__main__":
-    addr = get_ip_address('eth0')
-    print addr
+    ifname = 'eth0'
+    print "test using UDP: %s=%s" % (ifname, get_ip_address(ifname, socket.SOCK_DGRAM))
+    print "test using TCP: %s=%s" % (ifname, get_ip_address(ifname, socket.SOCK_STREAM))
