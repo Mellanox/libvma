@@ -1018,24 +1018,18 @@ uint32_t fd2inode(int fd)
 }
 
 ///////////////////////////////////////////
-vma_exception::vma_exception(const char* _message, const char* _function, const char* _filename, int _lineno, int _errnum) throw()
+vma_error::vma_error(const char* _message, const char* _function, const char* _filename, int _lineno, int _errnum) throw()
 	: message(_message), function(_function), filename(_filename), lineno(_lineno), errnum(_errnum)
 {
-	snprintf(formatted_message, sizeof(formatted_message), "vma_exception <%s> (errno=%d %s) in %s:%d", message, errnum, strerror(errnum), filename, lineno);
+	snprintf(formatted_message, sizeof(formatted_message), "vma_error <%s> (errno=%d %s) in %s:%d", message, errnum, strerror(errnum), filename, lineno);
 	formatted_message[ sizeof(formatted_message)-1 ] = '\0';
 }
 
-vma_exception::vma_exception(void) throw()
-	: message(""), function(""), filename(""), lineno(0), errnum(0)
-{
-	formatted_message[0] = '\0';
-}
-
-vma_exception::~vma_exception() throw()
+vma_error::~vma_error() throw()
 {
 }
 
-const char* vma_exception::what() const throw()
+const char* vma_error::what() const throw()
 {
 	return formatted_message;
 }

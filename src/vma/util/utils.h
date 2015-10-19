@@ -432,10 +432,14 @@ class loops_timer {
 // This should be safe for 'proc' filesytem and for standard filesystems
 uint32_t fd2inode(int fd);
 
+
 /**
- * @class vma_exception
+ * @class vma_error
+ *
+ * base class for vma exceptions classes.
+ * Note: VMA code should NOT catch vma_error; VMA code should only catch exceptions of derived classes
  */
-class vma_exception : public std::exception {
+class vma_error : public std::exception {
 	char formatted_message[512];
 public:
 	const char * const message;
@@ -449,24 +453,43 @@ public:
 	 * available thru the 'what()' method of base class.
 	 *
 	 * The formatted_message will look like this:
-	 * 		"vma_exception <create internal epoll> (errno=24 Too many open files) in sock/sockinfo.cpp:61"
+	 * 		"vma_error <create internal epoll> (errno=24 Too many open files) in sock/sockinfo.cpp:61"
 	 * catcher can print it to log like this:
 	 * 		fdcoll_loginfo("recovering from %s", e.what());
 	 */
-	vma_exception(const char* _message, const char* _function, const char* _filename, int _lineno, int _errnum) throw();
-	/**
-	 * Create an object with no message
-	 */
-	vma_exception(void) throw();
+	vma_error(const char* _message, const char* _function, const char* _filename, int _lineno, int _errnum) throw();
 
-	virtual ~vma_exception() throw();
+	virtual ~vma_error() throw();
 
 	virtual const char* what() const throw();
 
 };
 
+/**
+ * @class vma_exception
+ * NOTE: ALL exceptions that can be caught by VMA should be derived of this class
+ */
+class vma_exception : public vma_error {
+public:
+	vma_exception(const char* _message, const char* _function, const char* _filename, int _lineno, int _errnum) throw() :
+		vma_error(_message, _function, _filename, _lineno, _errnum)
+	{
+	}
+};
+
+
+#define create_vma_exception_class(clsname, basecls) \
+	class clsname : public basecls { \
+	public: \
+	clsname(const char* _message, const char* _function, const char* _filename, int _lineno, int _errnum) throw() : \
+		basecls(_message, _function, _filename, _lineno, _errnum) {} \
+	}
+
+create_vma_exception_class(vma_unsupported_api, vma_error);
+
 #define throw_vma_exception(msg) throw vma_exception(msg, __PRETTY_FUNCTION__, __FILE__, __LINE__, errno)
-#define throw_vma_exception_no_msg() throw vma_exception()
-// uses for throwing  something that is derived from vma_exception and has similar CTOR; msg will automatically be class name
+#define throw_vma_exception_no_msg() throw_vma_exception("an exception was thrown using a deprecated macro: throw_vma_exception_no_msg")
+// uses for throwing  something that is derived from vma_error and has similar CTOR; msg will automatically be class name
 #define vma_throw_object(_class)  throw _class(#_class, __PRETTY_FUNCTION__, __FILE__, __LINE__, errno)
+#define vma_throw_object_with_msg(_class, _msg)  throw _class(_msg, __PRETTY_FUNCTION__, __FILE__, __LINE__, errno)
 #endif
