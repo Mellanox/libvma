@@ -201,7 +201,7 @@ public:
 protected:
 	virtual void		lock_rx_q();
 	virtual void		unlock_rx_q();
-	virtual bool try_un_offloading(); // do best efforts for un-offloading the socket
+	virtual bool try_un_offloading(); // un-offload the socket if possible
 
 private:
 	//lwip specific things

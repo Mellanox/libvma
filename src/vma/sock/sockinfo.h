@@ -195,7 +195,7 @@ protected:
 
 	void 			move_owned_rx_ready_descs(const mem_buf_desc_owner* p_desc_owner, descq_t* toq); // Move all owner's rx ready packets ro 'toq'
 
-	virtual bool try_un_offloading() = 0; // instruct derived class to do best efforts for un-offloading the socket
+	virtual bool try_un_offloading(); // un-offload the socket if possible
 
 	// This function validates the ipoib's properties
 	// Input params:

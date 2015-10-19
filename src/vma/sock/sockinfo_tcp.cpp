@@ -2936,12 +2936,13 @@ void sockinfo_tcp::fit_snd_bufs_to_nagle(bool disable_nagle)
 	}
 }
 
-bool sockinfo_tcp::try_un_offloading() // do best efforts for un-offloading the socket
+////////////////////////////////////////////////////////////////////////////////
+bool sockinfo_tcp::try_un_offloading() // un-offload the socket if possible
 {
-	// TODO: implement!!
-	return false;
+	return is_connected() ? false : sockinfo::try_un_offloading();
 }
 
+////////////////////////////////////////////////////////////////////////////////
 #define SOCKOPT_NO_OFFLOAD_SUPPORT -2
 int sockinfo_tcp::setsockopt(int __level, int __optname,
                               __const void *__optval, socklen_t __optlen)

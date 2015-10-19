@@ -167,6 +167,18 @@ int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg) throw 
 	return orig_os_api.ioctl(m_fd, __request, __arg);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+bool sockinfo::try_un_offloading() // un-offload the socket if possible
+{
+	if (! this->isPassthrough()) {
+		setPassthrough();
+		handle_close(m_fd, false, true); // will leave it for passthrough
+	}
+
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 int sockinfo::get_sock_by_L3_L4(in_protocol_t protocol, in_addr_t ip, in_port_t  port)
 {
 	int map_size = g_p_fd_collection->get_fd_map_size();

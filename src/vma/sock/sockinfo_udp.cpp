@@ -452,17 +452,6 @@ int sockinfo_udp::on_sockname_change(struct sockaddr *__name, socklen_t __namele
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool sockinfo_udp::try_un_offloading() // do best efforts for un-offloading the socket
-{
-	if (! this->isPassthrough()) {
-		setPassthrough();
-		handle_close(m_fd, false, true); // will leave it for passthrough
-	}
-
-	return true; // UDP socket always succeed in un-offloading
-}
-
-////////////////////////////////////////////////////////////////////////////////
 int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval, socklen_t __optlen)
 {
 	si_udp_logfunc("level=%d, optname=%d", __level, __optname);
