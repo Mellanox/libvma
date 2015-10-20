@@ -148,9 +148,9 @@ int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg) throw 
 		char buf[128];
 		snprintf(buf, sizeof(buf), "unimplemented ioctl request=%lu, flags=%x", __request, (unsigned)__arg);
 		buf[ sizeof(buf)-1 ] = '\0';
-		VLOG_PRINTF_INFO(vma_exception_handling::get_log_severity(mce_sys.exception_handling), "%s", buf);
+		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
 
-		if (vma_exception_handling::is_suit_un_offloading(mce_sys.exception_handling)) {
+		if (mce_sys.exception_handling.is_suit_un_offloading()) {
 			try_un_offloading();
 		}
 		if (mce_sys.exception_handling == vma_exception_handling::MODE_RETURN_ERROR) {

@@ -693,7 +693,7 @@ void print_vma_global_settings()
 	VLOG_PARAM_NUMBER("TCP Timer Resolution (msec)", mce_sys.tcp_timer_resolution_msec, MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC, SYS_VAR_TCP_TIMER_RESOLUTION_MSEC);
 	VLOG_PARAM_NUMSTR("TCP control thread", mce_sys.tcp_ctl_thread, MCE_DEFAULT_TCP_CTL_THREAD, SYS_VAR_TCP_CTL_THREAD, ctl_thread_str(mce_sys.tcp_ctl_thread));
 	VLOG_PARAM_NUMBER("TCP timestamp option", mce_sys.tcp_ts_opt, MCE_DEFAULT_TCP_TIMESTAMP_OPTION, SYS_VAR_TCP_TIMESTAMP_OPTION);
-	VLOG_PARAM_NUMSTR("Exception handling mode", mce_sys.exception_handling, MCE_DEFAULT_VMA_EXCEPTION_HANDLING, SYS_VAR_VMA_EXCEPTION_HANDLING, vma_exception_handling::to_str(mce_sys.exception_handling));
+	VLOG_PARAM_NUMSTR(vma_exception_handling::getName(), (int)mce_sys.exception_handling, vma_exception_handling::MODE_DEFAULT, vma_exception_handling::getSysVar(), mce_sys.exception_handling.to_str());
 	VLOG_PARAM_STRING("Avoid sys-calls on tcp fd", mce_sys.avoid_sys_calls_on_tcp_fd, MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD, SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD, mce_sys.avoid_sys_calls_on_tcp_fd ? "Enabled" : "Disabled");
 	VLOG_PARAM_NUMBER("Delay after join (msec)", mce_sys.wait_after_join_msec, MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC, SYS_VAR_WAIT_AFTER_JOIN_MSEC);
 	VLOG_STR_PARAM_STRING("Internal Thread Affinity", mce_sys.internal_thread_affinity_str, MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR, SYS_VAR_INTERNAL_THREAD_AFFINITY, mce_sys.internal_thread_affinity_str);
@@ -865,7 +865,7 @@ void get_env_params()
 	mce_sys.tcp_timer_resolution_msec	= MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC;
 	mce_sys.tcp_ctl_thread		= MCE_DEFAULT_TCP_CTL_THREAD;
 	mce_sys.tcp_ts_opt		= MCE_DEFAULT_TCP_TIMESTAMP_OPTION;
-	mce_sys.exception_handling	= MCE_DEFAULT_VMA_EXCEPTION_HANDLING;
+//	mce_sys.exception_handling is handled by its CTOR
 	mce_sys.avoid_sys_calls_on_tcp_fd = MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD;
 	mce_sys.wait_after_join_msec	= MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC;
 	mce_sys.thread_mode		= MCE_DEFAULT_THREAD_MODE;
@@ -1256,10 +1256,9 @@ void get_env_params()
 		}
 	}
 
-	if ((env_ptr = getenv(SYS_VAR_VMA_EXCEPTION_HANDLING)) != NULL) {
-			mce_sys.exception_handling = (vma_exception_handling::mode)atoi(env_ptr);
-			if (mce_sys.exception_handling >= vma_exception_handling::MODE_LAST || mce_sys.exception_handling < vma_exception_handling::MODE_DEBUG)
-				mce_sys.exception_handling = MCE_DEFAULT_VMA_EXCEPTION_HANDLING;
+	// TODO: this should be replaced by calling "exception_handling.init()" that will be called from mce_sys.init()
+	if ((env_ptr = getenv(vma_exception_handling::getSysVar())) != NULL) {
+			mce_sys.exception_handling = vma_exception_handling(atoi(env_ptr)); // vma_exception_handling is responsible for its invariant
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD)) != NULL) {

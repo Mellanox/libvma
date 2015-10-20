@@ -154,21 +154,33 @@ static inline const char* ctl_thread_str(tcp_ctl_thread_t logic)
 	return "unsupported";
 }
 
+////////////////////////////////////////////////////////////////////////////////
 class vma_exception_handling
 {
 public:
+
+	static const char *getName() {
+		return "Exception handling mode";
+	}
+
+	static const char *getSysVar() {
+		return "VMA_EXCEPTION_HANDLING";
+	}
+
 	typedef enum {
 		MODE_DEBUG = -1,
 		MODE_UNOFFLOAD = 0,
 		MODE_LOG_ERROR,
 		MODE_RETURN_ERROR,
 		MODE_ABORT,
-		MODE_LAST
+		MODE_LAST,
+
+		MODE_DEFAULT = MODE_DEBUG
 	} mode;
 
-	static const char* to_str(mode _mode)
+	const char* to_str()
 	{
-		switch (_mode) {
+		switch (m_mode) {
 		case MODE_DEBUG:        return "(just log debug message)";
 		case MODE_UNOFFLOAD:    return "(log debug and un-offload)";
 		case MODE_LOG_ERROR:    return "(log error and un-offload)";
@@ -179,12 +191,12 @@ public:
 		return "unsupported";
 	}
 
-	static bool is_suit_un_offloading(mode _mode) {
-		return _mode ==  MODE_UNOFFLOAD || _mode == MODE_LOG_ERROR;
+	bool is_suit_un_offloading() {
+		return m_mode ==  MODE_UNOFFLOAD || m_mode == MODE_LOG_ERROR;
 	}
 
-	static vlog_levels_t get_log_severity(mode _mode) {
-		switch (_mode) {
+	vlog_levels_t get_log_severity() {
+		switch (m_mode) {
 		case MODE_DEBUG:
 		case MODE_UNOFFLOAD:
 			return VLOG_DEBUG;
@@ -195,8 +207,30 @@ public:
 			return VLOG_ERROR;
 		}
 	}
+
+	//
+	// cast constructors and cast operators
+	//
+
+	vma_exception_handling(mode _mode = MODE_DEFAULT) : m_mode(_mode) {
+		if (m_mode >= MODE_LAST || m_mode < MODE_DEBUG)
+			m_mode = MODE_DEFAULT;
+	}
+
+	explicit vma_exception_handling(int _mode) : m_mode((mode)_mode) {
+		if (m_mode >= MODE_LAST || m_mode < MODE_DEBUG)
+			m_mode = MODE_DEFAULT;
+	}
+
+	operator mode() const {
+		return m_mode;
+	}
+
+private:
+	mode m_mode;
 };
 
+////////////////////////////////////////////////////////////////////////////////
 struct mce_sys_var {
 
 
@@ -289,7 +323,7 @@ struct mce_sys_var {
 	uint32_t	tcp_timer_resolution_msec;
 	tcp_ctl_thread_t tcp_ctl_thread;
 	tcp_ts_opt_t	tcp_ts_opt;
-	vma_exception_handling::mode exception_handling;
+	vma_exception_handling exception_handling;
 	bool		avoid_sys_calls_on_tcp_fd;
 	uint32_t	wait_after_join_msec;
 	in_port_t	block_udp_port;
@@ -392,7 +426,7 @@ struct mce_sys_var {
 #define SYS_VAR_TCP_TIMER_RESOLUTION_MSEC		"VMA_TCP_TIMER_RESOLUTION_MSEC"
 #define SYS_VAR_TCP_CTL_THREAD				"VMA_TCP_CTL_THREAD"
 #define SYS_VAR_TCP_TIMESTAMP_OPTION			"VMA_TCP_TIMESTAMP_OPTION"
-#define SYS_VAR_VMA_EXCEPTION_HANDLING			"VMA_EXCEPTION_HANDLING"
+#define SYS_VAR_VMA_EXCEPTION_HANDLING			(vma_exception_handling::getSysVar())
 #define SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD		"VMA_AVOID_SYS_CALLS_ON_TCP_FD"
 #define SYS_VAR_WAIT_AFTER_JOIN_MSEC			"VMA_WAIT_AFTER_JOIN_MSEC"
 #define SYS_VAR_THREAD_MODE				"VMA_THREAD_MODE"
@@ -495,7 +529,7 @@ struct mce_sys_var {
 #define MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC		(100)
 #define MCE_DEFAULT_TCP_CTL_THREAD			(CTL_THREAD_DISABLE)
 #define MCE_DEFAULT_TCP_TIMESTAMP_OPTION		(TCP_TS_OPTION_DISABLE)
-#define MCE_DEFAULT_VMA_EXCEPTION_HANDLING	(vma_exception_handling::MODE_DEBUG)
+#define MCE_DEFAULT_VMA_EXCEPTION_HANDLING	(vma_exception_handling::MODE_DEFAULT)
 #define MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD		(false)
 #define MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC		(0)
 #define MCE_DEFAULT_THREAD_MODE				(THREAD_MODE_MULTI)
