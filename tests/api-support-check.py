@@ -22,27 +22,29 @@
 import socket, sys, fcntl
 import struct, os
 
-def get_ip_address(ifname, sock):
-    return socket.inet_ntoa(fcntl.ioctl(
+def test_ioctl(sock):
+    ifname = 'eth0'
+    addr = socket.inet_ntoa(fcntl.ioctl(
         sock.fileno(),
         0x8915,  # SIOCGIFADDR
         struct.pack('256s', ifname)
     )[20:24])
+    return "ioctl test: %s=%s" % (ifname, addr)
 
 def test_fcntl(sock):
 	rv = fcntl.fcntl(sock, fcntl.F_SETFL, os.O_NDELAY)
 
 	lockdata = struct.pack('hhllhh', fcntl.F_WRLCK, 0, 0, 0, 0, 0)
 	rv = fcntl.fcntl(sock, fcntl.F_SETLKW, lockdata)
-	return "fcntl returned with data of len=" + str(len(rv))
+	return "fcntl test: returned with data of len=" + str(len(rv))
 
 if __name__ == "__main__":
-    ifname = 'eth0'
-
+    print "testing UDP:"
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    print "test ioctl using UDP: %s=%s" % (ifname, get_ip_address(ifname, s))
-    print "test fcntl using UDP: " + test_fcntl(s)
+    print test_ioctl(s)
+    print test_fcntl(s)
 
+    print "testing TCP:"
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    print "test ioctl using TCP: %s=%s" % (ifname, get_ip_address(ifname, s))
-    print "test fcntl using TCP: " + test_fcntl(s)
+    print test_ioctl(s)
+    print test_fcntl(s)
