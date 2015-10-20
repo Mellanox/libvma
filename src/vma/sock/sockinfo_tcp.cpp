@@ -2939,7 +2939,8 @@ void sockinfo_tcp::fit_snd_bufs_to_nagle(bool disable_nagle)
 ////////////////////////////////////////////////////////////////////////////////
 bool sockinfo_tcp::try_un_offloading() // un-offload the socket if possible
 {
-	return is_connected() ? false : sockinfo::try_un_offloading();
+	// be conservative and avoid off-loading a socket after it started connecting
+	return m_conn_state == TCP_CONN_INIT ? sockinfo::try_un_offloading() : false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
