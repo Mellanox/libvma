@@ -718,7 +718,7 @@ int fcntl(int __fd, int __cmd, ...)
    One argument may follow; its presence and type depend on REQUEST.
    Return value depends on REQUEST.  Usually -1 indicates error. */
 extern "C"
-int ioctl (int __fd, unsigned long int __request, ...)
+int ioctl (int __fd, unsigned long int __request, ...) throw (vma_error)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.fcntl) get_orig_funcs();
