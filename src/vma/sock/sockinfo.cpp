@@ -146,7 +146,7 @@ int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg) throw 
 
 	default:
 		char buf[128];
-		snprintf(buf, sizeof(buf), "unimplemented ioctl request=%lu, flags=%x", __request, (unsigned)__arg);
+		snprintf(buf, sizeof(buf), "unimplemented ioctl request=0x%x, flags=0x%x", (unsigned)__request, (unsigned)__arg);
 		buf[ sizeof(buf)-1 ] = '\0';
 		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
 
