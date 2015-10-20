@@ -105,7 +105,7 @@ public:
 			       socklen_t *__optlen);
 	virtual int fcntl(int __cmd, unsigned long int __arg) = 0;
 
-	virtual int ioctl(unsigned long int __request, unsigned long int __arg) = 0;
+	virtual int ioctl(unsigned long int __request, unsigned long int __arg) throw (vma_error) = 0;
 
 	virtual ssize_t rx(const rx_call_t call_type, iovec* iov,
 			   const ssize_t iovlen, int* p_flags = 0,

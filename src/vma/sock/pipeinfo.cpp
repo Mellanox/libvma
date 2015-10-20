@@ -143,7 +143,7 @@ int pipeinfo::fcntl(int __cmd, unsigned long int __arg)
 	return orig_os_api.fcntl(m_fd, __cmd, __arg);
 }
 
-int pipeinfo::ioctl(unsigned long int __request, unsigned long int __arg)
+int pipeinfo::ioctl(unsigned long int __request, unsigned long int __arg) throw (vma_error)
 {
 	int *p_arg = (int *)__arg;
 
