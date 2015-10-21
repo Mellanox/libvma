@@ -678,9 +678,14 @@ int getsockopt(int __fd, int __level, int __optname,
    The remaining arguments are interpreted depending on CMD.
 
    This function is a cancellation point and therefore not marked with
-   __THROW.  */
+   __THROW.
+   NOTE: in VMA this function is marked as throw (vma_error); however, throw will never occur during
+   handling of any command.  VMA will only throw in case VMA doesn't know to handle a command and the
+   user requested explicitly that VMA will throw an exception in such a case by setting VMA_EXCEPTION_HANDLING
+   accordingly (see README.txt)
+   */
 extern "C"
-int fcntl(int __fd, int __cmd, ...)
+int fcntl(int __fd, int __cmd, ...) throw (vma_error)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.fcntl) get_orig_funcs();

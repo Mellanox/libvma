@@ -105,7 +105,7 @@ void pipeinfo::clean_obj()
 	g_p_event_handler_manager->unregister_timers_event_and_delete(this);
 }
 
-int pipeinfo::fcntl(int __cmd, unsigned long int __arg)
+int pipeinfo::fcntl(int __cmd, unsigned long int __arg) throw (vma_error)
 {
 	switch (__cmd) {
 	case F_SETFL:

@@ -2829,7 +2829,7 @@ bad_state:
 #define TCP_INFO         11     /* Information about this connection. */
 #define TCP_QUICKACK     12     /* Bock/reenable quick ACKs.  */
 
-int sockinfo_tcp::fcntl(int __cmd, unsigned long int __arg)
+int sockinfo_tcp::fcntl(int __cmd, unsigned long int __arg) throw (vma_error)
 {
 	if (!mce_sys.avoid_sys_calls_on_tcp_fd || !is_connected())
 		return sockinfo::fcntl(__cmd, __arg);

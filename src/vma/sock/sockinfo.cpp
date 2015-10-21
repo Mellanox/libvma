@@ -96,7 +96,7 @@ void sockinfo::set_blocking(bool is_blocked)
 	m_p_socket_stats->b_blocking = m_b_blocking;
 }
 
-int sockinfo::fcntl(int __cmd, unsigned long int __arg)
+int sockinfo::fcntl(int __cmd, unsigned long int __arg) throw (vma_error)
 {
 	switch (__cmd) {
 	case F_SETFL:
@@ -121,7 +121,21 @@ int sockinfo::fcntl(int __cmd, unsigned long int __arg)
 		break;
 
 	default:
-		si_logfunc("cmd=%d, arg=%#x", __cmd, __arg);
+		char buf[128];
+		snprintf(buf, sizeof(buf), "unimplemented fcntl cmd=%#x, arg=%#x", (unsigned)__cmd, (unsigned)__arg);
+		buf[ sizeof(buf)-1 ] = '\0';
+		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
+
+		if (mce_sys.exception_handling.is_suit_un_offloading()) {
+			try_un_offloading();
+		}
+		if (mce_sys.exception_handling == vma_exception_handling::MODE_RETURN_ERROR) {
+			errno = EINVAL;
+			return -1;
+		}
+		if (mce_sys.exception_handling == vma_exception_handling::MODE_ABORT) {
+			vma_throw_object_with_msg(vma_unsupported_api, buf);
+		}
 		break;
 	}
 	si_logdbg("going to OS for fcntl cmd=%d, arg=%#x", __cmd, __arg);
