@@ -2944,7 +2944,7 @@ bool sockinfo_tcp::try_un_offloading() // un-offload the socket if possible
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-#define SOCKOPT_NO_OFFLOAD_SUPPORT -2
+#define SOCKOPT_HANDLE_BY_OS -2
 int sockinfo_tcp::setsockopt(int __level, int __optname,
                               __const void *__optval, socklen_t __optlen)
 {
@@ -2966,7 +2966,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			unlock_tcp_con();
 			break;	
 		default:
-			ret = SOCKOPT_NO_OFFLOAD_SUPPORT;
+			ret = SOCKOPT_HANDLE_BY_OS;
 			break;	
 		}
 	}
@@ -2979,7 +2979,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 				m_pcb.so_options |= SOF_REUSEADDR;
 			else
 				m_pcb.so_options &= ~SOF_REUSEADDR;
-			ret = SOCKOPT_NO_OFFLOAD_SUPPORT; //we must apply reuseaddr on OS
+			ret = SOCKOPT_HANDLE_BY_OS; //SO_REUSEADDR is also relevant on OS
 			break;
 		case SO_KEEPALIVE:
 			val = *(int *)__optval;
@@ -3052,12 +3052,12 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			si_tcp_logdbg("(SO_BINDTODEVICE) interface=%s", (char*)__optval);
 			break;
 		default:
-			ret = SOCKOPT_NO_OFFLOAD_SUPPORT;
+			ret = SOCKOPT_HANDLE_BY_OS;
 			break;
 		}
 	}
 
-	if (mce_sys.avoid_sys_calls_on_tcp_fd && ret != SOCKOPT_NO_OFFLOAD_SUPPORT && is_connected())
+	if (mce_sys.avoid_sys_calls_on_tcp_fd && ret != SOCKOPT_HANDLE_BY_OS && is_connected())
 		return ret;
 
 	si_tcp_logdbg("going to OS for setsockopt level %d optname %d", __level, __optname);
@@ -3092,7 +3092,7 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
         		}
         		break;
 		default:
-			ret = SOCKOPT_NO_OFFLOAD_SUPPORT;
+			ret = SOCKOPT_HANDLE_BY_OS;
 			break;
 		}
 	} else if (__level == SOL_SOCKET) {
@@ -3169,15 +3169,15 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 			errno = ENOPROTOOPT;
 			break;
 		default:
-			ret = SOCKOPT_NO_OFFLOAD_SUPPORT;
+			ret = SOCKOPT_HANDLE_BY_OS;
 			break;
 		}
 	} else {
-		ret = SOCKOPT_NO_OFFLOAD_SUPPORT;
+		ret = SOCKOPT_HANDLE_BY_OS;
 	}
 
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (ret && ret != SOCKOPT_NO_OFFLOAD_SUPPORT) {
+	if (ret && ret != SOCKOPT_HANDLE_BY_OS) {
 		si_tcp_logdbg("getsockopt failed (ret=%d %m)", ret);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -3188,7 +3188,7 @@ int sockinfo_tcp::getsockopt(int __level, int __optname, void *__optval,
                               socklen_t *__optlen)
 {
 	int ret = getsockopt_offload(__level, __optname, __optval, __optlen);
-	if (ret != SOCKOPT_NO_OFFLOAD_SUPPORT)
+	if (ret != SOCKOPT_HANDLE_BY_OS)
 		return ret;
 
 	ret = orig_os_api.getsockopt(m_fd, __level, __optname, __optval, __optlen);
