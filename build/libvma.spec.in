@@ -118,9 +118,9 @@ fi
 %defattr(-,root,root,-)
 %{_libdir}/%{name}*.so.*
 %{_libdir}/%{name}.so
-%doc README.txt
-%doc journal.txt
-%doc VMA_VERSION
+%{_docdir}/%{name}-%{version}/README.txt
+%{_docdir}/%{name}-%{version}/journal.txt
+%{_docdir}/%{name}-%{version}/VMA_VERSION
 %config(noreplace) %{_sysconfdir}/libvma.conf
 #%{_sysconfdir}/ld.so.conf.d/libvma.conf
 
