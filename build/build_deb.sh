@@ -4,7 +4,10 @@ BASE_DIR=`pwd`
 script_dir=`dirname $(readlink -f $0)`
 cd $script_dir/..
 
-LOG_FILE=`pwd`/build_rpm.log
+BUILD_DIR=`pwd`/build_debian
+mkdir $BUILD_DIR
+
+LOG_FILE=$BUILD_DIR/build_debian.log
 
 echo "Running ./autogen.sh ..."
 ./autogen.sh > $LOG_FILE 2>&1
@@ -25,15 +28,26 @@ if [ $? -ne 0 ]; then
 	exit
 fi
 
-echo "Running rpmbuild ... this might take a while ..."
-rpmbuild -ta libvma*.tar.gz >> $LOG_FILE 2>&1
+cp libvma*.tar.gz $BUILD_DIR/
+cd $BUILD_DIR
+tar xzvf libvma*.tar.gz >> $LOG_FILE 2>&1
+cd libvma*
+VMA_DIR=`pwd`
+
+echo "Running dpkg-buildpackage ... this might take a while ..."
+dpkg-buildpackage -us -uc >> $LOG_FILE 2>&1
 if [ $? -ne 0 ]; then
-	echo "rpmbuild failed! see $LOG_FILE"
+	echo "dpkg-buildpackage failed! see $LOG_FILE"
 	cd $BASE_DIR
 	exit
 fi
 
-grep Wrote build_rpm.log
+cd ..
+
+rm -rf $VMA_DIR
+
+echo "Debian file are under $BUILD_DIR"
+
 rm -rf $LOG_FILE
 
 cd $BASE_DIR
