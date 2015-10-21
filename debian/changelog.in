@@ -1,0 +1,5 @@
+libvma (@VERSION@-@VMA_LIBRARY_RELEASE@) release; urgency=low
+
+  * Please refer to journal.txt for full changelog.
+
+ -- Or Kehati <ork@mellanox.com>  Wed, 21 Oct 2015 12:03:19 +0200

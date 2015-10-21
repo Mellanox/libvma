@@ -450,6 +450,7 @@ AC_CONFIG_FILES([
 		tests/latency_test/Makefile
 		tests/throughput_test/Makefile
 		build/libvma.spec
+		debian/changelog
 		VMA_VERSION
 		])
 

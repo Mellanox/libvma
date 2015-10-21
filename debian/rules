@@ -7,30 +7,4 @@
 #override_dh_auto_clean:
 
 override_dh_auto_configure:
-	date="__VMA_DEB_DATE" time="__VMA_DEB_TIME" revision=1 ./configure --with-ofed=/usr --prefix=$(CURDIR)/debian/libvma/usr --libdir=$(CURDIR)/debian/libvma/usr/lib64 --includedir=$(CURDIR)/debian/libvma/usr/include/mellanox --sysconfdir=$(CURDIR)/debian/libvma/etc
-
-override_dh_auto_build:
-	make
-
-override_dh_auto_install:
-	$(MAKE) prefix=$(CURDIR)/debian/libvma/usr install 
-	
-override_dh_shlibdeps:
-	dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info
-
-override_dh_auto_installchangelogs:
-	
-
-override_dh_installchangelogs:
-	
-
-override_dh_auto_installdocs:
-	
-
-override_dh_installdocs:
-	
-
-override_dh_compress:
-	
-
-#override_dh_auto_test:
+	revision=1 ./configure --with-ofed=/usr --prefix=/usr --libdir=/usr/lib --includedir=/usr/include --sysconfdir=/etc

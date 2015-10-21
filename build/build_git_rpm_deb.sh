@@ -814,29 +814,29 @@ function prepare_debian_files {
         DEB_VMA_USERNAME="$debUserName"
         DEB_VMA_USER_EMAIL="$debUserEmail"
 	
-        mv $pathToDebianDir/postinst $pathToDebianDir/postinst.template
-        mv $pathToDebianDir/postrm $pathToDebianDir/postrm.template
-        mv $pathToDebianDir/changelog $pathToDebianDir/changelog.template
-        mv $pathToDebianDir/control $pathToDebianDir/control.template
-        mv $pathToDebianDir/copyright $pathToDebianDir/copyright.template
-	mv $pathToDebianDir/rules $pathToDebianDir/rules.template
-        sed  -e "s/__DEB_VMA_VERSION/$DEB_VMA_VERSION/g" -e "s/__DEB_VMA_RELEASE/$DEB_VMA_RELEASE/g" $pathToDebianDir/postinst.template > $pathToDebianDir/postinst
-        sed  -e "s/__DEB_VMA_VERSION/$DEB_VMA_VERSION/g" -e "s/__DEB_VMA_RELEASE/$DEB_VMA_RELEASE/g" $pathToDebianDir/postrm.template > $pathToDebianDir/postrm
+        #mv $pathToDebianDir/postinst $pathToDebianDir/postinst.template
+        #mv $pathToDebianDir/postrm $pathToDebianDir/postrm.template
+        #mv $pathToDebianDir/changelog $pathToDebianDir/changelog.template
+        #mv $pathToDebianDir/control $pathToDebianDir/control.template
+        #mv $pathToDebianDir/copyright $pathToDebianDir/copyright.template
+	#mv $pathToDebianDir/rules $pathToDebianDir/rules.template
+        #sed  -e "s/__DEB_VMA_VERSION/$DEB_VMA_VERSION/g" -e "s/__DEB_VMA_RELEASE/$DEB_VMA_RELEASE/g" $pathToDebianDir/postinst.template > $pathToDebianDir/postinst
+        #sed  -e "s/__DEB_VMA_VERSION/$DEB_VMA_VERSION/g" -e "s/__DEB_VMA_RELEASE/$DEB_VMA_RELEASE/g" $pathToDebianDir/postrm.template > $pathToDebianDir/postrm
 
-        sed  -e "s/__DEB_VMA_VERSION/$DEB_VMA_VERSION/g" -e "s/__DEB_VMA_RELEASE/$DEB_VMA_RELEASE/g" -e "s/__DEB_VMA_DATE/$DEB_VMA_DATE/g" -e "s/__DEB_VMA_USERNAME/$DEB_VMA_USERNAME/g" -e "s/__DEB_VMA_USER_EMAIL/$DEB_VMA_USER_EMAIL/g" $pathToDebianDir/changelog.template > $pathToDebianDir/changelog
+        #sed  -e "s/__DEB_VMA_VERSION/$DEB_VMA_VERSION/g" -e "s/__DEB_VMA_RELEASE/$DEB_VMA_RELEASE/g" -e "s/__DEB_VMA_DATE/$DEB_VMA_DATE/g" -e "s/__DEB_VMA_USERNAME/$DEB_VMA_USERNAME/g" -e "s/__DEB_VMA_USER_EMAIL/$DEB_VMA_USER_EMAIL/g" $pathToDebianDir/changelog.template > $pathToDebianDir/changelog
 
-        sed  -e "s/__DEB_VMA_ARCH/$DEB_VMA_ARCH/g" -e "s/__DEB_VMA_USERNAME/$DEB_VMA_USERNAME/g" -e "s/__DEB_VMA_USER_EMAIL/$DEB_VMA_USER_EMAIL/g" -e "s/__DEB_VMA_VERSION/$DEB_VMA_VERSION/g" -e "s/__DEB_VMA_RELEASE/$DEB_VMA_RELEASE/g" $pathToDebianDir/control.template > $pathToDebianDir/control
+        #sed  -e "s/__DEB_VMA_ARCH/$DEB_VMA_ARCH/g" -e "s/__DEB_VMA_USERNAME/$DEB_VMA_USERNAME/g" -e "s/__DEB_VMA_USER_EMAIL/$DEB_VMA_USER_EMAIL/g" -e "s/__DEB_VMA_VERSION/$DEB_VMA_VERSION/g" -e "s/__DEB_VMA_RELEASE/$DEB_VMA_RELEASE/g" $pathToDebianDir/control.template > $pathToDebianDir/control
 
-        sed  -e "s/__DEB_VMA_VERSION/$DEB_VMA_VERSION/g" -e "s/__DEB_VMA_RELEASE/$DEB_VMA_RELEASE/g" -e "s/__DEB_VMA_DATE/$DEB_VMA_DATE/g" -e "s/__DEB_VMA_ARCH/$DEB_VMA_ARCH/g" $pathToDebianDir/copyright.template > $pathToDebianDir/copyright
+        #sed  -e "s/__DEB_VMA_VERSION/$DEB_VMA_VERSION/g" -e "s/__DEB_VMA_RELEASE/$DEB_VMA_RELEASE/g" -e "s/__DEB_VMA_DATE/$DEB_VMA_DATE/g" -e "s/__DEB_VMA_ARCH/$DEB_VMA_ARCH/g" $pathToDebianDir/copyright.template > $pathToDebianDir/copyright
 
-	sed  -e "s/__VMA_DEB_DATE/$DATE/g" -e "s/__VMA_DEB_TIME/$TIME/g" $pathToDebianDir/rules.template > $pathToDebianDir/rules
+	#sed  -e "s/__VMA_DEB_DATE/$DATE/g" -e "s/__VMA_DEB_TIME/$TIME/g" $pathToDebianDir/rules.template > $pathToDebianDir/rules
 
-        rm -f $pathToDebianDir/postinst.template
-        rm -f $pathToDebianDir/postrm.template
-        rm -f $pathToDebianDir/changelog.template
-        rm -f $pathToDebianDir/control.template
-        rm -f $pathToDebianDir/copyright.template
-	rm -f $pathToDebianDir/rules.template
+        #rm -f $pathToDebianDir/postinst.template
+        #rm -f $pathToDebianDir/postrm.template
+        #rm -f $pathToDebianDir/changelog.template
+        #rm -f $pathToDebianDir/control.template
+        #rm -f $pathToDebianDir/copyright.template
+	#rm -f $pathToDebianDir/rules.template
 
 }
 
@@ -1063,7 +1063,7 @@ if [ "$DAILY_MODE" == 1 ]; then #daily
         	cp "/tmp/test.cov" daily/"$branch_folder"/"$date"/libvma-"$fullVersion"-"$machine"-"$name"."$date".cov
 		finalBullseye=$mswg_vma_folder/daily/"$branch_folder"/"$date"/libvma-"$fullVersion"-"$machine"-"$name"."$date".bullseye.cov
 	fi
-	build_deb "$mswg_vma_folder/daily/$branch_folder/$date/libvma-$fullVersion-$machine-$name.$date.src.rpm" "$mswg_vma_folder/daily/$branch_folder/$date/libvma-$fullVersion-$machine-$name.$date.deb"
+	build_deb "$mswg_vma_folder/daily/$branch_folder/$date/libvma-$fullVersion-$machine-$name.$date.src.rpm" "$mswg_vma_folder/daily/$branch_folder/$date/"
 
         if [ "$copy_to_bgate" == 1 ]; then
 		bgate_branch_folder=$branch_folder

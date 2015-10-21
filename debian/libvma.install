@@ -1,0 +1,6 @@
+usr/lib/libvma*.so.*
+usr/lib/libvma.so
+usr/share/doc/libvma/README.txt
+usr/share/doc/libvma/journal.txt
+usr/share/doc/libvma/VMA_VERSION
+etc/libvma.conf

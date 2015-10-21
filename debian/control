@@ -1,15 +1,14 @@
 Source: libvma
 Section: libs
 Priority: extra
-Maintainer: Mellanox Technologies Ltd. <support@mellanox.com>, __DEB_VMA_USERNAME <__DEB_VMA_USER_EMAIL>
-Standards-Version: __DEB_VMA_VERSION.__DEB_VMA_RELEASE
-Homepage: http://www.mellanox.com https://libvma.googlecode.com/
+Maintainer: Or Kehati <ork@mellanox.com> 
+Homepage: https://github.com/Mellanox/libvma
 
 Package: libvma
 Section: libs
-Architecture: __DEB_VMA_ARCH
-Depends: librdmacm1, libibverbs1, ${shlibs:Depends}
-Description: Enhanced Service library for boosting TCP and UDP traffic (over OFED)
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: A library for boosting TCP and UDP traffic (over RDMA hardware)
  .
  VMA library is a performance booster of TCP and UDP traffic
  Part of Mellanox's enhanced services
@@ -17,3 +16,48 @@ Description: Enhanced Service library for boosting TCP and UDP traffic (over OFE
  To run over Infiniband/Ethernet from userspace with full network stack bypass
  and get better throughput, latency and packets/sec rate
  .
+
+Package: libvma-dev
+Section: libdevel
+Architecture: any
+Depends: ${misc:Depends}, libvma (= ${binary:Version})
+Description: Development files for the libvma library
+ .
+ VMA library is a performance booster of TCP and UDP traffic
+ Part of Mellanox's enhanced services
+ Allows application written over standard socket API
+ To run over Infiniband/Ethernet from userspace with full network stack bypass
+ and get better throughput, latency and packets/sec rate
+ .
+ This package contains headers and symbolink link required to compile and
+ link with the libvma library.
+
+Package: libvma-dbg
+Section: debug
+Architecture: any
+Depends: ${misc:Depends}, libvma (= ${binary:Version})
+Description: Debugging symbols for the libvma library
+ .
+ VMA library is a performance booster of TCP and UDP traffic
+ Part of Mellanox's enhanced services
+ Allows application written over standard socket API
+ To run over Infiniband/Ethernet from userspace with full network stack bypass
+ and get better throughput, latency and packets/sec rate
+ .
+ This package contains the debugging symbols associated with libvma.
+
+Package: libvma-utils
+Section: utils
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libvma (= ${binary:Version})
+Description: Examples and tools for the libvma library
+ .
+ VMA library is a performance booster of TCP and UDP traffic
+ Part of Mellanox's enhanced services
+ Allows application written over standard socket API
+ To run over Infiniband/Ethernet from userspace with full network stack bypass
+ and get better throughput, latency and packets/sec rate
+ .
+ This package contains example tests and tools for collecting and
+ analyzing Libvma statistic.
+
