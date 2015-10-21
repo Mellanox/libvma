@@ -3067,8 +3067,8 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 		char buf[256];
 		snprintf(buf, sizeof(buf), "unimplemented setsockopt __level=%#x, __optname=%#x, [__optlen (%d) bytes of __optval=%.*s]", (unsigned)__level, (unsigned)__optname, __optlen, __optlen, (char*)__optval);
 		buf[ sizeof(buf)-1 ] = '\0';
-		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
 
+		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
 		int rc = handle_exception_flow(buf);
 		if (rc < 0) return rc;
 	}

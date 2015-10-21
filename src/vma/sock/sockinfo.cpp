@@ -124,8 +124,8 @@ int sockinfo::fcntl(int __cmd, unsigned long int __arg) throw (vma_error)
 		char buf[128];
 		snprintf(buf, sizeof(buf), "unimplemented fcntl cmd=%#x, arg=%#x", (unsigned)__cmd, (unsigned)__arg);
 		buf[ sizeof(buf)-1 ] = '\0';
-		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
 
+		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
 		int rc = handle_exception_flow(buf);
 		if (rc < 0) return rc;
 		break;
@@ -154,8 +154,8 @@ int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg) throw 
 		char buf[128];
 		snprintf(buf, sizeof(buf), "unimplemented ioctl request=0x%x, flags=0x%x", (unsigned)__request, (unsigned)__arg);
 		buf[ sizeof(buf)-1 ] = '\0';
-		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
 
+		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
 		int rc = handle_exception_flow(buf);
 		if (rc < 0) return rc;
 		break;

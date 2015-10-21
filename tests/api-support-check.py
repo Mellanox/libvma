@@ -50,5 +50,3 @@ if __name__ == "__main__":
     s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     print test_ioctl(s)
     print test_fcntl(s)
-
-
