@@ -697,6 +697,7 @@ int fcntl(int __fd, int __cmd, ...) throw (vma_error)
 	va_list va;
 	va_start(va, __cmd);
 	unsigned long int arg = va_arg(va, unsigned long int);
+	va_end(va);
 
 	int ret = 0;
 	socket_fd_api* p_socket_object = NULL;
@@ -705,8 +706,6 @@ int fcntl(int __fd, int __cmd, ...) throw (vma_error)
 		res = p_socket_object->fcntl(__cmd, arg);
 	else
 		res = orig_os_api.fcntl(__fd, __cmd, arg);
-
-	va_end(va);
 
 	if (__cmd == F_DUPFD) {
 		handle_close(__fd);
@@ -735,6 +734,7 @@ int ioctl (int __fd, unsigned long int __request, ...) throw (vma_error)
 	va_list va;
 	va_start(va, __request);
 	unsigned long int arg = va_arg(va, unsigned long int);
+	va_end(va);
 
 	int ret = 0;
 
@@ -744,8 +744,6 @@ int ioctl (int __fd, unsigned long int __request, ...) throw (vma_error)
 		res = p_socket_object->ioctl(__request, arg);
 	else
 		res = orig_os_api.ioctl(__fd, __request, arg);
-
-	va_end(va);
 
 	if (ret >= 0)
 		srdr_logfunc_exit("returned with %d", ret);
