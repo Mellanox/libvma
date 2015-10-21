@@ -126,16 +126,8 @@ int sockinfo::fcntl(int __cmd, unsigned long int __arg) throw (vma_error)
 		buf[ sizeof(buf)-1 ] = '\0';
 		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
 
-		if (mce_sys.exception_handling.is_suit_un_offloading()) {
-			try_un_offloading();
-		}
-		if (mce_sys.exception_handling == vma_exception_handling::MODE_RETURN_ERROR) {
-			errno = EINVAL;
-			return -1;
-		}
-		if (mce_sys.exception_handling == vma_exception_handling::MODE_ABORT) {
-			vma_throw_object_with_msg(vma_unsupported_api, buf);
-		}
+		int rc = handle_exception_flow(buf);
+		if (rc < 0) return rc;
 		break;
 	}
 	si_logdbg("going to OS for fcntl cmd=%d, arg=%#x", __cmd, __arg);
@@ -164,16 +156,8 @@ int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg) throw 
 		buf[ sizeof(buf)-1 ] = '\0';
 		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
 
-		if (mce_sys.exception_handling.is_suit_un_offloading()) {
-			try_un_offloading();
-		}
-		if (mce_sys.exception_handling == vma_exception_handling::MODE_RETURN_ERROR) {
-			errno = EINVAL;
-			return -1;
-		}
-		if (mce_sys.exception_handling == vma_exception_handling::MODE_ABORT) {
-			vma_throw_object_with_msg(vma_unsupported_api, buf);
-		}
+		int rc = handle_exception_flow(buf);
+		if (rc < 0) return rc;
 		break;
 	}
 

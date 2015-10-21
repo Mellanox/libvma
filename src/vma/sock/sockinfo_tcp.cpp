@@ -2951,6 +2951,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 	//todo check optlen and set proper errno on failure
 
 	int val, ret = 0;
+	bool supported = true;
 
 	if (__level == IPPROTO_TCP) {
 		switch(__optname) {
@@ -2967,6 +2968,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			break;	
 		default:
 			ret = SOCKOPT_HANDLE_BY_OS;
+			supported = false;
 			break;	
 		}
 	}
@@ -3053,12 +3055,23 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			break;
 		default:
 			ret = SOCKOPT_HANDLE_BY_OS;
+			supported = false;
 			break;
 		}
 	}
 
 	if (mce_sys.avoid_sys_calls_on_tcp_fd && ret != SOCKOPT_HANDLE_BY_OS && is_connected())
 		return ret;
+
+	if (! supported) {
+		char buf[256];
+		snprintf(buf, sizeof(buf), "unimplemented setsockopt __level=%#x, __optname=%#x, [__optlen (%d) bytes of __optval=%.*s]", (unsigned)__level, (unsigned)__optname, __optlen, __optlen, (char*)__optval);
+		buf[ sizeof(buf)-1 ] = '\0';
+		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
+
+		int rc = handle_exception_flow(buf);
+		if (rc < 0) return rc;
+	}
 
 	si_tcp_logdbg("going to OS for setsockopt level %d optname %d", __level, __optname);
 	ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);

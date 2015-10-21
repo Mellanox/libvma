@@ -359,6 +359,22 @@ protected:
 
 
     int			get_sock_by_L3_L4(in_protocol_t protocol, in_addr_t ip, in_port_t  port);
+
+    //////////////////////////////////////////////////////////////////
+    int handle_exception_flow(const char *buf) throw (vma_error) {
+		if (mce_sys.exception_handling.is_suit_un_offloading()) {
+			try_un_offloading();
+		}
+		if (mce_sys.exception_handling == vma_exception_handling::MODE_RETURN_ERROR) {
+			errno = EINVAL;
+			return -1;
+		}
+		if (mce_sys.exception_handling == vma_exception_handling::MODE_ABORT) {
+			vma_throw_object_with_msg(vma_unsupported_api, buf);
+		}
+		return 0;
+    }
+    //////////////////////////////////////////////////////////////////
 };
 
 #endif /* BASE_SOCKINFO_H */

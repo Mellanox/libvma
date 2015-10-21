@@ -45,6 +45,10 @@ if __name__ == "__main__":
     print test_fcntl(s)
 
     print "testing TCP:"
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    print "setsockopt test...";
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     print test_ioctl(s)
     print test_fcntl(s)
+
+
