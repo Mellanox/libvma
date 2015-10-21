@@ -462,6 +462,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 	auto_unlocker lock_tx(m_lock_snd);
 	auto_unlocker lock_rx(m_lock_rcv);
 
+	bool supported = true;
 	switch (__level) {
 
 	case SOL_SOCKET:
@@ -570,6 +571,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 
 			default:
 				si_udp_logdbg("SOL_SOCKET, optname=%s (%d)", setsockopt_so_opt_to_str(__optname), __optname);
+				supported = false;
 				break;
 			}
 		} // case SOL_SOCKET
@@ -773,6 +775,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 			default:
 				{
 					si_udp_logdbg("IPPROTO_IP, optname=%s (%d)", setsockopt_ip_opt_to_str(__optname), __optname);
+					supported = false;
 				}
 				break;
 			}
@@ -821,8 +824,19 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 	default:
 		{
 			si_udp_logdbg("level = %d, optname = %d", __level, __optname);
+			supported = false;
 		}
 		break;
+	}
+
+	if (! supported) {
+		char buf[256];
+		snprintf(buf, sizeof(buf), "unimplemented setsockopt __level=%#x, __optname=%#x, [__optlen (%d) bytes of __optval=%.*s]", (unsigned)__level, (unsigned)__optname, __optlen, __optlen, (char*)__optval);
+		buf[ sizeof(buf)-1 ] = '\0';
+
+		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
+		int rc = handle_exception_flow(buf);
+		if (rc < 0) return rc;
 	}
 
 	return orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);

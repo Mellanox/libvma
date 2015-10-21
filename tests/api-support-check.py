@@ -41,6 +41,8 @@ def test_fcntl(sock):
 if __name__ == "__main__":
     print "testing UDP:"
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    print "setsockopt test...";
+    s.setsockopt(socket.IPPROTO_TCP, socket.TCP_CORK, 1)
     print test_ioctl(s)
     print test_fcntl(s)
 
