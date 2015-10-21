@@ -3061,13 +3061,13 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 		return ret;
 
 	si_tcp_logdbg("going to OS for setsockopt level %d optname %d", __level, __optname);
-        ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
-        BULLSEYE_EXCLUDE_BLOCK_START
-        if (ret) {
-                si_tcp_logdbg("setsockopt failed (ret=%d %m)", ret);
-        }
-        BULLSEYE_EXCLUDE_BLOCK_END
-        return ret;
+	ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (ret) {
+		si_tcp_logdbg("setsockopt failed (ret=%d %m)", ret);
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+	return ret;
 }
 
 int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
