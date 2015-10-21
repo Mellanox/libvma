@@ -1106,7 +1106,7 @@ if [ "$RELEASE_MODE" == 1 ]; then #release
 	localPath=`pwd`
 	finalRpm="$localPath/libvma-""$fullVersion"-"$machine"".rpm"
 
-	build_deb "$localPath/src/libvma-$fullVersion.src.rpm" "$localPath/libvma-$fullVersion-$machine.deb"
+	build_deb "$localPath/src/libvma-$fullVersion.src.rpm" "$localPath/"
 
 	echo "libvma-$fullVersion.src.rpm" > $localPath/src/latest.txt
 
