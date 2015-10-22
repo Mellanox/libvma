@@ -83,7 +83,7 @@ public:
 	int	bind(const struct sockaddr *__addr, socklen_t __addrlen);
 	int	connect(const struct sockaddr *__to, socklen_t __tolen);
 	int	getsockname(struct sockaddr *__name, socklen_t *__namelen);
-	int	setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen);
+	int	setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen) throw (vma_error);
 	int	getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen);
 
 	/**

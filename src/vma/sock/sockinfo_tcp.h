@@ -100,7 +100,7 @@ public:
 
 	virtual int fcntl(int __cmd, unsigned long int __arg) throw (vma_error);
 	virtual int ioctl(unsigned long int __request, unsigned long int __arg)  throw (vma_error);
-	virtual int setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen);
+	virtual int setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen) throw (vma_error);
 	virtual int getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen);
 	int getsockopt_offload(int __level, int __optname, void *__optval, socklen_t *__optlen);
 	virtual int connect(const sockaddr*, socklen_t);

@@ -135,7 +135,7 @@ int socket_fd_api::getpeername(sockaddr *__name, socklen_t *__namelen)
 }
 
 int socket_fd_api::setsockopt(int __level, int __optname,
-			      __const void *__optval, socklen_t __optlen)
+			      __const void *__optval, socklen_t __optlen) throw (vma_error)
 {
 	__log_info_func("");
 	int ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);

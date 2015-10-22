@@ -602,7 +602,7 @@ int connect(int __fd, const struct sockaddr *__to, socklen_t __tolen)
    Returns 0 on success, -1 for errors.  */
 extern "C"
 int setsockopt(int __fd, int __level, int __optname,
-	       __const void *__optval, socklen_t __optlen)
+	       __const void *__optval, socklen_t __optlen) throw (vma_error)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.setsockopt) get_orig_funcs();

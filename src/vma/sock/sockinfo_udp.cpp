@@ -452,7 +452,7 @@ int sockinfo_udp::on_sockname_change(struct sockaddr *__name, socklen_t __namele
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval, socklen_t __optlen)
+int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval, socklen_t __optlen) throw (vma_error)
 {
 	si_udp_logfunc("level=%d, optname=%d", __level, __optname);
 

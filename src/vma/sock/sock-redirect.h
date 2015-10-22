@@ -94,7 +94,7 @@ struct os_api {
 	int (*connect) (int __fd, const struct sockaddr *__to, socklen_t __tolen);
 	int (*listen) (int __fd, int __backlog);
 
-	int (*setsockopt) (int __fd, int __level, int __optname, __const void *__optval, socklen_t __optlen);
+	int (*setsockopt) (int __fd, int __level, int __optname, __const void *__optval, socklen_t __optlen) throw (vma_error);
 	int (*getsockopt) (int __fd, int __level, int __optname, void *__optval, socklen_t *__optlen);
 	int (*fcntl) (int __fd, int __cmd, ...) throw (vma_error);
 	int (*ioctl) (int __fd, unsigned long int __request, ...) throw (vma_error);

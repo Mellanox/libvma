@@ -2946,7 +2946,7 @@ bool sockinfo_tcp::try_un_offloading() // un-offload the socket if possible
 ////////////////////////////////////////////////////////////////////////////////
 #define SOCKOPT_HANDLE_BY_OS -2
 int sockinfo_tcp::setsockopt(int __level, int __optname,
-                              __const void *__optval, socklen_t __optlen)
+                              __const void *__optval, socklen_t __optlen) throw (vma_error)
 {
 	//todo check optlen and set proper errno on failure
 

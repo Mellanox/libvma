@@ -99,7 +99,7 @@ public:
 	virtual int getpeername(sockaddr *__name, socklen_t *__namelen);
 
 	virtual int setsockopt(int __level, int __optname,
-			       __const void *__optval, socklen_t __optlen);
+			       __const void *__optval, socklen_t __optlen) throw (vma_error);
 
 	virtual int getsockopt(int __level, int __optname, void *__optval,
 			       socklen_t *__optlen);
