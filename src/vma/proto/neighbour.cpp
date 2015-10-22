@@ -898,7 +898,7 @@ int neigh_entry::priv_enter_addr_resolved()
 	int state;
 
 	if (!priv_get_neigh_state(state) || state != NUD_REACHABLE) {
-		neigh_log("got addr_resolved but state=%d", state);
+		neigh_logdbg("got addr_resolved but state=%d", state);
 		send_arp();
 		m_timer_handle = priv_register_timer_event(mce_sys.neigh_wait_till_send_arp_msec, this, ONE_SHOT_TIMER, NULL);
 		m_lock.unlock();
