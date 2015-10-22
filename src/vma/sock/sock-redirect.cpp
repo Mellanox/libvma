@@ -1031,14 +1031,15 @@ int recvmmsg(int __fd, struct mmsghdr *__mmsghdr, unsigned int __vlen, int __fla
         if (p_socket_object) {
         	int ret = 0;
                 for (unsigned int i=0; i<__vlen; i++) {
-                       ret = p_socket_object->rx(RX_RECVMSG, __mmsghdr[i].msg_hdr.msg_iov, __mmsghdr[i].msg_hdr.msg_iovlen, &__flags,
+                	int flags = __flags;
+                       ret = p_socket_object->rx(RX_RECVMSG, __mmsghdr[i].msg_hdr.msg_iov, __mmsghdr[i].msg_hdr.msg_iovlen, &flags,
                                                          (__SOCKADDR_ARG)__mmsghdr[i].msg_hdr.msg_name, (socklen_t*)&__mmsghdr[i].msg_hdr.msg_namelen,  &__mmsghdr[i].msg_hdr);
                        if (ret < 0){
                                break;
                        }
                        num_of_msg++;
                        __mmsghdr[i].msg_len = ret;
-                       if ((i==0) && (__flags & MSG_WAITFORONE)) {
+                       if ((i==0) && (flags & MSG_WAITFORONE)) {
                                __flags |= MSG_DONTWAIT;
                        }
                        if (__timeout) {
