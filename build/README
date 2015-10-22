@@ -1,75 +1,28 @@
-OPEN-SOURCE USER: DO NOT USE THESE SCRIPTS.
-THESE SCRIPTS ARE PART OF MELLANOX INTERNAL AUTOMATION SYSTEM AND WILL NOT WORK FOR YOU.
-PLEASE REFFER TO BUILD FILE UNDER PROJECT ROOT.
+OPEN-SOURCE USER: DO NOT USE THE SCRIPT NAMED "MELLANOX-INTERNAL".
+THIS SCRIPT IS PART OF MELLANOX INTERNAL AUTOMATION SYSTEM AND WILL NOT WORK FOR YOU.
 
 Building
 ========
+Build packages:
+   ./build/build_rpm.sh
+   ./build/build_deb.sh
+
+In order to install the rpm:
+rpm -ivh <bin-rpm>
+
+
+Building - Mellanox internal
+============================
 
 In order to create the rpm you should:
 1) Update the version number in the configure.ac file:
-   Update the variables: MCE_LIBRARY_MAJOR, MCE_LIBRARY_MINOR, MCE_LIBRARY_REVISION, MCE_LIBRARY_RELEASE
-   The format of the version will be: MCE_LIBRARY_MAJOR.MCE_LIBRARY_MINOR.MCE_LIBRARY_REVISION-MCE_LIBRARY_RELEASE
+   Update the variables: VMA_LIBRARY_MAJOR, VMA_LIBRARY_MINOR, VMA_LIBRARY_REVISION, VMA_LIBRARY_RELEASE
+   The format of the version will be: VMA_LIBRARY_MAJOR.VMA_LIBRARY_MINOR.VMA_LIBRARY_REVISION-VMA_LIBRARY_RELEASE
 2) After editing configure.ac run autogen
 3) Update README.txt and journal.txt with all the major version changes
-4) Check in configure.ac, configure and journal.txt
-5) Create TAG:
-   svn cp https://web.voltaire.com/repos/enterprise/mce/branches/vma_6.0/ https://web.voltaire.com/repos/enterprise/mce/tags/vma_6.0.2-0_rev_3113_from_20111027
-6) Build source package:
-   svn co https://web.voltaire.com/repos/enterprise/mce/branches/vma_6.0/build/
-   cd  build
-   ./get_src.sh
-   bash ./build_vma_udp_rpm.sh
-7) Create directory under /.autodirect/mswg/release/vma/  with name vma_v_X.Y.Z-W_r_<revision from svn> 
-8) Create src directory under the above dir and copy Source RPM to this directory
-9) Build binary package: rpmbuild --rebuild <src-rpm>
-   copy binary rpm to /.autodirect/mswg/release/vma/vma_v_X.Y.Z-W_r_<revision from svn>/src
-10) Change rpm name to libvma-X.Y.Z-W-<OS>-<arch>.rpm and copy it to /.autodirect/mswg/release/vma/vma_v_X.Y.Z-W_r_<revision from svn>/
+4) Commit configure.ac, configure and journal.txt
+5) Create git TAG named MA_LIBRARY_MAJOR.VMA_LIBRARY_MINOR.VMA_LIBRARY_REVISION-VMA_LIBRARY_RELEASE
+6) Run the internal script from the build machine and you are done.
 
 In order to install the rpm:
 rpm -ivh <bin-rpm>  
-
-The name of the bin-rpm is created in the form:  libibmce-$version$-$distribution$-$arch$-$OFED_version$.rpm
-
-For 64-bit machines:
-On 64-bit machine the rpm installs 64-bit. 
-The 64-bit lib will be installed in /usr/lib64.
-To install 32-bit binaries in addition to the default 64-bit:
-export BUILD_32=1 
-The 32-bit lib will be installed in /usr/lib.
-A 64-bit version of udp_lat application will be installed in /usr/bin/udp_lat.
-A 32-bit version of udp_lat application will be installed in /usr/bin/udp_lat32.
-
-Manual build of mce:
-./configure [--enable-debug]
-./make
-The binary lib will be build in src/.libs/
-The --enable-debug configure's flag will build a binary with debug info.
-In order to build a 32-bit binary run the configure command:
-CFLAGS='-O3 -m32 -L/usr/lib' CXXFLAGS='-O3 -m32 -L/usr/lib' LDFLAGS='-m32 -L/usr/lib' FFLAGS='-m32 -L/usr/lib'  ./configure --enable-build32 
- 
-NOTE: for compiling with debug information while development use:
-./configure --enable-debug
-
- 
-
-mkdir config
-libtoolize -c -f
-aclocal
-autoconf
-automake --add-missing
-./configure
-
-*************************************************************************************************************
-The rpm contains the following files:
-1) libibmce.so - the MCE library.
-   In order yo use it, run:
-   LD_PRELOAD=libibmce.so  <your application>
-
-2) MCE_VERSION - a text file, contains the mce vertion 
-
-3) mce_stats - show mce statistics data for process
-   Usage:     mce_stats  <pid>
-
-4) /etc/profile.d/mce.csh, /etc/profile.d/mce.sh  - profile files that update the  max locked memory to unlimited (ulimit -l unlimited) 
-
-
