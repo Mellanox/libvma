@@ -244,7 +244,7 @@ ssize_t socket_fd_api::rx_os(const rx_call_t call_type, iovec* p_iov,
 	case RX_RECVMSG: {
 		__log_info_func("calling os receive with orig recvmsg");
 		return orig_os_api.recvmsg(m_fd, __msg, *p_flags);
-	}
+		}
 	}
 	return (ssize_t) -1;
 }

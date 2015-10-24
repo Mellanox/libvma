@@ -214,7 +214,7 @@ private:
 
 	virtual void 	post_deqeue (bool release_buff);
 	virtual int 	zero_copy_rx (iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags);
-	virtual size_t	handle_msg_trunc(size_t total_rx, size_t payload_size, int* p_flags);
+	virtual size_t	handle_msg_trunc(size_t total_rx, size_t payload_size, int in_flags, int* p_out_flags);
 
 	inline void	handle_ip_pktinfo(struct cmsg_state *cm_state);
 	inline void	handle_recv_timestamping(struct cmsg_state *cm_state);

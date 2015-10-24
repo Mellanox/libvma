@@ -1122,6 +1122,8 @@ ssize_t sockinfo_udp::rx(const rx_call_t call_type, iovec* p_iov,ssize_t sz_iov,
 {
 	int ret;
 	uint64_t poll_sn;
+	int out_flags = 0;
+	int in_flags = *p_flags;
 
 	si_udp_logfunc("");
 	
@@ -1169,7 +1171,7 @@ ssize_t sockinfo_udp::rx(const rx_call_t call_type, iovec* p_iov,ssize_t sz_iov,
 		if (m_n_rx_pkt_ready_list_count > 0) {
 			// Found a ready packet in the list
 			if (__msg) handle_cmsg(__msg);
-			ret = dequeue_packet(p_iov, sz_iov, (sockaddr_in *)__from, __fromlen, p_flags);
+			ret = dequeue_packet(p_iov, sz_iov, (sockaddr_in *)__from, __fromlen, in_flags, &out_flags);
 			goto out;
 		}
 		m_lock_rcv.unlock();
@@ -1180,7 +1182,7 @@ wait:
 	 * We (probably) do not have a ready packet.
 	 * Wait for RX to become ready.
 	 */
-	rx_wait_ret = rx_wait(m_b_blocking && !(*p_flags & MSG_DONTWAIT));
+	rx_wait_ret = rx_wait(m_b_blocking && !(in_flags & MSG_DONTWAIT));
 
 	m_lock_rcv.lock();
 
@@ -1188,7 +1190,7 @@ wait:
 		// Got 0, means we might have a ready packet
 		if (m_n_rx_pkt_ready_list_count > 0) {
 			if (__msg) handle_cmsg(__msg);
-			ret = dequeue_packet(p_iov, sz_iov, (sockaddr_in *)__from, __fromlen, p_flags);
+			ret = dequeue_packet(p_iov, sz_iov, (sockaddr_in *)__from, __fromlen, in_flags, &out_flags);
 			goto out;
 		} else {
 			m_lock_rcv.unlock();
@@ -1205,7 +1207,7 @@ wait:
 	 * If we got here, either the socket is not offloaded or rx_wait() returned 1.
 	 */
 os:
-	if (*p_flags & MSG_VMA_ZCOPY_FORCE) {
+	if (in_flags & MSG_VMA_ZCOPY_FORCE) {
 		errno = EIO;
 		ret = -1;
 		goto out;
@@ -1215,8 +1217,8 @@ os:
 	INC_GO_TO_OS_RX_COUNT;
 #endif
 
-	*p_flags &= ~MSG_VMA_ZCOPY;
-	ret = socket_fd_api::rx_os(call_type, p_iov, sz_iov, p_flags, __from, __fromlen, __msg);
+	in_flags &= ~MSG_VMA_ZCOPY;
+	ret = socket_fd_api::rx_os(call_type, p_iov, sz_iov, &in_flags, __from, __fromlen, __msg);
 	save_stats_rx_os(ret);
 	if (ret > 0) {
 		// This will cause the next non-blocked read to check the OS again.
@@ -1228,7 +1230,7 @@ out:
 	m_lock_rcv.unlock();
 
 	if (__msg)
-		__msg->msg_flags |= (*p_flags) & MSG_TRUNC;
+		__msg->msg_flags |= out_flags & MSG_TRUNC;
 
 	if (ret < 0) {
 #ifdef VMA_TIME_MEASURE
@@ -2252,16 +2254,15 @@ int sockinfo_udp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *p_desc, int *p_flag
 	return total_rx;
 }
 
-size_t sockinfo_udp::handle_msg_trunc(size_t total_rx, size_t payload_size, int* p_flags)
+size_t sockinfo_udp::handle_msg_trunc(size_t total_rx, size_t payload_size, int in_flags, int* p_out_flags)
 {
 	if (payload_size > total_rx) {
 		m_rx_ready_byte_count -= (payload_size-total_rx);
 		m_p_socket_stats->n_rx_ready_byte_count -= (payload_size-total_rx);
-		if (*p_flags & MSG_TRUNC) return payload_size;
-		else *p_flags |= MSG_TRUNC;
-	} else {
-		*p_flags &= ~MSG_TRUNC;
-	}
+		*p_out_flags |= MSG_TRUNC;
+		if (in_flags & MSG_TRUNC) 
+			return payload_size;
+	} 
 
 	return total_rx;
 }

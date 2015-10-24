@@ -324,10 +324,11 @@ void sockinfo::save_stats_tx_os(int bytes)
 	}
 }
 
-size_t sockinfo::handle_msg_trunc(size_t total_rx, size_t payload_size, int* p_flags)
+size_t sockinfo::handle_msg_trunc(size_t total_rx, size_t payload_size, int in_flags, int* p_out_flags)
 {
 	NOT_IN_USE(payload_size);
-	*p_flags &= ~MSG_TRUNC; //don't handle msg_trunc
+	NOT_IN_USE(in_flags);
+	*p_out_flags &= ~MSG_TRUNC; //don't handle msg_trunc
 	return total_rx;
 }
 

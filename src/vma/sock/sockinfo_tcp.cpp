@@ -1321,7 +1321,9 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 	int poll_count = 0;
 	int bytes_to_tcp_recved;
 	size_t total_iov_sz = 1;
-	bool block_this_run = m_b_blocking && !(*p_flags & MSG_DONTWAIT);
+	int out_flags = 0;
+	int in_flags = *p_flags;
+	bool block_this_run = m_b_blocking && !(in_flags & MSG_DONTWAIT);
 
 	m_loops_timer.start();
 
@@ -1330,7 +1332,7 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 #ifdef VMA_TIME_MEASURE
 		INC_GO_TO_OS_RX_COUNT;
 #endif
-		ret = socket_fd_api::rx_os(call_type, p_iov, sz_iov, p_flags, __from, __fromlen, __msg);
+		ret = socket_fd_api::rx_os(call_type, p_iov, sz_iov, &in_flags, __from, __fromlen, __msg);
 		save_stats_rx_os(ret);
 		return ret;
 	}
@@ -1339,7 +1341,7 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 	TAKE_T_RX_START;
 #endif
 
-	if (unlikely((*p_flags & MSG_WAITALL) && !(*p_flags & MSG_PEEK))) {
+	if (unlikely((in_flags & MSG_WAITALL) && !(in_flags & MSG_PEEK))) {
 		total_iov_sz = 0;
 		for (int i = 0; i < sz_iov; i++) {
 			total_iov_sz += p_iov[i].iov_len;
@@ -1384,7 +1386,7 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 	}
 	si_tcp_logfunc("something in rx queues: %d %p", m_n_rx_pkt_ready_list_count, m_rx_pkt_ready_list.front());
 
-	total_rx = dequeue_packet(p_iov, sz_iov, (sockaddr_in *)__from, __fromlen, p_flags);
+	total_rx = dequeue_packet(p_iov, sz_iov, (sockaddr_in *)__from, __fromlen, in_flags, &out_flags);
 
 
 	/*
@@ -1392,7 +1394,7 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 	* The packet might not be 'acked' (tcp_recved) 
 	* 
 	*/
-	if (!(*p_flags & (MSG_PEEK | MSG_VMA_ZCOPY))) {
+	if (!(in_flags & (MSG_PEEK | MSG_VMA_ZCOPY))) {
 		m_rcvbuff_current -= total_rx;
 
 

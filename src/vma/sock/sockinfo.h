@@ -171,7 +171,7 @@ protected:
 	virtual int 	zero_copy_rx (iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags) = 0;
 	int 			register_callback(vma_recv_callback_t callback, void *context);
 
-	virtual size_t		handle_msg_trunc(size_t total_rx, size_t payload_size, int* p_flags);
+	virtual size_t		handle_msg_trunc(size_t total_rx, size_t payload_size, int in_flags, int* p_out_flags);
 
 	bool 			attach_receiver(flow_tuple_with_local_if &flow_key);
 	bool 			detach_receiver(flow_tuple_with_local_if &flow_key);
@@ -223,14 +223,14 @@ protected:
 
 	inline int dequeue_packet(iovec *p_iov, ssize_t sz_iov,
 		                  sockaddr_in *__from, socklen_t *__fromlen,
-		                  int *p_flags)
+		                  int in_flags, int *p_out_flags)
 	{
 		mem_buf_desc_t *pdesc;
 		int total_rx = 0;
 		uint32_t nbytes, pos;
 		bool relase_buff = true;
 
-		bool is_peek = *p_flags & MSG_PEEK;
+		bool is_peek = in_flags & MSG_PEEK;
 		int rx_pkt_ready_list_idx = 1;
 		int rx_pkt_ready_offset = m_rx_pkt_ready_offset;
 
@@ -242,9 +242,9 @@ protected:
 		if (__from && __fromlen)
 			fetch_peer_info(&pdesc->path.rx.src, __from, __fromlen);
 
-		if (*p_flags & MSG_VMA_ZCOPY) {
+		if (in_flags & MSG_VMA_ZCOPY) {
 			relase_buff = false;
-			total_rx = zero_copy_rx(p_iov, pdesc, p_flags);
+			total_rx = zero_copy_rx(p_iov, pdesc, p_out_flags);
 			if (unlikely(total_rx < 0))
 				return -1;
 			m_rx_pkt_ready_offset = 0;	
@@ -290,7 +290,7 @@ protected:
 			save_stats_rx_offload(total_rx);
 		}
 
-		total_rx = handle_msg_trunc(total_rx, payload_size, p_flags);
+		total_rx = handle_msg_trunc(total_rx, payload_size, in_flags, p_out_flags);
 
         return total_rx;
     }
