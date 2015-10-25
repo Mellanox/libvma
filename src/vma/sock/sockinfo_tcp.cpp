@@ -3226,7 +3226,7 @@ int sockinfo_tcp::getsockopt(int __level, int __optname, void *__optval,
 
         BULLSEYE_EXCLUDE_BLOCK_START
         if (ret) {
-                si_tcp_logerr("getsockopt failed (ret=%d %m)", ret);
+                si_tcp_logdbg("getsockopt failed (ret=%d %m)", ret);
         }
         BULLSEYE_EXCLUDE_BLOCK_END
         return ret;
