@@ -137,6 +137,11 @@ __thread int g_n_thread_cpu_core = NO_CPU;
 
 cpu_manager::cpu_manager()
 {
+	reset();
+}
+
+void cpu_manager::reset()
+{
 	memset(m_cpu_thread_count, 0, sizeof(m_cpu_thread_count));
 }
 

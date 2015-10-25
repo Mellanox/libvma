@@ -1824,17 +1824,7 @@ pid_t fork(void)
 
 
 		// In case of child process, we want all global objects to re-construct
-		g_p_fd_collection = NULL;
-		g_p_ip_frag_manager = NULL;
-		g_buffer_pool_rx = NULL;
-		g_buffer_pool_tx = NULL;
-		g_tcp_seg_pool = NULL;
-		g_tcp_timers_collection = NULL;
-		g_p_vlogger_timer_handler = NULL;
-		g_p_event_handler_manager = NULL;
-		g_p_route_table_mgr = NULL;
-		g_stats_file = NULL;
-		g_p_net_device_table_mgr = NULL;
+		reset_globals();
 
 		g_init_global_ctors_done = false;
 		sock_redirect_exit();
@@ -1887,18 +1877,7 @@ int daemon(int __nochdir, int __noclose)
 		vlog_stop();
 
 		// In case of child process, we want all global objects to re-construct
-		g_p_fd_collection = NULL;
-		g_p_ip_frag_manager = NULL;
-		g_buffer_pool_rx = NULL;
-		g_buffer_pool_tx = NULL;
-		g_tcp_seg_pool = NULL;
-		g_tcp_timers_collection = NULL;
-		g_p_vlogger_timer_handler = NULL;	
-		g_p_event_handler_manager = NULL;
-		g_p_route_table_mgr = NULL;
-		g_stats_file = NULL;
-		g_p_net_device_table_mgr = NULL;
-
+		reset_globals();
 
 		g_init_global_ctors_done = false;
 		sock_redirect_exit();

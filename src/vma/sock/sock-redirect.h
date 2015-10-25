@@ -153,6 +153,7 @@ extern iomux_stats_t* g_p_poll_stats;
 extern iomux_stats_t* g_p_epoll_stats;
 
 void do_global_ctors();
+void reset_globals();
 void handle_close(int fd, bool cleanup = false, bool passthrough = false);
 
 // allow calling our socket(...) implementation safely from within libvma.so

@@ -1685,6 +1685,28 @@ void do_global_ctors()
 	}
 }
 
+void reset_globals()
+{
+	g_p_fd_collection = NULL;
+	g_p_igmp_mgr = NULL;
+	g_p_ip_frag_manager = NULL;
+	g_buffer_pool_rx = NULL;
+	g_buffer_pool_tx = NULL;
+	g_tcp_seg_pool = NULL;
+	g_tcp_timers_collection = NULL;
+	g_p_vlogger_timer_handler = NULL;
+	g_p_event_handler_manager = NULL;
+	g_p_route_table_mgr = NULL;
+	g_p_rule_table_mgr = NULL;
+	g_stats_file = NULL;
+	g_p_net_device_table_mgr = NULL;
+	g_p_neigh_table_mgr = NULL;
+	g_p_lwip = NULL;
+	g_p_netlink_handler = NULL;
+	g_p_ib_ctx_handler_collection = NULL;
+	g_cpu_manager.reset();
+}
+
 // checks that netserver runs with flags: -D, -f. Otherwise, warn user for wrong usage
 // this test is performed since vma does not support fork, and these flags make sure the netserver application will not use fork.
 void check_netperf_flags()

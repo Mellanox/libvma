@@ -85,6 +85,7 @@ class cpu_manager : public lock_mutex
 {
 public:
 	cpu_manager();
+	void reset();
 	int reserve_cpu_for_thread(pthread_t tid, int suggested_cpu = NO_CPU);
 
 private:
