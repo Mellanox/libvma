@@ -876,10 +876,12 @@ int neigh_entry::priv_enter_init_resolution()
 			(void*) g_p_neigh_table_mgr->m_neigh_cma_event_channel,
 			this);
 
-	//3. Start RDMA address resolution
+	// 4. Start RDMA address resolution
 	neigh_logdbg("Calling rdma_resolve_addr, src=%d.%d.%d.%d, dst=%d.%d.%d.%d", NIPQUAD(m_src_addr.sin_addr.s_addr), NIPQUAD(m_dst_addr.sin_addr.s_addr));
 
-	IF_RDMACM_FAILURE(rdma_resolve_addr(m_cma_id, (struct sockaddr*)&m_src_addr, (struct sockaddr*)&m_dst_addr, 2000))
+	IF_RDMACM_FAILURE(rdma_resolve_addr(m_cma_id, NULL /*(struct sockaddr*)&m_src_addr*/
+			/* we had issues passing src addr, let it find the correct one itself */
+			, (struct sockaddr*)&m_dst_addr, 2000))
 	{
 		neigh_logdbg("Failed in rdma_resolve_addr  m_cma_id = %p (errno=%d %m)", m_cma_id, errno);
 		return -1;
