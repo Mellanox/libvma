@@ -126,8 +126,13 @@ int sockinfo::fcntl(int __cmd, unsigned long int __arg) throw (vma_error)
 		buf[ sizeof(buf)-1 ] = '\0';
 
 		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
-		int rc = handle_exception_flow(buf);
-		if (rc < 0) return rc;
+		int rc = handle_exception_flow();
+		switch (rc) {
+		case -1:
+			return rc;
+		case -2:
+			vma_throw_object_with_msg(vma_unsupported_api, buf);
+		}
 		break;
 	}
 	si_logdbg("going to OS for fcntl cmd=%d, arg=%#x", __cmd, __arg);
@@ -156,8 +161,13 @@ int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg) throw 
 		buf[ sizeof(buf)-1 ] = '\0';
 
 		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
-		int rc = handle_exception_flow(buf);
-		if (rc < 0) return rc;
+		int rc = handle_exception_flow();
+		switch (rc) {
+		case -1:
+			return rc;
+		case -2:
+			vma_throw_object_with_msg(vma_unsupported_api, buf);
+		}
 		break;
 	}
 

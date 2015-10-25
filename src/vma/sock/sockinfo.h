@@ -361,7 +361,7 @@ protected:
     int			get_sock_by_L3_L4(in_protocol_t protocol, in_addr_t ip, in_port_t  port);
 
     //////////////////////////////////////////////////////////////////
-    int handle_exception_flow(const char *buf) throw (vma_error) {
+    int handle_exception_flow(){
 		if (mce_sys.exception_handling.is_suit_un_offloading()) {
 			try_un_offloading();
 		}
@@ -370,7 +370,7 @@ protected:
 			return -1;
 		}
 		if (mce_sys.exception_handling == vma_exception_handling::MODE_ABORT) {
-			vma_throw_object_with_msg(vma_unsupported_api, buf);
+			return -2;
 		}
 		return 0;
     }

@@ -487,6 +487,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 
 			case SO_SNDBUF:
 				si_udp_logdbg("SOL_SOCKET, %s=%d", setsockopt_so_opt_to_str(__optname), *(int*)__optval);
+				// this is supported without doing something special because VMA send immediately without buffering
 				break;
 
 			case SO_RCVTIMEO:
@@ -835,8 +836,13 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 		buf[ sizeof(buf)-1 ] = '\0';
 
 		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
-		int rc = handle_exception_flow(buf);
-		if (rc < 0) return rc;
+		int rc = handle_exception_flow();
+		switch (rc) {
+		case -1:
+			return rc;
+		case -2:
+			vma_throw_object_with_msg(vma_unsupported_api, buf);
+		}
 	}
 
 	return orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);

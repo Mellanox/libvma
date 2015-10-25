@@ -3069,8 +3069,13 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 		buf[ sizeof(buf)-1 ] = '\0';
 
 		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
-		int rc = handle_exception_flow(buf);
-		if (rc < 0) return rc;
+		int rc = handle_exception_flow();
+		switch (rc) {
+		case -1:
+			return rc;
+		case -2:
+			vma_throw_object_with_msg(vma_unsupported_api, buf);
+		}
 	}
 
 	si_tcp_logdbg("going to OS for setsockopt level %d optname %d", __level, __optname);
