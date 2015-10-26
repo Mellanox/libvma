@@ -1089,11 +1089,11 @@ if [ "$RELEASE_MODE" == 1 ]; then #release
                 err=1;
                 echo "Machine: $name - failed on step: cp $srcRpm src/" >> $log_file
         fi
-        cp $path* src/
-	cp $path_devel* src/
-	cp $path_util* src/
+        cp $path* .
+	cp $path_devel* .
+	cp $path_util* .
         #copy the rpm (short name) to vma dir
-        ln -s src/*x86_64.rpm libvma-""$fullVersion"-"$machine"".rpm
+        #ln -s src/*x86_64.rpm libvma-""$fullVersion"-"$machine"".rpm
         
 	cp "$workspace_folder"/README.txt .
         cp "$workspace_folder"/journal.txt .
@@ -1106,12 +1106,13 @@ if [ "$RELEASE_MODE" == 1 ]; then #release
 	localPath=`pwd`
 	finalRpm="$localPath/libvma-""$fullVersion"-"$machine"".rpm"
 
-	build_deb "$localPath/src/libvma-$fullVersion.src.rpm" "$localPath/"
+	build_deb $localPath/src/libvma-*.src.rpm "$localPath/"
 
 	echo "libvma-$fullVersion.src.rpm" > $localPath/src/latest.txt
 
 	echo "libvma-$fullVersion.src.rpm" > $mswg_vma_folder/source_rpms/latest.txt
-	ln -s $localPath/src/libvma-$fullVersion.src.rpm $mswg_vma_folder/source_rpms/libvma-$fullVersion.src.rpm
+	ln -s $localPath/src/libvma-*.src.rpm $mswg_vma_folder/source_rpms/libvma-$fullVersion.src.rpm
+	#ln -s $localPath/src/libvma-$fullVersion.src.rpm $mswg_vma_folder/source_rpms/libvma-$fullVersion.src.rpm
 
 fi
 if [ "$LOCAL_MODE" == 1 ]; then #local
