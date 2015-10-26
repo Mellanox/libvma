@@ -1,3 +1,18 @@
+Version 7.0.9-0:
+Date + Time 2015-10-26
+=======================
+Added:
+        - RM #591755 Handling of socket API exception flows
+        - RM #630037 Build RPM/DEB support
+
+Fixed:
+        - RM #623139 handle addr_resolve() in neighbor
+        - RM #632455 Handle correctly msg_flag returned by recvmmesg()
+        - RM #VMA error when running getsockopt with an invalid level and an
+          invalid optlen
+        - RM #632654 should initialize all globals in fork()/daemon()
+        - RM #Fix make dist
+
 Version 7.0.8-0:
 Date + Time 2015-10-15
 =======================
