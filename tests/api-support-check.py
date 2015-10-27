@@ -39,16 +39,14 @@ def test_fcntl(sock):
 	return "fcntl test: returned with data of len=" + str(len(rv))
 
 if __name__ == "__main__":
-    print "testing UDP:"
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    print "setsockopt test...";
-    s.setsockopt(socket.IPPROTO_TCP, socket.TCP_CORK, 1)
-    print test_ioctl(s)
-    print test_fcntl(s)
-
     print "testing TCP:"
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    print "setsockopt test...";
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     print test_ioctl(s)
     print test_fcntl(s)
+    print "setsockopt test..."; s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
+    print "testing UDP:"
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    print test_ioctl(s)
+    print test_fcntl(s)
+    print "setsockopt test..."; s.setsockopt(socket.IPPROTO_TCP, socket.TCP_CORK, 1)
