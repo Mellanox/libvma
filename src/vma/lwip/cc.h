@@ -126,15 +126,14 @@ struct cc_algo {
 
 };
 
-extern struct cc_algo ork_cc_algo;
 extern struct cc_algo lwip_cc_algo;
 extern struct cc_algo cubic_cc_algo;
 
-inline void cc_init(struct tcp_pcb *pcb);
-inline void cc_destroy(struct tcp_pcb *pcb);
-inline void cc_ack_received(struct tcp_pcb *pcb, uint16_t type);
-inline void cc_conn_init(struct tcp_pcb *pcb);
-inline void cc_cong_signal(struct tcp_pcb *pcb, uint32_t type);
-inline void cc_post_recovery(struct tcp_pcb *pcb);
+void cc_init(struct tcp_pcb *pcb);
+void cc_destroy(struct tcp_pcb *pcb);
+void cc_ack_received(struct tcp_pcb *pcb, uint16_t type);
+void cc_conn_init(struct tcp_pcb *pcb);
+void cc_cong_signal(struct tcp_pcb *pcb, uint32_t type);
+void cc_post_recovery(struct tcp_pcb *pcb);
 
 #endif /* CC_H_ */
