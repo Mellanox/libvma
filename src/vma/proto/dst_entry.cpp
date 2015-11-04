@@ -242,10 +242,12 @@ bool dst_entry::resolve_ring()
 		if (!m_p_ring) {
 			dst_logdbg("getting a ring");
 			m_p_ring = m_p_net_dev_val->reserve_ring(m_ring_alloc_logic.create_new_key());
+		}
+		if (m_p_ring) {
 			m_max_inline = m_p_ring->get_max_tx_inline();
 			m_max_inline = std::min(m_max_inline, m_p_net_dev_val->get_mtu() + (uint32_t)m_header.m_transport_header_len);
+			ret_val = true;
 		}
-		ret_val = true;
 	}
 	return ret_val;
 }
@@ -548,8 +550,13 @@ void dst_entry::do_ring_migration(lock_base& socket_lock)
 	socket_lock.unlock();
 
 	ring* new_ring = m_p_net_dev_val->reserve_ring(new_key);
+	if (!new_ring) {
+		socket_lock.lock();
+		return;
+	}
 	if (new_ring == m_p_ring) {
 		m_p_net_dev_val->release_ring(old_key);
+		socket_lock.lock();
 		return;
 	}
 

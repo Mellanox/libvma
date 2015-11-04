@@ -392,7 +392,7 @@ bool sockinfo::attach_receiver(flow_tuple_with_local_if &flow_key)
 		m_rx_ring_map_lock.unlock();
 		lock_rx_q();
 		if (!nd_resources.p_ring) {
-			si_logerr("Failed to reserve ring for allocation key %d on lip %s", m_ring_alloc_logic.get_key(), ip_local.to_str().c_str());
+			si_logdbg("Failed to reserve ring for allocation key %d on lip %s", m_ring_alloc_logic.get_key(), ip_local.to_str().c_str());
 			return false;
 		}
 

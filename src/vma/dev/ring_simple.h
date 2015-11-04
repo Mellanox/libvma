@@ -20,7 +20,7 @@
 class ring_simple : public ring
 {
 public:
-	ring_simple(in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, uint32_t mtu, ring* parent = NULL);
+	ring_simple(in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, uint32_t mtu, ring* parent = NULL) throw (vma_error);
 	virtual ~ring_simple();
 
 	virtual int		request_notification(cq_type_t cq_type, uint64_t poll_sn);
@@ -66,7 +66,7 @@ public:
 
 protected:
 	virtual qp_mgr*		create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) = 0;
-	void			create_resources(ring_resource_creation_info_t* p_ring_info, bool active);
+	void			create_resources(ring_resource_creation_info_t* p_ring_info, bool active) throw (vma_error);
 	// Internal functions. No need for locks mechanism.
 	bool			rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_type_t m_transport_type, void* pv_fd_ready_array);
 	void			print_flow_to_rfs_udp_uc_map(flow_spec_udp_uc_map_t *p_flow_map);
@@ -129,7 +129,7 @@ private:
 class ring_eth : public ring_simple
 {
 public:
-	ring_eth(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count, bool active, uint16_t vlan, uint32_t mtu, ring* parent = NULL) :
+	ring_eth(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count, bool active, uint16_t vlan, uint32_t mtu, ring* parent = NULL) throw (vma_error):
 		ring_simple(local_if, vlan, count, VMA_TRANSPORT_ETH, mtu, parent) { create_resources(p_ring_info, active); };
 
 protected:
@@ -139,7 +139,7 @@ protected:
 class ring_ib : public ring_simple
 {
 public:
-	ring_ib(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count, bool active, uint16_t pkey, uint32_t mtu, ring* parent = NULL) :
+	ring_ib(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count, bool active, uint16_t pkey, uint32_t mtu, ring* parent = NULL) throw (vma_error):
 		ring_simple(local_if, pkey, count, VMA_TRANSPORT_IB, mtu, parent) { create_resources(p_ring_info, active); };
 
 protected:

@@ -36,20 +36,34 @@
 ring_bond::ring_bond(int count, net_device_val::bond_type type, net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy, uint32_t mtu) :
 ring(count, mtu), m_lock_ring_rx("ring_bond:lock_rx"), m_lock_ring_tx("ring_bond:lock_tx") {
 	m_bond_rings = new ring_simple*[count];
+	for (int i = 0; i < count; i++)
+		m_bond_rings[i] = NULL;
 	m_active_rings = new ring_simple*[count];
+	for (int i = 0; i < count; i++)
+		m_active_rings[i] = NULL;
 	m_parent = this;
 	m_type = type;
 	m_xmit_hash_policy = bond_xmit_hash_policy;
 	m_min_devices_tx_inline = -1;
 }
 
-ring_bond::~ring_bond()
+void ring_bond::free_ring_bond_resources()
 {
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
 		delete m_bond_rings[i];
+		m_bond_rings[i] = NULL;
 	}
-	delete m_bond_rings;
-	delete m_active_rings;
+
+	delete [] m_bond_rings;
+	m_bond_rings = NULL;
+
+	delete [] m_active_rings;
+	m_active_rings = NULL;
+}
+
+ring_bond::~ring_bond()
+{
+	free_ring_bond_resources();
 }
 
 bool ring_bond::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) {
@@ -423,7 +437,7 @@ void ring_bond::mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc)
 	ring_logpanic("programming error, how did we got here?");
 }
 
-void ring_bond_eth::create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t vlan)
+void ring_bond_eth::create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t vlan) throw (vma_error)
 {
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
 		m_bond_rings[i] = new ring_eth(local_if, &p_ring_info[i], 1, active_slaves[i], vlan, get_mtu(), this);
@@ -440,7 +454,7 @@ void ring_bond_eth::create_slave_list(in_addr_t local_if, ring_resource_creation
 	close_gaps_active_rings();
 }
 
-void ring_bond_ib::create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t pkey)
+void ring_bond_ib::create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t pkey) throw (vma_error)
 {
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
 		m_bond_rings[i] = new ring_ib(local_if, &p_ring_info[i], 1, active_slaves[i], pkey, get_mtu(), this); // get_mtu() reads the MTU from ifconfig when created. Now passing it to its slaves. could have sent 0 here, as the MTU of the bond is already on the bond

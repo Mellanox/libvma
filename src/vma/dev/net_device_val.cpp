@@ -383,6 +383,9 @@ ring* net_device_val::reserve_ring(IN resource_allocation_key key)
 		nd_logdbg("Creating new RING for key %#x", key);
 
 		the_ring = create_ring();
+		if (!the_ring) {
+			return NULL;
+		}
 
 		m_h_ring_map[key] = std::make_pair(the_ring, 0); // each ring is born with ref_count = 0
 		ring_iter = m_h_ring_map.find(key);
@@ -651,9 +654,21 @@ ring* net_device_val_eth::create_ring()
 
 	 //TODO check if need to create bond ring even if slave count is 1
 	if (m_bond != NO_BOND) {
-		return new ring_bond_eth(m_local_addr, p_ring_info, slave_count, active_slaves, get_vlan(), m_bond, m_bond_xmit_hash_policy, m_mtu);
+		ring_bond_eth* ring;
+		try {
+			ring = new ring_bond_eth(m_local_addr, p_ring_info, slave_count, active_slaves, get_vlan(), m_bond, m_bond_xmit_hash_policy, m_mtu);
+		} catch (vma_error &error) {
+			return NULL;
+		}
+		return ring;
 	} else {
-		return new ring_eth(m_local_addr, p_ring_info, slave_count, true, get_vlan(), m_mtu);
+		ring_eth* ring;
+		try {
+			ring = new ring_eth(m_local_addr, p_ring_info, slave_count, true, get_vlan(), m_mtu);
+		} catch (vma_error &error) {
+			return NULL;
+		}
+		return ring;
 	}
 }
 
@@ -731,9 +746,21 @@ ring* net_device_val_ib::create_ring()
 	}
 
 	if (m_bond != NO_BOND) {
-		return new ring_bond_ib(m_local_addr, p_ring_info, slave_count, active_slaves, m_pkey, m_bond, m_bond_xmit_hash_policy, m_mtu);
+		ring_bond_ib* ring;
+		try {
+			ring = new ring_bond_ib(m_local_addr, p_ring_info, slave_count, active_slaves, m_pkey, m_bond, m_bond_xmit_hash_policy, m_mtu);
+		} catch (vma_error &error) {
+			return NULL;
+		}
+		return ring;
 	} else {
-		return new ring_ib(m_local_addr, p_ring_info, slave_count, true, m_pkey, m_mtu);
+		ring_ib* ring;
+		try {
+			ring = new ring_ib(m_local_addr, p_ring_info, slave_count, true, m_pkey, m_mtu);
+		} catch (vma_error &error) {
+			return NULL;
+		}
+		return ring;
 	}
 }
 

@@ -49,7 +49,7 @@ qp_mgr* ring_ib::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, s
 }
 
 
-ring_simple::ring_simple(in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, uint32_t mtu, ring* parent /*=NULL*/) :
+ring_simple::ring_simple(in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, uint32_t mtu, ring* parent /*=NULL*/) throw (vma_error):
 	ring(count, mtu), m_lock_ring_rx("ring_simple:lock_rx"), m_lock_ring_tx("ring_simple:lock_tx"),
 	m_p_qp_mgr(NULL), m_p_cq_mgr_rx(NULL), m_p_cq_mgr_tx(NULL),
 	m_lock_ring_tx_buf_wait("ring:lock_tx_buf_wait"), m_tx_num_bufs(0), m_tx_num_wr(0), m_tx_num_wr_free(0),
@@ -88,21 +88,26 @@ ring_simple::~ring_simple()
 	m_lock_ring_rx.lock();
 	m_lock_ring_tx.lock();
 
-	// 'down' the active QP/CQ
-	m_p_qp_mgr->down();
-
+	if (m_p_qp_mgr) {
+		// 'down' the active QP/CQ
+		m_p_qp_mgr->down();
+	}
 	// Release QP/CQ resources
 	delete m_p_qp_mgr;
+
 	delete_l2_address();
 
 	// Delete the rx channel fd from the global fd collection
-	if (g_p_fd_collection) {
+	if (g_p_fd_collection && m_p_rx_comp_event_channel) {
 		g_p_fd_collection->del_cq_channel_fd(m_p_rx_comp_event_channel->fd, true);
 	}
 
-	IF_VERBS_FAILURE(ibv_destroy_comp_channel(m_p_rx_comp_event_channel)) {
-		ring_logdbg("destroy comp channel failed (errno=%d %m)", errno);
-	} ENDIF_VERBS_FAILURE;
+	if (m_p_rx_comp_event_channel) {
+		IF_VERBS_FAILURE(ibv_destroy_comp_channel(m_p_rx_comp_event_channel)) {
+			ring_logdbg("destroy comp channel failed (errno=%d %m)", errno);
+		} ENDIF_VERBS_FAILURE;
+	}
+
 	delete[] m_p_n_rx_channel_fds;
 
 	int buffer_accounting = m_tx_num_bufs - m_tx_pool.size() - m_missing_buf_ref_count;
@@ -118,12 +123,16 @@ ring_simple::~ring_simple()
 	g_buffer_pool_tx->put_buffers_thread_safe(&m_tx_pool, m_tx_pool.size());
 
 	// Release verbs resources
-	IF_VERBS_FAILURE(ibv_destroy_comp_channel(m_p_tx_comp_event_channel)) {
-		ring_logdbg("destroy comp channel failed (errno=%d %m)", errno);
-	} ENDIF_VERBS_FAILURE;
-	m_p_tx_comp_event_channel = NULL;
+	if (m_p_tx_comp_event_channel) {
+		IF_VERBS_FAILURE(ibv_destroy_comp_channel(m_p_tx_comp_event_channel)) {
+			ring_logdbg("destroy comp channel failed (errno=%d %m)", errno);
+		} ENDIF_VERBS_FAILURE;
+		m_p_tx_comp_event_channel = NULL;
+	}
 
-	vma_stats_instance_remove_ring_block(m_p_ring_stat);
+	if (m_p_ring_stat) {
+		vma_stats_instance_remove_ring_block(m_p_ring_stat);
+	}
 
 	m_lock_ring_rx.unlock();
 	m_lock_ring_tx.unlock();
@@ -131,7 +140,7 @@ ring_simple::~ring_simple()
 	ring_logdbg("delete ring() completed");
 }
 
-void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, bool active)
+void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, bool active) throw (vma_error)
 {
 	ring_logdbg("new ring()");
 
@@ -147,7 +156,11 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 	save_l2_address(p_ring_info->p_l2_addr);
 	m_p_tx_comp_event_channel = ibv_create_comp_channel(p_ring_info->p_ib_ctx->get_ibv_context());
 	if (m_p_tx_comp_event_channel == NULL) {
-		ring_logpanic("ibv_create_comp_channel for tx failed. m_p_tx_comp_event_channel = %p (errno=%d %m)", m_p_tx_comp_event_channel, errno);
+		VLOG_PRINTF_INFO_ONCE_THEN_ALWAYS(VLOG_ERROR, VLOG_DEBUG, "ibv_create_comp_channel for tx failed. m_p_tx_comp_event_channel = %p (errno=%d %m)", m_p_tx_comp_event_channel, errno);
+		if (errno == EMFILE) {
+			VLOG_PRINTF_INFO_ONCE_THEN_ALWAYS(VLOG_ERROR, VLOG_DEBUG, "did we run out of file descriptors? traffic may not be offloaded, increase ulimit -n");
+		}
+		throw_vma_exception("create event channel failed");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
@@ -165,15 +178,18 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 
 	memset(&m_cq_moderation_info, 0, sizeof(m_cq_moderation_info));
 
-	m_p_n_rx_channel_fds = new int[m_n_num_resources];
-
 	m_p_rx_comp_event_channel = ibv_create_comp_channel(p_ring_info->p_ib_ctx->get_ibv_context()); // ODED TODO: Adjust the ibv_context to be the exact one in case of different devices
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_p_rx_comp_event_channel == NULL) {
-		ring_logpanic("ibv_create_comp_channel for rx failed. p_rx_comp_event_channel = %p (errno=%d %m)",
-				m_p_rx_comp_event_channel, errno);
+		VLOG_PRINTF_INFO_ONCE_THEN_ALWAYS(VLOG_ERROR, VLOG_DEBUG, "ibv_create_comp_channel for rx failed. p_rx_comp_event_channel = %p (errno=%d %m)", m_p_rx_comp_event_channel, errno);
+		if (errno == EMFILE) {
+			VLOG_PRINTF_INFO_ONCE_THEN_ALWAYS(VLOG_ERROR, VLOG_DEBUG, "did we run out of file descriptors? traffic may not be offloaded, increase ulimit -n");
+		}
+		throw_vma_exception("create event channel failed");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
+
+	m_p_n_rx_channel_fds = new int[m_n_num_resources];
 	m_p_n_rx_channel_fds[0] = m_p_rx_comp_event_channel->fd;
 	// Add the rx channel fd to the global fd collection
 	if (g_p_fd_collection) {
