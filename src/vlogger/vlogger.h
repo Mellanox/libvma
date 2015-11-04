@@ -45,6 +45,13 @@
 
 #define VLOG_PRINTF(     log_level, log_fmt, log_args...) 	vlog_printf(log_level, MODULE_HDR       log_fmt "\n",           __LINE__, __FUNCTION__, ##log_args)
 #define VLOG_PRINTF_INFO(log_level, log_fmt, log_args...) 	vlog_printf(log_level, MODULE_HDR_INFO  log_fmt "\n", __INFO__, __LINE__, __FUNCTION__, ##log_args)
+#define VLOG_PRINTF_INFO_ONCE_THEN_ALWAYS(log_level_once, log_level, log_fmt,log_args...) \
+	do { \
+		static vlog_levels_t ___log_level = log_level_once; \
+		VLOG_PRINTF_INFO(___log_level, log_fmt, ##log_args); \
+		___log_level = log_level; \
+	} while (0)
+
 #define VLOG_PRINTF_ENTRY(log_level, log_fmt, log_args...)	vlog_printf(log_level, MODULE_HDR_ENTRY "%s(" log_fmt ")\n", __FUNCTION__, ##log_args)
 #define VLOG_PRINTF_EXIT( log_level, log_fmt, log_args...)	vlog_printf(log_level, MODULE_HDR_EXIT  "%s() " log_fmt "\n", __FUNCTION__, ##log_args)
 
