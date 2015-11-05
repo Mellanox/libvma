@@ -38,12 +38,12 @@
 #define ALIGN_WR_DOWN(_num_wr_) 		(max(32, ((_num_wr_      ) & ~(0xf))))
 
 
-qp_mgr* ring_eth::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel)
+qp_mgr* ring_eth::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) throw (vma_error)
 {
 	return new qp_mgr_eth(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), get_partition());
 }
 
-qp_mgr* ring_ib::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel)
+qp_mgr* ring_ib::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) throw (vma_error)
 {
 	return new qp_mgr_ib(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), get_partition());
 }
@@ -200,7 +200,8 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 	m_p_qp_mgr = create_qp_mgr(p_ring_info->p_ib_ctx, p_ring_info->port_num, m_p_rx_comp_event_channel);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_p_qp_mgr == NULL) {
-		ring_logpanic("Failed to allocate qp_mgr!");
+		ring_logerr("Failed to allocate qp_mgr!");
+		throw_vma_exception("create qp failed");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 	// save cq_mgr pointers

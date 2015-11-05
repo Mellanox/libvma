@@ -84,7 +84,7 @@ qp_mgr::~qp_mgr()
 	qp_logdbg("delete done");
 }
 
-void qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
+int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 {
 	transport_type_t transport_type = m_p_ring->get_transport_type();
 	struct ibv_device* p_ibv_device = m_p_ib_ctx_handler->get_ibv_device();
@@ -104,12 +104,16 @@ void qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	// Create associated Tx & Rx cq_mgrs
 	m_p_cq_mgr_tx = new cq_mgr(m_p_ring, m_p_ib_ctx_handler, m_tx_num_wr, m_p_ring->get_tx_comp_event_channel(), false);
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!m_p_cq_mgr_tx)
-		qp_logpanic("Failed allocating m_p_cq_mgr_tx (errno=%d %m)", errno);
+	if (!m_p_cq_mgr_tx) {
+		qp_logerr("Failed allocating m_p_cq_mgr_tx (errno=%d %m)", errno);
+		return -1;
+	}
 
 	m_p_cq_mgr_rx = new cq_mgr(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
-	if (!m_p_cq_mgr_rx)
-		qp_logpanic("Failed allocating m_p_cq_mgr_rx (errno=%d %m)", errno);
+	if (!m_p_cq_mgr_rx) {
+		qp_logerr("Failed allocating m_p_cq_mgr_rx (errno=%d %m)", errno);
+		return -1;
+	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	// Modify the Rx and Tx cq_mgr to use a non-blocking event channel
@@ -135,13 +139,16 @@ void qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	qp_init_attr.sq_sig_all = 0;
 
 	// Create the QP
-	prepare_ibv_qp(qp_init_attr);
+	if (prepare_ibv_qp(qp_init_attr)) {
+		return -1;
+	}
 
 	int attr_mask = IBV_QP_CAP;
 	struct ibv_qp_attr tmp_ibv_qp_attr;
 	struct ibv_qp_init_attr tmp_ibv_qp_init_attr;
 	IF_VERBS_FAILURE(ibv_query_qp(m_qp, &tmp_ibv_qp_attr, (enum ibv_qp_attr_mask)attr_mask, &tmp_ibv_qp_init_attr)) {
-		qp_logpanic("ibv_query_qp failed (errno=%d %m)", errno);
+		qp_logerr("ibv_query_qp failed (errno=%d %m)", errno);
+		return -1;
 	} ENDIF_VERBS_FAILURE;
 
 	m_max_inline_data = min(tmp_ibv_qp_init_attr.cap.max_inline_data, tx_max_inline);
@@ -166,6 +173,8 @@ void qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	}
 
 	qp_logdbg("Created QP (num=%x) with %d tx wre and inline=%d and %d rx wre and %d sge", m_qp->qp_num, m_tx_num_wr, m_max_inline_data, m_rx_num_wr, rx_num_sge);
+
+	return 0;
 }
 
 void qp_mgr::up()
@@ -544,7 +553,7 @@ void qp_mgr_eth::modify_qp_to_ready_state()
 	BULLSEYE_EXCLUDE_BLOCK_END
 }
 
-void qp_mgr_eth::prepare_ibv_qp(struct ibv_qp_init_attr& qp_init_attr)
+int qp_mgr_eth::prepare_ibv_qp(struct ibv_qp_init_attr& qp_init_attr)
 {
 	qp_logdbg("");
 	int ret = 0;
@@ -554,13 +563,17 @@ void qp_mgr_eth::prepare_ibv_qp(struct ibv_qp_init_attr& qp_init_attr)
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_qp) {
 		validate_raw_qp_privliges();
-		qp_logpanic("ibv_create_qp failed (errno=%d %m)", errno);
+		qp_logerr("ibv_create_qp failed (errno=%d %m)", errno);
+		return -1;
 	}
 
 	if ((ret = priv_ibv_modify_qp_from_err_to_init_raw(m_qp, m_port_num)) != 0) {
-		qp_logpanic("failed to modify QP from ERR to INIT state (ret = %d)", ret);
+		qp_logerr("failed to modify QP from ERR to INIT state (ret = %d)", ret);
+		return ret;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
+
+	return 0;
 }
 
 void qp_mgr_ib::modify_qp_to_ready_state()
@@ -581,7 +594,7 @@ void qp_mgr_ib::modify_qp_to_ready_state()
 	BULLSEYE_EXCLUDE_BLOCK_END
 }
 
-void qp_mgr_ib::prepare_ibv_qp(struct ibv_qp_init_attr& qp_init_attr)
+int qp_mgr_ib::prepare_ibv_qp(struct ibv_qp_init_attr& qp_init_attr)
 {
 	qp_logdbg("");
 	int ret = 0;
@@ -590,13 +603,17 @@ void qp_mgr_ib::prepare_ibv_qp(struct ibv_qp_init_attr& qp_init_attr)
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_qp) {
-		qp_logpanic("ibv_create_qp failed (errno=%d %m)", errno);
+		qp_logerr("ibv_create_qp failed (errno=%d %m)", errno);
+		return -1;
 	}
 
 	if ((ret = priv_ibv_modify_qp_from_err_to_init_ud(m_qp, m_port_num, m_pkey_index)) != 0) {
-		qp_logpanic("failed to modify QP from ERR to INIT state (ret = %d)", ret);
+		VLOG_PRINTF_INFO_ONCE_THEN_ALWAYS(VLOG_ERROR, VLOG_DEBUG, "failed to modify QP from ERR to INIT state (ret = %d) check number of available fds (ulimit -n)", ret, errno);
+		return ret;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
+
+	return 0;
 }
 
 void qp_mgr_ib::update_pkey_index()

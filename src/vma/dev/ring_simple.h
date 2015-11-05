@@ -133,7 +133,7 @@ public:
 		ring_simple(local_if, vlan, count, VMA_TRANSPORT_ETH, mtu, parent) { create_resources(p_ring_info, active); };
 
 protected:
-	virtual qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel);
+	virtual qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) throw (vma_error);
 };
 
 class ring_ib : public ring_simple
@@ -143,7 +143,7 @@ public:
 		ring_simple(local_if, pkey, count, VMA_TRANSPORT_IB, mtu, parent) { create_resources(p_ring_info, active); };
 
 protected:
-	virtual qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel);
+	virtual qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) throw (vma_error);
 };
 
 #endif //RING_SIMPLE_H
