@@ -1383,6 +1383,7 @@ bool neigh_eth::post_send_arp(bool is_broadcast)
 		neigh_logdbg("No free TX buffer, not sending ARP");
 		return false;
 	}
+	BULLSEYE_EXCLUDE_BLOCK_END
 
 	wqe_send_handler wqe_sh;
 	wqe_sh.init_wqe(m_send_wqe, &m_sge, 1);
