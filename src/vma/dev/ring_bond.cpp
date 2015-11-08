@@ -533,11 +533,11 @@ ring_user_id_t ring_bond::generate_id(const address_t src_mac, const address_t d
 
 	uint32_t hash = 0;
 
-	if (m_xmit_hash_policy > net_device_val::XHP_LAYER_2_3 && eth_proto == ETH_P_8021Q) {
+	if (m_xmit_hash_policy > net_device_val::XHP_LAYER_2_3 && eth_proto == htons(ETH_P_8021Q)) {
 		eth_proto = encap_proto;
 	}
 
-	if (eth_proto != ETH_P_IP) {
+	if (eth_proto != htons(ETH_P_IP)) {
 		hash = dst_mac[5] ^ src_mac[5] ^ eth_proto;
 		return hash % m_n_num_resources;
 	}
