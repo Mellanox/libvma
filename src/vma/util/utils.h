@@ -145,6 +145,15 @@ inline int priv_try_read_file(const char *path, char *buf, size_t size) {
 }
 
 /**
+ * like above 'priv_try_read_file' however make sure that upon success the result in buf is a null terminated string
+ */
+inline int priv_safe_try_read_file(const char *path, char *buf, size_t size) {
+	int ret = priv_try_read_file(path, buf, size - 1);
+	if (0 <= ret && size) buf[ret] = '\0';
+	return ret;
+}
+
+/**
  * Read content of file detailed in 'path' (usually a sysfs file)
  * upon failure print error
  * @return int value (atoi) of the file content, or 'default_value' upon failure
@@ -311,6 +320,7 @@ size_t get_local_ll_addr(const char* ifname, unsigned char* addr, int addr_len, 
 bool get_local_if_info(in_addr_t local_if, char* ifname, unsigned int &ifflags);
 
 bool get_bond_active_slave_name(IN const char* bond_name, OUT char* active_slave_name, IN int sz);
+bool get_bond_slave_state(IN const char* slave_name, OUT char* curr_state, IN int sz);
 bool get_bond_slaves_name_list(IN const char* bond_name, OUT char* slaves_list, IN int sz);
 bool check_device_exist(const char* ifname, const char *path);
 bool get_interface_oper_state(IN const char* interface_name, OUT char* slaves_list, IN int sz);

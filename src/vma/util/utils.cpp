@@ -885,6 +885,22 @@ bool get_bond_active_slave_name(IN const char* bond_name, OUT char* active_slave
 	return true;
 }
 
+/*
+ * this function will work only for kernel  > 3.14 or RH7.2 and higher
+ */
+bool get_bond_slave_state(IN const char* slave_name, OUT char* curr_state, IN int sz)
+{
+	char bond_slave_state_path[256] = {0};
+	sprintf(bond_slave_state_path, BONDING_SLAVE_STATE_PARAM_FILE, slave_name);
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (priv_safe_try_read_file(bond_slave_state_path, curr_state, sz) < 0)
+		return false;
+	BULLSEYE_EXCLUDE_BLOCK_END
+	char* p = strchr(curr_state, '\n');
+	if (p) *p = '\0'; // Remove the tailing 'new line" char
+	return true;
+}
+
 bool get_bond_slaves_name_list(IN const char* bond_name, OUT char* slaves_list, IN int sz)
 {
 	char slaves_list_path[256] = {0};
@@ -914,7 +930,7 @@ bool get_interface_oper_state(IN const char* interface_name, OUT char* curr_stat
 	char interface_state_path[256] = {0};
 	sprintf(interface_state_path, OPER_STATE_PARAM_FILE, interface_name);
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (priv_read_file(interface_state_path, curr_state, sz) < 0)
+	if (priv_safe_read_file(interface_state_path, curr_state, sz) < 0)
 		return false;
 	BULLSEYE_EXCLUDE_BLOCK_END
 	char* p = strchr(curr_state, '\n');

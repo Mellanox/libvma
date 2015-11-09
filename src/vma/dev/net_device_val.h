@@ -115,10 +115,10 @@ public:
 	void			ring_adapt_cq_moderation();
 	L2_address*		get_l2_address() { return m_p_L2_addr; };
 	L2_address* 		get_br_address() { return m_p_br_addr; };
-	bond_type 			get_is_bond() { return m_bond; };
-	bool 				update_active_slaves();
-	void 				register_to_ibverbs_events(event_handler_ibverbs *handler);
-	void 				unregister_to_ibverbs_events(event_handler_ibverbs *handler);
+	bond_type 		get_is_bond() { return m_bond; };
+	bool 			update_active_slaves();
+	void 			register_to_ibverbs_events(event_handler_ibverbs *handler);
+	void 			unregister_to_ibverbs_events(event_handler_ibverbs *handler);
 
 protected:
 	int                     m_if_idx; // not unique: eth4 and eth4:5 has the same idx
@@ -149,6 +149,9 @@ protected:
 	bond_type m_bond;
 	bond_xmit_hash_policy m_bond_xmit_hash_policy;
 	int m_bond_fail_over_mac;
+
+private:
+	bool get_up_and_active_slaves(bool* up_and_active_slaves, size_t size);
 };
 
 class net_device_val_eth : public net_device_val

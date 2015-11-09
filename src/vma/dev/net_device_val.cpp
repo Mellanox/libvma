@@ -157,6 +157,12 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 		s->if_name = strdup(m_name.c_str());
 		m_slaves.push_back(s);
 	}
+
+	bool up_and_active_slaves[m_slaves.size()];
+	if (m_bond == LAG_8023ad) {
+		get_up_and_active_slaves(up_and_active_slaves, m_slaves.size());
+	}
+
 	int num_devices = 0;
 	struct ibv_context** pp_ibv_context_list = rdma_get_devices(&num_devices);
 	for (uint16_t i=0; i<m_slaves.size(); i++) {
@@ -169,9 +175,7 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 		}
 
 		if (m_bond == LAG_8023ad) {
-			char current_state[5] = {0};
-			get_interface_oper_state(m_slaves[i]->if_name, current_state, sizeof(current_state));
-			if (strstr(current_state, "up")) {
+			if (up_and_active_slaves[i]) {
 				m_slaves[i]->is_active_slave = true;
 			}
 		}
@@ -330,30 +334,98 @@ bool net_device_val::update_active_backup_slaves()
 	return 1;
 }
 
+/*
+ * this function assume m_slaves[i]->if_name and m_slaves.size() are already set.
+ */
+bool net_device_val::get_up_and_active_slaves(bool* up_and_active_slaves, size_t size)
+{
+	bool up_slaves[m_slaves.size()];
+	int num_up = 0;
+	bool active_slaves[m_slaves.size()];
+	int num_up_and_active = 0;
+	size_t i = 0;
+
+	if (size != m_slaves.size()) {
+		nd_logwarn("programmer error! array size is not correct");
+		return false;
+	}
+
+	/* get slaves operstate and active state */
+	for (i = 0; i < m_slaves.size(); i++) {
+		char oper_state[5] = {0};
+		char slave_state[10] = {0};
+
+		// get interface operstate
+		get_interface_oper_state(m_slaves[i]->if_name, oper_state, sizeof(oper_state));
+		if (strstr(oper_state, "up")) {
+			num_up++;
+			up_slaves[i] = true;
+		} else {
+			up_slaves[i] = false;
+		}
+
+		active_slaves[i] = true;
+		// get slave state
+		if (get_bond_slave_state(m_slaves[i]->if_name, slave_state, sizeof(slave_state))){
+			if (!strstr(slave_state, "active"))
+				active_slaves[i] = false;
+		}
+
+		if (active_slaves[i] && up_slaves[i]) {
+			up_and_active_slaves[i] = true;
+			num_up_and_active++;
+		} else {
+			up_and_active_slaves[i] = false;
+		}
+	}
+
+	/* make sure at least one up interface is active */
+	if (!num_up_and_active && num_up) {
+		for (i = 0; i < m_slaves.size(); i++) {
+			if (up_slaves[i]) {
+				up_and_active_slaves[i] = true;
+			}
+			break;
+		}
+	}
+
+	return true;
+}
+
 bool net_device_val::update_active_slaves() {
 	bool changed = false;
-	char current_state[5] = {0};
 	ring_resource_creation_info_t p_ring_info[m_slaves.size()];
+	bool up_and_active_slaves[m_slaves.size()];
 	size_t i = 0;
+
+	get_up_and_active_slaves(up_and_active_slaves, m_slaves.size());
+
+	/* compare to current status and prepare for restart */
 	for (i = 0; i< m_slaves.size(); i++) {
 		p_ring_info[i].p_ib_ctx = m_slaves[i]->p_ib_ctx;
 		p_ring_info[i].port_num = m_slaves[i]->port_num;
 		p_ring_info[i].p_l2_addr = m_slaves[i]->p_L2_addr;
-		//
-		get_interface_oper_state(m_slaves[i]->if_name, current_state, sizeof(current_state));
-		//slave came up
-		if (strstr(current_state, "up") && !m_slaves[i]->is_active_slave) {
-			nd_logdbg("slave %s is up ", m_slaves[i]->if_name);
-			m_slaves[i]->is_active_slave = true;
-			changed = true;
-		} //slave went down
-		else if(strstr(current_state, "down") && m_slaves[i]->is_active_slave){
-			nd_logdbg("slave %s is down ", m_slaves[i]->if_name);
-			m_slaves[i]->is_active_slave = false;
-			changed = true;
+
+		if (up_and_active_slaves[i]) {
+			//slave came up
+			if (!m_slaves[i]->is_active_slave) {
+				nd_logdbg("slave %s is up ", m_slaves[i]->if_name);
+				m_slaves[i]->is_active_slave = true;
+				changed = true;
+			}
+		}
+		else {
+			//slave went down
+			if (m_slaves[i]->is_active_slave) {
+				nd_logdbg("slave %s is down ", m_slaves[i]->if_name);
+				m_slaves[i]->is_active_slave = false;
+				changed = true;
+			}
 		}
 		p_ring_info[i].active = m_slaves[i]->is_active_slave;
 	}
+
+	/* restart if status changed */
 	if (changed) {
 		delete_L2_address();
 		m_p_L2_addr = create_L2_address(m_name.c_str());
