@@ -108,7 +108,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 			m_p_tx_mem_buf_desc_list = m_p_tx_mem_buf_desc_list->p_next_desc;
 			set_tx_buff_list_pending(false);
 		}
-
+		p_mem_buf_desc->p_next_desc = NULL;
 		m_inline_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
 		m_p_ring->send_ring_buffer(m_id, m_p_send_wqe, b_blocked);
 

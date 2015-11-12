@@ -182,6 +182,12 @@ void qp_mgr::up()
 	// Add buffers
 	qp_logdbg("QP current state: %d", priv_ibv_query_qp_state(m_qp));
 	release_rx_buffers(); // We might have old flushed cqe's in our CQ still from previous HA event
+	release_tx_buffers();
+
+	/* clean any link to completions with error we might have */
+	m_n_unsignaled_count = 0;
+	m_p_last_tx_mem_buf_desc = NULL;
+
 	modify_qp_to_ready_state();
 	m_p_cq_mgr_rx->add_qp_rx(this);
 }
@@ -294,7 +300,10 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 		// Allocate new send buffer
 		mem_buf_desc_t* p_mem_buf_desc = m_p_ring->mem_buf_tx_get(0, true);
 		m_p_ring->m_missing_buf_ref_count--; // Align Tx buffer accounting since we will be bypassing the normal send calls
-
+		if (!p_mem_buf_desc) {
+			qp_logerr("no buffer in pool");
+			return;
+		}
 		p_mem_buf_desc->p_next_desc = m_p_last_tx_mem_buf_desc;
 
 		// Prepare dummy packet: zeroed payload ('0000').

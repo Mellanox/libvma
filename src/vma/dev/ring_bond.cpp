@@ -175,29 +175,37 @@ void ring_bond::mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf
 
 void ring_bond::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block)
 {
-	ring_simple* active_ring = m_active_rings[id];
-	if (unlikely(!active_ring)) {
-		active_ring = m_bond_rings[id];
-	}
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
-	if (likely(p_mem_buf_desc->p_desc_owner == active_ring)) {
+	ring_simple* active_ring = m_active_rings[id];
+
+	if (likely(active_ring && p_mem_buf_desc->p_desc_owner == active_ring)) {
 		active_ring->send_ring_buffer(id, p_send_wqe, b_block);
 	} else {
-		ring_logdbg("silent packet drop (%p), ring ID doesn't match buffer owner! (HA event?)", p_mem_buf_desc);
+		ring_logfunc("active ring=%p, silent packet drop (%p), (HA event?)", active_ring, p_mem_buf_desc);
+		p_mem_buf_desc->p_next_desc = NULL;
+		active_ring = m_bond_rings[id];
+		if (likely(p_mem_buf_desc->p_desc_owner == active_ring)) {
+			active_ring->mem_buf_tx_release(p_mem_buf_desc, true);
+		} else {
+			mem_buf_tx_release(p_mem_buf_desc, true);
+		}
 	}
 }
 
 void ring_bond::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block)
 {
-	ring_simple* active_ring = m_active_rings[id];
-	if (unlikely(!active_ring)) {
-		active_ring = m_bond_rings[id];
-	}
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
-	if (likely(p_mem_buf_desc->p_desc_owner == active_ring)) {
+	ring_simple* active_ring = m_active_rings[id];
+
+	if (likely(active_ring && p_mem_buf_desc->p_desc_owner == active_ring)) {
 		active_ring->send_lwip_buffer(id, p_send_wqe, b_block);
 	} else {
-		ring_logdbg("silent packet drop (%p), ring ID doesn't match buffer owner! (HA event?)", p_mem_buf_desc);
+		ring_logfunc("active ring=%p, silent packet drop (%p), (HA event?)", active_ring, p_mem_buf_desc);
+		p_mem_buf_desc->p_next_desc = NULL;
+		/* no need to free the buffer here, as for lwip buffers we have 2 ref counts, */
+		/* one for caller, and one for completion. for completion, we ref count in    */
+		/* send_lwip_buffer(). Since we are not going in, the caller will free the    */
+		/* buffer. */
 	}
 }
 

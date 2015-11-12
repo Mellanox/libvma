@@ -1484,9 +1484,9 @@ void ring_simple::start_active_qp_mgr() {
 	m_lock_ring_rx.lock();
 	m_lock_ring_tx.lock();
 	if (!m_up) {
-		m_up = true;
-		m_b_qp_tx_first_flushed_completion_handled = false;
 		m_p_qp_mgr->up();
+		m_b_qp_tx_first_flushed_completion_handled = false;
+		m_up = true;
 	}
 	m_lock_ring_tx.unlock();
 	m_lock_ring_rx.unlock();
