@@ -233,9 +233,9 @@ private:
 ////////////////////////////////////////////////////////////////////////////////
 struct mce_sys_var {
 
-
-	mce_sys_var () : sysctl_reader(sysctl_reader_t::instance()){
-		// coverity[uninit_member]
+	static mce_sys_var & instance() {
+		static mce_sys_var the_instance; //singelton
+		return the_instance;
 	}
 
 	char 		*app_name;
@@ -354,6 +354,15 @@ struct mce_sys_var {
 	uint32_t 	vma_time_measure_num_samples;
 	char 		vma_time_measure_filename[FILENAME_MAX];
 	sysctl_reader_t & sysctl_reader;
+
+private:
+	// prevent unautothrized creation of objects
+	mce_sys_var () : sysctl_reader(sysctl_reader_t::instance()){
+		// coverity[uninit_member]
+	}
+	mce_sys_var (const mce_sys_var &);
+	mce_sys_var & operator= (const mce_sys_var &);
+
 };
 
 #define SYS_VAR_LOG_LEVEL				"VMA_TRACELEVEL"
@@ -622,7 +631,7 @@ struct mce_sys_var {
 #define MULTI_THREAD_ONLY(x) 	{ if (mce_sys.thread_mode > THREAD_MODE_SINGLE) x; }
 
 
-extern struct mce_sys_var mce_sys;
+extern struct mce_sys_var & mce_sys;
 extern bool g_b_exit;
 extern bool g_is_forked_child;
 extern bool g_init_global_ctors_done;

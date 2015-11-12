@@ -85,8 +85,11 @@ const char *vma_version_str = "VMA_VERSION: " PACKAGE_VERSION "-" STR(VMA_LIBRAR
 			      ;	// End of vma_version_str - used in "$ strings libvma.so | grep VMA_VERSION"
 
 
-struct mce_sys_var mce_sys; // TODO: don't use global variable because we can't control order of global variable initialization
-                            // currently, CTOR of mce_sys and all its members may conflict with things like orig_os_api and with vlogger global variables
+struct mce_sys_var & mce_sys = mce_sys_var::instance();
+
+// Do not rely on global variable initialization in code that might be called from library constructor (main_init)
+mce_sys_var & safe_mce_sys() {return mce_sys_var::instance();}
+
 bool g_handle_iperf = false;
 bool g_b_exit = false;
 bool g_init_ibv_fork_done = false;
@@ -409,7 +412,7 @@ void check_locked_mem()
 
 void check_debug()
 {
-	if (mce_sys.log_level >= VLOG_DEBUG) {
+	if (safe_mce_sys().log_level >= VLOG_DEBUG) {
 		vlog_printf(VLOG_WARNING, "*************************************************************\n");
 		vlog_printf(VLOG_WARNING, "* VMA is currently configured with high log level           *\n");
 		vlog_printf(VLOG_WARNING, "* Application performance will decrease in this log level!  *\n");
@@ -522,7 +525,7 @@ void print_vma_global_settings()
 	
 	vlog_printf(VLOG_INFO,"---------------------------------------------------------------------------\n");
 	vlog_printf(VLOG_INFO,"%s\n", vma_version_str);
-	vlog_printf(VLOG_INFO,"Cmd Line: %s\n", mce_sys.app_name);
+	vlog_printf(VLOG_INFO,"Cmd Line: %s\n", safe_mce_sys().app_name);
 
 	// Use DEBUG level logging with more details in RPM release builds
 	vlog_levels_t log_level = VLOG_DEBUG;
@@ -544,7 +547,7 @@ void print_vma_global_settings()
 
 	vlog_printf(log_level,"---------------------------------------------------------------------------\n");
 
-	switch (mce_sys.mce_spec) {
+	switch (safe_mce_sys().mce_spec) {
 	case MCE_SPEC_29WEST_LBM_29:
 		vlog_printf(VLOG_INFO, " 29West LBM Logic Spec\n");
 		break;
@@ -563,180 +566,180 @@ void print_vma_global_settings()
 	default:
 		break;
 	}
-	if (mce_sys.mce_spec != 0) {
-		vlog_printf(VLOG_INFO, FORMAT_NUMBER, "Spec", mce_sys.mce_spec, SYS_VAR_SPEC);
+	if (safe_mce_sys().mce_spec != 0) {
+		vlog_printf(VLOG_INFO, FORMAT_NUMBER, "Spec", safe_mce_sys().mce_spec, SYS_VAR_SPEC);
 
-		if (mce_sys.mce_spec == MCE_SPEC_29WEST_LBM_29 || mce_sys.mce_spec == MCE_SPEC_WOMBAT_FH_LBM_554) {
-			vlog_printf(VLOG_INFO, FORMAT_NUMBER, "Param 1:", mce_sys.mce_spec_param1, SYS_VAR_SPEC_PARAM1);
-			vlog_printf(VLOG_INFO, FORMAT_NUMBER, "Param 2:", mce_sys.mce_spec_param2, SYS_VAR_SPEC_PARAM2);
+		if (safe_mce_sys().mce_spec == MCE_SPEC_29WEST_LBM_29 || safe_mce_sys().mce_spec == MCE_SPEC_WOMBAT_FH_LBM_554) {
+			vlog_printf(VLOG_INFO, FORMAT_NUMBER, "Param 1:", safe_mce_sys().mce_spec_param1, SYS_VAR_SPEC_PARAM1);
+			vlog_printf(VLOG_INFO, FORMAT_NUMBER, "Param 2:", safe_mce_sys().mce_spec_param2, SYS_VAR_SPEC_PARAM2);
 		}
 		vlog_printf(VLOG_INFO,"---------------------------------------------------------------------------\n");
 	}
-	vlog_printf(VLOG_INFO, FORMAT_NUMBER, "Log Level", mce_sys.log_level, SYS_VAR_LOG_LEVEL);
-	VLOG_PARAM_NUMBER("Log Details", mce_sys.log_details, MCE_DEFAULT_LOG_DETAILS, SYS_VAR_LOG_DETAILS);
-	VLOG_PARAM_STRING("Log Colors", mce_sys.log_colors, MCE_DEFAULT_LOG_COLORS, SYS_VAR_LOG_COLORS, mce_sys.log_colors ? "Enabled " : "Disabled");
-	VLOG_STR_PARAM_STRING("Log File", mce_sys.log_filename, MCE_DEFAULT_LOG_FILE, SYS_VAR_LOG_FILENAME, mce_sys.log_filename);
-	VLOG_STR_PARAM_STRING("Stats File", mce_sys.stats_filename, MCE_DEFAULT_STATS_FILE, SYS_VAR_STATS_FILENAME, mce_sys.stats_filename);
-	VLOG_STR_PARAM_STRING("Stats shared memory directory", mce_sys.stats_shmem_dirname, MCE_DEFAULT_STATS_SHMEM_DIR, SYS_VAR_STATS_SHMEM_DIRNAME, mce_sys.stats_shmem_dirname);
-	VLOG_PARAM_NUMBER("Stats FD Num (max)", mce_sys.stats_fd_num_max, MCE_DEFAULT_STATS_FD_NUM, SYS_VAR_STATS_FD_NUM);
-	VLOG_STR_PARAM_STRING("Conf File", mce_sys.conf_filename, MCE_DEFAULT_CONF_FILE, SYS_VAR_CONF_FILENAME, mce_sys.conf_filename);
-	VLOG_STR_PARAM_STRING("Application ID", mce_sys.app_id, MCE_DEFAULT_APP_ID, SYS_VAR_APPLICATION_ID, mce_sys.app_id);
-	VLOG_PARAM_STRING("Polling CPU idle usage", mce_sys.select_handle_cpu_usage_stats, MCE_DEFAULT_SELECT_CPU_USAGE_STATS, SYS_VAR_SELECT_CPU_USAGE_STATS, mce_sys.select_handle_cpu_usage_stats ? "Enabled " : "Disabled");
-	VLOG_PARAM_STRING("SigIntr Ctrl-C Handle", mce_sys.handle_sigintr, MCE_DEFAULT_HANDLE_SIGINTR, SYS_VAR_HANDLE_SIGINTR, mce_sys.handle_sigintr ? "Enabled " : "Disabled");
-	VLOG_PARAM_STRING("SegFault Backtrace", mce_sys.handle_segfault, MCE_DEFAULT_HANDLE_SIGFAULT, SYS_VAR_HANDLE_SIGSEGV, mce_sys.handle_segfault ? "Enabled " : "Disabled");
+	vlog_printf(VLOG_INFO, FORMAT_NUMBER, "Log Level", safe_mce_sys().log_level, SYS_VAR_LOG_LEVEL);
+	VLOG_PARAM_NUMBER("Log Details", safe_mce_sys().log_details, MCE_DEFAULT_LOG_DETAILS, SYS_VAR_LOG_DETAILS);
+	VLOG_PARAM_STRING("Log Colors", safe_mce_sys().log_colors, MCE_DEFAULT_LOG_COLORS, SYS_VAR_LOG_COLORS, safe_mce_sys().log_colors ? "Enabled " : "Disabled");
+	VLOG_STR_PARAM_STRING("Log File", safe_mce_sys().log_filename, MCE_DEFAULT_LOG_FILE, SYS_VAR_LOG_FILENAME, safe_mce_sys().log_filename);
+	VLOG_STR_PARAM_STRING("Stats File", safe_mce_sys().stats_filename, MCE_DEFAULT_STATS_FILE, SYS_VAR_STATS_FILENAME, safe_mce_sys().stats_filename);
+	VLOG_STR_PARAM_STRING("Stats shared memory directory", safe_mce_sys().stats_shmem_dirname, MCE_DEFAULT_STATS_SHMEM_DIR, SYS_VAR_STATS_SHMEM_DIRNAME, safe_mce_sys().stats_shmem_dirname);
+	VLOG_PARAM_NUMBER("Stats FD Num (max)", safe_mce_sys().stats_fd_num_max, MCE_DEFAULT_STATS_FD_NUM, SYS_VAR_STATS_FD_NUM);
+	VLOG_STR_PARAM_STRING("Conf File", safe_mce_sys().conf_filename, MCE_DEFAULT_CONF_FILE, SYS_VAR_CONF_FILENAME, safe_mce_sys().conf_filename);
+	VLOG_STR_PARAM_STRING("Application ID", safe_mce_sys().app_id, MCE_DEFAULT_APP_ID, SYS_VAR_APPLICATION_ID, safe_mce_sys().app_id);
+	VLOG_PARAM_STRING("Polling CPU idle usage", safe_mce_sys().select_handle_cpu_usage_stats, MCE_DEFAULT_SELECT_CPU_USAGE_STATS, SYS_VAR_SELECT_CPU_USAGE_STATS, safe_mce_sys().select_handle_cpu_usage_stats ? "Enabled " : "Disabled");
+	VLOG_PARAM_STRING("SigIntr Ctrl-C Handle", safe_mce_sys().handle_sigintr, MCE_DEFAULT_HANDLE_SIGINTR, SYS_VAR_HANDLE_SIGINTR, safe_mce_sys().handle_sigintr ? "Enabled " : "Disabled");
+	VLOG_PARAM_STRING("SegFault Backtrace", safe_mce_sys().handle_segfault, MCE_DEFAULT_HANDLE_SIGFAULT, SYS_VAR_HANDLE_SIGSEGV, safe_mce_sys().handle_segfault ? "Enabled " : "Disabled");
 
 
-	VLOG_PARAM_NUMSTR("Ring allocation logic TX", mce_sys.ring_allocation_logic_tx, MCE_DEFAULT_RING_ALLOCATION_LOGIC_TX, SYS_VAR_RING_ALLOCATION_LOGIC_TX, ring_logic_str(mce_sys.ring_allocation_logic_tx));
-	VLOG_PARAM_NUMSTR("Ring allocation logic RX", mce_sys.ring_allocation_logic_rx, MCE_DEFAULT_RING_ALLOCATION_LOGIC_RX, SYS_VAR_RING_ALLOCATION_LOGIC_RX, ring_logic_str(mce_sys.ring_allocation_logic_rx));
+	VLOG_PARAM_NUMSTR("Ring allocation logic TX", safe_mce_sys().ring_allocation_logic_tx, MCE_DEFAULT_RING_ALLOCATION_LOGIC_TX, SYS_VAR_RING_ALLOCATION_LOGIC_TX, ring_logic_str(safe_mce_sys().ring_allocation_logic_tx));
+	VLOG_PARAM_NUMSTR("Ring allocation logic RX", safe_mce_sys().ring_allocation_logic_rx, MCE_DEFAULT_RING_ALLOCATION_LOGIC_RX, SYS_VAR_RING_ALLOCATION_LOGIC_RX, ring_logic_str(safe_mce_sys().ring_allocation_logic_rx));
 
-	VLOG_PARAM_NUMBER("Ring migration ratio TX", mce_sys.ring_migration_ratio_tx, MCE_DEFAULT_RING_MIGRATION_RATIO_TX, SYS_VAR_RING_MIGRATION_RATIO_TX);
-	VLOG_PARAM_NUMBER("Ring migration ratio RX", mce_sys.ring_migration_ratio_rx, MCE_DEFAULT_RING_MIGRATION_RATIO_RX, SYS_VAR_RING_MIGRATION_RATIO_RX);
+	VLOG_PARAM_NUMBER("Ring migration ratio TX", safe_mce_sys().ring_migration_ratio_tx, MCE_DEFAULT_RING_MIGRATION_RATIO_TX, SYS_VAR_RING_MIGRATION_RATIO_TX);
+	VLOG_PARAM_NUMBER("Ring migration ratio RX", safe_mce_sys().ring_migration_ratio_rx, MCE_DEFAULT_RING_MIGRATION_RATIO_RX, SYS_VAR_RING_MIGRATION_RATIO_RX);
 
-	if (mce_sys.ring_limit_per_interface) {
-		VLOG_PARAM_NUMBER("Ring limit per interface", mce_sys.ring_limit_per_interface, MCE_DEFAULT_RING_LIMIT_PER_INTERFACE, SYS_VAR_RING_LIMIT_PER_INTERFACE);
+	if (safe_mce_sys().ring_limit_per_interface) {
+		VLOG_PARAM_NUMBER("Ring limit per interface", safe_mce_sys().ring_limit_per_interface, MCE_DEFAULT_RING_LIMIT_PER_INTERFACE, SYS_VAR_RING_LIMIT_PER_INTERFACE);
 	}else {
-		VLOG_PARAM_NUMSTR("Ring limit per interface", mce_sys.ring_limit_per_interface, MCE_DEFAULT_RING_LIMIT_PER_INTERFACE, SYS_VAR_RING_LIMIT_PER_INTERFACE, "(no limit)");
+		VLOG_PARAM_NUMSTR("Ring limit per interface", safe_mce_sys().ring_limit_per_interface, MCE_DEFAULT_RING_LIMIT_PER_INTERFACE, SYS_VAR_RING_LIMIT_PER_INTERFACE, "(no limit)");
 	}
 
-	if (mce_sys.tcp_max_syn_rate) {
-		VLOG_PARAM_NUMSTR("TCP max syn rate", mce_sys.tcp_max_syn_rate, MCE_DEFAULT_TCP_MAX_SYN_RATE, SYS_VAR_TCP_MAX_SYN_RATE, "(per sec)");
+	if (safe_mce_sys().tcp_max_syn_rate) {
+		VLOG_PARAM_NUMSTR("TCP max syn rate", safe_mce_sys().tcp_max_syn_rate, MCE_DEFAULT_TCP_MAX_SYN_RATE, SYS_VAR_TCP_MAX_SYN_RATE, "(per sec)");
 	}else {
-		VLOG_PARAM_NUMSTR("TCP max syn rate", mce_sys.tcp_max_syn_rate, MCE_DEFAULT_TCP_MAX_SYN_RATE, SYS_VAR_TCP_MAX_SYN_RATE, "(no limit)");
+		VLOG_PARAM_NUMSTR("TCP max syn rate", safe_mce_sys().tcp_max_syn_rate, MCE_DEFAULT_TCP_MAX_SYN_RATE, SYS_VAR_TCP_MAX_SYN_RATE, "(no limit)");
 	}
 
-	VLOG_PARAM_NUMBER("Tx Mem Segs TCP", mce_sys.tx_num_segs_tcp, MCE_DEFAULT_TX_NUM_SEGS_TCP, SYS_VAR_TX_NUM_SEGS_TCP);
-	VLOG_PARAM_NUMBER("Tx Mem Bufs", mce_sys.tx_num_bufs, MCE_DEFAULT_TX_NUM_BUFS, SYS_VAR_TX_NUM_BUFS);
-	VLOG_PARAM_NUMBER("Tx QP WRE", mce_sys.tx_num_wr, MCE_DEFAULT_TX_NUM_WRE, SYS_VAR_TX_NUM_WRE);
-	VLOG_PARAM_NUMBER("Tx Max QP INLINE", mce_sys.tx_max_inline, MCE_DEFAULT_TX_MAX_INLINE, SYS_VAR_TX_MAX_INLINE);
-	VLOG_PARAM_STRING("Tx MC Loopback", mce_sys.tx_mc_loopback_default, MCE_DEFAULT_TX_MC_LOOPBACK, SYS_VAR_TX_MC_LOOPBACK, mce_sys.tx_mc_loopback_default ? "Enabled " : "Disabled");
-	VLOG_PARAM_STRING("Tx non-blocked eagains", mce_sys.tx_nonblocked_eagains, MCE_DEFAULT_TX_NONBLOCKED_EAGAINS, SYS_VAR_TX_NONBLOCKED_EAGAINS, mce_sys.tx_nonblocked_eagains ? "Enabled " : "Disabled");
-	VLOG_PARAM_NUMBER("Tx Prefetch Bytes", mce_sys.tx_prefetch_bytes, MCE_DEFAULT_TX_PREFETCH_BYTES, SYS_VAR_TX_PREFETCH_BYTES);
+	VLOG_PARAM_NUMBER("Tx Mem Segs TCP", safe_mce_sys().tx_num_segs_tcp, MCE_DEFAULT_TX_NUM_SEGS_TCP, SYS_VAR_TX_NUM_SEGS_TCP);
+	VLOG_PARAM_NUMBER("Tx Mem Bufs", safe_mce_sys().tx_num_bufs, MCE_DEFAULT_TX_NUM_BUFS, SYS_VAR_TX_NUM_BUFS);
+	VLOG_PARAM_NUMBER("Tx QP WRE", safe_mce_sys().tx_num_wr, MCE_DEFAULT_TX_NUM_WRE, SYS_VAR_TX_NUM_WRE);
+	VLOG_PARAM_NUMBER("Tx Max QP INLINE", safe_mce_sys().tx_max_inline, MCE_DEFAULT_TX_MAX_INLINE, SYS_VAR_TX_MAX_INLINE);
+	VLOG_PARAM_STRING("Tx MC Loopback", safe_mce_sys().tx_mc_loopback_default, MCE_DEFAULT_TX_MC_LOOPBACK, SYS_VAR_TX_MC_LOOPBACK, safe_mce_sys().tx_mc_loopback_default ? "Enabled " : "Disabled");
+	VLOG_PARAM_STRING("Tx non-blocked eagains", safe_mce_sys().tx_nonblocked_eagains, MCE_DEFAULT_TX_NONBLOCKED_EAGAINS, SYS_VAR_TX_NONBLOCKED_EAGAINS, safe_mce_sys().tx_nonblocked_eagains ? "Enabled " : "Disabled");
+	VLOG_PARAM_NUMBER("Tx Prefetch Bytes", safe_mce_sys().tx_prefetch_bytes, MCE_DEFAULT_TX_PREFETCH_BYTES, SYS_VAR_TX_PREFETCH_BYTES);
 
-	VLOG_PARAM_NUMBER("Rx Mem Bufs", mce_sys.rx_num_bufs, MCE_DEFAULT_RX_NUM_BUFS, SYS_VAR_RX_NUM_BUFS);
-	VLOG_PARAM_NUMBER("Rx QP WRE", mce_sys.rx_num_wr, MCE_DEFAULT_RX_NUM_WRE, SYS_VAR_RX_NUM_WRE);
-	VLOG_PARAM_NUMBER("Rx QP WRE BATCHING", mce_sys.rx_num_wr_to_post_recv, MCE_DEFAULT_RX_NUM_WRE_TO_POST_RECV, SYS_VAR_RX_NUM_WRE_TO_POST_RECV);
-	VLOG_PARAM_NUMBER("Rx Byte Min Limit", mce_sys.rx_ready_byte_min_limit, MCE_DEFAULT_RX_BYTE_MIN_LIMIT, SYS_VAR_RX_BYTE_MIN_LIMIT);
-	VLOG_PARAM_NUMBER("Rx Poll Loops", mce_sys.rx_poll_num, MCE_DEFAULT_RX_NUM_POLLS, SYS_VAR_RX_NUM_POLLS);
-	VLOG_PARAM_NUMBER("Rx Poll Init Loops", mce_sys.rx_poll_num_init, MCE_DEFAULT_RX_NUM_POLLS_INIT, SYS_VAR_RX_NUM_POLLS_INIT);
-	if (mce_sys.rx_udp_poll_os_ratio) {
-		VLOG_PARAM_NUMBER("Rx UDP Poll OS Ratio", mce_sys.rx_udp_poll_os_ratio, MCE_DEFAULT_RX_UDP_POLL_OS_RATIO, SYS_VAR_RX_UDP_POLL_OS_RATIO);
-	}
-	else {
-		VLOG_PARAM_STRING("Rx UDP Poll OS Ratio", mce_sys.rx_udp_poll_os_ratio, MCE_DEFAULT_RX_UDP_POLL_OS_RATIO, SYS_VAR_RX_UDP_POLL_OS_RATIO, "Disabled");
-	}
-
-	VLOG_PARAM_NUMBER("Rx UDP HW TS Conversion", mce_sys.rx_udp_hw_ts_conversion, MCE_DEFAULT_RX_UDP_HW_TS_CONVERSION, SYS_VAR_RX_UDP_HW_TS_CONVERSION);
-	if (mce_sys.rx_poll_yield_loops) {
-		VLOG_PARAM_NUMBER("Rx Poll Yield", mce_sys.rx_poll_yield_loops, MCE_DEFAULT_RX_POLL_YIELD, SYS_VAR_RX_POLL_YIELD);
+	VLOG_PARAM_NUMBER("Rx Mem Bufs", safe_mce_sys().rx_num_bufs, MCE_DEFAULT_RX_NUM_BUFS, SYS_VAR_RX_NUM_BUFS);
+	VLOG_PARAM_NUMBER("Rx QP WRE", safe_mce_sys().rx_num_wr, MCE_DEFAULT_RX_NUM_WRE, SYS_VAR_RX_NUM_WRE);
+	VLOG_PARAM_NUMBER("Rx QP WRE BATCHING", safe_mce_sys().rx_num_wr_to_post_recv, MCE_DEFAULT_RX_NUM_WRE_TO_POST_RECV, SYS_VAR_RX_NUM_WRE_TO_POST_RECV);
+	VLOG_PARAM_NUMBER("Rx Byte Min Limit", safe_mce_sys().rx_ready_byte_min_limit, MCE_DEFAULT_RX_BYTE_MIN_LIMIT, SYS_VAR_RX_BYTE_MIN_LIMIT);
+	VLOG_PARAM_NUMBER("Rx Poll Loops", safe_mce_sys().rx_poll_num, MCE_DEFAULT_RX_NUM_POLLS, SYS_VAR_RX_NUM_POLLS);
+	VLOG_PARAM_NUMBER("Rx Poll Init Loops", safe_mce_sys().rx_poll_num_init, MCE_DEFAULT_RX_NUM_POLLS_INIT, SYS_VAR_RX_NUM_POLLS_INIT);
+	if (safe_mce_sys().rx_udp_poll_os_ratio) {
+		VLOG_PARAM_NUMBER("Rx UDP Poll OS Ratio", safe_mce_sys().rx_udp_poll_os_ratio, MCE_DEFAULT_RX_UDP_POLL_OS_RATIO, SYS_VAR_RX_UDP_POLL_OS_RATIO);
 	}
 	else {
-		VLOG_PARAM_STRING("Rx Poll Yield", mce_sys.rx_poll_yield_loops, MCE_DEFAULT_RX_POLL_YIELD, SYS_VAR_RX_POLL_YIELD, "Disabled");
+		VLOG_PARAM_STRING("Rx UDP Poll OS Ratio", safe_mce_sys().rx_udp_poll_os_ratio, MCE_DEFAULT_RX_UDP_POLL_OS_RATIO, SYS_VAR_RX_UDP_POLL_OS_RATIO, "Disabled");
 	}
-	VLOG_PARAM_NUMBER("Rx Prefetch Bytes", mce_sys.rx_prefetch_bytes, MCE_DEFAULT_RX_PREFETCH_BYTES, SYS_VAR_RX_PREFETCH_BYTES);
 
-	VLOG_PARAM_NUMBER("Rx Prefetch Bytes Before Poll", mce_sys.rx_prefetch_bytes_before_poll, MCE_DEFAULT_RX_PREFETCH_BYTES_BEFORE_POLL, SYS_VAR_RX_PREFETCH_BYTES_BEFORE_POLL);
-
-	if (mce_sys.rx_cq_drain_rate_nsec == MCE_RX_CQ_DRAIN_RATE_DISABLED) {
-		VLOG_PARAM_STRING("Rx CQ Drain Rate", mce_sys.rx_cq_drain_rate_nsec, MCE_DEFAULT_RX_CQ_DRAIN_RATE, SYS_VAR_RX_CQ_DRAIN_RATE_NSEC, "Disabled");
+	VLOG_PARAM_NUMBER("Rx UDP HW TS Conversion", safe_mce_sys().rx_udp_hw_ts_conversion, MCE_DEFAULT_RX_UDP_HW_TS_CONVERSION, SYS_VAR_RX_UDP_HW_TS_CONVERSION);
+	if (safe_mce_sys().rx_poll_yield_loops) {
+		VLOG_PARAM_NUMBER("Rx Poll Yield", safe_mce_sys().rx_poll_yield_loops, MCE_DEFAULT_RX_POLL_YIELD, SYS_VAR_RX_POLL_YIELD);
 	}
 	else {
-		VLOG_PARAM_NUMBER("Rx CQ Drain Rate (nsec)", mce_sys.rx_cq_drain_rate_nsec, MCE_DEFAULT_RX_CQ_DRAIN_RATE, SYS_VAR_RX_CQ_DRAIN_RATE_NSEC);
+		VLOG_PARAM_STRING("Rx Poll Yield", safe_mce_sys().rx_poll_yield_loops, MCE_DEFAULT_RX_POLL_YIELD, SYS_VAR_RX_POLL_YIELD, "Disabled");
 	}
+	VLOG_PARAM_NUMBER("Rx Prefetch Bytes", safe_mce_sys().rx_prefetch_bytes, MCE_DEFAULT_RX_PREFETCH_BYTES, SYS_VAR_RX_PREFETCH_BYTES);
 
-	VLOG_PARAM_NUMBER("GRO max streams", mce_sys.gro_streams_max, MCE_DEFAULT_GRO_STREAMS_MAX, SYS_VAR_GRO_STREAMS_MAX);
+	VLOG_PARAM_NUMBER("Rx Prefetch Bytes Before Poll", safe_mce_sys().rx_prefetch_bytes_before_poll, MCE_DEFAULT_RX_PREFETCH_BYTES_BEFORE_POLL, SYS_VAR_RX_PREFETCH_BYTES_BEFORE_POLL);
 
-	VLOG_PARAM_STRING("TCP 3T rules", mce_sys.tcp_3t_rules, MCE_DEFAULT_TCP_3T_RULES, SYS_VAR_TCP_3T_RULES, mce_sys.tcp_3t_rules ? "Enabled " : "Disabled");
-	VLOG_PARAM_STRING("ETH MC L2 only rules", mce_sys.eth_mc_l2_only_rules, MCE_DEFAULT_ETH_MC_L2_ONLY_RULES, SYS_VAR_ETH_MC_L2_ONLY_RULES, mce_sys.eth_mc_l2_only_rules ? "Enabled " : "Disabled");
-
-	VLOG_PARAM_NUMBER("Select Poll (usec)", mce_sys.select_poll_num, MCE_DEFAULT_SELECT_NUM_POLLS, SYS_VAR_SELECT_NUM_POLLS);
-	VLOG_PARAM_STRING("Select Poll OS Force", mce_sys.select_poll_os_force, MCE_DEFAULT_SELECT_POLL_OS_FORCE, SYS_VAR_SELECT_POLL_OS_FORCE, mce_sys.select_poll_os_force ? "Enabled " : "Disabled");
-
-	if (mce_sys.select_poll_os_ratio) {
-		VLOG_PARAM_NUMBER("Select Poll OS Ratio", mce_sys.select_poll_os_ratio, MCE_DEFAULT_SELECT_POLL_OS_RATIO, SYS_VAR_SELECT_POLL_OS_RATIO);
+	if (safe_mce_sys().rx_cq_drain_rate_nsec == MCE_RX_CQ_DRAIN_RATE_DISABLED) {
+		VLOG_PARAM_STRING("Rx CQ Drain Rate", safe_mce_sys().rx_cq_drain_rate_nsec, MCE_DEFAULT_RX_CQ_DRAIN_RATE, SYS_VAR_RX_CQ_DRAIN_RATE_NSEC, "Disabled");
 	}
 	else {
-		VLOG_PARAM_STRING("Select Poll OS Ratio", mce_sys.select_poll_os_ratio, MCE_DEFAULT_SELECT_POLL_OS_RATIO, SYS_VAR_SELECT_POLL_OS_RATIO, "Disabled");
+		VLOG_PARAM_NUMBER("Rx CQ Drain Rate (nsec)", safe_mce_sys().rx_cq_drain_rate_nsec, MCE_DEFAULT_RX_CQ_DRAIN_RATE, SYS_VAR_RX_CQ_DRAIN_RATE_NSEC);
 	}
 
-	if (mce_sys.select_skip_os_fd_check) {
-		VLOG_PARAM_NUMBER("Select Skip OS", mce_sys.select_skip_os_fd_check, MCE_DEFAULT_SELECT_SKIP_OS, SYS_VAR_SELECT_SKIP_OS);
+	VLOG_PARAM_NUMBER("GRO max streams", safe_mce_sys().gro_streams_max, MCE_DEFAULT_GRO_STREAMS_MAX, SYS_VAR_GRO_STREAMS_MAX);
+
+	VLOG_PARAM_STRING("TCP 3T rules", safe_mce_sys().tcp_3t_rules, MCE_DEFAULT_TCP_3T_RULES, SYS_VAR_TCP_3T_RULES, safe_mce_sys().tcp_3t_rules ? "Enabled " : "Disabled");
+	VLOG_PARAM_STRING("ETH MC L2 only rules", safe_mce_sys().eth_mc_l2_only_rules, MCE_DEFAULT_ETH_MC_L2_ONLY_RULES, SYS_VAR_ETH_MC_L2_ONLY_RULES, safe_mce_sys().eth_mc_l2_only_rules ? "Enabled " : "Disabled");
+
+	VLOG_PARAM_NUMBER("Select Poll (usec)", safe_mce_sys().select_poll_num, MCE_DEFAULT_SELECT_NUM_POLLS, SYS_VAR_SELECT_NUM_POLLS);
+	VLOG_PARAM_STRING("Select Poll OS Force", safe_mce_sys().select_poll_os_force, MCE_DEFAULT_SELECT_POLL_OS_FORCE, SYS_VAR_SELECT_POLL_OS_FORCE, safe_mce_sys().select_poll_os_force ? "Enabled " : "Disabled");
+
+	if (safe_mce_sys().select_poll_os_ratio) {
+		VLOG_PARAM_NUMBER("Select Poll OS Ratio", safe_mce_sys().select_poll_os_ratio, MCE_DEFAULT_SELECT_POLL_OS_RATIO, SYS_VAR_SELECT_POLL_OS_RATIO);
 	}
 	else {
-		VLOG_PARAM_STRING("Select Skip OS", mce_sys.select_skip_os_fd_check, MCE_DEFAULT_SELECT_SKIP_OS, SYS_VAR_SELECT_SKIP_OS, "Disabled");
+		VLOG_PARAM_STRING("Select Poll OS Ratio", safe_mce_sys().select_poll_os_ratio, MCE_DEFAULT_SELECT_POLL_OS_RATIO, SYS_VAR_SELECT_POLL_OS_RATIO, "Disabled");
 	}
 
-	if (mce_sys.progress_engine_interval_msec == MCE_CQ_DRAIN_INTERVAL_DISABLED || mce_sys.progress_engine_wce_max == 0) {
+	if (safe_mce_sys().select_skip_os_fd_check) {
+		VLOG_PARAM_NUMBER("Select Skip OS", safe_mce_sys().select_skip_os_fd_check, MCE_DEFAULT_SELECT_SKIP_OS, SYS_VAR_SELECT_SKIP_OS);
+	}
+	else {
+		VLOG_PARAM_STRING("Select Skip OS", safe_mce_sys().select_skip_os_fd_check, MCE_DEFAULT_SELECT_SKIP_OS, SYS_VAR_SELECT_SKIP_OS, "Disabled");
+	}
+
+	if (safe_mce_sys().progress_engine_interval_msec == MCE_CQ_DRAIN_INTERVAL_DISABLED || safe_mce_sys().progress_engine_wce_max == 0) {
 		vlog_printf(VLOG_INFO, FORMAT_STRING, "CQ Drain Thread", "Disabled", SYS_VAR_PROGRESS_ENGINE_INTERVAL);	
 	}
 	else {
-		VLOG_PARAM_NUMBER("CQ Drain Interval (msec)", mce_sys.progress_engine_interval_msec, MCE_DEFAULT_PROGRESS_ENGINE_INTERVAL_MSEC, SYS_VAR_PROGRESS_ENGINE_INTERVAL);
-		VLOG_PARAM_NUMBER("CQ Drain WCE (max)", mce_sys.progress_engine_wce_max, MCE_DEFAULT_PROGRESS_ENGINE_WCE_MAX, SYS_VAR_PROGRESS_ENGINE_WCE_MAX);
+		VLOG_PARAM_NUMBER("CQ Drain Interval (msec)", safe_mce_sys().progress_engine_interval_msec, MCE_DEFAULT_PROGRESS_ENGINE_INTERVAL_MSEC, SYS_VAR_PROGRESS_ENGINE_INTERVAL);
+		VLOG_PARAM_NUMBER("CQ Drain WCE (max)", safe_mce_sys().progress_engine_wce_max, MCE_DEFAULT_PROGRESS_ENGINE_WCE_MAX, SYS_VAR_PROGRESS_ENGINE_WCE_MAX);
 	}
 
-	VLOG_PARAM_STRING("CQ Interrupts Moderation", mce_sys.cq_moderation_enable, MCE_DEFAULT_CQ_MODERATION_ENABLE, SYS_VAR_CQ_MODERATION_ENABLE, mce_sys.cq_moderation_enable ? "Enabled " : "Disabled");
-	VLOG_PARAM_NUMBER("CQ Moderation Count", mce_sys.cq_moderation_count, MCE_DEFAULT_CQ_MODERATION_COUNT, SYS_VAR_CQ_MODERATION_COUNT);
-	VLOG_PARAM_NUMBER("CQ Moderation Period (usec)", mce_sys.cq_moderation_period_usec, MCE_DEFAULT_CQ_MODERATION_PERIOD_USEC, SYS_VAR_CQ_MODERATION_PERIOD_USEC);
-	VLOG_PARAM_NUMBER("CQ AIM Max Count", mce_sys.cq_aim_max_count, MCE_DEFAULT_CQ_AIM_MAX_COUNT, SYS_VAR_CQ_AIM_MAX_COUNT);
-	VLOG_PARAM_NUMBER("CQ AIM Max Period (usec)", mce_sys.cq_aim_max_period_usec, MCE_DEFAULT_CQ_AIM_MAX_PERIOD_USEC, SYS_VAR_CQ_AIM_MAX_PERIOD_USEC);
-	if (mce_sys.cq_aim_interval_msec == MCE_CQ_ADAPTIVE_MODERATION_DISABLED) {
+	VLOG_PARAM_STRING("CQ Interrupts Moderation", safe_mce_sys().cq_moderation_enable, MCE_DEFAULT_CQ_MODERATION_ENABLE, SYS_VAR_CQ_MODERATION_ENABLE, safe_mce_sys().cq_moderation_enable ? "Enabled " : "Disabled");
+	VLOG_PARAM_NUMBER("CQ Moderation Count", safe_mce_sys().cq_moderation_count, MCE_DEFAULT_CQ_MODERATION_COUNT, SYS_VAR_CQ_MODERATION_COUNT);
+	VLOG_PARAM_NUMBER("CQ Moderation Period (usec)", safe_mce_sys().cq_moderation_period_usec, MCE_DEFAULT_CQ_MODERATION_PERIOD_USEC, SYS_VAR_CQ_MODERATION_PERIOD_USEC);
+	VLOG_PARAM_NUMBER("CQ AIM Max Count", safe_mce_sys().cq_aim_max_count, MCE_DEFAULT_CQ_AIM_MAX_COUNT, SYS_VAR_CQ_AIM_MAX_COUNT);
+	VLOG_PARAM_NUMBER("CQ AIM Max Period (usec)", safe_mce_sys().cq_aim_max_period_usec, MCE_DEFAULT_CQ_AIM_MAX_PERIOD_USEC, SYS_VAR_CQ_AIM_MAX_PERIOD_USEC);
+	if (safe_mce_sys().cq_aim_interval_msec == MCE_CQ_ADAPTIVE_MODERATION_DISABLED) {
 		vlog_printf(VLOG_INFO, FORMAT_STRING, "CQ Adaptive Moderation", "Disabled", SYS_VAR_CQ_AIM_INTERVAL_MSEC);
 	} else {
-		VLOG_PARAM_NUMBER("CQ AIM Interval (msec)", mce_sys.cq_aim_interval_msec, MCE_DEFAULT_CQ_AIM_INTERVAL_MSEC, SYS_VAR_CQ_AIM_INTERVAL_MSEC);
+		VLOG_PARAM_NUMBER("CQ AIM Interval (msec)", safe_mce_sys().cq_aim_interval_msec, MCE_DEFAULT_CQ_AIM_INTERVAL_MSEC, SYS_VAR_CQ_AIM_INTERVAL_MSEC);
 	}
-	VLOG_PARAM_NUMBER("CQ AIM Interrupts Rate (per sec)", mce_sys.cq_aim_interrupts_rate_per_sec, MCE_DEFAULT_CQ_AIM_INTERRUPTS_RATE_PER_SEC, SYS_VAR_CQ_AIM_INTERRUPTS_RATE_PER_SEC);
+	VLOG_PARAM_NUMBER("CQ AIM Interrupts Rate (per sec)", safe_mce_sys().cq_aim_interrupts_rate_per_sec, MCE_DEFAULT_CQ_AIM_INTERRUPTS_RATE_PER_SEC, SYS_VAR_CQ_AIM_INTERRUPTS_RATE_PER_SEC);
 
-	VLOG_PARAM_NUMBER("CQ Poll Batch (max)", mce_sys.cq_poll_batch_max, MCE_DEFAULT_CQ_POLL_BATCH, SYS_VAR_CQ_POLL_BATCH_MAX);
-	VLOG_PARAM_STRING("CQ Keeps QP Full", mce_sys.cq_keep_qp_full, MCE_DEFAULT_CQ_KEEP_QP_FULL, SYS_VAR_CQ_KEEP_QP_FULL, mce_sys.cq_keep_qp_full ? "Enabled" : "Disabled");
-	VLOG_PARAM_NUMBER("QP Compensation Level", mce_sys.qp_compensation_level, MCE_DEFAULT_QP_COMPENSATION_LEVEL, SYS_VAR_QP_COMPENSATION_LEVEL);
-	VLOG_PARAM_STRING("Offloaded Sockets", mce_sys.offloaded_sockets, MCE_DEFAULT_OFFLOADED_SOCKETS, SYS_VAR_OFFLOADED_SOCKETS, mce_sys.offloaded_sockets ? "Enabled" : "Disabled");
-	VLOG_PARAM_NUMBER("Timer Resolution (msec)", mce_sys.timer_resolution_msec, MCE_DEFAULT_TIMER_RESOLUTION_MSEC, SYS_VAR_TIMER_RESOLUTION_MSEC);
-	VLOG_PARAM_NUMBER("TCP Timer Resolution (msec)", mce_sys.tcp_timer_resolution_msec, MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC, SYS_VAR_TCP_TIMER_RESOLUTION_MSEC);
-	VLOG_PARAM_NUMSTR("TCP control thread", mce_sys.tcp_ctl_thread, MCE_DEFAULT_TCP_CTL_THREAD, SYS_VAR_TCP_CTL_THREAD, ctl_thread_str(mce_sys.tcp_ctl_thread));
-	VLOG_PARAM_NUMBER("TCP timestamp option", mce_sys.tcp_ts_opt, MCE_DEFAULT_TCP_TIMESTAMP_OPTION, SYS_VAR_TCP_TIMESTAMP_OPTION);
-	VLOG_PARAM_NUMSTR(vma_exception_handling::getName(), (int)mce_sys.exception_handling, vma_exception_handling::MODE_DEFAULT, vma_exception_handling::getSysVar(), mce_sys.exception_handling.to_str());
-	VLOG_PARAM_STRING("Avoid sys-calls on tcp fd", mce_sys.avoid_sys_calls_on_tcp_fd, MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD, SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD, mce_sys.avoid_sys_calls_on_tcp_fd ? "Enabled" : "Disabled");
-	VLOG_PARAM_NUMBER("Delay after join (msec)", mce_sys.wait_after_join_msec, MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC, SYS_VAR_WAIT_AFTER_JOIN_MSEC);
-	VLOG_STR_PARAM_STRING("Internal Thread Affinity", mce_sys.internal_thread_affinity_str, MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR, SYS_VAR_INTERNAL_THREAD_AFFINITY, mce_sys.internal_thread_affinity_str);
-	VLOG_STR_PARAM_STRING("Internal Thread Cpuset", mce_sys.internal_thread_cpuset, MCE_DEFAULT_INTERNAL_THREAD_CPUSET, SYS_VAR_INTERNAL_THREAD_CPUSET, mce_sys.internal_thread_cpuset);
-	VLOG_PARAM_STRING("Internal Thread Arm CQ", mce_sys.internal_thread_arm_cq_enabled, MCE_DEFAULT_INTERNAL_THREAD_ARM_CQ_ENABLED, SYS_VAR_INTERNAL_THREAD_ARM_CQ, mce_sys.internal_thread_arm_cq_enabled ? "Enabled " : "Disabled");
-	VLOG_PARAM_STRING("Thread mode", mce_sys.thread_mode, MCE_DEFAULT_THREAD_MODE, SYS_VAR_THREAD_MODE, thread_mode_str(mce_sys.thread_mode));
-	VLOG_PARAM_NUMSTR("Buffer batching mode", mce_sys.buffer_batching_mode, MCE_DEFAULT_BUFFER_BATCHING_MODE, SYS_VAR_BUFFER_BATCHING_MODE, buffer_batching_mode_str(mce_sys.buffer_batching_mode));
-	switch (mce_sys.mem_alloc_type) {
+	VLOG_PARAM_NUMBER("CQ Poll Batch (max)", safe_mce_sys().cq_poll_batch_max, MCE_DEFAULT_CQ_POLL_BATCH, SYS_VAR_CQ_POLL_BATCH_MAX);
+	VLOG_PARAM_STRING("CQ Keeps QP Full", safe_mce_sys().cq_keep_qp_full, MCE_DEFAULT_CQ_KEEP_QP_FULL, SYS_VAR_CQ_KEEP_QP_FULL, safe_mce_sys().cq_keep_qp_full ? "Enabled" : "Disabled");
+	VLOG_PARAM_NUMBER("QP Compensation Level", safe_mce_sys().qp_compensation_level, MCE_DEFAULT_QP_COMPENSATION_LEVEL, SYS_VAR_QP_COMPENSATION_LEVEL);
+	VLOG_PARAM_STRING("Offloaded Sockets", safe_mce_sys().offloaded_sockets, MCE_DEFAULT_OFFLOADED_SOCKETS, SYS_VAR_OFFLOADED_SOCKETS, safe_mce_sys().offloaded_sockets ? "Enabled" : "Disabled");
+	VLOG_PARAM_NUMBER("Timer Resolution (msec)", safe_mce_sys().timer_resolution_msec, MCE_DEFAULT_TIMER_RESOLUTION_MSEC, SYS_VAR_TIMER_RESOLUTION_MSEC);
+	VLOG_PARAM_NUMBER("TCP Timer Resolution (msec)", safe_mce_sys().tcp_timer_resolution_msec, MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC, SYS_VAR_TCP_TIMER_RESOLUTION_MSEC);
+	VLOG_PARAM_NUMSTR("TCP control thread", safe_mce_sys().tcp_ctl_thread, MCE_DEFAULT_TCP_CTL_THREAD, SYS_VAR_TCP_CTL_THREAD, ctl_thread_str(safe_mce_sys().tcp_ctl_thread));
+	VLOG_PARAM_NUMBER("TCP timestamp option", safe_mce_sys().tcp_ts_opt, MCE_DEFAULT_TCP_TIMESTAMP_OPTION, SYS_VAR_TCP_TIMESTAMP_OPTION);
+	VLOG_PARAM_NUMSTR(vma_exception_handling::getName(), (int)safe_mce_sys().exception_handling, vma_exception_handling::MODE_DEFAULT, vma_exception_handling::getSysVar(), safe_mce_sys().exception_handling.to_str());
+	VLOG_PARAM_STRING("Avoid sys-calls on tcp fd", safe_mce_sys().avoid_sys_calls_on_tcp_fd, MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD, SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD, safe_mce_sys().avoid_sys_calls_on_tcp_fd ? "Enabled" : "Disabled");
+	VLOG_PARAM_NUMBER("Delay after join (msec)", safe_mce_sys().wait_after_join_msec, MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC, SYS_VAR_WAIT_AFTER_JOIN_MSEC);
+	VLOG_STR_PARAM_STRING("Internal Thread Affinity", safe_mce_sys().internal_thread_affinity_str, MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR, SYS_VAR_INTERNAL_THREAD_AFFINITY, safe_mce_sys().internal_thread_affinity_str);
+	VLOG_STR_PARAM_STRING("Internal Thread Cpuset", safe_mce_sys().internal_thread_cpuset, MCE_DEFAULT_INTERNAL_THREAD_CPUSET, SYS_VAR_INTERNAL_THREAD_CPUSET, safe_mce_sys().internal_thread_cpuset);
+	VLOG_PARAM_STRING("Internal Thread Arm CQ", safe_mce_sys().internal_thread_arm_cq_enabled, MCE_DEFAULT_INTERNAL_THREAD_ARM_CQ_ENABLED, SYS_VAR_INTERNAL_THREAD_ARM_CQ, safe_mce_sys().internal_thread_arm_cq_enabled ? "Enabled " : "Disabled");
+	VLOG_PARAM_STRING("Thread mode", safe_mce_sys().thread_mode, MCE_DEFAULT_THREAD_MODE, SYS_VAR_THREAD_MODE, thread_mode_str(safe_mce_sys().thread_mode));
+	VLOG_PARAM_NUMSTR("Buffer batching mode", safe_mce_sys().buffer_batching_mode, MCE_DEFAULT_BUFFER_BATCHING_MODE, SYS_VAR_BUFFER_BATCHING_MODE, buffer_batching_mode_str(safe_mce_sys().buffer_batching_mode));
+	switch (safe_mce_sys().mem_alloc_type) {
 	case ALLOC_TYPE_HUGEPAGES:
-		VLOG_PARAM_NUMSTR("Mem Allocate type", mce_sys.mem_alloc_type, MCE_DEFAULT_MEM_ALLOC_TYPE, SYS_VAR_MEM_ALLOC_TYPE, "(Huge Pages)");     break;
+		VLOG_PARAM_NUMSTR("Mem Allocate type", safe_mce_sys().mem_alloc_type, MCE_DEFAULT_MEM_ALLOC_TYPE, SYS_VAR_MEM_ALLOC_TYPE, "(Huge Pages)");     break;
 	case ALLOC_TYPE_ANON:
-		VLOG_PARAM_NUMSTR("Mem Allocate type", mce_sys.mem_alloc_type, MCE_DEFAULT_MEM_ALLOC_TYPE, SYS_VAR_MEM_ALLOC_TYPE, "(Malloc)");         break;
+		VLOG_PARAM_NUMSTR("Mem Allocate type", safe_mce_sys().mem_alloc_type, MCE_DEFAULT_MEM_ALLOC_TYPE, SYS_VAR_MEM_ALLOC_TYPE, "(Malloc)");         break;
 	case ALLOC_TYPE_CONTIG:
 	default:
-		VLOG_PARAM_NUMSTR("Mem Allocate type", mce_sys.mem_alloc_type, MCE_DEFAULT_MEM_ALLOC_TYPE, SYS_VAR_MEM_ALLOC_TYPE, "(Contig Pages)");   break;
+		VLOG_PARAM_NUMSTR("Mem Allocate type", safe_mce_sys().mem_alloc_type, MCE_DEFAULT_MEM_ALLOC_TYPE, SYS_VAR_MEM_ALLOC_TYPE, "(Contig Pages)");   break;
 	}
 
-	VLOG_PARAM_NUMBER("Num of UC ARPs", mce_sys.neigh_uc_arp_quata, MCE_DEFAULT_NEIGH_UC_ARP_QUATA, SYS_VAR_NEIGH_UC_ARP_QUATA);
-	VLOG_PARAM_NUMBER("UC ARP delay (msec)", mce_sys.neigh_wait_till_send_arp_msec, MCE_DEFAULT_NEIGH_UC_ARP_DELAY_MSEC, SYS_VAR_NEIGH_UC_ARP_DELAY_MSEC);
-	VLOG_PARAM_NUMBER("Num of neigh restart retries", mce_sys.neigh_num_err_retries, MCE_DEFAULT_NEIGH_NUM_ERR_RETRIES, SYS_VAR_NEIGH_NUM_ERR_RETRIES );
+	VLOG_PARAM_NUMBER("Num of UC ARPs", safe_mce_sys().neigh_uc_arp_quata, MCE_DEFAULT_NEIGH_UC_ARP_QUATA, SYS_VAR_NEIGH_UC_ARP_QUATA);
+	VLOG_PARAM_NUMBER("UC ARP delay (msec)", safe_mce_sys().neigh_wait_till_send_arp_msec, MCE_DEFAULT_NEIGH_UC_ARP_DELAY_MSEC, SYS_VAR_NEIGH_UC_ARP_DELAY_MSEC);
+	VLOG_PARAM_NUMBER("Num of neigh restart retries", safe_mce_sys().neigh_num_err_retries, MCE_DEFAULT_NEIGH_NUM_ERR_RETRIES, SYS_VAR_NEIGH_NUM_ERR_RETRIES );
 
-	VLOG_PARAM_STRING("IPOIB support", mce_sys.enable_ipoib, MCE_DEFAULT_IPOIB_FLAG, SYS_VAR_IPOIB, mce_sys.enable_ipoib ? "Enabled " : "Disabled");
-	VLOG_PARAM_STRING("BF (Blue Flame)", mce_sys.handle_bf, MCE_DEFAULT_BF_FLAG, SYS_VAR_BF, mce_sys.handle_bf ? "Enabled " : "Disabled");
-	VLOG_PARAM_STRING("fork() support", mce_sys.handle_fork, MCE_DEFAULT_FORK_SUPPORT, SYS_VAR_FORK, mce_sys.handle_fork ? "Enabled " : "Disabled");
-	VLOG_PARAM_STRING("close on dup2()", mce_sys.close_on_dup2, MCE_DEFAULT_CLOSE_ON_DUP2, SYS_VAR_CLOSE_ON_DUP2, mce_sys.close_on_dup2 ? "Enabled " : "Disabled");
-	switch (mce_sys.mtu) {
+	VLOG_PARAM_STRING("IPOIB support", safe_mce_sys().enable_ipoib, MCE_DEFAULT_IPOIB_FLAG, SYS_VAR_IPOIB, safe_mce_sys().enable_ipoib ? "Enabled " : "Disabled");
+	VLOG_PARAM_STRING("BF (Blue Flame)", safe_mce_sys().handle_bf, MCE_DEFAULT_BF_FLAG, SYS_VAR_BF, safe_mce_sys().handle_bf ? "Enabled " : "Disabled");
+	VLOG_PARAM_STRING("fork() support", safe_mce_sys().handle_fork, MCE_DEFAULT_FORK_SUPPORT, SYS_VAR_FORK, safe_mce_sys().handle_fork ? "Enabled " : "Disabled");
+	VLOG_PARAM_STRING("close on dup2()", safe_mce_sys().close_on_dup2, MCE_DEFAULT_CLOSE_ON_DUP2, SYS_VAR_CLOSE_ON_DUP2, safe_mce_sys().close_on_dup2 ? "Enabled " : "Disabled");
+	switch (safe_mce_sys().mtu) {
 	case MTU_FOLLOW_INTERFACE:
-		VLOG_PARAM_NUMSTR("MTU", mce_sys.mtu, MCE_DEFAULT_MTU, SYS_VAR_MTU, "(follow actual MTU)");	break;
+		VLOG_PARAM_NUMSTR("MTU", safe_mce_sys().mtu, MCE_DEFAULT_MTU, SYS_VAR_MTU, "(follow actual MTU)");	break;
 	default:
-		VLOG_PARAM_NUMBER("MTU", mce_sys.mtu, MCE_DEFAULT_MTU, SYS_VAR_MTU);	break;
+		VLOG_PARAM_NUMBER("MTU", safe_mce_sys().mtu, MCE_DEFAULT_MTU, SYS_VAR_MTU);	break;
 	}
-	switch (mce_sys.lwip_mss) {
+	switch (safe_mce_sys().lwip_mss) {
 	case MSS_FOLLOW_MTU:
-		VLOG_PARAM_NUMSTR("MSS", mce_sys.lwip_mss, MCE_DEFAULT_MSS, SYS_VAR_MSS, "(follow VMA_MTU)");     break;
+		VLOG_PARAM_NUMSTR("MSS", safe_mce_sys().lwip_mss, MCE_DEFAULT_MSS, SYS_VAR_MSS, "(follow VMA_MTU)");     break;
 	default:
-		VLOG_PARAM_NUMBER("MSS", mce_sys.lwip_mss, MCE_DEFAULT_MSS, SYS_VAR_MSS);	break;
+		VLOG_PARAM_NUMBER("MSS", safe_mce_sys().lwip_mss, MCE_DEFAULT_MSS, SYS_VAR_MSS);	break;
 	}
-	VLOG_PARAM_NUMSTR("TCP CC Algorithm", mce_sys.lwip_cc_algo_mod, MCE_DEFAULT_LWIP_CC_ALGO_MOD, SYS_VAR_TCP_CC_ALGO, lwip_cc_algo_str(mce_sys.lwip_cc_algo_mod));
-	VLOG_PARAM_STRING("Suppress IGMP ver. warning", mce_sys.suppress_igmp_warning, MCE_DEFAULT_SUPPRESS_IGMP_WARNING, SYS_VAR_SUPPRESS_IGMP_WARNING, mce_sys.suppress_igmp_warning ? "Enabled " : "Disabled");
+	VLOG_PARAM_NUMSTR("TCP CC Algorithm", safe_mce_sys().lwip_cc_algo_mod, MCE_DEFAULT_LWIP_CC_ALGO_MOD, SYS_VAR_TCP_CC_ALGO, lwip_cc_algo_str(safe_mce_sys().lwip_cc_algo_mod));
+	VLOG_PARAM_STRING("Suppress IGMP ver. warning", safe_mce_sys().suppress_igmp_warning, MCE_DEFAULT_SUPPRESS_IGMP_WARNING, SYS_VAR_SUPPRESS_IGMP_WARNING, safe_mce_sys().suppress_igmp_warning ? "Enabled " : "Disabled");
 
 #ifdef VMA_TIME_MEASURE
-	VLOG_PARAM_NUMBER("Time Measure Num Samples", mce_sys.vma_time_measure_num_samples, MCE_DEFAULT_TIME_MEASURE_NUM_SAMPLES, SYS_VAR_VMA_TIME_MEASURE_NUM_SAMPLES);
-	VLOG_STR_PARAM_STRING("Time Measure Dump File", mce_sys.vma_time_measure_filename, MCE_DEFAULT_TIME_MEASURE_DUMP_FILE, SYS_VAR_VMA_TIME_MEASURE_DUMP_FILE, mce_sys.vma_time_measure_filename);
+	VLOG_PARAM_NUMBER("Time Measure Num Samples", safe_mce_sys().vma_time_measure_num_samples, MCE_DEFAULT_TIME_MEASURE_NUM_SAMPLES, SYS_VAR_VMA_TIME_MEASURE_NUM_SAMPLES);
+	VLOG_STR_PARAM_STRING("Time Measure Dump File", safe_mce_sys().vma_time_measure_filename, MCE_DEFAULT_TIME_MEASURE_DUMP_FILE, SYS_VAR_VMA_TIME_MEASURE_DUMP_FILE, safe_mce_sys().vma_time_measure_filename);
 #endif
 
 	vlog_printf(VLOG_INFO,"---------------------------------------------------------------------------\n");
@@ -757,21 +760,21 @@ void get_env_params()
 		exit(1);
 	}
 
-	mce_sys.app_name = (char *)malloc(app_name_size);
+	safe_mce_sys().app_name = (char *)malloc(app_name_size);
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!mce_sys.app_name) {
+	if (!safe_mce_sys().app_name) {
 		vlog_printf(VLOG_ERROR, "error while malloc\n");
 		print_vma_load_failure_msg();
 		exit(1);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 	while ((c = fgetc(fp)) != EOF){
-		mce_sys.app_name[len++] = (c==0?' ':c);
+		safe_mce_sys().app_name[len++] = (c==0?' ':c);
 		if (len>=app_name_size) {
 			app_name_size=app_name_size*2;
-			mce_sys.app_name = (char*)realloc(mce_sys.app_name, app_name_size);
+			safe_mce_sys().app_name = (char*)realloc(safe_mce_sys().app_name, app_name_size);
 			BULLSEYE_EXCLUDE_BLOCK_START
-			if (!mce_sys.app_name) {
+			if (!safe_mce_sys().app_name) {
 				vlog_printf(VLOG_ERROR, "error while malloc\n");
 				print_vma_load_failure_msg();
 				exit(1);
@@ -780,162 +783,162 @@ void get_env_params()
 		}
 	}
 
-	mce_sys.app_name[len-1] = '\0';
+	safe_mce_sys().app_name[len-1] = '\0';
 	fclose(fp);
 
-	bzero(mce_sys.vma_time_measure_filename, sizeof(mce_sys.vma_time_measure_filename));
-	strcpy(mce_sys.vma_time_measure_filename, MCE_DEFAULT_TIME_MEASURE_DUMP_FILE);
-	bzero(mce_sys.log_filename, sizeof(mce_sys.log_filename));
-	bzero(mce_sys.stats_filename, sizeof(mce_sys.stats_filename));
-	bzero(mce_sys.stats_shmem_dirname, sizeof(mce_sys.stats_shmem_dirname));
-	strcpy(mce_sys.stats_filename, MCE_DEFAULT_STATS_FILE);
-	strcpy(mce_sys.stats_shmem_dirname, MCE_DEFAULT_STATS_SHMEM_DIR);
-	strcpy(mce_sys.conf_filename, MCE_DEFAULT_CONF_FILE);
-	strcpy(mce_sys.app_id, MCE_DEFAULT_APP_ID);
-	strcpy(mce_sys.internal_thread_cpuset, MCE_DEFAULT_INTERNAL_THREAD_CPUSET);
-	strcpy(mce_sys.internal_thread_affinity_str, MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR);
+	bzero(safe_mce_sys().vma_time_measure_filename, sizeof(safe_mce_sys().vma_time_measure_filename));
+	strcpy(safe_mce_sys().vma_time_measure_filename, MCE_DEFAULT_TIME_MEASURE_DUMP_FILE);
+	bzero(safe_mce_sys().log_filename, sizeof(safe_mce_sys().log_filename));
+	bzero(safe_mce_sys().stats_filename, sizeof(safe_mce_sys().stats_filename));
+	bzero(safe_mce_sys().stats_shmem_dirname, sizeof(safe_mce_sys().stats_shmem_dirname));
+	strcpy(safe_mce_sys().stats_filename, MCE_DEFAULT_STATS_FILE);
+	strcpy(safe_mce_sys().stats_shmem_dirname, MCE_DEFAULT_STATS_SHMEM_DIR);
+	strcpy(safe_mce_sys().conf_filename, MCE_DEFAULT_CONF_FILE);
+	strcpy(safe_mce_sys().app_id, MCE_DEFAULT_APP_ID);
+	strcpy(safe_mce_sys().internal_thread_cpuset, MCE_DEFAULT_INTERNAL_THREAD_CPUSET);
+	strcpy(safe_mce_sys().internal_thread_affinity_str, MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR);
 
-	mce_sys.log_level               = VLOG_INFO;
-	mce_sys.log_details             = MCE_DEFAULT_LOG_DETAILS;
-	mce_sys.log_colors		= MCE_DEFAULT_LOG_COLORS;
-	mce_sys.handle_sigintr 		= MCE_DEFAULT_HANDLE_SIGINTR;
-	mce_sys.handle_segfault		= MCE_DEFAULT_HANDLE_SIGFAULT;
-	mce_sys.stats_fd_num_max	= MCE_DEFAULT_STATS_FD_NUM;
+	safe_mce_sys().log_level               = VLOG_INFO;
+	safe_mce_sys().log_details             = MCE_DEFAULT_LOG_DETAILS;
+	safe_mce_sys().log_colors		= MCE_DEFAULT_LOG_COLORS;
+	safe_mce_sys().handle_sigintr 		= MCE_DEFAULT_HANDLE_SIGINTR;
+	safe_mce_sys().handle_segfault		= MCE_DEFAULT_HANDLE_SIGFAULT;
+	safe_mce_sys().stats_fd_num_max	= MCE_DEFAULT_STATS_FD_NUM;
 
-	mce_sys.ring_allocation_logic_tx= MCE_DEFAULT_RING_ALLOCATION_LOGIC_TX;
-	mce_sys.ring_allocation_logic_rx= MCE_DEFAULT_RING_ALLOCATION_LOGIC_RX;
-	mce_sys.ring_migration_ratio_tx = MCE_DEFAULT_RING_MIGRATION_RATIO_TX;
-	mce_sys.ring_migration_ratio_rx = MCE_DEFAULT_RING_MIGRATION_RATIO_RX;
-	mce_sys.ring_limit_per_interface= MCE_DEFAULT_RING_LIMIT_PER_INTERFACE;
-	mce_sys.tcp_max_syn_rate	= MCE_DEFAULT_TCP_MAX_SYN_RATE;
+	safe_mce_sys().ring_allocation_logic_tx= MCE_DEFAULT_RING_ALLOCATION_LOGIC_TX;
+	safe_mce_sys().ring_allocation_logic_rx= MCE_DEFAULT_RING_ALLOCATION_LOGIC_RX;
+	safe_mce_sys().ring_migration_ratio_tx = MCE_DEFAULT_RING_MIGRATION_RATIO_TX;
+	safe_mce_sys().ring_migration_ratio_rx = MCE_DEFAULT_RING_MIGRATION_RATIO_RX;
+	safe_mce_sys().ring_limit_per_interface= MCE_DEFAULT_RING_LIMIT_PER_INTERFACE;
+	safe_mce_sys().tcp_max_syn_rate	= MCE_DEFAULT_TCP_MAX_SYN_RATE;
 
-	mce_sys.tx_num_segs_tcp         = MCE_DEFAULT_TX_NUM_SEGS_TCP;
-	mce_sys.tx_num_bufs             = MCE_DEFAULT_TX_NUM_BUFS;
-	mce_sys.tx_num_wr               = MCE_DEFAULT_TX_NUM_WRE;
-	mce_sys.tx_max_inline		= MCE_DEFAULT_TX_MAX_INLINE;
-	mce_sys.tx_mc_loopback_default  = MCE_DEFAULT_TX_MC_LOOPBACK;
-	mce_sys.tx_nonblocked_eagains   = MCE_DEFAULT_TX_NONBLOCKED_EAGAINS;
-	mce_sys.tx_prefetch_bytes 	= MCE_DEFAULT_TX_PREFETCH_BYTES;
-	mce_sys.tx_bufs_batch_udp	= MCE_DEFAULT_TX_BUFS_BATCH_UDP;
-	mce_sys.tx_bufs_batch_tcp	= MCE_DEFAULT_TX_BUFS_BATCH_TCP;
+	safe_mce_sys().tx_num_segs_tcp         = MCE_DEFAULT_TX_NUM_SEGS_TCP;
+	safe_mce_sys().tx_num_bufs             = MCE_DEFAULT_TX_NUM_BUFS;
+	safe_mce_sys().tx_num_wr               = MCE_DEFAULT_TX_NUM_WRE;
+	safe_mce_sys().tx_max_inline		= MCE_DEFAULT_TX_MAX_INLINE;
+	safe_mce_sys().tx_mc_loopback_default  = MCE_DEFAULT_TX_MC_LOOPBACK;
+	safe_mce_sys().tx_nonblocked_eagains   = MCE_DEFAULT_TX_NONBLOCKED_EAGAINS;
+	safe_mce_sys().tx_prefetch_bytes 	= MCE_DEFAULT_TX_PREFETCH_BYTES;
+	safe_mce_sys().tx_bufs_batch_udp	= MCE_DEFAULT_TX_BUFS_BATCH_UDP;
+	safe_mce_sys().tx_bufs_batch_tcp	= MCE_DEFAULT_TX_BUFS_BATCH_TCP;
 
-	mce_sys.rx_num_bufs             = MCE_DEFAULT_RX_NUM_BUFS;
-	mce_sys.rx_bufs_batch           = MCE_DEFAULT_RX_BUFS_BATCH;
-	mce_sys.rx_num_wr               = MCE_DEFAULT_RX_NUM_WRE;
-	mce_sys.rx_num_wr_to_post_recv  = MCE_DEFAULT_RX_NUM_WRE_TO_POST_RECV;
-	mce_sys.rx_poll_num             = MCE_DEFAULT_RX_NUM_POLLS;
-	mce_sys.rx_poll_num_init        = MCE_DEFAULT_RX_NUM_POLLS_INIT;
-	mce_sys.rx_udp_poll_os_ratio    = MCE_DEFAULT_RX_UDP_POLL_OS_RATIO;
-	mce_sys.rx_udp_hw_ts_conversion = MCE_DEFAULT_RX_UDP_HW_TS_CONVERSION;
-	mce_sys.rx_poll_yield_loops     = MCE_DEFAULT_RX_POLL_YIELD;
-	mce_sys.select_handle_cpu_usage_stats   = MCE_DEFAULT_SELECT_CPU_USAGE_STATS;
-	mce_sys.rx_ready_byte_min_limit = MCE_DEFAULT_RX_BYTE_MIN_LIMIT;
-	mce_sys.rx_prefetch_bytes	= MCE_DEFAULT_RX_PREFETCH_BYTES;
-	mce_sys.rx_prefetch_bytes_before_poll = MCE_DEFAULT_RX_PREFETCH_BYTES_BEFORE_POLL;
-	mce_sys.rx_cq_drain_rate_nsec 	= MCE_DEFAULT_RX_CQ_DRAIN_RATE;
-	mce_sys.rx_delta_tsc_between_cq_polls = 0;
+	safe_mce_sys().rx_num_bufs             = MCE_DEFAULT_RX_NUM_BUFS;
+	safe_mce_sys().rx_bufs_batch           = MCE_DEFAULT_RX_BUFS_BATCH;
+	safe_mce_sys().rx_num_wr               = MCE_DEFAULT_RX_NUM_WRE;
+	safe_mce_sys().rx_num_wr_to_post_recv  = MCE_DEFAULT_RX_NUM_WRE_TO_POST_RECV;
+	safe_mce_sys().rx_poll_num             = MCE_DEFAULT_RX_NUM_POLLS;
+	safe_mce_sys().rx_poll_num_init        = MCE_DEFAULT_RX_NUM_POLLS_INIT;
+	safe_mce_sys().rx_udp_poll_os_ratio    = MCE_DEFAULT_RX_UDP_POLL_OS_RATIO;
+	safe_mce_sys().rx_udp_hw_ts_conversion = MCE_DEFAULT_RX_UDP_HW_TS_CONVERSION;
+	safe_mce_sys().rx_poll_yield_loops     = MCE_DEFAULT_RX_POLL_YIELD;
+	safe_mce_sys().select_handle_cpu_usage_stats   = MCE_DEFAULT_SELECT_CPU_USAGE_STATS;
+	safe_mce_sys().rx_ready_byte_min_limit = MCE_DEFAULT_RX_BYTE_MIN_LIMIT;
+	safe_mce_sys().rx_prefetch_bytes	= MCE_DEFAULT_RX_PREFETCH_BYTES;
+	safe_mce_sys().rx_prefetch_bytes_before_poll = MCE_DEFAULT_RX_PREFETCH_BYTES_BEFORE_POLL;
+	safe_mce_sys().rx_cq_drain_rate_nsec 	= MCE_DEFAULT_RX_CQ_DRAIN_RATE;
+	safe_mce_sys().rx_delta_tsc_between_cq_polls = 0;
 
-	mce_sys.gro_streams_max		= MCE_DEFAULT_GRO_STREAMS_MAX;
+	safe_mce_sys().gro_streams_max		= MCE_DEFAULT_GRO_STREAMS_MAX;
 
-	mce_sys.tcp_3t_rules		= MCE_DEFAULT_TCP_3T_RULES;
-	mce_sys.eth_mc_l2_only_rules	= MCE_DEFAULT_ETH_MC_L2_ONLY_RULES;
+	safe_mce_sys().tcp_3t_rules		= MCE_DEFAULT_TCP_3T_RULES;
+	safe_mce_sys().eth_mc_l2_only_rules	= MCE_DEFAULT_ETH_MC_L2_ONLY_RULES;
 
-	mce_sys.select_poll_num		= MCE_DEFAULT_SELECT_NUM_POLLS;
-	mce_sys.select_poll_os_force	= MCE_DEFAULT_SELECT_POLL_OS_FORCE;
-	mce_sys.select_poll_os_ratio	= MCE_DEFAULT_SELECT_POLL_OS_RATIO;
-	mce_sys.select_skip_os_fd_check	= MCE_DEFAULT_SELECT_SKIP_OS;
+	safe_mce_sys().select_poll_num		= MCE_DEFAULT_SELECT_NUM_POLLS;
+	safe_mce_sys().select_poll_os_force	= MCE_DEFAULT_SELECT_POLL_OS_FORCE;
+	safe_mce_sys().select_poll_os_ratio	= MCE_DEFAULT_SELECT_POLL_OS_RATIO;
+	safe_mce_sys().select_skip_os_fd_check	= MCE_DEFAULT_SELECT_SKIP_OS;
 
-	mce_sys.cq_moderation_enable	= MCE_DEFAULT_CQ_MODERATION_ENABLE;
-	mce_sys.cq_moderation_count = MCE_DEFAULT_CQ_MODERATION_COUNT;
-	mce_sys.cq_moderation_period_usec = MCE_DEFAULT_CQ_MODERATION_PERIOD_USEC;
-	mce_sys.cq_aim_max_count	= MCE_DEFAULT_CQ_AIM_MAX_COUNT;
-	mce_sys.cq_aim_max_period_usec = MCE_DEFAULT_CQ_AIM_MAX_PERIOD_USEC;
-	mce_sys.cq_aim_interval_msec = MCE_DEFAULT_CQ_AIM_INTERVAL_MSEC;
-	mce_sys.cq_aim_interrupts_rate_per_sec = MCE_DEFAULT_CQ_AIM_INTERRUPTS_RATE_PER_SEC;
+	safe_mce_sys().cq_moderation_enable	= MCE_DEFAULT_CQ_MODERATION_ENABLE;
+	safe_mce_sys().cq_moderation_count = MCE_DEFAULT_CQ_MODERATION_COUNT;
+	safe_mce_sys().cq_moderation_period_usec = MCE_DEFAULT_CQ_MODERATION_PERIOD_USEC;
+	safe_mce_sys().cq_aim_max_count	= MCE_DEFAULT_CQ_AIM_MAX_COUNT;
+	safe_mce_sys().cq_aim_max_period_usec = MCE_DEFAULT_CQ_AIM_MAX_PERIOD_USEC;
+	safe_mce_sys().cq_aim_interval_msec = MCE_DEFAULT_CQ_AIM_INTERVAL_MSEC;
+	safe_mce_sys().cq_aim_interrupts_rate_per_sec = MCE_DEFAULT_CQ_AIM_INTERRUPTS_RATE_PER_SEC;
 
-	mce_sys.cq_poll_batch_max	= MCE_DEFAULT_CQ_POLL_BATCH;
-	mce_sys.progress_engine_interval_msec	= MCE_DEFAULT_PROGRESS_ENGINE_INTERVAL_MSEC;
-	mce_sys.progress_engine_wce_max	= MCE_DEFAULT_PROGRESS_ENGINE_WCE_MAX;
-	mce_sys.cq_keep_qp_full		= MCE_DEFAULT_CQ_KEEP_QP_FULL;
-	mce_sys.qp_compensation_level	= MCE_DEFAULT_QP_COMPENSATION_LEVEL;
-	mce_sys.internal_thread_arm_cq_enabled	= MCE_DEFAULT_INTERNAL_THREAD_ARM_CQ_ENABLED;
+	safe_mce_sys().cq_poll_batch_max	= MCE_DEFAULT_CQ_POLL_BATCH;
+	safe_mce_sys().progress_engine_interval_msec	= MCE_DEFAULT_PROGRESS_ENGINE_INTERVAL_MSEC;
+	safe_mce_sys().progress_engine_wce_max	= MCE_DEFAULT_PROGRESS_ENGINE_WCE_MAX;
+	safe_mce_sys().cq_keep_qp_full		= MCE_DEFAULT_CQ_KEEP_QP_FULL;
+	safe_mce_sys().qp_compensation_level	= MCE_DEFAULT_QP_COMPENSATION_LEVEL;
+	safe_mce_sys().internal_thread_arm_cq_enabled	= MCE_DEFAULT_INTERNAL_THREAD_ARM_CQ_ENABLED;
 
-	mce_sys.offloaded_sockets	= MCE_DEFAULT_OFFLOADED_SOCKETS;
-	mce_sys.timer_resolution_msec	= MCE_DEFAULT_TIMER_RESOLUTION_MSEC;
-	mce_sys.tcp_timer_resolution_msec	= MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC;
-	mce_sys.tcp_ctl_thread		= MCE_DEFAULT_TCP_CTL_THREAD;
-	mce_sys.tcp_ts_opt		= MCE_DEFAULT_TCP_TIMESTAMP_OPTION;
-//	mce_sys.exception_handling is handled by its CTOR
-	mce_sys.avoid_sys_calls_on_tcp_fd = MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD;
-	mce_sys.wait_after_join_msec	= MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC;
-	mce_sys.thread_mode		= MCE_DEFAULT_THREAD_MODE;
-	mce_sys.buffer_batching_mode	= MCE_DEFAULT_BUFFER_BATCHING_MODE;
-	mce_sys.mem_alloc_type          = MCE_DEFAULT_MEM_ALLOC_TYPE;
-	mce_sys.enable_ipoib		= MCE_DEFAULT_IPOIB_FLAG;
-	mce_sys.handle_fork		= MCE_DEFAULT_FORK_SUPPORT;
-	mce_sys.handle_bf		= MCE_DEFAULT_BF_FLAG;
-	mce_sys.close_on_dup2		= MCE_DEFAULT_CLOSE_ON_DUP2;
-	mce_sys.mtu			= MCE_DEFAULT_MTU;
-	mce_sys.lwip_mss		= MCE_DEFAULT_MSS;
-	mce_sys.lwip_cc_algo_mod	= MCE_DEFAULT_LWIP_CC_ALGO_MOD;
-	mce_sys.mce_spec		= 0;
-	mce_sys.mce_spec_param1		= 1;
-	mce_sys.mce_spec_param2		= 1;
+	safe_mce_sys().offloaded_sockets	= MCE_DEFAULT_OFFLOADED_SOCKETS;
+	safe_mce_sys().timer_resolution_msec	= MCE_DEFAULT_TIMER_RESOLUTION_MSEC;
+	safe_mce_sys().tcp_timer_resolution_msec	= MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC;
+	safe_mce_sys().tcp_ctl_thread		= MCE_DEFAULT_TCP_CTL_THREAD;
+	safe_mce_sys().tcp_ts_opt		= MCE_DEFAULT_TCP_TIMESTAMP_OPTION;
+//	safe_mce_sys().exception_handling is handled by its CTOR
+	safe_mce_sys().avoid_sys_calls_on_tcp_fd = MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD;
+	safe_mce_sys().wait_after_join_msec	= MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC;
+	safe_mce_sys().thread_mode		= MCE_DEFAULT_THREAD_MODE;
+	safe_mce_sys().buffer_batching_mode	= MCE_DEFAULT_BUFFER_BATCHING_MODE;
+	safe_mce_sys().mem_alloc_type          = MCE_DEFAULT_MEM_ALLOC_TYPE;
+	safe_mce_sys().enable_ipoib		= MCE_DEFAULT_IPOIB_FLAG;
+	safe_mce_sys().handle_fork		= MCE_DEFAULT_FORK_SUPPORT;
+	safe_mce_sys().handle_bf		= MCE_DEFAULT_BF_FLAG;
+	safe_mce_sys().close_on_dup2		= MCE_DEFAULT_CLOSE_ON_DUP2;
+	safe_mce_sys().mtu			= MCE_DEFAULT_MTU;
+	safe_mce_sys().lwip_mss		= MCE_DEFAULT_MSS;
+	safe_mce_sys().lwip_cc_algo_mod	= MCE_DEFAULT_LWIP_CC_ALGO_MOD;
+	safe_mce_sys().mce_spec		= 0;
+	safe_mce_sys().mce_spec_param1		= 1;
+	safe_mce_sys().mce_spec_param2		= 1;
 	
-	mce_sys.neigh_num_err_retries	= MCE_DEFAULT_NEIGH_NUM_ERR_RETRIES;
-	mce_sys.neigh_uc_arp_quata	= MCE_DEFAULT_NEIGH_UC_ARP_QUATA;
-	mce_sys.neigh_wait_till_send_arp_msec = MCE_DEFAULT_NEIGH_UC_ARP_DELAY_MSEC;
+	safe_mce_sys().neigh_num_err_retries	= MCE_DEFAULT_NEIGH_NUM_ERR_RETRIES;
+	safe_mce_sys().neigh_uc_arp_quata	= MCE_DEFAULT_NEIGH_UC_ARP_QUATA;
+	safe_mce_sys().neigh_wait_till_send_arp_msec = MCE_DEFAULT_NEIGH_UC_ARP_DELAY_MSEC;
 
-	mce_sys.timer_netlink_update_msec = MCE_DEFAULT_NETLINK_TIMER_MSEC;
+	safe_mce_sys().timer_netlink_update_msec = MCE_DEFAULT_NETLINK_TIMER_MSEC;
 
-	mce_sys.suppress_igmp_warning	= MCE_DEFAULT_SUPPRESS_IGMP_WARNING;
+	safe_mce_sys().suppress_igmp_warning	= MCE_DEFAULT_SUPPRESS_IGMP_WARNING;
 
 #ifdef VMA_TIME_MEASURE
-	mce_sys.vma_time_measure_num_samples = MCE_DEFAULT_TIME_MEASURE_NUM_SAMPLES;
+	safe_mce_sys().vma_time_measure_num_samples = MCE_DEFAULT_TIME_MEASURE_NUM_SAMPLES;
 #endif
 
 	if ((env_ptr = getenv(SYS_VAR_SPEC)) != NULL)
-		mce_sys.mce_spec = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().mce_spec = (uint32_t)atoi(env_ptr);
 
-	switch (mce_sys.mce_spec) {
+	switch (safe_mce_sys().mce_spec) {
 
 	case MCE_SPEC_29WEST_LBM_29:
-		mce_sys.mce_spec_param1         = 5000;	// [u-sec] Time out to send next pipe_write
-		mce_sys.mce_spec_param2         = 50;	// Num of max sequential pipe_write to drop
-		mce_sys.rx_poll_num             = 0;
-		mce_sys.rx_udp_poll_os_ratio    = 100;
-		mce_sys.select_poll_num         = 100000;
-		mce_sys.select_poll_os_ratio    = 100;
-		mce_sys.select_skip_os_fd_check = 50;
+		safe_mce_sys().mce_spec_param1         = 5000;	// [u-sec] Time out to send next pipe_write
+		safe_mce_sys().mce_spec_param2         = 50;	// Num of max sequential pipe_write to drop
+		safe_mce_sys().rx_poll_num             = 0;
+		safe_mce_sys().rx_udp_poll_os_ratio    = 100;
+		safe_mce_sys().select_poll_num         = 100000;
+		safe_mce_sys().select_poll_os_ratio    = 100;
+		safe_mce_sys().select_skip_os_fd_check = 50;
 		break;
 
 	case MCE_SPEC_WOMBAT_FH_LBM_554:
-		mce_sys.mce_spec_param1         = 5000;	// [u-sec] Time out to send next pipe_write
-		mce_sys.mce_spec_param2         = 50;	// Num of max sequential pipe_write to drop
-		mce_sys.rx_poll_num             = 0;
-		mce_sys.rx_udp_poll_os_ratio    = 100;
-		mce_sys.select_poll_num         = 0;
-		mce_sys.select_skip_os_fd_check = 20;
+		safe_mce_sys().mce_spec_param1         = 5000;	// [u-sec] Time out to send next pipe_write
+		safe_mce_sys().mce_spec_param2         = 50;	// Num of max sequential pipe_write to drop
+		safe_mce_sys().rx_poll_num             = 0;
+		safe_mce_sys().rx_udp_poll_os_ratio    = 100;
+		safe_mce_sys().select_poll_num         = 0;
+		safe_mce_sys().select_skip_os_fd_check = 20;
 		break;
 
 	case MCE_SPEC_RTI_784:
-		mce_sys.rx_poll_num             = -1;
+		safe_mce_sys().rx_poll_num             = -1;
 // TODO - Need to replace old QP/CQ allocation logic here
-//		mce_sys.qp_allocation_logic 	= QP_ALLOC_LOGIC__QP_PER_PEER_IP_PER_LOCAL_IP;
-//		mce_sys.cq_allocation_logic	= CQ_ALLOC_LOGIC__CQ_PER_QP;
+//		safe_mce_sys().qp_allocation_logic 	= QP_ALLOC_LOGIC__QP_PER_PEER_IP_PER_LOCAL_IP;
+//		safe_mce_sys().cq_allocation_logic	= CQ_ALLOC_LOGIC__CQ_PER_QP;
 		break;
 
 	case MCE_SPEC_MCD_623:
-		mce_sys.ring_allocation_logic_rx = RING_LOGIC_PER_CORE_ATTACH_THREADS;
-		mce_sys.ring_allocation_logic_tx = RING_LOGIC_PER_CORE_ATTACH_THREADS;
+		safe_mce_sys().ring_allocation_logic_rx = RING_LOGIC_PER_CORE_ATTACH_THREADS;
+		safe_mce_sys().ring_allocation_logic_tx = RING_LOGIC_PER_CORE_ATTACH_THREADS;
 		break;
 
 	case MCE_SPEC_MCD_IRQ_624:
-		mce_sys.ring_allocation_logic_rx = RING_LOGIC_PER_CORE_ATTACH_THREADS;
-		mce_sys.ring_allocation_logic_tx = RING_LOGIC_PER_CORE_ATTACH_THREADS;
-		mce_sys.select_poll_num = 0;
-		mce_sys.rx_poll_num = 0;
-		mce_sys.cq_moderation_enable = false;
+		safe_mce_sys().ring_allocation_logic_rx = RING_LOGIC_PER_CORE_ATTACH_THREADS;
+		safe_mce_sys().ring_allocation_logic_tx = RING_LOGIC_PER_CORE_ATTACH_THREADS;
+		safe_mce_sys().select_poll_num = 0;
+		safe_mce_sys().rx_poll_num = 0;
+		safe_mce_sys().cq_moderation_enable = false;
 		break;
 
 	case 0:
@@ -944,380 +947,380 @@ void get_env_params()
 	}
 
        if ((env_ptr = getenv(SYS_VAR_SPEC_PARAM1)) != NULL)
-		mce_sys.mce_spec_param1 = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().mce_spec_param1 = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_SPEC_PARAM2)) != NULL)
-		mce_sys.mce_spec_param2 = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().mce_spec_param2 = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_LOG_FILENAME)) != NULL){
-		read_env_variable_with_pid(mce_sys.log_filename, sizeof(mce_sys.log_filename), env_ptr);
+		read_env_variable_with_pid(safe_mce_sys().log_filename, sizeof(safe_mce_sys().log_filename), env_ptr);
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_STATS_FILENAME)) != NULL){
-		read_env_variable_with_pid(mce_sys.stats_filename, sizeof(mce_sys.stats_filename), env_ptr);
+		read_env_variable_with_pid(safe_mce_sys().stats_filename, sizeof(safe_mce_sys().stats_filename), env_ptr);
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_STATS_SHMEM_DIRNAME)) != NULL){
-		read_env_variable_with_pid(mce_sys.stats_shmem_dirname, sizeof(mce_sys.stats_shmem_dirname), env_ptr);
+		read_env_variable_with_pid(safe_mce_sys().stats_shmem_dirname, sizeof(safe_mce_sys().stats_shmem_dirname), env_ptr);
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_CONF_FILENAME)) != NULL){
-		read_env_variable_with_pid(mce_sys.conf_filename, sizeof(mce_sys.conf_filename), env_ptr);
+		read_env_variable_with_pid(safe_mce_sys().conf_filename, sizeof(safe_mce_sys().conf_filename), env_ptr);
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_LOG_LEVEL)) != NULL)
-		mce_sys.log_level = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().log_level = (uint32_t)atoi(env_ptr);
 
-	if (mce_sys.log_level >= VLOG_DEBUG)
-		mce_sys.log_details = 2;
+	if (safe_mce_sys().log_level >= VLOG_DEBUG)
+		safe_mce_sys().log_details = 2;
 
 	if ((env_ptr = getenv(SYS_VAR_LOG_DETAILS)) != NULL)
-		mce_sys.log_details = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().log_details = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_LOG_COLORS)) != NULL)
-		mce_sys.log_colors = atoi(env_ptr) ? true : false;
+		safe_mce_sys().log_colors = atoi(env_ptr) ? true : false;
 	
 	if ((env_ptr = getenv(SYS_VAR_APPLICATION_ID)) != NULL){
-		read_env_variable_with_pid(mce_sys.app_id, sizeof(mce_sys.app_id), env_ptr);
+		read_env_variable_with_pid(safe_mce_sys().app_id, sizeof(safe_mce_sys().app_id), env_ptr);
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_HANDLE_SIGINTR)) != NULL)
-		mce_sys.handle_sigintr = atoi(env_ptr) ? true : false;
+		safe_mce_sys().handle_sigintr = atoi(env_ptr) ? true : false;
 
 	if ((env_ptr = getenv(SYS_VAR_HANDLE_SIGSEGV)) != NULL)
-		mce_sys.handle_segfault = atoi(env_ptr) ? true : false;
+		safe_mce_sys().handle_segfault = atoi(env_ptr) ? true : false;
 
 	if ((env_ptr = getenv(SYS_VAR_STATS_FD_NUM)) != NULL) {
-		mce_sys.stats_fd_num_max = (uint32_t)atoi(env_ptr);
-		if (mce_sys.stats_fd_num_max > MAX_STATS_FD_NUM) {
+		safe_mce_sys().stats_fd_num_max = (uint32_t)atoi(env_ptr);
+		if (safe_mce_sys().stats_fd_num_max > MAX_STATS_FD_NUM) {
 			vlog_printf(VLOG_WARNING," Can only monitor maximum %d sockets in statistics \n", MAX_STATS_FD_NUM);
-			mce_sys.stats_fd_num_max = MAX_STATS_FD_NUM;
+			safe_mce_sys().stats_fd_num_max = MAX_STATS_FD_NUM;
 		}
 	}
 
 
 	if ((env_ptr = getenv(SYS_VAR_TX_NUM_SEGS_TCP)) != NULL)
-		mce_sys.tx_num_segs_tcp = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().tx_num_segs_tcp = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_TX_NUM_BUFS)) != NULL)
-		mce_sys.tx_num_bufs = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().tx_num_bufs = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_TX_NUM_WRE)) != NULL)
-		mce_sys.tx_num_wr = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().tx_num_wr = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_TX_MAX_INLINE)) != NULL)
-		mce_sys.tx_max_inline = (uint32_t)atoi(env_ptr);
-	if (mce_sys.tx_max_inline > MAX_SUPPORTED_IB_INLINE_SIZE) {
+		safe_mce_sys().tx_max_inline = (uint32_t)atoi(env_ptr);
+	if (safe_mce_sys().tx_max_inline > MAX_SUPPORTED_IB_INLINE_SIZE) {
 		vlog_printf(VLOG_WARNING,"VMA_TX_MAX_INLINE  must be smaller or equal to %d [%d]\n",
-				MAX_SUPPORTED_IB_INLINE_SIZE, mce_sys.tx_max_inline);
-		mce_sys.tx_max_inline = MAX_SUPPORTED_IB_INLINE_SIZE;
+				MAX_SUPPORTED_IB_INLINE_SIZE, safe_mce_sys().tx_max_inline);
+		safe_mce_sys().tx_max_inline = MAX_SUPPORTED_IB_INLINE_SIZE;
 	}
-	unsigned int cx4_max_tx_wre_for_inl = (16 * 1024 * 64) / (VMA_ALIGN(VMA_ALIGN(mce_sys.tx_max_inline - 12, 64) + 12, 64));
-	if (mce_sys.tx_num_wr > cx4_max_tx_wre_for_inl) {
+	unsigned int cx4_max_tx_wre_for_inl = (16 * 1024 * 64) / (VMA_ALIGN(VMA_ALIGN(safe_mce_sys().tx_max_inline - 12, 64) + 12, 64));
+	if (safe_mce_sys().tx_num_wr > cx4_max_tx_wre_for_inl) {
 		vlog_printf(VLOG_WARNING,"For the given VMA_TX_MAX_INLINE [%d], VMA_TX_WRE [%d] must be smaller than %d\n",
-				mce_sys.tx_max_inline, mce_sys.tx_num_wr, cx4_max_tx_wre_for_inl);
-		mce_sys.tx_num_wr = cx4_max_tx_wre_for_inl;
+				safe_mce_sys().tx_max_inline, safe_mce_sys().tx_num_wr, cx4_max_tx_wre_for_inl);
+		safe_mce_sys().tx_num_wr = cx4_max_tx_wre_for_inl;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_TX_MC_LOOPBACK)) != NULL)
-		mce_sys.tx_mc_loopback_default = atoi(env_ptr) ? true : false;
+		safe_mce_sys().tx_mc_loopback_default = atoi(env_ptr) ? true : false;
 
 	if ((env_ptr = getenv(SYS_VAR_SUPPRESS_IGMP_WARNING)) != NULL)
-				mce_sys.suppress_igmp_warning = atoi(env_ptr) ? true : false;
+				safe_mce_sys().suppress_igmp_warning = atoi(env_ptr) ? true : false;
 
 	if ((env_ptr = getenv(SYS_VAR_TX_NONBLOCKED_EAGAINS)) != NULL)
-		mce_sys.tx_nonblocked_eagains = atoi(env_ptr)? true : false;
+		safe_mce_sys().tx_nonblocked_eagains = atoi(env_ptr)? true : false;
 
 	if ((env_ptr = getenv(SYS_VAR_TX_PREFETCH_BYTES)) != NULL)
-		mce_sys.tx_prefetch_bytes = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().tx_prefetch_bytes = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_TX_BACKLOG_MAX)) != NULL)
-		mce_sys.tx_backlog_max = atoi(env_ptr);
+		safe_mce_sys().tx_backlog_max = atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_RING_ALLOCATION_LOGIC_TX)) != NULL) {
-		mce_sys.ring_allocation_logic_tx = (ring_logic_t)atoi(env_ptr);
-		if (!is_ring_logic_valid(mce_sys.ring_allocation_logic_tx)) {
+		safe_mce_sys().ring_allocation_logic_tx = (ring_logic_t)atoi(env_ptr);
+		if (!is_ring_logic_valid(safe_mce_sys().ring_allocation_logic_tx)) {
 			vlog_printf(VLOG_WARNING,"%s = %d is not valid, setting logic to default = %d\n",
-					SYS_VAR_RING_ALLOCATION_LOGIC_TX, mce_sys.ring_allocation_logic_tx, MCE_DEFAULT_RING_ALLOCATION_LOGIC_TX);
-			mce_sys.ring_allocation_logic_tx = MCE_DEFAULT_RING_ALLOCATION_LOGIC_TX;
+					SYS_VAR_RING_ALLOCATION_LOGIC_TX, safe_mce_sys().ring_allocation_logic_tx, MCE_DEFAULT_RING_ALLOCATION_LOGIC_TX);
+			safe_mce_sys().ring_allocation_logic_tx = MCE_DEFAULT_RING_ALLOCATION_LOGIC_TX;
 		}
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_RING_ALLOCATION_LOGIC_RX)) != NULL) {
-		mce_sys.ring_allocation_logic_rx = (ring_logic_t)atoi(env_ptr);
-		if (!is_ring_logic_valid(mce_sys.ring_allocation_logic_rx)) {
+		safe_mce_sys().ring_allocation_logic_rx = (ring_logic_t)atoi(env_ptr);
+		if (!is_ring_logic_valid(safe_mce_sys().ring_allocation_logic_rx)) {
 			vlog_printf(VLOG_WARNING,"%s = %d is not valid, setting logic to default = %d\n",
-					SYS_VAR_RING_ALLOCATION_LOGIC_RX, mce_sys.ring_allocation_logic_rx, MCE_DEFAULT_RING_ALLOCATION_LOGIC_RX);
-			mce_sys.ring_allocation_logic_rx = MCE_DEFAULT_RING_ALLOCATION_LOGIC_RX;
+					SYS_VAR_RING_ALLOCATION_LOGIC_RX, safe_mce_sys().ring_allocation_logic_rx, MCE_DEFAULT_RING_ALLOCATION_LOGIC_RX);
+			safe_mce_sys().ring_allocation_logic_rx = MCE_DEFAULT_RING_ALLOCATION_LOGIC_RX;
 		}
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_RING_MIGRATION_RATIO_TX)) != NULL)
-		mce_sys.ring_migration_ratio_tx = (int32_t)atoi(env_ptr);
+		safe_mce_sys().ring_migration_ratio_tx = (int32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_RING_MIGRATION_RATIO_RX)) != NULL)
-		mce_sys.ring_migration_ratio_rx = (int32_t)atoi(env_ptr);
+		safe_mce_sys().ring_migration_ratio_rx = (int32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_RING_LIMIT_PER_INTERFACE)) != NULL)
-		mce_sys.ring_limit_per_interface = MAX(0, (int32_t)atoi(env_ptr));
+		safe_mce_sys().ring_limit_per_interface = MAX(0, (int32_t)atoi(env_ptr));
 
 	if ((env_ptr = getenv(SYS_VAR_TCP_MAX_SYN_RATE)) != NULL)
-		mce_sys.tcp_max_syn_rate = MIN(TCP_MAX_SYN_RATE_TOP_LIMIT, MAX(0, (int32_t)atoi(env_ptr)));
+		safe_mce_sys().tcp_max_syn_rate = MIN(TCP_MAX_SYN_RATE_TOP_LIMIT, MAX(0, (int32_t)atoi(env_ptr)));
 
 	if ((env_ptr = getenv(SYS_VAR_RX_NUM_BUFS)) != NULL)
-		mce_sys.rx_num_bufs = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().rx_num_bufs = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_RX_NUM_WRE_TO_POST_RECV)) != NULL)
-		mce_sys.rx_num_wr_to_post_recv = MIN(NUM_RX_WRE_TO_POST_RECV_MAX, MAX(1, (uint32_t)atoi(env_ptr)));
+		safe_mce_sys().rx_num_wr_to_post_recv = MIN(NUM_RX_WRE_TO_POST_RECV_MAX, MAX(1, (uint32_t)atoi(env_ptr)));
 
 	if ((env_ptr = getenv(SYS_VAR_RX_NUM_WRE)) != NULL)
-		mce_sys.rx_num_wr = (uint32_t)atoi(env_ptr);
-	if (mce_sys.rx_num_wr <= (mce_sys.rx_num_wr_to_post_recv * 2))
-		mce_sys.rx_num_wr = mce_sys.rx_num_wr_to_post_recv * 2;
+		safe_mce_sys().rx_num_wr = (uint32_t)atoi(env_ptr);
+	if (safe_mce_sys().rx_num_wr <= (safe_mce_sys().rx_num_wr_to_post_recv * 2))
+		safe_mce_sys().rx_num_wr = safe_mce_sys().rx_num_wr_to_post_recv * 2;
 
 	if ((env_ptr = getenv(SYS_VAR_RX_NUM_POLLS)) != NULL) {
-		mce_sys.rx_poll_num = atoi(env_ptr);
+		safe_mce_sys().rx_poll_num = atoi(env_ptr);
 	}
-	if (mce_sys.rx_poll_num < MCE_MIN_RX_NUM_POLLS || mce_sys.rx_poll_num >  MCE_MAX_RX_NUM_POLLS) {
-		vlog_printf(VLOG_WARNING," Rx Poll loops should be between %d and %d [%d]\n", MCE_MIN_RX_NUM_POLLS, MCE_MAX_RX_NUM_POLLS, mce_sys.rx_poll_num);
-		mce_sys.rx_poll_num = MCE_DEFAULT_RX_NUM_POLLS;
+	if (safe_mce_sys().rx_poll_num < MCE_MIN_RX_NUM_POLLS || safe_mce_sys().rx_poll_num >  MCE_MAX_RX_NUM_POLLS) {
+		vlog_printf(VLOG_WARNING," Rx Poll loops should be between %d and %d [%d]\n", MCE_MIN_RX_NUM_POLLS, MCE_MAX_RX_NUM_POLLS, safe_mce_sys().rx_poll_num);
+		safe_mce_sys().rx_poll_num = MCE_DEFAULT_RX_NUM_POLLS;
 	}
 	if ((env_ptr = getenv(SYS_VAR_RX_NUM_POLLS_INIT)) != NULL)
-		mce_sys.rx_poll_num_init = atoi(env_ptr);
-	if (mce_sys.rx_poll_num_init < MCE_MIN_RX_NUM_POLLS || mce_sys.rx_poll_num_init >  MCE_MAX_RX_NUM_POLLS) {
-		vlog_printf(VLOG_WARNING," Rx Poll loops should be between %d and %d [%d]\n", MCE_MIN_RX_NUM_POLLS, MCE_MAX_RX_NUM_POLLS, mce_sys.rx_poll_num_init);
-		mce_sys.rx_poll_num_init = MCE_DEFAULT_RX_NUM_POLLS_INIT;
+		safe_mce_sys().rx_poll_num_init = atoi(env_ptr);
+	if (safe_mce_sys().rx_poll_num_init < MCE_MIN_RX_NUM_POLLS || safe_mce_sys().rx_poll_num_init >  MCE_MAX_RX_NUM_POLLS) {
+		vlog_printf(VLOG_WARNING," Rx Poll loops should be between %d and %d [%d]\n", MCE_MIN_RX_NUM_POLLS, MCE_MAX_RX_NUM_POLLS, safe_mce_sys().rx_poll_num_init);
+		safe_mce_sys().rx_poll_num_init = MCE_DEFAULT_RX_NUM_POLLS_INIT;
 	}
-	if (mce_sys.rx_poll_num == 0)
-		mce_sys.rx_poll_num = 1; // Force at least one good polling loop
+	if (safe_mce_sys().rx_poll_num == 0)
+		safe_mce_sys().rx_poll_num = 1; // Force at least one good polling loop
 
 	if ((env_ptr = getenv(SYS_VAR_RX_UDP_POLL_OS_RATIO)) != NULL)
-		mce_sys.rx_udp_poll_os_ratio = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().rx_udp_poll_os_ratio = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_RX_UDP_HW_TS_CONVERSION)) != NULL) {
-		mce_sys.rx_udp_hw_ts_conversion = (ts_conversion_mode_t)atoi(env_ptr);
-		if ((uint32_t)mce_sys.rx_udp_hw_ts_conversion >= TS_CONVERSION_MODE_LAST) {
-			vlog_printf(VLOG_WARNING,"Rx UDP HW TS conversion size out of range [%d] (min=%d, max=%d). using default [%d]\n", mce_sys.rx_udp_hw_ts_conversion, TS_CONVERSION_MODE_DISABLE , TS_CONVERSION_MODE_LAST - 1, MCE_DEFAULT_RX_UDP_HW_TS_CONVERSION);
-			mce_sys.rx_udp_hw_ts_conversion = MCE_DEFAULT_RX_UDP_HW_TS_CONVERSION;
+		safe_mce_sys().rx_udp_hw_ts_conversion = (ts_conversion_mode_t)atoi(env_ptr);
+		if ((uint32_t)safe_mce_sys().rx_udp_hw_ts_conversion >= TS_CONVERSION_MODE_LAST) {
+			vlog_printf(VLOG_WARNING,"Rx UDP HW TS conversion size out of range [%d] (min=%d, max=%d). using default [%d]\n", safe_mce_sys().rx_udp_hw_ts_conversion, TS_CONVERSION_MODE_DISABLE , TS_CONVERSION_MODE_LAST - 1, MCE_DEFAULT_RX_UDP_HW_TS_CONVERSION);
+			safe_mce_sys().rx_udp_hw_ts_conversion = MCE_DEFAULT_RX_UDP_HW_TS_CONVERSION;
 		}
 	}
 
 	//The following 2 params were replaced by SYS_VAR_RX_UDP_POLL_OS_RATIO
 	if ((env_ptr = getenv(SYS_VAR_RX_POLL_OS_RATIO)) != NULL) {
-		mce_sys.rx_udp_poll_os_ratio = (uint32_t)atoi(env_ptr);
-		vlog_printf(VLOG_WARNING,"The parameter VMA_RX_POLL_OS_RATIO is no longer in use. Parameter VMA_RX_UDP_POLL_OS_RATIO was set to %d instead\n", mce_sys.rx_udp_poll_os_ratio);
+		safe_mce_sys().rx_udp_poll_os_ratio = (uint32_t)atoi(env_ptr);
+		vlog_printf(VLOG_WARNING,"The parameter VMA_RX_POLL_OS_RATIO is no longer in use. Parameter VMA_RX_UDP_POLL_OS_RATIO was set to %d instead\n", safe_mce_sys().rx_udp_poll_os_ratio);
 	}
 	if ((env_ptr = getenv(SYS_VAR_RX_SKIP_OS)) != NULL) {
-		mce_sys.rx_udp_poll_os_ratio = (uint32_t)atoi(env_ptr);
-		vlog_printf(VLOG_WARNING,"The parameter VMA_RX_SKIP_OS is no longer in use. Parameter VMA_RX_UDP_POLL_OS_RATIO was set to %d instead\n", mce_sys.rx_udp_poll_os_ratio);
+		safe_mce_sys().rx_udp_poll_os_ratio = (uint32_t)atoi(env_ptr);
+		vlog_printf(VLOG_WARNING,"The parameter VMA_RX_SKIP_OS is no longer in use. Parameter VMA_RX_UDP_POLL_OS_RATIO was set to %d instead\n", safe_mce_sys().rx_udp_poll_os_ratio);
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_RX_POLL_YIELD)) != NULL)
-		mce_sys.rx_poll_yield_loops = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().rx_poll_yield_loops = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_SELECT_CPU_USAGE_STATS)) != NULL)
-		mce_sys.select_handle_cpu_usage_stats = atoi(env_ptr) ? true : false;
+		safe_mce_sys().select_handle_cpu_usage_stats = atoi(env_ptr) ? true : false;
 
 	if ((env_ptr = getenv(SYS_VAR_RX_BYTE_MIN_LIMIT)) != NULL)
-		mce_sys.rx_ready_byte_min_limit = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().rx_ready_byte_min_limit = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_RX_PREFETCH_BYTES)) != NULL)
-		mce_sys.rx_prefetch_bytes = (uint32_t)atoi(env_ptr);
-	if (mce_sys.rx_prefetch_bytes < MCE_MIN_RX_PREFETCH_BYTES || mce_sys.rx_prefetch_bytes >  MCE_MAX_RX_PREFETCH_BYTES) {
-		vlog_printf(VLOG_WARNING," Rx prefetch bytes size out of range [%d] (min=%d, max=%d)\n", mce_sys.rx_prefetch_bytes, MCE_MIN_RX_PREFETCH_BYTES, MCE_MAX_RX_PREFETCH_BYTES);
-		mce_sys.rx_prefetch_bytes = MCE_DEFAULT_RX_PREFETCH_BYTES;
+		safe_mce_sys().rx_prefetch_bytes = (uint32_t)atoi(env_ptr);
+	if (safe_mce_sys().rx_prefetch_bytes < MCE_MIN_RX_PREFETCH_BYTES || safe_mce_sys().rx_prefetch_bytes >  MCE_MAX_RX_PREFETCH_BYTES) {
+		vlog_printf(VLOG_WARNING," Rx prefetch bytes size out of range [%d] (min=%d, max=%d)\n", safe_mce_sys().rx_prefetch_bytes, MCE_MIN_RX_PREFETCH_BYTES, MCE_MAX_RX_PREFETCH_BYTES);
+		safe_mce_sys().rx_prefetch_bytes = MCE_DEFAULT_RX_PREFETCH_BYTES;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_RX_PREFETCH_BYTES_BEFORE_POLL)) != NULL)
-		mce_sys.rx_prefetch_bytes_before_poll = (uint32_t)atoi(env_ptr);
-	if (mce_sys.rx_prefetch_bytes_before_poll != 0 && (mce_sys.rx_prefetch_bytes_before_poll < MCE_MIN_RX_PREFETCH_BYTES || mce_sys.rx_prefetch_bytes_before_poll >  MCE_MAX_RX_PREFETCH_BYTES)) {
-		vlog_printf(VLOG_WARNING," Rx prefetch bytes size out of range [%d] (min=%d, max=%d, disabled=0)\n", mce_sys.rx_prefetch_bytes_before_poll, MCE_MIN_RX_PREFETCH_BYTES, MCE_MAX_RX_PREFETCH_BYTES);
-		mce_sys.rx_prefetch_bytes_before_poll = MCE_DEFAULT_RX_PREFETCH_BYTES_BEFORE_POLL;
+		safe_mce_sys().rx_prefetch_bytes_before_poll = (uint32_t)atoi(env_ptr);
+	if (safe_mce_sys().rx_prefetch_bytes_before_poll != 0 && (safe_mce_sys().rx_prefetch_bytes_before_poll < MCE_MIN_RX_PREFETCH_BYTES || safe_mce_sys().rx_prefetch_bytes_before_poll >  MCE_MAX_RX_PREFETCH_BYTES)) {
+		vlog_printf(VLOG_WARNING," Rx prefetch bytes size out of range [%d] (min=%d, max=%d, disabled=0)\n", safe_mce_sys().rx_prefetch_bytes_before_poll, MCE_MIN_RX_PREFETCH_BYTES, MCE_MAX_RX_PREFETCH_BYTES);
+		safe_mce_sys().rx_prefetch_bytes_before_poll = MCE_DEFAULT_RX_PREFETCH_BYTES_BEFORE_POLL;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_RX_CQ_DRAIN_RATE_NSEC)) != NULL)
-		mce_sys.rx_cq_drain_rate_nsec = atoi(env_ptr);
+		safe_mce_sys().rx_cq_drain_rate_nsec = atoi(env_ptr);
 	// Update the rx cq polling rate for draining logic
 	tscval_t tsc_per_second = get_tsc_rate_per_second();
-	mce_sys.rx_delta_tsc_between_cq_polls = tsc_per_second * mce_sys.rx_cq_drain_rate_nsec / NSEC_PER_SEC;
+	safe_mce_sys().rx_delta_tsc_between_cq_polls = tsc_per_second * safe_mce_sys().rx_cq_drain_rate_nsec / NSEC_PER_SEC;
 
 	if ((env_ptr = getenv(SYS_VAR_GRO_STREAMS_MAX)) != NULL)
-		mce_sys.gro_streams_max = MAX(atoi(env_ptr), 0);
+		safe_mce_sys().gro_streams_max = MAX(atoi(env_ptr), 0);
 
 	if ((env_ptr = getenv(SYS_VAR_TCP_3T_RULES)) != NULL)
-		mce_sys.tcp_3t_rules = atoi(env_ptr) ? true : false;
+		safe_mce_sys().tcp_3t_rules = atoi(env_ptr) ? true : false;
 
 	if ((env_ptr = getenv(SYS_VAR_ETH_MC_L2_ONLY_RULES)) != NULL)
-		mce_sys.eth_mc_l2_only_rules = atoi(env_ptr) ? true : false;
+		safe_mce_sys().eth_mc_l2_only_rules = atoi(env_ptr) ? true : false;
 
 	if ((env_ptr = getenv(SYS_VAR_SELECT_NUM_POLLS)) != NULL)
-		mce_sys.select_poll_num = atoi(env_ptr);
-	if (mce_sys.select_poll_num < MCE_MIN_RX_NUM_POLLS || mce_sys.select_poll_num >  MCE_MAX_RX_NUM_POLLS) {
-		vlog_printf(VLOG_WARNING," Select Poll loops can not be below zero [%d]\n", mce_sys.select_poll_num);
-		mce_sys.select_poll_num = MCE_DEFAULT_SELECT_NUM_POLLS;
+		safe_mce_sys().select_poll_num = atoi(env_ptr);
+	if (safe_mce_sys().select_poll_num < MCE_MIN_RX_NUM_POLLS || safe_mce_sys().select_poll_num >  MCE_MAX_RX_NUM_POLLS) {
+		vlog_printf(VLOG_WARNING," Select Poll loops can not be below zero [%d]\n", safe_mce_sys().select_poll_num);
+		safe_mce_sys().select_poll_num = MCE_DEFAULT_SELECT_NUM_POLLS;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_SELECT_POLL_OS_FORCE)) != NULL)
-		mce_sys.select_poll_os_force = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().select_poll_os_force = (uint32_t)atoi(env_ptr);
 
-	if (mce_sys.select_poll_os_force) {
-		mce_sys.select_poll_os_ratio = 1;
-		mce_sys.select_skip_os_fd_check = 1;
+	if (safe_mce_sys().select_poll_os_force) {
+		safe_mce_sys().select_poll_os_ratio = 1;
+		safe_mce_sys().select_skip_os_fd_check = 1;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_SELECT_POLL_OS_RATIO)) != NULL)
-		mce_sys.select_poll_os_ratio = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().select_poll_os_ratio = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_SELECT_SKIP_OS)) != NULL)
-		mce_sys.select_skip_os_fd_check = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().select_skip_os_fd_check = (uint32_t)atoi(env_ptr);
 
 
-	if (mce_sys.rx_poll_num < 0 ||  mce_sys.select_poll_num < 0) {
-		mce_sys.cq_moderation_enable = false;
+	if (safe_mce_sys().rx_poll_num < 0 ||  safe_mce_sys().select_poll_num < 0) {
+		safe_mce_sys().cq_moderation_enable = false;
 	}
 	if ((env_ptr = getenv(SYS_VAR_CQ_MODERATION_ENABLE)) != NULL)
-		mce_sys.cq_moderation_enable = atoi(env_ptr) ? true : false;
+		safe_mce_sys().cq_moderation_enable = atoi(env_ptr) ? true : false;
 #ifndef DEFINED_IBV_EXP_CQ_MODERATION
-	mce_sys.cq_moderation_enable = false;
+	safe_mce_sys().cq_moderation_enable = false;
 #endif
 
 	if ((env_ptr = getenv(SYS_VAR_CQ_MODERATION_COUNT)) != NULL)
-		mce_sys.cq_moderation_count = (uint32_t)atoi(env_ptr);
-	if (mce_sys.cq_moderation_count > mce_sys.rx_num_wr / 2) {
-		mce_sys.cq_moderation_count = mce_sys.rx_num_wr / 2;
+		safe_mce_sys().cq_moderation_count = (uint32_t)atoi(env_ptr);
+	if (safe_mce_sys().cq_moderation_count > safe_mce_sys().rx_num_wr / 2) {
+		safe_mce_sys().cq_moderation_count = safe_mce_sys().rx_num_wr / 2;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_CQ_MODERATION_PERIOD_USEC)) != NULL)
-		mce_sys.cq_moderation_period_usec = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().cq_moderation_period_usec = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_CQ_AIM_MAX_COUNT)) != NULL)
-		mce_sys.cq_aim_max_count = (uint32_t)atoi(env_ptr);
-	if (mce_sys.cq_aim_max_count > mce_sys.rx_num_wr / 2){
-		mce_sys.cq_aim_max_count = mce_sys.rx_num_wr / 2;
+		safe_mce_sys().cq_aim_max_count = (uint32_t)atoi(env_ptr);
+	if (safe_mce_sys().cq_aim_max_count > safe_mce_sys().rx_num_wr / 2){
+		safe_mce_sys().cq_aim_max_count = safe_mce_sys().rx_num_wr / 2;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_CQ_AIM_MAX_PERIOD_USEC)) != NULL)
-		mce_sys.cq_aim_max_period_usec = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().cq_aim_max_period_usec = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_CQ_AIM_INTERVAL_MSEC)) != NULL)
-		mce_sys.cq_aim_interval_msec = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().cq_aim_interval_msec = (uint32_t)atoi(env_ptr);
 
-	if (!mce_sys.cq_moderation_enable) {
-		mce_sys.cq_aim_interval_msec = MCE_CQ_ADAPTIVE_MODERATION_DISABLED;
+	if (!safe_mce_sys().cq_moderation_enable) {
+		safe_mce_sys().cq_aim_interval_msec = MCE_CQ_ADAPTIVE_MODERATION_DISABLED;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_CQ_AIM_INTERRUPTS_RATE_PER_SEC)) != NULL)
-		mce_sys.cq_aim_interrupts_rate_per_sec = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().cq_aim_interrupts_rate_per_sec = (uint32_t)atoi(env_ptr);
 
 
 
 	if ((env_ptr = getenv(SYS_VAR_CQ_POLL_BATCH_MAX)) != NULL)
-		mce_sys.cq_poll_batch_max = (uint32_t)atoi(env_ptr);
-	if (mce_sys.cq_poll_batch_max < MCE_MIN_CQ_POLL_BATCH || mce_sys.cq_poll_batch_max >  MCE_MAX_CQ_POLL_BATCH) {
-		vlog_printf(VLOG_WARNING," Rx number of cq poll batchs should be between %d and %d [%d]\n", MCE_MIN_CQ_POLL_BATCH, MCE_MAX_CQ_POLL_BATCH, mce_sys.cq_poll_batch_max);
-		mce_sys.cq_poll_batch_max = MCE_DEFAULT_CQ_POLL_BATCH;
+		safe_mce_sys().cq_poll_batch_max = (uint32_t)atoi(env_ptr);
+	if (safe_mce_sys().cq_poll_batch_max < MCE_MIN_CQ_POLL_BATCH || safe_mce_sys().cq_poll_batch_max >  MCE_MAX_CQ_POLL_BATCH) {
+		vlog_printf(VLOG_WARNING," Rx number of cq poll batchs should be between %d and %d [%d]\n", MCE_MIN_CQ_POLL_BATCH, MCE_MAX_CQ_POLL_BATCH, safe_mce_sys().cq_poll_batch_max);
+		safe_mce_sys().cq_poll_batch_max = MCE_DEFAULT_CQ_POLL_BATCH;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_PROGRESS_ENGINE_INTERVAL)) != NULL)
-		mce_sys.progress_engine_interval_msec = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().progress_engine_interval_msec = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_PROGRESS_ENGINE_WCE_MAX)) != NULL)
-		mce_sys.progress_engine_wce_max = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().progress_engine_wce_max = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_CQ_KEEP_QP_FULL)) != NULL)
-		mce_sys.cq_keep_qp_full = atoi(env_ptr) ? true : false;
+		safe_mce_sys().cq_keep_qp_full = atoi(env_ptr) ? true : false;
 
 	if ((env_ptr = getenv(SYS_VAR_QP_COMPENSATION_LEVEL)) != NULL)
-		mce_sys.qp_compensation_level = (uint32_t)atoi(env_ptr);
-	if (mce_sys.qp_compensation_level < mce_sys.rx_num_wr_to_post_recv)
-		mce_sys.qp_compensation_level = mce_sys.rx_num_wr_to_post_recv;
+		safe_mce_sys().qp_compensation_level = (uint32_t)atoi(env_ptr);
+	if (safe_mce_sys().qp_compensation_level < safe_mce_sys().rx_num_wr_to_post_recv)
+		safe_mce_sys().qp_compensation_level = safe_mce_sys().rx_num_wr_to_post_recv;
 
 	if ((env_ptr = getenv(SYS_VAR_OFFLOADED_SOCKETS)) != NULL)
-		mce_sys.offloaded_sockets = atoi(env_ptr) ? true : false;
+		safe_mce_sys().offloaded_sockets = atoi(env_ptr) ? true : false;
 
 	if ((env_ptr = getenv(SYS_VAR_TIMER_RESOLUTION_MSEC)) != NULL)
-			mce_sys.timer_resolution_msec = atoi(env_ptr);
+			safe_mce_sys().timer_resolution_msec = atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_TCP_TIMER_RESOLUTION_MSEC)) != NULL) {
-			mce_sys.tcp_timer_resolution_msec = atoi(env_ptr);
+			safe_mce_sys().tcp_timer_resolution_msec = atoi(env_ptr);
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_TCP_CTL_THREAD)) != NULL) {
-			mce_sys.tcp_ctl_thread = (tcp_ctl_thread_t)atoi(env_ptr);
-			if (mce_sys.tcp_ctl_thread >= CTL_THREAD_LAST || mce_sys.tcp_ctl_thread < 0)
-				mce_sys.tcp_ctl_thread = MCE_DEFAULT_TCP_CTL_THREAD;
+			safe_mce_sys().tcp_ctl_thread = (tcp_ctl_thread_t)atoi(env_ptr);
+			if (safe_mce_sys().tcp_ctl_thread >= CTL_THREAD_LAST || safe_mce_sys().tcp_ctl_thread < 0)
+				safe_mce_sys().tcp_ctl_thread = MCE_DEFAULT_TCP_CTL_THREAD;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_TCP_TIMESTAMP_OPTION)) != NULL) {
-		mce_sys.tcp_ts_opt = (tcp_ts_opt_t)atoi(env_ptr);
-		if ((uint32_t) mce_sys.tcp_ts_opt >= TCP_TS_OPTION_LAST) {
-			vlog_printf(VLOG_WARNING,"TCP timestamp option value is out of range [%d] (min=%d, max=%d). using default [%d]\n", mce_sys.tcp_ts_opt, TCP_TS_OPTION_DISABLE , TCP_TS_OPTION_LAST - 1, MCE_DEFAULT_TCP_TIMESTAMP_OPTION);
-			mce_sys.tcp_ts_opt = MCE_DEFAULT_TCP_TIMESTAMP_OPTION;
+		safe_mce_sys().tcp_ts_opt = (tcp_ts_opt_t)atoi(env_ptr);
+		if ((uint32_t) safe_mce_sys().tcp_ts_opt >= TCP_TS_OPTION_LAST) {
+			vlog_printf(VLOG_WARNING,"TCP timestamp option value is out of range [%d] (min=%d, max=%d). using default [%d]\n", safe_mce_sys().tcp_ts_opt, TCP_TS_OPTION_DISABLE , TCP_TS_OPTION_LAST - 1, MCE_DEFAULT_TCP_TIMESTAMP_OPTION);
+			safe_mce_sys().tcp_ts_opt = MCE_DEFAULT_TCP_TIMESTAMP_OPTION;
 		}
 	}
 
-	// TODO: this should be replaced by calling "exception_handling.init()" that will be called from mce_sys.init()
+	// TODO: this should be replaced by calling "exception_handling.init()" that will be called from safe_mce_sys().init()
 	if ((env_ptr = getenv(vma_exception_handling::getSysVar())) != NULL) {
-			mce_sys.exception_handling = vma_exception_handling(atoi(env_ptr)); // vma_exception_handling is responsible for its invariant
+			safe_mce_sys().exception_handling = vma_exception_handling(atoi(env_ptr)); // vma_exception_handling is responsible for its invariant
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD)) != NULL) {
-			mce_sys.avoid_sys_calls_on_tcp_fd = atoi(env_ptr) ? true : false;
+			safe_mce_sys().avoid_sys_calls_on_tcp_fd = atoi(env_ptr) ? true : false;
 	}
 
-	if(mce_sys.tcp_timer_resolution_msec < mce_sys.timer_resolution_msec){
-		vlog_printf(VLOG_WARNING," TCP timer resolution [%s=%d] cannot be smaller than timer resolution [%s=%d]. Setting TCP timer resolution to %d msec.\n", SYS_VAR_TCP_TIMER_RESOLUTION_MSEC, mce_sys.tcp_timer_resolution_msec, SYS_VAR_TIMER_RESOLUTION_MSEC, mce_sys.timer_resolution_msec, mce_sys.timer_resolution_msec);
-		mce_sys.tcp_timer_resolution_msec = mce_sys.timer_resolution_msec;
+	if(safe_mce_sys().tcp_timer_resolution_msec < safe_mce_sys().timer_resolution_msec){
+		vlog_printf(VLOG_WARNING," TCP timer resolution [%s=%d] cannot be smaller than timer resolution [%s=%d]. Setting TCP timer resolution to %d msec.\n", SYS_VAR_TCP_TIMER_RESOLUTION_MSEC, safe_mce_sys().tcp_timer_resolution_msec, SYS_VAR_TIMER_RESOLUTION_MSEC, safe_mce_sys().timer_resolution_msec, safe_mce_sys().timer_resolution_msec);
+		safe_mce_sys().tcp_timer_resolution_msec = safe_mce_sys().timer_resolution_msec;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_INTERNAL_THREAD_ARM_CQ)) != NULL)
-		mce_sys.internal_thread_arm_cq_enabled = atoi(env_ptr) ? true : false;
+		safe_mce_sys().internal_thread_arm_cq_enabled = atoi(env_ptr) ? true : false;
 
         if ((env_ptr = getenv(SYS_VAR_INTERNAL_THREAD_CPUSET)) != NULL) {
-               snprintf(mce_sys.internal_thread_cpuset, FILENAME_MAX, "%s", env_ptr);
+               snprintf(safe_mce_sys().internal_thread_cpuset, FILENAME_MAX, "%s", env_ptr);
         }
 
 	// handle internal thread affinity - default is CPU-0
 	if ((env_ptr = getenv(SYS_VAR_INTERNAL_THREAD_AFFINITY)) != NULL) {
-		snprintf(mce_sys.internal_thread_affinity_str, sizeof(mce_sys.internal_thread_affinity_str), "%s", env_ptr);
+		snprintf(safe_mce_sys().internal_thread_affinity_str, sizeof(safe_mce_sys().internal_thread_affinity_str), "%s", env_ptr);
 	}
-	if (env_to_cpuset(mce_sys.internal_thread_affinity_str, &mce_sys.internal_thread_affinity)) {
+	if (env_to_cpuset(safe_mce_sys().internal_thread_affinity_str, &safe_mce_sys().internal_thread_affinity)) {
 		vlog_printf(VLOG_WARNING," Failed to set internal thread affinity: %s...  deferring to cpu-0.\n",
-		            mce_sys.internal_thread_affinity_str);
+		            safe_mce_sys().internal_thread_affinity_str);
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_WAIT_AFTER_JOIN_MSEC)) != NULL)
-		mce_sys.wait_after_join_msec = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().wait_after_join_msec = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_THREAD_MODE)) != NULL) {
-		mce_sys.thread_mode = (thread_mode_t)atoi(env_ptr);
-		if (mce_sys.thread_mode < 0 || mce_sys.thread_mode >= THREAD_MODE_LAST)
-			mce_sys.thread_mode = MCE_DEFAULT_THREAD_MODE;
+		safe_mce_sys().thread_mode = (thread_mode_t)atoi(env_ptr);
+		if (safe_mce_sys().thread_mode < 0 || safe_mce_sys().thread_mode >= THREAD_MODE_LAST)
+			safe_mce_sys().thread_mode = MCE_DEFAULT_THREAD_MODE;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_BUFFER_BATCHING_MODE)) != NULL) {
-		mce_sys.buffer_batching_mode = (buffer_batching_mode_t)atoi(env_ptr);
-		if (mce_sys.buffer_batching_mode < 0 || mce_sys.buffer_batching_mode >= BUFFER_BATCHING_LAST)
-			mce_sys.buffer_batching_mode = MCE_DEFAULT_BUFFER_BATCHING_MODE;
-		if (mce_sys.buffer_batching_mode == BUFFER_BATCHING_NONE) {
-			mce_sys.tx_bufs_batch_tcp = 1;
-			mce_sys.tx_bufs_batch_udp = 1;
-			mce_sys.rx_bufs_batch = 1;
+		safe_mce_sys().buffer_batching_mode = (buffer_batching_mode_t)atoi(env_ptr);
+		if (safe_mce_sys().buffer_batching_mode < 0 || safe_mce_sys().buffer_batching_mode >= BUFFER_BATCHING_LAST)
+			safe_mce_sys().buffer_batching_mode = MCE_DEFAULT_BUFFER_BATCHING_MODE;
+		if (safe_mce_sys().buffer_batching_mode == BUFFER_BATCHING_NONE) {
+			safe_mce_sys().tx_bufs_batch_tcp = 1;
+			safe_mce_sys().tx_bufs_batch_udp = 1;
+			safe_mce_sys().rx_bufs_batch = 1;
 		}
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_NETLINK_TIMER_MSEC)) != NULL)
-		mce_sys.timer_netlink_update_msec = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().timer_netlink_update_msec = (uint32_t)atoi(env_ptr);
 
 
 	if((env_ptr = getenv(SYS_VAR_NEIGH_NUM_ERR_RETRIES))!= NULL)  {
-		mce_sys.neigh_num_err_retries = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().neigh_num_err_retries = (uint32_t)atoi(env_ptr);
 	}
 	if((env_ptr = getenv(SYS_VAR_NEIGH_UC_ARP_DELAY_MSEC)) != NULL){
-		mce_sys.neigh_wait_till_send_arp_msec = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().neigh_wait_till_send_arp_msec = (uint32_t)atoi(env_ptr);
 	}
 	if((env_ptr = getenv(SYS_VAR_NEIGH_UC_ARP_QUATA)) != NULL){
-		mce_sys.neigh_uc_arp_quata = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().neigh_uc_arp_quata = (uint32_t)atoi(env_ptr);
 	}
 
 	if ((getenv(SYS_VAR_HUGETBL)) != NULL)
@@ -1333,39 +1336,39 @@ void get_env_params()
 	if (tempVal < 0 || tempVal >= ALLOC_TYPE_LAST)
 		tempVal = MCE_DEFAULT_MEM_ALLOC_TYPE;
 
-	mce_sys.mem_alloc_type = (alloc_mode_t)tempVal;
+	safe_mce_sys().mem_alloc_type = (alloc_mode_t)tempVal;
 
 	if ((env_ptr = getenv(SYS_VAR_BF)) != NULL)
-		mce_sys.handle_bf = atoi(env_ptr) ? true : false;
+		safe_mce_sys().handle_bf = atoi(env_ptr) ? true : false;
 
 	if ((env_ptr = getenv(SYS_VAR_FORK)) != NULL)
-		mce_sys.handle_fork = atoi(env_ptr) ? true : false;
+		safe_mce_sys().handle_fork = atoi(env_ptr) ? true : false;
 
 	if((env_ptr = getenv(SYS_VAR_IPOIB )) != NULL)
-		mce_sys.enable_ipoib = atoi(env_ptr) ? true : false;
+		safe_mce_sys().enable_ipoib = atoi(env_ptr) ? true : false;
 
 	if ((env_ptr = getenv(SYS_VAR_CLOSE_ON_DUP2)) != NULL)
-		mce_sys.close_on_dup2 = atoi(env_ptr) ? true : false;
+		safe_mce_sys().close_on_dup2 = atoi(env_ptr) ? true : false;
 
 	if ((env_ptr = getenv(SYS_VAR_MTU)) != NULL)
-		mce_sys.mtu = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().mtu = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_MSS)) != NULL)
-		mce_sys.lwip_mss = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().lwip_mss = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_TCP_CC_ALGO)) != NULL)
-		mce_sys.lwip_cc_algo_mod = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().lwip_cc_algo_mod = (uint32_t)atoi(env_ptr);
 
 #ifdef VMA_TIME_MEASURE
 	if ((env_ptr = getenv(SYS_VAR_VMA_TIME_MEASURE_NUM_SAMPLES)) != NULL) {
-		mce_sys.vma_time_measure_num_samples = (uint32_t)atoi(env_ptr);
-		if(mce_sys.vma_time_measure_num_samples > INST_SIZE){
+		safe_mce_sys().vma_time_measure_num_samples = (uint32_t)atoi(env_ptr);
+		if(safe_mce_sys().vma_time_measure_num_samples > INST_SIZE){
 			vlog_printf(VLOG_WARNING, "The value of '%s' is bigger than %d. Time samples over %d will be dropped.\n", SYS_VAR_VMA_TIME_MEASURE_NUM_SAMPLES, INST_SIZE, INST_SIZE);
 		}
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_VMA_TIME_MEASURE_DUMP_FILE)) != NULL){
-		read_env_variable_with_pid(mce_sys.vma_time_measure_filename, sizeof(mce_sys.vma_time_measure_filename), env_ptr);
+		read_env_variable_with_pid(safe_mce_sys().vma_time_measure_filename, sizeof(safe_mce_sys().vma_time_measure_filename), env_ptr);
 	}
 #endif
 
@@ -1378,7 +1381,7 @@ void set_env_params()
 
 	//setenv("MLX4_SINGLE_THREADED", "1", 0);
 
-	if(mce_sys.handle_bf){
+	if(safe_mce_sys().handle_bf){
                 setenv("MLX4_POST_SEND_PREFER_BF", "1", 1);
 		setenv("MLX5_POST_SEND_PREFER_BF", "1", 1);
         } else {
@@ -1387,7 +1390,7 @@ void set_env_params()
 		setenv("MLX5_POST_SEND_PREFER_BF", "0", 1);
         }
 
-        switch (mce_sys.mem_alloc_type) {
+        switch (safe_mce_sys().mem_alloc_type) {
         case ALLOC_TYPE_ANON:
                 setenv("MLX_QP_ALLOC_TYPE", "ANON", 0);
                 setenv("MLX_CQ_ALLOC_TYPE", "ANON", 0);
@@ -1407,7 +1410,7 @@ void set_env_params()
 
 void prepare_fork()
 {
-	if (mce_sys.handle_fork && !g_init_ibv_fork_done) {
+	if (safe_mce_sys().handle_fork && !g_init_ibv_fork_done) {
                 IF_VERBS_FAILURE(ibv_fork_init()) {
                         vlog_printf(VLOG_DEBUG,"ibv_fork_init failed (errno=%d %m)\n", errno);
                         vlog_printf(VLOG_ERROR, "************************************************************************\n");
@@ -1442,7 +1445,7 @@ extern "C" void sock_redirect_main(void)
 
 	tv_clear(&g_last_zero_polling_time);
 
-	if (mce_sys.handle_segfault) {
+	if (safe_mce_sys().handle_segfault) {
 		register_handler_segv();
 	}
 
@@ -1454,7 +1457,7 @@ extern "C" void sock_redirect_main(void)
 extern "C" void sock_redirect_exit(void)
 {
 #ifdef VMA_TIME_MEASURE
-	finit_instrumentation(mce_sys.vma_time_measure_filename);
+	finit_instrumentation(safe_mce_sys().vma_time_measure_filename);
 #endif
 	vlog_printf(VLOG_DEBUG, "%s()\n", __FUNCTION__);
 	vma_shmem_stats_close();
@@ -1602,15 +1605,15 @@ static void do_global_ctors_helper()
 
 	NEW_CTOR(g_p_igmp_mgr, igmp_mgr());
 
-	NEW_CTOR(g_buffer_pool_rx, buffer_pool(mce_sys.rx_num_bufs, RX_BUF_SIZE(g_p_net_device_table_mgr->get_max_mtu()), NULL, NULL, buffer_pool::free_rx_lwip_pbuf_custom)); 	
+	NEW_CTOR(g_buffer_pool_rx, buffer_pool(safe_mce_sys().rx_num_bufs, RX_BUF_SIZE(g_p_net_device_table_mgr->get_max_mtu()), NULL, NULL, buffer_pool::free_rx_lwip_pbuf_custom));
  	g_buffer_pool_rx->set_RX_TX_for_stats(true);
 
- 	NEW_CTOR(g_buffer_pool_tx, buffer_pool(mce_sys.tx_num_bufs, get_lwip_tcp_mss(g_p_net_device_table_mgr->get_max_mtu(), mce_sys.lwip_mss) + 92, NULL, NULL, buffer_pool::free_tx_lwip_pbuf_custom));
+ 	NEW_CTOR(g_buffer_pool_tx, buffer_pool(safe_mce_sys().tx_num_bufs, get_lwip_tcp_mss(g_p_net_device_table_mgr->get_max_mtu(), safe_mce_sys().lwip_mss) + 92, NULL, NULL, buffer_pool::free_tx_lwip_pbuf_custom));
  	g_buffer_pool_tx->set_RX_TX_for_stats(false);
 
- 	NEW_CTOR(g_tcp_seg_pool,  tcp_seg_pool(mce_sys.tx_num_segs_tcp));
+ 	NEW_CTOR(g_tcp_seg_pool,  tcp_seg_pool(safe_mce_sys().tx_num_segs_tcp));
 
- 	NEW_CTOR(g_tcp_timers_collection, tcp_timers_collection(mce_sys.tcp_timer_resolution_msec, mce_sys.timer_resolution_msec));
+ 	NEW_CTOR(g_tcp_timers_collection, tcp_timers_collection(safe_mce_sys().tcp_timer_resolution_msec, safe_mce_sys().timer_resolution_msec));
 
 	NEW_CTOR(g_p_vlogger_timer_handler, vlogger_timer_handler()); 
 
@@ -1618,15 +1621,15 @@ static void do_global_ctors_helper()
 
 	NEW_CTOR(g_p_fd_collection, fd_collection());
 
-	if (check_if_regular_file (mce_sys.conf_filename))
+	if (check_if_regular_file (safe_mce_sys().conf_filename))
 	{
 		vlog_printf(VLOG_WARNING,"FAILED to read VMA configuration file. %s is not a regular file.\n",
-				mce_sys.conf_filename);
-		if (strcmp (MCE_DEFAULT_CONF_FILE, mce_sys.conf_filename))
+				safe_mce_sys().conf_filename);
+		if (strcmp (MCE_DEFAULT_CONF_FILE, safe_mce_sys().conf_filename))
 			vlog_printf(VLOG_INFO,"Please see README.txt section regarding VMA_CONFIG_FILE\n");
 	}
-	else if (__vma_parse_config_file(mce_sys.conf_filename))
-		vlog_printf(VLOG_WARNING,"FAILED to read VMA configuration file: %s\n", mce_sys.conf_filename);
+	else if (__vma_parse_config_file(safe_mce_sys().conf_filename))
+		vlog_printf(VLOG_WARNING,"FAILED to read VMA configuration file: %s\n", safe_mce_sys().conf_filename);
 
 
 	// initialize LWIP tcp/ip stack
@@ -1653,7 +1656,7 @@ static void do_global_ctors_helper()
 		BULLSEYE_EXCLUDE_BLOCK_END
 		g_p_event_handler_manager->register_command_event(fd, cmd_nl);
 		g_p_event_handler_manager->register_timer_event(
-				mce_sys.timer_netlink_update_msec,
+				safe_mce_sys().timer_netlink_update_msec,
 				cmd_nl,
 				PERIODIC_TIMER,
 				NULL);
@@ -1716,7 +1719,7 @@ void check_netperf_flags()
         bool b_D_flag = false, b_f_flag = false;
         char add_flags[4];
 
-        strcpy(cmd_line, mce_sys.app_name);
+        strcpy(cmd_line, safe_mce_sys().app_name);
         pch = strtok(cmd_line, " ");
 
         command = basename(pch); //extract only "netserver" from full path
@@ -1745,7 +1748,7 @@ void check_netperf_flags()
                 if (!b_f_flag)
                         add_flags[1] == 0 ? add_flags[1] = 'f' : add_flags[2] = 'f';
                 vlog_printf(VLOG_WARNING, "Recommended command line: %s %s\n",
-                                mce_sys.app_name, add_flags);
+                                safe_mce_sys().app_name, add_flags);
         }
 }
 
@@ -1767,7 +1770,7 @@ extern "C" int main_init(void)
 
 	g_init_global_ctors_done = false;
 
-	vlog_start("VMA", mce_sys.log_level, mce_sys.log_filename, mce_sys.log_details, mce_sys.log_colors);
+	vlog_start("VMA", safe_mce_sys().log_level, safe_mce_sys().log_filename, safe_mce_sys().log_details, safe_mce_sys().log_colors);
 
 	print_vma_global_settings();
 	get_orig_funcs();
@@ -1777,11 +1780,11 @@ extern "C" int main_init(void)
 	check_flow_steering_log_num_mgm_entry_size();
 	check_netperf_flags();
 
-	if (*mce_sys.stats_filename) {
-		if (check_if_regular_file (mce_sys.stats_filename))
-			vlog_printf(VLOG_WARNING,"FAILED to create VMA statistics file. %s is not a regular file.\n", mce_sys.stats_filename);
-		else if (!(g_stats_file = fopen(mce_sys.stats_filename, "w")))
-				vlog_printf(VLOG_WARNING," Couldn't open statistics file: %s\n", mce_sys.stats_filename);
+	if (*safe_mce_sys().stats_filename) {
+		if (check_if_regular_file (safe_mce_sys().stats_filename))
+			vlog_printf(VLOG_WARNING,"FAILED to create VMA statistics file. %s is not a regular file.\n", safe_mce_sys().stats_filename);
+		else if (!(g_stats_file = fopen(safe_mce_sys().stats_filename, "w")))
+				vlog_printf(VLOG_WARNING," Couldn't open statistics file: %s\n", safe_mce_sys().stats_filename);
 	}
 
 	sock_redirect_main();
