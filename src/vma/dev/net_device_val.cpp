@@ -700,7 +700,9 @@ void net_device_val_eth::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_i
 
 	m_vlan = get_vlan_id_from_ifname(m_name.c_str());
 	if (m_vlan && m_bond != NO_BOND && m_bond_fail_over_mac == 1) {
-		nd_logdbg("vlan over bond while fail_ove_mac=1 is not supported, fallback to OS");
+		vlog_printf(VLOG_WARNING, " ******************************************************************\n");
+		vlog_printf(VLOG_WARNING, "%s: vlan over bond while fail_over_mac=1 is not offloaded\n", m_name.c_str());
+		vlog_printf(VLOG_WARNING, " ******************************************************************\n");
 		m_state = INVALID;
 	}
 	if(!m_vlan && ifa->ifa_flags & IFF_MASTER) {

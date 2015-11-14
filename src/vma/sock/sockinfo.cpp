@@ -367,7 +367,7 @@ bool sockinfo::attach_receiver(flow_tuple_with_local_if &flow_key)
 		BULLSEYE_EXCLUDE_BLOCK_START
 		cache_entry_subject<ip_address, net_device_val*>* p_ces = NULL;
 		if (!g_p_net_device_table_mgr->register_observer(ip_local, &m_rx_nd_observer, &p_ces)) {
-			si_logerr("Failed registering as observer for local ip %s", ip_local.to_str().c_str());
+			si_logdbg("Failed registering as observer for local ip %s", ip_local.to_str().c_str());
 			return false;
 		}
 		nd_resources.p_nde = (net_device_entry*)p_ces;

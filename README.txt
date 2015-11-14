@@ -1009,18 +1009,18 @@ Below is a short script to help you release VMAs unused huge pages resources:
 
 * Not supported Bonding Configuration:
 
- VMA WARNING:******************************************************************************
+ VMA WARNING: ******************************************************************************
  VMA WARNING: VMA doesn't support current bonding configuration of bond0.
- VMA WARNING: The only supported bonding mode is "active-backup(#1)" with "fail_over_mac=1"
- VMA WARNING: or "fail_over_mac=0".
+ VMA WARNING: The only supported bonding mode is "802.3ad(#4)" or "active-backup(#1)"
+ VMA WARNING: with "fail_over_mac=1" or "fail_over_mac=0".
  VMA WARNING: The effect of working in unsupported bonding mode is undefined.
- VMA WARNING: Read more about Bonding in the VMA's User Manual
+ VMA WARNING: Read more about Bonding in the VMA's User Manual  
  VMA WARNING: ******************************************************************************
 
 This warning message means that VMA has detected bonding device which is configured 
 to work in mode which is not supported by VMA, this means that VMA will not support 
 high avilability events for that interface. 
-VMA currently supports just active-backup(#1) and fail_over_mac = 1 or 0 mode.
+VMA currently supports just active-backup(#1) or 802.3ad(#4) and fail_over_mac = 1 or 0 mode.
 In order to fix this issue please change the bonding configuration.
 
 Example:
@@ -1054,5 +1054,14 @@ Bring up the bonding interface:
 OR
 #ifconfig bond0 <ip> netmask <netmask> up
 
+* Not supported Bonding & VLAN Configuration:
 
+ VMA WARNING: ******************************************************************
+ VMA WARNING: bond0.10: vlan over bond while fail_over_mac=1 is not offloaded
+ VMA WARNING: ******************************************************************
+
+This warning message means that VMA has detected bonding device which is configured with 
+VLAN over it while fail_over_mac=1.
+This means that the bond will not be offloaded.
+In order to fix this issue please change the bonding configuration.
 
