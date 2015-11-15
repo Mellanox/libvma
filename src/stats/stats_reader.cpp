@@ -756,7 +756,13 @@ void show_mc_group_stats(mc_grp_info_t* p_mc_grp_info , socket_instance_block_t*
 {
 	// keep array for all the mc addresses and their fds.
 	int array_size=0;
-	mc_group_fds_t mc_group_fds[num_of_obj*MC_TABLE_SIZE];
+	mc_group_fds_t *mc_group_fds = new mc_group_fds_t[num_of_obj*MC_TABLE_SIZE];
+	if (!mc_group_fds) {
+		printf(CYCLES_SEPARATOR);
+		printf("Could not allocate enough memory\n");
+		printf(CYCLES_SEPARATOR);
+		return;
+	}
 	// go over all the fds and fill the array
 	for (uint32_t i=0; i < num_of_obj; i++) {
 		size_t fd = (size_t)p_instance[i].skt_stats.fd;
@@ -773,6 +779,8 @@ void show_mc_group_stats(mc_grp_info_t* p_mc_grp_info , socket_instance_block_t*
 	if (array_size > 0)
 		print_mc_group_fds(mc_group_fds, array_size);
 	printf(CYCLES_SEPARATOR);
+
+	delete [] mc_group_fds;
 }
 
 void print_command_line(int argc, char** argv)
