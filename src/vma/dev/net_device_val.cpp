@@ -384,8 +384,8 @@ bool net_device_val::get_up_and_active_slaves(bool* up_and_active_slaves, size_t
 		for (i = 0; i < m_slaves.size(); i++) {
 			if (up_slaves[i]) {
 				up_and_active_slaves[i] = true;
+				break;
 			}
-			break;
 		}
 	}
 
