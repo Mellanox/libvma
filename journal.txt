@@ -1,3 +1,16 @@
+Date + Time 2015-11-17
+=======================
+Fixed:
+        - RM #647577 global ctors are called after library constructor results
+	  in unsafe values
+        - RM #618523 LAG bond receive double amount of multicast traffic if
+          LACP not working
+        - RM #647962 Fix a crash when all bond's slaves ports are taken down
+          and then up
+        - RM #649148 Fix a segfault in vma_stats -v 4
+        - RM #648405 Issue WARNING - vlan over bond while fail_ove_mac=1 is
+          not supported, fallback to OS
+
 Version 7.0.10-0:
 Date + Time 2015-11-08
 =======================
