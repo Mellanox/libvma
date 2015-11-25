@@ -162,7 +162,7 @@ Example:
  VMA DEBUG  : TCP Timer Resolution (msec)    100                        [VMA_TCP_TIMER_RESOLUTION_MSEC]
  VMA DEBUG  : TCP control thread             0 (Disabled)               [VMA_TCP_CTL_THREAD]
  VMA DEBUG  : TCP timestamp option           0                          [VMA_TCP_TIMESTAMP_OPTION]
- VMA DEBUG  : Exception handling mode        -1 (just log debug message)[VMA_EXCEPTION_HANDLING]
+ VMA DEBUG  : Exception handling mode        0 (log debug and un-offload) [VMA_EXCEPTION_HANDLING]
  VMA DEBUG  : Avoid sys-calls on tcp fd      Disabled			[VMA_AVOID_SYS_CALLS_ON_TCP_FD]
  VMA DEBUG  : Delay after join (msec)        0                          [VMA_WAIT_AFTER_JOIN_MSEC]
  VMA DEBUG  : Internal Thread Affinity       -1                         [VMA_INTERNAL_THREAD_AFFINITY]
@@ -639,8 +639,7 @@ Use value of 0 to log DEBUG message and try recovering via Kernel network stack 
 Use value of 1 to log ERROR message and try recovering via Kernel network stack (un-offloading the socket).
 Use value of 2 to log ERROR message and return API respectful error code.
 Use value of 3 to log ERROR message and abort application (throw vma_error exception).
-Default value is -1 (until 0 is supported)
-!!! NOTE: modes 0, 1, 2, 3 - are under development and are not yet supported !!!
+Default value is 0
 
 VMA_AVOID_SYS_CALLS_ON_TCP_FD
 For TCP fd, avoid system calls for the supported options of:
