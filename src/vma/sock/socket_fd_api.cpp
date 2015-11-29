@@ -146,7 +146,7 @@ int socket_fd_api::setsockopt(int __level, int __optname,
 }
 
 int socket_fd_api::getsockopt(int __level, int __optname, void *__optval,
-			      socklen_t *__optlen)
+			      socklen_t *__optlen) throw (vma_error)
 {
 	__log_info_func("");
 	int ret = orig_os_api.getsockopt(m_fd, __level, __optname, __optval, __optlen);

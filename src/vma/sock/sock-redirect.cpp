@@ -638,7 +638,7 @@ int setsockopt(int __fd, int __level, int __optname,
    Returns 0 on success, -1 for errors.  */
 extern "C"
 int getsockopt(int __fd, int __level, int __optname,
-	       void *__optval, socklen_t *__optlen)
+	       void *__optval, socklen_t *__optlen) throw (vma_error)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.getsockopt) get_orig_funcs();

@@ -84,7 +84,7 @@ public:
 	int	connect(const struct sockaddr *__to, socklen_t __tolen);
 	int	getsockname(struct sockaddr *__name, socklen_t *__namelen);
 	int	setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen) throw (vma_error);
-	int	getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen);
+	int	getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen) throw (vma_error);
 
 	/**
 	* Sampling the OS immediately by matching the rx_skip_os counter (m_rx_udp_poll_os_ratio_counter) to the limit (mce_sys.rx_udp_poll_os_ratio)

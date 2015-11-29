@@ -102,7 +102,7 @@ public:
 			       __const void *__optval, socklen_t __optlen) throw (vma_error);
 
 	virtual int getsockopt(int __level, int __optname, void *__optval,
-			       socklen_t *__optlen);
+			       socklen_t *__optlen) throw (vma_error);
 	virtual int fcntl(int __cmd, unsigned long int __arg) throw (vma_error) = 0;
 
 	virtual int ioctl(unsigned long int __request, unsigned long int __arg) throw (vma_error) = 0;

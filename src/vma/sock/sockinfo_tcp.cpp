@@ -3205,33 +3205,34 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 }
 
 int sockinfo_tcp::getsockopt(int __level, int __optname, void *__optval,
-                              socklen_t *__optlen)
+		socklen_t *__optlen) throw (vma_error)
 {
 	int ret = getsockopt_offload(__level, __optname, __optval, __optlen);
 	if (ret != SOCKOPT_HANDLE_BY_OS)
 		return ret;
+	else {
+		char buf[256];
+		snprintf(buf, sizeof(buf), "unimplemented getsockopt __level=%#x, __optname=%#x, __optlen=%d", (unsigned)__level, (unsigned)__optname, __optlen ? *__optlen : 0);
+		buf[ sizeof(buf)-1 ] = '\0';
+
+		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
+		int rc = handle_exception_flow();
+		switch (rc) {
+		case -1:
+			return rc;
+		case -2:
+			vma_throw_object_with_msg(vma_unsupported_api, buf);
+		}
+	}
 
 	ret = orig_os_api.getsockopt(m_fd, __level, __optname, __optval, __optlen);
 
-        if (__level == SOL_SOCKET) {
-        	switch(__optname) {
-        	case SO_ERROR:
-        		if (__optval && __optlen && *__optlen >= sizeof(int) && !isPassthrough()) {
-        			*(int *)__optval = m_error_status;
-        			m_error_status = 0;
-        		}
-        		break;
-        	default:
-        		break;
-        	}
-        }
-
-        BULLSEYE_EXCLUDE_BLOCK_START
-        if (ret) {
-                si_tcp_logdbg("getsockopt failed (ret=%d %m)", ret);
-        }
-        BULLSEYE_EXCLUDE_BLOCK_END
-        return ret;
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (ret) {
+		si_tcp_logdbg("getsockopt failed (ret=%d %m)", ret);
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+	return ret;
 }
 
 int sockinfo_tcp::getsockname(sockaddr *__name, socklen_t *__namelen)
