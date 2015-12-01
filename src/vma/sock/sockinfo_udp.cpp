@@ -88,6 +88,228 @@ enum {
 
 int g_n_os_igmp_max_membership;
 
+/**/
+/** inlining functions can only help if they are implemented before their usage **/
+/**/
+
+inline void	sockinfo_udp::reuse_buffer(mem_buf_desc_t *buff)
+{
+	if(buff->dec_ref_count() <= 1) {
+		buff->inc_ref_count();
+		sockinfo::reuse_buffer(buff);
+	}
+}
+
+inline ssize_t sockinfo_udp::poll_os()
+{
+	ssize_t ret;
+	pollfd os_fd[1];
+
+	m_rx_udp_poll_os_ratio_counter = 0;
+	os_fd[0].fd = m_fd;
+	os_fd[0].events = POLLIN;
+	ret = orig_os_api.poll(os_fd, 1, 0); // Zero timeout - just poll and return quickly
+	if (unlikely(ret == -1)) {
+		m_p_socket_stats->counters.n_rx_os_errors++;
+		si_udp_logdbg("orig_os_api.poll returned with error in polling loop (errno=%d %m)", errno);
+		return -1;
+	}
+	if (ret == 1) {
+		m_p_socket_stats->counters.n_rx_poll_os_hit++;
+		return 1;
+	}
+	return 0;
+}
+
+inline int sockinfo_udp::rx_wait(bool blocking)
+{
+	ssize_t ret = 0;
+	int32_t	loops = 0;
+	int32_t loops_to_go = blocking ? m_loops_to_go : 1;
+	epoll_event rx_epfd_events[SI_RX_EPFD_EVENT_MAX];
+	uint64_t poll_sn;
+
+        m_loops_timer.start();
+
+	while (loops_to_go) {
+
+		// Multi-thread polling support - let other threads have a go on this CPU
+		if ((mce_sys.rx_poll_yield_loops > 0) && ((loops % mce_sys.rx_poll_yield_loops) == (mce_sys.rx_poll_yield_loops-1))) {
+			sched_yield();
+		}
+
+		// Poll socket for OS ready packets... (at a ratio of the offloaded sockets as defined in mce_sys.rx_udp_poll_os_ratio)
+		if ((mce_sys.rx_udp_poll_os_ratio > 0) && (m_rx_udp_poll_os_ratio_counter >= mce_sys.rx_udp_poll_os_ratio)) {
+			ret = poll_os();
+			if ((ret == -1) || (ret == 1)) {
+				return ret;
+			}
+		}
+
+		// Poll cq for offloaded ready packets ...
+		m_rx_udp_poll_os_ratio_counter++;
+		if (is_readable(&poll_sn)) {
+			m_p_socket_stats->counters.n_rx_poll_hit++;
+			return 0;
+		}
+
+		loops++;
+		if (!blocking || mce_sys.rx_poll_num != -1) {
+			loops_to_go--;
+		}
+		if (m_loops_timer.is_timeout()) {
+			errno = EAGAIN;
+			return -1;
+		}
+
+		if (unlikely(m_b_closed)) {
+			errno = EBADFD;
+			si_udp_logdbg("returning with: EBADFD");
+			return -1;
+		}
+		else if (unlikely(g_b_exit)) {
+			errno = EINTR;
+			si_udp_logdbg("returning with: EINTR");
+			return -1;
+		}
+	} // End polling loop
+	m_p_socket_stats->counters.n_rx_poll_miss++;
+
+	while (blocking) {
+		if (unlikely(m_b_closed)) {
+			errno = EBADFD;
+			si_udp_logdbg("returning with: EBADFD");
+			return -1;
+		}
+		else if (unlikely(g_b_exit)) {
+			errno = EINTR;
+			si_udp_logdbg("returning with: EINTR");
+			return -1;
+		}
+
+		if (rx_request_notification(poll_sn) > 0) {
+			// Check if a wce became available while arming the cq's notification channel
+			// A ready wce can be pending due to the drain logic
+			if (is_readable(&poll_sn)) {
+				return 0;
+			}
+			continue; // retry to arm cq notification channel in case there was no ready packet
+		}
+		else {
+			//Check if we have a packet in receive queue before we go to sleep
+			//(can happen if another thread was polling & processing the wce)
+			//and update is_sleeping flag under the same lock to synchronize between
+			//this code and wakeup mechanism.
+			if (is_readable(NULL)) {
+				return 0;
+			}
+		}
+
+
+		// Block with epoll_wait()
+		// on all rx_cq's notification channels and the socket's OS fd until we get an ip packet
+		// release lock so other threads that wait on this socket will not consume CPU
+		m_lock_rcv.lock();
+		if (!m_n_rx_pkt_ready_list_count) {
+			going_to_sleep();
+			m_lock_rcv.unlock();
+		} else {
+			m_lock_rcv.unlock();
+			continue;
+		}
+
+		ret = orig_os_api.epoll_wait(m_rx_epfd, rx_epfd_events, SI_RX_EPFD_EVENT_MAX, m_loops_timer.time_left_msec());
+
+		m_lock_rcv.lock();
+		return_from_sleep();
+		m_lock_rcv.unlock();
+
+		if ( ret == 0 ) { //timeout
+			errno = EAGAIN;
+			return -1;
+		}
+
+		if (unlikely(ret == -1)) {
+			if (errno == EINTR) {
+				si_udp_logdbg("EINTR from blocked epoll_wait() (ret=%d, errno=%d %m)", ret, errno);
+			}
+			else {
+				si_udp_logdbg("error from blocked epoll_wait() (ret=%d, errno=%d %m)", ret, errno);
+			}
+
+			m_p_socket_stats->counters.n_rx_os_errors++;
+			return -1;
+		}
+
+		if (ret > 0) {
+
+			/* Quick check for a ready rx datagram on this sockinfo
+			* (if some other sockinfo::rx might have added a rx ready packet to our pool
+			*
+			* This is the classical case of wakeup, but we don't want to
+			* waist time on removing wakeup fd, it will be done next time
+			*/
+			if (is_readable(NULL)) {
+				return 0;
+			}
+
+			// Run through all ready fd's
+			for (int event_idx = 0; event_idx < ret; ++event_idx) {
+				int fd = rx_epfd_events[event_idx].data.fd;
+				if (is_wakeup_fd(fd)) {
+					m_lock_rcv.lock();
+					remove_wakeup_fd();
+					m_lock_rcv.unlock();
+					continue;
+				}
+
+				// Check if OS fd is ready for reading
+				if (fd == m_fd) {
+					m_rx_udp_poll_os_ratio_counter = 0;
+					return 1;
+				}
+
+				// All that is left is our CQ offloading channel fd's
+				// poll cq. fd == cq channel fd.
+				// Process one wce on the relevant CQ
+				// The Rx CQ channel is non-blocking so this will always return quickly
+				cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(fd);
+				if (p_cq_ch_info) {
+					ring* p_ring = p_cq_ch_info->get_ring();
+					if (p_ring) {
+						p_ring->wait_for_notification_and_process_element(CQT_RX, fd, &poll_sn);
+					}
+				}
+			}
+		}
+
+		// Check for ready datagrams on this sockinfo
+		// Our ring->poll_and_process_element might have got a ready rx datagram
+		// ..or some other sockinfo::rx might have added a ready rx datagram to our list
+		// In case of multiple frag we'de like to try and get all parts out of the corresponding
+		// ring, so we do want to poll the cq besides the select notification
+		if (is_readable(&poll_sn))
+			return 0;
+
+	} // while (blocking)
+
+/*	ODEDS: No need for that as we always check if OS polling is needed in the first while loop
+	// If not blocking and we did not find any ready datagrams in our
+	// offloaded sockinfo then try the OS receive
+	// But try to skip this to reduce OS calls by user param
+	if (!blocking && unlikely(!m_b_closed)) {
+		m_n_num_skip_os_read++;
+		if (m_n_num_skip_os_read >= m_rx_skip_os_fd_check) {
+			m_n_num_skip_os_read = 0;
+			return 1;
+		}
+	}
+*/
+	errno = EAGAIN;
+	si_udp_logfunc("returning with: EAGAIN");
+	return -1;
+}
+
 const char * setsockopt_so_opt_to_str(int opt)
 {
 	switch (opt) {
@@ -944,195 +1166,6 @@ void sockinfo_udp::rx_ready_byte_count_limit_update(size_t n_rx_ready_bytes_limi
 	m_lock_rcv.unlock();
 
 	return;
-}
-
-inline int sockinfo_udp::rx_wait(bool blocking)
-{
-	ssize_t ret = 0;
-	int32_t	loops = 0;
-	int32_t loops_to_go = blocking ? m_loops_to_go : 1;
-	epoll_event rx_epfd_events[SI_RX_EPFD_EVENT_MAX];
-	uint64_t poll_sn;
-
-        m_loops_timer.start();
-
-	while (loops_to_go) {
-
-		// Multi-thread polling support - let other threads have a go on this CPU
-		if ((mce_sys.rx_poll_yield_loops > 0) && ((loops % mce_sys.rx_poll_yield_loops) == (mce_sys.rx_poll_yield_loops-1))) {
-			sched_yield();
-		}
-
-		// Poll socket for OS ready packets... (at a ratio of the offloaded sockets as defined in mce_sys.rx_udp_poll_os_ratio)
-		if ((mce_sys.rx_udp_poll_os_ratio > 0) && (m_rx_udp_poll_os_ratio_counter >= mce_sys.rx_udp_poll_os_ratio)) {
-			ret = poll_os();
-			if ((ret == -1) || (ret == 1)) {
-				return ret;
-			}
-		}
-
-		// Poll cq for offloaded ready packets ...
-		m_rx_udp_poll_os_ratio_counter++;
-		if (is_readable(&poll_sn)) {
-			m_p_socket_stats->counters.n_rx_poll_hit++;
-			return 0;
-		}
-
-		loops++;
-		if (!blocking || mce_sys.rx_poll_num != -1) {
-			loops_to_go--;
-		}
-		if (m_loops_timer.is_timeout()) {
-			errno = EAGAIN;
-			return -1;
-		}
-
-		if (unlikely(m_b_closed)) {
-			errno = EBADFD;
-			si_udp_logdbg("returning with: EBADFD");
-			return -1;
-		}
-		else if (unlikely(g_b_exit)) {
-			errno = EINTR;
-			si_udp_logdbg("returning with: EINTR");
-			return -1;
-		}
-	} // End polling loop
-	m_p_socket_stats->counters.n_rx_poll_miss++;
-
-	while (blocking) {
-		if (unlikely(m_b_closed)) {
-			errno = EBADFD;
-			si_udp_logdbg("returning with: EBADFD");
-			return -1;
-		}
-		else if (unlikely(g_b_exit)) {
-			errno = EINTR;
-			si_udp_logdbg("returning with: EINTR");
-			return -1;
-		}
-
-		if (rx_request_notification(poll_sn) > 0) {
-			// Check if a wce became available while arming the cq's notification channel
-			// A ready wce can be pending due to the drain logic
-			if (is_readable(&poll_sn)) {
-				return 0;
-			}
-			continue; // retry to arm cq notification channel in case there was no ready packet
-		}
-		else {
-			//Check if we have a packet in receive queue before we go to sleep
-			//(can happen if another thread was polling & processing the wce)
-			//and update is_sleeping flag under the same lock to synchronize between
-			//this code and wakeup mechanism.
-			if (is_readable(NULL)) {
-				return 0;
-			}
-		}
-
-
-		// Block with epoll_wait()
-		// on all rx_cq's notification channels and the socket's OS fd until we get an ip packet
-		// release lock so other threads that wait on this socket will not consume CPU
-		m_lock_rcv.lock();
-		if (!m_n_rx_pkt_ready_list_count) {
-			going_to_sleep();
-			m_lock_rcv.unlock();
-		} else {
-			m_lock_rcv.unlock();
-			continue;
-		}
-
-		ret = orig_os_api.epoll_wait(m_rx_epfd, rx_epfd_events, SI_RX_EPFD_EVENT_MAX, m_loops_timer.time_left_msec());
-
-		m_lock_rcv.lock();
-		return_from_sleep();
-		m_lock_rcv.unlock();
-
-		if ( ret == 0 ) { //timeout
-			errno = EAGAIN;
-			return -1;
-		}
-
-		if (unlikely(ret == -1)) {
-			if (errno == EINTR) {
-				si_udp_logdbg("EINTR from blocked epoll_wait() (ret=%d, errno=%d %m)", ret, errno);
-			}
-			else {
-				si_udp_logdbg("error from blocked epoll_wait() (ret=%d, errno=%d %m)", ret, errno);
-			}
-
-			m_p_socket_stats->counters.n_rx_os_errors++;
-			return -1;
-		}
-
-		if (ret > 0) {
-
-			/* Quick check for a ready rx datagram on this sockinfo
-			* (if some other sockinfo::rx might have added a rx ready packet to our pool
-			*
-			* This is the classical case of wakeup, but we don't want to
-			* waist time on removing wakeup fd, it will be done next time
-			*/
-			if (is_readable(NULL)) {
-				return 0;
-			}
-
-			// Run through all ready fd's
-			for (int event_idx = 0; event_idx < ret; ++event_idx) {
-				int fd = rx_epfd_events[event_idx].data.fd;
-				if (is_wakeup_fd(fd)) {
-					m_lock_rcv.lock();
-					remove_wakeup_fd();
-					m_lock_rcv.unlock();
-					continue;
-				}
-
-				// Check if OS fd is ready for reading
-				if (fd == m_fd) {
-					m_rx_udp_poll_os_ratio_counter = 0;
-					return 1;
-				}
-
-				// All that is left is our CQ offloading channel fd's
-				// poll cq. fd == cq channel fd.
-				// Process one wce on the relevant CQ
-				// The Rx CQ channel is non-blocking so this will always return quickly
-				cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(fd);
-				if (p_cq_ch_info) {
-					ring* p_ring = p_cq_ch_info->get_ring();
-					if (p_ring) {
-						p_ring->wait_for_notification_and_process_element(CQT_RX, fd, &poll_sn);
-					}
-				}
-			}
-		}
-
-		// Check for ready datagrams on this sockinfo
-		// Our ring->poll_and_process_element might have got a ready rx datagram
-		// ..or some other sockinfo::rx might have added a ready rx datagram to our list
-		// In case of multiple frag we'de like to try and get all parts out of the corresponding
-		// ring, so we do want to poll the cq besides the select notification
-		if (is_readable(&poll_sn))
-			return 0;
-
-	} // while (blocking)
-
-/*	ODEDS: No need for that as we always check if OS polling is needed in the first while loop
-	// If not blocking and we did not find any ready datagrams in our
-	// offloaded sockinfo then try the OS receive
-	// But try to skip this to reduce OS calls by user param
-	if (!blocking && unlikely(!m_b_closed)) {
-		m_n_num_skip_os_read++;
-		if (m_n_num_skip_os_read >= m_rx_skip_os_fd_check) {
-			m_n_num_skip_os_read = 0;
-			return 1;
-		}
-	}
-*/
-	errno = EAGAIN;
-	si_udp_logfunc("returning with: EAGAIN");
-	return -1;
 }
 
 ssize_t sockinfo_udp::rx(const rx_call_t call_type, iovec* p_iov,ssize_t sz_iov, 
@@ -2209,14 +2242,6 @@ int sockinfo_udp::free_packets(struct vma_packet_t *pkts, size_t count)
 	return ret;
 }
 
-inline void	sockinfo_udp::reuse_buffer(mem_buf_desc_t *buff)
-{
-	if(buff->dec_ref_count() <= 1) {
-		buff->inc_ref_count();
-		sockinfo::reuse_buffer(buff);
-	}
-}
-
 mem_buf_desc_t* sockinfo_udp::get_next_desc(mem_buf_desc_t *p_desc)
 {
 	return p_desc->p_next_desc;
@@ -2283,27 +2308,6 @@ size_t sockinfo_udp::handle_msg_trunc(size_t total_rx, size_t payload_size, int 
 	} 
 
 	return total_rx;
-}
-
-inline ssize_t sockinfo_udp::poll_os()
-{
-	ssize_t ret;
-	pollfd os_fd[1];
-
-	m_rx_udp_poll_os_ratio_counter = 0;
-	os_fd[0].fd = m_fd;
-	os_fd[0].events = POLLIN;
-	ret = orig_os_api.poll(os_fd, 1, 0); // Zero timeout - just poll and return quickly
-	if (unlikely(ret == -1)) {
-		m_p_socket_stats->counters.n_rx_os_errors++;
-		si_udp_logdbg("orig_os_api.poll returned with error in polling loop (errno=%d %m)", errno);
-		return -1;
-	}
-	if (ret == 1) {
-		m_p_socket_stats->counters.n_rx_poll_os_hit++;
-		return 1;
-	}
-	return 0;
 }
 
 mem_buf_desc_t* sockinfo_udp::get_front_m_rx_pkt_ready_list(){

@@ -31,6 +31,21 @@
 buffer_pool *g_buffer_pool_rx = NULL;
 buffer_pool *g_buffer_pool_tx = NULL;
 
+// inlining a function only help in case it come before using it...
+inline void buffer_pool::put_buffer_helper(mem_buf_desc_t *buff)
+{
+#if _VMA_LIST_DEBUG
+	if (buff->node.is_list_member()) {
+		vlog_printf(VLOG_WARNING, "buffer_pool::put_buffer_helper - buff is already a member in a list (list id = %s)\n", buff->node.list_id());
+	}
+#endif
+	buff->p_next_desc = m_p_head;
+	free_lwip_pbuf(&buff->lwip_pbuf);
+	m_p_head = buff;
+	m_n_buffers++;
+	m_p_bpool_stat->n_buffer_pool_size++;
+}
+
 /** Free-callback function to free a 'struct pbuf_custom_ref', called by
  * pbuf_free. */
 void buffer_pool::free_rx_lwip_pbuf_custom(struct pbuf *p_buff)
@@ -545,20 +560,6 @@ void buffer_pool::buffersPanic()
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif
-
-inline void buffer_pool::put_buffer_helper(mem_buf_desc_t *buff)
-{
-#if _VMA_LIST_DEBUG
-	if (buff->node.is_list_member()) {
-		vlog_printf(VLOG_WARNING, "buffer_pool::put_buffer_helper - buff is already a member in a list (list id = %s)\n", buff->node.list_id());
-	}
-#endif
-	buff->p_next_desc = m_p_head;
-	free_lwip_pbuf(&buff->lwip_pbuf);
-	m_p_head = buff;
-	m_n_buffers++;
-	m_p_bpool_stat->n_buffer_pool_size++;
-}
 
 int buffer_pool::put_buffers(mem_buf_desc_t *buff_list)
 {

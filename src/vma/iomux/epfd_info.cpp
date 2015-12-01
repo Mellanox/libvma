@@ -28,6 +28,81 @@
 
 #define CQ_FD_MARK 0xabcd
 
+inline void epfd_info::increase_ring_ref_count_no_lock(ring* ring)
+{
+	ring_map_t::iterator iter = m_ring_map.find(ring);
+	if (iter != m_ring_map.end()) {
+		//increase ref count
+		iter->second++;
+	} else {
+		m_ring_map[ring] = 1;
+
+		// add cq channel fd to the epfd
+		int num_ring_rx_fds = ring->get_num_resources();
+		int *ring_rx_fds_array = ring->get_rx_channel_fds();
+		for (int i = 0; i < num_ring_rx_fds; i++) {
+			epoll_event evt;
+			evt.events = EPOLLIN | EPOLLPRI;
+			int fd = ring_rx_fds_array[i];
+			evt.data.u64 = (((uint64_t)CQ_FD_MARK << 32) | fd);
+			int ret = orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_ADD, fd, &evt);
+			BULLSEYE_EXCLUDE_BLOCK_START
+			if (ret < 0) {
+				__log_dbg("failed to add cq fd=%d to epoll epfd=%d (errno=%d %m)",
+						fd, m_epfd, errno);
+			} else {
+				__log_dbg("add cq fd=%d to epfd=%d", fd, m_epfd);
+			}
+			BULLSEYE_EXCLUDE_BLOCK_END
+		}
+	}
+}
+
+inline void epfd_info::decrease_ring_ref_count_no_lock(ring* ring)
+{
+	ring_map_t::iterator iter = m_ring_map.find(ring);
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (iter == m_ring_map.end()) {
+		__log_err("expected to find ring %p here!", ring);
+		return;
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	//decrease ref count
+	iter->second--;
+
+	if (iter->second == 0) {
+		m_ring_map.erase(iter);
+
+		// remove cq channel fd from the epfd
+		int num_ring_rx_fds = ring->get_num_resources();
+		int *ring_rx_fds_array = ring->get_rx_channel_fds();
+		for (int i = 0; i < num_ring_rx_fds; i++) {
+			// delete cq fd from epfd
+			int ret = orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_DEL, ring_rx_fds_array[i], NULL);
+			BULLSEYE_EXCLUDE_BLOCK_START
+			if (ret < 0) {
+				__log_dbg("failed to remove cq fd=%d from epfd=%d (errno=%d %m)",
+						ring_rx_fds_array[i], m_epfd, errno);
+			} else {
+				__log_dbg("remove cq fd=%d from epfd=%d", ring_rx_fds_array[i], m_epfd);
+			}
+			BULLSEYE_EXCLUDE_BLOCK_END
+		}
+	}
+}
+
+inline int epfd_info::remove_fd_from_epoll_os(int fd)
+{
+	int ret = orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_DEL, fd, NULL);
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (ret < 0) {
+		__log_dbg("failed to remove fd=%d from os epoll epfd=%d (errno=%d %m)", fd, m_epfd, errno);
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+	return ret;
+}
+
 epfd_info::epfd_info(int epfd, int size) :
 	lock_mutex_recursive("epfd_info"), m_epfd(epfd), m_size(size), m_ring_map_lock("epfd_ring_map_lock")
 {
@@ -253,75 +328,11 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 	return 0;
 }
 
-inline void epfd_info::increase_ring_ref_count_no_lock(ring* ring)
-{
-	ring_map_t::iterator iter = m_ring_map.find(ring);
-	if (iter != m_ring_map.end()) {
-		//increase ref count
-		iter->second++;
-	} else {
-		m_ring_map[ring] = 1;
-
-		// add cq channel fd to the epfd
-		int num_ring_rx_fds = ring->get_num_resources();
-		int *ring_rx_fds_array = ring->get_rx_channel_fds();
-		for (int i = 0; i < num_ring_rx_fds; i++) {
-			epoll_event evt;
-			evt.events = EPOLLIN | EPOLLPRI;
-			int fd = ring_rx_fds_array[i];
-			evt.data.u64 = (((uint64_t)CQ_FD_MARK << 32) | fd);
-			int ret = orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_ADD, fd, &evt);
-			BULLSEYE_EXCLUDE_BLOCK_START
-			if (ret < 0) {
-				__log_dbg("failed to add cq fd=%d to epoll epfd=%d (errno=%d %m)",
-						fd, m_epfd, errno);
-			} else {
-				__log_dbg("add cq fd=%d to epfd=%d", fd, m_epfd);
-			}
-			BULLSEYE_EXCLUDE_BLOCK_END
-		}
-	}
-}
-
 void epfd_info::increase_ring_ref_count(ring* ring)
 {
 	m_ring_map_lock.lock();
 	increase_ring_ref_count_no_lock(ring);
 	m_ring_map_lock.unlock();
-}
-
-inline void epfd_info::decrease_ring_ref_count_no_lock(ring* ring)
-{
-	ring_map_t::iterator iter = m_ring_map.find(ring);
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (iter == m_ring_map.end()) {
-		__log_err("expected to find ring %p here!", ring);
-		return;
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-
-	//decrease ref count
-	iter->second--;
-
-	if (iter->second == 0) {
-		m_ring_map.erase(iter);
-
-		// remove cq channel fd from the epfd
-		int num_ring_rx_fds = ring->get_num_resources();
-		int *ring_rx_fds_array = ring->get_rx_channel_fds();
-		for (int i = 0; i < num_ring_rx_fds; i++) {
-			// delete cq fd from epfd
-			int ret = orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_DEL, ring_rx_fds_array[i], NULL);
-			BULLSEYE_EXCLUDE_BLOCK_START
-			if (ret < 0) {
-				__log_dbg("failed to remove cq fd=%d from epfd=%d (errno=%d %m)",
-						ring_rx_fds_array[i], m_epfd, errno);
-			} else {
-				__log_dbg("remove cq fd=%d from epfd=%d", ring_rx_fds_array[i], m_epfd);
-			}
-			BULLSEYE_EXCLUDE_BLOCK_END
-		}
-	}
 }
 
 void epfd_info::decrease_ring_ref_count(ring* ring)
@@ -545,17 +556,6 @@ void epfd_info::set_fd_as_offloaded_only(int fd)
 		remove_fd_from_epoll_os(fd);
 	}
 	unlock();
-}
-
-inline int epfd_info::remove_fd_from_epoll_os(int fd)
-{
-	int ret = orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_DEL, fd, NULL);
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (ret < 0) {
-		__log_dbg("failed to remove fd=%d from os epoll epfd=%d (errno=%d %m)", fd, m_epfd, errno);
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-	return ret;
 }
 
 void epfd_info::insert_epoll_event_cb(int fd, uint32_t event_flags)

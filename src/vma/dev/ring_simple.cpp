@@ -38,6 +38,28 @@
 #define ALIGN_WR_DOWN(_num_wr_) 		(max(32, ((_num_wr_      ) & ~(0xf))))
 
 
+/**/
+/** inlining functions can only help if they are implemented before their usage **/
+/**/
+
+inline void ring_simple::send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe)
+{
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (unlikely(ret)) {
+		// Error during post_send, reclaim the tx buffer
+		if(p_send_wqe) {
+			mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
+			mem_buf_tx_release(p_mem_buf_desc, true);
+		}
+	}
+	else {
+		// Decrease counter in order to keep track of how many missing buffers we have when
+		// doing ring->restart() and then drain_tx_buffers_to_buffer_pool()
+		m_missing_buf_ref_count--;
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+}
+
 qp_mgr* ring_eth::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) throw (vma_error)
 {
 	return new qp_mgr_eth(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), get_partition());
@@ -1087,24 +1109,6 @@ int ring_simple::mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_
 int ring_simple::get_max_tx_inline()
 {
 	return m_p_qp_mgr->get_max_inline_tx_data();
-}
-
-inline void ring_simple::send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe)
-{
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (unlikely(ret)) {
-		// Error during post_send, reclaim the tx buffer
-		if(p_send_wqe) {
-			mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
-			mem_buf_tx_release(p_mem_buf_desc, true);
-		}
-	}
-	else {
-		// Decrease counter in order to keep track of how many missing buffers we have when
-		// doing ring->restart() and then drain_tx_buffers_to_buffer_pool()
-		m_missing_buf_ref_count--;
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
 }
 
 void ring_simple::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block)

@@ -19,6 +19,68 @@
 #define MODULE_NAME 		"rfs"
 
 
+/**/
+/** inlining functions can only help if they are implemented before their usage **/
+/**/
+inline void rfs::prepare_filter_attach(int& filter_counter, rule_filter_map_t::iterator& filter_iter)
+{
+	// If filter flow, need to attach flow only if this is the first request for this specific group (i.e. counter == 1)
+	if (!m_p_rule_filter) return;
+
+	filter_iter = m_p_rule_filter->m_map.find(m_p_rule_filter->m_key);
+	if (filter_iter == m_p_rule_filter->m_map.end()) {
+		rfs_logdbg("No matching counter for filter!!!");
+		return;
+	}
+
+	filter_counter = filter_iter->second.counter;
+	m_b_tmp_is_attached = (filter_counter > 1) || m_b_tmp_is_attached;
+}
+
+inline void rfs::filter_keep_attached(rule_filter_map_t::iterator& filter_iter)
+{
+	if (!m_p_rule_filter || filter_iter == m_p_rule_filter->m_map.end()) return;
+
+	//save all ibv_flow rules only for filter
+	for (size_t i = 0; i < m_attach_flow_data_vector.size(); i++) {
+		filter_iter->second.ibv_flows.push_back(m_attach_flow_data_vector[i]->ibv_flow);
+	}
+}
+
+inline void rfs::prepare_filter_detach(int& filter_counter)
+{
+	// If filter, need to detach flow only if this is the last attached rule for this specific group (i.e. counter == 0)
+	if (!m_p_rule_filter) return;
+
+	rule_filter_map_t::iterator filter_iter = m_p_rule_filter->m_map.find(m_p_rule_filter->m_key);
+	if (filter_iter == m_p_rule_filter->m_map.end()) {
+		rfs_logdbg("No matching counter for filter!!!");
+		return;
+	}
+
+	filter_counter = filter_iter->second.counter;
+	//if we do not need to detach_ibv_flow, still mark this rfs as detached
+	m_b_tmp_is_attached = (filter_counter == 0) && m_b_tmp_is_attached;
+	if (filter_counter != 0 || filter_iter->second.ibv_flows.empty()) return;
+
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (m_attach_flow_data_vector.size() != filter_iter->second.ibv_flows.size()) {
+		//sanity check for having the same number of qps on all rfs objects
+		rfs_logerr("all rfs objects in the ring should have the same number of elements");
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	for (size_t i = 0; i < m_attach_flow_data_vector.size(); i++) {
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (m_attach_flow_data_vector[i]->ibv_flow && m_attach_flow_data_vector[i]->ibv_flow != filter_iter->second.ibv_flows[i]) {
+			rfs_logerr("our assumption that there should be only one rule for filter group is wrong");
+		} else if (filter_iter->second.ibv_flows[i]) {
+			m_attach_flow_data_vector[i]->ibv_flow = filter_iter->second.ibv_flows[i];
+		}
+		BULLSEYE_EXCLUDE_BLOCK_END
+	}
+}
+
 rfs::rfs(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* rule_filter /*= NULL*/):
 	m_flow_tuple(rule_filter ? rule_filter->m_flow_tuple : *flow_spec_5t), m_p_ring(p_ring),
 	m_p_rule_filter(rule_filter), m_n_sinks_list_entries(0), m_n_sinks_list_max_length(RFS_SINKS_LIST_DEFAULT_LEN),
@@ -216,65 +278,6 @@ bool rfs::destroy_ibv_flow()
 	m_b_tmp_is_attached = false;
 	rfs_logdbg("ibv_destroy_flow with flow %s", m_flow_tuple.to_str());
 	return true;
-}
-
-inline void rfs::prepare_filter_attach(int& filter_counter, rule_filter_map_t::iterator& filter_iter)
-{
-	// If filter flow, need to attach flow only if this is the first request for this specific group (i.e. counter == 1)
-	if (!m_p_rule_filter) return;
-
-	filter_iter = m_p_rule_filter->m_map.find(m_p_rule_filter->m_key);
-	if (filter_iter == m_p_rule_filter->m_map.end()) {
-		rfs_logdbg("No matching counter for filter!!!");
-		return;
-	}
-
-	filter_counter = filter_iter->second.counter;
-	m_b_tmp_is_attached = (filter_counter > 1) || m_b_tmp_is_attached;
-}
-
-inline void rfs::filter_keep_attached(rule_filter_map_t::iterator& filter_iter)
-{
-	if (!m_p_rule_filter || filter_iter == m_p_rule_filter->m_map.end()) return;
-
-	//save all ibv_flow rules only for filter
-	for (size_t i = 0; i < m_attach_flow_data_vector.size(); i++) {
-		filter_iter->second.ibv_flows.push_back(m_attach_flow_data_vector[i]->ibv_flow);
-	}
-}
-
-inline void rfs::prepare_filter_detach(int& filter_counter)
-{
-	// If filter, need to detach flow only if this is the last attached rule for this specific group (i.e. counter == 0)
-	if (!m_p_rule_filter) return;
-
-	rule_filter_map_t::iterator filter_iter = m_p_rule_filter->m_map.find(m_p_rule_filter->m_key);
-	if (filter_iter == m_p_rule_filter->m_map.end()) {
-		rfs_logdbg("No matching counter for filter!!!");
-		return;
-	}
-
-	filter_counter = filter_iter->second.counter;
-	//if we do not need to detach_ibv_flow, still mark this rfs as detached
-	m_b_tmp_is_attached = (filter_counter == 0) && m_b_tmp_is_attached;
-	if (filter_counter != 0 || filter_iter->second.ibv_flows.empty()) return;
-
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (m_attach_flow_data_vector.size() != filter_iter->second.ibv_flows.size()) {
-		//sanity check for having the same number of qps on all rfs objects
-		rfs_logerr("all rfs objects in the ring should have the same number of elements");
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-
-	for (size_t i = 0; i < m_attach_flow_data_vector.size(); i++) {
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (m_attach_flow_data_vector[i]->ibv_flow && m_attach_flow_data_vector[i]->ibv_flow != filter_iter->second.ibv_flows[i]) {
-			rfs_logerr("our assumption that there should be only one rule for filter group is wrong");
-		} else if (filter_iter->second.ibv_flows[i]) {
-			m_attach_flow_data_vector[i]->ibv_flow = filter_iter->second.ibv_flows[i];
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-	}
 }
 
 #if _BullseyeCoverage

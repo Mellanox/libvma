@@ -35,31 +35,6 @@ int g_n_last_checked_index = 0;		//save the last fd index we checked in check_of
 
 int io_mux_call::m_n_skip_os_count = 0;
 
-io_mux_call::io_mux_call(int *off_fds_buffer, offloaded_mode_t *off_modes_buffer, int num_fds, const sigset_t *sigmask) :
-	m_check_sig_pending_ratio(0),
-	m_p_all_offloaded_fds(off_fds_buffer),
-	m_p_offloaded_modes(off_modes_buffer),
-	m_num_all_offloaded_fds(0),
-	m_cqepfd(-1),
-	m_poll_sn(0),
-	m_p_stats(NULL),
-	m_n_all_ready_fds(0),
-	m_n_ready_rfds(0),
-	m_n_ready_wfds(0),
-	m_n_ready_efds(0),
-	m_sigmask(sigmask)
-{
-	m_p_num_all_offloaded_fds = &m_num_all_offloaded_fds;
-	tv_clear(&m_start);
-	tv_clear(&m_elapsed);
-
-	if (m_p_all_offloaded_fds) memset(m_p_all_offloaded_fds, 0, num_fds*sizeof(m_p_all_offloaded_fds[0]));
-	if (m_p_offloaded_modes)   memset(m_p_offloaded_modes  , 0, num_fds*sizeof(m_p_offloaded_modes[0]));
-
-	m_fd_ready_array.fd_max = FD_ARRAY_MAX;
-	m_fd_ready_array.fd_count = 0;
-}
-
 inline void io_mux_call::timer_update()
 {
 	if (!tv_isset(&m_start)) {
@@ -87,56 +62,6 @@ inline void io_mux_call::check_rfd_ready_array(fd_array_t *fd_ready_array)
 		__log_func("found ready_fds=%d", m_n_ready_rfds);
 		//return true;
 	}
-	//return false;
-}
-
-void io_mux_call::check_offloaded_rsockets(uint64_t *p_poll_sn)
-{
-	int fd, offloaded_index, num_all_offloaded_fds;
-	fd_array_t fd_ready_array;
-	socket_fd_api *p_socket_object;
-
-	fd_ready_array.fd_max = FD_ARRAY_MAX;
-
-	offloaded_index = g_n_last_checked_index;
-	num_all_offloaded_fds = *m_p_num_all_offloaded_fds;
-
-	for (int i = 0; i < num_all_offloaded_fds; ++i) {
-
-		++offloaded_index %= num_all_offloaded_fds;
-
-		if (m_p_offloaded_modes[offloaded_index] & OFF_READ) {
-			fd = m_p_all_offloaded_fds[offloaded_index];
-			p_socket_object = fd_collection_get_sockfd(fd);
-			if (!p_socket_object) {
-				// If we can't find this previously mapped offloaded socket
-				// then it was probably closed. We need to get out with error code
-				errno = EBADF;
-				g_n_last_checked_index = offloaded_index;
-				vma_throw_object(io_mux_call::io_error);
-			}
-
-			fd_ready_array.fd_count = 0;
-
-			// Poll the socket object
-			if (p_socket_object->is_readable(p_poll_sn, &fd_ready_array)) {
-				set_offloaded_rfd_ready(offloaded_index);
-				// We have offloaded traffic. Don't sample the OS immediately
-				p_socket_object->unset_immediate_os_sample();
-			}
-
-			check_rfd_ready_array(&fd_ready_array);
-
-
-			//TODO: consider - m_n_all_ready_fds
-			if (m_n_ready_rfds){
-				g_n_last_checked_index = offloaded_index;
-				return ;  
-			}
-
-		}
-	}
-	g_n_last_checked_index = offloaded_index;
 	//return false;
 }
 
@@ -218,6 +143,81 @@ inline void io_mux_call::zero_polling_cpu(timeval current)
 		g_polling_time_usec=0;
 		g_last_zero_polling_time = current;
 	}
+}
+
+io_mux_call::io_mux_call(int *off_fds_buffer, offloaded_mode_t *off_modes_buffer, int num_fds, const sigset_t *sigmask) :
+	m_check_sig_pending_ratio(0),
+	m_p_all_offloaded_fds(off_fds_buffer),
+	m_p_offloaded_modes(off_modes_buffer),
+	m_num_all_offloaded_fds(0),
+	m_cqepfd(-1),
+	m_poll_sn(0),
+	m_p_stats(NULL),
+	m_n_all_ready_fds(0),
+	m_n_ready_rfds(0),
+	m_n_ready_wfds(0),
+	m_n_ready_efds(0),
+	m_sigmask(sigmask)
+{
+	m_p_num_all_offloaded_fds = &m_num_all_offloaded_fds;
+	tv_clear(&m_start);
+	tv_clear(&m_elapsed);
+
+	if (m_p_all_offloaded_fds) memset(m_p_all_offloaded_fds, 0, num_fds*sizeof(m_p_all_offloaded_fds[0]));
+	if (m_p_offloaded_modes)   memset(m_p_offloaded_modes  , 0, num_fds*sizeof(m_p_offloaded_modes[0]));
+
+	m_fd_ready_array.fd_max = FD_ARRAY_MAX;
+	m_fd_ready_array.fd_count = 0;
+}
+
+void io_mux_call::check_offloaded_rsockets(uint64_t *p_poll_sn)
+{
+	int fd, offloaded_index, num_all_offloaded_fds;
+	fd_array_t fd_ready_array;
+	socket_fd_api *p_socket_object;
+
+	fd_ready_array.fd_max = FD_ARRAY_MAX;
+
+	offloaded_index = g_n_last_checked_index;
+	num_all_offloaded_fds = *m_p_num_all_offloaded_fds;
+
+	for (int i = 0; i < num_all_offloaded_fds; ++i) {
+
+		++offloaded_index %= num_all_offloaded_fds;
+
+		if (m_p_offloaded_modes[offloaded_index] & OFF_READ) {
+			fd = m_p_all_offloaded_fds[offloaded_index];
+			p_socket_object = fd_collection_get_sockfd(fd);
+			if (!p_socket_object) {
+				// If we can't find this previously mapped offloaded socket
+				// then it was probably closed. We need to get out with error code
+				errno = EBADF;
+				g_n_last_checked_index = offloaded_index;
+				vma_throw_object(io_mux_call::io_error);
+			}
+
+			fd_ready_array.fd_count = 0;
+
+			// Poll the socket object
+			if (p_socket_object->is_readable(p_poll_sn, &fd_ready_array)) {
+				set_offloaded_rfd_ready(offloaded_index);
+				// We have offloaded traffic. Don't sample the OS immediately
+				p_socket_object->unset_immediate_os_sample();
+			}
+
+			check_rfd_ready_array(&fd_ready_array);
+
+
+			//TODO: consider - m_n_all_ready_fds
+			if (m_n_ready_rfds){
+				g_n_last_checked_index = offloaded_index;
+				return ;
+			}
+
+		}
+	}
+	g_n_last_checked_index = offloaded_index;
+	//return false;
 }
 
 void io_mux_call::polling_loops()

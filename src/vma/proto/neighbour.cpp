@@ -52,6 +52,87 @@
 #define RING_KEY 0
 
 
+/**/
+/** inlining functions can only help if they are implemented before their usage **/
+/**/
+
+// This function create new val and initiate it with Multicast MAC
+inline int neigh_eth::build_mc_neigh_val()
+{
+	neigh_logdbg("");
+	m_state = false;
+
+	//We need lock in any case that we change entry
+	auto_unlocker lock(m_lock);
+
+	if (m_val == NULL)
+		//This is the first time we are trying to allocate new val or it failed last time
+		m_val = new neigh_eth_val;
+
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (m_val == NULL) {
+		neigh_logdbg("m_val allocation has failed");
+		return -1;
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	address_t address = new unsigned char[ETH_ALEN];
+	create_multicast_mac_from_ip(address, get_key().get_in_addr());
+	m_val->m_l2_address = new ETH_addr(address);
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (m_val->m_l2_address == NULL) {
+		neigh_logdbg("m_val->m_l2_address allocation has failed");
+		delete [] address;
+		return -1;
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	m_state = true;
+	neigh_logdbg("Peer MAC = %s", m_val->m_l2_address->to_str().c_str());
+	delete [] address;
+	return 0;
+
+}
+
+inline int neigh_eth::build_uc_neigh_val()
+{
+	neigh_logdbg("");
+
+	// We need lock in any case that we change entry
+	auto_unlocker lock(m_lock);
+
+	if (m_val == NULL) {
+		// This is the first time we are trying to allocate new val or it failed last time
+		m_val = new neigh_eth_val;
+	}
+
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (m_val == NULL)
+		return -1;
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	unsigned char tmp[ETH_ALEN];
+	address_t address = (address_t)tmp;
+
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!priv_get_neigh_l2(address)) {
+		neigh_logdbg("Failed in priv_get_neigh_l2()");
+		return -1;
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	m_val->m_l2_address = new ETH_addr(address);
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (m_val->m_l2_address == NULL) {
+		neigh_logdbg("m_val->m_l2_address allocation has failed");
+		return -1;
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	neigh_logdbg("Peer MAC = %s", m_val->m_l2_address->to_str().c_str());
+	return 0;
+}
+
 neigh_val & neigh_ib_val::operator=(const neigh_val & val)
 {
 	IPoIB_addr* l2_addr = NULL;
@@ -1202,44 +1283,6 @@ bool neigh_eth::register_observer(const observer* const new_observer)
 	return (neigh_entry::register_observer(new_observer));
 }
 
-// This function create new val and initiate it with Multicast MAC
-inline int neigh_eth::build_mc_neigh_val()
-{
-	neigh_logdbg("");
-	m_state = false;
-
-	//We need lock in any case that we change entry
-	auto_unlocker lock(m_lock);
-
-	if (m_val == NULL)
-		//This is the first time we are trying to allocate new val or it failed last time
-		m_val = new neigh_eth_val;
-
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (m_val == NULL) {
-		neigh_logdbg("m_val allocation has failed");
-		return -1;
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-
-	address_t address = new unsigned char[ETH_ALEN];
-	create_multicast_mac_from_ip(address, get_key().get_in_addr());
-	m_val->m_l2_address = new ETH_addr(address);
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (m_val->m_l2_address == NULL) {
-		neigh_logdbg("m_val->m_l2_address allocation has failed");
-		delete [] address;
-		return -1;
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-
-	m_state = true;
-	neigh_logdbg("Peer MAC = %s", m_val->m_l2_address->to_str().c_str());
-	delete [] address;
-	return 0;
-
-}
-
 int neigh_eth::priv_enter_init()
 {
 	int state;
@@ -1306,45 +1349,6 @@ int neigh_eth::priv_enter_ready()
 		return (neigh_entry::priv_enter_ready());
 
 	return -1;
-}
-
-inline int neigh_eth::build_uc_neigh_val()
-{
-	neigh_logdbg("");
-
-	// We need lock in any case that we change entry
-	auto_unlocker lock(m_lock);
-
-	if (m_val == NULL) {
-		// This is the first time we are trying to allocate new val or it failed last time
-		m_val = new neigh_eth_val;
-	}
-
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (m_val == NULL)
-		return -1;
-	BULLSEYE_EXCLUDE_BLOCK_END
-
-	unsigned char tmp[ETH_ALEN];
-	address_t address = (address_t)tmp;
-
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!priv_get_neigh_l2(address)) {
-		neigh_logdbg("Failed in priv_get_neigh_l2()");
-		return -1;
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-
-	m_val->m_l2_address = new ETH_addr(address);
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (m_val->m_l2_address == NULL) {
-		neigh_logdbg("m_val->m_l2_address allocation has failed");
-		return -1;
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-
-	neigh_logdbg("Peer MAC = %s", m_val->m_l2_address->to_str().c_str());
-	return 0;
 }
 
 bool neigh_eth::post_send_arp(bool is_broadcast)

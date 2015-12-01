@@ -125,7 +125,6 @@ public:
 	static void tcp_state_observer(void* pcb_container, enum tcp_state new_state);
 
 	virtual bool rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void* pv_fd_ready_array = NULL);
-	inline void init_pbuf_custom(mem_buf_desc_t *p_desc);
 	static struct pbuf * tcp_tx_pbuf_alloc(void* p_conn);
 	static void tcp_tx_pbuf_free(void* p_conn, struct pbuf *p_buff);
 	static struct tcp_seg * tcp_seg_alloc(void* p_conn);
@@ -265,6 +264,8 @@ private:
 	vma_desc_list_t m_rx_ctl_reuse_list;
 	ready_pcb_map_t m_ready_pcbs;
 
+	inline void init_pbuf_custom(mem_buf_desc_t *p_desc);
+
 	inline void lock_tcp_con();
 	inline void unlock_tcp_con();
 	void tcp_timer();
@@ -367,7 +368,6 @@ private:
 	void process_reuse_ctl_packets();
 	void process_rx_ctl_packets();
 };
-
 typedef struct tcp_seg tcp_seg;
 
 class tcp_seg_pool : lock_spin {

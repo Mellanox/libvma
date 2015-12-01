@@ -57,6 +57,118 @@ tcp_seg_pool *g_tcp_seg_pool = NULL;
 tcp_timers_collection* g_tcp_timers_collection = NULL;
 
 
+
+/**/
+/** inlining functions can only help if they are implemented before their usage **/
+/**/
+
+inline void sockinfo_tcp::lock_tcp_con()
+{
+	m_tcp_con_lock.lock();
+}
+
+inline void sockinfo_tcp::unlock_tcp_con()
+{
+	if (m_timer_pending) {
+		tcp_timer();
+	}
+	m_tcp_con_lock.unlock();
+}
+
+inline void sockinfo_tcp::init_pbuf_custom(mem_buf_desc_t *p_desc)
+{
+	p_desc->lwip_pbuf.pbuf.flags = PBUF_FLAG_IS_CUSTOM;
+	p_desc->lwip_pbuf.pbuf.len = p_desc->lwip_pbuf.pbuf.tot_len = (p_desc->sz_data - p_desc->transport_header_len);
+	p_desc->lwip_pbuf.pbuf.ref = 1;
+	p_desc->lwip_pbuf.pbuf.type = PBUF_REF;
+	p_desc->lwip_pbuf.pbuf.next = NULL;
+	p_desc->lwip_pbuf.pbuf.payload = (u8_t *)p_desc->p_buffer + p_desc->transport_header_len;
+}
+
+/* change default rx_wait impl to flow based one */
+inline int sockinfo_tcp::rx_wait(int &poll_count, bool is_blocking)
+{
+        int ret_val = 0;
+        unlock_tcp_con();
+        ret_val = rx_wait_helper(poll_count, is_blocking);
+        lock_tcp_con();
+        return ret_val;
+}
+
+inline void sockinfo_tcp::return_pending_rx_buffs()
+{
+    // force reuse of buffers especially for avoiding deadlock in case all buffers were taken and we can NOT get new FIN packets that will release buffers
+	if (mce_sys.buffer_batching_mode == BUFFER_BATCHING_NO_RECLAIM || !m_rx_reuse_buff.n_buff_num)
+		return;
+
+    if (m_rx_reuse_buf_pending) {
+            if (m_p_rx_ring && m_p_rx_ring->reclaim_recv_buffers(&m_rx_reuse_buff.rx_reuse)) {
+            } else {
+                    g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&m_rx_reuse_buff.rx_reuse);
+            }
+            m_rx_reuse_buff.n_buff_num = 0;
+            set_rx_reuse_pending(false);
+    }
+    else {
+    	set_rx_reuse_pending(true);
+    }
+}
+
+inline void sockinfo_tcp::return_pending_tx_buffs()
+{
+	if (mce_sys.buffer_batching_mode == BUFFER_BATCHING_NO_RECLAIM || !m_p_connected_dst_entry)
+		return;
+
+	m_p_connected_dst_entry->return_buffers_pool();
+}
+
+//todo inline void sockinfo_tcp::return_pending_tcp_segs()
+
+inline void sockinfo_tcp::return_rx_buffs(ring* p_ring)
+{
+	set_rx_reuse_pending(false);
+	if (m_p_rx_ring->is_member(p_ring)) {
+		if (unlikely(m_rx_reuse_buff.n_buff_num > m_rx_num_buffs_reuse)) {
+			if (p_ring->reclaim_recv_buffers(&m_rx_reuse_buff.rx_reuse)) {
+				m_rx_reuse_buff.n_buff_num = 0;
+			}
+		}
+	}
+	else {
+		if (likely(p_ring)) {
+			rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.find(p_ring->get_parent());
+			if (likely(rx_ring_iter != m_rx_ring_map.end())) {
+				descq_t *rx_reuse = &rx_ring_iter->second->rx_reuse_info.rx_reuse;
+				if (rx_ring_iter->second->rx_reuse_info.n_buff_num > m_rx_num_buffs_reuse) {
+					if (rx_ring_iter->first->reclaim_recv_buffers(rx_reuse)) {
+						rx_ring_iter->second->rx_reuse_info.n_buff_num = 0;
+					}
+				}
+			}
+		}
+	}
+}
+
+inline void sockinfo_tcp::reuse_buffer(mem_buf_desc_t *buff)
+{
+	set_rx_reuse_pending(false);
+	if (likely(m_p_rx_ring)) {
+		m_rx_reuse_buff.n_buff_num += buff->n_frags;
+		m_rx_reuse_buff.rx_reuse.push_back(buff);
+		if (m_rx_reuse_buff.n_buff_num > m_rx_num_buffs_reuse) {
+			if (m_p_rx_ring->reclaim_recv_buffers(&m_rx_reuse_buff.rx_reuse)) {
+				m_rx_reuse_buff.n_buff_num = 0;
+			} else if (m_rx_reuse_buff.n_buff_num > 2 * m_rx_num_buffs_reuse) {
+				g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&m_rx_reuse_buff.rx_reuse);
+				m_rx_reuse_buff.n_buff_num = 0;
+			}
+		}
+	}
+	else {
+		sockinfo::reuse_buffer(buff);
+	}
+}
+
 sockinfo_tcp::sockinfo_tcp(int fd) throw (vma_exception) :
         sockinfo(fd),
         m_conn_cond("tcp_sockinfo::m_conn_cond"),
@@ -401,19 +513,6 @@ void sockinfo_tcp::create_dst_entry()
 			m_p_connected_dst_entry->set_so_bindtodevice_addr(m_so_bindtodevice_ip);
 		}
 	}
-}
-
-inline void sockinfo_tcp::lock_tcp_con()
-{
-	m_tcp_con_lock.lock();
-}
-
-inline void sockinfo_tcp::unlock_tcp_con()
-{
-	if (m_timer_pending) {
-		tcp_timer();
-	}
-	m_tcp_con_lock.unlock();
 }
 
 void sockinfo_tcp::lock_rx_q()
@@ -1428,16 +1527,6 @@ err:
 		m_p_socket_stats->counters.n_rx_errors++;
 	unlock_tcp_con();
 	return ret;
-}
-
-inline void sockinfo_tcp::init_pbuf_custom(mem_buf_desc_t *p_desc)
-{
-	p_desc->lwip_pbuf.pbuf.flags = PBUF_FLAG_IS_CUSTOM;
-	p_desc->lwip_pbuf.pbuf.len = p_desc->lwip_pbuf.pbuf.tot_len = (p_desc->sz_data - p_desc->transport_header_len);
-	p_desc->lwip_pbuf.pbuf.ref = 1;
-	p_desc->lwip_pbuf.pbuf.type = PBUF_REF;
-	p_desc->lwip_pbuf.pbuf.next = NULL;
-	p_desc->lwip_pbuf.pbuf.payload = (u8_t *)p_desc->p_buffer + p_desc->transport_header_len;
 }
 
 void sockinfo_tcp::register_timer()
@@ -3310,16 +3399,6 @@ struct sockaddr *sockinfo_tcp::sockaddr_realloc(struct sockaddr *old_addr,
 }
 #endif
 
-/* change default rx_wait impl to flow based one */
-inline int sockinfo_tcp::rx_wait(int &poll_count, bool is_blocking)
-{
-        int ret_val = 0;
-        unlock_tcp_con();
-        ret_val = rx_wait_helper(poll_count, is_blocking);
-        lock_tcp_con();
-        return ret_val;
-}
-
 int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 {
 	int ret;
@@ -3468,81 +3547,6 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 		}
 	}
 	return ret;
-}
-
-// TODO: probably it is not helpful to implement inline functions after the code that calls them
-inline void sockinfo_tcp::return_pending_rx_buffs()
-{
-    // force reuse of buffers especially for avoiding deadlock in case all buffers were taken and we can NOT get new FIN packets that will release buffers
-	if (mce_sys.buffer_batching_mode == BUFFER_BATCHING_NO_RECLAIM || !m_rx_reuse_buff.n_buff_num)
-		return;
-
-    if (m_rx_reuse_buf_pending) {
-            if (m_p_rx_ring && m_p_rx_ring->reclaim_recv_buffers(&m_rx_reuse_buff.rx_reuse)) {
-            } else {
-                    g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&m_rx_reuse_buff.rx_reuse);
-            }
-            m_rx_reuse_buff.n_buff_num = 0;
-            set_rx_reuse_pending(false);
-    }
-    else {
-    	set_rx_reuse_pending(true);
-    }
-}
-
-inline void sockinfo_tcp::return_pending_tx_buffs()
-{
-	if (mce_sys.buffer_batching_mode == BUFFER_BATCHING_NO_RECLAIM || !m_p_connected_dst_entry)
-		return;
-
-	m_p_connected_dst_entry->return_buffers_pool();
-}
-
-//todo inline void sockinfo_tcp::return_pending_tcp_segs()
-
-inline void sockinfo_tcp::return_rx_buffs(ring* p_ring)
-{
-	set_rx_reuse_pending(false);
-	if (m_p_rx_ring->is_member(p_ring)) {
-		if (unlikely(m_rx_reuse_buff.n_buff_num > m_rx_num_buffs_reuse)) {
-			if (p_ring->reclaim_recv_buffers(&m_rx_reuse_buff.rx_reuse)) {
-				m_rx_reuse_buff.n_buff_num = 0;
-			}
-		}
-	}
-	else {
-		if (likely(p_ring)) {
-			rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.find(p_ring->get_parent());
-			if (likely(rx_ring_iter != m_rx_ring_map.end())) {
-				descq_t *rx_reuse = &rx_ring_iter->second->rx_reuse_info.rx_reuse;
-				if (rx_ring_iter->second->rx_reuse_info.n_buff_num > m_rx_num_buffs_reuse) {
-					if (rx_ring_iter->first->reclaim_recv_buffers(rx_reuse)) {
-						rx_ring_iter->second->rx_reuse_info.n_buff_num = 0;
-					}
-				}
-			}
-		}
-	}
-}
-
-inline void sockinfo_tcp::reuse_buffer(mem_buf_desc_t *buff)
-{
-	set_rx_reuse_pending(false);
-	if (likely(m_p_rx_ring)) {
-		m_rx_reuse_buff.n_buff_num += buff->n_frags;
-		m_rx_reuse_buff.rx_reuse.push_back(buff);
-		if (m_rx_reuse_buff.n_buff_num > m_rx_num_buffs_reuse) {
-			if (m_p_rx_ring->reclaim_recv_buffers(&m_rx_reuse_buff.rx_reuse)) {
-				m_rx_reuse_buff.n_buff_num = 0;
-			} else if (m_rx_reuse_buff.n_buff_num > 2 * m_rx_num_buffs_reuse) {
-				g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&m_rx_reuse_buff.rx_reuse);
-				m_rx_reuse_buff.n_buff_num = 0;
-			}
-		}
-	}
-	else {
-		sockinfo::reuse_buffer(buff);
-	}
 }
 
 mem_buf_desc_t* sockinfo_tcp::get_next_desc(mem_buf_desc_t *p_desc)

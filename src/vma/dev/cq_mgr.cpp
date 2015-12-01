@@ -46,6 +46,72 @@
 
 atomic_t cq_mgr::m_n_cq_id_counter = ATOMIC_DECLARE_INIT(1);
 uint64_t cq_mgr::m_n_global_sn = 0;
+/**/
+/** inlining functions can only help if they are implemented before their usage **/
+/**/
+inline bool is_ib_tcp_frame(mem_buf_desc_t* buff)
+{
+        struct ipoibhdr* p_ipoib_h = (struct ipoibhdr*)(buff->p_buffer + GRH_HDR_LEN);
+
+        // Validate IPoIB header
+        if (unlikely(p_ipoib_h->ipoib_header != htonl(IPOIB_HEADER))) {
+                return false;
+        }
+
+        size_t transport_header_len = GRH_HDR_LEN + IPOIB_HDR_LEN;
+
+        struct iphdr * p_ip_h = (struct iphdr*)(buff->p_buffer + transport_header_len);
+        if (likely(p_ip_h->protocol == IPPROTO_TCP)) {
+                return true;
+        }
+        return false;
+}
+
+inline bool is_eth_tcp_frame(mem_buf_desc_t* buff)
+{
+	struct ethhdr* p_eth_h = (struct ethhdr*)(buff->p_buffer);
+	uint16_t* p_h_proto = &p_eth_h->h_proto;
+
+	size_t transport_header_len = ETH_HDR_LEN;
+	struct vlanhdr* p_vlan_hdr = NULL;
+	if (*p_h_proto == htons(ETH_P_8021Q)) {
+		p_vlan_hdr = (struct vlanhdr*)((uint8_t*)p_eth_h + transport_header_len);
+		transport_header_len = ETH_VLAN_HDR_LEN;
+		p_h_proto = &p_vlan_hdr->h_vlan_encapsulated_proto;
+	}
+	struct iphdr *p_ip_h = (struct iphdr*)(buff->p_buffer + transport_header_len);
+	if (likely(*p_h_proto == htons(ETH_P_IP)) && (p_ip_h->protocol == IPPROTO_TCP)) {
+		return true;
+	}
+	return false;
+}
+
+inline void cq_mgr::process_recv_buffer(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array)
+{
+	// Assume locked!!!
+
+	// Pass the Rx buffer ib_comm_mgr for further IP processing
+	if (!m_p_ring->rx_process_buffer(p_mem_buf_desc, m_transport_type, pv_fd_ready_array)) {
+		// If buffer is dropped by callback - return to RX pool
+		reclaim_recv_buffer_helper(p_mem_buf_desc);
+	}
+}
+
+inline int cq_mgr::post_recv_qp(qp_rec *qprec, mem_buf_desc_t *buff)
+{
+	if (buff->serial_num > m_buffer_prev_id + BUFF_STAT_THRESHOLD)
+		++m_buffer_miss_count;
+	m_buffer_prev_id = buff->serial_num;
+	++m_buffer_total_count;
+
+	if (m_buffer_total_count >= BUFF_STAT_REFRESH) {
+		m_p_cq_stat->buffer_miss_rate = m_buffer_miss_count/(double)m_buffer_total_count;
+		m_buffer_miss_count = 0;
+		m_buffer_total_count = 0;
+	}
+	// buff->p_next_desc = NULL;
+	return qprec->qp->post_recv(buff);
+}
 
 cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx) :
 		m_p_ring(p_ring), m_p_ib_ctx_handler(p_ib_ctx_handler), m_b_is_rx(is_rx), m_comp_event_channel(p_comp_event_channel), m_p_next_rx_desc_poll(NULL)
@@ -475,22 +541,6 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 	return p_mem_buf_desc;
 }
 
-inline int cq_mgr::post_recv_qp(qp_rec *qprec, mem_buf_desc_t *buff)
-{
-	if (buff->serial_num > m_buffer_prev_id + BUFF_STAT_THRESHOLD)
-		++m_buffer_miss_count;
-	m_buffer_prev_id = buff->serial_num;
-	++m_buffer_total_count;
-
-	if (m_buffer_total_count >= BUFF_STAT_REFRESH) {
-		m_p_cq_stat->buffer_miss_rate = m_buffer_miss_count/(double)m_buffer_total_count;
-		m_buffer_miss_count = 0;
-		m_buffer_total_count = 0;
-	}
-	// buff->p_next_desc = NULL;
-	return qprec->qp->post_recv(buff);
-}
-
 bool cq_mgr::compensate_qp_post_recv(mem_buf_desc_t* buff_cur)
 {
 	// Assume locked!!!
@@ -570,17 +620,6 @@ uint32_t cq_mgr::process_recv_queue(void* pv_fd_ready_array)
 	}
 	m_p_cq_stat->n_rx_sw_queue_len = m_rx_queue.size();
 	return processed;
-}
-
-inline void cq_mgr::process_recv_buffer(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array)
-{
-	// Assume locked!!!
-
-	// Pass the Rx buffer ib_comm_mgr for further IP processing
-	if (!m_p_ring->rx_process_buffer(p_mem_buf_desc, m_transport_type, pv_fd_ready_array)) {
-		// If buffer is dropped by callback - return to RX pool
-		reclaim_recv_buffer_helper(p_mem_buf_desc);
-	}
 }
 
 void cq_mgr::process_tx_buffer_list(mem_buf_desc_t* p_mem_buf_desc)
@@ -733,43 +772,6 @@ bool cq_mgr::reclaim_recv_buffers(descq_t *rx_reuse)
 	return_extra_buffers();
 
 	return true;
-}
-
-inline bool is_ib_tcp_frame(mem_buf_desc_t* buff)
-{
-        struct ipoibhdr* p_ipoib_h = (struct ipoibhdr*)(buff->p_buffer + GRH_HDR_LEN);
-
-        // Validate IPoIB header
-        if (unlikely(p_ipoib_h->ipoib_header != htonl(IPOIB_HEADER))) {
-                return false;
-        }
-
-        size_t transport_header_len = GRH_HDR_LEN + IPOIB_HDR_LEN;
-
-        struct iphdr * p_ip_h = (struct iphdr*)(buff->p_buffer + transport_header_len);
-        if (likely(p_ip_h->protocol == IPPROTO_TCP)) {
-                return true;
-        }
-        return false;
-}
-
-inline bool is_eth_tcp_frame(mem_buf_desc_t* buff)
-{
-	struct ethhdr* p_eth_h = (struct ethhdr*)(buff->p_buffer);
-	uint16_t* p_h_proto = &p_eth_h->h_proto;
-
-	size_t transport_header_len = ETH_HDR_LEN;
-	struct vlanhdr* p_vlan_hdr = NULL;
-	if (*p_h_proto == htons(ETH_P_8021Q)) {
-		p_vlan_hdr = (struct vlanhdr*)((uint8_t*)p_eth_h + transport_header_len);
-		transport_header_len = ETH_VLAN_HDR_LEN;
-		p_h_proto = &p_vlan_hdr->h_vlan_encapsulated_proto;
-	}
-	struct iphdr *p_ip_h = (struct iphdr*)(buff->p_buffer + transport_header_len);
-	if (likely(*p_h_proto == htons(ETH_P_IP)) && (p_ip_h->protocol == IPPROTO_TCP)) {
-		return true;
-	}
-	return false;
 }
 
 int cq_mgr::drain_and_proccess(bool b_recycle_buffers /*=false*/)
