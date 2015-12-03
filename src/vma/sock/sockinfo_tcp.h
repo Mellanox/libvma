@@ -218,7 +218,6 @@ private:
 	int m_rcvbuff_max;
 	int m_rcvbuff_current;
 	int m_rcvbuff_non_tcp_recved;
-	lock_mutex_cond m_conn_cond;
 	tcp_conn_state_e m_conn_state;
 	fd_array_t* m_iomux_ready_fd_array;
 	struct linger m_linger;

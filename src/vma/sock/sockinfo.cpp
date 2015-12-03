@@ -49,6 +49,7 @@ sockinfo::sockinfo(int fd) throw (vma_exception):
 		m_so_bindtodevice_ip(0),
 		m_p_rx_ring(0),
 		m_rx_reuse_buf_pending(false),
+		m_rx_reuse_buf_postponed(false),
 		m_rx_ring_map_lock(MODULE_NAME "::m_rx_ring_map_lock"),
 		m_ring_alloc_logic(fd, this),
 		m_n_rx_pkt_ready_list_count(0), m_rx_pkt_ready_offset(0), m_rx_ready_byte_count(0),

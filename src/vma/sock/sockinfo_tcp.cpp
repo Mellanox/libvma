@@ -124,44 +124,25 @@ inline void sockinfo_tcp::return_pending_tx_buffs()
 
 //todo inline void sockinfo_tcp::return_pending_tcp_segs()
 
-inline void sockinfo_tcp::return_rx_buffs(ring* p_ring)
-{
-	set_rx_reuse_pending(false);
-	if (m_p_rx_ring->is_member(p_ring)) {
-		if (unlikely(m_rx_reuse_buff.n_buff_num > m_rx_num_buffs_reuse)) {
-			if (p_ring->reclaim_recv_buffers(&m_rx_reuse_buff.rx_reuse)) {
-				m_rx_reuse_buff.n_buff_num = 0;
-			}
-		}
-	}
-	else {
-		if (likely(p_ring)) {
-			rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.find(p_ring->get_parent());
-			if (likely(rx_ring_iter != m_rx_ring_map.end())) {
-				descq_t *rx_reuse = &rx_ring_iter->second->rx_reuse_info.rx_reuse;
-				if (rx_ring_iter->second->rx_reuse_info.n_buff_num > m_rx_num_buffs_reuse) {
-					if (rx_ring_iter->first->reclaim_recv_buffers(rx_reuse)) {
-						rx_ring_iter->second->rx_reuse_info.n_buff_num = 0;
-					}
-				}
-			}
-		}
-	}
-}
-
 inline void sockinfo_tcp::reuse_buffer(mem_buf_desc_t *buff)
 {
 	set_rx_reuse_pending(false);
 	if (likely(m_p_rx_ring)) {
 		m_rx_reuse_buff.n_buff_num += buff->n_frags;
 		m_rx_reuse_buff.rx_reuse.push_back(buff);
-		if (m_rx_reuse_buff.n_buff_num > m_rx_num_buffs_reuse) {
+		if (m_rx_reuse_buff.n_buff_num < m_rx_num_buffs_reuse) {
+			return;
+		}
+		if (m_rx_reuse_buff.n_buff_num >= 2 * m_rx_num_buffs_reuse) {
 			if (m_p_rx_ring->reclaim_recv_buffers(&m_rx_reuse_buff.rx_reuse)) {
 				m_rx_reuse_buff.n_buff_num = 0;
-			} else if (m_rx_reuse_buff.n_buff_num > 2 * m_rx_num_buffs_reuse) {
+			} else {
 				g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&m_rx_reuse_buff.rx_reuse);
 				m_rx_reuse_buff.n_buff_num = 0;
 			}
+			m_rx_reuse_buf_postponed = false;
+		} else {
+			m_rx_reuse_buf_postponed = true;
 		}
 	}
 	else {
@@ -171,7 +152,6 @@ inline void sockinfo_tcp::reuse_buffer(mem_buf_desc_t *buff)
 
 sockinfo_tcp::sockinfo_tcp(int fd) throw (vma_exception) :
         sockinfo(fd),
-        m_conn_cond("tcp_sockinfo::m_conn_cond"),
         m_timer_handle(NULL),
         m_timer_pending(false)
 {
@@ -417,6 +397,8 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 		reuse_buffer(p_rx_pkt_desc);
 	}
 
+	return_reuse_buffers_postponed();
+
 	tcp_close(&m_pcb);
 
 	if (is_listen_socket) {
@@ -584,7 +566,7 @@ ssize_t sockinfo_tcp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 	int poll_count = 0;
 	bool block_this_run = m_b_blocking && !(flags & MSG_DONTWAIT);
 
-	if (m_sock_offload != TCP_SOCK_LWIP) {
+	if (unlikely(m_sock_offload != TCP_SOCK_LWIP)) {
 #ifdef VMA_TIME_MEASURE
 		INC_GO_TO_OS_TX_COUNT;
 #endif
@@ -600,7 +582,7 @@ ssize_t sockinfo_tcp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 
 retry_is_ready:
 
-	if (!is_rts()) {
+	if (unlikely(!is_rts())) {
 
 		if (m_conn_state == TCP_CONN_CONNECTING) {
 			si_tcp_logdbg("TX while async-connect on socket go to poll");
@@ -675,8 +657,8 @@ retry_write:
 				goto err;
 			}
 			err = tcp_write(&m_pcb, (char *)p_iov[i].iov_base + pos, tx_size, 3);
-			if (err != ERR_OK) {
-				if (err == ERR_CONN) { // happens when remote drops during big write
+			if (unlikely(err != ERR_OK)) {
+				if (unlikely(err == ERR_CONN)) { // happens when remote drops during big write
 					si_tcp_logdbg("connection closed: tx'ed = %d", total_tx);
 					shutdown(SHUT_WR);
 					if (total_tx > 0)
@@ -688,7 +670,7 @@ retry_write:
 #endif					
 					return -1;
 				}
-				if (err != ERR_MEM) {
+				if (unlikely(err != ERR_MEM)) {
 					// we should not get here...
 					BULLSEYE_EXCLUDE_BLOCK_START
 					si_tcp_logpanic("tcp_write return: %d", err);
@@ -1348,7 +1330,6 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 			conn->m_p_socket_stats->n_rx_ready_pkt_count++;
 			conn->m_p_socket_stats->counters.n_rx_ready_pkt_max = max((uint32_t)conn->m_p_socket_stats->n_rx_ready_pkt_count, conn->m_p_socket_stats->counters.n_rx_ready_pkt_max);
 			conn->m_p_socket_stats->counters.n_rx_ready_byte_max = max((uint32_t)conn->m_p_socket_stats->n_rx_ready_byte_count, conn->m_p_socket_stats->counters.n_rx_ready_byte_max);
-			conn->return_rx_buffs((ring*)p_first_desc->p_desc_owner);
 		}
 		// notify io_mux
 		conn->notify_epoll_context(EPOLLIN);
@@ -1452,6 +1433,8 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 	si_tcp_logfunc("rx: iov=%p niovs=%d", p_iov, sz_iov);
 	 /* poll rx queue till we have something */
 	lock_tcp_con();
+
+	return_reuse_buffers_postponed();
 
 	while (m_rx_ready_byte_count < total_iov_sz) {
         	if (unlikely(g_b_exit)) {

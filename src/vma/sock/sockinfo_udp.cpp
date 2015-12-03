@@ -1159,6 +1159,7 @@ void sockinfo_udp::rx_ready_byte_count_limit_update(size_t n_rx_ready_bytes_limi
 			m_p_socket_stats->n_rx_ready_byte_count -= p_rx_pkt_desc->path.rx.sz_payload;
 
 			reuse_buffer(p_rx_pkt_desc);
+			return_reuse_buffers_postponed();
 		}
 		else
 			break;
@@ -1200,6 +1201,8 @@ ssize_t sockinfo_udp::rx(const rx_call_t call_type, iovec* p_iov,ssize_t sz_iov,
 
 	// Drop lock to not starve other threads
 	m_lock_rcv.unlock();
+
+	return_reuse_buffers_postponed();
 
 	// Poll socket for OS ready packets... (at a ratio of the offloaded sockets as defined in mce_sys.rx_udp_poll_os_ratio)
 	if ((mce_sys.rx_udp_poll_os_ratio > 0) && (m_rx_udp_poll_os_ratio_counter >= mce_sys.rx_udp_poll_os_ratio)) {
@@ -1684,20 +1687,20 @@ bool sockinfo_udp::tx_check_if_would_not_block()
 bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 {
 	// Check that sockinfo is bound to the packets dest port
-	if (p_desc->path.rx.dst.sin_port != m_bound.get_in_port()) {
+	if (unlikely(p_desc->path.rx.dst.sin_port != m_bound.get_in_port())) {
 		si_udp_logfunc("rx packet discarded - not socket's bound port (pkt: %d, sock:%s)",
 		           ntohs(p_desc->path.rx.dst.sin_port), m_bound.to_str_in_port());
 		return false;
 	}
 
 	if (m_connected.get_in_port() != INPORT_ANY && m_connected.get_in_addr() != INADDR_ANY) {
-		if (m_connected.get_in_port() != p_desc->path.rx.src.sin_port) {
+		if (unlikely(m_connected.get_in_port() != p_desc->path.rx.src.sin_port)) {
 			si_udp_logfunc("rx packet discarded - not socket's connected port (pkt: %d, sock:%s)",
 				   ntohs(p_desc->path.rx.src.sin_port), m_connected.to_str_in_port());
 			return false;
 		}
 
-		if (m_connected.get_in_addr() != p_desc->path.rx.src.sin_addr.s_addr) {
+		if (unlikely(m_connected.get_in_addr() != p_desc->path.rx.src.sin_addr.s_addr)) {
 			si_udp_logfunc("rx packet discarded - not socket's connected port (pkt: [%d:%d:%d:%d], sock:[%s])",
 				   NIPQUAD(p_desc->path.rx.src.sin_addr.s_addr), m_connected.to_str_in_addr());
 			return false;
@@ -1707,7 +1710,7 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 	// if loopback is disabled, discard loopback packets.
 	// in linux, loopback control (set by setsockopt) is done in TX flow.
 	// since we currently can't control it in TX, we behave like windows, which filter on RX
-	if (!m_b_mc_tx_loop && p_desc->path.rx.local_if == p_desc->path.rx.src.sin_addr.s_addr) {
+	if (unlikely(!m_b_mc_tx_loop && p_desc->path.rx.local_if == p_desc->path.rx.src.sin_addr.s_addr)) {
 		si_udp_logfunc("rx packet discarded - loopback is disabled (pkt: [%d:%d:%d:%d], sock:%s)",
 			NIPQUAD(p_desc->path.rx.src.sin_addr.s_addr), m_bound.to_str_in_addr());
 		return false;
@@ -1735,7 +1738,7 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 	}
 
 	// Check if sockinfo rx byte quato reached - then disregard this packet
-	if (m_p_socket_stats->n_rx_ready_byte_count >= m_p_socket_stats->n_rx_ready_byte_limit) {
+	if (unlikely(m_p_socket_stats->n_rx_ready_byte_count >= m_p_socket_stats->n_rx_ready_byte_limit)) {
 		si_udp_logfunc("rx packet discarded - socket limit reached (%d bytes)", m_p_socket_stats->n_rx_ready_byte_limit);
 		m_p_socket_stats->counters.n_rx_ready_byte_drop += p_desc->path.rx.sz_payload;
 		m_p_socket_stats->counters.n_rx_ready_pkt_drop++;

@@ -124,7 +124,8 @@ protected:
 	// we either listen on ALL system cqs or bound to the specific cq
 	ring*			m_p_rx_ring; //used in TCP instead of m_rx_ring_map
 	buff_info_t		m_rx_reuse_buff; //used in TCP instead of m_rx_ring_map
-	bool			m_rx_reuse_buf_pending;
+	bool			m_rx_reuse_buf_pending; //used to periodically return buffers, even if threshold was not reached
+	bool			m_rx_reuse_buf_postponed; //used to mark threshold was reached, but free was not done yet
 	inline void		set_rx_reuse_pending(bool is_pending = true) {m_rx_reuse_buf_pending = is_pending;}
 
 	rx_ring_map_t		m_rx_ring_map; // CQ map
@@ -301,18 +302,24 @@ protected:
     	ring* p_ring = ((ring*)(buff->p_desc_owner))->get_parent();
     	rx_ring_map_t::iterator iter = m_rx_ring_map.find(p_ring);
     	if(likely(iter != m_rx_ring_map.end())){
-        	descq_t *rx_reuse = &iter->second->rx_reuse_info.rx_reuse;
+            descq_t *rx_reuse = &iter->second->rx_reuse_info.rx_reuse;
+            int& n_buff_num = iter->second->rx_reuse_info.n_buff_num;
             rx_reuse->push_back(buff);
-            iter->second->rx_reuse_info.n_buff_num += buff->n_frags;
-            if(iter->second->rx_reuse_info.n_buff_num > m_rx_num_buffs_reuse){
-                if (p_ring->reclaim_recv_buffers(rx_reuse)) {
-                    iter->second->rx_reuse_info.n_buff_num = 0;
-                } else if (iter->second->rx_reuse_info.n_buff_num > 2 * m_rx_num_buffs_reuse) {
-                	g_buffer_pool_rx->put_buffers_after_deref_thread_safe(rx_reuse);
-                	iter->second->rx_reuse_info.n_buff_num = 0;
-                }
+            n_buff_num += buff->n_frags;
+            if(n_buff_num < m_rx_num_buffs_reuse){
+        	    return;
             }
-
+            if(n_buff_num >= 2 * m_rx_num_buffs_reuse){
+                if (p_ring->reclaim_recv_buffers(rx_reuse)) {
+                    n_buff_num = 0;
+                } else {
+                	g_buffer_pool_rx->put_buffers_after_deref_thread_safe(rx_reuse);
+                	n_buff_num = 0;
+                }
+                m_rx_reuse_buf_postponed = false;
+            } else {
+                m_rx_reuse_buf_postponed = true;
+            }
         }
         else{
             // Retuned buffer to global pool when owner can't be found
@@ -323,6 +330,41 @@ protected:
                 g_buffer_pool_rx->put_buffers_thread_safe(buff);
 
         }
+    }
+
+    inline void return_reuse_buffers_postponed()
+    {
+	    if (!m_rx_reuse_buf_postponed)
+		    return;
+
+            //for the parallel reclaim mechanism from internal thread, used for "silent" sockets
+	    set_rx_reuse_pending(false);
+
+            m_rx_reuse_buf_postponed = false;
+
+	    if (m_p_rx_ring) {
+		    if (m_rx_reuse_buff.n_buff_num >= m_rx_num_buffs_reuse) {
+			    if (m_p_rx_ring->reclaim_recv_buffers(&m_rx_reuse_buff.rx_reuse)) {
+			    	   m_rx_reuse_buff.n_buff_num = 0;
+			    } else {
+				   m_rx_reuse_buf_postponed = true;
+			    }	
+		    }
+	    } else {
+		    rx_ring_map_t::iterator iter = m_rx_ring_map.begin();
+		    while (iter != m_rx_ring_map.end()) {
+		            descq_t *rx_reuse = &iter->second->rx_reuse_info.rx_reuse;
+		            int& n_buff_num = iter->second->rx_reuse_info.n_buff_num;
+			    if (n_buff_num >= m_rx_num_buffs_reuse) {
+				    if (iter->first->reclaim_recv_buffers(rx_reuse)) {
+					    n_buff_num = 0;
+				    } else {
+					    m_rx_reuse_buf_postponed = true;
+				    }
+			    }
+			    ++iter;
+		    }
+	    }
     }
 
     inline void move_owned_descs(ring* p_desc_owner, descq_t *toq, descq_t *fromq)
