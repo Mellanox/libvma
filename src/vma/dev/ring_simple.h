@@ -37,7 +37,7 @@ public:
 	virtual void		mem_buf_desc_return_to_owner_rx(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array = NULL);
 	virtual void		mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc);
 	virtual int		get_max_tx_inline();
-	int			send_buffer(vma_ibv_send_wr* p_send_wqe, bool b_block);
+	inline int		send_buffer(vma_ibv_send_wr* p_send_wqe, bool b_block);
 	virtual bool		attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
 	virtual bool		detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
 	virtual void		restart(ring_resource_creation_info_t* p_ring_info);

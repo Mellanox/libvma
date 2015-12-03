@@ -608,7 +608,7 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 
 	// Validate buffer size
 	sz_data = p_rx_wc_buf_desc->sz_data;
-	if (sz_data > p_rx_wc_buf_desc->sz_buffer) {
+	if (unlikely(sz_data > p_rx_wc_buf_desc->sz_buffer)) {
 		if (sz_data == IP_FRAG_FREED)
 			ring_logfuncall("Rx buffer dropped - old fragment part");
 		else
@@ -682,7 +682,7 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 	sz_data -= transport_header_len;
 
 	// Validate size for IPv4 header
-	if (sz_data < sizeof(struct iphdr)) {
+	if (unlikely(sz_data < sizeof(struct iphdr))) {
 		ring_logwarn("Rx buffer dropped - buffer too small for IPv4 header (%d, %d)", sz_data, sizeof(struct iphdr));
 		return false;
 	}
@@ -720,7 +720,7 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 
 	// Check that the ip datagram has at least the udp header size for the first ip fragment (besides the ip header)
 	ip_hdr_len = (int)(p_ip_h->ihl)*4;
-	if ((n_frag_offset == 0) && (ip_tot_len < (ip_hdr_len + sizeof(struct udphdr)))) {
+	if (unlikely((n_frag_offset == 0) && (ip_tot_len < (ip_hdr_len + sizeof(struct udphdr))))) {
 		ring_logwarn("Rx packet dropped - ip packet too small (%d bytes)- udp header cut!", ip_tot_len);
 		return false;
 	}
@@ -871,7 +871,7 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 		return false;
 	}
 
-	if (p_rfs == NULL) {
+	if (unlikely(p_rfs == NULL)) {
 		ring_logdbg("Rx packet dropped - rfs object not found: dst:%d.%d.%d.%d:%d, src%d.%d.%d.%d:%d, proto=%s[%d]",
 				NIPQUAD(p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr), ntohs(p_rx_wc_buf_desc->path.rx.dst.sin_port),
 				NIPQUAD(p_rx_wc_buf_desc->path.rx.src.sin_addr.s_addr), ntohs(p_rx_wc_buf_desc->path.rx.src.sin_port),
@@ -1111,6 +1111,26 @@ int ring_simple::get_max_tx_inline()
 	return m_p_qp_mgr->get_max_inline_tx_data();
 }
 
+/* note that this function is inline, so keep it above the functions using it */
+inline int ring_simple::send_buffer(vma_ibv_send_wr* p_send_wqe, bool b_block)
+{
+	int ret = 0;
+	if (likely(m_tx_num_wr_free > 0)) {
+		--m_tx_num_wr_free;
+		ret = m_p_qp_mgr->send(p_send_wqe);
+	} else if (is_available_qp_wr(b_block)) {
+		ret = m_p_qp_mgr->send(p_send_wqe);
+	} else {
+		ring_logdbg("silent packet drop, no available WR in QP!");
+		ret = -1;
+		if(p_send_wqe) {
+			mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
+			p_mem_buf_desc->p_next_desc = NULL;
+		}
+	}
+	return ret;
+}
+
 void ring_simple::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block)
 {
 	NOT_IN_USE(id);
@@ -1133,22 +1153,6 @@ void ring_simple::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wq
 	send_status_handler(ret, p_send_wqe);
 	m_lock_ring_tx.unlock();
 	return;
-}
-
-int ring_simple::send_buffer(vma_ibv_send_wr* p_send_wqe, bool b_block)
-{
-	int ret = 0;
-	if (is_available_qp_wr(b_block)) {
-		ret = m_p_qp_mgr->send(p_send_wqe);
-	} else {
-		ring_logdbg("silent packet drop, no available WR in QP!");
-		ret = -1;
-		if(p_send_wqe) {
-			mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
-			p_mem_buf_desc->p_next_desc = NULL;
-		}
-	}
-	return ret;
 }
 
 void ring_simple::flow_udp_uc_del_all()
