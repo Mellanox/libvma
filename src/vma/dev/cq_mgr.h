@@ -206,11 +206,12 @@ private:
 	int		poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	int		poll_and_process_helper_tx(uint64_t* p_cq_poll_sn);
 
+	inline void	compensate_qp_poll_failed();
 	// Returns true if the given buffer was used,
 	//false if the given buffer was not used.
-	bool 		compensate_qp_post_recv(mem_buf_desc_t* buff);
+	bool 		compensate_qp_poll_success(mem_buf_desc_t* buff);
 	void		reclaim_recv_buffer_helper(mem_buf_desc_t* buff);
-	uint32_t 	process_recv_queue(void* pv_fd_ready_array = NULL);
+	inline uint32_t process_recv_queue(void* pv_fd_ready_array = NULL);
 	inline void	process_recv_buffer(mem_buf_desc_t* buff, void* pv_fd_ready_array = NULL);
 
 	//returns list of buffers to the owner.

@@ -113,6 +113,40 @@ inline int cq_mgr::post_recv_qp(qp_rec *qprec, mem_buf_desc_t *buff)
 	return qprec->qp->post_recv(buff);
 }
 
+inline void cq_mgr::compensate_qp_poll_failed()
+{
+	// Assume locked!!!
+	// Compensate QP for all completions debth
+	if (m_qp_rec.debth) {
+		if (likely(m_rx_pool.size() || request_more_buffers())) {
+			do {
+				mem_buf_desc_t *buff_new = m_rx_pool.front();
+				m_rx_pool.pop_front();
+				post_recv_qp(&m_qp_rec, buff_new);
+			} while (--m_qp_rec.debth > 0 && m_rx_pool.size());
+			m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
+		}
+	}
+}
+
+inline uint32_t cq_mgr::process_recv_queue(void* pv_fd_ready_array)
+{
+	// Assume locked!!!
+	// If we have packets in the queue, dequeue one and process it
+	// until reaching cq_poll_batch_max or empty queue
+	uint32_t processed = 0;
+
+	while (!m_rx_queue.empty()) {
+		mem_buf_desc_t* buff = m_rx_queue.front();
+		m_rx_queue.pop_front();
+		process_recv_buffer(buff, pv_fd_ready_array);
+		if (++processed >= mce_sys.cq_poll_batch_max)
+			break;
+	}
+	m_p_cq_stat->n_rx_sw_queue_len = m_rx_queue.size();
+	return processed;
+}
+
 cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx) :
 		m_p_ring(p_ring), m_p_ib_ctx_handler(p_ib_ctx_handler), m_b_is_rx(is_rx), m_comp_event_channel(p_comp_event_channel), m_p_next_rx_desc_poll(NULL)
 {
@@ -473,7 +507,13 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 	bool bad_wce = (p_wce->status != IBV_WC_SUCCESS) ||
 			(m_b_is_rx_csum_on && !vma_wc_rx_csum_ok(*p_wce));
 
-	if (unlikely(bad_wce)) {
+	if (unlikely(bad_wce || p_mem_buf_desc == NULL)) {
+		if (p_mem_buf_desc == NULL) {
+			m_p_next_rx_desc_poll = NULL;
+			cq_logdbg("wce->wr_id = 0!!! When status == IBV_WC_SUCCESS");
+			return NULL;
+		}
+
 		process_cq_element_log_helper(p_mem_buf_desc, p_wce);
 
 		m_p_next_rx_desc_poll = NULL;
@@ -492,12 +532,6 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 		return NULL;
 	}
 
-	if (p_mem_buf_desc == NULL) {
-		m_p_next_rx_desc_poll = NULL;
-		cq_logdbg("wce->wr_id = 0!!! When status == IBV_WC_SUCCESS");
-		return NULL;
-	}
-
 	if (mce_sys.rx_prefetch_bytes_before_poll) {
 		/*for debug:
 		if (m_p_next_rx_desc_poll && m_p_next_rx_desc_poll != p_mem_buf_desc) {
@@ -507,8 +541,8 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 		p_mem_buf_desc->p_prev_desc = NULL;
 	}
 
-	if (vma_wc_opcode(*p_wce) & VMA_IBV_WC_RECV) {
-		p_mem_buf_desc->path.rx.qpn = p_wce->qp_num;
+	if (likely(vma_wc_opcode(*p_wce) & VMA_IBV_WC_RECV)) {
+		p_mem_buf_desc->path.rx.qpn = p_wce->qp_num; //todo not used
 #if 0 // Removed VLAN support in VMA, until we start using the new OFED vlan scheme.
 		if(p_wce->wc_flags & IBV_WC_WITH_VLAN) {
 			p_mem_buf_desc->path.rx.vlan = p_wce->pkey_index;
@@ -516,7 +550,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 		}
 		else
 #endif
-			p_mem_buf_desc->path.rx.vlan = 0;
+			p_mem_buf_desc->path.rx.vlan = 0; //todo not used
 		// Save recevied total bytes
 		p_mem_buf_desc->sz_data = p_wce->byte_len;
 
@@ -541,12 +575,15 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 	return p_mem_buf_desc;
 }
 
-bool cq_mgr::compensate_qp_post_recv(mem_buf_desc_t* buff_cur)
+bool cq_mgr::compensate_qp_poll_success(mem_buf_desc_t* buff_cur)
 {
 	// Assume locked!!!
 	// Compensate QP for all completions that we found
-	if (m_qp_rec.qp) {
+	if (likely(m_qp_rec.qp)) {
 		++m_qp_rec.debth;
+		if (likely(m_qp_rec.debth < (int)mce_sys.rx_num_wr_to_post_recv)) {
+			return false;
+		}
 		if (m_rx_pool.size() || request_more_buffers()) {
 			do {
 				mem_buf_desc_t *buff_new = m_rx_pool.front();
@@ -604,24 +641,6 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 	}
 }
 
-uint32_t cq_mgr::process_recv_queue(void* pv_fd_ready_array)
-{
-	// Assume locked!!!
-	// If we have packets in the queue, dequeue one and process it
-	// until reaching cq_poll_batch_max or empty queue
-	uint32_t processed = 0;
-
-	while (!m_rx_queue.empty()) {
-		mem_buf_desc_t* buff = m_rx_queue.front();
-		m_rx_queue.pop_front();
-		process_recv_buffer(buff, pv_fd_ready_array);
-		if (++processed >= mce_sys.cq_poll_batch_max)
-			break;
-	}
-	m_p_cq_stat->n_rx_sw_queue_len = m_rx_queue.size();
-	return processed;
-}
-
 void cq_mgr::process_tx_buffer_list(mem_buf_desc_t* p_mem_buf_desc)
 {
 	// Assume locked!!!
@@ -663,8 +682,9 @@ int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready
 
 	int ret;
 	uint32_t ret_rx_processed = process_recv_queue(pv_fd_ready_array);
-	if (ret_rx_processed >= mce_sys.cq_poll_batch_max) {
-		goto out;
+	if (unlikely(ret_rx_processed >= mce_sys.cq_poll_batch_max)) {
+		m_p_ring->m_gro_mgr.flush_all(pv_fd_ready_array);
+		return ret_rx_processed;
 	}
 
 	if (m_p_next_rx_desc_poll) {
@@ -681,17 +701,17 @@ int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready
 			mem_buf_desc_t *buff = process_cq_element_rx((&wce[i]));
 			if (buff) {
 				if (vma_wc_opcode(wce[i]) & VMA_IBV_WC_RECV) {
-					if (!compensate_qp_post_recv(buff)) {
+					if (!compensate_qp_poll_success(buff)) {
 						process_recv_buffer(buff, pv_fd_ready_array);
 					}
 				}
 			}
 		}
 		ret_rx_processed += ret;
+		m_p_ring->m_gro_mgr.flush_all(pv_fd_ready_array);
+	} else {
+		compensate_qp_poll_failed();
 	}
-
-out:
-	m_p_ring->m_gro_mgr.flush_all(pv_fd_ready_array);
 
 	return ret_rx_processed;
 }
@@ -817,7 +837,7 @@ int cq_mgr::drain_and_proccess(bool b_recycle_buffers /*=false*/)
 					// We process immediately all non udp/ip traffic..
 					if (procces_now) {
 						buff->path.rx.is_vma_thr = true;
-						if (!compensate_qp_post_recv(buff)) {
+						if (!compensate_qp_poll_success(buff)) {
 							process_recv_buffer(buff, NULL);
 						}
 					}
@@ -825,7 +845,7 @@ int cq_mgr::drain_and_proccess(bool b_recycle_buffers /*=false*/)
 						m_rx_queue.push_back(buff);
 						mem_buf_desc_t* buff_cur = m_rx_queue.front();
 						m_rx_queue.pop_front();
-						if (!compensate_qp_post_recv(buff_cur)) {
+						if (!compensate_qp_poll_success(buff_cur)) {
 							m_rx_queue.push_front(buff_cur);
 						}
 					}
