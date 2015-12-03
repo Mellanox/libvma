@@ -359,6 +359,10 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 		m_n_unsignaled_count = 0;
 		m_p_last_tx_mem_buf_desc = NULL;
 
+		if (!m_p_ring->m_tx_num_wr_free) {
+			qp_logdbg("failed to trigger completion for all packets due to no available wr");
+			return;
+		}
 		m_p_ring->m_tx_num_wr_free--;
 
 		IF_VERBS_FAILURE(vma_ibv_post_send(m_qp, &send_wr, &bad_wr)) {
