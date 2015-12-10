@@ -74,6 +74,7 @@ Example tests and tools for collecting and analyzing Libvma statistic
 
 export revision=1
 #export CFLAGS CXXFLAGS LDFLAGS
+export CXXFLAGS='%{optflags}'
 
 %configure --with-ofed=%{ofed_dir} --docdir=%{_docdir}/%{name}-%{version}
 #%{pmake} -C src CFLAGS="$CFLAGS" CXXFLAGS="$CXXFLAGS"  LDFLAGS="$LDFLAGS"
