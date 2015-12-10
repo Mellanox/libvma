@@ -75,8 +75,8 @@ AC_SUBST(OFED_VERSION)
 
 AC_ARG_ENABLE(build32,
         AC_HELP_STRING([--enable-build32], [Force build 32 bit]),
-        [CFLAGS="-m32 -L/usr/lib";CXXFLAGS="-m32 -L/usr/lib";LIBALIC_FLAG="--enable-build32 $LIBALIC_FLAG";LWIP_FLAG="-m32";LDFLAGS='-m32 -L/usr/lib';FFLAGS='-m32 -L/usr/lib'],
-        [CFLAGS="";CXXFLAGS="";LIBALIC_FLAG="";LWIP_FLAG=""])
+        [CFLAGS="-m32 -L/usr/lib $CFLAGS";CXXFLAGS="-m32 -L/usr/lib $CXXFLAGS";LIBALIC_FLAG="--enable-build32  $LIBALIC_FLAG";LWIP_FLAG="-m32";LDFLAGS='-m32 -L/usr/lib';FFLAGS='-m32 -L/usr/lib'],
+        [CFLAGS="$CFLAGS";CXXFLAGS="$CXXFLAGS";LIBALIC_FLAG="";LWIP_FLAG=""])
 
 # gcov support
 AC_ARG_ENABLE(gcov, AC_HELP_STRING([--enable-gcov], [turn on code coverage analysis tools]),[CFLAGS+="--coverage -O0";CPPFLAGS+="--coverage -O0";LIBS+="-lgcov";VMA_GCOV=1],[VMA_GCOV=0])
