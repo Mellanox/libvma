@@ -10,7 +10,13 @@ libconfig_parser_la_CFLAGS = \
 AM_LFLAGS = -Plibvma_yy
 AM_YFLAGS = -plibvma_yy -d
 LEX_OUTPUT_ROOT=lex.libvma_yy
-BUILT_SOURCES = config_parser.h
+BUILT_SOURCES = \
+	config_parser.h \
+	config_parser.c \
+	config_scanner.c
+CLEANFILES = $(BUILT_SOURCES)
+dist-hook:
+	cd $(distdir); rm -f $(BUILT_SOURCES)
 
 DIST_SUBDIRS := infra netlink
 EXTRA_DIST = \
