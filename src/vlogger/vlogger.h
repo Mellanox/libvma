@@ -85,14 +85,24 @@ extern "C" {
 #endif //__cplusplus
 
 typedef enum {
+	VLOG_NONE  = -1,
 	VLOG_PANIC = 0,
 	VLOG_ERROR,
 	VLOG_WARNING,
 	VLOG_INFO,
 	VLOG_DEBUG,
-	VLOG_FUNC,
-	VLOG_FUNC_ALL
+	VLOG_FINE,  VLOG_FUNC = VLOG_FINE,
+	VLOG_FINER, VLOG_FUNC_ALL = VLOG_FINER,
+	VLOG_ALL,
+
+	VLOG_DEFAULT= VLOG_INFO
 } vlog_levels_t;
+
+namespace log_level {
+	vlog_levels_t from_str(const char* str);
+	const char *    to_str(vlog_levels_t level);
+}
+
 
 #define VLOG_SINCE_YEAR 	1900
 #define VLOG_MODULE_MAX_LEN 	10
@@ -113,7 +123,6 @@ extern uint32_t     g_vlogger_usec_on_startup;
 extern bool         g_vlogger_log_in_colors;
 extern vma_log_cb_t g_vlogger_cb;
 
-extern const char*	g_vlogger_level_names[];
 extern const char*	g_vlogger_level_colors[];
 
 #define vlog_func_enter()       vlog_printf(VLOG_FUNC,"ENTER %s\n", __PRETTY_FUNCTION__);
@@ -126,7 +135,7 @@ pid_t gettid(void); // Check vlogger.cpp for implementation
 
 void printf_backtrace(void);
 
-void vlog_start(const char* log_module_name, int log_level = VLOG_INFO, const char* log_filename = NULL, int log_details = 0, bool colored_log = true);
+void vlog_start(const char* log_module_name, int log_level = VLOG_DEFAULT, const char* log_filename = NULL, int log_details = 0, bool colored_log = true);
 void vlog_stop(void);
 
 class LogDuration {
@@ -187,7 +196,7 @@ static inline void vlog_printf(vlog_levels_t log_level, const char* fmt , ... )
 		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, " Tid: %5u", gettid());
 	case 0: // Func
 	default:
-		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, " %s %s: ", g_vlogger_module_name, g_vlogger_level_names[log_level]);
+		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, " %s %s: ", g_vlogger_module_name, log_level::to_str(log_level));
 	}
 
 	buf[len+1] = '\0';
@@ -245,10 +254,10 @@ static inline void vlog_print_buffer(vlog_levels_t log_level, const char* msg_he
 	if (g_vlogger_level >= VLOG_DEBUG) {
 		//vlog_time(log_level, log_msg);
 		len = snprintf(buf, sizeof(buf)-1, " Tid: %11lx : %s %s: ",
-			       pthread_self(), g_vlogger_module_name, g_vlogger_level_names[log_level]);
+			       pthread_self(), g_vlogger_module_name, log_level::to_str(log_level));
 	} else {
 		len = snprintf(buf, sizeof(buf)-1, "%s %s: ",
-			       g_vlogger_module_name, g_vlogger_level_names[log_level]);
+			       g_vlogger_module_name, log_level::to_str(log_level));
 	}
 	buf[len+1] = '\0';
 

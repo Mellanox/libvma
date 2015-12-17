@@ -32,23 +32,13 @@
 char         g_vlogger_module_name[VLOG_MODULE_MAX_LEN] = VLOG_DEFAULT_MODULE_NAME;
 int          g_vlogger_fd = -1;
 FILE*        g_vlogger_file = NULL;
-uint8_t      g_vlogger_level = VLOG_INFO;
+uint8_t      g_vlogger_level = VLOG_DEFAULT;
 uint8_t*     g_p_vlogger_level = NULL;
 uint8_t      g_vlogger_details = 0;
 uint8_t*     g_p_vlogger_details = NULL;
 uint32_t     g_vlogger_usec_on_startup = 0;
 bool         g_vlogger_log_in_colors = MCE_DEFAULT_LOG_COLORS;
 vma_log_cb_t g_vlogger_cb = NULL;
-
-const char* 	g_vlogger_level_names[] = {
-	"PANIC  ",
-	"ERROR  ",
-	"WARNING",
-	"INFO   ",
-	"DEBUG  ",
-	"FUNC   ",
-	"FUNC+  "
-};
 
 const char* 	g_vlogger_level_colors[] = {
 	"\e[0;31m",	/* Panic   - Red     */
@@ -59,6 +49,60 @@ const char* 	g_vlogger_level_colors[] = {
 	"\e[2m",	/* Func    - Grey    */
 	"\e[2m"		/* FuncAll - Grey    */
 };
+
+namespace log_level
+{
+	typedef struct {
+		vlog_levels_t level;
+		const char * printed_name;
+		const char ** input_names;
+	} level_names;
+
+	static const char *log_names_none[]  = {"none", NULL};
+	static const char *log_names_panic[] = {"panic", "0", NULL};
+	static const char *log_names_error[] = {"error", "1", NULL};
+	static const char *log_names_warn[]  = {"warn",  "warning", "2", NULL};
+	static const char *log_names_info[]  = {"info",  "information", "3", NULL};
+	static const char *log_names_debug[] = {"debug", "4", NULL};
+	static const char *log_names_fine[]  = {"fine",  "func", "5", NULL};
+	static const char *log_names_finer[] = {"finer", "func+", "funcall", "func_all", "func-all", "6", NULL};
+	static const char *log_names_all[]   = {"all", NULL};
+
+	// must be by order because "to_str" relies on that!
+	static const level_names levels[] = {
+			{VLOG_NONE,    "NONE",    (const char ** )log_names_none},
+			{VLOG_PANIC,   "PANIC",   (const char ** )log_names_panic},
+			{VLOG_ERROR,   "ERROR",   (const char ** )log_names_error},
+			{VLOG_WARNING, "WARNING", (const char ** )log_names_warn},
+			{VLOG_INFO,    "INFO",    (const char ** )log_names_info},
+			{VLOG_DEBUG,   "DEBUG",   (const char ** )log_names_debug},
+			{VLOG_FINE,    "FUNC",    (const char ** )log_names_fine},
+			{VLOG_FINER,   "FUNC+",   (const char ** )log_names_finer},
+			{VLOG_ALL,     "ALL",     (const char ** )log_names_all},
+	};
+
+	vlog_levels_t from_str(const char* str)
+	{
+		size_t num_levels = sizeof(levels) / sizeof(levels[0]);
+		for (size_t i = 0; i < num_levels; ++i) {
+			const char ** input_name = levels[i].input_names;
+			while (*input_name) {
+				if (strcasecmp(str, *input_name) == 0)
+					return levels[i].level;
+				input_name++;
+			}
+		}
+
+		// not found. use default
+		return VLOG_DEFAULT;
+	}
+
+	const char * to_str(vlog_levels_t level)
+	{
+		static int base = VLOG_NONE;
+		return levels[level - base].printed_name;
+	}
+}
 
 pid_t gettid(void)
 {

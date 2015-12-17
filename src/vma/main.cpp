@@ -531,7 +531,7 @@ void print_vma_global_settings()
 	vlog_levels_t log_level = VLOG_DEBUG;
 #ifndef VMA_SVN_REVISION
 	// If non RPM (development builds) use more verbosity
-	log_level = VLOG_INFO;
+	log_level = VLOG_DEFAULT;
 #endif
 	vlog_printf(log_level,"Current Time: %s", ctime(&clock));
 	vlog_printf(log_level,"Pid: %5u\n", getpid());
@@ -798,7 +798,7 @@ void get_env_params()
 	strcpy(safe_mce_sys().internal_thread_cpuset, MCE_DEFAULT_INTERNAL_THREAD_CPUSET);
 	strcpy(safe_mce_sys().internal_thread_affinity_str, MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR);
 
-	safe_mce_sys().log_level               = VLOG_INFO;
+	safe_mce_sys().log_level               = VLOG_DEFAULT;
 	safe_mce_sys().log_details             = MCE_DEFAULT_LOG_DETAILS;
 	safe_mce_sys().log_colors		= MCE_DEFAULT_LOG_COLORS;
 	safe_mce_sys().handle_sigintr 		= MCE_DEFAULT_HANDLE_SIGINTR;
@@ -969,7 +969,7 @@ void get_env_params()
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_LOG_LEVEL)) != NULL)
-		safe_mce_sys().log_level = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().log_level = log_level::from_str(env_ptr);
 
 	if (safe_mce_sys().log_level >= VLOG_DEBUG)
 		safe_mce_sys().log_details = 2;
@@ -1797,3 +1797,4 @@ extern "C" int main_destroy(void)
 {
 	return free_libvma_resources();
 }
+
