@@ -245,7 +245,7 @@ struct mce_sys_var {
 	uint32_t 	mce_spec_param1;
 	uint32_t 	mce_spec_param2;
 
-	uint32_t 	log_level;
+	vlog_levels_t 	log_level;
 	uint32_t	log_details;
 	char 		log_filename[FILENAME_MAX];
 	char		stats_filename[FILENAME_MAX];
