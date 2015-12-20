@@ -76,8 +76,8 @@ namespace log_level
 			{VLOG_WARNING, "WARNING", (const char ** )log_names_warn},
 			{VLOG_INFO,    "INFO",    (const char ** )log_names_info},
 			{VLOG_DEBUG,   "DEBUG",   (const char ** )log_names_debug},
-			{VLOG_FINE,    "FUNC",    (const char ** )log_names_fine},
-			{VLOG_FINER,   "FUNC+",   (const char ** )log_names_finer},
+			{VLOG_FINE,    "FINE",    (const char ** )log_names_fine},
+			{VLOG_FINER,   "FINER",   (const char ** )log_names_finer},
 			{VLOG_ALL,     "ALL",     (const char ** )log_names_all},
 	};
 
