@@ -33,6 +33,7 @@
 #define fdcoll_logerr		__log_err
 #define fdcoll_logwarn		__log_warn
 #define fdcoll_loginfo		__log_info
+#define fdcoll_logdetails	__log_details
 #define fdcoll_logdbg		__log_dbg
 #define fdcoll_logfunc		__log_func
 
@@ -259,7 +260,7 @@ int fd_collection::addsocket(int fd, int domain, int type, bool check_offload /*
 				return -1;
 		}
 	} catch (vma_exception& e) {
-	  fdcoll_loginfo("recovering from %s", e.what());
+	  fdcoll_logdetails("recovering from %s", e.what());
 	  return -1;
 	}
 	lock();

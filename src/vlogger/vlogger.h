@@ -56,29 +56,41 @@
 #define VLOG_PRINTF_EXIT( log_level, log_fmt, log_args...)	vlog_printf(log_level, MODULE_HDR_EXIT  "%s() " log_fmt "\n", __FUNCTION__, ##log_args)
 
 
-#define __log_panic(log_fmt, log_args...) 		do { VLOG_PRINTF(VLOG_PANIC, log_fmt, ##log_args); throw; } while (0)
-#define __log_err(log_fmt, log_args...) 		do { VLOG_PRINTF(VLOG_ERROR, log_fmt, ##log_args); } while (0)
-#define __log_warn(log_fmt, log_args...) 		do { VLOG_PRINTF(VLOG_WARNING, log_fmt, ##log_args); } while (0)
-#define __log_info(log_fmt, log_args...) 		do { VLOG_PRINTF(VLOG_INFO, log_fmt, ##log_args); } while (0)
-#define __log_dbg(log_fmt, log_args...) 		do { if (g_vlogger_level >= VLOG_DEBUG) 	VLOG_PRINTF(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
-#define __log_func(log_fmt, log_args...) 		do { if (g_vlogger_level >= VLOG_FUNC) 		VLOG_PRINTF(VLOG_FUNC, log_fmt, ##log_args); } while (0)
-#define __log_funcall(log_fmt, log_args...) 		do { if (g_vlogger_level >= VLOG_FUNC_ALL) 	VLOG_PRINTF(VLOG_FUNC_ALL, log_fmt, ##log_args); } while (0)
+#define __log_panic(log_fmt, log_args...)        do { VLOG_PRINTF(VLOG_PANIC, log_fmt, ##log_args); throw; } while (0)
+#define __log_err(log_fmt, log_args...)          do { VLOG_PRINTF(VLOG_ERROR, log_fmt, ##log_args); } while (0)
+#define __log_warn(log_fmt, log_args...)         do { VLOG_PRINTF(VLOG_WARNING, log_fmt, ##log_args); } while (0)
+#define __log_info(log_fmt, log_args...)         do { VLOG_PRINTF(VLOG_INFO, log_fmt, ##log_args); } while (0)
+#define __log_details(log_fmt, log_args...)      do { if (g_vlogger_level >= VLOG_DETAILS) 	VLOG_PRINTF(VLOG_DETAILS, log_fmt, ##log_args); } while (0)
+#define __log_dbg(log_fmt, log_args...)          do { if (g_vlogger_level >= VLOG_DEBUG) 	VLOG_PRINTF(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
+#define __log_fine(log_fmt, log_args...)         do { if (g_vlogger_level >= VLOG_FINE) 		VLOG_PRINTF(VLOG_FINE, log_fmt, ##log_args); } while (0)
+#define __log_finer(log_fmt, log_args...)        do { if (g_vlogger_level >= VLOG_FINER) 	VLOG_PRINTF(VLOG_FINER, log_fmt, ##log_args); } while (0)
 
-#define __log_info_panic(log_fmt, log_args...) 		do { VLOG_PRINTF_INFO(VLOG_PANIC, log_fmt, ##log_args); throw; } while (0)
-#define __log_info_err(log_fmt, log_args...) 		do { VLOG_PRINTF_INFO(VLOG_ERROR, log_fmt, ##log_args); } while (0)
-#define __log_info_warn(log_fmt, log_args...) 		do { VLOG_PRINTF_INFO(VLOG_WARNING, log_fmt, ##log_args); } while (0)
-#define __log_info_info(log_fmt, log_args...) 		do { VLOG_PRINTF_INFO(VLOG_INFO, log_fmt, ##log_args); } while (0)
-#define __log_info_dbg(log_fmt, log_args...) 		do { if (g_vlogger_level >= VLOG_DEBUG) 	VLOG_PRINTF_INFO(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
-#define __log_info_func(log_fmt, log_args...) 		do { if (g_vlogger_level >= VLOG_FUNC) 		VLOG_PRINTF_INFO(VLOG_FUNC, log_fmt, ##log_args); } while (0)
-#define __log_info_funcall(log_fmt, log_args...) 	do { if (g_vlogger_level >= VLOG_FUNC_ALL) 	VLOG_PRINTF_INFO(VLOG_FUNC_ALL, log_fmt, ##log_args); } while (0)
+#define __log_info_panic(log_fmt, log_args...)   do { VLOG_PRINTF_INFO(VLOG_PANIC, log_fmt, ##log_args); throw; } while (0)
+#define __log_info_err(log_fmt, log_args...)     do { VLOG_PRINTF_INFO(VLOG_ERROR, log_fmt, ##log_args); } while (0)
+#define __log_info_warn(log_fmt, log_args...)    do { VLOG_PRINTF_INFO(VLOG_WARNING, log_fmt, ##log_args); } while (0)
+#define __log_info_info(log_fmt, log_args...)    do { VLOG_PRINTF_INFO(VLOG_INFO, log_fmt, ##log_args); } while (0)
+#define __log_info_details(log_fmt, log_args...) do { if (g_vlogger_level >= VLOG_DETAILS) 	VLOG_PRINTF_INFO(VLOG_DETAILS, log_fmt, ##log_args); } while (0)
+#define __log_info_dbg(log_fmt, log_args...)     do { if (g_vlogger_level >= VLOG_DEBUG) 	VLOG_PRINTF_INFO(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
+#define __log_info_fine(log_fmt, log_args...)    do { if (g_vlogger_level >= VLOG_FINE) 		VLOG_PRINTF_INFO(VLOG_FINE, log_fmt, ##log_args); } while (0)
+#define __log_info_finer(log_fmt, log_args...)   do { if (g_vlogger_level >= VLOG_FINER) 	VLOG_PRINTF_INFO(VLOG_FINER, log_fmt, ##log_args); } while (0)
 
-#define __log_entry_dbg(log_fmt, log_args...)       	do { if (g_vlogger_level >= VLOG_DEBUG) 	VLOG_PRINTF_ENTRY(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
-#define __log_entry_func(log_fmt, log_args...)      	do { if (g_vlogger_level >= VLOG_FUNC)		VLOG_PRINTF_ENTRY(VLOG_FUNC, log_fmt, ##log_args); } while (0)
-#define __log_entry_funcall(log_fmt, log_args...)   	do { if (g_vlogger_level >= VLOG_FUNC_ALL) 	VLOG_PRINTF_ENTRY(VLOG_FUNC_ALL, log_fmt, ##log_args); } while (0)
+#define __log_entry_dbg(log_fmt, log_args...)    do { if (g_vlogger_level >= VLOG_DEBUG) 	VLOG_PRINTF_ENTRY(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
+#define __log_entry_fine(log_fmt, log_args...)   do { if (g_vlogger_level >= VLOG_FINE)		VLOG_PRINTF_ENTRY(VLOG_FINE, log_fmt, ##log_args); } while (0)
+#define __log_entry_finer(log_fmt, log_args...)  do { if (g_vlogger_level >= VLOG_FINER) 	VLOG_PRINTF_ENTRY(VLOG_FINER, log_fmt, ##log_args); } while (0)
 
-#define __log_exit_dbg(log_fmt, log_args...)       	do { if (g_vlogger_level >= VLOG_DEBUG) 	VLOG_PRINTF_EXIT(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
-#define __log_exit_func(log_fmt, log_args...)      	do { if (g_vlogger_level >= VLOG_FUNC)		VLOG_PRINTF_EXIT(VLOG_FUNC, log_fmt, ##log_args); } while (0)
-#define __log_exit_funcall(log_fmt, log_args...)   	do { if (g_vlogger_level >= VLOG_FUNC_ALL) 	VLOG_PRINTF_EXIT(VLOG_FUNC_ALL, log_fmt, ##log_args); } while (0)
+#define __log_exit_dbg(log_fmt, log_args...)     do { if (g_vlogger_level >= VLOG_DEBUG) 	VLOG_PRINTF_EXIT(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
+#define __log_exit_fine(log_fmt, log_args...)    do { if (g_vlogger_level >= VLOG_FINE)		VLOG_PRINTF_EXIT(VLOG_FINE, log_fmt, ##log_args); } while (0)
+#define __log_exit_finer(log_fmt, log_args...)   do { if (g_vlogger_level >= VLOG_FINER) 	VLOG_PRINTF_EXIT(VLOG_FINER, log_fmt, ##log_args); } while (0)
+
+// deprecated functions - only exist for Backward Compatibility.  Please avoid using them!
+#define __log_func(...)          __log_fine(__VA_ARGS__)
+#define __log_funcall(...)       __log_finer(__VA_ARGS__)
+#define __log_info_func(...)     __log_info_fine(__VA_ARGS__)
+#define __log_info_funcall(...)  __log_info_finer(__VA_ARGS__)
+#define __log_entry_func(...)    __log_entry_fine(__VA_ARGS__)
+#define __log_entry_funcall(...) __log_entry_finer(__VA_ARGS__)
+#define __log_exit_func(...)     __log_exit_fine(__VA_ARGS__)
+#define __log_exit_funcall(...)  __log_exit_finer(__VA_ARGS__)
 
 #ifdef __cplusplus
 extern "C" {
@@ -90,6 +102,7 @@ typedef enum {
 	VLOG_ERROR,
 	VLOG_WARNING,
 	VLOG_INFO,
+	VLOG_DETAILS,
 	VLOG_DEBUG,
 	VLOG_FINE,  VLOG_FUNC = VLOG_FINE,
 	VLOG_FINER, VLOG_FUNC_ALL = VLOG_FINER,
@@ -101,6 +114,7 @@ typedef enum {
 namespace log_level {
 	vlog_levels_t from_str(const char* str);
 	const char *    to_str(vlog_levels_t level);
+	const char * get_color(vlog_levels_t level);
 }
 
 
@@ -123,13 +137,11 @@ extern uint32_t     g_vlogger_usec_on_startup;
 extern bool         g_vlogger_log_in_colors;
 extern vma_log_cb_t g_vlogger_cb;
 
-extern const char*	g_vlogger_level_colors[];
+#define vlog_func_enter()       vlog_printf(VLOG_FINE,"ENTER %s\n", __PRETTY_FUNCTION__);
+#define vlog_func_exit()        vlog_printf(VLOG_FINE,"EXIT %s\n",__PRETTY_FUNCTION__);
 
-#define vlog_func_enter()       vlog_printf(VLOG_FUNC,"ENTER %s\n", __PRETTY_FUNCTION__);
-#define vlog_func_exit()	vlog_printf(VLOG_FUNC,"EXIT %s\n",__PRETTY_FUNCTION__);
-
-#define vlog_func_all_enter()   vlog_printf(VLOG_FUNC_ALL,"ENTER %s\n", __PRETTY_FUNCTION__);
-#define vlog_func_all_exit()    vlog_printf(VLOG_FUNC_ALL,"EXIT %s\n",__PRETTY_FUNCTION__);
+#define vlog_func_all_enter()   vlog_printf(VLOG_FINER,"ENTER %s\n", __PRETTY_FUNCTION__);
+#define vlog_func_all_exit()    vlog_printf(VLOG_FINER,"EXIT %s\n",__PRETTY_FUNCTION__);
 
 pid_t gettid(void); // Check vlogger.cpp for implementation
 
@@ -185,7 +197,7 @@ static inline void vlog_printf(vlog_levels_t log_level, const char* fmt , ... )
 
 	// Set color scheme
 	if (g_vlogger_log_in_colors) 
-		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, "%s", g_vlogger_level_colors[log_level]);
+		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, "%s", log_level::get_color(log_level));
 
 	switch (g_vlogger_details) {
 	case 3: // Time

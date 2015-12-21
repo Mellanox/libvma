@@ -1681,7 +1681,7 @@ void do_global_ctors()
 		do_global_ctors_helper();
 	}
 	catch (const vma_exception& error) {
-		vlog_printf(VLOG_DEBUG, "Error: %s", error.what());
+		vlog_printf(VLOG_DETAILS, "Error: %s", error.what());
 		free_libvma_resources();
 	}
 	catch (const std::exception& error ) {

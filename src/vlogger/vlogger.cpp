@@ -40,45 +40,38 @@ uint32_t     g_vlogger_usec_on_startup = 0;
 bool         g_vlogger_log_in_colors = MCE_DEFAULT_LOG_COLORS;
 vma_log_cb_t g_vlogger_cb = NULL;
 
-const char* 	g_vlogger_level_colors[] = {
-	"\e[0;31m",	/* Panic   - Red     */
-	"\e[0;31m",	/* Error   - Red     */
-	"\e[2;35m",	/* Warrn   - Magenta */
-	"\e[0m",	/* Info    - Default */
-	"\e[0m",	/* Debug   - Default */
-	"\e[2m",	/* Func    - Grey    */
-	"\e[2m"		/* FuncAll - Grey    */
-};
-
 namespace log_level
 {
 	typedef struct {
 		vlog_levels_t level;
-		const char * printed_name;
+		const char *  output_name;
+		const char *  output_color;
 		const char ** input_names;
 	} level_names;
 
-	static const char *log_names_none[]  = {"none", NULL};
-	static const char *log_names_panic[] = {"panic", "0", NULL};
-	static const char *log_names_error[] = {"error", "1", NULL};
-	static const char *log_names_warn[]  = {"warn",  "warning", "2", NULL};
-	static const char *log_names_info[]  = {"info",  "information", "3", NULL};
-	static const char *log_names_debug[] = {"debug", "4", NULL};
-	static const char *log_names_fine[]  = {"fine",  "func", "5", NULL};
-	static const char *log_names_finer[] = {"finer", "func+", "funcall", "func_all", "func-all", "6", NULL};
-	static const char *log_names_all[]   = {"all", NULL};
+	static const char *log_names_none[]    = {"none", NULL};
+	static const char *log_names_panic[]   = {"panic", "0", NULL};
+	static const char *log_names_error[]   = {"error", "1", NULL};
+	static const char *log_names_warn[]    = {"warn",  "warning", "2", NULL};
+	static const char *log_names_info[]    = {"info",  "information", "3", NULL};
+	static const char *log_names_details[] = {"details", NULL};
+	static const char *log_names_debug[]   = {"debug", "4", NULL};
+	static const char *log_names_fine[]    = {"fine",  "func", "5", NULL};
+	static const char *log_names_finer[]   = {"finer", "func+", "funcall", "func_all", "func-all", "6", NULL};
+	static const char *log_names_all[]     = {"all", NULL};
 
 	// must be by order because "to_str" relies on that!
 	static const level_names levels[] = {
-			{VLOG_NONE,    "NONE",    (const char ** )log_names_none},
-			{VLOG_PANIC,   "PANIC",   (const char ** )log_names_panic},
-			{VLOG_ERROR,   "ERROR",   (const char ** )log_names_error},
-			{VLOG_WARNING, "WARNING", (const char ** )log_names_warn},
-			{VLOG_INFO,    "INFO",    (const char ** )log_names_info},
-			{VLOG_DEBUG,   "DEBUG",   (const char ** )log_names_debug},
-			{VLOG_FINE,    "FINE",    (const char ** )log_names_fine},
-			{VLOG_FINER,   "FINER",   (const char ** )log_names_finer},
-			{VLOG_ALL,     "ALL",     (const char ** )log_names_all},
+			{VLOG_NONE,    "NONE",    "\e[0;31m" /*Red*/,     (const char ** )log_names_none},
+			{VLOG_PANIC,   "PANIC",   "\e[0;31m" /*Red*/,     (const char ** )log_names_panic},
+			{VLOG_ERROR,   "ERROR",   "\e[0;31m" /*Red*/,     (const char ** )log_names_error},
+			{VLOG_WARNING, "WARNING", "\e[2;35m" /*Magenta*/, (const char ** )log_names_warn},
+			{VLOG_INFO,    "INFO",    "\e[0m"    /*Default*/, (const char ** )log_names_info},
+			{VLOG_DETAILS, "DETAILS", "\e[0m"    /*Default*/, (const char ** )log_names_details},
+			{VLOG_DEBUG,   "DEBUG",   "\e[0m"    /*Default*/, (const char ** )log_names_debug},
+			{VLOG_FINE,    "FINE",    "\e[2m"    /*Grey*/,    (const char ** )log_names_fine},
+			{VLOG_FINER,   "FINER",   "\e[2m"    /*Grey*/,    (const char ** )log_names_finer},
+			{VLOG_ALL,     "ALL",     "\e[2m"    /*Grey*/,    (const char ** )log_names_all},
 	};
 
 	vlog_levels_t from_str(const char* str)
@@ -100,7 +93,13 @@ namespace log_level
 	const char * to_str(vlog_levels_t level)
 	{
 		static int base = VLOG_NONE;
-		return levels[level - base].printed_name;
+		return levels[level - base].output_name;
+	}
+
+	const char * get_color(vlog_levels_t level)
+	{
+		static int base = VLOG_NONE;
+		return levels[level - base].output_color;
 	}
 }
 
