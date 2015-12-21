@@ -12,8 +12,11 @@ AM_YFLAGS = -plibvma_yy -d
 LEX_OUTPUT_ROOT=lex.libvma_yy
 BUILT_SOURCES = \
 	config_parser.h \
-	config_parser.c \
-	config_scanner.c
+	config_parser.c
+
+# consider config_scanner.c as source (and not as built) because we don't want it to be created by old version of flex on some machines
+#BUILT_SOURCES += config_scanner.c
+
 CLEANFILES = $(BUILT_SOURCES)
 dist-hook:
 	cd $(distdir); rm -f $(BUILT_SOURCES)
