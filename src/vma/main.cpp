@@ -112,11 +112,13 @@ static int free_libvma_resources()
 {
 	vlog_printf(VLOG_DEBUG, "%s: Closing libvma resources\n", __FUNCTION__);
 
+	g_b_exit = true;
+
 	//Triggers connection close, relevant for TCP which may need some time to terminate the connection.
+	//and for any socket that may wait from another thread
 	if (g_p_fd_collection) {
 		g_p_fd_collection->prepare_to_close();
 	}
-	g_b_exit = true;
 
 	usleep(50000);
 

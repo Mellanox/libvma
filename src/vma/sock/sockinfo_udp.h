@@ -139,6 +139,8 @@ public:
 		return FD_TYPE_SOCKET;
 	}
 
+	virtual bool prepare_to_close(bool process_shutdown = false);
+
 private:
 
 	struct port_socket_t {

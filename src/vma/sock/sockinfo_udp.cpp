@@ -2328,3 +2328,11 @@ void sockinfo_udp::pop_front_m_rx_pkt_ready_list(){
 void sockinfo_udp::push_back_m_rx_pkt_ready_list(mem_buf_desc_t* buff){
 	m_rx_pkt_ready_list.push_back(buff);
 }
+
+bool sockinfo_udp::prepare_to_close(bool process_shutdown) {
+	m_lock_rcv.lock();
+	do_wakeup();
+	m_lock_rcv.unlock();
+	NOT_IN_USE(process_shutdown);
+	return is_closable();
+}
