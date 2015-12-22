@@ -577,7 +577,7 @@ void print_vma_global_settings()
 		}
 		vlog_printf(VLOG_INFO,"---------------------------------------------------------------------------\n");
 	}
-	VLOG_STR_PARAM_STRING("Log Level", log_level::to_str(safe_mce_sys().log_level), log_level::to_str(VLOG_DEFAULT), SYS_VAR_LOG_LEVEL, log_level::to_str(safe_mce_sys().log_level));
+	VLOG_STR_PARAM_STRING("Log Level", log_level::to_str(safe_mce_sys().log_level), "", SYS_VAR_LOG_LEVEL, log_level::to_str(safe_mce_sys().log_level));
 	VLOG_PARAM_NUMBER("Log Details", safe_mce_sys().log_details, MCE_DEFAULT_LOG_DETAILS, SYS_VAR_LOG_DETAILS);
 	VLOG_PARAM_STRING("Log Colors", safe_mce_sys().log_colors, MCE_DEFAULT_LOG_COLORS, SYS_VAR_LOG_COLORS, safe_mce_sys().log_colors ? "Enabled " : "Disabled");
 	VLOG_STR_PARAM_STRING("Log File", safe_mce_sys().log_filename, MCE_DEFAULT_LOG_FILE, SYS_VAR_LOG_FILENAME, safe_mce_sys().log_filename);
@@ -971,7 +971,7 @@ void get_env_params()
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_LOG_LEVEL)) != NULL)
-		safe_mce_sys().log_level = log_level::from_str(env_ptr);
+		safe_mce_sys().log_level = log_level::from_str(env_ptr, VLOG_DEFAULT);
 
 	if (safe_mce_sys().log_level >= VLOG_DEBUG)
 		safe_mce_sys().log_details = 2;

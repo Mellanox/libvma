@@ -18,6 +18,7 @@
 #include <netinet/in.h>
 #include <bitset>
 #include <sys/stat.h>
+#include <vlogger/vlogger.h>
 
 using namespace std;
 
@@ -112,7 +113,7 @@ struct user_params_t {
 	print_details_mode_t 	print_details_mode;
 	view_mode_t		view_mode;
 	bool 			forbid_cleaning;
-	int			vma_log_level;
+	vlog_levels_t		vma_log_level;
 	int			vma_details_level;
 	bool 			zero_counters;
 	proc_ident_mode_t	proc_ident_mode;
@@ -278,7 +279,7 @@ typedef struct sh_mem_t {
 	version_info_t			ver_info;
 	char		stats_protocol_ver[32];
 	size_t				max_skt_inst_num;
-	uint8_t				log_level;
+	vlog_levels_t			log_level;
 	uint8_t 			log_details_level;
 	cq_instance_block_t		cq_inst_arr[NUM_OF_SUPPORTED_CQS];
 	ring_instance_block_t		ring_inst_arr[NUM_OF_SUPPORTED_RINGS];
@@ -298,7 +299,7 @@ typedef struct sh_mem_info {
 
 // publisher functions
 
-void 			vma_shmem_stats_open(uint8_t** p_p_vma_log_level, uint8_t** p_p_vma_log_details);
+void 			vma_shmem_stats_open(vlog_levels_t** p_p_vma_log_level, uint8_t** p_p_vma_log_details);
 void 			vma_shmem_stats_close();
 
 void              	vma_stats_instance_create_socket_block(socket_stats_t*);

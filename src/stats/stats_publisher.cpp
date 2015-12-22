@@ -139,7 +139,7 @@ void write_version_details_to_shmem(version_info_t* p_ver_info)
 	p_ver_info->vma_lib_rel = VMA_LIBRARY_RELEASE;	
 }
 
-void vma_shmem_stats_open(uint8_t** p_p_vma_log_level, uint8_t** p_p_vma_log_details)
+void vma_shmem_stats_open(vlog_levels_t** p_p_vma_log_level, uint8_t** p_p_vma_log_details)
 {
 	void *buf = NULL;
  	void *p_shmem = NULL;

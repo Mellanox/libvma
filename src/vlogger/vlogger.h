@@ -98,7 +98,7 @@ extern "C" {
 
 typedef enum {
 	VLOG_NONE  = -1,
-	VLOG_PANIC = 0,
+	VLOG_PANIC =  0,
 	VLOG_ERROR,
 	VLOG_WARNING,
 	VLOG_INFO,
@@ -108,11 +108,13 @@ typedef enum {
 	VLOG_FINER, VLOG_FUNC_ALL = VLOG_FINER,
 	VLOG_ALL,
 
+	VLOG_INIT  = VLOG_NONE - 1,
 	VLOG_DEFAULT= VLOG_INFO
 } vlog_levels_t;
 
 namespace log_level {
-	vlog_levels_t from_str(const char* str);
+	// convert str to vlog_levels_t; upon error - returns the given 'def_value'
+	vlog_levels_t from_str(const char* str, vlog_levels_t def_value = VLOG_DEFAULT);
 	const char *    to_str(vlog_levels_t level);
 	const char * get_color(vlog_levels_t level);
 }
@@ -129,8 +131,8 @@ typedef void (*vma_log_cb_t)(int log_level, const char* str);
 extern char         g_vlogger_module_name[VLOG_MODULE_MAX_LEN];
 extern FILE*        g_vlogger_file;
 extern int          g_vlogger_fd;
-extern uint8_t      g_vlogger_level;
-extern uint8_t*     g_p_vlogger_level;
+extern vlog_levels_t      g_vlogger_level;
+extern vlog_levels_t*     g_p_vlogger_level;
 extern uint8_t      g_vlogger_details;
 extern uint8_t*     g_p_vlogger_details;
 extern uint32_t     g_vlogger_usec_on_startup;
@@ -147,7 +149,7 @@ pid_t gettid(void); // Check vlogger.cpp for implementation
 
 void printf_backtrace(void);
 
-void vlog_start(const char* log_module_name, int log_level = VLOG_DEFAULT, const char* log_filename = NULL, int log_details = 0, bool colored_log = true);
+void vlog_start(const char* log_module_name, vlog_levels_t log_level = VLOG_DEFAULT, const char* log_filename = NULL, int log_details = 0, bool colored_log = true);
 void vlog_stop(void);
 
 class LogDuration {

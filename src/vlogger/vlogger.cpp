@@ -32,8 +32,8 @@
 char         g_vlogger_module_name[VLOG_MODULE_MAX_LEN] = VLOG_DEFAULT_MODULE_NAME;
 int          g_vlogger_fd = -1;
 FILE*        g_vlogger_file = NULL;
-uint8_t      g_vlogger_level = VLOG_DEFAULT;
-uint8_t*     g_p_vlogger_level = NULL;
+vlog_levels_t g_vlogger_level = VLOG_DEFAULT;
+vlog_levels_t*     g_p_vlogger_level = NULL;
 uint8_t      g_vlogger_details = 0;
 uint8_t*     g_p_vlogger_details = NULL;
 uint32_t     g_vlogger_usec_on_startup = 0;
@@ -74,7 +74,8 @@ namespace log_level
 			{VLOG_ALL,     "ALL",     "\e[2m"    /*Grey*/,    (const char ** )log_names_all},
 	};
 
-	vlog_levels_t from_str(const char* str)
+	// convert str to vlog_levels_t; upon error - returns the given 'def_value'
+	vlog_levels_t from_str(const char* str, vlog_levels_t def_value)
 	{
 		size_t num_levels = sizeof(levels) / sizeof(levels[0]);
 		for (size_t i = 0; i < num_levels; ++i) {
@@ -86,8 +87,7 @@ namespace log_level
 			}
 		}
 
-		// not found. use default
-		return VLOG_DEFAULT;
+		return def_value; // not found. use given def_value
 	}
 
 	const char * to_str(vlog_levels_t level)
@@ -177,7 +177,7 @@ static vma_log_cb_t vma_log_get_cb_func()
 	return log_cb;
 }
 
-void vlog_start(const char* log_module_name, int log_level, const char* log_filename, int log_details, bool log_in_colors)
+void vlog_start(const char* log_module_name, vlog_levels_t log_level, const char* log_filename, int log_details, bool log_in_colors)
 {
 	g_vlogger_file = stderr;
 

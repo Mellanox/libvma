@@ -143,12 +143,12 @@ state_machine* g_sm;
 
 int main(int argc, char *argv[])
 {
-	int log_level = VLOG_INFO;
+	vlog_levels_t log_level = VLOG_DETAILS;
 
 	if (argc > 1) {
-		log_level = atoi(argv[1]);
-		if ((log_level<VLOG_PANIC)|| (log_level>VLOG_FUNC_ALL)) {
-			printf("illegal log level %d\n", log_level);
+		log_level = log_level::from_str(argv[1], VLOG_INIT);
+		if ((log_level == VLOG_INIT )) {
+			printf("illegal log level %s\n", argv[1]);
 			return -1;
 		}
 	}

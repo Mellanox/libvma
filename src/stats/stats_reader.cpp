@@ -88,9 +88,7 @@ typedef enum {
 #define DEFAULT_VIEW_MODE		e_basic
 #define DEFAULT_DETAILS_MODE		e_totals
 #define	 DEFAULT_PROC_IDENT_MODE	e_by_runn_proccess
-#define VLOG_LEVELS_NUM			7
 #define VLOG_DETAILS_NUM		4
-#define INIT_VMA_LOG_LEVEL_VAL		-1
 #define INIT_VMA_LOG_DETAILS		-1
 #define NANO_TO_MICRO(n)		(((n) + 500) / 1000)
 #define SEC_TO_MICRO(n)			((n) * 1000000)
@@ -142,7 +140,7 @@ void usage(const char *argv0)
 	printf("  -v, --view=<1|2|3|4|5>\tSet view type:1- basic info,2- extra info,3- full info,4- mc groups,5- similar to 'netstat -tunaep'\n");
 	printf("  -d, --details=<1|2>\t\tSet details mode:1- to see totals,2- to see deltas\t\t\n");
 	printf("  -z, --zero\t\t\tZero counters\n");
-	printf("  -l, --log_level=<level>\tSet VMA log level to <level>(1 <= level <= 7)\n");
+	printf("  -l, --log_level=<level>\tSet VMA log level to <level>(one of: none/panic/error/warn/info/details/debug/fine/finer/all)\n");
 	printf("  -D, --details_level=<level>\tSet VMA log details level to <level>(0 <= level <= 3)\n");
 	printf("  -s, --sockets=<list|range>\tLog only sockets that match <list> or <range>, format: 4-16 or 1,9 (or combination)\n");
 	printf("  -V, --version\t\t\tPrint version\n");
@@ -899,7 +897,7 @@ void set_defaults()
 	user_params.view_mode = DEFAULT_VIEW_MODE;
 	user_params.print_details_mode = DEFAULT_DETAILS_MODE;
 	user_params.proc_ident_mode = DEFAULT_PROC_IDENT_MODE;
-	user_params.vma_log_level = INIT_VMA_LOG_LEVEL_VAL;
+	user_params.vma_log_level = VLOG_INIT;
 	user_params.vma_details_level = INIT_VMA_LOG_DETAILS;
 	user_params.forbid_cleaning = false;	
 	user_params.zero_counters = false;
@@ -1302,7 +1300,7 @@ int get_pid(char* proc_desc, char* argv0)
 
 void set_vma_log_level(sh_mem_t* p_sh_mem)
 {
-	p_sh_mem->log_level = (uint8_t)user_params.vma_log_level;
+	p_sh_mem->log_level = user_params.vma_log_level;
 }
 
 
@@ -1423,17 +1421,15 @@ int main (int argc, char **argv)
 			user_params.zero_counters = true;
 			break;
 		case 'l': {			
-			errno = 0;
-			int log_level = 0;
-			log_level = strtol(optarg, NULL, 0);
-			if (errno != 0  || log_level < 1 || log_level > VLOG_LEVELS_NUM) {
+			vlog_levels_t log_level = log_level::from_str(optarg, VLOG_INIT);
+			if (log_level == VLOG_INIT) {
 				log_err("'-%c' Invalid log level val: %s", c,optarg);
-				usage(argv[0]);  
+				usage(argv[0]);
 				cleanup(NULL);
 				return 1;
 			}
 			user_params.write_auth = true;
-			user_params.vma_log_level = log_level; 
+			user_params.vma_log_level = log_level;
 		}
 			break;
 		case 'D': {			
@@ -1571,7 +1567,7 @@ int  init_print_process_stats(sh_mem_info_t & sh_mem_info)
 		print_version(pid);
 	if (user_params.zero_counters == true)
 		zero_counters(sh_mem);
-	if (user_params.vma_log_level != INIT_VMA_LOG_LEVEL_VAL)
+	if (user_params.vma_log_level != VLOG_INIT)
 		set_vma_log_level(sh_mem);
 	if (user_params.vma_details_level != INIT_VMA_LOG_DETAILS)
 		set_vma_log_details_level(sh_mem);
