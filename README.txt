@@ -88,138 +88,143 @@ Configuration Values
 
 On default startup the VMA library logs to stderr the VMA version, the modified
 configuration parameters being used and their values.
-Please notice that except the following parameters:VMA_TRACELEVEL, VMA_LOG_DETAILS,
-VMA_LOG_FILE, VMA logs just those parameters whose value != default.
+Please notice that except VMA_TRACELEVEL, VMA logs just those parameters whose value != default.
 
 Example:
- VMA INFO   : ---------------------------------------------------------------------------
- VMA INFO   : VMA_VERSION: 7.0.5-0
- VMA INFO   : Cmd Line: sockperf sr
- VMA INFO   : Current Time: Tue Aug 11 12:09:29 2015
- VMA INFO   : Pid:  7256
- VMA INFO   : OFED Version: MLNX_OFED_LINUX-3.1-0.0.2:
- VMA INFO   : Architecture: x86_64
- VMA INFO   : Node: r-sw-bolt4 
- VMA INFO   : ---------------------------------------------------------------------------
- VMA INFO   : Log Level                      4                          [VMA_TRACELEVEL]
- VMA DEBUG  : Log Details                    2                          [VMA_LOG_DETAILS]
- VMA DEBUG  : Log Colors                     Enabled                    [VMA_LOG_COLORS]
- VMA DEBUG  : Log File                                                  [VMA_LOG_FILE]
- VMA DEBUG  : Stats File                                                [VMA_STATS_FILE]
- VMA DEBUG  : Stats shared memory directory  /tmp/			[VMA_STATS_SHMEM_DIR]
- VMA DEBUG  : Stats FD Num (max)             100                        [VMA_STATS_FD_NUM]
- VMA DEBUG  : Conf File                      /etc/libvma.conf           [VMA_CONFIG_FILE]
- VMA DEBUG  : Application ID                 VMA_DEFAULT_APPLICATION_ID [VMA_APPLICATION_ID]
- VMA DEBUG  : Polling CPU idle usage         Disabled                   [VMA_CPU_USAGE_STATS]
- VMA DEBUG  : SigIntr Ctrl-C Handle          Disabled                   [VMA_HANDLE_SIGINTR]
- VMA DEBUG  : SegFault Backtrace             Disabled                   [VMA_HANDLE_SIGSEGV]
- VMA DEBUG  : Ring allocation logic TX       0 (Ring per interface)     [VMA_RING_ALLOCATION_LOGIC_TX]
- VMA DEBUG  : Ring allocation logic RX       0 (Ring per interface)     [VMA_RING_ALLOCATION_LOGIC_RX]
- VMA DEBUG  : Ring migration ratio TX        100                        [VMA_RING_MIGRATION_RATIO_TX]
- VMA DEBUG  : Ring migration ratio RX        100                        [VMA_RING_MIGRATION_RATIO_RX]
- VMA DEBUG  : Ring limit per interface       0 (no limit)               [VMA_RING_LIMIT_PER_INTERFACE]
- VMA DEBUG  : TCP max syn rate               0 (no limit)               [VMA_TCP_MAX_SYN_RATE]
- VMA DEBUG  : Tx Mem Segs TCP                1000000                    [VMA_TX_SEGS_TCP]
- VMA DEBUG  : Tx Mem Bufs                    200000                     [VMA_TX_BUFS]
- VMA DEBUG  : Tx QP WRE                      3000                       [VMA_TX_WRE]
- VMA DEBUG  : Tx Max QP INLINE               220                        [VMA_TX_MAX_INLINE]
- VMA DEBUG  : Tx MC Loopback                 Enabled                    [VMA_TX_MC_LOOPBACK]
- VMA DEBUG  : Tx non-blocked eagains         Disabled                   [VMA_TX_NONBLOCKED_EAGAINS]
- VMA DEBUG  : Tx Prefetch Bytes              256                        [VMA_TX_PREFETCH_BYTES]
- VMA DEBUG  : Rx Mem Bufs                    200000                     [VMA_RX_BUFS]
- VMA DEBUG  : Rx QP WRE                      16000                      [VMA_RX_WRE]
- VMA DEBUG  : Rx QP WRE BATCHING             64                         [VMA_RX_WRE_BATCHING]
- VMA DEBUG  : Rx Byte Min Limit              65536                      [VMA_RX_BYTES_MIN]
- VMA DEBUG  : Rx Poll Loops                  100000                     [VMA_RX_POLL]
- VMA DEBUG  : Rx Poll Init Loops             0                          [VMA_RX_POLL_INIT]
- VMA DEBUG  : Rx UDP Poll OS Ratio           100                        [VMA_RX_UDP_POLL_OS_RATIO]
- VMA DEBUG  : Rx UDP HW TS Conversion        3                          [VMA_RX_UDP_HW_TS_CONVERSION]
- VMA DEBUG  : Rx Poll Yield                  Disabled                   [VMA_RX_POLL_YIELD]
- VMA DEBUG  : Rx Prefetch Bytes              256                        [VMA_RX_PREFETCH_BYTES]
- VMA DEBUG  : Rx Prefetch Bytes Before Poll  0                          [VMA_RX_PREFETCH_BYTES_BEFORE_POLL]
- VMA DEBUG  : Rx CQ Drain Rate               Disabled                   [VMA_RX_CQ_DRAIN_RATE_NSEC]
- VMA DEBUG  : GRO max streams                32                         [VMA_GRO_STREAMS_MAX]
- VMA DEBUG  : TCP 3T rules                   Disabled                   [VMA_TCP_3T_RULES]
- VMA DEBUG  : ETH MC L2 only rules           Disabled                   [VMA_ETH_MC_L2_ONLY_RULES]
- VMA DEBUG  : Select Poll (usec)             100000                     [VMA_SELECT_POLL]
- VMA DEBUG  : Select Poll OS Force           Disabled                   [VMA_SELECT_POLL_OS_FORCE]
- VMA DEBUG  : Select Poll OS Ratio           10                         [VMA_SELECT_POLL_OS_RATIO]
- VMA DEBUG  : Select Skip OS                 4                          [VMA_SELECT_SKIP_OS]
- VMA DEBUG  : CQ Drain Interval (msec)       10                         [VMA_PROGRESS_ENGINE_INTERVAL]
- VMA DEBUG  : CQ Drain WCE (max)             10000                      [VMA_PROGRESS_ENGINE_WCE_MAX]
- VMA DEBUG  : CQ Interrupts Moderation       Enabled                    [VMA_CQ_MODERATION_ENABLE]
- VMA DEBUG  : CQ Moderation Count            48                         [VMA_CQ_MODERATION_COUNT]
- VMA DEBUG  : CQ Moderation Period (usec)    50                         [VMA_CQ_MODERATION_PERIOD_USEC]
- VMA DEBUG  : CQ AIM Max Count               560                        [VMA_CQ_AIM_MAX_COUNT]
- VMA DEBUG  : CQ AIM Max Period (usec)       250                        [VMA_CQ_AIM_MAX_PERIOD_USEC]
- VMA DEBUG  : CQ AIM Interval (msec)         250                        [VMA_CQ_AIM_INTERVAL_MSEC]
- VMA DEBUG  : CQ AIM Interrupts Rate (per sec) 5000                     [VMA_CQ_AIM_INTERRUPTS_RATE_PER_SEC]
- VMA DEBUG  : CQ Poll Batch (max)            16                         [VMA_CQ_POLL_BATCH_MAX]
- VMA DEBUG  : CQ Keeps QP Full               Enabled                    [VMA_CQ_KEEP_QP_FULL]
- VMA DEBUG  : QP Compensation Level          256                        [VMA_QP_COMPENSATION_LEVEL]
- VMA DEBUG  : Offloaded Sockets              Enabled                    [VMA_OFFLOADED_SOCKETS]
- VMA DEBUG  : Timer Resolution (msec)        10                         [VMA_TIMER_RESOLUTION_MSEC]
- VMA DEBUG  : TCP Timer Resolution (msec)    100                        [VMA_TCP_TIMER_RESOLUTION_MSEC]
- VMA DEBUG  : TCP control thread             0 (Disabled)               [VMA_TCP_CTL_THREAD]
- VMA DEBUG  : TCP timestamp option           0                          [VMA_TCP_TIMESTAMP_OPTION]
- VMA DEBUG  : Exception handling mode        0 (log debug and un-offload) [VMA_EXCEPTION_HANDLING]
- VMA DEBUG  : Avoid sys-calls on tcp fd      Disabled			[VMA_AVOID_SYS_CALLS_ON_TCP_FD]
- VMA DEBUG  : Delay after join (msec)        0                          [VMA_WAIT_AFTER_JOIN_MSEC]
- VMA DEBUG  : Internal Thread Affinity       -1                         [VMA_INTERNAL_THREAD_AFFINITY]
- VMA DEBUG  : Internal Thread Cpuset                                    [VMA_INTERNAL_THREAD_CPUSET]
- VMA DEBUG  : Internal Thread Arm CQ	     Disabled                   [VMA_INTERNAL_THREAD_ARM_CQ]
- VMA DEBUG  : Thread mode                    Multi spin lock            [VMA_THREAD_MODE]
- VMA DEBUG  : Buffers batch mode             1 (Batch and reclaim buffers)  [VMA_BUFFER_BATCHING_MODE]
- VMA DEBUG  : Mem Allocate type              1 (Contig Pages)           [VMA_MEM_ALLOC_TYPE]
- VMA DEBUG  : Num of UC ARPs                 3                          [VMA_NEIGH_UC_ARP_QUATA]
- VMA DEBUG  : UC ARP delay (msec)            10000                      [VMA_NEIGH_UC_ARP_DELAY_MSEC]
- VMA DEBUG  : Num of neigh restart retries   1                          [VMA_NEIGH_NUM_ERR_RETRIES]
- VMA DEBUG  : IPOIB support                  Enabled                    [VMA_IPOIB]
- VMA DEBUG  : BF (Blue Flame)                Enabled                    [VMA_BF]
- VMA DEBUG  : fork() support                 Enabled                    [VMA_FORK]
- VMA DEBUG  : close on dup2()                Enabled                    [VMA_CLOSE_ON_DUP2]
- VMA DEBUG  : MTU                            0 (follow actual MTU)      [VMA_MTU]
- VMA DEBUG  : MSS                            0 (follow VMA_MTU)         [VMA_MSS]
- VMA DEBUG  : TCP CC Algorithm               0 (LWIP)                   [VMA_TCP_CC_ALGO]
- VMA DEBUG  : Suppress IGMP ver. warning     Disabled                   [VMA_SUPPRESS_IGMP_WARNING]
- VMA INFO   : ---------------------------------------------------------------------------
+ VMA INFO: ---------------------------------------------------------------------------
+ VMA INFO: VMA_VERSION: 7.0.11-0
+ VMA INFO: Cmd Line: sockperf sr
+ VMA INFO: Current Time: Tue Dec 22 16:17:53 2015
+ VMA INFO: Pid:  5797
+ VMA INFO: OFED Version: MLNX_OFED_LINUX-3.1-1.5.5:
+ VMA INFO: Architecture: x86_64
+ VMA INFO: Node: r-aa-bob06.mtr.labs.mlnx
+ VMA INFO: ---------------------------------------------------------------------------
+ VMA INFO: Log Level                      DETAILS                    [VMA_TRACELEVEL]
+ VMA DETAILS: Log Details                    0                          [VMA_LOG_DETAILS]
+ VMA DETAILS: Log Colors                     Enabled                    [VMA_LOG_COLORS]
+ VMA DETAILS: Log File                                                  [VMA_LOG_FILE]
+ VMA DETAILS: Stats File                                                [VMA_STATS_FILE]
+ VMA DETAILS: Stats shared memory directory  /tmp/                      [VMA_STATS_SHMEM_DIR]
+ VMA DETAILS: Stats FD Num (max)             100                        [VMA_STATS_FD_NUM]
+ VMA DETAILS: Conf File                      /etc/libvma.conf           [VMA_CONFIG_FILE]
+ VMA DETAILS: Application ID                 VMA_DEFAULT_APPLICATION_ID [VMA_APPLICATION_ID]
+ VMA DETAILS: Polling CPU idle usage         Disabled                   [VMA_CPU_USAGE_STATS]
+ VMA DETAILS: SigIntr Ctrl-C Handle          Disabled                   [VMA_HANDLE_SIGINTR]
+ VMA DETAILS: SegFault Backtrace             Disabled                   [VMA_HANDLE_SIGSEGV]
+ VMA DETAILS: Ring allocation logic TX       0 (Ring per interface)     [VMA_RING_ALLOCATION_LOGIC_TX]
+ VMA DETAILS: Ring allocation logic RX       0 (Ring per interface)     [VMA_RING_ALLOCATION_LOGIC_RX]
+ VMA DETAILS: Ring migration ratio TX        100                        [VMA_RING_MIGRATION_RATIO_TX]
+ VMA DETAILS: Ring migration ratio RX        100                        [VMA_RING_MIGRATION_RATIO_RX]
+ VMA DETAILS: Ring limit per interface       0 (no limit)               [VMA_RING_LIMIT_PER_INTERFACE]
+ VMA DETAILS: TCP max syn rate               0 (no limit)               [VMA_TCP_MAX_SYN_RATE]
+ VMA DETAILS: Tx Mem Segs TCP                1000000                    [VMA_TX_SEGS_TCP]
+ VMA DETAILS: Tx Mem Bufs                    200000                     [VMA_TX_BUFS]
+ VMA DETAILS: Tx QP WRE                      3000                       [VMA_TX_WRE]
+ VMA DETAILS: Tx Max QP INLINE               220                        [VMA_TX_MAX_INLINE]
+ VMA DETAILS: Tx MC Loopback                 Enabled                    [VMA_TX_MC_LOOPBACK]
+ VMA DETAILS: Tx non-blocked eagains         Disabled                   [VMA_TX_NONBLOCKED_EAGAINS]
+ VMA DETAILS: Tx Prefetch Bytes              256                        [VMA_TX_PREFETCH_BYTES]
+ VMA DETAILS: Rx Mem Bufs                    200000                     [VMA_RX_BUFS]
+ VMA DETAILS: Rx QP WRE                      16000                      [VMA_RX_WRE]
+ VMA DETAILS: Rx QP WRE BATCHING             64                         [VMA_RX_WRE_BATCHING]
+ VMA DETAILS: Rx Byte Min Limit              65536                      [VMA_RX_BYTES_MIN]
+ VMA DETAILS: Rx Poll Loops                  100000                     [VMA_RX_POLL]
+ VMA DETAILS: Rx Poll Init Loops             0                          [VMA_RX_POLL_INIT]
+ VMA DETAILS: Rx UDP Poll OS Ratio           100                        [VMA_RX_UDP_POLL_OS_RATIO]
+ VMA DETAILS: Rx UDP HW TS Conversion        3                          [VMA_RX_UDP_HW_TS_CONVERSION]
+ VMA DETAILS: Rx Poll Yield                  Disabled                   [VMA_RX_POLL_YIELD]
+ VMA DETAILS: Rx Prefetch Bytes              256                        [VMA_RX_PREFETCH_BYTES]
+ VMA DETAILS: Rx Prefetch Bytes Before Poll  0                          [VMA_RX_PREFETCH_BYTES_BEFORE_POLL]
+ VMA DETAILS: Rx CQ Drain Rate               Disabled                   [VMA_RX_CQ_DRAIN_RATE_NSEC]
+ VMA DETAILS: GRO max streams                32                         [VMA_GRO_STREAMS_MAX]
+ VMA DETAILS: TCP 3T rules                   Disabled                   [VMA_TCP_3T_RULES]
+ VMA DETAILS: ETH MC L2 only rules           Disabled                   [VMA_ETH_MC_L2_ONLY_RULES]
+ VMA DETAILS: Select Poll (usec)             100000                     [VMA_SELECT_POLL]
+ VMA DETAILS: Select Poll OS Force           Disabled                   [VMA_SELECT_POLL_OS_FORCE]
+ VMA DETAILS: Select Poll OS Ratio           10                         [VMA_SELECT_POLL_OS_RATIO]
+ VMA DETAILS: Select Skip OS                 4                          [VMA_SELECT_SKIP_OS]
+ VMA DETAILS: CQ Drain Interval (msec)       10                         [VMA_PROGRESS_ENGINE_INTERVAL]
+ VMA DETAILS: CQ Drain WCE (max)             10000                      [VMA_PROGRESS_ENGINE_WCE_MAX]
+ VMA DETAILS: CQ Interrupts Moderation       Enabled                    [VMA_CQ_MODERATION_ENABLE]
+ VMA DETAILS: CQ Moderation Count            48                         [VMA_CQ_MODERATION_COUNT]
+ VMA DETAILS: CQ Moderation Period (usec)    50                         [VMA_CQ_MODERATION_PERIOD_USEC]
+ VMA DETAILS: CQ AIM Max Count               560                        [VMA_CQ_AIM_MAX_COUNT]
+ VMA DETAILS: CQ AIM Max Period (usec)       250                        [VMA_CQ_AIM_MAX_PERIOD_USEC]
+ VMA DETAILS: CQ AIM Interval (msec)         250                        [VMA_CQ_AIM_INTERVAL_MSEC]
+ VMA DETAILS: CQ AIM Interrupts Rate (per sec) 5000                       [VMA_CQ_AIM_INTERRUPTS_RATE_PER_SEC]
+ VMA DETAILS: CQ Poll Batch (max)            16                         [VMA_CQ_POLL_BATCH_MAX]
+ VMA DETAILS: CQ Keeps QP Full               Enabled                    [VMA_CQ_KEEP_QP_FULL]
+ VMA DETAILS: QP Compensation Level          256                        [VMA_QP_COMPENSATION_LEVEL]
+ VMA DETAILS: Offloaded Sockets              Enabled                    [VMA_OFFLOADED_SOCKETS]
+ VMA DETAILS: Timer Resolution (msec)        10                         [VMA_TIMER_RESOLUTION_MSEC]
+ VMA DETAILS: TCP Timer Resolution (msec)    100                        [VMA_TCP_TIMER_RESOLUTION_MSEC]
+ VMA DETAILS: TCP control thread             0 (Disabled)               [VMA_TCP_CTL_THREAD]
+ VMA DETAILS: TCP timestamp option           0                          [VMA_TCP_TIMESTAMP_OPTION]
+ VMA DETAILS: Exception handling mode        0 (log debug and un-offload) [VMA_EXCEPTION_HANDLING]
+ VMA DETAILS: Avoid sys-calls on tcp fd      Disabled                   [VMA_AVOID_SYS_CALLS_ON_TCP_FD]
+ VMA DETAILS: Delay after join (msec)        0                          [VMA_WAIT_AFTER_JOIN_MSEC]
+ VMA DETAILS: Internal Thread Affinity       -1                         [VMA_INTERNAL_THREAD_AFFINITY]
+ VMA DETAILS: Internal Thread Cpuset                                    [VMA_INTERNAL_THREAD_CPUSET]
+ VMA DETAILS: Internal Thread Arm CQ         Disabled                   [VMA_INTERNAL_THREAD_ARM_CQ]
+ VMA DETAILS: Thread mode                    Multi spin lock            [VMA_THREAD_MODE]
+ VMA DETAILS: Buffer batching mode           1 (Batch and reclaim buffers) [VMA_BUFFER_BATCHING_MODE]
+ VMA DETAILS: Mem Allocate type              1 (Contig Pages)           [VMA_MEM_ALLOC_TYPE]
+ VMA DETAILS: Num of UC ARPs                 3                          [VMA_NEIGH_UC_ARP_QUATA]
+ VMA DETAILS: UC ARP delay (msec)            10000                      [VMA_NEIGH_UC_ARP_DELAY_MSEC]
+ VMA DETAILS: Num of neigh restart retries   1                          [VMA_NEIGH_NUM_ERR_RETRIES]
+ VMA DETAILS: IPOIB support                  Enabled                    [VMA_IPOIB]
+ VMA DETAILS: BF (Blue Flame)                Enabled                    [VMA_BF]
+ VMA DETAILS: fork() support                 Enabled                    [VMA_FORK]
+ VMA DETAILS: close on dup2()                Enabled                    [VMA_CLOSE_ON_DUP2]
+ VMA DETAILS: MTU                            0 (follow actual MTU)      [VMA_MTU]
+ VMA DETAILS: MSS                            0 (follow VMA_MTU)         [VMA_MSS]
+ VMA DETAILS: TCP CC Algorithm               0 (LWIP)                   [VMA_TCP_CC_ALGO]
+ VMA DETAILS: Suppress IGMP ver. warning     Disabled                   [VMA_SUPPRESS_IGMP_WARNING]
+ VMA INFO: ---------------------------------------------------------------------------
 
 
 VMA_TRACELEVEL 
-Logging level the VMA library will be using. Default is 3 (INFO)
-Example: # VMA_TRACELEVEL=4
+Logging level the VMA library will be using. Default is info
+Example: # VMA_TRACELEVEL=debug
 
-0 = PANIC   
+none
+    Print no log at all
+panic
     Panic level logging, this would generally cause fatal behavior and an exception
     will be thrown by the VMA library. Typically, this is caused by memory 
     allocation problems. This level is rarely used.
-1 = ERROR
+error
     Runtime ERRORs in the VMA.
     Typically, these can provide insight for the developer of wrong internal
     logic like: Errors from underlaying OS or Infiniband verbs calls. internal
     double mapping/unmapping of objects.
-2 = WARNING
+warn
     Runtime warning that do not disrupt the workflow of the application but 
     might warn of a problem in the setup or the overall setup configuration. 
     Typically, these can be address resolution failure (due to wrong routing 
     setup configuration), corrupted ip packets in the receive path or 
     unsupported functions requested by the user application
-3 = INFO
+info
     General information passed to the user of the application. Bring up 
     configuration logging or some general info to help the user better 
     use the VMA library
-4 = DEBUG
+details
     Complete VMA's configuration information.
+    Very high level insight of some of the critical decisions done in VMA.
+debug
     High level insight to the operations done in the VMA. All socket API calls
     are logged and internal high level control channels log there activity.
-5 = FUNC
+fine
     Low level run time logging of activity. This logging level includes basic 
     Tx and Rx logging in the fast path and it will lower application 
     performance. It is recommended to use this level with VMA_LOG_FILE param.
-6 = FUNC_ALL
+finer
     Very low level run time logging of activity!
     This logging level will DRASTICALLY lower application performance.
     It is recommended to use this level with VMA_LOG_FILE param.
+all
+    today this level is identical to finer
 
 VMA_LOG_DETAILS
 Add details on each log line.
