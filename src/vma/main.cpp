@@ -475,7 +475,7 @@ const char* buffer_batching_mode_str(buffer_batching_mode_t buffer_batching_mode
 			vlog_printf(VLOG_INFO, ##args);								\
 		}												\
 		else {												\
-			vlog_printf(VLOG_DEBUG, ##args);							\
+			vlog_printf(VLOG_DETAILS, ##args);							\
 		}												\
 	} while (0);
 
@@ -485,7 +485,7 @@ const char* buffer_batching_mode_str(buffer_batching_mode_t buffer_batching_mode
 			vlog_printf(VLOG_INFO, ##args);								\
 		}												\
 		else {												\
-			vlog_printf(VLOG_DEBUG, ##args);							\
+			vlog_printf(VLOG_DETAILS, ##args);							\
 		}												\
 	} while (0);
 
