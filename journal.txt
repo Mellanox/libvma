@@ -1,3 +1,20 @@
+Version 7.0.12-0:
+Date + Time 2015-12-24
+=======================
+Added:
+        - RM #635537 Change default of VMA_EXCEPTION_HANDLING=0 - log debug and try recovery
+        - RM #651946 improve RX/TX stddev and latency for UDP and TCP sockets
+        - RM #661421 support log level input as strings
+        - RM #652089 Add FORTIFY definition to CFLAGS/CXXFLAGS in configure and makefile
+        - RM #668321 avoid lex -Werror issues by generating correct C source files in advance
+        - RM #631197 create log severity "details" (between info and debug) 
+
+Fixed:
+        - RM #623252 Fix make dist/clean for lex files errors (due to FORTIFY)
+        - RM #659575 Fix a crash when closing the process while other threads 
+	  are waiting on some sockets
+
+Version 7.0.11-0:
 Date + Time 2015-11-17
 =======================
 Fixed:
