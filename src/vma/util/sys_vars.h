@@ -175,7 +175,7 @@ public:
 		MODE_ABORT,
 		MODE_LAST,
 
-		MODE_DEFAULT = MODE_UNOFFLOAD
+		MODE_DEFAULT = MODE_DEBUG
 	} mode;
 
 	const char* to_str()
