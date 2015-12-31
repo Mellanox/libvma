@@ -1199,10 +1199,10 @@ ssize_t sockinfo_udp::rx(const rx_call_t call_type, iovec* p_iov,ssize_t sz_iov,
 
 	int rx_wait_ret;
 
+	return_reuse_buffers_postponed();
+
 	// Drop lock to not starve other threads
 	m_lock_rcv.unlock();
-
-	return_reuse_buffers_postponed();
 
 	// Poll socket for OS ready packets... (at a ratio of the offloaded sockets as defined in mce_sys.rx_udp_poll_os_ratio)
 	if ((mce_sys.rx_udp_poll_os_ratio > 0) && (m_rx_udp_poll_os_ratio_counter >= mce_sys.rx_udp_poll_os_ratio)) {
