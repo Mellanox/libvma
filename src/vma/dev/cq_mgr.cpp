@@ -445,7 +445,7 @@ void cq_mgr::process_cq_element_log_helper(mem_buf_desc_t* p_mem_buf_desc, vma_i
 	BULLSEYE_EXCLUDE_BLOCK_START
 	// wce with bad status value
 	if (p_wce->status == IBV_WC_SUCCESS) {
-		cq_logdbg("wce: wr_id=%#x, status=%#x, vendor_err=%#x, qp_num=%#x", p_wce->wr_id, p_wce->status, p_wce->vendor_err, p_wce->qp_num);
+		cq_logdbg("wce: wr_id=%#x, status=%#x, vendor_err=%#x, qp_num=%#x, csum_ok=%d", p_wce->wr_id, p_wce->status, p_wce->vendor_err, p_wce->qp_num, (!m_b_is_rx_csum_on || vma_wc_rx_csum_ok(*p_wce)));
 		cq_logdbg("wce: opcode=%#x, byte_len=%#d, src_qp=%#x, wc_flags=%#x", vma_wc_opcode(*p_wce), p_wce->byte_len, p_wce->src_qp, vma_wc_flags(*p_wce));
 		cq_logdbg("wce: pkey_index=%#x, slid=%#x, sl=%#x, dlid_path_bits=%#x, imm_data=%#x", p_wce->pkey_index, p_wce->slid, p_wce->sl, p_wce->dlid_path_bits, p_wce->imm_data);
 		cq_logdbg("mem_buf_desc: lkey=%#x, p_buffer=%p, sz_buffer=%#x", p_mem_buf_desc->lkey, p_mem_buf_desc->p_buffer, p_mem_buf_desc->sz_buffer);
