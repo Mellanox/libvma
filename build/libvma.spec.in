@@ -135,3 +135,7 @@ fi
 %defattr(-,root,root)
 %{_bindir}/vma_stats
 %{vma_datadir}/scripts/vma_perf_envelope.sh
+
+%changelog
+* Mon Jan  4 2016 Avner BenHanoch <avnerb@mellanox.com> 7.0.12-1
+– Initial Packaging
