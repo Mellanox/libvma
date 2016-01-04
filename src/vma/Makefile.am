@@ -2,10 +2,7 @@
 noinst_LTLIBRARIES = \
 	libconfig_parser.la
 libconfig_parser_la_SOURCES = \
-	util/config_parser.y \
-	util/config_scanner.l
-libconfig_parser_la_CFLAGS = \
-	-Wno-sign-compare
+	util/config_parser.y
 
 AM_LFLAGS = -Plibvma_yy
 AM_YFLAGS = -plibvma_yy -d
@@ -16,6 +13,9 @@ BUILT_SOURCES = \
 
 # consider config_scanner.c as source (and not as built) because we don't want it to be created by old version of flex on some machines
 #BUILT_SOURCES += config_scanner.c
+#libconfig_parser_la_SOURCES += util/config_scanner.l
+libconfig_parser_la_SOURCES += config_scanner.c
+
 
 CLEANFILES = $(BUILT_SOURCES)
 dist-hook:
@@ -25,7 +25,6 @@ DIST_SUBDIRS := infra netlink
 EXTRA_DIST = \
 	util/hash_map.inl \
 	util/libvma.conf
-	
 
 sysconf_DATA = util/libvma.conf
 otherincludedir = $(includedir)/mellanox
