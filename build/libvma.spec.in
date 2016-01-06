@@ -26,17 +26,8 @@ Group: System Environment/Libraries
 Url: https://github.com/Mellanox/libvma
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 Source: %{pkgname}-%{version}.tar.gz
-#Requires: librdmacm, libibverbs
-#Requires: libnl
-#Requires: libnl3
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
-#BuildRequires: gcc-c++  libstdc++-devel
-#%if (0%{?fedora} >= 18 || 0%{?rhel} >= 7)
-#BuildRequires: libnl3-devel
-#%endif
-#BuildRequires: libnl-devel
-#BuildRequires: libnl3-devel
 Prefix: %{_prefix}
 
 %description
@@ -68,16 +59,11 @@ Example tests and tools for collecting and analyzing Libvma statistic
 
 %build
 
-#CFLAGS=%{?cflags:%{cflags}}%{!?cflags:$RPM_OPT_FLAGS}
-#CXXFLAGS=%{?cxxflags:%{cxxflasg}}%{!?cxxflags:$RPM_OPT_FLAGS}
-#LDFLAGS=%{?ldflags:%{ldflags}}%{!?ldflags:$RPM_OPT_FLAGS}
-
 export revision=1
 #export CFLAGS CXXFLAGS LDFLAGS
 export CXXFLAGS='%{optflags}'
 
 %configure --with-ofed=%{ofed_dir} --docdir=%{_docdir}/%{name}-%{version}
-#%{pmake} -C src CFLAGS="$CFLAGS" CXXFLAGS="$CXXFLAGS"  LDFLAGS="$LDFLAGS"
 %{pmake}
 
 %install
@@ -87,7 +73,6 @@ mkdir -p $RPM_BUILD_ROOT%{include_dir}
 mkdir -p $RPM_BUILD_ROOT%{vma_datadir}/scripts
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}
 
-#%{pmake} -C src DESTDIR=${RPM_BUILD_ROOT} install
 %{pmake} DESTDIR=${RPM_BUILD_ROOT} install
 
 rm -f $RPM_BUILD_ROOT%{_libdir}/*.la
@@ -100,12 +85,12 @@ install -s -m 755 src/stats/vma_stats $RPM_BUILD_ROOT/%{_bindir}/vma_stats
 
 %post
 if [ `grep memlock /etc/security/limits.conf |grep unlimited |wc -l` -le 0 ]; then 
-	echo "*             -   memlock        unlimited" >> /etc/security/limits.conf
-	echo "*          soft   memlock        unlimited" >> /etc/security/limits.conf
-	echo "*          hard   memlock        unlimited" >> /etc/security/limits.conf
-	echo "- Changing max locked memory to unlimited (in /etc/security/limits.conf)"
-	echo "  Please log out from the shell and login again in order to update this change "
-	echo "  Read more about this topic in the VMA's User Manual"
+        echo "*             -   memlock        unlimited" >> /etc/security/limits.conf
+        echo "*          soft   memlock        unlimited" >> /etc/security/limits.conf
+        echo "*          hard   memlock        unlimited" >> /etc/security/limits.conf
+        echo "- Changing max locked memory to unlimited (in /etc/security/limits.conf)"
+        echo "  Please log out from the shell and login again in order to update this change "
+        echo "  Read more about this topic in the VMA's User Manual"
 fi
 /sbin/ldconfig
 
@@ -123,7 +108,6 @@ fi
 %{_docdir}/%{name}-%{version}/journal.txt
 %{_docdir}/%{name}-%{version}/VMA_VERSION
 %config(noreplace) %{_sysconfdir}/libvma.conf
-#%{_sysconfdir}/ld.so.conf.d/libvma.conf
 
 %files devel
 %defattr(-,root,root,-)
