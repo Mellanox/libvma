@@ -401,7 +401,8 @@ int socket_internal(int __domain, int __type, int __protocol, bool check_offload
 		handle_close(fd, true);
 
 		// Create new sockinfo object for this new socket
-		g_p_fd_collection->addsocket(fd, __domain, __type, check_offload);
+		if (offload_sockets)
+			g_p_fd_collection->addsocket(fd, __domain, __type, check_offload);
 	}
 
 	return fd;
