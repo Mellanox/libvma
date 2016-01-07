@@ -349,6 +349,22 @@ AC_TRY_LINK(
   AC_MSG_RESULT([no])
 ])
 
+AC_MSG_CHECKING([if IBV_SEND_IP_CSUM is defined])
+AC_TRY_LINK(
+#include <infiniband/verbs.h>
+,
+[
+  int access = (int)IBV_SEND_IP_CSUM;
+  return access;
+],
+[
+  AC_MSG_RESULT([yes])
+  AC_DEFINE(DEFINED_IBV_SEND_IP_CSUM, 1, [Define to 1 if IBV_SEND_IP_CSUM is defined])
+],
+[
+  AC_MSG_RESULT([no])
+])
+
 AC_MSG_CHECKING([if IBV_EXP_FLOW_SPEC_IB is defined])
 AC_TRY_LINK(
 #include <infiniband/verbs_exp.h>
