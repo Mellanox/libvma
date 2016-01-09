@@ -1,3 +1,16 @@
+Version 7.0.13-0:
+Date + Time 2016-01-09
+=======================
+Added:
+        - RM #678967 Updates based on Fedora and Redhat submission guidelines 
+        - RM #682804 Make VMA compile with infiniband group upstream where TX/RX checksum offload is missing (Fedora 23)
+        - RM #635537 Restore default of VMA_EXCEPTION_HANDLING=-1 (log debug) to 
+          increase cases of offloaded traffic
+        - RM #541581 add debug log of wqe RX checksum errors
+Fixed:
+        - RM #568607 Avoid lex warning: push config_scanner.c based on Flex 2.5.39 and remove config_scanner.l from compilation 
+        - RM #651946 Fix releasing of used RX buffers without socket lock 
+
 Version 7.0.12-0:
 Date + Time 2015-12-24
 =======================
