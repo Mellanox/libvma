@@ -22,8 +22,9 @@
 #define dst_tcp_logwarn            __log_warn
 #define dst_tcp_loginfo            __log_info
 #define dst_tcp_logdbg             __log_info_dbg
-#define dst_tcp_logfunc            __log_info_func
-#define dst_tcp_logfuncall         __log_info_funcall
+#define dst_tcp_logfunc            __log_info_fine
+#define dst_tcp_logfine            __log_info_fine
+#define dst_tcp_logfuncall         __log_info_finer
 
 
 dst_entry_tcp::dst_entry_tcp(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, int owner_fd):
@@ -97,6 +98,14 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 
 		m_p_send_wqe->wr_id = (uintptr_t)p_tcp_iov[0].p_desc;
 
+#ifdef VMA_NO_HW_CSUM
+		p_pkt->hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
+		p_pkt->hdr.m_ip_hdr.check = csum((unsigned short*)&p_pkt->hdr.m_ip_hdr, p_pkt->hdr.m_ip_hdr.ihl * 2);
+		struct tcphdr* p_tcphdr = (struct tcphdr*)(((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr)));
+		p_tcphdr->check = 0;
+		p_tcphdr->check = compute_tcp_checksum(&p_pkt->hdr.m_ip_hdr, (const uint16_t *)p_tcphdr);
+		dst_tcp_logfine("using SW checksum calculation: p_pkt->hdr.m_ip_hdr.check=%d, p_tcphdr->check=%d", (int)p_tcphdr->check, (int)p_pkt->hdr.m_ip_hdr.check);
+#endif
 		m_p_ring->send_lwip_buffer(m_id, m_p_send_wqe, b_blocked);
 	}
 	else { // We don'nt support inline in this case, since we believe that this a very rare case
@@ -130,6 +139,14 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 
 		p_pkt = (tx_packet_template_t*)((uint8_t*)p_mem_buf_desc->p_buffer);
 		p_pkt->hdr.m_ip_hdr.tot_len = (htons)(m_sge[0].length - m_header.m_transport_header_len);
+#ifdef VMA_NO_HW_CSUM
+		p_pkt->hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
+		p_pkt->hdr.m_ip_hdr.check = csum((unsigned short*)&p_pkt->hdr.m_ip_hdr, p_pkt->hdr.m_ip_hdr.ihl * 2);
+		struct tcphdr* p_tcphdr = (struct tcphdr*)(((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr)));
+		p_tcphdr->check = 0;
+		p_tcphdr->check = compute_tcp_checksum(&p_pkt->hdr.m_ip_hdr, (const uint16_t *)p_tcphdr);
+		dst_tcp_logfine("using SW checksum calculation: p_pkt->hdr.m_ip_hdr.check=%d, p_tcphdr->check=%d", (int)p_tcphdr->check, (int)p_pkt->hdr.m_ip_hdr.check);
+#endif
 		m_p_send_wqe = &m_not_inline_send_wqe;
 		m_p_send_wqe->wr_id = (uintptr_t)p_mem_buf_desc;
 		m_p_ring->send_ring_buffer(m_id, m_p_send_wqe, b_blocked);

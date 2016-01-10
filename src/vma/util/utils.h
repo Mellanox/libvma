@@ -25,6 +25,8 @@
 #include <vlogger/vlogger.h>
 #include <exception>
 
+struct iphdr; //forward declaration
+
 #define VMA_ALIGN(x, y) ((((x) + (y) - 1) / (y)) * (y) )
 
 /**
@@ -35,7 +37,13 @@ int check_if_regular_file (char *path);
 /**
  * Check Sum extensions
  */
-unsigned short csum(unsigned short *buf, unsigned int nwords);
+unsigned short csum(const unsigned short *buf, unsigned int nshort_words);
+
+/**
+* get tcp checksum: given IP header and tcp segment (assume checksum field in TCP header contains zero)
+* matches RFC 793
+*/
+unsigned short compute_tcp_checksum(const struct iphdr *p_iphdr, const uint16_t *p_ip_payload);
 
 /**
  * get user space max number of open fd's using getrlimit, default parameter equals to 1024

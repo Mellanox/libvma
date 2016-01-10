@@ -85,12 +85,12 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 		m_sge[1].addr = (uintptr_t)p_iov[0].iov_base;
 
 		m_header.m_header.hdr.m_udp_hdr.len = htons((uint16_t)sz_udp_payload);
-		m_header.m_header.hdr.m_ip_hdr.tot_len = htons(IPV4_HDR_LEN + sz_udp_payload);
+		m_header.m_header.hdr.m_ip_hdr.tot_len = htons(4*m_header.m_header.hdr.m_ip_hdr.ihl + sz_udp_payload);
 
 #ifdef VMA_NO_HW_CSUM
 		dst_udp_logfunc("using SW checksum calculation");
 		m_header.m_header.hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
-		m_header.m_header.hdr.m_ip_hdr.check = csum((unsigned short*)&m_header.m_header.hdr.m_ip_hdr, IPV4_HDR_LEN_WORDS * 2);
+		m_header.m_header.hdr.m_ip_hdr.check = csum((unsigned short*)&m_header.m_header.hdr.m_ip_hdr, m_header.m_header.hdr.m_ip_hdr.ihl * 2);
 #endif
 		// Get a bunch of tx buf descriptor and data buffers
 		if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
@@ -165,7 +165,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 			// Calc this ip datagram fragment size (include any udp header)
 			size_t sz_ip_frag = min(m_max_ip_payload_size, (sz_udp_payload - n_ip_frag_offset));
 			size_t sz_user_data_to_copy = sz_ip_frag;
-			size_t hdr_len = m_header.m_transport_header_len + IPV4_HDR_LEN; // Add count of L2 (ipoib or mac) header length
+			size_t hdr_len = m_header.m_transport_header_len + 4*m_header.m_header.hdr.m_ip_hdr.ihl; // Add count of L2 (ipoib or mac) header length
 
 			if (mce_sys.tx_prefetch_bytes) {
 				prefetch_range(p_mem_buf_desc->p_buffer + m_header.m_transport_header_tx_offset,
@@ -198,7 +198,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 			p_pkt->hdr.m_ip_hdr.frag_off = htons(frag_off);
 			// Update ip header specific values
 			p_pkt->hdr.m_ip_hdr.id = packet_id;
-			p_pkt->hdr.m_ip_hdr.tot_len = htons(IPV4_HDR_LEN + sz_ip_frag);
+			p_pkt->hdr.m_ip_hdr.tot_len = htons(4*p_pkt->hdr.m_ip_hdr.ihl + sz_ip_frag);
 
 			// Calc payload start point (after the udp header if present else just after ip header)
 			uint8_t* p_payload = p_mem_buf_desc->p_buffer + m_header.m_transport_header_tx_offset + hdr_len;
@@ -217,7 +217,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 			if (b_need_sw_csum) {
 				dst_udp_logfunc("ip fragmentation detected, using SW checksum calculation");
 				p_pkt->hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
-				p_pkt->hdr.m_ip_hdr.check = csum((unsigned short*)&p_pkt->hdr.m_ip_hdr, IPV4_HDR_LEN_WORDS * 2);
+				p_pkt->hdr.m_ip_hdr.check = csum((unsigned short*)&p_pkt->hdr.m_ip_hdr, p_pkt->hdr.m_ip_hdr.ihl * 2);
 				m_p_send_wqe_handler->disable_hw_csum(m_not_inline_send_wqe);
 			} else {
 				dst_udp_logfunc("using HW checksum calculation");

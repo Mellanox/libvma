@@ -384,9 +384,7 @@ int socket_internal(int __domain, int __type, int __protocol, bool check_offload
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	bool offload_sockets = (__type & 0xf) == SOCK_DGRAM || (__type & 0xf) == SOCK_STREAM;
-#ifdef VMA_NO_HW_CSUM
-	offload_sockets = (__type & 0xf) == SOCK_DGRAM; // currently, we enabled software checksum for UDP only
-#endif
+
 	if (offload_sockets)
 		do_global_ctors();
 

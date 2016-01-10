@@ -407,7 +407,7 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 		// Calc this ip datagram fragment size (include any udp header)
 		size_t sz_ip_frag = min(max_ip_payload_size, (sz_udp_payload - n_ip_frag_offset));
 		size_t sz_user_data_to_copy = sz_ip_frag;
-		size_t hdr_len = h->m_transport_header_len + IPV4_HDR_LEN; // Add count of L2 (ipoib or mac) header length
+		size_t hdr_len = h->m_transport_header_len + 4*h->m_header.hdr.m_ip_hdr.ihl; // Add count of L2 (ipoib or mac) header length
 
 		p_pkt = (tx_packet_template_t*)p_mem_buf_desc->p_buffer;
 
@@ -434,7 +434,7 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 
 		p_pkt->hdr.m_ip_hdr.frag_off = htons(frag_off);
 		// Update ip header specific values
-		p_pkt->hdr.m_ip_hdr.tot_len = htons(IPV4_HDR_LEN + sz_ip_frag);
+		p_pkt->hdr.m_ip_hdr.tot_len = htons(4*p_pkt->hdr.m_ip_hdr.ihl + sz_ip_frag);
 
 		// Calc payload start point (after the udp header if present else just after ip header)
 		uint8_t* p_payload = p_mem_buf_desc->p_buffer + h->m_transport_header_tx_offset + hdr_len;
@@ -454,7 +454,7 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 		if (b_need_sw_csum) {
 			neigh_logdbg("ip fragmentation detected, using SW checksum calculation");
 			p_pkt->hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
-			p_pkt->hdr.m_ip_hdr.check = csum((unsigned short*)&p_pkt->hdr.m_ip_hdr, IPV4_HDR_LEN_WORDS * 2);
+			p_pkt->hdr.m_ip_hdr.check = csum((unsigned short*)&p_pkt->hdr.m_ip_hdr, p_pkt->hdr.m_ip_hdr.ihl * 2);
 			wqe_sh.disable_hw_csum(m_send_wqe);
 		} else {
 			neigh_logdbg("using HW checksum calculation");
@@ -537,6 +537,14 @@ bool neigh_entry::post_send_tcp(iovec *iov, header *h)
 	}
 
 	m_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
+#ifdef VMA_NO_HW_CSUM
+		p_pkt->hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
+		p_pkt->hdr.m_ip_hdr.check = csum((unsigned short*)&p_pkt->hdr.m_ip_hdr, p_pkt->hdr.m_ip_hdr.ihl * 2);
+		struct tcphdr* p_tcphdr = (struct tcphdr*)(((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr)));
+		p_tcphdr->check = 0;
+		p_tcphdr->check = compute_tcp_checksum(&p_pkt->hdr.m_ip_hdr, (const uint16_t *)p_tcphdr);
+		neigh_logdbg("using SW checksum calculation: p_pkt->hdr.m_ip_hdr.check=%d, p_tcphdr->check=%d", (int)p_tcphdr->check, (int)p_pkt->hdr.m_ip_hdr.check);
+#endif
 	m_p_ring->send_ring_buffer(m_id, &m_send_wqe, false);
 #ifndef __COVERITY__
 	struct tcphdr* p_tcp_h = (struct tcphdr*)(((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr)));

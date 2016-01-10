@@ -117,7 +117,6 @@ typedef int            vma_ibv_cq_init_attr;
 #ifdef DEFINED_IBV_SEND_IP_CSUM
 	#define VMA_IBV_SEND_IP_CSUM			(IBV_SEND_IP_CSUM)
 #else
-	#define VMA_IBV_SEND_IP_CSUM			(0U)
 	#define VMA_NO_HW_CSUM
 #endif
 #define vma_ibv_send_flags			ibv_send_flags

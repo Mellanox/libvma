@@ -23,6 +23,7 @@
 #include <linux/if_vlan.h>
 #include <linux/sockios.h>
 #include <math.h>
+#include <linux/ip.h>  //IP  header (struct  iphdr) definition
 
 #include "vlogger/vlogger.h"
 #include "vma/util/sys_vars.h"
@@ -137,17 +138,57 @@ int get_base_interface_name(const char *if_name, char *base_ifname, size_t sz_ba
 	return 0;
 }
 
-unsigned short csum(unsigned short *buf, unsigned int nwords)
+unsigned short csum(const unsigned short *buf, unsigned int nshort_words)
 {
 	unsigned long sum = 0;
 
-	while (nwords--) {
+	while (nshort_words--) {
 		sum += *buf;
 		buf++;
 	}
 	sum = (sum >> 16) + (sum & 0xffff);
 	sum += (sum >> 16);
 	return ~sum;
+}
+
+/*
+ * get tcp checksum: given IP header and tcp segment (assume checksum field in TCP header contains zero)
+ * matches RFC 793
+ *
+ * This code borrows from other places and their ideas.
+ * */
+unsigned short compute_tcp_checksum(const struct iphdr *p_iphdr, const uint16_t *p_ip_payload) {
+    register unsigned long sum = 0;
+    uint16_t tcpLen = ntohs(p_iphdr->tot_len) - (p_iphdr->ihl<<2); // shift left 2 will multiply by 4 for converting to octets
+
+    //add the pseudo header
+    //the source ip
+    sum += (p_iphdr->saddr>>16)&0xFFFF;
+    sum += (p_iphdr->saddr)&0xFFFF;
+    //the dest ip
+    sum += (p_iphdr->daddr>>16)&0xFFFF;
+    sum += (p_iphdr->daddr)&0xFFFF;
+    //protocol and reserved: 6
+    sum += htons(IPPROTO_TCP);
+    //the length
+    sum += htons(tcpLen);
+
+    //add the IP payload
+    while (tcpLen > 1) {
+        sum += * p_ip_payload++;
+        tcpLen -= 2;
+    }
+    //if any bytes left, pad the bytes and add
+    if(tcpLen > 0) {
+        sum += ((*p_ip_payload)&htons(0xFF00));
+    }
+      //Fold 32-bit sum to 16 bits: add carrier to result
+      while (sum>>16) {
+          sum = (sum & 0xffff) + (sum >> 16);
+      }
+      sum = ~sum;
+    //computation result
+      return (unsigned short)sum;
 }
 
 /**
