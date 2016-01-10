@@ -131,8 +131,8 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 		p_pkt = (tx_packet_template_t*)((uint8_t*)p_mem_buf_desc->p_buffer);
 		p_pkt->hdr.m_ip_hdr.tot_len = (htons)(m_sge[0].length - m_header.m_transport_header_len);
 		m_p_send_wqe = &m_not_inline_send_wqe;
-                m_p_send_wqe->wr_id = (uintptr_t)p_mem_buf_desc;
-                m_p_ring->send_ring_buffer(m_id, m_p_send_wqe, b_blocked);
+		m_p_send_wqe->wr_id = (uintptr_t)p_mem_buf_desc;
+		m_p_ring->send_ring_buffer(m_id, m_p_send_wqe, b_blocked);
 	}
 
 #ifndef __COVERITY__
