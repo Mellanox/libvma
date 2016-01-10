@@ -364,7 +364,11 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 	// Find number of ip fragments (-> packets, buffers, buffer descs...)
 	neigh_logdbg("ENTER post_send_udp");
 	int n_num_frags = 1;
-	bool b_need_to_fragment = false;
+	bool b_need_sw_csum = false;
+#ifdef VMA_NO_HW_CSUM
+	b_need_sw_csum = true;
+#endif
+
 	mem_buf_desc_t* p_mem_buf_desc, *tmp = NULL;
 	tx_packet_template_t *p_pkt;
 
@@ -381,7 +385,7 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 
 	// Usually max inline < MTU!
 	if (sz_udp_payload > max_ip_payload_size) {
-		b_need_to_fragment = true;
+		b_need_sw_csum = true;
 		n_num_frags = (sz_udp_payload + max_ip_payload_size - 1) / max_ip_payload_size;
 	}
 
@@ -447,9 +451,9 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 		BULLSEYE_EXCLUDE_BLOCK_END
 
 		wqe_send_handler wqe_sh;
-		if (b_need_to_fragment) {
+		if (b_need_sw_csum) {
 			neigh_logdbg("ip fragmentation detected, using SW checksum calculation");
-			p_pkt->hdr.m_ip_hdr.check = 0;
+			p_pkt->hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
 			p_pkt->hdr.m_ip_hdr.check = csum((unsigned short*)&p_pkt->hdr.m_ip_hdr, IPV4_HDR_LEN_WORDS * 2);
 			wqe_sh.disable_hw_csum(m_send_wqe);
 		} else {

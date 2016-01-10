@@ -30,7 +30,9 @@ void wqe_send_handler::init_inline_wqe(vma_ibv_send_wr &wqe_to_init, struct ibv_
 	wqe_to_init.next = NULL;
 	wqe_to_init.sg_list = sge_list;
 	wqe_to_init.wr_id = 0;
+#ifndef VMA_NO_HW_CSUM
 	enable_hw_csum(wqe_to_init);
+#endif
 	enable_inline(wqe_to_init);
 }
 

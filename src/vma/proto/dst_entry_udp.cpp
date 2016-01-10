@@ -59,7 +59,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 	tx_packet_template_t *p_pkt;
 	mem_buf_desc_t* p_mem_buf_desc = NULL, *tmp;
 	uint16_t packet_id = 0;
-	bool b_need_to_fragment;
+	bool b_need_sw_csum;
 
 	// Calc user data payload size
 	ssize_t sz_data_payload = 0;
@@ -87,6 +87,11 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 		m_header.m_header.hdr.m_udp_hdr.len = htons((uint16_t)sz_udp_payload);
 		m_header.m_header.hdr.m_ip_hdr.tot_len = htons(IPV4_HDR_LEN + sz_udp_payload);
 
+#ifdef VMA_NO_HW_CSUM
+		dst_udp_logfunc("using SW checksum calculation");
+		m_header.m_header.hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
+		m_header.m_header.hdr.m_ip_hdr.check = csum((unsigned short*)&m_header.m_header.hdr.m_ip_hdr, IPV4_HDR_LEN_WORDS * 2);
+#endif
 		// Get a bunch of tx buf descriptor and data buffers
 		if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
 			m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, mce_sys.tx_bufs_batch_udp);
@@ -119,18 +124,21 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 	else {
 		// Find number of ip fragments (-> packets, buffers, buffer descs...)
 		int n_num_frags = 1;
-		b_need_to_fragment = false;
+		b_need_sw_csum = false;
 		m_p_send_wqe = &m_not_inline_send_wqe;
 
 		// Usually max inline < MTU!
 		if (sz_udp_payload > m_max_ip_payload_size) {
-			b_need_to_fragment = true;
+			b_need_sw_csum = true;
 			n_num_frags = (sz_udp_payload + m_max_ip_payload_size - 1) / m_max_ip_payload_size;
 			packet_id = (mce_sys.thread_mode > THREAD_MODE_SINGLE) ?
 					atomic_fetch_and_inc(&m_a_tx_ip_id) :
 					m_n_tx_ip_id++;
 			packet_id = htons(packet_id);
 		}
+#ifdef VMA_NO_HW_CSUM
+		b_need_sw_csum = true;
+#endif
 
 		dst_udp_logfunc("udp info: payload_sz=%d, frags=%d, scr_port=%d, dst_port=%d, blocked=%s, ", sz_data_payload, n_num_frags, ntohs(m_header.m_header.hdr.m_udp_hdr.source), ntohs(m_dst_port), b_blocked?"true":"false");
 
@@ -206,9 +214,9 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 			}
 			BULLSEYE_EXCLUDE_BLOCK_END
 
-			if (b_need_to_fragment) {
+			if (b_need_sw_csum) {
 				dst_udp_logfunc("ip fragmentation detected, using SW checksum calculation");
-				p_pkt->hdr.m_ip_hdr.check = 0;
+				p_pkt->hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
 				p_pkt->hdr.m_ip_hdr.check = csum((unsigned short*)&p_pkt->hdr.m_ip_hdr, IPV4_HDR_LEN_WORDS * 2);
 				m_p_send_wqe_handler->disable_hw_csum(m_not_inline_send_wqe);
 			} else {
