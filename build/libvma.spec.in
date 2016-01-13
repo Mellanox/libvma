@@ -12,7 +12,7 @@
 %global vma_ver_rel %{name}-%{version}-%{release}
 %global vma_datadir %{_datadir}/%{vma_ver_rel}
 
-%global ofed_ver %(eval ofed_info -s)
+%global ofed_ver %(eval 'ofed_info -s 2> /dev/null || echo "unknown"')
 %global ofed_dir %{?_ofed_dir}%{?!_ofed_dir:%{_prefix}}
 
 %global _use_internal_dependency_generator 0
@@ -79,7 +79,7 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/*.la
 
 install -m 755 tests/vma_perf_envelope/vma_perf_envelope.sh $RPM_BUILD_ROOT/%{vma_datadir}/scripts/vma_perf_envelope.sh
 install -m 644 src/vma/vma_extra.h $RPM_BUILD_ROOT/%{include_dir}/vma_extra.h
-install -m 755 src/vma/util/libvma.conf $RPM_BUILD_ROOT/%{_sysconfdir}/
+install -m 644 src/vma/util/libvma.conf $RPM_BUILD_ROOT/%{_sysconfdir}/
 install -s -m 755 src/stats/vma_stats $RPM_BUILD_ROOT/%{_bindir}/vma_stats
 
 
@@ -111,8 +111,6 @@ fi
 
 %files devel
 %defattr(-,root,root,-)
-%{_libdir}/%{name}*.so.*
-%{_libdir}/%{name}.so
 %{include_dir}/vma_extra.h
 
 %files utils
