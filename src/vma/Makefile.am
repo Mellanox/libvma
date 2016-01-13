@@ -1,20 +1,21 @@
 
 noinst_LTLIBRARIES = \
 	libconfig_parser.la
-libconfig_parser_la_SOURCES = \
-	util/config_parser.y
+libconfig_parser_la_SOURCES =
+BUILT_SOURCES =
 
 AM_LFLAGS = -Plibvma_yy
 AM_YFLAGS = -plibvma_yy -d
 LEX_OUTPUT_ROOT=lex.libvma_yy
-BUILT_SOURCES = \
-	config_parser.h \
-	config_parser.c
 
-# consider config_scanner.c as source (and not as built) because we don't want it to be created by old version of flex on some machines
-#BUILT_SOURCES += config_scanner.c
-#libconfig_parser_la_SOURCES += util/config_scanner.l
-libconfig_parser_la_SOURCES += config_scanner.c
+# consider config_scanner.c, config_parser.c, config_parser.h as source (and not
+# as built) because we don't want it to be created by old version of flex/yacc
+# on some machines that will generate gcc warmings.
+# in case you change the *.l or *.y in the future - than change the commenting in the following 3 lines
+#-----
+#BUILT_SOURCES += config_scanner.c config_parser.h config_parser.c
+#libconfig_parser_la_SOURCES += util/config_scanner.l util/config_parser.y
+libconfig_parser_la_SOURCES += config_scanner.c config_parser.c
 
 
 CLEANFILES = $(BUILT_SOURCES)
