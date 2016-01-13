@@ -516,7 +516,6 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 			return NULL;
 		}
 
-		cq_logdbg("wce: bad status or bad rx csum - rx packet will be dropped...");
 		process_cq_element_log_helper(p_mem_buf_desc, p_wce);
 
 		m_p_next_rx_desc_poll = NULL;
