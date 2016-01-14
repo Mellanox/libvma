@@ -130,8 +130,9 @@
 #define IPOIB_HW_ADDR_GID_LEN	16
 #define MAX_L2_ADDR_LEN			(MAX(IPOIB_HW_ADDR_LEN, ETH_ALEN))
 #define IPV4_VERSION			0x4
-#define IPV4_HDR_LEN_WITHOUT_OPTIONS (sizeof(struct iphdr)) // Ip Header without any options
-#define IPV4_IGMP_HDR_LEN		(IPV4_HDR_LEN_WITHOUT_OPTIONS + sizeof(uint32_t))
+#define IPV4_HDR_LEN			(sizeof(struct iphdr))
+#define IPV4_HDR_LEN_WORDS		(IPV4_HDR_LEN / sizeof(uint32_t))
+#define IPV4_IGMP_HDR_LEN		(IPV4_HDR_LEN + sizeof(uint32_t))
 #define IPV4_IGMP_HDR_LEN_WORDS		(IPV4_IGMP_HDR_LEN / sizeof(uint32_t))
 #define IGMP_HDR_LEN			(sizeof(struct igmphdr))
 #define IGMP_HDR_LEN_WORDS		(IGMP_HDR_LEN / sizeof(uint32_t))
