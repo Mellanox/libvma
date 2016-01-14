@@ -1,3 +1,12 @@
+Version 7.0.14-0:
+Date + Time 2016-01-14
+=======================
+Added:
+        - RM #682804 full support for IP/UDP/TCP software checksum in environments where HW checksum offloading is not supported
+        - RM #678967 rpms updates to comply with rpmlint 
+        - RM #568607 remove config_parser.y (in addition to removal of config_scanner.l) from compilation
+        - RM #541581 removed debug log that created false alarm at exit of application
+
 Version 7.0.13-0:
 Date + Time 2016-01-09
 =======================
