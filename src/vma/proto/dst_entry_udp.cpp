@@ -85,7 +85,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 		m_sge[1].addr = (uintptr_t)p_iov[0].iov_base;
 
 		m_header.m_header.hdr.m_udp_hdr.len = htons((uint16_t)sz_udp_payload);
-		m_header.m_header.hdr.m_ip_hdr.tot_len = htons(4*m_header.m_header.hdr.m_ip_hdr.ihl + sz_udp_payload);
+		m_header.m_header.hdr.m_ip_hdr.tot_len = htons(m_header.m_ip_header_len + sz_udp_payload);
 
 #ifdef VMA_NO_HW_CSUM
 		dst_udp_logfunc("using SW checksum calculation");
@@ -165,7 +165,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 			// Calc this ip datagram fragment size (include any udp header)
 			size_t sz_ip_frag = min(m_max_ip_payload_size, (sz_udp_payload - n_ip_frag_offset));
 			size_t sz_user_data_to_copy = sz_ip_frag;
-			size_t hdr_len = m_header.m_transport_header_len + 4*m_header.m_header.hdr.m_ip_hdr.ihl; // Add count of L2 (ipoib or mac) header length
+			size_t hdr_len = m_header.m_transport_header_len + m_header.m_ip_header_len; // Add count of L2 (ipoib or mac) header length
 
 			if (mce_sys.tx_prefetch_bytes) {
 				prefetch_range(p_mem_buf_desc->p_buffer + m_header.m_transport_header_tx_offset,
@@ -198,7 +198,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 			p_pkt->hdr.m_ip_hdr.frag_off = htons(frag_off);
 			// Update ip header specific values
 			p_pkt->hdr.m_ip_hdr.id = packet_id;
-			p_pkt->hdr.m_ip_hdr.tot_len = htons(4*p_pkt->hdr.m_ip_hdr.ihl + sz_ip_frag);
+			p_pkt->hdr.m_ip_hdr.tot_len = htons(m_header.m_ip_header_len + sz_ip_frag);
 
 			// Calc payload start point (after the udp header if present else just after ip header)
 			uint8_t* p_payload = p_mem_buf_desc->p_buffer + m_header.m_transport_header_tx_offset + hdr_len;

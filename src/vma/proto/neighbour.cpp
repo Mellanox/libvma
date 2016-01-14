@@ -407,7 +407,7 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 		// Calc this ip datagram fragment size (include any udp header)
 		size_t sz_ip_frag = min(max_ip_payload_size, (sz_udp_payload - n_ip_frag_offset));
 		size_t sz_user_data_to_copy = sz_ip_frag;
-		size_t hdr_len = h->m_transport_header_len + 4*h->m_header.hdr.m_ip_hdr.ihl; // Add count of L2 (ipoib or mac) header length
+		size_t hdr_len = h->m_transport_header_len + h->m_ip_header_len; // Add count of L2 (ipoib or mac) header length
 
 		p_pkt = (tx_packet_template_t*)p_mem_buf_desc->p_buffer;
 
@@ -434,7 +434,7 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 
 		p_pkt->hdr.m_ip_hdr.frag_off = htons(frag_off);
 		// Update ip header specific values
-		p_pkt->hdr.m_ip_hdr.tot_len = htons(4*p_pkt->hdr.m_ip_hdr.ihl + sz_ip_frag);
+		p_pkt->hdr.m_ip_hdr.tot_len = htons(h->m_ip_header_len + sz_ip_frag);
 
 		// Calc payload start point (after the udp header if present else just after ip header)
 		uint8_t* p_payload = p_mem_buf_desc->p_buffer + h->m_transport_header_tx_offset + hdr_len;
