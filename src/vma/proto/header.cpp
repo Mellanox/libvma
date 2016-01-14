@@ -75,7 +75,7 @@ void header::configure_ip_header(uint8_t protocol, in_addr_t src_addr, in_addr_t
 	memset(p_hdr, 0 , (sizeof(*p_hdr)));
 
 	// build ip header
-	p_hdr->ihl = IPV4_HDR_LEN_WORDS; // 5 * 4 bytes (32 bit words) = 20 bytes = regular iph length with out any optionals
+	p_hdr->ihl = IPV4_HDR_LEN_WITHOUT_OPTIONS / sizeof(uint32_t); // 5 * 4 bytes (32 bit words) = 20 bytes = regular iph length with out any optionals
 	p_hdr->version = IPV4_VERSION;
 	p_hdr->protocol = protocol;
 	p_hdr->saddr = src_addr;
@@ -84,7 +84,7 @@ void header::configure_ip_header(uint8_t protocol, in_addr_t src_addr, in_addr_t
 	p_hdr->ttl = ttl;
 	p_hdr->id = packet_id;
 
-	m_ip_header_len = IPV4_HDR_LEN;
+	m_ip_header_len = IPV4_HDR_LEN_WITHOUT_OPTIONS;
 	m_total_hdr_len += m_ip_header_len;
 }
 
