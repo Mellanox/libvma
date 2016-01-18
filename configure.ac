@@ -444,10 +444,12 @@ PKG_CHECK_MODULES([LIBNL3],[libnl-route-3.0], have_libnl=yes AC_DEFINE([HAVE_LIB
 if test "$have_libnl" = yes; then
 	AC_SUBST([LIBNL_LIBS], "$LIBNL3_LIBS")
 	AC_SUBST([LIBNL_CFLAGS], "$LIBNL3_CFLAGS")
+	AC_SUBST([LIBNLX_DEVEL], "libnl3-devel")
 else
 	PKG_CHECK_MODULES([LIBNL1],[libnl-1], have_libnl=yes AC_DEFINE([HAVE_LIBNL1], [1], [Use libnl-1]),  AC_MSG_ERROR([libnl-devel is required]))
 	AC_SUBST([LIBNL_LIBS], "$LIBNL1_LIBS")
 	AC_SUBST([LIBNL_CFLAGS], "$LIBNL1_CFLAGS")
+	AC_SUBST([LIBNLX_DEVEL], "libnl-devel")
 fi
 
 AM_CONDITIONAL([HAVE_LIBNL], [test "$have_libnl" = "yes"])

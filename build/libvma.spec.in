@@ -30,6 +30,8 @@ Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 Prefix: %{_prefix}
 
+BuildRequires: librdmacm-devel libibverbs-devel @LIBNLX_DEVEL@
+
 %description
 
 VMA library is a performance booster of TCP and UDP traffic
