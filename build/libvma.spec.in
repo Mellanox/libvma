@@ -79,6 +79,14 @@ mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}
 
 rm -f $RPM_BUILD_ROOT%{_libdir}/*.la
 
+
+if [ `grep memlock /etc/security/limits.conf /etc/security/limits.d/* 2> /dev/null |grep unlimited |wc -l` -le 0 ]; then
+        echo "- Changing max locked memory to unlimited (in /etc/security/limits.d/30-libvma-limits.conf)"
+        echo "  Please log out from the shell and login again in order to update this change "
+        echo "  Read more about this topic in the VMA's User Manual"
+fi
+mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/security/limits.d/
+install -m 644 src/vma/util/30-libvma-limits.conf $RPM_BUILD_ROOT%{_sysconfdir}/security/limits.d/
 install -m 755 tests/vma_perf_envelope/vma_perf_envelope.sh $RPM_BUILD_ROOT/%{vma_datadir}/scripts/vma_perf_envelope.sh
 install -m 644 src/vma/vma_extra.h $RPM_BUILD_ROOT/%{include_dir}/vma_extra.h
 install -m 644 src/vma/util/libvma.conf $RPM_BUILD_ROOT/%{_sysconfdir}/
@@ -86,14 +94,6 @@ install -s -m 755 src/stats/vma_stats $RPM_BUILD_ROOT/%{_bindir}/vma_stats
 
 
 %post
-if [ `grep memlock /etc/security/limits.conf |grep unlimited |wc -l` -le 0 ]; then 
-        echo "*             -   memlock        unlimited" >> /etc/security/limits.conf
-        echo "*          soft   memlock        unlimited" >> /etc/security/limits.conf
-        echo "*          hard   memlock        unlimited" >> /etc/security/limits.conf
-        echo "- Changing max locked memory to unlimited (in /etc/security/limits.conf)"
-        echo "  Please log out from the shell and login again in order to update this change "
-        echo "  Read more about this topic in the VMA's User Manual"
-fi
 /sbin/ldconfig
 
 %clean
@@ -110,6 +110,7 @@ fi
 %{_docdir}/%{name}-%{version}/journal.txt
 %{_docdir}/%{name}-%{version}/VMA_VERSION
 %config(noreplace) %{_sysconfdir}/libvma.conf
+%{_sysconfdir}/security/limits.d/30-libvma-limits.conf
 
 %files devel
 %defattr(-,root,root,-)
