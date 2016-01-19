@@ -108,6 +108,7 @@ fi
 %{_docdir}/%{name}-%{version}/journal.txt
 %{_docdir}/%{name}-%{version}/VMA_VERSION
 %config(noreplace) %{_sysconfdir}/libvma.conf
+%{_sysconfdir}/security/limits.d/30-libvma-limits.conf
 
 %files devel
 %defattr(-,root,root,-)
