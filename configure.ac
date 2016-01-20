@@ -58,7 +58,7 @@ AC_CHECK_HEADERS([infiniband/verbs.h], ,
                  [AC_MSG_ERROR([Unable to find the libibverbs-devel header files])])
 
 AC_CHECK_HEADERS([rdma/rdma_cma.h], ,
-                 [AC_MSG_ERROR([Unable to find the librdma_cm-devel header files])])
+                 [AC_MSG_ERROR([Unable to find the librdmacm-devel header files])])
 
 
 AC_MSG_CHECKING([md5 version of VMA statistics is])
