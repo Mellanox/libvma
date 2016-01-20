@@ -446,7 +446,7 @@ if test "$have_libnl" = yes; then
 	AC_SUBST([LIBNL_CFLAGS], "$LIBNL3_CFLAGS")
 	AC_SUBST([LIBNLX_DEVEL], "libnl3-devel")
 else
-	PKG_CHECK_MODULES([LIBNL1],[libnl-1], have_libnl=yes AC_DEFINE([HAVE_LIBNL1], [1], [Use libnl-1]),  AC_MSG_ERROR([libnl-devel is required]))
+	PKG_CHECK_MODULES([LIBNL1],[libnl-1], have_libnl=yes AC_DEFINE([HAVE_LIBNL1], [1], [Use libnl-1]),  AC_MSG_ERROR([You should have one of libnl3-devel or libnl-devel installed in order to build VMA]))
 	AC_SUBST([LIBNL_LIBS], "$LIBNL1_LIBS")
 	AC_SUBST([LIBNL_CFLAGS], "$LIBNL1_CFLAGS")
 	AC_SUBST([LIBNLX_DEVEL], "libnl-devel")
