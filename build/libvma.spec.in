@@ -30,7 +30,16 @@ Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 Prefix: %{_prefix}
 
-BuildRequires: librdmacm-devel libibverbs-devel @LIBNLX_DEVEL@
+BuildRequires: librdmacm-devel libibverbs-devel
+# we also need one of libnl3-devel or libnl-devel
+# (however, on rhel7 both might exists - hence, on rhel7 we rely on PKG_CHECK in configure phase)
+%if (0%{?fedora} || 0%{?rhel} < 7)
+%if (0%{?fedora} >= 18)
+BuildRequires: libnl3-devel
+%else
+BuildRequires: libnl-devel
+%endif
+%endif
 
 %description
 
