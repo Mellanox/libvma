@@ -41,6 +41,11 @@ select_call::select_call(int *off_fds_buffer, offloaded_mode_t *off_modes_buffer
 	int fd;
 	//socket_fd_api* temp_sock_fd_api = NULL; 
 
+	if (m_nfds > FD_SETSIZE) {
+		errno = ENOMEM;
+		vma_throw_object(io_mux_call::io_error);
+	}
+
 	// create stats
 	m_p_stats = &g_select_stats;
         vma_stats_instance_get_select_block(m_p_stats);
@@ -61,8 +66,8 @@ select_call::select_call(int *off_fds_buffer, offloaded_mode_t *off_modes_buffer
 		// get offloaded fds in read set
 		for (fd = 0; fd < m_nfds; ++fd) {
 
-                        bool check_read  = offloaded_read  && FD_ISSET(fd, m_readfds);
-                        bool check_write = offloaded_write && FD_ISSET(fd, m_writefds);
+			bool check_read = offloaded_read && FD_ISSET(fd, m_readfds);
+			bool check_write = offloaded_write && FD_ISSET(fd, m_writefds);
 
 			socket_fd_api* psock = fd_collection_get_sockfd(fd);
 
@@ -79,13 +84,13 @@ select_call::select_call(int *off_fds_buffer, offloaded_mode_t *off_modes_buffer
 					m_p_offloaded_modes[m_num_all_offloaded_fds] = off_mode;
 					m_num_all_offloaded_fds++;
 					if (! psock->skip_os_select()) {
-						if (check_read)  {
+						if (check_read) {
 							FD_SET(fd, &m_os_rfds);
-							if(psock->is_readable(NULL)){
+							if (psock->is_readable(NULL)) {
 								io_mux_call::update_fd_array(&m_fd_ready_array, fd);
 								m_n_ready_rfds++;
 								m_n_all_ready_fds++;
-							}else{
+							} else {
 								// Instructing the socket to sample the OS immediately to prevent hitting EAGAIN on recvfrom(),
 								// after iomux returned a shadow fd as ready (only for non-blocking sockets)
 								psock->set_immediate_os_sample();
