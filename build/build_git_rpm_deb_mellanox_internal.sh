@@ -1,5 +1,15 @@
 #!/bin/bash
 
+# Copyright (C) Mellanox Technologies Ltd. 2001-2016.  ALL RIGHTS RESERVED.
+#
+# This software product is a proprietary product of Mellanox Technologies Ltd.
+# (the "Company") and all right, title, and interest in and to the software product,
+# including all associated intellectual property rights, are and shall
+# remain exclusively with the Company.
+#
+# This software is made available under either the GPL v2 license or a commercial license.
+# If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
+
 function usage {
 
 cat << EOF
@@ -296,7 +306,7 @@ for (( i=0; i<$numOfBranches; i++ )); do
         if [ "$curr_branch" == "master" ]; then
         	curr_branch_name=$master_name
        	fi
-        echo "Branch: $curr_branch_name" >> ~/script_status
+        echo "Branch: $curr_branch" >> ~/script_status
         echo "===============" >> ~/script_status
 	cd $vma_repos_base
 	PARENT=`ps --no-heading -o %c -p $PPID`
