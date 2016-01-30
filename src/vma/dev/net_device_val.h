@@ -152,6 +152,7 @@ protected:
 
 private:
 	bool get_up_and_active_slaves(bool* up_and_active_slaves, size_t size);
+	void try_read_dev_id_and_port(const char *base_ifname, int *dev_id, int *dev_port);
 };
 
 class net_device_val_eth : public net_device_val

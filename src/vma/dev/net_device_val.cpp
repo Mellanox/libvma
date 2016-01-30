@@ -76,6 +76,24 @@ net_device_val::~net_device_val()
 	}
 }
 
+void net_device_val::try_read_dev_id_and_port(const char *base_ifname, int *dev_id, int *dev_port)
+{
+	// Depending of kernel version and OFED stack the files containing dev_id and dev_port may not exist.
+	// if file reading fails *dev_id or *dev_port may remain unmodified
+	char num_buf[24] = {0};
+	char dev_path[256] = {0};
+	sprintf(dev_path, VERBS_DEVICE_PORT_PARAM_FILE, base_ifname);
+	if (priv_try_read_file(dev_path, num_buf, sizeof(num_buf)) > 0) {
+		*dev_port = strtol(num_buf, NULL, 0); // base=0 means strtol() can parse hexadecimal and decimal
+		nd_logdbg("dev_port file=%s dev_port str=%s dev_port val=%d", dev_path, num_buf, *dev_port);
+	}
+	sprintf(dev_path, VERBS_DEVICE_ID_PARAM_FILE, base_ifname);
+	if (priv_try_read_file(dev_path, num_buf, sizeof(num_buf)) > 0) {
+		*dev_id = strtol(num_buf, NULL, 0); // base=0 means strtol() can parse hexadecimal and decimal
+		nd_logdbg("dev_id file= %s dev_id str=%s dev_id val=%d", dev_path, num_buf, *dev_id);
+	}
+}
+
 void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 {
 	nd_logdbg("");
@@ -197,17 +215,15 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 			priv_read_file(ib_path, ib_res, 1024);
 			if (strcmp(sys_res, ib_res) == 0) {
 				m_slaves[i]->p_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(pp_ibv_context_list[j]);
-				char num_buf[24] = {0};
-				char dev_id_path[256] = {0};
-				sprintf(dev_id_path, VERBS_DEVICE_PORT_PARAM_FILE, base_ifname);
-				if (priv_try_read_file(dev_id_path, num_buf, 24) <= 0) {
-					sprintf(dev_id_path, VERBS_DEVICE_ID_PARAM_FILE, base_ifname);
-					priv_read_file(dev_id_path, num_buf, 24);
-				}
-				int port_num;
-				char *endptr;
-				port_num = strtol(num_buf, &endptr, 16);
+				int dev_id = -1;
+				int dev_port = -1;
+				try_read_dev_id_and_port(base_ifname, &dev_id, &dev_port);
+				// take the max between dev_port and dev_id as port number
+				int port_num = (dev_port > dev_id) ? dev_port : dev_id;
 				m_slaves[i]->port_num = port_num + 1;
+				if (m_slaves[i]->port_num < 1) {
+					nd_logdbg("Error: port %d ==> ifname=%s base_ifname=%s", m_slaves[i]->port_num, (const char*)m_slaves[i]->if_name, base_ifname);					
+				}
 				break;
 			}
 		}
