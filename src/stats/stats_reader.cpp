@@ -1320,7 +1320,6 @@ int main (int argc, char **argv)
 
 	set_defaults();	
 	if (!g_fd_mask) return 1;
-	clean_inactive_sh_ibj();
 
 	while (1) {
 		int c = 0;
@@ -1467,6 +1466,8 @@ int main (int argc, char **argv)
 			return 1;
 		}
 	}
+
+	clean_inactive_sh_ibj();
 
 	std::vector<int> pids;
 	if(user_params.view_mode == e_netstat_like) {
