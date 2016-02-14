@@ -19,7 +19,7 @@ AC_CONFIG_SRCDIR(src)
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_MACRO_DIR(config)
 
-AM_INIT_AUTOMAKE(foreign)
+AM_INIT_AUTOMAKE(foreign [subdir-objects])
 
 AC_CONFIG_HEADER([config.h])
 

@@ -1,7 +1,7 @@
 AM_CFLAGS = -Wall -g -fPIC#-O3
 AM_CXXFLAGS = -Wall -g -fPIC#-O3
 
-INCLUDES := -I$(top_builddir)/src -I$(top_srcdir)/src
+AM_CPPFLAGS := -I$(top_builddir)/src -I$(top_srcdir)/src
 
 lib_LTLIBRARIES = libvlogger.la
 libvlogger_la_LDFLAGS = -static -version-info 1:0:0

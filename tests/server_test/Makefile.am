@@ -1,6 +1,7 @@
 noinst_PROGRAMS = server_perf
 
-INCLUDES := -I$(top_builddir)/. \
+AM_CPPFLAGS := \
+            -I$(top_builddir)/. \
             -I$(top_builddir)/include
 
 server_perf_LDADD    = -lboost_thread

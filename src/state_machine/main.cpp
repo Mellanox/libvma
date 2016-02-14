@@ -20,7 +20,7 @@
 
 #define MODULE_NAME			"SM_TEST: "
 
-#define NOT_IN_USE(a)			{if (a) {};}
+#define NOT_IN_USE(a)                   ((void)(a))
 
 /* SM example */
 
@@ -265,7 +265,7 @@ void sm_st_A_ev_3(const sm_info_t& info)
 
 void sm_st_B_ev_1(const sm_info_t& info)
 {
-	NOT_IN_USE(&info);
+	NOT_IN_USE(info);
 	printf(MODULE_NAME "Got event %s\n", event_num_to_str_func(SM_EV_1));
 }
 
@@ -277,26 +277,26 @@ void sm_st_B_ev_2(const sm_info_t& info)
 
 void sm_st_B_ev_3(const sm_info_t& info)
 {
-	NOT_IN_USE(&info);
+	NOT_IN_USE(info);
 	printf(MODULE_NAME "Got event %s\n", event_num_to_str_func(SM_EV_3));
 }
 
 void sm_st_C_ev_1(const sm_info_t& info)
 {
-	NOT_IN_USE(&info);
+	NOT_IN_USE(info);
 	printf(MODULE_NAME "Got event %s\n", event_num_to_str_func(SM_EV_1));
 }
 
 void sm_st_C_ev_2(const sm_info_t& info)
 {
-	NOT_IN_USE(&info);
+	NOT_IN_USE(info);
 	printf(MODULE_NAME "Got event %s\n", event_num_to_str_func(SM_EV_2));
 	g_sm->process_event(SM_EV_4, (void*)"event 4");   
 }
 
 void sm_st_C_ev_3(const sm_info_t& info)
 {
-	NOT_IN_USE(&info);
+	NOT_IN_USE(info);
 	printf(MODULE_NAME "Got event %s\n", event_num_to_str_func(SM_EV_3));
 }
 

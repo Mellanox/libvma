@@ -1,6 +1,7 @@
 bin_PROGRAMS = udp_perf
 
-INCLUDES := -I$(top_builddir)/. -I$(top_srcdir)/. \
+AM_CPPFLAGS := \
+            -I$(top_builddir)/. -I$(top_srcdir)/. \
             -I$(top_builddir)/include -I$(top_srcdir)/include
 
 udp_perf_LDADD = -lrt

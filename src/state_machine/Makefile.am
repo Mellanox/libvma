@@ -5,7 +5,7 @@ lib_LTLIBRARIES = libstate_machine.la
 libstate_machine_la_LDFLAGS = -static
 libstate_machine_la_SOURCES = sm_fifo.cpp sm.cpp sm_fifo.h sm.h
 libstate_machine_la_DEPENDENCIES = Makefile.am Makefile.in Makefile
-INCLUDES := -I$(top_builddir)/src -I$(top_srcdir)/src
+AM_CPPFLAGS := -I$(top_builddir)/src -I$(top_srcdir)/src
 	
 
 bin_PROGRAMS = state_machine_test

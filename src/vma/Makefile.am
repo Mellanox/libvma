@@ -45,7 +45,7 @@ uninstall-hook:
 
 lib_LTLIBRARIES = libvma.la
 
-INCLUDES := \
+AM_CPPFLAGS := \
 	-I$(top_builddir) \
 	-I$(top_srcdir) \
 	-I$(top_builddir)/src \
