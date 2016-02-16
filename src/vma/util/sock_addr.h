@@ -35,7 +35,7 @@ public:
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
 #endif
-	sock_addr(struct sockaddr_in other) : m_sa(*(struct sockaddr*)&other), m_p_sa_in((struct sockaddr_in*)&m_sa) { m_str[0]='\0'; m_str_in_addr[0]='\0'; m_str_in_port[0]='\0'; };
+	sock_addr(struct sockaddr_in other) : m_sa_in(other), m_p_sa_in((struct sockaddr_in*)&m_sa) { m_str[0]='\0'; m_str_in_addr[0]='\0'; m_str_in_port[0]='\0'; };
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif
@@ -74,9 +74,9 @@ public:
 
 
 	void 		set(struct sockaddr& sa) { m_sa = sa; }
-	void 		set_sa_family(sa_family_t family) { (*(struct sockaddr_in*)&m_sa).sin_family = family; }
-	void 		set_in_addr(in_addr_t in_addr) { (*(struct sockaddr_in*)&m_sa).sin_addr.s_addr = in_addr;}
-	void 		set_in_port(in_port_t in_port) { (*(struct sockaddr_in*)&m_sa).sin_port = in_port;}
+	void 		set_sa_family(sa_family_t family) { m_sa_in.sin_family = family; }
+	void 		set_in_addr(in_addr_t in_addr) { m_sa_in.sin_addr.s_addr = in_addr;}
+	void 		set_in_port(in_port_t in_port) { m_sa_in.sin_port = in_port;}
 
 	sock_addr& operator=(const sock_addr& other) {
 		m_sa = other.m_sa;
@@ -129,7 +129,11 @@ public:
 	char*		to_str()         { set_str_in_addr(); set_str_in_port(); set_str(); return m_str; };
 
 private:
-	struct sockaddr 	m_sa;
+	union  {
+		struct sockaddr 	m_sa;
+		struct sockaddr_in 	m_sa_in;
+	};
+
 	struct sockaddr_in* 	m_p_sa_in;
 
 	char			m_str_in_addr[16];
