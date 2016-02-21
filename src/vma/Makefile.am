@@ -25,9 +25,12 @@ dist-hook:
 DIST_SUBDIRS := infra netlink
 EXTRA_DIST = \
 	util/hash_map.inl \
-	util/libvma.conf
+	util/libvma.conf \
+	util/30-libvma-limits.conf
 
 sysconf_DATA = util/libvma.conf
+othersysconfdir=$(sysconfdir)/security/limits.d
+othersysconf_DATA=util/30-libvma-limits.conf
 otherincludedir = $(includedir)/mellanox
 otherinclude_HEADERS = vma_extra.h
 
