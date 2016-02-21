@@ -58,7 +58,7 @@ AC_CHECK_HEADERS([infiniband/verbs.h], ,
                  [AC_MSG_ERROR([Unable to find the libibverbs-devel header files])])
 
 AC_CHECK_HEADERS([rdma/rdma_cma.h], ,
-                 [AC_MSG_ERROR([Unable to find the librdma_cm-devel header files])])
+                 [AC_MSG_ERROR([Unable to find the librdmacm-devel header files])])
 
 
 AC_MSG_CHECKING([md5 version of VMA statistics is])
@@ -69,9 +69,6 @@ AC_MSG_RESULT(${STATS_PROTOCOL_VER})
 
 
 OS=`cat /etc/issue | awk '{ print $3}'`
-OFED_VERSION=`ofed_info | grep "^OFED" | cut -d '-' -f 2,3 | cut -d '-' -f 2| sed 's/\.//'`
-AC_DEFINE_UNQUOTED(OFED_VERSION, ${OFED_VERSION}, [OFED Version])
-AC_SUBST(OFED_VERSION)
 
 AC_ARG_ENABLE(build32,
         AC_HELP_STRING([--enable-build32], [Force build 32 bit]),
@@ -444,10 +441,12 @@ PKG_CHECK_MODULES([LIBNL3],[libnl-route-3.0], have_libnl=yes AC_DEFINE([HAVE_LIB
 if test "$have_libnl" = yes; then
 	AC_SUBST([LIBNL_LIBS], "$LIBNL3_LIBS")
 	AC_SUBST([LIBNL_CFLAGS], "$LIBNL3_CFLAGS")
+	AC_SUBST([LIBNLX_DEVEL], "libnl3-devel")
 else
-	PKG_CHECK_MODULES([LIBNL1],[libnl-1], have_libnl=yes AC_DEFINE([HAVE_LIBNL1], [1], [Use libnl-1]),  AC_MSG_ERROR([libnl-devel is required]))
+	PKG_CHECK_MODULES([LIBNL1],[libnl-1], have_libnl=yes AC_DEFINE([HAVE_LIBNL1], [1], [Use libnl-1]),  AC_MSG_ERROR([libnl3-devel or libnl-devel must be installed in order to build VMA]))
 	AC_SUBST([LIBNL_LIBS], "$LIBNL1_LIBS")
 	AC_SUBST([LIBNL_CFLAGS], "$LIBNL1_CFLAGS")
+	AC_SUBST([LIBNLX_DEVEL], "libnl-devel")
 fi
 
 AM_CONDITIONAL([HAVE_LIBNL], [test "$have_libnl" = "yes"])
