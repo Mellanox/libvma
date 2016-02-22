@@ -38,6 +38,11 @@
 #define ALIGN_WR_DOWN(_num_wr_) 		(max(32, ((_num_wr_      ) & ~(0xf))))
 
 
+// Used to single that we have a single 5tuple TCP connected socket, we can improve fast path
+// TODO: We should be able to show similar behaviour for UDP
+rfs *p_rfs_single_tcp = NULL;
+
+
 /**/
 /** inlining functions can only help if they are implemented before their usage **/
 /**/
@@ -385,6 +390,11 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	bool ret = p_rfs->attach_flow(sink);
+	if (flow_spec_5t.is_tcp() && !flow_spec_5t.is_3_tuple()) {
+		// save the single 5tuple TCP connected socket for improved fast path
+		p_rfs_single_tcp = p_rfs;
+		ring_logdbg("update p_rfs_single_tcp=%p", p_rfs_single_tcp);
+	}
 	m_lock_ring_rx.unlock();
 	return ret;
 }
@@ -450,7 +460,7 @@ bool ring_simple::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 		}
 	} else if (flow_spec_5t.is_tcp()) {
 		int keep_in_map = 1;
-		flow_spec_tcp_key_t key_tcp = {flow_spec_5t.get_src_ip(), flow_spec_5t.get_dst_port(), flow_spec_5t.get_src_port()};
+		flow_spec_tcp_key_t key_tcp = { flow_spec_5t.get_src_ip(), flow_spec_5t.get_dst_port(), flow_spec_5t.get_src_port()};
 		if (mce_sys.tcp_3t_rules) {
 			rule_filter_map_t::iterator tcp_dst_port_iter = m_tcp_dst_port_attach_map.find(key_tcp.dst_port);
 			BULLSEYE_EXCLUDE_BLOCK_START
@@ -468,6 +478,13 @@ bool ring_simple::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 			return false;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
+
+		if (p_rfs_single_tcp == p_rfs) {
+			// clear the single 5tuple TCP connected socket for improved fast path
+			p_rfs_single_tcp = NULL;
+			ring_logdbg("update p_rfs_single_tcp=%p", p_rfs_single_tcp);
+		}
+
 		p_rfs->detach_flow(sink);
 		if(!keep_in_map){
 			m_tcp_dst_port_attach_map.erase(m_tcp_dst_port_attach_map.find(key_tcp.dst_port));
@@ -603,6 +620,19 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 	struct iphdr* p_ip_h = NULL;
 	struct udphdr* p_udp_h = NULL;
 	in_addr_t local_addr = p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr;
+
+
+	if (likely(p_rfs_single_tcp)) {
+		// we have a single 5tuple TCP connected socket, use simpler fast path
+		transport_header_len = ETH_HDR_LEN;
+		p_ip_h = (struct iphdr*)(p_rx_wc_buf_desc->p_buffer + transport_header_len);
+		ip_hdr_len = 20; //(int)(p_ip_h->ihl)*4;
+		struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
+		p_rx_wc_buf_desc->path.rx.p_ip_h        = p_ip_h;
+		p_rx_wc_buf_desc->path.rx.p_tcp_h       = p_tcp_h;
+		p_rx_wc_buf_desc->transport_header_len  = transport_header_len;
+		return p_rfs_single_tcp->rx_dispatch_packet(p_rx_wc_buf_desc, pv_fd_ready_array);
+	}
 
 	// This is an internal function (within ring and 'friends'). No need for lock mechanism.
 
