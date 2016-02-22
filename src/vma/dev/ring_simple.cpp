@@ -622,6 +622,14 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 	in_addr_t local_addr = p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr;
 
 
+	NOT_IN_USE(ip_tot_len);
+	NOT_IN_USE(ip_frag_off);
+	NOT_IN_USE(n_frag_offset);
+	NOT_IN_USE(p_udp_h);
+	NOT_IN_USE(local_addr);
+	NOT_IN_USE(transport_type);
+
+
 	if (likely(p_rfs_single_tcp)) {
 		// we have a single 5tuple TCP connected socket, use simpler fast path
 		transport_header_len = ETH_HDR_LEN;
@@ -639,10 +647,11 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 	// Validate buffer size
 	sz_data = p_rx_wc_buf_desc->sz_data;
 	if (unlikely(sz_data > p_rx_wc_buf_desc->sz_buffer)) {
-		if (sz_data == IP_FRAG_FREED)
+		if (sz_data == IP_FRAG_FREED) {
 			ring_logfuncall("Rx buffer dropped - old fragment part");
-		else
+		} else {
 			ring_logwarn("Rx buffer dropped - buffer too small (%d, %d)", sz_data, p_rx_wc_buf_desc->sz_buffer);
+		}
 		return false;
 	}
 

@@ -62,8 +62,8 @@
 #define __log_info(log_fmt, log_args...)         do { VLOG_PRINTF(VLOG_INFO, log_fmt, ##log_args); } while (0)
 #define __log_details(log_fmt, log_args...)      do { if (g_vlogger_level >= VLOG_DETAILS) 	VLOG_PRINTF(VLOG_DETAILS, log_fmt, ##log_args); } while (0)
 #define __log_dbg(log_fmt, log_args...)          do { if (g_vlogger_level >= VLOG_DEBUG) 	VLOG_PRINTF(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
-#define __log_fine(log_fmt, log_args...)         do { if (g_vlogger_level >= VLOG_FINE) 		VLOG_PRINTF(VLOG_FINE, log_fmt, ##log_args); } while (0)
-#define __log_finer(log_fmt, log_args...)        do { if (g_vlogger_level >= VLOG_FINER) 	VLOG_PRINTF(VLOG_FINER, log_fmt, ##log_args); } while (0)
+#define __log_fine(log_fmt, log_args...)         {} //do { if (g_vlogger_level >= VLOG_FINE) 		VLOG_PRINTF(VLOG_FINE, log_fmt, ##log_args); } while (0)
+#define __log_finer(log_fmt, log_args...)        {} //do { if (g_vlogger_level >= VLOG_FINER) 	VLOG_PRINTF(VLOG_FINER, log_fmt, ##log_args); } while (0)
 
 #define __log_info_panic(log_fmt, log_args...)   do { VLOG_PRINTF_INFO(VLOG_PANIC, log_fmt, ##log_args); throw; } while (0)
 #define __log_info_err(log_fmt, log_args...)     do { VLOG_PRINTF_INFO(VLOG_ERROR, log_fmt, ##log_args); } while (0)
@@ -71,8 +71,8 @@
 #define __log_info_info(log_fmt, log_args...)    do { VLOG_PRINTF_INFO(VLOG_INFO, log_fmt, ##log_args); } while (0)
 #define __log_info_details(log_fmt, log_args...) do { if (g_vlogger_level >= VLOG_DETAILS) 	VLOG_PRINTF_INFO(VLOG_DETAILS, log_fmt, ##log_args); } while (0)
 #define __log_info_dbg(log_fmt, log_args...)     do { if (g_vlogger_level >= VLOG_DEBUG) 	VLOG_PRINTF_INFO(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
-#define __log_info_fine(log_fmt, log_args...)    do { if (g_vlogger_level >= VLOG_FINE) 		VLOG_PRINTF_INFO(VLOG_FINE, log_fmt, ##log_args); } while (0)
-#define __log_info_finer(log_fmt, log_args...)   do { if (g_vlogger_level >= VLOG_FINER) 	VLOG_PRINTF_INFO(VLOG_FINER, log_fmt, ##log_args); } while (0)
+#define __log_info_fine(log_fmt, log_args...)    {} //do { if (g_vlogger_level >= VLOG_FINE) 		VLOG_PRINTF_INFO(VLOG_FINE, log_fmt, ##log_args); } while (0)
+#define __log_info_finer(log_fmt, log_args...)   {} //do { if (g_vlogger_level >= VLOG_FINER) 	VLOG_PRINTF_INFO(VLOG_FINER, log_fmt, ##log_args); } while (0)
 
 #define __log_entry_dbg(log_fmt, log_args...)    do { if (g_vlogger_level >= VLOG_DEBUG) 	VLOG_PRINTF_ENTRY(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
 #define __log_entry_fine(log_fmt, log_args...)   do { if (g_vlogger_level >= VLOG_FINE)		VLOG_PRINTF_ENTRY(VLOG_FINE, log_fmt, ##log_args); } while (0)
@@ -91,6 +91,9 @@
 #define __log_entry_funcall(...) __log_entry_finer(__VA_ARGS__)
 #define __log_exit_func(...)     __log_exit_fine(__VA_ARGS__)
 #define __log_exit_funcall(...)  __log_exit_finer(__VA_ARGS__)
+
+#define __log_fine_do_action(__action__...)      {} //do { if (g_vlogger_level >= VLOG_FINE) { ##__action__; } while (0)
+#define __log_finer_do_action(__action__...)     {} //do { if (g_vlogger_level >= VLOG_FINER) { ##__action__; } while (0)
 
 #ifdef __cplusplus
 extern "C" {

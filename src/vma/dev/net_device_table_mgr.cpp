@@ -394,10 +394,11 @@ int net_device_table_mgr::global_ring_poll_and_process_element(uint64_t *p_poll_
 		}
 		ret_total += ret;
 	}
-	if (ret_total)
+	if (ret_total) {
 		ndtm_logfunc("ret_total=%d", ret_total);
-	else
+	} else {
 		ndtm_logfuncall("ret_total=%d", ret_total);
+	}
 	return ret_total;
 }
 
@@ -466,10 +467,11 @@ int net_device_table_mgr::global_ring_wait_for_notification_and_process_element(
 			}
 		}
 	}
-	if (ret_total)
+	if (ret_total) {
 		ndtm_logfunc("ret_total=%d", ret_total);
-	else
+	} else {
 		ndtm_logfuncall("ret_total=%d", ret_total);
+	}
 	return ret_total;
 }
 
@@ -487,10 +489,11 @@ int net_device_table_mgr::global_ring_drain_and_procces()
 		}
 		ret_total += ret;
 	}
-	if (ret_total)
+	if (ret_total) {
 		ndtm_logfunc("ret_total=%d", ret_total);
-	else
+	} else {
 		ndtm_logfuncall("ret_total=%d", ret_total);
+	}
 	return ret_total;
 }
 
