@@ -105,6 +105,68 @@ AS_IF([test "x$with_valgrind" == xno],
       ]
 )
 
+#
+# Experimental Verbs CQ
+#
+AC_ARG_ENABLE([exp-cq],
+    AC_HELP_STRING([--enable-exp-cq],
+                   [Experimental Verbs CQ is required for UDP RX HW Timestamp and for RX CSUM verification offload]),
+    [enable_exp_cq=yes],
+    [enable_exp_cq=no]
+)
+
+AS_IF([test "x$enable_exp_cq" == xyes],
+        [AC_DEFINE([DEFINED_IBV_EXP_CQ], 1, [Define to 1 if Experimental Verbs CQ was enabled at configure time])]
+
+	AC_MSG_CHECKING([if IBV_EXP_CQ_TIMESTAMP is defined])
+	AC_TRY_LINK(
+	#include <infiniband/verbs_exp.h>
+	,
+	[
+	  int access = (int)IBV_EXP_CQ_TIMESTAMP;
+	  return access;
+	],
+	[
+	  AC_MSG_RESULT([yes])
+	  AC_DEFINE(DEFINED_IBV_EXP_CQ_TIMESTAMP, 1, [Define to 1 if IBV_EXP_CQ_TIMESTAMP is defined])
+	],
+	[
+	  AC_MSG_RESULT([no])
+	])
+
+	AC_MSG_CHECKING([if IBV_EXP_DEVICE_RX_CSUM_L4_PKT is defined])
+	AC_TRY_LINK(
+	#include <infiniband/verbs_exp.h>
+	,
+	[
+	  int access = (int)IBV_EXP_DEVICE_RX_CSUM_L4_PKT;
+	  return access;
+	],
+	[
+	  AC_MSG_RESULT([yes])
+	  AC_DEFINE(DEFINED_IBV_EXP_DEVICE_RX_CSUM_L4_PKT, 1, [Define to 1 if IBV_EXP_DEVICE_RX_CSUM_L4_PKT is defined])
+	],
+	[
+	  AC_MSG_RESULT([no])
+	])
+
+	AC_MSG_CHECKING([if IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT is defined])
+	AC_TRY_LINK(
+	#include <infiniband/verbs_exp.h>
+	,
+	[
+	  int access = (int)IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT;
+	  return access;
+	],
+	[
+	  AC_MSG_RESULT([yes])
+	  AC_DEFINE(DEFINED_IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT, 1, [Define to 1 if IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT is defined])
+	],
+	[
+	  AC_MSG_RESULT([no])
+	])
+)
+
 # debug configuration. Kills CFLAGS/CXXFLAGS
 #
 
@@ -268,22 +330,6 @@ AC_TRY_LINK(
   AC_MSG_RESULT([no])
 ])
 
-AC_MSG_CHECKING([if IBV_EXP_CQ_TIMESTAMP is defined])
-AC_TRY_LINK(
-#include <infiniband/verbs_exp.h>
-,
-[
-  int access = (int)IBV_EXP_CQ_TIMESTAMP;
-  return access;
-],
-[
-  AC_MSG_RESULT([yes])
-  AC_DEFINE(DEFINED_IBV_EXP_CQ_TIMESTAMP, 1, [Define to 1 if IBV_EXP_CQ_TIMESTAMP is defined])
-],
-[
-  AC_MSG_RESULT([no])
-])
-
 AC_MSG_CHECKING([if IBV_EXP_ACCESS_ALLOCATE_MR is defined])
 AC_TRY_LINK(
 #include <infiniband/verbs_exp.h>
@@ -299,38 +345,6 @@ AC_TRY_LINK(
 [
   AC_MSG_RESULT([no])
   AC_DEFINE(DEFINED_IBV_OLD_VERBS_MLX_OFED, 1, [Define to 1 if IBV_EXP_ACCESS_ALLOCATE_MR is defined])
-])
-
-AC_MSG_CHECKING([if IBV_EXP_DEVICE_RX_CSUM_L4_PKT is defined])
-AC_TRY_LINK(
-#include <infiniband/verbs_exp.h>
-,
-[
-  int access = (int)IBV_EXP_DEVICE_RX_CSUM_L4_PKT;
-  return access;
-],
-[
-  AC_MSG_RESULT([yes])
-  AC_DEFINE(DEFINED_IBV_EXP_DEVICE_RX_CSUM_L4_PKT, 1, [Define to 1 if IBV_EXP_DEVICE_RX_CSUM_L4_PKT is defined])
-],
-[
-  AC_MSG_RESULT([no])
-])
-
-AC_MSG_CHECKING([if IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT is defined])
-AC_TRY_LINK(
-#include <infiniband/verbs_exp.h>
-,
-[
-  int access = (int)IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT;
-  return access;
-],
-[
-  AC_MSG_RESULT([yes])
-  AC_DEFINE(DEFINED_IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT, 1, [Define to 1 if IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT is defined])
-],
-[
-  AC_MSG_RESULT([no])
 ])
 
 AC_MSG_CHECKING([if IBV_DEVICE_RAW_IP_CSUM is defined])

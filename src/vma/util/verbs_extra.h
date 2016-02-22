@@ -167,12 +167,31 @@ typedef struct ibv_exp_device_attr		vma_ibv_device_attr;
 //ibv_modify_qp
 #define vma_ibv_modify_qp(qp, attr, mask)	ibv_exp_modify_qp(qp, attr, mask)
 typedef struct ibv_exp_qp_attr			vma_ibv_qp_attr;
-//ibv_poll_cq
+
+//ibv_exp_poll_cq
+#ifdef DEFINED_IBV_EXP_CQ
 #define vma_ibv_poll_cq(cq, num, wc)		ibv_exp_poll_cq(cq, num, wc, sizeof(struct ibv_exp_wc))
 typedef struct ibv_exp_wc			vma_ibv_wc;
 #define vma_wc_flags(wc)			(wc).exp_wc_flags
 #define vma_wc_opcode(wc)			(wc).exp_opcode
 #define VMA_IBV_WC_RECV				IBV_EXP_WC_RECV
+
+//experimental cq
+typedef struct ibv_exp_cq_init_attr           vma_ibv_cq_init_attr;
+#define vma_ibv_create_cq(context, cqe, cq_context, channel, comp_vector, attr) ibv_exp_create_cq(context, cqe, cq_context, channel, comp_vector, attr)
+#else
+//ibv_poll_cq
+#define vma_ibv_poll_cq(cq, num, wc)		ibv_poll_cq(cq, num, wc)
+typedef struct ibv_wc				vma_ibv_wc;
+#define vma_wc_flags(wc)			(wc).wc_flags
+#define vma_wc_opcode(wc)			(wc).opcode
+#define VMA_IBV_WC_RECV				IBV_WC_RECV
+
+//verbs cq
+typedef int            vma_ibv_cq_init_attr;
+#define vma_ibv_create_cq(context, cqe, cq_context, channel, comp_vector, attr) ibv_create_cq(context, cqe, cq_context, channel, comp_vector)
+#endif
+
 #ifdef DEFINED_IBV_EXP_DEVICE_RX_CSUM_L4_PKT
 #define vma_wc_rx_csum_ok(wc)			((vma_wc_flags(wc) & IBV_EXP_L3_RX_CSUM_OK) && (vma_wc_flags(wc) & IBV_EXP_L4_RX_CSUM_OK))
 #else
@@ -183,17 +202,15 @@ typedef struct ibv_exp_wc			vma_ibv_wc;
 #endif
 #endif
 
-// experimental cq
-typedef struct ibv_exp_cq_init_attr           vma_ibv_cq_init_attr;
-#define vma_ibv_create_cq(context, cqe, cq_context, channel, comp_vector, attr) ibv_exp_create_cq(context, cqe, cq_context, channel, comp_vector, attr)
-
 //rx hw timestamp
 #ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
 #define VMA_IBV_WC_WITH_TIMESTAMP              IBV_EXP_WC_WITH_TIMESTAMP
+#define vma_wc_timestamp(wc)			(wc).timestamp
 #else
 #define VMA_IBV_WC_WITH_TIMESTAMP              0
+#define vma_wc_timestamp(wc)			0
 #endif
-#define vma_wc_timestamp(wc)			(wc).timestamp
+
 
 //ibv_post_send
 #define VMA_IBV_SEND_SIGNALED			IBV_EXP_SEND_SIGNALED
