@@ -129,7 +129,10 @@ net_device_table_mgr::~net_device_table_mgr()
 
 int net_device_table_mgr::map_net_devices()
 {
+	int count = 0;
 	struct ifaddrs *ifaddr, *ifa;
+
+	ndtm_logdbg("Checking for offload capable network interfaces...");
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (getifaddrs(&ifaddr) == -1) {
@@ -139,8 +142,6 @@ int net_device_table_mgr::map_net_devices()
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-		ndtm_logdbg("Checking if can offload on interface '%s' (addr=%d.%d.%d.%d, flags=%X)",
-				ifa->ifa_name, NIPQUAD(((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr), ifa->ifa_flags);
 
 		if (ifa->ifa_addr == NULL) {
 			ndtm_logdbg("Blocking offload: Interface ('%s') addr info in NULL", ifa->ifa_name);
@@ -158,6 +159,9 @@ int net_device_table_mgr::map_net_devices()
 			ndtm_logdbg("Blocking offload: Interface ('%s') is not running", ifa->ifa_name);
 			continue;
 		}
+
+		ndtm_logdbg("Checking if can offload on interface '%s' (addr=%d.%d.%d.%d, flags=%X)",
+				ifa->ifa_name, NIPQUAD(((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr), ifa->ifa_flags);
 
 		// I have no idea why - but if I do it in the c'tor - it doesn't bind well - grrrr
 		if (m_p_cma_event_channel == NULL) {
@@ -262,9 +266,13 @@ int net_device_table_mgr::map_net_devices()
 		IF_RDMACM_FAILURE(rdma_destroy_id(cma_id)) {
 			ndtm_logerr("Failed in rdma_destroy_id (errno=%d %m)", errno);
 		} ENDIF_RDMACM_FAILURE;
+
+		count++;
 	} //for
 
 	freeifaddrs(ifaddr);
+
+	ndtm_logdbg("Check completed. Found %d offload capable network interfaces", count);
 
 	return 0;
 }
