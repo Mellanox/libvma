@@ -89,9 +89,12 @@ inline bool is_eth_tcp_frame(mem_buf_desc_t* buff)
 inline void cq_mgr::process_recv_buffer(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array)
 {
 	// Assume locked!!!
-
+	int ret_val = 0;
 	// Pass the Rx buffer ib_comm_mgr for further IP processing
-	if (!m_p_ring->rx_process_buffer(p_mem_buf_desc, m_transport_type, pv_fd_ready_array)) {
+
+	ret_val = m_p_ring->rx_process_buffer(p_mem_buf_desc, m_transport_type, pv_fd_ready_array);
+
+	if (!ret_val) {
 		// If buffer is dropped by callback - return to RX pool
 		reclaim_recv_buffer_helper(p_mem_buf_desc);
 	}
@@ -402,15 +405,45 @@ int cq_mgr::poll(vma_ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn)
 	// Assume locked!!!
 	cq_logfuncall("");
 
+#ifdef RDTSC_MEASURE_RX_VERBS_READY_POLL
+	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VERBS_READY_POLL]);
+#endif //RDTSC_MEASURE_RX_VERBS_READY_POLL
+
+#ifdef RDTSC_MEASURE_RX_VERBS_IDLE_POLL
+	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VERBS_IDLE_POLL]);
+#endif //RDTSC_MEASURE_RX_VERBS_IDLE_POLL
+
+#ifdef RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL]);
+#endif //RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
 	int ret = vma_ibv_poll_cq(m_p_ibv_cq, num_entries, p_wce);
 	if (ret <= 0) {
+#ifdef RDTSC_MEASURE_RX_VERBS_IDLE_POLL
+		RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VERBS_IDLE_POLL]);
+#endif
+
+#ifdef RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
+		RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL]);
+#endif
 		// Zero polled wce    OR    ibv_poll_cq() has driver specific errors
 		// so we can't really do anything with them
+#ifdef RDTSC_MEASURE_RX_CQE_RECEIVEFROM
+		RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM]);
+#endif
 		*p_cq_poll_sn = m_n_global_sn;
 #ifdef VMA_TIME_MEASURE
 		INC_ERR_POLL_COUNT;
 #endif
 		return 0;
+	}
+	else {
+#ifdef RDTSC_MEASURE_RX_VERBS_READY_POLL
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VERBS_READY_POLL]);
+#endif //RDTSC_MEASURE_RX_VERBS_READY_POLL
+
+#ifdef RDTSC_MEASURE_RX_READY_POLL_TO_LWIP
+		RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_READY_POLL_TO_LWIP]);
+#endif
 	}
 
 #ifdef VMA_TIME_MEASURE
@@ -711,6 +744,9 @@ int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready
 		}
 		ret_rx_processed += ret;
 		m_p_ring->m_gro_mgr.flush_all(pv_fd_ready_array);
+#ifdef RDTSC_MEASURE_RX_PROCCESS_BUFFER_TO_RECIVEFROM
+	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_PROCCESS_RX_BUFFER_TO_RECIVEFROM]);
+#endif //RDTSC_MEASURE_RX_PROCCESS_BUFFER_TO_RECIVEFROM
 	} else {
 		compensate_qp_poll_failed();
 	}

@@ -16,6 +16,7 @@
 
 #include "clock.h"
 #include "asm.h"
+#include <time.h>
 
 /**
  * RDTSC extensions

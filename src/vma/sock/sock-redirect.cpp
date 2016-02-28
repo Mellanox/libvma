@@ -34,6 +34,7 @@
 #include <vma/sock/sockinfo_tcp.h>
 
 #include "fd_collection.h"
+#include "vma/util/instrumentation.h"
 
 using namespace std;
 
@@ -1074,6 +1075,8 @@ extern "C"
 ssize_t recvfrom(int __fd, void *__buf, size_t __nbytes, int __flags,
 		 struct sockaddr *__from, socklen_t *__fromlen)
 {
+	ssize_t ret_val = 0;
+
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.recvfrom) get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -1086,10 +1089,27 @@ ssize_t recvfrom(int __fd, void *__buf, size_t __nbytes, int __flags,
 		struct iovec piov[1];
 		piov[0].iov_base = __buf;
 		piov[0].iov_len = __nbytes;
-		return p_socket_object->rx(RX_RECVFROM, piov, 1, &__flags, __from, __fromlen);
+		ret_val = p_socket_object->rx(RX_RECVFROM, piov, 1, &__flags, __from, __fromlen);
 	}
+	else {
+		ret_val = orig_os_api.recvfrom(__fd, __buf, __nbytes, __flags, __from, __fromlen);;
+	}
+#ifdef RDTSC_MEASURE_RX_PROCCESS_BUFFER_TO_RECIVEFROM
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_PROCCESS_RX_BUFFER_TO_RECIVEFROM]);
+#endif //RDTSC_MEASURE_RX_PROCCESS_BUFFER_TO_RECIVEFROM
 
-	return orig_os_api.recvfrom(__fd, __buf, __nbytes, __flags, __from, __fromlen);
+#ifdef RDTSC_MEASURE_RX_LWIP_TO_RECEVEFROM
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_LWIP_TO_RECEVEFROM]);
+#endif //RDTSC_MEASURE_RX_LWIP_TO_RECEVEFROM
+
+#ifdef RDTSC_MEASURE_RX_CQE_RECEIVEFROM
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM]);
+#endif //RDTSC_MEASURE_RX_CQE_RECEIVEFROM
+
+#ifdef RDTSC_MEASURE_RECEIVEFROM_TO_SENDTO
+	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RECEIVEFROM_TO_SENDTO]);
+#endif //RDTSC_MEASURE_RECEIVEFROM_TO_SENDTO
+	return ret_val;
 }
 
 /* Checks that the buffer is big enough to contain the number of bytes
@@ -1277,6 +1297,15 @@ extern "C"
 ssize_t sendto(int __fd, __const void *__buf, size_t __nbytes, int __flags,
 	       const struct sockaddr *__to, socklen_t __tolen)
 {
+	int ret_val = 0;
+#ifdef RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
+	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND]);
+#endif //RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
+
+#ifdef RDTSC_MEASURE_RECEIVEFROM_TO_SENDTO
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RECEIVEFROM_TO_SENDTO]);
+#endif //RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
+
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.sendto) get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -1289,10 +1318,13 @@ ssize_t sendto(int __fd, __const void *__buf, size_t __nbytes, int __flags,
 		iovec piov[1];
 		piov[0].iov_base = (void*)__buf;
 		piov[0].iov_len = __nbytes;
-		return p_socket_object->tx(TX_SENDTO, piov, 1, __flags, __to, __tolen);
+		ret_val = p_socket_object->tx(TX_SENDTO, piov, 1, __flags, __to, __tolen);
+	}
+	else {
+		ret_val = orig_os_api.sendto(__fd, __buf, __nbytes, __flags, __to, __tolen);
 	}
 
-	return orig_os_api.sendto(__fd, __buf, __nbytes, __flags, __to, __tolen);
+	return ret_val;
 }
 
 

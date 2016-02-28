@@ -20,7 +20,6 @@
 #include "vma/util/instrumentation.h"
 #include "ring_simple.h"
 
-
 #undef  MODULE_NAME
 #define MODULE_NAME 		"qpm"
 
@@ -508,12 +507,16 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 	vlog_printf(VLOG_WARNING, MODULE_NAME ":%d: tx packet info (buf->%p, bufsize=%d)\n", __LINE__, (void*)send_wr.sg_list[0].addr, send_wr.sg_list[0].length);
 	vlog_print_buffer(VLOG_WARNING, "tx packet data: ", "\n", (const char*)((void*)send_wr.sg_list[0].addr), min(112, (int)send_wr.sg_list[0].length));
 */
-	
+
 #ifdef VMA_TIME_MEASURE
 	TAKE_T_TX_POST_SEND_START;
 #endif
 
+#ifdef RDTSC_MEASURE_TX_VERBS_POST_SEND
+	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_TX_VERBS_POST_SEND]);
+#endif //RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
 	IF_VERBS_FAILURE(vma_ibv_post_send(m_qp, p_send_wqe, &bad_wr)) {
+
 #ifdef VMA_TIME_MEASURE
 		INC_ERR_TX_COUNT;
 #endif
@@ -522,6 +525,14 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 			    bad_wr->wr_id, vma_send_wr_send_flags(*bad_wr), bad_wr->sg_list[0].addr, bad_wr->sg_list[0].length, bad_wr->sg_list[0].lkey, m_max_inline_data);
 		return -1;
 	} ENDIF_VERBS_FAILURE;
+
+#ifdef RDTSC_MEASURE_TX_VERBS_POST_SEND
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_TX_VERBS_POST_SEND]);
+#endif //RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
+
+#ifdef RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND]);
+#endif //RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
 
 #ifdef VMA_TIME_MEASURE
 	TAKE_T_TX_POST_SEND_END;

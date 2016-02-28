@@ -1451,6 +1451,10 @@ extern "C" void sock_redirect_main(void)
 		register_handler_segv();
 	}
 
+#ifdef RDTSC_MEASURE
+	init_rdtsc();
+#endif
+
 #ifdef VMA_TIME_MEASURE
 	init_instrumentation();
 #endif
@@ -1458,6 +1462,9 @@ extern "C" void sock_redirect_main(void)
 
 extern "C" void sock_redirect_exit(void)
 {
+#ifdef RDTSC_MEASURE
+	print_rdtsc_summary();
+#endif
 #ifdef VMA_TIME_MEASURE
 	finit_instrumentation(safe_mce_sys().vma_time_measure_filename);
 #endif
