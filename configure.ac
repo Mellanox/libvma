@@ -106,6 +106,23 @@ AS_IF([test "x$with_valgrind" == xno],
 )
 
 #
+# Thread locking
+#
+AC_MSG_CHECKING([if thread-lock is enabled])
+AC_ARG_ENABLE([thread-lock],
+    AC_HELP_STRING([--disable-thread-lock],
+                   [Disabling thread locking is possible in single thread applications]),
+		   [],
+		   [enable_thread_lock=no]
+)
+
+AS_IF([test "x${enable_thread_lock}" == xno],
+	[AC_DEFINE([DEFINED_NO_THREAD_LOCK], 1, [Define to 1 if thread locking was disabled at ocnfigure time])]
+	[AC_MSG_RESULT([no])],
+	[AC_MSG_RESULT([yes])]
+)
+
+#
 # Experimental Verbs CQ
 #
 AC_ARG_ENABLE([exp-cq],

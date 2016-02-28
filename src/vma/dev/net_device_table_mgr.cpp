@@ -86,6 +86,7 @@ net_device_table_mgr::net_device_table_mgr() : cache_table_mgr<ip_address,net_de
 		throw_vma_exception_no_msg();
 	}
 
+#ifndef DEFINED_NO_THREAD_LOCK
 	if (mce_sys.progress_engine_interval_msec != MCE_CQ_DRAIN_INTERVAL_DISABLED && mce_sys.progress_engine_wce_max != 0) {
 		ndtm_logdbg("registering timer for ring draining with %d msec intervales", mce_sys.progress_engine_interval_msec);
 		g_p_event_handler_manager->register_timer_event(mce_sys.progress_engine_interval_msec, this, PERIODIC_TIMER, (void*)RING_PROGRESS_ENGINE_TIMER);
@@ -95,6 +96,7 @@ net_device_table_mgr::net_device_table_mgr() : cache_table_mgr<ip_address,net_de
 		ndtm_logdbg("registering timer for cq adaptive moderation with %d msec intervales", mce_sys.cq_aim_interval_msec);
 		g_p_event_handler_manager->register_timer_event(mce_sys.cq_aim_interval_msec, this, PERIODIC_TIMER, (void*)RING_ADAPT_CQ_MODERATION_TIMER);
 	}
+#endif // DEFINED_NO_THREAD_LOCK
 }
 
 void net_device_table_mgr::free_ndtm_resources()

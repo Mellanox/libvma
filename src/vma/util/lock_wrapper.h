@@ -145,6 +145,9 @@ public:
 		pthread_spin_destroy(&m_lock);
 	};
 	inline int lock() {
+#ifdef DEFINED_NO_THREAD_LOCK
+		return 0;
+#endif // DEFINED_NO_THREAD_LOCK
 		tscval_t t = start_lock_wait();
 		int ret = pthread_spin_lock(&m_lock);
 		lock_base::lock();
@@ -152,11 +155,17 @@ public:
 		return ret;
 	};
 	inline int trylock() {
+#ifdef DEFINED_NO_THREAD_LOCK
+		return 0;
+#endif // DEFINED_NO_THREAD_LOCK
 		int ret = pthread_spin_trylock(&m_lock);
 		lock_base::trylock();
 		return ret;
 	};
 	inline int unlock() {
+#ifdef DEFINED_NO_THREAD_LOCK
+		return 0;
+#endif // DEFINED_NO_THREAD_LOCK
 		lock_base::unlock();
 		return pthread_spin_unlock(&m_lock);
 	};
@@ -185,6 +194,9 @@ public:
 	~lock_spin_recursive() {};
 
 	inline int lock() {
+#ifdef DEFINED_NO_THREAD_LOCK
+		return 0;
+#endif // DEFINED_NO_THREAD_LOCK
 		pthread_t self = pthread_self();
 		if (m_owner == self) {
 			++m_lock_count;
@@ -200,6 +212,9 @@ public:
 		return ret;
 	};
 	inline int trylock() {
+#ifdef DEFINED_NO_THREAD_LOCK
+		return 0;
+#endif // DEFINED_NO_THREAD_LOCK
 		pthread_t self = pthread_self();
 		if (m_owner == self) {
 			++m_lock_count;
@@ -213,6 +228,9 @@ public:
 		return ret;
 	};
 	inline int unlock() {
+#ifdef DEFINED_NO_THREAD_LOCK
+		return 0;
+#endif // DEFINED_NO_THREAD_LOCK
 		if (--m_lock_count == 0) {
 			m_owner = m_invalid_owner;
 			return lock_spin::unlock();
@@ -220,6 +238,9 @@ public:
 		return 0;
 	};
 	inline int is_locked_by_me() {
+#ifdef DEFINED_NO_THREAD_LOCK
+		return 1;
+#endif // DEFINED_NO_THREAD_LOCK
 		pthread_t self = pthread_self();
 		return (m_owner == self && m_lock_count);
 	};
@@ -247,6 +268,9 @@ public:
 		pthread_mutex_destroy(&m_lock);
 	};
 	inline int lock() {
+#ifdef DEFINED_NO_THREAD_LOCK
+		return 0;
+#endif // DEFINED_NO_THREAD_LOCK
 		tscval_t t = start_lock_wait();
 		int ret = pthread_mutex_lock(&m_lock);
 		lock_base::lock();
@@ -254,11 +278,17 @@ public:
 		return ret;
 	};
 	inline int trylock() {
+#ifdef DEFINED_NO_THREAD_LOCK
+		return 0;
+#endif // DEFINED_NO_THREAD_LOCK
 		int ret = pthread_mutex_trylock(&m_lock);
 		lock_base::trylock();
 		return ret;
 		};
 	inline int unlock() {
+#ifdef DEFINED_NO_THREAD_LOCK
+		return 0;
+#endif // DEFINED_NO_THREAD_LOCK
 		lock_base::unlock();
 		return pthread_mutex_unlock(&m_lock);
 	};
