@@ -23,6 +23,7 @@ aclocal.m4
 autom4te.cache/
 config.h
 config.h.in
+config.h.in~
 config.log
 config.status
 config/
@@ -32,14 +33,12 @@ libtool
 # Project/Eclipse
 .cproject
 .project
+tags
 
 # VMA specific
 src/state_machine/state_machine_test
 src/stats/vma_stats
 src/vlogger/vlogger_test
-#src/vma/config_parser.c
-#src/vma/config_parser.h
-# src/vma/config_scanner.c
 stamp-h1
 
 # build products
