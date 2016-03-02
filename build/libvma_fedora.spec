@@ -1,14 +1,23 @@
 Name: libvma
 Version: 7.0.14
-Release: 1%{?dist}
+Release: 2%{?dist}
 Summary: A library for boosting TCP and UDP traffic (over RDMA hardware)
 
 License: GPLv2
 Url: https://github.com/Mellanox/libvma
 Source: http://www.mellanox.com/downloads/Accelerator/%{name}-%{version}.tar.gz
-ExcludeArch: %{arm} %{ix86} s390x ppc64 ppc64le 
+#arm is excluded since libvma fails to compile on arm. 
+#Reason: libvma uses assembly commands that are not supported by arm.
+ExcludeArch: %{arm} 
+#ix86 is excluded since libmva for Fedora was not tested on this arch.
+ExcludeArch: %{ix86}
+#s390x is excluded since libmva for Fedora was not tested on this arch.
+ExcludeArch: s390x 
+#ppc64 is excluded since libmva for Fedora was not tested on this arch.
+ExcludeArch: ppc64 
+#ppc64le is excluded since libmva for Fedora was not tested on this arch.
+ExcludeArch: ppc64le
 Requires: pam
-Requires(pre): grep coreutils
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 
@@ -17,11 +26,14 @@ BuildRequires: automake autoconf libtool
 
 %description
 libvma is a LD_PRELOAD-able library that boosts performance
-of TCP and UDP traffic
-Part of Mellanox's enhanced services
-Allows application written over standard socket API
-to run over Infiniband/Ethernet from user space with full network stack bypass
-and get better throughput, latency and packets/sec rate.
+of TCP and UDP traffic.
+It allows application written over standard socket API to handle 
+fast path data traffic from user space over Ethernet and/or 
+Infiniband with full network stack bypass and get better throughput, 
+latency and packets/sec rate.
+No application binary change is required for that.
+libvma is supported by RDMA capable devices that support
+"verbs" IBV_QPT_RAW_PACKET QP for Ethernet and/or IBV_QPT_UD QP for IPoIB.
 
 %package devel
 Summary: Header files required to develop with libvma 
@@ -49,19 +61,15 @@ make %{?_smp_mflags}
 %make_install
 rm -f $RPM_BUILD_ROOT%{_libdir}/*.la
 
-%pre
-if [ `grep "^[^#]" /etc/security/limits.conf /etc/security/limits.d/* 2> /dev/null |grep memlock|grep unlimited | wc -l` -le 0 ]; then
-        echo "- Changing max locked memory to unlimited (in /etc/security/limits.d/30-libvma-limits.conf)"
-        echo "  Please log out from the shell and login again in order to update this change "
-        echo "  Read more about this topic in the VMA's User Manual"
-fi
-
 %post -p /sbin/ldconfig
 %postun -p /sbin/ldconfig
 
 %files
 %{_libdir}/%{name}*.so.*
+#libvma.so in needed in the main package so that 
+#'LD_PRELOAD=libvma.so <command>' works.
 %{_libdir}/%{name}.so
+%license COPYING LICENSE
 %doc README.txt journal.txt VMA_VERSION
 %config(noreplace) %{_sysconfdir}/libvma.conf
 %config (noreplace) %{_sysconfdir}/security/limits.d/30-libvma-limits.conf
@@ -73,6 +81,12 @@ fi
 %{_bindir}/vma_stats
 
 %changelog
+* Wed Mar  2 2016 Alex Vainman <alexv@mellanox.com> - 7.0.14-2
+- Added reasoning for archs exclusion
+- Package description improvement
+- Removal of the pre scriplet
+- Added COPYING and LICENSE files to the package
+
 * Sun Feb 21 2016 Alex Vainman <alexv@mellanox.com> - 7.0.14-1
 - New upstream release
 - Removal of redundant macros and obsolete/unneeded tags
