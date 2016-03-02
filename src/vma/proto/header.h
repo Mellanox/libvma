@@ -59,7 +59,6 @@ union __attribute__ ((packed)) l2_hdr_template_t  {
 	ib_hdr_template_t	ib_hdr;
 	eth_hdr_template_t	eth_hdr;
 	vlan_eth_hdr_template_t	vlan_eth_hdr;
-	uint32_t		words[0];
 };
 
 struct __attribute__ ((packed)) tx_hdr_template_t  {		// Offeset  Size
@@ -67,13 +66,13 @@ struct __attribute__ ((packed)) tx_hdr_template_t  {		// Offeset  Size
 	iphdr			m_ip_hdr;			//   20      20
 	union {
 	udphdr			m_udp_hdr;			//   40       8
-	tcphdr			m_tcp_hdr;
+	tcphdr			m_tcp_hdr;			//   40	     20
 	};
 };
 
 union tx_packet_template_t {
 	tx_hdr_template_t	hdr;
-	uint32_t		words[0];
+	uint32_t		words[15]; //change in tx_hdr_template_t size may require to modify this array size
 };
 
 
