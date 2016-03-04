@@ -2,10 +2,10 @@ AC_PREREQ(2.59)
 
 # Update version number here:
 #
-define([vma_ver_major], 7)
+define([vma_ver_major], 99)
 define([vma_ver_minor], 0)
 define([vma_ver_revision], 14)
-define([vma_ver_release], 0)
+define([vma_ver_release], 1)
 
 AC_INIT(libvma, [vma_ver_major.vma_ver_minor.vma_ver_revision], support@mellanox.com)
 AC_DEFINE(VMA_LIBRARY_MAJOR, vma_ver_major, [VMA Major Version])
@@ -30,7 +30,7 @@ AC_PROG_YACC
 AM_PROG_LEX
 
 #VMA_LIBRARY_MAJOR-vma_ver_major
-VMA_LIBRARY_MAJOR=7
+VMA_LIBRARY_MAJOR=99
 AC_SUBST(VMA_LIBRARY_MAJOR)
 
 #VMA_LIBRARY_MINOR-vma_ver_minor
@@ -42,7 +42,7 @@ VMA_LIBRARY_REVISION=14
 AC_SUBST(VMA_LIBRARY_REVISION)
 
 #VMA_LIBRARY_RELEASE-vma_ver_release
-VMA_LIBRARY_RELEASE=0
+VMA_LIBRARY_RELEASE=1
 AC_SUBST(VMA_LIBRARY_RELEASE)
 
 #LIBALIC_FLAG
