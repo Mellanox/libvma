@@ -1,6 +1,6 @@
 Name: libvma
 Version: 7.0.14
-Release: 2%{?dist}
+Release: 3%{?dist}
 Summary: A library for boosting TCP and UDP traffic (over RDMA hardware)
 
 License: GPLv2
@@ -9,14 +9,6 @@ Source: http://www.mellanox.com/downloads/Accelerator/%{name}-%{version}.tar.gz
 #arm is excluded since libvma fails to compile on arm. 
 #Reason: libvma uses assembly commands that are not supported by arm.
 ExcludeArch: %{arm} 
-#ix86 is excluded since libmva for Fedora was not tested on this arch.
-ExcludeArch: %{ix86}
-#s390x is excluded since libmva for Fedora was not tested on this arch.
-ExcludeArch: s390x 
-#ppc64 is excluded since libmva for Fedora was not tested on this arch.
-ExcludeArch: ppc64 
-#ppc64le is excluded since libmva for Fedora was not tested on this arch.
-ExcludeArch: ppc64le
 Requires: pam
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
@@ -55,7 +47,7 @@ Tools for collecting and analyzing libvma statistic.
 %build
 ./autogen.sh
 %configure 
-make %{?_smp_mflags}
+make %{?_smp_mflags} V=1
 
 %install
 %make_install
@@ -72,7 +64,7 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/*.la
 %license COPYING LICENSE
 %doc README.txt journal.txt VMA_VERSION
 %config(noreplace) %{_sysconfdir}/libvma.conf
-%config (noreplace) %{_sysconfdir}/security/limits.d/30-libvma-limits.conf
+%config(noreplace) %{_sysconfdir}/security/limits.d/30-libvma-limits.conf
 
 %files devel
 %{_includedir}/*
@@ -81,6 +73,11 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/*.la
 %{_bindir}/vma_stats
 
 %changelog
+* Sun Mar  6 2016 Alex Vainman <alexv@mellanox.com> - 7.0.14-3
+- ExcludeArch update.
+- Removal of extra space in:
+  %config(noreplace) %{_sysconfdir}/security/limits.d/30-libvma-limits.conf
+
 * Wed Mar  2 2016 Alex Vainman <alexv@mellanox.com> - 7.0.14-2
 - Added reasoning for archs exclusion
 - Package description improvement
