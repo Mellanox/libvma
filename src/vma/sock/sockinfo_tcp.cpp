@@ -3585,7 +3585,7 @@ void sockinfo_tcp::post_deqeue(bool release_buff)
 
 int sockinfo_tcp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags) {
 	NOT_IN_USE(p_flags);
-	int index, total_rx = 0;
+	int index, total_rx = 0, offset = 0;
 	int len = p_iov[0].iov_len - sizeof(vma_packets_t) - sizeof(vma_packet_t) - sizeof(iovec);
 	mem_buf_desc_t* p_desc_iter;
 	mem_buf_desc_t* prev;
@@ -3603,15 +3603,17 @@ int sockinfo_tcp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags
 	// Copy iov pointers to user buffer
 	vma_packets_t *p_packets = (vma_packets_t*)p_iov[0].iov_base;
 	p_packets->n_packet_num = 0;
+
+	offset += sizeof(p_packets->n_packet_num); // skip n_packet_num size
 	
 	while(len >= 0 && m_n_rx_pkt_ready_list_count) {
-
+		vma_packet_t *p_pkts = (vma_packet_t *)((char *)p_packets + offset);
 		index = p_packets->n_packet_num++;
-		p_packets->pkts[index].packet_id = (void*)p_desc_iter;
-		p_packets->pkts[index].sz_iov = 0;
+		p_pkts->packet_id = (void*)p_desc_iter;
+		p_pkts->sz_iov = 0;
 		while(len >= 0 && p_desc_iter) {
 		
-			p_packets->pkts[index].iov[p_packets->pkts[index].sz_iov++] = p_desc_iter->path.rx.frag;
+			p_pkts->iov[p_pkts->sz_iov++] = p_desc_iter->path.rx.frag;
 			total_rx += p_desc_iter->path.rx.frag.iov_len;
 			
 			prev 		= p_desc_iter;
@@ -3626,6 +3628,7 @@ int sockinfo_tcp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags
 				prev->n_frags = 1;
 			}
 			len -= sizeof(iovec);
+			offset += sizeof(iovec);
 		}
 		
 		if (len < 0 && p_desc_iter){
@@ -3642,6 +3645,7 @@ int sockinfo_tcp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags
 			p_desc_iter = m_rx_pkt_ready_list.front();
 			
 		len -= sizeof(vma_packet_t);
+		offset += sizeof(vma_packet_t);
 	}
 
 	return total_rx;
@@ -3652,12 +3656,14 @@ int sockinfo_tcp::free_packets(struct vma_packet_t *pkts, size_t count)
 	int ret = 0;
 	unsigned int 	index = 0;
 	int bytes_to_tcp_recved;
-	int total_rx = 0;
+	int total_rx = 0, offset = 0;
 	mem_buf_desc_t 	*buff;
+	char *buf = (char *)pkts;
 
 	lock_tcp_con();
 	for(index=0; index < count; index++){
-		buff = (mem_buf_desc_t*)pkts[index].packet_id;
+		vma_packet_t *p_pkts = (vma_packet_t *)(buf + offset);
+		buff = (mem_buf_desc_t*)p_pkts->packet_id;
 
 		if (m_p_rx_ring && !m_p_rx_ring->is_member((ring*)buff->p_desc_owner)){
 			errno = ENOENT;
@@ -3673,6 +3679,8 @@ int sockinfo_tcp::free_packets(struct vma_packet_t *pkts, size_t count)
 		total_rx += buff->path.rx.sz_payload;
 		reuse_buffer(buff);
 		m_p_socket_stats->n_rx_zcopy_pkt_count--;
+
+		offset += p_pkts->sz_iov * sizeof(iovec) + sizeof(vma_packet_t);
 	}
 
 	if (total_rx > 0) {
