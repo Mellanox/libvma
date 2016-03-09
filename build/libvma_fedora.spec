@@ -3,7 +3,7 @@ Version: 7.0.14
 Release: 3%{?dist}
 Summary: A library for boosting TCP and UDP traffic (over RDMA hardware)
 
-License: GPLv2
+License: GPLv2 or BSD
 Url: https://github.com/Mellanox/libvma
 Source: http://www.mellanox.com/downloads/Accelerator/%{name}-%{version}.tar.gz
 #arm is excluded since libvma fails to compile on arm. 
@@ -73,10 +73,11 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/*.la
 %{_bindir}/vma_stats
 
 %changelog
-* Sun Mar  6 2016 Alex Vainman <alexv@mellanox.com> - 7.0.14-3
-- ExcludeArch update.
+* Thu Mar 10 2016 Alex Vainman <alexv@mellanox.com> - 7.0.14-3
+- ExcludeArch update
 - Removal of extra space in:
-  %config(noreplace) %{_sysconfdir}/security/limits.d/30-libvma-limits.conf
+  config(noreplace) {_sysconfdir}/security/limits.d/30-libvma-limits.conf
+- Add V=1 to make
 
 * Wed Mar  2 2016 Alex Vainman <alexv@mellanox.com> - 7.0.14-2
 - Added reasoning for archs exclusion
