@@ -3585,7 +3585,7 @@ void sockinfo_tcp::post_deqeue(bool release_buff)
 
 int sockinfo_tcp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags) {
 	NOT_IN_USE(p_flags);
-	int index, total_rx = 0, offset = 0;
+	int total_rx = 0, offset = 0;
 	int len = p_iov[0].iov_len - sizeof(vma_packets_t) - sizeof(vma_packet_t) - sizeof(iovec);
 	mem_buf_desc_t* p_desc_iter;
 	mem_buf_desc_t* prev;
@@ -3608,7 +3608,7 @@ int sockinfo_tcp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags
 	
 	while(len >= 0 && m_n_rx_pkt_ready_list_count) {
 		vma_packet_t *p_pkts = (vma_packet_t *)((char *)p_packets + offset);
-		index = p_packets->n_packet_num++;
+		p_packets->n_packet_num++;
 		p_pkts->packet_id = (void*)p_desc_iter;
 		p_pkts->sz_iov = 0;
 		while(len >= 0 && p_desc_iter) {
