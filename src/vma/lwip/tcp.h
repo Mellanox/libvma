@@ -242,7 +242,11 @@ extern tcp_state_observer_fn external_tcp_state_observer;
   /* the accept callback for listen- and normal pcbs, if LWIP_CALLBACK_API */ \
   DEF_ACCEPT_CALLBACK \
   /* ports are in host byte order */ \
-  u16_t local_port
+  u16_t local_port; \
+  u32_t rcv_wnd;   /* receiver window available */ \
+  u32_t rcv_ann_wnd; /* receiver window to announce */ \
+  u32_t rcv_wnd_max; /* maximum available receive window */ \
+  u32_t rcv_wnd_max_desired;
 
 #define RCV_WND_SCALE(pcb, wnd) (htons((u16_t)((wnd) >> (pcb)->rcv_scale)))
 #define SND_WND_SCALE(pcb, wnd) ((u32_t)(wnd) << (pcb)->snd_scale)
@@ -278,10 +282,6 @@ struct tcp_pcb {
      as we have to do some math with them */
   /* receiver variables */
   u32_t rcv_nxt;   /* next seqno expected */
-  u32_t rcv_wnd;   /* receiver window available */
-  u32_t rcv_ann_wnd; /* receiver window to announce */
-  u32_t rcv_wnd_max; /* maximum available receive window */
-  u32_t rcv_wnd_max_desired;
   u32_t rcv_ann_right_edge; /* announced right edge of window */
 
   /* Timers */
