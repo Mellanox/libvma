@@ -105,42 +105,21 @@ lwip_ack_received(struct tcp_pcb *pcb, uint16_t type)
            the value overflows. */
 
 	if (type == CC_DUPACK) {
-#if TCP_RCVSCALE
 		if ((u32_t)(pcb->cwnd + pcb->mss) > pcb->cwnd) {
 			pcb->cwnd += pcb->mss;
 		}
-#else
-		if ((u16_t)(pcb->cwnd + pcb->mss) > pcb->cwnd) {
-			pcb->cwnd += pcb->mss;
-		}
-#endif
 	} else if (type == CC_ACK) {
 		if (pcb->cwnd < pcb->ssthresh) {
-#if TCP_RCVSCALE
 			if ((u32_t)(pcb->cwnd + pcb->mss) > pcb->cwnd) {
 				pcb->cwnd += pcb->mss;
 			}
 			LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_receive: slow start cwnd %"U32_F"\n", pcb->cwnd));
-#else
-			if ((u16_t)(pcb->cwnd + pcb->mss) > pcb->cwnd) {
-				pcb->cwnd += pcb->mss;
-			}
-			LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_receive: slow start cwnd %"U16_F"\n", pcb->cwnd));
-#endif
 		} else {
-#if TCP_RCVSCALE
 			u32_t new_cwnd = (pcb->cwnd + ((u32_t)pcb->mss * (u32_t)pcb->mss) / pcb->cwnd);
 			if (new_cwnd > pcb->cwnd) {
 				pcb->cwnd = new_cwnd;
 			}
 			LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_receive: congestion avoidance cwnd %"U32_F"\n", pcb->cwnd));
-#else
-			u16_t new_cwnd = (pcb->cwnd + pcb->mss * pcb->mss / pcb->cwnd);
-			if (new_cwnd > pcb->cwnd) {
-				pcb->cwnd = new_cwnd;
-			}
-			LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_receive: congestion avoidance cwnd %"U16_F"\n", pcb->cwnd));
-#endif
 		}
 	}
 }

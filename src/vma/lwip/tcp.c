@@ -527,11 +527,7 @@ u32_t tcp_update_rcv_ann_wnd(struct tcp_pcb *pcb)
     } else {
       /* keep the right edge of window constant */
       u32_t new_rcv_ann_wnd = pcb->rcv_ann_right_edge - pcb->rcv_nxt;
-#if TCP_RCVSCALE
       LWIP_ASSERT("new_rcv_ann_wnd <= 0xffff00", new_rcv_ann_wnd <= 0xffff00);
-#else
-      LWIP_ASSERT("new_rcv_ann_wnd <= 0xffff", new_rcv_ann_wnd <= 0xffff);
-#endif
       pcb->rcv_ann_wnd = new_rcv_ann_wnd;
     }
     return 0;
@@ -551,13 +547,8 @@ tcp_recved(struct tcp_pcb *pcb, u32_t len)
 {
   u32_t wnd_inflation;
 
-#if TCP_RCVSCALE
   LWIP_ASSERT("tcp_recved: len would wrap rcv_wnd\n",
               len <= 0xffffffffU - pcb->rcv_wnd );
-#else
-  LWIP_ASSERT("tcp_recved: len would wrap rcv_wnd\n",
-              len <= 0xffff - pcb->rcv_wnd );
-#endif
 
   pcb->rcv_wnd += len;
   if (pcb->rcv_wnd > pcb->rcv_wnd_max) {
@@ -721,11 +712,7 @@ void
 tcp_slowtmr(struct tcp_pcb* pcb)
 {
 #if !TCP_CC_ALGO_MOD
-#if TCP_RCVSCALE
   u32_t eff_wnd;
-#else
-  u16_t eff_wnd;
-#endif
 #endif //!TCP_CC_ALGO_MOD
   u8_t pcb_remove;      /* flag if a PCB should be removed */
   u8_t pcb_reset;       /* flag if a RST should be sent when removing */
@@ -1108,10 +1095,8 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio)
 	pcb->prio = prio;
 	pcb->snd_buf = pcb->max_snd_buff;
 	pcb->snd_queuelen = 0;
-#if TCP_RCVSCALE
 	pcb->snd_scale = 0;
   	pcb->rcv_scale = rcv_wnd_scale;
-#endif
 	pcb->rcv_wnd = TCP_WND_SCALED(pcb);
 	pcb->rcv_ann_wnd = TCP_WND_SCALED(pcb);
 	pcb->rcv_wnd_max = TCP_WND_SCALED(pcb);

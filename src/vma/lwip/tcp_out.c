@@ -118,11 +118,7 @@ tcp_output_alloc_header(struct tcp_pcb *pcb, u16_t optlen, u16_t datalen,
     tcphdr->seqno = seqno_be;
     tcphdr->ackno = htonl(pcb->rcv_nxt);
     TCPH_HDRLEN_FLAGS_SET(tcphdr, (5 + optlen / 4), TCP_ACK);
-    #if TCP_RCVSCALE
-        tcphdr->wnd = RCV_WND_SCALE(pcb, pcb->rcv_ann_wnd); // Which means: htons(pcb->rcv_ann_wnd >> pcb->rcv_scale);
-    #else
-        tcphdr->wnd = htons(pcb->rcv_ann_wnd);
-    #endif
+    tcphdr->wnd = RCV_WND_SCALE(pcb, pcb->rcv_ann_wnd); // Which means: htons(pcb->rcv_ann_wnd >> pcb->rcv_scale);
     tcphdr->chksum = 0;
     tcphdr->urgp = 0;
 
@@ -303,23 +299,14 @@ tcp_write_checks(struct tcp_pcb *pcb, u32_t len)
     pcb->flags |= TF_NAGLEMEMERR;
     return ERR_MEM;
   }
-#if TCP_RCVSCALE
   LWIP_DEBUGF(TCP_QLEN_DEBUG, ("tcp_write: queuelen: %"U32_F"\n", (u32_t)pcb->snd_queuelen));
-#else
-  LWIP_DEBUGF(TCP_QLEN_DEBUG, ("tcp_write: queuelen: %"U16_F"\n", (u16_t)pcb->snd_queuelen));
-#endif
 
   /* If total number of pbufs on the unsent/unacked queues exceeds the
    * configured maximum, return an error */
   /* check for configured max queuelen and possible overflow */
   if ((pcb->snd_queuelen >= pcb->max_unsent_len) || (pcb->snd_queuelen > TCP_SNDQUEUELEN_OVERFLOW)) {
-#if TCP_RCVSCALE
     LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 3, ("tcp_write: too long queue %"U32_F" (max %"U32_F")\n",
       pcb->snd_queuelen, pcb->max_unsent_len));
-#else
-    LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 3, ("tcp_write: too long queue %"U16_F" (max %"U16_F")\n",
-          pcb->snd_queuelen, pcb->max_unsent_len));
-#endif
     TCP_STATS_INC(tcp.memerr);
     pcb->flags |= TF_NAGLEMEMERR;
     return ERR_MEM;
@@ -354,11 +341,7 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
   struct pbuf *concat_p = NULL;
   struct tcp_seg *seg = NULL, *prev_seg = NULL, *queue = NULL;
   u32_t pos = 0; /* position in 'arg' data */
-#if TCP_RCVSCALE
   u32_t queuelen;
-#else
-  u16_t queuelen;
-#endif
   u8_t optlen = 0;
   u8_t optflags = 0;
 #if TCP_OVERSIZE
@@ -545,11 +528,7 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
      * length of the queue exceeds the configured maximum or
      * overflows. */
     if ((queuelen > pcb->max_unsent_len) || (queuelen > TCP_SNDQUEUELEN_OVERFLOW)) {
-#if TCP_RCVSCALE
       LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_write: queue too long %"U32_F" (%"U32_F")\n", queuelen, pcb->max_unsent_len));
-#else
-      LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_write: queue too long %"U16_F" (%"U16_F")\n", queuelen, pcb->max_unsent_len));
-#endif
       tcp_tx_pbuf_free(pcb, p);
       goto memerr;
     }
@@ -717,9 +696,7 @@ tcp_enqueue_flags(struct tcp_pcb *pcb, u8_t flags)
 
   if (flags & TCP_SYN) {
     optflags = TF_SEG_OPTS_MSS;
-    #if TCP_RCVSCALE
-    	if(enable_wnd_scale) optflags |= TF_SEG_OPTS_WNDSCALE;
-    #endif
+    if(enable_wnd_scale) optflags |= TF_SEG_OPTS_WNDSCALE;
 	#if LWIP_TCP_TIMESTAMPS
     	if (pcb->enable_ts_opt && !(flags & TCP_ACK)) {
     		// enable initial timestamp announcement only for the connecting side. accepting side reply accordingly.
@@ -1042,11 +1019,7 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
   seg->tcphdr->ackno = htonl(pcb->rcv_nxt);
 
   /* advertise our receive window size in this TCP segment */
-  #if TCP_RCVSCALE
-     seg->tcphdr->wnd = RCV_WND_SCALE(pcb, pcb->rcv_ann_wnd); // Which means: htons(pcb->rcv_ann_wnd >> pcb->rcv_scale);
-  #else
-     seg->tcphdr->wnd = htons(pcb->rcv_ann_wnd);
-  #endif
+  seg->tcphdr->wnd = RCV_WND_SCALE(pcb, pcb->rcv_ann_wnd); // Which means: htons(pcb->rcv_ann_wnd >> pcb->rcv_scale);
 
   pcb->rcv_ann_right_edge = pcb->rcv_nxt + pcb->rcv_ann_wnd;
 
@@ -1059,13 +1032,11 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
     opts += 1; // Move to the next line (meaning next 32 bit) as this option is 4 bytes long
   }
 
-#if TCP_RCVSCALE
   /* If RCV_SCALE is set then prepare segment for window scaling option */
   if (seg->flags & TF_SEG_OPTS_WNDSCALE) {
     TCP_BUILD_WNDSCALE_OPTION(*opts, pcb->rcv_scale);
     opts += 1;	// Move to the next line (meaning next 32 bit) as this option is 3 bytes long + we added 1 byte NOOP padding => total 4 bytes
   }
-#endif
 
 #if LWIP_TCP_TIMESTAMPS
   pcb->ts_lastacksent = pcb->rcv_nxt;
@@ -1164,11 +1135,7 @@ tcp_rst(u32_t seqno, u32_t ackno, u16_t local_port, u16_t remote_port, struct tc
   tcphdr->seqno = htonl(seqno);
   tcphdr->ackno = htonl(ackno);
   TCPH_HDRLEN_FLAGS_SET(tcphdr, TCP_HLEN/4, TCP_RST | TCP_ACK);
-#if TCP_RCVSCALE
   tcphdr->wnd = PP_HTONS(( TCP_WND  & 0xFFFF ));
-#else
-  tcphdr->wnd = PP_HTONS(TCP_WND);
-#endif
   tcphdr->chksum = 0;
   tcphdr->urgp = 0;
 

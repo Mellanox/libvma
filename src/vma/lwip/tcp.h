@@ -244,13 +244,8 @@ extern tcp_state_observer_fn external_tcp_state_observer;
   /* ports are in host byte order */ \
   u16_t local_port
 
-#if TCP_RCVSCALE
 #define RCV_WND_SCALE(pcb, wnd) (htons((u16_t)((wnd) >> (pcb)->rcv_scale)))
 #define SND_WND_SCALE(pcb, wnd) ((u32_t)(wnd) << (pcb)->snd_scale)
-#else
-#define RCV_WND_SCALE(pcb, wnd) (wnd)
-#define SND_WND_SCALE(pcb, wnd) (wnd)
-#endif
 
 /* Note: max_tcp_snd_queuelen is now a multiple by 16 (was 4 before) to match max_unsent_len */
 #define UPDATE_PCB_BY_MSS(pcb, snd_mss) \
@@ -283,13 +278,8 @@ struct tcp_pcb {
      as we have to do some math with them */
   /* receiver variables */
   u32_t rcv_nxt;   /* next seqno expected */
-#if TCP_RCVSCALE
   u32_t rcv_wnd;   /* receiver window available */
   u32_t rcv_ann_wnd; /* receiver window to announce */
-#else
-  u16_t rcv_wnd;   /* receiver window available */
-  u16_t rcv_ann_wnd; /* receiver window to announce */
-#endif
   u32_t rcv_wnd_max; /* maximum available receive window */
   u32_t rcv_wnd_max_desired;
   u32_t rcv_ann_right_edge; /* announced right edge of window */
@@ -325,13 +315,8 @@ struct tcp_pcb {
   struct cc_algo* cc_algo;
   void* cc_data;
 #endif
-#if TCP_RCVSCALE
   u32_t cwnd;
   u32_t ssthresh;
-#else
-  u16_t cwnd;
-  u16_t ssthresh;
-#endif
 
   /* sender variables */
   u32_t snd_nxt;   /* next new seqno to be sent */
@@ -341,11 +326,7 @@ struct tcp_pcb {
                              window update. */
   u32_t snd_lbb;       /* Sequence number of next byte to be buffered. */
 
-#if TCP_RCVSCALE
   u32_t acked;
-#else
-  u16_t acked;
-#endif
   
   u32_t snd_buf;   /* Available buffer space for sending (in bytes). */
   u32_t max_snd_buff;
@@ -353,15 +334,9 @@ struct tcp_pcb {
   u32_t snd_sml_snt; /* maintain state for minshall's algorithm */
   u32_t snd_sml_add; /* maintain state for minshall's algorithm */
 
-#if TCP_RCVSCALE
 #define TCP_SNDQUEUELEN_OVERFLOW (0xffffffU-3)
   u32_t snd_queuelen; /* Available buffer space for sending (in tcp_segs). */
   u32_t max_tcp_snd_queuelen; 
-#else
-#define TCP_SNDQUEUELEN_OVERFLOW (0xffff-3)
-  u16_t snd_queuelen; /* Available buffer space for sending (in tcp_segs). */
-  u16_t max_tcp_snd_queuelen; 
-#endif
 
 #if TCP_OVERSIZE
   /* Extra bytes available at the end of the last pbuf in unsent. */
@@ -414,10 +389,8 @@ struct tcp_pcb {
   /* KEEPALIVE counter */
   u8_t keep_cnt_sent;
 
-#if TCP_RCVSCALE
   u8_t snd_scale;
   u8_t rcv_scale;
-#endif
 };
 
 struct tcp_pcb_listen {  

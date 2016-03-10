@@ -1417,15 +1417,7 @@
  /**
  * window scaling parameter
  */
-#ifndef TCP_RCVSCALE
-#define TCP_RCVSCALE 1
-#endif
-
-#ifdef TCP_RCVSCALE
-#define TCP_WND_SCALED(pcb) 			(TCP_WND << (pcb)->rcv_scale)
-#else
-#define TCP_WND_SCALED(pcb) 			TCP_WND
-#endif
+#define TCP_WND_SCALED(pcb) 		(TCP_WND << (pcb)->rcv_scale)
 
 /**
  * TCP_MAXRTX: Maximum number of retransmissions of data segments.
