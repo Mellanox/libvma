@@ -1,6 +1,6 @@
 Name: libvma
-Version: 7.0.14
-Release: 3%{?dist}
+Version: 8.0.1
+Release: 1%{?dist}
 Summary: A library for boosting TCP and UDP traffic (over RDMA hardware)
 
 License: GPLv2 or BSD
@@ -73,7 +73,8 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/*.la
 %{_bindir}/vma_stats
 
 %changelog
-* Thu Mar 10 2016 Alex Vainman <alexv@mellanox.com> - 7.0.14-3
+* Thu Mar 10 2016 Alex Vainman <alexv@mellanox.com> - 8.0.1-1
+- Move to dual license: GPLv2 or BSD
 - ExcludeArch update
 - Removal of extra space in:
   config(noreplace) {_sysconfdir}/security/limits.d/30-libvma-limits.conf

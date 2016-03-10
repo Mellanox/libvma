@@ -1,3 +1,25 @@
+Version 8.0.1-0:
+Date + Time 2016-03-10
+=======================
+Added:
+        - RM #747132 Change VMA license from "GPLv2 or commercial" to "GPLv2 or BSD" (dual license).
+        - RM #736034 Prepare Fedora 24 RPM spec file
+        - RM #748216 remove (old) non-scaled rcv window support from VMA
+        - RM #675823 return ENOMEM if select() uses 'ndfs' larger then the system's FD_SETSIZE
+        - RM #736029 Add VMA limits file "30-libvma-limits.conf" to make install
+        - RM #688734 BuildRequires should be flexible for environments with paralel versions of libnl-devel
+        - RM #682871 specify rpm build depenedcy on devel packages
+
+Fixed:
+        - RM #692387 Fix vma_stats does not use the right shared memory for cleaning.
+        - RM #690836 Fix ib1 (second IB interface, port 2) is not recognized
+        - RM #739323 Fix crash when running in DEBUG and interface does not have an ip address
+        - RM #737218 Fix zero_copy_rx() handling of iov scattered data
+        - RM #740071 Fix TCP crash when executing setsockopt() SO_RCVBUF on listening socket
+        - RM #688876 fix misleading user message about libnl package
+	- RM #688877 fix wrong package name librdma_cm-devel in error message
+        - RM #742951 Fix GCC 6.0.0-0.13 compilation errors
+
 Version 7.0.14-0:
 Date + Time 2016-01-14
 =======================
