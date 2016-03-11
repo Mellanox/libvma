@@ -98,11 +98,23 @@ public:
 
 private:
 
-	in_addr_t 	m_dst_addr;
-	in_addr_t 	m_dst_mask;
+	union {
+		in_addr_t 	m_dst_addr;
+		in_addr 	m_dst_addr_in_addr;
+	};
+	union {
+		in_addr_t 	m_dst_mask;
+		in_addr 	m_dst_mask_in_addr;
+	};
 	uint8_t 	m_dst_pref_len;
-	in_addr_t 	m_src_addr;
-	in_addr_t 	m_gw;
+	union {
+		in_addr_t 	m_src_addr;
+		in_addr 	m_src_addr_in_addr;
+	};
+	union {
+		in_addr_t 	m_gw;
+		in_addr 	m_gw_in_addr;
+	};
 
 	unsigned char	m_protocol;
 	unsigned char	m_scope;

@@ -93,8 +93,14 @@ private:
 	unsigned char	m_type;
 	unsigned char	m_tos;
 
-	in_addr_t 	m_dst_addr;
-	in_addr_t 	m_src_addr;
+	union {
+		in_addr_t 	m_dst_addr;
+		in_addr 	m_dst_addr_in_addr;
+	};
+	union {
+		in_addr_t 	m_src_addr;
+		in_addr 	m_src_addr_in_addr;
+	};
 	char 		m_iif_name[IFNAMSIZ];
 	char 		m_oif_name[IFNAMSIZ];
 	uint32_t	m_priority;

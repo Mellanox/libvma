@@ -69,20 +69,20 @@ void route_val::set_str()
         strcpy(m_str, "dst:");
 
         if (m_dst_addr != 0)
-                sprintf(m_str, "%s %-15s", m_str, inet_ntoa(*((in_addr *)&m_dst_addr)));
+                sprintf(m_str, "%s %-15s", m_str, inet_ntoa(m_dst_addr_in_addr));
         else
                 sprintf(m_str,"%s %-15s", m_str, "default");
 
         if (m_dst_mask != 0)
-                sprintf(m_str, "%s netmask: %-15s", m_str, inet_ntoa(*((in_addr *)&m_dst_mask)));
+                sprintf(m_str, "%s netmask: %-15s", m_str, inet_ntoa(m_dst_mask_in_addr));
 
         if (m_gw != 0)
-                sprintf(m_str, "%s gw:      %-15s", m_str, inet_ntoa(*((in_addr *)&m_gw)));
+                sprintf(m_str, "%s gw:      %-15s", m_str, inet_ntoa(m_gw_in_addr));
 
         sprintf(m_str, "%s dev: %-5s", m_str, m_if_name);
 
         if (m_src_addr != 0)
-                sprintf(m_str, "%s src: %-15s", m_str, inet_ntoa(*((in_addr *)&m_src_addr)));
+                sprintf(m_str, "%s src: %-15s", m_str, inet_ntoa(m_src_addr_in_addr));
         else
                 sprintf(m_str, "%s                     ", m_str);
 				
