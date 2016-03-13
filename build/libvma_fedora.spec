@@ -73,7 +73,8 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/*.la
 %{_bindir}/vma_stats
 
 %changelog
-* Thu Mar 10 2016 Alex Vainman <alexv@mellanox.com> - 8.0.1-1
+* Thu Mar 13 2016 Alex Vainman <alexv@mellanox.com> - 8.0.1-1
+- New upstream release
 - Move to dual license: GPLv2 or BSD
 - ExcludeArch update
 - Removal of extra space in:
