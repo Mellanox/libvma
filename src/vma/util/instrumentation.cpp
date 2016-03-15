@@ -10,6 +10,7 @@
  * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
  */
 
+#include "config.h"
 #include "instrumentation.h"
 #include <string.h>
 

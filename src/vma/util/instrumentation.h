@@ -33,8 +33,6 @@
 #include <inttypes.h>
 #include "src/vlogger/vlogger.h"
 
-
-//#define RDTSC_MEASURE 1
 #ifdef RDTSC_MEASURE
 void init_rdtsc();
 void print_rdtsc_summary();
@@ -77,41 +75,6 @@ typedef struct instr_info {
 extern uint16_t g_rdtsc_cost;
 extern char g_rdtsc_flow_names[RDTSC_FLOW_MAX][256];
 extern instr_info g_rdtsc_instr_info_arr[RDTSC_FLOW_MAX];
-
-/******* RX ***********/
-
-/****** Total VMA RX******** */
-//#define RDTSC_MEASURE_RX_CQE_RECEIVEFROM 1
-
-/******* Verbs Poll ***********/
-//#define RDTSC_MEASURE_RX_VERBS_IDLE_POLL 1
-//#define RDTSC_MEASURE_RX_VERBS_READY_POLL
-
-
-/******* LWIP ***********/
-//#define RDTSC_MEASURE_RX_LWIP 1
-
-
-/******* Other RX ***********/
-//#define RDTSC_MEASURE_RX_DISPATCH_PACKET 1
-//#define RDTSC_MEASURE_RX_AFTER_PROCCESS_BUFFER_TO_RECIVEFROM 1
-//#define RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL 1
-//#define RDTSC_MEASURE_RX_READY_POLL_TO_LWIP 1
-//#define RDTSC_MEASURE_RX_LWIP_TO_RECEVEFROM 1
-
-
-/******* TX ***********/
-
-/****** Total VMA TX ******** */
-//#define RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND 1
-
-/******* Verbs Post Send ***********/
-//#define RDTSC_MEASURE_TX_VERBS_POST_SEND 1
-
-
-
-/******* App ***********/
-//#define RDTSC_MEASURE_RECEIVEFROM_TO_SENDTO 1
 
 #endif //RDTS_MEASURE
 
