@@ -1199,16 +1199,12 @@ void get_env_params()
 	if ((env_ptr = getenv(SYS_VAR_SELECT_SKIP_OS)) != NULL)
 		safe_mce_sys().select_skip_os_fd_check = (uint32_t)atoi(env_ptr);
 
-
+#ifdef DEFINED_IBV_EXP_CQ_MODERATION
 	if (safe_mce_sys().rx_poll_num < 0 ||  safe_mce_sys().select_poll_num < 0) {
 		safe_mce_sys().cq_moderation_enable = false;
 	}
 	if ((env_ptr = getenv(SYS_VAR_CQ_MODERATION_ENABLE)) != NULL)
 		safe_mce_sys().cq_moderation_enable = atoi(env_ptr) ? true : false;
-#ifndef DEFINED_IBV_EXP_CQ_MODERATION
-	safe_mce_sys().cq_moderation_enable = false;
-#endif
-
 	if ((env_ptr = getenv(SYS_VAR_CQ_MODERATION_COUNT)) != NULL)
 		safe_mce_sys().cq_moderation_count = (uint32_t)atoi(env_ptr);
 	if (safe_mce_sys().cq_moderation_count > safe_mce_sys().rx_num_wr / 2) {
@@ -1236,8 +1232,29 @@ void get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_CQ_AIM_INTERRUPTS_RATE_PER_SEC)) != NULL)
 		safe_mce_sys().cq_aim_interrupts_rate_per_sec = (uint32_t)atoi(env_ptr);
-
-
+#else
+	if ((env_ptr = getenv(SYS_VAR_CQ_MODERATION_ENABLE)) != NULL) {
+		vlog_printf(VLOG_WARNING,"'%s' is not supported on this environment\n", SYS_VAR_CQ_MODERATION_ENABLE);
+	}
+	if ((env_ptr = getenv(SYS_VAR_CQ_MODERATION_COUNT)) != NULL) {
+		vlog_printf(VLOG_WARNING,"'%s' is not supported on this environment\n", SYS_VAR_CQ_MODERATION_COUNT);
+	}
+	if ((env_ptr = getenv(SYS_VAR_CQ_MODERATION_PERIOD_USEC)) != NULL) {
+		vlog_printf(VLOG_WARNING,"'%s' is not supported on this environment\n", SYS_VAR_CQ_MODERATION_PERIOD_USEC);
+	}
+	if ((env_ptr = getenv(SYS_VAR_CQ_AIM_MAX_COUNT)) != NULL) {
+		vlog_printf(VLOG_WARNING,"'%s' is not supported on this environment\n", SYS_VAR_CQ_AIM_MAX_COUNT);
+	}
+	if ((env_ptr = getenv(SYS_VAR_CQ_AIM_MAX_PERIOD_USEC)) != NULL) {
+		vlog_printf(VLOG_WARNING,"'%s' is not supported on this environment\n", SYS_VAR_CQ_AIM_MAX_PERIOD_USEC);
+	}
+	if ((env_ptr = getenv(SYS_VAR_CQ_AIM_INTERVAL_MSEC)) != NULL) {
+		vlog_printf(VLOG_WARNING,"'%s' is not supported on this environment\n", SYS_VAR_CQ_AIM_INTERVAL_MSEC);
+	}
+	if ((env_ptr = getenv(SYS_VAR_CQ_AIM_INTERRUPTS_RATE_PER_SEC)) != NULL) {
+		vlog_printf(VLOG_WARNING,"'%s' is not supported on this environment\n", SYS_VAR_CQ_AIM_INTERRUPTS_RATE_PER_SEC);
+	}
+#endif /*DEFINED_IBV_EXP_CQ_MODERATION*/
 
 	if ((env_ptr = getenv(SYS_VAR_CQ_POLL_BATCH_MAX)) != NULL)
 		safe_mce_sys().cq_poll_batch_max = (uint32_t)atoi(env_ptr);

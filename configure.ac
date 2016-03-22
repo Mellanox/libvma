@@ -249,6 +249,9 @@ AC_TRY_LINK(
   AC_MSG_RESULT([no])
 ])
 
+# Check if MLNX_OFED's experimental CQ moderiation API is supported
+# This API allows VMA to implement the CQ manual and automatic interrupt moderation logic
+# If it is not supported then VMA code will disable all of it's CQ interrupt moderation logic
 AC_MSG_CHECKING([if IBV_EXP_CQ_MODERATION is defined])
 AC_TRY_LINK(
 #include <infiniband/verbs_exp.h>
