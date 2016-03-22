@@ -523,7 +523,7 @@ const char* buffer_batching_mode_str(buffer_batching_mode_t buffer_batching_mode
 
 int get_ofed_version_info(char* ofed_version_str, int len)
 {
-	return run_and_retreive_system_command("ofed_info -s 2>/dev/null | grep OFED | head -1", ofed_version_str, len);
+	return run_and_retreive_system_command("ofed_info -s 2>/dev/null | grep OFED | head -1 | tr -d '\n'", ofed_version_str, len);
 }
 
 void read_env_variable_with_pid(char* mce_sys_name, size_t mce_sys_max_size, char* env_ptr)
@@ -558,8 +558,11 @@ void print_vma_global_settings()
 	vlog_printf(log_level,"Current Time: %s", ctime(&clock));
 	vlog_printf(log_level,"Pid: %5u\n", getpid());
 
-	if (!get_ofed_version_info(ofed_version_info, MAX_VERSION_STR_LEN))
-		vlog_printf(VLOG_INFO,"OFED Version: %s", ofed_version_info);
+	ofed_version_info[0] = '\0';
+	int ret = get_ofed_version_info(ofed_version_info, MAX_VERSION_STR_LEN);
+	if (!ret && strlen(ofed_version_info) > 0) {
+		vlog_printf(VLOG_INFO,"OFED Version: %s\n", ofed_version_info);
+	}
 
 	if (!uname(&sys_info)) {
 		vlog_printf(VLOG_DEBUG,"System: %s\n", sys_info.release);
