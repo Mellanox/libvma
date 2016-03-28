@@ -14,6 +14,7 @@
 #ifndef QP_MGR_H
 #define QP_MGR_H
 
+#include <infiniband/mlx5_hw.h>
 #include <errno.h>
 #include <ifaddrs.h>
 #include "vma/util/if.h"
@@ -31,6 +32,8 @@
 #include "vma/dev/ah_cleaner.h"
 #include "vma/dev/cq_mgr.h"
 #include "vma/dev/ring.h"
+#include "vma/hw/mlx5/wqe.h"
+#include "vma/util/vtypes.h"
 
 class buffer_pool;
 class cq_mgr;
@@ -74,6 +77,7 @@ typedef hash_map<ibv_gid, uint32_t> mgid_ref_count_map_t;
  */
 class qp_mgr
 {
+	friend class cq_mgr;
 public:
 	qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num, const uint32_t tx_num_wr);
 	virtual ~qp_mgr();
@@ -108,9 +112,25 @@ public:
 
 	void			release_rx_buffers();
 	void 			release_tx_buffers();
+	void 			set_signal_in_next_send_wqe();
 	void			trigger_completion_for_all_sent_packets();
+	void 			mlx5_send(vma_ibv_send_wr* p_send_wqe);
+	void 			mlx5_init_sq();
 
 protected:
+	volatile struct mlx5_wqe64* m_sq_hot_wqe;
+	int			m_sq_hot_wqe_index;
+	unsigned int		m_rq_wqe_counter;
+	uint64_t		*m_rq_wqe_idx_to_wrid;
+	volatile struct mlx5_wqe64 (*m_mlx5_sq_wqes)[];
+	volatile uint32_t 	*m_sq_db;
+	volatile void 		*m_sq_bf_reg;
+	uint16_t 		m_sq_bf_offset;
+	uint16_t 		m_sq_bf_buf_size;
+	uint16_t		m_sq_wqe_counter;
+	uint64_t		*m_sq_wqe_idx_to_wrid;
+	unsigned int 		m_qp_num;
+	struct mlx5_qp 		*m_mlx5_hw_qp;
 	struct ibv_qp*		m_qp;
 	ring_simple*		m_p_ring;
 	uint8_t 		m_port_num;

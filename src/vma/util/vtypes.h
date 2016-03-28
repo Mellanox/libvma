@@ -18,6 +18,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <linux/kernel.h>
+#include <byteswap.h>
 
 #ifndef IN
 #define IN
@@ -29,6 +30,16 @@
 
 #ifndef INOUT
 #define INOUT
+#endif
+
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+static inline uint64_t htonll(uint64_t x) { return bswap_64(x); }
+static inline uint64_t ntohll(uint64_t x) { return bswap_64(x); }
+#elif __BYTE_ORDER == __BIG_ENDIAN
+static inline uint64_t htonll(uint64_t x) { return x; }
+static inline uint64_t ntohll(uint64_t x) { return x; }
+#else
+#error __BYTE_ORDER is neither __LITTLE_ENDIAN nor __BIG_ENDIAN
 #endif
 
 #define likely(x)			__builtin_expect(!!(x), 1)

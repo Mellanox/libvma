@@ -1466,7 +1466,7 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
         	ret = rx_wait(poll_count, block_this_run);
         	if (unlikely(ret < 0)) goto err;
 	}
-	si_tcp_logfunc("something in rx queues: %d %p", m_n_rx_pkt_ready_list_count, m_rx_pkt_ready_list.front());
+	//si_tcp_logfunc("something in rx queues: %d %p", m_n_rx_pkt_ready_list_count, m_rx_pkt_ready_list.front());
 
 	total_rx = dequeue_packet(p_iov, sz_iov, (sockaddr_in *)__from, __fromlen, in_flags, &out_flags);
 
@@ -1491,7 +1491,7 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 	 // do it later - may want to ack less frequently ???:
 
 	unlock_tcp_con();
-	si_tcp_logfunc("rx completed, %d bytes sent", total_rx);
+//	si_tcp_logfunc("rx completed, %d bytes sent", total_rx);
 
 #ifdef VMA_TIME_MEASURE
 	if (0 < total_rx)
@@ -3430,11 +3430,11 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 		}
 	}
 	m_rx_ring_map_lock.unlock();
-	if (n > 0) { // got completions from CQ
-		__log_entry_funcall("got %d elements sn=%llu", n, (unsigned long long)poll_sn);
+	if (likely(n > 0)) { // got completions from CQ
+		//__log_entry_funcall("got %d elements sn=%llu", n, (unsigned long long)poll_sn);
 
-		if (m_n_rx_pkt_ready_list_count)
-			m_p_socket_stats->counters.n_rx_poll_hit++;
+		//if (m_n_rx_pkt_ready_list_count)
+		//	m_p_socket_stats->counters.n_rx_poll_hit++;
 		return n;
 	}
 

@@ -15,6 +15,7 @@
 #define CQ_MGR_H
 
 #include <map>
+#include <infiniband/mlx5_hw.h>
 
 #include "vma/util/sys_vars.h"
 #include "vma/util/verbs_extra.h"
@@ -66,7 +67,7 @@ operator==(local_if_info_key_t const& key1, local_if_info_key_t const& key2) {
 
 struct qp_rec {
 	qp_mgr		*qp;
-	int		debth;
+	uint32_t	debth;
 };
 
 
@@ -108,7 +109,8 @@ public:
 	 */
 	int	wait_for_notification_and_process_element(uint64_t* p_cq_poll_sn,
 	   	                                          void* pv_fd_ready_array = NULL);
-
+	volatile struct mlx5_cqe64 *mlx5_check_erro_completion(volatile uint16_t *ci, uint8_t op_own);
+	inline volatile struct mlx5_cqe64 *mlx5_get_cqe64();
 	/**
 	 * This will poll n_num_poll time on the cq or stop early if it gets
 	 * a wce (work completion element). If a wce was found 'processing' will
@@ -150,8 +152,17 @@ public:
 
 	void 	modify_cq_moderation(uint32_t period, uint32_t count);
 
+	void 	mlx5_init_cq();
+
 private:
-	ring_simple*		m_p_ring;
+	mem_buf_desc_t* 		m_rx_hot_buff;
+	qp_mgr*				m_qp;
+	struct mlx5_cq* 		m_mlx5_cq;
+	int 				m_cq_sz;
+	uint16_t 			m_cq_ci;
+	volatile struct mlx5_cqe64 	(*m_mlx5_cqes)[];
+	volatile uint32_t 		*m_cq_db;
+	ring_simple*			m_p_ring;
 	ib_ctx_handler*			m_p_ib_ctx_handler;
 	bool				m_b_is_rx;
 	bool				m_b_is_rx_csum_on;

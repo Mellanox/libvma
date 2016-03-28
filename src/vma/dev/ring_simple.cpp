@@ -224,6 +224,11 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 		g_p_fd_collection->add_cq_channel_fd(m_p_n_rx_channel_fds[0], this);
 	}
 
+	m_tx_lkey = g_buffer_pool_tx->find_lkey_by_ib_ctx_thread_safe(p_ring_info->p_ib_ctx);
+
+	request_more_tx_buffers(RING_TX_BUFS_COMPENSATE);
+	m_tx_num_bufs = m_tx_pool.size();
+
 	m_p_qp_mgr = create_qp_mgr(p_ring_info->p_ib_ctx, p_ring_info->port_num, m_p_rx_comp_event_channel);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_p_qp_mgr == NULL) {
@@ -231,14 +236,10 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 		throw_vma_exception("create qp failed");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
+
 	// save cq_mgr pointers
 	m_p_cq_mgr_rx = m_p_qp_mgr->get_rx_cq_mgr();
 	m_p_cq_mgr_tx = m_p_qp_mgr->get_tx_cq_mgr();
-
-	m_tx_lkey = g_buffer_pool_tx->find_lkey_by_ib_ctx_thread_safe(p_ring_info->p_ib_ctx);
-
-	request_more_tx_buffers(RING_TX_BUFS_COMPENSATE);
-	m_tx_num_bufs = m_tx_pool.size();
 
 	if (active) {
 		// 'up' the active QP/CQ resource
@@ -938,7 +939,7 @@ int ring_simple::request_notification(cq_type_t cq_type, uint64_t poll_sn)
 int ring_simple::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array /*NULL*/)
 {
 	int ret = 0;
-	RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_rx, m_p_cq_mgr_rx->poll_and_process_element_rx(p_cq_poll_sn, pv_fd_ready_array));
+	RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_rx, m_p_cq_mgr_rx->poll_and_process_helper_rx(p_cq_poll_sn, pv_fd_ready_array));
 	return ret;
 }
 

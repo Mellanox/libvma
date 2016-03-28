@@ -79,6 +79,7 @@ protected:
 	struct ibv_comp_channel* get_tx_comp_event_channel() { return m_p_tx_comp_event_channel; }
 	uint32_t		get_tx_num_wr() { return m_tx_num_wr; }
 	uint16_t		get_partition() { return m_partition; }
+	uint16_t		get_lkey() { return m_tx_lkey; }
 
 	struct cq_moderation_info m_cq_moderation_info;
 
