@@ -44,6 +44,10 @@
 
 #define cq_logdbg_no_funcname(log_fmt, log_args...)	do { if (g_vlogger_level >= VLOG_DEBUG) 	vlog_printf(VLOG_DEBUG, MODULE_NAME "[%p]:%d: "  log_fmt "\n", __INFO__, __LINE__, ##log_args); } while (0)
 
+#define _to_mxxx(xxx, type)						\
+	((struct mlx5_##type *)					\
+	 ((uintptr_t)((void *) ib##xxx) - (uintptr_t)offsetof(struct mlx5_##type, ibv_##xxx)))
+
 atomic_t cq_mgr::m_n_cq_id_counter = ATOMIC_DECLARE_INIT(1);
 uint64_t cq_mgr::m_n_global_sn = 0;
 /**/
@@ -219,7 +223,7 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 		vma_stats_instance_create_cq_block(m_p_cq_stat);
 	}
 	struct ibv_cq *ibcq = m_p_ibv_cq;
-	m_mlx5_cq = to_mxxx(cq, cq);
+	m_mlx5_cq = _to_mxxx(cq, cq);
 	m_cq_db = m_mlx5_cq->dbrec;
 	m_mlx5_cqes = (volatile struct mlx5_cqe64 (*)[])(uintptr_t)m_mlx5_cq->active_buf->buf;
 
@@ -1180,7 +1184,7 @@ void cq_mgr::modify_cq_moderation(uint32_t period, uint32_t count)
 void cq_mgr::mlx5_init_cq()
 {
 	struct ibv_cq *ibcq = m_p_ibv_cq;
-	m_mlx5_cq = to_mxxx(cq, cq);
+	m_mlx5_cq = _to_mxxx(cq, cq);
 	m_cq_db = m_mlx5_cq->dbrec;
 	m_mlx5_cqes = (volatile struct mlx5_cqe64 (*)[])(uintptr_t)m_mlx5_cq->active_buf->buf;
 
