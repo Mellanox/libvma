@@ -121,4 +121,14 @@ void finit_instrumentation(char* dump_file_name);
 
 #endif //VMA_TIME_MEASURE
 
+#ifdef VMA_TIME_IBPROF
+#include <ibprof_api.h>
+
+#define VMA_TIME_IBPROF_START(_id, _tag)    ibprof_interval_start((_id), _tag)
+#define VMA_TIME_IBPROF_END(_id)            ibprof_interval_end((_id))
+#else
+#define VMA_TIME_IBPROF_START(_id, _tag)
+#define VMA_TIME_IBPROF_END(_id)
+#endif //VMA_TIME_IBPROF
+
 #endif //INSTRUMENTATION
