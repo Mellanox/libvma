@@ -56,6 +56,7 @@ AC_SUBST(LIBALIC_FLAG)
 AC_SUBST([BUILD_DATE], [$(date +'%b/%d/%Y')])
 AC_SUBST([BUILD_TIME], [$(date +'%H:%M:%S')])
 
+m4_include([config/m4/prof.m4])
 m4_include([config/m4/opt.m4])
 m4_include([config/m4/pkg.m4])
 PKG_PROG_PKG_CONFIG
@@ -248,7 +249,7 @@ if test "x${with_debug}" = "xyes" ; then
 else
 	CFLAGS="-O3 $CFLAGS"
 	CXXFLAGS="-O3 $CXXFLAGS"
-	
+
 	if test "x${with_debug_info}" = "xyes" ; then
 		CFLAGS="-g $CFLAGS"
         	CXXFLAGS="-g $CXXFLAGS"
