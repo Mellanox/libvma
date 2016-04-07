@@ -2600,8 +2600,8 @@ err_t sockinfo_tcp::connect_lwip_cb(void *arg, struct tcp_pcb *tpcb, err_t err)
 		conn->m_error_status = 0;
 		if (conn->m_rcvbuff_max <  2 * conn->m_pcb.mss) {
 			conn->m_rcvbuff_max = 2 * conn->m_pcb.mss;
-			conn->fit_rcv_wnd(false);
 		}
+		conn->fit_rcv_wnd(false);
 	}
 	else {
 		conn->m_error_status = ECONNREFUSED;

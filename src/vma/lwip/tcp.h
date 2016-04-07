@@ -248,8 +248,10 @@ extern tcp_state_observer_fn external_tcp_state_observer;
   u32_t rcv_wnd_max; /* maximum available receive window */ \
   u32_t rcv_wnd_max_desired;
 
-#define RCV_WND_SCALE(pcb, wnd) (htons((u16_t)((wnd) >> (pcb)->rcv_scale)))
+#define RCV_WND_SCALE(pcb, wnd) (((wnd) >> (pcb)->rcv_scale))
 #define SND_WND_SCALE(pcb, wnd) ((u32_t)(wnd) << (pcb)->snd_scale)
+
+#define TCPWND_MIN16(x)    ((u16_t)LWIP_MIN((x), 0xFFFF))
 
 /* Note: max_tcp_snd_queuelen is now a multiple by 16 (was 4 before) to match max_unsent_len */
 #define UPDATE_PCB_BY_MSS(pcb, snd_mss) \
@@ -268,15 +270,16 @@ struct tcp_pcb {
   /* ports are in host byte order */
   u16_t remote_port;
 
-  u8_t flags;
-#define TF_ACK_DELAY   ((u8_t)0x01U)   /* Delayed ACK. */
-#define TF_ACK_NOW     ((u8_t)0x02U)   /* Immediate ACK. */
-#define TF_INFR        ((u8_t)0x04U)   /* In fast recovery. */
-#define TF_TIMESTAMP   ((u8_t)0x08U)   /* Timestamp option enabled */
-#define TF_RXCLOSED    ((u8_t)0x10U)   /* rx closed by tcp_shutdown */
-#define TF_FIN         ((u8_t)0x20U)   /* Connection was closed locally (FIN segment enqueued). */
-#define TF_NODELAY     ((u8_t)0x40U)   /* Disable Nagle algorithm */
-#define TF_NAGLEMEMERR ((u8_t)0x80U)   /* nagle enabled, memerr, try to output to prevent delayed ACK to happen */
+  u16_t flags;
+#define TF_ACK_DELAY   ((u16_t)0x0001U)   /* Delayed ACK. */
+#define TF_ACK_NOW     ((u16_t)0x0002U)   /* Immediate ACK. */
+#define TF_INFR        ((u16_t)0x0004U)   /* In fast recovery. */
+#define TF_TIMESTAMP   ((u16_t)0x0008U)   /* Timestamp option enabled */
+#define TF_RXCLOSED    ((u16_t)0x0010U)   /* rx closed by tcp_shutdown */
+#define TF_FIN         ((u16_t)0x0020U)   /* Connection was closed locally (FIN segment enqueued). */
+#define TF_NODELAY     ((u16_t)0x0040U)   /* Disable Nagle algorithm */
+#define TF_NAGLEMEMERR ((u16_t)0x0080U)   /* nagle enabled, memerr, try to output to prevent delayed ACK to happen */
+#define TF_WND_SCALE   ((u16_t)0x0100U) /* Window Scale option enabled */
 
   /* the rest of the fields are in host byte order
      as we have to do some math with them */

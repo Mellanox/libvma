@@ -72,6 +72,10 @@
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
 #endif
+
+int32_t enable_wnd_scale = 0;
+u32_t rcv_wnd_scale = 0;
+
 /* required system support functions for LWIP */
 u32_t sys_jiffies(void)
 {

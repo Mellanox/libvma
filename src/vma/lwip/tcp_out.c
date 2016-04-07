@@ -118,7 +118,7 @@ tcp_output_alloc_header(struct tcp_pcb *pcb, u16_t optlen, u16_t datalen,
     tcphdr->seqno = seqno_be;
     tcphdr->ackno = htonl(pcb->rcv_nxt);
     TCPH_HDRLEN_FLAGS_SET(tcphdr, (5 + optlen / 4), TCP_ACK);
-    tcphdr->wnd = RCV_WND_SCALE(pcb, pcb->rcv_ann_wnd); // Which means: htons(pcb->rcv_ann_wnd >> pcb->rcv_scale);
+    tcphdr->wnd = htons(TCPWND_MIN16(RCV_WND_SCALE(pcb, pcb->rcv_ann_wnd)));
     tcphdr->chksum = 0;
     tcphdr->urgp = 0;
 
@@ -696,7 +696,11 @@ tcp_enqueue_flags(struct tcp_pcb *pcb, u8_t flags)
 
   if (flags & TCP_SYN) {
     optflags = TF_SEG_OPTS_MSS;
-    if(enable_wnd_scale) optflags |= TF_SEG_OPTS_WNDSCALE;
+    if(enable_wnd_scale && ((get_tcp_state(pcb) != SYN_RCVD) || (pcb->flags & TF_WND_SCALE))) {
+    /* In a <SYN,ACK> (sent in state SYN_RCVD), the window scale option may only
+        be sent if we received a window scale option from the remote host. */
+        optflags |= TF_SEG_OPTS_WNDSCALE;
+	}
 	#if LWIP_TCP_TIMESTAMPS
     	if (pcb->enable_ts_opt && !(flags & TCP_ACK)) {
     		// enable initial timestamp announcement only for the connecting side. accepting side reply accordingly.
@@ -1018,8 +1022,15 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
    wnd fields remain. */
   seg->tcphdr->ackno = htonl(pcb->rcv_nxt);
 
+
+  if (seg->flags & TF_SEG_OPTS_WNDSCALE) {
+    /* The Window field in a SYN segment itself (the only type where we send
+       the window scale option) is never scaled. */
+	  seg->tcphdr->wnd = htons(TCPWND_MIN16(pcb->rcv_ann_wnd));
+  } else {
   /* advertise our receive window size in this TCP segment */
-  seg->tcphdr->wnd = RCV_WND_SCALE(pcb, pcb->rcv_ann_wnd); // Which means: htons(pcb->rcv_ann_wnd >> pcb->rcv_scale);
+	  seg->tcphdr->wnd = htons(TCPWND_MIN16(RCV_WND_SCALE(pcb, pcb->rcv_ann_wnd)));
+  }
 
   pcb->rcv_ann_right_edge = pcb->rcv_nxt + pcb->rcv_ann_wnd;
 
@@ -1034,7 +1045,7 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
 
   /* If RCV_SCALE is set then prepare segment for window scaling option */
   if (seg->flags & TF_SEG_OPTS_WNDSCALE) {
-    TCP_BUILD_WNDSCALE_OPTION(*opts, pcb->rcv_scale);
+    TCP_BUILD_WNDSCALE_OPTION(*opts, rcv_wnd_scale);
     opts += 1;	// Move to the next line (meaning next 32 bit) as this option is 3 bytes long + we added 1 byte NOOP padding => total 4 bytes
   }
 

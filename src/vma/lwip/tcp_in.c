@@ -1471,10 +1471,12 @@ tcp_parseopt(struct tcp_pcb *pcb, tcp_in_data* in_data)
           LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_parseopt: bad length\n"));
           return;
         }
-        /* A window scale option */
-        if(enable_wnd_scale) {
-          pcb->snd_scale = opts[c + 2];
+        /* If syn was received with wnd scale option,
+           activate wnd scale opt, but only if this is not a retransmission */
+        if(enable_wnd_scale && (in_data->flags & TCP_SYN) && !(pcb->flags & TF_WND_SCALE)) {
+          pcb->snd_scale = opts[c + 2] > 14U ? 14U : opts[c + 2];
           pcb->rcv_scale = rcv_wnd_scale;
+          pcb->flags |= TF_WND_SCALE;
         }
         /* Advance to next option */
         c += 0x03;

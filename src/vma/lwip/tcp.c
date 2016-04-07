@@ -109,8 +109,6 @@ enum cc_algo_mod lwip_cc_algo_module = CC_MOD_LWIP;
 
 u16_t lwip_tcp_mss = CONST_TCP_MSS;
 
-int32_t enable_wnd_scale = 0;
-u32_t rcv_wnd_scale = 0;
 u8_t enable_ts_option = 0;
 
 /* Incremented every coarse grained timer shot (typically every 500 ms). */
@@ -1096,7 +1094,7 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio)
 	pcb->snd_buf = pcb->max_snd_buff;
 	pcb->snd_queuelen = 0;
 	pcb->snd_scale = 0;
-  	pcb->rcv_scale = rcv_wnd_scale;
+	pcb->rcv_scale = 0;
 	pcb->rcv_wnd = TCP_WND_SCALED(pcb);
 	pcb->rcv_ann_wnd = TCP_WND_SCALED(pcb);
 	pcb->rcv_wnd_max = TCP_WND_SCALED(pcb);
