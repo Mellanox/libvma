@@ -51,6 +51,7 @@
 #include <dirent.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <vma/util/utils.h>
 #include <vma/util/vma_stats.h>
 
 using namespace std;
@@ -308,7 +309,7 @@ static const char *state2str(tcp_state state)
 void print_netstat_like_headers(FILE* file)
 {
 	static bool already_printed = false;
-	if(!already_printed) fprintf(file, "Proto Offloaded Local Address          Foreign Address       State       Inode      PID\n");
+	if(!already_printed) fprintf(file, "Proto Offloaded Local Address          Foreign Address       State       Inode      PID/Program name\n");
 	already_printed = true;
 }
 
@@ -316,6 +317,7 @@ void print_netstat_like_headers(FILE* file)
 void print_netstat_like(socket_stats_t* p_si_stats, mc_grp_info_t* , FILE* file, int pid)
 {
 	static const int MAX_ADDR_LEN = strlen("123.123.123.123:12345"); // for max len of ip address and port together
+	char process[FILE_NAME_MAX_SIZE];
 
 	if(! p_si_stats->inode) return; // shmem is not updated yet
 
@@ -346,7 +348,10 @@ void print_netstat_like(socket_stats_t* p_si_stats, mc_grp_info_t* , FILE* file,
 	if (p_si_stats->socket_type == SOCK_STREAM) {
 		tcp_state = state2str((enum tcp_state)p_si_stats->tcp_state);
 	}
-	fprintf(file, "%-11s %-10lu %d\n", tcp_state, (u_long)p_si_stats->inode, pid); // max tcp state len is 11 characters = ESTABLISHED
+
+	fprintf(file, "%-11s %-10lu %d/%s\n",
+			tcp_state, (u_long)p_si_stats->inode, pid,
+			(get_procname(pid, process, sizeof(process)) == 0 ? process : "-")); // max tcp state len is 11 characters = ESTABLISHED
 }
 
 
