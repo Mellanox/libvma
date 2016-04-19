@@ -51,6 +51,7 @@
 #include <dirent.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <vma/util/utils.h>
 #include <vma/util/vma_stats.h>
 #include <vma/util/rdtsc.h>
 #include <vma/util/sys_vars.h>
@@ -813,25 +814,14 @@ void print_command_line(int argc, char** argv)
 
 int print_app_name(int pid)
 {
-	int ret_val = 0;
+	char app_base_name[FILE_NAME_MAX_SIZE];
 
-	char pid_str[10];
-	char app_full_name[FILE_NAME_MAX_SIZE];
-	char* app_base_name;
-	char proccess_proc_dir[FILE_NAME_MAX_SIZE];
-	
-	memset((void*)app_full_name,0,sizeof(char) * FILE_NAME_MAX_SIZE);
-	memset((void*)proccess_proc_dir, 0 , sizeof(char) * FILE_NAME_MAX_SIZE);
-	sprintf(pid_str, "%d", pid);
-	strcat(strcat(strcpy(proccess_proc_dir, "/proc/"),pid_str),"/exe");
-	if (readlink(proccess_proc_dir,app_full_name,FILE_NAME_MAX_SIZE) >= 0) {
-		app_base_name = strrchr(app_full_name, '/');
-		printf("application: %s ", ++app_base_name);
+	if (get_procname(pid, app_base_name, sizeof(app_base_name)) < 0) {
+		return -1;
 	}
-	else
-		ret_val = -1;
+	printf("application: %s ", app_base_name);
 
-	return ret_val;
+	return 0;
 }
 
 void print_version(int pid)

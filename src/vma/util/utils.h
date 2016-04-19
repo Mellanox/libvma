@@ -41,6 +41,7 @@
 
 #include "vtypes.h"
 #include <vma/util/rdtsc.h>
+#include <vma/util/vma_stats.h>
 #include <linux/if_ether.h>
 #include <vlogger/vlogger.h>
 #include <exception>
@@ -358,6 +359,30 @@ int validate_ipoib_prop(const char* ifname, unsigned int ifflags,
 		int val_size, char *filename, char* base_ifname);
 
 void convert_hw_addr_to_str(char *buf, uint8_t hw_addr_len, uint8_t *hw_addr);
+
+static inline int get_procname(int pid, char *proc, size_t size)
+{
+	int ret = -1;
+	char pid_str[10];
+	char app_full_name[FILE_NAME_MAX_SIZE];
+	char proccess_proc_dir[FILE_NAME_MAX_SIZE];
+
+	if (NULL == proc) {
+		return -1;
+	}
+
+	memset((void*)app_full_name, 0, sizeof(app_full_name));
+	memset((void*)proccess_proc_dir, 0 , sizeof(proccess_proc_dir));
+
+	sprintf(pid_str, "%d", pid);
+	strcat(strcat(strcpy(proccess_proc_dir, "/proc/"), pid_str), "/exe");
+	if (readlink(proccess_proc_dir, app_full_name, FILE_NAME_MAX_SIZE) >= 0) {
+		strncpy(proc, strrchr(app_full_name, '/') + 1, size - 1);
+		ret = 0;
+	}
+
+	return ret;
+}
 
 //Creates multicast MAC from multicast IP
 //inline void create_multicast_mac_from_ip(uint8_t (& mc_mac) [6], in_addr_t ip)
