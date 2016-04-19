@@ -99,6 +99,9 @@ public:
 
 	virtual void add_epoll_context(epfd_info *epfd);
 	virtual void remove_epoll_context(epfd_info *epfd);
+	virtual int fast_nonblocking_rx(vma_packets_t *vma_pkts);
+	virtual int get_rings_num() {return 1;}
+	virtual int* get_rings_fds() {int* channel_fds = m_p_rx_ring->get_rx_channel_fds(); return channel_fds;}
 
 protected:
 	bool			m_b_closed;
@@ -298,7 +301,7 @@ protected:
 
     inline void reuse_buffer(mem_buf_desc_t *buff)
     {
-    	set_rx_reuse_pending(false);
+	set_rx_reuse_pending(false);
     	ring* p_ring = ((ring*)(buff->p_desc_owner))->get_parent();
     	rx_ring_map_t::iterator iter = m_rx_ring_map.find(p_ring);
     	if(likely(iter != m_rx_ring_map.end())){

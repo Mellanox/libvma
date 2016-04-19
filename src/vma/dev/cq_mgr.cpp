@@ -89,12 +89,9 @@ inline bool is_eth_tcp_frame(mem_buf_desc_t* buff)
 inline void cq_mgr::process_recv_buffer(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array)
 {
 	// Assume locked!!!
-	int ret_val = 0;
+
 	// Pass the Rx buffer ib_comm_mgr for further IP processing
-
-	ret_val = m_p_ring->rx_process_buffer(p_mem_buf_desc, m_transport_type, pv_fd_ready_array);
-
-	if (!ret_val) {
+	if (!m_p_ring->rx_process_buffer(p_mem_buf_desc, m_transport_type, pv_fd_ready_array)) {
 		// If buffer is dropped by callback - return to RX pool
 		reclaim_recv_buffer_helper(p_mem_buf_desc);
 	}
@@ -239,12 +236,12 @@ cq_mgr::~cq_mgr()
 {
 	cq_logdbg("destroying CQ as %s", (m_b_is_rx?"Rx":"Tx"));
 
-	int ret = 0;
+	//int ret = 0;
 	uint32_t ret_total = 0;
-	uint64_t cq_poll_sn = 0;
-	mem_buf_desc_t* buff = NULL;
-	vma_ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
-	while ((ret = poll(wce, MCE_MAX_CQ_POLL_BATCH, &cq_poll_sn)) > 0) {
+	//uint64_t cq_poll_sn = 0;
+	//mem_buf_desc_t* buff = NULL;
+	//vma_ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
+	/*while ((ret = poll(wce, MCE_MAX_CQ_POLL_BATCH, &cq_poll_sn)) > 0) {
 		for (int i = 0; i < ret; i++) {
 			if (m_b_is_rx) {
 				buff = process_cq_element_rx(&wce[i]);
@@ -255,7 +252,8 @@ cq_mgr::~cq_mgr()
 				m_rx_queue.push_back(buff);
 		}
 		ret_total += ret;
-	}
+	}*/
+	ret_total = 1;
 	m_b_was_drained = true;
 	if (ret_total > 0) {
 		cq_logdbg("Drained %d wce", ret_total);
@@ -273,8 +271,9 @@ cq_mgr::~cq_mgr()
 
 	if (!m_p_ib_ctx_handler->is_removed()) {
 		cq_logfunc("destroying ibv_cq");
+
 		IF_VERBS_FAILURE(ibv_destroy_cq(m_p_ibv_cq)) {
-			cq_logerr("destroy cq failed (errno=%d %m)", errno);
+			cq_logdbg("destroy cq failed (errno=%d %m)", errno);
 		} ENDIF_VERBS_FAILURE;
 	}
 	
@@ -601,6 +600,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 		p_mem_buf_desc->path.rx.context = this;
 
 		p_mem_buf_desc->path.rx.is_vma_thr = false;
+		p_mem_buf_desc->path.rx.vma_polled = false;
 
 		//this is not a deadcode if timestamping is defined in verbs API
 		// coverity[dead_error_condition]
@@ -660,6 +660,7 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 				temp->reset_ref_count();
 				temp->path.rx.gro = 0;
 				temp->path.rx.is_vma_thr = false;
+				temp->path.rx.vma_polled = false;
 				temp->path.rx.p_ip_h = NULL;
 				temp->path.rx.p_tcp_h = NULL;
 				temp->path.rx.sw_timestamp.tv_nsec = 0;
@@ -711,6 +712,64 @@ void cq_mgr::mem_buf_desc_return_to_owner(mem_buf_desc_t* p_mem_buf_desc, void* 
 	reclaim_recv_buffer_helper(p_mem_buf_desc);
 }
 
+int cq_mgr::vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
+{
+	int packets_num = 0;
+
+	if (unlikely(m_rx_hot_buff == NULL)) {
+		int index = m_qp->m_mlx5_hw_qp->rq.tail & (m_qp->m_rx_num_wr - 1);
+		m_rx_hot_buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_rq_wqe_idx_to_wrid[index];
+		m_rx_hot_buff->path.rx.context = this;
+		m_rx_hot_buff->path.rx.is_vma_thr = false;
+	}
+	//prefetch_range((uint8_t*)m_rx_hot_buff->p_buffer,mce_sys.rx_prefetch_bytes_before_poll);
+#ifdef RDTSC_MEASURE_RX_VERBS_READY_POLL
+	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VERBS_READY_POLL]);
+#endif //RDTSC_MEASURE_RX_VERBS_READY_POLL
+
+#ifdef RDTSC_MEASURE_RX_VERBS_IDLE_POLL
+	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VERBS_IDLE_POLL]);
+#endif //RDTSC_MEASURE_RX_VERBS_IDLE_POLL
+
+#ifdef RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL]);
+#endif //RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
+	volatile mlx5_cqe64 *cqe = mlx5_get_cqe64();
+
+	if (likely(cqe)) {
+		++m_n_wce_counter;
+		++m_qp->m_mlx5_hw_qp->rq.tail;
+		m_rx_hot_buff->sz_data = ntohl(cqe->byte_cnt);
+
+		if (unlikely(++m_qp_rec.debth == mce_sys.qp_compensation_level)) {
+			compensate_qp_poll_success(m_rx_hot_buff);
+			/*if (unlikely(!compensate_qp_poll_success(m_rx_hot_buff))) {
+				m_rx_hot_buff = NULL;
+				return packets_num;
+			}*/
+		}
+		++packets_num;
+		*p_desc_lst = m_rx_hot_buff;
+		m_rx_hot_buff = NULL;
+	}  else {
+#ifdef RDTSC_MEASURE_RX_VERBS_IDLE_POLL
+		RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VERBS_IDLE_POLL]);
+#endif
+
+#ifdef RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
+		RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL]);
+#endif
+
+#ifdef RDTSC_MEASURE_RX_CQE_RECEIVEFROM
+		RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM]);
+#endif
+		compensate_qp_poll_failed();
+	}
+
+	return packets_num;
+
+}
+
 int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array)
 {
 	// Assume locked!!!
@@ -727,13 +786,11 @@ int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready
 	}
 
 	if (unlikely(m_rx_hot_buff == NULL)) {
-		if (likely(m_qp->m_mlx5_hw_qp)) {
-			int index = m_qp->m_mlx5_hw_qp->rq.tail & (m_qp->m_rx_num_wr - 1);
-			m_rx_hot_buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_rq_wqe_idx_to_wrid[index];
-			m_rx_hot_buff->path.rx.context = this;
-			m_rx_hot_buff->path.rx.is_vma_thr = false;
-		}
-
+		int index = m_qp->m_mlx5_hw_qp->rq.tail & (m_qp->m_rx_num_wr - 1);
+		m_rx_hot_buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_rq_wqe_idx_to_wrid[index];
+		m_rx_hot_buff->path.rx.context = this;
+		m_rx_hot_buff->path.rx.is_vma_thr = false;
+		m_rx_hot_buff->path.rx.vma_polled = false;
 	}
 	else {
 		volatile mlx5_cqe64 *cqe = mlx5_get_cqe64();
@@ -764,33 +821,31 @@ int cq_mgr::poll_and_process_helper_tx(uint64_t* p_cq_poll_sn)
 	cq_logfuncall("");
 	volatile mlx5_cqe64 *cqe = mlx5_get_cqe64();
 
-		if (likely(cqe)) {
-			wmb();
-			*m_cq_db = htonl(m_cq_ci);
-			m_qp->m_mlx5_hw_qp->sq.tail += NUM_TX_POST_SEND_NOTIFY;
-			uint16_t wqe_ctr = ntohs(cqe->wqe_counter);
-			int index = wqe_ctr & (m_qp->m_tx_num_wr - 1);
-			mem_buf_desc_t* buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_sq_wqe_idx_to_wrid[index];
+	if (likely(cqe)) {
+		m_qp->m_mlx5_hw_qp->sq.tail += NUM_TX_POST_SEND_NOTIFY;
+		uint16_t wqe_ctr = ntohs(cqe->wqe_counter);
+		int index = wqe_ctr & (m_qp->m_tx_num_wr - 1);
+		mem_buf_desc_t* buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_sq_wqe_idx_to_wrid[index];
 
-			// spoil the global sn if we have packets ready
-			union __attribute__((packed)) {
-				uint64_t global_sn;
-				struct {
-					uint32_t cq_id;
-					uint32_t cq_sn;
-				} bundle;
-			} next_sn;
-			next_sn.bundle.cq_sn = ++m_n_cq_poll_sn;
-			next_sn.bundle.cq_id = m_cq_id;
+		// spoil the global sn if we have packets ready
+		union __attribute__((packed)) {
+			uint64_t global_sn;
+			struct {
+				uint32_t cq_id;
+				uint32_t cq_sn;
+			} bundle;
+		} next_sn;
+		next_sn.bundle.cq_sn = ++m_n_cq_poll_sn;
+		next_sn.bundle.cq_id = m_cq_id;
 
-			*p_cq_poll_sn = m_n_global_sn = next_sn.global_sn;
+		*p_cq_poll_sn = m_n_global_sn = next_sn.global_sn;
 
-			process_tx_buffer_list(buff);
-			ret = 1;
-		}
-		else {
-			*p_cq_poll_sn = m_n_global_sn;
-		}
+		process_tx_buffer_list(buff);
+		ret = 1;
+	}
+	else {
+		*p_cq_poll_sn = m_n_global_sn;
+	}
 
 	return ret;
 }

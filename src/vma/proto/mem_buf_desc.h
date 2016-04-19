@@ -105,6 +105,7 @@ public:
 			struct timespec	hw_timestamp;
 
 			void* 		context;
+			bool 		vma_polled;
 		} rx;
 		struct {
 			ibv_send_wr_ud 	wr_ud_info;

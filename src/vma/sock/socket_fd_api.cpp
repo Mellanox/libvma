@@ -310,6 +310,12 @@ int socket_fd_api::free_packets(struct vma_packet_t *pkts, size_t count)
 	return -1;
 }
 
+int socket_fd_api::free_buffs(uint16_t len)
+{
+	NOT_IN_USE(len);
+	return -1;
+}
+
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif

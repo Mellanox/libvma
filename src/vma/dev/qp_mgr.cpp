@@ -154,7 +154,7 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	} ENDIF_VERBS_FAILURE;
 
 	struct verbs_qp *vqp = (struct verbs_qp *)m_qp;
-	m_mlx5_hw_qp = container_of(vqp, struct mlx5_qp, verbs_qp);
+	m_mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
 
 	m_qp_num = m_mlx5_hw_qp->ctrl_seg.qp_num;
 	m_mlx5_sq_wqes = (volatile struct mlx5_wqe64 (*)[])(uintptr_t)m_mlx5_hw_qp->gen_data.sqstart;

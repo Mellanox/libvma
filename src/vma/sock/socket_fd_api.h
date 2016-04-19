@@ -150,6 +150,8 @@ public:
 	
 	virtual int free_packets(struct vma_packet_t *pkts, size_t count);
 
+	virtual	int free_buffs(uint16_t len);
+
 	virtual int get_fd( ) const { return m_fd; };
 
 	// true if fd must be skipped from OS select()
@@ -186,6 +188,8 @@ public:
 		      const sockaddr *__to, const socklen_t __tolen);
 
 	list_node<socket_fd_api> node;
+	virtual int get_rings_num() {return 0;}
+	virtual int* get_rings_fds() {return NULL;}
 
 protected:
 	void notify_epoll_context(uint32_t events);

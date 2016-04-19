@@ -1469,7 +1469,7 @@ extern "C" void sock_redirect_exit(void)
 	finit_instrumentation(safe_mce_sys().vma_time_measure_filename);
 #endif
 	vlog_printf(VLOG_DEBUG, "%s()\n", __FUNCTION__);
-	vma_shmem_stats_close();
+	//vma_shmem_stats_close();
 }
 
 #if _BullseyeCoverage

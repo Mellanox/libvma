@@ -85,6 +85,9 @@ struct pbuf {
   /** pointer to the actual data in the buffer */
   void *payload;
 
+  /** length of this buffer */
+  u16_t len;
+
   /**
    * total length of this buffer and all next buffers in chain
    * belonging to the same packet.
@@ -93,9 +96,6 @@ struct pbuf {
    * p->tot_len == p->len + (p->next? p->next->tot_len: 0)
    */
   u32_t tot_len; // windows scale needs large pbuf
-
-  /** length of this buffer */
-  u16_t len;
 
   /** pbuf_type as u8_t instead of enum to save space */
   u8_t /*pbuf_type*/ type;

@@ -25,6 +25,7 @@
 #include "vma/proto/mem_buf_desc.h"
 #include "vma/proto/vma_lwip.h"
 #include "vma/dev/ib_ctx_handler.h"
+#include "vma/vma_extra.h"
 
 class net_device_mgr;
 class ring;
@@ -214,6 +215,7 @@ private:
 	 */
 	//a sub helper for poll_and_process_helper_rx in order to shorten the function
 	void		handle_tcp_ctl_packets(uint32_t rx_processed, void* pv_fd_ready_array);
+	int		vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst);
 	int		poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	int		poll_and_process_helper_tx(uint64_t* p_cq_poll_sn);
 

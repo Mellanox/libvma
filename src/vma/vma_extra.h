@@ -16,12 +16,12 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <netinet/in.h>
 /*
  * Flags for recvfrom_zcopy()
  */
 #define MSG_VMA_ZCOPY_FORCE	0x01000000 // don't fallback to bcopy
 #define	MSG_VMA_ZCOPY		0x00040000 // return: zero copy was done
-
 
 /* 
  * Return values for the receive packet notify callback function
@@ -38,6 +38,51 @@ typedef enum {
 				But not in the context of VMA's callback itself. */
 } vma_recv_callback_retval_t;
 
+
+
+
+/************ vma_poll() API types definition start***************/
+
+typedef enum {
+    VMA_POLL_PACKET = (1ULL << 32)
+} vma_poll_events_t;
+
+/*
+ * Represents  VMA buffer
+ * Used in vma_poll() extended API.
+ */
+struct vma_buff_t {
+	vma_buff_t*	next;			/* next buffer (for last buffer next == NULL) */
+	void*		payload;		/* pointer to data */
+	uint16_t	len;			/* data length */
+};
+
+/**
+ * Represents one VMA packet
+ * Used in vma_poll() extended API.
+ */
+struct vma_packet_desc_t {
+	size_t			num_bufs;	/* number of packet's buffers */
+	uint16_t		total_len;	/* total data length */
+	struct vma_buff_t*	buff_lst;	/* list of packet's buffers */
+};
+
+/*
+ * Represents VMA Completion.
+ * Used in vma_poll() extended API.
+ */
+struct vma_completion_t {
+	vma_packet_desc_t	packet;	/* polled packet valid only if VMA_POLL_PACKET event is enabled*/
+	uint64_t 		events;	/* polled events */
+	uint64_t 		user_data;	/*user provided data, by default this field holds the
+						  FD of the socket that is associated if the completion */
+	/* Packet source address (in network byte order) Reserved for type == VMA_COMPLETION_TYPE_EVENT*/
+	struct sockaddr_in	src;
+};
+
+/************ vma_poll() API types definition end ***************/
+
+
 /**
  * Represents one VMA packets 
  * Used in zero-copy extended API.
@@ -47,7 +92,6 @@ struct __attribute__ ((packed)) vma_packet_t {
 	size_t		sz_iov;			// number of fragments
 	struct iovec	iov[];			// fragments size+data
 };
-
 
 /**
  * Represents received packets in VMA
@@ -77,7 +121,6 @@ struct __attribute__ ((packed)) vma_info_t {
 	uint32_t		socket_ready_queue_pkt_count;	/* Current count of packets waiting to be read from the socket */
 	uint32_t		socket_ready_queue_byte_count;	/* Current count of bytes waiting to be read from the socket */
 };
-
 
 /** 
  *  
@@ -190,6 +233,85 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * @return 0 on success, or error code on failure.
 	 */
 	int (*thread_offload)(int offload, pthread_t tid);
+
+
+	/**
+	 * vma_poll() polls for VMA completions
+	 *
+	 * @param fd File descriptor.
+	 * @param completions VMA completions array.
+	 * @param ncompletions Maximum number of completion to return.
+	 * @param flags Flags.
+	 * @return On success, return the number of ready completions.
+	 * 	   On error, -1 is returned, and TBD:errno is set?.
+	 *
+	 * This function polls the `fd` for VMA completions and returns maximum `ncompletions` ready
+	 * completions via `completions` array.
+	 * The `fd` can represent a ring, socket or epoll file descriptor.
+	 *
+	 * VMA completions are indicated for incoming packets and/or for other events.
+	 * If VMA_POLL_PACKET flag is enabled in vma_completion_t.events field
+	 * the completion points to incoming packet descriptor that can be accesses
+	 * via vma_completion_t.packet field.
+	 * Packet descriptor points to VMA buffers that contain data scattered
+	 * by HW, so the data is deliver to application with zero copy.
+	 * Notice: the returned packet's buffers must be freed with free_vma_buffers()
+	 * after the application finished using it.
+	 * If VMA_POLL_PACKET flag is disabled vma_completion_t.packet field is
+	 * reserved.
+	 *
+	 * In addition to packet arrival event (indicated by VMA_POLL_PACKET flag)
+	 * VMA also reports a standard epoll events via vma_completion_t.events field.
+	 * For events other than packet arrival vma_completion_t.events bitmask
+	 * composed using standard epoll API events types.
+	 * Notice: the same completion can report multiple events, for example
+	 * VMA_POLL_PACKET flag can be enabled together with EPOLLOUT event,
+	 * etc...
+	 *
+	 * * errno is set to: TBD...
+	 */
+	 int (*vma_poll)(int fd, vma_completion_t* completions, unsigned int ncompletions, int flags);
+
+	 /**
+	 * Returns the amount of rings that are associated with socket.
+	 *
+	 * @param fd File Descriptor number of the socket.
+	 * @return On success, return the amount of rings.
+	 * 	   On error, -1 is returned.
+	 *
+	 * errno is set to: EINVAL - not a VMA offloaded fd
+	 */
+	 int (*get_socket_rings_num)(int fd);
+
+	 /**
+	 * Returns FDs of the rings that are associated with the socket.
+	 *
+	 * This function gets socket FD + int array + array size and populates
+	 * the array with FD numbers of the rings that are associated
+	 * with the socket.
+	 *
+	 * @param fd File Descriptor number.
+	 * @param ring_fds Int array of ring fds
+	 * @param ring_fds_sz Size of the array
+	 * @return On success, return the number populated array entries.
+	 * 	   On error, -1 is returned.
+	 *
+	 * errno is set to: EINVAL - not a VMA offloaded fd + TBD
+	 */
+	 int (*get_socket_rings_fds)(int fd, int *ring_fds, int ring_fds_sz);
+
+	/**
+	 * Frees packets received by vma_poll().
+	 *
+	 * @param fd Socket that received the packets.
+	 * @param packets Packets to free.
+	 * @param num Number of packets in `packets` array
+	 * @return 0 on success, -1 on failure
+	 *
+	 * errno is set to: EINVAL - not a VMA offloaded fd + TBD
+	 */
+	int (*free_vma_packets)(int fd, struct vma_packet_desc_t *packets, int num);
+
 };
 
 
@@ -217,7 +339,101 @@ static inline struct vma_api_t* vma_get_api()
 #endif
 
 /* 
- * Demo Usage
+ * vma_poll() Demo Usage
+ *
+
+
+struct vma_api_t* vma_api = NULL;
+
+
+ *
+ * Main loop
+ *
+myapp_socket_main_loop()
+{
+	int flags = 0;
+	char buf[256];
+	int rings;
+	vma_completion_t comp;
+	int ready_comp = 0;
+	bool to_exit = false;
+
+
+	// Try to find if VMA is loaded and the Extra API is available
+	vma_api = vma_get_api();
+
+	// Create my application's  socket
+	int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_IP)
+
+	//Configure/connect the socket
+	setsockopt()
+	connect()
+	...
+
+	//Get socket's ring, we skip reading the number of rings
+	//since connected TCP socket is associated with a single ring
+	if (vma_api) {
+		vma_api->get_socket_rings_fds(fd, &ring, 1);
+	}
+	else {
+		exit...
+	}
+
+	// Main traffic processing loop going into VMA engine
+	while (!to_exit) {
+
+		ready_comp = vma_api->vma_poll(ring_fd, &comp, 1, flags);
+
+		// recv path socket API...
+		if (ready_comp > 0) {
+			if (comp.events & VMA_COMPLETION_TYPE_PACKET) {
+				myapp_processes_packet_func(comp.user_data, &comp.packet);
+				vma_api->free_vma_packets(socket_fd, &comp.packet, 1);
+			}
+			myapp_processes_events_func(comp.user_data,comp.events);
+
+		}
+		else if (ready_comp < 0) {
+			to_exit = true;
+		}
+	}
+}
+
+ *
+ * Process VMA buffer
+ *
+myapp_processes_packet_func(
+	int socket,
+	vma_packet_t* packet)
+{
+	vma_buff_t* curr_buff = packet->buff_lst;
+
+	printf("[fd=%d] Received packet from: %s:%d \n", socket, inet_ntoa(packet->src.sin_addr), ntohs(packet->src.sin_port));
+	printf("Packet total length is: %u\n", packet->total_len);
+	printf("Packet's buffers: \n");
+	while (curr_buff) {
+		printf("Address: %p, Length: %u\n", curr_buff->payload, curr_buff->len);
+		curr_buff = curr_buff->next;
+	}
+
+}
+
+ *
+ * Process VMA event
+ *
+myapp_processes_events_func(
+	int socket,
+	uint64_t events)
+{
+	if (comp.events & EPOLLHUP){
+		printf("[fd=%d] EPOLLHUP event occurred\n", socket);
+	}
+}
+
+
+
+ *
+ * VMA callback + recvfrom_zcopy Demo Usage
  *
 
 

@@ -935,3 +935,9 @@ int sockinfo::register_callback(vma_recv_callback_t callback, void *context)
 	m_rx_callback_context = context;
 	return 0;
 }
+
+int sockinfo::fast_nonblocking_rx(vma_packets_t *vma_pkts)
+{
+	NOT_IN_USE(vma_pkts);
+	return 0;
+}

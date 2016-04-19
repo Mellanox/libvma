@@ -26,6 +26,7 @@
 #include "vma/dev/ib_ctx_handler.h"
 #include "vma/dev/net_device_val.h"
 #include "vma/dev/qp_mgr.h"
+#include "vma/sock/socket_fd_api.h"
 
 class rfs;
 class cq_mgr;
@@ -44,10 +45,10 @@ class buffer_pool;
 
 
 #define ring_logpanic 		__log_info_panic
-#define ring_logerr			__log_info_err
+#define ring_logerr		__log_info_err
 #define ring_logwarn		__log_info_warn
 #define ring_loginfo		__log_info_info
-#define ring_logdbg			__log_info_dbg
+#define ring_logdbg		__log_info_dbg
 #define ring_logfunc		__log_info_func
 #define ring_logfuncall		__log_info_funcall
 
@@ -246,11 +247,15 @@ public:
 	virtual ring_user_id_t	generate_id() = 0;
 	virtual ring_user_id_t	generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port) = 0;
 	uint32_t		get_mtu() {return m_mtu;};
+	virtual int		vma_poll(vma_completion_t *vma_completions, unsigned int ncompletions, int flags) = 0;
+	virtual bool		reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return false;}
 
 protected:
 	uint32_t		m_n_num_resources;
 	int*			m_p_n_rx_channel_fds;
 	ring*			m_parent;
+	vma_completion_t*	m_vma_comp_arr;
+	int 			m_vma_curr_comp_index;
 
 private:
 	uint32_t		 m_mtu;

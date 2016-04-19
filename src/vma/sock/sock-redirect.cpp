@@ -321,6 +321,41 @@ int vma_recvfrom_zcopy(int __fd, void *__buf, size_t __nbytes, int *__flags,
 }
 
 extern "C"
+int vma_poll(int fd, vma_completion_t* completions, unsigned int ncompletions, int flags)
+{
+	int ret_val = -1;
+	cq_channel_info* cq_ch_info = NULL;
+
+	cq_ch_info = g_p_fd_collection->get_cq_channel_fd(fd);
+
+	if (likely(cq_ch_info)) {
+		ring* p_ring = cq_ch_info->get_ring();
+
+		ret_val = p_ring->vma_poll(completions, ncompletions, flags);
+#ifdef RDTSC_MEASURE_RX_PROCCESS_BUFFER_TO_RECIVEFROM
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_PROCCESS_RX_BUFFER_TO_RECIVEFROM]);
+#endif //RDTSC_MEASURE_RX_PROCCESS_BUFFER_TO_RECIVEFROM
+
+#ifdef RDTSC_MEASURE_RX_LWIP_TO_RECEVEFROM
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_LWIP_TO_RECEVEFROM]);
+#endif //RDTSC_MEASURE_RX_LWIP_TO_RECEVEFROM
+
+#ifdef RDTSC_MEASURE_RX_CQE_RECEIVEFROM
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM]);
+#endif //RDTSC_MEASURE_RX_CQE_RECEIVEFROM
+
+#ifdef RDTSC_MEASURE_RECEIVEFROM_TO_SENDTO
+	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RECEIVEFROM_TO_SENDTO]);
+#endif //RDTSC_MEASURE_RECEIVEFROM_TO_SENDTO
+	return ret_val;
+	}
+	else {
+		errno = EBADFD;
+		return ret_val;
+	}
+}
+
+extern "C"
 int vma_free_packets(int __fd, struct vma_packet_t *pkts, size_t count)
 {
 	socket_fd_api* p_socket_object = NULL;
@@ -331,6 +366,35 @@ int vma_free_packets(int __fd, struct vma_packet_t *pkts, size_t count)
 
 	errno = EINVAL;
 	return -1;
+}
+
+extern "C"
+int vma_free_vma_packets(int fd, struct vma_packet_desc_t *packets, int num)
+{
+	int ret_val = 0;
+	int *ring_fd;
+	cq_channel_info* cq_ch_info = NULL;
+	socket_fd_api* p_socket_object = NULL;
+
+	p_socket_object = fd_collection_get_sockfd(fd);
+
+	ring_fd = p_socket_object->get_rings_fds();
+	cq_ch_info = g_p_fd_collection->get_cq_channel_fd(ring_fd[0]);
+
+	if (likely(cq_ch_info)) {
+		ring* p_ring = cq_ch_info->get_ring();
+		for (int i = 0; i < num; i++) {
+			p_socket_object->free_buffs(packets[i].total_len);
+			p_ring->reclaim_recv_buffers_no_lock((mem_buf_desc_t*)packets[i].buff_lst);
+		}
+
+	}
+	else {
+		errno = EINVAL;
+		ret_val = -1;
+	}
+
+	return ret_val;
 }
 
 extern "C"
@@ -360,6 +424,34 @@ int vma_thread_offload(int offload, pthread_t tid)
 	}
 
 	return 0;
+}
+
+extern "C"
+int vma_get_socket_rings_num(int fd)
+{
+	socket_fd_api* p_socket_object = NULL;
+	p_socket_object = fd_collection_get_sockfd(fd);
+
+	return p_socket_object->get_rings_num();
+
+}
+
+extern "C"
+int vma_get_socket_rings_fds(int fd, int *ring_fds, int ring_fds_sz)
+{
+	int* p_rings_fds = NULL;
+	socket_fd_api* p_socket_object = NULL;
+	int rings_num = 0;
+
+	if (ring_fds_sz > 0) {
+		p_socket_object = fd_collection_get_sockfd(fd);
+
+		p_rings_fds = p_socket_object->get_rings_fds();
+		*ring_fds = p_rings_fds[0];
+		rings_num = 1;
+	}
+
+	return rings_num;
 }
 
 //-----------------------------------------------------------------------------
@@ -657,6 +749,10 @@ int getsockopt(int __fd, int __level, int __optname,
 		vma_api->free_packets = vma_free_packets;
 		vma_api->add_conf_rule = vma_add_conf_rule;
 		vma_api->thread_offload = vma_thread_offload;
+		vma_api->get_socket_rings_num = vma_get_socket_rings_num;
+		vma_api->get_socket_rings_fds = vma_get_socket_rings_fds;
+		vma_api->free_vma_packets = vma_free_vma_packets;
+		vma_api->vma_poll = vma_poll;
 		*((vma_api_t**)__optval) = vma_api;
 		return 0;
 	}

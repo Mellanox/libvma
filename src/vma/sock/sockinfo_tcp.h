@@ -20,6 +20,7 @@
 #include "vma/sock/socket_fd_api.h"
 #include "vma/dev/buffer_pool.h"
 #include "vma/dev/cq_mgr.h"
+#include "vma/vma_extra.h"
 
 // LWIP includes
 #include "vma/lwip/opt.h"
@@ -112,6 +113,7 @@ public:
 	virtual int getpeername(sockaddr *__name, socklen_t *__namelen);
 
 	virtual	int	free_packets(struct vma_packet_t *pkts, size_t count);
+	virtual	int 	free_buffs(uint16_t len);
 
 	//Returns the connected pcb, with 5 tuple which matches the input arguments,
 	//in state "SYN Received" or NULL if pcb wasn't found
@@ -203,12 +205,15 @@ protected:
 	virtual bool try_un_offloading(); // un-offload the socket if possible
 
 private:
+	vma_completion_t* m_p_vma_completion;
+	vma_completion_t* m_last_cmp;
+	vma_buff_t* m_last_poll_vma_buff_lst;
 	//lwip specific things
 	struct tcp_pcb m_pcb;
 	tcp_sock_offload_e m_sock_offload;
 	tcp_sock_state_e m_sock_state;
 	sockinfo_tcp *m_parent;
-	//received packet source (true if its from internal thread) 
+	//received packet source (true if its from internal thread)
 	bool m_vma_thr;
 	/* connection state machine */
 	int m_conn_timeout;
@@ -304,6 +309,7 @@ private:
 	static err_t rx_lwip_cb(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
 	static err_t rx_drop_lwip_cb(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
 
+	static  void prepare_event_completion(sockinfo_tcp *conn, uint64_t events);
 	// Be sure that m_pcb is initialized
 	void set_conn_properties_from_pcb();
 
