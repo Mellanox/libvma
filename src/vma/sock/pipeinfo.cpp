@@ -78,6 +78,7 @@ pipeinfo::pipeinfo(int fd) : socket_fd_api(fd),
 	m_p_socket_stats->n_rx_ready_pkt_count = 0;
 	m_p_socket_stats->counters.n_rx_ready_pkt_max = 0;
 	m_p_socket_stats->n_rx_ready_byte_count = 0;
+	m_p_socket_stats->n_tx_ready_byte_count = 0;
 	m_p_socket_stats->counters.n_rx_ready_byte_max = 0;
 	m_p_socket_stats->n_rx_zcopy_pkt_count = 0;
 
