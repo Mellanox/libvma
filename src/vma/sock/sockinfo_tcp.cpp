@@ -1366,6 +1366,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 			conn->m_p_vma_completion->events |= VMA_POLL_PACKET;
 			conn->m_p_vma_completion->src = p_first_desc->path.rx.src;
 			conn->m_p_vma_completion->user_data = conn->m_fd;
+			conn->m_p_vma_completion->packet.num_bufs = p_first_desc->n_frags;
 		}
 		else {
 			mem_buf_desc_t* prev_lst_tail_desc = (mem_buf_desc_t*)conn->m_last_poll_vma_buff_lst;
