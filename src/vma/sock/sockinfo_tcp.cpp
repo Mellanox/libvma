@@ -729,6 +729,7 @@ done:
 	if (total_tx) {
 		m_p_socket_stats->counters.n_tx_sent_byte_count += total_tx;
 		m_p_socket_stats->counters.n_tx_sent_pkt_count++;
+		m_p_socket_stats->n_tx_ready_byte_count += total_tx;
 	}
 
 	tcp_output(&m_pcb); // force data out
@@ -1226,13 +1227,15 @@ int sockinfo_tcp::handle_child_FIN(sockinfo_tcp* child_conn)
 
 err_t sockinfo_tcp::ack_recvd_lwip_cb(void *arg, struct tcp_pcb *tpcb, u16_t ack)
 {
-	NOT_IN_USE(ack);
-	NOT_IN_USE(tpcb);
 	sockinfo_tcp *conn = (sockinfo_tcp *)arg;
+
+	assert((uintptr_t)tpcb->my_container == (uintptr_t)arg);
 
 	vlog_func_enter();
 
 	ASSERT_LOCKED(conn->m_tcp_con_lock);
+
+	conn->m_p_socket_stats->n_tx_ready_byte_count -= ack;
 
 	// notify epoll
 	conn->notify_epoll_context(EPOLLOUT);
@@ -1246,13 +1249,14 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
                         struct pbuf *p, err_t err)
 {
 
+	sockinfo_tcp *conn = (sockinfo_tcp *)arg;
 	uint32_t bytes_to_tcp_recved, non_tcp_receved_bytes_remaining, bytes_to_shrink;
 	int rcv_buffer_space;
-	sockinfo_tcp *conn = (sockinfo_tcp *)pcb->my_container;
-	NOT_IN_USE(arg);
 
-	//vlog_printf(VLOG_ERROR, "%s:%d %s\n", __func__, __LINE__, "RX CB");
+	assert((uintptr_t)pcb->my_container == (uintptr_t)arg);
+
 	vlog_func_enter();
+
 	ASSERT_LOCKED(conn->m_tcp_con_lock);
 
 	//if is FIN

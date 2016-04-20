@@ -309,7 +309,7 @@ static const char *state2str(tcp_state state)
 void print_netstat_like_headers(FILE* file)
 {
 	static bool already_printed = false;
-	if(!already_printed) fprintf(file, "Proto Offloaded Local Address          Foreign Address       State       Inode      PID/Program name\n");
+	if(!already_printed) fprintf(file, "Proto Offloaded Recv-Q Send-Q Local Address          Foreign Address       State       Inode      PID/Program name\n");
 	already_printed = true;
 }
 
@@ -322,6 +322,7 @@ void print_netstat_like(socket_stats_t* p_si_stats, mc_grp_info_t* , FILE* file,
 	if(! p_si_stats->inode) return; // shmem is not updated yet
 
 	fprintf(file, "%-5s %-9s ", to_str_socket_type_netstat_like(p_si_stats->socket_type), p_si_stats->b_is_offloaded ? "Yes" : "No");
+	fprintf(file, "%-6d %-6d ", (int)p_si_stats->n_rx_ready_byte_count, (int)p_si_stats->n_tx_ready_byte_count);
 
 	//
 	// Bounded + Connected information

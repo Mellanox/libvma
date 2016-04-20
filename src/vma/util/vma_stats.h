@@ -226,6 +226,7 @@ typedef struct {
 	uint32_t		n_rx_ready_byte_count;
 	uint32_t 		n_rx_ready_byte_limit;
 	uint32_t		n_rx_zcopy_pkt_count;
+	uint32_t		n_tx_ready_byte_count;
 	socket_counters_t	counters;
 } socket_stats_t;
 
