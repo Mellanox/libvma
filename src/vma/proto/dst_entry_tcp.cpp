@@ -174,6 +174,7 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 
 #ifndef __COVERITY__
         struct tcphdr* p_tcp_h = (struct tcphdr*)(((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr)));
+        NOT_IN_USE(p_tcp_h); /* to supress warning in case VMA_OPTIMIZE_LOG */
         dst_tcp_logfunc("Tx TCP segment info: src_port=%d, dst_port=%d, flags='%s%s%s%s%s%s' seq=%u, ack=%u, win=%u, payload_sz=%u",
                         ntohs(p_tcp_h->source), ntohs(p_tcp_h->dest),
                         p_tcp_h->urg?"U":"", p_tcp_h->ack?"A":"", p_tcp_h->psh?"P":"",

@@ -556,6 +556,7 @@ int bind(int __fd, const struct sockaddr *__addr, socklen_t __addrlen)
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	char buf[256];
+	NOT_IN_USE(buf); /* to suppress warning in case VMA_OPTIMIZE_LOG */
 	srdr_logdbg_entry("fd=%d, %s", __fd, sprintf_sockaddr(buf, 256, __addr, __addrlen));
 
 	int ret = 0;
@@ -596,6 +597,7 @@ int connect(int __fd, const struct sockaddr *__to, socklen_t __tolen)
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	char buf[256];
+	NOT_IN_USE(buf); /* to suppress warning in case VMA_OPTIMIZE_LOG */
 	srdr_logdbg_entry("fd=%d, %s", __fd, sprintf_sockaddr(buf, 256, __to, __tolen));
 
 	int ret = 0;
@@ -1384,6 +1386,9 @@ int select_helper(int __nfds,
 	if (g_vlogger_level >= VLOG_FUNC) {
 		const int tmpbufsize = 256;
 		char tmpbuf[tmpbufsize], tmpbuf2[tmpbufsize];
+		NOT_IN_USE(tmpbufsize); /* to suppress warning in case VMA_OPTIMIZE_LOG */
+		NOT_IN_USE(tmpbuf); /* to suppress warning in case VMA_OPTIMIZE_LOG */
+		NOT_IN_USE(tmpbuf2); /* to suppress warning in case VMA_OPTIMIZE_LOG */
 		srdr_logfunc("readfds: %s, writefds: %s",
 			   sprintf_fdset(tmpbuf, tmpbufsize, __nfds, __readfds), 
 			   sprintf_fdset(tmpbuf2, tmpbufsize, __nfds, __writefds));
@@ -1397,6 +1402,9 @@ int select_helper(int __nfds,
 		if (g_vlogger_level >= VLOG_FUNC) {
 			const int tmpbufsize = 256;
 			char tmpbuf[tmpbufsize], tmpbuf2[tmpbufsize];
+			NOT_IN_USE(tmpbufsize); /* to suppress warning in case VMA_OPTIMIZE_LOG */
+			NOT_IN_USE(tmpbuf); /* to suppress warning in case VMA_OPTIMIZE_LOG */
+			NOT_IN_USE(tmpbuf2); /* to suppress warning in case VMA_OPTIMIZE_LOG */
 			srdr_logfunc_exit("readfds: %s, writefds: %s",
 				   sprintf_fdset(tmpbuf, tmpbufsize, __nfds, __readfds),
 				   sprintf_fdset(tmpbuf2, tmpbufsize, __nfds, __writefds));
@@ -1601,6 +1609,7 @@ int epoll_ctl(int __epfd, int __op, int __fd, struct epoll_event *__event)
 	     "DEL",
 	     "MOD"
 	};
+	NOT_IN_USE(op_names); /* to suppress warning in case VMA_OPTIMIZE_LOG */
 	if (__event) {
 		srdr_logfunc_entry("epfd=%d, op=%s, fd=%d, events=%#x, data=%x", 
 			__epfd, op_names[__op], __fd, __event->events, __event->data.u64);

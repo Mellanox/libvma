@@ -1229,6 +1229,7 @@ err_t sockinfo_tcp::ack_recvd_lwip_cb(void *arg, struct tcp_pcb *tpcb, u16_t ack
 {
 	sockinfo_tcp *conn = (sockinfo_tcp *)arg;
 
+	NOT_IN_USE(tpcb); /* to suppress warning in case VMA_OPTIMIZE_LOG */
 	assert((uintptr_t)tpcb->my_container == (uintptr_t)arg);
 
 	vlog_func_enter();
