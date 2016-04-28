@@ -1,8 +1,8 @@
-#!/bin/bash -eElx
+#!/bin/bash -xeE
 
 source $(dirname $0)/globals.sh
 
-check_filter "Checking for codying style ..." "off"
+check_filter "Checking for codying style ..." "on"
 
 cd $WORKSPACE
 
@@ -28,7 +28,6 @@ fi
 
 if [ -e $checkpatch ]; then
 
-
     style_tap=${WORKSPACE}/${prefix}/style_test.tap
     rm -rf $style_tap
     check_files=$(find $WORKSPACE/src/state_machine/ -name '*.c' -o -name '*.cpp' -o -name '*.h')
@@ -52,16 +51,17 @@ if [ -e $checkpatch ]; then
     check_files+=$(find $WORKSPACE/src/vma/sock/ -name '*.c' -o -name '*.cpp' -o -name '*.h')
     check_files+=" "
     check_files+=$(find $WORKSPACE/src/vma -name '*.c' -o -name '*.cpp' -o -name '*.h')
+
     echo "1..$(echo $check_files | wc -w)" > $style_tap
     i=0
     status="success"
     gh_url="$BUILD_URL/console"
-    total_errors=0
+    nerrors=0
 
     for file in $check_files; do
         set +e
         ret=$(perl -X $checkpatch --file --terse --no-tree $file | grep -v -w $stoplist_pattern| wc -l)
-        total_errors=$((total_errors+ret))
+        nerrors=$((nerrors+ret))
         set -e
         i=$((i+1))
 
@@ -70,11 +70,13 @@ if [ -e $checkpatch ]; then
         if [ $ret -gt 0 ]; then
             echo "not ok $i $fix_file # TODO" >> $style_tap
             #status="error"
-            info="checkpatch.pl detected $total_errors style errors"
+            info="checkpatch.pl detected $nerrors style errors"
         else
             echo "ok $i $fix_file" >> $style_tap
         fi
     done
+
+    rc=$(($rc+$nerrors))
 
     if [ -n "$ghprbGhRepository" ]; then
         context="MellanoxLab/codestyle"
@@ -82,3 +84,6 @@ if [ -e $checkpatch ]; then
     fi
 
 fi
+
+echo "[${0##*/}]..................exit code = $rc"
+exit $rc
