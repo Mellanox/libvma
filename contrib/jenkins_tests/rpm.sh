@@ -13,10 +13,20 @@ cd $rpm_dir
 #${WORKSPACE}/configure --prefix=$install_dir $jenkins_test_custom_configure
 cd $build_dir
 
+rpm_tap=${WORKSPACE}/${prefix}/rpm.tap
 
 if [ -x /usr/bin/dpkg-buildpackage ]; then
     echo "Build on debian"
+    set +e
     ${WORKSPACE}/build/build_deb.sh
+    rc=$((rc + $?))
+    set -e
+	echo "1..1" > $rpm_tap
+	if [ $rc -gt 0 ]; then
+	    echo "not ok 1 Debian package" >> $rpm_tap
+	else
+	    echo ok 1 Debian package >> $rpm_tap
+	fi
 else
     echo "Build rpms"
     rpmspec=${WORKSPACE}/build/libvma.spec
@@ -27,26 +37,28 @@ else
     opt_srcrpm=1
     opt_binrpm=1
 
-	rpm_tap=${WORKSPACE}/${prefix}/rpm.tap
     echo "1..$(($opt_tarball + $opt_srcrpm + $opt_binrpm))" > $rpm_tap
 
     test_id=0
     if [ $opt_tarball -eq 1 ]; then
         test_id=$((test_id+1))
-        test_exec='make dist'
+        test_exec='make dist && make distcheck'
         check_result "$test_exec" "$test_id" "tarball" "$rpm_tap"
         eval $timeout_exe cp libvma*.tar.gz ${rpm_dir}
     fi
 	
     if [ $opt_srcrpm -eq 1 ]; then
         test_id=$((test_id+1))
-        test_exec='echo rpmbuild -bs $rpmmacros $rpmopts $rpmspec | bash -eEx'
+        test_exec='echo rpmbuild -bs $rpmmacros $rpmopts $rpmspec'
         check_result "$test_exec" "$test_id" "srcrpm" "$rpm_tap"
     fi
 
     if [ $opt_binrpm -eq 1 ]; then
         test_id=$((test_id+1))
-        test_exec='echo rpmbuild -bb $rpmmacros $rpmopts $rpmspec | bash -eEx'
+        test_exec='echo rpmbuild -bb $rpmmacros $rpmopts $rpmspec'
         check_result "$test_exec" "$test_id" "binrpm" "$rpm_tap"
     fi
 fi
+
+echo "[${0##*/}]..................exit code = $rc"
+exit $rc
