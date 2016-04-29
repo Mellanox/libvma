@@ -179,7 +179,7 @@ private:
 	in_port_t 	m_bound_port;
 	in_addr_t 	m_connected_ip;
 	in_port_t 	m_connected_port;
-//*/
+*/
 	in_addr_t 	m_mc_tx_if;
 	bool 		m_b_mc_tx_loop;
 	uint8_t 	m_n_mc_ttl;

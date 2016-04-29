@@ -541,7 +541,7 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 		si_udp_logdbg("'connect()' to local loopback address [%s] will be handled by the OS", connect_to.to_str());
 		return 0; // zero returned from orig_connect()
 	}
-//*/
+*/
 
 		in_addr_t dst_ip = connect_to.get_in_addr();
 		in_port_t dst_port = connect_to.get_in_port();
@@ -1628,7 +1628,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 				m_dst_entry_map[dst] = p_dst_entry;
 				/* ADD logging
 				si_udp_logfunc("Address %d.%d.%d.%d failed resolving as Tx on supported devices for interfaces %d.%d.%d.%d (tx-ing to os)", NIPQUAD(to_ip), NIPQUAD(local_if));
-			//*/
+			*/
 			}
 		}
 	}

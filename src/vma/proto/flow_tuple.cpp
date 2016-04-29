@@ -118,7 +118,7 @@ void flow_tuple::set_protocol(in_protocol_t protocol)
 	m_protocol = protocol;
 	set_str();
 }
-//*/
+*/
 
 bool flow_tuple::is_tcp()
 {
