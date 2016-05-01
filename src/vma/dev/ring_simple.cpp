@@ -1235,12 +1235,12 @@ int ring_simple::vma_poll(vma_completion_t *vma_completions, unsigned int ncompl
 		for (unsigned int i = 0; i < ncompletions && !g_b_exit; ++i) {
 			if (likely(m_p_cq_mgr_rx->vma_poll_and_process_element_rx(&desc))) {
 				vma_poll_process_recv_buffer(desc);
-				if (m_vma_comp_arr[i].events) {
+				if (m_vma_comp_arr[m_vma_curr_comp_index].events) {
 					++m_vma_curr_comp_index;
-					ret = m_vma_curr_comp_index;
 				}
 			}
 		}
+		ret = m_vma_curr_comp_index;
 	}
 	else {
 		ret = -1;
