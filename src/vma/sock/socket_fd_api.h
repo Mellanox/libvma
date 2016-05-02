@@ -211,6 +211,11 @@ public:
 	static inline size_t socket_fd_list_node_offset(void) {return NODE_OFFSET(socket_fd_api, socket_fd_list_node);}
 	list_node<socket_fd_api, socket_fd_api::socket_fd_list_node_offset> socket_fd_list_node;
 
+	static inline size_t ep_ready_fd_node_offset(void) {return NODE_OFFSET(socket_fd_api, ep_ready_fd_node);}
+	list_node<socket_fd_api, socket_fd_api::ep_ready_fd_node_offset> ep_ready_fd_node;
+
+	uint32_t m_epoll_event_flags;
+
 protected:
 	void notify_epoll_context(uint32_t events);
 	void notify_epoll_context_add_ring(ring* ring);
