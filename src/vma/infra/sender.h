@@ -93,7 +93,9 @@ public:
 
 	header  *m_header;
 	uint8_t m_protocol;
-	list_node<neigh_send_data> node;
+
+	static inline size_t unsent_node_offset(void) {return NODE_OFFSET(neigh_send_data, unsent_node);}
+	list_node<neigh_send_data, neigh_send_data::unsent_node_offset> unsent_node;
 };
 
 class send_event : public event

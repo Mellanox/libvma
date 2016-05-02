@@ -150,7 +150,8 @@ public:
 
 	virtual void clean_obj();
 
-	list_node<epfd_info>	node;
+	static inline size_t epfd_info_node_offset(void) {return NODE_OFFSET(epfd_info, epfd_info_node);}
+	list_node<epfd_info, epfd_info::epfd_info_node_offset>	epfd_info_node;
 
 private:
 

@@ -55,8 +55,8 @@ buffer_pool *g_buffer_pool_tx = NULL;
 inline void buffer_pool::put_buffer_helper(mem_buf_desc_t *buff)
 {
 #if _VMA_LIST_DEBUG
-	if (buff->node.is_list_member()) {
-		vlog_printf(VLOG_WARNING, "buffer_pool::put_buffer_helper - buff is already a member in a list (list id = %s)\n", buff->node.list_id());
+	if (buff->buffer_node.is_list_member()) {
+		vlog_printf(VLOG_WARNING, "buffer_pool::put_buffer_helper - buff is already a member in a list (list id = %s)\n", buff->buffer_node.list_id());
 	}
 #endif
 	buff->p_next_desc = m_p_head;
