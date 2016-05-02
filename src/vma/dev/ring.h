@@ -267,6 +267,11 @@ public:
 	virtual ring_user_id_t	generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port) = 0;
 	uint32_t		get_mtu() {return m_mtu;};
 
+	static inline size_t ep_info_ring_list_node_offset(void) {return NODE_OFFSET(ring, ep_info_ring_list_node);}
+	list_node<ring, ring::ep_info_ring_list_node_offset> ep_info_ring_list_node;
+
+	int m_ref_count;
+
 protected:
 	uint32_t		m_n_num_resources;
 	int*			m_p_n_rx_channel_fds;

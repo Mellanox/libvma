@@ -50,12 +50,12 @@
 
 inline void epfd_info::increase_ring_ref_count_no_lock(ring* ring)
 {
-	ring_map_t::iterator iter = m_ring_map.find(ring);
-	if (iter != m_ring_map.end()) {
+	if (ring->ep_info_ring_list_node.is_list_member()) {
 		//increase ref count
-		iter->second++;
+		ring->m_ref_count++;
 	} else {
-		m_ring_map[ring] = 1;
+		ring->m_ref_count = 1;
+		m_ring_list.push_back(ring);
 
 		// add cq channel fd to the epfd
 		int num_ring_rx_fds = ring->get_num_resources();
@@ -80,19 +80,18 @@ inline void epfd_info::increase_ring_ref_count_no_lock(ring* ring)
 
 inline void epfd_info::decrease_ring_ref_count_no_lock(ring* ring)
 {
-	ring_map_t::iterator iter = m_ring_map.find(ring);
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (iter == m_ring_map.end()) {
+	if (!ring->ep_info_ring_list_node.is_list_member()) {
 		__log_err("expected to find ring %p here!", ring);
 		return;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	//decrease ref count
-	iter->second--;
+	ring->m_ref_count--;
 
-	if (iter->second == 0) {
-		m_ring_map.erase(iter);
+	if (ring->m_ref_count == 0) {
+		m_ring_list.erase(ring);
 
 		// remove cq channel fd from the epfd
 		int num_ring_rx_fds = ring->get_num_resources();
@@ -135,6 +134,7 @@ epfd_info::epfd_info(int epfd, int size) :
 	}
 
 	m_ready_fds.set_id("epfd_info (%p) : m_ready_fds", this);
+	m_ring_list.set_id("epfd_info (%p) : m_ring_list", this);
 
 	m_p_offloaded_fds = new int[m_size];
 	m_n_offloaded_fds = 0;
@@ -640,23 +640,23 @@ int epfd_info::ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_re
 
 	int ret_total = 0;
 
-	if (m_ring_map.empty()) {
+	if (m_ring_list.empty()) {
 		return ret_total;
 	}
 
 	m_ring_map_lock.lock();
 
-	for (ring_map_t::iterator iter = m_ring_map.begin(); iter != m_ring_map.end(); iter++) {
-		int ret = iter->first->poll_and_process_element_rx(p_poll_sn, pv_fd_ready_array);
+	for (list_iterator_t<ring, ring::ep_info_ring_list_node_offset> iter = m_ring_list.begin(); iter != m_ring_list.end(); iter++) {
+		int ret = iter->poll_and_process_element_rx(p_poll_sn, pv_fd_ready_array);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (ret < 0 && errno != EAGAIN) {
-			__log_err("Error in ring->poll_and_process_element() of %p (errno=%d %m)", iter->first, errno);
+			__log_err("Error in ring->poll_and_process_element() of %p (errno=%d %m)", *iter, errno);
 			m_ring_map_lock.unlock();
 			return ret;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		if (ret > 0)
-			__log_func("ring[%p] Returned with: %d (sn=%d)", iter->first, ret, *p_poll_sn);
+			__log_func("ring[%p] Returned with: %d (sn=%d)", *iter, ret, *p_poll_sn);
 		ret_total += ret;
 	}
 
@@ -677,22 +677,22 @@ int epfd_info::ring_request_notification(uint64_t poll_sn)
 	__log_func("");
 	int ret_total = 0;
 
-	if (m_ring_map.empty()) {
+	if (m_ring_list.empty()) {
 		return ret_total;
 	}
 
 	m_ring_map_lock.lock();
 
-	for (ring_map_t::iterator iter = m_ring_map.begin(); iter != m_ring_map.end(); iter++) {
-		int ret = iter->first->request_notification(CQT_RX, poll_sn);
+	for (list_iterator_t<ring, ring::ep_info_ring_list_node_offset> iter = m_ring_list.begin(); iter != m_ring_list.end(); iter++) {
+		int ret = iter->request_notification(CQT_RX, poll_sn);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (ret < 0) {
-			__log_err("Error ring[%p]->request_notification() (errno=%d %m)", iter->first, errno);
+			__log_err("Error ring[%p]->request_notification() (errno=%d %m)", *iter , errno);
 			m_ring_map_lock.unlock();
 			return ret;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
-		__log_func("ring[%p] Returned with: %d (sn=%d)", iter->first, ret, poll_sn);
+		__log_func("ring[%p] Returned with: %d (sn=%d)", *iter, ret, poll_sn);
 		ret_total += ret;
 	}
 
