@@ -69,7 +69,7 @@ void epoll_wait_call::init_offloaded_fds()
 	m_epfd_info->get_offloaded_fds_arr_and_size(&m_p_num_all_offloaded_fds, &m_p_all_offloaded_fds);
 	m_num_all_offloaded_fds = *m_p_num_all_offloaded_fds; // TODO: fix orig ugly code, and then remove this
 
-	__log_func("building: epfd=%d, m_epfd_info->get_fd_info().size()=%d, *m_p_num_all_offloaded_fds=%d", m_epfd, (int)m_epfd_info->get_fd_info().size(), (int)*m_p_num_all_offloaded_fds  );
+	__log_func("building: epfd=%d, m_epfd_info->get_fd_info().size()=%d, *m_p_num_all_offloaded_fds=%d", m_epfd, (int)m_epfd_info->get_fd_info_size(), (int)*m_p_num_all_offloaded_fds  );
 
 }
 
