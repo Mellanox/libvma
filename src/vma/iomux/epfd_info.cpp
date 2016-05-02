@@ -134,6 +134,8 @@ epfd_info::epfd_info(int epfd, int size) :
 		__log_dbg("using open files max limit of %d file descriptors", m_size);
 	}
 
+	m_ready_fds.set_id("epfd_info (%p) : m_ready_fds", this);
+
 	m_p_offloaded_fds = new int[m_size];
 	m_n_offloaded_fds = 0;
 	m_ready_fd = 0;
@@ -162,6 +164,12 @@ epfd_info::~epfd_info()
 	// Meny: going over all handled fds and removing epoll context.
 
 	lock();
+
+	while(!m_ready_fds.empty())
+	{
+		m_ready_fds.front()->m_epoll_event_flags = 0;
+		m_ready_fds.pop_front();
+	}
 
 	socket_fd_api* temp_sock_fd_api;
 	for (int i = 0; i < m_n_offloaded_fds; i++) {
@@ -391,9 +399,9 @@ int epfd_info::del_fd(int fd, bool passthrough)
 	
 	if (!passthrough) m_fd_info.erase(fd_iter);
 
-	ep_ready_fd_map_t::iterator iter = m_ready_fds.find(fd);
-	if (iter != m_ready_fds.end()) {
-		m_ready_fds.erase(iter);
+	if(temp_sock_fd_api->ep_ready_fd_node.is_list_member()) {
+		temp_sock_fd_api->m_epoll_event_flags = 0;
+		m_ready_fds.erase(temp_sock_fd_api);
 	}
 
 	// handle offloaded fds
@@ -510,7 +518,10 @@ int epfd_info::mod_fd(int fd, epoll_event *event)
 	}
 
 	if(event->events == 0 || events == 0){
-		m_ready_fds.erase(fd);
+		if (temp_sock_fd_api->ep_ready_fd_node.is_list_member()) {
+			temp_sock_fd_api->m_epoll_event_flags = 0;
+			m_ready_fds.erase(temp_sock_fd_api);
+		}
 	}
 
 	__log_func("fd %d modified in epfd %d with events=%#x and data=%#x", 
@@ -595,12 +606,13 @@ void epfd_info::insert_epoll_event_cb(int fd, uint32_t event_flags)
 
 void epfd_info::insert_epoll_event(int fd, uint32_t event_flags)
 {
-	ep_ready_fd_map_t::iterator iter = m_ready_fds.find(fd);
-	if (iter != m_ready_fds.end()) {
-		iter->second |= event_flags;
+	socket_fd_api* sock_fd = fd_collection_get_sockfd(fd);
+	if (sock_fd->ep_ready_fd_node.is_list_member()) {
+		sock_fd->m_epoll_event_flags |= event_flags;
 	}
 	else {
-		m_ready_fds.insert(ep_ready_fd_map_t::value_type(fd, event_flags));
+		sock_fd->m_epoll_event_flags = event_flags;
+		m_ready_fds.push_back(sock_fd);
 	}
 
 	do_wakeup();
@@ -608,12 +620,12 @@ void epfd_info::insert_epoll_event(int fd, uint32_t event_flags)
 
 void epfd_info::remove_epoll_event(int fd, uint32_t event_flags)
 {
-	ep_ready_fd_map_t::iterator iter = m_ready_fds.find(fd);
-	if (iter != m_ready_fds.end()) {
-		iter->second &= ~event_flags;
-	}
-	if (iter->second == 0) {
-		m_ready_fds.erase(iter);
+	socket_fd_api* sock_fd = fd_collection_get_sockfd(fd);
+	if (sock_fd->ep_ready_fd_node.is_list_member()) {
+		sock_fd->m_epoll_event_flags &= ~event_flags;
+		if (sock_fd->m_epoll_event_flags == 0) {
+			m_ready_fds.erase(sock_fd);
+		}
 	}
 }
 
