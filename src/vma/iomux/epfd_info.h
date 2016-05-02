@@ -47,7 +47,7 @@
 
 #define EP_MAX_EVENTS (int)((INT_MAX / sizeof(struct epoll_event)))
 
-typedef std::tr1::unordered_map<int , uint32_t> ep_ready_fd_map_t;
+typedef vma_list_t<socket_fd_api, socket_fd_api::ep_ready_fd_node_offset> ep_ready_fd_list_t;
 
 struct epoll_fd_rec
 {
@@ -133,7 +133,7 @@ public:
 	 */
 	void fd_closed(int fd, bool passthrough = false);
 
-	ep_ready_fd_map_t               m_ready_fds;
+	ep_ready_fd_list_t              m_ready_fds;
 	uint32_t m_ready_fd;
 	int clear_events_for_fd(int fd, uint32_t events);
 
