@@ -1136,17 +1136,34 @@ void sockinfo_tcp::handle_timer_expired(void* user_data)
 	if (mce_sys.tcp_ctl_thread > CTL_THREAD_DISABLE)
 		process_rx_ctl_packets();
 
-	// Set the pending flag before getting the lock, so in the rare case of
-	// a race with unlock_tcp_con(), the timer will be called twice. If we set
-	// the flag after trylock(), the timer may not be called in case of a race.
-	if (m_timer_pending) {
+	if (mce_sys.internal_thread_tcp_timer_handling == INTERNAL_THREAD_TCP_TIMER_HANDLING_DEFERRED) {
+		// DEFERRED. if Internal thread is here first and m_timer_pending is false it jsut 
+		// sets it as true for its next iteration (within 100ms), letting 
+		// application threads have a chance of running tcp_timer()
+		if (m_timer_pending) {
+			if (m_tcp_con_lock.trylock()) {
+				return;
+			}
+			tcp_timer();
+			m_tcp_con_lock.unlock();
+		}
+		m_timer_pending = true;
+	}
+	else { // IMMEDIATE
+		// Set the pending flag before getting the lock, so in the rare case of
+		// a race with unlock_tcp_con(), the timer will be called twice. If we set
+		// the flag after trylock(), the timer may not be called in case of a race.
+		
+		// any thread (internal or application) will try locking 
+		// and running the tcp_timer
+		m_timer_pending = true;
 		if (m_tcp_con_lock.trylock()) {
 			return;
 		}
+
 		tcp_timer();
 		m_tcp_con_lock.unlock();
 	}
-	m_timer_pending = true;
 }
 
 #if _BullseyeCoverage
