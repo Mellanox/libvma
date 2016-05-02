@@ -82,6 +82,14 @@ typedef vma_list_t<mem_buf_desc_t, mem_buf_desc_t::buffer_node_offset> vma_desc_
  *
  */
 
+struct epoll_fd_rec
+{
+	uint32_t events;
+	epoll_data 	epdata;
+	int		offloaded_index; // offloaded fd index + 1
+	epoll_fd_rec():events(0), offloaded_index(0){}
+};
+
 class socket_fd_api: public cleanable_obj
 {
 public:
@@ -215,6 +223,11 @@ public:
 	list_node<socket_fd_api, socket_fd_api::ep_ready_fd_node_offset> ep_ready_fd_node;
 
 	uint32_t m_epoll_event_flags;
+
+	static inline size_t fd_info_list_node_offset(void) {return NODE_OFFSET(socket_fd_api, fd_info_list_node);}
+	list_node<socket_fd_api, socket_fd_api::fd_info_list_node_offset> fd_info_list_node;
+
+	epoll_fd_rec m_epoll_fd_rec;
 
 protected:
 	void notify_epoll_context(uint32_t events);
