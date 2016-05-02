@@ -59,7 +59,7 @@ struct epoll_fd_rec
 
 
 typedef std::tr1::unordered_map<int, epoll_fd_rec> fd_info_map_t;
-typedef std::tr1::unordered_map<ring*, int /*ref count*/> ring_map_t;
+typedef vma_list_t<ring, ring::ep_info_ring_list_node_offset> ring_list_t;
 typedef std::deque<int> ready_cq_fd_q_t;
 
 class epfd_info : public lock_mutex_recursive, public cleanable_obj, public wakeup_pipe
@@ -160,7 +160,7 @@ private:
 	int				*m_p_offloaded_fds;
 	int				m_n_offloaded_fds;
 	fd_info_map_t                   m_fd_info;
-	ring_map_t			m_ring_map;
+	ring_list_t			m_ring_list;
 	lock_mutex_recursive		m_ring_map_lock;
 	ready_cq_fd_q_t			m_ready_cq_fd_q;
 	epoll_stats_t                   m_local_stats;
