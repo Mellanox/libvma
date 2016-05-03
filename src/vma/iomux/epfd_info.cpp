@@ -50,12 +50,12 @@
 
 inline void epfd_info::increase_ring_ref_count_no_lock(ring* ring)
 {
-	ring_map_t::iterator iter = m_ring_map.find(ring);
-	if (iter != m_ring_map.end()) {
+	if (ring->ep_info_ring_list_node.is_list_member()) {
 		//increase ref count
-		iter->second++;
+		ring->m_ref_count++;
 	} else {
-		m_ring_map[ring] = 1;
+		ring->m_ref_count = 1;
+		m_ring_list.push_back(ring);
 
 		// add cq channel fd to the epfd
 		int num_ring_rx_fds = ring->get_num_resources();
@@ -80,19 +80,18 @@ inline void epfd_info::increase_ring_ref_count_no_lock(ring* ring)
 
 inline void epfd_info::decrease_ring_ref_count_no_lock(ring* ring)
 {
-	ring_map_t::iterator iter = m_ring_map.find(ring);
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (iter == m_ring_map.end()) {
+	if (!ring->ep_info_ring_list_node.is_list_member()) {
 		__log_err("expected to find ring %p here!", ring);
 		return;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	//decrease ref count
-	iter->second--;
+	ring->m_ref_count--;
 
-	if (iter->second == 0) {
-		m_ring_map.erase(iter);
+	if (ring->m_ref_count == 0) {
+		m_ring_list.erase(ring);
 
 		// remove cq channel fd from the epfd
 		int num_ring_rx_fds = ring->get_num_resources();
@@ -134,6 +133,10 @@ epfd_info::epfd_info(int epfd, int size) :
 		__log_dbg("using open files max limit of %d file descriptors", m_size);
 	}
 
+	m_ready_fds.set_id("epfd_info (%p) : m_ready_fds", this);
+	m_ring_list.set_id("epfd_info (%p) : m_ring_list", this);
+	m_fd_info.set_id("epfd_info (%p) : m_fd_info", this);
+
 	m_p_offloaded_fds = new int[m_size];
 	m_n_offloaded_fds = 0;
 	m_ready_fd = 0;
@@ -164,6 +167,19 @@ epfd_info::~epfd_info()
 	lock();
 
 	socket_fd_api* temp_sock_fd_api;
+	while(!m_ready_fds.empty())
+	{
+		m_ready_fds.front()->m_epoll_event_flags = 0;
+		m_ready_fds.pop_front();
+	}
+
+	while(!m_fd_info.empty())
+	{
+		temp_sock_fd_api = m_fd_info.front();
+		memset(&temp_sock_fd_api->m_epoll_fd_rec, 0, sizeof(temp_sock_fd_api->m_epoll_fd_rec));
+		m_fd_info.pop_front();
+	}
+
 	for (int i = 0; i < m_n_offloaded_fds; i++) {
 		temp_sock_fd_api = fd_collection_get_sockfd(m_p_offloaded_fds[i]);
 		BULLSEYE_EXCLUDE_BLOCK_START
@@ -287,7 +303,7 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 	if (temp_sock_fd_api && temp_sock_fd_api->skip_os_select()) {
 		__log_dbg("fd=%d must be skipped from os epoll()", fd);
 		// Checking for duplicate fds
-		if (m_fd_info.find(fd) != m_fd_info.end()) {
+		if (temp_sock_fd_api->fd_info_list_node.is_list_member()) {
 			__log_dbg("epoll_ctl: tried to add an existing fd. (%d)", fd);
 			errno = ENOENT;
 			return -1;
@@ -307,9 +323,10 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 		BULLSEYE_EXCLUDE_BLOCK_END
 	}
 
-	m_fd_info[fd].events = event->events;
-	m_fd_info[fd].epdata = event->data;
-	m_fd_info[fd].offloaded_index = -1;
+	temp_sock_fd_api->m_epoll_fd_rec.events = event->events;
+	temp_sock_fd_api->m_epoll_fd_rec.epdata = event->data;
+	temp_sock_fd_api->m_epoll_fd_rec.offloaded_index = -1;
+	m_fd_info.push_back(temp_sock_fd_api);
 	if (is_offloaded) {  // TODO: do we need to handle offloading only for one of read/write?
 		if (m_n_offloaded_fds >= m_size) {
 			__log_dbg("Reached max fds for epoll (%d)", m_size);
@@ -318,7 +335,7 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 		}
 		m_p_offloaded_fds[m_n_offloaded_fds] = fd;
 		++m_n_offloaded_fds;
-		m_fd_info[fd].offloaded_index = m_n_offloaded_fds;
+		temp_sock_fd_api->m_epoll_fd_rec.offloaded_index = m_n_offloaded_fds;
 
 		//NOTE: when supporting epoll on epfd, need to add epfd ring list
 		//NOTE: when having rings in pipes, need to overload add_epoll_context
@@ -380,20 +397,23 @@ int epfd_info::del_fd(int fd, bool passthrough)
 		remove_fd_from_epoll_os(fd);
 	}
 	
-	fd_info_map_t::iterator fd_iter = m_fd_info.find(fd);
-	if (fd_iter == m_fd_info.end()) {
+	if (!temp_sock_fd_api->fd_info_list_node.is_list_member()) {
 		errno = ENOENT;
 		return -1;
 	}
 	
 	// create a copy and remove the record from m_fd_info
-	epoll_fd_rec fi = fd_iter->second;
+	epoll_fd_rec fi = temp_sock_fd_api->m_epoll_fd_rec;
 	
-	if (!passthrough) m_fd_info.erase(fd_iter);
+	if (!passthrough) {
+		memset(&temp_sock_fd_api->m_epoll_fd_rec, 0, sizeof(temp_sock_fd_api->m_epoll_fd_rec));
+		m_fd_info.erase(temp_sock_fd_api);
+	}
 
-	ep_ready_fd_map_t::iterator iter = m_ready_fds.find(fd);
-	if (iter != m_ready_fds.end()) {
-		m_ready_fds.erase(iter);
+	socket_fd_api* sock_fd = fd_collection_get_sockfd(fd);
+	if(sock_fd->ep_ready_fd_node.is_list_member()) {
+		sock_fd->m_epoll_event_flags = 0;
+		m_ready_fds.erase(sock_fd);
 	}
 
 	// handle offloaded fds
@@ -407,14 +427,14 @@ int epfd_info::del_fd(int fd, bool passthrough)
 			m_p_offloaded_fds[fi.offloaded_index - 1] =
 					m_p_offloaded_fds[m_n_offloaded_fds - 1];
 
-			fd_iter = m_fd_info.find(m_p_offloaded_fds[m_n_offloaded_fds - 1]);
+			socket_fd_api* fd_iter = fd_collection_get_sockfd(m_p_offloaded_fds[m_n_offloaded_fds - 1]);
 
 			BULLSEYE_EXCLUDE_BLOCK_START
-			if (fd_iter == m_fd_info.end()) {
+			if (!sock_fd->fd_info_list_node.is_list_member()) {
 				__log_warn("Failed to update the index of offloaded fd: %d\n", m_p_offloaded_fds[m_n_offloaded_fds - 1]);
 			BULLSEYE_EXCLUDE_BLOCK_END
 			}else {
-				fd_iter->second.offloaded_index = fi.offloaded_index;
+				fd_iter->m_epoll_fd_rec.offloaded_index = fi.offloaded_index;
 			}
 		}
 
@@ -435,12 +455,12 @@ int epfd_info::del_fd(int fd, bool passthrough)
 
 int epfd_info::clear_events_for_fd(int fd, uint32_t events)
 {
-	fd_info_map_t::iterator fd_iter = m_fd_info.find(fd);
-	if (fd_iter == m_fd_info.end()) {
+	socket_fd_api* fd_iter = fd_collection_get_sockfd(fd);
+	if (!fd_iter->fd_info_list_node.is_list_member()) {
 		errno = ENOENT;
 		return -1;
 	}
-	fd_iter->second.events &= ~events;
+	fd_iter->m_epoll_fd_rec.events &= ~events;
 	return 0;
 }
 
@@ -452,14 +472,14 @@ int epfd_info::mod_fd(int fd, epoll_event *event)
 	__log_funcall("fd=%d", fd);
 
 	// find the fd in local table
-	fd_info_map_t::iterator fd_iter = m_fd_info.find(fd);
-	if (fd_iter == m_fd_info.end()) {
+	socket_fd_api* fd_iter = fd_collection_get_sockfd(fd);
+	if (!fd_iter->fd_info_list_node.is_list_member()) {
 		errno = ENOENT;
 		return -1;
 	}
 	
 	// check if fd is offloaded that new event mask is OK 
-	if (fd_iter->second.offloaded_index > 0) {
+	if (fd_iter->m_epoll_fd_rec.offloaded_index > 0) {
 		if (m_log_invalid_events && (event->events & ~SUPPORTED_EPOLL_EVENTS)) {
 			__log_dbg("invalid event mask 0x%x for offloaded fd=%d", event->events, fd);
 			__log_dbg("(event->events & ~%s)=0x%x", TO_STR(SUPPORTED_EPOLL_EVENTS),
@@ -487,8 +507,8 @@ int epfd_info::mod_fd(int fd, epoll_event *event)
 	}
 
 	// modify fd data in local table
-	fd_iter->second.epdata = event->data;
-	fd_iter->second.events = event->events;
+	fd_iter->m_epoll_fd_rec.epdata = event->data;
+	fd_iter->m_epoll_fd_rec.events = event->events;
 	
 	bool is_offloaded = temp_sock_fd_api && temp_sock_fd_api->get_type()== FD_TYPE_SOCKET;
 
@@ -510,7 +530,9 @@ int epfd_info::mod_fd(int fd, epoll_event *event)
 	}
 
 	if(event->events == 0 || events == 0){
-		m_ready_fds.erase(fd);
+		socket_fd_api* sock_fd = fd_collection_get_sockfd(fd);
+		sock_fd->m_epoll_event_flags = 0;
+		m_ready_fds.erase(sock_fd);
 	}
 
 	__log_func("fd %d modified in epfd %d with events=%#x and data=%#x", 
@@ -520,9 +542,9 @@ int epfd_info::mod_fd(int fd, epoll_event *event)
 
 bool epfd_info::get_fd_rec_by_fd(int fd, epoll_fd_rec& fd_rec)
 {
-	fd_info_map_t::iterator iter = m_fd_info.find(fd);
-	if (iter != m_fd_info.end())
-		fd_rec = iter->second;
+	socket_fd_api* iter = fd_collection_get_sockfd(fd);
+	if (iter->fd_info_list_node.is_list_member())
+		fd_rec = iter->m_epoll_fd_rec;
 	else {
 		__log_dbg("error - could not found fd %d in m_fd_info of epfd %d", fd, m_epfd);
 		return false;
@@ -533,9 +555,9 @@ bool epfd_info::get_fd_rec_by_fd(int fd, epoll_fd_rec& fd_rec)
 bool epfd_info::get_data_by_fd(int fd, epoll_data *data)
 {
 	lock();
-	fd_info_map_t::iterator iter = m_fd_info.find(fd);
-	if (iter != m_fd_info.end())
-		*data = m_fd_info[fd].epdata;
+	socket_fd_api* iter = fd_collection_get_sockfd(fd);
+	if (iter->fd_info_list_node.is_list_member())
+		*data = iter->m_epoll_fd_rec.epdata;
 	else {
 		__log_dbg("error - could not found fd %d in m_fd_info of epfd %d", fd, m_epfd);
 		unlock();
@@ -551,9 +573,8 @@ bool epfd_info::get_data_by_fd(int fd, epoll_data *data)
 
 bool epfd_info::is_offloaded_fd(int fd)
 {
-	fd_info_map_t::iterator iter;
-	iter = m_fd_info.find(fd);
-	return iter != m_fd_info.end() && iter->second.offloaded_index > 0;
+	socket_fd_api* iter = fd_collection_get_sockfd(fd);
+	return iter->fd_info_list_node.is_list_member() && iter->m_epoll_fd_rec.offloaded_index > 0;
 }
 
 #if _BullseyeCoverage
@@ -563,7 +584,8 @@ bool epfd_info::is_offloaded_fd(int fd)
 void epfd_info::fd_closed(int fd, bool passthrough)
 {
 	lock();
-	if (m_fd_info.find(fd) != m_fd_info.end()) {
+	socket_fd_api* iter = fd_collection_get_sockfd(fd);
+	if (iter && iter->fd_info_list_node.is_list_member()) {
 		del_fd(fd, passthrough);
 	}
 	unlock();
@@ -572,7 +594,8 @@ void epfd_info::fd_closed(int fd, bool passthrough)
 void epfd_info::set_fd_as_offloaded_only(int fd)
 {
 	lock();
-	if (m_fd_info.find(fd) != m_fd_info.end()) {
+	socket_fd_api* iter = fd_collection_get_sockfd(fd);
+	if (iter->fd_info_list_node.is_list_member()) {
 		remove_fd_from_epoll_os(fd);
 	}
 	unlock();
@@ -581,13 +604,13 @@ void epfd_info::set_fd_as_offloaded_only(int fd)
 void epfd_info::insert_epoll_event_cb(int fd, uint32_t event_flags)
 {
 	lock();
-	fd_info_map_t::iterator fd_iter = m_fd_info.find(fd);
-	if (fd_iter == m_fd_info.end()) {
+	socket_fd_api* fd_iter = fd_collection_get_sockfd(fd);
+	if (!fd_iter->fd_info_list_node.is_list_member()) {
 		unlock();
 		return;
 	}
 	//EPOLLHUP | EPOLLERR are reported without user request
-	if(event_flags & (fd_iter->second.events | EPOLLHUP | EPOLLERR)){
+	if(event_flags & (fd_iter->m_epoll_fd_rec.events | EPOLLHUP | EPOLLERR)){
 		insert_epoll_event(fd, event_flags);
 	}
 	unlock();
@@ -595,12 +618,13 @@ void epfd_info::insert_epoll_event_cb(int fd, uint32_t event_flags)
 
 void epfd_info::insert_epoll_event(int fd, uint32_t event_flags)
 {
-	ep_ready_fd_map_t::iterator iter = m_ready_fds.find(fd);
-	if (iter != m_ready_fds.end()) {
-		iter->second |= event_flags;
+	socket_fd_api* sock_fd = fd_collection_get_sockfd(fd);
+	if (sock_fd->ep_ready_fd_node.is_list_member()) {
+		sock_fd->m_epoll_event_flags |= event_flags;
 	}
 	else {
-		m_ready_fds.insert(ep_ready_fd_map_t::value_type(fd, event_flags));
+		sock_fd->m_epoll_event_flags = event_flags;
+		m_ready_fds.push_back(sock_fd);
 	}
 
 	do_wakeup();
@@ -608,12 +632,12 @@ void epfd_info::insert_epoll_event(int fd, uint32_t event_flags)
 
 void epfd_info::remove_epoll_event(int fd, uint32_t event_flags)
 {
-	ep_ready_fd_map_t::iterator iter = m_ready_fds.find(fd);
-	if (iter != m_ready_fds.end()) {
-		iter->second &= ~event_flags;
-	}
-	if (iter->second == 0) {
-		m_ready_fds.erase(iter);
+	socket_fd_api* sock_fd = fd_collection_get_sockfd(fd);
+	if (sock_fd->ep_ready_fd_node.is_list_member()) {
+		sock_fd->m_epoll_event_flags &= ~event_flags;
+		if (sock_fd->m_epoll_event_flags == 0) {
+			m_ready_fds.erase(sock_fd);
+		}
 	}
 }
 
@@ -628,23 +652,23 @@ int epfd_info::ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_re
 
 	int ret_total = 0;
 
-	if (m_ring_map.empty()) {
+	if (m_ring_list.empty()) {
 		return ret_total;
 	}
 
 	m_ring_map_lock.lock();
 
-	for (ring_map_t::iterator iter = m_ring_map.begin(); iter != m_ring_map.end(); iter++) {
-		int ret = iter->first->poll_and_process_element_rx(p_poll_sn, pv_fd_ready_array);
+	for (list_iterator_t<ring, ring::ep_info_ring_list_node_offset> iter = m_ring_list.begin(); iter != m_ring_list.end(); iter++) {
+		int ret = iter->poll_and_process_element_rx(p_poll_sn, pv_fd_ready_array);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (ret < 0 && errno != EAGAIN) {
-			__log_err("Error in ring->poll_and_process_element() of %p (errno=%d %m)", iter->first, errno);
+			__log_err("Error in ring->poll_and_process_element() of %p (errno=%d %m)", *iter, errno);
 			m_ring_map_lock.unlock();
 			return ret;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		if (ret > 0)
-			__log_func("ring[%p] Returned with: %d (sn=%d)", iter->first, ret, *p_poll_sn);
+			__log_func("ring[%p] Returned with: %d (sn=%d)", *iter, ret, *p_poll_sn);
 		ret_total += ret;
 	}
 
@@ -665,22 +689,22 @@ int epfd_info::ring_request_notification(uint64_t poll_sn)
 	__log_func("");
 	int ret_total = 0;
 
-	if (m_ring_map.empty()) {
+	if (m_ring_list.empty()) {
 		return ret_total;
 	}
 
 	m_ring_map_lock.lock();
 
-	for (ring_map_t::iterator iter = m_ring_map.begin(); iter != m_ring_map.end(); iter++) {
-		int ret = iter->first->request_notification(CQT_RX, poll_sn);
+	for (list_iterator_t<ring, ring::ep_info_ring_list_node_offset> iter = m_ring_list.begin(); iter != m_ring_list.end(); iter++) {
+		int ret = iter->request_notification(CQT_RX, poll_sn);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (ret < 0) {
-			__log_err("Error ring[%p]->request_notification() (errno=%d %m)", iter->first, errno);
+			__log_err("Error ring[%p]->request_notification() (errno=%d %m)", *iter , errno);
 			m_ring_map_lock.unlock();
 			return ret;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
-		__log_func("ring[%p] Returned with: %d (sn=%d)", iter->first, ret, poll_sn);
+		__log_func("ring[%p] Returned with: %d (sn=%d)", *iter, ret, poll_sn);
 		ret_total += ret;
 	}
 
