@@ -43,23 +43,12 @@
 #include <vma/util/wakeup_pipe.h>
 #include <vma/dev/ring.h>
 #include <vma/sock/sockinfo.h>
-#include <tr1/unordered_map>
 
 #define EP_MAX_EVENTS (int)((INT_MAX / sizeof(struct epoll_event)))
 
-typedef std::tr1::unordered_map<int , uint32_t> ep_ready_fd_map_t;
-
-struct epoll_fd_rec
-{
-	uint32_t events;
-	epoll_data 	epdata;
-	int		offloaded_index; // offloaded fd index + 1
-	epoll_fd_rec():events(0), offloaded_index(0){}
-};
-
-
-typedef std::tr1::unordered_map<int, epoll_fd_rec> fd_info_map_t;
-typedef std::tr1::unordered_map<ring*, int /*ref count*/> ring_map_t;
+typedef vma_list_t<socket_fd_api, socket_fd_api::ep_ready_fd_node_offset> ep_ready_fd_list_t;
+typedef vma_list_t<socket_fd_api, socket_fd_api::fd_info_list_node_offset> fd_info_list_t;
+typedef vma_list_t<ring, ring::ep_info_ring_list_node_offset> ring_list_t;
 typedef std::deque<int> ready_cq_fd_q_t;
 
 class epfd_info : public lock_mutex_recursive, public cleanable_obj, public wakeup_pipe
@@ -133,7 +122,7 @@ public:
 	 */
 	void fd_closed(int fd, bool passthrough = false);
 
-	ep_ready_fd_map_t               m_ready_fds;
+	ep_ready_fd_list_t              m_ready_fds;
 	uint32_t m_ready_fd;
 	int clear_events_for_fd(int fd, uint32_t events);
 
@@ -150,7 +139,8 @@ public:
 
 	virtual void clean_obj();
 
-	list_node<epfd_info>	node;
+	static inline size_t epfd_info_node_offset(void) {return NODE_OFFSET(epfd_info, epfd_info_node);}
+	list_node<epfd_info, epfd_info::epfd_info_node_offset>	epfd_info_node;
 
 private:
 
@@ -158,8 +148,8 @@ private:
 	int					m_size;
 	int				*m_p_offloaded_fds;
 	int				m_n_offloaded_fds;
-	fd_info_map_t                   m_fd_info;
-	ring_map_t			m_ring_map;
+	fd_info_list_t                   m_fd_info;
+	ring_list_t			m_ring_list;
 	lock_mutex_recursive		m_ring_map_lock;
 	ready_cq_fd_q_t			m_ready_cq_fd_q;
 	epoll_stats_t                   m_local_stats;
@@ -184,7 +174,7 @@ private:
 	inline int remove_fd_from_epoll_os(int fd);
 
 public:
-	const fd_info_map_t& get_fd_info() {return  m_fd_info;} // TODO: remove
+	size_t get_fd_info_size() {return  m_fd_info.size();}
 	void insert_epoll_event_cb(int fd, uint32_t event_flags);
 	void insert_epoll_event(int fd, uint32_t event_flags);
 	void remove_epoll_event(int fd, uint32_t event_flags);
