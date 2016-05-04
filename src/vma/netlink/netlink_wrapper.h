@@ -115,12 +115,12 @@ public:
 	 */
 	int open_channel();
 
-	// search for the first matching neigh with ipaddr on the nigh cache
+	// search for the first matching neigh using (ipaddr and ifindex) on the neigh cache
 	// if matching neigh was found, then it fills the provided new_neigh_info* and return 1
 	// else if no matching neigh then return 0
 	// on error return -1
 	// ** neigh cache is keep being updated for every neigh netlink event
-	int get_neigh(const char* ipaddr, netlink_neigh_info* new_neigh_info);
+	int get_neigh(const char* ipaddr, int ifindex, netlink_neigh_info* new_neigh_info);
 
 	// periodic maintenance method for keeping caches updated with kernel.
 	// user of netlink wrapper should provide context to call this function periodically.
