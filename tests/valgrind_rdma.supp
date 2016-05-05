@@ -89,34 +89,6 @@
    ...
 }
 {
-   ignore_rdma_libs_param
-   Memcheck:Param
-   ...
-   obj:*/libmlx4-rdmav2.so*
-   ...
-}
-{
-   ignore_rdma_libs_param
-   Memcheck:Param
-   ...
-   obj:*/libmlx4.so*
-   ...
-}
-{
-   ignore_rdma_libs_param
-   Memcheck:Param
-   ...
-   obj:*/libibverbs.so*
-   ...
-}
-{
-   ignore_rdma_libs_param
-   Memcheck:Param
-   ...
-   obj:*/librdmacm.so*
-   ...
-}
-{
    ignore_rdma_libs_leak
    Memcheck:Leak
    ...
