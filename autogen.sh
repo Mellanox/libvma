@@ -1,10 +1,10 @@
 #!/bin/sh
 
 
-set -x
-test -d ./config || mkdir -p config
-aclocal -I config
-libtoolize --force --copy
-autoheader
-automake --foreign --add-missing --copy
-autoconf
+rm -rf autom4te.cache
+mkdir -p config
+autoreconf -v --install || exit 1
+rm -rf autom4te.cache
+
+exit 0
+
