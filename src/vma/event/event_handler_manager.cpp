@@ -88,7 +88,7 @@ void* event_handler_manager::register_timer_event(int timeout_msec, timer_handle
 	void* node = malloc(sizeof(struct timer_node_t)); 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!node) {
-		evh_logdbg("malloc failure");
+		evh_logdbg("%s : malloc failure", __func__);
 		/* no resources to free before throwing exception from this method */
 		throw_vma_exception("malloc failure");
 	}
@@ -823,8 +823,14 @@ void* event_handler_manager::thread_loop()
 	int timeout_msec;
 	int maxevents = INITIAL_EVENTS_NUM;
 
-	struct epoll_event* p_events = (struct epoll_event*)malloc(sizeof(struct epoll_event)*maxevents);
 	struct pollfd poll_fd;
+	struct epoll_event* p_events = (struct epoll_event*)malloc(sizeof(struct epoll_event)*maxevents);	
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if(!p_events){
+		evh_logpanic("%s : malloc failure", __func__);	
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+	
 	poll_fd.events  = POLLIN | POLLPRI;
 	poll_fd.revents = 0;
 	while (m_b_continue_running) {
@@ -958,10 +964,10 @@ void* event_handler_manager::thread_loop()
 		if (ret == maxevents) {
 			// increase the events array
 			maxevents *= 2;
-			p_events = (struct epoll_event *)realloc((void *)p_events, maxevents);
+			p_events = (struct epoll_event *)realloc((void *)p_events, sizeof(struct epoll_event)*maxevents);
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (!p_events) {
-				evh_logpanic("failed to allocate memory") ;
+				evh_logpanic("%s : realloc failure", __func__) ;
 			}
 			BULLSEYE_EXCLUDE_BLOCK_END
 		}
@@ -972,5 +978,3 @@ void* event_handler_manager::thread_loop()
 
 	return 0;
 }
-
-
