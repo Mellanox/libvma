@@ -630,7 +630,7 @@ int epfd_info::ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_re
 
 	m_ring_map_lock.unlock();
 
-	if (mce_sys.thread_mode == THREAD_MODE_PLENTY && ret_total == 0 && errno == EBUSY) pthread_yield();
+	if (safe_mce_sys().thread_mode == THREAD_MODE_PLENTY && ret_total == 0 && errno == EBUSY) pthread_yield();
 
 	if (ret_total) {
 		__log_func("ret_total=%d", ret_total);

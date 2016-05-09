@@ -155,8 +155,8 @@ public:
 	virtual int get_fd( ) const { return m_fd; };
 
 	// true if fd must be skipped from OS select()
-	// If mce_sys.rx_udp_poll_os_ratio == 0, it means that user configured VMA not to poll os (i.e. TRUE...)
-	virtual bool skip_os_select() { return (!(mce_sys.select_poll_os_ratio)); };
+	// If safe_mce_sys().rx_udp_poll_os_ratio == 0, it means that user configured VMA not to poll os (i.e. TRUE...)
+	virtual bool skip_os_select() { return (!(safe_mce_sys().select_poll_os_ratio)); };
 
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off

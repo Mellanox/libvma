@@ -156,7 +156,7 @@ void vma_shmem_stats_open(vlog_levels_t** p_p_vma_log_level, uint8_t** p_p_vma_l
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	shmem_size = SHMEM_STATS_SIZE(mce_sys.stats_fd_num_max);
+	shmem_size = SHMEM_STATS_SIZE(safe_mce_sys().stats_fd_num_max);
 	buf = malloc(shmem_size);
 	if (buf == NULL)
 		goto shmem_error;
@@ -164,12 +164,12 @@ void vma_shmem_stats_open(vlog_levels_t** p_p_vma_log_level, uint8_t** p_p_vma_l
 
 	p_shmem = buf;
 	
-	if (strlen(mce_sys.stats_shmem_dirname) <= 0)
+	if (strlen(safe_mce_sys().stats_shmem_dirname) <= 0)
 		goto no_shmem;
 
 	g_sh_mem_info.filename_sh_stats[0] = '\0';
 	g_sh_mem_info.p_sh_stats = MAP_FAILED;
-	sprintf(g_sh_mem_info.filename_sh_stats, "%s/vmastat.%d", mce_sys.stats_shmem_dirname, getpid());
+	sprintf(g_sh_mem_info.filename_sh_stats, "%s/vmastat.%d", safe_mce_sys().stats_shmem_dirname, getpid());
 	saved_mode = umask(0);
 	g_sh_mem_info.fd_sh_stats = open(g_sh_mem_info.filename_sh_stats, O_CREAT|O_RDWR, S_IRWXU | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
 	umask(saved_mode);
@@ -222,9 +222,9 @@ success:
 	
 	write_version_details_to_shmem(&g_sh_mem->ver_info);
 	memcpy(g_sh_mem->stats_protocol_ver, STATS_PROTOCOL_VER, min(sizeof(g_sh_mem->stats_protocol_ver), sizeof(STATS_PROTOCOL_VER)));
-	g_sh_mem->max_skt_inst_num = mce_sys.stats_fd_num_max;
+	g_sh_mem->max_skt_inst_num = safe_mce_sys().stats_fd_num_max;
         g_sh_mem->reader_counter = 0;
-	vlog_printf(VLOG_DEBUG, "%s: file '%s' fd %d shared memory at %p with %d max blocks\n", __func__, g_sh_mem_info.filename_sh_stats, g_sh_mem_info.fd_sh_stats, g_sh_mem_info.p_sh_stats, mce_sys.stats_fd_num_max);
+	vlog_printf(VLOG_DEBUG, "%s: file '%s' fd %d shared memory at %p with %d max blocks\n", __func__, g_sh_mem_info.filename_sh_stats, g_sh_mem_info.fd_sh_stats, g_sh_mem_info.p_sh_stats, safe_mce_sys().stats_fd_num_max);
 
 	// Update the shmem initial log values
 	g_sh_mem->log_level = **p_p_vma_log_level;
@@ -253,10 +253,10 @@ shmem_error:
 void vma_shmem_stats_close()
 {
 	if (g_sh_mem_info.p_sh_stats && g_sh_mem_info.p_sh_stats != MAP_FAILED) {
-		vlog_printf(VLOG_DEBUG, "%s: file '%s' fd %d shared memory at %p with %d max blocks\n", __func__, g_sh_mem_info.filename_sh_stats, g_sh_mem_info.fd_sh_stats, g_sh_mem_info.p_sh_stats, mce_sys.stats_fd_num_max);
+		vlog_printf(VLOG_DEBUG, "%s: file '%s' fd %d shared memory at %p with %d max blocks\n", __func__, g_sh_mem_info.filename_sh_stats, g_sh_mem_info.fd_sh_stats, g_sh_mem_info.p_sh_stats, safe_mce_sys().stats_fd_num_max);
 
 		BULLSEYE_EXCLUDE_BLOCK_START
-		if (munmap(g_sh_mem_info.p_sh_stats, SHMEM_STATS_SIZE(mce_sys.stats_fd_num_max)) != 0) {
+		if (munmap(g_sh_mem_info.p_sh_stats, SHMEM_STATS_SIZE(safe_mce_sys().stats_fd_num_max)) != 0) {
 			vlog_printf(VLOG_ERROR, "%s: file [%s] fd [%d] error while unmap shared memory at [%p]\n", __func__, g_sh_mem_info.filename_sh_stats, g_sh_mem_info.fd_sh_stats, g_sh_mem_info.p_sh_stats);
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
@@ -291,7 +291,7 @@ void vma_stats_instance_create_socket_block(socket_stats_t* local_stats_addr)
 		}
 
 	}
-	if (g_sh_mem->max_skt_inst_num + 1 < mce_sys.stats_fd_num_max) {
+	if (g_sh_mem->max_skt_inst_num + 1 < safe_mce_sys().stats_fd_num_max) {
 		// allocate next sh_mem block 
 		p_skt_stats = &g_sh_mem->skt_inst_arr[g_sh_mem->max_skt_inst_num].skt_stats;
 		g_sh_mem->skt_inst_arr[g_sh_mem->max_skt_inst_num].b_enabled = true;
@@ -301,7 +301,7 @@ void vma_stats_instance_create_socket_block(socket_stats_t* local_stats_addr)
 	else {
 		if (!printed_sock_limit_info) {
 			printed_sock_limit_info = true;
-			vlog_printf(VLOG_INFO, "Can only monitor %d socket in statistics - increase VMA_STATS_FD_NUM!\n", mce_sys.stats_fd_num_max);
+			vlog_printf(VLOG_INFO, "Can only monitor %d socket in statistics - increase VMA_STATS_FD_NUM!\n", safe_mce_sys().stats_fd_num_max);
 		}
 		goto out;
 	}

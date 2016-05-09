@@ -230,10 +230,10 @@ private:
 	//returns list of buffers to the owner.
 	void		process_tx_buffer_list(mem_buf_desc_t* p_mem_buf_desc);
 
-	// requests mce_sys.qp_compensation_level buffers from global pool
+	// requests safe_mce_sys().qp_compensation_level buffers from global pool
 	bool 		request_more_buffers() __attribute__((noinline));
 
-	// returns mce_sys.qp_compensation_level buffers to global pool
+	// returns safe_mce_sys().qp_compensation_level buffers to global pool
 	void 		return_extra_buffers() __attribute__((noinline));
 
 	// post-recv to a qp
