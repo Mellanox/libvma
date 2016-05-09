@@ -169,7 +169,7 @@ private:
 	rdma_event_channel* 		m_p_cma_event_channel;
 	void*				m_timer_handle;
 
-	//if (mce_sys.offloaded_sockets is true) contain all threads that need not be offloaded.
+	//if (safe_mce_sys().offloaded_sockets is true) contain all threads that need not be offloaded.
 	//else contain all threads that need to be offloaded.
 	offload_thread_rule_t		m_offload_thread_rule;
 

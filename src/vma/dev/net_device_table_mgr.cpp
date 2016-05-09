@@ -106,14 +106,14 @@ net_device_table_mgr::net_device_table_mgr() : cache_table_mgr<ip_address,net_de
 		throw_vma_exception_no_msg();
 	}
 
-	if (mce_sys.progress_engine_interval_msec != MCE_CQ_DRAIN_INTERVAL_DISABLED && mce_sys.progress_engine_wce_max != 0) {
-		ndtm_logdbg("registering timer for ring draining with %d msec intervales", mce_sys.progress_engine_interval_msec);
-		g_p_event_handler_manager->register_timer_event(mce_sys.progress_engine_interval_msec, this, PERIODIC_TIMER, (void*)RING_PROGRESS_ENGINE_TIMER);
+	if (safe_mce_sys().progress_engine_interval_msec != MCE_CQ_DRAIN_INTERVAL_DISABLED && safe_mce_sys().progress_engine_wce_max != 0) {
+		ndtm_logdbg("registering timer for ring draining with %d msec intervales", safe_mce_sys().progress_engine_interval_msec);
+		g_p_event_handler_manager->register_timer_event(safe_mce_sys().progress_engine_interval_msec, this, PERIODIC_TIMER, (void*)RING_PROGRESS_ENGINE_TIMER);
 	}
 
-	if (mce_sys.cq_aim_interval_msec != MCE_CQ_ADAPTIVE_MODERATION_DISABLED) {
-		ndtm_logdbg("registering timer for cq adaptive moderation with %d msec intervales", mce_sys.cq_aim_interval_msec);
-		g_p_event_handler_manager->register_timer_event(mce_sys.cq_aim_interval_msec, this, PERIODIC_TIMER, (void*)RING_ADAPT_CQ_MODERATION_TIMER);
+	if (safe_mce_sys().cq_aim_interval_msec != MCE_CQ_ADAPTIVE_MODERATION_DISABLED) {
+		ndtm_logdbg("registering timer for cq adaptive moderation with %d msec intervales", safe_mce_sys().cq_aim_interval_msec);
+		g_p_event_handler_manager->register_timer_event(safe_mce_sys().cq_aim_interval_msec, this, PERIODIC_TIMER, (void*)RING_ADAPT_CQ_MODERATION_TIMER);
 	}
 }
 
@@ -243,7 +243,7 @@ int net_device_table_mgr::map_net_devices()
 			continue;
 		}
 
-		if ((!mce_sys.enable_ipoib) && (get_iftype_from_ifname(ifa->ifa_name) == ARPHRD_INFINIBAND)) {
+		if ((!safe_mce_sys().enable_ipoib) && (get_iftype_from_ifname(ifa->ifa_name) == ARPHRD_INFINIBAND)) {
 			ndtm_logdbg("Blocking offload: IPoIB interfaces ('%s')", ifa->ifa_name);
 
 			// Close the cma_id which will not be offload

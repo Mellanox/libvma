@@ -1704,8 +1704,8 @@ int pipe(int __filedes[2])
 	if (!orig_os_api.pipe)	get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	bool offload_pipe = mce_sys.mce_spec == MCE_SPEC_29WEST_LBM_29 ||
-			    mce_sys.mce_spec == MCE_SPEC_WOMBAT_FH_LBM_554;
+	bool offload_pipe = safe_mce_sys().mce_spec == MCE_SPEC_29WEST_LBM_29 ||
+			    safe_mce_sys().mce_spec == MCE_SPEC_WOMBAT_FH_LBM_554;
 	if (offload_pipe)
 		do_global_ctors();
 
@@ -1791,7 +1791,7 @@ int dup2(int __fd, int __fd2)
 	if (!orig_os_api.dup2) get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	if (mce_sys.close_on_dup2 && __fd != __fd2) {
+	if (safe_mce_sys().close_on_dup2 && __fd != __fd2) {
 		srdr_logdbg("oldfd=%d, newfd=%d. Closing %d in VMA.\n", __fd, __fd2, __fd2);
 		handle_close(__fd2);
 	}
@@ -1851,7 +1851,7 @@ pid_t fork(void)
 		sock_redirect_exit();
 
 		get_env_params();
-		vlog_start("VMA", mce_sys.log_level, mce_sys.log_filename, mce_sys.log_details, mce_sys.log_colors);
+		vlog_start("VMA", safe_mce_sys().log_level, safe_mce_sys().log_filename, safe_mce_sys().log_details, safe_mce_sys().log_colors);
 		srdr_logdbg_exit("Child Process: starting with %d", getpid());
 		g_is_forked_child = false;
 		sock_redirect_main();
@@ -1904,7 +1904,7 @@ int daemon(int __nochdir, int __noclose)
 		sock_redirect_exit();
 
 		get_env_params();
-		vlog_start("VMA", mce_sys.log_level, mce_sys.log_filename, mce_sys.log_details, mce_sys.log_colors);
+		vlog_start("VMA", safe_mce_sys().log_level, safe_mce_sys().log_filename, safe_mce_sys().log_details, safe_mce_sys().log_colors);
 		srdr_logdbg_exit("Child Process: starting with %d", getpid());
 		g_is_forked_child = false;
 		sock_redirect_main();
@@ -1938,7 +1938,7 @@ int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 
 	if (!orig_os_api.sigaction) get_orig_funcs();
 
-	if (mce_sys.handle_sigintr) {
+	if (safe_mce_sys().handle_sigintr) {
 		srdr_logdbg_entry("signum=%d, act=%p, oldact=%p", signum, act, oldact);
 
 		switch (signum) {
@@ -1974,7 +1974,7 @@ int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 	}
 	ret = orig_os_api.sigaction(signum, act, oldact);
 
-	if (mce_sys.handle_sigintr) {
+	if (safe_mce_sys().handle_sigintr) {
 		if (ret >= 0)
 			srdr_logdbg_exit("returned with %d", ret);
 		else

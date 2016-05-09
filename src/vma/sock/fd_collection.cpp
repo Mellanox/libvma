@@ -255,7 +255,7 @@ int fd_collection::addsocket(int fd, int domain, int type, bool check_offload /*
 	try {
 		switch (sock_type) {
 			case SOCK_DGRAM:
-			{	transport = __vma_match_by_program(PROTO_UDP, mce_sys.app_id);
+			{	transport = __vma_match_by_program(PROTO_UDP, safe_mce_sys().app_id);
 				if (transport == TRANS_OS) {
 					fdcoll_logdbg("All UDP rules are consistent and instructing to use OS. TRANSPORT: OS");
 					return -1;
@@ -266,7 +266,7 @@ int fd_collection::addsocket(int fd, int domain, int type, bool check_offload /*
 			}
 			case SOCK_STREAM:
 			{
-				transport = __vma_match_by_program(PROTO_TCP, mce_sys.app_id);
+				transport = __vma_match_by_program(PROTO_TCP, safe_mce_sys().app_id);
 				if (transport == TRANS_OS) {
 					fdcoll_logdbg("All TCP rules are consistent and instructing to use OS.transport == USE_OS");
 					return -1;
@@ -307,7 +307,7 @@ int fd_collection::addsocket(int fd, int domain, int type, bool check_offload /*
 
 bool fd_collection::create_offloaded_sockets()
 {
-	bool ret = mce_sys.offloaded_sockets;
+	bool ret = safe_mce_sys().offloaded_sockets;
 
 	lock();
 	if (m_offload_thread_rule.find(pthread_self()) == m_offload_thread_rule.end()) {
@@ -328,7 +328,7 @@ void fd_collection::offloading_rule_change_thread(bool offloaded, pthread_t tid)
 	fdcoll_logdbg("tid=%ul, offloaded=%d", tid, offloaded);
 
 	lock();
-	if (offloaded == mce_sys.offloaded_sockets) {
+	if (offloaded == safe_mce_sys().offloaded_sockets) {
 		m_offload_thread_rule.erase(tid);
 	} else {
 		m_offload_thread_rule[tid] = 1;
