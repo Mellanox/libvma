@@ -1397,6 +1397,7 @@ int select_helper(int __nfds,
 		return rc;
 	}
 	catch (io_mux_call::io_error&) {
+		srdr_logfunc_exit("io_mux_call::io_error");
 		return -1;
 	}
 }
@@ -1467,9 +1468,12 @@ int poll_helper(struct pollfd *__fds, nfds_t __nfds, int __timeout, const sigset
 		poll_call pcall(off_rfd_buffer, off_modes_buffer, lookup_buffer, working_fds_arr,
 		                __fds, __nfds, __timeout, __sigmask);
 		
-		return pcall.call();
+		int rc = pcall.call();
+		srdr_logfunc_exit("rc = %d", rc);
+		return rc;
 	}
 	catch (io_mux_call::io_error&) {
+		srdr_logfunc_exit("io_mux_call::io_error");
 		return -1;
 	}
 }
@@ -1626,13 +1630,15 @@ inline int epoll_wait_helper(int __epfd, struct epoll_event *__events, int __max
 		epoll_wait_call epcall(extra_events_buffer, NULL,
 				__epfd, __events, __maxevents, __timeout, __sigmask);
 
-		int nfds = epcall.get_current_events();
-		if (nfds > 0) {
-			return nfds;
+		int rc = epcall.get_current_events(); // returns ready nfds
+		if (rc <= 0) {
+			// if not ready nfds then check all lower level queues (VMA ring's and OS queues)
+			epcall.init_offloaded_fds();
+			rc = epcall.call();
 		}
 
-		epcall.init_offloaded_fds();
-		return epcall.call();
+		srdr_logfunc_exit("rc = %d", rc);
+		return rc;
 	}
 	catch (io_mux_call::io_error&) {
 		return -1;
@@ -1701,7 +1707,7 @@ extern "C"
 int pipe(int __filedes[2])
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.pipe)	get_orig_funcs();
+	if (!orig_os_api.pipe) get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	bool offload_pipe = mce_sys.mce_spec == MCE_SPEC_29WEST_LBM_29 ||
@@ -1731,7 +1737,7 @@ extern "C"
 int open(__const char *__file, int __oflag, ...)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.open)	get_orig_funcs();
+	if (!orig_os_api.open) get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	va_list va;
