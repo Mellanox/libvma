@@ -474,7 +474,7 @@ int sockinfo_udp::bind(const struct sockaddr *__addr, socklen_t __addrlen)
 	}
 
 	struct sockaddr_in bound_addr;
-	socklen_t   boundlen = sizeof(struct sockaddr_in);
+	socklen_t boundlen = sizeof(struct sockaddr_in);
 	struct sockaddr *name = (struct sockaddr *)&bound_addr;
 	socklen_t *namelen = &boundlen;
 
@@ -672,18 +672,19 @@ int sockinfo_udp::on_sockname_change(struct sockaddr *__name, socklen_t __namele
 	if (is_bound_modified && bound_port != INPORT_ANY) {
 
 		// Attach UDP unicast port to offloaded interface
-		// 1. Verify not binding to MC address in the UC case
-		// 2. Check if local_if is offloadable OR is on INADDR_ANY which means attach to ALL
+		// 1. Check if local_if is offloadable OR is on INADDR_ANY which means attach to ALL
+		// 2. Verify not binding to MC address in the UC case
+		// 3. if not offloaded then set a PassThrough
 		if ((m_bound.is_anyaddr() || g_p_net_device_table_mgr->get_net_device_val(m_bound.get_in_addr()))) {
 			attach_as_uc_receiver(ROLE_UDP_RECEIVER); // if failed, we will get RX from OS
 		}
+		else if (m_bound.is_mc()) {
+			// MC address binding will happen later as part of the ADD_MEMBERSHIP in handle_pending_mreq()
+			si_udp_logdbg("bound to MC address, no need to attach to UC address as offloaded");
+		}
 		else {
-			if (m_bound.is_mc()) {
-				si_udp_logdbg("bound to MC address, no need to attach to UC address as offloaded");
-			}
-			else {
-				si_udp_logdbg("will be passed to OS for handling - not offload interface (%s)", m_bound.to_str());
-			}
+			si_udp_logdbg("will be passed to OS for handling - not offload interface (%s)", m_bound.to_str());
+			setPassthrough();
 		}
 
 		// Attach UDP port pending MC groups to offloaded interface (set by ADD_MEMBERSHIP before bind() was called)
