@@ -121,7 +121,7 @@ AS_IF([test "x$enable_exp_cq" == xyes],
 	,
 	[
 	  int access = (int)IBV_EXP_CQ_TIMESTAMP;
-	  return access;
+	  access = access;
 	],
 	[
 	  AC_MSG_RESULT([yes])
@@ -137,7 +137,7 @@ AS_IF([test "x$enable_exp_cq" == xyes],
 	,
 	[
 	  int access = (int)IBV_EXP_DEVICE_RX_CSUM_L4_PKT;
-	  return access;
+	  access = access;
 	],
 	[
 	  AC_MSG_RESULT([yes])
@@ -153,7 +153,7 @@ AS_IF([test "x$enable_exp_cq" == xyes],
 	,
 	[
 	  int access = (int)IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT;
-	  return access;
+	  access = access;
 	],
 	[
 	  AC_MSG_RESULT([yes])
@@ -269,7 +269,7 @@ AC_TRY_LINK(
 ,
 [
   int qp_type = (int)IBV_QPT_RAW_PACKET;
-  return qp_type;
+  qp_type = qp_type;
 ],
 [
   AC_MSG_RESULT([yes])
@@ -285,7 +285,7 @@ AC_TRY_LINK(
 ,
 [
   int  vlan_flag = (int)IBV_WC_WITH_VLAN;
-  return vlan_flag;
+  vlan_flag = vlan_flag;
 ],
 [
   AC_MSG_RESULT([yes])
@@ -301,7 +301,7 @@ AC_TRY_LINK(
 ,
 [
   int access = (int)IBV_ACCESS_ALLOCATE_MR;
-  return access;
+  access = access;
 ],
 [
   AC_MSG_RESULT([yes])
@@ -320,7 +320,7 @@ AC_TRY_LINK(
 ,
 [
   int access = (int)IBV_EXP_CQ_MODERATION;
-  return access;
+  access = access;
 ],
 [
   AC_MSG_RESULT([yes])
@@ -336,7 +336,7 @@ AC_TRY_LINK(
 ,
 [
   int access = (int)IBV_EXP_ACCESS_ALLOCATE_MR;
-  return access;
+  access = access;
 ],
 [
   AC_MSG_RESULT([yes])
@@ -353,7 +353,7 @@ AC_TRY_LINK(
 ,
 [
   int access = (int)IBV_DEVICE_RAW_IP_CSUM;
-  return access;
+  access = access;
 ],
 [
   AC_MSG_RESULT([yes])
@@ -369,7 +369,7 @@ AC_TRY_LINK(
 ,
 [
   int access = (int)IBV_SEND_IP_CSUM;
-  return access;
+  access = access;
 ],
 [
   AC_MSG_RESULT([yes])
@@ -385,7 +385,7 @@ AC_TRY_LINK(
 ,
 [
   int access = (int)IBV_EXP_FLOW_SPEC_IB;
-  return access;
+  access = access;
 ],
 [
   AC_MSG_RESULT([yes])
@@ -401,7 +401,7 @@ AC_TRY_LINK(
 ,
 [
   int access = (int)IBV_FLOW_SPEC_IB;
-  return access;
+  access = access;
 ],
 [
   AC_MSG_RESULT([yes])
@@ -417,7 +417,7 @@ AC_TRY_LINK(
 ,
 [
   int ts = (int)SOF_TIMESTAMPING_SOFTWARE;
-  return ts;
+  ts = ts;
 ],
 [
   AC_MSG_RESULT([yes])
@@ -427,7 +427,7 @@ AC_TRY_LINK(
   AC_DEFINE(DEFINED_MISSING_NET_TSTAMP, 1, [Define to 1 if linux/net_tstamp.h is missing])
 ])
 
-AC_CHECK_TYPES([struct mmsghdr],,, [#include <sys/socket.h>])
+AC_CHECK_TYPES([struct mmsghdr],[],[],[#include <sys/socket.h>])
 
 AC_MSG_CHECKING([if 'struct timespec' for recvmmsg() is const])
 AC_TRY_LINK(

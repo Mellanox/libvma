@@ -1530,7 +1530,7 @@ int  init_print_process_stats(sh_mem_info_t & sh_mem_info)
 	sh_mem_info.p_sh_stats = mmap(0, sizeof(sh_mem_t), PROT_READ, MAP_SHARED, sh_mem_info.fd_sh_stats, 0);
 	MAP_SH_MEM(sh_mem,sh_mem_info.p_sh_stats);
 	if (sh_mem_info.p_sh_stats == MAP_FAILED) {
-		log_system_err("MAP_FAILED - %m\n");
+		log_system_err("MAP_FAILED - %s\n", strerror (errno));
 		close(sh_mem_info.fd_sh_stats);
 		return 1;
 	}
@@ -1570,7 +1570,7 @@ int  init_print_process_stats(sh_mem_info_t & sh_mem_info)
 		sh_mem_info.p_sh_stats = mmap(0, sh_mem_info.shmem_size, PROT_READ, MAP_SHARED, sh_mem_info.fd_sh_stats, 0);
 	
 	if (sh_mem_info.p_sh_stats == MAP_FAILED) {
-		log_system_err("MAP_FAILED - %m\n");
+		log_system_err("MAP_FAILED - %s\n", strerror (errno));
 		close(sh_mem_info.fd_sh_stats);
 		return 1;
 	}

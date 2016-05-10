@@ -84,6 +84,12 @@ void assign_dlsym(T &ptr, const char *name) {
 	ptr = reinterpret_cast<T>(dlsym(RTLD_NEXT, name));
 }
 
+#ifdef __INTEL_COMPILER
+#define VMA_THROW
+#else
+#define VMA_THROW	throw(vma_error)
+#endif
+
 #define FD_MAP_SIZE 		(g_p_fd_collection ? g_p_fd_collection->get_fd_map_size() : 1024)
 
 #define GET_ORIG_FUNC(__name) \
@@ -623,7 +629,7 @@ int connect(int __fd, const struct sockaddr *__to, socklen_t __tolen)
    Returns 0 on success, -1 for errors.  */
 extern "C"
 int setsockopt(int __fd, int __level, int __optname,
-	       __const void *__optval, socklen_t __optlen) throw (vma_error)
+	       __const void *__optval, socklen_t __optlen) VMA_THROW
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.setsockopt) get_orig_funcs();
@@ -659,7 +665,7 @@ int setsockopt(int __fd, int __level, int __optname,
    Returns 0 on success, -1 for errors.  */
 extern "C"
 int getsockopt(int __fd, int __level, int __optname,
-	       void *__optval, socklen_t *__optlen) throw (vma_error)
+	       void *__optval, socklen_t *__optlen) VMA_THROW
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.getsockopt) get_orig_funcs();
@@ -706,7 +712,7 @@ int getsockopt(int __fd, int __level, int __optname,
    accordingly (see README.txt)
    */
 extern "C"
-int fcntl(int __fd, int __cmd, ...) throw (vma_error)
+int fcntl(int __fd, int __cmd, ...) VMA_THROW
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.fcntl) get_orig_funcs();
@@ -743,7 +749,7 @@ int fcntl(int __fd, int __cmd, ...) throw (vma_error)
    One argument may follow; its presence and type depend on REQUEST.
    Return value depends on REQUEST.  Usually -1 indicates error. */
 extern "C"
-int ioctl (int __fd, unsigned long int __request, ...) throw (vma_error)
+int ioctl (int __fd, unsigned long int __request, ...) VMA_THROW
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.fcntl) get_orig_funcs();
@@ -1007,10 +1013,12 @@ ssize_t recvmsg(int __fd, struct msghdr *__msg, int __flags)
 
 /* The following definitions are for kernels previous to 2.6.32 which dont support recvmmsg */
 #ifndef HAVE_STRUCT_MMSGHDR
+#ifndef __INTEL_COMPILER
 struct mmsghdr {
     struct msghdr msg_hdr;  // Message header
     unsigned int  msg_len;  // Number of received bytes for header
 };
+#endif
 #endif
 
 #ifndef MSG_WAITFORONE

@@ -2097,7 +2097,7 @@ int sockinfo_tcp::listen(int backlog)
 		setPassthrough();
 		return orig_os_api.listen(m_fd, orig_backlog);
 	}
-//*/
+*/
 	if (m_rx_ring_map.size()) {
 		if (m_rx_ring_map.size() == 1) {
 			rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.begin();
@@ -3363,7 +3363,7 @@ int sockinfo_tcp::getsockname(sockaddr *__name, socklen_t *__namelen)
 		errno = EINVAL;
 		return -1;
 	}
-#//*/
+*/
 	// according to man address should be truncated if given struct is too small
 	if (__name && __namelen && (*__namelen >= m_bound.get_socklen())) {
 		m_bound.get_sa(__name);
@@ -3389,7 +3389,7 @@ int sockinfo_tcp::getpeername(sockaddr *__name, socklen_t *__namelen)
 		errno = EINVAL;
 		return -1;
 	}
-//*/
+*/
 	if (m_conn_state != TCP_CONN_CONNECTED) {
 		errno = ENOTCONN;
 		return -1;

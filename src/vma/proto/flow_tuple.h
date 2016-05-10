@@ -64,7 +64,7 @@ public:
 	void		set_dst_port(in_port_t dst_port);
 	void		set_src_port(in_port_t src_port);
 	void		set_protocol(in_protocol_t protocol);
-//*/
+*/
 	bool		is_tcp();
 	bool		is_udp_uc();
 	bool		is_udp_mc();
