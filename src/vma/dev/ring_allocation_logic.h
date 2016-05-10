@@ -83,8 +83,8 @@ class ring_allocation_logic_rx : public ring_allocation_logic
 {
 public:
 	ring_allocation_logic_rx(int fd, const void* owner = NULL):
-		ring_allocation_logic(mce_sys.ring_allocation_logic_rx,
-				mce_sys.ring_migration_ratio_rx,
+		ring_allocation_logic(safe_mce_sys().ring_allocation_logic_rx,
+				safe_mce_sys().ring_migration_ratio_rx,
 				fd) { RAL_TOSTR(m_tostr, "Rx",owner); }
 };
 
@@ -92,8 +92,8 @@ class ring_allocation_logic_tx : public ring_allocation_logic
 {
 public:
 	ring_allocation_logic_tx(int fd, const void* owner = NULL):
-		ring_allocation_logic(mce_sys.ring_allocation_logic_tx,
-				mce_sys.ring_migration_ratio_tx,
+		ring_allocation_logic(safe_mce_sys().ring_allocation_logic_tx,
+				safe_mce_sys().ring_migration_ratio_tx,
 				fd) { RAL_TOSTR(m_tostr, "Tx",owner); }
 };
 

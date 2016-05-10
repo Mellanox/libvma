@@ -154,12 +154,12 @@ inline int sockinfo_udp::rx_wait(bool blocking)
 	while (loops_to_go) {
 
 		// Multi-thread polling support - let other threads have a go on this CPU
-		if ((mce_sys.rx_poll_yield_loops > 0) && ((loops % mce_sys.rx_poll_yield_loops) == (mce_sys.rx_poll_yield_loops-1))) {
+		if ((safe_mce_sys().rx_poll_yield_loops > 0) && ((loops % safe_mce_sys().rx_poll_yield_loops) == (safe_mce_sys().rx_poll_yield_loops-1))) {
 			sched_yield();
 		}
 
-		// Poll socket for OS ready packets... (at a ratio of the offloaded sockets as defined in mce_sys.rx_udp_poll_os_ratio)
-		if ((mce_sys.rx_udp_poll_os_ratio > 0) && (m_rx_udp_poll_os_ratio_counter >= mce_sys.rx_udp_poll_os_ratio)) {
+		// Poll socket for OS ready packets... (at a ratio of the offloaded sockets as defined in safe_mce_sys().rx_udp_poll_os_ratio)
+		if ((safe_mce_sys().rx_udp_poll_os_ratio > 0) && (m_rx_udp_poll_os_ratio_counter >= safe_mce_sys().rx_udp_poll_os_ratio)) {
 			ret = poll_os();
 			if ((ret == -1) || (ret == 1)) {
 				return ret;
@@ -174,7 +174,7 @@ inline int sockinfo_udp::rx_wait(bool blocking)
 		}
 
 		loops++;
-		if (!blocking || mce_sys.rx_poll_num != -1) {
+		if (!blocking || safe_mce_sys().rx_poll_num != -1) {
 			loops_to_go--;
 		}
 		if (m_loops_timer.is_timeout()) {
@@ -366,9 +366,9 @@ tscval_t g_si_tscv_last_poll = 0;
 sockinfo_udp::sockinfo_udp(int fd) throw (vma_exception) :
 	sockinfo(fd)
 	,m_mc_tx_if(INADDR_ANY)
-	,m_b_mc_tx_loop(mce_sys.tx_mc_loopback_default) // default value is 'true'. User can change this with config parameter SYS_VAR_TX_MC_LOOPBACK
+	,m_b_mc_tx_loop(safe_mce_sys().tx_mc_loopback_default) // default value is 'true'. User can change this with config parameter SYS_VAR_TX_MC_LOOPBACK
 	,m_n_mc_ttl(DEFAULT_MC_TTL)
-	,m_loops_to_go(mce_sys.rx_poll_num_init) // Start up with a init polling loops value
+	,m_loops_to_go(safe_mce_sys().rx_poll_num_init) // Start up with a init polling loops value
 	,m_rx_udp_poll_os_ratio_counter(0)
 	,m_sock_offload(true)
 	,m_port_map_lock("sockinfo_udp::m_ports_map_lock")
@@ -767,7 +767,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 
 					if (val & (SOF_TIMESTAMPING_RAW_HARDWARE | SOF_TIMESTAMPING_RX_HARDWARE)) {
 						if (g_p_ib_ctx_handler_collection->get_ctx_time_conversion_mode() == TS_CONVERSION_MODE_DISABLE){
-							if (mce_sys.rx_udp_hw_ts_conversion ==  TS_CONVERSION_MODE_DISABLE) {
+							if (safe_mce_sys().rx_udp_hw_ts_conversion ==  TS_CONVERSION_MODE_DISABLE) {
 								errno = EPERM;
 								si_udp_logdbg("SOL_SOCKET, SOF_TIMESTAMPING_RAW_HARDWARE and SOF_TIMESTAMPING_RX_HARDWARE socket options were disabled (VMA_UDP_RX_HW_TS_CONVERSION = %d) , errno set to EPERM", TS_CONVERSION_MODE_DISABLE);
 								return -1;
@@ -962,7 +962,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 
 				// MNY: TODO: Check rules for local_if (blacklist interface feature)
 				/*sock_addr tmp_if_addr(AF_INET, mc_if, m_bound.get_in_port());
-				if (__vma_match_udp_receiver(TRANS_VMA, tmp_if_addr.get_p_sa(), tmp_if_addr.get_socklen(), mce_sys.app_id) == TRANS_OS) {
+				if (__vma_match_udp_receiver(TRANS_VMA, tmp_if_addr.get_p_sa(), tmp_if_addr.get_socklen(), safe_mce_sys().app_id) == TRANS_OS) {
 					// Break so we call orig setsockopt() and don't try to offlaod
 					si_udp_logdbg("setsockopt(%s) will be passed to OS for handling due to rule matching", setsockopt_ip_opt_to_str(__optname));
 					break;
@@ -972,7 +972,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 
 				// Check MC rules for not offloading
 				sock_addr tmp_grp_addr(AF_INET, mc_grp, m_bound.get_in_port());
-				if (__vma_match_udp_receiver(TRANS_VMA, mce_sys.app_id, tmp_grp_addr.get_p_sa(), tmp_grp_addr.get_socklen()) == TRANS_OS) {
+				if (__vma_match_udp_receiver(TRANS_VMA, safe_mce_sys().app_id, tmp_grp_addr.get_p_sa(), tmp_grp_addr.get_socklen()) == TRANS_OS) {
 					// call orig setsockopt() and don't try to offlaod
 					si_udp_logdbg("setsockopt(%s) will be passed to OS for handling due to rule matching", setsockopt_ip_opt_to_str(__optname));
 					goto_os = true;
@@ -1077,7 +1077,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 		snprintf(buf, sizeof(buf), "unimplemented setsockopt __level=%#x, __optname=%#x, [__optlen (%d) bytes of __optval=%.*s]", (unsigned)__level, (unsigned)__optname, __optlen, __optlen, (char*)__optval);
 		buf[ sizeof(buf)-1 ] = '\0';
 
-		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
+		VLOG_PRINTF_INFO(safe_mce_sys().exception_handling.get_log_severity(), "%s", buf);
 		int rc = handle_exception_flow();
 		switch (rc) {
 		case -1:
@@ -1147,7 +1147,7 @@ int sockinfo_udp::getsockopt(int __level, int __optname, void *__optval, socklen
 		snprintf(buf, sizeof(buf), "unimplemented getsockopt __level=%#x, __optname=%#x, __optlen=%d", (unsigned)__level, (unsigned)__optname, __optlen ? *__optlen : 0);
 		buf[ sizeof(buf)-1 ] = '\0';
 
-		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
+		VLOG_PRINTF_INFO(safe_mce_sys().exception_handling.get_log_severity(), "%s", buf);
 		int rc = handle_exception_flow();
 		switch (rc) {
 		case -1:
@@ -1163,9 +1163,9 @@ int sockinfo_udp::getsockopt(int __level, int __optname, void *__optval, socklen
 // Drop rx ready packets from head of queue
 void sockinfo_udp::rx_ready_byte_count_limit_update(size_t n_rx_ready_bytes_limit_new)
 {
-	si_udp_logfunc("new limit: %d Bytes (old: %d Bytes, min value %d Bytes)", n_rx_ready_bytes_limit_new, m_p_socket_stats->n_rx_ready_byte_limit, mce_sys.rx_ready_byte_min_limit);
-	if (n_rx_ready_bytes_limit_new > 0 && n_rx_ready_bytes_limit_new < mce_sys.rx_ready_byte_min_limit)
-		n_rx_ready_bytes_limit_new = mce_sys.rx_ready_byte_min_limit;
+	si_udp_logfunc("new limit: %d Bytes (old: %d Bytes, min value %d Bytes)", n_rx_ready_bytes_limit_new, m_p_socket_stats->n_rx_ready_byte_limit, safe_mce_sys().rx_ready_byte_min_limit);
+	if (n_rx_ready_bytes_limit_new > 0 && n_rx_ready_bytes_limit_new < safe_mce_sys().rx_ready_byte_min_limit)
+		n_rx_ready_bytes_limit_new = safe_mce_sys().rx_ready_byte_min_limit;
 	m_p_socket_stats->n_rx_ready_byte_limit = n_rx_ready_bytes_limit_new;
 
 	m_lock_rcv.lock();
@@ -1224,8 +1224,8 @@ ssize_t sockinfo_udp::rx(const rx_call_t call_type, iovec* p_iov,ssize_t sz_iov,
 	// Drop lock to not starve other threads
 	m_lock_rcv.unlock();
 
-	// Poll socket for OS ready packets... (at a ratio of the offloaded sockets as defined in mce_sys.rx_udp_poll_os_ratio)
-	if ((mce_sys.rx_udp_poll_os_ratio > 0) && (m_rx_udp_poll_os_ratio_counter >= mce_sys.rx_udp_poll_os_ratio)) {
+	// Poll socket for OS ready packets... (at a ratio of the offloaded sockets as defined in safe_mce_sys().rx_udp_poll_os_ratio)
+	if ((safe_mce_sys().rx_udp_poll_os_ratio > 0) && (m_rx_udp_poll_os_ratio_counter >= safe_mce_sys().rx_udp_poll_os_ratio)) {
 		ret = poll_os();
 		if (ret == -1) {
 			m_lock_rcv.lock();
@@ -1238,7 +1238,7 @@ ssize_t sockinfo_udp::rx(const rx_call_t call_type, iovec* p_iov,ssize_t sz_iov,
 	}
 
 	// First check if we have a packet in the ready list
-	if ((m_n_rx_pkt_ready_list_count > 0 && mce_sys.rx_cq_drain_rate_nsec == MCE_RX_CQ_DRAIN_RATE_DISABLED)
+	if ((m_n_rx_pkt_ready_list_count > 0 && safe_mce_sys().rx_cq_drain_rate_nsec == MCE_RX_CQ_DRAIN_RATE_DISABLED)
 	    || is_readable(&poll_sn)) {
 		m_lock_rcv.lock();
 		m_rx_udp_poll_os_ratio_counter++;
@@ -1297,7 +1297,7 @@ os:
 	if (ret > 0) {
 		// This will cause the next non-blocked read to check the OS again.
 		// We do this only after a successful read.
-		m_rx_udp_poll_os_ratio_counter = mce_sys.rx_udp_poll_os_ratio;
+		m_rx_udp_poll_os_ratio_counter = safe_mce_sys().rx_udp_poll_os_ratio;
 	}
 
 out:
@@ -1427,7 +1427,7 @@ void sockinfo_udp::handle_cmsg(struct msghdr * msg)
 // This function is relevant only for non-blocking socket
 void sockinfo_udp::set_immediate_os_sample()
 {
-	m_rx_udp_poll_os_ratio_counter = mce_sys.rx_udp_poll_os_ratio;
+	m_rx_udp_poll_os_ratio_counter = safe_mce_sys().rx_udp_poll_os_ratio;
 }
 
 // This function is relevant only for non-blocking socket
@@ -1444,14 +1444,14 @@ bool sockinfo_udp::is_readable(uint64_t *p_poll_sn, fd_array_t* p_fd_ready_array
 	// This is the quickest way back to the user with a ready packet (which will happen if we don't force draining of the CQ)
 	if (m_n_rx_pkt_ready_list_count > 0) {
 
-		if (mce_sys.rx_cq_drain_rate_nsec == MCE_RX_CQ_DRAIN_RATE_DISABLED) {
+		if (safe_mce_sys().rx_cq_drain_rate_nsec == MCE_RX_CQ_DRAIN_RATE_DISABLED) {
 			si_udp_logfunc("=> true (ready count = %d packets / %d bytes)", m_n_rx_pkt_ready_list_count, m_p_socket_stats->n_rx_ready_byte_count);
 			return true;
 		}
 		else {
 			tscval_t tsc_now = TSCVAL_INITIALIZER;
 			gettimeoftsc(&tsc_now);
-			if (tsc_now - g_si_tscv_last_poll < mce_sys.rx_delta_tsc_between_cq_polls) {
+			if (tsc_now - g_si_tscv_last_poll < safe_mce_sys().rx_delta_tsc_between_cq_polls) {
 				si_udp_logfunc("=> true (ready count = %d packets / %d bytes)", m_n_rx_pkt_ready_list_count, m_p_socket_stats->n_rx_ready_byte_count);
 				return true;
 			}
@@ -1843,11 +1843,11 @@ void sockinfo_udp::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ri
 	sockinfo::rx_add_ring_cb(flow_key, p_ring, is_migration);
 
 	//Now that we got at least 1 CQ attached enable the skip os mechanism.
-	m_rx_udp_poll_os_ratio_counter = mce_sys.rx_udp_poll_os_ratio;
+	m_rx_udp_poll_os_ratio_counter = safe_mce_sys().rx_udp_poll_os_ratio;
 
 	// Now that we got at least 1 CQ attached start polling the CQs
 	if (m_b_blocking)
-        	m_loops_to_go = mce_sys.rx_poll_num;
+        	m_loops_to_go = safe_mce_sys().rx_poll_num;
 	else
 		m_loops_to_go = 1; // Force single CQ poll in case of non-blocking socket
 
@@ -1898,7 +1898,7 @@ void sockinfo_udp::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ri
 	// If no more CQ's are attached on this socket, return CQ polling loops ot init state
 	if (m_rx_ring_map.size() <= 0) {
 		if (m_b_blocking)
-			m_loops_to_go = mce_sys.rx_poll_num_init;
+			m_loops_to_go = safe_mce_sys().rx_poll_num_init;
 		else
 			m_loops_to_go = 1;
 	}
@@ -1912,9 +1912,9 @@ void sockinfo_udp::set_blocking(bool is_blocked)
 		// Set the high CQ polling RX_POLL value 
 		// depending on where we have mapped offloaded MC gorups
 		if (m_rx_ring_map.size() > 0)
-			m_loops_to_go = mce_sys.rx_poll_num;
+			m_loops_to_go = safe_mce_sys().rx_poll_num;
 		else
-			m_loops_to_go = mce_sys.rx_poll_num_init;
+			m_loops_to_go = safe_mce_sys().rx_poll_num_init;
 	}
 	else {
 		// Force single CQ poll in case of non-blocking socket
@@ -2018,7 +2018,7 @@ int sockinfo_udp::mc_change_membership(const struct ip_mreq *p_mreq, int optname
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	sock_addr tmp_grp_addr(AF_INET, mc_grp, m_bound.get_in_port());
-	if (__vma_match_udp_receiver(TRANS_VMA, mce_sys.app_id, tmp_grp_addr.get_p_sa(), tmp_grp_addr.get_socklen()) == TRANS_OS) {
+	if (__vma_match_udp_receiver(TRANS_VMA, safe_mce_sys().app_id, tmp_grp_addr.get_p_sa(), tmp_grp_addr.get_socklen()) == TRANS_OS) {
 		// Break so we call orig setsockopt() and don't try to offlaod
 		si_udp_logdbg("setsockopt(%s) will be passed to OS for handling due to rule matching", setsockopt_ip_opt_to_str(optname));
 		return -1;
@@ -2040,7 +2040,7 @@ int sockinfo_udp::mc_change_membership(const struct ip_mreq *p_mreq, int optname
 
 	// MNY: TODO: Check rules for local_if (blacklist interface feature)
 	/*sock_addr tmp_if_addr(AF_INET, mc_if, m_bound.get_in_port());
-	if (__vma_match_udp_receiver(TRANS_VMA, tmp_if_addr.get_p_sa(), tmp_if_addr.get_socklen(), mce_sys.app_id) == TRANS_OS) {
+	if (__vma_match_udp_receiver(TRANS_VMA, tmp_if_addr.get_p_sa(), tmp_if_addr.get_socklen(), safe_mce_sys().app_id) == TRANS_OS) {
 		// Break so we call orig setsockopt() and don't try to offlaod
 		si_udp_logdbg("setsockopt(%s) will be passed to OS for handling due to rule matching", setsockopt_ip_opt_to_str(optname));
 		return -1;
@@ -2133,7 +2133,7 @@ void sockinfo_udp::validate_igmpv2(flow_tuple_with_local_if& flow_key)
 		goto clean_and_exit;
 	}
 
-	if (get_iftype_from_ifname(ifname) == ARPHRD_INFINIBAND && !mce_sys.suppress_igmp_warning) {
+	if (get_iftype_from_ifname(ifname) == ARPHRD_INFINIBAND && !safe_mce_sys().suppress_igmp_warning) {
 		igmp_ret = validate_igmpv2(ifname); // Extract IGMP version flag
 	}
 	else {

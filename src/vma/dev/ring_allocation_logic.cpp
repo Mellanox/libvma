@@ -64,7 +64,7 @@ resource_allocation_key ring_allocation_logic::get_res_key_by_logic()
 	switch (m_ring_allocation_logic) {
 	case RING_LOGIC_PER_INTERFACE:
 		key = 0;
-		if (mce_sys.tcp_ctl_thread > CTL_THREAD_DISABLE)
+		if (safe_mce_sys().tcp_ctl_thread > CTL_THREAD_DISABLE)
 			key = 1;
 		break;
 	case RING_LOGIC_PER_SOCKET:

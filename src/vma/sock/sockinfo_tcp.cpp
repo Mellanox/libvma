@@ -118,7 +118,7 @@ inline int sockinfo_tcp::rx_wait(int &poll_count, bool is_blocking)
 inline void sockinfo_tcp::return_pending_rx_buffs()
 {
     // force reuse of buffers especially for avoiding deadlock in case all buffers were taken and we can NOT get new FIN packets that will release buffers
-	if (mce_sys.buffer_batching_mode == BUFFER_BATCHING_NO_RECLAIM || !m_rx_reuse_buff.n_buff_num)
+	if (safe_mce_sys().buffer_batching_mode == BUFFER_BATCHING_NO_RECLAIM || !m_rx_reuse_buff.n_buff_num)
 		return;
 
     if (m_rx_reuse_buf_pending) {
@@ -136,7 +136,7 @@ inline void sockinfo_tcp::return_pending_rx_buffs()
 
 inline void sockinfo_tcp::return_pending_tx_buffs()
 {
-	if (mce_sys.buffer_batching_mode == BUFFER_BATCHING_NO_RECLAIM || !m_p_connected_dst_entry)
+	if (safe_mce_sys().buffer_batching_mode == BUFFER_BATCHING_NO_RECLAIM || !m_p_connected_dst_entry)
 		return;
 
 	m_p_connected_dst_entry->return_buffers_pool();
@@ -218,7 +218,7 @@ sockinfo_tcp::sockinfo_tcp(int fd) throw (vma_exception) :
 	/* SNDBUF accounting */
 	m_sndbuff_max = 0;
 	/* RCVBUF accounting */
-	m_rcvbuff_max = mce_sys.sysctl_reader.get_tcp_rmem()->default_value;
+	m_rcvbuff_max = safe_mce_sys().sysctl_reader.get_tcp_rmem()->default_value;
 
 	m_rcvbuff_current = 0;
 	m_rcvbuff_non_tcp_recved = 0;
@@ -950,8 +950,8 @@ bool sockinfo_tcp::process_peer_ctl_packets(vma_desc_list_t &peer_packets)
 			if (m_syn_received.size() >= (size_t)m_backlog && desc->path.rx.p_tcp_h->syn) {
 				m_tcp_con_lock.unlock();
 				break; // skip to next peer
-			} else if (mce_sys.tcp_max_syn_rate && desc->path.rx.p_tcp_h->syn) {
-				static tscval_t tsc_delay = get_tsc_rate_per_second() / mce_sys.tcp_max_syn_rate;
+			} else if (safe_mce_sys().tcp_max_syn_rate && desc->path.rx.p_tcp_h->syn) {
+				static tscval_t tsc_delay = get_tsc_rate_per_second() / safe_mce_sys().tcp_max_syn_rate;
 				tscval_t tsc_now;
 				gettimeoftsc(&tsc_now);
 				if (tsc_now - m_last_syn_tsc < tsc_delay) {
@@ -1017,7 +1017,7 @@ void sockinfo_tcp::process_my_ctl_packets()
 		peer_key pk(desc->path.rx.src.sin_addr.s_addr, desc->path.rx.src.sin_port);
 
 
-		static const unsigned int MAX_SYN_RCVD = mce_sys.tcp_ctl_thread > CTL_THREAD_DISABLE ? mce_sys.sysctl_reader.get_tcp_max_syn_backlog() : 0;
+		static const unsigned int MAX_SYN_RCVD = safe_mce_sys().tcp_ctl_thread > CTL_THREAD_DISABLE ? safe_mce_sys().sysctl_reader.get_tcp_max_syn_backlog() : 0;
 		// NOTE: currently, in case tcp_ctl_thread is disabled, only established backlog is supported (no syn-rcvd backlog)
 		unsigned int num_con_waiting = m_rx_peer_packets.size();
 
@@ -1134,10 +1134,10 @@ void sockinfo_tcp::handle_timer_expired(void* user_data)
 	NOT_IN_USE(user_data);
 	si_tcp_logfunc("");
 
-	if (mce_sys.tcp_ctl_thread > CTL_THREAD_DISABLE)
+	if (safe_mce_sys().tcp_ctl_thread > CTL_THREAD_DISABLE)
 		process_rx_ctl_packets();
 
-	if (mce_sys.internal_thread_tcp_timer_handling == INTERNAL_THREAD_TCP_TIMER_HANDLING_DEFERRED) {
+	if (safe_mce_sys().internal_thread_tcp_timer_handling == INTERNAL_THREAD_TCP_TIMER_HANDLING_DEFERRED) {
 		// DEFERRED. if Internal thread is here first and m_timer_pending is false it jsut 
 		// sets it as true for its next iteration (within 100ms), letting 
 		// application threads have a chance of running tcp_timer()
@@ -1556,7 +1556,7 @@ err:
 void sockinfo_tcp::register_timer()
 {
 	if( m_timer_handle == NULL) {
-		m_timer_handle = g_p_event_handler_manager->register_timer_event(mce_sys.tcp_timer_resolution_msec , this, PERIODIC_TIMER, 0, g_tcp_timers_collection);
+		m_timer_handle = g_p_event_handler_manager->register_timer_event(safe_mce_sys().tcp_timer_resolution_msec , this, PERIODIC_TIMER, 0, g_tcp_timers_collection);
 	}else {
 		si_tcp_logdbg("register_timer was called more than once. Something might be wrong, or connect was called twice.");
 	}
@@ -1580,7 +1580,7 @@ void sockinfo_tcp::queue_rx_ctl_packet(struct tcp_pcb* pcb, mem_buf_desc_t *p_de
 		m_ready_pcbs[pcb] = 1;
 	}
 
-	if (mce_sys.tcp_ctl_thread == CTL_THREAD_WITH_WAKEUP)
+	if (safe_mce_sys().tcp_ctl_thread == CTL_THREAD_WITH_WAKEUP)
 		g_p_event_handler_manager->wakeup_timer_event(this, m_timer_handle);
 
 	return;
@@ -1605,7 +1605,7 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 
 			/// respect TCP listen backlog - See redmine issue #565962
 			/// distinguish between backlog of established sockets vs. backlog of syn-rcvd
-			static const unsigned int MAX_SYN_RCVD = mce_sys.tcp_ctl_thread > CTL_THREAD_DISABLE ? mce_sys.sysctl_reader.get_tcp_max_syn_backlog() : 0;
+			static const unsigned int MAX_SYN_RCVD = safe_mce_sys().tcp_ctl_thread > CTL_THREAD_DISABLE ? safe_mce_sys().sysctl_reader.get_tcp_max_syn_backlog() : 0;
 							// NOTE: currently, in case tcp_ctl_thread is disabled, only established backlog is supported (no syn-rcvd backlog)
 
 			unsigned int num_con_waiting = m_rx_peer_packets.size();
@@ -1624,7 +1624,7 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 				return false;// return without inc_ref_count() => packet will be dropped
 			}
 		}
-		if (mce_sys.tcp_ctl_thread > CTL_THREAD_DISABLE || established_backlog_full) { /* 2nd check only worth when MAX_SYN_RCVD>0 for non tcp_ctl_thread  */
+		if (safe_mce_sys().tcp_ctl_thread > CTL_THREAD_DISABLE || established_backlog_full) { /* 2nd check only worth when MAX_SYN_RCVD>0 for non tcp_ctl_thread  */
 			queue_rx_ctl_packet(pcb, p_rx_pkt_mem_buf_desc_info); // TODO: need to trigger queue pulling from accept in case no tcp_ctl_thread
 			unlock_tcp_con();
 			return true;
@@ -1682,7 +1682,7 @@ int sockinfo_tcp::prepareConnect(const sockaddr *, socklen_t ){
 		return 1; //passthrough
 
 	/* obtain the target address family */
-	target_family = __vma_match_tcp_client(TRANS_VMA, __to, __tolen, mce_sys.app_id);
+	target_family = __vma_match_tcp_client(TRANS_VMA, __to, __tolen, safe_mce_sys().app_id);
 	si_tcp_logdbg("TRANSPORT: %s",__vma_get_transport_str(target_family));
 	if (target_family == TRANS_OS) {
 		setPassthrough();
@@ -1978,7 +1978,7 @@ int sockinfo_tcp::prepareListen(){
 	memset(&tmp_sin, 0, tmp_sin_len);
 	getsockname((struct sockaddr *)&tmp_sin, &tmp_sin_len);
 	lock_tcp_con();
-	target_family = __vma_match_tcp_server(TRANS_VMA, mce_sys.app_id, (struct sockaddr *) &tmp_sin, tmp_sin_len);
+	target_family = __vma_match_tcp_server(TRANS_VMA, safe_mce_sys().app_id, (struct sockaddr *) &tmp_sin, tmp_sin_len);
 	si_tcp_logdbg("TRANSPORT: %s, sock state = %d", __vma_get_transport_str(target_family), get_tcp_state(&m_pcb));
 
 	if (target_family == TRANS_OS || m_sock_offload == TCP_SOCK_PASSTHROUGH) {
@@ -2021,7 +2021,7 @@ int sockinfo_tcp::listen(int backlog)
 	}
 
 	lock();
-	target_family = __vma_match_tcp_server(TRANS_VMA, (struct sockaddr *) &tmp_sin, sizeof(tmp_sin), mce_sys.app_id);
+	target_family = __vma_match_tcp_server(TRANS_VMA, (struct sockaddr *) &tmp_sin, sizeof(tmp_sin), safe_mce_sys().app_id);
 	si_tcp_logdbg("TRANSPORT: %s", __vma_get_transport_str(target_family));
 	si_tcp_logdbg("sock state = %d", m_sock->state);
 
@@ -2043,9 +2043,9 @@ int sockinfo_tcp::listen(int backlog)
 
 	int orig_backlog = backlog;
 
-	if (backlog > mce_sys.sysctl_reader.get_listen_maxconn()) {
-		si_tcp_logdbg("truncating listen backlog=%d to the maximun=%d", backlog, mce_sys.sysctl_reader.get_listen_maxconn());
-		backlog = mce_sys.sysctl_reader.get_listen_maxconn();
+	if (backlog > safe_mce_sys().sysctl_reader.get_listen_maxconn()) {
+		si_tcp_logdbg("truncating listen backlog=%d to the maximun=%d", backlog, safe_mce_sys().sysctl_reader.get_listen_maxconn());
+		backlog = safe_mce_sys().sysctl_reader.get_listen_maxconn();
 	}
 	else if (backlog <= 0) {
 		si_tcp_logdbg("changing listen backlog=%d to the minimum=%d", backlog, 1);
@@ -2142,8 +2142,8 @@ int sockinfo_tcp::listen(int backlog)
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	if (mce_sys.tcp_ctl_thread > CTL_THREAD_DISABLE)
-		m_timer_handle = g_p_event_handler_manager->register_timer_event(mce_sys.timer_resolution_msec , this, PERIODIC_TIMER, 0, NULL);
+	if (safe_mce_sys().tcp_ctl_thread > CTL_THREAD_DISABLE)
+		m_timer_handle = g_p_event_handler_manager->register_timer_event(safe_mce_sys().timer_resolution_msec , this, PERIODIC_TIMER, 0, NULL);
 
 	unlock_tcp_con();
 	return 0;
@@ -2154,7 +2154,7 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 {
 	sockinfo_tcp *ns;
 	//todo do one CQ poll and go to sleep even if infinite polling was set
-	int poll_count = mce_sys.rx_poll_num; //do one poll and go to sleep (if blocking)
+	int poll_count = safe_mce_sys().rx_poll_num; //do one poll and go to sleep (if blocking)
 	int ret;
 
 	si_tcp_logfuncall("");
@@ -2249,7 +2249,7 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 		m_received_syn_num--;
 	}
 
-	if (mce_sys.tcp_ctl_thread == CTL_THREAD_WITH_WAKEUP && !m_rx_peer_packets.empty())
+	if (safe_mce_sys().tcp_ctl_thread == CTL_THREAD_WITH_WAKEUP && !m_rx_peer_packets.empty())
 		g_p_event_handler_manager->wakeup_timer_event(this, m_timer_handle);
 
 	unlock_tcp_con();
@@ -2316,7 +2316,7 @@ sockinfo_tcp *sockinfo_tcp::accept_clone()
         si->m_sock_state = TCP_SOCK_BOUND;
         si->setPassthrough(false);
 
-        if (mce_sys.tcp_ctl_thread  > CTL_THREAD_DISABLE) {
+        if (safe_mce_sys().tcp_ctl_thread  > CTL_THREAD_DISABLE) {
         	tcp_ip_output(&si->m_pcb, sockinfo_tcp::ip_output_syn_ack);
         }
 
@@ -2384,7 +2384,7 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 		new_sock->m_p_rx_ring = rx_ring_iter->first;
 	}
 
-	if (mce_sys.tcp_ctl_thread > CTL_THREAD_DISABLE) {
+	if (safe_mce_sys().tcp_ctl_thread > CTL_THREAD_DISABLE) {
 		new_sock->m_vma_thr = true;
 
 		// Before handling packets from flow steering the child should process everything it got from parent
@@ -2946,7 +2946,7 @@ bad_state:
 
 int sockinfo_tcp::fcntl(int __cmd, unsigned long int __arg) throw (vma_error)
 {
-	if (!mce_sys.avoid_sys_calls_on_tcp_fd || !is_connected())
+	if (!safe_mce_sys().avoid_sys_calls_on_tcp_fd || !is_connected())
 		return sockinfo::fcntl(__cmd, __arg);
 
 	switch (__cmd) {
@@ -2977,7 +2977,7 @@ int sockinfo_tcp::fcntl(int __cmd, unsigned long int __arg) throw (vma_error)
 
 int sockinfo_tcp::ioctl(unsigned long int __request, unsigned long int __arg)  throw (vma_error)
 {
-	if (!mce_sys.avoid_sys_calls_on_tcp_fd || !is_connected())
+	if (!safe_mce_sys().avoid_sys_calls_on_tcp_fd || !is_connected())
 		return sockinfo::ioctl(__request, __arg);
 
 	int *p_arg = (int *)__arg;
@@ -3107,7 +3107,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 				m_pcb.so_options &= ~SOF_KEEPALIVE;
 			break;
 		case SO_RCVBUF:
-			val = MIN(*(int *)__optval, mce_sys.sysctl_reader.get_net_core_rmem_max());
+			val = MIN(*(int *)__optval, safe_mce_sys().sysctl_reader.get_net_core_rmem_max());
 			// OS allocates double the size of memory requested by the application - not sure we need it.
 			m_rcvbuff_max = MAX(2 * m_pcb.mss, 2 * val);
 
@@ -3115,7 +3115,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			si_tcp_logdbg("setsockopt SO_RCVBUF: %d", m_rcvbuff_max);
 			break;
 		case SO_SNDBUF:
-			val = MIN(*(int *)__optval, mce_sys.sysctl_reader.get_net_core_wmem_max());
+			val = MIN(*(int *)__optval, safe_mce_sys().sysctl_reader.get_net_core_wmem_max());
 			// OS allocates double the size of memory requested by the application - not sure we need it.
 			m_sndbuff_max = MAX(2 * m_pcb.mss, 2 * val);
 			fit_snd_bufs(m_sndbuff_max);
@@ -3175,7 +3175,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 		}
 	}
 
-	if (mce_sys.avoid_sys_calls_on_tcp_fd && ret != SOCKOPT_HANDLE_BY_OS && is_connected())
+	if (safe_mce_sys().avoid_sys_calls_on_tcp_fd && ret != SOCKOPT_HANDLE_BY_OS && is_connected())
 		return ret;
 
 	if (! supported) {
@@ -3183,7 +3183,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 		snprintf(buf, sizeof(buf), "unimplemented setsockopt __level=%#x, __optname=%#x, [__optlen (%d) bytes of __optval=%.*s]", (unsigned)__level, (unsigned)__optname, __optlen, __optlen, (char*)__optval);
 		buf[ sizeof(buf)-1 ] = '\0';
 
-		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
+		VLOG_PRINTF_INFO(safe_mce_sys().exception_handling.get_log_severity(), "%s", buf);
 		int rc = handle_exception_flow();
 		switch (rc) {
 		case -1:
@@ -3328,7 +3328,7 @@ int sockinfo_tcp::getsockopt(int __level, int __optname, void *__optval,
 		snprintf(buf, sizeof(buf), "unimplemented getsockopt __level=%#x, __optname=%#x, __optlen=%d", (unsigned)__level, (unsigned)__optname, __optlen ? *__optlen : 0);
 		buf[ sizeof(buf)-1 ] = '\0';
 
-		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
+		VLOG_PRINTF_INFO(safe_mce_sys().exception_handling.get_log_severity(), "%s", buf);
 		int rc = handle_exception_flow();
 		switch (rc) {
 		case -1:
@@ -3478,7 +3478,7 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 		return -1;
         }
 
-	if (poll_count < mce_sys.rx_poll_num || mce_sys.rx_poll_num == -1) {
+	if (poll_count < safe_mce_sys().rx_poll_num || safe_mce_sys().rx_poll_num == -1) {
 		return 0;
 	}
 
