@@ -118,8 +118,8 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 
 	m_if_idx        = if_nametoindex(m_name.c_str());
 	m_mtu           = get_if_mtu_from_ifname(m_name.c_str());
-	if (mce_sys.mtu != 0 && (int)mce_sys.mtu != m_mtu) {
-		nd_logwarn("Mismatch between interface %s MTU=%d and VMA_MTU=%d. Make sure VMA_MTU and all offloaded interfaces MTUs match.", m_name.c_str(), m_mtu, mce_sys.mtu);
+	if (safe_mce_sys().mtu != 0 && (int)safe_mce_sys().mtu != m_mtu) {
+		nd_logwarn("Mismatch between interface %s MTU=%d and VMA_MTU=%d. Make sure VMA_MTU and all offloaded interfaces MTUs match.", m_name.c_str(), m_mtu, safe_mce_sys().mtu);
 	}
 	m_local_addr    = ((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr;
 	m_netmask       = ((struct sockaddr_in *)ifa->ifa_netmask)->sin_addr.s_addr;
@@ -540,7 +540,7 @@ bool net_device_val::release_ring(IN resource_allocation_key key)
 
 resource_allocation_key net_device_val::ring_key_redirection_reserve(IN resource_allocation_key key)
 {
-	if (!mce_sys.ring_limit_per_interface) return key;
+	if (!safe_mce_sys().ring_limit_per_interface) return key;
 
 	if (m_h_ring_key_redirection_map.find(key) != m_h_ring_key_redirection_map.end()) {
 		m_h_ring_key_redirection_map[key].second++;
@@ -550,7 +550,7 @@ resource_allocation_key net_device_val::ring_key_redirection_reserve(IN resource
 	}
 
 	int ring_map_size = (int)m_h_ring_map.size();
-	if (mce_sys.ring_limit_per_interface > ring_map_size) {
+	if (safe_mce_sys().ring_limit_per_interface > ring_map_size) {
 		m_h_ring_key_redirection_map[key] = std::make_pair(ring_map_size, 1);
 		nd_logdbg("redirecting key=%lu (ref-count:1) to key=%lu", key, ring_map_size);
 		return ring_map_size;
@@ -575,7 +575,7 @@ resource_allocation_key net_device_val::ring_key_redirection_release(IN resource
 {
 	resource_allocation_key ret_key = key;
 
-	if (!mce_sys.ring_limit_per_interface) return ret_key;
+	if (!safe_mce_sys().ring_limit_per_interface) return ret_key;
 
 	if (m_h_ring_key_redirection_map.find(key) == m_h_ring_key_redirection_map.end()) {
 		nd_logdbg("key = %lu is not found in the redirection map", key);

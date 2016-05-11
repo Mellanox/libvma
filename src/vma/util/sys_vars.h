@@ -364,6 +364,8 @@ private:
 	mce_sys_var & operator= (const mce_sys_var &);
 
 };
+ 
+extern mce_sys_var & safe_mce_sys();
 
 #define SYS_VAR_LOG_LEVEL				"VMA_TRACELEVEL"
 #define SYS_VAR_LOG_DETAILS				"VMA_LOG_DETAILS"
@@ -630,7 +632,7 @@ private:
 /**
  * Macros for single/multi thread support
  */
-#define MULTI_THREAD_ONLY(x) 	{ if (mce_sys.thread_mode > THREAD_MODE_SINGLE) x; }
+#define MULTI_THREAD_ONLY(x) 	{ if (safe_mce_sys().thread_mode > THREAD_MODE_SINGLE) x; }
 
 
 extern struct mce_sys_var & mce_sys;

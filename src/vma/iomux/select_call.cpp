@@ -136,7 +136,7 @@ select_call::select_call(int *off_fds_buffer, offloaded_mode_t *off_modes_buffer
 				}
 			}
 		}
-		if (! mce_sys.rx_offload_enabled) {
+		if (! safe_mce_sys().rx_offload_enabled) {
 			// reset counter once after the loop instead of 'if'ing N times in the loop
 			m_num_all_offloaded_fds = 0;
 		}
@@ -157,7 +157,7 @@ select_call::select_call(int *off_fds_buffer, offloaded_mode_t *off_modes_buffer
 				}
 			}
 		}
-		if (! mce_sys.tx_offload_enabled) {
+		if (! safe_mce_sys().tx_offload_enabled) {
 			// reset counter once after the loop instead of 'if'ing N times in the loop
 			m_num_offloaded_wfds = 0;
 		}

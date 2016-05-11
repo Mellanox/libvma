@@ -72,7 +72,7 @@ void rfs_mc::prepare_flow_spec()
 						dst_mac,
 							htons(m_p_ring->m_p_qp_mgr->get_partiton()));
 
-			if (mce_sys.eth_mc_l2_only_rules) {
+			if (safe_mce_sys().eth_mc_l2_only_rules) {
 				ibv_flow_spec_ipv4_set(&(attach_flow_data_eth->ibv_flow_attr.ipv4), 0, 0);
 				ibv_flow_spec_tcp_udp_set(&(attach_flow_data_eth->ibv_flow_attr.tcp_udp), 0, 0, 0);
 				p_attach_flow_data = (attach_flow_data_t*)attach_flow_data_eth;
