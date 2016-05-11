@@ -1376,7 +1376,7 @@ int select_helper(int __nfds,
 	if (g_vlogger_level >= VLOG_FUNC) {
 		const int tmpbufsize = 256;
 		char tmpbuf[tmpbufsize], tmpbuf2[tmpbufsize];
-		srdr_logfunc_entry("readfds: %s, writefds: %s", 
+		srdr_logfunc("readfds: %s, writefds: %s",
 			   sprintf_fdset(tmpbuf, tmpbufsize, __nfds, __readfds), 
 			   sprintf_fdset(tmpbuf2, tmpbufsize, __nfds, __writefds));
 	}
@@ -1397,7 +1397,7 @@ int select_helper(int __nfds,
 		return rc;
 	}
 	catch (io_mux_call::io_error&) {
-		srdr_logfunc_exit("io_mux_call::io_error");
+		srdr_logfunc_exit("io_mux_call::io_error (errno=%d %m", errno);
 		return -1;
 	}
 }
@@ -1416,11 +1416,12 @@ int select(int __nfds,
 	if (!g_p_fd_collection)
 		return orig_os_api.select(__nfds, __readfds, __writefds, __exceptfds, __timeout);
 
-	if (__timeout)
+	if (__timeout) {
 		srdr_logfunc_entry("nfds=%d, timeout=(%d sec, %d usec)",
 				                   __nfds, __timeout->tv_sec, __timeout->tv_usec);
-	else
+	} else {
 		srdr_logfunc_entry("nfds=%d, timeout=(infinite)", __nfds);
+	}
 
 	return select_helper(__nfds, __readfds, __writefds, __exceptfds, __timeout);
 }
@@ -1446,8 +1447,9 @@ int pselect(int __nfds,
 					           __nfds, __timeout->tv_sec, __timeout->tv_nsec);
 		select_time.tv_sec = __timeout->tv_sec;
 		select_time.tv_usec = __timeout->tv_nsec / 1000;
-	} else
+	} else {
 		srdr_logfunc_entry("nfds=%d, timeout=(infinite)", __nfds);
+	}
 
 	return select_helper(__nfds, __readfds, __writefds, __errorfds, __timeout ? &select_time : NULL, __sigmask);
 }
@@ -1473,7 +1475,7 @@ int poll_helper(struct pollfd *__fds, nfds_t __nfds, int __timeout, const sigset
 		return rc;
 	}
 	catch (io_mux_call::io_error&) {
-		srdr_logfunc_exit("io_mux_call::io_error");
+		srdr_logfunc_exit("io_mux_call::io_error (errno=%d %m", errno);
 		return -1;
 	}
 }
@@ -1632,7 +1634,7 @@ inline int epoll_wait_helper(int __epfd, struct epoll_event *__events, int __max
 
 		int rc = epcall.get_current_events(); // returns ready nfds
 		if (rc <= 0) {
-			// if not ready nfds then check all lower level queues (VMA ring's and OS queues)
+			// if no ready nfds available then check all lower level queues (VMA ring's and OS queues)
 			epcall.init_offloaded_fds();
 			rc = epcall.call();
 		}
@@ -1641,6 +1643,7 @@ inline int epoll_wait_helper(int __epfd, struct epoll_event *__events, int __max
 		return rc;
 	}
 	catch (io_mux_call::io_error&) {
+		srdr_logfunc_exit("io_mux_call::io_error (errno=%d %m", errno);
 		return -1;
 	}
 }
