@@ -1397,7 +1397,7 @@ int select_helper(int __nfds,
 		return rc;
 	}
 	catch (io_mux_call::io_error&) {
-		srdr_logfunc_exit("io_mux_call::io_error (errno=%d %m", errno);
+		srdr_logfunc_exit("io_mux_call::io_error (errno=%d %m)", errno);
 		return -1;
 	}
 }
@@ -1475,7 +1475,7 @@ int poll_helper(struct pollfd *__fds, nfds_t __nfds, int __timeout, const sigset
 		return rc;
 	}
 	catch (io_mux_call::io_error&) {
-		srdr_logfunc_exit("io_mux_call::io_error (errno=%d %m", errno);
+		srdr_logfunc_exit("io_mux_call::io_error (errno=%d %m)", errno);
 		return -1;
 	}
 }
@@ -1643,7 +1643,7 @@ inline int epoll_wait_helper(int __epfd, struct epoll_event *__events, int __max
 		return rc;
 	}
 	catch (io_mux_call::io_error&) {
-		srdr_logfunc_exit("io_mux_call::io_error (errno=%d %m", errno);
+		srdr_logfunc_exit("io_mux_call::io_error (errno=%d %m)", errno);
 		return -1;
 	}
 }
