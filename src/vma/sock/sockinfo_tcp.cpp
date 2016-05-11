@@ -432,14 +432,17 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 void sockinfo_tcp::handle_socket_linger() {
 	timeval start, current, elapsed;
 	long int linger_time_usec;
-	int poll_cnt = 0;
+	//int poll_cnt = 0;
 
 	linger_time_usec = (!m_linger.l_onoff /*|| !m_b_blocking */) ? 0 : m_linger.l_linger * USEC_PER_SEC;
 	si_tcp_logdbg("Going to linger for max time of %lu usec", linger_time_usec);
 	memset(&elapsed, 0,sizeof(elapsed));
 	gettime(&start);
 	while ((tv_to_usec(&elapsed) <= linger_time_usec) && (m_pcb.unsent || m_pcb.unacked)) {
-		rx_wait(poll_cnt, false);
+		/* WA: Don't call rx_wait() in order not to miss VMA events in vma_poll() flow.
+		 * TBD: find proper solution!
+		 * rx_wait(poll_cnt, false);
+		 * */
 		tcp_output(&m_pcb);
 		gettime(&current);
 		tv_sub(&current, &start, &elapsed);
