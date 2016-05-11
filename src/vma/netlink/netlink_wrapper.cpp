@@ -368,6 +368,9 @@ int netlink_wrapper::get_neigh(const char* ipaddr, int ifindex, netlink_neigh_in
 				return 1;
 			}
 		}
+		else {
+			nl_logdbg("Error in retrieving entry information from neigh cache");
+		}
 		nl_object_put(obj);
 		obj = nl_cache_get_next(obj);
 	}
