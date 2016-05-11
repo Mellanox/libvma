@@ -1384,7 +1384,7 @@ int select_helper(int __nfds,
 	if (g_vlogger_level >= VLOG_FUNC) {
 		const int tmpbufsize = 256;
 		char tmpbuf[tmpbufsize], tmpbuf2[tmpbufsize];
-		srdr_logfunc_entry("readfds: %s, writefds: %s", 
+		srdr_logfunc("readfds: %s, writefds: %s",
 			   sprintf_fdset(tmpbuf, tmpbufsize, __nfds, __readfds), 
 			   sprintf_fdset(tmpbuf2, tmpbufsize, __nfds, __writefds));
 	}
@@ -1405,6 +1405,7 @@ int select_helper(int __nfds,
 		return rc;
 	}
 	catch (io_mux_call::io_error&) {
+		srdr_logfunc_exit("io_mux_call::io_error (errno=%d %m)", errno);
 		return -1;
 	}
 }
@@ -1423,11 +1424,12 @@ int select(int __nfds,
 	if (!g_p_fd_collection)
 		return orig_os_api.select(__nfds, __readfds, __writefds, __exceptfds, __timeout);
 
-	if (__timeout)
+	if (__timeout) {
 		srdr_logfunc_entry("nfds=%d, timeout=(%d sec, %d usec)",
 				                   __nfds, __timeout->tv_sec, __timeout->tv_usec);
-	else
+	} else {
 		srdr_logfunc_entry("nfds=%d, timeout=(infinite)", __nfds);
+	}
 
 	return select_helper(__nfds, __readfds, __writefds, __exceptfds, __timeout);
 }
@@ -1453,8 +1455,9 @@ int pselect(int __nfds,
 					           __nfds, __timeout->tv_sec, __timeout->tv_nsec);
 		select_time.tv_sec = __timeout->tv_sec;
 		select_time.tv_usec = __timeout->tv_nsec / 1000;
-	} else
+	} else {
 		srdr_logfunc_entry("nfds=%d, timeout=(infinite)", __nfds);
+	}
 
 	return select_helper(__nfds, __readfds, __writefds, __errorfds, __timeout ? &select_time : NULL, __sigmask);
 }
@@ -1475,9 +1478,12 @@ int poll_helper(struct pollfd *__fds, nfds_t __nfds, int __timeout, const sigset
 		poll_call pcall(off_rfd_buffer, off_modes_buffer, lookup_buffer, working_fds_arr,
 		                __fds, __nfds, __timeout, __sigmask);
 		
-		return pcall.call();
+		int rc = pcall.call();
+		srdr_logfunc_exit("rc = %d", rc);
+		return rc;
 	}
 	catch (io_mux_call::io_error&) {
+		srdr_logfunc_exit("io_mux_call::io_error (errno=%d %m)", errno);
 		return -1;
 	}
 }
@@ -1603,14 +1609,18 @@ int epoll_ctl(int __epfd, int __op, int __fd, struct epoll_event *__event)
 		srdr_logfunc_entry("epfd=%d, op=%s, fd=%d, event=NULL", __epfd, op_names[__op], __fd);
 	}
 
+	int rc = -1;
 	epfd_info *epfd_info = fd_collection_get_epfd(__epfd);
 	if (!epfd_info) {
 		errno = EBADF;
-		return -1;
+	}
+	else {
+		// TODO handle race - if close() gets here..
+		rc = epfd_info->ctl(__op, __fd, __event);
 	}
 	
-	// TODO handle race - if close() gets here..
-	return epfd_info->ctl(__op, __fd, __event);
+	srdr_logfunc_exit("rc = %d", rc);
+	return rc;
 }
 
 /* Wait for events on an epoll instance "epfd". Returns the number of
@@ -1634,15 +1644,18 @@ inline int epoll_wait_helper(int __epfd, struct epoll_event *__events, int __max
 		epoll_wait_call epcall(extra_events_buffer, NULL,
 				__epfd, __events, __maxevents, __timeout, __sigmask);
 
-		int nfds = epcall.get_current_events();
-		if (nfds > 0) {
-			return nfds;
+		int rc = epcall.get_current_events(); // returns ready nfds
+		if (rc <= 0) {
+			// if no ready nfds available then check all lower level queues (VMA ring's and OS queues)
+			epcall.init_offloaded_fds();
+			rc = epcall.call();
 		}
 
-		epcall.init_offloaded_fds();
-		return epcall.call();
+		srdr_logfunc_exit("rc = %d", rc);
+		return rc;
 	}
 	catch (io_mux_call::io_error&) {
+		srdr_logfunc_exit("io_mux_call::io_error (errno=%d %m)", errno);
 		return -1;
 	}
 }
@@ -1709,7 +1722,7 @@ extern "C"
 int pipe(int __filedes[2])
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.pipe)	get_orig_funcs();
+	if (!orig_os_api.pipe) get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	bool offload_pipe = safe_mce_sys().mce_spec == MCE_SPEC_29WEST_LBM_29 ||
@@ -1739,7 +1752,7 @@ extern "C"
 int open(__const char *__file, int __oflag, ...)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.open)	get_orig_funcs();
+	if (!orig_os_api.open) get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	va_list va;
