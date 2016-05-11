@@ -1133,7 +1133,7 @@ bool neigh_entry::priv_get_neigh_state(int & state)
 		return true;
 	}
 
-	if (g_p_netlink_handler->get_neigh(inet_ntoa(m_dst_addr.sin_addr), &info)) {
+	if (g_p_netlink_handler->get_neigh(inet_ntoa(m_dst_addr.sin_addr), m_p_dev->get_if_idx(), &info)) {
 		state = info.state;
 		neigh_logdbg("state = %s", info.get_state2str().c_str());
 		return true;
@@ -1152,7 +1152,7 @@ bool neigh_entry::priv_get_neigh_l2(address_t & l2_addr)
 		return true;
 	}
 
-	if (g_p_netlink_handler->get_neigh(inet_ntoa(m_dst_addr.sin_addr), &info)){
+	if (g_p_netlink_handler->get_neigh(inet_ntoa(m_dst_addr.sin_addr), m_p_dev->get_if_idx(), &info)){
 		if (info.state != NUD_FAILED) {
 			memcpy(l2_addr, info.lladdr, info.lladdr_len);
 			return true;

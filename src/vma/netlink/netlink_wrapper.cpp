@@ -337,7 +337,7 @@ bool netlink_wrapper::unregister(e_netlink_event_type type,
 	return true;
 }
 
-int netlink_wrapper::get_neigh(const char* ipaddr, netlink_neigh_info* new_neigh_info)
+int netlink_wrapper::get_neigh(const char* ipaddr, int ifindex, netlink_neigh_info* new_neigh_info)
 {
 	auto_unlocker lock(m_cache_lock);
 	nl_logfunc("--->netlink_listener::get_neigh");
@@ -357,12 +357,13 @@ int netlink_wrapper::get_neigh(const char* ipaddr, netlink_neigh_info* new_neigh
 		nl_object_get(obj); //Acquire a reference on a cache object. cache won't use/free it until calling to nl_object_put(obj)
 		neigh = (rtnl_neigh*) obj;
 		nl_addr* addr = rtnl_neigh_get_dst(neigh);
-		if (addr) {
+		int index = rtnl_neigh_get_ifindex(neigh);
+		if ((addr) && (index > 0)) {
 			nl_addr2str(addr, addr_str, 255);
-			if (!strcmp(addr_str, ipaddr)) {
+			if (!strcmp(addr_str, ipaddr) && (ifindex == index)) {
 				new_neigh_info->fill(neigh);
 				nl_object_put(obj);
-				nl_logdbg("neigh - DST_IP:%s LLADDR:%s", addr_str, new_neigh_info->lladdr_str.c_str() );
+				nl_logdbg("neigh - DST_IP:%s IF_INDEX:%d LLADDR:%s", addr_str, index, new_neigh_info->lladdr_str.c_str() );
 				nl_logfunc("<---netlink_listener::get_neigh");
 				return 1;
 			}
