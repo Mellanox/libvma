@@ -1601,14 +1601,18 @@ int epoll_ctl(int __epfd, int __op, int __fd, struct epoll_event *__event)
 		srdr_logfunc_entry("epfd=%d, op=%s, fd=%d, event=NULL", __epfd, op_names[__op], __fd);
 	}
 
+	int rc = -1;
 	epfd_info *epfd_info = fd_collection_get_epfd(__epfd);
 	if (!epfd_info) {
 		errno = EBADF;
-		return -1;
+	}
+	else {
+		// TODO handle race - if close() gets here..
+		rc = epfd_info->ctl(__op, __fd, __event);
 	}
 	
-	// TODO handle race - if close() gets here..
-	return epfd_info->ctl(__op, __fd, __event);
+	srdr_logfunc_exit("rc = %d", rc);
+	return rc;
 }
 
 /* Wait for events on an epoll instance "epfd". Returns the number of
