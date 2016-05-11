@@ -52,7 +52,7 @@ class neigh_observer : public observer {
 			neigh_nl_event* nlev = dynamic_cast<neigh_nl_event*>(ev);
 			__log_info("%s", ev->to_str().c_str());
 			netlink_neigh_info info;
-			g_p_netlink_handler->get_neigh("1.1.1.1", &info);
+			g_p_netlink_handler->get_neigh("1.1.1.1", 1, &info);
 			__log_info("AFTER get_neigh");
 			__log_info("NEIGH STATE=%s", nlev->get_neigh_info()->get_state2str().c_str());
 		}
@@ -117,7 +117,7 @@ void netlink_test()
 
 //	netlink_neigh_info* neigh_info = new netlink_neigh_info();
 //	printf("GOING TO NIEGH QUERY\n");
-//	int rc = nl->get_neigh("172.30.20.111", neigh_info);
+//	int rc = nl->get_neigh("172.30.20.111", 1, neigh_info);
 //	if (rc == 1) {
 //		printf("NIEGH QUERY is:\n");
 //		printf("NEIGH: ip=%s, lladdr=%s, state=%s\n", neigh_info->dst_addr_str.c_str(), neigh_info->lladdr_str.c_str(), neigh_info->get_state2str().c_str());
