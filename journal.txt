@@ -1,3 +1,27 @@
+Version 8.0.2-0:
+Date + Time 2016-05-15
+=======================
+Added:
+        - RM #763018 Search neigh table using both dst addr and ifindex
+        - RM #682675 Convert m_ready_fds (epoll_info.h) from std::tr1::unordered_map to vma_list
+        - RM #768358 Convert socket_fd_vec (epoll_wait_call.cpp) from std::vector into vma_list
+        - RM #776821 Support multiple node names in vma_list
+        - RM #764912 Expand vma_stats to include Send-Q & Recv-Q
+        - RM #737508 Add internal thread TCP timer handling mode: immediate/deferred
+        - RM #764913 Add vma_stats -v 5 PID column (netstat like)
+        - RM #736343 Add "--disable-exp-cq" parameter to control CQ polling using experimental verbs API
+        - RM #381520 Disable VMA's CQ interrupt moderation logic if missing MLNX_OFED's experimental CQ moderiation API
+        - RM #770746 Add jenkins check support on github pull request
+        - RM #773091 Add Intel compiler support
+        - RM #777322 Update logging on iomux flows
+        - RM #777958 Document limitation of using VMA_RING_ALLOCATION_LOGIC_RX|TX with select()/poll()
+        - RM #735940 Skip 'OFED Version' logging in VMA banner if ofed_info is not supported
+
+Fixed:
+        - RM #756851 Fix TCP WIN SCALE incompatibility with RFC-1323, section 2.2/2.3
+        - RM #774912 Fix realloc size parameter in event_handler_manager class
+        - RM #777063 Fix usage of safe_mce_sys() calls instead of unsafe mce_sys calls
+
 Version 8.0.1-0:
 Date + Time 2016-03-10
 =======================
