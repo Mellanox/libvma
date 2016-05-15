@@ -183,7 +183,7 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 #endif
 
 	if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
-		m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, safe_mce_sys().tx_bufs_batch_tcp);
+		m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, mce_sys.tx_bufs_batch_tcp);
 	}
 
 	return 0;
@@ -267,7 +267,7 @@ mem_buf_desc_t* dst_entry_tcp::get_buffer(bool b_blocked /*=false*/)
 
 	// Get a bunch of tx buf descriptor and data buffers
 	if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
-		m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, safe_mce_sys().tx_bufs_batch_tcp);
+		m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, mce_sys.tx_bufs_batch_tcp);
 	}
 
 	mem_buf_desc_t* p_mem_buf_desc = m_p_tx_mem_buf_desc_list;

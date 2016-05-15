@@ -55,8 +55,8 @@ buffer_pool *g_buffer_pool_tx = NULL;
 inline void buffer_pool::put_buffer_helper(mem_buf_desc_t *buff)
 {
 #if _VMA_LIST_DEBUG
-	if (buff->buffer_node.is_list_member()) {
-		vlog_printf(VLOG_WARNING, "buffer_pool::put_buffer_helper - buff is already a member in a list (list id = %s)\n", buff->buffer_node.list_id());
+	if (buff->node.is_list_member()) {
+		vlog_printf(VLOG_WARNING, "buffer_pool::put_buffer_helper - buff is already a member in a list (list id = %s)\n", buff->node.list_id());
 	}
 #endif
 	buff->p_next_desc = m_p_head;
@@ -103,7 +103,7 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 	//
 	//Huge pages falls back to Contiguous pages that falls back to Anon (Malloc).
 	//
-	switch (safe_mce_sys().mem_alloc_type) {
+	switch (mce_sys.mem_alloc_type) {
 	case ALLOC_TYPE_HUGEPAGES:
 		if (!hugetlb_alloc(size)) {
 			__log_info_dbg("Failed allocating huge pages, falling back to contiguous pages");
@@ -233,7 +233,7 @@ bool buffer_pool::hugetlb_alloc(size_t sz_bytes)
 	if (m_shmid < 0) {
 
 		// Stop trying to use HugePage if failed even once
-		safe_mce_sys().mem_alloc_type = ALLOC_TYPE_CONTIG;
+		mce_sys.mem_alloc_type = ALLOC_TYPE_CONTIG;
 
 		vlog_printf(VLOG_WARNING, "***************************************************************\n");
 		vlog_printf(VLOG_WARNING, "* NO IMMEDIATE ACTION NEEDED!                                 *\n");

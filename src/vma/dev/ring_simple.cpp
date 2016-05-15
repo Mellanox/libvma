@@ -96,7 +96,7 @@ ring_simple::ring_simple(in_addr_t local_if, uint16_t partition_sn, int count, t
 	m_p_qp_mgr(NULL), m_p_cq_mgr_rx(NULL), m_p_cq_mgr_tx(NULL),
 	m_lock_ring_tx_buf_wait("ring:lock_tx_buf_wait"), m_tx_num_bufs(0), m_tx_num_wr(0), m_tx_num_wr_free(0),
 	m_b_qp_tx_first_flushed_completion_handled(false), m_missing_buf_ref_count(0),
-	m_tx_lkey(0), m_partition(partition_sn), m_gro_mgr(safe_mce_sys().gro_streams_max, MAX_GRO_BUFS), m_up(false),
+	m_tx_lkey(0), m_partition(partition_sn), m_gro_mgr(mce_sys.gro_streams_max, MAX_GRO_BUFS), m_up(false),
 	m_p_rx_comp_event_channel(NULL), m_p_tx_comp_event_channel(NULL), m_p_l2_addr(NULL), m_p_ring_stat(NULL),
 	m_local_if(local_if), m_transport_type(transport_type) {
 
@@ -209,7 +209,7 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 	// Check device capabilities for max QP work requests
 	vma_ibv_device_attr& r_ibv_dev_attr = p_ring_info->p_ib_ctx->get_ibv_device_attr();
 	uint32_t max_qp_wr = ALIGN_WR_DOWN(r_ibv_dev_attr.max_qp_wr - 1);
-	m_tx_num_wr = safe_mce_sys().tx_num_wr;
+	m_tx_num_wr = mce_sys.tx_num_wr;
 	if (m_tx_num_wr > max_qp_wr) {
 		ring_logwarn("Allocating only %d Tx QP work requests while user requested %s=%d for QP on interface %d.%d.%d.%d",
 			max_qp_wr, SYS_VAR_TX_NUM_WRE, m_tx_num_wr);
@@ -267,8 +267,8 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 	if (m_parent != this) {
 		m_ring_stat_static.p_ring_master = m_parent;
 	}
-	if (safe_mce_sys().cq_moderation_enable) {
-		modify_cq_moderation(safe_mce_sys().cq_moderation_period_usec, safe_mce_sys().cq_moderation_count);
+	if (mce_sys.cq_moderation_enable) {
+		modify_cq_moderation(mce_sys.cq_moderation_period_usec, mce_sys.cq_moderation_count);
 	}
 
 	vma_stats_instance_create_ring_block(m_p_ring_stat);
@@ -327,7 +327,7 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		// It means that for every MC group, even if we have sockets with different ports - only one rule in the HW.
 		// So the hash map below keeps track of the number of sockets per rule so we know when to call ibv_attach and ibv_detach
 		rfs_rule_filter* l2_mc_ip_filter = NULL;
-		if (m_transport_type == VMA_TRANSPORT_IB || safe_mce_sys().eth_mc_l2_only_rules) {
+		if (m_transport_type == VMA_TRANSPORT_IB || mce_sys.eth_mc_l2_only_rules) {
 			rule_filter_map_t::iterator l2_mc_iter = m_l2_mc_ip_attach_map.find(key_udp_mc.dst_ip);
 			if (l2_mc_iter == m_l2_mc_ip_attach_map.end()) { // It means that this is the first time attach called with this MC ip
 				m_l2_mc_ip_attach_map[key_udp_mc.dst_ip].counter = 1;
@@ -338,7 +338,7 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		p_rfs = m_flow_udp_mc_map.get(key_udp_mc, NULL);
 		if (p_rfs == NULL) {		// It means that no rfs object exists so I need to create a new one and insert it to the flow map
 			m_lock_ring_rx.unlock();
-			if (m_transport_type == VMA_TRANSPORT_IB || safe_mce_sys().eth_mc_l2_only_rules) {
+			if (m_transport_type == VMA_TRANSPORT_IB || mce_sys.eth_mc_l2_only_rules) {
 				l2_mc_ip_filter = new rfs_rule_filter(m_l2_mc_ip_attach_map, key_udp_mc.dst_ip, flow_spec_5t);
 			}
 			p_tmp_rfs = new rfs_mc(&flow_spec_5t, this, l2_mc_ip_filter);
@@ -360,7 +360,7 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	} else if (flow_spec_5t.is_tcp()) {
 		flow_spec_tcp_key_t key_tcp = {flow_spec_5t.get_src_ip(), flow_spec_5t.get_dst_port(), flow_spec_5t.get_src_port()};
 		rfs_rule_filter* tcp_dst_port_filter = NULL;
-		if (safe_mce_sys().tcp_3t_rules) {
+		if (mce_sys.tcp_3t_rules) {
 			rule_filter_map_t::iterator tcp_dst_port_iter = m_tcp_dst_port_attach_map.find(key_tcp.dst_port);
 			if (tcp_dst_port_iter == m_tcp_dst_port_attach_map.end()) {
 				m_tcp_dst_port_attach_map[key_tcp.dst_port].counter = 1;
@@ -372,11 +372,11 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		p_rfs = m_flow_tcp_map.get(key_tcp, NULL);
 		if (p_rfs == NULL) {		// It means that no rfs object exists so I need to create a new one and insert it to the flow map
 			m_lock_ring_rx.unlock();
-			if (safe_mce_sys().tcp_3t_rules) {
+			if (mce_sys.tcp_3t_rules) {
 				flow_tuple tcp_3t_only(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port(), 0, 0, flow_spec_5t.get_protocol());
 				tcp_dst_port_filter = new rfs_rule_filter(m_tcp_dst_port_attach_map, key_tcp.dst_port, tcp_3t_only);
 			}
-			if(safe_mce_sys().gro_streams_max && flow_spec_5t.is_5_tuple()) {
+			if(mce_sys.gro_streams_max && flow_spec_5t.is_5_tuple()) {
 				p_tmp_rfs = new rfs_uc_tcp_gro(&flow_spec_5t, this, tcp_dst_port_filter);
 			} else {
 				p_tmp_rfs = new rfs_uc(&flow_spec_5t, this, tcp_dst_port_filter);
@@ -439,7 +439,7 @@ bool ring_simple::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 	} else if (flow_spec_5t.is_udp_mc()) {
 		int keep_in_map = 1;
 		flow_spec_udp_mc_key_t key_udp_mc = {flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port()};
-		if (m_transport_type == VMA_TRANSPORT_IB || safe_mce_sys().eth_mc_l2_only_rules) {
+		if (m_transport_type == VMA_TRANSPORT_IB || mce_sys.eth_mc_l2_only_rules) {
 			rule_filter_map_t::iterator l2_mc_iter = m_l2_mc_ip_attach_map.find(key_udp_mc.dst_ip);
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (l2_mc_iter == m_l2_mc_ip_attach_map.end()) {
@@ -471,7 +471,7 @@ bool ring_simple::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 	} else if (flow_spec_5t.is_tcp()) {
 		int keep_in_map = 1;
 		flow_spec_tcp_key_t key_tcp = {flow_spec_5t.get_src_ip(), flow_spec_5t.get_dst_port(), flow_spec_5t.get_src_port()};
-		if (safe_mce_sys().tcp_3t_rules) {
+		if (mce_sys.tcp_3t_rules) {
 			rule_filter_map_t::iterator tcp_dst_port_iter = m_tcp_dst_port_attach_map.find(key_tcp.dst_port);
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (tcp_dst_port_iter == m_tcp_dst_port_attach_map.end()) {
@@ -872,7 +872,7 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 		ring_logdbg("Rx IGMP packet info: type=%s (%d), group=%d.%d.%d.%d, code=%d",
 				priv_igmp_type_tostr(p_igmp_h->igmp_type), p_igmp_h->igmp_type,
 				NIPQUAD(p_igmp_h->igmp_group.s_addr), p_igmp_h->igmp_code);
-		if (transport_type == VMA_TRANSPORT_IB  || safe_mce_sys().eth_mc_l2_only_rules) {
+		if (transport_type == VMA_TRANSPORT_IB  || mce_sys.eth_mc_l2_only_rules) {
 			ring_logdbg("Transport type is IB (or eth_mc_l2_only_rules), passing igmp packet to igmp_manager to process");
 			if(g_p_igmp_mgr) {
 				(g_p_igmp_mgr->process_igmp_packet(p_ip_h, m_local_if));
@@ -1483,18 +1483,18 @@ void ring_simple::adapt_cq_moderation()
 
 	if (interval_packets == 0) {
 		// todo if no traffic, set moderation to default?
-		modify_cq_moderation(safe_mce_sys().cq_moderation_period_usec, safe_mce_sys().cq_moderation_count);
+		modify_cq_moderation(mce_sys.cq_moderation_period_usec, mce_sys.cq_moderation_count);
 		m_lock_ring_rx.unlock();
 		return;
 	}
 
 	uint32_t avg_packet_size = interval_bytes / interval_packets;
-	uint32_t avg_packet_rate = (interval_packets * 1000) / (safe_mce_sys().cq_aim_interval_msec * (1 + missed_rounds));
+	uint32_t avg_packet_rate = (interval_packets * 1000) / (mce_sys.cq_aim_interval_msec * (1 + missed_rounds));
 
-	uint32_t ir_rate = safe_mce_sys().cq_aim_interrupts_rate_per_sec;
+	uint32_t ir_rate = mce_sys.cq_aim_interrupts_rate_per_sec;
 
-	int count = MIN(avg_packet_rate / ir_rate, safe_mce_sys().cq_aim_max_count);
-	int period = MIN(safe_mce_sys().cq_aim_max_period_usec, ((1000000 / ir_rate) - (1000000 / MAX(avg_packet_rate, ir_rate))));
+	int count = MIN(avg_packet_rate / ir_rate, mce_sys.cq_aim_max_count);
+	int period = MIN(mce_sys.cq_aim_max_period_usec, ((1000000 / ir_rate) - (1000000 / MAX(avg_packet_rate, ir_rate))));
 
 	if (avg_packet_size < 1024 && avg_packet_rate < 450000) {
 		modify_cq_moderation(0, 0); //latency mode

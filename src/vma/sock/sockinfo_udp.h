@@ -107,7 +107,7 @@ public:
 	int	getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen) throw (vma_error);
 
 	/**
-	* Sampling the OS immediately by matching the rx_skip_os counter (m_rx_udp_poll_os_ratio_counter) to the limit (safe_mce_sys().rx_udp_poll_os_ratio)
+	* Sampling the OS immediately by matching the rx_skip_os counter (m_rx_udp_poll_os_ratio_counter) to the limit (mce_sys.rx_udp_poll_os_ratio)
 	*/
 	void	set_immediate_os_sample();
 	/**
@@ -179,7 +179,7 @@ private:
 	in_port_t 	m_bound_port;
 	in_addr_t 	m_connected_ip;
 	in_port_t 	m_connected_port;
-*/
+//*/
 	in_addr_t 	m_mc_tx_if;
 	bool 		m_b_mc_tx_loop;
 	uint8_t 	m_n_mc_ttl;

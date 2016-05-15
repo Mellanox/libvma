@@ -89,6 +89,7 @@ void* event_handler_manager::register_timer_event(int timeout_msec, timer_handle
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!node) {
 		evh_logdbg("malloc failure");
+		/* no resources to free before throwing exception from this method */
 		throw_vma_exception("malloc failure");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -269,8 +270,8 @@ void* event_handler_thread(void *_p_tgtObject)
 	g_n_internal_thread_id = pthread_self();
 	evh_logdbg("Entering internal thread, id = %lu", g_n_internal_thread_id);
 
-	if (strcmp(safe_mce_sys().internal_thread_cpuset, MCE_DEFAULT_INTERNAL_THREAD_CPUSET)) {
-		std::string tasks_file(safe_mce_sys().internal_thread_cpuset);
+	if (strcmp(mce_sys.internal_thread_cpuset, MCE_DEFAULT_INTERNAL_THREAD_CPUSET)) {
+		std::string tasks_file(mce_sys.internal_thread_cpuset);
 		tasks_file += "/tasks";
 		FILE *fp = fopen(tasks_file.c_str(), "w");
 		BULLSEYE_EXCLUDE_BLOCK_START
@@ -282,11 +283,11 @@ void* event_handler_thread(void *_p_tgtObject)
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		fclose(fp);
-		evh_logdbg("VMA Internal thread added to cpuset %s.", safe_mce_sys().internal_thread_cpuset);
+		evh_logdbg("VMA Internal thread added to cpuset %s.", mce_sys.internal_thread_cpuset);
 
 		// do set affinity now that we are on correct cpuset
-		cpu_set_t cpu_set = safe_mce_sys().internal_thread_affinity;
-		if ( strcmp(safe_mce_sys().internal_thread_affinity_str, "-1")) {
+		cpu_set_t cpu_set = mce_sys.internal_thread_affinity;
+		if ( strcmp(mce_sys.internal_thread_affinity_str, "-1")) {
 			if (pthread_setaffinity_np(g_n_internal_thread_id, sizeof(cpu_set), &cpu_set)) {
 				evh_logdbg("VMA Internal thread affinity failed. Did you try to set affinity outside of cpuset?");
 			} else {
@@ -321,8 +322,8 @@ int event_handler_manager::start_thread()
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	cpu_set = safe_mce_sys().internal_thread_affinity;
-	if ( strcmp(safe_mce_sys().internal_thread_affinity_str, "-1") && !strcmp(safe_mce_sys().internal_thread_cpuset, MCE_DEFAULT_INTERNAL_THREAD_CPUSET)) { // no affinity
+	cpu_set = mce_sys.internal_thread_affinity;
+	if ( strcmp(mce_sys.internal_thread_affinity_str, "-1") && !strcmp(mce_sys.internal_thread_cpuset, MCE_DEFAULT_INTERNAL_THREAD_CPUSET)) { // no affinity
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (pthread_attr_setaffinity_np(&tattr, sizeof(cpu_set), &cpu_set)) {
 			evh_logpanic("Failed to set CPU affinity");
@@ -821,21 +822,15 @@ void* event_handler_manager::thread_loop()
 {
 	int timeout_msec;
 	int maxevents = INITIAL_EVENTS_NUM;
+
+	struct epoll_event* p_events = (struct epoll_event*)malloc(sizeof(struct epoll_event)*maxevents);
 	struct pollfd poll_fd;
-	struct epoll_event* p_events = (struct epoll_event*)malloc(sizeof(struct epoll_event)*maxevents);	
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if(!p_events){
-		evh_logdbg("malloc failure");
-		throw_vma_exception("malloc failure");
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-	
 	poll_fd.events  = POLLIN | POLLPRI;
 	poll_fd.revents = 0;
 	while (m_b_continue_running) {
 #ifdef VMA_TIME_MEASURE
-		if (g_inst_cnt >= safe_mce_sys().vma_time_measure_num_samples)
-			finit_instrumentation(safe_mce_sys().vma_time_measure_filename);
+		if (g_inst_cnt >= mce_sys.vma_time_measure_num_samples)
+			finit_instrumentation(mce_sys.vma_time_measure_filename);
 #endif
 
 		// update timer and get timeout
@@ -847,7 +842,7 @@ void* event_handler_manager::thread_loop()
 		}
 
 
-		if( safe_mce_sys().internal_thread_arm_cq_enabled && m_cq_epfd == 0 && g_p_net_device_table_mgr) {
+		if( mce_sys.internal_thread_arm_cq_enabled && m_cq_epfd == 0 && g_p_net_device_table_mgr) {
 			m_cq_epfd = g_p_net_device_table_mgr->global_ring_epfd_get();
 			if( m_cq_epfd > 0 ) {
 				epoll_event evt;
@@ -858,7 +853,7 @@ void* event_handler_manager::thread_loop()
 		}
 
 		uint64_t poll_sn = 0;
-		if( safe_mce_sys().internal_thread_arm_cq_enabled && m_cq_epfd > 0 && g_p_net_device_table_mgr) {
+		if( mce_sys.internal_thread_arm_cq_enabled && m_cq_epfd > 0 && g_p_net_device_table_mgr) {
 			g_p_net_device_table_mgr->global_ring_poll_and_process_element(&poll_sn, NULL);
 			int ret = g_p_net_device_table_mgr->global_ring_request_notification(poll_sn);
 			if (ret > 0) {
@@ -868,8 +863,8 @@ void* event_handler_manager::thread_loop()
 
 		// Make sure we sleep for a minimum of X milli seconds
 		if (timeout_msec > 0) {
-			if ((int)safe_mce_sys().timer_resolution_msec > timeout_msec) {
-				timeout_msec = safe_mce_sys().timer_resolution_msec;
+			if ((int)mce_sys.timer_resolution_msec > timeout_msec) {
+				timeout_msec = mce_sys.timer_resolution_msec;
 			}
 		}
 
@@ -883,7 +878,7 @@ void* event_handler_manager::thread_loop()
 
 		// check pipe
 		for (int idx = 0; idx < ret ; ++idx) {
-			if(safe_mce_sys().internal_thread_arm_cq_enabled && p_events[idx].data.fd == m_cq_epfd && g_p_net_device_table_mgr){
+			if(mce_sys.internal_thread_arm_cq_enabled && p_events[idx].data.fd == m_cq_epfd && g_p_net_device_table_mgr){
 				g_p_net_device_table_mgr->global_ring_wait_for_notification_and_process_element(&poll_sn, NULL);
 			}
 			else if (is_wakeup_fd(p_events[idx].data.fd)) {
@@ -920,7 +915,7 @@ void* event_handler_manager::thread_loop()
 
 			int fd = p_events[idx].data.fd;
 
-			if(safe_mce_sys().internal_thread_arm_cq_enabled && fd == m_cq_epfd) continue;
+			if(mce_sys.internal_thread_arm_cq_enabled && fd == m_cq_epfd) continue;
 
 			evh_logfunc("Processing fd %d", fd);
 
@@ -963,10 +958,10 @@ void* event_handler_manager::thread_loop()
 		if (ret == maxevents) {
 			// increase the events array
 			maxevents *= 2;
-			p_events = ( struct epoll_event*)realloc( (void *)p_events, sizeof(struct epoll_event) * maxevents);
+			p_events = (struct epoll_event *)realloc((void *)p_events, maxevents);
 			BULLSEYE_EXCLUDE_BLOCK_START
-			if( !p_events) {
-				evh_logpanic("realloc failure") ;
+			if (!p_events) {
+				evh_logpanic("failed to allocate memory") ;
 			}
 			BULLSEYE_EXCLUDE_BLOCK_END
 		}
@@ -977,3 +972,5 @@ void* event_handler_manager::thread_loop()
 
 	return 0;
 }
+
+

@@ -98,7 +98,7 @@ u32_t vma_lwip::sys_now(void)
 
 u8_t vma_lwip::read_tcp_timestamp_option(void)
 {
-	u8_t res = (safe_mce_sys().tcp_ts_opt == TCP_TS_OPTION_FOLLOW_OS) ? safe_mce_sys().sysctl_reader.get_net_ipv4_tcp_timestamps() : (safe_mce_sys().tcp_ts_opt == TCP_TS_OPTION_ENABLE ? 1 : 0);
+	u8_t res = (mce_sys.tcp_ts_opt == TCP_TS_OPTION_FOLLOW_OS) ? mce_sys.sysctl_reader.get_net_ipv4_tcp_timestamps() : (mce_sys.tcp_ts_opt == TCP_TS_OPTION_ENABLE ? 1 : 0);
 	if (res) {
 #if LWIP_TCP_TIMESTAMPS
 		lwip_logdbg("TCP timestamp option has been enabled");
@@ -125,16 +125,16 @@ vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip")
 
 	lwip_logdbg("");
 
-	lwip_cc_algo_module = (enum cc_algo_mod)safe_mce_sys().lwip_cc_algo_mod;
+	lwip_cc_algo_module = (enum cc_algo_mod)mce_sys.lwip_cc_algo_mod;
 
-	lwip_tcp_mss = get_lwip_tcp_mss(safe_mce_sys().mtu, safe_mce_sys().lwip_mss);
+	lwip_tcp_mss = get_lwip_tcp_mss(mce_sys.mtu, mce_sys.lwip_mss);
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	enable_ts_option = read_tcp_timestamp_option();
-	int is_window_scaling_enabled = safe_mce_sys().sysctl_reader.get_tcp_window_scaling();
+	int is_window_scaling_enabled = mce_sys.sysctl_reader.get_tcp_window_scaling();
 	if(is_window_scaling_enabled) {
-		int rmem_max_value = safe_mce_sys().sysctl_reader.get_tcp_rmem()->max_value;
-		int core_rmem_max = safe_mce_sys().sysctl_reader.get_net_core_rmem_max();
+		int rmem_max_value = mce_sys.sysctl_reader.get_tcp_rmem()->max_value;
+		int core_rmem_max = mce_sys.sysctl_reader.get_net_core_rmem_max();
 		enable_wnd_scale = 1;
 		rcv_wnd_scale = get_window_scaling_factor(rmem_max_value, core_rmem_max);
 	} else {
@@ -156,7 +156,7 @@ vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip")
 	register_sys_now(sys_now);
 
 	//tcp_ticks increases in the rate of tcp slow_timer
-	void *node = g_p_event_handler_manager->register_timer_event(safe_mce_sys().tcp_timer_resolution_msec * 2, this, PERIODIC_TIMER, 0);
+	void *node = g_p_event_handler_manager->register_timer_event(mce_sys.tcp_timer_resolution_msec * 2, this, PERIODIC_TIMER, 0);
 	if (!node) {
 		lwip_logdbg("LWIP: failed to register timer event");
 		free_lwip_resources();
@@ -229,10 +229,10 @@ uint32_t get_lwip_tcp_mss(uint32_t mtu, uint32_t lwip_mss)
 
 	/*	
 	 * lwip_tcp_mss calculation
-	 * 1. safe_mce_sys().mtu==0 && safe_mce_sys().lwip_mss==0 ==> lwip_tcp_mss = 0 (namelyl-must be calculated per interface)
-	 * 2. safe_mce_sys().mtu==0 && safe_mce_sys().lwip_mss!=0 ==> lwip_tcp_mss = safe_mce_sys().lwip_mss
-	 * 3. safe_mce_sys().mtu!=0 && safe_mce_sys().lwip_mss==0 ==> lwip_tcp_mss = safe_mce_sys().mtu - IP header len - TCP header len (must be positive)
-	 * 4. safe_mce_sys().mtu!=0 && safe_mce_sys().lwip_mss!=0 ==> lwip_tcp_mss = safe_mce_sys().lwip_mss
+	 * 1. mce_sys.mtu==0 && mce_sys.lwip_mss==0 ==> lwip_tcp_mss = 0 (namelyl-must be calculated per interface)
+	 * 2. mce_sys.mtu==0 && mce_sys.lwip_mss!=0 ==> lwip_tcp_mss = mce_sys.lwip_mss
+	 * 3. mce_sys.mtu!=0 && mce_sys.lwip_mss==0 ==> lwip_tcp_mss = mce_sys.mtu - IP header len - TCP header len (must be positive)
+	 * 4. mce_sys.mtu!=0 && mce_sys.lwip_mss!=0 ==> lwip_tcp_mss = mce_sys.lwip_mss
 	 */
 	switch (lwip_mss) {
 	case MSS_FOLLOW_MTU: /* 0 */

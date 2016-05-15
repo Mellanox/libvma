@@ -219,19 +219,19 @@ ssize_t pipeinfo::tx(const tx_call_t call_type, const iovec* p_iov, const ssize_
 	switch (call_type) {
 	case  TX_WRITE:
 
-		if ((safe_mce_sys().mce_spec == MCE_SPEC_29WEST_LBM_29 || safe_mce_sys().mce_spec == MCE_SPEC_WOMBAT_FH_LBM_554) && 
+		if ((mce_sys.mce_spec == MCE_SPEC_29WEST_LBM_29 || mce_sys.mce_spec == MCE_SPEC_WOMBAT_FH_LBM_554) && 
 		    (p_iov[0].iov_len == 1) && (((char*)p_iov[0].iov_base)[0] == '\0')) {
 
 			// We will pass one pipe write in every T usec
 			//
 			// 1) First signaling pipe write will go through, and triger timer logic
-			// 2) Then we'll send a single pipe writes every T usec (safe_mce_sys().mce_spec_param1)
+			// 2) Then we'll send a single pipe writes every T usec (mce_sys.mce_spec_param1)
 			// 3) We'll stop the timer once we have N cycles with no pipe write
 			//
 
 			m_write_count++;
 			if (m_b_lbm_event_q_pipe_timer_on == false) {
-				m_timer_handle = g_p_event_handler_manager->register_timer_event(safe_mce_sys().mce_spec_param1/1000, this, PERIODIC_TIMER, 0);
+				m_timer_handle = g_p_event_handler_manager->register_timer_event(mce_sys.mce_spec_param1/1000, this, PERIODIC_TIMER, 0);
 				m_b_lbm_event_q_pipe_timer_on = true;
 				m_write_count_on_last_timer = 0;
 				m_write_count_no_change_count = 0;
@@ -241,7 +241,7 @@ ssize_t pipeinfo::tx(const tx_call_t call_type, const iovec* p_iov, const ssize_
 				// simulate a pipe_write
 				write_lbm_pipe_enhance();
 			}
-			else if ((int)m_write_count > (int)(m_write_count_on_last_timer + safe_mce_sys().mce_spec_param2)) {
+			else if ((int)m_write_count > (int)(m_write_count_on_last_timer + mce_sys.mce_spec_param2)) {
 				// simulate a pipe_write
 				write_lbm_pipe_enhance();
 			}

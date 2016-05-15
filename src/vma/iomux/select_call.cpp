@@ -156,7 +156,7 @@ select_call::select_call(int *off_fds_buffer, offloaded_mode_t *off_modes_buffer
 				}
 			}
 		}
-		if (! safe_mce_sys().rx_offload_enabled) {
+		if (! mce_sys.rx_offload_enabled) {
 			// reset counter once after the loop instead of 'if'ing N times in the loop
 			m_num_all_offloaded_fds = 0;
 		}
@@ -177,7 +177,7 @@ select_call::select_call(int *off_fds_buffer, offloaded_mode_t *off_modes_buffer
 				}
 			}
 		}
-		if (! safe_mce_sys().tx_offload_enabled) {
+		if (! mce_sys.tx_offload_enabled) {
 			// reset counter once after the loop instead of 'if'ing N times in the loop
 			m_num_offloaded_wfds = 0;
 		}
@@ -235,7 +235,7 @@ bool select_call::wait_os(bool zero_timeout)
 	// extend check to write/except fds
 	if (m_rfd_count == m_n_exclude_fds)
 		return;
-*/
+//*/
 	
 	if (zero_timeout) {
 		to.tv_sec = to.tv_usec = 0;
@@ -317,7 +317,7 @@ bool select_call::wait(const timeval &elapsed)
                         return false;
                 }
         }
-*/
+//*/
 
 	// Call OS select() on original sets + CQ epfd in read set
 	if (m_readfds)

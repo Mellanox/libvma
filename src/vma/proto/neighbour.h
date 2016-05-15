@@ -196,7 +196,7 @@ private:
  * Key = address (peer IP)
  * Val = class neigh_val
  */
-typedef vma_list_t<neigh_send_data, neigh_send_data::unsent_node_offset> unsent_queue_t;
+typedef vma_list_t<neigh_send_data> unsent_queue_t;
 
 class neigh_entry : public cache_entry_subject<neigh_key, neigh_val *>, public event_handler_rdma_cm, public timer_handler
 {

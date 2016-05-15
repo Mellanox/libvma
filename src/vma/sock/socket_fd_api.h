@@ -74,7 +74,7 @@ enum fd_type_t{
 	FD_TYPE_PIPE,
 };
 
-typedef vma_list_t<mem_buf_desc_t, mem_buf_desc_t::buffer_node_offset> vma_desc_list_t;
+typedef vma_list_t<mem_buf_desc_t> vma_desc_list_t;
 
 /**
  *
@@ -173,8 +173,8 @@ public:
 	virtual int get_fd( ) const { return m_fd; };
 
 	// true if fd must be skipped from OS select()
-	// If safe_mce_sys().rx_udp_poll_os_ratio == 0, it means that user configured VMA not to poll os (i.e. TRUE...)
-	virtual bool skip_os_select() { return (!(safe_mce_sys().select_poll_os_ratio)); };
+	// If mce_sys.rx_udp_poll_os_ratio == 0, it means that user configured VMA not to poll os (i.e. TRUE...)
+	virtual bool skip_os_select() { return (!(mce_sys.select_poll_os_ratio)); };
 
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
@@ -205,16 +205,7 @@ public:
 		      const ssize_t sz_iov, const int __flags,
 		      const sockaddr *__to, const socklen_t __tolen);
 
-	static inline size_t pendig_to_remove_node_offset(void) {return NODE_OFFSET(socket_fd_api, pendig_to_remove_node);}
-	list_node<socket_fd_api, socket_fd_api::pendig_to_remove_node_offset> pendig_to_remove_node;
-
-	static inline size_t socket_fd_list_node_offset(void) {return NODE_OFFSET(socket_fd_api, socket_fd_list_node);}
-	list_node<socket_fd_api, socket_fd_api::socket_fd_list_node_offset> socket_fd_list_node;
-
-	static inline size_t ep_ready_fd_node_offset(void) {return NODE_OFFSET(socket_fd_api, ep_ready_fd_node);}
-	list_node<socket_fd_api, socket_fd_api::ep_ready_fd_node_offset> ep_ready_fd_node;
-
-	uint32_t m_epoll_event_flags;
+	list_node<socket_fd_api> node;
 
 protected:
 	void notify_epoll_context(uint32_t events);

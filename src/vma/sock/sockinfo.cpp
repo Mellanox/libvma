@@ -73,7 +73,7 @@ sockinfo::sockinfo(int fd) throw (vma_exception):
 		m_rx_ring_map_lock(MODULE_NAME "::m_rx_ring_map_lock"),
 		m_ring_alloc_logic(fd, this),
 		m_n_rx_pkt_ready_list_count(0), m_rx_pkt_ready_offset(0), m_rx_ready_byte_count(0),
-		m_rx_num_buffs_reuse(safe_mce_sys().rx_bufs_batch),
+		m_rx_num_buffs_reuse(mce_sys.rx_bufs_batch),
 		m_rx_callback(NULL),
 		m_rx_callback_context(NULL)
 {
@@ -146,7 +146,7 @@ int sockinfo::fcntl(int __cmd, unsigned long int __arg) throw (vma_error)
 		snprintf(buf, sizeof(buf), "unimplemented fcntl cmd=%#x, arg=%#x", (unsigned)__cmd, (unsigned)__arg);
 		buf[ sizeof(buf)-1 ] = '\0';
 
-		VLOG_PRINTF_INFO(safe_mce_sys().exception_handling.get_log_severity(), "%s", buf);
+		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
 		int rc = handle_exception_flow();
 		switch (rc) {
 		case -1:
@@ -181,7 +181,7 @@ int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg) throw 
 		snprintf(buf, sizeof(buf), "unimplemented ioctl request=%#x, flags=%#x", (unsigned)__request, (unsigned)__arg);
 		buf[ sizeof(buf)-1 ] = '\0';
 
-		VLOG_PRINTF_INFO(safe_mce_sys().exception_handling.get_log_severity(), "%s", buf);
+		VLOG_PRINTF_INFO(mce_sys.exception_handling.get_log_severity(), "%s", buf);
 		int rc = handle_exception_flow();
 		switch (rc) {
 		case -1:
@@ -256,7 +256,7 @@ int sockinfo::rx_wait_helper(int &poll_count, bool is_blocking)
 		}
 	}
 
-	if (poll_count < safe_mce_sys().rx_poll_num || safe_mce_sys().rx_poll_num == -1) {
+	if (poll_count < mce_sys.rx_poll_num || mce_sys.rx_poll_num == -1) {
 		return 0;
 	}
 
@@ -909,19 +909,19 @@ transport_t sockinfo::find_target_family(role_t role, struct sockaddr* sock_addr
 	transport_t target_family = TRANS_DEFAULT;
 	switch (role) {
 	case ROLE_TCP_SERVER:
-		target_family = __vma_match_tcp_server(TRANS_VMA, safe_mce_sys().app_id, sock_addr_first, sizeof(struct sockaddr));
+		target_family = __vma_match_tcp_server(TRANS_VMA, mce_sys.app_id, sock_addr_first, sizeof(struct sockaddr));
 		break;
 	case ROLE_TCP_CLIENT:
-		target_family = __vma_match_tcp_client(TRANS_VMA, safe_mce_sys().app_id, sock_addr_first, sizeof(struct sockaddr), sock_addr_second, sizeof(struct sockaddr));
+		target_family = __vma_match_tcp_client(TRANS_VMA, mce_sys.app_id, sock_addr_first, sizeof(struct sockaddr), sock_addr_second, sizeof(struct sockaddr));
 		break;
 	case ROLE_UDP_RECEIVER:
-		target_family = __vma_match_udp_receiver(TRANS_VMA, safe_mce_sys().app_id, sock_addr_first, sizeof(struct sockaddr));
+		target_family = __vma_match_udp_receiver(TRANS_VMA, mce_sys.app_id, sock_addr_first, sizeof(struct sockaddr));
 		break;
 	case ROLE_UDP_SENDER:
-		target_family = __vma_match_udp_sender(TRANS_VMA, safe_mce_sys().app_id, sock_addr_first, sizeof(struct sockaddr));
+		target_family = __vma_match_udp_sender(TRANS_VMA, mce_sys.app_id, sock_addr_first, sizeof(struct sockaddr));
 		break;
 	case ROLE_UDP_CONNECT:
-		target_family = __vma_match_udp_connect(TRANS_VMA, safe_mce_sys().app_id, sock_addr_first, sizeof(struct sockaddr), sock_addr_second, sizeof(struct sockaddr));
+		target_family = __vma_match_udp_connect(TRANS_VMA, mce_sys.app_id, sock_addr_first, sizeof(struct sockaddr), sock_addr_second, sizeof(struct sockaddr));
 		break;
 	BULLSEYE_EXCLUDE_BLOCK_START
 	default:

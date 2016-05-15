@@ -344,7 +344,7 @@ void neigh_entry::handle_timer_expired(void* ctx)
 	if (state != NUD_REACHABLE) {
 		neigh_logdbg("State is different from NUD_REACHABLE and L2 address wasn't changed. Sending ARP");
 		send_arp();
-		m_timer_handle = priv_register_timer_event(safe_mce_sys().neigh_wait_till_send_arp_msec, this, ONE_SHOT_TIMER, NULL);
+		m_timer_handle = priv_register_timer_event(mce_sys.neigh_wait_till_send_arp_msec, this, ONE_SHOT_TIMER, NULL);
 	}
 	else {
 		neigh_logdbg("State is NUD_REACHABLE and L2 address wasn't changed. Stop sending ARP");
@@ -355,7 +355,7 @@ void neigh_entry::send_arp()
 {
 	// In case we already sent the quota number of unicast ARPs, start sending broadcast ARPs
 	// or we want to send broadcast ARP for the first time
-	bool is_broadcast = (m_arp_counter >= safe_mce_sys().neigh_uc_arp_quata) || m_is_first_send_arp;
+	bool is_broadcast = (m_arp_counter >= mce_sys.neigh_uc_arp_quata) || m_is_first_send_arp;
 	if (post_send_arp(is_broadcast)) {
 		m_is_first_send_arp = false;
 		m_arp_counter++;
@@ -688,7 +688,7 @@ void neigh_entry::handle_neigh_event(neigh_nl_event* nl_ev)
 		if(! ret ) {
 			//If L2 address wasn't changed we need to send ARP
 			send_arp();
-			m_timer_handle = priv_register_timer_event(safe_mce_sys().neigh_wait_till_send_arp_msec, this, ONE_SHOT_TIMER, NULL);
+			m_timer_handle = priv_register_timer_event(mce_sys.neigh_wait_till_send_arp_msec, this, ONE_SHOT_TIMER, NULL);
 		}
 		break;
 	}
@@ -1016,7 +1016,7 @@ int neigh_entry::priv_enter_addr_resolved()
 	if (!priv_get_neigh_state(state) || state != NUD_REACHABLE) {
 		neigh_logdbg("got addr_resolved but state=%d", state);
 		send_arp();
-		m_timer_handle = priv_register_timer_event(safe_mce_sys().neigh_wait_till_send_arp_msec, this, ONE_SHOT_TIMER, NULL);
+		m_timer_handle = priv_register_timer_event(mce_sys.neigh_wait_till_send_arp_msec, this, ONE_SHOT_TIMER, NULL);
 		m_lock.unlock();
 		return 0;
 	} else {
@@ -1088,7 +1088,7 @@ void neigh_entry::priv_enter_error()
 
 	m_lock.lock();
 	//If unsent queue is not empty we will try to KICK START the connection, but only once
-	if (!m_unsent_queue.empty() && (m_err_counter < safe_mce_sys().neigh_num_err_retries)) {
+	if (!m_unsent_queue.empty() && (m_err_counter < mce_sys.neigh_num_err_retries)) {
 		neigh_logdbg("unsent_queue is not empty calling KICK_START");
 		m_err_counter++;
 		event_handler(EV_KICK_START);
@@ -1118,7 +1118,7 @@ int neigh_entry::priv_enter_ready()
 	if (m_type == UC && ! m_is_loopback) {
 		if (priv_get_neigh_state(state) && (state != NUD_REACHABLE)) {
 			send_arp();
-			m_timer_handle = priv_register_timer_event(safe_mce_sys().neigh_wait_till_send_arp_msec, this, ONE_SHOT_TIMER, NULL);
+			m_timer_handle = priv_register_timer_event(mce_sys.neigh_wait_till_send_arp_msec, this, ONE_SHOT_TIMER, NULL);
 		}
 	}
 	m_lock.unlock();
@@ -1133,7 +1133,7 @@ bool neigh_entry::priv_get_neigh_state(int & state)
 		return true;
 	}
 
-	if (g_p_netlink_handler->get_neigh(inet_ntoa(m_dst_addr.sin_addr), m_p_dev->get_if_idx(), &info)) {
+	if (g_p_netlink_handler->get_neigh(inet_ntoa(m_dst_addr.sin_addr), &info)) {
 		state = info.state;
 		neigh_logdbg("state = %s", info.get_state2str().c_str());
 		return true;
@@ -1152,7 +1152,7 @@ bool neigh_entry::priv_get_neigh_l2(address_t & l2_addr)
 		return true;
 	}
 
-	if (g_p_netlink_handler->get_neigh(inet_ntoa(m_dst_addr.sin_addr), m_p_dev->get_if_idx(), &info)){
+	if (g_p_netlink_handler->get_neigh(inet_ntoa(m_dst_addr.sin_addr), &info)){
 		if (info.state != NUD_FAILED) {
 			memcpy(l2_addr, info.lladdr, info.lladdr_len);
 			return true;
@@ -1903,7 +1903,7 @@ int neigh_ib::build_mc_neigh_val(struct rdma_cm_event* event_data,
 	/*neigh_logerr("flow_label = %#x, sgid_index=%#x, hop_limit=%#x, traffic_class=%#x", ((neigh_ib_val *) m_val)->m_ah_attr.grh.flow_label, ((neigh_ib_val *) m_val)->m_ah_attr.grh.sgid_index,
 				((neigh_ib_val *) m_val)->m_ah_attr.grh.hop_limit, ((neigh_ib_val *) m_val)->m_ah_attr.grh.traffic_class);
 	*/
-	wait_after_join_msec = safe_mce_sys().wait_after_join_msec;
+	wait_after_join_msec = mce_sys.wait_after_join_msec;
 
 	return 0;
 }
@@ -2011,7 +2011,7 @@ int neigh_ib::destroy_ah()
 	//We cannot destroy ah till each post_send with this ah has ended
 	//TODO: Need to think how to  handle this - for now there will be ah leak
 	return 0;
-#if 0 //unreachable code
+//unreachable code
 #ifndef __COVERITY__
 	if (m_val && ((neigh_ib_val *) m_val)->m_ah) {
 		IF_VERBS_FAILURE(ibv_destroy_ah(((neigh_ib_val *) m_val)->m_ah))
@@ -2021,7 +2021,6 @@ int neigh_ib::destroy_ah()
 		}ENDIF_VERBS_FAILURE;
 	}
 	return 0;
-#endif
 #endif
 }
 

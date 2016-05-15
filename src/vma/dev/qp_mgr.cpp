@@ -65,7 +65,7 @@
 qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num, const uint32_t tx_num_wr):
 	m_qp(NULL), m_p_ring((ring_simple*)p_ring), m_port_num((uint8_t)port_num), m_p_ib_ctx_handler((ib_ctx_handler*)p_context),
 	m_p_ahc_head(NULL), m_p_ahc_tail(NULL), m_max_inline_data(0), m_max_qp_wr(0), m_p_cq_mgr_rx(NULL), m_p_cq_mgr_tx(NULL),
-	m_rx_num_wr(safe_mce_sys().rx_num_wr), m_tx_num_wr(tx_num_wr), m_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv), 
+	m_rx_num_wr(mce_sys.rx_num_wr), m_tx_num_wr(tx_num_wr), m_rx_num_wr_to_post_recv(mce_sys.rx_num_wr_to_post_recv), 
 	m_curr_rx_wr(0), m_n_unsignaled_count(0), m_n_tx_count(0), m_p_last_tx_mem_buf_desc(NULL), m_p_prev_rx_desc_pushed(NULL),
 	m_n_ip_id_base(0), m_n_ip_id_offset(0)
 {
@@ -147,7 +147,7 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	memset(&qp_init_attr, 0, sizeof(qp_init_attr));
 
 	// Check device capabilities for max SG elements
-	uint32_t tx_max_inline = safe_mce_sys().tx_max_inline;;
+	uint32_t tx_max_inline = mce_sys.tx_max_inline;;
 	uint32_t rx_num_sge = MCE_DEFAULT_RX_NUM_SGE;
 
 	qp_init_attr.cap.max_send_wr = m_tx_num_wr;
@@ -447,7 +447,7 @@ int qp_mgr::post_recv(mem_buf_desc_t* p_mem_buf_desc)
 		next = p_mem_buf_desc->p_next_desc;
 		p_mem_buf_desc->p_next_desc = NULL;
 
-		if (safe_mce_sys().rx_prefetch_bytes_before_poll) {
+		if (mce_sys.rx_prefetch_bytes_before_poll) {
 			if (m_p_prev_rx_desc_pushed)
 				m_p_prev_rx_desc_pushed->p_prev_desc = p_mem_buf_desc;
 			m_p_prev_rx_desc_pushed = p_mem_buf_desc;

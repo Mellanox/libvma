@@ -79,57 +79,62 @@ int epoll_wait_call::get_current_events()
 		return m_n_all_ready_fds;
 	}
 
-	vma_list_t<socket_fd_api, socket_fd_api::socket_fd_list_node_offset> socket_fd_list;
+	vector<socket_fd_api *> socket_fd_vec;
 	lock();
-	int i,r,w,fd;
+	int i,r,w;
 	i = r = w = m_n_all_ready_fds;
 	socket_fd_api *p_socket_object;
 	epoll_fd_rec fd_rec;
-	list_iterator_t<socket_fd_api, socket_fd_api::ep_ready_fd_node_offset> iter = m_epfd_info->m_ready_fds.begin();
+	ep_ready_fd_map_t::iterator iter = m_epfd_info->m_ready_fds.begin();
 	while (iter != m_epfd_info->m_ready_fds.end() && i < m_maxevents) {
-		p_socket_object = *iter;
-		fd = p_socket_object->get_fd();
+		ep_ready_fd_map_t::iterator iter_cpy = iter; // for protection needs
 		++iter;
+		p_socket_object = fd_collection_get_sockfd(iter_cpy->first);
+		if (p_socket_object)
+		{
+			if(!m_epfd_info->get_fd_rec_by_fd(iter_cpy->first, fd_rec)) continue;
 
-		if(!m_epfd_info->get_fd_rec_by_fd(fd, fd_rec)) continue;
+			m_events[i].events = 0; //initialize
 
-		m_events[i].events = 0; //initialize
+			bool got_event = false;
 
-		bool got_event = false;
+			//epoll_wait will always wait for EPOLLERR and EPOLLHUP; it is not necessary to set it in events.
+			uint32_t mutual_events = iter_cpy->second & (fd_rec.events | EPOLLERR | EPOLLHUP);
 
-		//epoll_wait will always wait for EPOLLERR and EPOLLHUP; it is not necessary to set it in events.
-		uint32_t mutual_events = p_socket_object->m_epoll_event_flags & (fd_rec.events | EPOLLERR | EPOLLHUP);
-
-		//EPOLLHUP & EPOLLOUT are mutually exclusive. see poll man pages. epoll adapt poll behavior.
-		if ((mutual_events & EPOLLHUP) &&  (mutual_events & EPOLLOUT)) {
-			mutual_events &= ~EPOLLOUT;
-		}
-
-		if (mutual_events & EPOLLIN) {
-			if (handle_epoll_event(p_socket_object->is_readable(NULL), EPOLLIN, fd, fd_rec, i)) {
-				r++;
-				got_event = true;
+			//EPOLLHUP & EPOLLOUT are mutually exclusive. see poll man pages. epoll adapt poll behavior.
+			if ((mutual_events & EPOLLHUP) &&  (mutual_events & EPOLLOUT)) {
+				mutual_events &= ~EPOLLOUT;
 			}
-			mutual_events &= ~EPOLLIN;
-		}
 
-		if (mutual_events & EPOLLOUT) {
-			if (handle_epoll_event(p_socket_object->is_writeable(), EPOLLOUT, fd, fd_rec, i)) {
-				w++;
-				got_event = true;
+			if (mutual_events & EPOLLIN) {
+				if (handle_epoll_event(p_socket_object->is_readable(NULL), EPOLLIN, iter_cpy, fd_rec, i)) {
+					r++;
+					got_event = true;
+				}
+				mutual_events &= ~EPOLLIN;
 			}
-			mutual_events &= ~EPOLLOUT;
-		}
 
-		if (mutual_events) {
-			if (handle_epoll_event(true, mutual_events, fd, fd_rec, i)) {
-				got_event = true;
+			if (mutual_events & EPOLLOUT) {
+				if (handle_epoll_event(p_socket_object->is_writeable(), EPOLLOUT, iter_cpy, fd_rec, i)) {
+					w++;
+					got_event = true;
+				}
+				mutual_events &= ~EPOLLOUT;
+			}
+
+			if (mutual_events) {
+				if (handle_epoll_event(true, mutual_events, iter_cpy, fd_rec, i)) {
+					got_event = true;
+				}
+			}
+
+			if (got_event) {
+				socket_fd_vec.push_back(p_socket_object);
+				++i;
 			}
 		}
-
-		if (got_event) {
-			socket_fd_list.push_back(p_socket_object);
-			++i;
+		else {
+			m_epfd_info->m_ready_fds.erase(iter_cpy);
 		}
 	}
 
@@ -150,9 +155,8 @@ int epoll_wait_call::get_current_events()
 	 * this  will be more similar to the behavior of select/poll.
 	 * see RM task 212058
 	 */
-	while (!socket_fd_list.empty()) {
-		socket_fd_list.front()->consider_rings_migration();
-		socket_fd_list.pop_front();
+	for (unsigned int j = 0; j < socket_fd_vec.size(); j++) {
+		socket_fd_vec[j]->consider_rings_migration();
 	}
 
 	return (i);
@@ -342,7 +346,7 @@ bool epoll_wait_call::immidiate_return()
 	return false;
 }
 
-bool epoll_wait_call::handle_epoll_event(bool is_ready, uint32_t events, int fd, epoll_fd_rec fd_rec, int index)
+bool epoll_wait_call::handle_epoll_event(bool is_ready, uint32_t events, ep_ready_fd_map_t::iterator iter, epoll_fd_rec fd_rec, int index)
 {
 	if (is_ready) {
 
@@ -350,16 +354,16 @@ bool epoll_wait_call::handle_epoll_event(bool is_ready, uint32_t events, int fd,
 		m_events[index].events |= events;
 
 		if (fd_rec.events & EPOLLONESHOT) {
-			m_epfd_info->clear_events_for_fd(fd, events);
+			m_epfd_info->clear_events_for_fd(iter->first, events);
 		}
 		if (fd_rec.events & EPOLLET) {
-			m_epfd_info->remove_epoll_event(fd, events);
+			m_epfd_info->remove_epoll_event(iter->first, events);
 		}
 		return true;
 	}
 	else {
 		// not readable, need to erase from our ready list (LT support)
-		m_epfd_info->remove_epoll_event(fd, events);
+		m_epfd_info->remove_epoll_event(iter->first, events);
 		return false;
 	}
 

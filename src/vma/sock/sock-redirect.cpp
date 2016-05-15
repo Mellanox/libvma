@@ -84,12 +84,6 @@ void assign_dlsym(T &ptr, const char *name) {
 	ptr = reinterpret_cast<T>(dlsym(RTLD_NEXT, name));
 }
 
-#ifdef __INTEL_COMPILER
-#define VMA_THROW
-#else
-#define VMA_THROW	throw(vma_error)
-#endif
-
 #define FD_MAP_SIZE 		(g_p_fd_collection ? g_p_fd_collection->get_fd_map_size() : 1024)
 
 #define GET_ORIG_FUNC(__name) \
@@ -629,7 +623,7 @@ int connect(int __fd, const struct sockaddr *__to, socklen_t __tolen)
    Returns 0 on success, -1 for errors.  */
 extern "C"
 int setsockopt(int __fd, int __level, int __optname,
-	       __const void *__optval, socklen_t __optlen) VMA_THROW
+	       __const void *__optval, socklen_t __optlen) throw (vma_error)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.setsockopt) get_orig_funcs();
@@ -665,7 +659,7 @@ int setsockopt(int __fd, int __level, int __optname,
    Returns 0 on success, -1 for errors.  */
 extern "C"
 int getsockopt(int __fd, int __level, int __optname,
-	       void *__optval, socklen_t *__optlen) VMA_THROW
+	       void *__optval, socklen_t *__optlen) throw (vma_error)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.getsockopt) get_orig_funcs();
@@ -712,7 +706,7 @@ int getsockopt(int __fd, int __level, int __optname,
    accordingly (see README.txt)
    */
 extern "C"
-int fcntl(int __fd, int __cmd, ...) VMA_THROW
+int fcntl(int __fd, int __cmd, ...) throw (vma_error)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.fcntl) get_orig_funcs();
@@ -749,7 +743,7 @@ int fcntl(int __fd, int __cmd, ...) VMA_THROW
    One argument may follow; its presence and type depend on REQUEST.
    Return value depends on REQUEST.  Usually -1 indicates error. */
 extern "C"
-int ioctl (int __fd, unsigned long int __request, ...) VMA_THROW
+int ioctl (int __fd, unsigned long int __request, ...) throw (vma_error)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.fcntl) get_orig_funcs();
@@ -1013,12 +1007,10 @@ ssize_t recvmsg(int __fd, struct msghdr *__msg, int __flags)
 
 /* The following definitions are for kernels previous to 2.6.32 which dont support recvmmsg */
 #ifndef HAVE_STRUCT_MMSGHDR
-#ifndef __INTEL_COMPILER
 struct mmsghdr {
     struct msghdr msg_hdr;  // Message header
     unsigned int  msg_len;  // Number of received bytes for header
 };
-#endif
 #endif
 
 #ifndef MSG_WAITFORONE
@@ -1384,7 +1376,7 @@ int select_helper(int __nfds,
 	if (g_vlogger_level >= VLOG_FUNC) {
 		const int tmpbufsize = 256;
 		char tmpbuf[tmpbufsize], tmpbuf2[tmpbufsize];
-		srdr_logfunc("readfds: %s, writefds: %s",
+		srdr_logfunc_entry("readfds: %s, writefds: %s", 
 			   sprintf_fdset(tmpbuf, tmpbufsize, __nfds, __readfds), 
 			   sprintf_fdset(tmpbuf2, tmpbufsize, __nfds, __writefds));
 	}
@@ -1405,7 +1397,6 @@ int select_helper(int __nfds,
 		return rc;
 	}
 	catch (io_mux_call::io_error&) {
-		srdr_logfunc_exit("io_mux_call::io_error (errno=%d %m)", errno);
 		return -1;
 	}
 }
@@ -1424,12 +1415,11 @@ int select(int __nfds,
 	if (!g_p_fd_collection)
 		return orig_os_api.select(__nfds, __readfds, __writefds, __exceptfds, __timeout);
 
-	if (__timeout) {
+	if (__timeout)
 		srdr_logfunc_entry("nfds=%d, timeout=(%d sec, %d usec)",
 				                   __nfds, __timeout->tv_sec, __timeout->tv_usec);
-	} else {
+	else
 		srdr_logfunc_entry("nfds=%d, timeout=(infinite)", __nfds);
-	}
 
 	return select_helper(__nfds, __readfds, __writefds, __exceptfds, __timeout);
 }
@@ -1455,9 +1445,8 @@ int pselect(int __nfds,
 					           __nfds, __timeout->tv_sec, __timeout->tv_nsec);
 		select_time.tv_sec = __timeout->tv_sec;
 		select_time.tv_usec = __timeout->tv_nsec / 1000;
-	} else {
+	} else
 		srdr_logfunc_entry("nfds=%d, timeout=(infinite)", __nfds);
-	}
 
 	return select_helper(__nfds, __readfds, __writefds, __errorfds, __timeout ? &select_time : NULL, __sigmask);
 }
@@ -1478,12 +1467,9 @@ int poll_helper(struct pollfd *__fds, nfds_t __nfds, int __timeout, const sigset
 		poll_call pcall(off_rfd_buffer, off_modes_buffer, lookup_buffer, working_fds_arr,
 		                __fds, __nfds, __timeout, __sigmask);
 		
-		int rc = pcall.call();
-		srdr_logfunc_exit("rc = %d", rc);
-		return rc;
+		return pcall.call();
 	}
 	catch (io_mux_call::io_error&) {
-		srdr_logfunc_exit("io_mux_call::io_error (errno=%d %m)", errno);
 		return -1;
 	}
 }
@@ -1609,18 +1595,14 @@ int epoll_ctl(int __epfd, int __op, int __fd, struct epoll_event *__event)
 		srdr_logfunc_entry("epfd=%d, op=%s, fd=%d, event=NULL", __epfd, op_names[__op], __fd);
 	}
 
-	int rc = -1;
 	epfd_info *epfd_info = fd_collection_get_epfd(__epfd);
 	if (!epfd_info) {
 		errno = EBADF;
-	}
-	else {
-		// TODO handle race - if close() gets here..
-		rc = epfd_info->ctl(__op, __fd, __event);
+		return -1;
 	}
 	
-	srdr_logfunc_exit("rc = %d", rc);
-	return rc;
+	// TODO handle race - if close() gets here..
+	return epfd_info->ctl(__op, __fd, __event);
 }
 
 /* Wait for events on an epoll instance "epfd". Returns the number of
@@ -1644,18 +1626,15 @@ inline int epoll_wait_helper(int __epfd, struct epoll_event *__events, int __max
 		epoll_wait_call epcall(extra_events_buffer, NULL,
 				__epfd, __events, __maxevents, __timeout, __sigmask);
 
-		int rc = epcall.get_current_events(); // returns ready nfds
-		if (rc <= 0) {
-			// if no ready nfds available then check all lower level queues (VMA ring's and OS queues)
-			epcall.init_offloaded_fds();
-			rc = epcall.call();
+		int nfds = epcall.get_current_events();
+		if (nfds > 0) {
+			return nfds;
 		}
 
-		srdr_logfunc_exit("rc = %d", rc);
-		return rc;
+		epcall.init_offloaded_fds();
+		return epcall.call();
 	}
 	catch (io_mux_call::io_error&) {
-		srdr_logfunc_exit("io_mux_call::io_error (errno=%d %m)", errno);
 		return -1;
 	}
 }
@@ -1722,11 +1701,11 @@ extern "C"
 int pipe(int __filedes[2])
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.pipe) get_orig_funcs();
+	if (!orig_os_api.pipe)	get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	bool offload_pipe = safe_mce_sys().mce_spec == MCE_SPEC_29WEST_LBM_29 ||
-			    safe_mce_sys().mce_spec == MCE_SPEC_WOMBAT_FH_LBM_554;
+	bool offload_pipe = mce_sys.mce_spec == MCE_SPEC_29WEST_LBM_29 ||
+			    mce_sys.mce_spec == MCE_SPEC_WOMBAT_FH_LBM_554;
 	if (offload_pipe)
 		do_global_ctors();
 
@@ -1752,7 +1731,7 @@ extern "C"
 int open(__const char *__file, int __oflag, ...)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.open) get_orig_funcs();
+	if (!orig_os_api.open)	get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	va_list va;
@@ -1812,7 +1791,7 @@ int dup2(int __fd, int __fd2)
 	if (!orig_os_api.dup2) get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	if (safe_mce_sys().close_on_dup2 && __fd != __fd2) {
+	if (mce_sys.close_on_dup2 && __fd != __fd2) {
 		srdr_logdbg("oldfd=%d, newfd=%d. Closing %d in VMA.\n", __fd, __fd2, __fd2);
 		handle_close(__fd2);
 	}
@@ -1872,7 +1851,7 @@ pid_t fork(void)
 		sock_redirect_exit();
 
 		get_env_params();
-		vlog_start("VMA", safe_mce_sys().log_level, safe_mce_sys().log_filename, safe_mce_sys().log_details, safe_mce_sys().log_colors);
+		vlog_start("VMA", mce_sys.log_level, mce_sys.log_filename, mce_sys.log_details, mce_sys.log_colors);
 		srdr_logdbg_exit("Child Process: starting with %d", getpid());
 		g_is_forked_child = false;
 		sock_redirect_main();
@@ -1925,7 +1904,7 @@ int daemon(int __nochdir, int __noclose)
 		sock_redirect_exit();
 
 		get_env_params();
-		vlog_start("VMA", safe_mce_sys().log_level, safe_mce_sys().log_filename, safe_mce_sys().log_details, safe_mce_sys().log_colors);
+		vlog_start("VMA", mce_sys.log_level, mce_sys.log_filename, mce_sys.log_details, mce_sys.log_colors);
 		srdr_logdbg_exit("Child Process: starting with %d", getpid());
 		g_is_forked_child = false;
 		sock_redirect_main();
@@ -1959,7 +1938,7 @@ int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 
 	if (!orig_os_api.sigaction) get_orig_funcs();
 
-	if (safe_mce_sys().handle_sigintr) {
+	if (mce_sys.handle_sigintr) {
 		srdr_logdbg_entry("signum=%d, act=%p, oldact=%p", signum, act, oldact);
 
 		switch (signum) {
@@ -1995,7 +1974,7 @@ int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 	}
 	ret = orig_os_api.sigaction(signum, act, oldact);
 
-	if (safe_mce_sys().handle_sigintr) {
+	if (mce_sys.handle_sigintr) {
 		if (ret >= 0)
 			srdr_logdbg_exit("returned with %d", ret);
 		else
