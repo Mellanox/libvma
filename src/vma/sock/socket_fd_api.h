@@ -208,9 +208,6 @@ public:
 	static inline size_t pendig_to_remove_node_offset(void) {return NODE_OFFSET(socket_fd_api, pendig_to_remove_node);}
 	list_node<socket_fd_api, socket_fd_api::pendig_to_remove_node_offset> pendig_to_remove_node;
 
-	static inline size_t socket_fd_list_node_offset(void) {return NODE_OFFSET(socket_fd_api, socket_fd_list_node);}
-	list_node<socket_fd_api, socket_fd_api::socket_fd_list_node_offset> socket_fd_list_node;
-
 protected:
 	void notify_epoll_context(uint32_t events);
 	void notify_epoll_context_add_ring(ring* ring);

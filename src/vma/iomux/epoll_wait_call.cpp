@@ -79,7 +79,7 @@ int epoll_wait_call::get_current_events()
 		return m_n_all_ready_fds;
 	}
 
-	vma_list_t<socket_fd_api, socket_fd_api::socket_fd_list_node_offset> socket_fd_list;
+	vector<socket_fd_api *> socket_fd_vec;
 	lock();
 	int i,r,w;
 	i = r = w = m_n_all_ready_fds;
@@ -129,7 +129,7 @@ int epoll_wait_call::get_current_events()
 			}
 
 			if (got_event) {
-				socket_fd_list.push_back(p_socket_object);
+				socket_fd_vec.push_back(p_socket_object);
 				++i;
 			}
 		}
@@ -155,9 +155,8 @@ int epoll_wait_call::get_current_events()
 	 * this  will be more similar to the behavior of select/poll.
 	 * see RM task 212058
 	 */
-	while (!socket_fd_list.empty()) {
-		socket_fd_list.front()->consider_rings_migration();
-		socket_fd_list.pop_front();
+	for (unsigned int j = 0; j < socket_fd_vec.size(); j++) {
+		socket_fd_vec[j]->consider_rings_migration();
 	}
 
 	return (i);
