@@ -342,10 +342,7 @@ VMA_RING_ALLOCATION_LOGIC_RX
 Ring allocation logic is used to separate the traffic to different rings.
 By default all sockets use the same ring for both RX and TX over the same interface.
 Even when specifing the logic to be per socket or thread, for different interfaces 
-we use different rings. This is useful when tuning for a multi-threaded application 
-and aiming for HW resource separation.
-Warning: This feature might hurt performance for applications which their main 
-processing loop is based in select() and/or poll().
+we use different rings.
 The logic options are:
 0  - Ring per interface
 10 - Ring per socket (using socket fd as separator)
