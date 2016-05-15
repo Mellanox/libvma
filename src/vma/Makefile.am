@@ -148,6 +148,7 @@ libvma_la_SOURCES := \
 	util/utils.cpp \
 	util/verbs_extra.cpp \
 	util/instrumentation.cpp \
+	util/sys_vars.cpp \
 	libvma.c \
 	main.cpp \
 	../stats/stats_publisher.cpp \
