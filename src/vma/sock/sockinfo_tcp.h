@@ -84,8 +84,11 @@ enum tcp_conn_state_e {
 	TCP_CONN_RESETED
 };
 
+class sockinfo_tcp;
+
 typedef std::map<tcp_pcb*, int>		ready_pcb_map_t;
 typedef std::map<flow_tuple, tcp_pcb*>	syn_received_map_t;
+typedef vma_list_t<sockinfo_tcp>      accepted_conns_deque_t;
 typedef std::map<peer_key, vma_desc_list_t> peer_map_t;
 
 
@@ -212,8 +215,7 @@ public:
 
 	virtual bool delay_orig_close_to_dtor();
 
-	static inline size_t accepted_conns_node_offset(void) {return NODE_OFFSET(sockinfo_tcp, accepted_conns_node);}
-	list_node<sockinfo_tcp, sockinfo_tcp::accepted_conns_node_offset> accepted_conns_node;
+	list_node<sockinfo_tcp> node;
 
 protected:
 	virtual void		lock_rx_q();
@@ -253,8 +255,7 @@ private:
 	uint32_t m_received_syn_num;
 
 	/* pending connections */
-	vma_list_t<sockinfo_tcp, sockinfo_tcp::accepted_conns_node_offset> m_accepted_conns;
-
+	accepted_conns_deque_t m_accepted_conns;
 	uint32_t m_ready_conn_cnt;
 	int m_backlog;
 

@@ -1193,7 +1193,7 @@ int sockinfo_tcp::handle_child_FIN(sockinfo_tcp* child_conn)
 {
 	lock_tcp_con();
 
-	list_iterator_t<sockinfo_tcp, sockinfo_tcp::accepted_conns_node_offset> conns_iter;
+	list_iterator_t<sockinfo_tcp> conns_iter;
 	for(conns_iter = m_accepted_conns.begin(); conns_iter != m_accepted_conns.end(); conns_iter++) {
 		if (*(conns_iter) == child_conn) {
 			unlock_tcp_con();

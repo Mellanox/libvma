@@ -74,7 +74,7 @@ enum fd_type_t{
 	FD_TYPE_PIPE,
 };
 
-typedef vma_list_t<mem_buf_desc_t, mem_buf_desc_t::buffer_node_offset> vma_desc_list_t;
+typedef vma_list_t<mem_buf_desc_t> vma_desc_list_t;
 
 /**
  *
@@ -205,8 +205,7 @@ public:
 		      const ssize_t sz_iov, const int __flags,
 		      const sockaddr *__to, const socklen_t __tolen);
 
-	static inline size_t pendig_to_remove_node_offset(void) {return NODE_OFFSET(socket_fd_api, pendig_to_remove_node);}
-	list_node<socket_fd_api, socket_fd_api::pendig_to_remove_node_offset> pendig_to_remove_node;
+	list_node<socket_fd_api> node;
 
 protected:
 	void notify_epoll_context(uint32_t events);

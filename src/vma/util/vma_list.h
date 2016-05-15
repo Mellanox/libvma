@@ -40,16 +40,12 @@
 #define ID_MAX_SIZE 200
 
 #if _VMA_LIST_DEBUG
-template <class T, size_t offset(void)>
+template <class T>
 class vma_list_t;
+
 #endif
 
-#define NODE_OFFSET(_obj_type, _node_name) \
-	((size_t)(&(char &)(((_obj_type *) 1)->_node_name)) - 1)
-#define GET_NODE(_obj, _obj_type, _offset_func) \
-	((list_node<_obj_type, _offset_func> *) ((size_t)(_obj) + (size_t)(_offset_func())))
-
-template <class T, size_t offset(void)>
+template <class T>
 class list_node {
 public :
 
@@ -58,7 +54,7 @@ public :
 	T *obj_ptr;
 
 #if _VMA_LIST_DEBUG
-	vma_list_t<T, offset> * parent;
+	vma_list_t<T>* parent;
 
 	char* list_id(){
 		return this->parent->list_id();
@@ -72,7 +68,7 @@ public :
 		this->obj_ptr = NULL;
 
 	#if _VMA_LIST_DEBUG
-		this->parent = NULL;
+		parent = NULL;
 	#endif
 	}
 
@@ -83,17 +79,16 @@ public :
 
 };
 
-template<typename T, size_t offset(void)>
+template<typename T>
 class list_iterator_t : public std::iterator<std::random_access_iterator_tag, T, std::ptrdiff_t, T*, T&>
 {
 public:
 
     list_iterator_t(T* ptr = NULL){m_ptr = ptr;}
-    list_iterator_t(const list_iterator_t<T, offset>& __iterator){m_ptr = __iterator.m_ptr;}
+    list_iterator_t(const list_iterator_t<T>& __iterator){m_ptr = __iterator.m_ptr;}
     ~list_iterator_t(){}
 
-    list_iterator_t<T, offset>&          operator=(T* ptr){m_ptr = ptr;return (*this);}
-    list_iterator_t<T, offset>&          operator=(const list_iterator_t<T, offset>& __iterator){m_ptr = __iterator.m_ptr;return (*this);}
+    list_iterator_t<T>&                  operator=(T* ptr){m_ptr = ptr;return (*this);}
 
     operator	bool()const {
         if(m_ptr)
@@ -102,27 +97,27 @@ public:
             return false;
     }
 
-    bool	operator==(const list_iterator_t<T, offset>& __iterator)const{return (m_ptr == __iterator.getConstPtr());}
-    bool	operator!=(const list_iterator_t<T, offset>& __iterator)const{return (m_ptr != __iterator.getConstPtr());}
+    bool	operator==(const list_iterator_t<T>& __iterator)const{return (m_ptr == __iterator.getConstPtr());}
+    bool	operator!=(const list_iterator_t<T>& __iterator)const{return (m_ptr != __iterator.getConstPtr());}
 
-    list_iterator_t<T, offset> operator++(int){
-    	list_iterator_t<T, offset> tmp(*this);
+    list_iterator_t<T> operator++(int){
+    	list_iterator_t<T> tmp(*this);
     	increment_ptr();
     	return tmp;
     }
 
-    list_iterator_t<T, offset>& operator++(){
+    list_iterator_t<T>& operator++(){
     	increment_ptr();
     	return *this;
     }
 
-    list_iterator_t<T, offset> operator--(int){
-     	list_iterator_t<T, offset> tmp(*this);
+    list_iterator_t<T> operator--(int){
+     	list_iterator_t<T> tmp(*this);
      	decrement_ptr();
      	return tmp;
      }
 
-    list_iterator_t<T, offset>& operator--(){
+    list_iterator_t<T>& operator--(){
     	decrement_ptr();
     	return *this;
     }
@@ -139,16 +134,15 @@ private:
     T*	m_ptr;
 
     void increment_ptr() {
-    	m_ptr =  ((list_node<T, offset> *)GET_NODE(m_ptr, T, offset)->head.next)->obj_ptr;
+    	m_ptr =  ((list_node<T> *)m_ptr->node.head.next)->obj_ptr;
     }
 
     void decrement_ptr(){
-    	m_ptr = ((list_node<T, offset> *)GET_NODE(m_ptr, T, offset)->head.prev)->obj_ptr;
+    	m_ptr = ((list_node<T> *)m_ptr->node.head.prev)->obj_ptr;
     }
-
 };
 
-template <class T, size_t offset(void)>
+template <class T>
 class  vma_list_t
 {
 public:
@@ -174,13 +168,13 @@ public:
 		}
 	}
 
-	vma_list_t<T, offset> (const vma_list_t<T, offset> & other) {
+	vma_list_t(const vma_list_t& other) {
 		if (!other.empty())
 			vlog_printf(VLOG_WARNING,"vma_list_t copy constructor is not supported for non-empty list (other.list_counter=%d).\n", (int)other.m_size);
 		init_list();
 	}
 
-	vma_list_t<T, offset> & operator=(const vma_list_t<T, offset> & other) {
+	vma_list_t& operator=(const vma_list_t& other) {
 		if (!empty() || !other.empty())
 			vlog_printf(VLOG_WARNING,"vma_list_t operator= is not supported for non-empty list (list_counter=%d, other.list_counter=%d).\n", (int)m_size, (int)other.m_size);
 		if (this != &other) {
@@ -204,13 +198,13 @@ public:
 	T* front() {
 		if (unlikely(empty()))
 			return NULL;
-		return ((list_node<T, offset> *)m_list.head.next)->obj_ptr;
+		return ((list_node<T> *)m_list.head.next)->obj_ptr;
 	}
 
 	T* back() {
 		if (unlikely(empty()))
 			return NULL;
-		return ((list_node<T, offset> *)m_list.head.prev)->obj_ptr;
+		return ((list_node<T> *)m_list.head.prev)->obj_ptr;
 	}
 
 	void pop_front(){
@@ -227,9 +221,9 @@ public:
 			return;
 		}
 	#if _VMA_LIST_DEBUG
-		GET_NODE(obj, T, offset)->parent = NULL;
+		obj->node.parent = NULL;
 	#endif
-		list_del_init(&GET_NODE(obj, T, offset)->head);
+		list_del_init(&obj->node.head);
 		m_size--;
 	}
 
@@ -248,18 +242,19 @@ public:
 			vlog_printf(VLOG_WARNING,"vma_list_t.push_back() got NULL object - ignoring.\n");
 			return;
 		}
-		if (unlikely(GET_NODE(obj, T, offset)->is_list_member())) {
+		if (unlikely(obj->node.is_list_member())) {
 		#if _VMA_LIST_DEBUG
-			vlog_printf(VLOG_ERROR,"vma_list_t.push_back() - buff is already a member in a list (list id = %s), (this.id = %s)\n", GET_NODE(obj, T, offset)->list_id(), this->list_id());
+			vlog_printf(VLOG_ERROR,"vma_list_t.push_back() - buff is already a member in a list (list id = %s), (this.id = %s)\n", obj->node.list_id(), this->list_id());
 		#else
 			vlog_printf(VLOG_ERROR,"vma_list_t.push_back() - buff is already a member in a list.\n");
 		#endif
 		}
 	#if _VMA_LIST_DEBUG
-		GET_NODE(obj, T, offset)->parent = this;
+		obj->node.parent = this;
 	#endif
-		GET_NODE(obj, T, offset)->obj_ptr = obj;
-		list_add_tail(&GET_NODE(obj, T, offset)->head, &m_list.head);
+
+		obj->node.obj_ptr = obj;
+		list_add_tail(&obj->node.head, &m_list.head);
 		m_size++;
 	}
 
@@ -268,19 +263,19 @@ public:
 			vlog_printf(VLOG_WARNING,"vma_list_t.push_front() got NULL object - ignoring.\n");
 			return;
 		}
-		if (unlikely(GET_NODE(obj, T, offset)->is_list_member())) {
+		if (unlikely(obj->node.is_list_member())) {
 		#if _VMA_LIST_DEBUG
-			vlog_printf(VLOG_ERROR,"vma_list_t.push_front() - buff is already a member in a list (list id = %s), (this.id = %s)\n", GET_NODE(obj, T, offset)->list_id(), this->list_id());
+			vlog_printf(VLOG_ERROR,"vma_list_t.push_front() - buff is already a member in a list (list id = %s), (this.id = %s)\n", obj->node.list_id(), this->list_id());
 		#else
 			vlog_printf(VLOG_ERROR,"vma_list_t.push_front() - buff is already a member in a list.\n");
 		#endif
 		}
 
 	#if _VMA_LIST_DEBUG
-		GET_NODE(obj, T, offset)->parent = this;
+		obj->node.parent = this;
 	#endif
-		GET_NODE(obj, T, offset)->obj_ptr = obj;
-		list_add(&GET_NODE(obj, T, offset)->head, &m_list.head);
+		obj->node.obj_ptr = obj;
+		list_add(&obj->node.head, &m_list.head);
 		m_size++;
 	}
 
@@ -292,12 +287,12 @@ public:
 			for (size_t i = 0 ; i < index ; i++){
 				ans = ans->next;
 			}
-			return ((list_node<T, offset> *)ans)->obj_ptr;
+			return ((list_node<T> *)ans)->obj_ptr;
 		}
 	}
 
 	// concatenate 'from' at the head of this list
-	void splice_head(vma_list_t<T, offset> & from) {
+	void splice_head(vma_list_t & from) {
 
 		this->m_size += from.m_size;
 		list_splice(&from.m_list.head, &this->m_list.head);
@@ -306,7 +301,7 @@ public:
 	}
 
 	// concatenate 'from' at the tail of this list
-	void splice_tail(vma_list_t<T, offset> & from) {
+	void splice_tail(vma_list_t & from) {
 		this->m_size += from.m_size;
 		list_splice_tail(&from.m_list.head, &this->m_list.head);
 		from.init_list();
@@ -320,20 +315,20 @@ public:
 	 * After the call to this member function, the elements in this container are those which were in x before the call, and
 	 * the elements of x are those which were in this. All iterators, references and pointers remain valid for the swapped objects.
 	 */
-	void swap (vma_list_t<T, offset> & x) {
+	void swap (vma_list_t& x) {
 
-		vma_list_t<T, offset> temp_list;
+		vma_list_t temp_list;
 		this->move_to_empty(temp_list);
 		x.move_to_empty(*this);
 		temp_list.move_to_empty(x);
 	}
 
-	list_iterator_t<T, offset> begin(){
-		return list_iterator_t<T, offset>(front());
+	list_iterator_t<T> begin(){
+		return list_iterator_t<T>(front());
 	}
 
-	list_iterator_t<T,offset> end(){
-		return list_iterator_t<T, offset>(NULL);
+	list_iterator_t<T> end(){
+		return list_iterator_t<T>(NULL);
 	}
 
 #if _VMA_LIST_DEBUG
@@ -344,14 +339,14 @@ public:
 
 private:
 
-	list_node<T, offset> m_list;
+	list_node<T> m_list;
 	size_t m_size;
 
 #if _VMA_LIST_DEBUG
 	char id[ID_MAX_SIZE];
 #endif
 
-	void move_to_empty(vma_list_t<T, offset> & to) {
+	void move_to_empty(vma_list_t & to) {
 		assert(to.empty());
 		to.m_size   = this->m_size;
 		list_splice_tail(&this->m_list.head, &to.m_list.head);

@@ -142,14 +142,12 @@ public:
 	} path;
 
 	int		serial_num;
-
-	static inline size_t buffer_node_offset(void) {return NODE_OFFSET(mem_buf_desc_t, buffer_node);}
-	list_node<mem_buf_desc_t, mem_buf_desc_t::buffer_node_offset> buffer_node;
+	list_node<mem_buf_desc_t> node;
 #ifdef _DEBUG
 	uint8_t		n_ref_count_dbg;	// Debug mode following the desc usage
 #endif
 };
 
-typedef vma_list_t<mem_buf_desc_t, mem_buf_desc_t::buffer_node_offset> descq_t;
+typedef vma_list_t<mem_buf_desc_t> descq_t;
 
 #endif

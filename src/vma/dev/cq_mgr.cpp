@@ -634,8 +634,8 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 			mem_buf_desc_t* temp = NULL;
 			while (buff) {
 			#if _VMA_LIST_DEBUG
-				if (buff->buffer_node.is_list_member()) {
-					vlog_printf(VLOG_WARNING, "cq_mgr::reclaim_recv_buffer_helper - buff is already a member in a list , id = %s\n", buff->buffer_node.list_id());
+				if (buff->node.is_list_member()) {
+					vlog_printf(VLOG_WARNING, "cq_mgr::reclaim_recv_buffer_helper - buff is already a member in a list , id = %s\n", buff->node.list_id());
 				}
 			#endif
 				temp = buff;

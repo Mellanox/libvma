@@ -143,7 +143,7 @@ void fd_collection::clear()
 	}
 
 	//internal thread should be already dead and these sockets should have been deleted through the internal thread.
-	list_iterator_t<socket_fd_api, socket_fd_api::pendig_to_remove_node_offset> itr;
+	list_iterator_t<socket_fd_api> itr;
 	for (itr = m_pendig_to_remove_lst.begin(); itr != m_pendig_to_remove_lst.end(); itr++) {
 		(*itr)->force_close();
 	}
@@ -562,7 +562,7 @@ int fd_collection::del(int fd, bool b_cleanup, cls **map_type)
 
 void  fd_collection::handle_timer_expired(void* user_data)
 {
-	list_iterator_t<socket_fd_api, socket_fd_api::pendig_to_remove_node_offset> itr;
+	list_iterator_t<socket_fd_api> itr;
 	fdcoll_logfunc();
 
 	lock();
@@ -607,7 +607,7 @@ void  fd_collection::handle_timer_expired(void* user_data)
 
 void fd_collection::remove_from_all_epfds(int fd, bool passthrough)
 {
-	list_iterator_t<epfd_info, epfd_info::epfd_info_node_offset> itr;
+	list_iterator_t<epfd_info> itr;
 
 	lock();
 	for (itr = m_epfd_lst.begin(); itr != m_epfd_lst.end(); itr++) {
