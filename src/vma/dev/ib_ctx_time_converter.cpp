@@ -251,7 +251,7 @@ ts_conversion_mode_t ib_ctx_time_converter::get_devices_convertor_status(struct 
 			"status for all devices [%d], ibv_context_list = %p\n", num_devices, ibv_context_list);
 	uint32_t devs_status = 0;
 #ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
-	if (safe_mce_sys().rx_udp_hw_ts_conversion != TS_CONVERSION_MODE_DISABLE){
+	if (mce_sys.rx_udp_hw_ts_conversion != TS_CONVERSION_MODE_DISABLE){
 		devs_status = IBV_EXP_QUERY_DEVICE_SUPPORTED | IBV_EXP_QUERY_VALUES_SUPPORTED;
 		for (int i = 0; i < num_devices; i++) {
 			devs_status &= get_device_convertor_status(ibv_context_list[i]);
@@ -259,7 +259,7 @@ ts_conversion_mode_t ib_ctx_time_converter::get_devices_convertor_status(struct 
 	}
 #endif
 
-	switch (safe_mce_sys().rx_udp_hw_ts_conversion) {
+	switch (mce_sys.rx_udp_hw_ts_conversion) {
 	case TS_CONVERSION_MODE_RAW:
 		ctx_time_conversion_mode = devs_status & IBV_EXP_QUERY_DEVICE_SUPPORTED ? TS_CONVERSION_MODE_RAW : TS_CONVERSION_MODE_DISABLE;
 		break;
