@@ -1840,6 +1840,7 @@ int clone(int (*__fn)(void *), void *__child_stack, int __flags, void *__arg)
 /* Clone the calling process, creating an exact copy.
    Return -1 for errors, 0 to the new process,
    and the process ID of the new process to the old process.  */
+
 extern "C"
 pid_t fork(void)
 {
@@ -1871,7 +1872,7 @@ pid_t fork(void)
 		g_init_global_ctors_done = false;
 		sock_redirect_exit();
 
-		get_env_params();
+		safe_mce_sys().get_env_params();
 		vlog_start("VMA", safe_mce_sys().log_level, safe_mce_sys().log_filename, safe_mce_sys().log_details, safe_mce_sys().log_colors);
 		srdr_logdbg_exit("Child Process: starting with %d", getpid());
 		g_is_forked_child = false;
@@ -1924,7 +1925,7 @@ int daemon(int __nochdir, int __noclose)
 		g_init_global_ctors_done = false;
 		sock_redirect_exit();
 
-		get_env_params();
+		safe_mce_sys().get_env_params();
 		vlog_start("VMA", safe_mce_sys().log_level, safe_mce_sys().log_filename, safe_mce_sys().log_details, safe_mce_sys().log_colors);
 		srdr_logdbg_exit("Child Process: starting with %d", getpid());
 		g_is_forked_child = false;
