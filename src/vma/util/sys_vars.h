@@ -247,11 +247,12 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////
 struct mce_sys_var {
-
 	static mce_sys_var & instance() {
 		static mce_sys_var the_instance; //singelton
 		return the_instance;
 	}
+
+	void		get_env_params();
 
 	char 		*app_name;
 	char 		app_id[MAX_APP_ID_LENGHT];
@@ -372,7 +373,6 @@ struct mce_sys_var {
 	sysctl_reader_t & sysctl_reader;
 
 private:
-	void get_env_params();
 	void print_vma_load_failure_msg();
 	int list_to_cpuset(char *cpulist, cpu_set_t *cpu_set);
 	int hex_to_cpuset(char *start, cpu_set_t *cpu_set);
@@ -389,7 +389,6 @@ private:
 
 
 };
-
  
 extern mce_sys_var & safe_mce_sys();
 
