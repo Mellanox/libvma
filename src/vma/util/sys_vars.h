@@ -392,14 +392,24 @@ struct mce_sys_var {
 	sysctl_reader_t & sysctl_reader;
 
 private:
+	void get_env_params();
+	void print_vma_load_failure_msg();
+	int list_to_cpuset(char *cpulist, cpu_set_t *cpu_set);
+	int hex_to_cpuset(char *start, cpu_set_t *cpu_set);
+	int env_to_cpuset(char *orig_start, cpu_set_t *cpu_set);
+	void read_env_variable_with_pid(char* mce_sys_name, size_t mce_sys_max_size, char* env_ptr);
+
 	// prevent unautothrized creation of objects
 	mce_sys_var () : sysctl_reader(sysctl_reader_t::instance()){
 		// coverity[uninit_member]
+		get_env_params();
 	}
 	mce_sys_var (const mce_sys_var &);
 	mce_sys_var & operator= (const mce_sys_var &);
 
+
 };
+
  
 extern mce_sys_var & safe_mce_sys();
 
