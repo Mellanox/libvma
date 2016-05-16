@@ -399,7 +399,7 @@ int epfd_info::del_fd(int fd, bool passthrough)
 	
 	if (!passthrough) m_fd_info.erase(fd_iter);
 
-	if(temp_sock_fd_api->ep_ready_fd_node.is_list_member()) {
+	if(temp_sock_fd_api && temp_sock_fd_api->ep_ready_fd_node.is_list_member()) {
 		temp_sock_fd_api->m_epoll_event_flags = 0;
 		m_ready_fds.erase(temp_sock_fd_api);
 	}
@@ -518,7 +518,7 @@ int epfd_info::mod_fd(int fd, epoll_event *event)
 	}
 
 	if(event->events == 0 || events == 0){
-		if (temp_sock_fd_api->ep_ready_fd_node.is_list_member()) {
+		if (temp_sock_fd_api && temp_sock_fd_api->ep_ready_fd_node.is_list_member()) {
 			temp_sock_fd_api->m_epoll_event_flags = 0;
 			m_ready_fds.erase(temp_sock_fd_api);
 		}
@@ -607,12 +607,14 @@ void epfd_info::insert_epoll_event_cb(int fd, uint32_t event_flags)
 void epfd_info::insert_epoll_event(int fd, uint32_t event_flags)
 {
 	socket_fd_api* sock_fd = fd_collection_get_sockfd(fd);
-	if (sock_fd->ep_ready_fd_node.is_list_member()) {
-		sock_fd->m_epoll_event_flags |= event_flags;
-	}
-	else {
-		sock_fd->m_epoll_event_flags = event_flags;
-		m_ready_fds.push_back(sock_fd);
+	if (sock_fd) {
+		if (sock_fd->ep_ready_fd_node.is_list_member()) {
+			sock_fd->m_epoll_event_flags |= event_flags;
+		}
+		else {
+			sock_fd->m_epoll_event_flags = event_flags;
+			m_ready_fds.push_back(sock_fd);
+		}
 	}
 
 	do_wakeup();
@@ -621,7 +623,7 @@ void epfd_info::insert_epoll_event(int fd, uint32_t event_flags)
 void epfd_info::remove_epoll_event(int fd, uint32_t event_flags)
 {
 	socket_fd_api* sock_fd = fd_collection_get_sockfd(fd);
-	if (sock_fd->ep_ready_fd_node.is_list_member()) {
+	if (sock_fd && sock_fd->ep_ready_fd_node.is_list_member()) {
 		sock_fd->m_epoll_event_flags &= ~event_flags;
 		if (sock_fd->m_epoll_event_flags == 0) {
 			m_ready_fds.erase(sock_fd);
