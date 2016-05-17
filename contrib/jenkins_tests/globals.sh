@@ -11,9 +11,15 @@ else
     WS_URL=$JOB_URL/ws
 fi
 
+# exit code
+rc=0
+
+jenkins_test_custom_configure=${jenkins_test_custom_configure:=""}
+
 prefix=jenkins
-install_dir=${WORKSPACE}/${prefix}/install
 build_dir=${WORKSPACE}/${prefix}/build
+install_dir=${WORKSPACE}/${prefix}/install
+compiler_dir=${WORKSPACE}/${prefix}/compiler
 test_dir=${WORKSPACE}/${prefix}/test
 rpm_dir=${WORKSPACE}/${prefix}/rpm
 cov_dir=${WORKSPACE}/${prefix}/cov
@@ -21,10 +27,18 @@ vg_dir=${WORKSPACE}/${prefix}/vg
 style_dir=${WORKSPACE}/${prefix}/style
 
 
-timeout_exe=${timout_exe:="timeout -s SIGKILL 10m"}
+timeout_exe=${timout_exe:="timeout -s SIGKILL 20m"}
 nproc=$(grep processor /proc/cpuinfo|wc -l)
 make_opt="-j$(($nproc / 2 + 1))"
 
+trap "on_exit" INT TERM ILL KILL FPE SEGV ALRM
+
+function on_exit
+{
+    rc=$((rc + $?))
+    echo "[${0##*/}]..................exit code = $rc"
+    pkill -9 sockperf
+}
 
 function do_github_status()
 {
@@ -50,6 +64,8 @@ function do_github_status()
     "https://api.github.com/repos/$repo/statuses/${sha1}?access_token=$token"
 }
 
+# $1 - output message
+# $2 - [on|off] if on - skip this case if JENKINS_RUN_TESTS variable is OFF
 function check_filter()
 {
     local msg=$1
@@ -80,4 +96,22 @@ function check_result()
     else
         echo "ok $2 $3" >> $4
     fi
+    rc=$((rc + $ret))
+}
+
+function get_ip()
+{
+    for ip in $(ibdev2netdev | grep Up | cut -f 5 -d ' '); do
+        if [ -n "$1" -a "$1" == "ib" -a -n "$(ip link show $ip | grep 'link/inf')" ]; then
+            found_ip=$(ip -4 address show $ip | grep 'inet' | sed 's/.*inet \([0-9\.]\+\).*/\1/')
+        elif [ -n "$1" -a "$1" == "eth" -a -n "$(ip link show $ip | grep 'link/eth')" ]; then
+            found_ip=$(ip -4 address show $ip | grep 'inet' | sed 's/.*inet \([0-9\.]\+\).*/\1/')
+        elif [ -z "$1" ]; then
+            found_ip=$(ip -4 address show $ip | grep 'inet' | sed 's/.*inet \([0-9\.]\+\).*/\1/')
+        fi
+        if [ -n "$found_ip" ]; then
+            echo $found_ip
+            break
+        fi
+    done
 }
