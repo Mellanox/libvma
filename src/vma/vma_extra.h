@@ -255,8 +255,9 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * via vma_completion_t.packet field.
 	 * Packet descriptor points to VMA buffers that contain data scattered
 	 * by HW, so the data is deliver to application with zero copy.
-	 * Notice: the returned packet's buffers must be freed with free_vma_buffers()
-	 * after the application finished using it.
+	 * Notice: after application finished using the returned packets
+	 * and their buffers it must free them using free_vma_packets()/free_vma_buff()
+	 * functions.
 	 * If VMA_POLL_PACKET flag is disabled vma_completion_t.packet field is
 	 * reserved.
 	 *
@@ -303,14 +304,56 @@ struct __attribute__ ((packed)) vma_api_t {
 	/**
 	 * Frees packets received by vma_poll().
 	 *
-	 * @param fd Socket that received the packets.
 	 * @param packets Packets to free.
 	 * @param num Number of packets in `packets` array
 	 * @return 0 on success, -1 on failure
 	 *
-	 * errno is set to: EINVAL - not a VMA offloaded fd + TBD
+	 * For each packet in `packet` array this function:
+	 * - Updates receive queue size and the advertised TCP
+	 *   window size, if needed, for the socket that received
+	 *   the packet.
+	 * - Frees vma buffer list that is associated with the packet.
+	 *   Notice: for each buffer in buffer list VMA decreases buffer's
+	 *   ref count and only buffers with ref count zero are deallocated.
+	 *   Notice:
+	 *   - Application can increase buffer reference count,
+	 *     in order to hold the buffer even after free_vma_packets()
+	 *     was called for the buffer, using vma_buff_ref().
+	 *   - Application is responsible to free buffers, that
+	 *     couldn't be deallocated during free_vma_packets() due to
+	 *     non zero reference count, using free_vma_buff() function.
+	 *
+	 * errno is set to: EINVAL if NULL pointer is provided.
 	 */
-	int (*free_vma_packets)(int fd, struct vma_packet_desc_t *packets, int num);
+	int (*free_vma_packets)(struct vma_packet_desc_t *packets, int num);
+
+	/* This function increments the reference count of the buffer.
+	 * This function should be used in order to hold the buffer
+	 * even after vma_free_packets() call.
+	 * When buffer is not needed any more it should be freed via
+	 * vma_buff_free().
+	 *
+	 * @param buff Buffer to update.
+	 * @return On success, return buffer's reference count after the change
+	 * 	   On errors -1 is returned
+	 *
+	 * errno is set to EINVAL if NULL pointer is provided.
+	 */
+	int (*ref_vma_buff)(vma_buff_t *buff);
+
+	/* This function decrements the buff reference count.
+	 * When buff's reference count reaches zero, the buff is
+	 * deallocated.
+	 *
+	 * @param buff Buffer to free.
+	 * @return On success, return buffer's reference count after the change
+	 * 	   On error -1 is returned
+	 *
+	 * Notice: return value zero means that buffer was deallocated.
+	 *
+	 * errno is set to EINVAL if NULL pointer is provided.
+	 */
+	int (*free_vma_buff)(vma_buff_t *buff);
 
 };
 
@@ -388,10 +431,25 @@ myapp_socket_main_loop()
 		if (ready_comp > 0) {
 			if (comp.events & VMA_COMPLETION_TYPE_PACKET) {
 				myapp_processes_packet_func(comp.user_data, &comp.packet);
+
+				//Hold the buffers
+				vma_buff_t curr_buff = comp.packet.buff_lst;
+				while (curr_buff) {
+					vma_api->vma_buff_ref(curr_buff);
+					curr_buff = curr_buff->next;
+				}
+				//Update socket's TCP window size
 				vma_api->free_vma_packets(socket_fd, &comp.packet, 1);
 			}
 			myapp_processes_events_func(comp.user_data,comp.events);
 
+			//The buffers are not needed any more, deallocate them
+			vma_buff_t curr_buff = comp.packet.buff_lst;
+			while (curr_buff) {
+				//Free the buffer
+				vma_api->vma_buff_ref(curr_buff);
+				curr_buff = curr_buff->next;
+			}
 		}
 		else if (ready_comp < 0) {
 			to_exit = true;

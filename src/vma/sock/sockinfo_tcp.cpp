@@ -1325,6 +1325,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 		p_first_desc->n_frags++;
 		p_curr_desc->path.rx.frag.iov_base = p_curr_buff->payload;
 		p_curr_desc->path.rx.frag.iov_len = p_curr_buff->len;
+		p_curr_desc->path.rx.context = conn;
 		p_curr_desc->p_next_desc = (mem_buf_desc_t *)p_curr_buff->next;
 		p_curr_buff = p_curr_buff->next;
 		p_curr_desc = p_curr_desc->p_next_desc;

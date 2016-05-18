@@ -1287,6 +1287,16 @@ bool ring_simple::reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst)
 	return m_p_cq_mgr_rx->reclaim_recv_buffers(rx_reuse_lst);
 }
 
+int ring_simple::vma_poll_reclaim_single_recv_buffer_no_lock(mem_buf_desc_t* rx_reuse_lst)
+{
+	return m_p_cq_mgr_rx->vma_poll_reclaim_single_recv_buffer_helper(rx_reuse_lst);
+}
+
+void ring_simple::vma_poll_reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst)
+{
+	return m_p_cq_mgr_rx->vma_poll_reclaim_recv_buffer_helper(rx_reuse_lst);
+}
+
 void ring_simple::mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc)
 {
 	m_p_cq_mgr_rx->mem_buf_desc_completion_with_error(p_rx_wc_buf_desc);

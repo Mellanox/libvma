@@ -601,7 +601,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 		p_mem_buf_desc->sz_data = p_wce->byte_len;
 
 		//we use context to verify that on reclaim rx buffer path we return the buffer to the right CQ
-		p_mem_buf_desc->path.rx.context = this;
+		p_mem_buf_desc->path.rx.context = NULL;
 
 		p_mem_buf_desc->path.rx.is_vma_thr = false;
 		p_mem_buf_desc->path.rx.vma_polled = false;
@@ -648,7 +648,7 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 	// Assume locked!!!
 	if (buff->dec_ref_count() <= 1 && (buff->lwip_pbuf.pbuf.ref-- <= 1)) {
 		//we need to verify that the buffer is returned to the right CQ (in case of HA ring's active CQ can change)
-		if (likely(buff->path.rx.context == this)) {
+		if (likely(buff->p_desc_owner == m_p_ring)) {
 			mem_buf_desc_t* temp = NULL;
 			while (buff) {
 			#if _VMA_LIST_DEBUG
@@ -680,6 +680,75 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 			g_buffer_pool_rx->put_buffers_thread_safe(buff);
 		}
 	}
+}
+
+void cq_mgr::vma_poll_reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
+{
+	if (buff->dec_ref_count() <= 1) {
+		mem_buf_desc_t* temp = NULL;
+		while (buff) {
+		#if _VMA_LIST_DEBUG
+			if (buff->node.is_list_member()) {
+				vlog_printf(VLOG_WARNING, "cq_mgr::reclaim_recv_buffer_helper - buff is already a member in a list , id = %s\n", buff->node.list_id());
+			}
+		#endif
+			if(buff->lwip_pbuf_dec_ref_count() <= 0) { //TBD: assert if buff was already 0
+				temp = buff;
+				buff = temp->p_next_desc;
+				temp->p_next_desc = NULL;
+				temp->p_prev_desc = NULL;
+				temp->reset_ref_count();
+				temp->path.rx.gro = 0;
+				temp->path.rx.is_vma_thr = false;
+				temp->path.rx.vma_polled = false;
+				temp->path.rx.p_ip_h = NULL;
+				temp->path.rx.p_tcp_h = NULL;
+				temp->path.rx.sw_timestamp.tv_nsec = 0;
+				temp->path.rx.sw_timestamp.tv_sec = 0;
+				temp->path.rx.hw_timestamp.tv_nsec = 0;
+				temp->path.rx.hw_timestamp.tv_sec = 0;
+				free_lwip_pbuf(&temp->lwip_pbuf);
+				m_rx_pool.push_back(temp);
+
+			}
+			else {
+				buff = buff->p_next_desc;
+			}
+		}
+		m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
+	}
+
+}
+
+int cq_mgr::vma_poll_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff)
+{
+	int ref_cnt = buff->lwip_pbuf_dec_ref_count(); //TBD: assert if buff was already 0
+	if (ref_cnt <= 0) {
+		#if _VMA_LIST_DEBUG
+			if (buff->node.is_list_member()) {
+				vlog_printf(VLOG_WARNING, "cq_mgr::reclaim_recv_buffer_helper - buff is already a member in a list , id = %s\n", buff->node.list_id());
+			}
+		#endif
+
+		//TBD: add check: buff->get_ref_count() <= 0 otherwise return with error
+		//(since that mean free_packet wasn't called)
+		buff->p_next_desc = NULL;
+		buff->p_prev_desc = NULL;
+		buff->reset_ref_count();
+		buff->path.rx.gro = 0;
+		buff->path.rx.is_vma_thr = false;
+		buff->path.rx.vma_polled = false;
+		buff->path.rx.p_ip_h = NULL;
+		buff->path.rx.p_tcp_h = NULL;
+		buff->path.rx.sw_timestamp.tv_nsec = 0;
+		buff->path.rx.sw_timestamp.tv_sec = 0;
+		buff->path.rx.hw_timestamp.tv_nsec = 0;
+		buff->path.rx.hw_timestamp.tv_sec = 0;
+		free_lwip_pbuf(&buff->lwip_pbuf);
+		m_rx_pool.push_back(buff);
+		m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
+	}
+	return ref_cnt;
 }
 
 void cq_mgr::process_tx_buffer_list(mem_buf_desc_t* p_mem_buf_desc)
@@ -722,7 +791,7 @@ int cq_mgr::vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 	if (unlikely(m_rx_hot_buff == NULL)) {
 		int index = m_qp->m_mlx5_hw_qp->rq.tail & (m_qp->m_rx_num_wr - 1);
 		m_rx_hot_buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_rq_wqe_idx_to_wrid[index];
-		m_rx_hot_buff->path.rx.context = this;
+		m_rx_hot_buff->path.rx.context = NULL;
 		m_rx_hot_buff->path.rx.is_vma_thr = false;
 	}
 	//prefetch_range((uint8_t*)m_rx_hot_buff->p_buffer,safe_mce_sys().rx_prefetch_bytes_before_poll);
@@ -791,7 +860,7 @@ int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready
 	if (unlikely(m_rx_hot_buff == NULL)) {
 		int index = m_qp->m_mlx5_hw_qp->rq.tail & (m_qp->m_rx_num_wr - 1);
 		m_rx_hot_buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_rq_wqe_idx_to_wrid[index];
-		m_rx_hot_buff->path.rx.context = this;
+		m_rx_hot_buff->path.rx.context = NULL;
 		m_rx_hot_buff->path.rx.is_vma_thr = false;
 		m_rx_hot_buff->path.rx.vma_polled = false;
 	}
@@ -1013,7 +1082,7 @@ return 0;
 			int index = wqe_ctr & (wqe_sz - 1);
 
 			m_rx_hot_buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_rq_wqe_idx_to_wrid[index];
-			m_rx_hot_buff->path.rx.context = this;
+			m_rx_hot_buff->path.rx.context = NULL;
 			m_rx_hot_buff->sz_data = ntohl(cqe->byte_cnt);
 			++m_qp_rec.debth;
 			if (m_rx_hot_buff) {

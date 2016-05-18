@@ -369,31 +369,60 @@ int vma_free_packets(int __fd, struct vma_packet_t *pkts, size_t count)
 }
 
 extern "C"
-int vma_free_vma_packets(int fd, struct vma_packet_desc_t *packets, int num)
+int vma_free_vma_packets(struct vma_packet_desc_t *packets, int num)
 {
-	int ret_val = 0;
-	int *ring_fd;
-	cq_channel_info* cq_ch_info = NULL;
+	mem_buf_desc_t* desc = NULL;
 	socket_fd_api* p_socket_object = NULL;
+	int ret_val = 0;
 
-	p_socket_object = fd_collection_get_sockfd(fd);
-
-	ring_fd = p_socket_object->get_rings_fds();
-	cq_ch_info = g_p_fd_collection->get_cq_channel_fd(ring_fd[0]);
-
-	if (likely(cq_ch_info)) {
-		ring* p_ring = cq_ch_info->get_ring();
+	if (likely(packets)) {
 		for (int i = 0; i < num; i++) {
+			desc = (mem_buf_desc_t*)packets[i].buff_lst;
+			p_socket_object = (socket_fd_api*)desc->path.rx.context;
+			ring* rng = (ring*)desc->p_desc_owner;
 			p_socket_object->free_buffs(packets[i].total_len);
-			p_ring->reclaim_recv_buffers_no_lock((mem_buf_desc_t*)packets[i].buff_lst);
+			rng->vma_poll_reclaim_recv_buffers_no_lock(desc);
 		}
-
 	}
 	else {
 		errno = EINVAL;
 		ret_val = -1;
 	}
 
+	return ret_val;
+}
+extern "C"
+int vma_buff_ref(vma_buff_t *buff)
+{
+	int ret_val = 0;
+	mem_buf_desc_t* desc = NULL;
+
+	if (likely(buff)) {
+		desc = (mem_buf_desc_t*)buff;
+		ret_val = desc->lwip_pbuf_inc_ref_count();
+	}
+	else {
+		errno = EINVAL;
+		ret_val = -1;
+	}
+	return ret_val;
+}
+
+extern "C"
+int vma_buff_free(vma_buff_t *buff)
+{
+	int ret_val = 0;
+	mem_buf_desc_t* desc = NULL;
+
+	if (likely(buff)) {
+		desc = (mem_buf_desc_t*)buff;
+		ring* rng = (ring*)desc->p_desc_owner;
+		ret_val = rng->vma_poll_reclaim_single_recv_buffer_no_lock(desc);
+	}
+	else {
+		errno = EINVAL;
+		ret_val = -1;
+	}
 	return ret_val;
 }
 
@@ -753,6 +782,8 @@ int getsockopt(int __fd, int __level, int __optname,
 		vma_api->get_socket_rings_fds = vma_get_socket_rings_fds;
 		vma_api->free_vma_packets = vma_free_vma_packets;
 		vma_api->vma_poll = vma_poll;
+		vma_api->ref_vma_buff = vma_buff_ref;
+		vma_api->free_vma_buff = vma_buff_free;
 		*((vma_api_t**)__optval) = vma_api;
 		return 0;
 	}
