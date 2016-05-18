@@ -339,6 +339,7 @@ const char * setsockopt_so_opt_to_str(int opt)
 	case SO_SNDBUF:			return "SO_SNDBUF";
 	case SO_TIMESTAMP:		return "SO_TIMESTAMP";
 	case SO_TIMESTAMPNS:		return "SO_TIMESTAMPNS";
+	case SO_BINDTODEVICE:		return "SO_BINDTODEVICE";
 	default:			break;
 	}
 	return "UNKNOWN SO opt";
@@ -459,6 +460,7 @@ sockinfo_udp::~sockinfo_udp()
 int sockinfo_udp::bind(const struct sockaddr *__addr, socklen_t __addrlen)
 {
 	si_udp_logfunc("");
+
 
 	// We always call the orig_bind which will check sanity of the user socket api
 	// and the OS will also allocate a specific port that we can also use
@@ -740,7 +742,9 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					else
 						m_loops_timer.set_timeout_msec(-1);
 					si_udp_logdbg("SOL_SOCKET: SO_RCVTIMEO=%d", m_loops_timer.get_timeout_msec());
-
+				}
+				else {
+					si_udp_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
 				}
 				break;
 
@@ -751,6 +755,9 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					if (__optname == SO_TIMESTAMPNS)
 						m_b_rcvtstampns = m_b_rcvtstamp;
 					si_udp_logdbg("SOL_SOCKET, %s=%s", setsockopt_so_opt_to_str(__optname), (m_b_rcvtstamp ? "true" : "false"));
+				}
+				else {
+					si_udp_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
 				}
 				break;
 
@@ -782,6 +789,9 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					m_n_tsing_flags  = val;
 					si_udp_logdbg("SOL_SOCKET, SO_TIMESTAMPING=%u", m_n_tsing_flags);
 				}
+				else {
+					si_udp_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
+				}
 				break;
 
 			case SO_BINDTODEVICE:
@@ -795,6 +805,8 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					} else {
 						m_so_bindtodevice_ip = sockaddr.sin_addr.s_addr;
 					}
+					si_udp_logdbg("SOL_SOCKET, %s='%s' (%d.%d.%d.%d)", setsockopt_so_opt_to_str(__optname), (char*)__optval, NIPQUAD(m_so_bindtodevice_ip));
+
 					// handle TX side
 					if (m_p_connected_dst_entry) {
 						m_p_connected_dst_entry->set_so_bindtodevice_addr(m_so_bindtodevice_ip);
@@ -805,7 +817,8 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 							dst_entry_iter++;
 						}
 					}
-					// TODO handle RX side
+
+					// handle RX side - TODO
 				}
 				else {
 					si_udp_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
