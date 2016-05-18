@@ -224,6 +224,8 @@ private:
 	//false if the given buffer was not used.
 	bool 		compensate_qp_poll_success(mem_buf_desc_t* buff);
 	void		reclaim_recv_buffer_helper(mem_buf_desc_t* buff);
+	int 		vma_poll_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff);
+	void		vma_poll_reclaim_recv_buffer_helper(mem_buf_desc_t* buff);
 	inline uint32_t process_recv_queue(void* pv_fd_ready_array = NULL);
 	inline void	process_recv_buffer(mem_buf_desc_t* buff, void* pv_fd_ready_array = NULL);
 
