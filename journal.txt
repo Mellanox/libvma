@@ -1,3 +1,14 @@
+Version 8.0.3-0:
+Date + Time 2016-05-18
+=======================
+Added:
+        - RM #770746 Jenkins - Modify valgrind suppresion file 
+        - RM #770746 Jenkins - Extend jenkins check
+
+Fixed:
+        - RM #778470 Fix segfault in sockperf pingpong, TCP socket on management interface, epoll 
+        - RM #778287 Fix usage of get_env_params() method in mce_sys_var struct (broke version 8.0.2-0)
+
 Version 8.0.2-0:
 Date + Time 2016-05-15
 =======================
