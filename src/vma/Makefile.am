@@ -22,7 +22,8 @@ CLEANFILES = $(BUILT_SOURCES)
 dist-hook:
 	cd $(distdir); rm -f $(BUILT_SOURCES)
 
-DIST_SUBDIRS := infra netlink
+SUBDIRS = infra netlink
+
 EXTRA_DIST = \
 	util/hash_map.inl \
 	util/libvma.conf \
@@ -37,8 +38,6 @@ otherinclude_HEADERS = vma_extra.h
 install-exec-hook:
 	rm -f $(DESTDIR)$(libdir)/libvma.la
 	rm -f $(DESTDIR)$(libdir)/libvma.a
-	rm -f $(DESTDIR)$(libdir)/libstate_machine.*
-	rm -f $(DESTDIR)$(libdir)/libvlogger.*
 	rm -f $(DESTDIR)$(bindir)/state_machine_test
 	rm -f $(DESTDIR)$(bindir)/vlogger_test
 	if [[ `id -u` -eq 0 ]];then /sbin/ldconfig || true;fi
@@ -49,9 +48,6 @@ uninstall-hook:
 lib_LTLIBRARIES = libvma.la
 
 AM_CPPFLAGS := \
-	-I$(top_builddir) \
-	-I$(top_srcdir) \
-	-I$(top_builddir)/src \
 	-I$(top_srcdir)/src ${LIBNL_CFLAGS}
 
 if IS_RELEASE_ZERO
@@ -64,6 +60,9 @@ libvma_la_LIBADD = \
 	-lrt -ldl -lpthread -libverbs -lrdmacm $(LIBNL_LIBS) \
 	$(top_builddir)/src/vlogger/libvlogger.la \
 	$(top_builddir)/src/state_machine/libstate_machine.la \
+	$(top_builddir)/src/stats/libstats.la \
+	$(top_builddir)/src/vma/netlink/libnetlink.la \
+	$(top_builddir)/src/vma/infra/libinfra.la \
 	libconfig_parser.la
 	
 libvma_la_SOURCES := \
@@ -139,9 +138,6 @@ libvma_la_SOURCES := \
 	sock/socket_fd_api.cpp \
 	sock/sock-redirect.cpp \
 	\
-	infra/subject_observer.cpp \
-	infra/sender.cpp \
-	\
 	util/wakeup.cpp \
 	util/wakeup_pipe.cpp \
 	util/match.cpp \
@@ -151,14 +147,7 @@ libvma_la_SOURCES := \
 	util/sys_vars.cpp \
 	libvma.c \
 	main.cpp \
-	../stats/stats_publisher.cpp \
-	../stats/stats_printer.cpp \
 	\
-	netlink/netlink_wrapper.cpp \
-	netlink/neigh_info.cpp \
-	netlink/link_info.cpp \
-	netlink/route_info.cpp \
-	netlink/netlink_compatibility.cpp \
 	dev/ah_cleaner.h \
 	dev/buffer_pool.h \
 	dev/cq_mgr.h \
@@ -287,5 +276,8 @@ libvma_la_SOURCES := \
 libvma_la_DEPENDENCIES = \
 	$(top_builddir)/src/vlogger/libvlogger.la \
 	$(top_builddir)/src/state_machine/libstate_machine.la \
+	$(top_builddir)/src/stats/libstats.la \
+	$(top_builddir)/src/vma/netlink/libnetlink.la \
+	$(top_builddir)/src/vma/infra/libinfra.la \
 	libconfig_parser.la
 

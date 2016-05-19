@@ -38,7 +38,7 @@
  */
 
 #include "wqe_send_handler.h"
-#include "util/vtypes.h"
+#include "vma/util/vtypes.h"
 
 #ifndef WQE_TEMPLATE_SEND_IB_H_
 #define WQE_TEMPLATE_SEND_IB_H_
