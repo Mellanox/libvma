@@ -17,10 +17,10 @@ rel_path=$(dirname $0)
 abs_path=$(readlink -f $rel_path)
 
 jenkins_test_build=${jenkins_test_build:="yes"}
-jenkins_test_run=${jenkins_test_run:="no"}
+jenkins_test_run=${jenkins_test_run:="yes"}
 
 jenkins_test_compiler=${jenkins_test_compiler:="yes"}
-jenkins_test_rpm=${jenkins_test_rpm:="no"}
+jenkins_test_rpm=${jenkins_test_rpm:="yes"}
 jenkins_test_cov=${jenkins_test_cov:="yes"}
 jenkins_test_vg=${jenkins_test_vg:="no"}
 jenkins_test_style=${jenkins_test_style:="no"}

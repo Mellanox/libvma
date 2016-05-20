@@ -43,10 +43,10 @@
 #include <netinet/tcp.h>
 #include <netinet/igmp.h>
 
-#include "util/vtypes.h"
-#include "util/to_str.h"
+#include "vma/util/vtypes.h"
+#include "vma/util/to_str.h"
 #include "L2_address.h"
-#include "util/sys_vars.h"
+#include "vma/util/sys_vars.h"
 
 // We align the frame so IP header will be 4 bytes align
 // And we align the L2 headers so IP header on both transport

@@ -31,8 +31,8 @@
  */
 
 
-#include "util/to_str.h"
-#include "util/verbs_extra.h"
+#include "vma/util/to_str.h"
+#include "vma/util/verbs_extra.h"
 #include <string.h>
 
 #ifndef IB_WQE_TEMPLATE_H
