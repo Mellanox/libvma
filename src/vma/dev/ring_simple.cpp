@@ -133,6 +133,9 @@ ring_simple::~ring_simple()
 	if (m_p_qp_mgr) {
 		// 'down' the active QP/CQ
 		m_p_qp_mgr->down();
+
+		// Allow all WEQ's to be FLUSHED
+		usleep(25000);
 	}
 	// Release QP/CQ resources
 	delete m_p_qp_mgr;
