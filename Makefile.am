@@ -1,5 +1,6 @@
 SUBDIRS := src
 
+
 DIST_SUBDIRS := src tests
 EXTRA_DIST = \
 	build \
@@ -11,7 +12,9 @@ EXTRA_DIST = \
 	LOC_exclude_VMA.txt \
 	LOC.sh \
 	README.txt \
-	VMA_VERSION
+	VMA_VERSION \
+	config/m4/pkg.m4
+
 
 .PHONY: tests
 
