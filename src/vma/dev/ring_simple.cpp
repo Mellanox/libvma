@@ -95,6 +95,7 @@ ring_simple::ring_simple(in_addr_t local_if, uint16_t partition_sn, int count, t
 
 	 // coverity[uninit_member]
 	m_tx_pool.set_id("ring (%p) : m_tx_pool", this);
+	m_rx_buffs_rdy_for_free_head = m_rx_buffs_rdy_for_free_tail = NULL;
 }
 
 ring_simple::~ring_simple()
@@ -114,6 +115,11 @@ ring_simple::~ring_simple()
 
 	m_lock_ring_rx.lock();
 	m_lock_ring_tx.lock();
+
+	if (m_rx_buffs_rdy_for_free_head) {
+		m_p_cq_mgr_rx->vma_poll_reclaim_recv_buffer_helper(m_rx_buffs_rdy_for_free_head);
+		m_rx_buffs_rdy_for_free_head = m_rx_buffs_rdy_for_free_tail = NULL;
+	}
 
 	if (m_p_qp_mgr) {
 		// 'down' the active QP/CQ
@@ -1287,14 +1293,44 @@ bool ring_simple::reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst)
 	return m_p_cq_mgr_rx->reclaim_recv_buffers(rx_reuse_lst);
 }
 
-int ring_simple::vma_poll_reclaim_single_recv_buffer_no_lock(mem_buf_desc_t* rx_reuse_lst)
+int ring_simple::vma_poll_reclaim_single_recv_buffer_no_lock(mem_buf_desc_t* rx_reuse_buff)
 {
-	return m_p_cq_mgr_rx->vma_poll_reclaim_single_recv_buffer_helper(rx_reuse_lst);
+	int ret_val = 0;
+
+	ret_val = rx_reuse_buff->lwip_pbuf_dec_ref_count();
+
+	if ((ret_val == 0) && (rx_reuse_buff->get_ref_count() <= 0)) {
+		/*if ((safe_mce_sys().thread_mode > THREAD_MODE_SINGLE)) {
+			m_lock_ring_rx.lock();
+		}*/
+
+		if (!m_rx_buffs_rdy_for_free_head) {
+			m_rx_buffs_rdy_for_free_head = m_rx_buffs_rdy_for_free_tail = rx_reuse_buff;
+		}
+		else {
+			m_rx_buffs_rdy_for_free_tail->p_next_desc = rx_reuse_buff;
+			m_rx_buffs_rdy_for_free_tail = rx_reuse_buff;
+		}
+		m_rx_buffs_rdy_for_free_tail->p_next_desc = NULL;
+
+		/*if ((safe_mce_sys().thread_mode > THREAD_MODE_SINGLE)) {
+			m_lock_ring_rx.lock();
+		}*/
+	}
+
+	return ret_val;
 }
 
 void ring_simple::vma_poll_reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst)
 {
-	return m_p_cq_mgr_rx->vma_poll_reclaim_recv_buffer_helper(rx_reuse_lst);
+	m_lock_ring_rx.lock();
+	if (m_rx_buffs_rdy_for_free_head) {
+		m_p_cq_mgr_rx->vma_poll_reclaim_recv_buffer_helper(m_rx_buffs_rdy_for_free_head);
+		m_rx_buffs_rdy_for_free_head = m_rx_buffs_rdy_for_free_tail = NULL;
+	}
+
+	m_p_cq_mgr_rx->vma_poll_reclaim_recv_buffer_helper(rx_reuse_lst);
+	m_lock_ring_rx.unlock();
 }
 
 void ring_simple::mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc)

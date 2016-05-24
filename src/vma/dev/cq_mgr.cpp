@@ -692,7 +692,7 @@ void cq_mgr::vma_poll_reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 				vlog_printf(VLOG_WARNING, "cq_mgr::reclaim_recv_buffer_helper - buff is already a member in a list , id = %s\n", buff->node.list_id());
 			}
 		#endif
-			if(buff->lwip_pbuf_dec_ref_count() <= 0) { //TBD: assert if buff was already 0
+			if(buff->lwip_pbuf_dec_ref_count() <= 0) {
 				temp = buff;
 				buff = temp->p_next_desc;
 				temp->p_next_desc = NULL;
@@ -712,17 +712,18 @@ void cq_mgr::vma_poll_reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 
 			}
 			else {
+				buff->reset_ref_count();
 				buff = buff->p_next_desc;
 			}
 		}
+		return_extra_buffers();
 		m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
 	}
-
 }
 
 int cq_mgr::vma_poll_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff)
 {
-	int ref_cnt = buff->lwip_pbuf_dec_ref_count(); //TBD: assert if buff was already 0
+	int ref_cnt = buff->lwip_pbuf_dec_ref_count();
 	if (ref_cnt <= 0) {
 		#if _VMA_LIST_DEBUG
 			if (buff->node.is_list_member()) {

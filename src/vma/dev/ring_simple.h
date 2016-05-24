@@ -129,7 +129,8 @@ private:
 	flow_spec_tcp_map_t	m_flow_tcp_map;
 	flow_spec_udp_mc_map_t	m_flow_udp_mc_map;
 	flow_spec_udp_uc_map_t	m_flow_udp_uc_map;
-
+	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_head;
+	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_tail;
 };
 
 class ring_eth : public ring_simple
