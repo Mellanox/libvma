@@ -83,7 +83,8 @@ ring_simple::ring_simple(in_addr_t local_if, uint16_t partition_sn, int count, t
 	m_b_qp_tx_first_flushed_completion_handled(false), m_missing_buf_ref_count(0),
 	m_tx_lkey(0), m_partition(partition_sn), m_gro_mgr(safe_mce_sys().gro_streams_max, MAX_GRO_BUFS), m_up(false),
 	m_p_rx_comp_event_channel(NULL), m_p_tx_comp_event_channel(NULL), m_p_l2_addr(NULL), m_p_ring_stat(NULL),
-	m_local_if(local_if), m_transport_type(transport_type) {
+	m_local_if(local_if), m_transport_type(transport_type), m_rx_buffs_rdy_for_free_head(NULL),
+	m_rx_buffs_rdy_for_free_tail(NULL) {
 
 	if (count != 1)
 		ring_logpanic("Error creating simple ring with more than 1 resource");
@@ -95,7 +96,6 @@ ring_simple::ring_simple(in_addr_t local_if, uint16_t partition_sn, int count, t
 
 	 // coverity[uninit_member]
 	m_tx_pool.set_id("ring (%p) : m_tx_pool", this);
-	m_rx_buffs_rdy_for_free_head = m_rx_buffs_rdy_for_free_tail = NULL;
 }
 
 ring_simple::~ring_simple()
@@ -1293,7 +1293,7 @@ bool ring_simple::reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst)
 	return m_p_cq_mgr_rx->reclaim_recv_buffers(rx_reuse_lst);
 }
 
-int ring_simple::vma_poll_reclaim_single_recv_buffer_no_lock(mem_buf_desc_t* rx_reuse_buff)
+int ring_simple::vma_poll_reclaim_single_recv_buffer(mem_buf_desc_t* rx_reuse_buff)
 {
 	int ret_val = 0;
 
@@ -1321,7 +1321,7 @@ int ring_simple::vma_poll_reclaim_single_recv_buffer_no_lock(mem_buf_desc_t* rx_
 	return ret_val;
 }
 
-void ring_simple::vma_poll_reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst)
+void ring_simple::vma_poll_reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst)
 {
 	m_lock_ring_rx.lock();
 	if (m_rx_buffs_rdy_for_free_head) {
