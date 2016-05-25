@@ -17,7 +17,7 @@ m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 AC_CONFIG_SRCDIR(src)
 AC_CONFIG_AUX_DIR(config)
-AC_CONFIG_MACRO_DIR(config)
+AC_CONFIG_MACRO_DIR(config/m4)
 
 AM_INIT_AUTOMAKE(foreign [subdir-objects])
 
@@ -50,6 +50,9 @@ LIBALIC_FLAG=""
 AC_SUBST(LIBALIC_FLAG)
 AC_SUBST([BUILD_DATE], [$(date +'%b/%d/%Y')])
 AC_SUBST([BUILD_TIME], [$(date +'%H:%M:%S')])
+
+m4_include([config/m4/pkg.m4])
+PKG_PROG_PKG_CONFIG
 
 with_debug_info=yes
 with_debug=no

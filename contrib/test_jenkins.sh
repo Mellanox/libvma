@@ -32,8 +32,6 @@ cd $WORKSPACE
 
 rm -rf ${WORKSPACE}/${prefix}
 rm -rf autom4te.cache
-rm -rf config
-rm -f config.*
 
 ./autogen.sh -s
 
