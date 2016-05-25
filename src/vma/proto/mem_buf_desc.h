@@ -72,9 +72,9 @@ public:
 	inline int inc_ref_count() {return atomic_fetch_and_inc(&n_ref_count);}
 	inline int dec_ref_count() {return atomic_fetch_and_dec(&n_ref_count);}
 
-	inline int lwip_pbuf_inc_ref_count() {return ++lwip_pbuf.pbuf.ref;}
-	inline int lwip_pbuf_dec_ref_count() {return --lwip_pbuf.pbuf.ref;}
-	inline int lwip_pbuf_get_ref_count() const {return lwip_pbuf.pbuf.ref;}
+	inline unsigned int lwip_pbuf_inc_ref_count() {return ++lwip_pbuf.pbuf.ref;}
+	inline unsigned int lwip_pbuf_dec_ref_count() {if (likely(lwip_pbuf.pbuf.ref)) --lwip_pbuf.pbuf.ref; return lwip_pbuf.pbuf.ref;}
+	inline unsigned int lwip_pbuf_get_ref_count() const {return lwip_pbuf.pbuf.ref;}
 
 	bool		b_is_tx_mc_loop_dis; // if the mc loop on the tx side is disabled (the loop is per interface)
 	int8_t		n_frags;	//number of fragments

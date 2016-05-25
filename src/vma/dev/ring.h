@@ -250,8 +250,8 @@ public:
 	virtual int		vma_poll(vma_completion_t *vma_completions, unsigned int ncompletions, int flags) = 0;
 	virtual bool		reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return false;}
 
-	virtual int		vma_poll_reclaim_single_recv_buffer_no_lock(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return -1;}
-	virtual void		vma_poll_reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return;}
+	virtual int		vma_poll_reclaim_single_recv_buffer(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return -1;}
+	virtual void		vma_poll_reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return;}
 
 protected:
 	uint32_t		m_n_num_resources;
