@@ -154,6 +154,21 @@ static inline const char* ctl_thread_str(tcp_ctl_thread_t logic)
 	return "unsupported";
 }
 
+typedef enum {
+	INTERNAL_THREAD_TCP_TIMER_HANDLING_DEFERRED = 0,
+	INTERNAL_THREAD_TCP_TIMER_HANDLING_IMMEDIATE
+} internal_thread_tcp_timer_handling_t;
+
+static inline const char* internal_thread_tcp_timer_handling_str(internal_thread_tcp_timer_handling_t handling)
+{
+	switch (handling) { 
+	case INTERNAL_THREAD_TCP_TIMER_HANDLING_DEFERRED: return "(deferred)";
+	case INTERNAL_THREAD_TCP_TIMER_HANDLING_IMMEDIATE: return "(immediate)";
+	default:					break;
+	}
+	return "unsupported";
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 class vma_exception_handling
 {
@@ -232,11 +247,12 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////
 struct mce_sys_var {
-
 	static mce_sys_var & instance() {
 		static mce_sys_var the_instance; //singelton
 		return the_instance;
 	}
+
+	void		get_env_params();
 
 	char 		*app_name;
 	char 		app_id[MAX_APP_ID_LENGHT];
@@ -339,6 +355,7 @@ struct mce_sys_var {
 	char		internal_thread_affinity_str[CPU_SETSIZE/4];
 	cpu_set_t	internal_thread_affinity;
 	bool		internal_thread_arm_cq_enabled;
+	internal_thread_tcp_timer_handling_t internal_thread_tcp_timer_handling;	
 	bool 		handle_bf;
 
 	bool 		enable_ipoib;
@@ -356,12 +373,20 @@ struct mce_sys_var {
 	sysctl_reader_t & sysctl_reader;
 
 private:
+	void print_vma_load_failure_msg();
+	int list_to_cpuset(char *cpulist, cpu_set_t *cpu_set);
+	int hex_to_cpuset(char *start, cpu_set_t *cpu_set);
+	int env_to_cpuset(char *orig_start, cpu_set_t *cpu_set);
+	void read_env_variable_with_pid(char* mce_sys_name, size_t mce_sys_max_size, char* env_ptr);
+
 	// prevent unautothrized creation of objects
 	mce_sys_var () : sysctl_reader(sysctl_reader_t::instance()){
 		// coverity[uninit_member]
+		get_env_params();
 	}
 	mce_sys_var (const mce_sys_var &);
 	mce_sys_var & operator= (const mce_sys_var &);
+
 
 };
  
@@ -460,6 +485,7 @@ extern mce_sys_var & safe_mce_sys();
 #define SYS_VAR_INTERNAL_THREAD_AFFINITY		"VMA_INTERNAL_THREAD_AFFINITY"
 #define SYS_VAR_INTERNAL_THREAD_CPUSET			"VMA_INTERNAL_THREAD_CPUSET"
 #define SYS_VAR_INTERNAL_THREAD_ARM_CQ			"VMA_INTERNAL_THREAD_ARM_CQ"
+#define SYS_VAR_INTERNAL_THREAD_TCP_TIMER_HANDLING	"VMA_INTERNAL_THREAD_TCP_TIMER_HANDLING"
 
 #define SYS_VAR_NETLINK_TIMER_MSEC			"VMA_NETLINK_TIMER"
 
@@ -561,6 +587,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_INTERNAL_THREAD_AFFINITY		(-1)
 #define MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR	("-1")
 #define MCE_DEFAULT_INTERNAL_THREAD_CPUSET		("")
+#define MCE_DEFAULT_INTERNAL_THREAD_TCP_TIMER_HANDLING	(INTERNAL_THREAD_TCP_TIMER_HANDLING_DEFERRED)
 #define MCE_DEFAULT_NETLINK_TIMER_MSEC			(10000)
 
 #define MCE_DEFAULT_NEIGH_UC_ARP_QUATA			3

@@ -167,6 +167,7 @@ Example:
  VMA DETAILS: Internal Thread Affinity       -1                         [VMA_INTERNAL_THREAD_AFFINITY]
  VMA DETAILS: Internal Thread Cpuset                                    [VMA_INTERNAL_THREAD_CPUSET]
  VMA DETAILS: Internal Thread Arm CQ         Disabled                   [VMA_INTERNAL_THREAD_ARM_CQ]
+ VMA DETAILS: Internal Thread TCP Handling   0 (deferred)               [VMA_INTERNAL_THREAD_TCP_TIMER_HANDLING]
  VMA DETAILS: Thread mode                    Multi spin lock            [VMA_THREAD_MODE]
  VMA DETAILS: Buffer batching mode           1 (Batch and reclaim buffers) [VMA_BUFFER_BATCHING_MODE]
  VMA DETAILS: Mem Allocate type              1 (Contig Pages)           [VMA_MEM_ALLOC_TYPE]
@@ -673,6 +674,14 @@ Select a cpuset for VMA internal thread (see man page of cpuset).
 The value is the path to the cpuset (for example: /dev/cpuset/my_set), or an empty
 string to run it on the same cpuset the process runs on.
 Default value is an empty string. 
+
+VMA_INTERNAL_THREAD_TCP_TIMER_HANDLING
+Select the internal thread policy when handling TCP timers 
+Use value of 0 for deferred handling. The internal thread will not handle TCP timers upon timer 
+expiration (once every 100ms) in order to let application threads handling it first
+Use value of 1 for immediate handling. The internal thread will try locking and handling TCP timers upon 
+timer expiration (once every 100ms).  Application threads may be blocked till internal thread finishes handling TCP timers
+Default value is 0 (deferred handling)
 
 VMA_INTERNAL_THREAD_ARM_CQ
 Wakeup the internal thread for each packet that the CQ recieve. 
