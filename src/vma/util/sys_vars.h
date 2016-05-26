@@ -662,7 +662,6 @@ extern mce_sys_var & safe_mce_sys();
 #define MULTI_THREAD_ONLY(x) 	{ if (safe_mce_sys().thread_mode > THREAD_MODE_SINGLE) x; }
 
 
-extern struct mce_sys_var & mce_sys;
 extern bool g_b_exit;
 extern bool g_is_forked_child;
 extern bool g_init_global_ctors_done;
