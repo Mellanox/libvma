@@ -1135,7 +1135,7 @@ void sockinfo_tcp::handle_timer_expired(void* user_data)
 	if (safe_mce_sys().tcp_ctl_thread > CTL_THREAD_DISABLE)
 		process_rx_ctl_packets();
 
-	if (mce_sys.internal_thread_tcp_timer_handling == INTERNAL_THREAD_TCP_TIMER_HANDLING_DEFERRED) {
+	if (safe_mce_sys().internal_thread_tcp_timer_handling == INTERNAL_THREAD_TCP_TIMER_HANDLING_DEFERRED) {
 		// DEFERRED. if Internal thread is here first and m_timer_pending is false it jsut 
 		// sets it as true for its next iteration (within 100ms), letting 
 		// application threads have a chance of running tcp_timer()
