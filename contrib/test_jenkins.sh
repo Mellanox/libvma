@@ -1,4 +1,4 @@
-#!/bin/bash -xeE
+#!/bin/bash -xeEl
 
 echo
 echo "# starting on host --------->  $(hostname) "
