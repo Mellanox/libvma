@@ -1,3 +1,13 @@
+Version 8.0.4-0:
+Date + Time 2016-05-29
+=======================
+Added:
+	- RM #781384 add log details on UDP setsockopt(SO_BINDTODEVICE) and add python test code
+
+Fixed:
+        - RM #781967 Fix ./configure failures on some distros - add pkg.m4 into distribution
+        - RM #775440 Fix 'make distclean' breakage
+
 Version 8.0.3-0:
 Date + Time 2016-05-18
 =======================
