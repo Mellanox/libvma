@@ -1,7 +1,7 @@
 AM_CFLAGS = -Wall -g -fPIC#-O3
 AM_CXXFLAGS = -Wall -g -fPIC#-O3
 
-AM_CPPFLAGS := -I$(abs_top_srcdir)/src
+AM_CPPFLAGS := -I$(top_srcdir)/src
 
 noinst_LTLIBRARIES = libvlogger.la
 libvlogger_la_LDFLAGS = -static
