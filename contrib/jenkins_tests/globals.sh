@@ -64,6 +64,19 @@ function do_github_status()
     "https://api.github.com/repos/$repo/statuses/${sha1}?access_token=$token"
 }
 
+function check_env()
+{
+	if [ "$ghprbTargetBranch" != "master" ]; then
+		ofed_v=$(ofed_info -s | grep MLNX_OFED_LINUX | sed 's/MLNX_OFED_LINUX-\([0-9\.]\+\).*/\1/')
+		if [ -z "$ofed_v" -o "$ofed_v" != "3.2" ]; then
+		    echo "environment [NOT OK]"
+		    exit 0
+		fi
+	fi
+
+    echo "environment [OK]"
+}
+
 # $1 - output message
 # $2 - [on|off] if on - skip this case if JENKINS_RUN_TESTS variable is OFF
 function check_filter()
@@ -99,6 +112,7 @@ function check_result()
     rc=$((rc + $ret))
 }
 
+# $1 - [ib|eth] to select link type or empty to select the first found
 function get_ip()
 {
     for ip in $(ibdev2netdev | grep Up | cut -f 5 -d ' '); do
