@@ -30,6 +30,9 @@ echo Starting on host: $(hostname)
 
 cd $WORKSPACE
 
+# check go/not go
+check_env
+
 rm -rf ${WORKSPACE}/${prefix}
 rm -rf autom4te.cache
 
