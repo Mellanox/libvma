@@ -82,7 +82,8 @@ public:
 
 	// remove all timers from list and free it.
 	// called for stopping (unregistering) all timers
-	void    remove_all_timers(timer_handler* handler);
+	// found indicates how many timers were removed (can be 0 if none found)
+	void    remove_all_timers(timer_handler* handler, int& found);
 
 	// returns the next time to wait
 	int     get_time_to_wait();

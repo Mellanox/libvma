@@ -148,11 +148,12 @@ void timer::remove_timer(timer_node_t* node, timer_handler *handler)
 	return;
 }
 
-void timer::remove_all_timers(timer_handler *handler)
+void timer::remove_all_timers(timer_handler *handler, int& found)
 {
 	timer_node_t* node = m_list_head;
 	timer_node_t* node_tmp = NULL;
 
+	found = 0;
 	// Look for handler in the list if node wasen't indicated
 	while (node) {
 		if (node->handler == handler) {// node found
@@ -165,6 +166,7 @@ void timer::remove_all_timers(timer_handler *handler)
 				continue;
 			}
 			BULLSEYE_EXCLUDE_BLOCK_END
+			found++;
 			// Invalidate node before freeing it
 			node_tmp->handler = NULL;
 			node_tmp->req_type = INVALID_TIMER;

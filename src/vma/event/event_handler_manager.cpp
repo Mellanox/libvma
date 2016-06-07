@@ -457,9 +457,16 @@ void event_handler_manager::priv_unregister_timer_handler(timer_reg_info_t& info
 	}
 }
 
-void event_handler_manager::priv_unregister_all_handler_timers(timer_reg_info_t& info)
+void event_handler_manager::priv_unregister_all_handler_timers_and_delete(timer_reg_info_t& info)
 {
-	m_timer.remove_all_timers(info.handler);
+	int found = 0;
+	
+	m_timer.remove_all_timers(info.handler, found);
+	// Do not delete an already deleted handler
+	if (found > 0) {
+		delete info.handler;
+		info.handler = NULL;
+	}
 }
 
 void event_handler_manager::priv_prepare_ibverbs_async_event_queue(event_handler_map_t::iterator& i)
@@ -712,9 +719,7 @@ void event_handler_manager::handle_registration_action(reg_action_t& reg_action)
 		priv_unregister_command_events(reg_action.info.cmd);
 		break;
 	case UNREGISTER_TIMERS_AND_DELETE:
-		priv_unregister_all_handler_timers(reg_action.info.timer);
-		delete reg_action.info.timer.handler;
-		reg_action.info.timer.handler = NULL;
+		priv_unregister_all_handler_timers_and_delete(reg_action.info.timer);
 		break;
 	BULLSEYE_EXCLUDE_BLOCK_START
 	default:
