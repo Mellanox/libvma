@@ -1,4 +1,4 @@
-#!/bin/bash -xeE
+#!/bin/bash -xeEl
 
 source $(dirname $0)/globals.sh
 

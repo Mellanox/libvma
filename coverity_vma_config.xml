@@ -6,8 +6,6 @@
 <include>/hpc/local/commercial/coverity/cov-sa/config/coverity_config.xml</include>
       <build>
         <options>
-          <skip_file>.*src/lwip.*</skip_file>
-          <skip_file>.*src/license/.*</skip_file>
           <skip_file>.*src/vma/config_parser.*</skip_file>
           <skip_file>.*src/vma/config_scanner.*</skip_file>
           <add_arg>--c++0x</add_arg>
