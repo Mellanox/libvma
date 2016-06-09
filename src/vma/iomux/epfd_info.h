@@ -187,7 +187,7 @@ private:
 public:
 	const fd_info_map_t& get_fd_info() {return  m_fd_info;} // TODO: remove
 	void insert_epoll_event_cb(int fd, uint32_t event_flags);
-	void insert_epoll_event(int fd, uint32_t event_flags);
+	void insert_epoll_event(int fd, uint32_t event_flags, bool need_wakeup = true);
 	void remove_epoll_event(int fd, uint32_t event_flags);
 	void increase_ring_ref_count(ring* ring);
 	void decrease_ring_ref_count(ring* ring);
