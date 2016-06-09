@@ -52,7 +52,7 @@ typedef enum {
  * Used in vma_poll() extended API.
  */
 struct vma_buff_t {
-	vma_buff_t*	next;			/* next buffer (for last buffer next == NULL) */
+	struct vma_buff_t*	next;			/* next buffer (for last buffer next == NULL) */
 	void*		payload;		/* pointer to data */
 	uint16_t	len;			/* data length */
 };
@@ -72,7 +72,7 @@ struct vma_packet_desc_t {
  * Used in vma_poll() extended API.
  */
 struct vma_completion_t {
-	vma_packet_desc_t	packet;	/* polled packet valid only if VMA_POLL_PACKET event is enabled*/
+	struct vma_packet_desc_t	packet;	/* polled packet valid only if VMA_POLL_PACKET event is enabled*/
 	uint64_t 		events;	/* polled events */
 	uint64_t 		user_data;	/*user provided data, by default this field holds the
 						  FD of the socket that is associated if the completion */
@@ -271,7 +271,7 @@ struct __attribute__ ((packed)) vma_api_t {
 	 *
 	 * * errno is set to: TBD...
 	 */
-	 int (*vma_poll)(int fd, vma_completion_t* completions, unsigned int ncompletions, int flags);
+	 int (*vma_poll)(int fd, struct vma_completion_t* completions, unsigned int ncompletions, int flags);
 
 	 /**
 	 * Returns the amount of rings that are associated with socket.
@@ -339,7 +339,7 @@ struct __attribute__ ((packed)) vma_api_t {
 	 *
 	 * errno is set to EINVAL if NULL pointer is provided.
 	 */
-	int (*ref_vma_buff)(vma_buff_t *buff);
+	int (*ref_vma_buff)(struct vma_buff_t *buff);
 
 	/* This function decrements the buff reference count.
 	 * When buff's reference count reaches zero, the buff is
@@ -353,7 +353,7 @@ struct __attribute__ ((packed)) vma_api_t {
 	 *
 	 * errno is set to EINVAL if NULL pointer is provided.
 	 */
-	int (*free_vma_buff)(vma_buff_t *buff);
+	int (*free_vma_buff)(struct vma_buff_t *buff);
 
 };
 
