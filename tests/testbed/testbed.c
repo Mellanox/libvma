@@ -11,8 +11,8 @@
  * -DTIMESTAMP_ENABLED=1
  * -DTIMESTAMP_ENABLED=0 (default)
  *
- * -DTIMESTAMP_RDTSC=1 - rdtsc based time
- * -DTIMESTAMP_RDTSC=0 - clock_gettime() (default ON)
+ * -DTIMESTAMP_RDTSC=1 - rdtsc based time  (default)
+ * -DTIMESTAMP_RDTSC=0 - clock_gettime()
  *
  * -DNDEBUG – ON/OFF assert and log_trace()
  *
@@ -40,6 +40,7 @@
 #include <getopt.h>
 #include <assert.h>
 #include <sys/select.h>
+#include <sys/mman.h> /* mlock */
 #include <sys/time.h>
 #include <time.h>
 #include <signal.h>
@@ -54,6 +55,13 @@
 #ifndef TIMESTAMP_ENABLED
 #define TIMESTAMP_ENABLED 0
 #endif
+#ifndef BLOCKING_READ_ENABLED
+#define BLOCKING_READ_ENABLED 1
+#endif
+#ifndef BLOCKING_WRITE_ENABLED
+#define BLOCKING_WRITE_ENABLED 1
+#endif
+
 
 struct testbed_config {
 	enum {
@@ -140,6 +148,9 @@ struct testbed_stat {
 	} while (0)
 #endif /* NDEBUG */
 
+#define _min(a, b) ((a) > (b) ? (b) : (a))
+#define _max(a, b) ((a) < (b) ? (b) : (a))
+
 static int _set_config(int argc, char **argv);
 static int _def_config(void);
 static void _usage(void);
@@ -154,8 +165,8 @@ static int _set_noblock(int fd);
 static int _tcp_client_init(struct sockaddr_in *addr);
 static int _tcp_server_init(int fd);
 static int _tcp_create_and_bind(uint16_t port);
-static int _tcp_write(int fd, uint8_t *buf, int count);
-static int _tcp_read(int fd, uint8_t *buf, int count);
+static int _tcp_write(int fd, uint8_t *buf, int count, int block);
+static int _tcp_read(int fd, uint8_t *buf, int count, int block);
 
 static void _ini_stat(void);
 static void _fin_stat(void);
@@ -163,6 +174,17 @@ static void _fin_stat(void);
 static struct testbed_config _config;
 static struct testbed_stat _stat;
 static volatile int _done;
+#if defined(BLOCKING_READ_ENABLED) && (BLOCKING_READ_ENABLED == 1)
+static int _rb = 1;
+#else
+static int _rb = 0;
+#endif /* BLOCKING_READ_ENABLED */
+#if defined(BLOCKING_WRITE_ENABLED) && (BLOCKING_WRITE_ENABLED == 1)
+static int _wb = 1;
+#else
+static int _wb = 0;
+#endif /* BLOCKING_WRITE_ENABLED */
+
 
 int main(int argc, char **argv)
 {
@@ -177,6 +199,8 @@ int main(int argc, char **argv)
 
 	srand(time(0));
 
+	_rb = _rb;
+	_wb = _wb;
 	rc = _def_config();
 	if (0 != rc) {
 		goto err;
@@ -285,7 +309,7 @@ static int _set_config(int argc, char **argv)
 	int op;
 	int option_index;
 
-	while ((op = getopt_long(argc, argv, "p:s:l:n:f:i:d:h", long_options, &option_index)) != -1) {
+	while ((op = getopt_long(argc, argv, "p:s:r:l:n:f:i:d:h", long_options, &option_index)) != -1) {
 		switch (op) {
 			case MODE_ENGINE:
 			case MODE_SENDER:
@@ -419,6 +443,7 @@ static int _proc_sender(void)
 	struct conn_info {
 		int id;
 		int fd;
+		int msg_len;
 		struct per_sender_connection {
 			int msgs_sent;
 			int64_t begin_send_time;
@@ -456,6 +481,7 @@ static int _proc_sender(void)
 
 		conn->id = i;
 		conn->fd = _tcp_client_init(&_config.addr);
+		conn->msg_len = 0;
 		if (_done) {
 			goto err;
 		}
@@ -491,9 +517,6 @@ static int _proc_sender(void)
 				(event & EPOLLHUP) ||
 				(!(event & EPOLLOUT))) {
 				log_error("epoll error\n");
-				epoll_ctl(efd, EPOLL_CTL_DEL, conn->fd, NULL);
-				close(conn->fd);
-				conn->fd = -1;
 				goto err;
 			}
 
@@ -503,7 +526,7 @@ static int _proc_sender(void)
 				continue;
 			}
 
-			usleep(1);
+			usleep(0);
 
 			if (event & EPOLLOUT) {
 				int fd;
@@ -521,27 +544,40 @@ static int _proc_sender(void)
 					if (stat->begin_send_time > time_now) {
 						continue;
 					}
-					/* calculate the expected number of sent message */
-					expected_msg_count = _config.msg_rate * (time_now - stat->begin_send_time) / NANOS_IN_SEC;
-					if (stat->msgs_sent >= expected_msg_count) {
-						continue;
+
+					/* check if it is new message */
+					if (0 == conn->msg_len) {
+						/* calculate the expected number of sent message */
+						expected_msg_count = _config.msg_rate * (time_now - stat->begin_send_time) / NANOS_IN_SEC;
+						if (stat->msgs_sent >= expected_msg_count) {
+							continue;
+						}
+
+						/* Each time while sending messages to engine, sender connection
+						 * randomly picks up a integer X in range of 0 to N-1 (inclusive),
+						 * and put into receiver filed so that engine program will forward
+						 * the message to its Xth connection with receiver.
+						 */
+						msg_hdr->receiver = rand() % _config.rcount;
+#if defined(TIMESTAMP_ENABLED) && (TIMESTAMP_ENABLED == 1)
+						msg_hdr->time_start = time_now;
+#endif /* TIMESTAMP_ENABLED */
 					}
 
-					/* Each time while sending messages to engine, sender connection
-					 * randomly picks up a integer X in range of 0 to N-1 (inclusive),
-					 * and put into receiver filed so that engine program will forward
-					 * the message to its Xth connection with receiver.
-					 */
-					msg_hdr->receiver = rand() % _config.rcount;
-#if defined(TIMESTAMP_ENABLED) && (TIMESTAMP_ENABLED == 1)
-					msg_hdr->time_start = time_now;
-#endif /* TIMESTAMP_ENABLED */
-					ret = _tcp_write(fd, (uint8_t *)msg_hdr, msg_hdr->len);
-					log_trace("<sender> [%d]->[%d] Send %d bytes fd=%d ret=%d\n",
-							msg_hdr->client_id, msg_hdr->receiver, msg_hdr->len, fd, ret);
-					if (ret != msg_hdr->len) {
+					ret = _tcp_write(fd,
+							((uint8_t *)msg_hdr) + conn->msg_len,
+							_config.msg_size - conn->msg_len, _wb);
+					if (ret < 0) {
 						goto err;
 					}
+					conn->msg_len += ret;
+					if (conn->msg_len != _config.msg_size) {
+						continue;
+					} else {
+						conn->msg_len = 0;
+					}
+					log_trace("<sender> [%d]->[%d] Send %d bytes fd=%d ret=%d\n",
+							msg_hdr->client_id, msg_hdr->receiver, msg_hdr->len, fd, ret);
 
 					/* send message */
 					msg_hdr->seq_num++;
@@ -600,8 +636,10 @@ static int _proc_engine(void)
 	struct conn_info {
 		int id;
 		int fd;
+		int msg_len;
 		uint8_t msg[1];
 	} *conns_out, *conns_in;
+	struct conn_info *conn = NULL;
 	struct msg_header *msg_hdr;
 	int i;
 	int sfd = -1;
@@ -609,6 +647,7 @@ static int _proc_engine(void)
 
 	log_trace("Launching <engine> mode...\n");
 
+	conns_out = conns_in = NULL;
 	efd = epoll_create1(0);
 	assert(efd >= 0);
 
@@ -625,7 +664,6 @@ static int _proc_engine(void)
 	assert(conns_in);
 	for (i = 0; i < _config.scount; i++) {
 		struct epoll_event event;
-		struct conn_info *conn;
 
 		conn = (struct conn_info *)((uint8_t *)conns_in + i * conns_size);
 
@@ -634,6 +672,7 @@ static int _proc_engine(void)
 
 		conn->id = i;
 		conn->fd = _tcp_server_init(sfd);
+		conn->msg_len = 0;
 		if (_done) {
 			goto err;
 		}
@@ -645,15 +684,11 @@ static int _proc_engine(void)
 		assert(rc == 0);
 	}
 
-	close(sfd);
-
 	log_trace("<engine> established %d connections with <sender>\n", _config.scount);
 
 	conns_out = calloc(_config.rcount, conns_size);
 	assert(conns_out);
 	for (i = 0; i < _config.rcount; i++) {
-		struct conn_info *conn;
-
 		conn = (struct conn_info *)((uint8_t *)conns_out + i * conns_size);
 
 		msg_hdr = (struct msg_header *)conn->msg;
@@ -661,6 +696,7 @@ static int _proc_engine(void)
 
 		conn->id = i;
 		conn->fd = _tcp_client_init(&_config.addr);
+		conn->msg_len = 0;
 		if (_done) {
 			goto err;
 		}
@@ -673,14 +709,15 @@ static int _proc_engine(void)
 	events = calloc(max_events, sizeof(*events));
 	assert(events);
 
+	conn = NULL;
 	while (!_done) {
-		int n;
-		int j;
+		uint32_t event = 0;
+		int n = 0;
+		int j = 0;
 
 		n = epoll_wait(efd, events, max_events, 0);
+
 		for (j = 0; j < n; j++) {
-			struct conn_info *conn = NULL;
-			uint32_t event;
 			int fd = 0;
 			int ret = 0;
 
@@ -694,16 +731,23 @@ static int _proc_engine(void)
 			if ((event & EPOLLERR) ||
 				(event & EPOLLHUP)) {
 				log_error("epoll error\n");
-				epoll_ctl(efd, EPOLL_CTL_DEL, conn->fd, NULL);
-				close(conn->fd);
-				conn->fd = -1;
 				goto err;
 			}
 
 			if (event & EPOLLIN) {
-				ret = _tcp_read(fd, (uint8_t *)msg_hdr, _config.msg_size);
-				if (ret != _config.msg_size) {
+				struct conn_info *conn_peer = NULL;
+
+				ret = _tcp_read(fd,
+						((uint8_t *)msg_hdr) + conn->msg_len,
+						_config.msg_size - conn->msg_len, _wb);
+				if (ret < 0) {
 					goto err;
+				}
+				conn->msg_len += ret;
+				if (conn->msg_len != _config.msg_size) {
+					continue;
+				} else {
+					conn->msg_len = 0;
 				}
 				log_trace("<engine> [%d]<- Read %d bytes fd=%d ret=%d\n",
 						msg_hdr->client_id, msg_hdr->len, fd, ret);
@@ -711,10 +755,11 @@ static int _proc_engine(void)
 				_stat.rx_count++;
 
 				msg_hdr->msg_type = MSG_OUT;
-				conn = (struct conn_info *)((uint8_t *)conns_out + msg_hdr->receiver * conns_size);
-				ret = _tcp_write(conn->fd, (uint8_t *)msg_hdr, msg_hdr->len);
+				conn_peer = (struct conn_info *)((uint8_t *)conns_out + msg_hdr->receiver * conns_size);
+				/* use blocking operation */
+				ret = _tcp_write(conn_peer->fd, (uint8_t *)msg_hdr, msg_hdr->len, 1);
 				log_trace("<engine> [%d]-> Send %d bytes fd=%d ret=%d\n",
-						msg_hdr->receiver, msg_hdr->len, conn->fd, ret);
+						msg_hdr->receiver, msg_hdr->len, conn_peer->fd, ret);
 				if (ret != msg_hdr->len) {
 					goto err;
 				}
@@ -724,6 +769,8 @@ static int _proc_engine(void)
 	}
 
 err:
+
+	close(sfd);
 
 	if (conns_in) {
 		for (i = 0; i < _config.scount; i++) {
@@ -767,8 +814,10 @@ static int _proc_receiver(void)
 	struct conn_info {
 		int id;
 		int fd;
+		int msg_len;
 		uint8_t msg[1];
-	} *conns;
+	} *conns = NULL;
+	struct conn_info *conn;
 	struct msg_header *msg_hdr;
 	int i;
 	int sfd = -1;
@@ -792,12 +841,12 @@ static int _proc_receiver(void)
 	assert(conns);
 	for (i = 0; i < _config.rcount; i++) {
 		struct epoll_event event;
-		struct conn_info *conn;
 
 		conn = (struct conn_info *)((uint8_t *)conns + i * conns_size);
 
 		conn->id = i;
 		conn->fd = _tcp_server_init(sfd);
+		conn->msg_len = 0;
 		if (_done) {
 			goto err;
 		}
@@ -809,22 +858,20 @@ static int _proc_receiver(void)
 		assert(rc == 0);
 	}
 
-	close(sfd);
-
 	log_trace("<receiver> established %d connections with <engine>\n", _config.rcount);
 
 	max_events = _config.rcount * 10;
 	events = calloc(max_events, sizeof(*events));
 	assert(events);
 
+	conn = NULL;
 	while (!_done) {
-		int n;
-		int j;
+		uint32_t event = 0;
+		int n = 0;
+		int j = 0;
 
 		n = epoll_wait(efd, events, max_events, 0);
 		for (j = 0; j < n; j++) {
-			struct conn_info *conn = NULL;
-			uint32_t event;
 			int fd = 0;
 			int ret = 0;
 
@@ -838,19 +885,21 @@ static int _proc_receiver(void)
 			if ((event & EPOLLERR) ||
 				(event & EPOLLHUP)) {
 				log_error("epoll error\n");
-				epoll_ctl(efd, EPOLL_CTL_DEL, conn->fd, NULL);
-				close(conn->fd);
-				conn->fd = -1;
 				goto err;
 			}
 
 			if (event & EPOLLIN) {
-#if defined(TIMESTAMP_ENABLED) && (TIMESTAMP_ENABLED == 1)
-				msg_hdr = _stat.data + _stat.count;
-#endif /* TIMESTAMP_ENABLED */
-				ret = _tcp_read(fd, (uint8_t *)msg_hdr, _config.msg_size);
-				if (ret != _config.msg_size) {
+				ret = _tcp_read(fd,
+						((uint8_t *)msg_hdr) + conn->msg_len,
+						_config.msg_size - conn->msg_len, _rb);
+				if (ret < 0) {
 					goto err;
+				}
+				conn->msg_len += ret;
+				if (conn->msg_len != _config.msg_size) {
+					continue;
+				} else {
+					conn->msg_len = 0;
 				}
 				log_trace("<receiver> [%d]<-[%d] Read %d bytes fd=%d ret=%d\n",
 						msg_hdr->receiver, msg_hdr->client_id, msg_hdr->len, fd, ret);
@@ -858,6 +907,7 @@ static int _proc_receiver(void)
 				_stat.rx_count++;
 #if defined(TIMESTAMP_ENABLED) && (TIMESTAMP_ENABLED == 1)
 				msg_hdr->time_end = _get_time_ns();
+				memcpy(_stat.data + _stat.count, msg_hdr, sizeof(*msg_hdr));
 				_stat.count++;
 #endif /* TIMESTAMP_ENABLED */
 			}
@@ -865,6 +915,8 @@ static int _proc_receiver(void)
 	}
 
 err:
+
+	close(sfd);
 
 	if (conns) {
 		for (i = 0; i < _config.rcount; i++) {
@@ -1096,7 +1148,7 @@ static int _tcp_create_and_bind(uint16_t port)
 	}
 
 	/* listen on any port */
-	memset(&addr, sizeof(addr), 0);
+	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = PF_INET;
 	addr.sin_addr.s_addr = INADDR_ANY;
 	addr.sin_port = htons(port);
@@ -1119,7 +1171,7 @@ err:
 	return (rc == 0 ? fd : (-1));
 }
 
-static int _tcp_write(int fd, uint8_t *buf, int count)
+static int _tcp_write(int fd, uint8_t *buf, int count, int block)
 {
 	int n, nb;
 
@@ -1128,23 +1180,26 @@ static int _tcp_write(int fd, uint8_t *buf, int count)
 		n = write(fd, buf, count);
 		if (n <= 0) {
 			if (errno == EAGAIN) {
-				log_trace("blocking write ret=%d written %d of %d %s\n",
-						n, nb, count, strerror(errno));
-				continue;
+				log_trace("blocking write fd=%d ret=%d written %d of %d %s\n",
+						fd, n, nb, count, strerror(errno));
+				if (block) {
+					continue;
+				}
+				return nb;
 			}
-			log_error("bad write ret=%d written %d of %d %s\n",
-					n, nb, count, strerror(errno));
+			log_error("bad write fd=%d ret=%d written %d of %d %s\n",
+					fd, n, nb, count, strerror(errno));
 			return nb;
 		}
 		count -= n;
 		buf += n;
 		nb += n;
-	} while (count > 0);
+	} while (block && (count > 0));
 
 	return nb;
 }
 
-static int _tcp_read(int fd, uint8_t *buf, int count)
+static int _tcp_read(int fd, uint8_t *buf, int count, int block)
 {
 	int n;
 	int nb;
@@ -1154,22 +1209,25 @@ static int _tcp_read(int fd, uint8_t *buf, int count)
 		n = read(fd, buf, count);
 		if (n == 0) {
 			log_error("EOF?\n");
-			return nb;
+			return -1;
 		}
 		if (n < 0) {
 			if (errno == EAGAIN) {
-				log_trace("blocking read ret=%d read %d of %d %s\n",
-						n, nb, count, strerror(errno));
-				continue;
+				log_trace("blocking read fd=%d ret=%d read %d of %d %s\n",
+						fd, n, nb, count, strerror(errno));
+				if (block) {
+					continue;
+				}
+				return nb;
 			}
-			log_error("bad read ret=%d read %d of %d %s\n",
-					n, nb, count, strerror(errno));
+			log_error("bad read fd=%d ret=%d read %d of %d %s\n",
+					fd, n, nb, count, strerror(errno));
 			return nb;
 		}
 		count -= n;
 		buf += n;
 		nb += n;
-	} while (count > 0);
+	} while (block && (count > 0));
 
 	return nb;
 }
@@ -1179,14 +1237,17 @@ static void _ini_stat(void)
 	memset(&_stat, 0, sizeof(_stat));
 
 #if defined(TIMESTAMP_ENABLED) && (TIMESTAMP_ENABLED == 1)
-	_stat.count = 0;
-	_stat.size = _config.scount * (_config.msg_count < 0 ? 10000 : _config.msg_count);
-	_stat.data = malloc(_stat.size * sizeof(*_stat.data) + _config.msg_size);
-	if (!_stat.data) {
-		log_fatal("Can not allocate memory for statistic\n");
-		exit(1);
+	if (_config.mode == MODE_RECEIVER) {
+		_stat.count = 0;
+		_stat.size = _config.scount * (_config.msg_count < 0 ? 10000 : _config.msg_count);
+		_stat.data = malloc(_stat.size * sizeof(*_stat.data) + _config.msg_size);
+		if (!_stat.data) {
+			log_fatal("Can not allocate memory for statistic\n");
+			exit(1);
+		}
+		memset(_stat.data, 0, _stat.size * sizeof(*_stat.data) + _config.msg_size);
+		mlock(_stat.data, _stat.size * sizeof(*_stat.data) + _config.msg_size);
 	}
-	memset(_stat.data, 0, _stat.size * sizeof(*_stat.data) + _config.msg_size);
 #endif /* TIMESTAMP_ENABLED */
 }
 
@@ -1228,11 +1289,13 @@ static void _fin_stat(void)
 			}
 		}
 		assert(values_count <= _stat.count);
-		qsort(values, values_count, sizeof(*values), _cmpfunc);
-		{
+
+		if (values_count > 0) {
 			double percentile[] = {0.9999, 0.999, 0.995, 0.99, 0.95, 0.90, 0.75, 0.50, 0.25};
 			int num = sizeof(percentile) / sizeof(percentile[0]);
 			double observationsInPercentile = (double)values_count / 100;
+
+			qsort(values, values_count, sizeof(*values), _cmpfunc);
 
 			log_info("====> avg-lat=%7.3lf\n", (double)values_sum / (values_count * (double)NANOS_IN_USEC));
 			log_info("Total %lu observations; each percentile contains %.2lf observations\n", (long unsigned)values_count, observationsInPercentile);
@@ -1245,8 +1308,14 @@ static void _fin_stat(void)
 				}
 			}
 			log_info("---> <MIN> observation = %8.3lf\n", (double)values[0] / (double)NANOS_IN_USEC);
+		} else {
+			log_info("Total %lu observations\n", (long unsigned)values_count);
 		}
 		free(values);
+		if (_stat.data) {
+			munlock(_stat.data, _stat.size * sizeof(*_stat.data) + _config.msg_size);
+			free(_stat.data);
+		}
 	}
 #endif /* TIMESTAMP_ENABLED */
 }
