@@ -348,9 +348,11 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 			events |= EPOLLOUT;
 		}
 		if (events != 0) {
-			insert_epoll_event(fd, events, false); // mutex is recursive
+			insert_epoll_event(fd, events); // mutex is recursive
 		}
-		do_wakeup();
+		else{
+			do_wakeup();
+		}
 	}
 	__log_func("fd %d added in epfd %d with events=%#x and data=%#x", 
 		   fd, m_epfd, event->events, event->data);
@@ -605,7 +607,7 @@ void epfd_info::insert_epoll_event_cb(int fd, uint32_t event_flags)
 	unlock();
 }
 
-void epfd_info::insert_epoll_event(int fd, uint32_t event_flags, bool need_wakeup)
+void epfd_info::insert_epoll_event(int fd, uint32_t event_flags)
 {
 	socket_fd_api* sock_fd = fd_collection_get_sockfd(fd);
 	if (sock_fd) {
@@ -617,9 +619,7 @@ void epfd_info::insert_epoll_event(int fd, uint32_t event_flags, bool need_wakeu
 			m_ready_fds.push_back(sock_fd);
 		}
 	}
-	if (need_wakeup) {
-		do_wakeup();
-	}
+	do_wakeup();
 }
 
 void epfd_info::remove_epoll_event(int fd, uint32_t event_flags)
