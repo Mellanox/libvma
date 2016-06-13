@@ -1,4 +1,4 @@
-#!/bin/bash -xeE
+#!/bin/bash -xeEl
 
 source $(dirname $0)/globals.sh
 
@@ -10,7 +10,7 @@ rm -rf $cov_dir
 mkdir -p $cov_dir
 cd $cov_dir
 
-cov_exclude_file_list="test src/vma/lwip"
+cov_exclude_file_list="tests src/vma/lwip"
 
 module load tools/cov
 
@@ -19,14 +19,18 @@ cov_build="$cov_dir/$cov_build_id"
 
 set +eE
 
-${WORKSPACE}/configure --prefix=$install_dir $jenkins_test_custom_configure -C
-cov-build --dir $cov_build make $make_opt
+${WORKSPACE}/configure --prefix=${cov_dir}/install $jenkins_test_custom_configure
+make clean
+eval "cov-build --dir $cov_build make"
+rc=$(($rc+$?))
 
 for excl in $cov_exclude_file_list; do
     cov-manage-emit --dir $cov_build --tu-pattern "file('$excl')" delete
+    sleep 1
 done
 
-cov-analyze --dir $cov_build --config ${WORKSPACE}/coverity_vma_config.xml
+eval "cov-analyze --dir $cov_build --config ${WORKSPACE}/coverity_vma_config.xml"
+rc=$(($rc+$?))
 
 set -eE
 
@@ -43,7 +47,7 @@ rm -f jenkins_sidelinks.txt
 coverity_tap=${WORKSPACE}/${prefix}/coverity.tap
 
 echo 1..1 > $coverity_tap
-if [ $nerrors -gt 0 ]; then
+if [ $rc -gt 0 ]; then
     echo "not ok 1 Coverity Detected $nerrors failures # $cov_url" >> $coverity_tap
     info="Coverity found $nerrors errors"
     status="error"

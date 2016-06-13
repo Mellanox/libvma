@@ -1,4 +1,4 @@
-#!/bin/bash -eEx
+#!/bin/bash -eExl
 
 source $(dirname $0)/globals.sh
 
