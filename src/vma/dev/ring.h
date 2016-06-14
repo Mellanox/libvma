@@ -46,11 +46,21 @@ class buffer_pool;
 
 #define ring_logpanic 		__log_info_panic
 #define ring_logerr		__log_info_err
+#if 0
 #define ring_logwarn		__log_info_warn
 #define ring_loginfo		__log_info_info
 #define ring_logdbg		__log_info_dbg
 #define ring_logfunc		__log_info_func
 #define ring_logfuncall		__log_info_funcall
+#endif
+
+#if 1
+#define ring_logwarn(...)
+#define ring_loginfo(...)
+#define ring_logdbg(...)
+#define ring_logfunc(...)
+#define ring_logfuncall(...)
+#endif
 
 #define RING_TX_BUFS_COMPENSATE 256
 

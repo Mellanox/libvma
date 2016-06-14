@@ -72,7 +72,7 @@ protected:
 	virtual qp_mgr*		create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) = 0;
 	void			create_resources(ring_resource_creation_info_t* p_ring_info, bool active) throw (vma_error);
 	// Internal functions. No need for locks mechanism.
-	inline void 		vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_buf_desc);
+	void 		    vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_buf_desc);
 	bool			rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_type_t m_transport_type, void* pv_fd_ready_array);
 	void			print_flow_to_rfs_udp_uc_map(flow_spec_udp_uc_map_t *p_flow_map);
 	void			print_flow_to_rfs_tcp_map(flow_spec_tcp_map_t *p_flow_map);
@@ -86,6 +86,8 @@ protected:
 	uint16_t		get_partition() { return m_partition; }
 	uint16_t		get_lkey() { return m_tx_lkey; }
 
+    rfs            *find_udp_flow(mem_buf_desc_t *p_rx_wc_buf_desc, struct iphdr *p_ip_h, uint16_t ip_hdr_len, uint16_t ip_tot_len);
+    rfs            *find_tcp_flow(mem_buf_desc_t *p_rx_wc_buf_desc, struct iphdr *p_ip_h, uint16_t ip_hdr_len, uint16_t ip_tot_len);
 	struct cq_moderation_info m_cq_moderation_info;
 
 private:

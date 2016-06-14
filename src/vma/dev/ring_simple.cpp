@@ -144,6 +144,7 @@ ring_simple::~ring_simple()
 	delete[] m_p_n_rx_channel_fds;
 
 	int buffer_accounting = m_tx_num_bufs - m_tx_pool.size() - m_missing_buf_ref_count;
+    NOT_IN_USE(buffer_accounting);
 	ring_logdbg("Tx buffer poll: free count = %u, sender_has = %d, total = %d, %s (%d)",
 			m_tx_pool.size(), m_missing_buf_ref_count, m_tx_num_bufs,
 			(buffer_accounting?"bad accounting!!":"good accounting"), buffer_accounting);
@@ -616,44 +617,105 @@ const char* priv_igmp_type_tostr(uint8_t igmptype)
 	}
 }
 
-inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_buf_desc)
+rfs *ring_simple::find_udp_flow(mem_buf_desc_t *p_rx_wc_buf_desc, struct iphdr* p_ip_h, 
+                                uint16_t ip_hdr_len, uint16_t ip_tot_len)
+{
+    rfs *p_rfs;
+	struct udphdr* p_udp_h;
+
+    // Get the udp header pointer + udp payload size
+    p_udp_h = (struct udphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
+    size_t sz_payload = ntohs(p_udp_h->len) - sizeof(struct udphdr);
+    ring_logfunc("Rx udp datagram info: src_port=%d, dst_port=%d, payload_sz=%d, csum=%#x",
+            ntohs(p_udp_h->source), ntohs(p_udp_h->dest), sz_payload, p_udp_h->check);
+
+    // Update packet descriptor with datagram base address and length
+    p_rx_wc_buf_desc->path.rx.frag.iov_base = (uint8_t*)p_udp_h + sizeof(struct udphdr);
+    p_rx_wc_buf_desc->path.rx.frag.iov_len  = ip_tot_len - ip_hdr_len - sizeof(struct udphdr);
+
+    // Update the L4 info
+    p_rx_wc_buf_desc->path.rx.src.sin_port        = p_udp_h->source;
+    p_rx_wc_buf_desc->path.rx.dst.sin_port        = p_udp_h->dest;
+    p_rx_wc_buf_desc->path.rx.sz_payload          = sz_payload;
+
+    // Find the relevant hash map and pass the packet to the rfs for dispatching
+    if (!(IN_MULTICAST_N(p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr))) {	// This is UDP UC packet
+        p_rfs = m_flow_udp_uc_map.get((flow_spec_udp_uc_key_t){p_rx_wc_buf_desc->path.rx.dst.sin_port}, NULL);
+    } else {	// This is UDP MC packet
+        p_rfs = m_flow_udp_mc_map.get((flow_spec_udp_mc_key_t){p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr,
+                p_rx_wc_buf_desc->path.rx.dst.sin_port}, NULL);
+    }
+    return p_rfs;
+}
+
+rfs *ring_simple::find_tcp_flow(mem_buf_desc_t *p_rx_wc_buf_desc, struct iphdr* p_ip_h, 
+                                uint16_t ip_hdr_len, uint16_t ip_tot_len)
+{
+    // Get the tcp header pointer + tcp payload size
+    rfs *p_rfs;
+    struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
+    size_t sz_payload = ip_tot_len - ip_hdr_len - p_tcp_h->doff*4;
+
+    ring_logfunc("Rx TCP segment info: src_port=%d, dst_port=%d, flags='%s%s%s%s%s%s' seq=%u, ack=%u, win=%u, payload_sz=%u",
+            ntohs(p_tcp_h->source), ntohs(p_tcp_h->dest),
+            p_tcp_h->urg?"U":"", p_tcp_h->ack?"A":"", p_tcp_h->psh?"P":"",
+            p_tcp_h->rst?"R":"", p_tcp_h->syn?"S":"", p_tcp_h->fin?"F":"",
+            ntohl(p_tcp_h->seq), ntohl(p_tcp_h->ack_seq), ntohs(p_tcp_h->window),
+            sz_payload);
+
+    // Update packet descriptor with datagram base address and length
+    p_rx_wc_buf_desc->path.rx.frag.iov_base = (uint8_t*)p_tcp_h + sizeof(struct tcphdr);
+    p_rx_wc_buf_desc->path.rx.frag.iov_len  = ip_tot_len - ip_hdr_len - sizeof(struct tcphdr);
+
+    // Update the L4 info
+    p_rx_wc_buf_desc->path.rx.src.sin_port        = p_tcp_h->source;
+    p_rx_wc_buf_desc->path.rx.dst.sin_port        = p_tcp_h->dest;
+    p_rx_wc_buf_desc->path.rx.sz_payload          = sz_payload;
+
+    p_rx_wc_buf_desc->path.rx.p_ip_h = p_ip_h;
+    p_rx_wc_buf_desc->path.rx.p_tcp_h = p_tcp_h;
+
+    // Find the relevant hash map and pass the packet to the rfs for dispatching
+    p_rfs = m_flow_tcp_map.get((flow_spec_tcp_key_t){p_rx_wc_buf_desc->path.rx.src.sin_addr.s_addr,
+            p_rx_wc_buf_desc->path.rx.dst.sin_port, p_rx_wc_buf_desc->path.rx.src.sin_port}, NULL);
+
+    p_rx_wc_buf_desc->transport_header_len = ETH_HDR_LEN; // AM_TODO: do we need this here
+
+    if (unlikely(p_rfs == NULL)) {	// If we didn't find a match for TCP 5T, look for a match with TCP 3T
+        p_rfs = m_flow_tcp_map.get((flow_spec_tcp_key_t){0, p_rx_wc_buf_desc->path.rx.dst.sin_port, 0}, NULL);
+    }
+    return p_rfs;
+}
+
+void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_buf_desc)
 {
 	//size_t sz_data = 0;
-	size_t transport_header_len = 0;
-	uint16_t ip_hdr_len = 0;
-	uint16_t ip_tot_len = 0;
-	uint16_t ip_frag_off = 0;
-	uint16_t n_frag_offset = 0;
-	struct iphdr* p_ip_h = NULL;
-	struct udphdr* p_udp_h = NULL;
-	in_addr_t local_addr = p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr;
+	const size_t transport_header_len = ETH_HDR_LEN;
+	uint16_t ip_hdr_len;
+	uint16_t ip_tot_len;
+	//uint16_t ip_frag_off;
+	//uint16_t n_frag_offset;
+	struct iphdr* p_ip_h;
+	rfs *p_rfs;
+    // alexm: used only for debugging - do not take it every time
+	//in_addr_t local_addr = p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr;
 
 
-	NOT_IN_USE(ip_tot_len);
-	NOT_IN_USE(ip_frag_off);
-	NOT_IN_USE(n_frag_offset);
-	NOT_IN_USE(p_udp_h);
-	NOT_IN_USE(local_addr);
-
-	if (likely(p_rfs_single_tcp)) {
-		// we have a single 5tuple TCP connected socket, use simpler fast path
-		transport_header_len = ETH_HDR_LEN;
-		p_ip_h = (struct iphdr*)(p_rx_wc_buf_desc->p_buffer + transport_header_len);
-		ip_hdr_len = 20; //(int)(p_ip_h->ihl)*4;
-		struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
-		p_rx_wc_buf_desc->path.rx.p_ip_h        = p_ip_h;
-		p_rx_wc_buf_desc->path.rx.p_tcp_h       = p_tcp_h;
-		p_rx_wc_buf_desc->transport_header_len  = transport_header_len;
-		p_rx_wc_buf_desc->path.rx.vma_polled = true;
-		p_rfs_single_tcp->rx_dispatch_packet(p_rx_wc_buf_desc, &m_vma_comp_arr[m_vma_curr_comp_index]);
-		p_rx_wc_buf_desc->path.rx.vma_polled = false;
-		return;
-	}
+	//NOT_IN_USE(ip_tot_len);
+	//NOT_IN_USE(ip_frag_off);
+	//NOT_IN_USE(n_frag_offset);
+	//NOT_IN_USE(local_addr);
 
 	// This is an internal function (within ring and 'friends'). No need for lock mechanism.
+    if (unlikely(p_rfs_single_tcp)) {
+        printf("single tcp vma_poll process buffer %p\n", p_rfs_single_tcp);
+        while(1) { sleep(1); }
+    }
 
 	// Validate buffer size
 	size_t sz_data = p_rx_wc_buf_desc->sz_data;
+
+#if RX_FULL_CHECKS
 	if (unlikely(sz_data > p_rx_wc_buf_desc->sz_buffer)) {
 		if (sz_data == IP_FRAG_FREED) {
 			ring_logfuncall("Rx buffer dropped - old fragment part");
@@ -662,6 +724,8 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 		}
 		return;
 	}
+#endif
+
 
 	m_cq_moderation_info.bytes += sz_data;
 	++m_cq_moderation_info.packets;
@@ -672,6 +736,7 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 	// Validate transport type headers
 
 	// Get the data buffer start pointer to the Ethernet header pointer
+#if RX_FULL_CHECKS
 	struct ethhdr* p_eth_h = (struct ethhdr*)(p_rx_wc_buf_desc->p_buffer);
 	ring_logfunc("Rx buffer Ethernet dst=" ETH_HW_ADDR_PRINT_FMT " <- src=" ETH_HW_ADDR_PRINT_FMT " type=%#x",
 			ETH_HW_ADDR_PRINT_ADDR(p_eth_h->h_dest),
@@ -690,8 +755,10 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 		p_h_proto = &p_vlan_hdr->h_vlan_encapsulated_proto;
 		packet_vlan = (htons(p_vlan_hdr->h_vlan_TCI) & VLAN_VID_MASK);
 	}
+#endif
 
 	//TODO: Remove this code when handling vlan in flow steering will be available. Change this code if vlan stripping is performed.
+#if RX_FULL_CHECKS
 	if((m_partition & VLAN_VID_MASK) != packet_vlan) {
 		ring_logfunc("Rx buffer dropped- Mismatched vlan. Packet vlan = %d, Local vlan = %d", packet_vlan, m_partition & VLAN_VID_MASK);
 		return;
@@ -702,7 +769,7 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 		ring_logwarn("Rx buffer dropped - Invalid Ethr Type (%#x : %#x)", p_eth_h->h_proto, htons(ETH_P_IP));
 		return;
 	}
-
+#endif
 
 
 	// Jump to IP header - Skip IB (GRH and IPoIB) or Ethernet (MAC) header sizes
@@ -718,26 +785,34 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 	p_ip_h = (struct iphdr*)(p_rx_wc_buf_desc->p_buffer + transport_header_len);
 
 	// Drop all non IPv4 packets
+#if RX_FULL_CHECKS
 	if (unlikely(p_ip_h->version != IPV4_VERSION)) {
 		ring_logwarn("Rx packet dropped - not IPV4 packet (got version: %#x)", p_ip_h->version);
 		return;
 	}
+#endif
 
 	// Check that received buffer size is not smaller then the ip datagram total size
 	ip_tot_len = ntohs(p_ip_h->tot_len);
+#if RX_FULL_CHECKS
 	if (unlikely(sz_data < ip_tot_len)) {
 		ring_logwarn("Rx packet dropped - buffer too small for received datagram (RxBuf:%d IP:%d)", sz_data, ip_tot_len);
 		ring_loginfo("Rx packet info (buf->%p, bufsize=%d), id=%d", p_rx_wc_buf_desc->p_buffer, p_rx_wc_buf_desc->sz_data, ntohs(p_ip_h->id));
 		vlog_print_buffer(VLOG_INFO, "rx packet data: ", "\n", (const char*)p_rx_wc_buf_desc->p_buffer, min(112, (int)p_rx_wc_buf_desc->sz_data));
 		return;
-	} else if (sz_data > ip_tot_len) {
+	}
+#endif
+
+    if (unlikely(sz_data > ip_tot_len)) {
 		p_rx_wc_buf_desc->sz_data -= (sz_data - ip_tot_len);
 		sz_data = ip_tot_len;
 	}
 
 	// Read fragmentation parameters
+#if RX_FULL_CHECKS
 	ip_frag_off = ntohs(p_ip_h->frag_off);
 	n_frag_offset = (ip_frag_off & FRAGMENT_OFFSET) * 8;
+#endif
 
 	ring_logfunc("Rx ip packet info: dst=%d.%d.%d.%d, src=%d.%d.%d.%d, packet_sz=%d, offset=%d, id=%d, proto=%s[%d] (local if: %d.%d.%d.%d)",
 			NIPQUAD(p_ip_h->daddr), NIPQUAD(p_ip_h->saddr),
@@ -747,13 +822,16 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 
 	// Check that the ip datagram has at least the udp header size for the first ip fragment (besides the ip header)
 	ip_hdr_len = (int)(p_ip_h->ihl)*4;
+#if RX_FULL_CHECKS
 	if (unlikely((n_frag_offset == 0) && (ip_tot_len < (ip_hdr_len + sizeof(struct udphdr))))) {
 		ring_logwarn("Rx packet dropped - ip packet too small (%d bytes)- udp header cut!", ip_tot_len);
 		return;
 	}
+#endif
 
 	// Handle fragmentation
 	p_rx_wc_buf_desc->n_frags = 1;
+#if RX_FULL_CHECKS
 	if (unlikely((ip_frag_off & MORE_FRAGMENTS_FLAG) || n_frag_offset)) { // Currently we don't expect to receive fragments
 		//for disabled fragments handling:
 		/*ring_logwarn("Rx packet dropped - VMA doesn't support fragmentation in receive flow!");
@@ -791,6 +869,7 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 		}
 #endif
 	}
+#endif
 
 //We want to enable loopback between processes for IB
 #if 0
@@ -800,84 +879,25 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 		return false;
 	}
 #endif
-	rfs *p_rfs = NULL;
 
 	// Update the L3 info
+    // TODO: check if LWIP duplicates path info
 	p_rx_wc_buf_desc->path.rx.src.sin_family      = AF_INET;
 	p_rx_wc_buf_desc->path.rx.src.sin_addr.s_addr = p_ip_h->saddr;
 	p_rx_wc_buf_desc->path.rx.dst.sin_family      = AF_INET;
 	p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr = p_ip_h->daddr;
 	p_rx_wc_buf_desc->path.rx.local_if            = m_local_if;
 
-	switch (p_ip_h->protocol) {
-	case IPPROTO_UDP:
-	{
-		// Get the udp header pointer + udp payload size
-		p_udp_h = (struct udphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
-		size_t sz_payload = ntohs(p_udp_h->len) - sizeof(struct udphdr);
-		ring_logfunc("Rx udp datagram info: src_port=%d, dst_port=%d, payload_sz=%d, csum=%#x",
-				ntohs(p_udp_h->source), ntohs(p_udp_h->dest), sz_payload, p_udp_h->check);
-
-		// Update packet descriptor with datagram base address and length
-		p_rx_wc_buf_desc->path.rx.frag.iov_base = (uint8_t*)p_udp_h + sizeof(struct udphdr);
-		p_rx_wc_buf_desc->path.rx.frag.iov_len  = ip_tot_len - ip_hdr_len - sizeof(struct udphdr);
-
-		// Update the L4 info
-		p_rx_wc_buf_desc->path.rx.src.sin_port        = p_udp_h->source;
-		p_rx_wc_buf_desc->path.rx.dst.sin_port        = p_udp_h->dest;
-		p_rx_wc_buf_desc->path.rx.sz_payload          = sz_payload;
-
-		// Find the relevant hash map and pass the packet to the rfs for dispatching
-		if (!(IN_MULTICAST_N(p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr))) {	// This is UDP UC packet
-			p_rfs = m_flow_udp_uc_map.get((flow_spec_udp_uc_key_t){p_rx_wc_buf_desc->path.rx.dst.sin_port}, NULL);
-		} else {	// This is UDP MC packet
-			p_rfs = m_flow_udp_mc_map.get((flow_spec_udp_mc_key_t){p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr,
-				p_rx_wc_buf_desc->path.rx.dst.sin_port}, NULL);
-		}
-	}
-	break;
-
-	case IPPROTO_TCP:
-	{
-		// Get the tcp header pointer + tcp payload size
-		struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
-		size_t sz_payload = ip_tot_len - ip_hdr_len - p_tcp_h->doff*4;
-		ring_logfunc("Rx TCP segment info: src_port=%d, dst_port=%d, flags='%s%s%s%s%s%s' seq=%u, ack=%u, win=%u, payload_sz=%u",
-				ntohs(p_tcp_h->source), ntohs(p_tcp_h->dest),
-				p_tcp_h->urg?"U":"", p_tcp_h->ack?"A":"", p_tcp_h->psh?"P":"",
-				p_tcp_h->rst?"R":"", p_tcp_h->syn?"S":"", p_tcp_h->fin?"F":"",
-				ntohl(p_tcp_h->seq), ntohl(p_tcp_h->ack_seq), ntohs(p_tcp_h->window),
-				sz_payload);
-
-		// Update packet descriptor with datagram base address and length
-		p_rx_wc_buf_desc->path.rx.frag.iov_base = (uint8_t*)p_tcp_h + sizeof(struct tcphdr);
-		p_rx_wc_buf_desc->path.rx.frag.iov_len  = ip_tot_len - ip_hdr_len - sizeof(struct tcphdr);
-
-		// Update the L4 info
-		p_rx_wc_buf_desc->path.rx.src.sin_port        = p_tcp_h->source;
-		p_rx_wc_buf_desc->path.rx.dst.sin_port        = p_tcp_h->dest;
-		p_rx_wc_buf_desc->path.rx.sz_payload          = sz_payload;
-
-		p_rx_wc_buf_desc->path.rx.p_ip_h = p_ip_h;
-		p_rx_wc_buf_desc->path.rx.p_tcp_h = p_tcp_h;
-
-		// Find the relevant hash map and pass the packet to the rfs for dispatching
-		p_rfs = m_flow_tcp_map.get((flow_spec_tcp_key_t){p_rx_wc_buf_desc->path.rx.src.sin_addr.s_addr,
-			p_rx_wc_buf_desc->path.rx.dst.sin_port, p_rx_wc_buf_desc->path.rx.src.sin_port}, NULL);
-
-		p_rx_wc_buf_desc->transport_header_len = transport_header_len;
-
-		if (unlikely(p_rfs == NULL)) {	// If we didn't find a match for TCP 5T, look for a match with TCP 3T
-			p_rfs = m_flow_tcp_map.get((flow_spec_tcp_key_t){0, p_rx_wc_buf_desc->path.rx.dst.sin_port, 0}, NULL);
-		}
-	}
-	break;
-
-	default:
+	if (likely(p_ip_h->protocol == IPPROTO_TCP)) {
+        p_rfs = find_tcp_flow(p_rx_wc_buf_desc, p_ip_h, ip_hdr_len, ip_tot_len);
+    } else if (p_ip_h->protocol == IPPROTO_UDP) {
+        p_rfs = find_udp_flow(p_rx_wc_buf_desc, p_ip_h, ip_hdr_len, ip_tot_len);
+    } else {
 		ring_logwarn("Rx packet dropped - undefined protocol = %d", p_ip_h->protocol);
 		return;
 	}
 
+#if RX_FULL_CHECKS
 	if (unlikely(p_rfs == NULL)) {
 		ring_logdbg("Rx packet dropped - rfs object not found: dst:%d.%d.%d.%d:%d, src%d.%d.%d.%d:%d, proto=%s[%d]",
 				NIPQUAD(p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr), ntohs(p_rx_wc_buf_desc->path.rx.dst.sin_port),
@@ -886,7 +906,10 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 
 		return;
 	}
+#endif
+
 	p_rx_wc_buf_desc->path.rx.vma_polled = true;
+    // AM_TODO: virtual call
 	p_rfs->rx_dispatch_packet(p_rx_wc_buf_desc, &m_vma_comp_arr[m_vma_curr_comp_index]);
 	p_rx_wc_buf_desc->path.rx.vma_polled = false;
 }
@@ -917,6 +940,10 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 	NOT_IN_USE(transport_type);
 
 
+    if (p_rfs_single_tcp) {
+        printf("process buffer %p\n", p_rfs_single_tcp);
+        while(1) { sleep(1); }
+    }
 	if (likely(p_rfs_single_tcp)) {
 		// we have a single 5tuple TCP connected socket, use simpler fast path
 		transport_header_len = ETH_HDR_LEN;
@@ -1175,6 +1202,7 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 	case IPPROTO_IGMP:
 	{
 		struct igmp* p_igmp_h= (struct igmp*)((uint8_t*)p_ip_h + ip_hdr_len);
+        NOT_IN_USE(p_igmp_h);
 		ring_logdbg("Rx IGMP packet info: type=%s (%d), group=%d.%d.%d.%d, code=%d",
 				priv_igmp_type_tostr(p_igmp_h->igmp_type), p_igmp_h->igmp_type,
 				NIPQUAD(p_igmp_h->igmp_group.s_addr), p_igmp_h->igmp_code);
