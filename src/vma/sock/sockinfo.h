@@ -150,10 +150,13 @@ protected:
 	// Callback function pointer to support VMA extra API (vma_extra.h)
 	vma_recv_callback_t	m_rx_callback;
 	void*			m_rx_callback_context; // user context
+	void*			m_fd_context;
 
 	virtual void 		set_blocking(bool is_blocked);
 	virtual int 		fcntl(int __cmd, unsigned long int __arg) throw (vma_error);
 	virtual int 		ioctl(unsigned long int __request, unsigned long int __arg) throw (vma_error);
+	virtual int setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen) throw (vma_error);
+	virtual int getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen) throw (vma_error);
 
 	virtual	mem_buf_desc_t* get_front_m_rx_pkt_ready_list() = 0;
 	virtual	size_t get_size_m_rx_pkt_ready_list() = 0;

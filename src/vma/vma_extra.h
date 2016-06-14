@@ -17,11 +17,18 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <netinet/in.h>
+
 /*
  * Flags for recvfrom_zcopy()
  */
 #define MSG_VMA_ZCOPY_FORCE	0x01000000 // don't fallback to bcopy
 #define	MSG_VMA_ZCOPY		0x00040000 // return: zero copy was done
+
+/*
+ * Options for setsockopt()/getsockopt()
+ */
+#define SO_VMA_GET_API       2800
+#define SO_VMA_USER_DATA     2801
 
 /* 
  * Return values for the receive packet notify callback function
@@ -37,8 +44,6 @@ typedef enum {
 	                        must return the descriptor to VMA using the free_packet function
 				But not in the context of VMA's callback itself. */
 } vma_recv_callback_retval_t;
-
-
 
 
 /************ vma_poll() API types definition start***************/
@@ -72,12 +77,22 @@ struct vma_packet_desc_t {
  * Used in vma_poll() extended API.
  */
 struct vma_completion_t {
-	struct vma_packet_desc_t	packet;	/* polled packet valid only if VMA_POLL_PACKET event is enabled*/
-	uint64_t 		events;	/* polled events */
-	uint64_t 		user_data;	/*user provided data, by default this field holds the
-						  FD of the socket that is associated if the completion */
-	/* Packet source address (in network byte order) Reserved for type == VMA_COMPLETION_TYPE_EVENT*/
-	struct sockaddr_in	src;
+	/* Packet is valid in case VMA_POLL_PACKET event is set
+         */
+	struct vma_packet_desc_t packet;
+	/* Set of events
+         */
+	uint64_t                 events;
+	/* User provided data.
+         * By default this field has FD of the socket
+         * User is able to change the content using setsockopt()
+         * with level argument SOL_SOCKET and opname as SO_VMA_USER_DATA
+         */ 
+	uint64_t                 user_data;
+	/* Packet source address (in network byte order)
+         * Reserved for type == VMA_COMPLETION_TYPE_EVENT
+         */
+	struct sockaddr_in       src;
 };
 
 /************ vma_poll() API types definition end ***************/
@@ -357,8 +372,6 @@ struct __attribute__ ((packed)) vma_api_t {
 
 };
 
-
-#define SO_VMA_GET_API				2800
 
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off

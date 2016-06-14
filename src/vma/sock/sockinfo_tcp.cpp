@@ -1249,7 +1249,7 @@ err_t sockinfo_tcp::ack_recvd_lwip_cb(void *arg, struct tcp_pcb *tpcb, u16_t ack
 void sockinfo_tcp::prepare_event_completion(sockinfo_tcp *conn, uint64_t events)
 {
 	if (!conn->m_p_vma_completion->events) {
-		conn->m_p_vma_completion->user_data = conn->m_fd;
+		conn->m_p_vma_completion->user_data = (uint64_t)conn->m_fd_context;
 	}
 
 	conn->m_p_vma_completion->events |= events;
@@ -1386,7 +1386,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 			conn->m_p_vma_completion->packet.total_len = p->tot_len;
 			conn->m_p_vma_completion->events |= VMA_POLL_PACKET;
 			conn->m_p_vma_completion->src = p_first_desc->path.rx.src;
-			conn->m_p_vma_completion->user_data = conn->m_fd;
+			conn->m_p_vma_completion->user_data = (uint64_t)conn->m_fd_context;
 			conn->m_p_vma_completion->packet.num_bufs = p_first_desc->n_frags;
 		}
 		else {
@@ -3148,6 +3148,13 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 	int val, ret = 0;
 	bool supported = true;
 
+	/* Process VMA specific options only at the moment
+	 * VMA option does not require additional processing after return
+	 */
+	if (0 == sockinfo::setsockopt(__level, __optname, __optval, __optlen)) {
+		return 0;
+	}
+
 	if (__level == IPPROTO_TCP) {
 		switch(__optname) {
 		case TCP_NODELAY:
@@ -3291,6 +3298,13 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 	if (!__optval || !__optlen) {
 		errno = EFAULT;
 		return ret;
+	}
+
+	/* Process VMA specific options only at the moment
+	 * VMA option does not require additional processing after return
+	 */
+	if (0 == sockinfo::getsockopt(__level, __optname, __optval, __optlen)) {
+		return 0;
 	}
 
 	if (__level == IPPROTO_TCP) {

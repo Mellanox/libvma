@@ -676,10 +676,19 @@ int sockinfo_udp::on_sockname_change(struct sockaddr *__name, socklen_t __namele
 ////////////////////////////////////////////////////////////////////////////////
 int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval, socklen_t __optlen) throw (vma_error)
 {
+	int ret = 0;
+
 	si_udp_logfunc("level=%d, optname=%d", __level, __optname);
 
 	if (unlikely(m_b_closed) || unlikely(g_b_exit))
 		return orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
+
+	/* Process VMA specific options only at the moment
+	 * VMA option does not require additional processing after return
+	 */
+	if (0 == sockinfo::setsockopt(__level, __optname, __optval, __optlen)) {
+		return 0;
+	}
 
 	auto_unlocker lock_tx(m_lock_snd);
 	auto_unlocker lock_rx(m_lock_rcv);
@@ -966,7 +975,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 				// offloaded, check if need to pend
 				else if (m_bound.get_in_port() == INPORT_ANY) {
 					// Delay attaching to this MC group until we have bound UDP port
-					int ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
+					ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
 					if (ret) return ret;
 					mc_change_pending_mreq(&mreq, __optname);
 				}
@@ -977,7 +986,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 				}
 
 				if (goto_os) {
-					int ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
+					ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
 					if (ret) return ret;
 				}
 
@@ -1078,6 +1087,13 @@ int sockinfo_udp::getsockopt(int __level, int __optname, void *__optval, socklen
 
 	if (unlikely(m_b_closed) || unlikely(g_b_exit))
 		return ret;
+
+	/* Process VMA specific options only at the moment
+	 * VMA option does not require additional processing after return
+	 */
+	if (0 == sockinfo::getsockopt(__level, __optname, __optval, __optlen)) {
+		return 0;
+	}
 
 	auto_unlocker lock_tx(m_lock_snd);
 	auto_unlocker lock_rx(m_lock_rcv);
