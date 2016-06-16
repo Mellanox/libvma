@@ -582,7 +582,7 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 		si_udp_logdbg("bound to %s", m_bound.to_str());
 		in_port_t src_port = m_bound.get_in_port();
 
-		if (TRANS_VMA != find_target_family(ROLE_UDP_CONNECT, m_connected.get_p_sa(), m_bound.get_p_sa())) {
+		if (TRANS_VMA != find_target_family(ROLE_UDP_SENDER, m_connected.get_p_sa(), m_bound.get_p_sa())) {
 			setPassthrough();
 			return 0;
 		}
@@ -1569,6 +1569,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 #endif
 
 	if (__dst != NULL) {
+	
 		if (unlikely(__dstlen < sizeof(struct sockaddr_in))) {
 			si_udp_logdbg("going to os, dstlen < sizeof(struct sockaddr_in), dstlen = %d", __dstlen);
 			goto tx_packet_to_os;
@@ -1581,9 +1582,14 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 			si_udp_logdbg("MSG_OOB not supported in UDP (tx-ing to os)");
 			goto tx_packet_to_os;
 		}
-
+		
 		sock_addr dst((struct sockaddr*)__dst);
-
+	
+		if (TRANS_VMA != find_target_family(ROLE_UDP_SENDER, dst.get_p_sa(), m_bound.get_p_sa())) {
+			setPassthrough();
+			goto tx_packet_to_os;
+		}	
+		
 		if (dst == m_last_sock_addr && m_p_last_dst_entry) {
 			p_dst_entry = m_p_last_dst_entry;
 		} else {
