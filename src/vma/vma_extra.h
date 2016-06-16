@@ -49,7 +49,8 @@ typedef enum {
 /************ vma_poll() API types definition start***************/
 
 typedef enum {
-    VMA_POLL_PACKET = (1ULL << 32)
+    VMA_POLL_PACKET 			= (1ULL << 32), /* New packet is available */
+    VMA_POLL_NEW_CONNECTION_ACCEPTED	= (1ULL << 33)  /* New connection is auto accepted by server */
 } vma_poll_events_t;
 
 /*
@@ -57,7 +58,7 @@ typedef enum {
  * Used in vma_poll() extended API.
  */
 struct vma_buff_t {
-	struct vma_buff_t*	next;			/* next buffer (for last buffer next == NULL) */
+	struct vma_buff_t*	next;		/* next buffer (for last buffer next == NULL) */
 	void*		payload;		/* pointer to data */
 	uint16_t	len;			/* data length */
 };
@@ -89,9 +90,10 @@ struct vma_completion_t {
          * with level argument SOL_SOCKET and opname as SO_VMA_USER_DATA
          */ 
 	uint64_t                 user_data;
-	/* Packet source address (in network byte order)
-         * Reserved for type == VMA_COMPLETION_TYPE_EVENT
-         */
+	
+	/* Source address (in network byte order) set for:
+	 * VMA_POLL_PACKET and VMA_POLL_NEW_CONNECTION_ACCEPTED events
+	 */
 	struct sockaddr_in       src;
 };
 
@@ -277,9 +279,18 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * reserved.
 	 *
 	 * In addition to packet arrival event (indicated by VMA_POLL_PACKET flag)
-	 * VMA also reports a standard epoll events via vma_completion_t.events field.
-	 * For events other than packet arrival vma_completion_t.events bitmask
-	 * composed using standard epoll API events types.
+	 * VMA also reports VMA_POLL_NEW_CONNECTION_ACCEPTED event and standard
+	 * epoll events via vma_completion_t.events field.
+	 * VMA_POLL_NEW_CONNECTION_ACCEPTED event is reported when new connection is
+	 * accepted by the server.
+	 * When working with vma_poll() new connections are accepted
+	 * automatically and accept(listen_socket) must not be called.
+	 * VMA_POLL_NEW_CONNECTION_ACCEPTED event is reported for the new
+	 * connected/child socket (vma_completion_t.user_data refers to child socket)
+	 * and EPOLLIN event is not generated for the listen socket.
+	 * For events other than packet arrival and new connection acceptance
+	 * vma_completion_t.events bitmask composed using standard epoll API
+	 * events types.
 	 * Notice: the same completion can report multiple events, for example
 	 * VMA_POLL_PACKET flag can be enabled together with EPOLLOUT event,
 	 * etc...

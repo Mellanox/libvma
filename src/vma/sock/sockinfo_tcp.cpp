@@ -1717,14 +1717,16 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	sock->m_vma_thr = false;
 
 	if (sock != this) {
+		if (unlikely(sock->m_p_vma_completion)) {
+			sock->m_p_vma_completion = NULL;
+			sock->m_last_poll_vma_buff_lst = NULL;
+		}
 		sock->m_tcp_con_lock.unlock();
 	}
 
 	m_iomux_ready_fd_array = NULL;
 	m_p_vma_completion = NULL;
 	m_last_poll_vma_buff_lst = NULL;
-
-	m_last_cmp = NULL;
 
 	while (dropped_count--) {
 		mem_buf_desc_t* p_rx_pkt_desc = m_rx_cb_dropped_list.front();
@@ -2392,6 +2394,41 @@ sockinfo_tcp *sockinfo_tcp::accept_clone()
         return si;
 }
 
+//Must be taken under parent's tcp connection lock
+void sockinfo_tcp::auto_accept_connection(sockinfo_tcp *parent, sockinfo_tcp *child)
+{
+	tcp_accepted(parent->m_sock);
+
+	struct flow_tuple key;
+	sockinfo_tcp::create_flow_tuple_key_from_pcb(key, &(child->m_pcb));
+
+	//Since pcb is already contained in connected sockinfo_tcp no need to keep it listen's socket SYN list
+	if (!parent->m_syn_received.erase(key)) {
+		//Should we worry about that?
+		vlog_printf(VLOG_DEBUG, "%s:%d: Can't find the established pcb in syn received list\n", __func__, __LINE__);
+	}
+	else {
+		parent->m_received_syn_num--;
+	}
+
+	parent->unlock_tcp_con();
+	child->lock_tcp_con();
+
+	child->m_p_socket_stats->connected_ip = child->m_connected.get_in_addr();
+	child->m_p_socket_stats->connected_port = child->m_connected.get_in_port();
+	child->m_p_socket_stats->bound_if = child->m_bound.get_in_addr();
+	child->m_p_socket_stats->bound_port = child->m_bound.get_in_port();
+
+	//Notifies: about new auto accepted connection
+	child->m_p_vma_completion = parent->m_p_vma_completion;
+	child->m_connected.get_sa(child->m_p_vma_completion->src);
+	prepare_event_completion(child, VMA_POLL_NEW_CONNECTION_ACCEPTED);
+
+	child->unlock_tcp_con();
+	parent->lock_tcp_con();
+
+	vlog_printf(VLOG_DEBUG, "CONN AUTO ACCEPTED: TCP PCB FLAGS: acceptor:0x%x newsock: fd=%d 0x%x new state: %d\n", parent->m_pcb.flags, child->m_fd, child->m_pcb.flags, get_tcp_state(&child->m_pcb));
+}
 
 err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t err)
 {
@@ -2481,13 +2518,13 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 
 	//todo check that listen socket was not closed by now ? (is_server())
 	conn->m_ready_pcbs.erase(&new_sock->m_pcb);
-	conn->m_accepted_conns.push_back(new_sock);
-	conn->m_ready_conn_cnt++;
 
 	if (conn->m_p_vma_completion) {
-		prepare_event_completion(conn, EPOLLIN);
+		auto_accept_connection(conn, new_sock);
 	}
 	else {
+		conn->m_accepted_conns.push_back(new_sock);
+		conn->m_ready_conn_cnt++;
 		conn->notify_epoll_context(EPOLLIN);
 		//OLG: Now we should wakeup all threads that are sleeping on this socket.
 		conn->do_wakeup();

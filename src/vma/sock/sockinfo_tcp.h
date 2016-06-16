@@ -206,7 +206,6 @@ protected:
 
 private:
 	vma_completion_t* m_p_vma_completion;
-	vma_completion_t* m_last_cmp;
 	vma_buff_t* m_last_poll_vma_buff_lst;
 	//lwip specific things
 	struct tcp_pcb m_pcb;
@@ -278,6 +277,9 @@ private:
 
 	//Builds rfs key
 	static void create_flow_tuple_key_from_pcb(flow_tuple &key, struct tcp_pcb *pcb);
+
+	//auto accept function
+	static void auto_accept_connection(sockinfo_tcp *parent, sockinfo_tcp *child);
 
 	// accept cb func
 	static err_t accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t err);
