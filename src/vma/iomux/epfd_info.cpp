@@ -350,6 +350,9 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 		if (events != 0) {
 			insert_epoll_event(fd, events); // mutex is recursive
 		}
+		else{
+			do_wakeup();
+		}
 	}
 	__log_func("fd %d added in epfd %d with events=%#x and data=%#x", 
 		   fd, m_epfd, event->events, event->data);
@@ -616,7 +619,6 @@ void epfd_info::insert_epoll_event(int fd, uint32_t event_flags)
 			m_ready_fds.push_back(sock_fd);
 		}
 	}
-
 	do_wakeup();
 }
 
