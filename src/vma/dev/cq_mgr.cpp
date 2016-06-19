@@ -1158,7 +1158,11 @@ bool cq_mgr::reclaim_recv_buffers(descq_t *rx_reuse)
 	return true;
 }
 
-int cq_mgr::drain_and_proccess(bool b_recycle_buffers /*=false*/)
+//
+// @OUT: p_recycle_buffers_last_wr_id	Returns the final WR_ID handled. When set, this indicates this is a CQE drain flow.
+// @OUT:				returns total number of processes CQE's
+//
+int cq_mgr::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/)
 {
 	cq_logfuncall("cq was %s drained. %d processed wce since last check. %d wce in m_rx_queue", (m_b_was_drained?"":"not "), m_n_wce_counter, m_rx_queue.size());
 
@@ -1177,8 +1181,9 @@ int cq_mgr::drain_and_proccess(bool b_recycle_buffers /*=false*/)
 	uint32_t ret_total = 0;
 	//uint64_t cq_poll_sn = 0;
 
-	if (b_recycle_buffers)
+	if (p_recycle_buffers_last_wr_id != NULL) {
 		m_b_was_drained = false;
+	}
 
 	while ((safe_mce_sys().progress_engine_wce_max && (safe_mce_sys().progress_engine_wce_max > m_n_wce_counter)) && 
 		!m_b_was_drained) {
@@ -1238,7 +1243,7 @@ int cq_mgr::drain_and_proccess(bool b_recycle_buffers /*=false*/)
 
 			m_rx_hot_buff = process_cq_element_rx(&wce);
 			if (m_rx_hot_buff) {
-				if (b_recycle_buffers) {
+				if (p_recycle_buffers_last_wr_id) {
 					m_p_cq_stat->n_rx_pkt_drop++;
 					reclaim_recv_buffer_helper(m_rx_hot_buff);
 				} else {
@@ -1257,7 +1262,7 @@ int cq_mgr::drain_and_proccess(bool b_recycle_buffers /*=false*/)
 							process_recv_buffer(m_rx_hot_buff, NULL);
 						}
 					}
-					else { //udp/ip traffic we just put in the cq's rx queueu
+					else { //udp/ip traffic we just put in the cq's rx queue
 						m_rx_queue.push_back(m_rx_hot_buff);
 						mem_buf_desc_t* buff_cur = m_rx_queue.front();
 						m_rx_queue.pop_front();
@@ -1267,6 +1272,9 @@ int cq_mgr::drain_and_proccess(bool b_recycle_buffers /*=false*/)
 						}
 					}
 				}
+			}
+			if (p_recycle_buffers_last_wr_id) {
+				*p_recycle_buffers_last_wr_id = (uintptr_t)wce.wr_id;
 			}
 		}
 		ret_total += ret;
