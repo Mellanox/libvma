@@ -66,7 +66,7 @@ qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context, const
 	m_qp(NULL), m_p_ring((ring_simple*)p_ring), m_port_num((uint8_t)port_num), m_p_ib_ctx_handler((ib_ctx_handler*)p_context),
 	m_p_ahc_head(NULL), m_p_ahc_tail(NULL), m_max_inline_data(0), m_max_qp_wr(0), m_p_cq_mgr_rx(NULL), m_p_cq_mgr_tx(NULL),
 	m_rx_num_wr(safe_mce_sys().rx_num_wr), m_tx_num_wr(tx_num_wr), m_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv), 
-	m_curr_rx_wr(0), m_n_unsignaled_count(0), m_n_tx_count(0), m_p_last_tx_mem_buf_desc(NULL), m_p_prev_rx_desc_pushed(NULL),
+	m_curr_rx_wr(0), m_last_posted_rx_wr_id(0), m_n_unsignaled_count(0), m_n_tx_count(0), m_p_last_tx_mem_buf_desc(NULL), m_p_prev_rx_desc_pushed(NULL),
 	m_n_ip_id_base(0), m_n_ip_id_offset(0)
 {
 	m_ibv_rx_sg_array = new ibv_sge[m_rx_num_wr_to_post_recv];
@@ -221,7 +221,7 @@ void qp_mgr::down()
 	trigger_completion_for_all_sent_packets();
 
 	// let the QP drain all wqe's to flushed cqe's now that we moved 
-	// it to error state and post_sent final trigger for complition
+	// it to error state and post_sent final trigger for completion
 	usleep(1000);
 
 	release_tx_buffers();
@@ -269,7 +269,6 @@ void qp_mgr::modify_qp_to_error_state()
 
 void qp_mgr::release_rx_buffers()
 {
-	int ret = 0;
 	int total_ret = m_curr_rx_wr;
 	if (m_curr_rx_wr) {
 		qp_logdbg("Returning %d pending post_recv buffers to CQ owner", m_curr_rx_wr);
@@ -285,11 +284,21 @@ void qp_mgr::release_rx_buffers()
 		}
 	}
 
-	qp_logdbg("draining rx cq_mgr %p", m_p_cq_mgr_rx);
-	while (m_p_cq_mgr_rx && (ret = m_p_cq_mgr_rx->drain_and_proccess(true)) > 0) {
+	// Wait for all FLUSHed WQE on Rx CQ
+	qp_logdbg("draining rx cq_mgr %p (last_posted_rx_wr_id = %x)", m_p_cq_mgr_rx, m_last_posted_rx_wr_id);
+	uintptr_t last_polled_rx_wr_id = 0;
+	while (m_p_cq_mgr_rx && last_polled_rx_wr_id != m_last_posted_rx_wr_id) {
+
+		// Process the FLUSH'ed WQE's
+		int ret = m_p_cq_mgr_rx->drain_and_proccess(&last_polled_rx_wr_id);
 		qp_logdbg("draining completed on rx cq_mgr (%d wce)", ret);
 		total_ret += ret;
+
+		// Add short delay (500 usec) to allow for WQE's to be flushed to CQ every poll cycle
+		const struct timespec short_sleep = {0, 500000}; // 500 usec
+		nanosleep(&short_sleep, NULL);
 	}
+	m_last_posted_rx_wr_id = 0; // Clear the posted WR_ID flag, we just clear the entier RQ
 	qp_logdbg("draining completed with a total of %d wce's on rx cq_mgr", total_ret);
 }
 
@@ -459,6 +468,8 @@ int qp_mgr::post_recv(mem_buf_desc_t* p_mem_buf_desc)
 		m_ibv_rx_sg_array[m_curr_rx_wr].lkey   = p_mem_buf_desc->lkey;
 
 		if (m_curr_rx_wr == m_rx_num_wr_to_post_recv-1) {
+
+			m_last_posted_rx_wr_id = (uintptr_t)p_mem_buf_desc;
 
 			m_p_prev_rx_desc_pushed = NULL;
 			p_mem_buf_desc->p_prev_desc = NULL;
