@@ -99,23 +99,26 @@ void rfs_uc::prepare_flow_spec()
 bool rfs_uc::rx_dispatch_packet(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array)
 {
 	// Dispatching: Notify new packet to the FIRST registered receiver ONLY
-	p_rx_wc_buf_desc->reset_ref_count();
+    // AM_TODO: this should be an inline function
 #ifdef RDTSC_MEASURE_RX_DISPATCH_PACKET
 	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_DISPATCH_PACKET]);
 #endif //RDTSC_MEASURE_RX_DISPATCH_PACKET
 	//for (uint32_t i=0; i < m_n_sinks_list_entries; ++i) {
 		if (likely(m_sinks_list[0])) {
-			p_rx_wc_buf_desc->inc_ref_count();
+			p_rx_wc_buf_desc->set_ref_count(1);
 			m_sinks_list[0]->rx_input_cb(p_rx_wc_buf_desc, pv_fd_ready_array);
 #ifdef RDTSC_MEASURE_RX_DISPATCH_PACKET
 	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_DISPATCH_PACKET]);
 #endif //RDTSC_MEASURE_RX_DISPATCH_PACKET
 			// Check packet ref_count to see the last receiver is interested in this packet
+            // AM_TODO: check what is likely
 			if (p_rx_wc_buf_desc->dec_ref_count() > 1) {
 				// The sink will be responsible to return the buffer to CQ for reuse
 				return true;
 			}
-		}
+		} else {
+            p_rx_wc_buf_desc->reset_ref_count();
+        }
 	//}
 
 	// Reuse this data buffer & mem_buf_desc

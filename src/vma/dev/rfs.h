@@ -185,6 +185,7 @@ public:
 	bool 			detach_flow(pkt_rcvr_sink *sink); // Delete a sink. If this is the last sink --> delete it and detach flow from QP
 
 	uint32_t 		get_num_of_sinks() const { return m_n_sinks_list_entries; }
+    // AM_TODO: rx_dispatch must not be a virtual. refactor
 	virtual bool 		rx_dispatch_packet(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array) = 0;
 	const char*		to_str();
 
