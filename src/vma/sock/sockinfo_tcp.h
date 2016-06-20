@@ -132,6 +132,9 @@ public:
 	static struct tcp_seg * tcp_seg_alloc(void* p_conn);
 	static void tcp_seg_free(void* p_conn, struct tcp_seg * seg);
 
+    struct tcp_pcb *rx_listen(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, int &is_queued);
+    void free_dropped(void); 
+
 	bool inline is_readable(uint64_t *p_poll_sn, fd_array_t *p_fd_array = NULL);
 	bool inline is_writeable();
 	bool inline is_errorable(int *errors);

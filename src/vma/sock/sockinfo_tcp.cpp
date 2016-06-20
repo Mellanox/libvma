@@ -1229,7 +1229,7 @@ err_t sockinfo_tcp::ack_recvd_lwip_cb(void *arg, struct tcp_pcb *tpcb, u16_t ack
 	NOT_IN_USE(tpcb);
 	sockinfo_tcp *conn = (sockinfo_tcp *)arg;
 
-	vlog_func_enter();
+//	vlog_func_enter();
 
 	ASSERT_LOCKED(conn->m_tcp_con_lock);
 //	if (conn->m_p_vma_completion) {
@@ -1241,7 +1241,7 @@ err_t sockinfo_tcp::ack_recvd_lwip_cb(void *arg, struct tcp_pcb *tpcb, u16_t ack
 		conn->notify_epoll_context(EPOLLOUT);
 	}
 
-	vlog_func_exit();
+//	vlog_func_exit();
 
 	return ERR_OK;
 }
@@ -1264,7 +1264,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 	sockinfo_tcp *conn = (sockinfo_tcp *)pcb->my_container;
 	NOT_IN_USE(arg);
 
-	vlog_func_enter();
+//	vlog_func_enter();
 	ASSERT_LOCKED(conn->m_tcp_con_lock);
 
 	//if is FIN
@@ -1451,7 +1451,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 	    conn->m_rcvbuff_non_tcp_recved += non_tcp_receved_bytes_remaining - bytes_to_shrink;
 	}
 
-	vlog_func_exit();
+//	vlog_func_exit();
 	return ERR_OK;
 }
 
@@ -1627,72 +1627,103 @@ void sockinfo_tcp::queue_rx_ctl_packet(struct tcp_pcb* pcb, mem_buf_desc_t *p_de
 	return;
 }
 
+struct tcp_pcb *sockinfo_tcp::rx_listen(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, int &is_queued) 
+{
+    struct tcp_pcb* pcb;
+
+    pcb = get_syn_received_pcb(p_rx_pkt_mem_buf_desc_info->path.rx.src.sin_addr.s_addr,
+            p_rx_pkt_mem_buf_desc_info->path.rx.src.sin_port,
+            p_rx_pkt_mem_buf_desc_info->path.rx.dst.sin_addr.s_addr,
+            p_rx_pkt_mem_buf_desc_info->path.rx.dst.sin_port);
+    bool established_backlog_full = false;
+    if (!pcb) {
+        pcb = &m_pcb;
+
+        /// respect TCP listen backlog - See redmine issue #565962
+        /// distinguish between backlog of established sockets vs. backlog of syn-rcvd
+        static const unsigned int MAX_SYN_RCVD = safe_mce_sys().tcp_ctl_thread > CTL_THREAD_DISABLE ? safe_mce_sys().sysctl_reader.get_tcp_max_syn_backlog() : 0;
+        // NOTE: currently, in case tcp_ctl_thread is disabled, only established backlog is supported (no syn-rcvd backlog)
+
+        unsigned int num_con_waiting = m_rx_peer_packets.size();
+
+        // 1st - check established backlog
+        if(num_con_waiting > 0 || (m_syn_received.size() >= (size_t)m_backlog && p_rx_pkt_mem_buf_desc_info->path.rx.p_tcp_h->syn) ) {
+            established_backlog_full = true;
+        }
+
+        // 2nd - check that we allow secondary backlog (don't check map of peer packets to avoid races)
+        if (MAX_SYN_RCVD == 0 && established_backlog_full) {
+            // TODO: consider check if we can now drain into Q of established
+            si_tcp_logdbg("SYN/CTL packet drop. established-backlog=%d (limit=%d) num_con_waiting=%d (limit=%d)",
+                    (int)m_syn_received.size(), m_backlog, num_con_waiting, MAX_SYN_RCVD);
+            m_p_vma_completion = NULL;
+            is_queued = -1;
+            return pcb;
+
+            //unlock_tcp_con();
+            //return false;// return without inc_ref_count() => packet will be dropped
+        }
+    }
+    if (safe_mce_sys().tcp_ctl_thread > CTL_THREAD_DISABLE || established_backlog_full) { /* 2nd check only worth when MAX_SYN_RCVD>0 for non tcp_ctl_thread  */
+        queue_rx_ctl_packet(pcb, p_rx_pkt_mem_buf_desc_info); // TODO: need to trigger queue pulling from accept in case no tcp_ctl_thread
+        m_p_vma_completion = NULL;
+        is_queued = -1;
+        return pcb;
+
+        //unlock_tcp_con();
+        //return true;
+    }
+    is_queued = 0;
+    return pcb;
+}
+
+void sockinfo_tcp::free_dropped(void) 
+{
+    int dropped_count = m_rx_cb_dropped_list.size();
+
+    while (dropped_count--) {
+        mem_buf_desc_t* p_rx_pkt_desc = m_rx_cb_dropped_list.front();
+        m_rx_cb_dropped_list.pop_front();
+        reuse_buffer(p_rx_pkt_desc);
+    }
+}
+
 bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void* pv_fd_ready_array)
 {
-	struct tcp_pcb* pcb = NULL;
-	int dropped_count = 0;
+	struct tcp_pcb* pcb;
 
 	lock_tcp_con();
-	if (p_rx_pkt_mem_buf_desc_info->path.rx.vma_polled) {
+
+    // AM_TODO: vma_polled is always true when calling from the poll 
+    // API. need to optimize
+	if (likely(p_rx_pkt_mem_buf_desc_info->path.rx.vma_polled)) {
 		m_p_vma_completion = (vma_completion_t*)pv_fd_ready_array;
 		m_p_vma_completion->events = 0;
-
 	}
 	else {
 		m_iomux_ready_fd_array = (fd_array_t*)pv_fd_ready_array;
 	}
 
-
+    pcb = &m_pcb;
 	if (unlikely(get_tcp_state(&m_pcb) == LISTEN)) {
-		pcb = get_syn_received_pcb(p_rx_pkt_mem_buf_desc_info->path.rx.src.sin_addr.s_addr,
-				p_rx_pkt_mem_buf_desc_info->path.rx.src.sin_port,
-				p_rx_pkt_mem_buf_desc_info->path.rx.dst.sin_addr.s_addr,
-				p_rx_pkt_mem_buf_desc_info->path.rx.dst.sin_port);
-		bool established_backlog_full = false;
-		if (!pcb) {
-			pcb = &m_pcb;
-
-			/// respect TCP listen backlog - See redmine issue #565962
-			/// distinguish between backlog of established sockets vs. backlog of syn-rcvd
-			static const unsigned int MAX_SYN_RCVD = safe_mce_sys().tcp_ctl_thread > CTL_THREAD_DISABLE ? safe_mce_sys().sysctl_reader.get_tcp_max_syn_backlog() : 0;
-							// NOTE: currently, in case tcp_ctl_thread is disabled, only established backlog is supported (no syn-rcvd backlog)
-
-			unsigned int num_con_waiting = m_rx_peer_packets.size();
-
-			// 1st - check established backlog
-			if(num_con_waiting > 0 || (m_syn_received.size() >= (size_t)m_backlog && p_rx_pkt_mem_buf_desc_info->path.rx.p_tcp_h->syn) ) {
-				established_backlog_full = true;
-			}
-
-			// 2nd - check that we allow secondary backlog (don't check map of peer packets to avoid races)
-			if (MAX_SYN_RCVD == 0 && established_backlog_full) {
-				// TODO: consider check if we can now drain into Q of established
-				si_tcp_logdbg("SYN/CTL packet drop. established-backlog=%d (limit=%d) num_con_waiting=%d (limit=%d)",
-						(int)m_syn_received.size(), m_backlog, num_con_waiting, MAX_SYN_RCVD);
-				m_p_vma_completion = NULL;
-				unlock_tcp_con();
-				return false;// return without inc_ref_count() => packet will be dropped
-			}
-		}
-		if (safe_mce_sys().tcp_ctl_thread > CTL_THREAD_DISABLE || established_backlog_full) { /* 2nd check only worth when MAX_SYN_RCVD>0 for non tcp_ctl_thread  */
-			queue_rx_ctl_packet(pcb, p_rx_pkt_mem_buf_desc_info); // TODO: need to trigger queue pulling from accept in case no tcp_ctl_thread
-			m_p_vma_completion = NULL;
-			unlock_tcp_con();
-			return true;
-		}
+        int is_queued;
+        pcb = rx_listen(p_rx_pkt_mem_buf_desc_info, is_queued);
+        if (is_queued) {
+            unlock_tcp_con();
+            return is_queued == 1 ? true : false;
+        }
 	}
-	else {
-		pcb = &m_pcb;
-	}
+
 	p_rx_pkt_mem_buf_desc_info->inc_ref_count();
 
-	if (!p_rx_pkt_mem_buf_desc_info->path.rx.gro) init_pbuf_custom(p_rx_pkt_mem_buf_desc_info);
-	else p_rx_pkt_mem_buf_desc_info->path.rx.gro = 0;
-
-	dropped_count = m_rx_cb_dropped_list.size();
+    // AM_TODO: gro is not used 
+	//if (!p_rx_pkt_mem_buf_desc_info->path.rx.gro) init_pbuf_custom(p_rx_pkt_mem_buf_desc_info);
+	//else p_rx_pkt_mem_buf_desc_info->path.rx.gro = 0;
+    //
+    init_pbuf_custom(p_rx_pkt_mem_buf_desc_info);
 
 	sockinfo_tcp *sock = (sockinfo_tcp*)pcb->my_container;
-	if (sock != this) {
+	if (unlikely(sock != this)) { // AM_TODO: check what is likely
 		sock->m_tcp_con_lock.lock();
 	}
 
@@ -1716,7 +1747,7 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 
 	sock->m_vma_thr = false;
 
-	if (sock != this) {
+	if (unlikely(sock != this)) {
 		sock->m_tcp_con_lock.unlock();
 	}
 
@@ -1726,11 +1757,9 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 
 	m_last_cmp = NULL;
 
-	while (dropped_count--) {
-		mem_buf_desc_t* p_rx_pkt_desc = m_rx_cb_dropped_list.front();
-		m_rx_cb_dropped_list.pop_front();
-		reuse_buffer(p_rx_pkt_desc);
-	}
+    if (unlikely(m_rx_cb_dropped_list.size() > 0)) { 
+        free_dropped();
+    }
 
 	unlock_tcp_con();
 
