@@ -1497,7 +1497,7 @@ int poll_helper(struct pollfd *__fds, nfds_t __nfds, int __timeout, const sigset
 }
 
 extern "C"
-int poll(struct pollfd *__fds, nfds_t __nfds, int __timeout)
+int __poll(struct pollfd *__fds, nfds_t __nfds, int __timeout)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.poll)	get_orig_funcs();
@@ -1512,6 +1512,12 @@ int poll(struct pollfd *__fds, nfds_t __nfds, int __timeout)
 		srdr_logfunc_entry("nfds=%d, timeout=(%d milli-sec)", __nfds, __timeout);
 
 	return poll_helper(__fds, __nfds, __timeout);
+}
+
+extern "C"
+int poll(struct pollfd *__fds, nfds_t __nfds, int __timeout)
+{
+	return __poll(__fds, __nfds, __timeout);
 }
 
 extern "C"
