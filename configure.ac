@@ -318,6 +318,23 @@ AS_IF([test "x$with_rdtsc_receivefrom_to_sendto" == xyes],
 	[AC_MSG_RESULT([no])]
 )
 
+##########################
+# Logging control
+#
+AC_ARG_ENABLE(
+    [opt-log],
+    AC_HELP_STRING(
+        [--enable-opt-log],
+        [Minimize logging output (default=no)]))
+AC_MSG_CHECKING(
+    [if minimized logging output is enabled])
+if test "x$enable_opt_log" = "xyes"; then
+    CPPFLAGS="$CPPFLAGS -DVMA_OPTIMIZE_LOG -DNDEBUG"
+    AC_MSG_RESULT([yes])
+else
+    AC_MSG_RESULT([no])
+fi
+
 #
 # Thread locking
 #
