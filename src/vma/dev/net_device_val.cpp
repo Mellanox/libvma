@@ -329,9 +329,8 @@ bool net_device_val::update_active_backup_slaves()
 		if (strstr(active_slave, m_slaves[i]->if_name) != NULL) {
 			m_slaves[i]->is_active_slave = true;
 			found_active_slave = true;
-			struct ibv_device* p_ibv_device = p_ring_info[i].p_ib_ctx->get_ibv_device();
 			nd_logdbg("Offload interface '%s': Re-mapped to ibv device '%s' [%p] on port %d",
-					m_name.c_str(), p_ibv_device->name, p_ibv_device, p_ring_info[i].port_num);
+					m_name.c_str(), p_ring_info[i].p_ib_ctx->get_ibv_device()->name, p_ring_info[i].p_ib_ctx->get_ibv_device(), p_ring_info[i].port_num);
 		} else {
 			m_slaves[i]->is_active_slave = false;
 		}

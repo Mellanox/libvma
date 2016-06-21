@@ -143,10 +143,11 @@ ring_simple::~ring_simple()
 
 	delete[] m_p_n_rx_channel_fds;
 
-	int buffer_accounting = m_tx_num_bufs - m_tx_pool.size() - m_missing_buf_ref_count;
 	ring_logdbg("Tx buffer poll: free count = %u, sender_has = %d, total = %d, %s (%d)",
 			m_tx_pool.size(), m_missing_buf_ref_count, m_tx_num_bufs,
-			(buffer_accounting?"bad accounting!!":"good accounting"), buffer_accounting);
+			((m_tx_num_bufs - m_tx_pool.size() - m_missing_buf_ref_count) ?
+					"bad accounting!!" : "good accounting"),
+					(m_tx_num_bufs - m_tx_pool.size() - m_missing_buf_ref_count));
 	ring_logdbg("Tx WR num: free count = %d, total = %d, %s (%d)",
 			m_tx_num_wr_free, m_tx_num_wr,
 			((m_tx_num_wr - m_tx_num_wr_free) ? "bad accounting!!":"good accounting"), (m_tx_num_wr - m_tx_num_wr_free));
@@ -906,14 +907,12 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 	uint16_t n_frag_offset = 0;
 	struct iphdr* p_ip_h = NULL;
 	struct udphdr* p_udp_h = NULL;
-	in_addr_t local_addr = p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr;
 
 
 	NOT_IN_USE(ip_tot_len);
 	NOT_IN_USE(ip_frag_off);
 	NOT_IN_USE(n_frag_offset);
 	NOT_IN_USE(p_udp_h);
-	NOT_IN_USE(local_addr);
 	NOT_IN_USE(transport_type);
 
 
@@ -1042,7 +1041,7 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 			NIPQUAD(p_ip_h->daddr), NIPQUAD(p_ip_h->saddr),
 			sz_data, n_frag_offset, ntohs(p_ip_h->id),
 			iphdr_protocol_type_to_str(p_ip_h->protocol), p_ip_h->protocol,
-			NIPQUAD(local_addr));
+			NIPQUAD(p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr));
 
 	// Check that the ip datagram has at least the udp header size for the first ip fragment (besides the ip header)
 	ip_hdr_len = (int)(p_ip_h->ihl)*4;
@@ -1175,6 +1174,7 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 	case IPPROTO_IGMP:
 	{
 		struct igmp* p_igmp_h= (struct igmp*)((uint8_t*)p_ip_h + ip_hdr_len);
+		NOT_IN_USE(p_igmp_h); /* to supress warning in case VMA_OPTIMIZE_LOG */
 		ring_logdbg("Rx IGMP packet info: type=%s (%d), group=%d.%d.%d.%d, code=%d",
 				priv_igmp_type_tostr(p_igmp_h->igmp_type), p_igmp_h->igmp_type,
 				NIPQUAD(p_igmp_h->igmp_group.s_addr), p_igmp_h->igmp_code);

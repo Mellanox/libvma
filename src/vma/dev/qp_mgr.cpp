@@ -88,11 +88,9 @@ qp_mgr::~qp_mgr()
 
 int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 {
-	transport_type_t transport_type = m_p_ring->get_transport_type();
-	struct ibv_device* p_ibv_device = m_p_ib_ctx_handler->get_ibv_device();
 	qp_logdbg("Creating QP of transport type '%s' on ibv device '%s' [%p] on port %d",
-			priv_vma_transport_type_str(transport_type),
-			p_ibv_device->name, p_ibv_device, m_port_num);
+			priv_vma_transport_type_str(m_p_ring->get_transport_type()),
+			m_p_ib_ctx_handler->get_ibv_device()->name, m_p_ib_ctx_handler->get_ibv_device(), m_port_num);
 
 	// Check device capabilities for max QP work requests
 	vma_ibv_device_attr& r_ibv_dev_attr = m_p_ib_ctx_handler->get_ibv_device_attr();
@@ -130,12 +128,12 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 
 	// Check device capabilities for max SG elements
 	uint32_t tx_max_inline = safe_mce_sys().tx_max_inline;;
-	uint32_t rx_num_sge = MCE_DEFAULT_RX_NUM_SGE;
+	uint32_t rx_num_sge = 1; /* MCE_DEFAULT_RX_NUM_SGE; */
 
 	qp_init_attr.cap.max_send_wr = m_tx_num_wr;
 	qp_init_attr.cap.max_recv_wr = m_rx_num_wr;
 	qp_init_attr.cap.max_inline_data = tx_max_inline;
-	qp_init_attr.cap.max_recv_sge = 1;
+	qp_init_attr.cap.max_recv_sge = rx_num_sge;
 	qp_init_attr.recv_cq = m_p_cq_mgr_rx->get_ibv_cq_hndl();
 	qp_init_attr.send_cq = m_p_cq_mgr_tx->get_ibv_cq_hndl();
 	qp_init_attr.sq_sig_all = 0;
