@@ -106,11 +106,9 @@ qp_mgr::~qp_mgr()
 
 int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 {
-	transport_type_t transport_type = m_p_ring->get_transport_type();
-	struct ibv_device* p_ibv_device = m_p_ib_ctx_handler->get_ibv_device();
 	qp_logdbg("Creating QP of transport type '%s' on ibv device '%s' [%p] on port %d",
-			priv_vma_transport_type_str(transport_type),
-			p_ibv_device->name, p_ibv_device, m_port_num);
+			priv_vma_transport_type_str(m_p_ring->get_transport_type()),
+			m_p_ib_ctx_handler->get_ibv_device()->name, m_p_ib_ctx_handler->get_ibv_device(), m_port_num);
 
 	// Check device capabilities for max QP work requests
 	vma_ibv_device_attr& r_ibv_dev_attr = m_p_ib_ctx_handler->get_ibv_device_attr();

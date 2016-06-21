@@ -80,20 +80,45 @@
 #define __log_err(log_fmt, log_args...)          do { VLOG_PRINTF(VLOG_ERROR, log_fmt, ##log_args); } while (0)
 #define __log_warn(log_fmt, log_args...)         do { VLOG_PRINTF(VLOG_WARNING, log_fmt, ##log_args); } while (0)
 #define __log_info(log_fmt, log_args...)         do { VLOG_PRINTF(VLOG_INFO, log_fmt, ##log_args); } while (0)
+
+#if defined(VMA_OPTIMIZE_LOG)
+#define __log_details(log_fmt, log_args...)      ((void)0)
+#define __log_dbg(log_fmt, log_args...)          ((void)0)
+#define __log_fine(log_fmt, log_args...)         ((void)0)
+#define __log_finer(log_fmt, log_args...)        ((void)0)
+#else
 #define __log_details(log_fmt, log_args...)      do { if (g_vlogger_level >= VLOG_DETAILS) 	VLOG_PRINTF(VLOG_DETAILS, log_fmt, ##log_args); } while (0)
 #define __log_dbg(log_fmt, log_args...)          do { if (g_vlogger_level >= VLOG_DEBUG) 	VLOG_PRINTF(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
 #define __log_fine(log_fmt, log_args...)         do { if (g_vlogger_level >= VLOG_FINE) 		VLOG_PRINTF(VLOG_FINE, log_fmt, ##log_args); } while (0)
 #define __log_finer(log_fmt, log_args...)        do { if (g_vlogger_level >= VLOG_FINER) 	VLOG_PRINTF(VLOG_FINER, log_fmt, ##log_args); } while (0)
+#endif /* VMA_OPTIMIZE_LOG */
 
 #define __log_info_panic(log_fmt, log_args...)   do { VLOG_PRINTF_INFO(VLOG_PANIC, log_fmt, ##log_args); throw; } while (0)
 #define __log_info_err(log_fmt, log_args...)     do { VLOG_PRINTF_INFO(VLOG_ERROR, log_fmt, ##log_args); } while (0)
 #define __log_info_warn(log_fmt, log_args...)    do { VLOG_PRINTF_INFO(VLOG_WARNING, log_fmt, ##log_args); } while (0)
 #define __log_info_info(log_fmt, log_args...)    do { VLOG_PRINTF_INFO(VLOG_INFO, log_fmt, ##log_args); } while (0)
+
+#if defined(VMA_OPTIMIZE_LOG)
+#define __log_info_details(log_fmt, log_args...) ((void)0)
+#define __log_info_dbg(log_fmt, log_args...)     ((void)0)
+#define __log_info_fine(log_fmt, log_args...)    ((void)0)
+#define __log_info_finer(log_fmt, log_args...)   ((void)0)
+#else
 #define __log_info_details(log_fmt, log_args...) do { if (g_vlogger_level >= VLOG_DETAILS) 	VLOG_PRINTF_INFO(VLOG_DETAILS, log_fmt, ##log_args); } while (0)
 #define __log_info_dbg(log_fmt, log_args...)     do { if (g_vlogger_level >= VLOG_DEBUG) 	VLOG_PRINTF_INFO(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
 #define __log_info_fine(log_fmt, log_args...)    do { if (g_vlogger_level >= VLOG_FINE) 		VLOG_PRINTF_INFO(VLOG_FINE, log_fmt, ##log_args); } while (0)
 #define __log_info_finer(log_fmt, log_args...)   do { if (g_vlogger_level >= VLOG_FINER) 	VLOG_PRINTF_INFO(VLOG_FINER, log_fmt, ##log_args); } while (0)
+#endif /* VMA_OPTIMIZE_LOG */
 
+#if defined(VMA_OPTIMIZE_LOG)
+#define __log_entry_dbg(log_fmt, log_args...)    ((void)0)
+#define __log_entry_fine(log_fmt, log_args...)   ((void)0)
+#define __log_entry_finer(log_fmt, log_args...)  ((void)0)
+
+#define __log_exit_dbg(log_fmt, log_args...)     ((void)0)
+#define __log_exit_fine(log_fmt, log_args...)    ((void)0)
+#define __log_exit_finer(log_fmt, log_args...)   ((void)0)
+#else
 #define __log_entry_dbg(log_fmt, log_args...)    do { if (g_vlogger_level >= VLOG_DEBUG) 	VLOG_PRINTF_ENTRY(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
 #define __log_entry_fine(log_fmt, log_args...)   do { if (g_vlogger_level >= VLOG_FINE)		VLOG_PRINTF_ENTRY(VLOG_FINE, log_fmt, ##log_args); } while (0)
 #define __log_entry_finer(log_fmt, log_args...)  do { if (g_vlogger_level >= VLOG_FINER) 	VLOG_PRINTF_ENTRY(VLOG_FINER, log_fmt, ##log_args); } while (0)
@@ -101,6 +126,7 @@
 #define __log_exit_dbg(log_fmt, log_args...)     do { if (g_vlogger_level >= VLOG_DEBUG) 	VLOG_PRINTF_EXIT(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
 #define __log_exit_fine(log_fmt, log_args...)    do { if (g_vlogger_level >= VLOG_FINE)		VLOG_PRINTF_EXIT(VLOG_FINE, log_fmt, ##log_args); } while (0)
 #define __log_exit_finer(log_fmt, log_args...)   do { if (g_vlogger_level >= VLOG_FINER) 	VLOG_PRINTF_EXIT(VLOG_FINER, log_fmt, ##log_args); } while (0)
+#endif /* VMA_OPTIMIZE_LOG */
 
 // deprecated functions - only exist for Backward Compatibility.  Please avoid using them!
 #define __log_func(...)          __log_fine(__VA_ARGS__)
