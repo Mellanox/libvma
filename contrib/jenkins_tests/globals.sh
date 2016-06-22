@@ -66,7 +66,7 @@ function do_github_status()
 
 function check_env()
 {
-	if [ "$ghprbTargetBranch" != "master" ]; then
+	if [ -n "$ghprbTargetBranch" -a "$ghprbTargetBranch" != "master" ]; then
 		if [ $(ofed_info -s | grep 'MLNX_OFED_LINUX-3.2' >/dev/null 2>&1 || echo $?) ]; then
 		    echo "environment [NOT OK]"
 		    exit 0
