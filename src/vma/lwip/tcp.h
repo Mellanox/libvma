@@ -252,7 +252,7 @@ extern tcp_state_observer_fn external_tcp_state_observer;
 #define SND_WND_SCALE(pcb, wnd) ((u32_t)(wnd) << (pcb)->snd_scale)
 
 #define TCPWND_MIN16(x)    ((u16_t)LWIP_MIN((x), 0xFFFF))
-
+#define VMA_NO_TCP_PCB_LISTEN_STRUCT 1
 /* Note: max_tcp_snd_queuelen is now a multiple by 16 (was 4 before) to match max_unsent_len */
 #define UPDATE_PCB_BY_MSS(pcb, snd_mss) \
 	(pcb)->mss = (snd_mss); \
@@ -394,8 +394,20 @@ struct tcp_pcb {
 
   u8_t snd_scale;
   u8_t rcv_scale;
+#ifdef VMA_NO_TCP_PCB_LISTEN_STRUCT
+  tcp_syn_handled_fn syn_handled_cb;
+  tcp_clone_conn_fn clone_conn;
+
+#if TCP_LISTEN_BACKLOG
+  u8_t backlog;
+  u8_t accepts_pending;
+#endif /* TCP_LISTEN_BACKLOG */
+#endif /* VMA_NO_TCP_PCB_LISTEN_STRUCT */
 };
 
+#ifdef VMA_NO_TCP_PCB_LISTEN_STRUCT
+#define tcp_pcb_listen tcp_pcb
+#else
 struct tcp_pcb_listen {  
 /* Common members of all PCB types */
   IP_PCB;
@@ -409,6 +421,7 @@ struct tcp_pcb_listen {
   u8_t accepts_pending;
 #endif /* TCP_LISTEN_BACKLOG */
 };
+#endif /* VMA_NO_TCP_PCB_LISTEN_STRUCT */
 
 #if LWIP_EVENT_API
 
