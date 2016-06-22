@@ -1,4 +1,4 @@
-AC_PREREQ(2.69)
+AC_PREREQ(2.59)
 
 # Update version number here:
 #
