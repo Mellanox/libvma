@@ -242,7 +242,6 @@ extern tcp_state_observer_fn external_tcp_state_observer;
  * members common to struct tcp_pcb and struct tcp_listen_pcb
  */
 #define TCP_PCB_COMMON(type) \
-  type *next; /* for the linked list */ \
   enum tcp_state private_state; /* TCP state - should only be touched thru get/set functions */ \
   u8_t prio; \
   void *callback_arg; \
