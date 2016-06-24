@@ -105,28 +105,8 @@ const u8_t tcp_backoff[13] =
  /* Times per slowtmr hits */
 const u8_t tcp_persist_backoff[7] = { 3, 6, 12, 24, 48, 96, 120 };
 
-/* The TCP PCB lists. */
-
-/** List of all TCP PCBs bound but not yet (connected || listening) */
-struct tcp_pcb *tcp_bound_pcbs;
-/** List of all TCP PCBs in LISTEN state */
-union tcp_listen_pcbs_t tcp_listen_pcbs;
-/** List of all TCP PCBs that are in a state in which
- * they accept or send data. */
-struct tcp_pcb *tcp_active_pcbs;
-/** List of all TCP PCBs in TIME-WAIT state */
-struct tcp_pcb *tcp_tw_pcbs;
-
-#define NUM_TCP_PCB_LISTS               4
-#define NUM_TCP_PCB_LISTS_NO_TIME_WAIT  3
-/** An array with all (non-temporary) PCB lists, mainly used for smaller code size */
-struct tcp_pcb **tcp_pcb_lists[] = {&tcp_listen_pcbs.pcbs, &tcp_bound_pcbs,
-  &tcp_active_pcbs, &tcp_tw_pcbs};
-
 /** Only used for temporary storage. */
 struct tcp_pcb *tcp_tmp_pcb;
-
-static u16_t tcp_new_port(void);
 
 /**
  *
@@ -575,45 +555,6 @@ tcp_recved(struct tcp_pcb *pcb, u32_t len)
 }
 
 /**
- * A nastly hack featuring 'goto' statements that allocates a
- * new TCP local port.
- *
- * @return a new (free) local TCP port number
- */
-static u16_t
-tcp_new_port(void)
-{
-  int i;
-  struct tcp_pcb *pcb;
-#ifndef TCP_LOCAL_PORT_RANGE_START
-#define TCP_LOCAL_PORT_RANGE_START 0x2000
-#define TCP_LOCAL_PORT_RANGE_END   0xFFFF
-#endif
-  static u16_t port;
-
-  /* use getpid() as a seed for the port sequence. Insure we will always use different first port */
-  if (port == 0)
-    port = TCP_LOCAL_PORT_RANGE_START + getpid() % (TCP_LOCAL_PORT_RANGE_END - TCP_LOCAL_PORT_RANGE_START);
-  
- again:
-  if ((int)port + 1 > TCP_LOCAL_PORT_RANGE_END) {
-	  port = TCP_LOCAL_PORT_RANGE_START;
-  } else {
-	  port++;
-  }
-
-  /* Check all PCB lists. */
-  for (i = 1; i < NUM_TCP_PCB_LISTS; i++) {  
-    for(pcb = *tcp_pcb_lists[i]; pcb != NULL; pcb = pcb->next) {
-      if (pcb->local_port == port) {
-        goto again;
-      }
-    }
-  }
-  return port;
-}
-
-/**
  * Connects to another host. The function given as the "connected"
  * argument will be called when the connection has been established.
  *
@@ -648,7 +589,7 @@ tcp_connect(struct tcp_pcb *pcb, ip_addr_t *ipaddr, u16_t port,
   }
 
   if (pcb->local_port == 0) {
-    pcb->local_port = tcp_new_port();
+    return ERR_VAL;
   }
   iss = tcp_next_iss();
   pcb->rcv_nxt = 0;
@@ -1355,27 +1296,6 @@ tcp_pcb_purge(struct tcp_pcb *pcb)
 
     LWIP_DEBUGF(TCP_DEBUG, ("tcp_pcb_purge\n"));
 
-#if TCP_LISTEN_BACKLOG
-    if (get_tcp_state(pcb) == SYN_RCVD) {
-      /* Need to find the corresponding listen_pcb and decrease its accepts_pending */
-      struct tcp_pcb_listen *lpcb;
-      LWIP_ASSERT("tcp_pcb_purge: get_tcp_state(pcb) == SYN_RCVD but tcp_listen_pcbs is NULL",
-        tcp_listen_pcbs.listen_pcbs != NULL);
-      for (lpcb = tcp_listen_pcbs.listen_pcbs; lpcb != NULL; lpcb = lpcb->next) {
-        if ((lpcb->local_port == pcb->local_port) &&
-            (ip_addr_isany(&lpcb->local_ip) ||
-             ip_addr_cmp(&pcb->local_ip, &lpcb->local_ip))) {
-            /* port and address of the listen pcb match the timed-out pcb */
-            LWIP_ASSERT("tcp_pcb_purge: listen pcb does not have accepts pending",
-              lpcb->accepts_pending > 0);
-            lpcb->accepts_pending--;
-            break;
-          }
-      }
-    }
-#endif /* TCP_LISTEN_BACKLOG */
-
-
     if (pcb->refused_data != NULL) {
       LWIP_DEBUGF(TCP_DEBUG, ("tcp_pcb_purge: data left on ->refused_data\n"));
       pbuf_free(pcb->refused_data);
@@ -1590,28 +1510,7 @@ tcp_debug_print_flags(u8_t flags)
 void
 tcp_debug_print_pcbs(void)
 {
-  struct tcp_pcb *pcb;
-  LWIP_DEBUGF(TCP_DEBUG, ("Active PCB states:\n"));
-  for(pcb = tcp_active_pcbs; pcb != NULL; pcb = pcb->next) {
-    LWIP_DEBUGF(TCP_DEBUG, ("Local port %"U16_F", foreign port %"U16_F" snd_nxt %"U32_F" rcv_nxt %"U32_F" ",
-                       pcb->local_port, pcb->remote_port,
-                       pcb->snd_nxt, pcb->rcv_nxt));
-    tcp_debug_print_state(get_tcp_state(pcb));
-  }    
-  LWIP_DEBUGF(TCP_DEBUG, ("Listen PCB states:\n"));
-  for(pcb = (struct tcp_pcb *)tcp_listen_pcbs.pcbs; pcb != NULL; pcb = pcb->next) {
-    LWIP_DEBUGF(TCP_DEBUG, ("Local port %"U16_F", foreign port %"U16_F" snd_nxt %"U32_F" rcv_nxt %"U32_F" ",
-                       pcb->local_port, pcb->remote_port,
-                       pcb->snd_nxt, pcb->rcv_nxt));
-    tcp_debug_print_state(get_tcp_state(pcb));
-  }    
-  LWIP_DEBUGF(TCP_DEBUG, ("TIME-WAIT PCB states:\n"));
-  for(pcb = tcp_tw_pcbs; pcb != NULL; pcb = pcb->next) {
-    LWIP_DEBUGF(TCP_DEBUG, ("Local port %"U16_F", foreign port %"U16_F" snd_nxt %"U32_F" rcv_nxt %"U32_F" ",
-                       pcb->local_port, pcb->remote_port,
-                       pcb->snd_nxt, pcb->rcv_nxt));
-    tcp_debug_print_state(get_tcp_state(pcb));
-  }    
+  LWIP_DEBUGF(TCP_DEBUG, ("Listen PCB states: REMOVED\n"));
 }
 #endif /* TCP_DEBUG */
 
