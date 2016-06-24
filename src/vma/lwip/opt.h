@@ -1507,22 +1507,6 @@
 #endif
 
 /**
- * TCP_LISTEN_BACKLOG: Enable the backlog option for tcp listen pcb.
- */
-#ifndef TCP_LISTEN_BACKLOG
-#define TCP_LISTEN_BACKLOG              0
-#endif
-
-/**
- * The maximum allowed backlog for TCP listen netconns.
- * This backlog is used unless another is explicitly specified.
- * 0xff is the maximum (u8_t).
- */
-#ifndef TCP_DEFAULT_LISTEN_BACKLOG
-#define TCP_DEFAULT_LISTEN_BACKLOG      0xff
-#endif
-
-/**
  * TCP_OVERSIZE: The maximum number of bytes that tcp_write may
  * allocate ahead of time in an attempt to create shorter pbuf chains
  * for transmission. The meaningful range is 0 to TCP_MSS. Some
