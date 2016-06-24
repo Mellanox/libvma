@@ -442,15 +442,13 @@ tcp_accept_null(void *arg, struct tcp_pcb *pcb, err_t err)
  *
  * @param listen_pcb used for listening
  * @param pcb the original tcp_pcb
- * @param backlog the incoming connections queue limit
  * @return ERR_ISCONN if the conn_pcb is already in LISTEN state
  * and ERR_OK on success
  *
  */
 err_t
-tcp_listen_with_backlog(struct tcp_pcb_listen *listen_pcb, struct tcp_pcb *pcb, u8_t backlog)
+tcp_listen(struct tcp_pcb_listen *listen_pcb, struct tcp_pcb *pcb)
 {
-  LWIP_UNUSED_ARG(backlog);
   /*
   * LWIP_ERROR("tcp_listen: conn_pcb already connected", get_tcp_state(pcb) == CLOSED, ERR_ISCONN);
   */
@@ -471,10 +469,6 @@ tcp_listen_with_backlog(struct tcp_pcb_listen *listen_pcb, struct tcp_pcb *pcb, 
 #if LWIP_CALLBACK_API
   listen_pcb->accept = tcp_accept_null;
 #endif /* LWIP_CALLBACK_API */
-#if TCP_LISTEN_BACKLOG
-  listen_pcb->accepts_pending = 0;
-  lpcb->backlog = (backlog ? backlog : 1);
-#endif /* TCP_LISTEN_BACKLOG */
   return ERR_OK;
 
 }

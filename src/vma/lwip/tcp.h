@@ -409,10 +409,6 @@ struct tcp_pcb {
   tcp_syn_handled_fn syn_handled_cb;
   tcp_clone_conn_fn clone_conn;
 
-#if TCP_LISTEN_BACKLOG
-  u8_t backlog;
-  u8_t accepts_pending;
-#endif /* TCP_LISTEN_BACKLOG */
 #endif /* VMA_NO_TCP_PCB_LISTEN_STRUCT */
 
   /* Delayed ACK control: number of quick acks */
@@ -432,11 +428,6 @@ struct tcp_pcb_listen {
   TCP_PCB_COMMON(struct tcp_pcb_listen);
   tcp_syn_handled_fn syn_handled_cb;
   tcp_clone_conn_fn clone_conn;
-
-#if TCP_LISTEN_BACKLOG
-  u8_t backlog;
-  u8_t accepts_pending;
-#endif /* TCP_LISTEN_BACKLOG */
 };
 #endif /* VMA_NO_TCP_PCB_LISTEN_STRUCT */
 
@@ -483,14 +474,8 @@ void             tcp_err     		(struct tcp_pcb *pcb, tcp_err_fn err);
 #define          tcp_nagle_enable(pcb)    ((pcb)->flags &= ~TF_NODELAY)
 #define          tcp_nagle_disabled(pcb)  (((pcb)->flags & TF_NODELAY) != 0)
 
-#if TCP_LISTEN_BACKLOG
-#define          tcp_accepted(pcb) do { \
-  LWIP_ASSERT("get_tcp_state(pcb) == LISTEN (called for wrong pcb?)", get_tcp_state(pcb) == LISTEN); \
-  (((struct tcp_pcb_listen *)(pcb))->accepts_pending--); } while(0)
-#else  /* TCP_LISTEN_BACKLOG */
 #define          tcp_accepted(pcb) LWIP_ASSERT("get_tcp_state(pcb) == LISTEN (called for wrong pcb?)", \
 		get_tcp_state(pcb) == LISTEN)
-#endif /* TCP_LISTEN_BACKLOG */
 
 void             tcp_recved  (struct tcp_pcb *pcb, u32_t len);
 err_t            tcp_bind    (struct tcp_pcb *pcb, ip_addr_t *ipaddr,
@@ -498,8 +483,7 @@ err_t            tcp_bind    (struct tcp_pcb *pcb, ip_addr_t *ipaddr,
 err_t            tcp_connect (struct tcp_pcb *pcb, ip_addr_t *ipaddr,
                               u16_t port, tcp_connected_fn connected);
 
-err_t			tcp_listen_with_backlog(struct tcp_pcb_listen *listen_pcb, struct tcp_pcb *conn_pcb, u8_t backlog);
-#define			tcp_listen(listen_pcb, conn_pcb) tcp_listen_with_backlog(listen_pcb, conn_pcb, TCP_DEFAULT_LISTEN_BACKLOG)
+err_t            tcp_listen(struct tcp_pcb_listen *listen_pcb, struct tcp_pcb *conn_pcb);
 
 void             tcp_abort (struct tcp_pcb *pcb);
 err_t            tcp_close   (struct tcp_pcb *pcb);
