@@ -334,26 +334,8 @@ extern u32_t tcp_ticks;
 extern ip_route_mtu_fn external_ip_route_mtu;
 
 
-/* The TCP PCB lists. */
-union tcp_listen_pcbs_t { /* List of all TCP PCBs in LISTEN state. */
-  struct tcp_pcb_listen *listen_pcbs; 
-  struct tcp_pcb *pcbs;
-};
-extern struct tcp_pcb *tcp_bound_pcbs;
-extern union tcp_listen_pcbs_t tcp_listen_pcbs;
-extern struct tcp_pcb *tcp_active_pcbs;  /* List of all TCP PCBs that are in a
-              state in which they accept or send
-              data. */
-extern struct tcp_pcb *tcp_tw_pcbs;      /* List of all TCP PCBs in TIME-WAIT. */
-
 extern struct tcp_pcb *tcp_tmp_pcb;      /* Only used for temporary storage. */
 
-/* Axioms about the above lists:   
-   1) Every TCP PCB that is not CLOSED is in one of the lists.
-   2) A PCB is only in one of the lists.
-   3) All PCBs in the tcp_listen_pcbs list is in LISTEN state.
-   4) All PCBs in the tcp_tw_pcbs list is in TIME-WAIT state.
-*/
 /* Define two macros, TCP_REG and TCP_RMV that registers a TCP PCB
    with a PCB list or removes a PCB from a list, respectively. */
 #ifndef TCP_DEBUG_PCB_LISTS
@@ -368,7 +350,7 @@ extern struct tcp_pcb *tcp_tmp_pcb;      /* Only used for temporary storage. */
         tcp_tmp_pcb = tcp_tmp_pcb->next) { \
                                 LWIP_ASSERT("TCP_REG: already registered\n", tcp_tmp_pcb != (npcb)); \
                             } \
-                            LWIP_ASSERT("TCP_REG: get_tcp_state(pcb) != CLOSED", ((pcbs) == &tcp_bound_pcbs) || ((npcb)->state != CLOSED)); \
+                            LWIP_ASSERT("TCP_REG: get_tcp_state(pcb) != CLOSED", ((npcb)->state != CLOSED)); \
                             (npcb)->next = *(pcbs); \
                             LWIP_ASSERT("TCP_REG: npcb->next != npcb", (npcb)->next != (npcb)); \
                             *(pcbs) = (npcb); \
