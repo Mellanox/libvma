@@ -40,15 +40,8 @@
 extern "C" {
 #endif
 
-/** Currently, the function ip_output_if_opt() is only used with IGMP */
-#define IP_OPTIONS_SEND   LWIP_IGMP
-
 #define IP_HLEN 20
 
-#define IP_PROTO_ICMP    1
-#define IP_PROTO_IGMP    2
-#define IP_PROTO_UDP     17
-#define IP_PROTO_UDPLITE 136
 #define IP_PROTO_TCP     6
 
 /* This is passed as the destination address to ip_output_if (not
@@ -151,15 +144,6 @@ extern __thread ip_addr_t current_iphdr_src;
 /** Destination IP address of current_header */
 extern __thread ip_addr_t current_iphdr_dest;
 
-#if LWIP_NETIF_HWADDRHINT
-err_t ip_output_hinted(struct pbuf *p, ip_addr_t *src, ip_addr_t *dest,
-       u8_t ttl, u8_t tos, u8_t proto, u8_t *addr_hint);
-#endif /* LWIP_NETIF_HWADDRHINT */
-#if IP_OPTIONS_SEND
-err_t ip_output_if_opt(struct pbuf *p, ip_addr_t *src, ip_addr_t *dest,
-       u8_t ttl, u8_t tos, u8_t proto, struct netif *netif, void *ip_options,
-       u16_t optlen);
-#endif /* IP_OPTIONS_SEND */
 /** Get the interface that received the current packet.
  * This function must only be called from a receive callback (udp_recv,
  * raw_recv, tcp_accept). It will return NULL otherwise. */
