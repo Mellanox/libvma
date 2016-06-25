@@ -710,7 +710,7 @@ retry_write:
 				si_tcp_logdbg("returning with: EINTR");
 				goto err;
 			}
-			err = tcp_write(&m_pcb, (char *)p_iov[i].iov_base + pos, tx_size, 3);
+			err = tcp_write(&m_pcb, (char *)p_iov[i].iov_base + pos, tx_size, TCP_WRITE_FLAG_COPY|TCP_WRITE_FLAG_MORE);
 			if (unlikely(err != ERR_OK)) {
 				if (unlikely(err == ERR_CONN)) { // happens when remote drops during big write
 					si_tcp_logdbg("connection closed: tx'ed = %d", total_tx);
