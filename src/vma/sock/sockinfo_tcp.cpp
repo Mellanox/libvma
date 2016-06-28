@@ -576,6 +576,25 @@ unsigned sockinfo_tcp::tx_wait(int & err, bool is_blocking)
 	return sz;
 }
 
+unsigned sockinfo_tcp::rx_poll_once_non_blocking(int & err)
+{
+	bool is_blocking = false;
+	int poll_count = 0;
+	si_tcp_logfunc("rx_count=%d", m_n_rx_pkt_ready_list_count);
+	err = 0;
+	if (is_rts()) {
+		err = rx_wait(poll_count, is_blocking);
+		if (err < 0)
+			return 0;
+                if (unlikely(g_b_exit)) {
+                        errno = EINTR;
+                        return 0;
+                }
+	}
+	si_tcp_logfunc("end poll_count = %d rx_count=%d", poll_count, m_n_rx_pkt_ready_list_count);
+	return 0;
+}
+
 ssize_t sockinfo_tcp::tx(const tx_call_t call_type, const struct iovec* p_iov, const ssize_t sz_iov, const int flags, const struct sockaddr *__to, const socklen_t __tolen)
 {
 	int total_tx = 0;
@@ -642,6 +661,15 @@ retry_is_ready:
 			}
 			//tx_size = tx_wait();
 			tx_size = tcp_sndbuf(&m_pcb);
+			if ((tx_size == 0) && !block_this_run) {
+				// in case of zero sndbuf and non-blocking just try once polling CQ for ACK
+				rx_poll_once_non_blocking(ret);
+				if (ret < 0)
+					goto err;
+				// calculate again sndbuf
+				tx_size = tcp_sndbuf(&m_pcb);
+			}
+
 			if (tx_size == 0) {
                                 //force out TCP data before going on wait()
                                 tcp_output(&m_pcb);

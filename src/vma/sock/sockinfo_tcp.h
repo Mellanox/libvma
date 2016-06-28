@@ -322,6 +322,9 @@ private:
 	static err_t ack_recvd_lwip_cb(void *arg, struct tcp_pcb *tpcb, u16_t space);
 	static err_t rx_lwip_cb(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
 	static err_t rx_drop_lwip_cb(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
+        
+	// poll once CQ. Motivation: in case sndbuf size is 0 - try polling for a pending ACK in CQ
+	unsigned rx_poll_once_non_blocking(int & err);
 
 	// Be sure that m_pcb is initialized
 	void set_conn_properties_from_pcb();
