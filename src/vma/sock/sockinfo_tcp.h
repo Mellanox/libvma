@@ -134,6 +134,7 @@ public:
 
     struct tcp_pcb *rx_listen(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, int &is_queued);
     void free_dropped(void); 
+    
 
 	bool inline is_readable(uint64_t *p_poll_sn, fd_array_t *p_fd_array = NULL);
 	bool inline is_writeable();
@@ -311,6 +312,7 @@ private:
 	static err_t ack_recvd_lwip_cb(void *arg, struct tcp_pcb *tpcb, u16_t space);
 	static err_t rx_lwip_cb(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
 	static err_t rx_drop_lwip_cb(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
+    static err_t rx_lwip_fin(sockinfo_tcp *conn);
 
 	static  void prepare_event_completion(sockinfo_tcp *conn, uint64_t events);
 	// Be sure that m_pcb is initialized

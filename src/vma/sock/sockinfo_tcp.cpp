@@ -1255,6 +1255,57 @@ void sockinfo_tcp::prepare_event_completion(sockinfo_tcp *conn, uint64_t events)
 	conn->m_p_vma_completion->events |= events;
 }
 
+err_t sockinfo_tcp::rx_lwip_fin(sockinfo_tcp *conn)
+{
+    uint32_t events = EPOLLIN|EPOLLRDHUP;
+    if (conn->is_server()) {
+        vlog_printf(VLOG_ERROR, "listen socket should not receive FIN");
+        return ERR_OK;
+    }
+
+    if (conn->m_p_vma_completion) {
+        prepare_event_completion(conn, events);
+    }
+    else {
+        conn->notify_epoll_context(events);
+        io_mux_call::update_fd_array(conn->m_iomux_ready_fd_array, conn->m_fd);
+        conn->do_wakeup();
+    }
+
+
+    //tcp_close(&(conn->m_pcb));
+    //TODO: should be a move into half closed state (shut rx) instead of complete close
+    tcp_shutdown(&(conn->m_pcb), 1, 0);
+    //vlog_printf(VLOG_DEBUG, "%s:%d [fd=%d] null pbuf sock(%p %p) err=%d\n", __func__, __LINE__, conn->m_fd, &(conn->m_pcb), pcb, err);
+
+    if (conn->is_rts() || ((conn->m_sock_state == TCP_SOCK_ASYNC_CONNECT) && (conn->m_conn_state == TCP_CONN_CONNECTED))) {
+        conn->m_sock_state = TCP_SOCK_CONNECTED_WR;
+    } else {
+        conn->m_sock_state = TCP_SOCK_BOUND;
+    }
+    /*
+     * We got FIN, means that we will not receive any new data
+     * Need to remove the callback functions
+     */
+    tcp_recv(&(conn->m_pcb), sockinfo_tcp::rx_drop_lwip_cb);
+
+    if (conn->m_parent != NULL) {
+        //in case we got FIN before we accepted the connection
+        int delete_fd = 0;
+        sockinfo_tcp *parent = conn->m_parent;
+        /* TODO need to add some refcount inside parent in case parent and child are closed together*/
+        conn->unlock_tcp_con();
+        if ((delete_fd = parent->handle_child_FIN(conn))) {
+            //close will clean sockinfo_tcp object and the opened OS socket
+            close(delete_fd);
+            conn->lock_tcp_con(); //todo sock and fd_collection destruction race? if so, conn might be invalid? delay close to internal thread?
+            return ERR_ABRT;
+        }
+        conn->lock_tcp_con();
+    }
+    return ERR_OK;
+}
+
 err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
                         struct pbuf *p, err_t err)
 {
@@ -1269,53 +1320,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 
 	//if is FIN
 	if (unlikely(!p)) {
-		uint32_t events = EPOLLIN|EPOLLRDHUP;
-		if (conn->is_server()) {
-			vlog_printf(VLOG_ERROR, "listen socket should not receive FIN");
-			return ERR_OK;
-		}
-
-		if (conn->m_p_vma_completion) {
-			prepare_event_completion(conn, events);
-		}
-		else {
-			conn->notify_epoll_context(events);
-			io_mux_call::update_fd_array(conn->m_iomux_ready_fd_array, conn->m_fd);
-			conn->do_wakeup();
-		}
-
-
-		//tcp_close(&(conn->m_pcb));
-		//TODO: should be a move into half closed state (shut rx) instead of complete close
-		tcp_shutdown(&(conn->m_pcb), 1, 0);
-		vlog_printf(VLOG_DEBUG, "%s:%d [fd=%d] null pbuf sock(%p %p) err=%d\n", __func__, __LINE__, conn->m_fd, &(conn->m_pcb), pcb, err);
-
-		if (conn->is_rts() || ((conn->m_sock_state == TCP_SOCK_ASYNC_CONNECT) && (conn->m_conn_state == TCP_CONN_CONNECTED))) {
-			conn->m_sock_state = TCP_SOCK_CONNECTED_WR;
-		} else {
-			conn->m_sock_state = TCP_SOCK_BOUND;
-		}
-		/*
-		 * We got FIN, means that we will not receive any new data
-		 * Need to remove the callback functions
-		 */
-		tcp_recv(&(conn->m_pcb), sockinfo_tcp::rx_drop_lwip_cb);
-
-		if (conn->m_parent != NULL) {
-			//in case we got FIN before we accepted the connection
-			int delete_fd = 0;
-			sockinfo_tcp *parent = conn->m_parent;
-			/* TODO need to add some refcount inside parent in case parent and child are closed together*/
-			conn->unlock_tcp_con();
-			if ((delete_fd = parent->handle_child_FIN(conn))) {
-				//close will clean sockinfo_tcp object and the opened OS socket
-				close(delete_fd);
-				conn->lock_tcp_con(); //todo sock and fd_collection destruction race? if so, conn might be invalid? delay close to internal thread?
-				return ERR_ABRT;
-			}
-			conn->lock_tcp_con();
-		}
-		return ERR_OK;
+        return rx_lwip_fin(conn);
 	}
 	if (unlikely(err != ERR_OK)) {
 		// notify io_mux
@@ -1379,7 +1384,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 	// In ZERO COPY case we let the user's application manage the ready queue
 	}
 	else if (conn->m_p_vma_completion){
-
+//  fast path with vma_poll
 		if (!conn->m_last_poll_vma_buff_lst) {
 			conn->m_last_poll_vma_buff_lst = (vma_buff_t*)p_last_desc;
 			conn->m_p_vma_completion->packet.buff_lst = (vma_buff_t*)p_first_desc;
