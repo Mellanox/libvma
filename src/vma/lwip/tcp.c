@@ -505,39 +505,6 @@ tcp_listen_with_backlog(struct tcp_pcb_listen *listen_pcb, struct tcp_pcb *pcb, 
 
 }
 
-/** 
- * Update the state that tracks the available window space to advertise.
- *
- * Returns how much extra window would be advertised if we sent an
- * update now.
- */
-u32_t tcp_update_rcv_ann_wnd(struct tcp_pcb *pcb)
-{
-  u32_t new_right_edge = pcb->rcv_nxt + pcb->rcv_wnd;
-
-  if (TCP_SEQ_GEQ(new_right_edge, pcb->rcv_ann_right_edge + LWIP_MIN((pcb->rcv_wnd_max / 2), pcb->mss))) {
-    /* we can advertise more window */
-    pcb->rcv_ann_wnd = pcb->rcv_wnd;
-    return new_right_edge - pcb->rcv_ann_right_edge;
-  } else {
-    if (TCP_SEQ_GT(pcb->rcv_nxt, pcb->rcv_ann_right_edge)) {
-      /* Can happen due to other end sending out of advertised window,
-       * but within actual available (but not yet advertised) window */
-      pcb->rcv_ann_wnd = 0;
-    } else {
-      /* keep the right edge of window constant */
-      u32_t new_rcv_ann_wnd = pcb->rcv_ann_right_edge - pcb->rcv_nxt;
-#if TCP_RCVSCALE
-      LWIP_ASSERT("new_rcv_ann_wnd <= 0xffff00", new_rcv_ann_wnd <= 0xffff00);
-#else
-      LWIP_ASSERT("new_rcv_ann_wnd <= 0xffff", new_rcv_ann_wnd <= 0xffff);
-#endif
-      pcb->rcv_ann_wnd = new_rcv_ann_wnd;
-    }
-    return 0;
-  }
-}
-
 /**
  * This function should be called by the application when it has
  * processed the data. The purpose is to advertise a larger window

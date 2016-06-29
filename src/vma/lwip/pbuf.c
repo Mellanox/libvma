@@ -379,26 +379,6 @@ pbuf_free(struct pbuf *p)
 }
 
 /**
- * Count number of pbufs in a chain
- *
- * @param p first pbuf of chain
- * @return the number of pbufs in a chain
- */
-
-u8_t
-pbuf_clen(struct pbuf *p)
-{
-  u8_t len;
-
-  len = 0;
-  while (p != NULL) {
-    ++len;
-    p = p->next;
-  }
-  return len;
-}
-
-/**
  * Increment the reference count of the pbuf.
  *
  * @param p pbuf to increase reference counter of
@@ -798,33 +778,27 @@ pbuf_strstr(struct pbuf* p, const char* substr)
  * smaller than 64K.
  * 'packet queues' are not supported by this function.
  */
-void pbuf_split_64k(struct pbuf *p, struct pbuf **rest)
+void pbuf_split_64k_do(struct pbuf *p, struct pbuf **rest)
 {
-	if (p == NULL ||
-			p->tot_len < 0xffff) {
-		// pbuf is smaller than 64K
-		*rest = NULL;
-	} else {
-		u32_t tot_len_front = 0;
-		struct pbuf *i = NULL;
+    u32_t tot_len_front = 0;
+    struct pbuf *i = NULL;
 
-		*rest = p;
-		while (*rest != NULL &&
-				tot_len_front + (*rest)->len <= 0xffff) {
-			tot_len_front += (*rest)->len;
-			i = *rest;
-			*rest = (*rest)->next;
-		}
-		/* i now points to last packet of the first segment. Set next
-		 * pointer to NULL */
-		i->next = NULL;
+    *rest = p;
+    while (*rest != NULL &&
+            tot_len_front + (*rest)->len <= 0xffff) {
+        tot_len_front += (*rest)->len;
+        i = *rest;
+        *rest = (*rest)->next;
+    }
+    /* i now points to last packet of the first segment. Set next
+     * pointer to NULL */
+    i->next = NULL;
 
-		/* Update the tot_len field in the first part */
-		for (i = p; i && i->next != *rest; i = i->next) {
-			i->tot_len -= (*rest)->tot_len;
-		}
+    /* Update the tot_len field in the first part */
+    for (i = p; i && i->next != *rest; i = i->next) {
+        i->tot_len -= (*rest)->tot_len;
+    }
 
-		/* tot_len field in rest does not need modifications */
-		/* reference counters do not need modifications */
-	}
+    /* tot_len field in rest does not need modifications */
+    /* reference counters do not need modifications */
 }

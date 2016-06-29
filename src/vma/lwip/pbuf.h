@@ -34,6 +34,7 @@
 #define __LWIP_PBUF_H__
 
 #include "vma/lwip/opt.h"
+#include "vma/lwip/def.h"
 #include "vma/lwip/err.h"
 
 #ifdef __cplusplus
@@ -136,7 +137,26 @@ void pbuf_realloc(struct pbuf *p, u16_t size);
 u8_t pbuf_header(struct pbuf *p, s16_t header_size);
 void pbuf_ref(struct pbuf *p);
 u8_t pbuf_free(struct pbuf *p);
-u8_t pbuf_clen(struct pbuf *p);  
+/**
+ * Count number of pbufs in a chain
+ *
+ * @param p first pbuf of chain
+ * @return the number of pbufs in a chain
+ */
+
+static inline u8_t 
+pbuf_clen(struct pbuf *p)
+{
+  u8_t len;
+
+  len = 0;
+  while (p != NULL) {
+    ++len;
+    p = p->next;
+  }
+  return len;
+}
+
 void pbuf_cat(struct pbuf *head, struct pbuf *tail);
 void pbuf_chain(struct pbuf *head, struct pbuf *tail);
 struct pbuf *pbuf_dechain(struct pbuf *p);
@@ -152,7 +172,37 @@ u8_t pbuf_get_at(struct pbuf* p, u16_t offset);
 u16_t pbuf_memcmp(struct pbuf* p, u16_t offset, const void* s2, u16_t n);
 u16_t pbuf_memfind(struct pbuf* p, const void* mem, u16_t mem_len, u16_t start_offset);
 u16_t pbuf_strstr(struct pbuf* p, const char* substr);
-void pbuf_split_64k(struct pbuf *p, struct pbuf **rest); // windows scale needs large pbuf
+
+void pbuf_split_64k_do(struct pbuf *p, struct pbuf **rest); // windows scale needs large pbuf
+static inline void pbuf_split_64k(struct pbuf *p, struct pbuf **rest) 
+{
+    if (unlikely(p->tot_len < 0xffff)) {
+        pbuf_split_64k_do(p, rest);
+    }
+}
+
+static inline int pbuf_header_fast(struct pbuf *p, s16_t header_size_increment)
+{
+    if (header_size_increment < 0) {
+        if (unlikely(-header_size_increment > p->len)) {
+            return 1;
+        }
+    } 
+    p->payload = (u8_t *)p->payload - header_size_increment;
+    p->len += header_size_increment;
+    p->tot_len += header_size_increment;
+
+    return 0;
+}
+
+static inline void pbuf_free_custom(struct pbuf *p)
+{
+    if (likely(--p->ref == 0)) {
+        struct pbuf_custom *pc = (struct pbuf_custom*)p;
+
+        pc->custom_free_function(p);
+    }
+}
 
 #ifdef __cplusplus
 }

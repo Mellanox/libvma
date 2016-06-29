@@ -40,6 +40,11 @@
 extern "C" {
 #endif
 
+#define unlikely(x)  __builtin_expect(!!(x), 0)
+#define likely(x)    __builtin_expect(!!(x), 1)
+#define LWIP_F_ALWAYS_INLINE inline __attribute__ ((always_inline))
+#define LWIP_F_NOINLINE __attribute__ ((noinline))
+
 #define LWIP_MAX(x , y)  (((x) > (y)) ? (x) : (y))
 #define LWIP_MIN(x , y)  (((x) < (y)) ? (x) : (y))
 

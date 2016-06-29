@@ -54,9 +54,6 @@ void             tcp_tmr     (struct tcp_pcb* pcb);  /* Must be called every
 void             tcp_slowtmr (struct tcp_pcb* pcb);
 void             tcp_fasttmr (struct tcp_pcb* pcb);
 
-#if LWIP_3RD_PARTY_L3
-void             L3_level_tcp_input   (struct pbuf *p, struct tcp_pcb *pcb);
-#endif
 /* Used within the TCP code only: */
 struct tcp_pcb * tcp_alloc   (u8_t prio);
 struct pbuf *    tcp_tx_pbuf_alloc(struct tcp_pcb * pcb, u16_t length, pbuf_type type);
@@ -66,7 +63,6 @@ err_t            tcp_send_empty_ack(struct tcp_pcb *pcb);
 void             tcp_rexmit  (struct tcp_pcb *pcb);
 void             tcp_rexmit_rto  (struct tcp_pcb *pcb);
 void             tcp_rexmit_fast (struct tcp_pcb *pcb);
-u32_t            tcp_update_rcv_ann_wnd(struct tcp_pcb *pcb);
 
 /**
  * This is the Nagle algorithm: try to combine user data to send as few TCP
@@ -224,18 +220,12 @@ PACK_STRUCT_END
 
 #define TCP_EVENT_SENT(pcb,space,ret)                          \
   do {                                                         \
-    if((pcb)->sent != NULL)                                    \
       (ret) = (pcb)->sent((pcb)->callback_arg,(pcb),(space));  \
-    else (ret) = ERR_OK;                                       \
   } while (0)
 
 #define TCP_EVENT_RECV(pcb,p,err,ret)                          \
   do {                                                         \
-    if((pcb)->recv != NULL) {                                  \
       (ret) = (pcb)->recv((pcb)->callback_arg,(pcb),(p),(err));\
-    } else {                                                   \
-      (ret) = tcp_recv_null(NULL, (pcb), (p), (err));          \
-    }                                                          \
   } while (0)
 
 #define TCP_EVENT_CLOSED(pcb,ret)                                \
@@ -486,6 +476,88 @@ s16_t tcp_pcbs_sane(void);
  * that a timer is needed (i.e. active- or time-wait-pcb found). */
 void tcp_timer_needed(void);
 
+/** 
+ * Update the state that tracks the available window space to advertise.
+ *
+ * Returns how much extra window would be advertised if we sent an
+ * update now.
+ */
+
+static inline u32_t tcp_update_rcv_ann_wnd(struct tcp_pcb *pcb)
+{ 
+
+    u32_t new_right_edge = pcb->rcv_nxt + pcb->rcv_wnd;
+
+    if (TCP_SEQ_GEQ(new_right_edge, pcb->rcv_ann_right_edge + LWIP_MIN((pcb->rcv_wnd_max / 2), pcb->mss))) {
+        /* we can advertise more window */
+        pcb->rcv_ann_wnd = pcb->rcv_wnd;
+        return new_right_edge - pcb->rcv_ann_right_edge;
+    } else {
+        if (TCP_SEQ_GT(pcb->rcv_nxt, pcb->rcv_ann_right_edge)) {
+            /* Can happen due to other end sending out of advertised window,
+             * but within actual available (but not yet advertised) window */
+            pcb->rcv_ann_wnd = 0;
+        } else {
+            /* keep the right edge of window constant */
+            u32_t new_rcv_ann_wnd = pcb->rcv_ann_right_edge - pcb->rcv_nxt;
+#if TCP_RCVSCALE
+            LWIP_ASSERT("new_rcv_ann_wnd <= 0xffff00", new_rcv_ann_wnd <= 0xffff00);
+#else
+            LWIP_ASSERT("new_rcv_ann_wnd <= 0xffff", new_rcv_ann_wnd <= 0xffff);
+#endif
+            pcb->rcv_ann_wnd = new_rcv_ann_wnd;
+        }
+        return 0;
+    }
+}
+
+err_t tcp_do_refused_data(struct tcp_pcb *pcb);
+
+typedef struct tcp_in_data {
+	struct pbuf *recv_data;
+	struct tcp_hdr *tcphdr;
+	struct ip_hdr *iphdr;
+	u32_t seqno;
+	u32_t ackno;
+	struct tcp_seg inseg;
+	u16_t tcplen;
+	u8_t flags;
+	u8_t recv_flags;
+} tcp_in_data;
+
+#include "vma/lwip/stats.h"
+
+err_t tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data);
+err_t tcp_timewait_input(struct tcp_pcb *pcb, tcp_in_data* in_data);
+err_t tcp_process_rst(struct tcp_pcb *pcb, tcp_in_data* in_data);
+void tcp_parseopt(struct tcp_pcb *pcb, tcp_in_data* in_data);
+err_t tcp_process_state(struct tcp_pcb *pcb, tcp_in_data* in_data);
+
+
+void tcp_receive_dupack_check(struct tcp_pcb *pcb, tcp_in_data* in_data, u32_t right_wnd_edge);
+static inline void
+tcp_tx_seg_free_inl(struct tcp_pcb * pcb, struct tcp_seg *seg)
+{
+    tcp_tx_pbuf_free(pcb, seg->p);
+    external_tcp_seg_free(pcb, seg);
+}
+
+void tcp_receive_unsent_check(struct tcp_pcb *pcb, tcp_in_data* in_data);
+
+void tcp_receive_rtt_check(struct tcp_pcb *pcb);
+
+void tcp_receive_ooseq3(struct tcp_pcb *pcb, tcp_in_data* in_data);
+
+void tcp_receive_ooseq2(struct tcp_pcb *pcb, tcp_in_data* in_data);
+
+void tcp_receive_ooseq1(struct tcp_pcb *pcb, tcp_in_data* in_data);
+
+
+void tcp_receive_rcv_wnd_overrun(struct tcp_pcb *pcb, tcp_in_data* in_data);
+void tcp_receive_data_trim(struct tcp_pcb *pcb, tcp_in_data* in_data);
+
+void tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data);
+void L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb);
 
 #ifdef __cplusplus
 }
