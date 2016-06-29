@@ -64,13 +64,25 @@ public:
 	size_t const	sz_buffer; 	// this is the size of the buffer
 	size_t		sz_data;   	// this is the amount of data inside the buffer (sz_data <= sz_buffer)
 	uint32_t	lkey;      	// Buffers lkey for QP access
+#if 0
 private:
 	atomic_t	n_ref_count;	// number of interested receivers (sockinfo) [can be modified only in cq_mgr context]
 public:
 	inline int get_ref_count() const {return atomic_read(&n_ref_count);}
 	inline void  reset_ref_count() {atomic_set(&n_ref_count, 0);}
+	inline void  set_ref_count(int count) {atomic_set(&n_ref_count, count);}
 	inline int inc_ref_count() {return atomic_fetch_and_inc(&n_ref_count);}
 	inline int dec_ref_count() {return atomic_fetch_and_dec(&n_ref_count);}
+#endif
+
+private:
+	int	n_ref_count;	// number of interested receivers (sockinfo) [can be modified only in cq_mgr context]
+public:
+	inline int get_ref_count() const {return n_ref_count;}
+	inline void  reset_ref_count() {n_ref_count=0;}
+	inline void  set_ref_count(int count) {n_ref_count=count;}
+	inline int inc_ref_count() {return n_ref_count++;}
+	inline int dec_ref_count() {return n_ref_count--;}
 
 	inline unsigned int lwip_pbuf_inc_ref_count() {return ++lwip_pbuf.pbuf.ref;}
 	inline unsigned int lwip_pbuf_dec_ref_count() {if (likely(lwip_pbuf.pbuf.ref)) --lwip_pbuf.pbuf.ref; return lwip_pbuf.pbuf.ref;}
