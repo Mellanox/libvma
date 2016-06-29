@@ -90,11 +90,14 @@ struct vma_completion_t {
          * with level argument SOL_SOCKET and opname as SO_VMA_USER_DATA
          */ 
 	uint64_t                 user_data;
-	
 	/* Source address (in network byte order) set for:
 	 * VMA_POLL_PACKET and VMA_POLL_NEW_CONNECTION_ACCEPTED events
 	 */
 	struct sockaddr_in       src;
+	/* Connected socket's parent/listen socket fd number.
+	 * Valid in case VMA_POLL_NEW_CONNECTION_ACCEPTED event is set.
+	*/
+	int 			listen_fd;
 };
 
 /************ vma_poll() API types definition end ***************/
