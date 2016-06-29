@@ -511,6 +511,59 @@ static inline u32_t tcp_update_rcv_ann_wnd(struct tcp_pcb *pcb)
     }
 }
 
+
+/**
+ * This function should be called by the application when it has
+ * processed the data. The purpose is to advertise a larger window
+ * when the data has been processed.
+ *
+ * @param pcb the tcp_pcb for which data is read
+ * @param len the amount of bytes that have been read by the application
+ */
+static inline void
+tcp_recved(struct tcp_pcb *pcb, u32_t len)
+{
+  u32_t wnd_inflation;
+
+#if TCP_RCVSCALE
+  LWIP_ASSERT("tcp_recved: len would wrap rcv_wnd\n",
+              len <= 0xffffffffU - pcb->rcv_wnd );
+#else
+  LWIP_ASSERT("tcp_recved: len would wrap rcv_wnd\n",
+              len <= 0xffff - pcb->rcv_wnd );
+#endif
+
+  pcb->rcv_wnd += len;
+  if (pcb->rcv_wnd > pcb->rcv_wnd_max) {
+    pcb->rcv_wnd = pcb->rcv_wnd_max;
+  } else if(pcb->rcv_wnd == 0) {
+  /* rcv_wnd overflowed */
+    if ((get_tcp_state(pcb) == CLOSE_WAIT) || (get_tcp_state(pcb) == LAST_ACK)) {
+      /* In passive close, we allow this, since the FIN bit is added to rcv_wnd
+         by the stack itself, since it is not mandatory for an application
+         to call tcp_recved() for the FIN bit, but e.g. the netconn API does so. */
+      pcb->rcv_wnd = pcb->rcv_wnd_max;
+    } else {
+      LWIP_ASSERT("tcp_recved: len wrapped rcv_wnd\n", 0);
+    }
+  }
+
+  wnd_inflation = tcp_update_rcv_ann_wnd(pcb);
+
+  /* If the change in the right edge of window is significant (default
+   * watermark is TCP_WND/4), then send an explicit update now.
+   * Otherwise wait for a packet to be sent in the normal course of
+   * events (or more window to be available later) */
+  if (wnd_inflation >= TCP_WND_UPDATE_THRESHOLD) {
+    tcp_ack_now(pcb);
+    tcp_output(pcb);
+  }
+
+  LWIP_DEBUGF(TCP_DEBUG, ("tcp_recved: recveived %"U16_F" bytes, wnd %"U16_F" (%"U16_F").\n",
+         len, pcb->rcv_wnd, TCP_WND_SCALED - pcb->rcv_wnd));
+}
+
+
 err_t tcp_do_refused_data(struct tcp_pcb *pcb);
 
 typedef struct tcp_in_data {
