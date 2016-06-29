@@ -1337,12 +1337,12 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 	p_first_desc->n_frags = 0;
 
 	mem_buf_desc_t *p_curr_desc = p_first_desc;
-	mem_buf_desc_t* p_last_desc = NULL;
+	mem_buf_desc_t* p_last_desc;
 
-	pbuf *p_curr_buff = p;
+	pbuf *p_curr_buff = p; // p is not null here
 	conn->m_connected.get_sa(p_first_desc->path.rx.src);
 
-	while (p_curr_buff) {
+	do {
 		p_last_desc = (mem_buf_desc_t*)p_curr_buff;
 		p_first_desc->n_frags++;
 		p_curr_desc->path.rx.frag.iov_base = p_curr_buff->payload;
@@ -1351,11 +1351,15 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 		p_curr_desc->p_next_desc = (mem_buf_desc_t *)p_curr_buff->next;
 		p_curr_buff = p_curr_buff->next;
 		p_curr_desc = p_curr_desc->p_next_desc;
-	}
+	} while (unlikely(p_curr_buff));
 		
-	vma_recv_callback_retval_t callback_retval = VMA_PACKET_RECV;
+//	vma_recv_callback_retval_t callback_retval = VMA_PACKET_RECV;
 	
+#if 0
+    static int count;
+    // AM_TODO: move this somewhere
 	if (conn->m_rx_callback && !conn->m_vma_thr && !conn->m_n_rx_pkt_ready_list_count) {
+        printf("haraharhar %d\n", ++count);
 		mem_buf_desc_t *tmp;
 		vma_info_t pkt_info;
 		int nr_frags = 0;
@@ -1379,13 +1383,16 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 	}
 	
 	if (callback_retval == VMA_PACKET_DROP) {
+        printf("drdrharaharhar %d\n", ++count);
 		conn->m_rx_cb_dropped_list.push_back(p_first_desc);
 
 	// In ZERO COPY case we let the user's application manage the ready queue
 	}
 	else if (conn->m_p_vma_completion){
+#endif
+
 //  fast path with vma_poll
-		if (!conn->m_last_poll_vma_buff_lst) {
+//		if (!conn->m_last_poll_vma_buff_lst) {
 			conn->m_last_poll_vma_buff_lst = (vma_buff_t*)p_last_desc;
 			conn->m_p_vma_completion->packet.buff_lst = (vma_buff_t*)p_first_desc;
 			conn->m_p_vma_completion->packet.total_len = p->tot_len;
@@ -1393,8 +1400,11 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 			conn->m_p_vma_completion->src = p_first_desc->path.rx.src;
 			conn->m_p_vma_completion->user_data = conn->m_fd;
 			conn->m_p_vma_completion->packet.num_bufs = p_first_desc->n_frags;
+#if 0
+    // AM_TODO: move this somewhere
 		}
 		else {
+            printf("fragments\n");
 			mem_buf_desc_t* prev_lst_tail_desc = (mem_buf_desc_t*)conn->m_last_poll_vma_buff_lst;
 			mem_buf_desc_t* list_head_desc = (mem_buf_desc_t*)conn->m_p_vma_completion->packet.buff_lst;
 			prev_lst_tail_desc->p_next_desc = p_first_desc;
@@ -1404,10 +1414,14 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 			conn->m_p_vma_completion->packet.num_bufs += list_head_desc->n_frags;
 			pbuf_cat((pbuf*)conn->m_p_vma_completion->packet.buff_lst, p);
 		}
+#endif
 
 		p_first_desc->path.rx.vma_polled = false;
+#if 0
+    // AM_TODO: move this somewhere
 	}
 	else {
+        printf("no vma comp %d\n", ++count);
 		if (callback_retval == VMA_PACKET_RECV) {
 			// Save rx packet info in our ready list
 			conn->m_rx_pkt_ready_list.push_back(p_first_desc);
@@ -1429,25 +1443,32 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 			conn->m_p_socket_stats->n_rx_zcopy_pkt_count++;
 		}
 	}	
+#endif
 	
 	/*
 	* RCVBUFF Accounting: tcp_recved here(stream into the 'internal' buffer) only if the user buffer is not 'filled'
 	*/
 	rcv_buffer_space = max(0, conn->m_rcvbuff_max - conn->m_rcvbuff_current - (int)conn->m_pcb.rcv_wnd_max_desired);
+#if 0
 	if (callback_retval == VMA_PACKET_DROP) {
 		bytes_to_tcp_recved = (int)p->tot_len;
 	} else {
+#endif
 		bytes_to_tcp_recved = min(rcv_buffer_space, (int)p->tot_len);
 		conn->m_rcvbuff_current += p->tot_len;
-	}
+//	}
 	
+#if 0
 	if (likely(bytes_to_tcp_recved > 0)) {
+        printf("tcp recvd\n");
 	    tcp_recved(&(conn->m_pcb), bytes_to_tcp_recved);
 	}
+#endif
 
 	non_tcp_receved_bytes_remaining = p->tot_len - bytes_to_tcp_recved;
 
-	if (non_tcp_receved_bytes_remaining > 0) {
+    //AM: todo check what is this
+	if (likely(non_tcp_receved_bytes_remaining > 0)) {
 		bytes_to_shrink = 0;
 		if (conn->m_pcb.rcv_wnd_max > conn->m_pcb.rcv_wnd_max_desired) {
 	    	bytes_to_shrink = MIN(conn->m_pcb.rcv_wnd_max - conn->m_pcb.rcv_wnd_max_desired, non_tcp_receved_bytes_remaining);
@@ -1523,38 +1544,41 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 
 	return_reuse_buffers_postponed();
 
-	while (m_rx_ready_byte_count < total_iov_sz) {
-        	if (unlikely(g_b_exit)) {
-			ret = -1;
-			errno = EINTR;
-			si_tcp_logdbg("returning with: EINTR");
-			goto err;
-		}
-        	if (unlikely(!is_rtr())) {
-			if (m_conn_state == TCP_CONN_INIT) {
-				si_tcp_logdbg("RX on never connected socket");
-				errno = ENOTCONN;
-				ret = -1;
-			} else if (m_conn_state == TCP_CONN_CONNECTING) {
-				si_tcp_logdbg("RX while async-connect on socket");
-				errno = EAGAIN;
-				ret = -1;
-			} else if (m_conn_state == TCP_CONN_RESETED) {
-				si_tcp_logdbg("RX on reseted socket");
-				m_conn_state = TCP_CONN_FAILED;
-				errno = ECONNRESET;
-				ret = -1;
-			} else {
-				si_tcp_logdbg("RX on disconnected socket - EOF");
-				ret = 0;
-			}
-			goto err;
-        	}
-        	ret = rx_wait(poll_count, block_this_run);
-        	if (unlikely(ret < 0)) goto err;
-	}
+	if (unlikely(m_rx_ready_byte_count < total_iov_sz)) {
+        do {
+            if (unlikely(g_b_exit)) {
+                ret = -1;
+                errno = EINTR;
+                si_tcp_logdbg("returning with: EINTR");
+                goto err;
+            }
+            if (unlikely(!is_rtr())) {
+                if (m_conn_state == TCP_CONN_INIT) {
+                    si_tcp_logdbg("RX on never connected socket");
+                    errno = ENOTCONN;
+                    ret = -1;
+                } else if (m_conn_state == TCP_CONN_CONNECTING) {
+                    si_tcp_logdbg("RX while async-connect on socket");
+                    errno = EAGAIN;
+                    ret = -1;
+                } else if (m_conn_state == TCP_CONN_RESETED) {
+                    si_tcp_logdbg("RX on reseted socket");
+                    m_conn_state = TCP_CONN_FAILED;
+                    errno = ECONNRESET;
+                    ret = -1;
+                } else {
+                    si_tcp_logdbg("RX on disconnected socket - EOF");
+                    ret = 0;
+                }
+                goto err;
+            }
+            ret = rx_wait(poll_count, block_this_run);
+            if (unlikely(ret < 0)) goto err;
+        } while (m_rx_ready_byte_count < total_iov_sz);
+    }
 	//si_tcp_logfunc("something in rx queues: %d %p", m_n_rx_pkt_ready_list_count, m_rx_pkt_ready_list.front());
 
+    //AM_TODO: optimize deque_packet
 	total_rx = dequeue_packet(p_iov, sz_iov, (sockaddr_in *)__from, __fromlen, in_flags, &out_flags);
 
 
@@ -1563,12 +1587,12 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 	* The packet might not be 'acked' (tcp_recved) 
 	* 
 	*/
-	if (!(in_flags & (MSG_PEEK | MSG_VMA_ZCOPY))) {
+	if (likely(!(in_flags & (MSG_PEEK | MSG_VMA_ZCOPY)))) {
 		m_rcvbuff_current -= total_rx;
 
 
 		// data that was not tcp_recved should do it now.
-		if ( m_rcvbuff_non_tcp_recved > 0 ) {
+		if (likely(m_rcvbuff_non_tcp_recved > 0)) {
 			bytes_to_tcp_recved = min(m_rcvbuff_non_tcp_recved, total_rx);
 			tcp_recved(&m_pcb, bytes_to_tcp_recved);
 			m_rcvbuff_non_tcp_recved -= bytes_to_tcp_recved;
