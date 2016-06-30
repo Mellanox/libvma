@@ -237,7 +237,7 @@ sockinfo_tcp::sockinfo_tcp(int fd) throw (vma_exception) :
 	m_tcp_seg_in_use = 0;
 	m_tcp_seg_list = g_tcp_seg_pool->get_tcp_segs(TCP_SEG_COMPENSATION);
 	if (m_tcp_seg_list) m_tcp_seg_count += TCP_SEG_COMPENSATION;
-	m_rx_poll_non_block_counter = 0;
+	m_tx_consecutive_eagain_count = 0;
 
 	si_tcp_logfunc("done");
 }
@@ -577,23 +577,6 @@ unsigned sockinfo_tcp::tx_wait(int & err, bool is_blocking)
 	return sz;
 }
 
-void sockinfo_tcp::rx_poll_once_non_blocking(int & err)
-{
-	bool is_blocking = false;
-	int poll_count = 0;
-	si_tcp_logfunc("rx_count=%d", m_n_rx_pkt_ready_list_count);
-	err = 0;
-	if (is_rts()) {
-		err = rx_wait(poll_count, is_blocking);
-		if (err < 0)
-			return;
-                if (unlikely(g_b_exit)) {
-                        errno = EINTR;
-                }
-	}
-	si_tcp_logfunc("end poll_count = %d rx_count=%d", poll_count, m_n_rx_pkt_ready_list_count);
-}
-
 ssize_t sockinfo_tcp::tx(const tx_call_t call_type, const struct iovec* p_iov, const ssize_t sz_iov, const int flags, const struct sockaddr *__to, const socklen_t __tolen)
 {
 	int total_tx = 0;
@@ -659,41 +642,35 @@ retry_is_ready:
 				goto err;
 			}
 			//tx_size = tx_wait();
-			tx_size = tcp_sndbuf(&m_pcb);
-			if (tx_size == 0) { 
+                        tx_size = tcp_sndbuf(&m_pcb);
+                        if (tx_size == 0) { 
                                 //force out TCP data before going on wait()
                                 tcp_output(&m_pcb);
 
-				if (!block_this_run) {
-					m_rx_poll_non_block_counter++;
-					if (m_rx_poll_non_block_counter >= RX_POLL_NON_BLOCK_THREASHOLD) {
-						// in case of zero sndbuf and non-blocking just try once polling CQ for ACK
-						rx_poll_once_non_blocking(ret);
-						m_rx_poll_non_block_counter = 0;
-						if (ret < 0)
-							goto err;
-						// calculate again sndbuf
-						tx_size = tcp_sndbuf(&m_pcb);
-						if (tx_size > 0)
-							goto tx_size_gt_0;
-					}
-					// non blocking socket should return inorder not to tx_wait()
+                                if (!block_this_run) {
+                                        // non blocking socket should return inorder not to tx_wait()
                                         if ( total_tx ) {
+                                                m_tx_consecutive_eagain_count = 0;
                                                 goto done;
                                         }
                                         else {
+                                                m_tx_consecutive_eagain_count++;
+                                                if (m_tx_consecutive_eagain_count >= TX_CONSECUTIVE_EAGAIN_THREASHOLD) {
+                                                        // in case of zero sndbuf and non-blocking just try once polling CQ for ACK
+                                                        rx_wait(poll_count, false);
+                                                        m_tx_consecutive_eagain_count = 0;
+                                                }
                                                 ret = -1;
                                                 errno = EAGAIN;
                                                 goto err;
                                         }
-                               
-				}
+                                }
 
-				tx_size = tx_wait(ret, block_this_run);
-				if (ret < 0)
-					goto err;
-			}
-tx_size_gt_0:
+                                tx_size = tx_wait(ret, block_this_run);
+                                if (ret < 0)
+                                        goto err;
+                        }
+
 			if (tx_size > p_iov[i].iov_len - pos)
 				tx_size = p_iov[i].iov_len - pos;
 retry_write:
