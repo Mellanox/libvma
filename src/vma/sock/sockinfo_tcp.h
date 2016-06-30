@@ -281,6 +281,8 @@ private:
 	peer_map_t      m_rx_peer_packets;
 	vma_desc_list_t m_rx_ctl_reuse_list;
 	ready_pcb_map_t m_ready_pcbs;
+	static const unsigned TX_CONSECUTIVE_EAGAIN_THREASHOLD = 10;
+	unsigned m_tx_consecutive_eagain_count;
 
 	inline void init_pbuf_custom(mem_buf_desc_t *p_desc);
 
@@ -322,7 +324,7 @@ private:
 	static err_t ack_recvd_lwip_cb(void *arg, struct tcp_pcb *tpcb, u16_t space);
 	static err_t rx_lwip_cb(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
 	static err_t rx_drop_lwip_cb(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
-
+        
 	// Be sure that m_pcb is initialized
 	void set_conn_properties_from_pcb();
 

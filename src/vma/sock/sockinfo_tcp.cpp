@@ -237,6 +237,7 @@ sockinfo_tcp::sockinfo_tcp(int fd) throw (vma_exception) :
 	m_tcp_seg_in_use = 0;
 	m_tcp_seg_list = g_tcp_seg_pool->get_tcp_segs(TCP_SEG_COMPENSATION);
 	if (m_tcp_seg_list) m_tcp_seg_count += TCP_SEG_COMPENSATION;
+	m_tx_consecutive_eagain_count = 0;
 
 	si_tcp_logfunc("done");
 }
@@ -641,26 +642,35 @@ retry_is_ready:
 				goto err;
 			}
 			//tx_size = tx_wait();
-			tx_size = tcp_sndbuf(&m_pcb);
-			if (tx_size == 0) {
+                        tx_size = tcp_sndbuf(&m_pcb);
+                        if (tx_size == 0) { 
                                 //force out TCP data before going on wait()
                                 tcp_output(&m_pcb);
-				// non blocking socket should return inorder not to tx_wait()
-				if (!block_this_run) {
+
+                                if (!block_this_run) {
+                                        // non blocking socket should return inorder not to tx_wait()
                                         if ( total_tx ) {
+                                                m_tx_consecutive_eagain_count = 0;
                                                 goto done;
                                         }
                                         else {
+                                                m_tx_consecutive_eagain_count++;
+                                                if (m_tx_consecutive_eagain_count >= TX_CONSECUTIVE_EAGAIN_THREASHOLD) {
+                                                        // in case of zero sndbuf and non-blocking just try once polling CQ for ACK
+                                                        rx_wait(poll_count, false);
+                                                        m_tx_consecutive_eagain_count = 0;
+                                                }
                                                 ret = -1;
                                                 errno = EAGAIN;
                                                 goto err;
                                         }
                                 }
 
-				tx_size = tx_wait(ret, block_this_run);
-				if (ret < 0)
-					goto err;
-			}
+                                tx_size = tx_wait(ret, block_this_run);
+                                if (ret < 0)
+                                        goto err;
+                        }
+
 			if (tx_size > p_iov[i].iov_len - pos)
 				tx_size = p_iov[i].iov_len - pos;
 retry_write:
