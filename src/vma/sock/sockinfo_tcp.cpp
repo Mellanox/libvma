@@ -1253,6 +1253,16 @@ void sockinfo_tcp::prepare_event_completion(sockinfo_tcp *conn, uint64_t events)
 	}
 
 	conn->m_p_vma_completion->events |= events;
+
+	if (events & VMA_POLL_NEW_CONNECTION_ACCEPTED) {
+		if (likely(conn->m_parent)) {
+			conn->m_p_vma_completion->listen_fd = conn->m_parent->get_fd();
+		}
+		else {
+			vlog_printf(VLOG_ERROR, "VMA_POLL_NEW_CONNECTION_ACCEPTED: can't find listen socket for new connected socket with [fd=%d]",
+				    __func__, __LINE__, conn->get_fd());
+		}
+	}
 }
 
 err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
@@ -2479,8 +2489,6 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 		new_sock->m_conn_state = TCP_CONN_CONNECTED;
 	}
 
-	new_sock->m_parent = NULL;
-
 	/* if attach failed, we should continue getting traffic through the listen socket */
 	// todo register as 3-tuple rule for the case the listener is gone?
 	new_sock->attach_as_uc_receiver(role_t (NULL), true);
@@ -2535,6 +2543,7 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 	conn->unlock_tcp_con();
 
 	new_sock->lock_tcp_con();
+	new_sock->m_parent = NULL;
 
 	return ERR_OK;
 }
