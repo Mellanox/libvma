@@ -2163,8 +2163,9 @@ int __vma_parse_config_file (const char *fileName) {
    
 	/* open the file */
 	if (access(fileName, R_OK)) {
-		printf("libvma Error: No access to open File:%s %s\n", 
-				fileName, strerror(errno));
+		/*
+		 * Let upper layer inform about no access to open file - based on log level
+		*/
 		return(1);
 	}
 

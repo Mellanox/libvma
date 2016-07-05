@@ -804,7 +804,7 @@ static void do_global_ctors_helper()
 			vlog_printf(VLOG_INFO,"Please see README.txt section regarding VMA_CONFIG_FILE\n");
 	}
 	else if (__vma_parse_config_file(safe_mce_sys().conf_filename))
-		vlog_printf(VLOG_WARNING,"FAILED to read VMA configuration file: %s\n", safe_mce_sys().conf_filename);
+		vlog_printf(VLOG_DEBUG,"FAILED to read VMA configuration file: %s\n", safe_mce_sys().conf_filename);
 
 
 	// initialize LWIP tcp/ip stack
