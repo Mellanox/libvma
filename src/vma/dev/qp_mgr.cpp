@@ -147,10 +147,12 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	// Check device capabilities for max SG elements
 	uint32_t tx_max_inline = safe_mce_sys().tx_max_inline;;
 	uint32_t rx_num_sge = MCE_DEFAULT_RX_NUM_SGE;
+	uint32_t tx_num_sge = MCE_DEFAULT_TX_NUM_SGE;
 
 	qp_init_attr.cap.max_send_wr = m_tx_num_wr;
 	qp_init_attr.cap.max_recv_wr = m_rx_num_wr;
 	qp_init_attr.cap.max_inline_data = tx_max_inline;
+	qp_init_attr.cap.max_send_sge = tx_num_sge;
 	qp_init_attr.cap.max_recv_sge = rx_num_sge;
 	qp_init_attr.recv_cq = m_p_cq_mgr_rx->get_ibv_cq_hndl();
 	qp_init_attr.send_cq = m_p_cq_mgr_tx->get_ibv_cq_hndl();
@@ -170,8 +172,8 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	} ENDIF_VERBS_FAILURE;
 
 	m_max_inline_data = min(tmp_ibv_qp_init_attr.cap.max_inline_data, tx_max_inline);
-	qp_logdbg("requested max inline = %d QP, actual max inline = %d, VMA max inline set to %d, max_send_wr=%d, max_recv_wr=%d, max_recv_sge=%d",
-			tx_max_inline, tmp_ibv_qp_init_attr.cap.max_inline_data, m_max_inline_data, qp_init_attr.cap.max_send_wr, qp_init_attr.cap.max_recv_wr, qp_init_attr.cap.max_recv_sge);
+	qp_logdbg("requested max inline = %d QP, actual max inline = %d, VMA max inline set to %d, max_send_wr=%d, max_recv_wr=%d, max_recv_sge=%d, max_send_sge=%d",
+			tx_max_inline, tmp_ibv_qp_init_attr.cap.max_inline_data, m_max_inline_data, qp_init_attr.cap.max_send_wr, qp_init_attr.cap.max_recv_wr, qp_init_attr.cap.max_recv_sge, qp_init_attr.cap.max_send_sge);
 
 	// All buffers will be allocated from this qp_mgr buffer pool so we can already set the Rx & Tx lkeys
 	for (uint32_t wr_idx = 0; wr_idx < m_rx_num_wr_to_post_recv; wr_idx++) {
