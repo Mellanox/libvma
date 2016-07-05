@@ -93,6 +93,7 @@ public:
 	inline int dec_ref_count() {return atomic_fetch_and_dec(&n_ref_count);}
 
 	bool		b_is_tx_mc_loop_dis; // if the mc loop on the tx side is disabled (the loop is per interface)
+	bool		hw_csum_validation;
 	int8_t		n_frags;	//number of fragments
 	size_t		transport_header_len;
 

@@ -44,6 +44,7 @@
 #include <linux/sockios.h>
 #include <math.h>
 #include <linux/ip.h>  //IP  header (struct  iphdr) definition
+#include <netinet/udp.h>
 
 #include "vlogger/vlogger.h"
 #include "vma/util/sys_vars.h"
@@ -158,7 +159,7 @@ int get_base_interface_name(const char *if_name, char *base_ifname, size_t sz_ba
 	return 0;
 }
 
-unsigned short csum(const unsigned short *buf, unsigned int nshort_words)
+unsigned short compute_ip_checksum(const unsigned short *buf, unsigned int nshort_words)
 {
 	unsigned long sum = 0;
 
@@ -209,6 +210,47 @@ unsigned short compute_tcp_checksum(const struct iphdr *p_iphdr, const uint16_t 
       sum = ~sum;
     //computation result
       return (unsigned short)sum;
+}
+
+/* set udp checksum: given IP header and UDP datagram
+ *
+ * (assume checksum field in UDP header contains zero)
+ * This code borrows from other places and their ideas.
+ */
+
+unsigned short compute_udp_checksum(const struct iphdr *p_iphdr, const uint16_t *p_ip_payload) {
+    register unsigned long sum = 0;
+    struct udphdr *udphdrp = (struct udphdr*)(p_ip_payload);
+    unsigned short udp_len = htons(udphdrp->len);
+
+    //add the pseudo header
+    sum += (p_iphdr->saddr>>16)&0xFFFF;
+    sum += (p_iphdr->saddr)&0xFFFF;
+    //the dest ip
+    sum += (p_iphdr->daddr>>16)&0xFFFF;
+    sum += (p_iphdr->daddr)&0xFFFF;
+    //protocol and reserved: 17
+    sum += htons(IPPROTO_UDP);
+    //the length
+    sum += udphdrp->len;
+
+    //add the IP payload
+    while (udp_len > 1) {
+        sum += * p_ip_payload++;
+        udp_len -= 2;
+    }
+    //if any bytes left, pad the bytes and add
+    if(udp_len > 0) {
+        sum += ((*p_ip_payload)&htons(0xFF00));
+    }
+      //Fold sum to 16 bits: add carrier to result
+      while (sum>>16) {
+          sum = (sum & 0xffff) + (sum >> 16);
+      }
+
+      sum = ~sum;
+    //computation result
+    return (unsigned short)sum == 0x0000 ? 0xFFFF :(unsigned short)sum;
 }
 
 /**

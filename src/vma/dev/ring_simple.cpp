@@ -785,6 +785,12 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 #endif
 	}
 
+	bool enable_sw_csum = safe_mce_sys().rx_sw_csum && !p_rx_wc_buf_desc->hw_csum_validation;
+
+	if (enable_sw_csum && compute_ip_checksum((unsigned short*)p_ip_h, p_ip_h->ihl * 2)) {
+		return false; // false ip checksum
+	}
+
 //We want to enable loopback between processes for IB
 #if 0
 	//AlexV: We don't support Tx MC Loopback today!
@@ -807,6 +813,11 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 	{
 		// Get the udp header pointer + udp payload size
 		p_udp_h = (struct udphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
+
+		if (enable_sw_csum && !p_udp_h->check && compute_udp_checksum(p_ip_h, (unsigned short*) p_udp_h)) {
+			return false; // false udp checksum
+		}
+
 		size_t sz_payload = ntohs(p_udp_h->len) - sizeof(struct udphdr);
 		ring_logfunc("Rx udp datagram info: src_port=%d, dst_port=%d, payload_sz=%d, csum=%#x",
 				ntohs(p_udp_h->source), ntohs(p_udp_h->dest), sz_payload, p_udp_h->check);
@@ -834,6 +845,11 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 	{
 		// Get the tcp header pointer + tcp payload size
 		struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
+
+		if (enable_sw_csum && compute_tcp_checksum(p_ip_h, (unsigned short*) p_tcp_h)) {
+			return false; // false tcp checksum
+		}
+
 		size_t sz_payload = ip_tot_len - ip_hdr_len - p_tcp_h->doff*4;
 		ring_logfunc("Rx TCP segment info: src_port=%d, dst_port=%d, flags='%s%s%s%s%s%s' seq=%u, ack=%u, win=%u, payload_sz=%u",
 				ntohs(p_tcp_h->source), ntohs(p_tcp_h->dest),

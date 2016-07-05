@@ -466,6 +466,7 @@ void print_vma_global_settings()
 	}
 
 	VLOG_PARAM_NUMBER("Rx UDP HW TS Conversion", safe_mce_sys().rx_udp_hw_ts_conversion, MCE_DEFAULT_RX_UDP_HW_TS_CONVERSION, SYS_VAR_RX_UDP_HW_TS_CONVERSION);
+	VLOG_PARAM_NUMBER("Rx SW CSUM", safe_mce_sys().rx_sw_csum, MCE_DEFUALT_RX_SW_CSUM, SYS_VAR_RX_SW_CSUM);
 	if (safe_mce_sys().rx_poll_yield_loops) {
 		VLOG_PARAM_NUMBER("Rx Poll Yield", safe_mce_sys().rx_poll_yield_loops, MCE_DEFAULT_RX_POLL_YIELD, SYS_VAR_RX_POLL_YIELD);
 	}
@@ -715,7 +716,7 @@ void igmp_test()
 	p_pkt->m_ip_hdr.tot_len = htons(IPV4_IGMP_HDR_LEN + sizeof(igmphdr));
 	p_pkt->m_ip_hdr_ext = htonl(IGMP_IP_HEADER_EXT);
 	p_pkt->m_ip_hdr.check = 0;
-	p_pkt->m_ip_hdr.check = csum((unsigned short*)&p_pkt->m_ip_hdr, (IPV4_IGMP_HDR_LEN_WORDS) * 2);
+	p_pkt->m_ip_hdr.check = compute_ip_checksum((unsigned short*)&p_pkt->m_ip_hdr, (IPV4_IGMP_HDR_LEN_WORDS) * 2);
 
 	// Create the IGMP header
 	p_pkt->m_igmp_hdr.type = IGMP_QUERY;
@@ -723,7 +724,7 @@ void igmp_test()
 	p_pkt->m_igmp_hdr.group = (in_addr_t)inet_addr("224.4.4.4");
 
 	p_pkt->m_igmp_hdr.csum = 0;
-	p_pkt->m_igmp_hdr.csum = csum((unsigned short*)&p_pkt->m_igmp_hdr, IGMP_HDR_LEN_WORDS * 2);
+	p_pkt->m_igmp_hdr.csum = compute_ip_checksum((unsigned short*)&p_pkt->m_igmp_hdr, IGMP_HDR_LEN_WORDS * 2);
 
 	g_p_igmp_mgr->process_igmp_packet(&p_pkt->m_ip_hdr, (in_addr_t)inet_addr("2.2.2.16"));
 }

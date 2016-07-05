@@ -526,8 +526,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 	// Get related mem_buf_desc pointer from the wr_id
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(uintptr_t)p_wce->wr_id;
 
-	bool bad_wce = (p_wce->status != IBV_WC_SUCCESS) ||
-			(m_b_is_rx_csum_on && !vma_wc_rx_csum_ok(*p_wce));
+	bool bad_wce = p_wce->status != IBV_WC_SUCCESS;
 
 	if (unlikely(bad_wce || p_mem_buf_desc == NULL)) {
 		if (p_mem_buf_desc == NULL) {
@@ -562,6 +561,8 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 		m_p_next_rx_desc_poll = p_mem_buf_desc->p_prev_desc;
 		p_mem_buf_desc->p_prev_desc = NULL;
 	}
+
+	p_mem_buf_desc->hw_csum_validation = m_b_is_rx_csum_on && vma_wc_rx_csum_ok(*p_wce);
 
 	if (likely(vma_wc_opcode(*p_wce) & VMA_IBV_WC_RECV)) {
 		p_mem_buf_desc->path.rx.qpn = p_wce->qp_num; //todo not used

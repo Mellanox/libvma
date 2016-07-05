@@ -640,6 +640,15 @@ Use value of 2 for OS follow up.
 Disabled by default (enabling causing a slight performance
 degradation of ~50-100 nano sec per half round trip)
 
+VMA_RX_SW_CSUM
+Enable/Disable software checksum validation for receive IP and TCP/UDP packets.
+Software checksum validation will be compute (if enabled) only if HW checksum
+validation failed.
+Use value of 0 to disable.
+Use value of 1 for enable.
+Enabled by default (should cause a performance degradation if HW checksum
+validation is not supported)
+
 VMA_EXCEPTION_HANDLING
 Mode for handling missing support or error cases in Socket API or functionality by VMA.
 Useful for quickly identifying VMA unsupported Socket API or features
