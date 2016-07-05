@@ -269,16 +269,18 @@ void check_debug()
 void check_flow_steering_log_num_mgm_entry_size()
 {
 	char flow_steering_val[2] = {0};
-	if (priv_read_file((const char*)FLOW_STEERING_MGM_ENTRY_SIZE_PARAM_FILE, flow_steering_val, 2) == -1) {
-		vlog_printf(VLOG_DEBUG, "Flow steering option does not exist in current OFED version");
+	if (priv_try_read_file((const char*)FLOW_STEERING_MGM_ENTRY_SIZE_PARAM_FILE, flow_steering_val, 2) == -1) {
+		vlog_printf(VLOG_DEBUG, "Flow steering option for mlx4 driver does not exist in current OFED version");
 	}
 	else if (flow_steering_val[0] != '-' || flow_steering_val[1] != '1') {
 		vlog_printf(VLOG_WARNING, "***************************************************************************************\n");
-		vlog_printf(VLOG_WARNING, "* VMA will not operate properly while flow steering option is disabled!               *\n");
-		vlog_printf(VLOG_WARNING, "* Please restart your VMA applications after running the following:                   *\n");
-		vlog_printf(VLOG_WARNING, "* WARNING: the following steps will restart your network interface!                   *\n");
+		vlog_printf(VLOG_WARNING, "* VMA will not operate properly while flow steering option is disabled                *\n");
+		vlog_printf(VLOG_WARNING, "* In order to enable flow steering please restart your VMA applications after running *\n");
+		vlog_printf(VLOG_WARNING, "* the following:                                                                      *\n");
+		vlog_printf(VLOG_WARNING, "* For your information the following steps will restart your network interface        *\n");
 		vlog_printf(VLOG_WARNING, "* 1. \"echo options mlx4_core log_num_mgm_entry_size=-1 > /etc/modprobe.d/mlnx.conf\" *\n");
-		vlog_printf(VLOG_WARNING, "* 2. \"/etc/init.d/openibd restart\"                                                  *\n");
+		vlog_printf(VLOG_WARNING, "* 2. \"modprobe -r mlx4_ib mlx4_en mlx4_core\"                                        *\n");
+		vlog_printf(VLOG_WARNING, "* 5. \"modprobe mlx4_core\"                                                           *\n");
 		vlog_printf(VLOG_WARNING, "* Read more about the Flow Steering support in the VMA's User Manual                  *\n");
 		vlog_printf(VLOG_WARNING, "***************************************************************************************\n");
 	}
@@ -802,7 +804,7 @@ static void do_global_ctors_helper()
 			vlog_printf(VLOG_INFO,"Please see README.txt section regarding VMA_CONFIG_FILE\n");
 	}
 	else if (__vma_parse_config_file(safe_mce_sys().conf_filename))
-		vlog_printf(VLOG_WARNING,"FAILED to read VMA configuration file: %s\n", safe_mce_sys().conf_filename);
+		vlog_printf(VLOG_DEBUG,"FAILED to read VMA configuration file: %s\n", safe_mce_sys().conf_filename);
 
 
 	// initialize LWIP tcp/ip stack
