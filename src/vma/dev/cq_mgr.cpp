@@ -253,6 +253,7 @@ cq_mgr::~cq_mgr()
 	uint32_t ret_total = 0;
 	uint64_t cq_poll_sn = 0;
 	mem_buf_desc_t* buff = NULL;
+	/* coverity[stack_use_local_overflow] */
 	vma_ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
 	while ((ret = poll(wce, MCE_MAX_CQ_POLL_BATCH, &cq_poll_sn)) > 0) {
 		for (int i = 0; i < ret; i++) {
@@ -700,6 +701,8 @@ int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready
 {
 	// Assume locked!!!
 	cq_logfuncall("");
+
+	/* coverity[stack_use_local_overflow] */
 	vma_ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
 
 	int ret;
@@ -742,6 +745,8 @@ int cq_mgr::poll_and_process_helper_tx(uint64_t* p_cq_poll_sn)
 {
 	// Assume locked!!!
 	cq_logfuncall("");
+
+	/* coverity[stack_use_local_overflow] */
 	vma_ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
 	int ret = poll(wce, safe_mce_sys().cq_poll_batch_max, p_cq_poll_sn);
 	if (ret > 0) {
@@ -835,6 +840,7 @@ int cq_mgr::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/
 	while ((safe_mce_sys().progress_engine_wce_max && (safe_mce_sys().progress_engine_wce_max > m_n_wce_counter)) && 
 		!m_b_was_drained) {
 
+		/* coverity[stack_use_local_overflow] */
 		vma_ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
 		int ret = poll(wce, MCE_MAX_CQ_POLL_BATCH, &cq_poll_sn);
 		if (ret <= 0) {
