@@ -44,8 +44,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include <vma/util/lock_wrapper.h>
 #include <vma/util/vtypes.h>
+#include <vma/util/lock_wrapper.h>
 #include <vlogger/vlogger.h>
 #include <vma/sock/sock-redirect.h>
 #include <vma/event/event_handler_manager.h>

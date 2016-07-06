@@ -68,7 +68,7 @@ public:
 #endif
 protected:
 	tscval_t                start_lock_wait() { return 0; };
-	void                    end_lock_wait(tscval_t start_time) {start_time = 0; NOT_IN_USE(start_time);};
+	void                    end_lock_wait(tscval_t start_time) {NOT_IN_USE(start_time);};
 private:
 	const char*             m_lock_name;
 };
