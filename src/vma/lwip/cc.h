@@ -85,9 +85,9 @@
 
 
 struct cc_algo;
+struct tcp_pcb;
 
 #include <stdint.h>
-#include "vma/lwip/tcp.h"
 
 /* types of different cc algorithms */
 enum cc_algo_mod {

@@ -81,6 +81,7 @@
  */
 
 #include "vma/lwip/cc.h"
+#include "vma/lwip/tcp.h"
 
 #if TCP_CC_ALGO_MOD
 
