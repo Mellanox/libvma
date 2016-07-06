@@ -1279,6 +1279,7 @@ bool ring_simple::is_available_qp_wr(bool b_block)
 						ring_logdbg("failed blocking on tx cq_mgr (errno=%d %m)", errno);
 						m_lock_ring_tx_buf_wait.unlock();
 						m_lock_ring_tx.lock();
+						/* coverity[missing_unlock] */
 						return false;
 					}
 

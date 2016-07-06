@@ -941,7 +941,8 @@ bool sockinfo_tcp::process_peer_ctl_packets(vma_desc_list_t &peer_packets)
 		// 2.1.1 get packet from list and find its pcb
 		mem_buf_desc_t* desc = peer_packets.front();
 
-		if (m_tcp_con_lock.trylock()) {
+		if (0 != m_tcp_con_lock.trylock()) {
+			/* coverity[missing_unlock] */
 			return false;
 		}
 

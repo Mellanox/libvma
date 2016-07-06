@@ -79,6 +79,7 @@ void netlink_wrapper::notify_observers(netlink_event *p_new_event, e_netlink_eve
 		iter->second->notify_observers(p_new_event);
 
 	g_nl_rcv_arg.netlink->m_subj_map_lock.unlock();
+	/* coverity[missing_unlock] */
 	g_nl_rcv_arg.netlink->m_cache_lock.lock();
 }
 
