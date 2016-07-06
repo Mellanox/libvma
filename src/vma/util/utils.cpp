@@ -542,7 +542,7 @@ int get_ipv4_from_ifname(char *ifname, struct sockaddr_in *addr)
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (ret < 0) {
 		if (errno != ENODEV) {
-			__log_err("Failed getting ipv4 from interface '%s' (errno=%d %m)", ifname, errno);
+			__log_dbg("Failed getting ipv4 from interface '%s' (errno=%d %m)", ifname, errno);
 		}
 		else {
 			// Log in DEBUG (Maybe there is a better way to catch IPv6 only interfaces and not to get to this point?)
