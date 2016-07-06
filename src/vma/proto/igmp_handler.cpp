@@ -136,6 +136,7 @@ void igmp_handler::priv_register_timer_event(timer_handler* handler, timer_req_t
 {
 	int duration = 0 ;
 	srand(time(NULL));
+	/* coverity[dont_call] */
 	duration = (rand() % (m_igmp_code * 100)); // igmp_code (1-255) is in 1/10 sec units
 
 	lock();

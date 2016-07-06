@@ -478,13 +478,13 @@ int get_if_mtu_from_ifname(const char* ifname)
 	/* initially try reading MTU from ifname. In case of failure (expected in alias ifnames) - try reading MTU from base ifname */
 	sprintf(if_mtu_len_filename, IFADDR_MTU_PARAM_FILE, ifname);
 
-	if (priv_try_read_file(if_mtu_len_filename, if_mtu_value_str, sizeof(if_mtu_value_str)) > 0) {
+	if (priv_safe_try_read_file(if_mtu_len_filename, if_mtu_value_str, sizeof(if_mtu_value_str)) > 0) {
 		if_mtu_value = atoi(if_mtu_value_str);
 	}
 	else {
 		get_base_interface_name(ifname, base_ifname, sizeof(base_ifname));
 		sprintf(if_mtu_len_filename, IFADDR_MTU_PARAM_FILE, base_ifname);
-		if (priv_try_read_file(if_mtu_len_filename, if_mtu_value_str, sizeof(if_mtu_value_str)) > 0) {
+		if (priv_safe_try_read_file(if_mtu_len_filename, if_mtu_value_str, sizeof(if_mtu_value_str)) > 0) {
 			if_mtu_value = atoi(if_mtu_value_str);
 		}
 	}
@@ -658,9 +658,9 @@ uint16_t get_vlan_id_from_ifname(const char* ifname)
         struct vlan_ioctl_args ifr;
         int fd = orig_os_api.socket(AF_INET, SOCK_DGRAM, 0);
 
-        memset(&ifr,0, sizeof(ifr));
+        memset(&ifr, 0, sizeof(ifr));
         ifr.cmd = GET_VLAN_VID_CMD;
-        strncpy(ifr.device1, ifname, sizeof(ifr.device1));
+        strncpy(ifr.device1, ifname, sizeof(ifr.device1) - 1);
 
         if (orig_os_api.ioctl(fd, SIOCGIFVLAN, &ifr) < 0)
         {
@@ -684,7 +684,7 @@ size_t get_vlan_base_name_from_ifname(const char* ifname, char* base_ifname, siz
 
         memset(&ifr,0, sizeof(ifr));
         ifr.cmd = GET_VLAN_REALDEV_NAME_CMD;
-        strncpy(ifr.device1, ifname, sizeof(ifr.device1));
+        strncpy(ifr.device1, ifname, sizeof(ifr.device1) - 1);
 
         if (orig_os_api.ioctl(fd, SIOCGIFVLAN, &ifr) < 0)
         {
@@ -936,7 +936,7 @@ bool get_bond_active_slave_name(IN const char* bond_name, OUT char* active_slave
 	char active_slave_path[256] = {0};
 	sprintf(active_slave_path, BONDING_ACTIVE_SLAVE_PARAM_FILE, bond_name);
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (priv_read_file(active_slave_path, active_slave_name, sz) < 0)
+	if (priv_safe_read_file(active_slave_path, active_slave_name, sz) < 0)
 		return false;
 	if (strlen(active_slave_name) == 0)
 		return false;
@@ -967,7 +967,7 @@ bool get_bond_slaves_name_list(IN const char* bond_name, OUT char* slaves_list, 
 	char slaves_list_path[256] = {0};
 	sprintf(slaves_list_path, BONDING_SLAVES_PARAM_FILE, bond_name);
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (priv_read_file(slaves_list_path, slaves_list, sz) < 0)
+	if (priv_safe_read_file(slaves_list_path, slaves_list, sz) < 0)
 		return false;
 	BULLSEYE_EXCLUDE_BLOCK_END
 	char* p = strchr(slaves_list, '\n');
@@ -1008,7 +1008,8 @@ int validate_ipoib_prop(const char* ifname, unsigned int ifflags,
 	char active_slave_name[IFNAMSIZ];
 
 	// In case of alias (ib0:xx) take only the device name for that interface (ib0)
-	strcpy(ifname_tmp, ifname);
+	strncpy(ifname_tmp, ifname, sizeof(ifname_tmp) - 1);
+	ifname_tmp[sizeof(ifname_tmp) - 1] = '\0';
 	base_ifname = strtok(ifname_tmp, ":");
 
 	if (ifflags & IFF_MASTER) {
