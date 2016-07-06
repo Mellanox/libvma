@@ -80,10 +80,11 @@
 inline int neigh_eth::build_mc_neigh_val()
 {
 	neigh_logdbg("");
-	m_state = false;
 
 	//We need lock in any case that we change entry
 	auto_unlocker lock(m_lock);
+
+	m_state = false;
 
 	if (m_val == NULL)
 		//This is the first time we are trying to allocate new val or it failed last time
@@ -1036,7 +1037,7 @@ void neigh_entry::priv_enter_not_active()
 {
 	neigh_logfunc("");
 
-	m_lock.lock();
+	auto_unlocker lock(m_lock);
 
 	m_state = false;
 
@@ -1062,7 +1063,6 @@ void neigh_entry::priv_enter_not_active()
 		m_val->zero_all_members();
 	}
 
-	m_lock.unlock();
 	return;
 }
 
@@ -1110,7 +1110,7 @@ void neigh_entry::priv_enter_error()
 int neigh_entry::priv_enter_ready()
 {
 	neigh_logfunc("");
-	m_lock.lock();
+	auto_unlocker lock(m_lock);
 
 	m_state = true;
 	empty_unsent_queue();
@@ -1125,7 +1125,6 @@ int neigh_entry::priv_enter_ready()
 			m_timer_handle = priv_register_timer_event(safe_mce_sys().neigh_wait_till_send_arp_msec, this, ONE_SHOT_TIMER, NULL);
 		}
 	}
-	m_lock.unlock();
 	return 0;
 }
 
