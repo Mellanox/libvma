@@ -36,7 +36,6 @@
 
 #include <netinet/in.h>
 #include "vma/proto/mem_buf_desc.h"
-#include "qp_mgr.h"
 
 struct mem_buf_desc_t;
 class ring;

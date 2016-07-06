@@ -50,7 +50,6 @@
 #include "vma/dev/ib_ctx_handler.h"
 #include "vma/dev/ah_cleaner.h"
 #include "vma/dev/cq_mgr.h"
-#include "vma/dev/ring.h"
 
 class buffer_pool;
 class cq_mgr;

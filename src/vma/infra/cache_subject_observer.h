@@ -40,7 +40,6 @@
 #include "vma/util/vtypes.h"
 #include "vma/util/lock_wrapper.h"
 #include "vma/infra/subject_observer.h"
-#include "vma/infra/cache_subject_observer.h"
 #include "vma/sock/cleanable_obj.h"
 #include "vma/event/timer_handler.h"
 #include "vma/event/event_handler_manager.h"
