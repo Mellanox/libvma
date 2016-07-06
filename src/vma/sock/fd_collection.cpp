@@ -509,7 +509,13 @@ int fd_collection::del_sockfd(int fd, bool b_cleanup /*=false*/)
 
 			if (m_pendig_to_remove_lst.size() == 1) {
 				//Activate timer
-				m_timer_handle = g_p_event_handler_manager->register_timer_event(250, this, PERIODIC_TIMER, 0);
+				try {
+					m_timer_handle = g_p_event_handler_manager->register_timer_event(250, this, PERIODIC_TIMER, 0);
+				} catch (vma_exception &error) {
+	  				fdcoll_logdetails("recovering from %s", error.what());
+					unlock();
+	  				return -1;
+				}
 			}
 			unlock();
 			ret_val = 0;
