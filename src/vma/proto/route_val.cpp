@@ -66,25 +66,35 @@ route_val::route_val(): cache_observer()
 
 void route_val::set_str()
 {
-        strcpy(m_str, "dst:");
+	char str_addr[INET_ADDRSTRLEN];
 
-        if (m_dst_addr != 0)
-                sprintf(m_str, "%s %-15s", m_str, inet_ntoa(m_dst_addr_in_addr));
-        else
-                sprintf(m_str,"%s %-15s", m_str, "default");
+	strcpy(m_str, "dst:");
 
-        if (m_dst_mask != 0)
-                sprintf(m_str, "%s netmask: %-15s", m_str, inet_ntoa(m_dst_mask_in_addr));
+	if (m_dst_addr != 0) {
+		inet_ntop(AF_INET, &m_dst_addr_in_addr, str_addr, sizeof(str_addr));
+		sprintf(m_str, "%s %-15s", m_str, str_addr);
+	} else {
+		sprintf(m_str, "%s %-15s", m_str, "default");
+	}
 
-        if (m_gw != 0)
-                sprintf(m_str, "%s gw:      %-15s", m_str, inet_ntoa(m_gw_in_addr));
+	if (m_dst_mask != 0) {
+		inet_ntop(AF_INET, &m_dst_mask_in_addr, str_addr, sizeof(str_addr));
+		sprintf(m_str, "%s netmask: %-15s", m_str, str_addr);
+	}
 
-        sprintf(m_str, "%s dev: %-5s", m_str, m_if_name);
+	if (m_gw != 0) {
+		inet_ntop(AF_INET, &m_gw_in_addr, str_addr, sizeof(str_addr));
+		sprintf(m_str, "%s gw:      %-15s", m_str, str_addr);
+	}
 
-        if (m_src_addr != 0)
-                sprintf(m_str, "%s src: %-15s", m_str, inet_ntoa(m_src_addr_in_addr));
-        else
-                sprintf(m_str, "%s                     ", m_str);
+	sprintf(m_str, "%s dev: %-5s", m_str, m_if_name);
+
+	if (m_src_addr != 0) {
+		inet_ntop(AF_INET, &m_src_addr_in_addr, str_addr, sizeof(str_addr));
+		sprintf(m_str, "%s src: %-15s", m_str, str_addr);
+	} else {
+		sprintf(m_str, "%s                     ", m_str);
+	}
 				
 	if (m_table_id != RT_TABLE_MAIN)
 		sprintf(m_str, "%s table :%-10u", m_str, m_table_id);

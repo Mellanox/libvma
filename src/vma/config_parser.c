@@ -137,13 +137,18 @@ int __vma_min_level = 9;
 
 void __vma_dump_address_port_rule_config_state(char *buf) {
 	if (__vma_address_port_rule->match_by_addr) {
-		if ( __vma_address_port_rule->prefixlen != 32 )
- 			sprintf(buf+strlen(buf), " %s/%d", inet_ntoa( __vma_address_port_rule->ipv4 ), 
+		char str_addr[INET_ADDRSTRLEN];
+
+		inet_ntop(AF_INET, &(__vma_address_port_rule->ipv4), str_addr, sizeof(str_addr));
+		if ( __vma_address_port_rule->prefixlen != 32 ) {
+ 			sprintf(buf+strlen(buf), " %s/%d", str_addr,
 					__vma_address_port_rule->prefixlen);
-		else
-			sprintf(buf+strlen(buf), " %s", inet_ntoa( __vma_address_port_rule->ipv4 ));
-	} else
+		} else {
+			sprintf(buf+strlen(buf), " %s", str_addr);
+		}
+	} else {
 		sprintf(buf+strlen(buf), " *");
+	}
 	
 	if (__vma_address_port_rule->match_by_port) {
 		sprintf(buf+strlen(buf), ":%d",__vma_address_port_rule->sport);

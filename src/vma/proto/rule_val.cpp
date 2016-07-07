@@ -64,14 +64,19 @@ rule_val::rule_val(): cache_observer()
 //This function build string that represent a row in the rule table.
 void rule_val::set_str()
 {
+	char str_addr[INET_ADDRSTRLEN];
 
 	sprintf(m_str, "Priority :%-10u", m_priority);
 
-	if (m_src_addr != 0)
-        	sprintf(m_str, "%s from :%-10s", m_str, inet_ntoa(m_src_addr_in_addr));	
+	if (m_src_addr != 0) {
+		inet_ntop(AF_INET, &m_src_addr_in_addr, str_addr, sizeof(str_addr));
+		sprintf(m_str, "%s from :%-10s", m_str, str_addr);
+	}
 
-	if (m_dst_addr != 0)
-        	sprintf(m_str, "%s to :%-12s", m_str, inet_ntoa(m_dst_addr_in_addr));		
+	if (m_dst_addr != 0) {
+		inet_ntop(AF_INET, &m_dst_addr_in_addr, str_addr, sizeof(str_addr));
+		sprintf(m_str, "%s to :%-12s", m_str, str_addr);
+	}
 
     	if (m_tos != 0)	
        		sprintf(m_str, "%s tos :%-11u", m_str, m_tos);
