@@ -127,7 +127,7 @@ void neigh_table_mgr::notify_cb(event *ev)
 
 	const netlink_neigh_info* nl_info = nl_ev->get_neigh_info();
 	struct in_addr in;
-	if(! inet_aton((const char *)(nl_info->dst_addr_str.c_str()), &in)){
+	if (1 != inet_pton(AF_INET, (const char *)(nl_info->dst_addr_str.c_str()), &in)) {
 		neigh_mgr_logdbg("Ignoring netlink neigh event neigh for IP = %s, not a valid IP", nl_info->dst_addr_str.c_str());
 		return;
 	}
