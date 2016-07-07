@@ -562,25 +562,22 @@ void buffer_pool::buffersPanic()
     #pragma BullseyeCoverage on
 #endif
 
-int buffer_pool::put_buffers(mem_buf_desc_t *buff_list)
+inline void buffer_pool::put_buffers(mem_buf_desc_t *buff_list)
 {
-	int count = 0;
 	mem_buf_desc_t *next;
-	__log_info_funcall("returning list, present %lu, created %lu", m_n_buffers, m_n_buffers_created);
-	while (buff_list) {
+	//__log_info_funcall("returning list, present %lu, created %lu", m_n_buffers, m_n_buffers_created);
+	do {
 		next = buff_list->p_next_desc;
 		put_buffer_helper(buff_list);
 		buff_list = next;
-		count++;
 
 		if (unlikely(m_n_buffers > m_n_buffers_created)) {
 			buffersPanic();
 		}
-	}
-	return count;
+	} while (buff_list);
 }
 
-int buffer_pool::put_buffers_thread_safe(mem_buf_desc_t *buff_list)
+void buffer_pool::put_buffers_thread_safe(mem_buf_desc_t *buff_list)
 {
 	auto_unlocker lock(m_lock_spin);
 	return put_buffers(buff_list);

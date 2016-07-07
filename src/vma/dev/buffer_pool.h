@@ -62,8 +62,8 @@ public:
 	 */
 	void 		put_buffers(descq_t *buffers, size_t count);
 	void 		put_buffers_thread_safe(descq_t *buffers, size_t count);
-	int 		put_buffers(mem_buf_desc_t *buff_list);
-	int 		put_buffers_thread_safe(mem_buf_desc_t *buff_list);
+	void 		put_buffers(mem_buf_desc_t *buff_list);
+	void 		put_buffers_thread_safe(mem_buf_desc_t *buff_list);
 	static void 	free_rx_lwip_pbuf_custom(struct pbuf *p_buff);
 	static void 	free_tx_lwip_pbuf_custom(struct pbuf *p_buff);
 
