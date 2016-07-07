@@ -629,23 +629,22 @@ retry_is_ready:
 			//tx_size = tx_wait();
 			tx_size = tcp_sndbuf(&m_pcb);
 			if (tx_size == 0) {
-                                //force out TCP data before going on wait()
-                                tcp_output(&m_pcb);
-				// non blocking socket should return inorder not to tx_wait()
-				if (!block_this_run) {
-                                        if ( total_tx ) {
-                                                goto done;
-                                        }
-                                        else {
-                                                ret = -1;
-                                                errno = EAGAIN;
-                                                goto err;
-                                        }
-                                }
-
-				tx_size = tx_wait(ret, block_this_run);
-				if (ret < 0)
-					goto err;
+                //force out TCP data before going on wait()
+                tcp_output(&m_pcb);
+                // non blocking socket should return inorder not to tx_wait()
+                if (!block_this_run) {
+                    if ( total_tx ) {
+                        goto done;
+                    }
+                    else {
+                        ret = -1;
+                        errno = EAGAIN;
+                        goto err;
+                    }
+                }
+                tx_size = tx_wait(ret, block_this_run);
+                if (ret < 0)
+                    goto err;
 			}
 			if (tx_size > p_iov[i].iov_len - pos)
 				tx_size = p_iov[i].iov_len - pos;
@@ -712,10 +711,12 @@ retry_write:
 		}	
 	}
 done:	
+#if 0 //AM_TOTO: this does cache misses!!!
 	if (total_tx) {
 		m_p_socket_stats->counters.n_tx_sent_byte_count += total_tx;
 		m_p_socket_stats->counters.n_tx_sent_pkt_count++;
 	}
+#endif
 
 	tcp_output(&m_pcb); // force data out
 	unlock_tcp_con();
@@ -3939,11 +3940,12 @@ struct tcp_seg * sockinfo_tcp::get_tcp_seg()
 
 void sockinfo_tcp::put_tcp_seg(struct tcp_seg * seg)
 {
-	if (unlikely(!seg)) return;
+//	if (unlikely(!seg)) return;
 
 	seg->next = m_tcp_seg_list;
 	m_tcp_seg_list = seg;
 	m_tcp_seg_in_use--;
+#if 0
 	if (m_tcp_seg_count > 2 * TCP_SEG_COMPENSATION && m_tcp_seg_in_use < m_tcp_seg_count / 2) {
 		int count = (m_tcp_seg_count - m_tcp_seg_in_use) / 2;
 		struct tcp_seg * next = m_tcp_seg_list;
@@ -3957,6 +3959,7 @@ void sockinfo_tcp::put_tcp_seg(struct tcp_seg * seg)
 		m_tcp_seg_count -= count;
 	}
 	return;
+#endif
 }
 
 //tcp_seg_pool
