@@ -6,6 +6,8 @@ Added:
         - RM #781540 Wait for Rx WQE's when closing RING (QP) 
         - RM #777358 Un-offload UDP socket that is bound to any non-offloaded interfaces (e.g. loopback 127.0.0.1)
         - RM #816006 TCP send flows for non-blocked socket - add Rx CQ poll
+        - RM #820855 Explicitly set QP init attr cap of max send SG to 2 
+        - RM #820858 Update message regarding no steering rules in mlx4 to adapt to upstream drivers
         - RM #804206 DNS server (UDP,port 53) to be handled by OS by default (libvma.conf)
         - RM #786406 Jenkins - add building of source RPM 
 Fixed:
