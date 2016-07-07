@@ -228,7 +228,7 @@ void dbg_send_mcpkt()
 		vlog_printf(VLOG_WARNING, "send_mc_packet_test:%d: Need to set '%s' parameter to dest ip (dot format)\n", __LINE__, VMA_DBG_SEND_MCPKT_MCGROUP_STR);
 		exit(2);
 	}
-	if (!inet_aton(env_ptr, &addr_in.sin_addr)) {
+	if (1 != inet_pton(AF_INET, env_ptr, &addr_in.sin_addr)) {
 		vlog_printf(VLOG_WARNING, "send_mc_packet_test:%d: Invalid input IP address: '%s' errno %d %m\n", __LINE__, env_ptr, errno);
 		exit(3);
 	}
