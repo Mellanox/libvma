@@ -1038,6 +1038,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
 {
     struct tcp_seg *next;
     u32_t right_wnd_edge;
+    u32_t new_cwnd;
 
     if (likely(in_data->flags & TCP_ACK)) {
         right_wnd_edge = pcb->snd_wnd + pcb->snd_wl2;
@@ -1106,6 +1107,8 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
         } else if (likely(TCP_SEQ_BETWEEN(in_data->ackno, pcb->lastack+1, pcb->snd_nxt))){
             /* We come here when the ACK acknowledges new data. */
 
+            lwip_prefetch(pcb->unacked);
+            lwip_prefetch(&pcb->mss);
             /* Reset the "IN Fast Retransmit" flag, since we are no longer
                in fast retransmit. Also reset the congestion window to the
                slow start threshold. */
@@ -1157,7 +1160,8 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
 #endif
                 } else {
 #if TCP_RCVSCALE
-                    u32_t new_cwnd = (pcb->cwnd + ((u32_t)pcb->mss * (u32_t)pcb->mss) / pcb->cwnd);
+                    //u32_t new_cwnd = (pcb->cwnd + ((u32_t)pcb->mss * (u32_t)pcb->mss) / pcb->cwnd);
+                    new_cwnd = pcb->cwnd + pcb->mss_sq / pcb->cwnd;
                     if (new_cwnd > pcb->cwnd) {
                         pcb->cwnd = new_cwnd;
                     }
@@ -1183,13 +1187,17 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
                ACK acknowlegdes them. */
             while (pcb->unacked != NULL &&
                     TCP_SEQ_LEQ(pcb->unacked->seqno + TCP_TCPLEN(pcb->unacked), in_data->ackno)) {
+#if 0
                 LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_receive: removing %"U32_F":%"U32_F" from pcb->unacked\n",
                             ntohl(pcb->unacked->in_data->tcphdr->in_data->seqno),
                             ntohl(pcb->unacked->in_data->tcphdr->in_data->seqno) +
                             TCP_TCPLEN(pcb->unacked)));
+#endif
 
                 next = pcb->unacked;
                 pcb->unacked = pcb->unacked->next;
+                lwip_prefetch(pcb->unacked);
+#if 0
 #if TCP_RCVSCALE
                 LWIP_DEBUGF(TCP_QLEN_DEBUG, ("tcp_receive: queuelen %"U32_F" ... ", (u32_t)pcb->snd_queuelen));
                 LWIP_ASSERT("pcb->snd_queuelen >= pbuf_clen(next->p)", (pcb->snd_queuelen >= pbuf_clen(next->p)));
@@ -1197,17 +1205,24 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
                 LWIP_DEBUGF(TCP_QLEN_DEBUG, ("tcp_receive: queuelen %"U16_F" ... ", (u16_t)pcb->snd_queuelen));
                 LWIP_ASSERT("pcb->snd_queuelen >= pbuf_clen(next->p)", (pcb->snd_queuelen >= pbuf_clen(next->p)));
 #endif
+#endif
                 /* Prevent ACK for FIN to generate a sent event */
-                if ((pcb->acked != 0) && ((TCPH_FLAGS(next->tcphdr) & TCP_FIN) != 0)) {
+                //if ((pcb->acked != 0) && ((TCPH_FLAGS(next->tcphdr) & TCP_FIN) != 0)) {
+                if (unlikely(((TCPH_FLAGS(next->tcphdr) & TCP_FIN) != 0) && (pcb->acked != 0))) {
                     pcb->acked--;
                 }
 
-                pcb->snd_queuelen -= pbuf_clen(next->p);
+                // AM_TODO: verify that pbuf is not chained
+                //pcb->snd_queuelen -= pbuf_clen(next->p);
+                pcb->snd_queuelen --;
+
                 tcp_tx_seg_free_inl(pcb, next);
+#if 0
 #if TCP_RCVSCALE
                 LWIP_DEBUGF(TCP_QLEN_DEBUG, ("%"U32_F" (after freeing unacked)\n", (u32_t)pcb->snd_queuelen));
 #else
                 LWIP_DEBUGF(TCP_QLEN_DEBUG, ("%"U16_F" (after freeing unacked)\n", (u16_t)pcb->snd_queuelen));
+#endif
 #endif
             }
 
@@ -1478,6 +1493,9 @@ L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb)
     tcp_in_data in_data; // TODO: unify with the ring parser
 
     TCP_STATS_INC(tcp.recv);
+    lwip_prefetch(pcb);
+    lwip_prefetch(p);
+    lwip_prefetch(p->payload);
     in_data.iphdr = (struct ip_hdr *)p->payload;
 
 
@@ -1488,6 +1506,7 @@ L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb)
 //   pbuf_realloc(p, iphdr_len);
 
     in_data.tcphdr = (struct tcp_hdr *)((u8_t *)p->payload + IPH_HL(in_data.iphdr) * 4);
+    lwip_prefetch(in_data.tcphdr);
 
 #if TCP_INPUT_DEBUG
     tcp_debug_print(in_data.tcphdr);

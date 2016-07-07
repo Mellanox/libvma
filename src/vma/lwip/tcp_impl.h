@@ -56,8 +56,44 @@ void             tcp_fasttmr (struct tcp_pcb* pcb);
 
 /* Used within the TCP code only: */
 struct tcp_pcb * tcp_alloc   (u8_t prio);
-struct pbuf *    tcp_tx_pbuf_alloc(struct tcp_pcb * pcb, u16_t length, pbuf_type type);
-void		 tcp_tx_pbuf_free(struct tcp_pcb * pcb, struct pbuf * pbuf);
+
+static inline struct pbuf *tcp_tx_pbuf_alloc(struct tcp_pcb * pcb, u16_t length, pbuf_type type)
+{
+    struct pbuf * p = external_tcp_tx_pbuf_alloc(pcb);
+    if (unlikely(!p)) return NULL;
+    /* Set up internal structure of the pbuf. */
+    p->len = p->tot_len = length;
+    p->next = NULL;
+    p->type = type;
+    /* set reference count */
+    p->ref = 1;
+    /* set flags */
+    p->flags = 0;
+    lwip_prefetch(p->payload);
+    return p;
+}
+
+static inline void tcp_tx_pbuf_free(struct tcp_pcb * pcb, struct pbuf * p)
+{
+    external_tcp_tx_pbuf_free(pcb, p);
+
+    if (unlikely(p->next)) {
+        printf("ooops chaned pbuf free!!!\n");
+    }
+#if 0
+    struct pbuf * p_next = NULL;
+    while (p) {
+        p_next = p->next;
+        p->next = NULL;
+        if (p->type  == PBUF_RAM) {
+            external_tcp_tx_pbuf_free(pcb, p);
+        } else {
+            pbuf_free(p);
+        }
+        p = p_next;
+    }
+#endif
+}
 void             tcp_abandon (struct tcp_pcb *pcb, int reset);
 err_t            tcp_send_empty_ack(struct tcp_pcb *pcb);
 void             tcp_rexmit  (struct tcp_pcb *pcb);
@@ -591,7 +627,10 @@ void tcp_receive_dupack_check(struct tcp_pcb *pcb, tcp_in_data* in_data, u32_t r
 static inline void
 tcp_tx_seg_free_inl(struct tcp_pcb * pcb, struct tcp_seg *seg)
 {
-    tcp_tx_pbuf_free(pcb, seg->p);
+    //tcp_tx_pbuf_free(pcb, seg->p);
+    //AM_TODO: inline external_tcp_seg_free()
+    //assumes that segment pbuf is not chained
+    pbuf_free_custom(seg->p);
     external_tcp_seg_free(pcb, seg);
 }
 

@@ -1411,7 +1411,7 @@
  * use custom congestion control algorithms
  */
 #ifndef TCP_CC_ALGO_MOD
-#define TCP_CC_ALGO_MOD 1
+#define TCP_CC_ALGO_MOD 0
 #endif
 
  /**
@@ -1544,7 +1544,7 @@
  * LWIP_TCP_TIMESTAMPS==1: support the TCP timestamp option.
  */
 #ifndef LWIP_TCP_TIMESTAMPS
-#define LWIP_TCP_TIMESTAMPS             1
+#define LWIP_TCP_TIMESTAMPS             0
 #endif
 
 /**

@@ -1083,38 +1083,6 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio)
 	pcb->enable_ts_opt = enable_ts_option;
 }
 
-struct pbuf *
-tcp_tx_pbuf_alloc(struct tcp_pcb * pcb, u16_t length, pbuf_type type)
-{
-	struct pbuf * p = external_tcp_tx_pbuf_alloc(pcb);
-	if (!p) return NULL;
-	/* Set up internal structure of the pbuf. */
-	p->len = p->tot_len = length;
-	p->next = NULL;
-	p->type = type;
-	/* set reference count */
-	p->ref = 1;
-	/* set flags */
-	p->flags = 0;
-	return p;
-}
-
-void
-tcp_tx_pbuf_free(struct tcp_pcb * pcb, struct pbuf * p)
-{
-	struct pbuf * p_next = NULL;
-	while (p) {
-		p_next = p->next;
-		p->next = NULL;
-		if (p->type  == PBUF_RAM) {
-			external_tcp_tx_pbuf_free(pcb, p);
-		} else {
-			pbuf_free(p);
-		}
-		p = p_next;
-	}
-}
-
 /**
  * Used to specify the argument that should be passed callback
  * functions.

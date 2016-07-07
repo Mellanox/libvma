@@ -82,12 +82,18 @@ typedef enum {
 struct pbuf {
   /** next pbuf in singly linked pbuf chain */
   struct pbuf *next;
-
   /** pointer to the actual data in the buffer */
   void *payload;
 
   /** length of this buffer */
   u16_t len;
+
+  /**
+   * the reference count always equals the number of pointers
+   * that refer to this pbuf. This can be pointers from an application,
+   * the stack itself, or pbuf->next pointers from a chain.
+   */
+  u16_t ref;
 
   /**
    * total length of this buffer and all next buffers in chain
@@ -98,18 +104,12 @@ struct pbuf {
    */
   u32_t tot_len; // windows scale needs large pbuf
 
-  /** pbuf_type as u8_t instead of enum to save space */
-  u8_t /*pbuf_type*/ type;
-
   /** misc flags */
   u8_t flags;
 
-  /**
-   * the reference count always equals the number of pointers
-   * that refer to this pbuf. This can be pointers from an application,
-   * the stack itself, or pbuf->next pointers from a chain.
-   */
-  u16_t ref;
+  /** pbuf_type as u8_t instead of enum to save space */
+  u8_t /*pbuf_type*/ type;
+
 };
 
 #if LWIP_SUPPORT_CUSTOM_PBUF
@@ -147,8 +147,10 @@ u8_t pbuf_free(struct pbuf *p);
 static inline u8_t 
 pbuf_clen(struct pbuf *p)
 {
+  if (likely(p->next == NULL)) {
+      return 1;
+  }
   u8_t len;
-
   len = 0;
   while (p != NULL) {
     ++len;
@@ -189,6 +191,7 @@ static inline int pbuf_header_fast(struct pbuf *p, s16_t header_size_increment)
         }
     } 
     p->payload = (u8_t *)p->payload - header_size_increment;
+    lwip_prefetch(p->payload);
     p->len += header_size_increment;
     p->tot_len += header_size_increment;
 

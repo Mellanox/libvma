@@ -45,6 +45,12 @@ extern "C" {
 #define LWIP_F_ALWAYS_INLINE inline __attribute__ ((always_inline))
 #define LWIP_F_NOINLINE __attribute__ ((noinline))
 
+static inline void lwip_prefetch(void *x)
+{
+    asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x));
+}
+
+
 #define LWIP_MAX(x , y)  (((x) > (y)) ? (x) : (y))
 #define LWIP_MIN(x , y)  (((x) < (y)) ? (x) : (y))
 

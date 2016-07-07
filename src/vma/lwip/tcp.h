@@ -255,6 +255,7 @@ extern tcp_state_observer_fn external_tcp_state_observer;
 /* Note: max_tcp_snd_queuelen is now a multiple by 16 (was 4 before) to match max_unsent_len */
 #define UPDATE_PCB_BY_MSS(pcb, snd_mss) \
 	(pcb)->mss = (snd_mss); \
+	(pcb)->mss_sq = (u32_t)(snd_mss) * (snd_mss); \
 	(pcb)->max_tcp_snd_queuelen = (16*((pcb)->max_snd_buff)/((pcb)->mss)) ; \
 	(pcb)->max_unsent_len = (16*((pcb)->max_snd_buff)/((pcb)->mss)); \
 	(pcb)->tcp_oversize_val = (pcb)->mss; 
@@ -266,8 +267,18 @@ struct tcp_pcb {
 /** protocol specific PCB members */
   TCP_PCB_COMMON(struct tcp_pcb);
 
+  struct tcp_seg *unacked;  /* Sent but unacknowledged segments. */
   /* ports are in host byte order */
   u16_t remote_port;
+  u16_t mss;   /* maximum segment size */
+  u32_t mss_sq;
+#if TCP_RCVSCALE
+  u32_t cwnd;
+  u32_t ssthresh;
+#else
+  u16_t cwnd;
+  u16_t ssthresh;
+#endif
 
   u8_t flags;
 #define TF_ACK_DELAY   ((u8_t)0x01U)   /* Delayed ACK. */
@@ -302,7 +313,6 @@ struct tcp_pcb {
   /* Retransmission timer. */
   s16_t rtime;
   
-  u16_t mss;   /* maximum segment size */
   u16_t advtsd_mss; /* advertised maximum segment size */
   
   /* RTT (round trip time) estimation variables */
@@ -325,14 +335,6 @@ struct tcp_pcb {
   struct cc_algo* cc_algo;
   void* cc_data;
 #endif
-#if TCP_RCVSCALE
-  u32_t cwnd;
-  u32_t ssthresh;
-#else
-  u16_t cwnd;
-  u16_t ssthresh;
-#endif
-
   /* sender variables */
   u32_t snd_nxt;   /* next new seqno to be sent */
   u32_t snd_wnd;   /* sender window */
@@ -372,7 +374,6 @@ struct tcp_pcb {
   /* These are ordered by sequence number: */
   struct tcp_seg *unsent;   /* Unsent (queued) segments. */
   struct tcp_seg *last_unsent;   /* Last unsent (queued) segment. */
-  struct tcp_seg *unacked;  /* Sent but unacknowledged segments. */
   struct tcp_seg *last_unacked;  /* Lase element in unacknowledged segments list. */
 #if TCP_QUEUE_OOSEQ  
   struct tcp_seg *ooseq;    /* Received out of sequence segments. */
