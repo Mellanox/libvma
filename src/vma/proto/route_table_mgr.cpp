@@ -223,7 +223,7 @@ void route_table_mgr::rt_mgr_update_source_ip()
 		}
 		else {
 			// Failed mapping if_name to IPv4 address
-			rt_mgr_logwarn("could not figure out source ip for rtv = %s", p_val->to_str());
+			rt_mgr_logdbg("could not figure out source ip for rtv = %s", p_val->to_str());
 		}
 	}
 }
