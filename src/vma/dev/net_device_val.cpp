@@ -811,11 +811,16 @@ std::string net_device_val_eth::to_str()
 
 net_device_val_ib::~net_device_val_ib()
 {
-	g_p_neigh_table_mgr->unregister_observer(neigh_key(ip_address((in_addr_t)(inet_addr(BROADCAST_IP))), this), this);
+	struct in_addr in;
+	if (1 == inet_pton(AF_INET, BROADCAST_IP, &in)) {
+		g_p_neigh_table_mgr->unregister_observer(neigh_key(ip_address(in.s_addr), this), this);
+	}
 }
 
 void net_device_val_ib::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 {
+	struct in_addr in;
+
 	net_device_val::configure(ifa, cma_id);
 
 	delete_L2_address();
@@ -829,11 +834,15 @@ void net_device_val_ib::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id
 
 	create_br_address(m_name.c_str());
 
-	g_p_neigh_table_mgr->unregister_observer(neigh_key(ip_address((in_addr_t)(inet_addr(BROADCAST_IP))), this), this);
+	if (1 == inet_pton(AF_INET, BROADCAST_IP, &in)) {
+		g_p_neigh_table_mgr->unregister_observer(neigh_key(ip_address(in.s_addr), this), this);
+	}
 
 	//Register to IB BR neigh
 	cache_entry_subject<neigh_key, neigh_val*>* p_ces = NULL;
-	g_p_neigh_table_mgr->register_observer(neigh_key(ip_address((in_addr_t)(inet_addr(BROADCAST_IP))), this), this, &p_ces);
+	if (1 == inet_pton(AF_INET, BROADCAST_IP, &in)) {
+		g_p_neigh_table_mgr->register_observer(neigh_key(ip_address(in.s_addr), this), this, &p_ces);
+	}
 	m_br_neigh = dynamic_cast<neigh_ib_broadcast*>(p_ces);
 
 	m_pkey = cma_id->route.addr.addr.ibaddr.pkey; // In order to create a UD QP outside the RDMA_CM API we need the pkey value (qp_mgr will convert it to pkey_index)

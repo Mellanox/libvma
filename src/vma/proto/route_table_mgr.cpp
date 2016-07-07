@@ -466,9 +466,13 @@ void route_table_mgr::addr_change_event(int if_index)
 
 void route_table_mgr::create_route_val_from_info(const netlink_route_info *netlink_route_info, route_val &netlink_route_val)
 {
+	struct in_addr in;
 	char dst_addr_chr[ADDR_LEN];
+
 	inet_ntop(AF_INET, netlink_route_info->dst_addr, dst_addr_chr, ADDR_LEN);
-	netlink_route_val.set_dst_addr(inet_addr((const char*)dst_addr_chr));
+	if (1 == inet_pton(AF_INET, (const char*)dst_addr_chr, &in)) {
+		netlink_route_val.set_dst_addr(in);
+	}
 
 	in_addr_t dst_mask = htonl(VMA_NETMASK(netlink_route_info->dst_prefixlen));
 	netlink_route_val.set_dst_mask(dst_mask);
