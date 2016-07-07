@@ -127,14 +127,19 @@ void __vma_free_resources()
 
 void get_address_port_rule_str(char *addr_buf, char *ports_buf, struct address_port_rule *rule)
 {
+	char str_addr[INET_ADDRSTRLEN];
+
 	/* TODO: handle IPv6 in rule */
 	if (rule->match_by_addr) {
-		if (rule->prefixlen != 32)
-			sprintf(addr_buf, "%s/%d", inet_ntoa(rule->ipv4), rule->prefixlen );
-		else
-			sprintf(addr_buf, "%s", inet_ntoa(rule->ipv4));
-	} else
+		inet_ntop(AF_INET, &(rule->ipv4), str_addr, sizeof(str_addr));
+		if (rule->prefixlen != 32) {
+			sprintf(addr_buf, "%s/%d", str_addr, rule->prefixlen );
+		} else {
+			sprintf(addr_buf, "%s", str_addr);
+		}
+	} else {
 		sprintf(addr_buf, "%s" ,"*");
+	}
 
 	if (rule->match_by_port)
 		if (rule->eport > rule->sport)

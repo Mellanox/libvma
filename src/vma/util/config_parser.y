@@ -83,8 +83,7 @@ static void __vma_set_ipv4_addr(short a0, short a1, short a2, short a3)
 	p_ipv4 = &(__vma_address_port_rule->ipv4);
   
 	sprintf(buf,"%d.%d.%d.%d", a0, a1, a2, a3);
-	if (!inet_aton(buf, p_ipv4))
-	{
+	if (1 != inet_pton(AF_INET, (const char*)buf, p_ipv4)) {
 		parse_err = 1;
 		yyerror("provided address is not legal");
 	}
@@ -103,13 +102,18 @@ int __vma_min_level = 9;
 
 void __vma_dump_address_port_rule_config_state(char *buf) {
 	if (__vma_address_port_rule->match_by_addr) {
-		if ( __vma_address_port_rule->prefixlen != 32 )
- 			sprintf(buf+strlen(buf), " %s/%d", inet_ntoa( __vma_address_port_rule->ipv4 ), 
+		char str_addr[INET_ADDRSTRLEN];
+
+		inet_ntop(AF_INET, &(__vma_address_port_rule->ipv4), str_addr, sizeof(str_addr));
+		if ( __vma_address_port_rule->prefixlen != 32 ) {
+ 			sprintf(buf+strlen(buf), " %s/%d", str_addr,
 					__vma_address_port_rule->prefixlen);
-		else
-			sprintf(buf+strlen(buf), " %s", inet_ntoa( __vma_address_port_rule->ipv4 ));
-	} else
+		} else {
+			sprintf(buf+strlen(buf), " %s", str_addr);
+		}
+	} else {
 		sprintf(buf+strlen(buf), " *");
+	}
 	
 	if (__vma_address_port_rule->match_by_port) {
 		sprintf(buf+strlen(buf), ":%d",__vma_address_port_rule->sport);
