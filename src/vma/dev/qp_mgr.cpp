@@ -83,9 +83,11 @@ qp_mgr::~qp_mgr()
 	release_rx_buffers();
 
 	qp_logdbg("calling ibv_destroy_qp(qp=%p)", m_qp);
-	IF_VERBS_FAILURE(ibv_destroy_qp(m_qp)) {
-		qp_logdbg("QP destroy failure (errno = %d %m)", -errno);
-	} ENDIF_VERBS_FAILURE;
+	if (m_qp) {
+		IF_VERBS_FAILURE(ibv_destroy_qp(m_qp)) {
+			qp_logdbg("QP destroy failure (errno = %d %m)", -errno);
+		} ENDIF_VERBS_FAILURE;
+	}
 	m_qp = NULL;
 
 	if (m_p_cq_mgr_tx) {
