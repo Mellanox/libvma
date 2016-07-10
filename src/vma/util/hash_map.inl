@@ -38,21 +38,27 @@ hash_map<K, V>::~hash_map() {
 
 template <typename K, typename V>
 inline V hash_map<K, V>::get(const K &key, V default_value) {
+	map_node *node;
+#if 0
 	map_node *node, *last;
 
 	last = m_last; // Copy last before it changes
 	if (last && last->key == key) {
 		return last->value;
 	}
+#endif
 
 	node = m_hash_table[calc_hash(key)];
-	while (node) {
-		if (node->key == key) {
-			m_last = node;
+	if (unlikely(!node)) 
+		return default_value;
+	do {
+		//prefetch(node);
+		if (likely(node->key == key)) {
+		//	m_last = node;
 			return node->value;
 		}
 		node = node->next;
-	}
+	} while(node);
 	return default_value;
 }
 
@@ -110,8 +116,24 @@ void hash_map<K, V>::set_replace(const K &key, V value, V null_value) {
 	*pptail = new_node;
 }
 
+typedef struct __attribute__((packed)) {
+    uint32_t   src_ip;
+    uint16_t   dst_port;
+    uint16_t   src_port;
+} hash_key_t;
+
 template <typename K, typename V>
 inline int hash_map<K, V>::calc_hash(const K &key) {
+	hash_key_t *k;
+
+	if (likely(sizeof(K) == sizeof(*k))) {
+		k = (hash_key_t *)&key;
+		return (k->src_ip ^ k->dst_port ^ k->src_port) % HASH_MAP_SIZE;
+	}
+	uint16_t *v = (uint16_t *)&key;
+	return *v % HASH_MAP_SIZE;
+#if 0
+	// code below causes a lot of cache misses
 	uint8_t *pval, *csum8;
 	uint16_t csum;
 	size_t i, j;
@@ -130,6 +152,7 @@ inline int hash_map<K, V>::calc_hash(const K &key) {
 	// or modolu prime close to 4096
 	//csum %= 4093;
 	return csum;
+#endif
 }
 
 template <typename K, typename V>
