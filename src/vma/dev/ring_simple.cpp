@@ -648,7 +648,7 @@ rfs *ring_simple::find_udp_flow(mem_buf_desc_t *p_rx_wc_buf_desc, struct iphdr* 
     return p_rfs;
 }
 
-rfs *ring_simple::find_tcp_flow(mem_buf_desc_t *p_rx_wc_buf_desc, struct iphdr* p_ip_h, 
+inline rfs *ring_simple::find_tcp_flow(mem_buf_desc_t *p_rx_wc_buf_desc, struct iphdr* p_ip_h, 
                                 uint16_t ip_hdr_len, uint16_t ip_tot_len)
 {
     // Get the tcp header pointer + tcp payload size
@@ -656,12 +656,14 @@ rfs *ring_simple::find_tcp_flow(mem_buf_desc_t *p_rx_wc_buf_desc, struct iphdr* 
     struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
     size_t sz_payload = ip_tot_len - ip_hdr_len - p_tcp_h->doff*4;
 
+#if 0
     ring_logfunc("Rx TCP segment info: src_port=%d, dst_port=%d, flags='%s%s%s%s%s%s' seq=%u, ack=%u, win=%u, payload_sz=%u",
             ntohs(p_tcp_h->source), ntohs(p_tcp_h->dest),
             p_tcp_h->urg?"U":"", p_tcp_h->ack?"A":"", p_tcp_h->psh?"P":"",
             p_tcp_h->rst?"R":"", p_tcp_h->syn?"S":"", p_tcp_h->fin?"F":"",
             ntohl(p_tcp_h->seq), ntohl(p_tcp_h->ack_seq), ntohs(p_tcp_h->window),
             sz_payload);
+#endif
 
     // Update packet descriptor with datagram base address and length
     p_rx_wc_buf_desc->path.rx.frag.iov_base = (uint8_t*)p_tcp_h + sizeof(struct tcphdr);
@@ -687,6 +689,60 @@ rfs *ring_simple::find_tcp_flow(mem_buf_desc_t *p_rx_wc_buf_desc, struct iphdr* 
     return p_rfs;
 }
 
+#if 1
+void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_buf_desc)
+{
+	uint16_t ip_hdr_len;
+	register uint16_t ip_tot_len;
+    struct iphdr* p_ip_h;
+	rfs *p_rfs;
+	size_t sz_data = p_rx_wc_buf_desc->sz_data;
+
+
+	m_cq_moderation_info.bytes +=  sz_data;
+	++m_cq_moderation_info.packets;
+
+	// Validate size for IPv4 header
+    sz_data -= ETH_HDR_LEN;
+	if (unlikely(sz_data < sizeof(struct iphdr))) {
+		return;
+	}
+
+	p_ip_h = (struct iphdr*)(p_rx_wc_buf_desc->p_buffer + ETH_HDR_LEN); 
+
+	p_rx_wc_buf_desc->n_frags = 1;
+	// Update the L3 info
+    // TODO: check if LWIP duplicates path info
+	p_rx_wc_buf_desc->path.rx.src.sin_family      = AF_INET;
+	p_rx_wc_buf_desc->path.rx.src.sin_addr.s_addr = p_ip_h->saddr;
+	p_rx_wc_buf_desc->path.rx.dst.sin_family      = AF_INET;
+	p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr = p_ip_h->daddr;
+	p_rx_wc_buf_desc->path.rx.local_if            = m_local_if;
+
+	ip_tot_len = ntohs(p_ip_h->tot_len);
+	ip_hdr_len = (int)(p_ip_h->ihl)*4;
+
+	if (likely(p_ip_h->protocol == IPPROTO_TCP)) {
+        p_rfs = find_tcp_flow(p_rx_wc_buf_desc, p_ip_h, ip_hdr_len, ip_tot_len);
+    } else if (p_ip_h->protocol == IPPROTO_UDP) {
+        p_rfs = find_udp_flow(p_rx_wc_buf_desc, p_ip_h, ip_hdr_len, ip_tot_len);
+    } else {
+		ring_logwarn("Rx packet dropped - undefined protocol = %d", p_ip_h->protocol);
+		return;
+	}
+
+    if (unlikely(sz_data > ip_tot_len)) {
+		p_rx_wc_buf_desc->sz_data -= (sz_data - ip_tot_len);
+	}
+
+	p_rx_wc_buf_desc->path.rx.vma_polled = true;
+    // AM_TODO: virtual call
+	p_rfs->rx_dispatch_packet(p_rx_wc_buf_desc, &m_vma_comp_arr[m_vma_curr_comp_index]);
+	p_rx_wc_buf_desc->path.rx.vma_polled = false;
+}
+#endif
+
+#if 0
 void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_buf_desc)
 {
 	//size_t sz_data = 0;
@@ -695,7 +751,7 @@ void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_buf_desc)
 	uint16_t ip_tot_len;
 	//uint16_t ip_frag_off;
 	//uint16_t n_frag_offset;
-	struct iphdr* p_ip_h;
+	register struct iphdr* p_ip_h;
 	rfs *p_rfs;
     // alexm: used only for debugging - do not take it every time
 	//in_addr_t local_addr = p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr;
@@ -707,10 +763,6 @@ void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_buf_desc)
 	//NOT_IN_USE(local_addr);
 
 	// This is an internal function (within ring and 'friends'). No need for lock mechanism.
-    if (unlikely(p_rfs_single_tcp)) {
-        printf("single tcp vma_poll process buffer %p\n", p_rfs_single_tcp);
-        while(1) { sleep(1); }
-    }
 
 	// Validate buffer size
 	size_t sz_data = p_rx_wc_buf_desc->sz_data;
@@ -730,8 +782,8 @@ void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_buf_desc)
 	m_cq_moderation_info.bytes += sz_data;
 	++m_cq_moderation_info.packets;
 
-	m_ring_stat_static.n_rx_byte_count += sz_data;
-	++m_ring_stat_static.n_rx_pkt_count;
+	//m_ring_stat_static.n_rx_byte_count += sz_data;
+	//++m_ring_stat_static.n_rx_pkt_count;
 
 	// Validate transport type headers
 
@@ -782,7 +834,7 @@ void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_buf_desc)
 	}
 
 	// Get the ip header pointer
-	p_ip_h = (struct iphdr*)(p_rx_wc_buf_desc->p_buffer + transport_header_len);
+	p_ip_h = (struct iphdr*)(p_rx_wc_buf_desc->p_buffer + ETH_HDR_LEN); //transport_header_len);
 
 	// Drop all non IPv4 packets
 #if RX_FULL_CHECKS
@@ -913,6 +965,7 @@ void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_buf_desc)
 	p_rfs->rx_dispatch_packet(p_rx_wc_buf_desc, &m_vma_comp_arr[m_vma_curr_comp_index]);
 	p_rx_wc_buf_desc->path.rx.vma_polled = false;
 }
+#endif
 
 
 
