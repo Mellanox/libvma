@@ -20,6 +20,9 @@
 
 #include "vma/lwip/pbuf.h"
 #include "vma/util/atomic.h"
+// LWIP includes
+// #include "vma/lwip/opt.h"
+#include "vma/lwip/tcp_impl.h"
 
 struct mem_buf_desc_t;
 
@@ -58,6 +61,7 @@ public:
 	}
 
 	struct pbuf_custom lwip_pbuf;	//Do not change the location of this field.
+    struct tcp_seg     lwip_seg;
 	mem_buf_desc_t* p_next_desc;	// A general purpose linked list of mem_buf_desc
 	mem_buf_desc_t* p_prev_desc;
 	uint8_t* const	p_buffer;
