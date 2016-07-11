@@ -807,10 +807,10 @@ int cq_mgr::vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 #ifdef RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
 	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL]);
 #endif //RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
+    prefetch(m_rx_hot_buff->p_buffer + ETH_HDR_LEN);	
 	volatile mlx5_cqe64 *cqe = mlx5_get_cqe64();
 
 	if (unlikely(cqe)) {
-		prefetch(m_rx_hot_buff->p_buffer + ETH_HDR_LEN);	
 		++m_n_wce_counter;
 		++m_qp->m_mlx5_hw_qp->rq.tail;
 		m_rx_hot_buff->sz_data = ntohl(cqe->byte_cnt);
