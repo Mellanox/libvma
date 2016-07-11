@@ -48,7 +48,7 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 {
 	tx_packet_template_t* p_pkt;
 	mem_buf_desc_t *p_mem_buf_desc;
-	size_t total_packet_len = 0;
+	size_t total_packet_len;
 	// The header is aligned for fast copy but we need to maintain this diff in order to get the real header pointer easily
 	size_t hdr_alignment_diff = m_header.m_aligned_l2_l3_len - m_header.m_total_hdr_len;
 
@@ -56,11 +56,13 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 	bool no_copy = true;
 	if (likely(sz_iov == 1 && !is_rexmit)) {
 		p_tcp_iov = (tcp_iovec*)p_iov;
+#if 0
 		if (unlikely(!m_p_ring->is_active_member(p_tcp_iov->p_desc->p_desc_owner, m_id))) {
 			no_copy = false;
 			dst_tcp_logdbg("p_desc=%p wrong desc_owner=%p, this ring=%p. did migration occurred?", p_tcp_iov->p_desc, p_tcp_iov->p_desc->p_desc_owner, m_p_ring);
 			//todo can we handle this in migration (by going over all buffers lwip hold) instead for every send?
 		}
+#endif
 	} else {
 		no_copy = false;
 	}
@@ -81,6 +83,7 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 		m_sge[0].length = total_packet_len;
 
 		/* for DEBUG */
+#if 0
 		if ((uint8_t*)m_sge[0].addr < p_tcp_iov[0].p_desc->p_buffer || (uint8_t*)p_pkt < p_tcp_iov[0].p_desc->p_buffer) {
 			dst_tcp_logerr("p_buffer - addr=%d, m_total_hdr_len=%zd, p_buffer=%p, type=%d, len=%d, tot_len=%d, payload=%p, hdr_alignment_diff=%zd\n",
 					(int)(p_tcp_iov[0].p_desc->p_buffer - (uint8_t*)m_sge[0].addr), m_header.m_total_hdr_len,
@@ -88,6 +91,7 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 					p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.len, p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.tot_len,
 					p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.payload, hdr_alignment_diff);
 		}
+#endif
 
 		if (!dont_inline && (total_packet_len < m_max_inline)) { // inline send
 			m_p_send_wqe = &m_inline_send_wqe;
@@ -129,6 +133,7 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 		// LKey will be updated in ring->send() // m_sge[0].lkey = p_mem_buf_desc->lkey; 
 
 		/* for DEBUG */
+#if 0
 		if ((uint8_t*)m_sge[0].addr < p_mem_buf_desc->p_buffer) {
 			dst_tcp_logerr("p_buffer - addr=%d, m_total_hdr_len=%zd, p_buffer=%p, type=%d, len=%d, tot_len=%d, payload=%p, hdr_alignment_diff=%zd\n",
 					(int)(p_mem_buf_desc->p_buffer - (uint8_t*)m_sge[0].addr), m_header.m_total_hdr_len,
@@ -136,6 +141,7 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 					p_mem_buf_desc->lwip_pbuf.pbuf.len, p_mem_buf_desc->lwip_pbuf.pbuf.tot_len,
 					p_mem_buf_desc->lwip_pbuf.pbuf.payload, hdr_alignment_diff);
 		}
+#endif
 
 		p_pkt = (tx_packet_template_t*)((uint8_t*)p_mem_buf_desc->p_buffer);
 		p_pkt->hdr.m_ip_hdr.tot_len = (htons)(m_sge[0].length - m_header.m_transport_header_len);
@@ -152,6 +158,7 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 		m_p_ring->send_ring_buffer(m_id, m_p_send_wqe, b_blocked);
 	}
 
+#if 0
 #ifndef __COVERITY__
 	struct tcphdr* p_tcp_h = (struct tcphdr*)(((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr)));
 	NOT_IN_USE(p_tcp_h);
@@ -162,7 +169,7 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 					ntohl(p_tcp_h->seq), ntohl(p_tcp_h->ack_seq), ntohs(p_tcp_h->window),
 					total_packet_len- p_tcp_h->doff*4 -34);
 #endif
-
+#endif
 	if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
 		m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, safe_mce_sys().tx_bufs_batch_tcp);
 	}
