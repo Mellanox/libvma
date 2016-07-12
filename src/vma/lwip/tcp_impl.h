@@ -68,7 +68,7 @@ static inline struct pbuf *tcp_tx_pbuf_alloc(struct tcp_pcb * pcb, u16_t length,
     /* set reference count */
     p->ref = 1;
     /* set flags */
-    p->flags = 0;
+    p->flags = 0; 
     lwip_prefetch(p->payload);
     return p;
 }
@@ -310,6 +310,7 @@ struct tcp_seg {
   struct tcp_seg *next;    /* used when putting segements on a queue */
   struct pbuf *p;          /* buffer containing data + TCP header */
   void *dataptr;           /* pointer to the TCP data in the pbuf */
+  u32_t next_seqno;
   u32_t seqno;
   u16_t len;               /* the TCP length of this segment */
 #if TCP_OVERSIZE_DBGCHECK
@@ -627,11 +628,12 @@ void tcp_receive_dupack_check(struct tcp_pcb *pcb, tcp_in_data* in_data, u32_t r
 static inline void
 tcp_tx_seg_free_inl(struct tcp_pcb * pcb, struct tcp_seg *seg)
 {
+    (void)pcb;
     //tcp_tx_pbuf_free(pcb, seg->p);
     //AM_TODO: inline external_tcp_seg_free()
     //assumes that segment pbuf is not chained
     pbuf_free_custom(seg->p);
-    external_tcp_seg_free(pcb, seg);
+    //external_tcp_seg_free(pcb, seg);
 }
 
 void tcp_receive_unsent_check(struct tcp_pcb *pcb, tcp_in_data* in_data);
@@ -650,6 +652,220 @@ void tcp_receive_data_trim(struct tcp_pcb *pcb, tcp_in_data* in_data);
 
 void tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data);
 void L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb);
+//void L3_level_tcp_input_fast(struct pbuf *p, struct tcp_pcb* pcb, tcp_in_data *in_data);
+
+
+/**
+ * Implements the TCP state machine. Called by tcp_input. In some
+ * states tcp_receive() is called to receive data. The tcp_seg
+ * argument will be freed by the caller (tcp_input()) unless the
+ * recv_data pointer in the pcb is set.
+ *
+ * @param pcb the tcp_pcb for which a segment arrived
+ *
+ * @note the segment which arrived is saved in global variables, therefore only the pcb
+ *       involved is passed as a parameter to this function
+ */
+static LWIP_F_ALWAYS_INLINE err_t
+tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
+{
+    /* Process incoming RST segments. */
+    if (unlikely(in_data->flags & TCP_RST)) {
+        /* First, determine if the reset is acceptable. */
+        return tcp_process_rst(pcb, in_data);
+    }
+
+    if (unlikely((in_data->flags & TCP_SYN) && 
+                (get_tcp_state(pcb) != SYN_SENT &&
+                 get_tcp_state(pcb) != SYN_RCVD))) {
+        /* Cope with new connection attempt after remote end crashed */
+        tcp_ack_now(pcb);
+        return ERR_OK;
+    }
+
+    if (unlikely((pcb->flags & TF_RXCLOSED) == 0)) {
+        /* Update the PCB (in)activity timer unless rx is closed (see tcp_shutdown) */
+        pcb->tmr = tcp_ticks;
+    }
+    pcb->keep_cnt_sent = 0;
+
+    if(unlikely(TCPH_HDRLEN(in_data->tcphdr) > 0x5)) {
+        tcp_parseopt(pcb, in_data);
+    }
+
+    /* Do different things depending on the TCP state. */
+    if (unlikely(get_tcp_state(pcb) != ESTABLISHED &&
+                get_tcp_state(pcb) != CLOSE_WAIT)) {
+        return tcp_process_state(pcb, in_data);
+    }
+
+    tcp_receive(pcb, in_data);
+
+    if (unlikely(in_data->recv_flags & TF_GOT_FIN)) { /* passive close */
+        tcp_ack_now(pcb);
+        set_tcp_state(pcb, CLOSE_WAIT);
+    }
+    return ERR_OK;
+}
+
+
+static LWIP_F_ALWAYS_INLINE void
+L3_level_tcp_input_fast(struct pbuf *p, struct tcp_pcb* pcb, tcp_in_data *in_data)
+{
+    err_t err;
+
+    if (unlikely(pcb == NULL)) {
+    	/* If no matching PCB was found, send a TCP RST (reset) to the
+           sender. */
+        LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_input: no PCB match found, resetting.\n"));
+        if (!(TCPH_FLAGS(in_data->tcphdr) & TCP_RST)) {
+            TCP_STATS_INC(tcp.proterr);
+            TCP_STATS_INC(tcp.drop);
+            tcp_rst(in_data->ackno, in_data->seqno + in_data->tcplen, in_data->tcphdr->dest,
+            		in_data->tcphdr->src, pcb);
+        }
+        goto out;
+    }
+
+    if (unlikely(PCB_IN_LISTEN_STATE(pcb))) {
+        LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_input: packed for LISTENing connection.\n"));
+        // TODO: tcp_listen_input creates a pcb and puts in the active pcb list.
+        // how should we approach?
+        tcp_listen_input((struct tcp_pcb_listen*)pcb, in_data);
+        goto out;
+    }
+
+    if (unlikely(PCB_IN_TIME_WAIT_STATE(pcb))){
+        LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_input: packed for TIME_WAITing connection.\n"));
+        tcp_timewait_input(pcb, in_data);
+        goto out;
+    }
+
+    if (unlikely(!PCB_IN_ACTIVE_STATE(pcb))) {
+        LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_input: illegal get_tcp_state(pcb).\n"));
+        goto out;
+    }
+
+    /* The incoming segment belongs to a connection. */
+#if TCP_INPUT_DEBUG
+#if TCP_DEBUG
+    tcp_debug_print_state(get_tcp_state(pcb));
+#endif /* TCP_DEBUG */
+#endif /* TCP_INPUT_DEBUG */
+
+    /* If there is data which was previously "refused" by upper layer */
+    if (unlikely(pcb->refused_data != NULL)) { 
+        if (tcp_do_refused_data(pcb) != ERR_OK) {
+            goto out;
+        }
+    }
+    //tcp_input_pcb = pcb;
+    err = tcp_process(pcb, in_data);
+    /* A return value of ERR_ABRT means that tcp_abort() was called
+       and that the pcb has been freed. If so, we don't do anything. */
+    if (unlikely(err == ERR_ABRT)) {
+        goto aborted;
+    }
+
+    if (unlikely(in_data->recv_flags & TF_RESET)) {
+        /* TF_RESET means that the connection was reset by the other
+           end. We then call the error callback to inform the
+           application that the connection is dead before we
+           deallocate the PCB. */
+        TCP_EVENT_ERR(pcb->errf, pcb->my_container, ERR_RST);
+        tcp_pcb_remove(pcb);
+        goto aborted;
+    }
+    if (unlikely(in_data->recv_flags & TF_CLOSED)) {
+        /* The connection has been closed and we will deallocate the
+           PCB. */
+        tcp_pcb_remove(pcb);
+        goto aborted;
+    } 
+
+    /* If the application has registered a "sent" function to be
+       called when new send buffer space is available, we call it
+       now. */
+    if (pcb->acked > 0) {
+        TCP_EVENT_SENT(pcb, pcb->acked, err);
+        if (unlikely(err == ERR_ABRT)) {
+            goto aborted;
+        }
+    }
+
+    while (in_data->recv_data != NULL) { // 'while' instead of 'if' because windows scale uses large pbuf
+        struct pbuf *rest = NULL;
+        if (unlikely(pcb->flags & TF_RXCLOSED)) {
+            /* received data although already closed -> abort (send RST) to
+               notify the remote host that not all data has been processed */
+            pbuf_free_custom(in_data->recv_data);
+            tcp_abort(pcb);
+            goto aborted;
+        }
+        pbuf_split_64k(in_data->recv_data, &rest);
+        if (in_data->flags & TCP_PSH) {
+            in_data->recv_data->flags |= PBUF_FLAG_PUSH;
+        }
+        /* Notify application that data has been received. */
+        TCP_EVENT_RECV(pcb, in_data->recv_data, ERR_OK, err);
+        if (unlikely(err == ERR_ABRT)) {
+            if (rest) {
+                pbuf_cat(in_data->recv_data, rest); /* undo splitting */
+            }
+            goto aborted;
+        }
+        /* If the upper layer can't receive this data, store it */
+        if (unlikely(err != ERR_OK)) {
+            if (rest) {
+                pbuf_cat(in_data->recv_data, rest); /* undo splitting */
+            }
+            pcb->refused_data = in_data->recv_data;
+            LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_input: keep incoming packet, because pcb is \"full\"\n"));
+            break;
+        } 
+        in_data->recv_data = rest;
+    }
+
+    /* If a FIN segment was received, we call the callback
+       function with a NULL buffer to indicate EOF. */
+    if (unlikely(in_data->recv_flags & TF_GOT_FIN)) {
+        /* correct rcv_wnd as the application won't call tcp_recved()
+           for the FIN's seqno */
+        if (pcb->rcv_wnd != pcb->rcv_wnd_max) {
+            pcb->rcv_wnd++;
+        }
+        TCP_EVENT_CLOSED(pcb, err);
+        if (err == ERR_ABRT) {
+            goto aborted;
+        }
+    }
+
+    //tcp_input_pcb = NULL;
+    /* Try to send something out. */
+    //tcp_output(pcb);
+#if TCP_INPUT_DEBUG
+#if TCP_DEBUG
+    tcp_debug_print_state(get_tcp_state(pcb));
+#endif /* TCP_DEBUG */
+#endif /* TCP_INPUT_DEBUG */
+
+    /* Jump target if pcb has been aborted in a callback (by calling tcp_abort()).
+       Below this line, 'pcb' may not be dereferenced! */
+aborted:
+    //tcp_input_pcb = NULL;
+    in_data->recv_data = NULL;
+
+    /* give up our reference to inseg.p */
+    if (likely(in_data->inseg.p != NULL)) {
+        pbuf_free_custom(in_data->inseg.p);
+        in_data->inseg.p = NULL;
+    } 
+    LWIP_ASSERT("tcp_input: tcp_pcbs_sane()", tcp_pcbs_sane());
+    return;
+out:
+    pbuf_free_custom(p);
+    return;
+}
 
 #ifdef __cplusplus
 }

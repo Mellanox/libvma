@@ -142,21 +142,11 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
 
   /* If we don't have a local IP address, we get one by
      calling ip_route(). */
-  if (ip_addr_isany(&(pcb->local_ip))) {
-	  LWIP_ASSERT("tcp_output_segment: need to find route to host", 0);
-  }
+//  if (ip_addr_isany(&(pcb->local_ip))) {
+//	  LWIP_ASSERT("tcp_output_segment: need to find route to host", 0);
+ // }
 
-  /* Set retransmission timer running if it is not currently enabled */
-  if(pcb->rtime == -1) {
-    pcb->rtime = 0;
-  }
 
-  if (pcb->rttest == 0) {
-    pcb->rttest = tcp_ticks;
-    pcb->rtseq = seg->seqno;
-
-    LWIP_DEBUGF(TCP_RTO_DEBUG, ("tcp_output_segment: rtseq %"U32_F"\n", pcb->rtseq));
-  }
   LWIP_DEBUGF(TCP_OUTPUT_DEBUG, ("tcp_output_segment: %"U32_F":%"U32_F"\n",
           htonl(seg->tcphdr->seqno), htonl(seg->tcphdr->seqno) +
           seg->len));
@@ -168,7 +158,7 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
 
   seg->p->payload = seg->tcphdr;
 
-  seg->tcphdr->chksum = 0;
+//  seg->tcphdr->chksum = 0;
 
   TCP_STATS_INC(tcp.xmit);
 
@@ -180,6 +170,17 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
 #else /* LWIP_NETIF_HWADDRHINT*/
   ip_output(seg->p, &(pcb->local_ip), &(pcb->remote_ip), pcb->ttl, pcb->tos, IP_PROTO_TCP);
 #endif /* LWIP_NETIF_HWADDRHINT*/
+
+  /* Set retransmission timer running if it is not currently enabled */
+  if(pcb->rtime == -1) {
+    pcb->rtime = 0;
+  }
+  if (pcb->rttest == 0) {
+    pcb->rttest = tcp_ticks;
+    pcb->rtseq = seg->seqno;
+
+    LWIP_DEBUGF(TCP_RTO_DEBUG, ("tcp_output_segment: rtseq %"U32_F"\n", pcb->rtseq));
+  }
 }
 
 
@@ -270,6 +271,7 @@ tcp_create_segment(struct tcp_pcb *pcb, struct pbuf *p, u8_t flags, u32_t seqno,
   struct tcp_seg *seg;
   u8_t optlen = LWIP_TCP_OPT_LENGTH(optflags);
 
+#if 0
 #if LWIP_3RD_PARTY_BUFS
   if (unlikely((seg = external_tcp_seg_alloc(pcb)) == NULL)) {
 #else
@@ -279,6 +281,8 @@ tcp_create_segment(struct tcp_pcb *pcb, struct pbuf *p, u8_t flags, u32_t seqno,
     tcp_tx_pbuf_free(pcb, p);
     return NULL;
   }
+#endif
+  seg = (struct tcp_seg *)((struct pbuf_custom *)p)->tcp_seg;
   seg->flags = optflags;
   seg->next = NULL;
   seg->p = p;
@@ -1114,6 +1118,7 @@ tcp_output(struct tcp_pcb *pcb)
             continue;
         }
         seg->next = NULL;
+	seg->next_seqno = seg->seqno + seg->len;
         /* unacked list is empty? */
         if (pcb->unacked == NULL) {
             pcb->unacked = seg;

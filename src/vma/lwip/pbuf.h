@@ -122,6 +122,7 @@ struct pbuf_custom {
   struct pbuf pbuf;
   /** This function is called when pbuf_free deallocates this pbuf(_custom) */
   pbuf_free_custom_fn custom_free_function;
+  char tcp_seg[0];  /* we place tcp segment just after pbuf */
 };
 #endif /* LWIP_SUPPORT_CUSTOM_PBUF */
 
@@ -191,7 +192,6 @@ static inline int pbuf_header_fast(struct pbuf *p, s16_t header_size_increment)
         }
     } 
     p->payload = (u8_t *)p->payload - header_size_increment;
-    lwip_prefetch(p->payload);
     p->len += header_size_increment;
     p->tot_len += header_size_increment;
 

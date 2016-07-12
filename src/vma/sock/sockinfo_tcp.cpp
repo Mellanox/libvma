@@ -85,6 +85,37 @@ inline void sockinfo_tcp::init_pbuf_custom(mem_buf_desc_t *p_desc)
 	p_desc->lwip_pbuf.pbuf.payload = (u8_t *)p_desc->p_buffer + p_desc->transport_header_len;
 }
 
+inline void sockinfo_tcp::init_pbuf_custom(mem_buf_desc_t *p_desc, tcp_in_data &in_data)
+{
+    /* payload must point to the actual data */
+	p_desc->lwip_pbuf.pbuf.flags = PBUF_FLAG_IS_CUSTOM;
+	p_desc->lwip_pbuf.pbuf.len   = p_desc->lwip_pbuf.pbuf.tot_len = p_desc->path.rx.sz_payload;
+	p_desc->lwip_pbuf.pbuf.ref   = 1;
+	p_desc->lwip_pbuf.pbuf.type  = PBUF_REF;
+	p_desc->lwip_pbuf.pbuf.next  = NULL;
+	p_desc->lwip_pbuf.pbuf.payload = (u8_t *)p_desc->path.rx.p_tcp_h + p_desc->path.rx.p_tcp_h->doff*4;
+
+    in_data.iphdr  =  (ip_hdr *)p_desc->path.rx.p_ip_h;
+    in_data.tcphdr =  (tcp_hdr *)p_desc->path.rx.p_tcp_h;
+    /* Convert fields in TCP header to host byte order. */
+    in_data.tcphdr->src = ntohs(in_data.tcphdr->src);
+    in_data.tcphdr->dest = ntohs(in_data.tcphdr->dest);
+    in_data.seqno = in_data.tcphdr->seqno = ntohl(in_data.tcphdr->seqno);
+    in_data.ackno = in_data.tcphdr->ackno = ntohl(in_data.tcphdr->ackno);
+    in_data.tcphdr->wnd = ntohs(in_data.tcphdr->wnd);
+
+    in_data.flags = TCPH_FLAGS(in_data.tcphdr);
+    in_data.tcplen = p_desc->lwip_pbuf.pbuf.tot_len + ((in_data.flags & (TCP_FIN | TCP_SYN)) ? 1 : 0);
+    /* Set up a tcp_seg structure. */
+    in_data.inseg.next = NULL;
+    in_data.inseg.len = p_desc->lwip_pbuf.pbuf.tot_len;
+    in_data.inseg.dataptr = p_desc->lwip_pbuf.pbuf.payload;
+    in_data.inseg.p = &p_desc->lwip_pbuf.pbuf;
+    in_data.inseg.tcphdr = in_data.tcphdr;
+    in_data.recv_data = NULL;
+    in_data.recv_flags = 0;
+}
+
 /* change default rx_wait impl to flow based one */
 inline int sockinfo_tcp::rx_wait(int &poll_count, bool is_blocking)
 {
@@ -215,8 +246,8 @@ sockinfo_tcp::sockinfo_tcp(int fd) throw (vma_exception) :
 
 	m_tcp_seg_count = 0;
 	m_tcp_seg_in_use = 0;
-	m_tcp_seg_list = g_tcp_seg_pool->get_tcp_segs(TCP_SEG_COMPENSATION);
-	if (m_tcp_seg_list) m_tcp_seg_count += TCP_SEG_COMPENSATION;
+	//m_tcp_seg_list = g_tcp_seg_pool->get_tcp_segs(TCP_SEG_COMPENSATION);
+	//if (m_tcp_seg_list) m_tcp_seg_count += TCP_SEG_COMPENSATION;
 
 	si_tcp_logfunc("done");
 
@@ -239,12 +270,14 @@ sockinfo_tcp::~sockinfo_tcp()
 
 	destructor_helper();
 
+#if 0
 	if (m_tcp_seg_in_use) {
 		si_tcp_logwarn("still %d tcp segs in use!", m_tcp_seg_in_use);
 	}
 	if (m_tcp_seg_count) {
 		g_tcp_seg_pool->put_tcp_segs(m_tcp_seg_list);
 	}
+#endif
 	unlock_tcp_con();
 
 	// hack to close conn as our tcp state machine is not really persistent
@@ -1750,7 +1783,9 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	//if (!p_rx_pkt_mem_buf_desc_info->path.rx.gro) init_pbuf_custom(p_rx_pkt_mem_buf_desc_info);
 	//else p_rx_pkt_mem_buf_desc_info->path.rx.gro = 0;
     //
-    init_pbuf_custom(p_rx_pkt_mem_buf_desc_info);
+    tcp_in_data in_data;
+    init_pbuf_custom(p_rx_pkt_mem_buf_desc_info, in_data);
+    //init_pbuf_custom(p_rx_pkt_mem_buf_desc_info);
 
 	sockinfo_tcp *sock = (sockinfo_tcp*)pcb->my_container;
 	if (unlikely(sock != this)) { // AM_TODO: check what is likely
@@ -1765,7 +1800,8 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 #ifdef RDTSC_MEASURE_RX_LWIP
 	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_MEASURE_RX_LWIP]);
 #endif //RDTSC_MEASURE_RX_LWIP
-	L3_level_tcp_input((pbuf *)p_rx_pkt_mem_buf_desc_info, pcb);
+	L3_level_tcp_input_fast((pbuf *)p_rx_pkt_mem_buf_desc_info, pcb, &in_data);
+	//L3_level_tcp_input((pbuf *)p_rx_pkt_mem_buf_desc_info, pcb);
 
 #ifdef RDTSC_MEASURE_RX_LWIP
 	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_MEASURE_RX_LWIP]);
@@ -3923,6 +3959,8 @@ void sockinfo_tcp::tcp_seg_free(void* p_conn, struct tcp_seg * seg)
 
 struct tcp_seg * sockinfo_tcp::get_tcp_seg()
 {
+    return 0;
+#if 0
 	struct tcp_seg * head = NULL;
 	if (!m_tcp_seg_list) {
 		m_tcp_seg_list = g_tcp_seg_pool->get_tcp_segs(TCP_SEG_COMPENSATION);
@@ -3936,6 +3974,7 @@ struct tcp_seg * sockinfo_tcp::get_tcp_seg()
 	m_tcp_seg_in_use++;
 
 	return head;
+#endif
 }
 
 void sockinfo_tcp::put_tcp_seg(struct tcp_seg * seg)
@@ -3965,6 +4004,8 @@ void sockinfo_tcp::put_tcp_seg(struct tcp_seg * seg)
 //tcp_seg_pool
 
 tcp_seg_pool::tcp_seg_pool(int size) {
+    (void)size;
+#if 0
 	m_tcp_segs_array = new struct tcp_seg[size];
 	if (m_tcp_segs_array == NULL) {
 		__log_dbg("TCP segments allocation failed");
@@ -3976,10 +4017,11 @@ tcp_seg_pool::tcp_seg_pool(int size) {
 		m_tcp_segs_array[i].next = &m_tcp_segs_array[i + 1];
 	}
 	m_p_head = &m_tcp_segs_array[0];
+#endif
 }
 
 tcp_seg_pool::~tcp_seg_pool() {
-	free_tsp_resources();
+	//free_tsp_resources();
 }
 
 void tcp_seg_pool::free_tsp_resources() {

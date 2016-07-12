@@ -273,6 +273,7 @@ private:
 	ready_pcb_map_t m_ready_pcbs;
 
 	inline void init_pbuf_custom(mem_buf_desc_t *p_desc);
+	inline void init_pbuf_custom(mem_buf_desc_t *p_desc, tcp_in_data &in_data);
 
 	inline void lock_tcp_con();
 	inline void unlock_tcp_con();
