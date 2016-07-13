@@ -518,7 +518,7 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
   switch (get_tcp_state(pcb)) {
   case SYN_SENT:
     LWIP_DEBUGF(TCP_INPUT_DEBUG, ("SYN-SENT: ackno %"U32_F" pcb->snd_nxt %"U32_F" unacked %"U32_F"\n", in_data->ackno,
-     pcb->snd_nxt, ntohl(pcb->unacked->in_data->tcphdr->in_data->seqno)));
+     pcb->snd_nxt, ntohl(pcb->unacked->tcphdr->seqno)));
     /* received SYN ACK with expected sequence number? */
     if ((in_data->flags & TCP_ACK) && (in_data->flags & TCP_SYN)
         && in_data->ackno == pcb->unacked->seqno + 1) {
@@ -582,7 +582,7 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
       if (TCP_SEQ_BETWEEN(in_data->ackno, pcb->lastack+1, pcb->snd_nxt)) {
         u32_t old_cwnd;
         set_tcp_state(pcb, ESTABLISHED);
-        LWIP_DEBUGF(TCP_DEBUG, ("TCP connection established %"U16_F" -> %"U16_F".\n", in_data->inseg.in_data->tcphdr->src, in_data->inseg.in_data->tcphdr->dest));
+        LWIP_DEBUGF(TCP_DEBUG, ("TCP connection established %"U16_F" -> %"U16_F".\n", in_data->inseg.tcphdr->src, in_data->inseg.tcphdr->dest));
 #if LWIP_CALLBACK_API
         LWIP_ASSERT("pcb->accept != NULL", pcb->accept != NULL);
 #endif
@@ -640,7 +640,7 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
     if (in_data->recv_flags & TF_GOT_FIN) {
       if ((in_data->flags & TCP_ACK) && (in_data->ackno == pcb->snd_nxt)) {
         LWIP_DEBUGF(TCP_DEBUG,
-          ("TCP connection closed: FIN_WAIT_1 %"U16_F" -> %"U16_F".\n", in_data->inseg.in_data->tcphdr->src, in_data->inseg.in_data->tcphdr->dest));
+          ("TCP connection closed: FIN_WAIT_1 %"U16_F" -> %"U16_F".\n", in_data->inseg.tcphdr->src, in_data->inseg.tcphdr->dest));
         tcp_ack_now(pcb);
         tcp_pcb_purge(pcb);
         set_tcp_state(pcb, TIME_WAIT);
@@ -655,7 +655,7 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
   case FIN_WAIT_2:
     tcp_receive(pcb, in_data);
     if (in_data->recv_flags & TF_GOT_FIN) {
-      LWIP_DEBUGF(TCP_DEBUG, ("TCP connection closed: FIN_WAIT_2 %"U16_F" -> %"U16_F".\n", in_data->inseg.in_data->tcphdr->src, in_data->inseg.in_data->tcphdr->dest));
+      LWIP_DEBUGF(TCP_DEBUG, ("TCP connection closed: FIN_WAIT_2 %"U16_F" -> %"U16_F".\n", in_data->inseg.tcphdr->src, in_data->inseg.tcphdr->dest));
       tcp_ack_now(pcb);
       tcp_pcb_purge(pcb);
       set_tcp_state(pcb, TIME_WAIT);
@@ -664,7 +664,7 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
   case CLOSING:
     tcp_receive(pcb, in_data);
     if (in_data->flags & TCP_ACK && in_data->ackno == pcb->snd_nxt) {
-      LWIP_DEBUGF(TCP_DEBUG, ("TCP connection closed: CLOSING %"U16_F" -> %"U16_F".\n", in_data->inseg.in_data->tcphdr->src, in_data->inseg.in_data->tcphdr->dest));
+      LWIP_DEBUGF(TCP_DEBUG, ("TCP connection closed: CLOSING %"U16_F" -> %"U16_F".\n", in_data->inseg.tcphdr->src, in_data->inseg.tcphdr->dest));
       tcp_pcb_purge(pcb);
       set_tcp_state(pcb, TIME_WAIT);
     }
@@ -672,7 +672,7 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
   case LAST_ACK:
     tcp_receive(pcb, in_data);
     if (in_data->flags & TCP_ACK && in_data->ackno == pcb->snd_nxt) {
-      LWIP_DEBUGF(TCP_DEBUG, ("TCP connection closed: LAST_ACK %"U16_F" -> %"U16_F".\n", in_data->inseg.in_data->tcphdr->src, in_data->inseg.in_data->tcphdr->dest));
+      LWIP_DEBUGF(TCP_DEBUG, ("TCP connection closed: LAST_ACK %"U16_F" -> %"U16_F".\n", in_data->inseg.tcphdr->src, in_data->inseg.tcphdr->dest));
       /* bugfix #21699: don't set_tcp_state to CLOSED here or we risk leaking segments */
       in_data->recv_flags |= TF_CLOSED;
     }
@@ -901,17 +901,17 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
       LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_receive: ACK for %"U32_F", unacked->seqno %"U32_F":%"U32_F"\n",
                                     in_data->ackno,
                                     pcb->unacked != NULL?
-                                    ntohl(pcb->unacked->in_data->tcphdr->in_data->seqno): 0,
+                                    ntohl(pcb->unacked->tcphdr->seqno): 0,
                                     pcb->unacked != NULL?
-                                    ntohl(pcb->unacked->in_data->tcphdr->in_data->seqno) + TCP_TCPLEN(pcb->unacked): 0));
+                                    ntohl(pcb->unacked->tcphdr->seqno) + TCP_TCPLEN(pcb->unacked): 0));
 
       /* Remove segment from the unacknowledged list if the incoming
          ACK acknowlegdes them. */
       while (pcb->unacked != NULL &&
              TCP_SEQ_LEQ(pcb->unacked->seqno + TCP_TCPLEN(pcb->unacked), in_data->ackno)) {
         LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_receive: removing %"U32_F":%"U32_F" from pcb->unacked\n",
-                                      ntohl(pcb->unacked->in_data->tcphdr->in_data->seqno),
-                                      ntohl(pcb->unacked->in_data->tcphdr->in_data->seqno) +
+                                      ntohl(pcb->unacked->tcphdr->seqno),
+                                      ntohl(pcb->unacked->tcphdr->seqno) +
                                       TCP_TCPLEN(pcb->unacked)));
 
         next = pcb->unacked;
@@ -953,7 +953,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
            TCP_SEQ_BETWEEN(in_data->ackno, ntohl(pcb->unsent->tcphdr->seqno) +
                            TCP_TCPLEN(pcb->unsent), pcb->snd_nxt)) {
       LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_receive: removing %"U32_F":%"U32_F" from pcb->unsent\n",
-                                    ntohl(pcb->unsent->in_data->tcphdr->in_data->seqno), ntohl(pcb->unsent->in_data->tcphdr->in_data->seqno) +
+                                    ntohl(pcb->unsent->tcphdr->seqno), ntohl(pcb->unsent->tcphdr->seqno) +
                                     TCP_TCPLEN(pcb->unsent)));
 
       next = pcb->unsent;

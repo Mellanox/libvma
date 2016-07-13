@@ -540,19 +540,22 @@
 #define LWIP_3RD_PARTY_L3 1
 #define LWIP_3RD_PARTY_BUFS 1
 
-//debugging
-//#define ETHARP_DEBUG	LWIP_DBG_ON
-//#define UDP_DEBUG	LWIP_DBG_ON
+//enable LWIP DEBUG here
 #if 1
-//#define ICMP_DEBUG		LWIP_DBG_ON
-//#define TCP_DEBUG                       LWIP_DBG_ON
-//#define TCP_INPUT_DEBUG                 LWIP_DBG_ON
-//#define TCP_OUTPUT_DEBUG                LWIP_DBG_ON
-//#define TCPIP_DEBUG                     LWIP_DBG_ON
+//#define PBUF_DEBUG				LWIP_DBG_ON
+//#define TCP_DEBUG 				LWIP_DBG_ON
+//#define TCP_INPUT_DEBUG			LWIP_DBG_ON
+//#define TCP_FR_DEBUG				LWIP_DBG_ON
+//#define TCP_RTO_DEBUG 			LWIP_DBG_ON
+//#define TCP_CWND_DEBUG			LWIP_DBG_ON
+//#define TCP_WND_DEBUG 			LWIP_DBG_ON
+//#define TCP_OUTPUT_DEBUG			LWIP_DBG_ON
+//#define TCP_RST_DEBUG 			LWIP_DBG_ON
 //#define TCP_QLEN_DEBUG			LWIP_DBG_ON
-//#define PBUF_DEBUG 	LWIP_DBG_ON
-//#define MEMP_DEBUG	LWIP_DBG_ON
 #endif
+
+#define LWIP_DEBUG_ENABLE PBUF_DEBUG | TCP_DEBUG | TCP_INPUT_DEBUG | TCP_FR_DEBUG | TCP_RTO_DEBUG \
+	| TCP_CWND_DEBUG | TCP_WND_DEBUG | TCP_OUTPUT_DEBUG | TCP_RST_DEBUG | TCP_QLEN_DEBUG
 
 /*
    -----------------------------------------------
@@ -2342,10 +2345,6 @@ typedef unsigned long mem_ptr_t;
 #include <stdio.h>
 #include <stdlib.h>
 
-/* Plaform specific diagnostic output */
-//#define LWIP_PLATFORM_DIAG(x)	do {printf x; fflush(0);} while(0)
-#define LWIP_PLATFORM_DIAG(x)
-
 #define LWIP_PLATFORM_ASSERT(x) do {printf("Assertion \"%s\" failed at line %d in %s\n", \
                                      x, __LINE__, __FILE__); fflush(NULL);} while(0)
 
@@ -2408,7 +2407,30 @@ typedef unsigned long mem_ptr_t;
   LWIP_PLATFORM_ASSERT(message); handler;}} while(0)
 #endif /* LWIP_ERROR */
 
+#if LWIP_DEBUG_ENABLE
+
+/* Plaform specific diagnostic output */
+#define LWIP_PLATFORM_DIAG(x)	do {printf x; fflush(0);} while(0)
+
+/** print debug message only if debug message type is enabled...
+ *  AND is of correct type AND is at least LWIP_DBG_LEVEL
+ */
+#define LWIP_DEBUGF(debug, message) do { \
+                               if ( \
+                                   ((debug) & LWIP_DBG_ON) && \
+                                   ((debug) & LWIP_DBG_TYPES_ON) && \
+                                   ((s16_t)((debug) & LWIP_DBG_MASK_LEVEL) >= LWIP_DBG_MIN_LEVEL)) { \
+                                 LWIP_PLATFORM_DIAG(message); \
+                                 if ((debug) & LWIP_DBG_HALT) { \
+                                   while(1); \
+                                 } \
+                               } \
+                             } while(0)
+
+#else  /* LWIP_DEBUG_ENABLE */
+#define LWIP_PLATFORM_DIAG(x)
 #define LWIP_DEBUGF(debug, message)
+#endif /* LWIP_DEBUG_ENABLE */
 
 /**
  * LWIP_DBG_MIN_LEVEL: After masking, the value of the debug is
@@ -2428,115 +2450,10 @@ typedef unsigned long mem_ptr_t;
 #endif
 
 /**
- * ETHARP_DEBUG: Enable debugging in etharp.c.
- */
-#ifndef ETHARP_DEBUG
-#define ETHARP_DEBUG                    LWIP_DBG_OFF
-#endif
-
-/**
- * NETIF_DEBUG: Enable debugging in netif.c.
- */
-#ifndef NETIF_DEBUG
-#define NETIF_DEBUG                     LWIP_DBG_OFF
-#endif
-
-/**
  * PBUF_DEBUG: Enable debugging in pbuf.c.
  */
 #ifndef PBUF_DEBUG
 #define PBUF_DEBUG                      LWIP_DBG_OFF
-#endif
-
-/**
- * API_LIB_DEBUG: Enable debugging in api_lib.c.
- */
-#ifndef API_LIB_DEBUG
-#define API_LIB_DEBUG                   LWIP_DBG_OFF
-#endif
-
-/**
- * API_MSG_DEBUG: Enable debugging in api_msg.c.
- */
-#ifndef API_MSG_DEBUG
-#define API_MSG_DEBUG                   LWIP_DBG_OFF
-#endif
-
-/**
- * SOCKETS_DEBUG: Enable debugging in sockets.c.
- */
-#ifndef SOCKETS_DEBUG
-#define SOCKETS_DEBUG                   LWIP_DBG_OFF
-#endif
-
-/**
- * ICMP_DEBUG: Enable debugging in icmp.c.
- */
-#ifndef ICMP_DEBUG
-#define ICMP_DEBUG                      LWIP_DBG_OFF
-#endif
-
-/**
- * IGMP_DEBUG: Enable debugging in igmp.c.
- */
-#ifndef IGMP_DEBUG
-#define IGMP_DEBUG                      LWIP_DBG_OFF
-#endif
-
-/**
- * INET_DEBUG: Enable debugging in inet.c.
- */
-#ifndef INET_DEBUG
-#define INET_DEBUG                      LWIP_DBG_OFF
-#endif
-
-/**
- * IP_DEBUG: Enable debugging for IP.
- */
-#ifndef IP_DEBUG
-#define IP_DEBUG                        LWIP_DBG_OFF
-#endif
-
-/**
- * IP_REASS_DEBUG: Enable debugging in ip_frag.c for both frag & reass.
- */
-#ifndef IP_REASS_DEBUG
-#define IP_REASS_DEBUG                  LWIP_DBG_OFF
-#endif
-
-/**
- * RAW_DEBUG: Enable debugging in raw.c.
- */
-#ifndef RAW_DEBUG
-#define RAW_DEBUG                       LWIP_DBG_OFF
-#endif
-
-/**
- * MEM_DEBUG: Enable debugging in mem.c.
- */
-#ifndef MEM_DEBUG
-#define MEM_DEBUG                       LWIP_DBG_OFF
-#endif
-
-/**
- * MEMP_DEBUG: Enable debugging in memp.c.
- */
-#ifndef MEMP_DEBUG
-#define MEMP_DEBUG                      LWIP_DBG_OFF
-#endif
-
-/**
- * SYS_DEBUG: Enable debugging in sys.c.
- */
-#ifndef SYS_DEBUG
-#define SYS_DEBUG                       LWIP_DBG_OFF
-#endif
-
-/**
- * TIMERS_DEBUG: Enable debugging in timers.c.
- */
-#ifndef TIMERS_DEBUG
-#define TIMERS_DEBUG                    LWIP_DBG_OFF
 #endif
 
 /**
@@ -2601,69 +2518,6 @@ typedef unsigned long mem_ptr_t;
  */
 #ifndef TCP_QLEN_DEBUG
 #define TCP_QLEN_DEBUG                  LWIP_DBG_OFF
-#endif
-
-/**
- * UDP_DEBUG: Enable debugging in UDP.
- */
-#ifndef UDP_DEBUG
-#define UDP_DEBUG                       LWIP_DBG_OFF
-#endif
-
-/**
- * TCPIP_DEBUG: Enable debugging in tcpip.c.
- */
-#ifndef TCPIP_DEBUG
-#define TCPIP_DEBUG                     LWIP_DBG_OFF
-#endif
-
-/**
- * PPP_DEBUG: Enable debugging for PPP.
- */
-#ifndef PPP_DEBUG
-#define PPP_DEBUG                       LWIP_DBG_OFF
-#endif
-
-/**
- * SLIP_DEBUG: Enable debugging in slipif.c.
- */
-#ifndef SLIP_DEBUG
-#define SLIP_DEBUG                      LWIP_DBG_OFF
-#endif
-
-/**
- * DHCP_DEBUG: Enable debugging in dhcp.c.
- */
-#ifndef DHCP_DEBUG
-#define DHCP_DEBUG                      LWIP_DBG_OFF
-#endif
-
-/**
- * AUTOIP_DEBUG: Enable debugging in autoip.c.
- */
-#ifndef AUTOIP_DEBUG
-#define AUTOIP_DEBUG                    LWIP_DBG_OFF
-#endif
-
-/**
- * SNMP_MSG_DEBUG: Enable debugging for SNMP messages.
- */
-#ifndef SNMP_MSG_DEBUG
-#define SNMP_MSG_DEBUG                  LWIP_DBG_OFF
-#endif
-
-/**
- * SNMP_MIB_DEBUG: Enable debugging for SNMP MIBs.
- */
-#ifndef SNMP_MIB_DEBUG
-#define SNMP_MIB_DEBUG                  LWIP_DBG_OFF
-#endif
-
-/**
- * DNS_DEBUG: Enable debugging for DNS.
- */
-#ifndef DNS_DEBUG
-#define DNS_DEBUG                       LWIP_DBG_OFF
 #endif
 
 #endif /* __LWIP_OPT_H__ */

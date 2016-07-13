@@ -475,11 +475,11 @@ void tcp_debug_print_state(enum tcp_state s);
 void tcp_debug_print_pcbs(void);
 s16_t tcp_pcbs_sane(void);
 #else
-#  define tcp_debug_print(tcphdr)
-#  define tcp_debug_print_flags(flags)
-#  define tcp_debug_print_state(s)
-#  define tcp_debug_print_pcbs()
-#  define tcp_pcbs_sane() 1
+#define tcp_debug_print(tcphdr)
+#define tcp_debug_print_flags(flags)
+#define tcp_debug_print_state(s)
+#define tcp_debug_print_pcbs()
+#define tcp_pcbs_sane() 1
 #endif /* TCP_DEBUG */
 
 /** External function (implemented in timers.c), called when TCP detects
