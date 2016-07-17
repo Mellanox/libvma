@@ -644,10 +644,10 @@ retry_is_ready:
 			//tx_size = tx_wait();
                         tx_size = tcp_sndbuf(&m_pcb);
                         if (tx_size == 0) { 
-                                //force out TCP data before going on wait()
-                                tcp_output(&m_pcb);
-
-                                if (!block_this_run) {
+                                if (block_this_run) {
+                                        //force out TCP data before going on wait()
+                                        tcp_output(&m_pcb);
+                                } else {
                                         // non blocking socket should return inorder not to tx_wait()
                                         if ( total_tx ) {
                                                 m_tx_consecutive_eagain_count = 0;
