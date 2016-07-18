@@ -36,6 +36,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include "vlogger/vlogger.h"
 /*
  * Flags for recvfrom_zcopy()
  */
@@ -210,6 +211,14 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * @return 0 on success, or error code on failure.
 	 */
 	int (*thread_offload)(int offload, pthread_t tid);
+
+	/*
+	 * Dump fd statistics using VMA logger.
+	 * @param fd to dump, 0 for all open fds.
+	 * @param log_level dumping level.
+	 * @return 0 on success, or error code on failure.
+	 */
+	int (*dump_fd_stats) (int fd, vlog_levels_t log_level);
 };
 
 
@@ -228,7 +237,12 @@ static inline struct vma_api_t* vma_get_api()
 {
 	struct vma_api_t *api_ptr = NULL;
 	socklen_t len = sizeof(api_ptr);
-	getsockopt(-1, SOL_SOCKET, SO_VMA_GET_API, &api_ptr, &len);
+
+	/* coverity[negative_returns] */
+	int err = getsockopt(-1, SOL_SOCKET, SO_VMA_GET_API, &api_ptr, &len);
+	if (err < 0) {
+		return NULL;
+	}
 	return api_ptr;
 }
 

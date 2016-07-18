@@ -337,6 +337,45 @@ void fd_collection::offloading_rule_change_thread(bool offloaded, pthread_t tid)
 	unlock();
 }
 
+void fd_collection::statistics_print_helper(int fd, vlog_levels_t log_level)
+{
+	socket_fd_api* socket_fd;
+	epfd_info* epoll_fd;
+
+	if ((socket_fd = get_sockfd(fd))) {
+		vlog_printf(log_level, "==================== SOCKET FD ===================\n");
+		socket_fd->statistics_print(log_level);
+		goto found_fd;
+	}
+	if ((epoll_fd = get_epfd(fd))) {
+		vlog_printf(log_level, "==================== EPOLL FD ====================\n");
+		epoll_fd->statistics_print(log_level);
+		goto found_fd;
+	}
+
+	return;
+
+found_fd:
+
+	vlog_printf(log_level, "==================================================\n");
+}
+
+void fd_collection::statistics_print(int fd, vlog_levels_t log_level)
+{
+	vlog_printf(log_level, "==================================================\n");
+	if (fd) {
+		vlog_printf(log_level, "============ DUMPING FD %d STATISTICS ============\n", fd);
+		g_p_fd_collection->statistics_print_helper(fd, log_level);
+	} else {
+		vlog_printf(log_level, "======= DUMPING STATISTICS FOR ALL OPEN FDS ======\n");
+		int fd_map_size = g_p_fd_collection->get_fd_map_size();
+		for (int i = 0 ; i < fd_map_size ; i++) {
+			g_p_fd_collection->statistics_print_helper(i, log_level);
+		}
+	}
+	vlog_printf(log_level, "==================================================\n");
+}
+
 int fd_collection::addpipe(int fdrd, int fdwr)
 {
 	fdcoll_logfunc("fdrd=%d, fdwr=%d", fdrd, fdwr);

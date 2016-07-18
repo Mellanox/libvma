@@ -138,7 +138,6 @@ epfd_info::epfd_info(int epfd, int size) :
 
 	m_p_offloaded_fds = new int[m_size];
 	m_n_offloaded_fds = 0;
-	m_ready_fd = 0;
 
 	memset(&(m_local_stats.stats), 0, sizeof(m_local_stats.stats));
 
@@ -763,4 +762,55 @@ void epfd_info::clean_obj()
 	if (g_p_fd_collection)
 		g_p_fd_collection->remove_epfd_from_list(this);
 	cleanable_obj::clean_obj();
+}
+
+void epfd_info::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
+{
+	size_t num_rings, num_ready_fds, num_ready_cq_fd;
+	int offloaded_str_place = 0, offloaded_str_cell_size = 2 + sizeof(int);
+	char offloaded_str[offloaded_str_cell_size];
+
+	// Prepare data
+	num_rings = m_ring_map.size();
+	iomux_func_stats_t temp_iomux_stats = m_stats->stats;
+	num_ready_fds = m_ready_fds.size();
+	num_ready_cq_fd = m_ready_cq_fd_q.size();
+
+	// Epoll data
+	vlog_printf(log_level, "Fd number : %d\n", m_epfd);
+	vlog_printf(log_level, "Size : %d\n", m_size);
+
+	for (int i = 0 ; i < m_n_offloaded_fds ; i++) {
+		offloaded_str_place += snprintf(&offloaded_str[offloaded_str_place] , offloaded_str_cell_size, " %d ", m_p_offloaded_fds[i]);
+		offloaded_str_place--;
+	}
+
+	vlog_printf(log_level, "Offloaded Fds : %d {%s}\n", m_n_offloaded_fds, m_n_offloaded_fds ? offloaded_str : "");
+	vlog_printf(log_level, "Number of rings : %u\n", num_rings);
+	vlog_printf(log_level, "Number of ready Fds : %u\n", num_ready_fds);
+	vlog_printf(log_level, "Number of ready CQ Fds : %u\n", num_ready_cq_fd);
+
+	if (temp_iomux_stats.n_iomux_os_rx_ready || temp_iomux_stats.n_iomux_rx_ready || temp_iomux_stats.n_iomux_timeouts || temp_iomux_stats.n_iomux_errors ||
+			temp_iomux_stats.n_iomux_poll_miss || temp_iomux_stats.n_iomux_poll_hit) {
+
+		vlog_printf(log_level, "Polling CPU : %d%%\n", temp_iomux_stats.n_iomux_polling_time);
+
+		if (temp_iomux_stats.threadid_last != 0)
+			vlog_printf(log_level, "Thread Id : %5u\n", temp_iomux_stats.threadid_last);
+
+		if (temp_iomux_stats.n_iomux_os_rx_ready || temp_iomux_stats.n_iomux_rx_ready)
+			vlog_printf(log_level, "Rx fds ready : %u / %u [os/offload]\n", temp_iomux_stats.n_iomux_os_rx_ready, temp_iomux_stats.n_iomux_rx_ready);
+
+		if (temp_iomux_stats.n_iomux_poll_miss + temp_iomux_stats.n_iomux_poll_hit) {
+			double iomux_poll_hit = (double)temp_iomux_stats.n_iomux_poll_hit;
+			double iomux_poll_hit_percentage = (iomux_poll_hit / (iomux_poll_hit + (double)temp_iomux_stats.n_iomux_poll_miss)) * 100;
+			vlog_printf(log_level, "Polls [miss/hit] : %u / %u (%2.2f%%)\n", temp_iomux_stats.n_iomux_poll_miss, temp_iomux_stats.n_iomux_poll_hit, iomux_poll_hit_percentage);
+
+			if (temp_iomux_stats.n_iomux_timeouts)
+				vlog_printf(log_level, "Timeouts : %u\n", temp_iomux_stats.n_iomux_timeouts);
+
+			if (temp_iomux_stats.n_iomux_errors)
+				vlog_printf(log_level, "Errors : %u\n", temp_iomux_stats.n_iomux_errors);
+		}
+	}
 }

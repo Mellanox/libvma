@@ -164,7 +164,7 @@ public:
 			   __CONST_SOCKADDR_ARG   __to = NULL,
 			   const socklen_t __tolen = 0) = 0;
 
-	virtual void statistics_print();
+	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);
 
 	virtual int register_callback(vma_recv_callback_t callback, void *context);
 	
@@ -222,6 +222,7 @@ protected:
 	void notify_epoll_context_remove_ring(ring* ring);
 	bool notify_epoll_context_verify(epfd_info *epfd);
 	void notify_epoll_context_fd_is_offloaded();
+	int get_epoll_context_fd();
 
 	// identification information <socket fd>
 	int m_fd;

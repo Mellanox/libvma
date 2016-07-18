@@ -203,6 +203,19 @@ enum tcp_state {
   TIME_WAIT   = 10
 };
 
+static const char * const tcp_state_str[] = {
+  "CLOSED",
+  "LISTEN",
+  "SYN_SENT",
+  "SYN_RCVD",
+  "ESTABLISHED",
+  "FIN_WAIT_1",
+  "FIN_WAIT_2",
+  "CLOSE_WAIT",
+  "CLOSING",
+  "LAST_ACK",
+  "TIME_WAIT"
+};
 
 #define PCB_IN_CLOSED_STATE(pcb) (get_tcp_state(pcb) == CLOSED)
 #define PCB_IN_LISTEN_STATE(pcb) (get_tcp_state(pcb) == LISTEN)

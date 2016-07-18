@@ -868,6 +868,7 @@ Options:
   -d, --details=<1|2>           Set details mode:1- to see totals,2- to see deltas
   -z, --zero                    Zero counters
   -l, --log_level=<level>       Set VMA log level to <level>(1 <= level <= 7)
+  -S, --fd_dump=<fd> [<level>]  Dump statistics for fd number <fd> using log level <level>. use 0 value for all open fds
   -D, --details_level=<level>   Set VMA log details level to <level>(0 <= level <= 3)
   -s, --sockets=<list|range>    Log only sockets that match <list> or <range>, format: 4-16 or 1,9 (or combination)
   -V, --version                 Print version

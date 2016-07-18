@@ -153,6 +153,11 @@ public:
 
 	void			offloading_rule_change_thread(bool offloaded, pthread_t tid);
 
+	/**
+	 * Dump fd statistics using VMA logger.
+	 */
+	void 			statistics_print(int fd, vlog_levels_t log_level);
+
 private:
 	template <typename cls>	int del(int fd, bool b_cleanup, cls **map_type);
 	template <typename cls>	inline cls* get(int fd, cls **map_type);
@@ -185,6 +190,8 @@ private:
 	//it if it does otherwise we run handle_timer of the socket to
 	//progress the TCP connection.
 	void  				handle_timer_expired(void* user_data);
+
+	void 				statistics_print_helper(int fd, vlog_levels_t log_level);
 };
 
 

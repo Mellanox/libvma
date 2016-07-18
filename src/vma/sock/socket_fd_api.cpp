@@ -230,8 +230,23 @@ bool socket_fd_api::is_errorable(int *errors)
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
 #endif
-void socket_fd_api::statistics_print()
+void socket_fd_api::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 {
+	int epoll_fd;
+	epoll_fd_rec epoll_fd_rec;
+
+	// Prepare data
+	if ((epoll_fd = socket_fd_api::get_epoll_context_fd())) {
+		m_econtext->get_fd_rec_by_fd(m_fd, epoll_fd_rec);
+	}
+
+	// Socket data
+	vlog_printf(log_level, "Fd number : %d\n", m_fd);
+	if (epoll_fd) {
+		vlog_printf(log_level, "Socket epoll Fd : %d\n", epoll_fd);
+		vlog_printf(log_level, "Socket epoll flags : 0x%x\n", epoll_fd_rec.events);
+	}
+
 }
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
@@ -376,4 +391,11 @@ void socket_fd_api::notify_epoll_context_fd_is_offloaded()
 	if (m_econtext) {
 		m_econtext->set_fd_as_offloaded_only(m_fd);
 	}
+}
+
+int socket_fd_api::get_epoll_context_fd() {
+	if (m_econtext) {
+		return  m_econtext->get_epoll_fd();
+	}
+	return 0;
 }

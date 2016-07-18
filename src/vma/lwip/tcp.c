@@ -52,20 +52,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-const char * const tcp_state_str[] = {
-  "CLOSED",      
-  "LISTEN",      
-  "SYN_SENT",    
-  "SYN_RCVD",    
-  "ESTABLISHED", 
-  "FIN_WAIT_1",  
-  "FIN_WAIT_2",  
-  "CLOSE_WAIT",  
-  "CLOSING",     
-  "LAST_ACK",    
-  "TIME_WAIT"   
-};
-
 #if LWIP_3RD_PARTY_BUFS
 tcp_tx_pbuf_alloc_fn external_tcp_tx_pbuf_alloc;
 
