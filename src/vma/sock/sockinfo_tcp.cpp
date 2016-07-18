@@ -76,7 +76,28 @@
 tcp_seg_pool *g_tcp_seg_pool = NULL;
 tcp_timers_collection* g_tcp_timers_collection = NULL;
 
+const char * const tcp_sock_state_str[] = {
+  "NA",
+  "TCP_SOCK_INITED",
+  "TCP_SOCK_BOUND",
+  "TCP_SOCK_LISTEN_READY",
+  "TCP_SOCK_ACCEPT_READY",
+  "TCP_SOCK_CONNECTED_RD",
+  "TCP_SOCK_CONNECTED_WR",
+  "TCP_SOCK_CONNECTED_RDWR",
+  "TCP_SOCK_ASYNC_CONNECT",
+  "TCP_SOCK_ACCEPT_SHUT",
+};
 
+const char * const tcp_conn_state_str[] = {
+  "TCP_CONN_INIT",
+  "TCP_CONN_CONNECTING",
+  "TCP_CONN_CONNECTED",
+  "TCP_CONN_FAILED",
+  "TCP_CONN_TIMEOUT",
+  "TCP_CONN_ERROR",
+  "TCP_CONN_RESETED",
+};
 
 /**/
 /** inlining functions can only help if they are implemented before their usage **/
@@ -541,7 +562,7 @@ void sockinfo_tcp::tcp_timer()
 	return_pending_tx_buffs();
 }
 
-bool sockinfo_tcp::prepare_dst_to_send(bool is_accepted_socket)
+bool sockinfo_tcp::prepare_dst_to_send(bool is_accepted_socket /* = false */)
 {
 	bool ret_val = false;
 
@@ -3702,6 +3723,138 @@ int sockinfo_tcp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags
 	}
 
 	return total_rx;
+}
+
+void sockinfo_tcp::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
+{
+	struct tcp_pcb pcb;
+	tcp_sock_state_e sock_state;
+	tcp_conn_state_e conn_state;
+	u32_t last_unsent_seqno = 0 , last_unacked_seqno = 0, first_unsent_seqno = 0, first_unacked_seqno = 0;
+	u16_t last_unsent_len = 0 , last_unacked_len = 0, first_unsent_len = 0, first_unacked_len = 0;
+	int rcvbuff_max, rcvbuff_current, rcvbuff_non_tcp_recved, rx_pkt_ready_list_size, rx_ctl_packets_list_size, rx_ctl_reuse_list_size;
+
+	sockinfo::statistics_print(log_level);
+
+	// Prepare data
+	lock_tcp_con();
+
+	pcb = m_pcb;
+
+	if (m_pcb.unsent) {
+		first_unsent_seqno = m_pcb.unsent->seqno;
+		first_unsent_len = m_pcb.unsent->len;
+
+		if (m_pcb.last_unsent) {
+			last_unsent_seqno = m_pcb.last_unsent->seqno;
+			last_unsent_len = m_pcb.last_unsent->len;
+		}
+	}
+
+	if (m_pcb.unacked) {
+		first_unacked_seqno = m_pcb.unacked->seqno;
+		first_unacked_len = m_pcb.unacked->len;
+
+		if (m_pcb.last_unacked) {
+			last_unacked_seqno = m_pcb.last_unacked->seqno;
+			last_unacked_len = m_pcb.last_unacked->len;
+		}
+	}
+
+	sock_state = m_sock_state;
+	conn_state = m_conn_state;
+	rcvbuff_max = m_rcvbuff_max;
+	rcvbuff_current = m_rcvbuff_current;
+	rcvbuff_non_tcp_recved = m_rcvbuff_non_tcp_recved;
+	rx_pkt_ready_list_size = m_rx_pkt_ready_list.size();
+	rx_ctl_packets_list_size = m_rx_ctl_packets_list.size();
+	rx_ctl_reuse_list_size = m_rx_ctl_reuse_list.size();
+
+	unlock_tcp_con();
+
+	// Socket data
+	vlog_printf(log_level, "Socket state : %s\n", tcp_sock_state_str[sock_state]);
+	vlog_printf(log_level, "Connection state : %s\n", tcp_conn_state_str[conn_state]);
+	vlog_printf(log_level, "Receive buffer : m_rcvbuff_current %d , m_rcvbuff_max %d , m_rcvbuff_non_tcp_recved %d\n", rcvbuff_current, rcvbuff_max, rcvbuff_non_tcp_recved);
+	vlog_printf(log_level, "Rx lists size : m_rx_pkt_ready_list %d , m_rx_ctl_packets_list %d , m_rx_ctl_reuse_list %d\n", rx_pkt_ready_list_size, rx_ctl_packets_list_size, rx_ctl_reuse_list_size);
+
+	// PCB data
+	vlog_printf(log_level, "PCB state : %s\n", tcp_state_str[get_tcp_state(&pcb)]);
+	vlog_printf(log_level, "PCB flags : 0x%x\n", pcb.flags);
+	vlog_printf(log_level, "Segment size : mss %hu, advtsd_mss %hu\n", pcb.mss, pcb.advtsd_mss);
+
+	// Window scaling
+	if (enable_wnd_scale && (pcb.flags & TF_WND_SCALE)) {
+		vlog_printf(log_level, "Window scaling : ENABLED , rcv_scale %u , snd_scale %u\n", pcb.rcv_scale, pcb.snd_scale);
+
+		// Receive and send windows
+		vlog_printf(log_level, "Receive window : rcv_wnd %u (%u) , rcv_ann_wnd %u (%u), rcv_wnd_max %u (%u), rcv_wnd_max_desired %u (%u)\n",
+				pcb.rcv_wnd, RCV_WND_SCALE(&pcb, pcb.rcv_wnd), pcb.rcv_ann_wnd, RCV_WND_SCALE(&pcb, pcb.rcv_ann_wnd),
+				pcb.rcv_wnd_max, RCV_WND_SCALE(&pcb, pcb.rcv_wnd_max),  pcb.rcv_wnd_max_desired, RCV_WND_SCALE(&pcb, pcb.rcv_wnd_max_desired));
+
+		vlog_printf(log_level, "Send window : snd_wnd %u (%u) , snd_wnd_max %u (%u)\n",
+				pcb.snd_wnd, RCV_WND_SCALE(&pcb, pcb.snd_wnd), pcb.snd_wnd_max, RCV_WND_SCALE(&pcb, pcb.snd_wnd_max));
+	} else {
+		vlog_printf(log_level, "Window scaling : DISABLED\n");
+
+		// Receive and send windows
+		vlog_printf(log_level, "Receive window : rcv_wnd %u , rcv_ann_wnd %u , rcv_wnd_max %u , rcv_wnd_max_desired %u\n",
+				pcb.rcv_wnd, pcb.rcv_ann_wnd, pcb.rcv_wnd_max, pcb.rcv_wnd_max_desired);
+
+		vlog_printf(log_level, "Send window : snd_wnd %u , snd_wnd_max %u\n", pcb.snd_wnd, pcb.snd_wnd_max);
+	}
+
+	// Congestion variable
+	vlog_printf(log_level, "Congestion : cwnd %u\n", pcb.cwnd);
+
+	// Receiver variables
+	vlog_printf(log_level, "Receiver data : rcv_nxt %u , rcv_ann_right_edge %u\n", pcb.rcv_nxt, pcb.rcv_ann_right_edge);
+
+	// Sender variables
+	vlog_printf(log_level, "Sender data : snd_nxt %u , snd_wl1 %u , snd_wl2 %u\n", pcb.snd_nxt, pcb.snd_wl1, pcb.snd_wl2);
+
+	// Send buffer
+	vlog_printf(log_level, "Send buffer : snd_buf %u , max_snd_buff %u\n", pcb.snd_buf, pcb.max_snd_buff);
+
+	// Retransmission
+	vlog_printf(log_level, "Retransmission : rtime %hd , rto %u, nrtx %u\n", pcb.rtime, pcb.rto, pcb.nrtx);
+
+	// RTT
+	vlog_printf(log_level, "RTT variables : rttest %u , rtseq %u\n", pcb.rttest, pcb.rtseq);
+
+	// First unsent
+	if (first_unsent_seqno) {
+		vlog_printf(log_level, "First unsent : seqno %u , len %hu , seqno + len %u\n", first_unsent_seqno, first_unsent_len, first_unsent_seqno + first_unsent_len);
+
+		// Last unsent
+		if (last_unsent_seqno) {
+			vlog_printf(log_level, "Last unsent : seqno %u , len %hu , seqno + len %u\n", last_unsent_seqno, last_unsent_len, last_unsent_seqno + last_unsent_len);
+		}
+	} else {
+		vlog_printf(log_level, "First unsent : NULL\n");
+	}
+
+	// First unsent
+	if (first_unacked_seqno) {
+		vlog_printf(log_level, "First unacked : seqno %u , len %hu , seqno + len %u\n", first_unacked_seqno, first_unacked_len, first_unacked_seqno + first_unacked_len);
+
+		// Last unacked
+		if (last_unacked_seqno) {
+			vlog_printf(log_level, "Last unacked : seqno %u , len %hu , seqno + len %u\n", last_unacked_seqno, last_unacked_len, last_unacked_seqno + last_unacked_len);
+		}
+	} else {
+		vlog_printf(log_level, "First unacked : NULL\n");
+	}
+
+	// Acknowledge
+	vlog_printf(log_level, "Acknowledge : lastack %u\n", pcb.lastack);
+
+	// TCP timestamp
+#if LWIP_TCP_TIMESTAMPS
+	if (pcb.enable_ts_opt) {
+		vlog_printf(log_level, "Timestamp : ts_lastacksent %u , ts_recent %u\n", pcb.ts_lastacksent, pcb.ts_recent);
+	}
+#endif
 }
 
 int sockinfo_tcp::free_packets(struct vma_packet_t *pkts, size_t count)

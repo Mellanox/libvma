@@ -91,6 +91,7 @@ using namespace std;
 #define MAP_SH_MEM(var,sh_stats)	(var = (sh_mem_t*)sh_stats)
 #define STATS_PUBLISHER_TIMER_PERIOD    10 // publisher will check for stats request every 10 msec
 #define STATS_READER_DELAY      (STATS_PUBLISHER_TIMER_PERIOD + 5) // reader will wait for vma to wakeup and write statistics to shmem (with extra 5 msec overhead)
+#define STATS_FD_STATISTICS_DISABLED	-1
 
 //statistic file
 extern FILE* g_stats_file;
@@ -139,6 +140,7 @@ struct user_params_t {
 	proc_ident_mode_t	proc_ident_mode;
 	bool 			write_auth;
 	int			cycles;
+	int			fd_to_dump;
 };
 
 extern user_params_t user_params;
@@ -308,6 +310,7 @@ typedef struct sh_mem_t {
 	mc_grp_info_t			mc_info;
 	iomux_stats_t                   iomux;
 	socket_instance_block_t  	skt_inst_arr[]; //sockets statistics array
+	int				fd_to_dump;
 } sh_mem_t;
 
 typedef struct sh_mem_info {

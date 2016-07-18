@@ -161,6 +161,7 @@ void usage(const char *argv0)
 	printf("  -v, --view=<1|2|3|4|5>\tSet view type:1- basic info,2- extra info,3- full info,4- mc groups,5- similar to 'netstat -tunaep'\n");
 	printf("  -d, --details=<1|2>\t\tSet details mode:1- to see totals,2- to see deltas\t\t\n");
 	printf("  -z, --zero\t\t\tZero counters\n");
+	printf("  -S, --fd_statistics=<fd>\tDump statistics for fd number <fd>, use 0 value for all open fds\n");
 	printf("  -l, --log_level=<level>\tSet VMA log level to <level>(one of: none/panic/error/warn/info/details/debug/fine/finer/all)\n");
 	printf("  -D, --details_level=<level>\tSet VMA log details level to <level>(0 <= level <= 3)\n");
 	printf("  -s, --sockets=<list|range>\tLog only sockets that match <list> or <range>, format: 4-16 or 1,9 (or combination)\n");
@@ -914,6 +915,7 @@ void set_defaults()
 	user_params.zero_counters = false;
 	user_params.write_auth = true; //needed to set read flag on
 	user_params.cycles = DEFAULT_CYCLES;
+	user_params.fd_to_dump = STATS_FD_STATISTICS_DISABLED;
 	
 	strcpy(g_vma_shmem_dir, MCE_DEFAULT_STATS_SHMEM_DIR);
 	
@@ -994,6 +996,14 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 			return;
 		}
 		
+		if (user_params.fd_to_dump != STATS_FD_STATISTICS_DISABLED) {
+			if (user_params.fd_to_dump)
+				log_msg("Dumping Fd %d to VMA using log level = INFO...", user_params.fd_to_dump);
+			else
+				log_msg("Dumping all Fd's to VMA using log level = INFO...");
+			break;
+		}
+
 		if (user_params.print_details_mode == e_deltas) {
 			memcpy((void*)curr_instance_blocks,(void*)p_sh_mem->skt_inst_arr, p_sh_mem->max_skt_inst_num * sizeof(socket_instance_block_t));
 			memcpy((void*)curr_cq_blocks,(void*)p_sh_mem->cq_inst_arr, NUM_OF_SUPPORTED_CQS * sizeof(cq_instance_block_t));
@@ -1315,6 +1325,11 @@ int get_pid(char* proc_desc, char* argv0)
 	return pid;
 }
 
+void set_fd_to_dump(sh_mem_t* p_sh_mem)
+{
+	p_sh_mem->fd_to_dump = user_params.fd_to_dump;
+}
+
 void set_vma_log_level(sh_mem_t* p_sh_mem)
 {
 	p_sh_mem->log_level = user_params.vma_log_level;
@@ -1351,6 +1366,7 @@ int main (int argc, char **argv)
 			{"sockets",		1,	NULL,	's'},
 			{"version",		0,	NULL,	'V'},
 			{"zero",		0,	NULL,	'z'},
+			{"fd_statistics",	1,	NULL,	'S'},
 			{"log_level",		1,	NULL,	'l'},
 			{"details_level",	1,	NULL,	'D'},
 			{"name",		1,	NULL,	'n'},
@@ -1360,7 +1376,7 @@ int main (int argc, char **argv)
 			{0,0,0,0}
 		};
 		
-		if ((c = getopt_long(argc, argv, "i:c:v:d:p:k:s:Vzl:D:n:fFh?", long_options, NULL)) == -1)
+		if ((c = getopt_long(argc, argv, "i:c:v:d:p:k:s:VzS:l:D:n:fFh?", long_options, NULL)) == -1)
 			break;
 
 		switch (c) {
@@ -1437,6 +1453,18 @@ int main (int argc, char **argv)
 		case 'z':
 			user_params.write_auth = true;
 			user_params.zero_counters = true;
+			break;
+		case 'S': {
+			errno = 0;
+			int fd_to_dump = strtol(optarg, NULL, 0);
+			if (errno != 0  || fd_to_dump < 0) {
+				log_err("'-%c' Invalid fd val: %s", c, optarg);
+				usage(argv[0]);
+				cleanup(NULL);
+				return 1;
+			}
+			user_params.fd_to_dump = fd_to_dump;
+		}
 			break;
 		case 'l': {			
 			vlog_levels_t log_level = log_level::from_str(optarg, VLOG_INIT);
@@ -1592,6 +1620,8 @@ int  init_print_process_stats(sh_mem_info_t & sh_mem_info)
 		set_vma_log_level(sh_mem);
 	if (user_params.vma_details_level != INIT_VMA_LOG_DETAILS)
 		set_vma_log_details_level(sh_mem);
+	if (user_params.fd_to_dump != STATS_FD_STATISTICS_DISABLED)
+		set_fd_to_dump(sh_mem);
 
 
 	// here we indicate VMA to write to shmem

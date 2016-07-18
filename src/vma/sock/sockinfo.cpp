@@ -58,7 +58,12 @@
 #define si_logfunc		__log_info_func
 #define si_logfuncall		__log_info_funcall
 
-#define si_logdbg_no_funcname(log_fmt, log_args...)	do { if (g_vlogger_level >= VLOG_DEBUG) vlog_printf(VLOG_DEBUG, MODULE_NAME "[fd=%d]:%d: " log_fmt "\n", m_fd, __LINE__, ##log_args); } while (0)
+const char * const in_protocol_str[] = {
+  "PROTO_UNDEFINED",
+  "PROTO_UDP",
+  "PROTO_TCP",
+  "PROTO_ALL",
+};
 
 sockinfo::sockinfo(int fd) throw (vma_exception):
 		socket_fd_api(fd),
@@ -683,6 +688,60 @@ void sockinfo::remove_epoll_context(epfd_info *epfd)
 
 	unlock_rx_q();
 	m_rx_ring_map_lock.unlock();
+}
+
+void sockinfo::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
+{
+	bool b_any_activity = false;
+
+	socket_fd_api::statistics_print(log_level);
+
+	vlog_printf(log_level, "Bind info : %s\n", m_bound.to_str());
+	vlog_printf(log_level, "Connection info : %s\n", m_connected.to_str());
+	vlog_printf(log_level, "Protocol : %s\n", in_protocol_str[m_protocol]);
+	vlog_printf(log_level, "Is closed : %s\n", m_b_closed ? "true" : "false");
+	vlog_printf(log_level, "Is blocking : %s\n", m_b_blocking ? "true" : "false");
+	vlog_printf(log_level, "Rx reuse buffer pending : %s\n", m_rx_reuse_buf_pending ? "true" : "false");
+	vlog_printf(log_level, "Rx reuse buffer postponed : %s\n", m_rx_reuse_buf_postponed ? "true" : "false");
+
+	if (m_p_connected_dst_entry) {
+		vlog_printf(log_level, "Is offloaded : %s\n", m_p_connected_dst_entry->is_offloaded() ? "true" : "false");
+	}
+
+	if (m_p_socket_stats->counters.n_tx_sent_byte_count || m_p_socket_stats->counters.n_tx_sent_pkt_count || m_p_socket_stats->counters.n_tx_errors || m_p_socket_stats->counters.n_tx_drops ) {
+		vlog_printf(log_level, "Tx Offload : %d KB / %d / %d / %d [bytes/packets/drops/errors]\n", m_p_socket_stats->counters.n_tx_sent_byte_count/1024, m_p_socket_stats->counters.n_tx_sent_pkt_count, m_p_socket_stats->counters.n_tx_drops, m_p_socket_stats->counters.n_tx_errors);
+		b_any_activity = true;
+	}
+	if (m_p_socket_stats->counters.n_tx_os_bytes || m_p_socket_stats->counters.n_tx_os_packets || m_p_socket_stats->counters.n_tx_os_errors) {
+		vlog_printf(log_level, "Tx OS info : %d KB / %d / %d [bytes/packets/errors]\n", m_p_socket_stats->counters.n_tx_os_bytes/1024, m_p_socket_stats->counters.n_tx_os_packets, m_p_socket_stats->counters.n_tx_os_errors);
+		b_any_activity = true;
+	}
+	if (m_p_socket_stats->counters.n_rx_bytes || m_p_socket_stats->counters.n_rx_packets || m_p_socket_stats->counters.n_rx_errors || m_p_socket_stats->counters.n_rx_eagain || m_p_socket_stats->n_rx_ready_pkt_count) {
+		vlog_printf(log_level, "Rx Offload : %d KB / %d / %d / %d [bytes/packets/eagains/errors]\n", m_p_socket_stats->counters.n_rx_bytes/1024, m_p_socket_stats->counters.n_rx_packets, m_p_socket_stats->counters.n_rx_eagain, m_p_socket_stats->counters.n_rx_errors);
+
+		float rx_drop_percentage = 0;
+		if (m_p_socket_stats->counters.n_rx_packets || m_p_socket_stats->n_rx_ready_pkt_count)
+			rx_drop_percentage = (float)(m_p_socket_stats->counters.n_rx_ready_byte_drop * 100) / (float)m_p_socket_stats->counters.n_rx_packets;
+		vlog_printf(log_level, "Rx byte : max %d / dropped %d (%2.2f%%) / limit %d\n", m_p_socket_stats->counters.n_rx_ready_byte_max, m_p_socket_stats->counters.n_rx_ready_byte_drop, rx_drop_percentage, m_p_socket_stats->n_rx_ready_byte_limit);
+
+		if (m_p_socket_stats->counters.n_rx_packets || m_p_socket_stats->n_rx_ready_pkt_count)
+			rx_drop_percentage = (float)(m_p_socket_stats->counters.n_rx_ready_pkt_drop * 100) / (float)m_p_socket_stats->counters.n_rx_packets;
+		vlog_printf(log_level, "Rx pkt : max %d / dropped %d (%2.2f%%)\n", m_p_socket_stats->counters.n_rx_ready_pkt_max, m_p_socket_stats->counters.n_rx_ready_pkt_drop, rx_drop_percentage);
+
+		b_any_activity = true;
+	}
+	if (m_p_socket_stats->counters.n_rx_os_bytes || m_p_socket_stats->counters.n_rx_os_packets || m_p_socket_stats->counters.n_rx_os_errors || m_p_socket_stats->counters.n_rx_os_eagain) {
+		vlog_printf(log_level, "Rx OS info : %d KB / %d / %d / %d [bytes/packets/eagains/errors]\n", m_p_socket_stats->counters.n_rx_os_bytes/1024, m_p_socket_stats->counters.n_rx_os_packets, m_p_socket_stats->counters.n_rx_os_eagain, m_p_socket_stats->counters.n_rx_os_errors);
+		b_any_activity = true;
+	}
+	if (m_p_socket_stats->counters.n_rx_poll_miss || m_p_socket_stats->counters.n_rx_poll_hit) {
+		float rx_poll_hit_percentage = (float)(m_p_socket_stats->counters.n_rx_poll_hit * 100) / (float)(m_p_socket_stats->counters.n_rx_poll_miss + m_p_socket_stats->counters.n_rx_poll_hit);
+		vlog_printf(log_level, "Rx poll : %d / %d (%2.2f%%) [miss/hit]\n", m_p_socket_stats->counters.n_rx_poll_miss, m_p_socket_stats->counters.n_rx_poll_hit, rx_poll_hit_percentage);
+		b_any_activity = true;
+	}
+	if (b_any_activity == false) {
+		vlog_printf(log_level, "Socket activity : Rx and Tx where not active\n");
+	}
 }
 
 void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool is_migration /*= false*/)

@@ -134,7 +134,7 @@ public:
 	void fd_closed(int fd, bool passthrough = false);
 
 	ep_ready_fd_list_t              m_ready_fds;
-	uint32_t m_ready_fd;
+
 	int clear_events_for_fd(int fd, uint32_t events);
 
 	/**
@@ -149,6 +149,8 @@ public:
 	int ring_wait_for_notification_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array = NULL);
 
 	virtual void clean_obj();
+
+	void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);
 
 	static inline size_t epfd_info_node_offset(void) {return NODE_OFFSET(epfd_info, epfd_info_node);}
 	list_node<epfd_info, epfd_info::epfd_info_node_offset>	epfd_info_node;

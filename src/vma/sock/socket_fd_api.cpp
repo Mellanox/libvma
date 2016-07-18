@@ -230,8 +230,9 @@ bool socket_fd_api::is_errorable(int *errors)
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
 #endif
-void socket_fd_api::statistics_print()
+void socket_fd_api::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 {
+	vlog_printf(log_level, "Fd number : %d\n", m_fd);
 }
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on

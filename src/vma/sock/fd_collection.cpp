@@ -336,6 +336,29 @@ void fd_collection::offloading_rule_change_thread(bool offloaded, pthread_t tid)
 	unlock();
 }
 
+void fd_collection::statistics_print(int fd, vlog_levels_t log_level /* = VLOG_DEBUG */)
+{
+	socket_fd_api* socket_fd;
+	epfd_info* epoll_fd;
+
+	if ((socket_fd = get_sockfd(fd))) {
+		vlog_printf(log_level, "==================== SOCKET FD ===================\n");
+		socket_fd->statistics_print(log_level);
+		goto found_fd;
+	}
+	if ((epoll_fd = get_epfd(fd))) {
+		vlog_printf(log_level, "==================== EPOLL FD ====================\n");
+		epoll_fd->statistics_print(log_level);
+		goto found_fd;
+	}
+
+	return;
+
+found_fd:
+
+	vlog_printf(log_level, "==================================================\n");
+}
+
 int fd_collection::addpipe(int fdrd, int fdwr)
 {
 	fdcoll_logfunc("fdrd=%d, fdwr=%d", fdrd, fdwr);

@@ -152,7 +152,7 @@ public:
 	// This call will handle all rdma related events (bind->listen->connect_req->accept)
 	void validate_igmpv2(flow_tuple_with_local_if& flow_key);
 	int validate_igmpv2(char *ifname);
-	void statistics_print();
+	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);
 	virtual	int free_packets(struct vma_packet_t *pkts, size_t count);
 	virtual inline fd_type_t get_type()
 	{

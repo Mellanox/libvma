@@ -153,6 +153,11 @@ public:
 
 	void			offloading_rule_change_thread(bool offloaded, pthread_t tid);
 
+	/**
+	 * Dump fd statistics using VMA logger.
+	 */
+	void 			statistics_print(int fd, vlog_levels_t log_level = VLOG_DEBUG);
+
 private:
 	template <typename cls>	int del(int fd, bool b_cleanup, cls **map_type);
 	template <typename cls>	inline cls* get(int fd, cls **map_type);

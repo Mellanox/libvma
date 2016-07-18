@@ -127,7 +127,7 @@ public:
 	virtual int accept4(struct sockaddr *__addr, socklen_t *__addrlen, int __flags);
 	virtual int getsockname(sockaddr *__name, socklen_t *__namelen);
 	virtual int getpeername(sockaddr *__name, socklen_t *__namelen);
-
+	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);
 	virtual	int	free_packets(struct vma_packet_t *pkts, size_t count);
 
 	//Returns the connected pcb, with 5 tuple which matches the input arguments,

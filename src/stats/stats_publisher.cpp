@@ -44,6 +44,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include <vma/vma_extra.h>
 #include <vma/util/vtypes.h>
 #include <vma/util/lock_wrapper.h>
 #include <vlogger/vlogger.h>
@@ -118,6 +119,10 @@ void stats_data_reader::handle_timer_expired(void *ctx)
                 return;
         }
 
+        if (g_sh_mem->fd_to_dump != STATS_FD_STATISTICS_DISABLED) {
+                vma_get_api()->dump_fd_stats(g_sh_mem->fd_to_dump, VLOG_INFO);
+                g_sh_mem->fd_to_dump = STATS_FD_STATISTICS_DISABLED;
+        }
         stats_read_map_t::iterator iter;
 	g_lock_skt_stats.lock();
 	for (iter = m_data_map.begin(); iter != m_data_map.end(); iter++) {

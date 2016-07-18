@@ -387,6 +387,27 @@ int vma_thread_offload(int offload, pthread_t tid)
 	return 0;
 }
 
+extern "C"
+int vma_dump_fd_stats(int fd, vlog_levels_t log_level)
+{
+	do_global_ctors();
+
+	if (g_p_fd_collection) {
+		if (fd) {
+			g_p_fd_collection->statistics_print(fd, log_level);
+		} else {
+			int fd_map_size = g_p_fd_collection->get_fd_map_size();
+			for (int i = 0 ; i < fd_map_size ; i++) {
+				g_p_fd_collection->statistics_print(i, log_level);
+			}
+		}
+	} else {
+		return -1;
+	}
+
+	return 0;
+}
+
 //-----------------------------------------------------------------------------
 //  replacement functions
 //-----------------------------------------------------------------------------
@@ -684,6 +705,7 @@ int getsockopt(int __fd, int __level, int __optname,
 		vma_api->free_packets = vma_free_packets;
 		vma_api->add_conf_rule = vma_add_conf_rule;
 		vma_api->thread_offload = vma_thread_offload;
+		vma_api->dump_fd_stats = vma_dump_fd_stats;
 		*((vma_api_t**)__optval) = vma_api;
 		return 0;
 	}
