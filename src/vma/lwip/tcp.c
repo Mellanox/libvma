@@ -575,7 +575,7 @@ tcp_recved(struct tcp_pcb *pcb, u32_t len)
   }
 
   LWIP_DEBUGF(TCP_DEBUG, ("tcp_recved: recveived %"U16_F" bytes, wnd %"U16_F" (%"U16_F").\n",
-         len, pcb->rcv_wnd, TCP_WND_SCALED - pcb->rcv_wnd));
+         len, pcb->rcv_wnd, TCP_WND_SCALED(pcb) - pcb->rcv_wnd));
 }
 
 /**
@@ -1513,6 +1513,7 @@ tcp_debug_print(struct tcp_hdr *tcphdr)
 void
 tcp_debug_print_state(enum tcp_state s)
 {
+  LWIP_UNUSED_ARG(s);
   LWIP_DEBUGF(TCP_DEBUG, ("State: %s\n", tcp_state_str[s]));
 }
 
@@ -1563,21 +1564,21 @@ tcp_debug_print_pcbs(void)
     LWIP_DEBUGF(TCP_DEBUG, ("Local port %"U16_F", foreign port %"U16_F" snd_nxt %"U32_F" rcv_nxt %"U32_F" ",
                        pcb->local_port, pcb->remote_port,
                        pcb->snd_nxt, pcb->rcv_nxt));
-    tcp_debug_print_state(pcb->state);
+    tcp_debug_print_state(get_tcp_state(pcb));
   }    
   LWIP_DEBUGF(TCP_DEBUG, ("Listen PCB states:\n"));
   for(pcb = (struct tcp_pcb *)tcp_listen_pcbs.pcbs; pcb != NULL; pcb = pcb->next) {
     LWIP_DEBUGF(TCP_DEBUG, ("Local port %"U16_F", foreign port %"U16_F" snd_nxt %"U32_F" rcv_nxt %"U32_F" ",
                        pcb->local_port, pcb->remote_port,
                        pcb->snd_nxt, pcb->rcv_nxt));
-    tcp_debug_print_state(pcb->state);
+    tcp_debug_print_state(get_tcp_state(pcb));
   }    
   LWIP_DEBUGF(TCP_DEBUG, ("TIME-WAIT PCB states:\n"));
   for(pcb = tcp_tw_pcbs; pcb != NULL; pcb = pcb->next) {
     LWIP_DEBUGF(TCP_DEBUG, ("Local port %"U16_F", foreign port %"U16_F" snd_nxt %"U32_F" rcv_nxt %"U32_F" ",
                        pcb->local_port, pcb->remote_port,
                        pcb->snd_nxt, pcb->rcv_nxt));
-    tcp_debug_print_state(pcb->state);
+    tcp_debug_print_state(get_tcp_state(pcb));
   }    
 }
 #endif /* TCP_DEBUG */

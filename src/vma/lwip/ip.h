@@ -173,12 +173,6 @@ err_t ip_output_if_opt(struct pbuf *p, ip_addr_t *src, ip_addr_t *dest,
 /** Destination IP address of current_header */
 #define ip_current_dest_addr() (&current_iphdr_dest)
 
-#if IP_DEBUG
-void ip_debug_print(struct pbuf *p);
-#else
-#define ip_debug_print(p)
-#endif /* IP_DEBUG */
-
 #ifdef __cplusplus
 }
 #endif
