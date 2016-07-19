@@ -1,3 +1,22 @@
+Version 8.1.1-0:
+Date + Time 2016-07-19
+=======================
+Added:
+        - RM #775233 Allow excluding logging levels to improve performance
+        - RM #781540 Wait for Rx WQE's when closing RING (QP) 
+        - RM #777358 Un-offload UDP socket that is bound to any non-offloaded interfaces (e.g. loopback 127.0.0.1)
+        - RM #816006 TCP send flows for non-blocked socket - add Rx CQ poll
+        - RM #820855 Explicitly set QP init attr cap of max send SG to 2 
+        - RM #820858 Update message regarding no steering rules in mlx4 to adapt to upstream drivers
+        - RM #804206 DNS server (UDP,port 53) to be handled by OS by default (libvma.conf)
+        - RM #786406 Jenkins - add building of source RPM 
+	- RM #823037 Replace deprecated API (e.g. inet_addr) with ipv6 supporting API (e.g inet_pton)
+Fixed:
+        - RM #783976 Fix VMA not able to receive data on epoll_wait() 
+        - RM #806219 Fix segfault when running with CTL_THREAD_NO_WAKEUP
+        - RM #793030 Fix rpm rebuild failure
+        - RM #784234 Fix epoll is not cleared from vma_stats
+
 Version 8.0.4-0:
 Date + Time 2016-05-29
 =======================
