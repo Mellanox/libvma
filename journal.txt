@@ -1,5 +1,5 @@
 Version 8.1.1-0:
-Date + Time 2016-07-01
+Date + Time 2016-07-19
 =======================
 Added:
         - RM #775233 Allow excluding logging levels to improve performance
@@ -10,6 +10,7 @@ Added:
         - RM #820858 Update message regarding no steering rules in mlx4 to adapt to upstream drivers
         - RM #804206 DNS server (UDP,port 53) to be handled by OS by default (libvma.conf)
         - RM #786406 Jenkins - add building of source RPM 
+	- RM #823037 RHEL7.3 readiness: replace deprecated API (e.g. inet_addr) with ipv6 supporting API (e.g inet_pton)
 Fixed:
         - RM #783976 Fix VMA not able to receive data on epoll_wait() 
         - RM #806219 Fix segfault when running with CTL_THREAD_NO_WAKEUP
