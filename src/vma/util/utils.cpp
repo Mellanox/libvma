@@ -184,11 +184,11 @@ unsigned short compute_tcp_checksum(const struct iphdr *p_iphdr, const uint16_t 
 
     //add the pseudo header
     //the source ip
-    sum += (p_iphdr->saddr>>16)&0xFFFF;
-    sum += (p_iphdr->saddr)&0xFFFF;
+    sum += (p_iphdr->saddr >> 16) & 0xFFFF;
+    sum += (p_iphdr->saddr) & 0xFFFF;
     //the dest ip
-    sum += (p_iphdr->daddr>>16)&0xFFFF;
-    sum += (p_iphdr->daddr)&0xFFFF;
+    sum += (p_iphdr->daddr >> 16) & 0xFFFF;
+    sum += (p_iphdr->daddr) & 0xFFFF;
     //protocol and reserved: 6
     sum += htons(IPPROTO_TCP);
     //the length
@@ -224,11 +224,11 @@ unsigned short compute_udp_checksum(const struct iphdr *p_iphdr, const uint16_t 
     unsigned short udp_len = htons(udphdrp->len);
 
     //add the pseudo header
-    sum += (p_iphdr->saddr>>16)&0xFFFF;
-    sum += (p_iphdr->saddr)&0xFFFF;
+    sum += (p_iphdr->saddr >> 16) & 0xFFFF;
+    sum += (p_iphdr->saddr) & 0xFFFF;
     //the dest ip
-    sum += (p_iphdr->daddr>>16)&0xFFFF;
-    sum += (p_iphdr->daddr)&0xFFFF;
+    sum += (p_iphdr->daddr >> 16) & 0xFFFF;
+    sum += (p_iphdr->daddr) & 0xFFFF;
     //protocol and reserved: 17
     sum += htons(IPPROTO_UDP);
     //the length
