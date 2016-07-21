@@ -1183,8 +1183,13 @@ int analize_fds_range(char* range)
 	char* left = range;
 	char* right = NULL;
 	char* delim_loc = NULL;
-	char range_copy[10];
+	char range_copy[101];
 	
+	if (strlen(range) + 1 > sizeof(range_copy)) {
+		log_err("Invalid fd val size : %zu, cannot exceed %zu", strlen(range), sizeof(range_copy) - 1);
+		return 1;
+	}
+
 	strcpy(range_copy, range);
 	delim_loc = strchr(range_copy, '-');
 	
