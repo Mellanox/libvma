@@ -222,7 +222,7 @@ protected:
 	bool 			destroy_ibv_flow(); // Detach flow from all qps
 	bool 			add_sink(pkt_rcvr_sink* p_sink);
 	bool 			del_sink(pkt_rcvr_sink* p_sink);
-	virtual void 		prepare_flow_spec() = 0;
+	virtual bool 		prepare_flow_spec() = 0;
 
 private:
 	rfs();		// I don't want anyone to use the default constructor

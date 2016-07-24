@@ -677,6 +677,8 @@ extern mce_sys_var & safe_mce_sys();
 #define FLOW_STEERING_MGM_ENTRY_SIZE_PARAM_FILE		"/sys/module/mlx4_core/parameters/log_num_mgm_entry_size"
 #define VIRTUAL_DEVICE_FOLDER			"/sys/devices/virtual/net/%s/"
 #define BOND_DEVICE_FILE				"/proc/net/bonding/%s"
+#define MLX4_DRIVER_PATH				"/sys/class/net/%s/device/driver/module/drivers/pci:mlx4_core"
+#define PROC_STATUS_FILE				"/proc/%d/status"
 
 #define MAX_STATS_FD_NUM				1024
 #define UNSENT_QUEUEU_SIZE				1024

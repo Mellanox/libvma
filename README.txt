@@ -962,6 +962,20 @@ users. root can enable this for regular users as well by:
  2. "/etc/init.d/openibd restart"
 
 
+* CAP_NET_RAW and root access
+
+VMA_WARNING: ******************************************************************************
+VMA_WARNING: * Interface <Interface Name> will not be offloaded.
+VMA_WARNING: * Offloaded resources are restricted to root or user with CAP_NET_RAW privileges
+VMA_WARNING: * Read the CAP_NET_RAW and root access section in the VMA's User Manual for more information
+VMA_WARNING: ******************************************************************************
+This warning message means that VMA tried to create a hardware QP resource 
+while the kernel requires this operation to be performed only by privileged
+users. Run as user root or grant CAP_NET_RAW privileges to your user
+1. "setcap cap_net_raw=ep /usr/bin/sockperf"
+2. "chmod u+s </usr/lib64/libvma.so>"
+
+
 * IGMP not forced to V2:
 
   VMA WARNING: ************************************************************************

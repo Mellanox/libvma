@@ -235,19 +235,20 @@ bool buffer_pool::hugetlb_alloc(size_t sz_bytes)
 		// Stop trying to use HugePage if failed even once
 		safe_mce_sys().mem_alloc_type = ALLOC_TYPE_CONTIG;
 
-		vlog_printf(VLOG_WARNING, "***************************************************************\n");
-		vlog_printf(VLOG_WARNING, "* NO IMMEDIATE ACTION NEEDED!                                 *\n");
-		vlog_printf(VLOG_WARNING, "* Not enough hugepage resources for VMA memory allocation.    *\n");
-		vlog_printf(VLOG_WARNING, "* VMA will continue working with regular memory allocation.   *\n");
-		vlog_printf(VLOG_INFO,    "* Optional: 1. Switch to a different memory allocation type   *\n");
-		vlog_printf(VLOG_INFO,	  "* 	     (%s= 0 or 1)	            *\n", SYS_VAR_MEM_ALLOC_TYPE);
-		vlog_printf(VLOG_INFO,    "*           2. Restart process after increasing the number of *\n");
-		vlog_printf(VLOG_INFO,    "*              hugepages resources in the system:             *\n");
-		vlog_printf(VLOG_INFO,    "* \"cat /proc/meminfo |  grep -i HugePage\"                     *\n");
-		vlog_printf(VLOG_INFO,    "* \"echo 1000000000 > /proc/sys/kernel/shmmax\"                 *\n");
-		vlog_printf(VLOG_INFO,    "* \"echo 800 > /proc/sys/vm/nr_hugepages\"                      *\n");
-		vlog_printf(VLOG_WARNING, "* Please refer to the memory allocation section in the VMA's  *\n");
-		vlog_printf(VLOG_WARNING, "* User Manual for more information			    *\n");
+		vlog_printf(VLOG_WARNING, "**************************************************************\n");
+		vlog_printf(VLOG_WARNING, "* NO IMMEDIATE ACTION NEEDED!                                 \n");
+		vlog_printf(VLOG_WARNING, "* Not enough hugepage resources for VMA memory allocation.    \n");
+		vlog_printf(VLOG_WARNING, "* VMA will continue working with regular memory allocation.   \n");
+		vlog_printf(VLOG_INFO, "   * Optional:                                                   \n");
+		vlog_printf(VLOG_INFO, "   *   1. Switch to a different memory allocation type           \n");
+		vlog_printf(VLOG_INFO, "   *      (%s= 0 or 1)                                           \n", SYS_VAR_MEM_ALLOC_TYPE);
+		vlog_printf(VLOG_INFO, "   *   2. Restart process after increasing the number of         \n");
+		vlog_printf(VLOG_INFO, "   *      hugepages resources in the system:                     \n");
+		vlog_printf(VLOG_INFO, "   *      \"cat /proc/meminfo |  grep -i HugePage\"              \n");
+		vlog_printf(VLOG_INFO, "   *      \"echo 1000000000 > /proc/sys/kernel/shmmax\"          \n");
+		vlog_printf(VLOG_INFO, "   *      \"echo 800 > /proc/sys/vm/nr_hugepages\"               \n");
+		vlog_printf(VLOG_WARNING, "* Please refer to the memory allocation section in the VMA's  \n");
+		vlog_printf(VLOG_WARNING, "* User Manual for more information                            \n");
 		vlog_printf(VLOG_WARNING, "***************************************************************\n");
 		return false;
 	}

@@ -444,7 +444,7 @@ bool sockinfo::attach_receiver(flow_tuple_with_local_if &flow_key)
 	unlock_rx_q();
 	if (!p_nd_resources->p_ring->attach_flow(flow_key, this)) {
 		lock_rx_q();
-		si_logerr("Failed to attach %s to ring %p", flow_key.to_str(), p_nd_resources->p_ring);
+		si_logdbg("Failed to attach %s to ring %p", flow_key.to_str(), p_nd_resources->p_ring);
 		return false;
 	}
 	lock_rx_q();

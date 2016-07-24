@@ -43,17 +43,18 @@ rfs_uc::rfs_uc(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* r
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_flow_tuple.is_udp_mc()) {
-		rfs_logpanic("rfs: rfs_uc called with MC destination ip");
+		throw_vma_exception("rfs_uc called with MC destination ip");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	prepare_flow_spec();
+	if(!prepare_flow_spec()) {
+		throw_vma_exception("rfs_uc: Incompatible transport type");
+	}
 }
 
-void rfs_uc::prepare_flow_spec()
+bool rfs_uc::prepare_flow_spec()
 {
 	transport_type_t type = m_p_ring->get_transport_type();
-
 	/*
 	 * todo note that ring is not locked here.
 	 * we touch members that should not change during the ring life.
@@ -92,7 +93,7 @@ void rfs_uc::prepare_flow_spec()
 			break;
 		BULLSEYE_EXCLUDE_BLOCK_START
 		default:
-			rfs_logpanic("Incompatible transport type = %d", type);
+			return false;
 			break;
 		BULLSEYE_EXCLUDE_BLOCK_END
 	}
@@ -113,6 +114,7 @@ void rfs_uc::prepare_flow_spec()
 	}
 
 	m_attach_flow_data_vector.push_back(p_attach_flow_data);
+	return true;
 }
 
 bool rfs_uc::rx_dispatch_packet(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array)
