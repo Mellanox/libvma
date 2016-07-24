@@ -82,7 +82,7 @@ private:
 	//
 	//conf params
 	uint32_t                m_conf_attr_rx_num_wre;
-	uint32_t                m_conf_attr_tx_num_post_send_notify;
+	uint32_t                m_conf_attr_tx_num_to_signal;
 	uint32_t                m_conf_attr_tx_max_inline;
 	uint32_t                m_conf_attr_tx_num_wre;
 

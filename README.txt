@@ -121,6 +121,7 @@ Example:
  VMA DETAILS: Tx Mem Segs TCP                1000000                    [VMA_TX_SEGS_TCP]
  VMA DETAILS: Tx Mem Bufs                    200000                     [VMA_TX_BUFS]
  VMA DETAILS: Tx QP WRE                      3000                       [VMA_TX_WRE]
+ VMA DETAILS: Tx QP WRE Batching             64                         [VMA_TX_WRE_BATCHING]
  VMA DETAILS: Tx Max QP INLINE               220                        [VMA_TX_MAX_INLINE]
  VMA DETAILS: Tx MC Loopback                 Enabled                    [VMA_TX_MC_LOOPBACK]
  VMA DETAILS: Tx non-blocked eagains         Disabled                   [VMA_TX_NONBLOCKED_EAGAINS]
@@ -303,6 +304,14 @@ Number of Work Request Elements allocated in all transmit QP's.
 The number of QP's can change according to the number of network offloaded
 interfaces.
 Default value is 3000
+
+VMA_TX_WRE_BATCHING
+Number of Tx Work Request Elements until requesting a completion signal. 
+This allows better control the jitter encountered from the Tx CQE handling.
+Higher batching value means high PPS and lower avarge latency.
+Lower batching value means lower latency std-dev.
+Value range is 1-64
+Default value is 64
 
 VMA_TX_MAX_INLINE
 Max send inline data set for QP. 
