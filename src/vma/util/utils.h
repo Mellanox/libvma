@@ -364,6 +364,10 @@ int validate_ipoib_prop(const char* ifname, unsigned int ifflags,
 		const char prop_file[], const char *expected_val,
 		int val_size, char *filename, char* base_ifname);
 
+int validate_raw_qp_privliges();
+
+bool validate_user_has_CAP_NET_RAW_privliges();
+
 void convert_hw_addr_to_str(char *buf, uint8_t hw_addr_len, uint8_t *hw_addr);
 
 static inline int get_procname(int pid, char *proc, size_t size)

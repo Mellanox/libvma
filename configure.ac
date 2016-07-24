@@ -267,6 +267,22 @@ AC_TRY_LINK(,
   AC_MSG_RESULT([no])
 ])
 
+AC_MSG_CHECKING([if HAVE_LIBCAP is defined])
+AC_TRY_LINK(
+#include <sys/capability.h>
+,
+[
+   int cap_version = (int) _LINUX_CAPABILITY_VERSION;
+   cap_version = cap_version;
+],
+[
+  AC_MSG_RESULT([yes])
+  AC_DEFINE(HAVE_LIBCAP, 1, [Define to 1 if libcap-devel library is installed])
+],
+[
+  AC_MSG_RESULT([no])
+])
+
 AC_MSG_CHECKING([if IBV_QPT_RAW_PACKET is defined])
 AC_TRY_LINK(
 #include <infiniband/verbs.h>
