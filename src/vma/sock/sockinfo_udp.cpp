@@ -2116,7 +2116,9 @@ int sockinfo_udp::validate_igmpv2(char* ifname)
 		// Check the specific interface configuration 
 		// IGMP_FORCE_PARAM_FILE is: "/proc/sys/net/ipv4/conf/%s/force_igmp_version"
 		sprintf(igmpver_filename, IGMP_FORCE_PARAM_FILE, base_ifname);
-		priv_read_file(igmpver_filename, &igmp_force_value, 1);
+		if (priv_read_file(igmpver_filename, &igmp_force_value, 1) <= 0) {
+			return 1;
+		}
 	}
 	if (igmp_force_value != '2' && igmp_force_value != '1') {  
 		vlog_printf(VLOG_WARNING,"************************************************************************\n");
@@ -2169,39 +2171,41 @@ clean_and_exit:
 
 void sockinfo_udp::statistics_print()
 {
-	bool b_any_activiy = false;
+	bool b_any_activity = false;
 	if (m_p_socket_stats->counters.n_tx_sent_byte_count || m_p_socket_stats->counters.n_tx_sent_pkt_count || m_p_socket_stats->counters.n_tx_errors || m_p_socket_stats->counters.n_tx_drops ) {
 		si_logdbg_no_funcname("Tx Offload: %d KB / %d / %d / %d [bytes/packets/drops/errors]", m_p_socket_stats->counters.n_tx_sent_byte_count/1024, m_p_socket_stats->counters.n_tx_sent_pkt_count, m_p_socket_stats->counters.n_tx_drops, m_p_socket_stats->counters.n_tx_errors);
-		b_any_activiy = true;
+		b_any_activity = true;
 	}
 	if (m_p_socket_stats->counters.n_tx_os_bytes || m_p_socket_stats->counters.n_tx_os_packets || m_p_socket_stats->counters.n_tx_os_errors) {
 		si_logdbg_no_funcname("Tx OS info: %d KB / %d / %d [bytes/packets/errors]", m_p_socket_stats->counters.n_tx_os_bytes/1024, m_p_socket_stats->counters.n_tx_os_packets, m_p_socket_stats->counters.n_tx_os_errors);
-		b_any_activiy = true;
+		b_any_activity = true;
 	}
 	if (m_p_socket_stats->counters.n_rx_bytes || m_p_socket_stats->counters.n_rx_packets || m_p_socket_stats->counters.n_rx_errors || m_p_socket_stats->counters.n_rx_eagain || m_p_socket_stats->n_rx_ready_pkt_count) {
 		si_logdbg_no_funcname("Rx Offload: %d KB / %d / %d / %d [bytes/packets/eagains/errors]", m_p_socket_stats->counters.n_rx_bytes/1024, m_p_socket_stats->counters.n_rx_packets, m_p_socket_stats->counters.n_rx_eagain, m_p_socket_stats->counters.n_rx_errors);
 
-		float rx_drop_percentage = 0;
-		if (m_p_socket_stats->counters.n_rx_packets || m_p_socket_stats->n_rx_ready_pkt_count)
-			rx_drop_percentage = (float)(m_p_socket_stats->counters.n_rx_ready_byte_drop * 100) / (float)m_p_socket_stats->counters.n_rx_packets;
-		si_logdbg_no_funcname("Rx byte: max %d / dropped %d (%2.2f%%) / limit %d", m_p_socket_stats->counters.n_rx_ready_byte_max, m_p_socket_stats->counters.n_rx_ready_byte_drop, rx_drop_percentage, m_p_socket_stats->n_rx_ready_byte_limit);
+		if (m_p_socket_stats->counters.n_rx_packets) {
+			float rx_drop_percentage = 0;
+			if (m_p_socket_stats->n_rx_ready_pkt_count)
+				rx_drop_percentage = (float)(m_p_socket_stats->counters.n_rx_ready_byte_drop * 100) / (float)m_p_socket_stats->counters.n_rx_packets;
+			si_logdbg_no_funcname("Rx byte: max %d / dropped %d (%2.2f%%) / limit %d", m_p_socket_stats->counters.n_rx_ready_byte_max, m_p_socket_stats->counters.n_rx_ready_byte_drop, rx_drop_percentage, m_p_socket_stats->n_rx_ready_byte_limit);
 
-		if (m_p_socket_stats->counters.n_rx_packets || m_p_socket_stats->n_rx_ready_pkt_count)
-			rx_drop_percentage = (float)(m_p_socket_stats->counters.n_rx_ready_pkt_drop * 100) / (float)m_p_socket_stats->counters.n_rx_packets;
-		si_logdbg_no_funcname("Rx pkt : max %d / dropped %d (%2.2f%%)", m_p_socket_stats->counters.n_rx_ready_pkt_max, m_p_socket_stats->counters.n_rx_ready_pkt_drop, rx_drop_percentage);
+			if (m_p_socket_stats->n_rx_ready_pkt_count)
+				rx_drop_percentage = (float)(m_p_socket_stats->counters.n_rx_ready_pkt_drop * 100) / (float)m_p_socket_stats->counters.n_rx_packets;
+			si_logdbg_no_funcname("Rx pkt : max %d / dropped %d (%2.2f%%)", m_p_socket_stats->counters.n_rx_ready_pkt_max, m_p_socket_stats->counters.n_rx_ready_pkt_drop, rx_drop_percentage);
+		}
 
-		b_any_activiy = true;
+		b_any_activity = true;
 	}
 	if (m_p_socket_stats->counters.n_rx_os_bytes || m_p_socket_stats->counters.n_rx_os_packets || m_p_socket_stats->counters.n_rx_os_errors || m_p_socket_stats->counters.n_rx_os_eagain) {
 		si_logdbg_no_funcname("Rx OS info: %d KB / %d / %d / %d [bytes/packets/eagains/errors]", m_p_socket_stats->counters.n_rx_os_bytes/1024, m_p_socket_stats->counters.n_rx_os_packets, m_p_socket_stats->counters.n_rx_os_eagain, m_p_socket_stats->counters.n_rx_os_errors);
-		b_any_activiy = true;
+		b_any_activity = true;
 	}
 	if (m_p_socket_stats->counters.n_rx_poll_miss || m_p_socket_stats->counters.n_rx_poll_hit) {
 		float rx_poll_hit_percentage = (float)(m_p_socket_stats->counters.n_rx_poll_hit * 100) / (float)(m_p_socket_stats->counters.n_rx_poll_miss + m_p_socket_stats->counters.n_rx_poll_hit);
 		si_logdbg_no_funcname("Rx poll: %d / %d (%2.2f%%) [miss/hit]", m_p_socket_stats->counters.n_rx_poll_miss, m_p_socket_stats->counters.n_rx_poll_hit, rx_poll_hit_percentage);
-		b_any_activiy = true;
+		b_any_activity = true;
 	}
-	if (b_any_activiy == false) {
+	if (b_any_activity == false) {
 		si_logdbg_no_funcname("Rx and Tx where not active");
 	}
 }
