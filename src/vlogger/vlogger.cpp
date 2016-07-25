@@ -203,8 +203,7 @@ void vlog_start(const char* log_module_name, vlog_levels_t log_level, const char
 
 	g_vlogger_cb = vma_log_get_cb_func();
 
-	strncpy(g_vlogger_module_name, log_module_name, sizeof(g_vlogger_module_name) - 1);
-	g_vlogger_module_name[sizeof(g_vlogger_module_name) - 1] = '\0';
+	strncpy(g_vlogger_module_name, log_module_name, VLOG_MODULE_MAX_LEN);
 
 	vlog_get_usec_since_start();
 

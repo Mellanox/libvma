@@ -269,7 +269,7 @@ void check_debug()
 void check_flow_steering_log_num_mgm_entry_size()
 {
 	char flow_steering_val[2] = {0};
-	if (priv_safe_try_read_file((const char*)FLOW_STEERING_MGM_ENTRY_SIZE_PARAM_FILE, flow_steering_val, 2) == -1) {
+	if (priv_try_read_file((const char*)FLOW_STEERING_MGM_ENTRY_SIZE_PARAM_FILE, flow_steering_val, 2) == -1) {
 		vlog_printf(VLOG_DEBUG, "Flow steering option for mlx4 driver does not exist in current OFED version");
 	}
 	else if (flow_steering_val[0] != '-' || flow_steering_val[1] != '1') {
@@ -894,8 +894,7 @@ void check_netperf_flags()
         bool b_D_flag = false, b_f_flag = false;
         char add_flags[4];
 
-        strncpy(cmd_line, safe_mce_sys().app_name, sizeof(cmd_line) - 1);
-        cmd_line[sizeof(cmd_line) - 1] = '\0';
+        strcpy(cmd_line, safe_mce_sys().app_name);
         pch = strtok(cmd_line, " ");
 
         command = basename(pch); //extract only "netserver" from full path

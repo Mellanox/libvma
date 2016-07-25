@@ -1190,8 +1190,7 @@ int analize_fds_range(char* range)
 		return 1;
 	}
 
-	strncpy(range_copy, range, sizeof(range_copy) - 1);
-	range_copy[sizeof(range_copy) - 1] = '\0';
+	strcpy(range_copy, range);
 	delim_loc = strchr(range_copy, '-');
 	
 	if (delim_loc != NULL) {
@@ -1415,12 +1414,10 @@ int main (int argc, char **argv)
 			break;			
 		case 'p': 
 			user_params.proc_ident_mode = e_by_pid_str;
-			strncpy(proc_desc, optarg, sizeof(proc_desc) - 1);
-			proc_desc[sizeof(proc_desc) - 1] = '\0';
+			strcpy(proc_desc, optarg);
 			break;	
 		case 'k': 
-			strncpy(g_vma_shmem_dir, optarg, sizeof(g_vma_shmem_dir) - 1);
-			g_vma_shmem_dir[sizeof(g_vma_shmem_dir) - 1] = '\0';;
+			strcpy(g_vma_shmem_dir, optarg);
 			break;			
 		case 's': {
 			if (update_fds_mask(optarg)) {
@@ -1466,8 +1463,7 @@ int main (int argc, char **argv)
 			break;
 		case 'n':		
 			user_params.proc_ident_mode = e_by_app_name;
-			strncpy(proc_desc, optarg, sizeof(proc_desc) - 1);
-			proc_desc[sizeof(proc_desc) - 1] = '\0';
+			strcpy(proc_desc, optarg);
 			break;
 		case 'f': 
 			user_params.proc_ident_mode = e_by_runn_proccess;

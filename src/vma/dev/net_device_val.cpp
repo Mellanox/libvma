@@ -103,12 +103,12 @@ void net_device_val::try_read_dev_id_and_port(const char *base_ifname, int *dev_
 	char num_buf[24] = {0};
 	char dev_path[256] = {0};
 	sprintf(dev_path, VERBS_DEVICE_PORT_PARAM_FILE, base_ifname);
-	if (priv_safe_try_read_file(dev_path, num_buf, sizeof(num_buf)) > 0) {
+	if (priv_try_read_file(dev_path, num_buf, sizeof(num_buf)) > 0) {
 		*dev_port = strtol(num_buf, NULL, 0); // base=0 means strtol() can parse hexadecimal and decimal
 		nd_logdbg("dev_port file=%s dev_port str=%s dev_port val=%d", dev_path, num_buf, *dev_port);
 	}
 	sprintf(dev_path, VERBS_DEVICE_ID_PARAM_FILE, base_ifname);
-	if (priv_safe_try_read_file(dev_path, num_buf, sizeof(num_buf)) > 0) {
+	if (priv_try_read_file(dev_path, num_buf, sizeof(num_buf)) > 0) {
 		*dev_id = strtol(num_buf, NULL, 0); // base=0 means strtol() can parse hexadecimal and decimal
 		nd_logdbg("dev_id file= %s dev_id str=%s dev_id val=%d", dev_path, num_buf, *dev_id);
 	}
@@ -170,23 +170,21 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 		verify_bonding_mode();
 		// get list of all slave devices
 		char slaves_list[IFNAMSIZ * MAX_SLAVES] = {0};
-		if (get_bond_slaves_name_list(m_base_name, slaves_list, sizeof(slaves_list))) {
-			char* slave = strtok(slaves_list, " ");
-			while (slave) {
-				slave_data_t* s = new slave_data_t;
-				s->if_name = strdup(slave);
-				char* p = strchr(s->if_name, '\n');
-				if (p) *p = '\0'; // Remove the tailing 'new line" char
-				m_slaves.push_back(s);
-				slave = strtok(NULL, " ");
-			}
+		get_bond_slaves_name_list(m_base_name, slaves_list, sizeof(slaves_list));
+		char* slave = strtok(slaves_list, " ");
+		while (slave) {
+			slave_data_t* s = new slave_data_t;
+			s->if_name = strdup(slave);
+			char* p = strchr(s->if_name, '\n');
+			if (p) *p = '\0'; // Remove the tailing 'new line" char
+			m_slaves.push_back(s);
+			slave = strtok(NULL, " ");
 		}
 
 		// find the active slave
 		if (get_bond_active_slave_name(m_base_name, active_slave, sizeof(active_slave))) {
 			nd_logdbg("found the active slave: '%s'", active_slave);
-			strncpy(m_active_slave_name, active_slave, sizeof(m_active_slave_name) - 1);
-			m_active_slave_name[sizeof(m_active_slave_name) - 1] = '\0';
+			strncpy(m_active_slave_name, active_slave, sizeof(m_active_slave_name));
 		}
 		else {
 			nd_logdbg("failed to find the active slave, Moving to LAG state");
@@ -222,35 +220,31 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 
 		char base_ifname[IFNAMSIZ];
 		if (get_base_interface_name((const char*)m_slaves[i]->if_name, base_ifname, sizeof(base_ifname))) {
-			strncpy(base_ifname, m_slaves[i]->if_name, sizeof(base_ifname) - 1);
-			base_ifname[sizeof(base_ifname) - 1] = '\0';
+			strcpy(base_ifname, m_slaves[i]->if_name);
 		}
 
 		char resource_path[256];
 		sprintf(resource_path, VERBS_DEVICE_RESOURCE_PARAM_FILE, base_ifname);
 		char sys_res[1024] = {0};
-		if (priv_read_file(resource_path, sys_res, 1024) > 0) {
-			// find the ibv context and port num
-			for (int j=0; j<num_devices; j++) {
-				char ib_res[1024] = {0};
-				char ib_path[256] = {0};
-				sprintf(ib_path, "%s/device/resource", pp_ibv_context_list[j]->device->ibdev_path);
-				if (priv_read_file(ib_path, ib_res, 1024) <= 0) {
-					continue;
+		priv_read_file(resource_path, sys_res, 1024);
+		// find the ibv context and port num
+		for (int j=0; j<num_devices; j++) {
+			char ib_res[1024] = {0};
+			char ib_path[256] = {0};
+			sprintf(ib_path, "%s/device/resource", pp_ibv_context_list[j]->device->ibdev_path);
+			priv_read_file(ib_path, ib_res, 1024);
+			if (strcmp(sys_res, ib_res) == 0) {
+				m_slaves[i]->p_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(pp_ibv_context_list[j]);
+				int dev_id = -1;
+				int dev_port = -1;
+				try_read_dev_id_and_port(base_ifname, &dev_id, &dev_port);
+				// take the max between dev_port and dev_id as port number
+				int port_num = (dev_port > dev_id) ? dev_port : dev_id;
+				m_slaves[i]->port_num = port_num + 1;
+				if (m_slaves[i]->port_num < 1) {
+					nd_logdbg("Error: port %d ==> ifname=%s base_ifname=%s", m_slaves[i]->port_num, (const char*)m_slaves[i]->if_name, base_ifname);					
 				}
-				if (strcmp(sys_res, ib_res) == 0) {
-					m_slaves[i]->p_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(pp_ibv_context_list[j]);
-					int dev_id = -1;
-					int dev_port = -1;
-					try_read_dev_id_and_port(base_ifname, &dev_id, &dev_port);
-					// take the max between dev_port and dev_id as port number
-					int port_num = (dev_port > dev_id) ? dev_port : dev_id;
-					m_slaves[i]->port_num = port_num + 1;
-					if (m_slaves[i]->port_num < 1) {
-						nd_logdbg("Error: port %d ==> ifname=%s base_ifname=%s", m_slaves[i]->port_num, (const char*)m_slaves[i]->if_name, base_ifname);					
-					}
-					break;
-				}
+				break;
 			}
 		}
 	}
@@ -271,7 +265,7 @@ void net_device_val::verify_bonding_mode()
 	sprintf(bond_mode_param_file, BONDING_MODE_PARAM_FILE, m_base_name);
 	sprintf(bond_failover_mac_param_file, BONDING_FAILOVER_MAC_PARAM_FILE, m_base_name);
 
-	if (priv_safe_read_file(bond_mode_param_file, bond_mode_file_content, FILENAME_MAX) > 0) {
+	if (priv_read_file(bond_mode_param_file, bond_mode_file_content, FILENAME_MAX) > 0) {
 		char *bond_mode = NULL;
 		bond_mode = strtok(bond_mode_file_content, " ");
 		if (bond_mode) {
@@ -280,7 +274,7 @@ void net_device_val::verify_bonding_mode()
 			} else if (strstr(bond_mode, "802.3ad")) {
 				m_bond = LAG_8023ad;
 			}
-			if (priv_safe_read_file(bond_failover_mac_param_file, bond_failover_mac_file_content, FILENAME_MAX) > 0) {
+			if (priv_read_file(bond_failover_mac_param_file, bond_failover_mac_file_content, FILENAME_MAX) > 0) {
 				if(strstr(bond_failover_mac_file_content, "0")){
 					m_bond_fail_over_mac = 0;
 				} else if(strstr(bond_failover_mac_file_content, "1")){
@@ -294,7 +288,7 @@ void net_device_val::verify_bonding_mode()
 
 	memset(bond_xmit_hash_policy_file_content, 0, FILENAME_MAX);
 	sprintf(bond_xmit_hash_policy_param_file, BONDING_XMIT_HASH_POLICY_PARAM_FILE, m_base_name);
-	if (priv_safe_try_read_file(bond_xmit_hash_policy_param_file, bond_xmit_hash_policy_file_content, FILENAME_MAX) > 0) {
+	if (priv_try_read_file(bond_xmit_hash_policy_param_file, bond_xmit_hash_policy_file_content, FILENAME_MAX) > 0) {
 		char *bond_xhp = NULL;
 		//TODO use strtok_r instead of strtok
 		bond_xhp = strtok(bond_xmit_hash_policy_file_content, " ");
@@ -362,8 +356,7 @@ bool net_device_val::update_active_backup_slaves()
 		}
 		p_ring_info[i].active = m_slaves[i]->is_active_slave;
 	}
-	strncpy(m_active_slave_name,  active_slave, sizeof(m_active_slave_name) - 1);
-	m_active_slave_name[sizeof(m_active_slave_name) - 1] = '\0';
+	strncpy(m_active_slave_name,  active_slave, sizeof(m_active_slave_name));
 	if (!found_active_slave) {
 		nd_logdbg("Failed to locate new active slave details");
 		return 0;
