@@ -10,7 +10,7 @@ echo
 
 source $(dirname $0)/jenkins_tests/globals.sh
 
-export PATH=/hpc/local/bin::/usr/local/bin:/bin:/usr/bin:/usr/sbin:${PATH}
+export PATH=${PATH}:/hpc/local/bin
 env
 
 rel_path=$(dirname $0)
