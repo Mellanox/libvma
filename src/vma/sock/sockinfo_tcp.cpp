@@ -2200,10 +2200,11 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 
 		//todo instead of doing blind poll, check if waken-up by OS fd in rx_wait
 		//
-		// Consider trying OS accept() since socket may be not offloaded
-		// Socket can be not offlocaded even if it is bounded [m_bound.is_anyaddr()!=true] 
-		// in case client/server are on the same machine 
-			
+		// Consider always trying OS accept() 
+		// Case #1: server socket may not be offloaded. In this case: m_bound.is_anyaddr()==true
+		// Case #2: client/server are on the same machine. Server is offloaded but client is not
+		// In this case: m_bound.is_anyaddr()==false
+
 		// Poll OS socket for pending connection
 		// smart bit to switch between the two
 		pollfd os_fd[1];
