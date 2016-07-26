@@ -796,8 +796,8 @@ void epfd_info::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 
 	vlog_printf(log_level, "Offloaded Fds : %d {%s}\n", m_n_offloaded_fds, offloaded_str);
 	vlog_printf(log_level, "Number of rings : %u\n", num_rings);
-	vlog_printf(log_level, "Number of ready Fds : %u\n", num_rings);
-	vlog_printf(log_level, "Number of ready CQ Fds : %u\n", num_rings);
+	vlog_printf(log_level, "Number of ready Fds : %u\n", num_ready_fds);
+	vlog_printf(log_level, "Number of ready CQ Fds : %u\n", num_ready_cq_fd);
 
 	if (temp_iomux_stats.n_iomux_os_rx_ready || temp_iomux_stats.n_iomux_rx_ready || temp_iomux_stats.n_iomux_timeouts || temp_iomux_stats.n_iomux_errors ||
 			temp_iomux_stats.n_iomux_poll_miss || temp_iomux_stats.n_iomux_poll_hit) {
