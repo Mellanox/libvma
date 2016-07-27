@@ -37,7 +37,7 @@
 
 //if you need select with more than 1024 sockets - enable this
 #ifndef SELECT_BIG_SETSIZE
-#define SELECT_BIG_SETSIZE 0
+#define SELECT_BIG_SETSIZE 1
 #endif
 
 #if SELECT_BIG_SETSIZE
