@@ -719,14 +719,16 @@ void sockinfo::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 	if (m_p_socket_stats->counters.n_rx_bytes || m_p_socket_stats->counters.n_rx_packets || m_p_socket_stats->counters.n_rx_errors || m_p_socket_stats->counters.n_rx_eagain || m_p_socket_stats->n_rx_ready_pkt_count) {
 		vlog_printf(log_level, "Rx Offload : %d KB / %d / %d / %d [bytes/packets/eagains/errors]\n", m_p_socket_stats->counters.n_rx_bytes/1024, m_p_socket_stats->counters.n_rx_packets, m_p_socket_stats->counters.n_rx_eagain, m_p_socket_stats->counters.n_rx_errors);
 
-		float rx_drop_percentage = 0;
-		if (m_p_socket_stats->counters.n_rx_packets || m_p_socket_stats->n_rx_ready_pkt_count)
-			rx_drop_percentage = (float)(m_p_socket_stats->counters.n_rx_ready_byte_drop * 100) / (float)m_p_socket_stats->counters.n_rx_packets;
-		vlog_printf(log_level, "Rx byte : max %d / dropped %d (%2.2f%%) / limit %d\n", m_p_socket_stats->counters.n_rx_ready_byte_max, m_p_socket_stats->counters.n_rx_ready_byte_drop, rx_drop_percentage, m_p_socket_stats->n_rx_ready_byte_limit);
+		if (m_p_socket_stats->counters.n_rx_packets) {
+			float rx_drop_percentage = 0;
+			if (m_p_socket_stats->n_rx_ready_pkt_count)
+				rx_drop_percentage = (float)(m_p_socket_stats->counters.n_rx_ready_byte_drop * 100) / (float)m_p_socket_stats->counters.n_rx_packets;
+			vlog_printf(log_level, "Rx byte : max %d / dropped %d (%2.2f%%) / limit %d\n", m_p_socket_stats->counters.n_rx_ready_byte_max, m_p_socket_stats->counters.n_rx_ready_byte_drop, rx_drop_percentage, m_p_socket_stats->n_rx_ready_byte_limit);
 
-		if (m_p_socket_stats->counters.n_rx_packets || m_p_socket_stats->n_rx_ready_pkt_count)
-			rx_drop_percentage = (float)(m_p_socket_stats->counters.n_rx_ready_pkt_drop * 100) / (float)m_p_socket_stats->counters.n_rx_packets;
-		vlog_printf(log_level, "Rx pkt : max %d / dropped %d (%2.2f%%)\n", m_p_socket_stats->counters.n_rx_ready_pkt_max, m_p_socket_stats->counters.n_rx_ready_pkt_drop, rx_drop_percentage);
+			if (m_p_socket_stats->n_rx_ready_pkt_count)
+				rx_drop_percentage = (float)(m_p_socket_stats->counters.n_rx_ready_pkt_drop * 100) / (float)m_p_socket_stats->counters.n_rx_packets;
+			vlog_printf(log_level, "Rx pkt : max %d / dropped %d (%2.2f%%)\n", m_p_socket_stats->counters.n_rx_ready_pkt_max, m_p_socket_stats->counters.n_rx_ready_pkt_drop, rx_drop_percentage);
+		}
 
 		b_any_activity = true;
 	}
