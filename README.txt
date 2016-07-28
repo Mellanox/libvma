@@ -306,10 +306,10 @@ interfaces.
 Default value is 3000
 
 VMA_TX_WRE_BATCHING
-Number of Tx Work Request Elements until requesting a completion signal. 
-This allows better control the jitter encountered from the Tx CQE handling.
-Higher batching value means high PPS and lower avarge latency.
-Lower batching value means lower latency std-dev.
+The number of Tx Work Request Elements used until a completion signal is requested.
+Tuning this parameter allows a better control of the jitter encountered from the 
+Tx CQE handling. Setting a high batching value results in high PPS and lower 
+avarge latency. Setting a low batching value results in lower latency std-dev.
 Value range is 1-64
 Default value is 64
 
