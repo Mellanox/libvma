@@ -785,9 +785,7 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 #endif
 	}
 
-	bool enable_sw_csum = safe_mce_sys().rx_sw_csum && !p_rx_wc_buf_desc->hw_csum_validation;
-
-	if (enable_sw_csum && compute_ip_checksum((unsigned short*)p_ip_h, p_ip_h->ihl * 2)) {
+	if (p_rx_wc_buf_desc->is_rx_sw_csum_need && compute_ip_checksum((unsigned short*)p_ip_h, p_ip_h->ihl * 2)) {
 		return false; // false ip checksum
 	}
 
@@ -814,7 +812,7 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 		// Get the udp header pointer + udp payload size
 		p_udp_h = (struct udphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
 
-		if (enable_sw_csum && !p_udp_h->check && compute_udp_checksum(p_ip_h, (unsigned short*) p_udp_h)) {
+		if (p_rx_wc_buf_desc->is_rx_sw_csum_need && !p_udp_h->check && compute_udp_checksum(p_ip_h, (unsigned short*) p_udp_h)) {
 			return false; // false udp checksum
 		}
 
@@ -846,7 +844,7 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 		// Get the tcp header pointer + tcp payload size
 		struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
 
-		if (enable_sw_csum && compute_tcp_checksum(p_ip_h, (unsigned short*) p_tcp_h)) {
+		if (p_rx_wc_buf_desc->is_rx_sw_csum_need && compute_tcp_checksum(p_ip_h, (unsigned short*) p_tcp_h)) {
 			return false; // false tcp checksum
 		}
 
