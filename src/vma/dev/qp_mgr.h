@@ -148,6 +148,7 @@ protected:
 	uint32_t 		m_tx_num_wr;
 
 	uint32_t 		m_rx_num_wr_to_post_recv;
+	uint32_t 		m_tx_num_wr_to_signal;
 
 	// recv_wr
 	ibv_sge*		m_ibv_rx_sg_array;

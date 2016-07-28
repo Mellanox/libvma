@@ -55,7 +55,7 @@
 
 
 ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx_time_converter_mode) :
-	m_channel(0), m_removed(false), m_conf_attr_rx_num_wre(0), m_conf_attr_tx_num_post_send_notify(0),
+	m_channel(0), m_removed(false), m_conf_attr_rx_num_wre(0), m_conf_attr_tx_num_to_signal(0),
 	m_conf_attr_tx_max_inline(0), m_conf_attr_tx_num_wre(0), ctx_time_converter(ctx, ctx_time_converter_mode)
 {
 	memset(&m_ibv_port_attr, 0, sizeof(m_ibv_port_attr));
@@ -155,12 +155,12 @@ void ib_ctx_handler::set_dev_configuration()
 {
 	ibch_logdbg("Setting configuration for the MLX card %s", m_p_ibv_device->name);
 	m_conf_attr_rx_num_wre                  = safe_mce_sys().rx_num_wr;
-	m_conf_attr_tx_num_post_send_notify     = NUM_TX_POST_SEND_NOTIFY;
+	m_conf_attr_tx_num_to_signal            = safe_mce_sys().tx_num_wr_to_signal;
 	m_conf_attr_tx_max_inline               = safe_mce_sys().tx_max_inline;
 	m_conf_attr_tx_num_wre                  = safe_mce_sys().tx_num_wr;
 
-	if (m_conf_attr_tx_num_wre < (m_conf_attr_tx_num_post_send_notify * 2)) {
-		m_conf_attr_tx_num_wre = m_conf_attr_tx_num_post_send_notify * 2;
+	if (m_conf_attr_tx_num_wre < (m_conf_attr_tx_num_to_signal * 2)) {
+		m_conf_attr_tx_num_wre = m_conf_attr_tx_num_to_signal * 2;
 		ibch_loginfo("%s Setting the %s to %d according to the device specific configuration:",
 			   m_p_ibv_device->name, SYS_VAR_TX_NUM_WRE, safe_mce_sys().tx_num_wr);
 	}

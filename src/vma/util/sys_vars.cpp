@@ -339,6 +339,7 @@ void mce_sys_var::get_env_params()
 	tx_num_segs_tcp         = MCE_DEFAULT_TX_NUM_SEGS_TCP;
 	tx_num_bufs             = MCE_DEFAULT_TX_NUM_BUFS;
 	tx_num_wr               = MCE_DEFAULT_TX_NUM_WRE;
+	tx_num_wr_to_signal     = MCE_DEFAULT_TX_NUM_WRE_TO_SIGNAL;
 	tx_max_inline		= MCE_DEFAULT_TX_MAX_INLINE;
 	tx_mc_loopback_default  = MCE_DEFAULT_TX_MC_LOOPBACK;
 	tx_nonblocked_eagains   = MCE_DEFAULT_TX_NONBLOCKED_EAGAINS;
@@ -532,6 +533,11 @@ void mce_sys_var::get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_TX_NUM_WRE)) != NULL)
 		tx_num_wr = (uint32_t)atoi(env_ptr);
+
+	if ((env_ptr = getenv(SYS_VAR_TX_NUM_WRE_TO_SIGNAL)) != NULL)
+		tx_num_wr_to_signal = MIN(NUM_TX_WRE_TO_SIGNAL_MAX, MAX(1, (uint32_t)atoi(env_ptr)));
+	if (tx_num_wr <= (tx_num_wr_to_signal * 2))
+		tx_num_wr = tx_num_wr_to_signal * 2;
 
 	if ((env_ptr = getenv(SYS_VAR_TX_MAX_INLINE)) != NULL)
 		tx_max_inline = (uint32_t)atoi(env_ptr);
