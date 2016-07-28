@@ -380,7 +380,8 @@ int vma_free_vma_packets(struct vma_packet_desc_t *packets, int num)
 			desc = (mem_buf_desc_t*)packets[i].buff_lst;
 			p_socket_object = (socket_fd_api*)desc->path.rx.context;
 			ring* rng = (ring*)desc->p_desc_owner;
-			p_socket_object->free_buffs(packets[i].total_len);
+			if (p_socket_object)
+				p_socket_object->free_buffs(packets[i].total_len);
 			rng->vma_poll_reclaim_recv_buffers(desc);
 		}
 	}

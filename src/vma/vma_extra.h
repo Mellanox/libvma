@@ -516,6 +516,108 @@ myapp_processes_events_func(
 }
 
 
+ *
+ * vma_poll() UDP Demo Usage
+ *
+
+
+struct vma_api_t* vma_api = NULL;
+
+
+ *
+ * Main loop
+ *
+myapp_socket_main_loop()
+{
+	int flags = 0;
+	char buf[256];
+	int rings;
+	vma_completion_t comp;
+	int ready_comp = 0;
+	bool to_exit = false;
+
+
+	// Try to find if VMA is loaded and the Extra API is available
+	vma_api = vma_get_api();
+
+	// Create my application's  socket
+	int fd = socket(AF_INET, SOCK_DGRAM, 0)
+
+	//Bind the socket
+	...
+
+	//Get socket's ring, we skip reading the number of rings
+	//since connected UDP socket is associated with a single ring
+	if (vma_api) {
+		vma_api->get_socket_rings_fds(fd, &ring, 1);
+	}
+	else {
+		exit...
+	}
+
+	// Main traffic processing loop going into VMA engine
+	while (!to_exit) {
+
+		ready_comp = vma_api->vma_poll(ring_fd, &comp, 1, flags);
+
+		// recv path socket API...
+		if (ready_comp > 0) {
+			if (comp.events & VMA_POLL_PACKET) {
+				myapp_processes_packet_func(comp.user_data, &comp.packet);
+
+				//Hold the buffers
+				vma_buff_t curr_buff = comp.packet.buff_lst;
+				while (curr_buff) {
+					vma_api->vma_buff_ref(curr_buff);
+					curr_buff = curr_buff->next;
+				}
+			}
+			myapp_processes_events_func(comp.user_data,comp.events);
+
+			//The buffers are not needed any more, deallocate them
+			vma_buff_t curr_buff = comp.packet.buff_lst;
+			while (curr_buff) {
+				//Free the buffer
+				vma_api->vma_buff_ref(curr_buff);
+				curr_buff = curr_buff->next;
+			}
+		}
+		else if (ready_comp < 0) {
+			to_exit = true;
+		}
+	}
+}
+
+ *
+ * Process VMA buffer
+ *
+myapp_processes_packet_func(
+	int socket,
+	vma_packet_t* packet)
+{
+	vma_buff_t* curr_buff = packet->buff_lst;
+
+	printf("[fd=%d] Received packet from: %s:%d \n", socket, inet_ntoa(packet->src.sin_addr), ntohs(packet->src.sin_port));
+	printf("Packet total length is: %u\n", packet->total_len);
+	printf("Packet's buffers: \n");
+	while (curr_buff) {
+		printf("Address: %p, Length: %u\n", curr_buff->payload, curr_buff->len);
+		curr_buff = curr_buff->next;
+	}
+}
+
+ *
+ * Process VMA event
+ *
+myapp_processes_events_func(
+	int socket,
+	uint64_t events)
+{
+	if (comp.events){
+		printf("[fd=%d] event occurred\n", socket);
+	}
+}
+
 
  *
  * VMA callback + recvfrom_zcopy Demo Usage

@@ -389,7 +389,6 @@ sockinfo_udp::sockinfo_udp(int fd) throw (vma_exception) :
 		si_udp_logpanic("failed to add user's fd to internal epfd errno=%d (%m)", errno);
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-
 	si_udp_logfunc("done");
 }
 
@@ -468,6 +467,11 @@ int sockinfo_udp::bind(const struct sockaddr *__addr, socklen_t __addrlen)
 	// save the bound info and then attach to offload flows
 	on_sockname_change(name, *namelen);
 	si_udp_logdbg("bound to %s", m_bound.to_str());
+
+	if (m_rx_ring_map.size() == 1) {
+		rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.begin();
+		m_p_rx_ring = rx_ring_iter->first;
+	}
 
 	dst_entry_map_t::iterator dst_entry_iter = m_dst_entry_map.begin();
 	while (dst_entry_iter != m_dst_entry_map.end()) {
@@ -1805,32 +1809,52 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 		clock_gettime(CLOCK_REALTIME, &(p_desc->path.rx.sw_timestamp));
 	}
 
-	// In ZERO COPY case we let the user's application manage the ready queue
-	if (callback_retval != VMA_PACKET_HOLD) {
-		m_lock_rcv.lock();
-		// Save rx packet info in our ready list
-		m_rx_pkt_ready_list.push_back(p_desc);
-		m_n_rx_pkt_ready_list_count++;
-		m_rx_ready_byte_count += p_desc->path.rx.sz_payload;
-		m_p_socket_stats->n_rx_ready_pkt_count++;
-		m_p_socket_stats->n_rx_ready_byte_count += p_desc->path.rx.sz_payload;
-		m_p_socket_stats->counters.n_rx_ready_pkt_max = max((uint32_t)m_p_socket_stats->n_rx_ready_pkt_count, m_p_socket_stats->counters.n_rx_ready_pkt_max);
-		m_p_socket_stats->counters.n_rx_ready_byte_max = max((uint32_t)m_p_socket_stats->n_rx_ready_byte_count, m_p_socket_stats->counters.n_rx_ready_byte_max);
-		do_wakeup();
-		m_lock_rcv.unlock();
+	if (p_desc->path.rx.vma_polled) {
+		mem_buf_desc_t *tmp_p;
+		vma_completion_t* p_vma_completion;
+
+		p_vma_completion = (vma_completion_t*)pv_fd_ready_array;
+		p_vma_completion->packet.total_len = 0;
+
+		for(tmp_p = p_desc; tmp_p; tmp_p = tmp_p->p_next_desc) {
+			p_vma_completion->packet.buff_lst = (vma_buff_t*)tmp_p;
+			p_vma_completion->packet.buff_lst->next = (vma_buff_t*)tmp_p->p_next_desc;
+			p_vma_completion->packet.buff_lst->len = p_desc->path.rx.frag.iov_len;
+			p_vma_completion->packet.buff_lst->payload = p_desc->path.rx.frag.iov_base;
+			p_vma_completion->packet.total_len += tmp_p->path.rx.sz_payload;
+		}
+		p_vma_completion->events = VMA_POLL_PACKET;
+		p_vma_completion->src = p_desc->path.rx.src;
+		p_vma_completion->user_data = (uint64_t)m_fd_context;
+		p_vma_completion->packet.num_bufs = p_desc->n_frags;
 	} else {
-		m_p_socket_stats->n_rx_zcopy_pkt_count++;
+
+		// In ZERO COPY case we let the user's application manage the ready queue
+		if (callback_retval != VMA_PACKET_HOLD) {
+			m_lock_rcv.lock();
+			// Save rx packet info in our ready list
+			m_rx_pkt_ready_list.push_back(p_desc);
+			m_n_rx_pkt_ready_list_count++;
+			m_rx_ready_byte_count += p_desc->path.rx.sz_payload;
+			m_p_socket_stats->n_rx_ready_pkt_count++;
+			m_p_socket_stats->n_rx_ready_byte_count += p_desc->path.rx.sz_payload;
+			m_p_socket_stats->counters.n_rx_ready_pkt_max = max((uint32_t)m_p_socket_stats->n_rx_ready_pkt_count, m_p_socket_stats->counters.n_rx_ready_pkt_max);
+			m_p_socket_stats->counters.n_rx_ready_byte_max = max((uint32_t)m_p_socket_stats->n_rx_ready_byte_count, m_p_socket_stats->counters.n_rx_ready_byte_max);
+			do_wakeup();
+			m_lock_rcv.unlock();
+		} else {
+			m_p_socket_stats->n_rx_zcopy_pkt_count++;
+		}
+		notify_epoll_context(EPOLLIN);
+
+		// Add this fd to the ready fd list
+		io_mux_call::update_fd_array((fd_array_t*)pv_fd_ready_array, m_fd);
+
+		si_udp_logfunc("rx ready count = %d packets / %d bytes", m_n_rx_pkt_ready_list_count, m_p_socket_stats->n_rx_ready_byte_count);
+		// Yes we like this packet - keep it!
 	}
 
-	notify_epoll_context(EPOLLIN);
-
-	// Add this fd to the ready fd list
-        io_mux_call::update_fd_array((fd_array_t*)pv_fd_ready_array, m_fd);
-
-	si_udp_logfunc("rx ready count = %d packets / %d bytes", m_n_rx_pkt_ready_list_count, m_p_socket_stats->n_rx_ready_byte_count);
-
-	// Yes we like this packet - keep it!
-	return true;
+return true;
 }
 
 void sockinfo_udp::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool is_migration /* = false */)
@@ -2072,6 +2096,12 @@ int sockinfo_udp::mc_change_membership(const struct ip_mreq *p_mreq, int optname
 		return -1;
 	BULLSEYE_EXCLUDE_BLOCK_END
 	}
+
+	if (m_rx_ring_map.size() == 1) {
+		rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.begin();
+		m_p_rx_ring = rx_ring_iter->first;
+	}
+
 	return 0;
 }
 
