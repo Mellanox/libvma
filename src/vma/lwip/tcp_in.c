@@ -82,7 +82,6 @@ L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb)
     TCP_STATS_INC(tcp.recv);
     in_data.iphdr = (struct ip_hdr *)p->payload;
 
-
     iphdr_len = ntohs(IPH_LEN(in_data.iphdr));
     /* Trim pbuf. This should have been done at the netif layer,
      * but we'll do it anyway just to be sure that its done. */
