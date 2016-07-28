@@ -110,7 +110,7 @@ AS_IF([test "x$with_valgrind" == xno],
 # Experimental Verbs CQ
 #
 AC_ARG_ENABLE([exp-cq],
-    AC_HELP_STRING([--enable-exp-cq],
+    AC_HELP_STRING([--disable-exp-cq],
                    [Experimental Verbs CQ is required for UDP RX HW Timestamp and for RX CSUM verification offload]),
     [],
     [enable_exp_cq=yes]
