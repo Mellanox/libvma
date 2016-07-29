@@ -40,6 +40,25 @@ function on_exit
     pkill -9 sockperf
 }
 
+function do_cmd()
+{
+	cmd="$*"
+    set +e
+    eval $cmd >> /dev/null 2>&1
+    ret=$?
+    set -e
+    if [ $ret -gt 0 ]; then
+		exit $ret
+	fi
+}
+
+function do_export()
+{
+	export PATH="$1/bin:${PATH}"
+	export LD_LIBRARY_PATH="$1/lib:${LD_LIBRARY_PATH}"
+	export MANPATH="$1/share/man:${MANPATH}"
+}
+
 function do_github_status()
 {
     echo "Calling: github $1"
@@ -66,11 +85,17 @@ function do_github_status()
 
 function check_env()
 {
-	if [ -n "$ghprbTargetBranch" -a "$ghprbTargetBranch" != "master" ]; then
+    if [ $(command -v ofed_info >/dev/null 2>&1 || echo $?) ]; then
+		echo "Configuration: INBOX : ${ghprbTargetBranch}"
+    elif [ -n "$ghprbTargetBranch" -a "$ghprbTargetBranch" != "master" ]; then
+		echo "Configuration: MOFED[$(ofed_info -s)] : ${ghprbTargetBranch}"
+
 		if [ $(ofed_info -s | grep 'MLNX_OFED_LINUX-3.2' >/dev/null 2>&1 || echo $?) ]; then
 		    echo "environment [NOT OK]"
 		    exit 0
 		fi
+	else
+		echo "Configuration: MOFED[$(ofed_info -s)] : master"
 	fi
 
     echo "environment [OK]"

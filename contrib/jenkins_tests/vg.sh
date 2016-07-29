@@ -4,14 +4,18 @@ source $(dirname $0)/globals.sh
 
 check_filter "Checking for valgrind ..." "on"
 
+# This unit requires module so check for existence
+if [ $(command -v module >/dev/null 2>&1 || echo $?) ]; then
+	echo "[SKIP] module tool does not exist"
+	exit 0
+fi
+module load tools/valgrind
+
 cd $WORKSPACE
 
 rm -rf $vg_dir
 mkdir -p $vg_dir
 cd $vg_dir
-
-
-module load tools/valgrind
 
 ${WORKSPACE}/configure --prefix=${vg_dir} --with-valgrind $jenkins_test_custom_configure
 
@@ -69,7 +73,6 @@ if [ -n "$ghprbGhRepository" ]; then
     context="MellanoxLab/valgrind"
     do_github_status "repo='$ghprbGhRepository' sha1='$ghprbActualCommit' target_url='$vg_url' state='$status' info='$info' context='$context'"
 fi
-
 
 module unload tools/valgrind
 

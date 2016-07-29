@@ -3,6 +3,10 @@
 source $(dirname $0)/globals.sh
 
 check_filter "Checking for test ..." "on"
+if [ $(command -v ibdev2netdev >/dev/null 2>&1 || echo $?) ]; then
+	echo "[SKIP] ibdev2netdev tool does not exist"
+	exit 0
+fi
 
 cd $WORKSPACE
 
@@ -10,8 +14,9 @@ rm -rf $test_dir
 mkdir -p $test_dir
 cd $test_dir
 
-git clone https://github.com/Mellanox/sockperf.git sockperf
+do_cmd "wget -O sockperf_v2.zip https://github.com/Mellanox/sockperf/archive/sockperf_v2.zip && unzip sockperf_v2.zip && mv sockperf-sockperf_v2 sockperf"
 cd sockperf
+
 ./autogen.sh
 ./configure --prefix=$PWD/install
 make install

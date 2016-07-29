@@ -39,8 +39,8 @@ else
 
     echo "1..$(($opt_tarball + $opt_srcrpm + $opt_binrpm))" > $rpm_tap
 
-	# SuSE can not create this folder
-	mkdir -p ${rpm_dir}/rpm-dist
+    # SuSE can not create this folder
+    mkdir -p ${rpm_dir}/rpm-dist
 
     test_id=0
     if [ $opt_tarball -eq 1 ]; then
