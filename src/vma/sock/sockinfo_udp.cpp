@@ -781,7 +781,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 								return -1;
 							} else {
 								errno = ENODEV;
-								si_udp_logdbg("SOL_SOCKET, SOF_TIMESTAMPING_RAW_HARDWARE and SOF_TIMESTAMPING_RX_HARDWARE is not supported by device(s), errno set to ENODEV");
+								si_udp_logerr("SOL_SOCKET, SOF_TIMESTAMPING_RAW_HARDWARE and SOF_TIMESTAMPING_RX_HARDWARE is not supported by device(s), errno set to ENODEV");
 								return -1;
 							}
 						}
