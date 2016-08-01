@@ -82,14 +82,14 @@ void ib_ctx_handler_collection::map_ib_devices() //return num_devices, can use r
 		ibchc_logwarn("Failure in rdma_get_devices() (error=%d %m)", errno);
 		ibchc_logwarn("Please check OFED installation");
 		free_ibchc_resources();
-		throw_vma_exception_no_msg();
+		throw_vma_exception("Failure in rdma_get_devices()");
 
 	}
 	if (!m_n_num_devices) {
 		rdma_free_devices(pp_ibv_context_list);
 		ibchc_logdbg("No RDMA capable devices found!");
 		free_ibchc_resources();
-		throw_vma_exception_no_msg();
+		throw_vma_exception("No RDMA capable devices found!");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 

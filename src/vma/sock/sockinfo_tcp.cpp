@@ -3843,7 +3843,7 @@ tcp_seg_pool::tcp_seg_pool(int size) {
 	if (m_tcp_segs_array == NULL) {
 		__log_dbg("TCP segments allocation failed");
 		free_tsp_resources();
-		throw_vma_exception_no_msg();
+		throw_vma_exception("TCP segments allocation failed");
 	}
 	memset(m_tcp_segs_array, 0, sizeof(tcp_seg) * size);
 	for (int i = 0; i < size - 1; i++) {
@@ -3908,7 +3908,7 @@ tcp_timers_collection::tcp_timers_collection(int period, int resolution)
 	if (!m_p_intervals) {
 		__log_dbg("failed to allocate memory");
 		free_tta_resources();
-		throw_vma_exception_no_msg();
+		throw_vma_exception("failed to allocate memory");
 	}
 
 	BULLSEYE_EXCLUDE_BLOCK_END

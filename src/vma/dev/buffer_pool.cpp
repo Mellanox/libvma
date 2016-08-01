@@ -113,7 +113,7 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 			if (!register_memory(size, m_p_ib_ctx_h, access)) {
 				__log_info_dbg("failed registering huge pages data memory block");
 				free_bpool_resources();
-				throw_vma_exception_no_msg();
+				throw_vma_exception("failed registering huge pages data memory block");
 			}
 			break;
 		}
@@ -144,13 +144,13 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 			__log_info_dbg("failed allocating data memory block (size=%d Kbytes) (errno=%d %m)",
 					size/1024, errno);
 			free_bpool_resources();
-			throw_vma_exception_no_msg();
+			throw_vma_exception("failed allocating data memory block");
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		if (!register_memory(size, m_p_ib_ctx_h, access)) {
 			__log_info_dbg("failed registering data memory block");
 			free_bpool_resources();
-			throw_vma_exception_no_msg();
+			throw_vma_exception("failed registering data memory block");
 		}
 		break;
 	}
@@ -293,7 +293,7 @@ bool buffer_pool::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint6
 				__log_info_dbg("Failed registering memory block with device (ptr=%p size=%ld%s) (errno=%d %m)",
 						m_data_block, size, errno);
 				free_bpool_resources();
-				throw_vma_exception_no_msg();
+				throw_vma_exception("Failed registering memory block");
 			} else {
 				__log_info_warn("Failed allocating or registering memory in contiguous mode. Please refer to README.txt for more info");
 				return false;
@@ -317,7 +317,7 @@ bool buffer_pool::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint6
 				__log_info_dbg("Failed registering memory block with device (ptr=%p size=%ld%s) (errno=%d %m)",
 						m_data_block, size, errno);
 				free_bpool_resources();
-				throw_vma_exception_no_msg();
+				throw_vma_exception("Failed registering memory");
 			} else {
 				__log_info_warn("Failed allocating or registering memory in contiguous mode. Please refer to README.txt for more info");
 				return false;
@@ -330,7 +330,7 @@ bool buffer_pool::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint6
 			if (!m_data_block) {
 				__log_info_dbg("Failed registering memory, check that OFED is loaded successfully");
 				free_bpool_resources();
-				throw_vma_exception_no_msg();
+				throw_vma_exception("Failed registering memory");
 			}
 		}
 		for (size_t i = 0; i < num_devices; ++i) {

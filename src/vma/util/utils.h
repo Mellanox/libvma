@@ -551,7 +551,6 @@ public:
 create_vma_exception_class(vma_unsupported_api, vma_error);
 
 #define throw_vma_exception(msg) throw vma_exception(msg, __PRETTY_FUNCTION__, __FILE__, __LINE__, errno)
-#define throw_vma_exception_no_msg() throw_vma_exception("an exception was thrown using a deprecated macro: throw_vma_exception_no_msg")
 // uses for throwing  something that is derived from vma_error and has similar CTOR; msg will automatically be class name
 #define vma_throw_object(_class)  throw _class(#_class, __PRETTY_FUNCTION__, __FILE__, __LINE__, errno)
 #define vma_throw_object_with_msg(_class, _msg)  throw _class(_msg, __PRETTY_FUNCTION__, __FILE__, __LINE__, errno)

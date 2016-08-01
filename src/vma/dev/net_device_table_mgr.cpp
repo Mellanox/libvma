@@ -85,25 +85,25 @@ net_device_table_mgr::net_device_table_mgr() : cache_table_mgr<ip_address,net_de
 	if (m_global_ring_epfd == -1) {
 		ndtm_logerr("epoll_create failed. (errno=%d %m)", errno);
 		free_ndtm_resources(); 
-		throw_vma_exception_no_msg(); 
+		throw_vma_exception("epoll_create failed"); 
 	}
 
 	if (orig_os_api.pipe(m_global_ring_pipe_fds)) {
 		ndtm_logerr("pipe create failed. (errno=%d %m)", errno);
 		free_ndtm_resources();
-		throw_vma_exception_no_msg();
+		throw_vma_exception("pipe create failed");
 	}
 	if (orig_os_api.write(m_global_ring_pipe_fds[1], "#", 1) != 1) {
 		ndtm_logerr("pipe write failed. (errno=%d %m)", errno);
 		free_ndtm_resources();
-		throw_vma_exception_no_msg();
+		throw_vma_exception("pipe write failed");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	if (map_net_devices()) {
 		ndtm_logdbg("map_net_devices failed");
 		free_ndtm_resources();
-		throw_vma_exception_no_msg();
+		throw_vma_exception("map_net_devices failed");
 	}
 
 	if (safe_mce_sys().progress_engine_interval_msec != MCE_CQ_DRAIN_INTERVAL_DISABLED && safe_mce_sys().progress_engine_wce_max != 0) {
