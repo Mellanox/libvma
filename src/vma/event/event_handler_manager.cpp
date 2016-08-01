@@ -235,7 +235,7 @@ event_handler_manager::event_handler_manager() : m_reg_action_q_lock("reg_action
 	if (m_epfd == -1) {
 		evh_logdbg("epoll_create failed on ibv device collection (errno=%d %m)", errno);
 		free_evh_resources();
-		throw_vma_exception_no_msg();
+		throw_vma_exception("epoll_create failed on ibv device collection");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 

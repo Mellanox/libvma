@@ -160,7 +160,7 @@ vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip")
 	if (!node) {
 		lwip_logdbg("LWIP: failed to register timer event");
 		free_lwip_resources();
-		throw_vma_exception_no_msg();
+		throw_vma_exception("LWIP: failed to register timer event");
 	}
 }
 
