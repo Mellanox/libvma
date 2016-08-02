@@ -207,6 +207,12 @@ private:
 	bool		m_b_rcvtstampns;
 	uint8_t		m_n_tsing_flags;
 
+	const bool	m_b_rx_poll_yield_loops;
+	const uint32_t	m_n_rx_udp_poll_os_ratio;
+	const uint32_t	m_n_rx_ready_byte_min_limit;
+	const uint32_t	m_n_rx_cq_drain_rate_nsec;
+	const uint32_t	m_n_rx_delta_tsc_between_cq_polls;
+
 	int mc_change_membership(const struct ip_mreq *p_mreq, int optname);
 	int mc_change_membership_start_helper(in_addr_t mc_grp, int optname);
 	int mc_change_membership_end_helper(in_addr_t mc_grp, int optname);

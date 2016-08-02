@@ -68,6 +68,7 @@ qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context, const
 	m_rx_num_wr(safe_mce_sys().rx_num_wr), m_tx_num_wr(tx_num_wr),
 	m_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv),
 	m_tx_num_wr_to_signal(safe_mce_sys().tx_num_wr_to_signal),
+	m_n_rx_prefetch_bytes_before_poll(safe_mce_sys().rx_prefetch_bytes_before_poll),
 	m_curr_rx_wr(0), m_last_posted_rx_wr_id(0), m_n_unsignaled_count(0), m_n_tx_count(0),
 	m_p_last_tx_mem_buf_desc(NULL), m_p_prev_rx_desc_pushed(NULL),
 	m_n_ip_id_base(0), m_n_ip_id_offset(0)
@@ -461,7 +462,7 @@ int qp_mgr::post_recv(mem_buf_desc_t* p_mem_buf_desc)
 		next = p_mem_buf_desc->p_next_desc;
 		p_mem_buf_desc->p_next_desc = NULL;
 
-		if (safe_mce_sys().rx_prefetch_bytes_before_poll) {
+		if (m_n_rx_prefetch_bytes_before_poll) {
 			if (m_p_prev_rx_desc_pushed)
 				m_p_prev_rx_desc_pushed->p_prev_desc = p_mem_buf_desc;
 			m_p_prev_rx_desc_pushed = p_mem_buf_desc;

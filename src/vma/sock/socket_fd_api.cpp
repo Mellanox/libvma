@@ -44,7 +44,7 @@
 #undef	__INFO__
 #define __INFO__		m_fd
 
-socket_fd_api::socket_fd_api(int fd) : m_epoll_event_flags(0), m_fd(fd), m_econtext(NULL)
+socket_fd_api::socket_fd_api(int fd) : m_epoll_event_flags(0), m_fd(fd), m_n_select_poll_os_ratio(safe_mce_sys().select_poll_os_ratio), m_econtext(NULL)
 {
 }
 

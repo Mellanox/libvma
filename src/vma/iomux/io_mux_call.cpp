@@ -167,6 +167,11 @@ inline void io_mux_call::zero_polling_cpu(timeval current)
 
 io_mux_call::io_mux_call(int *off_fds_buffer, offloaded_mode_t *off_modes_buffer, int num_fds, const sigset_t *sigmask) :
 	m_check_sig_pending_ratio(0),
+	m_n_select_skip_os_fd_check(safe_mce_sys().select_skip_os_fd_check),
+	m_n_select_poll_os_ratio(safe_mce_sys().select_poll_os_ratio),
+	m_n_select_poll_num(safe_mce_sys().select_poll_num),
+	m_b_select_poll_os_force(safe_mce_sys().select_poll_os_force),
+	m_b_select_handle_cpu_usage_stats(safe_mce_sys().select_handle_cpu_usage_stats),
 	m_p_all_offloaded_fds(off_fds_buffer),
 	m_p_offloaded_modes(off_modes_buffer),
 	m_num_all_offloaded_fds(0),
@@ -266,23 +271,23 @@ void io_mux_call::polling_loops()
 	 * In all other times, OS is never polled first (even if ratio is 1).
 	 */
 	if (--m_n_skip_os_count <= 0) {
-		m_n_skip_os_count = safe_mce_sys().select_skip_os_fd_check;
+		m_n_skip_os_count = m_n_select_skip_os_fd_check;
 		poll_os_countdown = 0;
 	} else {
-		poll_os_countdown = safe_mce_sys().select_poll_os_ratio;
+		poll_os_countdown = m_n_select_poll_os_ratio;
 	}
 
 	poll_counter = 0;
-	finite_polling = safe_mce_sys().select_poll_num != -1;
-	multiple_polling_loops = safe_mce_sys().select_poll_num != 0;
+	finite_polling = m_n_select_poll_num != -1;
+	multiple_polling_loops = m_n_select_poll_num != 0;
 
 	timeval poll_duration;
 	tv_clear(&poll_duration);
-	poll_duration.tv_usec = safe_mce_sys().select_poll_num;
+	poll_duration.tv_usec = m_n_select_poll_num;
 
 	__if_dbg("2nd scenario start");
 
-	if (safe_mce_sys().select_handle_cpu_usage_stats) {
+	if (m_b_select_handle_cpu_usage_stats) {
 		// handle polling cpu statistics
 		if (!tv_isset(&g_last_zero_polling_time)) {
 			// after first loop - set
@@ -300,14 +305,14 @@ void io_mux_call::polling_loops()
 		__log_funcall("2nd scenario loop %d", poll_counter);
 		__log_funcall("poll_os_countdown=%d, select_poll_os_ratio=%d, check_timer_countdown=%d, m_num_offloaded_rfds=%d,"
 		              "  m_n_all_ready_fds=%d, m_n_ready_rfds=%d, m_n_ready_wfds=%d, m_n_ready_efds=%d, multiple_polling_loops=%d",
-		              poll_os_countdown, safe_mce_sys().select_poll_os_ratio, check_timer_countdown, *m_p_num_all_offloaded_fds,
+		              poll_os_countdown, m_n_select_poll_os_ratio, check_timer_countdown, *m_p_num_all_offloaded_fds,
 		              m_n_all_ready_fds, m_n_ready_rfds, m_n_ready_wfds, m_n_ready_efds, multiple_polling_loops);
 
 		/*
 		* Poll OS when count down reaches zero. This honors CQ-OS ratio.
 		* This also handles the 0 ratio case - do not poll OS at all.
 		*/
-		if (poll_os_countdown-- == 0 && safe_mce_sys().select_poll_os_ratio > 0) {
+		if (poll_os_countdown-- == 0 && m_n_select_poll_os_ratio > 0) {
 			bool cq_ready = wait_os(true);
 			if (cq_ready) {
 				// This will empty the cqepfd
@@ -327,7 +332,7 @@ void io_mux_call::polling_loops()
 				check_all_offloaded_sockets(&m_poll_sn);
 				break;
 			}
-			poll_os_countdown = safe_mce_sys().select_poll_os_ratio - 1;
+			poll_os_countdown = m_n_select_poll_os_ratio - 1;
 		}
 
 		/*
@@ -374,7 +379,7 @@ void io_mux_call::polling_loops()
 		}
 	} while (m_n_all_ready_fds == 0 && multiple_polling_loops);
 
-	if (safe_mce_sys().select_handle_cpu_usage_stats) {
+	if (m_b_select_handle_cpu_usage_stats) {
         	// handle polling cpu statistics
 		gettime(&after_polling_timer);
 
@@ -474,7 +479,7 @@ int io_mux_call::call()
 
 	__log_funcall("");
 
-	if (!safe_mce_sys().select_poll_os_force  // TODO: evaluate/consider this logic
+	if (!m_b_select_poll_os_force  // TODO: evaluate/consider this logic
 			&& (*m_p_num_all_offloaded_fds == 0))
 	{
 		// 1st scenario

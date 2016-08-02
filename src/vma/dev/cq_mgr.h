@@ -34,8 +34,6 @@
 #ifndef CQ_MGR_H
 #define CQ_MGR_H
 
-#include <map>
-
 #include "vma/util/sys_vars.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/util/atomic.h"
@@ -180,6 +178,13 @@ private:
 	bool				m_b_notification_armed;
 	bool				m_b_was_drained;
 	uint32_t			m_n_wce_counter;
+	const uint32_t			m_n_rx_prefetch_bytes_before_poll;
+	const size_t			m_n_rx_prefetch_bytes;
+	const int			m_n_rx_num_wr_to_post_recv;
+	const uint32_t			m_n_cq_poll_batch_max;
+	const uint32_t			m_n_qp_compensation_level;
+	const bool			m_b_cq_keep_qp_full;
+	const uint32_t			m_n_progress_engine_wce_max;
 	qp_rec				m_qp_rec;
 
 	mem_buf_desc_t*			m_p_next_rx_desc_poll;

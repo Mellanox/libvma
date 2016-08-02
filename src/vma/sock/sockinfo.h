@@ -154,6 +154,8 @@ protected:
 
 	loops_timer             m_loops_timer;
 
+	const int32_t		m_n_rx_poll_num;
+
 	/**
 	 * list of pending ready packet on the Rx,
 	 * each element is a pointer to the ib_conn_mgr that holds this ready rx datagram
