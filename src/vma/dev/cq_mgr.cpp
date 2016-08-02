@@ -160,7 +160,7 @@ inline uint32_t cq_mgr::process_recv_queue(void* pv_fd_ready_array)
 		mem_buf_desc_t* buff = m_rx_queue.front();
 		m_rx_queue.pop_front();
 		process_recv_buffer(buff, pv_fd_ready_array);
-		if (++processed >= safe_mce_sys().cq_poll_batch_max)
+		if (++processed >= m_n_sysvar_cq_poll_batch_max)
 			break;
 	}
 	m_p_cq_stat->n_rx_sw_queue_len = m_rx_queue.size();
@@ -168,8 +168,12 @@ inline uint32_t cq_mgr::process_recv_queue(void* pv_fd_ready_array)
 }
 
 cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx) :
-		m_p_ring(p_ring), m_p_ib_ctx_handler(p_ib_ctx_handler), m_b_is_rx(is_rx), m_b_is_rx_sw_csum_on(safe_mce_sys().rx_sw_csum),
-		m_comp_event_channel(p_comp_event_channel), m_p_next_rx_desc_poll(NULL)
+		m_p_ring(p_ring), m_p_ib_ctx_handler(p_ib_ctx_handler), m_b_is_rx(is_rx), m_b_sysvar_is_rx_sw_csum_on(safe_mce_sys().rx_sw_csum),
+		m_comp_event_channel(p_comp_event_channel), m_n_sysvar_rx_prefetch_bytes_before_poll(safe_mce_sys().rx_prefetch_bytes_before_poll),
+		m_n_sysvar_rx_prefetch_bytes(safe_mce_sys().rx_prefetch_bytes), m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv),
+		m_n_sysvar_cq_poll_batch_max(safe_mce_sys().cq_poll_batch_max), m_n_sysvar_qp_compensation_level(safe_mce_sys().qp_compensation_level),
+		m_b_sysvar_cq_keep_qp_full(safe_mce_sys().cq_keep_qp_full), m_n_sysvar_progress_engine_wce_max(safe_mce_sys().progress_engine_wce_max),
+		m_p_next_rx_desc_poll(NULL)
 {
 	cq_logfunc("");
 
@@ -330,7 +334,7 @@ void cq_mgr::add_qp_rx(qp_mgr* qp)
 	uint32_t qp_rx_wr_num = qp->get_rx_max_wr_num();
 	cq_logdbg("Trying to push %d WRE to allocated qp (%p)", qp_rx_wr_num, qp);
 	while (qp_rx_wr_num) {
-		uint32_t n_num_mem_bufs = safe_mce_sys().rx_num_wr_to_post_recv;
+		uint32_t n_num_mem_bufs = m_n_sysvar_rx_num_wr_to_post_recv;
 		if (n_num_mem_bufs > qp_rx_wr_num)
 			n_num_mem_bufs = qp_rx_wr_num;
 		p_temp_desc_list = g_buffer_pool_rx->get_buffers_thread_safe(n_num_mem_bufs, m_p_ib_ctx_handler);
@@ -386,11 +390,11 @@ bool cq_mgr::request_more_buffers()
 {
 	mem_buf_desc_t *p_temp_desc_list, *p_temp_buff;
 
-	cq_logfuncall("Allocating additional %d buffers for internal use", safe_mce_sys().qp_compensation_level);
+	cq_logfuncall("Allocating additional %d buffers for internal use", m_n_sysvar_qp_compensation_level);
 
 	// Assume locked!
 	// Add an additional free buffer descs to RX cq mgr
-	p_temp_desc_list = g_buffer_pool_rx->get_buffers_thread_safe(safe_mce_sys().qp_compensation_level, m_p_ib_ctx_handler);
+	p_temp_desc_list = g_buffer_pool_rx->get_buffers_thread_safe(m_n_sysvar_qp_compensation_level, m_p_ib_ctx_handler);
 	if (p_temp_desc_list == NULL) {
 		cq_logfunc("Out of mem_buf_desc from RX free pool for internal object pool");
 		return false;
@@ -410,9 +414,9 @@ bool cq_mgr::request_more_buffers()
 
 void cq_mgr::return_extra_buffers()
 {
-	if (m_rx_pool.size() < safe_mce_sys().qp_compensation_level * 2)
+	if (m_rx_pool.size() < m_n_sysvar_qp_compensation_level * 2)
 		return;
-	int buff_to_rel = m_rx_pool.size() - safe_mce_sys().qp_compensation_level;
+	int buff_to_rel = m_rx_pool.size() - m_n_sysvar_qp_compensation_level;
 
 	cq_logfunc("releasing %d buffers to global rx pool", buff_to_rel);
 	g_buffer_pool_rx->put_buffers_thread_safe(&m_rx_pool, buff_to_rel);
@@ -531,7 +535,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 	bool bad_wce = p_wce->status != IBV_WC_SUCCESS;
 	bool is_rx_sw_csum_need;
 
-	if  (m_b_is_rx_sw_csum_on) {
+	if  (m_b_sysvar_is_rx_sw_csum_on) {
 		// no changes in bad_wce
 		is_rx_sw_csum_need = !(m_b_is_rx_hw_csum_on && vma_wc_rx_hw_csum_ok(*p_wce));
 	} else {
@@ -564,7 +568,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 		return NULL;
 	}
 
-	if (safe_mce_sys().rx_prefetch_bytes_before_poll) {
+	if (m_n_sysvar_rx_prefetch_bytes_before_poll) {
 		/*for debug:
 		if (m_p_next_rx_desc_poll && m_p_next_rx_desc_poll != p_mem_buf_desc) {
 			cq_logerr("prefetched wrong buffer");
@@ -602,7 +606,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 		VALGRIND_MAKE_MEM_DEFINED(p_mem_buf_desc->p_buffer, p_mem_buf_desc->sz_data);
 
 		prefetch_range((uint8_t*)p_mem_buf_desc->p_buffer + m_sz_transport_header, 
-				min(p_mem_buf_desc->sz_data - m_sz_transport_header, (size_t)safe_mce_sys().rx_prefetch_bytes));
+				min(p_mem_buf_desc->sz_data - m_sz_transport_header, (size_t)m_n_sysvar_rx_prefetch_bytes));
 		//prefetch((uint8_t*)p_mem_buf_desc->p_buffer + m_sz_transport_header);
 	}
 
@@ -615,7 +619,7 @@ bool cq_mgr::compensate_qp_poll_success(mem_buf_desc_t* buff_cur)
 	// Compensate QP for all completions that we found
 	if (likely(m_qp_rec.qp)) {
 		++m_qp_rec.debth;
-		if (likely(m_qp_rec.debth < (int)safe_mce_sys().rx_num_wr_to_post_recv)) {
+		if (likely(m_qp_rec.debth < (int)m_n_sysvar_rx_num_wr_to_post_recv)) {
 			return false;
 		}
 		if (m_rx_pool.size() || request_more_buffers()) {
@@ -626,7 +630,7 @@ bool cq_mgr::compensate_qp_poll_success(mem_buf_desc_t* buff_cur)
 			} while (--m_qp_rec.debth > 0 && m_rx_pool.size());
 			m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
 		}
-		else if (safe_mce_sys().cq_keep_qp_full ||
+		else if (m_b_sysvar_cq_keep_qp_full ||
 				m_qp_rec.debth + MCE_MAX_CQ_POLL_BATCH > (int)m_qp_rec.qp->get_rx_max_wr_num()) {
 			m_p_cq_stat->n_rx_pkt_drop++;
 			post_recv_qp(&m_qp_rec, buff_cur);
@@ -718,19 +722,19 @@ int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready
 
 	int ret;
 	uint32_t ret_rx_processed = process_recv_queue(pv_fd_ready_array);
-	if (unlikely(ret_rx_processed >= safe_mce_sys().cq_poll_batch_max)) {
+	if (unlikely(ret_rx_processed >= m_n_sysvar_cq_poll_batch_max)) {
 		m_p_ring->m_gro_mgr.flush_all(pv_fd_ready_array);
 		return ret_rx_processed;
 	}
 
 	if (m_p_next_rx_desc_poll) {
-		prefetch_range((uint8_t*)m_p_next_rx_desc_poll->p_buffer,safe_mce_sys().rx_prefetch_bytes_before_poll);
+		prefetch_range((uint8_t*)m_p_next_rx_desc_poll->p_buffer, m_n_sysvar_rx_prefetch_bytes_before_poll);
 	}
 
-	ret = poll(wce, safe_mce_sys().cq_poll_batch_max, p_cq_poll_sn);
+	ret = poll(wce, m_n_sysvar_cq_poll_batch_max, p_cq_poll_sn);
 	if (ret > 0) {
 		m_n_wce_counter += ret;
-		if (ret < (int)safe_mce_sys().cq_poll_batch_max)
+		if (ret < (int)m_n_sysvar_cq_poll_batch_max)
 			m_b_was_drained = true;
 
 		for (int i = 0; i < ret; i++) {
@@ -759,10 +763,10 @@ int cq_mgr::poll_and_process_helper_tx(uint64_t* p_cq_poll_sn)
 
 	/* coverity[stack_use_local_overflow] */
 	vma_ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
-	int ret = poll(wce, safe_mce_sys().cq_poll_batch_max, p_cq_poll_sn);
+	int ret = poll(wce, m_n_sysvar_cq_poll_batch_max, p_cq_poll_sn);
 	if (ret > 0) {
 		m_n_wce_counter += ret;
-		if (ret < (int)safe_mce_sys().cq_poll_batch_max)
+		if (ret < (int)m_n_sysvar_cq_poll_batch_max)
 			m_b_was_drained = true;
 
 		for (int i = 0; i < ret; i++) {
@@ -848,7 +852,7 @@ int cq_mgr::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/
 		m_b_was_drained = false;
 	}
 
-	while ((safe_mce_sys().progress_engine_wce_max && (safe_mce_sys().progress_engine_wce_max > m_n_wce_counter)) && 
+	while ((m_n_sysvar_progress_engine_wce_max && (m_n_sysvar_progress_engine_wce_max > m_n_wce_counter)) &&
 		!m_b_was_drained) {
 
 		/* coverity[stack_use_local_overflow] */

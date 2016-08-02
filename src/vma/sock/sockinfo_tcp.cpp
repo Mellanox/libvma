@@ -118,7 +118,7 @@ inline int sockinfo_tcp::rx_wait(int &poll_count, bool is_blocking)
 inline void sockinfo_tcp::return_pending_rx_buffs()
 {
     // force reuse of buffers especially for avoiding deadlock in case all buffers were taken and we can NOT get new FIN packets that will release buffers
-	if (safe_mce_sys().buffer_batching_mode == BUFFER_BATCHING_NO_RECLAIM || !m_rx_reuse_buff.n_buff_num)
+	if (m_sysvar_buffer_batching_mode == BUFFER_BATCHING_NO_RECLAIM || !m_rx_reuse_buff.n_buff_num)
 		return;
 
     if (m_rx_reuse_buf_pending) {
@@ -136,7 +136,7 @@ inline void sockinfo_tcp::return_pending_rx_buffs()
 
 inline void sockinfo_tcp::return_pending_tx_buffs()
 {
-	if (safe_mce_sys().buffer_batching_mode == BUFFER_BATCHING_NO_RECLAIM || !m_p_connected_dst_entry)
+	if (m_sysvar_buffer_batching_mode == BUFFER_BATCHING_NO_RECLAIM || !m_p_connected_dst_entry)
 		return;
 
 	m_p_connected_dst_entry->return_buffers_pool();
@@ -150,10 +150,10 @@ inline void sockinfo_tcp::reuse_buffer(mem_buf_desc_t *buff)
 	if (likely(m_p_rx_ring)) {
 		m_rx_reuse_buff.n_buff_num += buff->n_frags;
 		m_rx_reuse_buff.rx_reuse.push_back(buff);
-		if (m_rx_reuse_buff.n_buff_num < m_rx_num_buffs_reuse) {
+		if (m_rx_reuse_buff.n_buff_num < m_n_sysvar_rx_num_buffs_reuse) {
 			return;
 		}
-		if (m_rx_reuse_buff.n_buff_num >= 2 * m_rx_num_buffs_reuse) {
+		if (m_rx_reuse_buff.n_buff_num >= 2 * m_n_sysvar_rx_num_buffs_reuse) {
 			if (m_p_rx_ring->reclaim_recv_buffers(&m_rx_reuse_buff.rx_reuse)) {
 				m_rx_reuse_buff.n_buff_num = 0;
 			} else {
@@ -173,7 +173,10 @@ inline void sockinfo_tcp::reuse_buffer(mem_buf_desc_t *buff)
 sockinfo_tcp::sockinfo_tcp(int fd) throw (vma_exception) :
         sockinfo(fd),
         m_timer_handle(NULL),
-        m_timer_pending(false)
+        m_timer_pending(false),
+        m_sysvar_buffer_batching_mode(safe_mce_sys().buffer_batching_mode),
+        m_sysvar_tcp_ctl_thread(safe_mce_sys().tcp_ctl_thread),
+        m_sysvar_internal_thread_tcp_timer_handling(safe_mce_sys().internal_thread_tcp_timer_handling)
 {
 	si_tcp_logfuncall("");
 
@@ -1028,7 +1031,7 @@ void sockinfo_tcp::process_my_ctl_packets()
 		peer_key pk(desc->path.rx.src.sin_addr.s_addr, desc->path.rx.src.sin_port);
 
 
-		static const unsigned int MAX_SYN_RCVD = safe_mce_sys().tcp_ctl_thread > CTL_THREAD_DISABLE ? safe_mce_sys().sysctl_reader.get_tcp_max_syn_backlog() : 0;
+		static const unsigned int MAX_SYN_RCVD = m_sysvar_tcp_ctl_thread > CTL_THREAD_DISABLE ? safe_mce_sys().sysctl_reader.get_tcp_max_syn_backlog() : 0;
 		// NOTE: currently, in case tcp_ctl_thread is disabled, only established backlog is supported (no syn-rcvd backlog)
 		unsigned int num_con_waiting = m_rx_peer_packets.size();
 
@@ -1145,10 +1148,10 @@ void sockinfo_tcp::handle_timer_expired(void* user_data)
 	NOT_IN_USE(user_data);
 	si_tcp_logfunc("");
 
-	if (safe_mce_sys().tcp_ctl_thread > CTL_THREAD_DISABLE)
+	if (m_sysvar_tcp_ctl_thread > CTL_THREAD_DISABLE)
 		process_rx_ctl_packets();
 
-	if (safe_mce_sys().internal_thread_tcp_timer_handling == INTERNAL_THREAD_TCP_TIMER_HANDLING_DEFERRED) {
+	if (m_sysvar_internal_thread_tcp_timer_handling == INTERNAL_THREAD_TCP_TIMER_HANDLING_DEFERRED) {
 		// DEFERRED. if Internal thread is here first and m_timer_pending is false it jsut 
 		// sets it as true for its next iteration (within 100ms), letting 
 		// application threads have a chance of running tcp_timer()
@@ -1592,7 +1595,7 @@ void sockinfo_tcp::queue_rx_ctl_packet(struct tcp_pcb* pcb, mem_buf_desc_t *p_de
 		m_ready_pcbs[pcb] = 1;
 	}
 
-	if (safe_mce_sys().tcp_ctl_thread == CTL_THREAD_WITH_WAKEUP)
+	if (m_sysvar_tcp_ctl_thread == CTL_THREAD_WITH_WAKEUP)
 		g_p_event_handler_manager->wakeup_timer_event(this, m_timer_handle);
 
 	return;
@@ -1617,7 +1620,7 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 
 			/// respect TCP listen backlog - See redmine issue #565962
 			/// distinguish between backlog of established sockets vs. backlog of syn-rcvd
-			static const unsigned int MAX_SYN_RCVD = safe_mce_sys().tcp_ctl_thread > CTL_THREAD_DISABLE ? safe_mce_sys().sysctl_reader.get_tcp_max_syn_backlog() : 0;
+			static const unsigned int MAX_SYN_RCVD = m_sysvar_tcp_ctl_thread > CTL_THREAD_DISABLE ? safe_mce_sys().sysctl_reader.get_tcp_max_syn_backlog() : 0;
 							// NOTE: currently, in case tcp_ctl_thread is disabled, only established backlog is supported (no syn-rcvd backlog)
 
 			unsigned int num_con_waiting = m_rx_peer_packets.size();
@@ -1636,7 +1639,7 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 				return false;// return without inc_ref_count() => packet will be dropped
 			}
 		}
-		if (safe_mce_sys().tcp_ctl_thread > CTL_THREAD_DISABLE || established_backlog_full) { /* 2nd check only worth when MAX_SYN_RCVD>0 for non tcp_ctl_thread  */
+		if (m_sysvar_tcp_ctl_thread > CTL_THREAD_DISABLE || established_backlog_full) { /* 2nd check only worth when MAX_SYN_RCVD>0 for non tcp_ctl_thread  */
 			queue_rx_ctl_packet(pcb, p_rx_pkt_mem_buf_desc_info); // TODO: need to trigger queue pulling from accept in case no tcp_ctl_thread
 			unlock_tcp_con();
 			return true;
@@ -2154,7 +2157,7 @@ int sockinfo_tcp::listen(int backlog)
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	if (safe_mce_sys().tcp_ctl_thread > CTL_THREAD_DISABLE)
+	if (m_sysvar_tcp_ctl_thread > CTL_THREAD_DISABLE)
 		m_timer_handle = g_p_event_handler_manager->register_timer_event(safe_mce_sys().timer_resolution_msec , this, PERIODIC_TIMER, 0, NULL);
 
 	unlock_tcp_con();
@@ -2166,7 +2169,7 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 {
 	sockinfo_tcp *ns;
 	//todo do one CQ poll and go to sleep even if infinite polling was set
-	int poll_count = safe_mce_sys().rx_poll_num; //do one poll and go to sleep (if blocking)
+	int poll_count = m_n_sysvar_rx_poll_num; //do one poll and go to sleep (if blocking)
 	int ret;
 
 	si_tcp_logfuncall("");
@@ -2262,7 +2265,7 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 		m_received_syn_num--;
 	}
 
-	if (safe_mce_sys().tcp_ctl_thread == CTL_THREAD_WITH_WAKEUP && !m_rx_peer_packets.empty())
+	if (m_sysvar_tcp_ctl_thread == CTL_THREAD_WITH_WAKEUP && !m_rx_peer_packets.empty())
 		g_p_event_handler_manager->wakeup_timer_event(this, m_timer_handle);
 
 	unlock_tcp_con();
@@ -2329,7 +2332,7 @@ sockinfo_tcp *sockinfo_tcp::accept_clone()
         si->m_sock_state = TCP_SOCK_BOUND;
         si->setPassthrough(false);
 
-        if (safe_mce_sys().tcp_ctl_thread  > CTL_THREAD_DISABLE) {
+        if (m_sysvar_tcp_ctl_thread  > CTL_THREAD_DISABLE) {
         	tcp_ip_output(&si->m_pcb, sockinfo_tcp::ip_output_syn_ack);
         }
 
@@ -2397,7 +2400,7 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 		new_sock->m_p_rx_ring = rx_ring_iter->first;
 	}
 
-	if (safe_mce_sys().tcp_ctl_thread > CTL_THREAD_DISABLE) {
+	if (new_sock->m_sysvar_tcp_ctl_thread > CTL_THREAD_DISABLE) {
 		new_sock->m_vma_thr = true;
 
 		// Before handling packets from flow steering the child should process everything it got from parent
@@ -3491,7 +3494,7 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 		return -1;
         }
 
-	if (poll_count < safe_mce_sys().rx_poll_num || safe_mce_sys().rx_poll_num == -1) {
+	if (poll_count < m_n_sysvar_rx_poll_num || m_n_sysvar_rx_poll_num == -1) {
 		return 0;
 	}
 

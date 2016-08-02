@@ -34,8 +34,6 @@
 #ifndef CQ_MGR_H
 #define CQ_MGR_H
 
-#include <map>
-
 #include "vma/util/sys_vars.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/util/atomic.h"
@@ -175,12 +173,19 @@ private:
 	ib_ctx_handler*			m_p_ib_ctx_handler;
 	bool				m_b_is_rx;
 	bool				m_b_is_rx_hw_csum_on;
-	const bool			m_b_is_rx_sw_csum_on;
+	const bool			m_b_sysvar_is_rx_sw_csum_on;
 	struct ibv_comp_channel*	m_comp_event_channel;
 	struct ibv_cq*			m_p_ibv_cq;
 	bool				m_b_notification_armed;
 	bool				m_b_was_drained;
 	uint32_t			m_n_wce_counter;
+	const uint32_t			m_n_sysvar_rx_prefetch_bytes_before_poll;
+	const uint32_t			m_n_sysvar_rx_prefetch_bytes;
+	const uint32_t			m_n_sysvar_rx_num_wr_to_post_recv;
+	const uint32_t			m_n_sysvar_cq_poll_batch_max;
+	const uint32_t			m_n_sysvar_qp_compensation_level;
+	const bool			m_b_sysvar_cq_keep_qp_full;
+	const uint32_t			m_n_sysvar_progress_engine_wce_max;
 	qp_rec				m_qp_rec;
 
 	mem_buf_desc_t*			m_p_next_rx_desc_poll;
