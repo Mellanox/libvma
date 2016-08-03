@@ -3784,7 +3784,7 @@ void sockinfo_tcp::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 	vlog_printf(log_level, "Segment size : mss %hu, advtsd_mss %hu\n", pcb.mss, pcb.advtsd_mss);
 
 	// Window scaling
-	if (enable_wnd_scale && (pcb.flags & TF_WND_SCALE)) {
+	if (pcb.flags & TF_WND_SCALE) {
 		vlog_printf(log_level, "Window scaling : ENABLED , rcv_scale %u , snd_scale %u\n", pcb.rcv_scale, pcb.snd_scale);
 
 		// Receive and send windows
@@ -3851,7 +3851,7 @@ void sockinfo_tcp::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 
 	// TCP timestamp
 #if LWIP_TCP_TIMESTAMPS
-	if (pcb.enable_ts_opt) {
+	if (pcb.flags & TF_TIMESTAMP) {
 		vlog_printf(log_level, "Timestamp : ts_lastacksent %u , ts_recent %u\n", pcb.ts_lastacksent, pcb.ts_recent);
 	}
 #endif

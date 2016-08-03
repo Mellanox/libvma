@@ -987,6 +987,13 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 	
 	set_signal_action();
 	
+	if (user_params.fd_to_dump != STATS_FD_STATISTICS_DISABLED) {
+		if (user_params.fd_to_dump)
+			log_msg("Dumping Fd %d to VMA using log level = INFO...", user_params.fd_to_dump);
+		else
+			log_msg("Dumping all Fd's to VMA using log level = INFO...");
+	}
+
 	while (!g_b_exit && proc_running && (user_params.cycles ? (cycles < user_params.cycles) : (true)))
 	{
 		++cycles;
@@ -994,14 +1001,6 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 		if (gettime(&start)) {
 			log_system_err("gettime()");
 			return;
-		}
-		
-		if (user_params.fd_to_dump != STATS_FD_STATISTICS_DISABLED) {
-			if (user_params.fd_to_dump)
-				log_msg("Dumping Fd %d to VMA using log level = INFO...", user_params.fd_to_dump);
-			else
-				log_msg("Dumping all Fd's to VMA using log level = INFO...");
-			break;
 		}
 
 		if (user_params.print_details_mode == e_deltas) {

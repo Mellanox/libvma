@@ -2173,6 +2173,9 @@ void sockinfo_udp::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 
 	// Socket data
 	vlog_printf(log_level, "Rx ready list size : %u\n", m_rx_pkt_ready_list.size());
+
+	vlog_printf(log_level, "Socket timestamp : m_b_rcvtstamp %s, m_b_rcvtstampns %s, m_n_tsing_flags %u\n",
+			m_b_rcvtstamp ? "true" : "false" , m_b_rcvtstampns ? "true" : "false", m_n_tsing_flags);
 }
 
 void sockinfo_udp::save_stats_threadid_rx()
