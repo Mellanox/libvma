@@ -110,7 +110,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 #ifdef VMA_NO_HW_CSUM
 		dst_udp_logfunc("using SW checksum calculation");
 		m_header.m_header.hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
-		m_header.m_header.hdr.m_ip_hdr.check = csum((unsigned short*)&m_header.m_header.hdr.m_ip_hdr, m_header.m_header.hdr.m_ip_hdr.ihl * 2);
+		m_header.m_header.hdr.m_ip_hdr.check = compute_ip_checksum((unsigned short*)&m_header.m_header.hdr.m_ip_hdr, m_header.m_header.hdr.m_ip_hdr.ihl * 2);
 #endif
 		// Get a bunch of tx buf descriptor and data buffers
 		if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
@@ -237,7 +237,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 			if (b_need_sw_csum) {
 				dst_udp_logfunc("ip fragmentation detected, using SW checksum calculation");
 				p_pkt->hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
-				p_pkt->hdr.m_ip_hdr.check = csum((unsigned short*)&p_pkt->hdr.m_ip_hdr, p_pkt->hdr.m_ip_hdr.ihl * 2);
+				p_pkt->hdr.m_ip_hdr.check = compute_ip_checksum((unsigned short*)&p_pkt->hdr.m_ip_hdr, p_pkt->hdr.m_ip_hdr.ihl * 2);
 				m_p_send_wqe_handler->disable_hw_csum(m_not_inline_send_wqe);
 			} else {
 				dst_udp_logfunc("using HW checksum calculation");
