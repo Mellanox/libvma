@@ -45,7 +45,13 @@ else
     test_id=0
     if [ $opt_tarball -eq 1 ]; then
         test_id=$((test_id+1))
-        test_exec='make dist && make distcheck'
+        # Automake 1.10.1 has a bug https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=456632
+        if [ -n "$(automake --version | grep 'automake (GNU automake) 1.10.1')" ]; then
+            test_exec='make dist'
+        else
+            test_exec='make dist && make distcheck'
+        fi
+
         check_result "$test_exec" "$test_id" "tarball" "$rpm_tap"
         eval $timeout_exe cp libvma*.tar.gz ${rpm_dir}
     fi
