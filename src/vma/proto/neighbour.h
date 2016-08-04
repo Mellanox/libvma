@@ -349,11 +349,9 @@ protected:
 
 private:
 	bool 			m_is_first_send_arp;
-
-	const uint32_t	m_n_neigh_wait_till_send_arp_msec;
-	const uint32_t 	m_n_neigh_uc_arp_quata;
-	const uint32_t	m_n_neigh_num_err_retries;
-
+	const uint32_t		m_n_neigh_wait_till_send_arp_msec;
+	const uint32_t		m_n_neigh_uc_arp_quata;
+	const uint32_t		m_n_neigh_num_err_retries;
 	event_t 		rdma_event_mapping(struct rdma_cm_event* p_event);
 	void 			empty_unsent_queue();
 	bool 			post_send_packet(uint8_t protocol, iovec * iov, header *h);

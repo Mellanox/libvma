@@ -58,7 +58,6 @@ protected:
 	size_t m_n_tx_ip_id;
 
 private:
-
 	const uint32_t m_n_tx_bufs_batch_udp;
 	const bool m_b_tx_nonblocked_eagains;
 	const thread_mode_t	m_thread_mode;
