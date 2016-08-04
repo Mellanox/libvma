@@ -56,15 +56,21 @@ struct iphdr; //forward declaration
 int check_if_regular_file (char *path);
 
 /**
- * Check Sum extensions
+ * IP Header Checksum Calculation
  */
-unsigned short csum(const unsigned short *buf, unsigned int nshort_words);
+unsigned short compute_ip_checksum(const unsigned short *buf, unsigned int nshort_words);
 
 /**
 * get tcp checksum: given IP header and tcp segment (assume checksum field in TCP header contains zero)
 * matches RFC 793
 */
 unsigned short compute_tcp_checksum(const struct iphdr *p_iphdr, const uint16_t *p_ip_payload);
+
+/**
+* get udp checksum: given IP header and UDP datagram (assume checksum field in UDP header contains zero)
+* matches RFC 793
+*/
+unsigned short compute_udp_checksum(const struct iphdr *p_iphdr, const uint16_t *p_ip_payload);
 
 /**
  * get user space max number of open fd's using getrlimit, default parameter equals to 1024

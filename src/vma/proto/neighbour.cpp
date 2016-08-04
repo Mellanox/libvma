@@ -476,7 +476,7 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 		if (b_need_sw_csum) {
 			neigh_logdbg("ip fragmentation detected, using SW checksum calculation");
 			p_pkt->hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
-			p_pkt->hdr.m_ip_hdr.check = csum((unsigned short*)&p_pkt->hdr.m_ip_hdr, p_pkt->hdr.m_ip_hdr.ihl * 2);
+			p_pkt->hdr.m_ip_hdr.check = compute_ip_checksum((unsigned short*)&p_pkt->hdr.m_ip_hdr, p_pkt->hdr.m_ip_hdr.ihl * 2);
 			wqe_sh.disable_hw_csum(m_send_wqe);
 		} else {
 			neigh_logdbg("using HW checksum calculation");
@@ -561,7 +561,7 @@ bool neigh_entry::post_send_tcp(iovec *iov, header *h)
 	m_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
 #ifdef VMA_NO_HW_CSUM
 		p_pkt->hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
-		p_pkt->hdr.m_ip_hdr.check = csum((unsigned short*)&p_pkt->hdr.m_ip_hdr, p_pkt->hdr.m_ip_hdr.ihl * 2);
+		p_pkt->hdr.m_ip_hdr.check = compute_ip_checksum((unsigned short*)&p_pkt->hdr.m_ip_hdr, p_pkt->hdr.m_ip_hdr.ihl * 2);
 		struct tcphdr* p_tcphdr = (struct tcphdr*)(((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr)));
 		p_tcphdr->check = 0;
 		p_tcphdr->check = compute_tcp_checksum(&p_pkt->hdr.m_ip_hdr, (const uint16_t *)p_tcphdr);
