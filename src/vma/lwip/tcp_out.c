@@ -1039,6 +1039,7 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
   LWIP_ASSERT("seg->tcphdr not aligned", ((mem_ptr_t)(seg->tcphdr + 1) % 4) == 0);
   opts = (u32_t *)(void *)(seg->tcphdr + 1);
   if (seg->flags & TF_SEG_OPTS_MSS) {
+    /* coverity[result_independent_of_operands] */
     TCP_BUILD_MSS_OPTION(*opts, pcb->advtsd_mss);
     opts += 1; // Move to the next line (meaning next 32 bit) as this option is 4 bytes long
   }
