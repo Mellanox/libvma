@@ -17,7 +17,7 @@ rm -rf $cov_dir
 mkdir -p $cov_dir
 cd $cov_dir
 
-cov_exclude_file_list="tests src/vma/lwip"
+cov_exclude_file_list="tests"
 
 cov_build_id="cov_build_${BUILD_NUMBER}"
 cov_build="$cov_dir/$cov_build_id"
