@@ -1427,6 +1427,7 @@ tcp_parseopt(struct tcp_pcb *pcb, tcp_in_data* in_data)
 {
   u16_t c, max_c;
   u16_t mss;
+  u16_t snd_mss;
   u8_t *opts, opt;
 #if LWIP_TCP_TIMESTAMPS
   u32_t tsval;
@@ -1459,7 +1460,7 @@ tcp_parseopt(struct tcp_pcb *pcb, tcp_in_data* in_data)
         /* An MSS option with the right option length. */
         mss = (opts[c + 2] << 8) | opts[c + 3];
         /* Limit the mss to the configured TCP_MSS and prevent division by zero */
-        u16_t snd_mss = ((mss > pcb->advtsd_mss) || (mss == 0)) ? pcb->advtsd_mss : mss;
+        snd_mss = ((mss > pcb->advtsd_mss) || (mss == 0)) ? pcb->advtsd_mss : mss;
         UPDATE_PCB_BY_MSS(pcb, snd_mss);
         /* Advance to next option */
         c += 0x04;
