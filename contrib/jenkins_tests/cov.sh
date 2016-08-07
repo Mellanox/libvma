@@ -4,6 +4,13 @@ source $(dirname $0)/globals.sh
 
 check_filter "Checking for coverity ..." "on"
 
+# This unit requires module so check for existence
+if [ $(command -v module >/dev/null 2>&1 || echo $?) ]; then
+	echo "[SKIP] module tool does not exist"
+	exit 0
+fi
+module load tools/cov
+
 cd $WORKSPACE
 
 rm -rf $cov_dir
@@ -11,8 +18,6 @@ mkdir -p $cov_dir
 cd $cov_dir
 
 cov_exclude_file_list="tests src/vma/lwip"
-
-module load tools/cov
 
 cov_build_id="cov_build_${BUILD_NUMBER}"
 cov_build="$cov_dir/$cov_build_id"
