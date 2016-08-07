@@ -180,8 +180,8 @@ private:
 	bool				m_b_was_drained;
 	uint32_t			m_n_wce_counter;
 	const uint32_t			m_n_rx_prefetch_bytes_before_poll;
-	const size_t			m_n_rx_prefetch_bytes;
-	const int			m_n_rx_num_wr_to_post_recv;
+	const uint32_t			m_n_rx_prefetch_bytes;
+	const uint32_t			m_n_rx_num_wr_to_post_recv;
 	const uint32_t			m_n_cq_poll_batch_max;
 	const uint32_t			m_n_qp_compensation_level;
 	const bool			m_b_cq_keep_qp_full;

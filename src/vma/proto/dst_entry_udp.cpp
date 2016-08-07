@@ -193,7 +193,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 
 			if (m_n_tx_prefetch_bytes) {
 				prefetch_range(p_mem_buf_desc->p_buffer + m_header.m_transport_header_tx_offset,
-						min(sz_ip_frag, m_n_tx_prefetch_bytes));
+						min(sz_ip_frag, (size_t)m_n_tx_prefetch_bytes));
 			}
 
 			p_pkt = (tx_packet_template_t*)p_mem_buf_desc->p_buffer;

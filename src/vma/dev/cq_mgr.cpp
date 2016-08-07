@@ -606,7 +606,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 		VALGRIND_MAKE_MEM_DEFINED(p_mem_buf_desc->p_buffer, p_mem_buf_desc->sz_data);
 
 		prefetch_range((uint8_t*)p_mem_buf_desc->p_buffer + m_sz_transport_header, 
-				min(p_mem_buf_desc->sz_data - m_sz_transport_header, m_n_rx_prefetch_bytes));
+				min(p_mem_buf_desc->sz_data - m_sz_transport_header, (size_t)m_n_rx_prefetch_bytes));
 		//prefetch((uint8_t*)p_mem_buf_desc->p_buffer + m_sz_transport_header);
 	}
 
@@ -619,7 +619,7 @@ bool cq_mgr::compensate_qp_poll_success(mem_buf_desc_t* buff_cur)
 	// Compensate QP for all completions that we found
 	if (likely(m_qp_rec.qp)) {
 		++m_qp_rec.debth;
-		if (likely(m_qp_rec.debth < m_n_rx_num_wr_to_post_recv)) {
+		if (likely(m_qp_rec.debth < (int)m_n_rx_num_wr_to_post_recv)) {
 			return false;
 		}
 		if (m_rx_pool.size() || request_more_buffers()) {

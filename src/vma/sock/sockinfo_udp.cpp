@@ -154,7 +154,7 @@ inline int sockinfo_udp::rx_wait(bool blocking)
 	while (loops_to_go) {
 
 		// Multi-thread polling support - let other threads have a go on this CPU
-		if ((m_b_rx_poll_yield_loops > 0) && ((loops % m_b_rx_poll_yield_loops) == (m_b_rx_poll_yield_loops - 1))) {
+		if ((m_n_rx_poll_yield_loops > 0) && ((loops % m_n_rx_poll_yield_loops) == (m_n_rx_poll_yield_loops - 1))) {
 			sched_yield();
 		}
 
@@ -379,7 +379,7 @@ sockinfo_udp::sockinfo_udp(int fd) throw (vma_exception) :
 	,m_b_rcvtstamp(false)
 	,m_b_rcvtstampns(false)
 	,m_n_tsing_flags(0)
-	,m_b_rx_poll_yield_loops(safe_mce_sys().rx_poll_yield_loops)
+	,m_n_rx_poll_yield_loops(safe_mce_sys().rx_poll_yield_loops)
 	,m_n_rx_udp_poll_os_ratio(safe_mce_sys().rx_udp_poll_os_ratio)
 	,m_n_rx_ready_byte_min_limit(safe_mce_sys().rx_ready_byte_min_limit)
 	,m_n_rx_cq_drain_rate_nsec(safe_mce_sys().rx_cq_drain_rate_nsec)

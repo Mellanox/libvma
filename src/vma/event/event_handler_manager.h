@@ -187,7 +187,7 @@ private:
 
 	const bool m_b_internal_thread_arm_cq_enabled;
 	const uint32_t m_n_vma_time_measure_num_samples;
-	const int m_n_timer_resolution_msec;
+	const uint32_t m_n_timer_resolution_msec;
 
 	event_handler_map_t	m_event_handler_map;
 

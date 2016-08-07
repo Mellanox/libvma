@@ -207,7 +207,7 @@ private:
 	bool		m_b_rcvtstampns;
 	uint8_t		m_n_tsing_flags;
 
-	const bool	m_b_rx_poll_yield_loops;
+	const uint32_t	m_n_rx_poll_yield_loops;
 	const uint32_t	m_n_rx_udp_poll_os_ratio;
 	const uint32_t	m_n_rx_ready_byte_min_limit;
 	const uint32_t	m_n_rx_cq_drain_rate_nsec;

@@ -839,7 +839,7 @@ void* event_handler_manager::thread_loop()
 	while (m_b_continue_running) {
 #ifdef VMA_TIME_MEASURE
 		if (g_inst_cnt >= m_n_vma_time_measure_num_samples)
-			finit_instrumentation(m_n_vma_time_measure_filename);
+			finit_instrumentation(safe_mce_sys().vma_time_measure_filename);
 #endif
 
 		// update timer and get timeout
@@ -871,7 +871,7 @@ void* event_handler_manager::thread_loop()
 
 		// Make sure we sleep for a minimum of X milli seconds
 		if (timeout_msec > 0) {
-			if (m_n_timer_resolution_msec > timeout_msec) {
+			if ((int)m_n_timer_resolution_msec > timeout_msec) {
 				timeout_msec = m_n_timer_resolution_msec;
 			}
 		}
