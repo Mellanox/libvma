@@ -794,24 +794,24 @@ void epfd_info::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 	if (temp_iomux_stats.n_iomux_os_rx_ready || temp_iomux_stats.n_iomux_rx_ready || temp_iomux_stats.n_iomux_timeouts || temp_iomux_stats.n_iomux_errors ||
 			temp_iomux_stats.n_iomux_poll_miss || temp_iomux_stats.n_iomux_poll_hit) {
 
-		vlog_printf(log_level, "Polling CPU:%d%%\n", temp_iomux_stats.n_iomux_polling_time);
+		vlog_printf(log_level, "Polling CPU : %d%%\n", temp_iomux_stats.n_iomux_polling_time);
 
 		if (temp_iomux_stats.threadid_last != 0)
-			vlog_printf(log_level, "Thread Id: %5u\n", temp_iomux_stats.threadid_last);
+			vlog_printf(log_level, "Thread Id : %5u\n", temp_iomux_stats.threadid_last);
 
 		if (temp_iomux_stats.n_iomux_os_rx_ready || temp_iomux_stats.n_iomux_rx_ready)
-			vlog_printf(log_level, "Rx fds ready: %u / %u [os/offload]\n", temp_iomux_stats.n_iomux_os_rx_ready, temp_iomux_stats.n_iomux_rx_ready);
+			vlog_printf(log_level, "Rx fds ready : %u / %u [os/offload]\n", temp_iomux_stats.n_iomux_os_rx_ready, temp_iomux_stats.n_iomux_rx_ready);
 
 		if (temp_iomux_stats.n_iomux_poll_miss + temp_iomux_stats.n_iomux_poll_hit) {
 			double iomux_poll_hit = (double)temp_iomux_stats.n_iomux_poll_hit;
 			double iomux_poll_hit_percentage = (iomux_poll_hit / (iomux_poll_hit + (double)temp_iomux_stats.n_iomux_poll_miss)) * 100;
-			vlog_printf(log_level, "Polls [miss/hit]: %u / %u (%2.2f%%)\n", temp_iomux_stats.n_iomux_poll_miss, temp_iomux_stats.n_iomux_poll_hit, iomux_poll_hit_percentage);
+			vlog_printf(log_level, "Polls [miss/hit] : %u / %u (%2.2f%%)\n", temp_iomux_stats.n_iomux_poll_miss, temp_iomux_stats.n_iomux_poll_hit, iomux_poll_hit_percentage);
 
 			if (temp_iomux_stats.n_iomux_timeouts)
-				vlog_printf(log_level, "Timeouts: %u\n", temp_iomux_stats.n_iomux_timeouts);
+				vlog_printf(log_level, "Timeouts : %u\n", temp_iomux_stats.n_iomux_timeouts);
 
 			if (temp_iomux_stats.n_iomux_errors)
-				vlog_printf(log_level, "Errors: %u\n", temp_iomux_stats.n_iomux_errors);
+				vlog_printf(log_level, "Errors : %u\n", temp_iomux_stats.n_iomux_errors);
 		}
 	}
 }
