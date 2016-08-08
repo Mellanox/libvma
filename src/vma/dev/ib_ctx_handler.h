@@ -61,11 +61,7 @@ public:
 	bool                    is_removed() { return m_removed;}
 	virtual void            handle_event_ibverbs_cb(void *ev_data, void *ctx);
 	void                    handle_event_DEVICE_FATAL();
-	ts_conversion_mode_t    get_ctx_time_converter_status();
-
-	inline void convert_hw_time_to_system_time(uint64_t packet_hw_time, struct timespec* packet_systime) {
-		ctx_time_converter.convert_hw_time_to_system_time(packet_hw_time, packet_systime);
-	}
+	ib_ctx_time_converter*  get_ctx_time_converter();
 
 private:
 	struct ibv_context*     m_p_ibv_context;

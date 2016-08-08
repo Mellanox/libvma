@@ -173,6 +173,7 @@ public:
 private:
 	ring_simple*		m_p_ring;
 	ib_ctx_handler*			m_p_ib_ctx_handler;
+	ib_ctx_time_converter*		m_p_ib_ctx_time_converter;
 	bool				m_b_is_rx;
 	bool				m_b_is_rx_hw_csum_on;
 	const bool			m_b_is_rx_sw_csum_on;

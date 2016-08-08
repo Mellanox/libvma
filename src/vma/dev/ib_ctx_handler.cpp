@@ -101,8 +101,8 @@ ib_ctx_handler::~ib_ctx_handler() {
 	BULLSEYE_EXCLUDE_BLOCK_END
 }
 
-ts_conversion_mode_t ib_ctx_handler::get_ctx_time_converter_status() {
-	return ctx_time_converter.get_converter_status();
+ib_ctx_time_converter* ib_ctx_handler::get_ctx_time_converter() {
+	return &ctx_time_converter;
 }
 
 ibv_mr* ib_ctx_handler::mem_reg(void *addr, size_t length, uint64_t access)
