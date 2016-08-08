@@ -238,6 +238,12 @@ private:
 
 	int m_check_sig_pending_ratio;
 
+	const uint32_t m_n_sysvar_select_skip_os_fd_check;
+	const uint32_t m_n_sysvar_select_poll_os_ratio;
+	const int32_t m_n_sysvar_select_poll_num;
+	const bool m_b_sysvar_select_poll_os_force;
+	const bool m_b_sysvar_select_handle_cpu_usage_stats;
+
 public:
 protected:
 

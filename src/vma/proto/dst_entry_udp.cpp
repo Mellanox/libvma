@@ -47,7 +47,11 @@
 
 
 dst_entry_udp::dst_entry_udp(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, int owner_fd):
-	dst_entry(dst_ip, dst_port, src_port, owner_fd)
+	dst_entry(dst_ip, dst_port, src_port, owner_fd),
+	m_n_sysvar_tx_bufs_batch_udp(safe_mce_sys().tx_bufs_batch_udp),
+	m_b_sysvar_tx_nonblocked_eagains(safe_mce_sys().tx_nonblocked_eagains),
+	m_sysvar_thread_mode(safe_mce_sys().thread_mode),
+	m_n_sysvar_tx_prefetch_bytes(safe_mce_sys().tx_prefetch_bytes)
 {
 	dst_udp_logdbg("%s", to_str().c_str());
 	atomic_set(&m_a_tx_ip_id, 0);
@@ -114,7 +118,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 #endif
 		// Get a bunch of tx buf descriptor and data buffers
 		if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
-			m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, safe_mce_sys().tx_bufs_batch_udp);
+			m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, m_n_sysvar_tx_bufs_batch_udp);
 		}
 		p_mem_buf_desc = m_p_tx_mem_buf_desc_list;
 
@@ -124,7 +128,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 			}
 			else {
 				dst_udp_logfunc("Packet dropped. NonBlocked call but not enough tx buffers. Returning OK");
-				if (!safe_mce_sys().tx_nonblocked_eagains) return sz_data_payload;
+				if (!m_b_sysvar_tx_nonblocked_eagains) return sz_data_payload;
 			}
 			errno = EAGAIN;
 			return -1;
@@ -138,7 +142,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 		m_p_ring->send_ring_buffer(m_id, m_p_send_wqe, b_blocked);
 
 		if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
-			m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, safe_mce_sys().tx_bufs_batch_udp);
+			m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, m_n_sysvar_tx_bufs_batch_udp);
 		}
 	}
 	else {
@@ -151,7 +155,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 		if (sz_udp_payload > m_max_ip_payload_size) {
 			b_need_sw_csum = true;
 			n_num_frags = (sz_udp_payload + m_max_ip_payload_size - 1) / m_max_ip_payload_size;
-			packet_id = (safe_mce_sys().thread_mode > THREAD_MODE_SINGLE) ?
+			packet_id = (m_sysvar_thread_mode > THREAD_MODE_SINGLE) ?
 					atomic_fetch_and_inc(&m_a_tx_ip_id) :
 					m_n_tx_ip_id++;
 			packet_id = htons(packet_id);
@@ -171,7 +175,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 			}
 			else {
 				dst_udp_logfunc("Packet dropped. NonBlocked call but not enough tx buffers. Returning OK");
-				if (!safe_mce_sys().tx_nonblocked_eagains) return sz_data_payload;
+				if (!m_b_sysvar_tx_nonblocked_eagains) return sz_data_payload;
 			}
 			errno = EAGAIN;
 			return -1;
@@ -187,9 +191,9 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 			size_t sz_user_data_to_copy = sz_ip_frag;
 			size_t hdr_len = m_header.m_transport_header_len + m_header.m_ip_header_len; // Add count of L2 (ipoib or mac) header length
 
-			if (safe_mce_sys().tx_prefetch_bytes) {
+			if (m_n_sysvar_tx_prefetch_bytes) {
 				prefetch_range(p_mem_buf_desc->p_buffer + m_header.m_transport_header_tx_offset,
-						min(sz_ip_frag, (size_t)safe_mce_sys().tx_prefetch_bytes));
+						min(sz_ip_frag, (size_t)m_n_sysvar_tx_prefetch_bytes));
 			}
 
 			p_pkt = (tx_packet_template_t*)p_mem_buf_desc->p_buffer;
@@ -315,7 +319,7 @@ ssize_t dst_entry_udp::pass_buff_to_neigh(const iovec *p_iov, size_t & sz_iov, u
 	m_header_neigh.init();
 	m_header_neigh.configure_udp_header(m_dst_port, m_src_port);
 
-	packet_id = (safe_mce_sys().thread_mode > THREAD_MODE_SINGLE) ?
+	packet_id = (m_sysvar_thread_mode > THREAD_MODE_SINGLE) ?
 						atomic_fetch_and_inc(&m_a_tx_ip_id) :
 						m_n_tx_ip_id++;
 	packet_id = htons(packet_id);

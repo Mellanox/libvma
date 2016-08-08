@@ -179,7 +179,8 @@ neigh_entry::neigh_entry(neigh_key key, transport_type_t _type, bool is_init_res
 	m_state(false), m_err_counter(0), m_timer_handle(NULL),
 	m_arp_counter(0), m_p_dev(NULL), m_p_ring(NULL), m_is_loopback(false),
 	m_to_str(std::string(priv_vma_transport_type_str(m_trans_type)) + ":" + get_key().to_str()), m_id(0),
-	m_is_first_send_arp(true)
+	m_is_first_send_arp(true), m_n_sysvar_neigh_wait_till_send_arp_msec(safe_mce_sys().neigh_wait_till_send_arp_msec),
+	m_n_sysvar_neigh_uc_arp_quata(safe_mce_sys().neigh_uc_arp_quata), m_n_sysvar_neigh_num_err_retries(safe_mce_sys().neigh_num_err_retries)
 {
 	m_unsent_queue.set_id("neigh_entry (%p) : m_unsent_queue", this);
 
@@ -345,7 +346,7 @@ void neigh_entry::handle_timer_expired(void* ctx)
 	if (state != NUD_REACHABLE) {
 		neigh_logdbg("State is different from NUD_REACHABLE and L2 address wasn't changed. Sending ARP");
 		send_arp();
-		m_timer_handle = priv_register_timer_event(safe_mce_sys().neigh_wait_till_send_arp_msec, this, ONE_SHOT_TIMER, NULL);
+		m_timer_handle = priv_register_timer_event(m_n_sysvar_neigh_wait_till_send_arp_msec, this, ONE_SHOT_TIMER, NULL);
 	}
 	else {
 		neigh_logdbg("State is NUD_REACHABLE and L2 address wasn't changed. Stop sending ARP");
@@ -356,7 +357,7 @@ void neigh_entry::send_arp()
 {
 	// In case we already sent the quota number of unicast ARPs, start sending broadcast ARPs
 	// or we want to send broadcast ARP for the first time
-	bool is_broadcast = (m_arp_counter >= safe_mce_sys().neigh_uc_arp_quata) || m_is_first_send_arp;
+	bool is_broadcast = (m_arp_counter >= m_n_sysvar_neigh_uc_arp_quata) || m_is_first_send_arp;
 	if (post_send_arp(is_broadcast)) {
 		m_is_first_send_arp = false;
 		m_arp_counter++;
@@ -690,7 +691,7 @@ void neigh_entry::handle_neigh_event(neigh_nl_event* nl_ev)
 		if(! ret ) {
 			//If L2 address wasn't changed we need to send ARP
 			send_arp();
-			m_timer_handle = priv_register_timer_event(safe_mce_sys().neigh_wait_till_send_arp_msec, this, ONE_SHOT_TIMER, NULL);
+			m_timer_handle = priv_register_timer_event(m_n_sysvar_neigh_wait_till_send_arp_msec, this, ONE_SHOT_TIMER, NULL);
 		}
 		break;
 	}
@@ -1021,7 +1022,7 @@ int neigh_entry::priv_enter_addr_resolved()
 	if (!priv_get_neigh_state(state) || state != NUD_REACHABLE) {
 		neigh_logdbg("got addr_resolved but state=%d", state);
 		send_arp();
-		m_timer_handle = priv_register_timer_event(safe_mce_sys().neigh_wait_till_send_arp_msec, this, ONE_SHOT_TIMER, NULL);
+		m_timer_handle = priv_register_timer_event(m_n_sysvar_neigh_wait_till_send_arp_msec, this, ONE_SHOT_TIMER, NULL);
 		m_lock.unlock();
 		return 0;
 	} else {
@@ -1092,7 +1093,7 @@ void neigh_entry::priv_enter_error()
 
 	m_lock.lock();
 	//If unsent queue is not empty we will try to KICK START the connection, but only once
-	if (!m_unsent_queue.empty() && (m_err_counter < safe_mce_sys().neigh_num_err_retries)) {
+	if (!m_unsent_queue.empty() && (m_err_counter < m_n_sysvar_neigh_num_err_retries)) {
 		neigh_logdbg("unsent_queue is not empty calling KICK_START");
 		m_err_counter++;
 		event_handler(EV_KICK_START);
@@ -1122,7 +1123,7 @@ int neigh_entry::priv_enter_ready()
 	if (m_type == UC && ! m_is_loopback) {
 		if (priv_get_neigh_state(state) && (state != NUD_REACHABLE)) {
 			send_arp();
-			m_timer_handle = priv_register_timer_event(safe_mce_sys().neigh_wait_till_send_arp_msec, this, ONE_SHOT_TIMER, NULL);
+			m_timer_handle = priv_register_timer_event(m_n_sysvar_neigh_wait_till_send_arp_msec, this, ONE_SHOT_TIMER, NULL);
 		}
 	}
 	return 0;
@@ -1512,7 +1513,7 @@ ring_user_id_t neigh_eth::generate_ring_user_id(header * h /* = NULL */)
 //============================================================== neigh_ib ==================================================
 
 neigh_ib::neigh_ib(neigh_key key, bool is_init_resources) :
-				neigh_entry(key, VMA_TRANSPORT_IB, is_init_resources), m_pd(NULL)
+				neigh_entry(key, VMA_TRANSPORT_IB, is_init_resources), m_pd(NULL), m_n_sysvar_wait_after_join_msec(safe_mce_sys().wait_after_join_msec)
 {
 	neigh_logdbg("");
 
@@ -1911,7 +1912,7 @@ int neigh_ib::build_mc_neigh_val(struct rdma_cm_event* event_data,
 	/*neigh_logerr("flow_label = %#x, sgid_index=%#x, hop_limit=%#x, traffic_class=%#x", ((neigh_ib_val *) m_val)->m_ah_attr.grh.flow_label, ((neigh_ib_val *) m_val)->m_ah_attr.grh.sgid_index,
 				((neigh_ib_val *) m_val)->m_ah_attr.grh.hop_limit, ((neigh_ib_val *) m_val)->m_ah_attr.grh.traffic_class);
 	*/
-	wait_after_join_msec = safe_mce_sys().wait_after_join_msec;
+	wait_after_join_msec = m_n_sysvar_wait_after_join_msec;
 
 	return 0;
 }

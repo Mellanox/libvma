@@ -162,7 +162,8 @@ protected:
 	size_t 			m_rx_pkt_ready_offset;
 	size_t			m_rx_ready_byte_count;
 
-	int			m_rx_num_buffs_reuse;
+	const int		m_n_sysvar_rx_num_buffs_reuse;
+	const int32_t		m_n_sysvar_rx_poll_num;
 
 	// Callback function pointer to support VMA extra API (vma_extra.h)
 	vma_recv_callback_t	m_rx_callback;
@@ -326,10 +327,10 @@ protected:
             int& n_buff_num = iter->second->rx_reuse_info.n_buff_num;
             rx_reuse->push_back(buff);
             n_buff_num += buff->n_frags;
-            if(n_buff_num < m_rx_num_buffs_reuse){
+            if(n_buff_num < m_n_sysvar_rx_num_buffs_reuse){
         	    return;
             }
-            if(n_buff_num >= 2 * m_rx_num_buffs_reuse){
+            if(n_buff_num >= 2 * m_n_sysvar_rx_num_buffs_reuse){
                 if (p_ring->reclaim_recv_buffers(rx_reuse)) {
                     n_buff_num = 0;
                 } else {
@@ -363,7 +364,7 @@ protected:
             m_rx_reuse_buf_postponed = false;
 
 	    if (m_p_rx_ring) {
-		    if (m_rx_reuse_buff.n_buff_num >= m_rx_num_buffs_reuse) {
+		    if (m_rx_reuse_buff.n_buff_num >= m_n_sysvar_rx_num_buffs_reuse) {
 			    if (m_p_rx_ring->reclaim_recv_buffers(&m_rx_reuse_buff.rx_reuse)) {
 			    	   m_rx_reuse_buff.n_buff_num = 0;
 			    } else {
@@ -375,7 +376,7 @@ protected:
 		    while (iter != m_rx_ring_map.end()) {
 		            descq_t *rx_reuse = &iter->second->rx_reuse_info.rx_reuse;
 		            int& n_buff_num = iter->second->rx_reuse_info.n_buff_num;
-			    if (n_buff_num >= m_rx_num_buffs_reuse) {
+			    if (n_buff_num >= m_n_sysvar_rx_num_buffs_reuse) {
 				    if (iter->first->reclaim_recv_buffers(rx_reuse)) {
 					    n_buff_num = 0;
 				    } else {

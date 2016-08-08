@@ -56,6 +56,12 @@ protected:
 	virtual ssize_t 	pass_buff_to_neigh(const iovec *p_iov, size_t & sz_iov, uint16_t packet_id = 0);
 	atomic_t m_a_tx_ip_id;
 	size_t m_n_tx_ip_id;
+
+private:
+	const uint32_t m_n_sysvar_tx_bufs_batch_udp;
+	const bool m_b_sysvar_tx_nonblocked_eagains;
+	const thread_mode_t	m_sysvar_thread_mode;
+	const uint32_t m_n_sysvar_tx_prefetch_bytes;
 };
 
 #endif /* DST_ENTRY_UDP_H */

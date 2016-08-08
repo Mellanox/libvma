@@ -224,7 +224,11 @@ void event_handler_manager::unregister_command_event(int fd)
     #pragma BullseyeCoverage on
 #endif
 
-event_handler_manager::event_handler_manager() : m_reg_action_q_lock("reg_action_q_lock")
+event_handler_manager::event_handler_manager() :
+		m_reg_action_q_lock("reg_action_q_lock"),
+		m_b_sysvar_internal_thread_arm_cq_enabled(safe_mce_sys().internal_thread_arm_cq_enabled),
+		m_n_sysvar_vma_time_measure_num_samples(safe_mce_sys().vma_time_measure_num_samples),
+		m_n_sysvar_timer_resolution_msec(safe_mce_sys().timer_resolution_msec)
 {
 	evh_logfunc("");
 
@@ -834,7 +838,7 @@ void* event_handler_manager::thread_loop()
 	poll_fd.revents = 0;
 	while (m_b_continue_running) {
 #ifdef VMA_TIME_MEASURE
-		if (g_inst_cnt >= safe_mce_sys().vma_time_measure_num_samples)
+		if (g_inst_cnt >= m_n_sysvar_vma_time_measure_num_samples)
 			finit_instrumentation(safe_mce_sys().vma_time_measure_filename);
 #endif
 
@@ -846,8 +850,7 @@ void* event_handler_manager::thread_loop()
 			continue;
 		}
 
-
-		if( safe_mce_sys().internal_thread_arm_cq_enabled && m_cq_epfd == 0 && g_p_net_device_table_mgr) {
+		if( m_b_sysvar_internal_thread_arm_cq_enabled && m_cq_epfd == 0 && g_p_net_device_table_mgr) {
 			m_cq_epfd = g_p_net_device_table_mgr->global_ring_epfd_get();
 			if( m_cq_epfd > 0 ) {
 				epoll_event evt;
@@ -858,7 +861,7 @@ void* event_handler_manager::thread_loop()
 		}
 
 		uint64_t poll_sn = 0;
-		if( safe_mce_sys().internal_thread_arm_cq_enabled && m_cq_epfd > 0 && g_p_net_device_table_mgr) {
+		if( m_b_sysvar_internal_thread_arm_cq_enabled && m_cq_epfd > 0 && g_p_net_device_table_mgr) {
 			g_p_net_device_table_mgr->global_ring_poll_and_process_element(&poll_sn, NULL);
 			int ret = g_p_net_device_table_mgr->global_ring_request_notification(poll_sn);
 			if (ret > 0) {
@@ -868,8 +871,8 @@ void* event_handler_manager::thread_loop()
 
 		// Make sure we sleep for a minimum of X milli seconds
 		if (timeout_msec > 0) {
-			if ((int)safe_mce_sys().timer_resolution_msec > timeout_msec) {
-				timeout_msec = safe_mce_sys().timer_resolution_msec;
+			if ((int)m_n_sysvar_timer_resolution_msec > timeout_msec) {
+				timeout_msec = m_n_sysvar_timer_resolution_msec;
 			}
 		}
 
@@ -883,7 +886,7 @@ void* event_handler_manager::thread_loop()
 
 		// check pipe
 		for (int idx = 0; idx < ret ; ++idx) {
-			if(safe_mce_sys().internal_thread_arm_cq_enabled && p_events[idx].data.fd == m_cq_epfd && g_p_net_device_table_mgr){
+			if(m_b_sysvar_internal_thread_arm_cq_enabled && p_events[idx].data.fd == m_cq_epfd && g_p_net_device_table_mgr){
 				g_p_net_device_table_mgr->global_ring_wait_for_notification_and_process_element(&poll_sn, NULL);
 			}
 			else if (is_wakeup_fd(p_events[idx].data.fd)) {
@@ -920,7 +923,7 @@ void* event_handler_manager::thread_loop()
 
 			int fd = p_events[idx].data.fd;
 
-			if(safe_mce_sys().internal_thread_arm_cq_enabled && fd == m_cq_epfd) continue;
+			if(m_b_sysvar_internal_thread_arm_cq_enabled && fd == m_cq_epfd) continue;
 
 			evh_logfunc("Processing fd %d", fd);
 

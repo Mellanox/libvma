@@ -185,6 +185,10 @@ private:
 	lock_spin		m_reg_action_q_lock;
 	timer			m_timer;
 
+	const bool m_b_sysvar_internal_thread_arm_cq_enabled;
+	const uint32_t m_n_sysvar_vma_time_measure_num_samples;
+	const uint32_t m_n_sysvar_timer_resolution_msec;
+
 	event_handler_map_t	m_event_handler_map;
 
 	void	priv_register_timer_handler(timer_reg_info_t& info);

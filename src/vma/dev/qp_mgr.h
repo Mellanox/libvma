@@ -147,8 +147,9 @@ protected:
 	uint32_t 		m_rx_num_wr;
 	uint32_t 		m_tx_num_wr;
 
-	uint32_t 		m_rx_num_wr_to_post_recv;
-	uint32_t 		m_tx_num_wr_to_signal;
+	const uint32_t 		m_n_sysvar_rx_num_wr_to_post_recv;
+	const uint32_t 		m_n_sysvar_tx_num_wr_to_signal;
+	const uint32_t		m_n_sysvar_rx_prefetch_bytes_before_poll;
 
 	// recv_wr
 	ibv_sge*		m_ibv_rx_sg_array;
