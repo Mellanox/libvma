@@ -34,7 +34,7 @@ for excl in $cov_exclude_file_list; do
     sleep 1
 done
 
-eval "cov-analyze --enable-fnptr --fnptr-models --all --paths 20000 --dir $cov_build --config ${WORKSPACE}/coverity_vma_config.xml"
+eval "cov-analyze --enable-fnptr --fnptr-models --all --paths 20000 --dir $cov_build"
 rc=$(($rc+$?))
 
 set -eE
