@@ -23,6 +23,7 @@ compiler_dir=${WORKSPACE}/${prefix}/compiler
 test_dir=${WORKSPACE}/${prefix}/test
 rpm_dir=${WORKSPACE}/${prefix}/rpm
 cov_dir=${WORKSPACE}/${prefix}/cov
+cppcheck_dir=${WORKSPACE}/${prefix}/cppcheck
 vg_dir=${WORKSPACE}/${prefix}/vg
 style_dir=${WORKSPACE}/${prefix}/style
 
