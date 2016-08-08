@@ -58,10 +58,10 @@ protected:
 	size_t m_n_tx_ip_id;
 
 private:
-	const uint32_t m_n_tx_bufs_batch_udp;
-	const bool m_b_tx_nonblocked_eagains;
-	const thread_mode_t	m_thread_mode;
-	const uint32_t m_n_tx_prefetch_bytes;
+	const uint32_t m_n_sysvar_tx_bufs_batch_udp;
+	const bool m_b_sysvar_tx_nonblocked_eagains;
+	const thread_mode_t	m_sysvar_thread_mode;
+	const uint32_t m_n_sysvar_tx_prefetch_bytes;
 };
 
 #endif /* DST_ENTRY_UDP_H */

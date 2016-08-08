@@ -66,15 +66,15 @@ qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context, const
 	m_qp(NULL), m_p_ring((ring_simple*)p_ring), m_port_num((uint8_t)port_num), m_p_ib_ctx_handler((ib_ctx_handler*)p_context),
 	m_p_ahc_head(NULL), m_p_ahc_tail(NULL), m_max_inline_data(0), m_max_qp_wr(0), m_p_cq_mgr_rx(NULL), m_p_cq_mgr_tx(NULL),
 	m_rx_num_wr(safe_mce_sys().rx_num_wr), m_tx_num_wr(tx_num_wr),
-	m_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv),
-	m_tx_num_wr_to_signal(safe_mce_sys().tx_num_wr_to_signal),
-	m_n_rx_prefetch_bytes_before_poll(safe_mce_sys().rx_prefetch_bytes_before_poll),
+	m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv),
+	m_n_sysvar_tx_num_wr_to_signal(safe_mce_sys().tx_num_wr_to_signal),
+	m_n_sysvar_rx_prefetch_bytes_before_poll(safe_mce_sys().rx_prefetch_bytes_before_poll),
 	m_curr_rx_wr(0), m_last_posted_rx_wr_id(0), m_n_unsignaled_count(0), m_n_tx_count(0),
 	m_p_last_tx_mem_buf_desc(NULL), m_p_prev_rx_desc_pushed(NULL),
 	m_n_ip_id_base(0), m_n_ip_id_offset(0)
 {
-	m_ibv_rx_sg_array = new ibv_sge[m_rx_num_wr_to_post_recv];
-	m_ibv_rx_wr_array = new ibv_recv_wr[m_rx_num_wr_to_post_recv];
+	m_ibv_rx_sg_array = new ibv_sge[m_n_sysvar_rx_num_wr_to_post_recv];
+	m_ibv_rx_wr_array = new ibv_recv_wr[m_n_sysvar_rx_num_wr_to_post_recv];
 }
 
 qp_mgr::~qp_mgr()
@@ -182,12 +182,12 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 			tx_max_inline, tmp_ibv_qp_init_attr.cap.max_inline_data, m_max_inline_data, qp_init_attr.cap.max_send_wr, qp_init_attr.cap.max_recv_wr, qp_init_attr.cap.max_recv_sge, qp_init_attr.cap.max_send_sge);
 
 	// All buffers will be allocated from this qp_mgr buffer pool so we can already set the Rx & Tx lkeys
-	for (uint32_t wr_idx = 0; wr_idx < m_rx_num_wr_to_post_recv; wr_idx++) {
+	for (uint32_t wr_idx = 0; wr_idx < m_n_sysvar_rx_num_wr_to_post_recv; wr_idx++) {
 		m_ibv_rx_wr_array[wr_idx].sg_list = &m_ibv_rx_sg_array[wr_idx];
 		m_ibv_rx_wr_array[wr_idx].num_sge = 1;
 		m_ibv_rx_wr_array[wr_idx].next = &m_ibv_rx_wr_array[wr_idx+1]; // pre-define the linked list
 	}
-	m_ibv_rx_wr_array[m_rx_num_wr_to_post_recv-1].next = NULL; // end linked list
+	m_ibv_rx_wr_array[m_n_sysvar_rx_num_wr_to_post_recv-1].next = NULL; // end linked list
 
 	m_curr_rx_wr = 0;
 
@@ -462,7 +462,7 @@ int qp_mgr::post_recv(mem_buf_desc_t* p_mem_buf_desc)
 		next = p_mem_buf_desc->p_next_desc;
 		p_mem_buf_desc->p_next_desc = NULL;
 
-		if (m_n_rx_prefetch_bytes_before_poll) {
+		if (m_n_sysvar_rx_prefetch_bytes_before_poll) {
 			if (m_p_prev_rx_desc_pushed)
 				m_p_prev_rx_desc_pushed->p_prev_desc = p_mem_buf_desc;
 			m_p_prev_rx_desc_pushed = p_mem_buf_desc;
@@ -473,7 +473,7 @@ int qp_mgr::post_recv(mem_buf_desc_t* p_mem_buf_desc)
 		m_ibv_rx_sg_array[m_curr_rx_wr].length = p_mem_buf_desc->sz_buffer;
 		m_ibv_rx_sg_array[m_curr_rx_wr].lkey   = p_mem_buf_desc->lkey;
 
-		if (m_curr_rx_wr == m_rx_num_wr_to_post_recv-1) {
+		if (m_curr_rx_wr == m_n_sysvar_rx_num_wr_to_post_recv - 1) {
 
 			m_last_posted_rx_wr_id = (uintptr_t)p_mem_buf_desc;
 
@@ -490,7 +490,7 @@ int qp_mgr::post_recv(mem_buf_desc_t* p_mem_buf_desc)
 				qp_logdbg("QP current state: %d", priv_ibv_query_qp_state(m_qp));
 
 				// Fix broken linked list of rx_wr
-				if (n_pos_bad_rx_wr != (m_rx_num_wr_to_post_recv-1)) {
+				if (n_pos_bad_rx_wr != (m_n_sysvar_rx_num_wr_to_post_recv - 1)) {
 					m_ibv_rx_wr_array[n_pos_bad_rx_wr].next = &m_ibv_rx_wr_array[n_pos_bad_rx_wr+1];
 				}
 				throw;
@@ -517,7 +517,7 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 
 	qp_logfunc("");
 
-	is_signaled = ++m_n_unsignaled_count >= m_tx_num_wr_to_signal;
+	is_signaled = ++m_n_unsignaled_count >= m_n_sysvar_tx_num_wr_to_signal;
 
 	// Link this new mem_buf_desc to the previous one sent
 	p_mem_buf_desc->p_next_desc = m_p_last_tx_mem_buf_desc;

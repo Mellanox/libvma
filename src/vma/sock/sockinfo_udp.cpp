@@ -154,12 +154,12 @@ inline int sockinfo_udp::rx_wait(bool blocking)
 	while (loops_to_go) {
 
 		// Multi-thread polling support - let other threads have a go on this CPU
-		if ((m_n_rx_poll_yield_loops > 0) && ((loops % m_n_rx_poll_yield_loops) == (m_n_rx_poll_yield_loops - 1))) {
+		if ((m_n_sysvar_rx_poll_yield_loops > 0) && ((loops % m_n_sysvar_rx_poll_yield_loops) == (m_n_sysvar_rx_poll_yield_loops - 1))) {
 			sched_yield();
 		}
 
-		// Poll socket for OS ready packets... (at a ratio of the offloaded sockets as defined in m_n_rx_udp_poll_os_ratio)
-		if ((m_n_rx_udp_poll_os_ratio > 0) && (m_rx_udp_poll_os_ratio_counter >= m_n_rx_udp_poll_os_ratio)) {
+		// Poll socket for OS ready packets... (at a ratio of the offloaded sockets as defined in m_n_sysvar_rx_udp_poll_os_ratio)
+		if ((m_n_sysvar_rx_udp_poll_os_ratio > 0) && (m_rx_udp_poll_os_ratio_counter >= m_n_sysvar_rx_udp_poll_os_ratio)) {
 			ret = poll_os();
 			if ((ret == -1) || (ret == 1)) {
 				return ret;
@@ -174,7 +174,7 @@ inline int sockinfo_udp::rx_wait(bool blocking)
 		}
 
 		loops++;
-		if (!blocking || m_n_rx_poll_num != -1) {
+		if (!blocking || m_n_sysvar_rx_poll_num != -1) {
 			loops_to_go--;
 		}
 		if (m_loops_timer.is_timeout()) {
@@ -379,11 +379,11 @@ sockinfo_udp::sockinfo_udp(int fd) throw (vma_exception) :
 	,m_b_rcvtstamp(false)
 	,m_b_rcvtstampns(false)
 	,m_n_tsing_flags(0)
-	,m_n_rx_poll_yield_loops(safe_mce_sys().rx_poll_yield_loops)
-	,m_n_rx_udp_poll_os_ratio(safe_mce_sys().rx_udp_poll_os_ratio)
-	,m_n_rx_ready_byte_min_limit(safe_mce_sys().rx_ready_byte_min_limit)
-	,m_n_rx_cq_drain_rate_nsec(safe_mce_sys().rx_cq_drain_rate_nsec)
-	,m_n_rx_delta_tsc_between_cq_polls(safe_mce_sys().rx_delta_tsc_between_cq_polls)
+	,m_n_sysvar_rx_poll_yield_loops(safe_mce_sys().rx_poll_yield_loops)
+	,m_n_sysvar_rx_udp_poll_os_ratio(safe_mce_sys().rx_udp_poll_os_ratio)
+	,m_n_sysvar_rx_ready_byte_min_limit(safe_mce_sys().rx_ready_byte_min_limit)
+	,m_n_sysvar_rx_cq_drain_rate_nsec(safe_mce_sys().rx_cq_drain_rate_nsec)
+	,m_n_sysvar_rx_delta_tsc_between_cq_polls(safe_mce_sys().rx_delta_tsc_between_cq_polls)
 {
 	si_udp_logfunc("");
 
@@ -1182,9 +1182,9 @@ int sockinfo_udp::getsockopt(int __level, int __optname, void *__optval, socklen
 // Drop rx ready packets from head of queue
 void sockinfo_udp::rx_ready_byte_count_limit_update(size_t n_rx_ready_bytes_limit_new)
 {
-	si_udp_logfunc("new limit: %d Bytes (old: %d Bytes, min value %d Bytes)", n_rx_ready_bytes_limit_new, m_p_socket_stats->n_rx_ready_byte_limit, m_n_rx_ready_byte_min_limit);
-	if (n_rx_ready_bytes_limit_new > 0 && n_rx_ready_bytes_limit_new < m_n_rx_ready_byte_min_limit)
-		n_rx_ready_bytes_limit_new = m_n_rx_ready_byte_min_limit;
+	si_udp_logfunc("new limit: %d Bytes (old: %d Bytes, min value %d Bytes)", n_rx_ready_bytes_limit_new, m_p_socket_stats->n_rx_ready_byte_limit, m_n_sysvar_rx_ready_byte_min_limit);
+	if (n_rx_ready_bytes_limit_new > 0 && n_rx_ready_bytes_limit_new < m_n_sysvar_rx_ready_byte_min_limit)
+		n_rx_ready_bytes_limit_new = m_n_sysvar_rx_ready_byte_min_limit;
 	m_p_socket_stats->n_rx_ready_byte_limit = n_rx_ready_bytes_limit_new;
 
 	m_lock_rcv.lock();
@@ -1243,8 +1243,8 @@ ssize_t sockinfo_udp::rx(const rx_call_t call_type, iovec* p_iov,ssize_t sz_iov,
 	// Drop lock to not starve other threads
 	m_lock_rcv.unlock();
 
-	// Poll socket for OS ready packets... (at a ratio of the offloaded sockets as defined in m_n_rx_udp_poll_os_ratio)
-	if ((m_n_rx_udp_poll_os_ratio > 0) && (m_rx_udp_poll_os_ratio_counter >= m_n_rx_udp_poll_os_ratio)) {
+	// Poll socket for OS ready packets... (at a ratio of the offloaded sockets as defined in m_n_sysvar_rx_udp_poll_os_ratio)
+	if ((m_n_sysvar_rx_udp_poll_os_ratio > 0) && (m_rx_udp_poll_os_ratio_counter >= m_n_sysvar_rx_udp_poll_os_ratio)) {
 		ret = poll_os();
 		if (ret == -1) {
 			m_lock_rcv.lock();
@@ -1257,7 +1257,7 @@ ssize_t sockinfo_udp::rx(const rx_call_t call_type, iovec* p_iov,ssize_t sz_iov,
 	}
 
 	// First check if we have a packet in the ready list
-	if ((m_n_rx_pkt_ready_list_count > 0 && m_n_rx_cq_drain_rate_nsec == MCE_RX_CQ_DRAIN_RATE_DISABLED)
+	if ((m_n_rx_pkt_ready_list_count > 0 && m_n_sysvar_rx_cq_drain_rate_nsec == MCE_RX_CQ_DRAIN_RATE_DISABLED)
 	    || is_readable(&poll_sn)) {
 		m_lock_rcv.lock();
 		m_rx_udp_poll_os_ratio_counter++;
@@ -1316,7 +1316,7 @@ os:
 	if (ret > 0) {
 		// This will cause the next non-blocked read to check the OS again.
 		// We do this only after a successful read.
-		m_rx_udp_poll_os_ratio_counter = m_n_rx_udp_poll_os_ratio;
+		m_rx_udp_poll_os_ratio_counter = m_n_sysvar_rx_udp_poll_os_ratio;
 	}
 
 out:
@@ -1446,7 +1446,7 @@ void sockinfo_udp::handle_cmsg(struct msghdr * msg)
 // This function is relevant only for non-blocking socket
 void sockinfo_udp::set_immediate_os_sample()
 {
-	m_rx_udp_poll_os_ratio_counter = m_n_rx_udp_poll_os_ratio;
+	m_rx_udp_poll_os_ratio_counter = m_n_sysvar_rx_udp_poll_os_ratio;
 }
 
 // This function is relevant only for non-blocking socket
@@ -1463,14 +1463,14 @@ bool sockinfo_udp::is_readable(uint64_t *p_poll_sn, fd_array_t* p_fd_ready_array
 	// This is the quickest way back to the user with a ready packet (which will happen if we don't force draining of the CQ)
 	if (m_n_rx_pkt_ready_list_count > 0) {
 
-		if (m_n_rx_cq_drain_rate_nsec == MCE_RX_CQ_DRAIN_RATE_DISABLED) {
+		if (m_n_sysvar_rx_cq_drain_rate_nsec == MCE_RX_CQ_DRAIN_RATE_DISABLED) {
 			si_udp_logfunc("=> true (ready count = %d packets / %d bytes)", m_n_rx_pkt_ready_list_count, m_p_socket_stats->n_rx_ready_byte_count);
 			return true;
 		}
 		else {
 			tscval_t tsc_now = TSCVAL_INITIALIZER;
 			gettimeoftsc(&tsc_now);
-			if (tsc_now - g_si_tscv_last_poll < m_n_rx_delta_tsc_between_cq_polls) {
+			if (tsc_now - g_si_tscv_last_poll < m_n_sysvar_rx_delta_tsc_between_cq_polls) {
 				si_udp_logfunc("=> true (ready count = %d packets / %d bytes)", m_n_rx_pkt_ready_list_count, m_p_socket_stats->n_rx_ready_byte_count);
 				return true;
 			}
@@ -1862,11 +1862,11 @@ void sockinfo_udp::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ri
 	sockinfo::rx_add_ring_cb(flow_key, p_ring, is_migration);
 
 	//Now that we got at least 1 CQ attached enable the skip os mechanism.
-	m_rx_udp_poll_os_ratio_counter = m_n_rx_udp_poll_os_ratio;
+	m_rx_udp_poll_os_ratio_counter = m_n_sysvar_rx_udp_poll_os_ratio;
 
 	// Now that we got at least 1 CQ attached start polling the CQs
 	if (m_b_blocking)
-        	m_loops_to_go = m_n_rx_poll_num;
+        	m_loops_to_go = m_n_sysvar_rx_poll_num;
 	else
 		m_loops_to_go = 1; // Force single CQ poll in case of non-blocking socket
 
@@ -1931,7 +1931,7 @@ void sockinfo_udp::set_blocking(bool is_blocked)
 		// Set the high CQ polling RX_POLL value 
 		// depending on where we have mapped offloaded MC gorups
 		if (m_rx_ring_map.size() > 0)
-			m_loops_to_go = m_n_rx_poll_num;
+			m_loops_to_go = m_n_sysvar_rx_poll_num;
 		else
 			m_loops_to_go = safe_mce_sys().rx_poll_num_init;
 	}

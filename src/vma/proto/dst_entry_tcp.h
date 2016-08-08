@@ -68,7 +68,7 @@ protected:
 	virtual ssize_t 	pass_buff_to_neigh(const iovec *p_iov, size_t & sz_iov, uint16_t packet_id = 0);
 
 private:
-	const uint32_t       m_n_tx_bufs_batch_tcp;
+	const uint32_t       m_n_sysvar_tx_bufs_batch_tcp;
 };
 
 #endif /* DST_ENTRY_TCP_H */
