@@ -1018,8 +1018,10 @@ YY_DECL
 
 		if ( ! YY_CURRENT_BUFFER ) {
 			libvma_yyensure_buffer_stack ();
-			YY_CURRENT_BUFFER_LVALUE =
-				libvma_yy_create_buffer(libvma_yyin,YY_BUF_SIZE );
+			if ( yy_buffer_stack ) {
+				YY_CURRENT_BUFFER_LVALUE =
+					libvma_yy_create_buffer(libvma_yyin,YY_BUF_SIZE );
+			}
 		}
 
 		libvma_yy_load_buffer_state( );
@@ -1813,8 +1815,10 @@ static int yy_get_next_buffer (void)
     
 	if ( ! YY_CURRENT_BUFFER ){
         libvma_yyensure_buffer_stack ();
-		YY_CURRENT_BUFFER_LVALUE =
-            libvma_yy_create_buffer(libvma_yyin,YY_BUF_SIZE );
+		if ( yy_buffer_stack ) {
+			YY_CURRENT_BUFFER_LVALUE =
+            			libvma_yy_create_buffer(libvma_yyin,YY_BUF_SIZE );
+		}
 	}
 
 	libvma_yy_init_buffer(YY_CURRENT_BUFFER,input_file );
@@ -1845,7 +1849,9 @@ static int yy_get_next_buffer (void)
 		YY_CURRENT_BUFFER_LVALUE->yy_n_chars = (yy_n_chars);
 		}
 
-	YY_CURRENT_BUFFER_LVALUE = new_buffer;
+	if ( yy_buffer_stack ) {
+		YY_CURRENT_BUFFER_LVALUE = new_buffer;
+	}
 	libvma_yy_load_buffer_state( );
 
 	/* We don't actually know whether we did this switch during
@@ -1991,9 +1997,12 @@ void libvma_yypush_buffer_state (YY_BUFFER_STATE new_buffer )
 		}
 
 	/* Only push if top exists. Otherwise, replace top. */
-	if (YY_CURRENT_BUFFER)
+	if (YY_CURRENT_BUFFER) {
 		(yy_buffer_stack_top)++;
-	YY_CURRENT_BUFFER_LVALUE = new_buffer;
+	}
+	if (yy_buffer_stack) {
+		YY_CURRENT_BUFFER_LVALUE = new_buffer;
+	}
 
 	/* copied from libvma_yy_switch_to_buffer. */
 	libvma_yy_load_buffer_state( );
