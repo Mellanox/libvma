@@ -1102,7 +1102,9 @@ void convert_hw_addr_to_str(char *buf, uint8_t hw_addr_len, uint8_t *hw_addr)
 	if (hw_addr_len > 0) {
 		sprintf(buf,"%02X",hw_addr[0]);
 		for(int i = 1;i <= hw_addr_len;i++){
-			sprintf(buf, "%s:%02X", buf, hw_addr[i]);
+			char str_x[10];
+			sprintf(str_x, ":%02X", hw_addr[i]);
+			strcat(buf, str_x);
 		}
 	}
 }

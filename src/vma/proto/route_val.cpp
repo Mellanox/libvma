@@ -67,44 +67,63 @@ route_val::route_val(): cache_observer()
 void route_val::set_str()
 {
 	char str_addr[INET_ADDRSTRLEN];
+	char str_x[100] = {0};
 
 	strcpy(m_str, "dst:");
 
+	str_x[0] = '\0';
 	if (m_dst_addr != 0) {
 		inet_ntop(AF_INET, &m_dst_addr_in_addr, str_addr, sizeof(str_addr));
-		sprintf(m_str, "%s %-15s", m_str, str_addr);
+		sprintf(str_x, " %-15s", str_addr);
 	} else {
-		sprintf(m_str, "%s %-15s", m_str, "default");
+		sprintf(str_x, " %-15s", "default");
 	}
+	strcat(m_str, str_x);
 
+	str_x[0] = '\0';
 	if (m_dst_mask != 0) {
 		inet_ntop(AF_INET, &m_dst_mask_in_addr, str_addr, sizeof(str_addr));
-		sprintf(m_str, "%s netmask: %-15s", m_str, str_addr);
+		sprintf(str_x, " netmask: %-15s", str_addr);
 	}
+	strcat(m_str, str_x);
 
+	str_x[0] = '\0';
 	if (m_gw != 0) {
 		inet_ntop(AF_INET, &m_gw_in_addr, str_addr, sizeof(str_addr));
-		sprintf(m_str, "%s gw:      %-15s", m_str, str_addr);
+		sprintf(str_x, " gw:      %-15s", str_addr);
 	}
+	strcat(m_str, str_x);
 
-	sprintf(m_str, "%s dev: %-5s", m_str, m_if_name);
+	str_x[0] = '\0';
+	sprintf(str_x, " dev: %-5s", m_if_name);
+	strcat(m_str, str_x);
 
+	str_x[0] = '\0';
 	if (m_src_addr != 0) {
 		inet_ntop(AF_INET, &m_src_addr_in_addr, str_addr, sizeof(str_addr));
-		sprintf(m_str, "%s src: %-15s", m_str, str_addr);
+		sprintf(str_x, " src: %-15s", str_addr);
 	} else {
-		sprintf(m_str, "%s                     ", m_str);
+		sprintf(str_x, "                     ");
 	}
-				
-	if (m_table_id != RT_TABLE_MAIN)
-		sprintf(m_str, "%s table :%-10u", m_str, m_table_id);
-       	else
-		sprintf(m_str, "%s table :%-10s", m_str, "main");		
+	strcat(m_str, str_x);
+			
+	str_x[0] = '\0';
+	if (m_table_id != RT_TABLE_MAIN) {
+		sprintf(str_x, " table :%-10u", m_table_id);
+       	} else {
+		sprintf(str_x, " table :%-10s", "main");
+	}		
+	strcat(m_str, str_x);
 
-        sprintf(m_str, "%s scope %3d type %2d index %2d", m_str, m_scope, m_type, m_if_index);
+	str_x[0] = '\0';
+	sprintf(str_x, " scope %3d type %2d index %2d", m_scope, m_type, m_if_index);
+	strcat(m_str, str_x);
 
-        if (m_b_deleted)
-        	sprintf(m_str, "%s ---> DELETED", m_str);
+	str_x[0] = '\0';
+	if (m_b_deleted) {
+		sprintf(str_x, " ---> DELETED");
+	}
+	strcat(m_str, str_x);
 }
 
 void route_val::print_val()

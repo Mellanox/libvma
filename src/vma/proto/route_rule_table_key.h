@@ -36,6 +36,7 @@
 
 #include <stdio.h>
 #include <string>
+#include <cstring>
 
 #include "vma/util/to_str.h"
 #include "vma/util/vtypes.h"
@@ -53,12 +54,18 @@ public:
 	
 	const std::string to_str() const
 	{
-		char s[100];
+		char s[100] = {0};
 		sprintf(s, "Destination IP:%d.%d.%d.%d", NIPQUAD(m_dst_ip));
-		if (m_src_ip)
-			sprintf(s, "%s Source IP:%d.%d.%d.%d", s, NIPQUAD(m_src_ip));	
-		if (m_tos)
-			sprintf(s, "%s TOS:%u", s, m_tos);
+		if (m_src_ip) {
+			char sx[40] = {0};
+			sprintf(sx, " Source IP:%d.%d.%d.%d", NIPQUAD(m_src_ip));
+			strcat(s, sx);
+		}	
+		if (m_tos) {
+			char sx[20] = {0};
+			sprintf(sx, " TOS:%u", m_tos);
+			strcat(s, sx);
+		}
 			
 		return(std::string(s));
 	}
@@ -85,16 +92,22 @@ public:
 	size_t operator()(const route_rule_table_key &key) const
 	{
 		hash<string>_hash;
-		char s[40];
+		char s[40] = {0};
 		/*
 		Build string from exist parameter (destination IP, source IP, TOS)
 		which is unique for different route-rule entries.
 		*/
 		sprintf(s, "%d.%d.%d.%d", NIPQUAD(key.get_dst_ip()));
-		if (key.get_src_ip())
-			sprintf(s, "%s %d.%d.%d.%d", s, NIPQUAD(key.get_src_ip()));	
-		if (key.get_tos())
-			sprintf(s, "%s %u", s, key.get_tos());		
+		if (key.get_src_ip()) {
+			char sx[20] = {0};
+			sprintf(sx, " %d.%d.%d.%d", NIPQUAD(key.get_src_ip()));
+			strcat(s, sx);
+		}
+		if (key.get_tos()) {
+			char sx[20] = {0};
+			sprintf(sx, " %u", key.get_tos());
+			strcat(s, sx);
+		}
 		return _hash(std::string(s));// Use built in hash function for string input.
 	}
 };
