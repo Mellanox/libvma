@@ -134,9 +134,8 @@ private:
 
 	bool 			verify_ipoib_mode(struct ifaddrs* ifa);
 	bool			verify_mlx4_ib_device(const char* ifname);
-	bool 			verify_qp_creation(const char* ifname, enum ibv_qp_type);
-	bool 			verify_raw_qp_privliges(char* ifname);
-	bool 			verify_enable_ipoib(char* ifname);
+	bool 			verify_eth_qp_creation(const char* ifname);
+	bool 			verify_enable_ipoib(const char* ifname);
 };
 
 extern net_device_table_mgr* g_p_net_device_table_mgr; 
