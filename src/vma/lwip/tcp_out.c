@@ -848,12 +848,9 @@ tcp_send_empty_ack(struct tcp_pcb *pcb)
   return ERR_OK;
 }
 
-#define TCP_HDR  (20)
-
 void
 tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
 {
-
   struct pbuf *p = NULL;
   struct tcp_seg *newseg = NULL;
   u32_t lentosend = (wnd - (seg->seqno - pcb->lastack));
@@ -862,24 +859,28 @@ tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
   u8_t  apiflags = 0;
   u8_t  optflags = 0;
 
-  if ((NULL == seg->p) || (seg->p->ref>1)) {
-	  return;
+  if (((seg->seqno - pcb->lastack) >= wnd) || (NULL == seg->p) || (seg->p->ref>1)) {
+    return;
   }
 
 #if LWIP_TCP_TIMESTAMPS
   if ((pcb->flags & TF_TIMESTAMP)) {
-    optflags = TF_SEG_OPTS_TS;
+    optflags |= TF_SEG_OPTS_TS;
   }
 #endif /* LWIP_TCP_TIMESTAMPS */
 
-  optlen = LWIP_TCP_OPT_LENGTH( optflags );
+  optlen += LWIP_TCP_OPT_LENGTH( optflags );
 
-  if (seg->p->len > lentosend) {//first buffer is too big, split it
+  if (seg->p->len > lentosend) {/*First buffer is too big, split it*/
+    u32_t lentoqueue = seg->p->len - TCP_HLEN - lentosend;
 
-    u32_t lentoqueue = seg->p->len - TCP_HDR - lentosend;
+    if (seg->p->len <= TCP_HLEN + lentosend) {
+      LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_output : tcp_split_segment: Segment data is too small %"U16_F", %"U16_F"\n", seg->p->len, lentosend));
+      return;
+    }
 
     if (NULL == (p = tcp_pbuf_prealloc(lentoqueue + optlen, lentoqueue + optlen, &oversize, pcb, apiflags, 0))) {
-      LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_output : could not allocate memory for pbuf copy size %"U16_F"\n", (lentoqueue + optlen)));
+      LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_output : tcp_split_segment: could not allocate memory for pbuf copy size %"U16_F"\n", (lentoqueue + optlen)));
       return;
     }
 
@@ -887,7 +888,7 @@ tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
     TCP_DATA_COPY2((char *)p->payload + optlen, (u8_t *)seg->dataptr + lentosend, lentoqueue , &chksum, &chksum_swapped);
 
     /*Update new buffer*/
-    p->tot_len = seg->p->tot_len - lentosend - TCP_HDR;
+    p->tot_len = seg->p->tot_len - lentosend - TCP_HLEN;
     p->next = seg->p->next;
 
     /*Update original buffer*/
@@ -895,7 +896,7 @@ tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
     seg->p->len = seg->p->len - lentoqueue;
     seg->p->tot_len = seg->p->len;
 
-    /* Allocate memory for tcp_seg, and fill in fields. */
+    /* Allocate memory for tcp_seg and fill in fields. */
     if (NULL == (newseg = tcp_create_segment(pcb, p, 0,  seg->seqno + lentosend, optflags))) {
       LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_output : could not allocate memory for segment\n"));
       tcp_tx_pbuf_free(pcb, p);
@@ -908,7 +909,7 @@ tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
 
     /* Original segment update */
     seg->next = newseg;
-    seg->len = seg->p->len - TCP_HDR;
+    seg->len = seg->p->len - TCP_HLEN;
 
     if (pcb->last_unsent == seg) {
       pcb->last_unsent = newseg;
@@ -921,24 +922,29 @@ tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
     /* Update number of buffer to be send */
     pcb->snd_queuelen++;
   }
-  else if (seg->p->next) {//Segment with more than one pbuffer, split segment pbuff chain
+  else if (seg->p->next) {/*Segment with more than one pbuffer, split segment pbuff chain. At least one pBuffer will be sent*/
+
     struct pbuf *pnewhead = seg->p->next;
     struct pbuf *pnewtail = seg->p;
     struct pbuf *ptmp = seg->p;
     u32_t headchainlen = seg->p->len;
 
-    while ((headchainlen + pnewhead->len - TCP_HDR)<= lentosend) {
+    while ((headchainlen + pnewhead->len - TCP_HLEN)<= lentosend) {
+      if (pnewtail->ref > 1) {
+        return;
+      }
+
       headchainlen += pnewhead->len;
       pnewtail = pnewhead;
       pnewhead = pnewhead->next;
     }
 
-		/* Allocate memory for tcp_seg, and fill in fields. */
-		if (NULL == (newseg = tcp_create_segment(pcb, pnewhead, 0,  seg->seqno + headchainlen - TCP_HDR, optflags))) {
-		 LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_output : could not allocate memory for segment\n"));
-		 tcp_tx_pbuf_free(pcb, p);
-		 return;
-		}
+    /* Allocate memory for tcp_seg, and fill in fields. */
+    if (NULL == (newseg = tcp_create_segment(pcb, pnewhead, 0,  seg->seqno + headchainlen - TCP_HLEN, optflags))) {
+      LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_output : could not allocate memory for segment\n"));
+      tcp_tx_pbuf_free(pcb, p);
+      return;
+    }
 
      /*Update new tail*/
      pnewtail->next = NULL;
@@ -947,16 +953,16 @@ tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
      newseg->next = seg->next;
      newseg->flags = seg->flags;
 
-    /* Original segment update */
-    seg->next = newseg;
-    seg->len = headchainlen - TCP_HDR;
+     /* Original segment update */
+     seg->next = newseg;
+     seg->len = headchainlen - TCP_HLEN;
 
-    /*Update original buffers*/
-    while (ptmp) {
-        ptmp->tot_len = headchainlen;
-        headchainlen -= ptmp->len;
-        ptmp = ptmp->next;
-    }
+     /*Update original buffers*/
+     while (ptmp) {
+       ptmp->tot_len = headchainlen;
+       headchainlen -= ptmp->len;
+       ptmp = ptmp->next;
+     }
   }
 }
 
@@ -1041,7 +1047,7 @@ tcp_output(struct tcp_pcb *pcb)
 
   while (seg){
 		//Split segment in case of a small window
-		if (( pcb->flags & (TF_NODELAY | TF_INFR)) && wnd &&((seg->seqno - pcb->lastack) < wnd) && (((seg->len + seg->seqno - pcb->lastack) > wnd))) {
+		if (( pcb->flags & (TF_NODELAY | TF_INFR)) && wnd && (((seg->len + seg->seqno - pcb->lastack) > wnd))) {
 			tcp_split_segment(pcb, seg, wnd);
 			tcp_update_max_wnd_size( pcb, wnd);
 		}
