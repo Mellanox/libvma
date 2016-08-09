@@ -17,7 +17,7 @@ rm -rf $compiler_dir
 mkdir -p $compiler_dir
 cd $compiler_dir
 
-compiler_list="icc:icpc"
+compiler_list="icc:icpc clang:clang++"
 
 compiler_tap=${WORKSPACE}/${prefix}/compiler.tap
 echo "1..$(echo $compiler_list | tr " " "\n" | wc -l)" > $compiler_tap

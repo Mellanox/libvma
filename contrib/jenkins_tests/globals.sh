@@ -28,9 +28,11 @@ vg_dir=${WORKSPACE}/${prefix}/vg
 style_dir=${WORKSPACE}/${prefix}/style
 
 
-timeout_exe=${timout_exe:="timeout -s SIGKILL 20m"}
 nproc=$(grep processor /proc/cpuinfo|wc -l)
 make_opt="-j$(($nproc / 2 + 1))"
+if [ $(command -v timeout >/dev/null 2>&1 && echo $?) ]; then
+    timeout_exe="timeout -s SIGKILL 20m"
+fi
 
 trap "on_exit" INT TERM ILL KILL FPE SEGV ALRM
 
