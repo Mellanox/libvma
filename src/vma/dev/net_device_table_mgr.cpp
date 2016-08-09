@@ -250,11 +250,8 @@ int net_device_table_mgr::map_net_devices()
 				valid = true;
 			}
 		} else {
-			if (verify_qp_creation(ifa->ifa_name, IBV_QPT_RAW_PACKET)) {
+			if (verify_eth_qp_creation(ifa->ifa_name)) {
 				valid = true;
-			} else {
-				//try to inform the user of a permission problem
-				verify_raw_qp_privliges(ifa->ifa_name);
 			}
 		}
 		if (!valid) {
@@ -307,7 +304,7 @@ int net_device_table_mgr::map_net_devices()
 	return 0;
 }
 
-bool net_device_table_mgr::verify_enable_ipoib(char* ifname)
+bool net_device_table_mgr::verify_enable_ipoib(const char* ifname)
 {
 	NOT_IN_USE(ifname);
 	if(!safe_mce_sys().enable_ipoib) {
@@ -366,7 +363,7 @@ bool net_device_table_mgr::verify_mlx4_ib_device(const char* ifname)
 	return true;
 }
 
-bool net_device_table_mgr::verify_qp_creation(const char* ifname, enum ibv_qp_type qp_type)
+bool net_device_table_mgr::verify_eth_qp_creation(const char* ifname)
 {
 	int num_devices = 0;
 	bool success = false;
@@ -386,7 +383,7 @@ bool net_device_table_mgr::verify_qp_creation(const char* ifname, enum ibv_qp_ty
 	qp_init_attr.cap.max_send_sge = MCE_DEFAULT_TX_NUM_SGE;
 	qp_init_attr.cap.max_recv_sge = MCE_DEFAULT_RX_NUM_SGE;
 	qp_init_attr.sq_sig_all = 0;
-	qp_init_attr.qp_type = qp_type;
+	qp_init_attr.qp_type = IBV_QPT_RAW_PACKET;
 
 	//find ib_cxt
 	char base_ifname[IFNAMSIZ];
@@ -424,6 +421,26 @@ bool net_device_table_mgr::verify_qp_creation(const char* ifname, enum ibv_qp_ty
 			} else {
 				ndtm_logdbg("QP creation failed on interface %s (errno=%d %m), Traffic will not be offloaded \n", ifname, errno);
 				success = false;
+				int err = errno; //verify_raw_qp_privliges can overwrite errno so keep it before the call
+				if (validate_raw_qp_privliges() == 0) {
+					//// MLNX_OFED raw_qp_privliges file exist with bad value
+					vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+					vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", ifname);
+					vlog_printf(VLOG_WARNING,"* Working in this mode might causes VMA malfunction over Ethernet interfaces\n");
+					vlog_printf(VLOG_WARNING,"* WARNING: the following steps will restart your network interface!\n");
+					vlog_printf(VLOG_WARNING,"* 1. \"echo options ib_uverbs disable_raw_qp_enforcement=1 > /etc/modprobe.d/ib_uverbs.conf\"\n");
+					vlog_printf(VLOG_WARNING,"* 2. \"/etc/init.d/openibd restart\"\n");
+					vlog_printf(VLOG_WARNING,"* Read the RAW_PACKET QP root access enforcement section in the VMA's User Manual for more information\n");
+					vlog_printf(VLOG_WARNING,"******************************************************************************************************\n");
+				}
+				else if (err == EPERM) {
+					// file doesn't exists, print msg if errno is a permission problem
+					vlog_printf(VLOG_WARNING,"*********************************************************************************************\n");
+					vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", ifname);
+					vlog_printf(VLOG_WARNING,"* Offloaded resources are restricted to root or user with CAP_NET_RAW privileges\n");
+					vlog_printf(VLOG_WARNING,"* Read the CAP_NET_RAW and root access section in the VMA's User Manual for more information\n");
+					vlog_printf(VLOG_WARNING,"*********************************************************************************************\n");
+				}
 			}
 			break;
 		}
@@ -449,35 +466,6 @@ bool net_device_table_mgr::verify_qp_creation(const char* ifname, enum ibv_qp_ty
 	}
 	rdma_free_devices(pp_ibv_context_list);
 	return success;
-}
-
-bool net_device_table_mgr::verify_raw_qp_privliges(char* ifname)
-{
-
-	int ret = validate_raw_qp_privliges();
-	if (ret == 0) {
-		//// MLNX_OFED raw_qp_privliges file exist with bad value
-		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
-		vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", ifname);
-		vlog_printf(VLOG_WARNING,"* Working in this mode might causes VMA malfunction over Ethernet interfaces\n");
-		vlog_printf(VLOG_WARNING,"* WARNING: the following steps will restart your network interface!\n");
-		vlog_printf(VLOG_WARNING,"* 1. \"echo options ib_uverbs disable_raw_qp_enforcement=1 > /etc/modprobe.d/ib_uverbs.conf\"\n");
-		vlog_printf(VLOG_WARNING,"* 2. \"/etc/init.d/openibd restart\"\n");
-		vlog_printf(VLOG_WARNING,"* Read the RAW_PACKET QP root access enforcement section in the VMA's User Manual for more information\n");
-		vlog_printf(VLOG_WARNING,"******************************************************************************************************\n");
-		return false;
-	} else if (ret == -1) {
-		// raw_qp_privliges from MLNX_OFED file doesn't exist so check upstream for CAP_NET_RAW
-		if (!validate_user_has_CAP_NET_RAW_privliges()) {
-			vlog_printf(VLOG_WARNING,"*********************************************************************************************\n");
-			vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", ifname);
-			vlog_printf(VLOG_WARNING,"* Offloaded resources are restricted to root or user with CAP_NET_RAW privileges\n");
-			vlog_printf(VLOG_WARNING,"* Read the CAP_NET_RAW and root access section in the VMA's User Manual for more information\n");
-			vlog_printf(VLOG_WARNING,"*********************************************************************************************\n");
-			return false;
-		}
-	}
-	return true;
 }
 
 net_device_val* net_device_table_mgr::get_net_device_val(in_addr_t local_addr)
