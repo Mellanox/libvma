@@ -765,6 +765,7 @@ int get_peer_unicast_mac(const in_addr_t p_peer_addr, unsigned char peer_mac[ETH
 	int fd = 0;
 	int ret_val = -1;
 
+	/* cppcheck-suppress wrongPrintfScanfArgNum */
 	sprintf(peer_ip_str, "%d.%d.%d.%d ", NIPQUAD(p_peer_addr));
 	FILE* fp = fopen(ARP_TABLE_FILE, "r");
 	if (!fp)
@@ -810,6 +811,7 @@ int get_peer_ipoib_qpn(const struct sockaddr* p_peer_addr, uint32_t & remote_qpn
 	int fd = 0;
 	int ret_val = -1;
 
+	/* cppcheck-suppress wrongPrintfScanfArgNum */
 	sprintf(peer_ip_str, "%d.%d.%d.%d ", NIPQUAD(get_sa_ipv4_addr(p_peer_addr)));
 	FILE* fp = fopen(ARP_TABLE_FILE, "r");
 	if (!fp)
@@ -854,6 +856,7 @@ int get_peer_ipoib_address(const struct sockaddr* p_peer_addr, unsigned char pee
 	int fd = 0;
 	int ret_val = -1;
 
+	/* cppcheck-suppress wrongPrintfScanfArgNum */
 	sprintf(peer_ip_str, "%d.%d.%d.%d ", NIPQUAD(get_sa_ipv4_addr(p_peer_addr)));
 	FILE* fp = fopen(ARP_TABLE_FILE, "r");
 	if (!fp)

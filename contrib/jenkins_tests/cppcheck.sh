@@ -17,7 +17,8 @@ mkdir -p $cppcheck_dir
 cd $cppcheck_dir
 
 set +eE
-eval "cppcheck --platform=native --std=c99 \
+eval "cppcheck --std=c99 \
+	--inline-suppr --suppress=memleak:config_parser.y \
 	--template='{severity}: {id}: {file}:{line}: {message}' \
 	${WORKSPACE}/src 2> ${cppcheck_dir}/cppcheck.err 1> ${cppcheck_dir}/cppcheck.out"
 rc=$(($rc+$?))

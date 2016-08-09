@@ -300,6 +300,7 @@ void* event_handler_thread(void *_p_tgtObject)
 		} else {
 			evh_logdbg("VMA Internal thread affinity not set.");
 		}
+	/* cppcheck-suppress resourceLeak */
 	}
 
 	void* ret = p_tgtObject->thread_loop();
@@ -498,10 +499,13 @@ void event_handler_manager::priv_register_ibverbs_events(ibverbs_reg_info_t& inf
 	i = m_event_handler_map.find(info.fd);
 	if (i == m_event_handler_map.end()) {
 		event_data_t v;
+
 		v.type                  = EV_IBVERBS;
 		v.ibverbs_ev.fd         = info.fd;
 		v.ibverbs_ev.channel    = info.channel;
 
+		/* coverity[uninit_use_in_call] */
+		/* cppcheck-suppress uninitStructMember */
 		m_event_handler_map[info.fd] = v;
 		i = m_event_handler_map.find(info.fd);
 
@@ -584,10 +588,14 @@ void event_handler_manager::priv_register_rdma_cm_events(rdma_cm_reg_info_t& inf
 	if (iter_fd == m_event_handler_map.end()) {
 		evh_logdbg("Adding new channel (fd %d, id %#x, handler %p)", info.fd, info.id, info.handler);
 		event_data_t map_value;
+
 		map_value.type = EV_RDMA_CM;
 		map_value.rdma_cm_ev.n_ref_count = 1;
 		map_value.rdma_cm_ev.map_rdma_cm_id[info.id] = info.handler;
 		map_value.rdma_cm_ev.cma_channel = info.cma_channel;
+
+		/* coverity[uninit_use_in_call] */
+		/* cppcheck-suppress uninitStructMember */
 		m_event_handler_map[info.fd] = map_value;
 
 		update_epfd(info.fd, EPOLL_CTL_ADD);
@@ -658,6 +666,9 @@ void event_handler_manager::priv_register_command_events(command_reg_info_t& inf
 
 		map_value.type = EV_COMMAND;
 		map_value.command_ev.cmd = info.cmd;
+
+		/* coverity[uninit_use_in_call] */
+		/* cppcheck-suppress uninitStructMember */
 		m_event_handler_map[info.fd] = map_value;
 		update_epfd(info.fd, EPOLL_CTL_ADD);
 	}

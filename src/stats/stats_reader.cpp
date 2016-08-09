@@ -763,6 +763,7 @@ void print_mc_group_fds(mc_group_fds_t * mc_group_fds, int array_size)
 	printf("------------------------------\n");
 	for (int i=0; i< array_size; i++) {
 		char mcg_str[256];
+		/* cppcheck-suppress wrongPrintfScanfArgNum */
 		sprintf(mcg_str, "[%d.%d.%d.%d]", NIPQUAD(mc_group_fds[i].mc_grp));
 		printf("%-22s", mcg_str);
 		for (fd_list_t::iterator iter = mc_group_fds[i].fd_list.begin(); iter != mc_group_fds[i].fd_list.end(); iter++) {

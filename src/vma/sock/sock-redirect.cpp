@@ -192,6 +192,7 @@ char* sprintf_sockaddr(char* buf, int buflen, const struct sockaddr* _addr, sock
 	if ((_addrlen >= sizeof(struct sockaddr_in)) && (get_sa_family(_addr) == AF_INET)) {
 		in_addr_t in_addr = get_sa_ipv4_addr(_addr);
 		in_port_t in_port = get_sa_port(_addr);
+		/* cppcheck-suppress wrongPrintfScanfArgNum */
 		snprintf(buf, buflen, "AF_INET, addr=%d.%d.%d.%d, port=%d", NIPQUAD(in_addr), ntohs(in_port));
 	}
 	else {
