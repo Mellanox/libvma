@@ -42,8 +42,8 @@
 #include <errno.h>
 #include <fcntl.h>
 
+#include "utils/bullseye.h"
 #include "vma/util/utils.h"
-#include "vma/util/bullseye.h"
 #include "vma/util/sys_vars.h"
 
 #define VLOG_DEFAULT_MODULE_NAME "VMA"

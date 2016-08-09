@@ -43,6 +43,8 @@
 
 int main(int argc, char* argv[])
 {
+	if (argc) {};
+	if (argv) {};
 
 	struct sched_param sp;
 	sp.sched_priority = 30;
@@ -82,7 +84,7 @@ int main(int argc, char* argv[])
 	timespec* times2 = new timespec[ITERATION_NUM];
 
 	for(int i=0;i<ITERATION_NUM;i++){
-		gettimerdtsc(&times2[i]);
+		gettimefromtsc(&times2[i]);
 	}
 	for(int i=0;i<ITERATION_NUM-1;i++){
 		timespec m_elapsed = TIMESPEC_INITIALIZER;
@@ -153,8 +155,8 @@ int main(int argc, char* argv[])
 		timespec m_start = TIMESPEC_INITIALIZER;
 		timespec m_elapsed = TIMESPEC_INITIALIZER;
 		timespec m_current = TIMESPEC_INITIALIZER;
-		gettimerdtsc(&m_start);
-		gettimerdtsc(&m_current);
+		gettimefromtsc(&m_start);
+		gettimefromtsc(&m_current);
 		ts_sub(&m_current, &m_start, &m_elapsed);
 		if(i > 0) timeall += ts_to_nsec(&m_elapsed);
 		//std::cout << i << ": " << ts_to_nsec(&m_elapsed) << std::endl;
@@ -202,6 +204,7 @@ int main(int argc, char* argv[])
 	std::cout << "clock_gettime(CLOCK_MONOTONIC) - low pps  AVG: " << clockmon_avg_lowpps << " nsec" << std::endl;
 	std::cout << "RDTSC - low pps  AVG: " << rdtsc_avg_lowpps << " nsec" << std::endl;
 	std::cout << "gettimeofday - low pps  AVG: " << timeofday_avg_lowpps << " nsec" << std::endl;
+        std::cout << "--------------------------------------------------------------------------------" << std::endl;
 	
 	delete [] times;
 	delete [] times1;

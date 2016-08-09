@@ -30,10 +30,10 @@
  * SOFTWARE.
  */
 
-#include "netlink_compatibility.h"
-#include "vma/util/bullseye.h"
-#include "vma/util/if.h"
+#include "utils/bullseye.h"
 #include "vlogger/vlogger.h"
+#include "netlink_compatibility.h"
+#include "vma/util/if.h"
 
 #define MODULE_NAME 		"nl_wrapper:"
 #define nl_logerr		__log_err

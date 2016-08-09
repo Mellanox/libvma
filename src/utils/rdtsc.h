@@ -1,22 +1,42 @@
 /*
- * Copyright (C) Mellanox Technologies Ltd. 2001-2011.  ALL RIGHTS RESERVED.
+ * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
  *
- * This software product is a proprietary product of Mellanox Technologies Ltd.
- * (the "Company") and all right, title, and interest in and to the software product,
- * including all associated intellectual property rights, are and shall
- * remain exclusively with the Company.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * BSD license below:
  *
- * This software product is governed by the End User License Agreement
- * provided with the software product.
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
  *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and/or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
+
 
 #ifndef V_RDTSC_H
 #define V_RDTSC_H
 
+#include <time.h>
 #include "clock.h"
-#include <stdint.h>
-#include <unistd.h>
+#include "asm.h"
 
 /**
  * RDTSC extensions
@@ -24,20 +44,6 @@
 typedef unsigned long long tscval_t;
 
 #define TSCVAL_INITIALIZER	(0)
-
-/**
- * Read RDTSC register
- */
-static inline void gettimeoftsc(tscval_t *p_tscval)
-{
-	register uint32_t upper_32, lower_32;
-
-	// ReaD Time Stamp Counter (RDTCS)
-	__asm__ __volatile__("rdtsc" : "=a" (lower_32), "=d" (upper_32));
-
-	// Copy to user
-	*p_tscval = (((tscval_t)upper_32) << 32) | lower_32;
-}
 
 /**
  * Calibrate RDTSC with CPU speed 
@@ -94,22 +100,22 @@ inline int gettimefromtsc(struct timespec *ts)
 	ts_delta.tv_nsec = nsec_delta - ts_delta.tv_sec * NSEC_PER_SEC;
 	ts_add(&ts_start, &ts_delta, ts);
 
+#ifndef VMA_TIME_MEASURE
 	// Once a second re-sync our start time with real time-of-day
 	if (tsc_delta > get_tsc_rate_per_second())
 		ts_clear(&ts_start);
+#endif
+
 	return 0;
 }
 
 static inline int gettime(struct timespec *ts)
 {
+#ifdef VMA_TIME_MEASURE
 	return clock_gettime(CLOCK_MONOTONIC, ts);
-	//return gettimefromtsc(ts);
-}
-
-static inline int gettimerdtsc(struct timespec *ts)
-{
-	//return clock_gettime(CLOCK_MONOTONIC, ts);
+#else
 	return gettimefromtsc(ts);
+#endif
 }
 
 static inline int gettime(struct timeval *tv)

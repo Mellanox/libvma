@@ -31,14 +31,14 @@
  */
 
 
-#include <vlogger/vlogger.h>
+#include "utils/bullseye.h"
+#include "vlogger/vlogger.h"
 
 #include <vma/sock/sock-redirect.h>
 #include <vma/sock/socket_fd_api.h>
 #include <vma/sock/fd_collection.h>
 #include <vma/dev/net_device_table_mgr.h>
 #include <vma/iomux/epfd_info.h>
-#include "vma/util/bullseye.h"
 
 #define MODULE_NAME "epfd_info:"
 

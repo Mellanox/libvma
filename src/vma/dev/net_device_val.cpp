@@ -41,6 +41,7 @@
 #include <linux/if_ether.h>
 #include <sys/epoll.h>
 
+#include "utils/bullseye.h"
 #include "vma/util/utils.h"
 #include "vma/event/event_handler_manager.h"
 #include "vma/proto/L2_address.h"
@@ -51,7 +52,6 @@
 #include "vma/dev/net_device_table_mgr.h"
 #include "vma/proto/neighbour_table_mgr.h"
 
-#include "vma/util/bullseye.h"
 
 
 #define MODULE_NAME             "ndv"

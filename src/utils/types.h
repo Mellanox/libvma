@@ -31,31 +31,33 @@
  */
 
 
-#ifndef STATS_DATA_READER_H
-#define STATS_DATA_READER_H
+#ifndef TYPES_H
+#define TYPES_H
 
-#include <map>
-#include "vma/event/timer_handler.h"
+#include <sys/types.h>
 
-typedef std::map< void*, std::pair<void*, int> > stats_read_map_t;
+#ifndef IN
+#define IN
+#endif
 
-typedef struct {
-        int size;
-        void* shm_addr;
-} data_addr_and_size_t;
+#ifndef OUT
+#define OUT
+#endif
 
-class stats_data_reader : public timer_handler
-{
-        public:
-                stats_data_reader();
-                void    handle_timer_expired(void *ctx);
-                void    register_to_timer();
-                int     add_data_reader(void* local_addr, void* shm_addr, int size);
-                void*   pop_p_skt_stats(void* local_addr);
+#ifndef INOUT
+#define INOUT
+#endif
 
-        private:
-                void*  m_timer_handler;
-                stats_read_map_t m_data_map;
-};
+#ifndef likely
+#define likely(x)			__builtin_expect(!!(x), 1)
+#endif
 
-#endif //STATS_DATA_READER_H
+#ifndef unlikely
+#define unlikely(x)			__builtin_expect(!!(x), 0)
+#endif
+
+#ifndef NOT_IN_USE
+#define NOT_IN_USE(a)			((void)(a))
+#endif
+
+#endif //TYPES_H

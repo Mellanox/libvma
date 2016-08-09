@@ -35,8 +35,6 @@
 #include "config.h"
 #endif
 
-#include <vma/util/vma_stats.h>
-
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -44,15 +42,16 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include <vma/vma_extra.h>
-#include <vma/util/vtypes.h>
-#include <vma/util/lock_wrapper.h>
-#include <vlogger/vlogger.h>
-#include <vma/sock/sock-redirect.h>
-#include <vma/event/event_handler_manager.h>
-#include <vma/event/timer_handler.h>
-#include <stats/stats_data_reader.h>
-#include "vma/util/bullseye.h"
+#include "utils/bullseye.h"
+#include "utils/lock_wrapper.h"
+#include "vlogger/vlogger.h"
+#include "stats/stats_data_reader.h"
+#include "vma/util/vma_stats.h"
+#include "vma/util/vtypes.h"
+#include "vma/vma_extra.h"
+#include "vma/sock/sock-redirect.h"
+#include "vma/event/event_handler_manager.h"
+#include "vma/event/timer_handler.h"
 
 static lock_spin	g_lock_skt_stats("g_lock_stats");
 static lock_spin	g_lock_mc_grp_info("g_lock_mc_grp_info");

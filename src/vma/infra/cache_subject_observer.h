@@ -37,8 +37,8 @@
 #include <stdio.h>
 #include <tr1/unordered_map>
 #include "vlogger/vlogger.h"
+#include "utils/lock_wrapper.h"
 #include "vma/util/vtypes.h"
-#include "vma/util/lock_wrapper.h"
 #include "vma/infra/subject_observer.h"
 #include "vma/sock/cleanable_obj.h"
 #include "vma/event/timer_handler.h"
@@ -210,12 +210,12 @@ void cache_table_mgr <Key, Val>::try_to_remove_cache_entry(IN typename std::tr1:
 	cache_entry_subject<Key, Val> * cache_entry = itr->second;
 	Key key = itr->first;
 	if (!cache_entry->get_observers_count() && cache_entry->is_deletable()){
-		__log_dbg("Deleting cache_entry %s\n", cache_entry->to_str().c_str());
+		__log_dbg("Deleting cache_entry %s", cache_entry->to_str().c_str());
 		m_cache_tbl.erase(key);
 		cache_entry->clean_obj();
 	}
 	else {
-		__log_dbg("Cache_entry %s is not deletable\n", itr->second->to_str().c_str());
+		__log_dbg("Cache_entry %s is not deletable", itr->second->to_str().c_str());
 	}
 }
 
@@ -240,7 +240,7 @@ void cache_table_mgr<Key, Val>::start_garbage_collector(int timeout_msec)
 
 	m_timer_handle = g_p_event_handler_manager->register_timer_event(timeout_msec, this, PERIODIC_TIMER, NULL);
 	if(m_timer_handle == NULL) {
-		__log_warn("Failed to start garbage_collector\n");
+		__log_warn("Failed to start garbage_collector");
 	}
 
 }

@@ -35,8 +35,8 @@
 
 #include <assert.h>
 #include <list>
-#include <vma/event/event_handler_manager.h>
-#include "vma/util/bullseye.h"
+#include "utils/bullseye.h"
+#include "vma/event/event_handler_manager.h"
 #include "mem_buf_desc.h"
 
 //#define IP_FRAG_DEBUG 1

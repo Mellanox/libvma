@@ -36,14 +36,14 @@
 
 #include <sys/epoll.h>
 #include <limits.h>
+#include <tr1/unordered_map>
 
-#include <vma/util/lock_wrapper.h>
+#include "utils/lock_wrapper.h"
 #include <vma/util/vma_stats.h>
 #include <vma/sock/cleanable_obj.h>
 #include <vma/util/wakeup_pipe.h>
 #include <vma/dev/ring.h>
 #include <vma/sock/sockinfo.h>
-#include <tr1/unordered_map>
 
 #define EP_MAX_EVENTS (int)((INT_MAX / sizeof(struct epoll_event)))
 

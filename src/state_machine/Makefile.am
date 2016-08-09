@@ -1,5 +1,5 @@
-AM_CFLAGS = -Wall -g -fPIC#-O3
-AM_CXXFLAGS = -Wall -g -fPIC#-O3
+AM_CFLAGS = -Wall -g -fPIC #-O3
+AM_CXXFLAGS = -Wall -g -fPIC #-O3
 AM_CPPFLAGS := -I$(top_srcdir)/src
 
 noinst_LTLIBRARIES = libstate_machine.la
@@ -15,8 +15,9 @@ noinst_PROGRAMS = state_machine_test
 state_machine_test_LDADD = \
 	libstate_machine.la \
 	$(top_builddir)/src/vlogger/libvlogger.la
-state_machine_test_SOURCES = \
-	main.cpp
+
+state_machine_test_SOURCES = main.cpp
+	
 state_machine_test_DEPENDENCIES = \
 	libstate_machine.la \
 	$(top_builddir)/src/vlogger/libvlogger.la

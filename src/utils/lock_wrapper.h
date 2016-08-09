@@ -39,8 +39,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
+#include "types.h"
 #include "rdtsc.h"
-#include <vma/util/vtypes.h>
 
 #define likely(x)			__builtin_expect(!!(x), 1)
 #define unlikely(x)			__builtin_expect(!!(x), 0)

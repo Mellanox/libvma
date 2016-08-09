@@ -42,20 +42,20 @@
 #include <errno.h>
 #include <list>
 #include <bitset>
-#include <sys/mman.h>
-#include <sys/resource.h>
-#include <sys/utsname.h>
 #include <signal.h>
 #include <getopt.h>		/* getopt()*/
 #include <errno.h>
 #include <dirent.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <vma/util/utils.h>
-#include <vma/util/vma_stats.h>
-#include <vma/util/rdtsc.h>
-#include <vma/util/sys_vars.h>
 #include <vector>
+#include <sys/mman.h>
+#include <sys/resource.h>
+#include <sys/utsname.h>
+#include <sys/stat.h>
+#include "utils/rdtsc.h"
+#include "vma/util/utils.h"
+#include "vma/util/vma_stats.h"
+#include "vma/util/sys_vars.h"
 
 using namespace std;
 

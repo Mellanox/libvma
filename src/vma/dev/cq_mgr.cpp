@@ -38,16 +38,16 @@
 #include <math.h>
 #include <netinet/ip.h>
 
+#include "utils/bullseye.h"
 #include <vma/util/vtypes.h>
 #include <vma/util/valgrind.h>
 #include <vma/util/verbs_extra.h>
+#include "vma/util/instrumentation.h"
 #include <vma/sock/sock-redirect.h>
-#include "vma/util/bullseye.h"
 
 #include "buffer_pool.h"
 #include "qp_mgr.h"
 #include "ring_simple.h"
-#include "vma/util/instrumentation.h"
 
 #define BUFF_STAT_REFRESH	65536
 #define BUFF_STAT_THRESHOLD	8

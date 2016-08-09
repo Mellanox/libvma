@@ -11,7 +11,6 @@ EXTRA_DIST = \
 	mc_loop_test \
 	multithread_test \
 	server_test \
-	time_measurements_test \
 	vma_perf_envelope \
 	valgrind_libc.supp \
 	valgrind_rdma.supp \

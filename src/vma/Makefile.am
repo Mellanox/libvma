@@ -242,21 +242,12 @@ libvma_la_SOURCES := \
         sock/sockinfo_tcp.h \
         sock/sockinfo_udp.h \
         sock/sock-redirect.h \
-	util/asm-arm64.h \
-        util/asm.h \
-        util/asm-ppc64.h \
-        util/asm-x86.h \
-        util/atomic.h \
-        util/bullseye.h \
-        util/clock.h \
         util/hash_map.h \
         util/if.h \
         util/instrumentation.h \
         util/libvma.h \
         util/linked_unordered_map.h \
         util/list.h \
-        util/lock_wrapper.h \
-        util/rdtsc.h \
         util/sock_addr.h \
         util/sysctl_reader.h \
         util/sys_vars.h \

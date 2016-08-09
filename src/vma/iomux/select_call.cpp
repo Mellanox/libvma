@@ -33,12 +33,12 @@
 
 #include "select_call.h"
 
-#include <vlogger/vlogger.h>
+#include "utils/bullseye.h"
+#include "vlogger/vlogger.h"
 #include <vma/util/vtypes.h>
 #include <vma/sock/sock-redirect.h>
 #include <vma/sock/fd_collection.h>
 #include <vma/dev/net_device_table_mgr.h>
-#include "vma/util/bullseye.h"
 
 #define MODULE_NAME "select_call:"
 
