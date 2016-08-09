@@ -41,7 +41,7 @@
 #include "vma/lwip/pbuf.h"
 #include "vma/util/atomic.h"
 
-struct mem_buf_desc_t;
+class mem_buf_desc_t;
 
 class mem_buf_desc_owner
 {

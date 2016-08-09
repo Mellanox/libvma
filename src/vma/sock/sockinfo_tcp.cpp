@@ -314,7 +314,7 @@ bool sockinfo_tcp::prepare_listen_to_close()
 	{
 		sockinfo_tcp *new_sock = m_accepted_conns.front();
 		new_sock->m_sock_state = TCP_SOCK_INITED;
-		struct flow_tuple key;
+		class flow_tuple key;
 		sockinfo_tcp::create_flow_tuple_key_from_pcb(key, &(new_sock->m_pcb));
 		m_syn_received.erase(key);
 		m_accepted_conns.pop_front();
@@ -1220,7 +1220,7 @@ int sockinfo_tcp::handle_child_FIN(sockinfo_tcp* child_conn)
 	}
 
 	// remove the connection from m_syn_received and close it by caller
-	struct flow_tuple key;
+	class flow_tuple key;
 	sockinfo_tcp::create_flow_tuple_key_from_pcb(key, &(child_conn->m_pcb));
 	if (!m_syn_received.erase(key)) {
 		si_tcp_logfunc("Can't find the established pcb in syn received list");
@@ -2253,7 +2253,7 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 	m_ready_conn_cnt--;
 	tcp_accepted(m_sock);
 
-	struct flow_tuple key;
+	class flow_tuple key;
 	sockinfo_tcp::create_flow_tuple_key_from_pcb(key, &(ns->m_pcb));
 
 	//Since the pcb is already contained in connected sockinfo_tcp no need to keep it listen's socket SYN list

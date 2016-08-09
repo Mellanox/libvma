@@ -51,7 +51,7 @@
 #include <vma/event/timer_handler.h>
 #include <vma/dev/buffer_pool.h>
 
-struct mem_buf_desc_t;
+class mem_buf_desc_t;
 class event_handler_manager;
 class mem_buf_desc_owner;
 

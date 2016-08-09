@@ -358,7 +358,12 @@ void ring_bond::inc_ring_stats(ring_user_id_t id)
 
 bool ring_bond::reclaim_recv_buffers(descq_t *rx_reuse)
 {
-	descq_t buffer_per_ring[m_n_num_resources + 1];
+	descq_t *buffer_per_ring;
+
+	buffer_per_ring = (descq_t*)alloca(m_n_num_resources + 1);
+	if (NULL == buffer_per_ring) {
+		return false;
+	}
 	devide_buffers_helper(rx_reuse, buffer_per_ring);
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
 		if (buffer_per_ring[i].size() > 0) {
