@@ -244,10 +244,14 @@ if test "x${GCC}" = "xyes" ; then
         else
                 AC_MSG_RESULT([< 4])
         fi
-        SHARED_FLAGS="-Wall -Wextra -Werror -ffunction-sections -fdata-sections -Wsequence-point -pipe -Wno-self-assign -Winit-self -Wmissing-include-dirs"
+        SHARED_FLAGS="-Wall -Wextra -Werror -ffunction-sections -fdata-sections -Wsequence-point -pipe -Winit-self -Wmissing-include-dirs"
         CFLAGS="$SHARED_FLAGS $CFLAGS $WNO_FLAGS"
         CXXFLAGS="$SHARED_FLAGS -Wshadow $CXXFLAGS"
 fi
+
+CFLAGS="$CFLAGS -Wno-format-security -Wno-self-assign"
+CXXFLAGS="$CXXFLAGS -Wno-overloaded-virtual"
+
 
 AC_HEADER_STDC
 
