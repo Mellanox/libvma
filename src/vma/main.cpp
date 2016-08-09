@@ -48,7 +48,7 @@
 #include <linux/igmp.h>
 
 #include "vlogger/vlogger.h"
-#include "vma/util/rdtsc.h"
+#include "utils/rdtsc.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/util/vma_stats.h"
 #include "vma/util/utils.h"
@@ -243,6 +243,42 @@ static void handle_segfault(int)
 	kill(getpid(), SIGKILL);
 }
 
+void check_debug()
+{
+	if (safe_mce_sys().log_level >= VLOG_DEBUG) {
+		vlog_printf(VLOG_WARNING, "*************************************************************\n");
+		vlog_printf(VLOG_WARNING, "* VMA is currently configured with high log level           *\n");
+		vlog_printf(VLOG_WARNING, "* Application performance will decrease in this log level!  *\n");
+		vlog_printf(VLOG_WARNING, "* This log level is recommended for debugging purposes only *\n");
+		vlog_printf(VLOG_WARNING, "*************************************************************\n");
+	}
+}
+
+void check_cpu_speed()
+{
+	double hz_min = -1, hz_max = -1;
+	if (!get_cpu_hz(hz_min, hz_max)) {
+		vlog_printf(VLOG_DEBUG, "***************************************************************************\n");
+		vlog_printf(VLOG_DEBUG, "Failure in reading CPU speeds\n");
+		vlog_printf(VLOG_DEBUG, "Time measurements will not be accurate and Max Performance might not be achieved\n");
+		vlog_printf(VLOG_DEBUG, "Verify with: cat /proc/cpuinfo | grep \"MHz\\|clock\"\n");
+		vlog_printf(VLOG_DEBUG, "***************************************************************************\n");
+	}
+	else if (hz_min != hz_max) {
+		// CPU cores are running at different speed
+		// Machine is probably running not in high performance configuration
+		vlog_printf(VLOG_DEBUG, "***************************************************************************\n");
+		vlog_printf(VLOG_DEBUG, "CPU cores are running at different speeds: min= %.3lf MHz, max= %.3lf MHz\n", hz_min/1e6, hz_max/1e6);
+		vlog_printf(VLOG_DEBUG, "Time measurements will not be accurate and Max Performance might not be achieved\n");
+		vlog_printf(VLOG_DEBUG, "Verify with: cat /proc/cpuinfo | grep \"MHz\\|clock\"\n");
+		vlog_printf(VLOG_DEBUG, "***************************************************************************\n");
+	}
+	else {
+		// CPU cores are all running at identical speed
+		vlog_printf(VLOG_DEBUG, "CPU speed for all cores is: %.3lf MHz\n", hz_min/1e6);
+	}
+}
+
 void check_locked_mem()
 {
 	struct rlimit rlim;
@@ -252,17 +288,6 @@ void check_locked_mem()
 		vlog_printf(VLOG_WARNING, "Set this user's default to `ulimit -l unlimited`.\n");
 		vlog_printf(VLOG_WARNING, "Read more about this topic in the VMA's User Manual.\n");
 		vlog_printf(VLOG_WARNING, "************************************************************************\n");
-	}
-}
-
-void check_debug()
-{
-	if (safe_mce_sys().log_level >= VLOG_DEBUG) {
-		vlog_printf(VLOG_WARNING, "*************************************************************\n");
-		vlog_printf(VLOG_WARNING, "* VMA is currently configured with high log level           *\n");
-		vlog_printf(VLOG_WARNING, "* Application performance will decrease in this log level!  *\n");
-		vlog_printf(VLOG_WARNING, "* This log level is recommended for debugging purposes only *\n");
-		vlog_printf(VLOG_WARNING, "*************************************************************\n");
 	}
 }
 
@@ -952,8 +977,9 @@ extern "C" int main_init(void)
 	print_vma_global_settings();
 	get_orig_funcs();
 
-	check_locked_mem();
 	check_debug();
+	check_cpu_speed();
+	check_locked_mem();
 	check_flow_steering_log_num_mgm_entry_size();
 	check_netperf_flags();
 

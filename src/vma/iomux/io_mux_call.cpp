@@ -33,9 +33,9 @@
 
 #include "io_mux_call.h"
 
-#include <vlogger/vlogger.h>
+#include "utils/clock.h"
+#include "vlogger/vlogger.h"
 #include <vma/util/sys_vars.h>
-#include <vma/util/clock.h>
 #include <vma/sock/fd_collection.h>
 #include <vma/dev/net_device_table_mgr.h>
 #include "vma/util/instrumentation.h"

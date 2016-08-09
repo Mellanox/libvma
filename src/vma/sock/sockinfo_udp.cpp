@@ -41,7 +41,8 @@
 #include <sys/epoll.h>
 #include <algorithm>
 
-#include "vma/util/rdtsc.h"
+#include "utils/bullseye.h"
+#include "utils/rdtsc.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/util/libvma.h"
 #include "vma/sock/sock-redirect.h"
@@ -56,7 +57,6 @@
 #include "vma/iomux/epfd_info.h"
 #include "vma/iomux/io_mux_call.h"
 #include "vma/util/instrumentation.h"
-#include "vma/util/bullseye.h"
 #include "vma/dev/ib_ctx_handler_collection.h"
 
 #if DEFINED_MISSING_NET_TSTAMP

@@ -40,8 +40,8 @@
 #include <netinet/in.h>
 
 #include "vlogger/vlogger.h"
+#include "utils/lock_wrapper.h"
 #include "vma/vma_extra.h"
-#include "vma/util/lock_wrapper.h"
 #include "vma/util/vma_stats.h"
 #include "vma/util/sys_vars.h"
 #include "vma/proto/mem_buf_desc.h"

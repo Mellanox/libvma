@@ -34,12 +34,11 @@
 #ifndef MEM_BUF_DESC_H
 #define MEM_BUF_DESC_H
 
-#include "vma/util/vma_list.h"
 #include <netinet/in.h>
+#include "utils/atomic.h"
 #include "vma/util/vtypes.h" // for unlikely
-
+#include "vma/util/vma_list.h"
 #include "vma/lwip/pbuf.h"
-#include "vma/util/atomic.h"
 
 struct mem_buf_desc_t;
 

@@ -38,12 +38,11 @@
 #include <sys/shm.h>
 #include <sys/mman.h>
 
+#include "utils/bullseye.h"
 #include "vlogger/vlogger.h"
 #include "vma/util/sys_vars.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/proto/mem_buf_desc.h"
-#include "vma/util/bullseye.h"
-
 #include "ib_ctx_handler_collection.h"
 
 #define MODULE_NAME 	"bpool"

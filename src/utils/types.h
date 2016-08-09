@@ -31,39 +31,33 @@
  */
 
 
-/* This class implements subject observer design pattern  */
+#ifndef TYPES_H
+#define TYPES_H
 
-#ifndef SUBJECT_OBSERVER_H
-#define SUBJECT_OBSERVER_H
+#include <sys/types.h>
 
-#include <tr1/unordered_set>
-#include "utils/lock_wrapper.h"
-#include "vma/util/vtypes.h"
-#include "vma/util/to_str.h"
-#include "vma/event/event.h"
+#ifndef IN
+#define IN
+#endif
 
-class observer
-{
-public:
-	virtual 		~observer() {};
-	virtual void 		notify_cb() { return; };
-	virtual void 		notify_cb(event * ev) { NOT_IN_USE(ev); notify_cb(); };
-};
+#ifndef OUT
+#define OUT
+#endif
 
-typedef std::tr1::unordered_set<observer *> observers_t;
+#ifndef INOUT
+#define INOUT
+#endif
 
-class subject
-{
-public:
-				subject(const char* lock_name = "lock(subject)") : m_lock(lock_name) {};
-	virtual         	~subject() {};
-	bool 			register_observer(IN const observer* const new_observer);
-	bool 			unregister_observer(IN const observer* const old_observer);
-	void 	  		notify_observers(event * ev = NULL);
+#ifndef likely
+#define likely(x)			__builtin_expect(!!(x), 1)
+#endif
 
-protected:
-	lock_mutex_recursive    m_lock;
-	observers_t             m_observers;  // list of pointers of all observers (using stl::set for uniqueness - preventing duplicates)
-};
+#ifndef unlikely
+#define unlikely(x)			__builtin_expect(!!(x), 0)
+#endif
 
-#endif /* SUBJECT_OBSERVER_H */
+#ifndef NOT_IN_USE
+#define NOT_IN_USE(a)			((void)(a))
+#endif
+
+#endif //TYPES_H

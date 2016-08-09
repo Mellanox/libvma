@@ -34,13 +34,13 @@
 #ifndef SEND_INFO
 #define SEND_INFO
 
+#include "utils/bullseye.h"
+#include "vlogger/vlogger.h"
 #include "vma/util/vma_list.h"
 #include "vma/util/to_str.h"
+#include "vma/util/utils.h"
 #include "vma/event/event.h"
 #include "vma/proto/header.h"
-#include "vma/util/bullseye.h"
-#include "vma/util/utils.h"
-#include "vlogger/vlogger.h"
 
 class event;
 

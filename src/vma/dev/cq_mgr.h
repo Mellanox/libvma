@@ -34,9 +34,9 @@
 #ifndef CQ_MGR_H
 #define CQ_MGR_H
 
+#include "utils/atomic.h"
 #include "vma/util/sys_vars.h"
 #include "vma/util/verbs_extra.h"
-#include "vma/util/atomic.h"
 #include "vma/util/hash_map.h"
 #include "vma/util/vma_stats.h"
 #include "vma/proto/mem_buf_desc.h"

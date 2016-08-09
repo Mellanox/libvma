@@ -31,9 +31,9 @@
  */
 
 
-#include "dst_entry_udp.h"
+#include "utils/bullseye.h"
 #include "vma/util/utils.h"
-#include "vma/util/bullseye.h"
+#include "dst_entry_udp.h"
 
 #define MODULE_NAME             "dst_udp"
 

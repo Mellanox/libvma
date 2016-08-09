@@ -478,6 +478,7 @@ AC_CONFIG_FILES([
 		src/vma/Makefile
 		src/vma/infra/Makefile
 		src/vma/netlink/Makefile
+		src/utils/Makefile
 		src/vlogger/Makefile
 		src/stats/Makefile
 		src/state_machine/Makefile

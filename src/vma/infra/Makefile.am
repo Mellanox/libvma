@@ -1,7 +1,8 @@
 AM_CFLAGS = -Wall -g #-O3
 
 AM_CPPFLAGS := \
-            -I$(top_srcdir)/src
+	-I$(top_srcdir)/src \
+	-I$(top_srcdir)/src/vma 
 
 noinst_HEADERS = \
 	sender.h \

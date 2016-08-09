@@ -1,5 +1,5 @@
 timetest:
-Compile timetest: g++ -O3 -lrt timetest.cpp -o timetest
+Compile timetest: make
 Run timetest: ./timetest
 
 Example output:

@@ -37,8 +37,9 @@
 #include <ifaddrs.h>
 #include <sys/epoll.h>
 
-#include "vma/event/event_handler_manager.h"
+#include "utils/bullseye.h"
 #include "vlogger/vlogger.h"
+#include "vma/event/event_handler_manager.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/util/utils.h"
 #include "vma/sock/sock-redirect.h"
@@ -46,7 +47,6 @@
 #include "vma/dev/ring.h"
 #include "net_device_table_mgr.h"
 #include "ib_ctx_handler_collection.h"
-#include "vma/util/bullseye.h"
 
 #define MODULE_NAME             "ndtm"
 

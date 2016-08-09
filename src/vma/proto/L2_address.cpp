@@ -31,9 +31,9 @@
  */
 
 
-#include "vma/proto/L2_address.h"
+#include "utils/bullseye.h"
 #include "vlogger/vlogger.h"
-#include "vma/util/bullseye.h"
+#include "vma/proto/L2_address.h"
 
 
 #define MODULE_NAME 		"L2_addr"

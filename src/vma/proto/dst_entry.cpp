@@ -31,11 +31,11 @@
  */
 
 
+#include "utils/bullseye.h"
 #include "dst_entry.h"
 #include "vma/proto/rule_table_mgr.h"
 #include "vma/proto/route_table_mgr.h"
 #include "vma/util/utils.h"
-#include "vma/util/bullseye.h"
 
 #define MODULE_NAME             "dst"
 

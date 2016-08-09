@@ -32,17 +32,14 @@
 
 
 #include <stdlib.h>
-#include "delta_timer.h"
-
 #include <sys/time.h>
-#include <vlogger/vlogger.h>
-
-#include <vma/util/sys_vars.h>
-#include <vma/util/utils.h>
-#include <vma/util/clock.h>
-
+#include "utils/bullseye.h"
+#include "utils/clock.h"
+#include "vlogger/vlogger.h"
+#include "vma/util/sys_vars.h"
+#include "vma/util/utils.h"
+#include "delta_timer.h"
 #include "timer_handler.h"
-#include "vma/util/bullseye.h"
 
 #define MODULE_NAME 	"tmr:"
 
