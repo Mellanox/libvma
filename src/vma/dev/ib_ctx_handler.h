@@ -73,7 +73,6 @@ private:
 	ibv_device*             m_p_ibv_device; // HCA handle
 	vma_ibv_device_attr     m_ibv_device_attr;
 	ibv_pd*                 m_p_ibv_pd;
-	int                     m_channel; // fd channel
 	bool                    m_removed;
 
 	bool                    update_port_attr(int port_num);

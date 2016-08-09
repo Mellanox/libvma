@@ -84,7 +84,7 @@ void assign_dlsym(T &ptr, const char *name) {
 	ptr = reinterpret_cast<T>(dlsym(RTLD_NEXT, name));
 }
 
-#ifdef __INTEL_COMPILER
+#if defined(__INTEL_COMPILER) || (__clang__)
 #define VMA_THROW
 #else
 #define VMA_THROW	throw(vma_error)

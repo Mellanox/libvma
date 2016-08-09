@@ -950,8 +950,8 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 	int printed_line_num = SCREEN_SIZE;
 	struct timespec start, end;	
 	bool proc_running = true;
-	socket_instance_block_t prev_instance_blocks[p_sh_mem->max_skt_inst_num];
-	socket_instance_block_t curr_instance_blocks[p_sh_mem->max_skt_inst_num];
+	socket_instance_block_t *prev_instance_blocks;
+	socket_instance_block_t *curr_instance_blocks;
 	cq_instance_block_t prev_cq_blocks[NUM_OF_SUPPORTED_CQS];
 	cq_instance_block_t curr_cq_blocks[NUM_OF_SUPPORTED_CQS];
 	ring_instance_block_t prev_ring_blocks[NUM_OF_SUPPORTED_RINGS];
@@ -960,7 +960,16 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 	bpool_instance_block_t curr_bpool_blocks[NUM_OF_SUPPORTED_BPOOLS];
 	iomux_stats_t prev_iomux_blocks;
 	iomux_stats_t curr_iomux_blocks;
-	
+
+	prev_instance_blocks = (socket_instance_block_t*)alloca(p_sh_mem->max_skt_inst_num);
+	if (NULL == prev_instance_blocks) {
+		return ;
+	}
+        curr_instance_blocks = (socket_instance_block_t*)alloca(p_sh_mem->max_skt_inst_num);
+        if (NULL == curr_instance_blocks) {
+                return ;
+        }
+
 	memset((void*)prev_instance_blocks,0, sizeof(socket_instance_block_t) * p_sh_mem->max_skt_inst_num);
 	memset((void*)curr_instance_blocks,0, sizeof(socket_instance_block_t) * p_sh_mem->max_skt_inst_num);
 	memset((void*)prev_cq_blocks,0, sizeof(cq_instance_block_t) * NUM_OF_SUPPORTED_CQS);

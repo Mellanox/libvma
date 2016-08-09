@@ -307,7 +307,7 @@ typedef struct sh_mem_t {
 	bpool_instance_block_t		bpool_inst_arr[NUM_OF_SUPPORTED_BPOOLS];
 	mc_grp_info_t			mc_info;
 	iomux_stats_t                   iomux;
-	socket_instance_block_t  	skt_inst_arr[]; //sockets statistics array
+	socket_instance_block_t  	skt_inst_arr[0]; //sockets statistics array
 } sh_mem_t;
 
 typedef struct sh_mem_info {

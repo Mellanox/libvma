@@ -50,7 +50,7 @@
 class cq_mgr;
 class epfd_info;
 
-struct mem_buf_desc_t;
+class mem_buf_desc_t;
 
 typedef enum {
 	TX_WRITE = 13, TX_WRITEV, TX_SEND, TX_SENDTO, TX_SENDMSG, TX_UNDEF

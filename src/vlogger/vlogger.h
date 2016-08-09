@@ -259,6 +259,9 @@ static inline void vlog_printf(vlog_levels_t log_level, const char* fmt , ... )
 		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, " %s %s: ", g_vlogger_module_name, log_level::to_str(log_level));
 	}
 
+	if (len < 0) {
+		return ;
+	}
 	buf[len+1] = '\0';
 
 	// Format body
@@ -274,7 +277,10 @@ static inline void vlog_printf(vlog_levels_t log_level, const char* fmt , ... )
 	        if (len > VLOGGER_STR_SIZE - VLOGGER_STR_TERMINATION_SIZE) 
 	                len = VLOGGER_STR_SIZE - VLOGGER_STR_TERMINATION_SIZE - 1;
 
-		len += snprintf(buf+len, VLOGGER_STR_TERMINATION_SIZE, VLOGGER_STR_COLOR_TERMINATION_STR);
+		len = snprintf(buf + len, VLOGGER_STR_TERMINATION_SIZE, VLOGGER_STR_COLOR_TERMINATION_STR);
+		if (len < 0) {
+			return ;
+		}
 	}
 
 	if (g_vlogger_cb)
@@ -318,6 +324,9 @@ static inline void vlog_print_buffer(vlog_levels_t log_level, const char* msg_he
 	} else {
 		len = snprintf(buf, sizeof(buf)-1, "%s %s: ",
 			       g_vlogger_module_name, log_level::to_str(log_level));
+	}
+	if (len < 0) {
+		return ;
 	}
 	buf[len+1] = '\0';
 

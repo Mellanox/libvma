@@ -40,8 +40,6 @@ struct atomic_t {
 	__volatile__ int counter;
 };
 
-#define ATOMIC_DECLARE_INIT(i) 	{ counter: i }
-
 #define ATOMIC_INIT(i)  { (i) }
 
 /**

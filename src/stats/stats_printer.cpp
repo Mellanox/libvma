@@ -340,7 +340,7 @@ void print_netstat_like(socket_stats_t* p_si_stats, mc_grp_info_t* , FILE* file,
 	if (len < MAX_ADDR_LEN )fprintf(file, "%*s ", MAX_ADDR_LEN-len, ""); // pad and delimiter
 
 	fprintf(file, " ");
-	len = 0;
+
 	if (p_si_stats->connected_ip || p_si_stats->connected_port) {
 		/* cppcheck-suppress wrongPrintfScanfArgNum */
 		len = fprintf(file, "%d.%d.%d.%d:%-5d", NIPQUAD(p_si_stats->connected_ip), ntohs(p_si_stats->connected_port));

@@ -34,7 +34,7 @@
 #ifndef PKT_RECVR_SINK_H
 #define PKT_RECVR_SINK_H
 
-struct mem_buf_desc_t;
+class mem_buf_desc_t;
 class flow_tuple_with_local_if;
 class ring;
 

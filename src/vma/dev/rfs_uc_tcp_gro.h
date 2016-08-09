@@ -78,7 +78,6 @@ private:
 	inline bool tcp_ip_check(mem_buf_desc_t* mem_buf_desc, iphdr* p_ip_h, tcphdr* p_tcp_h);
 	inline bool timestamp_check(tcphdr* p_tcp_h);
 
-	pkt_rcvr_sink* m_p_orig_sink;
 	gro_mgr* m_p_gro_mgr;
 	bool m_b_active;
 	bool m_b_reserved;
