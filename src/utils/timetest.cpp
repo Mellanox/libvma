@@ -34,8 +34,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
-#include "util/clock.h"
-#include "util/rdtsc.h"
+#include "clock.h"
+#include "rdtsc.h"
 
 #define ITERATION_NUM 10000000
 #define ITERATION_NUM_LOW_PPS 100
@@ -43,6 +43,8 @@
 
 int main(int argc, char* argv[])
 {
+	if (argc) {};
+	if (argv) {};
 
 	struct sched_param sp;
 	sp.sched_priority = 30;
@@ -202,6 +204,11 @@ int main(int argc, char* argv[])
 	std::cout << "clock_gettime(CLOCK_MONOTONIC) - low pps  AVG: " << clockmon_avg_lowpps << " nsec" << std::endl;
 	std::cout << "RDTSC - low pps  AVG: " << rdtsc_avg_lowpps << " nsec" << std::endl;
 	std::cout << "gettimeofday - low pps  AVG: " << timeofday_avg_lowpps << " nsec" << std::endl;
+        std::cout << "--------------------------------------------------------------------------------" << std::endl;
+	double hz_min, hz_max;
+	get_cpu_hz(hz_min, hz_max);
+	std::cout << "Check CPU speeds: min= " << hz_min/1e6 << " MHz, max= " << hz_max/1e6 << " MHz" << std::endl;
+
 	
 	delete [] times;
 	delete [] times1;

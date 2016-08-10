@@ -38,8 +38,8 @@
 #include <netlink/netlink.h>
 #include <netlink/cache.h>
 #include <netlink/route/neighbour.h>
+#include "utils/lock_wrapper.h"
 #include "neigh_info.h"
-#include "vma/util/lock_wrapper.h"
 #include "vma/event/netlink_event.h"
 #include "netlink_compatibility.h"
 

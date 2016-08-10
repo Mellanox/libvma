@@ -34,10 +34,10 @@
 #ifndef RING_ALLOCATION_LOGIC_H_
 #define RING_ALLOCATION_LOGIC_H_
 
+#include "utils/bullseye.h"
 #include "vlogger/vlogger.h"
 #include "vma/dev/net_device_table_mgr.h"
 #include "vma/util/sys_vars.h"
-#include "vma/util/bullseye.h"
 
 #define DEFAULT_RING_KEY 0
 #define CANDIDATE_STABILITY_ROUNDS 20

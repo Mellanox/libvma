@@ -34,8 +34,8 @@
 #ifndef TCP_SOCKINFO_H
 #define TCP_SOCKINFO_H
 
+#include "utils/lock_wrapper.h"
 #include "vma/proto/peer_key.h"
-#include "vma/util/lock_wrapper.h"
 #include "vma/proto/mem_buf_desc.h"
 #include "vma/sock/socket_fd_api.h"
 #include "vma/dev/buffer_pool.h"

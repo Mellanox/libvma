@@ -43,9 +43,8 @@
 #include <netinet/udp.h>
 #include <sys/time.h>
 
-#include <vlogger/vlogger.h>
-
-#include <vma/util/lock_wrapper.h>
+#include "vlogger/vlogger.h"
+#include "utils/lock_wrapper.h"
 #include <vma/util/vtypes.h>
 #include <vma/util/sys_vars.h>
 #include <vma/event/timer_handler.h>

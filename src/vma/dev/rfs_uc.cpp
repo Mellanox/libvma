@@ -31,9 +31,9 @@
  */
 
 
+#include "utils/bullseye.h"
 #include "vma/dev/rfs_uc.h"
 #include "vma/proto/L2_address.h"
-#include "vma/util/bullseye.h"
 #include "vma/dev/ring_simple.h"
 
 #define MODULE_NAME 		"rfs_uc"

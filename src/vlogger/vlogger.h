@@ -35,15 +35,14 @@
 #define VLOGGER_H
 
 #include <iostream>
-
 #include <fstream>
 #include <time.h>
 #include <stdarg.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <vma/util/rdtsc.h>
-#include "vma/util/bullseye.h"
+#include "utils/bullseye.h"
+#include "utils/rdtsc.h"
 
 #define TO_STR(a) TOSTR_HELPER(a)
 #define TOSTR_HELPER(a) #a

@@ -31,7 +31,11 @@
  */
 
 
+#include <pthread.h>
+#include <net/route.h>
 
+#include "vlogger/vlogger.h"
+#include "utils/bullseye.h"
 #include "netlink_wrapper.h"
 #include <netlink/types.h>
 #include <netlink/route/rtnl.h>
@@ -39,11 +43,7 @@
 #include <netlink/route/link.h>
 #include <netlink/route/route.h>
 #include <netlink/utils.h>
-#include "vlogger/vlogger.h"
-#include "vma/util/bullseye.h"
 
-#include <pthread.h>
-#include <net/route.h>
 #define MODULE_NAME 		"nl_wrapper:"
 
 #define nl_logpanic		__log_panic

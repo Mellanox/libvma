@@ -35,13 +35,13 @@
 
 #include <sys/epoll.h>
 #include <netdb.h>
-#include "vma/util/if.h"
 
+#include "utils/bullseye.h"
 #include "vlogger/vlogger.h"
+#include "vma/util/if.h"
 #include "vma/proto/route_table_mgr.h"
 #include "sock-redirect.h"
 #include "fd_collection.h"
-#include "vma/util/bullseye.h"
 
 
 #define MODULE_NAME 		"si"

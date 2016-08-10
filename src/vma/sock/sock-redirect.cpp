@@ -37,6 +37,7 @@
 #include <dlfcn.h>
 #include <iostream>
 
+#include "utils/lock_wrapper.h"
 #include <vma/proto/ip_frag.h>
 #include <vma/dev/buffer_pool.h>
 #include <vma/event/event_handler_manager.h>
@@ -46,7 +47,6 @@
 #include <vma/iomux/epfd_info.h>
 #include <vma/iomux/epoll_wait_call.h>
 #include <vma/util/sys_vars.h>
-#include <vma/util/lock_wrapper.h>
 #include <vma/proto/route_table_mgr.h>
 #include <vma/proto/vma_lwip.h>
 #include <vma/main.h>

@@ -31,39 +31,59 @@
  */
 
 
-/* This class implements subject observer design pattern  */
+/*
+ * system includes
+ */
+#if HAVE_CONFIG_H
+#  include <config.h>
+#endif /* HAVE_CONFIG_H */
 
-#ifndef SUBJECT_OBSERVER_H
-#define SUBJECT_OBSERVER_H
 
-#include <tr1/unordered_set>
-#include "utils/lock_wrapper.h"
-#include "vma/util/vtypes.h"
-#include "vma/util/to_str.h"
-#include "vma/event/event.h"
+#include <stdio.h>
+#include <sys/param.h> // for MAX & MIN
+#include "rdtsc.h"
 
-class observer
+
+bool get_cpu_hz(double &hz_min, double &hz_max)
 {
-public:
-	virtual 		~observer() {};
-	virtual void 		notify_cb() { return; };
-	virtual void 		notify_cb(event * ev) { NOT_IN_USE(ev); notify_cb(); };
-};
+	FILE* f;
+	char buf[256];
 
-typedef std::tr1::unordered_set<observer *> observers_t;
+	f = fopen("/proc/cpuinfo", "r");
+	if (!f) {
+		return false;
+	}
 
-class subject
-{
-public:
-				subject(const char* lock_name = "lock(subject)") : m_lock(lock_name) {};
-	virtual         	~subject() {};
-	bool 			register_observer(IN const observer* const new_observer);
-	bool 			unregister_observer(IN const observer* const old_observer);
-	void 	  		notify_observers(event * ev = NULL);
+	double mhz_tmp = 0.0;
+	while (fgets(buf, sizeof(buf), f)) {
+		double mhz;
+		int rc;
 
-protected:
-	lock_mutex_recursive    m_lock;
-	observers_t             m_observers;  // list of pointers of all observers (using stl::set for uniqueness - preventing duplicates)
-};
+#if defined(__ia64__)
+		rc = sscanf(buf, "itc MHz : %lf", &mhz);
+#elif defined(__powerpc__)
+		rc = sscanf(buf, "clock : %lf", &mhz);
+#else
+		rc = sscanf(buf, "cpu MHz : %lf", &mhz);
+#endif
+		if (rc != 1) {
+			continue;
+		}
+		if (mhz_tmp == 0.0) {
+			// first time align of all values
+			mhz_tmp = hz_max = hz_min = mhz;
+			continue;
+		}
+		hz_min = MIN(hz_min, mhz);
+		hz_max = MAX(hz_max, mhz);
+	}
+	fclose(f);
 
-#endif /* SUBJECT_OBSERVER_H */
+	// Convert to Hz before return to caller
+	// (original values are in MHz)
+	hz_min = hz_min * 1.0e6;
+	hz_max = hz_max * 1.0e6;
+	return true;
+}
+
+

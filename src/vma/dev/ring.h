@@ -34,9 +34,9 @@
 #ifndef RING_H
 #define RING_H
 
+#include "utils/lock_wrapper.h"
 #include "vma/dev/gro_mgr.h"
 #include "vma/util/hash_map.h"
-#include "vma/util/lock_wrapper.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/sock/pkt_rcvr_sink.h"
 #include "vma/proto/mem_buf_desc.h"

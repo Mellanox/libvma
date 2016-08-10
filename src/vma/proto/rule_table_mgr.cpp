@@ -42,17 +42,17 @@
 #include <netinet/in.h>
 #include <netinet/ether.h>
 #include <arpa/inet.h>
-#include "vma/util/if.h"
 
+#include "utils/bullseye.h"
+#include "utils/lock_wrapper.h"
 #include "vlogger/vlogger.h"
 #include "vma/util/vtypes.h"
-#include "vma/util/lock_wrapper.h"
 #include "vma/util/utils.h"
+#include "vma/util/if.h"
 #include "rule_table_mgr.h"
 #include "vma/sock/socket_fd_api.h"
 #include "vma/sock/sock-redirect.h"
 #include "ip_address.h"
-#include "vma/util/bullseye.h"
 
 // debugging macros
 #define MODULE_NAME 		"rrm:"

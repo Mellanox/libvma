@@ -31,10 +31,10 @@
  */
 
 
+#include "utils/bullseye.h"
 #include "vma/dev/rfs.h"
 #include "vma/dev/qp_mgr.h"
 #include "vma/dev/ring_simple.h"
-#include "vma/util/bullseye.h"
 
 #define MODULE_NAME 		"rfs"
 

@@ -48,7 +48,7 @@
 #include <linux/igmp.h>
 
 #include "vlogger/vlogger.h"
-#include "vma/util/rdtsc.h"
+#include "utils/rdtsc.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/util/vma_stats.h"
 #include "vma/util/utils.h"
