@@ -422,7 +422,7 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
     /* Usable space at the end of the last unsent segment */
     unsent_optlen = LWIP_TCP_OPT_LENGTH(pcb->last_unsent->flags);
     LWIP_ASSERT("mss_local is too small", mss_local >= pcb->last_unsent->len + unsent_optlen);
-    space = ((mss_local <= (pcb->last_unsent->len + unsent_optlen)) ? 0 : (mss_local - (pcb->last_unsent->len + unsent_optlen)));
+    space = (mss_local - (pcb->last_unsent->len + unsent_optlen));
     /*
      * Phase 1: Copy data directly into an oversized pbuf.
      *
@@ -964,21 +964,6 @@ tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
   }
 }
 
-void
-tcp_update_max_wnd_size(struct tcp_pcb *pcb, u32_t wnd) {
-  /* Update max windows size to the current window size */
-  pcb->snd_wnd_max = 2 * wnd;
-  u16_t mss_local = LWIP_MIN(pcb->mss, pcb->snd_wnd_max/2);
-  mss_local = mss_local ? mss_local : pcb->mss;
-
-  if (pcb->last_unsent) {
-    pcb->unsent_oversize = ((pcb->last_unsent->len >= mss_local) ? 0: (mss_local - pcb->last_unsent->len));
-  }
-  else {
-    pcb->unsent_oversize = 0;
-  }
-}
-
 /**
  * Find out what we can send and send it
  *
@@ -1047,7 +1032,6 @@ tcp_output(struct tcp_pcb *pcb)
     /*Split the segment in case of a small window*/
     if (( pcb->flags & (TF_NODELAY | TF_INFR)) && (wnd) && (((seg->len + seg->seqno - pcb->lastack) > wnd))) {
       tcp_split_segment(pcb, seg, wnd);
-      tcp_update_max_wnd_size( pcb, wnd);
     }
 
     /* data available and window allows it to be sent? */
