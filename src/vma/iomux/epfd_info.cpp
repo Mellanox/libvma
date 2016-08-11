@@ -270,7 +270,7 @@ bool epfd_info::is_cq_fd(uint64_t data)
 
 int epfd_info::add_fd(int fd, epoll_event *event)
 {
-	int ret;
+	int ret, socket_epfd;
 	epoll_event evt;
 	bool is_offloaded = false;
 	
@@ -289,16 +289,21 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 			          event->events & ~SUPPORTED_EPOLL_EVENTS);
 			m_log_invalid_events--;
 		}
+
+		if ((socket_epfd = temp_sock_fd_api->get_epoll_context_fd())) {
+			if (socket_epfd == m_epfd) {
+				__log_dbg("fd=%d is already registered with this epoll instance", fd);
+				errno = EEXIST;
+			} else {
+				__log_dbg("fd=%d is already registered with another epoll instance (%d), cannot register to epoll (%d)", fd, socket_epfd, m_epfd);
+				errno = ENOMEM;
+			}
+			return -1;
+		}
 	}
 
 	if (temp_sock_fd_api && temp_sock_fd_api->skip_os_select()) {
 		__log_dbg("fd=%d must be skipped from os epoll()", fd);
-		// Checking for duplicate fds
-		if (m_fd_info.find(fd) != m_fd_info.end()) {
-			__log_dbg("epoll_ctl: tried to add an existing fd. (%d)", fd);
-			errno = ENOENT;
-			return -1;
-		}
 	}
 	else {
 		// Add an event which indirectly point to our event

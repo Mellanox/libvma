@@ -191,6 +191,7 @@ public:
 
 	virtual void add_epoll_context(epfd_info *epfd);
 	virtual void remove_epoll_context(epfd_info *epfd);
+	int get_epoll_context_fd();
 
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
