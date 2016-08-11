@@ -220,6 +220,7 @@ static void __vma_add_instance(char *prog_name_expr, char *user_defined_id) {
 	
 	new_instance = (struct instance*) malloc(sizeof(struct instance));
 	if (!new_instance) {
+		free(new_node);
 		yyerror("fail to allocate new instance");
 		parse_err = 1;
 		return;
@@ -291,6 +292,7 @@ static void __vma_add_rule() {
 	
 	rule = (struct use_family_rule *)malloc(sizeof(*rule));
 	if (!rule) {
+		free(new_node);
 		yyerror("fail to allocate new rule");
 		parse_err = 1;
 		return;

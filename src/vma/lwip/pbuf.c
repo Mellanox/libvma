@@ -580,7 +580,7 @@ pbuf_copy(struct pbuf *p_to, struct pbuf *p_from)
       LWIP_ERROR("pbuf_copy() does not allow packet queues!\n",
                   (p_to->next == NULL), return ERR_VAL;);
     }
-  } while (p_from);
+  } while (p_from && p_to);
   LWIP_DEBUGF(PBUF_DEBUG | LWIP_DBG_TRACE, ("pbuf_copy: end of chain reached.\n"));
   return ERR_OK;
 }
@@ -608,10 +608,6 @@ pbuf_copy_partial(struct pbuf *buf, void *dataptr, u16_t len, u16_t offset)
   LWIP_ERROR("pbuf_copy_partial: invalid dataptr", (dataptr != NULL), return 0;);
 
   left = 0;
-
-  if((buf == NULL) || (dataptr == NULL)) {
-    return 0;
-  }
 
   /* Note some systems use byte copy if dataptr or one of the pbuf payload pointers are unaligned. */
   for(p = buf; len != 0 && p != NULL; p = p->next) {
@@ -820,7 +816,7 @@ void pbuf_split_64k(struct pbuf *p, struct pbuf **rest)
 		i->next = NULL;
 
 		/* Update the tot_len field in the first part */
-		for (i = p; i && i->next != *rest; i = i->next) {
+		for (i = p; i && i->next != *rest && *rest; i = i->next) {
 			i->tot_len -= (*rest)->tot_len;
 		}
 

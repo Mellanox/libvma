@@ -64,7 +64,7 @@
 
 #define cq_logdbg_no_funcname(log_fmt, log_args...)	do { if (g_vlogger_level >= VLOG_DEBUG) 	vlog_printf(VLOG_DEBUG, MODULE_NAME "[%p]:%d: "  log_fmt "\n", __INFO__, __LINE__, ##log_args); } while (0)
 
-atomic_t cq_mgr::m_n_cq_id_counter = ATOMIC_DECLARE_INIT(1);
+atomic_t cq_mgr::m_n_cq_id_counter = ATOMIC_INIT(1);
 uint64_t cq_mgr::m_n_global_sn = 0;
 /**/
 /** inlining functions can only help if they are implemented before their usage **/

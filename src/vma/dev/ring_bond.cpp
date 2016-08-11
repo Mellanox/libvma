@@ -61,6 +61,7 @@ ring(count, mtu), m_lock_ring_rx("ring_bond:lock_rx"), m_lock_ring_tx("ring_bond
 	m_active_rings = new ring_simple*[count];
 	for (int i = 0; i < count; i++)
 		m_active_rings[i] = NULL;
+	m_buffer_per_ring = new descq_t[m_n_num_resources + 1];
 	m_parent = this;
 	m_type = type;
 	m_xmit_hash_policy = bond_xmit_hash_policy;
@@ -79,6 +80,9 @@ void ring_bond::free_ring_bond_resources()
 
 	delete [] m_active_rings;
 	m_active_rings = NULL;
+
+	delete [] m_buffer_per_ring;
+	m_buffer_per_ring = NULL;
 }
 
 ring_bond::~ring_bond()
@@ -358,18 +362,17 @@ void ring_bond::inc_ring_stats(ring_user_id_t id)
 
 bool ring_bond::reclaim_recv_buffers(descq_t *rx_reuse)
 {
-	descq_t buffer_per_ring[m_n_num_resources + 1];
-	devide_buffers_helper(rx_reuse, buffer_per_ring);
+	devide_buffers_helper(rx_reuse, m_buffer_per_ring);
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
-		if (buffer_per_ring[i].size() > 0) {
-			if (!m_bond_rings[i]->reclaim_recv_buffers(&buffer_per_ring[i])) {
-				g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&buffer_per_ring[i]);
+		if (m_buffer_per_ring[i].size() > 0) {
+			if (!m_bond_rings[i]->reclaim_recv_buffers(&m_buffer_per_ring[i])) {
+				g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&m_buffer_per_ring[i]);
 			}
 		}
 	}
 
-	if (buffer_per_ring[m_n_num_resources].size() > 0)
-		g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&buffer_per_ring[m_n_num_resources]);
+	if (m_buffer_per_ring[m_n_num_resources].size() > 0)
+		g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&m_buffer_per_ring[m_n_num_resources]);
 
 	return true;
 }

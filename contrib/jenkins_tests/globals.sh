@@ -23,13 +23,16 @@ compiler_dir=${WORKSPACE}/${prefix}/compiler
 test_dir=${WORKSPACE}/${prefix}/test
 rpm_dir=${WORKSPACE}/${prefix}/rpm
 cov_dir=${WORKSPACE}/${prefix}/cov
+cppcheck_dir=${WORKSPACE}/${prefix}/cppcheck
 vg_dir=${WORKSPACE}/${prefix}/vg
 style_dir=${WORKSPACE}/${prefix}/style
 
 
-timeout_exe=${timout_exe:="timeout -s SIGKILL 20m"}
 nproc=$(grep processor /proc/cpuinfo|wc -l)
 make_opt="-j$(($nproc / 2 + 1))"
+if [ $(command -v timeout >/dev/null 2>&1 && echo $?) ]; then
+    timeout_exe="timeout -s SIGKILL 20m"
+fi
 
 trap "on_exit" INT TERM ILL KILL FPE SEGV ALRM
 

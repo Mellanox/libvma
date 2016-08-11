@@ -17,7 +17,7 @@ rm -rf $cov_dir
 mkdir -p $cov_dir
 cd $cov_dir
 
-cov_exclude_file_list="tests src/vma/lwip"
+cov_exclude_file_list="tests"
 
 cov_build_id="cov_build_${BUILD_NUMBER}"
 cov_build="$cov_dir/$cov_build_id"
@@ -34,7 +34,7 @@ for excl in $cov_exclude_file_list; do
     sleep 1
 done
 
-eval "cov-analyze --enable-fnptr --fnptr-models --all --paths 20000 --dir $cov_build --config ${WORKSPACE}/coverity_vma_config.xml"
+eval "cov-analyze --enable-fnptr --fnptr-models --all --paths 20000 --dir $cov_build"
 rc=$(($rc+$?))
 
 set -eE

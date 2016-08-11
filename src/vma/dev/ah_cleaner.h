@@ -37,7 +37,7 @@
 #include <netinet/in.h>
 #include "vma/proto/mem_buf_desc.h"
 
-struct mem_buf_desc_t;
+class mem_buf_desc_t;
 class ring;
 
 #if _BullseyeCoverage

@@ -118,7 +118,7 @@ size_t ib_ctx_handler_collection::mem_reg_on_all_devices(void* addr, size_t leng
 	ibchc_logfunc("");
 	size_t mr_pos = 0;
 	ib_context_map_t::iterator ib_ctx_iter;
-	for (ib_ctx_iter = m_ib_ctx_map.begin(); ib_ctx_iter != m_ib_ctx_map.end(), mr_pos<mr_array_sz; ib_ctx_iter++, mr_pos++) {
+	for (ib_ctx_iter = m_ib_ctx_map.begin(); (ib_ctx_iter != m_ib_ctx_map.end()) && (mr_pos < mr_array_sz); ib_ctx_iter++, mr_pos++) {
 		ib_ctx_handler* p_ib_ctx_handler = ib_ctx_iter->second;
 		mr_array[mr_pos] = p_ib_ctx_handler->mem_reg(addr, length, access);
 		BULLSEYE_EXCLUDE_BLOCK_START

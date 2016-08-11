@@ -167,7 +167,7 @@ int main(int argc, char *argv[])
 
 	if (argc > 1) {
 		log_level = log_level::from_str(argv[1], VLOG_INIT);
-		if ((log_level == VLOG_INIT )) {
+		if (log_level == VLOG_INIT ) {
 			printf("illegal log level %s\n", argv[1]);
 			return -1;
 		}

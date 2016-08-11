@@ -48,6 +48,7 @@ public:
 	const std::string to_str() const
 	{
 		char s[20];
+		/* cppcheck-suppress wrongPrintfScanfArgNum */
 		sprintf(s, "%d.%d.%d.%d", NIPQUAD(m_ip));
 		return(std::string(s));
 	}
