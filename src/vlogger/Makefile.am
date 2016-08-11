@@ -10,5 +10,6 @@ libvlogger_la_SOURCES = vlogger.cpp vlogger.h
 
 noinst_PROGRAMS = vlogger_test
 vlogger_test_LDADD = \
+	$(top_builddir)/src/utils/libutils.la \
 	libvlogger.la
 vlogger_test_SOURCES = main.cpp

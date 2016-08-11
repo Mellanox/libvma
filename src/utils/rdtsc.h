@@ -31,12 +31,12 @@
  */
 
 
-#ifndef V_RDTSC_H
-#define V_RDTSC_H
+#ifndef RDTSC_H
+#define RDTSC_H
 
 #include <time.h>
-#include "clock.h"
 #include "asm.h"
+#include "clock.h"
 
 /**
  * RDTSC extensions
@@ -46,31 +46,28 @@ typedef unsigned long long tscval_t;
 #define TSCVAL_INITIALIZER	(0)
 
 /**
- * Calibrate RDTSC with CPU speed 
+* Read the CPU's Hz (based on /proc/cpuinfo Mhz report)
+* Provide the MAX and MIN values, which might be the case if core are running at power control states
+* Return true on success, false on any failure
+**/
+bool get_cpu_hz(double &hz_min, double &hz_max);
+
+/**
+ * Calibrate TSC with CPU speed
  * @return number of tsc ticks per second
  */
 static inline tscval_t get_tsc_rate_per_second()
 {
 	static tscval_t tsc_per_second = TSCVAL_INITIALIZER;
 	if (!tsc_per_second) {
-		uint64_t delta_usec;
-		timespec ts_before, ts_after, ts_delta;
-		tscval_t tsc_before, tsc_after, tsc_delta;
-	
-		// Measure the time actually slept because usleep() is very inaccurate.
-		clock_gettime(CLOCK_MONOTONIC, &ts_before);
-		gettimeoftsc(&tsc_before);
-		usleep(1000);
-		clock_gettime(CLOCK_MONOTONIC, &ts_after);
-		gettimeoftsc(&tsc_after);
-	
-		// Calc delta's
-		tsc_delta = tsc_after - tsc_before;
-		ts_sub(&ts_after, &ts_before, &ts_delta);
-		delta_usec = ts_to_usec(&ts_delta);
-	
-		// Calc rate
-		tsc_per_second = tsc_delta * USEC_PER_SEC / delta_usec;
+		double hz_min = -1, hz_max = -1;
+		if (get_cpu_hz(hz_min, hz_max)) {
+			tsc_per_second = (tscval_t)hz_max;
+		}
+		else {
+			// failure calibrating TSC to CPU speed
+			tsc_per_second = 2 * 1e6; // assume 2 MHz CPU speed
+		}
 	}
 	return tsc_per_second;
 }

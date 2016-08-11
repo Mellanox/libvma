@@ -58,6 +58,7 @@ endif
 
 libvma_la_LIBADD = \
 	-lrt -ldl -lpthread -libverbs -lrdmacm $(LIBNL_LIBS) \
+	$(top_builddir)/src/utils/libutils.la \
 	$(top_builddir)/src/vlogger/libvlogger.la \
 	$(top_builddir)/src/state_machine/libstate_machine.la \
 	$(top_builddir)/src/stats/libstats.la \

@@ -14,10 +14,12 @@ libstate_machine_la_SOURCES = \
 noinst_PROGRAMS = state_machine_test
 state_machine_test_LDADD = \
 	libstate_machine.la \
+	$(top_builddir)/src/utils/libutils.la \
 	$(top_builddir)/src/vlogger/libvlogger.la
 
 state_machine_test_SOURCES = main.cpp
 	
 state_machine_test_DEPENDENCIES = \
 	libstate_machine.la \
+	$(top_builddir)/src/utils/libutils.la \
 	$(top_builddir)/src/vlogger/libvlogger.la

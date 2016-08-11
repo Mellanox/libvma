@@ -254,6 +254,31 @@ void check_debug()
 	}
 }
 
+void check_cpu_speed()
+{
+	double hz_min = -1, hz_max = -1;
+	if (!get_cpu_hz(hz_min, hz_max)) {
+		vlog_printf(VLOG_DEBUG, "***************************************************************************\n");
+		vlog_printf(VLOG_DEBUG, "Failure in reading CPU speeds\n");
+		vlog_printf(VLOG_DEBUG, "Time measurements will not be accurate and Max Performance might not be achieved\n");
+		vlog_printf(VLOG_DEBUG, "Verify with: cat /proc/cpuinfo | grep \"MHz\\|clock\"\n");
+		vlog_printf(VLOG_DEBUG, "***************************************************************************\n");
+	}
+	else if (hz_min != hz_max) {
+		// CPU cores are running at different speed
+		// Machine is probably running not in high performance configuration
+		vlog_printf(VLOG_DEBUG, "***************************************************************************\n");
+		vlog_printf(VLOG_DEBUG, "CPU cores are running at different speeds: min= %.3lf MHz, max= %.3lf MHz\n", hz_min/1e6, hz_max/1e6);
+		vlog_printf(VLOG_DEBUG, "Time measurements will not be accurate and Max Performance might not be achieved\n");
+		vlog_printf(VLOG_DEBUG, "Verify with: cat /proc/cpuinfo | grep \"MHz\\|clock\"\n");
+		vlog_printf(VLOG_DEBUG, "***************************************************************************\n");
+	}
+	else {
+		// CPU cores are all running at identical speed
+		vlog_printf(VLOG_DEBUG, "CPU speed for all cores is: %.3lf MHz\n", hz_min/1e6);
+	}
+}
+
 void check_locked_mem()
 {
 	struct rlimit rlim;
@@ -953,6 +978,7 @@ extern "C" int main_init(void)
 	get_orig_funcs();
 
 	check_debug();
+	check_cpu_speed();
 	check_locked_mem();
 	check_flow_steering_log_num_mgm_entry_size();
 	check_netperf_flags();
