@@ -243,16 +243,12 @@ int net_device_table_mgr::map_net_devices()
 			continue;
 		}
 
-		int iftype = get_iftype_from_ifname(ifa->ifa_name);
 		bool valid = false;
-		if (iftype == ARPHRD_INFINIBAND) {
-			if (verify_enable_ipoib(ifa->ifa_name) && verify_mlx4_ib_device(ifa->ifa_name) && verify_ipoib_mode(ifa)) {
-				valid = true;
-			}
+		if (ifa->ifa_flags & IFF_MASTER) {
+			// this is a bond interface, find the slave
+			valid = verify_bond_ipoib_or_eth_qp_creation(ifa);
 		} else {
-			if (verify_eth_qp_creation(ifa->ifa_name)) {
-				valid = true;
-			}
+			valid = verify_ipoib_or_eth_qp_creation(ifa->ifa_name, ifa);
 		}
 		if (!valid) {
 			// Close the cma_id which will not be offload
@@ -261,11 +257,10 @@ int net_device_table_mgr::map_net_devices()
 			} ENDIF_RDMACM_FAILURE;
 			continue;
 		}
-
 		// arriving here means this is an offloadable device and VMA need to create a net_device.
 		m_lock.lock();
 		net_device_val* p_net_device_val = NULL;
-		if (iftype == ARPHRD_INFINIBAND) {
+		if (get_iftype_from_ifname(ifa->ifa_name) == ARPHRD_INFINIBAND) {
 			p_net_device_val = new net_device_val_ib();
 		}
 		else {
@@ -304,6 +299,54 @@ int net_device_table_mgr::map_net_devices()
 	return 0;
 }
 
+bool net_device_table_mgr::verify_bond_ipoib_or_eth_qp_creation(struct ifaddrs * ifa) {
+	char slaves[IFNAMSIZ * MAX_SLAVES] = {0};
+	if (!get_bond_slaves_name_list(ifa->ifa_name, slaves, sizeof slaves)) {
+		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+		vlog_printf(VLOG_WARNING,"* Bond %s will not be offloaded, slave list could not be found\n", ifa->ifa_name);
+		vlog_printf(VLOG_WARNING,"* Check warning messages for more information.\n");
+		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+		return false;
+	}
+	//go over all slaves and check preconditions
+	bool bond_ok = true;
+	char * slave_name;
+	slave_name = strtok (slaves," ");
+	while (slave_name != NULL)
+	{
+		char* p = strchr(slave_name, '\n');
+		if (p) *p = '\0'; // Remove the tailing 'new line" char
+		if (!verify_ipoib_or_eth_qp_creation(slave_name, ifa)) {
+			//check all slaves but print only once for bond
+			bond_ok =  false;
+		}
+		slave_name = strtok (NULL, " ");
+	}
+	if (!bond_ok) {
+		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+		vlog_printf(VLOG_WARNING,"* Bond %s will not be offloaded due to problem with it's slaves.\n", ifa->ifa_name);
+		vlog_printf(VLOG_WARNING,"* Check warning messages for more information.\n");
+		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+	}
+	return bond_ok;
+}
+
+//interface name can be slave while ifa struct can describe bond
+bool net_device_table_mgr::verify_ipoib_or_eth_qp_creation(const char* interface_name, struct ifaddrs * ifa)
+{
+	int iftype = get_iftype_from_ifname(interface_name);
+	if (iftype == ARPHRD_INFINIBAND) {
+		if (verify_enable_ipoib(interface_name) && verify_mlx4_ib_device(interface_name) && verify_ipoib_mode(ifa)) {
+			return true;
+		}
+	} else {
+		if (verify_eth_qp_creation(interface_name)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 bool net_device_table_mgr::verify_enable_ipoib(const char* ifname)
 {
 	NOT_IN_USE(ifname);
@@ -321,13 +364,12 @@ bool net_device_table_mgr::verify_ipoib_mode(struct ifaddrs* ifa)
 	char filename[256] = "\0";
 	char ifname[IFNAMSIZ] = "\0";
 	if (validate_ipoib_prop(ifa->ifa_name, ifa->ifa_flags, IPOIB_MODE_PARAM_FILE, "datagram", 8, filename, ifname)) {
-		vlog_printf(VLOG_WARNING,"************************************************************************\n");
+		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 		vlog_printf(VLOG_WARNING,"* IPoIB mode of interface '%s' is \"connected\" !\n", ifa->ifa_name);
-		vlog_printf(VLOG_WARNING,"* Please change it to datagram: \"echo datagram > %s\" \n", filename);
-		vlog_printf(VLOG_WARNING,"* before loading your application with VMA library\n");
+		vlog_printf(VLOG_WARNING,"* Please change it to datagram: \"echo datagram > %s\" before loading your application with VMA library\n", filename);
 		vlog_printf(VLOG_WARNING,"* VMA doesn't support IPoIB in connected mode.\n");
 		vlog_printf(VLOG_WARNING,"* Please refer to VMA Release Notes for more information\n");
-		vlog_printf(VLOG_WARNING,"************************************************************************\n");
+		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 		return false;
 	}
 	else {
@@ -335,13 +377,12 @@ bool net_device_table_mgr::verify_ipoib_mode(struct ifaddrs* ifa)
 	}
 
 	if (validate_ipoib_prop(ifa->ifa_name, ifa->ifa_flags, UMCAST_PARAM_FILE, "0", 1, filename, ifname)) { // Extract UMCAST flag (only for IB transport types)
-		vlog_printf(VLOG_WARNING,"************************************************************************\n");
+		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 		vlog_printf(VLOG_WARNING,"* UMCAST flag is Enabled for interface %s !\n", ifa->ifa_name);
-		vlog_printf(VLOG_WARNING,"* Please disable it: \"echo 0 > %s\" \n", filename);
-		vlog_printf(VLOG_WARNING,"* before loading your application with VMA library\n");
+		vlog_printf(VLOG_WARNING,"* Please disable it: \"echo 0 > %s\" before loading your application with VMA library\n", filename);
 		vlog_printf(VLOG_WARNING,"* This option in no longer needed in this version\n");
 		vlog_printf(VLOG_WARNING,"* Please refer to Release Notes for more information\n");
-		vlog_printf(VLOG_WARNING,"************************************************************************\n");
+		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 		return false;
 	}
 	else {
@@ -350,19 +391,21 @@ bool net_device_table_mgr::verify_ipoib_mode(struct ifaddrs* ifa)
 	return true;
 }
 
+//ifname should point to a physical device
 bool net_device_table_mgr::verify_mlx4_ib_device(const char* ifname)
 {
 	if (!check_device_exist(ifname, MLX4_DRIVER_PATH)) {
-		ndtm_logdbg("**************************************************************");
+		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 		ndtm_logdbg("* Flow Steering of IPoIB traffic is not supported on your HCA");
 		ndtm_logdbg("* Please refer to VMA Release Notes for details limitations.");
 		ndtm_logdbg("* All traffic over interface %s will not be offloaded!", ifname);
-		ndtm_logdbg("**************************************************************");
+		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 		return false;
 	}
 	return true;
 }
 
+//ifname should point to a physical device
 bool net_device_table_mgr::verify_eth_qp_creation(const char* ifname)
 {
 	int num_devices = 0;
@@ -435,11 +478,11 @@ bool net_device_table_mgr::verify_eth_qp_creation(const char* ifname)
 				}
 				else if (err == EPERM) {
 					// file doesn't exists, print msg if errno is a permission problem
-					vlog_printf(VLOG_WARNING,"*********************************************************************************************\n");
+					vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 					vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", ifname);
 					vlog_printf(VLOG_WARNING,"* Offloaded resources are restricted to root or user with CAP_NET_RAW privileges\n");
 					vlog_printf(VLOG_WARNING,"* Read the CAP_NET_RAW and root access section in the VMA's User Manual for more information\n");
-					vlog_printf(VLOG_WARNING,"*********************************************************************************************\n");
+					vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 				}
 			}
 			break;

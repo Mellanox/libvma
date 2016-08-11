@@ -135,6 +135,8 @@ private:
 	bool 			verify_ipoib_mode(struct ifaddrs* ifa);
 	bool			verify_mlx4_ib_device(const char* ifname);
 	bool 			verify_eth_qp_creation(const char* ifname);
+	bool 			verify_bond_ipoib_or_eth_qp_creation(struct ifaddrs * ifa);
+	bool 			verify_ipoib_or_eth_qp_creation(const char* interface_name, struct ifaddrs * ifa);
 	bool 			verify_enable_ipoib(const char* ifname);
 };
 
