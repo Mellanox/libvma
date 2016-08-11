@@ -50,7 +50,7 @@
 class cq_mgr;
 class epfd_info;
 
-struct mem_buf_desc_t;
+class mem_buf_desc_t;
 
 typedef enum {
 	TX_WRITE = 13, TX_WRITEV, TX_SEND, TX_SENDTO, TX_SENDMSG, TX_UNDEF
@@ -173,8 +173,8 @@ public:
 	virtual int get_fd( ) const { return m_fd; };
 
 	// true if fd must be skipped from OS select()
-	// If safe_mce_sys().rx_udp_poll_os_ratio == 0, it means that user configured VMA not to poll os (i.e. TRUE...)
-	virtual bool skip_os_select() { return (!(safe_mce_sys().select_poll_os_ratio)); };
+	// If m_n_sysvar_select_poll_os_ratio == 0, it means that user configured VMA not to poll os (i.e. TRUE...)
+	virtual bool skip_os_select() { return (!m_n_sysvar_select_poll_os_ratio); };
 
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
@@ -225,6 +225,7 @@ protected:
 
 	// identification information <socket fd>
 	int m_fd;
+	const uint32_t	m_n_sysvar_select_poll_os_ratio;
 
 	// Calling OS receive
 	ssize_t rx_os(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov,

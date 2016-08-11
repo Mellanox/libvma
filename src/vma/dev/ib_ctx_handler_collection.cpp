@@ -82,14 +82,14 @@ void ib_ctx_handler_collection::map_ib_devices() //return num_devices, can use r
 		ibchc_logwarn("Failure in rdma_get_devices() (error=%d %m)", errno);
 		ibchc_logwarn("Please check OFED installation");
 		free_ibchc_resources();
-		throw_vma_exception_no_msg();
+		throw_vma_exception("Failure in rdma_get_devices()");
 
 	}
 	if (!m_n_num_devices) {
 		rdma_free_devices(pp_ibv_context_list);
 		ibchc_logdbg("No RDMA capable devices found!");
 		free_ibchc_resources();
-		throw_vma_exception_no_msg();
+		throw_vma_exception("No RDMA capable devices found!");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
@@ -118,7 +118,7 @@ size_t ib_ctx_handler_collection::mem_reg_on_all_devices(void* addr, size_t leng
 	ibchc_logfunc("");
 	size_t mr_pos = 0;
 	ib_context_map_t::iterator ib_ctx_iter;
-	for (ib_ctx_iter = m_ib_ctx_map.begin(); ib_ctx_iter != m_ib_ctx_map.end(), mr_pos<mr_array_sz; ib_ctx_iter++, mr_pos++) {
+	for (ib_ctx_iter = m_ib_ctx_map.begin(); (ib_ctx_iter != m_ib_ctx_map.end()) && (mr_pos < mr_array_sz); ib_ctx_iter++, mr_pos++) {
 		ib_ctx_handler* p_ib_ctx_handler = ib_ctx_iter->second;
 		mr_array[mr_pos] = p_ib_ctx_handler->mem_reg(addr, length, access);
 		BULLSEYE_EXCLUDE_BLOCK_START

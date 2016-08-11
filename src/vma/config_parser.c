@@ -1253,6 +1253,7 @@ yytnamerr (char *yyres, const char *yystr)
 	  case ',':
 	    goto do_not_strip_quotes;
 
+	  /* coverity[unterminated_case] */
 	  case '\\':
 	    if (*++yyp != '\\')
 	      goto do_not_strip_quotes;
@@ -1290,7 +1291,7 @@ static int
 yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
                 yytype_int16 *yyssp, int yytoken)
 {
-  YYSIZE_T yysize0 = yytnamerr (YY_NULL, yytname[yytoken]);
+  YYSIZE_T yysize0 = 0;
   YYSIZE_T yysize = yysize0;
   enum { YYERROR_VERBOSE_ARGS_MAXIMUM = 5 };
   /* Internationalized format string. */
@@ -1300,6 +1301,10 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
   /* Number of reported tokens (one for the "unexpected", one per
      "expected"). */
   int yycount = 0;
+
+  if (yytoken < 0) return 1;
+  yysize0 = yytnamerr (YY_NULL, yytname[yytoken]);
+  yysize = yysize0;
 
   /* There are many possibilities here to consider:
      - Assume YYFAIL is not used.  It's too flawed to consider.  See
@@ -1381,7 +1386,7 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
     }
 
   {
-    YYSIZE_T yysize1 = yysize + yystrlen (yyformat);
+    YYSIZE_T yysize1 = yysize + (yyformat ? yystrlen (yyformat) : 0);
     if (! (yysize <= yysize1 && yysize1 <= YYSTACK_ALLOC_MAXIMUM))
       return 2;
     yysize = yysize1;
@@ -1602,6 +1607,7 @@ yyparse ()
 
       {
 	yytype_int16 *yyss1 = yyss;
+	/* coverity[leaked_storage] */
 	union yyalloc *yyptr =
 	  (union yyalloc *) YYSTACK_ALLOC (YYSTACK_BYTES (yystacksize));
 	if (! yyptr)

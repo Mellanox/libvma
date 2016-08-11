@@ -302,6 +302,7 @@ struct mce_sys_var {
 	uint32_t 	tx_num_segs_tcp;
 	uint32_t 	tx_num_bufs;
 	uint32_t 	tx_num_wr;
+	uint32_t	tx_num_wr_to_signal;
 	uint32_t 	tx_max_inline;
 	bool 		tx_mc_loopback_default;
 	bool		tx_nonblocked_eagains;
@@ -318,6 +319,7 @@ struct mce_sys_var {
 	int32_t		rx_poll_num_init;
 	uint32_t 	rx_udp_poll_os_ratio;
 	ts_conversion_mode_t	rx_udp_hw_ts_conversion;
+	bool 		rx_sw_csum;
 	uint32_t 	rx_poll_yield_loops;
 	uint32_t 	rx_skip_os_fd_check;
 	uint32_t 	rx_ready_byte_min_limit;
@@ -433,6 +435,7 @@ extern mce_sys_var & safe_mce_sys();
 #define SYS_VAR_TX_NUM_SEGS_TCP				"VMA_TX_SEGS_TCP"
 #define SYS_VAR_TX_NUM_BUFS				"VMA_TX_BUFS"
 #define SYS_VAR_TX_NUM_WRE				"VMA_TX_WRE"
+#define SYS_VAR_TX_NUM_WRE_TO_SIGNAL			"VMA_TX_WRE_BATCHING"
 #define SYS_VAR_TX_MAX_INLINE				"VMA_TX_MAX_INLINE"
 #define SYS_VAR_TX_MC_LOOPBACK				"VMA_TX_MC_LOOPBACK"
 #define SYS_VAR_TX_NONBLOCKED_EAGAINS			"VMA_TX_NONBLOCKED_EAGAINS"
@@ -446,6 +449,7 @@ extern mce_sys_var & safe_mce_sys();
 #define SYS_VAR_RX_NUM_POLLS_INIT			"VMA_RX_POLL_INIT"
 #define SYS_VAR_RX_UDP_POLL_OS_RATIO			"VMA_RX_UDP_POLL_OS_RATIO"
 #define SYS_VAR_RX_UDP_HW_TS_CONVERSION		"VMA_RX_UDP_HW_TS_CONVERSION"
+#define SYS_VAR_RX_SW_CSUM				"VMA_RX_SW_CSUM"
 // The following 2 params were replaced by VMA_RX_UDP_POLL_OS_RATIO
 #define SYS_VAR_RX_POLL_OS_RATIO                       "VMA_RX_POLL_OS_RATIO"
 #define SYS_VAR_RX_SKIP_OS                             "VMA_RX_SKIP_OS"
@@ -495,7 +499,7 @@ extern mce_sys_var & safe_mce_sys();
 #define SYS_VAR_MTU					"VMA_MTU"
 #define SYS_VAR_TCP_MAX_SYN_RATE			"VMA_TCP_MAX_SYN_RATE"
 #define SYS_VAR_MSS					"VMA_MSS"
-#define SYS_VAR_TCP_CC_ALGO					"VMA_TCP_CC_ALGO"
+#define SYS_VAR_TCP_CC_ALGO				"VMA_TCP_CC_ALGO"
 #define SYS_VAR_SPEC					"VMA_SPEC"
 #define SYS_VAR_SPEC_PARAM1				"VMA_SPEC_PARAM1"
 #define SYS_VAR_SPEC_PARAM2				"VMA_SPEC_PARAM2"
@@ -538,6 +542,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_TX_NUM_SEGS_TCP			(1000000)
 #define MCE_DEFAULT_TX_NUM_BUFS				(200000)
 #define MCE_DEFAULT_TX_NUM_WRE				(3000)
+#define MCE_DEFAULT_TX_NUM_WRE_TO_SIGNAL		(64)
 #define MCE_DEFAULT_TX_MAX_INLINE			(220) //224
 #define MCE_DEFAULT_TX_BUILD_IP_CHKSUM			(true)
 #define MCE_DEFAULT_TX_MC_LOOPBACK			(true)
@@ -555,6 +560,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_RX_NUM_POLLS_INIT			(0)
 #define MCE_DEFAULT_RX_UDP_POLL_OS_RATIO		(100)
 #define MCE_DEFAULT_RX_UDP_HW_TS_CONVERSION		(TS_CONVERSION_MODE_SYNC)
+#define MCE_DEFUALT_RX_SW_CSUM				(true)
 #define MCE_DEFAULT_RX_POLL_YIELD			(0)
 #define MCE_DEFAULT_RX_BYTE_MIN_LIMIT			(65536)
 #define MCE_DEFAULT_RX_PREFETCH_BYTES			(256)
@@ -641,7 +647,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_ALIGNMENT					((unsigned long)63)
 #define RX_BUF_SIZE(mtu)				(mtu + IPOIB_HDR_LEN + GRH_HDR_LEN) // RX buffers are larger in IB
 #define TX_BUF_SIZE(mtu)				(mtu + ETH_HDR_LEN) // Tx buffers are larger in Ethernet (they include L2 for RAW QP)
-#define NUM_TX_POST_SEND_NOTIFY				64
+#define NUM_TX_WRE_TO_SIGNAL_MAX			64
 #define NUM_RX_WRE_TO_POST_RECV_MAX			1024
 #define TCP_MAX_SYN_RATE_TOP_LIMIT			100000
 #define DEFAULT_MC_TTL					64
@@ -677,6 +683,8 @@ extern mce_sys_var & safe_mce_sys();
 #define FLOW_STEERING_MGM_ENTRY_SIZE_PARAM_FILE		"/sys/module/mlx4_core/parameters/log_num_mgm_entry_size"
 #define VIRTUAL_DEVICE_FOLDER			"/sys/devices/virtual/net/%s/"
 #define BOND_DEVICE_FILE				"/proc/net/bonding/%s"
+#define MLX4_DRIVER_PATH				"/sys/class/net/%s/device/driver/module/drivers/pci:mlx4_core"
+#define PROC_STATUS_FILE				"/proc/%d/status"
 
 #define MAX_STATS_FD_NUM				1024
 #define UNSENT_QUEUEU_SIZE				1024

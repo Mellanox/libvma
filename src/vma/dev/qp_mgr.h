@@ -114,8 +114,8 @@ public:
     #pragma BullseyeCoverage on
 #endif
 	struct ibv_qp*		get_ibv_qp() const { return m_qp; };
-	struct cq_mgr*  	get_tx_cq_mgr() const { return m_p_cq_mgr_tx; }
-	struct cq_mgr*  	get_rx_cq_mgr() const { return m_p_cq_mgr_rx; }
+	class cq_mgr*  	get_tx_cq_mgr() const { return m_p_cq_mgr_tx; }
+	class cq_mgr*  	get_rx_cq_mgr() const { return m_p_cq_mgr_rx; }
 	ib_ctx_handler* 	get_ib_ctx_handler() const { return m_p_ib_ctx_handler; }
 	uint32_t		get_rx_max_wr_num();
 
@@ -147,7 +147,9 @@ protected:
 	uint32_t 		m_rx_num_wr;
 	uint32_t 		m_tx_num_wr;
 
-	uint32_t 		m_rx_num_wr_to_post_recv;
+	const uint32_t 		m_n_sysvar_rx_num_wr_to_post_recv;
+	const uint32_t 		m_n_sysvar_tx_num_wr_to_signal;
+	const uint32_t		m_n_sysvar_rx_prefetch_bytes_before_poll;
 
 	// recv_wr
 	ibv_sge*		m_ibv_rx_sg_array;
@@ -170,8 +172,6 @@ protected:
 
 	int 			configure(struct ibv_comp_channel* p_rx_comp_event_channel);
 	virtual int		prepare_ibv_qp(struct ibv_qp_init_attr& qp_init_attr) = 0;
-
-	void 			validate_raw_qp_privliges();
 };
 
 

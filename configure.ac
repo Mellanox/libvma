@@ -110,8 +110,8 @@ AS_IF([test "x$with_valgrind" == xno],
 # Experimental Verbs CQ
 #
 AC_ARG_ENABLE([exp-cq],
-    AC_HELP_STRING([--enable-exp-cq],
-                   [Experimental Verbs CQ is required for UDP RX HW Timestamp and for RX CSUM verification offload]),
+    AC_HELP_STRING([--disable-exp-cq],
+                   [Disable experimental Verbs CQ (required for UDP RX HW Timestamp and for RX CSUM verification offload)]),
     [],
     [enable_exp_cq=yes]
 )
@@ -248,6 +248,25 @@ if test "x${GCC}" = "xyes" ; then
         CFLAGS="$SHARED_FLAGS $CFLAGS $WNO_FLAGS"
         CXXFLAGS="$SHARED_FLAGS -Wshadow $CXXFLAGS"
 fi
+
+AC_MSG_CHECKING([for compiler])
+case $CC in
+    gcc*|g++*)
+        AC_MSG_RESULT([gcc])
+        ;;
+    icc*|icpc*)
+        AC_MSG_RESULT([icc])
+        ;;
+    clang*|clang++*)
+        AC_MSG_RESULT([clang])
+        CFLAGS="$CFLAGS -Wno-format-security -Wno-self-assign"
+        CXXFLAGS="$CXXFLAGS -Wno-overloaded-virtual"
+        ;;
+    *)
+        AC_MSG_RESULT([unknown])
+        ;;
+esac
+
 
 AC_HEADER_STDC
 

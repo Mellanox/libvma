@@ -224,7 +224,11 @@ void event_handler_manager::unregister_command_event(int fd)
     #pragma BullseyeCoverage on
 #endif
 
-event_handler_manager::event_handler_manager() : m_reg_action_q_lock("reg_action_q_lock")
+event_handler_manager::event_handler_manager() :
+		m_reg_action_q_lock("reg_action_q_lock"),
+		m_b_sysvar_internal_thread_arm_cq_enabled(safe_mce_sys().internal_thread_arm_cq_enabled),
+		m_n_sysvar_vma_time_measure_num_samples(safe_mce_sys().vma_time_measure_num_samples),
+		m_n_sysvar_timer_resolution_msec(safe_mce_sys().timer_resolution_msec)
 {
 	evh_logfunc("");
 
@@ -235,7 +239,7 @@ event_handler_manager::event_handler_manager() : m_reg_action_q_lock("reg_action
 	if (m_epfd == -1) {
 		evh_logdbg("epoll_create failed on ibv device collection (errno=%d %m)", errno);
 		free_evh_resources();
-		throw_vma_exception_no_msg();
+		throw_vma_exception("epoll_create failed on ibv device collection");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
@@ -278,6 +282,7 @@ void* event_handler_thread(void *_p_tgtObject)
 			evh_logpanic("Failed to open %s for writing", tasks_file.c_str());
 		}
 		if (fprintf(fp, "%d", gettid()) <= 0) {
+			fclose(fp);
 			evh_logpanic("Failed to add internal thread id to %s", tasks_file.c_str());
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
@@ -295,6 +300,7 @@ void* event_handler_thread(void *_p_tgtObject)
 		} else {
 			evh_logdbg("VMA Internal thread affinity not set.");
 		}
+	/* cppcheck-suppress resourceLeak */
 	}
 
 	void* ret = p_tgtObject->thread_loop();
@@ -492,12 +498,14 @@ void event_handler_manager::priv_register_ibverbs_events(ibverbs_reg_info_t& inf
 	event_handler_map_t::iterator i;
 	i = m_event_handler_map.find(info.fd);
 	if (i == m_event_handler_map.end()) {
-		// coverity[var_decl]
 		event_data_t v;
+
 		v.type                  = EV_IBVERBS;
 		v.ibverbs_ev.fd         = info.fd;
 		v.ibverbs_ev.channel    = info.channel;
 
+		/* coverity[uninit_use_in_call] */
+		/* cppcheck-suppress uninitStructMember */
 		m_event_handler_map[info.fd] = v;
 		i = m_event_handler_map.find(info.fd);
 
@@ -579,12 +587,15 @@ void event_handler_manager::priv_register_rdma_cm_events(rdma_cm_reg_info_t& inf
 	event_handler_map_t::iterator iter_fd = m_event_handler_map.find(info.fd);
 	if (iter_fd == m_event_handler_map.end()) {
 		evh_logdbg("Adding new channel (fd %d, id %#x, handler %p)", info.fd, info.id, info.handler);
-		// coverity[var_decl]
 		event_data_t map_value;
+
 		map_value.type = EV_RDMA_CM;
 		map_value.rdma_cm_ev.n_ref_count = 1;
 		map_value.rdma_cm_ev.map_rdma_cm_id[info.id] = info.handler;
 		map_value.rdma_cm_ev.cma_channel = info.cma_channel;
+
+		/* coverity[uninit_use_in_call] */
+		/* cppcheck-suppress uninitStructMember */
 		m_event_handler_map[info.fd] = map_value;
 
 		update_epfd(info.fd, EPOLL_CTL_ADD);
@@ -655,6 +666,9 @@ void event_handler_manager::priv_register_command_events(command_reg_info_t& inf
 
 		map_value.type = EV_COMMAND;
 		map_value.command_ev.cmd = info.cmd;
+
+		/* coverity[uninit_use_in_call] */
+		/* cppcheck-suppress uninitStructMember */
 		m_event_handler_map[info.fd] = map_value;
 		update_epfd(info.fd, EPOLL_CTL_ADD);
 	}
@@ -834,7 +848,7 @@ void* event_handler_manager::thread_loop()
 	poll_fd.revents = 0;
 	while (m_b_continue_running) {
 #ifdef VMA_TIME_MEASURE
-		if (g_inst_cnt >= safe_mce_sys().vma_time_measure_num_samples)
+		if (g_inst_cnt >= m_n_sysvar_vma_time_measure_num_samples)
 			finit_instrumentation(safe_mce_sys().vma_time_measure_filename);
 #endif
 
@@ -846,8 +860,7 @@ void* event_handler_manager::thread_loop()
 			continue;
 		}
 
-
-		if( safe_mce_sys().internal_thread_arm_cq_enabled && m_cq_epfd == 0 && g_p_net_device_table_mgr) {
+		if( m_b_sysvar_internal_thread_arm_cq_enabled && m_cq_epfd == 0 && g_p_net_device_table_mgr) {
 			m_cq_epfd = g_p_net_device_table_mgr->global_ring_epfd_get();
 			if( m_cq_epfd > 0 ) {
 				epoll_event evt;
@@ -858,7 +871,7 @@ void* event_handler_manager::thread_loop()
 		}
 
 		uint64_t poll_sn = 0;
-		if( safe_mce_sys().internal_thread_arm_cq_enabled && m_cq_epfd > 0 && g_p_net_device_table_mgr) {
+		if( m_b_sysvar_internal_thread_arm_cq_enabled && m_cq_epfd > 0 && g_p_net_device_table_mgr) {
 			g_p_net_device_table_mgr->global_ring_poll_and_process_element(&poll_sn, NULL);
 			int ret = g_p_net_device_table_mgr->global_ring_request_notification(poll_sn);
 			if (ret > 0) {
@@ -868,8 +881,8 @@ void* event_handler_manager::thread_loop()
 
 		// Make sure we sleep for a minimum of X milli seconds
 		if (timeout_msec > 0) {
-			if ((int)safe_mce_sys().timer_resolution_msec > timeout_msec) {
-				timeout_msec = safe_mce_sys().timer_resolution_msec;
+			if ((int)m_n_sysvar_timer_resolution_msec > timeout_msec) {
+				timeout_msec = m_n_sysvar_timer_resolution_msec;
 			}
 		}
 
@@ -883,7 +896,7 @@ void* event_handler_manager::thread_loop()
 
 		// check pipe
 		for (int idx = 0; idx < ret ; ++idx) {
-			if(safe_mce_sys().internal_thread_arm_cq_enabled && p_events[idx].data.fd == m_cq_epfd && g_p_net_device_table_mgr){
+			if(m_b_sysvar_internal_thread_arm_cq_enabled && p_events[idx].data.fd == m_cq_epfd && g_p_net_device_table_mgr){
 				g_p_net_device_table_mgr->global_ring_wait_for_notification_and_process_element(&poll_sn, NULL);
 			}
 			else if (is_wakeup_fd(p_events[idx].data.fd)) {
@@ -920,7 +933,7 @@ void* event_handler_manager::thread_loop()
 
 			int fd = p_events[idx].data.fd;
 
-			if(safe_mce_sys().internal_thread_arm_cq_enabled && fd == m_cq_epfd) continue;
+			if(m_b_sysvar_internal_thread_arm_cq_enabled && fd == m_cq_epfd) continue;
 
 			evh_logfunc("Processing fd %d", fd);
 
@@ -961,13 +974,15 @@ void* event_handler_manager::thread_loop()
 		} // for idx
 
 		if (ret == maxevents) {
+			struct epoll_event* p_events_new;
 			// increase the events array
 			maxevents *= 2;
-			p_events = ( struct epoll_event*)realloc( (void *)p_events, sizeof(struct epoll_event) * maxevents);
+			p_events_new = ( struct epoll_event*)realloc( (void *)p_events, sizeof(struct epoll_event) * maxevents);
 			BULLSEYE_EXCLUDE_BLOCK_START
-			if( !p_events) {
+			if( !p_events_new) {
 				evh_logpanic("realloc failure") ;
 			}
+			p_events = p_events_new;
 			BULLSEYE_EXCLUDE_BLOCK_END
 		}
 

@@ -121,6 +121,7 @@ Example:
  VMA DETAILS: Tx Mem Segs TCP                1000000                    [VMA_TX_SEGS_TCP]
  VMA DETAILS: Tx Mem Bufs                    200000                     [VMA_TX_BUFS]
  VMA DETAILS: Tx QP WRE                      3000                       [VMA_TX_WRE]
+ VMA DETAILS: Tx QP WRE Batching             64                         [VMA_TX_WRE_BATCHING]
  VMA DETAILS: Tx Max QP INLINE               220                        [VMA_TX_MAX_INLINE]
  VMA DETAILS: Tx MC Loopback                 Enabled                    [VMA_TX_MC_LOOPBACK]
  VMA DETAILS: Tx non-blocked eagains         Disabled                   [VMA_TX_NONBLOCKED_EAGAINS]
@@ -303,6 +304,14 @@ Number of Work Request Elements allocated in all transmit QP's.
 The number of QP's can change according to the number of network offloaded
 interfaces.
 Default value is 3000
+
+VMA_TX_WRE_BATCHING
+The number of Tx Work Request Elements used until a completion signal is requested.
+Tuning this parameter allows a better control of the jitter encountered from the 
+Tx CQE handling. Setting a high batching value results in high PPS and lower 
+avarge latency. Setting a low batching value results in lower latency std-dev.
+Value range is 1-64
+Default value is 64
 
 VMA_TX_MAX_INLINE
 Max send inline data set for QP. 
@@ -640,6 +649,23 @@ Use value of 2 for OS follow up.
 Disabled by default (enabling causing a slight performance
 degradation of ~50-100 nano sec per half round trip)
 
+VMA_RX_SW_CSUM
+This parameter enables/disables software checksum validation for ingress TCP/UDP IP packets.
+Most Mellanox HCAs support hardware offload checksum validation. If the hardware does not
+support checksum validation offload, software checksum validation is required.
+When this parameter is enabled, software checksum validation is calculated only if hardware
+offload checksum validation is not performed.
+Performance degradation might occur if hardware offload fails to validate checksum and
+software calculation is used.
+Note that disabling software calculation might cause corrupt packets to be
+processed by VMA and the application, when the hardware does not perform this action.
+For further details on which adapter card supports hardware offload checksum validation,
+please refer to the VMA Release Notes.
+Valid Values are:
+Use value of 0 to disable.
+Use value of 1 for enable.
+Default value is Enabled.
+
 VMA_EXCEPTION_HANDLING
 Mode for handling missing support or error cases in Socket API or functionality by VMA.
 Useful for quickly identifying VMA unsupported Socket API or features
@@ -961,6 +987,20 @@ interface while the kernel requires this operation to be done only by privileged
 users. root can enable this for regular users as well by:
  1. "echo options ib_uverbs disable_raw_qp_enforcement=1 > /etc/modprobe.d/ib_uverbs.conf"
  2. "/etc/init.d/openibd restart"
+
+
+* CAP_NET_RAW and root access
+
+VMA_WARNING: ******************************************************************************
+VMA_WARNING: * Interface <Interface Name> will not be offloaded.
+VMA_WARNING: * Offloaded resources are restricted to root or user with CAP_NET_RAW privileges
+VMA_WARNING: * Read the CAP_NET_RAW and root access section in the VMA's User Manual for more information
+VMA_WARNING: ******************************************************************************
+This warning message means that VMA tried to create a hardware QP resource
+while the kernel requires this operation to be performed only by privileged
+users. Run as user root or grant CAP_NET_RAW privileges to your user
+1. "setcap cap_net_raw=ep /usr/bin/sockperf"
+2. "chmod u+s </usr/lib64/libvma.so>"
 
 
 * IGMP not forced to V2:

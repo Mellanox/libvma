@@ -113,7 +113,7 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 			if (!register_memory(size, m_p_ib_ctx_h, access)) {
 				__log_info_dbg("failed registering huge pages data memory block");
 				free_bpool_resources();
-				throw_vma_exception_no_msg();
+				throw_vma_exception("failed registering huge pages data memory block");
 			}
 			break;
 		}
@@ -144,13 +144,13 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 			__log_info_dbg("failed allocating data memory block (size=%d Kbytes) (errno=%d %m)",
 					size/1024, errno);
 			free_bpool_resources();
-			throw_vma_exception_no_msg();
+			throw_vma_exception("failed allocating data memory block");
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		if (!register_memory(size, m_p_ib_ctx_h, access)) {
 			__log_info_dbg("failed registering data memory block");
 			free_bpool_resources();
-			throw_vma_exception_no_msg();
+			throw_vma_exception("failed registering data memory block");
 		}
 		break;
 	}
@@ -235,19 +235,20 @@ bool buffer_pool::hugetlb_alloc(size_t sz_bytes)
 		// Stop trying to use HugePage if failed even once
 		safe_mce_sys().mem_alloc_type = ALLOC_TYPE_CONTIG;
 
-		vlog_printf(VLOG_WARNING, "***************************************************************\n");
-		vlog_printf(VLOG_WARNING, "* NO IMMEDIATE ACTION NEEDED!                                 *\n");
-		vlog_printf(VLOG_WARNING, "* Not enough hugepage resources for VMA memory allocation.    *\n");
-		vlog_printf(VLOG_WARNING, "* VMA will continue working with regular memory allocation.   *\n");
-		vlog_printf(VLOG_INFO,    "* Optional: 1. Switch to a different memory allocation type   *\n");
-		vlog_printf(VLOG_INFO,	  "* 	     (%s= 0 or 1)	            *\n", SYS_VAR_MEM_ALLOC_TYPE);
-		vlog_printf(VLOG_INFO,    "*           2. Restart process after increasing the number of *\n");
-		vlog_printf(VLOG_INFO,    "*              hugepages resources in the system:             *\n");
-		vlog_printf(VLOG_INFO,    "* \"cat /proc/meminfo |  grep -i HugePage\"                     *\n");
-		vlog_printf(VLOG_INFO,    "* \"echo 1000000000 > /proc/sys/kernel/shmmax\"                 *\n");
-		vlog_printf(VLOG_INFO,    "* \"echo 800 > /proc/sys/vm/nr_hugepages\"                      *\n");
-		vlog_printf(VLOG_WARNING, "* Please refer to the memory allocation section in the VMA's  *\n");
-		vlog_printf(VLOG_WARNING, "* User Manual for more information			    *\n");
+		vlog_printf(VLOG_WARNING, "**************************************************************\n");
+		vlog_printf(VLOG_WARNING, "* NO IMMEDIATE ACTION NEEDED!                                 \n");
+		vlog_printf(VLOG_WARNING, "* Not enough hugepage resources for VMA memory allocation.    \n");
+		vlog_printf(VLOG_WARNING, "* VMA will continue working with regular memory allocation.   \n");
+		vlog_printf(VLOG_INFO, "   * Optional:                                                   \n");
+		vlog_printf(VLOG_INFO, "   *   1. Switch to a different memory allocation type           \n");
+		vlog_printf(VLOG_INFO, "   *      (%s= 0 or 1)                                           \n", SYS_VAR_MEM_ALLOC_TYPE);
+		vlog_printf(VLOG_INFO, "   *   2. Restart process after increasing the number of         \n");
+		vlog_printf(VLOG_INFO, "   *      hugepages resources in the system:                     \n");
+		vlog_printf(VLOG_INFO, "   *      \"cat /proc/meminfo |  grep -i HugePage\"              \n");
+		vlog_printf(VLOG_INFO, "   *      \"echo 1000000000 > /proc/sys/kernel/shmmax\"          \n");
+		vlog_printf(VLOG_INFO, "   *      \"echo 800 > /proc/sys/vm/nr_hugepages\"               \n");
+		vlog_printf(VLOG_WARNING, "* Please refer to the memory allocation section in the VMA's  \n");
+		vlog_printf(VLOG_WARNING, "* User Manual for more information                            \n");
 		vlog_printf(VLOG_WARNING, "***************************************************************\n");
 		return false;
 	}
@@ -293,7 +294,7 @@ bool buffer_pool::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint6
 				__log_info_dbg("Failed registering memory block with device (ptr=%p size=%ld%s) (errno=%d %m)",
 						m_data_block, size, errno);
 				free_bpool_resources();
-				throw_vma_exception_no_msg();
+				throw_vma_exception("Failed registering memory block");
 			} else {
 				__log_info_warn("Failed allocating or registering memory in contiguous mode. Please refer to README.txt for more info");
 				return false;
@@ -317,7 +318,7 @@ bool buffer_pool::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint6
 				__log_info_dbg("Failed registering memory block with device (ptr=%p size=%ld%s) (errno=%d %m)",
 						m_data_block, size, errno);
 				free_bpool_resources();
-				throw_vma_exception_no_msg();
+				throw_vma_exception("Failed registering memory");
 			} else {
 				__log_info_warn("Failed allocating or registering memory in contiguous mode. Please refer to README.txt for more info");
 				return false;
@@ -330,7 +331,7 @@ bool buffer_pool::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint6
 			if (!m_data_block) {
 				__log_info_dbg("Failed registering memory, check that OFED is loaded successfully");
 				free_bpool_resources();
-				throw_vma_exception_no_msg();
+				throw_vma_exception("Failed registering memory");
 			}
 		}
 		for (size_t i = 0; i < num_devices; ++i) {

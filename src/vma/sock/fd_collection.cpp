@@ -63,7 +63,8 @@ fd_collection* g_p_fd_collection = NULL;
 fd_collection::fd_collection() :
 	lock_mutex_recursive("fd_collection"),
 	m_p_cma_event_channel(NULL),
-	m_timer_handle(0)
+	m_timer_handle(0),
+	m_b_sysvar_offloaded_sockets(safe_mce_sys().offloaded_sockets)
 {
 	fdcoll_logfunc("");
 
@@ -307,7 +308,7 @@ int fd_collection::addsocket(int fd, int domain, int type, bool check_offload /*
 
 bool fd_collection::create_offloaded_sockets()
 {
-	bool ret = safe_mce_sys().offloaded_sockets;
+	bool ret = m_b_sysvar_offloaded_sockets;
 
 	lock();
 	if (m_offload_thread_rule.find(pthread_self()) == m_offload_thread_rule.end()) {
@@ -328,7 +329,7 @@ void fd_collection::offloading_rule_change_thread(bool offloaded, pthread_t tid)
 	fdcoll_logdbg("tid=%ul, offloaded=%d", tid, offloaded);
 
 	lock();
-	if (offloaded == safe_mce_sys().offloaded_sockets) {
+	if (offloaded == m_b_sysvar_offloaded_sockets) {
 		m_offload_thread_rule.erase(tid);
 	} else {
 		m_offload_thread_rule[tid] = 1;

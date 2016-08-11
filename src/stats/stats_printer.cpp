@@ -189,6 +189,7 @@ void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, 
 	if (p_si_stats->socket_type == SOCK_DGRAM) {
 		fprintf(filename, ", MC Loop %s", p_si_stats->b_mc_loop?"Enabled ":"Disabled");
 		if (p_si_stats->mc_tx_if) {
+			/* cppcheck-suppress wrongPrintfScanfArgNum */
 			fprintf(filename, ", MC IF = [%d.%d.%d.%d]", NIPQUAD(p_si_stats->mc_tx_if));
 		}
 	}
@@ -198,14 +199,17 @@ void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, 
 	// Bounded + Connected information
 	//
 	if (p_si_stats->bound_if || p_si_stats->bound_port) {
+		/* cppcheck-suppress wrongPrintfScanfArgNum */
 		fprintf(filename, "- Local Address   = [%d.%d.%d.%d:%d]\n", NIPQUAD(p_si_stats->bound_if), ntohs(p_si_stats->bound_port));
 	}
 	if (p_si_stats->connected_ip || p_si_stats->connected_port) {
+		/* cppcheck-suppress wrongPrintfScanfArgNum */
 		fprintf(filename, "- Foreign Address = [%d.%d.%d.%d:%d]\n", NIPQUAD(p_si_stats->connected_ip), ntohs(p_si_stats->connected_port));
 	}
 	if (p_mc_grp_info){
 		for (int grp_idx = 0; grp_idx < p_mc_grp_info->max_grp_num; grp_idx++) {
 			if (p_si_stats->mc_grp_map.test(grp_idx)) {
+				/* cppcheck-suppress wrongPrintfScanfArgNum */
 				fprintf(filename, "- Member of = [%d.%d.%d.%d]\n", NIPQUAD(p_mc_grp_info->mc_grp_tbl[grp_idx].mc_grp));
 			}
 		}
@@ -329,14 +333,16 @@ void print_netstat_like(socket_stats_t* p_si_stats, mc_grp_info_t* , FILE* file,
 	//
 	int len = 0;
 	if (p_si_stats->bound_if || p_si_stats->bound_port) {
+		/* cppcheck-suppress wrongPrintfScanfArgNum */
 		len = fprintf(file, "%d.%d.%d.%d:%-5d", NIPQUAD(p_si_stats->bound_if), ntohs(p_si_stats->bound_port));
 		if (len < 0) len = 0; // error
 	}
 	if (len < MAX_ADDR_LEN )fprintf(file, "%*s ", MAX_ADDR_LEN-len, ""); // pad and delimiter
 
 	fprintf(file, " ");
-	len = 0;
+
 	if (p_si_stats->connected_ip || p_si_stats->connected_port) {
+		/* cppcheck-suppress wrongPrintfScanfArgNum */
 		len = fprintf(file, "%d.%d.%d.%d:%-5d", NIPQUAD(p_si_stats->connected_ip), ntohs(p_si_stats->connected_port));
 	}
 	else {

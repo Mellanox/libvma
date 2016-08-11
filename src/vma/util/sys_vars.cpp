@@ -339,6 +339,7 @@ void mce_sys_var::get_env_params()
 	tx_num_segs_tcp         = MCE_DEFAULT_TX_NUM_SEGS_TCP;
 	tx_num_bufs             = MCE_DEFAULT_TX_NUM_BUFS;
 	tx_num_wr               = MCE_DEFAULT_TX_NUM_WRE;
+	tx_num_wr_to_signal     = MCE_DEFAULT_TX_NUM_WRE_TO_SIGNAL;
 	tx_max_inline		= MCE_DEFAULT_TX_MAX_INLINE;
 	tx_mc_loopback_default  = MCE_DEFAULT_TX_MC_LOOPBACK;
 	tx_nonblocked_eagains   = MCE_DEFAULT_TX_NONBLOCKED_EAGAINS;
@@ -354,6 +355,7 @@ void mce_sys_var::get_env_params()
 	rx_poll_num_init        = MCE_DEFAULT_RX_NUM_POLLS_INIT;
 	rx_udp_poll_os_ratio    = MCE_DEFAULT_RX_UDP_POLL_OS_RATIO;
 	rx_udp_hw_ts_conversion = MCE_DEFAULT_RX_UDP_HW_TS_CONVERSION;
+	rx_sw_csum         	= MCE_DEFUALT_RX_SW_CSUM;
 	rx_poll_yield_loops     = MCE_DEFAULT_RX_POLL_YIELD;
 	select_handle_cpu_usage_stats   = MCE_DEFAULT_SELECT_CPU_USAGE_STATS;
 	rx_ready_byte_min_limit = MCE_DEFAULT_RX_BYTE_MIN_LIMIT;
@@ -533,6 +535,11 @@ void mce_sys_var::get_env_params()
 	if ((env_ptr = getenv(SYS_VAR_TX_NUM_WRE)) != NULL)
 		tx_num_wr = (uint32_t)atoi(env_ptr);
 
+	if ((env_ptr = getenv(SYS_VAR_TX_NUM_WRE_TO_SIGNAL)) != NULL)
+		tx_num_wr_to_signal = MIN(NUM_TX_WRE_TO_SIGNAL_MAX, MAX(1, (uint32_t)atoi(env_ptr)));
+	if (tx_num_wr <= (tx_num_wr_to_signal * 2))
+		tx_num_wr = tx_num_wr_to_signal * 2;
+
 	if ((env_ptr = getenv(SYS_VAR_TX_MAX_INLINE)) != NULL)
 		tx_max_inline = (uint32_t)atoi(env_ptr);
 	if (tx_max_inline > MAX_SUPPORTED_IB_INLINE_SIZE) {
@@ -628,6 +635,10 @@ void mce_sys_var::get_env_params()
 			vlog_printf(VLOG_WARNING,"Rx UDP HW TS conversion size out of range [%d] (min=%d, max=%d). using default [%d]\n", rx_udp_hw_ts_conversion, TS_CONVERSION_MODE_DISABLE , TS_CONVERSION_MODE_LAST - 1, MCE_DEFAULT_RX_UDP_HW_TS_CONVERSION);
 			rx_udp_hw_ts_conversion = MCE_DEFAULT_RX_UDP_HW_TS_CONVERSION;
 		}
+	}
+
+	if ((env_ptr = getenv(SYS_VAR_RX_SW_CSUM)) != NULL) {
+		rx_sw_csum = atoi(env_ptr) ? true : false;
 	}
 
 	//The following 2 params were replaced by SYS_VAR_RX_UDP_POLL_OS_RATIO

@@ -56,15 +56,21 @@ struct iphdr; //forward declaration
 int check_if_regular_file (char *path);
 
 /**
- * Check Sum extensions
+ * IP Header Checksum Calculation
  */
-unsigned short csum(const unsigned short *buf, unsigned int nshort_words);
+unsigned short compute_ip_checksum(const unsigned short *buf, unsigned int nshort_words);
 
 /**
 * get tcp checksum: given IP header and tcp segment (assume checksum field in TCP header contains zero)
 * matches RFC 793
 */
 unsigned short compute_tcp_checksum(const struct iphdr *p_iphdr, const uint16_t *p_ip_payload);
+
+/**
+* get udp checksum: given IP header and UDP datagram (assume checksum field in UDP header contains zero)
+* matches RFC 793
+*/
+unsigned short compute_udp_checksum(const struct iphdr *p_iphdr, const uint16_t *p_ip_payload);
 
 /**
  * get user space max number of open fd's using getrlimit, default parameter equals to 1024
@@ -358,6 +364,8 @@ int validate_ipoib_prop(const char* ifname, unsigned int ifflags,
 		const char prop_file[], const char *expected_val,
 		int val_size, char *filename, char* base_ifname);
 
+int validate_raw_qp_privliges();
+
 void convert_hw_addr_to_str(char *buf, uint8_t hw_addr_len, uint8_t *hw_addr);
 
 static inline int get_procname(int pid, char *proc, size_t size)
@@ -551,7 +559,6 @@ public:
 create_vma_exception_class(vma_unsupported_api, vma_error);
 
 #define throw_vma_exception(msg) throw vma_exception(msg, __PRETTY_FUNCTION__, __FILE__, __LINE__, errno)
-#define throw_vma_exception_no_msg() throw_vma_exception("an exception was thrown using a deprecated macro: throw_vma_exception_no_msg")
 // uses for throwing  something that is derived from vma_error and has similar CTOR; msg will automatically be class name
 #define vma_throw_object(_class)  throw _class(#_class, __PRETTY_FUNCTION__, __FILE__, __LINE__, errno)
 #define vma_throw_object_with_msg(_class, _msg)  throw _class(_msg, __PRETTY_FUNCTION__, __FILE__, __LINE__, errno)

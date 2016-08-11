@@ -117,11 +117,11 @@ typedef struct ibv_wc				vma_ibv_wc;
 #define VMA_IBV_WC_RECV				IBV_WC_RECV
 //csum offload
 #ifdef DEFINED_IBV_DEVICE_RAW_IP_CSUM
-#define vma_is_rx_csum_supported(attr)		((attr).device_cap_flags & (IBV_DEVICE_RAW_IP_CSUM | IBV_DEVICE_UD_IP_CSUM))
-#define vma_wc_rx_csum_ok(wc)			(vma_wc_flags(wc) & IBV_WC_IP_CSUM_OK)
+#define vma_is_rx_hw_csum_supported(attr)	((attr).device_cap_flags & (IBV_DEVICE_RAW_IP_CSUM | IBV_DEVICE_UD_IP_CSUM))
+#define vma_wc_rx_hw_csum_ok(wc)		(vma_wc_flags(wc) & IBV_WC_IP_CSUM_OK)
 #else
-#define vma_is_rx_csum_supported(attr)		0
-#define vma_wc_rx_csum_ok(wc)			(1)
+#define vma_is_rx_hw_csum_supported(attr)	0
+#define vma_wc_rx_hw_csum_ok(wc)		(1)
 #endif
 
 typedef int            vma_ibv_cq_init_attr;
@@ -174,14 +174,14 @@ typedef struct ibv_flow_spec_tcp_udp		vma_ibv_flow_spec_tcp_udp;
 typedef struct ibv_exp_device_attr		vma_ibv_device_attr;
 #define vma_ibv_device_attr_comp_mask(attr)	(attr).comp_mask = IBV_EXP_DEVICE_ATTR_EXP_CAP_FLAGS
 #ifdef DEFINED_IBV_EXP_DEVICE_RX_CSUM_L4_PKT
-#define vma_is_rx_csum_supported(attr)		(((attr).exp_device_cap_flags & IBV_EXP_DEVICE_RX_CSUM_L3_PKT) \
+#define vma_is_rx_hw_csum_supported(attr)	(((attr).exp_device_cap_flags & IBV_EXP_DEVICE_RX_CSUM_L3_PKT) \
 						&& ((attr).exp_device_cap_flags & IBV_EXP_DEVICE_RX_CSUM_L4_PKT))
 #else
 #ifdef DEFINED_IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT
-#define vma_is_rx_csum_supported(attr)		(((attr).exp_device_cap_flags & IBV_EXP_DEVICE_RX_CSUM_IP_PKT) \
+#define vma_is_rx_hw_csum_supported(attr)	(((attr).exp_device_cap_flags & IBV_EXP_DEVICE_RX_CSUM_IP_PKT) \
 						&& ((attr).exp_device_cap_flags & IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT))
 #else
-#define vma_is_rx_csum_supported(attr)		0
+#define vma_is_rx_hw_csum_supported(attr)	0
 #endif
 #endif
 //ibv_modify_qp
@@ -213,12 +213,12 @@ typedef int            vma_ibv_cq_init_attr;
 #endif
 
 #ifdef DEFINED_IBV_EXP_DEVICE_RX_CSUM_L4_PKT
-#define vma_wc_rx_csum_ok(wc)			((vma_wc_flags(wc) & IBV_EXP_L3_RX_CSUM_OK) && (vma_wc_flags(wc) & IBV_EXP_L4_RX_CSUM_OK))
+#define vma_wc_rx_hw_csum_ok(wc)		((vma_wc_flags(wc) & IBV_EXP_L3_RX_CSUM_OK) && (vma_wc_flags(wc) & IBV_EXP_L4_RX_CSUM_OK))
 #else
 #ifdef DEFINED_IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT
-#define vma_wc_rx_csum_ok(wc)			((vma_wc_flags(wc) & IBV_EXP_WC_RX_IP_CSUM_OK) && (vma_wc_flags(wc) & IBV_EXP_WC_RX_TCP_UDP_CSUM_OK))
+#define vma_wc_rx_hw_csum_ok(wc)		((vma_wc_flags(wc) & IBV_EXP_WC_RX_IP_CSUM_OK) && (vma_wc_flags(wc) & IBV_EXP_WC_RX_TCP_UDP_CSUM_OK))
 #else
-#define vma_wc_rx_csum_ok(wc)			(1)
+#define vma_wc_rx_hw_csum_ok(wc)		(1)
 #endif
 #endif
 

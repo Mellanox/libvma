@@ -225,12 +225,12 @@ void igmp_handler::set_ip_igmp_hdr(ip_igmp_tx_hdr_template_t* ip_igmp_hdr)
 	ip_igmp_hdr->m_ip_hdr.tot_len = htons(IPV4_IGMP_HDR_LEN + sizeof(igmphdr));
 	ip_igmp_hdr->m_ip_hdr_ext = htonl(IGMP_IP_HEADER_EXT);
 	ip_igmp_hdr->m_ip_hdr.check = 0;
-	ip_igmp_hdr->m_ip_hdr.check = csum((unsigned short*)&ip_igmp_hdr->m_ip_hdr, (IPV4_IGMP_HDR_LEN_WORDS) * 2);
+	ip_igmp_hdr->m_ip_hdr.check = compute_ip_checksum((unsigned short*)&ip_igmp_hdr->m_ip_hdr, (IPV4_IGMP_HDR_LEN_WORDS) * 2);
 
 	// Create the IGMP header
 	ip_igmp_hdr->m_igmp_hdr.type = IGMPV2_HOST_MEMBERSHIP_REPORT;
 	ip_igmp_hdr->m_igmp_hdr.code = 0;
 	ip_igmp_hdr->m_igmp_hdr.group = m_mc_addr.get_in_addr();
 	ip_igmp_hdr->m_igmp_hdr.csum = 0;
-	ip_igmp_hdr->m_igmp_hdr.csum = csum((unsigned short*)&ip_igmp_hdr->m_igmp_hdr, IGMP_HDR_LEN_WORDS * 2);
+	ip_igmp_hdr->m_igmp_hdr.csum = compute_ip_checksum((unsigned short*)&ip_igmp_hdr->m_igmp_hdr, IGMP_HDR_LEN_WORDS * 2);
 }

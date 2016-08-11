@@ -310,7 +310,7 @@ typedef struct sh_mem_t {
 	mc_grp_info_t			mc_info;
 	iomux_stats_t                   iomux;
 	int				fd_to_dump;
-	socket_instance_block_t  	skt_inst_arr[]; //sockets statistics array
+	socket_instance_block_t  	skt_inst_arr[0]; //sockets statistics array
 } sh_mem_t;
 
 typedef struct sh_mem_info {

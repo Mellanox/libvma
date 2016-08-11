@@ -434,19 +434,20 @@ void print_vma_global_settings()
 
 	if (safe_mce_sys().ring_limit_per_interface) {
 		VLOG_PARAM_NUMBER("Ring limit per interface", safe_mce_sys().ring_limit_per_interface, MCE_DEFAULT_RING_LIMIT_PER_INTERFACE, SYS_VAR_RING_LIMIT_PER_INTERFACE);
-	}else {
+	} else {
 		VLOG_PARAM_NUMSTR("Ring limit per interface", safe_mce_sys().ring_limit_per_interface, MCE_DEFAULT_RING_LIMIT_PER_INTERFACE, SYS_VAR_RING_LIMIT_PER_INTERFACE, "(no limit)");
 	}
 
 	if (safe_mce_sys().tcp_max_syn_rate) {
 		VLOG_PARAM_NUMSTR("TCP max syn rate", safe_mce_sys().tcp_max_syn_rate, MCE_DEFAULT_TCP_MAX_SYN_RATE, SYS_VAR_TCP_MAX_SYN_RATE, "(per sec)");
-	}else {
+	} else {
 		VLOG_PARAM_NUMSTR("TCP max syn rate", safe_mce_sys().tcp_max_syn_rate, MCE_DEFAULT_TCP_MAX_SYN_RATE, SYS_VAR_TCP_MAX_SYN_RATE, "(no limit)");
 	}
 
 	VLOG_PARAM_NUMBER("Tx Mem Segs TCP", safe_mce_sys().tx_num_segs_tcp, MCE_DEFAULT_TX_NUM_SEGS_TCP, SYS_VAR_TX_NUM_SEGS_TCP);
 	VLOG_PARAM_NUMBER("Tx Mem Bufs", safe_mce_sys().tx_num_bufs, MCE_DEFAULT_TX_NUM_BUFS, SYS_VAR_TX_NUM_BUFS);
 	VLOG_PARAM_NUMBER("Tx QP WRE", safe_mce_sys().tx_num_wr, MCE_DEFAULT_TX_NUM_WRE, SYS_VAR_TX_NUM_WRE);
+	VLOG_PARAM_NUMBER("Tx QP WRE Batching", safe_mce_sys().tx_num_wr_to_signal, MCE_DEFAULT_TX_NUM_WRE_TO_SIGNAL, SYS_VAR_TX_NUM_WRE_TO_SIGNAL);
 	VLOG_PARAM_NUMBER("Tx Max QP INLINE", safe_mce_sys().tx_max_inline, MCE_DEFAULT_TX_MAX_INLINE, SYS_VAR_TX_MAX_INLINE);
 	VLOG_PARAM_STRING("Tx MC Loopback", safe_mce_sys().tx_mc_loopback_default, MCE_DEFAULT_TX_MC_LOOPBACK, SYS_VAR_TX_MC_LOOPBACK, safe_mce_sys().tx_mc_loopback_default ? "Enabled " : "Disabled");
 	VLOG_PARAM_STRING("Tx non-blocked eagains", safe_mce_sys().tx_nonblocked_eagains, MCE_DEFAULT_TX_NONBLOCKED_EAGAINS, SYS_VAR_TX_NONBLOCKED_EAGAINS, safe_mce_sys().tx_nonblocked_eagains ? "Enabled " : "Disabled");
@@ -454,18 +455,18 @@ void print_vma_global_settings()
 
 	VLOG_PARAM_NUMBER("Rx Mem Bufs", safe_mce_sys().rx_num_bufs, MCE_DEFAULT_RX_NUM_BUFS, SYS_VAR_RX_NUM_BUFS);
 	VLOG_PARAM_NUMBER("Rx QP WRE", safe_mce_sys().rx_num_wr, MCE_DEFAULT_RX_NUM_WRE, SYS_VAR_RX_NUM_WRE);
-	VLOG_PARAM_NUMBER("Rx QP WRE BATCHING", safe_mce_sys().rx_num_wr_to_post_recv, MCE_DEFAULT_RX_NUM_WRE_TO_POST_RECV, SYS_VAR_RX_NUM_WRE_TO_POST_RECV);
+	VLOG_PARAM_NUMBER("Rx QP WRE Batching", safe_mce_sys().rx_num_wr_to_post_recv, MCE_DEFAULT_RX_NUM_WRE_TO_POST_RECV, SYS_VAR_RX_NUM_WRE_TO_POST_RECV);
 	VLOG_PARAM_NUMBER("Rx Byte Min Limit", safe_mce_sys().rx_ready_byte_min_limit, MCE_DEFAULT_RX_BYTE_MIN_LIMIT, SYS_VAR_RX_BYTE_MIN_LIMIT);
 	VLOG_PARAM_NUMBER("Rx Poll Loops", safe_mce_sys().rx_poll_num, MCE_DEFAULT_RX_NUM_POLLS, SYS_VAR_RX_NUM_POLLS);
 	VLOG_PARAM_NUMBER("Rx Poll Init Loops", safe_mce_sys().rx_poll_num_init, MCE_DEFAULT_RX_NUM_POLLS_INIT, SYS_VAR_RX_NUM_POLLS_INIT);
 	if (safe_mce_sys().rx_udp_poll_os_ratio) {
 		VLOG_PARAM_NUMBER("Rx UDP Poll OS Ratio", safe_mce_sys().rx_udp_poll_os_ratio, MCE_DEFAULT_RX_UDP_POLL_OS_RATIO, SYS_VAR_RX_UDP_POLL_OS_RATIO);
-	}
-	else {
+	} else {
 		VLOG_PARAM_STRING("Rx UDP Poll OS Ratio", safe_mce_sys().rx_udp_poll_os_ratio, MCE_DEFAULT_RX_UDP_POLL_OS_RATIO, SYS_VAR_RX_UDP_POLL_OS_RATIO, "Disabled");
 	}
 
 	VLOG_PARAM_NUMBER("Rx UDP HW TS Conversion", safe_mce_sys().rx_udp_hw_ts_conversion, MCE_DEFAULT_RX_UDP_HW_TS_CONVERSION, SYS_VAR_RX_UDP_HW_TS_CONVERSION);
+	VLOG_PARAM_NUMBER("Rx SW CSUM", safe_mce_sys().rx_sw_csum, MCE_DEFUALT_RX_SW_CSUM, SYS_VAR_RX_SW_CSUM);
 	if (safe_mce_sys().rx_poll_yield_loops) {
 		VLOG_PARAM_NUMBER("Rx Poll Yield", safe_mce_sys().rx_poll_yield_loops, MCE_DEFAULT_RX_POLL_YIELD, SYS_VAR_RX_POLL_YIELD);
 	}
@@ -715,7 +716,7 @@ void igmp_test()
 	p_pkt->m_ip_hdr.tot_len = htons(IPV4_IGMP_HDR_LEN + sizeof(igmphdr));
 	p_pkt->m_ip_hdr_ext = htonl(IGMP_IP_HEADER_EXT);
 	p_pkt->m_ip_hdr.check = 0;
-	p_pkt->m_ip_hdr.check = csum((unsigned short*)&p_pkt->m_ip_hdr, (IPV4_IGMP_HDR_LEN_WORDS) * 2);
+	p_pkt->m_ip_hdr.check = compute_ip_checksum((unsigned short*)&p_pkt->m_ip_hdr, (IPV4_IGMP_HDR_LEN_WORDS) * 2);
 
 	// Create the IGMP header
 	p_pkt->m_igmp_hdr.type = IGMP_QUERY;
@@ -723,7 +724,7 @@ void igmp_test()
 	p_pkt->m_igmp_hdr.group = (in_addr_t)inet_addr("224.4.4.4");
 
 	p_pkt->m_igmp_hdr.csum = 0;
-	p_pkt->m_igmp_hdr.csum = csum((unsigned short*)&p_pkt->m_igmp_hdr, IGMP_HDR_LEN_WORDS * 2);
+	p_pkt->m_igmp_hdr.csum = compute_ip_checksum((unsigned short*)&p_pkt->m_igmp_hdr, IGMP_HDR_LEN_WORDS * 2);
 
 	g_p_igmp_mgr->process_igmp_packet(&p_pkt->m_ip_hdr, (in_addr_t)inet_addr("2.2.2.16"));
 }

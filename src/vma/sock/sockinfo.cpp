@@ -78,7 +78,8 @@ sockinfo::sockinfo(int fd) throw (vma_exception):
 		m_rx_ring_map_lock(MODULE_NAME "::m_rx_ring_map_lock"),
 		m_ring_alloc_logic(fd, this),
 		m_n_rx_pkt_ready_list_count(0), m_rx_pkt_ready_offset(0), m_rx_ready_byte_count(0),
-		m_rx_num_buffs_reuse(safe_mce_sys().rx_bufs_batch),
+		m_n_sysvar_rx_num_buffs_reuse(safe_mce_sys().rx_bufs_batch),
+		m_n_sysvar_rx_poll_num(safe_mce_sys().rx_poll_num),
 		m_rx_callback(NULL),
 		m_rx_callback_context(NULL)
 {
@@ -261,7 +262,7 @@ int sockinfo::rx_wait_helper(int &poll_count, bool is_blocking)
 		}
 	}
 
-	if (poll_count < safe_mce_sys().rx_poll_num || safe_mce_sys().rx_poll_num == -1) {
+	if (poll_count < m_n_sysvar_rx_poll_num || m_n_sysvar_rx_poll_num == -1) {
 		return 0;
 	}
 
@@ -449,7 +450,7 @@ bool sockinfo::attach_receiver(flow_tuple_with_local_if &flow_key)
 	unlock_rx_q();
 	if (!p_nd_resources->p_ring->attach_flow(flow_key, this)) {
 		lock_rx_q();
-		si_logerr("Failed to attach %s to ring %p", flow_key.to_str(), p_nd_resources->p_ring);
+		si_logdbg("Failed to attach %s to ring %p", flow_key.to_str(), p_nd_resources->p_ring);
 		return false;
 	}
 	lock_rx_q();

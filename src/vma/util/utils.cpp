@@ -44,6 +44,7 @@
 #include <linux/sockios.h>
 #include <math.h>
 #include <linux/ip.h>  //IP  header (struct  iphdr) definition
+#include <netinet/udp.h>
 
 #include "vlogger/vlogger.h"
 #include "vma/util/sys_vars.h"
@@ -158,7 +159,7 @@ int get_base_interface_name(const char *if_name, char *base_ifname, size_t sz_ba
 	return 0;
 }
 
-unsigned short csum(const unsigned short *buf, unsigned int nshort_words)
+unsigned short compute_ip_checksum(const unsigned short *buf, unsigned int nshort_words)
 {
 	unsigned long sum = 0;
 
@@ -183,11 +184,11 @@ unsigned short compute_tcp_checksum(const struct iphdr *p_iphdr, const uint16_t 
 
     //add the pseudo header
     //the source ip
-    sum += (p_iphdr->saddr>>16)&0xFFFF;
-    sum += (p_iphdr->saddr)&0xFFFF;
+    sum += (p_iphdr->saddr >> 16) & 0xFFFF;
+    sum += (p_iphdr->saddr) & 0xFFFF;
     //the dest ip
-    sum += (p_iphdr->daddr>>16)&0xFFFF;
-    sum += (p_iphdr->daddr)&0xFFFF;
+    sum += (p_iphdr->daddr >> 16) & 0xFFFF;
+    sum += (p_iphdr->daddr) & 0xFFFF;
     //protocol and reserved: 6
     sum += htons(IPPROTO_TCP);
     //the length
@@ -209,6 +210,47 @@ unsigned short compute_tcp_checksum(const struct iphdr *p_iphdr, const uint16_t 
       sum = ~sum;
     //computation result
       return (unsigned short)sum;
+}
+
+/* set udp checksum: given IP header and UDP datagram
+ *
+ * (assume checksum field in UDP header contains zero)
+ * This code borrows from other places and their ideas.
+ */
+
+unsigned short compute_udp_checksum(const struct iphdr *p_iphdr, const uint16_t *p_ip_payload) {
+    register unsigned long sum = 0;
+    struct udphdr *udphdrp = (struct udphdr*)(p_ip_payload);
+    unsigned short udp_len = htons(udphdrp->len);
+
+    //add the pseudo header
+    sum += (p_iphdr->saddr >> 16) & 0xFFFF;
+    sum += (p_iphdr->saddr) & 0xFFFF;
+    //the dest ip
+    sum += (p_iphdr->daddr >> 16) & 0xFFFF;
+    sum += (p_iphdr->daddr) & 0xFFFF;
+    //protocol and reserved: 17
+    sum += htons(IPPROTO_UDP);
+    //the length
+    sum += udphdrp->len;
+
+    //add the IP payload
+    while (udp_len > 1) {
+        sum += * p_ip_payload++;
+        udp_len -= 2;
+    }
+    //if any bytes left, pad the bytes and add
+    if(udp_len > 0) {
+        sum += ((*p_ip_payload)&htons(0xFF00));
+    }
+      //Fold sum to 16 bits: add carrier to result
+      while (sum>>16) {
+          sum = (sum & 0xffff) + (sum >> 16);
+      }
+
+      sum = ~sum;
+    //computation result
+    return (unsigned short)sum == 0x0000 ? 0xFFFF :(unsigned short)sum;
 }
 
 /**
@@ -719,6 +761,7 @@ int get_peer_unicast_mac(const in_addr_t p_peer_addr, unsigned char peer_mac[ETH
 	int fd = 0;
 	int ret_val = -1;
 
+	/* cppcheck-suppress wrongPrintfScanfArgNum */
 	sprintf(peer_ip_str, "%d.%d.%d.%d ", NIPQUAD(p_peer_addr));
 	FILE* fp = fopen(ARP_TABLE_FILE, "r");
 	if (!fp)
@@ -764,6 +807,7 @@ int get_peer_ipoib_qpn(const struct sockaddr* p_peer_addr, uint32_t & remote_qpn
 	int fd = 0;
 	int ret_val = -1;
 
+	/* cppcheck-suppress wrongPrintfScanfArgNum */
 	sprintf(peer_ip_str, "%d.%d.%d.%d ", NIPQUAD(get_sa_ipv4_addr(p_peer_addr)));
 	FILE* fp = fopen(ARP_TABLE_FILE, "r");
 	if (!fp)
@@ -808,6 +852,7 @@ int get_peer_ipoib_address(const struct sockaddr* p_peer_addr, unsigned char pee
 	int fd = 0;
 	int ret_val = -1;
 
+	/* cppcheck-suppress wrongPrintfScanfArgNum */
 	sprintf(peer_ip_str, "%d.%d.%d.%d ", NIPQUAD(get_sa_ipv4_addr(p_peer_addr)));
 	FILE* fp = fopen(ARP_TABLE_FILE, "r");
 	if (!fp)
@@ -1036,6 +1081,20 @@ int validate_ipoib_prop(const char* ifname, unsigned int ifflags,
 	}
 }
 
+//NOTE RAW_QP_PRIVLIGES_PARAM_FILE does not exist on upstream drivers
+int validate_raw_qp_privliges()
+{
+	// RAW_QP_PRIVLIGES_PARAM_FILE: "/sys/module/ib_uverbs/parameters/disable_raw_qp_enforcement"
+	char raw_qp_privliges_value = 0;
+	if (priv_read_file((const char*)RAW_QP_PRIVLIGES_PARAM_FILE, &raw_qp_privliges_value, 1, VLOG_DEBUG) <= 0) {
+		return -1;
+	}
+	if (raw_qp_privliges_value != '1') {
+		return 0;
+	}
+	return 1;
+}
+
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
 #endif
@@ -1046,7 +1105,9 @@ void convert_hw_addr_to_str(char *buf, uint8_t hw_addr_len, uint8_t *hw_addr)
 	if (hw_addr_len > 0) {
 		sprintf(buf,"%02X",hw_addr[0]);
 		for(int i = 1;i <= hw_addr_len;i++){
-			sprintf(buf, "%s:%02X", buf, hw_addr[i]);
+			char str_x[10];
+			sprintf(str_x, ":%02X", hw_addr[i]);
+			strcat(buf, str_x);
 		}
 	}
 }

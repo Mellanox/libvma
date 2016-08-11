@@ -764,6 +764,7 @@ void print_mc_group_fds(mc_group_fds_t * mc_group_fds, int array_size)
 	printf("------------------------------\n");
 	for (int i=0; i< array_size; i++) {
 		char mcg_str[256];
+		/* cppcheck-suppress wrongPrintfScanfArgNum */
 		sprintf(mcg_str, "[%d.%d.%d.%d]", NIPQUAD(mc_group_fds[i].mc_grp));
 		printf("%-22s", mcg_str);
 		for (fd_list_t::iterator iter = mc_group_fds[i].fd_list.begin(); iter != mc_group_fds[i].fd_list.end(); iter++) {
@@ -951,8 +952,8 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 	int printed_line_num = SCREEN_SIZE;
 	struct timespec start, end;	
 	bool proc_running = true;
-	socket_instance_block_t prev_instance_blocks[p_sh_mem->max_skt_inst_num];
-	socket_instance_block_t curr_instance_blocks[p_sh_mem->max_skt_inst_num];
+	socket_instance_block_t *prev_instance_blocks;
+	socket_instance_block_t *curr_instance_blocks;
 	cq_instance_block_t prev_cq_blocks[NUM_OF_SUPPORTED_CQS];
 	cq_instance_block_t curr_cq_blocks[NUM_OF_SUPPORTED_CQS];
 	ring_instance_block_t prev_ring_blocks[NUM_OF_SUPPORTED_RINGS];
@@ -961,7 +962,17 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 	bpool_instance_block_t curr_bpool_blocks[NUM_OF_SUPPORTED_BPOOLS];
 	iomux_stats_t prev_iomux_blocks;
 	iomux_stats_t curr_iomux_blocks;
-	
+
+	prev_instance_blocks = (socket_instance_block_t*)malloc(sizeof(*prev_instance_blocks) * p_sh_mem->max_skt_inst_num);
+	if (NULL == prev_instance_blocks) {
+		return ;
+	}
+        curr_instance_blocks = (socket_instance_block_t*)malloc(sizeof(*curr_instance_blocks) * p_sh_mem->max_skt_inst_num);
+        if (NULL == curr_instance_blocks) {
+		free(prev_instance_blocks);
+                return ;
+        }
+
 	memset((void*)prev_instance_blocks,0, sizeof(socket_instance_block_t) * p_sh_mem->max_skt_inst_num);
 	memset((void*)curr_instance_blocks,0, sizeof(socket_instance_block_t) * p_sh_mem->max_skt_inst_num);
 	memset((void*)prev_cq_blocks,0, sizeof(cq_instance_block_t) * NUM_OF_SUPPORTED_CQS);
@@ -1000,7 +1011,7 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 
 		if (gettime(&start)) {
 			log_system_err("gettime()");
-			return;
+			goto out;
 		}
 
 		if (user_params.print_details_mode == e_deltas) {
@@ -1017,7 +1028,7 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 				break;
 			case e_mc_groups:
 				show_mc_group_stats(&p_sh_mem->mc_info, p_sh_mem->skt_inst_arr, p_sh_mem->max_skt_inst_num);
-				return;
+				goto out;
 				break;
 			default:
 				break;
@@ -1056,7 +1067,7 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 		}
 		if (gettime(&end)) {
 			log_system_err("gettime()");
-			return;
+			goto out;
 		}
 		uint64_t delay_int_micro = SEC_TO_MICRO(user_params.interval);
 		uint64_t adjasted_delay = delay_int_micro - TIME_DIFF_in_MICRO(start, end);
@@ -1068,6 +1079,10 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 	}
 	if (!proc_running)
 		log_msg("Proccess %d ended - exiting", pid);
+
+out:
+	free(prev_instance_blocks);
+	free(curr_instance_blocks);
 }
 
 bool check_if_app_match(char* app_name, char* pid_str)

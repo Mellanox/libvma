@@ -4,18 +4,23 @@ source $(dirname $0)/globals.sh
 
 check_filter "Checking for compiler ..." "on"
 
+# This unit requires module so check for existence
+if [ $(command -v module >/dev/null 2>&1 || echo $?) ]; then
+	echo "[SKIP] module tool does not exist"
+	exit 0
+fi
+module load intel/ics
+
 cd $WORKSPACE
 
 rm -rf $compiler_dir
 mkdir -p $compiler_dir
 cd $compiler_dir
 
-compiler_list="icc:icpc"
+compiler_list="icc:icpc clang:clang++"
 
 compiler_tap=${WORKSPACE}/${prefix}/compiler.tap
 echo "1..$(echo $compiler_list | tr " " "\n" | wc -l)" > $compiler_tap
-
-module load intel/ics
 
 test_id=0
 for compiler in $compiler_list; do

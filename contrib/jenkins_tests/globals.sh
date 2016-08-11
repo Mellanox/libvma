@@ -23,13 +23,16 @@ compiler_dir=${WORKSPACE}/${prefix}/compiler
 test_dir=${WORKSPACE}/${prefix}/test
 rpm_dir=${WORKSPACE}/${prefix}/rpm
 cov_dir=${WORKSPACE}/${prefix}/cov
+cppcheck_dir=${WORKSPACE}/${prefix}/cppcheck
 vg_dir=${WORKSPACE}/${prefix}/vg
 style_dir=${WORKSPACE}/${prefix}/style
 
 
-timeout_exe=${timout_exe:="timeout -s SIGKILL 20m"}
 nproc=$(grep processor /proc/cpuinfo|wc -l)
 make_opt="-j$(($nproc / 2 + 1))"
+if [ $(command -v timeout >/dev/null 2>&1 && echo $?) ]; then
+    timeout_exe="timeout -s SIGKILL 20m"
+fi
 
 trap "on_exit" INT TERM ILL KILL FPE SEGV ALRM
 
@@ -38,6 +41,25 @@ function on_exit
     rc=$((rc + $?))
     echo "[${0##*/}]..................exit code = $rc"
     pkill -9 sockperf
+}
+
+function do_cmd()
+{
+	cmd="$*"
+    set +e
+    eval $cmd >> /dev/null 2>&1
+    ret=$?
+    set -e
+    if [ $ret -gt 0 ]; then
+		exit $ret
+	fi
+}
+
+function do_export()
+{
+	export PATH="$1/bin:${PATH}"
+	export LD_LIBRARY_PATH="$1/lib:${LD_LIBRARY_PATH}"
+	export MANPATH="$1/share/man:${MANPATH}"
 }
 
 function do_github_status()
@@ -66,11 +88,17 @@ function do_github_status()
 
 function check_env()
 {
-	if [ -n "$ghprbTargetBranch" -a "$ghprbTargetBranch" != "master" ]; then
+    if [ $(command -v ofed_info >/dev/null 2>&1 || echo $?) ]; then
+		echo "Configuration: INBOX : ${ghprbTargetBranch}"
+    elif [ -n "$ghprbTargetBranch" -a "$ghprbTargetBranch" != "master" ]; then
+		echo "Configuration: MOFED[$(ofed_info -s)] : ${ghprbTargetBranch}"
+
 		if [ $(ofed_info -s | grep 'MLNX_OFED_LINUX-3.2' >/dev/null 2>&1 || echo $?) ]; then
 		    echo "environment [NOT OK]"
 		    exit 0
 		fi
+	else
+		echo "Configuration: MOFED[$(ofed_info -s)] : master"
 	fi
 
     echo "environment [OK]"
