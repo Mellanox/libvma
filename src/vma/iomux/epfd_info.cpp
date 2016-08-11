@@ -786,7 +786,7 @@ void epfd_info::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 		offloaded_str_place--;
 	}
 
-	vlog_printf(log_level, "Offloaded Fds : %d {%s}\n", m_n_offloaded_fds, offloaded_str);
+	vlog_printf(log_level, "Offloaded Fds : %d {%s}\n", m_n_offloaded_fds, m_n_offloaded_fds ? offloaded_str : "");
 	vlog_printf(log_level, "Number of rings : %u\n", num_rings);
 	vlog_printf(log_level, "Number of ready Fds : %u\n", num_ready_fds);
 	vlog_printf(log_level, "Number of ready CQ Fds : %u\n", num_ready_cq_fd);
