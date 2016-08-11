@@ -471,8 +471,10 @@ int sockinfo_udp::bind(const struct sockaddr *__addr, socklen_t __addrlen)
 	if (m_rx_ring_map.size() == 1) {
 		rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.begin();
 		m_p_rx_ring = rx_ring_iter->first;
+	} else {
+		si_udp_logdbg("ring map size: %d", m_rx_ring_map.size());
 	}
-
+	
 	dst_entry_map_t::iterator dst_entry_iter = m_dst_entry_map.begin();
 	while (dst_entry_iter != m_dst_entry_map.end()) {
 		if (!m_bound.is_anyaddr() && !m_bound.is_mc()) {
@@ -2100,8 +2102,10 @@ int sockinfo_udp::mc_change_membership(const struct ip_mreq *p_mreq, int optname
 	if (m_rx_ring_map.size() == 1) {
 		rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.begin();
 		m_p_rx_ring = rx_ring_iter->first;
+	} else {
+		si_udp_logdbg("ring map size: %d", m_rx_ring_map.size());
 	}
-
+	
 	return 0;
 }
 

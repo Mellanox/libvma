@@ -189,6 +189,7 @@ public:
 
 	list_node<socket_fd_api> node;
 	virtual int get_rings_num() {return 0;}
+	virtual bool check_rings_fds() {return false;}
 	virtual int* get_rings_fds() {return NULL;}
 
 protected:

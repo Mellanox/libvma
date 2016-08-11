@@ -373,24 +373,35 @@ int vma_free_vma_packets(struct vma_packet_desc_t *packets, int num)
 {
 	mem_buf_desc_t* desc = NULL;
 	socket_fd_api* p_socket_object = NULL;
-	int ret_val = 0;
 
 	if (likely(packets)) {
 		for (int i = 0; i < num; i++) {
 			desc = (mem_buf_desc_t*)packets[i].buff_lst;
-			p_socket_object = (socket_fd_api*)desc->path.rx.context;
-			ring* rng = (ring*)desc->p_desc_owner;
-			if (p_socket_object)
-				p_socket_object->free_buffs(packets[i].total_len);
-			rng->vma_poll_reclaim_recv_buffers(desc);
+			if (desc) {
+				p_socket_object = (socket_fd_api*)desc->path.rx.context;
+				ring* rng = (ring*)desc->p_desc_owner;
+				if (p_socket_object) {
+					p_socket_object->free_buffs(packets[i].total_len);
+				}
+				if (rng) {
+					rng->vma_poll_reclaim_recv_buffers(desc);
+				} else {
+					goto err;
+				}
+			} else {
+				goto err;
+			}
 		}
 	}
 	else {
-		errno = EINVAL;
-		ret_val = -1;
+		goto err;
 	}
 
-	return ret_val;
+	return 0;
+
+err:
+	errno = EINVAL;
+	return -1;
 }
 extern "C"
 int vma_buff_ref(vma_buff_t *buff)
@@ -475,10 +486,11 @@ int vma_get_socket_rings_fds(int fd, int *ring_fds, int ring_fds_sz)
 
 	if (ring_fds_sz > 0) {
 		p_socket_object = fd_collection_get_sockfd(fd);
-
-		p_rings_fds = p_socket_object->get_rings_fds();
-		*ring_fds = p_rings_fds[0];
-		rings_num = 1;
+		if (p_socket_object && p_socket_object->check_rings_fds()) {
+				p_rings_fds = p_socket_object->get_rings_fds();
+				*ring_fds = p_rings_fds[0];
+				rings_num = 1;
+		}
 	}
 
 	return rings_num;
