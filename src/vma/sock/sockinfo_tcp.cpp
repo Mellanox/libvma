@@ -3779,8 +3779,8 @@ void sockinfo_tcp::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 	// Socket data
 	vlog_printf(log_level, "Socket state : %s\n", tcp_sock_state_str[sock_state]);
 	vlog_printf(log_level, "Connection state : %s\n", tcp_conn_state_str[conn_state]);
-	vlog_printf(log_level, "Receive buffer : m_rcvbuff_current %d , m_rcvbuff_max %d , m_rcvbuff_non_tcp_recved %d\n", rcvbuff_current, rcvbuff_max, rcvbuff_non_tcp_recved);
-	vlog_printf(log_level, "Rx lists size : m_rx_pkt_ready_list %d , m_rx_ctl_packets_list %d , m_rx_ctl_reuse_list %d\n", rx_pkt_ready_list_size, rx_ctl_packets_list_size, rx_ctl_reuse_list_size);
+	vlog_printf(log_level, "Receive buffer : m_rcvbuff_current %d, m_rcvbuff_max %d, m_rcvbuff_non_tcp_recved %d\n", rcvbuff_current, rcvbuff_max, rcvbuff_non_tcp_recved);
+	vlog_printf(log_level, "Rx lists size : m_rx_pkt_ready_list %d, m_rx_ctl_packets_list %d, m_rx_ctl_reuse_list %d\n", rx_pkt_ready_list_size, rx_ctl_packets_list_size, rx_ctl_reuse_list_size);
 
 	// PCB data
 	vlog_printf(log_level, "PCB state : %s\n", tcp_state_str[get_tcp_state(&pcb)]);
@@ -3789,50 +3789,50 @@ void sockinfo_tcp::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 
 	// Window scaling
 	if (pcb.flags & TF_WND_SCALE) {
-		vlog_printf(log_level, "Window scaling : ENABLED , rcv_scale %u , snd_scale %u\n", pcb.rcv_scale, pcb.snd_scale);
+		vlog_printf(log_level, "Window scaling : ENABLED, rcv_scale %u, snd_scale %u\n", pcb.rcv_scale, pcb.snd_scale);
 
 		// Receive and send windows
-		vlog_printf(log_level, "Receive window : rcv_wnd %u (%u) , rcv_ann_wnd %u (%u), rcv_wnd_max %u (%u), rcv_wnd_max_desired %u (%u)\n",
+		vlog_printf(log_level, "Receive window : rcv_wnd %u (%u), rcv_ann_wnd %u (%u), rcv_wnd_max %u (%u), rcv_wnd_max_desired %u (%u)\n",
 				pcb.rcv_wnd, RCV_WND_SCALE(&pcb, pcb.rcv_wnd), pcb.rcv_ann_wnd, RCV_WND_SCALE(&pcb, pcb.rcv_ann_wnd),
 				pcb.rcv_wnd_max, RCV_WND_SCALE(&pcb, pcb.rcv_wnd_max),  pcb.rcv_wnd_max_desired, RCV_WND_SCALE(&pcb, pcb.rcv_wnd_max_desired));
 
-		vlog_printf(log_level, "Send window : snd_wnd %u (%u) , snd_wnd_max %u (%u)\n",
+		vlog_printf(log_level, "Send window : snd_wnd %u (%u), snd_wnd_max %u (%u)\n",
 				pcb.snd_wnd, RCV_WND_SCALE(&pcb, pcb.snd_wnd), pcb.snd_wnd_max, RCV_WND_SCALE(&pcb, pcb.snd_wnd_max));
 	} else {
 		vlog_printf(log_level, "Window scaling : DISABLED\n");
 
 		// Receive and send windows
-		vlog_printf(log_level, "Receive window : rcv_wnd %u , rcv_ann_wnd %u , rcv_wnd_max %u , rcv_wnd_max_desired %u\n",
+		vlog_printf(log_level, "Receive window : rcv_wnd %u, rcv_ann_wnd %u, rcv_wnd_max %u, rcv_wnd_max_desired %u\n",
 				pcb.rcv_wnd, pcb.rcv_ann_wnd, pcb.rcv_wnd_max, pcb.rcv_wnd_max_desired);
 
-		vlog_printf(log_level, "Send window : snd_wnd %u , snd_wnd_max %u\n", pcb.snd_wnd, pcb.snd_wnd_max);
+		vlog_printf(log_level, "Send window : snd_wnd %u, snd_wnd_max %u\n", pcb.snd_wnd, pcb.snd_wnd_max);
 	}
 
 	// Congestion variable
 	vlog_printf(log_level, "Congestion : cwnd %u\n", pcb.cwnd);
 
 	// Receiver variables
-	vlog_printf(log_level, "Receiver data : rcv_nxt %u , rcv_ann_right_edge %u\n", pcb.rcv_nxt, pcb.rcv_ann_right_edge);
+	vlog_printf(log_level, "Receiver data : rcv_nxt %u, rcv_ann_right_edge %u\n", pcb.rcv_nxt, pcb.rcv_ann_right_edge);
 
 	// Sender variables
-	vlog_printf(log_level, "Sender data : snd_nxt %u , snd_wl1 %u , snd_wl2 %u\n", pcb.snd_nxt, pcb.snd_wl1, pcb.snd_wl2);
+	vlog_printf(log_level, "Sender data : snd_nxt %u, snd_wl1 %u, snd_wl2 %u\n", pcb.snd_nxt, pcb.snd_wl1, pcb.snd_wl2);
 
 	// Send buffer
-	vlog_printf(log_level, "Send buffer : snd_buf %u , max_snd_buff %u\n", pcb.snd_buf, pcb.max_snd_buff);
+	vlog_printf(log_level, "Send buffer : snd_buf %u, max_snd_buff %u\n", pcb.snd_buf, pcb.max_snd_buff);
 
 	// Retransmission
-	vlog_printf(log_level, "Retransmission : rtime %hd , rto %u, nrtx %u\n", pcb.rtime, pcb.rto, pcb.nrtx);
+	vlog_printf(log_level, "Retransmission : rtime %hd, rto %u, nrtx %u\n", pcb.rtime, pcb.rto, pcb.nrtx);
 
 	// RTT
-	vlog_printf(log_level, "RTT variables : rttest %u , rtseq %u\n", pcb.rttest, pcb.rtseq);
+	vlog_printf(log_level, "RTT variables : rttest %u, rtseq %u\n", pcb.rttest, pcb.rtseq);
 
 	// First unsent
 	if (first_unsent_seqno) {
-		vlog_printf(log_level, "First unsent : seqno %u , len %hu , seqno + len %u\n", first_unsent_seqno, first_unsent_len, first_unsent_seqno + first_unsent_len);
+		vlog_printf(log_level, "First unsent : seqno %u, len %hu, seqno + len %u\n", first_unsent_seqno, first_unsent_len, first_unsent_seqno + first_unsent_len);
 
 		// Last unsent
 		if (last_unsent_seqno) {
-			vlog_printf(log_level, "Last unsent : seqno %u , len %hu , seqno + len %u\n", last_unsent_seqno, last_unsent_len, last_unsent_seqno + last_unsent_len);
+			vlog_printf(log_level, "Last unsent : seqno %u, len %hu, seqno + len %u\n", last_unsent_seqno, last_unsent_len, last_unsent_seqno + last_unsent_len);
 		}
 	} else {
 		vlog_printf(log_level, "First unsent : NULL\n");
@@ -3840,11 +3840,11 @@ void sockinfo_tcp::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 
 	// First unsent
 	if (first_unacked_seqno) {
-		vlog_printf(log_level, "First unacked : seqno %u , len %hu , seqno + len %u\n", first_unacked_seqno, first_unacked_len, first_unacked_seqno + first_unacked_len);
+		vlog_printf(log_level, "First unacked : seqno %u, len %hu, seqno + len %u\n", first_unacked_seqno, first_unacked_len, first_unacked_seqno + first_unacked_len);
 
 		// Last unacked
 		if (last_unacked_seqno) {
-			vlog_printf(log_level, "Last unacked : seqno %u , len %hu , seqno + len %u\n", last_unacked_seqno, last_unacked_len, last_unacked_seqno + last_unacked_len);
+			vlog_printf(log_level, "Last unacked : seqno %u, len %hu, seqno + len %u\n", last_unacked_seqno, last_unacked_len, last_unacked_seqno + last_unacked_len);
 		}
 	} else {
 		vlog_printf(log_level, "First unacked : NULL\n");
@@ -3856,7 +3856,7 @@ void sockinfo_tcp::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 	// TCP timestamp
 #if LWIP_TCP_TIMESTAMPS
 	if (pcb.flags & TF_TIMESTAMP) {
-		vlog_printf(log_level, "Timestamp : ts_lastacksent %u , ts_recent %u\n", pcb.ts_lastacksent, pcb.ts_recent);
+		vlog_printf(log_level, "Timestamp : ts_lastacksent %u, ts_recent %u\n", pcb.ts_lastacksent, pcb.ts_recent);
 	}
 #endif
 }

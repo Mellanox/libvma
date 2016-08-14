@@ -188,6 +188,7 @@ private:
 	inline int remove_fd_from_epoll_os(int fd);
 
 public:
+	int get_epoll_fd() {return m_epfd;};
 	const fd_info_map_t& get_fd_info() {return  m_fd_info;} // TODO: remove
 	void insert_epoll_event_cb(int fd, uint32_t event_flags);
 	void insert_epoll_event(int fd, uint32_t event_flags);

@@ -119,9 +119,10 @@ void stats_data_reader::handle_timer_expired(void *ctx)
                 return;
         }
 
-        if (g_sh_mem->fd_to_dump != STATS_FD_STATISTICS_DISABLED) {
-                vma_get_api()->dump_fd_stats(g_sh_mem->fd_to_dump, VLOG_INFO);
-                g_sh_mem->fd_to_dump = STATS_FD_STATISTICS_DISABLED;
+        if (g_sh_mem->fd_dump != STATS_FD_STATISTICS_DISABLED) {
+                vma_get_api()->dump_fd_stats(g_sh_mem->fd_dump, g_sh_mem->fd_dump_log_level);
+                g_sh_mem->fd_dump = STATS_FD_STATISTICS_DISABLED;
+                g_sh_mem->fd_dump_log_level = STATS_FD_STATISTICS_LOG_LEVEL_DEFAULT;
         }
         stats_read_map_t::iterator iter;
 	g_lock_skt_stats.lock();
@@ -254,6 +255,10 @@ success:
 	// Update the shmem initial log values
 	g_sh_mem->log_level = **p_p_vma_log_level;
 	g_sh_mem->log_details_level = **p_p_vma_log_details;
+
+	// Update the shmem with initial fd dump values
+	g_sh_mem->fd_dump = STATS_FD_STATISTICS_DISABLED;
+	g_sh_mem->fd_dump_log_level = STATS_FD_STATISTICS_LOG_LEVEL_DEFAULT;
 
 	// ReMap internal log level to ShMem area
 	*p_p_vma_log_level = &g_sh_mem->log_level;

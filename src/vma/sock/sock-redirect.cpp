@@ -394,19 +394,10 @@ int vma_dump_fd_stats(int fd, vlog_levels_t log_level)
 	do_global_ctors();
 
 	if (g_p_fd_collection) {
-		if (fd) {
-			g_p_fd_collection->statistics_print(fd, log_level);
-		} else {
-			int fd_map_size = g_p_fd_collection->get_fd_map_size();
-			for (int i = 0 ; i < fd_map_size ; i++) {
-				g_p_fd_collection->statistics_print(i, log_level);
-			}
-		}
-	} else {
-		return -1;
+		g_p_fd_collection->statistics_print(fd, log_level);
+		return 0;
 	}
-
-	return 0;
+	return -1;
 }
 
 //-----------------------------------------------------------------------------

@@ -867,8 +867,8 @@ Options:
   -v, --view=<1|2|3|4|5>        Set view type:1- basic info,2- extra info,3- full info,4- mc groups,5- similar to 'netstat -tunaep'
   -d, --details=<1|2>           Set details mode:1- to see totals,2- to see deltas
   -z, --zero                    Zero counters
-  -S, --fd_statistics=<fd>      Dump statistics for fd number <fd>, use 0 value for all open fds
   -l, --log_level=<level>       Set VMA log level to <level>(1 <= level <= 7)
+  -S, --fd_dump=<fd> [<level>]  Dump statistics for fd number <fd> using log level <level>. use 0 value for all open fds
   -D, --details_level=<level>   Set VMA log details level to <level>(0 <= level <= 3)
   -s, --sockets=<list|range>    Log only sockets that match <list> or <range>, format: 4-16 or 1,9 (or combination)
   -V, --version                 Print version

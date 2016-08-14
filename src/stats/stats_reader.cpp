@@ -161,8 +161,8 @@ void usage(const char *argv0)
 	printf("  -v, --view=<1|2|3|4|5>\tSet view type:1- basic info,2- extra info,3- full info,4- mc groups,5- similar to 'netstat -tunaep'\n");
 	printf("  -d, --details=<1|2>\t\tSet details mode:1- to see totals,2- to see deltas\t\t\n");
 	printf("  -z, --zero\t\t\tZero counters\n");
-	printf("  -S, --fd_statistics=<fd>\tDump statistics for fd number <fd>, use 0 value for all open fds\n");
 	printf("  -l, --log_level=<level>\tSet VMA log level to <level>(one of: none/panic/error/warn/info/details/debug/fine/finer/all)\n");
+	printf("  -S, --fd_dump=<fd> [<level>]\tDump statistics for fd number <fd> using log level <level>. use 0 value for all open fds.\n");
 	printf("  -D, --details_level=<level>\tSet VMA log details level to <level>(0 <= level <= 3)\n");
 	printf("  -s, --sockets=<list|range>\tLog only sockets that match <list> or <range>, format: 4-16 or 1,9 (or combination)\n");
 	printf("  -V, --version\t\t\tPrint version\n");
@@ -916,7 +916,8 @@ void set_defaults()
 	user_params.zero_counters = false;
 	user_params.write_auth = true; //needed to set read flag on
 	user_params.cycles = DEFAULT_CYCLES;
-	user_params.fd_to_dump = STATS_FD_STATISTICS_DISABLED;
+	user_params.fd_dump = STATS_FD_STATISTICS_DISABLED;
+	user_params.fd_dump_log_level = STATS_FD_STATISTICS_LOG_LEVEL_DEFAULT;
 	
 	strcpy(g_vma_shmem_dir, MCE_DEFAULT_STATS_SHMEM_DIR);
 	
@@ -998,11 +999,12 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 	
 	set_signal_action();
 	
-	if (user_params.fd_to_dump != STATS_FD_STATISTICS_DISABLED) {
-		if (user_params.fd_to_dump)
-			log_msg("Dumping Fd %d to VMA using log level = INFO...", user_params.fd_to_dump);
+	if (user_params.fd_dump != STATS_FD_STATISTICS_DISABLED) {
+		if (user_params.fd_dump)
+			log_msg("Dumping Fd %d to VMA using log level = %s...", user_params.fd_dump, log_level::to_str(user_params.fd_dump_log_level));
 		else
-			log_msg("Dumping all Fd's to VMA using log level = INFO...");
+			log_msg("Dumping all Fd's to VMA using log level = %s...", log_level::to_str(user_params.fd_dump_log_level));
+		return;
 	}
 
 	while (!g_b_exit && proc_running && (user_params.cycles ? (cycles < user_params.cycles) : (true)))
@@ -1339,9 +1341,10 @@ int get_pid(char* proc_desc, char* argv0)
 	return pid;
 }
 
-void set_fd_to_dump(sh_mem_t* p_sh_mem)
+void set_dumping_data(sh_mem_t* p_sh_mem)
 {
-	p_sh_mem->fd_to_dump = user_params.fd_to_dump;
+	p_sh_mem->fd_dump = user_params.fd_dump;
+	p_sh_mem->fd_dump_log_level = user_params.fd_dump_log_level;
 }
 
 void set_vma_log_level(sh_mem_t* p_sh_mem)
@@ -1380,8 +1383,8 @@ int main (int argc, char **argv)
 			{"sockets",		1,	NULL,	's'},
 			{"version",		0,	NULL,	'V'},
 			{"zero",		0,	NULL,	'z'},
-			{"fd_statistics",	1,	NULL,	'S'},
 			{"log_level",		1,	NULL,	'l'},
+			{"fd_statistics",	1,	NULL,	'S'},
 			{"details_level",	1,	NULL,	'D'},
 			{"name",		1,	NULL,	'n'},
 			{"find_pid",		0,	NULL,	'f'},
@@ -1390,7 +1393,7 @@ int main (int argc, char **argv)
 			{0,0,0,0}
 		};
 		
-		if ((c = getopt_long(argc, argv, "i:c:v:d:p:k:s:VzS:l:D:n:fFh?", long_options, NULL)) == -1)
+		if ((c = getopt_long(argc, argv, "i:c:v:d:p:k:s:Vzl:S:D:n:fFh?", long_options, NULL)) == -1)
 			break;
 
 		switch (c) {
@@ -1468,19 +1471,7 @@ int main (int argc, char **argv)
 			user_params.write_auth = true;
 			user_params.zero_counters = true;
 			break;
-		case 'S': {
-			errno = 0;
-			int fd_to_dump = strtol(optarg, NULL, 0);
-			if (errno != 0  || fd_to_dump < 0) {
-				log_err("'-%c' Invalid fd val: %s", c, optarg);
-				usage(argv[0]);
-				cleanup(NULL);
-				return 1;
-			}
-			user_params.fd_to_dump = fd_to_dump;
-		}
-			break;
-		case 'l': {			
+		case 'l': {
 			vlog_levels_t log_level = log_level::from_str(optarg, VLOG_INIT);
 			if (log_level == VLOG_INIT) {
 				log_err("'-%c' Invalid log level val: %s", c,optarg);
@@ -1490,6 +1481,29 @@ int main (int argc, char **argv)
 			}
 			user_params.write_auth = true;
 			user_params.vma_log_level = log_level;
+		}
+			break;
+		case 'S': {
+			errno = 0;
+			optind--;
+			int fd_to_dump = strtol(argv[optind], NULL, 0);
+			if (errno != 0  || fd_to_dump < 0) {
+				log_err("'-%c' Invalid fd val: %s", c, argv[optind]);
+				usage(argv[0]);
+				cleanup(NULL);
+				return 1;
+			}
+			user_params.fd_dump = fd_to_dump;
+			if (++optind < argc && *argv[optind] != '-') {
+				vlog_levels_t dump_log_level = log_level::from_str(argv[optind], VLOG_INIT);
+				if (dump_log_level == VLOG_INIT) {
+					log_err("'-%c' Invalid log level val: %s", c, argv[optind]);
+					usage(argv[0]);
+					cleanup(NULL);
+					return 1;
+				}
+				user_params.fd_dump_log_level = dump_log_level;
+			}
 		}
 			break;
 		case 'D': {			
@@ -1634,8 +1648,8 @@ int  init_print_process_stats(sh_mem_info_t & sh_mem_info)
 		set_vma_log_level(sh_mem);
 	if (user_params.vma_details_level != INIT_VMA_LOG_DETAILS)
 		set_vma_log_details_level(sh_mem);
-	if (user_params.fd_to_dump != STATS_FD_STATISTICS_DISABLED)
-		set_fd_to_dump(sh_mem);
+	if (user_params.fd_dump != STATS_FD_STATISTICS_DISABLED)
+		set_dumping_data(sh_mem);
 
 
 	// here we indicate VMA to write to shmem

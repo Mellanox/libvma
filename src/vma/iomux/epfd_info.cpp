@@ -771,7 +771,6 @@ void epfd_info::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 	char offloaded_str[offloaded_str_cell_size];
 
 	// Prepare data
-
 	num_rings = m_ring_map.size();
 	iomux_func_stats_t temp_iomux_stats = m_stats->stats;
 	num_ready_fds = m_ready_fds.size();

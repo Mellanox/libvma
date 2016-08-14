@@ -92,6 +92,7 @@ using namespace std;
 #define STATS_PUBLISHER_TIMER_PERIOD    10 // publisher will check for stats request every 10 msec
 #define STATS_READER_DELAY      (STATS_PUBLISHER_TIMER_PERIOD + 5) // reader will wait for vma to wakeup and write statistics to shmem (with extra 5 msec overhead)
 #define STATS_FD_STATISTICS_DISABLED	(-1)
+#define STATS_FD_STATISTICS_LOG_LEVEL_DEFAULT	(VLOG_DEFAULT)
 
 //statistic file
 extern FILE* g_stats_file;
@@ -140,7 +141,8 @@ struct user_params_t {
 	proc_ident_mode_t	proc_ident_mode;
 	bool 			write_auth;
 	int			cycles;
-	int			fd_to_dump;
+	int			fd_dump;
+	vlog_levels_t		fd_dump_log_level;
 };
 
 extern user_params_t user_params;
@@ -309,7 +311,8 @@ typedef struct sh_mem_t {
 	bpool_instance_block_t		bpool_inst_arr[NUM_OF_SUPPORTED_BPOOLS];
 	mc_grp_info_t			mc_info;
 	iomux_stats_t                   iomux;
-	int				fd_to_dump;
+	int				fd_dump;
+	vlog_levels_t			fd_dump_log_level;
 	socket_instance_block_t  	skt_inst_arr[0]; //sockets statistics array
 } sh_mem_t;
 
