@@ -313,8 +313,8 @@ typedef struct sh_mem_t {
 	iomux_stats_t                   iomux;
 	int				fd_dump;
 	vlog_levels_t			fd_dump_log_level;
-	socket_instance_block_t  	skt_inst_arr[0]; //sockets statistics array
 	int				fd_to_dump;
+	socket_instance_block_t  	skt_inst_arr[0]; //sockets statistics array
 } sh_mem_t;
 
 typedef struct sh_mem_info {
