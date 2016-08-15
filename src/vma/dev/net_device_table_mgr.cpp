@@ -245,7 +245,7 @@ int net_device_table_mgr::map_net_devices()
 
 		bool valid = false;
 		if (ifa->ifa_flags & IFF_MASTER) {
-			// this is a bond interface, find the slave
+			// this is a bond interface (or a vlan/alias over bond), find the slaves
 			valid = verify_bond_ipoib_or_eth_qp_creation(ifa);
 		} else {
 			valid = verify_ipoib_or_eth_qp_creation(ifa->ifa_name, ifa);
@@ -299,12 +299,14 @@ int net_device_table_mgr::map_net_devices()
 	return 0;
 }
 
-bool net_device_table_mgr::verify_bond_ipoib_or_eth_qp_creation(struct ifaddrs * ifa) {
+bool net_device_table_mgr::verify_bond_ipoib_or_eth_qp_creation(struct ifaddrs * ifa)
+{
+	char base_ifname[IFNAMSIZ];
+	get_base_interface_name((const char*)(ifa->ifa_name), base_ifname, sizeof(base_ifname));
 	char slaves[IFNAMSIZ * MAX_SLAVES] = {0};
-	if (!get_bond_slaves_name_list(ifa->ifa_name, slaves, sizeof slaves)) {
+	if (!get_bond_slaves_name_list(base_ifname, slaves, sizeof slaves)) {
 		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
-		vlog_printf(VLOG_WARNING,"* Bond %s will not be offloaded, slave list could not be found\n", ifa->ifa_name);
-		vlog_printf(VLOG_WARNING,"* Check warning messages for more information.\n");
+		vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded, slave list or bond name could not be found\n", ifa->ifa_name);
 		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 		return false;
 	}
