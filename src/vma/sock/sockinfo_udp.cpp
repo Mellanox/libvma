@@ -1374,7 +1374,7 @@ void sockinfo_udp::handle_recv_timestamping(struct cmsg_state *cm_state)
 	}
 
 	if (m_n_tsing_flags & SOF_TIMESTAMPING_RAW_HARDWARE) {
-		tsing.hwtimeraw = packet->path.rx.hw_timestamp;
+		packet->path.rx.p_ib_ctx_time_converter->convert_hw_time_to_system_time(packet->path.rx.hw_raw_timestamp, &tsing.hwtimeraw);
 	}
 
 	insert_cmsg(cm_state, SOL_SOCKET, SO_TIMESTAMPING, &tsing, sizeof(tsing));

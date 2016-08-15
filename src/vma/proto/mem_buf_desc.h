@@ -34,12 +34,13 @@
 #ifndef MEM_BUF_DESC_H
 #define MEM_BUF_DESC_H
 
-#include "vma/util/vma_list.h"
 #include <netinet/in.h>
-#include "vma/util/vtypes.h" // for unlikely
 
+#include "vma/util/vma_list.h"
+#include "vma/util/vtypes.h" // for unlikely
 #include "vma/lwip/pbuf.h"
 #include "vma/util/atomic.h"
+#include "vma/dev/ib_ctx_time_converter.h"
 
 class mem_buf_desc_t;
 
@@ -123,7 +124,8 @@ public:
 			size_t		sz_payload;
 
 			struct timespec sw_timestamp;
-			struct timespec	hw_timestamp;
+			uint64_t	hw_raw_timestamp;
+			ib_ctx_time_converter*	p_ib_ctx_time_converter;
 
 			void* 		context;
 		} rx;
