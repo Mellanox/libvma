@@ -423,7 +423,6 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
     unsent_optlen = LWIP_TCP_OPT_LENGTH(pcb->last_unsent->flags);
     LWIP_ASSERT("mss_local is too small", mss_local >= pcb->last_unsent->len + unsent_optlen);
     space = mss_local - (pcb->last_unsent->len + unsent_optlen);
-
     /*
      * Phase 1: Copy data directly into an oversized pbuf.
      *
@@ -457,6 +456,7 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
      * (len==0). The new pbuf is kept in concat_p and pbuf_cat'ed at
      * the end.
      */
+
     if ((pos < len) && (space > 0) && (pcb->last_unsent->len > 0)) {
       u16_t seglen = space < len - pos ? space : len - pos;
       seg = pcb->last_unsent;
