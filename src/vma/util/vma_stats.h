@@ -300,9 +300,9 @@ typedef struct {
 } version_info_t;
 
 typedef struct sh_mem_t {
-    int                            reader_counter; //only copy to shm upon active reader
+	int				reader_counter; //only copy to shm upon active reader
 	version_info_t			ver_info;
-	char		stats_protocol_ver[32];
+	char				stats_protocol_ver[32];
 	size_t				max_skt_inst_num;
 	vlog_levels_t			log_level;
 	uint8_t 			log_details_level;
@@ -310,10 +310,11 @@ typedef struct sh_mem_t {
 	ring_instance_block_t		ring_inst_arr[NUM_OF_SUPPORTED_RINGS];
 	bpool_instance_block_t		bpool_inst_arr[NUM_OF_SUPPORTED_BPOOLS];
 	mc_grp_info_t			mc_info;
-	iomux_stats_t                   iomux;
+	iomux_stats_t			iomux;
 	int				fd_dump;
 	vlog_levels_t			fd_dump_log_level;
-	int				fd_to_dump;
+
+	// MUST BE LAST ENTRY in struct: [0] is the allocation start point for all fd's
 	socket_instance_block_t  	skt_inst_arr[0]; //sockets statistics array
 } sh_mem_t;
 
