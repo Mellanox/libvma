@@ -237,7 +237,12 @@ static inline struct vma_api_t* vma_get_api()
 {
 	struct vma_api_t *api_ptr = NULL;
 	socklen_t len = sizeof(api_ptr);
-	getsockopt(-1, SOL_SOCKET, SO_VMA_GET_API, &api_ptr, &len);
+
+	/* coverity[negative_returns] */
+	int err = getsockopt(-1, SOL_SOCKET, SO_VMA_GET_API, &api_ptr, &len);
+	if (err < 0) {
+		return NULL;
+	}
 	return api_ptr;
 }
 

@@ -964,6 +964,14 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 	iomux_stats_t prev_iomux_blocks;
 	iomux_stats_t curr_iomux_blocks;
 
+	if (user_params.fd_dump != STATS_FD_STATISTICS_DISABLED) {
+		if (user_params.fd_dump)
+			log_msg("Dumping Fd %d to VMA using log level = %s...", user_params.fd_dump, log_level::to_str(user_params.fd_dump_log_level));
+		else
+			log_msg("Dumping all Fd's to VMA using log level = %s...", log_level::to_str(user_params.fd_dump_log_level));
+		return;
+	}
+
 	prev_instance_blocks = (socket_instance_block_t*)malloc(sizeof(*prev_instance_blocks) * p_sh_mem->max_skt_inst_num);
 	if (NULL == prev_instance_blocks) {
 		return ;
@@ -999,14 +1007,6 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 	
 	set_signal_action();
 	
-	if (user_params.fd_dump != STATS_FD_STATISTICS_DISABLED) {
-		if (user_params.fd_dump)
-			log_msg("Dumping Fd %d to VMA using log level = %s...", user_params.fd_dump, log_level::to_str(user_params.fd_dump_log_level));
-		else
-			log_msg("Dumping all Fd's to VMA using log level = %s...", log_level::to_str(user_params.fd_dump_log_level));
-		return;
-	}
-
 	while (!g_b_exit && proc_running && (user_params.cycles ? (cycles < user_params.cycles) : (true)))
 	{
 		++cycles;
