@@ -1044,19 +1044,6 @@ tcp_output(struct tcp_pcb *pcb)
       tcp_split_segment(pcb, seg, wnd);
     }
 
-    {
-    	static int flag = 1;
-    	if (flag) {
-    			flag = 0;
-    			printf("TF_NODELAY = %d\n",TF_NODELAY);
-    			printf("TF_INFR = %d\n",TF_INFR);
-    			printf("(pcb->flags & TF_NODELAY)=%d\n", pcb->flags&TF_NODELAY);
-    			printf("(pcb->flags & TF_INFR)=%d\n", pcb->flags&TF_INFR);
-    	}
-
-    }
-
-
     /* data available and window allows it to be sent? */
     if (((seg->seqno - pcb->lastack + seg->len) <= wnd)){
       LWIP_ASSERT("RST not expected here!",
