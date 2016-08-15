@@ -873,12 +873,12 @@ tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
     u32_t lentoqueue = seg->p->len - TCP_HLEN - lentosend;
 
     if (seg->p->len <= TCP_HLEN + lentosend) {
-      LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_output : Segment data is too small %"U16_F", %"U16_F"\n", seg->p->len, lentosend));
+      LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_split_segment : Segment data is too small %"U16_F", %"U16_F"\n", seg->p->len, lentosend));
       return;
     }
 
     if (NULL == (p = tcp_pbuf_prealloc(lentoqueue + optlen, lentoqueue + optlen, &oversize, pcb, apiflags, 0))) {
-      LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_output : could not allocate memory for pbuf copy size %"U16_F"\n", (lentoqueue + optlen)));
+      LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_split_segment : could not allocate memory for pbuf copy size %"U16_F"\n", (lentoqueue + optlen)));
       return;
     }
 
@@ -921,7 +921,7 @@ tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
     pcb->snd_queuelen++;
   }
   else if (seg->p->next) {/* Segment with more than one pbuffer and seg->p->len <= lentosend
-  														 split segment pbuff chain. At least one pBuffer will be sent */
+       split segment pbuff chain. At least one pBuffer will be sent */
     struct pbuf *pnewhead = seg->p->next;
     struct pbuf *pnewtail = seg->p;
     struct pbuf *ptmp = seg->p;
