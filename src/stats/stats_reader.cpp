@@ -1015,7 +1015,7 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 			log_system_err("gettime()");
 			goto out;
 		}
-
+		
 		if (user_params.print_details_mode == e_deltas) {
 			memcpy((void*)curr_instance_blocks,(void*)p_sh_mem->skt_inst_arr, p_sh_mem->max_skt_inst_num * sizeof(socket_instance_block_t));
 			memcpy((void*)curr_cq_blocks,(void*)p_sh_mem->cq_inst_arr, NUM_OF_SUPPORTED_CQS * sizeof(cq_instance_block_t));
@@ -1471,7 +1471,7 @@ int main (int argc, char **argv)
 			user_params.write_auth = true;
 			user_params.zero_counters = true;
 			break;
-		case 'l': {
+		case 'l': {			
 			vlog_levels_t log_level = log_level::from_str(optarg, VLOG_INIT);
 			if (log_level == VLOG_INIT) {
 				log_err("'-%c' Invalid log level val: %s", c,optarg);

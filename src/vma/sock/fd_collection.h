@@ -191,7 +191,7 @@ private:
 	//progress the TCP connection.
 	void  				handle_timer_expired(void* user_data);
 
-	void 			statistics_print_helper(int fd, vlog_levels_t log_level);
+	void 				statistics_print_helper(int fd, vlog_levels_t log_level);
 };
 
 
