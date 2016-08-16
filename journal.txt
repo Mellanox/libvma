@@ -1,3 +1,23 @@
+Version 8.1.2-0:
+Date + Time 2016-08-15
+=======================
+Added:
+        - RM #826700 Act gracefully when running on upstream drivers for non supported features
+        - RM #802922 LWIP - Split head of TCP unsent segment when bigger than send window size and NODELAY flag is set
+         -RM #825888 Dump fd statistics into VMA logger using vma_stats
+        - RM #840733 Avoid using mce_sys global variable in fast path to minimize cache hit and improve performance
+        - RM #822441 Support SW checksum validation for ingress TCP/UDP IP packets
+        - RM #803783 Allow local TCP connections for offloaded bounded listen sockets
+        - RM #828809 Control the number of post sends until requesting completion SIGNAL 
+        - RM #825842 Add option for LWIP debug printing
+        - RM #841302 Coverity enhancements. Add support for ccpcheck and clang
+        - RM #827622 Add jenkins support for inbox
+        
+Fixed:
+        - RM #822562 Fix segmentation fault in vma_stats when exceeding fds string length 
+        - RM #817046 Coverity fixes 
+        - RM #836374 Fix exp-cq help message when executing "./configure --help" 
+
 Version 8.1.1-0:
 Date + Time 2016-07-19
 =======================
