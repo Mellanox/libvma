@@ -1384,7 +1384,7 @@ int main (int argc, char **argv)
 			{"version",		0,	NULL,	'V'},
 			{"zero",		0,	NULL,	'z'},
 			{"log_level",		1,	NULL,	'l'},
-			{"fd_statistics",	1,	NULL,	'S'},
+			{"fd_dump",		1,	NULL,	'S'},
 			{"details_level",	1,	NULL,	'D'},
 			{"name",		1,	NULL,	'n'},
 			{"find_pid",		0,	NULL,	'f'},
