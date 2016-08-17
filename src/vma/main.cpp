@@ -410,6 +410,9 @@ void print_vma_global_settings()
 	vlog_printf(log_level,"---------------------------------------------------------------------------\n");
 
 	switch (safe_mce_sys().mce_spec) {
+	case MCE_SPEC_SOCKPERF_LL_10:
+		vlog_printf(VLOG_INFO, " Sockperf ping-pong Low Latency Profile Spec\n");
+		break;
 	case MCE_SPEC_29WEST_LBM_29:
 		vlog_printf(VLOG_INFO, " 29West LBM Logic Spec\n");
 		break;

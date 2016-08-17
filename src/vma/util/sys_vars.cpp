@@ -429,6 +429,34 @@ void mce_sys_var::get_env_params()
 
 	switch (mce_spec) {
 
+	case MCE_SPEC_SOCKPERF_LL_10:
+		tx_num_segs_tcp         = 512; //MCE_DEFAULT_TX_NUM_SEGS_TCP (1000000)
+		tx_num_bufs             = 512; //MCE_DEFAULT_TX_NUM_BUFS (200000)
+		tx_num_wr               = 256; //MCE_DEFAULT_TX_NUM_WRE (3000)
+		tx_num_wr_to_signal     = 4; //MCE_DEFAULT_TX_NUM_WRE_TO_SIGNAL (64)
+		tx_prefetch_bytes 	= MCE_DEFAULT_TX_PREFETCH_BYTES; //(256)
+		tx_bufs_batch_udp	= 1; //MCE_DEFAULT_TX_BUFS_BATCH_UDP (8)
+		tx_bufs_batch_tcp	= 1; //MCE_DEFAULT_TX_BUFS_BATCH_TCP;
+		rx_num_bufs             = 1024; //MCE_DEFAULT_RX_NUM_BUFS (200000)
+		rx_bufs_batch           = 4; //MCE_DEFAULT_RX_BUFS_BATCH (64)
+		rx_num_wr               = 256; //MCE_DEFAULT_RX_NUM_WRE (16000)
+		rx_num_wr_to_post_recv  = 4; //MCE_DEFAULT_RX_NUM_WRE_TO_POST_RECV (64)
+		rx_poll_num             = -1; //MCE_DEFAULT_RX_NUM_POLLS
+		rx_udp_poll_os_ratio    = 0; //MCE_DEFAULT_RX_UDP_POLL_OS_RATIO
+		rx_prefetch_bytes	= MCE_DEFAULT_RX_PREFETCH_BYTES; //(256)
+		rx_prefetch_bytes_before_poll = 256; //MCE_DEFAULT_RX_PREFETCH_BYTES_BEFORE_POLL 0
+		select_poll_num         = -1;
+		select_poll_os_ratio    = 0;
+		select_skip_os_fd_check = 0;
+		avoid_sys_calls_on_tcp_fd = true; //MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD (false)
+		gro_streams_max		= 0; //MCE_DEFAULT_GRO_STREAMS_MAX (32)
+		progress_engine_interval_msec = 0;
+		cq_keep_qp_full		= false; //MCE_DEFAULT_CQ_KEEP_QP_FULL(true)
+		thread_mode		= THREAD_MODE_SINGLE;
+		mem_alloc_type          = ALLOC_TYPE_HUGEPAGES;
+		strcpy(internal_thread_affinity_str, "0"); //MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR;
+		break;
+
 	case MCE_SPEC_29WEST_LBM_29:
 		mce_spec_param1         = 5000;	// [u-sec] Time out to send next pipe_write
 		mce_spec_param2         = 50;	// Num of max sequential pipe_write to drop
@@ -792,20 +820,20 @@ void mce_sys_var::get_env_params()
 		offloaded_sockets = atoi(env_ptr) ? true : false;
 
 	if ((env_ptr = getenv(SYS_VAR_TIMER_RESOLUTION_MSEC)) != NULL)
-			timer_resolution_msec = atoi(env_ptr);
+		timer_resolution_msec = atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_TCP_TIMER_RESOLUTION_MSEC)) != NULL)
-			tcp_timer_resolution_msec = atoi(env_ptr);
+		tcp_timer_resolution_msec = atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_INTERNAL_THREAD_TCP_TIMER_HANDLING)) != NULL) {
-			internal_thread_tcp_timer_handling = 
-			atoi(env_ptr) == 1 ?  INTERNAL_THREAD_TCP_TIMER_HANDLING_IMMEDIATE : INTERNAL_THREAD_TCP_TIMER_HANDLING_DEFERRED;
+		internal_thread_tcp_timer_handling =
+		atoi(env_ptr) == 1 ?  INTERNAL_THREAD_TCP_TIMER_HANDLING_IMMEDIATE : INTERNAL_THREAD_TCP_TIMER_HANDLING_DEFERRED;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_TCP_CTL_THREAD)) != NULL) {
-			tcp_ctl_thread = (tcp_ctl_thread_t)atoi(env_ptr);
-			if (tcp_ctl_thread >= CTL_THREAD_LAST || tcp_ctl_thread < 0)
-				tcp_ctl_thread = MCE_DEFAULT_TCP_CTL_THREAD;
+		tcp_ctl_thread = (tcp_ctl_thread_t)atoi(env_ptr);
+		if (tcp_ctl_thread >= CTL_THREAD_LAST || tcp_ctl_thread < 0)
+			tcp_ctl_thread = MCE_DEFAULT_TCP_CTL_THREAD;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_TCP_TIMESTAMP_OPTION)) != NULL) {
@@ -818,11 +846,11 @@ void mce_sys_var::get_env_params()
 
 	// TODO: this should be replaced by calling "exception_handling.init()" that will be called from init()
 	if ((env_ptr = getenv(vma_exception_handling::getSysVar())) != NULL) {
-			exception_handling = vma_exception_handling(atoi(env_ptr)); // vma_exception_handling is responsible for its invariant
+		exception_handling = vma_exception_handling(atoi(env_ptr)); // vma_exception_handling is responsible for its invariant
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD)) != NULL) {
-			avoid_sys_calls_on_tcp_fd = atoi(env_ptr) ? true : false;
+		avoid_sys_calls_on_tcp_fd = atoi(env_ptr) ? true : false;
 	}
 
 	if(tcp_timer_resolution_msec < timer_resolution_msec){
@@ -887,13 +915,10 @@ void mce_sys_var::get_env_params()
 		vlog_printf(VLOG_WARNING, "**********************************************************************************************************************\n");
 	}
 
-	int tempVal = ALLOC_TYPE_LAST;
 	if ((env_ptr = getenv(SYS_VAR_MEM_ALLOC_TYPE)) != NULL)
-		tempVal = atoi(env_ptr);
-	if (tempVal < 0 || tempVal >= ALLOC_TYPE_LAST)
-		tempVal = MCE_DEFAULT_MEM_ALLOC_TYPE;
-
-	mem_alloc_type = (alloc_mode_t)tempVal;
+		mem_alloc_type = (alloc_mode_t)atoi(env_ptr);
+	if (mem_alloc_type < 0 || mem_alloc_type >= ALLOC_TYPE_LAST)
+		mem_alloc_type = MCE_DEFAULT_MEM_ALLOC_TYPE;
 
 	if ((env_ptr = getenv(SYS_VAR_BF)) != NULL)
 		handle_bf = atoi(env_ptr) ? true : false;
