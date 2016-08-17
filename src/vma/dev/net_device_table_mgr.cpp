@@ -244,6 +244,7 @@ int net_device_table_mgr::map_net_devices()
 		}
 
 		bool valid = false;
+
 		char base_ifname[IFNAMSIZ];
 		get_base_interface_name((const char*)(ifa->ifa_name), base_ifname, sizeof(base_ifname));
 		if (check_device_exist(base_ifname, BOND_DEVICE_FILE)) {

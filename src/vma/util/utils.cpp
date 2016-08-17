@@ -37,11 +37,14 @@
 #include <sys/resource.h>
 #include <string.h>
 #include <iostream>
+#include <list>
 #include "vma/util/if.h"
 #include <sys/stat.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <linux/sockios.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
 #include <math.h>
 #include <linux/ip.h>  //IP  header (struct  iphdr) definition
 #include <netinet/udp.h>
@@ -84,6 +87,7 @@ int get_sys_max_fd_num(int def_max_fd /*=1024*/)
 	return def_max_fd;
 }
 
+//keep order of checks
 int get_base_interface_name(const char *if_name, char *base_ifname, size_t sz_base_ifname)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -93,70 +97,25 @@ int get_base_interface_name(const char *if_name, char *base_ifname, size_t sz_ba
 	BULLSEYE_EXCLUDE_BLOCK_END
 	memset(base_ifname, 0, sz_base_ifname);
 
-	if (get_vlan_base_name_from_ifname(if_name, base_ifname, sz_base_ifname)) {
-		return 0;
-	}
-
-	//Am I already the base (not virtual, not alias, can be bond)
-	if ((!check_device_exist(if_name, VIRTUAL_DEVICE_FOLDER) ||
-		check_device_exist(if_name, BOND_DEVICE_FILE)) && !strstr(if_name, ":")) {
+	//bond
+	if (check_device_exist(if_name, BOND_DEVICE_FILE)) {
 		snprintf(base_ifname, sz_base_ifname, "%s" ,if_name);
 		return 0;
 	}
-
-	unsigned char vlan_if_address[MAX_L2_ADDR_LEN];
-	const size_t ADDR_LEN = get_local_ll_addr(if_name, vlan_if_address, MAX_L2_ADDR_LEN, false);
-	if (ADDR_LEN > 0) {
-		struct ifaddrs *ifaddr, *ifa;
-		int rc = getifaddrs(&ifaddr);
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (rc == -1) {
-			__log_err("getifaddrs failed");
-			return -1;
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-
-		for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-			if (!strcmp(ifa->ifa_name, if_name)) {
-				continue;
-			}
-			if (ifa->ifa_flags & IFF_SLAVE) {
-				//bond slave
-				continue;
-			}
-
-			if (strstr(ifa->ifa_name, ":")) {
-				//alias
-				continue;
-			}
-
-			if (check_device_exist(ifa->ifa_name, VIRTUAL_DEVICE_FOLDER)) {
-				//virtual
-				if (!check_device_exist(ifa->ifa_name, BOND_DEVICE_FILE)) {
-					continue;
-				}
-			}
-
-			unsigned char tmp_mac[ADDR_LEN];
-			if (ADDR_LEN == get_local_ll_addr(ifa->ifa_name, tmp_mac, ADDR_LEN, false)) {
-				int size_to_compare;
-				if (ADDR_LEN == ETH_ALEN) size_to_compare = ETH_ALEN;
-				else size_to_compare = IPOIB_HW_ADDR_GID_LEN;
-				int offset = ADDR_LEN - size_to_compare;
-				if (0 == memcmp(vlan_if_address + offset, tmp_mac + offset, size_to_compare)) {
-					snprintf(base_ifname, sz_base_ifname, "%s" ,ifa->ifa_name);
-					freeifaddrs(ifaddr);
-					__log_dbg("Found base_ifname %s for interface %s", base_ifname, if_name);
-					return 0;
-				}
-			}
-		}
-
-		freeifaddrs(ifaddr);
+	//vlan
+	if (check_device_exist(if_name, VIRTUAL_DEVICE_FOLDER) && get_vlan_base_name_from_ifname(if_name, base_ifname, sz_base_ifname)) {
+		return 0;
 	}
-	snprintf(base_ifname, sz_base_ifname, "%s" ,if_name);
-	__log_dbg("no base for %s", base_ifname, if_name);
-	return 0;
+	//pysical interface or bond
+	if (check_device_exist(if_name, FLAGS_PARAM_FILE)) {
+		snprintf(base_ifname, sz_base_ifname, "%s" ,if_name);
+		return 0;
+	}
+	//alias
+	if(get_alias_base_name_from_ifname(if_name, base_ifname, sz_base_ifname)) {
+		return 0;
+	}
+	return -1;
 }
 
 unsigned short compute_ip_checksum(const unsigned short *buf, unsigned int nshort_words)
@@ -749,6 +708,126 @@ size_t get_vlan_base_name_from_ifname(const char* ifname, char* base_ifname, siz
         return 0;
 }
 
+size_t get_alias_base_name_from_ifname(const char* ifname, char* base_ifname, size_t sz_base_ifname)
+{
+	int ret;
+	//create netlink socket
+	int sock = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
+	if (sock < 0) {
+		__log_dbg("could not open netlink socket (%d %m)", errno);
+		return 0;
+	}
+	struct sockaddr_nl snl;
+	memset(&snl, 0, sizeof(snl));
+	snl.nl_family = AF_NETLINK;
+	snl.nl_pid = getpid();
+	if (bind(sock, (struct sockaddr *)&snl, sizeof(snl)) < 0) {
+		__log_dbg("could not bind netlink socket (%d %m)", errno);
+		close(sock);
+		return 0;
+	}
+
+	struct
+	{
+		struct nlmsghdr nlh;
+		struct rtgenmsg g;
+	} req;
+
+	//prepare request header
+	memset(&req, 0, sizeof(req));
+	req.nlh.nlmsg_len = NLMSG_LENGTH(sizeof(struct rtgenmsg));
+	req.nlh.nlmsg_type = RTM_GETADDR;//RTM_GETLINK;
+	req.nlh.nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;
+	req.nlh.nlmsg_seq = 1;
+	req.nlh.nlmsg_pid = getpid();
+	req.g.rtgen_family = AF_PACKET;
+
+	struct sockaddr_nl kernel;
+	struct msghdr rtnl_msg;
+	struct iovec io;
+	memset(&rtnl_msg, 0, sizeof(rtnl_msg));
+	memset(&kernel, 0, sizeof(kernel));
+
+	kernel.nl_family = AF_NETLINK;
+	io.iov_base = &req;
+	io.iov_len = req.nlh.nlmsg_len;
+	rtnl_msg.msg_iov = &io;
+	rtnl_msg.msg_iovlen = 1;
+	rtnl_msg.msg_name = &kernel;
+	rtnl_msg.msg_namelen = sizeof(kernel);
+
+	ret = sendmsg(sock, (struct msghdr *) &rtnl_msg, 0);
+	if (ret < 0) {
+		__log_dbg("error sending netlink request (%d %m)", errno);
+		close(sock);
+		return 0;
+	}
+
+	unsigned char buffer[4096];
+	struct nlmsghdr *msg_ptr;
+	struct msghdr rtnl_reply;
+	struct iovec io_reply;
+
+	memset(&io_reply, 0, sizeof(io_reply));
+	memset(&rtnl_reply, 0, sizeof(rtnl_reply));
+
+	io.iov_base = buffer;
+	io.iov_len = 10*1024;
+	rtnl_reply.msg_iov = &io;
+	rtnl_reply.msg_iovlen = 1;
+	rtnl_reply.msg_name = &kernel;
+	rtnl_reply.msg_namelen = sizeof(kernel);
+	ret = recvmsg(sock, &rtnl_reply, 0); /* read lots of data */
+	if (ret < 0) {
+	  __log_dbg("error receiving netlink data (%d %m)", errno);
+	  close(sock);
+	  return 0;
+	}
+
+	typedef std::pair<char*, int> int_index;
+	list<int_index> interface_index_list;
+	int my_index = -1;
+	for (msg_ptr = (struct nlmsghdr *) buffer; NLMSG_OK(msg_ptr, (unsigned short)ret) && msg_ptr->nlmsg_type!= NLMSG_DONE; msg_ptr = NLMSG_NEXT(msg_ptr, ret)) {
+		if (msg_ptr->nlmsg_type == RTM_NEWADDR) {
+			struct ifaddrmsg *iface;
+			struct rtattr *attribute;
+			int len;
+
+			iface = (struct ifaddrmsg *)NLMSG_DATA(msg_ptr);
+			len = msg_ptr->nlmsg_len - NLMSG_LENGTH(sizeof(*iface));
+			//save interface and it's index in map
+			for (attribute = IFLA_RTA(iface); RTA_OK(attribute, len); attribute = RTA_NEXT(attribute, len)) {
+				if(attribute->rta_type == IFA_LABEL) {
+					char* attr_name = (char*)RTA_DATA(attribute);
+					int_index elem;
+					elem.first = attr_name;
+					elem.second = iface->ifa_index;
+					interface_index_list.push_back(elem);
+					//interface_index_list.add()[if_name] = iface->ifa_index;
+					if (strcmp(attr_name, ifname) == 0) {
+						my_index = iface->ifa_index;
+					}
+				}
+			}
+		}
+	}
+
+	//find a physical or bond interface that has the same index as me
+	size_t name_size = 0;
+	list<int_index>::iterator interface_index_iter;
+	for (interface_index_iter=interface_index_list.begin(); interface_index_iter!=interface_index_list.end(); interface_index_iter++) {
+		if ((interface_index_iter->second == my_index) && strcmp(interface_index_iter->first, ifname) != 0) {
+			//check that this isn't another alias
+		   if (check_device_exist(interface_index_iter->first, FLAGS_PARAM_FILE)) {
+			   snprintf(base_ifname, sz_base_ifname, "%s" ,interface_index_iter->first);
+			   name_size = strlen(interface_index_iter->first);
+		   }
+		}
+	}
+	close(sock);
+	return name_size;
+}
+
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
 #endif
@@ -946,12 +1025,14 @@ size_t get_local_ll_addr(IN const char * ifname, OUT unsigned char* addr, IN int
 {
 	char l2_addr_path[256] = {0};
 	char buf[256] = {0};
-
-	// In case of alias (ib0/eth0:xx) take only the device name for that interface (ib0/eth0)
-	size_t ifname_len = strcspn(ifname, ":"); // TODO: this is temp code till we get base interface for any alias format of an interface
 	const char * l2_addr_path_fmt = is_broadcast ? L2_BR_ADDR_FILE_FMT : L2_ADDR_FILE_FMT;
-	snprintf(l2_addr_path, sizeof(l2_addr_path)-1, l2_addr_path_fmt, ifname_len, ifname);
-
+	char base_ifname[32];
+	size_t ifname_len =	get_alias_base_name_from_ifname(ifname, base_ifname, sizeof base_ifname);
+	if (ifname_len > 0) {
+		snprintf(l2_addr_path, sizeof(l2_addr_path)-1, l2_addr_path_fmt, ifname_len, base_ifname);
+	} else {
+		snprintf(l2_addr_path, sizeof(l2_addr_path)-1, l2_addr_path_fmt, strlen(ifname), ifname);
+	}
 	int len = priv_read_file(l2_addr_path, buf, sizeof(buf));
 	int bytes_len = (len + 1) / 3; // convert len from semantic of hex format L2 address with ':' delimiter (and optional newline character) into semantic of byte array
 	__log_dbg("ifname=%s un-aliased-ifname=%.*s l2_addr_path=%s l2-addr=%s (addr-bytes_len=%d)", ifname, ifname_len, ifname, l2_addr_path, buf, bytes_len);

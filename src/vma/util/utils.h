@@ -326,6 +326,17 @@ uint16_t get_vlan_id_from_ifname(const char* ifname);
 size_t get_vlan_base_name_from_ifname(const char* ifname, char* base_ifname, size_t sz_base_ifname);
 
 /**
+ * Get alias base name from interface name
+ *
+ * @param ifname input interface name of device (e.g. eth2, eth2.5)
+ * @param base_ifname output base interface name of device (e.g. eth2)
+ * @param sz_base_ifname input the size of base_ifname param
+ * @return the alias base name length or 0 if not found
+ */
+
+size_t get_alias_base_name_from_ifname(const char* ifname, char* base_ifname, size_t sz_base_ifname);
+
+/**
  * Get peer node IPoIB QP number (remote_qpn) from the peer's IP
  * address 
  * 

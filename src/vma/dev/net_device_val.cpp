@@ -737,9 +737,7 @@ void net_device_val_eth::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_i
 		nd_logpanic("m_p_L2_addr allocation error");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-
 	create_br_address(m_name.c_str());
-
 	m_vlan = get_vlan_id_from_ifname(m_name.c_str());
 	if (m_vlan && m_bond != NO_BOND && m_bond_fail_over_mac == 1) {
 		vlog_printf(VLOG_WARNING, " ******************************************************************\n");
