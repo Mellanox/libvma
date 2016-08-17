@@ -270,7 +270,7 @@ bool epfd_info::is_cq_fd(uint64_t data)
 
 int epfd_info::add_fd(int fd, epoll_event *event)
 {
-	int ret, socket_epfd;
+	int ret;
 	epoll_event evt;
 	bool is_offloaded = false;
 	
@@ -289,21 +289,16 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 			          event->events & ~SUPPORTED_EPOLL_EVENTS);
 			m_log_invalid_events--;
 		}
-
-		if ((socket_epfd = temp_sock_fd_api->get_epoll_context_fd())) {
-			if (socket_epfd == m_epfd) {
-				__log_dbg("fd=%d is already registered with this epoll instance", fd);
-				errno = EEXIST;
-			} else {
-				__log_dbg("fd=%d is already registered with another epoll instance (%d), cannot register to epoll (%d)", fd, socket_epfd, m_epfd);
-				errno = ENOMEM;
-			}
-			return -1;
-		}
 	}
 
 	if (temp_sock_fd_api && temp_sock_fd_api->skip_os_select()) {
 		__log_dbg("fd=%d must be skipped from os epoll()", fd);
+		// Checking for duplicate fds
+		if (m_fd_info.find(fd) != m_fd_info.end()) {
+			__log_dbg("epoll_ctl: tried to add an existing fd. (%d)", fd);
+			errno = EEXIST;
+			return -1;
+		}
 	}
 	else {
 		// Add an event which indirectly point to our event
@@ -328,17 +323,27 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 			errno = ENOMEM;
 			return -1;
 		}
-		m_p_offloaded_fds[m_n_offloaded_fds] = fd;
-		++m_n_offloaded_fds;
-		m_fd_info[fd].offloaded_index = m_n_offloaded_fds;
 
 		//NOTE: when supporting epoll on epfd, need to add epfd ring list
 		//NOTE: when having rings in pipes, need to overload add_epoll_context
 		unlock();
 		m_ring_map_lock.lock();
-		temp_sock_fd_api->add_epoll_context(this);
+		ret = temp_sock_fd_api->add_epoll_context(this);
 		m_ring_map_lock.unlock();
 		lock();
+
+		if (ret < 0) {
+			if (errno == EEXIST) {
+				__log_dbg("epoll_ctl: fd=%d is already registered with this epoll instance (%d)", fd, this->get_epoll_fd());
+			} else { // errno == ENOMEM
+				__log_dbg("epoll_ctl: fd=%d is already registered with another epoll instance (%d), cannot register to epoll (%d)", fd, temp_sock_fd_api->get_epoll_context_fd(), this->get_epoll_fd());
+			}
+			return ret;
+		}
+
+		m_p_offloaded_fds[m_n_offloaded_fds] = fd;
+		++m_n_offloaded_fds;
+		m_fd_info[fd].offloaded_index = m_n_offloaded_fds;
 
 		// if the socket is ready, add it to ready events
 		uint32_t events = 0;
