@@ -30,9 +30,9 @@
  * SOFTWARE.
  */
 
+#include "utils/bullseye.h"
 #include "vma/dev/rfs_uc_tcp_gro.h"
 #include "vma/dev/gro_mgr.h"
-#include "vma/util/bullseye.h"
 #include "vma/dev/ring_simple.h"
 
 #define MODULE_NAME 		"rfs_uc_tcp_gro"

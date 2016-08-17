@@ -31,9 +31,9 @@
  */
 
 
-#include "vma/dev/rfs_mc.h"
+#include "utils/bullseye.h"
 #include "vma/util/utils.h"
-#include "vma/util/bullseye.h"
+#include "vma/dev/rfs_mc.h"
 #include "vma/dev/ring_simple.h"
 
 #define MODULE_NAME 		"rfs_mc"

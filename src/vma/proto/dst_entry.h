@@ -40,7 +40,7 @@
 #include <netinet/in.h>
 
 #include "vlogger/vlogger.h"
-#include "vma/util/lock_wrapper.h"
+#include "utils/lock_wrapper.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/sock/socket_fd_api.h"
 #include "vma/proto/route_entry.h"
@@ -55,7 +55,6 @@
 #include "vma/infra/sender.h"
 #include "header.h"
 #include "ip_address.h"
-#include "util/lock_wrapper.h"
 
 class dst_entry : public cache_observer, public tostr, public neigh_observer
 {

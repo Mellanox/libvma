@@ -38,7 +38,7 @@
  * wakeup class that adds a wakeup functionality to socket (tcp and udp) and epoll.
  */
 #include <sys/epoll.h>
-#include "vma/util/lock_wrapper.h"
+#include "utils/lock_wrapper.h"
 
 class wakeup
 {

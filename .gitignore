@@ -32,6 +32,8 @@ config/install-sh
 config/missing
 config/decomp
 config/ltmain.sh
+config/compile
+config/depcomp
 config/m4/libtool.m4
 config/m4/ltoptions.m4
 config/m4/ltsugar.m4
@@ -40,15 +42,20 @@ config/m4/lt~obsolete.m4
 configure
 libtool
 
+# Tool
+cov-int/
+jenkins/
+
 # Project/Eclipse
 .cproject
 .project
 tags
 
 # VMA specific
-src/state_machine/state_machine_test
+src/utils/timetest
 src/stats/vma_stats
 src/vlogger/vlogger_test
+src/state_machine/state_machine_test
 stamp-h1
 
 # build products

@@ -37,8 +37,7 @@
 #include <map>
 #include <rdma/rdma_cma.h>
 #include "vlogger/vlogger.h"
-
-#include "vma/util/lock_wrapper.h"
+#include "utils/lock_wrapper.h"
 #include "vma/iomux/epfd_info.h"
 
 #include "vma/sock/socket_fd_api.h"

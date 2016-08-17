@@ -36,21 +36,21 @@
 #include <netinet/tcp.h>
 #include "vma/util/if.h"
 
+#include "utils/bullseye.h"
 #include "vlogger/vlogger.h"
-#include "vma/util/rdtsc.h"
+#include "utils/rdtsc.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/util/libvma.h"
+#include "vma/util/instrumentation.h"
 #include "vma/event/event_handler_manager.h"
 #include "vma/proto/route_table_mgr.h"
 #include "vma/proto/vma_lwip.h"
+#include "vma/proto/dst_entry_tcp.h"
 #include "vma/iomux/io_mux_call.h"
 
 #include "sock-redirect.h"
 #include "fd_collection.h"
 #include "sockinfo_tcp.h"
-#include "vma/proto/dst_entry_tcp.h"
-#include "vma/util/instrumentation.h"
-#include "vma/util/bullseye.h"
 
 // debugging macros
 #define MODULE_NAME 		"si_tcp"

@@ -35,7 +35,7 @@
 #define PIPEINFO_H
 
 #include "socket_fd_api.h"
-#include <vma/util/lock_wrapper.h>
+#include "utils/lock_wrapper.h"
 #include <vma/util/vma_stats.h>
 #include <vma/event/timer_handler.h>
 

@@ -33,11 +33,11 @@
 
 #include <infiniband/verbs.h>
 
-#include <vlogger/vlogger.h>
+#include "utils/bullseye.h"
+#include "vlogger/vlogger.h"
 #include <vma/util/verbs_extra.h>
 #include <vma/util/sys_vars.h>
 #include "vma/dev/ib_ctx_handler.h"
-#include "vma/util/bullseye.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/event/event_handler_manager.h"
 

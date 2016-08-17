@@ -34,16 +34,16 @@
 #include <errno.h>
 #include <arpa/inet.h>
 
-#include "vma/proto/neighbour.h"
+#include "utils/bullseye.h"
 #include "vlogger/vlogger.h"
 #include "vma/util/vtypes.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/util/utils.h"
 #include "vma/dev/ib_ctx_handler_collection.h"
+#include "vma/proto/neighbour.h"
 #include "vma/proto/neighbour_table_mgr.h"
 #include "vma/dev/wqe_send_handler.h"
 #include "vma/dev/wqe_send_ib_handler.h"
-#include "vma/util/bullseye.h"
 
 //This include should be after vma includes
 #include <netinet/tcp.h>

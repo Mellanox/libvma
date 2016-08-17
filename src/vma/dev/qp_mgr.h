@@ -36,15 +36,15 @@
 
 #include <errno.h>
 #include <ifaddrs.h>
-#include "vma/util/if.h"
-#include "vma/lwip/opt.h"
 
 #include "vlogger/vlogger.h"
+#include "utils/atomic.h"
 #include "vma/util/vtypes.h"
 #include "vma/util/sys_vars.h"
-#include "vma/util/atomic.h"
 #include "vma/util/libvma.h"
 #include "vma/util/verbs_extra.h"
+#include "vma/util/if.h"
+#include "vma/lwip/opt.h"
 #include "vma/proto/mem_buf_desc.h"
 #include "vma/infra/sender.h"
 #include "vma/dev/ib_ctx_handler.h"

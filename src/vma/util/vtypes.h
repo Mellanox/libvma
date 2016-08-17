@@ -39,20 +39,8 @@
 #include <sys/socket.h>
 #include <linux/kernel.h>
 
-#ifndef IN
-#define IN
-#endif
-
-#ifndef OUT
-#define OUT
-#endif
-
-#ifndef INOUT
-#define INOUT
-#endif
-
-#define likely(x)			__builtin_expect(!!(x), 1)
-#define unlikely(x)			__builtin_expect(!!(x), 0)
+#include "utils/types.h"
+#include "utils/bullseye.h"
 
 // Check if given IP address is in a specific ip class / range
 #define ZERONET_N(a)			(((long int)(a)) == (long int)(htonl(0x00000000)))
@@ -61,8 +49,6 @@
 #define IN_CLASSE_N(a)			(((long int)(a) & htonl(0xffffffff)) == htonl(0xffffffff))
 #define	IN_MULTICAST_N(a)		IN_CLASSD_N(a)
 #define IS_BROADCAST_N(a)		IN_CLASSE_N(a)
-
-#define NOT_IN_USE(a)			((void)(a))
 
 
 // printf formating when IP is in network byte ordering (for LITTLE_ENDIAN)

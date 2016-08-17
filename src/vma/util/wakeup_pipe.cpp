@@ -31,10 +31,10 @@
  */
 
 
+#include "utils/bullseye.h"
+#include "vlogger/vlogger.h"
 #include "wakeup_pipe.h"
-#include <vlogger/vlogger.h>
-#include <vma/sock/sock-redirect.h>
-#include "vma/util/bullseye.h"
+#include "vma/sock/sock-redirect.h"
 
 #define MODULE_NAME "wakeup_pipe"
 

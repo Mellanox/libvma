@@ -38,13 +38,13 @@
 #include <string>
 #include <string.h>
 #include <ifaddrs.h>
+#include <linux/if_ether.h>
+#include <exception>
 
 #include "vtypes.h"
-#include <vma/util/rdtsc.h>
-#include <vma/util/vma_stats.h>
-#include <linux/if_ether.h>
-#include <vlogger/vlogger.h>
-#include <exception>
+#include "utils/rdtsc.h"
+#include "vlogger/vlogger.h"
+#include "vma/util/vma_stats.h"
 
 struct iphdr; //forward declaration
 

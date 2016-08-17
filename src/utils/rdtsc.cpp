@@ -31,31 +31,59 @@
  */
 
 
-#ifndef STATS_DATA_READER_H
-#define STATS_DATA_READER_H
+/*
+ * system includes
+ */
+#if HAVE_CONFIG_H
+#  include <config.h>
+#endif /* HAVE_CONFIG_H */
 
-#include <map>
-#include "vma/event/timer_handler.h"
 
-typedef std::map< void*, std::pair<void*, int> > stats_read_map_t;
+#include <stdio.h>
+#include <sys/param.h> // for MAX & MIN
+#include "rdtsc.h"
 
-typedef struct {
-        int size;
-        void* shm_addr;
-} data_addr_and_size_t;
 
-class stats_data_reader : public timer_handler
+bool get_cpu_hz(double &hz_min, double &hz_max)
 {
-        public:
-                stats_data_reader();
-                void    handle_timer_expired(void *ctx);
-                void    register_to_timer();
-                int     add_data_reader(void* local_addr, void* shm_addr, int size);
-                void*   pop_p_skt_stats(void* local_addr);
+	FILE* f;
+	char buf[256];
 
-        private:
-                void*  m_timer_handler;
-                stats_read_map_t m_data_map;
-};
+	f = fopen("/proc/cpuinfo", "r");
+	if (!f) {
+		return false;
+	}
 
-#endif //STATS_DATA_READER_H
+	double mhz_tmp = 0.0;
+	while (fgets(buf, sizeof(buf), f)) {
+		double mhz;
+		int rc;
+
+#if defined(__ia64__)
+		rc = sscanf(buf, "itc MHz : %lf", &mhz);
+#elif defined(__powerpc__)
+		rc = sscanf(buf, "clock : %lf", &mhz);
+#else
+		rc = sscanf(buf, "cpu MHz : %lf", &mhz);
+#endif
+		if (rc != 1) {
+			continue;
+		}
+		if (mhz_tmp == 0.0) {
+			// first time align of all values
+			mhz_tmp = hz_max = hz_min = mhz;
+			continue;
+		}
+		hz_min = MIN(hz_min, mhz);
+		hz_max = MAX(hz_max, mhz);
+	}
+	fclose(f);
+
+	// Convert to Hz before return to caller
+	// (original values are in MHz)
+	hz_min = hz_min * 1.0e6;
+	hz_max = hz_max * 1.0e6;
+	return true;
+}
+
+

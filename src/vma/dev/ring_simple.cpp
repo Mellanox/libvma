@@ -37,8 +37,8 @@
 #include <netinet/udp.h>
 #include <netinet/igmp.h>
 
+#include "utils/bullseye.h"
 #include "vma/util/utils.h"
-#include "vma/util/bullseye.h"
 #include "vma/proto/ip_frag.h"
 #include "vma/proto/L2_address.h"
 #include "vma/proto/igmp_mgr.h"

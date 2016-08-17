@@ -10,9 +10,9 @@ libstats_la_SOURCES = \
 bin_PROGRAMS = vma_stats
 vma_stats_LDADD= -lrt \
 	libstats.la \
+	$(top_builddir)/src/utils/libutils.la \
 	$(top_builddir)/src/vlogger/libvlogger.la
-vma_stats_SOURCES = \
-	stats_reader.cpp
+vma_stats_SOURCES = stats_reader.cpp
 vma_stats_DEPENDENCIES = \
 	libstats.la \
 	$(top_builddir)/src/vlogger/libvlogger.la

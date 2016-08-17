@@ -33,12 +33,11 @@
 
 #include "sm.h"
 
-#include <vlogger/vlogger.h>
-
-#include "sm_fifo.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "vma/util/bullseye.h"
+#include "vlogger/vlogger.h"
+#include "utils/bullseye.h"
+#include "sm_fifo.h"
 
 #undef  MODULE_NAME
 #define MODULE_NAME 		"sm"
