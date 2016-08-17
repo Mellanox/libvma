@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2016.  ALL RIGHTS RESERVED.
  *
  * This software product is a proprietary product of Mellanox Technologies Ltd.
  * (the "Company") and all right, title, and interest in and to the software product,
@@ -10,7 +10,14 @@
  * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
  */
 
-
+/*
+ * How to build:
+ * gcc bandwidth_test.c -o bandwidth_test.out -g -Wall -DVMA_ZCOPY_ENABLED=1 -I<pwd>/libvma-udp/build-udp/install/include -L<pwd>/libvma-udp/build-udp/install/lib -lrt -lvma 
+ * Please note -DVMA_ZCOPY_ENABLED=1 is used to enable vma_poll
+ *
+ * Server mode ./bandwidth_test -s -i 224.4.4.1
+ * Client mode ./bandwidth_test -c -i 224.4.4.1
+ */
 
 #include <sys/types.h>		// sockets
 #include <sys/socket.h>		// sockets
@@ -18,6 +25,7 @@
 #include <linux/ip.h>
 #include <linux/udp.h>
 #include <arpa/inet.h>		// internet address manipulation
+#include <sys/epoll.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
@@ -35,9 +43,9 @@
 #include <fcntl.h>
 #include <regex.h>
 
-
-
-
+#if defined(VMA_ZCOPY_ENABLED)
+#include <mellanox/vma_extra.h>
+#endif
 
 #define UDP_PERF_VERSION "1.2"
 #define UDP_PERF_VERSION_DATE "21 November 2007"
@@ -78,7 +86,6 @@ int fd;				/* used when single mc group is given */
 fd_set readfds;
 double totaltime=0;
 
-
 regex_t regexpr;
 
 typedef struct tagPKT {
@@ -99,6 +106,11 @@ struct user_params_t {
 	char sendRateDetails;
 
 } user_params;
+
+#if defined(VMA_ZCOPY_ENABLED) && (VMA_ZCOPY_ENABLED == 1)
+static struct vma_api_t *_vma_api = NULL;
+static int _vma_ring_fd = -1;
+#endif /* VMA_ZCOPY_ENABLED */
 
 static void usage(const char *argv0)
 {
@@ -134,7 +146,7 @@ void server_sig_handler(int signum)
 {
 	printf("Got signal %d - exiting.\n", signum);
 	b_exit = true;
-	//exit(0);
+	exit(0);
 }
 
 void client_sig_handler(int signum)
@@ -227,7 +239,6 @@ void set_defaults()
 		user_params.sendRate *= MB;
 	else if (user_params.sendRateDetails == GBYTE)
 		user_params.sendRate *= GB;
-
 }
 
 void print_version()
@@ -311,7 +322,18 @@ void prepare_network(int is_server)
 			}
 		}
 	}
-
+#if defined(VMA_ZCOPY_ENABLED) && (VMA_ZCOPY_ENABLED == 1)
+	if (is_server) {
+			/* Need to get ring after listen() or nonblocking connect() */
+			if (_vma_ring_fd < 0) {
+				_vma_api->get_socket_rings_fds(fd, &_vma_ring_fd, 1);
+				if (_vma_ring_fd < 0) {
+					perror("vma_api->get_socket_rings_fds");
+					exit(1);
+				}
+			}
+	}
+#endif /* VMA_ZCOPY_ENABLED */
 }
 
 long get_current_time_us()
@@ -335,40 +357,90 @@ float get_recieve(PKT *pkt,float recv)
 		recv/=GB;
 
 	return  recv;
-
 }
 
 void set_msg_size()
 {
-
 	pkt=(PKT *)malloc(user_params.msg_size);
 	if (!pkt) {
 		printf("Error due memmory allocation\n");
 		exit(1);
 	}
-
-
-
 }
-
-
 
 void server_handler()
 {
-
+	int nbytes =0;
 	struct timeval; 
-	int nbytes;
+#if defined(VMA_ZCOPY_ENABLED) && (VMA_ZCOPY_ENABLED == 1)
+	int n = 0;
+ 	int _done = 1;
+ 	uint32_t event = 0;
+	struct vma_packet_desc_t vma_packet;
+	struct vma_buff_t *vma_buf;
+	int vma_buf_offset;
+#else
 	socklen_t size = sizeof(struct sockaddr);
 	struct sockaddr_in client_addr;
-	printf("udp_perf: [SERVER] listen on: ");
-	prepare_network(1);
+#endif
 	long now = 0;
 	int missed=0,totalMissed=0,lastMissed=0;
 	float timeTaken=0,actualRecieve=0;
 	long totalPkt = 0,lastTotalPkt = 0;
 	char detail[3];
+
+	printf("udp_perf: [SERVER] listen on: ");
+	prepare_network(1);
+
 	while (!b_exit) {
+#if !defined(VMA_ZCOPY_ENABLED)
 		nbytes = recvfrom(fd, pkt, user_params.msg_size, 0, (struct sockaddr *)&client_addr, &size);
+#else
+		_done = 1;
+		n = 0;
+		while(1) {
+			if (!_done) {
+				if (vma_buf && (vma_buf_offset < vma_buf->len)) {
+					n = 1;
+				} else if (vma_buf && vma_buf->next) {
+					vma_buf = vma_buf->next;
+					vma_buf_offset = 0;
+					n = 1;
+				} else if (vma_buf && !vma_buf->next) {
+					_vma_api->free_vma_packets(&vma_packet, 1);
+					vma_buf = NULL;
+					vma_buf_offset = 0;
+					break;
+				}
+			}
+			while (0 == n) {
+				struct vma_completion_t vma_comps;
+				n = _vma_api->vma_poll(_vma_ring_fd, &vma_comps, 1, 0);
+				if (n > 0) {
+					event = (uint32_t)vma_comps.events;
+					if (vma_comps.events & VMA_POLL_PACKET) {
+						_done = 0;
+						vma_packet.num_bufs = vma_comps.packet.num_bufs;
+						vma_packet.total_len = vma_comps.packet.total_len;
+						vma_packet.buff_lst = vma_comps.packet.buff_lst;
+						vma_buf = vma_packet.buff_lst;
+						vma_buf_offset = 0;
+					} else if ((event & EPOLLERR) || (event & EPOLLRDHUP) ||
+							(event & EPOLLHUP)) {
+						event |= EPOLLERR;
+						fprintf(stderr, "event=0x%x user_data=%ld\n", event, vma_comps.user_data);
+						exit(1);
+					} else {
+						printf("event=0x%x user_data=%ld\n", event, vma_comps.user_data);
+						n = 0;
+					}
+				}
+			}
+			nbytes = vma_buf->len - vma_buf_offset;
+			memcpy(pkt, ((uint8_t *)vma_buf->payload) + vma_buf_offset, nbytes);
+			vma_buf_offset += vma_buf->len - vma_buf_offset;
+		}
+#endif
 		if (b_exit)
 			goto get_out_s;
 		if (nbytes < 0) {
@@ -376,8 +448,6 @@ void server_handler()
 			cleanup();
 			exit(1);
 		}
-	        //printf("nbytes= %d\n",nbytes);
-		//exit(1);
 		
 		if (nbytes < (pkt ->size)) {
 			printf("Error:Expected %d,recieved=%d\n",pkt->size ,nbytes);
@@ -388,7 +458,7 @@ void server_handler()
 		if (pkt->buf == END_OF_PACKETS) {
 			timeTaken = (get_current_time_us()-now)/1000;
 		        actualRecieve = get_recieve(pkt ,actualRecieve);
-			totalMissed=pkt->seqnum - totalPkt;
+			totalMissed=pkt->seqnum - (totalPkt -1);
 			missed=totalMissed-lastMissed;
 			printf("Missed %d pkt, Actual rate = %.2lf%s, Actual packets recived %.0lf pps, Time %.2lf ms\n",
 			       missed,actualRecieve,detail ,(totalPkt-lastTotalPkt)*1000/timeTaken,timeTaken);
@@ -427,7 +497,6 @@ void server_handler()
 			lastTotalPkt = totalPkt;
 			now = get_current_time_us();
 		}
-
 		totalPkt++;
 	}
 
@@ -519,9 +588,7 @@ void client_handler()
 						exit(1);
 					}
 				}
-
 			 */     
-
 			//} else {
 				for (i=0; i < (total_pkt/RTC_HZ) && (sent_pkt < total_pkt) ; i++) {
 					int nbytes = sendto(fd, pkt, user_params.msg_size, 0, (struct sockaddr *)&(user_params.addr), sizeof(user_params.addr));
@@ -543,8 +610,6 @@ void client_handler()
 					exit(1);
 				}
 			}
-		
-
 
 		timeTaken = (get_current_time_us() - now) / 1000;
 		totaltime+=timeTaken;
@@ -570,7 +635,6 @@ get_out_c:
 	}
 	return;
 }
-
 
 
 int main(int argc, char *argv[]) {
@@ -693,8 +757,13 @@ int main(int argc, char *argv[]) {
 
 	set_signal_action();
  
-
-
+#if defined(VMA_ZCOPY_ENABLED) && (VMA_ZCOPY_ENABLED == 1)
+		_vma_api = vma_get_api();
+		if (_vma_api == NULL) {
+			perror("VMA Extra API not found\n");
+			exit(1);
+		}
+#endif /* VMA_ZCOPY_ENABLED */
 
 	if (user_params.server)
 		server_handler();
