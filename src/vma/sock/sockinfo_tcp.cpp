@@ -3108,15 +3108,15 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 	if (__level == IPPROTO_TCP) {
 		switch(__optname) {
 		case TCP_NODELAY:
-			lock_tcp_con();
 			val = *(int *)__optval;
-			si_tcp_logdbg("(TCP_NODELAY) nagle: %d", val);
+			lock_tcp_con();
 			if (val)
 				tcp_nagle_disable(&m_pcb);
 			else
 				tcp_nagle_enable(&m_pcb);
 			fit_snd_bufs_to_nagle(val);
 			unlock_tcp_con();
+			si_tcp_logdbg("(TCP_NODELAY) nagle: %d", val);
 			break;	
 		default:
 			ret = SOCKOPT_HANDLE_BY_OS;
@@ -3128,34 +3128,42 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 		switch(__optname) {
 		case SO_REUSEADDR:
 			val = *(int *)__optval;
-			si_tcp_logdbg("(SO_REUSEADDR) val: %d", val);
+			lock_tcp_con();
 			if (val) 
 				m_pcb.so_options |= SOF_REUSEADDR;
 			else
 				m_pcb.so_options &= ~SOF_REUSEADDR;
 			ret = SOCKOPT_HANDLE_BY_OS; //SO_REUSEADDR is also relevant on OS
+			unlock_tcp_con();
+			si_tcp_logdbg("(SO_REUSEADDR) val: %d", val);
 			break;
 		case SO_KEEPALIVE:
 			val = *(int *)__optval;
-			si_tcp_logdbg("(SO_KEEPALIVE) val: %d", val);
+			lock_tcp_con();
 			if (val) 
 				m_pcb.so_options |= SOF_KEEPALIVE;
 			else
 				m_pcb.so_options &= ~SOF_KEEPALIVE;
+			unlock_tcp_con();
+			si_tcp_logdbg("(SO_KEEPALIVE) val: %d", val);
 			break;
 		case SO_RCVBUF:
 			val = MIN(*(int *)__optval, safe_mce_sys().sysctl_reader.get_net_core_rmem_max());
+			lock_tcp_con();
 			// OS allocates double the size of memory requested by the application - not sure we need it.
 			m_rcvbuff_max = MAX(2 * m_pcb.mss, 2 * val);
 
 			fit_rcv_wnd(!is_connected());
+			unlock_tcp_con();
 			si_tcp_logdbg("setsockopt SO_RCVBUF: %d", m_rcvbuff_max);
 			break;
 		case SO_SNDBUF:
 			val = MIN(*(int *)__optval, safe_mce_sys().sysctl_reader.get_net_core_wmem_max());
+			lock_tcp_con();
 			// OS allocates double the size of memory requested by the application - not sure we need it.
 			m_sndbuff_max = MAX(2 * m_pcb.mss, 2 * val);
 			fit_snd_bufs(m_sndbuff_max);
+			unlock_tcp_con();
 			si_tcp_logdbg("setsockopt SO_SNDBUF: %d", m_sndbuff_max);
 			break;
 		case SO_LINGER:
