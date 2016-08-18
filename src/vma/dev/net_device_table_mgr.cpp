@@ -244,7 +244,9 @@ int net_device_table_mgr::map_net_devices()
 		}
 
 		bool valid = false;
-		if (ifa->ifa_flags & IFF_MASTER) {
+		char base_ifname[IFNAMSIZ];
+		get_base_interface_name((const char*)(ifa->ifa_name), base_ifname, sizeof(base_ifname));
+		if (check_device_exist(base_ifname, BOND_DEVICE_FILE)) {
 			// this is a bond interface (or a vlan/alias over bond), find the slaves
 			valid = verify_bond_ipoib_or_eth_qp_creation(ifa);
 		} else {
