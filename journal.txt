@@ -1,3 +1,12 @@
+Version 8.1.3-0:
+Date + Time 2016-08-18
+=======================
+Added:
+        - RM #786030 Revise RDTSC logic to consider CPU speeds taken from /proc/cpuinfo
+        - RM #801695 VMA out-of-box sockperf tuning for low latency (VMA_SPEC=10)
+        - RM #825799 Add locking to setsockopt() TCP to protect against pcb changes
+        - RM #847904 On bringup check if an interface is a bond by looking at its base name
+
 Version 8.1.2-0:
 Date + Time 2016-08-15
 =======================
