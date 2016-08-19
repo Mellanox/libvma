@@ -195,20 +195,6 @@ inline int priv_safe_try_read_file(const char *path, char *buf, size_t size) {
  */
 int read_file_to_int(const char *path, int default_value);
 
-
-
-
-
-/** 
- * Return true if peer_ip is one of the local IPs
- * 
- * @in_addr_t peer_ip 
- *  
- * @return non zero on success
- */
-int is_local_addr(in_addr_t peer_ip);
-
-
 /** 
  * Get interface name and flags from local address
  * 
@@ -227,15 +213,6 @@ int get_ifinfo_from_ip(const struct sockaddr& local_addr, char* ifname, uint32_t
  * @return if type on success or -1 on failure
  */
 int get_iftype_from_ifname(const char* ifname);
-
-/** 
- * Get interface address length from interface name
- *
- * @param ifname input interface name of device (e.g. eth1, ib2)
- * should be of size IFNAMSIZ
- * @return address length zero on failure
- */
-int get_ifaddr_len_from_ifname(const char* ifname);
 
 /**
  * Get interface mtu from interface name
@@ -285,28 +262,6 @@ int get_ipv4_from_ifname(char *ifname, struct sockaddr_in *addr);
  */
 int get_ipv4_from_ifindex(int ifindex, struct sockaddr_in *addr);
 
-/**
- * Get Ethernet mac address from interface name
- * 
- * @param ifname input interface name of device (e.g. eth1, ib2)
- *  should be of size IFNAMSIZ
- * @param ether_addr output interface ether mac address 
- *  should be of size ETH_ALEN
- * @return zero on success
- */
-int get_mac_from_ifname(const char* ifname, uint8_t* ether_addr);
-
-/**
- * Get Ethernet netmask of the if name
- *
- * @param ifname input interface name of device (e.g. eth1, ib2)
- *  should be of size IFNAMSIZ
- * @param ip_addr_t output interface netmask
- *
- * @return zero on success -1 on failure
- */
-int get_netmask_from_ifname(const char* ifname, in_addr_t *netmask);
-
 /** 
  * Get vlan id from interface name
  * 
@@ -324,21 +279,6 @@ uint16_t get_vlan_id_from_ifname(const char* ifname);
  * @return the vlan base name length or 0 if not a vlan
  */
 size_t get_vlan_base_name_from_ifname(const char* ifname, char* base_ifname, size_t sz_base_ifname);
-
-/**
- * Get peer node IPoIB QP number (remote_qpn) from the peer's IP
- * address 
- * 
- * @param peer_addr is the ip address of the remote host
- * @return the remote_qpn which is taken from the nieghbor HW 
- *  address string taken from the system's neighbor list)
- *  (using: "#ip neigh show")
- */
-int get_peer_ipoib_qpn(const struct sockaddr* p_peer_addr, uint32_t & remote_qpn);
-
-int get_peer_unicast_mac(const in_addr_t p_peer_addr, unsigned char peer_mac[ETH_ALEN]);
-
-int get_peer_ipoib_address(const struct sockaddr* p_peer_addr, unsigned char peer_l2[IPOIB_HW_ADDR_LEN]);
 
 /* Upon success - returns the actual address len in bytes; Upon error - returns zero*/
 size_t get_local_ll_addr(const char* ifname, unsigned char* addr, int addr_len,  bool is_broadcast);
@@ -365,8 +305,6 @@ int validate_ipoib_prop(const char* ifname, unsigned int ifflags,
 		int val_size, char *filename, char* base_ifname);
 
 int validate_raw_qp_privliges();
-
-void convert_hw_addr_to_str(char *buf, uint8_t hw_addr_len, uint8_t *hw_addr);
 
 static inline int get_procname(int pid, char *proc, size_t size)
 {

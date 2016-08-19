@@ -178,7 +178,8 @@ unsigned short compute_ip_checksum(const unsigned short *buf, unsigned int nshor
  *
  * This code borrows from other places and their ideas.
  * */
-unsigned short compute_tcp_checksum(const struct iphdr *p_iphdr, const uint16_t *p_ip_payload) {
+unsigned short compute_tcp_checksum(const struct iphdr *p_iphdr, const uint16_t *p_ip_payload)
+{
     register unsigned long sum = 0;
     uint16_t tcpLen = ntohs(p_iphdr->tot_len) - (p_iphdr->ihl<<2); // shift left 2 will multiply by 4 for converting to octets
 
@@ -218,7 +219,8 @@ unsigned short compute_tcp_checksum(const struct iphdr *p_iphdr, const uint16_t 
  * This code borrows from other places and their ideas.
  */
 
-unsigned short compute_udp_checksum(const struct iphdr *p_iphdr, const uint16_t *p_ip_payload) {
+unsigned short compute_udp_checksum(const struct iphdr *p_iphdr, const uint16_t *p_ip_payload)
+{
     register unsigned long sum = 0;
     struct udphdr *udphdrp = (struct udphdr*)(p_ip_payload);
     unsigned short udp_len = htons(udphdrp->len);
@@ -357,7 +359,8 @@ int priv_read_file(const char *path, char *buf, size_t size, vlog_levels_t log_l
 	return len;
 }
 
-int read_file_to_int(const char *path, int default_value){
+int read_file_to_int(const char *path, int default_value)
+{
 	char buf[25];
 	int rc = priv_safe_read_file(path, buf, sizeof buf);
 	if (rc < 0) {
@@ -365,35 +368,6 @@ int read_file_to_int(const char *path, int default_value){
 	}
 	return (rc < 0) ? default_value : atoi(buf);
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-int is_local_addr(in_addr_t peer_ip)
-{       
-
-	struct ifaddrs *ifap = NULL;
-	struct ifaddrs *ifaphead = NULL;
-	in_addr_t l_ip;
-	int rv = 0;
-
-	if (!getifaddrs(&ifaphead)) {
-		for (ifap = ifaphead; ifap; ifap = ifap->ifa_next) {
-			l_ip = get_sa_ipv4_addr(ifap->ifa_addr);
-			__log_func("Examine %d.%d.%d.%d", NIPQUAD(l_ip));
-			if (l_ip == peer_ip) {
-				rv = 1;
-				break;
-			}
-		}
-	}
-	if (ifaphead)
-		freeifaddrs(ifaphead);
-	return rv;
-}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 int get_ifinfo_from_ip(const struct sockaddr& addr, char* ifname, uint32_t& ifflags)
 {
@@ -484,29 +458,6 @@ int get_iftype_from_ifname(const char* ifname)
 	BULLSEYE_EXCLUDE_BLOCK_END
 	return iftype_value;
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-int get_ifaddr_len_from_ifname(const char* ifname)
-{
-	__log_func("find interface address length for ifname '%s'", ifname);
-
-	char ifaddr_len_filename[100];
-	char ifaddr_len_value_str[32];
-	char base_ifname[32];
-	char ifaddr_len_value = 0;
-
-	get_base_interface_name(ifname, base_ifname, sizeof(base_ifname));
-	sprintf(ifaddr_len_filename, IFADDR_LEN_PARAM_FILE, base_ifname);
-	if (priv_read_file(ifaddr_len_filename, ifaddr_len_value_str, sizeof(ifaddr_len_value_str)) > 0) {
-		ifaddr_len_value = atoi(ifaddr_len_value_str);
-	}
-	return ifaddr_len_value;
-}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 int get_if_mtu_from_ifname(const char* ifname)
 {
@@ -617,83 +568,6 @@ int get_ipv4_from_ifindex(int ifindex, struct sockaddr_in *addr)
 	return -1;
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-int get_mac_from_ifname(const char* ifname, unsigned char* ether_addr)
-{
-	__log_func("find mac addr for interface '%s'", ifname);
-
-	int fd = orig_os_api.socket(AF_INET, SOCK_DGRAM, 0);
-	if (fd < 0) {
-		__log_err("ERROR from socket() (errno=%d %m)", errno);
-		return -1;
-	}
-
-	struct ifreq ifr;
-	strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
-	ifr.ifr_name[IFNAMSIZ - 1] = '\0';
-
-	//BULLSEYE_EXCLUDE_BLOCK_START
-	if (orig_os_api.ioctl(fd, SIOCGIFHWADDR, &ifr) ) {
-		__log_err("ERROR from ioctl(SIOCGIFHWADDR) for interface '%s' (errno=%d %m)", ifname, errno);
-		orig_os_api.close(fd);
-		return -1;
-	}
-	//BULLSEYE_EXCLUDE_BLOCK_END
-
-	for (int i = 0; i < ETH_ALEN; i++)
-		ether_addr[i] = (uint8_t)ifr.ifr_hwaddr.sa_data[i];
-	__log_dbg("found mac '%2.2X:%2.2X:%2.2X:%2.2X:%2.2X:%2.2X' for interface '%s'", 
-			ether_addr[0], ether_addr[1], ether_addr[2], ether_addr[3],
-			ether_addr[4], ether_addr[5], ifname);
-
-#if 0
-	// This is working but just not relevant for MAC fetch
-	if (orig_os_api.ioctl(fd, SIOCGIFMTU, &ifr) ) {
-		__log_err("ERROR from ioctl(SIOCGIFMTU) for interface '%s' (errno=%d %m)", ifname, errno);
-		orig_os_api.close(fd);
-		return -1;
-	}
-	__log_dbg("found mtu '%d' for interface '%s'", ifr.ifr_mtu, ifname);
-#endif
-
-	orig_os_api.close(fd);
-	return 0;
-}
-
-
-int get_netmask_from_ifname(const char* ifname, in_addr_t *netmask)
-{
-	__log_func("find netmask  for interface '%s'", ifname);
-
-	int fd = orig_os_api.socket(AF_INET, SOCK_DGRAM, 0);
-	if (fd < 0) {
-		__log_err("ERROR from socket() (errno=%d %m)", errno);
-		return -1;
-	}
-
-	struct ifreq ifr;
-	strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
-	ifr.ifr_name[IFNAMSIZ - 1] = '\0';
-
-	//BULLSEYE_EXCLUDE_BLOCK_START
-	if (orig_os_api.ioctl(fd, SIOCGIFNETMASK, &ifr) ) {
-		__log_err("ERROR from ioctl(SIOCGIFNETMASK) for interface '%s' (errno=%d %m)", ifname, errno);
-		orig_os_api.close(fd);
-		return -1;
-	}
-	//BULLSEYE_EXCLUDE_BLOCK_END
-	*netmask = get_sa_ipv4_addr(&ifr.ifr_ifru.ifru_netmask);
-	__log_dbg("found netmask '%d.%d.%d.%d' for interface '%s'", NIPQUAD(*netmask), ifname);
-
-	orig_os_api.close(fd);
-	return 0;
-}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 uint16_t get_vlan_id_from_ifname(const char* ifname)
 {
         // find vlan id from interface name
@@ -748,139 +622,6 @@ size_t get_vlan_base_name_from_ifname(const char* ifname, char* base_ifname, siz
 
         return 0;
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-int get_peer_unicast_mac(const in_addr_t p_peer_addr, unsigned char peer_mac[ETH_ALEN])
-{
-	char *peer_mac_str = NULL;
-	char buff[4096];
-	char peer_ip_str[20];
-	int bytes_read = 0;
-	int fd = 0;
-	int ret_val = -1;
-
-	/* cppcheck-suppress wrongPrintfScanfArgNum */
-	sprintf(peer_ip_str, "%d.%d.%d.%d ", NIPQUAD(p_peer_addr));
-	FILE* fp = fopen(ARP_TABLE_FILE, "r");
-	if (!fp)
-		goto out;
-	fd = fileno(fp);
-
-	// coverity[check_return]
-	if ((bytes_read = read(fd, buff, 4095)) < 0) {
-		__log_err("error reading arp table, errno %d %m", errno);
-		buff[0] = '\0';
-	} else {
-		buff[bytes_read] = '\0';
-	}
-	peer_mac_str = (char *)strstr((const char*)buff, (const char*)peer_ip_str);
-	if (!peer_mac_str)
-		goto out;
-	peer_mac_str = (char *)strstr((const char*)peer_mac_str,":");
-	if (!peer_mac_str)
-		goto out;
-	peer_mac_str =  peer_mac_str - 2;
-	peer_mac_str[17] = '\0';
-	__log_dbg("resolved peer_mac=%s", peer_mac_str);
-	for (int i = 0; i < ETH_ALEN; ++i)
-		if (1 != sscanf(peer_mac_str + 3*i, "%2hhx", &peer_mac[i]))
-			goto out;
-	ret_val = 0;
-out:
-	if (fp)
-		fclose(fp);
-	return ret_val;
-}
-
-int get_peer_ipoib_qpn(const struct sockaddr* p_peer_addr, uint32_t & remote_qpn)
-{
-	__log_func("find neighbor info for dst ip: %d.%d.%d.%d", NIPQUAD(get_sa_ipv4_addr(p_peer_addr)));
-
-	char peer_ip_str[20];
-	char buff[4096];
-	char rem_qpn_str[7] = "";
-	char* p_ch = NULL;
-	char* str = NULL;
-	int bytes_read = 0;
-	int fd = 0;
-	int ret_val = -1;
-
-	/* cppcheck-suppress wrongPrintfScanfArgNum */
-	sprintf(peer_ip_str, "%d.%d.%d.%d ", NIPQUAD(get_sa_ipv4_addr(p_peer_addr)));
-	FILE* fp = fopen(ARP_TABLE_FILE, "r");
-	if (!fp)
-		goto out;
-	fd = fileno(fp);
-
-	// coverity[check_return]
-	if ((bytes_read = read(fd, buff, 4095)) < 0) {
-		__log_err("error reading arp table, errno %d %m", errno);
-		buff[0] = '\0';
-	} else {
-		buff[bytes_read] = '\0';
-	}
-	str = (char *)strstr((const char*)buff, peer_ip_str);
-	if (!str)
-		goto out;
-	str = (char *)strstr((const char*)str,"80:");
-	if (!str)
-		goto out;
-	str =  str + 3;
-
-	p_ch = strtok(str, ":");
-	for (int i = 0; (i < 3 && p_ch); i++) {
-		strcpy((rem_qpn_str + (i * 2)), p_ch);
-		p_ch = strtok(NULL, ":");
-	}
-	if (sscanf(rem_qpn_str, "%x", & remote_qpn) >= 0)
-		ret_val = 0;
-out:
-	if (fp)
-		fclose(fp);
-	return ret_val;
-}
-
-int get_peer_ipoib_address(const struct sockaddr* p_peer_addr, unsigned char peer_l2[20])
-{
-	__log_func("find neighbor info for dst ip: %d.%d.%d.%d", NIPQUAD(get_sa_ipv4_addr(p_peer_addr)));
-
-	char peer_ip_str[20];
-	char buff[4096];
-	int bytes_read = 0;
-	int fd = 0;
-	int ret_val = -1;
-
-	/* cppcheck-suppress wrongPrintfScanfArgNum */
-	sprintf(peer_ip_str, "%d.%d.%d.%d ", NIPQUAD(get_sa_ipv4_addr(p_peer_addr)));
-	FILE* fp = fopen(ARP_TABLE_FILE, "r");
-	if (!fp)
-		goto out;
-	fd = fileno(fp);
-
-	// coverity[check_return]
-	if ((bytes_read = read(fd, buff, 4095)) < 0) {
-		__log_err("error reading arp table, errno %d %m", errno);
-		buff[0] = '\0';
-	} else {
-		buff[bytes_read] = '\0';
-	}
-	peer_l2 = (unsigned char *)strstr((const char*)buff, peer_ip_str);
-	if (!peer_l2)
-		goto out;
-	peer_l2 = (unsigned char *)strstr((const char*)peer_l2,"80:");
-	if (!peer_l2)
-		goto out;
-
-out:
-	if (fp)
-		fclose(fp);
-	return ret_val;
-}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 int run_and_retreive_system_command(const char* cmd_line, char* return_str, int return_str_len)
 {
@@ -1020,7 +761,8 @@ bool get_bond_slaves_name_list(IN const char* bond_name, OUT char* slaves_list, 
 	return true;
 }
 
-bool check_device_exist(const char* ifname, const char *path) {
+bool check_device_exist(const char* ifname, const char *path)
+{
 	char device_path[256] = {0};
 	sprintf(device_path, path, ifname);
 	int fd = orig_os_api.open(device_path, O_RDONLY);
@@ -1094,26 +836,6 @@ int validate_raw_qp_privliges()
 	}
 	return 1;
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-// convert hw address to string.
-// We assume that the buff is long enough.
-void convert_hw_addr_to_str(char *buf, uint8_t hw_addr_len, uint8_t *hw_addr)
-{
-	if (hw_addr_len > 0) {
-		sprintf(buf,"%02X",hw_addr[0]);
-		for(int i = 1;i <= hw_addr_len;i++){
-			char str_x[10];
-			sprintf(str_x, ":%02X", hw_addr[i]);
-			strcat(buf, str_x);
-		}
-	}
-}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 loops_timer::loops_timer()
 {
