@@ -69,7 +69,8 @@ bool get_cpu_hz(double &hz_min, double &hz_max)
 		if (rc != 1) {
 			continue;
 		}
-		if (mhz_tmp == 0.0) {
+		// Coverity warning : comparing floating point with == or != is unsafe
+		if (0 == static_cast<int>(mhz_tmp * 100000)) {
 			// first time align of all values
 			mhz_tmp = hz_max = hz_min = mhz;
 			continue;
