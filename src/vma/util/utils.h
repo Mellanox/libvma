@@ -104,6 +104,12 @@ int netmask_bitcount(uint32_t netmask);
  */
 void set_fd_block_mode(int fd, bool block);
 
+/**
+ * @param a number
+ * @param b number
+ * @return true if 'a' and 'b' are equal. else false.
+ */
+bool compare_double(double a, double b);
 
 /** 
  * Run a system command while bypassing LD_PRELOADed with VMA 

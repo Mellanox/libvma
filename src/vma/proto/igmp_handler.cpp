@@ -194,7 +194,7 @@ bool igmp_handler::tx_igmp_report()
 	}
 
 	wqe_send_ib_handler wqe_sh;
-	wqe_sh.init_wqe(m_p_send_igmp_wqe, &m_sge, 1, ((neigh_ib_val *)m_p_neigh_val)->get_ah(),
+	wqe_sh.init_ib_wqe(m_p_send_igmp_wqe, &m_sge, 1, ((neigh_ib_val *)m_p_neigh_val)->get_ah(),
 			((neigh_ib_val *)m_p_neigh_val)->get_qpn(), ((neigh_ib_val *)m_p_neigh_val)->get_qkey());
 	m_header.init();
 	m_header.configure_ipoib_headers();

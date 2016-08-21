@@ -199,6 +199,8 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 	}
 
 	bool up_and_active_slaves[m_slaves.size()];
+	memset(up_and_active_slaves, 0, sizeof(up_and_active_slaves));
+
 	if (m_bond == LAG_8023ad) {
 		get_up_and_active_slaves(up_and_active_slaves, m_slaves.size());
 	}

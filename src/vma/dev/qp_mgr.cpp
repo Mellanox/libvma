@@ -376,8 +376,10 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 
 		IF_VERBS_FAILURE(vma_ibv_post_send(m_qp, &send_wr, &bad_wr)) {
 			qp_logerr("failed post_send%s (errno=%d %m)", ((vma_send_wr_send_flags(send_wr) & VMA_IBV_SEND_INLINE)?"(+inline)":""), errno);
-			qp_logerr("bad_wr info: wr_id=%#x, send_flags=%#x, addr=%#x, length=%d, lkey=%#x, max_inline_data=%d",
+			if (bad_wr) {
+				qp_logerr("bad_wr info: wr_id=%#x, send_flags=%#x, addr=%#x, length=%d, lkey=%#x, max_inline_data=%d",
 				  bad_wr->wr_id, vma_send_wr_send_flags(*bad_wr), bad_wr->sg_list[0].addr, bad_wr->sg_list[0].length, bad_wr->sg_list[0].lkey, m_max_inline_data);
+			}
 		} ENDIF_VERBS_FAILURE;
 
 		if (p_ah) {
@@ -529,8 +531,10 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 		INC_ERR_TX_COUNT;
 #endif
 		qp_logerr("failed post_send%s (errno=%d %m)\n", ((vma_send_wr_send_flags(*p_send_wqe) & VMA_IBV_SEND_INLINE)?"(+inline)":""), errno);
-		qp_logerr("bad_wr info: wr_id=%#x, send_flags=%#x, addr=%#x, length=%d, lkey=%#x, max_inline_data=%d",
+		if (bad_wr) {
+			qp_logerr("bad_wr info: wr_id=%#x, send_flags=%#x, addr=%#x, length=%d, lkey=%#x, max_inline_data=%d",
 			    bad_wr->wr_id, vma_send_wr_send_flags(*bad_wr), bad_wr->sg_list[0].addr, bad_wr->sg_list[0].length, bad_wr->sg_list[0].lkey, m_max_inline_data);
+		}
 		return -1;
 	} ENDIF_VERBS_FAILURE;
 

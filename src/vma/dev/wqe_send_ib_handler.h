@@ -50,9 +50,9 @@ public:
 	virtual ~wqe_send_ib_handler();
 
 
-	virtual void init_wqe(vma_ibv_send_wr &wqe_to_init, struct ibv_sge* sge_list, uint32_t num_sge,
+	void init_ib_wqe(vma_ibv_send_wr &wqe_to_init, struct ibv_sge* sge_list, uint32_t num_sge,
 			     struct ibv_ah *ah, uint32_t rem_qpn, uint32_t rem_qkey);
-	virtual void init_inline_wqe(vma_ibv_send_wr & wqe_to_init, struct ibv_sge *sge_list, uint32_t num_sge, struct ibv_ah *ah, uint32_t rem_qpn, uint32_t rem_qkey);
+	void init_inline_ib_wqe(vma_ibv_send_wr & wqe_to_init, struct ibv_sge *sge_list, uint32_t num_sge, struct ibv_ah *ah, uint32_t rem_qpn, uint32_t rem_qkey);
 	void enable_imm_data(vma_ibv_send_wr &send_wqe);
 	void disable_imm_data(vma_ibv_send_wr &send_wqe);
 

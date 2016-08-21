@@ -211,43 +211,51 @@ void update_delta_stat(socket_stats_t* p_curr_stat, socket_stats_t* p_prev_stat)
 void update_delta_iomux_stat(iomux_func_stats_t* p_curr_stats, iomux_func_stats_t* p_prev_stats)
 {
 	int delay = INTERVAL;
-	p_prev_stats->n_iomux_errors = (p_curr_stats->n_iomux_errors - p_prev_stats->n_iomux_errors) / delay;
-	p_prev_stats->n_iomux_os_rx_ready = (p_curr_stats->n_iomux_os_rx_ready - p_prev_stats->n_iomux_os_rx_ready) / delay;
-	p_prev_stats->n_iomux_poll_hit = (p_curr_stats->n_iomux_poll_hit - p_prev_stats->n_iomux_poll_hit) / delay;
-	p_prev_stats->n_iomux_poll_miss = (p_curr_stats->n_iomux_poll_miss - p_prev_stats->n_iomux_poll_miss) / delay;
-	p_prev_stats->n_iomux_rx_ready = (p_curr_stats->n_iomux_rx_ready - p_prev_stats->n_iomux_rx_ready) / delay;
-	p_prev_stats->n_iomux_timeouts = (p_curr_stats->n_iomux_timeouts - p_prev_stats->n_iomux_timeouts) / delay;
-	p_prev_stats->threadid_last = p_curr_stats->threadid_last;
+	if (p_curr_stats && p_prev_stats) {
+		p_prev_stats->n_iomux_errors = (p_curr_stats->n_iomux_errors - p_prev_stats->n_iomux_errors) / delay;
+		p_prev_stats->n_iomux_os_rx_ready = (p_curr_stats->n_iomux_os_rx_ready - p_prev_stats->n_iomux_os_rx_ready) / delay;
+		p_prev_stats->n_iomux_poll_hit = (p_curr_stats->n_iomux_poll_hit - p_prev_stats->n_iomux_poll_hit) / delay;
+		p_prev_stats->n_iomux_poll_miss = (p_curr_stats->n_iomux_poll_miss - p_prev_stats->n_iomux_poll_miss) / delay;
+		p_prev_stats->n_iomux_rx_ready = (p_curr_stats->n_iomux_rx_ready - p_prev_stats->n_iomux_rx_ready) / delay;
+		p_prev_stats->n_iomux_timeouts = (p_curr_stats->n_iomux_timeouts - p_prev_stats->n_iomux_timeouts) / delay;
+		p_prev_stats->threadid_last = p_curr_stats->threadid_last;
+	}
 }
 
 void update_delta_ring_stat(ring_stats_t* p_curr_ring_stats, ring_stats_t* p_prev_ring_stats)
 {
 	int delay = INTERVAL;
-	p_prev_ring_stats->n_rx_byte_count = (p_curr_ring_stats->n_rx_byte_count - p_prev_ring_stats->n_rx_byte_count) / delay;
-	p_prev_ring_stats->n_rx_pkt_count = (p_curr_ring_stats->n_rx_pkt_count - p_prev_ring_stats->n_rx_pkt_count) / delay;
-	p_prev_ring_stats->n_rx_interrupt_received = (p_curr_ring_stats->n_rx_interrupt_received - p_prev_ring_stats->n_rx_interrupt_received) / delay;
-	p_prev_ring_stats->n_rx_interrupt_requests = (p_curr_ring_stats->n_rx_interrupt_requests - p_prev_ring_stats->n_rx_interrupt_requests) / delay;
-	p_prev_ring_stats->n_rx_cq_moderation_count = p_curr_ring_stats->n_rx_cq_moderation_count;
-	p_prev_ring_stats->n_rx_cq_moderation_period = p_curr_ring_stats->n_rx_cq_moderation_period;
-	p_prev_ring_stats->n_tx_retransmits = (p_curr_ring_stats->n_tx_retransmits - p_prev_ring_stats->n_tx_retransmits) / delay;
+	if (p_curr_ring_stats && p_prev_ring_stats) {
+		p_prev_ring_stats->n_rx_byte_count = (p_curr_ring_stats->n_rx_byte_count - p_prev_ring_stats->n_rx_byte_count) / delay;
+		p_prev_ring_stats->n_rx_pkt_count = (p_curr_ring_stats->n_rx_pkt_count - p_prev_ring_stats->n_rx_pkt_count) / delay;
+		p_prev_ring_stats->n_rx_interrupt_received = (p_curr_ring_stats->n_rx_interrupt_received - p_prev_ring_stats->n_rx_interrupt_received) / delay;
+		p_prev_ring_stats->n_rx_interrupt_requests = (p_curr_ring_stats->n_rx_interrupt_requests - p_prev_ring_stats->n_rx_interrupt_requests) / delay;
+		p_prev_ring_stats->n_rx_cq_moderation_count = p_curr_ring_stats->n_rx_cq_moderation_count;
+		p_prev_ring_stats->n_rx_cq_moderation_period = p_curr_ring_stats->n_rx_cq_moderation_period;
+		p_prev_ring_stats->n_tx_retransmits = (p_curr_ring_stats->n_tx_retransmits - p_prev_ring_stats->n_tx_retransmits) / delay;
+	}
 
 }
 
 void update_delta_cq_stat(cq_stats_t* p_curr_cq_stats, cq_stats_t* p_prev_cq_stats)
 {
 	int delay = INTERVAL;
-	p_prev_cq_stats->n_rx_drained_at_once_max = p_curr_cq_stats->n_rx_drained_at_once_max;
-	p_prev_cq_stats->n_rx_pkt_drop = (p_curr_cq_stats->n_rx_pkt_drop - p_prev_cq_stats->n_rx_pkt_drop) / delay;
-	p_prev_cq_stats->n_rx_sw_queue_len = p_curr_cq_stats->n_rx_sw_queue_len;
-	p_prev_cq_stats->n_buffer_pool_len = p_curr_cq_stats->n_buffer_pool_len;
-	p_prev_cq_stats->buffer_miss_rate = p_curr_cq_stats->buffer_miss_rate;
+	if (p_curr_cq_stats && p_prev_cq_stats) {
+		p_prev_cq_stats->n_rx_drained_at_once_max = p_curr_cq_stats->n_rx_drained_at_once_max;
+		p_prev_cq_stats->n_rx_pkt_drop = (p_curr_cq_stats->n_rx_pkt_drop - p_prev_cq_stats->n_rx_pkt_drop) / delay;
+		p_prev_cq_stats->n_rx_sw_queue_len = p_curr_cq_stats->n_rx_sw_queue_len;
+		p_prev_cq_stats->n_buffer_pool_len = p_curr_cq_stats->n_buffer_pool_len;
+		p_prev_cq_stats->buffer_miss_rate = p_curr_cq_stats->buffer_miss_rate;
+	}
 }
 
 void update_delta_bpool_stat(bpool_stats_t* p_curr_bpool_stats, bpool_stats_t* p_prev_bpool_stats)
 {
 	int delay = INTERVAL;
-	p_prev_bpool_stats->n_buffer_pool_size = p_curr_bpool_stats->n_buffer_pool_size;
-	p_prev_bpool_stats->n_buffer_pool_no_bufs = (p_curr_bpool_stats->n_buffer_pool_no_bufs - p_prev_bpool_stats->n_buffer_pool_no_bufs) / delay;
+	if (p_curr_bpool_stats && p_prev_bpool_stats) {
+		p_prev_bpool_stats->n_buffer_pool_size = p_curr_bpool_stats->n_buffer_pool_size;
+		p_prev_bpool_stats->n_buffer_pool_no_bufs = (p_curr_bpool_stats->n_buffer_pool_no_bufs - p_prev_bpool_stats->n_buffer_pool_no_bufs) / delay;
+	}
 }
 
 void print_ring_stats(ring_instance_block_t* p_ring_inst_arr)
@@ -311,7 +319,7 @@ void print_bpool_stats(bpool_instance_block_t* p_bpool_inst_arr)
 		strcpy(post_fix, "/s");
 
 	for (int i = 0; i < NUM_OF_SUPPORTED_BPOOLS; i++) {
-		if (p_bpool_inst_arr[i].b_enabled) {
+		if (p_bpool_inst_arr && p_bpool_inst_arr[i].b_enabled) {
 			p_bpool_stats = &p_bpool_inst_arr[i].bpool_stats;
 			printf("======================================================\n");
 			if (p_bpool_stats->is_rx)
@@ -332,11 +340,12 @@ void print_basic_stats(socket_stats_t* p_stats)
 	// 
 	// Socket statistics
 	//
-	double rx_poll_hit = (double)p_stats->counters.n_rx_poll_hit;
 	double rx_poll_hit_percentage = 0;
 	
-	if (rx_poll_hit)
+	if (p_stats->counters.n_rx_poll_hit) {
+		double rx_poll_hit = (double)p_stats->counters.n_rx_poll_hit;
 		rx_poll_hit_percentage = (rx_poll_hit / (rx_poll_hit + (double)p_stats->counters.n_rx_poll_miss)) * 100;
+	}
 	printf(RX_SHORT_VIEW,p_stats->fd,"Rx:",p_stats->counters.n_rx_packets,
 			p_stats->counters.n_rx_bytes/BYTES_TRAFFIC_UNIT,p_stats->counters.n_rx_eagain,
 			p_stats->counters.n_rx_errors,rx_poll_hit_percentage,
@@ -356,11 +365,12 @@ void print_medium_total_stats(socket_stats_t* p_stats)
 	// 
 	// Socket statistics
 	//
-	double rx_poll_hit = (double)p_stats->counters.n_rx_poll_hit;
 	double rx_poll_hit_percentage = 0;
 	
-	if (rx_poll_hit)
+	if (p_stats->counters.n_rx_poll_hit) {
+		double rx_poll_hit = (double)p_stats->counters.n_rx_poll_hit;
 		rx_poll_hit_percentage = (rx_poll_hit / (rx_poll_hit + (double)p_stats->counters.n_rx_poll_miss)) * 100;
+	}
 	printf(RX_MEDIUM_VIEW,p_stats->fd,"Rx:",p_stats->counters.n_rx_packets,
 			p_stats->counters.n_rx_bytes/BYTES_TRAFFIC_UNIT,p_stats->counters.n_rx_eagain,
 			p_stats->counters.n_rx_errors,rx_poll_hit_percentage,
@@ -539,9 +549,9 @@ void print_full_iomux_stats(const char* func_name, iomux_func_stats_t* p_iomux_s
        if (user_params.print_details_mode == e_deltas)
                strcpy(post_fix, "/s");
 
-       if (p_iomux_stats->n_iomux_os_rx_ready || p_iomux_stats->n_iomux_rx_ready ||
+       if (p_iomux_stats && (p_iomux_stats->n_iomux_os_rx_ready || p_iomux_stats->n_iomux_rx_ready ||
            p_iomux_stats->n_iomux_timeouts || p_iomux_stats->n_iomux_errors ||
-           p_iomux_stats->n_iomux_poll_miss || p_iomux_stats->n_iomux_poll_hit) {
+           p_iomux_stats->n_iomux_poll_miss || p_iomux_stats->n_iomux_poll_hit)) {
 
                printf("======================================================\n");
                printf("\t%s\n", func_name);
@@ -565,15 +575,16 @@ void print_full_iomux_stats(const char* func_name, iomux_func_stats_t* p_iomux_s
 
 void print_basic_iomux_stats(const char* func_name, iomux_func_stats_t* p_iomux_stats, int* p_printed_lines_num)
 {
-       double iomux_poll_hit = (double)p_iomux_stats->n_iomux_poll_hit;
        double rx_poll_hit_percentage = 0;
        char post_fix[3] = "";
 
        if (user_params.print_details_mode == e_deltas)
                strcpy(post_fix, "/s");
 
-       if (iomux_poll_hit)
+       if (p_iomux_stats->n_iomux_poll_hit) {
+               double iomux_poll_hit = (double)p_iomux_stats->n_iomux_poll_hit;
                rx_poll_hit_percentage = (iomux_poll_hit / (iomux_poll_hit + (double)p_iomux_stats->n_iomux_poll_miss)) * 100;
+       }
 
        if (p_iomux_stats->n_iomux_os_rx_ready || p_iomux_stats->n_iomux_rx_ready ||
            p_iomux_stats->n_iomux_timeouts || p_iomux_stats->n_iomux_errors ||

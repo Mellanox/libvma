@@ -104,7 +104,7 @@ static int current_role = 0;
 static configuration_t current_conf_type = CONF_RULE;
 static struct instance *curr_instance = NULL;
 
-int __vma_config_empty()
+int __vma_config_empty(void)
 {
 	return ((__instance_list.head == NULL) && (__instance_list.tail == NULL));
 }

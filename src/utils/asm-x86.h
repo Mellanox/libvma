@@ -36,6 +36,7 @@
 
 #include <stdint.h>
 #include <unistd.h>
+#include "utils/bullseye.h"
 
 #define __xg(x) ((volatile long *)(x))
 

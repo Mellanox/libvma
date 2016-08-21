@@ -264,7 +264,7 @@ void check_cpu_speed()
 		vlog_printf(VLOG_DEBUG, "Verify with: cat /proc/cpuinfo | grep \"MHz\\|clock\"\n");
 		vlog_printf(VLOG_DEBUG, "***************************************************************************\n");
 	}
-	else if (hz_min != hz_max) {
+	else if (!compare_double(hz_min, hz_max)) {
 		// CPU cores are running at different speed
 		// Machine is probably running not in high performance configuration
 		vlog_printf(VLOG_DEBUG, "***************************************************************************\n");
@@ -921,7 +921,7 @@ void check_netperf_flags()
         char cmd_line[FILENAME_MAX];
         char *pch, *command;
         bool b_D_flag = false, b_f_flag = false;
-        char add_flags[4];
+        char add_flags[4] = {0};
 
         strncpy(cmd_line, safe_mce_sys().app_name, sizeof(cmd_line) - 1);
         cmd_line[sizeof(cmd_line) - 1] = '\0';

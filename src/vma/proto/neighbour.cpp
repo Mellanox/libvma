@@ -1699,7 +1699,7 @@ bool neigh_ib::post_send_arp(bool is_broadcast)
 	}
 
 	wqe_send_ib_handler wqe_sh;
-	wqe_sh.init_wqe(m_send_wqe, &m_sge, 1, ah, qpn, qkey);
+	wqe_sh.init_ib_wqe(m_send_wqe, &m_sge, 1, ah, qpn, qkey);
 	neigh_logdbg("ARP: ah=%#x, qkey=%#x, qpn=%#x", ah ,qkey, qpn);
 	header h;
 	h.init();
@@ -1728,7 +1728,7 @@ bool neigh_ib::prepare_to_send_packet(header * h)
 {
 	neigh_logdbg("");
 	wqe_send_ib_handler wqe_sh;
-	wqe_sh.init_wqe(m_send_wqe, &m_sge , 1, ((neigh_ib_val *)m_val)->get_ah(), ((neigh_ib_val *)m_val)->get_qpn(), ((neigh_ib_val *)m_val)->get_qkey());
+	wqe_sh.init_ib_wqe(m_send_wqe, &m_sge , 1, ((neigh_ib_val *)m_val)->get_ah(), ((neigh_ib_val *)m_val)->get_qpn(), ((neigh_ib_val *)m_val)->get_qkey());
 	h->configure_ipoib_headers();
 
 	return true;
