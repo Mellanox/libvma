@@ -31,8 +31,8 @@
  */
 
 
-extern int main_init();
-extern int main_destroy();
+extern int main_init(void);
+extern int main_destroy(void);
 
 /*  library init function
 -----------------------------------------------------------------------------
