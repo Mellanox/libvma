@@ -376,8 +376,8 @@ bool  dst_entry::conf_l2_hdr_and_snd_wqe_ib()
 			dst_logpanic("%s Failed to allocate send WQE handler", to_str().c_str());
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
-		((wqe_send_ib_handler *)(m_p_send_wqe_handler))->init_inline_wqe(m_inline_send_wqe, get_sge_lst_4_inline_send(), get_inline_sge_num(), ah, qpn, qkey);
-		((wqe_send_ib_handler*)(m_p_send_wqe_handler))->init_wqe(m_not_inline_send_wqe, get_sge_lst_4_not_inline_send(), 1, ah, qpn, qkey);
+		((wqe_send_ib_handler *)(m_p_send_wqe_handler))->init_inline_ib_wqe(m_inline_send_wqe, get_sge_lst_4_inline_send(), get_inline_sge_num(), ah, qpn, qkey);
+		((wqe_send_ib_handler*)(m_p_send_wqe_handler))->init_ib_wqe(m_not_inline_send_wqe, get_sge_lst_4_not_inline_send(), 1, ah, qpn, qkey);
 		m_header.configure_ipoib_headers();
 		init_sge();
 

@@ -44,8 +44,8 @@ public:
 	wqe_send_handler();
 	virtual ~wqe_send_handler();
 
-	virtual void init_wqe(vma_ibv_send_wr &wqe_to_init, struct ibv_sge* sge_list, uint32_t num_sge);
-	virtual void init_inline_wqe(vma_ibv_send_wr &wqe_to_init, struct ibv_sge* sge_list, uint32_t num_sge);
+	void init_wqe(vma_ibv_send_wr &wqe_to_init, struct ibv_sge* sge_list, uint32_t num_sge);
+	void init_inline_wqe(vma_ibv_send_wr &wqe_to_init, struct ibv_sge* sge_list, uint32_t num_sge);
 
 #ifndef VMA_NO_HW_CSUM
 	inline void  enable_hw_csum (vma_ibv_send_wr &send_wqe) { vma_send_wr_send_flags(send_wqe) |= VMA_IBV_SEND_IP_CSUM; }
