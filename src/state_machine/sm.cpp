@@ -109,13 +109,13 @@ int state_machine::process_sparse_table(sm_short_table_line_t* 	short_table,
 	sm_action_cb_t action_func;
 
 	int sm_table_entries_size = 0;
-	m_p_sm_table = (sm_state_info_t*)malloc(m_max_states * sizeof(sm_state_info_t));
+	m_p_sm_table = (sm_state_info_t*)calloc(m_max_states, sizeof(sm_state_info_t));
 	SM_ASSERT_POINTER(m_p_sm_table);
 	sm_table_entries_size += m_max_states * sizeof(sm_state_info_t);
 
 	// Allocate memory for the big table
 	for (st=0; st<m_max_states; st++) {
-		m_p_sm_table[st].event_info = (sm_event_info_t*)malloc(m_max_events * sizeof(sm_event_info_t));
+		m_p_sm_table[st].event_info = (sm_event_info_t*)calloc(m_max_events, sizeof(sm_event_info_t));
 		SM_ASSERT_POINTER(m_p_sm_table[st].event_info);
 		sm_table_entries_size += m_max_events * sizeof(sm_event_info_t);
 	}
@@ -148,6 +148,7 @@ BULLSEYE_EXCLUDE_BLOCK_START
 			return ERROR;
 		}
 BULLSEYE_EXCLUDE_BLOCK_END
+
 		switch (ev) {
 		case SM_STATE_ENTRY:
 			sm_logfunc("line %d: St[%d], Ev[ENTRY] (action func[%p])", line+1, st, action_func);
@@ -174,6 +175,8 @@ BULLSEYE_EXCLUDE_BLOCK_START
 						    line+1, st, ev, next_state, action_func);
 					return ERROR;
 				}
+
+				SM_ASSERT_POINTER(m_p_sm_table[st].event_info);
 
 				if (m_p_sm_table[ st ].event_info[ ev ].trans_func != default_trans_func) {
 					sm_logerr("ERROR on line [%d]: St+Ev entry re-use error!!! St[%d], Ev[%d] (nextSt[%d], action func[%p])",
