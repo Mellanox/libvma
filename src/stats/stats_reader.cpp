@@ -319,7 +319,7 @@ void print_bpool_stats(bpool_instance_block_t* p_bpool_inst_arr)
 		strcpy(post_fix, "/s");
 
 	for (int i = 0; i < NUM_OF_SUPPORTED_BPOOLS; i++) {
-		if (p_bpool_inst_arr[i].b_enabled) {
+		if (p_bpool_inst_arr && p_bpool_inst_arr[i].b_enabled) {
 			p_bpool_stats = &p_bpool_inst_arr[i].bpool_stats;
 			printf("======================================================\n");
 			if (p_bpool_stats->is_rx)
@@ -340,11 +340,12 @@ void print_basic_stats(socket_stats_t* p_stats)
 	// 
 	// Socket statistics
 	//
-	double rx_poll_hit = (double)p_stats->counters.n_rx_poll_hit;
 	double rx_poll_hit_percentage = 0;
 	
-	if (rx_poll_hit)
+	if (p_stats->counters.n_rx_poll_hit) {
+		double rx_poll_hit = (double)p_stats->counters.n_rx_poll_hit;
 		rx_poll_hit_percentage = (rx_poll_hit / (rx_poll_hit + (double)p_stats->counters.n_rx_poll_miss)) * 100;
+	}
 	printf(RX_SHORT_VIEW,p_stats->fd,"Rx:",p_stats->counters.n_rx_packets,
 			p_stats->counters.n_rx_bytes/BYTES_TRAFFIC_UNIT,p_stats->counters.n_rx_eagain,
 			p_stats->counters.n_rx_errors,rx_poll_hit_percentage,
@@ -364,11 +365,12 @@ void print_medium_total_stats(socket_stats_t* p_stats)
 	// 
 	// Socket statistics
 	//
-	double rx_poll_hit = (double)p_stats->counters.n_rx_poll_hit;
 	double rx_poll_hit_percentage = 0;
 	
-	if (rx_poll_hit)
+	if (p_stats->counters.n_rx_poll_hit) {
+		double rx_poll_hit = (double)p_stats->counters.n_rx_poll_hit;
 		rx_poll_hit_percentage = (rx_poll_hit / (rx_poll_hit + (double)p_stats->counters.n_rx_poll_miss)) * 100;
+	}
 	printf(RX_MEDIUM_VIEW,p_stats->fd,"Rx:",p_stats->counters.n_rx_packets,
 			p_stats->counters.n_rx_bytes/BYTES_TRAFFIC_UNIT,p_stats->counters.n_rx_eagain,
 			p_stats->counters.n_rx_errors,rx_poll_hit_percentage,
@@ -547,9 +549,9 @@ void print_full_iomux_stats(const char* func_name, iomux_func_stats_t* p_iomux_s
        if (user_params.print_details_mode == e_deltas)
                strcpy(post_fix, "/s");
 
-       if (p_iomux_stats->n_iomux_os_rx_ready || p_iomux_stats->n_iomux_rx_ready ||
+       if (p_iomux_stats && (p_iomux_stats->n_iomux_os_rx_ready || p_iomux_stats->n_iomux_rx_ready ||
            p_iomux_stats->n_iomux_timeouts || p_iomux_stats->n_iomux_errors ||
-           p_iomux_stats->n_iomux_poll_miss || p_iomux_stats->n_iomux_poll_hit) {
+           p_iomux_stats->n_iomux_poll_miss || p_iomux_stats->n_iomux_poll_hit)) {
 
                printf("======================================================\n");
                printf("\t%s\n", func_name);
@@ -573,15 +575,16 @@ void print_full_iomux_stats(const char* func_name, iomux_func_stats_t* p_iomux_s
 
 void print_basic_iomux_stats(const char* func_name, iomux_func_stats_t* p_iomux_stats, int* p_printed_lines_num)
 {
-       double iomux_poll_hit = (double)p_iomux_stats->n_iomux_poll_hit;
        double rx_poll_hit_percentage = 0;
        char post_fix[3] = "";
 
        if (user_params.print_details_mode == e_deltas)
                strcpy(post_fix, "/s");
 
-       if (iomux_poll_hit)
+       if (p_iomux_stats->n_iomux_poll_hit) {
+               double iomux_poll_hit = (double)p_iomux_stats->n_iomux_poll_hit;
                rx_poll_hit_percentage = (iomux_poll_hit / (iomux_poll_hit + (double)p_iomux_stats->n_iomux_poll_miss)) * 100;
+       }
 
        if (p_iomux_stats->n_iomux_os_rx_ready || p_iomux_stats->n_iomux_rx_ready ||
            p_iomux_stats->n_iomux_timeouts || p_iomux_stats->n_iomux_errors ||
