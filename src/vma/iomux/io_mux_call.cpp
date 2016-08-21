@@ -251,7 +251,7 @@ void io_mux_call::polling_loops()
 	int check_timer_countdown;
 	int poll_os_countdown;
 	bool multiple_polling_loops, finite_polling;
-	timeval before_polling_timer, after_polling_timer, delta;
+	timeval before_polling_timer = TIMEVAL_INITIALIZER, after_polling_timer = TIMEVAL_INITIALIZER, delta;
 	int delta_time; // in usec
 
 	prepare_to_poll();
