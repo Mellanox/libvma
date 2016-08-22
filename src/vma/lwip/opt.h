@@ -554,9 +554,6 @@
 //#define TCP_QLEN_DEBUG			LWIP_DBG_ON
 #endif
 
-#define LWIP_DEBUG_ENABLE PBUF_DEBUG | TCP_DEBUG | TCP_INPUT_DEBUG | TCP_FR_DEBUG | TCP_RTO_DEBUG \
-	| TCP_CWND_DEBUG | TCP_WND_DEBUG | TCP_OUTPUT_DEBUG | TCP_RST_DEBUG | TCP_QLEN_DEBUG
-
 /*
    -----------------------------------------------
    ---------- Platform specific locking ----------
@@ -2407,31 +2404,6 @@ typedef unsigned long mem_ptr_t;
   LWIP_PLATFORM_ASSERT(message); handler;}} while(0)
 #endif /* LWIP_ERROR */
 
-#if LWIP_DEBUG_ENABLE
-
-/* Plaform specific diagnostic output */
-#define LWIP_PLATFORM_DIAG(x)	do {printf x; fflush(0);} while(0)
-
-/** print debug message only if debug message type is enabled...
- *  AND is of correct type AND is at least LWIP_DBG_LEVEL
- */
-#define LWIP_DEBUGF(debug, message) do { \
-                               if ( \
-                                   ((debug) & LWIP_DBG_ON) && \
-                                   ((debug) & LWIP_DBG_TYPES_ON) && \
-                                   ((s16_t)((debug) & LWIP_DBG_MASK_LEVEL) >= LWIP_DBG_MIN_LEVEL)) { \
-                                 LWIP_PLATFORM_DIAG(message); \
-                                 if ((debug) & LWIP_DBG_HALT) { \
-                                   while(1); \
-                                 } \
-                               } \
-                             } while(0)
-
-#else  /* LWIP_DEBUG_ENABLE */
-#define LWIP_PLATFORM_DIAG(x)
-#define LWIP_DEBUGF(debug, message)
-#endif /* LWIP_DEBUG_ENABLE */
-
 /**
  * LWIP_DBG_MIN_LEVEL: After masking, the value of the debug is
  * compared against this value. If it is smaller, then debugging
@@ -2519,5 +2491,33 @@ typedef unsigned long mem_ptr_t;
 #ifndef TCP_QLEN_DEBUG
 #define TCP_QLEN_DEBUG                  LWIP_DBG_OFF
 #endif
+
+#define LWIP_DEBUG_ENABLE PBUF_DEBUG | TCP_DEBUG | TCP_INPUT_DEBUG | TCP_FR_DEBUG | TCP_RTO_DEBUG \
+	| TCP_CWND_DEBUG | TCP_WND_DEBUG | TCP_OUTPUT_DEBUG | TCP_RST_DEBUG | TCP_QLEN_DEBUG
+
+#if LWIP_DEBUG_ENABLE
+
+/* Plaform specific diagnostic output */
+#define LWIP_PLATFORM_DIAG(x)	do {printf x; fflush(0);} while(0)
+
+/** print debug message only if debug message type is enabled...
+ *  AND is of correct type AND is at least LWIP_DBG_LEVEL
+ */
+#define LWIP_DEBUGF(debug, message) do { \
+                               if ( \
+                                   ((debug) & LWIP_DBG_ON) && \
+                                   ((debug) & LWIP_DBG_TYPES_ON) && \
+                                   ((s16_t)((debug) & LWIP_DBG_MASK_LEVEL) >= LWIP_DBG_MIN_LEVEL)) { \
+                                 LWIP_PLATFORM_DIAG(message); \
+                                 if ((debug) & LWIP_DBG_HALT) { \
+                                   while(1); \
+                                 } \
+                               } \
+                             } while(0)
+
+#else  /* LWIP_DEBUG_ENABLE */
+#define LWIP_PLATFORM_DIAG(x)
+#define LWIP_DEBUGF(debug, message)
+#endif /* LWIP_DEBUG_ENABLE */
 
 #endif /* __LWIP_OPT_H__ */

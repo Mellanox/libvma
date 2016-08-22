@@ -35,6 +35,7 @@
 #define EVENT_H
 
 #include "vma/util/to_str.h"
+#include "utils/bullseye.h"
 #include <typeinfo>
 #include <stdio.h>
 #include <stdint.h>
