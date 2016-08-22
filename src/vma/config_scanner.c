@@ -1045,6 +1045,7 @@ YY_DECL
 		 */
 		yy_bp = yy_cp;
 
+		/* coverity[var_deref_op] */
 		yy_current_state = (yy_start);
 		yy_current_state += YY_AT_BOL();
 yy_match:
