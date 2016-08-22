@@ -159,7 +159,7 @@ void __vma_dump_address_port_rule_config_state(char *buf) {
 }
 
 /* dump the current state in readable format */
-static void  __vma_dump_rule_config_state() {
+static void  __vma_dump_rule_config_state(void) {
 	char buf[1024];
 	sprintf(buf, "\tACCESS CONFIG: use %s %s %s ", 
 			__vma_get_transport_str(__vma_rule.target_transport), 
@@ -176,7 +176,7 @@ static void  __vma_dump_rule_config_state() {
 }
 
 /* dump configuration properites of new instance */
-static void  __vma_dump_instance() {
+static void  __vma_dump_instance(void) {
 	char buf[1024];
 	
 	if (curr_instance) {
@@ -219,7 +219,7 @@ static void __vma_add_dbl_lst_node(struct dbl_lst *lst, struct dbl_lst_node *nod
 	}
 }
 
-static struct dbl_lst_node* __vma_allocate_dbl_lst_node()
+static struct dbl_lst_node* __vma_allocate_dbl_lst_node(void)
 {
 	struct dbl_lst_node *ret_val = NULL;
 	
@@ -256,6 +256,7 @@ static void __vma_add_instance(char *prog_name_expr, char *user_defined_id) {
 	if (!new_instance) {
 		yyerror("fail to allocate new instance");
 		parse_err = 1;
+		free(new_node);
 		return;
 	}
 
@@ -270,6 +271,7 @@ static void __vma_add_instance(char *prog_name_expr, char *user_defined_id) {
 			free(new_instance->id.prog_name_expr);
 		if (new_instance->id.user_defined_id)
 			free(new_instance->id.user_defined_id);
+		free(new_node);
 		free(new_instance);
 		return;
 	}
@@ -286,13 +288,13 @@ static void __vma_add_inst_with_int_uid(char *prog_name_expr, int user_defined_i
 }
 
 /* use the above state for making a new rule */
-static void __vma_add_rule() {
+static void __vma_add_rule(void) {
 	struct dbl_lst *p_lst;
 	struct use_family_rule *rule;
 	struct dbl_lst_node *new_node;
 
 	if (!curr_instance)
-		__vma_add_instance("*", "*");
+		__vma_add_instance((char *)"*", (char *)"*");
   	if (!curr_instance)
 		return;
   
@@ -327,6 +329,7 @@ static void __vma_add_rule() {
 	if (!rule) {
 		yyerror("fail to allocate new rule");
 		parse_err = 1;
+		free(new_node);
 		return;
 	}
 	memset(rule, 0, sizeof(*rule));
@@ -1401,6 +1404,7 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
   {
     char *yyp = *yymsg;
     int yyi = 0;
+    /* coverity[var_deref_op] */
     while ((*yyp = *yyformat) != '\0')
       if (*yyp == '%' && yyformat[1] == 's' && yyi < yycount)
         {
@@ -1438,6 +1442,7 @@ yydestruct (yymsg, yytype, yyvaluep)
 
   if (!yymsg)
     yymsg = "Deleting";
+  (void)yymsg;
   YY_SYMBOL_PRINT (yymsg, yytype, yyvaluep, yylocationp);
 
   switch (yytype)
@@ -1611,10 +1616,12 @@ yyparse ()
 #  undef YYSTACK_RELOCATE
 	if (yyss1 != yyssa)
 	  YYSTACK_FREE (yyss1);
+	/* coverity[leaked_storage] */
       }
 # endif
 #endif /* no yyoverflow */
 
+      /* coverity[ptr_arith] */
       yyssp = yyss + yysize - 1;
       yyvsp = yyvs + yysize - 1;
 
@@ -2144,6 +2151,7 @@ int __vma_parse_config_file (const char *fileName) {
 		return(1);
 	}
 
+	/* coverity[toctou] */
 	libvma_yyin = fopen(fileName,"r");
 	if (!libvma_yyin) {
 		printf("libvma Error: Fail to open File:%s\n", fileName);
