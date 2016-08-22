@@ -444,6 +444,7 @@ AC_TRY_LINK(
 ],
 [
   AC_MSG_RESULT([yes])
+  AC_DEFINE(DEFINED_MISSING_NET_TSTAMP, 0, [Define to 0 if linux/net_tstamp.h exists])
 ],
 [
   AC_MSG_RESULT([no])
