@@ -70,7 +70,7 @@
 
 /* Copy the first part of user declarations.  */
 /* Line 371 of yacc.c  */
-#line 39 "config_parser.y"
+/* Line 39 of config_parser.y */
 
 
 /* header section */
@@ -341,7 +341,7 @@ static void __vma_add_rule() {
 
 
 /* Line 371 of yacc.c  */
-#line 341 "config_parser.c"
+/* Line 341 of config_parser.c  */
 
 # ifndef YY_NULL
 #  if defined __cplusplus && 201103L <= __cplusplus
@@ -435,14 +435,14 @@ extern int libvma_yydebug;
 typedef union YYSTYPE
 {
 /* Line 387 of yacc.c  */
-#line 306 "config_parser.y"
+/* Line 306 of config_parser.y */
 
   int        ival;
   char      *sval;
 
 
 /* Line 387 of yacc.c  */
-#line 442 "config_parser.c"
+/* Line 442 of config_parser.c */
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
@@ -469,12 +469,12 @@ int libvma_yyparse ();
 
 /* Copy the second part of user declarations.  */
 /* Line 390 of yacc.c  */
-#line 339 "config_parser.y"
+/* Line 339 of config_parser.y */
 
   long __vma_config_line_num;
 
 /* Line 390 of yacc.c  */
-#line 474 "config_parser.c"
+/* Line 474 of config_parser.c */
 
 #ifdef short
 # undef short
@@ -1737,169 +1737,169 @@ yyreduce:
     {
         case 17:
 /* Line 1792 of yacc.c  */
-#line 376 "config_parser.y"
+/* Line 376 of config_parser.y */
     { __vma_log_set_log_stderr(); }
     break;
 
   case 18:
 /* Line 1792 of yacc.c  */
-#line 377 "config_parser.y"
+/* Line 377 of config_parser.y */
     { __vma_log_set_log_syslog(); }
     break;
 
   case 19:
 /* Line 1792 of yacc.c  */
-#line 378 "config_parser.y"
+/* Line 378 of config_parser.y */
     { __vma_log_set_log_file((yyvsp[(3) - (3)].sval)); }
     break;
 
   case 20:
 /* Line 1792 of yacc.c  */
-#line 382 "config_parser.y"
+/* Line 382 of config_parser.y */
     { __vma_log_set_min_level((yyvsp[(2) - (2)].ival)); }
     break;
 
   case 22:
 /* Line 1792 of yacc.c  */
-#line 390 "config_parser.y"
+/* Line 390 of config_parser.y */
     {__vma_add_instance((yyvsp[(2) - (3)].sval), (yyvsp[(3) - (3)].sval));	if ((yyvsp[(2) - (3)].sval)) free((yyvsp[(2) - (3)].sval)); if ((yyvsp[(3) - (3)].sval)) free((yyvsp[(3) - (3)].sval));	}
     break;
 
   case 23:
 /* Line 1792 of yacc.c  */
-#line 391 "config_parser.y"
+/* Line 391 of config_parser.y */
     {__vma_add_inst_with_int_uid((yyvsp[(2) - (3)].sval), (yyvsp[(3) - (3)].ival));	if ((yyvsp[(2) - (3)].sval)) free((yyvsp[(2) - (3)].sval));		}
     break;
 
   case 24:
 /* Line 1792 of yacc.c  */
-#line 396 "config_parser.y"
+/* Line 396 of config_parser.y */
     { __vma_add_rule(); }
     break;
 
   case 25:
 /* Line 1792 of yacc.c  */
-#line 400 "config_parser.y"
+/* Line 400 of config_parser.y */
     { current_conf_type = CONF_RULE; }
     break;
 
   case 26:
 /* Line 1792 of yacc.c  */
-#line 404 "config_parser.y"
+/* Line 404 of config_parser.y */
     { __vma_rule.target_transport = TRANS_OS;	}
     break;
 
   case 27:
 /* Line 1792 of yacc.c  */
-#line 405 "config_parser.y"
+/* Line 405 of config_parser.y */
     { __vma_rule.target_transport = TRANS_VMA;	}
     break;
 
   case 28:
 /* Line 1792 of yacc.c  */
-#line 406 "config_parser.y"
+/* Line 406 of config_parser.y */
     { __vma_rule.target_transport = TRANS_SDP;	}
     break;
 
   case 29:
 /* Line 1792 of yacc.c  */
-#line 407 "config_parser.y"
+/* Line 407 of config_parser.y */
     { __vma_rule.target_transport = TRANS_SA;	}
     break;
 
   case 30:
 /* Line 1792 of yacc.c  */
-#line 408 "config_parser.y"
+/* Line 408 of config_parser.y */
     { __vma_rule.target_transport = TRANS_ULP;	}
     break;
 
   case 31:
 /* Line 1792 of yacc.c  */
-#line 413 "config_parser.y"
+/* Line 413 of config_parser.y */
     { current_role = ROLE_TCP_SERVER; 	__vma_rule.protocol = PROTO_TCP; }
     break;
 
   case 32:
 /* Line 1792 of yacc.c  */
-#line 414 "config_parser.y"
+/* Line 414 of config_parser.y */
     { current_role = ROLE_TCP_CLIENT; 	__vma_rule.protocol = PROTO_TCP; }
     break;
 
   case 33:
 /* Line 1792 of yacc.c  */
-#line 415 "config_parser.y"
+/* Line 415 of config_parser.y */
     { current_role = ROLE_UDP_RECEIVER; __vma_rule.protocol = PROTO_UDP; }
     break;
 
   case 34:
 /* Line 1792 of yacc.c  */
-#line 416 "config_parser.y"
+/* Line 416 of config_parser.y */
     { current_role = ROLE_UDP_SENDER;	__vma_rule.protocol = PROTO_UDP; }
     break;
 
   case 35:
 /* Line 1792 of yacc.c  */
-#line 417 "config_parser.y"
+/* Line 417 of config_parser.y */
     { current_role = ROLE_UDP_CONNECT;	__vma_rule.protocol = PROTO_UDP; }
     break;
 
   case 40:
 /* Line 1792 of yacc.c  */
-#line 434 "config_parser.y"
+/* Line 434 of config_parser.y */
     { __vma_address_port_rule = &(__vma_rule.first); __vma_rule.use_second = 0; }
     break;
 
   case 42:
 /* Line 1792 of yacc.c  */
-#line 438 "config_parser.y"
+/* Line 438 of config_parser.y */
     { __vma_address_port_rule = &(__vma_rule.second); __vma_rule.use_second = 1; }
     break;
 
   case 44:
 /* Line 1792 of yacc.c  */
-#line 442 "config_parser.y"
+/* Line 442 of config_parser.y */
     { if (current_conf_type == CONF_RULE) __vma_address_port_rule->match_by_addr = 1; __vma_set_inet_addr_prefix_len(32); }
     break;
 
   case 45:
 /* Line 1792 of yacc.c  */
-#line 443 "config_parser.y"
+/* Line 443 of config_parser.y */
     { if (current_conf_type == CONF_RULE) __vma_address_port_rule->match_by_addr = 1; __vma_set_inet_addr_prefix_len((yyvsp[(3) - (3)].ival)); }
     break;
 
   case 46:
 /* Line 1792 of yacc.c  */
-#line 444 "config_parser.y"
+/* Line 444 of config_parser.y */
     { if (current_conf_type == CONF_RULE) __vma_address_port_rule->match_by_addr = 0; __vma_set_inet_addr_prefix_len(32); }
     break;
 
   case 47:
 /* Line 1792 of yacc.c  */
-#line 448 "config_parser.y"
+/* Line 448 of config_parser.y */
     { __vma_set_ipv4_addr((yyvsp[(1) - (7)].ival),(yyvsp[(3) - (7)].ival),(yyvsp[(5) - (7)].ival),(yyvsp[(7) - (7)].ival)); }
     break;
 
   case 48:
 /* Line 1792 of yacc.c  */
-#line 452 "config_parser.y"
+/* Line 452 of config_parser.y */
     { __vma_address_port_rule->match_by_port = 1; __vma_address_port_rule->sport= (yyvsp[(1) - (1)].ival); __vma_address_port_rule->eport= (yyvsp[(1) - (1)].ival); }
     break;
 
   case 49:
 /* Line 1792 of yacc.c  */
-#line 453 "config_parser.y"
+/* Line 453 of config_parser.y */
     { __vma_address_port_rule->match_by_port = 1; __vma_address_port_rule->sport= (yyvsp[(1) - (3)].ival); __vma_address_port_rule->eport= (yyvsp[(3) - (3)].ival); }
     break;
 
   case 50:
 /* Line 1792 of yacc.c  */
-#line 454 "config_parser.y"
+/* Line 454 of config_parser.y */
     { __vma_address_port_rule->match_by_port = 0; __vma_address_port_rule->sport= 0;  __vma_address_port_rule->eport= 0;  }
     break;
 
 
 /* Line 1792 of yacc.c  */
-#line 1893 "config_parser.c"
+/* Line 1893 of config_parser.c */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -2131,7 +2131,7 @@ yyreturn:
 
 
 /* Line 2055 of yacc.c  */
-#line 457 "config_parser.y"
+/* Line 457 of config_parser.y */
 
 
 int yyerror(const char *msg)
