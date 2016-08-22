@@ -117,7 +117,7 @@ int nl_object_get_compatible_msgtype(const struct nl_object* obj) {
 }
 
 const char*	get_rtnl_route_iif_name(struct rtnl_route* route) {
-	char iifstr[IFNAMSIZ];
+	static char iifstr[IFNAMSIZ];
 	return if_indextoname(rtnl_route_get_iif(route), iifstr);
 }
 
