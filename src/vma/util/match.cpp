@@ -109,7 +109,7 @@ static void free_instance_content(struct instance *instance)
 	free(instance);
 }
 
-void __vma_free_resources()
+void __vma_free_resources(void)
 {
 	struct dbl_lst_node *node, *tmp;
 

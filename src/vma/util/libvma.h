@@ -274,7 +274,7 @@ transport_t __vma_match_udp_receiver(transport_t my_transport, const char *app_i
 transport_t __vma_match_udp_connect(transport_t my_transport, const char *app_id, const struct sockaddr *sin_first, const socklen_t  sin_addrlen_first, const struct sockaddr *sin_second, const socklen_t  sin_addrlen_second);
 
 /* config.c */
-int __vma_config_empty();
+int __vma_config_empty(void);
 
 int __vma_parse_config_file(const char *config_file);
 
@@ -282,7 +282,7 @@ int __vma_parse_config_line(char *config_line);
 
 void __vma_print_conf_file(struct dbl_lst conf_lst);
 
-void __vma_free_resources();
+void __vma_free_resources(void);
 
 int __vma_match_program_name(struct instance *instance);
 
@@ -306,7 +306,7 @@ void __vma_log(
 #define __vma_log(level, format, args...) \
 	printf(format, ##args)
 
-static inline int __vma_log_get_level()
+static inline int __vma_log_get_level(void)
 {
 	return __vma_min_level;
 }
@@ -317,10 +317,10 @@ static inline void __vma_log_set_min_level(int level )
 };
 
 //TODO AlexV: implement this function
-static inline int __vma_log_set_log_stderr() {return 0;};
+static inline int __vma_log_set_log_stderr(void) {return 0;};
 
 //TODO AlexV: implement this function
-static inline int __vma_log_set_log_syslog() {return 0;};
+static inline int __vma_log_set_log_syslog(void) {return 0;};
 
 //TODO AlexV: implement this function
 static inline int __vma_log_set_log_file(char *filename )
