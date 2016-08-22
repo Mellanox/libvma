@@ -894,7 +894,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 	/* Check if this PCB has stayed long enough in TIME-WAIT */
 	if ((u32_t)(tcp_ticks - pcb->tmr) > 2 * TCP_MSL / TCP_SLOW_INTERVAL) {
 	  ++pcb_remove;
-	  err = ERR_ABRT;
+	  /* err = ERR_ABRT; */ /* Note: suppress warning 'err' is never read */
 	}
 
 	/* If the PCB should be removed, do it. */
