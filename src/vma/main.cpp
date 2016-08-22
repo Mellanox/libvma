@@ -264,7 +264,7 @@ void check_cpu_speed()
 		vlog_printf(VLOG_DEBUG, "Verify with: cat /proc/cpuinfo | grep \"MHz\\|clock\"\n");
 		vlog_printf(VLOG_DEBUG, "***************************************************************************\n");
 	}
-	else if (hz_max > hz_min) {
+	else if (!compare_double(hz_min, hz_max)) {
 		// CPU cores are running at different speed
 		// Machine is probably running not in high performance configuration
 		vlog_printf(VLOG_DEBUG, "***************************************************************************\n");

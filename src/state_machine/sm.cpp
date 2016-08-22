@@ -148,7 +148,6 @@ BULLSEYE_EXCLUDE_BLOCK_START
 			return ERROR;
 		}
 BULLSEYE_EXCLUDE_BLOCK_END
-
 		switch (ev) {
 		case SM_STATE_ENTRY:
 			sm_logfunc("line %d: St[%d], Ev[ENTRY] (action func[%p])", line+1, st, action_func);

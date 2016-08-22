@@ -34,11 +34,11 @@
 #ifndef EVENT_H
 #define EVENT_H
 
-#include "vma/util/to_str.h"
-#include "utils/bullseye.h"
 #include <typeinfo>
 #include <stdio.h>
 #include <stdint.h>
+#include "utils/bullseye.h"
+#include "vma/util/to_str.h"
 
 class event : public tostr  {
         public:

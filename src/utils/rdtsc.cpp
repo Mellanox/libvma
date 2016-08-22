@@ -48,13 +48,13 @@ bool get_cpu_hz(double &hz_min, double &hz_max)
 {
 	FILE* f;
 	char buf[256];
+	bool first_run = true;
 
 	f = fopen("/proc/cpuinfo", "r");
 	if (!f) {
 		return false;
 	}
 
-	double mhz_tmp = 0.0;
 	while (fgets(buf, sizeof(buf), f)) {
 		double mhz;
 		int rc;
@@ -69,10 +69,10 @@ bool get_cpu_hz(double &hz_min, double &hz_max)
 		if (rc != 1) {
 			continue;
 		}
-		// Coverity warning : comparing floating point with == or != is unsafe
-		if (0 == static_cast<int>(mhz_tmp * 100000)) {
+		if (first_run) {
 			// first time align of all values
-			mhz_tmp = hz_max = hz_min = mhz;
+			first_run = false;
+			hz_max = hz_min = mhz;
 			continue;
 		}
 		hz_min = MIN(hz_min, mhz);

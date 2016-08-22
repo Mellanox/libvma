@@ -42,6 +42,7 @@
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <linux/sockios.h>
+#include <limits>
 #include <math.h>
 #include <linux/ip.h>  //IP  header (struct  iphdr) definition
 #include <netinet/udp.h>
@@ -325,6 +326,11 @@ void set_fd_block_mode(int fd, bool b_block)
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	return;
+}
+
+bool compare_double(double a, double b)
+{
+	return fabs(a - b) < std::numeric_limits<double>::epsilon();
 }
 
 const char* iphdr_protocol_type_to_str(const int type)
