@@ -298,17 +298,22 @@ void net_device_val::verify_bonding_mode()
 	sprintf(bond_xmit_hash_policy_param_file, BONDING_XMIT_HASH_POLICY_PARAM_FILE, m_base_name);
 	if (priv_safe_try_read_file(bond_xmit_hash_policy_param_file, bond_xmit_hash_policy_file_content, FILENAME_MAX) > 0) {
 		char *bond_xhp = NULL;
-		//TODO use strtok_r instead of strtok
-		bond_xhp = strtok(bond_xmit_hash_policy_file_content, " ");
-		bond_xhp = strtok(NULL, " ");
-		if (bond_xhp) {
-			m_bond_xmit_hash_policy = (bond_xmit_hash_policy)strtol(bond_xhp, NULL , 10);
-			if (m_bond_xmit_hash_policy < XHP_LAYER_2 || m_bond_xmit_hash_policy > XHP_ENCAP_3_4) {
-				vlog_printf(VLOG_WARNING,"VMA does not support xmit hash policy = %d\n", m_bond_xmit_hash_policy);
-				m_bond_xmit_hash_policy = XHP_LAYER_2;
+		char *saveptr = NULL;
+
+		bond_xhp = strtok_r(bond_xmit_hash_policy_file_content, " ", &saveptr);
+		if (NULL == bond_xhp) {
+			vlog_printf(VLOG_DEBUG, "could not parse bond xmit hash policy, staying with default (L2)\n");
+		} else {
+			bond_xhp = strtok_r(NULL, " ", &saveptr);
+			if (bond_xhp) {
+				m_bond_xmit_hash_policy = (bond_xmit_hash_policy)strtol(bond_xhp, NULL , 10);
+				if (m_bond_xmit_hash_policy < XHP_LAYER_2 || m_bond_xmit_hash_policy > XHP_ENCAP_3_4) {
+					vlog_printf(VLOG_WARNING,"VMA does not support xmit hash policy = %d\n", m_bond_xmit_hash_policy);
+					m_bond_xmit_hash_policy = XHP_LAYER_2;
+				}
 			}
+			vlog_printf(VLOG_DEBUG, "got bond xmit hash policy = %d\n", m_bond_xmit_hash_policy);
 		}
-		vlog_printf(VLOG_DEBUG, "got bond xmit hash policy = %d\n", m_bond_xmit_hash_policy);
 	} else {
 		vlog_printf(VLOG_DEBUG, "could not read bond xmit hash policy, staying with default (L2)\n");
 	}
