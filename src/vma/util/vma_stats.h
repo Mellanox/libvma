@@ -31,12 +31,14 @@
  */
 
 
-#ifndef V_VMA_STATS_H
-#define V_VMA_STATS_H
+#ifndef VMA_STATS_H
+#define VMA_STATS_H
 
-#include <sys/types.h>
-#include <netinet/in.h>
+#include <stddef.h>
+#include <string.h>
 #include <bitset>
+#include <netinet/in.h>
+#include <sys/types.h>
 #include <sys/stat.h>
 #include <vlogger/vlogger.h>
 
@@ -215,15 +217,16 @@ typedef struct {
 	uint32_t		inode;
 	uint32_t		tcp_state; // 	enum tcp_state
 	uint8_t			socket_type; // SOCK_STREAM, SOCK_DGRAM, ...
+	uint8_t 		padding1[3];
 	bool			b_is_offloaded;
 	bool			b_blocking;
 	bool			b_mc_loop;
+	bool			padding2;
 	in_addr_t		bound_if;
 	in_addr_t		connected_ip;
+	in_addr_t		mc_tx_if;
 	in_port_t		bound_port;
 	in_port_t		connected_port;
-	in_addr_t		mc_tx_if;
-	bitset<MC_TABLE_SIZE>	mc_grp_map;
 	pid_t			threadid_last_rx;
 	pid_t			threadid_last_tx;
 	uint32_t		n_rx_ready_pkt_count;
@@ -232,11 +235,30 @@ typedef struct {
 	uint32_t		n_rx_zcopy_pkt_count;
 	uint32_t		n_tx_ready_byte_count;
 	socket_counters_t	counters;
+	bitset<MC_TABLE_SIZE>	mc_grp_map;
+
+	void reset() {
+		fd = 0;
+		inode = tcp_state = 0;
+		socket_type = 0;
+		b_is_offloaded = b_blocking = b_mc_loop = false;
+		bound_if = connected_ip = mc_tx_if = (in_addr_t)0;
+		bound_port = connected_port = (in_port_t)0;
+		threadid_last_rx = threadid_last_tx = pid_t(0);
+		n_rx_ready_pkt_count = n_rx_ready_byte_count = n_rx_ready_byte_limit = n_rx_zcopy_pkt_count = n_tx_ready_byte_count = 0;
+		memset(&counters, 0, sizeof(counters));
+		mc_grp_map.reset();
+	};
 } socket_stats_t;
 
 typedef struct {
 	bool 		b_enabled;
 	socket_stats_t 	skt_stats;
+
+	void reset() {
+		b_enabled = false;
+		skt_stats.reset();
+	}
 } socket_instance_block_t;
 
 //
@@ -303,19 +325,38 @@ typedef struct sh_mem_t {
 	int				reader_counter; //only copy to shm upon active reader
 	version_info_t			ver_info;
 	char				stats_protocol_ver[32];
-	size_t				max_skt_inst_num;
 	vlog_levels_t			log_level;
 	uint8_t 			log_details_level;
+	int				fd_dump;
+	vlog_levels_t			fd_dump_log_level;
 	cq_instance_block_t		cq_inst_arr[NUM_OF_SUPPORTED_CQS];
 	ring_instance_block_t		ring_inst_arr[NUM_OF_SUPPORTED_RINGS];
 	bpool_instance_block_t		bpool_inst_arr[NUM_OF_SUPPORTED_BPOOLS];
 	mc_grp_info_t			mc_info;
 	iomux_stats_t			iomux;
-	int				fd_dump;
-	vlog_levels_t			fd_dump_log_level;
+	size_t				max_skt_inst_num; // num of elemants allocated in 'socket_instance_block_t skt_inst_arr[]'
 
 	// MUST BE LAST ENTRY in struct: [0] is the allocation start point for all fd's
 	socket_instance_block_t  	skt_inst_arr[0]; //sockets statistics array
+
+	void reset() {
+		reader_counter = 0;
+		memset(&ver_info, 0, sizeof(ver_info));
+		memset(stats_protocol_ver, 0, sizeof(stats_protocol_ver));
+		max_skt_inst_num = 0;
+		log_level = (vlog_levels_t)0;
+		log_details_level = 0;
+		fd_dump = 0;
+		fd_dump_log_level = (vlog_levels_t)0;
+		memset(cq_inst_arr, 0, sizeof(cq_inst_arr));
+		memset(ring_inst_arr, 0, sizeof(ring_inst_arr));
+		memset(bpool_inst_arr, 0, sizeof(bpool_inst_arr));
+		memset(&mc_info, 0, sizeof(mc_info));
+		memset(&iomux, 0, sizeof(iomux));
+		for (uint32_t i = 0; i < max_skt_inst_num; i++) {
+			skt_inst_arr[i].reset();
+		}
+	}
 } sh_mem_t;
 
 typedef struct sh_mem_info {
@@ -358,9 +399,4 @@ void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, 
 void print_netstat_like(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, FILE* file, int pid);
 void print_netstat_like_headers(FILE* file);
 
-#endif //V_VMA_STATS_H
-
-
-
-
-
+#endif // VMA_STATS_H

@@ -41,7 +41,6 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <list>
-#include <bitset>
 #include <signal.h>
 #include <getopt.h>		/* getopt()*/
 #include <errno.h>

@@ -41,16 +41,15 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <list>
-#include <bitset>
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <sys/utsname.h>
+#include <sys/stat.h>
 #include <signal.h>
 #include <getopt.h>		/* getopt()*/
 #include <errno.h>
 #include <dirent.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <vma/util/utils.h>
 #include <vma/util/vma_stats.h>
 

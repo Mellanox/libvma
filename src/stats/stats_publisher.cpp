@@ -35,10 +35,10 @@
 #include "config.h"
 #endif
 
-#include <sys/mman.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <iostream>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -175,7 +175,7 @@ void vma_shmem_stats_open(vlog_levels_t** p_p_vma_log_level, uint8_t** p_p_vma_l
         g_p_stats_data_reader = new stats_data_reader();
 
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if ( NULL == g_p_stats_data_reader ) {
+	if (NULL == g_p_stats_data_reader) {
 		vlog_printf(VLOG_ERROR,"%s:%d: Can't allocate g_p_stats_data_reader \n", __func__, __LINE__);
 		goto shmem_error;
 	}
@@ -273,7 +273,7 @@ shmem_error:
 	g_sh_mem_info.fd_sh_stats = -1;
 	g_sh_mem_info.p_sh_stats = MAP_FAILED;
 	g_sh_mem = &g_local_sh_mem;
-	memset(g_sh_mem, 0, sizeof(*g_sh_mem));
+	g_sh_mem->reset();
 	*p_p_vma_log_level = &g_sh_mem->log_level;
 	*p_p_vma_log_details = &g_sh_mem->log_details_level;
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -337,8 +337,7 @@ void vma_stats_instance_create_socket_block(socket_stats_t* local_stats_addr)
 
 out:
 	if (p_skt_stats) {
-		memset(p_skt_stats, 0, sizeof(*p_skt_stats));
-		p_skt_stats->mc_grp_map.reset();
+		p_skt_stats->reset();
                 g_p_stats_data_reader->add_data_reader(local_stats_addr, p_skt_stats, sizeof(socket_stats_t));
 	}
 	g_lock_skt_stats.unlock();
