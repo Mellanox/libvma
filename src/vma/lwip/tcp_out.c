@@ -1194,7 +1194,7 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
 
   if (seg->flags & TF_SEG_OPTS_TS) {
     tcp_build_timestamp_option(pcb, opts);
-    opts += 3; // Move to the next line (meaning next 32 bit) as this option is 10 bytes long, 12 with padding (so jump 3 lines)
+    /* opts += 3; */  /* Note: suppress warning 'opts' is never read */ // Move to the next line (meaning next 32 bit) as this option is 10 bytes long, 12 with padding (so jump 3 lines)
   }
 #endif
 
