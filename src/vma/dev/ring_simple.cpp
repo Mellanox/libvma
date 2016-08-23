@@ -302,7 +302,7 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 
 	/* Get the appropriate hash map (tcp, uc or mc) from the 5t details */
 	if (flow_spec_5t.is_udp_uc()) {
-		flow_spec_udp_uc_key_t key_udp_uc = {flow_spec_5t.get_dst_port()};
+		flow_spec_udp_uc_key_t key_udp_uc(flow_spec_5t.get_dst_port());
 		p_rfs = m_flow_udp_uc_map.get(key_udp_uc, NULL);
 		if (p_rfs == NULL) {		// It means that no rfs object exists so I need to create a new one and insert it to the flow map
 			m_lock_ring_rx.unlock();
@@ -328,7 +328,7 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 			}
 		}
 	} else if (flow_spec_5t.is_udp_mc()) {
-		flow_spec_udp_mc_key_t key_udp_mc = {flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port()};
+		flow_spec_udp_mc_key_t key_udp_mc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
 		// For IB MC flow, the port is zeroed in the ibv_flow_spec when calling to ibv_flow_spec().
 		// It means that for every MC group, even if we have sockets with different ports - only one rule in the HW.
 		// So the hash map below keeps track of the number of sockets per rule so we know when to call ibv_attach and ibv_detach
@@ -369,7 +369,7 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 			}
 		}
 	} else if (flow_spec_5t.is_tcp()) {
-		flow_spec_tcp_key_t key_tcp = {flow_spec_5t.get_src_ip(), flow_spec_5t.get_dst_port(), flow_spec_5t.get_src_port()};
+		flow_spec_tcp_key_t key_tcp(flow_spec_5t.get_src_ip(), flow_spec_5t.get_dst_port(), flow_spec_5t.get_src_port());
 		rfs_rule_filter* tcp_dst_port_filter = NULL;
 		if (safe_mce_sys().tcp_3t_rules) {
 			rule_filter_map_t::iterator tcp_dst_port_iter = m_tcp_dst_port_attach_map.find(key_tcp.dst_port);
@@ -435,7 +435,7 @@ bool ring_simple::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 
 	/* Get the appropriate hash map (tcp, uc or mc) from the 5t details */
 	if (flow_spec_5t.is_udp_uc()) {
-		flow_spec_udp_uc_key_t key_udp_uc = {flow_spec_5t.get_dst_port()};
+		flow_spec_udp_uc_key_t key_udp_uc(flow_spec_5t.get_dst_port());
 		p_rfs = m_flow_udp_uc_map.get(key_udp_uc, NULL);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (p_rfs == NULL) {
@@ -454,7 +454,7 @@ bool ring_simple::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 		}
 	} else if (flow_spec_5t.is_udp_mc()) {
 		int keep_in_map = 1;
-		flow_spec_udp_mc_key_t key_udp_mc = {flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port()};
+		flow_spec_udp_mc_key_t key_udp_mc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
 		if (m_transport_type == VMA_TRANSPORT_IB || m_b_sysvar_eth_mc_l2_only_rules) {
 			rule_filter_map_t::iterator l2_mc_iter = m_l2_mc_ip_attach_map.find(key_udp_mc.dst_ip);
 			BULLSEYE_EXCLUDE_BLOCK_START
@@ -486,7 +486,7 @@ bool ring_simple::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 		}
 	} else if (flow_spec_5t.is_tcp()) {
 		int keep_in_map = 1;
-		flow_spec_tcp_key_t key_tcp = {flow_spec_5t.get_src_ip(), flow_spec_5t.get_dst_port(), flow_spec_5t.get_src_port()};
+		flow_spec_tcp_key_t key_tcp(flow_spec_5t.get_src_ip(), flow_spec_5t.get_dst_port(), flow_spec_5t.get_src_port());
 		if (safe_mce_sys().tcp_3t_rules) {
 			rule_filter_map_t::iterator tcp_dst_port_iter = m_tcp_dst_port_attach_map.find(key_tcp.dst_port);
 			BULLSEYE_EXCLUDE_BLOCK_START
