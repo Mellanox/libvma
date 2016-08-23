@@ -846,10 +846,10 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 
 		// Find the relevant hash map and pass the packet to the rfs for dispatching
 		if (!(IN_MULTICAST_N(p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr))) {	// This is UDP UC packet
-			p_rfs = m_flow_udp_uc_map.get((flow_spec_udp_uc_key_t){p_rx_wc_buf_desc->path.rx.dst.sin_port}, NULL);
+			p_rfs = m_flow_udp_uc_map.get(flow_spec_udp_uc_key_t(p_rx_wc_buf_desc->path.rx.dst.sin_port), NULL);
 		} else {	// This is UDP MC packet
-			p_rfs = m_flow_udp_mc_map.get((flow_spec_udp_mc_key_t){p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr,
-				p_rx_wc_buf_desc->path.rx.dst.sin_port}, NULL);
+			p_rfs = m_flow_udp_mc_map.get(flow_spec_udp_mc_key_t(p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr,
+				p_rx_wc_buf_desc->path.rx.dst.sin_port), NULL);
 		}
 	}
 	break;

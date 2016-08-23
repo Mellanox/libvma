@@ -79,20 +79,20 @@ typedef enum {
 } cq_type_t;
 
 /* udp uc key, only by destination port as we already know the rest */
-typedef struct __attribute__((packed)) flow_spec_udp_uc_key_t{
+typedef struct __attribute__((packed)) flow_spec_udp_uc_key_t {
 	in_port_t 	dst_port;
 	flow_spec_udp_uc_key_t(): dst_port(INPORT_ANY){}//Default constructor
-	explicit flow_spec_udp_uc_key_t(in_port_t d_port): dst_port(d_port){}//Constructor
+	flow_spec_udp_uc_key_t(in_port_t d_port): dst_port(d_port){}//Constructor
 } flow_spec_udp_uc_key_t;
 
-typedef struct __attribute__((packed)) flow_spec_udp_mc_key_t{
+typedef struct __attribute__((packed)) flow_spec_udp_mc_key_t {
 	in_addr_t	dst_ip;
 	in_port_t	dst_port;
 	flow_spec_udp_mc_key_t(): dst_ip(INADDR_ANY), dst_port(INPORT_ANY){}//Default constructor
 	flow_spec_udp_mc_key_t(in_addr_t d_ip, in_addr_t d_port): dst_ip(d_ip), dst_port(d_port){}//Constructor
 } flow_spec_udp_mc_key_t;
 
-typedef struct __attribute__((packed)) flow_spec_tcp_key_t{
+typedef struct __attribute__((packed)) flow_spec_tcp_key_t {
 	in_addr_t	src_ip;
 	in_port_t	dst_port;
 	in_port_t	src_port;
