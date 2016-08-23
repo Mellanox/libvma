@@ -70,7 +70,6 @@
 
 /* Copy the first part of user declarations.  */
 /* Line 371 of yacc.c  */
-#line 39 "config_parser.y"
 
 
 /* header section */
@@ -160,7 +159,7 @@ void __vma_dump_address_port_rule_config_state(char *buf) {
 }
 
 /* dump the current state in readable format */
-static void  __vma_dump_rule_config_state() {
+static void  __vma_dump_rule_config_state(void) {
 	char buf[1024];
 	sprintf(buf, "\tACCESS CONFIG: use %s %s %s ", 
 			__vma_get_transport_str(__vma_rule.target_transport), 
@@ -177,7 +176,7 @@ static void  __vma_dump_rule_config_state() {
 }
 
 /* dump configuration properites of new instance */
-static void  __vma_dump_instance() {
+static void  __vma_dump_instance(void) {
 	char buf[1024];
 	
 	if (curr_instance) {
@@ -220,7 +219,7 @@ static void __vma_add_dbl_lst_node(struct dbl_lst *lst, struct dbl_lst_node *nod
 	}
 }
 
-static struct dbl_lst_node* __vma_allocate_dbl_lst_node()
+static struct dbl_lst_node* __vma_allocate_dbl_lst_node(void)
 {
 	struct dbl_lst_node *ret_val = NULL;
 	
@@ -257,6 +256,7 @@ static void __vma_add_instance(char *prog_name_expr, char *user_defined_id) {
 	if (!new_instance) {
 		yyerror("fail to allocate new instance");
 		parse_err = 1;
+		free(new_node);
 		return;
 	}
 
@@ -271,6 +271,7 @@ static void __vma_add_instance(char *prog_name_expr, char *user_defined_id) {
 			free(new_instance->id.prog_name_expr);
 		if (new_instance->id.user_defined_id)
 			free(new_instance->id.user_defined_id);
+		free(new_node);
 		free(new_instance);
 		return;
 	}
@@ -287,13 +288,13 @@ static void __vma_add_inst_with_int_uid(char *prog_name_expr, int user_defined_i
 }
 
 /* use the above state for making a new rule */
-static void __vma_add_rule() {
+static void __vma_add_rule(void) {
 	struct dbl_lst *p_lst;
 	struct use_family_rule *rule;
 	struct dbl_lst_node *new_node;
 
 	if (!curr_instance)
-		__vma_add_instance("*", "*");
+		__vma_add_instance((char *)"*", (char *)"*");
   	if (!curr_instance)
 		return;
   
@@ -328,6 +329,7 @@ static void __vma_add_rule() {
 	if (!rule) {
 		yyerror("fail to allocate new rule");
 		parse_err = 1;
+		free(new_node);
 		return;
 	}
 	memset(rule, 0, sizeof(*rule));
@@ -341,7 +343,6 @@ static void __vma_add_rule() {
 
 
 /* Line 371 of yacc.c  */
-#line 341 "config_parser.c"
 
 # ifndef YY_NULL
 #  if defined __cplusplus && 201103L <= __cplusplus
@@ -435,14 +436,12 @@ extern int libvma_yydebug;
 typedef union YYSTYPE
 {
 /* Line 387 of yacc.c  */
-#line 306 "config_parser.y"
 
   int        ival;
   char      *sval;
 
 
 /* Line 387 of yacc.c  */
-#line 442 "config_parser.c"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
@@ -469,12 +468,10 @@ int libvma_yyparse ();
 
 /* Copy the second part of user declarations.  */
 /* Line 390 of yacc.c  */
-#line 339 "config_parser.y"
 
   long __vma_config_line_num;
 
 /* Line 390 of yacc.c  */
-#line 474 "config_parser.c"
 
 #ifdef short
 # undef short
@@ -1407,6 +1404,7 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
   {
     char *yyp = *yymsg;
     int yyi = 0;
+    /* coverity[var_deref_op] */
     while ((*yyp = *yyformat) != '\0')
       if (*yyp == '%' && yyformat[1] == 's' && yyi < yycount)
         {
@@ -1444,6 +1442,7 @@ yydestruct (yymsg, yytype, yyvaluep)
 
   if (!yymsg)
     yymsg = "Deleting";
+  (void)yymsg;
   YY_SYMBOL_PRINT (yymsg, yytype, yyvaluep, yylocationp);
 
   switch (yytype)
@@ -1617,10 +1616,12 @@ yyparse ()
 #  undef YYSTACK_RELOCATE
 	if (yyss1 != yyssa)
 	  YYSTACK_FREE (yyss1);
+	/* coverity[leaked_storage] */
       }
 # endif
 #endif /* no yyoverflow */
 
+      /* coverity[ptr_arith] */
       yyssp = yyss + yysize - 1;
       yyvsp = yyvs + yysize - 1;
 
@@ -1737,169 +1738,141 @@ yyreduce:
     {
         case 17:
 /* Line 1792 of yacc.c  */
-#line 376 "config_parser.y"
     { __vma_log_set_log_stderr(); }
     break;
 
   case 18:
 /* Line 1792 of yacc.c  */
-#line 377 "config_parser.y"
     { __vma_log_set_log_syslog(); }
     break;
 
   case 19:
 /* Line 1792 of yacc.c  */
-#line 378 "config_parser.y"
     { __vma_log_set_log_file((yyvsp[(3) - (3)].sval)); }
     break;
 
   case 20:
 /* Line 1792 of yacc.c  */
-#line 382 "config_parser.y"
     { __vma_log_set_min_level((yyvsp[(2) - (2)].ival)); }
     break;
 
   case 22:
 /* Line 1792 of yacc.c  */
-#line 390 "config_parser.y"
     {__vma_add_instance((yyvsp[(2) - (3)].sval), (yyvsp[(3) - (3)].sval));	if ((yyvsp[(2) - (3)].sval)) free((yyvsp[(2) - (3)].sval)); if ((yyvsp[(3) - (3)].sval)) free((yyvsp[(3) - (3)].sval));	}
     break;
 
   case 23:
 /* Line 1792 of yacc.c  */
-#line 391 "config_parser.y"
     {__vma_add_inst_with_int_uid((yyvsp[(2) - (3)].sval), (yyvsp[(3) - (3)].ival));	if ((yyvsp[(2) - (3)].sval)) free((yyvsp[(2) - (3)].sval));		}
     break;
 
   case 24:
 /* Line 1792 of yacc.c  */
-#line 396 "config_parser.y"
     { __vma_add_rule(); }
     break;
 
   case 25:
 /* Line 1792 of yacc.c  */
-#line 400 "config_parser.y"
     { current_conf_type = CONF_RULE; }
     break;
 
   case 26:
 /* Line 1792 of yacc.c  */
-#line 404 "config_parser.y"
     { __vma_rule.target_transport = TRANS_OS;	}
     break;
 
   case 27:
 /* Line 1792 of yacc.c  */
-#line 405 "config_parser.y"
     { __vma_rule.target_transport = TRANS_VMA;	}
     break;
 
   case 28:
 /* Line 1792 of yacc.c  */
-#line 406 "config_parser.y"
     { __vma_rule.target_transport = TRANS_SDP;	}
     break;
 
   case 29:
 /* Line 1792 of yacc.c  */
-#line 407 "config_parser.y"
     { __vma_rule.target_transport = TRANS_SA;	}
     break;
 
   case 30:
 /* Line 1792 of yacc.c  */
-#line 408 "config_parser.y"
     { __vma_rule.target_transport = TRANS_ULP;	}
     break;
 
   case 31:
 /* Line 1792 of yacc.c  */
-#line 413 "config_parser.y"
     { current_role = ROLE_TCP_SERVER; 	__vma_rule.protocol = PROTO_TCP; }
     break;
 
   case 32:
 /* Line 1792 of yacc.c  */
-#line 414 "config_parser.y"
     { current_role = ROLE_TCP_CLIENT; 	__vma_rule.protocol = PROTO_TCP; }
     break;
 
   case 33:
 /* Line 1792 of yacc.c  */
-#line 415 "config_parser.y"
     { current_role = ROLE_UDP_RECEIVER; __vma_rule.protocol = PROTO_UDP; }
     break;
 
   case 34:
 /* Line 1792 of yacc.c  */
-#line 416 "config_parser.y"
     { current_role = ROLE_UDP_SENDER;	__vma_rule.protocol = PROTO_UDP; }
     break;
 
   case 35:
 /* Line 1792 of yacc.c  */
-#line 417 "config_parser.y"
     { current_role = ROLE_UDP_CONNECT;	__vma_rule.protocol = PROTO_UDP; }
     break;
 
   case 40:
 /* Line 1792 of yacc.c  */
-#line 434 "config_parser.y"
     { __vma_address_port_rule = &(__vma_rule.first); __vma_rule.use_second = 0; }
     break;
 
   case 42:
 /* Line 1792 of yacc.c  */
-#line 438 "config_parser.y"
     { __vma_address_port_rule = &(__vma_rule.second); __vma_rule.use_second = 1; }
     break;
 
   case 44:
 /* Line 1792 of yacc.c  */
-#line 442 "config_parser.y"
     { if (current_conf_type == CONF_RULE) __vma_address_port_rule->match_by_addr = 1; __vma_set_inet_addr_prefix_len(32); }
     break;
 
   case 45:
 /* Line 1792 of yacc.c  */
-#line 443 "config_parser.y"
     { if (current_conf_type == CONF_RULE) __vma_address_port_rule->match_by_addr = 1; __vma_set_inet_addr_prefix_len((yyvsp[(3) - (3)].ival)); }
     break;
 
   case 46:
 /* Line 1792 of yacc.c  */
-#line 444 "config_parser.y"
     { if (current_conf_type == CONF_RULE) __vma_address_port_rule->match_by_addr = 0; __vma_set_inet_addr_prefix_len(32); }
     break;
 
   case 47:
 /* Line 1792 of yacc.c  */
-#line 448 "config_parser.y"
     { __vma_set_ipv4_addr((yyvsp[(1) - (7)].ival),(yyvsp[(3) - (7)].ival),(yyvsp[(5) - (7)].ival),(yyvsp[(7) - (7)].ival)); }
     break;
 
   case 48:
 /* Line 1792 of yacc.c  */
-#line 452 "config_parser.y"
     { __vma_address_port_rule->match_by_port = 1; __vma_address_port_rule->sport= (yyvsp[(1) - (1)].ival); __vma_address_port_rule->eport= (yyvsp[(1) - (1)].ival); }
     break;
 
   case 49:
 /* Line 1792 of yacc.c  */
-#line 453 "config_parser.y"
     { __vma_address_port_rule->match_by_port = 1; __vma_address_port_rule->sport= (yyvsp[(1) - (3)].ival); __vma_address_port_rule->eport= (yyvsp[(3) - (3)].ival); }
     break;
 
   case 50:
 /* Line 1792 of yacc.c  */
-#line 454 "config_parser.y"
     { __vma_address_port_rule->match_by_port = 0; __vma_address_port_rule->sport= 0;  __vma_address_port_rule->eport= 0;  }
     break;
 
 
 /* Line 1792 of yacc.c  */
-#line 1893 "config_parser.c"
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -2131,7 +2104,6 @@ yyreturn:
 
 
 /* Line 2055 of yacc.c  */
-#line 457 "config_parser.y"
 
 
 int yyerror(const char *msg)
@@ -2179,6 +2151,7 @@ int __vma_parse_config_file (const char *fileName) {
 		return(1);
 	}
 
+	/* coverity[toctou] */
 	libvma_yyin = fopen(fileName,"r");
 	if (!libvma_yyin) {
 		printf("libvma Error: Fail to open File:%s\n", fileName);

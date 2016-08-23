@@ -1,5 +1,4 @@
 
-#line 3 "config_scanner.c"
 
 #define  YY_INT_ALIGNED short int
 
@@ -754,7 +753,6 @@ int libvma_yy_flex_debug = 0;
 #define YY_MORE_ADJ 0
 #define YY_RESTORE_YY_MORE_OFFSET
 char *libvma_yytext;
-#line 1 "config_scanner.l"
 /*
  * Copyright (c) 2006 Mellanox Technologies Ltd. All rights reserved.
  *
@@ -788,7 +786,6 @@ char *libvma_yytext;
  *
  * $Id: ibnl_scanner.ll,v 1.4 2005/02/23 21:08:37 eitan Exp $
  */
-#line 36 "config_scanner.l"
 
 //#define DEBUG 1  
 
@@ -808,7 +805,6 @@ char *libvma_yytext;
 extern long __vma_config_line_num;
 #define YY_NO_INPUT 1
 
-#line 812 "config_scanner.c"
 
 #define INITIAL 0
 #define CANNAME 1
@@ -1028,10 +1024,8 @@ YY_DECL
 		}
 
 	{
-#line 57 "config_scanner.l"
 
 
-#line 1033 "config_scanner.c"
 
 	while ( 1 )		/* loops until end-of-file is reached */
 		{
@@ -1045,6 +1039,7 @@ YY_DECL
 		 */
 		yy_bp = yy_cp;
 
+		/* coverity[var_deref_op] */
 		yy_current_state = (yy_start);
 		yy_current_state += YY_AT_BOL();
 yy_match:
@@ -1091,12 +1086,10 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 59 "config_scanner.l"
 {}
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 61 "config_scanner.l"
 {
 	yylval.ival = APP_ID;
 #ifdef DEBUG 
@@ -1108,7 +1101,6 @@ YY_RULE_SETUP
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 70 "config_scanner.l"
 {
 	yylval.sval = (char *)malloc(strlen(libvma_yytext) + 1);
 	strcpy(yylval.sval, libvma_yytext);
@@ -1121,7 +1113,6 @@ YY_RULE_SETUP
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 80 "config_scanner.l"
 {
 	yylval.sval = (char *)malloc(strlen(libvma_yytext) + 1);
 	strcpy(yylval.sval, libvma_yytext);
@@ -1134,7 +1125,6 @@ YY_RULE_SETUP
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 90 "config_scanner.l"
 { 
 	yylval.ival = atoi(libvma_yytext);
 #ifdef DEBUG
@@ -1145,7 +1135,6 @@ YY_RULE_SETUP
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 98 "config_scanner.l"
 {
 	yylval.ival = LOG;
 #ifdef DEBUG
@@ -1156,7 +1145,6 @@ YY_RULE_SETUP
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 106 "config_scanner.l"
 {
 	yylval.ival = DEST;
 #ifdef DEBUG
@@ -1167,7 +1155,6 @@ YY_RULE_SETUP
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 114 "config_scanner.l"
 {
 	yylval.ival = LEVEL;
 #ifdef DEBUG
@@ -1178,7 +1165,6 @@ YY_RULE_SETUP
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 122 "config_scanner.l"
 {
 	yylval.ival = STDERR;
 #ifdef DEBUG
@@ -1189,7 +1175,6 @@ YY_RULE_SETUP
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 130 "config_scanner.l"
 {
 	yylval.ival = SYSLOG;
 #ifdef DEBUG
@@ -1200,7 +1185,6 @@ YY_RULE_SETUP
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 138 "config_scanner.l"
 {
 	yylval.ival = FILENAME;
 #ifdef DEBUG
@@ -1212,7 +1196,6 @@ YY_RULE_SETUP
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 149 "config_scanner.l"
 {
 	yylval.ival = USE;
 #ifdef DEBUG
@@ -1223,7 +1206,6 @@ YY_RULE_SETUP
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 157 "config_scanner.l"
 {
 	yylval.ival = TCP;
 #ifdef DEBUG
@@ -1234,7 +1216,6 @@ YY_RULE_SETUP
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 165 "config_scanner.l"
 {
 	yylval.ival = UDP;
 #ifdef DEBUG
@@ -1245,7 +1226,6 @@ YY_RULE_SETUP
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 173 "config_scanner.l"
 {
 	yylval.ival = OS;
 #ifdef DEBUG
@@ -1256,7 +1236,6 @@ YY_RULE_SETUP
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 181 "config_scanner.l"
 {
 	yylval.ival = VMA;
 #ifdef DEBUG
@@ -1267,7 +1246,6 @@ YY_RULE_SETUP
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 189 "config_scanner.l"
 {
 	yylval.ival = SDP;
 #ifdef DEBUG
@@ -1278,7 +1256,6 @@ YY_RULE_SETUP
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 197 "config_scanner.l"
 {
 	yylval.ival = SA;
 #ifdef DEBUG
@@ -1289,7 +1266,6 @@ YY_RULE_SETUP
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 205 "config_scanner.l"
 {
 	yylval.ival = TCP_CLIENT;
 #ifdef DEBUG
@@ -1300,7 +1276,6 @@ YY_RULE_SETUP
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 213 "config_scanner.l"
 {
 	yylval.ival = TCP_SERVER;
 #ifdef DEBUG
@@ -1311,7 +1286,6 @@ YY_RULE_SETUP
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 221 "config_scanner.l"
 {
 	yylval.ival = UDP_SENDER;
 #ifdef DEBUG
@@ -1322,7 +1296,6 @@ YY_RULE_SETUP
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 229 "config_scanner.l"
 {
 	yylval.ival = UDP_RECEIVER;
 #ifdef DEBUG
@@ -1333,7 +1306,6 @@ YY_RULE_SETUP
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 237 "config_scanner.l"
 {
 	yylval.ival = UDP_CONNECT;
 #ifdef DEBUG
@@ -1344,7 +1316,6 @@ YY_RULE_SETUP
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 245 "config_scanner.l"
 {
 	yylval.sval = (char *)malloc(strlen(libvma_yytext) + 1);
 	strcpy(yylval.sval, libvma_yytext);
@@ -1358,7 +1329,6 @@ YY_RULE_SETUP
 case 25:
 /* rule 25 can match eol */
 YY_RULE_SETUP
-#line 255 "config_scanner.l"
 {
 	__vma_config_line_num++;
 #ifdef DEBUG
@@ -1370,19 +1340,16 @@ YY_RULE_SETUP
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 264 "config_scanner.l"
 {
  	__vma_config_line_num++;
 }
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 268 "config_scanner.l"
 {}
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 270 "config_scanner.l"
 {
 #ifdef DEBUG
 	printf("CHAR:%c\n",libvma_yytext[0]);
@@ -1392,10 +1359,8 @@ YY_RULE_SETUP
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 277 "config_scanner.l"
 ECHO;
 	YY_BREAK
-#line 1397 "config_scanner.c"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(CANNAME):
 case YY_STATE_EOF(APP_ID_S1):
@@ -2366,7 +2331,6 @@ void libvma_yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 276 "config_scanner.l"
 
 
 

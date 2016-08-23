@@ -104,14 +104,12 @@ extern int libvma_yydebug;
 typedef union YYSTYPE
 {
 /* Line 2058 of yacc.c  */
-#line 306 "config_parser.y"
 
   int        ival;
   char      *sval;
 
 
 /* Line 2058 of yacc.c  */
-#line 115 "config_parser.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
