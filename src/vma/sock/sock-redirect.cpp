@@ -389,12 +389,12 @@ int vma_thread_offload(int offload, pthread_t tid)
 }
 
 extern "C"
-int vma_dump_fd_stats(int fd, vlog_levels_t log_level)
+int vma_dump_fd_stats(int fd, int log_level)
 {
 	do_global_ctors();
 
 	if (g_p_fd_collection) {
-		g_p_fd_collection->statistics_print(fd, log_level);
+		g_p_fd_collection->statistics_print(fd, log_level::from_int(log_level));
 		return 0;
 	}
 	return -1;
