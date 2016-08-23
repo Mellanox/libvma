@@ -142,7 +142,7 @@ void printf_backtrace(void)
 		printf("[%d] %p: %s\n", i, backtrace_addrs[i], backtrace_strings[i]);
 #else
 		size_t sz = 1024; // just a guess, template names will go much wider
-		char *function = static_cast<char*>(malloc(sz));
+		char *function = NULL;
 		char *begin = 0, *end = 0;
 		// find the parentheses and address offset surrounding the mangled name
 		for (char *j = backtrace_strings[i]; *j; ++j) {
@@ -159,26 +159,30 @@ void printf_backtrace(void)
 			// found our mangled name, now in [begin, end)
 
 			int status;
-			char *ret = abi::__cxa_demangle(begin, function, &sz, &status);
-			if (ret) {
-				// return value may be a realloc() of the input
-				function = ret;
-			}
-			else {
+			function = abi::__cxa_demangle(begin, NULL, &sz, &status);
+			if (NULL == function) {
 				// demangling failed, just pretend it's a C function with no args
-				strncpy(function, begin, sz);
-				strncat(function, "()", sz);
-				function[sz-1] = '\0';
+				function = static_cast<char*>(malloc(sz));
+				if (function) {
+					status = snprintf(function, sz - 1, "%s()", begin);
+					if (status > 0) {
+						function[status] = '\0';
+					} else {
+						function[0] = '\0';
+					}
+				}
 			}
 			//	        fprintf(out, "    %s:%s\n", stack.backtrace_strings[i], function);
-			printf("[%d] %p: %s:%s\n", i, backtrace_addrs[i], backtrace_strings[i], function);
+			printf("[%d] %p: %s:%s\n", i, backtrace_addrs[i], backtrace_strings[i], (function ? function : "n/a"));
+			if (function) {
+				free(function);
+			}
 		}
 		else
 		{
 			// didn't find the mangled name, just print the whole line
 			printf("[%d] %p: %s\n", i, backtrace_addrs[i], backtrace_strings[i]);
 		}
-		free(function);
 #endif
 	}
 	free(backtrace_strings);
