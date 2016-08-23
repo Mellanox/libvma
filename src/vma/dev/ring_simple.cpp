@@ -884,13 +884,13 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 		p_rx_wc_buf_desc->path.rx.p_tcp_h = p_tcp_h;
 
 		// Find the relevant hash map and pass the packet to the rfs for dispatching
-		p_rfs = m_flow_tcp_map.get((flow_spec_tcp_key_t){p_rx_wc_buf_desc->path.rx.src.sin_addr.s_addr,
-			p_rx_wc_buf_desc->path.rx.dst.sin_port, p_rx_wc_buf_desc->path.rx.src.sin_port}, NULL);
+		p_rfs = m_flow_tcp_map.get(flow_spec_tcp_key_t(p_rx_wc_buf_desc->path.rx.src.sin_addr.s_addr,
+			p_rx_wc_buf_desc->path.rx.dst.sin_port, p_rx_wc_buf_desc->path.rx.src.sin_port), NULL);
 
 		p_rx_wc_buf_desc->transport_header_len = transport_header_len;
 
 		if (unlikely(p_rfs == NULL)) {	// If we didn't find a match for TCP 5T, look for a match with TCP 3T
-			p_rfs = m_flow_tcp_map.get((flow_spec_tcp_key_t){0, p_rx_wc_buf_desc->path.rx.dst.sin_port, 0}, NULL);
+			p_rfs = m_flow_tcp_map.get(flow_spec_tcp_key_t(0, p_rx_wc_buf_desc->path.rx.dst.sin_port, 0), NULL);
 		}
 	}
 	break;
