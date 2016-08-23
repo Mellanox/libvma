@@ -182,8 +182,6 @@ neigh_entry::neigh_entry(neigh_key key, transport_type_t _type, bool is_init_res
 	m_is_first_send_arp(true), m_n_sysvar_neigh_wait_till_send_arp_msec(safe_mce_sys().neigh_wait_till_send_arp_msec),
 	m_n_sysvar_neigh_uc_arp_quata(safe_mce_sys().neigh_uc_arp_quata), m_n_sysvar_neigh_num_err_retries(safe_mce_sys().neigh_num_err_retries)
 {
-	m_unsent_queue.set_id("neigh_entry (%p) : m_unsent_queue", this);
-
 	m_val = NULL;
 	m_p_dev = key.get_net_device_val();
 
