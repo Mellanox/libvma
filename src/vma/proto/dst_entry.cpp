@@ -420,7 +420,7 @@ bool dst_entry::get_net_dev_val()
 	bool ret_val = false;
 
 	if (m_p_rt_entry) {
-		ret_val = m_p_rt_entry->get_val(m_p_rt_val);
+		m_p_rt_entry->get_val(m_p_rt_val);
 		ret_val = true;
 	}
 	else {

@@ -144,7 +144,6 @@ cubic_k(unsigned long wmax_pkts)
 	int64_t s, K;
 	uint16_t p;
 
-	K = s = 0;
 	p = 0;
 
 	/* (wmax * beta)/C with CUBIC_SHIFT worth of precision. */
