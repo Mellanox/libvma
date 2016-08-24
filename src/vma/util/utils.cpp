@@ -635,7 +635,7 @@ int run_and_retreive_system_command(const char* cmd_line, char* return_str, int 
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!cmd_line) return -1;
-	if (return_str_len < 0) return_str_len = 0;
+	if (return_str_len <= 0) return -1;
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	// 29West may load vma dynamically (like sockperf with --load-vma)
@@ -653,8 +653,11 @@ int run_and_retreive_system_command(const char* cmd_line, char* return_str, int 
 		int fd = fileno(file);
 		if (fd > 0) {
 			int actual_len = read(fd, return_str, return_str_len);
-			if (actual_len)
+			if (actual_len > 0) {
 				return_str[min(return_str_len - 1, actual_len)] = '\0';
+			} else {
+				return_str[0] = '\0';
+			}
 		}
 		// Check exit status code
 		rc = pclose(file);
