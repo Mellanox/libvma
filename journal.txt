@@ -1,3 +1,13 @@
+Version 8.1.4-0:
+Date + Time 2016-08-24
+=======================
+Added:
+        - RM #847360 update github's README.md file 
+        - RM #848239 Remove unused utility functions 
+
+Fixed:
+        - RM #848172 Fix multiple Coverity warnings (potential leaks, dead code, potential garbage values)
+
 Version 8.1.3-0:
 Date + Time 2016-08-18
 =======================
