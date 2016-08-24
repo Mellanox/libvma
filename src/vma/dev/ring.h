@@ -85,11 +85,11 @@ typedef struct __attribute__((packed)) flow_spec_udp_uc_key_t {
   /* Just for silencing coverity */
   flow_spec_udp_uc_key_t () {
     memset(this, 0, sizeof(*this));
-    dst_port(INPORT_ANY);
+    dst_port = INPORT_ANY;
   } //Default constructor
   flow_spec_udp_uc_key_t (in_port_t d_port) {
     memset(this, 0, sizeof(*this));
-    dst_port(d_port);
+    dst_port = d_port;
   }//Constructor
 } flow_spec_udp_uc_key_t;
 
@@ -100,13 +100,13 @@ typedef struct __attribute__((packed)) flow_spec_udp_mc_key_t {
   /* Just for silencing coverity */
   flow_spec_udp_mc_key_t () {
     memset(this, 0, sizeof(*this));
-    dst_ip(INADDR_ANY);
-    dst_port(INPORT_ANY);
+    dst_ip = INADDR_ANY;
+    dst_port = INPORT_ANY;
   } //Default constructor
   flow_spec_udp_mc_key_t (in_addr_t d_ip, in_addr_t d_port) {
     memset(this, 0, sizeof(*this));
-    dst_ip(d_ip);
-    dst_port(d_port);
+    dst_ip = d_ip;
+    dst_port = d_port;
   }//Constructor
 } flow_spec_udp_mc_key_t;
 
@@ -118,15 +118,15 @@ typedef struct __attribute__((packed)) flow_spec_tcp_key_t {
   /* Just for silencing coverity */
   flow_spec_tcp_key_t () {
     memset(this, 0, sizeof(*this));
-    src_ip(INADDR_ANY);
-    dst_port(INPORT_ANY);
-    src_port(INPORT_ANY);
+    src_ip = INADDR_ANY;
+    dst_port = INPORT_ANY;
+    src_port = INPORT_ANY;
   } //Default constructor
   flow_spec_tcp_key_t (in_addr_t	s_ip, in_addr_t	d_port, in_addr_t s_port) {
     memset(this, 0, sizeof(*this));
-    src_ip(s_ip);
-    dst_port(d_port);
-    src_port(s_port);
+    src_ip = s_ip;
+    dst_port = d_port;
+    src_port = s_port;
   }//Constructor
 } flow_spec_tcp_key_t;
 
