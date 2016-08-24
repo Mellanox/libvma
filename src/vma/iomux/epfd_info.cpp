@@ -333,10 +333,16 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 		lock();
 
 		if (ret < 0) {
-			if (errno == EEXIST) {
-				__log_dbg("epoll_ctl: fd=%d is already registered with this epoll instance (%d)", fd, this->get_epoll_fd());
-			} else { // errno == ENOMEM
-				__log_dbg("epoll_ctl: fd=%d is already registered with another epoll instance (%d), cannot register to epoll (%d)", fd, temp_sock_fd_api->get_epoll_context_fd(), this->get_epoll_fd());
+			switch (errno) {
+			case EEXIST:
+				__log_dbg("epoll_ctl: fd=%d is already registered with this epoll instance (%d)", fd, m_epfd);
+				break;
+			case ENOMEM:
+				__log_dbg("epoll_ctl: fd=%d is already registered with another epoll instance (%d), cannot register to epoll (%d)", fd, temp_sock_fd_api->get_epoll_context_fd(), m_epfd);
+				break;
+			default:
+				__log_dbg("epoll_ctl: failed to add fd=%d to epoll epfd=%d (errno=%d %m)", fd, m_epfd, errno);
+				break;
 			}
 			return ret;
 		}
