@@ -132,6 +132,8 @@ ring_simple::~ring_simple()
 
 	if (m_p_qp_mgr) {
 		// 'down' the active QP/CQ
+		/* TODO: consider avoid using sleep */
+		/* coverity[sleep] */
 		m_p_qp_mgr->down();
 	}
 	// Release QP/CQ resources
@@ -1543,6 +1545,8 @@ void ring_simple::start_active_qp_mgr() {
 	m_lock_ring_rx.lock();
 	m_lock_ring_tx.lock();
 	if (!m_up) {
+		/* TODO: consider avoid using sleep */
+		/* coverity[sleep] */
 		m_p_qp_mgr->up();
 		m_b_qp_tx_first_flushed_completion_handled = false;
 		m_up = true;
@@ -1556,6 +1560,8 @@ void ring_simple::stop_active_qp_mgr() {
 	m_lock_ring_tx.lock();
 	if (m_up) {
 		m_up = false;
+		/* TODO: consider avoid using sleep */
+		/* coverity[sleep] */
 		m_p_qp_mgr->down();
 	}
 	m_lock_ring_tx.unlock();
