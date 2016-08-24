@@ -82,32 +82,33 @@ typedef enum {
 typedef struct __attribute__((packed)) flow_spec_udp_uc_key_t {
   in_port_t 	dst_port;
 
-  /* Just for silencing coverity */
   flow_spec_udp_uc_key_t () {
-    memset(this, 0, sizeof(*this));
-    dst_port = INPORT_ANY;
+  	flow_spec_udp_uc_key_helper(INPORT_ANY);
   } //Default constructor
   flow_spec_udp_uc_key_t (in_port_t d_port) {
-    memset(this, 0, sizeof(*this));
-    dst_port = d_port;
+  	flow_spec_udp_uc_key_helper(d_port);
   }//Constructor
+  void flow_spec_udp_uc_key_helper(in_addr_t d_port) {
+    memset(this, 0, sizeof(*this));// Silencing coverity
+    dst_port = d_port;
+  };
 } flow_spec_udp_uc_key_t;
 
 typedef struct __attribute__((packed)) flow_spec_udp_mc_key_t {
   in_addr_t	dst_ip;
   in_port_t	dst_port;
 
-  /* Just for silencing coverity */
   flow_spec_udp_mc_key_t () {
-    memset(this, 0, sizeof(*this));
-    dst_ip = INADDR_ANY;
-    dst_port = INPORT_ANY;
+    flow_spec_udp_mc_key_helper( INADDR_ANY, INPORT_ANY);
   } //Default constructor
   flow_spec_udp_mc_key_t (in_addr_t d_ip, in_addr_t d_port) {
-    memset(this, 0, sizeof(*this));
+    flow_spec_udp_mc_key_helper( d_ip, d_port);
+  }//Constructor
+  void flow_spec_udp_mc_key_helper(in_addr_t d_ip, in_addr_t d_port) {
+    memset(this, 0, sizeof(*this));// Silencing coverity
     dst_ip = d_ip;
     dst_port = d_port;
-  }//Constructor
+  };
 } flow_spec_udp_mc_key_t;
 
 typedef struct __attribute__((packed)) flow_spec_tcp_key_t {
@@ -115,19 +116,18 @@ typedef struct __attribute__((packed)) flow_spec_tcp_key_t {
   in_port_t	dst_port;
   in_port_t	src_port;
 
-  /* Just for silencing coverity */
   flow_spec_tcp_key_t () {
-    memset(this, 0, sizeof(*this));
-    src_ip = INADDR_ANY;
-    dst_port = INPORT_ANY;
-    src_port = INPORT_ANY;
+  	flow_spec_tcp_key_helper (INADDR_ANY, INPORT_ANY, INPORT_ANY);
   } //Default constructor
   flow_spec_tcp_key_t (in_addr_t	s_ip, in_addr_t	d_port, in_addr_t s_port) {
-    memset(this, 0, sizeof(*this));
+  	flow_spec_tcp_key_helper (s_ip, d_port, s_port);
+  }//Constructor
+  void flow_spec_tcp_key_helper(in_addr_t	s_ip, in_addr_t	d_port, in_addr_t s_port) {
+    memset(this, 0, sizeof(*this));// Silencing coverity
     src_ip = s_ip;
     dst_port = d_port;
     src_port = s_port;
-  }//Constructor
+  };
 } flow_spec_tcp_key_t;
 
 /* UDP UC flow to rfs object hash map */
