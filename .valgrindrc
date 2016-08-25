@@ -8,7 +8,7 @@
 --track-fds=yes
 --show-reachable=yes
 --gen-suppressions=all
---suppressions=tests/valgrind_vma.supp
---suppressions=tests/valgrind_libc.supp
---suppressions=tests/valgrind_sockperf.supp
---suppressions=tests/valgrind_rdma.supp
+--suppressions=contrib/valgrind/valgrind_vma.supp
+--suppressions=contrib/valgrind/valgrind_libc.supp
+--suppressions=contrib/valgrind/valgrind_sockperf.supp
+--suppressions=contrib/valgrind/valgrind_rdma.supp

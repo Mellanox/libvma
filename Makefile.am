@@ -4,6 +4,7 @@ SUBDIRS := src
 DIST_SUBDIRS := src tests
 EXTRA_DIST = \
 	build \
+	contrib \
 	debian \
 	BUILD \
 	install.sh \
