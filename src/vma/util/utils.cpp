@@ -218,13 +218,17 @@ unsigned short compute_tcp_checksum(const struct iphdr *p_iphdr, const uint16_t 
  *
  * (assume checksum field in UDP header contains zero)
  * This code borrows from other places and their ideas.
+ * Although according to rfc 768, If the computed checksum is zero, it is transmitted as all ones -
+ * this method will return the original value.
  */
-
-unsigned short compute_udp_checksum(const struct iphdr *p_iphdr, const uint16_t *p_ip_payload)
+unsigned short compute_udp_checksum_rx(const struct iphdr *p_iphdr, const struct udphdr *udphdrp, mem_buf_desc_t* p_rx_wc_buf_desc)
 {
     register unsigned long sum = 0;
-    struct udphdr *udphdrp = (struct udphdr*)(p_ip_payload);
     unsigned short udp_len = htons(udphdrp->len);
+    const uint16_t *p_ip_payload = (const uint16_t *) udphdrp;
+    mem_buf_desc_t *p_ip_frag = p_rx_wc_buf_desc;
+    unsigned short ip_frag_len = p_ip_frag->path.rx.frag.iov_len + sizeof(struct udphdr);
+    unsigned short ip_frag_remainder = ip_frag_len;
 
     //add the pseudo header
     sum += (p_iphdr->saddr >> 16) & 0xFFFF;
@@ -239,21 +243,34 @@ unsigned short compute_udp_checksum(const struct iphdr *p_iphdr, const uint16_t 
 
     //add the IP payload
     while (udp_len > 1) {
-        sum += * p_ip_payload++;
-        udp_len -= 2;
+        // Each packet but the last must contain a payload length that is a multiple of 8
+        if (!ip_frag_remainder && p_ip_frag->p_next_desc) {
+            p_ip_frag = p_ip_frag->p_next_desc;
+            p_ip_payload = (const uint16_t *) p_ip_frag->path.rx.frag.iov_base;
+            ip_frag_remainder = ip_frag_len = p_ip_frag->path.rx.frag.iov_len;
+        }
+
+        while (ip_frag_remainder > 1) {
+            sum += * p_ip_payload++;
+            ip_frag_remainder -= 2;
+        }
+
+        udp_len -= (ip_frag_len - ip_frag_remainder);
     }
+
     //if any bytes left, pad the bytes and add
     if(udp_len > 0) {
         sum += ((*p_ip_payload)&htons(0xFF00));
     }
-      //Fold sum to 16 bits: add carrier to result
-      while (sum>>16) {
-          sum = (sum & 0xffff) + (sum >> 16);
-      }
 
-      sum = ~sum;
+    //Fold sum to 16 bits: add carrier to result
+    while (sum >> 16) {
+        sum = (sum & 0xffff) + (sum >> 16);
+    }
+
+    sum = ~sum;
     //computation result
-    return (unsigned short)sum == 0x0000 ? 0xFFFF :(unsigned short)sum;
+    return (unsigned short)sum;
 }
 
 /**
