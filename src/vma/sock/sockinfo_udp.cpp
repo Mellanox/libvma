@@ -1723,10 +1723,14 @@ bool sockinfo_udp::tx_check_if_would_not_block()
 
 bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 {
+	INSTRUMENT_END_CQ_MGR_HIT_TO_RX_INPUT_CB
+	INSTRUMENT_START_RX_INPUT_CB_UDP_WRAPPER
 	// Check that sockinfo is bound to the packets dest port
 	if (unlikely(p_desc->path.rx.dst.sin_port != m_bound.get_in_port())) {
 		si_udp_logfunc("rx packet discarded - not socket's bound port (pkt: %d, sock:%s)",
 		           ntohs(p_desc->path.rx.dst.sin_port), m_bound.to_str_in_port());
+		INSTRUMENT_START_RX_INPUT_CB_UDP_TO_RECV
+		INSTRUMENT_END_RX_INPUT_CB_UDP_WRAPPER
 		return false;
 	}
 
@@ -1734,12 +1738,16 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 		if (unlikely(m_connected.get_in_port() != p_desc->path.rx.src.sin_port)) {
 			si_udp_logfunc("rx packet discarded - not socket's connected port (pkt: %d, sock:%s)",
 				   ntohs(p_desc->path.rx.src.sin_port), m_connected.to_str_in_port());
+			INSTRUMENT_START_RX_INPUT_CB_UDP_TO_RECV
+			INSTRUMENT_END_RX_INPUT_CB_UDP_WRAPPER
 			return false;
 		}
 
 		if (unlikely(m_connected.get_in_addr() != p_desc->path.rx.src.sin_addr.s_addr)) {
 			si_udp_logfunc("rx packet discarded - not socket's connected port (pkt: [%d:%d:%d:%d], sock:[%s])",
 				   NIPQUAD(p_desc->path.rx.src.sin_addr.s_addr), m_connected.to_str_in_addr());
+			INSTRUMENT_START_RX_INPUT_CB_UDP_TO_RECV
+			INSTRUMENT_END_RX_INPUT_CB_UDP_WRAPPER
 			return false;
 		}
 	}
@@ -1750,6 +1758,8 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 	if (unlikely(!m_b_mc_tx_loop && p_desc->path.rx.local_if == p_desc->path.rx.src.sin_addr.s_addr)) {
 		si_udp_logfunc("rx packet discarded - loopback is disabled (pkt: [%d:%d:%d:%d], sock:%s)",
 			NIPQUAD(p_desc->path.rx.src.sin_addr.s_addr), m_bound.to_str_in_addr());
+		INSTRUMENT_START_RX_INPUT_CB_UDP_TO_RECV
+		INSTRUMENT_END_RX_INPUT_CB_UDP_WRAPPER
 		return false;
 	}
 
@@ -1779,11 +1789,15 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 		si_udp_logfunc("rx packet discarded - socket limit reached (%d bytes)", m_p_socket_stats->n_rx_ready_byte_limit);
 		m_p_socket_stats->counters.n_rx_ready_byte_drop += p_desc->path.rx.sz_payload;
 		m_p_socket_stats->counters.n_rx_ready_pkt_drop++;
+		INSTRUMENT_START_RX_INPUT_CB_UDP_TO_RECV
+		INSTRUMENT_END_RX_INPUT_CB_UDP_WRAPPER
 		return false;
 	}
 
 	if (unlikely(m_b_closed) || unlikely(g_b_exit)) {
 		si_udp_logfunc("rx packet discarded - fd closed");
+		INSTRUMENT_START_RX_INPUT_CB_UDP_TO_RECV
+		INSTRUMENT_END_RX_INPUT_CB_UDP_WRAPPER
 		return false;
 	}
 
@@ -1813,6 +1827,8 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 
 		if (callback_retval == VMA_PACKET_DROP) {
 			si_udp_logfunc("rx packet discarded - by user callback");
+			INSTRUMENT_START_RX_INPUT_CB_UDP_TO_RECV
+			INSTRUMENT_END_RX_INPUT_CB_UDP_WRAPPER
 			return false;
 		}
 	}
@@ -1849,7 +1865,8 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
         io_mux_call::update_fd_array((fd_array_t*)pv_fd_ready_array, m_fd);
 
 	si_udp_logfunc("rx ready count = %d packets / %d bytes", m_n_rx_pkt_ready_list_count, m_p_socket_stats->n_rx_ready_byte_count);
-
+	INSTRUMENT_START_RX_INPUT_CB_UDP_TO_RECV	
+	INSTRUMENT_END_RX_INPUT_CB_UDP_WRAPPER
 	// Yes we like this packet - keep it!
 	return true;
 }

@@ -46,6 +46,8 @@
 #ifndef V_INSTRUMENTATION_H
 #define V_INSTRUMENTATION_H
 
+
+#include <util/flow_instrumentation.h>
 #include <stdint.h>
 #include <unistd.h>
 

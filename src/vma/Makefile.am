@@ -145,6 +145,7 @@ libvma_la_SOURCES := \
 	util/utils.cpp \
 	util/verbs_extra.cpp \
 	util/instrumentation.cpp \
+	util/flow_instrumentation.h \
 	util/sys_vars.cpp \
 	libvma.c \
 	main.cpp \
@@ -246,6 +247,7 @@ libvma_la_SOURCES := \
         util/hash_map.h \
         util/if.h \
         util/instrumentation.h \
+        util/flow_instrumentation.h \
         util/libvma.h \
         util/linked_unordered_map.h \
         util/list.h \

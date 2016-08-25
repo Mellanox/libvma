@@ -1624,6 +1624,8 @@ void sockinfo_tcp::queue_rx_ctl_packet(struct tcp_pcb* pcb, mem_buf_desc_t *p_de
 
 bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void* pv_fd_ready_array)
 {
+	INSTRUMENT_END_CQ_MGR_HIT_TO_RX_INPUT_CB
+	INSTRUMENT_START_RX_INPUT_CB_TCP_WRAPPER
 	struct tcp_pcb* pcb = NULL;
 	int dropped_count = 0;
 
@@ -1657,12 +1659,16 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 				si_tcp_logdbg("SYN/CTL packet drop. established-backlog=%d (limit=%d) num_con_waiting=%d (limit=%d)",
 						(int)m_syn_received.size(), m_backlog, num_con_waiting, MAX_SYN_RCVD);
 				unlock_tcp_con();
+				INSTRUMENT_START_RX_INPUT_CB_TCP_TO_RECV
+				INSTRUMENT_END_RX_INPUT_CB_TCP_WRAPPER
 				return false;// return without inc_ref_count() => packet will be dropped
 			}
 		}
 		if (m_sysvar_tcp_ctl_thread > CTL_THREAD_DISABLE || established_backlog_full) { /* 2nd check only worth when MAX_SYN_RCVD>0 for non tcp_ctl_thread  */
 			queue_rx_ctl_packet(pcb, p_rx_pkt_mem_buf_desc_info); // TODO: need to trigger queue pulling from accept in case no tcp_ctl_thread
 			unlock_tcp_con();
+			INSTRUMENT_START_RX_INPUT_CB_TCP_TO_RECV
+			INSTRUMENT_END_RX_INPUT_CB_TCP_WRAPPER
 			return true;
 		}
 	}
@@ -1700,7 +1706,8 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	}
 
 	unlock_tcp_con();
-
+	INSTRUMENT_START_RX_INPUT_CB_TCP_TO_RECV
+	INSTRUMENT_END_RX_INPUT_CB_TCP_WRAPPER
 	return true;
 }
 
