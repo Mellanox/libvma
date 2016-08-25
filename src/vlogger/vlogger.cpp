@@ -110,6 +110,15 @@ namespace log_level
 		return def_value; // not found. use given def_value
 	}
 
+	// convert int to vlog_levels_t; upon error - returns the given 'def_value'
+	vlog_levels_t from_int(const int int_log, vlog_levels_t def_value)
+	{
+		if (int_log >= VLOG_NONE && int_log <= VLOG_ALL) {
+			return static_cast<vlog_levels_t>(int_log);
+		}
+		return def_value; // not found. use given def_value
+	}
+
 	const char * to_str(vlog_levels_t level)
 	{
 		static int base = VLOG_NONE;

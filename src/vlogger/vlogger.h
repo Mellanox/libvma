@@ -142,25 +142,27 @@ extern "C" {
 #endif //__cplusplus
 
 typedef enum {
-	VLOG_NONE  = -1,
-	VLOG_PANIC =  0,
+	VLOG_INIT = -2,
+	VLOG_NONE = -1,
+	VLOG_PANIC = 0,
 	VLOG_ERROR,
 	VLOG_WARNING,
-	VLOG_INFO,
+	VLOG_INFO, VLOG_DEFAULT = VLOG_INFO,
 	VLOG_DETAILS,
 	VLOG_DEBUG,
-	VLOG_FINE,  VLOG_FUNC = VLOG_FINE,
+	VLOG_FINE, VLOG_FUNC = VLOG_FINE,
 	VLOG_FINER, VLOG_FUNC_ALL = VLOG_FINER,
-	VLOG_ALL,
-
-	VLOG_INIT  = VLOG_NONE - 1,
-	VLOG_DEFAULT= VLOG_INFO
+	VLOG_ALL /* last element */
 } vlog_levels_t;
 
 namespace log_level {
 	// convert str to vlog_levels_t; upon error - returns the given 'def_value'
 	vlog_levels_t from_str(const char* str, vlog_levels_t def_value = VLOG_DEFAULT);
-	const char *    to_str(vlog_levels_t level);
+
+	// convert int to vlog_levels_t; upon error - returns the given 'def_value'
+	vlog_levels_t from_int(const int int_log, vlog_levels_t def_value = VLOG_DEFAULT);
+
+	const char * to_str(vlog_levels_t level);
 	const char * get_color(vlog_levels_t level);
 }
 
