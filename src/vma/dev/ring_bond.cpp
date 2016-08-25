@@ -123,10 +123,16 @@ void ring_bond::restart(ring_resource_creation_info_t* p_ring_info) {
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
 		if (p_ring_info[i].active) {
 			ring_logdbg("ring %d active", i);
+
+			/* TODO: consider avoid using sleep */
+			/* coverity[sleep] */
 			m_bond_rings[i]->start_active_qp_mgr();
 			m_active_rings[i] = m_bond_rings[i];
 		} else {
 			ring_logdbg("ring %d not active", i);
+
+			/* TODO: consider avoid using sleep */
+			/* coverity[sleep] */
 			m_bond_rings[i]->stop_active_qp_mgr();
 			m_active_rings[i] = NULL;
 		}
