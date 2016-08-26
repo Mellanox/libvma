@@ -160,8 +160,10 @@ private:
 	char			m_str_in_port[6];
 	char			m_str[22];
 
+	/* cppcheck-suppress wrongPrintfScanfArgNum */
 	void 		set_str_in_addr() { sprintf(m_str_in_addr, "%d.%d.%d.%d", NIPQUAD(get_in_addr())); set_str(); }
 	void 		set_str_in_port() { sprintf(m_str_in_port, "%d", ntohs(get_in_port())); set_str(); }
+	/* cppcheck-suppress wrongPrintfScanfArgNum */
 	void            set_str() { sprintf(m_str, "%d.%d.%d.%d:%d", NIPQUAD(get_in_addr()), ntohs(get_in_port())); };
 };
 
