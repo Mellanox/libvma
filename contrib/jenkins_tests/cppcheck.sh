@@ -17,10 +17,11 @@ mkdir -p $cppcheck_dir
 cd $cppcheck_dir
 
 set +eE
-eval "cppcheck --std=c99 \
+eval "find ${WORKSPACE}/src -name '*.h' -o -name '*.cpp' -o -name '*.c' -o -name '*.hpp' | \
+	cppcheck --std=c99 \
 	--inline-suppr --suppress=memleak:config_parser.y \
 	--template='{severity}: {id}: {file}:{line}: {message}' \
-	${WORKSPACE}/src 2> ${cppcheck_dir}/cppcheck.err 1> ${cppcheck_dir}/cppcheck.out"
+	--file-list=- 2> ${cppcheck_dir}/cppcheck.err 1> ${cppcheck_dir}/cppcheck.log"
 rc=$(($rc+$?))
 set -eE
 
@@ -31,7 +32,7 @@ cppcheck_tap=${WORKSPACE}/${prefix}/cppcheck.tap
 
 echo 1..1 > $cppcheck_tap
 if [ $rc -gt 0 ]; then
-    echo "not ok 1 cppcheck Detected $nerrors failures # $cov_url" >> $cppcheck_tap
+    echo "not ok 1 cppcheck Detected $nerrors failures # ${cppcheck_dir}/cppcheck.err" >> $cppcheck_tap
     info="cppcheck found $nerrors errors"
     status="error"
 else
