@@ -117,7 +117,7 @@ public:
 
 	virtual void consider_rings_migration();
 
-	virtual void add_epoll_context(epfd_info *epfd);
+	virtual int add_epoll_context(epfd_info *epfd);
 	virtual void remove_epoll_context(epfd_info *epfd);
 	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);
 

@@ -349,9 +349,17 @@ int socket_fd_api::free_packets(struct vma_packet_t *pkts, size_t count)
     #pragma BullseyeCoverage on
 #endif
 
-void socket_fd_api::add_epoll_context(epfd_info *epfd)
+int socket_fd_api::add_epoll_context(epfd_info *epfd)
 {
-	if(!m_econtext) m_econtext = epfd;
+	if(!m_econtext) {
+		// This socket is not registered to any epfd
+		m_econtext = epfd;
+		return 0;
+	} else {
+		// Currently VMA does not support more then 1 epfd listed
+		errno = (m_econtext == epfd) ? EEXIST : ENOMEM;
+		return -1;
+	}
 }
 
 void socket_fd_api::remove_epoll_context(epfd_info *epfd)

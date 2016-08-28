@@ -645,27 +645,31 @@ void sockinfo::consider_rings_migration()
 	}
 }
 
-void sockinfo::add_epoll_context(epfd_info *epfd)
+int sockinfo::add_epoll_context(epfd_info *epfd)
 {
+	int ret = 0;
+	rx_ring_map_t::const_iterator sock_ring_map_iter;
+
 	m_rx_ring_map_lock.lock();
 	lock_rx_q();
 
-	socket_fd_api::add_epoll_context(epfd);
-
-	if (!notify_epoll_context_verify(epfd)) {
-		unlock_rx_q();
-		m_rx_ring_map_lock.unlock();
-		return;
+	ret = socket_fd_api::add_epoll_context(epfd);
+	if (ret < 0) {
+		goto unlock_locks;
 	}
 
-	rx_ring_map_t::const_iterator sock_ring_map_iter = m_rx_ring_map.begin();
+	sock_ring_map_iter = m_rx_ring_map.begin();
 	while (sock_ring_map_iter != m_rx_ring_map.end()) {
 		notify_epoll_context_add_ring(sock_ring_map_iter->first);
 		sock_ring_map_iter++;
 	}
 
+unlock_locks:
+
 	unlock_rx_q();
 	m_rx_ring_map_lock.unlock();
+
+	return ret;
 }
 
 void sockinfo::remove_epoll_context(epfd_info *epfd)

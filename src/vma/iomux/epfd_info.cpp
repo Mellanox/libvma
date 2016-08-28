@@ -295,8 +295,8 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 		__log_dbg("fd=%d must be skipped from os epoll()", fd);
 		// Checking for duplicate fds
 		if (m_fd_info.find(fd) != m_fd_info.end()) {
-			__log_dbg("epoll_ctl: tried to add an existing fd. (%d)", fd);
-			errno = ENOENT;
+			errno = EEXIST;
+			__log_dbg("epoll_ctl: fd=%d is already registered with this epoll instance %d (errno=%d %m)", fd, m_epfd, errno);
 			return -1;
 		}
 	}
@@ -323,17 +323,33 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 			errno = ENOMEM;
 			return -1;
 		}
-		m_p_offloaded_fds[m_n_offloaded_fds] = fd;
-		++m_n_offloaded_fds;
-		m_fd_info[fd].offloaded_index = m_n_offloaded_fds;
 
 		//NOTE: when supporting epoll on epfd, need to add epfd ring list
 		//NOTE: when having rings in pipes, need to overload add_epoll_context
 		unlock();
 		m_ring_map_lock.lock();
-		temp_sock_fd_api->add_epoll_context(this);
+		ret = temp_sock_fd_api->add_epoll_context(this);
 		m_ring_map_lock.unlock();
 		lock();
+
+		if (ret < 0) {
+			switch (errno) {
+			case EEXIST:
+				__log_dbg("epoll_ctl: fd=%d is already registered with this epoll instance %d (errno=%d %m)", fd, m_epfd, errno);
+				break;
+			case ENOMEM:
+				__log_dbg("epoll_ctl: fd=%d is already registered with another epoll instance %d, cannot register to epoll %d (errno=%d %m)", fd, temp_sock_fd_api->get_epoll_context_fd(), m_epfd, errno);
+				break;
+			default:
+				__log_dbg("epoll_ctl: failed to add fd=%d to epoll epfd=%d (errno=%d %m)", fd, m_epfd, errno);
+				break;
+			}
+			return ret;
+		}
+
+		m_p_offloaded_fds[m_n_offloaded_fds] = fd;
+		++m_n_offloaded_fds;
+		m_fd_info[fd].offloaded_index = m_n_offloaded_fds;
 
 		// if the socket is ready, add it to ready events
 		uint32_t events = 0;
