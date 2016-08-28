@@ -223,7 +223,6 @@ protected:
 	void notify_epoll_context_remove_ring(ring* ring);
 	bool notify_epoll_context_verify(epfd_info *epfd);
 	void notify_epoll_context_fd_is_offloaded();
-	int get_epoll_context_fd();
 
 	// identification information <socket fd>
 	int m_fd;

@@ -295,8 +295,8 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 		__log_dbg("fd=%d must be skipped from os epoll()", fd);
 		// Checking for duplicate fds
 		if (m_fd_info.find(fd) != m_fd_info.end()) {
-			__log_dbg("epoll_ctl: tried to add an existing fd. (%d)", fd);
 			errno = EEXIST;
+			__log_dbg("epoll_ctl: fd=%d is already registered with this epoll instance %d (errno=%d %m)", fd, m_epfd, errno);
 			return -1;
 		}
 	}
@@ -335,10 +335,10 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 		if (ret < 0) {
 			switch (errno) {
 			case EEXIST:
-				__log_dbg("epoll_ctl: fd=%d is already registered with this epoll instance (%d)", fd, m_epfd);
+				__log_dbg("epoll_ctl: fd=%d is already registered with this epoll instance %d (errno=%d %m)", fd, m_epfd, errno);
 				break;
 			case ENOMEM:
-				__log_dbg("epoll_ctl: fd=%d is already registered with another epoll instance (%d), cannot register to epoll (%d)", fd, temp_sock_fd_api->get_epoll_context_fd(), m_epfd);
+				__log_dbg("epoll_ctl: fd=%d is already registered with another epoll instance %d, cannot register to epoll %d (errno=%d %m)", fd, temp_sock_fd_api->get_epoll_context_fd(), m_epfd, errno);
 				break;
 			default:
 				__log_dbg("epoll_ctl: failed to add fd=%d to epoll epfd=%d (errno=%d %m)", fd, m_epfd, errno);
