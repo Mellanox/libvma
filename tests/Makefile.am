@@ -12,10 +12,5 @@ EXTRA_DIST = \
 	multithread_test \
 	server_test \
 	vma_perf_envelope \
-	valgrind_libc.supp \
-	valgrind_rdma.supp \
-	valgrind_sockperf.supp \
-	valgrind_vma.supp \
-	vma.supp \
 	reuse_ud_test.c \
 	select_t1.c

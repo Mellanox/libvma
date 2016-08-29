@@ -1,0 +1,127 @@
+# Ignore librdmacm.so
+############################
+{
+   librdmacm.so (Param)
+   Memcheck:Param
+   write(buf)
+   ...
+   obj:*/librdmacm.so*
+   ...
+}
+{
+   librdmacm.so (Cond)
+   Memcheck:Cond
+   ...
+   obj:*/librdmacm.so*
+   ...
+}
+{
+   librdmacm.so (Value8)
+   Memcheck:Value8
+   ...
+   obj:*/librdmacm.so*
+   ...
+}
+{
+   librdmacm.so (Leak)
+   Memcheck:Leak
+   ...
+   obj:*/librdmacm.so*
+   ...
+}
+
+# Ignore libibverbs.so
+############################
+{
+   libibverbs.so (Param)
+   Memcheck:Param
+   write(buf)
+   ...
+   obj:*/libibverbs.so*
+   ...
+}
+{
+   libibverbs.so (Cond)
+   Memcheck:Cond
+   ...
+   obj:*/libibverbs.so*
+   ...
+}
+{
+   libibverbs.so (Value8)
+   Memcheck:Value8
+   ...
+   obj:*/libibverbs.so*
+   ...
+}
+{
+   libibverbs.so (Leak)
+   Memcheck:Leak
+   ...
+   obj:*/libibverbs.so*
+   ...
+}
+
+# Ignore libmlx4-rdmav2.so
+############################
+{
+   libmlx4-rdmav2.so (Param)
+   Memcheck:Param
+   write(buf)
+   ...
+   obj:*/libmlx4-rdmav2.so*
+   ...
+}
+{
+   libmlx4-rdmav2.so (Cond)
+   Memcheck:Cond
+   ...
+   obj:*/libmlx4-rdmav2.so*
+   ...
+}
+{
+   libmlx4-rdmav2.so (Value8)
+   Memcheck:Value8
+   ...
+   obj:*/libmlx4-rdmav2.so*
+   ...
+}
+{
+   libmlx4-rdmav2.so (Leak)
+   Memcheck:Leak
+   ...
+   obj:*/libmlx4-rdmav2.so*
+   ...
+}
+
+# Ignore libmlx4-rdmav2.so
+############################
+{
+   libmlx5-rdmav2.so (Param)
+   Memcheck:Param
+   write(buf)
+   ...
+   obj:*/libmlx5-rdmav2.so*
+   ...
+}
+{
+   libmlx5-rdmav2.so (Cond)
+   Memcheck:Cond
+   ...
+   obj:*/libmlx5-rdmav2.so*
+   ...
+}
+{
+   libmlx5-rdmav2.so (Value8)
+   Memcheck:Value8
+   ...
+   obj:*/libmlx5-rdmav2.so*
+   ...
+}
+{
+   libmlx5-rdmav2.so (Leak)
+   Memcheck:Leak
+   ...
+   obj:*/libmlx5-rdmav2.so*
+   ...
+}

@@ -37,12 +37,14 @@ fi
 vg_args="-v --log-file=${vg_dir}/valgrind.log \
     --memcheck:leak-check=full --track-origins=yes --read-var-info=yes \
     --undef-value-errors=yes --db-attach=no --track-fds=yes --show-reachable=yes \
-    --gen-suppressions=all \
-    --suppressions=${WORKSPACE}/tests/valgrind_vma.supp \
-    --suppressions=${WORKSPACE}/tests/valgrind_libc.supp \
-    --suppressions=${WORKSPACE}/tests/valgrind_sockperf.supp \
-    --suppressions=${WORKSPACE}/tests/valgrind_rdma.supp \
+    --num-callers=32 \
+    --fullpath-after=${WORKSPACE} \
+    --suppressions=${WORKSPACE}/contrib/valgrind/valgrind_vma.supp \
+    --suppressions=${WORKSPACE}/contrib/valgrind/valgrind_libc.supp \
+    --suppressions=${WORKSPACE}/contrib/valgrind/valgrind_sockperf.supp \
+    --suppressions=${WORKSPACE}/contrib/valgrind/valgrind_rdma.supp \
     "
+
 vg_tests=1
 
 eval "env VMA_TX_BUFS=20000 VMA_RX_BUFS=20000 LD_PRELOAD=$test_lib $test_app sr --tcp -i ${test_ip} > /dev/null 2>&1 &"
