@@ -125,7 +125,7 @@ bool dst_entry_udp_mc::get_net_dev_val()
 	}
 	else {
 		if (m_p_net_dev_entry) {
-			ret_val = m_p_net_dev_entry->get_val(m_p_net_dev_val);
+			m_p_net_dev_entry->get_val(m_p_net_dev_val);
 			dst_udp_mc_logfunc("%s Using directly netdev entry to get net_dev", to_str().c_str());
 			ret_val = true;
 		}

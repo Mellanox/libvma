@@ -187,7 +187,6 @@ L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb)
 					   PCB. */
 					tcp_pcb_remove(pcb);
 				} else {
-					err = ERR_OK;
 					/* If the application has registered a "sent" function to be
 					   called when new send buffer space is available, we call it
 					   now. */
@@ -468,8 +467,6 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
   struct tcp_seg *rseg;
   u8_t acceptable = 0;
   err_t err;
-
-  err = ERR_OK;
 
   /* Process incoming RST segments. */
   if (in_data->flags & TCP_RST) {

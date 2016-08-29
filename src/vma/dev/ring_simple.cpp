@@ -790,7 +790,6 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 
 		// Re-calc all ip related values for new ip packet of head fragmentation list
 		p_rx_wc_buf_desc = new_buf;
-		sz_data -= transport_header_len; // Jump to IP header (Skip IB (GRH and IPoIB) or Ethernet (MAC) header size
 		p_ip_h = (struct iphdr*)(p_rx_wc_buf_desc->p_buffer + transport_header_len);
 		ip_hdr_len = (int)(p_ip_h->ihl)*4;
 		ip_tot_len = ntohs(p_ip_h->tot_len);
