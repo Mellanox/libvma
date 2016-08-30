@@ -31,12 +31,14 @@
  */
 
 
-#include "pipeinfo.h"
 
 #include <vlogger/vlogger.h>
+#include "utils/bullseye.h"
 #include <vma/event/event_handler_manager.h>
 
 #include "sock-redirect.h"
+
+#include "pipeinfo.h"
 
 #define MODULE_NAME 	"pi"
 #undef  VLOG_PRINTF

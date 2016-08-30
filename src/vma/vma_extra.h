@@ -36,6 +36,8 @@
 
 #include <stddef.h>
 #include <stdint.h>
+
+
 /*
  * Flags for recvfrom_zcopy()
  */
@@ -223,9 +225,6 @@ struct __attribute__ ((packed)) vma_api_t {
 
 #define SO_VMA_GET_API				2800
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
 
 /**
  * Retrieve VMA extended API.
@@ -245,9 +244,6 @@ static inline struct vma_api_t* vma_get_api()
 	return api_ptr;
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 /* 
  * Demo Usage

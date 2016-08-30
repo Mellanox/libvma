@@ -55,9 +55,11 @@ public:
 	const std::string to_str() const
 	{
 		char s[100] = {0};
+		/* cppcheck-suppress wrongPrintfScanfArgNum */
 		sprintf(s, "Destination IP:%d.%d.%d.%d", NIPQUAD(m_dst_ip));
 		if (m_src_ip) {
 			char sx[40] = {0};
+			/* cppcheck-suppress wrongPrintfScanfArgNum */
 			sprintf(sx, " Source IP:%d.%d.%d.%d", NIPQUAD(m_src_ip));
 			strcat(s, sx);
 		}	
@@ -97,9 +99,11 @@ public:
 		Build string from exist parameter (destination IP, source IP, TOS)
 		which is unique for different route-rule entries.
 		*/
+		/* cppcheck-suppress wrongPrintfScanfArgNum */
 		sprintf(s, "%d.%d.%d.%d", NIPQUAD(key.get_dst_ip()));
 		if (key.get_src_ip()) {
 			char sx[20] = {0};
+			/* cppcheck-suppress wrongPrintfScanfArgNum */
 			sprintf(sx, " %d.%d.%d.%d", NIPQUAD(key.get_src_ip()));
 			strcat(s, sx);
 		}

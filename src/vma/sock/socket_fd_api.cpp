@@ -31,12 +31,14 @@
  */
 
 
-#include "socket_fd_api.h"
-#include "sock-redirect.h"
+#include <sys/epoll.h>
 
 #include <vma/iomux/epfd_info.h>
 #include <vlogger/vlogger.h>
-#include <sys/epoll.h>
+#include "utils/bullseye.h"
+#include "sock-redirect.h"
+
+#include "socket_fd_api.h"
 
 #define MODULE_NAME 		"sapi"
 #undef  MODULE_HDR_INFO

@@ -30,6 +30,7 @@ jenkins_test_compiler=${jenkins_test_compiler:="yes"}
 jenkins_test_rpm=${jenkins_test_rpm:="yes"}
 jenkins_test_cov=${jenkins_test_cov:="yes"}
 jenkins_test_cppcheck=${jenkins_test_cppcheck:="yes"}
+jenkins_test_csbuild=${jenkins_test_csbuild:="yes"}
 jenkins_test_vg=${jenkins_test_vg:="no"}
 jenkins_test_style=${jenkins_test_style:="no"}
 
@@ -65,6 +66,10 @@ if [ "$jenkins_test_cov" = "yes" ]; then
 fi
 if [ "$jenkins_test_cppcheck" = "yes" ]; then
     $WORKSPACE/contrib/jenkins_tests/cppcheck.sh
+    rc=$((rc + $?))
+fi
+if [ "$jenkins_test_csbuild" = "yes" ]; then
+    $WORKSPACE/contrib/jenkins_tests/csbuild.sh
     rc=$((rc + $?))
 fi
 if [ "$jenkins_test_run" = "yes" ]; then
