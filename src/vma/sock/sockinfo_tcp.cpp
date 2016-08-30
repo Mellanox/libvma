@@ -1409,8 +1409,6 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 			conn->m_p_vma_completion->packet.num_bufs += list_head_desc->n_frags;
 			pbuf_cat((pbuf*)conn->m_p_vma_completion->packet.buff_lst, p);
 		}
-
-		p_first_desc->path.rx.vma_polled = false;
 	}
 	else {
 		if (callback_retval == VMA_PACKET_RECV) {
