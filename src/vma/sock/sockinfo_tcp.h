@@ -205,8 +205,6 @@ protected:
 	virtual bool try_un_offloading(); // un-offload the socket if possible
 
 private:
-	vma_completion_t* m_p_vma_completion;
-	vma_buff_t* m_last_poll_vma_buff_lst;
 	//lwip specific things
 	struct tcp_pcb m_pcb;
 	tcp_sock_offload_e m_sock_offload;
@@ -311,7 +309,6 @@ private:
 	static err_t rx_lwip_cb(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
 	static err_t rx_drop_lwip_cb(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
 
-	static  void prepare_event_completion(sockinfo_tcp *conn, uint64_t events);
 	// Be sure that m_pcb is initialized
 	void set_conn_properties_from_pcb();
 

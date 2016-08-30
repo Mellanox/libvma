@@ -1660,7 +1660,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 
 		// MNY: Problematic in cases where packet was dropped because no tx buffers were available..
 		// Yet we need to add this code to avoid deadlocks in case of EPOLLOUT ET.
-		notify_epoll_context(EPOLLOUT);
+		set_events(EPOLLOUT);
 
 		save_stats_tx_offload(ret, is_dropped);
 
@@ -1807,22 +1807,22 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 
 	if (p_desc->path.rx.vma_polled) {
 		mem_buf_desc_t *tmp_p;
-		vma_completion_t* p_vma_completion;
 
-		p_vma_completion = (vma_completion_t*)pv_fd_ready_array;
-		p_vma_completion->packet.total_len = 0;
+		m_p_vma_completion = (vma_completion_t*)pv_fd_ready_array;
+		m_p_vma_completion->packet.total_len = 0;
 
 		for(tmp_p = p_desc; tmp_p; tmp_p = tmp_p->p_next_desc) {
-			p_vma_completion->packet.buff_lst = (vma_buff_t*)tmp_p;
-			p_vma_completion->packet.buff_lst->next = (vma_buff_t*)tmp_p->p_next_desc;
-			p_vma_completion->packet.buff_lst->len = p_desc->path.rx.frag.iov_len;
-			p_vma_completion->packet.buff_lst->payload = p_desc->path.rx.frag.iov_base;
-			p_vma_completion->packet.total_len += tmp_p->path.rx.sz_payload;
+			m_p_vma_completion->packet.buff_lst = (vma_buff_t*)tmp_p;
+			m_p_vma_completion->packet.buff_lst->next = (vma_buff_t*)tmp_p->p_next_desc;
+			m_p_vma_completion->packet.buff_lst->len = p_desc->path.rx.frag.iov_len;
+			m_p_vma_completion->packet.buff_lst->payload = p_desc->path.rx.frag.iov_base;
+			m_p_vma_completion->packet.total_len += tmp_p->path.rx.sz_payload;
 		}
-		p_vma_completion->events = VMA_POLL_PACKET;
-		p_vma_completion->src = p_desc->path.rx.src;
-		p_vma_completion->user_data = (uint64_t)m_fd_context;
-		p_vma_completion->packet.num_bufs = p_desc->n_frags;
+		m_p_vma_completion->events = get_events() | VMA_POLL_PACKET;
+		m_p_vma_completion->src = p_desc->path.rx.src;
+		m_p_vma_completion->user_data = (uint64_t)m_fd_context;
+		m_p_vma_completion->packet.num_bufs = p_desc->n_frags;
+		clear_events();
 	} else {
 
 		// In ZERO COPY case we let the user's application manage the ready queue
@@ -1841,10 +1841,11 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 		} else {
 			m_p_socket_stats->n_rx_zcopy_pkt_count++;
 		}
-		notify_epoll_context(EPOLLIN);
-
-		// Add this fd to the ready fd list
-		io_mux_call::update_fd_array((fd_array_t*)pv_fd_ready_array, m_fd);
+		set_events(EPOLLIN);
+		if (false == m_p_rx_ring->get_vma_active()) {
+			// Add this fd to the ready fd list
+			io_mux_call::update_fd_array((fd_array_t*)pv_fd_ready_array, m_fd);
+		}
 
 		si_udp_logfunc("rx ready count = %d packets / %d bytes", m_n_rx_pkt_ready_list_count, m_p_socket_stats->n_rx_ready_byte_count);
 		// Yes we like this packet - keep it!

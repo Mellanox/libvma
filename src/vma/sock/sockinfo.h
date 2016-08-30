@@ -148,6 +148,10 @@ protected:
 
 	int			m_rx_num_buffs_reuse;
 
+	/* these fields are for vma_poll() usage */
+	vma_completion_t* m_p_vma_completion;
+	vma_buff_t* m_last_poll_vma_buff_lst;
+
 	// Callback function pointer to support VMA extra API (vma_extra.h)
 	vma_recv_callback_t	m_rx_callback;
 	void*			m_rx_callback_context; // user context
@@ -206,6 +210,28 @@ protected:
 	void 			move_owned_rx_ready_descs(const mem_buf_desc_owner* p_desc_owner, descq_t* toq); // Move all owner's rx ready packets ro 'toq'
 
 	virtual bool try_un_offloading(); // un-offload the socket if possible
+
+	inline void set_events(uint64_t events)
+	{
+		m_events |= events;
+		if (m_p_vma_completion) {
+			m_p_vma_completion->user_data = m_fd;
+			m_p_vma_completion->events = m_events;
+		}
+		if ((uint32_t)events) {
+			socket_fd_api::notify_epoll_context((uint32_t)events);
+		}
+	}
+
+	inline uint64_t get_events(void)
+	{
+		return m_events;
+	}
+
+	inline void clear_events(void)
+	{
+		m_events = 0;
+	}
 
 	// This function validates the ipoib's properties
 	// Input params:
@@ -426,6 +452,9 @@ protected:
 		return 0;
     }
     //////////////////////////////////////////////////////////////////
+
+private:
+    uint64_t m_events;
 };
 
 #endif /* BASE_SOCKINFO_H */

@@ -13,6 +13,9 @@
 
 #include "ring.h"
 
-ring::ring(int count, uint32_t mtu) : m_n_num_resources(count), m_p_n_rx_channel_fds(NULL), m_parent(NULL), m_mtu(mtu)
+ring::ring(int count, uint32_t mtu) :
+	m_n_num_resources(count), m_p_n_rx_channel_fds(NULL), m_parent(NULL),
+	m_vma_comp_arr(NULL), m_vma_curr_comp_index(-1), m_vma_active(false),
+	m_mtu(mtu)
 {
 }
