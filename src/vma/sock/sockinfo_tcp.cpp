@@ -1875,11 +1875,6 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 		return -1;
 	}
 
-	if (m_rx_ring_map.size() == 1) {
-		rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.begin();
-		m_p_rx_ring = rx_ring_iter->first;
-	}
-
 	in_addr_t peer_ip_addr = m_connected.get_in_addr();
 	fit_rcv_wnd(true);
 
@@ -2170,23 +2165,8 @@ int sockinfo_tcp::listen(int backlog)
 	tcp_syn_handled((struct tcp_pcb_listen*)(&m_pcb), sockinfo_tcp::syn_received_lwip_cb);
 	tcp_clone_conn((struct tcp_pcb_listen*)(&m_pcb), sockinfo_tcp::clone_conn_cb);
 
-	attach_as_uc_receiver(ROLE_TCP_SERVER);
-/*TODO ALEXR
- *
- 	if (attach_as_uc_receiver(ROLE_TCP_SERVER)) {
-		si_tcp_logdbg("Fallback the connection to os");
-		setPassthrough();
-		return orig_os_api.listen(m_fd, orig_backlog);
-	}
-//*/
-	if (m_rx_ring_map.size()) {
-		if (m_rx_ring_map.size() == 1) {
-			rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.begin();
-			m_p_rx_ring = rx_ring_iter->first;
-		}
-		si_tcp_logdbg("sock state = %d", get_tcp_state(&m_pcb));
-	}
-	else {
+	bool success = attach_as_uc_receiver(ROLE_TCP_SERVER);
+	if (!success) {
 		/* we will get here if attach_as_uc_receiver failed */
 		si_tcp_logdbg("Fallback the connection to os");
 		setPassthrough();
@@ -2492,11 +2472,6 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 	/* if attach failed, we should continue getting traffic through the listen socket */
 	// todo register as 3-tuple rule for the case the listener is gone?
 	new_sock->attach_as_uc_receiver(role_t (NULL), true);
-
-	if (new_sock->m_rx_ring_map.size() == 1) {
-		rx_ring_map_t::iterator rx_ring_iter = new_sock->m_rx_ring_map.begin();
-		new_sock->m_p_rx_ring = rx_ring_iter->first;
-	}
 
 	if (safe_mce_sys().tcp_ctl_thread > CTL_THREAD_DISABLE) {
 		new_sock->m_vma_thr = true;
