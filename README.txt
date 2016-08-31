@@ -182,7 +182,6 @@ Example:
  VMA DETAILS: MTU                            0 (follow actual MTU)      [VMA_MTU]
  VMA DETAILS: MSS                            0 (follow VMA_MTU)         [VMA_MSS]
  VMA DETAILS: TCP CC Algorithm               0 (LWIP)                   [VMA_TCP_CC_ALGO]
- VMA DETAILS: Suppress IGMP ver. warning     Disabled                   [VMA_SUPPRESS_IGMP_WARNING]
  VMA INFO: ---------------------------------------------------------------------------
 
 
@@ -837,11 +836,6 @@ In you run the iperf server with the additional flag -U and you feel that the
 VMA can do better, you can disable this function (VMA_IPERF=0)
 Default value is 1 (Enabled)
 
-VMA_SUPPRESS_IGMP_WARNING
-Use VMA_SUPPRESS_IGMP_WARNING=1 to suppress the warnings about igmp version not forced to be 2.
-Default value is 0 (Disabled)
-
-
 
 VMA Monitoring & Performance Counters
 =====================================
@@ -897,24 +891,6 @@ Looking good :)
  the receiving thread did not get to a blocked state to cause a contexts
  switch and hurt latency.
 - No dropped packets caused by socket receive buffer limit (see VMA_RX_BYTES_MIN)
-
-
-IGMP 
-====
-To participate in a multicast that spans multiple networks, a host must inform 
-local routers. The local routers contact other routers, passing on the membership
-information and establishing routes.
-
-Routers and hosts that implement multicast use the Internet Group Management 
-Protocol (IGMP) to communicate group membership information, later the local 
-router can propagate multicast membership information to other routers through 
-the Internet.
-
-In order to enable this behavior at applications running over IPoIB networks 
-please use IGMPv2 on the network:
-   'echo 2 > /proc/sys/net/ipv4/conf/ibX/force_igmp_version'
-
-
 
 Interrupt Moderation
 ====================
@@ -1001,38 +977,6 @@ while the kernel requires this operation to be performed only by privileged
 users. Run as user root or grant CAP_NET_RAW privileges to your user
 1. "setcap cap_net_raw=ep /usr/bin/sockperf"
 2. "chmod u+s </usr/lib64/libvma.so>"
-
-
-* IGMP not forced to V2:
-
-  VMA WARNING: ************************************************************************
-  VMA WARNING: IGMP Version flag is not forced to IGMPv2 for interface ib2!
-  VMA WARNING: Working in this mode might causes VMA functionality degradation
-  VMA WARNING: Please "echo 2 > /proc/sys/net/ipv4/conf/ib2/force_igmp_version"
-  VMA WARNING: before loading your application with VMA library
-  VMA WARNING: Please refer to the IGMP section in the VMA's User Manual for more information
-  VMA WARNING: ************************************************************************
-This warning message means that you are using on IB interfaces IGMP version other then 2 which is supported by VMA.
-You can disabled VMA_IGMP=0 if you do not need to receive multicast packets from the Ethernet to 
-the InfiniBand fabric or if you are using a Ethernet switch that does not do IGMP snooping.
-If you do expect to receive multicast packets from the Ethernet to the InfiniBand fabric with VMA 
-or if your Ethernet switch does IGMP snooping then you should force IGMP working mode to version 2
-in all your hosts as well as your routers.
-You can also do: "echo 2 > /proc/sys/net/ipv4/conf/all/force_igmp_version"
-
-
-* IGMP Forced Version info missing:
-
-  VMA WARNING: ************************************************************************
-  VMA WARNING: Error in reading IGMP Version flag for interface 192.168.0.10!
-  VMA WARNING: Working in this mode most probably causes VMA performance degradation
-  VMA WARNING: Please refer to the IGMP section in the VMA's User Manual for more information
-  VMA WARNING: ************************************************************************
-This warning message means that you are using VMA with an older version of OFED
-which does not support user space IGMP. 
-If you do expect to receive multicast packets from the Ethernet to the
-InfiniBand fabric with VMA then you need to upgrade your OFED based network stack.
-
 
 * Huge pages out of resource:
 
