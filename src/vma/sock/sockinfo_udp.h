@@ -55,8 +55,6 @@
 
 #define MAX_RX_MEM_BUF_DESC	32
 
-extern int g_n_os_igmp_max_membership;
-
 // Send flow dst_entry map
 namespace std {
  namespace tr1 {
@@ -74,9 +72,18 @@ namespace std {
 }
 typedef std::tr1::unordered_map<sock_addr, dst_entry*> dst_entry_map_t;
 
-// Multicast Request list
-typedef std::list<struct ip_mreq> ip_mreq_list_t;
-typedef std::tr1::unordered_map<in_addr_t, int> mc_memberships_map_t;
+
+struct mc_pending_pram
+{
+  struct in_addr imr_multiaddr;
+  struct in_addr imr_interface;
+  struct in_addr imr_sourceaddr;
+  int optname;
+};
+
+// Multicast pending list
+typedef std::list<struct mc_pending_pram> mc_pram_list_t;
+typedef std::tr1::unordered_map<in_addr_t, std::tr1::unordered_map<in_addr_t, int> > mc_memberships_map_t;
 
 struct cmsg_state
 {
@@ -150,8 +157,6 @@ public:
 	// This callback will handle ready rx packet notification from any ib_conn_mgr
 	bool rx_input_cb(mem_buf_desc_t *p_rx_pkt_mem_buf_desc_info, void *pv_fd_ready_array = NULL);
 	// This call will handle all rdma related events (bind->listen->connect_req->accept)
-	void validate_igmpv2(flow_tuple_with_local_if& flow_key);
-	int validate_igmpv2(char *ifname);
 	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);
 	virtual	int free_packets(struct vma_packet_t *pkts, size_t count);
 	virtual inline fd_type_t get_type()
@@ -189,8 +194,9 @@ private:
 							// we want to do before doing an OS poll, on this socket
 	bool 		m_sock_offload;
 
-	ip_mreq_list_t 	m_pending_mreqs;
+	mc_pram_list_t 	m_pending_mreqs;
 	mc_memberships_map_t m_mc_memberships_map;
+	uint32_t	m_mc_num_grp_with_src_filter;
 
 	lock_spin 	m_port_map_lock;
 	std::vector<struct port_socket_t> m_port_map;
@@ -213,12 +219,13 @@ private:
 	const uint32_t	m_n_sysvar_rx_cq_drain_rate_nsec;
 	const uint32_t	m_n_sysvar_rx_delta_tsc_between_cq_polls;
 
-	int mc_change_membership(const struct ip_mreq *p_mreq, int optname);
+	int mc_change_membership(const mc_pending_pram *p_mc_pram);
 	int mc_change_membership_start_helper(in_addr_t mc_grp, int optname);
-	int mc_change_membership_end_helper(in_addr_t mc_grp, int optname);
-	int mc_change_pending_mreq(const struct ip_mreq *p_mreq, int optname);
+	int mc_change_membership_end_helper(in_addr_t mc_grp, int optname, in_addr_t mc_src = 0);
+	int mc_change_pending_mreq(const mc_pending_pram *p_mc_pram);
 	int on_sockname_change(struct sockaddr *__name, socklen_t __namelen);
 	void handle_pending_mreq();
+	void original_os_setsockopt_helper( void* pram, int pram_size, int optname);
 
 	/* helper functions */
 	void 		set_blocking(bool is_blocked);

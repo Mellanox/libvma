@@ -518,8 +518,6 @@ extern mce_sys_var & safe_mce_sys();
 #define SYS_VAR_NEIGH_UC_ARP_DELAY_MSEC			"VMA_NEIGH_UC_ARP_DELAY_MSEC"
 #define SYS_VAR_NEIGH_NUM_ERR_RETRIES			"VMA_NEIGH_NUM_ERR_RETRIES"
 
-#define SYS_VAR_SUPPRESS_IGMP_WARNING			"VMA_SUPPRESS_IGMP_WARNING"
-
 #define SYS_VAR_VMA_TIME_MEASURE_NUM_SAMPLES		"VMA_TIME_MEASURE_NUM_SAMPLES"
 #define SYS_VAR_VMA_TIME_MEASURE_DUMP_FILE		"VMA_TIME_MEASURE_DUMP_FILE"
 
@@ -673,8 +671,6 @@ extern mce_sys_var & safe_mce_sys();
 #define L2_BR_ADDR_FILE_FMT                                   "/sys/class/net/%.*s/broadcast"
 #define FLAGS_PARAM_FILE				"/sys/class/net/%s/flags"
 #define OPER_STATE_PARAM_FILE				"/sys/class/net/%s/operstate"
-#define IGMP_FORCE_PARAM_FILE				"/proc/sys/net/ipv4/conf/%s/force_igmp_version"
-#define IGMP_MAX_MEMBERSHIP_FILE			"/proc/sys/net/ipv4/igmp_max_memberships"
 #define TCP_SCALING_WINDOW_MAX_RECV_MEM_FILE		"/proc/sys/net/core/rmem_max"
 #define TCP_SCALING_WINDOW_FILE				"/proc/sys/net/ipv4/tcp_window_scaling"
 #define ARP_TABLE_FILE					"/proc/net/arp"

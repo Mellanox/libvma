@@ -585,9 +585,6 @@ void mce_sys_var::get_env_params()
 	if ((env_ptr = getenv(SYS_VAR_TX_MC_LOOPBACK)) != NULL)
 		tx_mc_loopback_default = atoi(env_ptr) ? true : false;
 
-	if ((env_ptr = getenv(SYS_VAR_SUPPRESS_IGMP_WARNING)) != NULL)
-				suppress_igmp_warning = atoi(env_ptr) ? true : false;
-
 	if ((env_ptr = getenv(SYS_VAR_TX_NONBLOCKED_EAGAINS)) != NULL)
 		tx_nonblocked_eagains = atoi(env_ptr)? true : false;
 

@@ -104,8 +104,6 @@ enum {
 #define UDP_MAP_ADD             101
 #define UDP_MAP_REMOVE          102
 
-int g_n_os_igmp_max_membership;
-
 /**/
 /** inlining functions can only help if they are implemented before their usage **/
 /**/
@@ -347,11 +345,13 @@ const char * setsockopt_so_opt_to_str(int opt)
 const char * setsockopt_ip_opt_to_str(int opt)
 {
 	switch (opt) {
-	case IP_MULTICAST_IF:		return "IP_MULTICAST_IF";
-	case IP_MULTICAST_TTL:		return "IP_MULTICAST_TTL";
-	case IP_MULTICAST_LOOP: 	return "IP_MULTICAST_LOOP";
-	case IP_ADD_MEMBERSHIP: 	return "IP_ADD_MEMBERSHIP";    
-	case IP_DROP_MEMBERSHIP:	return "IP_DROP_MEMBERSHIP";
+	case IP_MULTICAST_IF:           return "IP_MULTICAST_IF";
+	case IP_MULTICAST_TTL:          return "IP_MULTICAST_TTL";
+	case IP_MULTICAST_LOOP:         return "IP_MULTICAST_LOOP";
+	case IP_ADD_MEMBERSHIP:         return "IP_ADD_MEMBERSHIP";
+	case IP_ADD_SOURCE_MEMBERSHIP:  return "IP_ADD_SOURCE_MEMBERSHIP";
+	case IP_DROP_MEMBERSHIP:        return "IP_DROP_MEMBERSHIP";
+	case IP_DROP_SOURCE_MEMBERSHIP: return "IP_DROP_SOURCE_MEMBERSHIP";
 	default:			break;
 	}
 	return "UNKNOWN IP opt";
@@ -370,6 +370,7 @@ sockinfo_udp::sockinfo_udp(int fd) throw (vma_exception) :
 	,m_loops_to_go(safe_mce_sys().rx_poll_num_init) // Start up with a init polling loops value
 	,m_rx_udp_poll_os_ratio_counter(0)
 	,m_sock_offload(true)
+	,m_mc_num_grp_with_src_filter(0)
 	,m_port_map_lock("sockinfo_udp::m_ports_map_lock")
 	,m_port_map_index(0)
 	,m_p_last_dst_entry(NULL)
@@ -916,114 +917,120 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 				break;
 
 			case IP_ADD_MEMBERSHIP:
-			case IP_DROP_MEMBERSHIP:	
+			case IP_DROP_MEMBERSHIP:
+			case IP_ADD_SOURCE_MEMBERSHIP:
+			case IP_DROP_SOURCE_MEMBERSHIP:
 				{
-				if (!m_sock_offload) {
-					si_udp_logdbg("VMA Rx Offload is Disabled! calling OS setsockopt() for IPPROTO_IP, %s", setsockopt_ip_opt_to_str(__optname));
-					break;
-				}
+					if (!m_sock_offload) {
+						si_udp_logdbg("VMA Rx Offload is Disabled! calling OS setsockopt() for IPPROTO_IP, %s", setsockopt_ip_opt_to_str(__optname));
+						break;
+					}
 
-				if (__optval == NULL || (__optlen < sizeof(struct ip_mreq))) {
-					si_udp_logdbg("IPPROTO_IP, %s; Bad optval! calling OS setsockopt()", setsockopt_ip_opt_to_str(__optname));
-					break;
-				}
+					if ((NULL == __optval) || (__optlen > sizeof(struct ip_mreq_source) || (__optlen < sizeof(struct ip_mreq)))) {
+						si_udp_logdbg("IPPROTO_IP, %s; Bad optval! calling OS setsockopt()", setsockopt_ip_opt_to_str(__optname));
+						break;
+					}
 
-				struct ip_mreq mreq = *(struct ip_mreq*)__optval;
-				if (__optlen >= sizeof(struct ip_mreqn)) {
-					struct ip_mreqn* p_mreqn = (struct ip_mreqn*)__optval;
-					if(p_mreqn->imr_ifindex) {
-						net_dev_lst_t* p_ndv_val_lst = g_p_net_device_table_mgr->get_net_device_val_lst_from_index(p_mreqn->imr_ifindex);
-						net_device_val* p_ndev = NULL;
-						if (p_ndv_val_lst && (p_ndev = dynamic_cast <net_device_val *>(*(p_ndv_val_lst->begin())))) {
-							mreq.imr_interface.s_addr = p_ndev->get_local_addr();
-						} else {
-							struct sockaddr_in src_addr;
-							if (get_ipv4_from_ifindex(p_mreqn->imr_ifindex, &src_addr) == 0) {
-								mreq.imr_interface.s_addr = src_addr.sin_addr.s_addr;
-							} else {
-								si_udp_logdbg("setsockopt(%s) will be passed to OS for handling, can't get address of interface index %d ", setsockopt_ip_opt_to_str(__optname), p_mreqn->imr_ifindex);
-								break;
+					in_addr_t mc_grp = ((struct ip_mreq_source*)__optval)->imr_multiaddr.s_addr;
+					in_addr_t mc_if  = ((struct ip_mreq_source*)__optval)->imr_interface.s_addr;
+
+					// There are 3 types of struct that we can receive, ip_mreq(2 members), ip_mreqn(3 members), ip_mreq_source(3 members)
+					// In case interface address is undefined[INADDR_ANY] we need to find the ip address to use
+					struct ip_mreq_source mreqprm = {{mc_grp}, {mc_if}, {0}};
+					if ((IP_ADD_MEMBERSHIP == __optname) || (IP_DROP_MEMBERSHIP == __optname)) {
+						if (__optlen >= sizeof(struct ip_mreqn)){
+							struct ip_mreqn* p_mreqn = (struct ip_mreqn*)__optval;
+							if(p_mreqn->imr_ifindex) {
+								net_dev_lst_t* p_ndv_val_lst = g_p_net_device_table_mgr->get_net_device_val_lst_from_index(p_mreqn->imr_ifindex);
+								net_device_val* p_ndev = NULL;
+								if (p_ndv_val_lst && (p_ndev = dynamic_cast <net_device_val *>(*(p_ndv_val_lst->begin())))) {
+									mreqprm.imr_interface.s_addr = p_ndev->get_local_addr();
+								} else {
+									struct sockaddr_in src_addr;
+									if (get_ipv4_from_ifindex(p_mreqn->imr_ifindex, &src_addr) == 0) {
+										mreqprm.imr_interface.s_addr = src_addr.sin_addr.s_addr;
+									} else {
+										si_udp_logdbg("setsockopt(%s) will be passed to OS for handling, can't get address of interface index %d ", setsockopt_ip_opt_to_str(__optname), p_mreqn->imr_ifindex);
+										break;
+									}
+								}
 							}
 						}
 					}
-				}
-
-				in_addr_t mc_grp = mreq.imr_multiaddr.s_addr;
-				in_addr_t mc_if = mreq.imr_interface.s_addr;
-
-				if(! IN_MULTICAST_N(mc_grp)) {
-					si_udp_logdbg("setsockopt(%s) will be passed to OS for handling, IP %d.%d.%d.%d is not MC ", setsockopt_ip_opt_to_str(__optname),  NIPQUAD(mc_grp));
-					break;
-				}
-				if (mc_if == INADDR_ANY) {
-					in_addr_t dst_ip	= mc_grp;
-					in_addr_t src_ip	= 0;
-					uint8_t tos		= 0;
-					
-					if (!m_bound.is_anyaddr() && !m_bound.is_mc()) {
-						src_ip = m_bound.get_in_addr();
-					}else if (m_so_bindtodevice_ip) {
-						src_ip = m_so_bindtodevice_ip;
+					else {
+						// Save and use the user provided source address filter in case of IP_ADD_SOURCE_MEMBERSHIP or IP_DROP_SOURCE_MEMBERSHIP
+						mreqprm.imr_sourceaddr.s_addr = ((struct ip_mreq_source*)__optval)->imr_sourceaddr.s_addr;
 					}
-					// Find local if for this MC ADD/DROP
-					g_p_route_table_mgr->route_resolve(route_rule_table_key(dst_ip, src_ip, tos), &mc_if);
-					si_udp_logdbg("IPPROTO_IP, %s=%d.%d.%d.%d, mc_if:INADDR_ANY (resolved to: %d.%d.%d.%d)", setsockopt_ip_opt_to_str(__optname), NIPQUAD(mc_grp), NIPQUAD(mc_if));
-				}
-				else {
-					si_udp_logdbg("IPPROTO_IP, %s=%d.%d.%d.%d, mc_if:%d.%d.%d.%d", setsockopt_ip_opt_to_str(__optname), NIPQUAD(mc_grp), NIPQUAD(mc_if));
-				}
 
-				if (mc_change_membership_start_helper(mc_grp, __optname)) {
-					return -1;
-				}
+					mc_if  = mreqprm.imr_interface.s_addr; // Update interface IP in case it was changed above
 
-				// MNY: TODO: Check rules for local_if (blacklist interface feature)
-				/*sock_addr tmp_if_addr(AF_INET, mc_if, m_bound.get_in_port());
-				if (__vma_match_udp_receiver(TRANS_VMA, tmp_if_addr.get_p_sa(), tmp_if_addr.get_socklen(), safe_mce_sys().app_id) == TRANS_OS) {
-					// Break so we call orig setsockopt() and don't try to offlaod
-					si_udp_logdbg("setsockopt(%s) will be passed to OS for handling due to rule matching", setsockopt_ip_opt_to_str(__optname));
-					break;
-				}*/
+					if (!IN_MULTICAST_N(mc_grp)) {
+						si_udp_logdbg("setsockopt(%s) will be passed to OS for handling, IP %d.%d.%d.%d is not MC ", setsockopt_ip_opt_to_str(__optname),  NIPQUAD(mc_grp));
+						break;
+					}
 
-				bool goto_os = false;
+					// Find local interface IP address
+					if (INADDR_ANY == mc_if) {
+						in_addr_t dst_ip	= mc_grp;
+						in_addr_t src_ip	= 0;
+						uint8_t tos		= 0;
 
-				// Check MC rules for not offloading
-				sock_addr tmp_grp_addr(AF_INET, mc_grp, m_bound.get_in_port());
-				if (__vma_match_udp_receiver(TRANS_VMA, safe_mce_sys().app_id, tmp_grp_addr.get_p_sa(), tmp_grp_addr.get_socklen()) == TRANS_OS) {
-					// call orig setsockopt() and don't try to offlaod
-					si_udp_logdbg("setsockopt(%s) will be passed to OS for handling due to rule matching", setsockopt_ip_opt_to_str(__optname));
-					goto_os = true;
-				}
-				// Check if local_if is not offloadable
-				else if (!g_p_net_device_table_mgr->get_net_device_val(mc_if)) {
-					// call orig setsockopt() and don't try to offlaod
-					si_udp_logdbg("setsockopt(%s) will be passed to OS for handling - not offload interface (%d.%d.%d.%d)", setsockopt_ip_opt_to_str(__optname), NIPQUAD(mc_if));
-					goto_os = true;
-				}
-				// offloaded, check if need to pend
-				else if (m_bound.get_in_port() == INPORT_ANY) {
-					// Delay attaching to this MC group until we have bound UDP port
-					int ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
-					if (ret) return ret;
-					mc_change_pending_mreq(&mreq, __optname);
-				}
-				// Handle attach to this MC group now
-				else if (mc_change_membership(&mreq, __optname)) {
-					// Opps, failed in attaching??? call orig setsockopt()
-					goto_os = true;
-				}
+						if ((!m_bound.is_anyaddr()) && (!m_bound.is_mc())) {
+							src_ip = m_bound.get_in_addr();
+						} else if (m_so_bindtodevice_ip) {
+							src_ip = m_so_bindtodevice_ip;
+						}
+						// Find local if for this MC ADD/DROP
+						g_p_route_table_mgr->route_resolve(route_rule_table_key(dst_ip, src_ip, tos), &mc_if);
+						si_udp_logdbg("IPPROTO_IP, %s=%d.%d.%d.%d, mc_if:INADDR_ANY (resolved to: %d.%d.%d.%d)", setsockopt_ip_opt_to_str(__optname), NIPQUAD(mc_grp), NIPQUAD(mc_if));
+					}
+					else {
+						si_udp_logdbg("IPPROTO_IP, %s=%d.%d.%d.%d, mc_if:%d.%d.%d.%d", setsockopt_ip_opt_to_str(__optname), NIPQUAD(mc_grp), NIPQUAD(mc_if));
+					}
 
-				if (goto_os) {
-					int ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
-					if (ret) return ret;
-				}
+					// Add multicast group membership
+					if (mc_change_membership_start_helper(mc_grp, __optname)) {
+						return -1;
+					}
 
-				mc_change_membership_end_helper(mc_grp, __optname);
+					bool goto_os = false;
+					// Check MC rules for not offloading
+					sock_addr tmp_grp_addr(AF_INET, mc_grp, m_bound.get_in_port());
+					mc_pending_pram mcpram = {mreqprm.imr_multiaddr, mreqprm.imr_interface, mreqprm.imr_sourceaddr, __optname};
 
-				return 0;
+					if (TRANS_OS == __vma_match_udp_receiver(TRANS_VMA, safe_mce_sys().app_id, tmp_grp_addr.get_p_sa(), tmp_grp_addr.get_socklen())) {
+						// call orig setsockopt() and don't try to offlaod
+						si_udp_logdbg("setsockopt(%s) will be passed to OS for handling due to rule matching", setsockopt_ip_opt_to_str(__optname));
+						goto_os = true;
+					}
+					// Check if local_if is not offloadable
+					else if (!g_p_net_device_table_mgr->get_net_device_val(mc_if)) {
+						// call orig setsockopt() and don't try to offlaod
+						si_udp_logdbg("setsockopt(%s) will be passed to OS for handling - not offload interface (%d.%d.%d.%d)", setsockopt_ip_opt_to_str(__optname), NIPQUAD(mc_if));
+						goto_os = true;
+					}
+					// offloaded, check if need to pend
+					else if (INPORT_ANY == m_bound.get_in_port()) {
+						// Delay attaching to this MC group until we have bound UDP port
+						int ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
+						if (ret) return ret;
+						mc_change_pending_mreq(&mcpram);
+					}
+					// Handle attach to this MC group now
+					else if (mc_change_membership( &mcpram )) {
+						// Opps, failed in attaching??? call orig setsockopt()
+						goto_os = true;
+					}
+
+					if (goto_os) {
+						int ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
+						if (ret) return ret;
+					}
+
+					mc_change_membership_end_helper(mc_grp, __optname, mreqprm.imr_sourceaddr.s_addr);
+					return 0;
 				}
 				break;
-
 			case IP_PKTINFO:
 				if (__optval) {
 					if(*(int*)__optval)
@@ -1045,8 +1052,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 	case IPPROTO_UDP:
 		switch (__optname) {
 		case UDP_MAP_ADD:
-			if (! __optval)
-			{
+			if (! __optval) {
 				si_udp_loginfo("UDP_MAP_ADD __optval = NULL");
 				break;
 			}
@@ -1067,8 +1073,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 			return 0;
 
 		case UDP_MAP_REMOVE:
-			if (! __optval)
-			{
+			if (! __optval) {
 				si_udp_loginfo("UDP_MAP_REMOVE __optval = NULL");
 				break;
 			}
@@ -1787,6 +1792,20 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 		return false;
 	}
 
+	if (m_mc_num_grp_with_src_filter) {
+		in_addr_t mc_grp = p_desc->path.rx.dst.sin_addr.s_addr;
+		if (IN_MULTICAST_N(mc_grp)) {
+			in_addr_t mc_src = p_desc->path.rx.src.sin_addr.s_addr;
+
+			if ((m_mc_memberships_map.find(mc_grp) == m_mc_memberships_map.end()) ||
+				((0 < m_mc_memberships_map[mc_grp].size()) &&
+				(m_mc_memberships_map[mc_grp].find(mc_src) == m_mc_memberships_map[mc_grp].end()))) {
+				si_udp_logfunc("rx packet discarded - multicast source mismatch");
+				return false;
+			}
+		}
+	}
+
 	vma_recv_callback_retval_t callback_retval = VMA_PACKET_RECV;
 	if (m_rx_callback) {
 		mem_buf_desc_t *tmp;
@@ -1863,61 +1882,28 @@ void sockinfo_udp::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ri
 	m_rx_udp_poll_os_ratio_counter = m_n_sysvar_rx_udp_poll_os_ratio;
 
 	// Now that we got at least 1 CQ attached start polling the CQs
-	if (m_b_blocking)
+	if (m_b_blocking) {
         	m_loops_to_go = m_n_sysvar_rx_poll_num;
-	else
-		m_loops_to_go = 1; // Force single CQ poll in case of non-blocking socket
-
-
-	// Multicast Only:
-	// Check and Issue ADD_MEMBERSHIP to OS
-
-	if (!flow_key.is_udp_mc() || is_migration)
-		return;
-
-	// Validate that the IGMP flags in the interface is set correctly
-	validate_igmpv2(flow_key);
-
-	// Issue kernel IP_ADD_MEMBERSHIP for IGMP join etc
-	struct ip_mreq mreq;
-	mreq.imr_multiaddr.s_addr = flow_key.get_dst_ip();
-	mreq.imr_interface.s_addr = flow_key.get_local_if();
-	si_udp_logdbg("calling orig_setsockopt(ADD_MEMBERSHIP) for igmp support by OS");
-	if (orig_os_api.setsockopt(m_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq))) {
-		si_udp_logdbg("orig setsockopt(ADD_MEMBERSHIP) failed (errno=%d %m)", errno);
 	}
-
-	// Now we're done with the IP_ADD_MEMBERSHIP
+	else {
+		m_loops_to_go = 1; // Force single CQ poll in case of non-blocking socket
+	}
 }
 
 void sockinfo_udp::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool is_migration /* = false */)
 {
 	si_udp_logdbg("");
-	
-	// Multicast Only: 
-	// Check and Issue DROP_MEMBERSHIP to OS
-	if (flow_key.is_udp_mc() && !is_migration) {
-
-		// Issue kernel IP_DROP_MEMBERSHIP for IGMP cleanup in case this is a re-play scenario
-		struct ip_mreq mreq;
-		mreq.imr_multiaddr.s_addr = flow_key.get_dst_ip();
-		mreq.imr_interface.s_addr = flow_key.get_local_if();
-		si_udp_logdbg("calling orig_setsockopt(DROP_MEMBERSHIP) for igmp cleanup in OS");
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (orig_os_api.setsockopt(m_fd, IPPROTO_IP, IP_DROP_MEMBERSHIP, &mreq, sizeof(mreq))) {
-			si_udp_logerr("orig setsockopt(DROP_MEMBERSHIP) failed (errno=%d %m)", errno);
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-	}
 
 	sockinfo::rx_del_ring_cb(flow_key, p_ring, is_migration);
 
 	// If no more CQ's are attached on this socket, return CQ polling loops ot init state
 	if (m_rx_ring_map.size() <= 0) {
-		if (m_b_blocking)
+		if (m_b_blocking) {
 			m_loops_to_go = safe_mce_sys().rx_poll_num_init;
-		else
+		}
+		else {
 			m_loops_to_go = 1;
+		}
 	}
 }
 
@@ -1942,11 +1928,10 @@ void sockinfo_udp::set_blocking(bool is_blocked)
 void sockinfo_udp::handle_pending_mreq()
 {
 	si_udp_logdbg("Attaching to pending multicast groups");
-
-	ip_mreq_list_t::iterator mreq_iter, mreq_iter_temp;
+	mc_pram_list_t::iterator mreq_iter, mreq_iter_temp;
 	for (mreq_iter = m_pending_mreqs.begin(); mreq_iter != m_pending_mreqs.end();) {
 		if (m_sock_offload) {
-			mc_change_membership(&(*mreq_iter), IP_ADD_MEMBERSHIP);
+			mc_change_membership(&(*mreq_iter));
 		}
 		mreq_iter_temp = mreq_iter;
 		++mreq_iter;
@@ -1954,29 +1939,34 @@ void sockinfo_udp::handle_pending_mreq()
 	}
 }
 
-int sockinfo_udp::mc_change_pending_mreq(const struct ip_mreq *p_mreq, int optname)
+int sockinfo_udp::mc_change_pending_mreq(const mc_pending_pram *p_mc_pram)
 {
-	si_udp_logdbg("setsockopt(%s) will be pending until bound to UDP port", setsockopt_ip_opt_to_str(optname));
+	si_udp_logdbg("setsockopt(%s) will be pending until bound to UDP port", setsockopt_ip_opt_to_str(p_mc_pram->optname));
 
-	ip_mreq_list_t::iterator mreq_iter, mreq_iter_temp;
-	switch (optname) {
+	mc_pram_list_t::iterator mc_pram_iter, mreq_iter_temp;
+	switch (p_mc_pram->optname) {
 	case IP_ADD_MEMBERSHIP:
-		m_pending_mreqs.push_back(*p_mreq);
+	case IP_ADD_SOURCE_MEMBERSHIP:
+		m_pending_mreqs.push_back(*p_mc_pram);
 		break;
 	case IP_DROP_MEMBERSHIP:
-		for (mreq_iter = m_pending_mreqs.begin(); mreq_iter != m_pending_mreqs.end();) {
-			if (mreq_iter->imr_multiaddr.s_addr == p_mreq->imr_multiaddr.s_addr) {
-				mreq_iter_temp = mreq_iter;
-				++mreq_iter;
+	case IP_DROP_SOURCE_MEMBERSHIP:
+		for (mc_pram_iter = m_pending_mreqs.begin(); mc_pram_iter != m_pending_mreqs.end();) {
+			if ((mc_pram_iter->imr_multiaddr.s_addr == p_mc_pram->imr_multiaddr.s_addr) &&
+				((IP_DROP_MEMBERSHIP == p_mc_pram->optname) || // In case of a IP_DROP_SOURCE_MEMBERSHIP we should check source address too
+				 (mc_pram_iter->imr_sourceaddr.s_addr == p_mc_pram->imr_sourceaddr.s_addr))) {
+				 // We found the group, erase it
+				mreq_iter_temp = mc_pram_iter;
+				++mc_pram_iter;
 				m_pending_mreqs.erase(mreq_iter_temp);
 			} else {
-				++mreq_iter;
+				++mc_pram_iter;
 			}
 		}
 		break;
 	BULLSEYE_EXCLUDE_BLOCK_START
 	default:
-		si_udp_logerr("setsockopt(%s) illegal", setsockopt_ip_opt_to_str(optname));
+		si_udp_logerr("setsockopt(%s) illegal", setsockopt_ip_opt_to_str(p_mc_pram->optname));
 		return -1;
 	BULLSEYE_EXCLUDE_BLOCK_END
 	}
@@ -1988,12 +1978,27 @@ int sockinfo_udp::mc_change_membership_start_helper(in_addr_t mc_grp, int optnam
 	switch (optname) {
 	case IP_ADD_MEMBERSHIP:
 		if (m_mc_memberships_map.find(mc_grp) == m_mc_memberships_map.end()
-				&&  m_mc_memberships_map.size() >= (size_t)g_n_os_igmp_max_membership) {
+			&&  m_mc_memberships_map.size() >= (size_t)safe_mce_sys().sysctl_reader.get_igmp_max_membership()) {
 			errno = ENOBUFS;
 			return -1;
 		}
 		break;
+	case IP_ADD_SOURCE_MEMBERSHIP:
+		if (m_mc_memberships_map.find(mc_grp) != m_mc_memberships_map.end()) {//This group is exist
+			if (m_mc_memberships_map[mc_grp].size() >= (size_t)safe_mce_sys().sysctl_reader.get_igmp_max_source_membership()) {
+				errno = ENOBUFS;
+				return -1;
+		  }
+		}
+		else {//This group is not exist
+			if (m_mc_memberships_map.size() >= (size_t)safe_mce_sys().sysctl_reader.get_igmp_max_membership()) {
+					errno = ENOBUFS;
+					return -1;
+				}
+		}
+		break;
 	case IP_DROP_MEMBERSHIP:
+	case IP_DROP_SOURCE_MEMBERSHIP:
 		break;
 		BULLSEYE_EXCLUDE_BLOCK_START
 	default:
@@ -2004,32 +2009,48 @@ int sockinfo_udp::mc_change_membership_start_helper(in_addr_t mc_grp, int optnam
 	return 0;
 }
 
-int sockinfo_udp::mc_change_membership_end_helper(in_addr_t mc_grp, int optname)
+int sockinfo_udp::mc_change_membership_end_helper(in_addr_t mc_grp, int optname, in_addr_t mc_src /*=0*/)
 {
 	switch (optname) {
 	case IP_ADD_MEMBERSHIP:
-		m_mc_memberships_map[mc_grp] = 1;
+		m_mc_memberships_map[mc_grp];
+		break;
+	case IP_ADD_SOURCE_MEMBERSHIP:
+		m_mc_memberships_map[mc_grp][mc_src] = 1;
+		if (1 == m_mc_memberships_map[mc_grp].size()) {
+			++m_mc_num_grp_with_src_filter;
+		}
 		break;
 	case IP_DROP_MEMBERSHIP:
 		m_mc_memberships_map.erase(mc_grp);
 		break;
+	case IP_DROP_SOURCE_MEMBERSHIP:
+		if ((m_mc_memberships_map.find(mc_grp) != m_mc_memberships_map.end())) {
+			m_mc_memberships_map[mc_grp].erase(mc_src);
+			if (0 == m_mc_memberships_map[mc_grp].size()) {
+				m_mc_memberships_map.erase(mc_grp);
+				--m_mc_num_grp_with_src_filter;
+			}
+		}
+		break;
 		BULLSEYE_EXCLUDE_BLOCK_START
 	default:
 		si_udp_logerr("setsockopt(%s) will be passed to OS for handling", setsockopt_ip_opt_to_str(optname));
 		return -1;
 		BULLSEYE_EXCLUDE_BLOCK_END
 	}
+
 	return 0;
 }
 
-int sockinfo_udp::mc_change_membership(const struct ip_mreq *p_mreq, int optname)
+int sockinfo_udp::mc_change_membership(const mc_pending_pram *p_mc_pram)
 {
-	in_addr_t mc_grp = p_mreq->imr_multiaddr.s_addr;
-	in_addr_t mc_if = p_mreq->imr_interface.s_addr;
+	in_addr_t mc_grp = p_mc_pram->imr_multiaddr.s_addr;
+	in_addr_t mc_if = p_mc_pram->imr_interface.s_addr;
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (IN_MULTICAST_N(mc_grp) == false) {
-		si_udp_logerr("%s for non multicast (%d.%d.%d.%d) %#x", setsockopt_ip_opt_to_str(optname), NIPQUAD(mc_grp), mc_grp);
+		si_udp_logerr("%s for non multicast (%d.%d.%d.%d) %#x", setsockopt_ip_opt_to_str(p_mc_pram->optname), NIPQUAD(mc_grp), mc_grp);
 		return -1;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -2037,7 +2058,7 @@ int sockinfo_udp::mc_change_membership(const struct ip_mreq *p_mreq, int optname
 	sock_addr tmp_grp_addr(AF_INET, mc_grp, m_bound.get_in_port());
 	if (__vma_match_udp_receiver(TRANS_VMA, safe_mce_sys().app_id, tmp_grp_addr.get_p_sa(), tmp_grp_addr.get_socklen()) == TRANS_OS) {
 		// Break so we call orig setsockopt() and don't try to offlaod
-		si_udp_logdbg("setsockopt(%s) will be passed to OS for handling due to rule matching", setsockopt_ip_opt_to_str(optname));
+		si_udp_logdbg("setsockopt(%s) will be passed to OS for handling due to rule matching", setsockopt_ip_opt_to_str(p_mc_pram->optname));
 		return -1;
 	}
 
@@ -2066,110 +2087,84 @@ int sockinfo_udp::mc_change_membership(const struct ip_mreq *p_mreq, int optname
 	// Check if local_if is offloadable
 	if (!g_p_net_device_table_mgr->get_net_device_val(mc_if)) {
 		// Break so we call orig setsockopt() and try to offlaod
-		si_udp_logdbg("setsockopt(%s) will be passed to OS for handling - not offload interface (%d.%d.%d.%d)", setsockopt_ip_opt_to_str(optname), NIPQUAD(mc_if));
+		si_udp_logdbg("setsockopt(%s) will be passed to OS for handling - not offload interface (%d.%d.%d.%d)", setsockopt_ip_opt_to_str(p_mc_pram->optname), NIPQUAD(mc_if));
 		return -1;
 	}
 
-	flow_tuple_with_local_if flow_key(mc_grp, m_bound.get_in_port(), m_connected.get_in_addr(), m_connected.get_in_port(), PROTO_UDP, mc_if);
+	int pram_size = sizeof(ip_mreq);
+	struct ip_mreq_source mreq_src;
+	mreq_src.imr_multiaddr.s_addr = p_mc_pram->imr_multiaddr.s_addr;
+	mreq_src.imr_interface.s_addr = p_mc_pram->imr_interface.s_addr;
+	mreq_src.imr_sourceaddr.s_addr = p_mc_pram->imr_sourceaddr.s_addr;
 
-	switch (optname) {
+	switch (p_mc_pram->optname) {
 	case IP_ADD_MEMBERSHIP:
+	{
+		if ((m_mc_memberships_map.find(mc_grp) != m_mc_memberships_map.end()) && (0 < m_mc_memberships_map[mc_grp].size())) {
+				return -1; // Same group with source filtering is already exist
+		}
+
+		flow_tuple_with_local_if flow_key(mc_grp, m_bound.get_in_port(), m_connected.get_in_addr(), m_connected.get_in_port(), PROTO_UDP, mc_if);
 		if (!attach_receiver(flow_key)) {
 			// we will get RX from OS
 			return -1;
 		}
 		vma_stats_mc_group_add(mc_grp, m_p_socket_stats);
+		original_os_setsockopt_helper( &mreq_src, pram_size, p_mc_pram->optname);
 		break;
-
+	}
+	case IP_ADD_SOURCE_MEMBERSHIP:
+	{
+		flow_tuple_with_local_if flow_key(mc_grp, m_bound.get_in_port(), 0, 0, PROTO_UDP, mc_if);
+		if (!attach_receiver(flow_key)) {
+			// we will get RX from OS
+			return -1;
+		}
+		vma_stats_mc_group_add(mc_grp, m_p_socket_stats);
+		pram_size = sizeof(ip_mreq_source);
+		original_os_setsockopt_helper( &mreq_src, pram_size, p_mc_pram->optname);
+		break;
+	}
 	case IP_DROP_MEMBERSHIP:
+	{
+		flow_tuple_with_local_if flow_key(mc_grp, m_bound.get_in_port(), m_connected.get_in_addr(), m_connected.get_in_port(), PROTO_UDP, mc_if);
+		original_os_setsockopt_helper( &mreq_src, pram_size, p_mc_pram->optname);
 		if (!detach_receiver(flow_key)) {
 			return -1;
 		}
 		vma_stats_mc_group_remove(mc_grp, m_p_socket_stats);
 		break;
+	}
+	case IP_DROP_SOURCE_MEMBERSHIP:
+	{
+		flow_tuple_with_local_if flow_key(mc_grp, m_bound.get_in_port(), 0, 0, PROTO_UDP, mc_if);
+		original_os_setsockopt_helper( &mreq_src, pram_size, p_mc_pram->optname);
+		if (!detach_receiver(flow_key)) {
+			return -1;
+		}
+		else if (1 == m_mc_memberships_map[mc_grp].size()) { //Last source in the group
+			vma_stats_mc_group_remove(mc_grp, m_p_socket_stats);
+		}
+
+		pram_size = sizeof(ip_mreq_source);
+		break;
+	}
 	BULLSEYE_EXCLUDE_BLOCK_START
 	default:
-		si_udp_logerr("setsockopt(%s) will be passed to OS for handling", setsockopt_ip_opt_to_str(optname));
+		si_udp_logerr("setsockopt(%s) will be passed to OS for handling", setsockopt_ip_opt_to_str(p_mc_pram->optname));
 		return -1;
 	BULLSEYE_EXCLUDE_BLOCK_END
 	}
+
 	return 0;
 }
 
-
-int sockinfo_udp::validate_igmpv2(char* ifname)
+void sockinfo_udp::original_os_setsockopt_helper( void* pram, int pram_size, int optname)
 {
-	char igmp_force_value = 0;
-	char igmpver_filename[256];
-	
-	char base_ifname[IFNAMSIZ];
-	if (get_base_interface_name((const char*)ifname, base_ifname, sizeof(base_ifname))) {
-		vlog_printf(VLOG_ERROR,"VMA couldn't map %s for IGMP version validation\n", ifname);
-		return 0;
+	si_udp_logdbg("calling orig_setsockopt(%s) for igmp support by OS", setsockopt_ip_opt_to_str(optname));
+	if (orig_os_api.setsockopt(m_fd, IPPROTO_IP, optname, pram, pram_size)) {
+		si_udp_logdbg("orig setsockopt(%s) failed (errno=%d %m)",setsockopt_ip_opt_to_str(optname), errno);
 	}
-
-	// Read the value stored for FORCE IGMP VERSION flag
-
-	// IGMP_FORCE_ALL_IF_PARAM_FILE is: "/proc/sys/net/ipv4/conf/all/force_igmp_version"
-	sprintf(igmpver_filename, IGMP_FORCE_PARAM_FILE, "all");
-	if (priv_read_file(igmpver_filename, &igmp_force_value, 1) <= 0) {
-		return 1;
-	}
-	if (igmp_force_value == '0') { 
-		// Check the specific interface configuration 
-		// IGMP_FORCE_PARAM_FILE is: "/proc/sys/net/ipv4/conf/%s/force_igmp_version"
-		sprintf(igmpver_filename, IGMP_FORCE_PARAM_FILE, base_ifname);
-		if (priv_read_file(igmpver_filename, &igmp_force_value, 1) <= 0) {
-			return 1;
-		}
-	}
-	if (igmp_force_value != '2' && igmp_force_value != '1') {  
-		vlog_printf(VLOG_WARNING,"************************************************************************\n");
-		vlog_printf(VLOG_WARNING,"IGMP Version flag is not forced to IGMPv2 for interface %s!\n", base_ifname);
-		vlog_printf(VLOG_WARNING,"Working in this mode might causes VMA functionality degradation\n");
-		if (igmp_force_value != 0) {
-                	vlog_printf(VLOG_WARNING,"Please \"echo 2 > %s\"\n", igmpver_filename);
-			vlog_printf(VLOG_WARNING,"before loading your application with VMA library\n");
-		}
-		vlog_printf(VLOG_WARNING,"Please refer to the IGMP section in the VMA's User Manual for more information\n");
-		vlog_printf(VLOG_WARNING,"************************************************************************\n");
-	}
-	return 0;
-}
-
-// This function will validate that IGMP is forced to V2
-// on the interface (IPR only supports IGMP V2)
-// If not correct (or any failure) it will log warning message
-void sockinfo_udp::validate_igmpv2(flow_tuple_with_local_if& flow_key)
-{
-	int found = 1;
-	int igmp_ret = -1;
-	char ifname[IFNAMSIZ] = "\0";
-	unsigned int ifflags; /* Flags as from SIOCGIFFLAGS ioctl. */
-
-	if (!get_local_if_info(flow_key.get_local_if(), ifname, ifflags)) {
-		found = 0;
-		goto clean_and_exit;
-	}
-
-	if (get_iftype_from_ifname(ifname) == ARPHRD_INFINIBAND && !safe_mce_sys().suppress_igmp_warning) {
-		igmp_ret = validate_igmpv2(ifname); // Extract IGMP version flag
-	}
-	else {
-		si_udp_logdbg("Skipping igmpv2 validation check");
-		igmp_ret = 0;
-	}
-
-clean_and_exit:
-	if (!found || !ifname[0] || igmp_ret) {
-		vlog_printf(VLOG_WARNING,"************************************************************************\n");
-		vlog_printf(VLOG_WARNING,"Error in reading IGMP Version flags for interface %d.%d.%d.%d! \n", NIPQUAD(flow_key.get_dst_ip()));
-		vlog_printf(VLOG_WARNING,"Working in this mode most probably causes VMA performance degradation\n");
-		vlog_printf(VLOG_WARNING,"Please refer to the IGMP section in the VMA's User Manual for more information\n");
-		vlog_printf(VLOG_WARNING,"************************************************************************\n");
-	}
-
-	return;
 }
 
 void sockinfo_udp::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
