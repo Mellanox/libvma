@@ -602,7 +602,6 @@ void print_vma_global_settings()
 		VLOG_PARAM_NUMBER("MSS", safe_mce_sys().lwip_mss, MCE_DEFAULT_MSS, SYS_VAR_MSS);	break;
 	}
 	VLOG_PARAM_NUMSTR("TCP CC Algorithm", safe_mce_sys().lwip_cc_algo_mod, MCE_DEFAULT_LWIP_CC_ALGO_MOD, SYS_VAR_TCP_CC_ALGO, lwip_cc_algo_str(safe_mce_sys().lwip_cc_algo_mod));
-	VLOG_PARAM_STRING("Suppress IGMP ver. warning", safe_mce_sys().suppress_igmp_warning, MCE_DEFAULT_SUPPRESS_IGMP_WARNING, SYS_VAR_SUPPRESS_IGMP_WARNING, safe_mce_sys().suppress_igmp_warning ? "Enabled " : "Disabled");
 
 #ifdef VMA_TIME_MEASURE
 	VLOG_PARAM_NUMBER("Time Measure Num Samples", safe_mce_sys().vma_time_measure_num_samples, MCE_DEFAULT_TIME_MEASURE_NUM_SAMPLES, SYS_VAR_VMA_TIME_MEASURE_NUM_SAMPLES);
@@ -865,13 +864,6 @@ static void do_global_ctors_helper()
 				PERIODIC_TIMER,
 				NULL);
 	}
-
-	g_n_os_igmp_max_membership = get_igmp_max_membership();
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (g_n_os_igmp_max_membership < 0) {
-		vlog_printf(VLOG_WARNING,"failed to read igmp_max_membership value");
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
 
 // 	neigh_test();
 //	igmp_test();
