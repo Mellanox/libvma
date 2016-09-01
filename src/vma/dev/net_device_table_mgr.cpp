@@ -399,11 +399,11 @@ bool net_device_table_mgr::verify_ipoib_mode(struct ifaddrs* ifa)
 bool net_device_table_mgr::verify_mlx4_ib_device(const char* ifname)
 {
 	if (!check_device_exist(ifname, MLX4_DRIVER_PATH)) {
-		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
-		ndtm_logdbg("* Flow Steering of IPoIB traffic is not supported on your HCA");
-		ndtm_logdbg("* Please refer to VMA Release Notes for details limitations.");
+		ndtm_logdbg("*******************************************************************************************************\n");
 		ndtm_logdbg("* All traffic over interface %s will not be offloaded!", ifname);
-		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+		ndtm_logdbg("* Flow Steering of IPoIB traffic is not supported on this HCA");
+		ndtm_logdbg("* Please refer to VMA Release Notes for details limitations.");
+		ndtm_logdbg("*******************************************************************************************************\n");
 		return false;
 	}
 	return true;
