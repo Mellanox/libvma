@@ -205,8 +205,6 @@ protected:
 	virtual bool try_un_offloading(); // un-offload the socket if possible
 
 private:
-	vma_completion_t* m_p_vma_completion;
-	vma_buff_t* m_last_poll_vma_buff_lst;
 	//lwip specific things
 	struct tcp_pcb m_pcb;
 	tcp_sock_offload_e m_sock_offload;

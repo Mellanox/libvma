@@ -71,6 +71,9 @@ sockinfo::sockinfo(int fd) throw (vma_exception):
 	m_p_socket_stats->inode = fd2inode(m_fd);
 	m_p_socket_stats->b_blocking = m_b_blocking;
 	m_rx_reuse_buff.n_buff_num = 0;
+
+	m_p_vma_completion = NULL;
+	m_last_poll_vma_buff_lst = NULL;
 }
 
 sockinfo::~sockinfo()

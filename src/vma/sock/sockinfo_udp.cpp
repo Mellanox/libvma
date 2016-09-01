@@ -1807,22 +1807,21 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 
 	if (p_desc->path.rx.vma_polled) {
 		mem_buf_desc_t *tmp_p;
-		vma_completion_t* p_vma_completion;
 
-		p_vma_completion = (vma_completion_t*)pv_fd_ready_array;
-		p_vma_completion->packet.total_len = 0;
+		m_p_vma_completion = (vma_completion_t*)pv_fd_ready_array;
+		m_p_vma_completion->packet.total_len = 0;
 
 		for(tmp_p = p_desc; tmp_p; tmp_p = tmp_p->p_next_desc) {
-			p_vma_completion->packet.buff_lst = (vma_buff_t*)tmp_p;
-			p_vma_completion->packet.buff_lst->next = (vma_buff_t*)tmp_p->p_next_desc;
-			p_vma_completion->packet.buff_lst->len = p_desc->path.rx.frag.iov_len;
-			p_vma_completion->packet.buff_lst->payload = p_desc->path.rx.frag.iov_base;
-			p_vma_completion->packet.total_len += tmp_p->path.rx.sz_payload;
+			m_p_vma_completion->packet.buff_lst = (vma_buff_t*)tmp_p;
+			m_p_vma_completion->packet.buff_lst->next = (vma_buff_t*)tmp_p->p_next_desc;
+			m_p_vma_completion->packet.buff_lst->len = p_desc->path.rx.frag.iov_len;
+			m_p_vma_completion->packet.buff_lst->payload = p_desc->path.rx.frag.iov_base;
+			m_p_vma_completion->packet.total_len += tmp_p->path.rx.sz_payload;
 		}
-		p_vma_completion->events = VMA_POLL_PACKET;
-		p_vma_completion->src = p_desc->path.rx.src;
-		p_vma_completion->user_data = (uint64_t)m_fd_context;
-		p_vma_completion->packet.num_bufs = p_desc->n_frags;
+		m_p_vma_completion->events = VMA_POLL_PACKET;
+		m_p_vma_completion->src = p_desc->path.rx.src;
+		m_p_vma_completion->user_data = (uint64_t)m_fd_context;
+		m_p_vma_completion->packet.num_bufs = p_desc->n_frags;
 	} else {
 
 		// In ZERO COPY case we let the user's application manage the ready queue

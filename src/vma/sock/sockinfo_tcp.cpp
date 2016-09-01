@@ -219,9 +219,6 @@ sockinfo_tcp::sockinfo_tcp(int fd) throw (vma_exception) :
 	if (m_tcp_seg_list) m_tcp_seg_count += TCP_SEG_COMPENSATION;
 
 	si_tcp_logfunc("done");
-
-	m_p_vma_completion = NULL;
-	m_last_poll_vma_buff_lst = NULL;
 }
 
 sockinfo_tcp::~sockinfo_tcp()

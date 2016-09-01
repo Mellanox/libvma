@@ -148,6 +148,10 @@ protected:
 
 	int			m_rx_num_buffs_reuse;
 
+	/* these fields are for vma_poll() usage */
+	vma_completion_t* m_p_vma_completion;
+	vma_buff_t* m_last_poll_vma_buff_lst;
+
 	// Callback function pointer to support VMA extra API (vma_extra.h)
 	vma_recv_callback_t	m_rx_callback;
 	void*			m_rx_callback_context; // user context
