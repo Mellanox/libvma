@@ -309,7 +309,6 @@ private:
 	static err_t rx_lwip_cb(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
 	static err_t rx_drop_lwip_cb(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
 
-	static  void prepare_event_completion(sockinfo_tcp *conn, uint64_t events);
 	// Be sure that m_pcb is initialized
 	void set_conn_properties_from_pcb();
 

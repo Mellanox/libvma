@@ -412,7 +412,7 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 	}
 
 
-	notify_epoll_context(EPOLLHUP);
+	set_events(EPOLLHUP);
 
 	//todo should we do this each time we get into prepare_to_close ?
 	if (get_tcp_state(&m_pcb) != LISTEN) {
@@ -881,14 +881,10 @@ void sockinfo_tcp::err_lwip_cb(void *pcb_container, err_t err)
 			events = EPOLLIN|EPOLLHUP;
 		}
 
-		if (conn->m_p_vma_completion) {
-			prepare_event_completion(conn, events);
-		}
-		else {
-			conn->notify_epoll_context(events);
+		conn->set_events(events);
+		if (false == conn->m_p_rx_ring->get_vma_active()) {
 			io_mux_call::update_fd_array(conn->m_iomux_ready_fd_array, conn->m_fd);
 		}
-
 	}
 
 	conn->m_conn_state = TCP_CONN_FAILED;
@@ -914,7 +910,7 @@ void sockinfo_tcp::err_lwip_cb(void *pcb_container, err_t err)
 		conn->m_timer_handle = NULL;
 	}
 
-	if (!conn->m_p_vma_completion) {
+	if (false == conn->m_p_rx_ring->get_vma_active()) {
 		conn->do_wakeup();
 	}
 }
@@ -1229,37 +1225,12 @@ err_t sockinfo_tcp::ack_recvd_lwip_cb(void *arg, struct tcp_pcb *tpcb, u16_t ack
 	vlog_func_enter();
 
 	ASSERT_LOCKED(conn->m_tcp_con_lock);
-//	if (conn->m_p_vma_completion) {
-//		prepare_event_completion(conn, EPOLLOUT);
-//	}
-//	else
-	{
-		// notify epoll
-		conn->notify_epoll_context(EPOLLOUT);
-	}
+
+	conn->set_events(EPOLLOUT);
 
 	vlog_func_exit();
 
 	return ERR_OK;
-}
-
-void sockinfo_tcp::prepare_event_completion(sockinfo_tcp *conn, uint64_t events)
-{
-	if (!conn->m_p_vma_completion->events) {
-		conn->m_p_vma_completion->user_data = (uint64_t)conn->m_fd_context;
-	}
-
-	conn->m_p_vma_completion->events |= events;
-
-	if (events & VMA_POLL_NEW_CONNECTION_ACCEPTED) {
-		if (likely(conn->m_parent)) {
-			conn->m_p_vma_completion->listen_fd = conn->m_parent->get_fd();
-		}
-		else {
-			vlog_printf(VLOG_ERROR, "VMA_POLL_NEW_CONNECTION_ACCEPTED: can't find listen socket for new connected socket with [fd=%d]",
-				    __func__, __LINE__, conn->get_fd());
-		}
-	}
 }
 
 err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
@@ -1282,15 +1253,11 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 			return ERR_OK;
 		}
 
-		if (conn->m_p_vma_completion) {
-			prepare_event_completion(conn, events);
-		}
-		else {
-			conn->notify_epoll_context(events);
+		conn->set_events(events);
+		if (false == conn->m_p_rx_ring->get_vma_active()) {
 			io_mux_call::update_fd_array(conn->m_iomux_ready_fd_array, conn->m_fd);
 			conn->do_wakeup();
 		}
-
 
 		//tcp_close(&(conn->m_pcb));
 		//TODO: should be a move into half closed state (shut rx) instead of complete close
@@ -1326,7 +1293,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 	}
 	if (unlikely(err != ERR_OK)) {
 		// notify io_mux
-		conn->notify_epoll_context(EPOLLERR);
+		conn->set_events(EPOLLERR);
 		conn->do_wakeup();
 		vlog_printf(VLOG_ERROR, "%s:%d %s\n", __func__, __LINE__, "recv error!!!\n");
 		pbuf_free(p);
@@ -1391,10 +1358,11 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 			conn->m_last_poll_vma_buff_lst = (vma_buff_t*)p_last_desc;
 			conn->m_p_vma_completion->packet.buff_lst = (vma_buff_t*)p_first_desc;
 			conn->m_p_vma_completion->packet.total_len = p->tot_len;
-			conn->m_p_vma_completion->events |= VMA_POLL_PACKET;
+			conn->m_p_vma_completion->events = conn->get_events() | VMA_POLL_PACKET;
 			conn->m_p_vma_completion->src = p_first_desc->path.rx.src;
 			conn->m_p_vma_completion->user_data = (uint64_t)conn->m_fd_context;
 			conn->m_p_vma_completion->packet.num_bufs = p_first_desc->n_frags;
+			conn->clear_events();
 		}
 		else {
 			mem_buf_desc_t* prev_lst_tail_desc = (mem_buf_desc_t*)conn->m_last_poll_vma_buff_lst;
@@ -1419,7 +1387,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 			conn->m_p_socket_stats->counters.n_rx_ready_byte_max = max((uint32_t)conn->m_p_socket_stats->n_rx_ready_byte_count, conn->m_p_socket_stats->counters.n_rx_ready_byte_max);
 		}
 		// notify io_mux
-		conn->notify_epoll_context(EPOLLIN);
+		conn->set_events(EPOLLIN);
 		io_mux_call::update_fd_array(conn->m_iomux_ready_fd_array, conn->m_fd);
 
 		if (callback_retval != VMA_PACKET_HOLD) {
@@ -2407,7 +2375,19 @@ void sockinfo_tcp::auto_accept_connection(sockinfo_tcp *parent, sockinfo_tcp *ch
 	//Notifies: about new auto accepted connection
 	child->m_p_vma_completion = parent->m_p_vma_completion;
 	child->m_connected.get_sa(child->m_p_vma_completion->src);
-	prepare_event_completion(child, VMA_POLL_NEW_CONNECTION_ACCEPTED);
+	
+	if (child->m_p_vma_completion) {
+		child->m_p_vma_completion->events = child->get_events() | VMA_POLL_NEW_CONNECTION_ACCEPTED;
+		child->m_p_vma_completion->user_data = (uint64_t)child->m_fd_context;
+		if (likely(child->m_parent)) {
+			child->m_p_vma_completion->listen_fd = child->m_parent->get_fd();
+		}
+		else {
+			vlog_printf(VLOG_ERROR, "VMA_POLL_NEW_CONNECTION_ACCEPTED: can't find listen socket for new connected socket with [fd=%d]",
+				    __func__, __LINE__, child->get_fd());
+		}
+		child->clear_events();
+	}
 
 	child->unlock_tcp_con();
 	parent->lock_tcp_con();
@@ -2497,13 +2477,13 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 	//todo check that listen socket was not closed by now ? (is_server())
 	conn->m_ready_pcbs.erase(&new_sock->m_pcb);
 
-	if (conn->m_p_vma_completion) {
+	conn->set_events(EPOLLIN);
+	if (conn->m_p_rx_ring->get_vma_active()) {
 		auto_accept_connection(conn, new_sock);
 	}
 	else {
 		conn->m_accepted_conns.push_back(new_sock);
 		conn->m_ready_conn_cnt++;
-		conn->notify_epoll_context(EPOLLIN);
 		//OLG: Now we should wakeup all threads that are sleeping on this socket.
 		conn->do_wakeup();
 	}
@@ -2719,12 +2699,8 @@ err_t sockinfo_tcp::connect_lwip_cb(void *arg, struct tcp_pcb *tpcb, err_t err)
 		conn->m_conn_state = TCP_CONN_FAILED;
 	}
 	
-	if (conn->m_p_vma_completion) {
-		prepare_event_completion(conn, EPOLLOUT);
-	}
-	else {
-		// notify epoll
-		conn->notify_epoll_context(EPOLLOUT);
+	conn->set_events(EPOLLOUT);
+	if (false == conn->m_p_rx_ring->get_vma_active()) {
 		//OLG: Now we should wakeup all threads that are sleeping on this socket.
 		conn->do_wakeup();
 	}
@@ -2949,11 +2925,11 @@ int sockinfo_tcp::shutdown(int __how)
 		case SHUT_RD:
 			if (is_connected()) { 
 				m_sock_state = TCP_SOCK_CONNECTED_WR;
-				notify_epoll_context(EPOLLIN);
+				set_events(EPOLLIN);
 			}
 			else if (is_rtr()) { 
 				m_sock_state = TCP_SOCK_BOUND;
-				notify_epoll_context(EPOLLIN|EPOLLHUP);
+				set_events(EPOLLIN | EPOLLHUP);
 			}
 			else if (m_sock_state == TCP_SOCK_ACCEPT_READY) {
 				m_sock_state = TCP_SOCK_ACCEPT_SHUT;
@@ -2967,7 +2943,7 @@ int sockinfo_tcp::shutdown(int __how)
 			}
 			else if (is_rts()) { 
 				m_sock_state = TCP_SOCK_BOUND;
-				notify_epoll_context(EPOLLHUP);
+				set_events(EPOLLHUP);
 			}
 			else if (is_server()) {
 				//ignore SHUT_WR on listen socket
@@ -2978,7 +2954,7 @@ int sockinfo_tcp::shutdown(int __how)
 		case SHUT_RDWR:
 			if (is_connected() || is_rts() || is_rtr()) {
 				m_sock_state = TCP_SOCK_BOUND;
-				notify_epoll_context(EPOLLIN|EPOLLHUP);
+				set_events(EPOLLIN | EPOLLHUP);
 			}
 			else if (m_sock_state == TCP_SOCK_ACCEPT_READY) {
 				m_sock_state = TCP_SOCK_ACCEPT_SHUT;
