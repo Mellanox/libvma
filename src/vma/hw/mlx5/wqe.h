@@ -15,21 +15,23 @@
 
 #define MLX5_ETH_INLINE_HEADER_SIZE 16
 
+#ifndef DEFINED_MLX5_HW_ETH_WQE_HEADER
 enum {
 	MLX5_ETH_WQE_L3_CSUM	=	(1 << 6),
 	MLX5_ETH_WQE_L4_CSUM	=	(1 << 7),
 };
 
 struct mlx5_wqe_eth_seg {
-	uint32_t	rsvd0;
-	uint8_t		cs_flags;
-	uint8_t		rsvd1;
-	uint16_t	mss;
-	uint32_t	rsvd2;
-	uint16_t	inline_hdr_sz;
-	uint8_t		inline_hdr_start[2];
-	uint8_t		inline_hdr[16];
+	uint32_t        rsvd0;
+	uint8_t         cs_flags;
+	uint8_t         rsvd1;
+	uint16_t        mss;
+	uint32_t        rsvd2;
+	uint16_t        inline_hdr_sz;
+	uint8_t         inline_hdr_start[2];
+	uint8_t         inline_hdr[16];
 };
+#endif //DEFINED_MLX5_HW_ETH_WQE_HEADER
 
 struct mlx5_wqe64 {
 	union {

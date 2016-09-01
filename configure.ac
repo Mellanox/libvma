@@ -60,6 +60,8 @@ AC_CHECK_HEADERS([infiniband/verbs.h], ,
 AC_CHECK_HEADERS([rdma/rdma_cma.h], ,
                  [AC_MSG_ERROR([Unable to find the librdma_cm-devel header files])])
 
+AC_CHECK_HEADERS([infiniband/mlx5_hw.h], ,
+                 [AC_MSG_ERROR([Unable to find the libmlx5 HW header files])])
 
 AC_MSG_CHECKING([md5 version of VMA statistics is])
 STATS_PROTOCOL_VER=`md5sum src/vma/util/vma_stats.h | awk '{ print $1}'`
@@ -636,6 +638,25 @@ AC_TRY_LINK(
 [
   AC_MSG_RESULT([no])
 ])
+
+
+AC_MSG_CHECKING([if MLX5_ETH_WQE_L3_CSUM is defined])
+AC_TRY_LINK(
+#include <infiniband/mlx5_hw.h>
+,
+[
+  int access = (int)MLX5_ETH_WQE_L3_CSUM;
+  return access;
+],
+[
+  AC_MSG_RESULT([yes])
+  AC_DEFINE(DEFINED_MLX5_HW_ETH_WQE_HEADER, 1, [Define to 1 if MLX5_ETH_WQE_L3_CSUM is defined])
+],
+[
+  AC_MSG_RESULT([no])
+])
+
+
 
 AC_MSG_CHECKING([if SOF_TIMESTAMPING_SOFTWARE is defined])
 AC_TRY_LINK(
