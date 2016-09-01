@@ -828,6 +828,10 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 		// Get the udp header pointer + udp payload size
 		p_udp_h = (struct udphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
 
+		// Update packet descriptor with datagram base address and length
+		p_rx_wc_buf_desc->path.rx.frag.iov_base = (uint8_t*)p_udp_h + sizeof(struct udphdr);
+		p_rx_wc_buf_desc->path.rx.frag.iov_len  = ip_tot_len - ip_hdr_len - sizeof(struct udphdr);
+
 		if (p_rx_wc_buf_desc->is_rx_sw_csum_need && p_udp_h->check && compute_udp_checksum_rx(p_ip_h, p_udp_h, p_rx_wc_buf_desc)) {
 			return false; // false udp checksum
 		}
@@ -835,10 +839,6 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 		size_t sz_payload = ntohs(p_udp_h->len) - sizeof(struct udphdr);
 		ring_logfunc("Rx udp datagram info: src_port=%d, dst_port=%d, payload_sz=%d, csum=%#x",
 				ntohs(p_udp_h->source), ntohs(p_udp_h->dest), sz_payload, p_udp_h->check);
-
-		// Update packet descriptor with datagram base address and length
-		p_rx_wc_buf_desc->path.rx.frag.iov_base = (uint8_t*)p_udp_h + sizeof(struct udphdr);
-		p_rx_wc_buf_desc->path.rx.frag.iov_len  = ip_tot_len - ip_hdr_len - sizeof(struct udphdr);
 
 		// Update the L4 info
 		p_rx_wc_buf_desc->path.rx.src.sin_port        = p_udp_h->source;
