@@ -1236,6 +1236,8 @@ int ring_simple::vma_poll(vma_completion_t *vma_completions, unsigned int ncompl
 
 	NOT_IN_USE(flags);
 
+	m_vma_active = true;
+
 	if (likely(vma_completions) && ncompletions) {
 		m_vma_comp_arr = vma_completions;
 		m_vma_curr_comp_index = 0;
@@ -1249,6 +1251,7 @@ int ring_simple::vma_poll(vma_completion_t *vma_completions, unsigned int ncompl
 			}
 		}
 		ret = m_vma_curr_comp_index;
+		m_vma_curr_comp_index = -1;
 	}
 	else {
 		ret = -1;

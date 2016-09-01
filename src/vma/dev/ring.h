@@ -259,6 +259,7 @@ protected:
 	ring*			m_parent;
 	vma_completion_t*	m_vma_comp_arr;
 	int 			m_vma_curr_comp_index;
+	bool            m_vma_active;
 
 private:
 	uint32_t		 m_mtu;
