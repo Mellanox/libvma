@@ -241,6 +241,7 @@ unsigned short compute_udp_checksum_rx(const struct iphdr *p_iphdr, const struct
     sum += htons(IPPROTO_UDP);
     //the length
     sum += p_udphdr->len;
+
     //add the IP payload
     while (udp_len > 1) {
         // Each packet but the last must contain a payload length that is a multiple of 8
