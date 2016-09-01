@@ -1236,7 +1236,7 @@ int ring_simple::vma_poll(vma_completion_t *vma_completions, unsigned int ncompl
 
 	NOT_IN_USE(flags);
 
-	m_vma_active = true;
+	set_vma_active(true);
 
 	if (likely(vma_completions) && ncompletions) {
 		m_vma_comp_arr = vma_completions;

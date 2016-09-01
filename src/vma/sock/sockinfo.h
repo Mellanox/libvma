@@ -214,7 +214,10 @@ protected:
 	inline void set_events(uint64_t events)
 	{
 		m_events |= events;
-fprintf(stderr, "[ii] %s:%d events=0x%lX\n", __FUNCTION__, __LINE__, events);
+		if (m_p_vma_completion) {
+			m_p_vma_completion->user_data = m_fd;
+			m_p_vma_completion->events = m_events;
+		}
 		if ((uint32_t)events) {
 			socket_fd_api::notify_epoll_context((uint32_t)events);
 		}

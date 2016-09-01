@@ -253,16 +253,18 @@ public:
 	virtual int		vma_poll_reclaim_single_recv_buffer(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return -1;}
 	virtual void		vma_poll_reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return;}
 
+	inline void set_vma_active(bool flag) {m_vma_active = flag;}
+	inline bool get_vma_active(void) {return m_vma_active;}
 protected:
 	uint32_t		m_n_num_resources;
 	int*			m_p_n_rx_channel_fds;
 	ring*			m_parent;
 	vma_completion_t*	m_vma_comp_arr;
 	int 			m_vma_curr_comp_index;
-	bool            m_vma_active;
 
 private:
-	uint32_t		 m_mtu;
+	bool            m_vma_active;
+	uint32_t		m_mtu;
 };
 
 #endif /* RING_H */

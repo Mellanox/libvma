@@ -1842,7 +1842,7 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 			m_p_socket_stats->n_rx_zcopy_pkt_count++;
 		}
 		set_events(EPOLLIN);
-		if (false == m_p_rx_ring->m_vma_active) {
+		if (false == m_p_rx_ring->get_vma_active()) {
 			// Add this fd to the ready fd list
 			io_mux_call::update_fd_array((fd_array_t*)pv_fd_ready_array, m_fd);
 		}
