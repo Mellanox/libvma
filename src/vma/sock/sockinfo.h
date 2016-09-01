@@ -207,6 +207,22 @@ protected:
 
 	virtual bool try_un_offloading(); // un-offload the socket if possible
 
+	inline void set_events(uint64_t events)
+	{
+		m_events |= events;
+		socket_fd_api::notify_epoll_context((uint32_t)events);
+	}
+
+	inline uint64_t get_events(void)
+	{
+		return m_events;
+	}
+
+	inline void clear_events(void)
+	{
+		m_events = 0;
+	}
+
 	// This function validates the ipoib's properties
 	// Input params:
 	// 	1. IF name (can be alias)
@@ -426,6 +442,9 @@ protected:
 		return 0;
     }
     //////////////////////////////////////////////////////////////////
+
+private:
+    uint64_t m_events;
 };
 
 #endif /* BASE_SOCKINFO_H */
