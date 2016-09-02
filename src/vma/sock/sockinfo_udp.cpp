@@ -926,21 +926,42 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 						break;
 					}
 
-					if ((NULL == __optval) || (__optlen > sizeof(struct ip_mreq_source) || (__optlen < sizeof(struct ip_mreq)))) {
+					if (NULL == __optval) {
 						si_udp_logdbg("IPPROTO_IP, %s; Bad optval! calling OS setsockopt()", setsockopt_ip_opt_to_str(__optname));
 						break;
 					}
 
-					in_addr_t mc_grp = ((struct ip_mreq_source*)__optval)->imr_multiaddr.s_addr;
-					in_addr_t mc_if  = ((struct ip_mreq_source*)__optval)->imr_interface.s_addr;
+					// There are 3 types of structs that we can receive, ip_mreq(2 members), ip_mreqn(3 members), ip_mreq_source(3 members)
+					// ip_mreq struct type and size depend on command type, let verify all possibilities and continue
+					// below with safe logic.
 
-					// There are 3 types of struct that we can receive, ip_mreq(2 members), ip_mreqn(3 members), ip_mreq_source(3 members)
+					// NOTE: The ip_mreqn structure is available only since Linux 2.2. For compatibility, the old ip_mreq
+					// structure (present since Linux 1.2) is still supported; it differs from ip_mreqn only by not
+					// including the imr_ifindex field.
+					if (__optlen < sizeof(struct ip_mreq)) {
+						si_udp_logdbg("IPPROTO_IP, %s; Bad optlen! calling OS setsockopt() with optlen=%d (required optlen=%d)",
+							setsockopt_ip_opt_to_str(__optname), __optlen, sizeof(struct ip_mreq));
+						break;
+					}
+					// IP_ADD_SOURCE_MEMBERSHIP (and DROP) used ip_mreq_source which is same size struct as ip_mreqn,
+					// but fields have different meaning
+					if (((IP_ADD_SOURCE_MEMBERSHIP == __optname) || (IP_DROP_SOURCE_MEMBERSHIP == __optname)) &&
+						    (__optlen < sizeof(struct ip_mreq_source))) {
+						si_udp_logdbg("IPPROTO_IP, %s; Bad optlen! calling OS setsockopt() with optlen=%d (required optlen=%d)",
+							setsockopt_ip_opt_to_str(__optname), __optlen, sizeof(struct ip_mreq_source));
+						break;
+					}
+
+					// Use  local variable for easy access
+					in_addr_t mc_grp = ((struct ip_mreq*)__optval)->imr_multiaddr.s_addr;
+				 	in_addr_t mc_if  = ((struct ip_mreq*)__optval)->imr_interface.s_addr;
+
 					// In case interface address is undefined[INADDR_ANY] we need to find the ip address to use
 					struct ip_mreq_source mreqprm = {{mc_grp}, {mc_if}, {0}};
 					if ((IP_ADD_MEMBERSHIP == __optname) || (IP_DROP_MEMBERSHIP == __optname)) {
-						if (__optlen >= sizeof(struct ip_mreqn)){
+						if (__optlen >= sizeof(struct ip_mreqn)) {
 							struct ip_mreqn* p_mreqn = (struct ip_mreqn*)__optval;
-							if(p_mreqn->imr_ifindex) {
+							if (p_mreqn->imr_ifindex) {
 								net_dev_lst_t* p_ndv_val_lst = g_p_net_device_table_mgr->get_net_device_val_lst_from_index(p_mreqn->imr_ifindex);
 								net_device_val* p_ndev = NULL;
 								if (p_ndv_val_lst && (p_ndev = dynamic_cast <net_device_val *>(*(p_ndv_val_lst->begin())))) {
@@ -950,7 +971,8 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 									if (get_ipv4_from_ifindex(p_mreqn->imr_ifindex, &src_addr) == 0) {
 										mreqprm.imr_interface.s_addr = src_addr.sin_addr.s_addr;
 									} else {
-										si_udp_logdbg("setsockopt(%s) will be passed to OS for handling, can't get address of interface index %d ", setsockopt_ip_opt_to_str(__optname), p_mreqn->imr_ifindex);
+										si_udp_logdbg("setsockopt(%s) will be passed to OS for handling, can't get address of interface index %d ",
+												setsockopt_ip_opt_to_str(__optname), p_mreqn->imr_ifindex);
 										break;
 									}
 								}
@@ -962,10 +984,12 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 						mreqprm.imr_sourceaddr.s_addr = ((struct ip_mreq_source*)__optval)->imr_sourceaddr.s_addr;
 					}
 
-					mc_if  = mreqprm.imr_interface.s_addr; // Update interface IP in case it was changed above
+					// Update interface IP in case it was changed above
+					mc_if  = mreqprm.imr_interface.s_addr;
 
 					if (!IN_MULTICAST_N(mc_grp)) {
-						si_udp_logdbg("setsockopt(%s) will be passed to OS for handling, IP %d.%d.%d.%d is not MC ", setsockopt_ip_opt_to_str(__optname),  NIPQUAD(mc_grp));
+						si_udp_logdbg("setsockopt(%s) will be passed to OS for handling, IP %d.%d.%d.%d is not MC ",
+								setsockopt_ip_opt_to_str(__optname),  NIPQUAD(mc_grp));
 						break;
 					}
 
