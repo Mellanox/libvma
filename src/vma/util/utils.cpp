@@ -221,15 +221,14 @@ unsigned short compute_tcp_checksum(const struct iphdr *p_iphdr, const uint16_t 
  * Although according to rfc 768, If the computed checksum is zero, it is transmitted as all ones -
  * this method will return the original value.
  */
-unsigned short compute_udp_checksum_rx(const struct iphdr *p_iphdr, const struct udphdr *p_udphdr, mem_buf_desc_t* p_rx_wc_buf_desc)
+unsigned short compute_udp_checksum_rx(const struct iphdr *p_iphdr, const struct udphdr *udphdrp, mem_buf_desc_t* p_rx_wc_buf_desc)
 {
     register unsigned long sum = 0;
-    unsigned short udp_len = htons(p_udphdr->len);
-
-    const uint16_t *curr_payload = (const uint16_t *) p_udphdr;
-    mem_buf_desc_t *curr_fragment = p_rx_wc_buf_desc;
-    unsigned short curr_fragment_len = curr_fragment->path.rx.frag.iov_len + sizeof(struct udphdr);
-    unsigned short curr_fragment_remainder = curr_fragment_len;
+    unsigned short udp_len = htons(udphdrp->len);
+    const uint16_t *p_ip_payload = (const uint16_t *) udphdrp;
+    mem_buf_desc_t *p_ip_frag = p_rx_wc_buf_desc;
+    unsigned short ip_frag_len = p_ip_frag->path.rx.frag.iov_len + sizeof(struct udphdr);
+    unsigned short ip_frag_remainder = ip_frag_len;
 
     //add the pseudo header
     sum += (p_iphdr->saddr >> 16) & 0xFFFF;
@@ -240,28 +239,28 @@ unsigned short compute_udp_checksum_rx(const struct iphdr *p_iphdr, const struct
     //protocol and reserved: 17
     sum += htons(IPPROTO_UDP);
     //the length
-    sum += p_udphdr->len;
+    sum += udphdrp->len;
 
     //add the IP payload
     while (udp_len > 1) {
         // Each packet but the last must contain a payload length that is a multiple of 8
-        if (!curr_fragment_remainder && curr_fragment->p_next_desc) {
-            curr_fragment = curr_fragment->p_next_desc;
-            curr_payload = (const uint16_t *) curr_fragment->path.rx.frag.iov_base;
-            curr_fragment_remainder = curr_fragment_len = curr_fragment->path.rx.frag.iov_len;
+        if (!ip_frag_remainder && p_ip_frag->p_next_desc) {
+            p_ip_frag = p_ip_frag->p_next_desc;
+            p_ip_payload = (const uint16_t *) p_ip_frag->path.rx.frag.iov_base;
+            ip_frag_remainder = ip_frag_len = p_ip_frag->path.rx.frag.iov_len;
         }
 
-        while (curr_fragment_remainder > 1) {
-            sum += * curr_payload++;
-            curr_fragment_remainder -= 2;
+        while (ip_frag_remainder > 1) {
+            sum += * p_ip_payload++;
+            ip_frag_remainder -= 2;
         }
 
-        udp_len -= (curr_fragment_len - curr_fragment_remainder);
+        udp_len -= (ip_frag_len - ip_frag_remainder);
     }
 
     //if any bytes left, pad the bytes and add
     if(udp_len > 0) {
-        sum += ((*curr_payload)&htons(0xFF00));
+        sum += ((*p_ip_payload)&htons(0xFF00));
     }
 
     //Fold sum to 16 bits: add carrier to result
@@ -271,7 +270,7 @@ unsigned short compute_udp_checksum_rx(const struct iphdr *p_iphdr, const struct
 
     sum = ~sum;
     //computation result
-    return (unsigned short)sum; // (unsigned short)sum == 0x0000 ? 0xFFFF :(unsigned short)sum;
+    return (unsigned short)sum;
 }
 
 /**

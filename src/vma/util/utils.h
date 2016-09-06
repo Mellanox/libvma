@@ -71,7 +71,7 @@ unsigned short compute_tcp_checksum(const struct iphdr *p_iphdr, const uint16_t 
 * get udp checksum: given IP header and UDP datagram (assume checksum field in UDP header contains zero)
 * matches RFC 793
 */
-unsigned short compute_udp_checksum_rx(const struct iphdr *p_iphdr, const struct udphdr *p_udphdr, mem_buf_desc_t* p_rx_wc_buf_desc);
+unsigned short compute_udp_checksum_rx(const struct iphdr *p_iphdr, const struct udphdr *udphdrp, mem_buf_desc_t* p_rx_wc_buf_desc);
 
 /**
  * get user space max number of open fd's using getrlimit, default parameter equals to 1024
