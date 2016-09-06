@@ -1,8 +1,7 @@
 bin_PROGRAMS = udp_lat tcp_lat
 
 AM_CPPFLAGS := \
-            -I$(top_builddir)/. -I$(top_srcdir)/. \
-            -I$(top_builddir)/include -I$(top_srcdir)/include
+            -I$(top_builddir)/. -I$(top_srcdir)/.
 
 udp_lat_LDADD = -lrt
 udp_lat_SOURCES = udp_lat.c
