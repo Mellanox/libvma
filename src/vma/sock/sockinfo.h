@@ -101,7 +101,7 @@ public:
 	virtual void remove_epoll_context(epfd_info *epfd);
 	virtual int fast_nonblocking_rx(vma_packets_t *vma_pkts);
 	virtual int get_rings_num() {return 1;}
-	virtual bool check_rings_fds() {return m_p_rx_ring ? true: false;}
+	virtual bool check_rings() {return m_p_rx_ring ? true: false;}
 	virtual int* get_rings_fds() {int* channel_fds = m_p_rx_ring->get_rx_channel_fds(); return channel_fds;}
 
 protected:
