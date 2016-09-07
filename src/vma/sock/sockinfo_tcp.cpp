@@ -3168,6 +3168,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 
 	int val, ret = 0;
 	bool supported = true;
+	bool allow_privileged_sys_call = false;
 
 	/* Process VMA specific options only at the moment
 	 * VMA option does not require additional processing after return
@@ -3253,6 +3254,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 		}
 		case SO_BINDTODEVICE:
 			struct sockaddr_in sockaddr;
+			allow_privileged_sys_call = safe_mce_sys().allow_privileged_sys_calls;
 			if (__optlen == 0 || ((char*)__optval)[0] == '\0') {
 				m_so_bindtodevice_ip = 0;
 			} else if (get_ipv4_from_ifname((char*)__optval, &sockaddr)) {
@@ -3262,6 +3264,31 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 				break;
 			} else {
 				m_so_bindtodevice_ip = sockaddr.sin_addr.s_addr;
+
+				if (!is_connected()) {
+					/* Current implementation allows to create separate rings for tx and rx.
+					 * tx ring is created basing on destination ip during connect() call,
+					 * SO_BINDTODEVICE and routing table information
+					 * whereas rx ring creation can be based on bound (local) ip
+					 * As a result there are limitations in using this capability.
+					 * Also we can not have bound information as
+					 * (!m_bound.is_anyaddr() && !m_bound.is_local_loopback())
+					 * and can not detect offload/non-offload socket
+					 * Note:
+					 * This inconsistence should be resolved.
+					 */
+					ip_address local_ip(m_so_bindtodevice_ip);
+
+					lock_tcp_con();
+					net_device_resources_t* p_nd_resources = get_nd_resources((const ip_address)local_ip);
+					if (p_nd_resources) {
+						/* Ring is available now but not ready to receive */
+						m_p_rx_ring = p_nd_resources->p_ring;
+					} else {
+						si_tcp_logerr("Failed to get net device resources on ip %s", local_ip.to_str().c_str());
+					}
+					unlock_tcp_con();
+				}
 			}
 			// handle TX side
 			if (m_p_connected_dst_entry) {
@@ -3305,9 +3332,17 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 	ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (ret) {
-		si_tcp_logdbg("setsockopt failed (ret=%d %m)", ret);
+		if (EPERM == errno && allow_privileged_sys_call) {
+			si_tcp_logdbg("setsockopt failure is suppressed (ret=%d %m)", ret);
+			ret = 0;
+			errno = 0;
+		}
+		else {
+			si_tcp_logdbg("setsockopt failed (ret=%d %m)", ret);
+		}
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
+
 	return ret;
 }
 
