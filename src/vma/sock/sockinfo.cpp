@@ -926,6 +926,14 @@ bool sockinfo::attach_as_uc_receiver(role_t role, bool skip_rules /* = false */)
 			}
 		}
 	}
+	if (ret == true) {
+		if (m_rx_ring_map.size() == 1) {
+			rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.begin();
+			m_p_rx_ring = rx_ring_iter->first;
+		} else {
+			si_logdbg("ring map size: %d", m_rx_ring_map.size());
+		}
+	}
 	return ret;
 }
 

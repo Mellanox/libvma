@@ -126,7 +126,7 @@ protected:
 	rx_net_device_map_t	m_rx_nd_map;
 	rx_flow_map_t		m_rx_flow_map;
 	// we either listen on ALL system cqs or bound to the specific cq
-	ring*			m_p_rx_ring; //used in TCP instead of m_rx_ring_map
+	ring*			m_p_rx_ring; //used in TCP/UDP
 	buff_info_t		m_rx_reuse_buff; //used in TCP instead of m_rx_ring_map
 	bool			m_rx_reuse_buf_pending; //used to periodically return buffers, even if threshold was not reached
 	bool			m_rx_reuse_buf_postponed; //used to mark threshold was reached, but free was not done yet

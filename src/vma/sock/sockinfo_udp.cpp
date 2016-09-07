@@ -463,18 +463,11 @@ int sockinfo_udp::bind(const struct sockaddr *__addr, socklen_t __addrlen)
 		si_udp_logdbg("getsockname failed (ret=%d %m)", ret);
 		return -1; 
 	}
+
 	BULLSEYE_EXCLUDE_BLOCK_END
 	// save the bound info and then attach to offload flows
 	on_sockname_change(name, *namelen);
 	si_udp_logdbg("bound to %s", m_bound.to_str());
-
-	if (m_rx_ring_map.size() == 1) {
-		rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.begin();
-		m_p_rx_ring = rx_ring_iter->first;
-	} else {
-		si_udp_logdbg("ring map size: %d", m_rx_ring_map.size());
-	}
-	
 	dst_entry_map_t::iterator dst_entry_iter = m_dst_entry_map.begin();
 	while (dst_entry_iter != m_dst_entry_map.end()) {
 		if (!m_bound.is_anyaddr() && !m_bound.is_mc()) {
@@ -563,6 +556,7 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		on_sockname_change(name, *namelen);
+
 		si_udp_logdbg("bound to %s", m_bound.to_str());
 		in_port_t src_port = m_bound.get_in_port();
 
@@ -2097,13 +2091,6 @@ int sockinfo_udp::mc_change_membership(const struct ip_mreq *p_mreq, int optname
 		si_udp_logerr("setsockopt(%s) will be passed to OS for handling", setsockopt_ip_opt_to_str(optname));
 		return -1;
 	BULLSEYE_EXCLUDE_BLOCK_END
-	}
-
-	if (m_rx_ring_map.size() == 1) {
-		rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.begin();
-		m_p_rx_ring = rx_ring_iter->first;
-	} else {
-		si_udp_logdbg("ring map size: %d", m_rx_ring_map.size());
 	}
 	
 	return 0;
