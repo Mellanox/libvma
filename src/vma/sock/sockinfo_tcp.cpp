@@ -2011,6 +2011,18 @@ int sockinfo_tcp::bind(const sockaddr *__addr, socklen_t __addrlen)
 		return -1; //error
 	}
 
+	if (!m_bound.is_anyaddr() && !m_bound.is_local_loopback()) {
+		ip_address local_ip(m_bound.get_in_addr());
+
+		net_device_resources_t* p_nd_resources = get_nd_resources((const ip_address)local_ip);
+		if (p_nd_resources) {
+			/* Ring is available now but not ready to receive */
+			m_p_rx_ring = p_nd_resources->p_ring;
+		} else {
+			si_tcp_logerr("Failed to get net device resources on ip %s", local_ip.to_str().c_str());
+		}
+	}
+
 	m_sock_state = TCP_SOCK_BOUND;
 
 	m_bound.set(tmp_sin);

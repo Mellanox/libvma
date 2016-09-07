@@ -396,66 +396,13 @@ bool sockinfo::attach_receiver(flow_tuple_with_local_if &flow_key)
 		return false;
 	}
 
-	net_device_resources_t* p_nd_resources = NULL;
-
-	// Check if we are already registered to net_device with the local ip as observers
-	ip_address ip_local(flow_key.get_local_if());
-	rx_net_device_map_t::iterator rx_nd_iter = m_rx_nd_map.find(ip_local.get_in_addr());
-	if (rx_nd_iter == m_rx_nd_map.end()) {
-
-		// Need to register as observer to net_device
-		net_device_resources_t nd_resources;
-		nd_resources.refcnt = 0;
-		nd_resources.p_nde = NULL;
-		nd_resources.p_ndv = NULL;
-		nd_resources.p_ring = NULL;
-
-		BULLSEYE_EXCLUDE_BLOCK_START
-		cache_entry_subject<ip_address, net_device_val*>* p_ces = NULL;
-		if (!g_p_net_device_table_mgr->register_observer(ip_local, &m_rx_nd_observer, &p_ces)) {
-			si_logdbg("Failed registering as observer for local ip %s", ip_local.to_str().c_str());
-			return false;
-		}
-		nd_resources.p_nde = (net_device_entry*)p_ces;
-		if (!nd_resources.p_nde) {
-			si_logerr("Got NULL net_devide_entry for local ip %s", ip_local.to_str().c_str());
-			return false;
-		}
-		if (!nd_resources.p_nde->get_val(nd_resources.p_ndv)) {
-			si_logerr("Got net_device_val=NULL (interface is not offloaded) for local ip %s", ip_local.to_str().c_str());
-			return false;
-		}
-
-		unlock_rx_q();
-		m_rx_ring_map_lock.lock();
-		resource_allocation_key key = 0;
-		if (m_rx_ring_map.size()) {
-			key = m_ring_alloc_logic.get_key();
-		} else {
-			key = m_ring_alloc_logic.create_new_key();
-		}
-		nd_resources.p_ring = nd_resources.p_ndv->reserve_ring(key);
-		m_rx_ring_map_lock.unlock();
-		lock_rx_q();
-		if (!nd_resources.p_ring) {
-			si_logdbg("Failed to reserve ring for allocation key %d on lip %s", m_ring_alloc_logic.get_key(), ip_local.to_str().c_str());
-			return false;
-		}
-
-		// Add new net_device to rx_map
-		m_rx_nd_map[ip_local.get_in_addr()] = nd_resources;
-
-		rx_nd_iter = m_rx_nd_map.find(ip_local.get_in_addr());
-		if (rx_nd_iter == m_rx_nd_map.end()) {
-			si_logerr("Failed to find rx_nd_iter");
-			return false;
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-
+	net_device_resources_t* p_nd_resources = get_nd_resources((const ip_address)flow_key.get_local_if());
+	if (NULL == p_nd_resources) {
+		si_logerr("Failed to get net device resources %s", flow_key.to_str());
+		return false;
 	}
 
 	// Now we have the net_device object (created or found)
-	p_nd_resources = &rx_nd_iter->second;
 	p_nd_resources->refcnt++;
 
 	// Map flow in local map
@@ -556,6 +503,73 @@ bool sockinfo::detach_receiver(flow_tuple_with_local_if &flow_key)
 	}
 
 	return true;
+}
+
+net_device_resources_t* sockinfo::get_nd_resources(const ip_address ip_local)
+{
+	net_device_resources_t* p_nd_resources = NULL;
+
+	// Check if we are already registered to net_device with the local ip as observers
+	rx_net_device_map_t::iterator rx_nd_iter = m_rx_nd_map.find(ip_local.get_in_addr());
+	if (rx_nd_iter == m_rx_nd_map.end()) {
+
+		// Need to register as observer to net_device
+		net_device_resources_t nd_resources;
+		nd_resources.refcnt = 0;
+		nd_resources.p_nde = NULL;
+		nd_resources.p_ndv = NULL;
+		nd_resources.p_ring = NULL;
+
+		BULLSEYE_EXCLUDE_BLOCK_START
+		cache_entry_subject<ip_address, net_device_val*>* p_ces = NULL;
+		if (!g_p_net_device_table_mgr->register_observer(ip_local, &m_rx_nd_observer, &p_ces)) {
+			si_logdbg("Failed registering as observer for local ip %s", ip_local.to_str().c_str());
+			goto err;
+		}
+		nd_resources.p_nde = (net_device_entry*)p_ces;
+		if (!nd_resources.p_nde) {
+			si_logerr("Got NULL net_devide_entry for local ip %s", ip_local.to_str().c_str());
+			goto err;
+		}
+		if (!nd_resources.p_nde->get_val(nd_resources.p_ndv)) {
+			si_logerr("Got net_device_val=NULL (interface is not offloaded) for local ip %s", ip_local.to_str().c_str());
+			goto err;
+		}
+
+		unlock_rx_q();
+		m_rx_ring_map_lock.lock();
+		resource_allocation_key key = 0;
+		if (m_rx_ring_map.size()) {
+			key = m_ring_alloc_logic.get_key();
+		} else {
+			key = m_ring_alloc_logic.create_new_key();
+		}
+		nd_resources.p_ring = nd_resources.p_ndv->reserve_ring(key);
+		m_rx_ring_map_lock.unlock();
+		lock_rx_q();
+		if (!nd_resources.p_ring) {
+			si_logdbg("Failed to reserve ring for allocation key %d on lip %s", m_ring_alloc_logic.get_key(), ip_local.to_str().c_str());
+			goto err;
+		}
+
+		// Add new net_device to rx_map
+		m_rx_nd_map[ip_local.get_in_addr()] = nd_resources;
+
+		rx_nd_iter = m_rx_nd_map.find(ip_local.get_in_addr());
+		if (rx_nd_iter == m_rx_nd_map.end()) {
+			si_logerr("Failed to find rx_nd_iter");
+			goto err;
+		}
+		BULLSEYE_EXCLUDE_BLOCK_END
+
+	}
+
+	// Now we have the net_device object (created or found)
+	p_nd_resources = &rx_nd_iter->second;
+
+	return p_nd_resources;
+err:
+	return NULL;
 }
 
 void sockinfo::do_rings_migration()
