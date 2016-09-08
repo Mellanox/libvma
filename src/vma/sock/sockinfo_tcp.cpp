@@ -1793,7 +1793,7 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 		si_tcp_logdbg("non offloaded socket --> connect only via OS");
 		return -1;
 	}
-	m_p_connected_dst_entry->prepare_to_send( BYTE_TO_kb( m_so_ratelimit) );
+	m_p_connected_dst_entry->prepare_to_send( BYTE_TO_kb( m_so_ratelimit), false );
 
 	// update it after route was resolved and device was updated
 	m_p_socket_stats->bound_if = m_p_connected_dst_entry->get_src_addr();
@@ -3216,7 +3216,9 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 		case SO_MAX_PACING_RATE:
 			val = *(int *)__optval;
 			lock_tcp_con();
-			modify_ratelimit(val, m_p_connected_dst_entry);
+			if(0 == modify_ratelimit(val, m_p_connected_dst_entry)) {
+	                        si_tcp_logdbg("setsockopt SO_MAX_PACING_RATE: %d bytes/second ", val);
+			}
 			unlock_tcp_con();
 			break;
 

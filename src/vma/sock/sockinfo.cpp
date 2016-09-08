@@ -1030,8 +1030,7 @@ int sockinfo::modify_ratelimit(const int rate_limit_bytes_per_second, dst_entry*
 		if(p_dst_entry) {
 			// value is in bytes (per second). we need to convert it to kilo-bits (per second)
 			int ratelimit_kbps = BYTE_TO_kb( m_so_ratelimit);
-			si_logdbg("setsockopt SO_MAX_PACING_RATE: %d bytes/second = %d kbps", rate_limit_bytes_per_second, ratelimit_kbps );
-			p_dst_entry->modify_ratelimit(ratelimit_kbps);
+			return p_dst_entry->modify_ratelimit(ratelimit_kbps);
 		}
 		return 0;
 	}

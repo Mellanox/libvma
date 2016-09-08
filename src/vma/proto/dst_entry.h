@@ -65,7 +65,7 @@ public:
 
 	virtual void 	notify_cb();
 
-	virtual bool 	prepare_to_send(const int ratelimit_kbps, bool skip_rules=false);
+	virtual bool 	prepare_to_send(const int ratelimit_kbps, bool skip_rules); // bool skip_rules = false
 	virtual ssize_t slow_send(const int ratelimit_kbps, const iovec* p_iov, size_t sz_iov, bool b_blocked = true, bool is_rexmit = false, int flags = 0, socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF) = 0 ;
 	virtual ssize_t fast_send(const struct iovec* p_iov, const ssize_t sz_iov, bool b_blocked = true, bool is_rexmit = false, bool dont_inline = false) = 0;
 

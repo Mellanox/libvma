@@ -286,7 +286,7 @@ ssize_t dst_entry_udp::slow_send(const int ratelimit_kbps, const iovec* p_iov, s
 
 	dst_udp_logdbg("In slow send");
 
-	prepare_to_send(ratelimit_kbps);
+	prepare_to_send(ratelimit_kbps, false);
 
 	if (m_b_force_os || !m_b_is_offloaded) {
 		struct sockaddr_in to_saddr;

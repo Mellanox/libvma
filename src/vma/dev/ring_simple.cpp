@@ -1603,9 +1603,9 @@ ring_user_id_t ring_simple::generate_id(const address_t src_mac, const address_t
 }
 
 int ring_simple::modify_ratelimit(const int ratelimit_kbps) {
-        if (m_up) {
-                return this->m_p_qp_mgr->modify_qp_ratelimit(ratelimit_kbps);
-        } else
-                return 0;
-
+	m_p_qp_mgr->set_qp_ratelimit(ratelimit_kbps);
+        if (m_up)
+		return m_p_qp_mgr->modify_qp_ratelimit(ratelimit_kbps);
+	else
+		return 0;
 }

@@ -263,6 +263,10 @@ int priv_ibv_query_qp_state(struct ibv_qp *qp)
 // be advised that this method will change packet pacing value and also change state to RTS
 int priv_ibv_modify_qp_ratelimit(struct ibv_qp *qp, uint32_t ratelimit_kbps )
 {
+#ifdef DEFINED_IBV_EXP_QP_RATE_LIMIT
+	if( IBV_QPS_RTS != priv_ibv_query_qp_state(qp)) {
+		return -1;
+	}
 	vma_ibv_qp_attr qp_attr;
 	memset(&qp_attr, 0, sizeof(qp_attr));
 	qp_attr.rate_limit = ratelimit_kbps;
@@ -273,5 +277,10 @@ int priv_ibv_modify_qp_ratelimit(struct ibv_qp *qp, uint32_t ratelimit_kbps )
 	} ENDIF_VERBS_FAILURE;
 	BULLSEYE_EXCLUDE_BLOCK_END
         return 0;
+#else
+        NOT_IN_USE(ratelimit_kbps);
+	NOT_IN_USE(qp);
+        return 0;
+#endif
 }
 
