@@ -84,6 +84,7 @@ public:
 	transport_type_t	get_transport_type() const { return m_transport_type; }
 	virtual bool 		get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe);
 	inline void 		convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) { m_p_cq_mgr_rx->convert_hw_time_to_system_time(hwtime, systime); }
+	virtual int 		modify_ratelimit(const uint32_t ratelimit_kbps);
 
 	friend class cq_mgr;
 	friend class qp_mgr;

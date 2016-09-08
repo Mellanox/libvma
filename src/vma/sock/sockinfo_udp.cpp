@@ -337,6 +337,7 @@ const char * setsockopt_so_opt_to_str(int opt)
 	case SO_TIMESTAMP:		return "SO_TIMESTAMP";
 	case SO_TIMESTAMPNS:		return "SO_TIMESTAMPNS";
 	case SO_BINDTODEVICE:		return "SO_BINDTODEVICE";
+	case SO_MAX_PACING_RATE:	return "SO_MAX_PACING_RATE";
 	default:			break;
 	}
 	return "UNKNOWN SO opt";
@@ -840,6 +841,33 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 				}
 				break;
 
+			case SO_MAX_PACING_RATE:
+				if (__optval) {
+					uint32_t val = *(int *)__optval; // value is in bytes per second
+					bool success = true;
+					if (modify_ratelimit(m_p_connected_dst_entry, val) < 0) {
+						si_udp_logdbg("error setting setsockopt SO_MAX_PACING_RATE for connected dst_entry %p: %d bytes/second ", m_p_connected_dst_entry, val);
+						success = false;
+					}
+
+					dst_entry_map_t::iterator dst_entry_iter ;
+					for (dst_entry_iter = m_dst_entry_map.begin(); dst_entry_iter != m_dst_entry_map.end() ; ++dst_entry_iter) {
+						dst_entry* p_dst_entry = dst_entry_iter->second;
+						if (modify_ratelimit(p_dst_entry, val) < 0) {
+							si_udp_logdbg("error setting setsockopt SO_MAX_PACING_RATE for dst_entry %p: %d bytes/second ", p_dst_entry, val);						
+							success = false;
+						}
+					}
+					if(true == success) {
+						si_udp_logdbg("setsockopt SO_MAX_PACING_RATE: %d bytes/second ", val);
+					}
+				}
+				else {
+					si_udp_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
+				}
+				
+				break;
+
 			default:
 				si_udp_logdbg("SOL_SOCKET, optname=%s (%d)", setsockopt_so_opt_to_str(__optname), __optname);
 				supported = false;
@@ -1188,6 +1216,10 @@ int sockinfo_udp::getsockopt(int __level, int __optname, void *__optval, socklen
 
 			case SO_SNDBUF:
 				si_udp_logdbg("SOL_SOCKET, SO_SNDBUF=%d", *(int*)__optval);
+				break;
+
+			case SO_MAX_PACING_RATE:
+				ret = sockinfo::getsockopt(__level, __optname, __optval, __optlen);
 				break;
 
 			default:
@@ -1722,7 +1754,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 		}
 		else {
 			// updates the dst_entry internal information and packet headers
-			ret = p_dst_entry->slow_send(p_iov, sz_iov, is_dummy, b_blocking, false, __flags, this, call_type);
+			ret = p_dst_entry->slow_send(p_iov, sz_iov, is_dummy, BYTE_TO_kb(m_so_ratelimit), b_blocking, false, __flags, this, call_type);
 		}
 
 		// TODO ALEXR - still need to handle "is_dropped" in send path

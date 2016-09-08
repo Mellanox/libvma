@@ -48,6 +48,9 @@
 #ifndef SOCK_CLOEXEC
 #define SOCK_CLOEXEC 02000000
 #endif
+#ifndef SO_MAX_PACING_RATE
+#define SO_MAX_PACING_RATE 47
+#endif
 
 #define IS_DUMMY_PACKET(flags) (flags & VMA_SND_FLAGS_DUMMY)
 
