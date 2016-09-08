@@ -496,6 +496,20 @@ void mce_sys_var::get_env_params()
 		cq_moderation_enable = false;
 		break;
 
+	case MCE_SPEC_LL_6973:
+		tx_num_bufs               = 8192; // MCE_DEFAULT_TX_NUM_BUFS (200000), Global TX data buffers allocated
+		rx_num_bufs               = 204800; // MCE_DEFAULT_RX_NUM_BUFS (200000), RX data buffers used on all QPs on all HCAs
+		log_level                 = VLOG_WARNING; //VLOG_DEFAULT(VLOG_INFO) VMA_TRACELEVEL
+		stats_fd_num_max          = 1024; //MCE_DEFAULT_STATS_FD_NUM(100), max. number of sockets monitored by VMA stats
+		strcpy(internal_thread_affinity_str, "0x3"); // MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR(-1), first 2 cores
+		rx_poll_num               = -1; //MCE_DEFAULT_RX_NUM_POLLS(100000), Infinite RX poll for ready packets (during read/recv)
+		select_poll_num           = -1;	//MCE_DEFAULT_SELECT_NUM_POLLS(100000), Infinite poll the hardware on RX (before sleeping in epoll/select, etc)
+		select_poll_os_ratio      = 0;  //MCE_DEFAULT_SELECT_POLL_OS_RATIO(10), Disable polling OS fd's (re-enabled if bound on OS fd)
+		tcp_3t_rules              = true; //MCE_DEFAULT_TCP_3T_RULES(false), Use only 3 tuple rules for TCP
+		avoid_sys_calls_on_tcp_fd = 1; //MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD (false), Disable handling control packets on a separate thread
+		buffer_batching_mode      = BUFFER_BATCHING_NONE; //MCE_DEFAULT_BUFFER_BATCHING_MODE(BUFFER_BATCHING_WITH_RECLAIM), Disable handling control packets on a separate thread
+		break;
+		
 	case 0:
 	default:
 		break;
