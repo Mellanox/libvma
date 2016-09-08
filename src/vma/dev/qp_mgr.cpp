@@ -75,8 +75,7 @@ qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context,
 	m_curr_rx_wr(0),
 	m_last_posted_rx_wr_id(0), m_n_unsignaled_count(0),
 	m_p_last_tx_mem_buf_desc(NULL), m_p_prev_rx_desc_pushed(NULL),
-	m_n_ip_id_base(0), m_n_ip_id_offset(0)
-
+	m_n_ip_id_base(0), m_n_ip_id_offset(0), m_ratelimit_kbps(0)
 {
 	m_ibv_rx_sg_array = new ibv_sge[m_n_sysvar_rx_num_wr_to_post_recv];
 	m_ibv_rx_wr_array = new ibv_recv_wr[m_n_sysvar_rx_num_wr_to_post_recv];
@@ -761,6 +760,10 @@ void qp_mgr_eth::modify_qp_to_ready_state()
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if ((ret = priv_ibv_modify_qp_from_init_to_rts(m_qp)) != 0) {
 		qp_logpanic("failed to modify QP from INIT to RTS state (ret = %d)", ret);
+	} 
+
+	if (m_ratelimit_kbps != 0) {
+		modify_qp_ratelimit(m_ratelimit_kbps);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 }
@@ -914,4 +917,25 @@ void qp_mgr_ib::update_pkey_index()
 	}
 	qp_logdbg("IB: Use qpn = 0x%X for device: %s", m_underly_qpn, m_p_ib_ctx_handler->get_ibv_device()->name);
 #endif /* DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN */
+}
+
+bool qp_mgr::set_qp_ratelimit(const uint32_t ratelimit_kbps)
+{
+	if (m_ratelimit_kbps != ratelimit_kbps) {
+	        m_ratelimit_kbps = ratelimit_kbps;
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+int qp_mgr::modify_qp_ratelimit(const uint32_t ratelimit_kbps)
+{
+	int ret = priv_ibv_modify_qp_ratelimit(m_qp, ratelimit_kbps);
+	if (ret) {
+		qp_logdbg("failed to modify qp ratelimit ret %d (errno=%d %m)", ret, errno);
+		return -1;
+	}
+	return 0;
 }

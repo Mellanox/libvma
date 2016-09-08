@@ -637,6 +637,15 @@ ring_user_id_t ring_bond::generate_id(const address_t src_mac, const address_t d
 	return hash % m_n_num_resources;
 }
 
+int ring_bond::modify_ratelimit(const uint32_t ratelimit_kbps) {
+        for (uint32_t i = 0; i < m_n_num_resources; i++) {
+                if( NULL != m_bond_rings[i]) {
+                        m_bond_rings[i]->modify_ratelimit(ratelimit_kbps);
+                }
+        }
+	return 0;
+}
+
 #ifdef DEFINED_VMAPOLL	
 int ring_bond::fast_poll_and_process_element_rx(vma_packets_t *vma_pkts)
 {

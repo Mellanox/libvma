@@ -144,10 +144,13 @@ public:
 	void                release_rx_buffers();
 	void                release_tx_buffers();
 	void                trigger_completion_for_all_sent_packets();
+	bool                set_qp_ratelimit(const uint32_t ratelimit_kbps);
+	int                 modify_qp_ratelimit(const uint32_t ratelimit_kbps);
 	static inline bool  is_lib_mlx5(const char* divace_name)
 	{
 		return strstr(divace_name, "mlx5");
 	}
+
 #ifdef DEFINED_VMAPOLL
 	void                set_signal_in_next_send_wqe();
 	void                mlx5_send(vma_ibv_send_wr* p_send_wqe);
@@ -209,6 +212,7 @@ protected:
 	// generating packet IDs
 	uint16_t            m_n_ip_id_base;
 	uint16_t            m_n_ip_id_offset;
+	uint32_t            m_ratelimit_kbps;
 
 	mgid_ref_count_map_t  m_attach_mc_grp_ref_cnt;
 

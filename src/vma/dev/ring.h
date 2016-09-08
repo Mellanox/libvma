@@ -322,6 +322,8 @@ public:
 	virtual ring_user_id_t	generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port) = 0;
 	uint32_t		get_mtu() {return m_mtu;};
 	bool			is_mp_ring() {return m_is_mp_ring;};
+	virtual int		modify_ratelimit(const uint32_t ratelimit_kbps) = 0;
+
 #ifdef DEFINED_VMAPOLL		
 	virtual int		vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags) = 0;
 	virtual bool		reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return false;}
@@ -365,6 +367,7 @@ public:
 		return m_vma_poll_completion;
 	}
 #endif // DEFINED_VMAPOLL	
+
 protected:
 	uint32_t		m_n_num_resources;
 	int*			m_p_n_rx_channel_fds;
