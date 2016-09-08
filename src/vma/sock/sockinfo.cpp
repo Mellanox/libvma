@@ -84,7 +84,8 @@ sockinfo::sockinfo(int fd) throw (vma_exception):
 		m_ring_alloc_log_rx(safe_mce_sys().ring_allocation_logic_rx),
 		m_ring_alloc_log_tx(safe_mce_sys().ring_allocation_logic_tx),
 		m_rx_callback(NULL),
-		m_rx_callback_context(NULL)
+		m_rx_callback_context(NULL),
+		m_so_ratelimit(0)
 #ifdef DEFINED_VMAPOLL
 		, m_fd_context((void *)((uintptr_t)m_fd))
 #endif // DEFINED_VMAPOLL
@@ -241,13 +242,16 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 
 	return ret;
 }
+#endif // DEFINED_VMAPOLL
 
 int sockinfo::getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen) throw (vma_error)
 {
 	int ret = -1;
 
-	if (__level == SOL_SOCKET) {
+	switch (__level) {
+	case SOL_SOCKET:
 		switch(__optname) {
+#ifdef DEFINED_VMAPOLL
 		case SO_VMA_USER_DATA:
 			if (*__optlen == sizeof(m_fd_context)) {
 				*(void **)__optval = m_fd_context;
@@ -255,15 +259,23 @@ int sockinfo::getsockopt(int __level, int __optname, void *__optval, socklen_t *
 			} else {
 				errno = EINVAL;
 			}
-			break;
-		default:
-			break;
+		break;
+#endif // DEFINED_VMAPOLL
+
+		case SO_MAX_PACING_RATE:
+			if (*__optlen >= sizeof(int)) {
+				*(int *)__optval = KB_TO_BYTE(m_so_ratelimit);
+				si_logdbg("(SO_MAX_PACING_RATE) value: %d", *(int *)__optval);
+				ret = 0;
+			} else {
+				errno = EINVAL;
+			}
+		break;
 		}
 	}
 
 	return ret;
 }
-#endif // DEFINED_VMAPOLL 
 
 ////////////////////////////////////////////////////////////////////////////////
 bool sockinfo::try_un_offloading() // un-offload the socket if possible
@@ -1160,6 +1172,26 @@ int sockinfo::register_callback(vma_recv_callback_t callback, void *context)
 	m_rx_callback = callback;
 	m_rx_callback_context = context;
 	return 0;
+}
+
+int sockinfo::modify_ratelimit(dst_entry* p_dst_entry, const uint32_t rate_limit_bytes_per_second)
+{
+	if (m_ring_alloc_log_tx.m_ring_alloc_logic == RING_LOGIC_PER_SOCKET) {
+		// check in qp attr that device supports
+		if (m_p_rx_ring && !m_p_rx_ring->is_ratelimit_supported(BYTE_TO_KB(rate_limit_bytes_per_second))) {
+			si_logwarn("device doesn't support packet pacing or bad value, run ibv_devinfo -v");
+			return -1;
+		}
+		m_so_ratelimit = BYTE_TO_KB(rate_limit_bytes_per_second);
+		if (p_dst_entry) {
+			// value is in bytes (per second). we need to convert it to kilo-bits (per second)
+			return p_dst_entry->modify_ratelimit(m_so_ratelimit);
+		}
+		return 0;
+	}
+	si_logwarn("VMA is not configured with TX ring allocation logic per "
+		   "socket.");
+	return -1;
 }
 
 #ifdef DEFINED_VMAPOLL

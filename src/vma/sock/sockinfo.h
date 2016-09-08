@@ -57,6 +57,8 @@
 #define BASE_SOCKINFO_H
 
 #define SI_RX_EPFD_EVENT_MAX		16
+#define BYTE_TO_KB(BYTEVALUE)		(((BYTEVALUE) * 8) / 1000)
+#define KB_TO_BYTE(BYTEVALUE)		(((BYTEVALUE) * 1000) / 8)
 
 struct buff_info_t {
 		buff_info_t(){
@@ -114,7 +116,6 @@ public:
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif
-
 	virtual void consider_rings_migration();
 
 	virtual int add_epoll_context(epfd_info *epfd);
@@ -201,6 +202,7 @@ protected:
 	// Callback function pointer to support VMA extra API (vma_extra.h)
 	vma_recv_callback_t	m_rx_callback;
 	void*			m_rx_callback_context; // user context
+	uint32_t		m_so_ratelimit;
 #ifdef DEFINED_VMAPOLL	
 	void*			m_fd_context;
 #endif // DEFINED_VMAPOLL	
@@ -213,8 +215,8 @@ protected:
 	virtual int 		ioctl(unsigned long int __request, unsigned long int __arg) throw (vma_error);
 #ifdef DEFINED_VMAPOLL	
 	virtual int setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen) throw (vma_error);
-	virtual int getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen) throw (vma_error);
 #endif // DEFINED_VMAPOLL	
+	virtual int getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen) throw (vma_error);
 
 	virtual	mem_buf_desc_t* get_front_m_rx_pkt_ready_list() = 0;
 	virtual	size_t get_size_m_rx_pkt_ready_list() = 0;
@@ -259,6 +261,7 @@ protected:
 	virtual void		unlock_rx_q() {m_lock_rcv.unlock();}
 
 	void 			destructor_helper();
+	int 			modify_ratelimit(dst_entry* p_dst_entry, const uint32_t rate_limit_bytes_per_second);
 
 	void 			move_owned_rx_ready_descs(const mem_buf_desc_owner* p_desc_owner, descq_t* toq); // Move all owner's rx ready packets ro 'toq'
 

@@ -92,11 +92,28 @@ qp_mgr* ring_eth::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, 
 	return new qp_mgr_eth(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), get_partition());
 }
 
+bool ring_eth::is_ratelimit_supported(uint32_t rate)
+{
+#ifdef DEFINED_IBV_EXP_QP_RATE_LIMIT
+	ibv_exp_packet_pacing_caps &pp_caps =
+			m_p_ib_ctx->get_ibv_device_attr().packet_pacing_caps;
+	return rate >= pp_caps.qp_rate_limit_min && rate <= pp_caps.qp_rate_limit_max;
+#else
+	NOT_IN_USE(rate);
+	return false;
+#endif
+}
+
 qp_mgr* ring_ib::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) throw (vma_error)
 {
 	return new qp_mgr_ib(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), get_partition());
 }
 
+bool ring_ib::is_ratelimit_supported(uint32_t rate)
+{
+	NOT_IN_USE(rate);
+	return false;
+}
 
 ring_simple::ring_simple(in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, uint32_t mtu, ring* parent /*=NULL*/) throw (vma_error):
 	ring(count, mtu), m_p_qp_mgr(NULL), m_p_cq_mgr_rx(NULL),
@@ -220,9 +237,9 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 	if(p_ring_info->p_ib_ctx == NULL) {
 		ring_logpanic("p_ring_info.p_ib_ctx = NULL. It can be related to wrong bonding configuration");
 	}
-
+	m_p_ib_ctx = p_ring_info->p_ib_ctx;
 	save_l2_address(p_ring_info->p_l2_addr);
-	m_p_tx_comp_event_channel = ibv_create_comp_channel(p_ring_info->p_ib_ctx->get_ibv_context());
+	m_p_tx_comp_event_channel = ibv_create_comp_channel(m_p_ib_ctx->get_ibv_context());
 	if (m_p_tx_comp_event_channel == NULL) {
 		VLOG_PRINTF_INFO_ONCE_THEN_ALWAYS(VLOG_ERROR, VLOG_DEBUG, "ibv_create_comp_channel for tx failed. m_p_tx_comp_event_channel = %p (errno=%d %m)", m_p_tx_comp_event_channel, errno);
 		if (errno == EMFILE) {
@@ -233,7 +250,7 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	// Check device capabilities for max QP work requests
-	vma_ibv_device_attr& r_ibv_dev_attr = p_ring_info->p_ib_ctx->get_ibv_device_attr();
+	vma_ibv_device_attr& r_ibv_dev_attr = m_p_ib_ctx->get_ibv_device_attr();
 	uint32_t max_qp_wr = ALIGN_WR_DOWN(r_ibv_dev_attr.max_qp_wr - 1);
 	m_tx_num_wr = safe_mce_sys().tx_num_wr;
 	if (m_tx_num_wr > max_qp_wr) {
@@ -246,9 +263,9 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 
 	memset(&m_cq_moderation_info, 0, sizeof(m_cq_moderation_info));
 
-	m_flow_tag_enabled = p_ring_info->p_ib_ctx->get_flow_tag_capability();
+	m_flow_tag_enabled = m_p_ib_ctx->get_flow_tag_capability();
 
-	m_p_rx_comp_event_channel = ibv_create_comp_channel(p_ring_info->p_ib_ctx->get_ibv_context()); // ODED TODO: Adjust the ibv_context to be the exact one in case of different devices
+	m_p_rx_comp_event_channel = ibv_create_comp_channel(m_p_ib_ctx->get_ibv_context()); // ODED TODO: Adjust the ibv_context to be the exact one in case of different devices
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_p_rx_comp_event_channel == NULL) {
 		VLOG_PRINTF_INFO_ONCE_THEN_ALWAYS(VLOG_ERROR, VLOG_DEBUG, "ibv_create_comp_channel for rx failed. p_rx_comp_event_channel = %p (errno=%d %m)", m_p_rx_comp_event_channel, errno);
@@ -276,7 +293,7 @@ remain below as in master?
 	request_more_tx_buffers(RING_TX_BUFS_COMPENSATE);
 	m_tx_num_bufs = m_tx_pool.size();
 #endif // 0
-	m_p_qp_mgr = create_qp_mgr(p_ring_info->p_ib_ctx, p_ring_info->port_num, m_p_rx_comp_event_channel);
+	m_p_qp_mgr = create_qp_mgr(m_p_ib_ctx, p_ring_info->port_num, m_p_rx_comp_event_channel);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_p_qp_mgr == NULL) {
 		ring_logerr("Failed to allocate qp_mgr!");
@@ -288,7 +305,7 @@ remain below as in master?
 	m_p_cq_mgr_rx = m_p_qp_mgr->get_rx_cq_mgr();
 	m_p_cq_mgr_tx = m_p_qp_mgr->get_tx_cq_mgr();
 
-	m_tx_lkey = g_buffer_pool_tx->find_lkey_by_ib_ctx_thread_safe(p_ring_info->p_ib_ctx);
+	m_tx_lkey = g_buffer_pool_tx->find_lkey_by_ib_ctx_thread_safe(m_p_ib_ctx);
 
 	request_more_tx_buffers(RING_TX_BUFS_COMPENSATE);
 	m_tx_num_bufs = m_tx_pool.size();
@@ -1926,5 +1943,12 @@ ring_user_id_t ring_simple::generate_id(const address_t src_mac, const address_t
 	NOT_IN_USE(dst_ip);
 	NOT_IN_USE(src_port);
 	NOT_IN_USE(dst_port);
+	return 0;
+}
+
+int ring_simple::modify_ratelimit(const uint32_t ratelimit_kbps) {
+	if (m_p_qp_mgr->set_qp_ratelimit(ratelimit_kbps) && m_up) {
+		return m_p_qp_mgr->modify_qp_ratelimit(ratelimit_kbps);
+	}
 	return 0;
 }

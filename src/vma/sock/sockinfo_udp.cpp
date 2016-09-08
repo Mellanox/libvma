@@ -339,6 +339,7 @@ const char * setsockopt_so_opt_to_str(int opt)
 	case SO_TIMESTAMPNS:		return "SO_TIMESTAMPNS";
 	case SO_BINDTODEVICE:		return "SO_BINDTODEVICE";
 	case SO_VMA_RING_ALLOC_LOGIC:	return "SO_VMA_RING_ALLOC_LOGIC";
+	case SO_MAX_PACING_RATE:	return "SO_MAX_PACING_RATE";
 	default:			break;
 	}
 	return "UNKNOWN SO opt";
@@ -910,6 +911,44 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					si_udp_logdbg("VMA_MP_RQ, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
 				}
 				break;
+			case SO_MAX_PACING_RATE:
+				if (__optval) {
+					uint32_t val = *(uint32_t *)__optval; // value is in bytes per second
+					if (modify_ratelimit(m_p_connected_dst_entry, val) < 0) {
+						si_udp_logdbg("error setting setsockopt SO_MAX_PACING_RATE for connected dst_entry %p: %d bytes/second ", m_p_connected_dst_entry, val);
+
+						// Do not fall back to kernel in this case.
+						// The kernel's support for packet pacing is of no consequence
+						// to the VMA user and may only confuse the calling application.
+						return -1;
+					}
+
+					size_t dst_entries_not_modified = 0;
+					dst_entry_map_t::iterator dst_entry_iter ;
+					for (dst_entry_iter = m_dst_entry_map.begin();
+					     dst_entry_iter != m_dst_entry_map.end();
+					     ++dst_entry_iter) {
+						dst_entry* p_dst_entry = dst_entry_iter->second;
+						if (modify_ratelimit(p_dst_entry, val) < 0) {
+							si_udp_logdbg("error setting setsockopt SO_MAX_PACING_RATE "
+								      "for dst_entry %p: %d bytes/second ",
+								      p_dst_entry, val);
+							dst_entries_not_modified++;
+						}
+					}
+					// It is possible that the user has a setup with some NICs that support
+					// packet pacing and some that don't.
+					// Setting packet pacing fails only if all NICs do not support it.
+					if (m_dst_entry_map.size() &&
+					    (dst_entries_not_modified == m_dst_entry_map.size())) {
+						return -1;
+					}
+					return 0;
+				}
+				else {
+					si_udp_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
+				}
+				break;
 			default:
 				si_udp_logdbg("SOL_SOCKET, optname=%s (%d)", setsockopt_so_opt_to_str(__optname), __optname);
 				supported = false;
@@ -1264,6 +1303,10 @@ int sockinfo_udp::getsockopt(int __level, int __optname, void *__optval, socklen
 
 			case SO_SNDBUF:
 				si_udp_logdbg("SOL_SOCKET, SO_SNDBUF=%d", *(int*)__optval);
+				break;
+
+			case SO_MAX_PACING_RATE:
+				ret = sockinfo::getsockopt(__level, __optname, __optval, __optlen);
 				break;
 
 			default:
@@ -1679,7 +1722,7 @@ int sockinfo_udp::rx_request_notification(uint64_t poll_sn)
 	return ring_ready_count;
 }
 
-ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, const ssize_t sz_iov,
+ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ssize_t sz_iov,
 		     const int __flags /*=0*/, const struct sockaddr *__dst /*=NULL*/, const socklen_t __dstlen /*=0*/)
 {
 	int ret;
@@ -1799,11 +1842,11 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 
 		if (likely(p_dst_entry->is_valid())) {
 			// All set for fast path packet sending - this is our best performance flow
-			ret = p_dst_entry->fast_send((struct iovec*)p_iov, sz_iov, is_dummy, b_blocking);
+			ret = p_dst_entry->fast_send((iovec*)p_iov, sz_iov, is_dummy, b_blocking);
 		}
 		else {
 			// updates the dst_entry internal information and packet headers
-			ret = p_dst_entry->slow_send(p_iov, sz_iov, is_dummy, b_blocking, false, __flags, this, call_type);
+			ret = p_dst_entry->slow_send(p_iov, sz_iov, is_dummy, m_so_ratelimit, b_blocking, false, __flags, this, call_type);
 		}
 
 		if (unlikely(p_dst_entry->try_migrate_ring(m_lock_snd))) {
