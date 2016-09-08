@@ -53,7 +53,8 @@ typedef enum {
 	MCE_SPEC_RTI_784 = 784,
 	MCE_SPEC_NETEFFECT_63 = 63,
 	MCE_SPEC_MCD_623 = 623,
-	MCE_SPEC_MCD_IRQ_624 = 624
+	MCE_SPEC_MCD_IRQ_624 = 624,
+	MCE_SPEC_LL_6973 = 6973,
 } mce_spec_t;
 
 typedef enum {

@@ -428,6 +428,9 @@ void print_vma_global_settings()
 	case MCE_SPEC_MCD_IRQ_624:
 		vlog_printf(VLOG_INFO, " Memcached Interrupt Mode Logic Spec\n");
 		break;
+	case MCE_SPEC_LL_6973:
+		vlog_printf(VLOG_INFO, "6973 Low Latency Profile Spec\n");
+		break;
 	default:
 		break;
 	}
