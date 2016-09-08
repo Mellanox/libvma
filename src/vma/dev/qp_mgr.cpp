@@ -215,6 +215,9 @@ void qp_mgr::up()
 	m_p_last_tx_mem_buf_desc = NULL;
 
 	modify_qp_to_ready_state();
+	if( 0 != m_ratelimit_kbps ) {
+		modify_qp_ratelimit(m_ratelimit_kbps);
+	}
 	m_p_cq_mgr_rx->add_qp_rx(this);
 }
 
@@ -653,4 +656,14 @@ void qp_mgr_ib::update_pkey_index()
 	else {
 		qp_logdbg("IB: Found correct pkey_index (%d) for pkey '%d'", m_pkey_index, m_pkey);
 	}
+}
+
+int qp_mgr::modify_qp_ratelimit(const int ratelimit_kbps)
+{
+	m_ratelimit_kbps = ratelimit_kbps;
+	IF_VERBS_FAILURE( priv_ibv_modify_qp_ratelimit(m_qp, ratelimit_kbps) ) {
+		qp_logdbg("Failure modifying qp ratelimit (errno=%d %m)", errno);
+		return -1;
+	} ENDIF_VERBS_FAILURE;
+	return 0;
 }

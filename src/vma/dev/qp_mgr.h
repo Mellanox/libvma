@@ -128,6 +128,7 @@ public:
 	void			release_rx_buffers();
 	void 			release_tx_buffers();
 	void			trigger_completion_for_all_sent_packets();
+	int			modify_qp_ratelimit(const int ratelimit_kbps);
 
 protected:
 	struct ibv_qp*		m_qp;
@@ -172,6 +173,8 @@ protected:
 
 	int 			configure(struct ibv_comp_channel* p_rx_comp_event_channel);
 	virtual int		prepare_ibv_qp(struct ibv_qp_init_attr& qp_init_attr) = 0;
+private:
+	int			m_ratelimit_kbps;
 };
 
 

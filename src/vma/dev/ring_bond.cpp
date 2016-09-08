@@ -603,3 +603,12 @@ ring_user_id_t ring_bond::generate_id(const address_t src_mac, const address_t d
 
 	return hash % m_n_num_resources;
 }
+
+int ring_bond::modify_ratelimit(const int ratelimit_kbps) {
+        for (uint32_t i = 0; i < m_n_num_resources; i++) {
+                if( NULL != m_bond_rings[i]) {
+                        m_bond_rings[i]->modify_ratelimit(ratelimit_kbps);
+                }
+        }
+	return 0;
+}

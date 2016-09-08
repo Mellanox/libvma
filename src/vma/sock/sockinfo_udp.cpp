@@ -336,6 +336,7 @@ const char * setsockopt_so_opt_to_str(int opt)
 	case SO_TIMESTAMP:		return "SO_TIMESTAMP";
 	case SO_TIMESTAMPNS:		return "SO_TIMESTAMPNS";
 	case SO_BINDTODEVICE:		return "SO_BINDTODEVICE";
+	case SO_MAX_PACING_RATE:	return "SO_MAX_PACING_RATE";
 	default:			break;
 	}
 	return "UNKNOWN SO opt";
@@ -829,6 +830,20 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					si_udp_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
 				}
 				break;
+			case SO_MAX_PACING_RATE:
+				if (__optval) {
+					uint32_t val = *(int *)__optval;
+					// value is in bytes (per second), we need to convert it to kilo-bits (per second)
+					dst_entry_map_t::iterator dst_entry_iter ;
+					for (dst_entry_iter = m_dst_entry_map.begin(); dst_entry_iter != m_dst_entry_map.end() ; ++dst_entry_iter) {
+						dst_entry* p_dst_entry = dst_entry_iter->second;
+						modify_ratelimit(val, p_dst_entry);
+					}
+				}
+				else {
+					si_udp_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
+				}
+				break;
 
 			default:
 				si_udp_logdbg("SOL_SOCKET, optname=%s (%d)", setsockopt_so_opt_to_str(__optname), __optname);
@@ -1169,6 +1184,16 @@ int sockinfo_udp::getsockopt(int __level, int __optname, void *__optval, socklen
 
 			case SO_SNDBUF:
 				si_udp_logdbg("SOL_SOCKET, SO_SNDBUF=%d", *(int*)__optval);
+				break;
+
+			case SO_MAX_PACING_RATE:
+				if (*__optlen >= sizeof(int)) {
+					*(int *)__optval = m_so_ratelimit;
+					si_udp_logdbg("(SO_MAX_PACING_RATE) value: %d", *(int *)__optval);
+					ret = 0;
+				} else {
+					errno = EINVAL;
+				}
 				break;
 
 			default:
@@ -1699,7 +1724,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 		}
 		else {
 			// updates the dst_entry internal information and packet headers
-			ret = p_dst_entry->slow_send(p_iov, sz_iov, b_blocking, false, __flags, this, call_type);
+			ret = p_dst_entry->slow_send(BYTE_TO_kb( m_so_ratelimit), p_iov, sz_iov, b_blocking, false, __flags, this, call_type);
 		}
 
 		// TODO ALEXR - still need to handle "is_dropped" in send path

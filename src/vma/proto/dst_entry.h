@@ -65,8 +65,8 @@ public:
 
 	virtual void 	notify_cb();
 
-	virtual bool 	prepare_to_send(bool skip_rules=false);
-	virtual ssize_t slow_send(const iovec* p_iov, size_t sz_iov, bool b_blocked = true, bool is_rexmit = false, int flags = 0, socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF) = 0 ;
+	virtual bool 	prepare_to_send(const int ratelimit_kbps, bool skip_rules=false);
+	virtual ssize_t slow_send(const int ratelimit_kbps, const iovec* p_iov, size_t sz_iov, bool b_blocked = true, bool is_rexmit = false, int flags = 0, socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF) = 0 ;
 	virtual ssize_t fast_send(const struct iovec* p_iov, const ssize_t sz_iov, bool b_blocked = true, bool is_rexmit = false, bool dont_inline = false) = 0;
 
 	bool		try_migrate_ring(lock_base& socket_lock);
@@ -77,6 +77,7 @@ public:
 	in_addr_t	get_src_addr();
 	in_addr_t	get_dst_addr();
 	uint16_t	get_dst_port();
+	int		modify_ratelimit(int ratelimit_kbps);
 
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off

@@ -81,7 +81,8 @@ sockinfo::sockinfo(int fd) throw (vma_exception):
 		m_n_sysvar_rx_num_buffs_reuse(safe_mce_sys().rx_bufs_batch),
 		m_n_sysvar_rx_poll_num(safe_mce_sys().rx_poll_num),
 		m_rx_callback(NULL),
-		m_rx_callback_context(NULL)
+		m_rx_callback_context(NULL),
+		m_so_ratelimit(0)
 {
 	m_rx_epfd = orig_os_api.epoll_create(128);
 	if (unlikely(m_rx_epfd == -1)) {
@@ -1021,3 +1022,20 @@ int sockinfo::register_callback(vma_recv_callback_t callback, void *context)
 	m_rx_callback_context = context;
 	return 0;
 }
+
+int sockinfo::modify_ratelimit(const int rate_limit_bytes_per_second, dst_entry* p_dst_entry)
+{
+       if(RING_LOGIC_PER_SOCKET == safe_mce_sys().ring_allocation_logic_tx ) {
+		m_so_ratelimit = rate_limit_bytes_per_second;
+		if(p_dst_entry) {
+			// value is in bytes (per second). we need to convert it to kilo-bits (per second)
+			int ratelimit_kbps = BYTE_TO_kb( m_so_ratelimit);
+			si_logdbg("setsockopt SO_MAX_PACING_RATE: %d bytes/second = %d kbps", rate_limit_bytes_per_second, ratelimit_kbps );
+			p_dst_entry->modify_ratelimit(ratelimit_kbps);
+		}
+		return 0;
+	}
+	si_logerr("setsockopt SO_MAX_PACING_RATE failed. Please set ring_allocation_logic_tx to RING_LOGIC_PER_SOCKET");
+	return -1;
+}
+

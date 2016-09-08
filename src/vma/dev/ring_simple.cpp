@@ -1601,3 +1601,11 @@ ring_user_id_t ring_simple::generate_id(const address_t src_mac, const address_t
 	NOT_IN_USE(dst_port);
 	return 0;
 }
+
+int ring_simple::modify_ratelimit(const int ratelimit_kbps) {
+        if (m_up) {
+                return this->m_p_qp_mgr->modify_qp_ratelimit(ratelimit_kbps);
+        } else
+                return 0;
+
+}
