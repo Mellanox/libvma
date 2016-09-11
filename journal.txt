@@ -1,3 +1,17 @@
+Version 8.1.5-0:
+Date + Time 2016-09-08
+=======================
+Added:
+        - RM #749133 IGMPv3 - add support for 'Source Specific Multicast' 
+        - RM #770746 Add csbuild support into jenkins
+        - RM #770746 Update jenkins with valgrind support
+        - RM #848172 Code updates to comply with Coverity 8.5 version
+Fixed:
+        - RM #846042 Fix failure to receive fragmented multicast packets over ConnectX3-IB
+        - RM #843662 Fix log WARNING to DEBUG in case not an mlx4 driver on IPoIB interface
+        - RM #844374 Fix error handling while registering a socket with plural epoll instances
+        - RM #847025 Fix extra API tests failing on make with vlogger.h not found
+
 Version 8.1.4-0:
 Date + Time 2016-08-24
 =======================
