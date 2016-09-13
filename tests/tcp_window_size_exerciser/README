@@ -1,0 +1,47 @@
+Test Name:
+		TCP window size exerciser
+
+Author(s):
+		Daniel Libenson danielli@mellanox.com
+
+Short description:
+		This is a client server test that built to exercise the tcp window size.
+
+Supported OSes:
+		Linux
+
+Description:
+		This is a client server test that built to exercise the TCP window size changing during traffic.
+		- TCP window size changed due to the use of setsockopt function with SO_RCVBUF parameter.
+
+How to use:
+	1. Compile the code using the Make file or running next commands from Shell command line:
+		Client -> $ gcc -lrt tcp_hang_test_client.c -o client
+		Server -> $ gcc -lrt tcp_hang_test_server.c -o server
+
+	2. Run server side - don't forget to update all relevant parameters like IP and port
+		$ ./server -i 9.9.9.4 -p 5000 -s 1000000 -t 10 -m 500 -M 30000 -c 122
+
+		-i: Server IP
+		-p: Server port
+		-s: Sleep time interval [msec]
+		-t: Update receive window size every # seconds
+		-m: Minimal receive window size [bytes]
+		-M: Maximum receive window size [bytes]
+		-c: Client message size
+		Example:  ./server -i 9.9.9.4 -p 5000 -s 1000000 -t 10 -m 500 -M 30000 -c 122
+
+	4. Run client side - don't forget to update LD_PRELOAD path and all other parameters like IP and port
+		$ LD_PRELOAD=libvma.so ./client.o -i 9.9.9.3 -s 9.9.9.4 -p 5000 -m 122
+
+		-i: Client IP
+		-s: Server IP
+		-p: Server port
+		-m: Client -> Server message size [bytes](1000> X >=4)
+		Example: ./client -i 9.9.9.3 -s 9.9.9.4 -p 5000 -m 122
+
+Known issues:
+		The hang may appear after 10-15 seconds if VMA version is lower than 8.1.4.
+
+To do:
+		None
