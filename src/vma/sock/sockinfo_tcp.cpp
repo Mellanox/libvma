@@ -3168,7 +3168,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 
 	int val, ret = 0;
 	bool supported = true;
-	bool allow_privileged_sys_call = false;
+	bool allow_privileged_sock_opt = false;
 
 	/* Process VMA specific options only at the moment
 	 * VMA option does not require additional processing after return
@@ -3254,7 +3254,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 		}
 		case SO_BINDTODEVICE:
 			struct sockaddr_in sockaddr;
-			allow_privileged_sys_call = safe_mce_sys().allow_privileged_sys_calls;
+			allow_privileged_sock_opt = safe_mce_sys().allow_privileged_sock_opt;
 			if (__optlen == 0 || ((char*)__optval)[0] == '\0') {
 				m_so_bindtodevice_ip = 0;
 			} else if (get_ipv4_from_ifname((char*)__optval, &sockaddr)) {
@@ -3332,7 +3332,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 	ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (ret) {
-		if (EPERM == errno && allow_privileged_sys_call) {
+		if (EPERM == errno && allow_privileged_sock_opt) {
 			si_tcp_logdbg("setsockopt failure is suppressed (ret=%d %m)", ret);
 			ret = 0;
 			errno = 0;
