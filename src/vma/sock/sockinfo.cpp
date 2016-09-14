@@ -46,7 +46,7 @@ sockinfo::sockinfo(int fd) throw (vma_exception):
 		m_lock_rcv(MODULE_NAME "::m_lock_rcv"),
 		m_lock_snd(MODULE_NAME "::m_lock_snd"),
 		m_p_connected_dst_entry(NULL),
-		m_so_bindtodevice_ip(0),
+		m_so_bindtodevice_ip(INADDR_ANY),
 		m_p_rx_ring(0),
 		m_rx_reuse_buf_pending(false),
 		m_rx_reuse_buf_postponed(false),
@@ -930,27 +930,35 @@ void sockinfo::move_owned_rx_ready_descs(const mem_buf_desc_owner* p_desc_owner,
 bool sockinfo::attach_as_uc_receiver(role_t role, bool skip_rules /* = false */)
 {
 	sock_addr addr(m_bound.get_p_sa());
+	in_addr_t local_if;
 	bool ret = true;
 
-	if (addr.get_in_addr() != INADDR_ANY) {
-		si_logdbg("Attaching to specific local if: %s", addr.to_str());
+	/* m_so_bindtodevice_ip has high priority */
+	if (m_so_bindtodevice_ip != INADDR_ANY) {
+		local_if = m_so_bindtodevice_ip;
+		si_logdbg("Attaching using bind to device rule");
+	}
+	else {
+		local_if = m_bound.get_in_addr();
+		si_logdbg("Attaching using bind to ip rule");
+	}
+
+	if (local_if != INADDR_ANY) {
+		
 		transport_t target_family = TRANS_VMA;
 		if (!skip_rules) target_family = find_target_family(role, addr.get_p_sa());
 		if (target_family == TRANS_VMA) {
-			// bind to specific local if
-			flow_tuple_with_local_if flow_key(m_bound, m_connected, m_protocol, addr.get_in_addr());
+			flow_tuple_with_local_if flow_key(m_bound, m_connected, m_protocol, local_if);
 			ret = ret && attach_receiver(flow_key);
 		}
 	}
 	else {
-		si_logdbg("Attaching to all offload local if: %s", addr.to_str());
-		// bind to all interfaces if local_ip is INADDR_ANY
 
 		local_ip_list_t::iterator lip_iter;
 		local_ip_list_t lip_offloaded_list = g_p_net_device_table_mgr->get_ip_list();
 		for (lip_iter = lip_offloaded_list.begin(); ret && lip_offloaded_list.end() != lip_iter; lip_iter++)
 		{
-			in_addr_t local_if = *lip_iter;
+			local_if = *lip_iter;
 			addr.set_in_addr(local_if);
 			transport_t target_family = TRANS_VMA;
 			if (!skip_rules) target_family = find_target_family(role, addr.get_p_sa());
@@ -968,6 +976,8 @@ bool sockinfo::attach_as_uc_receiver(role_t role, bool skip_rules /* = false */)
 			si_logdbg("ring map size: %d", m_rx_ring_map.size());
 		}
 	}
+	si_logdbg("Attached to specific local if: (%d.%d.%d.%d) addr: %s", NIPQUAD(local_if), addr.to_str());
+
 	return ret;
 }
 

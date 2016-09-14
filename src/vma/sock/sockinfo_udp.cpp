@@ -777,7 +777,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 				if (__optval) {
 					struct sockaddr_in sockaddr;
 					if (__optlen == 0 || ((char*)__optval)[0] == '\0') {
-						m_so_bindtodevice_ip = 0;
+						m_so_bindtodevice_ip = INADDR_ANY;
 					} else if (get_ipv4_from_ifname((char*)__optval, &sockaddr)) {
 						si_udp_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, cannot find if_name", setsockopt_so_opt_to_str(__optname));
 						break;

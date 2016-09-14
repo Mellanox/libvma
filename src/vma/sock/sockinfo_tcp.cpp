@@ -3256,7 +3256,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			struct sockaddr_in sockaddr;
 			allow_privileged_sock_opt = safe_mce_sys().allow_privileged_sock_opt;
 			if (__optlen == 0 || ((char*)__optval)[0] == '\0') {
-				m_so_bindtodevice_ip = 0;
+				m_so_bindtodevice_ip = INADDR_ANY;
 			} else if (get_ipv4_from_ifname((char*)__optval, &sockaddr)) {
 				si_tcp_logdbg("SOL_SOCKET, SO_BINDTODEVICE - NOT HANDLED, cannot find if_name");
 				errno = EINVAL;
