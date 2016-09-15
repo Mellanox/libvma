@@ -26,6 +26,7 @@ uninstall-all: uninstall
 
 tests:
 	$(MAKE)
+	$(MAKE) -C tests/gtest
 	$(MAKE) -C tests/latency_test
 	$(MAKE) -C tests/throughput_test
 	$(MAKE) -C tests/pps_test

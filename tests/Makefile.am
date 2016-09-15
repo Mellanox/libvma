@@ -1,6 +1,7 @@
-SUBDIRS := latency_test pps_test throughput_test
+SUBDIRS := gtest latency_test pps_test throughput_test
 
 EXTRA_DIST = \
+	gtest \
 	async-echo-client \
 	benchmarking_test \
 	connect-disconnect \
