@@ -53,7 +53,7 @@
 #include <signal.h>
 #include <stdbool.h>
 
-#include <src/vma/util/rdtsc.h>
+#include "src/utils/rdtsc.h"
 
 #define log_dbg(fmt, args...) \
 do { \
@@ -742,6 +742,7 @@ int main(int argc, char *argv[])
 	int poll_mode = 0;
 	int testn = 1;
 
+	(void)poll_mode;
 	while ((op = getopt_long(argc, argv, "psc:dhl:n:t:", long_options, &option_index)) != -1) {
 		switch (op) {
 			case 'c':
