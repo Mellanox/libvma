@@ -897,7 +897,6 @@ tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
     /* Allocate memory for tcp_seg and fill in fields. */
     if (NULL == (newseg = tcp_create_segment(pcb, p, 0,  seg->seqno + lentosend, optflags))) {
       LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_split_segment: could not allocate memory for segment\n"));
-      tcp_tx_pbuf_free(pcb, p);
       return;
     }
 
