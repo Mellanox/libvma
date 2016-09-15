@@ -503,6 +503,7 @@ AC_CONFIG_FILES([
 		src/stats/Makefile
 		src/state_machine/Makefile
 		tests/Makefile
+		tests/gtest/Makefile
 		tests/pps_test/Makefile
 		tests/latency_test/Makefile
 		tests/throughput_test/Makefile
