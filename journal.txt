@@ -1,3 +1,9 @@
+Version 8.1.6-0:
+Date + Time 2016-09-16
+=======================
+Fixed:
+        - RM #864201 Fix double freeing of pbuf in LWIP split function
+
 Version 8.1.5-0:
 Date + Time 2016-09-08
 =======================
