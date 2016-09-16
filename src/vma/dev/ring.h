@@ -14,6 +14,8 @@
 #ifndef RING_H
 #define RING_H
 
+#include <deque>
+
 #include "vma/dev/gro_mgr.h"
 #include "vma/util/hash_map.h"
 #include "vma/util/lock_wrapper.h"
@@ -209,7 +211,7 @@ class ring : public mem_buf_desc_owner
 public:
 	ring(int count, uint32_t mtu); //todo count can be moved to ring_bond
 
-	virtual ~ring(){};
+	virtual ~ring();
 
 	virtual bool		attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) = 0;
 	virtual bool		detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) = 0;
@@ -255,6 +257,29 @@ public:
 
 	inline void set_vma_active(bool flag) {m_vma_active = flag;}
 	inline bool get_vma_active(void) {return m_vma_active;}
+
+	inline void put_ec(vma_completion_t *ec)
+	{
+		m_ec_queue.push_back(ec);
+	}
+
+	inline vma_completion_t* get_ec(void)
+	{
+		vma_completion_t *ec = NULL;
+
+		if (!m_ec_queue.empty()) {
+			ec = m_ec_queue.front();
+			m_ec_queue.pop_front();
+		}
+		return ec;
+	}
+
+
+	inline void clear_ec(vma_completion_t *ec)
+	{
+		memset(ec, 0, sizeof(*ec));
+	}
+
 protected:
 	uint32_t		m_n_num_resources;
 	int*			m_p_n_rx_channel_fds;
@@ -264,6 +289,7 @@ protected:
 
 private:
 	bool            m_vma_active;
+	std::deque<vma_completion_t*> m_ec_queue; /* queue for event completion elements */
 	uint32_t		m_mtu;
 };
 
