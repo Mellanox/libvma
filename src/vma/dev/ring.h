@@ -284,8 +284,6 @@ protected:
 	uint32_t		m_n_num_resources;
 	int*			m_p_n_rx_channel_fds;
 	ring*			m_parent;
-	vma_completion_t*	m_vma_comp_arr;
-	int 			m_vma_curr_comp_index;
 
 private:
 	bool            m_vma_active;

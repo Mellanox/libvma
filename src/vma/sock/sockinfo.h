@@ -211,6 +211,13 @@ protected:
 	void 			move_owned_rx_ready_descs(const mem_buf_desc_owner* p_desc_owner, descq_t* toq); // Move all owner's rx ready packets ro 'toq'
 
 	virtual bool try_un_offloading(); // un-offload the socket if possible
+	virtual inline void do_wakeup()
+	{
+		/* TODO: Let consider if we really need this check */
+		if (!(m_p_rx_ring && m_p_rx_ring->get_vma_active())) {
+			wakeup_pipe::do_wakeup();
+		}
+	}
 
 	inline void set_events(uint64_t events)
 	{
