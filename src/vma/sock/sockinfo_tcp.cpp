@@ -1352,17 +1352,18 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 
 	// In ZERO COPY case we let the user's application manage the ready queue
 	}
-	else if (conn->m_p_vma_completion){
-
+	else if (conn->m_p_rx_ring->get_vma_active()){
+		/* Update vma_completion with
+		 * VMA_POLL_PACKET related data
+		 */
 		if (!conn->m_last_poll_vma_buff_lst) {
+			conn->set_events(VMA_POLL_PACKET);
 			conn->m_last_poll_vma_buff_lst = (vma_buff_t*)p_last_desc;
 			conn->m_p_vma_completion->packet.buff_lst = (vma_buff_t*)p_first_desc;
 			conn->m_p_vma_completion->packet.total_len = p->tot_len;
-			conn->m_p_vma_completion->events = conn->get_events() | VMA_POLL_PACKET;
 			conn->m_p_vma_completion->src = p_first_desc->path.rx.src;
 			conn->m_p_vma_completion->user_data = (uint64_t)conn->m_fd_context;
 			conn->m_p_vma_completion->packet.num_bufs = p_first_desc->n_frags;
-			conn->clear_events();
 		}
 		else {
 			mem_buf_desc_t* prev_lst_tail_desc = (mem_buf_desc_t*)conn->m_last_poll_vma_buff_lst;
@@ -1606,15 +1607,8 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	int dropped_count = 0;
 
 	lock_tcp_con();
-	if (p_rx_pkt_mem_buf_desc_info->path.rx.vma_polled) {
-		m_p_vma_completion = (vma_completion_t*)pv_fd_ready_array;
-		m_p_vma_completion->events = 0;
 
-	}
-	else {
-		m_iomux_ready_fd_array = (fd_array_t*)pv_fd_ready_array;
-	}
-
+	m_iomux_ready_fd_array = (fd_array_t*)pv_fd_ready_array;
 
 	if (unlikely(get_tcp_state(&m_pcb) == LISTEN)) {
 		pcb = get_syn_received_pcb(p_rx_pkt_mem_buf_desc_info->path.rx.src.sin_addr.s_addr,
@@ -1642,14 +1636,12 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 				// TODO: consider check if we can now drain into Q of established
 				si_tcp_logdbg("SYN/CTL packet drop. established-backlog=%d (limit=%d) num_con_waiting=%d (limit=%d)",
 						(int)m_syn_received.size(), m_backlog, num_con_waiting, MAX_SYN_RCVD);
-				m_p_vma_completion = NULL;
 				unlock_tcp_con();
 				return false;// return without inc_ref_count() => packet will be dropped
 			}
 		}
 		if (safe_mce_sys().tcp_ctl_thread > CTL_THREAD_DISABLE || established_backlog_full) { /* 2nd check only worth when MAX_SYN_RCVD>0 for non tcp_ctl_thread  */
 			queue_rx_ctl_packet(pcb, p_rx_pkt_mem_buf_desc_info); // TODO: need to trigger queue pulling from accept in case no tcp_ctl_thread
-			m_p_vma_completion = NULL;
 			unlock_tcp_con();
 			return true;
 		}
@@ -1690,15 +1682,11 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	sock->m_vma_thr = false;
 
 	if (sock != this) {
-		if (unlikely(sock->m_p_vma_completion)) {
-			sock->m_p_vma_completion = NULL;
-			sock->m_last_poll_vma_buff_lst = NULL;
-		}
+		sock->m_last_poll_vma_buff_lst = NULL;
 		sock->m_tcp_con_lock.unlock();
 	}
 
 	m_iomux_ready_fd_array = NULL;
-	m_p_vma_completion = NULL;
 	m_last_poll_vma_buff_lst = NULL;
 
 	while (dropped_count--) {
@@ -2371,22 +2359,19 @@ void sockinfo_tcp::auto_accept_connection(sockinfo_tcp *parent, sockinfo_tcp *ch
 	child->m_p_socket_stats->connected_port = child->m_connected.get_in_port();
 	child->m_p_socket_stats->bound_if = child->m_bound.get_in_addr();
 	child->m_p_socket_stats->bound_port = child->m_bound.get_in_port();
+	child->m_connected.get_sa(parent->m_p_vma_completion->src);
 
-	//Notifies: about new auto accepted connection
-	child->m_p_vma_completion = parent->m_p_vma_completion;
-	child->m_connected.get_sa(child->m_p_vma_completion->src);
-	
-	if (child->m_p_vma_completion) {
-		child->m_p_vma_completion->events = child->get_events() | VMA_POLL_NEW_CONNECTION_ACCEPTED;
-		child->m_p_vma_completion->user_data = (uint64_t)child->m_fd_context;
-		if (likely(child->m_parent)) {
-			child->m_p_vma_completion->listen_fd = child->m_parent->get_fd();
-		}
-		else {
-			vlog_printf(VLOG_ERROR, "VMA_POLL_NEW_CONNECTION_ACCEPTED: can't find listen socket for new connected socket with [fd=%d]",
-				    __func__, __LINE__, child->get_fd());
-		}
-		child->clear_events();
+	/* Update vma_completion with
+	 * VMA_POLL_NEW_CONNECTION_ACCEPTED related data
+	 */
+	child->set_events(VMA_POLL_NEW_CONNECTION_ACCEPTED);
+	if (likely(child->m_parent)) {
+		child->m_p_vma_completion->src = parent->m_p_vma_completion->src;
+		child->m_p_vma_completion->listen_fd = child->m_parent->get_fd();
+	}
+	else {
+		vlog_printf(VLOG_ERROR, "VMA_POLL_NEW_CONNECTION_ACCEPTED: can't find listen socket for new connected socket with [fd=%d]",
+				__func__, __LINE__, child->get_fd());
 	}
 
 	child->unlock_tcp_con();

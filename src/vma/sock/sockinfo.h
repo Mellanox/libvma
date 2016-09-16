@@ -149,6 +149,7 @@ protected:
 	int			m_rx_num_buffs_reuse;
 
 	/* these fields are for vma_poll() usage */
+	vma_completion_t m_vma_completion;
 	vma_completion_t* m_p_vma_completion;
 	vma_buff_t* m_last_poll_vma_buff_lst;
 
@@ -213,11 +214,12 @@ protected:
 
 	inline void set_events(uint64_t events)
 	{
-		m_events |= events;
-		if (m_p_vma_completion) {
-			m_p_vma_completion->user_data = m_fd;
-			m_p_vma_completion->events = m_events;
+		if (!m_p_vma_completion->events) {
+			m_p_vma_completion->user_data = (uint64_t)m_fd_context;
+			m_p_rx_ring->put_ec(m_p_vma_completion);
 		}
+		m_p_vma_completion->events |= events;
+
 		if ((uint32_t)events) {
 			socket_fd_api::notify_epoll_context((uint32_t)events);
 		}
@@ -225,12 +227,12 @@ protected:
 
 	inline uint64_t get_events(void)
 	{
-		return m_events;
+		return m_p_vma_completion->events;
 	}
 
 	inline void clear_events(void)
 	{
-		m_events = 0;
+		m_p_vma_completion->events = 0;
 	}
 
 	// This function validates the ipoib's properties
@@ -452,9 +454,6 @@ protected:
 		return 0;
     }
     //////////////////////////////////////////////////////////////////
-
-private:
-    uint64_t m_events;
 };
 
 #endif /* BASE_SOCKINFO_H */

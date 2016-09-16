@@ -19,3 +19,10 @@ ring::ring(int count, uint32_t mtu) :
 	m_mtu(mtu)
 {
 }
+
+ring::~ring()
+{
+	while (!m_ec_queue.empty()) {
+		m_ec_queue.pop_front();
+	}
+}

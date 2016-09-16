@@ -628,7 +628,6 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 	struct udphdr* p_udp_h = NULL;
 	in_addr_t local_addr = p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr;
 
-
 	NOT_IN_USE(ip_tot_len);
 	NOT_IN_USE(ip_frag_off);
 	NOT_IN_USE(n_frag_offset);
@@ -645,7 +644,7 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 		p_rx_wc_buf_desc->path.rx.p_tcp_h       = p_tcp_h;
 		p_rx_wc_buf_desc->transport_header_len  = transport_header_len;
 		p_rx_wc_buf_desc->path.rx.vma_polled = true;
-		p_rfs_single_tcp->rx_dispatch_packet(p_rx_wc_buf_desc, &m_vma_comp_arr[m_vma_curr_comp_index]);
+		p_rfs_single_tcp->rx_dispatch_packet(p_rx_wc_buf_desc, NULL);
 		p_rx_wc_buf_desc->path.rx.vma_polled = false;
 		return;
 	}
@@ -887,7 +886,7 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 		return;
 	}
 	p_rx_wc_buf_desc->path.rx.vma_polled = true;
-	p_rfs->rx_dispatch_packet(p_rx_wc_buf_desc, &m_vma_comp_arr[m_vma_curr_comp_index]);
+	p_rfs->rx_dispatch_packet(p_rx_wc_buf_desc, NULL);
 	p_rx_wc_buf_desc->path.rx.vma_polled = false;
 }
 
@@ -1232,6 +1231,7 @@ int ring_simple::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd
 int ring_simple::vma_poll(vma_completion_t *vma_completions, unsigned int ncompletions, int flags)
 {
 	int ret = 0;
+	int i = 0;
 	mem_buf_desc_t *desc;
 
 	NOT_IN_USE(flags);
@@ -1239,19 +1239,21 @@ int ring_simple::vma_poll(vma_completion_t *vma_completions, unsigned int ncompl
 	set_vma_active(true);
 
 	if (likely(vma_completions) && ncompletions) {
-		m_vma_comp_arr = vma_completions;
-		m_vma_curr_comp_index = 0;
+		vma_completion_t *ec = NULL;
 
-		for (unsigned int i = 0; i < ncompletions && !g_b_exit; ++i) {
-			if (likely(m_p_cq_mgr_rx->vma_poll_and_process_element_rx(&desc))) {
+		while (!g_b_exit && (i < (int)ncompletions)) {
+			ec = get_ec();
+			if (ec) {
+				memcpy(&vma_completions[i], ec, sizeof(*ec));
+				clear_ec(ec);
+				++i;
+			} else if (likely(m_p_cq_mgr_rx->vma_poll_and_process_element_rx(&desc))) {
 				vma_poll_process_recv_buffer(desc);
-				if (m_vma_comp_arr[m_vma_curr_comp_index].events) {
-					++m_vma_curr_comp_index;
-				}
+			} else {
+				break;
 			}
 		}
-		ret = m_vma_curr_comp_index;
-		m_vma_curr_comp_index = -1;
+		ret = i;
 	}
 	else {
 		ret = -1;
