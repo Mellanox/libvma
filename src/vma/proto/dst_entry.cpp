@@ -484,7 +484,7 @@ bool dst_entry::offloaded_according_to_rules()
 	return ret_val;
 }
 
-bool dst_entry::prepare_to_send(const int ratelimit_kbps, bool skip_rules)
+bool dst_entry::prepare_to_send(bool skip_rules, const int ratelimit_kbps)
 {
 	bool resolved = false;
 	m_slow_path_lock.lock();

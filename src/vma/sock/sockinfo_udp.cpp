@@ -833,14 +833,22 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 			case SO_MAX_PACING_RATE:
 				if (__optval) {
 					uint32_t val = *(int *)__optval;
-					int ret_val = 0;
+					bool success = true;
+					if(-1 == modify_ratelimit(val, m_p_connected_dst_entry)) {
+						si_udp_logdbg("error setting setsockopt(udp-connect) SO_MAX_PACING_RATE: %d bytes/second ", val);
+					} else {
+						si_udp_logdbg("setsockopt(udp-connect) SO_MAX_PACING_RATE: %d bytes/second ", val);
+					}
 					// value is in bytes (per second), we need to convert it to kilo-bits (per second)
 					dst_entry_map_t::iterator dst_entry_iter ;
 					for (dst_entry_iter = m_dst_entry_map.begin(); dst_entry_iter != m_dst_entry_map.end() ; ++dst_entry_iter) {
 						dst_entry* p_dst_entry = dst_entry_iter->second;
-						ret_val += modify_ratelimit(val, p_dst_entry);
+						if ( 0 > modify_ratelimit(val, p_dst_entry)) {
+								success = false;
+								break;
+							}
 					}
-					if(ret_val == 0) {
+					if(true == success) {
 						si_udp_logdbg("setsockopt SO_MAX_PACING_RATE: %d bytes/second ", val);
 					} else {
 						si_udp_logdbg("error setting setsockopt SO_MAX_PACING_RATE: %d bytes/second ", val);
@@ -1730,7 +1738,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 		}
 		else {
 			// updates the dst_entry internal information and packet headers
-			ret = p_dst_entry->slow_send(BYTE_TO_kb( m_so_ratelimit), p_iov, sz_iov, b_blocking, false, __flags, this, call_type);
+			ret = p_dst_entry->slow_send( p_iov, sz_iov, BYTE_TO_kb(m_so_ratelimit ), b_blocking, false, __flags, this, call_type);
 		}
 
 		// TODO ALEXR - still need to handle "is_dropped" in send path

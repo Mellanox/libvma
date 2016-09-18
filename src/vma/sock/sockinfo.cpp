@@ -1034,7 +1034,7 @@ int sockinfo::modify_ratelimit(const int rate_limit_bytes_per_second, dst_entry*
 		}
 		return 0;
 	}
-	si_logerr("setsockopt SO_MAX_PACING_RATE failed. Please set ring_allocation_logic_tx to RING_LOGIC_PER_SOCKET");
+	si_logwarn("setsockopt SO_MAX_PACING_RATE failed. Please set ring_allocation_logic_tx to RING_LOGIC_PER_SOCKET");
 	return -1;
 }
 
