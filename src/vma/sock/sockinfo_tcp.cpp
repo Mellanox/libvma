@@ -570,7 +570,7 @@ bool sockinfo_tcp::prepare_dst_to_send(bool is_accepted_socket /* = false */)
 	bool ret_val = false;
 
 	if(m_p_connected_dst_entry) {
-		ret_val = m_p_connected_dst_entry->prepare_to_send(BYTE_TO_kb( m_so_ratelimit),is_accepted_socket);
+		ret_val = m_p_connected_dst_entry->prepare_to_send(is_accepted_socket, BYTE_TO_kb( m_so_ratelimit));
 	}
 	return ret_val;
 }
@@ -829,7 +829,7 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit)
 	if (likely((p_dst->is_valid()))) {
 		p_dst->fast_send(p_iovec, count, false, is_rexmit);
 	} else {
-		p_dst->slow_send(BYTE_TO_kb( p_si_tcp->get_ratelimit()), p_iovec, count, false, is_rexmit);
+		p_dst->slow_send( p_iovec, count, BYTE_TO_kb( p_si_tcp->get_ratelimit()), false, is_rexmit);
 	}
 	return ERR_OK;
 }
@@ -869,7 +869,7 @@ err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rex
 	if (is_rexmit)
 		p_si_tcp->m_p_socket_stats->counters.n_tx_retransmits++;
 
-	((dst_entry_tcp*)p_dst)->slow_send_neigh( BYTE_TO_kb( p_si_tcp->get_ratelimit()), p_iovec, count);
+	((dst_entry_tcp*)p_dst)->slow_send_neigh( p_iovec, count, BYTE_TO_kb( p_si_tcp->get_ratelimit()));
 
 	return ERR_OK;
 }
@@ -1793,7 +1793,7 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 		si_tcp_logdbg("non offloaded socket --> connect only via OS");
 		return -1;
 	}
-	m_p_connected_dst_entry->prepare_to_send( BYTE_TO_kb( m_so_ratelimit), false );
+	m_p_connected_dst_entry->prepare_to_send( false, BYTE_TO_kb( m_so_ratelimit) );
 
 	// update it after route was resolved and device was updated
 	m_p_socket_stats->bound_if = m_p_connected_dst_entry->get_src_addr();
@@ -3216,7 +3216,9 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 		case SO_MAX_PACING_RATE:
 			val = *(int *)__optval;
 			lock_tcp_con();
-			if(0 == modify_ratelimit(val, m_p_connected_dst_entry)) {
+			if(-1 == modify_ratelimit(val, m_p_connected_dst_entry)) {
+                                si_tcp_logdbg("error setting setsockopt SO_MAX_PACING_RATE: %d bytes/second ", val);
+			} else {
 	                        si_tcp_logdbg("setsockopt SO_MAX_PACING_RATE: %d bytes/second ", val);
 			}
 			unlock_tcp_con();
