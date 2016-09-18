@@ -2162,15 +2162,14 @@ int sockinfo_udp::mc_change_membership(const mc_pending_pram *p_mc_pram)
 	case IP_DROP_SOURCE_MEMBERSHIP:
 	{
 		flow_tuple_with_local_if flow_key(mc_grp, m_bound.get_in_port(), 0, 0, PROTO_UDP, mc_if);
+		pram_size = sizeof(ip_mreq_source);
 		original_os_setsockopt_helper( &mreq_src, pram_size, p_mc_pram->optname);
-		if (!detach_receiver(flow_key)) {
-			return -1;
-		}
-		else if (1 == m_mc_memberships_map[mc_grp].size()) { //Last source in the group
+		if (1 == m_mc_memberships_map[mc_grp].size()) { //Last source in the group
+			if (!detach_receiver(flow_key)) {
+				return -1;
+			}
 			vma_stats_mc_group_remove(mc_grp, m_p_socket_stats);
 		}
-
-		pram_size = sizeof(ip_mreq_source);
 		break;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_START
