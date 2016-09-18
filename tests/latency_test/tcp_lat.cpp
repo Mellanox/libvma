@@ -109,6 +109,7 @@ static int tcp_lat_port = TCP_LAT_PORT;
 bool g_b_exit = false;
 struct sigaction sigact;
 
+
 //#define N_MSGS	1000000 //10000000
 struct timestamp {
 	uint32_t secs;
