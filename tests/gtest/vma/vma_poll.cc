@@ -40,4 +40,37 @@
 class vma_poll : public vma_base {};
 
 TEST_F(vma_poll, ti_1) {
+	int rc = EOK;
+	int fd;
+	struct vma_completion_t ec;
+
+	fd = test_base::sock_create_nb(SOCK_STREAM);
+	ASSERT_LE(0, fd);
+
+	rc = connect(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+	ASSERT_EQ(EINPROGRESS, errno);
+	ASSERT_EQ((-1), rc);
+
+	vma_base::ec_wait(fd, &ec);
+	EXPECT_EQ(EPOLLHUP | EPOLLIN, ec.events);
+
+	close(fd);
+}
+
+TEST_F(vma_poll, ti_2) {
+	int rc = EOK;
+	int fd;
+	struct vma_completion_t ec;
+
+	fd = test_base::sock_create_nb(SOCK_STREAM);
+	ASSERT_LE(0, fd);
+
+	rc = connect(fd, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
+	ASSERT_EQ(EINPROGRESS, errno);
+	ASSERT_EQ((-1), rc);
+
+	vma_base::ec_wait(fd, &ec);
+	EXPECT_EQ((EPOLLERR | EPOLLHUP | EPOLLIN), ec.events);
+
+	close(fd);
 }
