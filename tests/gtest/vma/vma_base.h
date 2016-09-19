@@ -45,6 +45,7 @@ protected:
 	virtual void TearDown();
 
 protected:
+	void ec_wait(int fd, struct vma_completion_t *ec);
 	struct vma_api_t *vma_api;
 };
 

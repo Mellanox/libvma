@@ -54,7 +54,7 @@ TEST_F(vma_ring, ti_2) {
 	int ring_fd = UNDEFINED_VALUE;
 	int fd;
 
-	fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
+	fd = test_base::sock_create(SOCK_DGRAM);
 	ASSERT_LE(0, fd);
 
 	rc = vma_api->get_socket_rings_fds(fd, &ring_fd, 1);
@@ -69,7 +69,7 @@ TEST_F(vma_ring, ti_3) {
 	int ring_fd = UNDEFINED_VALUE;
 	int fd;
 
-	fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
+	fd = test_base::sock_create(SOCK_DGRAM);
 	ASSERT_LE(0, fd);
 
 	rc = bind(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
@@ -88,7 +88,7 @@ TEST_F(vma_ring, ti_4) {
 	int ring_fd = UNDEFINED_VALUE;
 	int fd;
 
-	fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
+	fd = test_base::sock_create(SOCK_DGRAM);
 	ASSERT_LE(0, fd);
 
 	rc = connect(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
@@ -107,11 +107,8 @@ TEST_F(vma_ring, ti_5) {
 	int ring_fd = UNDEFINED_VALUE;
 	int fd;
 
-	fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
+	fd = test_base::sock_create_nb(SOCK_DGRAM);
 	ASSERT_LE(0, fd);
-
-	rc = test_base::sock_noblock(fd);
-	ASSERT_EQ(0, rc);
 
 	rc = connect(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
 	ASSERT_EQ(EOK, errno);
@@ -129,7 +126,7 @@ TEST_F(vma_ring, ti_6) {
 	int ring_fd = UNDEFINED_VALUE;
 	int fd;
 
-	fd = socket(PF_INET, SOCK_STREAM, IPPROTO_IP);
+	fd = test_base::sock_create(SOCK_STREAM);
 	ASSERT_LE(0, fd);
 
 	rc = vma_api->get_socket_rings_fds(fd, &ring_fd, 1);
@@ -144,7 +141,7 @@ TEST_F(vma_ring, ti_7) {
 	int ring_fd = UNDEFINED_VALUE;
 	int fd;
 
-	fd = socket(PF_INET, SOCK_STREAM, IPPROTO_IP);
+	fd = test_base::sock_create(SOCK_STREAM);
 	ASSERT_LE(0, fd);
 
 	rc = bind(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
@@ -163,11 +160,8 @@ TEST_F(vma_ring, ti_8) {
 	int ring_fd = UNDEFINED_VALUE;
 	int fd;
 
-	fd = socket(PF_INET, SOCK_STREAM, IPPROTO_IP);
+	fd = test_base::sock_create_nb(SOCK_STREAM);
 	ASSERT_LE(0, fd);
-
-	rc = test_base::sock_noblock(fd);
-	ASSERT_EQ(0, rc);
 
 	rc = connect(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
 	ASSERT_EQ(EINPROGRESS, errno);
@@ -189,7 +183,7 @@ TEST_F(vma_ring, ti_9) {
 
 	SKIP_TRUE(sys_rootuser(), "This test requires root permission");
 
-	fd = socket(PF_INET, SOCK_STREAM, IPPROTO_IP);
+	fd = test_base::sock_create(SOCK_STREAM);
 	ASSERT_LE(0, fd);
 
 	opt_val[0] = '\0';
@@ -220,7 +214,7 @@ TEST_F(vma_ring, ti_10) {
 
 	SKIP_TRUE(sys_rootuser(), "This test requires root permission");
 
-	fd = socket(PF_INET, SOCK_STREAM, IPPROTO_IP);
+	fd = test_base::sock_create(SOCK_STREAM);
 	ASSERT_LE(0, fd);
 
 	opt_val[0] = '\0';
@@ -281,7 +275,7 @@ TEST_F(vma_ring, ti_11) {
 
 	SKIP_TRUE(sys_rootuser(), "This test requires root permission");
 
-	fd = socket(PF_INET, SOCK_STREAM, IPPROTO_IP);
+	fd = test_base::sock_create(SOCK_STREAM);
 	ASSERT_LE(0, fd);
 
 	opt_val[0] = '\0';

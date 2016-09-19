@@ -44,7 +44,7 @@ TEST_F(tcp_bind, ti_1) {
 	int rc = EOK;
 	int fd;
 
-	fd = tcp_base::sock_create();
+	fd = test_base::sock_create(SOCK_STREAM);
 	ASSERT_LE(0, fd);
 
 	rc = bind(fd, (struct sockaddr *)&client_addr, sizeof(client_addr));
@@ -58,7 +58,7 @@ TEST_F(tcp_bind, ti_2) {
 	int rc = EOK;
 	int fd;
 
-	fd = tcp_base::sock_create();
+	fd = test_base::sock_create(SOCK_STREAM);
 	ASSERT_LE(0, fd);
 
 	rc = bind(fd, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
@@ -73,7 +73,7 @@ TEST_F(tcp_bind, ti_3) {
 	int fd;
 	struct sockaddr_in addr;
 
-	fd = tcp_base::sock_create();
+	fd = test_base::sock_create(SOCK_STREAM);
 	ASSERT_LE(0, fd);
 
 	rc = bind(fd, (struct sockaddr *)&client_addr, sizeof(client_addr));
@@ -95,14 +95,14 @@ TEST_F(tcp_bind, ti_4) {
 	int fd;
 	int fd2;
 
-	fd = tcp_base::sock_create();
+	fd = test_base::sock_create(SOCK_STREAM);
 	ASSERT_LE(0, fd);
 
 	rc = bind(fd, (struct sockaddr *)&client_addr, sizeof(client_addr));
 	ASSERT_EQ(EOK, errno);
 	ASSERT_EQ(0, rc);
 
-	fd2 = tcp_base::sock_create();
+	fd2 = test_base::sock_create(SOCK_STREAM);
 	ASSERT_LE(0, fd);
 
 	rc = bind(fd2, (struct sockaddr *)&client_addr, sizeof(client_addr));
