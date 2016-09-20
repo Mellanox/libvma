@@ -912,10 +912,7 @@ void sockinfo_tcp::err_lwip_cb(void *pcb_container, err_t err)
 		conn->m_timer_handle = NULL;
 	}
 
-	/* TODO: Let consider if we really need this check */
-	if (false == conn->m_p_rx_ring->get_vma_active()) {
-		conn->do_wakeup();
-	}
+	conn->do_wakeup();
 }
 
 bool sockinfo_tcp::process_peer_ctl_packets(vma_desc_list_t &peer_packets)
@@ -1262,10 +1259,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 		 * in such case and as a result update_fd_array() call means nothing
 		 */
 		io_mux_call::update_fd_array(conn->m_iomux_ready_fd_array, conn->m_fd);
-		/* TODO: Let consider if we really need this check */
-		if (false == conn->m_p_rx_ring->get_vma_active()) {
-			conn->do_wakeup();
-		}
+		conn->do_wakeup();
 
 		//tcp_close(&(conn->m_pcb));
 		//TODO: should be a move into half closed state (shut rx) instead of complete close
@@ -2477,9 +2471,9 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 	else {
 		conn->m_accepted_conns.push_back(new_sock);
 		conn->m_ready_conn_cnt++;
-		//OLG: Now we should wakeup all threads that are sleeping on this socket.
-		conn->do_wakeup();
 	}
+	//OLG: Now we should wakeup all threads that are sleeping on this socket.
+	conn->do_wakeup();
 
 	//Now we should register the child socket to TCP timer
 
@@ -2693,12 +2687,8 @@ err_t sockinfo_tcp::connect_lwip_cb(void *arg, struct tcp_pcb *tpcb, err_t err)
 	}
 	
 	conn->set_events(EPOLLOUT);
-	/* TODO: Let consider if we really need this check */
-	if (false == conn->m_p_rx_ring->get_vma_active()) {
-		//OLG: Now we should wakeup all threads that are sleeping on this socket.
-		conn->do_wakeup();
-	}
-
+	//OLG: Now we should wakeup all threads that are sleeping on this socket.
+	conn->do_wakeup();
 
 	conn->m_p_socket_stats->connected_ip = conn->m_connected.get_in_addr();
 	conn->m_p_socket_stats->connected_port = conn->m_connected.get_in_port();
