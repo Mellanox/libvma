@@ -183,7 +183,8 @@ protected:
 
 	bool 			attach_receiver(flow_tuple_with_local_if &flow_key);
 	bool 			detach_receiver(flow_tuple_with_local_if &flow_key);
-	net_device_resources_t* get_nd_resources(const ip_address ip_local);
+	net_device_resources_t* create_nd_resources(const ip_address ip_local);
+	void                    destroy_nd_resources(const ip_address ip_local);
 	void			do_rings_migration();
 
 	// Attach to all relevant rings for offloading receive flows - always used from slow path
