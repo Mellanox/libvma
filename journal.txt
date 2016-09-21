@@ -1,3 +1,12 @@
+Version 8.1.7-0:
+Date + Time 2016-09-21
+=======================
+Added:
+        - RM #824880 Add Google Test based infrastructure
+
+Fixed:
+        - RM #857641 Fix setsockopt with IGMPv3 IP_DROP_SOURCE_MEMBERSHIP option
+
 Version 8.1.6-0:
 Date + Time 2016-09-16
 =======================
