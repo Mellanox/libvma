@@ -341,6 +341,7 @@ struct mce_sys_var {
 	tcp_ts_opt_t	tcp_ts_opt;
 	vma_exception_handling exception_handling;
 	bool		avoid_sys_calls_on_tcp_fd;
+	bool		allow_privileged_sock_opt;
 	uint32_t	wait_after_join_msec;
 	in_port_t	block_udp_port;
 	thread_mode_t	thread_mode;
@@ -464,6 +465,7 @@ extern mce_sys_var & safe_mce_sys();
 #define SYS_VAR_TCP_TIMESTAMP_OPTION			"VMA_TCP_TIMESTAMP_OPTION"
 #define SYS_VAR_VMA_EXCEPTION_HANDLING			(vma_exception_handling::getSysVar())
 #define SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD		"VMA_AVOID_SYS_CALLS_ON_TCP_FD"
+#define SYS_VAR_ALLOW_PRIVILEGED_SOCK_OPT		"VMA_ALLOW_PRIVILEGED_SOCK_OPT"
 #define SYS_VAR_WAIT_AFTER_JOIN_MSEC			"VMA_WAIT_AFTER_JOIN_MSEC"
 #define SYS_VAR_THREAD_MODE				"VMA_THREAD_MODE"
 #define SYS_VAR_BUFFER_BATCHING_MODE			"VMA_BUFFER_BATCHING_MODE"
@@ -568,6 +570,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_TCP_TIMESTAMP_OPTION		(TCP_TS_OPTION_DISABLE)
 #define MCE_DEFAULT_VMA_EXCEPTION_HANDLING	(vma_exception_handling::MODE_DEFAULT)
 #define MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD		(false)
+#define MCE_DEFAULT_ALLOW_PRIVILEGED_SOCK_OPT		(true)
 #define MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC		(0)
 #define MCE_DEFAULT_THREAD_MODE				(THREAD_MODE_MULTI)
 #define MCE_DEFAULT_BUFFER_BATCHING_MODE		(BUFFER_BATCHING_WITH_RECLAIM)

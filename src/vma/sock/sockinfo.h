@@ -101,7 +101,7 @@ public:
 	virtual void remove_epoll_context(epfd_info *epfd);
 	virtual int fast_nonblocking_rx(vma_packets_t *vma_pkts);
 	virtual int get_rings_num() {return 1;}
-	virtual bool check_rings_fds() {return m_p_rx_ring ? true: false;}
+	virtual bool check_rings() {return m_p_rx_ring ? true: false;}
 	virtual int* get_rings_fds() {int* channel_fds = m_p_rx_ring->get_rx_channel_fds(); return channel_fds;}
 
 protected:
@@ -183,6 +183,8 @@ protected:
 
 	bool 			attach_receiver(flow_tuple_with_local_if &flow_key);
 	bool 			detach_receiver(flow_tuple_with_local_if &flow_key);
+	net_device_resources_t* create_nd_resources(const ip_address ip_local);
+	void                    destroy_nd_resources(const ip_address ip_local);
 	void			do_rings_migration();
 
 	// Attach to all relevant rings for offloading receive flows - always used from slow path
