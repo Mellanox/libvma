@@ -396,20 +396,18 @@ bool sockinfo::attach_receiver(flow_tuple_with_local_if &flow_key)
 		return false;
 	}
 
-	net_device_resources_t* p_nd_resources = get_nd_resources((const ip_address)flow_key.get_local_if());
+	// Allocate resources on specific interface (create ring)
+	net_device_resources_t* p_nd_resources = create_nd_resources((const ip_address)flow_key.get_local_if());
 	if (NULL == p_nd_resources) {
 		si_logerr("Failed to get net device resources %s", flow_key.to_str());
 		return false;
 	}
 
-	// Now we have the net_device object (created or found)
+	/* just increment reference counter on attach */
 	p_nd_resources->refcnt++;
 
 	// Map flow in local map
 	m_rx_flow_map[flow_key] = p_nd_resources->p_ring;
-
-	// Save the new CQ from ring
-	rx_add_ring_cb(flow_key, p_nd_resources->p_ring);
 
 	// Attach tuple
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -466,46 +464,14 @@ bool sockinfo::detach_receiver(flow_tuple_with_local_if &flow_key)
 	lock_rx_q();
 
 	// Un-map flow from local map
-	rx_del_ring_cb(flow_key, p_ring);
 	m_rx_flow_map.erase(rx_flow_iter);
 
-	// Check if we are already registered to net_device with the local ip as observers
-	ip_address ip_local(flow_key.get_local_if());
-	rx_net_device_map_t::iterator rx_nd_iter = m_rx_nd_map.find(ip_local.get_in_addr());
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (rx_nd_iter == m_rx_nd_map.end()) {
-		si_logerr("Failed to net_device associated with: %s", flow_key.to_str());
-		return false;
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-	net_device_resources_t* p_nd_resources = &(rx_nd_iter->second);
-	p_nd_resources->refcnt--;
-	if (p_nd_resources->refcnt == 0) {
-
-		// Release ring reference
-		BULLSEYE_EXCLUDE_BLOCK_START
-		unlock_rx_q();
-		if (!p_nd_resources->p_ndv->release_ring(m_ring_alloc_logic.get_key())) {
-			lock_rx_q();
-			si_logerr("Failed to release ring for allocation key %d on lip %s", m_ring_alloc_logic.get_key(), ip_local.to_str().c_str());
-			return false;
-		}
-		lock_rx_q();
-
-		// Release observer reference
-		if (!g_p_net_device_table_mgr->unregister_observer(ip_local, &m_rx_nd_observer)) {
-			si_logerr("Failed registering as observer for lip %s", ip_local.to_str().c_str());
-			return false;
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-
-		m_rx_nd_map.erase(rx_nd_iter);
-	}
+	destroy_nd_resources((const ip_address)flow_key.get_local_if());
 
 	return true;
 }
 
-net_device_resources_t* sockinfo::get_nd_resources(const ip_address ip_local)
+net_device_resources_t* sockinfo::create_nd_resources(const ip_address ip_local)
 {
 	net_device_resources_t* p_nd_resources = NULL;
 
@@ -567,9 +533,62 @@ net_device_resources_t* sockinfo::get_nd_resources(const ip_address ip_local)
 	// Now we have the net_device object (created or found)
 	p_nd_resources = &rx_nd_iter->second;
 
+	// Save the new CQ from ring (dummy_flow_key is not used)
+	{
+		flow_tuple_with_local_if dummy_flow_key(m_bound, m_connected, m_protocol, ip_local.get_in_addr());
+		rx_add_ring_cb(dummy_flow_key, p_nd_resources->p_ring);
+	}
+
 	return p_nd_resources;
 err:
 	return NULL;
+}
+
+void sockinfo::destroy_nd_resources(const ip_address ip_local)
+{
+	net_device_resources_t* p_nd_resources = NULL;
+	rx_net_device_map_t::iterator rx_nd_iter = m_rx_nd_map.find(ip_local.get_in_addr());
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (rx_nd_iter == m_rx_nd_map.end()) {
+		si_logerr("Failed to net_device associated with: %s", ip_local.to_str().c_str());
+		goto err;
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	p_nd_resources = &(rx_nd_iter->second);
+
+	p_nd_resources->refcnt--;
+
+	// Release the new CQ from ring (dummy_flow_key is not used)
+	{
+		flow_tuple_with_local_if dummy_flow_key(m_bound, m_connected, m_protocol, ip_local.get_in_addr());
+		rx_del_ring_cb(dummy_flow_key, p_nd_resources->p_ring);
+	}
+
+	if (p_nd_resources->refcnt == 0) {
+
+		// Release ring reference
+		BULLSEYE_EXCLUDE_BLOCK_START
+		unlock_rx_q();
+		if (!p_nd_resources->p_ndv->release_ring(m_ring_alloc_logic.get_key())) {
+			lock_rx_q();
+			si_logerr("Failed to release ring for allocation key %d on lip %s", m_ring_alloc_logic.get_key(), ip_local.to_str().c_str());
+			goto err;
+		}
+		lock_rx_q();
+
+		// Release observer reference
+		if (!g_p_net_device_table_mgr->unregister_observer(ip_local, &m_rx_nd_observer)) {
+			si_logerr("Failed registering as observer for lip %s", ip_local.to_str().c_str());
+			goto err;
+		}
+		BULLSEYE_EXCLUDE_BLOCK_END
+
+		m_rx_nd_map.erase(rx_nd_iter);
+	}
+
+err:
+	return ;
 }
 
 void sockinfo::do_rings_migration()
@@ -769,6 +788,7 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 		// Increase ref count on cq_mgr object
 		rx_ring_iter->second->refcnt++;
 	}
+
 	unlock_rx_q();
 	m_rx_ring_map_lock.unlock();
 
