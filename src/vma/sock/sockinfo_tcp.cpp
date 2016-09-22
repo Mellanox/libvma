@@ -3280,13 +3280,10 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 					ip_address local_ip(m_so_bindtodevice_ip);
 
 					lock_tcp_con();
-					/* TODO: we need to destroy this if attach/detach receiver is not called */
-					net_device_resources_t* p_nd_resources = create_nd_resources((const ip_address)local_ip);
-					if (p_nd_resources) {
-						/* TODO: consider moving one to rx_add_ring_cb() */
-						m_p_rx_ring = p_nd_resources->p_ring;
-					}
-					else {
+					/* We need to destroy this if attach/detach receiver is not called
+					 * just reference counter for p_nd_resources is updated on attach/detach
+					 */
+					if (NULL == create_nd_resources((const ip_address)local_ip)) {
 						si_tcp_logerr("Failed to get net device resources on ip %s", local_ip.to_str().c_str());
 					}
 					unlock_tcp_con();
