@@ -789,6 +789,17 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 		rx_ring_iter->second->refcnt++;
 	}
 
+	if (m_rx_ring_map.size() == 1) {
+		/* m_p_rx_ring is updated in following functions:
+		 *  - rx_add_ring_cb()
+		 *  - rx_del_ring_cb()
+		 *  - do_rings_migration()
+		 */
+		m_p_rx_ring = m_rx_ring_map.begin()->first;
+	} else {
+		si_logdbg("ring map size: %d", m_rx_ring_map.size());
+	}
+
 	unlock_rx_q();
 	m_rx_ring_map_lock.unlock();
 
@@ -968,14 +979,6 @@ bool sockinfo::attach_as_uc_receiver(role_t role, bool skip_rules /* = false */)
 			}
 		}
 	}
-	if (ret == true) {
-		if (m_rx_ring_map.size() == 1) {
-			rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.begin();
-			m_p_rx_ring = rx_ring_iter->first;
-		} else {
-			si_logdbg("ring map size: %d", m_rx_ring_map.size());
-		}
-	}
 	si_logdbg("Attached to specific local if: (%d.%d.%d.%d) addr: %s", NIPQUAD(local_if), addr.to_str());
 
 	return ret;
@@ -1017,6 +1020,11 @@ void sockinfo::destructor_helper()
 		flow_tuple_with_local_if detach_key = rx_flow_iter->first;
 		detach_receiver(detach_key);
 		rx_flow_iter = m_rx_flow_map.begin(); // Pop next flow rule
+	}
+
+	/* Destroy resources in case they are allocated using SO_BINDTODEVICE call */
+	if (m_rx_nd_map.size()) {
+		destroy_nd_resources(m_so_bindtodevice_ip);
 	}
 
 	// Delete all dst_entry in our list
