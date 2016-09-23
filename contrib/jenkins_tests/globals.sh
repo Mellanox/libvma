@@ -21,6 +21,7 @@ build_dir=${WORKSPACE}/${prefix}/build
 install_dir=${WORKSPACE}/${prefix}/install
 compiler_dir=${WORKSPACE}/${prefix}/compiler
 test_dir=${WORKSPACE}/${prefix}/test
+gtest_dir=${WORKSPACE}/${prefix}/gtest
 rpm_dir=${WORKSPACE}/${prefix}/rpm
 cov_dir=${WORKSPACE}/${prefix}/cov
 cppcheck_dir=${WORKSPACE}/${prefix}/cppcheck
@@ -151,7 +152,7 @@ function get_ip()
         elif [ -z "$1" ]; then
             found_ip=$(ip -4 address show $ip | grep 'inet' | sed 's/.*inet \([0-9\.]\+\).*/\1/')
         fi
-        if [ -n "$found_ip" ]; then
+        if [ -n "$found_ip" -a "$found_ip" != "$2" ]; then
             echo $found_ip
             break
         fi

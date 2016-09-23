@@ -10,6 +10,12 @@ if [ $(command -v csbuild >/dev/null 2>&1 || echo $?) ]; then
 	exit 0
 fi
 
+# There is a bug in gcc less than 4.5
+if [ $(echo `gcc -dumpversion | cut -f1-2 -d.` \< 4.5 | bc ) -eq 1 ]; then
+	echo "[SKIP] csbuild tool can not launch on this gcc"
+	exit 0
+fi
+
 cd $WORKSPACE
 
 rm -rf $csbuild_dir

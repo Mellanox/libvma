@@ -26,6 +26,7 @@ abs_path=$(readlink -f $rel_path)
 jenkins_test_build=${jenkins_test_build:="yes"}
 jenkins_test_run=${jenkins_test_run:="yes"}
 
+jenkins_test_gtest=${jenkins_test_gtest:="yes"}
 jenkins_test_compiler=${jenkins_test_compiler:="yes"}
 jenkins_test_rpm=${jenkins_test_rpm:="yes"}
 jenkins_test_cov=${jenkins_test_cov:="yes"}
@@ -74,6 +75,10 @@ if [ "$jenkins_test_csbuild" = "yes" ]; then
 fi
 if [ "$jenkins_test_run" = "yes" ]; then
     $WORKSPACE/contrib/jenkins_tests/test.sh
+    rc=$((rc + $?))
+fi
+if [ "$jenkins_test_gtest" = "yes" ]; then
+    $WORKSPACE/contrib/jenkins_tests/gtest.sh
     rc=$((rc + $?))
 fi
 if [ "$jenkins_test_vg" = "yes" ]; then
