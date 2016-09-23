@@ -81,6 +81,10 @@ static int _def_config(void)
 	gtest_conf.server_addr.sin_family = PF_INET;
 	gtest_conf.server_addr.sin_addr.s_addr = INADDR_ANY;
 	gtest_conf.server_addr.sin_port = 0;
+	gtest_conf.remote_addr.sin_family = PF_INET;
+	gtest_conf.remote_addr.sin_addr.s_addr = INADDR_ANY;
+	gtest_conf.remote_addr.sin_port = 0;
+	sys_gateway(&gtest_conf.remote_addr);
 	gtest_conf.port = 55555;
 
 	return rc;
@@ -90,7 +94,8 @@ static int _set_config(int argc, char **argv)
 {
 	int rc = 0;
 	static struct option long_options[] = {
-		{"addr",         required_argument, 0, 'i'},
+		{"addr",         required_argument, 0, 'a'},
+		{"if",           required_argument, 0, 'i'},
 		{"port",         required_argument, 0, 'p'},
 		{"random",       required_argument, 0, 's'},
 		{"debug",        required_argument, 0, 'd'},
@@ -99,23 +104,20 @@ static int _set_config(int argc, char **argv)
 	int op;
 	int option_index;
 
-	while ((op = getopt_long(argc, argv, "i:p:d:h", long_options, &option_index)) != -1) {
+	while ((op = getopt_long(argc, argv, "a:i:p:d:h", long_options, &option_index)) != -1) {
 		switch (op) {
-			case 'i':
+			case 'a':
 				{
 					char *token1 = NULL;
 					char *token2 = NULL;
-					char *token3 = NULL;
 					const char s[2] = ":";
 					if (optarg) {
 						if (optarg[0] != ':') {
 							token1 = strtok(optarg, s);
 							token2 = strtok(NULL, s);
-							token3 = strtok(NULL, s);
 						} else {
 							token1 = NULL;
 							token2 = strtok(optarg, s);
-							token3 = strtok(NULL, s);
 						}
 					}
 
@@ -133,11 +135,35 @@ static int _set_config(int argc, char **argv)
 							log_fatal("Failed to resolve ip address %s\n", token2);
 						}
 					}
-					if (token3) {
-						rc = sys_get_addr(token3, &gtest_conf.remote_addr);
+				}
+				break;
+			case 'i':
+				{
+					char *token1 = NULL;
+					char *token2 = NULL;
+					const char s[2] = ":";
+					if (optarg) {
+						if (optarg[0] != ':') {
+							token1 = strtok(optarg, s);
+							token2 = strtok(NULL, s);
+						} else {
+							token1 = NULL;
+							token2 = strtok(optarg, s);
+						}
+					}
+
+					if (token1) {
+						rc = sys_dev2addr(token1, &gtest_conf.client_addr);
 						if (rc < 0) {
 							rc = -EINVAL;
-							log_fatal("Failed to resolve ip address %s\n", token3);
+							log_fatal("Failed to resolve ip address %s\n", token1);
+						}
+					}
+					if (token2) {
+						rc = sys_dev2addr(token2, &gtest_conf.server_addr);
+						if (rc < 0) {
+							rc = -EINVAL;
+							log_fatal("Failed to resolve ip address %s\n", token2);
 						}
 					}
 				}
@@ -198,7 +224,8 @@ static int _set_config(int argc, char **argv)
 static void _usage(void)
 {
 	printf("Usage: gtest [options]\n"
-		"\t--addr,-i <ip:ip:ip>    IP address client:server:remote\n"
+		"\t--addr,-a <ip:ip>       IP address client:server\n"
+		"\t--if,-i <ip:ip>         Interface client:server\n"
 		"\t--port,-p <num>         Listen/connect to port <num> (default %d).\n"
 		"\t--random,-s <count>     Seed (default %d).\n"
 		"\t--debug,-d <level>      Output verbose level (default: %d).\n"

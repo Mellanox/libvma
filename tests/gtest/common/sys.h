@@ -89,6 +89,10 @@ int sys_get_addr(char *dst, struct sockaddr_in *addr);
 
 char *sys_addr2dev(struct sockaddr_in *addr, char *buf, size_t size);
 
+int sys_dev2addr(char *dev, struct sockaddr_in *addr);
+
+int sys_gateway(struct sockaddr_in *addr);
+
 static INLINE char *sys_addr2str(struct sockaddr_in *addr)
 {
 	static __thread char addrbuf[100];

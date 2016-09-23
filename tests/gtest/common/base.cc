@@ -104,7 +104,7 @@ int test_base::event_wait(struct epoll_event *event)
 	int timeout = 10 * 1000;
 
 	if (!event) {
-		goto err;
+		return -1;
 	}
 
 	fd = event->data.fd;
@@ -112,20 +112,18 @@ int test_base::event_wait(struct epoll_event *event)
 	rc = epoll_ctl(efd, EPOLL_CTL_ADD, fd, event);
 	if (rc < 0) {
 		log_error("failed epoll_ctl() %s\n", strerror(errno));
-		close(efd);
-		efd = -1;
 		goto err;
 	}
 
 	rc = epoll_wait(efd, event, 1, timeout);
 	if (rc < 0) {
 		log_error("failed epoll_wait() %s\n", strerror(errno));
-		close(efd);
-		efd = -1;
-		goto err;
 	}
+
 	epoll_ctl(efd, EPOLL_CTL_DEL, fd, NULL);
 
 err:
-	return efd;
+	close(efd);
+
+	return rc;
 }

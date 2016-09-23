@@ -141,3 +141,49 @@ char *sys_addr2dev(struct sockaddr_in *addr, char *buf, size_t size)
 
 	return NULL;
 }
+
+int sys_dev2addr(char *dev, struct sockaddr_in *addr)
+{
+	int rc = 0;
+    int fd;
+    struct ifreq ifr;
+
+    fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0) {
+    	rc = -1;
+    	goto out;
+    }
+
+    ifr.ifr_addr.sa_family = AF_INET;
+
+    strncpy(ifr.ifr_name , dev , strlen(dev));
+
+    rc = ioctl(fd, SIOCGIFADDR, &ifr);
+    if (rc >= 0 && addr) {
+        memcpy(addr, &ifr.ifr_addr, sizeof(*addr));
+    }
+
+    close(fd);
+
+out:
+	return rc;
+}
+
+int sys_gateway(struct sockaddr_in *addr)
+{
+    char* gateway = NULL;
+    char line[256];
+    char cmd[] = "route -n | grep 'UG[ \t]' | awk '{print $2}'";
+    FILE* file = NULL;
+
+    file = popen(cmd, "r");
+
+    if(fgets(line, sizeof(line), file) != NULL) {
+    	gateway = line;
+    	addr->sin_addr.s_addr = inet_addr(gateway);
+    }
+
+    pclose(file);
+
+    return (gateway ? 0 : -1);
+}

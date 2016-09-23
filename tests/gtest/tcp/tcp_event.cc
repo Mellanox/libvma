@@ -45,7 +45,6 @@ class tcp_event : public tcp_base {};
 TEST_F(tcp_event, DISABLED_ti_1) {
 	int rc = EOK;
 	int fd;
-	int efd;
 	struct epoll_event event;
 
 	fd = tcp_base::sock_create_nb();
@@ -57,19 +56,17 @@ TEST_F(tcp_event, DISABLED_ti_1) {
 
 	event.events = 0;
 	event.data.fd = fd;
-	efd = test_base::event_wait(&event);
-	EXPECT_LE(0, efd);
+	rc = test_base::event_wait(&event);
+	EXPECT_LT(0, rc);
 /*	EXPECT_EQ(EPOLLHUP, event.events); TODO: UNDER VMA */
 	EXPECT_EQ(EPOLLERR | EPOLLHUP, event.events);
 
-	close(efd);
 	close(fd);
 }
 
 TEST_F(tcp_event, ti_2) {
 	int rc = EOK;
 	int fd;
-	int efd;
 	struct epoll_event event;
 
 	fd = tcp_base::sock_create_nb();
@@ -81,18 +78,16 @@ TEST_F(tcp_event, ti_2) {
 
 	event.events = 0;
 	event.data.fd = fd;
-	efd = test_base::event_wait(&event);
-	EXPECT_LE(0, efd);
+	rc = test_base::event_wait(&event);
+	EXPECT_LT(0, rc);
 	EXPECT_EQ((EPOLLERR | EPOLLHUP), event.events);
 
-	close(efd);
 	close(fd);
 }
 
 TEST_F(tcp_event, DISABLED_ti_3) {
 	int rc = EOK;
 	int fd;
-	int efd;
 	struct epoll_event event;
 
 	fd = tcp_base::sock_create_nb();
@@ -104,19 +99,17 @@ TEST_F(tcp_event, DISABLED_ti_3) {
 
 	event.events = EPOLLOUT | EPOLLIN;
 	event.data.fd = fd;
-	efd = test_base::event_wait(&event);
-	EXPECT_LE(0, efd);
+	rc = test_base::event_wait(&event);
+	EXPECT_LT(0, rc);
 	/*	EXPECT_EQ((EPOLLHUP | EPOLLIN), event.events); TODO: UNDER VMA */
 	EXPECT_EQ((EPOLLERR | EPOLLHUP | EPOLLOUT | EPOLLIN), event.events);
 
-	close(efd);
 	close(fd);
 }
 
 TEST_F(tcp_event, DISABLED_ti_4) {
 	int rc = EOK;
 	int fd;
-	int efd;
 	struct epoll_event event;
 
 	fd = tcp_base::sock_create_nb();
@@ -128,12 +121,11 @@ TEST_F(tcp_event, DISABLED_ti_4) {
 
 	event.events = EPOLLOUT | EPOLLIN;
 	event.data.fd = fd;
-	efd = test_base::event_wait(&event);
-	EXPECT_LE(0, efd);
+	rc = test_base::event_wait(&event);
+	EXPECT_LT(0, rc);
 	/*	EXPECT_EQ((EPOLLERR | EPOLLHUP | EPOLLIN), event.events); TODO: UNDER VMA */
 	EXPECT_EQ((EPOLLERR | EPOLLHUP | EPOLLOUT | EPOLLIN), event.events);
 
-	close(efd);
 	close(fd);
 }
 
@@ -175,7 +167,6 @@ static void _proc_client(void *ptr)
 {
 	int rc = EOK;
 	int fd;
-	int efd;
 	struct epoll_event event;
 
 	UNREFERENCED_PARAMETER(ptr);
@@ -193,10 +184,9 @@ static void _proc_client(void *ptr)
 
 	event.events = EPOLLOUT | EPOLLIN;
 	event.data.fd = fd;
-	efd = test_base::event_wait(&event);
-	EXPECT_LE(0, efd);
+	rc = test_base::event_wait(&event);
+	EXPECT_LT(0, rc);
 	EXPECT_EQ((EPOLLOUT), event.events);
-	close(efd);
 
 	log_trace("Established connection: fd=%d to %s\n",
 			fd, sys_addr2str((struct sockaddr_in *) &gtest_conf.server_addr));

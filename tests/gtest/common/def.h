@@ -52,6 +52,7 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
+#include <net/if.h>
 #include <ifaddrs.h>
 #include <pthread.h>
 #include <inttypes.h>   /* printf PRItn */
