@@ -72,9 +72,7 @@ sockinfo::sockinfo(int fd) throw (vma_exception):
 	m_p_socket_stats->b_blocking = m_b_blocking;
 	m_rx_reuse_buff.n_buff_num = 0;
 
-	memset(&m_vma_completion, 0, sizeof(m_vma_completion));
-	m_p_vma_completion = &m_vma_completion;
-	m_last_poll_vma_buff_lst = NULL;
+	memset(&m_ec, 0, sizeof(m_ec));
 }
 
 sockinfo::~sockinfo()

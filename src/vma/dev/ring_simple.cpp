@@ -1228,7 +1228,7 @@ int ring_simple::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd
 	return ret;
 }
 
-int ring_simple::vma_poll(vma_completion_t *vma_completions, unsigned int ncompletions, int flags)
+int ring_simple::vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags)
 {
 	int ret = 0;
 	int i = 0;
@@ -1239,12 +1239,12 @@ int ring_simple::vma_poll(vma_completion_t *vma_completions, unsigned int ncompl
 	set_vma_active(true);
 
 	if (likely(vma_completions) && ncompletions) {
-		vma_completion_t *ec = NULL;
+		struct ring_ec *ec = NULL;
 
 		while (!g_b_exit && (i < (int)ncompletions)) {
 			ec = get_ec();
 			if (ec) {
-				memcpy(&vma_completions[i], ec, sizeof(*ec));
+				memcpy(&vma_completions[i], &ec->completion, sizeof(ec->completion));
 				clear_ec(ec);
 				++i;
 			} else if (likely(m_p_cq_mgr_rx->vma_poll_and_process_element_rx(&desc))) {

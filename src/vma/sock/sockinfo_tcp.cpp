@@ -1354,28 +1354,27 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 
 	// In ZERO COPY case we let the user's application manage the ready queue
 	}
-	else if (conn->m_p_rx_ring->get_vma_active()){
+	else if (conn->check_vma_active()){
 		/* Update vma_completion with
 		 * VMA_POLL_PACKET related data
 		 */
-		if (!conn->m_last_poll_vma_buff_lst) {
+		if (!conn->m_ec.last_buff_lst) {
+			conn->m_ec.last_buff_lst = (struct vma_buff_t*)p_last_desc;
+			conn->m_ec.completion.packet.buff_lst = (struct vma_buff_t*)p_first_desc;
+			conn->m_ec.completion.packet.total_len = p->tot_len;
+			conn->m_ec.completion.src = p_first_desc->path.rx.src;
+			conn->m_ec.completion.packet.num_bufs = p_first_desc->n_frags;
 			conn->set_events(VMA_POLL_PACKET);
-			conn->m_last_poll_vma_buff_lst = (vma_buff_t*)p_last_desc;
-			conn->m_p_vma_completion->packet.buff_lst = (vma_buff_t*)p_first_desc;
-			conn->m_p_vma_completion->packet.total_len = p->tot_len;
-			conn->m_p_vma_completion->src = p_first_desc->path.rx.src;
-			conn->m_p_vma_completion->user_data = (uint64_t)conn->m_fd_context;
-			conn->m_p_vma_completion->packet.num_bufs = p_first_desc->n_frags;
 		}
 		else {
-			mem_buf_desc_t* prev_lst_tail_desc = (mem_buf_desc_t*)conn->m_last_poll_vma_buff_lst;
-			mem_buf_desc_t* list_head_desc = (mem_buf_desc_t*)conn->m_p_vma_completion->packet.buff_lst;
+			mem_buf_desc_t* prev_lst_tail_desc = (mem_buf_desc_t*)conn->m_ec.last_buff_lst;
+			mem_buf_desc_t* list_head_desc = (mem_buf_desc_t*)conn->m_ec.completion.packet.buff_lst;
 			prev_lst_tail_desc->p_next_desc = p_first_desc;
 			list_head_desc->n_frags += p_first_desc->n_frags;
 			p_first_desc->n_frags = 0;
-			conn->m_p_vma_completion->packet.total_len += p->tot_len;
-			conn->m_p_vma_completion->packet.num_bufs += list_head_desc->n_frags;
-			pbuf_cat((pbuf*)conn->m_p_vma_completion->packet.buff_lst, p);
+			conn->m_ec.completion.packet.total_len += p->tot_len;
+			conn->m_ec.completion.packet.num_bufs += list_head_desc->n_frags;
+			pbuf_cat((pbuf*)conn->m_ec.completion.packet.buff_lst, p);
 		}
 	}
 	else {
@@ -1684,12 +1683,10 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	sock->m_vma_thr = false;
 
 	if (sock != this) {
-		sock->m_last_poll_vma_buff_lst = NULL;
 		sock->m_tcp_con_lock.unlock();
 	}
 
 	m_iomux_ready_fd_array = NULL;
-	m_last_poll_vma_buff_lst = NULL;
 
 	while (dropped_count--) {
 		mem_buf_desc_t* p_rx_pkt_desc = m_rx_cb_dropped_list.front();
@@ -2361,15 +2358,15 @@ void sockinfo_tcp::auto_accept_connection(sockinfo_tcp *parent, sockinfo_tcp *ch
 	child->m_p_socket_stats->connected_port = child->m_connected.get_in_port();
 	child->m_p_socket_stats->bound_if = child->m_bound.get_in_addr();
 	child->m_p_socket_stats->bound_port = child->m_bound.get_in_port();
-	child->m_connected.get_sa(parent->m_p_vma_completion->src);
+	child->m_connected.get_sa(parent->m_ec.completion.src);
 
 	/* Update vma_completion with
 	 * VMA_POLL_NEW_CONNECTION_ACCEPTED related data
 	 */
-	child->set_events(VMA_POLL_NEW_CONNECTION_ACCEPTED);
 	if (likely(child->m_parent)) {
-		child->m_p_vma_completion->src = parent->m_p_vma_completion->src;
-		child->m_p_vma_completion->listen_fd = child->m_parent->get_fd();
+		child->m_ec.completion.src = parent->m_ec.completion.src;
+		child->m_ec.completion.listen_fd = child->m_parent->get_fd();
+		child->set_events(VMA_POLL_NEW_CONNECTION_ACCEPTED);
 	}
 	else {
 		vlog_printf(VLOG_ERROR, "VMA_POLL_NEW_CONNECTION_ACCEPTED: can't find listen socket for new connected socket with [fd=%d]",
@@ -2465,7 +2462,7 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 	conn->m_ready_pcbs.erase(&new_sock->m_pcb);
 
 	conn->set_events(EPOLLIN);
-	if (conn->m_p_rx_ring->get_vma_active()) {
+	if (conn->check_vma_active()) {
 		auto_accept_connection(conn, new_sock);
 	}
 	else {
