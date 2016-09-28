@@ -17,11 +17,15 @@ ring::ring(int count, uint32_t mtu) :
 	m_n_num_resources(count), m_p_n_rx_channel_fds(NULL), m_parent(NULL),
 	m_vma_active(false), m_mtu(mtu)
 {
+	INIT_LIST_HEAD(&m_ec_list);
 }
 
 ring::~ring()
 {
-	while (!m_ec_queue.empty()) {
-		m_ec_queue.pop_front();
+	struct ring_ec *ec = get_ec();
+
+	while (ec) {
+		clear_ec(ec);
+		ec = get_ec();
 	}
 }
