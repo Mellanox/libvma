@@ -403,9 +403,6 @@ bool sockinfo::attach_receiver(flow_tuple_with_local_if &flow_key)
 		return false;
 	}
 
-	/* just increment reference counter on attach */
-	p_nd_resources->refcnt++;
-
 	// Map flow in local map
 	m_rx_flow_map[flow_key] = p_nd_resources->p_ring;
 
@@ -532,6 +529,9 @@ net_device_resources_t* sockinfo::create_nd_resources(const ip_address ip_local)
 
 	// Now we have the net_device object (created or found)
 	p_nd_resources = &rx_nd_iter->second;
+
+	/* just increment reference counter */
+	p_nd_resources->refcnt++;
 
 	// Save the new CQ from ring (dummy_flow_key is not used)
 	{
