@@ -1806,22 +1806,40 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 	}
 
 	if (check_vma_active()) {
+		/* Update vma_completion with
+		 * VMA_POLL_PACKET related data
+		 */
+		struct vma_completion_t *completion;
 		mem_buf_desc_t *tmp_p;
 
-		m_ec.last_buff_lst = NULL;
-		m_ec.completion.packet.buff_lst = (struct vma_buff_t*)p_desc;
-		m_ec.completion.packet.total_len = 0;
-		m_ec.completion.src = p_desc->path.rx.src;
-		m_ec.completion.packet.num_bufs = p_desc->n_frags;
+		/* Try to process vma_poll() completion directly */
+		if (p_desc->path.rx.vma_polled) {
+			m_vma_poll_completion = m_p_rx_ring->get_comp();
+			m_vma_poll_last_buff_lst = NULL;
+		}
+
+		if (m_vma_poll_completion) {
+			completion = m_vma_poll_completion;
+		} else {
+			completion = &m_ec.completion;
+		}
+
+		completion->packet.buff_lst = (struct vma_buff_t*)p_desc;
+		completion->packet.total_len = 0;
+		completion->src = p_desc->path.rx.src;
+		completion->packet.num_bufs = p_desc->n_frags;
 
 		for(tmp_p = p_desc; tmp_p; tmp_p = tmp_p->p_next_desc) {
-			m_ec.completion.packet.buff_lst = (struct vma_buff_t*)tmp_p;
-			m_ec.completion.packet.buff_lst->next = (struct vma_buff_t*)tmp_p->p_next_desc;
-			m_ec.completion.packet.buff_lst->len = p_desc->path.rx.frag.iov_len;
-			m_ec.completion.packet.buff_lst->payload = p_desc->path.rx.frag.iov_base;
-			m_ec.completion.packet.total_len += tmp_p->path.rx.sz_payload;
+			completion->packet.buff_lst = (struct vma_buff_t*)tmp_p;
+			completion->packet.buff_lst->next = (struct vma_buff_t*)tmp_p->p_next_desc;
+			completion->packet.buff_lst->len = p_desc->path.rx.frag.iov_len;
+			completion->packet.buff_lst->payload = p_desc->path.rx.frag.iov_base;
+			completion->packet.total_len += tmp_p->path.rx.sz_payload;
 		}
 		set_events(VMA_POLL_PACKET);
+
+		m_vma_poll_completion = NULL;
+		m_vma_poll_last_buff_lst = NULL;
 	} else {
 
 		// In ZERO COPY case we let the user's application manage the ready queue

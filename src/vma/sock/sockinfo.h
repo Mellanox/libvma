@@ -152,6 +152,8 @@ protected:
 	 * Current design support single event for socket at a particular time
 	 */
 	struct ring_ec m_ec;
+	struct vma_completion_t* m_vma_poll_completion;
+	struct vma_buff_t*       m_vma_poll_last_buff_lst;
 
 	// Callback function pointer to support VMA extra API (vma_extra.h)
 	vma_recv_callback_t	m_rx_callback;
@@ -228,11 +230,17 @@ protected:
 	{
 		/* Collect all events if rx ring is enabled */
 		if (m_p_rx_ring) {
-			if (!m_ec.completion.events) {
-				m_ec.completion.events = events;
-				m_ec.completion.user_data = (uint64_t)m_fd_context;
-				m_p_rx_ring->put_ec(&m_ec);
-			} else {
+			if (m_vma_poll_completion) {
+				if (!m_vma_poll_completion->events) {
+					m_vma_poll_completion->user_data = (uint64_t)m_fd_context;
+				}
+				m_vma_poll_completion->events |= events;
+			}
+			else {
+				if (!m_ec.completion.events) {
+					m_ec.completion.user_data = (uint64_t)m_fd_context;
+					m_p_rx_ring->put_ec(&m_ec);
+				}
 				m_ec.completion.events |= events;
 			}
 		}

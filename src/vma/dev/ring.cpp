@@ -18,6 +18,7 @@ ring::ring(int count, uint32_t mtu) :
 	m_vma_active(false), m_mtu(mtu)
 {
 	INIT_LIST_HEAD(&m_ec_list);
+	m_vma_poll_completion = NULL;
 }
 
 ring::~ring()

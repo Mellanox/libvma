@@ -1241,18 +1241,39 @@ int ring_simple::vma_poll(struct vma_completion_t *vma_completions, unsigned int
 	if (likely(vma_completions) && ncompletions) {
 		struct ring_ec *ec = NULL;
 
+		set_comp(vma_completions);
+
 		while (!g_b_exit && (i < (int)ncompletions)) {
-			ec = get_ec();
-			if (ec) {
-				memcpy(&vma_completions[i], &ec->completion, sizeof(ec->completion));
-				clear_ec(ec);
-				++i;
-			} else if (likely(m_p_cq_mgr_rx->vma_poll_and_process_element_rx(&desc))) {
-				vma_poll_process_recv_buffer(desc);
+			m_vma_poll_completion->events = 0;
+			/* Check list size to avoid locking */
+			if (!list_empty(&m_ec_list)) {
+				ec = get_ec();
+				if (ec) {
+					memcpy(m_vma_poll_completion, &ec->completion, sizeof(ec->completion));
+					clear_ec(ec);
+					m_vma_poll_completion++;
+					i++;
+				}
 			} else {
-				break;
+				/* Internal thread can raise event on this stage before we
+				 * start rx processing. In this case we can return event
+				 * in right order. It is done to avoid locking and
+				 * may be it is not so critical
+				 */
+				if (likely(m_p_cq_mgr_rx->vma_poll_and_process_element_rx(&desc))) {
+					vma_poll_process_recv_buffer(desc);
+					if (m_vma_poll_completion->events) {
+						m_vma_poll_completion++;
+						i++;
+					}
+				} else {
+					break;
+				}
 			}
 		}
+
+		clear_comp();
+
 		ret = i;
 	}
 	else {
