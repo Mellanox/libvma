@@ -73,6 +73,8 @@ sockinfo::sockinfo(int fd) throw (vma_exception):
 	m_rx_reuse_buff.n_buff_num = 0;
 
 	memset(&m_ec, 0, sizeof(m_ec));
+	m_vma_poll_completion = NULL;
+	m_vma_poll_last_buff_lst = NULL;
 }
 
 sockinfo::~sockinfo()
@@ -532,7 +534,7 @@ net_device_resources_t* sockinfo::create_nd_resources(const ip_address ip_local)
 	// Now we have the net_device object (created or found)
 	p_nd_resources = &rx_nd_iter->second;
 
-	/* just increment reference counter */
+	/* just increment reference counter on attach */
 	p_nd_resources->refcnt++;
 
 	// Save the new CQ from ring (dummy_flow_key is not used)

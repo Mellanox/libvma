@@ -284,10 +284,24 @@ public:
 		return ec;
 	}
 
-
 	inline void clear_ec(struct ring_ec *ec)
 	{
 		memset(ec, 0, sizeof(*ec));
+	}
+
+	inline void set_comp(struct vma_completion_t *comp)
+	{
+		m_vma_poll_completion = comp;
+	}
+
+	struct vma_completion_t *get_comp(void)
+	{
+		return m_vma_poll_completion;
+	}
+
+	inline void clear_comp(void)
+	{
+		m_vma_poll_completion = NULL;
 	}
 
 protected:
@@ -295,10 +309,24 @@ protected:
 	int*			m_p_n_rx_channel_fds;
 	ring*			m_parent;
 
+	/* queue of event completion elements
+	 * this queue is stored events related different sockinfo (sockets)
+	 * In current implementation every sockinfo (socket) can have single event
+	 * in this queue
+	 */
+	struct list_head         m_ec_list;
+
+	/* Thread-safity lock for get/put operations under the queue */
+	lock_spin                m_lock_ec_list;
+
+	/* This completion is introduced to process events directly w/o
+	 * storing them in the queue of event completion elements
+	 */
+	struct vma_completion_t* m_vma_poll_completion;
+
 private:
-	bool                    m_vma_active;
-	struct list_head        m_ec_list; /* queue of event completion elements */
-	lock_spin               m_lock_ec_list;
+	/* This flag is enabled in case vma_poll() call is done */
+	bool                     m_vma_active;
 
 	uint32_t		m_mtu;
 };
