@@ -42,13 +42,13 @@ static void _proc_client(void *ptr);
 
 class tcp_event : public tcp_base {};
 
-TEST_F(tcp_event, ti_1) {
+TEST_F(tcp_event, DISABLED_ti_1) { /* TODO: issue #858697 */
 	int rc = EOK;
 	int fd;
 	int efd;
 	struct epoll_event event;
 
-	fd = tcp_base::sock_create_nb();
+	fd = test_base::sock_create_nb(SOCK_STREAM);
 	ASSERT_LE(0, fd);
 
 	rc = connect(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
@@ -72,7 +72,7 @@ TEST_F(tcp_event, ti_2) {
 	int efd;
 	struct epoll_event event;
 
-	fd = tcp_base::sock_create_nb();
+	fd = test_base::sock_create_nb(SOCK_STREAM);
 	ASSERT_LE(0, fd);
 
 	rc = connect(fd, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
@@ -89,13 +89,13 @@ TEST_F(tcp_event, ti_2) {
 	close(fd);
 }
 
-TEST_F(tcp_event, ti_3) {
+TEST_F(tcp_event, DISABLED_ti_3) { /* TODO: issue #858697 */
 	int rc = EOK;
 	int fd;
 	int efd;
 	struct epoll_event event;
 
-	fd = tcp_base::sock_create_nb();
+	fd = test_base::sock_create_nb(SOCK_STREAM);
 	ASSERT_LE(0, fd);
 
 	rc = connect(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
@@ -113,13 +113,13 @@ TEST_F(tcp_event, ti_3) {
 	close(fd);
 }
 
-TEST_F(tcp_event, ti_4) {
+TEST_F(tcp_event, DISABLED_ti_4) { /* TODO: issue #858697 */
 	int rc = EOK;
 	int fd;
 	int efd;
 	struct epoll_event event;
 
-	fd = tcp_base::sock_create_nb();
+	fd = test_base::sock_create_nb(SOCK_STREAM);
 	ASSERT_LE(0, fd);
 
 	rc = connect(fd, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
@@ -147,7 +147,7 @@ static void _proc_server(void *ptr)
 
 	UNREFERENCED_PARAMETER(ptr);
 
-	fd = tcp_base::sock_create();
+	fd = test_base::sock_create(SOCK_STREAM);
 	ASSERT_LE(0, fd);
 
 	rc = bind(fd, (struct sockaddr *)&gtest_conf.server_addr, sizeof(gtest_conf.server_addr));
@@ -180,7 +180,7 @@ static void _proc_client(void *ptr)
 
 	UNREFERENCED_PARAMETER(ptr);
 
-	fd = tcp_base::sock_create_nb();
+	fd = test_base::sock_create_nb(SOCK_STREAM);
 	ASSERT_LE(0, fd);
 
 	rc = bind(fd, (struct sockaddr *)&gtest_conf.client_addr, sizeof(gtest_conf.client_addr));

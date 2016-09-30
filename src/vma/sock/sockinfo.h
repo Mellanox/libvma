@@ -148,6 +148,13 @@ protected:
 
 	int			m_rx_num_buffs_reuse;
 
+	/* Track internal events to return in vma_poll()
+	 * Current design support single event for socket at a particular time
+	 */
+	struct ring_ec m_ec;
+	struct vma_completion_t* m_vma_poll_completion;
+	struct vma_buff_t*       m_vma_poll_last_buff_lst;
+
 	// Callback function pointer to support VMA extra API (vma_extra.h)
 	vma_recv_callback_t	m_rx_callback;
 	void*			m_rx_callback_context; // user context
@@ -206,6 +213,52 @@ protected:
 	void 			move_owned_rx_ready_descs(const mem_buf_desc_owner* p_desc_owner, descq_t* toq); // Move all owner's rx ready packets ro 'toq'
 
 	virtual bool try_un_offloading(); // un-offload the socket if possible
+	virtual inline void do_wakeup()
+	{
+		/* TODO: Let consider if we really need this check */
+		if (!check_vma_active()) {
+			wakeup_pipe::do_wakeup();
+		}
+	}
+
+	inline bool check_vma_active(void)
+	{
+		return (m_p_rx_ring && m_p_rx_ring->get_vma_active());
+	}
+
+	inline void set_events(uint64_t events)
+	{
+		/* Collect all events if rx ring is enabled */
+		if (m_p_rx_ring) {
+			if (m_vma_poll_completion) {
+				if (!m_vma_poll_completion->events) {
+					m_vma_poll_completion->user_data = (uint64_t)m_fd_context;
+				}
+				m_vma_poll_completion->events |= events;
+			}
+			else {
+				if (!m_ec.completion.events) {
+					m_ec.completion.user_data = (uint64_t)m_fd_context;
+					m_p_rx_ring->put_ec(&m_ec);
+				}
+				m_ec.completion.events |= events;
+			}
+		}
+
+		if ((uint32_t)events) {
+			socket_fd_api::notify_epoll_context((uint32_t)events);
+		}
+	}
+
+	inline uint64_t get_events(void)
+	{
+		return m_ec.completion.events;
+	}
+
+	inline void clear_events(void)
+	{
+		m_ec.completion.events = 0;
+	}
 
 	// This function validates the ipoib's properties
 	// Input params:

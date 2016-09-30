@@ -129,3 +129,35 @@ int test_base::event_wait(struct epoll_event *event)
 err:
 	return efd;
 }
+
+int test_base::sock_create(int type)
+{
+	int fd;
+
+	fd = socket(PF_INET, type, IPPROTO_IP);
+	if (fd < 0) {
+		log_error("failed socket() %s\n", strerror(errno));
+	}
+
+	return fd;
+}
+
+int test_base::sock_create_nb(int type)
+{
+	int rc;
+	int fd;
+
+	fd = test_base::sock_create(type);
+	if (fd < 0) {
+		log_error("failed socket() %s\n", strerror(errno));
+	}
+
+	rc = test_base::sock_noblock(fd);
+	if (rc < 0) {
+		log_error("failed sock_noblock() %s\n", strerror(errno));
+		close(fd);
+		fd = -1;
+	}
+
+	return fd;
+}

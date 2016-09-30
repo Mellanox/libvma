@@ -1660,7 +1660,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 
 		// MNY: Problematic in cases where packet was dropped because no tx buffers were available..
 		// Yet we need to add this code to avoid deadlocks in case of EPOLLOUT ET.
-		notify_epoll_context(EPOLLOUT);
+		set_events(EPOLLOUT);
 
 		save_stats_tx_offload(ret, is_dropped);
 
@@ -1805,24 +1805,41 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 		clock_gettime(CLOCK_REALTIME, &(p_desc->path.rx.sw_timestamp));
 	}
 
-	if (p_desc->path.rx.vma_polled) {
+	if (check_vma_active()) {
+		/* Update vma_completion with
+		 * VMA_POLL_PACKET related data
+		 */
+		struct vma_completion_t *completion;
 		mem_buf_desc_t *tmp_p;
-		vma_completion_t* p_vma_completion;
 
-		p_vma_completion = (vma_completion_t*)pv_fd_ready_array;
-		p_vma_completion->packet.total_len = 0;
+		/* Try to process vma_poll() completion directly */
+		if (p_desc->path.rx.vma_polled) {
+			m_vma_poll_completion = m_p_rx_ring->get_comp();
+			m_vma_poll_last_buff_lst = NULL;
+		}
+
+		if (m_vma_poll_completion) {
+			completion = m_vma_poll_completion;
+		} else {
+			completion = &m_ec.completion;
+		}
+
+		completion->packet.buff_lst = (struct vma_buff_t*)p_desc;
+		completion->packet.total_len = 0;
+		completion->src = p_desc->path.rx.src;
+		completion->packet.num_bufs = p_desc->n_frags;
 
 		for(tmp_p = p_desc; tmp_p; tmp_p = tmp_p->p_next_desc) {
-			p_vma_completion->packet.buff_lst = (vma_buff_t*)tmp_p;
-			p_vma_completion->packet.buff_lst->next = (vma_buff_t*)tmp_p->p_next_desc;
-			p_vma_completion->packet.buff_lst->len = p_desc->path.rx.frag.iov_len;
-			p_vma_completion->packet.buff_lst->payload = p_desc->path.rx.frag.iov_base;
-			p_vma_completion->packet.total_len += tmp_p->path.rx.sz_payload;
+			completion->packet.buff_lst = (struct vma_buff_t*)tmp_p;
+			completion->packet.buff_lst->next = (struct vma_buff_t*)tmp_p->p_next_desc;
+			completion->packet.buff_lst->len = p_desc->path.rx.frag.iov_len;
+			completion->packet.buff_lst->payload = p_desc->path.rx.frag.iov_base;
+			completion->packet.total_len += tmp_p->path.rx.sz_payload;
 		}
-		p_vma_completion->events = VMA_POLL_PACKET;
-		p_vma_completion->src = p_desc->path.rx.src;
-		p_vma_completion->user_data = (uint64_t)m_fd_context;
-		p_vma_completion->packet.num_bufs = p_desc->n_frags;
+		set_events(VMA_POLL_PACKET);
+
+		m_vma_poll_completion = NULL;
+		m_vma_poll_last_buff_lst = NULL;
 	} else {
 
 		// In ZERO COPY case we let the user's application manage the ready queue
@@ -1841,9 +1858,11 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 		} else {
 			m_p_socket_stats->n_rx_zcopy_pkt_count++;
 		}
-		notify_epoll_context(EPOLLIN);
-
-		// Add this fd to the ready fd list
+		set_events(EPOLLIN);
+		/* Add this fd to the ready fd list
+		 * Note: No issue is expected in case vma_poll() usage because 'pv_fd_ready_array' is null
+		 * in such case and as a result update_fd_array() call means nothing
+		 */
 		io_mux_call::update_fd_array((fd_array_t*)pv_fd_ready_array, m_fd);
 
 		si_udp_logfunc("rx ready count = %d packets / %d bytes", m_n_rx_pkt_ready_list_count, m_p_socket_stats->n_rx_ready_byte_count);

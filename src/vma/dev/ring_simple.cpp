@@ -628,7 +628,6 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 	struct udphdr* p_udp_h = NULL;
 	in_addr_t local_addr = p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr;
 
-
 	NOT_IN_USE(ip_tot_len);
 	NOT_IN_USE(ip_frag_off);
 	NOT_IN_USE(n_frag_offset);
@@ -645,7 +644,7 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 		p_rx_wc_buf_desc->path.rx.p_tcp_h       = p_tcp_h;
 		p_rx_wc_buf_desc->transport_header_len  = transport_header_len;
 		p_rx_wc_buf_desc->path.rx.vma_polled = true;
-		p_rfs_single_tcp->rx_dispatch_packet(p_rx_wc_buf_desc, &m_vma_comp_arr[m_vma_curr_comp_index]);
+		p_rfs_single_tcp->rx_dispatch_packet(p_rx_wc_buf_desc, NULL);
 		p_rx_wc_buf_desc->path.rx.vma_polled = false;
 		return;
 	}
@@ -887,7 +886,7 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 		return;
 	}
 	p_rx_wc_buf_desc->path.rx.vma_polled = true;
-	p_rfs->rx_dispatch_packet(p_rx_wc_buf_desc, &m_vma_comp_arr[m_vma_curr_comp_index]);
+	p_rfs->rx_dispatch_packet(p_rx_wc_buf_desc, NULL);
 	p_rx_wc_buf_desc->path.rx.vma_polled = false;
 }
 
@@ -1229,26 +1228,53 @@ int ring_simple::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd
 	return ret;
 }
 
-int ring_simple::vma_poll(vma_completion_t *vma_completions, unsigned int ncompletions, int flags)
+int ring_simple::vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags)
 {
 	int ret = 0;
+	int i = 0;
 	mem_buf_desc_t *desc;
 
 	NOT_IN_USE(flags);
 
-	if (likely(vma_completions) && ncompletions) {
-		m_vma_comp_arr = vma_completions;
-		m_vma_curr_comp_index = 0;
+	set_vma_active(true);
 
-		for (unsigned int i = 0; i < ncompletions && !g_b_exit; ++i) {
-			if (likely(m_p_cq_mgr_rx->vma_poll_and_process_element_rx(&desc))) {
-				vma_poll_process_recv_buffer(desc);
-				if (m_vma_comp_arr[m_vma_curr_comp_index].events) {
-					++m_vma_curr_comp_index;
+	if (likely(vma_completions) && ncompletions) {
+		struct ring_ec *ec = NULL;
+
+		set_comp(vma_completions);
+
+		while (!g_b_exit && (i < (int)ncompletions)) {
+			m_vma_poll_completion->events = 0;
+			/* Check list size to avoid locking */
+			if (!list_empty(&m_ec_list)) {
+				ec = get_ec();
+				if (ec) {
+					memcpy(m_vma_poll_completion, &ec->completion, sizeof(ec->completion));
+					clear_ec(ec);
+					m_vma_poll_completion++;
+					i++;
+				}
+			} else {
+				/* Internal thread can raise event on this stage before we
+				 * start rx processing. In this case we can return event
+				 * in right order. It is done to avoid locking and
+				 * may be it is not so critical
+				 */
+				if (likely(m_p_cq_mgr_rx->vma_poll_and_process_element_rx(&desc))) {
+					vma_poll_process_recv_buffer(desc);
+					if (m_vma_poll_completion->events) {
+						m_vma_poll_completion++;
+						i++;
+					}
+				} else {
+					break;
 				}
 			}
 		}
-		ret = m_vma_curr_comp_index;
+
+		clear_comp();
+
+		ret = i;
 	}
 	else {
 		ret = -1;

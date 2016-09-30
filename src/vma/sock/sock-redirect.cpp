@@ -321,7 +321,7 @@ int vma_recvfrom_zcopy(int __fd, void *__buf, size_t __nbytes, int *__flags,
 }
 
 extern "C"
-int vma_poll(int fd, vma_completion_t* completions, unsigned int ncompletions, int flags)
+int vma_poll(int fd, struct vma_completion_t* completions, unsigned int ncompletions, int flags)
 {
 	int ret_val = -1;
 	cq_channel_info* cq_ch_info = NULL;

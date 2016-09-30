@@ -13,6 +13,20 @@
 
 #include "ring.h"
 
-ring::ring(int count, uint32_t mtu) : m_n_num_resources(count), m_p_n_rx_channel_fds(NULL), m_parent(NULL), m_mtu(mtu)
+ring::ring(int count, uint32_t mtu) :
+	m_n_num_resources(count), m_p_n_rx_channel_fds(NULL), m_parent(NULL),
+	m_vma_active(false), m_mtu(mtu)
 {
+	INIT_LIST_HEAD(&m_ec_list);
+	m_vma_poll_completion = NULL;
+}
+
+ring::~ring()
+{
+	struct ring_ec *ec = get_ec();
+
+	while (ec) {
+		clear_ec(ec);
+		ec = get_ec();
+	}
 }

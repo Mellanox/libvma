@@ -41,6 +41,8 @@ class test_base {
 public:
 	static int sock_noblock(int fd);
 	static int event_wait(struct epoll_event *event);
+	static int sock_create(int type);
+	static int sock_create_nb(int type);
 
 protected:
 	test_base();

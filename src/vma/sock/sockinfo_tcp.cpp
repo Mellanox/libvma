@@ -219,9 +219,6 @@ sockinfo_tcp::sockinfo_tcp(int fd) throw (vma_exception) :
 	if (m_tcp_seg_list) m_tcp_seg_count += TCP_SEG_COMPENSATION;
 
 	si_tcp_logfunc("done");
-
-	m_p_vma_completion = NULL;
-	m_last_poll_vma_buff_lst = NULL;
 }
 
 sockinfo_tcp::~sockinfo_tcp()
@@ -415,7 +412,7 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 	}
 
 
-	notify_epoll_context(EPOLLHUP);
+	set_events(EPOLLHUP);
 
 	//todo should we do this each time we get into prepare_to_close ?
 	if (get_tcp_state(&m_pcb) != LISTEN) {
@@ -884,14 +881,12 @@ void sockinfo_tcp::err_lwip_cb(void *pcb_container, err_t err)
 			events = EPOLLIN|EPOLLHUP;
 		}
 
-		if (conn->m_p_vma_completion) {
-			prepare_event_completion(conn, events);
-		}
-		else {
-			conn->notify_epoll_context(events);
-			io_mux_call::update_fd_array(conn->m_iomux_ready_fd_array, conn->m_fd);
-		}
-
+		conn->set_events(events);
+		/* Add this fd to the ready fd list
+		 * Note: No issue is expected in case vma_poll() usage because 'pv_fd_ready_array' is null
+		 * in such case and as a result update_fd_array() call means nothing
+		 */
+		io_mux_call::update_fd_array(conn->m_iomux_ready_fd_array, conn->m_fd);
 	}
 
 	conn->m_conn_state = TCP_CONN_FAILED;
@@ -917,9 +912,7 @@ void sockinfo_tcp::err_lwip_cb(void *pcb_container, err_t err)
 		conn->m_timer_handle = NULL;
 	}
 
-	if (!conn->m_p_vma_completion) {
-		conn->do_wakeup();
-	}
+	conn->do_wakeup();
 }
 
 bool sockinfo_tcp::process_peer_ctl_packets(vma_desc_list_t &peer_packets)
@@ -1232,37 +1225,12 @@ err_t sockinfo_tcp::ack_recvd_lwip_cb(void *arg, struct tcp_pcb *tpcb, u16_t ack
 	vlog_func_enter();
 
 	ASSERT_LOCKED(conn->m_tcp_con_lock);
-//	if (conn->m_p_vma_completion) {
-//		prepare_event_completion(conn, EPOLLOUT);
-//	}
-//	else
-	{
-		// notify epoll
-		conn->notify_epoll_context(EPOLLOUT);
-	}
+
+	conn->set_events(EPOLLOUT);
 
 	vlog_func_exit();
 
 	return ERR_OK;
-}
-
-void sockinfo_tcp::prepare_event_completion(sockinfo_tcp *conn, uint64_t events)
-{
-	if (!conn->m_p_vma_completion->events) {
-		conn->m_p_vma_completion->user_data = (uint64_t)conn->m_fd_context;
-	}
-
-	conn->m_p_vma_completion->events |= events;
-
-	if (events & VMA_POLL_NEW_CONNECTION_ACCEPTED) {
-		if (likely(conn->m_parent)) {
-			conn->m_p_vma_completion->listen_fd = conn->m_parent->get_fd();
-		}
-		else {
-			vlog_printf(VLOG_ERROR, "VMA_POLL_NEW_CONNECTION_ACCEPTED: can't find listen socket for new connected socket with [fd=%d]",
-				    __func__, __LINE__, conn->get_fd());
-		}
-	}
 }
 
 err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
@@ -1285,15 +1253,13 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 			return ERR_OK;
 		}
 
-		if (conn->m_p_vma_completion) {
-			prepare_event_completion(conn, events);
-		}
-		else {
-			conn->notify_epoll_context(events);
-			io_mux_call::update_fd_array(conn->m_iomux_ready_fd_array, conn->m_fd);
-			conn->do_wakeup();
-		}
-
+		conn->set_events(events);
+		/* Add this fd to the ready fd list
+		 * Note: No issue is expected in case vma_poll() usage because 'pv_fd_ready_array' is null
+		 * in such case and as a result update_fd_array() call means nothing
+		 */
+		io_mux_call::update_fd_array(conn->m_iomux_ready_fd_array, conn->m_fd);
+		conn->do_wakeup();
 
 		//tcp_close(&(conn->m_pcb));
 		//TODO: should be a move into half closed state (shut rx) instead of complete close
@@ -1329,7 +1295,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 	}
 	if (unlikely(err != ERR_OK)) {
 		// notify io_mux
-		conn->notify_epoll_context(EPOLLERR);
+		conn->set_events(EPOLLERR);
 		conn->do_wakeup();
 		vlog_printf(VLOG_ERROR, "%s:%d %s\n", __func__, __LINE__, "recv error!!!\n");
 		pbuf_free(p);
@@ -1388,29 +1354,39 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 
 	// In ZERO COPY case we let the user's application manage the ready queue
 	}
-	else if (conn->m_p_vma_completion){
+	else if (conn->check_vma_active()){
+		/* Update vma_completion with
+		 * VMA_POLL_PACKET related data
+		 */
+		struct vma_completion_t *completion;
+		struct vma_buff_t *buf_lst;
 
-		if (!conn->m_last_poll_vma_buff_lst) {
-			conn->m_last_poll_vma_buff_lst = (vma_buff_t*)p_last_desc;
-			conn->m_p_vma_completion->packet.buff_lst = (vma_buff_t*)p_first_desc;
-			conn->m_p_vma_completion->packet.total_len = p->tot_len;
-			conn->m_p_vma_completion->events |= VMA_POLL_PACKET;
-			conn->m_p_vma_completion->src = p_first_desc->path.rx.src;
-			conn->m_p_vma_completion->user_data = (uint64_t)conn->m_fd_context;
-			conn->m_p_vma_completion->packet.num_bufs = p_first_desc->n_frags;
+		if (conn->m_vma_poll_completion) {
+			completion = conn->m_vma_poll_completion;
+			buf_lst = conn->m_vma_poll_last_buff_lst;
+		} else {
+			completion = &conn->m_ec.completion;
+			buf_lst = conn->m_ec.last_buff_lst;
+		}
+
+		if (!buf_lst) {
+			buf_lst = (struct vma_buff_t*)p_last_desc;
+			completion->packet.buff_lst = (struct vma_buff_t*)p_first_desc;
+			completion->packet.total_len = p->tot_len;
+			completion->src = p_first_desc->path.rx.src;
+			completion->packet.num_bufs = p_first_desc->n_frags;
+			conn->set_events(VMA_POLL_PACKET);
 		}
 		else {
-			mem_buf_desc_t* prev_lst_tail_desc = (mem_buf_desc_t*)conn->m_last_poll_vma_buff_lst;
-			mem_buf_desc_t* list_head_desc = (mem_buf_desc_t*)conn->m_p_vma_completion->packet.buff_lst;
+			mem_buf_desc_t* prev_lst_tail_desc = (mem_buf_desc_t*)buf_lst;
+			mem_buf_desc_t* list_head_desc = (mem_buf_desc_t*)completion->packet.buff_lst;
 			prev_lst_tail_desc->p_next_desc = p_first_desc;
 			list_head_desc->n_frags += p_first_desc->n_frags;
 			p_first_desc->n_frags = 0;
-			conn->m_p_vma_completion->packet.total_len += p->tot_len;
-			conn->m_p_vma_completion->packet.num_bufs += list_head_desc->n_frags;
-			pbuf_cat((pbuf*)conn->m_p_vma_completion->packet.buff_lst, p);
+			completion->packet.total_len += p->tot_len;
+			completion->packet.num_bufs += list_head_desc->n_frags;
+			pbuf_cat((pbuf*)completion->packet.buff_lst, p);
 		}
-
-		p_first_desc->path.rx.vma_polled = false;
 	}
 	else {
 		if (callback_retval == VMA_PACKET_RECV) {
@@ -1424,7 +1400,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 			conn->m_p_socket_stats->counters.n_rx_ready_byte_max = max((uint32_t)conn->m_p_socket_stats->n_rx_ready_byte_count, conn->m_p_socket_stats->counters.n_rx_ready_byte_max);
 		}
 		// notify io_mux
-		conn->notify_epoll_context(EPOLLIN);
+		conn->set_events(EPOLLIN);
 		io_mux_call::update_fd_array(conn->m_iomux_ready_fd_array, conn->m_fd);
 
 		if (callback_retval != VMA_PACKET_HOLD) {
@@ -1643,15 +1619,16 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	int dropped_count = 0;
 
 	lock_tcp_con();
+
+	m_iomux_ready_fd_array = (fd_array_t*)pv_fd_ready_array;
+
+	/* Try to process vma_poll() completion directly */
 	if (p_rx_pkt_mem_buf_desc_info->path.rx.vma_polled) {
-		m_p_vma_completion = (vma_completion_t*)pv_fd_ready_array;
-		m_p_vma_completion->events = 0;
-
+		if (check_vma_active()) {
+			m_vma_poll_completion = m_p_rx_ring->get_comp();
+			m_vma_poll_last_buff_lst = NULL;
+		}
 	}
-	else {
-		m_iomux_ready_fd_array = (fd_array_t*)pv_fd_ready_array;
-	}
-
 
 	if (unlikely(get_tcp_state(&m_pcb) == LISTEN)) {
 		pcb = get_syn_received_pcb(p_rx_pkt_mem_buf_desc_info->path.rx.src.sin_addr.s_addr,
@@ -1679,14 +1656,16 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 				// TODO: consider check if we can now drain into Q of established
 				si_tcp_logdbg("SYN/CTL packet drop. established-backlog=%d (limit=%d) num_con_waiting=%d (limit=%d)",
 						(int)m_syn_received.size(), m_backlog, num_con_waiting, MAX_SYN_RCVD);
-				m_p_vma_completion = NULL;
+				m_vma_poll_completion = NULL;
+				m_vma_poll_last_buff_lst = NULL;
 				unlock_tcp_con();
 				return false;// return without inc_ref_count() => packet will be dropped
 			}
 		}
 		if (safe_mce_sys().tcp_ctl_thread > CTL_THREAD_DISABLE || established_backlog_full) { /* 2nd check only worth when MAX_SYN_RCVD>0 for non tcp_ctl_thread  */
 			queue_rx_ctl_packet(pcb, p_rx_pkt_mem_buf_desc_info); // TODO: need to trigger queue pulling from accept in case no tcp_ctl_thread
-			m_p_vma_completion = NULL;
+			m_vma_poll_completion = NULL;
+			m_vma_poll_last_buff_lst = NULL;
 			unlock_tcp_con();
 			return true;
 		}
@@ -1727,16 +1706,17 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	sock->m_vma_thr = false;
 
 	if (sock != this) {
-		if (unlikely(sock->m_p_vma_completion)) {
-			sock->m_p_vma_completion = NULL;
-			sock->m_last_poll_vma_buff_lst = NULL;
+		if (unlikely(sock->m_vma_poll_completion)) {
+			sock->m_vma_poll_completion = NULL;
+			sock->m_vma_poll_last_buff_lst = NULL;
 		}
 		sock->m_tcp_con_lock.unlock();
 	}
 
 	m_iomux_ready_fd_array = NULL;
-	m_p_vma_completion = NULL;
-	m_last_poll_vma_buff_lst = NULL;
+
+	m_vma_poll_completion = NULL;
+	m_vma_poll_last_buff_lst = NULL;
 
 	while (dropped_count--) {
 		mem_buf_desc_t* p_rx_pkt_desc = m_rx_cb_dropped_list.front();
@@ -2408,11 +2388,29 @@ void sockinfo_tcp::auto_accept_connection(sockinfo_tcp *parent, sockinfo_tcp *ch
 	child->m_p_socket_stats->connected_port = child->m_connected.get_in_port();
 	child->m_p_socket_stats->bound_if = child->m_bound.get_in_addr();
 	child->m_p_socket_stats->bound_port = child->m_bound.get_in_port();
+	if (child->m_vma_poll_completion) {
+		child->m_connected.get_sa(parent->m_vma_poll_completion->src);
+	} else {
+		child->m_connected.get_sa(parent->m_ec.completion.src);
+	}
 
-	//Notifies: about new auto accepted connection
-	child->m_p_vma_completion = parent->m_p_vma_completion;
-	child->m_connected.get_sa(child->m_p_vma_completion->src);
-	prepare_event_completion(child, VMA_POLL_NEW_CONNECTION_ACCEPTED);
+	/* Update vma_completion with
+	 * VMA_POLL_NEW_CONNECTION_ACCEPTED related data
+	 */
+	if (likely(child->m_parent)) {
+		if (child->m_vma_poll_completion) {
+			child->m_vma_poll_completion->src = parent->m_vma_poll_completion->src;
+			child->m_vma_poll_completion->listen_fd = child->m_parent->get_fd();
+		} else {
+			child->m_ec.completion.src = parent->m_ec.completion.src;
+			child->m_ec.completion.listen_fd = child->m_parent->get_fd();
+		}
+		child->set_events(VMA_POLL_NEW_CONNECTION_ACCEPTED);
+	}
+	else {
+		vlog_printf(VLOG_ERROR, "VMA_POLL_NEW_CONNECTION_ACCEPTED: can't find listen socket for new connected socket with [fd=%d]",
+				__func__, __LINE__, child->get_fd());
+	}
 
 	child->unlock_tcp_con();
 	parent->lock_tcp_con();
@@ -2502,16 +2500,16 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 	//todo check that listen socket was not closed by now ? (is_server())
 	conn->m_ready_pcbs.erase(&new_sock->m_pcb);
 
-	if (conn->m_p_vma_completion) {
+	conn->set_events(EPOLLIN);
+	if (conn->check_vma_active()) {
 		auto_accept_connection(conn, new_sock);
 	}
 	else {
 		conn->m_accepted_conns.push_back(new_sock);
 		conn->m_ready_conn_cnt++;
-		conn->notify_epoll_context(EPOLLIN);
-		//OLG: Now we should wakeup all threads that are sleeping on this socket.
-		conn->do_wakeup();
 	}
+	//OLG: Now we should wakeup all threads that are sleeping on this socket.
+	conn->do_wakeup();
 
 	//Now we should register the child socket to TCP timer
 
@@ -2724,16 +2722,9 @@ err_t sockinfo_tcp::connect_lwip_cb(void *arg, struct tcp_pcb *tpcb, err_t err)
 		conn->m_conn_state = TCP_CONN_FAILED;
 	}
 	
-	if (conn->m_p_vma_completion) {
-		prepare_event_completion(conn, EPOLLOUT);
-	}
-	else {
-		// notify epoll
-		conn->notify_epoll_context(EPOLLOUT);
-		//OLG: Now we should wakeup all threads that are sleeping on this socket.
-		conn->do_wakeup();
-	}
-
+	conn->set_events(EPOLLOUT);
+	//OLG: Now we should wakeup all threads that are sleeping on this socket.
+	conn->do_wakeup();
 
 	conn->m_p_socket_stats->connected_ip = conn->m_connected.get_in_addr();
 	conn->m_p_socket_stats->connected_port = conn->m_connected.get_in_port();
@@ -2954,11 +2945,11 @@ int sockinfo_tcp::shutdown(int __how)
 		case SHUT_RD:
 			if (is_connected()) { 
 				m_sock_state = TCP_SOCK_CONNECTED_WR;
-				notify_epoll_context(EPOLLIN);
+				set_events(EPOLLIN);
 			}
 			else if (is_rtr()) { 
 				m_sock_state = TCP_SOCK_BOUND;
-				notify_epoll_context(EPOLLIN|EPOLLHUP);
+				set_events(EPOLLIN | EPOLLHUP);
 			}
 			else if (m_sock_state == TCP_SOCK_ACCEPT_READY) {
 				m_sock_state = TCP_SOCK_ACCEPT_SHUT;
@@ -2972,7 +2963,7 @@ int sockinfo_tcp::shutdown(int __how)
 			}
 			else if (is_rts()) { 
 				m_sock_state = TCP_SOCK_BOUND;
-				notify_epoll_context(EPOLLHUP);
+				set_events(EPOLLHUP);
 			}
 			else if (is_server()) {
 				//ignore SHUT_WR on listen socket
@@ -2983,7 +2974,7 @@ int sockinfo_tcp::shutdown(int __how)
 		case SHUT_RDWR:
 			if (is_connected() || is_rts() || is_rtr()) {
 				m_sock_state = TCP_SOCK_BOUND;
-				notify_epoll_context(EPOLLIN|EPOLLHUP);
+				set_events(EPOLLIN | EPOLLHUP);
 			}
 			else if (m_sock_state == TCP_SOCK_ACCEPT_READY) {
 				m_sock_state = TCP_SOCK_ACCEPT_SHUT;
