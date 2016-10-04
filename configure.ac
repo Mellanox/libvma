@@ -335,22 +335,22 @@ else
     AC_MSG_RESULT([no])
 fi
 
+##########################
+# Thread locking control
 #
-# Thread locking
-#
-AC_MSG_CHECKING([if thread-lock is enabled])
-AC_ARG_ENABLE([thread-lock],
-    AC_HELP_STRING([--disable-thread-lock],
-                   [Disabling thread locking is possible in single thread applications]),
-		   [],
-		   [enable_thread_lock=no]
-)
-
-AS_IF([test "x${enable_thread_lock}" == xno],
-	[AC_DEFINE([DEFINED_NO_THREAD_LOCK], 1, [Define to 1 if thread locking was disabled at ocnfigure time])]
-	[AC_MSG_RESULT([no])],
-	[AC_MSG_RESULT([yes])]
-)
+AC_ARG_ENABLE(
+    [thread-lock],
+    AC_HELP_STRING(
+        [--enable-thread-lock],
+        [Enable thread locking (default=yes)]))
+AC_MSG_CHECKING(
+    [if thread locking is enabled])
+if test "x$enable_thread_lock" = "xno"; then
+    AC_DEFINE([DEFINED_NO_THREAD_LOCK], 1, [Define to 1 to disable thread locking])
+    AC_MSG_RESULT([no])
+else
+    AC_MSG_RESULT([yes])
+fi
 
 #
 # Experimental Verbs CQ
