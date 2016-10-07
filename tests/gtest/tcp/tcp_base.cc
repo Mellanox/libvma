@@ -45,3 +45,35 @@ void tcp_base::SetUp()
 void tcp_base::TearDown()
 {
 }
+
+int tcp_base::sock_create(void)
+{
+	int fd;
+
+	fd = socket(PF_INET, SOCK_STREAM, IPPROTO_IP);
+	if (fd < 0) {
+		log_error("failed socket() %s\n", strerror(errno));
+	}
+
+	return fd;
+}
+
+int tcp_base::sock_create_nb(void)
+{
+	int rc;
+	int fd;
+
+	fd = socket(PF_INET, SOCK_STREAM, IPPROTO_IP);
+	if (fd < 0) {
+		log_error("failed socket() %s\n", strerror(errno));
+	}
+
+	rc = test_base::sock_noblock(fd);
+	if (rc < 0) {
+		log_error("failed sock_noblock() %s\n", strerror(errno));
+		close(fd);
+		fd = -1;
+	}
+
+	return fd;
+}

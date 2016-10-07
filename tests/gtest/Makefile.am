@@ -22,6 +22,7 @@ gtest_SOURCES = \
 	tcp/tcp_socket.cc \
 	tcp/tcp_bind.cc \
 	tcp/tcp_event.cc \
+	tcp/tcp_connect.cc \
 	\
 	udp/udp_base.cc \
 	\
@@ -35,6 +36,7 @@ noinst_HEADERS = \
 	common/def.h \
 	common/sys.h \
 	common/log.h \
+	common/cmn.h \
 	\
 	common/base.h \
 	\
