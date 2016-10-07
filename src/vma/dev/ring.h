@@ -289,19 +289,9 @@ public:
 		memset(ec, 0, sizeof(*ec));
 	}
 
-	inline void set_comp(struct vma_completion_t *comp)
-	{
-		m_vma_poll_completion = comp;
-	}
-
 	struct vma_completion_t *get_comp(void)
 	{
 		return m_vma_poll_completion;
-	}
-
-	inline void clear_comp(void)
-	{
-		m_vma_poll_completion = NULL;
 	}
 
 protected:

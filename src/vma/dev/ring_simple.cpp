@@ -1241,7 +1241,7 @@ int ring_simple::vma_poll(struct vma_completion_t *vma_completions, unsigned int
 	if (likely(vma_completions) && ncompletions) {
 		struct ring_ec *ec = NULL;
 
-		set_comp(vma_completions);
+		m_vma_poll_completion = vma_completions;
 
 		while (!g_b_exit && (i < (int)ncompletions)) {
 			m_vma_poll_completion->events = 0;
@@ -1272,7 +1272,7 @@ int ring_simple::vma_poll(struct vma_completion_t *vma_completions, unsigned int
 			}
 		}
 
-		clear_comp();
+		m_vma_poll_completion = NULL;
 
 		ret = i;
 	}
