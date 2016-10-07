@@ -37,11 +37,15 @@
 
 test_base::test_base()
 {
+	port = gtest_conf.port;
 	memcpy(&client_addr, &gtest_conf.client_addr, sizeof(client_addr));
 	memcpy(&server_addr, &gtest_conf.server_addr, sizeof(server_addr));
 	memcpy(&remote_addr, &gtest_conf.remote_addr, sizeof(remote_addr));
-	port = gtest_conf.port;
-	port_abuse = 49999;
+
+	bogus_port = 49999;
+	bogus_addr.sin_family = PF_INET;
+	bogus_addr.sin_addr.s_addr = inet_addr("1.1.1.1");
+	bogus_addr.sin_port = 0;
 }
 
 test_base::~test_base()
@@ -128,36 +132,4 @@ int test_base::event_wait(struct epoll_event *event)
 
 err:
 	return efd;
-}
-
-int test_base::sock_create(int type)
-{
-	int fd;
-
-	fd = socket(PF_INET, type, IPPROTO_IP);
-	if (fd < 0) {
-		log_error("failed socket() %s\n", strerror(errno));
-	}
-
-	return fd;
-}
-
-int test_base::sock_create_nb(int type)
-{
-	int rc;
-	int fd;
-
-	fd = test_base::sock_create(type);
-	if (fd < 0) {
-		log_error("failed socket() %s\n", strerror(errno));
-	}
-
-	rc = test_base::sock_noblock(fd);
-	if (rc < 0) {
-		log_error("failed sock_noblock() %s\n", strerror(errno));
-		close(fd);
-		fd = -1;
-	}
-
-	return fd;
 }
