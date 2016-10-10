@@ -66,7 +66,7 @@ dst_entry::~dst_entry()
 	}
 
 	if (m_p_rt_entry) {
-		g_p_route_table_mgr->unregister_observer(route_rule_table_key(m_dst_ip.get_in_addr(), m_bound_ip ? m_bound_ip : m_so_bindtodevice_ip, m_tos), this);
+		g_p_route_table_mgr->unregister_observer(route_lookup_key(m_dst_ip.get_in_addr(), m_bound_ip ? m_bound_ip : m_so_bindtodevice_ip), this);
 		m_p_rt_entry = NULL;
 	}
 
@@ -198,7 +198,7 @@ bool dst_entry::resolve_net_dev()
 {
 	bool ret_val = false;
 
-	cache_entry_subject<route_rule_table_key, route_val*>* p_ces = NULL;
+	cache_entry_subject<route_lookup_key, route_val*>* p_ces = NULL;
 	
 	if (ZERONET_N(m_dst_ip.get_in_addr())) {
 		dst_logdbg("VMA does not offload zero net IP address");
@@ -211,9 +211,9 @@ bool dst_entry::resolve_net_dev()
 	}
 	
 	
-	route_rule_table_key rtk(m_dst_ip.get_in_addr(), m_bound_ip ? m_bound_ip : m_so_bindtodevice_ip, m_tos);
+	route_lookup_key route_key(m_dst_ip.get_in_addr(), m_bound_ip ? m_bound_ip : m_so_bindtodevice_ip);
 	
-	if (m_p_rt_entry || g_p_route_table_mgr->register_observer(rtk, this, &p_ces)) {
+	if (m_p_rt_entry || g_p_route_table_mgr->register_observer(route_key, this, &p_ces)) {
 	
 		if (m_p_rt_entry == NULL) {
 			// In case this is the first time we trying to resolve route entry,

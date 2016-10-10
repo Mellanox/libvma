@@ -202,12 +202,16 @@ libvma_la_SOURCES := \
 	lwip/stats.h \
 	lwip/tcp.h \
 	lwip/tcp_impl.h \
+	netlink/command_netlink.h \
 	netlink/link_info.h \
 	netlink/neigh_info.h \
 	netlink/netlink_compatibility.h \
-	netlink/netlink_wrapper.h \
+	netlink/netlink_sock_mgr.h \
+	netlink/netlink_cache_mgr.h \
+	netlink/netlink_wrapper.h \	
 	netlink/route_info.h \
 	proto/arp.h \
+	proto/os_network_data_wrapper.h \
         proto/dst_entry.h \
         proto/dst_entry_tcp.h \
         proto/dst_entry_udp.h \
@@ -226,7 +230,7 @@ libvma_la_SOURCES := \
 	proto/netlink_socket_mgr.h \
 	proto/peer_key.h \
 	proto/route_entry.h \
-	proto/route_rule_table_key.h \
+	proto/route_lookup_key.h \
 	proto/route_table_mgr.h \
 	proto/route_val.h \
 	proto/rule_entry.h \

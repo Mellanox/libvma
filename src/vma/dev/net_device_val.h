@@ -41,6 +41,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include "vma/util/if.h"
 #include "utils/lock_wrapper.h"
 #include "vma/util/sys_vars.h"
 #include "vma/util/verbs_extra.h"

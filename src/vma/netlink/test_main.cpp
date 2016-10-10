@@ -57,7 +57,7 @@ class neigh_observer : public observer {
 			neigh_nl_event* nlev = dynamic_cast<neigh_nl_event*>(ev);
 			__log_info("%s", ev->to_str().c_str());
 			netlink_neigh_info info;
-			g_p_netlink_handler->get_neigh("1.1.1.1", 1, &info);
+			g_p_netlink_wrapper->get_neigh("1.1.1.1", 1, &info);
 			__log_info("AFTER get_neigh");
 			__log_info("NEIGH STATE=%s", nlev->get_neigh_info()->get_state2str().c_str());
 		}
@@ -85,12 +85,11 @@ class link_observer : public observer {
 };
 
 
-
 void netlink_test()
 {
 	g_vlogger_level=3;
 	netlink_wrapper* nl = new netlink_wrapper();
-	g_p_netlink_handler=nl;
+	g_p_netlink_wrapper=nl;
 	neigh_observer neigh_obs;
 	route_observer route_obs;
 	link_observer link_obs;

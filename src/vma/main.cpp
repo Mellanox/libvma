@@ -65,7 +65,7 @@
 
 #include "vma/proto/neighbour_table_mgr.h"
 #include "vma/netlink/netlink_wrapper.h"
-#include "vma/event/command.h"
+#include "vma/netlink/command_netlink.h"
 
 #include "vma/sock/sock-redirect.h"
 #include "vma/sock/fd_collection.h"
@@ -208,8 +208,8 @@ static int free_libvma_resources()
 	if (g_buffer_pool_rx) delete g_buffer_pool_rx;
 	g_buffer_pool_rx = NULL;
 
-	if (g_p_netlink_handler) delete g_p_netlink_handler;
-	g_p_netlink_handler = NULL;
+	if (g_p_os_wrapper) delete g_p_os_wrapper;
+	g_p_os_wrapper = NULL;
 
 	if (g_p_ib_ctx_handler_collection) delete g_p_ib_ctx_handler_collection;
 	g_p_ib_ctx_handler_collection = NULL;
@@ -797,7 +797,7 @@ static void do_global_ctors_helper()
 	*g_p_vlogger_details = g_vlogger_details;
 
 	//Create new netlink listener
-	NEW_CTOR(g_p_netlink_handler, netlink_wrapper());
+	NEW_CTOR(g_p_os_wrapper, netlink_wrapper());
 
 	NEW_CTOR(g_p_ib_ctx_handler_collection, ib_ctx_handler_collection());
         g_p_ib_ctx_handler_collection->map_ib_devices();
@@ -841,21 +841,21 @@ static void do_global_ctors_helper()
 	// initialize LWIP tcp/ip stack
 	NEW_CTOR(g_p_lwip, vma_lwip());
 
-	if (g_p_netlink_handler) {
+	if (g_p_os_wrapper) {
 		// Open netlink socket
 		BULLSEYE_EXCLUDE_BLOCK_START
-		if (g_p_netlink_handler->open_channel()) {
+		if (((netlink_wrapper*)g_p_os_wrapper)->open_channel()) {
 			throw_vma_exception("Failed in netlink open_channel()\n");
 		}
 
-		int fd = g_p_netlink_handler->get_channel();
+		int fd = ((netlink_wrapper*)g_p_os_wrapper)->get_channel();
 		if(fd == -1) {
 			throw_vma_exception("Netlink fd == -1\n");
 		}
 
 		// Register netlink fd to the event_manager
 		command_netlink * cmd_nl = NULL;
-		cmd_nl = new command_netlink(g_p_netlink_handler);
+		cmd_nl = new command_netlink((netlink_wrapper*)g_p_os_wrapper);
 		if (cmd_nl == NULL) {
 			throw_vma_exception("Failed allocating command_netlink\n");
 		}
@@ -904,7 +904,7 @@ void reset_globals()
 	g_p_net_device_table_mgr = NULL;
 	g_p_neigh_table_mgr = NULL;
 	g_p_lwip = NULL;
-	g_p_netlink_handler = NULL;
+	g_p_os_wrapper = NULL;
 	g_p_ib_ctx_handler_collection = NULL;
 	g_cpu_manager.reset();
 }

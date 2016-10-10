@@ -200,12 +200,8 @@ u16_t vma_lwip::vma_ip_route_mtu(ip_addr_t *dest)
 
 	addr.sin_family = AF_INET;
 	addr.sin_port = 0;
-	
-	in_addr_t dst_ip	= dest->addr;
-	in_addr_t src_ip	= 0;
-	uint8_t tos		= 0;
-	
-	g_p_route_table_mgr->route_resolve(route_rule_table_key(dst_ip, src_ip, tos), &addr.sin_addr.s_addr);
+		
+	g_p_route_table_mgr->route_resolve(route_lookup_key(dest->addr), &addr.sin_addr.s_addr);
 	net_device_val* ndv = g_p_net_device_table_mgr->get_net_device_val(addr.sin_addr.s_addr);
 	if (ndv) {
 		ifmtu = ndv->get_mtu();

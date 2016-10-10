@@ -127,9 +127,9 @@ const char*	get_rtnl_route_iif_name(struct rtnl_route* route) {
 // structure to pass arguments on internal netlink callbacks handling
 typedef struct rcv_msg_arg
 {
-	netlink_wrapper* netlink;
+	netlink_cache_mgr* nl_cache_mgr;
 	struct nl_handle* socket_handle;
-	map<e_netlink_event_type, subject*>* subjects_map;
+	map<e_os_network_data_event_type, subject*>* subjects_map;
 	nlmsghdr* msghdr;
 } rcv_msg_arg_t;
 

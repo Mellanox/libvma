@@ -1138,7 +1138,7 @@ bool neigh_entry::priv_get_neigh_state(int & state)
 	}
 
 	if (inet_ntop(AF_INET, &(m_dst_addr.sin_addr), str_addr, sizeof(str_addr)) &&
-			g_p_netlink_handler->get_neigh(str_addr, m_p_dev->get_if_idx(), &info)) {
+			g_p_os_wrapper->get_neigh(str_addr, m_p_dev->get_if_idx(), &info)) {
 		state = info.state;
 		neigh_logdbg("state = %s", info.get_state2str().c_str());
 		return true;
@@ -1159,7 +1159,7 @@ bool neigh_entry::priv_get_neigh_l2(address_t & l2_addr)
 	}
 
 	if (inet_ntop(AF_INET, &(m_dst_addr.sin_addr), str_addr, sizeof(str_addr)) &&
-			g_p_netlink_handler->get_neigh(str_addr, m_p_dev->get_if_idx(), &info)){
+			g_p_os_wrapper->get_neigh(str_addr, m_p_dev->get_if_idx(), &info)){
 		if (info.state != NUD_FAILED) {
 			memcpy(l2_addr, info.lladdr, info.lladdr_len);
 			return true;

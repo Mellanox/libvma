@@ -34,18 +34,20 @@
 #ifndef RULE_ENTRY_H
 #define RULE_ENTRY_H
 
+#include <string>
+
 #include "vma/infra/cache_subject_observer.h"
-#include "vma/proto/route_rule_table_key.h"
+#include "vma/proto/route_lookup_key.h"
 #include "rule_val.h"
 
 
 // This class represent an entry in rule table cashed history.
-class rule_entry : public cache_entry_subject<route_rule_table_key, std::deque<rule_val*>*>
+class rule_entry : public cache_entry_subject<route_lookup_key, std::deque<rule_val*>*>
 {
 public:
 	friend class rule_table_mgr;
 
-	rule_entry(route_rule_table_key rrk);
+	rule_entry(route_lookup_key key);
 	
 	bool 		get_val(INOUT std::deque<rule_val*>* &val);
 
@@ -59,7 +61,7 @@ public:
 		return !m_val->empty(); 
 	} 
 
-	inline const string to_str() const 		{ return get_key().to_str(); };
+	inline const std::string to_str() const 		{ return get_key().to_str(); };
 
 private:
 	std::deque<rule_val*> values;

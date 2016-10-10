@@ -28,53 +28,43 @@
  * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ * command_netlink.h
+ *
  */
 
+#ifndef COMMAND_NETLINK_H_
+#define COMMAND_NETLINK_H_
 
-#ifndef NEIGHBOUR_TABLE_MGR_H
-#define NEIGHBOUR_TABLE_MGR_H
+#include "vma/netlink/netlink_wrapper.h"
+#include "vma/event/command.h"
+#include "vma/event/timer_handler.h"
 
-#include "vma/proto/neighbour.h"
-#include "vma/infra/cache_subject_observer.h"
-#include "os_network_data_wrapper.h"
-
-class neigh_table_mgr : public cache_table_mgr<neigh_key, class neigh_val*>, public observer
+class command_netlink: public command , public timer_handler
 {
 public:
-				neigh_table_mgr();
-				~neigh_table_mgr(){ stop_garbage_collector();};
-	virtual void 		notify_cb(event * event);
-	rdma_event_channel*	m_neigh_cma_event_channel;
+	command_netlink(netlink_wrapper *executer): m_ntl_executer(executer) {};
+
+	virtual void execute() {
+		if (m_ntl_executer) {
+			m_ntl_executer->handle_events();
+		}
+	}
+
+	const std::string to_str() const
+	{
+		return(string("command_netlink"));
+	}
+
+	virtual void handle_timer_expired(void* a) {
+		NOT_IN_USE(a);
+		m_ntl_executer->neigh_timer_expired();
+	}
+
 
 private:
-	/* This function will retrieve neigh transport type by the following actions:
-	 * 1. go to route manager table and get route entry according to the peer ip
-	 * 2. get netdev from route entry
-	 * 3. get transport type from netdev
-	 */
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	transport_type_t 	get_neigh_transport_type(ip_address peer_ip) { NOT_IN_USE(peer_ip); return VMA_TRANSPORT_ETH; };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
+	netlink_wrapper *m_ntl_executer;
 
-	neigh_entry*		create_new_entry(neigh_key neigh_key, const observer* dst);
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	void 			monitor_neighs() {};
-	void 			keep_active() {};
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
-	void 			compare_L2_address();
 };
 
-extern neigh_table_mgr *g_p_neigh_table_mgr;
-
-
-#endif /* NEIGHBOUR_TABLE_MGR_H */
+#endif /* COMMAND_NETLINK_H_ */

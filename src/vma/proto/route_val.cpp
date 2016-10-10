@@ -41,27 +41,46 @@
 
 #define MODULE_NAME 		"rtv"
 
+#define rt_val_logwarn		__log_info_warn
 #define rt_val_loginfo		__log_info_info
 #define rt_val_logdbg		__log_info_dbg
 #define rt_val_logfunc		__log_info_func
 
 route_val::route_val(): cache_observer()
 {
-	m_dst_addr = 0;
-	m_dst_mask = 0;
-	m_dst_pref_len = 0;
-	m_src_addr = 0;
-	m_gw = 0;
 	m_protocol = 0;
 	m_scope = 0;
 	m_type = 0;
 	m_table_id	= 0;
-	memset(m_if_name, 0, IFNAMSIZ * sizeof(char));
-	m_if_index = 0;
+	m_flags = 0;
+	m_dst_len = 0;
+	m_src_len = 0;
+
+	m_dst_addr = 0;
+	m_src_addr = 0;
+	m_gw = 0;
+	m_pref_src_addr = 0;
+	
+	memset(m_iif_name, 0, IFNAMSIZ * sizeof(char));
+	memset(m_oif_name, 0, IFNAMSIZ * sizeof(char));
+	m_oif_index = 0;
+	m_priority = 0;
+	m_realms = 0;
+	memset(m_metrics, 0, RTAX_MAX * sizeof(uint32_t));
+	
 	m_is_valid = false;
-	m_b_deleted = false;
-	m_b_if_up = true;
+
 	memset(m_str, 0, BUFF_SIZE * sizeof(char));
+}
+
+void route_val::set_metric(int metric, uint32_t value)	
+{ 
+	if ((metric > RTAX_MAX) || (metric < 1)) {
+		rt_val_logwarn("Metric out of range");
+	}
+	else {
+		m_metrics[metric - 1] = value;
+	}
 }
 
 void route_val::set_str()
@@ -78,13 +97,7 @@ void route_val::set_str()
 	} else {
 		sprintf(str_x, " %-15s", "default");
 	}
-	strcat(m_str, str_x);
-
-	str_x[0] = '\0';
-	if (m_dst_mask != 0) {
-		inet_ntop(AF_INET, &m_dst_mask_in_addr, str_addr, sizeof(str_addr));
-		sprintf(str_x, " netmask: %-15s", str_addr);
-	}
+	
 	strcat(m_str, str_x);
 
 	str_x[0] = '\0';
@@ -95,7 +108,7 @@ void route_val::set_str()
 	strcat(m_str, str_x);
 
 	str_x[0] = '\0';
-	sprintf(str_x, " dev: %-5s", m_if_name);
+	sprintf(str_x, " dev: %-5s", m_oif_name);
 	strcat(m_str, str_x);
 
 	str_x[0] = '\0';
@@ -116,18 +129,23 @@ void route_val::set_str()
 	strcat(m_str, str_x);
 
 	str_x[0] = '\0';
-	sprintf(str_x, " scope %3d type %2d index %2d", m_scope, m_type, m_if_index);
-	strcat(m_str, str_x);
-
-	str_x[0] = '\0';
-	if (m_b_deleted) {
-		sprintf(str_x, " ---> DELETED");
-	}
+	sprintf(str_x, " scope %3d type %2d index %2d", m_scope, m_type, m_oif_index);
 	strcat(m_str, str_x);
 }
 
+uint32_t route_val::get_metric(int metric) const
+{
+	if ((metric > RTAX_MAX) || (metric < 1)) {
+		rt_val_logwarn("requested metric out of range");
+		return UINT_MAX;
+	}
+	else {
+		return m_metrics[metric - 1];
+	}
+}
+ 
 void route_val::print_val()
 {
 	set_str();
-	rt_val_logdbg("%s", to_str());
+	rt_val_logwarn("%s", to_str());
 }

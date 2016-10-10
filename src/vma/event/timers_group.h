@@ -34,6 +34,8 @@
 #ifndef TIMERS_GROUP_H
 #define TIMERS_GROUP_H
 
+#include "timer_handler.h"
+
 /*
  * This is an API for batching timers into groups.
  * Instead of registering each timer separately into the internal thread, the group is registered once,

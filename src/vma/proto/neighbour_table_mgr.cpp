@@ -88,10 +88,10 @@ neigh_entry* neigh_table_mgr::create_new_entry(neigh_key neigh_key, const observ
 
 	transport_type_t transport = dst->get_obs_transport_type();
 
-	//Register to netlink event handler only if this is the first entry
+	//Register to os network data event handler only if this is the first entry
 	if (get_cache_tbl_size() == 0) {
-			g_p_netlink_handler->register_event(nlgrpNEIGH, this);
-			neigh_mgr_logdbg("Registered to g_p_netlink_handler");
+			g_p_os_wrapper->register_event(NEIGH, this);
+			neigh_mgr_logdbg("Registered to g_p_os_wrapper");
 	}
 
 	if (transport == VMA_TRANSPORT_IB) {

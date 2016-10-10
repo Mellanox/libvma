@@ -45,25 +45,17 @@
 #include <netlink/object-api.h>
 #include <netlink/route/rtnl.h>
 #include <netlink/route/route.h>
-#include "vma/infra/subject_observer.h"
 #include <map>
+#include "vma/infra/subject_observer.h"
+#include "vma/proto/os_network_data_wrapper.h"
+
 using namespace std;
 
 extern "C" void link_event_callback(nl_object* obj);
 extern "C" void neigh_event_callback(nl_object* obj);
 extern "C" void route_event_callback(nl_object* obj);
 
-class netlink_wrapper;
-enum e_netlink_event_type
-{
-	nlgrpNEIGH = 0,
-	nlgrpLINK = 1,
-	nlgrpROUTE = 2,
-	/* TODO: not supported yet
-	nlgrpADDRESS=3,
-	nlgrpPREFIX=4,
-	*/
-};
+class netlink_cache_mgr;
 
 #ifdef HAVE_LIBNL3
 

@@ -31,50 +31,42 @@
  */
 
 
-#ifndef NEIGHBOUR_TABLE_MGR_H
-#define NEIGHBOUR_TABLE_MGR_H
 
-#include "vma/proto/neighbour.h"
+#ifndef OS_NETWORK_DATA_WRAPPER_H_
+#define OS_NETWORK_DATA_WRAPPER_H_
+
 #include "vma/infra/cache_subject_observer.h"
-#include "os_network_data_wrapper.h"
+#include "vma/netlink/neigh_info.h"
+#include "route_val.h"
+#include "route_lookup_key.h"
 
-class neigh_table_mgr : public cache_table_mgr<neigh_key, class neigh_val*>, public observer
+enum e_os_network_data_event_type
 {
-public:
-				neigh_table_mgr();
-				~neigh_table_mgr(){ stop_garbage_collector();};
-	virtual void 		notify_cb(event * event);
-	rdma_event_channel*	m_neigh_cma_event_channel;
-
-private:
-	/* This function will retrieve neigh transport type by the following actions:
-	 * 1. go to route manager table and get route entry according to the peer ip
-	 * 2. get netdev from route entry
-	 * 3. get transport type from netdev
-	 */
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	transport_type_t 	get_neigh_transport_type(ip_address peer_ip) { NOT_IN_USE(peer_ip); return VMA_TRANSPORT_ETH; };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
-	neigh_entry*		create_new_entry(neigh_key neigh_key, const observer* dst);
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	void 			monitor_neighs() {};
-	void 			keep_active() {};
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
-	void 			compare_L2_address();
+	NEIGH = 0,
+	LINK = 1,
+	ROUTE = 2,
+	/* TODO: not supported yet
+	ADDRESS=3,
+	PREFIX=4,
+	*/	
 };
 
-extern neigh_table_mgr *g_p_neigh_table_mgr;
+class os_network_data_wrapper
+{
+public:
+	os_network_data_wrapper(){};
+	virtual ~os_network_data_wrapper(){};
+	
+	virtual bool register_event(e_os_network_data_event_type type, const observer* new_obs) = 0;
 
+	virtual bool unregister(e_os_network_data_event_type type, const observer* obs) = 0;
 
-#endif /* NEIGHBOUR_TABLE_MGR_H */
+	virtual int get_neigh(const char* ipaddr, int ifindex, netlink_neigh_info* new_neigh_info) = 0;
+
+	virtual bool route_resolve(route_lookup_key key, route_val *found_route_val = NULL, long timeout_usec = INFINITE_TIMEOUT) = 0;
+	
+};
+
+extern os_network_data_wrapper* g_p_os_wrapper;
+
+#endif /* OS_NETWORK_DATA_WRAPPER_H_ */

@@ -66,7 +66,7 @@
 
 route_table_mgr* g_p_route_table_mgr = NULL;
 
-route_table_mgr::route_table_mgr() : netlink_socket_mgr<route_val>(ROUTE_DATA_TYPE), cache_table_mgr<route_rule_table_key, route_val*>("route_table_mgr")
+route_table_mgr::route_table_mgr() : netlink_socket_mgr<route_val>(ROUTE_DATA_TYPE), cache_table_mgr<route_lookup_key, route_val*>("route_table_mgr")
 {
 	rt_mgr_logdbg("");
 
@@ -83,18 +83,16 @@ route_table_mgr::route_table_mgr() : netlink_socket_mgr<route_val>(ROUTE_DATA_TY
 		// if src_addr of interface exists in the map, no need to create another route_entry
 		if (iter == m_rte_list_for_each_net_dev.end()) {
 			in_addr_t dst_ip	= src_addr;
-			in_addr_t src_ip	= 0;
-			uint8_t tos		= 0;
-			m_rte_list_for_each_net_dev.insert(pair<in_addr_t, route_entry*> (src_addr, create_new_entry(route_rule_table_key(dst_ip, src_ip, tos), NULL)));
+			m_rte_list_for_each_net_dev.insert(pair<in_addr_t, route_entry*> (src_addr, create_new_entry(route_lookup_key(dst_ip), NULL)));
 		}
 	}
 
 	//Print table
 	print_val_tbl();
 	
-	// register to netlink event
-	g_p_netlink_handler->register_event(nlgrpROUTE, this);
-	rt_mgr_logdbg("Registered to g_p_netlink_handler");
+	// register to os network data event
+	g_p_os_wrapper->register_event(ROUTE, this);
+	rt_mgr_logdbg("Registered to g_p_os_wrapper");
 
 	rt_mgr_logdbg("Done");
 }
@@ -134,7 +132,7 @@ void route_table_mgr::rt_mgr_update_source_ip()
 		if (g_p_net_device_table_mgr) { //try to get src ip from net_dev list of the interface
 			in_addr_t longest_prefix = 0;
 			in_addr_t correct_src = 0;
-			net_dev_lst_t* nd_lst = g_p_net_device_table_mgr->get_net_device_val_lst_from_index(p_val->get_if_index());
+			net_dev_lst_t* nd_lst = g_p_net_device_table_mgr->get_net_device_val_lst_from_index(p_val->get_oif_index());
 			if (nd_lst) {
 				net_dev_lst_t::iterator iter = nd_lst->begin();
 				while (iter != nd_lst->end()) {
@@ -154,7 +152,7 @@ void route_table_mgr::rt_mgr_update_source_ip()
 		}
 		// if still no src ip, get it from ioctl
 		struct sockaddr_in src_addr;
-		char *if_name = (char *)p_val->get_if_name();
+		char *if_name = (char *)p_val->get_oif_name();
 		if (!get_ipv4_from_ifname(if_name, &src_addr)) {
 			p_val->set_src_addr(src_addr.sin_addr.s_addr);
 		}
@@ -180,7 +178,7 @@ void route_table_mgr::rt_mgr_update_source_ip()
 					if (p_val_dst->get_src_addr()) {
 						p_val->set_src_addr(p_val_dst->get_src_addr());
 					} else if (p_val == p_val_dst) { //gateway of the entry lead to same entry
-						net_dev_lst_t* nd_lst = g_p_net_device_table_mgr->get_net_device_val_lst_from_index(p_val->get_if_index());
+						net_dev_lst_t* nd_lst = g_p_net_device_table_mgr->get_net_device_val_lst_from_index(p_val->get_oif_index());
 						if (nd_lst) {
 							net_dev_lst_t::iterator iter = nd_lst->begin();
 							while (iter != nd_lst->end()) {
@@ -217,7 +215,7 @@ void route_table_mgr::rt_mgr_update_source_ip()
 		}
 		// if still no src ip, get it from ioctl
 		struct sockaddr_in src_addr;
-		char *if_name = (char *)p_val->get_if_name();
+		char *if_name = (char *)p_val->get_oif_name();
 		if (!get_ipv4_from_ifname(if_name, &src_addr)) {
 			p_val->set_src_addr(src_addr.sin_addr.s_addr);
 		}
@@ -245,10 +243,7 @@ bool route_table_mgr::parse_enrty(nlmsghdr *nl_header, route_val *p_val)
 	p_val->set_scope(rt_msg->rtm_scope);
 	p_val->set_type(rt_msg->rtm_type);
 	p_val->set_table_id(rt_msg->rtm_table);
-
-	in_addr_t dst_mask = htonl(VMA_NETMASK(rt_msg->rtm_dst_len));
-	p_val->set_dst_mask(dst_mask);
-	p_val->set_dst_pref_len(rt_msg->rtm_dst_len);
+	p_val->set_dst_len(rt_msg->rtm_dst_len);
 
 	len = RTM_PAYLOAD(nl_header);
 	rt_attribute = (struct rtattr *) RTM_RTA(rt_msg);
@@ -273,10 +268,10 @@ void route_table_mgr::parse_attr(struct rtattr *rt_attribute, route_val *p_val)
 		break;
 	// unique ID associated with the network interface
 	case RTA_OIF:
-		p_val->set_if_index(*(int *)RTA_DATA(rt_attribute));
+		p_val->set_oif_index(*(int *)RTA_DATA(rt_attribute));
 		char if_name[IFNAMSIZ];
-		if_indextoname(p_val->get_if_index(),if_name);
-		p_val->set_if_name(if_name);
+		if_indextoname(p_val->get_oif_index(),if_name);
+		p_val->set_oif_name(if_name);
 		break;
 	case RTA_SRC:
 	case RTA_PREFSRC:
@@ -297,16 +292,14 @@ bool route_table_mgr::find_route_val(in_addr_t &dst, unsigned char table_id, rou
 
 	for (int i = 0; i < m_tab.entries_num; i++) {
 		route_val* p_val_from_tbl = &m_tab.value[i];
-		if (!p_val_from_tbl->is_deleted() && p_val_from_tbl->is_if_up()) { // value was not deleted
-			if(p_val_from_tbl->get_table_id() == table_id) { //found a match in routing table ID
-				if(p_val_from_tbl->get_dst_addr() == (dst & p_val_from_tbl->get_dst_mask())) { //found a match in routing table
-					if(p_val_from_tbl->get_dst_pref_len() > longest_prefix) { // this is the longest prefix match
-						longest_prefix = p_val_from_tbl->get_dst_pref_len();
-						correct_route_val = p_val_from_tbl;
-					}
+		if(p_val_from_tbl->get_table_id() == table_id) { //found a match in routing table ID
+			if(p_val_from_tbl->get_dst_addr() == (dst & htonl(VMA_NETMASK(p_val_from_tbl->get_dst_len())))) { //found a match in routing table
+				if(p_val_from_tbl->get_dst_len() > longest_prefix) { // this is the longest prefix match
+					longest_prefix = p_val_from_tbl->get_dst_len();
+					correct_route_val = p_val_from_tbl;
 				}
 			}
-		}	
+		}
 	}
 	if (correct_route_val) {
 		ip_address dst_gw = correct_route_val->get_dst_addr();
@@ -319,7 +312,7 @@ bool route_table_mgr::find_route_val(in_addr_t &dst, unsigned char table_id, rou
 	return false;
 }
 
-bool route_table_mgr::route_resolve(IN route_rule_table_key key, OUT in_addr_t *p_src, OUT in_addr_t *p_gw /*NULL*/)
+bool route_table_mgr::route_resolve(IN route_lookup_key key, OUT in_addr_t *p_src, OUT in_addr_t *p_gw /*NULL*/)
 {
 	in_addr_t dst = key.get_dst_ip();
 	ip_address dst_addr = dst;
@@ -411,8 +404,8 @@ void route_table_mgr::get_default_gw(in_addr_t *p_gw_ip, int *p_if_index)
 		    p_val->get_type() == RTN_UNICAST &&
 		    p_val->get_dst_addr() == INADDR_ANY &&
 		    p_val->get_dst_pref_len() == 0) {
-			rt_mgr_logdbg("detected default gateway %s, index: %d", p_val->get_if_name(), p_val->get_if_index());
-			*p_if_index = p_val->get_if_index();
+			rt_mgr_logdbg("detected default gateway %s, index: %d", p_val->get_oif_name(), p_val->get_oif_index());
+			*p_if_index = p_val->get_oif_index();
 			*p_gw_ip = p_val->get_gw_addr();
 			return;
 		}
@@ -420,7 +413,7 @@ void route_table_mgr::get_default_gw(in_addr_t *p_gw_ip, int *p_if_index)
 }
 #endif
 
-route_entry* route_table_mgr::create_new_entry(route_rule_table_key key, const observer *obs)
+route_entry* route_table_mgr::create_new_entry(route_lookup_key key, const observer *obs)
 {
 	// no need for lock - lock is activated in cache_collection_mgr::register_observer
 
@@ -438,13 +431,13 @@ route_val* route_table_mgr::find_route_val(route_val &netlink_route_val)
 {
 	in_addr_t dst_addr = netlink_route_val.get_dst_addr();
 	int dst_prefix_len = netlink_route_val.get_dst_pref_len();
-	int if_index = netlink_route_val.get_if_index();
+	int if_index = netlink_route_val.get_oif_index();
 	unsigned char table_id = netlink_route_val.get_table_id();
 	for (int i = 0; i < m_tab.entries_num; i++) {
 		route_val* p_val_from_tbl = &m_tab.value[i];
 		if (!p_val_from_tbl->is_deleted() && p_val_from_tbl->is_if_up()) {
 			if (p_val_from_tbl->get_table_id() == table_id) {
-				if(p_val_from_tbl->get_dst_addr() == dst_addr && p_val_from_tbl->get_dst_pref_len() == dst_prefix_len && p_val_from_tbl->get_if_index() == if_index) {
+				if(p_val_from_tbl->get_dst_addr() == dst_addr && p_val_from_tbl->get_dst_pref_len() == dst_prefix_len && p_val_from_tbl->get_oif_index() == if_index) {
 					return p_val_from_tbl;
 				}
 			}
@@ -457,7 +450,7 @@ void route_table_mgr::addr_change_event(int if_index)
 {
 	for (int i = 0; i < m_tab.entries_num; i++) {
 		route_val* p_val_from_tbl = &m_tab.value[i];
-		if (! p_val_from_tbl->is_deleted() && p_val_from_tbl->get_if_index() == if_index) {
+		if (! p_val_from_tbl->is_deleted() && p_val_from_tbl->get_oif_index() == if_index) {
 			p_val_from_tbl->set_state(false);
 			rt_mgr_logdbg("route_val %p is not valid", p_val_from_tbl);
 		}
@@ -508,7 +501,7 @@ void route_table_mgr::create_route_val_from_info(const netlink_route_info *netli
 void route_table_mgr::update_invalid_entries()
 {
 	route_entry *p_ent;
-	std::tr1::unordered_map<route_rule_table_key, cache_entry_subject<route_rule_table_key, route_val*> *>::iterator cache_itr;
+	std::tr1::unordered_map<route_lookup_key, cache_entry_subject<route_lookup_key, route_val*> *>::iterator cache_itr;
 	for (cache_itr = m_cache_tbl.begin(); cache_itr != m_cache_tbl.end(); cache_itr++) {
 		p_ent = (route_entry *)cache_itr->second;
 		if(!p_ent->is_valid()) {
@@ -526,8 +519,8 @@ void route_table_mgr::update_invalid_entries()
 void route_table_mgr::del_route_event(route_val &netlink_route_val)
 {
 	in_addr_t del_dst_addr = netlink_route_val.get_dst_addr();
-	in_addr_t del_dst_mask = netlink_route_val.get_dst_mask();
-	char *del_if_name = (char *) netlink_route_val.get_if_name();
+	in_addr_t del_dst_mask = htonl(VMA_NETMASK(netlink_route_val->get_dst_len()));
+	char *del_if_name = (char *) netlink_route_val.get_oif_name();
 
 	rt_mgr_logdbg("netlink event- route deleted: dst '%d.%d.%d.%d', netmask '%d.%d.%d.%d', interface '%s'", NIPQUAD(del_dst_addr), NIPQUAD(del_dst_mask), del_if_name);
 
@@ -555,9 +548,9 @@ void route_table_mgr::new_route_event(route_val &netlink_route_val)
 	netlink_route_val.set_state(true);
 
 	in_addr_t new_dst_addr = netlink_route_val.get_dst_addr();
-	in_addr_t new_dst_mask = netlink_route_val.get_dst_mask();
+	in_addr_t new_dst_mask = htonl(VMA_NETMASK(netlink_route_val->get_dst_len()));
 	int new_dst_pref_len = netlink_route_val.get_dst_pref_len();
-	char *new_if_name = (char *) netlink_route_val.get_if_name();
+	char *new_if_name = (char *) netlink_route_val.get_oif_name();
 
 	rt_mgr_logdbg("netlink event- route added: dst '%d.%d.%d.%d', netmask '%d.%d.%d.%d', interface '%s'", NIPQUAD(new_dst_addr), NIPQUAD(new_dst_mask), new_if_name);
 

@@ -34,20 +34,23 @@
 #ifndef ROUTE_ENTRY_H
 #define ROUTE_ENTRY_H
 
+#include <string>
+
 #include "vma/util/if.h"
+
 #include <netinet/in.h>
 
-#include "vma/proto/route_rule_table_key.h"
+#include "vma/proto/route_lookup_key.h"
 #include "vma/infra/cache_subject_observer.h"
 #include "route_val.h"
 #include "rule_entry.h"
 
-class route_entry : public cache_entry_subject<route_rule_table_key,route_val*>, public cache_observer
+class route_entry : public cache_entry_subject<route_lookup_key,route_val*>, public cache_observer
 {
 public:
 	friend class route_table_mgr;
 
-	route_entry(route_rule_table_key rtk);
+	route_entry(route_lookup_key key);
 	virtual ~route_entry();
 
 	bool 		get_val(INOUT route_val* &val);
@@ -69,7 +72,7 @@ public:
 	virtual void 	notify_cb();
 
 	void 		set_str();
-	const string 	to_str() const 		{ return m_str; };
+	const std::string 	to_str() const 		{ return m_str; };
 
 	inline rule_entry* get_rule_entry() const	{ return m_p_rr_entry; };
 	
@@ -78,7 +81,7 @@ private:
 	net_device_val* 	m_p_net_dev_val;
 	bool 			m_b_offloaded_net_dev;
 	bool 			m_is_valid;
-	string			m_str;
+	std::string			m_str;
 	rule_entry*		m_p_rr_entry;
 
 	void			register_to_net_device();

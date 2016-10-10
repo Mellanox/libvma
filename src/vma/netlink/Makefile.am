@@ -11,8 +11,10 @@ libnetlink_la_SOURCES = \
 	route_info.cpp \
 	link_info.cpp \
 	netlink_compatibility.cpp \
-	netlink_wrapper.cpp
-
+	netlink_wrapper.cpp \
+	netlink_sock_mgr.cpp \
+	netlink_cache_mgr.cpp 
+	
 EXTRA_DIST = \
 	test_main.cpp
 
@@ -37,8 +39,11 @@ EXTRA_DIST = \
 #	link_info.h \
 #	neigh_info.h \
 #	netlink_compatibility.h \
+#	netlink_sock_mgr.h \
+#	netlink_cache_mgr.h \
 #	netlink_wrapper.h \
-#	route_info.h
+#	route_info.h\
+#	../proto/os_network_data_wrapper.h
 
 #nl_test_CXXFLAGS = -g
 

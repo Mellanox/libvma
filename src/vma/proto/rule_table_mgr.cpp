@@ -67,7 +67,7 @@
 	
 rule_table_mgr* g_p_rule_table_mgr = NULL;
 
-rule_table_mgr::rule_table_mgr() : netlink_socket_mgr<rule_val>(RULE_DATA_TYPE), cache_table_mgr<route_rule_table_key, std::deque<rule_val*>*>("rule_table_mgr")
+rule_table_mgr::rule_table_mgr() : netlink_socket_mgr<rule_val>(RULE_DATA_TYPE), cache_table_mgr<route_lookup_key, std::deque<rule_val*>*>("rule_table_mgr")
 {
 
 	rr_mgr_logdbg("");
@@ -159,7 +159,7 @@ void rule_table_mgr::parse_attr(struct rtattr *rt_attribute, rule_val *p_val)
 //		key		: key object that contain information about destination.
 //		obs		: object that contain observer for specific rule entry.
 //	Returns created rule entry object.
-rule_entry* rule_table_mgr::create_new_entry(route_rule_table_key key, const observer *obs)
+rule_entry* rule_table_mgr::create_new_entry(route_lookup_key key, const observer *obs)
 {
 	rr_mgr_logdbg("");
 	NOT_IN_USE(obs);
@@ -194,7 +194,7 @@ void rule_table_mgr::update_entry(rule_entry* p_ent)
 //		key		: key object that contain information about destination.
 //		p_val	: list of rule_val object that will contain information about all rule that match destination info    
 // Returns true if at least one rule match destination info, false otherwise.
-bool rule_table_mgr::find_rule_val(route_rule_table_key key, std::deque<rule_val*>* &p_val)
+bool rule_table_mgr::find_rule_val(route_lookup_key key, std::deque<rule_val*>* &p_val)
 {
 	rr_mgr_logfunc("destination info :", key.to_str().c_str());
 
@@ -214,33 +214,28 @@ bool rule_table_mgr::find_rule_val(route_rule_table_key key, std::deque<rule_val
 //		key		: key object that contain information about destination.
 //		p_val	: rule_val object that contain information about specific rule from rule table   
 // Returns true if destination info match rule value, false otherwise.
-bool rule_table_mgr::is_matching_rule(route_rule_table_key key, rule_val* p_val)
+bool rule_table_mgr::is_matching_rule(route_lookup_key key, rule_val* p_val)
 {
 
 	in_addr_t	m_dst_ip	= key.get_dst_ip();
 	in_addr_t	m_src_ip	= key.get_src_ip();
-	uint8_t		m_tos		= key.get_tos();
 	
 	in_addr_t	rule_dst_ip	= p_val->get_dst_addr();
 	in_addr_t	rule_src_ip	= p_val->get_src_addr();
-	uint8_t		rule_tos	= p_val->get_tos();
 	char*		rule_iif_name	= (char *)p_val->get_iif_name();
 	char*		rule_oif_name	= (char *)p_val->get_oif_name();
 	
 	bool is_match = false;
 	
-	// Only destination IP, source IP and TOS are checked with rule, since IIF and OIF is not filled in dst_entry object.
+	// Only destination IP and source IP are checked with rule, since IIF and OIF is not filled in dst_entry object.
 	if ((rule_dst_ip == 0) || (rule_dst_ip == m_dst_ip)) { // Check match in destination IP
 	
 		if ((rule_src_ip == 0) || (rule_src_ip == m_src_ip)) { // Check match in source IP
-		
-			if ((rule_tos == 0) || (rule_tos == m_tos)) { // Check match in TOS value
+					
+			if (strcmp(rule_iif_name, "") == 0) { // Check that rule doesn't contain IIF since we can't check match with
 			
-				if (strcmp(rule_iif_name, "") == 0) { // Check that rule doesn't contain IIF since we can't check match with
-				
-					if (strcmp(rule_oif_name, "") == 0) { // Check that rule doesn't contain OIF since we can't check match with
-						is_match = true;
-					}
+				if (strcmp(rule_oif_name, "") == 0) { // Check that rule doesn't contain OIF since we can't check match with
+					is_match = true;
 				}
 			}
 		}
@@ -254,7 +249,7 @@ bool rule_table_mgr::is_matching_rule(route_rule_table_key key, rule_val* p_val)
 //		key			: key object that contain information about destination.
 //		table_id_list	: list that will contain table ID for all rule that match destination info   
 // Returns true if at least one rule match destination info, false otherwise.
-bool rule_table_mgr::rule_resolve(route_rule_table_key key, std::deque<unsigned char> &table_id_list)
+bool rule_table_mgr::rule_resolve(route_lookup_key key, std::deque<unsigned char> &table_id_list)
 {
 	rr_mgr_logdbg("dst info: '%s'", key.to_str().c_str());
 

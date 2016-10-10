@@ -31,26 +31,28 @@
  */
 
 
-#ifndef ROUTE_RULE_TABLE_KEY_H
-#define ROUTE_RULE_TABLE_KEY_H
+#ifndef ROUTE_LOOKUP_KEY_H
+#define ROUTE_LOOKUP_KEY_H
+
 
 #include <stdio.h>
 #include <string>
 #include <cstring>
+#include <tr1/unordered_map>
 
 #include "vma/util/to_str.h"
 #include "vma/util/vtypes.h"
-#include <tr1/unordered_map>
+
 
 /*
-* This class is used as key for route and rule table cashed history
-* and its consist from destination IP, source IP and TOS.
+* This class is used as key for route table cashed history
+* and its consist from destination IP, source IP and output interface .
 */
-class route_rule_table_key : public tostr
+class route_lookup_key : public tostr
 {
 public:
-	route_rule_table_key(in_addr_t dst_ip, in_addr_t src_ip, uint8_t tos): m_dst_ip(dst_ip), m_src_ip(src_ip), m_tos(tos){};
-	~route_rule_table_key(){};
+	route_lookup_key(in_addr_t dst_ip, in_addr_t src_ip = 0, uint32_t oif_index = 0): m_dst_ip(dst_ip), m_src_ip(src_ip), m_oif_index(oif_index){};
+	~route_lookup_key(){};
 	
 	const std::string to_str() const
 	{
@@ -60,12 +62,12 @@ public:
 		if (m_src_ip) {
 			char sx[40] = {0};
 			/* cppcheck-suppress wrongPrintfScanfArgNum */
-			sprintf(sx, " Source IP:%d.%d.%d.%d", NIPQUAD(m_src_ip));
+			sprintf(sx, "Source IP:%d.%d.%d.%d", NIPQUAD(m_src_ip));	
 			strcat(s, sx);
 		}	
-		if (m_tos) {
+		if (m_oif_index) {
 			char sx[20] = {0};
-			sprintf(sx, " TOS:%u", m_tos);
+			sprintf(sx, "OIF index:%u", m_oif_index);	
 			strcat(s, sx);
 		}
 			
@@ -74,24 +76,24 @@ public:
 	
 	in_addr_t	get_dst_ip()	const 	{ return m_dst_ip; };
 	in_addr_t	get_src_ip()	const 	{ return m_src_ip; };
-	uint8_t		get_tos()		const 	{ return m_tos; };
+	uint32_t	get_oif_index()	const 	{ return m_oif_index; };
 
-	bool operator==(const route_rule_table_key &rrk) const { 
-	return (m_dst_ip == rrk.get_dst_ip() && m_src_ip == rrk.get_src_ip() && m_tos == rrk.get_tos()); 
+	bool operator==(const route_lookup_key &key) const { 
+	return (m_dst_ip == key.get_dst_ip() && m_src_ip == key.get_src_ip() && m_oif_index == key.get_oif_index()); 
 	};
 	
 private:
 	in_addr_t	m_dst_ip;
 	in_addr_t	m_src_ip;
-	uint8_t		m_tos;
+	uint32_t	m_oif_index;
 };
 
 namespace std { namespace tr1 {
 template<>
-class hash<route_rule_table_key>
+class hash<route_lookup_key>
 {
 public:
-	size_t operator()(const route_rule_table_key &key) const
+	size_t operator()(const route_lookup_key &key) const
 	{
 		hash<string>_hash;
 		char s[40] = {0};
@@ -106,16 +108,17 @@ public:
 			/* cppcheck-suppress wrongPrintfScanfArgNum */
 			sprintf(sx, " %d.%d.%d.%d", NIPQUAD(key.get_src_ip()));
 			strcat(s, sx);
-		}
-		if (key.get_tos()) {
+		}	
+		if (key.get_oif_index()) {
 			char sx[20] = {0};
-			sprintf(sx, " %u", key.get_tos());
+			sprintf(sx, "%u", key.get_oif_index());	
 			strcat(s, sx);
 		}
+		
 		return _hash(std::string(s));// Use built in hash function for string input.
 	}
 };
 }}
 
 
-#endif /* ROUTE_RULE_TABLE_KEY_H */
+#endif /* ROUTE_LOOKUP_KEY_H */

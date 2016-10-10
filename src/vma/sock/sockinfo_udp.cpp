@@ -997,7 +997,6 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					if (INADDR_ANY == mc_if) {
 						in_addr_t dst_ip	= mc_grp;
 						in_addr_t src_ip	= 0;
-						uint8_t tos		= 0;
 
 						if ((!m_bound.is_anyaddr()) && (!m_bound.is_mc())) {
 							src_ip = m_bound.get_in_addr();
@@ -1005,7 +1004,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 							src_ip = m_so_bindtodevice_ip;
 						}
 						// Find local if for this MC ADD/DROP
-						g_p_route_table_mgr->route_resolve(route_rule_table_key(dst_ip, src_ip, tos), &mc_if);
+						g_p_route_table_mgr->route_resolve(route_lookup_key(dst_ip, src_ip), &mc_if);
 						si_udp_logdbg("IPPROTO_IP, %s=%d.%d.%d.%d, mc_if:INADDR_ANY (resolved to: %d.%d.%d.%d)", setsockopt_ip_opt_to_str(__optname), NIPQUAD(mc_grp), NIPQUAD(mc_if));
 					}
 					else {
@@ -2089,7 +2088,6 @@ int sockinfo_udp::mc_change_membership(const mc_pending_pram *p_mc_pram)
 	if (mc_if == INADDR_ANY) {
 		in_addr_t dst_ip	= mc_grp;
 		in_addr_t src_ip	= 0;
-		uint8_t tos		= 0;
 		
 		if (!m_bound.is_anyaddr() && !m_bound.is_mc()) {
 			src_ip = m_bound.get_in_addr();
@@ -2097,7 +2095,7 @@ int sockinfo_udp::mc_change_membership(const mc_pending_pram *p_mc_pram)
 			src_ip = m_so_bindtodevice_ip;
 		}
 		// Find local if for this MC ADD/DROP
-		g_p_route_table_mgr->route_resolve(route_rule_table_key(dst_ip, src_ip, tos), &mc_if);
+		g_p_route_table_mgr->route_resolve(route_lookup_key(dst_ip, src_ip), &mc_if);
 	}
 
 	// MNY: TODO: Check rules for local_if (blacklist interface feature)

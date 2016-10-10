@@ -43,8 +43,8 @@
 
 #define rr_entry_logdbg		__log_info_dbg
 
-rule_entry::rule_entry(route_rule_table_key rrk) :
-	cache_entry_subject<route_rule_table_key, std::deque<rule_val*>*>(rrk)
+rule_entry::rule_entry(route_lookup_key key) :
+	cache_entry_subject<route_lookup_key, std::deque<rule_val*>*>(key)
 {
 	m_val = &values;
 }

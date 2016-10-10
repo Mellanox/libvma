@@ -38,7 +38,6 @@
 #include <deque>
 #include "utils/lock_wrapper.h"
 #include "vma/util/wakeup_pipe.h"
-#include "vma/netlink/netlink_wrapper.h"
 #include "vma/infra/subject_observer.h"
 #include "vma/event/command.h"
 #include "vma/event/delta_timer.h"
