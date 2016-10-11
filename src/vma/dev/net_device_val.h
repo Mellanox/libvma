@@ -122,11 +122,12 @@ public:
 	bool 			release_ring(IN resource_allocation_key); // delete from hash if ref_cnt == 0
 	state                   get_state() const  { return m_state; } // not sure, look at state init at c'tor
 	virtual std::string     to_str();
+	std::string				get_name() {return m_name;}
 	int                     get_mtu() { return m_mtu; }
 	int                     get_if_idx() { return m_if_idx; }
 	transport_type_t        get_transport_type() const { return m_transport_type; }
 	bool 			update_active_backup_slaves();
-	in_addr_t               get_local_addr() {return m_local_addr;};
+	in_addr_t               get_local_addr() const {return m_local_addr;};
 	in_addr_t               get_netmask() {return m_netmask;};
 	bool                    is_valid() { return true; };
 	int                     global_ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array = NULL);
@@ -203,6 +204,7 @@ public:
 	std::string		to_str();
 	const neigh_ib_broadcast* get_br_neigh() {return m_br_neigh;}
 	virtual transport_type_t get_obs_transport_type() const {return get_transport_type();}
+	virtual in_addr_t get_src_addr() const {return get_local_addr();}	
 
 protected:
 	ring*			create_ring();

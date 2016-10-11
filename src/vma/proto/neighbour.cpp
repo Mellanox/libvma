@@ -44,6 +44,7 @@
 #include "vma/proto/neighbour_table_mgr.h"
 #include "vma/dev/wqe_send_handler.h"
 #include "vma/dev/wqe_send_ib_handler.h"
+#include "vma/sock/sock-redirect.h"
 
 //This include should be after vma includes
 #include <netinet/tcp.h>
@@ -70,7 +71,7 @@
 
 #define RDMA_CM_TIMEOUT 3500
 #define RING_KEY 0
-
+#define DISCARD_PORT_NUM 9
 
 /**/
 /** inlining functions can only help if they are implemented before their usage **/
@@ -173,7 +174,7 @@ neigh_val & neigh_ib_val::operator=(const neigh_val & val)
 	return *this;
 }
 
-neigh_entry::neigh_entry(neigh_key key, transport_type_t _type, bool is_init_resources):
+neigh_entry::neigh_entry(neigh_key key, transport_type_t _type, in_addr_t src_addr, bool is_init_resources):
 	cache_entry_subject<neigh_key, neigh_val *>(key),
 	m_cma_id(NULL), m_rdma_port_space((enum rdma_port_space)0), m_state_machine(NULL), m_type(UNKNOWN), m_trans_type(_type),
 	m_state(false), m_err_counter(0), m_timer_handle(NULL),
@@ -201,10 +202,10 @@ neigh_entry::neigh_entry(neigh_key key, transport_type_t _type, bool is_init_res
 
 	memset(&m_dst_addr, 0, sizeof(m_dst_addr));
 	memset(&m_src_addr, 0, sizeof(m_src_addr));
+	
 	m_dst_addr.sin_addr.s_addr = get_key().get_in_addr(); /*(peer_ip)*/
 	m_dst_addr.sin_family = AF_INET;
-
-	m_src_addr.sin_addr.s_addr = m_p_dev->get_local_addr();
+	m_src_addr.sin_addr.s_addr = src_addr;
 	m_src_addr.sin_family = AF_INET;
 
 	memset(&m_send_wqe, 0, sizeof(m_send_wqe));
@@ -590,7 +591,7 @@ void neigh_entry::priv_handle_neigh_reachable_event()
 //==========================================  cache_observer functions implementation ============================
 
 
-bool neigh_entry::get_peer_info(neigh_val * p_val)
+bool neigh_entry::get_peer_info(neigh_val * p_val, in_addr_t src_addr)
 {
 	neigh_logfunc("calling neigh_entry get_peer_info. state = %d", m_state);
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -610,7 +611,7 @@ bool neigh_entry::get_peer_info(neigh_val * p_val)
 	/* If state is NOT_ACTIVE need to kick start state machine,
 	 otherwise it means that it was already started*/
 	if ((state_t)m_state_machine->get_curr_state() == ST_NOT_ACTIVE)
-		priv_kick_start_sm();
+		priv_kick_start_sm(src_addr);
 
 	if (m_state) {
 		neigh_logdbg("There is a valid val");
@@ -637,7 +638,7 @@ bool neigh_entry::register_observer(const observer* const new_observer)
 		if (!m_state && ((state_t) m_state_machine->get_curr_state()== ST_NOT_ACTIVE))
 		{
 			neigh_logdbg("SM state is ST_NOT_ACTIVE Kicking SM start");
-			priv_kick_start_sm();
+			priv_kick_start_sm(((neigh_observer*)new_observer)->get_src_addr());
 		}
 		return true;
 	}
@@ -958,9 +959,10 @@ void neigh_entry::priv_print_event_info(state_t state, event_t event)
 }
 
 //Function that start neigh State Machine (SM)
-void neigh_entry::priv_kick_start_sm()
+void neigh_entry::priv_kick_start_sm(in_addr_t src_addr)
 {
 	neigh_logdbg("Kicking connection start");
+	m_src_addr.sin_addr.s_addr = src_addr;
 	event_handler(EV_KICK_START);
 }
 
@@ -1210,8 +1212,8 @@ void neigh_entry::priv_unregister_timer()
 }
 //============================================================== neigh_eth ==================================================
 
-neigh_eth::neigh_eth(neigh_key key) :
-		neigh_entry(key, VMA_TRANSPORT_ETH)
+neigh_eth::neigh_eth(neigh_key key, in_addr_t src_addr) :
+		neigh_entry(key, VMA_TRANSPORT_ETH, src_addr)
 {
 	neigh_logdbg("");
 	m_rdma_port_space = RDMA_PS_UDP;
@@ -1233,9 +1235,7 @@ neigh_eth::neigh_eth(neigh_key key) :
 				{ ST_ERROR, 		EV_KICK_START, 		ST_INIT, 		NULL },
 				{ ST_INIT, 		EV_ARP_RESOLVED,	ST_READY,		NULL },
 				{ ST_INIT, 		EV_START_RESOLUTION,	ST_INIT_RESOLUTION,	NULL },
-				{ ST_INIT_RESOLUTION, 	EV_ADDR_RESOLVED,	ST_ADDR_RESOLVED,	NULL },
 				{ ST_INIT_RESOLUTION, 	EV_ARP_RESOLVED,	ST_READY,		NULL },
-				{ ST_ADDR_RESOLVED, 	EV_ARP_RESOLVED,	ST_READY,		NULL },
 				{ ST_READY, 		EV_ERROR, 		ST_ERROR,		NULL },
 				{ ST_INIT, 		EV_ERROR, 		ST_ERROR, 		NULL },
 				{ ST_INIT_RESOLUTION, 	EV_ERROR, 		ST_ERROR, 		NULL },
@@ -1266,7 +1266,7 @@ neigh_eth::neigh_eth(neigh_key key) :
 		neigh_logpanic("Failed allocating state_machine");
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	priv_kick_start_sm();
+	priv_kick_start_sm(m_src_addr.sin_addr.s_addr);
 }
 
 neigh_eth::~neigh_eth()
@@ -1282,7 +1282,7 @@ bool neigh_eth::is_deletable()
 	return(neigh_entry::is_deletable());
 }
 
-bool neigh_eth::get_peer_info(neigh_val * p_val)
+bool neigh_eth::get_peer_info(neigh_val * p_val, in_addr_t src_addr)
 {
 	neigh_logfunc("calling neigh_eth get_peer_info");
 	if (m_type == MC) {
@@ -1301,7 +1301,7 @@ bool neigh_eth::get_peer_info(neigh_val * p_val)
 		}
 	}
 
-	return (neigh_entry::get_peer_info(p_val));
+	return (neigh_entry::get_peer_info(p_val, src_addr));
 }
 
 bool neigh_eth::register_observer(const observer* const new_observer)
@@ -1336,17 +1336,55 @@ int neigh_eth::priv_enter_init()
 
 int neigh_eth::priv_enter_init_resolution()
 {
-	int state;
-
-	if (!(neigh_entry::priv_enter_init_resolution())) {
-		// query netlink - if this entry already exist and REACHABLE we can use it
-		if (priv_get_neigh_state(state) && (state != NUD_FAILED)) {
-				event_handler(EV_ARP_RESOLVED);
-		}
-		return 0;
+	int sock_fd = -1;
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if ((sock_fd = orig_os_api.socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		neigh_logerr("Failed to create socket, error = %d", errno);
+		return -1;
+	}
+	
+	std::string dev_name = m_p_dev->get_name();
+	if (setsockopt(sock_fd, SOL_SOCKET, SO_BINDTODEVICE, dev_name.c_str(), dev_name.size()) < 0)  {
+		neigh_logerr("Failed to set socket option SO_BINDTODEVICE, error = %d", errno);
+		orig_os_api.close(sock_fd);
+		return -1;
+	}
+	
+	int dont_route = 1;
+	if (setsockopt(sock_fd, SOL_SOCKET, SO_DONTROUTE, &dont_route, sizeof(dont_route)) < 0)  {
+		neigh_logerr("Failed to set socket option SO_DONTROUTE, error = %d", errno);
+		orig_os_api.close(sock_fd);
+		return -1;
+	}
+	
+	if (bind(sock_fd, (struct sockaddr *) &m_src_addr, sizeof(m_src_addr)) < 0)  {
+		neigh_logerr("Failed to bind socket to address, error = %d", errno);
+		orig_os_api.close(sock_fd);
+		return -1;
 	}
 
-	return -1;
+	struct sockaddr_in dst_addr;
+	memset(&dst_addr, 0, sizeof(dst_addr));	
+	dst_addr.sin_family = AF_INET;
+    dst_addr.sin_addr.s_addr = m_dst_addr.sin_addr.s_addr;
+    dst_addr.sin_port = htons(DISCARD_PORT_NUM);
+	struct msghdr msg;
+	memset(&msg, 0, sizeof(msg)); 
+	msg.msg_name = &dst_addr;
+	msg.msg_namelen = sizeof(dst_addr);
+	if(orig_os_api.sendmsg(sock_fd, &msg, 0) < 0){
+		neigh_logerr("Failed to send, error = %d", errno);
+		orig_os_api.close(sock_fd);
+		return -1;
+	}
+	
+	int state;
+	// query netlink - if this entry already exist and REACHABLE we can use it
+	if (priv_get_neigh_state(state) && (state != NUD_FAILED)) {
+			event_handler(EV_ARP_RESOLVED);
+	}
+	
+	return 0;
 }
 
 bool neigh_eth::priv_handle_neigh_is_l2_changed(address_t new_l2_address_str)
@@ -1510,8 +1548,8 @@ ring_user_id_t neigh_eth::generate_ring_user_id(header * h /* = NULL */)
 
 //============================================================== neigh_ib ==================================================
 
-neigh_ib::neigh_ib(neigh_key key, bool is_init_resources) :
-				neigh_entry(key, VMA_TRANSPORT_IB, is_init_resources), m_pd(NULL), m_n_sysvar_wait_after_join_msec(safe_mce_sys().wait_after_join_msec)
+neigh_ib::neigh_ib(neigh_key key, in_addr_t src_addr, bool is_init_resources) :
+				neigh_entry(key, VMA_TRANSPORT_IB, src_addr, is_init_resources), m_pd(NULL), m_n_sysvar_wait_after_join_msec(safe_mce_sys().wait_after_join_msec)
 {
 	neigh_logdbg("");
 
@@ -1576,7 +1614,7 @@ neigh_ib::neigh_ib(neigh_key key, bool is_init_resources) :
 		neigh_logpanic("Failed allocating state_machine");
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	priv_kick_start_sm();
+	priv_kick_start_sm(m_src_addr.sin_addr.s_addr);
 }
 
 neigh_ib::~neigh_ib()
@@ -2103,8 +2141,9 @@ void neigh_ib_broadcast::build_mc_neigh_val()
 
 }
 
-bool neigh_ib_broadcast::get_peer_info(neigh_val * p_val)
+bool neigh_ib_broadcast::get_peer_info(neigh_val * p_val, in_addr_t src_addr)
 {
+	NOT_IN_USE(src_addr);
 	neigh_logfunc("calling neigh_entry get_peer_info. state = %d", m_state);
 	if (p_val == NULL) {
 		neigh_logdbg("p_val is NULL, return false");

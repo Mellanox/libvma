@@ -74,7 +74,7 @@ public:
 	bool 		is_offloaded() { return m_b_is_offloaded; }
 	void		set_bound_addr(in_addr_t addr);
 	void		set_so_bindtodevice_addr(in_addr_t addr);
-	in_addr_t	get_src_addr();
+
 	in_addr_t	get_dst_addr();
 	uint16_t	get_dst_port();
 
@@ -89,6 +89,7 @@ public:
     #pragma BullseyeCoverage on
 #endif
 
+	virtual	in_addr_t get_src_addr() const;
 	virtual transport_type_t get_obs_transport_type() const;
 	virtual flow_tuple get_flow_tuple() const;
 

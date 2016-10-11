@@ -236,7 +236,7 @@ public:
 
 	friend 	class		neighbour_table_mgr;
 
-	neigh_entry (neigh_key key, transport_type_t type, bool is_init_resources = true);
+	neigh_entry (neigh_key key, transport_type_t type, in_addr_t src_addr = INADDR_ANY, bool is_init_resources = true);
 	virtual 		~neigh_entry();
 
 	//Overwrite cach_entry virtual function
@@ -252,7 +252,7 @@ public:
     #pragma BullseyeCoverage on
 #endif
 
-	virtual bool 		get_peer_info(neigh_val * val);
+	virtual bool 		get_peer_info(neigh_val * val, in_addr_t src_addr = INADDR_ANY);
 	// Overriding subject's register_observer
 	virtual bool 		register_observer(const observer* const new_observer);
 	//Overriding tostr to_str()
@@ -313,7 +313,7 @@ protected:
 	virtual void 		priv_general_st_entry(const sm_info_t& func_info);
 	virtual void 		priv_general_st_leave(const sm_info_t& func_info);
 	virtual void		priv_print_event_info(state_t state, event_t event);
-	virtual void		priv_kick_start_sm();
+	virtual void		priv_kick_start_sm(in_addr_t src_addr);
 	virtual void		priv_enter_not_active();
 	virtual void		priv_enter_error();
 	virtual int 		priv_enter_init();
@@ -363,7 +363,7 @@ class neigh_ib : public neigh_entry, public event_handler_ibverbs
 {
 public:
 	friend 	class		neighbour_table_mgr;
-				neigh_ib(neigh_key key, bool is_init_resources = true);
+				neigh_ib(neigh_key key, in_addr_t src_addr = INADDR_ANY, bool is_init_resources = true);
 				~neigh_ib();
 
 	static void		dofunc_enter_arp_resolved(const sm_info_t& func_info);
@@ -408,7 +408,7 @@ class neigh_ib_broadcast : public neigh_ib
 public:
 				neigh_ib_broadcast(neigh_key key);
 	virtual int		send(neigh_send_info & s_info);
-	virtual bool 		get_peer_info(neigh_val * p_val);
+	virtual bool 		get_peer_info(neigh_val * p_val, in_addr_t src_addr = INADDR_ANY);
 	virtual bool 		is_deletable() { return false; };
 
 private:
@@ -420,9 +420,9 @@ class neigh_eth : public neigh_entry
 {
 public:
 	friend 	class		neighbour_table_mgr;
-				neigh_eth(neigh_key key);
+				neigh_eth(neigh_key key, in_addr_t src_addr = INADDR_ANY);
 				~neigh_eth();
-	virtual bool 		get_peer_info(neigh_val * val);
+	virtual bool 		get_peer_info(neigh_val * val, in_addr_t src_addr = INADDR_ANY);
 	//Overriding neigh_entry register_observer
 	bool 			register_observer(const observer* const new_observer);
 	//Overriding neigh_entry is_deletable

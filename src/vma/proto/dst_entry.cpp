@@ -621,14 +621,9 @@ void dst_entry::set_so_bindtodevice_addr(in_addr_t addr)
 	set_state(false);
 }
 
-in_addr_t dst_entry::get_src_addr()
+in_addr_t dst_entry::get_src_addr() const
 {
-	in_addr_t ret_val = INADDR_ANY;
-
-	if (m_p_net_dev_val) {
-		ret_val = m_p_net_dev_val->get_local_addr();
-	}
-	return ret_val;
+	return m_bound_ip ? m_bound_ip : m_p_net_dev_val? m_p_net_dev_val->get_local_addr() : INADDR_ANY;
 }
 
 in_addr_t dst_entry::get_dst_addr()

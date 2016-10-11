@@ -68,6 +68,9 @@ public:
 	{
 		return m_p_ndvl->get_transport_type();
 	}
+	
+	virtual in_addr_t get_src_addr() const {return m_p_ndvl->get_local_addr();}	
+
 
 	void 				handle_query(uint8_t igmp_code); // handle queries coming from router
 	void 				handle_report();  // handle reports coming from other hosts

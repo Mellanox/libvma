@@ -100,11 +100,11 @@ neigh_entry* neigh_table_mgr::create_new_entry(neigh_key neigh_key, const observ
 			return (new neigh_ib_broadcast(neigh_key));
 		}
 		neigh_mgr_logdbg("Creating new neigh_ib");
-		return (new neigh_ib(neigh_key));
+		return (new neigh_ib(neigh_key, dst->get_src_addr()));
 	}
 	else if (transport == VMA_TRANSPORT_ETH) {
 		neigh_mgr_logdbg("Creating new neigh_eth");
-		return (new neigh_eth(neigh_key));
+		return (new neigh_eth(neigh_key, dst->get_src_addr()));
 	}
 	else {
 		neigh_mgr_logdbg("Cannot create new entry, transport type is UNKNOWN");

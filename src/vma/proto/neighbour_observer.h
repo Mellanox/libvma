@@ -42,6 +42,7 @@ class neigh_observer : public observer
 {
 public:
 	virtual transport_type_t get_obs_transport_type() const = 0;
+	virtual in_addr_t get_src_addr() const = 0;	
 };
 
 #endif /* NEIGHBOUR_OBSERVER_H */
