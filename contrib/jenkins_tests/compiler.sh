@@ -9,7 +9,7 @@ if [ $(command -v module >/dev/null 2>&1 || echo $?) ]; then
 	echo "[SKIP] module tool does not exist"
 	exit 0
 fi
-module load intel/ics
+module load intel/ics-15.0.1
 
 cd $WORKSPACE
 
@@ -33,7 +33,7 @@ for compiler in $compiler_list; do
     cd ${compiler_dir}
 done
 
-module unload intel/ics
+module unload intel/ics-15.0.1
 
 echo "[${0##*/}]..................exit code = $rc"
 exit $rc
