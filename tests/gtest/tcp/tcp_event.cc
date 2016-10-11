@@ -59,7 +59,7 @@ TEST_F(tcp_event, DISABLED_ti_1) {
 	rc = test_base::event_wait(&event);
 	EXPECT_LT(0, rc);
 /*	EXPECT_EQ(EPOLLHUP, event.events); TODO: UNDER VMA */
-	EXPECT_EQ(EPOLLERR | EPOLLHUP, event.events);
+	EXPECT_EQ((uint32_t)(EPOLLERR | EPOLLHUP), event.events);
 
 	close(fd);
 }
@@ -80,7 +80,7 @@ TEST_F(tcp_event, ti_2) {
 	event.data.fd = fd;
 	rc = test_base::event_wait(&event);
 	EXPECT_LT(0, rc);
-	EXPECT_EQ((EPOLLERR | EPOLLHUP), event.events);
+	EXPECT_EQ((uint32_t)(EPOLLERR | EPOLLHUP), event.events);
 
 	close(fd);
 }
@@ -102,7 +102,7 @@ TEST_F(tcp_event, DISABLED_ti_3) {
 	rc = test_base::event_wait(&event);
 	EXPECT_LT(0, rc);
 	/*	EXPECT_EQ((EPOLLHUP | EPOLLIN), event.events); TODO: UNDER VMA */
-	EXPECT_EQ((EPOLLERR | EPOLLHUP | EPOLLOUT | EPOLLIN), event.events);
+	EXPECT_EQ((uint32_t)(EPOLLERR | EPOLLHUP | EPOLLOUT | EPOLLIN), event.events);
 
 	close(fd);
 }
@@ -124,7 +124,7 @@ TEST_F(tcp_event, DISABLED_ti_4) {
 	rc = test_base::event_wait(&event);
 	EXPECT_LT(0, rc);
 	/*	EXPECT_EQ((EPOLLERR | EPOLLHUP | EPOLLIN), event.events); TODO: UNDER VMA */
-	EXPECT_EQ((EPOLLERR | EPOLLHUP | EPOLLOUT | EPOLLIN), event.events);
+	EXPECT_EQ((uint32_t)(EPOLLERR | EPOLLHUP | EPOLLOUT | EPOLLIN), event.events);
 
 	close(fd);
 }
@@ -186,7 +186,7 @@ static void _proc_client(void *ptr)
 	event.data.fd = fd;
 	rc = test_base::event_wait(&event);
 	EXPECT_LT(0, rc);
-	EXPECT_EQ((EPOLLOUT), event.events);
+	EXPECT_EQ((uint32_t)(EPOLLOUT), event.events);
 
 	log_trace("Established connection: fd=%d to %s\n",
 			fd, sys_addr2str((struct sockaddr_in *) &gtest_conf.server_addr));
