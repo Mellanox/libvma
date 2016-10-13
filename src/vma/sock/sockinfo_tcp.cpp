@@ -2500,11 +2500,11 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 	//todo check that listen socket was not closed by now ? (is_server())
 	conn->m_ready_pcbs.erase(&new_sock->m_pcb);
 
-	conn->set_events(EPOLLIN);
 	if (conn->check_vma_active()) {
 		auto_accept_connection(conn, new_sock);
 	}
 	else {
+		conn->set_events(EPOLLIN);
 		conn->m_accepted_conns.push_back(new_sock);
 		conn->m_ready_conn_cnt++;
 	}
