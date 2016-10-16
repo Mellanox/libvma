@@ -721,6 +721,14 @@ void sockinfo::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 		vlog_printf(log_level, "Tx OS info : %d KB / %d / %d [bytes/packets/errors]\n", m_p_socket_stats->counters.n_tx_os_bytes/1024, m_p_socket_stats->counters.n_tx_os_packets, m_p_socket_stats->counters.n_tx_os_errors);
 		b_any_activity = true;
 	}
+	if (m_p_socket_stats->counters.n_tx_dummy) {
+		vlog_printf(log_level, "Tx Dummy messages : %d\n", m_p_socket_stats->counters.n_tx_dummy);
+		b_any_activity = true;
+	}
+	if (m_p_socket_stats->counters.n_tx_dummy_drops) {
+		vlog_printf(log_level, "Tx Dummy messages dropped: %d\n", m_p_socket_stats->counters.n_tx_dummy_drops);
+		b_any_activity = true;
+	}
 	if (m_p_socket_stats->counters.n_rx_bytes || m_p_socket_stats->counters.n_rx_packets || m_p_socket_stats->counters.n_rx_errors || m_p_socket_stats->counters.n_rx_eagain || m_p_socket_stats->n_rx_ready_pkt_count) {
 		vlog_printf(log_level, "Rx Offload : %d KB / %d / %d / %d [bytes/packets/eagains/errors]\n", m_p_socket_stats->counters.n_rx_bytes/1024, m_p_socket_stats->counters.n_rx_packets, m_p_socket_stats->counters.n_rx_eagain, m_p_socket_stats->counters.n_rx_errors);
 

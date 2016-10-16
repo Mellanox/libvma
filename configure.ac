@@ -353,6 +353,22 @@ AC_TRY_LINK(
   AC_MSG_RESULT([no])
 ])
 
+AC_MSG_CHECKING([if IBV_EXP_WR_NOP is defined])
+AC_TRY_LINK(
+#include <infiniband/verbs_exp.h>
+,
+[
+  int access = (int)IBV_EXP_WR_NOP;
+  access = access;
+],
+[
+  AC_MSG_RESULT([yes])
+  AC_DEFINE(DEFINED_IBV_EXP_WR_NOP, 1, [Define to 1 if IBV_EXP_WR_NOP is defined])
+],
+[
+  AC_MSG_RESULT([no])
+])
+
 AC_MSG_CHECKING([if IBV_EXP_ACCESS_ALLOCATE_MR is defined])
 AC_TRY_LINK(
 #include <infiniband/verbs_exp.h>

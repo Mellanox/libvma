@@ -44,6 +44,10 @@
 #define MSG_VMA_ZCOPY_FORCE	0x01000000 // don't fallback to bcopy
 #define	MSG_VMA_ZCOPY		0x00040000 // return: zero copy was done
 
+/*
+ * Flags for Dummy send API
+ */
+#define DUMMY_WARM_MSG MSG_SYN // equals to 0x400
 
 /* 
  * Return values for the receive packet notify callback function

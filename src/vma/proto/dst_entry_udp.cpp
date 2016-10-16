@@ -76,7 +76,7 @@ void dst_entry_udp::configure_headers()
 	dst_entry::configure_headers();
 }
 
-ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool b_blocked /*=true*/, bool is_rexmit /*=false*/, bool dont_inline /*=false*/)
+ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked /*=true*/, bool is_rexmit /*=false*/, bool dont_inline /*=false*/)
 {
 	NOT_IN_USE(is_rexmit);
 
@@ -139,7 +139,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 		}
 		p_mem_buf_desc->p_next_desc = NULL;
 		m_inline_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
-		m_p_ring->send_ring_buffer(m_id, m_p_send_wqe, b_blocked);
+		send_ring_buffer(m_id, m_p_send_wqe, b_blocked, is_dummy);
 
 		if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
 			m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, m_n_sysvar_tx_bufs_batch_udp);
@@ -261,7 +261,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 			p_mem_buf_desc->p_next_desc = NULL;
 
 			// We don't check the return valuse of post send when we reach the HW we consider that we completed our job
-			m_p_ring->send_ring_buffer(m_id, m_p_send_wqe, b_blocked);
+			send_ring_buffer(m_id, m_p_send_wqe, b_blocked, is_dummy);
 
 			p_mem_buf_desc = tmp;
 
@@ -278,7 +278,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 	return sz_data_payload;
 }
 
-ssize_t dst_entry_udp::slow_send(const iovec* p_iov, size_t sz_iov, bool b_blocked /*= true*/, bool is_rexmit /*= false*/, int flags /*= 0*/, socket_fd_api* sock /*= 0*/, tx_call_t call_type /*= 0*/)
+ssize_t dst_entry_udp::slow_send(const iovec* p_iov, size_t sz_iov, bool is_dummy, bool b_blocked /*= true*/, bool is_rexmit /*= false*/, int flags /*= 0*/, socket_fd_api* sock /*= 0*/, tx_call_t call_type /*= 0*/)
 {
 	NOT_IN_USE(is_rexmit);
 
@@ -301,7 +301,7 @@ ssize_t dst_entry_udp::slow_send(const iovec* p_iov, size_t sz_iov, bool b_block
 			ret_val = pass_buff_to_neigh(p_iov, sz_iov);
 		}
 		else {
-			ret_val = fast_send(p_iov, sz_iov, b_blocked);
+			ret_val = fast_send(p_iov, sz_iov, is_dummy, b_blocked);
 		}
 	}
 

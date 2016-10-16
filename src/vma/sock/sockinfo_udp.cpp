@@ -1588,6 +1588,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 {
 	int ret;
 	bool is_dropped = false;
+	bool is_dummy = __flags & DUMMY_WARM_MSG;
 	dst_entry* p_dst_entry = m_p_connected_dst_entry; // Default for connected() socket but we'll update it on a specific sendTO(__to) call
 
 	si_udp_logfunc("");
@@ -1698,11 +1699,11 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 
 		if (likely(p_dst_entry->is_valid())) {
 			// All set for fast path packet sending - this is our best performance flow
-			ret = p_dst_entry->fast_send((struct iovec*)p_iov, sz_iov, b_blocking);
+			ret = p_dst_entry->fast_send((struct iovec*)p_iov, sz_iov, is_dummy, b_blocking);
 		}
 		else {
 			// updates the dst_entry internal information and packet headers
-			ret = p_dst_entry->slow_send(p_iov, sz_iov, b_blocking, false, __flags, this, call_type);
+			ret = p_dst_entry->slow_send(p_iov, sz_iov, is_dummy, b_blocking, false, __flags, this, call_type);
 		}
 
 		// TODO ALEXR - still need to handle "is_dropped" in send path
@@ -1715,7 +1716,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 		// Yet we need to add this code to avoid deadlocks in case of EPOLLOUT ET.
 		notify_epoll_context(EPOLLOUT);
 
-		save_stats_tx_offload(ret, is_dropped);
+		save_stats_tx_offload(ret, is_dropped, is_dummy);
 
 #ifdef VMA_TIME_MEASURE
 		TAKE_T_TX_END;
@@ -2246,21 +2247,25 @@ void sockinfo_udp::save_stats_rx_offload(int bytes)
     #pragma BullseyeCoverage on
 #endif
 
-void sockinfo_udp::save_stats_tx_offload(int bytes, bool is_dropped)
+void sockinfo_udp::save_stats_tx_offload(int bytes, bool is_dropped, bool is_dummy)
 {
-	if (bytes >= 0) {
-		m_p_socket_stats->counters.n_tx_sent_byte_count += bytes;
-		m_p_socket_stats->counters.n_tx_sent_pkt_count++;
-	}
-	else if (errno == EAGAIN) {
-		m_p_socket_stats->counters.n_rx_os_eagain++;
-	}
-	else {
-		m_p_socket_stats->counters.n_tx_errors++;
-	}
+	if (unlikely(is_dummy)) {
+		m_p_socket_stats->counters.n_tx_dummy++;
+	} else {
+		if (bytes >= 0) {
+			m_p_socket_stats->counters.n_tx_sent_byte_count += bytes;
+			m_p_socket_stats->counters.n_tx_sent_pkt_count++;
+		}
+		else if (errno == EAGAIN) {
+			m_p_socket_stats->counters.n_rx_os_eagain++;
+		}
+		else {
+			m_p_socket_stats->counters.n_tx_errors++;
+		}
 
-	if (is_dropped) {
-		m_p_socket_stats->counters.n_tx_drops++;
+		if (is_dropped) {
+			m_p_socket_stats->counters.n_tx_drops++;
+		}
 	}
 }
 

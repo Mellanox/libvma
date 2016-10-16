@@ -137,8 +137,8 @@ public:
 
 	ssize_t tx(const tx_call_t call_type, const struct iovec *p_iov, const ssize_t sz_iov, const int flags = 0, const struct sockaddr *__to = NULL, const socklen_t __tolen = 0);
 	ssize_t rx(const rx_call_t call_type, iovec *p_iov, ssize_t sz_iov, int *p_flags, sockaddr *__from = NULL, socklen_t *__fromlen = NULL, struct msghdr *__msg = NULL);
-	static err_t ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit);
-	static err_t ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rexmit);
+	static err_t ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit, uint8_t is_dummy);
+	static err_t ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rexmit, uint8_t is_dummy);
 	static void tcp_state_observer(void* pcb_container, enum tcp_state new_state);
 
 	virtual bool rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void* pv_fd_ready_array = NULL);
@@ -369,6 +369,34 @@ private:
 	virtual	size_t get_size_m_rx_pkt_ready_list();
 	virtual	void pop_front_m_rx_pkt_ready_list();
 	virtual	void push_back_m_rx_pkt_ready_list(mem_buf_desc_t* buff);
+
+	inline bool check_dummy_send_conditions(const int flags, const struct iovec* p_iov, const ssize_t sz_iov)
+	{
+		// Calculate segment max length
+		uint8_t optflags = TF_SEG_OPTS_DUMMY_MSG;
+		uint16_t mss_local = MIN(m_pcb.mss, m_pcb.snd_wnd_max / 2);
+		mss_local = mss_local ? mss_local : m_pcb.mss;
+
+		#if LWIP_TCP_TIMESTAMPS
+			if ((m_pcb.flags & TF_TIMESTAMP)) {
+				optflags |= TF_SEG_OPTS_TS;
+				mss_local = MAX(mss_local, LWIP_TCP_OPT_LEN_TS + 1);
+			}
+		#endif /* LWIP_TCP_TIMESTAMPS */
+
+		u16_t max_len = mss_local - LWIP_TCP_OPT_LENGTH(optflags);
+
+		// Calculate window size
+		u32_t wnd = MIN(m_pcb.snd_wnd, m_pcb.cwnd);
+
+		return !m_pcb.unsent && // Unsent queue should be empty
+			!(flags & MSG_MORE) && // Verify MSG_MORE flags is not set
+			sz_iov == 1 && // We want to prevent a case in which we call tcp_write() for scatter/gather element.
+			p_iov->iov_len && // We have data to sent
+			p_iov->iov_len <= max_len && // Data will not be split into more then one segment
+			wnd && // Window is not empty
+			(p_iov->iov_len + m_pcb.snd_lbb - m_pcb.lastack) <= wnd; // Window allows the dummy packet it to be sent
+	}
 
 	// stats
 	uint64_t m_n_pbufs_rcvd;
