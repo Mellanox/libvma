@@ -65,7 +65,7 @@
 qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num, const uint32_t tx_num_wr):
 	m_qp(NULL), m_p_ring((ring_simple*)p_ring), m_port_num((uint8_t)port_num), m_p_ib_ctx_handler((ib_ctx_handler*)p_context),
 	m_p_ahc_head(NULL), m_p_ahc_tail(NULL), m_max_inline_data(0), m_max_qp_wr(0), m_p_cq_mgr_rx(NULL), m_p_cq_mgr_tx(NULL),
-	m_rx_num_wr(safe_mce_sys().rx_num_wr), m_tx_num_wr(tx_num_wr),
+	m_rx_num_wr(safe_mce_sys().rx_num_wr), m_tx_num_wr(tx_num_wr), m_hw_dummy_send_support(false),
 	m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv),
 	m_n_sysvar_tx_num_wr_to_signal(safe_mce_sys().tx_num_wr_to_signal),
 	m_n_sysvar_rx_prefetch_bytes_before_poll(safe_mce_sys().rx_prefetch_bytes_before_poll),
@@ -116,14 +116,21 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 			priv_vma_transport_type_str(m_p_ring->get_transport_type()),
 			m_p_ib_ctx_handler->get_ibv_device()->name, m_p_ib_ctx_handler->get_ibv_device(), m_port_num);
 
-	// Check device capabilities for max QP work requests
 	vma_ibv_device_attr& r_ibv_dev_attr = m_p_ib_ctx_handler->get_ibv_device_attr();
+	
+	// Check device capabilities for max QP work requests	
 	m_max_qp_wr = ALIGN_WR_DOWN(r_ibv_dev_attr.max_qp_wr - 1);;
 	if (m_rx_num_wr > m_max_qp_wr) {
 		qp_logwarn("Allocating only %d Rx QP work requests while user requested %s=%d for QP on <%p, %d>",
 			   m_max_qp_wr, SYS_VAR_RX_NUM_WRE, m_rx_num_wr, m_p_ib_ctx_handler, m_port_num);
 		m_rx_num_wr = m_max_qp_wr;
 	}
+
+	// Check device capabilities for dummy send support
+#ifdef DEFINED_IBV_EXP_WR_NOP
+	m_hw_dummy_send_support = r_ibv_dev_attr.exp_device_cap_flags & IBV_EXP_DEVICE_NOP;
+#endif
+	qp_logdbg("HW Dummy send support for QP = %d", m_hw_dummy_send_support);
 
 	// Create associated Tx & Rx cq_mgrs
 	m_p_cq_mgr_tx = new cq_mgr(m_p_ring, m_p_ib_ctx_handler, m_tx_num_wr, m_p_ring->get_tx_comp_event_channel(), false);

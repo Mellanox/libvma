@@ -239,6 +239,23 @@ void ring_bond::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe,
 	}
 }
 
+bool ring_bond::get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe)
+{
+	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
+	ring_simple* active_ring = m_active_rings[id];
+
+	if (likely(active_ring && p_mem_buf_desc->p_desc_owner == active_ring)) {
+		return active_ring->get_hw_dummy_send_support(id, p_send_wqe);
+	} else {
+		active_ring = m_bond_rings[id];
+		if (likely(p_mem_buf_desc->p_desc_owner == active_ring)) {
+			return active_ring->get_hw_dummy_send_support(id, p_send_wqe);
+		} else {
+			return false;
+		}
+	}
+}
+
 int ring_bond::get_max_tx_inline()
 {
 	return m_min_devices_tx_inline;

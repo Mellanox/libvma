@@ -210,6 +210,7 @@ typedef struct {
 	uint32_t		n_tx_os_errors;
 	uint32_t		n_tx_os_eagain;
 	uint32_t		n_tx_migrations;
+	uint32_t		n_tx_dummy;
 } socket_counters_t;
 
 typedef struct {

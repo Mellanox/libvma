@@ -1244,7 +1244,13 @@ ssize_t send(int __fd, __const void *__buf, size_t __nbytes, int __flags)
 		return p_socket_object->tx(TX_SEND, piov, 1, __flags);
 	}
 
-	return orig_os_api.send(__fd, __buf, __nbytes, __flags);
+	// Ignore dummy messages for OS
+	if (unlikely(IS_DUMMY_PACKET(__flags))) {
+		errno = EINVAL;
+		return -1;
+	} else {
+		return orig_os_api.send(__fd, __buf, __nbytes, __flags);
+	}
 }
 
 /* Sends a message as described by MESSAGE to socket FD.
@@ -1268,7 +1274,13 @@ ssize_t sendmsg(int __fd, __const struct msghdr *__msg, int __flags)
 		return p_socket_object->tx(TX_SENDMSG, __msg->msg_iov, __msg->msg_iovlen, __flags, (__CONST_SOCKADDR_ARG)__msg->msg_name, (socklen_t)__msg->msg_namelen);
 	}
 
-	return orig_os_api.sendmsg(__fd, __msg, __flags);
+	// Ignore dummy messages for OS
+	if (unlikely(IS_DUMMY_PACKET(__flags))) {
+		errno = EINVAL;
+		return -1;
+	} else {
+		return orig_os_api.sendmsg(__fd, __msg, __flags);
+	}
 }
 
 /* Send multiple messages as described by MESSAGE from socket FD.
@@ -1311,7 +1323,13 @@ int sendmmsg(int __fd, struct mmsghdr *__mmsghdr, unsigned int __vlen, int __fla
 		return num_of_msg;
 	}
 
-	return orig_os_api.sendmmsg(__fd, __mmsghdr, __vlen, __flags);
+	// Ignore dummy messages for OS
+	if (unlikely(IS_DUMMY_PACKET(__flags))) {
+		errno = EINVAL;
+		return -1;
+	} else {
+		return orig_os_api.sendmmsg(__fd, __mmsghdr, __vlen, __flags);
+	}
 }
 
 /* Send N bytes of BUF on socket FD to peer at address ADDR (which is
@@ -1338,7 +1356,13 @@ ssize_t sendto(int __fd, __const void *__buf, size_t __nbytes, int __flags,
 		return p_socket_object->tx(TX_SENDTO, piov, 1, __flags, __to, __tolen);
 	}
 
-	return orig_os_api.sendto(__fd, __buf, __nbytes, __flags, __to, __tolen);
+	// Ignore dummy messages for OS
+	if (unlikely(IS_DUMMY_PACKET(__flags))) {
+		errno = EINVAL;
+		return -1;
+	} else {
+		return orig_os_api.sendto(__fd, __buf, __nbytes, __flags, __to, __tolen);
+	}
 }
 
 

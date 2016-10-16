@@ -230,6 +230,10 @@ void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, 
 		fprintf(filename, "Tx OS info: %u KB / %u / %u / %u [bytes/packets/eagains/errors]%s\n",  p_si_stats->counters.n_tx_os_bytes/BYTES_TRAFFIC_UNIT,  p_si_stats->counters.n_tx_os_packets, p_si_stats->counters.n_tx_os_eagain, p_si_stats->counters.n_tx_os_errors, post_fix);
 		b_any_activiy = true;
 	}
+	if (p_si_stats->counters.n_tx_dummy) {
+		fprintf(filename, "Tx Dummy messages : %d\n", p_si_stats->counters.n_tx_dummy);
+		b_any_activiy = true;
+	}
 	if (p_si_stats->counters.n_rx_bytes || p_si_stats->counters.n_rx_packets || p_si_stats->counters.n_rx_eagain || p_si_stats->counters.n_rx_errors)
 	{
 		fprintf(filename, "Rx Offload: %u KB / %u / %u / %u [bytes/packets/eagains/errors]%s\n",  p_si_stats->counters.n_rx_bytes/BYTES_TRAFFIC_UNIT,  p_si_stats->counters.n_rx_packets, p_si_stats->counters.n_rx_eagain,  p_si_stats->counters.n_rx_errors, post_fix);

@@ -292,6 +292,13 @@ ssize_t socket_fd_api::tx_os(const tx_call_t call_type,
 			     const socklen_t __tolen)
 {
 	errno = 0;
+
+	// Ignore dummy messages for OS
+	if (unlikely(IS_DUMMY_PACKET(__flags))) {
+		errno = EINVAL;
+		return -1;
+	}
+
 	switch (call_type) {
 	case TX_WRITE:
 		__log_info_func("calling os transmit with orig write");

@@ -47,6 +47,8 @@
 #define SOCK_CLOEXEC 02000000
 #endif
 
+#define IS_DUMMY_PACKET(flags) (flags & VMA_SND_FLAGS_DUMMY)
+
 class cq_mgr;
 class epfd_info;
 

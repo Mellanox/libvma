@@ -601,6 +601,34 @@ unsigned sockinfo_tcp::tx_wait(int & err, bool is_blocking)
 	return sz;
 }
 
+bool sockinfo_tcp::check_dummy_send_conditions(const int flags, const struct iovec* p_iov, const ssize_t sz_iov)
+{
+	// Calculate segment max length
+	uint8_t optflags = TF_SEG_OPTS_DUMMY_MSG;
+	uint16_t mss_local = MIN(m_pcb.mss, m_pcb.snd_wnd_max / 2);
+	mss_local = mss_local ? mss_local : m_pcb.mss;
+
+	#if LWIP_TCP_TIMESTAMPS
+		if ((m_pcb.flags & TF_TIMESTAMP)) {
+			optflags |= TF_SEG_OPTS_TS;
+			mss_local = MAX(mss_local, LWIP_TCP_OPT_LEN_TS + 1);
+		}
+	#endif /* LWIP_TCP_TIMESTAMPS */
+
+	u16_t max_len = mss_local - LWIP_TCP_OPT_LENGTH(optflags);
+
+	// Calculate window size
+	u32_t wnd = MIN(m_pcb.snd_wnd, m_pcb.cwnd);
+
+	return !m_pcb.unsent && // Unsent queue should be empty
+		!(flags & MSG_MORE) && // Verify MSG_MORE flags is not set
+		sz_iov == 1 && // We want to prevent a case in which we call tcp_write() for scatter/gather element.
+		p_iov->iov_len && // We have data to sent
+		p_iov->iov_len <= max_len && // Data will not be split into more then one segment
+		wnd && // Window is not empty
+		(p_iov->iov_len + m_pcb.snd_lbb - m_pcb.lastack) <= wnd; // Window allows the dummy packet it to be sent
+}
+
 ssize_t sockinfo_tcp::tx(const tx_call_t call_type, const struct iovec* p_iov, const ssize_t sz_iov, const int flags, const struct sockaddr *__to, const socklen_t __tolen)
 {
 	int total_tx = 0;
@@ -609,6 +637,7 @@ ssize_t sockinfo_tcp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 	unsigned pos = 0;
 	int ret = 0;
 	int poll_count = 0;
+	bool is_dummy = IS_DUMMY_PACKET(flags);
 	bool block_this_run = m_b_blocking && !(flags & MSG_DONTWAIT);
 
 	if (unlikely(m_sock_offload != TCP_SOCK_LWIP)) {
@@ -652,8 +681,15 @@ retry_is_ready:
 		
 		return -1;
 	}
-	si_tcp_logfunc("tx: iov=%p niovs=%d", p_iov, sz_iov);
+	si_tcp_logfunc("tx: iov=%p niovs=%d dummy=%d", p_iov, sz_iov, is_dummy);
 	lock_tcp_con();
+
+	if (unlikely(is_dummy) && !check_dummy_send_conditions(flags, p_iov, sz_iov)) {
+		unlock_tcp_con();
+		errno = EIO;
+		return -1;
+	}
+
 	for (int i = 0; i < sz_iov; i++) {
 		si_tcp_logfunc("iov:%d base=%p len=%d", i, p_iov[i].iov_base, p_iov[i].iov_len);
 
@@ -710,7 +746,7 @@ retry_write:
 				si_tcp_logdbg("returning with: EINTR");
 				goto err;
 			}
-			err = tcp_write(&m_pcb, (char *)p_iov[i].iov_base + pos, tx_size, 3);
+			err = tcp_write(&m_pcb, (char *)p_iov[i].iov_base + pos, tx_size, 3, is_dummy);
 			if (unlikely(err != ERR_OK)) {
 				if (unlikely(err == ERR_CONN)) { // happens when remote drops during big write
 					si_tcp_logdbg("connection closed: tx'ed = %d", total_tx);
@@ -760,13 +796,17 @@ retry_write:
 		}	
 	}
 done:	
-	if (total_tx) {
+
+	tcp_output(&m_pcb); // force data out
+
+	if (unlikely(is_dummy)) {
+		m_p_socket_stats->counters.n_tx_dummy++;
+	} else if (total_tx) {
 		m_p_socket_stats->counters.n_tx_sent_byte_count += total_tx;
 		m_p_socket_stats->counters.n_tx_sent_pkt_count++;
 		m_p_socket_stats->n_tx_ready_byte_count += total_tx;
 	}
 
-	tcp_output(&m_pcb); // force data out
 	unlock_tcp_con();
 
 #ifdef VMA_TIME_MEASURE	
@@ -790,7 +830,7 @@ err:
 	
 }
 
-err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit)
+err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit, uint8_t is_dummy)
 {
 	iovec iovec[64];
 	struct iovec* p_iovec = iovec;
@@ -827,15 +867,17 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit)
 		p_si_tcp->m_p_socket_stats->counters.n_tx_retransmits++;
 
 	if (likely((p_dst->is_valid()))) {
-		p_dst->fast_send(p_iovec, count, false, is_rexmit);
+		p_dst->fast_send(p_iovec, count, is_dummy, false, is_rexmit);
 	} else {
-		p_dst->slow_send(p_iovec, count, false, is_rexmit);
+		p_dst->slow_send(p_iovec, count, is_dummy, false, is_rexmit);
 	}
 	return ERR_OK;
 }
 
-err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rexmit)
+err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rexmit, uint8_t is_dummy)
 {
+	NOT_IN_USE(is_dummy);
+
 	iovec iovec[64];
 	struct iovec* p_iovec = iovec;
 	tcp_iovec tcp_iovec_temp; //currently we pass p_desc only for 1 size iovec, since for bigger size we allocate new buffers

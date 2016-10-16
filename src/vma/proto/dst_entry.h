@@ -66,8 +66,8 @@ public:
 	virtual void 	notify_cb();
 
 	virtual bool 	prepare_to_send(bool skip_rules=false, bool is_connect=false);
-	virtual ssize_t slow_send(const iovec* p_iov, size_t sz_iov, bool b_blocked = true, bool is_rexmit = false, int flags = 0, socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF) = 0 ;
-	virtual ssize_t fast_send(const struct iovec* p_iov, const ssize_t sz_iov, bool b_blocked = true, bool is_rexmit = false, bool dont_inline = false) = 0;
+	virtual ssize_t slow_send(const iovec* p_iov, size_t sz_iov, bool is_dummy, bool b_blocked = true, bool is_rexmit = false, int flags = 0, socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF) = 0 ;
+	virtual ssize_t fast_send(const struct iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked = true, bool is_rexmit = false, bool dont_inline = false) = 0;
 
 	bool		try_migrate_ring(lock_base& socket_lock);
 
@@ -162,6 +162,24 @@ protected:
 
 	void			do_ring_migration(lock_base& socket_lock);
 	inline void		set_tx_buff_list_pending(bool is_pending = true) {m_b_tx_mem_buf_desc_list_pending = is_pending;}
+
+	inline void		send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block, bool b_dummy)
+	{
+		if (unlikely(b_dummy)) {
+			if (m_p_ring->get_hw_dummy_send_support(id, p_send_wqe)) {
+				vma_ibv_wr_opcode last_opcode = m_p_send_wqe_handler->set_opcode(*p_send_wqe, VMA_IBV_WR_NOP);
+				m_p_ring->send_ring_buffer(id, p_send_wqe, b_block);
+				m_p_send_wqe_handler->set_opcode(*p_send_wqe, last_opcode);
+			} else {
+				/* free the buffer if dummy send is not supported */
+				mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
+				m_p_ring->mem_buf_tx_release(p_mem_buf_desc, true);
+			}
+		} else {
+			m_p_ring->send_ring_buffer(id, p_send_wqe, b_block);
+		}
+	}
+
 };
 
 

@@ -301,8 +301,11 @@ struct tcp_seg {
 #define TF_SEG_DATA_CHECKSUMMED (u8_t)0x04U /* ALL data (not the header) is
                                                checksummed into 'chksum' */
 #define TF_SEG_OPTS_WNDSCALE	(u8_t)0x08U /* Include window scaling option */
+#define TF_SEG_OPTS_DUMMY_MSG	(u8_t)0x10U /* Include dummy send option */
   struct tcp_hdr *tcphdr;  /* the TCP header */
 };
+
+#define LWIP_IS_DUMMY_SEGMENT(seg) (seg->flags & TF_SEG_OPTS_DUMMY_MSG)
 
 #if LWIP_TCP_TIMESTAMPS
 #define LWIP_TCP_OPT_LEN_TS     10

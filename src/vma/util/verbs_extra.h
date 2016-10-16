@@ -142,7 +142,10 @@ typedef int            vma_ibv_cq_init_attr;
 #define vma_ibv_send_flags			ibv_send_flags
 #define vma_send_wr_send_flags(wr)		(wr).send_flags
 #define VMA_IBV_WR_SEND				IBV_WR_SEND
+#define vma_ibv_wr_opcode			ibv_wr_opcode
 #define vma_send_wr_opcode(wr)			(wr).opcode
+// Use 0 as "default" opcode since IBV_WR_NOP is not defined.
+#define VMA_IBV_WR_NOP				(vma_ibv_wr_opcode)(0)
 #define vma_ibv_post_send(qp, wr, bad_wr)	ibv_post_send(qp, wr, bad_wr)
 typedef struct ibv_send_wr			vma_ibv_send_wr;
 //ibv_reg_mr
@@ -239,7 +242,16 @@ typedef int            vma_ibv_cq_init_attr;
 #define vma_ibv_send_flags			ibv_exp_send_flags
 #define vma_send_wr_send_flags(wr)		(wr).exp_send_flags
 #define VMA_IBV_WR_SEND				IBV_EXP_WR_SEND
+#define vma_ibv_wr_opcode			ibv_exp_wr_opcode
 #define vma_send_wr_opcode(wr)			(wr).exp_opcode
+
+#ifdef DEFINED_IBV_EXP_WR_NOP
+#define VMA_IBV_WR_NOP				IBV_EXP_WR_NOP
+#else
+// Use 0 as "default" opcode when NOP is not defined.
+#define VMA_IBV_WR_NOP				(vma_ibv_wr_opcode)(0)
+#endif
+
 #define vma_ibv_post_send(qp, wr, bad_wr)	ibv_exp_post_send(qp, wr, bad_wr)
 typedef struct ibv_exp_send_wr			vma_ibv_send_wr;
 //ibv_reg_mr

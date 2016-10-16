@@ -119,6 +119,10 @@ public:
 	ib_ctx_handler* 	get_ib_ctx_handler() const { return m_p_ib_ctx_handler; }
 	uint32_t		get_rx_max_wr_num();
 
+	// This function can be replaced with a parameter during ring creation.
+	// chain of calls may serve as cache warm for dummy send feature.
+	inline bool		get_hw_dummy_send_support() {return m_hw_dummy_send_support; }
+
 	// create a AH cleaner object which will be linked to the following post send (if any)
 	void                    ah_cleanup(struct ibv_ah* ah);
 
@@ -146,6 +150,8 @@ protected:
 
 	uint32_t 		m_rx_num_wr;
 	uint32_t 		m_tx_num_wr;
+
+	bool  			m_hw_dummy_send_support;
 
 	const uint32_t 		m_n_sysvar_rx_num_wr_to_post_recv;
 	const uint32_t 		m_n_sysvar_tx_num_wr_to_signal;
