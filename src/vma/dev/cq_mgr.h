@@ -111,7 +111,12 @@ public:
 	int	wait_for_notification_and_process_element(uint64_t* p_cq_poll_sn,
 	   	                                          void* pv_fd_ready_array = NULL);
 	inline volatile struct mlx5_cqe64 *mlx5_get_cqe64(void);
+	inline volatile struct mlx5_cqe64 *mlx5_get_cqe64(volatile struct mlx5_cqe64 **cqe_err);
+	volatile struct mlx5_cqe64 *mlx5_check_error_completion(volatile struct mlx5_cqe64 *cqe, volatile uint16_t *ci, uint8_t op_own);
 	inline void mlx5_handle_cqe64(volatile struct mlx5_cqe64 *cqe, vma_ibv_wc *wce);
+	int mlx5_poll_and_process_error_element_rx(volatile struct mlx5_cqe64 *cqe, void* pv_fd_ready_array);
+	int mlx5_poll_and_process_error_element_tx(volatile struct mlx5_cqe64 *cqe, uint64_t* p_cq_poll_sn);
+
 	/**
 	 * This will poll n_num_poll time on the cq or stop early if it gets
 	 * a wce (work completion element). If a wce was found 'processing' will
