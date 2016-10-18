@@ -152,7 +152,10 @@ inline uint32_t cq_mgr::process_recv_queue(void* pv_fd_ready_array)
 }
 
 cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx) :
-		m_p_ring(p_ring), m_p_ib_ctx_handler(p_ib_ctx_handler), m_b_is_rx(is_rx), m_comp_event_channel(p_comp_event_channel), m_p_next_rx_desc_poll(NULL)
+		m_p_ring(p_ring), m_p_ib_ctx_handler(p_ib_ctx_handler), m_b_is_rx(is_rx),
+		m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv),
+		m_comp_event_channel(p_comp_event_channel),
+		m_p_next_rx_desc_poll(NULL)
 {
 	cq_logfunc("");
 	m_rx_hot_buff = NULL;
@@ -321,7 +324,7 @@ void cq_mgr::add_qp_rx(qp_mgr* qp)
 	uint32_t qp_rx_wr_num = qp->get_rx_max_wr_num();
 	cq_logdbg("Trying to push %d WRE to allocated qp (%p)", qp_rx_wr_num, qp);
 	while (qp_rx_wr_num) {
-		uint32_t n_num_mem_bufs = safe_mce_sys().rx_num_wr_to_post_recv;
+		uint32_t n_num_mem_bufs = m_n_sysvar_rx_num_wr_to_post_recv;
 		if (n_num_mem_bufs > qp_rx_wr_num)
 			n_num_mem_bufs = qp_rx_wr_num;
 		p_temp_desc_list = g_buffer_pool_rx->get_buffers_thread_safe(n_num_mem_bufs, m_p_ib_ctx_handler);
@@ -811,12 +814,12 @@ int cq_mgr::vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 	volatile mlx5_cqe64 *cqe_err = NULL;
 	volatile mlx5_cqe64 *cqe = mlx5_get_cqe64(&cqe_err);
 
-	if (likely(cqe && NULL == cqe_err)) {
+	if (likely(cqe)) {
 		++m_n_wce_counter;
 		++m_qp->m_mlx5_hw_qp->rq.tail;
 		m_rx_hot_buff->sz_data = ntohl(cqe->byte_cnt);
 
-		if (unlikely(++m_qp_rec.debth >= safe_mce_sys().rx_num_wr_to_post_recv)) {
+		if (unlikely(++m_qp_rec.debth >= m_n_sysvar_rx_num_wr_to_post_recv)) {
 			compensate_qp_poll_success(m_rx_hot_buff);
 		}
 		++packets_num;
@@ -875,12 +878,12 @@ int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready
 		volatile mlx5_cqe64 *cqe_err = NULL;
 		volatile mlx5_cqe64 *cqe = mlx5_get_cqe64(&cqe_err);
 
-		if (likely(cqe && NULL == cqe_err)) {
+		if (likely(cqe)) {
 			++m_n_wce_counter;
 			++m_qp->m_mlx5_hw_qp->rq.tail;
 			m_rx_hot_buff->sz_data = ntohl(cqe->byte_cnt);
 
-			if (unlikely(++m_qp_rec.debth >= safe_mce_sys().rx_num_wr_to_post_recv)) {
+			if (unlikely(++m_qp_rec.debth >= m_n_sysvar_rx_num_wr_to_post_recv)) {
 				compensate_qp_poll_success(m_rx_hot_buff);
 			}
 			process_recv_buffer(m_rx_hot_buff, pv_fd_ready_array);
@@ -907,7 +910,7 @@ int cq_mgr::poll_and_process_helper_tx(uint64_t* p_cq_poll_sn)
 	volatile mlx5_cqe64 *cqe_err = NULL;
 	volatile mlx5_cqe64 *cqe = mlx5_get_cqe64(&cqe_err);
 
-	if (likely(cqe && NULL == cqe_err)) {
+	if (likely(cqe)) {
 		m_qp->m_mlx5_hw_qp->sq.tail += NUM_TX_POST_SEND_NOTIFY;
 		uint16_t wqe_ctr = ntohs(cqe->wqe_counter);
 		int index = wqe_ctr & (m_qp->m_tx_num_wr - 1);
@@ -943,8 +946,9 @@ int cq_mgr::mlx5_poll_and_process_error_element_rx(volatile struct mlx5_cqe64 *c
 {
 	vma_ibv_wc wce;
 
+	memset(&wce, 0, sizeof(wce));
 	wce.wr_id = (uintptr_t)m_rx_hot_buff;
-	mlx5_handle_cqe64(cqe, &wce);
+	mlx5_cqe64_to_vma_wc(cqe, &wce);
 
 	++m_n_wce_counter;
 	++m_qp->m_mlx5_hw_qp->rq.tail;
@@ -952,7 +956,7 @@ int cq_mgr::mlx5_poll_and_process_error_element_rx(volatile struct mlx5_cqe64 *c
 	m_rx_hot_buff = process_cq_element_rx(&wce);
 	if (m_rx_hot_buff) {
 		if (vma_wc_opcode(wce) & VMA_IBV_WC_RECV) {
-			if ((++m_qp_rec.debth < safe_mce_sys().rx_num_wr_to_post_recv) ||
+			if ((++m_qp_rec.debth < m_n_sysvar_rx_num_wr_to_post_recv) ||
 				!compensate_qp_poll_success(m_rx_hot_buff)) {
 					process_recv_buffer(m_rx_hot_buff, pv_fd_ready_array);
 			}
@@ -985,8 +989,9 @@ int cq_mgr::mlx5_poll_and_process_error_element_tx(volatile struct mlx5_cqe64 *c
 
 	*p_cq_poll_sn = m_n_global_sn = next_sn.global_sn;
 
+	memset(&wce, 0, sizeof(wce));
 	wce.wr_id = m_qp->m_sq_wqe_idx_to_wrid[index];
-	mlx5_handle_cqe64(cqe, &wce);
+	mlx5_cqe64_to_vma_wc(cqe, &wce);
 
 	buff = process_cq_element_tx(&wce);
 	if (buff) {
@@ -996,7 +1001,7 @@ int cq_mgr::mlx5_poll_and_process_error_element_tx(volatile struct mlx5_cqe64 *c
 	return 1;
 }
 
-inline void cq_mgr::mlx5_handle_cqe64(volatile struct mlx5_cqe64 *cqe, vma_ibv_wc *wc)
+inline void cq_mgr::mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, vma_ibv_wc *wc)
 {
 	struct mlx5_err_cqe *ecqe;
 	ecqe = (struct mlx5_err_cqe *)cqe;
@@ -1086,11 +1091,9 @@ inline volatile struct mlx5_cqe64 *cq_mgr::mlx5_get_cqe64(volatile struct mlx5_c
 		return NULL;
 	}
 
-	if (cqe) {
-		++m_cq_ci;
-		wmb();
-		*m_cq_db = htonl(m_cq_ci);
-	}
+	++m_cq_ci;
+	wmb();
+	*m_cq_db = htonl(m_cq_ci);
 
 	return cqe;
 }
@@ -1220,8 +1223,9 @@ int cq_mgr::drain_and_proccess(bool b_recycle_buffers /*=false*/)
 			 * in case failure
 			 */
 			m_rx_hot_buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_rq_wqe_idx_to_wrid[index];
+			memset(&wce, 0, sizeof(wce));
 			wce.wr_id = (uintptr_t)m_rx_hot_buff;
-			mlx5_handle_cqe64(cqe, &wce);
+			mlx5_cqe64_to_vma_wc(cqe, &wce);
 
 			m_rx_hot_buff = process_cq_element_rx(&wce);
 			if (m_rx_hot_buff) {
@@ -1239,7 +1243,7 @@ int cq_mgr::drain_and_proccess(bool b_recycle_buffers /*=false*/)
 					// We process immediately all non udp/ip traffic..
 					if (procces_now) {
 						m_rx_hot_buff->path.rx.is_vma_thr = true;
-						if ((++m_qp_rec.debth < safe_mce_sys().rx_num_wr_to_post_recv) ||
+						if ((++m_qp_rec.debth < m_n_sysvar_rx_num_wr_to_post_recv) ||
 							!compensate_qp_poll_success(m_rx_hot_buff)) {
 							process_recv_buffer(m_rx_hot_buff, NULL);
 						}
@@ -1248,7 +1252,7 @@ int cq_mgr::drain_and_proccess(bool b_recycle_buffers /*=false*/)
 						m_rx_queue.push_back(m_rx_hot_buff);
 						mem_buf_desc_t* buff_cur = m_rx_queue.front();
 						m_rx_queue.pop_front();
-						if ((++m_qp_rec.debth < safe_mce_sys().rx_num_wr_to_post_recv) ||
+						if ((++m_qp_rec.debth < m_n_sysvar_rx_num_wr_to_post_recv) ||
 							!compensate_qp_poll_success(buff_cur)) {
 							m_rx_queue.push_front(buff_cur);
 						}
