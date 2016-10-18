@@ -575,7 +575,7 @@ ring_user_id_t ring_bond::generate_id(const address_t src_mac, const address_t d
 	return hash % m_n_num_resources;
 }
 
-const ib_ctx_handler* ring_bond::get_active_ctx_handle(ring_user_id_t id) 
+const ib_ctx_handler* ring_bond::get_active_ctx_handle(ring_user_id_t id)
 {
 	return m_active_rings[id]->get_active_ctx_handle(id);
 }

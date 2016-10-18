@@ -18,13 +18,13 @@ dynamic_buffer_pool *g_buffer_pool_rx = NULL;
 dynamic_buffer_pool *g_buffer_pool_tx = NULL;
 
 dynamic_buffer_pool::dynamic_buffer_pool(size_t init_buffers_count, size_t buffer_size, size_t max_buffers, size_t free_buffers_min_threshold,
-		pbuf_free_custom_fn custom_free_function) : 
+		pbuf_free_custom_fn custom_free_function):
+		m_lock_spin("dynamic_buffer_pool"),
 		m_n_dyn_buffers(0), m_n_dyn_buffers_created(0),
 		m_buffer_size(buffer_size), m_max_buffers(max_buffers), m_min_threshold(free_buffers_min_threshold),
 		m_custom_free_function(custom_free_function), m_need_alloc(false),
 		m_rx_stat(false), m_tx_stat(false)
 {
-	m_lock_spin = lock_spin("dynamic_buffer_pool");
 	allocate_addtional_buffers(init_buffers_count);
 }
 
@@ -114,11 +114,11 @@ int dynamic_buffer_pool::allocate_addtional_buffers(size_t count)
 	m_need_alloc=false;
 
 	if (count + m_n_dyn_buffers_created > m_max_buffers) {
-		vlog_printf(VLOG_ERROR, "Cannot allocate additional %d buffers. Maximum limit=%d , total buffers=%d, free buffers=%d\n", count, m_max_buffers, m_n_dyn_buffers_created, m_n_dyn_buffers);
+		vlog_printf(VLOG_DEBUG, "Cannot allocate additional %d buffers. Maximum limit=%d , total buffers=%d, free buffers=%d\n", count, m_max_buffers, m_n_dyn_buffers_created, m_n_dyn_buffers);
 		return -1;
 	}
-
 	m_curr_bpool = new buffer_pool(count, m_buffer_size, NULL, m_custom_free_function);
+
 	if (m_rx_stat)
 		m_curr_bpool->set_RX_TX_for_stats(true);
 	if (m_tx_stat)
@@ -229,7 +229,7 @@ size_t dynamic_buffer_pool::get_free_count()
 
 size_t dynamic_buffer_pool::get_curr_free_count()
 {
-	return m_curr_bpool->get_free_count(); 
+	return m_curr_bpool->get_free_count();
 }
 
 mem_buf_desc_t *dynamic_buffer_pool::get_buffers_thread_safe(size_t count, const ib_ctx_handler *p_ib_ctx_h)

@@ -949,7 +949,7 @@ void get_env_params()
 	safe_mce_sys().mce_spec		= 0;
 	safe_mce_sys().mce_spec_param1		= 1;
 	safe_mce_sys().mce_spec_param2		= 1;
-	
+
 	safe_mce_sys().neigh_num_err_retries	= MCE_DEFAULT_NEIGH_NUM_ERR_RETRIES;
 	safe_mce_sys().neigh_uc_arp_quata	= MCE_DEFAULT_NEIGH_UC_ARP_QUATA;
 	safe_mce_sys().neigh_wait_till_send_arp_msec = MCE_DEFAULT_NEIGH_UC_ARP_DELAY_MSEC;
@@ -1686,9 +1686,8 @@ static void do_global_ctors_helper()
 
  	NEW_CTOR(g_tcp_timers_collection, tcp_timers_collection(safe_mce_sys().tcp_timer_resolution_msec, safe_mce_sys().timer_resolution_msec));
 
-	NEW_CTOR(g_p_vlogger_timer_handler, vlogger_timer_handler()); 
+	NEW_CTOR(g_p_vlogger_timer_handler, vlogger_timer_handler());
 
-	// OM: verify where bpool_timer_handler allocation is free. It seems like a resource leakage. Also need to call unregister_timer_event(...)
  	dynamic_bpool_timer_handler* bpool_timer_handler = NULL;
  	NEW_CTOR(bpool_timer_handler, dynamic_bpool_timer_handler(min(mce_sys.rx_num_bufs_init, mce_sys.tx_num_bufs_init)));
  	g_p_event_handler_manager->register_timer_event(mce_sys.timer_bpool_aloc_msec, bpool_timer_handler, PERIODIC_TIMER, NULL);

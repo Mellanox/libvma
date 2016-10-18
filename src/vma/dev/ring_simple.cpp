@@ -1136,7 +1136,7 @@ void ring_simple::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wq
 	NOT_IN_USE(id);
 	m_lock_ring_tx.lock();
 	mem_buf_desc_t* desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
-	p_send_wqe->sg_list[0].lkey = desc->p_bpool->get_lkey_by_ctx(get_active_ctx_handle());
+	p_send_wqe->sg_list[0].lkey = desc->p_bpool->get_lkey_by_ctx(m_p_ib_ctx);
 	int ret = send_buffer(p_send_wqe, b_block);
 	send_status_handler(ret, p_send_wqe);
 	m_lock_ring_tx.unlock();
@@ -1148,7 +1148,7 @@ void ring_simple::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wq
 	NOT_IN_USE(id);
 	m_lock_ring_tx.lock();
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
-	p_send_wqe->sg_list[0].lkey = p_mem_buf_desc->p_bpool->get_lkey_by_ctx(get_active_ctx_handle());
+	p_send_wqe->sg_list[0].lkey = p_mem_buf_desc->p_bpool->get_lkey_by_ctx(m_p_ib_ctx);
 	p_mem_buf_desc->lwip_pbuf.pbuf.ref++;
 	int ret = send_buffer(p_send_wqe, b_block);
 	send_status_handler(ret, p_send_wqe);

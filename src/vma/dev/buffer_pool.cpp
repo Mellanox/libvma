@@ -148,7 +148,7 @@ void buffer_pool::free_bpool_resources()
 	// Unregister memory
 	for (uint i=0; i < m_mr_arr_size; i++) {
 		ibv_mr *mr = m_p_mr_arr[i];
-		ib_ctx_handler* p_ib_ctx_handler = g_p_ib_ctx_handler_collection->get_ib_ctx(mr->context); 
+		ib_ctx_handler* p_ib_ctx_handler = g_p_ib_ctx_handler_collection->get_ib_ctx(mr->context);
 		if (!p_ib_ctx_handler->is_removed()) {
 			IF_VERBS_FAILURE(ibv_dereg_mr(mr)) {
 				__log_info_err("failed de-registering a memory region (errno=%d %m)", errno);
@@ -240,7 +240,12 @@ bool buffer_pool::hugetlb_alloc(size_t sz_bytes)
 
 bool buffer_pool::register_memory(size_t size, uint64_t access)
 {
-	m_mr_arr_size = g_p_ib_ctx_handler_collection->get_num_devices();;
+	if (m_p_mr_arr) {
+		__log_info_warn("Function register_memory called but memory is already registered. Please refer to README.txt for more info");
+		return true;
+	}
+
+	m_mr_arr_size = g_p_ib_ctx_handler_collection->get_num_devices();
 	m_p_mr_arr = new ibv_mr*[m_mr_arr_size];
 
 
@@ -277,12 +282,13 @@ mem_buf_desc_t *buffer_pool::get_buffers(size_t count, const ib_ctx_handler *p_i
 	NOT_IN_USE(p_ib_ctx_h);
 	mem_buf_desc_t *next, *head;
 
-	__log_info_funcall("requested %lu, present %lu, created %lu", count, m_n_buffers, m_n_buffers_created);
+	__log_info_funcall("requested %lu, present %lu, created %lu",
+			   count, m_n_buffers, m_n_buffers_created);
 
 	if (m_n_buffers < count) {
 		static vlog_levels_t log_severity = VLOG_DEBUG; // DEBUG severity will be used only once - at the 1st time
 
-		VLOG_PRINTF_INFO(log_severity, "not enough buffers in the pool (requested: %lu, have: %lu, created: %lu )",
+		VLOG_PRINTF_INFO(log_severity, "not enough buffers in the pool (requested: %lu, have: %lu, created: %lu)",
 				count, m_n_buffers, m_n_buffers_created);
 
 		log_severity = VLOG_FUNC; // for all times but the 1st one
@@ -474,7 +480,7 @@ void buffer_pool::put_buffers(descq_t *buffers, size_t count)
 	}
 }
 
- uint32_t buffer_pool::get_lkey_by_ctx(const ib_ctx_handler* ctx)
+uint32_t buffer_pool::get_lkey_by_ctx(const ib_ctx_handler* ctx)
 {
 	return m_p_mr_arr[ctx->get_dev_index()]->lkey;
 }

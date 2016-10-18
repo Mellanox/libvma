@@ -39,20 +39,20 @@ class buffer_pool
 {
 public:
 	buffer_pool(size_t buffer_count, size_t size, mem_buf_desc_owner *owner, pbuf_free_custom_fn custom_free_function);
-	virtual ~buffer_pool();
+	~buffer_pool();
 
 	/**
-	 * Get buffers from the pool 
+	 * Get buffers from the pool
 	 * @param count Number of buffers required.
 	 * @return List of buffers, or NULL if don't have enough buffers.
 	 */
-	virtual mem_buf_desc_t*	get_buffers(size_t count, const ib_ctx_handler *p_ib_ctx_h);
+	mem_buf_desc_t*	get_buffers(size_t count, const ib_ctx_handler *p_ib_ctx_h);
 
 	/**
 	 * Return buffers to the pool.
 	 */
-	virtual void 		put_buffers(descq_t *buffers, size_t count);
-	virtual int 		put_buffers(mem_buf_desc_t *buff_list);
+	void 		put_buffers(descq_t *buffers, size_t count);
+	int 		put_buffers(mem_buf_desc_t *buff_list);
 
 	/**
 	 * @returns the matching memory region for specific device
@@ -62,14 +62,13 @@ public:
 	void		set_RX_TX_for_stats(bool rx = true);
 	size_t		get_free_count();
 
-
 private:
 	size_t          m_n_buffers;
 	size_t          m_n_buffers_created;
 
 	// pointer to data block
 	void		*m_data_block;
-	
+
     // contiguous pages allocation indicator
     bool m_is_contig_alloc;
 
@@ -91,7 +90,7 @@ private:
 	 * Allocate data block in hugetlb memory
 	 */
 	bool 		hugetlb_alloc(size_t sz_bytes);
-	
+
 	/**
 	 * Register memory
 	 */

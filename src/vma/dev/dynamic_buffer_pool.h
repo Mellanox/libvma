@@ -17,18 +17,19 @@
 #include "vma/dev/buffer_pool.h"
 #include "vma/event/timer_handler.h"
 #include <deque>
-#include <map>
 
 class dynamic_buffer_pool;
 
 /**
- * A buffer pool with option to be dynamically growth when a minimal threshold of free buffers are left.
- * It starts with single buffer_pool and provides option to growth dynamically by allocating new buffer_pools once a minimal threshold of free buffers is reached.
+ * A buffer pool with option to dynamically grow when a minimal threshold of free buffers is left.
+ * It starts with a single buffer_pool and provides an option to grow dynamically by allocating new buffer_pools once a minimal threshold of free buffers is reached.
  * The user provides a callback to be called once the minimum free buffers threshold is reached and accordingly to decide what context and when to allocate additional buffers.
  * The calls to get_buffers is never blocked on waiting for new buffers but returns with failure in case of lack of buffers.
   */
 class dynamic_buffer_pool
 {
+	friend class dynamic_bpool_timer_handler;
+
 public:
 	dynamic_buffer_pool(size_t init_buffers_count, size_t buffer_size, size_t max_buffers, size_t free_buffers_min_threshold,
 			pbuf_free_custom_fn custom_free_function);
@@ -47,8 +48,6 @@ public:
 	virtual void 		put_buffers(descq_t *buffers, size_t count);
 	virtual int 		put_buffers(mem_buf_desc_t *buff_list);
 
-	int allocate_addtional_buffers(size_t count);
-
 	static void 	free_rx_lwip_pbuf_custom(struct pbuf *p_buff);
 	static void 	free_tx_lwip_pbuf_custom(struct pbuf *p_buff);
 
@@ -57,7 +56,6 @@ public:
 	/*
 	 * returns TRUE if minimum threshold was reached and allocate_addtional_buffers() was't called yet or FALSE otherwise
 	 */
-	bool get_need_alloc() { return m_need_alloc; }
 
 	int put_buffers_thread_safe(mem_buf_desc_t *buff_list);
 	void put_buffers_thread_safe(descq_t *buffers, size_t count);
@@ -90,6 +88,8 @@ private:
 	bool m_tx_stat;
 
 	void 		update_max_free_bpool();
+	int allocate_addtional_buffers(size_t count);
+	bool get_need_alloc() { return m_need_alloc; }
 };
 
 extern dynamic_buffer_pool* g_buffer_pool_rx;
