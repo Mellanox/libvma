@@ -469,25 +469,36 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 
 	return_reuse_buffers_postponed();
 
-	tcp_close(&m_pcb);
-
-	if (is_listen_socket) {
-		tcp_accept(&m_pcb, 0);
-		tcp_syn_handled((struct tcp_pcb_listen*)(&m_pcb), 0);
-		tcp_clone_conn((struct tcp_pcb_listen*)(&m_pcb), 0);
-		prepare_listen_to_close(); //close pending to accept sockets
+	/* According to "UNIX Network Programming" third edition,
+	 * setting SO_LINGER with timeout 0 prior to calling close()
+	 * will cause the normal termination sequence not to be initiated.
+	 * If l_onoff is nonzero and l_linger is zero, TCP aborts the connection when it is closed.
+	 * That is, TCP discards any data still remaining in the socket
+	 * send buffer and sends an RST to the peer, not the normal four-packet connection
+	 * termination sequence
+	 */
+	if (get_tcp_state(&m_pcb) != LISTEN && m_linger.l_onoff && !m_linger.l_linger) {
+		abort_connection();
 	} else {
-		tcp_recv(&m_pcb, sockinfo_tcp::rx_drop_lwip_cb);
-		tcp_sent(&m_pcb, 0);
-	}
+		tcp_close(&m_pcb);
 
+		if (is_listen_socket) {
+			tcp_accept(&m_pcb, 0);
+			tcp_syn_handled((struct tcp_pcb_listen*)(&m_pcb), 0);
+			tcp_clone_conn((struct tcp_pcb_listen*)(&m_pcb), 0);
+			prepare_listen_to_close(); //close pending to accept sockets
+		} else {
+			tcp_recv(&m_pcb, sockinfo_tcp::rx_drop_lwip_cb);
+			tcp_sent(&m_pcb, 0);
+		}
+
+		//todo should we do this each time we get into prepare_to_close ?
+		if (get_tcp_state(&m_pcb) != LISTEN) {
+			handle_socket_linger();
+		}
+	}
 
 	NOTIFY_ON_EVENTS(this, EPOLLHUP);
-
-	//todo should we do this each time we get into prepare_to_close ?
-	if (get_tcp_state(&m_pcb) != LISTEN) {
-		handle_socket_linger();
-	}
 
 	do_wakeup();
 
@@ -523,8 +534,6 @@ void sockinfo_tcp::handle_socket_linger() {
 	if (m_linger.l_onoff && (m_pcb.unsent || m_pcb.unacked)) {
 		if (m_linger.l_linger > 0  /*&& m_b_blocking*/) {
 			errno = ERR_WOULDBLOCK;
-		} else if (m_linger.l_linger == 0) {
-			abort_connection();
 		}
 	}
 }
