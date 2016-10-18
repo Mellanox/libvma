@@ -41,8 +41,6 @@ class test_base {
 public:
 	static int sock_noblock(int fd);
 	static int event_wait(struct epoll_event *event);
-	static int sock_create(int type);
-	static int sock_create_nb(int type);
 
 protected:
 	test_base();
@@ -56,8 +54,9 @@ protected:
 	struct sockaddr_in client_addr;
 	struct sockaddr_in server_addr;
 	struct sockaddr_in remote_addr;
+	struct sockaddr_in bogus_addr;
 	uint16_t port;
-	uint16_t port_abuse;
+	uint16_t bogus_port;
 
 private:
 	static void *thread_func(void *arg);
