@@ -66,13 +66,26 @@ function do_github_status()
 
 function check_env()
 {
-	if [ "$ghprbTargetBranch" != "master" ]; then
-		ofed_v=$(ofed_info -s | grep MLNX_OFED_LINUX | sed 's/MLNX_OFED_LINUX-\([0-9\.]\+\).*/\1/')
-		if [ -z "$ofed_v" -o "$ofed_v" != "3.2" ]; then
-		    echo "environment [NOT OK]"
-		    exit 0
-		fi
-	fi
+    if [ $(command -v ofed_info >/dev/null 2>&1 || echo $?) ]; then
+        echo "Configuration: INBOX : ${ghprbTargetBranch}"
+        echo "environment [NOT OK]"
+        exit 0
+    elif [ -n "$ghprbTargetBranch" -a "$ghprbTargetBranch" != "master" ]; then
+        echo "Configuration: MOFED[$(ofed_info -s)] : ${ghprbTargetBranch}"
+
+        if [ -n "$(uname -m | grep ppc)" ]; then
+            echo "environment [NOT OK]"
+            exit 0
+        fi
+
+        ofed_v=$(ofed_info -s | grep OFED | sed 's/.*[l|X]-\([0-9\.]\+\).*/\1/')
+        if [ $(echo $ofed_v | grep 3.[2-9] >/dev/null 2>&1 || echo $?) ]; then
+            echo "environment [NOT OK]"
+            exit 0
+        fi
+    else
+        echo "Configuration: MOFED[$(ofed_info -s)] : master"
+    fi
 
     echo "environment [OK]"
 }
