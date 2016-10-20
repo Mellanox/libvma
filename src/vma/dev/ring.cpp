@@ -15,7 +15,8 @@
 
 ring::ring(int count, uint32_t mtu) :
 	m_n_num_resources(count), m_p_n_rx_channel_fds(NULL), m_parent(NULL),
-	m_vma_active(false), m_mtu(mtu)
+	m_vma_active(true), /* TODO: This VMA version supports vma_poll() usage mode only */
+	m_mtu(mtu)
 {
 	INIT_LIST_HEAD(&m_ec_list);
 	m_vma_poll_completion = NULL;

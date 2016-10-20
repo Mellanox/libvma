@@ -102,8 +102,6 @@ ring_simple::~ring_simple()
 {
 	ring_logdbg("delete ring()");
 
-	set_vma_active(false);
-
 	// Go over all hash and for each flow: 1.Detach from qp 2.Delete related rfs object 3.Remove flow from hash
 	m_lock_ring_rx.lock();
 	flow_udp_uc_del_all();
@@ -1237,8 +1235,6 @@ int ring_simple::vma_poll(struct vma_completion_t *vma_completions, unsigned int
 	mem_buf_desc_t *desc;
 
 	NOT_IN_USE(flags);
-
-	set_vma_active(true);
 
 	if (likely(vma_completions) && ncompletions) {
 		struct ring_ec *ec = NULL;
