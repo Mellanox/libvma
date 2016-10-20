@@ -241,24 +241,27 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 
 cq_mgr::~cq_mgr()
 {
+	uint32_t ret_total = 0;
 	cq_logdbg("destroying CQ as %s", (m_b_is_rx?"Rx":"Tx"));
 
-	int ret = 0;
-	uint32_t ret_total = 0;
-	uint64_t cq_poll_sn = 0;
-	mem_buf_desc_t* buff = NULL;
-	vma_ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
-	while ((ret = poll(wce, MCE_MAX_CQ_POLL_BATCH, &cq_poll_sn)) > 0) {
-		for (int i = 0; i < ret; i++) {
-			if (m_b_is_rx) {
-				buff = process_cq_element_rx(&wce[i]);
-			} else {
-				buff = process_cq_element_tx(&wce[i]);
+	/* Check if we are in vma_poll() usage mode */
+	if (false == m_p_ring->get_vma_active()) {
+		int ret = 0;
+		uint64_t cq_poll_sn = 0;
+		mem_buf_desc_t* buff = NULL;
+		vma_ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
+		while ((ret = poll(wce, MCE_MAX_CQ_POLL_BATCH, &cq_poll_sn)) > 0) {
+			for (int i = 0; i < ret; i++) {
+				if (m_b_is_rx) {
+					buff = process_cq_element_rx(&wce[i]);
+				} else {
+					buff = process_cq_element_tx(&wce[i]);
+				}
+				if (buff)
+					m_rx_queue.push_back(buff);
 			}
-			if (buff)
-				m_rx_queue.push_back(buff);
+			ret_total += ret;
 		}
-		ret_total += ret;
 	}
 	ret_total = 1;
 	m_b_was_drained = true;
@@ -1159,11 +1162,17 @@ int cq_mgr::drain_and_proccess(bool b_recycle_buffers /*=false*/)
 {
 	cq_logfuncall("cq was %s drained. %d processed wce since last check. %d wce in m_rx_queue", (m_b_was_drained?"":"not "), m_n_wce_counter, m_rx_queue.size());
 
+#if 0 /* TODO: see explanation */
+	/* This function should be called during destructor only.
+	 * Intrenal thread does not launch draining RX logic for vma_poll mode 
+	 * See: net_device_table_mgr::handle_timer_expired(RING_PROGRESS_ENGINE_TIMER)
+	 */
+
 	/* Check if we are in vma_poll() usage mode */
-	if (m_p_ring->get_vma_active()) {
+	if (true == m_p_ring->get_vma_active()) {
 		return 0;
 	}
-
+#endif
 	// CQ polling loop until max wce limit is reached for this interval or CQ is drained
 	uint32_t ret_total = 0;
 	//uint64_t cq_poll_sn = 0;
