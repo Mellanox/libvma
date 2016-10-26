@@ -172,9 +172,11 @@ extern iomux_stats_t* g_p_select_stats;
 extern iomux_stats_t* g_p_poll_stats;
 extern iomux_stats_t* g_p_epoll_stats;
 
+void register_signal_handler(void);
 void do_global_ctors();
 void reset_globals();
 void handle_close(int fd, bool cleanup = false, bool passthrough = false);
+int free_libvma_resources(void);
 
 // allow calling our socket(...) implementation safely from within libvma.so
 // this is critical in case VMA was loaded using dlopen and not using LD_PRELOAD

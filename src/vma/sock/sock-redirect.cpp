@@ -77,7 +77,8 @@ using namespace std;
 
 
 struct os_api orig_os_api;
-struct sigaction g_act_prev;
+#define MAX_SIG	32
+struct sigaction g_act_prev[MAX_SIG];
 
 template<typename T>
 void assign_dlsym(T &ptr, const char *name) {
@@ -1962,20 +1963,69 @@ int daemon(int __nochdir, int __noclose)
 	return ret;
 }
 
-static void handler_intr(int sig)
+static void _vma_handler(int signum)
 {
-	switch (sig) {
+	switch (signum) {
 	case SIGINT:
-		g_b_exit = true;
-		vlog_printf(VLOG_DEBUG, "Catch Signal: SIGINT (%d)\n", sig);
+		vlog_printf(VLOG_DEBUG, "Catch Signal: SIGINT (%d)\n", signum);
+
+		if (safe_mce_sys().handle_sigintr) {
+			vlog_printf(VLOG_ERROR, "Ctrl-C Exit\n");
+		}
+		if (g_act_prev[signum].sa_handler) {
+			g_act_prev[signum].sa_handler(signum);
+		}
+		/* TODO: exit() is not asynchronous-signal-safe function.
+		 * Consider using another mechanizm to meet
+		 * strictly conforming requirement
+		 * exit() is used to call free_libvma_resources()
+		 * that destroy vma internal resources and
+		 * send FIN or RST to peers
+		 */
+		exit(signum);
+		break;
+	case SIGSEGV:
+		vlog_printf(VLOG_DEBUG, "Catch Signal: SIGSEGV (%d)\n", signum);
+
+		if (safe_mce_sys().handle_segfault) {
+			vlog_printf(VLOG_ERROR, "Segmentation Fault\n");
+			printf_backtrace();
+		}
+		if (g_act_prev[signum].sa_handler) {
+			g_act_prev[signum].sa_handler(signum);
+		}
+		/* TODO: exit() is not asynchronous-signal-safe function.
+		 * Consider using another mechanizm to meet
+		 * strictly conforming requirement
+		 * exit() is used to call free_libvma_resources()
+		 * that destroy vma internal resources and
+		 * send FIN or RST to peers
+		 */
+		exit(signum);
 		break;
 	default:
-		vlog_printf(VLOG_DEBUG, "Catch Signal: %d\n", sig);
+		vlog_printf(VLOG_DEBUG, "Catch Signal: %d\n", signum);
 		break;
 	}
+}
 
-	if (g_act_prev.sa_handler)
-		g_act_prev.sa_handler(sig);
+void register_signal_handler(void)
+{
+	int ret = 0;
+	struct sigaction act;
+
+	memset(&act, 0, sizeof(act));
+	act.sa_handler = _vma_handler;
+	act.sa_flags = 0;
+	sigemptyset(&act.sa_mask);
+	if (safe_mce_sys().handle_sigintr) {
+		ret = sigaction(SIGINT, &act, NULL);
+		vlog_printf(VLOG_DEBUG, "Registered a SIGINT handler (ret = %d)\n", ret);
+	}
+	if (safe_mce_sys().handle_segfault) {
+		ret = sigaction(SIGSEGV, &act, NULL);
+		vlog_printf(VLOG_DEBUG, "Registered a SIGSEGV handler (ret = %d)\n", ret);
+	}
 }
 
 extern "C"
@@ -1985,28 +2035,25 @@ int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 
 	if (!orig_os_api.sigaction) get_orig_funcs();
 
-	if (safe_mce_sys().handle_sigintr) {
 		srdr_logdbg_entry("signum=%d, act=%p, oldact=%p", signum, act, oldact);
 
 		switch (signum) {
+		case SIGSEGV:
 		case SIGINT:
-			if (oldact && g_act_prev.sa_handler) {
-				*oldact = g_act_prev;
+			if (oldact && g_act_prev[signum].sa_handler) {
+				*oldact = g_act_prev[signum];
 			}
 			if (act) {
-				struct sigaction vma_action;
-				vma_action.sa_handler = handler_intr;
-				vma_action.sa_flags = 0;
-				sigemptyset(&vma_action.sa_mask);
-
-				ret = orig_os_api.sigaction(SIGINT, &vma_action, NULL);
-
-				if (ret < 0) {
-					vlog_printf(VLOG_DEBUG, "Failed to register VMA SIGINT handler, calling to original sigaction handler\n");
-					break;
+				if ((uintptr_t)act->sa_handler == (uintptr_t)_vma_handler) {
+					ret = orig_os_api.sigaction(signum, act, NULL);
+					if (ret < 0) {
+						vlog_printf(VLOG_DEBUG, "Failed to register VMA signal (%d) handler, calling to original sigaction handler\n", signum);
+						break;
+					}
+				} else {
+					g_act_prev[signum] = *act;
 				}
-				vlog_printf(VLOG_DEBUG, "Registered VMA SIGINT handler\n");
-				g_act_prev = *act;
+				vlog_printf(VLOG_DEBUG, "Registered VMA signal (%d) handler\n", signum);
 			}
 			if (ret >= 0)
 				srdr_logdbg_exit("returned with %d", ret);
@@ -2018,14 +2065,6 @@ int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 		default:
 			break;
 		}
-	}
 	ret = orig_os_api.sigaction(signum, act, oldact);
-
-	if (safe_mce_sys().handle_sigintr) {
-		if (ret >= 0)
-			srdr_logdbg_exit("returned with %d", ret);
-		else
-			srdr_logdbg_exit("failed (errno=%d %m)", errno);
-	}
 	return ret;
 }
