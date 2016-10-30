@@ -26,7 +26,11 @@ rfs_mc::rfs_mc(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* r
 		rfs_logpanic("rfs: rfs_mc called with non MC destination ip");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-
+#if defined(FLOW_TAG_ENABLE)
+	m_b_flow_tag_enabled = p_ring->m_b_flow_tag_enabled;
+	m_n_tag_id_mask = p_ring->m_n_tag_id_mask;
+	m_n_tag_id = p_ring->m_n_tag_id;
+#endif
 	prepare_flow_spec();
 }
 
@@ -45,6 +49,10 @@ void rfs_mc::prepare_flow_spec()
 	attach_flow_data_ib_t*  	      attach_flow_data_ib = NULL;
 #endif
 	attach_flow_data_eth_ipv4_tcp_udp_t*  attach_flow_data_eth = NULL;
+#if defined(FLOW_TAG_ENABLE)
+	attach_flow_data_flow_tag_t*	attach_flow_data_ft_eth = NULL;
+	vma_ibv_exp_flow_spec_action_tag*	p_flow_tag = NULL;
+#endif
 
 	switch (type) {
 		case VMA_TRANSPORT_IB:
@@ -64,6 +72,9 @@ void rfs_mc::prepare_flow_spec()
 #endif
 			break;
 		case VMA_TRANSPORT_ETH:
+#if defined(FLOW_TAG_ENABLE)
+			if(!m_b_flow_tag_enabled) {
+#endif
 			attach_flow_data_eth = new attach_flow_data_eth_ipv4_tcp_udp_t(m_p_ring->m_p_qp_mgr);
 
 			uint8_t dst_mac[6];
@@ -89,6 +100,39 @@ void rfs_mc::prepare_flow_spec()
 						m_flow_tuple.get_src_port());
 
 			p_attach_flow_data = (attach_flow_data_t*)attach_flow_data_eth;
+
+#if defined(FLOW_TAG_ENABLE)
+			} else {
+				attach_flow_data_ft_eth = new attach_flow_data_flow_tag_t(m_p_ring->m_p_qp_mgr);
+
+				uint8_t dst_mac[6];
+				create_multicast_mac_from_ip(dst_mac, m_flow_tuple.get_dst_ip());
+				ibv_flow_spec_eth_set(&(attach_flow_data_ft_eth->ibv_flow_attr.eth),
+							dst_mac,
+								htons(m_p_ring->m_p_qp_mgr->get_partiton()));
+
+				if (safe_mce_sys().eth_mc_l2_only_rules) {
+					ibv_flow_spec_ipv4_set(&(attach_flow_data_ft_eth->ibv_flow_attr.ipv4), 0, 0);
+					ibv_flow_spec_tcp_udp_set(&(attach_flow_data_ft_eth->ibv_flow_attr.tcp_udp), 0, 0, 0);
+					p_attach_flow_data = (attach_flow_data_t*)attach_flow_data_ft_eth;
+					break;
+				}
+
+				p_flow_tag = &(attach_flow_data_ft_eth->ibv_flow_attr.flow_tag);
+				ibv_flow_spec_flow_tag_set(p_flow_tag, m_n_tag_id, m_n_tag_id_mask);
+
+				ibv_flow_spec_ipv4_set(&(attach_flow_data_ft_eth->ibv_flow_attr.ipv4),
+							m_flow_tuple.get_dst_ip(),
+							0);
+
+				ibv_flow_spec_tcp_udp_set(&(attach_flow_data_ft_eth->ibv_flow_attr.tcp_udp),
+							(m_flow_tuple.get_protocol() == PROTO_TCP),
+							m_flow_tuple.get_dst_port(),
+							m_flow_tuple.get_src_port());
+
+				p_attach_flow_data = (attach_flow_data_t*)attach_flow_data_ft_eth;
+			}
+#endif
 			break;
 		BULLSEYE_EXCLUDE_BLOCK_START
 		default:

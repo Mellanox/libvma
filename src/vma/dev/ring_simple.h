@@ -17,6 +17,54 @@
 #include "vma/util/verbs_extra.h"
 #include "vma/util/utils.h"
 #include "vma/vma_extra.h"
+#if defined(FLOW_TAG_ENABLE)
+#include <tr1/array>
+// The size is aligned with HASH_MAP_SIZE
+#define FLOW_TABLE_SIZE	HASH_MAP_SIZE
+
+typedef std::tr1::array<rfs*, FLOW_TABLE_SIZE> flow_tag_array_t;
+
+template<typename T>
+class ft_array {
+public:
+
+	ft_array() : m_index(0), m_s_index(1)
+			{ m_array.assign(0); };
+	~ft_array() {};
+	rfs inline *get_by_index(size_t index) { return m_array[index]; }
+	bool inline get_free_index(uint32_t& index) {
+		for (m_index = m_s_index; m_index < m_array.size(); m_index++) {
+			if (!m_array[m_index]) {
+				index = m_index;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	bool inline store_value(rfs* val, uint32_t index) {
+		if (index < m_array.size()) {
+			m_array[index] = val;
+			return true;
+		}
+		return false;
+	}
+
+	bool inline del_by_value(const rfs* val) {
+		for (m_index = m_s_index; m_index < m_array.size(); m_index++) {
+			if (m_array[m_index] == val) {
+				m_array[m_index] = NULL;
+				return true;
+			}
+		}
+		return false;
+	}
+private:
+	size_t m_index;
+	size_t m_s_index;
+	T m_array;
+};
+#endif // FLOW_TAG_ENABLE
 
 class ring_simple : public ring
 {
@@ -24,32 +72,35 @@ public:
 	ring_simple(in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, uint32_t mtu, ring* parent = NULL) throw (vma_error);
 	virtual ~ring_simple();
 
-	virtual int		request_notification(cq_type_t cq_type, uint64_t poll_sn);
-	virtual int		poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
+	virtual int			request_notification(cq_type_t cq_type, uint64_t poll_sn);
+	virtual int			poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	virtual int 		vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);
 	virtual void		adapt_cq_moderation();
-	bool			reclaim_recv_buffers_no_lock(descq_t *rx_reuse); // No locks
+	bool				reclaim_recv_buffers_no_lock(descq_t *rx_reuse); // No locks
 	virtual bool		reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst); // No locks
-	virtual int		vma_poll_reclaim_single_recv_buffer(mem_buf_desc_t* rx_reuse_lst); // No locks
+	virtual int			vma_poll_reclaim_single_recv_buffer(mem_buf_desc_t* rx_reuse_lst); // No locks
 	virtual void		vma_poll_reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst); // No locks
 	virtual bool		reclaim_recv_buffers(descq_t *rx_reuse);
-	virtual int		drain_and_proccess(cq_type_t cq_type);
-	virtual int		wait_for_notification_and_process_element(cq_type_t cq_type, int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
+	virtual int			drain_and_proccess(cq_type_t cq_type);
+	virtual int			wait_for_notification_and_process_element(cq_type_t cq_type, int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	virtual void		mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc); // Assume locked...
 	// Tx completion handling at the qp_mgr level is just re listing the desc+data buffer in the free lists
 	virtual void		mem_buf_desc_completion_with_error_tx(mem_buf_desc_t* p_tx_wc_buf_desc); // Assume locked...
 	virtual void		mem_buf_desc_return_to_owner_rx(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array = NULL);
 	virtual void		mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc);
-	virtual int		get_max_tx_inline();
-	inline int		send_buffer(vma_ibv_send_wr* p_send_wqe, bool b_block);
+	virtual int			get_max_tx_inline();
+	inline int			send_buffer(vma_ibv_send_wr* p_send_wqe, bool b_block);
 	virtual bool		attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
+#if defined(FLOW_TAG_ENABLE)
+	virtual bool		get_flow_tag(uint32_t& tag_id);
+#endif
 	virtual bool		detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
 	virtual void		restart(ring_resource_creation_info_t* p_ring_info);
-	bool			is_up();
-	void			start_active_qp_mgr();
-	void			stop_active_qp_mgr();
+	bool				is_up();
+	void				start_active_qp_mgr();
+	void				stop_active_qp_mgr();
 	virtual mem_buf_desc_t*	mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_num_mem_bufs = 1);
-	virtual int		mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting, bool trylock = false);
+	virtual int			mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting, bool trylock = false);
 	virtual void		inc_ring_stats(ring_user_id_t id);
 	virtual void		send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block);
 	virtual void		send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block);
@@ -73,7 +124,13 @@ protected:
 	void			create_resources(ring_resource_creation_info_t* p_ring_info, bool active) throw (vma_error);
 	// Internal functions. No need for locks mechanism.
 	inline void 		vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_buf_desc);
+#if defined (FLOW_TAG_ENABLE)
+inline void 		vma_poll_process_recv_buffer_ft(mem_buf_desc_t* p_rx_wc_buf_desc);
+#endif
 	bool			rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_type_t m_transport_type, void* pv_fd_ready_array);
+#if defined(FLOW_TAG_ENABLE)
+bool			rx_process_buffer_ft(mem_buf_desc_t* p_rx_wc_buf_desc, transport_type_t m_transport_type, void* pv_fd_ready_array);
+#endif
 	void			print_flow_to_rfs_udp_uc_map(flow_spec_udp_uc_map_t *p_flow_map);
 	void			print_flow_to_rfs_tcp_map(flow_spec_tcp_map_t *p_flow_map);
 	//	void	print_ring_flow_to_rfs_map(flow_spec_map_t *p_flow_map);
@@ -129,6 +186,12 @@ private:
 	flow_spec_tcp_map_t	m_flow_tcp_map;
 	flow_spec_udp_mc_map_t	m_flow_udp_mc_map;
 	flow_spec_udp_uc_map_t	m_flow_udp_uc_map;
+#if defined(FLOW_TAG_ENABLE)	
+	uint32_t			m_n_tag_id;
+	uint32_t			m_n_tag_id_mask;
+	bool				m_b_flow_tag_enabled;
+	ft_array<flow_tag_array_t> m_ft_array;
+#endif
 	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_head;
 	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_tail;
 };

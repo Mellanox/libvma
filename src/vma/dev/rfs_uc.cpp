@@ -27,7 +27,11 @@ rfs_uc::rfs_uc(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* r
 		rfs_logpanic("rfs: rfs_uc called with MC destination ip");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-
+#if defined(FLOW_TAG_ENABLE)
+	m_b_flow_tag_enabled = p_ring->m_b_flow_tag_enabled;
+	m_n_tag_id_mask = p_ring->m_n_tag_id_mask;
+	m_n_tag_id = p_ring->m_n_tag_id;
+#endif
 	prepare_flow_spec();
 }
 
@@ -46,7 +50,10 @@ void rfs_uc::prepare_flow_spec()
 	attach_flow_data_eth_ipv4_tcp_udp_t*   attach_flow_data_eth = NULL;
 	vma_ibv_flow_spec_ipv4*             p_ipv4 = NULL;
 	vma_ibv_flow_spec_tcp_udp*          p_tcp_udp = NULL;
-
+#if defined(FLOW_TAG_ENABLE)
+	attach_flow_data_flow_tag_t*	attach_flow_data_ft_eth = NULL;
+	vma_ibv_exp_flow_spec_action_tag*	p_flow_tag = NULL;
+#endif
 	switch (type) {
 		case VMA_TRANSPORT_IB:
 			attach_flow_data_ib = new attach_flow_data_ib_ipv4_tcp_udp_t(m_p_ring->m_p_qp_mgr);
@@ -60,16 +67,34 @@ void rfs_uc::prepare_flow_spec()
 			p_attach_flow_data = (attach_flow_data_t*)attach_flow_data_ib;
 			break;
 		case VMA_TRANSPORT_ETH:
+#if defined(FLOW_TAG_ENABLE)
+			if(!m_b_flow_tag_enabled) {
+#endif
 			attach_flow_data_eth = new attach_flow_data_eth_ipv4_tcp_udp_t(m_p_ring->m_p_qp_mgr);
 
 			ibv_flow_spec_eth_set(&(attach_flow_data_eth->ibv_flow_attr.eth),
 					m_p_ring->m_p_l2_addr->get_address(),
 						htons(m_p_ring->m_p_qp_mgr->get_partiton()));
 
-
 			p_ipv4 = &(attach_flow_data_eth->ibv_flow_attr.ipv4);
 			p_tcp_udp = &(attach_flow_data_eth->ibv_flow_attr.tcp_udp);
 			p_attach_flow_data = (attach_flow_data_t*)attach_flow_data_eth;
+#if defined(FLOW_TAG_ENABLE)
+			} else {
+				attach_flow_data_ft_eth = new attach_flow_data_flow_tag_t(m_p_ring->m_p_qp_mgr);
+
+				ibv_flow_spec_eth_set(&(attach_flow_data_ft_eth->ibv_flow_attr.eth),
+						m_p_ring->m_p_l2_addr->get_address(),
+							htons(m_p_ring->m_p_qp_mgr->get_partiton()));
+
+				p_ipv4 = &(attach_flow_data_ft_eth->ibv_flow_attr.ipv4);
+				p_tcp_udp = &(attach_flow_data_ft_eth->ibv_flow_attr.tcp_udp);
+
+				p_flow_tag = &(attach_flow_data_ft_eth->ibv_flow_attr.flow_tag);
+				ibv_flow_spec_flow_tag_set(p_flow_tag, m_n_tag_id, m_n_tag_id_mask);
+				p_attach_flow_data = (attach_flow_data_t*)attach_flow_data_ft_eth;
+			}
+#endif
 			break;
 		BULLSEYE_EXCLUDE_BLOCK_START
 		default:
@@ -77,11 +102,9 @@ void rfs_uc::prepare_flow_spec()
 			break;
 		BULLSEYE_EXCLUDE_BLOCK_END
 	}
-
 	ibv_flow_spec_ipv4_set(p_ipv4,
 				m_flow_tuple.get_dst_ip(),
 				m_flow_tuple.get_src_ip());
-
 	ibv_flow_spec_tcp_udp_set(p_tcp_udp,
 				(m_flow_tuple.get_protocol() == PROTO_TCP),
 				m_flow_tuple.get_dst_port(),
