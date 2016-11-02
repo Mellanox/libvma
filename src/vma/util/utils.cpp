@@ -121,10 +121,6 @@ int get_base_interface_name(const char *if_name, char *base_ifname, size_t sz_ba
 			if (!strcmp(ifa->ifa_name, if_name)) {
 				continue;
 			}
-			if (ifa->ifa_flags & IFF_SLAVE) {
-				//bond slave
-				continue;
-			}
 
 			if (strstr(ifa->ifa_name, ":")) {
 				//alias
