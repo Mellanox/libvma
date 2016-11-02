@@ -290,6 +290,7 @@ bool sockinfo_tcp::prepare_listen_to_close()
 	{
 		sockinfo_tcp *new_sock = m_accepted_conns.front();
 		new_sock->m_sock_state = TCP_SOCK_INITED;
+
 		struct flow_tuple key;
 		sockinfo_tcp::create_flow_tuple_key_from_pcb(key, &(new_sock->m_pcb));
 		m_syn_received.erase(key);
@@ -1195,7 +1196,6 @@ int sockinfo_tcp::handle_child_FIN(sockinfo_tcp* child_conn)
 	if (m_ready_pcbs.find(&child_conn->m_pcb) != m_ready_pcbs.end()) {
 		m_ready_pcbs.erase(&child_conn->m_pcb);
 	}
-
 	// remove the connection from m_syn_received and close it by caller
 	struct flow_tuple key;
 	sockinfo_tcp::create_flow_tuple_key_from_pcb(key, &(child_conn->m_pcb));
@@ -1631,10 +1631,21 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	}
 
 	if (unlikely(get_tcp_state(&m_pcb) == LISTEN)) {
+#if !defined(FLOW_TAG_ENABLE)
 		pcb = get_syn_received_pcb(p_rx_pkt_mem_buf_desc_info->path.rx.src.sin_addr.s_addr,
 				p_rx_pkt_mem_buf_desc_info->path.rx.src.sin_port,
 				p_rx_pkt_mem_buf_desc_info->path.rx.dst.sin_addr.s_addr,
 				p_rx_pkt_mem_buf_desc_info->path.rx.dst.sin_port);
+#else
+		if(m_b_flow_tag_enabled) {
+			pcb = get_syn_received_pcb(p_rx_pkt_mem_buf_desc_info->tag_id);
+		} else {
+			pcb = get_syn_received_pcb(p_rx_pkt_mem_buf_desc_info->path.rx.src.sin_addr.s_addr,
+					p_rx_pkt_mem_buf_desc_info->path.rx.src.sin_port,
+					p_rx_pkt_mem_buf_desc_info->path.rx.dst.sin_addr.s_addr,
+					p_rx_pkt_mem_buf_desc_info->path.rx.dst.sin_port);
+		}
+#endif
 		bool established_backlog_full = false;
 		if (!pcb) {
 			pcb = &m_pcb;
@@ -2381,6 +2392,12 @@ void sockinfo_tcp::auto_accept_connection(sockinfo_tcp *parent, sockinfo_tcp *ch
 		parent->m_received_syn_num--;
 	}
 
+#if defined(FLOW_TAG_ENABLE)
+	if(parent->m_b_flow_tag_enabled) {
+		parent->m_syn_received_ft.erase(parent->m_n_tag_id);
+	}
+#endif
+
 	parent->unlock_tcp_con();
 	child->lock_tcp_con();
 
@@ -2556,6 +2573,20 @@ struct tcp_pcb* sockinfo_tcp::get_syn_received_pcb(const flow_tuple &key) const
 	return ret_val;
 }
 
+#if defined(FLOW_TAG_ENABLE)
+struct tcp_pcb* sockinfo_tcp::get_syn_received_pcb(uint32_t tag_id) const
+{
+	struct tcp_pcb* ret_val = NULL;
+	syn_received_map_ft_t::const_iterator itr;
+
+	itr = m_syn_received_ft.find(tag_id);
+	if (itr != m_syn_received_ft.end()) {
+		ret_val = itr->second;
+	}
+	return ret_val;
+}
+#endif
+
 struct tcp_pcb* sockinfo_tcp::get_syn_received_pcb(in_addr_t peer_ip, in_port_t peer_port, in_addr_t local_ip, in_port_t local_port)
 {
 	flow_tuple key(local_ip, local_port, peer_ip, peer_port, PROTO_TCP);
@@ -2636,10 +2667,21 @@ err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_
 		new_sock->fit_snd_bufs(new_sock->m_sndbuff_max);
 	}
 
+#if !defined(FLOW_TAG_ENABLE)
 	flow_tuple key;
 	create_flow_tuple_key_from_pcb(key, newpcb);
 
 	listen_sock->m_syn_received[key] =  newpcb;
+#else
+	if (listen_sock->m_b_flow_tag_enabled) {
+		listen_sock->m_syn_received_ft[listen_sock->m_n_tag_id] =  newpcb;
+	} else {
+		flow_tuple key;
+		create_flow_tuple_key_from_pcb(key, newpcb);
+		
+		listen_sock->m_syn_received[key] =	newpcb;
+	}
+#endif
 
 	listen_sock->m_received_syn_num++;
 

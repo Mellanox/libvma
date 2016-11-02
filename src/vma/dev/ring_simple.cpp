@@ -1840,7 +1840,6 @@ bool ring_simple::rx_process_buffer_ft(mem_buf_desc_t* p_rx_wc_buf_desc, transpo
 		//p_rx_wc_buf_desc->path.rx.dst.sin_port        = p_udp_h->dest;
 		p_rx_wc_buf_desc->path.rx.sz_payload          = sz_payload;
 
-		// Find the relevant hash map and pass the packet to the rfs for dispatching
 		// Find the relevant rfs for dispatching
 		p_rfs = m_ft_array.get_by_index(p_rx_wc_buf_desc->tag_id);
 	}
