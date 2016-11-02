@@ -340,7 +340,7 @@ bool net_device_table_mgr::verify_ipoib_or_eth_qp_creation(const char* interface
 {
 	int iftype = get_iftype_from_ifname(interface_name);
 	if (iftype == ARPHRD_INFINIBAND) {
-		if (verify_enable_ipoib(interface_name) && verify_mlx4_ib_device(interface_name) && verify_ipoib_mode(ifa)) {
+		if (verify_enable_ipoib(interface_name) && verify_ipoib_mode(ifa)) {
 			return true;
 		}
 	} else {
@@ -391,20 +391,6 @@ bool net_device_table_mgr::verify_ipoib_mode(struct ifaddrs* ifa)
 	}
 	else {
 		ndtm_logdbg("verified interface '%s' is running with umcast disabled", ifa->ifa_name);
-	}
-	return true;
-}
-
-//ifname should point to a physical device
-bool net_device_table_mgr::verify_mlx4_ib_device(const char* ifname)
-{
-	if (!check_device_exist(ifname, MLX4_DRIVER_PATH)) {
-		ndtm_logdbg("*******************************************************************************************************\n");
-		ndtm_logdbg("* All traffic over interface %s will not be offloaded!", ifname);
-		ndtm_logdbg("* Flow Steering of IPoIB traffic is not supported on this HCA");
-		ndtm_logdbg("* Please refer to VMA Release Notes for details limitations.");
-		ndtm_logdbg("*******************************************************************************************************\n");
-		return false;
 	}
 	return true;
 }
