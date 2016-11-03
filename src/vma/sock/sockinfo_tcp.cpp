@@ -1631,7 +1631,7 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	}
 
 	if (unlikely(get_tcp_state(&m_pcb) == LISTEN)) {
-#if !defined(FLOW_TAG_ENABLE)
+#if !defined(DEFINED_IBV_EXP_FLOW_TAG)
 		pcb = get_syn_received_pcb(p_rx_pkt_mem_buf_desc_info->path.rx.src.sin_addr.s_addr,
 				p_rx_pkt_mem_buf_desc_info->path.rx.src.sin_port,
 				p_rx_pkt_mem_buf_desc_info->path.rx.dst.sin_addr.s_addr,
@@ -2392,7 +2392,7 @@ void sockinfo_tcp::auto_accept_connection(sockinfo_tcp *parent, sockinfo_tcp *ch
 		parent->m_received_syn_num--;
 	}
 
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 	if(parent->m_b_flow_tag_enabled) {
 		parent->m_syn_received_ft.erase(parent->m_n_tag_id);
 	}
@@ -2573,7 +2573,7 @@ struct tcp_pcb* sockinfo_tcp::get_syn_received_pcb(const flow_tuple &key) const
 	return ret_val;
 }
 
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 struct tcp_pcb* sockinfo_tcp::get_syn_received_pcb(uint32_t tag_id) const
 {
 	struct tcp_pcb* ret_val = NULL;
@@ -2667,7 +2667,7 @@ err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_
 		new_sock->fit_snd_bufs(new_sock->m_sndbuff_max);
 	}
 
-#if !defined(FLOW_TAG_ENABLE)
+#if !defined(DEFINED_IBV_EXP_FLOW_TAG)
 	flow_tuple key;
 	create_flow_tuple_key_from_pcb(key, newpcb);
 

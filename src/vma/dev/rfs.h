@@ -92,7 +92,7 @@ typedef struct __attribute__ ((packed)) ibv_flow_attr_ib_ipv4_tcp_udp {
 } ibv_flow_attr_ib_ipv4_tcp_udp;
 #endif
 
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 typedef struct __attribute__ ((packed)) ibv_flow_attr_flow_tag {
 	vma_ibv_flow_attr             attr;
 	vma_ibv_flow_spec_eth         eth;
@@ -238,7 +238,7 @@ private:
 	inline void 		prepare_filter_attach(int& filter_counter, rule_filter_map_t::iterator& filter_iter);
 	inline void 		filter_keep_attached(rule_filter_map_t::iterator& filter_iter);
 	inline void 		prepare_filter_detach(int& filter_counter);
-#if defined(FLOW_TAG_ENABLE)	
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)	
 	bool				m_b_flow_tag_enabled;
 #endif
 };

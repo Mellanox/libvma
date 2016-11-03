@@ -222,11 +222,11 @@ private:
 	//a sub helper for poll_and_process_helper_rx in order to shorten the function
 	void		handle_tcp_ctl_packets(uint32_t rx_processed, void* pv_fd_ready_array);
 	int		vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst);
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 int 	vma_poll_and_process_element_rx_ft(mem_buf_desc_t **p_desc_lst);
 #endif
 	int		poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 int 	poll_and_process_helper_rx_ft(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 #endif
 	int		poll_and_process_helper_tx(uint64_t* p_cq_poll_sn);
@@ -240,7 +240,7 @@ int 	poll_and_process_helper_rx_ft(uint64_t* p_cq_poll_sn, void* pv_fd_ready_arr
 	void		vma_poll_reclaim_recv_buffer_helper(mem_buf_desc_t* buff);
 	inline uint32_t process_recv_queue(void* pv_fd_ready_array = NULL);
 	inline void	process_recv_buffer(mem_buf_desc_t* buff, void* pv_fd_ready_array = NULL);
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 	inline void	process_recv_buffer_ft(mem_buf_desc_t* buff, void* pv_fd_ready_array = NULL);
 #endif
 	//returns list of buffers to the owner.

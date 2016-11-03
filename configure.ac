@@ -352,7 +352,8 @@ else
     AC_MSG_RESULT([yes])
 fi
 
-# Experimental Verbs Flow Tag
+#
+# Experimental Verbs Flow Tagging
 #
 AC_ARG_ENABLE(flow_tag,
 	AC_HELP_STRING([--disable-flow-tag], [Disable Flow Tagging]),
@@ -367,9 +368,8 @@ if test "x${with_flow_tag}" = "xyes" ; then
 	ac_cv_libverbs_flow_tag=no)
 	AC_MSG_RESULT($ac_cv_libverbs_flow_tag)
 	if test $ac_cv_libverbs_flow_tag = yes ; then
-		AC_DEFINE([FLOW_TAG_ENABLE], [1], [Flow Tagging enable])
-    	CFLAGS="$CFLAGS -DFLOW_TAG_ENABLE"
-	fi
+		AC_DEFINE([DEFINED_IBV_EXP_FLOW_TAG], [1], [Define to 1 enable Flow Tagging functionality])
+ 	fi
 fi
 
 #

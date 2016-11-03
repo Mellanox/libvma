@@ -220,7 +220,7 @@ public:
 	virtual ~ring();
 
 	virtual bool		attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) = 0;
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 	virtual bool		get_flow_tag(uint32_t& tag_id) = 0;
 #endif	
 	virtual bool		detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) = 0;

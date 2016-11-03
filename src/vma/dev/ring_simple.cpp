@@ -207,7 +207,7 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 			max_qp_wr, SYS_VAR_TX_NUM_WRE, m_tx_num_wr);
 		m_tx_num_wr = max_qp_wr;
 	}
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 	m_b_flow_tag_enabled = true;
 	// PRM flow_tag bit length
 	m_n_tag_id_mask = (1 << 24) -1;
@@ -279,7 +279,7 @@ void ring_simple::restart(ring_resource_creation_info_t* p_ring_info)
 	ring_logpanic("Can't restart a simple ring");
 }
 
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 bool	ring_simple::get_flow_tag(uint32_t& tag_id)
 {
 	tag_id = m_n_tag_id;
@@ -303,7 +303,7 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	 * currently we assume the ctors does not require the ring to be locked.
 	 */
 	m_lock_ring_rx.lock();
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 	bool reinit_flow_spec = false;
 	bool adjst_mask = true;
 reattach_flow:
@@ -312,7 +312,7 @@ reattach_flow:
 	if (flow_spec_5t.is_udp_uc()) {
 		flow_spec_udp_uc_key_t key_udp_uc = {flow_spec_5t.get_dst_port()};
 		p_rfs = m_flow_udp_uc_map.get(key_udp_uc, NULL);
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 		if (m_b_flow_tag_enabled) {
 			if (reinit_flow_spec) {
 				if (p_rfs) {
@@ -326,7 +326,7 @@ reattach_flow:
 		}
 #endif
 		if (p_rfs == NULL) {		// It means that no rfs object exists so I need to create a new one and insert it to the flow map
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 			if (m_b_flow_tag_enabled) {
 				if (!m_ft_array.get_free_index(m_n_tag_id)) {
 					ring_logerr("Failed to allocate in ft array!");
@@ -337,7 +337,7 @@ reattach_flow:
 			m_lock_ring_rx.unlock();
 #endif
 			p_tmp_rfs = new rfs_uc(&flow_spec_5t, this);
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 			if (m_b_flow_tag_enabled) {
 				m_ft_array.store_value(p_tmp_rfs, m_n_tag_id);
 			}
@@ -373,7 +373,7 @@ reattach_flow:
 			}
 		}
 		p_rfs = m_flow_udp_mc_map.get(key_udp_mc, NULL);
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 		if (m_b_flow_tag_enabled) {
 			if (reinit_flow_spec) {
 				if (p_rfs) {
@@ -387,7 +387,7 @@ reattach_flow:
 		}
 #endif
 		if (p_rfs == NULL) {		// It means that no rfs object exists so I need to create a new one and insert it to the flow map
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 			if (m_b_flow_tag_enabled) {
 				if (!m_ft_array.get_free_index(m_n_tag_id)) {
 					ring_logerr("Failed to allocate in ft array!");
@@ -401,7 +401,7 @@ reattach_flow:
 				l2_mc_ip_filter = new rfs_rule_filter(m_l2_mc_ip_attach_map, key_udp_mc.dst_ip, flow_spec_5t);
 			}
 			p_tmp_rfs = new rfs_mc(&flow_spec_5t, this, l2_mc_ip_filter);
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 			if (m_b_flow_tag_enabled) {
 				m_ft_array.store_value(p_tmp_rfs, m_n_tag_id);
 			}
@@ -434,7 +434,7 @@ reattach_flow:
 			}
 		}
 		p_rfs = m_flow_tcp_map.get(key_tcp, NULL);
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 		if (m_b_flow_tag_enabled) {
 			if (reinit_flow_spec) {
 				if (p_rfs) {
@@ -448,7 +448,7 @@ reattach_flow:
 		}
 #endif
 		if (p_rfs == NULL) {		// It means that no rfs object exists so I need to create a new one and insert it to the flow map
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 			if (m_b_flow_tag_enabled) {
 				if (!m_ft_array.get_free_index(m_n_tag_id)) {
 					ring_logerr("Failed to allocate in ft array!");
@@ -463,13 +463,13 @@ reattach_flow:
 				tcp_dst_port_filter = new rfs_rule_filter(m_tcp_dst_port_attach_map, key_tcp.dst_port, tcp_3t_only);
 			}
 			if(safe_mce_sys().gro_streams_max && flow_spec_5t.is_5_tuple()) {
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 				m_lock_ring_rx.unlock();
 #endif
 				p_tmp_rfs = new rfs_uc_tcp_gro(&flow_spec_5t, this, tcp_dst_port_filter);
 			} else {
 				p_tmp_rfs = new rfs_uc(&flow_spec_5t, this, tcp_dst_port_filter);
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 				if (m_b_flow_tag_enabled) {
 					m_ft_array.store_value(p_tmp_rfs, m_n_tag_id);
 				}
@@ -500,7 +500,7 @@ reattach_flow:
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	bool ret = p_rfs->attach_flow(sink);
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 	if (m_b_flow_tag_enabled) {
 		if (!ret) {
 			reinit_flow_spec = true;
@@ -538,7 +538,7 @@ bool ring_simple::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 	if (flow_spec_5t.is_udp_uc()) {
 		flow_spec_udp_uc_key_t key_udp_uc = {flow_spec_5t.get_dst_port()};
 		p_rfs = m_flow_udp_uc_map.get(key_udp_uc, NULL);
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 		if (m_b_flow_tag_enabled) {
 			if (m_ft_array.del_by_value(p_rfs)) {
 				ring_logdbg("Could not find rfs in ft array!");
@@ -575,7 +575,7 @@ bool ring_simple::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 			}
 		}
 		p_rfs = m_flow_udp_mc_map.get(key_udp_mc, NULL);
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 		if (m_b_flow_tag_enabled) {
 			if (!m_ft_array.del_by_value(p_rfs)) {
 				ring_logdbg("Could not find rfs in ft array!");
@@ -617,7 +617,7 @@ bool ring_simple::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 			}
 		}
 		p_rfs = m_flow_tcp_map.get(key_tcp, NULL);
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 		if (m_b_flow_tag_enabled) {
 			if (!m_ft_array.del_by_value(p_rfs)) {
 				ring_logdbg("Could not find rfs in ft array!");
@@ -1034,10 +1034,9 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 	p_rx_wc_buf_desc->path.rx.vma_polled = false;
 }
 
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 inline void ring_simple::vma_poll_process_recv_buffer_ft(mem_buf_desc_t* p_rx_wc_buf_desc)
 {
-	//size_t sz_data = 0;
 	size_t transport_header_len = 0;
 	uint16_t ip_hdr_len = 0;
 	uint16_t ip_tot_len = 0;
@@ -1299,7 +1298,7 @@ inline void ring_simple::vma_poll_process_recv_buffer_ft(mem_buf_desc_t* p_rx_wc
 	p_rfs->rx_dispatch_packet(p_rx_wc_buf_desc, NULL);
 	p_rx_wc_buf_desc->path.rx.vma_polled = false;
 }
-#endif /* FLOW_TAG_ENABLE */
+#endif /* DEFINED_IBV_EXP_FLOW_TAG */
 
 // All CQ wce come here for some basic sanity checks and then are distributed to the correct ring handler
 // Return values: false = Reuse this data buffer & mem_buf_desc
@@ -1612,7 +1611,7 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 	return p_rfs->rx_dispatch_packet(p_rx_wc_buf_desc, pv_fd_ready_array);
 }
 
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 bool ring_simple::rx_process_buffer_ft(mem_buf_desc_t* p_rx_wc_buf_desc, transport_type_t transport_type, void* pv_fd_ready_array /*=NULL*/)
 {
 	size_t sz_data = 0;
@@ -1916,7 +1915,7 @@ bool ring_simple::rx_process_buffer_ft(mem_buf_desc_t* p_rx_wc_buf_desc, transpo
 	}
 	return p_rfs->rx_dispatch_packet(p_rx_wc_buf_desc, pv_fd_ready_array);
 }
-#endif /* FLOW_TAG_ENABLE */
+#endif /* DEFINED_IBV_EXP_FLOW_TAG */
 
 int ring_simple::request_notification(cq_type_t cq_type, uint64_t poll_sn)
 {
@@ -1969,7 +1968,7 @@ int ring_simple::vma_poll(struct vma_completion_t *vma_completions, unsigned int
 				 * in right order. It is done to avoid locking and
 				 * may be it is not so critical
 				 */
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 					if(likely(m_b_flow_tag_enabled)) {
 						if (likely(m_p_cq_mgr_rx->vma_poll_and_process_element_rx_ft(&desc))) {
 							vma_poll_process_recv_buffer_ft(desc);

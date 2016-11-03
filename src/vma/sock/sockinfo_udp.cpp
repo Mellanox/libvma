@@ -1702,7 +1702,7 @@ bool sockinfo_udp::tx_check_if_would_not_block()
 
 bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 {
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 	if (unlikely(!m_b_flow_tag_enabled)) {
 		// Check that sockinfo is bound to the packets dest port
 		if (unlikely(p_desc->path.rx.dst.sin_port != m_bound.get_in_port())) {

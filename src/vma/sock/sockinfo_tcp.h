@@ -69,7 +69,7 @@ class sockinfo_tcp;
 
 typedef std::map<tcp_pcb*, int>		ready_pcb_map_t;
 typedef std::map<flow_tuple, tcp_pcb*>	syn_received_map_t;
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 typedef std::map<int, tcp_pcb*>	syn_received_map_ft_t;
 #endif
 typedef vma_list_t<sockinfo_tcp>      accepted_conns_deque_t;
@@ -236,7 +236,7 @@ private:
 	//Relevant only for listen sockets: map connections in syn received state
 	//We need this map since for syn received connection no sockinfo is created yet!
 	syn_received_map_t m_syn_received;
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 	syn_received_map_ft_t m_syn_received_ft;
 #endif
 	uint32_t m_received_syn_num;
@@ -349,7 +349,7 @@ private:
 	struct tcp_pcb* get_syn_received_pcb(const flow_tuple &key) const;
 	struct tcp_pcb* get_syn_received_pcb(in_addr_t src_addr, in_port_t src_port, in_addr_t dest_addr,
             							 in_port_t dest_port, int protocol, in_addr_t local_addr);
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 	struct tcp_pcb* get_syn_received_pcb(uint32_t tag_id) const;
 #endif
 	virtual	mem_buf_desc_t* get_front_m_rx_pkt_ready_list();

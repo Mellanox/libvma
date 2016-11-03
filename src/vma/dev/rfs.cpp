@@ -93,7 +93,7 @@ rfs::rfs(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* rule_fi
 		rfs_logpanic("sinks list allocation failed!");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 	m_b_flow_tag_enabled = p_ring->m_b_flow_tag_enabled;
 #endif
 	memset(m_sinks_list, 0, sizeof(pkt_rcvr_sink*)*m_n_sinks_list_max_length);
@@ -251,11 +251,11 @@ bool rfs::create_ibv_flow()
 		attach_flow_data_t* iter = m_attach_flow_data_vector[i];
 		iter->ibv_flow = vma_ibv_create_flow(iter->p_qp_mgr->get_ibv_qp(), &(iter->ibv_flow_attr));
 		if (!iter->ibv_flow) {
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 			if (!m_b_flow_tag_enabled) {
 #endif
 			rfs_logerr("Create of QP flow ID failed with flow %s (errno=%d - %m)", m_flow_tuple.to_str(), errno); //TODO ALEXR - Add info about QP, spec, priority into log msg
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 			} else {
 				m_b_flow_tag_enabled = false;
 				rfs_logdbg("vma_ibv_create_flow for flow_tag enabled failed");

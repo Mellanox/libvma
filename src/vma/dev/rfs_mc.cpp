@@ -26,7 +26,7 @@ rfs_mc::rfs_mc(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* r
 		rfs_logpanic("rfs: rfs_mc called with non MC destination ip");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 	m_b_flow_tag_enabled = p_ring->m_b_flow_tag_enabled;
 	m_n_tag_id_mask = p_ring->m_n_tag_id_mask;
 	m_n_tag_id = p_ring->m_n_tag_id;
@@ -49,7 +49,7 @@ void rfs_mc::prepare_flow_spec()
 	attach_flow_data_ib_t*  	      attach_flow_data_ib = NULL;
 #endif
 	attach_flow_data_eth_ipv4_tcp_udp_t*  attach_flow_data_eth = NULL;
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 	attach_flow_data_flow_tag_t*	attach_flow_data_ft_eth = NULL;
 	vma_ibv_exp_flow_spec_action_tag*	p_flow_tag = NULL;
 #endif
@@ -72,7 +72,7 @@ void rfs_mc::prepare_flow_spec()
 #endif
 			break;
 		case VMA_TRANSPORT_ETH:
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 			if(!m_b_flow_tag_enabled) {
 #endif
 			attach_flow_data_eth = new attach_flow_data_eth_ipv4_tcp_udp_t(m_p_ring->m_p_qp_mgr);
@@ -101,7 +101,7 @@ void rfs_mc::prepare_flow_spec()
 
 			p_attach_flow_data = (attach_flow_data_t*)attach_flow_data_eth;
 
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 			} else {
 				attach_flow_data_ft_eth = new attach_flow_data_flow_tag_t(m_p_ring->m_p_qp_mgr);
 

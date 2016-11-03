@@ -142,13 +142,13 @@ protected:
 	 * list of pending ready packet on the Rx,
 	 * each element is a pointer to the ib_conn_mgr that holds this ready rx datagram
 	 */
-	int				m_n_rx_pkt_ready_list_count;
+	int			m_n_rx_pkt_ready_list_count;
 	size_t 			m_rx_pkt_ready_offset;
 	size_t			m_rx_ready_byte_count;
 
 	int				m_rx_num_buffs_reuse;
 
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 	uint32_t		m_n_tag_id;
 	bool			m_b_flow_tag_enabled;
 #endif

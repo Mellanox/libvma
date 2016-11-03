@@ -100,7 +100,7 @@ inline void cq_mgr::process_recv_buffer(mem_buf_desc_t* p_mem_buf_desc, void* pv
 		reclaim_recv_buffer_helper(p_mem_buf_desc);
 	}
 }
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 inline void cq_mgr::process_recv_buffer_ft(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array)
 {
 	// Assume locked!!!
@@ -865,7 +865,7 @@ int cq_mgr::vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 	return packets_num;
 }
 
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 int cq_mgr::vma_poll_and_process_element_rx_ft(mem_buf_desc_t **p_desc_lst)
 {
 	int packets_num = 0;
@@ -928,7 +928,7 @@ int cq_mgr::vma_poll_and_process_element_rx_ft(mem_buf_desc_t **p_desc_lst)
 
 	return packets_num;
 }
-#endif /* FLOW_TAG_ENABLE */
+#endif /* DEFINED_IBV_EXP_FLOW_TAG */
 
 int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array)
 {
@@ -978,7 +978,7 @@ int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready
 	return ret_rx_processed;
 }
 
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 int cq_mgr::poll_and_process_helper_rx_ft(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array)
 {
 	// Assume locked!!!
@@ -1028,7 +1028,7 @@ int cq_mgr::poll_and_process_helper_rx_ft(uint64_t* p_cq_poll_sn, void* pv_fd_re
 	}
 	return ret_rx_processed;
 }
-#endif /* FLOW_TAG_ENABLE */
+#endif /* DEFINED_IBV_EXP_FLOW_TAG */
 
 int cq_mgr::poll_and_process_helper_tx(uint64_t* p_cq_poll_sn)
 {
@@ -1471,7 +1471,7 @@ int cq_mgr::wait_for_notification_and_process_element(uint64_t* p_cq_poll_sn, vo
 
 			// Now try processing the ready element
 			if (m_b_is_rx) {
-#if defined(FLOW_TAG_ENABLE)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 				if (likely(m_p_ring->m_b_flow_tag_enabled)) {
 					ret = poll_and_process_helper_rx_ft(p_cq_poll_sn, pv_fd_ready_array);
 				} else {
