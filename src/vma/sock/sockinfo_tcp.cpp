@@ -1793,7 +1793,7 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 		si_tcp_logdbg("non offloaded socket --> connect only via OS");
 		return -1;
 	}
-	m_p_connected_dst_entry->prepare_to_send();
+	m_p_connected_dst_entry->prepare_to_send(false, true);
 
 	// update it after route was resolved and device was updated
 	m_p_socket_stats->bound_if = m_p_connected_dst_entry->get_src_addr();
