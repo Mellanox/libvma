@@ -101,6 +101,7 @@ struct __attribute__ ((packed)) vma_info_t {
 
 	/* Packet timestamping information */
 	struct timespec		hw_timestamp;
+	struct timespec		sw_timestamp;
 
 };
 

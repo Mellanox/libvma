@@ -1829,7 +1829,13 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 			}
 		}
 	}
-
+	// keep the sw_timestamp the same to all sockets
+	if ((m_b_rcvtstamp ||
+		 (m_n_tsing_flags &
+		  (SOF_TIMESTAMPING_RX_SOFTWARE | SOF_TIMESTAMPING_SOFTWARE))) &&
+		!p_desc->path.rx.sw_timestamp.tv_sec) {
+		clock_gettime(CLOCK_REALTIME, &(p_desc->path.rx.sw_timestamp));
+	}
 	vma_recv_callback_retval_t callback_retval = VMA_PACKET_RECV;
 	if (m_rx_callback) {
 		mem_buf_desc_t *tmp;
@@ -1844,6 +1850,8 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 		pkt_info.socket_ready_queue_byte_count = m_p_socket_stats->n_rx_ready_byte_count;
 		if (m_n_tsing_flags & SOF_TIMESTAMPING_RAW_HARDWARE)
 			pkt_info.hw_timestamp = p_desc->path.rx.hw_timestamp;
+		if (p_desc->path.rx.sw_timestamp.tv_sec)
+			pkt_info.sw_timestamp = p_desc->path.rx.sw_timestamp;
 
 		// fill io vector array with data buffer pointers
 		iovec iov[p_desc->n_frags];
@@ -1866,10 +1874,6 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 	// And we must increment ref_counter before pushing this packet into the ready queue
 	//  to prevent race condition with the 'if( (--ref_count) <= 0)' in ib_comm_mgr
 	p_desc->inc_ref_count();
-
-	if (m_b_rcvtstamp || (m_n_tsing_flags & (SOF_TIMESTAMPING_RX_SOFTWARE | SOF_TIMESTAMPING_SOFTWARE))) {
-		clock_gettime(CLOCK_REALTIME, &(p_desc->path.rx.sw_timestamp));
-	}
 
 	// In ZERO COPY case we let the user's application manage the ready queue
 	if (callback_retval != VMA_PACKET_HOLD) {
