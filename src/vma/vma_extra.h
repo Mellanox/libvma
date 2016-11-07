@@ -98,6 +98,10 @@ struct __attribute__ ((packed)) vma_info_t {
 	/* Socket's information */
 	uint32_t		socket_ready_queue_pkt_count;	/* Current count of packets waiting to be read from the socket */
 	uint32_t		socket_ready_queue_byte_count;	/* Current count of bytes waiting to be read from the socket */
+
+	/* Packet timestamping information */
+	struct timespec		hw_timestamp;
+	struct timespec		sw_timestamp;
 };
 
 
