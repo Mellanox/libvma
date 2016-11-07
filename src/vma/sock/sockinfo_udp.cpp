@@ -1842,6 +1842,8 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 		pkt_info.dst = &p_desc->path.rx.dst;
 		pkt_info.socket_ready_queue_pkt_count = m_p_socket_stats->n_rx_ready_pkt_count;
 		pkt_info.socket_ready_queue_byte_count = m_p_socket_stats->n_rx_ready_byte_count;
+		if (m_n_tsing_flags & SOF_TIMESTAMPING_RAW_HARDWARE)
+			pkt_info.hw_timestamp = p_desc->path.rx.hw_timestamp;
 
 		// fill io vector array with data buffer pointers
 		iovec iov[p_desc->n_frags];
