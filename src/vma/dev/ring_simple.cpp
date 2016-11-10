@@ -1239,8 +1239,8 @@ inline void ring_simple::vma_poll_process_recv_buffer_ft(mem_buf_desc_t* p_rx_wc
 
 		// Update the L4 info
 		// Not needed for ft enabled path
-		//p_rx_wc_buf_desc->path.rx.src.sin_port        = p_udp_h->source;
-		//p_rx_wc_buf_desc->path.rx.dst.sin_port        = p_udp_h->dest;
+		p_rx_wc_buf_desc->path.rx.src.sin_port        = p_udp_h->source;
+		p_rx_wc_buf_desc->path.rx.dst.sin_port        = p_udp_h->dest;
 		p_rx_wc_buf_desc->path.rx.sz_payload          = sz_payload;
 		// Find the relevant rfs for dispatching
 		p_rfs = m_ft_array.get_by_index(p_rx_wc_buf_desc->tag_id);
