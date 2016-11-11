@@ -112,24 +112,19 @@ bool should_write()
 
 void stats_data_reader::handle_timer_expired(void *ctx)
 {
-        NOT_IN_USE(ctx); 
-        
-        if (!should_write()) {
-                return;
-        }
+	NOT_IN_USE(ctx);
 
-        if (g_sh_mem->fd_dump != STATS_FD_STATISTICS_DISABLED) {
-                vma_get_api()->dump_fd_stats(g_sh_mem->fd_dump, g_sh_mem->fd_dump_log_level);
-                g_sh_mem->fd_dump = STATS_FD_STATISTICS_DISABLED;
-                g_sh_mem->fd_dump_log_level = STATS_FD_STATISTICS_LOG_LEVEL_DEFAULT;
-        }
-        stats_read_map_t::iterator iter;
-	g_lock_skt_stats.lock();
-	for (iter = m_data_map.begin(); iter != m_data_map.end(); iter++) {
-                memcpy(SHM_DATA_ADDRESS, LOCAL_OBJECT_DATA, COPY_SIZE);
-        }
-	g_lock_skt_stats.unlock();
+	if (!should_write()) {
+		return;
+	}
 
+	if (g_sh_mem->fd_dump != STATS_FD_STATISTICS_DISABLED) {
+		vma_get_api()->dump_fd_stats(g_sh_mem->fd_dump,
+				g_sh_mem->fd_dump_log_level);
+		g_sh_mem->fd_dump = STATS_FD_STATISTICS_DISABLED;
+		g_sh_mem->fd_dump_log_level = STATS_FD_STATISTICS_LOG_LEVEL_DEFAULT;
+	}
+	stats_flush();
 }
 
 void stats_data_reader::register_to_timer()
@@ -154,6 +149,17 @@ void* stats_data_reader::pop_p_skt_stats(void* local_addr)
         return rv;
 
 
+}
+
+void stats_data_reader::stats_flush(void)
+{
+	stats_read_map_t::iterator iter;
+
+	g_lock_skt_stats.lock();
+	for (iter = m_data_map.begin(); iter != m_data_map.end(); iter++) {
+		memcpy(SHM_DATA_ADDRESS, LOCAL_OBJECT_DATA, COPY_SIZE);
+	}
+	g_lock_skt_stats.unlock();
 }
 
 void write_version_details_to_shmem(version_info_t* p_ver_info)
@@ -652,4 +658,9 @@ void vma_stats_instance_remove_epoll_block(iomux_func_stats_t* local_stats_addr)
 	vlog_printf(VLOG_ERROR, "%s:%d: Could not find user pointer (%p)", __func__, __LINE__, ep_func_stats);
 	g_lock_ep_stats.unlock();
 	return;
+}
+
+void vma_stats_flush(void)
+{
+	g_p_stats_data_reader->stats_flush();
 }
