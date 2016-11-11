@@ -74,6 +74,7 @@
 
 #include "vma/util/instrumentation.h"
 
+extern int proc_abort(void);
 void check_netperf_flags();
 
 
@@ -756,6 +757,9 @@ static void do_global_ctors_helper()
 
 	set_env_params();
 	prepare_fork();
+	if (proc_abort()) {
+		throw_vma_exception("Failed launch child\n");
+	}
 	
 	if (g_is_forked_child == true)
 		g_is_forked_child = false;
