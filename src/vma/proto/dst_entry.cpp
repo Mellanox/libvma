@@ -62,7 +62,11 @@ dst_entry::~dst_entry()
 	dst_logdbg("%s", to_str().c_str());
 
 	if (m_p_neigh_entry) {
-		g_p_neigh_table_mgr->unregister_observer(neigh_key(m_dst_ip, m_p_net_dev_val),this);
+		ip_address dst_addr = m_dst_ip;
+		if (m_p_rt_val && m_p_rt_val->get_gw_addr() != INADDR_ANY && !dst_addr.is_mc()) {
+			dst_addr = m_p_rt_val->get_gw_addr();
+		}
+		g_p_neigh_table_mgr->unregister_observer(neigh_key(dst_addr, m_p_net_dev_val),this);
 	}
 
 	if (m_p_rt_entry) {
@@ -140,7 +144,11 @@ bool dst_entry::update_net_dev_val()
 		dst_logdbg("updating net_device");
 
 		if (m_p_neigh_entry) {
-			g_p_neigh_table_mgr->unregister_observer(neigh_key(m_dst_ip, m_p_net_dev_val),this);
+			ip_address dst_addr = m_dst_ip;
+			if (m_p_rt_val && m_p_rt_val->get_gw_addr() != INADDR_ANY && !dst_addr.is_mc()) {
+				dst_addr = m_p_rt_val->get_gw_addr();
+			}
+			g_p_neigh_table_mgr->unregister_observer(neigh_key(dst_addr, m_p_net_dev_val),this);
 			m_p_neigh_entry = NULL;
 		}
 
