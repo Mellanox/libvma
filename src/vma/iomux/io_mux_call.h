@@ -233,6 +233,9 @@ private:
 	*/
 	inline bool is_sig_pending();
 
+	/// counts the number times os poll was skipped
+	static int m_n_skip_os_count;
+
 	int m_check_sig_pending_ratio;
 
 	const uint32_t m_n_sysvar_select_skip_os_fd_check;
@@ -249,9 +252,6 @@ protected:
 	virtual int ring_request_notification(uint64_t poll_sn);
 
 	virtual int ring_wait_for_notification_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array = NULL);
-
-	/// counts the number times os poll was skipped
-	static int m_n_skip_os_count;
 
 	/// Pointer to an array of all offloaded fd's
 	int	*m_p_all_offloaded_fds;
