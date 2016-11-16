@@ -60,7 +60,7 @@ protected:
 
 	virtual bool 	get_net_dev_val();
 
-	virtual bool 	resolve_net_dev();
+	virtual bool 	resolve_net_dev(bool is_connect=false);
 };
 
 #endif /* DST_ENTRY_UDP_MC_H */

@@ -1667,11 +1667,13 @@ inline int epoll_wait_helper(int __epfd, struct epoll_event *__events, int __max
 		epoll_wait_call epcall(extra_events_buffer, NULL,
 				__epfd, __events, __maxevents, __timeout, __sigmask);
 
-		int rc = epcall.get_current_events(); // returns ready nfds
-		if (rc <= 0) {
-			// if no ready nfds available then check all lower level queues (VMA ring's and OS queues)
+		int rc;
+		if (epcall.get_os_polling_counter() <= 1 || ((rc = epcall.get_current_events()) <= 0)) {
+			// if m_n_skip_os_count reached 1 OR no ready nfds available then check all lower level queues (VMA ring's and OS queues)
 			epcall.init_offloaded_fds();
 			rc = epcall.call();
+		} else {
+			epcall.decrease_os_polling_counter();
 		}
 
 		srdr_logfunc_exit("rc = %d", rc);

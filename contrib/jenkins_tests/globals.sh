@@ -47,7 +47,7 @@ function on_exit
 
 function do_cmd()
 {
-	cmd="$*"
+    cmd="$*"
     set +e
     eval $cmd >> /dev/null 2>&1
     ret=$?
@@ -147,6 +147,10 @@ function get_ip()
     for ip in $(ibdev2netdev | grep Up | cut -f 5 -d ' '); do
         if [ -n "$1" -a "$1" == "ib" -a -n "$(ip link show $ip | grep 'link/inf')" ]; then
             found_ip=$(ip -4 address show $ip | grep 'inet' | sed 's/.*inet \([0-9\.]\+\).*/\1/')
+            if [ -n "$(ibdev2netdev | grep $ip | grep mlx5)" ]; then
+                echo "$ip is CX4 device that does not support IPoIB"
+                unset found_ip
+            fi
         elif [ -n "$1" -a "$1" == "eth" -a -n "$(ip link show $ip | grep 'link/eth')" ]; then
             found_ip=$(ip -4 address show $ip | grep 'inet' | sed 's/.*inet \([0-9\.]\+\).*/\1/')
         elif [ -z "$1" ]; then

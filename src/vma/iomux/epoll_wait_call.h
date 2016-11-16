@@ -100,6 +100,12 @@ public:
 	/// @override
 	virtual bool check_all_offloaded_sockets(uint64_t *p_poll_sn);
 
+	/// Get m_n_skip_os_count variable.
+	inline int get_os_polling_counter() { return m_n_skip_os_count; };
+
+	/// Decrease m_n_skip_os_count by 1.
+	inline void decrease_os_polling_counter() { m_n_skip_os_count--; };
+
 	void init_offloaded_fds();
 
 	int get_current_events();
