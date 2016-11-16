@@ -50,8 +50,8 @@
 
 dst_entry::dst_entry(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, int owner_fd):
 	m_dst_ip(dst_ip), m_dst_port(dst_port), m_src_port(src_port), m_bound_ip(0),
-	m_so_bindtodevice_ip(0), m_ring_alloc_logic(owner_fd, this), m_p_tx_mem_buf_desc_list(NULL),
-	m_b_tx_mem_buf_desc_list_pending(false), m_id(0)
+	m_so_bindtodevice_ip(0), m_route_src_ip(0), m_pkt_src_ip(0), m_ring_alloc_logic(owner_fd, this), 
+	m_p_tx_mem_buf_desc_list(NULL), m_b_tx_mem_buf_desc_list_pending(false), m_id(0)
 {
 	dst_logdbg("dst:%s:%d src: %d", m_dst_ip.to_str().c_str(), ntohs(m_dst_port), ntohs(m_src_port));
 	init_members();
@@ -70,7 +70,7 @@ dst_entry::~dst_entry()
 	}
 
 	if (m_p_rt_entry) {
-		g_p_route_table_mgr->unregister_observer(route_rule_table_key(m_dst_ip.get_in_addr(), m_bound_ip ? m_bound_ip : m_so_bindtodevice_ip, m_tos), this);
+		g_p_route_table_mgr->unregister_observer(route_rule_table_key(m_dst_ip.get_in_addr(), m_route_src_ip, m_tos), this);
 		m_p_rt_entry = NULL;
 	}
 
@@ -97,6 +97,7 @@ dst_entry::~dst_entry()
 		delete m_p_neigh_val;
 		m_p_neigh_val = NULL;
 	}
+
 	dst_logdbg("Done %s", to_str().c_str());
 }
 
@@ -125,6 +126,19 @@ void dst_entry::init_members()
 	m_b_force_os = false;
 }
 
+void dst_entry::set_src_addr()
+{
+	m_pkt_src_ip = INADDR_ANY;
+	if (m_route_src_ip) {
+		m_pkt_src_ip = m_route_src_ip;
+	}
+	else if (m_p_rt_val && m_p_rt_val->get_src_addr()) {
+		m_pkt_src_ip = m_p_rt_val->get_src_addr();
+	}
+	else if (m_p_net_dev_val && m_p_net_dev_val->get_local_addr()) {
+		m_pkt_src_ip = m_p_net_dev_val->get_local_addr();
+	}
+}
 
 bool dst_entry::update_net_dev_val()
 {
@@ -193,8 +207,8 @@ bool dst_entry::update_rt_val()
 			dst_logdbg("updating route val");
 			m_p_rt_val = p_rt_val;
 		}
-			}
-			else {
+	}
+	else {
 		dst_logdbg("Route entry is not valid");
 		ret_val = false;
 	}
@@ -202,7 +216,7 @@ bool dst_entry::update_rt_val()
 	return ret_val;
 }
 
-bool dst_entry::resolve_net_dev()
+bool dst_entry::resolve_net_dev(bool is_connect)
 {
 	bool ret_val = false;
 
@@ -218,19 +232,41 @@ bool dst_entry::resolve_net_dev()
 		return ret_val;
 	}
 	
-	
-	route_rule_table_key rtk(m_dst_ip.get_in_addr(), m_bound_ip ? m_bound_ip : m_so_bindtodevice_ip, m_tos);
-	
-	if (m_p_rt_entry || g_p_route_table_mgr->register_observer(rtk, this, &p_ces)) {
-	
-		if (m_p_rt_entry == NULL) {
+	//When VMA will support routing with OIF, we need to check changing in outgoing interface
+	//Source address changes is not checked since multiple bind is not allowed on the same socket
+	if (!m_p_rt_entry) {
+		m_route_src_ip = m_bound_ip;
+		route_rule_table_key rtk(m_dst_ip.get_in_addr(), m_route_src_ip, m_tos);
+		if (g_p_route_table_mgr->register_observer(rtk, this, &p_ces)) {
 			// In case this is the first time we trying to resolve route entry,
 			// means that register_observer was run
 			m_p_rt_entry = dynamic_cast<route_entry*>(p_ces);
+			if (is_connect && !m_route_src_ip) {
+				route_val* p_rt_val = NULL;
+				if (m_p_rt_entry && m_p_rt_entry->get_val(p_rt_val) && p_rt_val->get_src_addr()) {
+					g_p_route_table_mgr->unregister_observer(rtk, this);
+					m_route_src_ip = p_rt_val->get_src_addr();
+					route_rule_table_key new_rtk(m_dst_ip.get_in_addr(), m_route_src_ip, m_tos);
+					if (g_p_route_table_mgr->register_observer(new_rtk, this, &p_ces)) {
+						m_p_rt_entry = dynamic_cast<route_entry*>(p_ces);
+					}
+					else {
+						dst_logdbg("Error in route resolving logic");
+						return ret_val;
+					}
+				}
+			}
 		}
+		else {
+			dst_logdbg("Error in registering route entry");
+			return ret_val;
+		}
+	}
 
-		if(update_rt_val()) {
-			ret_val = update_net_dev_val();
+	if (update_rt_val()) {
+		ret_val = update_net_dev_val();
+		if (ret_val) {
+			set_src_addr();
 		}
 	}
 	return ret_val;
@@ -306,7 +342,7 @@ void dst_entry::notify_cb()
 
 void dst_entry::configure_ip_header(header *h, uint16_t packet_id)
 {
-	h->configure_ip_header(get_protocol_type(), m_bound_ip ? m_bound_ip : m_p_net_dev_val->get_local_addr(), m_dst_ip.get_in_addr(), m_ttl, m_tos, packet_id);
+	h->configure_ip_header(get_protocol_type(), m_pkt_src_ip, m_dst_ip.get_in_addr(), m_ttl, m_tos, packet_id);
 }
 
 bool dst_entry::conf_l2_hdr_and_snd_wqe_eth()
@@ -455,17 +491,13 @@ transport_type_t dst_entry::get_obs_transport_type() const
 
 flow_tuple dst_entry::get_flow_tuple() const
 {
-	in_addr_t src_ip = 0;
 	in_addr_t dst_ip = 0;
 	in_protocol_t protocol = PROTO_UNDEFINED;
 
-	if (m_p_net_dev_val) {
-		src_ip = m_p_net_dev_val->get_local_addr();
-	}
 	dst_ip = m_dst_ip.get_in_addr();
 	protocol = (in_protocol_t)get_protocol_type();
 
-	return flow_tuple(dst_ip, m_dst_port, src_ip, m_src_port, protocol);
+	return flow_tuple(dst_ip, m_dst_port, m_pkt_src_ip, m_src_port, protocol);
 }
 
 #if _BullseyeCoverage
@@ -492,7 +524,7 @@ bool dst_entry::offloaded_according_to_rules()
 	return ret_val;
 }
 
-bool dst_entry::prepare_to_send(bool skip_rules)
+bool dst_entry::prepare_to_send(bool skip_rules, bool is_connect)
 {
 	bool resolved = false;
 	m_slow_path_lock.lock();
@@ -508,7 +540,7 @@ bool dst_entry::prepare_to_send(bool skip_rules)
 	if (!m_b_force_os && !is_valid()) {
 		bool is_ofloaded = false;
 		set_state(true);
-		if (resolve_net_dev()) {
+		if (resolve_net_dev(is_connect)) {
 			m_max_ip_payload_size = ((m_p_net_dev_val->get_mtu()-sizeof(struct iphdr)) & ~0x7);
 			if (resolve_ring()) {
 				is_ofloaded = true;
@@ -522,7 +554,7 @@ bool dst_entry::prepare_to_send(bool skip_rules)
 								     m_p_neigh_val->get_l2_address()->get_address(),
 								     ((ethhdr*)(m_header.m_actual_hdr_addr))->h_proto /* if vlan, use vlan proto */,
 								     htons(ETH_P_IP),
-								     m_bound_ip ? m_bound_ip : m_p_net_dev_val->get_local_addr(),
+								     m_pkt_src_ip,
 								     m_dst_ip.get_in_addr(),
 								     m_src_port,
 								     m_dst_port);
@@ -627,16 +659,6 @@ void dst_entry::set_so_bindtodevice_addr(in_addr_t addr)
 	dst_logdbg("");
 	m_so_bindtodevice_ip = addr;
 	set_state(false);
-}
-
-in_addr_t dst_entry::get_src_addr()
-{
-	in_addr_t ret_val = INADDR_ANY;
-
-	if (m_p_net_dev_val) {
-		ret_val = m_p_net_dev_val->get_local_addr();
-	}
-	return ret_val;
 }
 
 in_addr_t dst_entry::get_dst_addr()
