@@ -451,6 +451,23 @@ AC_TRY_LINK(
   AC_DEFINE(DEFINED_MISSING_NET_TSTAMP, 1, [Define to 1 if linux/net_tstamp.h is missing])
 ])
 
+AC_MSG_CHECKING([if 'FRA_OIFNAME' enum value is defined])
+AC_TRY_LINK(
+#include <linux/fib_rules.h>
+,
+[
+  int oif = (int)FRA_OIFNAME;
+  oif = oif;
+],
+[
+  AC_MSG_RESULT([yes])
+  AC_DEFINE(DEFINED_FRA_OIFNAME, 1, [Define to 1 if enum value FRA_OIFNAME exists in linux/fib_rules.h])
+],
+[
+  AC_MSG_RESULT([no])
+  AC_DEFINE(DEFINED_FRA_OIFNAME, 0, [Define to 0 if enum value FRA_OIFNAME does not exist in linux/fib_rules.h])
+])
+
 AC_CHECK_TYPES([struct mmsghdr],[],[],[#include <sys/socket.h>])
 
 AC_MSG_CHECKING([if 'struct timespec' for recvmmsg() is const])

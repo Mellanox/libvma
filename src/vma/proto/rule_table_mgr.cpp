@@ -39,6 +39,7 @@
 #include <sys/socket.h>
 #include <linux/rtnetlink.h>
 #include <linux/netlink.h>
+#include <linux/fib_rules.h>
 #include <netinet/in.h>
 #include <netinet/ether.h>
 #include <arpa/inet.h>
@@ -133,21 +134,23 @@ bool rule_table_mgr::parse_enrty(nlmsghdr *nl_header, rule_val *p_val)
 void rule_table_mgr::parse_attr(struct rtattr *rt_attribute, rule_val *p_val)
 {
 	switch (rt_attribute->rta_type) {
-		case RTA_PRIORITY:
+		case FRA_PRIORITY:
 			p_val->set_priority(*(uint32_t *)RTA_DATA(rt_attribute));
 			break;			
-		case RTA_DST:
+		case FRA_DST:
 			p_val->set_dst_addr(*(in_addr_t *)RTA_DATA(rt_attribute));
 			break;
-		case RTA_SRC:
+		case FRA_SRC:
 			p_val->set_src_addr(*(in_addr_t *)RTA_DATA(rt_attribute));
 			break;			
-		case RTA_IIF:
+		case FRA_IFNAME:
 			p_val->set_iif_name((char *)RTA_DATA(rt_attribute));
 			break;	
-		case RTA_OIF:
+#if DEFINED_FRA_OIFNAME
+		case FRA_OIFNAME:
 			p_val->set_oif_name((char *)RTA_DATA(rt_attribute));
 			break;				
+#endif
 		default:
 			break;
 	}
