@@ -1016,11 +1016,12 @@ ssize_t recvmsg(int __fd, struct msghdr *__msg, int __flags)
 		srdr_logdbg("NULL msghdr");
 		errno = EINVAL;
 		return -1;
-	}
+	} 
 
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
 	if (p_socket_object) {
+		__msg->msg_flags = 0;
 		return p_socket_object->rx(RX_RECVMSG, __msg->msg_iov, __msg->msg_iovlen, &__flags, (__SOCKADDR_ARG)__msg->msg_name, (socklen_t*)&__msg->msg_namelen, __msg);
 	}
 
@@ -1077,6 +1078,7 @@ int recvmmsg(int __fd, struct mmsghdr *__mmsghdr, unsigned int __vlen, int __fla
         	int ret = 0;
                 for (unsigned int i=0; i<__vlen; i++) {
                        int flags = __flags;
+                       __mmsghdr[i].msg_hdr.msg_flags = 0;
                        ret = p_socket_object->rx(RX_RECVMSG, __mmsghdr[i].msg_hdr.msg_iov, __mmsghdr[i].msg_hdr.msg_iovlen, &flags,
                                                          (__SOCKADDR_ARG)__mmsghdr[i].msg_hdr.msg_name, (socklen_t*)&__mmsghdr[i].msg_hdr.msg_namelen,  &__mmsghdr[i].msg_hdr);
                        if (ret < 0){
