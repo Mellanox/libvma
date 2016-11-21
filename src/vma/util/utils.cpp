@@ -140,7 +140,8 @@ int get_base_interface_name(const char *if_name, char *base_ifname, size_t sz_ba
 				if (ADDR_LEN == ETH_ALEN) size_to_compare = ETH_ALEN;
 				else size_to_compare = IPOIB_HW_ADDR_GID_LEN;
 				int offset = ADDR_LEN - size_to_compare;
-				if (0 == memcmp(vlan_if_address + offset, tmp_mac + offset, size_to_compare)) {
+				if (0 == memcmp(vlan_if_address + offset, tmp_mac + offset, size_to_compare) && 0 == (ifa->ifa_flags & IFF_MASTER)) {
+					// A bond name cannot be a base name of an interface even if both have the same MAC(ethernet) or GID(IB) addresses
 					snprintf(base_ifname, sz_base_ifname, "%s" ,ifa->ifa_name);
 					freeifaddrs(ifaddr);
 					__log_dbg("Found base_ifname %s for interface %s", base_ifname, if_name);
