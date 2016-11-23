@@ -74,6 +74,7 @@
 #include "vma/iomux/io_mux_call.h"
 
 #include "vma/util/instrumentation.h"
+#include "vma/util/agent.h"
 
 void check_netperf_flags();
 
@@ -223,6 +224,9 @@ static int free_libvma_resources()
 	vlog_printf(VLOG_DEBUG, "Stopping logger module\n");
 
 	sock_redirect_exit();
+
+	/* Close communication with daemon */
+	agent_close();
 
 	vlog_stop();
 
@@ -788,6 +792,9 @@ static void do_global_ctors_helper()
 	
 	if (g_is_forked_child == true)
 		g_is_forked_child = false;
+
+	/* Open communication with daemon */
+	agent_open();
 
 	// Create all global managment objects
 	NEW_CTOR(g_p_event_handler_manager, event_handler_manager());
