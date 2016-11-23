@@ -47,6 +47,7 @@
 #include "vma/proto/vma_lwip.h"
 #include "vma/proto/dst_entry_tcp.h"
 #include "vma/iomux/io_mux_call.h"
+#include "vma/util/agent.h"
 
 #include "sock-redirect.h"
 #include "fd_collection.h"
@@ -920,6 +921,13 @@ err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rex
 {
 	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)pcb_container;
 	p_si_tcp->m_p_socket_stats->tcp_state = new_state;
+
+	/* Keep vma stats data actual for offloaded connection */
+	if (likely(p_si_tcp->m_sock_offload == TCP_SOCK_LWIP)) {
+		agent_send_msg_state(p_si_tcp->get_fd(), new_state, SOCK_STREAM,
+			p_si_tcp->m_bound.get_in_addr(), p_si_tcp->m_bound.get_in_port(),
+			p_si_tcp->m_connected.get_in_addr(), p_si_tcp->m_connected.get_in_port());
+	}
 }
 
 void sockinfo_tcp::err_lwip_cb(void *pcb_container, err_t err)

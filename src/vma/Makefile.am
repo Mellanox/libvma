@@ -146,6 +146,8 @@ libvma_la_SOURCES := \
 	util/verbs_extra.cpp \
 	util/instrumentation.cpp \
 	util/sys_vars.cpp \
+	util/agent.cpp \
+	\
 	libvma.c \
 	main.cpp \
 	\
@@ -170,6 +172,7 @@ libvma_la_SOURCES := \
 	dev/ring_simple.h \
 	dev/wqe_send_handler.h \
 	dev/wqe_send_ib_handler.h \
+	\
 	event/command.h \
 	event/delta_timer.h \
 	event/event.h \
@@ -181,15 +184,18 @@ libvma_la_SOURCES := \
 	event/timer_handler.h \
 	event/timers_group.h \
 	event/vlogger_timer_handler.h \
+	\
 	infra/sender.h \
 	infra/sender_info_dst.h \
 	infra/subject_observer.h \
 	infra/cache_subject_observer.h \
+	\
 	iomux/epfd_info.h \
 	iomux/epoll_wait_call.h \
 	iomux/io_mux_call.h \
 	iomux/poll_call.h \
 	iomux/select_call.h \
+	\
 	lwip/cc_cubic.h \
 	lwip/cc.h \
 	lwip/def.h \
@@ -202,23 +208,25 @@ libvma_la_SOURCES := \
 	lwip/stats.h \
 	lwip/tcp.h \
 	lwip/tcp_impl.h \
+	\
 	netlink/link_info.h \
 	netlink/neigh_info.h \
 	netlink/netlink_compatibility.h \
 	netlink/netlink_wrapper.h \
 	netlink/route_info.h \
+	\
 	proto/arp.h \
-        proto/dst_entry.h \
-        proto/dst_entry_tcp.h \
-        proto/dst_entry_udp.h \
-        proto/dst_entry_udp_mc.h \
-        proto/flow_tuple.h \
-        proto/header.h \
-        proto/igmp_handler.h \
-        proto/igmp_mgr.h \
-        proto/ip_address.h \
-        proto/ip_frag.h \
-        proto/L2_address.h \
+	proto/dst_entry.h \
+	proto/dst_entry_tcp.h \
+	proto/dst_entry_udp.h \
+	proto/dst_entry_udp_mc.h \
+	proto/flow_tuple.h \
+	proto/header.h \
+	proto/igmp_handler.h \
+	proto/igmp_mgr.h \
+	proto/ip_address.h \
+	proto/ip_frag.h \
+	proto/L2_address.h \
 	proto/mem_buf_desc.h \
 	proto/neighbour.h \
 	proto/neighbour_observer.h \
@@ -233,34 +241,38 @@ libvma_la_SOURCES := \
 	proto/rule_table_mgr.h \
 	proto/rule_val.h \
 	proto/vma_lwip.h \
+	\
 	sock/cleanable_obj.h \
-        sock/fd_collection.h \
-        sock/pipeinfo.h \
-        sock/pkt_rcvr_sink.h \
-        sock/pkt_sndr_source.h \
-        sock/socket_fd_api.h \
-        sock/sockinfo.h \
-        sock/sockinfo_tcp.h \
-        sock/sockinfo_udp.h \
-        sock/sock-redirect.h \
-        util/hash_map.h \
-        util/if.h \
-        util/instrumentation.h \
-        util/libvma.h \
-        util/linked_unordered_map.h \
-        util/list.h \
-        util/sock_addr.h \
-        util/sysctl_reader.h \
-        util/sys_vars.h \
-        util/to_str.h \
-        util/utils.h \
-        util/valgrind.h \
-        util/verbs_extra.h \
-        util/vma_list.h \
-        util/vma_stats.h \
-        util/vtypes.h \
-        util/wakeup.h \
-        util/wakeup_pipe.h \
+	sock/fd_collection.h \
+	sock/pipeinfo.h \
+	sock/pkt_rcvr_sink.h \
+	sock/pkt_sndr_source.h \
+	sock/socket_fd_api.h \
+	sock/sockinfo.h \
+	sock/sockinfo_tcp.h \
+	sock/sockinfo_udp.h \
+	sock/sock-redirect.h \
+	\
+	util/hash_map.h \
+	util/if.h \
+	util/instrumentation.h \
+	util/libvma.h \
+	util/linked_unordered_map.h \
+	util/list.h \
+	util/sock_addr.h \
+	util/sysctl_reader.h \
+	util/sys_vars.h \
+	util/to_str.h \
+	util/utils.h \
+	util/valgrind.h \
+	util/verbs_extra.h \
+	util/vma_list.h \
+	util/vma_stats.h \
+	util/vtypes.h \
+	util/wakeup.h \
+	util/wakeup_pipe.h \
+	util/agent.h \
+	\
 	config_parser.h \
 	main.h \
 	vma_extra.h
