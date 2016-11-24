@@ -1,7 +1,7 @@
-SUBDIRS := src
+SUBDIRS := src tools
 
 
-DIST_SUBDIRS := src tests
+DIST_SUBDIRS := src tests tools
 EXTRA_DIST = \
 	build \
 	contrib \

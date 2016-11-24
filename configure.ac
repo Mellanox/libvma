@@ -58,6 +58,8 @@ PKG_PROG_PKG_CONFIG
 with_debug_info=yes
 with_debug=no
 
+AC_CHECK_HEADERS([sys/prctl.h sys/inotify.h sys/fanotify.h])
+
 AC_CHECK_HEADERS([infiniband/verbs.h], ,
                  [AC_MSG_ERROR([Unable to find the libibverbs-devel header files])])
 
@@ -507,6 +509,8 @@ AC_CONFIG_FILES([
 		tests/pps_test/Makefile
 		tests/latency_test/Makefile
 		tests/throughput_test/Makefile
+		tools/Makefile
+		tools/daemon/Makefile
 		build/libvma.spec
 		debian/changelog
 		VMA_VERSION
