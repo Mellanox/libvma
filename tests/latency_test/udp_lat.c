@@ -241,6 +241,7 @@ struct user_params_t {
 	int client_work_with_srv_num;
 	bool b_server_reply_via_uc;
 	int mc_ttl;
+	int enable_hw_time;
 } user_params;
 
 typedef struct spike{
@@ -323,6 +324,7 @@ static void usage(const char *argv0)
 	printf("  -v, --version\t\t\tprint version\n");
 	printf("  -h, --help\t\t\tprint this help message\n");	
 	printf("Server:\n");
+	printf("  -T, --hw_timestamp\t\tenable hw_timestamp (default - no)\n");
 	printf("  -s, --server\t\t\trun server (default - unicast)\n");
 	printf("  -B, --Bridge\t\t\trun in Bridge mode\n");
 	printf("  --threads-num=<N>\t\trun <N> threads on server side (requires '-f' option)\n");
@@ -872,7 +874,15 @@ int prepare_socket(struct sockaddr_in* p_addr)
 		log_err("setsockopt(SO_REUSEADDR) failed");
 		exit(1);
 	}
-
+	/* set timestamping */
+	if (user_params.enable_hw_time) {
+		int opt = (1<<2);
+		if (setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &opt,
+			sizeof(opt)) < 0) {
+			log_err("setsockopt(SO_TIMESTAMPING) failed");
+			exit(1);
+		}
+	}
 	/* Set TTL */
 	ttl = user_params.mc_ttl;
 	if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_TTL, (char*)&ttl, sizeof(ttl)) < 0) {
@@ -1129,7 +1139,12 @@ vma_recv_callback_retval_t myapp_vma_recv_pkt_filter_callback(
 
 	int recvsize     = iov[0].iov_len;
 	uint8_t* recvbuf = iov[0].iov_base;
-
+	if (user_params.enable_hw_time && !vma_info->hw_timestamp.tv_sec) {
+		log_err("hw_timstamp is enables but hw not found");
+	}
+	if (!user_params.enable_hw_time && vma_info->hw_timestamp.tv_sec) {
+		log_err("hw_timstamp is disabled but hw found");
+	}
 /*
 	if ("rule to check if packet should be dropped")
 		return VMA_PACKET_DROP;
@@ -2001,13 +2016,14 @@ int main(int argc, char *argv[])
 			{.name = "srv_num",		.has_arg = 1,   .val = OPT_CLIENT_WORK_WITH_SRV_NUM },
 			{.name = "force_unicast_reply",	.has_arg = 0,   .val = OPT_FORCE_UC_REPLY},
 			{.name = "mc-ttl",              .has_arg = 1,   .val = OPT_TTL},
+			{.name = "hw_timestamp",        .has_arg = 0,   .val = 'T'},
 			{.name = "version",		.has_arg = 0,	.val = 'v'},
 			{.name = "debug",		.has_arg = 0,	.val = 'd'},
 			{.name = "help",		.has_arg = 0,	.val = 'h'},
 			{0,0,0,0}
 		};
 
-		if ((c = getopt_long(argc, argv, "csBdi:p:t:f:F:m:r:b:x:g:a:A:kI:vh?", long_options, NULL)) == -1)
+		if ((c = getopt_long(argc, argv, "csBdi:p:t:f:F:m:r:b:x:g:a:A:kTI:vh?", long_options, NULL)) == -1)
 			break;
 
 		switch (c) {
@@ -2023,6 +2039,10 @@ int main(int argc, char *argv[])
 			user_params.mode = MODE_BRIDGE;
 			user_params.msg_size = MAX_PAYLOAD_SIZE;
 			addr.sin_port = htons(5001); /*iperf's default port*/
+			break;
+		case 'T':
+			log_msg("enabling hw_timstamp");
+			user_params.enable_hw_time = 1;
 			break;
 		case 'i':
 			if (!inet_aton(optarg, &addr.sin_addr)) {	/* already in network byte order*/
