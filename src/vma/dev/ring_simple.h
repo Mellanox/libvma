@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2016.  ALL RIGHTS RESERVED.
  *
  * This software product is a proprietary product of Mellanox Technologies Ltd.
  * (the "Company") and all right, title, and interest in and to the software product,
@@ -131,6 +131,9 @@ private:
 	flow_spec_udp_uc_map_t	m_flow_udp_uc_map;
 	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_head;
 	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_tail;
+	uint32_t		m_flow_tag_id;  // temporaty for registration
+	uint32_t		m_flow_tag_id_mask; // flow_tag range
+	bool			m_flow_tag_enabled;
 };
 
 class ring_eth : public ring_simple

@@ -104,6 +104,13 @@ public:
 	virtual bool check_rings() {return m_p_rx_ring ? true: false;}
 	virtual int* get_rings_fds() {int* channel_fds = m_p_rx_ring->get_rx_channel_fds(); return channel_fds;}
 
+	inline bool tcp_flow_is_5t(void) { return m_tcp_flow_is_5t; }
+	inline void set_tcp_flow_is_5t(void) { m_tcp_flow_is_5t = true; }
+	inline void set_flow_tag(int flow_tag_id) {
+		m_flow_tag_id = flow_tag_id;
+		m_flow_tag_enabled = flow_tag_id > 0 ? true : false;
+	}
+
 protected:
 	bool			m_b_closed;
 	bool 			m_b_blocking;
@@ -154,6 +161,9 @@ protected:
 	struct ring_ec m_ec;
 	struct vma_completion_t* m_vma_poll_completion;
 	struct vma_buff_t*       m_vma_poll_last_buff_lst;
+	uint32_t		m_flow_tag_id;	// Flow Tag for this socket
+	bool			m_flow_tag_enabled; // for this socket
+	bool			m_tcp_flow_is_5t; // to bypass packet analysis
 
 	// Callback function pointer to support VMA extra API (vma_extra.h)
 	vma_recv_callback_t	m_rx_callback;

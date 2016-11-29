@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2016.  ALL RIGHTS RESERVED.
  *
  * This software product is a proprietary product of Mellanox Technologies Ltd.
  * (the "Company") and all right, title, and interest in and to the software product,
@@ -72,6 +72,8 @@ typedef struct __attribute__ ((packed)) ibv_flow_attr_ib_ipv4_tcp_udp {
 		attr.flags = VMA_IBV_FLOW_ATTR_FLAGS_ALLOW_LOOP_BACK;
 	}
 } ibv_flow_attr_ib_ipv4_tcp_udp;
+
+
 #else
 //for uc
 typedef struct __attribute__ ((packed)) ibv_flow_attr_ib_ipv4_tcp_udp {
@@ -97,11 +99,18 @@ typedef struct __attribute__ ((packed)) ibv_flow_attr_eth_ipv4_tcp_udp {
 	vma_ibv_flow_spec_eth         eth;
 	vma_ibv_flow_spec_ipv4        ipv4;
 	vma_ibv_flow_spec_tcp_udp     tcp_udp;
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
+	vma_ibv_exp_flow_spec_action_tag  flow_tag;
+#endif // defined(DEFINED_IBV_EXP_FLOW_TAG)
 
 	ibv_flow_attr_eth_ipv4_tcp_udp(uint8_t port) {
 		memset(this, 0, sizeof(*this));
 		attr.size = sizeof(struct ibv_flow_attr_eth_ipv4_tcp_udp);
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
+		attr.num_of_specs = 4;
+#else
 		attr.num_of_specs = 3;
+#endif // defined(DEFINED_IBV_EXP_FLOW_TAG)
 		attr.type = VMA_IBV_FLOW_ATTR_NORMAL;
 		attr.priority = 1; // almost highest priority, 0 is used for 5-tuple later
 		attr.port = port;
@@ -190,7 +199,7 @@ public:
 
 protected:
 	flow_tuple		m_flow_tuple;
-	ring_simple*			m_p_ring;
+	ring_simple*		m_p_ring;
 	rfs_rule_filter*	m_p_rule_filter;
 	attach_flow_data_vector_t m_attach_flow_data_vector;
 	pkt_rcvr_sink**		m_sinks_list;

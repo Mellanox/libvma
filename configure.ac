@@ -357,7 +357,7 @@ fi
 #
 AC_ARG_ENABLE([exp-cq],
     AC_HELP_STRING([--enable-exp-cq],
-                   [Experimental Verbs CQ is required for UDP RX HW Timestamp and for RX CSUM verification offload])
+                   [Experimental Verbs CQ is required for UDP RX HW Timestamp, RH HW FlowTag and for RX CSUM verification offload])
 )
 
 AS_IF([test "x$enable_exp_cq" == xyes],
@@ -410,6 +410,21 @@ AS_IF([test "x$enable_exp_cq" == xyes],
 	[
 	  AC_MSG_RESULT([no])
 	])
+
+	AC_COMPILE_CHECK([Exp VERBS Flow Tag support ],
+	[
+	#include <infiniband/verbs_exp.h>
+	],
+	[
+	struct ibv_exp_flow_spec_action_tag tag; tag = tag;
+	],
+	ac_cv_libverbs_flow_tag=yes,
+	ac_cv_libverbs_flow_tag=no
+	)
+	AC_MSG_RESULT($ac_cv_libverbs_flow_tag)
+	if test $ac_cv_libverbs_flow_tag = yes ; then
+		AC_DEFINE([DEFINED_IBV_EXP_FLOW_TAG], [1], [Define to 1 enable Flow Tagging functionality])
+	fi
 )
 
 # debug configuration. Kills CFLAGS/CXXFLAGS

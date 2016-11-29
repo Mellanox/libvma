@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2016.  ALL RIGHTS RESERVED.
  *
  * This software product is a proprietary product of Mellanox Technologies Ltd.
  * (the "Company") and all right, title, and interest in and to the software product,
@@ -161,7 +161,6 @@ operator<(flow_spec_tcp_key_t const& key1, flow_spec_tcp_key_t const& key2)
 #endif
 
 typedef hash_map<flow_spec_tcp_key_t, rfs*> flow_spec_tcp_map_t;
-
 
 typedef struct {
 	ib_ctx_handler*	p_ib_ctx;
