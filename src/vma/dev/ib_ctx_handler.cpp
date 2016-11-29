@@ -35,8 +35,9 @@
 
 
 ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx_time_converter_mode) :
-	m_channel(0), m_removed(false), m_conf_attr_rx_num_wre(0), m_conf_attr_tx_num_post_send_notify(0),
-	m_conf_attr_tx_max_inline(0), m_conf_attr_tx_num_wre(0), ctx_time_converter(ctx, ctx_time_converter_mode)
+	m_channel(0), m_flow_tag_enabled(false), m_removed(false), m_conf_attr_rx_num_wre(0),
+	m_conf_attr_tx_num_post_send_notify(0), m_conf_attr_tx_max_inline(0), m_conf_attr_tx_num_wre(0),
+	ctx_time_converter(ctx, ctx_time_converter_mode)
 {
 	memset(&m_ibv_port_attr, 0, sizeof(m_ibv_port_attr));
 	m_p_ibv_context = ctx;
@@ -100,6 +101,11 @@ ibv_mr* ib_ctx_handler::mem_reg(void *addr, size_t length, uint64_t access)
 #else
 	return ibv_reg_mr(m_p_ibv_pd, addr, length, access);
 #endif
+}
+
+void ib_ctx_handler::set_flow_tag_capability(bool flow_tag_capability)
+{
+	m_flow_tag_enabled = flow_tag_capability;  // m_flow_tag_capability = flow_tag_capability;
 }
 
 bool ib_ctx_handler::update_port_attr(int port_num)

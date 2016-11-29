@@ -1033,6 +1033,20 @@ void convert_hw_addr_to_str(char *buf, uint8_t hw_addr_len, uint8_t *hw_addr)
     #pragma BullseyeCoverage on
 #endif
 
+//NOTE RAW_QP_PRIVLIGES_PARAM_FILE does not exist on upstream drivers
+int validate_raw_qp_privliges()
+{
+	// RAW_QP_PRIVLIGES_PARAM_FILE: "/sys/module/ib_uverbs/parameters/disable_raw_qp_enforcement"
+	char raw_qp_privliges_value = 0;
+	if (priv_read_file((const char*)RAW_QP_PRIVLIGES_PARAM_FILE, &raw_qp_privliges_value, 1, VLOG_DEBUG) <= 0) {
+		return -1;
+	}
+	if (raw_qp_privliges_value != '1') {
+		return 0;
+	}
+	return 1;
+}
+
 loops_timer::loops_timer()
 {
 	m_timeout_msec = -1;

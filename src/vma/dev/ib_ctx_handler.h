@@ -42,6 +42,8 @@ public:
 	virtual void            handle_event_ibverbs_cb(void *ev_data, void *ctx);
 	void                    handle_event_DEVICE_FATAL();
 	ts_conversion_mode_t    get_ctx_time_converter_status();
+	void                    set_flow_tag_capability(bool flow_tag_capability); 
+	bool                    get_flow_tag_capability() { return m_flow_tag_enabled;} // m_flow_tag_capability
 
 	inline void convert_hw_time_to_system_time(uint64_t packet_hw_time, struct timespec* packet_systime) {
 		ctx_time_converter.convert_hw_time_to_system_time(packet_hw_time, packet_systime);
@@ -54,6 +56,7 @@ private:
 	vma_ibv_device_attr     m_ibv_device_attr;
 	ibv_pd*                 m_p_ibv_pd;
 	int                     m_channel; // fd channel
+	bool                    m_flow_tag_enabled;
 	bool                    m_removed;
 
 	bool                    update_port_attr(int port_num);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2016.  ALL RIGHTS RESERVED.
  *
  * This software product is a proprietary product of Mellanox Technologies Ltd.
  * (the "Company") and all right, title, and interest in and to the software product,
@@ -81,10 +81,10 @@ inline void rfs::prepare_filter_detach(int& filter_counter)
 	}
 }
 
-rfs::rfs(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* rule_filter /*= NULL*/):
+rfs::rfs(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* rule_filter /*= NULL*/, uint32_t flow_tag_id):
 	m_flow_tuple(rule_filter ? rule_filter->m_flow_tuple : *flow_spec_5t), m_p_ring(p_ring),
 	m_p_rule_filter(rule_filter), m_n_sinks_list_entries(0), m_n_sinks_list_max_length(RFS_SINKS_LIST_DEFAULT_LEN),
-	m_b_tmp_is_attached(false)
+	m_flow_tag_id(flow_tag_id), m_b_tmp_is_attached(false)
 {
 	m_sinks_list = new pkt_rcvr_sink*[m_n_sinks_list_max_length];
 
@@ -249,13 +249,14 @@ bool rfs::create_ibv_flow()
 		attach_flow_data_t* iter = m_attach_flow_data_vector[i];
 		iter->ibv_flow = vma_ibv_create_flow(iter->p_qp_mgr->get_ibv_qp(), &(iter->ibv_flow_attr));
 		if (!iter->ibv_flow) {
-			rfs_logerr("Create of QP flow ID failed with flow %s (errno=%d - %m)", m_flow_tuple.to_str(), errno); //TODO ALEXR - Add info about QP, spec, priority into log msg
+			rfs_logerr("Create of QP flow ID (tag: %d) failed with flow %s (errno=%d - %m)",
+				   m_flow_tag_id, m_flow_tuple.to_str(), errno); //TODO ALEXR - Add info about QP, spec, priority into log msg
 			return false;
 		}
 	}
 
 	m_b_tmp_is_attached = true;
-	rfs_logdbg("ibv_create_flow succeeded with flow %s", m_flow_tuple.to_str());
+	rfs_logdbg("ibv_create_flow succeeded with flow %s, tag_id: %d", m_flow_tuple.to_str(), m_flow_tag_id);
 	return true;
 }
 

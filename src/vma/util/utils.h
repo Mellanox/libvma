@@ -337,6 +337,8 @@ int validate_ipoib_prop(const char* ifname, unsigned int ifflags,
 		const char prop_file[], const char *expected_val,
 		int val_size, char *filename, char* base_ifname);
 
+int validate_raw_qp_privliges();
+
 void convert_hw_addr_to_str(char *buf, uint8_t hw_addr_len, uint8_t *hw_addr);
 
 //Creates multicast MAC from multicast IP

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2016.  ALL RIGHTS RESERVED.
  *
  * This software product is a proprietary product of Mellanox Technologies Ltd.
  * (the "Company") and all right, title, and interest in and to the software product,
@@ -22,6 +22,7 @@
 #include "vma/proto/ip_frag.h"
 #include "vma/proto/L2_address.h"
 #include "vma/proto/igmp_mgr.h"
+#include "vma/sock/pkt_rcvr_sink.h"
 #include "vma/sock/sockinfo_tcp.h"
 #include "vma/sock/fd_collection.h"
 #include "vma/dev/rfs_mc.h"
@@ -84,7 +85,7 @@ ring_simple::ring_simple(in_addr_t local_if, uint16_t partition_sn, int count, t
 	m_tx_lkey(0), m_partition(partition_sn), m_gro_mgr(safe_mce_sys().gro_streams_max, MAX_GRO_BUFS), m_up(false),
 	m_p_rx_comp_event_channel(NULL), m_p_tx_comp_event_channel(NULL), m_p_l2_addr(NULL), m_p_ring_stat(NULL),
 	m_local_if(local_if), m_transport_type(transport_type), m_rx_buffs_rdy_for_free_head(NULL),
-	m_rx_buffs_rdy_for_free_tail(NULL) {
+	m_rx_buffs_rdy_for_free_tail(NULL), m_flow_tag_enabled(false) {
 
 	if (count != 1)
 		ring_logpanic("Error creating simple ring with more than 1 resource");
@@ -212,6 +213,8 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 
 	memset(&m_cq_moderation_info, 0, sizeof(m_cq_moderation_info));
 
+	m_flow_tag_enabled = p_ring_info->p_ib_ctx->get_flow_tag_capability();
+
 	m_p_rx_comp_event_channel = ibv_create_comp_channel(p_ring_info->p_ib_ctx->get_ibv_context()); // ODED TODO: Adjust the ibv_context to be the exact one in case of different devices
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_p_rx_comp_event_channel == NULL) {
@@ -277,10 +280,32 @@ void ring_simple::restart(ring_resource_creation_info_t* p_ring_info)
 
 bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 {
-	rfs *p_rfs;
-	rfs *p_tmp_rfs = NULL;
+	rfs* p_rfs;
+	rfs* p_tmp_rfs = NULL;
+	sockinfo* si = static_cast<sockinfo*> (sink);
+	uint32_t flow_tag_id = 0;
 
 	ring_logdbg("flow: %s, with sink (%p)", flow_spec_5t.to_str(), sink);
+
+	if (m_flow_tag_enabled && (si != NULL)) {
+		int	sock_fd = si->get_fd();
+
+		if (sock_fd > 0) {
+			flow_tag_id = sock_fd & FLOW_TAG_MASK;
+			if ((uint32_t)sock_fd != flow_tag_id) {
+			//  tag_id is out of the range by mask, will not use it
+				flow_tag_id = 0;
+				ring_logdbg("flow_tag disabled as tag_id: %d is out of mask (%x) range!",
+					    flow_tag_id, FLOW_TAG_MASK);
+			}
+			ring_logdbg("flow: %s, sink:%p sock_fd:%d enabled:%d with id:%d",
+				    flow_spec_5t.to_str(), sink, sock_fd,
+				    m_flow_tag_enabled, flow_tag_id);
+		} else {
+			// 0 - means FT should not be used
+			ring_logdbg("flow_tag disabled as sock_fd <=0!");
+		}
+	}
 
 	/*
 	 * //auto_unlocker lock(m_lock_ring_rx);
@@ -296,9 +321,12 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	if (flow_spec_5t.is_udp_uc()) {
 		flow_spec_udp_uc_key_t key_udp_uc = {flow_spec_5t.get_dst_port()};
 		p_rfs = m_flow_udp_uc_map.get(key_udp_uc, NULL);
-		if (p_rfs == NULL) {		// It means that no rfs object exists so I need to create a new one and insert it to the flow map
+		if (p_rfs == NULL) {
+			/* It means that no rfs object exists so I need to create a new one
+			 * and insert it to the flow map
+			 */
 			m_lock_ring_rx.unlock();
-			p_tmp_rfs = new rfs_uc(&flow_spec_5t, this);
+			p_tmp_rfs = new rfs_uc(&flow_spec_5t, this, NULL, flow_tag_id);
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (p_tmp_rfs == NULL) {
 				ring_logerr("Failed to allocate rfs!");
@@ -315,6 +343,9 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 			}
 		}
 	} else if (flow_spec_5t.is_udp_mc()) {
+
+		flow_tag_id = 0; // MC so far can't be handled by flow_tag due issues in FW
+
 		flow_spec_udp_mc_key_t key_udp_mc = {flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port()};
 		// For IB MC flow, the port is zeroed in the ibv_flow_spec when calling to ibv_flow_spec().
 		// It means that for every MC group, even if we have sockets with different ports - only one rule in the HW.
@@ -370,9 +401,9 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 				tcp_dst_port_filter = new rfs_rule_filter(m_tcp_dst_port_attach_map, key_tcp.dst_port, tcp_3t_only);
 			}
 			if(safe_mce_sys().gro_streams_max && flow_spec_5t.is_5_tuple()) {
-				p_tmp_rfs = new rfs_uc_tcp_gro(&flow_spec_5t, this, tcp_dst_port_filter);
+				p_tmp_rfs = new rfs_uc_tcp_gro(&flow_spec_5t, this, tcp_dst_port_filter, flow_tag_id);
 			} else {
-				p_tmp_rfs = new rfs_uc(&flow_spec_5t, this, tcp_dst_port_filter);
+				p_tmp_rfs = new rfs_uc(&flow_spec_5t, this, tcp_dst_port_filter, flow_tag_id);
 			}
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (p_tmp_rfs == NULL) {
@@ -398,10 +429,28 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	bool ret = p_rfs->attach_flow(sink);
-	if (flow_spec_5t.is_tcp() && !flow_spec_5t.is_3_tuple()) {
-		// save the single 5tuple TCP connected socket for improved fast path
-		//p_rfs_single_tcp = p_rfs;
-		ring_logdbg("update p_rfs_single_tcp=%p", p_rfs_single_tcp);
+	if (ret) {
+		if (m_flow_tag_enabled) {
+			/* Flow with FlowTag was attached succesfully, check
+			 *  stored rfs for fast path be tag_id
+			 */
+			if ((si != NULL) && flow_tag_id) {
+				si->set_flow_tag(flow_tag_id);
+				ring_logdbg("flow_tag: %d registration is done!", flow_tag_id);
+			}
+		} 
+		if (flow_spec_5t.is_tcp() && !flow_spec_5t.is_3_tuple()) {
+			/* save the single 5tuple TCP connected socket for improved fast path
+			 * p_rfs_single_tcp = p_rfs;
+			 */
+			if (si != NULL) {
+				si->set_tcp_flow_is_5t();
+				ring_logdbg("update m_tcp_flow_is_5t m_flow_tag_enabled: %d p_rfs_single_tcp=%p",
+					m_flow_tag_enabled, p_rfs_single_tcp);
+			}
+		}
+	} else {
+		ring_logerr("attach_flow failed, returs: %d, flow_tag should be disabled!",ret);
 	}
 	m_lock_ring_rx.unlock();
 	return ret;
@@ -409,7 +458,7 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 
 bool ring_simple::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 {
-	rfs *p_rfs = NULL;
+	rfs* p_rfs = NULL;
 
 	ring_logdbg("flow: %s, with sink (%p)", flow_spec_5t.to_str(), sink);
 
@@ -572,7 +621,7 @@ void ring::print_flow_to_rfs_udp_uc_map(flow_spec_udp_uc_map_t *p_flow_map)
 	}
 }
 
-void ring::print_flow_to_rfs_tcp_map(flow_spec_tcp_map_t *p_flow_map)
+void ring_simple::print_flow_to_rfs_tcp_map(flow_spec_tcp_map_t *p_flow_map)
 {
 	rfs *curr_rfs;
 	flow_spec_tcp_key_t map_key;
@@ -584,7 +633,7 @@ void ring::print_flow_to_rfs_tcp_map(flow_spec_tcp_map_t *p_flow_map)
 
 	itr = p_flow_map->begin();
 	if (!(itr != p_flow_map->end())) {
-		ring_logdbg("flow_spec_udp_uc_map is EMPTY!\n");
+		ring_logdbg("flow_spec_tcp_map is EMPTY!\n");
 	} else {
 		for (itr = p_flow_map->begin(); itr != p_flow_map->end(); ++itr) {
 			curr_rfs = itr->second;
@@ -593,7 +642,9 @@ void ring::print_flow_to_rfs_tcp_map(flow_spec_tcp_map_t *p_flow_map)
 				ring_logdbg("######### key: port = %d, rfs: NULL", ntohs(map_key.dst_port));
 			}
 			else {
-				ring_logdbg("######### key: src_ip:%d.%d.%d.%d, dst_port=%d, src_port=%d, rfs: num of sinks = %d", NIPQUAD(map_key.src_ip), ntohs(map_key.dst_port), ntohs(map_key.src_port), curr_rfs->get_num_of_sinks());
+				ring_logdbg("######### key: src=%d.%d.%d.%d:%d, dst_port=%d rfs: num of sinks = %d",
+					NIPQUAD(map_key.src_ip), ntohs(map_key.src_port),
+					ntohs(map_key.dst_port), curr_rfs->get_num_of_sinks());
 			}
 		}
 	}
@@ -617,10 +668,34 @@ const char* priv_igmp_type_tostr(uint8_t igmptype)
 	}
 }
 
+static inline bool check_rx_packet(sockinfo *si, mem_buf_desc_t* p_rx_wc_buf_desc)
+{
+	// Dispatching: Notify new packet to the FIRST registered receiver ONLY
+	p_rx_wc_buf_desc->reset_ref_count();
+#ifdef RDTSC_MEASURE_RX_DISPATCH_PACKET
+	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_DISPATCH_PACKET]);
+#endif //RDTSC_MEASURE_RX_DISPATCH_PACKET
+	if (likely(si)) {
+		p_rx_wc_buf_desc->inc_ref_count();
+		si->rx_input_cb(p_rx_wc_buf_desc, NULL);
+#ifdef RDTSC_MEASURE_RX_DISPATCH_PACKET
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_DISPATCH_PACKET]);
+#endif //RDTSC_MEASURE_RX_DISPATCH_PACKET
+		// Check packet ref_count to see the last receiver is interested in this packet
+		if (p_rx_wc_buf_desc->dec_ref_count() > 1) {
+			// The sink will be responsible to return the buffer to CQ for reuse
+			return true;
+		}
+	}
+	// Reuse this data buffer & mem_buf_desc
+	return false;
+}
+
 inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_buf_desc)
 {
 	//size_t sz_data = 0;
-	size_t transport_header_len = 0;
+	size_t transport_header_len = ETH_HDR_LEN;
+
 	uint16_t ip_hdr_len = 0;
 	uint16_t ip_tot_len = 0;
 	uint16_t ip_frag_off = 0;
@@ -635,22 +710,71 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 	NOT_IN_USE(p_udp_h);
 	NOT_IN_USE(local_addr);
 
-	if (likely(p_rfs_single_tcp)) {
-		// we have a single 5tuple TCP connected socket, use simpler fast path
-		transport_header_len = ETH_HDR_LEN;
-		p_ip_h = (struct iphdr*)(p_rx_wc_buf_desc->p_buffer + transport_header_len);
-		ip_hdr_len = 20; //(int)(p_ip_h->ihl)*4;
-		struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
-		p_rx_wc_buf_desc->path.rx.p_ip_h        = p_ip_h;
-		p_rx_wc_buf_desc->path.rx.p_tcp_h       = p_tcp_h;
-		p_rx_wc_buf_desc->transport_header_len  = transport_header_len;
-		p_rx_wc_buf_desc->path.rx.vma_polled = true;
-		p_rfs_single_tcp->rx_dispatch_packet(p_rx_wc_buf_desc, NULL);
-		p_rx_wc_buf_desc->path.rx.vma_polled = false;
-		return;
-	}
-
 	// This is an internal function (within ring and 'friends'). No need for lock mechanism.
+
+	if (likely(m_flow_tag_enabled && p_rx_wc_buf_desc->flow_tag_id)) {
+		sockinfo* si = NULL;
+		si = static_cast <sockinfo* >(g_p_fd_collection->get_sockfd(p_rx_wc_buf_desc->flow_tag_id));
+
+		if (likely(si != NULL)) {
+			p_ip_h = (struct iphdr*)(p_rx_wc_buf_desc->p_buffer + transport_header_len);
+			ip_hdr_len = 20; //(int)(p_ip_h->ihl)*4;
+			ip_tot_len = ntohs(p_ip_h->tot_len);
+
+			if (likely(si->tcp_flow_is_5t())) {
+				// we have a single 5tuple TCP connected socket, use simpler fast path
+				struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
+				size_t sz_payload = ip_tot_len - ip_hdr_len - p_tcp_h->doff*4;
+
+				// Update packet descriptor with datagram base address and length
+				p_rx_wc_buf_desc->path.rx.frag.iov_base = (uint8_t*)p_tcp_h + sizeof(struct tcphdr);
+				p_rx_wc_buf_desc->path.rx.frag.iov_len  = ip_tot_len - ip_hdr_len - sizeof(struct tcphdr);
+
+				p_rx_wc_buf_desc->path.rx.sz_payload          = sz_payload;
+
+				p_rx_wc_buf_desc->path.rx.p_ip_h              = p_ip_h;
+				p_rx_wc_buf_desc->path.rx.p_tcp_h             = p_tcp_h;
+				p_rx_wc_buf_desc->transport_header_len        = transport_header_len;
+
+/*				ring_logfunc("FAST PATH Rx TCP segment info: src_port=%d, dst_port=%d, flags='%s%s%s%s%s%s' seq=%u, ack=%u, win=%u, payload_sz=%u",
+					ntohs(p_tcp_h->source), ntohs(p_tcp_h->dest),
+					p_tcp_h->urg?"U":"", p_tcp_h->ack?"A":"", p_tcp_h->psh?"P":"",
+					p_tcp_h->rst?"R":"", p_tcp_h->syn?"S":"", p_tcp_h->fin?"F":"",
+					ntohl(p_tcp_h->seq), ntohl(p_tcp_h->ack_seq), ntohs(p_tcp_h->window),
+					sz_payload);
+*/
+				p_rx_wc_buf_desc->path.rx.vma_polled = true;
+				check_rx_packet(si,p_rx_wc_buf_desc);
+				p_rx_wc_buf_desc->path.rx.vma_polled = false;
+				return;
+			} else if (p_ip_h->protocol==IPPROTO_UDP) {
+				// Get the udp header pointer + udp payload size
+				p_udp_h = (struct udphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
+				size_t sz_payload = ntohs(p_udp_h->len) - sizeof(struct udphdr);
+				// Update packet descriptor with datagram base address and length
+				p_rx_wc_buf_desc->path.rx.frag.iov_base = (uint8_t*)p_udp_h + sizeof(struct udphdr);
+				p_rx_wc_buf_desc->path.rx.frag.iov_len  = ip_tot_len - ip_hdr_len - sizeof(struct udphdr);
+
+				// Update the L4 info
+				p_rx_wc_buf_desc->path.rx.src.sin_port        = p_udp_h->source;
+				p_rx_wc_buf_desc->path.rx.dst.sin_port        = p_udp_h->dest;
+				p_rx_wc_buf_desc->path.rx.sz_payload          = sz_payload;
+				p_rx_wc_buf_desc->transport_header_len        = transport_header_len;
+
+				// Update the L3 info
+				p_rx_wc_buf_desc->path.rx.src.sin_family      = AF_INET;
+				p_rx_wc_buf_desc->path.rx.src.sin_addr.s_addr = p_ip_h->saddr;
+
+/*				ring_logfunc("FAST PATH Rx UDP datagram info: src_port=%d, dst_port=%d, payload_sz=%d, csum=%#x",
+					     ntohs(p_udp_h->source), ntohs(p_udp_h->dest), sz_payload, p_udp_h->check);
+*/
+				p_rx_wc_buf_desc->path.rx.vma_polled = true;
+				check_rx_packet(si,p_rx_wc_buf_desc);
+				p_rx_wc_buf_desc->path.rx.vma_polled = false;
+				return;
+			}
+		}
+	}
 
 	// Validate buffer size
 	size_t sz_data = p_rx_wc_buf_desc->sz_data;
@@ -678,7 +802,6 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 			ETH_HW_ADDR_PRINT_ADDR(p_eth_h->h_source),
 			htons(p_eth_h->h_proto));
 
-	transport_header_len = ETH_HDR_LEN;
 	uint16_t* p_h_proto = &p_eth_h->h_proto;
 
 	// Handle VLAN header as next protocol
@@ -800,7 +923,7 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 		return false;
 	}
 #endif
-	rfs *p_rfs = NULL;
+	rfs* p_rfs = NULL;
 
 	// Update the L3 info
 	p_rx_wc_buf_desc->path.rx.src.sin_family      = AF_INET;
@@ -832,7 +955,7 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 			p_rfs = m_flow_udp_uc_map.get((flow_spec_udp_uc_key_t){p_rx_wc_buf_desc->path.rx.dst.sin_port}, NULL);
 		} else {	// This is UDP MC packet
 			p_rfs = m_flow_udp_mc_map.get((flow_spec_udp_mc_key_t){p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr,
-				p_rx_wc_buf_desc->path.rx.dst.sin_port}, NULL);
+							p_rx_wc_buf_desc->path.rx.dst.sin_port}, NULL);
 		}
 	}
 	break;
@@ -861,11 +984,11 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 		p_rx_wc_buf_desc->path.rx.p_ip_h = p_ip_h;
 		p_rx_wc_buf_desc->path.rx.p_tcp_h = p_tcp_h;
 
+		p_rx_wc_buf_desc->transport_header_len = transport_header_len;
 		// Find the relevant hash map and pass the packet to the rfs for dispatching
 		p_rfs = m_flow_tcp_map.get((flow_spec_tcp_key_t){p_rx_wc_buf_desc->path.rx.src.sin_addr.s_addr,
-			p_rx_wc_buf_desc->path.rx.dst.sin_port, p_rx_wc_buf_desc->path.rx.src.sin_port}, NULL);
-
-		p_rx_wc_buf_desc->transport_header_len = transport_header_len;
+					p_rx_wc_buf_desc->path.rx.dst.sin_port,
+					p_rx_wc_buf_desc->path.rx.src.sin_port}, NULL);
 
 		if (unlikely(p_rfs == NULL)) {	// If we didn't find a match for TCP 5T, look for a match with TCP 3T
 			p_rfs = m_flow_tcp_map.get((flow_spec_tcp_key_t){0, p_rx_wc_buf_desc->path.rx.dst.sin_port, 0}, NULL);
@@ -883,7 +1006,6 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 				NIPQUAD(p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr), ntohs(p_rx_wc_buf_desc->path.rx.dst.sin_port),
 				NIPQUAD(p_rx_wc_buf_desc->path.rx.src.sin_addr.s_addr), ntohs(p_rx_wc_buf_desc->path.rx.src.sin_port),
 				iphdr_protocol_type_to_str(p_ip_h->protocol), p_ip_h->protocol);
-
 		return;
 	}
 	p_rx_wc_buf_desc->path.rx.vma_polled = true;
@@ -907,13 +1029,11 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 	struct iphdr* p_ip_h = NULL;
 	struct udphdr* p_udp_h = NULL;
 
-
 	NOT_IN_USE(ip_tot_len);
 	NOT_IN_USE(ip_frag_off);
 	NOT_IN_USE(n_frag_offset);
 	NOT_IN_USE(p_udp_h);
 	NOT_IN_USE(transport_type);
-
 
 	if (likely(p_rfs_single_tcp)) {
 		// we have a single 5tuple TCP connected socket, use simpler fast path

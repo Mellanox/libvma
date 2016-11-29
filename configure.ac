@@ -357,7 +357,7 @@ fi
 #
 AC_ARG_ENABLE([exp-cq],
     AC_HELP_STRING([--enable-exp-cq],
-                   [Experimental Verbs CQ is required for UDP RX HW Timestamp and for RX CSUM verification offload])
+                   [Experimental Verbs CQ is required for UDP RX HW Timestamp, RH HW FlowTag and for RX CSUM verification offload])
 )
 
 AS_IF([test "x$enable_exp_cq" == xyes],
@@ -406,6 +406,22 @@ AS_IF([test "x$enable_exp_cq" == xyes],
 	[
 	  AC_MSG_RESULT([yes])
 	  AC_DEFINE(DEFINED_IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT, 1, [Define to 1 if IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT is defined])
+	],
+	[
+	  AC_MSG_RESULT([no])
+	])
+
+	AC_MSG_CHECKING([if IBV_EXP_FLOW_SPEC_ACTION_TAG is defined])
+	AC_TRY_LINK(
+	#include <infiniband/verbs_exp.h>
+	,
+	[
+	  int access = (int)IBV_EXP_FLOW_SPEC_ACTION_TAG;
+	  return access;
+	],
+	[
+	  AC_MSG_RESULT([yes])
+	  AC_DEFINE(DEFINED_IBV_EXP_FLOW_TAG, 1, [Define to 1 if IBV_EXP_FLOW_SPEC_ACTION_TAG is defined])
 	],
 	[
 	  AC_MSG_RESULT([no])
