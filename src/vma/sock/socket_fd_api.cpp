@@ -255,7 +255,7 @@ void socket_fd_api::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 #endif
 
 ssize_t socket_fd_api::rx_os(const rx_call_t call_type, iovec* p_iov,
-			     ssize_t sz_iov, int* p_flags, sockaddr *__from,
+			     ssize_t sz_iov, const int flags, sockaddr *__from,
 			     socklen_t *__fromlen, struct msghdr *__msg)
 {
 	errno = 0;
@@ -271,16 +271,16 @@ ssize_t socket_fd_api::rx_os(const rx_call_t call_type, iovec* p_iov,
 	case RX_RECV:
 		__log_info_func("calling os receive with orig recv");
 		return orig_os_api.recv(m_fd, p_iov[0].iov_base, p_iov[0].iov_len,
-		                        *p_flags);
+		                        flags);
 
 	case RX_RECVFROM:
 		__log_info_func("calling os receive with orig recvfrom");
 		return orig_os_api.recvfrom(m_fd, p_iov[0].iov_base, p_iov[0].iov_len,
-		                            *p_flags, __from, __fromlen);
+		                            flags, __from, __fromlen);
 
 	case RX_RECVMSG: {
 		__log_info_func("calling os receive with orig recvmsg");
-		return orig_os_api.recvmsg(m_fd, __msg, *p_flags);
+		return orig_os_api.recvmsg(m_fd, __msg, flags);
 		}
 	}
 	return (ssize_t) -1;

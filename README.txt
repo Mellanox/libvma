@@ -432,10 +432,10 @@ Default value is 0
 
 VMA_RX_UDP_POLL_OS_RATIO
 The above param will define the ratio between VMA CQ poll and OS FD poll.
-This will result in a signle poll of the not-offloaded sockets every
-VMA_RX_UDP_POLL_OS_RATIO offlaoded socket (CQ) polls. No matter if the CQ poll 
+This will result in a single poll of the not-offloaded sockets every
+VMA_RX_UDP_POLL_OS_RATIO offloaded socket (CQ) polls. No matter if the CQ poll 
 was a hit or miss. No matter if the socket is blocking or non-blocking.
-When disabled, only offlaoded sockets are polled.
+When disabled, only offloaded sockets are polled.
 This parameter replaces the two old parameters: VMA_RX_POLL_OS_RATIO and 
 VMA_RX_SKIP_OS
 Disable with 0

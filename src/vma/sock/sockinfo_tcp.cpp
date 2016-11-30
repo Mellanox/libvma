@@ -1489,7 +1489,7 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 #ifdef VMA_TIME_MEASURE
 		INC_GO_TO_OS_RX_COUNT;
 #endif
-		ret = socket_fd_api::rx_os(call_type, p_iov, sz_iov, &in_flags, __from, __fromlen, __msg);
+		ret = socket_fd_api::rx_os(call_type, p_iov, sz_iov, in_flags, __from, __fromlen, __msg);
 		save_stats_rx_os(ret);
 		return ret;
 	}

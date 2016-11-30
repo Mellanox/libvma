@@ -230,7 +230,7 @@ protected:
 
 	// Calling OS receive
 	ssize_t rx_os(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov,
-		      int* p_flags, sockaddr *__from, socklen_t *__fromlen, struct msghdr *__msg);
+		      const int flags, sockaddr *__from, socklen_t *__fromlen, struct msghdr *__msg);
 
 
 private:

@@ -198,7 +198,7 @@ ssize_t pipeinfo::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov,
                      int* p_flags, sockaddr *__from, socklen_t *__fromlen, struct msghdr *__msg)
 {
 	pi_logfunc("");
-	ssize_t ret = socket_fd_api::rx_os(call_type, p_iov, sz_iov, p_flags, __from, __fromlen, __msg);
+	ssize_t ret = socket_fd_api::rx_os(call_type, p_iov, sz_iov, *p_flags, __from, __fromlen, __msg);
 	save_stats_rx_os(ret);
 	return ret;
 }

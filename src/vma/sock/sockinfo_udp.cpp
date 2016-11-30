@@ -1328,6 +1328,8 @@ wait:
 	 */
 os:
 	if (in_flags & MSG_VMA_ZCOPY_FORCE) {
+		// Enable the next non-blocked read to check the OS 
+		m_rx_udp_poll_os_ratio_counter = m_n_sysvar_rx_udp_poll_os_ratio;
 		errno = EIO;
 		ret = -1;
 		goto out;
@@ -1338,7 +1340,8 @@ os:
 #endif
 
 	in_flags &= ~MSG_VMA_ZCOPY;
-	ret = socket_fd_api::rx_os(call_type, p_iov, sz_iov, &in_flags, __from, __fromlen, __msg);
+	ret = socket_fd_api::rx_os(call_type, p_iov, sz_iov, in_flags, __from, __fromlen, __msg);
+	*p_flags = in_flags;
 	save_stats_rx_os(ret);
 	if (ret > 0) {
 		// This will cause the next non-blocked read to check the OS again.
