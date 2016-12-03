@@ -544,6 +544,7 @@ AC_CONFIG_FILES([
 		tests/throughput_test/Makefile
 		tools/Makefile
 		tools/daemon/Makefile
+		contrib/scripts/vma.init
 		build/libvma.spec
 		debian/changelog
 		VMA_VERSION

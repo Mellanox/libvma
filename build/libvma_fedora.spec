@@ -65,6 +65,8 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/*.la
 %doc README.txt journal.txt VMA_VERSION
 %config(noreplace) %{_sysconfdir}/libvma.conf
 %config(noreplace) %{_sysconfdir}/security/limits.d/30-libvma-limits.conf
+%{_sbindir}/vmad
+%config(noreplace) %{_sysconfdir}/init.d/vma
 
 %files devel
 %{_includedir}/*
@@ -73,6 +75,9 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/*.la
 %{_bindir}/vma_stats
 
 %changelog
+* Thu Dec 03 2016 Alex Vainman <igor.ivanov.va@gmail.com>
+- Add daemon
+
 * Thu Mar 13 2016 Alex Vainman <alexv@mellanox.com> - 8.0.1-1
 - New upstream release
 - Move to dual license: GPLv2 or BSD
