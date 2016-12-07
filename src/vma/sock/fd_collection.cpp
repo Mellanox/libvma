@@ -90,6 +90,12 @@ fd_collection::~fd_collection()
 {
 	fdcoll_logfunc("");
 
+	for (int i = 0; i < m_n_fd_map_size; i++) {
+		if (m_p_cq_channel_map[i]) {
+			delete m_p_cq_channel_map[i];
+		}
+	}
+
 	m_n_fd_map_size = -1;
 	clear();
 
