@@ -196,6 +196,13 @@ struct ring_ec {
 	struct list_head list;
 	struct vma_completion_t completion;
 	struct vma_buff_t*      last_buff_lst;
+
+	inline void clear()
+	{
+		INIT_LIST_HEAD(&list);
+		memset(&completion, 0, sizeof(completion));
+		last_buff_lst = NULL;
+	}
 };
 
 /**
@@ -271,6 +278,14 @@ public:
 		m_lock_ec_list.unlock();
 	}
 
+	inline void del_ec(struct ring_ec *ec)
+	{
+		m_lock_ec_list.lock();
+		list_del_init(&ec->list);
+		ec->clear();
+		m_lock_ec_list.unlock();
+	}
+
 	inline ring_ec* get_ec(void)
 	{
 		struct ring_ec *ec = NULL;
@@ -278,15 +293,10 @@ public:
 		m_lock_ec_list.lock();
 		if (!list_empty(&m_ec_list)) {
 			ec = list_entry(m_ec_list.next, struct ring_ec, list);
-			list_del(&ec->list);
+			list_del_init(&ec->list);
 		}
 		m_lock_ec_list.unlock();
 		return ec;
-	}
-
-	inline void clear_ec(struct ring_ec *ec)
-	{
-		memset(ec, 0, sizeof(*ec));
 	}
 
 	struct vma_completion_t *get_comp(void)

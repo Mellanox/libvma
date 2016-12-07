@@ -1248,7 +1248,7 @@ int ring_simple::vma_poll(struct vma_completion_t *vma_completions, unsigned int
 				ec = get_ec();
 				if (ec) {
 					memcpy(m_vma_poll_completion, &ec->completion, sizeof(ec->completion));
-					clear_ec(ec);
+					ec->clear();
 					m_vma_poll_completion++;
 					i++;
 				}

@@ -13,6 +13,12 @@
 
 #include "ring.h"
 
+#undef  MODULE_NAME
+#define MODULE_NAME     "ring"
+#undef  MODULE_HDR
+#define MODULE_HDR      MODULE_NAME "%d:%s() "
+
+
 ring::ring(int count, uint32_t mtu) :
 	m_n_num_resources(count), m_p_n_rx_channel_fds(NULL), m_parent(NULL),
 	m_vma_active(true), /* TODO: This VMA version supports vma_poll() usage mode only */
@@ -24,10 +30,6 @@ ring::ring(int count, uint32_t mtu) :
 
 ring::~ring()
 {
-	struct ring_ec *ec = get_ec();
-
-	while (ec) {
-		clear_ec(ec);
-		ec = get_ec();
-	}
+	ring_logdbg("queue of event completion elements is %s",
+			(list_empty(&m_ec_list) ? "empty" : "not empty"));
 }
