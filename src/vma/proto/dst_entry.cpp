@@ -50,7 +50,7 @@
 
 dst_entry::dst_entry(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, int owner_fd):
 	m_dst_ip(dst_ip), m_dst_port(dst_port), m_src_port(src_port), m_bound_ip(0),
-	m_so_bindtodevice_ip(0), m_src_ip(0), m_ring_alloc_logic(owner_fd, this), 
+	m_so_bindtodevice_ip(0), m_route_src_ip(0), m_pkt_src_ip(0), m_ring_alloc_logic(owner_fd, this), 
 	m_p_tx_mem_buf_desc_list(NULL), m_b_tx_mem_buf_desc_list_pending(false), m_id(0)
 {
 	dst_logdbg("dst:%s:%d src: %d", m_dst_ip.to_str().c_str(), ntohs(m_dst_port), ntohs(m_src_port));
@@ -70,7 +70,7 @@ dst_entry::~dst_entry()
 	}
 
 	if (m_p_rt_entry) {
-		g_p_route_table_mgr->unregister_observer(route_rule_table_key(m_dst_ip.get_in_addr(), m_src_ip, m_tos), this);
+		g_p_route_table_mgr->unregister_observer(route_rule_table_key(m_dst_ip.get_in_addr(), m_route_src_ip, m_tos), this);
 		m_p_rt_entry = NULL;
 	}
 
@@ -124,6 +124,20 @@ void dst_entry::init_members()
 	m_max_inline = 0;
 	m_max_ip_payload_size = 0;
 	m_b_force_os = false;
+}
+
+void dst_entry::set_src_addr()
+{
+	m_pkt_src_ip = INADDR_ANY;
+	if (m_route_src_ip) {
+		m_pkt_src_ip = m_route_src_ip;
+	}
+	else if (m_p_rt_val && m_p_rt_val->get_src_addr()) {
+		m_pkt_src_ip = m_p_rt_val->get_src_addr();
+	}
+	else if (m_p_net_dev_val && m_p_net_dev_val->get_local_addr()) {
+		m_pkt_src_ip = m_p_net_dev_val->get_local_addr();
+	}
 }
 
 bool dst_entry::update_net_dev_val()
@@ -221,18 +235,18 @@ bool dst_entry::resolve_net_dev(bool is_connect)
 	//When VMA will support routing with OIF, we need to check changing in outgoing interface
 	//Source address changes is not checked since multiple bind is not allowed on the same socket
 	if (!m_p_rt_entry) {
-		m_src_ip = m_bound_ip;
-		route_rule_table_key rtk(m_dst_ip.get_in_addr(), m_src_ip, m_tos);
+		m_route_src_ip = m_bound_ip;
+		route_rule_table_key rtk(m_dst_ip.get_in_addr(), m_route_src_ip, m_tos);
 		if (g_p_route_table_mgr->register_observer(rtk, this, &p_ces)) {
 			// In case this is the first time we trying to resolve route entry,
 			// means that register_observer was run
 			m_p_rt_entry = dynamic_cast<route_entry*>(p_ces);
-			if (is_connect && !m_src_ip) {
+			if (is_connect && !m_route_src_ip) {
 				route_val* p_rt_val = NULL;
 				if (m_p_rt_entry && m_p_rt_entry->get_val(p_rt_val) && p_rt_val->get_src_addr()) {
 					g_p_route_table_mgr->unregister_observer(rtk, this);
-					m_src_ip = p_rt_val->get_src_addr();
-					route_rule_table_key new_rtk(m_dst_ip.get_in_addr(), m_src_ip, m_tos);
+					m_route_src_ip = p_rt_val->get_src_addr();
+					route_rule_table_key new_rtk(m_dst_ip.get_in_addr(), m_route_src_ip, m_tos);
 					if (g_p_route_table_mgr->register_observer(new_rtk, this, &p_ces)) {
 						m_p_rt_entry = dynamic_cast<route_entry*>(p_ces);
 					}
@@ -251,6 +265,9 @@ bool dst_entry::resolve_net_dev(bool is_connect)
 
 	if (update_rt_val()) {
 		ret_val = update_net_dev_val();
+		if (ret_val) {
+			set_src_addr();
+		}
 	}
 	return ret_val;
 }
@@ -325,7 +342,7 @@ void dst_entry::notify_cb()
 
 void dst_entry::configure_ip_header(header *h, uint16_t packet_id)
 {
-	h->configure_ip_header(get_protocol_type(), get_src_addr(), m_dst_ip.get_in_addr(), m_ttl, m_tos, packet_id);
+	h->configure_ip_header(get_protocol_type(), m_pkt_src_ip, m_dst_ip.get_in_addr(), m_ttl, m_tos, packet_id);
 }
 
 bool dst_entry::conf_l2_hdr_and_snd_wqe_eth()
@@ -480,7 +497,7 @@ flow_tuple dst_entry::get_flow_tuple() const
 	dst_ip = m_dst_ip.get_in_addr();
 	protocol = (in_protocol_t)get_protocol_type();
 
-	return flow_tuple(dst_ip, m_dst_port, get_src_addr(), m_src_port, protocol);
+	return flow_tuple(dst_ip, m_dst_port, m_pkt_src_ip, m_src_port, protocol);
 }
 
 #if _BullseyeCoverage
@@ -537,7 +554,7 @@ bool dst_entry::prepare_to_send(bool skip_rules, bool is_connect)
 								     m_p_neigh_val->get_l2_address()->get_address(),
 								     ((ethhdr*)(m_header.m_actual_hdr_addr))->h_proto /* if vlan, use vlan proto */,
 								     htons(ETH_P_IP),
-								     get_src_addr(),
+								     m_pkt_src_ip,
 								     m_dst_ip.get_in_addr(),
 								     m_src_port,
 								     m_dst_port);

@@ -77,15 +77,7 @@ public:
 	in_addr_t	get_dst_addr();
 	uint16_t	get_dst_port();
 	inline in_addr_t get_src_addr() const {
-		if (!m_src_ip) {
-			if (m_p_rt_val && m_p_rt_val->get_src_addr()) {
-				return m_p_rt_val->get_src_addr();
-			}
-			if (m_p_net_dev_val && m_p_net_dev_val->get_local_addr()) {
-				return m_p_net_dev_val->get_local_addr();
-			}
-		}
-		return m_src_ip;
+		return m_pkt_src_ip;
 	}
 
 #if _BullseyeCoverage
@@ -111,7 +103,8 @@ protected:
 
 	in_addr_t		m_bound_ip;
 	in_addr_t		m_so_bindtodevice_ip;
-	in_addr_t		m_src_ip;
+	in_addr_t		m_route_src_ip;
+	in_addr_t		m_pkt_src_ip;
 	lock_mutex_recursive 	m_slow_path_lock;
 	vma_ibv_send_wr 	m_inline_send_wqe;
 	vma_ibv_send_wr 	m_not_inline_send_wqe;
@@ -151,6 +144,7 @@ protected:
 	virtual bool 		offloaded_according_to_rules();
 	virtual void 		init_members();
 	virtual bool 		resolve_net_dev(bool is_connect=false);
+	void			set_src_addr();
 	bool 			update_net_dev_val();
 	bool 			update_rt_val();
 	virtual bool 		resolve_neigh();
