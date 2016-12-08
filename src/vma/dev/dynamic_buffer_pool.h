@@ -20,6 +20,16 @@
 
 class dynamic_buffer_pool;
 
+class dynamic_bpool_timer_handler : public timer_handler
+{
+public:
+	dynamic_bpool_timer_handler(dynamic_buffer_pool *pool_obj): m_p_pool_obj(pool_obj) {};
+	virtual void handle_timer_expired(void* a);
+
+private:
+	dynamic_buffer_pool *m_p_pool_obj;
+};
+
 /**
  * A buffer pool with option to dynamically grow when a minimal threshold of free buffers is left.
  * It starts with a single buffer_pool and provides an option to grow dynamically by allocating new buffer_pools once a minimal threshold of free buffers is reached.
@@ -31,7 +41,7 @@ class dynamic_buffer_pool
 	friend class dynamic_bpool_timer_handler;
 
 public:
-	dynamic_buffer_pool(size_t init_buffers_count, size_t buffer_size, size_t max_buffers, size_t free_buffers_min_threshold,
+	dynamic_buffer_pool(size_t init_buffers_count, size_t buffer_size, size_t quanta_buffers_count, size_t max_buffers, size_t free_buffers_min_threshold,
 			pbuf_free_custom_fn custom_free_function);
 	virtual ~dynamic_buffer_pool();
 
@@ -69,13 +79,17 @@ public:
 	size_t get_curr_free_count();
 
 	mem_buf_desc_t *get_buffers_thread_safe(size_t count, const ib_ctx_handler *p_ib_ctx_h);
+	dynamic_bpool_timer_handler *get_timer_handler();
 
 private:
 	lock_spin       m_lock_spin;
+
 	size_t          m_n_dyn_buffers;
 	size_t          m_n_dyn_buffers_created;
 
 	const size_t m_buffer_size;
+	const size_t m_init_buffers_count;
+	const size_t m_quanta_buffers_count;
 	const size_t m_max_buffers;
 	const size_t m_min_threshold;
 	const pbuf_free_custom_fn m_custom_free_function;
@@ -87,6 +101,8 @@ private:
 	bool m_rx_stat;
 	bool m_tx_stat;
 
+	dynamic_bpool_timer_handler *m_p_timer_handler;
+
 	void 		update_max_free_bpool();
 	int allocate_addtional_buffers(size_t count);
 	bool get_need_alloc() { return m_need_alloc; }
@@ -95,15 +111,6 @@ private:
 extern dynamic_buffer_pool* g_buffer_pool_rx;
 extern dynamic_buffer_pool* g_buffer_pool_tx;
 
-class dynamic_bpool_timer_handler : public timer_handler
-{
-public:
-	dynamic_bpool_timer_handler(size_t alloc_count): m_alloc_count(alloc_count) {};
-	virtual void handle_timer_expired(void* a);
 
-private:
-	size_t m_alloc_count;
-
-};
 
 #endif

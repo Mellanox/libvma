@@ -464,7 +464,7 @@ const char* buffer_batching_mode_str(buffer_batching_mode_t buffer_batching_mode
 }
 
 #define FORMAT_NUMBER		"%-30s %-26d [%s]\n"
-#define FORMAT_TOKEN_NUMBER		"%-30s %d:%d:%-12d [%s] <%s>\n"
+#define FORMAT_TOKEN_NUMBER	"%-30s %d:%d:%d:%-12d [%s] <%s>\n"
 #define FORMAT_STRING		"%-30s %-26s [%s]\n"
 #define FORMAT_NUMSTR		"%-30s %-2d%-24s [%s]\n"
 
@@ -489,13 +489,13 @@ const char* buffer_batching_mode_str(buffer_batching_mode_t buffer_batching_mode
 		}												\
 	} while (0);
 
-#define VLOG_NUM_BUFS_PARAM_DETAILS(param_desc, init_val, max_val, min_val, init_def, max_def, min_def, param_name)							\
+#define VLOG_NUM_BUFS_PARAM_DETAILS(param_desc, init_val, quanta_val, max_val, min_val, init_def, quanta_def, max_def, min_def, param_name)							\
 	do {	                                 								\
-		if ((init_val != init_def) || (max_val != max_def) || (min_val != min_def))	{								\
-			vlog_printf(VLOG_INFO, FORMAT_TOKEN_NUMBER, param_desc, mce_sys.tx_num_bufs_init, mce_sys.tx_num_bufs_max, mce_sys.tx_num_bufs_min_threshold, param_name, "init:max:min"); \
+		if ((init_val != init_def) ||  (quanta_val != quanta_def) || (max_val != max_def) || (min_val != min_def))	{								\
+			vlog_printf(VLOG_INFO, FORMAT_TOKEN_NUMBER, param_desc, mce_sys.tx_num_bufs_init,  mce_sys.tx_num_bufs_quanta, mce_sys.tx_num_bufs_max, mce_sys.tx_num_bufs_min_threshold, param_name, "init:quanta:max:min"); \
 		}												\
 		else {												\
-			vlog_printf(VLOG_DEBUG, FORMAT_TOKEN_NUMBER, param_desc, mce_sys.tx_num_bufs_init, mce_sys.tx_num_bufs_max, mce_sys.tx_num_bufs_min_threshold, param_name, "init:max:min"); \
+			vlog_printf(VLOG_DEBUG, FORMAT_TOKEN_NUMBER, param_desc, mce_sys.tx_num_bufs_init, mce_sys.tx_num_bufs_quanta, mce_sys.tx_num_bufs_max, mce_sys.tx_num_bufs_min_threshold, param_name, "init:quanta:max:min"); \
 		}												\
 	} while (0);
 
@@ -620,14 +620,14 @@ void print_vma_global_settings()
 	}
 
 	VLOG_PARAM_NUMBER("Tx Mem Segs TCP", safe_mce_sys().tx_num_segs_tcp, MCE_DEFAULT_TX_NUM_SEGS_TCP, SYS_VAR_TX_NUM_SEGS_TCP);
-	VLOG_NUM_BUFS_PARAM_DETAILS("Tx Mem Bufs", safe_mce_sys().tx_num_bufs_init, safe_mce_sys().tx_num_bufs_max, safe_mce_sys().tx_num_bufs_min_threshold, MCE_DEFAULT_TX_NUM_BUFS_INIT, MCE_DEFAULT_TX_NUM_BUFS_MAX, MCE_DEFAULT_TX_NUM_BUFS_MIN_THRESHOLD, SYS_VAR_TX_NUM_BUFS);
+	VLOG_NUM_BUFS_PARAM_DETAILS("Tx Mem Bufs", safe_mce_sys().tx_num_bufs_init, safe_mce_sys().tx_num_bufs_quanta, safe_mce_sys().tx_num_bufs_max, safe_mce_sys().tx_num_bufs_min_threshold, MCE_DEFAULT_TX_NUM_BUFS_INIT, MCE_DEFAULT_TX_NUM_BUFS_QUANTA, MCE_DEFAULT_TX_NUM_BUFS_MAX, MCE_DEFAULT_TX_NUM_BUFS_MIN_THRESHOLD, SYS_VAR_TX_NUM_BUFS);
 	VLOG_PARAM_NUMBER("Tx QP WRE", safe_mce_sys().tx_num_wr, MCE_DEFAULT_TX_NUM_WRE, SYS_VAR_TX_NUM_WRE);
 	VLOG_PARAM_NUMBER("Tx Max QP INLINE", safe_mce_sys().tx_max_inline, MCE_DEFAULT_TX_MAX_INLINE, SYS_VAR_TX_MAX_INLINE);
 	VLOG_PARAM_STRING("Tx MC Loopback", safe_mce_sys().tx_mc_loopback_default, MCE_DEFAULT_TX_MC_LOOPBACK, SYS_VAR_TX_MC_LOOPBACK, safe_mce_sys().tx_mc_loopback_default ? "Enabled " : "Disabled");
 	VLOG_PARAM_STRING("Tx non-blocked eagains", safe_mce_sys().tx_nonblocked_eagains, MCE_DEFAULT_TX_NONBLOCKED_EAGAINS, SYS_VAR_TX_NONBLOCKED_EAGAINS, safe_mce_sys().tx_nonblocked_eagains ? "Enabled " : "Disabled");
 	VLOG_PARAM_NUMBER("Tx Prefetch Bytes", safe_mce_sys().tx_prefetch_bytes, MCE_DEFAULT_TX_PREFETCH_BYTES, SYS_VAR_TX_PREFETCH_BYTES);
 
-	VLOG_NUM_BUFS_PARAM_DETAILS("Rx Mem Bufs", safe_mce_sys().rx_num_bufs_init, safe_mce_sys().rx_num_bufs_max, safe_mce_sys().rx_num_bufs_min_threshold, MCE_DEFAULT_RX_NUM_BUFS_INIT, MCE_DEFAULT_RX_NUM_BUFS_MAX, MCE_DEFAULT_RX_NUM_BUFS_MIN_THRESHOLD, SYS_VAR_RX_NUM_BUFS);
+	VLOG_NUM_BUFS_PARAM_DETAILS("Rx Mem Bufs", safe_mce_sys().rx_num_bufs_init, safe_mce_sys().rx_num_bufs_quanta, safe_mce_sys().rx_num_bufs_max, safe_mce_sys().rx_num_bufs_min_threshold, MCE_DEFAULT_RX_NUM_BUFS_INIT, MCE_DEFAULT_RX_NUM_BUFS_QUANTA, MCE_DEFAULT_RX_NUM_BUFS_MAX, MCE_DEFAULT_RX_NUM_BUFS_MIN_THRESHOLD, SYS_VAR_RX_NUM_BUFS);
 	VLOG_PARAM_NUMBER("Rx QP WRE", safe_mce_sys().rx_num_wr, MCE_DEFAULT_RX_NUM_WRE, SYS_VAR_RX_NUM_WRE);
 	VLOG_PARAM_NUMBER("Rx QP WRE BATCHING", safe_mce_sys().rx_num_wr_to_post_recv, MCE_DEFAULT_RX_NUM_WRE_TO_POST_RECV, SYS_VAR_RX_NUM_WRE_TO_POST_RECV);
 	VLOG_PARAM_NUMBER("Rx Byte Min Limit", safe_mce_sys().rx_ready_byte_min_limit, MCE_DEFAULT_RX_BYTE_MIN_LIMIT, SYS_VAR_RX_BYTE_MIN_LIMIT);
@@ -758,22 +758,21 @@ void print_vma_global_settings()
 }
 
 /*
- * Parse num_bufs_param to init,max and min values.
- * num_bufs_param is expected to be a ':' delimited string of 1-3 tokens - "<n_bufs_init>:<n_bufs_max>:<n_bufs_min_threshold>"
- * if providing only 1 token ("<n_bufs_init>") then it is used for n_bufs_init and rest will be set to 0
- * if providing 2 tokens ("<n_bufs_init>:<n_bufs_max>") then first is for n_bufs_init, second for n_bufs_max and n_bufs_min_threshold is set to 0
+ * Parse num_bufs_param to init, quanta, max and min values.
+ * num_bufs_param is expected to be a ':' delimited string of 1-4 tokens - "<n_bufs_init>:<n_bufs_quanta>:<n_bufs_max>:<n_bufs_min_threshold>".
+ * if providing only 1 token ("<n_bufs_init>") then it is used for n_bufs_init and n_bufs_max and rest will be set to 0.
  *
  * The function returns TRUE for success or FALSE for illegal input:
- * 		- number of token grater than 3 or lower than 1
+ * 		- number of token grater than 4 or lower than 1
  * 		- n_bufs_max < n_bufs_init
- * 		- n_bufs_min_threshold > n_bufs_init
+ * 		- n_bufs_min_threshold > n_bufs_quanta
  * 	Using atio() that might throw in case on non-numeric chars
  */
-bool parse_num_bufs_parameter(const char* num_bufs_param, uint32_t& n_bufs_init, uint32_t& n_bufs_max, uint32_t& n_bufs_min_threshold) {
+bool parse_num_bufs_parameter(const char* num_bufs_param, uint32_t& n_bufs_init, uint32_t& n_bufs_quanta, uint32_t& n_bufs_max, uint32_t& n_bufs_min_threshold) {
 	std::vector<std::string> n_bufs_tokens = split(num_bufs_param, ':');
-	n_bufs_init = n_bufs_max = n_bufs_min_threshold = 0;
+	n_bufs_init = n_bufs_quanta = n_bufs_max = n_bufs_min_threshold = 0;
 
-	if ((n_bufs_tokens.size() < 1) || (n_bufs_tokens.size() > 3)) {
+	if (n_bufs_tokens.size() != 1 || n_bufs_tokens.size() != 4) {
 		return false;
 	}
 
@@ -783,6 +782,14 @@ bool parse_num_bufs_parameter(const char* num_bufs_param, uint32_t& n_bufs_init,
 
 	if (!n_bufs_tokens.size()) {
 		n_bufs_max = n_bufs_init;
+		return true;
+	}
+
+	token = n_bufs_tokens.front().c_str();
+	n_bufs_tokens.erase(n_bufs_tokens.begin());
+	n_bufs_quanta=(uint32_t)atoi(token);
+
+	if (!n_bufs_tokens.size()) {
 		return true;
 	}
 
@@ -799,7 +806,7 @@ bool parse_num_bufs_parameter(const char* num_bufs_param, uint32_t& n_bufs_init,
 	n_bufs_min_threshold=(uint32_t)atoi(token);
 
 	// check for legal values
-	if ((n_bufs_max < n_bufs_init) || (n_bufs_min_threshold > n_bufs_init))
+	if ((n_bufs_max < n_bufs_init) || (n_bufs_min_threshold > n_bufs_quanta))
 		return false;
 
 	return true;
@@ -875,8 +882,9 @@ void get_env_params()
 
 	safe_mce_sys().tx_num_segs_tcp         = MCE_DEFAULT_TX_NUM_SEGS_TCP;
 	safe_mce_sys().tx_num_bufs_init        = MCE_DEFAULT_TX_NUM_BUFS_INIT;
+	safe_mce_sys().tx_num_bufs_quanta      = MCE_DEFAULT_TX_NUM_BUFS_QUANTA;
 	safe_mce_sys().tx_num_bufs_max         = MCE_DEFAULT_TX_NUM_BUFS_MAX;
-	safe_mce_sys().tx_num_bufs_min_threshold        = MCE_DEFAULT_TX_NUM_BUFS_MIN_THRESHOLD;
+	safe_mce_sys().tx_num_bufs_min_threshold = MCE_DEFAULT_TX_NUM_BUFS_MIN_THRESHOLD;
 	safe_mce_sys().tx_num_wr               = MCE_DEFAULT_TX_NUM_WRE;
 	safe_mce_sys().tx_max_inline		= MCE_DEFAULT_TX_MAX_INLINE;
 	safe_mce_sys().tx_mc_loopback_default  = MCE_DEFAULT_TX_MC_LOOPBACK;
@@ -885,8 +893,9 @@ void get_env_params()
 	safe_mce_sys().tx_bufs_batch_udp	= MCE_DEFAULT_TX_BUFS_BATCH_UDP;
 	safe_mce_sys().tx_bufs_batch_tcp	= MCE_DEFAULT_TX_BUFS_BATCH_TCP;
 
-	safe_mce_sys().rx_num_bufs_init     = MCE_DEFAULT_RX_NUM_BUFS_INIT;
-	safe_mce_sys().rx_num_bufs_max      = MCE_DEFAULT_RX_NUM_BUFS_MAX;
+	safe_mce_sys().rx_num_bufs_init       = MCE_DEFAULT_RX_NUM_BUFS_INIT;
+	safe_mce_sys().rx_num_bufs_quanta     = MCE_DEFAULT_RX_NUM_BUFS_QUANTA;
+	safe_mce_sys().rx_num_bufs_max        = MCE_DEFAULT_RX_NUM_BUFS_MAX;
 	safe_mce_sys().rx_num_bufs_min_threshold = MCE_DEFAULT_RX_NUM_BUFS_MIN_THRESHOLD;
 	safe_mce_sys().rx_bufs_batch           = MCE_DEFAULT_RX_BUFS_BATCH;
 	safe_mce_sys().rx_num_wr               = MCE_DEFAULT_RX_NUM_WRE;
@@ -1069,7 +1078,7 @@ void get_env_params()
 		safe_mce_sys().tx_num_segs_tcp = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_TX_NUM_BUFS)) != NULL) {
-		bool parse_success = parse_num_bufs_parameter(env_ptr, safe_mce_sys().tx_num_bufs_init, safe_mce_sys().tx_num_bufs_max, safe_mce_sys().tx_num_bufs_min_threshold);
+		bool parse_success = parse_num_bufs_parameter(env_ptr, safe_mce_sys().tx_num_bufs_init, safe_mce_sys().tx_num_bufs_quanta, safe_mce_sys().tx_num_bufs_max, safe_mce_sys().tx_num_bufs_min_threshold);
 		if (!parse_success)
 			vlog_printf(VLOG_WARNING,"Illegal TX_NUM_BUFS parameter: %s\n", env_ptr);
 	}
@@ -1134,7 +1143,7 @@ void get_env_params()
 		safe_mce_sys().tcp_max_syn_rate = MIN(TCP_MAX_SYN_RATE_TOP_LIMIT, MAX(0, (int32_t)atoi(env_ptr)));
 
 	if ((env_ptr = getenv(SYS_VAR_RX_NUM_BUFS)) != NULL) {
-		bool parse_success = parse_num_bufs_parameter(env_ptr, safe_mce_sys().rx_num_bufs_init, safe_mce_sys().rx_num_bufs_max, safe_mce_sys().rx_num_bufs_min_threshold);
+		bool parse_success = parse_num_bufs_parameter(env_ptr, safe_mce_sys().rx_num_bufs_init, safe_mce_sys().rx_num_bufs_quanta, safe_mce_sys().rx_num_bufs_max, safe_mce_sys().rx_num_bufs_min_threshold);
 		if (!parse_success)
 			vlog_printf(VLOG_WARNING,"Illegal RX_NUM_BUFS parameter: %s\n", env_ptr);
 	}
@@ -1636,7 +1645,7 @@ do { \
 		} \
 		BULLSEYE_EXCLUDE_BLOCK_END \
 	} \
-} while (0);
+} while (0)
 
 static void do_global_ctors_helper()
 {
@@ -1676,10 +1685,10 @@ static void do_global_ctors_helper()
 
 	NEW_CTOR(g_p_igmp_mgr, igmp_mgr());
 
-	NEW_CTOR(g_buffer_pool_rx, dynamic_buffer_pool(safe_mce_sys().rx_num_bufs_init, RX_BUF_SIZE(g_p_net_device_table_mgr->get_max_mtu()), safe_mce_sys().rx_num_bufs_max, safe_mce_sys().rx_num_bufs_min_threshold, dynamic_buffer_pool::free_rx_lwip_pbuf_custom)); 	
+	NEW_CTOR(g_buffer_pool_rx, dynamic_buffer_pool(safe_mce_sys().rx_num_bufs_init, RX_BUF_SIZE(g_p_net_device_table_mgr->get_max_mtu()), safe_mce_sys().rx_num_bufs_quanta, safe_mce_sys().rx_num_bufs_max, safe_mce_sys().rx_num_bufs_min_threshold, dynamic_buffer_pool::free_rx_lwip_pbuf_custom));
  	g_buffer_pool_rx->set_RX_TX_for_stats(true);
 
- 	NEW_CTOR(g_buffer_pool_tx, dynamic_buffer_pool(safe_mce_sys().tx_num_bufs_init, get_lwip_tcp_mss(g_p_net_device_table_mgr->get_max_mtu(), safe_mce_sys().lwip_mss) + 92, safe_mce_sys().tx_num_bufs_max, safe_mce_sys().tx_num_bufs_min_threshold, dynamic_buffer_pool::free_tx_lwip_pbuf_custom));
+ 	NEW_CTOR(g_buffer_pool_tx, dynamic_buffer_pool(safe_mce_sys().tx_num_bufs_init, get_lwip_tcp_mss(g_p_net_device_table_mgr->get_max_mtu(), safe_mce_sys().lwip_mss) + 92, safe_mce_sys().tx_num_bufs_quanta, safe_mce_sys().tx_num_bufs_max, safe_mce_sys().tx_num_bufs_min_threshold, dynamic_buffer_pool::free_tx_lwip_pbuf_custom));
  	g_buffer_pool_tx->set_RX_TX_for_stats(false);
 
  	NEW_CTOR(g_tcp_seg_pool,  tcp_seg_pool(safe_mce_sys().tx_num_segs_tcp));
@@ -1688,9 +1697,8 @@ static void do_global_ctors_helper()
 
 	NEW_CTOR(g_p_vlogger_timer_handler, vlogger_timer_handler());
 
- 	dynamic_bpool_timer_handler* bpool_timer_handler = NULL;
- 	NEW_CTOR(bpool_timer_handler, dynamic_bpool_timer_handler(min(mce_sys.rx_num_bufs_init, mce_sys.tx_num_bufs_init)));
- 	g_p_event_handler_manager->register_timer_event(mce_sys.timer_bpool_aloc_msec, bpool_timer_handler, PERIODIC_TIMER, NULL);
+	g_p_event_handler_manager->register_timer_event(mce_sys.timer_bpool_aloc_msec, g_buffer_pool_rx->get_timer_handler(), PERIODIC_TIMER, NULL);
+	g_p_event_handler_manager->register_timer_event(mce_sys.timer_bpool_aloc_msec, g_buffer_pool_tx->get_timer_handler(), PERIODIC_TIMER, NULL);
 
 	NEW_CTOR(g_p_ip_frag_manager, ip_frag_manager());
 

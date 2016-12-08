@@ -52,7 +52,7 @@ private:
 	struct ibv_context*     m_p_ibv_context;
 	struct ibv_port_attr    m_ibv_port_attr;
 	ibv_device*             m_p_ibv_device; // HCA handle
-	size_t					m_dev_index; // for mr arr on buffer pool
+	size_t                  m_dev_index; // for mr arr on buffer pool
 	vma_ibv_device_attr     m_ibv_device_attr;
 	ibv_pd*                 m_p_ibv_pd;
 	int                     m_channel; // fd channel
