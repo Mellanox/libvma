@@ -101,6 +101,7 @@ net_device_val::~net_device_val()
 			free(sd->if_name);
 		}
 		delete sd->p_L2_addr;
+		sd->p_L2_addr = NULL;
 		delete sd;
 	}
 }
