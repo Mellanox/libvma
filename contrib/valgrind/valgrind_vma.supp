@@ -62,7 +62,7 @@
    Points_to_uninitialised_bytes
    Memcheck:Param
    close(fd)
-   obj:/usr/lib64/libpthread-2.17.so
+   ...
    fun:ibv_destroy_comp_channel
    ...
    fun:~ring_eth
