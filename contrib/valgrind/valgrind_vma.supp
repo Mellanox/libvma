@@ -1,0 +1,161 @@
+
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZN11buffer_pool11get_buffersEmj
+}
+{
+   Points_to_uninitialised_bytes
+   Memcheck:Param
+   epoll_ctl(event)
+   fun:epoll_ctl
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:is_valid_fd
+   ...
+   fun:ring_eth
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:is_valid_fd
+   ...
+   fun:~ring_eth
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:is_valid_fd
+   fun:get<epfd_info>
+   fun:get_epfd
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:is_valid_fd
+   fun:get<socket_fd_api>
+   fun:get_sockfd
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:is_valid_fd
+   fun:get<cq_channel_info>
+   fun:get_cq_channel_fd
+}
+{
+   Points_to_uninitialised_bytes
+   Memcheck:Param
+   epoll_ctl(fd)
+   fun:epoll_ctl
+   ...
+}
+{
+   Points_to_uninitialised_bytes
+   Memcheck:Param
+   fcntl(fd)
+   fun:fcntl
+}
+{
+   Points_to_uninitialised_bytes
+   Memcheck:Param
+   close(fd)
+   obj:/usr/lib64/libpthread-2.17.so
+   fun:ibv_destroy_comp_channel
+   ...
+   fun:~ring_eth
+}
+{
+   Invalid_read_size_8
+   Memcheck:Addr8
+   fun:operator++
+   ...
+   fun:~ring_eth
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZN20net_device_table_mgr15map_net_devicesEv
+}
+{
+   Uninitialised_value_of_size_8
+   Memcheck:Value8
+   fun:get<epfd_info>
+   fun:get_epfd
+}
+{
+   Uninitialised_value_of_size_8
+   Memcheck:Value8
+   fun:get<socket_fd_api>
+}
+{
+   Uninitialised_value_of_size_8
+   Memcheck:Value8
+   fun:get<cq_channel_info>
+}
+{
+   Uninitialised_value_of_size_8
+   Memcheck:Value8
+   fun:_ZN13fd_collection17add_cq_channel_fdEiP4ring
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_Z39priv_ibv_modify_qp_from_err_to_init_rawP6ibv_qph
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZN10qp_mgr_eth24modify_qp_to_ready_stateEv
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_Z35priv_ibv_modify_qp_from_init_to_rtsP6ibv_qp
+}
+{
+   Uninitialised_value_of_size_8
+   Memcheck:Value8
+   fun:_ZN13fd_collection3delI15cq_channel_infoEEiibPPT_
+   ...
+   fun:~ring_eth
+}
+# Temporarily suppress 120-144 bytes
+# definitely lost for cache entry
+{
+   24 bytes_definitely_lost
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:_Znwm
+   fun:do_global_ctors_helper
+}
+{
+   +24 bytes_definitely_lost
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:_Znwm
+   fun:build_uc_neigh_val
+}
+{
+   + bytes_definitely_lost
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:_Znwm
+   fun:_ZN13neigh_eth_valaSERK9neigh_val
+}
+{
+   +96 bytes_definitely_lost
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:_Znwm
+   fun:allocate
+   fun:_M_allocate_buckets
+   fun:_Hashtable
+   fun:__unordered_set
+   fun:unordered_set
+   fun:subject
+   fun:cache_entry_subject
+}
+
