@@ -596,6 +596,7 @@ void mce_sys_var::get_env_params()
 		tcp_3t_rules              = true; //MCE_DEFAULT_TCP_3T_RULES(false), Use only 3 tuple rules for TCP
 		avoid_sys_calls_on_tcp_fd = 1; //MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD (false), Disable handling control packets on a separate thread
 		buffer_batching_mode      = BUFFER_BATCHING_NONE; //MCE_DEFAULT_BUFFER_BATCHING_MODE(BUFFER_BATCHING_WITH_RECLAIM), Disable handling control packets on a separate thread
+		tcp_ctl_thread            = CTL_THREAD_NO_WAKEUP; //MCE_DEFAULT_TCP_CTL_THREAD (CTL_THREAD_DISABLE), wait for thread timer to expire
 		break;
 		
 	case MCE_SPEC_NONE:
