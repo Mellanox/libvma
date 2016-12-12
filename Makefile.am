@@ -6,7 +6,7 @@ EXTRA_DIST = \
 	build \
 	contrib \
 	debian \
-	BUILD \
+	BUILD.txt \
 	install.sh \
 	journal.txt \
 	LOC_exclude_VMA.txt \
