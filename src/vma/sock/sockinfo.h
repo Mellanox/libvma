@@ -57,6 +57,7 @@
 
 #define MAX_RX_MEM_BUF_DESC		32
 #define SI_RX_EPFD_EVENT_MAX		16
+#define BYTE_TO_kb(BYTEVALUE) 	  (( BYTEVALUE * 8) / 1000)
 
 struct buff_info_t {
 		buff_info_t(){
@@ -114,6 +115,7 @@ public:
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif
+	int	get_ratelimit() {return m_so_ratelimit;}
 
 	virtual void consider_rings_migration();
 
@@ -169,6 +171,7 @@ protected:
 	// Callback function pointer to support VMA extra API (vma_extra.h)
 	vma_recv_callback_t	m_rx_callback;
 	void*			m_rx_callback_context; // user context
+	int			m_so_ratelimit;
 
 	virtual void 		set_blocking(bool is_blocked);
 	virtual int 		fcntl(int __cmd, unsigned long int __arg) throw (vma_error);
@@ -215,6 +218,7 @@ protected:
 	virtual void		unlock_rx_q() {m_lock_rcv.unlock();}
 
 	void 			destructor_helper();
+	int 			modify_ratelimit(const int rate_limit_bytes_per_second, dst_entry* p_dst_entry);
 
 	void 			move_owned_rx_ready_descs(const mem_buf_desc_owner* p_desc_owner, descq_t* toq); // Move all owner's rx ready packets ro 'toq'
 

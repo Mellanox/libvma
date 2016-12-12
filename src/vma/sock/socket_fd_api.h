@@ -46,6 +46,9 @@
 #ifndef SOCK_CLOEXEC
 #define SOCK_CLOEXEC 02000000
 #endif
+#ifndef SO_MAX_PACING_RATE
+#define SO_MAX_PACING_RATE 47
+#endif
 
 class cq_mgr;
 class epfd_info;

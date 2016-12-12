@@ -91,6 +91,9 @@ int priv_ibv_modify_qp_from_init_to_rts(struct ibv_qp *qp);
 // Return 'ibv_qp_state' of the ibv_qp
 int priv_ibv_query_qp_state(struct ibv_qp *qp);
 
+// change  ib rate limit
+int priv_ibv_modify_qp_ratelimit(struct ibv_qp *qp, uint32_t ratelimit_kbps );
+
 
 #ifndef VLAN_VID_MASK
 #define VLAN_VID_MASK      0xFFF	/* define vlan range: 1-4095. taken from <linux/if_vlan.h> */

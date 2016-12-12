@@ -192,7 +192,7 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 
 
 
-ssize_t dst_entry_tcp::slow_send(const iovec* p_iov, size_t sz_iov, bool b_blocked /*= true*/, bool is_rexmit /*= false*/, int flags /*= 0*/, socket_fd_api* sock /*= 0*/, tx_call_t call_type /*= 0*/)
+ssize_t dst_entry_tcp::slow_send( const iovec* p_iov, size_t sz_iov, const int ratelimit_kbps, bool b_blocked /*= true*/, bool is_rexmit /*= false*/, int flags /*= 0*/, socket_fd_api* sock /*= 0*/, tx_call_t call_type /*= 0*/)
 {
 	ssize_t ret_val = -1;
 
@@ -202,7 +202,7 @@ ssize_t dst_entry_tcp::slow_send(const iovec* p_iov, size_t sz_iov, bool b_block
 
 	m_slow_path_lock.lock();
 
-	prepare_to_send(true);
+	prepare_to_send(true,ratelimit_kbps);
 
 	if (m_b_is_offloaded) {
 		if (!is_valid()) { // That means that the neigh is not resolved yet
@@ -220,13 +220,13 @@ ssize_t dst_entry_tcp::slow_send(const iovec* p_iov, size_t sz_iov, bool b_block
 	return ret_val;
 }
 
-ssize_t dst_entry_tcp::slow_send_neigh(const iovec* p_iov, size_t sz_iov)
+ssize_t dst_entry_tcp::slow_send_neigh( const iovec* p_iov, size_t sz_iov, const int ratelimit_kbps)
 {
 	ssize_t ret_val = -1;
 
 	m_slow_path_lock.lock();
 
-	prepare_to_send(true);
+        prepare_to_send(true, ratelimit_kbps);
 
 	if (m_b_is_offloaded) {
 		ret_val = pass_buff_to_neigh(p_iov, sz_iov);
