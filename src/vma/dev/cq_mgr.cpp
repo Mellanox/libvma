@@ -821,11 +821,7 @@ int cq_mgr::vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 		++m_n_wce_counter;
 		++m_qp->m_mlx5_hw_qp->rq.tail;
 		m_rx_hot_buff->sz_data = ntohl(cqe->byte_cnt);
-#if defined(DEFINED_IBV_EXP_FLOW_TAG)
-		m_rx_hot_buff->flow_tag_id = ntohl((uint32_t)(cqe->sop_drop_qpn));
-#else
-		m_rx_hot_buff->flow_tag_id = 0;
-#endif//defined(DEFINED_IBV_EXP_FLOW_TAG)
+		m_rx_hot_buff->flow_tag_id = vma_get_flow_tag(cqe);
 
 		if (unlikely(++m_qp_rec.debth >= m_n_sysvar_rx_num_wr_to_post_recv)) {
 			compensate_qp_poll_success(m_rx_hot_buff);
@@ -890,11 +886,7 @@ int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready
 			++m_n_wce_counter;
 			++m_qp->m_mlx5_hw_qp->rq.tail;
 			m_rx_hot_buff->sz_data = ntohl(cqe->byte_cnt);
-#if defined(DEFINED_IBV_EXP_FLOW_TAG)
-			m_rx_hot_buff->flow_tag_id = ntohl((uint32_t)(cqe->sop_drop_qpn));
-#else
-			m_rx_hot_buff->flow_tag_id = 0;
-#endif //defined(DEFINED_IBV_EXP_FLOW_TAG)
+			m_rx_hot_buff->flow_tag_id = vma_get_flow_tag(cqe);
 			if (unlikely(++m_qp_rec.debth >= m_n_sysvar_rx_num_wr_to_post_recv)) {
 				compensate_qp_poll_success(m_rx_hot_buff);
 			}

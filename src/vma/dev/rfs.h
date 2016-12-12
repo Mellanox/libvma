@@ -99,22 +99,21 @@ typedef struct __attribute__ ((packed)) ibv_flow_attr_eth_ipv4_tcp_udp {
 	vma_ibv_flow_spec_eth         eth;
 	vma_ibv_flow_spec_ipv4        ipv4;
 	vma_ibv_flow_spec_tcp_udp     tcp_udp;
-#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 	vma_ibv_exp_flow_spec_action_tag  flow_tag;
-#endif // defined(DEFINED_IBV_EXP_FLOW_TAG)
 
 	ibv_flow_attr_eth_ipv4_tcp_udp(uint8_t port) {
 		memset(this, 0, sizeof(*this));
-		attr.size = sizeof(struct ibv_flow_attr_eth_ipv4_tcp_udp);
-#if defined(DEFINED_IBV_EXP_FLOW_TAG)
-		attr.num_of_specs = 4;
-#else
+		attr.size = sizeof(struct ibv_flow_attr_eth_ipv4_tcp_udp) - sizeof(flow_tag);
 		attr.num_of_specs = 3;
-#endif // defined(DEFINED_IBV_EXP_FLOW_TAG)
 		attr.type = VMA_IBV_FLOW_ATTR_NORMAL;
 		attr.priority = 1; // almost highest priority, 0 is used for 5-tuple later
 		attr.port = port;
 	}
+	inline void add_flow_tag_spec(void) {
+		attr.num_of_specs++;
+		attr.size += sizeof(flow_tag);
+	}
+
 } ibv_flow_attr_eth_ipv4_tcp_udp;
 
 #ifdef DEFINED_IBV_FLOW_SPEC_IB
@@ -180,7 +179,8 @@ public:
 class rfs
 {
 public:
-	rfs(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* rule_filter = NULL);
+	rfs(flow_tuple *flow_spec_5t, ring_simple *p_ring,
+	    rfs_rule_filter* rule_filter = NULL, uint32_t flow_tag_id=0);
 	virtual ~rfs();
 
 	/**
@@ -205,6 +205,7 @@ protected:
 	pkt_rcvr_sink**		m_sinks_list;
 	uint32_t 		m_n_sinks_list_entries; // Number of actual sinks in the array (we shrink the array if a sink is removed)
 	uint32_t		m_n_sinks_list_max_length;
+	uint32_t		m_flow_tag_id; // Associated with this rule, set by attach_flow()
 	bool 			m_b_tmp_is_attached; // Only temporary, while ibcm calls attach_flow with no sinks...
 
 	bool 			create_ibv_flow(); // Attach flow to all qps

@@ -411,20 +411,21 @@ AS_IF([test "x$enable_exp_cq" == xyes],
 	  AC_MSG_RESULT([no])
 	])
 
-	AC_COMPILE_CHECK([Exp VERBS Flow Tag support ],
-	[
+	AC_MSG_CHECKING([if IBV_EXP_FLOW_SPEC_ACTION_TAG is defined])
+	AC_TRY_LINK(
 	#include <infiniband/verbs_exp.h>
+	,
+	[
+	  int access = (int)IBV_EXP_FLOW_SPEC_ACTION_TAG;
+	  return access;
 	],
 	[
-	struct ibv_exp_flow_spec_action_tag tag; tag = tag;
+	  AC_MSG_RESULT([yes])
+	  AC_DEFINE(DEFINED_IBV_EXP_FLOW_TAG, 1, [Define to 1 if IBV_EXP_FLOW_SPEC_ACTION_TAG is defined])
 	],
-	ac_cv_libverbs_flow_tag=yes,
-	ac_cv_libverbs_flow_tag=no
-	)
-	AC_MSG_RESULT($ac_cv_libverbs_flow_tag)
-	if test $ac_cv_libverbs_flow_tag = yes ; then
-		AC_DEFINE([DEFINED_IBV_EXP_FLOW_TAG], [1], [Define to 1 enable Flow Tagging functionality])
-	fi
+	[
+	  AC_MSG_RESULT([no])
+	])
 )
 
 # debug configuration. Kills CFLAGS/CXXFLAGS

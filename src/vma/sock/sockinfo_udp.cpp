@@ -1703,37 +1703,33 @@ bool sockinfo_udp::tx_check_if_would_not_block()
 bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 {
 
-	if (unlikely(!m_flow_tag_enabled ||
-		     !p_desc->flow_tag_id ||
-		     (p_desc->flow_tag_id != m_flow_tag_id))) {
-		// Check that sockinfo is bound to the packets dest port
-		if (unlikely(p_desc->path.rx.dst.sin_port != m_bound.get_in_port())) {
-			si_udp_logfunc("rx packet discarded - not socket's bound port (pkt: %d, sock:%s)",
+	// Check that sockinfo is bound to the packets dest port
+	if (unlikely(p_desc->path.rx.dst.sin_port != m_bound.get_in_port())) {
+		si_udp_logfunc("rx packet discarded - not socket's bound port (pkt: %d, sock:%s)",
 			       ntohs(p_desc->path.rx.dst.sin_port), m_bound.to_str_in_port());
+		return false;
+	}
+
+	if (m_connected.get_in_port() != INPORT_ANY && m_connected.get_in_addr() != INADDR_ANY) {
+		if (unlikely(m_connected.get_in_port() != p_desc->path.rx.src.sin_port)) {
+			si_udp_logfunc("rx packet discarded - not socket's connected port (pkt: %d, sock:%s)",
+					ntohs(p_desc->path.rx.src.sin_port), m_connected.to_str_in_port());
 			return false;
 		}
 
-		if (m_connected.get_in_port() != INPORT_ANY && m_connected.get_in_addr() != INADDR_ANY) {
-			if (unlikely(m_connected.get_in_port() != p_desc->path.rx.src.sin_port)) {
-				si_udp_logfunc("rx packet discarded - not socket's connected port (pkt: %d, sock:%s)",
-					   ntohs(p_desc->path.rx.src.sin_port), m_connected.to_str_in_port());
-				return false;
-			}
-
-			if (unlikely(m_connected.get_in_addr() != p_desc->path.rx.src.sin_addr.s_addr)) {
-				si_udp_logfunc("rx packet discarded - not socket's connected port (pkt: [%d:%d:%d:%d], sock:[%s])",
-					   NIPQUAD(p_desc->path.rx.src.sin_addr.s_addr), m_connected.to_str_in_addr());
-				return false;
-			}
+		if (unlikely(m_connected.get_in_addr() != p_desc->path.rx.src.sin_addr.s_addr)) {
+			si_udp_logfunc("rx packet discarded - not socket's connected port (pkt: [%d:%d:%d:%d], sock:[%s])",
+					NIPQUAD(p_desc->path.rx.src.sin_addr.s_addr), m_connected.to_str_in_addr());
+			return false;
 		}
-		// if loopback is disabled, discard loopback packets.
-		// in linux, loopback control (set by setsockopt) is done in TX flow.
-		// since we currently can't control it in TX, we behave like windows, which filter on RX
-		if (unlikely(!m_b_mc_tx_loop && p_desc->path.rx.local_if == p_desc->path.rx.src.sin_addr.s_addr)) {
-			si_udp_logfunc("rx packet discarded - loopback is disabled (pkt: [%d:%d:%d:%d], sock:%s)",
+	}
+	// if loopback is disabled, discard loopback packets.
+	// in linux, loopback control (set by setsockopt) is done in TX flow.
+	// since we currently can't control it in TX, we behave like windows, which filter on RX
+	if (unlikely(!m_b_mc_tx_loop && p_desc->path.rx.local_if == p_desc->path.rx.src.sin_addr.s_addr)) {
+		si_udp_logfunc("rx packet discarded - loopback is disabled (pkt: [%d:%d:%d:%d], sock:%s)",
 				NIPQUAD(p_desc->path.rx.src.sin_addr.s_addr), m_bound.to_str_in_addr());
-			return false;
-		}
+		return false;
 	}
 	// Check port mapping - redirecting packets to another socket
 	while (!m_port_map.empty()) {

@@ -148,6 +148,9 @@ typedef struct ibv_flow_spec_ib			vma_ibv_flow_spec_ib;
 typedef struct ibv_flow_spec_eth		vma_ibv_flow_spec_eth;
 typedef struct ibv_flow_spec_ipv4		vma_ibv_flow_spec_ipv4;
 typedef struct ibv_flow_spec_tcp_udp		vma_ibv_flow_spec_tcp_udp;
+#define vma_get_flow_tag			0
+typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_exp_flow_spec_action_tag;
+
 #else //new MLNX_OFED verbs (2.2 and newer)
 //ibv_query_device
 #define vma_ibv_query_device(context, attr)	ibv_exp_query_device(context, attr)
@@ -207,10 +210,9 @@ typedef int            vma_ibv_cq_init_attr;
 #define VMA_IBV_WC_WITH_TIMESTAMP              IBV_EXP_WC_WITH_TIMESTAMP
 #define vma_wc_timestamp(wc)			(wc).timestamp
 #else
-#define VMA_IBV_WC_WITH_TIMESTAMP              0
+#define VMA_IBV_WC_WITH_TIMESTAMP		0
 #define vma_wc_timestamp(wc)			0
 #endif
-
 
 //ibv_post_send
 #define VMA_IBV_SEND_SIGNALED			IBV_EXP_SEND_SIGNALED
@@ -245,9 +247,14 @@ typedef struct ibv_exp_flow_spec_ib		vma_ibv_flow_spec_ib;
 typedef struct ibv_exp_flow_spec_eth		vma_ibv_flow_spec_eth;
 typedef struct ibv_exp_flow_spec_ipv4		vma_ibv_flow_spec_ipv4;
 typedef struct ibv_exp_flow_spec_tcp_udp	vma_ibv_flow_spec_tcp_udp;
-#if defined(DEFINED_IBV_EXP_FLOW_TAG)
+//Flow tag
+#ifdef DEFINED_IBV_EXP_FLOW_TAG
+#define vma_get_flow_tag(wc)			ntohl((uint32_t)(wc->sop_drop_qpn))
 typedef struct ibv_exp_flow_spec_action_tag	vma_ibv_exp_flow_spec_action_tag;
-#endif //defined(DEFINED_IBV_EXP_FLOW_TAG)
+#else
+#define vma_get_flow_tag(cqe)			0
+typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_exp_flow_spec_action_tag;
+#endif //DEFINED_IBV_EXP_FLOW_TAG
 #endif
 
 static inline void init_vma_ibv_cq_init_attr(vma_ibv_cq_init_attr* attr)
@@ -313,19 +320,21 @@ static inline void ibv_flow_spec_tcp_udp_set(vma_ibv_flow_spec_tcp_udp* tcp_udp,
 	if(tcp_udp->val.dst_port) tcp_udp->mask.dst_port = FS_MASK_ON_16;
 }
 
-#if defined(DEFINED_IBV_EXP_FLOW_TAG)
-static inline void ibv_flow_spec_flow_tag_set(vma_ibv_exp_flow_spec_action_tag* flow_tag, uint32_t tag_id, uint32_t mask)
+static inline void ibv_flow_spec_flow_tag_set(vma_ibv_exp_flow_spec_action_tag* flow_tag, uint32_t tag_id)
 {
+	NOT_IN_USE(tag_id);
 	if (flow_tag == NULL)
 		return;
+#ifdef DEFINED_IBV_EXP_FLOW_TAG
 	flow_tag->type = IBV_EXP_FLOW_SPEC_ACTION_TAG;
 	flow_tag->size = sizeof(vma_ibv_exp_flow_spec_action_tag);
-	if (tag_id & (~mask)) {
-		flow_tag->tag_id = 0;	/* fallback to parcing */
-	} else {
-		flow_tag->tag_id = tag_id & mask;
-	}
+	flow_tag->tag_id = tag_id;
+#endif //DEFINED_IBV_EXP_FLOW_TAG
 }
-#endif //defined(DEFINED_IBV_EXP_FLOW_TAG)
+
+static inline uint32_t ibv_get_flow_tag_mask(void)
+{
+	return (1 << 20) -1; //TODO: OFED should support 20 bit mask
+}
 
 #endif

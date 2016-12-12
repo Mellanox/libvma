@@ -20,7 +20,8 @@
 #define MODULE_NAME 		"rfs_uc"
 
 
-rfs_uc::rfs_uc(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* rule_filter /*= NULL*/) : rfs(flow_spec_5t, p_ring, rule_filter)
+rfs_uc::rfs_uc(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* rule_filter, uint32_t flow_tag_id) :
+	rfs(flow_spec_5t, p_ring, rule_filter, flow_tag_id)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_flow_tuple.is_udp_mc()) {
@@ -29,6 +30,7 @@ rfs_uc::rfs_uc(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* r
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	prepare_flow_spec();
+
 }
 
 void rfs_uc::prepare_flow_spec()
@@ -46,9 +48,7 @@ void rfs_uc::prepare_flow_spec()
 	attach_flow_data_eth_ipv4_tcp_udp_t*   attach_flow_data_eth = NULL;
 	vma_ibv_flow_spec_ipv4*             p_ipv4 = NULL;
 	vma_ibv_flow_spec_tcp_udp*          p_tcp_udp = NULL;
-#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 	vma_ibv_exp_flow_spec_action_tag*   p_flow_tag = NULL;
-#endif // defined(DEFINED_IBV_EXP_FLOW_TAG)
 
 	switch (type) {
 		case VMA_TRANSPORT_IB:
@@ -70,9 +70,7 @@ void rfs_uc::prepare_flow_spec()
 						htons(m_p_ring->m_p_qp_mgr->get_partiton()));
 			p_ipv4 = &(attach_flow_data_eth->ibv_flow_attr.ipv4);
 			p_tcp_udp = &(attach_flow_data_eth->ibv_flow_attr.tcp_udp);
-#if defined(DEFINED_IBV_EXP_FLOW_TAG)
 			p_flow_tag = &(attach_flow_data_eth->ibv_flow_attr.flow_tag);
-#endif //defined(DEFINED_IBV_EXP_FLOW_TAG)
 			p_attach_flow_data = (attach_flow_data_t*)attach_flow_data_eth;
 			break;
 		BULLSEYE_EXCLUDE_BLOCK_START
@@ -96,9 +94,11 @@ void rfs_uc::prepare_flow_spec()
 		// to make sure 5-tuple have higher priority on ConnectX-4
 		p_attach_flow_data->ibv_flow_attr.priority = 0;
 	}
-#if defined(DEFINED_IBV_EXP_FLOW_TAG)
-	ibv_flow_spec_flow_tag_set(p_flow_tag, m_p_ring->m_flow_tag_id, m_p_ring->m_flow_tag_id_mask);
-#endif // defined(DEFINED_IBV_EXP_FLOW_TAG)
+
+	if (m_flow_tag_id && attach_flow_data_eth) {
+		ibv_flow_spec_flow_tag_set(p_flow_tag, m_flow_tag_id);
+		attach_flow_data_eth->ibv_flow_attr.add_flow_tag_spec();
+	}
 
 	m_attach_flow_data_vector.push_back(p_attach_flow_data);
 }

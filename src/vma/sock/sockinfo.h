@@ -161,14 +161,14 @@ protected:
 	struct ring_ec m_ec;
 	struct vma_completion_t* m_vma_poll_completion;
 	struct vma_buff_t*       m_vma_poll_last_buff_lst;
-	uint32_t		m_flow_tag_id;	// Flow Tag for this socket
-	bool			m_flow_tag_enabled; // for this socket
-	bool			m_tcp_flow_is_5t; // to bypass packet analysis
 
 	// Callback function pointer to support VMA extra API (vma_extra.h)
 	vma_recv_callback_t	m_rx_callback;
 	void*			m_rx_callback_context; // user context
 	void*			m_fd_context;
+	uint32_t		m_flow_tag_id;	// Flow Tag for this socket
+	bool			m_flow_tag_enabled; // for this socket
+	bool			m_tcp_flow_is_5t; // to bypass packet analysis
 
 	virtual void 		set_blocking(bool is_blocked);
 	virtual int 		fcntl(int __cmd, unsigned long int __arg) throw (vma_error);

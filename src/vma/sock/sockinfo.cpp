@@ -56,7 +56,9 @@ sockinfo::sockinfo(int fd) throw (vma_exception):
 		m_rx_num_buffs_reuse(safe_mce_sys().rx_bufs_batch),
 		m_rx_callback(NULL),
 		m_rx_callback_context(NULL),
-		m_fd_context((void *)((uintptr_t)m_fd))
+		m_fd_context((void *)((uintptr_t)m_fd)),
+		m_flow_tag_id(0), m_flow_tag_enabled(false), 
+		m_tcp_flow_is_5t(false)
 {
 	m_rx_epfd = orig_os_api.epoll_create(128);
 	if (unlikely(m_rx_epfd == -1)) {
