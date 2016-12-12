@@ -5,7 +5,7 @@ script_dir=`dirname $(readlink -f $0)`
 cd $script_dir/..
 
 BUILD_DIR=`pwd`/build_debian
-mkdir $BUILD_DIR
+mkdir -p $BUILD_DIR
 
 LOG_FILE=$BUILD_DIR/build_debian.log
 

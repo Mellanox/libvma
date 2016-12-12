@@ -34,6 +34,7 @@ jenkins_test_cppcheck=${jenkins_test_cppcheck:="yes"}
 jenkins_test_csbuild=${jenkins_test_csbuild:="yes"}
 jenkins_test_vg=${jenkins_test_vg:="no"}
 jenkins_test_style=${jenkins_test_style:="no"}
+jenkins_test_tool=${jenkins_test_tool:="yes"}
 
 
 echo Starting on host: $(hostname)
@@ -87,6 +88,10 @@ if [ "$jenkins_test_vg" = "yes" ]; then
 fi
 if [ "$jenkins_test_style" = "yes" ]; then
     $WORKSPACE/contrib/jenkins_tests/style.sh
+    rc=$((rc + $?))
+fi
+if [ "$jenkins_test_tool" = "yes" ]; then
+    $WORKSPACE/contrib/jenkins_tests/tool.sh
     rc=$((rc + $?))
 fi
 set -e
