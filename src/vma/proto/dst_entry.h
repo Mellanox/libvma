@@ -65,7 +65,7 @@ public:
 
 	virtual void 	notify_cb();
 
-	virtual bool 	prepare_to_send(bool skip_rules=false);
+	virtual bool 	prepare_to_send(bool skip_rules=false, bool is_connect=false);
 	virtual ssize_t slow_send(const iovec* p_iov, size_t sz_iov, bool b_blocked = true, bool is_rexmit = false, int flags = 0, socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF) = 0 ;
 	virtual ssize_t fast_send(const struct iovec* p_iov, const ssize_t sz_iov, bool b_blocked = true, bool is_rexmit = false, bool dont_inline = false) = 0;
 
@@ -74,9 +74,11 @@ public:
 	bool 		is_offloaded() { return m_b_is_offloaded; }
 	void		set_bound_addr(in_addr_t addr);
 	void		set_so_bindtodevice_addr(in_addr_t addr);
-	in_addr_t	get_src_addr();
 	in_addr_t	get_dst_addr();
 	uint16_t	get_dst_port();
+	inline in_addr_t get_src_addr() const {
+		return m_pkt_src_ip;
+	}
 
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
@@ -101,7 +103,8 @@ protected:
 
 	in_addr_t		m_bound_ip;
 	in_addr_t		m_so_bindtodevice_ip;
-
+	in_addr_t		m_route_src_ip;
+	in_addr_t		m_pkt_src_ip;
 	lock_mutex_recursive 	m_slow_path_lock;
 	vma_ibv_send_wr 	m_inline_send_wqe;
 	vma_ibv_send_wr 	m_not_inline_send_wqe;
@@ -140,7 +143,8 @@ protected:
 
 	virtual bool 		offloaded_according_to_rules();
 	virtual void 		init_members();
-	virtual bool 		resolve_net_dev();
+	virtual bool 		resolve_net_dev(bool is_connect=false);
+	void			set_src_addr();
 	bool 			update_net_dev_val();
 	bool 			update_rt_val();
 	virtual bool 		resolve_neigh();

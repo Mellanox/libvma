@@ -82,8 +82,9 @@ bool dst_entry_udp_mc::conf_l2_hdr_and_snd_wqe_ib()
 }
 
 //The following function supposed to be called under m_lock
-bool dst_entry_udp_mc::resolve_net_dev()
+bool dst_entry_udp_mc::resolve_net_dev(bool is_connect)
 {
+	NOT_IN_USE(is_connect);
 	bool ret_val = false;
 	cache_entry_subject<ip_address, net_device_val*>* p_ces = NULL;
 
