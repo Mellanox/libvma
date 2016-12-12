@@ -69,6 +69,7 @@ function do_start()
     fi
     if [[ $RETVAL -eq 0 ]]; then
         success
+        sleep 1
     else
         failure
     fi
@@ -79,16 +80,18 @@ function do_stop()
 {
     echo -n "Shutting down ${exefile}: "
 
-    killproc "${exefile}" -INT
-    RETVAL=$?
+    RETVAL=0
+    if [ $(command -v pkill >/dev/null 2>&1 && echo $?) ]; then
+        pkill -INT "${exefile}"
+        RETVAL=$?
+    fi
     if [[ $RETVAL -ne 0 ]]; then
-        if [ $(command -v pkill >/dev/null 2>&1 && echo $?) ]; then
-            pkill -INT "${exefile}"
-            RETVAL=$?
-        fi
+        killproc "${exefile}" -INT
+        RETVAL=$?
     fi
     if [[ $RETVAL -eq 0 ]]; then
         success
+        sleep 1
     else
         failure
     fi
@@ -97,13 +100,13 @@ function do_stop()
 
 function do_status ()
 {
-	pid="`pidof ${exefile}`"
-	ret=$?
-	if [ $ret -eq 0 ] ; then
-		echo "${exefile} is running... pid=$pid"
-	else
-		echo "${exefile} is not running."
-	fi
+    pid="`pidof ${exefile}`"
+    ret=$?
+    if [ $ret -eq 0 ] ; then
+        echo "${exefile} is running... pid=$pid"
+    else
+        echo "${exefile} is not running."
+    fi
 }
 
 function do_restart()

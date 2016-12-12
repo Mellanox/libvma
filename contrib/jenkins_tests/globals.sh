@@ -28,6 +28,7 @@ cppcheck_dir=${WORKSPACE}/${prefix}/cppcheck
 csbuild_dir=${WORKSPACE}/${prefix}/csbuild
 vg_dir=${WORKSPACE}/${prefix}/vg
 style_dir=${WORKSPACE}/${prefix}/style
+tool_dir=${WORKSPACE}/${prefix}/tool
 
 
 nproc=$(grep processor /proc/cpuinfo|wc -l)
@@ -43,6 +44,7 @@ function on_exit
     rc=$((rc + $?))
     echo "[${0##*/}]..................exit code = $rc"
     pkill -9 sockperf
+    pkill -9 vma
 }
 
 function do_cmd()
@@ -90,18 +92,30 @@ function do_github_status()
 
 function check_env()
 {
-    if [ $(command -v ofed_info >/dev/null 2>&1 || echo $?) ]; then
-		echo "Configuration: INBOX : ${ghprbTargetBranch}"
-    elif [ -n "$ghprbTargetBranch" -a "$ghprbTargetBranch" != "master" ]; then
-		echo "Configuration: MOFED[$(ofed_info -s)] : ${ghprbTargetBranch}"
+    echo "Checking system configuration"
+    if [ $(command -v pkill >/dev/null 2>&1 || echo $?) ]; then
+        echo "pkill is not found"
+        echo "environment [NOT OK]"
+        exit 0
+    fi
+    if [ $(sudo pwd >/dev/null 2>&1 || echo $?) ]; then
+        echo "sudo does not work"
+        echo "environment [NOT OK]"
+        exit 0
+    fi
 
-		if [ $(ofed_info -s | grep 'MLNX_OFED_LINUX-3.2' >/dev/null 2>&1 || echo $?) ]; then
-		    echo "environment [NOT OK]"
-		    exit 0
-		fi
-	else
-		echo "Configuration: MOFED[$(ofed_info -s)] : master"
-	fi
+    if [ $(command -v ofed_info >/dev/null 2>&1 || echo $?) ]; then
+        echo "Configuration: INBOX : ${ghprbTargetBranch}"
+    elif [ -n "$ghprbTargetBranch" -a "$ghprbTargetBranch" != "master" ]; then
+        echo "Configuration: MOFED[$(ofed_info -s)] : ${ghprbTargetBranch}"
+
+        if [ $(ofed_info -s | grep 'MLNX_OFED_LINUX-3.2' >/dev/null 2>&1 || echo $?) ]; then
+            echo "environment [NOT OK]"
+            exit 0
+        fi
+    else
+        echo "Configuration: MOFED[$(ofed_info -s)] : master"
+    fi
 
     echo "environment [OK]"
 }
