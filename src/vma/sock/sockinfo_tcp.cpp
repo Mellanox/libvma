@@ -609,6 +609,7 @@ ssize_t sockinfo_tcp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 	unsigned pos = 0;
 	int ret = 0;
 	int poll_count = 0;
+	bool is_dummy = flags & DUMMY_WARM_MSG;
 	bool block_this_run = m_b_blocking && !(flags & MSG_DONTWAIT);
 
 	if (unlikely(m_sock_offload != TCP_SOCK_LWIP)) {
@@ -654,6 +655,13 @@ retry_is_ready:
 	}
 	si_tcp_logfunc("tx: iov=%p niovs=%d", p_iov, sz_iov);
 	lock_tcp_con();
+
+	if (unlikely(is_dummy) && !check_dummy_send_conditions(flags, p_iov, sz_iov)) {
+		m_p_socket_stats->counters.n_tx_dummy_drops++;
+		unlock_tcp_con();
+		return -1;
+	}
+
 	for (int i = 0; i < sz_iov; i++) {
 		si_tcp_logfunc("iov:%d base=%p len=%d", i, p_iov[i].iov_base, p_iov[i].iov_len);
 
@@ -710,7 +718,7 @@ retry_write:
 				si_tcp_logdbg("returning with: EINTR");
 				goto err;
 			}
-			err = tcp_write(&m_pcb, (char *)p_iov[i].iov_base + pos, tx_size, 3);
+			err = tcp_write(&m_pcb, (char *)p_iov[i].iov_base + pos, tx_size, 3, is_dummy);
 			if (unlikely(err != ERR_OK)) {
 				if (unlikely(err == ERR_CONN)) { // happens when remote drops during big write
 					si_tcp_logdbg("connection closed: tx'ed = %d", total_tx);
@@ -760,13 +768,17 @@ retry_write:
 		}	
 	}
 done:	
-	if (total_tx) {
+
+	tcp_output(&m_pcb); // force data out
+
+	if (unlikely(is_dummy)) {
+		m_p_socket_stats->counters.n_tx_dummy++;
+	} else if (total_tx) {
 		m_p_socket_stats->counters.n_tx_sent_byte_count += total_tx;
 		m_p_socket_stats->counters.n_tx_sent_pkt_count++;
 		m_p_socket_stats->n_tx_ready_byte_count += total_tx;
 	}
 
-	tcp_output(&m_pcb); // force data out
 	unlock_tcp_con();
 
 #ifdef VMA_TIME_MEASURE	
@@ -790,7 +802,7 @@ err:
 	
 }
 
-err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit)
+err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit, uint8_t is_dummy)
 {
 	iovec iovec[64];
 	struct iovec* p_iovec = iovec;
@@ -827,15 +839,17 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit)
 		p_si_tcp->m_p_socket_stats->counters.n_tx_retransmits++;
 
 	if (likely((p_dst->is_valid()))) {
-		p_dst->fast_send(p_iovec, count, false, is_rexmit);
+		p_dst->fast_send(p_iovec, count, is_dummy, false, is_rexmit);
 	} else {
-		p_dst->slow_send(p_iovec, count, false, is_rexmit);
+		p_dst->slow_send(p_iovec, count, is_dummy, false, is_rexmit);
 	}
 	return ERR_OK;
 }
 
-err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rexmit)
+err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rexmit, uint8_t is_dummy)
 {
+	NOT_IN_USE(is_dummy);
+
 	iovec iovec[64];
 	struct iovec* p_iovec = iovec;
 	tcp_iovec tcp_iovec_temp; //currently we pass p_desc only for 1 size iovec, since for bigger size we allocate new buffers

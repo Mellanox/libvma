@@ -1182,6 +1182,14 @@ inline int ring_simple::send_buffer(vma_ibv_send_wr* p_send_wqe, bool b_block)
 	return ret;
 }
 
+bool ring_simple::get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe)
+{
+	NOT_IN_USE(id);
+	NOT_IN_USE(p_send_wqe);
+
+	return m_p_qp_mgr->get_hw_dummy_send_support();
+}
+
 void ring_simple::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block)
 {
 	NOT_IN_USE(id);

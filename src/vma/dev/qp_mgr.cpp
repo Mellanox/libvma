@@ -65,7 +65,7 @@
 qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num, const uint32_t tx_num_wr):
 	m_qp(NULL), m_p_ring((ring_simple*)p_ring), m_port_num((uint8_t)port_num), m_p_ib_ctx_handler((ib_ctx_handler*)p_context),
 	m_p_ahc_head(NULL), m_p_ahc_tail(NULL), m_max_inline_data(0), m_max_qp_wr(0), m_p_cq_mgr_rx(NULL), m_p_cq_mgr_tx(NULL),
-	m_rx_num_wr(safe_mce_sys().rx_num_wr), m_tx_num_wr(tx_num_wr),
+	m_rx_num_wr(safe_mce_sys().rx_num_wr), m_tx_num_wr(tx_num_wr), m_hw_dummy_send_support(false),
 	m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv),
 	m_n_sysvar_tx_num_wr_to_signal(safe_mce_sys().tx_num_wr_to_signal),
 	m_n_sysvar_rx_prefetch_bytes_before_poll(safe_mce_sys().rx_prefetch_bytes_before_poll),
@@ -124,6 +124,15 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 			   m_max_qp_wr, SYS_VAR_RX_NUM_WRE, m_rx_num_wr, m_p_ib_ctx_handler, m_port_num);
 		m_rx_num_wr = m_max_qp_wr;
 	}
+
+	// Check device capabilities for dummy send support
+#ifdef DEFINED_IBV_EXP_WR_NOP
+	struct ibv_exp_device_attr device_attr;
+	memset(&device_attr, 0, sizeof(device_attr));
+	device_attr.comp_mask = IBV_EXP_DEVICE_ATTR_EXP_CAP_FLAGS;
+	m_hw_dummy_send_support = !ibv_exp_query_device(m_p_ib_ctx_handler->get_ibv_context() ,&device_attr) && (device_attr.exp_device_cap_flags & IBV_EXP_DEVICE_NOP);
+#endif
+	qp_logdbg("HW Dummy send support for QP = %d", m_hw_dummy_send_support);
 
 	// Create associated Tx & Rx cq_mgrs
 	m_p_cq_mgr_tx = new cq_mgr(m_p_ring, m_p_ib_ctx_handler, m_tx_num_wr, m_p_ring->get_tx_comp_event_channel(), false);

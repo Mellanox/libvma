@@ -51,7 +51,7 @@ void register_sys_now(sys_now_fn fn);
 extern u16_t lwip_tcp_mss;
 
 #if LWIP_3RD_PARTY_L3
-typedef err_t (*ip_output_fn)(struct pbuf *p, void* p_conn, int is_rexmit);
+typedef err_t (*ip_output_fn)(struct pbuf *p, void* p_conn, int is_rexmit, u8_t is_dummy);
           
 void register_ip_output(ip_output_fn fn);
 
@@ -506,7 +506,7 @@ err_t            tcp_shutdown(struct tcp_pcb *pcb, int shut_rx, int shut_tx);
 #define TCP_WRITE_FLAG_MORE 0x02
 
 err_t            tcp_write   (struct tcp_pcb *pcb, const void *dataptr, u32_t len,
-                              u8_t apiflags);
+                              u8_t apiflags, u8_t is_dummy);
 
 void             tcp_setprio (struct tcp_pcb *pcb, u8_t prio);
 
