@@ -1245,7 +1245,8 @@ ssize_t send(int __fd, __const void *__buf, size_t __nbytes, int __flags)
 	}
 
 	// Ignore dummy messages for OS
-	if (unlikely(__flags & DUMMY_WARM_MSG)) {
+	if (unlikely(IS_DUMMY_PACKET(__flags))) {
+		errno = EINVAL;
 		return -1;
 	} else {
 		return orig_os_api.send(__fd, __buf, __nbytes, __flags);
@@ -1274,7 +1275,8 @@ ssize_t sendmsg(int __fd, __const struct msghdr *__msg, int __flags)
 	}
 
 	// Ignore dummy messages for OS
-	if (unlikely(__flags & DUMMY_WARM_MSG)) {
+	if (unlikely(IS_DUMMY_PACKET(__flags))) {
+		errno = EINVAL;
 		return -1;
 	} else {
 		return orig_os_api.sendmsg(__fd, __msg, __flags);
@@ -1322,7 +1324,8 @@ int sendmmsg(int __fd, struct mmsghdr *__mmsghdr, unsigned int __vlen, int __fla
 	}
 
 	// Ignore dummy messages for OS
-	if (unlikely(__flags & DUMMY_WARM_MSG)) {
+	if (unlikely(IS_DUMMY_PACKET(__flags))) {
+		errno = EINVAL;
 		return -1;
 	} else {
 		return orig_os_api.sendmmsg(__fd, __mmsghdr, __vlen, __flags);
@@ -1354,7 +1357,8 @@ ssize_t sendto(int __fd, __const void *__buf, size_t __nbytes, int __flags,
 	}
 
 	// Ignore dummy messages for OS
-	if (unlikely(__flags & DUMMY_WARM_MSG)) {
+	if (unlikely(IS_DUMMY_PACKET(__flags))) {
+		errno = EINVAL;
 		return -1;
 	} else {
 		return orig_os_api.sendto(__fd, __buf, __nbytes, __flags, __to, __tolen);

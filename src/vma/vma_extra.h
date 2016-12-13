@@ -47,7 +47,8 @@
 /*
  * Flags for Dummy send API
  */
-#define DUMMY_WARM_MSG MSG_SYN // equals to 0x400
+#define VMA_SND_FLAGS_DUMMY MSG_SYN // equals to 0x400
+#define IS_DUMMY_PACKET(flags) (flags & VMA_SND_FLAGS_DUMMY)
 
 /* 
  * Return values for the receive packet notify callback function

@@ -1588,7 +1588,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 {
 	int ret;
 	bool is_dropped = false;
-	bool is_dummy = __flags & DUMMY_WARM_MSG;
+	bool is_dummy = IS_DUMMY_PACKET(__flags);
 	dst_entry* p_dst_entry = m_p_connected_dst_entry; // Default for connected() socket but we'll update it on a specific sendTO(__to) call
 
 	si_udp_logfunc("");

@@ -601,6 +601,34 @@ unsigned sockinfo_tcp::tx_wait(int & err, bool is_blocking)
 	return sz;
 }
 
+bool sockinfo_tcp::check_dummy_send_conditions(const int flags, const struct iovec* p_iov, const ssize_t sz_iov)
+{
+	// Calculate segment max length
+	uint8_t optflags = TF_SEG_OPTS_DUMMY_MSG;
+	uint16_t mss_local = MIN(m_pcb.mss, m_pcb.snd_wnd_max / 2);
+	mss_local = mss_local ? mss_local : m_pcb.mss;
+
+	#if LWIP_TCP_TIMESTAMPS
+		if ((m_pcb.flags & TF_TIMESTAMP)) {
+			optflags |= TF_SEG_OPTS_TS;
+			mss_local = MAX(mss_local, LWIP_TCP_OPT_LEN_TS + 1);
+		}
+	#endif /* LWIP_TCP_TIMESTAMPS */
+
+	u16_t max_len = mss_local - LWIP_TCP_OPT_LENGTH(optflags);
+
+	// Calculate window size
+	u32_t wnd = MIN(m_pcb.snd_wnd, m_pcb.cwnd);
+
+	return !m_pcb.unsent && // Unsent queue should be empty
+		!(flags & MSG_MORE) && // Verify MSG_MORE flags is not set
+		sz_iov == 1 && // We want to prevent a case in which we call tcp_write() for scatter/gather element.
+		p_iov->iov_len && // We have data to sent
+		p_iov->iov_len <= max_len && // Data will not be split into more then one segment
+		wnd && // Window is not empty
+		(p_iov->iov_len + m_pcb.snd_lbb - m_pcb.lastack) <= wnd; // Window allows the dummy packet it to be sent
+}
+
 ssize_t sockinfo_tcp::tx(const tx_call_t call_type, const struct iovec* p_iov, const ssize_t sz_iov, const int flags, const struct sockaddr *__to, const socklen_t __tolen)
 {
 	int total_tx = 0;
@@ -609,7 +637,7 @@ ssize_t sockinfo_tcp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 	unsigned pos = 0;
 	int ret = 0;
 	int poll_count = 0;
-	bool is_dummy = flags & DUMMY_WARM_MSG;
+	bool is_dummy = IS_DUMMY_PACKET(flags);
 	bool block_this_run = m_b_blocking && !(flags & MSG_DONTWAIT);
 
 	if (unlikely(m_sock_offload != TCP_SOCK_LWIP)) {
@@ -653,12 +681,12 @@ retry_is_ready:
 		
 		return -1;
 	}
-	si_tcp_logfunc("tx: iov=%p niovs=%d", p_iov, sz_iov);
+	si_tcp_logfunc("tx: iov=%p niovs=%d dummy=%d", p_iov, sz_iov, is_dummy);
 	lock_tcp_con();
 
 	if (unlikely(is_dummy) && !check_dummy_send_conditions(flags, p_iov, sz_iov)) {
-		m_p_socket_stats->counters.n_tx_dummy_drops++;
 		unlock_tcp_con();
+		errno = EIO;
 		return -1;
 	}
 

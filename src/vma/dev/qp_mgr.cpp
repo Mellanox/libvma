@@ -127,10 +127,7 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 
 	// Check device capabilities for dummy send support
 #ifdef DEFINED_IBV_EXP_WR_NOP
-	struct ibv_exp_device_attr device_attr;
-	memset(&device_attr, 0, sizeof(device_attr));
-	device_attr.comp_mask = IBV_EXP_DEVICE_ATTR_EXP_CAP_FLAGS;
-	m_hw_dummy_send_support = !ibv_exp_query_device(m_p_ib_ctx_handler->get_ibv_context() ,&device_attr) && (device_attr.exp_device_cap_flags & IBV_EXP_DEVICE_NOP);
+	m_hw_dummy_send_support = m_p_ib_ctx_handler->get_ibv_device_attr().exp_device_cap_flags & IBV_EXP_DEVICE_NOP;
 #endif
 	qp_logdbg("HW Dummy send support for QP = %d", m_hw_dummy_send_support);
 

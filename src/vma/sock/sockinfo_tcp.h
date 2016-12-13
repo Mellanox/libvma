@@ -370,34 +370,6 @@ private:
 	virtual	void pop_front_m_rx_pkt_ready_list();
 	virtual	void push_back_m_rx_pkt_ready_list(mem_buf_desc_t* buff);
 
-	inline bool check_dummy_send_conditions(const int flags, const struct iovec* p_iov, const ssize_t sz_iov)
-	{
-		// Calculate segment max length
-		uint8_t optflags = TF_SEG_OPTS_DUMMY_MSG;
-		uint16_t mss_local = MIN(m_pcb.mss, m_pcb.snd_wnd_max / 2);
-		mss_local = mss_local ? mss_local : m_pcb.mss;
-
-		#if LWIP_TCP_TIMESTAMPS
-			if ((m_pcb.flags & TF_TIMESTAMP)) {
-				optflags |= TF_SEG_OPTS_TS;
-				mss_local = MAX(mss_local, LWIP_TCP_OPT_LEN_TS + 1);
-			}
-		#endif /* LWIP_TCP_TIMESTAMPS */
-
-		u16_t max_len = mss_local - LWIP_TCP_OPT_LENGTH(optflags);
-
-		// Calculate window size
-		u32_t wnd = MIN(m_pcb.snd_wnd, m_pcb.cwnd);
-
-		return !m_pcb.unsent && // Unsent queue should be empty
-			!(flags & MSG_MORE) && // Verify MSG_MORE flags is not set
-			sz_iov == 1 && // We want to prevent a case in which we call tcp_write() for scatter/gather element.
-			p_iov->iov_len && // We have data to sent
-			p_iov->iov_len <= max_len && // Data will not be split into more then one segment
-			wnd && // Window is not empty
-			(p_iov->iov_len + m_pcb.snd_lbb - m_pcb.lastack) <= wnd; // Window allows the dummy packet it to be sent
-	}
-
 	// stats
 	uint64_t m_n_pbufs_rcvd;
 	uint64_t m_n_pbufs_freed;
@@ -419,6 +391,7 @@ private:
 	void process_children_ctl_packets();
 	void process_reuse_ctl_packets();
 	void process_rx_ctl_packets();
+	bool check_dummy_send_conditions(const int flags, const struct iovec* p_iov, const ssize_t sz_iov);
 };
 typedef struct tcp_seg tcp_seg;
 

@@ -294,7 +294,8 @@ ssize_t socket_fd_api::tx_os(const tx_call_t call_type,
 	errno = 0;
 
 	// Ignore dummy messages for OS
-	if (unlikely(__flags & DUMMY_WARM_MSG)) {
+	if (unlikely(IS_DUMMY_PACKET(__flags))) {
+		errno = EINVAL;
 		return -1;
 	}
 

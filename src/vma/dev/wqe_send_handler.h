@@ -47,14 +47,10 @@ public:
 	void init_wqe(vma_ibv_send_wr &wqe_to_init, struct ibv_sge* sge_list, uint32_t num_sge);
 	void init_inline_wqe(vma_ibv_send_wr &wqe_to_init, struct ibv_sge* sge_list, uint32_t num_sge);
 
-	inline vma_ibv_wr_opcode set_dummy_opcode(vma_ibv_send_wr &wqe) {
+	inline vma_ibv_wr_opcode set_opcode(vma_ibv_send_wr &wqe, vma_ibv_wr_opcode opcode) {
 		vma_ibv_wr_opcode last_opcode = vma_send_wr_opcode(wqe);
-		vma_send_wr_opcode(wqe) = VMA_IBV_WR_NOP;
-		return last_opcode;
-	}
-
-	inline void unset_dummy_opcode(vma_ibv_send_wr &wqe, vma_ibv_wr_opcode opcode) {
 		vma_send_wr_opcode(wqe) = opcode;
+		return last_opcode;
 	}
 
 #ifndef VMA_NO_HW_CSUM

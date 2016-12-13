@@ -510,7 +510,7 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags, u8_t i
     u16_t max_len = mss_local - optlen;
     u16_t seglen = left > max_len ? max_len : left;
 
-    LWIP_ERROR("tcp_write: dummy packet should not be split", !(is_dummy && pos), break;);
+    LWIP_ASSERT("tcp_write: dummy packet should not be split", !(is_dummy && pos));
 
     if (apiflags & TCP_WRITE_FLAG_COPY) {
       /* If copy is set, memory should be allocated and data copied
@@ -1045,7 +1045,7 @@ tcp_output(struct tcp_pcb *pcb)
   while (seg){
     /* Split the segment in case of a small window */
     if (( pcb->flags & (TF_NODELAY | TF_INFR)) && (wnd) && ((seg->len + seg->seqno - pcb->lastack) > wnd)) {
-      LWIP_ERROR("tcp_output: no window for dummy packet", !LWIP_IS_DUMMY_SEGMENT(seg), break;);
+      LWIP_ASSERT("tcp_output: no window for dummy packet", !LWIP_IS_DUMMY_SEGMENT(seg));
       tcp_split_segment(pcb, seg, wnd);
     }
 
@@ -1088,7 +1088,7 @@ tcp_output(struct tcp_pcb *pcb)
 
        // Send ack now if the packet is a dummy packet
        if (LWIP_IS_DUMMY_SEGMENT(seg) && (pcb->flags & (TF_ACK_DELAY | TF_ACK_NOW))) {
-      	  tcp_send_empty_ack(pcb);
+         tcp_send_empty_ack(pcb);
        }
 
        if (get_tcp_state(pcb) != SYN_SENT) {

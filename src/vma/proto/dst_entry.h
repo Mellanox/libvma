@@ -163,9 +163,9 @@ protected:
 	{
 		if (unlikely(b_dummy)) {
 			if (m_p_ring->get_hw_dummy_send_support(id, p_send_wqe)) {
-				vma_ibv_wr_opcode last_opcode = m_p_send_wqe_handler->set_dummy_opcode(*p_send_wqe);
+				vma_ibv_wr_opcode last_opcode = m_p_send_wqe_handler->set_opcode(*p_send_wqe, VMA_IBV_WR_NOP);
 				m_p_ring->send_ring_buffer(id, p_send_wqe, b_block);
-				m_p_send_wqe_handler->unset_dummy_opcode(*p_send_wqe, last_opcode);
+				m_p_send_wqe_handler->set_opcode(*p_send_wqe, last_opcode);
 			} else {
 				/* free the buffer if dummy send is not supported */
 				mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
