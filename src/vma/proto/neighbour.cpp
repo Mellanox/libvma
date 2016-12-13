@@ -1060,6 +1060,8 @@ void neigh_entry::priv_enter_not_active()
 	if (m_val) {
 		neigh_logdbg("calling to zero_all_members()");
 		m_val->zero_all_members();
+		delete m_val;
+		m_val = NULL;
 	}
 
 	return;
@@ -1081,6 +1083,8 @@ void neigh_entry::priv_enter_error()
 	if (m_val) {
 		neigh_logdbg("calling to zero_all_members()");
 		m_val->zero_all_members();
+		delete m_val;
+		m_val = NULL;
 	}
 
 	m_lock.unlock();
