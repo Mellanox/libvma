@@ -1,3 +1,19 @@
+Version 8.2.1-0:
+Date + Time 2016-12-14
+=======================
+Added:
+        - RM #897296 Advanced routing update
+        - RM #866429 Add HW and SW timestamps to user callback data
+
+Fixed:
+        - RM #898505 Fix connecting twice to dest IP through non-exiting GW causes seg fault
+        - RM #897296 Fix resolving the correct outgoing interface for route decision
+        - RM #888475 Fix core dump for IB pkeys under bond 
+        - RM #888475 Fix IB not offloaded in case of two bonds over pkeys
+        - RM #865172 Fix illegal memory access by netlink wrapper.
+        - RM #911076 Fix rcvmsg failure with MSG_VMA_ZCOPY_FORCE on OS socket
+        - RM #824880 Fix gtest compilation for gcc 4.4.7
+
 Version 8.1.7-0:
 Date + Time 2016-09-21
 =======================
