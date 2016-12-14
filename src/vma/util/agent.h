@@ -33,62 +33,114 @@
 #ifndef SRC_VMA_UTIL_AGENT_H_
 #define SRC_VMA_UTIL_AGENT_H_
 
-/* List of supported messages in range 0..63
- * Two bits as 6-7 are reserved.
- * 6-bit is reserved
- * 7-bit in message code is for ACK flag in case specific
- * message requires the confirmation
- */
-#define VMA_MSG_INIT    0x01
-#define VMA_MSG_STATE   0x02
-#define VMA_MSG_EXIT    0x03
+#include "vma/util/agent_def.h"
 
-#define VMA_MSG_ACK     0x80
+typedef struct agent_msg {
+	struct list_head item;
+	int length;
+	union {
+		struct vma_msg_state state;
+		char raw[1];
+	} data;
+} agent_msg_t;
 
-#define VMA_AGENT_VER   0x01
+typedef enum {
+	AGENT_INACTIVE,
+	AGENT_ACTIVE,
+	AGENT_CLOSED
+} agent_state_t;
 
-#define VMA_AGENT_BASE_NAME "vma_agent"
-#define VMA_AGENT_ADDR      "/var/run/" VMA_AGENT_BASE_NAME ".sock"
-#define VMA_AGENT_PATH      "/tmp/vma"
+class agent : lock_spin {
+public:
+	agent();
+	virtual ~agent();
 
+	void progress(void);
 
-#pragma pack(push, 1)
-struct vma_hdr {
-	uint8_t        code;
-	uint8_t        ver;
-	uint8_t        reserve[2];
-	int32_t        pid;
+	inline agent_state_t state(void) const
+	{
+		return m_state;
+	}
 
+	inline void put_msg(agent_msg_t *msg)
+	{
+		lock();
+		list_add_tail(&msg->item, &m_wait_queue);
+		unlock();
+	}
+
+	inline agent_msg_t* get_msg(void)
+	{
+		agent_msg_t *msg = NULL;
+		int i = 0;
+
+		lock();
+		if (list_empty(&m_free_queue)) {
+			for (i = 0; i < m_msg_grow; i++) {
+				/* coverity[overwrite_var] */
+				msg = (agent_msg_t *)malloc(sizeof(*msg));
+				if (NULL == msg) {
+					break;
+				}
+				msg->length = 0;
+				list_add_tail(&msg->item, &m_free_queue);
+				m_msg_num++;
+			}
+		}
+		/* coverity[overwrite_var] */
+		msg = list_first_entry(&m_free_queue, agent_msg_t, item);
+		msg->length = 0;
+		list_del_init(&msg->item);
+		unlock();
+		return msg;
+	}
+
+private:
+	/* state of this object */
+	agent_state_t m_state;
+
+	/* socket used for communication with daemon */
+	int m_sock_fd;
+
+	/* file descriptor that is tracked by daemon */
+	int m_pid_fd;
+
+	/* unix socket name
+	 * size should be less than sockaddr_un.sun_path
+	 */
+	char m_sock_file[100];
+
+	/* name of pid file */
+	char m_pid_file[100];
+
+	/* queue of message elements
+	 * this queue stores unused messages
+	 */
+	struct list_head         m_free_queue;
+
+	/* queue of message elements
+	 * this queue stores messages from different sockinfo (sockets)
+	 */
+	struct list_head         m_wait_queue;
+
+	/* total number of allocated messages
+	 * some amount of messages are allocated during initialization
+	 * but total number can grow during run-time
+	 */
+	int m_msg_num;
+
+	/* number of messages to grow */
+	int m_msg_grow;
+
+	int create_agent_socket(void);
+	int send(agent_msg_t *msg);
+	int send_msg_init(void);
+	int send_msg_exit(void);
+	int send_msg_state(uint32_t fid, uint8_t st, uint8_t type,
+			uint32_t src_ip, uint16_t src_port,
+			uint32_t dst_ip, uint16_t dst_port);
 };
 
-struct vma_msg_init {
-	struct vma_hdr hdr;
-	uint32_t       ver;
-};
-
-struct vma_msg_exit {
-	struct vma_hdr hdr;
-};
-
-struct vma_msg_state {
-	struct vma_hdr hdr;
-	uint32_t       fid;
-	uint32_t       src_ip;
-	uint32_t       dst_ip;
-	uint16_t       src_port;
-	uint16_t       dst_port;
-	uint8_t        type;
-	uint8_t        state;
-};
-#pragma pack( pop )
-
-
-int agent_open(void);
-void agent_close(void);
-int agent_send_msg_init(void);
-int agent_send_msg_exit(void);
-int agent_send_msg_state(uint32_t fid, uint8_t state, uint8_t type,
-		uint32_t src_ip, uint16_t src_port,
-		uint32_t dst_ip, uint16_t dst_port);
+extern agent* g_p_agent;
 
 #endif /* SRC_VMA_UTIL_AGENT_H_ */

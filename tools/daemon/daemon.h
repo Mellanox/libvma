@@ -53,6 +53,9 @@
 #include <linux/limits.h>
 #endif
 
+#include "vma/util/agent_def.h"
+
+
 #define MODULE_NAME             "vmad"
 
 #define EXIT_SUCCESS 0

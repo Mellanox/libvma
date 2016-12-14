@@ -43,11 +43,13 @@
 #include <sys/un.h>
 
 #include "vlogger/vlogger.h"
+#include "utils/lock_wrapper.h"
 #include "vma/sock/sock-redirect.h"
+#include "vma/util/list.h"
 #include "vma/util/agent.h"
 
 #undef  MODULE_NAME
-#define MODULE_NAME     "agent"
+#define MODULE_NAME     "agent:"
 #undef  MODULE_HDR
 #define MODULE_HDR      MODULE_NAME "%d:%s() "
 
@@ -58,129 +60,224 @@
 		if (orig_os_api._func)                        \
 			_result = orig_os_api._func(__VA_ARGS__); \
 		else                                          \
-			_result = _func(__VA_ARGS__);             \
+			_result = ::_func(__VA_ARGS__);           \
 	} while (0)
 
-static struct {
-	int active;
-	int sock_fd;
-	int pid_fd;
-	char sock_file[100];    /* size should be less than sockaddr_un.sun_path */
-	char pid_file[100];
-} agent_cfg = {
-		0, -1, -1, "", ""
-};
+/* Print user notification */
+#define output_warn() \
+	vlog_printf(VLOG_DEBUG, "Peer notification functionality is not active.\n"); \
+	vlog_printf(VLOG_DEBUG, "Check daemon state\n");
+
+#define output_fatal() \
+	vlog_printf(VLOG_DEBUG, "Peer notification functionality is not supported.\n"); \
+	vlog_printf(VLOG_DEBUG, "Increase output level to see a reason\n");
+
+agent* g_p_agent = NULL;
 
 
-static int create_agent_socket(void);
-
-
-int agent_open(void)
+agent::agent() :
+		m_state(AGENT_CLOSED), m_sock_fd(-1), m_pid_fd(-1),
+		m_msg_num(512), m_msg_grow(16)
 {
 	int rc = 0;
+	agent_msg_t *msg = NULL;
+	int i = 0;
 
-	agent_cfg.sock_fd = -1;
-	agent_cfg.pid_fd = -1;
+	INIT_LIST_HEAD(&m_free_queue);
+	INIT_LIST_HEAD(&m_wait_queue);
+
+	/* Fill free queue with empty messages */
+	i = m_msg_num;
+	m_msg_num = 0;
+	while (i--) {
+		/* coverity[overwrite_var] */
+		msg = (agent_msg_t *)malloc(sizeof(*msg));
+		if (NULL == msg) {
+			rc = -ENOMEM;
+			__log_dbg("failed queue creation (rc = %d)\n", rc);
+			goto err;
+		}
+		msg->length = 0;
+		list_add_tail(&msg->item, &m_free_queue);
+		m_msg_num++;
+	}
 
 	if ((mkdir(VMA_AGENT_PATH, 0777) != 0) && (errno != EEXIST)) {
 		rc = -errno;
-		__log_dbg("failed create folder %s (errno = %d)\n", VMA_AGENT_PATH, errno);
+		__log_dbg("failed create folder %s (rc = %d)\n", VMA_AGENT_PATH, rc);
 		goto err;
 	}
 
-	rc = snprintf(agent_cfg.sock_file, sizeof(agent_cfg.sock_file) - 1,
+	rc = snprintf(m_sock_file, sizeof(m_sock_file) - 1,
 			"%s/%s.%d.sock", VMA_AGENT_PATH, VMA_AGENT_BASE_NAME, getpid());
-	if ((rc < 0 ) || (rc == (sizeof(agent_cfg.sock_file) - 1) )) {
+	if ((rc < 0 ) || (rc == (sizeof(m_sock_file) - 1) )) {
 		rc = -ENOMEM;
-		__log_dbg("failed allocate sock file (errno = %d)\n", errno);
-		goto err;
-	}
-	rc = snprintf(agent_cfg.pid_file, sizeof(agent_cfg.pid_file) - 1,
-			"%s/%s.%d.pid", VMA_AGENT_PATH, VMA_AGENT_BASE_NAME, getpid());
-	if ((rc < 0 ) || (rc == (sizeof(agent_cfg.pid_file) - 1) )) {
-		rc = -ENOMEM;
-		__log_dbg("failed allocate pid file (errno = %d)\n", errno);
+		__log_dbg("failed allocate sock file (rc = %d)\n", rc);
 		goto err;
 	}
 
-	sys_call(agent_cfg.pid_fd, open, agent_cfg.pid_file,
+	rc = snprintf(m_pid_file, sizeof(m_pid_file) - 1,
+			"%s/%s.%d.pid", VMA_AGENT_PATH, VMA_AGENT_BASE_NAME, getpid());
+	if ((rc < 0 ) || (rc == (sizeof(m_pid_file) - 1) )) {
+		rc = -ENOMEM;
+		__log_dbg("failed allocate pid file (rc = %d)\n", rc);
+		goto err;
+	}
+
+	sys_call(m_pid_fd, open, m_pid_file,
 			O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP);
-	if (agent_cfg.pid_fd < 0) {
+	if (m_pid_fd < 0) {
 		rc = -errno;
-		__log_dbg("failed allocate pid file (errno = %d)\n", errno);
+		__log_dbg("failed open pid file (rc = %d)\n", rc);
 		goto err;
 	}
 
 	rc = create_agent_socket();
 	if (rc < 0) {
+		__log_dbg("failed open sock file (rc = %d)\n", rc);
 		goto err;
 	}
 
-	rc = agent_send_msg_init();
+	/* Initialization is mostly completed
+	 * At the moment it does not matter if connection with
+	 * daemon can be done here or later
+	 */
+	m_state = AGENT_INACTIVE;
+
+	rc = send_msg_init();
 	if (rc < 0) {
-		goto err;
+		__log_dbg("failed establish connection with daemon (rc = %d)\n", rc);
+		output_warn();
+		if (rc != -ECONNREFUSED) {
+			goto err;
+		}
 	}
 
-	agent_cfg.active = 1;
-
-	return rc;
+	/* coverity[leaked_storage] */
+	return ;
 
 err:
-	vlog_printf(VLOG_WARNING, "Peer notification functionality is not supported.\n");
-	vlog_printf(VLOG_WARNING, "Increase output level to see a reason\n");
+	/* There is no chance to establish connection with daemon
+	 * because of internal problems or communication protocol
+	 * variance
+	 * So do not try anymore
+	 */
+	m_state = AGENT_CLOSED;
 
-	if (agent_cfg.pid_fd > 0) {
-		int ret = 0;
-		NOT_IN_USE(ret);
-		sys_call(ret, close, agent_cfg.pid_fd);
-		agent_cfg.pid_fd = -1;
-		unlink(agent_cfg.pid_file);
+	output_fatal();
+
+	while (!list_empty(&m_free_queue)) {
+		/* coverity[overwrite_var] */
+		msg = list_first_entry(&m_free_queue, agent_msg_t, item);
+		list_del_init(&msg->item);
+		free(msg);
 	}
 
-	if (agent_cfg.sock_fd > 0) {
+	if (m_pid_fd > 0) {
 		int ret = 0;
 		NOT_IN_USE(ret);
-		sys_call(ret, close, agent_cfg.sock_fd);
-		agent_cfg.sock_fd = -1;
-		unlink(agent_cfg.sock_file);
+		sys_call(ret, close, m_pid_fd);
+		m_pid_fd = -1;
+		unlink(m_pid_file);
 	}
 
-	return rc;
+	if (m_sock_fd > 0) {
+		int ret = 0;
+		NOT_IN_USE(ret);
+		sys_call(ret, close, m_sock_fd);
+		m_sock_fd = -1;
+		unlink(m_sock_file);
+	}
+
+	/* coverity[leaked_storage] */
+	return ;
 }
 
-void agent_close(void)
+agent::~agent()
 {
-	if (!agent_cfg.active) {
+	agent_msg_t *msg = NULL;
+
+	if (AGENT_CLOSED == m_state) {
 		return ;
 	}
 
-	agent_send_msg_exit();
+	progress();
+	send_msg_exit();
 
-	if (agent_cfg.sock_fd > 0) {
-		int ret = 0;
-		NOT_IN_USE(ret);
-		sys_call(ret, close, agent_cfg.sock_fd);
-		unlink(agent_cfg.sock_file);
+	m_state = AGENT_CLOSED;
+
+	while (!list_empty(&m_free_queue)) {
+		msg = list_first_entry(&m_free_queue, agent_msg_t, item);
+		list_del_init(&msg->item);
+		free(msg);
 	}
 
-	if (agent_cfg.pid_fd > 0) {
+	if (m_sock_fd > 0) {
 		int ret = 0;
 		NOT_IN_USE(ret);
-		sys_call(ret, close, agent_cfg.pid_fd);
-		unlink(agent_cfg.pid_file);
+		sys_call(ret, close, m_sock_fd);
+		unlink(m_sock_file);
 	}
 
-	agent_cfg.active = 0;
+	if (m_pid_fd > 0) {
+		int ret = 0;
+		NOT_IN_USE(ret);
+		sys_call(ret, close, m_pid_fd);
+		unlink(m_pid_file);
+	}
 }
 
-int agent_send_msg_init(void)
+void agent::progress(void)
+{
+	agent_msg_t* msg = NULL;
+
+	lock();
+	while (!list_empty(&m_wait_queue)) {
+		msg = list_first_entry(&m_wait_queue, agent_msg_t, item);
+		list_del_init(&msg->item);
+		send(msg);
+		list_add_tail(&msg->item, &m_free_queue);
+	}
+	unlock();
+}
+
+int agent::send(agent_msg_t *msg)
+{
+	int rc = 0;
+
+	if (AGENT_ACTIVE != m_state) {
+		return -ENODEV;
+	}
+
+	if (m_sock_fd < 0) {
+		return -EBADF;
+	}
+
+	if (NULL == msg) {
+		return -EINVAL;
+	}
+
+	/* send() in blocking manner */
+	sys_call(rc, send, m_sock_fd, (void *)&msg->data, msg->length, 0);
+	if (rc < 0) {
+		__log_dbg("Failed to send() errno %d (%s)\n",
+				errno, strerror(errno));
+		rc = -errno;
+		goto err;
+	}
+
+err:
+	return rc;
+}
+
+int agent::send_msg_init(void)
 {
 	int rc = 0;
 	struct sockaddr_un server_addr;
 	struct vma_msg_init data;
 	uint8_t *version;
 
-	if (agent_cfg.sock_fd < 0) {
+	if (m_sock_fd < 0) {
 		return -EBADF;
 	}
 
@@ -189,12 +286,12 @@ int agent_send_msg_init(void)
 	server_addr.sun_family = AF_UNIX;
 	strncpy(server_addr.sun_path, VMA_AGENT_ADDR, sizeof(server_addr.sun_path) - 1);
 
-	sys_call(rc, connect, agent_cfg.sock_fd, (struct sockaddr *)&server_addr,
+	sys_call(rc, connect, m_sock_fd, (struct sockaddr *)&server_addr,
 			sizeof(struct sockaddr_un));
 	if (rc < 0) {
 		__log_dbg("Failed to connect() errno %d (%s)\n",
 				errno, strerror(errno));
-		rc = -errno;
+		rc = -ECONNREFUSED;
 		goto err;
 	}
 
@@ -209,21 +306,21 @@ int agent_send_msg_init(void)
 	version[3] = VMA_LIBRARY_REVISION;
 
 	/* send(VMA_MSG_INIT) in blocking manner */
-	sys_call(rc, send, agent_cfg.sock_fd, &data, sizeof(data), 0);
+	sys_call(rc, send, m_sock_fd, &data, sizeof(data), 0);
 	if (rc < 0) {
 		__log_dbg("Failed to send(VMA_MSG_INIT) errno %d (%s)\n",
 				errno, strerror(errno));
-		rc = -errno;
+		rc = -ECONNREFUSED;
 		goto err;
 	}
 
 	/* recv(VMA_MSG_INIT|ACK) in blocking manner */
 	memset(&data, 0, sizeof(data));
-	sys_call(rc, recv, agent_cfg.sock_fd, &data, sizeof(data), 0);
+	sys_call(rc, recv, m_sock_fd, &data, sizeof(data), 0);
 	if (rc < (int)sizeof(data)) {
 		__log_dbg("Failed to recv(VMA_MSG_INIT) errno %d (%s)\n",
 				errno, strerror(errno));
-		rc = -errno;
+		rc = -ECONNREFUSED;
 		goto err;
 	}
 
@@ -236,18 +333,26 @@ int agent_send_msg_init(void)
 		goto err;
 	}
 
+	m_state = AGENT_ACTIVE;
+
 err:
 	return rc;
 }
 
-int agent_send_msg_exit(void)
+int agent::send_msg_exit(void)
 {
 	int rc = 0;
 	struct vma_msg_exit data;
 
-	if (agent_cfg.sock_fd < 0) {
+	if (AGENT_ACTIVE != m_state) {
+		return -ENODEV;
+	}
+
+	if (m_sock_fd < 0) {
 		return -EBADF;
 	}
+
+	m_state = AGENT_INACTIVE;
 
 	memset(&data, 0, sizeof(data));
 	data.hdr.code = VMA_MSG_EXIT;
@@ -255,7 +360,7 @@ int agent_send_msg_exit(void)
 	data.hdr.pid = getpid();
 
 	/* send(VMA_MSG_EXIT) in blocking manner */
-	sys_call(rc, send, agent_cfg.sock_fd, &data, sizeof(data), 0);
+	sys_call(rc, send, m_sock_fd, &data, sizeof(data), 0);
 	if (rc < 0) {
 		__log_dbg("Failed to send(VMA_MSG_EXIT) errno %d (%s)\n",
 				errno, strerror(errno));
@@ -267,18 +372,18 @@ err:
 	return rc;
 }
 
-int agent_send_msg_state(uint32_t fid, uint8_t state, uint8_t type,
+int agent::send_msg_state(uint32_t fid, uint8_t st, uint8_t type,
 		uint32_t src_ip, uint16_t src_port,
 		uint32_t dst_ip, uint16_t dst_port)
 {
 	int rc = 0;
 	struct vma_msg_state data;
 
-	if (!agent_cfg.active) {
+	if (AGENT_ACTIVE != m_state) {
 		return -ENODEV;
 	}
 
-	if (agent_cfg.sock_fd < 0) {
+	if (m_sock_fd < 0) {
 		return -EBADF;
 	}
 
@@ -287,7 +392,7 @@ int agent_send_msg_state(uint32_t fid, uint8_t state, uint8_t type,
 	data.hdr.ver = VMA_AGENT_VER;
 	data.hdr.pid = getpid();
 	data.fid = fid;
-	data.state = state;
+	data.state = st;
 	data.type = type;
 	data.src_ip = src_ip;
 	data.src_port = src_port;
@@ -295,7 +400,7 @@ int agent_send_msg_state(uint32_t fid, uint8_t state, uint8_t type,
 	data.dst_port = dst_port;
 
 	/* send(VMA_MSG_STATE) in blocking manner */
-	sys_call(rc, send, agent_cfg.sock_fd, &data, sizeof(data), 0);
+	sys_call(rc, send, m_sock_fd, &data, sizeof(data), 0);
 	if (rc < 0) {
 		__log_dbg("Failed to send(VMA_MSG_STATE) errno %d (%s)\n",
 				errno, strerror(errno));
@@ -307,7 +412,7 @@ err:
 	return rc;
 }
 
-static int create_agent_socket(void)
+int agent::create_agent_socket(void)
 {
 	int rc = 0;
 	int optval = 1;
@@ -317,12 +422,12 @@ static int create_agent_socket(void)
 	/* Create UNIX UDP socket to receive data from VMA processes */
 	memset(&sock_addr, 0, sizeof(sock_addr));
 	sock_addr.sun_family = AF_UNIX;
-	strncpy(sock_addr.sun_path, agent_cfg.sock_file, sizeof(sock_addr.sun_path) - 1);
+	strncpy(sock_addr.sun_path, m_sock_file, sizeof(sock_addr.sun_path) - 1);
 	/* remove possible old socket */
-	unlink(agent_cfg.sock_file);
+	unlink(m_sock_file);
 
-	sys_call(agent_cfg.sock_fd, socket, AF_UNIX, SOCK_DGRAM, 0);
-	if (agent_cfg.sock_fd < 0) {
+	sys_call(m_sock_fd, socket, AF_UNIX, SOCK_DGRAM, 0);
+	if (m_sock_fd < 0) {
 		__log_dbg("Failed to call socket() errno %d (%s)\n",
 				errno, strerror(errno));
 		rc = -errno;
@@ -330,7 +435,7 @@ static int create_agent_socket(void)
 	}
 
 	optval = 1;
-	sys_call(rc, setsockopt, agent_cfg.sock_fd, SOL_SOCKET, SO_REUSEADDR,
+	sys_call(rc, setsockopt, m_sock_fd, SOL_SOCKET, SO_REUSEADDR,
 			(const void *)&optval, sizeof(optval));
 	if (rc < 0) {
 		__log_dbg("Failed to call setsockopt(SO_REUSEADDR) errno %d (%s)\n",
@@ -344,7 +449,7 @@ static int create_agent_socket(void)
 	 */
 	opttv.tv_sec = 1;
 	opttv.tv_usec = 0;
-	sys_call(rc, setsockopt, agent_cfg.sock_fd, SOL_SOCKET, SO_RCVTIMEO,
+	sys_call(rc, setsockopt, m_sock_fd, SOL_SOCKET, SO_RCVTIMEO,
 			(const void *)&opttv, sizeof(opttv));
 	if (rc < 0) {
 		__log_dbg("Failed to call setsockopt(SO_RCVTIMEO) errno %d (%s)\n",
@@ -354,7 +459,7 @@ static int create_agent_socket(void)
 	}
 
 	/* bind created socket */
-	sys_call(rc, bind, agent_cfg.sock_fd, (struct sockaddr *)&sock_addr,
+	sys_call(rc, bind, m_sock_fd, (struct sockaddr *)&sock_addr,
 			sizeof(sock_addr));
 	if (rc < 0) {
 		__log_dbg("Failed to call bind() errno %d (%s)\n",

@@ -50,7 +50,6 @@
 #endif
 
 
-#include "vma/util/agent.h"
 #include "hash.h"
 #include "daemon.h"
 

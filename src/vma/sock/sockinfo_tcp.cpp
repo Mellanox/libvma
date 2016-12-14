@@ -38,16 +38,18 @@
 
 #include "utils/bullseye.h"
 #include "vlogger/vlogger.h"
+#include "utils/lock_wrapper.h"
 #include "utils/rdtsc.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/util/libvma.h"
 #include "vma/util/instrumentation.h"
+#include "vma/util/list.h"
+#include "vma/util/agent.h"
 #include "vma/event/event_handler_manager.h"
 #include "vma/proto/route_table_mgr.h"
 #include "vma/proto/vma_lwip.h"
 #include "vma/proto/dst_entry_tcp.h"
 #include "vma/iomux/io_mux_call.h"
-#include "vma/util/agent.h"
 
 #include "sock-redirect.h"
 #include "fd_collection.h"
@@ -880,11 +882,29 @@ err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rex
 	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)pcb_container;
 	p_si_tcp->m_p_socket_stats->tcp_state = new_state;
 
-	/* Keep vma stats data actual for offloaded connection */
-	if (likely(p_si_tcp->m_sock_offload == TCP_SOCK_LWIP)) {
-		agent_send_msg_state(p_si_tcp->get_fd(), new_state, SOCK_STREAM,
-			p_si_tcp->m_bound.get_in_addr(), p_si_tcp->m_bound.get_in_port(),
-			p_si_tcp->m_connected.get_in_addr(), p_si_tcp->m_connected.get_in_port());
+	/* Update daemon about actual state for offloaded connection */
+	if (likely((p_si_tcp->m_sock_offload == TCP_SOCK_LWIP) &&
+			(AGENT_ACTIVE == g_p_agent->state()))) {
+		agent_msg_t *msg = NULL;
+
+		msg = g_p_agent->get_msg();
+		if (msg) {
+			struct vma_msg_state *data = NULL;
+
+			msg->length = sizeof(*data);
+			data = (struct vma_msg_state*)&msg->data;
+			data->hdr.code = VMA_MSG_STATE;
+			data->hdr.ver = VMA_AGENT_VER;
+			data->hdr.pid = getpid();
+			data->fid = p_si_tcp->get_fd();
+			data->state = new_state;
+			data->type = SOCK_STREAM;
+			data->src_ip = p_si_tcp->m_bound.get_in_addr();
+			data->src_port = p_si_tcp->m_bound.get_in_port();
+			data->dst_ip = p_si_tcp->m_connected.get_in_addr();
+			data->dst_port = p_si_tcp->m_connected.get_in_port();
+			g_p_agent->put_msg(msg);
+		}
 	}
 }
 
@@ -4128,6 +4148,11 @@ void tcp_timers_collection::handle_timer_expired(void* user_data)
 		iter = iter->next;
 	}
 	m_n_location = (m_n_location + 1) % m_n_intervals_size;
+
+	/* Processing all messages for the daemon */
+	if (AGENT_ACTIVE == g_p_agent->state()) {
+		g_p_agent->progress();
+	}
 }
 
 void tcp_timers_collection::add_new_timer(timer_node_t* node, timer_handler* handler, void* user_data)

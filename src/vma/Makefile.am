@@ -272,6 +272,7 @@ libvma_la_SOURCES := \
 	util/wakeup.h \
 	util/wakeup_pipe.h \
 	util/agent.h \
+	util/agent_def.h \
 	\
 	config_parser.h \
 	main.h \
