@@ -43,25 +43,25 @@ class dynamic_buffer_pool
 public:
 	dynamic_buffer_pool(size_t init_buffers_count, size_t buffer_size, size_t quanta_buffers_count, size_t max_buffers, size_t free_buffers_min_threshold,
 			pbuf_free_custom_fn custom_free_function);
-	virtual ~dynamic_buffer_pool();
+	~dynamic_buffer_pool();
 
 	/**
 	 * Get buffers from the pool
 	 * @param count Number of buffers required.
 	 * @return List of buffers, or NULL if don't have enough buffers.
 	 */
-	virtual mem_buf_desc_t*	get_buffers(size_t count, const ib_ctx_handler *p_ib_ctx_h);
+	mem_buf_desc_t*	get_buffers(size_t count, const ib_ctx_handler *p_ib_ctx_h);
 
 	/**
 	 * Return buffers to the pool.
 	 */
-	virtual void 		put_buffers(descq_t *buffers, size_t count);
-	virtual int 		put_buffers(mem_buf_desc_t *buff_list);
+	void 		put_buffers(descq_t *buffers, size_t count);
+	int 		put_buffers(mem_buf_desc_t *buff_list);
 
 	static void 	free_rx_lwip_pbuf_custom(struct pbuf *p_buff);
 	static void 	free_tx_lwip_pbuf_custom(struct pbuf *p_buff);
 
-	virtual void	set_RX_TX_for_stats(bool rx = true);
+	void	set_RX_TX_for_stats(bool rx = true);
 
 	/*
 	 * returns TRUE if minimum threshold was reached and allocate_addtional_buffers() was't called yet or FALSE otherwise
@@ -110,7 +110,5 @@ private:
 
 extern dynamic_buffer_pool* g_buffer_pool_rx;
 extern dynamic_buffer_pool* g_buffer_pool_tx;
-
-
 
 #endif

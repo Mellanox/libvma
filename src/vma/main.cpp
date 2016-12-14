@@ -492,10 +492,10 @@ const char* buffer_batching_mode_str(buffer_batching_mode_t buffer_batching_mode
 #define VLOG_NUM_BUFS_PARAM_DETAILS(param_desc, init_val, quanta_val, max_val, min_val, init_def, quanta_def, max_def, min_def, param_name)							\
 	do {	                                 								\
 		if ((init_val != init_def) ||  (quanta_val != quanta_def) || (max_val != max_def) || (min_val != min_def))	{								\
-			vlog_printf(VLOG_INFO, FORMAT_TOKEN_NUMBER, param_desc, mce_sys.tx_num_bufs_init,  mce_sys.tx_num_bufs_quanta, mce_sys.tx_num_bufs_max, mce_sys.tx_num_bufs_min_threshold, param_name, "init:quanta:max:min"); \
+			vlog_printf(VLOG_INFO, FORMAT_TOKEN_NUMBER, param_desc, init_val,  quanta_val, max_val, min_val, param_name, "init:quanta:max:min"); \
 		}												\
 		else {												\
-			vlog_printf(VLOG_DEBUG, FORMAT_TOKEN_NUMBER, param_desc, mce_sys.tx_num_bufs_init, mce_sys.tx_num_bufs_quanta, mce_sys.tx_num_bufs_max, mce_sys.tx_num_bufs_min_threshold, param_name, "init:quanta:max:min"); \
+			vlog_printf(VLOG_DEBUG, FORMAT_TOKEN_NUMBER, param_desc, init_val,  quanta_val, max_val, min_val, param_name, "init:quanta:max:min"); \
 		}												\
 	} while (0);
 
@@ -759,20 +759,20 @@ void print_vma_global_settings()
 
 /*
  * Parse num_bufs_param to init, quanta, max and min values.
- * num_bufs_param is expected to be a ':' delimited string of 1-4 tokens - "<n_bufs_init>:<n_bufs_quanta>:<n_bufs_max>:<n_bufs_min_threshold>".
+ * num_bufs_param is expected to be a ':' delimited string of 1 or 4 tokens - "<n_bufs_init>:<n_bufs_quanta>:<n_bufs_max>:<n_bufs_min_threshold>".
  * if providing only 1 token ("<n_bufs_init>") then it is used for n_bufs_init and n_bufs_max and rest will be set to 0.
  *
  * The function returns TRUE for success or FALSE for illegal input:
- * 		- number of token grater than 4 or lower than 1
+ * 		- number of tokens is not 1 or 4
  * 		- n_bufs_max < n_bufs_init
  * 		- n_bufs_min_threshold > n_bufs_quanta
- * 	Using atio() that might throw in case on non-numeric chars
+ * 	Using atoi() that might throw in case on non-numeric chars
  */
 bool parse_num_bufs_parameter(const char* num_bufs_param, uint32_t& n_bufs_init, uint32_t& n_bufs_quanta, uint32_t& n_bufs_max, uint32_t& n_bufs_min_threshold) {
 	std::vector<std::string> n_bufs_tokens = split(num_bufs_param, ':');
 	n_bufs_init = n_bufs_quanta = n_bufs_max = n_bufs_min_threshold = 0;
 
-	if (n_bufs_tokens.size() != 1 || n_bufs_tokens.size() != 4) {
+	if (n_bufs_tokens.size() != 1 && n_bufs_tokens.size() != 4) {
 		return false;
 	}
 
@@ -1391,7 +1391,7 @@ void get_env_params()
 		safe_mce_sys().timer_netlink_update_msec = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_BPOOL_TIMER_MSEC)) != NULL)
-		mce_sys.timer_bpool_aloc_msec = (uint32_t)atoi(env_ptr);
+		safe_mce_sys().timer_bpool_aloc_msec = (uint32_t)atoi(env_ptr);
 
 	if((env_ptr = getenv(SYS_VAR_NEIGH_NUM_ERR_RETRIES))!= NULL)  {
 		safe_mce_sys().neigh_num_err_retries = (uint32_t)atoi(env_ptr);

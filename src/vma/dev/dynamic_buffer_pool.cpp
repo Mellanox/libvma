@@ -28,7 +28,7 @@ dynamic_buffer_pool::dynamic_buffer_pool(size_t init_buffers_count, size_t buffe
 		m_custom_free_function(custom_free_function), m_curr_bpool(NULL), m_need_alloc(false),
 		m_rx_stat(false), m_tx_stat(false)
 {
-	allocate_addtional_buffers(m_init_buffers_count);
+	allocate_addtional_buffers(init_buffers_count);
 	m_p_timer_handler = new dynamic_bpool_timer_handler(this);
 }
 
@@ -54,7 +54,6 @@ mem_buf_desc_t *dynamic_buffer_pool::get_buffers(size_t count, const ib_ctx_hand
 	if (count > m_curr_bpool->get_free_count() && !m_curr_bp_is_max) {
 		update_max_free_bpool();
 	}
-	//printf("XXXX request for %d buffers. Maximum limit=%d , total buffers=%d, free buffers=%d\n", (int)count,(int) m_max_buffers, (int)m_n_dyn_buffers_created, (int)m_n_dyn_buffers);
 	desc = m_curr_bpool->get_buffers(count, p_ib_ctx_h);
 
 	/* no more buffers, pool exhausted before event_handler could allocate more */
@@ -62,45 +61,8 @@ mem_buf_desc_t *dynamic_buffer_pool::get_buffers(size_t count, const ib_ctx_hand
 		// default - return NULL and wait for timer to allocate more buffers.
 		vlog_printf(VLOG_DEBUG, "Buffer pools exhausted. %d buffers. Maximum limit=%d , total buffers=%d, free buffers=%d\n", count, m_max_buffers, m_n_dyn_buffers_created, m_n_dyn_buffers);
 		return NULL;
-#if 0
-		// code for real-time allocation - blocking
-		rc = allocate_addtional_buffers(m_quanta_buffers_count);
-		cout << "quanta: " << m_quanta_buffers_count << endl;
-		if (!rc){
-			vlog_printf(VLOG_ERROR, "Failed allocating additional %d buffers. Maximum limit=%d , total buffers=%d, free buffers=%d\n", count, m_max_buffers, m_n_dyn_buffers_created, m_n_dyn_buffers);
-			return NULL;
-		}
-		m_lock_spin.unlock();
-		desc = m_curr_bpool->get_buffers(count, p_ib_ctx_h);
-		if (!desc){
-			vlog_printf(VLOG_ERROR, "ERROR. No buffers after real-time allocation.\n");
-			return NULL;
-		}
-#endif
 	}
-/*
-	//remove flag if periodic timer logic
-	if (unlikely(!m_need_alloc && m_n_dyn_buffers < m_min_threshold)) {
-		m_need_alloc=true;*/
-#if 0
-		// code for real time call to timer.
-		g_p_event_handler_manager->register_timer_event(0, m_p_timer_handler, ONE_SHOT_TIMER, NULL);
-#endif
-	//}
 	m_n_dyn_buffers -= count;
-
-#if 0
-	desc = m_curr_bpool->get_buffers(count, p_ib_ctx_h);
-	if (desc) {
-		m_n_dyn_buffers -= count;
-	}
-	// printf("dynamic buffers=%d cur pool buffers=%d\n", (int)m_n_dyn_buffers, (int)m_curr_bpool->get_free_count());
-
-	// call free buffers threshold callback when reaching the threshold only if still not waiting for new buffers from previous call
-	if ( (!m_need_alloc) && ((m_n_dyn_buffers < m_min_threshold) || (!desc)) ) {
-		m_need_alloc=true;
-	}
-#endif
 
 	return desc;
 }
@@ -152,9 +114,8 @@ int dynamic_buffer_pool::put_buffers(mem_buf_desc_t *buff_list)
 
 int dynamic_buffer_pool::allocate_addtional_buffers(size_t count)
 {
-	auto_unlocker lock(m_lock_spin);
+	//auto_unlocker lock(m_lock_spin);
 	m_need_alloc=false;
-	printf("ZZZZZZZ\t%d buffers. Maximum limit=%d , total buffers=%d, free buffers=%d\n", (int)count, (int)m_max_buffers, (int)m_n_dyn_buffers_created, (int)m_n_dyn_buffers);
 
 	if (count + m_n_dyn_buffers_created > m_max_buffers) {
 		vlog_printf(VLOG_DEBUG, "Cannot allocate additional %d buffers. Maximum limit=%d , total buffers=%d, free buffers=%d\n", count, m_max_buffers, m_n_dyn_buffers_created, m_n_dyn_buffers);
@@ -237,35 +198,6 @@ void dynamic_bpool_timer_handler::handle_timer_expired(void* a) {
 	m_p_pool_obj->m_lock_spin.unlock();
 }
 
-#if 0
-static
-void dynamic_buffer_pool::producer_buffer_pool(void *pool_obj) {
-	dynamic_buffer_pool *p_pool = pool_obj;
-	while (true){
-		while (!p_pool->m_need_alloc)
-			p_pool->m_lock_cond_allocate.wait();
-		vlog_printf(VLOG_INFO, "pool allocation signaled: dyn_rx_n_buffers=%d cur_rx_buffers=%d\n",
-				p_pool->get_free_count(), p_pool->get_curr_free_count());
-		p_pool->allocate_addtional_buffers(p_pool->m_quanta_buffers_count);
-	}
-}
-void dynamic_bpool_timer_handler::handle_timer_expired(void* a) {
-	NOT_IN_USE(a);
-	vlog_printf(VLOG_INFO, "handle_timer_expired: dyn_rx_n_buffers=%d cur_rx_buffers=%d\n", g_buffer_pool_rx->get_free_count(), g_buffer_pool_rx->get_curr_free_count());
-	if (g_buffer_pool_rx && g_buffer_pool_rx->m_need_alloc) {
-		//g_buffer_pool_rx->allocate_addtional_buffers(m_alloc_count);g_buffer_pool_rx->m_n_init_buffers_count
-		g_buffer_pool_rx->allocate_addtional_buffers(g_buffer_pool_rx->m_quanta_buffers_count);
-		vlog_printf(VLOG_INFO, "handle_timer_expired ---> allocating for RX\n");
-	}
-	if (g_buffer_pool_tx && g_buffer_pool_tx->m_need_alloc) {
-		//g_buffer_pool_tx->allocate_addtional_buffers(m_alloc_count);
-		g_buffer_pool_tx->allocate_addtional_buffers(g_buffer_pool_tx->m_quanta_buffers_count);
-		vlog_printf(VLOG_INFO, "handle_timer_expired ---> allocating for TX\n");
-	}
-}
-#endif
-
-
 int dynamic_buffer_pool::put_buffers_thread_safe(mem_buf_desc_t *buff_list)
 {
 	auto_unlocker lock(m_lock_spin);
@@ -322,4 +254,3 @@ mem_buf_desc_t *dynamic_buffer_pool::get_buffers_thread_safe(size_t count, const
 dynamic_bpool_timer_handler *dynamic_buffer_pool::get_timer_handler(){
 	return m_p_timer_handler;
 }
-
