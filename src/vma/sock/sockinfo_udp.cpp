@@ -49,6 +49,7 @@
 #include "vma/sock/fd_collection.h"
 #include "vma/event/event_handler_manager.h"
 #include "vma/dev/buffer_pool.h"
+#include "vma/dev/ring_simple.h"
 #include "vma/proto/route_table_mgr.h"
 #include "vma/proto/rule_table_mgr.h"
 #include "vma/proto/dst_entry_tcp.h"
@@ -1840,6 +1841,15 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 		!p_desc->path.rx.sw_timestamp.tv_sec) {
 		clock_gettime(CLOCK_REALTIME, &(p_desc->path.rx.sw_timestamp));
 	}
+
+	// convert hw timestamp to system time
+	if (m_n_tsing_flags & SOF_TIMESTAMPING_RAW_HARDWARE) {
+		ring_simple* owner_ring = (ring_simple*) p_desc->p_desc_owner;
+		if (owner_ring) {
+			owner_ring->convert_hw_time_to_system_time(p_desc->path.rx.hw_raw_timestamp, &p_desc->path.rx.hw_timestamp);
+		}
+	}
+
 	vma_recv_callback_retval_t callback_retval = VMA_PACKET_RECV;
 	if (m_rx_callback) {
 		mem_buf_desc_t *tmp;
