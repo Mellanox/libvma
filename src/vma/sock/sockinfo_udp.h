@@ -46,6 +46,7 @@
 #include "vma/util/sys_vars.h"
 #include "vma/proto/mem_buf_desc.h"
 #include "vma/proto/dst_entry_udp.h"
+#include "vma/dev/ring_simple.h"
 
 #include "pkt_rcvr_sink.h"
 #include "pkt_sndr_source.h"

@@ -168,6 +168,10 @@ public:
 
 	void 	modify_cq_moderation(uint32_t period, uint32_t count);
 
+	inline void convert_hw_time_to_system_time(uint64_t packet_hw_time, struct timespec* packet_systime) {
+		m_p_ib_ctx_handler->convert_hw_time_to_system_time(packet_hw_time, packet_systime);
+	}
+
 private:
 	ring_simple*		m_p_ring;
 	ib_ctx_handler*			m_p_ib_ctx_handler;

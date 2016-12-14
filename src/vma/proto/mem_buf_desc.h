@@ -123,6 +123,7 @@ public:
 
 			struct timespec sw_timestamp;
 			struct timespec	hw_timestamp;
+			uint64_t	hw_raw_timestamp;
 
 			void* 		context;
 		} rx;
