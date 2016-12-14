@@ -55,6 +55,8 @@
 
 #include "fd_collection.h"
 
+#include "vma/util/instrumentation.h"
+
 using namespace std;
 
 
@@ -865,11 +867,16 @@ ssize_t read(int __fd, void *__buf, size_t __nbytes)
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
 	if (p_socket_object) {
+		INSTRUMENT_START_RECV_TO_CQMGR_RING
 		struct iovec piov[1];
 		piov[0].iov_base = __buf;
 		piov[0].iov_len = __nbytes;
 		int dummy_flags = 0;
-		return p_socket_object->rx(RX_READ, piov, 1, &dummy_flags);
+		ssize_t res = p_socket_object->rx(RX_READ, piov, 1, &dummy_flags);
+		INSTRUMENT_END_CQ_MGR_MISS_TO_RECV
+		INSTRUMENT_END_RX_INPUT_CB_TCP_TO_RECV
+		INSTRUMENT_END_RX_INPUT_CB_UDP_TO_RECV		
+		return res;
 	}
 
 	return orig_os_api.read(__fd, __buf, __nbytes);
@@ -944,6 +951,7 @@ ssize_t readv(int __fd, const struct iovec *iov, int iovcnt)
 extern "C"
 ssize_t recv(int __fd, void *__buf, size_t __nbytes, int __flags)
 {
+
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.recv)	get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -953,10 +961,15 @@ ssize_t recv(int __fd, void *__buf, size_t __nbytes, int __flags)
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
 	if (p_socket_object) {
+		INSTRUMENT_START_RECV_TO_CQMGR_RING
 		struct iovec piov[1];
 		piov[0].iov_base = __buf;
 		piov[0].iov_len = __nbytes;
-		return p_socket_object->rx(RX_RECV, piov, 1, &__flags);
+		ssize_t res = p_socket_object->rx(RX_RECV, piov, 1, &__flags);
+		INSTRUMENT_END_CQ_MGR_MISS_TO_RECV
+	        INSTRUMENT_END_RX_INPUT_CB_TCP_TO_RECV
+	        INSTRUMENT_END_RX_INPUT_CB_UDP_TO_RECV
+		return res;
 	}
 
 	return orig_os_api.recv(__fd, __buf, __nbytes, __flags);
@@ -1120,6 +1133,8 @@ extern "C"
 ssize_t recvfrom(int __fd, void *__buf, size_t __nbytes, int __flags,
 		 struct sockaddr *__from, socklen_t *__fromlen)
 {
+	INSTRUMENT_START_RECV_TO_CQMGR_RING
+
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.recvfrom) get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -1132,7 +1147,11 @@ ssize_t recvfrom(int __fd, void *__buf, size_t __nbytes, int __flags,
 		struct iovec piov[1];
 		piov[0].iov_base = __buf;
 		piov[0].iov_len = __nbytes;
-		return p_socket_object->rx(RX_RECVFROM, piov, 1, &__flags, __from, __fromlen);
+		ssize_t res = p_socket_object->rx(RX_RECVFROM, piov, 1, &__flags, __from, __fromlen);
+		INSTRUMENT_END_CQ_MGR_MISS_TO_RECV
+		INSTRUMENT_END_RX_INPUT_CB_UDP_TO_RECV
+		INSTRUMENT_END_RX_INPUT_CB_TCP_TO_RECV
+                return res;
 	}
 
 	return orig_os_api.recvfrom(__fd, __buf, __nbytes, __flags, __from, __fromlen);
@@ -1186,6 +1205,7 @@ ssize_t write(int __fd, __const void *__buf, size_t __nbytes)
 	if (!orig_os_api.write) get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
 
+	INSTRUMENT_START_SEND_TO_FASTSEND_TCP
 	srdr_logfuncall_entry("fd=%d, nbytes=%d", __fd, __nbytes);
 
 	socket_fd_api* p_socket_object = NULL;
@@ -1194,7 +1214,9 @@ ssize_t write(int __fd, __const void *__buf, size_t __nbytes)
 		iovec piov[1];
 		piov[0].iov_base = (void*)__buf;
 		piov[0].iov_len = __nbytes;
-		return p_socket_object->tx(TX_WRITE, piov, 1);
+		ssize_t res = p_socket_object->tx(TX_WRITE, piov, 1);
+		INSTRUMENT_END_RING_SIMPLE_SEND_RING_BUFFER_TO_SEND
+		return res;
 	}
 
 	return orig_os_api.write(__fd, __buf, __nbytes);
@@ -1229,6 +1251,8 @@ ssize_t writev(int __fd, const struct iovec *iov, int iovcnt)
 extern "C"
 ssize_t send(int __fd, __const void *__buf, size_t __nbytes, int __flags)
 {
+	INSTRUMENT_START_SEND_TO_FASTSEND_TCP
+
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.send)	get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -1241,7 +1265,9 @@ ssize_t send(int __fd, __const void *__buf, size_t __nbytes, int __flags)
 		iovec piov[1];
 		piov[0].iov_base = (void*)__buf;
 		piov[0].iov_len = __nbytes;
-		return p_socket_object->tx(TX_SEND, piov, 1, __flags);
+		ssize_t res = p_socket_object->tx(TX_SEND, piov, 1, __flags);
+		INSTRUMENT_END_RING_SIMPLE_SEND_RING_BUFFER_TO_SEND
+		return res;
 	}
 
 	return orig_os_api.send(__fd, __buf, __nbytes, __flags);
@@ -1323,6 +1349,8 @@ extern "C"
 ssize_t sendto(int __fd, __const void *__buf, size_t __nbytes, int __flags,
 	       const struct sockaddr *__to, socklen_t __tolen)
 {
+	INSTRUMENT_START_SEND_TO_FASTSEND_UDP
+
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.sendto) get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -1335,7 +1363,9 @@ ssize_t sendto(int __fd, __const void *__buf, size_t __nbytes, int __flags,
 		iovec piov[1];
 		piov[0].iov_base = (void*)__buf;
 		piov[0].iov_len = __nbytes;
-		return p_socket_object->tx(TX_SENDTO, piov, 1, __flags, __to, __tolen);
+		int res = p_socket_object->tx(TX_SENDTO, piov, 1, __flags, __to, __tolen);
+		INSTRUMENT_END_RING_SIMPLE_SEND_RING_BUFFER_TO_SEND
+		return res;
 	}
 
 	return orig_os_api.sendto(__fd, __buf, __nbytes, __flags, __to, __tolen);
@@ -1454,8 +1484,12 @@ int select(int __nfds,
 	} else {
 		srdr_logfunc_entry("nfds=%d, timeout=(infinite)", __nfds);
 	}
-
-	return select_helper(__nfds, __readfds, __writefds, __exceptfds, __timeout);
+	INSTRUMENT_START_RECV_TO_CQMGR_RING
+	int res = select_helper(__nfds, __readfds, __writefds, __exceptfds, __timeout);
+	INSTRUMENT_END_CQ_MGR_MISS_TO_RECV
+	INSTRUMENT_END_RX_INPUT_CB_TCP_TO_RECV
+	INSTRUMENT_END_RX_INPUT_CB_UDP_TO_RECV
+	return res;
 }
 
 extern "C"
@@ -1482,8 +1516,12 @@ int pselect(int __nfds,
 	} else {
 		srdr_logfunc_entry("nfds=%d, timeout=(infinite)", __nfds);
 	}
-
-	return select_helper(__nfds, __readfds, __writefds, __errorfds, __timeout ? &select_time : NULL, __sigmask);
+	INSTRUMENT_START_RECV_TO_CQMGR_RING
+	int res = select_helper(__nfds, __readfds, __writefds, __errorfds, __timeout ? &select_time : NULL, __sigmask);
+	INSTRUMENT_END_CQ_MGR_MISS_TO_RECV
+	INSTRUMENT_END_RX_INPUT_CB_TCP_TO_RECV
+	INSTRUMENT_END_RX_INPUT_CB_UDP_TO_RECV
+	return res;
 }
 
 /* Poll the file descriptors described by the NFDS structures starting at
@@ -1515,6 +1553,7 @@ int poll_helper(struct pollfd *__fds, nfds_t __nfds, int __timeout, const sigset
 extern "C"
 int poll(struct pollfd *__fds, nfds_t __nfds, int __timeout)
 {
+
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.poll)	get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -1526,13 +1565,19 @@ int poll(struct pollfd *__fds, nfds_t __nfds, int __timeout)
 		srdr_logfunc_entry("nfds=%d, timeout=(infinite)", __nfds);
 	else
 		srdr_logfunc_entry("nfds=%d, timeout=(%d milli-sec)", __nfds, __timeout);
-
-	return poll_helper(__fds, __nfds, __timeout);
+	INSTRUMENT_START_RECV_TO_CQMGR_RING
+	int res = poll_helper(__fds, __nfds, __timeout);
+	INSTRUMENT_END_CQ_MGR_MISS_TO_RECV
+	INSTRUMENT_END_RX_INPUT_CB_TCP_TO_RECV
+	INSTRUMENT_END_RX_INPUT_CB_UDP_TO_RECV
+	return res;
 }
 
 extern "C"
 int ppoll(struct pollfd *__fds, nfds_t __nfds, const struct timespec *__timeout, const sigset_t *__sigmask)
 {
+	INSTRUMENT_START_RECV_TO_CQMGR_RING
+
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.ppoll)	get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -1548,7 +1593,12 @@ int ppoll(struct pollfd *__fds, nfds_t __nfds, const struct timespec *__timeout,
 	else
 		srdr_logfunc_entry("nfds=%d, timeout=(%d milli-sec)", __nfds, timeout);
 
-	return poll_helper(__fds, __nfds, timeout, __sigmask);
+	int res = poll_helper(__fds, __nfds, timeout, __sigmask);
+	INSTRUMENT_END_CQ_MGR_MISS_TO_RECV
+	INSTRUMENT_END_RX_INPUT_CB_TCP_TO_RECV
+	INSTRUMENT_END_RX_INPUT_CB_UDP_TO_RECV
+
+	return res;
 }
 
 void vma_epoll_create(int epfd, int size)

@@ -34,6 +34,7 @@
 #include "utils/bullseye.h"
 #include "vma/util/utils.h"
 #include "dst_entry_udp.h"
+#include "vma/util/instrumentation.h"
 
 #define MODULE_NAME             "dst_udp"
 
@@ -78,6 +79,9 @@ void dst_entry_udp::configure_headers()
 
 ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool b_blocked /*=true*/, bool is_rexmit /*=false*/, bool dont_inline /*=false*/)
 {
+	INSTRUMENT_END_SEND_TO_FASTSEND_UDP
+	INSTRUMENT_START_FASTSEND_UDP_TO_SIMPLE_SEND_RING_BUFFER
+
 	NOT_IN_USE(is_rexmit);
 
 	tx_packet_template_t *p_pkt;
@@ -139,6 +143,10 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 		}
 		p_mem_buf_desc->p_next_desc = NULL;
 		m_inline_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
+
+		INSTRUMENT_END_FASTSEND_UDP_TO_SIMPLE_SEND_RING_BUFFER
+		INSTRUMENT_START_RING_SIMPLE_SEND_RING_BUFFER_WRAPPER
+
 		m_p_ring->send_ring_buffer(m_id, m_p_send_wqe, b_blocked);
 
 		if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {

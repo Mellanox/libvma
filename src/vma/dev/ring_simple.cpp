@@ -48,6 +48,7 @@
 #include "vma/dev/rfs_uc.h"
 #include "vma/dev/rfs_uc_tcp_gro.h"
 #include "vma/dev/cq_mgr.h"
+#include "vma/util/instrumentation.h"
 
 
 #undef  MODULE_NAME
@@ -1190,6 +1191,8 @@ void ring_simple::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wq
 	int ret = send_buffer(p_send_wqe, b_block);
 	send_status_handler(ret, p_send_wqe);
 	m_lock_ring_tx.unlock();
+	INSTRUMENT_END_RING_SIMPLE_SEND_RING_BUFFER_WRAPPER
+	INSTRUMENT_START_RING_SIMPLE_SEND_RING_BUFFER_TO_SEND
 	return;
 }
 

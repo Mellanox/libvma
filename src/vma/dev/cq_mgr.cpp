@@ -731,8 +731,14 @@ int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready
 		prefetch_range((uint8_t*)m_p_next_rx_desc_poll->p_buffer, m_n_sysvar_rx_prefetch_bytes_before_poll);
 	}
 
+	INSTRUMENT_END_RECV_TO_CQMGR_RING
+	INSTRUMENT_START_CQ_MGR_POLL_WRAPPER
 	ret = poll(wce, m_n_sysvar_cq_poll_batch_max, p_cq_poll_sn);
+	INSTRUMENT_END_CQ_MGR_POLL_WRAPPER
+
+
 	if (ret > 0) {
+		INSTRUMENT_START_CQ_MGR_HIT_TO_RX_INPUT_CB
 		m_n_wce_counter += ret;
 		if (ret < (int)m_n_sysvar_cq_poll_batch_max)
 			m_b_was_drained = true;
@@ -750,6 +756,7 @@ int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready
 		ret_rx_processed += ret;
 		m_p_ring->m_gro_mgr.flush_all(pv_fd_ready_array);
 	} else {
+		INSTRUMENT_START_CQ_MGR_MISS_TO_RECV
 		compensate_qp_poll_failed();
 	}
 

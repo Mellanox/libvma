@@ -34,6 +34,8 @@
 
 #include "dst_entry_tcp.h"
 #include <netinet/tcp.h>
+#include "vma/util/instrumentation.h"
+
 
 #define MODULE_NAME             "dst_tcp"
 
@@ -66,6 +68,9 @@ transport_t dst_entry_tcp::get_transport(sockaddr_in to)
 
 ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov, bool b_blocked /*= true*/, bool is_rexmit /*= false*/, bool dont_inline /*= false*/)
 {
+	INSTRUMENT_END_SEND_TO_FASTSEND_TCP
+	INSTRUMENT_START_FASTSEND_TCP_TO_SIMPLE_SEND_RING_BUFFER
+
 	tx_packet_template_t* p_pkt;
 	mem_buf_desc_t *p_mem_buf_desc;
 	size_t total_packet_len = 0;
@@ -169,6 +174,8 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 #endif
 		m_p_send_wqe = &m_not_inline_send_wqe;
 		m_p_send_wqe->wr_id = (uintptr_t)p_mem_buf_desc;
+		INSTRUMENT_END_FASTSEND_TCP_TO_SIMPLE_SEND_RING_BUFFER
+		INSTRUMENT_START_RING_SIMPLE_SEND_RING_BUFFER_WRAPPER
 		m_p_ring->send_ring_buffer(m_id, m_p_send_wqe, b_blocked);
 	}
 
@@ -186,7 +193,6 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 	if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
 		m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, m_n_sysvar_tx_bufs_batch_tcp);
 	}
-
 	return 0;
 }
 
