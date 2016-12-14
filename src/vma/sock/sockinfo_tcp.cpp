@@ -710,7 +710,7 @@ retry_write:
 				si_tcp_logdbg("returning with: EINTR");
 				goto err;
 			}
-			err = tcp_write(&m_pcb, (char *)p_iov[i].iov_base + pos, tx_size, 3);
+			err = tcp_write(&m_pcb, (char *)p_iov[i].iov_base + pos, tx_size, TCP_WRITE_FLAG_COPY|TCP_WRITE_FLAG_MORE);
 			if (unlikely(err != ERR_OK)) {
 				if (unlikely(err == ERR_CONN)) { // happens when remote drops during big write
 					si_tcp_logdbg("connection closed: tx'ed = %d", total_tx);
@@ -2112,11 +2112,11 @@ int sockinfo_tcp::listen(int backlog)
 
 	if (get_tcp_state(&m_pcb) != LISTEN) {
 
-		//Now we know that it is listen socket so we have to treate m_pcb as listen pcb
-		//and update the relevant fields of tcp_listen_pcb.
+		// Now we know that it is listen socket so we have to treat m_pcb as listen pcb
+		// and update the relevant fields of tcp_listen_pcb.
 		struct tcp_pcb tmp_pcb;
 		memcpy(&tmp_pcb, &m_pcb, sizeof(struct tcp_pcb));
-		tcp_listen_with_backlog((struct tcp_pcb_listen*)(&m_pcb), &tmp_pcb, backlog);
+		tcp_listen((struct tcp_pcb_listen*)(&m_pcb), &tmp_pcb);
 	}
 
 	m_sock_state = TCP_SOCK_ACCEPT_READY;

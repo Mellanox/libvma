@@ -329,12 +329,6 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
       in_data->tcphdr->dest, in_data->tcphdr->src, NULL);
   } else if (in_data->flags & TCP_SYN) {
     LWIP_DEBUGF(TCP_DEBUG, ("TCP connection request %"U16_F" -> %"U16_F".\n", in_data->tcphdr->src, in_data->tcphdr->dest));
-#if TCP_LISTEN_BACKLOG
-    if (pcb->accepts_pending >= pcb->backlog) {
-      LWIP_DEBUGF(TCP_DEBUG, ("tcp_listen_input: listen backlog exceeded for port %"U16_F"\n", in_data->tcphdr->dest));
-      return ERR_ABRT;
-    }
-#endif /* TCP_LISTEN_BACKLOG */
 
     TCP_EVENT_CLONE_PCB(pcb,&npcb,ERR_OK,rc);
     /* If a new PCB could not be created (probably due to lack of memory),
@@ -345,9 +339,6 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
       TCP_STATS_INC(tcp.memerr);
       return ERR_MEM;
     }
-#if TCP_LISTEN_BACKLOG
-    pcb->accepts_pending++;
-#endif /* TCP_LISTEN_BACKLOG */
     /* Set up the new PCB. */
     ip_addr_copy(npcb->local_ip, in_data->iphdr->dest);
     npcb->local_port = pcb->local_port;

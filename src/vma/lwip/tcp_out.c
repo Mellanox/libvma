@@ -362,11 +362,6 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
   if ( len < pcb->mss)
           pcb->snd_sml_add = (pcb->unacked ? pcb->unacked->len : 0) + byte_queued;
 
-#if LWIP_NETIF_TX_SINGLE_PBUF
-  /* Always copy to try to create single pbufs for TX */
-  apiflags |= TCP_WRITE_FLAG_COPY;
-#endif /* LWIP_NETIF_TX_SINGLE_PBUF */
-
   LWIP_DEBUGF(TCP_OUTPUT_DEBUG, ("tcp_write(pcb=%p, data=%p, len=%"U16_F", apiflags=%"U16_F")\n",
     (void *)pcb, arg, len, (u16_t)apiflags));
   LWIP_ERROR("tcp_write: arg == NULL (programmer violates API)", 
@@ -1228,14 +1223,7 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
 
   TCP_STATS_INC(tcp.xmit);
 
-#if LWIP_NETIF_HWADDRHINT
-  ip_output_hinted(seg->p, &(pcb->local_ip), &(pcb->remote_ip), pcb->ttl, pcb->tos,
-      IP_PROTO_TCP, &(pcb->addr_hint));
-#elif LWIP_3RD_PARTY_L3
   pcb->ip_output(seg->p, pcb, seg->seqno < pcb->snd_nxt);
-#else /* LWIP_NETIF_HWADDRHINT*/
-  ip_output(seg->p, &(pcb->local_ip), &(pcb->remote_ip), pcb->ttl, pcb->tos, IP_PROTO_TCP);
-#endif /* LWIP_NETIF_HWADDRHINT*/
 }
 
 /**
@@ -1459,14 +1447,7 @@ tcp_keepalive(struct tcp_pcb *pcb)
   TCP_STATS_INC(tcp.xmit);
 
   /* Send output to IP */
-#if LWIP_NETIF_HWADDRHINT
-  ip_output_hinted(p, &pcb->local_ip, &pcb->remote_ip, pcb->ttl, 0, IP_PROTO_TCP,
-    &(pcb->addr_hint));
-#elif LWIP_3RD_PARTY_L3
   pcb->ip_output(p, pcb, 0);
-#else /* LWIP_NETIF_HWADDRHINT*/
-  ip_output(p, &pcb->local_ip, &pcb->remote_ip, pcb->ttl, 0, IP_PROTO_TCP);
-#endif /* LWIP_NETIF_HWADDRHINT*/
 
   tcp_tx_pbuf_free(pcb, p);
 
@@ -1539,14 +1520,7 @@ tcp_zero_window_probe(struct tcp_pcb *pcb)
   TCP_STATS_INC(tcp.xmit);
 
   /* Send output to IP */
-#if LWIP_NETIF_HWADDRHINT
-  ip_output_hinted(p, &pcb->local_ip, &pcb->remote_ip, pcb->ttl, 0, IP_PROTO_TCP,
-    &(pcb->addr_hint));
-#elif LWIP_3RD_PARTY_L3
   pcb->ip_output(p, pcb, 0);
-#else /* LWIP_NETIF_HWADDRHINT*/
-  ip_output(p, &pcb->local_ip, &pcb->remote_ip, pcb->ttl, 0, IP_PROTO_TCP);
-#endif /* LWIP_NETIF_HWADDRHINT*/
 
   tcp_tx_pbuf_free(pcb, p);
 
