@@ -41,7 +41,6 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-#include "vma/util/agent.h"
 #include "hash.h"
 #include "daemon.h"
 

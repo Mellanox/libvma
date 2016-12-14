@@ -45,7 +45,6 @@
 #include <netinet/tcp.h>
 
 #include "vma/lwip/tcp.h"    /* display TCP states */
-#include "vma/util/agent.h"  /* get message layout format */
 #include "hash.h"
 #include "daemon.h"
 

@@ -221,12 +221,12 @@ static int free_libvma_resources()
 	if (g_p_event_handler_manager) delete g_p_event_handler_manager;
 	g_p_event_handler_manager = NULL;
 
+	if (g_p_agent) delete g_p_agent;
+	g_p_agent = NULL;
+
 	vlog_printf(VLOG_DEBUG, "Stopping logger module\n");
 
 	sock_redirect_exit();
-
-	/* Close communication with daemon */
-	agent_close();
 
 	vlog_stop();
 
@@ -794,7 +794,9 @@ static void do_global_ctors_helper()
 		g_is_forked_child = false;
 
 	/* Open communication with daemon */
-	agent_open();
+	NEW_CTOR(g_p_agent, agent());
+	vlog_printf(VLOG_DEBUG,"Agent setup state: g_p_agent=%p active=%d\n",
+			g_p_agent, (g_p_agent ? g_p_agent->state() : -1));
 
 	// Create all global managment objects
 	NEW_CTOR(g_p_event_handler_manager, event_handler_manager());
