@@ -430,31 +430,12 @@ void mce_sys_var::get_env_params()
 	switch (mce_spec) {
 
 	case MCE_SPEC_SOCKPERF_LL_10:
+
+		select_skip_os_fd_check = 0; //MCE_DEFAULT_SELECT_SKIP_OS(4)
+		rx_udp_poll_os_ratio    = 0; //MCE_DEFAULT_RX_UDP_POLL_OS_RATIO(100)
 		tx_num_segs_tcp         = 512; //MCE_DEFAULT_TX_NUM_SEGS_TCP (1000000)
-		tx_num_bufs             = 512; //MCE_DEFAULT_TX_NUM_BUFS (200000)
-		tx_num_wr               = 256; //MCE_DEFAULT_TX_NUM_WRE (3000)
-		tx_num_wr_to_signal     = 4; //MCE_DEFAULT_TX_NUM_WRE_TO_SIGNAL (64)
-		tx_prefetch_bytes 	= MCE_DEFAULT_TX_PREFETCH_BYTES; //(256)
-		tx_bufs_batch_udp	= 1; //MCE_DEFAULT_TX_BUFS_BATCH_UDP (8)
-		tx_bufs_batch_tcp	= 1; //MCE_DEFAULT_TX_BUFS_BATCH_TCP;
 		rx_num_bufs             = 1024; //MCE_DEFAULT_RX_NUM_BUFS (200000)
-		rx_bufs_batch           = 4; //MCE_DEFAULT_RX_BUFS_BATCH (64)
-		rx_num_wr               = 256; //MCE_DEFAULT_RX_NUM_WRE (16000)
-		rx_num_wr_to_post_recv  = 4; //MCE_DEFAULT_RX_NUM_WRE_TO_POST_RECV (64)
-		rx_poll_num             = -1; //MCE_DEFAULT_RX_NUM_POLLS
-		rx_udp_poll_os_ratio    = 0; //MCE_DEFAULT_RX_UDP_POLL_OS_RATIO
-		rx_prefetch_bytes	= MCE_DEFAULT_RX_PREFETCH_BYTES; //(256)
-		rx_prefetch_bytes_before_poll = 256; //MCE_DEFAULT_RX_PREFETCH_BYTES_BEFORE_POLL 0
-		select_poll_num         = -1;
-		select_poll_os_ratio    = 0;
-		select_skip_os_fd_check = 0;
-		avoid_sys_calls_on_tcp_fd = true; //MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD (false)
-		gro_streams_max		= 0; //MCE_DEFAULT_GRO_STREAMS_MAX (32)
-		progress_engine_interval_msec = 0;
-		cq_keep_qp_full		= false; //MCE_DEFAULT_CQ_KEEP_QP_FULL(true)
-		thread_mode		= THREAD_MODE_SINGLE;
-		mem_alloc_type          = ALLOC_TYPE_HUGEPAGES;
-		strcpy(internal_thread_affinity_str, "0"); //MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR;
+		tx_num_bufs             = 512; //MCE_DEFAULT_TX_NUM_BUFS (200000)
 		break;
 
 	case MCE_SPEC_29WEST_LBM_29:
@@ -502,11 +483,7 @@ void mce_sys_var::get_env_params()
 		log_level                 = VLOG_WARNING; //VLOG_DEFAULT(VLOG_INFO) VMA_TRACELEVEL
 		stats_fd_num_max          = 1024; //MCE_DEFAULT_STATS_FD_NUM(100), max. number of sockets monitored by VMA stats
 		strcpy(internal_thread_affinity_str, "0x3"); // MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR(-1), first 2 cores
-		rx_poll_num               = -1; //MCE_DEFAULT_RX_NUM_POLLS(100000), Infinite RX poll for ready packets (during read/recv)
-		select_poll_num           = -1;	//MCE_DEFAULT_SELECT_NUM_POLLS(100000), Infinite poll the hardware on RX (before sleeping in epoll/select, etc)
-		select_poll_os_ratio      = 0;  //MCE_DEFAULT_SELECT_POLL_OS_RATIO(10), Disable polling OS fd's (re-enabled if bound on OS fd)
 		tcp_3t_rules              = true; //MCE_DEFAULT_TCP_3T_RULES(false), Use only 3 tuple rules for TCP
-		avoid_sys_calls_on_tcp_fd = 1; //MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD (false), Disable handling control packets on a separate thread
 		buffer_batching_mode      = BUFFER_BATCHING_NONE; //MCE_DEFAULT_BUFFER_BATCHING_MODE(BUFFER_BATCHING_WITH_RECLAIM), Disable handling control packets on a separate thread
 		break;
 		
