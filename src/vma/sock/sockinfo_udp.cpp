@@ -49,6 +49,7 @@
 #include "vma/sock/fd_collection.h"
 #include "vma/event/event_handler_manager.h"
 #include "vma/dev/buffer_pool.h"
+#include "vma/dev/ring_simple.h"
 #include "vma/proto/route_table_mgr.h"
 #include "vma/proto/rule_table_mgr.h"
 #include "vma/proto/dst_entry_tcp.h"

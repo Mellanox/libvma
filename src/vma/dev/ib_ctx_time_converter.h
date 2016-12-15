@@ -58,7 +58,7 @@ public:
 	ib_ctx_time_converter(struct ibv_context* ctx, ts_conversion_mode_t ctx_time_converter_mode);
 	virtual ~ib_ctx_time_converter();
 
-	void                      convert_hw_time_to_system_time(uint64_t packet_hw_time, struct timespec* packet_systime);
+	void                      convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime);
 	void                      handle_timer_expired(void* user_data);
 
 	uint64_t                  get_hca_core_clock();
