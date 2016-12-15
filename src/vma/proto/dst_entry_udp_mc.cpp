@@ -81,6 +81,24 @@ bool dst_entry_udp_mc::conf_l2_hdr_and_snd_wqe_ib()
 	return ret_val;
 }
 
+void dst_entry_udp_mc::set_src_addr()
+{
+	m_pkt_src_ip = INADDR_ANY;
+	
+	if (m_bound_ip) {
+		m_pkt_src_ip = m_bound_ip;
+	}
+	else if (m_mc_tx_if_ip.get_in_addr() && !m_mc_tx_if_ip.is_mc()) {
+		m_pkt_src_ip = m_mc_tx_if_ip.get_in_addr();
+	}
+	else if (m_p_rt_val && m_p_rt_val->get_src_addr()) {
+		m_pkt_src_ip = m_p_rt_val->get_src_addr();
+	}
+	else if (m_p_net_dev_val && m_p_net_dev_val->get_local_addr()) {
+		m_pkt_src_ip = m_p_net_dev_val->get_local_addr();
+	}
+}
+
 //The following function supposed to be called under m_lock
 bool dst_entry_udp_mc::resolve_net_dev(bool is_connect)
 {

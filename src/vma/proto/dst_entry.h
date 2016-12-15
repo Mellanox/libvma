@@ -144,7 +144,7 @@ protected:
 	virtual bool 		offloaded_according_to_rules();
 	virtual void 		init_members();
 	virtual bool 		resolve_net_dev(bool is_connect=false);
-	void				set_src_addr();
+	virtual void		set_src_addr();
 	bool 				update_net_dev_val();
 	bool 				update_rt_val();
 	virtual bool 		resolve_neigh();
