@@ -265,9 +265,6 @@ bool dst_entry::resolve_net_dev(bool is_connect)
 
 	if (update_rt_val()) {
 		ret_val = update_net_dev_val();
-		if (ret_val) {
-			set_src_addr();
-		}
 	}
 	return ret_val;
 }
@@ -541,6 +538,7 @@ bool dst_entry::prepare_to_send(bool skip_rules, bool is_connect)
 		bool is_ofloaded = false;
 		set_state(true);
 		if (resolve_net_dev(is_connect)) {
+			set_src_addr();
 			m_max_ip_payload_size = ((m_p_net_dev_val->get_mtu()-sizeof(struct iphdr)) & ~0x7);
 			if (resolve_ring()) {
 				is_ofloaded = true;
