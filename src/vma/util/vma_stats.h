@@ -86,7 +86,7 @@ using namespace std;
 #define NUM_OF_SUPPORTED_RINGS 		8
 #define NUM_OF_SUPPORTED_BPOOLS		2
 #define NUM_OF_SUPPORTED_EPFDS          15
-#define MIN_STATS_SIZE	 		((sizeof(uint32_t)  + sizeof(size_t) + 6*sizeof(uint8_t) + sizeof(ring_instance_block_t)*NUM_OF_SUPPORTED_RINGS + sizeof(cq_instance_block_t)*NUM_OF_SUPPORTED_CQS + sizeof(mc_grp_info_t) + sizeof(iomux_stats_t) + 32*sizeof(char)))
+#define MIN_STATS_SIZE	 		sizeof(sh_mem_t)
 #define SHMEM_STATS_SIZE(fds_num)	MIN_STATS_SIZE + (fds_num * sizeof(socket_instance_block_t))
 #define FILE_NAME_MAX_SIZE		256
 #define MC_TABLE_SIZE			1024

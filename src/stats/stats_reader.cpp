@@ -175,6 +175,7 @@ void update_delta_stat(socket_stats_t* p_curr_stat, socket_stats_t* p_prev_stat)
 	p_prev_stat->counters.n_tx_sent_pkt_count = (p_curr_stat->counters.n_tx_sent_pkt_count - p_prev_stat->counters.n_tx_sent_pkt_count) / delay;
 	p_prev_stat->counters.n_tx_drops = (p_curr_stat->counters.n_tx_drops - p_prev_stat->counters.n_tx_drops) / delay;
 	p_prev_stat->counters.n_tx_errors = (p_curr_stat->counters.n_tx_errors - p_prev_stat->counters.n_tx_errors) / delay;
+	p_prev_stat->counters.n_tx_dummy = (p_curr_stat->counters.n_tx_dummy - p_prev_stat->counters.n_tx_dummy) / delay;
 	p_prev_stat->counters.n_tx_os_bytes = (p_curr_stat->counters.n_tx_os_bytes - p_prev_stat->counters.n_tx_os_bytes) / delay;
 	p_prev_stat->counters.n_tx_os_packets = (p_curr_stat->counters.n_tx_os_packets - p_prev_stat->counters.n_tx_os_packets) / delay;
 	p_prev_stat->counters.n_tx_os_eagain = (p_curr_stat->counters.n_tx_os_eagain - p_prev_stat->counters.n_tx_os_eagain) / delay;
