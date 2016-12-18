@@ -176,6 +176,11 @@ nl_cache_mngr* nl_cache_mngr_compatible_alloc(nl_socket_handle* handle, int prot
 
 int nl_cache_mngr_compatible_add(struct nl_cache_mngr*	mngr, const char* name, change_func_t cb, void*	, struct nl_cache** result){
 	*result = nl_cache_mngr_add(mngr, name, cb);
+	if (*result == NULL) {
+		nl_logerr("Fail adding to cache manager, error=%d %s\n",
+			nl_get_errno(), nl_geterror());
+		return -1;
+	}
 	return 0;
 }
 
