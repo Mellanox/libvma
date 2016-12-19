@@ -58,9 +58,17 @@ PKG_PROG_PKG_CONFIG
 with_debug_info=yes
 with_debug=no
 
+dnl----------------------------------------------------------------------------
+dnl
+dnl Check for header files
+dnl
+dnl----------------------------------------------------------------------------
+
+AC_CHECK_HEADERS(linux/limits.h)
+AC_CHECK_HEADERS([sys/prctl.h], ,
+                 [AC_MSG_WARN([prctl() does not exist: VMA support is limited])])
 AC_CHECK_HEADERS([infiniband/verbs.h], ,
                  [AC_MSG_ERROR([Unable to find the libibverbs-devel header files])])
-
 AC_CHECK_HEADERS([rdma/rdma_cma.h], ,
                  [AC_MSG_ERROR([Unable to find the librdmacm-devel header files])])
 
@@ -507,6 +515,8 @@ AC_CHECK_LIB([stdc++], [atoi])
 AC_CHECK_LIB([dl], [dlsym])
 AC_CHECK_LIB([rt], [clock_gettime])
 AC_CHECK_LIB([pthread], [pthread_create])
+
+
 #AC_CHECK_LIB([rdmacm], [rdma_create_id]) - doing it here requires rdmacm & libibverbs for udp_lat even on Ethernet only machines
 #AC_CHECK_LIB([ibverbs], [ibv_cmd_poll_cq])
 

@@ -920,6 +920,11 @@ err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rex
 {
 	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)pcb_container;
 	p_si_tcp->m_p_socket_stats->tcp_state = new_state;
+
+	/* Keep vma stats data actual for offloaded connection */
+	if (likely(p_si_tcp->m_sock_offload == TCP_SOCK_LWIP)) {
+		vma_stats_flush();
+	}
 }
 
 void sockinfo_tcp::err_lwip_cb(void *pcb_container, err_t err)
@@ -2344,6 +2349,11 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 	ns->m_p_socket_stats->bound_if = ns->m_bound.get_in_addr();
 	ns->m_p_socket_stats->bound_port = ns->m_bound.get_in_port();
 
+	/* Keep vma stats data actual for offloaded connection */
+	if (likely(m_sock_offload == TCP_SOCK_LWIP)) {
+		vma_stats_flush();
+	}
+
 	if (__flags & SOCK_NONBLOCK)
 		ns->fcntl(F_SETFL, O_NONBLOCK);
 	if (__flags & SOCK_CLOEXEC)
@@ -2715,6 +2725,11 @@ err_t sockinfo_tcp::connect_lwip_cb(void *arg, struct tcp_pcb *tpcb, err_t err)
 
 	conn->m_p_socket_stats->connected_ip = conn->m_connected.get_in_addr();
 	conn->m_p_socket_stats->connected_port = conn->m_connected.get_in_port();
+
+	/* Keep vma stats data actual for offloaded connection */
+	if (likely(conn->m_sock_offload == TCP_SOCK_LWIP)) {
+		vma_stats_flush();
+	}
 
 	conn->unlock_tcp_con();
 

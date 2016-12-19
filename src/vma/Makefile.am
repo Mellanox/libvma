@@ -146,6 +146,7 @@ libvma_la_SOURCES := \
 	util/verbs_extra.cpp \
 	util/instrumentation.cpp \
 	util/sys_vars.cpp \
+	util/abort.cpp \
 	libvma.c \
 	main.cpp \
 	\

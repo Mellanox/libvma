@@ -52,6 +52,7 @@ class stats_data_reader : public timer_handler
                 void    register_to_timer();
                 int     add_data_reader(void* local_addr, void* shm_addr, int size);
                 void*   pop_p_skt_stats(void* local_addr);
+                void stats_flush(void);
 
         private:
                 void*  m_timer_handler;

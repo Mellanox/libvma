@@ -42,7 +42,6 @@
 #include <sys/resource.h>
 #include <sys/utsname.h>
 #include <time.h>
-#include <mcheck.h>
 #include <execinfo.h>
 #include <libgen.h>
 #include <linux/igmp.h>
@@ -75,6 +74,7 @@
 
 #include "vma/util/instrumentation.h"
 
+extern int proc_abort(void);
 void check_netperf_flags();
 
 
@@ -115,7 +115,7 @@ bool g_init_global_ctors_done = true;
 #define MAX_VERSION_STR_LEN	128
 #define MAX_CMD_LINE		2048
 
-static int free_libvma_resources()
+int free_libvma_resources(void)
 {
 	vlog_printf(VLOG_DEBUG, "%s: Closing libvma resources\n", __FUNCTION__);
 
@@ -235,13 +235,6 @@ static int free_libvma_resources()
 	return 0;
 }
 
-static void handle_segfault(int)
-{
-	vlog_printf(VLOG_ERROR, "Segmentation Fault\n");
-	printf_backtrace();
-
-	kill(getpid(), SIGKILL);
-}
 
 void check_debug()
 {
@@ -631,17 +624,6 @@ void prepare_fork()
         }
 }
 
-void register_handler_segv()
-{
-	struct sigaction act;
-	memset(&act, 0, sizeof(act));
-	act.sa_handler = handle_segfault;
-	act.sa_flags = 0;
-	sigemptyset(&act.sa_mask);
-	sigaction(SIGSEGV, &act, NULL);
-	vlog_printf(VLOG_INFO, "Registered a SIGSEGV handler\n");
-}
-
 extern "C" void sock_redirect_main(void)
 {
 	vlog_printf(VLOG_DEBUG, "%s()\n", __FUNCTION__);
@@ -651,9 +633,7 @@ extern "C" void sock_redirect_main(void)
 
 	tv_clear(&g_last_zero_polling_time);
 
-	if (safe_mce_sys().handle_segfault) {
-		register_handler_segv();
-	}
+	register_signal_handler();
 
 #ifdef VMA_TIME_MEASURE
 	init_instrumentation();
@@ -673,14 +653,6 @@ extern "C" void sock_redirect_exit(void)
     #pragma BullseyeCoverage off
 #endif
 
-void vma_mcheck_abort_cb(enum mcheck_status status)
-{
-	printf("mcheck abort! Got %d\n", status);
-	printf("Press ENTER to continue...\n");
-	if (getchar() < 0)
-		printf("error reading char, errno %d %m!\n", errno);
-	handle_segfault(0);
-}
 
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
@@ -785,6 +757,9 @@ static void do_global_ctors_helper()
 
 	set_env_params();
 	prepare_fork();
+	if (proc_abort()) {
+		throw_vma_exception("Failed launch child\n");
+	}
 	
 	if (g_is_forked_child == true)
 		g_is_forked_child = false;
@@ -960,11 +935,6 @@ void check_netperf_flags()
 //extern "C" int __attribute__((constructor)) sock_redirect_lib_load_constructor(void)
 extern "C" int main_init(void)
 {
-
-#ifndef VMA_SVN_REVISION
-	// Force GCC's malloc() to check the consistency of dynamic memory in development build (Non Release)
-	//mcheck(vma_mcheck_abort_cb);
-#endif
 
 	safe_mce_sys();
 

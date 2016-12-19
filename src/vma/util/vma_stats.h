@@ -394,6 +394,7 @@ void             	vma_stats_instance_get_select_block(iomux_func_stats_t*);
 void     		vma_stats_instance_create_epoll_block(int, iomux_func_stats_t*);
 void			vma_stats_instance_remove_epoll_block(iomux_func_stats_t* ep_stats);
 
+void vma_stats_flush(void);
 //reader functions
 
 void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, FILE* filename);
