@@ -620,3 +620,20 @@ ring_user_id_t ring_bond::generate_id(const address_t src_mac, const address_t d
 
 	return hash % m_n_num_resources;
 }
+
+#ifdef DEFINED_VMAPOLL	
+int ring_bond::fast_poll_and_process_element_rx(vma_packets_t *vma_pkts)
+{
+	NOT_IN_USE(vma_pkts);
+	return 0;
+}
+
+int ring_bond::vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags)
+{
+	NOT_IN_USE(vma_completions);
+	NOT_IN_USE(ncompletions);
+	NOT_IN_USE(flags);
+
+	return 0;
+}
+#endif // DEFINED_VMAPOLL	

@@ -155,9 +155,13 @@ void ib_ctx_handler::set_dev_configuration()
 {
 	ibch_logdbg("Setting configuration for the MLX card %s", m_p_ibv_device->name);
 	m_conf_attr_rx_num_wre                  = safe_mce_sys().rx_num_wr;
-	m_conf_attr_tx_num_to_signal            = safe_mce_sys().tx_num_wr_to_signal;
 	m_conf_attr_tx_max_inline               = safe_mce_sys().tx_max_inline;
 	m_conf_attr_tx_num_wre                  = safe_mce_sys().tx_num_wr;
+#ifdef DEFINED_VMAPOLL
+	m_conf_attr_tx_num_to_signal = NUM_TX_WRE_TO_SIGNAL_MAX;
+#else
+	m_conf_attr_tx_num_to_signal = 	safe_mce_sys().tx_num_wr_to_signal;
+#endif // DEFINED_VMAPOLL
 
 	if (m_conf_attr_tx_num_wre < (m_conf_attr_tx_num_to_signal * 2)) {
 		m_conf_attr_tx_num_wre = m_conf_attr_tx_num_to_signal * 2;

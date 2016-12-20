@@ -50,6 +50,14 @@
 #include "vma/dev/ib_ctx_handler.h"
 #include "vma/dev/ah_cleaner.h"
 #include "vma/dev/cq_mgr.h"
+#if 0
+REVIEW: verify can remove: #include "vma/dev/ring.h"
+#endif
+
+#ifdef DEFINED_VMAPOLL
+#include <infiniband/mlx5_hw.h>
+#include "vma/hw/mlx5/wqe.h"
+#endif // DEFINED_VMAPOLL
 
 class buffer_pool;
 class cq_mgr;
@@ -93,6 +101,9 @@ typedef hash_map<ibv_gid, uint32_t> mgid_ref_count_map_t;
  */
 class qp_mgr
 {
+#ifdef DEFINED_VMAPOLL
+friend class cq_mgr;
+#endif // DEFINED_VMAPOLL	
 public:
 	qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num, const uint32_t tx_num_wr);
 	virtual ~qp_mgr();
@@ -132,8 +143,28 @@ public:
 	void			release_rx_buffers();
 	void 			release_tx_buffers();
 	void			trigger_completion_for_all_sent_packets();
+#ifdef DEFINED_VMAPOLL
+	void 			set_signal_in_next_send_wqe();	
+	void 			mlx5_send(vma_ibv_send_wr* p_send_wqe);
+	void 			mlx5_init_sq();
+#endif // DEFINED_VMAPOLL	
 
 protected:
+#ifdef DEFINED_VMAPOLL
+	volatile struct mlx5_wqe64* m_sq_hot_wqe;
+	int			m_sq_hot_wqe_index;
+	unsigned int		m_rq_wqe_counter;
+	uint64_t		*m_rq_wqe_idx_to_wrid;
+	volatile struct mlx5_wqe64 (*m_mlx5_sq_wqes)[];
+	volatile uint32_t 		*m_sq_db;
+	volatile void 			*m_sq_bf_reg;
+	uint16_t 				m_sq_bf_offset;
+	uint16_t 				m_sq_bf_buf_size;
+	uint16_t				m_sq_wqe_counter;
+	uint64_t				*m_sq_wqe_idx_to_wrid;
+	unsigned int 			m_qp_num;
+	struct mlx5_qp 			*m_mlx5_hw_qp;
+#endif // DEFINED_VMAPOLL	
 	struct ibv_qp*		m_qp;
 	ring_simple*		m_p_ring;
 	uint8_t 		m_port_num;

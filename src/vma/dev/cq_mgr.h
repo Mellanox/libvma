@@ -35,6 +35,11 @@
 #define CQ_MGR_H
 
 #include "utils/atomic.h"
+#if 0
+REVIEW
+#include <map> probably replaced by atomic.h
+#endif
+
 #include "vma/util/sys_vars.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/util/hash_map.h"
@@ -42,6 +47,19 @@
 #include "vma/proto/mem_buf_desc.h"
 #include "vma/proto/vma_lwip.h"
 #include "vma/dev/ib_ctx_handler.h"
+#ifdef DEFINED_VMAPOLL
+#include <infiniband/mlx5_hw.h>
+#include "vma/vmapoll_extra.h"
+#else
+#include "vma/vma_extra.h"
+#endif // DEFINED_VMAPOLL
+
+
+#ifdef DEFINED_VMAPOLL
+	#define IS_VMAPOLL true
+#else
+	#define IS_VMAPOLL false
+#endif // DEFINED_VMAPOLL
 
 class net_device_mgr;
 class ring;
@@ -84,7 +102,7 @@ operator==(local_if_info_key_t const& key1, local_if_info_key_t const& key2) {
 
 struct qp_rec {
 	qp_mgr		*qp;
-	int		debth;
+	int			debth;
 };
 
 
@@ -126,6 +144,14 @@ public:
 	 */
 	int	wait_for_notification_and_process_element(uint64_t* p_cq_poll_sn,
 	   	                                          void* pv_fd_ready_array = NULL);
+#ifdef DEFINED_VMAPOLL
+	inline volatile struct mlx5_cqe64 *mlx5_get_cqe64(void);
+	inline volatile struct mlx5_cqe64 *mlx5_get_cqe64(volatile struct mlx5_cqe64 **cqe_err);
+	volatile struct mlx5_cqe64 *mlx5_check_error_completion(volatile struct mlx5_cqe64 *cqe, volatile uint16_t *ci, uint8_t op_own);
+	inline void mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, vma_ibv_wc *wce);
+	int mlx5_poll_and_process_error_element_rx(volatile struct mlx5_cqe64 *cqe, void* pv_fd_ready_array);
+	int mlx5_poll_and_process_error_element_tx(volatile struct mlx5_cqe64 *cqe, uint64_t* p_cq_poll_sn);
+#endif // DEFINED_VMAPOLL	
 
 	/**
 	 * This will poll n_num_poll time on the cq or stop early if it gets
@@ -169,9 +195,21 @@ public:
 	void 	modify_cq_moderation(uint32_t period, uint32_t count);
 
 	inline void convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) { m_p_ib_ctx_handler->convert_hw_time_to_system_time(hwtime, systime); }
+#ifdef DEFINED_VMAPOLL
+	void 	mlx5_init_cq();
+#endif // DEFINED_VMAPOLL	
 
 private:
-	ring_simple*		m_p_ring;
+#ifdef DEFINED_VMAPOLL
+	mem_buf_desc_t* 		m_rx_hot_buff;
+	qp_mgr*				m_qp;
+	struct mlx5_cq* 		m_mlx5_cq;
+	int 				m_cq_sz;
+	uint16_t 			m_cq_ci;
+	volatile struct mlx5_cqe64 	(*m_mlx5_cqes)[];
+	volatile uint32_t 		*m_cq_db;
+#endif // DEFINED_VMAPOLL
+	ring_simple*			m_p_ring;
 	ib_ctx_handler*			m_p_ib_ctx_handler;
 	bool				m_b_is_rx;
 	bool				m_b_is_rx_hw_csum_on;
@@ -186,7 +224,7 @@ private:
 	const uint32_t			m_n_sysvar_rx_num_wr_to_post_recv;
 	const uint32_t			m_n_sysvar_cq_poll_batch_max;
 	const uint32_t			m_n_sysvar_qp_compensation_level;
-	const bool			m_b_sysvar_cq_keep_qp_full;
+	const bool				m_b_sysvar_cq_keep_qp_full;
 	const uint32_t			m_n_sysvar_progress_engine_wce_max;
 	qp_rec				m_qp_rec;
 
@@ -231,6 +269,9 @@ private:
 	 */
 	//a sub helper for poll_and_process_helper_rx in order to shorten the function
 	void		handle_tcp_ctl_packets(uint32_t rx_processed, void* pv_fd_ready_array);
+#ifdef DEFINED_VMAPOLL	
+	int		vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst);
+#endif // DEFINED_VMAPOLL	
 	int		poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	int		poll_and_process_helper_tx(uint64_t* p_cq_poll_sn);
 
@@ -239,6 +280,10 @@ private:
 	//false if the given buffer was not used.
 	bool 		compensate_qp_poll_success(mem_buf_desc_t* buff);
 	void		reclaim_recv_buffer_helper(mem_buf_desc_t* buff);
+#ifdef DEFINED_VMAPOLL	
+	int 		vma_poll_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff);
+	void		vma_poll_reclaim_recv_buffer_helper(mem_buf_desc_t* buff);
+#endif // DEFINED_VMAPOLL	
 	inline uint32_t process_recv_queue(void* pv_fd_ready_array = NULL);
 	inline void	process_recv_buffer(mem_buf_desc_t* buff, void* pv_fd_ready_array = NULL);
 

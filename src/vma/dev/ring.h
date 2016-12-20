@@ -36,6 +36,7 @@
 
 #include "utils/lock_wrapper.h"
 #include "vma/dev/gro_mgr.h"
+#include "vma/util/list.h"
 #include "vma/util/hash_map.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/sock/pkt_rcvr_sink.h"
@@ -46,6 +47,7 @@
 #include "vma/dev/ib_ctx_handler.h"
 #include "vma/dev/net_device_val.h"
 #include "vma/dev/qp_mgr.h"
+#include "vma/sock/socket_fd_api.h"
 
 class rfs;
 class cq_mgr;
@@ -244,6 +246,15 @@ struct cq_moderation_info {
 
 typedef int ring_user_id_t;
 
+#ifdef DEFINED_VMAPOLL	
+/* Ring event completion */
+struct ring_ec {
+	struct list_head list;
+	struct vma_completion_t completion;
+	struct vma_buff_t*      last_buff_lst;
+};
+#endif // DEFINED_VMAPOLL	
+
 /**
  * @class ring
  *
@@ -263,7 +274,7 @@ class ring : public mem_buf_desc_owner
 public:
 	ring(int count, uint32_t mtu); //todo count can be moved to ring_bond
 
-	virtual ~ring(){};
+	virtual ~ring();
 
 	virtual bool		attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) = 0;
 	virtual bool		detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) = 0;
@@ -302,14 +313,74 @@ public:
 	virtual ring_user_id_t	generate_id() = 0;
 	virtual ring_user_id_t	generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port) = 0;
 	uint32_t		get_mtu() {return m_mtu;};
+#ifdef DEFINED_VMAPOLL		
+	virtual int		vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags) = 0;
+	virtual bool		reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return false;}
 
+	virtual int		vma_poll_reclaim_single_recv_buffer(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return -1;}
+	virtual void		vma_poll_reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return;}
+
+	inline void set_vma_active(bool flag) {m_vma_active = flag;}
+	inline bool get_vma_active(void) {return m_vma_active;}
+
+	inline void put_ec(struct ring_ec *ec)
+	{
+		m_lock_ec_list.lock();
+		list_add_tail(&ec->list, &m_ec_list);
+		m_lock_ec_list.unlock();
+	}
+
+	inline ring_ec* get_ec(void)
+	{
+		struct ring_ec *ec = NULL;
+
+		m_lock_ec_list.lock();
+		if (!list_empty(&m_ec_list)) {
+			ec = list_entry(m_ec_list.next, struct ring_ec, list);
+			list_del(&ec->list);
+		}
+		m_lock_ec_list.unlock();
+		return ec;
+	}
+
+	inline void clear_ec(struct ring_ec *ec)
+	{
+		memset(ec, 0, sizeof(*ec));
+	}
+
+	struct vma_completion_t *get_comp(void)
+	{
+		return m_vma_poll_completion;
+	}
+#endif // DEFINED_VMAPOLL	
 protected:
 	uint32_t		m_n_num_resources;
 	int*			m_p_n_rx_channel_fds;
 	ring*			m_parent;
 
+#ifdef DEFINED_VMAPOLL	
+	/* queue of event completion elements
+	 * this queue is stored events related different sockinfo (sockets)
+	 * In current implementation every sockinfo (socket) can have single event
+	 * in this queue
+	 */
+	struct list_head         m_ec_list;
+
+	/* Thread-safity lock for get/put operations under the queue */
+	lock_spin                m_lock_ec_list;
+
+	/* This completion is introduced to process events directly w/o
+	 * storing them in the queue of event completion elements
+	 */
+	struct vma_completion_t* m_vma_poll_completion;
+#endif // DEFINED_VMAPOLL	
+
 private:
-	uint32_t		 m_mtu;
+#ifdef DEFINED_VMAPOLL	
+	/* This flag is enabled in case vma_poll() call is done */
+	bool                     m_vma_active;
+#endif // DEFINED_VMAPOLL	
+	uint32_t		m_mtu;
 };
 
 #endif /* RING_H */

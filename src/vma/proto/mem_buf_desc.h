@@ -91,6 +91,12 @@ public:
 	inline int inc_ref_count() {return atomic_fetch_and_inc(&n_ref_count);}
 	inline int dec_ref_count() {return atomic_fetch_and_dec(&n_ref_count);}
 
+#ifdef DEFINED_VMAPOLL
+	inline unsigned int lwip_pbuf_inc_ref_count() {return ++lwip_pbuf.pbuf.ref;}
+	inline unsigned int lwip_pbuf_dec_ref_count() {if (likely(lwip_pbuf.pbuf.ref)) --lwip_pbuf.pbuf.ref; return lwip_pbuf.pbuf.ref;}
+	inline unsigned int lwip_pbuf_get_ref_count() const {return lwip_pbuf.pbuf.ref;}
+#endif // DEFINED_VMAPOLL
+
 	bool		b_is_tx_mc_loop_dis; // if the mc loop on the tx side is disabled (the loop is per interface)
 	bool		is_rx_sw_csum_need;
 	int8_t		n_frags;	//number of fragments
@@ -128,6 +134,9 @@ public:
 			};
 
 			void* 		context;
+#ifdef DEFINED_VMAPOLL 
+			bool 		vma_polled;
+#endif // DEFINED_VMAPOLL 			
 		} rx;
 		struct {
 			ibv_send_wr_ud 	wr_ud_info;

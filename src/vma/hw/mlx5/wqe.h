@@ -30,68 +30,36 @@
  * SOFTWARE.
  */
 
+#ifndef WQE_H
+#define WQE_H
 
-#ifndef ASMARM64_H_
-#define ASMARM64_H_
+#define MLX5_ETH_INLINE_HEADER_SIZE 16
 
-#include <stdint.h>
-#include <unistd.h>
+#ifndef DEFINED_MLX5_HW_ETH_WQE_HEADER
+enum {
+	MLX5_ETH_WQE_L3_CSUM	=	(1 << 6),
+	MLX5_ETH_WQE_L4_CSUM	=	(1 << 7),
+};
 
-#define COPY_64B_NT(dst, src)	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++
+struct mlx5_wqe_eth_seg {
+	uint32_t        rsvd0;
+	uint8_t         cs_flags;
+	uint8_t         rsvd1;
+	uint16_t        mss;
+	uint32_t        rsvd2;
+	uint16_t        inline_hdr_sz;
+	uint8_t         inline_hdr_start[2];
+	uint8_t         inline_hdr[16];
+};
+#endif //DEFINED_MLX5_HW_ETH_WQE_HEADER
 
-#define wmb()	 asm volatile("" ::: "memory")
-#define wc_wmb() wmb()
+struct mlx5_wqe64 {
+	union {
+		struct mlx5_wqe_ctrl_seg ctrl;
+		uint32_t data[4];
+	} ctrl;
+	struct mlx5_wqe_eth_seg eseg;
+	struct mlx5_wqe_data_seg dseg;
+};
 
-/**
- * Add to the atomic variable.
- * @param i integer value to add.
- * @param v pointer of type atomic_t.
- * @return Value before add.
- */
-static inline int atomic_fetch_and_add(int i, volatile int *ptr)
-{
-	return __atomic_fetch_add(ptr, i, __ATOMIC_ACQUIRE);
-}
-
-/**
- * Read RDTSC register
- */
-static inline void gettimeoftsc(unsigned long long *p_tscval)
-{
-	// Read Time Stamp Counter
-	asm volatile("isb" : : : "memory");
-	asm volatile("mrs %0, cntvct_el0" : "=r" ((unsigned long long)*p_tscval));
-}
-
-/**
- * Cache Line Prefetch - Arch specific!
- */
-#ifndef L1_CACHE_BYTES
-#define L1_CACHE_BYTES		64
-#endif
-
-static inline void prefetch(void *x)
-{
-	//__builtin_prefetch();
-	asm volatile("prfm pldl1keep, %a0\n" : : "p" (x));
-}
-
-static inline void prefetch_range(void *addr, size_t len)
-{
-	char *cp = (char*)addr;
-	char *end = (char*)addr + len;
-	for (; cp < end; cp += L1_CACHE_BYTES)
-		prefetch(cp);
-}
-
-
-
-#endif
+#endif /* WQE_H */

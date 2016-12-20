@@ -415,7 +415,6 @@ sockinfo_udp::sockinfo_udp(int fd) throw (vma_exception) :
 		si_udp_logpanic("failed to add user's fd to internal epfd errno=%d (%m)", errno);
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-
 	si_udp_logfunc("done");
 }
 
@@ -491,11 +490,11 @@ int sockinfo_udp::bind(const struct sockaddr *__addr, socklen_t __addrlen)
 		si_udp_logdbg("getsockname failed (ret=%d %m)", ret);
 		return -1; 
 	}
+
 	BULLSEYE_EXCLUDE_BLOCK_END
 	// save the bound info and then attach to offload flows
 	on_sockname_change(name, *namelen);
 	si_udp_logdbg("bound to %s", m_bound.to_str());
-
 	dst_entry_map_t::iterator dst_entry_iter = m_dst_entry_map.begin();
 	while (dst_entry_iter != m_dst_entry_map.end()) {
 		if (!m_bound.is_anyaddr() && !m_bound.is_mc()) {
@@ -584,6 +583,7 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		on_sockname_change(name, *namelen);
+
 		si_udp_logdbg("bound to %s", m_bound.to_str());
 		in_port_t src_port = m_bound.get_in_port();
 
@@ -709,6 +709,15 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 	if (unlikely(m_b_closed) || unlikely(g_b_exit))
 		return orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
 
+#ifdef DEFINED_VMAPOLL
+	/* Process VMA specific options only at the moment
+	 * VMA option does not require additional processing after return
+	 */
+	if (0 == sockinfo::setsockopt(__level, __optname, __optval, __optlen)) {
+		return 0;
+	}
+#endif // DEFINED_VMAPOLL
+
 	auto_unlocker lock_tx(m_lock_snd);
 	auto_unlocker lock_rx(m_lock_rcv);
 
@@ -804,7 +813,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 				if (__optval) {
 					struct sockaddr_in sockaddr;
 					if (__optlen == 0 || ((char*)__optval)[0] == '\0') {
-						m_so_bindtodevice_ip = 0;
+						m_so_bindtodevice_ip = INADDR_ANY;
 					} else if (get_ipv4_from_ifname((char*)__optval, &sockaddr)) {
 						si_udp_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, cannot find if_name", setsockopt_so_opt_to_str(__optname));
 						break;
@@ -1145,6 +1154,15 @@ int sockinfo_udp::getsockopt(int __level, int __optname, void *__optval, socklen
 
 	if (unlikely(m_b_closed) || unlikely(g_b_exit))
 		return ret;
+
+#ifdef DEFINED_VMAPOLL
+	/* Process VMA specific options only at the moment
+	 * VMA option does not require additional processing after return
+	 */
+	if (0 == sockinfo::getsockopt(__level, __optname, __optval, __optlen)) {
+		return 0;
+	}
+#endif // DEFINED_VMAPOLL	
 
 	auto_unlocker lock_tx(m_lock_snd);
 	auto_unlocker lock_rx(m_lock_rcv);
@@ -1715,7 +1733,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 
 		// MNY: Problematic in cases where packet was dropped because no tx buffers were available..
 		// Yet we need to add this code to avoid deadlocks in case of EPOLLOUT ET.
-		notify_epoll_context(EPOLLOUT);
+		NOTIFY_ON_EVENTS(this, EPOLLOUT);
 
 		save_stats_tx_offload(ret, is_dropped, is_dummy);
 
@@ -1891,6 +1909,42 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 	//  to prevent race condition with the 'if( (--ref_count) <= 0)' in ib_comm_mgr
 	p_desc->inc_ref_count();
 
+#ifdef DEFINED_VMAPOLL
+	/* Update vma_completion with
+	 * VMA_POLL_PACKET related data
+	 */
+	struct vma_completion_t *completion;
+	mem_buf_desc_t *tmp_p;
+
+	/* Try to process vma_poll() completion directly */
+	if (p_desc->path.rx.vma_polled) {
+		m_vma_poll_completion = m_p_rx_ring->get_comp();
+		m_vma_poll_last_buff_lst = NULL;
+	}
+
+	if (m_vma_poll_completion) {
+		completion = m_vma_poll_completion;
+	} else {
+		completion = &m_ec.completion;
+	}
+
+	completion->packet.buff_lst = (struct vma_buff_t*)p_desc;
+	completion->packet.total_len = 0;
+	completion->src = p_desc->path.rx.src;
+	completion->packet.num_bufs = p_desc->n_frags;
+
+	for(tmp_p = p_desc; tmp_p; tmp_p = tmp_p->p_next_desc) {
+		completion->packet.buff_lst = (struct vma_buff_t*)tmp_p;
+		completion->packet.buff_lst->next = (struct vma_buff_t*)tmp_p->p_next_desc;
+		completion->packet.buff_lst->len = p_desc->path.rx.frag.iov_len;
+		completion->packet.buff_lst->payload = p_desc->path.rx.frag.iov_base;
+		completion->packet.total_len += tmp_p->path.rx.sz_payload;
+	}
+	NOTIFY_ON_EVENTS(this, VMA_POLL_PACKET);
+
+	m_vma_poll_completion = NULL;
+		m_vma_poll_last_buff_lst = NULL;
+#else		
 	// In ZERO COPY case we let the user's application manage the ready queue
 	if (callback_retval != VMA_PACKET_HOLD) {
 		m_lock_rcv.lock();
@@ -1908,15 +1962,21 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 		m_p_socket_stats->n_rx_zcopy_pkt_count++;
 	}
 
-	notify_epoll_context(EPOLLIN);
+	NOTIFY_ON_EVENTS(this, EPOLLIN);
 
 	// Add this fd to the ready fd list
-        io_mux_call::update_fd_array((fd_array_t*)pv_fd_ready_array, m_fd);
+	/*
+	 * Note: No issue is expected in case vma_poll() usage because 'pv_fd_ready_array' is null
+	 * in such case and as a result update_fd_array() call means nothing
+	 */
+	io_mux_call::update_fd_array((fd_array_t*)pv_fd_ready_array, m_fd);
 
 	si_udp_logfunc("rx ready count = %d packets / %d bytes", m_n_rx_pkt_ready_list_count, m_p_socket_stats->n_rx_ready_byte_count);
 
 	// Yes we like this packet - keep it!
-	return true;
+#endif // DEFINED_VMAPOLL
+
+return true;
 }
 
 void sockinfo_udp::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool is_migration /* = false */)

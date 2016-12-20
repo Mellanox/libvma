@@ -48,7 +48,11 @@
 #include "stats/stats_data_reader.h"
 #include "vma/util/vma_stats.h"
 #include "vma/util/vtypes.h"
+#ifdef DEFINED_VMAPOLL
+#include "vma/vmapoll_extra.h"
+#else
 #include "vma/vma_extra.h"
+#endif // DEFINED_VMAPOLL
 #include "vma/sock/sock-redirect.h"
 #include "vma/event/event_handler_manager.h"
 #include "vma/event/timer_handler.h"
