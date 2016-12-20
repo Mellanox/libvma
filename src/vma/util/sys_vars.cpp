@@ -397,6 +397,7 @@ void mce_sys_var::get_env_params()
 	tcp_ts_opt		= MCE_DEFAULT_TCP_TIMESTAMP_OPTION;
 //	exception_handling is handled by its CTOR
 	avoid_sys_calls_on_tcp_fd = MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD;
+	allow_privileged_sock_opt = MCE_DEFAULT_ALLOW_PRIVILEGED_SOCK_OPT;
 	wait_after_join_msec	= MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC;
 	thread_mode		= MCE_DEFAULT_THREAD_MODE;
 	buffer_batching_mode	= MCE_DEFAULT_BUFFER_BATCHING_MODE;
@@ -862,6 +863,10 @@ void mce_sys_var::get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD)) != NULL) {
 		avoid_sys_calls_on_tcp_fd = atoi(env_ptr) ? true : false;
+	}
+
+	if ((env_ptr = getenv(SYS_VAR_ALLOW_PRIVILEGED_SOCK_OPT)) != NULL) {
+		allow_privileged_sock_opt = atoi(env_ptr) ? true : false;
 	}
 
 	if(tcp_timer_resolution_msec < timer_resolution_msec){

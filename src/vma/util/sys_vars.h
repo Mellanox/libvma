@@ -365,6 +365,7 @@ struct mce_sys_var {
 	tcp_ts_opt_t	tcp_ts_opt;
 	vma_exception_handling exception_handling;
 	bool		avoid_sys_calls_on_tcp_fd;
+	bool		allow_privileged_sock_opt;
 	uint32_t	wait_after_join_msec;
 	in_port_t	block_udp_port;
 	thread_mode_t	thread_mode;
@@ -490,6 +491,7 @@ extern mce_sys_var & safe_mce_sys();
 #define SYS_VAR_TCP_TIMESTAMP_OPTION			"VMA_TCP_TIMESTAMP_OPTION"
 #define SYS_VAR_VMA_EXCEPTION_HANDLING			(vma_exception_handling::getSysVar())
 #define SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD		"VMA_AVOID_SYS_CALLS_ON_TCP_FD"
+#define SYS_VAR_ALLOW_PRIVILEGED_SOCK_OPT		"VMA_ALLOW_PRIVILEGED_SOCK_OPT"
 #define SYS_VAR_WAIT_AFTER_JOIN_MSEC			"VMA_WAIT_AFTER_JOIN_MSEC"
 #define SYS_VAR_THREAD_MODE				"VMA_THREAD_MODE"
 #define SYS_VAR_BUFFER_BATCHING_MODE			"VMA_BUFFER_BATCHING_MODE"
@@ -541,9 +543,17 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_TCP_MAX_SYN_RATE                	(0)
 #define MCE_DEFAULT_TX_NUM_SEGS_TCP			(1000000)
 #define MCE_DEFAULT_TX_NUM_BUFS				(200000)
+#ifdef DEFINED_VMAPOLL
+#define MCE_DEFAULT_TX_NUM_WRE				(1024)
+#else
 #define MCE_DEFAULT_TX_NUM_WRE				(3000)
+#endif // DEFINED_VMAPOLL
 #define MCE_DEFAULT_TX_NUM_WRE_TO_SIGNAL		(64)
+#ifdef DEFINED_VMAPOLL
+#define MCE_DEFAULT_TX_MAX_INLINE			(0) //220
+#else
 #define MCE_DEFAULT_TX_MAX_INLINE			(220) //224
+#endif // DEFINED_VMAPOLL
 #define MCE_DEFAULT_TX_BUILD_IP_CHKSUM			(true)
 #define MCE_DEFAULT_TX_MC_LOOPBACK			(true)
 #define MCE_DEFAULT_TX_NONBLOCKED_EAGAINS		(false)
@@ -553,7 +563,11 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_TX_NUM_SGE				(2)
 #define MCE_DEFAULT_RX_NUM_BUFS				(200000)
 #define MCE_DEFAULT_RX_BUFS_BATCH			(64)
+#ifdef DEFINED_VMAPOLL
+#define MCE_DEFAULT_RX_NUM_WRE				(1024)
+#else
 #define MCE_DEFAULT_RX_NUM_WRE				(16000)
+#endif // DEFINED_VMAPOLL
 #define MCE_DEFAULT_RX_NUM_WRE_TO_POST_RECV		(64)
 #define MCE_DEFAULT_RX_NUM_SGE				(1)
 #define MCE_DEFAULT_RX_NUM_POLLS			(100000)
@@ -566,7 +580,11 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_RX_PREFETCH_BYTES			(256)
 #define MCE_DEFAULT_RX_PREFETCH_BYTES_BEFORE_POLL	(0)
 #define MCE_DEFAULT_RX_CQ_DRAIN_RATE			(MCE_RX_CQ_DRAIN_RATE_DISABLED)
+#ifdef DEFINED_VMAPOLL
+#define MCE_DEFAULT_GRO_STREAMS_MAX			(0)
+#else
 #define MCE_DEFAULT_GRO_STREAMS_MAX			(32)
+#endif // DEFINED_VMAPOLL
 #define MCE_DEFAULT_TCP_3T_RULES			(false)
 #define MCE_DEFAULT_ETH_MC_L2_ONLY_RULES		(false)
 #define MCE_DEFAULT_SELECT_NUM_POLLS			(100000)
@@ -600,6 +618,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_TCP_TIMESTAMP_OPTION		(TCP_TS_OPTION_DISABLE)
 #define MCE_DEFAULT_VMA_EXCEPTION_HANDLING	(vma_exception_handling::MODE_DEFAULT)
 #define MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD		(false)
+#define MCE_DEFAULT_ALLOW_PRIVILEGED_SOCK_OPT		(true)
 #define MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC		(0)
 #define MCE_DEFAULT_THREAD_MODE				(THREAD_MODE_MULTI)
 #define MCE_DEFAULT_BUFFER_BATCHING_MODE		(BUFFER_BATCHING_WITH_RECLAIM)
@@ -623,7 +642,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_NETLINK_TIMER_MSEC			(10000)
 
 #define MCE_DEFAULT_NEIGH_UC_ARP_QUATA			3
-#define MCE_DEFAULT_NEIGH_UC_ARP_DELAY_MSEC	10000
+#define MCE_DEFAULT_NEIGH_UC_ARP_DELAY_MSEC		10000
 #define MCE_DEFAULT_NEIGH_NUM_ERR_RETRIES		1
 
 #define MCE_DEFAULT_SUPPRESS_IGMP_WARNING		0
@@ -694,7 +713,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MULTI_THREAD_ONLY(x) 	{ if (safe_mce_sys().thread_mode > THREAD_MODE_SINGLE) x; }
 
 
-extern struct mce_sys_var & mce_sys;
+// REVIEW - extern struct mce_sys_var & mce_sys;
 extern bool g_b_exit;
 extern bool g_is_forked_child;
 extern bool g_init_global_ctors_done;

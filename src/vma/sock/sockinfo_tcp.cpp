@@ -460,7 +460,7 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 	}
 
 
-	notify_epoll_context(EPOLLHUP);
+	NOTIFY_ON_EVENTS(this, EPOLLHUP);
 
 	//todo should we do this each time we get into prepare_to_close ?
 	if (get_tcp_state(&m_pcb) != LISTEN) {
@@ -478,13 +478,21 @@ void sockinfo_tcp::handle_socket_linger() {
 	timeval start, current, elapsed;
 	long int linger_time_usec;
 	int poll_cnt = 0;
-
+	
 	linger_time_usec = (!m_linger.l_onoff /*|| !m_b_blocking */) ? 0 : m_linger.l_linger * USEC_PER_SEC;
 	si_tcp_logdbg("Going to linger for max time of %lu usec", linger_time_usec);
 	memset(&elapsed, 0,sizeof(elapsed));
 	gettime(&start);
 	while ((tv_to_usec(&elapsed) <= linger_time_usec) && (m_pcb.unsent || m_pcb.unacked)) {
+#ifdef DEFINED_VMAPOLL
+		NOT_IN_USE(poll_cnt);
+#else
 		rx_wait(poll_cnt, false);
+#endif // DEFINED_VMAPOLL			
+		/* VMAPOLL WA: Don't call rx_wait() in order not to miss VMA events in vma_poll() flow.
+		 * TBD: find proper solution!
+		 * rx_wait(poll_cnt, false);
+		 * */
 		tcp_output(&m_pcb);
 		gettime(&current);
 		tv_sub(&current, &start, &elapsed);
@@ -992,13 +1000,21 @@ void sockinfo_tcp::err_lwip_cb(void *pcb_container, err_t err)
 		&& PCB_IN_ACTIVE_STATE(&conn->m_pcb)) {
 		if (err == ERR_RST) {
 			if (conn->m_sock_state == TCP_SOCK_ASYNC_CONNECT)
-				conn->notify_epoll_context(EPOLLIN|EPOLLERR|EPOLLHUP);
+				NOTIFY_ON_EVENTS(conn, (EPOLLIN|EPOLLERR|EPOLLHUP));
 			else
-				conn->notify_epoll_context(EPOLLIN|EPOLLHUP|EPOLLRDHUP);
+				NOTIFY_ON_EVENTS(conn, (EPOLLIN|EPOLLHUP|EPOLLRDHUP));
 		/* TODO what about no route to host type of errors, need to add EPOLLERR in this case ? */
 		} else { // ERR_TIMEOUT
-			conn->notify_epoll_context(EPOLLIN|EPOLLHUP);
+			NOTIFY_ON_EVENTS(conn, (EPOLLIN|EPOLLHUP));
 		}
+
+
+		/* VMAPOLL comment:
+		 * Add this fd to the ready fd list
+		 * Note: No issue is expected in case vma_poll() usage because 'pv_fd_ready_array' is null
+		 * in such case and as a result update_fd_array() call means nothing
+		 */
+		
 		io_mux_call::update_fd_array(conn->m_iomux_ready_fd_array, conn->m_fd);
 	}
 
@@ -1341,10 +1357,13 @@ err_t sockinfo_tcp::ack_recvd_lwip_cb(void *arg, struct tcp_pcb *tpcb, u16_t ack
 
 	ASSERT_LOCKED(conn->m_tcp_con_lock);
 
+#ifdef DEFINED_VMAPOLL 
+	NOT_IN_USE(ack);
+#else
 	conn->m_p_socket_stats->n_tx_ready_byte_count -= ack;
+#endif // DEFINED_VMAPOLL		
 
-	// notify epoll
-	conn->notify_epoll_context(EPOLLOUT);
+	NOTIFY_ON_EVENTS(conn, EPOLLOUT);
 
 	vlog_func_exit();
 
@@ -1360,6 +1379,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 	int rcv_buffer_space;
 
 	assert((uintptr_t)pcb->my_container == (uintptr_t)arg);
+	// REVIEW: AlexV - please confirm using arg instead of pcb->my_container
 
 	vlog_func_enter();
 
@@ -1373,7 +1393,13 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 			return ERR_OK;
 		}
 
-		conn->notify_epoll_context(EPOLLIN|EPOLLRDHUP);
+		NOTIFY_ON_EVENTS(conn, EPOLLIN|EPOLLRDHUP);
+				
+		/* VMAPOLL comment:
+		 * Add this fd to the ready fd list
+		 * Note: No issue is expected in case vma_poll() usage because 'pv_fd_ready_array' is null
+		 * in such case and as a result update_fd_array() call means nothing
+		 */
 		io_mux_call::update_fd_array(conn->m_iomux_ready_fd_array, conn->m_fd);
 		conn->do_wakeup();
 
@@ -1407,12 +1433,12 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 			}
 			conn->lock_tcp_con();
 		}
-
 		return ERR_OK;
 	}
 	if (unlikely(err != ERR_OK)) {
 		// notify io_mux
-		conn->notify_epoll_context(EPOLLERR);
+		NOTIFY_ON_EVENTS(conn, EPOLLERR);
+		
 		conn->do_wakeup();
 		vlog_printf(VLOG_ERROR, "%s:%d %s\n", __func__, __LINE__, "recv error!!!\n");
 		pbuf_free(p);
@@ -1425,11 +1451,18 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 	p_first_desc->n_frags = 0;
 
 	mem_buf_desc_t *p_curr_desc = p_first_desc;
+#ifdef DEFINED_VMAPOLL	
+	mem_buf_desc_t* p_last_desc = NULL;
+#endif // DEFINED_VMAPOLL		
 
 	pbuf *p_curr_buff = p;
 	conn->m_connected.get_sa(p_first_desc->path.rx.src);
 
 	while (p_curr_buff) {
+#ifdef DEFINED_VMAPOLL		
+		p_last_desc = (mem_buf_desc_t*)p_curr_buff;
+		p_curr_desc->path.rx.context = conn;
+#endif // DEFINED_VMAPOLL				
 		p_first_desc->n_frags++;
 		p_curr_desc->path.rx.frag.iov_base = p_curr_buff->payload;
 		p_curr_desc->path.rx.frag.iov_len = p_curr_buff->len;
@@ -1463,11 +1496,46 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 		callback_retval = conn->m_rx_callback(conn->m_fd, nr_frags, iov, &pkt_info, conn->m_rx_callback_context);
 	}
 	
-	if (callback_retval == VMA_PACKET_DROP)
+	if (callback_retval == VMA_PACKET_DROP) {
 		conn->m_rx_cb_dropped_list.push_back(p_first_desc);
 
 	// In ZERO COPY case we let the user's application manage the ready queue
+	}
 	else {
+#ifdef DEFINED_VMAPOLL
+		/* Update vma_completion with
+		 * VMA_POLL_PACKET related data
+		 */
+		struct vma_completion_t *completion;
+		struct vma_buff_t *buf_lst;
+
+		if (conn->m_vma_poll_completion) {
+			completion = conn->m_vma_poll_completion;
+			buf_lst = conn->m_vma_poll_last_buff_lst;
+		} else {
+			completion = &conn->m_ec.completion;
+			buf_lst = conn->m_ec.last_buff_lst;
+		}
+
+		if (!buf_lst) {
+			buf_lst = (struct vma_buff_t*)p_last_desc;
+			completion->packet.buff_lst = (struct vma_buff_t*)p_first_desc;
+			completion->packet.total_len = p->tot_len;
+			completion->src = p_first_desc->path.rx.src;
+			completion->packet.num_bufs = p_first_desc->n_frags;
+			NOTIFY_ON_EVENTS(conn, VMA_POLL_PACKET);
+		}
+		else {
+			mem_buf_desc_t* prev_lst_tail_desc = (mem_buf_desc_t*)buf_lst;
+			mem_buf_desc_t* list_head_desc = (mem_buf_desc_t*)completion->packet.buff_lst;
+			prev_lst_tail_desc->p_next_desc = p_first_desc;
+			list_head_desc->n_frags += p_first_desc->n_frags;
+			p_first_desc->n_frags = 0;
+			completion->packet.total_len += p->tot_len;
+			completion->packet.num_bufs += list_head_desc->n_frags;
+			pbuf_cat((pbuf*)completion->packet.buff_lst, p);
+		}
+#else
 		if (callback_retval == VMA_PACKET_RECV) {
 			// Save rx packet info in our ready list
 			conn->m_rx_pkt_ready_list.push_back(p_first_desc);
@@ -1479,7 +1547,8 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 			conn->m_p_socket_stats->counters.n_rx_ready_byte_max = max((uint32_t)conn->m_p_socket_stats->n_rx_ready_byte_count, conn->m_p_socket_stats->counters.n_rx_ready_byte_max);
 		}
 		// notify io_mux
-		conn->notify_epoll_context(EPOLLIN);
+		NOTIFY_ON_EVENTS(conn, EPOLLIN);
+#endif // DEFINED_VMAPOLL				
 		io_mux_call::update_fd_array(conn->m_iomux_ready_fd_array, conn->m_fd);
 
 		if (callback_retval != VMA_PACKET_HOLD) {
@@ -1698,7 +1767,16 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	int dropped_count = 0;
 
 	lock_tcp_con();
+
 	m_iomux_ready_fd_array = (fd_array_t*)pv_fd_ready_array;
+
+#ifdef DEFINED_VMAPOLL
+	/* Try to process vma_poll() completion directly */
+	if (p_rx_pkt_mem_buf_desc_info->path.rx.vma_polled) {
+		m_vma_poll_completion = m_p_rx_ring->get_comp();
+		m_vma_poll_last_buff_lst = NULL;
+	}
+#endif // DEFINED_VMAPOLL
 
 	if (unlikely(get_tcp_state(&m_pcb) == LISTEN)) {
 		pcb = get_syn_received_pcb(p_rx_pkt_mem_buf_desc_info->path.rx.src.sin_addr.s_addr,
@@ -1726,12 +1804,20 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 				// TODO: consider check if we can now drain into Q of established
 				si_tcp_logdbg("SYN/CTL packet drop. established-backlog=%d (limit=%d) num_con_waiting=%d (limit=%d)",
 						(int)m_syn_received.size(), m_backlog, num_con_waiting, MAX_SYN_RCVD);
+#ifdef DEFINED_VMAPOLL
+				m_vma_poll_completion = NULL;
+				m_vma_poll_last_buff_lst = NULL;
+#endif // DEFINED_VMAPOLL
 				unlock_tcp_con();
 				return false;// return without inc_ref_count() => packet will be dropped
 			}
 		}
 		if (m_sysvar_tcp_ctl_thread > CTL_THREAD_DISABLE || established_backlog_full) { /* 2nd check only worth when MAX_SYN_RCVD>0 for non tcp_ctl_thread  */
 			queue_rx_ctl_packet(pcb, p_rx_pkt_mem_buf_desc_info); // TODO: need to trigger queue pulling from accept in case no tcp_ctl_thread
+#ifdef DEFINED_VMAPOLL
+			m_vma_poll_completion = NULL;
+			m_vma_poll_last_buff_lst = NULL;
+#endif // DEFINED_VMAPOLL
 			unlock_tcp_con();
 			return true;
 		}
@@ -1752,16 +1838,43 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	}
 
 	sock->m_vma_thr = p_rx_pkt_mem_buf_desc_info->path.rx.is_vma_thr;
+#ifdef DEFINED_VMAPOLL	
+#ifdef RDTSC_MEASURE_RX_READY_POLL_TO_LWIP
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_READY_POLL_TO_LWIP]);
+#endif //RDTSC_MEASURE_RX_READY_POLL_TO_LWIP
 
+#ifdef RDTSC_MEASURE_RX_LWIP
+	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_MEASURE_RX_LWIP]);
+#endif //RDTSC_MEASURE_RX_LWIP
+#endif // DEFINED_VMAPOLL	
 	L3_level_tcp_input((pbuf *)p_rx_pkt_mem_buf_desc_info, pcb);
 
+#ifdef DEFINED_VMAPOLL	
+#ifdef RDTSC_MEASURE_RX_LWIP
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_MEASURE_RX_LWIP]);
+#endif //RDTSC_MEASURE_RX_LWIP
+
+#ifdef RDTSC_MEASURE_RX_LWIP_TO_RECEVEFROM
+	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_LWIP_TO_RECEVEFROM]);
+#endif //RDTSC_MEASURE_RX_LWIP_TO_RECEVEFROM
+#endif // DEFINED_VMAPOLL	
 	sock->m_vma_thr = false;
 
 	if (sock != this) {
+#ifdef DEFINED_VMAPOLL		
+		if (unlikely(sock->m_vma_poll_completion)) {
+			sock->m_vma_poll_completion = NULL;
+			sock->m_vma_poll_last_buff_lst = NULL;
+		}
+#endif // DEFINED_VMAPOLL			
 		sock->m_tcp_con_lock.unlock();
 	}
 
 	m_iomux_ready_fd_array = NULL;
+#ifdef DEFINED_VMAPOLL		
+	m_vma_poll_completion = NULL;
+	m_vma_poll_last_buff_lst = NULL;
+#endif // DEFINED_VMAPOLL			
 
 	while (dropped_count--) {
 		mem_buf_desc_t* p_rx_pkt_desc = m_rx_cb_dropped_list.front();
@@ -1900,11 +2013,12 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 		return -1;
 	}
 
+#ifndef DEFINED_VMAPOLL	// if not defined
 	if (m_rx_ring_map.size() == 1) {
 		rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.begin();
 		m_p_rx_ring = rx_ring_iter->first;
 	}
-
+#endif // DEFINED_VMAPOLL
 	in_addr_t peer_ip_addr = m_connected.get_in_addr();
 	fit_rcv_wnd(true);
 
@@ -2195,7 +2309,8 @@ int sockinfo_tcp::listen(int backlog)
 	tcp_syn_handled((struct tcp_pcb_listen*)(&m_pcb), sockinfo_tcp::syn_received_lwip_cb);
 	tcp_clone_conn((struct tcp_pcb_listen*)(&m_pcb), sockinfo_tcp::clone_conn_cb);
 
-	attach_as_uc_receiver(ROLE_TCP_SERVER);
+	bool success = attach_as_uc_receiver(ROLE_TCP_SERVER);
+#ifndef DEFINED_VMAPOLL // if not defiend
 /*TODO ALEXR
  *
  	if (attach_as_uc_receiver(ROLE_TCP_SERVER)) {
@@ -2210,8 +2325,13 @@ int sockinfo_tcp::listen(int backlog)
 			m_p_rx_ring = rx_ring_iter->first;
 		}
 		si_tcp_logdbg("sock state = %d", get_tcp_state(&m_pcb));
+		success = true;			
+	} else {
+		success = false;
 	}
-	else {
+#endif // DEFINED_VMAPOLL
+
+	if (!success) {
 		/* we will get here if attach_as_uc_receiver failed */
 		si_tcp_logdbg("Fallback the connection to os");
 		setPassthrough();
@@ -2430,6 +2550,61 @@ sockinfo_tcp *sockinfo_tcp::accept_clone()
         return si;
 }
 
+#ifdef DEFINED_VMAPOLL
+//Must be taken under parent's tcp connection lock
+void sockinfo_tcp::auto_accept_connection(sockinfo_tcp *parent, sockinfo_tcp *child)
+{
+	tcp_accepted(parent->m_sock);
+
+	struct flow_tuple key;
+	sockinfo_tcp::create_flow_tuple_key_from_pcb(key, &(child->m_pcb));
+
+	//Since pcb is already contained in connected sockinfo_tcp no need to keep it listen's socket SYN list
+	if (!parent->m_syn_received.erase(key)) {
+		//Should we worry about that?
+		vlog_printf(VLOG_DEBUG, "%s:%d: Can't find the established pcb in syn received list\n", __func__, __LINE__);
+	}
+	else {
+		parent->m_received_syn_num--;
+	}
+
+	parent->unlock_tcp_con();
+	child->lock_tcp_con();
+
+	child->m_p_socket_stats->connected_ip = child->m_connected.get_in_addr();
+	child->m_p_socket_stats->connected_port = child->m_connected.get_in_port();
+	child->m_p_socket_stats->bound_if = child->m_bound.get_in_addr();
+	child->m_p_socket_stats->bound_port = child->m_bound.get_in_port();
+	if (child->m_vma_poll_completion) {
+		child->m_connected.get_sa(parent->m_vma_poll_completion->src);
+	} else {
+		child->m_connected.get_sa(parent->m_ec.completion.src);
+	}
+
+	/* Update vma_completion with
+	 * VMA_POLL_NEW_CONNECTION_ACCEPTED related data
+	 */
+	if (likely(child->m_parent)) {
+		if (child->m_vma_poll_completion) {
+			child->m_vma_poll_completion->src = parent->m_vma_poll_completion->src;
+			child->m_vma_poll_completion->listen_fd = child->m_parent->get_fd();
+		} else {
+			child->m_ec.completion.src = parent->m_ec.completion.src;
+			child->m_ec.completion.listen_fd = child->m_parent->get_fd();
+		}
+		child->set_events(VMA_POLL_NEW_CONNECTION_ACCEPTED);
+	}
+	else {
+		vlog_printf(VLOG_ERROR, "VMA_POLL_NEW_CONNECTION_ACCEPTED: can't find listen socket for new connected socket with [fd=%d]",
+				__func__, __LINE__, child->get_fd());
+	}
+
+	child->unlock_tcp_con();
+	parent->lock_tcp_con();
+
+	vlog_printf(VLOG_DEBUG, "CONN AUTO ACCEPTED: TCP PCB FLAGS: acceptor:0x%x newsock: fd=%d 0x%x new state: %d\n", parent->m_pcb.flags, child->m_fd, child->m_pcb.flags, get_tcp_state(&child->m_pcb));
+}
+#endif // DEFINED_VMAPOLL
 
 err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t err)
 {
@@ -2480,16 +2655,20 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 		new_sock->m_conn_state = TCP_CONN_CONNECTED;
 	}
 
+#ifndef DEFINED_VMAPOLL // if not defined
 	new_sock->m_parent = NULL;
-
+#endif // DEFINED_VMAPOLL
+	
 	/* if attach failed, we should continue getting traffic through the listen socket */
 	// todo register as 3-tuple rule for the case the listener is gone?
 	new_sock->attach_as_uc_receiver(role_t (NULL), true);
 
+#ifndef DEFINED_VMAPOLL // if not defined
 	if (new_sock->m_rx_ring_map.size() == 1) {
 		rx_ring_map_t::iterator rx_ring_iter = new_sock->m_rx_ring_map.begin();
 		new_sock->m_p_rx_ring = rx_ring_iter->first;
 	}
+#endif // DEFINED_VMAPOLL
 
 	if (new_sock->m_sysvar_tcp_ctl_thread > CTL_THREAD_DISABLE) {
 		new_sock->m_vma_thr = true;
@@ -2519,10 +2698,15 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 
 	//todo check that listen socket was not closed by now ? (is_server())
 	conn->m_ready_pcbs.erase(&new_sock->m_pcb);
+
+#ifdef DEFINED_VMAPOLL
+	auto_accept_connection(conn, new_sock);	
+#else
 	conn->m_accepted_conns.push_back(new_sock);
 	conn->m_ready_conn_cnt++;
 
-	conn->notify_epoll_context(EPOLLIN);
+	NOTIFY_ON_EVENTS(conn, EPOLLIN);
+#endif // DEFINED_VMAPOLL	
 
 	//OLG: Now we should wakeup all threads that are sleeping on this socket.
 	conn->do_wakeup();
@@ -2531,6 +2715,9 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 	conn->unlock_tcp_con();
 
 	new_sock->lock_tcp_con();
+#ifdef DEFINED_VMAPOLL
+	new_sock->m_parent = NULL;
+#endif // DEFINED_VMAPOLL	
 
 	return ERR_OK;
 }
@@ -2736,8 +2923,7 @@ err_t sockinfo_tcp::connect_lwip_cb(void *arg, struct tcp_pcb *tpcb, err_t err)
 		conn->m_conn_state = TCP_CONN_FAILED;
 	}
 	
-	// notify epoll
-	conn->notify_epoll_context(EPOLLOUT);
+	NOTIFY_ON_EVENTS(conn, EPOLLOUT);
 	//OLG: Now we should wakeup all threads that are sleeping on this socket.
 	conn->do_wakeup();
 
@@ -2960,11 +3146,11 @@ int sockinfo_tcp::shutdown(int __how)
 		case SHUT_RD:
 			if (is_connected()) { 
 				m_sock_state = TCP_SOCK_CONNECTED_WR;
-				notify_epoll_context(EPOLLIN);
+				NOTIFY_ON_EVENTS(this, EPOLLIN);
 			}
 			else if (is_rtr()) { 
 				m_sock_state = TCP_SOCK_BOUND;
-				notify_epoll_context(EPOLLIN|EPOLLHUP);
+				NOTIFY_ON_EVENTS(this, EPOLLIN|EPOLLHUP);
 			}
 			else if (m_sock_state == TCP_SOCK_ACCEPT_READY) {
 				m_sock_state = TCP_SOCK_ACCEPT_SHUT;
@@ -2978,7 +3164,7 @@ int sockinfo_tcp::shutdown(int __how)
 			}
 			else if (is_rts()) { 
 				m_sock_state = TCP_SOCK_BOUND;
-				notify_epoll_context(EPOLLHUP);
+				NOTIFY_ON_EVENTS(this, EPOLLHUP);				
 			}
 			else if (is_server()) {
 				//ignore SHUT_WR on listen socket
@@ -2989,7 +3175,7 @@ int sockinfo_tcp::shutdown(int __how)
 		case SHUT_RDWR:
 			if (is_connected() || is_rts() || is_rtr()) {
 				m_sock_state = TCP_SOCK_BOUND;
-				notify_epoll_context(EPOLLIN|EPOLLHUP);
+				NOTIFY_ON_EVENTS(this, EPOLLIN|EPOLLHUP);				
 			}
 			else if (m_sock_state == TCP_SOCK_ACCEPT_READY) {
 				m_sock_state = TCP_SOCK_ACCEPT_SHUT;
@@ -3174,6 +3360,16 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 
 	int val, ret = 0;
 	bool supported = true;
+	bool allow_privileged_sock_opt = false;
+
+#ifdef DEFINED_VMAPOLL
+	/* Process VMA specific options only at the moment
+	 * VMA option does not require additional processing after return
+	 */
+	if (0 == sockinfo::setsockopt(__level, __optname, __optval, __optlen)) {
+		return 0;
+	}
+#endif // DEFINED_VMAPOLL
 
 	if (__level == IPPROTO_TCP) {
 		switch(__optname) {
@@ -3260,8 +3456,9 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 		}
 		case SO_BINDTODEVICE:
 			struct sockaddr_in sockaddr;
+			allow_privileged_sock_opt = safe_mce_sys().allow_privileged_sock_opt;
 			if (__optlen == 0 || ((char*)__optval)[0] == '\0') {
-				m_so_bindtodevice_ip = 0;
+				m_so_bindtodevice_ip = INADDR_ANY;
 			} else if (get_ipv4_from_ifname((char*)__optval, &sockaddr)) {
 				si_tcp_logdbg("SOL_SOCKET, SO_BINDTODEVICE - NOT HANDLED, cannot find if_name");
 				errno = EINVAL;
@@ -3269,6 +3466,33 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 				break;
 			} else {
 				m_so_bindtodevice_ip = sockaddr.sin_addr.s_addr;
+
+#ifdef DEFINED_VMAPOLL
+				// REVIEW - by Igor
+				if (!is_connected()) {
+					/* Current implementation allows to create separate rings for tx and rx.
+					 * tx ring is created basing on destination ip during connect() call,
+					 * SO_BINDTODEVICE and routing table information
+					 * whereas rx ring creation can be based on bound (local) ip
+					 * As a result there are limitations in using this capability.
+					 * Also we can not have bound information as
+					 * (!m_bound.is_anyaddr() && !m_bound.is_local_loopback())
+					 * and can not detect offload/non-offload socket
+					 * Note:
+					 * This inconsistence should be resolved.
+					 */
+					ip_address local_ip(m_so_bindtodevice_ip);
+
+					lock_tcp_con();
+					/* We need to destroy this if attach/detach receiver is not called
+					 * just reference counter for p_nd_resources is updated on attach/detach
+					 */
+					if (NULL == create_nd_resources((const ip_address)local_ip)) {
+						si_tcp_logerr("Failed to get net device resources on ip %s", local_ip.to_str().c_str());
+					}
+					unlock_tcp_con();
+				}
+#endif // DEFINED_VMAPOLL				
 			}
 			// handle TX side
 			if (m_p_connected_dst_entry) {
@@ -3312,9 +3536,17 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 	ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (ret) {
-		si_tcp_logdbg("setsockopt failed (ret=%d %m)", ret);
+		if (EPERM == errno && allow_privileged_sock_opt) {
+			si_tcp_logdbg("setsockopt failure is suppressed (ret=%d %m)", ret);
+			ret = 0;
+			errno = 0;
+		}
+		else {
+			si_tcp_logdbg("setsockopt failed (ret=%d %m)", ret);
+		}
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
+
 	return ret;
 }
 
@@ -3327,6 +3559,15 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 		errno = EFAULT;
 		return ret;
 	}
+	
+#ifdef DEFINED_VMAPOLL
+	/* Process VMA specific options only at the moment
+	 * VMA option does not require additional processing after return
+	 */
+	if (0 == sockinfo::getsockopt(__level, __optname, __optval, __optlen)) {
+		return 0;
+	}
+#endif // DEFINED_VMAPOLL	
 
 	if (__level == IPPROTO_TCP) {
 		switch(__optname) {
@@ -3573,11 +3814,13 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 		}
 	}
 	m_rx_ring_map_lock.unlock();
-	if (n > 0) { // got completions from CQ
+	if (likely(n > 0)) { // got completions from CQ
+#ifdef DEFINED_VMAPOLL
 		__log_entry_funcall("got %d elements sn=%llu", n, (unsigned long long)poll_sn);
 
 		if (m_n_rx_pkt_ready_list_count)
 			m_p_socket_stats->counters.n_rx_poll_hit++;
+#endif // DEFINED_VMAPOLL
 		return n;
 	}
 
@@ -3807,6 +4050,7 @@ int sockinfo_tcp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags
 	return total_rx;
 }
 
+#ifndef DEFINED_VMAPOLL // if not defined
 void sockinfo_tcp::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 {
 	struct tcp_pcb pcb;
@@ -3938,6 +4182,7 @@ void sockinfo_tcp::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 	}
 #endif
 }
+#endif // DEFINED_VMAPOLL
 
 int sockinfo_tcp::free_packets(struct vma_packet_t *pkts, size_t count)
 {
@@ -3984,6 +4229,14 @@ int sockinfo_tcp::free_packets(struct vma_packet_t *pkts, size_t count)
 	unlock_tcp_con();
 	return ret;
 }
+
+#ifdef DEFINED_VMAPOLL
+int sockinfo_tcp::free_buffs(uint16_t len)
+{
+	tcp_recved(&m_pcb, len);
+	return 0;
+}
+#endif // DEFINED_VMAPOLL
 
 struct pbuf * sockinfo_tcp::tcp_tx_pbuf_alloc(void* p_conn)
 {

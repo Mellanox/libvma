@@ -33,9 +33,14 @@
 #include <tr1/unordered_map>
 #include <ifaddrs.h>
 
+#include "config.h"
 #include "vlogger/vlogger.h"
 #include "utils/lock_wrapper.h"
+#ifdef DEFINED_VMAPOLL
+#include "vma/vmapoll_extra.h"
+#else
 #include "vma/vma_extra.h"
+#endif // DEFINED_VMAPOLL
 #include "vma/util/sock_addr.h"
 #include "vma/util/vma_stats.h"
 #include "vma/util/sys_vars.h"
@@ -119,7 +124,15 @@ public:
 
 	virtual int add_epoll_context(epfd_info *epfd);
 	virtual void remove_epoll_context(epfd_info *epfd);
-	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);
+
+#ifdef DEFINED_VMAPOLL
+	virtual int fast_nonblocking_rx(vma_packets_t *vma_pkts);
+	virtual int get_rings_num() {return 1;}
+	virtual bool check_rings() {return m_p_rx_ring ? true: false;}
+	virtual int* get_rings_fds() {int* channel_fds = m_p_rx_ring->get_rx_channel_fds(); return channel_fds;}
+#else
+	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);	
+#endif // DEFINED_VMAPOLL	
 
 protected:
 	bool			m_b_closed;
@@ -143,7 +156,7 @@ protected:
 	rx_net_device_map_t	m_rx_nd_map;
 	rx_flow_map_t		m_rx_flow_map;
 	// we either listen on ALL system cqs or bound to the specific cq
-	ring*			m_p_rx_ring; //used in TCP instead of m_rx_ring_map
+	ring*			m_p_rx_ring; //used in TCP/UDP
 	buff_info_t		m_rx_reuse_buff; //used in TCP instead of m_rx_ring_map
 	bool			m_rx_reuse_buf_pending; //used to periodically return buffers, even if threshold was not reached
 	bool			m_rx_reuse_buf_postponed; //used to mark threshold was reached, but free was not done yet
@@ -159,20 +172,36 @@ protected:
 	 * list of pending ready packet on the Rx,
 	 * each element is a pointer to the ib_conn_mgr that holds this ready rx datagram
 	 */
-	int			m_n_rx_pkt_ready_list_count;
-	size_t 			m_rx_pkt_ready_offset;
-	size_t			m_rx_ready_byte_count;
+	int						m_n_rx_pkt_ready_list_count;
+	size_t 					m_rx_pkt_ready_offset;
+	size_t					m_rx_ready_byte_count;
 
-	const int		m_n_sysvar_rx_num_buffs_reuse;
-	const int32_t		m_n_sysvar_rx_poll_num;
+	const int				m_n_sysvar_rx_num_buffs_reuse;
+	const int32_t				m_n_sysvar_rx_poll_num;
 
-	// Callback function pointer to support VMA extra API (vma_extra.h)
+#ifdef DEFINED_VMAPOLL
+	/* Track internal events to return in vma_poll()
+	 * Current design support single event for socket at a particular time
+	 */
+	struct ring_ec m_ec;
+	struct vma_completion_t* m_vma_poll_completion;
+	struct vma_buff_t*       m_vma_poll_last_buff_lst;
+#endif // DEFINED_VMAPOLL
+
+	// Callback function pointer to support VMA extra API (vma_extra.h, vmapoll_extra.h)
 	vma_recv_callback_t	m_rx_callback;
 	void*			m_rx_callback_context; // user context
+#ifdef DEFINED_VMAPOLL	
+	void*			m_fd_context;
+#endif // DEFINED_VMAPOLL	
 
 	virtual void 		set_blocking(bool is_blocked);
 	virtual int 		fcntl(int __cmd, unsigned long int __arg) throw (vma_error);
 	virtual int 		ioctl(unsigned long int __request, unsigned long int __arg) throw (vma_error);
+#ifdef DEFINED_VMAPOLL	
+	virtual int setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen) throw (vma_error);
+	virtual int getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen) throw (vma_error);
+#endif // DEFINED_VMAPOLL	
 
 	virtual	mem_buf_desc_t* get_front_m_rx_pkt_ready_list() = 0;
 	virtual	size_t get_size_m_rx_pkt_ready_list() = 0;
@@ -198,6 +227,8 @@ protected:
 
 	bool 			attach_receiver(flow_tuple_with_local_if &flow_key);
 	bool 			detach_receiver(flow_tuple_with_local_if &flow_key);
+	net_device_resources_t* create_nd_resources(const ip_address ip_local);
+	bool                    destroy_nd_resources(const ip_address ip_local);
 	void			do_rings_migration();
 
 	// Attach to all relevant rings for offloading receive flows - always used from slow path
@@ -219,6 +250,54 @@ protected:
 	void 			move_owned_rx_ready_descs(const mem_buf_desc_owner* p_desc_owner, descq_t* toq); // Move all owner's rx ready packets ro 'toq'
 
 	virtual bool try_un_offloading(); // un-offload the socket if possible
+#ifdef DEFINED_VMAPOLL	
+	virtual inline void do_wakeup()
+	{
+		/* TODO: Let consider if we really need this check */
+		if (!check_vma_active()) {
+			wakeup_pipe::do_wakeup();
+		}
+	}
+
+	inline bool check_vma_active(void)
+	{
+		return (m_p_rx_ring && m_p_rx_ring->get_vma_active());
+	}
+
+	inline void set_events(uint64_t events)
+	{
+		/* Collect all events if rx ring is enabled */
+		if (m_p_rx_ring) {
+			if (m_vma_poll_completion) {
+				if (!m_vma_poll_completion->events) {
+					m_vma_poll_completion->user_data = (uint64_t)m_fd_context;
+				}
+				m_vma_poll_completion->events |= events;
+			}
+			else {
+				if (!m_ec.completion.events) {
+					m_ec.completion.user_data = (uint64_t)m_fd_context;
+					m_p_rx_ring->put_ec(&m_ec);
+				}
+				m_ec.completion.events |= events;
+			}
+		}
+
+		if ((uint32_t)events) {
+			socket_fd_api::notify_epoll_context((uint32_t)events);
+		}
+	}
+
+	inline uint64_t get_events(void)
+	{
+		return m_ec.completion.events;
+	}
+
+	inline void clear_events(void)
+	{
+		m_ec.completion.events = 0;
+	}
+#endif // DEFINED_VMAPOLL	
 
 	// This function validates the ipoib's properties
 	// Input params:
@@ -440,5 +519,11 @@ protected:
     }
     //////////////////////////////////////////////////////////////////
 };
+
+#ifdef DEFINED_VMAPOLL
+#define NOTIFY_ON_EVENTS(context, events) context->set_events(events)
+#else
+#define NOTIFY_ON_EVENTS(context, events) context->notify_epoll_context(events)
+#endif // DEFINED_VMAPOLL
 
 #endif /* BASE_SOCKINFO_H */

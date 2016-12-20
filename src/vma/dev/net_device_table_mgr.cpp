@@ -106,6 +106,7 @@ net_device_table_mgr::net_device_table_mgr() : cache_table_mgr<ip_address,net_de
 		throw_vma_exception("map_net_devices failed");
 	}
 
+#ifndef DEFINED_NO_THREAD_LOCK
 	if (safe_mce_sys().progress_engine_interval_msec != MCE_CQ_DRAIN_INTERVAL_DISABLED && safe_mce_sys().progress_engine_wce_max != 0) {
 		ndtm_logdbg("registering timer for ring draining with %d msec intervales", safe_mce_sys().progress_engine_interval_msec);
 		g_p_event_handler_manager->register_timer_event(safe_mce_sys().progress_engine_interval_msec, this, PERIODIC_TIMER, (void*)RING_PROGRESS_ENGINE_TIMER);
@@ -115,6 +116,7 @@ net_device_table_mgr::net_device_table_mgr() : cache_table_mgr<ip_address,net_de
 		ndtm_logdbg("registering timer for cq adaptive moderation with %d msec intervales", safe_mce_sys().cq_aim_interval_msec);
 		g_p_event_handler_manager->register_timer_event(safe_mce_sys().cq_aim_interval_msec, this, PERIODIC_TIMER, (void*)RING_ADAPT_CQ_MODERATION_TIMER);
 	}
+#endif // DEFINED_NO_THREAD_LOCK
 }
 
 void net_device_table_mgr::free_ndtm_resources()
@@ -593,10 +595,11 @@ int net_device_table_mgr::global_ring_poll_and_process_element(uint64_t *p_poll_
 		}
 		ret_total += ret;
 	}
-	if (ret_total)
+	if (ret_total) {
 		ndtm_logfunc("ret_total=%d", ret_total);
-	else
+	} else {
 		ndtm_logfuncall("ret_total=%d", ret_total);
+	}
 	return ret_total;
 }
 
@@ -665,10 +668,11 @@ int net_device_table_mgr::global_ring_wait_for_notification_and_process_element(
 			}
 		}
 	}
-	if (ret_total)
+	if (ret_total) {
 		ndtm_logfunc("ret_total=%d", ret_total);
-	else
+	} else {
 		ndtm_logfuncall("ret_total=%d", ret_total);
+	}
 	return ret_total;
 }
 
@@ -686,10 +690,11 @@ int net_device_table_mgr::global_ring_drain_and_procces()
 		}
 		ret_total += ret;
 	}
-	if (ret_total)
+	if (ret_total) {
 		ndtm_logfunc("ret_total=%d", ret_total);
-	else
+	} else {
 		ndtm_logfuncall("ret_total=%d", ret_total);
+	}
 	return ret_total;
 }
 
@@ -708,7 +713,16 @@ void net_device_table_mgr::handle_timer_expired(void* user_data)
 	int timer_type = (uint64_t)user_data;
 	switch (timer_type) {
 	case RING_PROGRESS_ENGINE_TIMER:
+#ifdef DEFINED_VMAPOLL
+#if 0 /* TODO: see explanation */
+		/* Do not call draining RX logic from internal thread for vma_poll mode
+		 * It is disable by default
+		 * See: cq_mgr::drain_and_proccess()
+		 */
+#endif // 0
+#else
 		global_ring_drain_and_procces();
+#endif // DEFINED_VMAPOLL		
 		break;
 	case RING_ADAPT_CQ_MODERATION_TIMER:
 		global_ring_adapt_cq_moderation();

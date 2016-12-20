@@ -40,7 +40,6 @@
 #include "cq_mgr.h"
 #include "ring_simple.h"
 
-
 #undef  MODULE_NAME
 #define MODULE_NAME 		"qpm"
 
@@ -61,7 +60,6 @@
 #define FICTIVE_AH_SL		5
 #define FICTIVE_AH_DLID		0x3
 
-
 qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num, const uint32_t tx_num_wr):
 	m_qp(NULL), m_p_ring((ring_simple*)p_ring), m_port_num((uint8_t)port_num), m_p_ib_ctx_handler((ib_ctx_handler*)p_context),
 	m_p_ahc_head(NULL), m_p_ahc_tail(NULL), m_max_inline_data(0), m_max_qp_wr(0), m_p_cq_mgr_rx(NULL), m_p_cq_mgr_tx(NULL),
@@ -75,6 +73,12 @@ qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context, const
 {
 	m_ibv_rx_sg_array = new ibv_sge[m_n_sysvar_rx_num_wr_to_post_recv];
 	m_ibv_rx_wr_array = new ibv_recv_wr[m_n_sysvar_rx_num_wr_to_post_recv];
+#ifdef DEFINED_VMAPOLL
+	m_rq_wqe_counter = 0;
+	m_sq_wqe_counter = 0;
+	m_rq_wqe_idx_to_wrid = (uint64_t*)malloc(m_rx_num_wr * sizeof *m_rq_wqe_idx_to_wrid);
+	m_sq_wqe_idx_to_wrid = (uint64_t*)malloc(m_tx_num_wr * sizeof *m_sq_wqe_idx_to_wrid);
+#endif // DEFINED_VMAPOLL
 }
 
 qp_mgr::~qp_mgr()
@@ -158,14 +162,14 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	memset(&qp_init_attr, 0, sizeof(qp_init_attr));
 
 	// Check device capabilities for max SG elements
-	uint32_t tx_max_inline = safe_mce_sys().tx_max_inline;;
-	uint32_t rx_num_sge = MCE_DEFAULT_RX_NUM_SGE;
+	uint32_t tx_max_inline = safe_mce_sys().tx_max_inline;
+	uint32_t rx_num_sge = (IS_VMAPOLL) ? 1 : MCE_DEFAULT_RX_NUM_SGE;
 	uint32_t tx_num_sge = MCE_DEFAULT_TX_NUM_SGE;
 
 	qp_init_attr.cap.max_send_wr = m_tx_num_wr;
 	qp_init_attr.cap.max_recv_wr = m_rx_num_wr;
 	qp_init_attr.cap.max_inline_data = tx_max_inline;
-	qp_init_attr.cap.max_send_sge = tx_num_sge;
+	qp_init_attr.cap.max_send_sge = tx_num_sge; // REVIEW - AlexV please veriry
 	qp_init_attr.cap.max_recv_sge = rx_num_sge;
 	qp_init_attr.recv_cq = m_p_cq_mgr_rx->get_ibv_cq_hndl();
 	qp_init_attr.send_cq = m_p_cq_mgr_tx->get_ibv_cq_hndl();
@@ -183,6 +187,19 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 		qp_logerr("ibv_query_qp failed (errno=%d %m)", errno);
 		return -1;
 	} ENDIF_VERBS_FAILURE;
+
+#ifdef DEFINED_VMAPOLL
+	struct verbs_qp *vqp = (struct verbs_qp *)m_qp;
+	m_mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
+
+	m_qp_num = m_mlx5_hw_qp->ctrl_seg.qp_num;
+	m_mlx5_sq_wqes = (volatile struct mlx5_wqe64 (*)[])(uintptr_t)m_mlx5_hw_qp->gen_data.sqstart;
+	m_sq_db = &m_mlx5_hw_qp->gen_data.db[MLX5_SND_DBR];
+	m_sq_bf_reg = m_mlx5_hw_qp->gen_data.bf->reg;
+	m_sq_bf_offset = m_mlx5_hw_qp->gen_data.bf->offset;
+	m_sq_bf_buf_size = m_mlx5_hw_qp->gen_data.bf->buf_size;
+	mlx5_init_sq();
+#endif // DEFINED_VMAPOLL
 
 	m_max_inline_data = min(tmp_ibv_qp_init_attr.cap.max_inline_data, tx_max_inline);
 	qp_logdbg("requested max inline = %d QP, actual max inline = %d, VMA max inline set to %d, max_send_wr=%d, max_recv_wr=%d, max_recv_sge=%d, max_send_sge=%d",
@@ -299,6 +316,14 @@ void qp_mgr::release_tx_buffers()
 	}
 }
 
+#ifdef DEFINED_VMAPOLL
+void qp_mgr::set_signal_in_next_send_wqe()
+{
+	volatile struct mlx5_wqe64 *wqe = &(*m_mlx5_sq_wqes)[m_sq_wqe_counter & (m_tx_num_wr - 1)];
+	wqe->ctrl.data[2] = htonl(8);
+}
+#endif // DEFINED_VMAPOLL
+
 void qp_mgr::trigger_completion_for_all_sent_packets()
 {
 	vma_ibv_send_wr send_wr, *bad_wr = NULL;
@@ -381,6 +406,11 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 		}
 		m_p_ring->m_tx_num_wr_free--;
 
+#ifdef DEFINED_VMAPOLL
+		NOT_IN_USE(bad_wr);
+		set_signal_in_next_send_wqe();
+		mlx5_send(&send_wr);
+#else
 		IF_VERBS_FAILURE(vma_ibv_post_send(m_qp, &send_wr, &bad_wr)) {
 			qp_logerr("failed post_send%s (errno=%d %m)", ((vma_send_wr_send_flags(send_wr) & VMA_IBV_SEND_INLINE)?"(+inline)":""), errno);
 			if (bad_wr) {
@@ -388,6 +418,7 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 				  bad_wr->wr_id, vma_send_wr_send_flags(*bad_wr), bad_wr->sg_list[0].addr, bad_wr->sg_list[0].length, bad_wr->sg_list[0].lkey, m_max_inline_data);
 			}
 		} ENDIF_VERBS_FAILURE;
+#endif // DEFINED_VMAPOLL
 
 		if (p_ah) {
 			IF_VERBS_FAILURE(ibv_destroy_ah(p_ah))
@@ -456,6 +487,13 @@ int qp_mgr::post_recv(mem_buf_desc_t* p_mem_buf_desc)
 		m_ibv_rx_sg_array[m_curr_rx_wr].length = p_mem_buf_desc->sz_buffer;
 		m_ibv_rx_sg_array[m_curr_rx_wr].lkey   = p_mem_buf_desc->lkey;
 
+#ifdef DEFINED_VMAPOLL
+		uint64_t index = m_rq_wqe_counter & (m_rx_num_wr - 1);
+
+		m_rq_wqe_idx_to_wrid[index] = (uintptr_t)p_mem_buf_desc;
+		m_rq_wqe_counter++;
+#endif // DEFINED_VMAPOLL
+
 		if (m_curr_rx_wr == m_n_sysvar_rx_num_wr_to_post_recv - 1) {
 
 			m_last_posted_rx_wr_id = (uintptr_t)p_mem_buf_desc;
@@ -491,16 +529,98 @@ int qp_mgr::post_recv(mem_buf_desc_t* p_mem_buf_desc)
 	return 0;
 }
 
+#ifdef DEFINED_VMAPOLL
+void qp_mgr::mlx5_send(vma_ibv_send_wr *p_send_wqe)
+{
+	uintptr_t addr = 0;
+	uint32_t length = 0;
+
+	addr = p_send_wqe->sg_list[0].addr;
+
+	/* Copy the first 16 bytes into the inline header */
+	memcpy((void *)(uintptr_t)m_sq_hot_wqe->eseg.inline_hdr_start,
+	       (void *)(uintptr_t)addr,
+	       MLX5_ETH_INLINE_HEADER_SIZE);
+
+	addr += MLX5_ETH_INLINE_HEADER_SIZE;
+	length = p_send_wqe->sg_list[0].length;
+	length -= MLX5_ETH_INLINE_HEADER_SIZE;
+
+	m_sq_hot_wqe->dseg.byte_count = htonl(length);
+	m_sq_hot_wqe->dseg.lkey = htonl(p_send_wqe->sg_list[0].lkey);
+	m_sq_hot_wqe->dseg.addr = htonll(addr);
+
+	m_sq_wqe_idx_to_wrid[m_sq_hot_wqe_index] = (uintptr_t)p_send_wqe->wr_id;
+
+	++m_sq_wqe_counter;
+	volatile uintptr_t *dst = (volatile uintptr_t *)
+			((uintptr_t)m_sq_bf_reg + m_sq_bf_offset);
+
+	wmb();
+	*m_sq_db = htonl(m_sq_wqe_counter);
+	/* This wc_wmb ensures ordering between DB record and BF copy */
+	wc_wmb();
+
+	/*
+	 * Avoid using memcpy() to copy to BlueFlame page, since memcpy()
+	 * implementations may use move-string-buffer assembler instructions,
+	 * which do not guarantee order of copying.
+	 */
+	COPY_64B_NT(dst, m_sq_hot_wqe);
+	m_sq_bf_offset ^= m_sq_bf_buf_size;
+
+	/*Set the next WQE and index*/
+	m_sq_hot_wqe = &(*m_mlx5_sq_wqes)[m_sq_wqe_counter & (m_tx_num_wr - 1)];
+	/* Write only data[0] which is the single element which changes.
+	 * Other fields are already initialised in mlx5_init_sq. */
+	m_sq_hot_wqe->ctrl.data[0] = htonl((m_sq_wqe_counter << 8) | MLX5_OPCODE_SEND);
+	m_sq_hot_wqe_index = m_sq_wqe_counter & (m_tx_num_wr - 1);;
+}
+#endif // DEFINED_VMAPOLL
+
+#ifdef DEFINED_VMAPOLL
+void qp_mgr::mlx5_init_sq()
+{
+	unsigned int i;
+	unsigned int comp = NUM_TX_WRE_TO_SIGNAL_MAX;
+
+	for (i = 0; (i != m_tx_num_wr); ++i) {
+		volatile struct mlx5_wqe64 *wqe = &(*m_mlx5_sq_wqes)[i];
+
+		memset((void *)(uintptr_t)wqe, 0, sizeof(struct mlx5_wqe64));
+		wqe->eseg.inline_hdr_sz = htons(16);
+		wqe->eseg.cs_flags = MLX5_ETH_WQE_L3_CSUM | MLX5_ETH_WQE_L4_CSUM;
+		wqe->ctrl.data[1] = htonl((m_qp_num << 8) | 4);
+		//wqe->dseg.lkey = (m_p_ring->get_lkey());
+		/* Store the completion request in the WQE. */
+		if (--comp == 0) {
+			wqe->ctrl.data[2] = htonl(8);
+			comp = NUM_TX_WRE_TO_SIGNAL_MAX;
+		}
+		else
+			wqe->ctrl.data[2] = 0;
+	}
+	m_sq_hot_wqe = &(*m_mlx5_sq_wqes)[0];
+	m_sq_hot_wqe->ctrl.data[0] = htonl(MLX5_OPCODE_SEND);
+	m_sq_hot_wqe_index = 0;
+	qp_logdbg("%p: allocated and configured %u WRs", this, m_tx_num_wr);
+}
+#endif // DEFINED_VMAPOLL
+
+// REVIEW - qp_mgr::send() should be redesigend between master/slave. 
+// Most of the code before the merge is the same
 int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 {
-	vma_ibv_send_wr *bad_wr = NULL;
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t *)p_send_wqe->wr_id;
 	bool is_signaled;
 	int ret;
 
-	qp_logfunc("");
-
+#ifdef DEFINED_VMAPOLL
+	is_signaled = ++m_n_unsignaled_count >= NUM_TX_WRE_TO_SIGNAL_MAX;	
+#else
 	is_signaled = ++m_n_unsignaled_count >= m_n_sysvar_tx_num_wr_to_signal;
+#endif
+
 
 	// Link this new mem_buf_desc to the previous one sent
 	p_mem_buf_desc->p_next_desc = m_p_last_tx_mem_buf_desc;
@@ -508,7 +628,9 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 	if (is_signaled) {
 		m_n_unsignaled_count = 0;
 		m_p_last_tx_mem_buf_desc = NULL;
+#ifndef DEFINED_VMAPOLL	// not defined
 		vma_send_wr_send_flags(*p_send_wqe) = (vma_ibv_send_flags)(vma_send_wr_send_flags(*p_send_wqe) | VMA_IBV_SEND_SIGNALED);
+#endif		
 		qp_logfunc("IBV_SEND_SIGNALED");
 
 		if (m_p_ahc_head) { // need to destroy ah
@@ -524,15 +646,24 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 	}
 	++m_n_tx_count;
 
-/*	ibv_send_wr send_wr = *p_send_wqe;
-	vlog_printf(VLOG_WARNING, MODULE_NAME ":%d: tx packet info (buf->%p, bufsize=%d)\n", __LINE__, (void*)send_wr.sg_list[0].addr, send_wr.sg_list[0].length);
-	vlog_print_buffer(VLOG_WARNING, "tx packet data: ", "\n", (const char*)((void*)send_wr.sg_list[0].addr), min(112, (int)send_wr.sg_list[0].length));
-*/
-	
 #ifdef VMA_TIME_MEASURE
 	TAKE_T_TX_POST_SEND_START;
 #endif
 
+#ifdef DEFINED_VMAPOLL
+#ifdef RDTSC_MEASURE_TX_VERBS_POST_SEND
+	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_TX_VERBS_POST_SEND]);
+#endif //RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
+	mlx5_send(p_send_wqe);
+#ifdef RDTSC_MEASURE_TX_VERBS_POST_SEND
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_TX_VERBS_POST_SEND]);
+#endif //RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
+
+#ifdef RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND]);
+#endif //RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
+#else // DEFINED_VMAPOLLL
+	vma_ibv_send_wr *bad_wr = NULL;
 	IF_VERBS_FAILURE(vma_ibv_post_send(m_qp, p_send_wqe, &bad_wr)) {
 #ifdef VMA_TIME_MEASURE
 		INC_ERR_TX_COUNT;
@@ -544,6 +675,7 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 		}
 		return -1;
 	} ENDIF_VERBS_FAILURE;
+#endif // DEFINED_VMAPOLL
 
 #ifdef VMA_TIME_MEASURE
 	TAKE_T_TX_POST_SEND_END;
@@ -552,7 +684,9 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 	if (is_signaled) {
 
 		// Clear the SINGAL request
+#ifndef DEFINED_VMAPOLL	// not defined
 		vma_send_wr_send_flags(*p_send_wqe) = (vma_ibv_send_flags)(vma_send_wr_send_flags(*p_send_wqe) & ~VMA_IBV_SEND_SIGNALED);
+#endif // DEFINED_VMAPOLL				
 
 		// Poll the Tx CQ
 		uint64_t dummy_poll_sn = 0;
@@ -567,7 +701,9 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 	}
 
 	return 0;
+
 }
+
 
 void qp_mgr_eth::modify_qp_to_ready_state()
 {
@@ -581,6 +717,7 @@ void qp_mgr_eth::modify_qp_to_ready_state()
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 	}
+
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if ((ret = priv_ibv_modify_qp_from_init_to_rts(m_qp)) != 0) {
 		qp_logpanic("failed to modify QP from INIT to RTS state (ret = %d)", ret);

@@ -48,6 +48,57 @@
 
 #include <stdint.h>
 #include <unistd.h>
+#ifdef DEFINED_VMAPOLL
+#include "utils/rdtsc.h"
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+#include "src/vlogger/vlogger.h"
+
+#ifdef RDTSC_MEASURE
+void init_rdtsc();
+void print_rdtsc_summary();
+
+#define RDTSC_PRINT_RATIO 100000
+#define RDTSC_TAKE_START(instr) gettimeoftsc(&instr.start)
+#define RDTSC_TAKE_END(instr) gettimeoftsc(&instr.end);    								               \
+		instr.cycles += (instr.end < instr.start - g_rdtsc_cost)?0:(instr.end - instr.start - g_rdtsc_cost);                   \
+		instr.counter++;											               \
+		if (instr.print_ratio && instr.counter%instr.print_ratio == 0) {					   	       \
+			uint64_t avg = instr.cycles/instr.counter; 								       \
+			vlog_printf(VLOG_ERROR,"%s: %" PRIu64 " \n", g_rdtsc_flow_names[instr.trace_log_idx], avg);                    \
+		} 														       \
+
+enum rdtsc_flow_type {
+	RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND = 0,
+	RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM = 1,
+	RDTSC_FLOW_TX_VERBS_POST_SEND = 2,
+	RDTSC_FLOW_RX_VERBS_IDLE_POLL = 3,
+	RDTSC_FLOW_RECEIVEFROM_TO_SENDTO = 4,
+	RDTSC_FLOW_MEASURE_RX_LWIP = 5,
+	RDTSC_FLOW_RX_DISPATCH_PACKET = 6,
+	RDTSC_FLOW_PROCCESS_RX_BUFFER_TO_RECIVEFROM = 7,
+	RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL = 8,
+	RDTSC_FLOW_RX_READY_POLL_TO_LWIP = 9,
+	RDTSC_FLOW_RX_LWIP_TO_RECEVEFROM = 10,
+	RDTSC_FLOW_RX_VERBS_READY_POLL = 11,
+	RDTSC_FLOW_MAX = 12
+};
+
+typedef struct instr_info {
+	tscval_t start;
+	tscval_t end;
+	uint64_t cycles;
+	uint64_t counter;
+	uint64_t print_ratio;
+	uint16_t trace_log_idx;
+} instr_info;
+
+extern uint16_t g_rdtsc_cost;
+extern char g_rdtsc_flow_names[RDTSC_FLOW_MAX][256];
+extern instr_info g_rdtsc_instr_info_arr[RDTSC_FLOW_MAX];
+
+#endif //RDTS_MEASURE
+#endif // DEFINED_VMAPOLL
 
 //#define VMA_TIME_MEASURE 1
 #ifdef VMA_TIME_MEASURE
@@ -55,7 +106,7 @@
 #define POLL_START		0
 #define CQ_IN_START		1
 #define POLL_END		2
-#define RX_START		3     
+#define RX_START		3
 #define RX_END			4
 #define TX_START		5
 #define TX_POST_SEND_START	6

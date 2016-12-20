@@ -354,6 +354,14 @@ int socket_fd_api::free_packets(struct vma_packet_t *pkts, size_t count)
 	return -1;
 }
 
+#ifdef DEFINED_VMAPOLL 
+int socket_fd_api::free_buffs(uint16_t len)
+{
+	NOT_IN_USE(len);
+	return -1;
+}
+#endif // DEFINED_VMAPOLL 
+
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif
