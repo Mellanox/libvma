@@ -1,3 +1,14 @@
+Version 8.2.2-0:
+Date + Time 2016-12-20
+=======================
+Added:
+        - RM #768398 Peer-notification daemon implementation (on half-open TCP connections)
+        - RM #842842 Move udp rx hw timestamp conversion from cq_mgr to sockinfo_udp
+        - RM #825055 Implement "Dummy Send" for improving low msg rate latency
+
+Fixed:
+        - RM #910917 Fix vma crash after installing libvma from GitHub on RH7.3 inbox drivers
+
 Version 8.2.1-0:
 Date + Time 2016-12-14
 =======================
