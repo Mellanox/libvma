@@ -36,7 +36,6 @@ if [ $rc -gt 0 ]; then
     do_err "cppcheck" "${cppcheck_dir}/cppcheck.err"
     info="cppcheck found $nerrors errors"
     status="error"
-    do_err "$1" "${5}.err"
 else
     echo ok 1 cppcheck found no issues >> $cppcheck_tap
     info="cppcheck found no issues"

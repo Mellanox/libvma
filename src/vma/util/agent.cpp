@@ -53,6 +53,10 @@
 #undef  MODULE_HDR
 #define MODULE_HDR      MODULE_NAME "%d:%s() "
 
+#define AGENT_DEFAULT_MSG_NUM    (512)
+#define AGENT_DEFAULT_MSG_GROW   (16)
+#define AGENT_DEFAULT_INACTIVE   (10)
+#define AGENT_DEFAULT_ALIVE      (10)
 
 /* Force system call */
 #define sys_call(_result, _func, ...) \
@@ -82,12 +86,14 @@ agent* g_p_agent = NULL;
 
 agent::agent() :
 		m_state(AGENT_CLOSED), m_sock_fd(-1), m_pid_fd(-1),
-		m_msg_num(512), m_msg_grow(16)
+		m_msg_num(AGENT_DEFAULT_MSG_NUM), m_msg_grow(AGENT_DEFAULT_MSG_GROW),
+		m_inactive_treshold(AGENT_DEFAULT_INACTIVE), m_alive_treshold(AGENT_DEFAULT_ALIVE)
 {
 	int rc = 0;
 	agent_msg_t *msg = NULL;
 	int i = 0;
 
+	INIT_LIST_HEAD(&m_cb_queue);
 	INIT_LIST_HEAD(&m_free_queue);
 	INIT_LIST_HEAD(&m_wait_queue);
 
@@ -104,6 +110,7 @@ agent::agent() :
 			goto err;
 		}
 		msg->length = 0;
+		msg->tag = AGENT_MSG_TAG_INVALID;
 		list_add_tail(&msg->item, &m_free_queue);
 		m_msg_num++;
 	}
@@ -199,6 +206,7 @@ err:
 agent::~agent()
 {
 	agent_msg_t *msg = NULL;
+	agent_callback_t *cb = NULL;
 
 	if (AGENT_CLOSED == m_state) {
 		return ;
@@ -213,6 +221,12 @@ agent::~agent()
 	 * before event from system file monitor is raised
 	 */
 	usleep(1000);
+
+	while (!list_empty(&m_cb_queue)) {
+		cb = list_first_entry(&m_cb_queue, agent_callback_t, item);
+		list_del_init(&cb->item);
+		free(cb);
+	}
 
 	while (!list_empty(&m_free_queue)) {
 		msg = list_first_entry(&m_free_queue, agent_msg_t, item);
@@ -235,18 +249,185 @@ agent::~agent()
 	}
 }
 
+void agent::register_cb(agent_cb_t fn, void *arg)
+{
+	agent_callback_t *cb = NULL;
+	struct list_head *entry = NULL;
+
+	if (AGENT_CLOSED == m_state) {
+		return ;
+	}
+
+	if (NULL == fn) {
+		return ;
+	}
+
+	m_cb_lock.lock();
+	/* check if it exists in the queue */
+	list_for_each(entry, &m_cb_queue) {
+		cb = list_entry(entry, agent_callback_t, item);
+		if ((cb->cb == fn) && (cb->arg == arg)) {
+			m_cb_lock.unlock();
+			return ;
+		}
+	}
+	/* allocate new callback element and add to the queue */
+	cb = (agent_callback_t *)calloc(1, sizeof(*cb));
+	if (cb) {
+		cb->cb = fn;
+		cb->arg = arg;
+		list_add_tail(&cb->item, &m_cb_queue);
+	}
+	m_cb_lock.unlock();
+	/* coverity[leaked_storage] */
+}
+
+void agent::unregister_cb(agent_cb_t fn, void *arg)
+{
+	agent_callback_t *cb = NULL;
+	struct list_head *entry = NULL;
+
+	if (AGENT_CLOSED == m_state) {
+		return ;
+	}
+
+	m_cb_lock.lock();
+	/* find element in the queue and remove one */
+	list_for_each(entry, &m_cb_queue) {
+		cb = list_entry(entry, agent_callback_t, item);
+		if ((cb->cb == fn) && (cb->arg == arg)) {
+			list_del_init(&cb->item);
+			free(cb);
+			m_cb_lock.unlock();
+			return ;
+		}
+	}
+	m_cb_lock.unlock();
+}
+
+int agent::put(const void *data, size_t length, intptr_t tag)
+{
+	agent_msg_t *msg = NULL;
+	int i = 0;
+
+	if (AGENT_CLOSED == m_state) {
+		return 0;
+	}
+
+	if (m_sock_fd < 0) {
+		return -EBADF;
+	}
+
+	if (length > sizeof(msg->data)) {
+		return -EINVAL;
+	}
+
+	m_msg_lock.lock();
+
+	/* put any message in case agent is active to avoid queue uncontrolled grow
+         * progress() function is able to call registered callbacks in case
+         * it detects that link with daemon is up
+         */
+	if (AGENT_ACTIVE == m_state) {
+		/* allocate new message in case free queue is empty */
+		if (list_empty(&m_free_queue)) {
+			for (i = 0; i < m_msg_grow; i++) {
+				/* coverity[overwrite_var] */
+				msg = (agent_msg_t *)malloc(sizeof(*msg));
+				if (NULL == msg) {
+					break;
+				}
+				msg->length = 0;
+				msg->tag = AGENT_MSG_TAG_INVALID;
+				list_add_tail(&msg->item, &m_free_queue);
+				m_msg_num++;
+			}
+		}
+		/* get message from free queue */
+		/* coverity[overwrite_var] */
+		msg = list_first_entry(&m_free_queue, agent_msg_t, item);
+		list_del_init(&msg->item);
+
+		/* put message into wait queue */
+		list_add_tail(&msg->item, &m_wait_queue);
+	}
+
+	/* update message */
+	if (msg) {
+		memcpy(&msg->data, data, length);
+		msg->length = length;
+		msg->tag = tag;
+	}
+
+	m_msg_lock.unlock();
+
+	return 0;
+}
+
 void agent::progress(void)
 {
 	agent_msg_t* msg = NULL;
+	struct timeval tv_now = TIMEVAL_INITIALIZER;
+	static struct timeval tv_inactive_elapsed = TIMEVAL_INITIALIZER;
+	static struct timeval tv_alive_elapsed = TIMEVAL_INITIALIZER;
 
-	lock();
-	while (!list_empty(&m_wait_queue)) {
-		msg = list_first_entry(&m_wait_queue, agent_msg_t, item);
-		list_del_init(&msg->item);
-		send(msg);
-		list_add_tail(&msg->item, &m_free_queue);
+	if (AGENT_CLOSED == m_state) {
+		return ;
 	}
-	unlock();
+
+	gettime(&tv_now);
+
+	/* Attempt to establish connection with daemon */
+	if (AGENT_INACTIVE == m_state) {
+		/* Attempt can be done less often than progress in active state */
+		if (tv_cmp(&tv_inactive_elapsed, &tv_now, <)) {
+			tv_inactive_elapsed = tv_now;
+			tv_inactive_elapsed.tv_sec += m_inactive_treshold;
+			if (0 == send_msg_init()) {
+				progress_cb();
+				goto go;
+			}
+		}
+		return ;
+	}
+
+go:
+	/* Check connection with daemon during active state */
+	if (list_empty(&m_wait_queue)) {
+		if (tv_cmp(&tv_alive_elapsed, &tv_now, <)) {
+			check_link();
+		}
+	} else {
+		tv_alive_elapsed = tv_now;
+		tv_alive_elapsed.tv_sec += m_alive_treshold;
+
+		/* Process all messages that are in wait queue */
+		m_msg_lock.lock();
+		while (!list_empty(&m_wait_queue)) {
+			msg = list_first_entry(&m_wait_queue, agent_msg_t, item);
+			if (0 != send(msg)) {
+				break;
+			}
+			list_del_init(&msg->item);
+			msg->length = 0;
+			msg->tag = AGENT_MSG_TAG_INVALID;
+			list_add_tail(&msg->item, &m_free_queue);
+		}
+		m_msg_lock.unlock();
+	}
+}
+
+void agent::progress_cb(void)
+{
+	agent_callback_t *cb = NULL;
+	struct list_head *entry = NULL;
+
+	m_cb_lock.lock();
+	list_for_each(entry, &m_cb_queue) {
+		cb = list_entry(entry, agent_callback_t, item);
+		cb->cb(cb->arg);
+	}
+	m_cb_lock.unlock();
 }
 
 int agent::send(agent_msg_t *msg)
@@ -271,6 +452,7 @@ int agent::send(agent_msg_t *msg)
 		__log_dbg("Failed to send() errno %d (%s)",
 				errno, strerror(errno));
 		rc = -errno;
+		m_state = AGENT_INACTIVE;
 		goto err;
 	}
 
@@ -284,6 +466,10 @@ int agent::send_msg_init(void)
 	struct sockaddr_un server_addr;
 	struct vma_msg_init data;
 	uint8_t *version;
+
+	if (AGENT_ACTIVE == m_state) {
+		return 0;
+	}
 
 	if (m_sock_fd < 0) {
 		return -EBADF;
@@ -382,46 +568,7 @@ int agent::send_msg_exit(void)
 		goto err;
 	}
 
-err:
-	return rc;
-}
-
-int agent::send_msg_state(uint32_t fid, uint8_t st, uint8_t type,
-		uint32_t src_ip, uint16_t src_port,
-		uint32_t dst_ip, uint16_t dst_port)
-{
-	int rc = 0;
-	struct vma_msg_state data;
-
-	if (AGENT_ACTIVE != m_state) {
-		return -ENODEV;
-	}
-
-	if (m_sock_fd < 0) {
-		return -EBADF;
-	}
-
-	memset(&data, 0, sizeof(data));
-	data.hdr.code = VMA_MSG_STATE;
-	data.hdr.ver = VMA_AGENT_VER;
-	data.hdr.pid = getpid();
-	data.fid = fid;
-	data.state = st;
-	data.type = type;
-	data.src_ip = src_ip;
-	data.src_port = src_port;
-	data.dst_ip = dst_ip;
-	data.dst_port = dst_port;
-
-	/* send(VMA_MSG_STATE) in blocking manner */
-	sys_call(rc, send, m_sock_fd, &data, sizeof(data), 0);
-	if (rc < 0) {
-		__log_dbg("Failed to send(VMA_MSG_STATE) errno %d (%s)",
-				errno, strerror(errno));
-		rc = -errno;
-		goto err;
-	}
-
+	return 0;
 err:
 	return rc;
 }
@@ -534,4 +681,27 @@ int agent::create_agent_socket(void)
 
 err:
 	return rc;
+}
+
+void agent::check_link(void)
+{
+	int rc = 0;
+	static struct sockaddr_un server_addr;
+	static int flag = 0;
+
+	/* Set server address */
+	if (!flag) {
+		flag = 1;
+		memset(&server_addr, 0, sizeof(server_addr));
+		server_addr.sun_family = AF_UNIX;
+		strncpy(server_addr.sun_path, VMA_AGENT_ADDR, sizeof(server_addr.sun_path) - 1);
+	}
+
+	sys_call(rc, connect, m_sock_fd, (struct sockaddr *)&server_addr,
+			sizeof(struct sockaddr_un));
+	if (rc < 0) {
+		__log_dbg("Failed to connect() errno %d (%s)\n",
+				errno, strerror(errno));
+		m_state = AGENT_INACTIVE;
+	}
 }
