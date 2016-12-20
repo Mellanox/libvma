@@ -436,6 +436,7 @@ void mce_sys_var::get_env_params()
 		tx_num_segs_tcp         = 512; //MCE_DEFAULT_TX_NUM_SEGS_TCP (1000000)
 		rx_num_bufs             = 1024; //MCE_DEFAULT_RX_NUM_BUFS (200000)
 		tx_num_bufs             = 512; //MCE_DEFAULT_TX_NUM_BUFS (200000)
+		rx_num_wr               = 256; //MCE_DEFAULT_RX_NUM_WRE (16000)
 		break;
 
 	case MCE_SPEC_29WEST_LBM_29:
@@ -485,6 +486,7 @@ void mce_sys_var::get_env_params()
 		strcpy(internal_thread_affinity_str, "0x3"); // MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR(-1), first 2 cores
 		tcp_3t_rules              = true; //MCE_DEFAULT_TCP_3T_RULES(false), Use only 3 tuple rules for TCP
 		buffer_batching_mode      = BUFFER_BATCHING_NONE; //MCE_DEFAULT_BUFFER_BATCHING_MODE(BUFFER_BATCHING_WITH_RECLAIM), Disable handling control packets on a separate thread
+		tcp_ctl_thread            = CTL_THREAD_NO_WAKEUP; //MCE_DEFAULT_TCP_CTL_THREAD (CTL_THREAD_DISABLE), wait for thread timer to expire
 		break;
 		
 	case 0:
