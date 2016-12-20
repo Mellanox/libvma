@@ -971,7 +971,7 @@ err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rex
 			(AGENT_ACTIVE == g_p_agent->state()))) {
 		agent_msg_t *msg = NULL;
 
-		msg = g_p_agent->get_msg();
+		msg = g_p_agent->alloc_msg();
 		if (msg) {
 			struct vma_msg_state *data = NULL;
 
@@ -4500,9 +4500,7 @@ void tcp_timers_collection::handle_timer_expired(void* user_data)
 	m_n_location = (m_n_location + 1) % m_n_intervals_size;
 
 	/* Processing all messages for the daemon */
-	if (AGENT_ACTIVE == g_p_agent->state()) {
-		g_p_agent->progress();
-	}
+	g_p_agent->progress();
 }
 
 void tcp_timers_collection::add_new_timer(timer_node_t* node, timer_handler* handler, void* user_data)

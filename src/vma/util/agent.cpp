@@ -77,7 +77,7 @@ agent* g_p_agent = NULL;
 
 agent::agent() :
 		m_state(AGENT_CLOSED), m_sock_fd(-1), m_pid_fd(-1),
-		m_msg_num(512), m_msg_grow(16)
+		m_msg_num(512), m_msg_grow(16), m_interval_treshold(10)
 {
 	int rc = 0;
 	agent_msg_t *msg = NULL;
@@ -230,12 +230,29 @@ agent::~agent()
 void agent::progress(void)
 {
 	agent_msg_t* msg = NULL;
+	struct timeval tv_now = TIMEVAL_INITIALIZER;
+	static struct timeval tv_elapsed = TIMEVAL_INITIALIZER;
 
+	/* Attempt to establish connection with daemon */
+	if (AGENT_INACTIVE == m_state) {
+		gettime(&tv_now);
+		if (tv_cmp(&tv_elapsed, &tv_now, <)) {
+			tv_elapsed = tv_now;
+			tv_elapsed.tv_sec += m_interval_treshold;
+			if (0 != send_msg_init()) {
+				return ;
+			}
+		}
+	}
+
+	/* Process all messages that are in wait queue */
 	lock();
 	while (!list_empty(&m_wait_queue)) {
 		msg = list_first_entry(&m_wait_queue, agent_msg_t, item);
+		if (0 != send(msg)) {
+			break;
+		}
 		list_del_init(&msg->item);
-		send(msg);
 		list_add_tail(&msg->item, &m_free_queue);
 	}
 	unlock();
@@ -263,9 +280,11 @@ int agent::send(agent_msg_t *msg)
 		__log_dbg("Failed to send() errno %d (%s)\n",
 				errno, strerror(errno));
 		rc = -errno;
+		m_state = AGENT_INACTIVE;
 		goto err;
 	}
 
+	return 0;
 err:
 	return rc;
 }
@@ -276,6 +295,10 @@ int agent::send_msg_init(void)
 	struct sockaddr_un server_addr;
 	struct vma_msg_init data;
 	uint8_t *version;
+
+	if (AGENT_ACTIVE == m_state) {
+		return 0;
+	}
 
 	if (m_sock_fd < 0) {
 		return -EBADF;
@@ -334,7 +357,7 @@ int agent::send_msg_init(void)
 	}
 
 	m_state = AGENT_ACTIVE;
-
+	return 0;
 err:
 	return rc;
 }
@@ -368,46 +391,7 @@ int agent::send_msg_exit(void)
 		goto err;
 	}
 
-err:
-	return rc;
-}
-
-int agent::send_msg_state(uint32_t fid, uint8_t st, uint8_t type,
-		uint32_t src_ip, uint16_t src_port,
-		uint32_t dst_ip, uint16_t dst_port)
-{
-	int rc = 0;
-	struct vma_msg_state data;
-
-	if (AGENT_ACTIVE != m_state) {
-		return -ENODEV;
-	}
-
-	if (m_sock_fd < 0) {
-		return -EBADF;
-	}
-
-	memset(&data, 0, sizeof(data));
-	data.hdr.code = VMA_MSG_STATE;
-	data.hdr.ver = VMA_AGENT_VER;
-	data.hdr.pid = getpid();
-	data.fid = fid;
-	data.state = st;
-	data.type = type;
-	data.src_ip = src_ip;
-	data.src_port = src_port;
-	data.dst_ip = dst_ip;
-	data.dst_port = dst_port;
-
-	/* send(VMA_MSG_STATE) in blocking manner */
-	sys_call(rc, send, m_sock_fd, &data, sizeof(data), 0);
-	if (rc < 0) {
-		__log_dbg("Failed to send(VMA_MSG_STATE) errno %d (%s)\n",
-				errno, strerror(errno));
-		rc = -errno;
-		goto err;
-	}
-
+	return 0;
 err:
 	return rc;
 }

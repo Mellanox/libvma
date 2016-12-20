@@ -69,7 +69,7 @@ public:
 		unlock();
 	}
 
-	inline agent_msg_t* get_msg(void)
+	inline agent_msg_t* alloc_msg(void)
 	{
 		agent_msg_t *msg = NULL;
 		int i = 0;
@@ -77,7 +77,6 @@ public:
 		lock();
 		if (list_empty(&m_free_queue)) {
 			for (i = 0; i < m_msg_grow; i++) {
-				/* coverity[overwrite_var] */
 				msg = (agent_msg_t *)malloc(sizeof(*msg));
 				if (NULL == msg) {
 					break;
@@ -87,7 +86,6 @@ public:
 				m_msg_num++;
 			}
 		}
-		/* coverity[overwrite_var] */
 		msg = list_first_entry(&m_free_queue, agent_msg_t, item);
 		msg->length = 0;
 		list_del_init(&msg->item);
@@ -132,13 +130,13 @@ private:
 	/* number of messages to grow */
 	int m_msg_grow;
 
+	/* periodic time for establishment connection attempts (in sec) */
+	int m_interval_treshold;
+
 	int create_agent_socket(void);
 	int send(agent_msg_t *msg);
 	int send_msg_init(void);
 	int send_msg_exit(void);
-	int send_msg_state(uint32_t fid, uint8_t st, uint8_t type,
-			uint32_t src_ip, uint16_t src_port,
-			uint32_t dst_ip, uint16_t dst_port);
 };
 
 extern agent* g_p_agent;
