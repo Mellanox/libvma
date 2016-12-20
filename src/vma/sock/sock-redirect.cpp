@@ -50,10 +50,18 @@
 #include <vma/proto/route_table_mgr.h>
 #include <vma/proto/vma_lwip.h>
 #include <vma/main.h>
-#include <vma/vma_extra.h>
+#ifdef DEFINED_VMAPOLL
+#include "vma/vmapoll_extra.h"
+#else
+#include "vma/vma_extra.h"
+#endif // DEFINED_VMAPOLL
+
+
+
 #include <vma/sock/sockinfo_tcp.h>
 
 #include "fd_collection.h"
+#include "vma/util/instrumentation.h"
 
 using namespace std;
 
@@ -359,6 +367,153 @@ int vma_free_packets(int __fd, struct vma_packet_t *pkts, size_t count)
 	return -1;
 }
 
+#ifdef DEFINED_VMAPOLL
+extern "C"
+int vma_poll(int fd, struct vma_completion_t* completions, unsigned int ncompletions, int flags)
+{
+	int ret_val = -1;
+	cq_channel_info* cq_ch_info = NULL;
+
+	cq_ch_info = g_p_fd_collection->get_cq_channel_fd(fd);
+
+	if (likely(cq_ch_info)) {
+		ring* p_ring = cq_ch_info->get_ring();
+
+		ret_val = p_ring->vma_poll(completions, ncompletions, flags);
+#ifdef RDTSC_MEASURE_RX_PROCCESS_BUFFER_TO_RECIVEFROM
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_PROCCESS_RX_BUFFER_TO_RECIVEFROM]);
+#endif //RDTSC_MEASURE_RX_PROCCESS_BUFFER_TO_RECIVEFROM
+
+#ifdef RDTSC_MEASURE_RX_LWIP_TO_RECEVEFROM
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_LWIP_TO_RECEVEFROM]);
+#endif //RDTSC_MEASURE_RX_LWIP_TO_RECEVEFROM
+
+#ifdef RDTSC_MEASURE_RX_CQE_RECEIVEFROM
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM]);
+#endif //RDTSC_MEASURE_RX_CQE_RECEIVEFROM
+
+#ifdef RDTSC_MEASURE_RECEIVEFROM_TO_SENDTO
+	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RECEIVEFROM_TO_SENDTO]);
+#endif //RDTSC_MEASURE_RECEIVEFROM_TO_SENDTO
+	return ret_val;
+	}
+	else {
+		errno = EBADFD;
+		return ret_val;
+	}
+}
+#endif // DEFINED_VMAPOLL
+
+#ifdef DEFINED_VMAPOLL
+extern "C"
+int vma_free_vma_packets(struct vma_packet_desc_t *packets, int num)
+{
+	mem_buf_desc_t* desc = NULL;
+	socket_fd_api* p_socket_object = NULL;
+
+	if (likely(packets)) {
+		for (int i = 0; i < num; i++) {
+			desc = (mem_buf_desc_t*)packets[i].buff_lst;
+			if (desc) {
+				p_socket_object = (socket_fd_api*)desc->path.rx.context;
+				ring* rng = (ring*)desc->p_desc_owner;
+				if (p_socket_object) {
+					p_socket_object->free_buffs(packets[i].total_len);
+				}
+				if (rng) {
+					rng->vma_poll_reclaim_recv_buffers(desc);
+				} else {
+					goto err;
+				}
+			} else {
+				goto err;
+			}
+		}
+	}
+	else {
+		goto err;
+	}
+
+	return 0;
+
+err:
+	errno = EINVAL;
+	return -1;
+}
+#endif // DEFINED_VMAPOLL
+
+#ifdef DEFINED_VMAPOLL
+extern "C"
+int vma_buff_ref(vma_buff_t *buff)
+{
+	int ret_val = 0;
+	mem_buf_desc_t* desc = NULL;
+
+	if (likely(buff)) {
+		desc = (mem_buf_desc_t*)buff;
+		ret_val = desc->lwip_pbuf_inc_ref_count();
+	}
+	else {
+		errno = EINVAL;
+		ret_val = -1;
+	}
+	return ret_val;
+}
+#endif // DEFINED_VMAPOLL
+
+#ifdef DEFINED_VMAPOLL
+extern "C"
+int vma_buff_free(vma_buff_t *buff)
+{
+	int ret_val = 0;
+	mem_buf_desc_t* desc = NULL;
+
+	if (likely(buff)) {
+		desc = (mem_buf_desc_t*)buff;
+		ring* rng = (ring*)desc->p_desc_owner;
+		ret_val = rng->vma_poll_reclaim_single_recv_buffer(desc);
+	}
+	else {
+		errno = EINVAL;
+		ret_val = -1;
+	}
+	return ret_val;
+}
+#endif // DEFINED_VMAPOLL
+
+#ifdef DEFINED_VMAPOLL
+extern "C"
+int vma_get_socket_rings_num(int fd)
+{
+	socket_fd_api* p_socket_object = NULL;
+	p_socket_object = fd_collection_get_sockfd(fd);
+
+	return p_socket_object->get_rings_num();
+
+}
+#endif // DEFINED_VMAPOLL
+
+#ifdef DEFINED_VMAPOLL
+extern "C"
+int vma_get_socket_rings_fds(int fd, int *ring_fds, int ring_fds_sz)
+{
+	int* p_rings_fds = NULL;
+	socket_fd_api* p_socket_object = NULL;
+	int rings_num = 0;
+
+	if (ring_fds_sz > 0) {
+		p_socket_object = fd_collection_get_sockfd(fd);
+		if (p_socket_object && p_socket_object->check_rings()) {
+				p_rings_fds = p_socket_object->get_rings_fds();
+				*ring_fds = p_rings_fds[0];
+				rings_num = 1;
+		}
+	}
+
+	return rings_num;
+}
+#endif // DEFINED_VMAPOLL
+
 extern "C"
 int vma_add_conf_rule(char *config_line)
 {
@@ -391,6 +546,9 @@ int vma_thread_offload(int offload, pthread_t tid)
 extern "C"
 int vma_dump_fd_stats(int fd, int log_level)
 {
+#ifdef DEFINED_VMAPOLL
+	return 0;
+#endif // DEFINED_VMAPOLL
 	do_global_ctors();
 
 	if (g_p_fd_collection) {
@@ -697,7 +855,16 @@ int getsockopt(int __fd, int __level, int __optname,
 		vma_api->free_packets = vma_free_packets;
 		vma_api->add_conf_rule = vma_add_conf_rule;
 		vma_api->thread_offload = vma_thread_offload;
+#ifdef DEFINED_VMAPOLL
+		vma_api->get_socket_rings_num = vma_get_socket_rings_num;
+		vma_api->get_socket_rings_fds = vma_get_socket_rings_fds;
+		vma_api->free_vma_packets = vma_free_vma_packets;
+		vma_api->vma_poll = vma_poll;
+		vma_api->ref_vma_buff = vma_buff_ref;
+		vma_api->free_vma_buff = vma_buff_free;
+#else
 		vma_api->dump_fd_stats = vma_dump_fd_stats;
+#endif // DEFINED_VMAPOLL		
 		*((vma_api_t**)__optval) = vma_api;
 		return 0;
 	}
@@ -1120,6 +1287,8 @@ extern "C"
 ssize_t recvfrom(int __fd, void *__buf, size_t __nbytes, int __flags,
 		 struct sockaddr *__from, socklen_t *__fromlen)
 {
+	ssize_t ret_val = 0;
+
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.recvfrom) get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -1132,10 +1301,29 @@ ssize_t recvfrom(int __fd, void *__buf, size_t __nbytes, int __flags,
 		struct iovec piov[1];
 		piov[0].iov_base = __buf;
 		piov[0].iov_len = __nbytes;
-		return p_socket_object->rx(RX_RECVFROM, piov, 1, &__flags, __from, __fromlen);
+		ret_val = p_socket_object->rx(RX_RECVFROM, piov, 1, &__flags, __from, __fromlen);
 	}
+	else {
+		ret_val = orig_os_api.recvfrom(__fd, __buf, __nbytes, __flags, __from, __fromlen);;
+	}
+#ifdef DEFINED_VMAPOLL
+#ifdef RDTSC_MEASURE_RX_PROCCESS_BUFFER_TO_RECIVEFROM
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_PROCCESS_RX_BUFFER_TO_RECIVEFROM]);
+#endif //RDTSC_MEASURE_RX_PROCCESS_BUFFER_TO_RECIVEFROM
 
-	return orig_os_api.recvfrom(__fd, __buf, __nbytes, __flags, __from, __fromlen);
+#ifdef RDTSC_MEASURE_RX_LWIP_TO_RECEVEFROM
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_LWIP_TO_RECEVEFROM]);
+#endif //RDTSC_MEASURE_RX_LWIP_TO_RECEVEFROM
+
+#ifdef RDTSC_MEASURE_RX_CQE_RECEIVEFROM
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM]);
+#endif //RDTSC_MEASURE_RX_CQE_RECEIVEFROM
+
+#ifdef RDTSC_MEASURE_RECEIVEFROM_TO_SENDTO
+	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RECEIVEFROM_TO_SENDTO]);
+#endif //RDTSC_MEASURE_RECEIVEFROM_TO_SENDTO
+#endif // DEFINED_VMAPOLL
+	return ret_val;
 }
 
 /* Checks that the buffer is big enough to contain the number of bytes
@@ -1341,6 +1529,15 @@ extern "C"
 ssize_t sendto(int __fd, __const void *__buf, size_t __nbytes, int __flags,
 	       const struct sockaddr *__to, socklen_t __tolen)
 {
+#ifdef DEFINED_VMAPOLL	
+#ifdef RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
+	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND]);
+#endif //RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
+
+#ifdef RDTSC_MEASURE_RECEIVEFROM_TO_SENDTO
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RECEIVEFROM_TO_SENDTO]);
+#endif //RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
+#endif // DEFINED_VMAPOLL
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.sendto) get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -1681,6 +1878,7 @@ int epoll_ctl(int __epfd, int __op, int __fd, struct epoll_event *__event)
    specifies the maximum wait time in milliseconds (-1 == infinite).  */
 inline int epoll_wait_helper(int __epfd, struct epoll_event *__events, int __maxevents, int __timeout, const sigset_t *__sigmask = NULL)
 {
+	// REVIEW: should return error in case of DEFINED_VMAPOLL?
 	if (__maxevents <= 0 || __maxevents > EP_MAX_EVENTS) {
 		srdr_logdbg("invalid value for maxevents: %d", __maxevents);
 		errno = EINVAL;

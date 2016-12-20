@@ -37,6 +37,19 @@
 #include <stdint.h>
 #include <unistd.h>
 
+#define COPY_64B_NT(dst, src)	\
+	*dst++ = *src++;	\
+	*dst++ = *src++;	\
+	*dst++ = *src++;	\
+	*dst++ = *src++;	\
+	*dst++ = *src++;	\
+	*dst++ = *src++;	\
+	*dst++ = *src++;	\
+	*dst++ = *src++
+
+#define wmb()	 asm volatile("sync" ::: "memory")
+#define wc_wmb() wmb()
+
 /**
  * Add to the atomic variable.
  * @param i integer value to add.

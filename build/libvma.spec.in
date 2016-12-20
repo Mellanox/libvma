@@ -79,6 +79,7 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/*.la
 
 install -m 755 tests/vma_perf_envelope/vma_perf_envelope.sh $RPM_BUILD_ROOT/%{vma_datadir}/scripts/vma_perf_envelope.sh
 install -m 644 src/vma/vma_extra.h $RPM_BUILD_ROOT/%{include_dir}/vma_extra.h
+install -m 644 src/vma/vmapoll_extra.h $RPM_BUILD_ROOT/%{include_dir}/vmapoll_extra.h
 install -m 644 src/vma/util/libvma.conf $RPM_BUILD_ROOT/%{_sysconfdir}/
 install -s -m 755 src/stats/vma_stats $RPM_BUILD_ROOT/%{_bindir}/vma_stats
 install -s -m 755 tools/daemon/vmad $RPM_BUILD_ROOT/%{_sbindir}/vmad
@@ -146,6 +147,7 @@ fi
 %files devel
 %defattr(-,root,root,-)
 %{include_dir}/vma_extra.h
+%{include_dir}/vmapoll_extra.h
 
 %files utils
 %defattr(-,root,root)

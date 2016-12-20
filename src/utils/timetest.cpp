@@ -35,7 +35,7 @@
 #include <cstring>
 #include <iostream>
 #include "clock.h"
-#include "rdtsc.h"
+#include "utils/rdtsc.h"
 
 #define ITERATION_NUM 10000000
 #define ITERATION_NUM_LOW_PPS 100

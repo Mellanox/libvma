@@ -38,9 +38,34 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <linux/kernel.h>
+#include <byteswap.h>
 
 #include "utils/types.h"
 #include "utils/bullseye.h"
+#ifndef IN
+#define IN
+#endif
+
+#ifndef OUT
+#define OUT
+#endif
+
+#ifndef INOUT
+#define INOUT
+#endif
+
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+static inline uint64_t htonll(uint64_t x) { return bswap_64(x); }
+static inline uint64_t ntohll(uint64_t x) { return bswap_64(x); }
+#elif __BYTE_ORDER == __BIG_ENDIAN
+static inline uint64_t htonll(uint64_t x) { return x; }
+static inline uint64_t ntohll(uint64_t x) { return x; }
+#else
+#error __BYTE_ORDER is neither __LITTLE_ENDIAN nor __BIG_ENDIAN
+#endif
+
+#define likely(x)			__builtin_expect(!!(x), 1)
+#define unlikely(x)			__builtin_expect(!!(x), 0)
 
 // Check if given IP address is in a specific ip class / range
 #define ZERONET_N(a)			(((long int)(a)) == (long int)(htonl(0x00000000)))

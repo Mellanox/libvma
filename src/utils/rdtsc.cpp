@@ -41,7 +41,7 @@
 
 #include <stdio.h>
 #include <sys/param.h> // for MAX & MIN
-#include "rdtsc.h"
+#include "utils/rdtsc.h"
 
 
 bool get_cpu_hz(double &hz_min, double &hz_max)

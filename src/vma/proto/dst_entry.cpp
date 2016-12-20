@@ -545,10 +545,11 @@ bool dst_entry::prepare_to_send(bool skip_rules, bool is_connect)
 			if (resolve_ring()) {
 				is_ofloaded = true;
 				if (resolve_neigh()) {
-					if (get_obs_transport_type() == VMA_TRANSPORT_ETH)
+					if (get_obs_transport_type() == VMA_TRANSPORT_ETH) {
 						dst_logdbg("local mac: %s peer mac: %s", m_p_net_dev_val->get_l2_address()->to_str().c_str(), m_p_neigh_val->get_l2_address()->to_str().c_str());
-					else
+					} else {
 						dst_logdbg("peer L2 address: %s", m_p_neigh_val->get_l2_address()->to_str().c_str());
+					}
 					configure_headers();
 					m_id = m_p_ring->generate_id(m_p_net_dev_val->get_l2_address()->get_address(),
 								     m_p_neigh_val->get_l2_address()->get_address(),

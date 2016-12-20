@@ -113,10 +113,11 @@ void wakeup_pipe::remove_wakeup_fd()
 	if (orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_DEL, g_wakeup_pipes[0], NULL))
 	{
 		BULLSEYE_EXCLUDE_BLOCK_START
-		if (errno == ENOENT)
+		if (errno == ENOENT) {
 			wkup_logdbg("Failed to delete global pipe from internal epfd it was already deleted");
-		else
+		} else {
 			wkup_logerr("failed to delete global pipe from internal epfd (errno=%d %m)", errno);
+		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 	}
 	errno = tmp_errno;
