@@ -78,7 +78,6 @@
 
 tcp_seg_pool *g_tcp_seg_pool = NULL;
 tcp_timers_collection* g_tcp_timers_collection = NULL;
-
 const char * const tcp_sock_state_str[] = {
   "NA",
   "TCP_SOCK_INITED",
@@ -4403,6 +4402,10 @@ tcp_timers_collection::tcp_timers_collection(int period, int resolution)
 tcp_timers_collection::~tcp_timers_collection()
 {
 	free_tta_resources();
+	if (m_p_intervals) {
+		delete m_p_intervals;
+		m_p_intervals = NULL;
+	}
 }
 
 void tcp_timers_collection::free_tta_resources(void)

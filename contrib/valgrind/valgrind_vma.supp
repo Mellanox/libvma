@@ -1,4 +1,248 @@
-
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_M_lower_bound
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE4findERS1_
+   fun:find
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_M_lower_bound
+   fun:lower_bound
+   fun:lower_bound
+   fun:operator[]
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS3_ERS1_
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE17_M_insert_unique_ESt23_Rb_tree_const_iteratorIS3_ERKS3_
+   fun:insert
+   fun:operator[]
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZSt29_Rb_tree_insert_and_rebalancebPSt18_Rb_tree_node_baseS0_RS_
+   fun:_M_insert_
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE17_M_insert_unique_ESt23_Rb_tree_const_iteratorIS3_ERKS3_
+   fun:insert
+   fun:operator[]
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE4findERS1_
+   fun:find
+}
+{
+   Points_to_uninitialised_bytes
+   Memcheck:Param
+   poll(ufds.fd)
+   obj:*/libc-*
+   fun:_ZN21event_handler_manager38priv_prepare_ibverbs_async_event_queueERSt17_Rb_tree_iteratorISt4pairIKi12event_data_tEE
+}
+{
+   Points_to_uninitialised_bytes
+   Memcheck:Param
+   mmap(length)
+   fun:mmap
+   obj:*/libmlx4-*
+   ...
+   fun:ibv_exp_create_cq
+}
+{
+   Points_to_uninitialised_bytes
+   Memcheck:Param
+   mmap(offset)
+   fun:mmap
+   obj:*/libmlx4-rdmav*
+   ...
+   obj:*/libmlx4-rdmav*
+   fun:ibv_exp_create_cq
+   fun:_ZN20net_device_table_mgr22verify_eth_qp_creationEPKc
+}
+{
+   Points_to_uninitialised_bytes
+   Memcheck:Param
+   madvise(length)
+   fun:madvise
+   obj:*/libibverbs.so.*
+   ...
+   fun:ibv_exp_create_cq
+   fun:_ZN20net_device_table_mgr22verify_eth_qp_creationEPKc
+}
+{
+   Points_to_uninitialised_bytes
+   Memcheck:Param
+   munmap(length)
+   fun:munmap
+   obj:*/libmlx4-*
+   fun:ibv_destroy_cq
+   fun:_ZN20net_device_table_mgr22verify_eth_qp_creationEPKc
+   fun:_ZN20net_device_table_mgr15map_net_devicesEv
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_M_lower_bound
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE4findERS1_
+   fun:find
+   fun:_ZN21event_handler_manager28priv_register_command_eventsER18command_reg_info_t
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_M_lower_bound
+   fun:lower_bound
+   fun:lower_bound
+   fun:operator[]
+   fun:_ZN21event_handler_manager28priv_register_command_eventsER18command_reg_info_t
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS3_ERS1_
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE17_M_insert_unique_ESt23_Rb_tree_const_iteratorIS3_ERKS3_
+   fun:insert
+   fun:operator[]
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZSt29_Rb_tree_insert_and_rebalancebPSt18_Rb_tree_node_baseS0_RS_
+   fun:_M_insert_
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE17_M_insert_unique_ESt23_Rb_tree_const_iteratorIS3_ERKS3_
+   fun:insert
+   fun:operator[]
+}
+{
+   Points_to_uninitialised_bytes
+   Memcheck:Param
+   madvise(length)
+   fun:madvise
+   obj:*/libibverbs.so*
+   ...
+   fun:ibv_exp_create_cq
+   fun:_ZN6cq_mgrC1EP11ring_simpleP14ib_ctx_handleriP16ibv_comp_channelb
+   fun:_ZN6qp_mgr9configureEP16ibv_comp_channel
+   fun:qp_mgr_eth
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZN6cq_mgr4pollEP10ibv_exp_wciPm
+   fun:_ZN6cq_mgr18drain_and_proccessEPm
+   fun:_ZN6qp_mgr18release_rx_buffersEv
+   fun:_ZN6qp_mgr4downEv
+   fun:_ZN11ring_simpleD1Ev
+   fun:~ring_eth
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZN6cq_mgr18drain_and_proccessEPm
+   fun:_ZN6qp_mgr18release_rx_buffersEv
+   fun:_ZN6qp_mgr4downEv
+   fun:_ZN11ring_simpleD1Ev
+   fun:~ring_eth
+}
+{
+   Points_to_uninitialised_bytes
+   Memcheck:Param
+   madvise(length)
+   fun:madvise
+   obj:*/libibverbs.so.*
+   ...
+   fun:ibv_destroy_cq
+   fun:_ZN6cq_mgrD1Ev
+   fun:_ZN6qp_mgrD1Ev
+   fun:~qp_mgr_eth
+}
+{
+   Points_to_uninitialised_bytes
+   Memcheck:Param
+   munmap(length)
+   fun:munmap
+   obj:*/libmlx4-*
+   fun:ibv_destroy_cq
+   fun:_ZN6cq_mgrD1Ev
+   fun:_ZN6qp_mgrD1Ev
+   fun:~qp_mgr_eth
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZN6cq_mgr16statistics_printEv
+   fun:_ZN6cq_mgrD1Ev
+   fun:_ZN6qp_mgrD1Ev
+   fun:~qp_mgr_eth
+   fun:_ZN10qp_mgr_ethD0Ev
+   fun:_ZN11ring_simpleD1Ev
+   fun:~ring_eth
+}
+{
+   Points_to_uninitialised_bytes
+   Memcheck:Param
+   close(fd)
+   obj:*/libpthread-*
+   fun:ibv_close_device
+   obj:*/librdmacm.so.*
+   fun:_dl_fini
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZN6cq_mgr4pollEP10ibv_exp_wciPm
+   fun:_ZN6cq_mgr18drain_and_proccessEPm
+   fun:_ZN6qp_mgr18release_rx_buffersEv
+   fun:_ZN6qp_mgr4downEv
+   fun:_ZN11ring_simpleD1Ev
+   fun:~ring_eth
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZN6cq_mgr18drain_and_proccessEPm
+   fun:_ZN6qp_mgr18release_rx_buffersEv
+   fun:_ZN6qp_mgr4downEv
+   fun:_ZN11ring_simpleD1Ev
+   fun:~ring_eth
+}
+{
+   Points_to_uninitialised_bytes
+   Memcheck:Param
+   madvise(length)
+   fun:madvise
+   obj:*/libibverbs.so*
+   ...
+   fun:ibv_destroy_cq
+   fun:_ZN6cq_mgrD1Ev
+   fun:_ZN6qp_mgrD1Ev
+   fun:~qp_mgr_eth
+}
+{
+   Points_to_uninitialised_bytes
+   Memcheck:Param
+   munmap(length)
+   fun:munmap
+   obj:*/libmlx4-*
+   fun:ibv_destroy_cq
+   fun:_ZN6cq_mgrD1Ev
+   fun:_ZN6qp_mgrD1Ev
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZN6cq_mgr16statistics_printEv
+   fun:_ZN6cq_mgrD1Ev
+   fun:_ZN6qp_mgrD1Ev
+   fun:~qp_mgr_eth
+   fun:_ZN10qp_mgr_ethD0Ev
+   fun:_ZN11ring_simpleD1Ev
+   fun:~ring_eth
+}
 {
    Conditional_on_uninitialised_value
    Memcheck:Cond
@@ -122,40 +366,45 @@
    ...
    fun:~ring_eth
 }
-# Temporarily suppress 120-144 bytes
-# definitely lost for cache entry
 {
-   24 bytes_definitely_lost
-   Memcheck:Leak
-   match-leak-kinds: definite
-   fun:_Znwm
-   fun:do_global_ctors_helper
+   Memcheck:Addr8
+   fun:_M_incr
+   fun:operator++
+   fun:_ZN15cache_table_mgrI9neigh_keyP9neigh_valED1Ev
+   fun:~neigh_table_mgr
+   ...
+   fun:_dl_fini
 }
 {
-   +24 bytes_definitely_lost
-   Memcheck:Leak
-   match-leak-kinds: definite
-   fun:_Znwm
-   fun:build_uc_neigh_val
+   Memcheck:Addr8
+   fun:_M_incr
+   fun:operator++
+   fun:_ZN15cache_table_mgrI10ip_addressP14net_device_valED1Ev
+   ...
+   fun:_dl_fini
 }
 {
-   + bytes_definitely_lost
+   Memcheck:Addr8
+   fun:_M_incr
+   fun:operator++
+   fun:_ZN15cache_table_mgrI20route_rule_table_keyPSt5dequeIP8rule_valSaIS3_EEED1Ev
+   ...
+   fun:_dl_fini
+}
+{
+   Memcheck:Addr8
+   fun:_M_incr
+   fun:operator++
+   fun:_ZN15cache_table_mgrI20route_rule_table_keyP9route_valED1Ev
+   ...
+   fun:_dl_fini
+}
+{
+   Possible_leak_40_bytes
    Memcheck:Leak
    match-leak-kinds: definite
    fun:_Znwm
    fun:_ZN13neigh_eth_valaSERK9neigh_val
+   fun:_ZN11neigh_entry13get_peer_infoEP9neigh_val
+   fun:_ZN9neigh_eth13get_peer_infoEP9neigh_val
 }
-{
-   +96 bytes_definitely_lost
-   Memcheck:Leak
-   match-leak-kinds: definite
-   fun:_Znwm
-   fun:allocate
-   fun:_M_allocate_buckets
-   fun:_Hashtable
-   fun:__unordered_set
-   fun:unordered_set
-   fun:subject
-   fun:cache_entry_subject
-}
-

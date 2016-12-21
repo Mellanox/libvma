@@ -120,12 +120,14 @@ bool g_init_global_ctors_done = true;
 #define MAX_VERSION_STR_LEN	128
 #define MAX_CMD_LINE		2048
 
+command_netlink * g_p_cmd_nl = NULL;
+tcp_timers_collection* g_p_tcp_timers_collection = NULL;
+
 static int free_libvma_resources()
 {
 	vlog_printf(VLOG_DEBUG, "%s: Closing libvma resources\n", __FUNCTION__);
 
 	g_b_exit = true;
-
 	//Triggers connection close, relevant for TCP which may need some time to terminate the connection.
 	//and for any socket that may wait from another thread
 	if (g_p_fd_collection) {
@@ -227,6 +229,9 @@ static int free_libvma_resources()
 
 	if (g_p_agent) delete g_p_agent;
 	g_p_agent = NULL;
+
+	if (g_p_cmd_nl) delete g_p_cmd_nl;
+	g_p_cmd_nl = NULL;
 
 	vlog_printf(VLOG_DEBUG, "Stopping logger module\n");
 
@@ -817,6 +822,7 @@ static void do_global_ctors_helper()
  	NEW_CTOR(g_tcp_seg_pool,  tcp_seg_pool(safe_mce_sys().tx_num_segs_tcp));
 
  	NEW_CTOR(g_tcp_timers_collection, tcp_timers_collection(safe_mce_sys().tcp_timer_resolution_msec, safe_mce_sys().timer_resolution_msec));
+ 	g_p_tcp_timers_collection = g_tcp_timers_collection;
 
 	NEW_CTOR(g_p_vlogger_timer_handler, vlogger_timer_handler()); 
 
@@ -856,6 +862,7 @@ static void do_global_ctors_helper()
 		if (cmd_nl == NULL) {
 			throw_vma_exception("Failed allocating command_netlink\n");
 		}
+		g_p_cmd_nl = cmd_nl;
 		BULLSEYE_EXCLUDE_BLOCK_END
 		g_p_event_handler_manager->register_command_event(fd, cmd_nl);
 		g_p_event_handler_manager->register_timer_event(
