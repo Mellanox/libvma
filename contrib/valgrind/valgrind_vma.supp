@@ -408,3 +408,68 @@
    fun:_ZN11neigh_entry13get_peer_infoEP9neigh_val
    fun:_ZN9neigh_eth13get_peer_infoEP9neigh_val
 }
+#-H-
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZSt29_Rb_tree_insert_and_rebalancebPSt18_Rb_tree_node_baseS0_RS_
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE10_M_insert_EPKSt18_Rb_tree_node_baseSC_RKS3_
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE17_M_insert_unique_ESt23_Rb_tree_const_iteratorIS3_ERKS3_
+   fun:insert
+   fun:operator[]
+   fun:_ZN21event_handler_manager28priv_register_ibverbs_eventsER18ibverbs_reg_info_t
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_M_lower_bound
+   fun:find
+   fun:find
+   fun:_ZN21event_handler_manager28priv_register_ibverbs_eventsER18ibverbs_reg_info_t
+   fun:_ZN21event_handler_manager11thread_loopEv
+}
+{
+   Param_contains_uninitialised_byte
+   Memcheck:Param
+   close(fd)
+   obj:*/libc-*
+   fun:ibv_close_device
+   obj:*/librdmacm.so.*
+   ...
+   obj:*/librdmacm.so.*
+   fun:exit
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE17_M_insert_unique_ESt23_Rb_tree_const_iteratorIS3_ERKS3_
+   fun:insert
+   fun:operator[]
+   fun:_ZN21event_handler_manager28priv_register_ibverbs_eventsER18ibverbs_reg_info_t
+   fun:_ZN21event_handler_manager11thread_loopEv
+   fun:_Z20event_handler_threadPv
+   fun:start_thread
+   fun:clone
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:find
+   fun:find
+   fun:_ZN21event_handler_manager28priv_register_ibverbs_eventsER18ibverbs_reg_info_t
+   fun:_ZN21event_handler_manager11thread_loopEv
+   fun:_Z20event_handler_threadPv
+   fun:start_thread
+   fun:clone
+}
+{
+   Param_contains_uninitialised_byte
+   Memcheck:Param
+   close(fd)
+   obj:*/libc-*
+   fun:ibv_destroy_comp_channel
+   fun:_ZN20net_device_table_mgr22verify_eth_qp_creationEPKc
+   fun:_ZN20net_device_table_mgr15map_net_devicesEv
+}
+
+

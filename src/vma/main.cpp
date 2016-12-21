@@ -121,7 +121,7 @@ bool g_init_global_ctors_done = true;
 #define MAX_CMD_LINE		2048
 
 command_netlink * g_p_cmd_nl = NULL;
-tcp_timers_collection* g_p_tcp_timers_collection = NULL;
+tcp_timers_collection* g_p_tcp_timers_collection_vg = NULL;
 
 static int free_libvma_resources()
 {
@@ -822,7 +822,7 @@ static void do_global_ctors_helper()
  	NEW_CTOR(g_tcp_seg_pool,  tcp_seg_pool(safe_mce_sys().tx_num_segs_tcp));
 
  	NEW_CTOR(g_tcp_timers_collection, tcp_timers_collection(safe_mce_sys().tcp_timer_resolution_msec, safe_mce_sys().timer_resolution_msec));
- 	g_p_tcp_timers_collection = g_tcp_timers_collection;
+ 	g_p_tcp_timers_collection_vg = g_tcp_timers_collection;
 
 	NEW_CTOR(g_p_vlogger_timer_handler, vlogger_timer_handler()); 
 
