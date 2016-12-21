@@ -184,13 +184,13 @@ void dynamic_buffer_pool::set_RX_TX_for_stats(bool rx /*= true*/)
 	}
 }
 
-
-void dynamic_bpool_timer_handler::handle_timer_expired(void* a) {
+void dynamic_bpool_timer_handler::handle_timer_expired(void* a)
+{
 	NOT_IN_USE(a);
 	if (m_p_pool_obj->m_lock_spin.trylock())
 		return;
 
-	if (m_p_pool_obj->m_n_dyn_buffers < m_p_pool_obj->m_min_threshold){
+	if (m_p_pool_obj->m_n_dyn_buffers < m_p_pool_obj->m_min_threshold) {
 		vlog_printf(VLOG_INFO, "pool allocation signaled: dyn_rx_n_buffers=%d cur_rx_buffers=%d\n",
 				m_p_pool_obj->get_free_count(), m_p_pool_obj->get_curr_free_count());
 		m_p_pool_obj->allocate_addtional_buffers(m_p_pool_obj->m_quanta_buffers_count);
@@ -251,6 +251,7 @@ mem_buf_desc_t *dynamic_buffer_pool::get_buffers_thread_safe(size_t count, const
        return ret;
 }
 
-dynamic_bpool_timer_handler *dynamic_buffer_pool::get_timer_handler(){
+dynamic_bpool_timer_handler *dynamic_buffer_pool::get_timer_handler()
+{
 	return m_p_timer_handler;
 }

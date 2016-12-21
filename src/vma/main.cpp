@@ -477,7 +477,7 @@ const char* buffer_batching_mode_str(buffer_batching_mode_t buffer_batching_mode
 		else {												\
 			vlog_printf(VLOG_DEBUG, ##args);							\
 		}												\
-	} while (0);
+	} while (0)
 
 #define VLOG_NUM_PARAM_DETAILS(param_val, param_def_val, args...)							\
 	do {	                                 								\
@@ -487,17 +487,17 @@ const char* buffer_batching_mode_str(buffer_batching_mode_t buffer_batching_mode
 		else {												\
 			vlog_printf(VLOG_DEBUG, ##args);							\
 		}												\
-	} while (0);
+	} while (0)
 
-#define VLOG_NUM_BUFS_PARAM_DETAILS(param_desc, init_val, quanta_val, max_val, min_val, init_def, quanta_def, max_def, min_def, param_name)							\
-	do {	                                 								\
-		if ((init_val != init_def) ||  (quanta_val != quanta_def) || (max_val != max_def) || (min_val != min_def))	{								\
-			vlog_printf(VLOG_INFO, FORMAT_TOKEN_NUMBER, param_desc, init_val,  quanta_val, max_val, min_val, param_name, "init:quanta:max:min"); \
+#define VLOG_NUM_BUFS_PARAM_DETAILS(param_desc, init_val, quanta_val, max_val, min_val, init_def, quanta_def, max_def, min_def, param_name)			\
+	do {																			\
+		if (((init_val) != (init_def)) || ((quanta_val) != (quanta_def)) || ((max_val) != (max_def)) || ((min_val) != (min_def))) {			\
+			vlog_printf(VLOG_INFO, FORMAT_TOKEN_NUMBER, param_desc, init_val, quanta_val, max_val, min_val, param_name, "init:quanta:max:min");	\
 		}												\
 		else {												\
-			vlog_printf(VLOG_DEBUG, FORMAT_TOKEN_NUMBER, param_desc, init_val,  quanta_val, max_val, min_val, param_name, "init:quanta:max:min"); \
+			vlog_printf(VLOG_DEBUG, FORMAT_TOKEN_NUMBER, param_desc, init_val, quanta_val, max_val, min_val, param_name, "init:quanta:max:min");	\
 		}												\
-	} while (0);
+	} while (0)
 
 #define VLOG_STR_PARAM_STRING(param_desc, param_val, param_def_val, param_name, val_desc_str)			\
 	VLOG_STR_PARAM_DETAILS (param_val, param_def_val, FORMAT_STRING, param_desc, val_desc_str, param_name)  \
@@ -765,10 +765,10 @@ void print_vma_global_settings()
  * The function returns TRUE for success or FALSE for illegal input:
  * 		- number of tokens is not 1 or 4
  * 		- n_bufs_max < n_bufs_init
- * 		- n_bufs_min_threshold > n_bufs_quanta
  * 	Using atoi() that might throw in case on non-numeric chars
  */
-bool parse_num_bufs_parameter(const char* num_bufs_param, uint32_t& n_bufs_init, uint32_t& n_bufs_quanta, uint32_t& n_bufs_max, uint32_t& n_bufs_min_threshold) {
+bool parse_num_bufs_parameter(const char* num_bufs_param, uint32_t& n_bufs_init, uint32_t& n_bufs_quanta, uint32_t& n_bufs_max, uint32_t& n_bufs_min_threshold)
+{
 	std::vector<std::string> n_bufs_tokens = split(num_bufs_param, ':');
 	n_bufs_init = n_bufs_quanta = n_bufs_max = n_bufs_min_threshold = 0;
 
@@ -789,24 +789,16 @@ bool parse_num_bufs_parameter(const char* num_bufs_param, uint32_t& n_bufs_init,
 	n_bufs_tokens.erase(n_bufs_tokens.begin());
 	n_bufs_quanta=(uint32_t)atoi(token);
 
-	if (!n_bufs_tokens.size()) {
-		return true;
-	}
-
 	token = n_bufs_tokens.front().c_str();
 	n_bufs_tokens.erase(n_bufs_tokens.begin());
 	n_bufs_max=(uint32_t)atoi(token);
-
-	if (!n_bufs_tokens.size()) {
-		return true;
-	}
 
 	token = n_bufs_tokens.front().c_str();
 	n_bufs_tokens.erase(n_bufs_tokens.begin());
 	n_bufs_min_threshold=(uint32_t)atoi(token);
 
 	// check for legal values
-	if ((n_bufs_max < n_bufs_init) || (n_bufs_min_threshold > n_bufs_quanta))
+	if (n_bufs_max < n_bufs_init)
 		return false;
 
 	return true;
@@ -1697,8 +1689,8 @@ static void do_global_ctors_helper()
 
 	NEW_CTOR(g_p_vlogger_timer_handler, vlogger_timer_handler());
 
-	g_p_event_handler_manager->register_timer_event(mce_sys.timer_bpool_aloc_msec, g_buffer_pool_rx->get_timer_handler(), PERIODIC_TIMER, NULL);
-	g_p_event_handler_manager->register_timer_event(mce_sys.timer_bpool_aloc_msec, g_buffer_pool_tx->get_timer_handler(), PERIODIC_TIMER, NULL);
+	g_p_event_handler_manager->register_timer_event(safe_mce_sys().timer_bpool_aloc_msec, g_buffer_pool_rx->get_timer_handler(), PERIODIC_TIMER, NULL);
+	g_p_event_handler_manager->register_timer_event(safe_mce_sys().timer_bpool_aloc_msec, g_buffer_pool_tx->get_timer_handler(), PERIODIC_TIMER, NULL);
 
 	NEW_CTOR(g_p_ip_frag_manager, ip_frag_manager());
 

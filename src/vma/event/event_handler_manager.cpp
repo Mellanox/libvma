@@ -55,7 +55,6 @@ void* event_handler_manager::register_timer_event(int timeout_msec, timer_handle
 						  timer_req_type_t req_type, void* user_data,
 						  timers_group* group /* = NULL */)
 {
-	void* node;
 	evh_logdbg("timer handler '%p' registered %s timer for %d msec (user data: %X)",
 		   handler, timer_req_type_str(req_type), timeout_msec, user_data);
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -66,7 +65,7 @@ void* event_handler_manager::register_timer_event(int timeout_msec, timer_handle
 	BULLSEYE_EXCLUDE_BLOCK_END
 	// malloc here the timer list node in order to return it to the app
 
-	node = malloc(sizeof(struct timer_node_t));
+	void* node = malloc(sizeof(struct timer_node_t));
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!node) {
 		evh_logdbg("malloc failure");

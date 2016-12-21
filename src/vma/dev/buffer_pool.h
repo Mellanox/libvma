@@ -78,7 +78,7 @@ private:
 	// map of device to memory region
 	ibv_mr** m_p_mr_arr;
 	size_t m_mr_arr_size;
-	
+
 	// XXX-dummy buffer list head and count
 	// to be replaced with a bucket-sorted array
 	mem_buf_desc_t *m_p_head;
