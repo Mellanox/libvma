@@ -569,7 +569,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_TCP_3T_RULES			(false)
 #define MCE_DEFAULT_ETH_MC_L2_ONLY_RULES		(false)
 #define MCE_DEFAULT_SELECT_NUM_POLLS			(-1)
-#define MCE_DEFAULT_SELECT_POLL_OS_FORCE		(1)
+#define MCE_DEFAULT_SELECT_POLL_OS_FORCE		(0)
 #define MCE_DEFAULT_SELECT_POLL_OS_RATIO		(0)
 #define MCE_DEFAULT_SELECT_SKIP_OS			(4)
 #define MCE_DEFAULT_SELECT_CPU_USAGE_STATS		(false)
