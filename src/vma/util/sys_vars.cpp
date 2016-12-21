@@ -428,6 +428,24 @@ void mce_sys_var::get_env_params()
 		mce_spec = (uint32_t)atoi(env_ptr);
 
 	switch (mce_spec) {
+	case MCE_SPEC_LEGACY_1:
+		tx_num_wr 			= 3000; //MCE_DEFAULT_TX_NUM_WRE
+		tx_num_wr_to_signal     	= 64; //MCE_DEFAULT_TX_NUM_WRE_TO_SIGNAL
+		tx_bufs_batch_udp		= 8; //MCE_DEFAULT_TX_BUFS_BATCH_UDP
+		tx_bufs_batch_tcp		= 16; //MCE_DEFAULT_TX_BUFS_BATCH_TCP
+		rx_bufs_batch           	= 64; //MCE_DEFAULT_RX_BUFS_BATCH
+		rx_num_wr_to_post_recv  	= 64; //MCE_DEFAULT_RX_NUM_WRE_TO_POST_RECV
+		rx_poll_num             	= 100000; //MCE_DEFAULT_RX_NUM_POLLS
+		rx_prefetch_bytes_before_poll 	= 0; //MCE_DEFAULT_RX_PREFETCH_BYTES_BEFORE_POLL
+		gro_streams_max			= 32; //MCE_DEFAULT_GRO_STREAMS_MAX
+		select_poll_num           	= 100000; //MCE_DEFAULT_SELECT_NUM_POLLS
+		select_poll_os_ratio      	= 10; //MCE_DEFAULT_SELECT_POLL_OS_RATIO
+		progress_engine_interval_msec 	= 10; //MCE_DEFAULT_PROGRESS_ENGINE_INTERVAL_MSEC
+		cq_keep_qp_full			= true; //MCE_DEFAULT_CQ_KEEP_QP_FULL
+		avoid_sys_calls_on_tcp_fd 	= false; //MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD
+		thread_mode			= THREAD_MODE_MULTI; //MCE_DEFAULT_THREAD_MODE
+		strcpy(internal_thread_affinity_str, "-1"); //MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR;
+		break;
 
 	case MCE_SPEC_SOCKPERF_LL_10:
 		tx_num_segs_tcp         = 512; //MCE_DEFAULT_TX_NUM_SEGS_TCP
@@ -450,7 +468,7 @@ void mce_sys_var::get_env_params()
 		select_skip_os_fd_check = 0;
 		avoid_sys_calls_on_tcp_fd = true; //MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD
 		gro_streams_max		= 0; //MCE_DEFAULT_GRO_STREAMS_MAX
-		progress_engine_interval_msec = 0;
+		progress_engine_interval_msec = 0;//MCE_DEFAULT_PROGRESS_ENGINE_INTERVAL_MSEC
 		cq_keep_qp_full		= false; //MCE_DEFAULT_CQ_KEEP_QP_FULL
 		thread_mode		= THREAD_MODE_SINGLE;
 		mem_alloc_type          = ALLOC_TYPE_HUGEPAGES;
