@@ -650,18 +650,12 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 	TAKE_T_TX_POST_SEND_START;
 #endif
 
-#ifdef DEFINED_VMAPOLL
 #ifdef RDTSC_MEASURE_TX_VERBS_POST_SEND
 	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_TX_VERBS_POST_SEND]);
-#endif //RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
-	mlx5_send(p_send_wqe);
-#ifdef RDTSC_MEASURE_TX_VERBS_POST_SEND
-	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_TX_VERBS_POST_SEND]);
-#endif //RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
+#endif //RDTSC_MEASURE_TX_VERBS_POST_SEND
 
-#ifdef RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
-	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND]);
-#endif //RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
+#ifdef DEFINED_VMAPOLL
+	mlx5_send(p_send_wqe);
 #else // DEFINED_VMAPOLLL
 	vma_ibv_send_wr *bad_wr = NULL;
 	IF_VERBS_FAILURE(vma_ibv_post_send(m_qp, p_send_wqe, &bad_wr)) {
@@ -676,6 +670,14 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 		return -1;
 	} ENDIF_VERBS_FAILURE;
 #endif // DEFINED_VMAPOLL
+
+#ifdef RDTSC_MEASURE_TX_VERBS_POST_SEND
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_TX_VERBS_POST_SEND]);
+#endif //RDTSC_MEASURE_TX_VERBS_POST_SEND
+
+#ifdef RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND]);
+#endif //RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
 
 #ifdef VMA_TIME_MEASURE
 	TAKE_T_TX_POST_SEND_END;
