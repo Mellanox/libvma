@@ -1574,7 +1574,6 @@ extern "C"
 ssize_t sendto(int __fd, __const void *__buf, size_t __nbytes, int __flags,
 	       const struct sockaddr *__to, socklen_t __tolen)
 {
-#ifdef DEFINED_VMAPOLL	
 #ifdef RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
 	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND]);
 #endif //RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
@@ -1582,7 +1581,10 @@ ssize_t sendto(int __fd, __const void *__buf, size_t __nbytes, int __flags,
 #ifdef RDTSC_MEASURE_RECEIVEFROM_TO_SENDTO
 	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RECEIVEFROM_TO_SENDTO]);
 #endif //RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
-#endif // DEFINED_VMAPOLL
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.sendto) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
 	srdr_logfuncall_entry("fd=%d, nbytes=%d", __fd, __nbytes);
 
 	socket_fd_api* p_socket_object = NULL;
