@@ -44,46 +44,6 @@
    fun:_ZN21event_handler_manager38priv_prepare_ibverbs_async_event_queueERSt17_Rb_tree_iteratorISt4pairIKi12event_data_tEE
 }
 {
-   Points_to_uninitialised_bytes
-   Memcheck:Param
-   mmap(length)
-   fun:mmap
-   obj:*/libmlx4-*
-   ...
-   fun:ibv_exp_create_cq
-}
-{
-   Points_to_uninitialised_bytes
-   Memcheck:Param
-   mmap(offset)
-   fun:mmap
-   obj:*/libmlx4-rdmav*
-   ...
-   obj:*/libmlx4-rdmav*
-   fun:ibv_exp_create_cq
-   fun:_ZN20net_device_table_mgr22verify_eth_qp_creationEPKc
-}
-{
-   Points_to_uninitialised_bytes
-   Memcheck:Param
-   madvise(length)
-   fun:madvise
-   obj:*/libibverbs.so.*
-   ...
-   fun:ibv_exp_create_cq
-   fun:_ZN20net_device_table_mgr22verify_eth_qp_creationEPKc
-}
-{
-   Points_to_uninitialised_bytes
-   Memcheck:Param
-   munmap(length)
-   fun:munmap
-   obj:*/libmlx4-*
-   fun:ibv_destroy_cq
-   fun:_ZN20net_device_table_mgr22verify_eth_qp_creationEPKc
-   fun:_ZN20net_device_table_mgr15map_net_devicesEv
-}
-{
    Conditional_on_uninitialised_value
    Memcheck:Cond
    fun:_M_lower_bound
@@ -118,18 +78,6 @@
    fun:operator[]
 }
 {
-   Points_to_uninitialised_bytes
-   Memcheck:Param
-   madvise(length)
-   fun:madvise
-   obj:*/libibverbs.so*
-   ...
-   fun:ibv_exp_create_cq
-   fun:_ZN6cq_mgrC1EP11ring_simpleP14ib_ctx_handleriP16ibv_comp_channelb
-   fun:_ZN6qp_mgr9configureEP16ibv_comp_channel
-   fun:qp_mgr_eth
-}
-{
    Conditional_on_uninitialised_value
    Memcheck:Cond
    fun:_ZN6cq_mgr4pollEP10ibv_exp_wciPm
@@ -147,29 +95,6 @@
    fun:_ZN6qp_mgr4downEv
    fun:_ZN11ring_simpleD1Ev
    fun:~ring_eth
-}
-{
-   Points_to_uninitialised_bytes
-   Memcheck:Param
-   madvise(length)
-   fun:madvise
-   obj:*/libibverbs.so.*
-   ...
-   fun:ibv_destroy_cq
-   fun:_ZN6cq_mgrD1Ev
-   fun:_ZN6qp_mgrD1Ev
-   fun:~qp_mgr_eth
-}
-{
-   Points_to_uninitialised_bytes
-   Memcheck:Param
-   munmap(length)
-   fun:munmap
-   obj:*/libmlx4-*
-   fun:ibv_destroy_cq
-   fun:_ZN6cq_mgrD1Ev
-   fun:_ZN6qp_mgrD1Ev
-   fun:~qp_mgr_eth
 }
 {
    Conditional_on_uninitialised_value
@@ -183,15 +108,6 @@
    fun:~ring_eth
 }
 {
-   Points_to_uninitialised_bytes
-   Memcheck:Param
-   close(fd)
-   obj:*/libpthread-*
-   fun:ibv_close_device
-   obj:*/librdmacm.so.*
-   fun:_dl_fini
-}
-{
    Conditional_on_uninitialised_value
    Memcheck:Cond
    fun:_ZN6cq_mgr4pollEP10ibv_exp_wciPm
@@ -209,28 +125,6 @@
    fun:_ZN6qp_mgr4downEv
    fun:_ZN11ring_simpleD1Ev
    fun:~ring_eth
-}
-{
-   Points_to_uninitialised_bytes
-   Memcheck:Param
-   madvise(length)
-   fun:madvise
-   obj:*/libibverbs.so*
-   ...
-   fun:ibv_destroy_cq
-   fun:_ZN6cq_mgrD1Ev
-   fun:_ZN6qp_mgrD1Ev
-   fun:~qp_mgr_eth
-}
-{
-   Points_to_uninitialised_bytes
-   Memcheck:Param
-   munmap(length)
-   fun:munmap
-   obj:*/libmlx4-*
-   fun:ibv_destroy_cq
-   fun:_ZN6cq_mgrD1Ev
-   fun:_ZN6qp_mgrD1Ev
 }
 {
    Conditional_on_uninitialised_value
@@ -301,15 +195,6 @@
    Memcheck:Param
    fcntl(fd)
    fun:fcntl
-}
-{
-   Points_to_uninitialised_bytes
-   Memcheck:Param
-   close(fd)
-   ...
-   fun:ibv_destroy_comp_channel
-   ...
-   fun:~ring_eth
 }
 {
    Invalid_read_size_8
@@ -429,17 +314,6 @@
    fun:_ZN21event_handler_manager11thread_loopEv
 }
 {
-   Param_contains_uninitialised_byte
-   Memcheck:Param
-   close(fd)
-   obj:*/libc-*
-   fun:ibv_close_device
-   obj:*/librdmacm.so.*
-   ...
-   obj:*/librdmacm.so.*
-   fun:exit
-}
-{
    Conditional_on_uninitialised_value
    Memcheck:Cond
    fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE17_M_insert_unique_ESt23_Rb_tree_const_iteratorIS3_ERKS3_
@@ -461,15 +335,6 @@
    fun:_Z20event_handler_threadPv
    fun:start_thread
    fun:clone
-}
-{
-   Param_contains_uninitialised_byte
-   Memcheck:Param
-   close(fd)
-   obj:*/libc-*
-   fun:ibv_destroy_comp_channel
-   fun:_ZN20net_device_table_mgr22verify_eth_qp_creationEPKc
-   fun:_ZN20net_device_table_mgr15map_net_devicesEv
 }
 
 

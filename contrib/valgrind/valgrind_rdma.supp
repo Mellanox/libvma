@@ -1,11 +1,28 @@
 # Ignore librdmacm.so
 ############################
 {
-   librdmacm.so (Param)
+   librdmacm.so (Param/write)
    Memcheck:Param
    write(buf)
    ...
    obj:*/librdmacm.so*
+   ...
+}
+{
+   librdmacm.so (Param/close)
+   Memcheck:Param
+   close(fd)
+   ...
+   fun:ibv_close_device
+   obj:*/librdmacm.so.*
+   ...
+}
+{
+   librdmacm.so (Param/close)
+   Memcheck:Param
+   close(fd)
+   ...
+   fun:ibv_destroy_comp_channel
    ...
 }
 {
@@ -33,11 +50,31 @@
 # Ignore libibverbs.so
 ############################
 {
-   libibverbs.so (Param)
+   libibverbs.so (Param/write)
    Memcheck:Param
    write(buf)
    ...
    obj:*/libibverbs.so*
+   ...
+}
+{
+   libibverbs.so (Param/madvise)
+   Memcheck:Param
+   madvise(length)
+   ...
+   obj:*/libibverbs.so*
+   ...
+   fun:ibv_exp_create_cq
+   ...
+}
+{
+   libibverbs.so (Param/madvise)
+   Memcheck:Param
+   madvise(length)
+   ...
+   obj:*/libibverbs.so*
+   ...
+   fun:ibv_destroy_cq
    ...
 }
 {
@@ -65,11 +102,41 @@
 # Ignore libmlx4-rdmav2.so
 ############################
 {
-   libmlx4-rdmav2.so (Param)
+   libmlx4-rdmav2.so (Param/write)
    Memcheck:Param
    write(buf)
    ...
    obj:*/libmlx4-rdmav2.so*
+   ...
+}
+{
+   libmlx4-rdmav2.so (Param/mmap)
+   Memcheck:Param
+   mmap(offset)
+   fun:mmap
+   obj:*/libmlx4-*
+   ...
+   fun:ibv_exp_create_cq
+   ...
+}
+{
+   libmlx4-rdmav2.so (Param/mmap)
+   Memcheck:Param
+   mmap(length)
+   fun:mmap
+   obj:*/libmlx4-*
+   ...
+   fun:ibv_exp_create_cq
+   ...
+}
+{
+   libmlx4-rdmav2.so (Param/munmap)
+   Memcheck:Param
+   munmap(length)
+   fun:munmap
+   obj:*/libmlx4-*
+   ...
+   fun:ibv_destroy_cq
    ...
 }
 {
