@@ -4402,10 +4402,6 @@ tcp_timers_collection::tcp_timers_collection(int period, int resolution)
 tcp_timers_collection::~tcp_timers_collection()
 {
 	free_tta_resources();
-	if (m_p_intervals) {
-		delete m_p_intervals;
-		m_p_intervals = NULL;
-	}
 }
 
 void tcp_timers_collection::free_tta_resources(void)
