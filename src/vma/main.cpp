@@ -75,6 +75,7 @@
 
 #include "vma/util/instrumentation.h"
 #include "vma/util/agent.h"
+#include "vma/util/sys_vars.h"
 
 void check_netperf_flags();
 
@@ -411,35 +412,8 @@ void print_vma_global_settings()
 		vlog_printf(log_level,"Node: %s\n", sys_info.nodename);
 	}
 
-	vlog_printf(log_level,"---------------------------------------------------------------------------\n");
-
-	switch (safe_mce_sys().mce_spec) {
-	case MCE_SPEC_SOCKPERF_LL_10:
-		vlog_printf(VLOG_INFO, " Sockperf ping-pong Low Latency Profile Spec\n");
-		break;
-	case MCE_SPEC_29WEST_LBM_29:
-		vlog_printf(VLOG_INFO, " 29West LBM Logic Spec\n");
-		break;
-	case MCE_SPEC_WOMBAT_FH_LBM_554:
-		vlog_printf(VLOG_INFO, " Wombat FH LBM Logic Spec\n");
-		break;
-	case MCE_SPEC_RTI_784:
-		vlog_printf(VLOG_INFO, " RTI Logic Spec\n");
-		break;
-	case MCE_SPEC_MCD_623:
-		vlog_printf(VLOG_INFO, " Memcached Logic Spec\n");
-		break;
-	case MCE_SPEC_MCD_IRQ_624:
-		vlog_printf(VLOG_INFO, " Memcached Interrupt Mode Logic Spec\n");
-		break;
-	case MCE_SPEC_LL_6973:
-		vlog_printf(VLOG_INFO, "6973 Low Latency Profile Spec\n");
-		break;
-	default:
-		break;
-	}
-	if (safe_mce_sys().mce_spec != 0) {
-		vlog_printf(VLOG_INFO, FORMAT_NUMBER, "Spec", safe_mce_sys().mce_spec, SYS_VAR_SPEC);
+	if (safe_mce_sys().mce_spec != MCE_SPEC_NONE) {
+		vlog_printf(VLOG_INFO, FORMAT_STRING, "Spec", vma_spec::to_str((vVMA_spec_t)safe_mce_sys().mce_spec), SYS_VAR_SPEC);
 
 		if (safe_mce_sys().mce_spec == MCE_SPEC_29WEST_LBM_29 || safe_mce_sys().mce_spec == MCE_SPEC_WOMBAT_FH_LBM_554) {
 			vlog_printf(VLOG_INFO, FORMAT_NUMBER, "Param 1:", safe_mce_sys().mce_spec_param1, SYS_VAR_SPEC_PARAM1);
