@@ -1,3 +1,3 @@
 #!/bin/bash
 
-/etc/init.d/vma stop
+/etc/init.d/vma stop || true
