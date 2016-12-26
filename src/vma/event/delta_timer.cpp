@@ -69,7 +69,11 @@ timer::~timer()
 	timer_node_t* to_free = NULL;
 	tmr_logfunc("");
 	m_list_head = NULL;
-
+#ifdef DEFINED_VMAPOLL		
+	NOT_IN_USE(iter);
+	NOT_IN_USE(to_free);
+	return;
+#endif // DEFINED_VMAPOLL		
 	// free all the list
 	while (iter) {
 		to_free = iter;
@@ -244,30 +248,40 @@ void timer::process_registered_timers()
 	timer_node_t* iter = m_list_head;
 	timer_node_t* next_iter;
 	while (iter && (iter->delta_time_msec == 0)) {
-		tmr_logfuncall("timer expired on %p", iter->handler);
-		iter->handler->handle_timer_expired(iter->user_data);
-		next_iter = iter->next;
+#ifdef DEFINED_VMAPOLL		
+		if (iter->handler){
+#endif // DEFINED_VMAPOLL			
+			tmr_logfuncall("timer expired on %p", iter->handler);
 
-		switch (iter->req_type) {
-		case PERIODIC_TIMER:
-			// re-insert
-			remove_from_list(iter);
-			iter->prev = iter->next = NULL;
-			insert_to_list(iter);
-			break;
+			iter->handler->handle_timer_expired(iter->user_data);
+			next_iter = iter->next;
 
-		case ONE_SHOT_TIMER:
-			remove_timer(iter, iter->handler);
-			break;
+			switch (iter->req_type) {
+			case PERIODIC_TIMER:
+				// re-insert
+				remove_from_list(iter);
+				iter->prev = iter->next = NULL;
+				insert_to_list(iter);
+				break;
 
-		BULLSEYE_EXCLUDE_BLOCK_START
-		case INVALID_TIMER:
-		default:
-			tmr_logwarn("invalid timer expired on %p", iter->handler);
+			case ONE_SHOT_TIMER:
+				remove_timer(iter, iter->handler);
+				break;
+
+			BULLSEYE_EXCLUDE_BLOCK_START
+			case INVALID_TIMER:
+			default:
+				tmr_logwarn("invalid timer expired on %p", iter->handler);
+				break;
+			}
+			BULLSEYE_EXCLUDE_BLOCK_END
+			iter = next_iter;
+#ifdef DEFINED_VMAPOLL					
+		}
+		else {
 			break;
 		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-		iter = next_iter;
+#endif // DEFINED_VMAPOLL				
 	}
 }
 

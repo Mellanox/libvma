@@ -82,7 +82,11 @@ void check_netperf_flags();
 // Start of vma_version_str - used in "$ strings libvma.so | grep VMA_VERSION"
 #define STR_EXPAND(x) #x
 #define STR(x) STR_EXPAND(x)
+#ifdef DEFINED_VMAPOLL
+const char *vma_version_str = "VMA_VERSION: " PACKAGE_VERSION "-" STR(VMA_LIBRARY_RELEASE) " (vmapoll)"
+#else
 const char *vma_version_str = "VMA_VERSION: " PACKAGE_VERSION "-" STR(VMA_LIBRARY_RELEASE)
+#endif // DEFINED_VMAPOLL
 
 #if _BullseyeCoverage
 			      " Bullseye"
@@ -571,6 +575,7 @@ void print_vma_global_settings()
 	VLOG_PARAM_NUMBER("TCP timestamp option", safe_mce_sys().tcp_ts_opt, MCE_DEFAULT_TCP_TIMESTAMP_OPTION, SYS_VAR_TCP_TIMESTAMP_OPTION);
 	VLOG_PARAM_NUMSTR(vma_exception_handling::getName(), (int)safe_mce_sys().exception_handling, vma_exception_handling::MODE_DEFAULT, vma_exception_handling::getSysVar(), safe_mce_sys().exception_handling.to_str());
 	VLOG_PARAM_STRING("Avoid sys-calls on tcp fd", safe_mce_sys().avoid_sys_calls_on_tcp_fd, MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD, SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD, safe_mce_sys().avoid_sys_calls_on_tcp_fd ? "Enabled" : "Disabled");
+	VLOG_PARAM_STRING("Allow privileged sock opt", safe_mce_sys().allow_privileged_sock_opt, MCE_DEFAULT_ALLOW_PRIVILEGED_SOCK_OPT, SYS_VAR_ALLOW_PRIVILEGED_SOCK_OPT, safe_mce_sys().allow_privileged_sock_opt ? "Enabled" : "Disabled");
 	VLOG_PARAM_NUMBER("Delay after join (msec)", safe_mce_sys().wait_after_join_msec, MCE_DEFAULT_WAIT_AFTER_JOIN_MSEC, SYS_VAR_WAIT_AFTER_JOIN_MSEC);
 	VLOG_STR_PARAM_STRING("Internal Thread Affinity", safe_mce_sys().internal_thread_affinity_str, MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR, SYS_VAR_INTERNAL_THREAD_AFFINITY, safe_mce_sys().internal_thread_affinity_str);
 	VLOG_STR_PARAM_STRING("Internal Thread Cpuset", safe_mce_sys().internal_thread_cpuset, MCE_DEFAULT_INTERNAL_THREAD_CPUSET, SYS_VAR_INTERNAL_THREAD_CPUSET, safe_mce_sys().internal_thread_cpuset);
@@ -659,6 +664,10 @@ extern "C" void sock_redirect_main(void)
 		register_handler_segv();
 	}
 
+#ifdef RDTSC_MEASURE
+	init_rdtsc();
+#endif
+
 #ifdef VMA_TIME_MEASURE
 	init_instrumentation();
 #endif
@@ -666,11 +675,16 @@ extern "C" void sock_redirect_main(void)
 
 extern "C" void sock_redirect_exit(void)
 {
+#ifdef RDTSC_MEASURE
+	print_rdtsc_summary();
+#endif
 #ifdef VMA_TIME_MEASURE
 	finit_instrumentation(safe_mce_sys().vma_time_measure_filename);
 #endif
 	vlog_printf(VLOG_DEBUG, "%s()\n", __FUNCTION__);
+#ifndef DEFINED_VMAPOLL // if not defined	
 	vma_shmem_stats_close();
+#endif // DEFINED_VMAPOLL
 }
 
 #if _BullseyeCoverage

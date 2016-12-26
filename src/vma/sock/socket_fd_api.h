@@ -34,8 +34,14 @@
 #ifndef SOCKET_FD_API_H
 #define SOCKET_FD_API_H
 
+#include "config.h"
 #include <sys/socket.h>
-#include <vma/vma_extra.h>
+#ifdef DEFINED_VMAPOLL
+#include "vma/vmapoll_extra.h"
+#else
+#include "vma/vma_extra.h"
+#endif // DEFINED_VMAPOLL
+
 #include <vma/dev/cq_mgr.h>
 #include <vma/dev/buffer_pool.h>
 #include <vma/sock/cleanable_obj.h>
@@ -172,6 +178,10 @@ public:
 	
 	virtual int free_packets(struct vma_packet_t *pkts, size_t count);
 
+#ifdef DEFINED_VMAPOLL
+	virtual	int free_buffs(uint16_t len);
+#endif // DEFINED_VMAPOLL	
+
 	virtual int get_fd( ) const { return m_fd; };
 
 	// true if fd must be skipped from OS select()
@@ -218,6 +228,11 @@ public:
 	list_node<socket_fd_api, socket_fd_api::ep_ready_fd_node_offset> ep_ready_fd_node;
 
 	uint32_t m_epoll_event_flags;
+#ifdef DEFINED_VMAPOLL	
+	virtual int get_rings_num() {return 0;}
+	virtual bool check_rings() {return false;}
+	virtual int* get_rings_fds() {return NULL;}
+#endif // DEFINED_VMAPOLL
 
 protected:
 	void notify_epoll_context(uint32_t events);
@@ -238,5 +253,4 @@ protected:
 private:
 	epfd_info *m_econtext;
 };
-
 #endif

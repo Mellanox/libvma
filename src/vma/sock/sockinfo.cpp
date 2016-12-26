@@ -71,7 +71,7 @@ sockinfo::sockinfo(int fd) throw (vma_exception):
 		m_lock_rcv(MODULE_NAME "::m_lock_rcv"),
 		m_lock_snd(MODULE_NAME "::m_lock_snd"),
 		m_p_connected_dst_entry(NULL),
-		m_so_bindtodevice_ip(0),
+		m_so_bindtodevice_ip(INADDR_ANY),
 		m_p_rx_ring(0),
 		m_rx_reuse_buf_pending(false),
 		m_rx_reuse_buf_postponed(false),
@@ -82,6 +82,9 @@ sockinfo::sockinfo(int fd) throw (vma_exception):
 		m_n_sysvar_rx_poll_num(safe_mce_sys().rx_poll_num),
 		m_rx_callback(NULL),
 		m_rx_callback_context(NULL)
+#ifdef DEFINED_VMAPOLL 		
+		,m_fd_context((void *)((uintptr_t)m_fd))
+#endif // DEFINED_VMAPOLL 		
 {
 	m_rx_epfd = orig_os_api.epoll_create(128);
 	if (unlikely(m_rx_epfd == -1)) {
@@ -96,6 +99,12 @@ sockinfo::sockinfo(int fd) throw (vma_exception):
 	m_p_socket_stats->inode = fd2inode(m_fd);
 	m_p_socket_stats->b_blocking = m_b_blocking;
 	m_rx_reuse_buff.n_buff_num = 0;
+
+#ifdef DEFINED_VMAPOLL 
+		memset(&m_ec, 0, sizeof(m_ec));
+		m_vma_poll_completion = NULL;
+		m_vma_poll_last_buff_lst = NULL;
+#endif // DEFINED_VMAPOLL 
 }
 
 sockinfo::~sockinfo()
@@ -201,6 +210,52 @@ int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg) throw 
     si_logdbg("going to OS for ioctl request=%d, flags=%x", __request, __arg);
 	return orig_os_api.ioctl(m_fd, __request, __arg);
 }
+
+#ifdef DEFINED_VMAPOLL 
+int sockinfo::setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen) throw (vma_error)
+{
+	int ret = -1;
+
+	if (__level == SOL_SOCKET) {
+		switch(__optname) {
+		case SO_VMA_USER_DATA:
+			if (__optlen == sizeof(m_fd_context)) {
+				m_fd_context = *(void **)__optval;
+				ret = 0;
+			} else {
+				errno = EINVAL;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
+	return ret;
+}
+
+int sockinfo::getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen) throw (vma_error)
+{
+	int ret = -1;
+
+	if (__level == SOL_SOCKET) {
+		switch(__optname) {
+		case SO_VMA_USER_DATA:
+			if (*__optlen == sizeof(m_fd_context)) {
+				*(void **)__optval = m_fd_context;
+				ret = 0;
+			} else {
+				errno = EINVAL;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
+	return ret;
+}
+#endif // DEFINED_VMAPOLL 
 
 ////////////////////////////////////////////////////////////////////////////////
 bool sockinfo::try_un_offloading() // un-offload the socket if possible
@@ -377,73 +432,19 @@ bool sockinfo::attach_receiver(flow_tuple_with_local_if &flow_key)
 		return false;
 	}
 
-	net_device_resources_t* p_nd_resources = NULL;
-
-	// Check if we are already registered to net_device with the local ip as observers
-	ip_address ip_local(flow_key.get_local_if());
-	rx_net_device_map_t::iterator rx_nd_iter = m_rx_nd_map.find(ip_local.get_in_addr());
-	if (rx_nd_iter == m_rx_nd_map.end()) {
-
-		// Need to register as observer to net_device
-		net_device_resources_t nd_resources;
-		nd_resources.refcnt = 0;
-		nd_resources.p_nde = NULL;
-		nd_resources.p_ndv = NULL;
-		nd_resources.p_ring = NULL;
-
-		BULLSEYE_EXCLUDE_BLOCK_START
-		cache_entry_subject<ip_address, net_device_val*>* p_ces = NULL;
-		if (!g_p_net_device_table_mgr->register_observer(ip_local, &m_rx_nd_observer, &p_ces)) {
-			si_logdbg("Failed registering as observer for local ip %s", ip_local.to_str().c_str());
-			return false;
-		}
-		nd_resources.p_nde = (net_device_entry*)p_ces;
-		if (!nd_resources.p_nde) {
-			si_logerr("Got NULL net_devide_entry for local ip %s", ip_local.to_str().c_str());
-			return false;
-		}
-		if (!nd_resources.p_nde->get_val(nd_resources.p_ndv)) {
-			si_logerr("Got net_device_val=NULL (interface is not offloaded) for local ip %s", ip_local.to_str().c_str());
-			return false;
-		}
-
-		unlock_rx_q();
-		m_rx_ring_map_lock.lock();
-		resource_allocation_key key = 0;
-		if (m_rx_ring_map.size()) {
-			key = m_ring_alloc_logic.get_key();
-		} else {
-			key = m_ring_alloc_logic.create_new_key();
-		}
-		nd_resources.p_ring = nd_resources.p_ndv->reserve_ring(key);
-		m_rx_ring_map_lock.unlock();
-		lock_rx_q();
-		if (!nd_resources.p_ring) {
-			si_logdbg("Failed to reserve ring for allocation key %d on lip %s", m_ring_alloc_logic.get_key(), ip_local.to_str().c_str());
-			return false;
-		}
-
-		// Add new net_device to rx_map
-		m_rx_nd_map[ip_local.get_in_addr()] = nd_resources;
-
-		rx_nd_iter = m_rx_nd_map.find(ip_local.get_in_addr());
-		if (rx_nd_iter == m_rx_nd_map.end()) {
-			si_logerr("Failed to find rx_nd_iter");
-			return false;
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-
+	// Allocate resources on specific interface (create ring)
+	net_device_resources_t* p_nd_resources = create_nd_resources((const ip_address)flow_key.get_local_if());
+	if (NULL == p_nd_resources) {
+		si_logerr("Failed to get net device resources %s", flow_key.to_str());
+		return false;
 	}
-
-	// Now we have the net_device object (created or found)
-	p_nd_resources = &rx_nd_iter->second;
-	p_nd_resources->refcnt++;
 
 	// Map flow in local map
 	m_rx_flow_map[flow_key] = p_nd_resources->p_ring;
-
-	// Save the new CQ from ring
-	rx_add_ring_cb(flow_key, p_nd_resources->p_ring);
+#ifndef DEFINED_VMAPOLL // is not defined
+		// Save the new CQ from ring
+		rx_add_ring_cb(flow_key, p_nd_resources->p_ring);
+#endif // DEFINED_VMAPOLL
 
 	// Attach tuple
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -500,20 +501,112 @@ bool sockinfo::detach_receiver(flow_tuple_with_local_if &flow_key)
 	lock_rx_q();
 
 	// Un-map flow from local map
+#ifndef DEFINED_VMAPOLL // is not defined
 	rx_del_ring_cb(flow_key, p_ring);
+#endif // DEFINED_VMAPOLL
 	m_rx_flow_map.erase(rx_flow_iter);
 
+	return destroy_nd_resources((const ip_address)flow_key.get_local_if());
+}
+
+net_device_resources_t* sockinfo::create_nd_resources(const ip_address ip_local)
+{
+	net_device_resources_t* p_nd_resources = NULL;
+
 	// Check if we are already registered to net_device with the local ip as observers
-	ip_address ip_local(flow_key.get_local_if());
+	rx_net_device_map_t::iterator rx_nd_iter = m_rx_nd_map.find(ip_local.get_in_addr());
+	if (rx_nd_iter == m_rx_nd_map.end()) {
+
+		// Need to register as observer to net_device
+		net_device_resources_t nd_resources;
+		nd_resources.refcnt = 0;
+		nd_resources.p_nde = NULL;
+		nd_resources.p_ndv = NULL;
+		nd_resources.p_ring = NULL;
+
+		BULLSEYE_EXCLUDE_BLOCK_START
+		cache_entry_subject<ip_address, net_device_val*>* p_ces = NULL;
+		if (!g_p_net_device_table_mgr->register_observer(ip_local, &m_rx_nd_observer, &p_ces)) {
+			si_logdbg("Failed registering as observer for local ip %s", ip_local.to_str().c_str());
+			goto err;
+		}
+		nd_resources.p_nde = (net_device_entry*)p_ces;
+		if (!nd_resources.p_nde) {
+			si_logerr("Got NULL net_devide_entry for local ip %s", ip_local.to_str().c_str());
+			goto err;
+		}
+		if (!nd_resources.p_nde->get_val(nd_resources.p_ndv)) {
+			si_logerr("Got net_device_val=NULL (interface is not offloaded) for local ip %s", ip_local.to_str().c_str());
+			goto err;
+		}
+
+		unlock_rx_q();
+		m_rx_ring_map_lock.lock();
+		resource_allocation_key key = 0;
+		if (m_rx_ring_map.size()) {
+			key = m_ring_alloc_logic.get_key();
+		} else {
+			key = m_ring_alloc_logic.create_new_key();
+		}
+		nd_resources.p_ring = nd_resources.p_ndv->reserve_ring(key);
+		m_rx_ring_map_lock.unlock();
+		lock_rx_q();
+		if (!nd_resources.p_ring) {
+			si_logdbg("Failed to reserve ring for allocation key %d on lip %s", m_ring_alloc_logic.get_key(), ip_local.to_str().c_str());
+			goto err;
+		}
+
+		// Add new net_device to rx_map
+		m_rx_nd_map[ip_local.get_in_addr()] = nd_resources;
+
+		rx_nd_iter = m_rx_nd_map.find(ip_local.get_in_addr());
+		if (rx_nd_iter == m_rx_nd_map.end()) {
+			si_logerr("Failed to find rx_nd_iter");
+			goto err;
+		}
+		BULLSEYE_EXCLUDE_BLOCK_END
+
+	}
+
+	// Now we have the net_device object (created or found)
+	p_nd_resources = &rx_nd_iter->second;
+
+	/* just increment reference counter on attach */
+	p_nd_resources->refcnt++;
+
+#ifdef DEFINED_VMAPOLL
+	// Save the new CQ from ring (dummy_flow_key is not used)
+	{
+		flow_tuple_with_local_if dummy_flow_key(m_bound, m_connected, m_protocol, ip_local.get_in_addr());
+		rx_add_ring_cb(dummy_flow_key, p_nd_resources->p_ring);
+	}
+#endif // DEFINED_VMAPOLL
+	return p_nd_resources;
+err:
+	return NULL;
+}
+
+bool sockinfo::destroy_nd_resources(const ip_address ip_local)
+{
+	net_device_resources_t* p_nd_resources = NULL;
 	rx_net_device_map_t::iterator rx_nd_iter = m_rx_nd_map.find(ip_local.get_in_addr());
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (rx_nd_iter == m_rx_nd_map.end()) {
-		si_logerr("Failed to net_device associated with: %s", flow_key.to_str());
+		si_logerr("Failed to net_device associated with: %s", ip_local.to_str().c_str());
 		return false;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-	net_device_resources_t* p_nd_resources = &(rx_nd_iter->second);
+
+	p_nd_resources = &(rx_nd_iter->second);
+
 	p_nd_resources->refcnt--;
+
+#ifdef DEFINED_VMAPOLL
+		// Release the new CQ from ring (dummy_flow_key is not used)
+		flow_tuple_with_local_if dummy_flow_key(m_bound, m_connected, m_protocol, ip_local.get_in_addr());
+		rx_del_ring_cb(dummy_flow_key, p_nd_resources->p_ring);
+#endif // DEFINED_VMAPOLL
+
 	if (p_nd_resources->refcnt == 0) {
 
 		// Release ring reference
@@ -695,6 +788,7 @@ void sockinfo::remove_epoll_context(epfd_info *epfd)
 	m_rx_ring_map_lock.unlock();
 }
 
+#ifndef DEFINED_VMAPOLL // if not defined
 void sockinfo::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 {
 	bool b_any_activity = false;
@@ -754,6 +848,7 @@ void sockinfo::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 		vlog_printf(log_level, "Socket activity : Rx and Tx where not active\n");
 	}
 }
+#endif // DEFINED_VMAPOLL
 
 void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool is_migration /*= false*/)
 {
@@ -800,6 +895,20 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 		// Increase ref count on cq_mgr object
 		rx_ring_iter->second->refcnt++;
 	}
+
+#ifdef DEFINED_VMAPOLL
+	if (m_rx_ring_map.size() == 1) {
+		/* m_p_rx_ring is updated in following functions:
+		 *  - rx_add_ring_cb()
+		 *  - rx_del_ring_cb()
+		 *  - do_rings_migration()
+		 */
+		m_p_rx_ring = m_rx_ring_map.begin()->first;
+	} else {
+		si_logdbg("ring map size: %d", m_rx_ring_map.size());
+	}
+#endif // DEFINED_VMAPOLL
+
 	unlock_rx_q();
 	m_rx_ring_map_lock.unlock();
 
@@ -1012,6 +1121,13 @@ void sockinfo::destructor_helper()
 		rx_flow_iter = m_rx_flow_map.begin(); // Pop next flow rule
 	}
 
+#ifdef DEFINED_VMAPOLL
+	/* Destroy resources in case they are allocated using SO_BINDTODEVICE call */
+	if (m_rx_nd_map.size()) {
+		destroy_nd_resources(m_so_bindtodevice_ip);
+	}
+#endif // DEFINED_VMAPOLL
+
 	// Delete all dst_entry in our list
 	if (m_p_connected_dst_entry)
 		delete m_p_connected_dst_entry;
@@ -1025,3 +1141,11 @@ int sockinfo::register_callback(vma_recv_callback_t callback, void *context)
 	m_rx_callback_context = context;
 	return 0;
 }
+
+#ifdef DEFINED_VMAPOLL
+int sockinfo::fast_nonblocking_rx(vma_packets_t *vma_pkts)
+{
+	NOT_IN_USE(vma_pkts);
+	return 0;
+}
+#endif // DEFINED_VMAPOLL

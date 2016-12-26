@@ -57,6 +57,12 @@
 
 #define ALIGN_WR_DOWN(_num_wr_) 		(max(32, ((_num_wr_      ) & ~(0xf))))
 
+#ifdef DEFINED_VMAPOLL	
+// Used to single that we have a single 5tuple TCP connected socket, we can improve fast path
+// TODO: We should be able to show similar behaviour for UDP
+// REVIEW: it seems p_rfs_single_tcp is not uded in code. AlexV: can it be removed?
+rfs *p_rfs_single_tcp = NULL;
+#endif // DEFINED_VMAPOLL	
 
 /**/
 /** inlining functions can only help if they are implemented before their usage **/
@@ -98,7 +104,11 @@ ring_simple::ring_simple(in_addr_t local_if, uint16_t partition_sn, int count, t
 	m_b_qp_tx_first_flushed_completion_handled(false), m_missing_buf_ref_count(0),
 	m_tx_lkey(0), m_partition(partition_sn), m_gro_mgr(safe_mce_sys().gro_streams_max, MAX_GRO_BUFS), m_up(false),
 	m_p_rx_comp_event_channel(NULL), m_p_tx_comp_event_channel(NULL), m_p_l2_addr(NULL), m_p_ring_stat(NULL),
-	m_local_if(local_if), m_transport_type(transport_type), m_b_sysvar_eth_mc_l2_only_rules(safe_mce_sys().eth_mc_l2_only_rules) {
+	m_local_if(local_if), m_transport_type(transport_type), m_b_sysvar_eth_mc_l2_only_rules(safe_mce_sys().eth_mc_l2_only_rules)
+#ifdef DEFINED_VMAPOLL		
+	, m_rx_buffs_rdy_for_free_head(NULL), m_rx_buffs_rdy_for_free_tail(NULL) 
+#endif // DEFINED_VMAPOLL		
+	{
 
 	if (count != 1)
 		ring_logpanic("Error creating simple ring with more than 1 resource");
@@ -129,6 +139,13 @@ ring_simple::~ring_simple()
 
 	m_lock_ring_rx.lock();
 	m_lock_ring_tx.lock();
+
+#ifdef DEFINED_VMAPOLL	
+	if (m_rx_buffs_rdy_for_free_head) {
+		m_p_cq_mgr_rx->vma_poll_reclaim_recv_buffer_helper(m_rx_buffs_rdy_for_free_head);
+		m_rx_buffs_rdy_for_free_head = m_rx_buffs_rdy_for_free_tail = NULL;
+	}
+#endif // DEFINED_VMAPOLL		
 
 	if (m_p_qp_mgr) {
 		// 'down' the active QP/CQ
@@ -242,6 +259,15 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 		g_p_fd_collection->add_cq_channel_fd(m_p_n_rx_channel_fds[0], this);
 	}
 
+#if 0
+REVIEW
+The following 3 lines were copied form below. Can it be OK for experimental if these lines
+remain below as in master?
+	m_tx_lkey = g_buffer_pool_tx->find_lkey_by_ib_ctx_thread_safe(p_ring_info->p_ib_ctx);
+
+	request_more_tx_buffers(RING_TX_BUFS_COMPENSATE);
+	m_tx_num_bufs = m_tx_pool.size();
+#endif // 0
 	m_p_qp_mgr = create_qp_mgr(p_ring_info->p_ib_ctx, p_ring_info->port_num, m_p_rx_comp_event_channel);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_p_qp_mgr == NULL) {
@@ -249,6 +275,7 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 		throw_vma_exception("create qp failed");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
+
 	// save cq_mgr pointers
 	m_p_cq_mgr_rx = m_p_qp_mgr->get_rx_cq_mgr();
 	m_p_cq_mgr_tx = m_p_qp_mgr->get_tx_cq_mgr();
@@ -423,6 +450,14 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	bool ret = p_rfs->attach_flow(sink);
+#ifdef DEFINED_VMAPOLL	
+// REVIEW: can p_rfs_single_tcp be removed?
+	if (flow_spec_5t.is_tcp() && !flow_spec_5t.is_3_tuple()) {
+		// save the single 5tuple TCP connected socket for improved fast path
+		//p_rfs_single_tcp = p_rfs;
+		ring_logdbg("update p_rfs_single_tcp=%p", p_rfs_single_tcp);
+	}
+#endif // DEFINED_VMAPOLL	
 	m_lock_ring_rx.unlock();
 	return ret;
 }
@@ -506,6 +541,15 @@ bool ring_simple::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 			return false;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
+
+#ifdef DEFINED_VMAPOLL
+// REVIEW: can p_rfs_single_tcp be removed?
+		if (p_rfs_single_tcp == p_rfs) {
+			// clear the single 5tuple TCP connected socket for improved fast path
+			p_rfs_single_tcp = NULL;
+			ring_logdbg("update p_rfs_single_tcp=%p", p_rfs_single_tcp);
+		}
+#endif // DEFINED_VMAPOLL
 		p_rfs->detach_flow(sink);
 		if(!keep_in_map){
 			m_tcp_dst_port_attach_map.erase(m_tcp_dst_port_attach_map.find(key_tcp.dst_port));
@@ -628,6 +672,284 @@ const char* priv_igmp_type_tostr(uint8_t igmptype)
 	}
 }
 
+#ifdef DEFINED_VMAPOLL
+inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_buf_desc)
+{
+	//size_t sz_data = 0;
+	size_t transport_header_len = 0;
+	uint16_t ip_hdr_len = 0;
+	uint16_t ip_tot_len = 0;
+	uint16_t ip_frag_off = 0;
+	uint16_t n_frag_offset = 0;
+	struct iphdr* p_ip_h = NULL;
+	struct udphdr* p_udp_h = NULL;
+	in_addr_t local_addr = p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr;
+
+	NOT_IN_USE(ip_tot_len);
+	NOT_IN_USE(ip_frag_off);
+	NOT_IN_USE(n_frag_offset);
+	NOT_IN_USE(p_udp_h);
+	NOT_IN_USE(local_addr);
+
+	if (likely(p_rfs_single_tcp)) {
+		// we have a single 5tuple TCP connected socket, use simpler fast path
+		transport_header_len = ETH_HDR_LEN;
+		p_ip_h = (struct iphdr*)(p_rx_wc_buf_desc->p_buffer + transport_header_len);
+		ip_hdr_len = 20; //(int)(p_ip_h->ihl)*4;
+		struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
+		p_rx_wc_buf_desc->path.rx.p_ip_h        = p_ip_h;
+		p_rx_wc_buf_desc->path.rx.p_tcp_h       = p_tcp_h;
+		p_rx_wc_buf_desc->transport_header_len  = transport_header_len;
+		p_rx_wc_buf_desc->path.rx.vma_polled = true;
+		p_rfs_single_tcp->rx_dispatch_packet(p_rx_wc_buf_desc, NULL);
+		p_rx_wc_buf_desc->path.rx.vma_polled = false;
+		return;
+	}
+
+	// This is an internal function (within ring and 'friends'). No need for lock mechanism.
+
+	// Validate buffer size
+	size_t sz_data = p_rx_wc_buf_desc->sz_data;
+	if (unlikely(sz_data > p_rx_wc_buf_desc->sz_buffer)) {
+		if (sz_data == IP_FRAG_FREED) {
+			ring_logfuncall("Rx buffer dropped - old fragment part");
+		} else {
+			ring_logwarn("Rx buffer dropped - buffer too small (%d, %d)", sz_data, p_rx_wc_buf_desc->sz_buffer);
+		}
+		return;
+	}
+
+	m_cq_moderation_info.bytes += sz_data;
+	++m_cq_moderation_info.packets;
+
+	m_ring_stat_static.n_rx_byte_count += sz_data;
+	++m_ring_stat_static.n_rx_pkt_count;
+
+	// Validate transport type headers
+
+	// Get the data buffer start pointer to the Ethernet header pointer
+	struct ethhdr* p_eth_h = (struct ethhdr*)(p_rx_wc_buf_desc->p_buffer);
+	ring_logfunc("Rx buffer Ethernet dst=" ETH_HW_ADDR_PRINT_FMT " <- src=" ETH_HW_ADDR_PRINT_FMT " type=%#x",
+			ETH_HW_ADDR_PRINT_ADDR(p_eth_h->h_dest),
+			ETH_HW_ADDR_PRINT_ADDR(p_eth_h->h_source),
+			htons(p_eth_h->h_proto));
+
+	transport_header_len = ETH_HDR_LEN;
+	uint16_t* p_h_proto = &p_eth_h->h_proto;
+
+	// Handle VLAN header as next protocol
+	struct vlanhdr* p_vlan_hdr = NULL;
+	uint16_t packet_vlan = 0;
+	if (*p_h_proto == htons(ETH_P_8021Q)) {
+		p_vlan_hdr = (struct vlanhdr*)((uint8_t*)p_eth_h + transport_header_len);
+		transport_header_len = ETH_VLAN_HDR_LEN;
+		p_h_proto = &p_vlan_hdr->h_vlan_encapsulated_proto;
+		packet_vlan = (htons(p_vlan_hdr->h_vlan_TCI) & VLAN_VID_MASK);
+	}
+
+	//TODO: Remove this code when handling vlan in flow steering will be available. Change this code if vlan stripping is performed.
+	if((m_partition & VLAN_VID_MASK) != packet_vlan) {
+		ring_logfunc("Rx buffer dropped- Mismatched vlan. Packet vlan = %d, Local vlan = %d", packet_vlan, m_partition & VLAN_VID_MASK);
+		return;
+	}
+
+	// Validate IP header as next protocol
+	if (unlikely(*p_h_proto != htons(ETH_P_IP))) {
+		ring_logwarn("Rx buffer dropped - Invalid Ethr Type (%#x : %#x)", p_eth_h->h_proto, htons(ETH_P_IP));
+		return;
+	}
+
+
+
+	// Jump to IP header - Skip IB (GRH and IPoIB) or Ethernet (MAC) header sizes
+	sz_data -= transport_header_len;
+
+	// Validate size for IPv4 header
+	if (unlikely(sz_data < sizeof(struct iphdr))) {
+		ring_logwarn("Rx buffer dropped - buffer too small for IPv4 header (%d, %d)", sz_data, sizeof(struct iphdr));
+		return;
+	}
+
+	// Get the ip header pointer
+	p_ip_h = (struct iphdr*)(p_rx_wc_buf_desc->p_buffer + transport_header_len);
+
+	// Drop all non IPv4 packets
+	if (unlikely(p_ip_h->version != IPV4_VERSION)) {
+		ring_logwarn("Rx packet dropped - not IPV4 packet (got version: %#x)", p_ip_h->version);
+		return;
+	}
+
+	// Check that received buffer size is not smaller then the ip datagram total size
+	ip_tot_len = ntohs(p_ip_h->tot_len);
+	if (unlikely(sz_data < ip_tot_len)) {
+		ring_logwarn("Rx packet dropped - buffer too small for received datagram (RxBuf:%d IP:%d)", sz_data, ip_tot_len);
+		ring_loginfo("Rx packet info (buf->%p, bufsize=%d), id=%d", p_rx_wc_buf_desc->p_buffer, p_rx_wc_buf_desc->sz_data, ntohs(p_ip_h->id));
+		vlog_print_buffer(VLOG_INFO, "rx packet data: ", "\n", (const char*)p_rx_wc_buf_desc->p_buffer, min(112, (int)p_rx_wc_buf_desc->sz_data));
+		return;
+	} else if (sz_data > ip_tot_len) {
+		p_rx_wc_buf_desc->sz_data -= (sz_data - ip_tot_len);
+		sz_data = ip_tot_len;
+	}
+
+	// Read fragmentation parameters
+	ip_frag_off = ntohs(p_ip_h->frag_off);
+	n_frag_offset = (ip_frag_off & FRAGMENT_OFFSET) * 8;
+
+	ring_logfunc("Rx ip packet info: dst=%d.%d.%d.%d, src=%d.%d.%d.%d, packet_sz=%d, offset=%d, id=%d, proto=%s[%d] (local if: %d.%d.%d.%d)",
+			NIPQUAD(p_ip_h->daddr), NIPQUAD(p_ip_h->saddr),
+			sz_data, n_frag_offset, ntohs(p_ip_h->id),
+			iphdr_protocol_type_to_str(p_ip_h->protocol), p_ip_h->protocol,
+			NIPQUAD(local_addr));
+
+	// Check that the ip datagram has at least the udp header size for the first ip fragment (besides the ip header)
+	ip_hdr_len = (int)(p_ip_h->ihl)*4;
+	if (unlikely((n_frag_offset == 0) && (ip_tot_len < (ip_hdr_len + sizeof(struct udphdr))))) {
+		ring_logwarn("Rx packet dropped - ip packet too small (%d bytes)- udp header cut!", ip_tot_len);
+		return;
+	}
+
+	// Handle fragmentation
+	p_rx_wc_buf_desc->n_frags = 1;
+	if (unlikely((ip_frag_off & MORE_FRAGMENTS_FLAG) || n_frag_offset)) { // Currently we don't expect to receive fragments
+		//for disabled fragments handling:
+		/*ring_logwarn("Rx packet dropped - VMA doesn't support fragmentation in receive flow!");
+		ring_logwarn("packet info: dst=%d.%d.%d.%d, src=%d.%d.%d.%d, packet_sz=%d, frag_offset=%d, id=%d, proto=%s[%d], transport type=%s, (local if: %d.%d.%d.%d)",
+				NIPQUAD(p_ip_h->daddr), NIPQUAD(p_ip_h->saddr),
+				sz_data, n_frag_offset, ntohs(p_ip_h->id),
+				iphdr_protocol_type_to_str(p_ip_h->protocol), p_ip_h->protocol, (transport_type ? "ETH" : "IB"),
+				NIPQUAD(local_addr));
+		return false;*/
+#if 1 //handle fragments
+		// Update fragments descriptor with datagram base address and length
+		p_rx_wc_buf_desc->path.rx.frag.iov_base = (uint8_t*)p_ip_h + ip_hdr_len;
+		p_rx_wc_buf_desc->path.rx.frag.iov_len  = ip_tot_len - ip_hdr_len;
+
+		// Add ip fragment packet to out fragment manager
+		mem_buf_desc_t* new_buf = NULL;
+		int ret = -1;
+		if (g_p_ip_frag_manager)
+			ret = g_p_ip_frag_manager->add_frag(p_ip_h, p_rx_wc_buf_desc, &new_buf);
+		if (ret < 0)  // Finished with error
+			return;
+		if (!new_buf)  // This is fragment
+			return;
+
+		// Re-calc all ip related values for new ip packet of head fragmentation list
+		p_rx_wc_buf_desc = new_buf;
+		sz_data -= transport_header_len; // Jump to IP header (Skip IB (GRH and IPoIB) or Ethernet (MAC) header size
+		p_ip_h = (struct iphdr*)(p_rx_wc_buf_desc->p_buffer + transport_header_len);
+		ip_hdr_len = (int)(p_ip_h->ihl)*4;
+		ip_tot_len = ntohs(p_ip_h->tot_len);
+
+		mem_buf_desc_t *tmp;
+		for (tmp = p_rx_wc_buf_desc; tmp; tmp = tmp->p_next_desc) {
+			++p_rx_wc_buf_desc->n_frags;
+		}
+#endif
+	}
+
+//We want to enable loopback between processes for IB
+#if 0
+	//AlexV: We don't support Tx MC Loopback today!
+	if (p_ip_h->saddr == m_local_if) {
+		ring_logfunc("Rx udp datagram discarded - mc loop disabled");
+		return false;
+	}
+#endif
+	rfs *p_rfs = NULL;
+
+	// Update the L3 info
+	p_rx_wc_buf_desc->path.rx.src.sin_family      = AF_INET;
+	p_rx_wc_buf_desc->path.rx.src.sin_addr.s_addr = p_ip_h->saddr;
+	p_rx_wc_buf_desc->path.rx.dst.sin_family      = AF_INET;
+	p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr = p_ip_h->daddr;
+	p_rx_wc_buf_desc->path.rx.local_if            = m_local_if;
+
+	switch (p_ip_h->protocol) {
+	case IPPROTO_UDP:
+	{
+		// Get the udp header pointer + udp payload size
+		p_udp_h = (struct udphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
+		size_t sz_payload = ntohs(p_udp_h->len) - sizeof(struct udphdr);
+		ring_logfunc("Rx udp datagram info: src_port=%d, dst_port=%d, payload_sz=%d, csum=%#x",
+				ntohs(p_udp_h->source), ntohs(p_udp_h->dest), sz_payload, p_udp_h->check);
+
+		// Update packet descriptor with datagram base address and length
+		p_rx_wc_buf_desc->path.rx.frag.iov_base = (uint8_t*)p_udp_h + sizeof(struct udphdr);
+		p_rx_wc_buf_desc->path.rx.frag.iov_len  = ip_tot_len - ip_hdr_len - sizeof(struct udphdr);
+
+		// Update the L4 info
+		p_rx_wc_buf_desc->path.rx.src.sin_port        = p_udp_h->source;
+		p_rx_wc_buf_desc->path.rx.dst.sin_port        = p_udp_h->dest;
+		p_rx_wc_buf_desc->path.rx.sz_payload          = sz_payload;
+
+		// Find the relevant hash map and pass the packet to the rfs for dispatching
+		if (!(IN_MULTICAST_N(p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr))) {	// This is UDP UC packet
+			p_rfs = m_flow_udp_uc_map.get((flow_spec_udp_uc_key_t){p_rx_wc_buf_desc->path.rx.dst.sin_port}, NULL);
+		} else {	// This is UDP MC packet
+			p_rfs = m_flow_udp_mc_map.get((flow_spec_udp_mc_key_t){p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr,
+				p_rx_wc_buf_desc->path.rx.dst.sin_port}, NULL);
+		}
+	}
+	break;
+
+	case IPPROTO_TCP:
+	{
+		// Get the tcp header pointer + tcp payload size
+		struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
+		size_t sz_payload = ip_tot_len - ip_hdr_len - p_tcp_h->doff*4;
+		ring_logfunc("Rx TCP segment info: src_port=%d, dst_port=%d, flags='%s%s%s%s%s%s' seq=%u, ack=%u, win=%u, payload_sz=%u",
+				ntohs(p_tcp_h->source), ntohs(p_tcp_h->dest),
+				p_tcp_h->urg?"U":"", p_tcp_h->ack?"A":"", p_tcp_h->psh?"P":"",
+				p_tcp_h->rst?"R":"", p_tcp_h->syn?"S":"", p_tcp_h->fin?"F":"",
+				ntohl(p_tcp_h->seq), ntohl(p_tcp_h->ack_seq), ntohs(p_tcp_h->window),
+				sz_payload);
+
+		// Update packet descriptor with datagram base address and length
+		p_rx_wc_buf_desc->path.rx.frag.iov_base = (uint8_t*)p_tcp_h + sizeof(struct tcphdr);
+		p_rx_wc_buf_desc->path.rx.frag.iov_len  = ip_tot_len - ip_hdr_len - sizeof(struct tcphdr);
+
+		// Update the L4 info
+		p_rx_wc_buf_desc->path.rx.src.sin_port        = p_tcp_h->source;
+		p_rx_wc_buf_desc->path.rx.dst.sin_port        = p_tcp_h->dest;
+		p_rx_wc_buf_desc->path.rx.sz_payload          = sz_payload;
+
+		p_rx_wc_buf_desc->path.rx.p_ip_h = p_ip_h;
+		p_rx_wc_buf_desc->path.rx.p_tcp_h = p_tcp_h;
+
+		// Find the relevant hash map and pass the packet to the rfs for dispatching
+		p_rfs = m_flow_tcp_map.get((flow_spec_tcp_key_t){p_rx_wc_buf_desc->path.rx.src.sin_addr.s_addr,
+			p_rx_wc_buf_desc->path.rx.dst.sin_port, p_rx_wc_buf_desc->path.rx.src.sin_port}, NULL);
+
+		p_rx_wc_buf_desc->transport_header_len = transport_header_len;
+
+		if (unlikely(p_rfs == NULL)) {	// If we didn't find a match for TCP 5T, look for a match with TCP 3T
+			p_rfs = m_flow_tcp_map.get((flow_spec_tcp_key_t){0, p_rx_wc_buf_desc->path.rx.dst.sin_port, 0}, NULL);
+		}
+	}
+	break;
+
+	default:
+		ring_logwarn("Rx packet dropped - undefined protocol = %d", p_ip_h->protocol);
+		return;
+	}
+
+	if (unlikely(p_rfs == NULL)) {
+		ring_logdbg("Rx packet dropped - rfs object not found: dst:%d.%d.%d.%d:%d, src%d.%d.%d.%d:%d, proto=%s[%d]",
+				NIPQUAD(p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr), ntohs(p_rx_wc_buf_desc->path.rx.dst.sin_port),
+				NIPQUAD(p_rx_wc_buf_desc->path.rx.src.sin_addr.s_addr), ntohs(p_rx_wc_buf_desc->path.rx.src.sin_port),
+				iphdr_protocol_type_to_str(p_ip_h->protocol), p_ip_h->protocol);
+
+		return;
+	}
+	p_rx_wc_buf_desc->path.rx.vma_polled = true;
+	p_rfs->rx_dispatch_packet(p_rx_wc_buf_desc, NULL);
+	p_rx_wc_buf_desc->path.rx.vma_polled = false;
+}
+#endif // DEFINED_VMAPOLL
+
+
+
 // All CQ wce come here for some basic sanity checks and then are distributed to the correct ring handler
 // Return values: false = Reuse this data buffer & mem_buf_desc
 bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_type_t transport_type, void* pv_fd_ready_array /*=NULL*/)
@@ -641,15 +963,38 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 	struct iphdr* p_ip_h = NULL;
 	struct udphdr* p_udp_h = NULL;
 
+#ifdef DEFINED_VMAPOLL
+	NOT_IN_USE(ip_tot_len);
+	NOT_IN_USE(ip_frag_off);
+	NOT_IN_USE(n_frag_offset);
+	NOT_IN_USE(p_udp_h);
+	NOT_IN_USE(transport_type);
+#endif // DEFINED_VMAPOLL
+
+#ifdef DEFINED_VMAPOLL
+// REVIEW - can p_rfs_single_tcp be removed?
+	if (likely(p_rfs_single_tcp)) {
+		// we have a single 5tuple TCP connected socket, use simpler fast path
+		transport_header_len = ETH_HDR_LEN;
+		p_ip_h = (struct iphdr*)(p_rx_wc_buf_desc->p_buffer + transport_header_len);
+		ip_hdr_len = 20; //(int)(p_ip_h->ihl)*4;
+		struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
+		p_rx_wc_buf_desc->path.rx.p_ip_h        = p_ip_h;
+		p_rx_wc_buf_desc->path.rx.p_tcp_h       = p_tcp_h;
+		p_rx_wc_buf_desc->transport_header_len  = transport_header_len;
+		return p_rfs_single_tcp->rx_dispatch_packet(p_rx_wc_buf_desc, pv_fd_ready_array);
+	}
+#endif // DEFINED_VMAPOLL
 	// This is an internal function (within ring and 'friends'). No need for lock mechanism.
 
 	// Validate buffer size
 	sz_data = p_rx_wc_buf_desc->sz_data;
 	if (unlikely(sz_data > p_rx_wc_buf_desc->sz_buffer)) {
-		if (sz_data == IP_FRAG_FREED)
+		if (sz_data == IP_FRAG_FREED) {
 			ring_logfuncall("Rx buffer dropped - old fragment part");
-		else
+		} else {
 			ring_logwarn("Rx buffer dropped - buffer too small (%d, %d)", sz_data, p_rx_wc_buf_desc->sz_buffer);
+		}
 		return false;
 	}
 
@@ -950,9 +1295,65 @@ int ring_simple::request_notification(cq_type_t cq_type, uint64_t poll_sn)
 int ring_simple::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array /*NULL*/)
 {
 	int ret = 0;
-	RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_rx, m_p_cq_mgr_rx->poll_and_process_element_rx(p_cq_poll_sn, pv_fd_ready_array));
+	RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_rx, m_p_cq_mgr_rx->poll_and_process_helper_rx(p_cq_poll_sn, pv_fd_ready_array));
 	return ret;
 }
+
+#ifdef DEFINED_VMAPOLL
+int ring_simple::vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags)
+{
+	int ret = 0;
+	int i = 0;
+	mem_buf_desc_t *desc;
+
+	NOT_IN_USE(flags);
+
+	if (likely(vma_completions) && ncompletions) {
+		struct ring_ec *ec = NULL;
+
+		m_vma_poll_completion = vma_completions;
+
+		while (!g_b_exit && (i < (int)ncompletions)) {
+			m_vma_poll_completion->events = 0;
+			/* Check list size to avoid locking */
+			if (!list_empty(&m_ec_list)) {
+				ec = get_ec();
+				if (ec) {
+					memcpy(m_vma_poll_completion, &ec->completion, sizeof(ec->completion));
+					clear_ec(ec);
+					m_vma_poll_completion++;
+					i++;
+				}
+			} else {
+				/* Internal thread can raise event on this stage before we
+				 * start rx processing. In this case we can return event
+				 * in right order. It is done to avoid locking and
+				 * may be it is not so critical
+				 */
+				if (likely(m_p_cq_mgr_rx->vma_poll_and_process_element_rx(&desc))) {
+					vma_poll_process_recv_buffer(desc);
+					if (m_vma_poll_completion->events) {
+						m_vma_poll_completion++;
+						i++;
+					}
+				} else {
+					break;
+				}
+			}
+		}
+
+		m_vma_poll_completion = NULL;
+
+		ret = i;
+	}
+	else {
+		ret = -1;
+		errno = EINVAL;
+	}
+
+	return ret;
+}
+#endif // DEFINED_VMAPOLL
 
 int ring_simple::wait_for_notification_and_process_element(cq_type_t cq_type, int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array /*NULL*/)
 {
@@ -988,6 +1389,48 @@ bool ring_simple::reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst)
 {
 	return m_p_cq_mgr_rx->reclaim_recv_buffers(rx_reuse_lst);
 }
+
+#ifdef DEFINED_VMAPOLL
+int ring_simple::vma_poll_reclaim_single_recv_buffer(mem_buf_desc_t* rx_reuse_buff)
+{
+	int ret_val = 0;
+
+	ret_val = rx_reuse_buff->lwip_pbuf_dec_ref_count();
+
+	if ((ret_val == 0) && (rx_reuse_buff->get_ref_count() <= 0)) {
+		/*if ((safe_mce_sys().thread_mode > THREAD_MODE_SINGLE)) {
+			m_lock_ring_rx.lock();
+		}*/
+
+		if (!m_rx_buffs_rdy_for_free_head) {
+			m_rx_buffs_rdy_for_free_head = m_rx_buffs_rdy_for_free_tail = rx_reuse_buff;
+		}
+		else {
+			m_rx_buffs_rdy_for_free_tail->p_next_desc = rx_reuse_buff;
+			m_rx_buffs_rdy_for_free_tail = rx_reuse_buff;
+		}
+		m_rx_buffs_rdy_for_free_tail->p_next_desc = NULL;
+
+		/*if ((safe_mce_sys().thread_mode > THREAD_MODE_SINGLE)) {
+			m_lock_ring_rx.lock();
+		}*/
+	}
+
+	return ret_val;
+}
+
+void ring_simple::vma_poll_reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst)
+{
+	m_lock_ring_rx.lock();
+	if (m_rx_buffs_rdy_for_free_head) {
+		m_p_cq_mgr_rx->vma_poll_reclaim_recv_buffer_helper(m_rx_buffs_rdy_for_free_head);
+		m_rx_buffs_rdy_for_free_head = m_rx_buffs_rdy_for_free_tail = NULL;
+	}
+
+	m_p_cq_mgr_rx->vma_poll_reclaim_recv_buffer_helper(rx_reuse_lst);
+	m_lock_ring_rx.unlock();
+}
+#endif // DEFINED_VMAPOLL
 
 void ring_simple::mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc)
 {
