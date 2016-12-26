@@ -20,4 +20,4 @@ fi
 if type systemctl >/dev/null 2>&1; then
     systemctl --system daemon-reload
 fi
-/etc/init.d/vma start
+/etc/init.d/vma start || true
