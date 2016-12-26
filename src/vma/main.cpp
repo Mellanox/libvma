@@ -75,7 +75,6 @@
 
 #include "vma/util/instrumentation.h"
 #include "vma/util/agent.h"
-#include "vma/util/sys_vars.h"
 
 void check_netperf_flags();
 

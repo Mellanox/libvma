@@ -221,7 +221,7 @@ ssize_t pipeinfo::tx(const tx_call_t call_type, const iovec* p_iov, const ssize_
 	switch (call_type) {
 	case  TX_WRITE:
 
-		if ((safe_mce_sys().mce_spec == MCE_SPEC_29WEST_LBM_29 || safe_mce_sys().mce_spec == MCE_SPEC_WOMBAT_FH_LBM_554) &&
+		if ((safe_mce_sys().mce_spec == MCE_SPEC_29WEST_LBM_29 || safe_mce_sys().mce_spec == MCE_SPEC_WOMBAT_FH_LBM_554) && 
 		    (p_iov[0].iov_len == 1) && (((char*)p_iov[0].iov_base)[0] == '\0')) {
 
 			// We will pass one pipe write in every T usec
