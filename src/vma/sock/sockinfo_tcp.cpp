@@ -967,28 +967,22 @@ err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rex
 	p_si_tcp->m_p_socket_stats->tcp_state = new_state;
 
 	/* Update daemon about actual state for offloaded connection */
-	if (likely((p_si_tcp->m_sock_offload == TCP_SOCK_LWIP) &&
-			(AGENT_ACTIVE == g_p_agent->state()))) {
-		agent_msg_t *msg = NULL;
+	if (likely(p_si_tcp->m_sock_offload == TCP_SOCK_LWIP)) {
+		static agent_msg_t *cache_msg = NULL;
+		struct vma_msg_state data;
 
-		msg = g_p_agent->alloc_msg();
-		if (msg) {
-			struct vma_msg_state *data = NULL;
+		data.hdr.code = VMA_MSG_STATE;
+		data.hdr.ver = VMA_AGENT_VER;
+		data.hdr.pid = getpid();
+		data.fid = p_si_tcp->get_fd();
+		data.state = new_state;
+		data.type = SOCK_STREAM;
+		data.src_ip = p_si_tcp->m_bound.get_in_addr();
+		data.src_port = p_si_tcp->m_bound.get_in_addr();
+		data.dst_ip = p_si_tcp->m_connected.get_in_addr();
+		data.dst_port = p_si_tcp->m_connected.get_in_port();
 
-			msg->length = sizeof(*data);
-			data = (struct vma_msg_state*)&msg->data;
-			data->hdr.code = VMA_MSG_STATE;
-			data->hdr.ver = VMA_AGENT_VER;
-			data->hdr.pid = getpid();
-			data->fid = p_si_tcp->get_fd();
-			data->state = new_state;
-			data->type = SOCK_STREAM;
-			data->src_ip = p_si_tcp->m_bound.get_in_addr();
-			data->src_port = p_si_tcp->m_bound.get_in_port();
-			data->dst_ip = p_si_tcp->m_connected.get_in_addr();
-			data->dst_port = p_si_tcp->m_connected.get_in_port();
-			g_p_agent->put_msg(msg);
-		}
+		g_p_agent->put((const void*)&data, sizeof(data), (intptr_t)data.fid, (void **)&cache_msg);
 	}
 }
 

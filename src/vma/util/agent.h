@@ -38,6 +38,7 @@
 typedef struct agent_msg {
 	struct list_head item;
 	int length;
+	intptr_t tag;
 	union {
 		struct vma_msg_state state;
 		char raw[1];
@@ -50,48 +51,20 @@ typedef enum {
 	AGENT_CLOSED
 } agent_state_t;
 
+#define AGENT_MSG_TAG_INVALID (-1)
+
 class agent : lock_spin {
 public:
 	agent();
 	virtual ~agent();
-
-	void progress(void);
 
 	inline agent_state_t state(void) const
 	{
 		return m_state;
 	}
 
-	inline void put_msg(agent_msg_t *msg)
-	{
-		lock();
-		list_add_tail(&msg->item, &m_wait_queue);
-		unlock();
-	}
-
-	inline agent_msg_t* alloc_msg(void)
-	{
-		agent_msg_t *msg = NULL;
-		int i = 0;
-
-		lock();
-		if (list_empty(&m_free_queue)) {
-			for (i = 0; i < m_msg_grow; i++) {
-				msg = (agent_msg_t *)malloc(sizeof(*msg));
-				if (NULL == msg) {
-					break;
-				}
-				msg->length = 0;
-				list_add_tail(&msg->item, &m_free_queue);
-				m_msg_num++;
-			}
-		}
-		msg = list_first_entry(&m_free_queue, agent_msg_t, item);
-		msg->length = 0;
-		list_del_init(&msg->item);
-		unlock();
-		return msg;
-	}
+	int put(const void *data, size_t length, intptr_t tag, void **saveptr);
+	void progress(void);
 
 private:
 	/* state of this object */

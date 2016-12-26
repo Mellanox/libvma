@@ -98,6 +98,7 @@ agent::agent() :
 			goto err;
 		}
 		msg->length = 0;
+		msg->tag = AGENT_MSG_TAG_INVALID;
 		list_add_tail(&msg->item, &m_free_queue);
 		m_msg_num++;
 	}
@@ -253,9 +254,72 @@ void agent::progress(void)
 			break;
 		}
 		list_del_init(&msg->item);
+		msg->length = 0;
+		msg->tag = AGENT_MSG_TAG_INVALID;
 		list_add_tail(&msg->item, &m_free_queue);
 	}
 	unlock();
+}
+
+int agent::put(const void *data, size_t length, intptr_t tag, void **saveptr)
+{
+	agent_msg_t *msg = NULL;
+	int i = 0;
+
+	if (AGENT_CLOSED == m_state) {
+		return 0;
+	}
+
+	if (m_sock_fd < 0) {
+		return -EBADF;
+	}
+
+	if (!saveptr) {
+		return -EINVAL;
+	}
+
+	if (length > sizeof(msg->data)) {
+		return -EINVAL;
+	}
+
+	lock();
+
+	msg = (agent_msg_t *)(*saveptr);
+	if (!((AGENT_INACTIVE == m_state) &&
+			(NULL != msg) &&
+			(tag == msg->tag))) {
+		/* allocate new message in case free queue is empty */
+		if (list_empty(&m_free_queue)) {
+			for (i = 0; i < m_msg_grow; i++) {
+				msg = (agent_msg_t *)malloc(sizeof(*msg));
+				if (NULL == msg) {
+					break;
+				}
+				msg->length = 0;
+				msg->tag = AGENT_MSG_TAG_INVALID;
+				list_add_tail(&msg->item, &m_free_queue);
+				m_msg_num++;
+			}
+		}
+		/* get message from free queue */
+		msg = list_first_entry(&m_free_queue, agent_msg_t, item);
+		list_del_init(&msg->item);
+
+		/* put message into wait queue */
+		list_add_tail(&msg->item, &m_wait_queue);
+	}
+
+	/* update message */
+	memcpy(&msg->data, data, length);
+	msg->length = length;
+	msg->tag = tag;
+
+	/* cache message */
+	*saveptr = (void *)msg;
+
+	unlock();
+
+	return 0;
 }
 
 int agent::send(agent_msg_t *msg)
