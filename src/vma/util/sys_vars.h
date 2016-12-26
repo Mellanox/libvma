@@ -44,18 +44,19 @@
 #include "verbs_extra.h"
 #include "vma/util/sysctl_reader.h"
 
-
 typedef enum {
-	MCE_SPEC_DEFAULT = 0,
-	MCE_SPEC_SOCKPERF_LL_10 = 10,
-	MCE_SPEC_29WEST_LBM_29 = 29,
-	MCE_SPEC_WOMBAT_FH_LBM_554 = 554,
-	MCE_SPEC_RTI_784 = 784,
-	MCE_SPEC_NETEFFECT_63 = 63,
-	MCE_SPEC_MCD_623 = 623,
-	MCE_SPEC_MCD_IRQ_624 = 624,
-	MCE_SPEC_LL_6973 = 6973,
-} mce_spec_t;
+	MCE_SPEC_NONE = 0,
+	MCE_SPEC_SOCKPERF_ULTRA_LATENCY_10,
+	MCE_SPEC_SOCKPERF_LATENCY_15,
+	MCE_SPEC_29WEST_LBM_29,
+	MCE_SPEC_WOMBAT_FH_LBM_554,
+	MCE_SPEC_MCD_623,
+	MCE_SPEC_MCD_IRQ_624,
+	MCE_SPEC_RTI_784,
+	MCE_SPEC_LL_6973,
+
+	MCE_VMA__ALL /* last element */
+} vVMA_spec_t;
 
 typedef enum {
 	ALLOC_TYPE_ANON = 0,
@@ -189,6 +190,16 @@ static inline const char* internal_thread_tcp_timer_handling_str(internal_thread
 	default:					break;
 	}
 	return "unsupported";
+}
+
+namespace vma_spec {
+	// convert str to vVMA_spec_t; upon error - returns the given 'def_value'
+	vVMA_spec_t from_str(const char* str, vVMA_spec_t def_value = MCE_SPEC_NONE);
+
+	// convert int to vVMA_spec_t; upon error - returns the given 'def_value'
+	vVMA_spec_t from_int(const int int_spec, vVMA_spec_t def_value = MCE_SPEC_NONE);
+
+	const char * to_str(vVMA_spec_t level);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

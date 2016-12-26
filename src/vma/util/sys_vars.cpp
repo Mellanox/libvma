@@ -92,6 +92,71 @@ void mce_sys_var::print_vma_load_failure_msg()
 	vlog_printf(VLOG_ERROR,"***************************************************************************\n");
 }
 
+
+
+namespace vma_spec {
+	typedef struct {
+		vVMA_spec_t level;
+		const char *  output_name;
+		const char ** input_names;
+	}vma_spec_names;
+
+	static const char *names_none[]    	   = {"none", "0",NULL};
+	static const char *spec_names_ulatency[]  = {"ultra-latency", "10", NULL};
+	static const char *spec_names_latency[]   = {"latency", "15", NULL};
+	static const char *spec_names_29west[]    = {"29west", "29", NULL};
+	static const char *spec_names_wombat_fh[] = {"wombat_fh", "554", NULL};
+	static const char *spec_names_mcd[]       = {"mcd", "623", NULL};
+	static const char *spec_names_mcd_irq[]   = {"mcd-irq", "624", NULL};
+	static const char *spec_names_rti[]       = {"rti", "784", NULL};
+	static const char *spec_names_6973[]      = {"6973", NULL};
+
+	// must be by order because "to_str" relies on that!
+	static const vma_spec_names specs[] = {
+		{MCE_SPEC_NONE, 		  	"NONE",     			(const char ** )names_none},
+		{MCE_SPEC_SOCKPERF_ULTRA_LATENCY_10, 	"Ultra Latency", 		(const char ** )spec_names_ulatency},
+		{MCE_SPEC_SOCKPERF_LATENCY_15,    	"Latency",   			(const char ** )spec_names_latency},
+		{MCE_SPEC_29WEST_LBM_29,    	  	"29West LBM Logic",    		(const char ** )spec_names_29west},
+		{MCE_SPEC_WOMBAT_FH_LBM_554,      	"Wombat FH LBM Logic",    	(const char ** )spec_names_wombat_fh},
+		{MCE_SPEC_MCD_623,    		  	"Memcached Logic",    		(const char ** )spec_names_mcd},
+		{MCE_SPEC_MCD_IRQ_624,    	  	"Memcached Interrupt Mode",	(const char ** )spec_names_mcd_irq},
+		{MCE_SPEC_RTI_784,    		  	"RTI Logic",    		(const char ** )spec_names_rti},
+		{MCE_SPEC_LL_6973,    		  	"6973 Low Latency Profile", 	(const char ** )spec_names_6973},
+	};
+
+	// convert str to vVMA_spec_t; upon error - returns the given 'def_value'
+	vVMA_spec_t from_str(const char* str, vVMA_spec_t def_value)
+	{
+		size_t num_levels = sizeof(specs) / sizeof(specs[0]);
+		for (size_t i = 0; i < num_levels; ++i) {
+			const char ** input_name = specs[i].input_names;
+			while (*input_name) {
+				if (strcasecmp(str, *input_name) == 0)
+					return specs[i].level;
+				input_name++;
+			}
+		}
+
+		return def_value; // not found. use given def_value
+	}
+
+	// convert int to vVMA_spec_t; upon error - returns the given 'def_value'
+	vVMA_spec_t from_int(const int int_spec, vVMA_spec_t def_value)
+	{
+		if (int_spec >= MCE_SPEC_NONE && int_spec <= MCE_VMA__ALL) {
+			return static_cast<vVMA_spec_t>(int_spec);
+		}
+		return def_value; // not found. use given def_value
+	}
+
+	const char * to_str(vVMA_spec_t level)
+	{
+		static int base = MCE_SPEC_NONE;
+		return specs[level - base].output_name;
+	}
+
+}
+
 int mce_sys_var::list_to_cpuset(char *cpulist, cpu_set_t *cpu_set)
 {
 	char comma[] = ",";
@@ -408,7 +473,7 @@ void mce_sys_var::get_env_params()
 	mtu			= MCE_DEFAULT_MTU;
 	lwip_mss		= MCE_DEFAULT_MSS;
 	lwip_cc_algo_mod	= MCE_DEFAULT_LWIP_CC_ALGO_MOD;
-	mce_spec		= 0;
+	mce_spec		= MCE_SPEC_NONE;
 	mce_spec_param1		= 1;
 	mce_spec_param2		= 1;
 	
@@ -424,12 +489,12 @@ void mce_sys_var::get_env_params()
 	vma_time_measure_num_samples = MCE_DEFAULT_TIME_MEASURE_NUM_SAMPLES;
 #endif
 
-	if ((env_ptr = getenv(SYS_VAR_SPEC)) != NULL)
-		mce_spec = (uint32_t)atoi(env_ptr);
+	if ((env_ptr = getenv(SYS_VAR_SPEC)) != NULL){
+		mce_spec = (uint32_t)vma_spec::from_str(env_ptr, MCE_SPEC_NONE);
+	}
 
 	switch (mce_spec) {
-
-	case MCE_SPEC_SOCKPERF_LL_10:
+	case MCE_SPEC_SOCKPERF_ULTRA_LATENCY_10:
 		tx_num_segs_tcp         = 512; //MCE_DEFAULT_TX_NUM_SEGS_TCP (1000000)
 		tx_num_bufs             = 512; //MCE_DEFAULT_TX_NUM_BUFS (200000)
 		tx_num_wr               = 256; //MCE_DEFAULT_TX_NUM_WRE (3000)
@@ -455,6 +520,28 @@ void mce_sys_var::get_env_params()
 		thread_mode		= THREAD_MODE_SINGLE;
 		mem_alloc_type          = ALLOC_TYPE_HUGEPAGES;
 		strcpy(internal_thread_affinity_str, "0"); //MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR;
+		break;
+
+	case MCE_SPEC_SOCKPERF_LATENCY_15:
+		tx_num_wr         	= 256; //MCE_DEFAULT_TX_NUM_WRE (3000)
+		tx_num_wr_to_signal     = 4;   //MCE_DEFAULT_TX_NUM_WRE_TO_SIGNAL(64)
+		tx_bufs_batch_udp	= 1;   //MCE_DEFAULT_TX_BUFS_BATCH_UDP (8)
+		tx_bufs_batch_tcp	= 1;   //MCE_DEFAULT_TX_BUFS_BATCH_TCP (16)
+		rx_bufs_batch           = 4;   //MCE_DEFAULT_RX_BUFS_BATCH (64)
+		rx_num_wr               = 256; //MCE_DEFAULT_RX_NUM_WRE (16000)
+		rx_num_wr_to_post_recv  = 4;   //MCE_DEFAULT_RX_NUM_WRE_TO_POST_RECV (64)
+		rx_poll_num             = -1;  //MCE_DEFAULT_RX_NUM_POLLS (100000)
+		rx_prefetch_bytes_before_poll = 256; //MCE_DEFAULT_RX_PREFETCH_BYTES_BEFORE_POLL (0)
+		select_poll_num         = -1;  //MCE_DEFAULT_SELECT_NUM_POLLS (100000)
+		avoid_sys_calls_on_tcp_fd = true; //MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD (false)
+		gro_streams_max		= 0; //MCE_DEFAULT_GRO_STREAMS_MAX (32)
+		cq_keep_qp_full		= false; //MCE_DEFAULT_CQ_KEEP_QP_FULL (true)
+		thread_mode 		= THREAD_MODE_SINGLE; //MCE_DEFAULT_THREAD_MODE (THREAD_MODE_MULTI)
+		mem_alloc_type 		= ALLOC_TYPE_HUGEPAGES; //MCE_DEFAULT_MEM_ALLOC_TYPE (ALLOC_TYPE_CONTIG)
+		strcpy(internal_thread_affinity_str, "0"); //MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR ("-1")
+		progress_engine_interval_msec = 100; //MCE_DEFAULT_PROGRESS_ENGINE_INTERVAL_MSEC (10)
+		select_poll_os_ratio          = 100; //MCE_DEFAULT_SELECT_POLL_OS_RATIO (10)
+		select_poll_os_force	      = 1;   //MCE_DEFAULT_SELECT_POLL_OS_FORCE (0)
 		break;
 
 	case MCE_SPEC_29WEST_LBM_29:
@@ -510,7 +597,7 @@ void mce_sys_var::get_env_params()
 		buffer_batching_mode      = BUFFER_BATCHING_NONE; //MCE_DEFAULT_BUFFER_BATCHING_MODE(BUFFER_BATCHING_WITH_RECLAIM), Disable handling control packets on a separate thread
 		break;
 		
-	case 0:
+	case MCE_SPEC_NONE:
 	default:
 		break;
 	}
