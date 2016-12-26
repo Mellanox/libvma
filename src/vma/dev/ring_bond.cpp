@@ -151,10 +151,17 @@ void ring_bond::restart(ring_resource_creation_info_t* p_ring_info) {
 	}
 
 	if (m_type == net_device_val::ACTIVE_BACKUP) {
-		ring_simple* currently_active = m_active_rings[0];;
+		ring_simple* currently_active = m_active_rings[0];
 		if (safe_mce_sys().cq_moderation_enable) {
-			currently_active->m_cq_moderation_info.period = previously_active->m_cq_moderation_info.period;
-			currently_active->m_cq_moderation_info.count = previously_active->m_cq_moderation_info.count;
+			if(likely(previously_active)) {
+				currently_active->m_cq_moderation_info.period = previously_active->m_cq_moderation_info.period;
+				currently_active->m_cq_moderation_info.count = previously_active->m_cq_moderation_info.count;
+			}
+			else {
+				currently_active->m_cq_moderation_info.period = safe_mce_sys().cq_moderation_period_usec;
+				currently_active->m_cq_moderation_info.count = safe_mce_sys().cq_moderation_count;
+			}
+
 			currently_active->modify_cq_moderation(safe_mce_sys().cq_moderation_period_usec, safe_mce_sys().cq_moderation_count);
 		}
 	}
