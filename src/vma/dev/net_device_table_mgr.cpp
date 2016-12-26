@@ -178,8 +178,7 @@ int net_device_table_mgr::map_net_devices()
 			continue;
 		}
 		if (!(ifa->ifa_flags & IFF_RUNNING)) {
-			ndtm_logdbg("Blocking offload: Interface ('%s') is not running", ifa->ifa_name);
-			continue;
+			ndtm_logdbg("Interface ('%s') is not running", ifa->ifa_name);
 		}
 
 		ndtm_logdbg("Checking if can offload on interface '%s' (addr=%d.%d.%d.%d, flags=%X)",
@@ -234,15 +233,9 @@ int net_device_table_mgr::map_net_devices()
 			continue;
 		}
 
-		//check if port is in active mode. if not, dont create net_device_val_ib.
+		//check if port is in active mode.
 		if (ib_ctx->get_port_state(cma_id->port_num) != IBV_PORT_ACTIVE) {
-			ndtm_logdbg("Blocking offload: non-active interfaces ('%s')", ifa->ifa_name);
-
-			// Close the cma_id which will not be offload
-			IF_RDMACM_FAILURE(rdma_destroy_id(cma_id)) {
-				ndtm_logerr("Failed in rdma_destroy_id (errno=%d %m)", errno);
-			} ENDIF_RDMACM_FAILURE;
-			continue;
+			ndtm_logdbg("Non-active interfaces ('%s')", ifa->ifa_name);
 		}
 
 		bool valid = false;
