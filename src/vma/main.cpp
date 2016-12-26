@@ -121,6 +121,7 @@ bool g_init_global_ctors_done = true;
 #define MAX_CMD_LINE		2048
 
 command_netlink * g_p_cmd_nl = NULL;
+
 tcp_timers_collection* g_p_tcp_timers_collection_vg = NULL;
 
 static int free_libvma_resources()
