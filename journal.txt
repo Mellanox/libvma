@@ -1,3 +1,9 @@
+Version 8.2.4-0:
+Date + Time 2016-12-27
+=======================
+Added:
+        - RM #933236 Improve peer-notification debian package removal procedure
+
 Version 8.2.3-0:
 Date + Time 2016-12-26
 =======================
