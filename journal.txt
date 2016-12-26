@@ -1,3 +1,9 @@
+Version 8.2.3-0:
+Date + Time 2016-12-26
+=======================
+Fixed:
+        - RM #768398 Fix peer-notification vma daemon package removal under debian
+
 Version 8.2.2-0:
 Date + Time 2016-12-20
 =======================
