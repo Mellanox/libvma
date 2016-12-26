@@ -1,3 +1,13 @@
 #!/bin/bash
 
 /etc/init.d/vma stop || true
+if [ -e /sbin/chkconfig ]; then
+    /sbin/chkconfig --del vma
+elif [ -e /usr/sbin/update-rc.d ]; then
+    /usr/sbin/update-rc.d -f vma remove
+else
+    /usr/lib/lsb/remove_initd /etc/init.d/vma
+fi
+if type systemctl >/dev/null 2>&1; then
+    systemctl --system daemon-reload
+fi

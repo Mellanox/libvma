@@ -1,3 +1,2 @@
 #!/bin/bash
-rm -rf /etc/init.d/vma
 /sbin/ldconfig
