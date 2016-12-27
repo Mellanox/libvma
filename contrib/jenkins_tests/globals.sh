@@ -15,8 +15,9 @@ fi
 rc=0
 
 jenkins_test_custom_configure=${jenkins_test_custom_configure:=""}
+jenkins_test_custom_prefix=${jenkins_test_custom_prefix:="jenkins"}
 
-prefix=jenkins
+prefix=${jenkins_test_custom_prefix}
 build_dir=${WORKSPACE}/${prefix}/build
 install_dir=${WORKSPACE}/${prefix}/install
 compiler_dir=${WORKSPACE}/${prefix}/compiler
@@ -55,15 +56,15 @@ function do_cmd()
     ret=$?
     set -e
     if [ $ret -gt 0 ]; then
-		exit $ret
-	fi
+        exit $ret
+    fi
 }
 
 function do_export()
 {
-	export PATH="$1/bin:${PATH}"
-	export LD_LIBRARY_PATH="$1/lib:${LD_LIBRARY_PATH}"
-	export MANPATH="$1/share/man:${MANPATH}"
+    export PATH="$1/bin:${PATH}"
+    export LD_LIBRARY_PATH="$1/lib:${LD_LIBRARY_PATH}"
+    export MANPATH="$1/share/man:${MANPATH}"
 }
 
 function do_github_status()
@@ -96,25 +97,18 @@ function check_env()
     if [ $(command -v pkill >/dev/null 2>&1 || echo $?) ]; then
         echo "pkill is not found"
         echo "environment [NOT OK]"
-        exit 0
+        exit 1
     fi
     if [ $(sudo pwd >/dev/null 2>&1 || echo $?) ]; then
         echo "sudo does not work"
         echo "environment [NOT OK]"
-        exit 0
+        exit 1
     fi
 
     if [ $(command -v ofed_info >/dev/null 2>&1 || echo $?) ]; then
         echo "Configuration: INBOX : ${ghprbTargetBranch}"
-    elif [ -n "$ghprbTargetBranch" -a "$ghprbTargetBranch" != "master" ]; then
-        echo "Configuration: MOFED[$(ofed_info -s)] : ${ghprbTargetBranch}"
-
-        if [ $(ofed_info -s | grep 'MLNX_OFED_LINUX-3.2' >/dev/null 2>&1 || echo $?) ]; then
-            echo "environment [NOT OK]"
-            exit 0
-        fi
     else
-        echo "Configuration: MOFED[$(ofed_info -s)] : master"
+        echo "Configuration: MOFED[$(ofed_info -s)] : ${ghprbTargetBranch}"
     fi
 
     echo "environment [OK]"
