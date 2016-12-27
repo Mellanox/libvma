@@ -41,54 +41,73 @@
 #include <time.h>	/* for clock_gettime */
 #include <arpa/inet.h>
 
-/*  gcc -lrt tcp_wnd_test_server.c -o server.o */
-/*  ./server.o -i 9.9.9.4 -p 5000 -s 1000000 -t 10 -m 500 -M 30000 -c 122 */
+/*  gcc -lrt tcp_wnd_test_server.c -o server */
+/*  ./server -i 9.9.9.4 -p 5000 -s 1000000 -t 10 -m 500 -M 30000 -c 122 */
 
-#define 	BUFFER_SIZE 		(0x400)
+#define	BUFFER_SIZE	(0x400)
+#define MAX_MESSAGE_SIZE	(255)
 
-int main( int argc, char* argv[])
+int main(int argc, char* argv[])
 {
-  int option = 0, sleeptimeusec = 1000000, windowtimesec = 10, minwndsize = 500, maxwndsize = 30000, clientmsgsize = 122, rcvwnd = 1450;
-  int port  = 0, serverIp = 0;
-  char *pServerIp = NULL;
+	int option = 0, sleeptimeusec = 1000000, windowtimesec = 10, minwndsize = 500, maxwndsize = 30000, clientmsgsize = 122, rcvwnd = 1450;
+	int port  = 0, serverIp = 0;
+	char *pServerIp = NULL;
+	int socketfd = 0, clientfd = 0, clientsize = 0, readsize = 0;
+	unsigned char buffer[BUFFER_SIZE] = {0};
+	struct sockaddr_in server, client;
+	int optval; /* flag value for setsockopt */
+	struct timespec start, end;
+	long long diff = 0;
 
-  if (2 > argc) {
-    printf("Wrong parameters!!!\n");
-    exit(1);
-  }
+	if (2 > argc) {
+		printf("Wrong parameters!!!\n");
+		exit(1);
+	}
 
-  printf("\n\n===============================\n");
-
-  opterr = 0;
-  while(EOF !=  (option = getopt(argc, argv, "h:i:p:s:t:m:M:c:")) ) {
-    switch(option) {
-      case 'i': {
-        pServerIp = optarg;
+	opterr = 0;
+	while(EOF !=  (option = getopt(argc, argv, "h:i:p:s:t:m:M:c:")) ) {
+		switch(option) {
+			case 'i': {
+				pServerIp = optarg;
 				serverIp = inet_addr(optarg);
 				break;
-      }
+			}
 			case 'p': {
 				port = atoi(optarg);
 				break;
 			}
 			case 's': {
-				sleeptimeusec = atoi(optarg) ? atoi(optarg): sleeptimeusec;
+				if(atoi(optarg)) {
+					sleeptimeusec = atoi(optarg);
+				}
 				break;
 			}
 			case 't': {
-				windowtimesec = atoi(optarg) ? atoi(optarg) : windowtimesec;
+				if(atoi(optarg)) {
+					windowtimesec = atoi(optarg);
+				}
 				break;
 			}
 			case 'm': {
-				minwndsize = atoi(optarg) ? atoi(optarg) : minwndsize;
+				if(atoi(optarg)) {
+					minwndsize = atoi(optarg);
+				}
 				break;
 			}
 			case 'M': {
-				maxwndsize = atoi(optarg) ? atoi(optarg) : maxwndsize;
+				if(atoi(optarg)) {
+					maxwndsize = atoi(optarg);
+				}
 				break;
 			}
 			case 'c': {
-				clientmsgsize = atoi(optarg) ? atoi(optarg) : clientmsgsize;
+				if(atoi(optarg)) {
+					clientmsgsize = atoi(optarg);
+				}
+				if(MAX_MESSAGE_SIZE < clientmsgsize) {
+					printf("Message size should be smaller than %d\n", MAX_MESSAGE_SIZE + 1);
+					exit(1);
+				}
 				break;
 			}
 			case 'h':
@@ -99,134 +118,119 @@ int main( int argc, char* argv[])
 				printf("-t: Update receive window size every # seconds");
 				printf("-m: Minimal receive window size [bytes]\n");
 				printf("-M: Maximum receive window size [bytes]\n");
-				printf("-c: Client message size [message integrity validation]\n");
-				printf("\nExample:  ./server.o -i 9.9.9.4 -p 5000 -s 1000000 -t 10 -m 500 -M 30000 -c 122\n");
-				printf("=========================================================\n\n");
+				printf("-c: Client message size [message integrity validation]. Should be smaller than\n");
+				printf("\nExample:  ./server -i 9.9.9.4 -p 5000 -s 1000000 -t 10 -m 500 -M 30000 -c 122\n");
 				exit(0);
 				break;
 			}
 			default : {
 				printf("%c - Incorrect option!!!\n", option);
 				exit(1);
-        break;
-      }
-    }
-  }
+				break;
+			}
+		}
+	}
 
-  printf("Server IP: %s [atoi:%x]\n", pServerIp, serverIp);
-  printf("Server Port: %d\n", port);
-  printf("Sleep time interval [usec]: %d\n", sleeptimeusec);
-  printf("Window update time interval [sec]: %d\n", windowtimesec);
-  printf("Minimum receive window size [bytes]: %d\n", minwndsize);
-  printf("Maximum receive window size [bytes]: %d\n", maxwndsize);
-  printf("Client message size [bytes]: %d\n", clientmsgsize);
-  printf("=========================================================\n\n");
-  {
-    int socketfd = 0, clientfd = 0, clientsize = 0, readsize = 0;
-    char buffer[BUFFER_SIZE] = {0};
-    struct sockaddr_in server, client;
-    int optval; /* flag value for setsockopt */
-    
-    /*Create a socket*/
-    socketfd = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (0 > socketfd) {
-      printf("ERROR opening socket!\n");
-      exit(1);
-    }
-    printf("Socket: OK\n");
-    
-    optval = 1;
-    setsockopt(socketfd, SOL_SOCKET, SO_REUSEADDR,(const void *)&optval , sizeof(int));
-    
-    /* Built the server Internet address */
-    bzero( &server, sizeof(server));
-    server.sin_family = AF_INET;
-    server.sin_port = htons(port);
-    inet_pton( AF_INET, pServerIp, &server.sin_addr);
-      
-    if (0 != bind(socketfd, (struct sockaddr*) &server, sizeof(server))) {
-      printf("ERROR on binding!\n");
-      exit(1);
-    }
-    printf("Bind: OK\n");
+	printf("Server IP: %s [atoi:%x]\n", pServerIp, serverIp);
+	printf("Server Port: %d\n", port);
+	printf("Sleep time interval [usec]: %d\n", sleeptimeusec);
+	printf("Window update time interval [sec]: %d\n", windowtimesec);
+	printf("Minimum receive window size [bytes]: %d\n", minwndsize);
+	printf("Maximum receive window size [bytes]: %d\n", maxwndsize);
+	printf("Client message size [bytes]: %d\n", clientmsgsize);
 
-    if (0 > listen( socketfd, 6)) {
-      printf("ERROR on listen!\n");
-      exit(1);
-    }
-    printf("Listen: OK\n");
-  
-    clientsize = sizeof(struct sockaddr_in);
-  
-    clientfd = accept( socketfd, ( struct sockaddr*)&client, (socklen_t*)&clientsize);
-    if (0 > clientfd) {
-      printf("ERROR on accept!\n");
-      exit(1);
-    }
-    printf("Connection accepted: OK [clientfd:%d]\n", clientfd);
+	/*Create a socket*/
+	socketfd = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (0 > socketfd) {
+		printf("ERROR opening socket!\n");
+		exit(1);
+	}
+	printf("Socket: OK\n");
 
-    struct timespec start, end;
-    long long diff = 0;
-    
-    /* Set receive window size to 30k */
-    setsockopt(socketfd, SOL_SOCKET, SO_RCVBUF,(const void *)&maxwndsize, sizeof(maxwndsize));
-    setsockopt(clientfd, SOL_SOCKET, SO_RCVBUF,(const void *)&maxwndsize, sizeof(maxwndsize));
-    rcvwnd = maxwndsize;
-    clock_gettime(CLOCK_MONOTONIC, &start);	/* mark start time */
- 
-    while (1) {
-      
-      readsize = recvfrom( clientfd, buffer, (rand() % sizeof(buffer)), 0, ( struct sockaddr*)&client, (socklen_t*)&client);
-      if (0 < readsize) {
-        printf("readsize: %d\n", readsize);
-      }
-      else {
-        printf("Something went wrong with recvfrom()! %s\n", strerror(errno));
-      }
-      
-      clock_gettime(CLOCK_MONOTONIC, &end);	/* mark the end time */
-      diff = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec)/1000000000;
-      if (diff > windowtimesec) {
-      	rcvwnd = rcvwnd == minwndsize ? maxwndsize : minwndsize;
-      	printf("Setsockopt: [SO_RCVBUF] window size:%d\n", rcvwnd);
-      	setsockopt(socketfd, SOL_SOCKET, SO_RCVBUF,(const void *)&rcvwnd , sizeof(rcvwnd));
-      	setsockopt(clientfd, SOL_SOCKET, SO_RCVBUF,(const void *)&rcvwnd , sizeof(rcvwnd));
-      	clock_gettime(CLOCK_MONOTONIC, &start);	/* mark start time */
-      }
+	optval = 1;
+	setsockopt(socketfd, SOL_SOCKET, SO_REUSEADDR,(const void *)&optval , sizeof(int));
 
-      if (0 < readsize) {
-        /* Buffer validation */
-        static int counter = 0;
-        {
-          int i;
-          /* message integrity validation */
-          for(i=0; i<readsize; ++i){
-            counter %= clientmsgsize;
-            if ((counter + 1) != buffer[i]) {
-              printf("Error on receive!!!\n");
-              printf("buffer[0]=%d\n", buffer[0]);
-              printf("buffer[i=%d]=%d, counter= %d\n",i, buffer[i], counter);
-              printf("buffer[readsize - 1]=%d\n", buffer[readsize - 1]);
-              printf("=========================================================\n\n");
-              for( i =0;i<readsize;++i){
-                printf("[%d]=%d, ",i, buffer[i]);
-              }
-              printf("=========================================================\n\n");
-              exit(0);
+	/* Built the server Internet address */
+	bzero( &server, sizeof(server));
+	server.sin_family = AF_INET;
+	server.sin_port = htons(port);
+	inet_pton( AF_INET, pServerIp, &server.sin_addr);
+
+	if (0 != bind(socketfd, (struct sockaddr*) &server, sizeof(server))) {
+		printf("ERROR on binding!\n");
+		exit(1);
+	}
+	printf("Bind: OK\n");
+
+	if (0 > listen( socketfd, 6)) {
+		printf("ERROR on listen!\n");
+		exit(1);
+	}
+	printf("Listen: OK\n");
+
+	clientsize = sizeof(struct sockaddr_in);
+
+	clientfd = accept( socketfd, ( struct sockaddr*)&client, (socklen_t*)&clientsize);
+	if (0 > clientfd) {
+		printf("ERROR on accept!\n");
+		exit(1);
+	}
+	printf("Connection accepted: OK [clientfd:%d]\n", clientfd);
+
+	/* Set receive window size to 30k */
+	setsockopt(socketfd, SOL_SOCKET, SO_RCVBUF,(const void *)&maxwndsize, sizeof(maxwndsize));
+	setsockopt(clientfd, SOL_SOCKET, SO_RCVBUF,(const void *)&maxwndsize, sizeof(maxwndsize));
+	rcvwnd = maxwndsize;
+	clock_gettime(CLOCK_MONOTONIC, &start);	/* mark start time */
+
+	while (1) {
+		readsize = recvfrom( clientfd, buffer, (rand() % sizeof(buffer)), 0, ( struct sockaddr*)&client, (socklen_t*)&client);
+		if (0 < readsize) {
+			printf("readsize: %d\n", readsize);
+		}
+		else {
+			printf("Something went wrong with recvfrom()! %s\n", strerror(errno));
+		}
+
+		clock_gettime(CLOCK_MONOTONIC, &end);	/* mark the end time */
+		diff = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec)/1000000000;
+		if (diff > windowtimesec) {
+			rcvwnd = rcvwnd == minwndsize ? maxwndsize : minwndsize;
+			printf("Setsockopt: [SO_RCVBUF] window size:%d\n", rcvwnd);
+			setsockopt(socketfd, SOL_SOCKET, SO_RCVBUF,(const void *)&rcvwnd , sizeof(rcvwnd));
+			setsockopt(clientfd, SOL_SOCKET, SO_RCVBUF,(const void *)&rcvwnd , sizeof(rcvwnd));
+			clock_gettime(CLOCK_MONOTONIC, &start);	/* mark start time */
+		}
+
+		if (0 < readsize) {
+			/* Buffer validation */
+			static unsigned int counter = 0;
+			{
+				int i;
+				  /* message integrity validation */
+				for(i=0; i<readsize; ++i, ++counter){
+					counter %= clientmsgsize;
+					if ((counter + 1) != buffer[i]) {
+						printf("Error on receive!!!\n");
+						printf("buffer[0]=%d\n", buffer[0]);
+						printf("buffer[i=%d]=%d, counter= %d\n",i, buffer[i], counter);
+						printf("buffer[readsize - 1]=%d\n", buffer[readsize - 1]);
+						for( i =0;i<readsize;++i){
+						      printf("[%d]=%d, ",i, buffer[i]);
 						}
-            ++counter;
-          }
-        }
-      }
+						exit(0);
+					}
+				}
+			}
+		}
 
-      usleep(sleeptimeusec);
-    }
-    
-    if(0 != close(socketfd)) {
-      printf("ERROR - close socket!\n");
-      exit(1);
-    }
-  }
+		usleep(sleeptimeusec);
+	}
 
-  return 0;
+	if(0 != close(socketfd)) {
+		printf("ERROR - close socket!\n");
+		exit(1);
+	}
+
+	return 0;
 }
