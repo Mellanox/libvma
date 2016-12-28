@@ -228,11 +228,6 @@ int net_device_table_mgr::map_net_devices()
 			continue;
 		}
 
-		//check if port is in active mode.
-		if (ib_ctx->get_port_state(cma_id->port_num) != IBV_PORT_ACTIVE) {
-			ndtm_logdbg("Non-active interfaces ('%s')", ifa->ifa_name);
-		}
-
 		bool valid = false;
 		char base_ifname[IFNAMSIZ];
 		get_base_interface_name((const char*)(ifa->ifa_name), base_ifname, sizeof(base_ifname));
@@ -274,8 +269,8 @@ int net_device_table_mgr::map_net_devices()
 		m_if_indx_to_nd_val_lst[p_net_device_val->get_if_idx()].push_back(p_net_device_val);
 		m_lock.unlock();
 
-		ndtm_logdbg("Offload interface '%s': Mapped to ibv device '%s' [%p] on port %d, Running: %d",
-				ifa->ifa_name, ib_ctx->get_ibv_device()->name, ib_ctx->get_ibv_device(), cma_id->port_num, (!!(ifa->ifa_flags & IFF_RUNNING)));
+		ndtm_logdbg("Offload interface '%s': Mapped to ibv device '%s' [%p] on port %d, Running: %d, Active: %d",
+				ifa->ifa_name, ib_ctx->get_ibv_device()->name, ib_ctx->get_ibv_device(), cma_id->port_num, (!!(ifa->ifa_flags & IFF_RUNNING)), (ib_ctx->get_port_state(cma_id->port_num) == IBV_PORT_ACTIVE));
 
 		IF_RDMACM_FAILURE(rdma_destroy_id(cma_id)) {
 			ndtm_logerr("Failed in rdma_destroy_id (errno=%d %m)", errno);
