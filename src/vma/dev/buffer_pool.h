@@ -59,7 +59,6 @@ public:
 	 */
 	uint32_t get_lkey_by_ctx(const ib_ctx_handler* ctx);
 
-	void		set_RX_TX_for_stats(bool rx = true);
 	size_t		get_free_count();
 
 private:
@@ -82,9 +81,6 @@ private:
 	// XXX-dummy buffer list head and count
 	// to be replaced with a bucket-sorted array
 	mem_buf_desc_t *m_p_head;
-
-	bpool_stats_t* 	m_p_bpool_stat;
-	bpool_stats_t 	m_bpool_stat_static;
 
 	/**
 	 * Allocate data block in hugetlb memory

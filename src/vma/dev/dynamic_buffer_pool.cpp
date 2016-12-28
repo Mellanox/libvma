@@ -20,14 +20,19 @@ dynamic_buffer_pool *g_buffer_pool_tx = NULL;
 
 dynamic_buffer_pool::dynamic_buffer_pool(size_t init_buffers_count, size_t buffer_size,
 		size_t quanta_buffers_count, size_t max_buffers, size_t free_buffers_min_threshold,
-		pbuf_free_custom_fn custom_free_function):
+		bool is_rx, pbuf_free_custom_fn custom_free_function):
 		m_lock_spin("dynamic_buffer_pool"),
 		m_n_dyn_buffers(0), m_n_dyn_buffers_created(0), m_buffer_size(buffer_size),
 		m_init_buffers_count(init_buffers_count), m_quanta_buffers_count(quanta_buffers_count),
 		m_max_buffers(max_buffers), m_min_threshold(free_buffers_min_threshold),
 		m_custom_free_function(custom_free_function), m_curr_bpool(NULL), m_need_alloc(false),
-		m_rx_stat(false), m_tx_stat(false)
+		m_rx_stat(is_rx), m_p_bpool_stat(NULL)
 {
+	m_p_bpool_stat = &m_bpool_stat_static;
+	memset(m_p_bpool_stat , 0, sizeof(*m_p_bpool_stat));
+	vma_stats_instance_create_bpool_block(m_p_bpool_stat);
+	m_p_bpool_stat->is_rx = is_rx ? true : false; // prettier than: "...->is_rx = is_rx"
+
 	allocate_addtional_buffers(init_buffers_count);
 	m_p_timer_handler = new dynamic_bpool_timer_handler(this);
 }
@@ -36,6 +41,8 @@ dynamic_buffer_pool::~dynamic_buffer_pool()
 {
 	// update current buffer pools
 	delete m_p_timer_handler;
+	vma_stats_instance_remove_bpool_block(m_p_bpool_stat);
+
 	std::deque<buffer_pool*>::iterator iter_bps;
 	buffer_pool* bp;
 	for (iter_bps = m_bpools_dque.begin(); iter_bps != m_bpools_dque.end(); ++iter_bps) {
@@ -43,7 +50,6 @@ dynamic_buffer_pool::~dynamic_buffer_pool()
 		delete bp;
 	}
 	m_bpools_dque.clear();
-
 }
 
 mem_buf_desc_t *dynamic_buffer_pool::get_buffers(size_t count, const ib_ctx_handler *p_ib_ctx_h)
@@ -63,6 +69,7 @@ mem_buf_desc_t *dynamic_buffer_pool::get_buffers(size_t count, const ib_ctx_hand
 		return NULL;
 	}
 	m_n_dyn_buffers -= count;
+	m_p_bpool_stat->n_buffer_pool_size_free -= count;
 
 	return desc;
 }
@@ -108,6 +115,7 @@ int dynamic_buffer_pool::put_buffers(mem_buf_desc_t *buff_list)
 		m_curr_bp_is_max=false;
 
 	m_n_dyn_buffers += count;
+	m_p_bpool_stat->n_buffer_pool_size_free += count;
 
 	return count;
 }
@@ -126,15 +134,12 @@ int dynamic_buffer_pool::allocate_addtional_buffers(size_t count)
 		vlog_printf(VLOG_ERROR, "No memory. Cannot allocate additional %d buffers. Maximum limit=%d , total buffers=%d, free buffers=%d\n", count, m_max_buffers, m_n_dyn_buffers_created, m_n_dyn_buffers);
 		return -1;
 	}
-
-	if (m_rx_stat)
-		m_curr_bpool->set_RX_TX_for_stats(true);
-	if (m_tx_stat)
-		m_curr_bpool->set_RX_TX_for_stats(false);
 	m_bpools_dque.push_back(m_curr_bpool);
 
 	m_n_dyn_buffers_created += count;
 	m_n_dyn_buffers += count;
+	m_p_bpool_stat->n_buffer_pool_size_free += count;
+	m_p_bpool_stat->n_buffer_pool_size_total += count;
 
 	update_max_free_bpool();
 
@@ -167,21 +172,6 @@ void dynamic_buffer_pool::free_rx_lwip_pbuf_custom(struct pbuf *p_buff)
 void dynamic_buffer_pool::free_tx_lwip_pbuf_custom(struct pbuf *p_buff)
 {
 	g_buffer_pool_tx->put_buffers_thread_safe((mem_buf_desc_t *)p_buff);
-}
-
-void dynamic_buffer_pool::set_RX_TX_for_stats(bool rx /*= true*/)
-{
-	// update for future buffer pools
-	if (rx)
-		m_rx_stat = true;
-	else
-		m_tx_stat = true;
-
-	// update current buffer pools
-	std::deque<buffer_pool*>::iterator iter_bps;
-	for (iter_bps = m_bpools_dque.begin(); iter_bps != m_bpools_dque.end(); ++iter_bps) {
-		(*iter_bps)->set_RX_TX_for_stats(rx);
-	}
 }
 
 void dynamic_bpool_timer_handler::handle_timer_expired(void* a)

@@ -42,7 +42,7 @@ class dynamic_buffer_pool
 
 public:
 	dynamic_buffer_pool(size_t init_buffers_count, size_t buffer_size, size_t quanta_buffers_count, size_t max_buffers, size_t free_buffers_min_threshold,
-			pbuf_free_custom_fn custom_free_function);
+			bool is_rx, pbuf_free_custom_fn custom_free_function);
 	~dynamic_buffer_pool();
 
 	/**
@@ -61,18 +61,9 @@ public:
 	static void 	free_rx_lwip_pbuf_custom(struct pbuf *p_buff);
 	static void 	free_tx_lwip_pbuf_custom(struct pbuf *p_buff);
 
-	void	set_RX_TX_for_stats(bool rx = true);
-
-	/*
-	 * returns TRUE if minimum threshold was reached and allocate_addtional_buffers() was't called yet or FALSE otherwise
-	 */
-
 	int put_buffers_thread_safe(mem_buf_desc_t *buff_list);
 	void put_buffers_thread_safe(descq_t *buffers, size_t count);
-
-
 	void put_buffers_after_deref(descq_t *pDeque);
-
 	void put_buffers_after_deref_thread_safe(descq_t *pDeque);
 
 	size_t get_free_count();
@@ -99,7 +90,9 @@ private:
 	bool m_need_alloc;
 	bool m_curr_bp_is_max;
 	bool m_rx_stat;
-	bool m_tx_stat;
+
+	bpool_stats_t* 	m_p_bpool_stat;
+	bpool_stats_t 	m_bpool_stat_static;
 
 	dynamic_bpool_timer_handler *m_p_timer_handler;
 

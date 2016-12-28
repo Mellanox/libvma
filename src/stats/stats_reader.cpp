@@ -225,8 +225,8 @@ void update_delta_cq_stat(cq_stats_t* p_curr_cq_stats, cq_stats_t* p_prev_cq_sta
 void update_delta_bpool_stat(bpool_stats_t* p_curr_bpool_stats, bpool_stats_t* p_prev_bpool_stats)
 {
 	int delay = INTERVAL;
-	p_prev_bpool_stats->n_buffer_pool_size = p_curr_bpool_stats->n_buffer_pool_size;
-	p_prev_bpool_stats->n_buffer_pool_no_bufs = (p_curr_bpool_stats->n_buffer_pool_no_bufs - p_prev_bpool_stats->n_buffer_pool_no_bufs) / delay;
+	p_prev_bpool_stats->n_buffer_pool_size_free = p_curr_bpool_stats->n_buffer_pool_size_free;
+	p_prev_bpool_stats->n_buffer_pool_size_total = (p_curr_bpool_stats->n_buffer_pool_size_total - p_prev_bpool_stats->n_buffer_pool_size_total) / delay;
 }
 
 void print_ring_stats(ring_instance_block_t* p_ring_inst_arr)
@@ -293,14 +293,9 @@ void print_bpool_stats(bpool_instance_block_t* p_bpool_inst_arr)
 		if (p_bpool_inst_arr[i].b_enabled) {
 			p_bpool_stats = &p_bpool_inst_arr[i].bpool_stats;
 			printf("======================================================\n");
-			if (p_bpool_stats->is_rx)
-				printf("\tBUFFER_POOL(RX)=[%u]\n", i);
-			else if (p_bpool_stats->is_tx)
-				printf("\tBUFFER_POOL(TX)=[%u]\n", i);
-			else
-				printf("\tBUFFER_POOL=[%u]\n", i);
-			printf(FORMAT_CQ_STATS_32bit, "Size:", p_bpool_stats->n_buffer_pool_size);
-			printf(FORMAT_CQ_STATS_32bit, "No buffers error:", p_bpool_stats->n_buffer_pool_no_bufs);
+			printf("\tBUFFER_POOL(%s)=[%u]\n", p_bpool_stats->is_rx ? "RX" : "TX", i);
+			printf(FORMAT_CQ_STATS_32bit, "Free Buffers:", p_bpool_stats->n_buffer_pool_size_free);
+			printf(FORMAT_CQ_STATS_32bit, "Total Buffers:", p_bpool_stats->n_buffer_pool_size_total);
 		}
 	}
 	printf("======================================================\n");
@@ -1236,8 +1231,8 @@ void zero_cq_stats(cq_stats_t* p_cq_stats)
 
 void zero_bpool_stats(bpool_stats_t* p_bpool_stats)
 {
-	p_bpool_stats->n_buffer_pool_size = 0;
-	p_bpool_stats->n_buffer_pool_no_bufs = 0;
+	p_bpool_stats->n_buffer_pool_size_free = 0;
+	p_bpool_stats->n_buffer_pool_size_total = 0;
 }
 
 void zero_counters(sh_mem_t* p_sh_mem)

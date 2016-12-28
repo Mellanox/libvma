@@ -39,10 +39,6 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, mem_buf_desc_owne
 
 	__log_info_func("count = %d", buffer_count);
 
-	m_p_bpool_stat = &m_bpool_stat_static;
-	memset(m_p_bpool_stat , 0, sizeof(*m_p_bpool_stat));
-	vma_stats_instance_create_bpool_block(m_p_bpool_stat);
-
 	size_t size;
 	if (buffer_count) {
 		sz_aligned_element = (buf_size + MCE_ALIGNMENT) & (~MCE_ALIGNMENT);
@@ -170,8 +166,6 @@ void buffer_pool::free_bpool_resources()
 		free(m_data_block);
 	}
 
-	vma_stats_instance_remove_bpool_block(m_p_bpool_stat);
-
 	__log_info_func("done");
 }
 
@@ -293,15 +287,13 @@ mem_buf_desc_t *buffer_pool::get_buffers(size_t count, const ib_ctx_handler *p_i
 
 		log_severity = VLOG_FUNC; // for all times but the 1st one
 
-		m_p_bpool_stat->n_buffer_pool_no_bufs++;
-
 		return NULL;
 	}
 
 	// pop buffers from the list
 	head = NULL;
 	m_n_buffers -= count;
-	m_p_bpool_stat->n_buffer_pool_size -= count;
+
 	while (count > 0) {
 		next = m_p_head->p_next_desc;
 		m_p_head->p_next_desc = head;
@@ -439,7 +431,6 @@ inline void buffer_pool::put_buffer_helper(mem_buf_desc_t *buff)
 	free_lwip_pbuf(&buff->lwip_pbuf);
 	m_p_head = buff;
 	m_n_buffers++;
-	m_p_bpool_stat->n_buffer_pool_size++;
 }
 
 int buffer_pool::put_buffers(mem_buf_desc_t *buff_list)
@@ -483,14 +474,6 @@ void buffer_pool::put_buffers(descq_t *buffers, size_t count)
 uint32_t buffer_pool::get_lkey_by_ctx(const ib_ctx_handler* ctx)
 {
 	return m_p_mr_arr[ctx->get_dev_index()]->lkey;
-}
-
-void buffer_pool::set_RX_TX_for_stats(bool rx /*= true*/)
-{
-	if (rx)
-		m_p_bpool_stat->is_rx = true;
-	else
-		m_p_bpool_stat->is_tx = true;
 }
 
 size_t buffer_pool::get_free_count()
