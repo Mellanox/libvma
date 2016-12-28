@@ -50,13 +50,7 @@
 #include <vma/proto/route_table_mgr.h>
 #include <vma/proto/vma_lwip.h>
 #include <vma/main.h>
-#ifdef DEFINED_VMAPOLL
-#include "vma/vmapoll_extra.h"
-#else
 #include "vma/vma_extra.h"
-#endif // DEFINED_VMAPOLL
-
-
 
 #include <vma/sock/sockinfo_tcp.h>
 
@@ -862,7 +856,15 @@ int getsockopt(int __fd, int __level, int __optname,
 		vma_api->vma_poll = vma_poll;
 		vma_api->ref_vma_buff = vma_buff_ref;
 		vma_api->free_vma_buff = vma_buff_free;
+		vma_api->dump_fd_stats = NULL;
 #else
+		vma_api->get_socket_rings_num = NULL;
+		vma_api->get_socket_rings_fds = NULL;
+		vma_api->free_vma_packets = NULL;
+		vma_api->vma_poll = NULL;
+		vma_api->ref_vma_buff = NULL;
+		vma_api->free_vma_buff = NULL;
+
 		vma_api->dump_fd_stats = vma_dump_fd_stats;
 #endif // DEFINED_VMAPOLL		
 		*((vma_api_t**)__optval) = vma_api;

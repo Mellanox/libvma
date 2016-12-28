@@ -36,11 +36,7 @@
 #include "ring.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/util/utils.h"
-#ifdef DEFINED_VMAPOLL
-#include "vma/vmapoll_extra.h"
-#else
 #include "vma/vma_extra.h"
-#endif // DEFINED_VMAPOLL
 
 class ring_simple : public ring
 {

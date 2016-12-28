@@ -42,11 +42,7 @@
 #include "config.h"
 #include "vlogger/vlogger.h"
 #include "utils/lock_wrapper.h"
-#ifdef DEFINED_VMAPOLL
-#include "vma/vmapoll_extra.h"
-#else
 #include "vma/vma_extra.h"
-#endif // DEFINED_VMAPOLL
 
 #include "vma/util/vma_stats.h"
 #include "vma/util/sys_vars.h"

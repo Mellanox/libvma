@@ -49,10 +49,8 @@ REVIEW
 #include "vma/dev/ib_ctx_handler.h"
 #ifdef DEFINED_VMAPOLL
 #include <infiniband/mlx5_hw.h>
-#include "vma/vmapoll_extra.h"
-#else
-#include "vma/vma_extra.h"
 #endif // DEFINED_VMAPOLL
+#include "vma/vma_extra.h"
 
 
 #ifdef DEFINED_VMAPOLL

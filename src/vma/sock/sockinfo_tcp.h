@@ -40,11 +40,7 @@
 #include "vma/sock/socket_fd_api.h"
 #include "vma/dev/buffer_pool.h"
 #include "vma/dev/cq_mgr.h"
-#ifdef DEFINED_VMAPOLL
-#include "vma/vmapoll_extra.h"
-#else
 #include "vma/vma_extra.h"
-#endif // DEFINED_VMAPOLL
 
 // LWIP includes
 #include "vma/lwip/opt.h"

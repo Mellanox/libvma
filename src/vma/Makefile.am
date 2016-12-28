@@ -277,7 +277,6 @@ libvma_la_SOURCES := \
 	config_parser.h \
 	main.h \
 	vma_extra.h \
-	vmapoll_extra.h \
 	hw/mlx5/wqe.h
 
 libvma_la_DEPENDENCIES = \

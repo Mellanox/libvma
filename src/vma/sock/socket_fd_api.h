@@ -36,11 +36,7 @@
 
 #include "config.h"
 #include <sys/socket.h>
-#ifdef DEFINED_VMAPOLL
-#include "vma/vmapoll_extra.h"
-#else
 #include "vma/vma_extra.h"
-#endif // DEFINED_VMAPOLL
 
 #include <vma/dev/cq_mgr.h>
 #include <vma/dev/buffer_pool.h>

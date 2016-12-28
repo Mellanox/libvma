@@ -36,11 +36,7 @@
 #include "config.h"
 #include "vlogger/vlogger.h"
 #include "utils/lock_wrapper.h"
-#ifdef DEFINED_VMAPOLL
-#include "vma/vmapoll_extra.h"
-#else
 #include "vma/vma_extra.h"
-#endif // DEFINED_VMAPOLL
 #include "vma/util/sock_addr.h"
 #include "vma/util/vma_stats.h"
 #include "vma/util/sys_vars.h"
@@ -188,7 +184,7 @@ protected:
 	struct vma_buff_t*       m_vma_poll_last_buff_lst;
 #endif // DEFINED_VMAPOLL
 
-	// Callback function pointer to support VMA extra API (vma_extra.h, vmapoll_extra.h)
+	// Callback function pointer to support VMA extra API (vma_extra.h)
 	vma_recv_callback_t	m_rx_callback;
 	void*			m_rx_callback_context; // user context
 #ifdef DEFINED_VMAPOLL	
