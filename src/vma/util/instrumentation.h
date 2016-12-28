@@ -52,7 +52,7 @@
 #include "utils/rdtsc.h"
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
-#include "src/vlogger/vlogger.h"
+#include "vlogger/vlogger.h"
 
 #ifdef RDTSC_MEASURE
 void init_rdtsc();

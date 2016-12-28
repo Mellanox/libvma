@@ -486,13 +486,13 @@ void sockinfo_tcp::handle_socket_linger() {
 	while ((tv_to_usec(&elapsed) <= linger_time_usec) && (m_pcb.unsent || m_pcb.unacked)) {
 #ifdef DEFINED_VMAPOLL
 		NOT_IN_USE(poll_cnt);
-#else
-		rx_wait(poll_cnt, false);
-#endif // DEFINED_VMAPOLL			
 		/* VMAPOLL WA: Don't call rx_wait() in order not to miss VMA events in vma_poll() flow.
 		 * TBD: find proper solution!
 		 * rx_wait(poll_cnt, false);
 		 * */
+#else
+		rx_wait(poll_cnt, false);
+#endif // DEFINED_VMAPOLL			
 		tcp_output(&m_pcb);
 		gettime(&current);
 		tv_sub(&current, &start, &elapsed);
