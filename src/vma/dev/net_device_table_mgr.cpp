@@ -684,6 +684,7 @@ int net_device_table_mgr::global_ring_drain_and_procces()
 			ndtm_logerr("Error in ring[%p]->drain() (errno=%d %m)", net_dev_iter->second, errno);
 			return ret;
 		}
+		errno = 0;
 		ret_total += ret;
 	}
 	if (ret_total)
