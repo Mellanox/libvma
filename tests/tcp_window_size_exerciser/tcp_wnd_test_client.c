@@ -48,16 +48,18 @@
 
 #define	BUFFER_SIZE	(0x400)
 #define MAX_MESSAGE_SIZE	(255)
+#define MIN_MESSAGE_SIZE	(4)
 
-int main( int argc, char* argv[])
+int main(int argc, char* argv[])
 {
-	int option = 0, msgSize = 0;
+	int option = 0, msgSize = 4;
 	int clientIp = 0, serverPort  = 0, serverIp = 0;
 	char *pClientIp = NULL, *pServerIp = NULL;
 	int clientfd = 0;
 	char buffer[BUFFER_SIZE] = {0};
 	struct sockaddr_in server;
 	struct sockaddr_in client;
+	int i = 0;
 
 	if (2 > argc) {
 		printf("Wrong parameters!!!\n");
@@ -65,7 +67,7 @@ int main( int argc, char* argv[])
 	}
 
 	opterr = 0;
-	while (EOF !=  (option = getopt(argc, argv, "i:p:s:m:h:")) ) {
+	while (EOF !=  (option = getopt(argc, argv, "i:p:s:m:h")) ) {
 		switch (option) {
 			case 'i': {
 				pClientIp = optarg;
@@ -83,13 +85,12 @@ int main( int argc, char* argv[])
 			}
 			case 'm': {
 				msgSize = atoi(optarg);
-				if(MAX_MESSAGE_SIZE < msgSize) {
-					printf("Message size should be smaller than $d\n", MAX_MESSAGE_SIZE + 1);
+				if((MIN_MESSAGE_SIZE > msgSize) || (MAX_MESSAGE_SIZE < msgSize)) {
+					printf("Message size should be: %d >= message size >= %d\n",MIN_MESSAGE_SIZE, MAX_MESSAGE_SIZE);
 					exit(1);
 				}
 				break;
 			}
-			case '?':
 			case 'h': {
 				printf("-i: Client IP\n");
 				printf("-s: Server IP\n");
@@ -107,27 +108,18 @@ int main( int argc, char* argv[])
 		}
 	}
 
-	/* Client -> Server Message size */
-	if (msgSize < 4) {
-		msgSize = 4;
-	}
-	else if (msgSize > BUFFER_SIZE) {
-		msgSize = BUFFER_SIZE;
-	}
-
 	printf("Client IP: %s [atoi:%x]\n", pClientIp, clientIp);
 	printf("Server IP: %s [atoi:%x]\n", pServerIp, serverIp);
 	printf("Server Port: %d\n", serverPort);
 	printf("Client -> Server message size: %d\n", msgSize);
 
 	/* Init send uffer */
-	int i = 0;
-	for (; i < BUFFER_SIZE;++i) {
+	for (i=0; i < BUFFER_SIZE;++i) {
 		buffer[i] = (char)(i+1);
 	}
 
 	/* Create client socket */
-	clientfd = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	clientfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (0 > clientfd) {
 		printf("ERROR opening socket\n");
 		exit(1);
@@ -153,7 +145,7 @@ int main( int argc, char* argv[])
 	inet_pton( AF_INET, pServerIp, &server.sin_addr);
 
 	/* Connect socket to server */
-	if (0 > connect( clientfd, ( struct sockaddr*)&server, sizeof(server))) {
+	if (0 > connect(clientfd, ( struct sockaddr*)&server, sizeof(server))) {
 		printf("ERROR on connect\n");
 		exit(1);
 	}
@@ -161,23 +153,23 @@ int main( int argc, char* argv[])
 
 	/* Setsockopt */
 	option = 1;
-	setsockopt( clientfd, IPPROTO_TCP, TCP_NODELAY, &option, sizeof(option));
+	setsockopt(clientfd, IPPROTO_TCP, TCP_NODELAY, &option, sizeof(option));
 
 	option = msgSize * 1024;
-	setsockopt( clientfd, SOL_SOCKET, SO_SNDBUF, &option, sizeof(option));/* Sets the maximum socket send buffer in bytes */
+	setsockopt(clientfd, SOL_SOCKET, SO_SNDBUF, &option, sizeof(option));/* Sets the maximum socket send buffer in bytes */
 
-	fcntl( clientfd, F_SETFL, O_NONBLOCK);
+	fcntl(clientfd, F_SETFL, O_NONBLOCK);
 
 	while (1) {
 		int sentsize = 0;
 		int rc = 0;
 
 		do{
-			rc = write( clientfd, buffer, msgSize);
+			rc = write(clientfd, buffer, msgSize);
 			if (msgSize != rc) {
 				sentsize = rc;
 				while(msgSize > sentsize) {
-					rc = write( clientfd, buffer + sentsize, msgSize - sentsize);
+					rc = write(clientfd, buffer + sentsize, msgSize - sentsize);
 					if(rc > 0) {
 						sentsize += rc;
 					}

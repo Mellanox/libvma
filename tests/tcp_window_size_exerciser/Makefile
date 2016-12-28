@@ -1,13 +1,13 @@
 CC = gcc
 LDFLAGS += -lrt 
-OBJECTS = client server
+TARGETS = client server
 
-all: $(OBJECTS)
+all: $(TARGETS)
 
 client: tcp_wnd_test_client.c
-	$(CC) $(LDFLAGS) $< -o client
+	$(CC) $(LDFLAGS) $^ -o client
 server: tcp_wnd_test_server.c
-	$(CC) $(LDFLAGS) $< -o server
+	$(CC) $(LDFLAGS) $^ -o server
 
 clean:
-	rm -f $(OBJECTS) $(TARGETS)
+	rm -f $(TARGETS)

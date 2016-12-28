@@ -46,6 +46,7 @@
 
 #define	BUFFER_SIZE	(0x400)
 #define MAX_MESSAGE_SIZE	(255)
+#define MIN_MESSAGE_SIZE	(4)
 
 int main(int argc, char* argv[])
 {
@@ -65,7 +66,7 @@ int main(int argc, char* argv[])
 	}
 
 	opterr = 0;
-	while(EOF !=  (option = getopt(argc, argv, "h:i:p:s:t:m:M:c:")) ) {
+	while (EOF != (option = getopt(argc, argv, "i:p:s:t:m:M:c:h")) ) {
 		switch(option) {
 			case 'i': {
 				pServerIp = optarg;
@@ -104,21 +105,20 @@ int main(int argc, char* argv[])
 				if(atoi(optarg)) {
 					clientmsgsize = atoi(optarg);
 				}
-				if(MAX_MESSAGE_SIZE < clientmsgsize) {
-					printf("Message size should be smaller than %d\n", MAX_MESSAGE_SIZE + 1);
+				if((MIN_MESSAGE_SIZE > clientmsgsize) || (MAX_MESSAGE_SIZE < clientmsgsize)) {
+					printf("Message size should be: %d >= message size >= %d\n",MIN_MESSAGE_SIZE, MAX_MESSAGE_SIZE);
 					exit(1);
 				}
 				break;
 			}
-			case 'h':
-			case '?': {
+			case 'h': {
 				printf("-i: Server IP\n");
 				printf("-p: Server port\n");
 				printf("-s: Sleep time interval [usec]\n");
 				printf("-t: Update receive window size every # seconds");
 				printf("-m: Minimal receive window size [bytes]\n");
 				printf("-M: Maximum receive window size [bytes]\n");
-				printf("-c: Client message size [message integrity validation]. Should be smaller than\n");
+				printf("-c: Client message size [message integrity validation]. Should be: %d > message size > %d\n", MIN_MESSAGE_SIZE, MAX_MESSAGE_SIZE);
 				printf("\nExample:  ./server -i 9.9.9.4 -p 5000 -s 1000000 -t 10 -m 500 -M 30000 -c 122\n");
 				exit(0);
 				break;
@@ -140,7 +140,7 @@ int main(int argc, char* argv[])
 	printf("Client message size [bytes]: %d\n", clientmsgsize);
 
 	/*Create a socket*/
-	socketfd = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	socketfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (0 > socketfd) {
 		printf("ERROR opening socket!\n");
 		exit(1);
@@ -151,10 +151,10 @@ int main(int argc, char* argv[])
 	setsockopt(socketfd, SOL_SOCKET, SO_REUSEADDR,(const void *)&optval , sizeof(int));
 
 	/* Built the server Internet address */
-	bzero( &server, sizeof(server));
+	bzero(&server, sizeof(server));
 	server.sin_family = AF_INET;
 	server.sin_port = htons(port);
-	inet_pton( AF_INET, pServerIp, &server.sin_addr);
+	inet_pton(AF_INET, pServerIp, &server.sin_addr);
 
 	if (0 != bind(socketfd, (struct sockaddr*) &server, sizeof(server))) {
 		printf("ERROR on binding!\n");
@@ -162,7 +162,7 @@ int main(int argc, char* argv[])
 	}
 	printf("Bind: OK\n");
 
-	if (0 > listen( socketfd, 6)) {
+	if (0 > listen(socketfd, 6)) {
 		printf("ERROR on listen!\n");
 		exit(1);
 	}
@@ -170,7 +170,7 @@ int main(int argc, char* argv[])
 
 	clientsize = sizeof(struct sockaddr_in);
 
-	clientfd = accept( socketfd, ( struct sockaddr*)&client, (socklen_t*)&clientsize);
+	clientfd = accept(socketfd, ( struct sockaddr*)&client, (socklen_t*)&clientsize);
 	if (0 > clientfd) {
 		printf("ERROR on accept!\n");
 		exit(1);
@@ -184,7 +184,7 @@ int main(int argc, char* argv[])
 	clock_gettime(CLOCK_MONOTONIC, &start);	/* mark start time */
 
 	while (1) {
-		readsize = recvfrom( clientfd, buffer, (rand() % sizeof(buffer)), 0, ( struct sockaddr*)&client, (socklen_t*)&client);
+		readsize = recvfrom(clientfd, buffer, (rand() % sizeof(buffer)), 0, (struct sockaddr*)&client, (socklen_t*)&client);
 		if (0 < readsize) {
 			printf("readsize: %d\n", readsize);
 		}
@@ -205,21 +205,19 @@ int main(int argc, char* argv[])
 		if (0 < readsize) {
 			/* Buffer validation */
 			static unsigned int counter = 0;
-			{
-				int i;
-				  /* message integrity validation */
-				for(i=0; i<readsize; ++i, ++counter){
-					counter %= clientmsgsize;
-					if ((counter + 1) != buffer[i]) {
-						printf("Error on receive!!!\n");
-						printf("buffer[0]=%d\n", buffer[0]);
-						printf("buffer[i=%d]=%d, counter= %d\n",i, buffer[i], counter);
-						printf("buffer[readsize - 1]=%d\n", buffer[readsize - 1]);
-						for( i =0;i<readsize;++i){
-						      printf("[%d]=%d, ",i, buffer[i]);
-						}
-						exit(0);
+			int i;
+			  /* message integrity validation */
+			for(i=0; i<readsize; ++i, ++counter){
+				counter %= clientmsgsize;
+				if ((counter + 1) != buffer[i]) {
+					printf("Error on receive!!!\n");
+					printf("buffer[0]=%d\n", buffer[0]);
+					printf("buffer[i=%d]=%d, counter= %d\n",i, buffer[i], counter);
+					printf("buffer[readsize - 1]=%d\n", buffer[readsize - 1]);
+					for(i =0;i<readsize;++i){
+					      printf("[%d]=%d, ",i, buffer[i]);
 					}
+					exit(0);
 				}
 			}
 		}
