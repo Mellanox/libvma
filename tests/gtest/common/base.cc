@@ -37,11 +37,15 @@
 
 test_base::test_base()
 {
+	port = gtest_conf.port;
 	memcpy(&client_addr, &gtest_conf.client_addr, sizeof(client_addr));
 	memcpy(&server_addr, &gtest_conf.server_addr, sizeof(server_addr));
 	memcpy(&remote_addr, &gtest_conf.remote_addr, sizeof(remote_addr));
-	port = gtest_conf.port;
-	port_abuse = 49999;
+
+	bogus_port = 49999;
+	bogus_addr.sin_family = PF_INET;
+	bogus_addr.sin_addr.s_addr = inet_addr("1.1.1.1");
+	bogus_addr.sin_port = 0;
 }
 
 test_base::~test_base()

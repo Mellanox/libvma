@@ -22,10 +22,13 @@ gtest_SOURCES = \
 	tcp/tcp_socket.cc \
 	tcp/tcp_bind.cc \
 	tcp/tcp_event.cc \
+	tcp/tcp_connect.cc \
 	\
 	udp/udp_base.cc \
 	\
-	vma/vma_base.cc
+	vma/vma_base.cc \
+	vma/vma_ring.cc \
+	vma/vma_poll.cc
 
 noinst_HEADERS = \
 	common/gtest.h \
