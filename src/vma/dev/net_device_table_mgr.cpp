@@ -175,9 +175,6 @@ int net_device_table_mgr::map_net_devices()
 			ndtm_logdbg("Blocking offload: Interface ('%s') is a bonding slave", ifa->ifa_name);
 			continue;
 		}
-		if (!(ifa->ifa_flags & IFF_RUNNING)) {
-			ndtm_logdbg("Interface ('%s') is not running", ifa->ifa_name);
-		}
 
 		ndtm_logdbg("Checking if can offload on interface '%s' (addr=%d.%d.%d.%d, flags=%X)",
 				ifa->ifa_name, NIPQUAD(((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr), ifa->ifa_flags);
@@ -277,8 +274,8 @@ int net_device_table_mgr::map_net_devices()
 		m_if_indx_to_nd_val_lst[p_net_device_val->get_if_idx()].push_back(p_net_device_val);
 		m_lock.unlock();
 
-		ndtm_logdbg("Offload interface '%s': Mapped to ibv device '%s' [%p] on port %d",
-				ifa->ifa_name, ib_ctx->get_ibv_device()->name, ib_ctx->get_ibv_device(), cma_id->port_num);
+		ndtm_logdbg("Offload interface '%s': Mapped to ibv device '%s' [%p] on port %d, Running: %d",
+				ifa->ifa_name, ib_ctx->get_ibv_device()->name, ib_ctx->get_ibv_device(), cma_id->port_num, (!!(ifa->ifa_flags & IFF_RUNNING)));
 
 		IF_RDMACM_FAILURE(rdma_destroy_id(cma_id)) {
 			ndtm_logerr("Failed in rdma_destroy_id (errno=%d %m)", errno);
