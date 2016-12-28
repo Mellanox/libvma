@@ -80,6 +80,9 @@ int priv_ibv_query_qp_state(struct ibv_qp *qp);
 #define FS_MASK_ON_16     (0xffff)
 #define FS_MASK_ON_32     (0xffffffff)
 
+#define FLOW_TAG_MASK     ((1 << 20) -1)
+int priv_ibv_query_flow_tag_state(struct ibv_qp *qp, uint8_t port_num);
+
 //old MLNX_OFED verbs (2.1 and older)
 #ifdef DEFINED_IBV_OLD_VERBS_MLX_OFED
 //ibv_query_device
@@ -330,11 +333,6 @@ static inline void ibv_flow_spec_flow_tag_set(vma_ibv_exp_flow_spec_action_tag* 
 	flow_tag->size = sizeof(vma_ibv_exp_flow_spec_action_tag);
 	flow_tag->tag_id = tag_id;
 #endif //DEFINED_IBV_EXP_FLOW_TAG
-}
-
-static inline uint32_t ibv_get_flow_tag_mask(void)
-{
-	return (1 << 20) -1; //TODO: OFED should support 20 bit mask
 }
 
 #endif

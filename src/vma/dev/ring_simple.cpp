@@ -85,7 +85,7 @@ ring_simple::ring_simple(in_addr_t local_if, uint16_t partition_sn, int count, t
 	m_tx_lkey(0), m_partition(partition_sn), m_gro_mgr(safe_mce_sys().gro_streams_max, MAX_GRO_BUFS), m_up(false),
 	m_p_rx_comp_event_channel(NULL), m_p_tx_comp_event_channel(NULL), m_p_l2_addr(NULL), m_p_ring_stat(NULL),
 	m_local_if(local_if), m_transport_type(transport_type), m_rx_buffs_rdy_for_free_head(NULL),
-	m_rx_buffs_rdy_for_free_tail(NULL), m_flow_tag_id_mask(0), m_flow_tag_enabled(false) {
+	m_rx_buffs_rdy_for_free_tail(NULL), m_flow_tag_enabled(false) {
 
 	if (count != 1)
 		ring_logpanic("Error creating simple ring with more than 1 resource");
@@ -213,11 +213,7 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 
 	memset(&m_cq_moderation_info, 0, sizeof(m_cq_moderation_info));
 
-#ifdef DEFINED_IBV_EXP_FLOW_TAG
-	m_flow_tag_enabled = true;
-	m_flow_tag_id_mask = ibv_get_flow_tag_mask();
-	ring_logdbg("FlowTag enabled: %d mask: %x", m_flow_tag_enabled, m_flow_tag_id_mask);
-#endif // DEFINED_IBV_EXP_FLOW_TAG
+	m_flow_tag_enabled = p_ring_info->p_ib_ctx->get_flow_tag_capability();
 
 	m_p_rx_comp_event_channel = ibv_create_comp_channel(p_ring_info->p_ib_ctx->get_ibv_context()); // ODED TODO: Adjust the ibv_context to be the exact one in case of different devices
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -295,12 +291,12 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		int	sock_fd = si->get_fd();
 
 		if (sock_fd > 0) {
-			flow_tag_id = sock_fd & m_flow_tag_id_mask;
+			flow_tag_id = sock_fd & FLOW_TAG_MASK;
 			if ((uint32_t)sock_fd != flow_tag_id) {
 			//  tag_id is out of the range by mask, will not use it
 				flow_tag_id = 0;
 				ring_logdbg("flow_tag disabled as tag_id: %d is out of mask (%x) range!",
-					    flow_tag_id, m_flow_tag_id_mask);
+					    flow_tag_id, FLOW_TAG_MASK);
 			}
 			ring_logdbg("flow: %s, sink:%p sock_fd:%d enabled:%d with id:%d",
 				    flow_spec_5t.to_str(), sink, sock_fd,

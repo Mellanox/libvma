@@ -131,7 +131,6 @@ private:
 	flow_spec_udp_uc_map_t	m_flow_udp_uc_map;
 	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_head;
 	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_tail;
-	uint32_t		m_flow_tag_id_mask; // flow_tag range
 	bool			m_flow_tag_enabled;
 };
 
