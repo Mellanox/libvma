@@ -1,3 +1,20 @@
+Version 8.2.5-0:
+Date + Time 2016-12-28
+=======================
+Added:
+        - RM #784338 Add VMA gtest (vmapoll API)
+        - RM #784338 Add testbed application (vmapoll API)
+        - RM #784338 Extend jenkins tests (vmapoll API)
+        - RM #865066 Use one vma_extra.h file for both vmapoll and legacy socket API
+        - RM #850311 Add support for socket offload even if link is down on VMA bringup
+        - RM #850270 Add VMA_TCP_CTL_THREAD=2 parameter under spec 6973
+        - RM #925571 Add textual vma spec support and a new latency spec
+        - RM #865066 Merge experimental branch (vmapoll API) into master branch
+
+Fixed:
+        - RM #924683 Fix src addr when sending MCAST with IP_MULTICAST_IF option
+        - RM #896067 Fix remove ring event during socket closure (vmapoll API)
+
 Version 8.2.4-0:
 Date + Time 2016-12-27
 =======================
