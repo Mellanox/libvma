@@ -1,0 +1,36 @@
+Description:
+
+- This application includes sender, engine, receiver units.
+- sender and receiver are located on the same node when engine on another.
+- Each connection in sender program constantly sends messages to engine
+program at a specific message rate.
+- The engine redirect received messages to the connections with receiver process.
+
+How to compile:
+
+- gcc testbed.c -o testbed.out -g -Wall -Werror -DTIMESTAMP_ENABLED=1 -DTIMESTAMP_RDTSC=1 -DNDEBUG -lrt
+
+Compilation options:
+
+ -DTIMESTAMP_ENABLED=1
+ -DTIMESTAMP_ENABLED=0 (default)
+
+ -DTIMESTAMP_RDTSC=1 - rdtsc based time
+ -DTIMESTAMP_RDTSC=0 - clock_gettime() (default ON)
+
+ -DVMA_ZCOPY_ENABLED=1
+ -DVMA_ZCOPY_ENABLED=0 (default)
+
+ -DNDEBUG – ON/OFF assert() and log_trace()
+
+How to use:
+
+- Display usage help
+ ./testbed.out --help
+
+- Launch using right order as receiver->engine->sender:
+  For example: sender and receiver are launched on 10.0.0.9 engine is launched on 10.0.0.10
+
+ ./testbed.out --receiver=:10.0.0.9 --scount=20 --rcount=10 --msg-size=500 --msg-rate=2000 -d4 -n8000
+ ./testbed.out --engine=10.0.0.9:10.0.0.10  --scount=20 --rcount=10 --msg-size=500 --msg-rate=2000 -d4 -n8000
+ ./testbed.out --sender=10.0.0.10:10.0.0.9 --scount=20 --rcount=10 --msg-size=500 --msg-rate=2000 -d4 -n8000

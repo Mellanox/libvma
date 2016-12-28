@@ -65,7 +65,6 @@
 #include <time.h>
 #include <signal.h>
 
-
 #include "common/gtest.h" /* Google framework header */
 
 #define INLINE  __inline

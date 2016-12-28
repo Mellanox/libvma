@@ -37,102 +37,99 @@
 
 #include "tcp_base.h"
 
-
-class tcp_bind : public tcp_base {};
-
-/**
- * @test tcp_bind.ti_1
- * @brief
- *    bind() socket to local ip
- * @details
- */
-TEST_F(tcp_bind, ti_1) {
-	int rc = EOK;
-	int fd;
-
-	fd = tcp_base::sock_create();
-	ASSERT_LE(0, fd);
-
-	rc = bind(fd, (struct sockaddr *)&client_addr, sizeof(client_addr));
-	EXPECT_EQ(EOK, errno);
-	EXPECT_EQ(0, rc);
-
-	close(fd);
-}
+class tcp_connect : public tcp_base {};
 
 /**
- * @test tcp_bind.ti_2
+ * @test tcp_connect.ti_1
  * @brief
- *    bind() socket to remote ip
+ *    Loop of blocking connect() to ip on the same node
  * @details
  */
-TEST_F(tcp_bind, ti_2) {
+TEST_F(tcp_connect, DISABLED_ti_1) {
 	int rc = EOK;
 	int fd;
+	int i;
 
-	fd = tcp_base::sock_create();
-	ASSERT_LE(0, fd);
-
-	rc = bind(fd, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
-	EXPECT_EQ(EADDRNOTAVAIL, errno);
-	EXPECT_GT(0, rc);
-
-	close(fd);
-}
-
-/**
- * @test tcp_bind.ti_3
- * @brief
- *    bind() socket twice
- * @details
- */
-TEST_F(tcp_bind, ti_3) {
-	int rc = EOK;
-	int fd;
-	struct sockaddr_in addr;
-
-	fd = tcp_base::sock_create();
+	fd = socket(PF_INET, SOCK_STREAM, IPPROTO_IP);
 	ASSERT_LE(0, fd);
 
 	rc = bind(fd, (struct sockaddr *)&client_addr, sizeof(client_addr));
 	ASSERT_EQ(EOK, errno);
 	ASSERT_EQ(0, rc);
 
-	memcpy(&addr, &client_addr, sizeof(addr));
-	addr.sin_port = htons(bogus_port);
-
-	rc = bind(fd, (struct sockaddr *)&addr, sizeof(addr));
-	EXPECT_EQ(EINVAL, errno);
-	EXPECT_GT(0, rc);
+	for (i = 0; i < 10; i++) {
+		rc = connect(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+		ASSERT_EQ(ECONNREFUSED, errno) <<
+				"connect() attempt = " << i;
+		ASSERT_EQ((-1), rc) <<
+				"connect() attempt = " << i;
+		usleep(500);
+	}
 
 	close(fd);
 }
 
 /**
- * @test tcp_bind.ti_4
+ * @test tcp_connect.ti_2
  * @brief
- *    bind() two sockets on the same ip
+ *    Loop of blocking connect() to remote ip
  * @details
  */
-TEST_F(tcp_bind, ti_4) {
+TEST_F(tcp_connect, DISABLED_ti_2) {
 	int rc = EOK;
 	int fd;
-	int fd2;
+	int i;
 
-	fd = tcp_base::sock_create();
+	fd = socket(PF_INET, SOCK_STREAM, IPPROTO_IP);
 	ASSERT_LE(0, fd);
 
 	rc = bind(fd, (struct sockaddr *)&client_addr, sizeof(client_addr));
 	ASSERT_EQ(EOK, errno);
 	ASSERT_EQ(0, rc);
 
-	fd2 = tcp_base::sock_create();
-	ASSERT_LE(0, fd);
-
-	rc = bind(fd2, (struct sockaddr *)&client_addr, sizeof(client_addr));
-	EXPECT_EQ(EADDRINUSE, errno);
-	EXPECT_GT(0, rc);
+	for (i = 0; i < 10; i++) {
+		rc = connect(fd, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
+		ASSERT_TRUE(ECONNREFUSED == errno || ETIMEDOUT == errno) <<
+				"connect() attempt = " << i;
+		ASSERT_EQ((-1), rc) <<
+				"connect() attempt = " << i;
+		usleep(500);
+		if (ETIMEDOUT == errno) {
+			log_warn("Routing issue, consider another remote address instead of %s\n",
+					sys_addr2str(&remote_addr));
+			break;
+		}
+	}
 
 	close(fd);
-	close(fd2);
+}
+
+/**
+ * @test tcp_connect.ti_3
+ * @brief
+ *    Loop of blocking connect() to unreachable ip
+ * @details
+ */
+TEST_F(tcp_connect, DISABLED_ti_3) {
+	int rc = EOK;
+	int fd;
+	int i;
+
+	fd = socket(PF_INET, SOCK_STREAM, IPPROTO_IP);
+	ASSERT_LE(0, fd);
+
+	rc = bind(fd, (struct sockaddr *)&client_addr, sizeof(client_addr));
+	ASSERT_EQ(EOK, errno);
+	ASSERT_EQ(0, rc);
+
+	for (i = 0; i < 10; i++) {
+		rc = connect(fd, (struct sockaddr *)&bogus_addr, sizeof(bogus_addr));
+		ASSERT_EQ(EHOSTUNREACH, errno) <<
+				"connect() attempt = " << i;
+		ASSERT_EQ((-1), rc) <<
+				"connect() attempt = " << i;
+		usleep(500);
+	}
+
+	close(fd);
 }

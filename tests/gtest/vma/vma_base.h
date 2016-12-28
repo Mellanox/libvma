@@ -35,6 +35,7 @@
 
 #include <vma_extra.h>
 
+#define VMA_EXTRA_API_ENABLED 0
 
 /**
  * VMA Base class for tests

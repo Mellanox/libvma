@@ -30,35 +30,18 @@
  * SOFTWARE.
  */
 
-#ifndef TESTS_GTEST_COMMON_CMN_H_
-#define TESTS_GTEST_COMMON_CMN_H_
+#include "common/def.h"
+#include "common/log.h"
+#include "common/sys.h"
+#include "common/base.h"
 
-#include <stdexcept>
-#include <sstream>
-#include <string>
+#include "vma_base.h"
 
-namespace cmn {
+#if defined(VMA_EXTRA_API_ENABLED) && (VMA_EXTRA_API_ENABLED == 1)
 
-class test_skip_exception : public std::exception {
-public:
-    test_skip_exception(const std::string& reason = "") : m_reason(reason) {
-    }
-    virtual ~test_skip_exception() throw() {
-    }
+class vma_poll : public vma_base {};
 
-    virtual const char* what() const throw() {
-        return (std::string("[  SKIPPED ] ") + m_reason).c_str();
-    }
+TEST_F(vma_poll, ti_1) {
+}
 
-private:
-    const std::string m_reason;
-};
-
-#define SKIP_TRUE(_expr, _reason) \
-    if (!(_expr)) { \
-        throw cmn::test_skip_exception(_reason); \
-    }
-
-} /* namespace: cmn */
-
-#endif /* TESTS_GTEST_COMMON_CMN_H_ */
+#endif /* VMA_EXTRA_API_ENABLED */
