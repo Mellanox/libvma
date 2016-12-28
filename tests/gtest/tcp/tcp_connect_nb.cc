@@ -30,35 +30,20 @@
  * SOFTWARE.
  */
 
-#ifndef TESTS_GTEST_COMMON_CMN_H_
-#define TESTS_GTEST_COMMON_CMN_H_
+#include "common/def.h"
+#include "common/log.h"
+#include "common/sys.h"
+#include "common/base.h"
 
-#include <stdexcept>
-#include <sstream>
-#include <string>
+#include "tcp_base.h"
 
-namespace cmn {
+class tcp_connect_nb : public tcp_base {};
 
-class test_skip_exception : public std::exception {
-public:
-    test_skip_exception(const std::string& reason = "") : m_reason(reason) {
-    }
-    virtual ~test_skip_exception() throw() {
-    }
-
-    virtual const char* what() const throw() {
-        return (std::string("[  SKIPPED ] ") + m_reason).c_str();
-    }
-
-private:
-    const std::string m_reason;
-};
-
-#define SKIP_TRUE(_expr, _reason) \
-    if (!(_expr)) { \
-        throw cmn::test_skip_exception(_reason); \
-    }
-
-} /* namespace: cmn */
-
-#endif /* TESTS_GTEST_COMMON_CMN_H_ */
+/**
+ * @test tcp_connect_nb.ti_1
+ * @brief
+ *    Loop of blocking connect() to ip on the same node
+ * @details
+ */
+TEST_F(tcp_connect_nb, ti_1) {
+}

@@ -39,6 +39,12 @@
 
 class tcp_socket : public tcp_base {};
 
+/**
+ * @test tcp_socket.ti_1
+ * @brief
+ *    Create TCP socket
+ * @details
+ */
 TEST_F(tcp_socket, ti_1) {
 	int fd;
 
