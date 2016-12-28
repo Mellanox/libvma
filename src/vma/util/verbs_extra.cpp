@@ -254,7 +254,7 @@ int priv_ibv_query_flow_tag_state(struct ibv_qp *qp, uint8_t port_num)
 		vma_ibv_flow_spec_eth         eth;
 		vma_ibv_flow_spec_ipv4        ipv4;
 		vma_ibv_flow_spec_tcp_udp     tcp_udp;
-		vma_ibv_exp_flow_spec_action_tag  flow_tag;
+		vma_ibv_flow_spec_action_tag  flow_tag;
 	} ft_attr;
 
 	// Initialize

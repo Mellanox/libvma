@@ -35,7 +35,7 @@
 
 
 ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx_time_converter_mode) :
-	m_channel(0), m_port_num(0), m_flow_tag_enabled(false), m_removed(false), m_conf_attr_rx_num_wre(0),
+	m_channel(0), m_flow_tag_enabled(false), m_removed(false), m_conf_attr_rx_num_wre(0),
 	m_conf_attr_tx_num_post_send_notify(0), m_conf_attr_tx_max_inline(0), m_conf_attr_tx_num_wre(0),
 	ctx_time_converter(ctx, ctx_time_converter_mode)
 {
@@ -108,19 +108,18 @@ void ib_ctx_handler::set_flow_tag_capability(bool flow_tag_capability)
 	m_flow_tag_enabled = flow_tag_capability;
 }
 
-bool ib_ctx_handler::set_port(uint8_t port_num)
+bool ib_ctx_handler::update_port_attr(int port_num)
 {
-	IF_VERBS_FAILURE(ibv_query_port(m_p_ibv_context, port_num, &m_ibv_port_attr)) {
-		ibch_logdbg("ibv_query_port failed on ibv device %p, port %d (errno=%d)", m_p_ibv_context, port_num, errno);
-		return false;
-	} ENDIF_VERBS_FAILURE;
-
-	m_port_num = port_num;
-	return true;
+        IF_VERBS_FAILURE(ibv_query_port(m_p_ibv_context, port_num, &m_ibv_port_attr)) {
+                ibch_logdbg("ibv_query_port failed on ibv device %p, port %d (errno=%d)", m_p_ibv_context, port_num, errno);
+                return false;
+        } ENDIF_VERBS_FAILURE;
+        return true;
 }
 
-ibv_port_state ib_ctx_handler::get_port_state()
+ibv_port_state ib_ctx_handler::get_port_state(int port_num)
 {       
+        update_port_attr(port_num);
         return m_ibv_port_attr.state;
 }
 
@@ -128,8 +127,9 @@ ibv_port_state ib_ctx_handler::get_port_state()
     #pragma BullseyeCoverage off
 #endif
 
-ibv_port_attr ib_ctx_handler::get_ibv_port_attr()
+ibv_port_attr ib_ctx_handler::get_ibv_port_attr(int port_num)
 {
+        update_port_attr(port_num);
         return m_ibv_port_attr;
 }
 

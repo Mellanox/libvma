@@ -752,6 +752,7 @@ int cq_mgr::vma_poll_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff)
 		buff->path.rx.sw_timestamp.tv_sec = 0;
 		buff->path.rx.hw_timestamp.tv_nsec = 0;
 		buff->path.rx.hw_timestamp.tv_sec = 0;
+		buff->flow_tag_id = 0;
 		free_lwip_pbuf(&buff->lwip_pbuf);
 		m_rx_pool.push_back(buff);
 		m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();

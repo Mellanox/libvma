@@ -287,7 +287,7 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 
 	ring_logdbg("flow: %s, with sink (%p)", flow_spec_5t.to_str(), sink);
 
-	if (si != NULL) {
+	if (m_flow_tag_enabled && (si != NULL)) {
 		int	sock_fd = si->get_fd();
 
 		if (sock_fd > 0) {

@@ -99,7 +99,7 @@ typedef struct __attribute__ ((packed)) ibv_flow_attr_eth_ipv4_tcp_udp {
 	vma_ibv_flow_spec_eth         eth;
 	vma_ibv_flow_spec_ipv4        ipv4;
 	vma_ibv_flow_spec_tcp_udp     tcp_udp;
-	vma_ibv_exp_flow_spec_action_tag  flow_tag;
+	vma_ibv_flow_spec_action_tag  flow_tag; // should be the latest as struct can be used without it
 
 	ibv_flow_attr_eth_ipv4_tcp_udp(uint8_t port) {
 		memset(this, 0, sizeof(*this));

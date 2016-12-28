@@ -32,14 +32,12 @@ public:
 	//void execute(struct ibv_async_event ibv_event) { handle_ibv_event(ibv_event); }
 	void                    set_dev_configuration();
 	ibv_mr*                 mem_reg(void *addr, size_t length, uint64_t access);
-	ibv_port_state          get_port_state();
-	uint8_t                 get_port() { return m_port_num; }
-	bool                    set_port(uint8_t port_num);
+	ibv_port_state          get_port_state(int port_num);
 	ibv_device*             get_ibv_device() { return m_p_ibv_device;}
 	ibv_pd*			get_ibv_pd() { return m_p_ibv_pd;}
 	struct ibv_context*     get_ibv_context() { return m_p_ibv_context;}
 	vma_ibv_device_attr&    get_ibv_device_attr() { return m_ibv_device_attr;}
-	struct ibv_port_attr    get_ibv_port_attr();
+	struct ibv_port_attr    get_ibv_port_attr(int port_num);
 	bool                    is_removed() { return m_removed;}
 	virtual void            handle_event_ibverbs_cb(void *ev_data, void *ctx);
 	void                    handle_event_DEVICE_FATAL();
@@ -58,9 +56,10 @@ private:
 	vma_ibv_device_attr     m_ibv_device_attr;
 	ibv_pd*                 m_p_ibv_pd;
 	int                     m_channel; // fd channel
-	uint8_t                 m_port_num;
 	bool                    m_flow_tag_enabled;
 	bool                    m_removed;
+
+	bool                    update_port_attr(int port_num);
 
 	//void handle_ibv_event(struct ibv_async_event ibv_event); // will be called by the command execute
 	//

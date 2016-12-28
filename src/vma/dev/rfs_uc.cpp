@@ -48,7 +48,7 @@ void rfs_uc::prepare_flow_spec()
 	attach_flow_data_eth_ipv4_tcp_udp_t*   attach_flow_data_eth = NULL;
 	vma_ibv_flow_spec_ipv4*             p_ipv4 = NULL;
 	vma_ibv_flow_spec_tcp_udp*          p_tcp_udp = NULL;
-	vma_ibv_exp_flow_spec_action_tag*   p_flow_tag = NULL;
+	vma_ibv_flow_spec_action_tag*       p_flow_tag = NULL;
 
 	switch (type) {
 		case VMA_TRANSPORT_IB:

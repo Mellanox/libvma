@@ -211,8 +211,7 @@ int net_device_table_mgr::map_net_devices()
 		}
 
 		//check if port is in active mode. if not, dont create net_device_val_ib.
-		ib_ctx->set_port(cma_id->port_num);
-		if (ib_ctx->get_port_state() != IBV_PORT_ACTIVE) {
+		if (ib_ctx->get_port_state(cma_id->port_num) != IBV_PORT_ACTIVE) {
 			ndtm_logdbg("Blocking offload: non-active interfaces ('%s')", ifa->ifa_name);
 
 			// Close the cma_id which will not be offload
@@ -227,9 +226,9 @@ int net_device_table_mgr::map_net_devices()
 		get_base_interface_name((const char*)(ifa->ifa_name), base_ifname, sizeof(base_ifname));
 		if (check_device_exist(base_ifname, BOND_DEVICE_FILE)) {
 			// this is a bond interface (or a vlan/alias over bond), find the slaves
-			valid = verify_bond_ipoib_or_eth_qp_creation(ifa);
+			valid = verify_bond_ipoib_or_eth_qp_creation(ifa, cma_id->port_num);
 		} else {
-			valid = verify_ipoib_or_eth_qp_creation(ifa->ifa_name, ifa);
+			valid = verify_ipoib_or_eth_qp_creation(ifa->ifa_name, ifa, cma_id->port_num);
 		}
 		if (!valid) {
 			// Close the cma_id which will not be offload
@@ -278,7 +277,7 @@ int net_device_table_mgr::map_net_devices()
 	return 0;
 }
 
-bool net_device_table_mgr::verify_bond_ipoib_or_eth_qp_creation(struct ifaddrs * ifa)
+bool net_device_table_mgr::verify_bond_ipoib_or_eth_qp_creation(struct ifaddrs * ifa, uint8_t port_num)
 {
 	char base_ifname[IFNAMSIZ];
 	get_base_interface_name((const char*)(ifa->ifa_name), base_ifname, sizeof(base_ifname));
@@ -297,7 +296,7 @@ bool net_device_table_mgr::verify_bond_ipoib_or_eth_qp_creation(struct ifaddrs *
 	{
 		char* p = strchr(slave_name, '\n');
 		if (p) *p = '\0'; // Remove the tailing 'new line" char
-		if (!verify_ipoib_or_eth_qp_creation(slave_name, ifa)) {
+		if (!verify_ipoib_or_eth_qp_creation(slave_name, ifa, port_num)) {
 			//check all slaves but print only once for bond
 			bond_ok =  false;
 		}
@@ -313,7 +312,7 @@ bool net_device_table_mgr::verify_bond_ipoib_or_eth_qp_creation(struct ifaddrs *
 }
 
 //interface name can be slave while ifa struct can describe bond
-bool net_device_table_mgr::verify_ipoib_or_eth_qp_creation(const char* interface_name, struct ifaddrs * ifa)
+bool net_device_table_mgr::verify_ipoib_or_eth_qp_creation(const char* interface_name, struct ifaddrs * ifa, uint8_t port_num)
 {
 	int iftype = get_iftype_from_ifname(interface_name);
 	if (iftype == ARPHRD_INFINIBAND) {
@@ -321,7 +320,7 @@ bool net_device_table_mgr::verify_ipoib_or_eth_qp_creation(const char* interface
 			return true;
 		}
 	} else {
-		if (verify_eth_qp_creation(interface_name)) {
+		if (verify_eth_qp_creation(interface_name, port_num)) {
 			return true;
 		}
 	}
@@ -373,7 +372,7 @@ bool net_device_table_mgr::verify_ipoib_mode(struct ifaddrs* ifa)
 }
 
 //ifname should point to a physical device
-bool net_device_table_mgr::verify_eth_qp_creation(const char* ifname)
+bool net_device_table_mgr::verify_eth_qp_creation(const char* ifname, uint8_t port_num)
 {
 	int num_devices = 0;
 	bool success = false;
@@ -429,7 +428,7 @@ bool net_device_table_mgr::verify_eth_qp_creation(const char* ifname)
 			if (qp) {
 				success = true;
 
-				if (!priv_ibv_query_flow_tag_state(qp, p_ib_ctx->get_port())) {
+				if (!priv_ibv_query_flow_tag_state(qp, port_num)) {
 					p_ib_ctx->set_flow_tag_capability(true);
 				}
 				ndtm_logdbg("verified interface %s for flow tag capabilities : %s", ifname, p_ib_ctx->get_flow_tag_capability() ? "enabled" : "disabled");
