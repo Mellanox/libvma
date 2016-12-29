@@ -41,12 +41,10 @@
 #include <time.h>	/* for clock_gettime */
 #include <arpa/inet.h>
 
+#include "tcp_wnd_test.h"
+
 /*  gcc -lrt tcp_wnd_test_server.c -o server */
 /*  ./server -i 9.9.9.4 -p 5000 -s 1000000 -t 10 -m 500 -M 30000 -c 122 */
-
-#define	BUFFER_SIZE	(0x400)
-#define MAX_MESSAGE_SIZE	(255)
-#define MIN_MESSAGE_SIZE	(4)
 
 int main(int argc, char* argv[])
 {

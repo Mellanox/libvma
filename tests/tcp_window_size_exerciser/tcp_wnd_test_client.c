@@ -42,13 +42,11 @@
 #include <fcntl.h>
 #include <arpa/inet.h>
 
+#include "tcp_wnd_test.h"
+
 /* gcc -lrt  tcp_wnd_test_client.c -o client */
 /* LD_PRELOAD=libvma.so ./client -i 9.9.9.3 -s 9.9.9.4 -p 5000 -m 122 */
 /* VMA_TX_BUFS=8192 VMA_RX_BUFS=204800 VMA_TRACELEVEL=3 VMA_STATS_FD_NUM=1024 VMA_RX_POLL=-1 VMA_SELECT_POLL=-1 VMA_SELECT_POLL_OS_RATIO=0 VMA_TCP_3T_RULES=1 VMA_TCP_CTL_THREAD=2 VMA_AVOID_SYS_CALLS_ON_TCP_FD=1  VMA_BUFFER_BATCHING_MODE=0  LD_PRELOAD=libvma.so ./client -i 9.9.9.3 -s 9.9.9.4 -p 5000 -m 122 */
-
-#define	BUFFER_SIZE	(0x400)
-#define MAX_MESSAGE_SIZE	(255)
-#define MIN_MESSAGE_SIZE	(4)
 
 int main(int argc, char* argv[])
 {
