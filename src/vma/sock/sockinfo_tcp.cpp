@@ -289,6 +289,7 @@ sockinfo_tcp::sockinfo_tcp(int fd) throw (vma_exception) :
 	}
 
 	si_tcp_logdbg("TCP PCB FLAGS: 0x%x", m_pcb.flags);
+	g_p_agent->register_cb((agent_cb_t)&sockinfo_tcp::put_agent_msg, (void *)this);
 	si_tcp_logfunc("done");
 }
 
@@ -340,6 +341,8 @@ sockinfo_tcp::~sockinfo_tcp()
 	if (m_n_rx_pkt_ready_list_count || m_rx_ready_byte_count || m_rx_pkt_ready_list.size() || m_rx_ring_map.size() || m_rx_reuse_buff.n_buff_num || m_rx_reuse_buff.rx_reuse.size() || m_rx_cb_dropped_list.size() || m_rx_ctl_packets_list.size() || m_rx_peer_packets.size() || m_rx_ctl_reuse_list.size())
 		si_tcp_logerr("not all buffers were freed. protocol=TCP. m_n_rx_pkt_ready_list_count=%d, m_rx_ready_byte_count=%d, m_rx_pkt_ready_list.size()=%d, m_rx_ring_map.size()=%d, m_rx_reuse_buff.n_buff_num=%d, m_rx_reuse_buff.rx_reuse.size=%d, m_rx_cb_dropped_list.size=%d, m_rx_ctl_packets_list.size=%d, m_rx_peer_packets.size=%d, m_rx_ctl_reuse_list.size=%d",
 				m_n_rx_pkt_ready_list_count, m_rx_ready_byte_count, (int)m_rx_pkt_ready_list.size() ,(int)m_rx_ring_map.size(), m_rx_reuse_buff.n_buff_num, m_rx_reuse_buff.rx_reuse.size(), m_rx_cb_dropped_list.size(), m_rx_ctl_packets_list.size(), m_rx_peer_packets.size(), m_rx_ctl_reuse_list.size());
+
+	g_p_agent->unregister_cb((agent_cb_t)&sockinfo_tcp::put_agent_msg, (void *)this);
 
 	si_tcp_logdbg("sock closed");
 }
@@ -662,6 +665,25 @@ bool sockinfo_tcp::check_dummy_send_conditions(const int flags, const iovec* p_i
 		(p_iov->iov_len + m_pcb.snd_lbb - m_pcb.lastack) <= wnd; // Window allows the dummy packet it to be sent
 }
 
+void sockinfo_tcp::put_agent_msg(void *arg)
+{
+	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)arg;
+	struct vma_msg_state data;
+
+	data.hdr.code = VMA_MSG_STATE;
+	data.hdr.ver = VMA_AGENT_VER;
+	data.hdr.pid = getpid();
+	data.fid = p_si_tcp->get_fd();
+	data.state = get_tcp_state(&p_si_tcp->m_pcb);
+	data.type = SOCK_STREAM;
+	data.src_ip = p_si_tcp->m_bound.get_in_addr();
+	data.src_port = p_si_tcp->m_bound.get_in_addr();
+	data.dst_ip = p_si_tcp->m_connected.get_in_addr();
+	data.dst_port = p_si_tcp->m_connected.get_in_port();
+
+	g_p_agent->put((const void*)&data, sizeof(data), (intptr_t)data.fid, NULL);
+}
+
 ssize_t sockinfo_tcp::tx(const tx_call_t call_type, const iovec* p_iov, const ssize_t sz_iov, const int flags, const struct sockaddr *__to, const socklen_t __tolen)
 {
 	int total_tx = 0;
@@ -968,21 +990,7 @@ err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rex
 
 	/* Update daemon about actual state for offloaded connection */
 	if (likely(p_si_tcp->m_sock_offload == TCP_SOCK_LWIP)) {
-		static agent_msg_t *cache_msg = NULL;
-		struct vma_msg_state data;
-
-		data.hdr.code = VMA_MSG_STATE;
-		data.hdr.ver = VMA_AGENT_VER;
-		data.hdr.pid = getpid();
-		data.fid = p_si_tcp->get_fd();
-		data.state = new_state;
-		data.type = SOCK_STREAM;
-		data.src_ip = p_si_tcp->m_bound.get_in_addr();
-		data.src_port = p_si_tcp->m_bound.get_in_addr();
-		data.dst_ip = p_si_tcp->m_connected.get_in_addr();
-		data.dst_port = p_si_tcp->m_connected.get_in_port();
-
-		g_p_agent->put((const void*)&data, sizeof(data), (intptr_t)data.fid, (void **)&cache_msg);
+		p_si_tcp->put_agent_msg((void *)p_si_tcp);
 	}
 }
 

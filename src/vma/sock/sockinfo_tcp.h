@@ -411,6 +411,7 @@ private:
 	void process_reuse_ctl_packets();
 	void process_rx_ctl_packets();
 	bool check_dummy_send_conditions(const int flags, const iovec* p_iov, const ssize_t sz_iov);
+	static void put_agent_msg(void *arg);
 };
 typedef struct tcp_seg tcp_seg;
 
