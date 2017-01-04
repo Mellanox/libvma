@@ -77,10 +77,16 @@ int check_if_regular_file(char *path)
 
 int get_sys_max_fd_num(int def_max_fd /*=1024*/)
 {
+	// optimize system calls
+	static rlim_t result = 0;
 	struct rlimit rlim;
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (getrlimit(RLIMIT_NOFILE, &rlim) == 0)
+	if (result)
+		return result;
+	if (getrlimit(RLIMIT_NOFILE, &rlim) == 0) {
+		result = rlim.rlim_cur;
 		return rlim.rlim_cur;
+	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 	return def_max_fd;
 }
