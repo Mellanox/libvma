@@ -54,12 +54,15 @@
 #include "vlogger/vlogger.h"
 
 #ifdef RDTSC_MEASURE
-void reset_rdtsc_counter(int idx);
+int reset_rdtsc_counter(int idx);
 void init_rdtsc();
 void print_rdtsc_summary();
 
+#define ARRAY_SIZE(arr) (sizeof(arr)/sizeof(arr[0]))
+
 // recommended ratio: 100000
 #define RDTSC_PRINT_RATIO 0
+#define RDTSC_PERCENTILE_BUF_SIZE (1 << 20)
 
 #define RDTSC_TAKE_START(instr) do { \
 	gettimeoftsc(&g_rdtsc_instr_info_arr[instr].start); \
@@ -95,17 +98,19 @@ void print_rdtsc_summary();
 
 #define RDTSC_TAKE_END(instr) do { \
 	if (g_rdtsc_instr_info_arr[instr].start) { \
+		uint64_t idx = g_rdtsc_instr_info_arr[instr].counter & (RDTSC_PERCENTILE_BUF_SIZE - 1); \
 		gettimeoftsc(&g_rdtsc_instr_info_arr[instr].end); \
-		g_rdtsc_instr_info_arr[instr].cycles += \
+		g_rdtsc_instr_info_arr[instr].results[idx] = \
 			g_rdtsc_instr_info_arr[instr].start + g_rdtsc_cost <= g_rdtsc_instr_info_arr[instr].end ? \
 			g_rdtsc_instr_info_arr[instr].end - g_rdtsc_instr_info_arr[instr].start - g_rdtsc_cost : 0; \
+		g_rdtsc_instr_info_arr[instr].cycles += g_rdtsc_instr_info_arr[instr].results[idx]; \
 		g_rdtsc_instr_info_arr[instr].counter++; \
 		g_rdtsc_instr_info_arr[instr].start = 0; \
 		if (g_rdtsc_instr_info_arr[instr].print_ratio && \
 				!(g_rdtsc_instr_info_arr[instr].counter % g_rdtsc_instr_info_arr[instr].print_ratio)) { \
-			uint64_t avg = g_rdtsc_instr_info_arr[instr].cycles / g_rdtsc_instr_info_arr[instr].counter; \
 			vlog_printf(VLOG_ERROR,"%s: %" PRIu64 " [@runtime]\n", \
-					g_rdtsc_flow_names[g_rdtsc_instr_info_arr[instr].trace_log_idx], avg); \
+				g_rdtsc_flow_names[g_rdtsc_instr_info_arr[instr].trace_log_idx], \
+					g_rdtsc_instr_info_arr[instr].cycles / g_rdtsc_instr_info_arr[instr].counter); \
 		} \
 	} \
 } while (0)
@@ -130,6 +135,7 @@ enum rdtsc_flow_type {
 typedef struct instr_info {
 	tscval_t start;
 	tscval_t end;
+	tscval_t *results;
 	uint64_t cycles;
 	uint64_t counter;
 	uint64_t print_ratio;
