@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2016.  ALL RIGHTS RESERVED.
  *
  * This software product is a proprietary product of Mellanox Technologies Ltd.
  * (the "Company") and all right, title, and interest in and to the software product,
@@ -10,10 +10,16 @@
  * If you wish to obtain a commercial license, please contact Mellanox at support@mellanox.com.
  */
 
+/*
+ * To build the sample:
+ * gcc mc_loop_test.c -o mc_loop_test.out -g -Wall -DVMA_ZCOPY_ENABLED=1 -I<pwd>/libvma-udp/build-udp/install/include -L<pwd>/libvma-udp/build-udp/install/lib -lrt -lvma 
+ * Please note -DVMA_ZCOPY_ENABLED=1 is used to enabel vma_poll
+ */
 
 #include <sys/types.h>		// sockets
 #include <sys/socket.h>		// sockets
 #include <arpa/inet.h>		// internet address manipulation
+#include <sys/epoll.h>
 #include <time.h>		      
 #include <string.h>
 #include <stdio.h>
@@ -22,6 +28,10 @@
 #include <unistd.h>		// getopt() and sleep()
 #include <getopt.h>		// getopt()
 #include <regex.h>
+#if  defined(VMA_ZCOPY_ENABLED) && (VMA_ZCOPY_ENABLED == 1)
+//#include <mellanox/vma_extra.h>
+#include "vma_extra.h"
+#endif /* VMA_ZCOPY_ENABLED */
 
 #define DEFAULT_MC_ADDR			"224.4.4.1"
 #define DEFAULT_PORT			11111
@@ -36,6 +46,11 @@ char *msgbuf = 0;
 char *pattern = 0;
 
 u_char is_loop = 0;
+
+#if defined(VMA_ZCOPY_ENABLED) && (VMA_ZCOPY_ENABLED == 1)
+static struct vma_api_t *_vma_api = NULL;
+static int _vma_ring_fd = -1;
+#endif /* VMA_ZCOPY_ENABLED */
 
 struct user_params_t {
 	struct sockaddr_in addr;
@@ -158,6 +173,7 @@ void prepare_network(int is_server)
         }
         
         if (IN_MULTICAST(in_addr)){
+            printf("IN_MULTICAST\n");
             if (bind(fd, (struct sockaddr *)&user_params.addr, sizeof(user_params.addr)) < 0) {
                                 perror("mc_loop_test: bind()");
                                 exit(1);
@@ -193,26 +209,96 @@ void prepare_network(int is_server)
                 if (bind(fd, (struct sockaddr *)&user_params.addr, sizeof(user_params.addr)) < 0) {
                     perror("mc_loop_test: bind()");
                     exit(1);
-                            }
+                }
             }
         }
-        //printf("udp_lat: %s: exit\n", __func__);
+#if defined(VMA_ZCOPY_ENABLED) && (VMA_ZCOPY_ENABLED == 1)
+        if(is_server) {
+        	/* Need to get ring after listen() or nonblocking connect() */
+        	if (_vma_ring_fd < 0) {
+        		_vma_api->get_socket_rings_fds(fd, &_vma_ring_fd, 1);
+        		if (_vma_ring_fd < 0) {
+        			perror("mc_loop_test: get_socket_rings_fds");
+        			exit(1);
+        		}
+        	}
+        }
+#endif /* VMA_ZCOPY_ENABLED */
 }
 
 void server_handler()
 {
+#if defined(VMA_ZCOPY_ENABLED) && (VMA_ZCOPY_ENABLED == 1)
+	int ret, n = 0;
+ 	int _done = 1;
+ 	uint32_t event = 0;
+	struct vma_packet_desc_t vma_packet;
+	struct vma_buff_t *vma_buf;
+	int vma_buf_offset;
+#else
  	int nbytes;
 	socklen_t size = sizeof(struct sockaddr);
 	struct sockaddr_in client_addr;
+#endif /* VMA_ZCOPY_ENABLED */
+
 	printf("mc_loop_test: [SERVER] Listen on: ");
 	prepare_network(1);
 
     printf("Waiting to receive from FD %d\n", fd);
+
+#if defined(VMA_ZCOPY_ENABLED) && (VMA_ZCOPY_ENABLED == 1)
+    while(1) {
+		if (!_done) {
+			if (vma_buf && (vma_buf_offset < vma_buf->len)) {
+				n = 1;
+			} else if (vma_buf && vma_buf->next) {
+				vma_buf = vma_buf->next;
+				vma_buf_offset = 0;
+				n = 1;
+			} else if (vma_buf && !vma_buf->next) {
+				_vma_api->free_vma_packets(&vma_packet, 1);
+				vma_buf = NULL;
+				vma_buf_offset = 0;
+				break;
+			}
+		}
+		while (0 == n) {
+			struct vma_completion_t vma_comps;
+			n = _vma_api->vma_poll(_vma_ring_fd, &vma_comps, 1, 0);
+			if (n > 0) {
+				event = (uint32_t)vma_comps.events;
+				if (vma_comps.events & VMA_POLL_PACKET) {
+					_done = 0;
+					vma_packet.num_bufs = vma_comps.packet.num_bufs;
+					vma_packet.total_len = vma_comps.packet.total_len;
+					vma_packet.buff_lst = vma_comps.packet.buff_lst;
+					vma_buf = vma_packet.buff_lst;
+					vma_buf_offset = 0;
+				} else if ((event & EPOLLERR) || (event & EPOLLRDHUP) ||
+						(event & EPOLLHUP)) {
+					event |= EPOLLERR;
+					fprintf(stderr, "event=0x%x user_data=%ld\n", event, vma_comps.user_data);
+					exit(1);
+				} else {
+					printf("event=0x%x user_data=%ld\n", event, vma_comps.user_data);
+					n = 0;
+				}
+			}
+		}
+		ret = vma_buf->len - vma_buf_offset;
+		memcpy(msgbuf, ((uint8_t *)vma_buf->payload) + vma_buf_offset, ret);
+		vma_buf_offset += vma_buf->len - vma_buf_offset;
+    }
+    printf("server: vma_poll Message received.len=%d..\n", ret);
+
+#else
     if ((nbytes = recvfrom(fd, msgbuf, user_params.msg_size, 0, (struct sockaddr *)&client_addr, &size)) < 0) {
         perror("mc_loop_test: recvfrom()");
         exit(1);
     }
+
     printf("server:Message received...\n");
+#endif
 
 	printf("mc_loop_test: %s: exit\n", __func__);
 }
@@ -240,6 +326,13 @@ int main(int argc, char *argv[]) {
 	}
 	/* set default values */
 	set_defaults();
+
+#if defined(VMA_ZCOPY_ENABLED) && (VMA_ZCOPY_ENABLED == 1)
+	_vma_api = vma_get_api();
+	if (_vma_api == NULL) {
+		perror("VMA Extra API not found\n");
+	}
+#endif /* VMA_ZCOPY_ENABLED */
 
 	/* Parse the parameters */
 	while (1) {
