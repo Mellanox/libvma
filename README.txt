@@ -913,6 +913,46 @@ automatically to reach a desired rate of interrupts.
 
 
 
+VMA Extended API
+================
+
+VMA provides extended API to get additional benefits from TCP/UDP stack
+offloading on Mellanox's NICs. This API adds new capabilities to standard
+socket API.
+Thi API allows application to remove the overhead of socket API from
+receive flow data path, while keeping the well known socket API control
+interface (connect(), bind(), accept(), ..)
+
+* vma_poll() - Application polls `fd` for completions.
+
+  Describes the arrived data.
+  Contains VMA Packet Descriptor that points to buffer/s (allocated by VMA) that
+  contains the incoming data. Application is responsible to free the VMA Packet
+  Descriptor via dedicated function free_vma_packets()/free_vma_buff().
+
+  Events:
+  - VMA_POLL_PACKET flag indicates for incoming packets.
+  - VMA_POLL_NEW_CONNECTION_ACCEPTED event is reported when new connection is
+  accepted by the server.
+  Note: When working with vma_poll() new connections are accepted
+  automatically and accept() must not be called. Calling accept() forces
+  undefined behaivour.
+  - EPOLLOUT event is reported when initiated connection is established with
+  the server.
+  Note: When working with vma_poll() connections should be initiated using
+  nonblocking socket only.Calling connect() on blocking socket forces
+  undefined behaivour.
+
+* get_socket_rings_num() - Returns the amount of rings that are associated with socket.
+
+* get_socket_rings_fds() - Returns FDs of the rings that are associated with the socket.
+
+* free_vma_packets() - Destroys packets received by vma_poll().
+
+* ref_vma_buff() - This function increments the reference count of the buffer.
+
+* free_vma_buff() - This function decrements the buffer reference count and deallocates buffer.
+
 
 Notes
 =====
