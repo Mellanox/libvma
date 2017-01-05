@@ -58,7 +58,9 @@ void reset_rdtsc_counter(int idx);
 void init_rdtsc();
 void print_rdtsc_summary();
 
-#define RDTSC_PRINT_RATIO 100000
+// recommended ratio: 100000
+#define RDTSC_PRINT_RATIO 0
+
 #define RDTSC_TAKE_START(instr) do { \
 	gettimeoftsc(&g_rdtsc_instr_info_arr[instr].start); \
 } while (0)
