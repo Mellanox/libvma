@@ -435,7 +435,7 @@ bool sockinfo::attach_receiver(flow_tuple_with_local_if &flow_key)
 	// Allocate resources on specific interface (create ring)
 	net_device_resources_t* p_nd_resources = create_nd_resources((const ip_address)flow_key.get_local_if());
 	if (NULL == p_nd_resources) {
-		si_logerr("Failed to get net device resources %s", flow_key.to_str());
+		// any error which occurred inside create_nd_resources() was already printed. No need to reprint errors here
 		return false;
 	}
 
