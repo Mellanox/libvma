@@ -1,3 +1,13 @@
+Version 8.2.6-0:
+Date + Time 2017-01-08
+=======================
+Added:
+        - RM #850311 Update log info when link is down on VMA bringup
+        - RM #802922 Added TCP server-client window size exerciser test
+
+Fixed:
+        - RM #943551 Fix received UDP vlan over bond (fail_over_mac=1) prints an error
+
 Version 8.2.5-0:
 Date + Time 2016-12-28
 =======================
