@@ -1798,6 +1798,12 @@ int epoll_create(int __size)
 
 	do_global_ctors();
 
+	if (__size <= 0 ) {
+		vlog_printf(VLOG_DEBUG, "%s: invalid size (size=%d) - must be a positive integer\n", __func__, __size);
+		errno = EINVAL;
+		return -1;
+	}
+
 	int epfd = orig_os_api.epoll_create(__size + 1);  // +1 for the cq epfd
 	vlog_printf(VLOG_DEBUG, "ENTER: %s(size=%d) = %d\n",__func__, __size, epfd);
 
