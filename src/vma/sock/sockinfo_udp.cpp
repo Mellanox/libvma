@@ -834,6 +834,13 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 				if (__optval) {
 					uint32_t val = *(int *)__optval;
 					bool success = true;
+					lock_tcp_con();
+					if(-1 == modify_ratelimit(val, m_p_connected_dst_entry)) {
+						si_tcp_logdbg("error setting setsockopt(udp-connect) SO_MAX_PACING_RATE: %d bytes/second ", val);
+					} else {
+						si_tcp_logdbg("setsockopt(udp-connect) SO_MAX_PACING_RATE: %d bytes/second ", val);
+					}
+					unlock_tcp_con();
 					// value is in bytes (per second), we need to convert it to kilo-bits (per second)
 					dst_entry_map_t::iterator dst_entry_iter ;
 					for (dst_entry_iter = m_dst_entry_map.begin(); dst_entry_iter != m_dst_entry_map.end() ; ++dst_entry_iter) {
