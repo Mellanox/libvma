@@ -78,7 +78,7 @@ void buffer_pool::free_tx_lwip_pbuf_custom(struct pbuf *p_buff)
 }
 
 buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p_ib_ctx_h, mem_buf_desc_owner *owner, pbuf_free_custom_fn custom_free_function) :
-			m_lock_spin("buffer_pool"), m_is_contig_alloc(true), m_shmid(-1), m_lkey(0), m_p_ib_ctx_h(p_ib_ctx_h),
+			m_lock_spin("buffer_pool"), m_is_contig_alloc(true), m_shmid(-1), m_p_ib_ctx_h(p_ib_ctx_h),
 			m_p_head(NULL), m_n_buffers(0), m_n_buffers_created(buffer_count)
 {
 	size_t sz_aligned_element = 0;
@@ -303,7 +303,6 @@ bool buffer_pool::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint6
 			}
 		}
 		m_mrs.push_back(mr);
-		m_lkey = mr->lkey;
 		if (!m_data_block) { // contig pages mode
 			m_data_block = mr->addr;
 		}
@@ -339,44 +338,9 @@ bool buffer_pool::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint6
 		for (size_t i = 0; i < num_devices; ++i) {
 			m_mrs.push_back(mrs[i]);
 		}
-		m_lkey = 0;
 	}
 
 	return true;
-}
-
-uint32_t buffer_pool::set_default_lkey(const ib_ctx_handler* p_ib_ctx_h)
-{
-	m_lkey = find_lkey_by_ib_ctx((ib_ctx_handler*)p_ib_ctx_h);
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (m_lkey == 0) {
-		__log_info_warn("No lkey found! p_ib_ctx_h = %p", p_ib_ctx_h);
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-	return m_lkey;
-}
-
-uint32_t buffer_pool::set_default_lkey_thread_safe(const ib_ctx_handler* p_ib_ctx_h)
-{
-	uint32_t ret;
-
-	m_lock_spin.lock();
-	ret = set_default_lkey(p_ib_ctx_h);
-	m_lock_spin.unlock();
-
-	return ret;
-}
-
-mem_buf_desc_t *buffer_pool::get_buffers(size_t count, ib_ctx_handler *p_ib_ctx_h/*=NULL*/)
-{
-	uint32_t lkey = m_lkey;
-
-	// find lkey if have a device
-	if (unlikely(p_ib_ctx_h)) {
-		lkey = find_lkey_by_ib_ctx(p_ib_ctx_h);
-	}
-
-	return get_buffers(count, lkey);
 }
 
 mem_buf_desc_t *buffer_pool::get_buffers(size_t count, uint32_t lkey)
@@ -385,7 +349,7 @@ mem_buf_desc_t *buffer_pool::get_buffers(size_t count, uint32_t lkey)
 
 	__log_info_funcall("requested %lu, present %lu, created %lu", count, m_n_buffers, m_n_buffers_created);
 
-	if (m_n_buffers < count) {
+	if (unlikely(m_n_buffers < count)) {
 		static vlog_levels_t log_severity = VLOG_ERROR; // ERROR severity will be used only once - at the 1st time
 
 		VLOG_PRINTF_INFO(log_severity, "not enough buffers in the pool (requested: %lu, have: %lu, created: %lu isRx=%d isTx=%d)",
@@ -399,7 +363,7 @@ mem_buf_desc_t *buffer_pool::get_buffers(size_t count, uint32_t lkey)
 	}
 
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (lkey == 0) {
+	if (unlikely(lkey == 0)) {
 		__log_info_panic("No lkey found! count = %d", count);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -420,29 +384,19 @@ mem_buf_desc_t *buffer_pool::get_buffers(size_t count, uint32_t lkey)
 	return head;
 }
 
-mem_buf_desc_t *buffer_pool::get_buffers_thread_safe(size_t count, ib_ctx_handler *p_ib_ctx_h/*=NULL*/)
+mem_buf_desc_t *buffer_pool::get_buffers_thread_safe(size_t count, ib_ctx_handler *p_ib_ctx_h)
 {
-	mem_buf_desc_t *ret;
-
-	m_lock_spin.lock();
-	ret = get_buffers(count, p_ib_ctx_h);
-	m_lock_spin.unlock();
-
-	return ret;
+	auto_unlocker lock(m_lock_spin);
+	return get_buffers(count, find_lkey_by_ib_ctx(p_ib_ctx_h));
 }
 
 mem_buf_desc_t *buffer_pool::get_buffers_thread_safe(size_t count, uint32_t lkey)
 {
-	mem_buf_desc_t *ret;
-
-	m_lock_spin.lock();
-	ret = get_buffers(count, lkey);
-	m_lock_spin.unlock();
-
-	return ret;
+	auto_unlocker lock(m_lock_spin);
+	return get_buffers(count, lkey);
 }
 
-uint32_t buffer_pool::find_lkey_by_ib_ctx(ib_ctx_handler* p_ib_ctx_h)
+inline uint32_t buffer_pool::find_lkey_by_ib_ctx(ib_ctx_handler* p_ib_ctx_h)
 {
 	uint32_t lkey = 0;
 	if (likely(p_ib_ctx_h)) {
@@ -458,15 +412,10 @@ uint32_t buffer_pool::find_lkey_by_ib_ctx(ib_ctx_handler* p_ib_ctx_h)
 	return lkey;
 }
 
-uint32_t buffer_pool::find_lkey_by_ib_ctx_thread_safe(const ib_ctx_handler* p_ib_ctx_h)
+uint32_t buffer_pool::find_lkey_by_ib_ctx_thread_safe(ib_ctx_handler* p_ib_ctx_h)
 {
-	uint32_t ret;
-
-	m_lock_spin.lock();
-	ret = find_lkey_by_ib_ctx((ib_ctx_handler*)p_ib_ctx_h);
-	m_lock_spin.unlock();
-
-	return ret;
+	auto_unlocker lock(m_lock_spin);
+	return find_lkey_by_ib_ctx(p_ib_ctx_h);
 }
 
 #if _BullseyeCoverage
@@ -584,46 +533,43 @@ void buffer_pool::buffersPanic()
     #pragma BullseyeCoverage on
 #endif
 
-int buffer_pool::put_buffers(mem_buf_desc_t *buff_list)
+inline void buffer_pool::put_buffers(mem_buf_desc_t *buff_list)
 {
-	int count = 0;
 	mem_buf_desc_t *next;
 	__log_info_funcall("returning list, present %lu, created %lu", m_n_buffers, m_n_buffers_created);
 	while (buff_list) {
 		next = buff_list->p_next_desc;
 		put_buffer_helper(buff_list);
 		buff_list = next;
-		count++;
-
-		if (unlikely(m_n_buffers > m_n_buffers_created)) {
-			buffersPanic();
-		}
 	}
-	return count;
+
+	if (unlikely(m_n_buffers > m_n_buffers_created)) {
+		buffersPanic();
+	}
 }
 
-int buffer_pool::put_buffers_thread_safe(mem_buf_desc_t *buff_list)
+void buffer_pool::put_buffers_thread_safe(mem_buf_desc_t *buff_list)
 {
 	auto_unlocker lock(m_lock_spin);
-	return put_buffers(buff_list);
+	put_buffers(buff_list);
 }
 
 void buffer_pool::put_buffers(descq_t *buffers, size_t count)
 {
 	mem_buf_desc_t *buff_list, *next;
+	size_t amount;
 	__log_info_funcall("returning %lu, present %lu, created %lu", count, m_n_buffers, m_n_buffers_created);
-	while (count > 0 && !buffers->empty()) {
+	for (amount = MIN(count, buffers->size()); amount > 0 ; amount--) {
 		buff_list = buffers->get_and_pop_back();
 		while (buff_list) {
 			next = buff_list->p_next_desc;
 			put_buffer_helper(buff_list);
 			buff_list = next;
-
-			if (unlikely(m_n_buffers > m_n_buffers_created)) {
-				buffersPanic();
-			}
 		}
-		--count;
+	}
+
+	if (unlikely(m_n_buffers > m_n_buffers_created)) {
+		buffersPanic();
 	}
 }
 
@@ -646,9 +592,8 @@ void buffer_pool::put_buffers_after_deref(descq_t *pDeque)
 
 void buffer_pool::put_buffers_after_deref_thread_safe(descq_t *pDeque)
 {
-	m_lock_spin.lock();
+	auto_unlocker lock(m_lock_spin);
 	put_buffers_after_deref(pDeque);
-	m_lock_spin.unlock();
 }
 
 size_t buffer_pool::get_free_count()
@@ -656,12 +601,7 @@ size_t buffer_pool::get_free_count()
 	return m_n_buffers;
 }
 
-std::deque<ibv_mr*> buffer_pool::get_memory_regions()
-{
-	return m_mrs;
-}
-
-void buffer_pool::set_RX_TX_for_stats(bool rx /*= true*/)
+void buffer_pool::set_RX_TX_for_stats(bool rx)
 {
 	if (rx)
 		m_p_bpool_stat->is_rx = true;

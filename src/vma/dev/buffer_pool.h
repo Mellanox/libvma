@@ -60,21 +60,15 @@ public:
 	buffer_pool(size_t buffer_count, size_t size, ib_ctx_handler *p_ib_ctx_h, mem_buf_desc_owner *owner, pbuf_free_custom_fn custom_free_function);
 	virtual ~buffer_pool();
 
-	/**
-	 * Set a specific ib_ctx (default lkey) if buffer pool was created without one
-	 * @return new default lkey relevant for the requested context
-	 * This will make the get_buffers() more efficient
-	 */
-	uint32_t 	set_default_lkey(const ib_ctx_handler* p_ib_ctx_h);
-	uint32_t 	set_default_lkey_thread_safe(const ib_ctx_handler* p_ib_ctx_h);
-	uint32_t 	find_lkey_by_ib_ctx_thread_safe(const ib_ctx_handler* p_ib_ctx_h);
+	uint32_t 	find_lkey_by_ib_ctx_thread_safe(ib_ctx_handler* p_ib_ctx_h);
 
 	/**
 	 * Get buffers from the pool - thread safe
 	 * @param count Number of buffers required.
+	 * @param lkey the registered memory lkey.
 	 * @return List of buffers, or NULL if don't have enough buffers.
 	 */
-	mem_buf_desc_t*	get_buffers_thread_safe(size_t count, ib_ctx_handler *p_ib_ctx_h = NULL);
+	mem_buf_desc_t*	get_buffers_thread_safe(size_t count, ib_ctx_handler *p_ib_ctx_h);
 	mem_buf_desc_t *get_buffers_thread_safe(size_t count, uint32_t lkey);
 
 	/**
@@ -82,8 +76,8 @@ public:
 	 */
 	void 		put_buffers(descq_t *buffers, size_t count);
 	void 		put_buffers_thread_safe(descq_t *buffers, size_t count);
-	int 		put_buffers(mem_buf_desc_t *buff_list);
-	int 		put_buffers_thread_safe(mem_buf_desc_t *buff_list);
+	void 		put_buffers(mem_buf_desc_t *buff_list);
+	void 		put_buffers_thread_safe(mem_buf_desc_t *buff_list);
 	static void 	free_rx_lwip_pbuf_custom(struct pbuf *p_buff);
 	static void 	free_tx_lwip_pbuf_custom(struct pbuf *p_buff);
 
@@ -98,12 +92,7 @@ public:
 	 */
 	size_t		get_free_count();
 
-	/**
-	 * @returns list of memory regions
-	 */
-	std::deque<ibv_mr*> get_memory_regions();
-
-	void		set_RX_TX_for_stats(bool rx = true);
+	void		set_RX_TX_for_stats(bool rx);
 
 private:
 
@@ -120,9 +109,6 @@ private:
 
 	// List of memory regions
 	std::deque<ibv_mr*> m_mrs;
-	
-	// If the pool was given a specific device, this is the registered memory lkey
-	uint32_t	m_lkey;
 
 	ib_ctx_handler* m_p_ib_ctx_h;
 
@@ -150,14 +136,13 @@ private:
 	 */
 	inline void 	put_buffer_helper(mem_buf_desc_t *buff);
 
-	uint32_t 	find_lkey_by_ib_ctx(ib_ctx_handler* p_ib_ctx_h);
+	inline uint32_t find_lkey_by_ib_ctx(ib_ctx_handler* p_ib_ctx_h);
 
 	/**
 	 * Get buffers from the pool - no thread safe
 	 * @param count Number of buffers required.
 	 * @return List of buffers, or NULL if don't have enough buffers.
 	 */
-	mem_buf_desc_t*	get_buffers(size_t count, ib_ctx_handler *p_ib_ctx_h = NULL);
 	mem_buf_desc_t *get_buffers(size_t count, uint32_t lkey);
 
 	void 		buffersPanic();
