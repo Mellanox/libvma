@@ -503,6 +503,9 @@ int qp_mgr::post_recv(mem_buf_desc_t* p_mem_buf_desc)
 
 			m_curr_rx_wr = 0;
 			struct ibv_recv_wr *bad_wr = NULL;
+#ifdef RDTSC_MEASURE_RX_VERBS_POST_RECV
+			RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VERBS_POST_RECV]);
+#endif //RDTSC_MEASURE_RX_VERBS_POST_RECV
 			IF_VERBS_FAILURE(ibv_post_recv(m_qp, &m_ibv_rx_wr_array[0], &bad_wr)) {
 				uint32_t n_pos_bad_rx_wr = ((uint8_t*)bad_wr - (uint8_t*)m_ibv_rx_wr_array) / sizeof(struct ibv_recv_wr);
 				qp_logerr("failed posting list (errno=%d %m)", errno);
@@ -516,6 +519,9 @@ int qp_mgr::post_recv(mem_buf_desc_t* p_mem_buf_desc)
 				}
 				throw;
 			} ENDIF_VERBS_FAILURE;
+#ifdef RDTSC_MEASURE_RX_VERBS_POST_RECV
+			RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VERBS_POST_RECV]);
+#endif //RDTSC_MEASURE_RX_VERBS_POST_RECV
 			qp_logfunc("Successful ibv_post_recv");
 		}
 		else {
