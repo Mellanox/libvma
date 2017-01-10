@@ -568,20 +568,32 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 		vma_send_wr_send_flags(*p_send_wqe) = (vma_ibv_send_flags)(vma_send_wr_send_flags(*p_send_wqe) | VMA_IBV_SEND_SIGNALED);
 	}
 
+#ifdef VMA_TIME_MEASURE
 	TAKE_T_TX_POST_SEND_START;
-	RDTSC_FLOW_TX_VERBS_POST_SEND_START;
+#endif
+
+#ifdef RDTSC_MEASURE_TX_VERBS_POST_SEND
+	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_TX_VERBS_POST_SEND]);
+#endif //RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
 
 	if (send_to_wire(p_send_wqe, attr)) {
+#ifdef VMA_TIME_MEASURE
 		INC_ERR_TX_COUNT;
-		RDTSC_FLOW_TX_VERBS_POST_SEND_RESET;
-		RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND_RESET;
+#endif
 		return -1;
 	}
 
-	RDTSC_FLOW_TX_VERBS_POST_SEND_END;
-	RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND_END;
-	TAKE_T_TX_POST_SEND_END;
+#ifdef RDTSC_MEASURE_TX_VERBS_POST_SEND
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_TX_VERBS_POST_SEND]);
+#endif //RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
 
+#ifdef RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND]);
+#endif //RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
+
+#ifdef VMA_TIME_MEASURE
+	TAKE_T_TX_POST_SEND_END;
+#endif
 	// Link this new mem_buf_desc to the previous one sent
 	p_mem_buf_desc->p_next_desc = m_p_last_tx_mem_buf_desc;
 

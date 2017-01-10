@@ -335,6 +335,7 @@ fi
 # RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL 
 # RDTSC_MEASURE_RX_READY_POLL_TO_LWIP 
 # RDTSC_MEASURE_RX_LWIP_TO_RECEVEFROM 
+# RDTSC_MEASURE_RX_VERBS_POST_RECV 
 #
 # ****** Total VMA TX ******** 
 # RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND 
@@ -480,7 +481,6 @@ AS_IF([test "x$with_rdtsc_rx_lwip_to_receivefrom" == xyes],
 	[AC_MSG_RESULT([no])]
 )
 
- 
 AC_MSG_CHECKING([if rdtsc-tx-sendto-to-after-post-send is enabled])
 AC_ARG_WITH([rdtsc-tx-sendto-to-after-post-send],
     AC_HELP_STRING([--with-rdtsc-tx-sendto-to-after-post-send],
@@ -523,6 +523,21 @@ AC_ARG_WITH([rdtsc-receivefrom-to-sendto],
 AS_IF([test "x$with_rdtsc_receivefrom_to_sendto" == xyes],
 	[AC_DEFINE([RDTSC_MEASURE], 1, [Define to 1 to enable rdtsc measurements.])]
 	[AC_DEFINE([RDTSC_MEASURE_RECEIVEFROM_TO_SENDTO], 1, [Define to 1 to enable rdtsc measurement of receivefrom to sendto.])]
+	[AC_MSG_RESULT([yes])],
+	[AC_MSG_RESULT([no])]
+)
+
+AC_MSG_CHECKING([if rdtsc-rx-verbs-post-recv is enabled])
+AC_ARG_WITH([rdtsc-rx-verbs-post-recv],
+    AC_HELP_STRING([--with-rdtsc-rx-verbs-post-recv],
+                   [Enable rdtsc measurement of rx verbs post recv]),
+    [],
+    [with_rdtsc_rx_verbs_post_recv=no]
+)
+
+AS_IF([test "x$with_rdtsc_rx_verbs_post_recv" == xyes],
+	[AC_DEFINE([RDTSC_MEASURE], 1, [Define to 1 to enable rdtsc measurements.])]
+	[AC_DEFINE([RDTSC_MEASURE_RX_VERBS_POST_RECV], 1, [Define to 1 to enable rdtsc measurement of rx verbs post recv.])]
 	[AC_MSG_RESULT([yes])],
 	[AC_MSG_RESULT([no])]
 )
