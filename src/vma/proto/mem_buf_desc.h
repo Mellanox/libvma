@@ -90,6 +90,7 @@ public:
 	inline void  reset_ref_count() {atomic_set(&n_ref_count, 0);}
 	inline int inc_ref_count() {return atomic_fetch_and_inc(&n_ref_count);}
 	inline int dec_ref_count() {return atomic_fetch_and_dec(&n_ref_count);}
+	inline int set_ref_count(int val) {return atomic_set(&n_ref_count, val);}
 
 #ifdef DEFINED_VMAPOLL
 	inline unsigned int lwip_pbuf_inc_ref_count() {return ++lwip_pbuf.pbuf.ref;}
