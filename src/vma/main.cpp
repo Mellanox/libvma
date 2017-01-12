@@ -962,7 +962,7 @@ extern "C" int main_init(void)
 	// Force GCC's malloc() to check the consistency of dynamic memory in development build (Non Release)
 	//mcheck(vma_mcheck_abort_cb);
 #endif
-
+	get_orig_funcs();
 	safe_mce_sys();
 
 	g_init_global_ctors_done = false;
@@ -970,7 +970,6 @@ extern "C" int main_init(void)
 	vlog_start("VMA", safe_mce_sys().log_level, safe_mce_sys().log_filename, safe_mce_sys().log_details, safe_mce_sys().log_colors);
 
 	print_vma_global_settings();
-	get_orig_funcs();
 
 	check_debug();
 	check_cpu_speed();
