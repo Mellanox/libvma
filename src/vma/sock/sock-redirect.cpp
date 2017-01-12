@@ -329,10 +329,6 @@ extern "C"
 int vma_recvfrom_zcopy(int __fd, void *__buf, size_t __nbytes, int *__flags,
 	               struct sockaddr *__from, socklen_t *__fromlen)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.recvfrom) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	srdr_logfuncall_entry("fd=%d", __fd);
 
 	socket_fd_api* p_socket_object = NULL;
@@ -570,10 +566,6 @@ int socket(int __domain, int __type, int __protocol)
 // TODO: look for additional such functions/calls
 int socket_internal(int __domain, int __type, int __protocol, bool check_offload /*= false*/)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.socket) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	bool offload_sockets = (__type & 0xf) == SOCK_DGRAM || (__type & 0xf) == SOCK_STREAM;
 
 	if (offload_sockets)
@@ -602,10 +594,6 @@ int socket_internal(int __domain, int __type, int __protocol, bool check_offload
 extern "C"
 int close(int __fd)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.close) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	srdr_logdbg_entry("fd=%d", __fd);
 
 	/*
@@ -621,10 +609,6 @@ int close(int __fd)
 extern "C"
 void __res_iclose(res_state statp, bool free_addr)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.__res_iclose) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	srdr_logdbg_entry("");
         for (int ns = 0; ns < statp->_u._ext.nscount; ns++) {
         	int sock = statp->_u._ext.nssocks[ns];
@@ -644,10 +628,6 @@ void __res_iclose(res_state statp, bool free_addr)
 extern "C"
 int shutdown(int __fd, int __how)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.shutdown) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	srdr_logdbg_entry("fd=%d, how=%d", __fd, __how);
 
 	socket_fd_api* p_socket_object = NULL;
@@ -661,10 +641,6 @@ int shutdown(int __fd, int __how)
 extern "C"
 int listen(int __fd, int backlog)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-       if (!orig_os_api.listen) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
        srdr_logdbg_entry("fd=%d, backlog=%d", __fd, backlog);
 
        socket_fd_api* p_socket_object = NULL;
@@ -685,10 +661,6 @@ int listen(int __fd, int backlog)
 extern "C"
 int accept(int __fd, struct sockaddr *__addr, socklen_t *__addrlen)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-       if (!orig_os_api.accept) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
        socket_fd_api* p_socket_object = NULL;
        p_socket_object = fd_collection_get_sockfd(__fd);
        if (p_socket_object)
@@ -700,10 +672,6 @@ int accept(int __fd, struct sockaddr *__addr, socklen_t *__addrlen)
 extern "C"
 int accept4(int __fd, struct sockaddr *__addr, socklen_t *__addrlen, int __flags)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.accept4) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
 	if (p_socket_object)
@@ -716,10 +684,6 @@ int accept4(int __fd, struct sockaddr *__addr, socklen_t *__addrlen, int __flags
 extern "C"
 int bind(int __fd, const struct sockaddr *__addr, socklen_t __addrlen)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.bind) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	char buf[256];
 	NOT_IN_USE(buf); /* to suppress warning in case VMA_OPTIMIZE_LOG */
 	srdr_logdbg_entry("fd=%d, %s", __fd, sprintf_sockaddr(buf, 256, __addr, __addrlen));
@@ -757,10 +721,6 @@ int bind(int __fd, const struct sockaddr *__addr, socklen_t __addrlen)
 extern "C"
 int connect(int __fd, const struct sockaddr *__to, socklen_t __tolen)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.connect) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	char buf[256];
 	NOT_IN_USE(buf); /* to suppress warning in case VMA_OPTIMIZE_LOG */
 	srdr_logdbg_entry("fd=%d, %s", __fd, sprintf_sockaddr(buf, 256, __to, __tolen));
@@ -798,10 +758,6 @@ extern "C"
 int setsockopt(int __fd, int __level, int __optname,
 	       __const void *__optval, socklen_t __optlen) VMA_THROW
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.setsockopt) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	srdr_logdbg_entry("fd=%d, level=%d, optname=%d", __fd, __level, __optname);
         
         if (NULL == __optval) {
@@ -834,10 +790,6 @@ extern "C"
 int getsockopt(int __fd, int __level, int __optname,
 	       void *__optval, socklen_t *__optlen) VMA_THROW
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.getsockopt) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	srdr_logdbg_entry("fd=%d, level=%d, optname=%d", __fd, __level, __optname);
 
 	if (__fd == -1 && __level == SOL_SOCKET && __optname == SO_VMA_GET_API &&
@@ -899,10 +851,6 @@ int getsockopt(int __fd, int __level, int __optname,
 extern "C"
 int fcntl(int __fd, int __cmd, ...) VMA_THROW
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.fcntl) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	srdr_logfunc_entry("fd=%d, cmd=%d", __fd, __cmd);
 
 	int res = -1;
@@ -936,10 +884,6 @@ int fcntl(int __fd, int __cmd, ...) VMA_THROW
 extern "C"
 int ioctl (int __fd, unsigned long int __request, ...) VMA_THROW
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.fcntl) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	srdr_logfunc_entry("fd=%d, request=%d", __fd, __request);
 
 	int res = -1;
@@ -967,10 +911,6 @@ int ioctl (int __fd, unsigned long int __request, ...) VMA_THROW
 extern "C"
 int getsockname(int __fd, struct sockaddr *__name, socklen_t *__namelen)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.getsockname) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	srdr_logdbg_entry("fd=%d", __fd);
 
 	int ret = 0;
@@ -993,10 +933,6 @@ int getsockname(int __fd, struct sockaddr *__name, socklen_t *__namelen)
 extern "C"
 int getpeername(int __fd, struct sockaddr *__name, socklen_t *__namelen)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.getpeername) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	srdr_logdbg_entry("fd=%d", __fd);
 
 	int ret = 0;
@@ -1025,10 +961,6 @@ int getpeername(int __fd, struct sockaddr *__name, socklen_t *__namelen)
 extern "C"
 ssize_t read(int __fd, void *__buf, size_t __nbytes)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.read) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	srdr_logfuncall_entry("fd=%d", __fd);
 
 	socket_fd_api* p_socket_object = NULL;
@@ -1054,10 +986,6 @@ ssize_t read(int __fd, void *__buf, size_t __nbytes)
 extern "C"
 ssize_t __read_chk(int __fd, void *__buf, size_t __nbytes, size_t __buflen)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.__read_chk) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	srdr_logfuncall_entry("fd=%d", __fd);
 
 	socket_fd_api* p_socket_object = NULL;
@@ -1088,10 +1016,6 @@ ssize_t __read_chk(int __fd, void *__buf, size_t __nbytes, size_t __buflen)
 extern "C"
 ssize_t readv(int __fd, const struct iovec *iov, int iovcnt)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.readv) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	srdr_logfuncall_entry("fd=%d", __fd);
 
 	socket_fd_api* p_socket_object = NULL;
@@ -1113,10 +1037,6 @@ ssize_t readv(int __fd, const struct iovec *iov, int iovcnt)
 extern "C"
 ssize_t recv(int __fd, void *__buf, size_t __nbytes, int __flags)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.recv)	get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	srdr_logfuncall_entry("fd=%d", __fd);
 
 	socket_fd_api* p_socket_object = NULL;
@@ -1141,30 +1061,24 @@ ssize_t recv(int __fd, void *__buf, size_t __nbytes, int __flags)
 extern "C"
 ssize_t __recv_chk(int __fd, void *__buf, size_t __nbytes, size_t __buflen, int __flags)
 {
-	{
+	srdr_logfuncall_entry("fd=%d", __fd);
+
+	socket_fd_api* p_socket_object = NULL;
+	p_socket_object = fd_collection_get_sockfd(__fd);
+	if (p_socket_object) {
 		BULLSEYE_EXCLUDE_BLOCK_START
-		if (!orig_os_api.__recv_chk)	get_orig_funcs();
+		if (__nbytes > __buflen) {
+			srdr_logpanic("buffer overflow detected");
+		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 
-		srdr_logfuncall_entry("fd=%d", __fd);
-
-		socket_fd_api* p_socket_object = NULL;
-		p_socket_object = fd_collection_get_sockfd(__fd);
-		if (p_socket_object) {
-			BULLSEYE_EXCLUDE_BLOCK_START
-			if (__nbytes > __buflen) {
-			    srdr_logpanic("buffer overflow detected");
-			}
-			BULLSEYE_EXCLUDE_BLOCK_END
-
-			struct iovec piov[1];
-			piov[0].iov_base = __buf;
-			piov[0].iov_len = __nbytes;
-			return p_socket_object->rx(RX_RECV, piov, 1, &__flags);
-		}
-
-		return orig_os_api.__recv_chk(__fd, __buf, __nbytes, __buflen, __flags);
+		struct iovec piov[1];
+		piov[0].iov_base = __buf;
+		piov[0].iov_len = __nbytes;
+		return p_socket_object->rx(RX_RECV, piov, 1, &__flags);
 	}
+
+	return orig_os_api.__recv_chk(__fd, __buf, __nbytes, __buflen, __flags);
 }
 
 /* Receive a message as described by MESSAGE from socket FD.
@@ -1175,10 +1089,6 @@ ssize_t __recv_chk(int __fd, void *__buf, size_t __nbytes, size_t __buflen, int 
 extern "C"
 ssize_t recvmsg(int __fd, struct msghdr *__msg, int __flags)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.recvmsg) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	srdr_logfuncall_entry("fd=%d", __fd);
 
 	if (__msg == NULL) {
@@ -1225,10 +1135,6 @@ int recvmmsg(int __fd, struct mmsghdr *__mmsghdr, unsigned int __vlen, int __fla
 {
         int num_of_msg=0;
         struct timespec start_time = TIMESPEC_INITIALIZER, current_time = TIMESPEC_INITIALIZER, delta_time = TIMESPEC_INITIALIZER;
-
-        BULLSEYE_EXCLUDE_BLOCK_START
-        if (!orig_os_api.recvmmsg) get_orig_funcs();
-        BULLSEYE_EXCLUDE_BLOCK_END
 
         srdr_logfuncall_entry("fd=%d, mmsghdr length=%d flags=%x", __fd, __vlen, __flags);
 
@@ -1291,10 +1197,6 @@ ssize_t recvfrom(int __fd, void *__buf, size_t __nbytes, int __flags,
 {
 	ssize_t ret_val = 0;
 
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.recvfrom) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	srdr_logfuncall_entry("fd=%d", __fd);
 
 	socket_fd_api* p_socket_object = NULL;
@@ -1341,10 +1243,6 @@ extern "C"
 ssize_t __recvfrom_chk(int __fd, void *__buf, size_t __nbytes, size_t __buflen, int __flags,
 		 struct sockaddr *__from, socklen_t *__fromlen)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.__recvfrom_chk) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	srdr_logfuncall_entry("fd=%d", __fd);
 
 	socket_fd_api* p_socket_object = NULL;
@@ -1372,10 +1270,6 @@ ssize_t __recvfrom_chk(int __fd, void *__buf, size_t __nbytes, size_t __buflen, 
 extern "C"
 ssize_t write(int __fd, __const void *__buf, size_t __nbytes)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.write) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	srdr_logfuncall_entry("fd=%d, nbytes=%d", __fd, __nbytes);
 
 	socket_fd_api* p_socket_object = NULL;
@@ -1397,10 +1291,6 @@ ssize_t write(int __fd, __const void *__buf, size_t __nbytes)
 extern "C"
 ssize_t writev(int __fd, const struct iovec *iov, int iovcnt)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.writev) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	srdr_logfuncall_entry("fd=%d, %d iov blocks", __fd, iovcnt);
 
 	socket_fd_api* p_socket_object = NULL;
@@ -1419,10 +1309,6 @@ ssize_t writev(int __fd, const struct iovec *iov, int iovcnt)
 extern "C"
 ssize_t send(int __fd, __const void *__buf, size_t __nbytes, int __flags)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.send)	get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	srdr_logfuncall_entry("fd=%d, nbytes=%d", __fd, __nbytes);
 
 	socket_fd_api* p_socket_object = NULL;
@@ -1451,11 +1337,6 @@ ssize_t send(int __fd, __const void *__buf, size_t __nbytes, int __flags)
 extern "C"
 ssize_t sendmsg(int __fd, __const struct msghdr *__msg, int __flags)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.sendmsg) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
-
 	srdr_logfuncall_entry("fd=%d", __fd);
 
 	socket_fd_api* p_socket_object = NULL;
@@ -1482,10 +1363,6 @@ extern "C"
 int sendmmsg(int __fd, struct mmsghdr *__mmsghdr, unsigned int __vlen, int __flags)
 {
 	int num_of_msg=0;
-
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.sendmmsg) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
 
 	srdr_logfuncall_entry("fd=%d, mmsghdr length=%d flags=%x", __fd, __vlen, __flags);
 
@@ -1540,10 +1417,6 @@ ssize_t sendto(int __fd, __const void *__buf, size_t __nbytes, int __flags,
 	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RECEIVEFROM_TO_SENDTO]);
 #endif //RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
 #endif // DEFINED_VMAPOLL
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.sendto) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	srdr_logfuncall_entry("fd=%d, nbytes=%d", __fd, __nbytes);
 
 	socket_fd_api* p_socket_object = NULL;
@@ -1664,10 +1537,6 @@ int select(int __nfds,
 	   fd_set * __exceptfds,
 	   struct timeval * __timeout)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.select)	get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	if (!g_p_fd_collection)
 		return orig_os_api.select(__nfds, __readfds, __writefds, __exceptfds, __timeout);
 
@@ -1689,10 +1558,6 @@ int pselect(int __nfds,
 	    const struct timespec *__timeout,
 	    const sigset_t *__sigmask)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.pselect) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	if (!g_p_fd_collection)
 		return orig_os_api.pselect(__nfds, __readfds, __writefds, __errorfds, __timeout, __sigmask);
 
@@ -1738,17 +1603,10 @@ int poll_helper(struct pollfd *__fds, nfds_t __nfds, int __timeout, const sigset
 extern "C"
 int poll(struct pollfd *__fds, nfds_t __nfds, int __timeout)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.poll)	get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	if (!g_p_fd_collection)
 		return orig_os_api.poll(__fds, __nfds, __timeout);
 
-	if (__timeout == -1)
-		srdr_logfunc_entry("nfds=%d, timeout=(infinite)", __nfds);
-	else
-		srdr_logfunc_entry("nfds=%d, timeout=(%d milli-sec)", __nfds, __timeout);
+	srdr_logfunc_entry("nfds=%d, timeout=(%d milli-sec)", __nfds, __timeout);
 
 	return poll_helper(__fds, __nfds, __timeout);
 }
@@ -1756,20 +1614,13 @@ int poll(struct pollfd *__fds, nfds_t __nfds, int __timeout)
 extern "C"
 int ppoll(struct pollfd *__fds, nfds_t __nfds, const struct timespec *__timeout, const sigset_t *__sigmask)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.ppoll)	get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	if (!g_p_fd_collection)
 		return orig_os_api.ppoll(__fds, __nfds, __timeout, __sigmask);
 
 	int timeout = (__timeout == NULL) ? -1 :
 	           (__timeout->tv_sec * 1000 + __timeout->tv_nsec / 1000000);
 
-	if (timeout == -1)
-		srdr_logfunc_entry("nfds=%d, timeout=(infinite)", __nfds);
-	else
-		srdr_logfunc_entry("nfds=%d, timeout=(%d milli-sec)", __nfds, timeout);
+	srdr_logfunc_entry("nfds=%d, timeout=(%d milli-sec)", __nfds, timeout);
 
 	return poll_helper(__fds, __nfds, timeout, __sigmask);
 }
@@ -1792,10 +1643,6 @@ void vma_epoll_create(int epfd, int size)
 extern "C"
 int epoll_create(int __size)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.epoll_create)	get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	do_global_ctors();
 
 	if (__size <= 0 ) {
@@ -1818,10 +1665,6 @@ int epoll_create(int __size)
 extern "C"
 int epoll_create1(int __flags)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.epoll_create1) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	do_global_ctors();
 
 	int epfd = orig_os_api.epoll_create1(__flags);
@@ -1844,10 +1687,6 @@ int epoll_create1(int __flags)
 extern "C"
 int epoll_ctl(int __epfd, int __op, int __fd, struct epoll_event *__event)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.epoll_ctl) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	const static char * op_names[] = {
 	     "<null>",
 	     "ADD",
@@ -1918,14 +1757,7 @@ inline int epoll_wait_helper(int __epfd, struct epoll_event *__events, int __max
 extern "C"
 int epoll_wait(int __epfd, struct epoll_event *__events, int __maxevents, int __timeout)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.epoll_wait) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
-	if (__timeout == -1)
-		srdr_logfunc_entry("epfd=%d, maxevents=%d, timeout=(infinite)", __epfd, __maxevents);
-	else
-		srdr_logfunc_entry("epfd=%d, maxevents=%d, timeout=(%d milli-sec)", __epfd, __maxevents, __timeout);
+	srdr_logfunc_entry("epfd=%d, maxevents=%d, timeout=(%d milli-sec)", __epfd, __maxevents, __timeout);
 
 	return epoll_wait_helper(__epfd, __events, __maxevents, __timeout);
 }
@@ -1933,14 +1765,7 @@ int epoll_wait(int __epfd, struct epoll_event *__events, int __maxevents, int __
 extern "C"
 int epoll_pwait(int __epfd, struct epoll_event *__events, int __maxevents, int __timeout, const sigset_t *__sigmask)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.epoll_pwait) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
-	if (__timeout == -1)
-		srdr_logfunc_entry("epfd=%d, maxevents=%d, timeout=(infinite)", __epfd, __maxevents);
-	else
-		srdr_logfunc_entry("epfd=%d, maxevents=%d, timeout=(%d milli-sec)", __epfd, __maxevents, __timeout);
+	srdr_logfunc_entry("epfd=%d, maxevents=%d, timeout=(%d milli-sec)", __epfd, __maxevents, __timeout);
 
 	return epoll_wait_helper(__epfd, __events, __maxevents, __timeout, __sigmask);
 }
@@ -1952,10 +1777,6 @@ int epoll_pwait(int __epfd, struct epoll_event *__events, int __maxevents, int _
 extern "C"
 int socketpair(int __domain, int __type, int __protocol, int __sv[2])
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.socketpair) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	int ret = orig_os_api.socketpair(__domain, __type, __protocol, __sv);
 
 	vlog_printf(VLOG_DEBUG, MODULE_HDR_ENTRY "%s(domain=%s(%d) type=%s(%d) protocol=%d, fd[%d,%d]) = %d\n", __func__, socket_get_domain_str(__domain), __domain, socket_get_type_str(__type), __type, __protocol, __sv[0], __sv[1], ret);
@@ -1976,10 +1797,6 @@ int socketpair(int __domain, int __type, int __protocol, int __sv[2])
 extern "C"
 int pipe(int __filedes[2])
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.pipe) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	bool offload_pipe = safe_mce_sys().mce_spec == MCE_SPEC_29WEST_LBM_29 ||
 			    safe_mce_sys().mce_spec == MCE_SPEC_WOMBAT_FH_LBM_554;
 	if (offload_pipe)
@@ -2006,10 +1823,6 @@ int pipe(int __filedes[2])
 extern "C"
 int open(__const char *__file, int __oflag, ...)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.open) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	va_list va;
 	va_start(va, __oflag);
 	mode_t mode = va_arg(va, mode_t);
@@ -2027,10 +1840,6 @@ int open(__const char *__file, int __oflag, ...)
 extern "C"
 int creat(const char *__pathname, mode_t __mode)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.creat) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	int fd = orig_os_api.creat(__pathname, __mode);
 
 	vlog_printf(VLOG_DEBUG, MODULE_HDR_ENTRY "%s(pathname=%s, mode=%#x) = %d\n", __func__, __pathname, __mode, fd);
@@ -2045,10 +1854,6 @@ int creat(const char *__pathname, mode_t __mode)
 extern "C"
 int dup(int __fd)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.dup) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	int fid = orig_os_api.dup(__fd);
 
 	vlog_printf(VLOG_DEBUG, MODULE_HDR_ENTRY "%s(fd=%d) = %d\n", __func__, __fd, fid);
@@ -2063,10 +1868,6 @@ int dup(int __fd)
 extern "C"
 int dup2(int __fd, int __fd2)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.dup2) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	if (safe_mce_sys().close_on_dup2 && __fd != __fd2) {
 		srdr_logdbg("oldfd=%d, newfd=%d. Closing %d in VMA.\n", __fd, __fd2, __fd2);
 		handle_close(__fd2);
@@ -2086,7 +1887,6 @@ int dup2(int __fd, int __fd2)
 extern "C"
 int clone(int (*__fn)(void *), void *__child_stack, int __flags, void *__arg)
 {
-	if (!orig_os_api.clone) get_orig_funcs();
 	srdr_logfunc_entry("flags=%#x", __flags);
 	return orig_os_api.clone(__fn, __child_stack, __flags, __arg);
 }
@@ -2099,10 +1899,6 @@ int clone(int (*__fn)(void *), void *__child_stack, int __flags, void *__arg)
 extern "C"
 pid_t fork(void)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.fork) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	vlog_printf(VLOG_DEBUG, "ENTER: ***** %s *****\n", __func__);
 
 	if (!g_init_global_ctors_done) {
@@ -2156,9 +1952,6 @@ pid_t vfork(void)
 extern "C"
 int daemon(int __nochdir, int __noclose)
 {
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!orig_os_api.daemon) get_orig_funcs();
-	BULLSEYE_EXCLUDE_BLOCK_END
 	vlog_printf(VLOG_DEBUG, "ENTER: ***** %s(%d, %d) *****\n", __func__, __nochdir, __noclose);
 
 	if (!g_init_global_ctors_done) {
@@ -2212,8 +2005,6 @@ extern "C"
 int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 {
 	int ret = 0;
-
-	if (!orig_os_api.sigaction) get_orig_funcs();
 
 	if (safe_mce_sys().handle_sigintr) {
 		srdr_logdbg_entry("signum=%d, act=%p, oldact=%p", signum, act, oldact);
