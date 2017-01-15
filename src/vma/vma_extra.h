@@ -752,10 +752,10 @@ myapp_processes_packet_func(
 {
 	myapp_processes_packet_func(.....);
 
-	// Return zero copied datagram buffer back to VMA
+	// Return zero copied packet buffer back to VMA
 	// Would be better to collect a bunch of buffers and return them all at once
 	// which will save locks inside VMA
-	vma_api->free_datagrams(s, &packet_id, 1);
+	vma_api->free_packets(s, &packet_id, 1);
 }
 
 
