@@ -1704,7 +1704,7 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 {
 
 	// Check that sockinfo is bound to the packets dest port
-	if (unlikely(p_desc->path.rx.dst.sin_port != m_bound.get_in_port())) {
+/*	if (unlikely(p_desc->path.rx.dst.sin_port != m_bound.get_in_port())) {
 		si_udp_logfunc("rx packet discarded - not socket's bound port (pkt: %d, sock:%s)",
 			       ntohs(p_desc->path.rx.dst.sin_port), m_bound.to_str_in_port());
 		return false;
@@ -1723,7 +1723,7 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 			return false;
 		}
 	}
-	// if loopback is disabled, discard loopback packets.
+*/	// if loopback is disabled, discard loopback packets.
 	// in linux, loopback control (set by setsockopt) is done in TX flow.
 	// since we currently can't control it in TX, we behave like windows, which filter on RX
 	if (unlikely(!m_b_mc_tx_loop && p_desc->path.rx.local_if == p_desc->path.rx.src.sin_addr.s_addr)) {
