@@ -39,13 +39,18 @@ void print_rdtsc_summary();
 
 #define RDTSC_PRINT_RATIO 100000
 #define RDTSC_TAKE_START(instr) gettimeoftsc(&instr.start)
-#define RDTSC_TAKE_END(instr) gettimeoftsc(&instr.end);    								               \
-		instr.cycles += (instr.end < instr.start - g_rdtsc_cost)?0:(instr.end - instr.start - g_rdtsc_cost);                   \
-		instr.counter++;											               \
-		if (instr.print_ratio && instr.counter%instr.print_ratio == 0) {					   	       \
-			uint64_t avg = instr.cycles/instr.counter; 								       \
-			vlog_printf(VLOG_ERROR,"%s: %" PRIu64 " \n", g_rdtsc_flow_names[instr.trace_log_idx], avg);                    \
-		} 														       \
+#define RDTSC_TAKE_END(instr) \
+	do { 														\
+		gettimeoftsc(&instr.end);										\
+		int64_t sample = instr.end - instr.start - g_rdtsc_cost; 						\
+		if (sample > 0 && ++instr.counter > 3) {								\
+			instr.cycles += (sample - (int64_t)instr.cycles) / (int64_t)instr.counter;			\
+			if (instr.print_ratio && instr.counter%instr.print_ratio == 0) {				\
+				vlog_printf(VLOG_ERROR, "%s: %ld %ld %ld\n", g_rdtsc_flow_names[instr.trace_log_idx],	\
+				instr.counter, sample, instr.cycles);							\
+			}												\
+		}													\
+	} while (0)
 
 enum rdtsc_flow_type {
 	RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND = 0,
