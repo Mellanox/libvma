@@ -33,7 +33,10 @@ dynamic_buffer_pool::dynamic_buffer_pool(size_t init_buffers_count, size_t buffe
 	vma_stats_instance_create_bpool_block(m_p_bpool_stat);
 	m_p_bpool_stat->is_rx = is_rx ? true : false; // prettier than: "...->is_rx = is_rx"
 
-	allocate_addtional_buffers(init_buffers_count);
+	/* An error was previously raised if init > max,
+	 * but this would allow initial bpool to be allocated.
+	 */
+	allocate_addtional_buffers(init_buffers_count < max_buffers ? init_buffers_count : max_buffers);
 	m_p_timer_handler = new dynamic_bpool_timer_handler(this);
 }
 
@@ -56,7 +59,9 @@ mem_buf_desc_t *dynamic_buffer_pool::get_buffers(size_t count, const ib_ctx_hand
 {
 	mem_buf_desc_t *desc=NULL;
 
-	// if not enough buffers and buffers were returned to a bpool then we need to update curr bp to be the bp with max free buffs
+	/* if not enough buffers and buffers were returned to a bpool then we need to update curr bp
+	 * to be the bp with max free buffs.
+	 */
 	if (count > m_curr_bpool->get_free_count() && !m_curr_bp_is_max) {
 		update_max_free_bpool();
 	}
@@ -64,7 +69,7 @@ mem_buf_desc_t *dynamic_buffer_pool::get_buffers(size_t count, const ib_ctx_hand
 
 	/* no more buffers, pool exhausted before event_handler could allocate more */
 	if (unlikely(!desc)) {
-		// default - return NULL and wait for timer to allocate more buffers.
+		/* default - return NULL and wait for timer to allocate more buffers.*/
 		vlog_printf(VLOG_DEBUG, "Buffer pools exhausted. %d buffers. Maximum limit=%d , total buffers=%d, free buffers=%d\n", count, m_max_buffers, m_n_dyn_buffers_created, m_n_dyn_buffers);
 		return NULL;
 	}
