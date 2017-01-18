@@ -1,3 +1,12 @@
+Version 8.2.7-0:
+Date + Time 2017-01-18
+=======================
+Added:
+        - RM #954841 Document VMA_SPEC "latency" in README.txt file
+
+Fixed:
+        - RM #946914 Fix epoll_create() should return an error if size is 0
+
 Version 8.2.6-0:
 Date + Time 2017-01-08
 =======================
