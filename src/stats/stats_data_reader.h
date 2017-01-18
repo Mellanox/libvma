@@ -35,6 +35,7 @@
 #define STATS_DATA_READER_H
 
 #include <map>
+#include "utils/lock_wrapper.h"
 #include "vma/event/timer_handler.h"
 
 typedef std::map< void*, std::pair<void*, int> > stats_read_map_t;
@@ -50,12 +51,13 @@ class stats_data_reader : public timer_handler
                 stats_data_reader();
                 void    handle_timer_expired(void *ctx);
                 void    register_to_timer();
-                int     add_data_reader(void* local_addr, void* shm_addr, int size);
-                void*   pop_p_skt_stats(void* local_addr);
+                void    add_data_reader(void* local_addr, void* shm_addr, int size);
+                void*   pop_data_reader(void* local_addr);
 
         private:
                 void*  m_timer_handler;
                 stats_read_map_t m_data_map;
+                lock_spin m_lock_data_map;
 };
 
 #endif //STATS_DATA_READER_H
