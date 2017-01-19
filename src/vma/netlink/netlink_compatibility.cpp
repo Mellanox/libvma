@@ -112,13 +112,26 @@ int nl_cache_mngr_compatible_add(struct nl_cache_mngr*	mngr, const char* name, c
 	return err;
 }
 
-int nl_object_get_compatible_msgtype(const struct nl_object* obj) {
-	return nl_object_get_msgtype(obj);
+in_addr_t nl_object_get_compatible_gateway(struct rtnl_route* nl_route_obj) {
+	struct rtnl_nexthop *nh;
+	nh = rtnl_route_nexthop_n(nl_route_obj, 0);
+	if (nh) {
+		struct nl_addr * addr;
+		addr = rtnl_route_nh_get_gateway(nh);
+		if (addr) {
+			return *(in_addr_t *) nl_addr_get_binary_addr(addr);
+		}
+	}
+	return INADDR_ANY;
 }
 
-const char*	get_rtnl_route_iif_name(struct rtnl_route* route) {
-	static char iifstr[IFNAMSIZ];
-	return if_indextoname(rtnl_route_get_iif(route), iifstr);
+int nl_object_get_compatible_oif(struct rtnl_route* nl_route_obj) {
+	struct rtnl_nexthop *nh;
+	nh = rtnl_route_nexthop_n(nl_route_obj, 0);
+	if (nh) {
+		return rtnl_route_nh_get_ifindex(nh);
+	}
+	return -1;
 }
 
 
@@ -184,13 +197,17 @@ int nl_cache_mngr_compatible_add(struct nl_cache_mngr*	mngr, const char* name, c
 	return 0;
 }
 
-int nl_object_get_compatible_msgtype(const struct nl_object* obj) {
-	_nl_object* _obj = (_nl_object*)obj;
-	return _obj->ce_msgtype;
+in_addr_t nl_object_get_compatible_gateway(struct rtnl_route* nl_route_obj) {
+	struct nl_addr * addr;
+	addr = rtnl_route_get_gateway(nl_route_obj);
+	if (addr) {
+		return *(in_addr_t *) nl_addr_get_binary_addr(addr);
+	}
+	return INADDR_ANY;
 }
 
-const char*	get_rtnl_route_iif_name(struct rtnl_route* route) {
-	return rtnl_route_get_iif(route);
+int nl_object_get_compatible_oif(struct rtnl_route* nl_route_obj) {
+	return rtnl_route_get_oif(nl_route_obj);
 }
 
 #endif

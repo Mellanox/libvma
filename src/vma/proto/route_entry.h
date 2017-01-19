@@ -39,6 +39,7 @@
 
 #include "vma/proto/route_rule_table_key.h"
 #include "vma/infra/cache_subject_observer.h"
+#include "vma/dev/net_device_entry.h"
 #include "route_val.h"
 #include "rule_entry.h"
 

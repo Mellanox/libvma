@@ -51,15 +51,6 @@ netlink_event::netlink_event(struct nlmsghdr* hdr, void* notifier) :
 
 }
 
-netlink_event::netlink_event(struct nl_object* obj, void* notifier) :
-		event(notifier), nl_type(0), nl_pid(0), nl_seq(0)
-{
-	if (obj) {
-		nl_type = nl_object_get_compatible_msgtype(obj);
-	}
-}
-
-
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
 #endif
@@ -90,15 +81,19 @@ const std::string neigh_nl_event::to_str() const
 const std::string route_nl_event::to_str() const
 {
 	char outstr[TOSTR_MAX_SIZE];
-	sprintf(outstr,
-	                "%s. ROUTE: TABBLE=%u SCOPE=%u TOS=%u PROTOCOL=%u PRIORITY=%u FAMILY=%u DST_ADDR=%s DST_PREFIX=%u SRC_ADDR=%s SRC_PREFIX=%u TYPE=%u FALGS=%u PREF_SRC=%s IFF_NAME=%s",
-	                netlink_event::to_str().c_str(), m_route_info->table,
-	                m_route_info->scope, m_route_info->tos,
-	                m_route_info->protocol, m_route_info->priority,
-	                m_route_info->family, m_route_info->dst_addr_str.c_str(), m_route_info->dst_prefixlen,
-	                m_route_info->src_addr_str.c_str(), m_route_info->src_prefixlen, m_route_info->type,
-	                m_route_info->flags, m_route_info->pref_src_addr_str.c_str(),
-	                m_route_info->iif_name.c_str());
+	route_val* p_route_val = m_route_info->get_route_val();
+	if (p_route_val) {
+		sprintf(outstr,
+		                "%s. ROUTE: TABBLE=%u SCOPE=%u PROTOCOL=%u DST_ADDR=%u DST_PREFIX=%u TYPE=%u PREF_SRC=%u IFF_NAME=%s",
+		                netlink_event::to_str().c_str(), p_route_val->get_table_id(),
+		                p_route_val->get_scope(), p_route_val->get_protocol(),
+		                p_route_val->get_dst_addr(), p_route_val->get_dst_pref_len(),
+		                p_route_val->get_type(), p_route_val->get_src_addr(),
+		                p_route_val->get_if_name());
+	}
+	else {
+		sprintf(outstr, "Error in parsing netlink event");
+	}
 	return std::string(outstr);
 }
 

@@ -36,13 +36,11 @@
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
-#include "vma/dev/net_device_val.h"
-#include "vma/dev/net_device_table_mgr.h"
+#include "utils/bullseye.h"
 
 #define BUFF_SIZE 255
 
-class route_val : public cache_observer
+class route_val
 {
 public:
 	route_val();

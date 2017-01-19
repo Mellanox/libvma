@@ -45,7 +45,7 @@
 #define rt_val_logdbg		__log_info_dbg
 #define rt_val_logfunc		__log_info_func
 
-route_val::route_val(): cache_observer()
+route_val::route_val()
 {
 	m_dst_addr = 0;
 	m_dst_mask = 0;
