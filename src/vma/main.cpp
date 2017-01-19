@@ -798,7 +798,7 @@ bool parse_num_bufs_parameter(const char* num_bufs_param, uint32_t& n_bufs_init,
 	n_bufs_tokens.erase(n_bufs_tokens.begin());
 	n_bufs_min_threshold=(uint32_t)atoi(token);
 
-	if (n_bufs_init == 0 || (n_bufs_max < n_bufs_init && n_bufs_max > 0)){
+	if (n_bufs_init == 0 || n_bufs_max == 0 || n_bufs_max < n_bufs_init){
 		result = false;
 	}
 

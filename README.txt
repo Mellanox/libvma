@@ -297,6 +297,7 @@ to triger asynchroniuosly addtional allocation. When buffer pool is exhausted an
 requested - additional pools are allocated synchroniously.
 Can also accept a single integer as an argument, in which case it will be used
 as init and max, and quanta and threshold will be set to 0.
+If bad values are given (such as init/max == 0 or max<init), will revert to default values.
 Default value is 200000:0:200000:0 (200000 buffers are allocated initially and no additional
 buffers will be allocated).
 
@@ -383,6 +384,7 @@ trigger asynchroniuosly addtional allocation. When buffer pool is exhausted and 
 requested - additional pools are allocated synchroniously.
 Can also accept a single integer as an argument, in which case it will be used
 as init and max, and quanta and threshold will be set to 0.
+If bad values are given (such as init/max == 0 or max<init), will revert to default values.
 Default value is 200000:0:200000:0 (200000 buffers are allocated initially and no additional
 buffers will be allocated)
 

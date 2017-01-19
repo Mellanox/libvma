@@ -26,7 +26,7 @@ dynamic_buffer_pool::dynamic_buffer_pool(size_t init_buffers_count, size_t buffe
 		m_quanta_buffers_count(quanta_buffers_count),
 		m_max_buffers(max_buffers), m_min_threshold(free_buffers_min_threshold),
 		m_custom_free_function(custom_free_function), m_curr_bpool(NULL),
-		m_need_alloc(false), m_curr_bp_is_max(true), m_rx_stat(is_rx), m_p_bpool_stat(NULL)
+		m_need_alloc(false), m_curr_bp_is_max(false), m_rx_stat(is_rx), m_p_bpool_stat(NULL)
 {
 	m_p_bpool_stat = &m_bpool_stat_static;
 	memset(m_p_bpool_stat , 0, sizeof(*m_p_bpool_stat));
