@@ -23,20 +23,17 @@ dynamic_buffer_pool::dynamic_buffer_pool(size_t init_buffers_count, size_t buffe
 		bool is_rx, pbuf_free_custom_fn custom_free_function):
 		m_lock_spin("dynamic_buffer_pool"),
 		m_n_dyn_buffers(0), m_n_dyn_buffers_created(0), m_buffer_size(buffer_size),
-		m_init_buffers_count(init_buffers_count), m_quanta_buffers_count(quanta_buffers_count),
+		m_quanta_buffers_count(quanta_buffers_count),
 		m_max_buffers(max_buffers), m_min_threshold(free_buffers_min_threshold),
-		m_custom_free_function(custom_free_function), m_curr_bpool(NULL), m_need_alloc(false),
-		m_rx_stat(is_rx), m_p_bpool_stat(NULL)
+		m_custom_free_function(custom_free_function), m_curr_bpool(NULL),
+		m_need_alloc(false), m_curr_bp_is_max(true), m_rx_stat(is_rx), m_p_bpool_stat(NULL)
 {
 	m_p_bpool_stat = &m_bpool_stat_static;
 	memset(m_p_bpool_stat , 0, sizeof(*m_p_bpool_stat));
 	vma_stats_instance_create_bpool_block(m_p_bpool_stat);
 	m_p_bpool_stat->is_rx = is_rx ? true : false; // prettier than: "...->is_rx = is_rx"
 
-	/* An error was previously raised if init > max,
-	 * but this would allow initial bpool to be allocated.
-	 */
-	allocate_addtional_buffers(init_buffers_count < max_buffers ? init_buffers_count : max_buffers);
+	allocate_addtional_buffers(init_buffers_count);
 	m_p_timer_handler = new dynamic_bpool_timer_handler(this);
 }
 

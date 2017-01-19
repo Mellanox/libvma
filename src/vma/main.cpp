@@ -771,6 +771,7 @@ bool parse_num_bufs_parameter(const char* num_bufs_param, uint32_t& n_bufs_init,
 {
 	std::vector<std::string> n_bufs_tokens = split(num_bufs_param, ':');
 	n_bufs_init = n_bufs_quanta = n_bufs_max = n_bufs_min_threshold = 0;
+	bool result = true;
 
 	if (n_bufs_tokens.size() != 1 && n_bufs_tokens.size() != 4) {
 		return false;
@@ -797,11 +798,11 @@ bool parse_num_bufs_parameter(const char* num_bufs_param, uint32_t& n_bufs_init,
 	n_bufs_tokens.erase(n_bufs_tokens.begin());
 	n_bufs_min_threshold=(uint32_t)atoi(token);
 
-	// check for legal values
-	if (n_bufs_max < n_bufs_init)
-		return false;
+	if (n_bufs_init == 0 || (n_bufs_max < n_bufs_init && n_bufs_max > 0)){
+		result = false;
+	}
 
-	return true;
+	return result;
 }
 
 
@@ -1071,8 +1072,14 @@ void get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_TX_NUM_BUFS)) != NULL) {
 		bool parse_success = parse_num_bufs_parameter(env_ptr, safe_mce_sys().tx_num_bufs_init, safe_mce_sys().tx_num_bufs_quanta, safe_mce_sys().tx_num_bufs_max, safe_mce_sys().tx_num_bufs_min_threshold);
-		if (!parse_success)
-			vlog_printf(VLOG_WARNING,"Illegal TX_NUM_BUFS parameter: %s\n", env_ptr);
+		if (!parse_success){
+			vlog_printf(VLOG_WARNING,"Illegal TX_NUM_BUFS parameter: %s. reverting to default values\n", env_ptr);
+			safe_mce_sys().tx_num_bufs_init        = MCE_DEFAULT_TX_NUM_BUFS_INIT;
+			safe_mce_sys().tx_num_bufs_quanta      = MCE_DEFAULT_TX_NUM_BUFS_QUANTA;
+			safe_mce_sys().tx_num_bufs_max         = MCE_DEFAULT_TX_NUM_BUFS_MAX;
+			safe_mce_sys().tx_num_bufs_min_threshold = MCE_DEFAULT_TX_NUM_BUFS_MIN_THRESHOLD;
+		}
+
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_TX_NUM_WRE)) != NULL)
@@ -1136,8 +1143,13 @@ void get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_RX_NUM_BUFS)) != NULL) {
 		bool parse_success = parse_num_bufs_parameter(env_ptr, safe_mce_sys().rx_num_bufs_init, safe_mce_sys().rx_num_bufs_quanta, safe_mce_sys().rx_num_bufs_max, safe_mce_sys().rx_num_bufs_min_threshold);
-		if (!parse_success)
-			vlog_printf(VLOG_WARNING,"Illegal RX_NUM_BUFS parameter: %s\n", env_ptr);
+		if (!parse_success){
+			vlog_printf(VLOG_WARNING,"Illegal RX_NUM_BUFS parameter: %s. reverting to default values\n", env_ptr);
+			safe_mce_sys().rx_num_bufs_init       = MCE_DEFAULT_RX_NUM_BUFS_INIT;
+			safe_mce_sys().rx_num_bufs_quanta     = MCE_DEFAULT_RX_NUM_BUFS_QUANTA;
+			safe_mce_sys().rx_num_bufs_max        = MCE_DEFAULT_RX_NUM_BUFS_MAX;
+			safe_mce_sys().rx_num_bufs_min_threshold = MCE_DEFAULT_RX_NUM_BUFS_MIN_THRESHOLD;
+		}
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_RX_NUM_WRE_TO_POST_RECV)) != NULL)

@@ -79,7 +79,6 @@ private:
 	size_t          m_n_dyn_buffers_created;
 
 	const size_t m_buffer_size;
-	const size_t m_init_buffers_count;
 	const size_t m_quanta_buffers_count;
 	const size_t m_max_buffers;
 	const size_t m_min_threshold;
