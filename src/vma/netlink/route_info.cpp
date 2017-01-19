@@ -34,59 +34,80 @@
 #include "route_info.h"
 #include "config.h"
 #include "vma/util/if.h"
+#include "vma/util/libvma.h"
 #include "netlink_compatibility.h"
 #define ADDR_MAX_STR_LEN (128)
 
 
-netlink_route_info::netlink_route_info(struct rtnl_route* route) :
-		table(0), scope(0), tos(0), protocol(0), priority(0), family(0), dst_addr_str(
-		                ""), dst_addr(NULL), dst_addr_len(0), dst_prefixlen(
-		                0), src_addr_str(""), src_addr(NULL), src_addr_len(
-		                0), src_prefixlen(0), type(0), flags(0), pref_src_addr_str(
-		                ""), pref_src_addr(NULL), pref_src_addr_len(0), pref_src_prefixlen(
-		                0), iif_name("")
+netlink_route_info::netlink_route_info(struct rtnl_route* nl_route_obj) : m_route_val(NULL)
 {
-	fill(route);
+	fill(nl_route_obj);
 }
-void netlink_route_info::fill(struct rtnl_route* route) {
-	if (route) {
-		nl_addr* addr;
-		char addr_str[ADDR_MAX_STR_LEN + 1];
 
-		table=rtnl_route_get_table(route);
-		scope=rtnl_route_get_scope(route);
-		tos=rtnl_route_get_tos(route);
-		protocol=rtnl_route_get_protocol(route);
-		family=rtnl_route_get_family(route);
-		type=rtnl_route_get_type(route);
-		flags=rtnl_route_get_flags(route);
-		const char* iifstr=get_rtnl_route_iif_name(route);
-		if (iifstr) {
-			iif_name=iifstr;
+netlink_route_info::~netlink_route_info()
+{
+	if (m_route_val) {
+		delete m_route_val;
+	}
+}
+void netlink_route_info::fill(struct rtnl_route* nl_route_obj) {
+	if (nl_route_obj) {
+		int table;
+		int scope;
+		int protocol;
+		int type;
+		struct nl_addr * addr;
+		int oif;
+		in_addr_t gateway;
+		
+		m_route_val = new route_val();
+		
+		table = rtnl_route_get_table(nl_route_obj);
+		if (table > 0) {
+			m_route_val->set_table_id(table);
 		}
-		priority=rtnl_compatible_route_get_priority(route);
-		addr=rtnl_route_get_dst(route);
+		
+		scope = rtnl_route_get_scope(nl_route_obj);
+		if (scope > 0) {
+			m_route_val->set_scope(scope);
+		}
+		
+		protocol = rtnl_route_get_protocol(nl_route_obj);
+		if (protocol > 0) {
+			m_route_val->set_protocol(protocol);
+		}
+		
+		type = rtnl_route_get_type(nl_route_obj);
+		if (type > 0) {
+			m_route_val->set_type(type);
+		}
+		
+		addr = rtnl_route_get_dst(nl_route_obj);
 		if (addr) {
-			dst_addr_str = nl_addr2str(addr, addr_str, ADDR_MAX_STR_LEN);
-			dst_addr = (unsigned char*)nl_addr_get_binary_addr(addr);
-			dst_addr_len = nl_addr_get_len(addr);
-			dst_prefixlen = nl_addr_get_prefixlen(addr);
+			unsigned int dst_prefixlen = nl_addr_get_prefixlen(addr);
+			m_route_val->set_dst_mask(htonl(VMA_NETMASK(dst_prefixlen)));
+			m_route_val->set_dst_pref_len(dst_prefixlen);
+			m_route_val->set_dst_addr(*(in_addr_t *) nl_addr_get_binary_addr(addr));
+		}
+		
+		addr = rtnl_route_get_pref_src(nl_route_obj);
+		if (addr) {
+			m_route_val->set_src_addr(*(in_addr_t *) nl_addr_get_binary_addr(addr));
+		}
+		
+		oif = nl_object_get_compatible_oif(nl_route_obj);
+		if (oif > 0) {
+			m_route_val->set_if_index(oif);
+			char if_name[IFNAMSIZ];
+			if_indextoname(oif, if_name);
+			m_route_val->set_if_name(if_name);
+		}
+		
+		gateway = nl_object_get_compatible_gateway(nl_route_obj);
+		if (gateway != INADDR_ANY) {
+			m_route_val->set_gw(gateway);
+		}
 
-		}
-		addr=rtnl_route_get_src(route);
-		if (addr) {
-			src_addr_str = nl_addr2str(addr, addr_str, ADDR_MAX_STR_LEN);
-			src_addr = (unsigned char*)nl_addr_get_binary_addr(addr);
-			src_addr_len = nl_addr_get_len(addr);
-			src_prefixlen = nl_addr_get_prefixlen(addr);
-		}
-		addr=rtnl_route_get_pref_src(route);
-		if (addr) {
-			pref_src_addr_str = nl_addr2str(addr, addr_str, ADDR_MAX_STR_LEN);
-			pref_src_addr = (unsigned char*)nl_addr_get_binary_addr(addr);
-			pref_src_addr_len = nl_addr_get_len(addr);
-			pref_src_prefixlen = nl_addr_get_prefixlen(addr);
-		}
 	}
 
 }

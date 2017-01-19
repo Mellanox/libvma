@@ -93,7 +93,8 @@ void route_callback(nl_cache* , nl_object* obj, int);
 void nl_socket_handle_disable_seq_check(nl_socket_handle* handle);
 nl_cache_mngr* nl_cache_mngr_compatible_alloc(nl_socket_handle* handle, int protocol, int flags);
 int nl_cache_mngr_compatible_add(struct nl_cache_mngr*	mngr, const char* name, change_func_t cb, void*	data, struct nl_cache** result);
-int nl_object_get_compatible_msgtype(const struct nl_object* obj);
-const char*	get_rtnl_route_iif_name(struct rtnl_route* route);
+in_addr_t nl_object_get_compatible_gateway(struct rtnl_route* nl_route_obj);
+int	nl_object_get_compatible_oif(struct rtnl_route* nl_route_obj);
+
 
 #endif /* NETLINK_COMPATIBILITY_H_ */

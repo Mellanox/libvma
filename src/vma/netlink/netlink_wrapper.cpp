@@ -53,8 +53,6 @@
 #define nl_logdbg		__log_dbg
 #define nl_logfunc		__log_func
 
-#define ROUTE_MAIN_TABLE_ID (254)
-
 netlink_wrapper* g_p_netlink_handler = NULL;
 rcv_msg_arg_t  	g_nl_rcv_arg;
 
@@ -122,14 +120,15 @@ void netlink_wrapper::route_cache_callback(nl_object* obj)
 {
 	nl_logfunc( "---> route_cache_callback");
 	struct rtnl_route* route = (struct rtnl_route*) obj;
-	route_nl_event new_event(g_nl_rcv_arg.msghdr, route,g_nl_rcv_arg.netlink);
-	// notify only route events of main table
-	const netlink_route_info* info =  new_event.get_route_info();
-	if (info->table == ROUTE_MAIN_TABLE_ID) {
-		netlink_wrapper::notify_observers(&new_event, nlgrpROUTE);
-	}
-	else {
-		nl_logfunc("ROUTE events from non-main route table are filtered: table_id=%d", info->table);
+	if (route) {
+		int table_id = rtnl_route_get_table(route);
+		if ((table_id > 0) && (table_id != RT_TABLE_LOCAL)) {
+			route_nl_event new_event(g_nl_rcv_arg.msghdr, route, g_nl_rcv_arg.netlink);
+			netlink_wrapper::notify_observers(&new_event, nlgrpROUTE);
+		}
+		else {
+			nl_logfunc("ROUTE events from LOCAL or UNSPECIFIC route table are filtered: table_id=%d", table_id);
+		}
 	}
 	g_nl_rcv_arg.msghdr = NULL;
 	nl_logfunc( "<--- route_cache_callback");
