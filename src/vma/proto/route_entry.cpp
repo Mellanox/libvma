@@ -36,6 +36,7 @@
 #include "route_entry.h"
 #include "route_table_mgr.h"
 #include "vma/infra/cache_subject_observer.h"
+#include "vma/dev/net_device_table_mgr.h"
 
 // debugging macros
 #define MODULE_NAME 		"rte"

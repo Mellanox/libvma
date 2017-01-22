@@ -83,14 +83,13 @@ const std::string route_nl_event::to_str() const
 	char outstr[TOSTR_MAX_SIZE];
 	route_val* p_route_val = m_route_info->get_route_val();
 	if (p_route_val) {
-		
 		sprintf(outstr,
-						"%s. ROUTE: TABBLE=%u SCOPE=%u PROTOCOL=%u DST_ADDR=%u DST_PREFIX=%u TYPE=%u PREF_SRC=%u IFF_NAME=%s",
-						netlink_event::to_str().c_str(), p_route_val->get_table_id(),
-						p_route_val->get_scope(), p_route_val->get_protocol(),
-						p_route_val->get_dst_addr(), p_route_val->get_dst_pref_len(),
-						p_route_val->get_type(), p_route_val->get_src_addr(),
-						p_route_val->get_if_name());
+		                "%s. ROUTE: TABBLE=%u SCOPE=%u PROTOCOL=%u DST_ADDR=%u DST_PREFIX=%u TYPE=%u PREF_SRC=%u IFF_NAME=%s",
+		                netlink_event::to_str().c_str(), p_route_val->get_table_id(),
+		                p_route_val->get_scope(), p_route_val->get_protocol(),
+		                p_route_val->get_dst_addr(), p_route_val->get_dst_pref_len(),
+		                p_route_val->get_type(), p_route_val->get_src_addr(),
+		                p_route_val->get_if_name());
 	}
 	else {
 		sprintf(outstr, "Error in parsing netlink event");

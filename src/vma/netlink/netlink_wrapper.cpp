@@ -122,13 +122,17 @@ void netlink_wrapper::route_cache_callback(nl_object* obj)
 	struct rtnl_route* route = (struct rtnl_route*) obj;
 	if (route) {
 		int table_id = rtnl_route_get_table(route);
-		if ((table_id > 0) && (table_id != RT_TABLE_LOCAL)) {
+		int family = rtnl_route_get_family(route);
+		if ((table_id > (int)RT_TABLE_UNSPEC) && (table_id != RT_TABLE_LOCAL) && (family == AF_INET)) {
 			route_nl_event new_event(g_nl_rcv_arg.msghdr, route, g_nl_rcv_arg.netlink);
 			netlink_wrapper::notify_observers(&new_event, nlgrpROUTE);
 		}
 		else {
-			nl_logfunc("ROUTE events from LOCAL or UNSPECIFIC route table are filtered: table_id=%d", table_id);
-		}
+			nl_logdbg("Received event for not handled route entry: family=%d, table_id=%d", family, table_id);
+		}	
+	}
+	else {
+		nl_logdbg("Received invalid route event");
 	}
 	g_nl_rcv_arg.msghdr = NULL;
 	nl_logfunc( "<--- route_cache_callback");

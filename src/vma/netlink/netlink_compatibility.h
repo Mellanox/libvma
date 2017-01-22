@@ -79,7 +79,6 @@ void route_callback(nl_cache* , nl_object* obj, int, void*);
 #else //HAVE_LIBNL1
 
 #define rtnl_compatible_route_get_priority rtnl_route_get_prio
-typedef struct { NLHDR_COMMON } _nl_object;
 typedef struct nl_handle nl_socket_handle;
 
 nl_handle* nl_socket_handle_alloc();
@@ -94,7 +93,7 @@ void nl_socket_handle_disable_seq_check(nl_socket_handle* handle);
 nl_cache_mngr* nl_cache_mngr_compatible_alloc(nl_socket_handle* handle, int protocol, int flags);
 int nl_cache_mngr_compatible_add(struct nl_cache_mngr*	mngr, const char* name, change_func_t cb, void*	data, struct nl_cache** result);
 in_addr_t nl_object_get_compatible_gateway(struct rtnl_route* nl_route_obj);
-int	nl_object_get_compatible_oif(struct rtnl_route* nl_route_obj);
+int nl_object_get_compatible_oif(struct rtnl_route* nl_route_obj);
 
 
 #endif /* NETLINK_COMPATIBILITY_H_ */

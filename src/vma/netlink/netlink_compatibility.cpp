@@ -125,7 +125,7 @@ in_addr_t nl_object_get_compatible_gateway(struct rtnl_route* nl_route_obj) {
 	return INADDR_ANY;
 }
 
-int	nl_object_get_compatible_oif(struct rtnl_route* nl_route_obj) {
+int nl_object_get_compatible_oif(struct rtnl_route* nl_route_obj) {
 	struct rtnl_nexthop *nh;
 	nh = rtnl_route_nexthop_n(nl_route_obj, 0);
 	if (nh) {
@@ -206,7 +206,7 @@ in_addr_t nl_object_get_compatible_gateway(struct rtnl_route* nl_route_obj) {
 	return INADDR_ANY;
 }
 
-int	nl_object_get_compatible_oif(struct rtnl_route* nl_route_obj) {
+int nl_object_get_compatible_oif(struct rtnl_route* nl_route_obj) {
 	return rtnl_route_get_oif(nl_route_obj);
 }
 
