@@ -145,8 +145,7 @@ inline void cq_mgr::compensate_qp_poll_failed()
 	if (m_qp_rec.debth) {
 		if (likely(m_rx_pool.size() || request_more_buffers())) {
 			do {
-				mem_buf_desc_t *buff_new = m_rx_pool.front();
-				m_rx_pool.pop_front();
+				mem_buf_desc_t *buff_new = m_rx_pool.get_and_pop_front();
 				post_recv_qp(&m_qp_rec, buff_new);
 			} while (--m_qp_rec.debth > 0 && m_rx_pool.size());
 			m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
@@ -162,8 +161,7 @@ inline uint32_t cq_mgr::process_recv_queue(void* pv_fd_ready_array)
 	uint32_t processed = 0;
 
 	while (!m_rx_queue.empty()) {
-		mem_buf_desc_t* buff = m_rx_queue.front();
-		m_rx_queue.pop_front();
+		mem_buf_desc_t* buff = m_rx_queue.get_and_pop_front();
 		process_recv_buffer(buff, pv_fd_ready_array);
 		if (++processed >= m_n_sysvar_cq_poll_batch_max)
 			break;
@@ -694,8 +692,7 @@ bool cq_mgr::compensate_qp_poll_success(mem_buf_desc_t* buff_cur)
 		
 		if (m_rx_pool.size() || request_more_buffers()) {
 			do {
-				mem_buf_desc_t *buff_new = m_rx_pool.front();
-				m_rx_pool.pop_front();
+				mem_buf_desc_t *buff_new = m_rx_pool.get_and_pop_front();
 				post_recv_qp(&m_qp_rec, buff_new);
 			} while (--m_qp_rec.debth > 0 && m_rx_pool.size());
 			m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
@@ -1272,8 +1269,7 @@ bool cq_mgr::reclaim_recv_buffers_no_lock(descq_t *rx_reuse)
 	//Assume locked
 	cq_logfuncall("");
 	while (!rx_reuse->empty()) {
-		mem_buf_desc_t* buff = rx_reuse->front();
-		rx_reuse->pop_front();
+		mem_buf_desc_t* buff = rx_reuse->get_and_pop_front();
 		reclaim_recv_buffer_helper(buff);
 	}
 	//return_extra_buffers();
@@ -1286,8 +1282,7 @@ bool cq_mgr::reclaim_recv_buffers(descq_t *rx_reuse)
 	cq_logfuncall("");
 	// Called from outside cq_mgr context which is not locked!!
 	while (!rx_reuse->empty()) {
-		mem_buf_desc_t* buff = rx_reuse->front();
-		rx_reuse->pop_front();
+		mem_buf_desc_t* buff = rx_reuse->get_and_pop_front();
 		reclaim_recv_buffer_helper(buff);
 	}
 	return_extra_buffers();
@@ -1404,8 +1399,7 @@ int cq_mgr::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/
 					}
 					else { //udp/ip traffic we just put in the cq's rx queue
 						m_rx_queue.push_back(m_rx_hot_buff);
-						mem_buf_desc_t* buff_cur = m_rx_queue.front();
-						m_rx_queue.pop_front();
+						mem_buf_desc_t* buff_cur = m_rx_queue.get_and_pop_front();
 						if ((++m_qp_rec.debth < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
 							!compensate_qp_poll_success(buff_cur)) {
 							m_rx_queue.push_front(buff_cur);
@@ -1477,8 +1471,7 @@ int cq_mgr::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/
 					}
 					else { //udp/ip traffic we just put in the cq's rx queue
 						m_rx_queue.push_back(buff);
-						mem_buf_desc_t* buff_cur = m_rx_queue.front();
-						m_rx_queue.pop_front();
+						mem_buf_desc_t* buff_cur = m_rx_queue.get_and_pop_front();
 						if (!compensate_qp_poll_success(buff_cur)) {
 							m_rx_queue.push_front(buff_cur);
 						}
