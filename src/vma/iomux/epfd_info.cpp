@@ -166,8 +166,8 @@ epfd_info::~epfd_info()
 
 	while(!m_ready_fds.empty())
 	{
-		m_ready_fds.front()->m_epoll_event_flags = 0;
-		m_ready_fds.pop_front();
+		socket_fd_api* sock_fd = m_ready_fds.get_and_pop_front();
+		sock_fd->m_epoll_event_flags = 0;
 	}
 
 	socket_fd_api* temp_sock_fd_api;

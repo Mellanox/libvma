@@ -151,8 +151,8 @@ int epoll_wait_call::get_current_events()
 	 * see RM task 212058
 	 */
 	while (!socket_fd_list.empty()) {
-		socket_fd_list.front()->consider_rings_migration();
-		socket_fd_list.pop_front();
+		socket_fd_api* sockfd = socket_fd_list.get_and_pop_front();
+		sockfd->consider_rings_migration();
 	}
 
 	return (i);
