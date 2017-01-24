@@ -110,6 +110,7 @@ namespace vma_spec {
 	static const char *spec_names_mcd_irq[]   = {"mcd-irq", "624", NULL};
 	static const char *spec_names_rti[]       = {"rti", "784", NULL};
 	static const char *spec_names_6973[]      = {"6973", NULL};
+	static const char *spec_names_stac[]      = {"stac", NULL};
 
 	// must be by order because "to_str" relies on that!
 	static const vma_spec_names specs[] = {
@@ -122,6 +123,7 @@ namespace vma_spec {
 		{MCE_SPEC_MCD_IRQ_624,    	  	"Memcached Interrupt Mode",	(const char ** )spec_names_mcd_irq},
 		{MCE_SPEC_RTI_784,    		  	"RTI Logic",    		(const char ** )spec_names_rti},
 		{MCE_SPEC_LL_6973,    		  	"6973 Low Latency Profile", 	(const char ** )spec_names_6973},
+		{MCE_SPEC_STAC,    		  	"STAC",	 			(const char ** )spec_names_stac},
 	};
 
 	// convert str to vVMA_spec_t; upon error - returns the given 'def_value'
@@ -598,7 +600,17 @@ void mce_sys_var::get_env_params()
 		buffer_batching_mode      = BUFFER_BATCHING_NONE; //MCE_DEFAULT_BUFFER_BATCHING_MODE(BUFFER_BATCHING_WITH_RECLAIM), Disable handling control packets on a separate thread
 		tcp_ctl_thread            = CTL_THREAD_NO_WAKEUP; //MCE_DEFAULT_TCP_CTL_THREAD (CTL_THREAD_DISABLE), wait for thread timer to expire
 		break;
-		
+
+	case MCE_SPEC_STAC:
+		mem_alloc_type           = ALLOC_TYPE_HUGEPAGES; //MCE_DEFAULT_MEM_ALLOC_TYPE (ALLOC_TYPE_CONTIG) VMA_MEM_ALLOC_TYPE
+		select_poll_num          = -1; //MCE_DEFAULT_SELECT_NUM_POLLS (100000) VMA_SELECT_POLL
+		rx_poll_num              = -1; //MCE_DEFAULT_RX_NUM_POLLS(100000) VMA_RX_POLL
+		ring_allocation_logic_tx = RING_LOGIC_PER_THREAD; //MCE_DEFAULT_RING_ALLOCATION_LOGIC_TX(RING_LOGIC_PER_INTERFACE) VMA_RING_ALLOCATION_LOGIC_TX
+		ring_allocation_logic_rx = RING_LOGIC_PER_THREAD; //MCE_DEFAULT_RING_ALLOCATION_LOGIC_RX(RING_LOGIC_PER_INTERFACE) VMA_RING_ALLOCATION_LOGIC_RX
+		select_poll_os_ratio     = 0; //MCE_DEFAULT_SELECT_POLL_OS_RATIO(10) VMA_SELECT_POLL_OS_RATIO
+		select_skip_os_fd_check  = 0; //MCE_DEFAULT_SELECT_SKIP_OS(4) VMA_SELECT_SKIP_OS
+		break;
+
 	case MCE_SPEC_NONE:
 	default:
 		break;

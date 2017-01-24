@@ -54,6 +54,7 @@ typedef enum {
 	MCE_SPEC_MCD_IRQ_624,
 	MCE_SPEC_RTI_784,
 	MCE_SPEC_LL_6973,
+	MCE_SPEC_STAC,
 
 	MCE_VMA__ALL /* last element */
 } vVMA_spec_t;
