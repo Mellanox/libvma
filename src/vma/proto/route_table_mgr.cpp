@@ -535,6 +535,7 @@ void route_table_mgr::new_route_event(route_val* netlink_route_val)
 	p_route_val->set_scope(netlink_route_val->get_scope()); 
 	p_route_val->set_type(netlink_route_val->get_type());
 	p_route_val->set_table_id(netlink_route_val->get_table_id());
+	p_route_val->set_if_index(netlink_route_val->get_if_index());
 	p_route_val->set_if_name(const_cast<char*> (netlink_route_val->get_if_name()));
 	p_route_val->set_state(true);
 	p_route_val->set_str();
