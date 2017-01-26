@@ -411,8 +411,7 @@ void ring_bond::devide_buffers_helper(descq_t *rx_reuse, descq_t* buffer_per_rin
 {
 	int last_found_index = 0;
 	while (!rx_reuse->empty()) {
-		mem_buf_desc_t* buff = rx_reuse->front();
-		rx_reuse->pop_front();
+		mem_buf_desc_t* buff = rx_reuse->get_and_pop_front();
 		uint32_t checked = 0;
 		int index = last_found_index;
 		while (checked < m_n_num_resources) {
