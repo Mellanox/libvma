@@ -83,14 +83,15 @@ void* event_handler_manager::register_timer_event(int timeout_msec, timer_handle
 		return NULL;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-
 	// malloc here the timer list node in order to return it to the app
-	void* node = malloc(sizeof(struct timer_node_t)); 
+
+	void* node = malloc(sizeof(struct timer_node_t));
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!node) {
 		evh_logdbg("malloc failure");
 		throw_vma_exception("malloc failure");
 	}
+
 	BULLSEYE_EXCLUDE_BLOCK_END
 	timer_node_t* timer_node = (timer_node_t*)node;
 	memset(timer_node, 0, sizeof(*timer_node));

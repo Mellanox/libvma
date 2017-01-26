@@ -65,7 +65,9 @@ public:
 	virtual bool		is_active_member(mem_buf_desc_owner* rng, ring_user_id_t id);
 	virtual ring_user_id_t	generate_id();
 	virtual ring_user_id_t	generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port);
+
 	virtual bool 		get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe);
+	virtual const ib_ctx_handler* get_active_ctx_handle(ring_user_id_t id = 0);
 
 #ifdef DEFINED_VMAPOLL		
 	virtual int		fast_poll_and_process_element_rx(vma_packets_t *vma_pkts);

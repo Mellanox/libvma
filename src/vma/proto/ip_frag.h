@@ -48,7 +48,7 @@
 #include <vma/util/vtypes.h>
 #include <vma/util/sys_vars.h>
 #include <vma/event/timer_handler.h>
-#include <vma/dev/buffer_pool.h>
+#include <vma/dev/dynamic_buffer_pool.h>
 
 class mem_buf_desc_t;
 class event_handler_manager;

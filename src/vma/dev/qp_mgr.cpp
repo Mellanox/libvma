@@ -359,7 +359,7 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 		memset(p_buffer_iphdr, 0, sizeof(*p_buffer_iphdr));
 		sge[0].length = sizeof(ethhdr) + sizeof(iphdr);
 		sge[0].addr = (uintptr_t)(p_mem_buf_desc->p_buffer);
-		sge[0].lkey = m_p_ring->m_tx_lkey;
+		sge[0].lkey = p_mem_buf_desc->p_bpool->get_lkey_by_ctx(m_p_ib_ctx_handler);
 
 		struct ibv_ah *p_ah = NULL;
 		ibv_ah_attr ah_attr;
@@ -485,7 +485,7 @@ int qp_mgr::post_recv(mem_buf_desc_t* p_mem_buf_desc)
 		m_ibv_rx_wr_array[m_curr_rx_wr].wr_id  = (uintptr_t)p_mem_buf_desc;
 		m_ibv_rx_sg_array[m_curr_rx_wr].addr   = (uintptr_t)p_mem_buf_desc->p_buffer;
 		m_ibv_rx_sg_array[m_curr_rx_wr].length = p_mem_buf_desc->sz_buffer;
-		m_ibv_rx_sg_array[m_curr_rx_wr].lkey   = p_mem_buf_desc->lkey;
+		m_ibv_rx_sg_array[m_curr_rx_wr].lkey   = p_mem_buf_desc->p_bpool->get_lkey_by_ctx(m_p_ib_ctx_handler);
 
 #ifdef DEFINED_VMAPOLL
 		uint64_t index = m_rq_wqe_counter & (m_rx_num_wr - 1);

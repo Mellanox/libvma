@@ -279,9 +279,10 @@ remain below as in master?
 	// save cq_mgr pointers
 	m_p_cq_mgr_rx = m_p_qp_mgr->get_rx_cq_mgr();
 	m_p_cq_mgr_tx = m_p_qp_mgr->get_tx_cq_mgr();
-
+	
+	m_p_ib_ctx = p_ring_info->p_ib_ctx;
 	m_tx_lkey = g_buffer_pool_tx->find_lkey_by_ib_ctx_thread_safe(p_ring_info->p_ib_ctx);
-
+	
 	request_more_tx_buffers(RING_TX_BUFS_COMPENSATE);
 	m_tx_num_bufs = m_tx_pool.size();
 

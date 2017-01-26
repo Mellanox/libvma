@@ -69,6 +69,7 @@ libvma_la_LIBADD = \
 libvma_la_SOURCES := \
 	dev/ah_cleaner.cpp \
 	dev/buffer_pool.cpp \
+	dev/dynamic_buffer_pool.cpp \
 	dev/cq_mgr.cpp \
 	dev/qp_mgr.cpp \
 	dev/gro_mgr.cpp \
@@ -153,6 +154,7 @@ libvma_la_SOURCES := \
 	\
 	dev/ah_cleaner.h \
 	dev/buffer_pool.h \
+	dev/dynamic_buffer_pool.h \
 	dev/cq_mgr.h \
 	dev/gro_mgr.h \
 	dev/ib_ctx_handler_collection.h \

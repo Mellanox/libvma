@@ -302,9 +302,8 @@ typedef struct {
 //
 typedef struct {
 	bool		is_rx;
-	bool		is_tx;
-	uint32_t	n_buffer_pool_size;
-	uint32_t	n_buffer_pool_no_bufs;
+	uint32_t	n_buffer_pool_size_free;
+	uint32_t	n_buffer_pool_size_total;
 } bpool_stats_t;
 
 typedef struct {
