@@ -2039,13 +2039,11 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 	int rc = wait_for_conn_ready();
 	// handle ret from async connect
 	if (rc < 0) {
-	        //m_conn_state = TCP_CONN_ERROR;
-                // errno is set and connect call must fail.
 		//todo consider setPassthrough and go to OS
-	        destructor_helper();
-	        errno = ECONNREFUSED;
-	        unlock_tcp_con();
-                return -1;
+		destructor_helper();
+		unlock_tcp_con();
+		// errno is set inside wait_for_conn_ready
+		return -1;
 	}
 	setPassthrough(false);
 	unlock_tcp_con();
@@ -2950,9 +2948,12 @@ int sockinfo_tcp::wait_for_conn_ready()
 
 	}
 	if (m_conn_state != TCP_CONN_CONNECTED) {
-		errno = ECONNREFUSED;
-		if (m_conn_state == TCP_CONN_TIMEOUT)
+		if (m_conn_state == TCP_CONN_TIMEOUT) {
 			m_conn_state = TCP_CONN_FAILED;
+			errno = ETIMEDOUT;
+		} else {
+			errno = ECONNREFUSED;
+		}
 		si_tcp_logdbg("bad connect -> timeout or none listening");
 		return -1;
 	}
