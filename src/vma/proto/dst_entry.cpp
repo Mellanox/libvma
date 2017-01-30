@@ -572,6 +572,7 @@ bool dst_entry::prepare_to_send(bool skip_rules, bool is_connect)
 		}
 		if (!resolved) {
 			set_state(false);
+			dst_logdbg("dst_entry not resolved!");
 		}
 	}
 	m_slow_path_lock.unlock();
