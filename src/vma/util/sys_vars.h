@@ -57,7 +57,7 @@ typedef enum {
 	MCE_SPEC_STAC,
 
 	MCE_VMA__ALL /* last element */
-} vVMA_spec_t;
+} vma_spec_t;
 
 typedef enum {
 	ALLOC_TYPE_ANON = 0,
@@ -195,12 +195,12 @@ static inline const char* internal_thread_tcp_timer_handling_str(internal_thread
 
 namespace vma_spec {
 	// convert str to vVMA_spec_t; upon error - returns the given 'def_value'
-	vVMA_spec_t from_str(const char* str, vVMA_spec_t def_value = MCE_SPEC_NONE);
+	vma_spec_t from_str(const char* str, vma_spec_t def_value = MCE_SPEC_NONE);
 
 	// convert int to vVMA_spec_t; upon error - returns the given 'def_value'
-	vVMA_spec_t from_int(const int int_spec, vVMA_spec_t def_value = MCE_SPEC_NONE);
+	vma_spec_t from_int(const int int_spec, vma_spec_t def_value = MCE_SPEC_NONE);
 
-	const char * to_str(vVMA_spec_t level);
+	const char * to_str(vma_spec_t level);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

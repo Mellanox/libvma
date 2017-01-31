@@ -96,7 +96,7 @@ void mce_sys_var::print_vma_load_failure_msg()
 
 namespace vma_spec {
 	typedef struct {
-		vVMA_spec_t level;
+		vma_spec_t level;
 		const char *  output_name;
 		const char ** input_names;
 	} vma_spec_names;
@@ -123,11 +123,11 @@ namespace vma_spec {
 		{MCE_SPEC_MCD_IRQ_624,    	  	"Memcached Interrupt Mode",	(const char ** )spec_names_mcd_irq},
 		{MCE_SPEC_RTI_784,    		  	"RTI Logic",    		(const char ** )spec_names_rti},
 		{MCE_SPEC_LL_6973,    		  	"6973 Low Latency Profile", 	(const char ** )spec_names_6973},
-		{MCE_SPEC_STAC,    		  	"STAC",	 			(const char ** )spec_names_stac},
+		{MCE_SPEC_STAC,    		  	"STAC-N Benchmark",	 	(const char ** )spec_names_stac},
 	};
 
 	// convert str to vVMA_spec_t; upon error - returns the given 'def_value'
-	vVMA_spec_t from_str(const char* str, vVMA_spec_t def_value)
+	vma_spec_t from_str(const char* str, vma_spec_t def_value)
 	{
 		size_t num_levels = sizeof(specs) / sizeof(specs[0]);
 		for (size_t i = 0; i < num_levels; ++i) {
@@ -143,15 +143,15 @@ namespace vma_spec {
 	}
 
 	// convert int to vVMA_spec_t; upon error - returns the given 'def_value'
-	vVMA_spec_t from_int(const int int_spec, vVMA_spec_t def_value)
+	vma_spec_t from_int(const int int_spec, vma_spec_t def_value)
 	{
 		if (int_spec >= MCE_SPEC_NONE && int_spec <= MCE_VMA__ALL) {
-			return static_cast<vVMA_spec_t>(int_spec);
+			return static_cast<vma_spec_t>(int_spec);
 		}
 		return def_value; // not found. use given def_value
 	}
 
-	const char * to_str(vVMA_spec_t level)
+	const char * to_str(vma_spec_t level)
 	{
 		static int base = MCE_SPEC_NONE;
 		return specs[level - base].output_name;

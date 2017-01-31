@@ -416,7 +416,7 @@ void print_vma_global_settings()
 	}
 
 	if (safe_mce_sys().mce_spec != MCE_SPEC_NONE) {
-		vlog_printf(VLOG_INFO, FORMAT_STRING, "Spec", vma_spec::to_str((vVMA_spec_t)safe_mce_sys().mce_spec), SYS_VAR_SPEC);
+		vlog_printf(VLOG_INFO, FORMAT_STRING, "Spec", vma_spec::to_str((vma_spec_t)safe_mce_sys().mce_spec), SYS_VAR_SPEC);
 
 		if (safe_mce_sys().mce_spec == MCE_SPEC_29WEST_LBM_29 || safe_mce_sys().mce_spec == MCE_SPEC_WOMBAT_FH_LBM_554) {
 			vlog_printf(VLOG_INFO, FORMAT_NUMBER, "Param 1:", safe_mce_sys().mce_spec_param1, SYS_VAR_SPEC_PARAM1);

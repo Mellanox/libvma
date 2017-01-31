@@ -201,7 +201,7 @@ sockinfo_tcp::sockinfo_tcp(int fd) throw (vma_exception) :
         m_sysvar_buffer_batching_mode(safe_mce_sys().buffer_batching_mode),
         m_sysvar_tcp_ctl_thread(safe_mce_sys().tcp_ctl_thread),
         m_sysvar_internal_thread_tcp_timer_handling(safe_mce_sys().internal_thread_tcp_timer_handling),
-        m_mce_spec(static_cast<vVMA_spec_t>(safe_mce_sys().mce_spec))
+        m_sysvar_mce_spec(static_cast<vma_spec_t>(safe_mce_sys().mce_spec))
 {
 	si_tcp_logfuncall("");
 
@@ -694,12 +694,12 @@ retry_is_ready:
 		return -1;
 	}
 	si_tcp_logfunc("tx: iov=%p niovs=%d dummy=%d", p_iov, sz_iov, is_dummy);
-	lock_tcp_con();
 
-	if (unlikely(MCE_SPEC_STAC == m_mce_spec)) {
+	if (unlikely(MCE_SPEC_STAC == m_sysvar_mce_spec)) {
 		rx_wait_helper(poll_count, false);
 	}
 
+	lock_tcp_con();
 	if (unlikely(is_dummy) && !check_dummy_send_conditions(flags, p_iov, sz_iov)) {
 		unlock_tcp_con();
 		errno = EIO;
