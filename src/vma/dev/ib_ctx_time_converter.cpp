@@ -43,7 +43,7 @@
 #define ibchtc_logerr             __log_err
 #define ibchtc_logwarn            __log_warn
 #define ibchtc_loginfo            __log_info
-#define ibchtc_logdbg             __log_info_dbg
+#define ibchtc_logdbg             __log_dbg
 
 #define UPDATE_HW_TIMER_PERIOD_MS 10000
 #define UPDATE_HW_TIMER_INIT_MS 1000
@@ -221,7 +221,7 @@ uint32_t ib_ctx_time_converter::get_device_convertor_status(struct ibv_context* 
 	device_attr.comp_mask = IBV_EXP_DEVICE_ATTR_WITH_HCA_CORE_CLOCK;
 
 	if ((rval = ibv_exp_query_device(ctx ,&device_attr)) || !device_attr.hca_core_clock) {
-		vlog_printf(VLOG_DEBUG, "ib_ctx_time_converter::get_device_convertor_status :Error in querying hca core clock "
+		ibchtc_logdbg("ib_ctx_time_converter::get_device_convertor_status :Error in querying hca core clock "
 				"(ibv_exp_query_device() return value=%d ) (ibv context %p) (errno=%d %m)\n", rval, ctx, errno);
 	} else {
 		dev_status |= IBV_EXP_QUERY_DEVICE_SUPPORTED;
@@ -233,7 +233,7 @@ uint32_t ib_ctx_time_converter::get_device_convertor_status(struct ibv_context* 
 	queried_values.comp_mask = IBV_EXP_VALUES_HW_CLOCK;
 
 	if ((rval = ibv_exp_query_values(ctx,IBV_EXP_VALUES_HW_CLOCK, &queried_values)) || !queried_values.hwclock) {
-		vlog_printf(VLOG_DEBUG, "ib_ctx_time_converter::get_device_convertor_status :Error in querying hw clock, can't convert"
+		ibchtc_logdbg("ib_ctx_time_converter::get_device_convertor_status :Error in querying hw clock, can't convert"
 				" hw time to system time (ibv_exp_query_values() return value=%d ) (ibv context %p) (errno=%d %m)\n", rval, ctx, errno);
 	} else {
 		dev_status |= IBV_EXP_QUERY_VALUES_SUPPORTED;
@@ -247,10 +247,12 @@ uint32_t ib_ctx_time_converter::get_device_convertor_status(struct ibv_context* 
 ts_conversion_mode_t ib_ctx_time_converter::get_devices_convertor_status(struct ibv_context** ibv_context_list, int num_devices) {
 
 	ts_conversion_mode_t ctx_time_conversion_mode;
-	vlog_printf(VLOG_DEBUG, "ib_ctx_time_converter::get_devices_convertor_status : Checking RX UDP HW time stamp "
-			"status for all devices [%d], ibv_context_list = %p\n", num_devices, ibv_context_list);
 #ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
 	uint32_t devs_status = 0;
+
+        ibchtc_logdbg("ib_ctx_time_converter::get_devices_convertor_status : Checking RX UDP HW time stamp "
+                        "status for all devices [%d], ibv_context_list = %p\n", num_devices, ibv_context_list);
+
 	if (safe_mce_sys().rx_udp_hw_ts_conversion != TS_CONVERSION_MODE_DISABLE){
 		devs_status = IBV_EXP_QUERY_DEVICE_SUPPORTED | IBV_EXP_QUERY_VALUES_SUPPORTED;
 		for (int i = 0; i < num_devices; i++) {
@@ -277,6 +279,8 @@ ts_conversion_mode_t ib_ctx_time_converter::get_devices_convertor_status(struct 
 		break;
 	}
 #else
+	NOT_IN_USE(ibv_context_list);
+	NOT_IN_USE(num_devices);
 	ctx_time_conversion_mode = TS_CONVERSION_MODE_DISABLE;
 #endif
 

@@ -913,7 +913,7 @@ err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rex
 		tcp_iovec_temp.iovec.iov_base = p->payload;
 		tcp_iovec_temp.iovec.iov_len = p->len;
 		tcp_iovec_temp.p_desc = (mem_buf_desc_t*)p;
-		vlog_printf(VLOG_DEBUG, "p_desc=%p,p->len=%d ", p, p->len);
+		__log_dbg("p_desc=%p,p->len=%d ", p, p->len);
 		p_iovec = (struct iovec*)&tcp_iovec_temp;
 	} else {
 		for (count = 0; count < 64 && p; ++count) {
@@ -973,7 +973,7 @@ void sockinfo_tcp::err_lwip_cb(void *pcb_container, err_t err)
 
 	if (!pcb_container) return;
 	sockinfo_tcp *conn = (sockinfo_tcp *)pcb_container;
-	vlog_printf(VLOG_DEBUG, "%s:%d [fd=%d] sock=%p lwip_pcb=%p err=%d\n", __func__, __LINE__, conn->m_fd, conn, &(conn->m_pcb), err);
+	__log_dbg("[fd=%d] sock=%p lwip_pcb=%p err=%d\n", conn->m_fd, conn, &(conn->m_pcb), err);
 
 	if (get_tcp_state(&conn->m_pcb) == LISTEN && err == ERR_RST) {
 		vlog_printf(VLOG_ERROR, "listen socket should not receive RST");
@@ -1385,6 +1385,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 	uint32_t bytes_to_tcp_recved, non_tcp_receved_bytes_remaining, bytes_to_shrink;
 	int rcv_buffer_space;
 
+	NOT_IN_USE(pcb);
 	assert((uintptr_t)pcb->my_container == (uintptr_t)arg);
 	// REVIEW: AlexV - please confirm using arg instead of pcb->my_container
 
@@ -1413,7 +1414,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 		//tcp_close(&(conn->m_pcb));
 		//TODO: should be a move into half closed state (shut rx) instead of complete close
 		tcp_shutdown(&(conn->m_pcb), 1, 0);
-		vlog_printf(VLOG_DEBUG, "%s:%d [fd=%d] null pbuf sock(%p %p) err=%d\n", __func__, __LINE__, conn->m_fd, &(conn->m_pcb), pcb, err);
+		__log_dbg("[fd=%d] null pbuf sock(%p %p) err=%d\n", conn->m_fd, &(conn->m_pcb), pcb, err);
 
 		if (conn->is_rts() || ((conn->m_sock_state == TCP_SOCK_ASYNC_CONNECT) && (conn->m_conn_state == TCP_CONN_CONNECTED))) {
 			conn->m_sock_state = TCP_SOCK_CONNECTED_WR;
@@ -2473,7 +2474,7 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 	//Since the pcb is already contained in connected sockinfo_tcp no need to keep it listen's socket SYN list
 	if (!m_syn_received.erase(key)) {
 		//Should we worry about that?
-		vlog_printf(VLOG_DEBUG, "%s:%d: Can't find the established pcb in syn received list\n", __func__, __LINE__);
+		__log_dbg("Can't find the established pcb in syn received list\n");
 	}
 	else {
 		m_received_syn_num--;
@@ -2565,7 +2566,7 @@ void sockinfo_tcp::auto_accept_connection(sockinfo_tcp *parent, sockinfo_tcp *ch
 	//Since pcb is already contained in connected sockinfo_tcp no need to keep it listen's socket SYN list
 	if (!parent->m_syn_received.erase(key)) {
 		//Should we worry about that?
-		vlog_printf(VLOG_DEBUG, "%s:%d: Can't find the established pcb in syn received list\n", __func__, __LINE__);
+		__log_dbg("Can't find the established pcb in syn received list\n");
 	}
 	else {
 		parent->m_received_syn_num--;
@@ -2605,7 +2606,7 @@ void sockinfo_tcp::auto_accept_connection(sockinfo_tcp *parent, sockinfo_tcp *ch
 	child->unlock_tcp_con();
 	parent->lock_tcp_con();
 
-	vlog_printf(VLOG_DEBUG, "CONN AUTO ACCEPTED: TCP PCB FLAGS: acceptor:0x%x newsock: fd=%d 0x%x new state: %d\n", parent->m_pcb.flags, child->m_fd, child->m_pcb.flags, get_tcp_state(&child->m_pcb));
+	__log_dbg("CONN AUTO ACCEPTED: TCP PCB FLAGS: acceptor:0x%x newsock: fd=%d 0x%x new state: %d\n", parent->m_pcb.flags, child->m_fd, child->m_pcb.flags, get_tcp_state(&child->m_pcb));
 }
 #endif // DEFINED_VMAPOLL
 
@@ -2619,19 +2620,18 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 		return ERR_VAL;
 	}
 
-	vlog_printf(VLOG_DEBUG, "%s:%d: initial state=%x\n", __func__, __LINE__, get_tcp_state(&conn->m_pcb));
-	vlog_printf(VLOG_DEBUG, "%s:%d: accept cb: arg=%p, new pcb=%p err=%d\n",
-			__func__, __LINE__, arg, child_pcb, err);
+	__log_dbg("initial state=%x\n", get_tcp_state(&conn->m_pcb));
+	__log_dbg("accept cb: arg=%p, new pcb=%p err=%d\n", arg, child_pcb, err);
 	if (err != ERR_OK) {
 		vlog_printf(VLOG_ERROR, "%s:d: accept cb failed\n", __func__, __LINE__);
 		return err;
 	}
 	if (conn->m_sock_state != TCP_SOCK_ACCEPT_READY) {
-		vlog_printf(VLOG_DEBUG, "%s:%d: socket is not accept ready!\n", __func__, __LINE__);
+		__log_dbg("socket is not accept ready!\n");
 		return ERR_RST;
 	}
 	// make new socket
-	vlog_printf(VLOG_DEBUG, "%s:%d: new stateb4clone=%x\n", __func__, __LINE__, get_tcp_state(child_pcb));
+	__log_dbg("new stateb4clone=%x\n", get_tcp_state(child_pcb));
 	new_sock = (sockinfo_tcp*)child_pcb->my_container;
 
 	if (!new_sock) {
@@ -2648,7 +2648,7 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 
 	new_sock->m_sock_state = TCP_SOCK_CONNECTED_RDWR;
 
-	vlog_printf(VLOG_DEBUG, "%s:%d: listen(fd=%d) state=%x: new sock(fd=%d) state=%x\n", __func__, __LINE__, conn->m_fd, get_tcp_state(&conn->m_pcb), new_sock->m_fd, get_tcp_state(&new_sock->m_pcb));
+	__log_dbg("listen(fd=%d) state=%x: new sock(fd=%d) state=%x\n", conn->m_fd, get_tcp_state(&conn->m_pcb), new_sock->m_fd, get_tcp_state(&new_sock->m_pcb));
 
 	/* Configure Nagle algorithm settings as they were set at the parent socket.
 	   This can happened if VMA_TCP_NAGLE flag was set, but we disabled it for the parent socket. */
@@ -2899,8 +2899,7 @@ err_t sockinfo_tcp::connect_lwip_cb(void *arg, struct tcp_pcb *tpcb, err_t err)
 	sockinfo_tcp *conn = (sockinfo_tcp *)arg;
 	NOT_IN_USE(tpcb);
 
-	vlog_printf(VLOG_DEBUG, "%s:%d: connect cb: arg=%p, pcp=%p err=%d\n",
-		__func__, __LINE__, arg, tpcb, err);
+	__log_dbg("connect cb: arg=%p, pcp=%p err=%d\n", arg, tpcb, err);
 
 	if (!conn || !tpcb) {
 		return ERR_VAL;

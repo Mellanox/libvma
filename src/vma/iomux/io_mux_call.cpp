@@ -433,11 +433,15 @@ void io_mux_call::blocking_loops()
 			vma_throw_object(io_mux_call::io_error);
 		}
 		else if (ret > 0) {
+			int n = 0;
+
+			
 			// arm failed - process pending wce
 			cq_ready = true;
 			fd_ready_array.fd_count = 0;
-			ret = ring_poll_and_process_element(&m_poll_sn, &fd_ready_array);
-			__log_func("after global_ring_poll_and_process_element poll_sn=%lxs ret=%d", m_poll_sn, ret);
+			n = ring_poll_and_process_element(&m_poll_sn, &fd_ready_array);
+			__log_func("after global_ring_poll_and_process_element poll_sn=%lxs ret=%d", m_poll_sn, n);
+			NOT_IN_USE(n);
 
 			check_all_offloaded_sockets(&m_poll_sn);
 		}

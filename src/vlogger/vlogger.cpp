@@ -101,8 +101,20 @@ namespace log_level
 		for (size_t i = 0; i < num_levels; ++i) {
 			const char ** input_name = levels[i].input_names;
 			while (*input_name) {
-				if (strcasecmp(str, *input_name) == 0)
-					return levels[i].level;
+				if (strcasecmp(str, *input_name) == 0) {
+					/* Set maximum accessible logging level in case
+					 * a user requests level that is reduced during compilation
+					 * or requested one if the level is in valid range
+					 * VMA_OPTIMIZE_LOG is defined in any configuration and
+					 * accepts values as VLOG_DEBUG, VLOG_FINE
+					 */
+					if (levels[i].level < VMA_OPTIMIZE_LOG) {
+						return levels[i].level;
+					}
+					def_value = (vlog_levels_t)(VMA_OPTIMIZE_LOG - 1);
+					vlog_printf(VLOG_WARNING, "VMA trace level set to max level %s\n", to_str(def_value));
+					return def_value;
+				}
 				input_name++;
 			}
 		}
