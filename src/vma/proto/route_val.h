@@ -36,6 +36,7 @@
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include "utils/bullseye.h"
 
 #define BUFF_SIZE 255
 
