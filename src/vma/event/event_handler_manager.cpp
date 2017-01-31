@@ -59,9 +59,15 @@
 #undef  VLOG_PRINTF_ENTRY
 #define VLOG_PRINTF_ENTRY(log_level, log_fmt, log_args...) 	vlog_printf(log_level, MODULE_NAME "%d:%s(" log_fmt ")\n", __LINE__, __FUNCTION__, ##log_args)
 
+#if defined(VMA_OPTIMIZE_LOG)
+#define evh_logdbg_entry(log_fmt, log_args...)                  ((void)0)
+#define evh_logfunc_entry(log_fmt, log_args...)                 ((void)0)
+#define evh_logfuncall_entry(log_fmt, log_args...)              ((void)0)
+#else
 #define evh_logdbg_entry(log_fmt, log_args...)			do { if (g_vlogger_level >= VLOG_DEBUG)	VLOG_PRINTF_ENTRY(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
 #define evh_logfunc_entry(log_fmt, log_args...)			do { if (g_vlogger_level >= VLOG_FUNC)	VLOG_PRINTF_ENTRY(VLOG_FUNC, log_fmt, ##log_args); } while (0)
 #define evh_logfuncall_entry(log_fmt, log_args...)		do { if (g_vlogger_level >= VLOG_FUNC_ALL) VLOG_PRINTF_ENTRY(VLOG_FUNC_ALL, log_fmt, ##log_args); } while (0)
+#endif /* VMA_OPTIMIZE_LOG */
 
 
 #define INITIAL_EVENTS_NUM      64

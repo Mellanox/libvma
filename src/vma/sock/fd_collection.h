@@ -50,8 +50,11 @@ typedef vma_list_t<epfd_info, epfd_info::epfd_info_node_offset> epfd_info_list_t
 
 typedef std::tr1::unordered_map<pthread_t, int> offload_thread_rule_t;
 
+#if defined(VMA_OPTIMIZE_LOG)
+#define fdcoll_logfuncall(log_fmt, log_args...)         ((void)0)
+#else
 #define fdcoll_logfuncall(log_fmt, log_args...)		do { if (g_vlogger_level >= VLOG_FUNC_ALL) vlog_printf(VLOG_FUNC_ALL, "fdc:%d:%s() " log_fmt "\n", __LINE__, __FUNCTION__, ##log_args); } while (0)
-
+#endif /* VMA_OPTIMIZE_LOG */
 
 class cq_channel_info: public cleanable_obj
 {
