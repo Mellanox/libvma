@@ -485,6 +485,7 @@ void mce_sys_var::get_env_params()
 	timer_netlink_update_msec = MCE_DEFAULT_NETLINK_TIMER_MSEC;
 
 	suppress_igmp_warning	= MCE_DEFAULT_SUPPRESS_IGMP_WARNING;
+	rx_poll_on_tx_tcp	= MCE_DEFAULT_RX_POLL_ON_TX_TCP;
 
 #ifdef VMA_TIME_MEASURE
 	vma_time_measure_num_samples = MCE_DEFAULT_TIME_MEASURE_NUM_SAMPLES;
@@ -598,7 +599,7 @@ void mce_sys_var::get_env_params()
 		buffer_batching_mode      = BUFFER_BATCHING_NONE; //MCE_DEFAULT_BUFFER_BATCHING_MODE(BUFFER_BATCHING_WITH_RECLAIM), Disable handling control packets on a separate thread
 		tcp_ctl_thread            = CTL_THREAD_NO_WAKEUP; //MCE_DEFAULT_TCP_CTL_THREAD (CTL_THREAD_DISABLE), wait for thread timer to expire
 		break;
-		
+
 	case MCE_SPEC_NONE:
 	default:
 		break;
@@ -1044,6 +1045,9 @@ void mce_sys_var::get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_TCP_CC_ALGO)) != NULL)
 		lwip_cc_algo_mod = (uint32_t)atoi(env_ptr);
+
+	if ((env_ptr = getenv(SYS_VAR_VMA_RX_POLL_ON_TX_TCP)) != NULL)
+		rx_poll_on_tx_tcp = atoi(env_ptr) ? true : false;
 
 #ifdef VMA_TIME_MEASURE
 	if ((env_ptr = getenv(SYS_VAR_VMA_TIME_MEASURE_NUM_SAMPLES)) != NULL) {

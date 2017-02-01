@@ -407,6 +407,7 @@ struct mce_sys_var {
 	uint32_t 	vma_time_measure_num_samples;
 	char 		vma_time_measure_filename[FILENAME_MAX];
 	sysctl_reader_t & sysctl_reader;
+	bool		rx_poll_on_tx_tcp;
 
 private:
 	void print_vma_load_failure_msg();
@@ -534,7 +535,7 @@ extern mce_sys_var & safe_mce_sys();
 
 #define SYS_VAR_VMA_TIME_MEASURE_NUM_SAMPLES		"VMA_TIME_MEASURE_NUM_SAMPLES"
 #define SYS_VAR_VMA_TIME_MEASURE_DUMP_FILE		"VMA_TIME_MEASURE_DUMP_FILE"
-
+#define SYS_VAR_VMA_RX_POLL_ON_TX_TCP			"VMA_RX_POLL_ON_TX_TCP"
 
 #define MCE_DEFAULT_LOG_FILE				("")
 #define MCE_DEFAULT_CONF_FILE				("/etc/libvma.conf")
@@ -673,6 +674,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_MIN_CQ_POLL_BATCH				(1)
 #define MCE_MAX_CQ_POLL_BATCH				(128)
 #define MCE_DEFAULT_IPOIB_FLAG				(1)
+#define MCE_DEFAULT_RX_POLL_ON_TX_TCP			(false)
 
 #define MCE_ALIGNMENT					((unsigned long)63)
 #define RX_BUF_SIZE(mtu)				(mtu + IPOIB_HDR_LEN + GRH_HDR_LEN) // RX buffers are larger in IB
