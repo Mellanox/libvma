@@ -250,31 +250,43 @@ each with it's own log file name.
 Example:  VMA_LOG_FILE=/tmp/vma_log.txt
 
 VMA_SPEC
-VMA predefined specification profile for latency.
-Optimized for use cases that are keen on latency. i.e. Ping-Pong tests.
+VMA predefined specification profiles.
 
-Latency SPEC changes the following default configuration
- VMA_TX_WRE = 256                         (default: 3000)
- VMA_TX_WRE_BATCHING = 4                  (default: 64)
- VMA_RX_WRE = 256                         (default: 16000)
- VMA_RX_WRE_BATCHING = 4                  (default: 64)
- VMA_RX_POLL = -1                         (default: 100000)
- VMA_RX_PREFETCH_BYTES_BEFORE_POLL = 256  (default: 0)
- VMA_GRO_STREAMS_MAX = 0                  (default: 32)
- VMA_SELECT_POLL = -1                     (default: 100000)
- VMA_SELECT_POLL_OS_FORCE = Enable        (default: Disabled)
- VMA_SELECT_POLL_OS_RATIO = 1             (default: 10)
- VMA_SELECT_SKIP_OS = 1                   (default: 4)
- VMA_PROGRESS_ENGINE_INTERVAL = 100       (default: 10)
- VMA_CQ_MODERATION_ENABLE = Disable       (default: Enabled)
- VMA_CQ_AIM_MAX_COUNT = 128               (default: 560)
- VMA_CQ_AIM_INTERVAL_MSEC = Disable       (default: 250)
- VMA_CQ_KEEP_QP_FULL = Disable            (default: Enable)
- VMA_AVOID_SYS_CALLS_ON_TCP_FD = Enable   (default: Disable)
- VMA_INTERNAL_THREAD_AFFINITY = 0         (default: -1)
- VMA_THREAD_MODE = Single                 (default: Multi spin lock)
- VMA_MEM_ALLOC_TYPE = 2                   (default: 1 (Contig Pages))
-Example: VMA_SPEC=latency
+latency
+    Optimized for use cases that are keen on latency. i.e. Ping-Pong tests.
+
+    Latency SPEC changes the following default configuration
+     VMA_TX_WRE = 256                         (default: 3000)
+     VMA_TX_WRE_BATCHING = 4                  (default: 64)
+     VMA_RX_WRE = 256                         (default: 16000)
+     VMA_RX_WRE_BATCHING = 4                  (default: 64)
+     VMA_RX_POLL = -1                         (default: 100000)
+     VMA_RX_PREFETCH_BYTES_BEFORE_POLL = 256  (default: 0)
+     VMA_GRO_STREAMS_MAX = 0                  (default: 32)
+     VMA_SELECT_POLL = -1                     (default: 100000)
+     VMA_SELECT_POLL_OS_FORCE = Enable        (default: Disabled)
+     VMA_SELECT_POLL_OS_RATIO = 1             (default: 10)
+     VMA_SELECT_SKIP_OS = 1                   (default: 4)
+     VMA_PROGRESS_ENGINE_INTERVAL = 100       (default: 10)
+     VMA_CQ_MODERATION_ENABLE = Disable       (default: Enabled)
+     VMA_CQ_AIM_MAX_COUNT = 128               (default: 560)
+     VMA_CQ_AIM_INTERVAL_MSEC = Disable       (default: 250)
+     VMA_CQ_KEEP_QP_FULL = Disable            (default: Enable)
+     VMA_AVOID_SYS_CALLS_ON_TCP_FD = Enable   (default: Disable)
+     VMA_INTERNAL_THREAD_AFFINITY = 0         (default: -1)
+     VMA_THREAD_MODE = Single                 (default: Multi spin lock)
+     VMA_MEM_ALLOC_TYPE = 2                   (default: 1 (Contig Pages))
+    Example: VMA_SPEC=latency
+stac
+Optimized profile for STAC-N Benchmark
+     VMA_MEM_ALLOC_TYPE = 2                   (default: 1 (Contig Pages))
+     VMA_SELECT_POLL = -1                     (default: 100000)
+     VMA_RX_POLL = -1                         (default: 100000)
+     VMA_RING_ALLOCATION_LOGIC_TX = 20        (default: Ring per interface)
+     VMA_RING_ALLOCATION_LOGIC_RX = 20        (default: Ring per interface)
+     VMA_SELECT_POLL_OS_RATIO = 0             (default: 10)
+     VMA_SELECT_SKIP_OS = 0                   (default: 4)
+    Example: VMA_SPEC=stac
 
 VMA_STATS_FILE
 Redirect socket statistics to a specific user defined file.
