@@ -610,6 +610,7 @@ void mce_sys_var::get_env_params()
 		ring_allocation_logic_rx = RING_LOGIC_PER_THREAD; //MCE_DEFAULT_RING_ALLOCATION_LOGIC_RX(RING_LOGIC_PER_INTERFACE) VMA_RING_ALLOCATION_LOGIC_RX
 		select_poll_os_ratio     = 0; //MCE_DEFAULT_SELECT_POLL_OS_RATIO(10) VMA_SELECT_POLL_OS_RATIO
 		select_skip_os_fd_check  = 0; //MCE_DEFAULT_SELECT_SKIP_OS(4) VMA_SELECT_SKIP_OS
+		rx_poll_on_tx_tcp	= true;
 		break;
 
 	case MCE_SPEC_NONE:

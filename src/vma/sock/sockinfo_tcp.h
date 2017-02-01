@@ -293,7 +293,7 @@ private:
 	ready_pcb_map_t m_ready_pcbs;
 	static const unsigned TX_CONSECUTIVE_EAGAIN_THREASHOLD = 10;
 	unsigned m_tx_consecutive_eagain_count;
-	vma_spec_t 	m_sysvar_mce_spec;
+	bool 	m_sysvar_rx_poll_on_tx_tcp;
 
 	inline void init_pbuf_custom(mem_buf_desc_t *p_desc);
 
