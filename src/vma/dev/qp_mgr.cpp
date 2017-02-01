@@ -51,8 +51,17 @@ qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context, const
 	m_ibv_rx_wr_array = new ibv_recv_wr[m_rx_num_wr_to_post_recv];
 	m_rq_wqe_counter = 0;
 	m_sq_wqe_counter = 0;
-	m_rq_wqe_idx_to_wrid = (uint64_t*)malloc(m_rx_num_wr * sizeof *m_rq_wqe_idx_to_wrid);
-	m_sq_wqe_idx_to_wrid = (uint64_t*)malloc(m_tx_num_wr * sizeof *m_sq_wqe_idx_to_wrid);
+
+	m_rq_wqe_idx_to_wrid = (uint64_t*)mmap(NULL, m_rx_num_wr * sizeof(*m_rq_wqe_idx_to_wrid),
+		PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+	if (m_rq_wqe_idx_to_wrid == MAP_FAILED) {
+		qp_logerr("Failed allocating m_rq_wqe_idx_to_wrid (errno=%d %m)", errno);
+	}
+	m_sq_wqe_idx_to_wrid = (uint64_t*)mmap(NULL, m_tx_num_wr * sizeof(*m_sq_wqe_idx_to_wrid),
+		PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+	if (m_sq_wqe_idx_to_wrid == MAP_FAILED) {
+		qp_logerr("Failed allocating m_sq_wqe_idx_to_wrid (errno=%d %m)", errno);
+	}
 }
 
 qp_mgr::~qp_mgr()
@@ -81,6 +90,9 @@ qp_mgr::~qp_mgr()
 
 	delete[] m_ibv_rx_sg_array;
 	delete[] m_ibv_rx_wr_array;
+
+	munmap(m_rq_wqe_idx_to_wrid, m_rx_num_wr * sizeof(*m_rq_wqe_idx_to_wrid));
+	munmap(m_sq_wqe_idx_to_wrid, m_tx_num_wr * sizeof(*m_sq_wqe_idx_to_wrid));
 
 	qp_logdbg("Rx buffer poll: %d free global buffers available", g_buffer_pool_rx->get_free_count());
 	qp_logdbg("delete done");
@@ -500,34 +512,42 @@ int qp_mgr::post_recv(mem_buf_desc_t* p_mem_buf_desc)
 	return 0;
 }
 
+static inline void mlx5_bf_copy(volatile uintptr_t *dst, volatile uintptr_t *src)
+{
+	COPY_64B_NT(dst, src);
+}
+
 void qp_mgr::mlx5_send(vma_ibv_send_wr *p_send_wqe)
 {
 	uintptr_t addr = 0;
 	uint32_t length = 0;
+	uint32_t lkey = 0;
 
 	addr = p_send_wqe->sg_list[0].addr;
+	length = p_send_wqe->sg_list[0].length;
+	lkey = p_send_wqe->sg_list[0].lkey;
 
-	/* Copy the first 16 bytes into the inline header */
-	memcpy((void *)(uintptr_t)m_sq_hot_wqe->eseg.inline_hdr_start,
-	       (void *)(uintptr_t)addr,
+	/* Copy the first bytes into the inline header */
+	memcpy((void *)m_sq_hot_wqe->eseg.inline_hdr_start,
+	       (void *)addr,
 	       MLX5_ETH_INLINE_HEADER_SIZE);
 
 	addr += MLX5_ETH_INLINE_HEADER_SIZE;
-	length = p_send_wqe->sg_list[0].length;
 	length -= MLX5_ETH_INLINE_HEADER_SIZE;
 
 	m_sq_hot_wqe->dseg.byte_count = htonl(length);
-	m_sq_hot_wqe->dseg.lkey = htonl(p_send_wqe->sg_list[0].lkey);
+	m_sq_hot_wqe->dseg.lkey = htonl(lkey);
 	m_sq_hot_wqe->dseg.addr = htonll(addr);
 
-	m_sq_wqe_idx_to_wrid[m_sq_hot_wqe_index] = (uintptr_t)p_send_wqe->wr_id;
-
 	++m_sq_wqe_counter;
-	volatile uintptr_t *dst = (volatile uintptr_t *)
-			((uintptr_t)m_sq_bf_reg + m_sq_bf_offset);
 
+	/*
+	 * Make sure that descriptors are written before
+	 * updating doorbell record and ringing the doorbell
+	 */
 	wmb();
 	*m_sq_db = htonl(m_sq_wqe_counter);
+
 	/* This wc_wmb ensures ordering between DB record and BF copy */
 	wc_wmb();
 
@@ -536,15 +556,19 @@ void qp_mgr::mlx5_send(vma_ibv_send_wr *p_send_wqe)
 	 * implementations may use move-string-buffer assembler instructions,
 	 * which do not guarantee order of copying.
 	 */
-	COPY_64B_NT(dst, m_sq_hot_wqe);
+	mlx5_bf_copy((volatile uintptr_t *)((uintptr_t)m_sq_bf_reg + m_sq_bf_offset),
+		(volatile uintptr_t *)m_sq_hot_wqe);
+
 	m_sq_bf_offset ^= m_sq_bf_buf_size;
+
+	m_sq_wqe_idx_to_wrid[m_sq_hot_wqe_index] = (uintptr_t)p_send_wqe->wr_id;
 
 	/*Set the next WQE and index*/
 	m_sq_hot_wqe = &(*m_mlx5_sq_wqes)[m_sq_wqe_counter & (m_tx_num_wr - 1)];
 	/* Write only data[0] which is the single element which changes.
 	 * Other fields are already initialised in mlx5_init_sq. */
 	m_sq_hot_wqe->ctrl.data[0] = htonl((m_sq_wqe_counter << 8) | MLX5_OPCODE_SEND);
-	m_sq_hot_wqe_index = m_sq_wqe_counter & (m_tx_num_wr - 1);;
+	m_sq_hot_wqe_index = m_sq_wqe_counter & (m_tx_num_wr - 1);
 }
 
 void qp_mgr::mlx5_init_sq()
@@ -556,7 +580,7 @@ void qp_mgr::mlx5_init_sq()
 		volatile struct mlx5_wqe64 *wqe = &(*m_mlx5_sq_wqes)[i];
 
 		memset((void *)(uintptr_t)wqe, 0, sizeof(struct mlx5_wqe64));
-		wqe->eseg.inline_hdr_sz = htons(16);
+		wqe->eseg.inline_hdr_sz = htons(MLX5_ETH_INLINE_HEADER_SIZE);
 		wqe->eseg.cs_flags = MLX5_ETH_WQE_L3_CSUM | MLX5_ETH_WQE_L4_CSUM;
 		wqe->ctrl.data[1] = htonl((m_qp_num << 8) | 4);
 		//wqe->dseg.lkey = (m_p_ring->get_lkey());
