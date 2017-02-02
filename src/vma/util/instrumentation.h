@@ -54,18 +54,59 @@
 #include "vlogger/vlogger.h"
 
 #ifdef RDTSC_MEASURE
+void reset_rdtsc_counter(int idx);
 void init_rdtsc();
 void print_rdtsc_summary();
 
 #define RDTSC_PRINT_RATIO 100000
-#define RDTSC_TAKE_START(instr) gettimeoftsc(&instr.start)
-#define RDTSC_TAKE_END(instr) gettimeoftsc(&instr.end);    								               \
-		instr.cycles += (instr.end < instr.start - g_rdtsc_cost)?0:(instr.end - instr.start - g_rdtsc_cost);                   \
-		instr.counter++;											               \
-		if (instr.print_ratio && instr.counter%instr.print_ratio == 0) {					   	       \
-			uint64_t avg = instr.cycles/instr.counter; 								       \
-			vlog_printf(VLOG_ERROR,"%s: %" PRIu64 " \n", g_rdtsc_flow_names[instr.trace_log_idx], avg);                    \
-		} 														       \
+#define RDTSC_TAKE_START(instr) do { \
+	gettimeoftsc(&g_rdtsc_instr_info_arr[instr].start); \
+} while (0)
+
+#if defined(RDTSC_MEASURE_RX_VERBS_READY_POLL) && !defined(RDTSC_MEASURE_RX_VERBS_IDLE_POLL)
+#define RDTSC_TAKE_START_RX_VERBS_POLL(instr_ready, instr_idle) \
+	RDTSC_TAKE_START(instr_ready)
+#elif !defined(RDTSC_MEASURE_RX_VERBS_READY_POLL) && defined(RDTSC_MEASURE_RX_VERBS_IDLE_POLL)
+#define RDTSC_TAKE_START_RX_VERBS_POLL(instr_ready, instr_idle) \
+	RDTSC_TAKE_START(instr_idle)
+#elif defined(RDTSC_MEASURE_RX_VERBS_READY_POLL) && defined(RDTSC_MEASURE_RX_VERBS_IDLE_POLL)
+#define RDTSC_TAKE_START_RX_VERBS_POLL(instr_ready, instr_idle) do { \
+	RDTSC_TAKE_START(instr_ready); \
+	g_rdtsc_instr_info_arr[instr_idle].start = \
+		g_rdtsc_instr_info_arr[instr_ready].start; \
+} while (0)
+#endif
+
+#if defined(RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL) && !defined(RDTSC_MEASURE_RX_CQE_RECEIVEFROM)
+#define RDTSC_TAKE_START_VMA_IDLE_POLL_CQE_TO_RECVFROM(instr_vma_poll, instr_cqe) \
+	RDTSC_TAKE_START(instr_vma_poll)
+#elif !defined(RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL) && defined(RDTSC_MEASURE_RX_CQE_RECEIVEFROM)
+#define RDTSC_TAKE_START_VMA_IDLE_POLL_CQE_TO_RECVFROM(instr_vma_poll, instr_cqe) \
+	RDTSC_TAKE_START(instr_cqe)
+#elif defined(RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL) && defined(RDTSC_MEASURE_RX_CQE_RECEIVEFROM)
+#define RDTSC_TAKE_START_VMA_IDLE_POLL_CQE_TO_RECVFROM(instr_vma_poll, instr_cqe) do { \
+	RDTSC_TAKE_START(instr_vma_poll); \
+	g_rdtsc_instr_info_arr[instr_cqe].start = \
+		g_rdtsc_instr_info_arr[instr_vma_poll].start; \
+} while (0)
+#endif
+
+#define RDTSC_TAKE_END(instr) do { \
+	if (g_rdtsc_instr_info_arr[instr].start) { \
+		gettimeoftsc(&g_rdtsc_instr_info_arr[instr].end); \
+		g_rdtsc_instr_info_arr[instr].cycles += \
+			g_rdtsc_instr_info_arr[instr].start + g_rdtsc_cost <= g_rdtsc_instr_info_arr[instr].end ? \
+			g_rdtsc_instr_info_arr[instr].end - g_rdtsc_instr_info_arr[instr].start - g_rdtsc_cost : 0; \
+		g_rdtsc_instr_info_arr[instr].counter++; \
+		g_rdtsc_instr_info_arr[instr].start = 0; \
+		if (g_rdtsc_instr_info_arr[instr].print_ratio && \
+				!(g_rdtsc_instr_info_arr[instr].counter % g_rdtsc_instr_info_arr[instr].print_ratio)) { \
+			uint64_t avg = g_rdtsc_instr_info_arr[instr].cycles / g_rdtsc_instr_info_arr[instr].counter; \
+			vlog_printf(VLOG_ERROR,"%s: %" PRIu64 " [@runtime]\n", \
+					g_rdtsc_flow_names[g_rdtsc_instr_info_arr[instr].trace_log_idx], avg); \
+		} \
+	} \
+} while (0)
 
 enum rdtsc_flow_type {
 	RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND = 0,
