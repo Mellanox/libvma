@@ -53,6 +53,13 @@ char g_rdtsc_flow_names[RDTSC_FLOW_MAX][256] = {
 		{"RDTSC_FLOW_RX_VERBS_POST_RECV"}
 };
 
+void reset_rdtsc_counter(int idx)
+{
+	memset((void*)(&g_rdtsc_instr_info_arr[idx]), 0, sizeof(instr_info));
+	g_rdtsc_instr_info_arr[idx].print_ratio = RDTSC_PRINT_RATIO;
+	g_rdtsc_instr_info_arr[idx].trace_log_idx = idx;
+}
+
 void init_rdtsc()
 {
 	tscval_t start, end, curr;
@@ -67,9 +74,7 @@ void init_rdtsc()
 	vlog_printf(VLOG_ERROR,"RDTSC cost is: %u\n", g_rdtsc_cost);
 
 	for(int i = 0; i < RDTSC_FLOW_MAX; i++) {
-		memset((void*)(&g_rdtsc_instr_info_arr[i]), 0, sizeof(instr_info));
-		g_rdtsc_instr_info_arr[i].print_ratio = RDTSC_PRINT_RATIO;
-		g_rdtsc_instr_info_arr[i].trace_log_idx = i;
+		reset_rdtsc_counter(i);
 	}
 
 }
