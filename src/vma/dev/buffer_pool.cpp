@@ -386,9 +386,9 @@ mem_buf_desc_t *buffer_pool::get_buffers(size_t count, uint32_t lkey)
 	__log_info_funcall("requested %lu, present %lu, created %lu", count, m_n_buffers, m_n_buffers_created);
 
 	if (m_n_buffers < count) {
-		static vlog_levels_t log_severity = VLOG_WARNING; // WARNING severity will be used only once - at the 1st time
+		static vlog_levels_t log_severity = VLOG_ERROR; // ERROR severity will be used only once - at the 1st time
 
-		VLOG_PRINTF_INFO(log_severity, "failure: not enough buffers in the pool (requested: %lu, have: %lu, created: %lu isRx=%d isTx=%d)",
+		VLOG_PRINTF_INFO(log_severity, "not enough buffers in the pool (requested: %lu, have: %lu, created: %lu isRx=%d isTx=%d)",
 				count, m_n_buffers, m_n_buffers_created, (int)(this==g_buffer_pool_rx), (int)(this==g_buffer_pool_tx));
 
 		log_severity = VLOG_FUNC; // for all times but the 1st one
