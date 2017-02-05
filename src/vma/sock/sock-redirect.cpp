@@ -541,8 +541,10 @@ extern "C"
 int vma_dump_fd_stats(int fd, int log_level)
 {
 #ifdef DEFINED_VMAPOLL
+NOT_IN_USE(fd);
+NOT_IN_USE(log_level);
 	return 0;
-#endif // DEFINED_VMAPOLL
+#else
 	do_global_ctors();
 
 	if (g_p_fd_collection) {
@@ -550,6 +552,7 @@ int vma_dump_fd_stats(int fd, int log_level)
 		return 0;
 	}
 	return -1;
+#endif // DEFINED_VMAPOLL
 }
 
 //-----------------------------------------------------------------------------

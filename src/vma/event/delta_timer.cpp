@@ -73,13 +73,14 @@ timer::~timer()
 	NOT_IN_USE(iter);
 	NOT_IN_USE(to_free);
 	return;
-#endif // DEFINED_VMAPOLL		
+#else
 	// free all the list
 	while (iter) {
 		to_free = iter;
 		iter = iter->next;
 		free(to_free);
 	}
+#endif // DEFINED_VMAPOLL
 }
 
 void timer::add_new_timer(unsigned int timeout_msec, timer_node_t* node, timer_handler* handler, void* user_data, timer_req_type_t req_type)
