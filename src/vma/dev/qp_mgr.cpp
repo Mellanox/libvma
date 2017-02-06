@@ -171,7 +171,7 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	qp_logdbg("cq tx: %p rx: %p", m_p_cq_mgr_tx, m_p_cq_mgr_rx);
 
 	// Create QP
-	struct ibv_qp_init_attr qp_init_attr;
+	vma_ibv_qp_init_attr qp_init_attr;
 	memset(&qp_init_attr, 0, sizeof(qp_init_attr));
 
 	// Check device capabilities for max SG elements
@@ -750,12 +750,14 @@ void qp_mgr_eth::modify_qp_to_ready_state()
 	BULLSEYE_EXCLUDE_BLOCK_END
 }
 
-int qp_mgr_eth::prepare_ibv_qp(struct ibv_qp_init_attr& qp_init_attr)
+int qp_mgr_eth::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 {
 	qp_logdbg("");
 	int ret = 0;
+
 	qp_init_attr.qp_type = IBV_QPT_RAW_PACKET;
-	m_qp = ibv_create_qp(m_p_ib_ctx_handler->get_ibv_pd(), &qp_init_attr);
+	vma_ibv_qp_init_attr_comp_mask(m_p_ib_ctx_handler->get_ibv_pd(), qp_init_attr);
+	m_qp = vma_ibv_create_qp(m_p_ib_ctx_handler->get_ibv_pd(), &qp_init_attr);
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_qp) {
@@ -784,18 +786,38 @@ void qp_mgr_ib::modify_qp_to_ready_state()
 			qp_logpanic("failed to modify QP from %d to RTS state (ret = %d)", qp_state, ret);
 		}
 	}
-	if ((ret = priv_ibv_modify_qp_from_init_to_rts(m_qp)) != 0) {
+	if ((ret = priv_ibv_modify_qp_from_init_to_rts(m_qp, m_underly_qpn)) != 0) {
 		qp_logpanic("failed to modify QP from INIT to RTS state (ret = %d)", ret);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 }
 
-int qp_mgr_ib::prepare_ibv_qp(struct ibv_qp_init_attr& qp_init_attr)
+int qp_mgr_ib::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 {
 	qp_logdbg("");
 	int ret = 0;
+
 	qp_init_attr.qp_type = IBV_QPT_UD;
-	m_qp = ibv_create_qp(m_p_ib_ctx_handler->get_ibv_pd(), &qp_init_attr);
+	vma_ibv_qp_init_attr_comp_mask(m_p_ib_ctx_handler->get_ibv_pd(), qp_init_attr);
+#ifdef DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN
+	if (m_underly_qpn) {
+		qp_init_attr.comp_mask |= IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN;
+        	qp_init_attr.associated_qpn = m_underly_qpn;
+		qp_logdbg("create qp using underly qpn = 0x%X", m_underly_qpn);
+	}
+#endif /* DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN */
+
+	m_qp = vma_ibv_create_qp(m_p_ib_ctx_handler->get_ibv_pd(), &qp_init_attr);
+#ifdef DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN
+	if (!m_qp && m_underly_qpn) {
+		qp_logdbg("ibv_create_qp failed to use underly qpn (errno=%d %m)", errno);
+
+		/* try to use traditional approach */
+		qp_init_attr.comp_mask &= ~IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN;
+		m_underly_qpn = 0;
+		m_qp = vma_ibv_create_qp(m_p_ib_ctx_handler->get_ibv_pd(), &qp_init_attr);
+	}
+#endif /* DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN */
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_qp) {
@@ -803,7 +825,7 @@ int qp_mgr_ib::prepare_ibv_qp(struct ibv_qp_init_attr& qp_init_attr)
 		return -1;
 	}
 
-	if ((ret = priv_ibv_modify_qp_from_err_to_init_ud(m_qp, m_port_num, m_pkey_index)) != 0) {
+	if ((ret = priv_ibv_modify_qp_from_err_to_init_ud(m_qp, m_port_num, m_pkey_index, m_underly_qpn)) != 0) {
 		VLOG_PRINTF_INFO_ONCE_THEN_ALWAYS(VLOG_ERROR, VLOG_DEBUG, "failed to modify QP from ERR to INIT state (ret = %d) check number of available fds (ulimit -n)", ret, errno);
 		return ret;
 	}
@@ -822,4 +844,20 @@ void qp_mgr_ib::update_pkey_index()
 	else {
 		qp_logdbg("IB: Found correct pkey_index (%d) for pkey '%d'", m_pkey_index, m_pkey);
 	}
+#ifdef DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN
+	/* m_underly_qpn is introduced to detect if current qp_mgr is able to
+	 * use associated qp.
+	 * It is set to non zero value if OFED supports such possibility only but final
+	 * decision can be made just after attempt to create qp. The value of
+	 * m_underly_qpn is reverted to zero if function to qp creation returns
+	 * failure.
+	 * So zero value for this field means no such capability.
+	 * Note: mlx4 does not support this capability. Disable it explicitly because dynamic check
+	 * using ibv_create_qp does not help
+	 */
+	if (strncmp(m_p_ib_ctx_handler->get_ibv_device()->name, "mlx4", 4)) {
+		m_underly_qpn = m_p_ring->get_qpn();
+	}
+	qp_logdbg("IB: Use qpn = 0x%X for device: %s", m_underly_qpn, m_p_ib_ctx_handler->get_ibv_device()->name);
+#endif /* DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN */
 }

@@ -85,8 +85,8 @@ int priv_ibv_find_pkey_index(struct ibv_context *verbs, uint8_t port_num, uint16
 
 int priv_ibv_modify_qp_to_err(struct ibv_qp *qp);
 int priv_ibv_modify_qp_from_err_to_init_raw(struct ibv_qp *qp, uint8_t port_num);
-int priv_ibv_modify_qp_from_err_to_init_ud(struct ibv_qp *qp, uint8_t port_num, uint16_t pkey_index);
-int priv_ibv_modify_qp_from_init_to_rts(struct ibv_qp *qp);
+int priv_ibv_modify_qp_from_err_to_init_ud(struct ibv_qp *qp, uint8_t port_num, uint16_t pkey_index, uint32_t underly_qpn = 0);
+int priv_ibv_modify_qp_from_init_to_rts(struct ibv_qp *qp, uint32_t underly_qpn = 0);
 
 // Return 'ibv_qp_state' of the ibv_qp
 int priv_ibv_query_qp_state(struct ibv_qp *qp);
@@ -102,6 +102,11 @@ int priv_ibv_query_qp_state(struct ibv_qp *qp);
 
 //old MLNX_OFED verbs (2.1 and older)
 #ifdef DEFINED_IBV_OLD_VERBS_MLX_OFED
+//ibv_create_qp
+#define vma_ibv_create_qp(pd, attr)             ibv_create_qp(pd, attr)
+typedef struct ibv_qp_init_attr                 vma_ibv_qp_init_attr;
+#define vma_ibv_qp_init_attr_comp_mask(_pd, _attr)	\
+	{ NOT_IN_USE(_pd); NOT_IN_USE(_attr); }
 //ibv_query_device
 #define vma_ibv_query_device(context, attr)	ibv_query_device(context, attr)
 typedef struct ibv_device_attr			vma_ibv_device_attr;
@@ -171,7 +176,13 @@ typedef struct ibv_flow_spec_ib			vma_ibv_flow_spec_ib;
 typedef struct ibv_flow_spec_eth		vma_ibv_flow_spec_eth;
 typedef struct ibv_flow_spec_ipv4		vma_ibv_flow_spec_ipv4;
 typedef struct ibv_flow_spec_tcp_udp		vma_ibv_flow_spec_tcp_udp;
+
 #else //new MLNX_OFED verbs (2.2 and newer)
+
+#define vma_ibv_create_qp(pd, attr)             ibv_exp_create_qp((pd)->context, attr)
+typedef struct ibv_exp_qp_init_attr             vma_ibv_qp_init_attr;
+#define vma_ibv_qp_init_attr_comp_mask(_pd, _attr)	\
+	{ (_attr).pd = _pd; (_attr).comp_mask = IBV_EXP_QP_INIT_ATTR_PD; }
 //ibv_query_device
 #define vma_ibv_query_device(context, attr)	ibv_exp_query_device(context, attr)
 typedef struct ibv_exp_device_attr		vma_ibv_device_attr;
