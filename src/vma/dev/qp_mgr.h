@@ -208,7 +208,7 @@ protected:
 	mgid_ref_count_map_t	m_attach_mc_grp_ref_cnt;
 
 	int 			configure(struct ibv_comp_channel* p_rx_comp_event_channel);
-	virtual int		prepare_ibv_qp(struct ibv_qp_init_attr& qp_init_attr) = 0;
+	virtual int		prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr) = 0;
 };
 
 
@@ -223,7 +223,7 @@ public:
 	virtual uint16_t	get_partiton() const { return m_vlan; };
 
 protected:
-	virtual int		prepare_ibv_qp(struct ibv_qp_init_attr& qp_init_attr);
+	virtual int		prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr);
 private:
 	const uint16_t 		m_vlan;
 };
@@ -247,7 +247,7 @@ public:
 #endif
 
 protected:
-	virtual int		prepare_ibv_qp(struct ibv_qp_init_attr& qp_init_attr);
+	virtual int		prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr);
 
 private:
 	const uint16_t 		m_pkey;
