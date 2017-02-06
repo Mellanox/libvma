@@ -35,6 +35,9 @@
 #define RDTSC_H
 
 #include <time.h>
+#include <stdio.h>
+#include <sys/param.h> // for MAX & MIN
+
 #include "asm.h"
 #include "clock.h"
 
@@ -50,7 +53,48 @@ typedef unsigned long long tscval_t;
 * Provide the MAX and MIN values, which might be the case if core are running at power control states
 * Return true on success, false on any failure
 **/
-bool get_cpu_hz(double &hz_min, double &hz_max);
+static bool get_cpu_hz(double &hz_min, double &hz_max)
+{
+	FILE* f;
+	char buf[256];
+	bool first_run = true;
+
+	f = fopen("/proc/cpuinfo", "r");
+	if (!f) {
+		return false;
+	}
+
+	while (fgets(buf, sizeof(buf), f)) {
+		double mhz;
+		int rc;
+
+#if defined(__ia64__)
+		rc = sscanf(buf, "itc MHz : %lf", &mhz);
+#elif defined(__powerpc__)
+		rc = sscanf(buf, "clock : %lf", &mhz);
+#else
+		rc = sscanf(buf, "cpu MHz : %lf", &mhz);
+#endif
+		if (rc != 1) {
+			continue;
+		}
+		if (first_run) {
+			// first time align of all values
+			first_run = false;
+			hz_max = hz_min = mhz;
+			continue;
+		}
+		hz_min = MIN(hz_min, mhz);
+		hz_max = MAX(hz_max, mhz);
+	}
+	fclose(f);
+
+	// Convert to Hz before return to caller
+	// (original values are in MHz)
+	hz_min = hz_min * 1.0e6;
+	hz_max = hz_max * 1.0e6;
+	return true;
+}
 
 /**
  * Calibrate TSC with CPU speed

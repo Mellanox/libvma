@@ -7,7 +7,6 @@ noinst_LTLIBRARIES = libutils.la
 libutils_la_LDFLAGS = -static
 libutils_la_LIBADD = -lrt
 libutils_la_SOURCES = \
-	rdtsc.cpp \
 	asm-arm64.h \
 	asm-ppc64.h \
 	asm-x86.h \
