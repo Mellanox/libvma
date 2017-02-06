@@ -761,7 +761,7 @@ void qp_mgr_ib::modify_qp_to_ready_state()
 			qp_logpanic("failed to modify QP from %d to RTS state (ret = %d)", qp_state, ret);
 		}
 	}
-	if ((ret = priv_ibv_modify_qp_from_init_to_rts(m_qp)) != 0) {
+	if ((ret = priv_ibv_modify_qp_from_init_to_rts(m_qp, m_underly_qpn)) != 0) {
 		qp_logpanic("failed to modify QP from INIT to RTS state (ret = %d)", ret);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -774,6 +774,12 @@ int qp_mgr_ib::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 
 	qp_init_attr.qp_type = IBV_QPT_UD;
 	vma_ibv_qp_init_attr_comp_mask(m_p_ib_ctx_handler->get_ibv_pd(), qp_init_attr);
+#ifdef DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN
+	if (m_underly_qpn) {
+		qp_init_attr.comp_mask |= IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN;
+        	qp_init_attr.associated_qpn = m_underly_qpn;
+	}
+#endif /* DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN */
 
 	m_qp = vma_ibv_create_qp(m_p_ib_ctx_handler->get_ibv_pd(), &qp_init_attr);
 
@@ -783,7 +789,7 @@ int qp_mgr_ib::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 		return -1;
 	}
 
-	if ((ret = priv_ibv_modify_qp_from_err_to_init_ud(m_qp, m_port_num, m_pkey_index)) != 0) {
+	if ((ret = priv_ibv_modify_qp_from_err_to_init_ud(m_qp, m_port_num, m_pkey_index, m_underly_qpn)) != 0) {
 		VLOG_PRINTF_INFO_ONCE_THEN_ALWAYS(VLOG_ERROR, VLOG_DEBUG, "failed to modify QP from ERR to INIT state (ret = %d) check number of available fds (ulimit -n)", ret, errno);
 		return ret;
 	}
