@@ -98,11 +98,11 @@ void print_rdtsc_summary()
 #include <string.h>
 #include <stdlib.h>
 #include <fstream>
-#include "clock.h"
 #include <stdint.h>
 #include <unistd.h>
-#include "utils/rdtsc.h"
 #include "sys_vars.h"
+#include "utils/clock.h"
+#include "utils/rdtsc.h"
 
 struct timespec g_inst[INST_SIZE][INST_SAMPLS];
 uint32_t g_inst_nsec[INST_SIZE][INST_SAMPLS+INST_SUMS];
