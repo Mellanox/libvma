@@ -83,8 +83,11 @@ sockinfo::sockinfo(int fd) throw (vma_exception):
 		m_rx_callback(NULL),
 		m_rx_callback_context(NULL)
 #ifdef DEFINED_VMAPOLL 		
-		,m_fd_context((void *)((uintptr_t)m_fd))
+		, m_fd_context((void *)((uintptr_t)m_fd))
 #endif // DEFINED_VMAPOLL 		
+		, m_flow_tag_id(0)
+		, m_flow_tag_enabled(false)
+		, m_tcp_flow_is_5t(false)
 {
 	m_rx_epfd = orig_os_api.epoll_create(128);
 	if (unlikely(m_rx_epfd == -1)) {
