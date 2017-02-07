@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -49,7 +49,8 @@
 class rfs_uc : public rfs
 {
 public:
-	rfs_uc(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* rule_filter = NULL);
+	rfs_uc(flow_tuple *flow_spec_5t, ring_simple *p_ring,
+	       rfs_rule_filter* rule_filter = NULL, uint32_t flow_tag_id = 0);
 
 	virtual bool rx_dispatch_packet(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array);
 

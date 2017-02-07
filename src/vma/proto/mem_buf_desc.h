@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -82,6 +82,7 @@ public:
 		size_t		sz_payload; // This is the total amount of data of the packet, if (sz_payload>sz_data) means fragmented packet.
 		uint64_t	hw_raw_timestamp;
 		void* 		context;
+		uint32_t	flow_tag_id; // Flow Tag ID of this received packet
 
 		union {
 			struct {
@@ -105,9 +106,8 @@ public:
 
 #ifdef DEFINED_VMAPOLL
 		bool 		vma_polled;
-		bool		pad[4];
 #else
-		bool		pad[5];
+		bool		pad[1];
 #endif // DEFINED_VMAPOLL
 	} rx;
 
@@ -135,9 +135,9 @@ public:
 	inline unsigned int lwip_pbuf_dec_ref_count() {if (likely(lwip_pbuf.pbuf.ref)) --lwip_pbuf.pbuf.ref; return lwip_pbuf.pbuf.ref;}
 	inline unsigned int lwip_pbuf_get_ref_count() const {return lwip_pbuf.pbuf.ref;}
 #endif // DEFINED_VMAPOLL
-
 };
 
 typedef vma_list_t<mem_buf_desc_t, mem_buf_desc_t::buffer_node_offset> descq_t;
 
 #endif
+
