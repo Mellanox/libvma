@@ -1995,17 +1995,6 @@ int neigh_ib::destroy_ah()
 	//We cannot destroy ah till each post_send with this ah has ended
 	//TODO: Need to think how to  handle this - for now there will be ah leak
 	return 0;
-//unreachable code
-#ifndef __COVERITY__
-	if (m_val && ((neigh_ib_val *) m_val)->m_ah) {
-		IF_VERBS_FAILURE(ibv_destroy_ah(((neigh_ib_val *) m_val)->m_ah))
-		{
-			neigh_logdbg("failed destroying address handle (errno=%d %m)", errno);
-			return -1;
-		}ENDIF_VERBS_FAILURE;
-	}
-	return 0;
-#endif
 }
 
 //==================================================================================================================

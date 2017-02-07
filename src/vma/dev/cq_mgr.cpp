@@ -202,7 +202,7 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 	m_p_cq_stat->n_rx_drained_at_once_max = 0;
 	m_p_cq_stat->n_buffer_pool_len = 0;
 	m_p_cq_stat->buffer_miss_rate = 0.0;
-//*/
+*/
 	m_buffer_miss_count = 0;
 	m_buffer_total_count = 0;
 	m_buffer_prev_id = 0;

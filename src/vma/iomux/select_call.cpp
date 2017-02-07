@@ -215,7 +215,7 @@ bool select_call::wait_os(bool zero_timeout)
 	// extend check to write/except fds
 	if (m_rfd_count == m_n_exclude_fds)
 		return;
-//*/
+*/
 	
 	if (zero_timeout) {
 		to.tv_sec = to.tv_usec = 0;
@@ -297,7 +297,7 @@ bool select_call::wait(const timeval &elapsed)
                         return false;
                 }
         }
-//*/
+*/
 
 	// Call OS select() on original sets + CQ epfd in read set
 	if (m_readfds)
