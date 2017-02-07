@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -49,7 +49,7 @@ public:
 	virtual void		adapt_cq_moderation();
 	bool			reclaim_recv_buffers_no_lock(descq_t *rx_reuse); // No locks
 // REVIEW - in experimental next method was defined as virtual	
-	bool		reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst); // No locks
+	bool			reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst); // No locks
 #ifdef DEFINED_VMAPOLL	
 	virtual int 		vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);	
 	virtual int		vma_poll_reclaim_single_recv_buffer(mem_buf_desc_t* rx_reuse_lst); // No locks
@@ -163,6 +163,7 @@ private:
 	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_head;
 	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_tail;
 #endif // DEFINED_VMAPOLL		
+	bool			m_flow_tag_enabled;
 };
 
 class ring_eth : public ring_simple
