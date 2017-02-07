@@ -70,7 +70,6 @@ typedef struct __attribute__ ((packed)) ibv_flow_attr_ib {
 		attr.type = VMA_IBV_FLOW_ATTR_NORMAL;
 		attr.priority = 1; // almost highest priority, 0 is used for 5-tuple later
 		attr.port = port;
-		attr.flags = VMA_IBV_FLOW_ATTR_FLAGS_ALLOW_LOOP_BACK;
 	}
 } ibv_flow_attr_ib;
 
@@ -89,7 +88,6 @@ typedef struct __attribute__ ((packed)) ibv_flow_attr_ib_ipv4_tcp_udp {
 		attr.type = VMA_IBV_FLOW_ATTR_NORMAL;
 		attr.priority = 1; // almost highest priority, 0 is used for 5-tuple later
 		attr.port = port;
-		attr.flags = VMA_IBV_FLOW_ATTR_FLAGS_ALLOW_LOOP_BACK;
 	}
 } ibv_flow_attr_ib_ipv4_tcp_udp;
 #else
@@ -107,7 +105,6 @@ typedef struct __attribute__ ((packed)) ibv_flow_attr_ib_ipv4_tcp_udp {
 		attr.type = VMA_IBV_FLOW_ATTR_NORMAL;
 		attr.priority = 1; // almost highest priority, 0 is used for 5-tuple later
 		attr.port = port;
-		attr.flags = VMA_IBV_FLOW_ATTR_FLAGS_ALLOW_LOOP_BACK;
 	}
 } ibv_flow_attr_ib_ipv4_tcp_udp;
 #endif
