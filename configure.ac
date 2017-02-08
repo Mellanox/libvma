@@ -83,10 +83,10 @@ AC_ARG_ENABLE(build32,
         [CFLAGS="$CFLAGS";CXXFLAGS="$CXXFLAGS";LIBALIC_FLAG="";LWIP_FLAG=""])
 
 # gcov support
-AC_ARG_ENABLE(gcov, AC_HELP_STRING([--enable-gcov], [turn on code coverage analysis tools]),[CFLAGS+=" --coverage -O0";CPPFLAGS+=" --coverage -O0";LIBS+=" -lgcov";VMA_GCOV=1],[VMA_GCOV=0])
+AC_ARG_ENABLE(gcov, AC_HELP_STRING([--enable-gcov], [turn on code coverage analysis tools]),[CXXFLAGS+=" --coverage -O0";LIBS+=" -lgcov";VMA_GCOV=1],[VMA_GCOV=0])
 
 # time_measure support
-AC_ARG_ENABLE(time_measure, AC_HELP_STRING([--enable-time_measure], [turn on time measuring]),[CFLAGS+=" -DVMA_TIME_MEASURE";CPPFLAGS+=" -DVMA_TIME_MEASURE";],[])
+AC_ARG_ENABLE(time_measure, AC_HELP_STRING([--enable-time_measure], [turn on time measuring]),[CPPFLAGS+=" -DVMA_TIME_MEASURE";],[])
 
 #
 # Valgrind support
