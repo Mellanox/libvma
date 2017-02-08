@@ -386,24 +386,14 @@ mem_buf_desc_t *buffer_pool::get_buffers(size_t count, uint32_t lkey)
 
 mem_buf_desc_t *buffer_pool::get_buffers_thread_safe(size_t count, ib_ctx_handler *p_ib_ctx_h)
 {
-	mem_buf_desc_t *ret;
-
-	m_lock_spin.lock();
-	ret = get_buffers(count, find_lkey_by_ib_ctx(p_ib_ctx_h));
-	m_lock_spin.unlock();
-
-	return ret;
+	auto_unlocker lock(m_lock_spin);
+	return get_buffers(count, find_lkey_by_ib_ctx(p_ib_ctx_h));
 }
 
 mem_buf_desc_t *buffer_pool::get_buffers_thread_safe(size_t count, uint32_t lkey)
 {
-	mem_buf_desc_t *ret;
-
-	m_lock_spin.lock();
-	ret = get_buffers(count, lkey);
-	m_lock_spin.unlock();
-
-	return ret;
+	auto_unlocker lock(m_lock_spin);
+	return get_buffers(count, lkey);
 }
 
 inline uint32_t buffer_pool::find_lkey_by_ib_ctx(ib_ctx_handler* p_ib_ctx_h)
@@ -424,13 +414,8 @@ inline uint32_t buffer_pool::find_lkey_by_ib_ctx(ib_ctx_handler* p_ib_ctx_h)
 
 uint32_t buffer_pool::find_lkey_by_ib_ctx_thread_safe(ib_ctx_handler* p_ib_ctx_h)
 {
-	uint32_t ret;
-
-	m_lock_spin.lock();
-	ret = find_lkey_by_ib_ctx(p_ib_ctx_h);
-	m_lock_spin.unlock();
-
-	return ret;
+	auto_unlocker lock(m_lock_spin);
+	return find_lkey_by_ib_ctx(p_ib_ctx_h);
 }
 
 #if _BullseyeCoverage
@@ -566,7 +551,7 @@ inline void buffer_pool::put_buffers(mem_buf_desc_t *buff_list)
 void buffer_pool::put_buffers_thread_safe(mem_buf_desc_t *buff_list)
 {
 	auto_unlocker lock(m_lock_spin);
-	return put_buffers(buff_list);
+	put_buffers(buff_list);
 }
 
 void buffer_pool::put_buffers(descq_t *buffers, size_t count)
@@ -609,9 +594,8 @@ void buffer_pool::put_buffers_after_deref(descq_t *pDeque)
 
 void buffer_pool::put_buffers_after_deref_thread_safe(descq_t *pDeque)
 {
-	m_lock_spin.lock();
+	auto_unlocker lock(m_lock_spin);
 	put_buffers_after_deref(pDeque);
-	m_lock_spin.unlock();
 }
 
 size_t buffer_pool::get_free_count()

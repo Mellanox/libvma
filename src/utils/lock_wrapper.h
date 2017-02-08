@@ -373,11 +373,11 @@ protected:
 class auto_unlocker
 {
 public:
-	auto_unlocker(lock_base& lock) : m_lock(lock) {
+	inline auto_unlocker(lock_base& lock) : m_lock(lock) {
 		m_lock.lock();
 		//printf("[%s %p] locked\n", m_lock.to_str(), this);
 	};
-	~auto_unlocker() {
+	inline ~auto_unlocker() {
 		//printf("[%s %p] unlocking\n", m_lock.to_str(), this);
 		m_lock.unlock();
 	};
