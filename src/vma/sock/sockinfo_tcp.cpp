@@ -200,7 +200,8 @@ sockinfo_tcp::sockinfo_tcp(int fd) throw (vma_exception) :
         m_timer_pending(false),
         m_sysvar_buffer_batching_mode(safe_mce_sys().buffer_batching_mode),
         m_sysvar_tcp_ctl_thread(safe_mce_sys().tcp_ctl_thread),
-        m_sysvar_internal_thread_tcp_timer_handling(safe_mce_sys().internal_thread_tcp_timer_handling)
+        m_sysvar_internal_thread_tcp_timer_handling(safe_mce_sys().internal_thread_tcp_timer_handling),
+        m_sysvar_rx_poll_on_tx_tcp(safe_mce_sys().rx_poll_on_tx_tcp)
 {
 	si_tcp_logfuncall("");
 
@@ -336,12 +337,11 @@ bool sockinfo_tcp::prepare_listen_to_close()
 	//remove the sockets from the accepted connections list
 	while (!m_accepted_conns.empty())
 	{
-		sockinfo_tcp *new_sock = m_accepted_conns.front();
+		sockinfo_tcp *new_sock = m_accepted_conns.get_and_pop_front();
 		new_sock->m_sock_state = TCP_SOCK_INITED;
 		class flow_tuple key;
 		sockinfo_tcp::create_flow_tuple_key_from_pcb(key, &(new_sock->m_pcb));
 		m_syn_received.erase(key);
-		m_accepted_conns.pop_front();
 		m_ready_conn_cnt--;
 		new_sock->lock_tcp_con();
 		new_sock->m_parent = NULL;
@@ -400,8 +400,7 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 	m_p_socket_stats->n_rx_ready_byte_count += m_rx_pkt_ready_offset;
 	while (m_n_rx_pkt_ready_list_count)
 	{
-		mem_buf_desc_t* p_rx_pkt_desc = m_rx_pkt_ready_list.front();
-		m_rx_pkt_ready_list.pop_front();
+		mem_buf_desc_t* p_rx_pkt_desc = m_rx_pkt_ready_list.get_and_pop_front();
 		m_n_rx_pkt_ready_list_count--;
 		m_p_socket_stats->n_rx_ready_pkt_count--;
 		m_rx_ready_byte_count -= p_rx_pkt_desc->path.rx.sz_payload;
@@ -415,8 +414,7 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 			m_rx_ctl_packets_list_lock.unlock();
 			break;
 		}
-		mem_buf_desc_t* p_rx_pkt_desc = m_rx_ctl_packets_list.front();
-		m_rx_ctl_packets_list.pop_front();
+		mem_buf_desc_t* p_rx_pkt_desc = m_rx_ctl_packets_list.get_and_pop_front();
 		m_rx_ctl_packets_list_lock.unlock();
 		reuse_buffer(p_rx_pkt_desc);
 	}
@@ -426,22 +424,19 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 		// loop on packets of a peer
 		while (!peer_packets.empty()) {
 			// get packet from list and reuse them
-			mem_buf_desc_t* desc = peer_packets.front();
-			peer_packets.pop_front();
+			mem_buf_desc_t* desc = peer_packets.get_and_pop_front();
 			reuse_buffer(desc);
 		}
 	}
 	m_rx_peer_packets.clear();
 
 	while (!m_rx_ctl_reuse_list.empty()) {
-		mem_buf_desc_t* p_rx_pkt_desc = m_rx_ctl_reuse_list.front();
-		m_rx_ctl_reuse_list.pop_front();
+		mem_buf_desc_t* p_rx_pkt_desc = m_rx_ctl_reuse_list.get_and_pop_front();
 		reuse_buffer(p_rx_pkt_desc);
 	}
 
 	while (!m_rx_cb_dropped_list.empty()) {
-		mem_buf_desc_t* p_rx_pkt_desc = m_rx_cb_dropped_list.front();
-		m_rx_cb_dropped_list.pop_front();
+		mem_buf_desc_t* p_rx_pkt_desc = m_rx_cb_dropped_list.get_and_pop_front();
 		reuse_buffer(p_rx_pkt_desc);
 	}
 
@@ -693,6 +688,11 @@ retry_is_ready:
 		return -1;
 	}
 	si_tcp_logfunc("tx: iov=%p niovs=%d dummy=%d", p_iov, sz_iov, is_dummy);
+
+	if (unlikely(m_sysvar_rx_poll_on_tx_tcp)) {
+		rx_wait_helper(poll_count, false);
+	}
+
 	lock_tcp_con();
 
 	if (unlikely(is_dummy) && !check_dummy_send_conditions(flags, p_iov, sz_iov)) {
@@ -1133,8 +1133,7 @@ void sockinfo_tcp::process_my_ctl_packets()
 
 	// 1. demux packets in the listener list to map of list per peer (for child this will be skipped)
 	while (!temp_list.empty()) {
-		mem_buf_desc_t* desc = temp_list.front();
-		temp_list.pop_front();
+		mem_buf_desc_t* desc = temp_list.get_and_pop_front();
 		peer_key pk(desc->path.rx.src.sin_addr.s_addr, desc->path.rx.src.sin_port);
 
 
@@ -1203,8 +1202,7 @@ void sockinfo_tcp::process_children_ctl_packets()
 				sock->m_rx_ctl_packets_list_lock.unlock();
 				break;
 			}
-			mem_buf_desc_t* desc = sock->m_rx_ctl_packets_list.front();
-			sock->m_rx_ctl_packets_list.pop_front();
+			mem_buf_desc_t* desc = sock->m_rx_ctl_packets_list.get_and_pop_front();
 			sock->m_rx_ctl_packets_list_lock.unlock();
 			desc->inc_ref_count();
 			L3_level_tcp_input((pbuf *)desc, &sock->m_pcb);
@@ -1233,8 +1231,7 @@ void sockinfo_tcp::process_reuse_ctl_packets()
 		if (m_tcp_con_lock.trylock()) {
 			return;
 		}
-		mem_buf_desc_t* desc = m_rx_ctl_reuse_list.front();
-		m_rx_ctl_reuse_list.pop_front();
+		mem_buf_desc_t* desc = m_rx_ctl_reuse_list.get_and_pop_front();
 		reuse_buffer(desc);
 		m_tcp_con_lock.unlock();
 	}
@@ -1877,8 +1874,7 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 #endif // DEFINED_VMAPOLL			
 
 	while (dropped_count--) {
-		mem_buf_desc_t* p_rx_pkt_desc = m_rx_cb_dropped_list.front();
-		m_rx_cb_dropped_list.pop_front();
+		mem_buf_desc_t* p_rx_pkt_desc = m_rx_cb_dropped_list.get_and_pop_front();
 		reuse_buffer(p_rx_pkt_desc);
 	}
 
@@ -2049,13 +2045,11 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 	int rc = wait_for_conn_ready();
 	// handle ret from async connect
 	if (rc < 0) {
-	        //m_conn_state = TCP_CONN_ERROR;
-                // errno is set and connect call must fail.
 		//todo consider setPassthrough and go to OS
-	        destructor_helper();
-	        errno = ECONNREFUSED;
-	        unlock_tcp_con();
-                return -1;
+		destructor_helper();
+		unlock_tcp_con();
+		// errno is set inside wait_for_conn_ready
+		return -1;
 	}
 	setPassthrough(false);
 	unlock_tcp_con();
@@ -2453,14 +2447,13 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 
 	si_tcp_logdbg("sock state = %d", get_tcp_state(&m_pcb));
 	si_tcp_logdbg("socket accept - has some!!!");
-	ns = m_accepted_conns.front();
+	ns = m_accepted_conns.get_and_pop_front();
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!ns) {
 		si_tcp_logpanic("no socket in accepted queue!!! ready count = %d", m_ready_conn_cnt);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	m_accepted_conns.pop_front();
 	m_ready_conn_cnt--;
 	tcp_accepted(m_sock);
 
@@ -2681,8 +2674,7 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 			new_sock->m_rx_ctl_packets_list_lock.unlock();
 
 			while (!temp_list.empty()) {
-				mem_buf_desc_t* desc = temp_list.front();
-				temp_list.pop_front();
+				mem_buf_desc_t* desc = temp_list.get_and_pop_front();
 				desc->inc_ref_count();
 				L3_level_tcp_input((pbuf *)desc, &new_sock->m_pcb);
 				if (desc->dec_ref_count() <= 1) //todo reuse needed?
@@ -2962,9 +2954,12 @@ int sockinfo_tcp::wait_for_conn_ready()
 
 	}
 	if (m_conn_state != TCP_CONN_CONNECTED) {
-		errno = ECONNREFUSED;
-		if (m_conn_state == TCP_CONN_TIMEOUT)
+		if (m_conn_state == TCP_CONN_TIMEOUT) {
 			m_conn_state = TCP_CONN_FAILED;
+			errno = ETIMEDOUT;
+		} else {
+			errno = ECONNREFUSED;
+		}
 		si_tcp_logdbg("bad connect -> timeout or none listening");
 		return -1;
 	}

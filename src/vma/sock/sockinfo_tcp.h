@@ -292,7 +292,8 @@ private:
 	vma_desc_list_t m_rx_ctl_reuse_list;
 	ready_pcb_map_t m_ready_pcbs;
 	static const unsigned TX_CONSECUTIVE_EAGAIN_THREASHOLD = 10;
-	unsigned m_tx_consecutive_eagain_count;
+	unsigned	m_tx_consecutive_eagain_count;
+	bool		m_sysvar_rx_poll_on_tx_tcp;
 
 	inline void init_pbuf_custom(mem_buf_desc_t *p_desc);
 

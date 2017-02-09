@@ -107,7 +107,7 @@ bool rule_table_mgr::parse_enrty(nlmsghdr *nl_header, rule_val *p_val)
 	rt_msg = (struct rtmsg *) NLMSG_DATA(nl_header);
 
 	// we are not concerned about the local and default rule table
-	if (rt_msg->rtm_family != AF_INET || rt_msg->rtm_table == RT_TABLE_LOCAL || rt_msg->rtm_table == RT_TABLE_DEFAULT)
+	if (rt_msg->rtm_family != AF_INET || rt_msg->rtm_table == RT_TABLE_LOCAL)
 		return false;
 
 	p_val->set_protocol(rt_msg->rtm_protocol);

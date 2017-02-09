@@ -386,7 +386,7 @@ mem_buf_desc_t *buffer_pool::get_buffers(size_t count, uint32_t lkey)
 	__log_info_funcall("requested %lu, present %lu, created %lu", count, m_n_buffers, m_n_buffers_created);
 
 	if (m_n_buffers < count) {
-		static vlog_levels_t log_severity = VLOG_DEBUG; // DEBUG severity will be used only once - at the 1st time
+		static vlog_levels_t log_severity = VLOG_ERROR; // ERROR severity will be used only once - at the 1st time
 
 		VLOG_PRINTF_INFO(log_severity, "not enough buffers in the pool (requested: %lu, have: %lu, created: %lu isRx=%d isTx=%d)",
 				count, m_n_buffers, m_n_buffers_created, (int)(this==g_buffer_pool_rx), (int)(this==g_buffer_pool_tx));
@@ -613,8 +613,7 @@ void buffer_pool::put_buffers(descq_t *buffers, size_t count)
 	mem_buf_desc_t *buff_list, *next;
 	__log_info_funcall("returning %lu, present %lu, created %lu", count, m_n_buffers, m_n_buffers_created);
 	while (count > 0 && !buffers->empty()) {
-		buff_list = buffers->back();
-		buffers->pop_back();
+		buff_list = buffers->get_and_pop_back();
 		while (buff_list) {
 			next = buff_list->p_next_desc;
 			put_buffer_helper(buff_list);
@@ -638,8 +637,7 @@ void buffer_pool::put_buffers_after_deref(descq_t *pDeque)
 {
 	// Assume locked owner!!!
 	while (!pDeque->empty()) {
-		mem_buf_desc_t * list = pDeque->front();
-		pDeque->pop_front();
+		mem_buf_desc_t * list = pDeque->get_and_pop_front();
 		if (list->dec_ref_count() <= 1 && (list->lwip_pbuf.pbuf.ref-- <= 1)) {
 			put_buffers(list);
 		}

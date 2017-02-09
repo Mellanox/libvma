@@ -80,9 +80,8 @@ private:
 	void 		add_rt_entry_val(route_val *p_val);
 
 
-	void 		create_route_val_from_info(const netlink_route_info *netlink_route_info, route_val &netlink_route_val);
 	void 		del_route_event(route_val &netlink_route_val);
-	void 		new_route_event(route_val &netlink_route_val);
+	void 		new_route_event(route_val* netlink_route_val);
 	route_val* 	find_route_val(route_val &netlink_route_val);
 };
 

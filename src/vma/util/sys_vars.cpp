@@ -96,7 +96,7 @@ void mce_sys_var::print_vma_load_failure_msg()
 
 namespace vma_spec {
 	typedef struct {
-		vVMA_spec_t level;
+		vma_spec_t level;
 		const char *  output_name;
 		const char ** input_names;
 	} vma_spec_names;
@@ -110,6 +110,7 @@ namespace vma_spec {
 	static const char *spec_names_mcd_irq[]   = {"mcd-irq", "624", NULL};
 	static const char *spec_names_rti[]       = {"rti", "784", NULL};
 	static const char *spec_names_6973[]      = {"6973", NULL};
+	static const char *spec_names_stac[]      = {"stac", NULL};
 
 	// must be by order because "to_str" relies on that!
 	static const vma_spec_names specs[] = {
@@ -122,10 +123,11 @@ namespace vma_spec {
 		{MCE_SPEC_MCD_IRQ_624,    	  	"Memcached Interrupt Mode",	(const char ** )spec_names_mcd_irq},
 		{MCE_SPEC_RTI_784,    		  	"RTI Logic",    		(const char ** )spec_names_rti},
 		{MCE_SPEC_LL_6973,    		  	"6973 Low Latency Profile", 	(const char ** )spec_names_6973},
+		{MCE_SPEC_STAC,    		  	"STAC-N Benchmark",	 	(const char ** )spec_names_stac},
 	};
 
 	// convert str to vVMA_spec_t; upon error - returns the given 'def_value'
-	vVMA_spec_t from_str(const char* str, vVMA_spec_t def_value)
+	vma_spec_t from_str(const char* str, vma_spec_t def_value)
 	{
 		size_t num_levels = sizeof(specs) / sizeof(specs[0]);
 		for (size_t i = 0; i < num_levels; ++i) {
@@ -141,15 +143,15 @@ namespace vma_spec {
 	}
 
 	// convert int to vVMA_spec_t; upon error - returns the given 'def_value'
-	vVMA_spec_t from_int(const int int_spec, vVMA_spec_t def_value)
+	vma_spec_t from_int(const int int_spec, vma_spec_t def_value)
 	{
 		if (int_spec >= MCE_SPEC_NONE && int_spec <= MCE_VMA__ALL) {
-			return static_cast<vVMA_spec_t>(int_spec);
+			return static_cast<vma_spec_t>(int_spec);
 		}
 		return def_value; // not found. use given def_value
 	}
 
-	const char * to_str(vVMA_spec_t level)
+	const char * to_str(vma_spec_t level)
 	{
 		static int base = MCE_SPEC_NONE;
 		return specs[level - base].output_name;
@@ -485,6 +487,7 @@ void mce_sys_var::get_env_params()
 	timer_netlink_update_msec = MCE_DEFAULT_NETLINK_TIMER_MSEC;
 
 	suppress_igmp_warning	= MCE_DEFAULT_SUPPRESS_IGMP_WARNING;
+	rx_poll_on_tx_tcp	= MCE_DEFAULT_RX_POLL_ON_TX_TCP;
 
 #ifdef VMA_TIME_MEASURE
 	vma_time_measure_num_samples = MCE_DEFAULT_TIME_MEASURE_NUM_SAMPLES;
@@ -598,7 +601,18 @@ void mce_sys_var::get_env_params()
 		buffer_batching_mode      = BUFFER_BATCHING_NONE; //MCE_DEFAULT_BUFFER_BATCHING_MODE(BUFFER_BATCHING_WITH_RECLAIM), Disable handling control packets on a separate thread
 		tcp_ctl_thread            = CTL_THREAD_NO_WAKEUP; //MCE_DEFAULT_TCP_CTL_THREAD (CTL_THREAD_DISABLE), wait for thread timer to expire
 		break;
-		
+
+	case MCE_SPEC_STAC:
+		mem_alloc_type           = ALLOC_TYPE_HUGEPAGES; //MCE_DEFAULT_MEM_ALLOC_TYPE (ALLOC_TYPE_CONTIG) VMA_MEM_ALLOC_TYPE
+		select_poll_num          = -1; //MCE_DEFAULT_SELECT_NUM_POLLS (100000) VMA_SELECT_POLL
+		rx_poll_num              = -1; //MCE_DEFAULT_RX_NUM_POLLS(100000) VMA_RX_POLL
+		ring_allocation_logic_tx = RING_LOGIC_PER_THREAD; //MCE_DEFAULT_RING_ALLOCATION_LOGIC_TX(RING_LOGIC_PER_INTERFACE) VMA_RING_ALLOCATION_LOGIC_TX
+		ring_allocation_logic_rx = RING_LOGIC_PER_THREAD; //MCE_DEFAULT_RING_ALLOCATION_LOGIC_RX(RING_LOGIC_PER_INTERFACE) VMA_RING_ALLOCATION_LOGIC_RX
+		select_poll_os_ratio     = 0; //MCE_DEFAULT_SELECT_POLL_OS_RATIO(10) VMA_SELECT_POLL_OS_RATIO
+		select_skip_os_fd_check  = 0; //MCE_DEFAULT_SELECT_SKIP_OS(4) VMA_SELECT_SKIP_OS
+		rx_poll_on_tx_tcp	 = true;
+		break;
+
 	case MCE_SPEC_NONE:
 	default:
 		break;
@@ -1044,6 +1058,9 @@ void mce_sys_var::get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_TCP_CC_ALGO)) != NULL)
 		lwip_cc_algo_mod = (uint32_t)atoi(env_ptr);
+
+	if ((env_ptr = getenv(SYS_VAR_VMA_RX_POLL_ON_TX_TCP)) != NULL)
+		rx_poll_on_tx_tcp = atoi(env_ptr) ? true : false;
 
 #ifdef VMA_TIME_MEASURE
 	if ((env_ptr = getenv(SYS_VAR_VMA_TIME_MEASURE_NUM_SAMPLES)) != NULL) {

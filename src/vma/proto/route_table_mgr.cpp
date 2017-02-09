@@ -51,6 +51,7 @@
 #include "route_table_mgr.h"
 #include "vma/sock/socket_fd_api.h"
 #include "vma/sock/sock-redirect.h"
+#include "vma/dev/net_device_table_mgr.h"
 #include "ip_address.h"
 
 // debugging macros
@@ -238,7 +239,7 @@ bool route_table_mgr::parse_enrty(nlmsghdr *nl_header, route_val *p_val)
 	rt_msg = (struct rtmsg *) NLMSG_DATA(nl_header);
 
 	// we are not concerned about the local and default route table
-	if (rt_msg->rtm_family != AF_INET || rt_msg->rtm_table == RT_TABLE_LOCAL || rt_msg->rtm_table == RT_TABLE_DEFAULT)
+	if (rt_msg->rtm_family != AF_INET || rt_msg->rtm_table == RT_TABLE_LOCAL)
 		return false;
 
 	p_val->set_protocol(rt_msg->rtm_protocol);
@@ -463,42 +464,6 @@ void route_table_mgr::addr_change_event(int if_index)
 		}
 	}
 }
-
-void route_table_mgr::create_route_val_from_info(const netlink_route_info *netlink_route_info, route_val &netlink_route_val)
-{
-	struct in_addr in;
-	char dst_addr_chr[ADDR_LEN];
-
-	inet_ntop(AF_INET, netlink_route_info->dst_addr, dst_addr_chr, ADDR_LEN);
-	if (1 == inet_pton(AF_INET, (const char*)dst_addr_chr, &in)) {
-		netlink_route_val.set_dst_addr(in);
-	}
-
-	in_addr_t dst_mask = htonl(VMA_NETMASK(netlink_route_info->dst_prefixlen));
-	netlink_route_val.set_dst_mask(dst_mask);
-	netlink_route_val.set_dst_pref_len(netlink_route_info->dst_prefixlen);
-
-	netlink_route_val.set_protocol(netlink_route_info->protocol);
-	netlink_route_val.set_scope(netlink_route_info->scope);
-	netlink_route_val.set_type(netlink_route_info->type);
-
-	int if_index = netlink_route_info->oif;
-	netlink_route_val.set_if_index(if_index);
-
-	char if_name[IFNAMSIZ];
-	if_indextoname(if_index,if_name);
-	netlink_route_val.set_if_name(if_name);
-
-	struct sockaddr_in src_addr;
-	if (!get_ipv4_from_ifname(if_name, &src_addr)) {
-		netlink_route_val.set_src_addr(src_addr.sin_addr.s_addr);
-	}
-
-	netlink_route_val.set_str();
-	if (g_vlogger_level >= VLOG_FUNC) {
-		netlink_route_val.print_route_val();
-	}
-}
 #endif
 
 #if _BullseyeCoverage
@@ -547,87 +512,64 @@ void route_table_mgr::del_route_event(route_val &netlink_route_val)
 }
 #endif
 
-//code coverage
-#if 0
-void route_table_mgr::new_route_event(route_val &netlink_route_val)
+void route_table_mgr::new_route_event(route_val* netlink_route_val)
 {
-	int number_of_entries = m_tab.entries_num++;
-	netlink_route_val.set_state(true);
-
-	in_addr_t new_dst_addr = netlink_route_val.get_dst_addr();
-	in_addr_t new_dst_mask = netlink_route_val.get_dst_mask();
-	int new_dst_pref_len = netlink_route_val.get_dst_pref_len();
-	char *new_if_name = (char *) netlink_route_val.get_if_name();
-
-	rt_mgr_logdbg("netlink event- route added: dst '%d.%d.%d.%d', netmask '%d.%d.%d.%d', interface '%s'", NIPQUAD(new_dst_addr), NIPQUAD(new_dst_mask), new_if_name);
-
-	if(find_route_val(netlink_route_val)) {
-		rt_mgr_logdbg("route already exists: dst '%d.%d.%d.%d', netmask '%d.%d.%d.%d', interface '%s'", NIPQUAD(new_dst_addr), NIPQUAD(new_dst_mask), new_if_name);
+	if (!netlink_route_val) {
+		rt_mgr_logdbg("Invalid route entry");
 		return;
 	}
-
-	m_tab.value[number_of_entries] = netlink_route_val;
-	in_addr_t common_prefix;
-	// set necessary route_vals as not valid
-	for (int i = 0; i < m_tab.entries_num; i++) {
-		route_val* p_val_from_tbl = &m_tab.value[i];
-		if (!p_val_from_tbl->is_deleted() && p_val_from_tbl->is_if_up()) {
-			common_prefix = p_val_from_tbl->get_dst_addr() & new_dst_mask;
-			// check if the new route is more specific than an existing route
-			// example: if route table contains entry for- 1.1.1.1/24
-			//			and a new entry for- 1.1.1.1/32 is added
-			// then route might change for some dst ips ---> set as invalid
-			if((common_prefix == (new_dst_addr & new_dst_mask)) && p_val_from_tbl->get_dst_pref_len() < new_dst_pref_len) {
-				p_val_from_tbl->set_state(false);
-				rt_mgr_logdbg("route_val %p is not valid", p_val_from_tbl);
-				p_val_from_tbl->print_route_val();
-			}
-		}
+	
+	if (m_tab.entries_num >= MAX_TABLE_SIZE) {
+		rt_mgr_logwarn("No available space for new route entry");	
+		return;
 	}
-
-	rt_mgr_logdbg("route added: dst '%d.%d.%d.%d', netmask '%d.%d.%d.%d', interface '%s'", NIPQUAD(new_dst_addr), NIPQUAD(new_dst_mask), new_if_name);
-
-	if (g_vlogger_level >= VLOG_FUNC) {
-		print_route_tbl();
-	}
-	update_invalid_entries();
+	
+	auto_unlocker lock(m_lock);	
+	route_val* p_route_val = &m_tab.value[m_tab.entries_num];
+	p_route_val->set_dst_addr(netlink_route_val->get_dst_addr());
+	p_route_val->set_dst_mask(netlink_route_val->get_dst_mask());
+	p_route_val->set_dst_pref_len(netlink_route_val->get_dst_pref_len());
+	p_route_val->set_src_addr(netlink_route_val->get_src_addr());
+	p_route_val->set_gw(netlink_route_val->get_gw_addr());
+	p_route_val->set_protocol(netlink_route_val->get_protocol());
+	p_route_val->set_scope(netlink_route_val->get_scope()); 
+	p_route_val->set_type(netlink_route_val->get_type());
+	p_route_val->set_table_id(netlink_route_val->get_table_id());
+	p_route_val->set_if_index(netlink_route_val->get_if_index());
+	p_route_val->set_if_name(const_cast<char*> (netlink_route_val->get_if_name()));
+	p_route_val->set_state(true);
+	p_route_val->set_str();
+	p_route_val->print_val();
+	++m_tab.entries_num;			
 }
-#endif
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-bool inline is_route_event(uint16_t event_type)
-{
-	return (event_type == RTM_NEWROUTE || event_type == RTM_DELROUTE);
-}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 void route_table_mgr::notify_cb(event *ev)
 {
-	NOT_IN_USE(ev); //TODO remove
-#if 0
-	route_nl_event *route_netlink_ev = dynamic_cast <route_nl_event*>(ev);
-	const netlink_route_info *netlink_route_info = route_netlink_ev->get_route_info();
-	uint16_t event_type = route_netlink_ev->nl_type;
-
-	if(! is_route_event(event_type))
-		return;
-
 	rt_mgr_logdbg("received route event from netlink");
-	route_val netlink_route_val;
-	create_route_val_from_info(netlink_route_info, netlink_route_val);
 
-	switch(event_type)
-	{
-	case RTM_DELROUTE:
-		del_route_event(netlink_route_val);
-		break;
-	case RTM_NEWROUTE:
-		new_route_event(netlink_route_val);
-		break;
+	route_nl_event *route_netlink_ev = dynamic_cast <route_nl_event*>(ev);
+	if (!route_netlink_ev) {
+		rt_mgr_logwarn("Received non route event!!!");
+		return;
 	}
+	
+	netlink_route_info* p_netlink_route_info = route_netlink_ev->get_route_info();
+	if (!p_netlink_route_info) {
+		rt_mgr_logdbg("Received invalid route event!!!");
+		return;
+	}
+	
+	switch(route_netlink_ev->nl_type) {
+		case RTM_NEWROUTE:
+			new_route_event(p_netlink_route_info->get_route_val());
+			break;
+#if 0
+		case RTM_DELROUTE:
+			del_route_event(p_netlink_route_info->get_route_val());
+			break;
 #endif
+		default:
+			rt_mgr_logdbg("Route event (%u) is not handled", route_netlink_ev->nl_type);
+			break;
+	}
 }

@@ -49,7 +49,6 @@ class netlink_event: public event
 {
 public:
 	netlink_event(struct nlmsghdr* hdr, void* notifier);
-	netlink_event(struct nl_object* obj, void* notifier);
 	virtual ~netlink_event() { }
 
 
@@ -129,7 +128,7 @@ public:
 
 	virtual  const std::string to_str() const;
 
-	const netlink_route_info* get_route_info() const { return m_route_info; }
+	netlink_route_info* get_route_info() const { return m_route_info; }
 
 private:
 	netlink_route_info* m_route_info;

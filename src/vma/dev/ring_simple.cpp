@@ -1839,15 +1839,13 @@ mem_buf_desc_t* ring_simple::get_tx_buffers(uint32_t n_num_mem_bufs)
 		return head;
 	}
 
-	head = m_tx_pool.back();
-	m_tx_pool.pop_back();
+	head = m_tx_pool.get_and_pop_back();
 	head->lwip_pbuf.pbuf.ref = 1;
 	n_num_mem_bufs--;
 
 	mem_buf_desc_t* next = head;
 	while (n_num_mem_bufs) {
-		next->p_next_desc = m_tx_pool.back();
-		m_tx_pool.pop_back();
+		next->p_next_desc = m_tx_pool.get_and_pop_back();
 		next = next->p_next_desc;
 		next->lwip_pbuf.pbuf.ref = 1;
 		n_num_mem_bufs--;

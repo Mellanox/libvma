@@ -201,24 +201,36 @@ public:
 		return m_size;
 	}
 
-	T* front() {
+	inline T* front() {
 		if (unlikely(empty()))
 			return NULL;
 		return ((list_node<T, offset> *)m_list.head.next)->obj_ptr;
 	}
 
-	T* back() {
+	inline T* back() {
 		if (unlikely(empty()))
 			return NULL;
 		return ((list_node<T, offset> *)m_list.head.prev)->obj_ptr;
 	}
 
-	void pop_front(){
+	inline void pop_front(){
 		erase(front());
 	}
 
-	void pop_back(){
+	inline void pop_back(){
 		erase(back());
+	}
+
+	inline T* get_and_pop_front() {
+		T* list_front = front();
+		pop_front();
+		return list_front;
+	}
+
+	inline T* get_and_pop_back() {
+		T* list_back = back();
+		pop_back();
+		return list_back;
 	}
 
 	void erase(T* obj){
