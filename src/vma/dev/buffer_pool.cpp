@@ -349,7 +349,7 @@ mem_buf_desc_t *buffer_pool::get_buffers(size_t count, uint32_t lkey)
 
 	__log_info_funcall("requested %lu, present %lu, created %lu", count, m_n_buffers, m_n_buffers_created);
 
-	if (m_n_buffers < count) {
+	if (unlikely(m_n_buffers < count)) {
 		static vlog_levels_t log_severity = VLOG_DEBUG; // DEBUG severity will be used only once - at the 1st time
 
 		VLOG_PRINTF_INFO(log_severity, "not enough buffers in the pool (requested: %lu, have: %lu, created: %lu isRx=%d isTx=%d)",
@@ -363,7 +363,7 @@ mem_buf_desc_t *buffer_pool::get_buffers(size_t count, uint32_t lkey)
 	}
 
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (lkey == 0) {
+	if (unlikely(lkey == 0)) {
 		__log_info_panic("No lkey found! count = %d", count);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
