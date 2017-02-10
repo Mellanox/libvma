@@ -115,9 +115,12 @@ bool rfs_uc::prepare_flow_spec()
 		p_attach_flow_data->ibv_flow_attr.priority = 0;
 	}
 
-	if (m_flow_tag_id && attach_flow_data_eth) {
+	if (m_flow_tag_id && attach_flow_data_eth) { // Will not attach flow_tag spec to rule for tag_id==0
 		ibv_flow_spec_flow_tag_set(p_flow_tag, m_flow_tag_id);
 		attach_flow_data_eth->ibv_flow_attr.add_flow_tag_spec();
+                rfs_logdbg("Adding flow_tag spec to rule, num_of_specs: %d flow_tag_id: %d",
+			   attach_flow_data_eth->ibv_flow_attr.attr.num_of_specs,
+			   m_flow_tag_id);
 	}
 
 	m_attach_flow_data_vector.push_back(p_attach_flow_data);
@@ -152,7 +155,6 @@ bool rfs_uc::rx_dispatch_packet(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_re
 				return true;
 			}
 		}
-	//}
 	}
 	// Reuse this data buffer & mem_buf_desc
 	return false;

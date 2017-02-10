@@ -127,6 +127,7 @@ public:
 		m_flow_tag_id = flow_tag_id;
 		m_flow_tag_enabled = flow_tag_id > 0 ? true : false;
 	}
+	inline bool flow_tag_enabled(void) { return m_flow_tag_enabled; }
 
 #ifdef DEFINED_VMAPOLL
 	virtual int fast_nonblocking_rx(vma_packets_t *vma_pkts);

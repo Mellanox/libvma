@@ -321,8 +321,11 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	ring_logdbg("flow: %s, with sink (%p)", flow_spec_5t.to_str(), sink);
 
 	if (m_flow_tag_enabled && (si != NULL)) {
+#ifdef DEFINED_VMAPOLL
 		int	sock_fd = si->get_fd();
-
+#else
+		int	sock_fd = 0;
+#endif
 		if (sock_fd > 0) {
 			flow_tag_id = sock_fd & FLOW_TAG_MASK;
 			if ((uint32_t)sock_fd != flow_tag_id) {
@@ -755,7 +758,8 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 		sockinfo* si = NULL;
 		si = static_cast <sockinfo* >(g_p_fd_collection->get_sockfd(p_rx_wc_buf_desc->path.rx.flow_tag_id));
 
-		if (likely(si != NULL)) {
+		if (likely((si != NULL) && si->flow_tag_enabled())) { 
+			// will process packets with set flow_tag_id and enabled for the socket
 			p_ip_h = (struct iphdr*)(p_rx_wc_buf_desc->p_buffer + transport_header_len);
 			ip_hdr_len = 20; //(int)(p_ip_h->ihl)*4;
 			ip_tot_len = ntohs(p_ip_h->tot_len);
