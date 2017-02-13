@@ -778,10 +778,21 @@ int qp_mgr_ib::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 	if (m_underly_qpn) {
 		qp_init_attr.comp_mask |= IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN;
         	qp_init_attr.associated_qpn = m_underly_qpn;
+		qp_logdbg("create qp using underly qpn = 0x%X", m_underly_qpn);
 	}
 #endif /* DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN */
 
 	m_qp = vma_ibv_create_qp(m_p_ib_ctx_handler->get_ibv_pd(), &qp_init_attr);
+#ifdef DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN
+	if (!m_qp && m_underly_qpn) {
+		qp_logdbg("ibv_create_qp failed to use underly qpn (errno=%d %m)", errno);
+
+		/* try to use traditional approach */
+		qp_init_attr.comp_mask &= ~IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN;
+		m_underly_qpn = 0;
+		m_qp = vma_ibv_create_qp(m_p_ib_ctx_handler->get_ibv_pd(), &qp_init_attr);
+	}
+#endif /* DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN */
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_qp) {
@@ -808,4 +819,16 @@ void qp_mgr_ib::update_pkey_index()
 	else {
 		qp_logdbg("IB: Found correct pkey_index (%d) for pkey '%d'", m_pkey_index, m_pkey);
 	}
+#ifdef DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN
+	/* m_underly_qpn is introduced to detect if current qp_mgr is able to
+	 * use associated qp.
+	 * It is set to non zero value if OFED supports such possibility only but final
+	 * decision can be made just after attempt to create qp. The value of
+	 * m_underly_qpn is reverted to zero if function to qp creation returns
+	 * failure.
+	 * So zero value for this field means no such capability.
+	 */
+	m_underly_qpn = m_p_ring->get_qpn();
+	qp_logdbg("IB: Use qpn = 0x%X", m_underly_qpn);
+#endif /* DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN */
 }
