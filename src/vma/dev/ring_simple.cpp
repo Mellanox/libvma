@@ -321,25 +321,26 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	ring_logdbg("flow: %s, with sink (%p)", flow_spec_5t.to_str(), sink);
 
 	if (m_flow_tag_enabled && (si != NULL)) {
+		// sockfd=0 is valid too but flow_tag_id=0 is invalid, increment it
+		// effectively limiting our sockfd range to FLOW_TAG_MASK-1
 #ifdef DEFINED_VMAPOLL
-		int	sock_fd = si->get_fd();
+		int	sock_fd = si->get_fd() + 1;
 #else
 		int	sock_fd = 0;
 #endif
 		if (sock_fd > 0) {
 			flow_tag_id = sock_fd & FLOW_TAG_MASK;
 			if ((uint32_t)sock_fd != flow_tag_id) {
-			//  tag_id is out of the range by mask, will not use it
+				//  tag_id is out of the range by mask, will not use it
 				flow_tag_id = 0;
 				ring_logdbg("flow_tag disabled as tag_id: %d is out of mask (%x) range!",
 					    flow_tag_id, FLOW_TAG_MASK);
 			}
-			ring_logdbg("flow: %s, sink:%p sock_fd:%d enabled:%d with id:%d",
-				    flow_spec_5t.to_str(), sink, sock_fd,
-				    m_flow_tag_enabled, flow_tag_id);
+			ring_logdbg("sock_fd:%d enabled:%d with id:%d",
+				    sock_fd-1, m_flow_tag_enabled, flow_tag_id);
 		} else {
 			// 0 - means FT should not be used
-			ring_logdbg("flow_tag disabled as sock_fd <=0!");
+			ring_logdbg("flow_tag disabled as sock_fd by si->get_fd() < 0!");
 		}
 	}
 
@@ -756,7 +757,9 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 
 	if (likely(m_flow_tag_enabled && p_rx_wc_buf_desc->path.rx.flow_tag_id)) {
 		sockinfo* si = NULL;
-		si = static_cast <sockinfo* >(g_p_fd_collection->get_sockfd(p_rx_wc_buf_desc->path.rx.flow_tag_id));
+		// trying to get sockinfo per flow_tag_id-1 as it was incremented at attach
+		// to allow mapping sockfd=0
+		si = static_cast <sockinfo* >(g_p_fd_collection->get_sockfd(p_rx_wc_buf_desc->path.rx.flow_tag_id-1));
 
 		if (likely((si != NULL) && si->flow_tag_enabled())) { 
 			// will process packets with set flow_tag_id and enabled for the socket
