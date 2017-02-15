@@ -153,8 +153,6 @@ public:
 		} tx;
 	} path;
 
-	int		serial_num;
-
 	static inline size_t buffer_node_offset(void) {return NODE_OFFSET(mem_buf_desc_t, buffer_node);}
 	list_node<mem_buf_desc_t, mem_buf_desc_t::buffer_node_offset> buffer_node;
 #ifdef _DEBUG
