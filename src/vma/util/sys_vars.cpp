@@ -367,6 +367,7 @@ bool mce_sys_var::check_cpuinfo_flag(const char* flag)
 		}
 	}
 	free(line);
+	fclose(fp);
 	return (ret);
 }
 

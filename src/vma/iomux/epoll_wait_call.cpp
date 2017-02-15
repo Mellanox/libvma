@@ -195,6 +195,10 @@ bool epoll_wait_call::_wait(int timeout)
 		ready_fds = orig_os_api.epoll_wait(m_epfd, m_p_ready_events, m_maxevents, timeout);
 	}
 
+	if (is_suspend_required()) {
+		usleep(1);
+	}
+
 	if (timeout) {
 		lock();
 		m_epfd_info->return_from_sleep();

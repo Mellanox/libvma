@@ -174,6 +174,8 @@ public:
 	virtual void check_offloaded_rsockets(uint64_t *p_poll_sn);
 
 	virtual bool immidiate_return();
+
+	inline bool is_suspend_required() { return m_b_is_hypervisor; }
 	/**
 	 * @class io_error
 	 * Exception by OS IO functions.
@@ -243,6 +245,7 @@ private:
 	const int32_t m_n_sysvar_select_poll_num;
 	const bool m_b_sysvar_select_poll_os_force;
 	const bool m_b_sysvar_select_handle_cpu_usage_stats;
+	const bool m_b_is_hypervisor;
 
 public:
 protected:
