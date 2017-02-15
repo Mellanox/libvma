@@ -237,10 +237,6 @@ private:
 	uint32_t 			m_n_cq_poll_sn;
 	transport_type_t		m_transport_type;
 	size_t				m_sz_transport_header;
-
-	int 				m_buffer_miss_count; // for stats
-	int 				m_buffer_total_count; // for stats
-	int 				m_buffer_prev_id; // for stats
 	
 	static atomic_t			m_n_cq_id_counter;
 	static uint64_t			m_n_global_sn;
@@ -293,9 +289,6 @@ private:
 
 	// returns safe_mce_sys().qp_compensation_level buffers to global pool
 	void 		return_extra_buffers() __attribute__((noinline));
-
-	// post-recv to a qp
-	inline int 	post_recv_qp(qp_rec *qprec, mem_buf_desc_t *buff);
 
 	void		statistics_print();
 

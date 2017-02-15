@@ -49,9 +49,6 @@
 #include "qp_mgr.h"
 #include "ring_simple.h"
 
-#define BUFF_STAT_REFRESH	65536
-#define BUFF_STAT_THRESHOLD	8
-
 #define MODULE_NAME 		"cqm"
 
 #define cq_logpanic 		__log_info_panic
@@ -122,22 +119,6 @@ inline void cq_mgr::process_recv_buffer(mem_buf_desc_t* p_mem_buf_desc, void* pv
 	}
 }
 
-inline int cq_mgr::post_recv_qp(qp_rec *qprec, mem_buf_desc_t *buff)
-{
-	if (buff->serial_num > m_buffer_prev_id + BUFF_STAT_THRESHOLD)
-		++m_buffer_miss_count;
-	m_buffer_prev_id = buff->serial_num;
-	++m_buffer_total_count;
-
-	if (m_buffer_total_count >= BUFF_STAT_REFRESH) {
-		m_p_cq_stat->buffer_miss_rate = m_buffer_miss_count/(double)m_buffer_total_count;
-		m_buffer_miss_count = 0;
-		m_buffer_total_count = 0;
-	}
-	// buff->p_next_desc = NULL;
-	return qprec->qp->post_recv(buff);
-}
-
 inline void cq_mgr::compensate_qp_poll_failed()
 {
 	// Assume locked!!!
@@ -146,7 +127,7 @@ inline void cq_mgr::compensate_qp_poll_failed()
 		if (likely(m_rx_pool.size() || request_more_buffers())) {
 			do {
 				mem_buf_desc_t *buff_new = m_rx_pool.get_and_pop_front();
-				post_recv_qp(&m_qp_rec, buff_new);
+				m_qp_rec.qp->post_recv(buff_new);
 			} while (--m_qp_rec.debth > 0 && m_rx_pool.size());
 			m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
 		}
@@ -226,11 +207,7 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 	m_p_cq_stat->n_rx_pkt_drop = 0;
 	m_p_cq_stat->n_rx_drained_at_once_max = 0;
 	m_p_cq_stat->n_buffer_pool_len = 0;
-	m_p_cq_stat->buffer_miss_rate = 0.0;
 */
-	m_buffer_miss_count = 0;
-	m_buffer_total_count = 0;
-	m_buffer_prev_id = 0;
 
 	m_sz_transport_header = 0;
 	switch (m_transport_type) {
@@ -330,7 +307,6 @@ void cq_mgr::statistics_print()
 	    m_p_cq_stat->n_rx_drained_at_once_max || m_p_cq_stat->n_buffer_pool_len) {
 		cq_logdbg_no_funcname("Packets dropped: %12llu", m_p_cq_stat->n_rx_pkt_drop);
 		cq_logdbg_no_funcname("Drained max: %17u",  m_p_cq_stat->n_rx_drained_at_once_max);
-		cq_logdbg_no_funcname("Buffer disorder: %11.2f%%", m_p_cq_stat->buffer_miss_rate*100);
 	}
 }
 
@@ -693,14 +669,14 @@ bool cq_mgr::compensate_qp_poll_success(mem_buf_desc_t* buff_cur)
 		if (m_rx_pool.size() || request_more_buffers()) {
 			do {
 				mem_buf_desc_t *buff_new = m_rx_pool.get_and_pop_front();
-				post_recv_qp(&m_qp_rec, buff_new);
+				m_qp_rec.qp->post_recv(buff_new);
 			} while (--m_qp_rec.debth > 0 && m_rx_pool.size());
 			m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
 		}
 		else if (m_b_sysvar_cq_keep_qp_full ||
 				m_qp_rec.debth + MCE_MAX_CQ_POLL_BATCH > (int)m_qp_rec.qp->get_rx_max_wr_num()) {
 			m_p_cq_stat->n_rx_pkt_drop++;
-			post_recv_qp(&m_qp_rec, buff_cur);
+			m_qp_rec.qp->post_recv(buff_cur);
 			--m_qp_rec.debth;
 			return true;
 		}
