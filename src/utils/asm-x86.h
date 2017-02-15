@@ -57,6 +57,16 @@
 	dst += 8;			\
 	src += 8
 
+#define COPY_64B_NT_C(dst, src)	\
+	*dst++ = *src++;	\
+	*dst++ = *src++;	\
+	*dst++ = *src++;	\
+	*dst++ = *src++;	\
+	*dst++ = *src++;	\
+	*dst++ = *src++;	\
+	*dst++ = *src++;	\
+	*dst++ = *src++
+
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
 #endif
