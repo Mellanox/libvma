@@ -402,6 +402,7 @@ struct mce_sys_var {
 	char 		vma_time_measure_filename[FILENAME_MAX];
 	sysctl_reader_t & sysctl_reader;
 	bool		rx_poll_on_tx_tcp;
+	bool		is_hypervisor;
 
 private:
 	void print_vma_load_failure_msg();
@@ -409,6 +410,7 @@ private:
 	int hex_to_cpuset(char *start, cpu_set_t *cpu_set);
 	int env_to_cpuset(char *orig_start, cpu_set_t *cpu_set);
 	void read_env_variable_with_pid(char* mce_sys_name, size_t mce_sys_max_size, char* env_ptr);
+	bool check_cpuinfo_flag(const char* flag);
 
 	// prevent unautothrized creation of objects
 	mce_sys_var () : sysctl_reader(sysctl_reader_t::instance()){
@@ -700,6 +702,8 @@ extern mce_sys_var & safe_mce_sys();
 
 #define MAX_STATS_FD_NUM				1024
 #define MAX_WINDOW_SCALING				14
+
+#define VIRTUALIZATION_FLAG				"hypervisor"
 
 extern bool g_b_exit;
 extern bool g_is_forked_child;

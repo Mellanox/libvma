@@ -350,6 +350,40 @@ void mce_sys_var::read_env_variable_with_pid(char* mce_sys_name, size_t mce_sys_
 	}
 }
 
+bool mce_sys_var::check_cpuinfo_flag(const char* flag)
+{
+	FILE *fp;
+	char *line;
+	bool ret = false;
+
+	fp = fopen("/proc/cpuinfo", "r");
+	if (!fp) {
+		vlog_printf(VLOG_ERROR, "error while fopen\n");
+		print_vma_load_failure_msg();
+		return false;
+	}
+	line = (char*)malloc(MAX_CMD_LINE);
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!line) {
+		vlog_printf(VLOG_ERROR, "error while malloc\n");
+		print_vma_load_failure_msg();
+		goto exit;
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+	while (fgets(line, MAX_CMD_LINE, fp)) {
+		if (strncmp(line, "flags\t", 5) == 0) {
+			if (strstr(line, flag)) {
+				ret = true;
+				goto exit;
+			}
+		}
+	}
+
+exit:
+	fclose(fp);
+	free(line);
+	return ret;
+}
 
 void mce_sys_var::get_env_params()
 {
@@ -635,6 +669,8 @@ void mce_sys_var::get_env_params()
 	default:
 		break;
 	}
+
+	is_hypervisor = check_cpuinfo_flag(VIRTUALIZATION_FLAG);
 
        if ((env_ptr = getenv(SYS_VAR_SPEC_PARAM1)) != NULL)
 		mce_spec_param1 = (uint32_t)atoi(env_ptr);
