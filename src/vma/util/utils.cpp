@@ -224,7 +224,7 @@ unsigned short compute_udp_checksum_rx(const struct iphdr *p_iphdr, const struct
     unsigned short udp_len = htons(udphdrp->len);
     const uint16_t *p_ip_payload = (const uint16_t *) udphdrp;
     mem_buf_desc_t *p_ip_frag = p_rx_wc_buf_desc;
-    unsigned short ip_frag_len = p_ip_frag->path.rx.frag.iov_len + sizeof(struct udphdr);
+    unsigned short ip_frag_len = p_ip_frag->rx.frag.iov_len + sizeof(struct udphdr);
     unsigned short ip_frag_remainder = ip_frag_len;
 
     //add the pseudo header
@@ -243,8 +243,8 @@ unsigned short compute_udp_checksum_rx(const struct iphdr *p_iphdr, const struct
         // Each packet but the last must contain a payload length that is a multiple of 8
         if (!ip_frag_remainder && p_ip_frag->p_next_desc) {
             p_ip_frag = p_ip_frag->p_next_desc;
-            p_ip_payload = (const uint16_t *) p_ip_frag->path.rx.frag.iov_base;
-            ip_frag_remainder = ip_frag_len = p_ip_frag->path.rx.frag.iov_len;
+            p_ip_payload = (const uint16_t *) p_ip_frag->rx.frag.iov_base;
+            ip_frag_remainder = ip_frag_len = p_ip_frag->rx.frag.iov_len;
         }
 
         while (ip_frag_remainder > 1) {

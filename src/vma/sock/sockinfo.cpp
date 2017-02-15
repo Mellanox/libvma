@@ -1049,8 +1049,8 @@ void sockinfo::move_owned_rx_ready_descs(const mem_buf_desc_owner* p_desc_owner,
 		m_n_rx_pkt_ready_list_count--;
 		m_p_socket_stats->n_rx_ready_pkt_count--;
 
-		m_rx_ready_byte_count -= temp->path.rx.sz_payload;
-		m_p_socket_stats->n_rx_ready_byte_count -= temp->path.rx.sz_payload;
+		m_rx_ready_byte_count -= temp->rx.sz_payload;
+		m_p_socket_stats->n_rx_ready_byte_count -= temp->rx.sz_payload;
 		toq->push_back(temp);
 	}
 }

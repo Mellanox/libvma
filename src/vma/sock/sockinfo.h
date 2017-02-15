@@ -333,12 +333,12 @@ protected:
 		int rx_pkt_ready_offset = m_rx_pkt_ready_offset;
 
 		pdesc = get_front_m_rx_pkt_ready_list();
-		void *iov_base = (uint8_t*)pdesc->path.rx.frag.iov_base + m_rx_pkt_ready_offset;
-		size_t bytes_left = pdesc->path.rx.frag.iov_len - m_rx_pkt_ready_offset;
-		size_t payload_size = pdesc->path.rx.sz_payload;
+		void *iov_base = (uint8_t*)pdesc->rx.frag.iov_base + m_rx_pkt_ready_offset;
+		size_t bytes_left = pdesc->rx.frag.iov_len - m_rx_pkt_ready_offset;
+		size_t payload_size = pdesc->rx.sz_payload;
 
 		if (__from && __fromlen)
-			fetch_peer_info(&pdesc->path.rx.src, __from, __fromlen);
+			fetch_peer_info(&pdesc->rx.src, __from, __fromlen);
 
 		if (in_flags & MSG_VMA_ZCOPY) {
 			relase_buff = false;
@@ -367,8 +367,8 @@ protected:
 						}
 						m_rx_pkt_ready_offset = 0;
 						if (pdesc) {
-							iov_base = pdesc->path.rx.frag.iov_base;
-							bytes_left = pdesc->path.rx.frag.iov_len;
+							iov_base = pdesc->rx.frag.iov_base;
+							bytes_left = pdesc->rx.frag.iov_len;
 						}
 					}
 
@@ -402,7 +402,7 @@ protected:
             descq_t *rx_reuse = &iter->second->rx_reuse_info.rx_reuse;
             int& n_buff_num = iter->second->rx_reuse_info.n_buff_num;
             rx_reuse->push_back(buff);
-            n_buff_num += buff->n_frags;
+            n_buff_num += buff->rx.n_frags;
             if(n_buff_num < m_n_sysvar_rx_num_buffs_reuse){
         	    return;
             }
