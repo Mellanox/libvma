@@ -1400,7 +1400,7 @@ void sockinfo_udp::handle_recv_timestamping(struct cmsg_state *cm_state)
 	memset(&tsing, 0, sizeof(tsing));
 
 	mem_buf_desc_t* packet = m_rx_pkt_ready_list.front();
-	struct timespec* packet_systime = &packet->path.rx.sw_timestamp;
+	struct timespec* packet_systime = &packet->path.rx.udp.sw_timestamp;
 
 	// Only fill in SO_TIMESTAMPNS if both requested.
 	// This matches the kernel behavior.
@@ -1421,11 +1421,11 @@ void sockinfo_udp::handle_recv_timestamping(struct cmsg_state *cm_state)
 	}
 
 	if (m_n_tsing_flags & SOF_TIMESTAMPING_SOFTWARE) {
-		tsing.systime = packet->path.rx.sw_timestamp;
+		tsing.systime = packet->path.rx.udp.sw_timestamp;
 	}
 
 	if (m_n_tsing_flags & SOF_TIMESTAMPING_RAW_HARDWARE) {
-		tsing.hwtimeraw = packet->path.rx.hw_timestamp;
+		tsing.hwtimeraw = packet->path.rx.udp.hw_timestamp;
 	}
 
 	insert_cmsg(cm_state, SOL_SOCKET, SO_TIMESTAMPING, &tsing, sizeof(tsing));
@@ -1434,14 +1434,14 @@ void sockinfo_udp::handle_recv_timestamping(struct cmsg_state *cm_state)
 void sockinfo_udp::handle_ip_pktinfo(struct cmsg_state * cm_state)
 {
 	struct in_pktinfo in_pktinfo;
-	rx_net_device_map_t::iterator iter = m_rx_nd_map.find(m_rx_pkt_ready_list.front()->path.rx.local_if);
+	rx_net_device_map_t::iterator iter = m_rx_nd_map.find(m_rx_pkt_ready_list.front()->path.rx.udp.local_if);
 	if (iter == m_rx_nd_map.end()) {
-		si_udp_logerr("could not find net device for ip %d.%d.%d.%d", NIPQUAD(m_rx_pkt_ready_list.front()->path.rx.local_if));
+		si_udp_logerr("could not find net device for ip %d.%d.%d.%d", NIPQUAD(m_rx_pkt_ready_list.front()->path.rx.udp.local_if));
 		return;
 	}
 	in_pktinfo.ipi_ifindex = iter->second.p_ndv->get_if_idx();
 	in_pktinfo.ipi_addr = m_rx_pkt_ready_list.front()->path.rx.dst.sin_addr;
-	in_pktinfo.ipi_spec_dst.s_addr = m_rx_pkt_ready_list.front()->path.rx.local_if;
+	in_pktinfo.ipi_spec_dst.s_addr = m_rx_pkt_ready_list.front()->path.rx.udp.local_if;
 	insert_cmsg(cm_state, IPPROTO_IP, IP_PKTINFO, &in_pktinfo, sizeof(struct in_pktinfo));
 }
 
@@ -1799,7 +1799,7 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 	// if loopback is disabled, discard loopback packets.
 	// in linux, loopback control (set by setsockopt) is done in TX flow.
 	// since we currently can't control it in TX, we behave like windows, which filter on RX
-	if (unlikely(!m_b_mc_tx_loop && p_desc->path.rx.local_if == p_desc->path.rx.src.sin_addr.s_addr)) {
+	if (unlikely(!m_b_mc_tx_loop && p_desc->path.rx.udp.local_if == p_desc->path.rx.src.sin_addr.s_addr)) {
 		si_udp_logfunc("rx packet discarded - loopback is disabled (pkt: [%d:%d:%d:%d], sock:%s)",
 			NIPQUAD(p_desc->path.rx.src.sin_addr.s_addr), m_bound.to_str_in_addr());
 		return false;
@@ -1856,15 +1856,15 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 	if ((m_b_rcvtstamp ||
 		 (m_n_tsing_flags &
 		  (SOF_TIMESTAMPING_RX_SOFTWARE | SOF_TIMESTAMPING_SOFTWARE))) &&
-		!p_desc->path.rx.sw_timestamp.tv_sec) {
-		clock_gettime(CLOCK_REALTIME, &(p_desc->path.rx.sw_timestamp));
+		!p_desc->path.rx.udp.sw_timestamp.tv_sec) {
+		clock_gettime(CLOCK_REALTIME, &(p_desc->path.rx.udp.sw_timestamp));
 	}
 
 	// convert hw timestamp to system time
 	if (m_n_tsing_flags & SOF_TIMESTAMPING_RAW_HARDWARE) {
 		ring_simple* owner_ring = (ring_simple*) p_desc->p_desc_owner;
 		if (owner_ring) {
-			owner_ring->convert_hw_time_to_system_time(p_desc->path.rx.hw_raw_timestamp, &p_desc->path.rx.hw_timestamp);
+			owner_ring->convert_hw_time_to_system_time(p_desc->path.rx.hw_raw_timestamp, &p_desc->path.rx.udp.hw_timestamp);
 		}
 	}
 
@@ -1881,10 +1881,10 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 		pkt_info.socket_ready_queue_pkt_count = m_p_socket_stats->n_rx_ready_pkt_count;
 		pkt_info.socket_ready_queue_byte_count = m_p_socket_stats->n_rx_ready_byte_count;
 		if (m_n_tsing_flags & SOF_TIMESTAMPING_RAW_HARDWARE) {
-			pkt_info.hw_timestamp = p_desc->path.rx.hw_timestamp;
+			pkt_info.hw_timestamp = p_desc->path.rx.udp.hw_timestamp;
 		}
-		if (p_desc->path.rx.sw_timestamp.tv_sec) {
-			pkt_info.sw_timestamp = p_desc->path.rx.sw_timestamp;
+		if (p_desc->path.rx.udp.sw_timestamp.tv_sec) {
+			pkt_info.sw_timestamp = p_desc->path.rx.udp.sw_timestamp;
 		}
 
 		// fill io vector array with data buffer pointers

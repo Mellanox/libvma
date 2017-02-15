@@ -614,18 +614,9 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 		p_mem_buf_desc->p_prev_desc = NULL;
 	}
 
-	p_mem_buf_desc->is_rx_sw_csum_need = is_rx_sw_csum_need;
+	p_mem_buf_desc->path.rx.is_sw_csum_need = is_rx_sw_csum_need;
 
 	if (likely(vma_wc_opcode(*p_wce) & VMA_IBV_WC_RECV)) {
-		p_mem_buf_desc->path.rx.qpn = p_wce->qp_num; //todo not used
-#if 0 // Removed VLAN support in VMA, until we start using the new OFED vlan scheme.
-		if(p_wce->wc_flags & IBV_WC_WITH_VLAN) {
-			p_mem_buf_desc->path.rx.vlan = p_wce->pkey_index;
-			//cq_logfunc("qpn %u p_wce->pkey_index %d p_wce->sl %d", p_mem_buf_desc->path.rx.qpn, p_mem_buf_desc->path.rx.vlan, p_wce->sl >> 1);
-		}
-		else
-#endif
-			p_mem_buf_desc->path.rx.vlan = 0; //todo not used
 		// Save recevied total bytes
 		p_mem_buf_desc->sz_data = p_wce->byte_len;
 
@@ -707,18 +698,18 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 				temp->p_next_desc = NULL;
 				temp->p_prev_desc = NULL;
 				temp->reset_ref_count();
-				temp->path.rx.gro = 0;
+				temp->path.rx.tcp.gro = 0;
 				temp->path.rx.is_vma_thr = false;
 #ifdef DEFINED_VMAPOLL				
 				temp->path.rx.vma_polled = false;
 #endif // DEFINED_VMAPOLL				
-				temp->path.rx.p_ip_h = NULL;
-				temp->path.rx.p_tcp_h = NULL;
-				temp->path.rx.sw_timestamp.tv_nsec = 0;
-				temp->path.rx.sw_timestamp.tv_sec = 0;
-				temp->path.rx.hw_timestamp.tv_nsec = 0;
-				temp->path.rx.hw_timestamp.tv_sec = 0;
-				// temp->path.rx.hw_raw_timestamp = 0; 	Union field. Already set to 0 in hw_timestamp struct 
+				temp->path.rx.tcp.p_ip_h = NULL;
+				temp->path.rx.tcp.p_tcp_h = NULL;
+				temp->path.rx.udp.sw_timestamp.tv_nsec = 0;
+				temp->path.rx.udp.sw_timestamp.tv_sec = 0;
+				temp->path.rx.udp.hw_timestamp.tv_nsec = 0;
+				temp->path.rx.udp.hw_timestamp.tv_sec = 0;
+				temp->path.rx.hw_raw_timestamp = 0;
 				free_lwip_pbuf(&temp->lwip_pbuf);
 				m_rx_pool.push_back(temp);
 			}
@@ -748,15 +739,16 @@ void cq_mgr::vma_poll_reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 				temp->p_next_desc = NULL;
 				temp->p_prev_desc = NULL;
 				temp->reset_ref_count();
-				temp->path.rx.gro = 0;
+				temp->path.rx.tcp.gro = 0;
 				temp->path.rx.is_vma_thr = false;
 				temp->path.rx.vma_polled = false;
-				temp->path.rx.p_ip_h = NULL;
-				temp->path.rx.p_tcp_h = NULL;
-				temp->path.rx.sw_timestamp.tv_nsec = 0;
-				temp->path.rx.sw_timestamp.tv_sec = 0;
-				temp->path.rx.hw_timestamp.tv_nsec = 0;
-				temp->path.rx.hw_timestamp.tv_sec = 0;
+				temp->path.rx.tcp.p_ip_h = NULL;
+				temp->path.rx.tcp.p_tcp_h = NULL;
+				temp->path.rx.udp.sw_timestamp.tv_nsec = 0;
+				temp->path.rx.udp.sw_timestamp.tv_sec = 0;
+				temp->path.rx.udp.hw_timestamp.tv_nsec = 0;
+				temp->path.rx.udp.hw_timestamp.tv_sec = 0;
+				temp->path.rx.hw_raw_timestamp = 0;
 				free_lwip_pbuf(&temp->lwip_pbuf);
 				m_rx_pool.push_back(temp);
 			}
@@ -785,15 +777,16 @@ int cq_mgr::vma_poll_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff)
 		buff->p_next_desc = NULL;
 		buff->p_prev_desc = NULL;
 		buff->reset_ref_count();
-		buff->path.rx.gro = 0;
+		buff->path.rx.tcp.gro = 0;
 		buff->path.rx.is_vma_thr = false;
 		buff->path.rx.vma_polled = false;
-		buff->path.rx.p_ip_h = NULL;
-		buff->path.rx.p_tcp_h = NULL;
-		buff->path.rx.sw_timestamp.tv_nsec = 0;
-		buff->path.rx.sw_timestamp.tv_sec = 0;
-		buff->path.rx.hw_timestamp.tv_nsec = 0;
-		buff->path.rx.hw_timestamp.tv_sec = 0;
+		buff->path.rx.tcp.p_ip_h = NULL;
+		buff->path.rx.tcp.p_tcp_h = NULL;
+		buff->path.rx.udp.sw_timestamp.tv_nsec = 0;
+		buff->path.rx.udp.sw_timestamp.tv_sec = 0;
+		buff->path.rx.udp.hw_timestamp.tv_nsec = 0;
+		buff->path.rx.udp.hw_timestamp.tv_sec = 0;
+		temp->path.rx.hw_raw_timestamp = 0;
 		free_lwip_pbuf(&buff->lwip_pbuf);
 		m_rx_pool.push_back(buff);
 		m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();

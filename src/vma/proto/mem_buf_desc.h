@@ -36,7 +36,6 @@
 
 #include <netinet/in.h>
 #include "utils/atomic.h"
-#include "vma/util/vtypes.h" // for unlikely
 #include "vma/util/vma_list.h"
 #include "vma/lwip/pbuf.h"
 
@@ -51,13 +50,6 @@ public:
 	virtual void mem_buf_desc_completion_with_error_tx(mem_buf_desc_t* p_mem_buf_desc) = 0;
 	virtual void mem_buf_desc_return_to_owner_rx(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array = NULL) = 0;
 	virtual void mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc) = 0;
-};
-
-
-struct ibv_send_wr_ud {
-	struct ibv_ah*  ah;
-	uint32_t        remote_qpn;
-	uint32_t        remote_qkey;
 };
 
 /**
@@ -97,67 +89,47 @@ public:
 	inline unsigned int lwip_pbuf_get_ref_count() const {return lwip_pbuf.pbuf.ref;}
 #endif // DEFINED_VMAPOLL
 
-	bool		b_is_tx_mc_loop_dis; // if the mc loop on the tx side is disabled (the loop is per interface)
-	bool		is_rx_sw_csum_need;
 	int8_t		n_frags;	//number of fragments
-	size_t		transport_header_len;
 
 	// Tx: qp_mgr owns the mem_buf_desc and the associated data buffer
 	// Rx: cq_mgr owns the mem_buf_desc and the associated data buffer
 	mem_buf_desc_owner* p_desc_owner;
 
-	union {
-		struct {
-			struct iphdr* 	p_ip_h;
-			struct tcphdr* 	p_tcp_h;
-			uint32_t	gro;		// is gro buff
-			bool 		is_vma_thr; 	// specify whether packet drained from VMA internal thread or from user app thread
-			bool 		is_tcp_ctl;
-			// In network byte ordering
-			sockaddr_in	src;
-			sockaddr_in	dst;
-			in_addr_t	local_if;
-			uint16_t	vlan;
-			uint32_t	qpn;
-
-			// Datagram part base address and length
-			iovec 		frag;
-
-			// this is the total amount of data of the datagram 
-			// if (sz_payload>sz_data) means fragmented datagram packet )
-			size_t		sz_payload;
-
-			struct timespec sw_timestamp;
-			union {
-				struct timespec	hw_timestamp;
-				uint64_t	hw_raw_timestamp;
-			};
-
-			void* 		context;
-#ifdef DEFINED_VMAPOLL 
-			bool 		vma_polled;
-#endif // DEFINED_VMAPOLL 			
-		} rx;
-		struct {
-			ibv_send_wr_ud 	wr_ud_info;
-			size_t		sz_tx_offset; // Offset of data start from allocated p_buffer
-
-			// We use these pointer when we want to copy the users
-			// tx data buffer once into the INLINE area in the SGE
-			uint8_t*	p_buffer_header;
-			uint8_t*	p_buffer_user;
-			size_t		sz_data_header;  // this is the amount of data inside the header buffer
-			size_t		sz_data_user;  // this is the amount of data inside the users buffer
-			bool		is_signaled; // send signaled or not?
-			bool		hwcsum;		// do hardware checksums
-		} tx;
-	} path;
-
 	static inline size_t buffer_node_offset(void) {return NODE_OFFSET(mem_buf_desc_t, buffer_node);}
 	list_node<mem_buf_desc_t, mem_buf_desc_t::buffer_node_offset> buffer_node;
-#ifdef _DEBUG
-	uint8_t		n_ref_count_dbg;	// Debug mode following the desc usage
-#endif
+
+	struct {
+		struct {
+			bool 		is_vma_thr; 	// specify whether packet drained from VMA internal thread or from user app thread
+			bool		is_sw_csum_need; // specify if software checksum is need for this packet
+
+			sockaddr_in	src; // L3 info
+			sockaddr_in	dst; // L3 info
+
+			iovec 		frag; // Datagram part base address and length
+			size_t		sz_payload; // This is the total amount of data of the packet, if (sz_payload>sz_data) means fragmented packet.
+			uint64_t	hw_raw_timestamp;
+			void* 		context;
+
+#ifdef DEFINED_VMAPOLL
+			bool 		vma_polled;
+#endif // DEFINED_VMAPOLL
+
+			union {
+				struct {
+					struct iphdr* 	p_ip_h;
+					struct tcphdr* 	p_tcp_h;
+					size_t		n_transport_header_len;
+					bool		gro;
+				} tcp;
+				struct {
+					in_addr_t	local_if; // L3 info
+					struct timespec sw_timestamp;
+					struct timespec	hw_timestamp;
+				} udp;
+			};
+		} rx;
+	} path;
 };
 
 typedef vma_list_t<mem_buf_desc_t, mem_buf_desc_t::buffer_node_offset> descq_t;

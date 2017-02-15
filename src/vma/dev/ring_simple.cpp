@@ -697,8 +697,8 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 		p_ip_h = (struct iphdr*)(p_rx_wc_buf_desc->p_buffer + transport_header_len);
 		ip_hdr_len = 20; //(int)(p_ip_h->ihl)*4;
 		struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
-		p_rx_wc_buf_desc->path.rx.p_ip_h        = p_ip_h;
-		p_rx_wc_buf_desc->path.rx.p_tcp_h       = p_tcp_h;
+		p_rx_wc_buf_desc->path.rx.tcp.p_ip_h        = p_ip_h;
+		p_rx_wc_buf_desc->path.rx.tcp.p_tcp_h       = p_tcp_h;
 		p_rx_wc_buf_desc->transport_header_len  = transport_header_len;
 		p_rx_wc_buf_desc->path.rx.vma_polled = true;
 		p_rfs_single_tcp->rx_dispatch_packet(p_rx_wc_buf_desc, NULL);
@@ -863,7 +863,6 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 	p_rx_wc_buf_desc->path.rx.src.sin_addr.s_addr = p_ip_h->saddr;
 	p_rx_wc_buf_desc->path.rx.dst.sin_family      = AF_INET;
 	p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr = p_ip_h->daddr;
-	p_rx_wc_buf_desc->path.rx.local_if            = m_local_if;
 
 	switch (p_ip_h->protocol) {
 	case IPPROTO_UDP:
@@ -877,6 +876,9 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 		// Update packet descriptor with datagram base address and length
 		p_rx_wc_buf_desc->path.rx.frag.iov_base = (uint8_t*)p_udp_h + sizeof(struct udphdr);
 		p_rx_wc_buf_desc->path.rx.frag.iov_len  = ip_tot_len - ip_hdr_len - sizeof(struct udphdr);
+
+		// Update the L3 info
+		p_rx_wc_buf_desc->path.rx.udp.local_if        = m_local_if;
 
 		// Update the L4 info
 		p_rx_wc_buf_desc->path.rx.src.sin_port        = p_udp_h->source;
@@ -914,8 +916,8 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 		p_rx_wc_buf_desc->path.rx.dst.sin_port        = p_tcp_h->dest;
 		p_rx_wc_buf_desc->path.rx.sz_payload          = sz_payload;
 
-		p_rx_wc_buf_desc->path.rx.p_ip_h = p_ip_h;
-		p_rx_wc_buf_desc->path.rx.p_tcp_h = p_tcp_h;
+		p_rx_wc_buf_desc->path.rx.tcp.p_ip_h = p_ip_h;
+		p_rx_wc_buf_desc->path.rx.tcp.p_tcp_h = p_tcp_h;
 
 		// Find the relevant hash map and pass the packet to the rfs for dispatching
 		p_rfs = m_flow_tcp_map.get((flow_spec_tcp_key_t){p_rx_wc_buf_desc->path.rx.src.sin_addr.s_addr,
@@ -979,8 +981,8 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 		p_ip_h = (struct iphdr*)(p_rx_wc_buf_desc->p_buffer + transport_header_len);
 		ip_hdr_len = 20; //(int)(p_ip_h->ihl)*4;
 		struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
-		p_rx_wc_buf_desc->path.rx.p_ip_h        = p_ip_h;
-		p_rx_wc_buf_desc->path.rx.p_tcp_h       = p_tcp_h;
+		p_rx_wc_buf_desc->path.rx.tcp.p_ip_h        = p_ip_h;
+		p_rx_wc_buf_desc->path.rx.tcp.p_tcp_h       = p_tcp_h;
 		p_rx_wc_buf_desc->transport_header_len  = transport_header_len;
 		return p_rfs_single_tcp->rx_dispatch_packet(p_rx_wc_buf_desc, pv_fd_ready_array);
 	}
@@ -1146,7 +1148,7 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 #endif
 	}
 
-	if (p_rx_wc_buf_desc->is_rx_sw_csum_need && compute_ip_checksum((unsigned short*)p_ip_h, p_ip_h->ihl * 2)) {
+	if (p_rx_wc_buf_desc->path.rx.is_sw_csum_need && compute_ip_checksum((unsigned short*)p_ip_h, p_ip_h->ihl * 2)) {
 		return false; // false ip checksum
 	}
 
@@ -1165,7 +1167,6 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 	p_rx_wc_buf_desc->path.rx.src.sin_addr.s_addr = p_ip_h->saddr;
 	p_rx_wc_buf_desc->path.rx.dst.sin_family      = AF_INET;
 	p_rx_wc_buf_desc->path.rx.dst.sin_addr.s_addr = p_ip_h->daddr;
-	p_rx_wc_buf_desc->path.rx.local_if            = m_local_if;
 
 	switch (p_ip_h->protocol) {
 	case IPPROTO_UDP:
@@ -1177,13 +1178,16 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 		p_rx_wc_buf_desc->path.rx.frag.iov_base = (uint8_t*)p_udp_h + sizeof(struct udphdr);
 		p_rx_wc_buf_desc->path.rx.frag.iov_len  = ip_tot_len - ip_hdr_len - sizeof(struct udphdr);
 
-		if (p_rx_wc_buf_desc->is_rx_sw_csum_need && p_udp_h->check && compute_udp_checksum_rx(p_ip_h, p_udp_h, p_rx_wc_buf_desc)) {
+		if (p_rx_wc_buf_desc->path.rx.is_sw_csum_need && p_udp_h->check && compute_udp_checksum_rx(p_ip_h, p_udp_h, p_rx_wc_buf_desc)) {
 			return false; // false udp checksum
 		}
 
 		size_t sz_payload = ntohs(p_udp_h->len) - sizeof(struct udphdr);
 		ring_logfunc("Rx udp datagram info: src_port=%d, dst_port=%d, payload_sz=%d, csum=%#x",
 				ntohs(p_udp_h->source), ntohs(p_udp_h->dest), sz_payload, p_udp_h->check);
+
+		// Update the L3 info
+		p_rx_wc_buf_desc->path.rx.udp.local_if        = m_local_if;
 
 		// Update the L4 info
 		p_rx_wc_buf_desc->path.rx.src.sin_port        = p_udp_h->source;
@@ -1205,7 +1209,7 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 		// Get the tcp header pointer + tcp payload size
 		struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
 
-		if (p_rx_wc_buf_desc->is_rx_sw_csum_need && compute_tcp_checksum(p_ip_h, (unsigned short*) p_tcp_h)) {
+		if (p_rx_wc_buf_desc->path.rx.is_sw_csum_need && compute_tcp_checksum(p_ip_h, (unsigned short*) p_tcp_h)) {
 			return false; // false tcp checksum
 		}
 
@@ -1226,14 +1230,14 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 		p_rx_wc_buf_desc->path.rx.dst.sin_port        = p_tcp_h->dest;
 		p_rx_wc_buf_desc->path.rx.sz_payload          = sz_payload;
 
-		p_rx_wc_buf_desc->path.rx.p_ip_h = p_ip_h;
-		p_rx_wc_buf_desc->path.rx.p_tcp_h = p_tcp_h;
+		p_rx_wc_buf_desc->path.rx.tcp.p_ip_h = p_ip_h;
+		p_rx_wc_buf_desc->path.rx.tcp.p_tcp_h = p_tcp_h;
 
 		// Find the relevant hash map and pass the packet to the rfs for dispatching
 		p_rfs = m_flow_tcp_map.get(flow_spec_tcp_key_t(p_rx_wc_buf_desc->path.rx.src.sin_addr.s_addr,
 			p_rx_wc_buf_desc->path.rx.dst.sin_port, p_rx_wc_buf_desc->path.rx.src.sin_port), NULL);
 
-		p_rx_wc_buf_desc->transport_header_len = transport_header_len;
+		p_rx_wc_buf_desc->path.rx.tcp.n_transport_header_len = transport_header_len;
 
 		if (unlikely(p_rfs == NULL)) {	// If we didn't find a match for TCP 5T, look for a match with TCP 3T
 			p_rfs = m_flow_tcp_map.get(flow_spec_tcp_key_t(0, p_rx_wc_buf_desc->path.rx.dst.sin_port, 0), NULL);

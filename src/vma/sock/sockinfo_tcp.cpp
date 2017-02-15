@@ -122,11 +122,11 @@ inline void sockinfo_tcp::unlock_tcp_con()
 inline void sockinfo_tcp::init_pbuf_custom(mem_buf_desc_t *p_desc)
 {
 	p_desc->lwip_pbuf.pbuf.flags = PBUF_FLAG_IS_CUSTOM;
-	p_desc->lwip_pbuf.pbuf.len = p_desc->lwip_pbuf.pbuf.tot_len = (p_desc->sz_data - p_desc->transport_header_len);
+	p_desc->lwip_pbuf.pbuf.len = p_desc->lwip_pbuf.pbuf.tot_len = (p_desc->sz_data - p_desc->path.rx.tcp.n_transport_header_len);
 	p_desc->lwip_pbuf.pbuf.ref = 1;
 	p_desc->lwip_pbuf.pbuf.type = PBUF_REF;
 	p_desc->lwip_pbuf.pbuf.next = NULL;
-	p_desc->lwip_pbuf.pbuf.payload = (u8_t *)p_desc->p_buffer + p_desc->transport_header_len;
+	p_desc->lwip_pbuf.pbuf.payload = (u8_t *)p_desc->p_buffer + p_desc->path.rx.tcp.n_transport_header_len;
 }
 
 /* change default rx_wait impl to flow based one */
@@ -1068,10 +1068,10 @@ bool sockinfo_tcp::process_peer_ctl_packets(vma_desc_list_t &peer_packets)
 		sockinfo_tcp *sock = (sockinfo_tcp*)pcb->my_container;
 
 		if (sock == this) { // my socket - consider the backlog for the case I am listen socket
-			if (m_syn_received.size() >= (size_t)m_backlog && desc->path.rx.p_tcp_h->syn) {
+			if (m_syn_received.size() >= (size_t)m_backlog && desc->path.rx.tcp.p_tcp_h->syn) {
 				m_tcp_con_lock.unlock();
 				break; // skip to next peer
-			} else if (safe_mce_sys().tcp_max_syn_rate && desc->path.rx.p_tcp_h->syn) {
+			} else if (safe_mce_sys().tcp_max_syn_rate && desc->path.rx.tcp.p_tcp_h->syn) {
 				static tscval_t tsc_delay = get_tsc_rate_per_second() / safe_mce_sys().tcp_max_syn_rate;
 				tscval_t tsc_now;
 				gettimeoftsc(&tsc_now);
@@ -1738,10 +1738,10 @@ void sockinfo_tcp::queue_rx_ctl_packet(struct tcp_pcb* pcb, mem_buf_desc_t *p_de
 {
 	/* in tcp_ctl_thread mode, always lock the child first*/
 	p_desc->inc_ref_count();
-	if (!p_desc->path.rx.gro)
+	if (!p_desc->path.rx.tcp.gro)
 		init_pbuf_custom(p_desc);
 	else
-		p_desc->path.rx.gro = 0;
+		p_desc->path.rx.tcp.gro = 0;
 	sockinfo_tcp *sock = (sockinfo_tcp*)pcb->my_container;
 
 	sock->m_rx_ctl_packets_list_lock.lock();
@@ -1792,7 +1792,7 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 			unsigned int num_con_waiting = m_rx_peer_packets.size();
 
 			// 1st - check established backlog
-			if(num_con_waiting > 0 || (m_syn_received.size() >= (size_t)m_backlog && p_rx_pkt_mem_buf_desc_info->path.rx.p_tcp_h->syn) ) {
+			if(num_con_waiting > 0 || (m_syn_received.size() >= (size_t)m_backlog && p_rx_pkt_mem_buf_desc_info->path.rx.tcp.p_tcp_h->syn) ) {
 				established_backlog_full = true;
 			}
 
@@ -1824,8 +1824,8 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	}
 	p_rx_pkt_mem_buf_desc_info->inc_ref_count();
 
-	if (!p_rx_pkt_mem_buf_desc_info->path.rx.gro) init_pbuf_custom(p_rx_pkt_mem_buf_desc_info);
-	else p_rx_pkt_mem_buf_desc_info->path.rx.gro = 0;
+	if (!p_rx_pkt_mem_buf_desc_info->path.rx.tcp.gro) init_pbuf_custom(p_rx_pkt_mem_buf_desc_info);
+	else p_rx_pkt_mem_buf_desc_info->path.rx.tcp.gro = 0;
 
 	dropped_count = m_rx_cb_dropped_list.size();
 
