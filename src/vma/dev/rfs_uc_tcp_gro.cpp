@@ -51,8 +51,8 @@ rfs_uc_tcp_gro::rfs_uc_tcp_gro(flow_tuple *flow_spec_5t, ring_simple *p_ring, rf
 
 bool rfs_uc_tcp_gro::rx_dispatch_packet(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void* pv_fd_ready_array /* = NULL */)
 {
-	struct iphdr* p_ip_h = p_rx_pkt_mem_buf_desc_info->path.rx.tcp.p_ip_h;
-	struct tcphdr* p_tcp_h = p_rx_pkt_mem_buf_desc_info->path.rx.tcp.p_tcp_h;
+	struct iphdr* p_ip_h = p_rx_pkt_mem_buf_desc_info->rx.tcp.p_ip_h;
+	struct tcphdr* p_tcp_h = p_rx_pkt_mem_buf_desc_info->rx.tcp.p_tcp_h;
 
 	if (!m_b_active) {
 		if (!m_b_reserved && m_p_gro_mgr->is_stream_max()) {
@@ -100,8 +100,8 @@ out:
 void rfs_uc_tcp_gro::add_packet(mem_buf_desc_t* mem_buf_desc, struct iphdr* p_ip_h, tcphdr* p_tcp_h)
 {
 	m_gro_desc.buf_count++;
-	m_gro_desc.ip_tot_len += mem_buf_desc->path.rx.sz_payload;
-	m_gro_desc.next_seq += mem_buf_desc->path.rx.sz_payload;
+	m_gro_desc.ip_tot_len += mem_buf_desc->rx.sz_payload;
+	m_gro_desc.next_seq += mem_buf_desc->rx.sz_payload;
 	m_gro_desc.wnd = p_tcp_h->window;
 	m_gro_desc.ack = p_tcp_h->ack_seq;
 
@@ -114,11 +114,11 @@ void rfs_uc_tcp_gro::add_packet(mem_buf_desc_t* mem_buf_desc, struct iphdr* p_ip
 	mem_buf_desc->reset_ref_count();
 
 	mem_buf_desc->lwip_pbuf.pbuf.flags = PBUF_FLAG_IS_CUSTOM;
-	mem_buf_desc->lwip_pbuf.pbuf.len = mem_buf_desc->lwip_pbuf.pbuf.tot_len = mem_buf_desc->path.rx.sz_payload;
+	mem_buf_desc->lwip_pbuf.pbuf.len = mem_buf_desc->lwip_pbuf.pbuf.tot_len = mem_buf_desc->rx.sz_payload;
 	mem_buf_desc->lwip_pbuf.pbuf.ref = 1;
 	mem_buf_desc->lwip_pbuf.pbuf.type = PBUF_REF;
 	mem_buf_desc->lwip_pbuf.pbuf.next = NULL;
-	mem_buf_desc->lwip_pbuf.pbuf.payload = (u8_t *)mem_buf_desc->p_buffer + mem_buf_desc->path.rx.tcp.n_transport_header_len + ntohs(p_ip_h->tot_len) - mem_buf_desc->path.rx.sz_payload;
+	mem_buf_desc->lwip_pbuf.pbuf.payload = (u8_t *)mem_buf_desc->p_buffer + mem_buf_desc->rx.tcp.n_transport_header_len + ntohs(p_ip_h->tot_len) - mem_buf_desc->rx.sz_payload;
 
 
 	m_gro_desc.p_last->lwip_pbuf.pbuf.next = &(mem_buf_desc->lwip_pbuf.pbuf);
@@ -153,14 +153,14 @@ void rfs_uc_tcp_gro::flush_gro_desc(void* pv_fd_ready_array)
 			p_tcp_ts_h->popts[2] = m_gro_desc.tsecr;
 		}
 
-		m_gro_desc.p_first->path.rx.tcp.gro = 1;
+		m_gro_desc.p_first->rx.tcp.gro = 1;
 
 		m_gro_desc.p_first->lwip_pbuf.pbuf.flags = PBUF_FLAG_IS_CUSTOM;
-		m_gro_desc.p_first->lwip_pbuf.pbuf.tot_len = m_gro_desc.p_first->lwip_pbuf.pbuf.len = (m_gro_desc.p_first->sz_data - m_gro_desc.p_first->path.rx.tcp.n_transport_header_len);
+		m_gro_desc.p_first->lwip_pbuf.pbuf.tot_len = m_gro_desc.p_first->lwip_pbuf.pbuf.len = (m_gro_desc.p_first->sz_data - m_gro_desc.p_first->rx.tcp.n_transport_header_len);
 		m_gro_desc.p_first->lwip_pbuf.pbuf.ref = 1;
 		m_gro_desc.p_first->lwip_pbuf.pbuf.type = PBUF_REF;
-		m_gro_desc.p_first->lwip_pbuf.pbuf.payload = (u8_t *)(m_gro_desc.p_first->p_buffer + m_gro_desc.p_first->path.rx.tcp.n_transport_header_len);
-		m_gro_desc.p_first->path.rx.is_vma_thr = m_gro_desc.p_last->path.rx.is_vma_thr;
+		m_gro_desc.p_first->lwip_pbuf.pbuf.payload = (u8_t *)(m_gro_desc.p_first->p_buffer + m_gro_desc.p_first->rx.tcp.n_transport_header_len);
+		m_gro_desc.p_first->rx.is_vma_thr = m_gro_desc.p_last->rx.is_vma_thr;
 
 		for (mem_buf_desc_t* p_desc = m_gro_desc.p_last; p_desc != m_gro_desc.p_first; p_desc = p_desc->p_prev_desc) {
 			p_desc->p_prev_desc->lwip_pbuf.pbuf.tot_len += p_desc->lwip_pbuf.pbuf.tot_len;
@@ -189,7 +189,7 @@ void rfs_uc_tcp_gro::init_gro_desc(mem_buf_desc_t* mem_buf_desc, iphdr* p_ip_h, 
 	m_gro_desc.p_tcp_h = p_tcp_h;
 	m_gro_desc.ip_tot_len = ntohs(p_ip_h->tot_len);
 	m_gro_desc.ack = p_tcp_h->ack_seq;
-	m_gro_desc.next_seq = ntohl(p_tcp_h->seq) + mem_buf_desc->path.rx.sz_payload;
+	m_gro_desc.next_seq = ntohl(p_tcp_h->seq) + mem_buf_desc->rx.sz_payload;
 	m_gro_desc.wnd = p_tcp_h->window;
 	m_gro_desc.ts_present = 0;
 	if (p_tcp_h->doff == TCP_H_LEN_TIMESTAMP) {
@@ -203,7 +203,7 @@ void rfs_uc_tcp_gro::init_gro_desc(mem_buf_desc_t* mem_buf_desc, iphdr* p_ip_h, 
 bool rfs_uc_tcp_gro::tcp_ip_check(mem_buf_desc_t* mem_buf_desc, iphdr* p_ip_h, tcphdr* p_tcp_h)
 {
 
-	if (mem_buf_desc->path.rx.sz_payload == 0) {
+	if (mem_buf_desc->rx.sz_payload == 0) {
 		return false;
 	}
 

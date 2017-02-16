@@ -1239,9 +1239,9 @@ void sockinfo_udp::rx_ready_byte_count_limit_update(size_t n_rx_ready_bytes_limi
 			mem_buf_desc_t* p_rx_pkt_desc = m_rx_pkt_ready_list.front();
 			m_rx_pkt_ready_list.pop_front();
 			m_n_rx_pkt_ready_list_count--;
-			m_rx_ready_byte_count -= p_rx_pkt_desc->path.rx.sz_payload;
+			m_rx_ready_byte_count -= p_rx_pkt_desc->rx.sz_payload;
 			m_p_socket_stats->n_rx_ready_pkt_count--;
-			m_p_socket_stats->n_rx_ready_byte_count -= p_rx_pkt_desc->path.rx.sz_payload;
+			m_p_socket_stats->n_rx_ready_byte_count -= p_rx_pkt_desc->rx.sz_payload;
 
 			reuse_buffer(p_rx_pkt_desc);
 			return_reuse_buffers_postponed();
@@ -1400,7 +1400,7 @@ void sockinfo_udp::handle_recv_timestamping(struct cmsg_state *cm_state)
 	memset(&tsing, 0, sizeof(tsing));
 
 	mem_buf_desc_t* packet = m_rx_pkt_ready_list.front();
-	struct timespec* packet_systime = &packet->path.rx.udp.sw_timestamp;
+	struct timespec* packet_systime = &packet->rx.udp.sw_timestamp;
 
 	// Only fill in SO_TIMESTAMPNS if both requested.
 	// This matches the kernel behavior.
@@ -1421,11 +1421,11 @@ void sockinfo_udp::handle_recv_timestamping(struct cmsg_state *cm_state)
 	}
 
 	if (m_n_tsing_flags & SOF_TIMESTAMPING_SOFTWARE) {
-		tsing.systime = packet->path.rx.udp.sw_timestamp;
+		tsing.systime = packet->rx.udp.sw_timestamp;
 	}
 
 	if (m_n_tsing_flags & SOF_TIMESTAMPING_RAW_HARDWARE) {
-		tsing.hwtimeraw = packet->path.rx.udp.hw_timestamp;
+		tsing.hwtimeraw = packet->rx.udp.hw_timestamp;
 	}
 
 	insert_cmsg(cm_state, SOL_SOCKET, SO_TIMESTAMPING, &tsing, sizeof(tsing));
@@ -1434,14 +1434,14 @@ void sockinfo_udp::handle_recv_timestamping(struct cmsg_state *cm_state)
 void sockinfo_udp::handle_ip_pktinfo(struct cmsg_state * cm_state)
 {
 	struct in_pktinfo in_pktinfo;
-	rx_net_device_map_t::iterator iter = m_rx_nd_map.find(m_rx_pkt_ready_list.front()->path.rx.udp.local_if);
+	rx_net_device_map_t::iterator iter = m_rx_nd_map.find(m_rx_pkt_ready_list.front()->rx.udp.local_if);
 	if (iter == m_rx_nd_map.end()) {
-		si_udp_logerr("could not find net device for ip %d.%d.%d.%d", NIPQUAD(m_rx_pkt_ready_list.front()->path.rx.udp.local_if));
+		si_udp_logerr("could not find net device for ip %d.%d.%d.%d", NIPQUAD(m_rx_pkt_ready_list.front()->rx.udp.local_if));
 		return;
 	}
 	in_pktinfo.ipi_ifindex = iter->second.p_ndv->get_if_idx();
-	in_pktinfo.ipi_addr = m_rx_pkt_ready_list.front()->path.rx.dst.sin_addr;
-	in_pktinfo.ipi_spec_dst.s_addr = m_rx_pkt_ready_list.front()->path.rx.udp.local_if;
+	in_pktinfo.ipi_addr = m_rx_pkt_ready_list.front()->rx.dst.sin_addr;
+	in_pktinfo.ipi_spec_dst.s_addr = m_rx_pkt_ready_list.front()->rx.udp.local_if;
 	insert_cmsg(cm_state, IPPROTO_IP, IP_PKTINFO, &in_pktinfo, sizeof(struct in_pktinfo));
 }
 
@@ -1776,22 +1776,22 @@ bool sockinfo_udp::tx_check_if_would_not_block()
 bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 {
 	// Check that sockinfo is bound to the packets dest port
-	if (unlikely(p_desc->path.rx.dst.sin_port != m_bound.get_in_port())) {
+	if (unlikely(p_desc->rx.dst.sin_port != m_bound.get_in_port())) {
 		si_udp_logfunc("rx packet discarded - not socket's bound port (pkt: %d, sock:%s)",
-		           ntohs(p_desc->path.rx.dst.sin_port), m_bound.to_str_in_port());
+		           ntohs(p_desc->rx.dst.sin_port), m_bound.to_str_in_port());
 		return false;
 	}
 
 	if (m_connected.get_in_port() != INPORT_ANY && m_connected.get_in_addr() != INADDR_ANY) {
-		if (unlikely(m_connected.get_in_port() != p_desc->path.rx.src.sin_port)) {
+		if (unlikely(m_connected.get_in_port() != p_desc->rx.src.sin_port)) {
 			si_udp_logfunc("rx packet discarded - not socket's connected port (pkt: %d, sock:%s)",
-				   ntohs(p_desc->path.rx.src.sin_port), m_connected.to_str_in_port());
+				   ntohs(p_desc->rx.src.sin_port), m_connected.to_str_in_port());
 			return false;
 		}
 
-		if (unlikely(m_connected.get_in_addr() != p_desc->path.rx.src.sin_addr.s_addr)) {
+		if (unlikely(m_connected.get_in_addr() != p_desc->rx.src.sin_addr.s_addr)) {
 			si_udp_logfunc("rx packet discarded - not socket's connected port (pkt: [%d:%d:%d:%d], sock:[%s])",
-				   NIPQUAD(p_desc->path.rx.src.sin_addr.s_addr), m_connected.to_str_in_addr());
+				   NIPQUAD(p_desc->rx.src.sin_addr.s_addr), m_connected.to_str_in_addr());
 			return false;
 		}
 	}
@@ -1799,9 +1799,9 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 	// if loopback is disabled, discard loopback packets.
 	// in linux, loopback control (set by setsockopt) is done in TX flow.
 	// since we currently can't control it in TX, we behave like windows, which filter on RX
-	if (unlikely(!m_b_mc_tx_loop && p_desc->path.rx.udp.local_if == p_desc->path.rx.src.sin_addr.s_addr)) {
+	if (unlikely(!m_b_mc_tx_loop && p_desc->rx.udp.local_if == p_desc->rx.src.sin_addr.s_addr)) {
 		si_udp_logfunc("rx packet discarded - loopback is disabled (pkt: [%d:%d:%d:%d], sock:%s)",
-			NIPQUAD(p_desc->path.rx.src.sin_addr.s_addr), m_bound.to_str_in_addr());
+			NIPQUAD(p_desc->rx.src.sin_addr.s_addr), m_bound.to_str_in_addr());
 		return false;
 	}
 
@@ -1822,14 +1822,14 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 			continue;
 		}
 		m_port_map_lock.unlock();
-		p_desc->path.rx.dst.sin_port = new_port;
+		p_desc->rx.dst.sin_port = new_port;
 		return ((sockinfo_udp*)sock_api)->rx_input_cb(p_desc, pv_fd_ready_array);
 	}
 
 	// Check if sockinfo rx byte quato reached - then disregard this packet
 	if (unlikely(m_p_socket_stats->n_rx_ready_byte_count >= m_p_socket_stats->n_rx_ready_byte_limit)) {
 		si_udp_logfunc("rx packet discarded - socket limit reached (%d bytes)", m_p_socket_stats->n_rx_ready_byte_limit);
-		m_p_socket_stats->counters.n_rx_ready_byte_drop += p_desc->path.rx.sz_payload;
+		m_p_socket_stats->counters.n_rx_ready_byte_drop += p_desc->rx.sz_payload;
 		m_p_socket_stats->counters.n_rx_ready_pkt_drop++;
 		return false;
 	}
@@ -1840,9 +1840,9 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 	}
 
 	if (m_mc_num_grp_with_src_filter) {
-		in_addr_t mc_grp = p_desc->path.rx.dst.sin_addr.s_addr;
+		in_addr_t mc_grp = p_desc->rx.dst.sin_addr.s_addr;
 		if (IN_MULTICAST_N(mc_grp)) {
-			in_addr_t mc_src = p_desc->path.rx.src.sin_addr.s_addr;
+			in_addr_t mc_src = p_desc->rx.src.sin_addr.s_addr;
 
 			if ((m_mc_memberships_map.find(mc_grp) == m_mc_memberships_map.end()) ||
 				((0 < m_mc_memberships_map[mc_grp].size()) &&
@@ -1856,15 +1856,15 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 	if ((m_b_rcvtstamp ||
 		 (m_n_tsing_flags &
 		  (SOF_TIMESTAMPING_RX_SOFTWARE | SOF_TIMESTAMPING_SOFTWARE))) &&
-		!p_desc->path.rx.udp.sw_timestamp.tv_sec) {
-		clock_gettime(CLOCK_REALTIME, &(p_desc->path.rx.udp.sw_timestamp));
+		!p_desc->rx.udp.sw_timestamp.tv_sec) {
+		clock_gettime(CLOCK_REALTIME, &(p_desc->rx.udp.sw_timestamp));
 	}
 
 	// convert hw timestamp to system time
 	if (m_n_tsing_flags & SOF_TIMESTAMPING_RAW_HARDWARE) {
 		ring_simple* owner_ring = (ring_simple*) p_desc->p_desc_owner;
 		if (owner_ring) {
-			owner_ring->convert_hw_time_to_system_time(p_desc->path.rx.hw_raw_timestamp, &p_desc->path.rx.udp.hw_timestamp);
+			owner_ring->convert_hw_time_to_system_time(p_desc->rx.hw_raw_timestamp, &p_desc->rx.udp.hw_timestamp);
 		}
 	}
 
@@ -1876,22 +1876,22 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 
 		pkt_info.struct_sz = sizeof(pkt_info);
 		pkt_info.packet_id = (void*)p_desc;
-		pkt_info.src = &p_desc->path.rx.src;
-		pkt_info.dst = &p_desc->path.rx.dst;
+		pkt_info.src = &p_desc->rx.src;
+		pkt_info.dst = &p_desc->rx.dst;
 		pkt_info.socket_ready_queue_pkt_count = m_p_socket_stats->n_rx_ready_pkt_count;
 		pkt_info.socket_ready_queue_byte_count = m_p_socket_stats->n_rx_ready_byte_count;
 		if (m_n_tsing_flags & SOF_TIMESTAMPING_RAW_HARDWARE) {
-			pkt_info.hw_timestamp = p_desc->path.rx.udp.hw_timestamp;
+			pkt_info.hw_timestamp = p_desc->rx.udp.hw_timestamp;
 		}
-		if (p_desc->path.rx.udp.sw_timestamp.tv_sec) {
-			pkt_info.sw_timestamp = p_desc->path.rx.udp.sw_timestamp;
+		if (p_desc->rx.udp.sw_timestamp.tv_sec) {
+			pkt_info.sw_timestamp = p_desc->rx.udp.sw_timestamp;
 		}
 
 		// fill io vector array with data buffer pointers
 		iovec iov[p_desc->n_frags];
 		nr_frags = 0;
 		for (tmp = p_desc; tmp; tmp = tmp->p_next_desc) {
-			iov[nr_frags++] = tmp->path.rx.frag;
+			iov[nr_frags++] = tmp->rx.frag;
 		}
 
 		// call user callback
@@ -1917,7 +1917,7 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 	mem_buf_desc_t *tmp_p;
 
 	/* Try to process vma_poll() completion directly */
-	if (p_desc->path.rx.vma_polled) {
+	if (p_desc->rx.vma_polled) {
 		m_vma_poll_completion = m_p_rx_ring->get_comp();
 		m_vma_poll_last_buff_lst = NULL;
 	}
@@ -1930,15 +1930,15 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 
 	completion->packet.buff_lst = (struct vma_buff_t*)p_desc;
 	completion->packet.total_len = 0;
-	completion->src = p_desc->path.rx.src;
+	completion->src = p_desc->rx.src;
 	completion->packet.num_bufs = p_desc->n_frags;
 
 	for(tmp_p = p_desc; tmp_p; tmp_p = tmp_p->p_next_desc) {
 		completion->packet.buff_lst = (struct vma_buff_t*)tmp_p;
 		completion->packet.buff_lst->next = (struct vma_buff_t*)tmp_p->p_next_desc;
-		completion->packet.buff_lst->len = p_desc->path.rx.frag.iov_len;
-		completion->packet.buff_lst->payload = p_desc->path.rx.frag.iov_base;
-		completion->packet.total_len += tmp_p->path.rx.sz_payload;
+		completion->packet.buff_lst->len = p_desc->rx.frag.iov_len;
+		completion->packet.buff_lst->payload = p_desc->rx.frag.iov_base;
+		completion->packet.total_len += tmp_p->rx.sz_payload;
 	}
 	NOTIFY_ON_EVENTS(this, VMA_POLL_PACKET);
 
@@ -1951,9 +1951,9 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 		// Save rx packet info in our ready list
 		m_rx_pkt_ready_list.push_back(p_desc);
 		m_n_rx_pkt_ready_list_count++;
-		m_rx_ready_byte_count += p_desc->path.rx.sz_payload;
+		m_rx_ready_byte_count += p_desc->rx.sz_payload;
 		m_p_socket_stats->n_rx_ready_pkt_count++;
-		m_p_socket_stats->n_rx_ready_byte_count += p_desc->path.rx.sz_payload;
+		m_p_socket_stats->n_rx_ready_byte_count += p_desc->rx.sz_payload;
 		m_p_socket_stats->counters.n_rx_ready_pkt_max = max((uint32_t)m_p_socket_stats->n_rx_ready_pkt_count, m_p_socket_stats->counters.n_rx_ready_pkt_max);
 		m_p_socket_stats->counters.n_rx_ready_byte_max = max((uint32_t)m_p_socket_stats->n_rx_ready_byte_count, m_p_socket_stats->counters.n_rx_ready_byte_max);
 		do_wakeup();
@@ -2405,8 +2405,8 @@ int sockinfo_udp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *p_desc, int *p_flag
 			*p_flags = MSG_TRUNC;
 			break;
 		}
-		p_packets->pkts[0].iov[p_packets->pkts[0].sz_iov++] = p_desc_iter->path.rx.frag;
-		total_rx += p_desc_iter->path.rx.frag.iov_len;
+		p_packets->pkts[0].iov[p_packets->pkts[0].sz_iov++] = p_desc_iter->rx.frag;
+		total_rx += p_desc_iter->rx.frag.iov_len;
 	}
 
 	m_p_socket_stats->n_rx_zcopy_pkt_count++;

@@ -99,37 +99,35 @@ public:
 	list_node<mem_buf_desc_t, mem_buf_desc_t::buffer_node_offset> buffer_node;
 
 	struct {
-		struct {
-			bool 		is_vma_thr; 	// specify whether packet drained from VMA internal thread or from user app thread
-			bool		is_sw_csum_need; // specify if software checksum is need for this packet
+		bool 		is_vma_thr; 	// specify whether packet drained from VMA internal thread or from user app thread
+		bool		is_sw_csum_need; // specify if software checksum is need for this packet
 
-			sockaddr_in	src; // L3 info
-			sockaddr_in	dst; // L3 info
+		sockaddr_in	src; // L3 info
+		sockaddr_in	dst; // L3 info
 
-			iovec 		frag; // Datagram part base address and length
-			size_t		sz_payload; // This is the total amount of data of the packet, if (sz_payload>sz_data) means fragmented packet.
-			uint64_t	hw_raw_timestamp;
-			void* 		context;
+		iovec 		frag; // Datagram part base address and length
+		size_t		sz_payload; // This is the total amount of data of the packet, if (sz_payload>sz_data) means fragmented packet.
+		uint64_t	hw_raw_timestamp;
+		void* 		context;
 
 #ifdef DEFINED_VMAPOLL
-			bool 		vma_polled;
+		bool 		vma_polled;
 #endif // DEFINED_VMAPOLL
 
-			union {
-				struct {
-					struct iphdr* 	p_ip_h;
-					struct tcphdr* 	p_tcp_h;
-					size_t		n_transport_header_len;
-					bool		gro;
-				} tcp;
-				struct {
-					in_addr_t	local_if; // L3 info
-					struct timespec sw_timestamp;
-					struct timespec	hw_timestamp;
-				} udp;
-			};
-		} rx;
-	} path;
+		union {
+			struct {
+				struct iphdr* 	p_ip_h;
+				struct tcphdr* 	p_tcp_h;
+				size_t		n_transport_header_len;
+				bool		gro;
+			} tcp;
+			struct {
+				in_addr_t	local_if; // L3 info
+				struct timespec sw_timestamp;
+				struct timespec	hw_timestamp;
+			} udp;
+		};
+	} rx;
 };
 
 typedef vma_list_t<mem_buf_desc_t, mem_buf_desc_t::buffer_node_offset> descq_t;

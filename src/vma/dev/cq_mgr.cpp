@@ -614,25 +614,25 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 		p_mem_buf_desc->p_prev_desc = NULL;
 	}
 
-	p_mem_buf_desc->path.rx.is_sw_csum_need = is_rx_sw_csum_need;
+	p_mem_buf_desc->rx.is_sw_csum_need = is_rx_sw_csum_need;
 
 	if (likely(vma_wc_opcode(*p_wce) & VMA_IBV_WC_RECV)) {
 		// Save recevied total bytes
 		p_mem_buf_desc->sz_data = p_wce->byte_len;
 
 		//we use context to verify that on reclaim rx buffer path we return the buffer to the right CQ
-		p_mem_buf_desc->path.rx.is_vma_thr = false;		
+		p_mem_buf_desc->rx.is_vma_thr = false;
 #ifdef DEFINED_VMAPOLL		
-		p_mem_buf_desc->path.rx.context = NULL;
-		p_mem_buf_desc->path.rx.vma_polled = false;		
+		p_mem_buf_desc->rx.context = NULL;
+		p_mem_buf_desc->rx.vma_polled = false;
 #else
-		p_mem_buf_desc->path.rx.context = this;
+		p_mem_buf_desc->rx.context = this;
 #endif // DEFINED_VMAPOLL
 
 		//this is not a deadcode if timestamping is defined in verbs API
 		// coverity[dead_error_condition]
 		if (vma_wc_flags(*p_wce) & VMA_IBV_WC_WITH_TIMESTAMP) {
-			p_mem_buf_desc->path.rx.hw_raw_timestamp = vma_wc_timestamp(*p_wce);
+			p_mem_buf_desc->rx.hw_raw_timestamp = vma_wc_timestamp(*p_wce);
 		}
 
 		VALGRIND_MAKE_MEM_DEFINED(p_mem_buf_desc->p_buffer, p_mem_buf_desc->sz_data);
@@ -684,7 +684,7 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 #ifdef DEFINED_VMAPOLL
 		if (likely(buff->p_desc_owner == m_p_ring)) {
 #else
-		if (likely(buff->path.rx.context == this)) {
+		if (likely(buff->rx.context == this)) {
 #endif // DEFINED_VMAPOLL
 			mem_buf_desc_t* temp = NULL;
 			while (buff) {
@@ -698,18 +698,18 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 				temp->p_next_desc = NULL;
 				temp->p_prev_desc = NULL;
 				temp->reset_ref_count();
-				temp->path.rx.tcp.gro = 0;
-				temp->path.rx.is_vma_thr = false;
+				temp->rx.tcp.gro = 0;
+				temp->rx.is_vma_thr = false;
 #ifdef DEFINED_VMAPOLL				
-				temp->path.rx.vma_polled = false;
+				temp->rx.vma_polled = false;
 #endif // DEFINED_VMAPOLL				
-				temp->path.rx.tcp.p_ip_h = NULL;
-				temp->path.rx.tcp.p_tcp_h = NULL;
-				temp->path.rx.udp.sw_timestamp.tv_nsec = 0;
-				temp->path.rx.udp.sw_timestamp.tv_sec = 0;
-				temp->path.rx.udp.hw_timestamp.tv_nsec = 0;
-				temp->path.rx.udp.hw_timestamp.tv_sec = 0;
-				temp->path.rx.hw_raw_timestamp = 0;
+				temp->rx.tcp.p_ip_h = NULL;
+				temp->rx.tcp.p_tcp_h = NULL;
+				temp->rx.udp.sw_timestamp.tv_nsec = 0;
+				temp->rx.udp.sw_timestamp.tv_sec = 0;
+				temp->rx.udp.hw_timestamp.tv_nsec = 0;
+				temp->rx.udp.hw_timestamp.tv_sec = 0;
+				temp->rx.hw_raw_timestamp = 0;
 				free_lwip_pbuf(&temp->lwip_pbuf);
 				m_rx_pool.push_back(temp);
 			}
@@ -739,16 +739,16 @@ void cq_mgr::vma_poll_reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 				temp->p_next_desc = NULL;
 				temp->p_prev_desc = NULL;
 				temp->reset_ref_count();
-				temp->path.rx.tcp.gro = 0;
-				temp->path.rx.is_vma_thr = false;
-				temp->path.rx.vma_polled = false;
-				temp->path.rx.tcp.p_ip_h = NULL;
-				temp->path.rx.tcp.p_tcp_h = NULL;
-				temp->path.rx.udp.sw_timestamp.tv_nsec = 0;
-				temp->path.rx.udp.sw_timestamp.tv_sec = 0;
-				temp->path.rx.udp.hw_timestamp.tv_nsec = 0;
-				temp->path.rx.udp.hw_timestamp.tv_sec = 0;
-				temp->path.rx.hw_raw_timestamp = 0;
+				temp->rx.tcp.gro = 0;
+				temp->rx.is_vma_thr = false;
+				temp->rx.vma_polled = false;
+				temp->rx.tcp.p_ip_h = NULL;
+				temp->rx.tcp.p_tcp_h = NULL;
+				temp->rx.udp.sw_timestamp.tv_nsec = 0;
+				temp->rx.udp.sw_timestamp.tv_sec = 0;
+				temp->rx.udp.hw_timestamp.tv_nsec = 0;
+				temp->rx.udp.hw_timestamp.tv_sec = 0;
+				temp->rx.hw_raw_timestamp = 0;
 				free_lwip_pbuf(&temp->lwip_pbuf);
 				m_rx_pool.push_back(temp);
 			}
@@ -777,16 +777,16 @@ int cq_mgr::vma_poll_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff)
 		buff->p_next_desc = NULL;
 		buff->p_prev_desc = NULL;
 		buff->reset_ref_count();
-		buff->path.rx.tcp.gro = 0;
-		buff->path.rx.is_vma_thr = false;
-		buff->path.rx.vma_polled = false;
-		buff->path.rx.tcp.p_ip_h = NULL;
-		buff->path.rx.tcp.p_tcp_h = NULL;
-		buff->path.rx.udp.sw_timestamp.tv_nsec = 0;
-		buff->path.rx.udp.sw_timestamp.tv_sec = 0;
-		buff->path.rx.udp.hw_timestamp.tv_nsec = 0;
-		buff->path.rx.udp.hw_timestamp.tv_sec = 0;
-		temp->path.rx.hw_raw_timestamp = 0;
+		buff->rx.tcp.gro = 0;
+		buff->rx.is_vma_thr = false;
+		buff->rx.vma_polled = false;
+		buff->rx.tcp.p_ip_h = NULL;
+		buff->rx.tcp.p_tcp_h = NULL;
+		buff->rx.udp.sw_timestamp.tv_nsec = 0;
+		buff->rx.udp.sw_timestamp.tv_sec = 0;
+		buff->rx.udp.hw_timestamp.tv_nsec = 0;
+		buff->rx.udp.hw_timestamp.tv_sec = 0;
+		temp->rx.hw_raw_timestamp = 0;
 		free_lwip_pbuf(&buff->lwip_pbuf);
 		m_rx_pool.push_back(buff);
 		m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
@@ -836,8 +836,8 @@ int cq_mgr::vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 	if (unlikely(m_rx_hot_buff == NULL)) {
 		int index = m_qp->m_mlx5_hw_qp->rq.tail & (m_qp->m_rx_num_wr - 1);
 		m_rx_hot_buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_rq_wqe_idx_to_wrid[index];
-		m_rx_hot_buff->path.rx.context = NULL;
-		m_rx_hot_buff->path.rx.is_vma_thr = false;
+		m_rx_hot_buff->rx.context = NULL;
+		m_rx_hot_buff->rx.is_vma_thr = false;
 	}
 	//prefetch_range((uint8_t*)m_rx_hot_buff->p_buffer,safe_mce_sys().rx_prefetch_bytes_before_poll);
 #ifdef RDTSC_MEASURE_RX_VERBS_READY_POLL
@@ -915,9 +915,9 @@ int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready
 	if (unlikely(m_rx_hot_buff == NULL)) {
 		int index = m_qp->m_mlx5_hw_qp->rq.tail & (m_qp->m_rx_num_wr - 1);
 		m_rx_hot_buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_rq_wqe_idx_to_wrid[index];
-		m_rx_hot_buff->path.rx.context = NULL;
-		m_rx_hot_buff->path.rx.is_vma_thr = false;
-		m_rx_hot_buff->path.rx.vma_polled = false;
+		m_rx_hot_buff->rx.context = NULL;
+		m_rx_hot_buff->rx.is_vma_thr = false;
+		m_rx_hot_buff->rx.vma_polled = false;
 	}
 	else {
 		volatile mlx5_cqe64 *cqe_err = NULL;
@@ -1360,7 +1360,7 @@ int cq_mgr::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/
 					}
 					// We process immediately all non udp/ip traffic..
 					if (procces_now) {
-						m_rx_hot_buff->path.rx.is_vma_thr = true;
+						m_rx_hot_buff->rx.is_vma_thr = true;
 						if ((++m_qp_rec.debth < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
 							!compensate_qp_poll_success(m_rx_hot_buff)) {
 							process_recv_buffer(m_rx_hot_buff, NULL);
@@ -1433,7 +1433,7 @@ int cq_mgr::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/
 					}
 					// We process immediately all non udp/ip traffic..
 					if (procces_now) {
-						buff->path.rx.is_vma_thr = true;
+						buff->rx.is_vma_thr = true;
 						if (!compensate_qp_poll_success(buff)) {
 							process_recv_buffer(buff, NULL);
 						}
