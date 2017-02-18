@@ -63,29 +63,41 @@ bool rfs_mc::prepare_flow_spec()
 	 * if one of these assumptions change, we must lock.
 	 */
 	attach_flow_data_t* 		      p_attach_flow_data = NULL;
-#ifdef DEFINED_IBV_FLOW_SPEC_IB
-	attach_flow_data_ib_t*  	      attach_flow_data_ib = NULL;
-#endif
-	attach_flow_data_eth_ipv4_tcp_udp_t*  attach_flow_data_eth = NULL;
 
 	switch (type) {
 		case VMA_TRANSPORT_IB:
+			{
 			// IB MC flow steering is done only on L2 --> need to zero other fields to get correct behaviour
 			// CX3 HW does not support L3+L4 MC flow steering rule
 #ifdef DEFINED_IBV_FLOW_SPEC_IB
+			attach_flow_data_ib_t*  	      attach_flow_data_ib = NULL;
+
+			if (0 == m_p_ring->m_p_qp_mgr->get_underly_qpn()) {
+				attach_flow_data_ib_v1_t*  attach_flow_data_ib_v1 = NULL;
+
+				attach_flow_data_ib_v1 = new attach_flow_data_ib_v1_t(m_p_ring->m_p_qp_mgr);
+
+				uint8_t dst_gid[16];
+				create_mgid_from_ipv4_mc_ip(dst_gid, m_p_ring->m_p_qp_mgr->get_partiton(), m_flow_tuple.get_dst_ip());
+				ibv_flow_spec_ib_set_by_dst_gid(&(attach_flow_data_ib_v1->ibv_flow_attr.ib),
+							dst_gid);
+
+				p_attach_flow_data = (attach_flow_data_t*)attach_flow_data_ib_v1;
+				break;
+			}
+
 			attach_flow_data_ib = new attach_flow_data_ib_t(m_p_ring->m_p_qp_mgr);
 
-			uint8_t dst_gid[16];
-			create_mgid_from_ipv4_mc_ip(dst_gid, m_p_ring->m_p_qp_mgr->get_partiton(), m_flow_tuple.get_dst_ip());
-			ibv_flow_spec_ib_set_by_dst_gid(&(attach_flow_data_ib->ibv_flow_attr.ib),
-						dst_gid);
-
 			p_attach_flow_data = (attach_flow_data_t*)attach_flow_data_ib;
+			break;
 #else
 			return false;
 #endif
-			break;
+			}
 		case VMA_TRANSPORT_ETH:
+			{
+			attach_flow_data_eth_ipv4_tcp_udp_t*  attach_flow_data_eth = NULL;
+
 			attach_flow_data_eth = new attach_flow_data_eth_ipv4_tcp_udp_t(m_p_ring->m_p_qp_mgr);
 
 			uint8_t dst_mac[6];
@@ -112,6 +124,7 @@ bool rfs_mc::prepare_flow_spec()
 
 			p_attach_flow_data = (attach_flow_data_t*)attach_flow_data_eth;
 			break;
+			}
 		BULLSEYE_EXCLUDE_BLOCK_START
 		default:
 			rfs_logpanic("Incompatible transport type = %d", type);
