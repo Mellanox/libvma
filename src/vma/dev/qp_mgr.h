@@ -121,6 +121,7 @@ public:
 #endif
 	virtual uint16_t	get_pkey_index() const { return 0; };
 	virtual uint16_t	get_partiton() const { return 0; };
+	virtual uint32_t	get_underly_qpn() const { return 0; };
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif
@@ -247,6 +248,7 @@ public:
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif
+	virtual uint32_t	get_underly_qpn() const { return m_underly_qpn; };
 
 protected:
 	virtual int		prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr);
