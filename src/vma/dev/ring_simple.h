@@ -87,6 +87,7 @@ public:
 	inline uint32_t		get_qpn() const { return (m_p_l2_addr ? ((IPoIB_addr *)m_p_l2_addr)->get_qpn() : 0); }
 
 	friend class cq_mgr;
+	friend class cq_mgr_mlx5;
 	friend class qp_mgr;
 	friend class rfs;
 	friend class rfs_uc;

@@ -39,7 +39,6 @@
 REVIEW
 #include <map> probably replaced by atomic.h
 #endif
-
 #include "vma/util/sys_vars.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/util/hash_map.h"
@@ -47,11 +46,10 @@ REVIEW
 #include "vma/proto/mem_buf_desc.h"
 #include "vma/proto/vma_lwip.h"
 #include "vma/dev/ib_ctx_handler.h"
-#ifdef DEFINED_VMAPOLL
+#ifdef HAVE_INFINIBAND_MLX5_HW_H
 #include <infiniband/mlx5_hw.h>
-#endif // DEFINED_VMAPOLL
+#endif
 #include "vma/vma_extra.h"
-
 
 #ifdef DEFINED_VMAPOLL
 	#define IS_VMAPOLL true
@@ -111,11 +109,12 @@ class cq_mgr
 	friend class ring; // need to expose the m_n_global_sn only to ring 
 	friend class ring_simple; // need to expose the m_n_global_sn only to ring
 	friend class ring_bond; // need to expose the m_n_global_sn only to ring
+	friend class cq_mgr_mlx5;
 
 public:
 
 	cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx);
-	~cq_mgr();
+	virtual ~cq_mgr();
 
 	ibv_cq *get_ibv_cq_hndl();
 	int	get_channel_fd();
@@ -167,7 +166,7 @@ public:
 	 * @return  >=0 number of wce processed
 	 *          < 0 error
 	 */
-	int	drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id = NULL);
+	virtual int	drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id = NULL);
 
 	// CQ implements the Rx mem_buf_desc_owner.
 	// These callbacks will be called for each Rx buffer that passed processed completion
@@ -175,8 +174,8 @@ public:
 	void	mem_buf_desc_completion_with_error(mem_buf_desc_t* p_rx_wc_buf_desc);
 	void	mem_buf_desc_return_to_owner(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array = NULL);
 
-	void	add_qp_rx(qp_mgr* qp);
-	void	del_qp_rx(qp_mgr *qp);
+	virtual void	add_qp_rx(qp_mgr* qp);
+	virtual void	del_qp_rx(qp_mgr *qp);
 	
 	void 	add_qp_tx(qp_mgr* qp);
 
@@ -248,7 +247,7 @@ private:
 	 * @p_cq_poll_sn global unique wce id that maps last wce polled
 	 * @return Number of successfully polled wce
 	 */
-	int		poll(vma_ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn);
+	virtual int		poll(vma_ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn);
 
 	/* Process a WCE... meaning...
 	 * - extract the mem_buf_desc from the wce.wr_id and then loop on all linked mem_buf_desc
@@ -256,7 +255,7 @@ private:
 	 * - for Tx wce the data buffers will be released to the associated ring before the mem_buf_desc are returned
 	 */
 	mem_buf_desc_t*	process_cq_element_tx(vma_ibv_wc* p_wce);
-	mem_buf_desc_t*	process_cq_element_rx(vma_ibv_wc* p_wce);
+	virtual mem_buf_desc_t*	process_cq_element_rx(vma_ibv_wc* p_wce);
 
 	/**
 	 * Helper function wrapping the poll and the process functionality in single call
@@ -266,7 +265,7 @@ private:
 #ifdef DEFINED_VMAPOLL	
 	int		vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst);
 #endif // DEFINED_VMAPOLL	
-	int		poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
+	virtual int		poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	int		poll_and_process_helper_tx(uint64_t* p_cq_poll_sn);
 
 	inline void	compensate_qp_poll_failed();
@@ -304,5 +303,35 @@ private:
 // Helper gunction to extract the Tx cq_mgr from the CQ event,
 // Since we have a single TX CQ comp channel for all cq_mgr's, it might not be the active_cq object
 cq_mgr* get_cq_mgr_from_cq_event(struct ibv_comp_channel* p_cq_channel);
+
+#ifdef HAVE_INFINIBAND_MLX5_HW_H
+
+class cq_mgr_mlx5: public cq_mgr
+{
+public:
+	cq_mgr_mlx5(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, uint32_t cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx);
+	virtual ~cq_mgr_mlx5();
+
+	virtual inline mem_buf_desc_t*		poll(uint32_t&	opcode, uint32_t&	status);
+	inline volatile struct mlx5_cqe64*	check_cqe(void);
+	volatile struct mlx5_cqe64*			check_error_completion(uint8_t op_own);
+	inline void							cqe64_to_mem_buff_desc(volatile struct mlx5_cqe64 *cqe, mem_buf_desc_t* p_rx_wc_buf_desc, uint32_t& opcode, uint32_t& status);
+
+	virtual int							drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id = NULL);
+	virtual int							poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
+	virtual mem_buf_desc_t*				process_cq_element_rx(mem_buf_desc_t* p_mem_buf_desc, uint32_t& opcode, uint32_t& status);
+	virtual void						add_qp_rx(qp_mgr* qp);
+	virtual void						del_qp_rx(qp_mgr *qp);
+
+private:
+	uint32_t					m_cq_size;
+	uint32_t					m_cq_cons_index;
+	volatile struct mlx5_cqe64	(*m_cqes)[];
+	volatile uint32_t			*m_cq_dbell;
+	mem_buf_desc_t				*m_rx_hot_buffer;
+	struct mlx5_wq				*m_rq;
+	uint64_t					*m_p_rq_wqe_idx_to_wrid;
+};
+#endif
 
 #endif //CQ_MGR_H
