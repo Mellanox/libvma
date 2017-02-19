@@ -448,4 +448,18 @@ create_vma_exception_class(vma_unsupported_api, vma_error);
 // uses for throwing  something that is derived from vma_error and has similar CTOR; msg will automatically be class name
 #define vma_throw_object(_class)  throw _class(#_class, __PRETTY_FUNCTION__, __FILE__, __LINE__, errno)
 #define vma_throw_object_with_msg(_class, _msg)  throw _class(_msg, __PRETTY_FUNCTION__, __FILE__, __LINE__, errno)
+
+/* Rounding up to nearest power of 2 */
+static inline uint32_t align32pow2(uint32_t x)
+{
+	x--;
+	x |= x >> 1;
+	x |= x >> 2;
+	x |= x >> 4;
+	x |= x >> 8;
+	x |= x >> 16;
+
+	return x + 1;
+}
+
 #endif

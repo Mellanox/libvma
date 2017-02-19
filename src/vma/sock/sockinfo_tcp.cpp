@@ -115,6 +115,7 @@ inline void sockinfo_tcp::unlock_tcp_con()
 	if (m_timer_pending) {
 		tcp_timer();
 	}
+
 	m_tcp_con_lock.unlock();
 }
 
