@@ -30,7 +30,6 @@
  * SOFTWARE.
  */
 
-
 #include "qp_mgr.h"
 #include "utils/bullseye.h"
 #include "vma/util/utils.h"
@@ -73,6 +72,10 @@ qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context, const
 {
 	m_ibv_rx_sg_array = new ibv_sge[m_n_sysvar_rx_num_wr_to_post_recv];
 	m_ibv_rx_wr_array = new ibv_recv_wr[m_n_sysvar_rx_num_wr_to_post_recv];
+
+	m_rq_wqe_counter = 0;
+	m_rq_wqe_idx_to_wrid = (uint64_t*)malloc(m_rx_num_wr * sizeof *m_rq_wqe_idx_to_wrid);
+
 #ifdef DEFINED_VMAPOLL
 	m_rq_wqe_counter = 0;
 	m_sq_wqe_counter = 0;
@@ -119,10 +122,15 @@ qp_mgr::~qp_mgr()
 	delete[] m_ibv_rx_sg_array;
 	delete[] m_ibv_rx_wr_array;
 
+
 #ifdef DEFINED_VMAPOLL
 	munmap(m_rq_wqe_idx_to_wrid, m_rx_num_wr * sizeof(*m_rq_wqe_idx_to_wrid));
 	munmap(m_sq_wqe_idx_to_wrid, m_tx_num_wr * sizeof(*m_sq_wqe_idx_to_wrid));
 #endif // DEFINED_VMAPOLL
+
+	free(m_rq_wqe_idx_to_wrid);
+	m_rq_wqe_idx_to_wrid = NULL;
+
 	qp_logdbg("Rx buffer poll: %d free global buffers available", g_buffer_pool_rx->get_free_count());
 	qp_logdbg("delete done");
 }
@@ -136,7 +144,7 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	vma_ibv_device_attr& r_ibv_dev_attr = m_p_ib_ctx_handler->get_ibv_device_attr();
 	
 	// Check device capabilities for max QP work requests	
-	m_max_qp_wr = ALIGN_WR_DOWN(r_ibv_dev_attr.max_qp_wr - 1);;
+	m_max_qp_wr = ALIGN_WR_DOWN(r_ibv_dev_attr.max_qp_wr - 1);
 	if (m_rx_num_wr > m_max_qp_wr) {
 		qp_logwarn("Allocating only %d Rx QP work requests while user requested %s=%d for QP on <%p, %d>",
 			   m_max_qp_wr, SYS_VAR_RX_NUM_WRE, m_rx_num_wr, m_p_ib_ctx_handler, m_port_num);
@@ -157,7 +165,20 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 		return -1;
 	}
 
+#ifndef DEFINED_VMAPOLL
+	printf("============\n");
+	if (strstr(m_p_ib_ctx_handler->get_ibv_device()->name, "mlx5")) {
+		printf("= Hardware =\n");
+		m_p_cq_mgr_rx = new cq_mgr_mlx5(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
+	} else {
+		printf("= Software =\n");
+		m_p_cq_mgr_rx = new cq_mgr(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
+	}
+	printf("============\n");
+#else
 	m_p_cq_mgr_rx = new cq_mgr(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
+#endif
+
 	if (!m_p_cq_mgr_rx) {
 		qp_logerr("Failed allocating m_p_cq_mgr_rx (errno=%d %m)", errno);
 		return -1;
@@ -201,6 +222,8 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 		return -1;
 	} ENDIF_VERBS_FAILURE;
 
+	struct verbs_qp *vqp = (struct verbs_qp *)m_qp;
+	m_mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
 #ifdef DEFINED_VMAPOLL
 	struct verbs_qp *vqp = (struct verbs_qp *)m_qp;
 	m_mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
@@ -507,6 +530,10 @@ int qp_mgr::post_recv(mem_buf_desc_t* p_mem_buf_desc)
 		m_rq_wqe_counter++;
 #endif // DEFINED_VMAPOLL
 
+		uint32_t index = m_rq_wqe_counter & (m_rx_num_wr - 1);
+		m_rq_wqe_idx_to_wrid[index] = (uintptr_t)p_mem_buf_desc;
+		m_rq_wqe_counter++;
+
 		if (m_curr_rx_wr == m_n_sysvar_rx_num_wr_to_post_recv - 1) {
 
 			m_last_posted_rx_wr_id = (uintptr_t)p_mem_buf_desc;
@@ -519,9 +546,9 @@ int qp_mgr::post_recv(mem_buf_desc_t* p_mem_buf_desc)
 			IF_VERBS_FAILURE(ibv_post_recv(m_qp, &m_ibv_rx_wr_array[0], &bad_wr)) {
 				uint32_t n_pos_bad_rx_wr = ((uint8_t*)bad_wr - (uint8_t*)m_ibv_rx_wr_array) / sizeof(struct ibv_recv_wr);
 				qp_logerr("failed posting list (errno=%d %m)", errno);
-				qp_logdbg("bad_wr is %d in submitted list (bad_wr=%p, m_ibv_rx_wr_array=%p, size=%d)", n_pos_bad_rx_wr, bad_wr, m_ibv_rx_wr_array, sizeof(struct ibv_recv_wr));
-				qp_logdbg("bad_wr info: wr_id=%#x, next=%p, addr=%#x, length=%d, lkey=%#x", bad_wr[0].wr_id, bad_wr[0].next, bad_wr[0].sg_list[0].addr, bad_wr[0].sg_list[0].length, bad_wr[0].sg_list[0].lkey);
-				qp_logdbg("QP current state: %d", priv_ibv_query_qp_state(m_qp));
+				/*qp_logdbg*/qp_logerr("bad_wr is %d in submitted list (bad_wr=%p, m_ibv_rx_wr_array=%p, size=%d)", n_pos_bad_rx_wr, bad_wr, m_ibv_rx_wr_array, sizeof(struct ibv_recv_wr));
+				/*qp_logdbg*/qp_logerr("bad_wr info: wr_id=%#x, next=%p, addr=%#x, length=%d, lkey=%#x", bad_wr[0].wr_id, bad_wr[0].next, bad_wr[0].sg_list[0].addr, bad_wr[0].sg_list[0].length, bad_wr[0].sg_list[0].lkey);
+				/*qp_logdbg*/qp_logerr("QP current state: %d", priv_ibv_query_qp_state(m_qp));
 
 				// Fix broken linked list of rx_wr
 				if (n_pos_bad_rx_wr != (m_n_sysvar_rx_num_wr_to_post_recv - 1)) {
@@ -755,8 +782,8 @@ int qp_mgr_eth::prepare_ibv_qp(struct ibv_qp_init_attr& qp_init_attr)
 	qp_logdbg("");
 	int ret = 0;
 	qp_init_attr.qp_type = IBV_QPT_RAW_PACKET;
-	m_qp = ibv_create_qp(m_p_ib_ctx_handler->get_ibv_pd(), &qp_init_attr);
 
+	m_qp = ibv_create_qp(m_p_ib_ctx_handler->get_ibv_pd(), &qp_init_attr);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_qp) {
 		qp_logerr("ibv_create_qp failed (errno=%d %m)", errno);
