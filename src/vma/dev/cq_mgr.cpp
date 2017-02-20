@@ -1758,6 +1758,14 @@ int		cq_mgr_hw::poll(vma_ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn)
 	NOT_IN_USE(p_cq_poll_sn); // ???? p_cq_poll_sn ?????
 	int ret = 0;
 
+#ifdef RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
+	RDTSC_TAKE_END(RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL);
+#endif //RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
+
+#if defined(RDTSC_MEASURE_RX_VERBS_READY_POLL) || defined(RDTSC_MEASURE_RX_VERBS_IDLE_POLL)
+	RDTSC_TAKE_START_RX_VERBS_POLL(RDTSC_FLOW_RX_VERBS_READY_POLL, RDTSC_FLOW_RX_VERBS_IDLE_POLL);
+#endif //RDTSC_MEASURE_RX_VERBS_READY_POLL || RDTSC_MEASURE_RX_VERBS_IDLE_POLL
+
 	while (ret < num_entries) {
 
 //		volatile mlx5_cqe64 *cqe_err = NULL;
@@ -1798,6 +1806,24 @@ int		cq_mgr_hw::poll(vma_ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn)
 //		*p_cq_poll_sn = m_n_global_sn = next_sn.global_sn;
 //	}
 
+	if (0 < ret) {
+#ifdef RDTSC_MEASURE_RX_VERBS_READY_POLL
+		RDTSC_TAKE_END(RDTSC_FLOW_RX_VERBS_READY_POLL);
+#endif //RDTSC_MEASURE_RX_VERBS_READY_POLL
+
+#ifdef RDTSC_MEASURE_RX_READY_POLL_TO_LWIP
+		RDTSC_TAKE_START(RDTSC_FLOW_RX_READY_POLL_TO_LWIP);
+#endif
+	} else {
+#ifdef RDTSC_MEASURE_RX_VERBS_IDLE_POLL
+		RDTSC_TAKE_END(RDTSC_FLOW_RX_VERBS_IDLE_POLL);
+#endif
+
+#if defined(RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL) || defined(RDTSC_MEASURE_RX_CQE_RECEIVEFROM)
+		RDTSC_TAKE_START_VMA_IDLE_POLL_CQE_TO_RECVFROM(RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL,
+			RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM);
+#endif //RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL || RDTSC_MEASURE_RX_CQE_RECEIVEFROM
+	}
 	return ret;
 }
 
