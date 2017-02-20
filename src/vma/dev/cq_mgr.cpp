@@ -1633,13 +1633,11 @@ cq_mgr_hw::cq_mgr_hw(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int 
 	, m_cq_db(NULL)
 	, m_mlx5_hw_qp(NULL)
 	, m_qp(NULL)
-	, m_p_base_ring(NULL)
 {
 	struct ibv_cq *ibcq = m_p_ibv_cq;
 	m_mlx5_cq = _to_mxxx(cq, cq);
 	m_cq_db = m_mlx5_cq->dbrec;
 	m_mlx5_cqes = (volatile struct mlx5_cqe64 (*)[])(uintptr_t)m_mlx5_cq->active_buf->buf;
-	m_p_base_ring = new a_ring<class a_mgr> ();
 }
 
 cq_mgr_hw::~cq_mgr_hw()

@@ -168,7 +168,7 @@ public:
 	 * @return  >=0 number of wce processed
 	 *          < 0 error
 	 */
-	virtual int	drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id = NULL);
+	int	drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id = NULL);
 
 	// CQ implements the Rx mem_buf_desc_owner.
 	// These callbacks will be called for each Rx buffer that passed processed completion
@@ -340,7 +340,7 @@ public:
 	virtual int							poll(vma_ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn);
 	virtual void						add_qp_rx(qp_mgr* qp);
 	virtual void						del_qp_rx(qp_mgr *qp);
-	virtual int							drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id = NULL);
+//	virtual int							drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id = NULL);
 	inline volatile struct mlx5_cqe64*	mlx5_get_cqe64(void);
 	inline volatile struct mlx5_cqe64*	mlx5_get_cqe64(volatile struct mlx5_cqe64 **cqe_err);
 	volatile struct mlx5_cqe64*			mlx5_check_error_completion(volatile struct mlx5_cqe64 *cqe, volatile uint16_t *ci, uint8_t op_own);
@@ -354,50 +354,6 @@ private:
 	volatile uint32_t 			*m_cq_db;
 	struct mlx5_qp 				*m_mlx5_hw_qp;
 	qp_mgr*						m_qp;
-	class base_ring				*m_p_base_ring;
-};
-
-
-
-class mgr
-{
-public:
-	mgr() {}
-	~mgr() {}
-};
-
-class a_mgr: public mgr
-{
-public:
-	a_mgr() {}
-	~a_mgr() {}
-};
-
-class b_mgr: public mgr
-{
-public:
-	b_mgr() {}
-	~b_mgr() {}
-};
-
-class base_ring
-{
-public:
-	base_ring() {}
-	virtual ~base_ring() {}
-};
-
-
-
-template <class T>
-class a_ring
-{
-public:
-
-	a_ring():m_p_mgr(NULL) { m_p_mgr = new T();}
-	virtual ~a_ring() { delete m_p_mgr;}
-
-	T* m_p_mgr;
 };
 
 #endif //CQ_MGR_H
