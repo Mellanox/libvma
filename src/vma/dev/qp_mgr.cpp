@@ -30,6 +30,7 @@
  * SOFTWARE.
  */
 
+#define DO_SW 0
 
 #include "qp_mgr.h"
 #include "utils/bullseye.h"
@@ -151,7 +152,7 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 		return -1;
 	}
 
-	if (0) {
+	if (DO_SW) {
 		m_p_cq_mgr_rx = new cq_mgr_sw(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
 	} else {
 		m_p_cq_mgr_rx = new cq_mgr_hw(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
