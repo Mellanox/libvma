@@ -827,8 +827,12 @@ void qp_mgr_ib::update_pkey_index()
 	 * m_underly_qpn is reverted to zero if function to qp creation returns
 	 * failure.
 	 * So zero value for this field means no such capability.
+	 * Note: mlx4 does not support this capability. Disable it explicitly because dynamic check
+	 * using ibv_create_qp does not help
 	 */
-	m_underly_qpn = m_p_ring->get_qpn();
-	qp_logdbg("IB: Use qpn = 0x%X", m_underly_qpn);
+	if (strncmp(m_p_ib_ctx_handler->get_ibv_device()->name, "mlx4", 4)) {
+		m_underly_qpn = m_p_ring->get_qpn();
+	}
+	qp_logdbg("IB: Use qpn = 0x%X for device: %s", m_underly_qpn, m_p_ib_ctx_handler->get_ibv_device()->name);
 #endif /* DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN */
 }
