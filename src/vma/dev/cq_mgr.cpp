@@ -1760,11 +1760,12 @@ int		cq_mgr_hw::poll(vma_ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn)
 
 	while (ret < num_entries) {
 
-		volatile mlx5_cqe64 *cqe_err = NULL;
-		volatile mlx5_cqe64 *cqe = mlx5_get_cqe64(&cqe_err);
+//		volatile mlx5_cqe64 *cqe_err = NULL;
+//		volatile mlx5_cqe64 *cqe = mlx5_get_cqe64(&cqe_err);
+		volatile mlx5_cqe64 *cqe = mlx5_get_cqe64();
 
 		if (likely(cqe)) {
-			memset(&p_wce[ret], 0, sizeof(p_wce[ret]));
+//			memset(&p_wce[ret], 0, sizeof(p_wce[ret]));
 			uint32_t index = m_qp->m_mlx5_hw_qp->rq.tail & (m_qp->m_rx_num_wr - 1);
 			p_wce[ret].wr_id = (uintptr_t)m_qp->m_rq_wqe_idx_to_wrid[index];
 			((mem_buf_desc_t*)(p_wce[ret].wr_id))->path.rx.context = NULL;//??
@@ -1772,10 +1773,10 @@ int		cq_mgr_hw::poll(vma_ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn)
 			mlx5_cqe64_to_vma_wc(cqe, &p_wce[ret]);
 			++m_qp->m_mlx5_hw_qp->rq.tail;
 //			printf("cq_mgr_hw:: tail=%u, head=%u\n",m_qp->m_mlx5_hw_qp->rq.tail, m_qp->m_mlx5_hw_qp->rq.head);
-			if (cqe_err) {
-				ret = -1;
-				break;
-			}
+//			if (cqe_err) {
+//				ret = -1;
+//				break;
+//			}
 			++ret;
 		}
 		else {//No more cqes
