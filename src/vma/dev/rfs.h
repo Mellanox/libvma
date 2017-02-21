@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2016.  ALL RIGHTS RESERVED.
  *
  * This software product is a proprietary product of Mellanox Technologies Ltd.
  * (the "Company") and all right, title, and interest in and to the software product,
@@ -72,6 +72,8 @@ typedef struct __attribute__ ((packed)) ibv_flow_attr_ib_ipv4_tcp_udp {
 		attr.flags = VMA_IBV_FLOW_ATTR_FLAGS_ALLOW_LOOP_BACK;
 	}
 } ibv_flow_attr_ib_ipv4_tcp_udp;
+
+
 #else
 //for uc
 typedef struct __attribute__ ((packed)) ibv_flow_attr_ib_ipv4_tcp_udp {
@@ -97,15 +99,21 @@ typedef struct __attribute__ ((packed)) ibv_flow_attr_eth_ipv4_tcp_udp {
 	vma_ibv_flow_spec_eth         eth;
 	vma_ibv_flow_spec_ipv4        ipv4;
 	vma_ibv_flow_spec_tcp_udp     tcp_udp;
+	vma_ibv_flow_spec_action_tag  flow_tag; // should be the latest as struct can be used without it
 
 	ibv_flow_attr_eth_ipv4_tcp_udp(uint8_t port) {
 		memset(this, 0, sizeof(*this));
-		attr.size = sizeof(struct ibv_flow_attr_eth_ipv4_tcp_udp);
+		attr.size = sizeof(struct ibv_flow_attr_eth_ipv4_tcp_udp) - sizeof(flow_tag);
 		attr.num_of_specs = 3;
 		attr.type = VMA_IBV_FLOW_ATTR_NORMAL;
 		attr.priority = 1; // almost highest priority, 0 is used for 5-tuple later
 		attr.port = port;
 	}
+	inline void add_flow_tag_spec(void) {
+		attr.num_of_specs++;
+		attr.size += sizeof(flow_tag);
+	}
+
 } ibv_flow_attr_eth_ipv4_tcp_udp;
 
 #ifdef DEFINED_IBV_FLOW_SPEC_IB
@@ -171,7 +179,8 @@ public:
 class rfs
 {
 public:
-	rfs(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* rule_filter = NULL);
+	rfs(flow_tuple *flow_spec_5t, ring_simple *p_ring,
+	    rfs_rule_filter* rule_filter = NULL, uint32_t flow_tag_id=0);
 	virtual ~rfs();
 
 	/**
@@ -190,12 +199,13 @@ public:
 
 protected:
 	flow_tuple		m_flow_tuple;
-	ring_simple*			m_p_ring;
+	ring_simple*		m_p_ring;
 	rfs_rule_filter*	m_p_rule_filter;
 	attach_flow_data_vector_t m_attach_flow_data_vector;
 	pkt_rcvr_sink**		m_sinks_list;
 	uint32_t 		m_n_sinks_list_entries; // Number of actual sinks in the array (we shrink the array if a sink is removed)
 	uint32_t		m_n_sinks_list_max_length;
+	uint32_t		m_flow_tag_id; // Associated with this rule, set by attach_flow()
 	bool 			m_b_tmp_is_attached; // Only temporary, while ibcm calls attach_flow with no sinks...
 
 	bool 			create_ibv_flow(); // Attach flow to all qps

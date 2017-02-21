@@ -527,6 +527,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_TX_PREFETCH_BYTES			(256)
 #define MCE_DEFAULT_TX_BUFS_BATCH_UDP			(8)
 #define MCE_DEFAULT_TX_BUFS_BATCH_TCP			(16)
+#define MCE_DEFAULT_TX_NUM_SGE				(2)
 #define MCE_DEFAULT_RX_NUM_BUFS				(200000)
 #define MCE_DEFAULT_RX_BUFS_BATCH			(64)
 #define MCE_DEFAULT_RX_NUM_WRE				(1024)

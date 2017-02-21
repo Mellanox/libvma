@@ -232,32 +232,6 @@ void qp_mgr::down()
 	m_p_cq_mgr_rx->del_qp_rx(this);
 }
 
-void qp_mgr::validate_raw_qp_privliges()
-{
-	// Read the value stored for RAW QP root enforcement flag
-
-	// RAW_QP_PRIVLIGES_PARAM_FILE: "/sys/module/ib_uverbs/parameters/disable_raw_qp_enforcement"
-	char raw_qp_privliges_value = 0;
-	if (priv_read_file((const char*)RAW_QP_PRIVLIGES_PARAM_FILE, &raw_qp_privliges_value, 1) <= 0) {
-		vlog_printf(VLOG_WARNING,"******************************************************************************\n");
-		vlog_printf(VLOG_WARNING,"* RAW_PACKET QP type enforcement option does not exist in current OFED version*\n");
-		vlog_printf(VLOG_WARNING,"* Usage will be restricted to root or CAP_NET_RAW privileges.                *\n");
-		vlog_printf(VLOG_WARNING,"******************************************************************************\n");
-		return;
-	}
-	if (raw_qp_privliges_value != '1') {
-		vlog_printf(VLOG_WARNING,"******************************************************************************\n");
-		vlog_printf(VLOG_WARNING,"* Verbs RAW_PACKET QP type creation is limited for root user access          *\n");
-		vlog_printf(VLOG_WARNING,"* Working in this mode might causes VMA malfunction over Ethernet interfaces *\n");
-		vlog_printf(VLOG_WARNING,"* WARNING: the following steps will restart your network interface!          *\n");
-		vlog_printf(VLOG_WARNING,"* 1. \"echo options ib_uverbs disable_raw_qp_enforcement=1 > /etc/modprobe.d/ib_uverbs.conf\" *\n");
-		vlog_printf(VLOG_WARNING,"* 2. \"/etc/init.d/openibd restart\"                                           *\n");
-		vlog_printf(VLOG_WARNING,"* Read the RAW_PACKET QP root access enforcement section in the VMA's User Manual for more information *\n");
-		vlog_printf(VLOG_WARNING,"******************************************************************************\n");
-	}
-	return;
-}
-
 void qp_mgr::modify_qp_to_error_state()
 {
 	qp_logdbg("");
