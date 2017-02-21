@@ -289,7 +289,6 @@ void qp_mgr::modify_qp_to_error_state()
 
 void qp_mgr::release_rx_buffers()
 {
-	printf("1: qp_mgr::release_rx_buffers()\n");
 	int total_ret = m_curr_rx_wr;
 	if (m_curr_rx_wr) {
 		qp_logdbg("Returning %d pending post_recv buffers to CQ owner", m_curr_rx_wr);
@@ -304,7 +303,7 @@ void qp_mgr::release_rx_buffers()
 			}
 		}
 	}
-	printf("2: qp_mgr::release_rx_buffers()\n");
+
 	// Wait for all FLUSHed WQE on Rx CQ
 	qp_logdbg("draining rx cq_mgr %p (last_posted_rx_wr_id = %x)", m_p_cq_mgr_rx, m_last_posted_rx_wr_id);
 	uintptr_t last_polled_rx_wr_id = 0;
@@ -321,7 +320,6 @@ void qp_mgr::release_rx_buffers()
 	}
 	m_last_posted_rx_wr_id = 0; // Clear the posted WR_ID flag, we just clear the entier RQ
 	qp_logdbg("draining completed with a total of %d wce's on rx cq_mgr", total_ret);
-	printf("3: qp_mgr::release_rx_buffers()\n");
 }
 
 void qp_mgr::release_tx_buffers()
