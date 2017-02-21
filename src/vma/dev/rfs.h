@@ -92,11 +92,13 @@ typedef struct __attribute__ ((packed)) attach_flow_data_ib_t {
 	qp_mgr*                                 p_qp_mgr;
 	struct __attribute__ ((packed)) ibv_flow_attr_ib {
 		vma_ibv_flow_attr             attr;
+		vma_ibv_flow_spec_ipv4        ipv4;
+		vma_ibv_flow_spec_tcp_udp     tcp_udp;
 
 		ibv_flow_attr_ib(uint8_t port) {
 			memset(this, 0, sizeof(*this));
 			attr.size = sizeof(struct ibv_flow_attr_ib);
-			attr.num_of_specs = 0;
+			attr.num_of_specs = 2;
 			attr.type = VMA_IBV_FLOW_ATTR_NORMAL;
 			attr.priority = 1; // almost highest priority, 0 is used for 5-tuple later
 			attr.port = port;

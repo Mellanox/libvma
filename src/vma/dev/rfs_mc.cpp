@@ -88,6 +88,15 @@ bool rfs_mc::prepare_flow_spec()
 
 			attach_flow_data_ib = new attach_flow_data_ib_t(m_p_ring->m_p_qp_mgr);
 
+			ibv_flow_spec_ipv4_set(&(attach_flow_data_ib->ibv_flow_attr.ipv4),
+						m_flow_tuple.get_dst_ip(),
+						0);
+
+			ibv_flow_spec_tcp_udp_set(&(attach_flow_data_ib->ibv_flow_attr.tcp_udp),
+						(m_flow_tuple.get_protocol() == PROTO_TCP),
+						m_flow_tuple.get_dst_port(),
+						m_flow_tuple.get_src_port());
+
 			p_attach_flow_data = (attach_flow_data_t*)attach_flow_data_ib;
 			break;
 #else
