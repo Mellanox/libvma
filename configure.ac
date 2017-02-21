@@ -5,7 +5,7 @@ AC_PREREQ(2.59)
 define([vma_ver_major], 99)
 define([vma_ver_minor], 1)
 define([vma_ver_revision], 7)
-define([vma_ver_release], 5)
+define([vma_ver_release], 6)
 
 AC_INIT(libvma, [vma_ver_major.vma_ver_minor.vma_ver_revision], support@mellanox.com)
 AC_DEFINE(VMA_LIBRARY_MAJOR, vma_ver_major, [VMA Major Version])
@@ -42,7 +42,7 @@ VMA_LIBRARY_REVISION=7
 AC_SUBST(VMA_LIBRARY_REVISION)
 
 #VMA_LIBRARY_RELEASE-vma_ver_release
-VMA_LIBRARY_RELEASE=5
+VMA_LIBRARY_RELEASE=6
 AC_SUBST(VMA_LIBRARY_RELEASE)
 
 #LIBALIC_FLAG
