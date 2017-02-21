@@ -35,12 +35,12 @@ char g_rdtsc_flow_names[RDTSC_FLOW_MAX][256] = {
 
 void init_rdtsc()
 {
-	tscval_t start, end, curr;
+	tscval_t start, end;
 
 	gettimeoftsc(&start);
 	for(int i = 0; i < 1000000; i++) {
-		gettimeoftsc(&curr);
-		gettimeoftsc(&curr);
+		RDTSC_TAKE_START(g_rdtsc_instr_info_arr[0]);
+		RDTSC_TAKE_END(g_rdtsc_instr_info_arr[0]);
 	}
 	gettimeoftsc(&end);
 	g_rdtsc_cost = (end - start)/1000000;
@@ -56,13 +56,12 @@ void init_rdtsc()
 
 void print_rdtsc_summary()
 {
-	uint64_t avg;
-
 	vlog_printf(VLOG_ERROR,"*********** RDTSC Summary ************ \n");
 	for(int i = 0; i < RDTSC_FLOW_MAX; i++) {
 		if (g_rdtsc_instr_info_arr[i].counter) {
-			avg = g_rdtsc_instr_info_arr[i].cycles/g_rdtsc_instr_info_arr[i].counter;
-				vlog_printf(VLOG_ERROR,"%s: %" PRIu64 " \n", g_rdtsc_flow_names[g_rdtsc_instr_info_arr[i].trace_log_idx], avg);
+			vlog_printf(VLOG_ERROR,"%s: %" PRIu64 " \n", 
+			g_rdtsc_flow_names[g_rdtsc_instr_info_arr[i].trace_log_idx],
+			g_rdtsc_instr_info_arr[i].cycles);
 		}
 
 	}

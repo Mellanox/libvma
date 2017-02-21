@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2016.  ALL RIGHTS RESERVED.
  *
  * This software product is a proprietary product of Mellanox Technologies Ltd.
  * (the "Company") and all right, title, and interest in and to the software product,
@@ -64,6 +64,7 @@ public:
 	size_t const	sz_buffer; 	// this is the size of the buffer
 	size_t		sz_data;   	// this is the amount of data inside the buffer (sz_data <= sz_buffer)
 	uint32_t	lkey;      	// Buffers lkey for QP access
+	uint32_t	flow_tag_id;	// Flow Tag ID of this received packet
 private:
 	atomic_t	n_ref_count;	// number of interested receivers (sockinfo) [can be modified only in cq_mgr context]
 public:

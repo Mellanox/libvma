@@ -239,3 +239,70 @@ int priv_ibv_query_qp_state(struct ibv_qp *qp)
 	BULLSEYE_EXCLUDE_BLOCK_END
 	return (ibv_qp_state)qp_attr.qp_state;
 }
+
+int priv_ibv_query_flow_tag_state(struct ibv_qp *qp, uint8_t port_num)
+{
+	NOT_IN_USE(qp);
+	NOT_IN_USE(port_num);
+	int res = -1;
+
+#ifdef DEFINED_IBV_EXP_FLOW_TAG
+
+	// Create
+	struct __attribute__ ((packed)) {
+		vma_ibv_flow_attr             attr;
+		vma_ibv_flow_spec_eth         eth;
+		vma_ibv_flow_spec_ipv4        ipv4;
+		vma_ibv_flow_spec_tcp_udp     tcp_udp;
+		vma_ibv_flow_spec_action_tag  flow_tag;
+	} ft_attr;
+
+	// Initialize
+	memset(&ft_attr, 0, sizeof(ft_attr));
+	ft_attr.attr.size = sizeof(ft_attr);
+	ft_attr.attr.num_of_specs = 4;
+	ft_attr.attr.type = VMA_IBV_FLOW_ATTR_NORMAL;
+	ft_attr.attr.priority = 1; // almost highest priority, 0 is used for 5-tuple later
+	ft_attr.attr.port = port_num;
+
+	// Set filters
+	uint8_t mac_0[ETH_ALEN] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	uint8_t mac_f[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+
+	ibv_flow_spec_eth_set(&ft_attr.eth, mac_0 , 0); // L2 filter
+	memcpy(ft_attr.eth.val.src_mac, mac_f, ETH_ALEN);
+	memset(ft_attr.eth.mask.src_mac, FS_MASK_ON_8, ETH_ALEN);
+
+	ibv_flow_spec_ipv4_set(&ft_attr.ipv4, INADDR_LOOPBACK, INADDR_LOOPBACK); // L3 filter
+	ibv_flow_spec_tcp_udp_set(&ft_attr.tcp_udp, true, 0, 0); // L4 filter
+	ibv_flow_spec_flow_tag_set(&ft_attr.flow_tag, FLOW_TAG_MASK-1); // enable flow tag
+
+	// Create flow
+	vma_ibv_flow *ibv_flow = vma_ibv_create_flow(qp, &ft_attr.attr);
+	if (ibv_flow) {
+		res = 0;
+		vma_ibv_destroy_flow(ibv_flow);
+	}
+#endif // DEFINED_IBV_EXP_FLOW_TAG
+
+	return res;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

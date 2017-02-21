@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Mellanox Technologies Ltd. 2001-2013.  ALL RIGHTS RESERVED.
+ * Copyright (C) Mellanox Technologies Ltd. 2001-2016.  ALL RIGHTS RESERVED.
  *
  * This software product is a proprietary product of Mellanox Technologies Ltd.
  * (the "Company") and all right, title, and interest in and to the software product,
@@ -28,6 +28,7 @@ rfs_mc::rfs_mc(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* r
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	prepare_flow_spec();
+
 }
 
 void rfs_mc::prepare_flow_spec()

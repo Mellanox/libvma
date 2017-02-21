@@ -180,7 +180,7 @@ inline cls* fd_collection::get(int fd, cls **map_type)
 		return NULL;
 
 	cls* obj = map_type[fd];
-	fdcoll_logfuncall("fd=%d %sFound", fd, (obj ? "" : "Not "));
+//	fdcoll_logfuncall("fd=%d %sFound", fd, (obj ? "" : "Not "));
 	return obj;
 }
 
