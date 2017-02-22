@@ -62,6 +62,13 @@ void wqe_send_ib_handler::init_inline_ib_wqe(vma_ibv_send_wr &wqe_to_init, struc
 	init_path_record(wqe_to_init, ah, rem_qkey, rem_qpn);
 }
 
+void wqe_send_ib_handler::init_not_inline_ib_wqe(vma_ibv_send_wr &wqe_to_init, struct ibv_sge* sge_list, uint32_t num_sge,
+		    struct ibv_ah *ah, uint32_t rem_qpn, uint32_t rem_qkey)
+{
+	wqe_send_handler::init_not_inline_wqe(wqe_to_init, sge_list, num_sge);
+	init_path_record(wqe_to_init, ah, rem_qkey, rem_qpn);
+}
+
 //code coverage
 #if 0
 void wqe_send_ib_handler::enable_imm_data(vma_ibv_send_wr &send_wqe)

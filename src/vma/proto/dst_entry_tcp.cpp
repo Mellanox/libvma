@@ -64,7 +64,7 @@ transport_t dst_entry_tcp::get_transport(sockaddr_in to)
 	return TRANS_VMA;
 }
 
-ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked /*= true*/, bool is_rexmit /*= false*/, bool dont_inline /*= false*/)
+ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked /*= true*/, bool is_rexmit /*= false*/)
 {
 	tx_packet_template_t* p_pkt;
 	mem_buf_desc_t *p_mem_buf_desc;
@@ -109,9 +109,8 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 					p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.payload, hdr_alignment_diff);
 		}
 
-		if (!dont_inline && (total_packet_len < m_max_inline)) { // inline send
+		if (total_packet_len < m_max_inline) { // inline send
 			m_p_send_wqe = &m_inline_send_wqe;
-
 		} else {
 			m_p_send_wqe = &m_not_inline_send_wqe;
 		}
@@ -244,14 +243,6 @@ void dst_entry_tcp::configure_headers()
 {
 	m_header.init();
 	dst_entry::configure_headers();
-}
-
-bool dst_entry_tcp::conf_hdrs_and_snd_wqe()
-{
-	bool ret_val = dst_entry::conf_hdrs_and_snd_wqe();
-	m_p_send_wqe_handler->enable_hw_csum(m_not_inline_send_wqe);
-
-	return ret_val;
 }
 
 ssize_t dst_entry_tcp::pass_buff_to_neigh(const iovec * p_iov, size_t & sz_iov, uint16_t packet_id)

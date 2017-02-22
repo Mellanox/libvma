@@ -49,7 +49,7 @@ public:
 	dst_entry_tcp(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, int owner_fd);
 	virtual ~dst_entry_tcp();
 
-	virtual ssize_t fast_send(const struct iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked = true, bool is_rexmit = false, bool dont_inline = false);
+	virtual ssize_t fast_send(const struct iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked = true, bool is_rexmit = false);
 	ssize_t slow_send(const iovec* p_iov, size_t sz_iov, bool is_dummy, bool b_blocked = true, bool is_rexmit = false, int flags = 0, socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF);
 	ssize_t slow_send_neigh(const iovec* p_iov, size_t sz_iov);
 
@@ -64,7 +64,6 @@ protected:
 	virtual ibv_sge*	get_sge_lst_4_not_inline_send() { return m_sge; };
 
 	virtual void		configure_headers();
-	virtual bool		conf_hdrs_and_snd_wqe();
 	virtual ssize_t 	pass_buff_to_neigh(const iovec *p_iov, size_t & sz_iov, uint16_t packet_id = 0);
 
 private:

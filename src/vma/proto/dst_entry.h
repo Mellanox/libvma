@@ -67,7 +67,7 @@ public:
 
 	virtual bool 	prepare_to_send(bool skip_rules=false, bool is_connect=false);
 	virtual ssize_t slow_send(const iovec* p_iov, size_t sz_iov, bool is_dummy, bool b_blocked = true, bool is_rexmit = false, int flags = 0, socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF) = 0 ;
-	virtual ssize_t fast_send(const struct iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked = true, bool is_rexmit = false, bool dont_inline = false) = 0;
+	virtual ssize_t fast_send(const struct iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked = true, bool is_rexmit = false) = 0;
 
 	bool		try_migrate_ring(lock_base& socket_lock);
 
@@ -108,6 +108,7 @@ protected:
 	lock_mutex_recursive 	m_slow_path_lock;
 	vma_ibv_send_wr 	m_inline_send_wqe;
 	vma_ibv_send_wr 	m_not_inline_send_wqe;
+	vma_ibv_send_wr 	m_fragmented_send_wqe;
 	wqe_send_handler*	m_p_send_wqe_handler;
 	ibv_sge 		m_sge[MCE_DEFAULT_TX_NUM_SGE];
 	uint8_t 		m_num_sge;
@@ -153,7 +154,7 @@ protected:
 	virtual ssize_t 	pass_buff_to_neigh(const iovec *p_iov, size_t & sz_iov, uint16_t packet_id = 0);
 	virtual void 		configure_ip_header(header *h, uint16_t packet_id = 0);
 	virtual void 		configure_headers() { conf_hdrs_and_snd_wqe();};
-	virtual bool 		conf_hdrs_and_snd_wqe();
+	bool 			conf_hdrs_and_snd_wqe();
 	virtual bool 		conf_l2_hdr_and_snd_wqe_eth();
 	virtual bool 		conf_l2_hdr_and_snd_wqe_ib();
 	virtual void 		init_sge() {};
