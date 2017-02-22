@@ -39,7 +39,8 @@
 #define MODULE_NAME 		"rfs_mc"
 
 
-rfs_mc::rfs_mc(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* rule_filter /*= NULL*/) throw (vma_exception): rfs (flow_spec_5t, p_ring, rule_filter)
+rfs_mc::rfs_mc(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* rule_filter /*= NULL*/, int flow_tag_id /*=0*/) throw (vma_exception):
+	rfs (flow_spec_5t, p_ring, rule_filter, flow_tag_id)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_flow_tuple.is_udp_mc()) {
@@ -130,6 +131,13 @@ bool rfs_mc::prepare_flow_spec()
 						(m_flow_tuple.get_protocol() == PROTO_TCP),
 						m_flow_tuple.get_dst_port(),
 						m_flow_tuple.get_src_port());
+
+			if (m_flow_tag_id) { // Will not attach flow_tag spec to rule for tag_id==0
+				ibv_flow_spec_flow_tag_set(&attach_flow_data_eth->ibv_flow_attr.flow_tag, m_flow_tag_id);
+				attach_flow_data_eth->ibv_flow_attr.add_flow_tag_spec();
+				rfs_logdbg("Adding flow_tag spec to MC rule, num_of_specs: %d flow_tag_id: %d",
+					   attach_flow_data_eth->ibv_flow_attr.attr.num_of_specs, m_flow_tag_id);
+			}
 
 			p_attach_flow_data = (attach_flow_data_t*)attach_flow_data_eth;
 			break;

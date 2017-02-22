@@ -115,6 +115,9 @@ public:
 	int	setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen) throw (vma_error);
 	int	getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen) throw (vma_error);
 
+	inline void set_reuseaddr(bool reuseaddr) { m_reuseaddr = reuseaddr; }
+	virtual bool addr_in_reuse(void) { return m_reuseaddr; }
+
 	/**
 	* Sampling the OS immediately by matching the rx_skip_os counter (m_rx_udp_poll_os_ratio_counter) to the limit (safe_mce_sys().rx_udp_poll_os_ratio)
 	*/
@@ -181,7 +184,6 @@ private:
 		}
 	};
 
-
 /*	in_addr_t 	m_bound_if;
 	in_port_t 	m_bound_port;
 	in_addr_t 	m_connected_ip;
@@ -220,6 +222,8 @@ private:
 	const uint32_t	m_n_sysvar_rx_ready_byte_min_limit;
 	const uint32_t	m_n_sysvar_rx_cq_drain_rate_nsec;
 	const uint32_t	m_n_sysvar_rx_delta_tsc_between_cq_polls;
+
+	bool		m_reuseaddr; // to track setsockopt with SO_REUSEADDR
 
 	int mc_change_membership(const mc_pending_pram *p_mc_pram);
 	int mc_change_membership_start_helper(in_addr_t mc_grp, int optname);

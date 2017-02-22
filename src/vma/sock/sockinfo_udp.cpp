@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -384,6 +384,7 @@ sockinfo_udp::sockinfo_udp(int fd) throw (vma_exception) :
 	,m_n_sysvar_rx_ready_byte_min_limit(safe_mce_sys().rx_ready_byte_min_limit)
 	,m_n_sysvar_rx_cq_drain_rate_nsec(safe_mce_sys().rx_cq_drain_rate_nsec)
 	,m_n_sysvar_rx_delta_tsc_between_cq_polls(safe_mce_sys().rx_delta_tsc_between_cq_polls)
+	,m_reuseaddr(false)
 {
 	si_udp_logfunc("");
 
@@ -729,8 +730,12 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 			switch (__optname) {
 
 			case SO_REUSEADDR:
+				set_reuseaddr(*(bool*)__optval);
+				si_udp_logdbg("SOL_SOCKET, %s=%s", setsockopt_so_opt_to_str(__optname), (*(bool*)__optval ? "true" : "false"));
+				break;
+
 			case SO_BROADCAST:
-				si_udp_logdbg("SOL_SOCKET, %s=%s", setsockopt_so_opt_to_str(__optname), ((bool*)__optval ? "true" : "false"));
+				si_udp_logdbg("SOL_SOCKET, %s=%s", setsockopt_so_opt_to_str(__optname), (*(bool*)__optval ? "true" : "false"));
 				break;
 
 			case SO_RCVBUF:
@@ -2163,7 +2168,7 @@ int sockinfo_udp::mc_change_membership(const mc_pending_pram *p_mc_pram)
 
 	sock_addr tmp_grp_addr(AF_INET, mc_grp, m_bound.get_in_port());
 	if (__vma_match_udp_receiver(TRANS_VMA, safe_mce_sys().app_id, tmp_grp_addr.get_p_sa(), tmp_grp_addr.get_socklen()) == TRANS_OS) {
-		// Break so we call orig setsockopt() and don't try to offlaod
+		// Break so we call orig setsockopt() and don't try to offload
 		si_udp_logdbg("setsockopt(%s) will be passed to OS for handling due to rule matching", setsockopt_ip_opt_to_str(p_mc_pram->optname));
 		return -1;
 	}
