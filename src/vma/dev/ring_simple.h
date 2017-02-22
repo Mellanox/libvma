@@ -160,7 +160,8 @@ private:
 	flow_spec_udp_mc_map_t	m_flow_udp_mc_map;
 	flow_spec_udp_uc_map_t	m_flow_udp_uc_map;
 	const bool		m_b_sysvar_eth_mc_l2_only_rules;
-#ifdef DEFINED_VMAPOLL	
+	const bool		m_b_sysvar_mc_force_flowtag;
+#ifdef DEFINED_VMAPOLL
 	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_head;
 	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_tail;
 #endif // DEFINED_VMAPOLL		

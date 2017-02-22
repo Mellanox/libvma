@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -75,6 +75,7 @@ sockinfo::sockinfo(int fd) throw (vma_exception):
 		m_p_rx_ring(0),
 		m_rx_reuse_buf_pending(false),
 		m_rx_reuse_buf_postponed(false),
+		m_reuseaddr(false),
 		m_rx_ring_map_lock(MODULE_NAME "::m_rx_ring_map_lock"),
 		m_ring_alloc_logic(fd, this),
 		m_n_rx_pkt_ready_list_count(0), m_rx_pkt_ready_offset(0), m_rx_ready_byte_count(0),
@@ -221,6 +222,9 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 
 	if (__level == SOL_SOCKET) {
 		switch(__optname) {
+		case SO_REUSEADDR:
+			set_reuseaddr((bool*)__optval);
+			break;
 		case SO_VMA_USER_DATA:
 			if (__optlen == sizeof(m_fd_context)) {
 				m_fd_context = *(void **)__optval;
