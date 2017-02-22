@@ -60,14 +60,6 @@ uint32_t     g_vlogger_usec_on_startup = 0;
 bool         g_vlogger_log_in_colors = MCE_DEFAULT_LOG_COLORS;
 vma_log_cb_t g_vlogger_cb = NULL;
 
-
-void dummy_printf(int log_level, const char* fmt , ... )
-{
-	((void)(log_level));
-	((void)(fmt));
-}
-
-
 namespace log_level
 {
 	typedef struct {

@@ -62,10 +62,6 @@
 #undef	__INFO__
 #define __INFO__		this
 
-void dummy_printf(int log_level, const char* fmt , ... );
-
-#define DUMMY_PRINTF(     log_level, log_fmt, log_args...) 	dummy_printf(log_level, MODULE_HDR       log_fmt "\n",           __LINE__, __FUNCTION__, ##log_args)
-
 #define VLOG_PRINTF(     log_level, log_fmt, log_args...) 	vlog_printf(log_level, MODULE_HDR       log_fmt "\n",           __LINE__, __FUNCTION__, ##log_args)
 #define VLOG_PRINTF_INFO(log_level, log_fmt, log_args...) 	vlog_printf(log_level, MODULE_HDR_INFO  log_fmt "\n", __INFO__, __LINE__, __FUNCTION__, ##log_args)
 #define VLOG_PRINTF_INFO_ONCE_THEN_ALWAYS(log_level_once, log_level, log_fmt,log_args...) \
@@ -89,11 +85,6 @@ void dummy_printf(int log_level, const char* fmt , ... );
 #define __log_dbg(log_fmt, log_args...)          ((void)0)
 #define __log_fine(log_fmt, log_args...)         ((void)0)
 #define __log_finer(log_fmt, log_args...)        ((void)0)
-#elif defined(VMA_DUMMY_LOG)
-#define __log_details(log_fmt, log_args...)      DUMMY_PRINTF(VLOG_DETAILS, log_fmt, ##log_args)
-#define __log_dbg(log_fmt, log_args...)          DUMMY_PRINTF(VLOG_DETAILS, log_fmt, ##log_args)
-#define __log_fine(log_fmt, log_args...)         DUMMY_PRINTF(VLOG_DETAILS, log_fmt, ##log_args)
-#define __log_finer(log_fmt, log_args...)        DUMMY_PRINTF(VLOG_DETAILS, log_fmt, ##log_args)
 #else
 #define __log_details(log_fmt, log_args...)      do { if (g_vlogger_level >= VLOG_DETAILS) 	VLOG_PRINTF(VLOG_DETAILS, log_fmt, ##log_args); } while (0)
 #define __log_dbg(log_fmt, log_args...)          do { if (g_vlogger_level >= VLOG_DEBUG) 	VLOG_PRINTF(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
@@ -111,11 +102,6 @@ void dummy_printf(int log_level, const char* fmt , ... );
 #define __log_info_dbg(log_fmt, log_args...)     ((void)0)
 #define __log_info_fine(log_fmt, log_args...)    ((void)0)
 #define __log_info_finer(log_fmt, log_args...)   ((void)0)
-#elif defined(VMA_DUMMY_LOG)
-#define __log_info_details(log_fmt, log_args...)      DUMMY_PRINTF(VLOG_DETAILS, log_fmt, ##log_args)
-#define __log_info_dbg(log_fmt, log_args...)          DUMMY_PRINTF(VLOG_DETAILS, log_fmt, ##log_args)
-#define __log_info_fine(log_fmt, log_args...)         DUMMY_PRINTF(VLOG_DETAILS, log_fmt, ##log_args)
-#define __log_info_finer(log_fmt, log_args...)        DUMMY_PRINTF(VLOG_DETAILS, log_fmt, ##log_args)
 #else
 #define __log_info_details(log_fmt, log_args...) do { if (g_vlogger_level >= VLOG_DETAILS) 	VLOG_PRINTF_INFO(VLOG_DETAILS, log_fmt, ##log_args); } while (0)
 #define __log_info_dbg(log_fmt, log_args...)     do { if (g_vlogger_level >= VLOG_DEBUG) 	VLOG_PRINTF_INFO(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
@@ -131,13 +117,6 @@ void dummy_printf(int log_level, const char* fmt , ... );
 #define __log_exit_dbg(log_fmt, log_args...)     ((void)0)
 #define __log_exit_fine(log_fmt, log_args...)    ((void)0)
 #define __log_exit_finer(log_fmt, log_args...)   ((void)0)
-#elif defined(VMA_DUMMY_LOG)
-#define __log_entry_dbg(log_fmt, log_args...)      DUMMY_PRINTF(VLOG_DETAILS, log_fmt, ##log_args)
-#define __log_entry_fine(log_fmt, log_args...)          DUMMY_PRINTF(VLOG_DETAILS, log_fmt, ##log_args)
-#define __log_entry_finer(log_fmt, log_args...)         DUMMY_PRINTF(VLOG_DETAILS, log_fmt, ##log_args)
-#define __log_exit_dbg(log_fmt, log_args...)      DUMMY_PRINTF(VLOG_DETAILS, log_fmt, ##log_args)
-#define __log_exit_fine(log_fmt, log_args...)          DUMMY_PRINTF(VLOG_DETAILS, log_fmt, ##log_args)
-#define __log_exit_finer(log_fmt, log_args...)         DUMMY_PRINTF(VLOG_DETAILS, log_fmt, ##log_args)
 #else
 #define __log_entry_dbg(log_fmt, log_args...)    do { if (g_vlogger_level >= VLOG_DEBUG) 	VLOG_PRINTF_ENTRY(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
 #define __log_entry_fine(log_fmt, log_args...)   do { if (g_vlogger_level >= VLOG_FINE)		VLOG_PRINTF_ENTRY(VLOG_FINE, log_fmt, ##log_args); } while (0)
