@@ -76,14 +76,224 @@ void dst_entry_udp::configure_headers()
 	dst_entry::configure_headers();
 }
 
-ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked /*=true*/, bool is_rexmit /*=false*/, bool dont_inline /*=false*/)
+inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked, size_t sz_udp_payload, ssize_t sz_data_payload)
 {
-	NOT_IN_USE(is_rexmit);
+	mem_buf_desc_t* p_mem_buf_desc;
 
+	// Get a bunch of tx buf descriptor and data buffers
+	if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
+		m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, m_n_sysvar_tx_bufs_batch_udp);
+	}
+	p_mem_buf_desc = m_p_tx_mem_buf_desc_list;
+
+	if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
+		if (b_blocked) {
+			dst_udp_logdbg("Error when blocking for next tx buffer (errno=%d %m)", errno);
+		}
+		else {
+			dst_udp_logfunc("Packet dropped. NonBlocked call but not enough tx buffers. Returning OK");
+			if (!m_b_sysvar_tx_nonblocked_eagains) return sz_data_payload;
+		}
+		errno = EAGAIN;
+		return -1;
+	}
+	else {
+		m_p_tx_mem_buf_desc_list = m_p_tx_mem_buf_desc_list->p_next_desc;
+		set_tx_buff_list_pending(false);
+	}
+	p_mem_buf_desc->p_next_desc = NULL;
+
+	// Check if inline is possible
+	if (sz_iov == 1 && (sz_data_payload + m_header.m_total_hdr_len) < m_max_inline) {
+		m_p_send_wqe = &m_inline_send_wqe;
+
+		m_header.m_header.hdr.m_udp_hdr.len = htons((uint16_t)sz_udp_payload);
+		m_header.m_header.hdr.m_ip_hdr.tot_len = htons(m_header.m_ip_header_len + sz_udp_payload);
+
+		//m_sge[0].addr  already points to the header
+		//so we just need to update the payload addr + len
+		m_sge[1].length = p_iov[0].iov_len;
+		m_sge[1].addr = (uintptr_t)p_iov[0].iov_base;
+	} else {
+		m_p_send_wqe = &m_not_inline_send_wqe;
+
+		tx_packet_template_t *p_pkt = (tx_packet_template_t*)p_mem_buf_desc->p_buffer;
+		size_t hdr_len = m_header.m_transport_header_len + m_header.m_ip_header_len + sizeof(udphdr); // Add count of L2 (ipoib or mac) header length and udp header
+
+		if (m_n_sysvar_tx_prefetch_bytes) {
+			prefetch_range(p_mem_buf_desc->p_buffer + m_header.m_transport_header_tx_offset,
+					min(sz_udp_payload, (size_t)m_n_sysvar_tx_prefetch_bytes));
+		}
+
+		m_header.copy_l2_ip_udp_hdr(p_pkt);
+		p_pkt->hdr.m_udp_hdr.len = htons((uint16_t)sz_udp_payload);
+		p_pkt->hdr.m_ip_hdr.frag_off = htons(0);
+
+		// Update ip header specific values
+		p_pkt->hdr.m_ip_hdr.id = 0;
+		p_pkt->hdr.m_ip_hdr.tot_len = htons(m_header.m_ip_header_len + sz_udp_payload);
+
+		// Calc payload start point (after the udp header if present else just after ip header)
+		uint8_t* p_payload = p_mem_buf_desc->p_buffer + m_header.m_transport_header_tx_offset + hdr_len;
+
+		// Copy user data to our tx buffers
+		int ret = memcpy_fromiovec(p_payload, p_iov, sz_iov, 0, sz_data_payload);
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (ret != (int)sz_data_payload) {
+			dst_udp_logerr("memcpy_fromiovec error (sz_user_data_to_copy=%d, ret=%d)", sz_data_payload, ret);
+			m_p_ring->mem_buf_tx_release(p_mem_buf_desc, true);
+			errno = EINVAL;
+			return -1;
+		}
+		BULLSEYE_EXCLUDE_BLOCK_END
+
+		m_sge[1].addr = (uintptr_t)(p_mem_buf_desc->p_buffer + (uint8_t)m_header.m_transport_header_tx_offset);
+		m_sge[1].length = sz_data_payload + hdr_len;
+	}
+
+#ifdef VMA_NO_HW_CSUM
+	dst_udp_logfunc("using SW checksum calculation");
+	m_header.m_header.hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
+	m_header.m_header.hdr.m_ip_hdr.check = compute_ip_checksum((unsigned short*)&m_header.m_header.hdr.m_ip_hdr, m_header.m_header.hdr.m_ip_hdr.ihl * 2);
+#endif
+
+	m_p_send_wqe->wr_id = (uintptr_t)p_mem_buf_desc;
+	send_ring_buffer(m_id, m_p_send_wqe, b_blocked, is_dummy);
+
+	// request tx buffers for the next packets
+	if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
+		m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, m_n_sysvar_tx_bufs_batch_udp);
+	}
+
+	// If all went well :) then return the user data count transmitted
+	return sz_data_payload;
+}
+
+ssize_t dst_entry_udp::fast_send_fragmented(const iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked, size_t sz_udp_payload, ssize_t sz_data_payload)
+{
 	tx_packet_template_t *p_pkt;
 	mem_buf_desc_t* p_mem_buf_desc = NULL, *tmp;
-	uint16_t packet_id = 0;
-	bool b_need_sw_csum;
+
+	m_p_send_wqe = &m_fragmented_send_wqe;
+
+	// Find number of ip fragments (-> packets, buffers, buffer descs...)
+	int n_num_frags = (sz_udp_payload + m_max_ip_payload_size - 1) / m_max_ip_payload_size;
+	uint16_t packet_id = (m_sysvar_thread_mode > THREAD_MODE_SINGLE) ?
+			atomic_fetch_and_inc(&m_a_tx_ip_id) :
+			m_n_tx_ip_id++;
+	packet_id = htons(packet_id);
+
+
+	dst_udp_logfunc("udp info: payload_sz=%d, frags=%d, scr_port=%d, dst_port=%d, blocked=%s, ", sz_data_payload, n_num_frags, ntohs(m_header.m_header.hdr.m_udp_hdr.source), ntohs(m_dst_port), b_blocked?"true":"false");
+
+	// Get all needed tx buf descriptor and data buffers
+	p_mem_buf_desc = m_p_ring->mem_buf_tx_get(m_id, b_blocked, n_num_frags);
+
+	if (unlikely(p_mem_buf_desc == NULL)) {
+		if (b_blocked) {
+			dst_udp_logdbg("Error when blocking for next tx buffer (errno=%d %m)", errno);
+		}
+		else {
+			dst_udp_logfunc("Packet dropped. NonBlocked call but not enough tx buffers. Returning OK");
+			if (!m_b_sysvar_tx_nonblocked_eagains) return sz_data_payload;
+		}
+		errno = EAGAIN;
+		return -1;
+	}
+
+	// Int for counting offset inside the ip datagram payload
+	uint32_t n_ip_frag_offset = 0;
+	size_t sz_user_data_offset = 0;
+
+	while (n_num_frags--) {
+		// Calc this ip datagram fragment size (include any udp header)
+		size_t sz_ip_frag = min(m_max_ip_payload_size, (sz_udp_payload - n_ip_frag_offset));
+		size_t sz_user_data_to_copy = sz_ip_frag;
+		size_t hdr_len = m_header.m_transport_header_len + m_header.m_ip_header_len; // Add count of L2 (ipoib or mac) header length
+
+		if (m_n_sysvar_tx_prefetch_bytes) {
+			prefetch_range(p_mem_buf_desc->p_buffer + m_header.m_transport_header_tx_offset,
+					min(sz_ip_frag, (size_t)m_n_sysvar_tx_prefetch_bytes));
+		}
+
+		p_pkt = (tx_packet_template_t*)p_mem_buf_desc->p_buffer;
+
+		uint16_t frag_off = 0;
+		if (n_num_frags) {
+			frag_off |= MORE_FRAGMENTS_FLAG;
+		}
+
+		if (n_ip_frag_offset == 0) {
+			m_header.copy_l2_ip_udp_hdr(p_pkt);
+			// Add count of udp header length
+			hdr_len += sizeof(udphdr);
+
+			// Copy less from user data
+			sz_user_data_to_copy -= sizeof(udphdr);
+
+			// Only for first fragment add the udp header
+			p_pkt->hdr.m_udp_hdr.len = htons((uint16_t)sz_udp_payload);
+		}
+		else {
+			m_header.copy_l2_ip_hdr(p_pkt);
+			frag_off |= FRAGMENT_OFFSET & (n_ip_frag_offset / 8);
+		}
+
+		p_pkt->hdr.m_ip_hdr.frag_off = htons(frag_off);
+		// Update ip header specific values
+		p_pkt->hdr.m_ip_hdr.id = packet_id;
+		p_pkt->hdr.m_ip_hdr.tot_len = htons(m_header.m_ip_header_len + sz_ip_frag);
+
+		// Calc payload start point (after the udp header if present else just after ip header)
+		uint8_t* p_payload = p_mem_buf_desc->p_buffer + m_header.m_transport_header_tx_offset + hdr_len;
+
+		// Copy user data to our tx buffers
+		int ret = memcpy_fromiovec(p_payload, p_iov, sz_iov, sz_user_data_offset, sz_user_data_to_copy);
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (ret != (int)sz_user_data_to_copy) {
+			dst_udp_logerr("memcpy_fromiovec error (sz_user_data_to_copy=%d, ret=%d)", sz_user_data_to_copy, ret);
+			m_p_ring->mem_buf_tx_release(p_mem_buf_desc, true);
+			errno = EINVAL;
+			return -1;
+		}
+		BULLSEYE_EXCLUDE_BLOCK_END
+
+		dst_udp_logfunc("ip fragmentation detected, using SW checksum calculation");
+		p_pkt->hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
+		p_pkt->hdr.m_ip_hdr.check = compute_ip_checksum((unsigned short*)&p_pkt->hdr.m_ip_hdr, p_pkt->hdr.m_ip_hdr.ihl * 2);
+
+		m_sge[1].addr = (uintptr_t)(p_mem_buf_desc->p_buffer + (uint8_t)m_header.m_transport_header_tx_offset);
+		m_sge[1].length = sz_user_data_to_copy + hdr_len;
+		m_p_send_wqe->wr_id = (uintptr_t)p_mem_buf_desc;
+
+		dst_udp_logfunc("%s packet_sz=%d, payload_sz=%d, ip_offset=%d id=%d", m_header.to_str().c_str(),
+				m_sge[1].length - m_header.m_transport_header_len, sz_user_data_to_copy,
+				n_ip_frag_offset, ntohs(packet_id));
+
+		tmp = p_mem_buf_desc->p_next_desc;
+		p_mem_buf_desc->p_next_desc = NULL;
+
+		// We don't check the return valuse of post send when we reach the HW we consider that we completed our job
+		send_ring_buffer(m_id, m_p_send_wqe, b_blocked, is_dummy);
+
+		p_mem_buf_desc = tmp;
+
+		// Update ip frag offset position
+		n_ip_frag_offset += sz_ip_frag;
+
+		// Update user data start offset copy location
+		sz_user_data_offset += sz_user_data_to_copy;
+
+	} // while(n_num_frags)
+
+	// If all went well :) then return the user data count transmitted
+	return sz_data_payload;
+}
+
+
+ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked /*=true*/, bool is_rexmit /*=false*/)
+{
+	NOT_IN_USE(is_rexmit);
 
 	// Calc user data payload size
 	ssize_t sz_data_payload = 0;
@@ -100,182 +310,11 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 	// Calc udp payload size
 	size_t sz_udp_payload = sz_data_payload + sizeof(struct udphdr);
 
-	if (!dont_inline && (sz_iov == 1 && (sz_data_payload + m_header.m_total_hdr_len) < m_max_inline)) {
-		m_p_send_wqe = &m_inline_send_wqe;
-
-		//m_sge[0].addr  already points to the header
-		//so we just need to update the payload addr + len
-		m_sge[1].length = p_iov[0].iov_len;
-		m_sge[1].addr = (uintptr_t)p_iov[0].iov_base;
-
-		m_header.m_header.hdr.m_udp_hdr.len = htons((uint16_t)sz_udp_payload);
-		m_header.m_header.hdr.m_ip_hdr.tot_len = htons(m_header.m_ip_header_len + sz_udp_payload);
-
-#ifdef VMA_NO_HW_CSUM
-		dst_udp_logfunc("using SW checksum calculation");
-		m_header.m_header.hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
-		m_header.m_header.hdr.m_ip_hdr.check = compute_ip_checksum((unsigned short*)&m_header.m_header.hdr.m_ip_hdr, m_header.m_header.hdr.m_ip_hdr.ihl * 2);
-#endif
-		// Get a bunch of tx buf descriptor and data buffers
-		if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
-			m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, m_n_sysvar_tx_bufs_batch_udp);
-		}
-		p_mem_buf_desc = m_p_tx_mem_buf_desc_list;
-
-		if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
-			if (b_blocked) {
-				dst_udp_logdbg("Error when blocking for next tx buffer (errno=%d %m)", errno);
-			}
-			else {
-				dst_udp_logfunc("Packet dropped. NonBlocked call but not enough tx buffers. Returning OK");
-				if (!m_b_sysvar_tx_nonblocked_eagains) return sz_data_payload;
-			}
-			errno = EAGAIN;
-			return -1;
-		}
-		else {
-			m_p_tx_mem_buf_desc_list = m_p_tx_mem_buf_desc_list->p_next_desc;
-			set_tx_buff_list_pending(false);
-		}
-		p_mem_buf_desc->p_next_desc = NULL;
-		m_inline_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
-		send_ring_buffer(m_id, m_p_send_wqe, b_blocked, is_dummy);
-
-		if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
-			m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, m_n_sysvar_tx_bufs_batch_udp);
-		}
+	if (sz_udp_payload <= m_max_ip_payload_size) {
+		return fast_send_not_fragmented(p_iov, sz_iov, is_dummy, b_blocked, sz_udp_payload, sz_data_payload);
+	} else {
+		return fast_send_fragmented(p_iov, sz_iov, is_dummy, b_blocked, sz_udp_payload, sz_data_payload);
 	}
-	else {
-		// Find number of ip fragments (-> packets, buffers, buffer descs...)
-		int n_num_frags = 1;
-		b_need_sw_csum = false;
-		m_p_send_wqe = &m_not_inline_send_wqe;
-
-		// Usually max inline < MTU!
-		if (sz_udp_payload > m_max_ip_payload_size) {
-			b_need_sw_csum = true;
-			n_num_frags = (sz_udp_payload + m_max_ip_payload_size - 1) / m_max_ip_payload_size;
-			packet_id = (m_sysvar_thread_mode > THREAD_MODE_SINGLE) ?
-					atomic_fetch_and_inc(&m_a_tx_ip_id) :
-					m_n_tx_ip_id++;
-			packet_id = htons(packet_id);
-		}
-#ifdef VMA_NO_HW_CSUM
-		b_need_sw_csum = true;
-#endif
-
-		dst_udp_logfunc("udp info: payload_sz=%d, frags=%d, scr_port=%d, dst_port=%d, blocked=%s, ", sz_data_payload, n_num_frags, ntohs(m_header.m_header.hdr.m_udp_hdr.source), ntohs(m_dst_port), b_blocked?"true":"false");
-
-		// Get all needed tx buf descriptor and data buffers
-		p_mem_buf_desc = m_p_ring->mem_buf_tx_get(m_id, b_blocked, n_num_frags);
-
-		if (unlikely(p_mem_buf_desc == NULL)) {
-			if (b_blocked) {
-				dst_udp_logdbg("Error when blocking for next tx buffer (errno=%d %m)", errno);
-			}
-			else {
-				dst_udp_logfunc("Packet dropped. NonBlocked call but not enough tx buffers. Returning OK");
-				if (!m_b_sysvar_tx_nonblocked_eagains) return sz_data_payload;
-			}
-			errno = EAGAIN;
-			return -1;
-		}
-
-		// Int for counting offset inside the ip datagram payload
-		uint32_t n_ip_frag_offset = 0;
-		size_t sz_user_data_offset = 0;
-
-		while (n_num_frags--) {
-			// Calc this ip datagram fragment size (include any udp header)
-			size_t sz_ip_frag = min(m_max_ip_payload_size, (sz_udp_payload - n_ip_frag_offset));
-			size_t sz_user_data_to_copy = sz_ip_frag;
-			size_t hdr_len = m_header.m_transport_header_len + m_header.m_ip_header_len; // Add count of L2 (ipoib or mac) header length
-
-			if (m_n_sysvar_tx_prefetch_bytes) {
-				prefetch_range(p_mem_buf_desc->p_buffer + m_header.m_transport_header_tx_offset,
-						min(sz_ip_frag, (size_t)m_n_sysvar_tx_prefetch_bytes));
-			}
-
-			p_pkt = (tx_packet_template_t*)p_mem_buf_desc->p_buffer;
-
-			uint16_t frag_off = 0;
-			if (n_num_frags) {
-				frag_off |= MORE_FRAGMENTS_FLAG;
-			}
-
-			if (n_ip_frag_offset == 0) {
-				m_header.copy_l2_ip_udp_hdr(p_pkt);
-				// Add count of udp header length
-				hdr_len += sizeof(udphdr);
-
-				// Copy less from user data
-				sz_user_data_to_copy -= sizeof(udphdr);
-
-				// Only for first fragment add the udp header
-				p_pkt->hdr.m_udp_hdr.len = htons((uint16_t)sz_udp_payload);
-			}
-			else {
-				m_header.copy_l2_ip_hdr(p_pkt);
-				frag_off |= FRAGMENT_OFFSET & (n_ip_frag_offset / 8);
-			}
-
-			p_pkt->hdr.m_ip_hdr.frag_off = htons(frag_off);
-			// Update ip header specific values
-			p_pkt->hdr.m_ip_hdr.id = packet_id;
-			p_pkt->hdr.m_ip_hdr.tot_len = htons(m_header.m_ip_header_len + sz_ip_frag);
-
-			// Calc payload start point (after the udp header if present else just after ip header)
-			uint8_t* p_payload = p_mem_buf_desc->p_buffer + m_header.m_transport_header_tx_offset + hdr_len;
-
-			// Copy user data to our tx buffers
-			int ret = memcpy_fromiovec(p_payload, p_iov, sz_iov, sz_user_data_offset, sz_user_data_to_copy);
-			BULLSEYE_EXCLUDE_BLOCK_START
-			if (ret != (int)sz_user_data_to_copy) {
-				dst_udp_logerr("memcpy_fromiovec error (sz_user_data_to_copy=%d, ret=%d)", sz_user_data_to_copy, ret);
-				m_p_ring->mem_buf_tx_release(p_mem_buf_desc, true);
-				errno = EINVAL;
-				return -1;
-			}
-			BULLSEYE_EXCLUDE_BLOCK_END
-
-			if (b_need_sw_csum) {
-				dst_udp_logfunc("ip fragmentation detected, using SW checksum calculation");
-				p_pkt->hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
-				p_pkt->hdr.m_ip_hdr.check = compute_ip_checksum((unsigned short*)&p_pkt->hdr.m_ip_hdr, p_pkt->hdr.m_ip_hdr.ihl * 2);
-				m_p_send_wqe_handler->disable_hw_csum(m_not_inline_send_wqe);
-			} else {
-				dst_udp_logfunc("using HW checksum calculation");
-				m_p_send_wqe_handler->enable_hw_csum(m_not_inline_send_wqe);
-			}
-
-
-			m_sge[1].addr = (uintptr_t)(p_mem_buf_desc->p_buffer + (uint8_t)m_header.m_transport_header_tx_offset);
-			m_sge[1].length = sz_user_data_to_copy + hdr_len;
-			m_not_inline_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
-
-			dst_udp_logfunc("%s packet_sz=%d, payload_sz=%d, ip_offset=%d id=%d", m_header.to_str().c_str(),
-					m_sge[1].length - m_header.m_transport_header_len, sz_user_data_to_copy,
-					n_ip_frag_offset, ntohs(packet_id));
-
-			tmp = p_mem_buf_desc->p_next_desc;
-			p_mem_buf_desc->p_next_desc = NULL;
-
-			// We don't check the return valuse of post send when we reach the HW we consider that we completed our job
-			send_ring_buffer(m_id, m_p_send_wqe, b_blocked, is_dummy);
-
-			p_mem_buf_desc = tmp;
-
-			// Update ip frag offset position
-			n_ip_frag_offset += sz_ip_frag;
-
-			// Update user data start offset copy location
-			sz_user_data_offset += sz_user_data_to_copy;
-
-		} // while(n_num_frags)
-	}
-
-	// If all went well :) then return the user data count transmitted
-	return sz_data_payload;
 }
 
 ssize_t dst_entry_udp::slow_send(const iovec* p_iov, size_t sz_iov, bool is_dummy, bool b_blocked /*= true*/, bool is_rexmit /*= false*/, int flags /*= 0*/, socket_fd_api* sock /*= 0*/, tx_call_t call_type /*= 0*/)
