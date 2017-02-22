@@ -152,11 +152,16 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 		return -1;
 	}
 
+	printf("============\n");
+
 	if (DO_SW) {
+		printf("= Software =\n");
 		m_p_cq_mgr_rx = new cq_mgr_sw(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
 	} else {
+		printf("= Hardware =\n");
 		m_p_cq_mgr_rx = new cq_mgr_hw(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
 	}
+	printf("============\n");
 
 	if (!m_p_cq_mgr_rx) {
 		qp_logerr("Failed allocating m_p_cq_mgr_rx (errno=%d %m)", errno);
