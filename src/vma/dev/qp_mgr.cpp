@@ -30,7 +30,7 @@
  * SOFTWARE.
  */
 
-#define DO_SW 0
+#define DO_SW (false)
 
 #include "qp_mgr.h"
 #include "utils/bullseye.h"

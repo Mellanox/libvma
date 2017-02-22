@@ -168,7 +168,7 @@ public:
 	 * @return  >=0 number of wce processed
 	 *          < 0 error
 	 */
-	int	drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id = NULL);
+	virtual int	drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id = NULL);
 
 	// CQ implements the Rx mem_buf_desc_owner.
 	// These callbacks will be called for each Rx buffer that passed processed completion
@@ -261,7 +261,7 @@ private:
 	 * - for Tx wce the data buffers will be released to the associated ring before the mem_buf_desc are returned
 	 */
 	mem_buf_desc_t*	process_cq_element_tx(vma_ibv_wc* p_wce);
-	mem_buf_desc_t*	process_cq_element_rx(vma_ibv_wc* p_wce);
+	virtual mem_buf_desc_t*	process_cq_element_rx(vma_ibv_wc* p_wce);
 
 	/**
 	 * Helper function wrapping the poll and the process functionality in single call
@@ -338,13 +338,17 @@ public:
 	 * @return Number of successfully polled wce
 	 */
 	virtual int							poll(vma_ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn);
+	virtual inline mem_buf_desc_t*		poll();
 	virtual void						add_qp_rx(qp_mgr* qp);
 	virtual void						del_qp_rx(qp_mgr *qp);
-//	virtual int							drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id = NULL);
 	inline volatile struct mlx5_cqe64*	mlx5_get_cqe64(void);
 	inline volatile struct mlx5_cqe64*	mlx5_get_cqe64(volatile struct mlx5_cqe64 **cqe_err);
 	volatile struct mlx5_cqe64*			mlx5_check_error_completion(volatile struct mlx5_cqe64 *cqe, volatile uint16_t *ci, uint8_t op_own);
 	inline void 						mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, vma_ibv_wc *wce);
+	inline void 						mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, mem_buf_desc_t* p_rx_wc_buf_desc);
+
+	virtual int							drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id = NULL);
+	virtual mem_buf_desc_t*				process_cq_element_rx(mem_buf_desc_t* p_mem_buf_desc);
 
 private:
 	struct mlx5_cq*				m_mlx5_cq;
