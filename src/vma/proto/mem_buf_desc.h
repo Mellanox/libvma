@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -108,6 +108,7 @@ public:
 
 	union {
 		struct {
+			uint32_t	flow_tag_id;	// Flow Tag ID of this received packet
 			struct iphdr* 	p_ip_h;
 			struct tcphdr* 	p_tcp_h;
 			uint32_t	gro;		// is gro buff

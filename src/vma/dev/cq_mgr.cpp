@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -712,6 +712,7 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 #ifdef DEFINED_VMAPOLL				
 				temp->path.rx.vma_polled = false;
 #endif // DEFINED_VMAPOLL				
+				temp->path.rx.flow_tag_id = 0;
 				temp->path.rx.p_ip_h = NULL;
 				temp->path.rx.p_tcp_h = NULL;
 				temp->path.rx.sw_timestamp.tv_nsec = 0;
@@ -751,6 +752,7 @@ void cq_mgr::vma_poll_reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 				temp->path.rx.gro = 0;
 				temp->path.rx.is_vma_thr = false;
 				temp->path.rx.vma_polled = false;
+				temp->path.rx.flow_tag_id = 0;
 				temp->path.rx.p_ip_h = NULL;
 				temp->path.rx.p_tcp_h = NULL;
 				temp->path.rx.sw_timestamp.tv_nsec = 0;
@@ -788,6 +790,7 @@ int cq_mgr::vma_poll_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff)
 		buff->path.rx.gro = 0;
 		buff->path.rx.is_vma_thr = false;
 		buff->path.rx.vma_polled = false;
+		buff->path.rx.flow_tag_id = 0;
 		buff->path.rx.p_ip_h = NULL;
 		buff->path.rx.p_tcp_h = NULL;
 		buff->path.rx.sw_timestamp.tv_nsec = 0;
@@ -865,6 +868,7 @@ int cq_mgr::vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 		++m_n_wce_counter;
 		++m_qp->m_mlx5_hw_qp->rq.tail;
 		m_rx_hot_buff->sz_data = ntohl(cqe->byte_cnt);
+		m_rx_hot_buff->path.rx.flow_tag_id = vma_get_flow_tag(cqe);
 
 		if (unlikely(++m_qp_rec.debth >= (int)m_n_sysvar_rx_num_wr_to_post_recv)) {
 			compensate_qp_poll_success(m_rx_hot_buff);
@@ -934,6 +938,7 @@ int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready
 			++m_n_wce_counter;
 			++m_qp->m_mlx5_hw_qp->rq.tail;
 			m_rx_hot_buff->sz_data = ntohl(cqe->byte_cnt);
+			m_rx_hot_buff->path.rx.flow_tag_id = vma_get_flow_tag(cqe);
 
 			if (unlikely(++m_qp_rec.debth >= (int)m_n_sysvar_rx_num_wr_to_post_recv)) {
 				compensate_qp_poll_success(m_rx_hot_buff);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -121,6 +121,14 @@ public:
 	virtual int add_epoll_context(epfd_info *epfd);
 	virtual void remove_epoll_context(epfd_info *epfd);
 
+	inline bool tcp_flow_is_5t(void) { return m_tcp_flow_is_5t; }
+	inline void set_tcp_flow_is_5t(void) { m_tcp_flow_is_5t = true; }
+	inline void set_flow_tag(int flow_tag_id) {
+		m_flow_tag_id = flow_tag_id;
+		m_flow_tag_enabled = flow_tag_id > 0 ? true : false;
+	}
+	inline bool flow_tag_enabled(void) { return m_flow_tag_enabled; }
+
 #ifdef DEFINED_VMAPOLL
 	virtual int fast_nonblocking_rx(vma_packets_t *vma_pkts);
 	virtual int get_rings_num() {return 1;}
@@ -190,6 +198,9 @@ protected:
 #ifdef DEFINED_VMAPOLL	
 	void*			m_fd_context;
 #endif // DEFINED_VMAPOLL	
+	uint32_t		m_flow_tag_id;	// Flow Tag for this socket
+	bool			m_flow_tag_enabled; // for this socket
+	bool			m_tcp_flow_is_5t; // to bypass packet analysis
 
 	virtual void 		set_blocking(bool is_blocked);
 	virtual int 		fcntl(int __cmd, unsigned long int __arg) throw (vma_error);
@@ -395,7 +406,7 @@ protected:
 
     inline void reuse_buffer(mem_buf_desc_t *buff)
     {
-    	set_rx_reuse_pending(false);
+	set_rx_reuse_pending(false);
     	ring* p_ring = ((ring*)(buff->p_desc_owner))->get_parent();
     	rx_ring_map_t::iterator iter = m_rx_ring_map.find(p_ring);
     	if(likely(iter != m_rx_ring_map.end())){
