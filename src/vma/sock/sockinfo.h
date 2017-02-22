@@ -128,6 +128,9 @@ public:
 		m_flow_tag_enabled = flow_tag_id > 0 ? true : false;
 	}
 	inline bool flow_tag_enabled(void) { return m_flow_tag_enabled; }
+	
+	inline void set_reuseaddr(bool reuseaddr_) { m_reuseaddr = reuseaddr_; }
+	inline bool addr_in_reuse(void) { return m_reuseaddr; }
 
 #ifdef DEFINED_VMAPOLL
 	virtual int fast_nonblocking_rx(vma_packets_t *vma_pkts);
@@ -164,6 +167,7 @@ protected:
 	buff_info_t		m_rx_reuse_buff; //used in TCP instead of m_rx_ring_map
 	bool			m_rx_reuse_buf_pending; //used to periodically return buffers, even if threshold was not reached
 	bool			m_rx_reuse_buf_postponed; //used to mark threshold was reached, but free was not done yet
+	bool			m_reuseaddr; // to track setsockopt with SO_REUSEADDR
 	inline void		set_rx_reuse_pending(bool is_pending = true) {m_rx_reuse_buf_pending = is_pending;}
 
 	rx_ring_map_t		m_rx_ring_map; // CQ map

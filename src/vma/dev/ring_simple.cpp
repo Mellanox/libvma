@@ -99,9 +99,11 @@ ring_simple::ring_simple(in_addr_t local_if, uint16_t partition_sn, int count, t
 	m_b_qp_tx_first_flushed_completion_handled(false), m_missing_buf_ref_count(0),
 	m_tx_lkey(0), m_partition(partition_sn), m_gro_mgr(safe_mce_sys().gro_streams_max, MAX_GRO_BUFS), m_up(false),
 	m_p_rx_comp_event_channel(NULL), m_p_tx_comp_event_channel(NULL), m_p_l2_addr(NULL), m_p_ring_stat(NULL),
-	m_local_if(local_if), m_transport_type(transport_type), m_b_sysvar_eth_mc_l2_only_rules(safe_mce_sys().eth_mc_l2_only_rules)
-#ifdef DEFINED_VMAPOLL		
-	, m_rx_buffs_rdy_for_free_head(NULL)
+	m_local_if(local_if), m_transport_type(transport_type)
+	, m_b_sysvar_eth_mc_l2_only_rules(safe_mce_sys().eth_mc_l2_only_rules)
+	, m_b_sysvar_mc_force_flowtag(safe_mce_sys().mc_force_flowtag)
+#ifdef DEFINED_VMAPOLL
+	, m_rx_buffs_rdy_for_free_head(NULL) 
 	, m_rx_buffs_rdy_for_free_tail(NULL) 
 #endif // DEFINED_VMAPOLL		
 	, m_flow_tag_enabled(false)
@@ -318,7 +320,8 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	sockinfo* si = static_cast<sockinfo*> (sink);
 	uint32_t flow_tag_id = 0;
 
-	ring_logdbg("flow: %s, with sink (%p)", flow_spec_5t.to_str(), sink);
+	ring_logdbg("flow: %s, with sink (%p), m_flow_tag_enabled: %d",
+		    flow_spec_5t.to_str(), si, m_flow_tag_enabled);
 
 	if( si == NULL )
 		return false;
@@ -335,9 +338,9 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 			flow_tag_id = flow_tag_id_candidate & FLOW_TAG_MASK;
 			if ((uint32_t)flow_tag_id_candidate != flow_tag_id) {
 				// tag_id is out of the range by mask, will not use it
-				flow_tag_id = 0;
 				ring_logdbg("flow_tag disabled as tag_id: %d is out of mask (%x) range!",
 					    flow_tag_id, FLOW_TAG_MASK);
+				flow_tag_id = 0;
 			}
 			ring_logdbg("sock_fd:%d enabled:%d with id:%d",
 				    flow_tag_id_candidate-1, m_flow_tag_enabled, flow_tag_id);
@@ -387,8 +390,15 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		}
 	} else if (flow_spec_5t.is_udp_mc()) {
 		flow_spec_udp_mc_key_t key_udp_mc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
-		flow_tag_id = 0; // MC so far can't be handled by flow_tag due issues in FW
 
+		if (flow_tag_id && (m_b_sysvar_mc_force_flowtag || !si->addr_in_reuse())) {
+			ring_logdbg("MC FlowTag ID=%d is enabled as force_flowtag=%d SO_REUSEADDR=%d",
+				    flow_tag_id, m_b_sysvar_mc_force_flowtag, si->addr_in_reuse());
+		} else {
+			ring_logdbg("MC FlowTag ID=%d for socketinfo=%p is disabled as force_flowtag=%d SO_REUSEADDR=%d",
+				    flow_tag_id, si, m_b_sysvar_mc_force_flowtag, si->addr_in_reuse());
+			flow_tag_id = 0; // MC so far can't be handled by flow_tag as socket is shared
+		}
 		// For IB MC flow, the port is zeroed in the ibv_flow_spec when calling to ibv_flow_spec().
 		// It means that for every MC group, even if we have sockets with different ports - only one rule in the HW.
 		// So the hash map below keeps track of the number of sockets per rule so we know when to call ibv_attach and ibv_detach
@@ -408,7 +418,7 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 				l2_mc_ip_filter = new rfs_rule_filter(m_l2_mc_ip_attach_map, key_udp_mc.dst_ip, flow_spec_5t);
 			}
 			try {
-				p_tmp_rfs = new rfs_mc(&flow_spec_5t, this, l2_mc_ip_filter);
+				p_tmp_rfs = new rfs_mc(&flow_spec_5t, this, l2_mc_ip_filter, flow_tag_id);
 			} catch(vma_exception& e) {
 				ring_logerr("%s", e.message);
 				return false;
@@ -798,7 +808,6 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 				p_rx_wc_buf_desc->rx.src.sin_port        = p_udp_h->source;
 				p_rx_wc_buf_desc->rx.dst.sin_port        = p_udp_h->dest;
 				p_rx_wc_buf_desc->rx.sz_payload          = sz_payload;
-//				p_rx_wc_buf_desc->transport_header_len   = transport_header_len;
 
 				// Update the L3 info
 				p_rx_wc_buf_desc->rx.src.sin_family      = AF_INET;
