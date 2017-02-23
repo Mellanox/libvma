@@ -208,7 +208,6 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 
 	struct verbs_qp *vqp = (struct verbs_qp *)m_qp;
 	m_mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
-
 #ifdef DEFINED_VMAPOLL
 	struct verbs_qp *vqp = (struct verbs_qp *)m_qp;
 	m_mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);

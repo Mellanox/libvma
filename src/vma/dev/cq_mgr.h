@@ -319,7 +319,7 @@ class cq_mgr_hw: public cq_mgr
 {
 public:
 	cq_mgr_hw(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx);
-	virtual ~cq_mgr_hw();
+	virtual ~cq_mgr_hw() {};
 
 	/**
 	 * Poll the CQ that is managed by this object
@@ -328,7 +328,7 @@ public:
 	 * @p_cq_poll_sn global unique wce id that maps last wce polled
 	 * @return Number of successfully polled wce
 	 */
-	virtual int							poll(vma_ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn);
+//	virtual int							poll(vma_ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn);
 	virtual inline mem_buf_desc_t*		poll();
 	virtual void						add_qp_rx(qp_mgr* qp);
 	virtual void						del_qp_rx(qp_mgr *qp);
@@ -339,6 +339,7 @@ public:
 	inline void 						mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, mem_buf_desc_t* p_rx_wc_buf_desc);
 
 	virtual int							drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id = NULL);
+	virtual int							poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	virtual mem_buf_desc_t*				process_cq_element_rx(mem_buf_desc_t* p_mem_buf_desc);
 
 private:
@@ -349,6 +350,7 @@ private:
 	volatile uint32_t 			*m_cq_db;
 	struct mlx5_qp 				*m_mlx5_hw_qp;
 	qp_mgr*						m_qp;
+	mem_buf_desc_t		 		*m_rx_hot_buff;
 };
 
 #endif //CQ_MGR_H
