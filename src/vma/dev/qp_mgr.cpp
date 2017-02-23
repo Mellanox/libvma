@@ -145,7 +145,7 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	qp_logdbg("HW Dummy send support for QP = %d", m_hw_dummy_send_support);
 
 	// Create associated Tx & Rx cq_mgrs
-	m_p_cq_mgr_tx = new cq_mgr_sw(m_p_ring, m_p_ib_ctx_handler, m_tx_num_wr, m_p_ring->get_tx_comp_event_channel(), false);
+	m_p_cq_mgr_tx = new cq_mgr(m_p_ring, m_p_ib_ctx_handler, m_tx_num_wr, m_p_ring->get_tx_comp_event_channel(), false);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_p_cq_mgr_tx) {
 		qp_logerr("Failed allocating m_p_cq_mgr_tx (errno=%d %m)", errno);
@@ -156,7 +156,7 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 
 	if (DO_SW) {
 		printf("= Software =\n");
-		m_p_cq_mgr_rx = new cq_mgr_sw(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
+		m_p_cq_mgr_rx = new cq_mgr(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
 	} else {
 		printf("= Hardware =\n");
 		m_p_cq_mgr_rx = new cq_mgr_hw(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);

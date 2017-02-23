@@ -116,7 +116,7 @@ class cq_mgr
 public:
 
 	cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx);
-	virtual ~cq_mgr()=0;
+	virtual ~cq_mgr();
 
 	ibv_cq *get_ibv_cq_hndl();
 	int	get_channel_fd();
@@ -312,15 +312,6 @@ private:
 // Helper gunction to extract the Tx cq_mgr from the CQ event,
 // Since we have a single TX CQ comp channel for all cq_mgr's, it might not be the active_cq object
 cq_mgr* get_cq_mgr_from_cq_event(struct ibv_comp_channel* p_cq_channel);
-
-class cq_mgr_sw: public cq_mgr
-{
-public:
-	cq_mgr_sw(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx):
-		cq_mgr(p_ring, p_ib_ctx_handler, cq_size, p_comp_event_channel, is_rx) {}
-	virtual ~cq_mgr_sw() {};
-private:
-};
 
 #include <infiniband/mlx5_hw.h>
 
