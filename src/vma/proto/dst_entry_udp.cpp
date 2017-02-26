@@ -133,6 +133,10 @@ inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const
 		p_pkt->hdr.m_ip_hdr.id = 0;
 		p_pkt->hdr.m_ip_hdr.tot_len = htons(m_header.m_ip_header_len + sz_udp_payload);
 
+		// Update the payload addr + len
+		m_sge[1].length = sz_data_payload + hdr_len;
+		m_sge[1].addr = (uintptr_t)(p_mem_buf_desc->p_buffer + (uint8_t)m_header.m_transport_header_tx_offset);
+
 		// Calc payload start point (after the udp header if present else just after ip header)
 		uint8_t* p_payload = p_mem_buf_desc->p_buffer + m_header.m_transport_header_tx_offset + hdr_len;
 
@@ -146,9 +150,6 @@ inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const
 			return -1;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
-
-		m_sge[1].addr = (uintptr_t)(p_mem_buf_desc->p_buffer + (uint8_t)m_header.m_transport_header_tx_offset);
-		m_sge[1].length = sz_data_payload + hdr_len;
 	}
 
 #ifdef VMA_NO_HW_CSUM
