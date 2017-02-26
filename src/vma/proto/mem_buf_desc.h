@@ -69,29 +69,7 @@ public:
 	}
 
 	struct pbuf_custom lwip_pbuf;	//Do not change the location of this field.
-	mem_buf_desc_t* p_next_desc;	// A general purpose linked list of mem_buf_desc
-	mem_buf_desc_t* p_prev_desc;
 	uint8_t* const	p_buffer;
-	size_t const	sz_buffer; 	// this is the size of the buffer
-	size_t		sz_data;   	// this is the amount of data inside the buffer (sz_data <= sz_buffer)
-	uint32_t	lkey;      	// Buffers lkey for QP access
-private:
-	atomic_t	n_ref_count;	// number of interested receivers (sockinfo) [can be modified only in cq_mgr context]
-public:
-	inline int get_ref_count() const {return atomic_read(&n_ref_count);}
-	inline void  reset_ref_count() {atomic_set(&n_ref_count, 0);}
-	inline int inc_ref_count() {return atomic_fetch_and_inc(&n_ref_count);}
-	inline int dec_ref_count() {return atomic_fetch_and_dec(&n_ref_count);}
-
-#ifdef DEFINED_VMAPOLL
-	inline unsigned int lwip_pbuf_inc_ref_count() {return ++lwip_pbuf.pbuf.ref;}
-	inline unsigned int lwip_pbuf_dec_ref_count() {if (likely(lwip_pbuf.pbuf.ref)) --lwip_pbuf.pbuf.ref; return lwip_pbuf.pbuf.ref;}
-	inline unsigned int lwip_pbuf_get_ref_count() const {return lwip_pbuf.pbuf.ref;}
-#endif // DEFINED_VMAPOLL
-
-	// Tx: qp_mgr owns the mem_buf_desc and the associated data buffer
-	// Rx: cq_mgr owns the mem_buf_desc and the associated data buffer
-	mem_buf_desc_owner* p_desc_owner;
 
 	static inline size_t buffer_node_offset(void) {return NODE_OFFSET(mem_buf_desc_t, buffer_node);}
 	list_node<mem_buf_desc_t, mem_buf_desc_t::buffer_node_offset> buffer_node;
@@ -131,8 +109,33 @@ public:
 #else
 		bool		pad[5];
 #endif // DEFINED_VMAPOLL
-
 	} rx;
+
+private:
+	atomic_t	n_ref_count;	// number of interested receivers (sockinfo) [can be modified only in cq_mgr context]
+public:
+
+	uint32_t	lkey;      	// Buffers lkey for QP access
+	mem_buf_desc_t* p_next_desc;	// A general purpose linked list of mem_buf_desc
+	mem_buf_desc_t* p_prev_desc;
+	size_t const	sz_buffer; 	// this is the size of the buffer
+	size_t		sz_data;   	// this is the amount of data inside the buffer (sz_data <= sz_buffer)
+
+	// Tx: qp_mgr owns the mem_buf_desc and the associated data buffer
+	// Rx: cq_mgr owns the mem_buf_desc and the associated data buffer
+	mem_buf_desc_owner* p_desc_owner;
+
+	inline int get_ref_count() const {return atomic_read(&n_ref_count);}
+	inline void  reset_ref_count() {atomic_set(&n_ref_count, 0);}
+	inline int inc_ref_count() {return atomic_fetch_and_inc(&n_ref_count);}
+	inline int dec_ref_count() {return atomic_fetch_and_dec(&n_ref_count);}
+
+#ifdef DEFINED_VMAPOLL
+	inline unsigned int lwip_pbuf_inc_ref_count() {return ++lwip_pbuf.pbuf.ref;}
+	inline unsigned int lwip_pbuf_dec_ref_count() {if (likely(lwip_pbuf.pbuf.ref)) --lwip_pbuf.pbuf.ref; return lwip_pbuf.pbuf.ref;}
+	inline unsigned int lwip_pbuf_get_ref_count() const {return lwip_pbuf.pbuf.ref;}
+#endif // DEFINED_VMAPOLL
+
 };
 
 typedef vma_list_t<mem_buf_desc_t, mem_buf_desc_t::buffer_node_offset> descq_t;
