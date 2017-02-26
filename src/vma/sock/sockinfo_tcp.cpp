@@ -172,7 +172,7 @@ inline void sockinfo_tcp::reuse_buffer(mem_buf_desc_t *buff)
 {
 	set_rx_reuse_pending(false);
 	if (likely(m_p_rx_ring)) {
-		m_rx_reuse_buff.n_buff_num += buff->n_frags;
+		m_rx_reuse_buff.n_buff_num += buff->rx.n_frags;
 		m_rx_reuse_buff.rx_reuse.push_back(buff);
 		if (m_rx_reuse_buff.n_buff_num < m_n_sysvar_rx_num_buffs_reuse) {
 			return;
@@ -1445,7 +1445,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 	mem_buf_desc_t *p_first_desc = (mem_buf_desc_t *)p;
 
 	p_first_desc->rx.sz_payload = p->tot_len;
-	p_first_desc->n_frags = 0;
+	p_first_desc->rx.n_frags = 0;
 
 	mem_buf_desc_t *p_curr_desc = p_first_desc;
 #ifdef DEFINED_VMAPOLL	
@@ -1460,7 +1460,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 		p_last_desc = (mem_buf_desc_t*)p_curr_buff;
 		p_curr_desc->rx.context = conn;
 #endif // DEFINED_VMAPOLL				
-		p_first_desc->n_frags++;
+		p_first_desc->rx.n_frags++;
 		p_curr_desc->rx.frag.iov_base = p_curr_buff->payload;
 		p_curr_desc->rx.frag.iov_len = p_curr_buff->len;
 		p_curr_desc->p_next_desc = (mem_buf_desc_t *)p_curr_buff->next;
@@ -1483,7 +1483,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 		pkt_info.socket_ready_queue_byte_count = conn->m_p_socket_stats->n_rx_ready_byte_count;
 
 		// fill io vector array with data buffer pointers
-		iovec iov[p_first_desc->n_frags];
+		iovec iov[p_first_desc->rx.n_frags];
 		nr_frags = 0;
 		for (tmp = p_first_desc; tmp; tmp = tmp->p_next_desc) {
 			iov[nr_frags++] = tmp->rx.frag;
@@ -1519,17 +1519,17 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 			completion->packet.buff_lst = (struct vma_buff_t*)p_first_desc;
 			completion->packet.total_len = p->tot_len;
 			completion->src = p_first_desc->rx.src;
-			completion->packet.num_bufs = p_first_desc->n_frags;
+			completion->packet.num_bufs = p_first_desc->rx.n_frags;
 			NOTIFY_ON_EVENTS(conn, VMA_POLL_PACKET);
 		}
 		else {
 			mem_buf_desc_t* prev_lst_tail_desc = (mem_buf_desc_t*)buf_lst;
 			mem_buf_desc_t* list_head_desc = (mem_buf_desc_t*)completion->packet.buff_lst;
 			prev_lst_tail_desc->p_next_desc = p_first_desc;
-			list_head_desc->n_frags += p_first_desc->n_frags;
-			p_first_desc->n_frags = 0;
+			list_head_desc->rx.n_frags += p_first_desc->rx.n_frags;
+			p_first_desc->rx.n_frags = 0;
 			completion->packet.total_len += p->tot_len;
-			completion->packet.num_bufs += list_head_desc->n_frags;
+			completion->packet.num_bufs += list_head_desc->rx.n_frags;
 			pbuf_cat((pbuf*)completion->packet.buff_lst, p);
 		}
 #else
@@ -3938,7 +3938,7 @@ mem_buf_desc_t* sockinfo_tcp::get_next_desc(mem_buf_desc_t *p_desc)
 		p_desc = p_desc->p_next_desc;
 		prev->rx.sz_payload = prev->lwip_pbuf.pbuf.len;
 		p_desc->rx.sz_payload = p_desc->lwip_pbuf.pbuf.tot_len = prev->lwip_pbuf.pbuf.tot_len - prev->lwip_pbuf.pbuf.len;
-		p_desc->n_frags = --prev->n_frags;
+		p_desc->rx.n_frags = --prev->rx.n_frags;
 		p_desc->rx.src = prev->rx.src;
 		p_desc->inc_ref_count();
 		m_rx_pkt_ready_list.push_front(p_desc);
@@ -3946,7 +3946,7 @@ mem_buf_desc_t* sockinfo_tcp::get_next_desc(mem_buf_desc_t *p_desc)
 		m_p_socket_stats->n_rx_ready_pkt_count++;
 		prev->lwip_pbuf.pbuf.next = NULL;
 		prev->p_next_desc = NULL;
-		prev->n_frags = 1;
+		prev->rx.n_frags = 1;
 		reuse_buffer(prev);
 	}
 	else
@@ -4014,12 +4014,12 @@ int sockinfo_tcp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags
 			p_desc_iter = p_desc_iter->p_next_desc;	
 			if (p_desc_iter) {
 				p_desc_iter->lwip_pbuf.pbuf.tot_len = prev->lwip_pbuf.pbuf.tot_len - prev->lwip_pbuf.pbuf.len;
-				p_desc_iter->n_frags = --prev->n_frags;
+				p_desc_iter->rx.n_frags = --prev->rx.n_frags;
 				p_desc_iter->rx.src = prev->rx.src;
 				p_desc_iter->inc_ref_count();
 				prev->lwip_pbuf.pbuf.next = NULL;
 				prev->p_next_desc = NULL;
-				prev->n_frags = 1;
+				prev->rx.n_frags = 1;
 			}
 			len -= sizeof(iovec);
 			offset += sizeof(iovec);

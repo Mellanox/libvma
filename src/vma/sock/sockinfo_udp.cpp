@@ -1888,7 +1888,7 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 		}
 
 		// fill io vector array with data buffer pointers
-		iovec iov[p_desc->n_frags];
+		iovec iov[p_desc->rx.n_frags];
 		nr_frags = 0;
 		for (tmp = p_desc; tmp; tmp = tmp->p_next_desc) {
 			iov[nr_frags++] = tmp->rx.frag;
@@ -1931,7 +1931,7 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 	completion->packet.buff_lst = (struct vma_buff_t*)p_desc;
 	completion->packet.total_len = 0;
 	completion->src = p_desc->rx.src;
-	completion->packet.num_bufs = p_desc->n_frags;
+	completion->packet.num_bufs = p_desc->rx.n_frags;
 
 	for(tmp_p = p_desc; tmp_p; tmp_p = tmp_p->p_next_desc) {
 		completion->packet.buff_lst = (struct vma_buff_t*)tmp_p;

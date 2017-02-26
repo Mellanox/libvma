@@ -809,7 +809,7 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 	}
 
 	// Handle fragmentation
-	p_rx_wc_buf_desc->n_frags = 1;
+	p_rx_wc_buf_desc->rx.n_frags = 1;
 	if (unlikely((ip_frag_off & MORE_FRAGMENTS_FLAG) || n_frag_offset)) { // Currently we don't expect to receive fragments
 		//for disabled fragments handling:
 		/*ring_logwarn("Rx packet dropped - VMA doesn't support fragmentation in receive flow!");
@@ -843,7 +843,7 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 
 		mem_buf_desc_t *tmp;
 		for (tmp = p_rx_wc_buf_desc; tmp; tmp = tmp->p_next_desc) {
-			++p_rx_wc_buf_desc->n_frags;
+			++p_rx_wc_buf_desc->rx.n_frags;
 		}
 #endif
 	}
@@ -1110,7 +1110,7 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 	}
 
 	// Handle fragmentation
-	p_rx_wc_buf_desc->n_frags = 1;
+	p_rx_wc_buf_desc->rx.n_frags = 1;
 	if (unlikely((ip_frag_off & MORE_FRAGMENTS_FLAG) || n_frag_offset)) { // Currently we don't expect to receive fragments
 		//for disabled fragments handling:
 		/*ring_logwarn("Rx packet dropped - VMA doesn't support fragmentation in receive flow!");
@@ -1143,7 +1143,7 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 
 		mem_buf_desc_t *tmp;
 		for (tmp = p_rx_wc_buf_desc; tmp; tmp = tmp->p_next_desc) {
-			++p_rx_wc_buf_desc->n_frags;
+			++p_rx_wc_buf_desc->rx.n_frags;
 		}
 #endif
 	}
