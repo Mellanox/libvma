@@ -30,8 +30,6 @@
  * SOFTWARE.
  */
 
-#define DO_SW (false)
-
 #include "qp_mgr.h"
 #include "utils/bullseye.h"
 #include "vma/util/utils.h"
@@ -152,16 +150,19 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 		return -1;
 	}
 
+#ifndef DEFINED_VMAPOLL
 	printf("============\n");
-
-	if (DO_SW) {
+	if (strstr(m_p_ib_ctx_handler->get_ibv_device()->name, "mlx5")) {
+		printf("= Hardware =\n");
+		m_p_cq_mgr_rx = new cq_mgr_mlx5(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
+	} else {
 		printf("= Software =\n");
 		m_p_cq_mgr_rx = new cq_mgr(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
-	} else {
-		printf("= Hardware =\n");
-		m_p_cq_mgr_rx = new cq_mgr_hw(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
 	}
 	printf("============\n");
+#else
+	m_p_cq_mgr_rx = new cq_mgr(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
+#endif
 
 	if (!m_p_cq_mgr_rx) {
 		qp_logerr("Failed allocating m_p_cq_mgr_rx (errno=%d %m)", errno);

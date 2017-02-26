@@ -104,7 +104,7 @@ class qp_mgr
 #ifdef DEFINED_VMAPOLL
 friend class cq_mgr;
 #endif // DEFINED_VMAPOLL	
-friend class cq_mgr_hw;
+friend class cq_mgr_mlx5;
 public:
 	qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num, const uint32_t tx_num_wr);
 	virtual ~qp_mgr();
@@ -153,7 +153,7 @@ public:
 protected:
 	uint64_t		m_rq_wqe_counter;
 	uint64_t		*m_rq_wqe_idx_to_wrid;
-	struct mlx5_qp			*m_mlx5_hw_qp;
+	struct mlx5_qp	*m_mlx5_hw_qp;
 
 #ifdef DEFINED_VMAPOLL
 	volatile struct mlx5_wqe64* m_sq_hot_wqe;

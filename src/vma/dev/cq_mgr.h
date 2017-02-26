@@ -111,7 +111,7 @@ class cq_mgr
 	friend class ring; // need to expose the m_n_global_sn only to ring 
 	friend class ring_simple; // need to expose the m_n_global_sn only to ring
 	friend class ring_bond; // need to expose the m_n_global_sn only to ring
-	friend class cq_mgr_hw;
+	friend class cq_mgr_mlx5;
 
 public:
 
@@ -315,20 +315,12 @@ cq_mgr* get_cq_mgr_from_cq_event(struct ibv_comp_channel* p_cq_channel);
 
 #include <infiniband/mlx5_hw.h>
 
-class cq_mgr_hw: public cq_mgr
+class cq_mgr_mlx5: public cq_mgr
 {
 public:
-	cq_mgr_hw(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx);
-	virtual ~cq_mgr_hw() {};
+	cq_mgr_mlx5(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx);
+	virtual ~cq_mgr_mlx5() {};
 
-	/**
-	 * Poll the CQ that is managed by this object
-	 * @p_wce pointer to array where to save the wce in
-	 * @num_entries Size of the p_wce (max number of wce to poll at once)
-	 * @p_cq_poll_sn global unique wce id that maps last wce polled
-	 * @return Number of successfully polled wce
-	 */
-//	virtual int							poll(vma_ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn);
 	virtual inline mem_buf_desc_t*		poll();
 	virtual void						add_qp_rx(qp_mgr* qp);
 	virtual void						del_qp_rx(qp_mgr *qp);

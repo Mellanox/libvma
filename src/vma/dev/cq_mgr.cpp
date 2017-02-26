@@ -1624,7 +1624,7 @@ void cq_mgr::mlx5_init_cq()
 #endif // DEFINED_VMAPOLL
 
 
-cq_mgr_hw::cq_mgr_hw(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx):
+cq_mgr_mlx5::cq_mgr_mlx5(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx):
 	cq_mgr(p_ring, p_ib_ctx_handler, cq_size, p_comp_event_channel, is_rx)
 	, m_mlx5_cq(NULL)
 	, m_cq_sz(cq_size)
@@ -1641,7 +1641,7 @@ cq_mgr_hw::cq_mgr_hw(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int 
 	m_mlx5_cqes = (volatile struct mlx5_cqe64 (*)[])(uintptr_t)m_mlx5_cq->active_buf->buf;
 }
 
-inline volatile struct mlx5_cqe64* cq_mgr_hw::mlx5_get_cqe64(void)
+inline volatile struct mlx5_cqe64* cq_mgr_mlx5::mlx5_get_cqe64(void)
 {
 	volatile struct mlx5_cqe64 *cqe;
 	volatile struct mlx5_cqe64 *cqes;
@@ -1666,7 +1666,7 @@ inline volatile struct mlx5_cqe64* cq_mgr_hw::mlx5_get_cqe64(void)
 	return cqe;
 }
 
-inline volatile struct mlx5_cqe64*	cq_mgr_hw::mlx5_get_cqe64(volatile struct mlx5_cqe64 **cqe_err)
+inline volatile struct mlx5_cqe64*	cq_mgr_mlx5::mlx5_get_cqe64(volatile struct mlx5_cqe64 **cqe_err)
 {
 	volatile struct mlx5_cqe64 *cqe;
 	volatile struct mlx5_cqe64 *cqes;
@@ -1691,7 +1691,7 @@ inline volatile struct mlx5_cqe64*	cq_mgr_hw::mlx5_get_cqe64(volatile struct mlx
 	return cqe;
 }
 
-volatile struct mlx5_cqe64*	cq_mgr_hw::mlx5_check_error_completion(volatile struct mlx5_cqe64 *cqe, volatile uint16_t *ci, uint8_t op_own)
+volatile struct mlx5_cqe64*	cq_mgr_mlx5::mlx5_check_error_completion(volatile struct mlx5_cqe64 *cqe, volatile uint16_t *ci, uint8_t op_own)
 {
 	switch (op_own >> 4) {
 		case MLX5_CQE_INVALID:
@@ -1707,7 +1707,7 @@ volatile struct mlx5_cqe64*	cq_mgr_hw::mlx5_check_error_completion(volatile stru
 	}
 }
 
-inline void		cq_mgr_hw::mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, vma_ibv_wc *wce)
+inline void		cq_mgr_mlx5::mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, vma_ibv_wc *wce)
 {
 	struct mlx5_err_cqe *ecqe;
 	ecqe = (struct mlx5_err_cqe *)cqe;
@@ -1832,7 +1832,7 @@ inline void		cq_mgr_hw::mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, vm
 //	return ret;
 //}
 
-void	cq_mgr_hw::add_qp_rx(qp_mgr* qp)
+void	cq_mgr_mlx5::add_qp_rx(qp_mgr* qp)
 {
 	cq_mgr::add_qp_rx(qp);
 	m_qp = qp;
@@ -1840,14 +1840,14 @@ void	cq_mgr_hw::add_qp_rx(qp_mgr* qp)
 	m_mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
 }
 
-void	cq_mgr_hw::del_qp_rx(qp_mgr *qp)
+void	cq_mgr_mlx5::del_qp_rx(qp_mgr *qp)
 {
 	cq_mgr::del_qp_rx(qp);
 	m_qp = NULL;
-	m_mlx5_hw_qp = NULL; //Daniel - Don't forget to do something with that!!!
+	m_mlx5_hw_qp = NULL;
 }
 
-inline mem_buf_desc_t*		cq_mgr_hw::poll()
+inline mem_buf_desc_t*		cq_mgr_mlx5::poll()
 {
 	mem_buf_desc_t *buff = NULL;
 
@@ -1901,7 +1901,7 @@ inline mem_buf_desc_t*		cq_mgr_hw::poll()
 //byte_len
 //timestamp
 
-inline void		cq_mgr_hw::mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, mem_buf_desc_t* p_rx_wc_buf_desc)
+inline void		cq_mgr_mlx5::mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, mem_buf_desc_t* p_rx_wc_buf_desc)
 {
 	struct mlx5_err_cqe *ecqe;
 	ecqe = (struct mlx5_err_cqe *)cqe;
@@ -1932,7 +1932,24 @@ inline void		cq_mgr_hw::mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, me
 		p_rx_wc_buf_desc->path.rx.poll_status = IBV_WC_GENERAL_ERR;
 	}
 
-	p_rx_wc_buf_desc->path.rx.poll_vendor_err = ecqe->vendor_err_synd;
+	//Time stamp
+	p_rx_wc_buf_desc->path.rx.hw_raw_timestamp = cqe->timestamp;
+	//this is not a deadcode if timestamping is defined in verbs API
+	// coverity[dead_error_condition]
+//	if (p_rx_wc_buf_desc->path.rx.poll_flags & VMA_IBV_WC_WITH_TIMESTAMP) {
+//		p_rx_wc_buf_desc->path.rx.hw_raw_timestamp = 0;
+//	}
+
+
+	//Checksum
+	p_rx_wc_buf_desc->is_rx_sw_csum_need = true;
+	p_rx_wc_buf_desc->path.rx.poll_rx_hw_csum_ok = true;
+
+	//Others
+
+
+	//Log
+//	p_rx_wc_buf_desc->path.rx.poll_vendor_err = ecqe->vendor_err_synd;
 
 //	bool is_rx_sw_csum_need;
 //	p_mem_buf_desc->is_rx_sw_csum_need = is_rx_sw_csum_need;
@@ -1945,17 +1962,11 @@ inline void		cq_mgr_hw::mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, me
 //		is_rx_sw_csum_need = false;
 //	}
 	//TODO - check sum!!!
-	p_rx_wc_buf_desc->is_rx_sw_csum_need = true;
-	p_rx_wc_buf_desc->path.rx.poll_rx_hw_csum_ok = true;
-	p_rx_wc_buf_desc->path.rx.qpn = 0; //todo not used
-	p_rx_wc_buf_desc->path.rx.poll_flags = 0; //?????????
-	//this is not a deadcode if timestamping is defined in verbs API
-	// coverity[dead_error_condition]
-	if (p_rx_wc_buf_desc->path.rx.poll_flags & VMA_IBV_WC_WITH_TIMESTAMP) {
-		p_rx_wc_buf_desc->path.rx.hw_raw_timestamp = 0;
-	}}
 
-int cq_mgr_hw::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/)
+	p_rx_wc_buf_desc->path.rx.poll_flags = 0; //?????????
+}
+
+int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/)
 {
 	cq_logfuncall("cq was %s drained. %d processed wce since last check. %d wce in m_rx_queue", (m_b_was_drained?"":"not "), m_n_wce_counter, m_rx_queue.size());
 
@@ -2029,7 +2040,7 @@ int cq_mgr_hw::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NUL
 	return ret_total;
 }
 
-mem_buf_desc_t* cq_mgr_hw::process_cq_element_rx(mem_buf_desc_t* p_mem_buf_desc)
+mem_buf_desc_t* cq_mgr_mlx5::process_cq_element_rx(mem_buf_desc_t* p_mem_buf_desc)
 {
 	// Assume locked!!!
 	cq_logfuncall("");
@@ -2073,8 +2084,6 @@ mem_buf_desc_t* cq_mgr_hw::process_cq_element_rx(mem_buf_desc_t* p_mem_buf_desc)
 	}
 
 	if (likely(p_mem_buf_desc->path.rx.poll_opcode & VMA_IBV_WC_RECV)) {
-		p_mem_buf_desc->path.rx.vlan = 0; //todo not used
-
 		//we use context to verify that on reclaim rx buffer path we return the buffer to the right CQ
 		p_mem_buf_desc->path.rx.is_vma_thr = false;
 		p_mem_buf_desc->path.rx.context = this;
@@ -2088,7 +2097,7 @@ mem_buf_desc_t* cq_mgr_hw::process_cq_element_rx(mem_buf_desc_t* p_mem_buf_desc)
 	return p_mem_buf_desc;
 }
 
-int cq_mgr_hw::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array)
+int cq_mgr_mlx5::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array)
 {
 	// Assume locked!!!
 	cq_logfuncall("");

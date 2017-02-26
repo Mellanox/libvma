@@ -86,7 +86,7 @@ public:
 	inline void 		convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) { m_p_cq_mgr_rx->convert_hw_time_to_system_time(hwtime, systime); }
 
 	friend class cq_mgr;
-	friend class cq_mgr_hw;
+	friend class cq_mgr_mlx5;
 	friend class qp_mgr;
 	friend class rfs;
 	friend class rfs_uc;
