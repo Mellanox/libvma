@@ -39,6 +39,7 @@
 #include "vma/util/verbs_extra.h"
 #include "vma/util/vma_stats.h"
 #include "vma/proto/mem_buf_desc.h"
+#include "dev/allocator.h"
 
 
 class net_device;
@@ -95,22 +96,9 @@ public:
 	void		set_RX_TX_for_stats(bool rx);
 
 private:
+	vma_allocator	m_allocator;
 
 	lock_spin	m_lock_spin;
-
-	// pointer to data block
-	void		*m_data_block;
-	
-        // contiguous pages allocation indicator
-        bool m_is_contig_alloc;
-
-	// Shared memory ID, if allocated in hugetlb
-	int		m_shmid;
-
-	// List of memory regions
-	std::deque<ibv_mr*> m_mrs;
-
-	ib_ctx_handler* m_p_ib_ctx_h;
 
 	// XXX-dummy buffer list head and count
 	// to be replaced with a bucket-sorted array
@@ -120,16 +108,6 @@ private:
 
 	bpool_stats_t* 	m_p_bpool_stat;
 	bpool_stats_t 	m_bpool_stat_static;
-
-	/**
-	 * Allocate data block in hugetlb memory
-	 */
-	bool 		hugetlb_alloc(size_t sz_bytes);
-	
-	/**
-	 * Register memory
-	 */
-	bool	register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint64_t access);
 
 	/**
 	 * Add a buffer to the pool
