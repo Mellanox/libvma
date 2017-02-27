@@ -2942,6 +2942,11 @@ int sockinfo_tcp::wait_for_conn_ready()
 			si_tcp_logdbg("connect interrupted");
 			return -1;
 		}
+		if(errno == EAGAIN || errno == EBUSY ) {
+			if (m_loops_timer.time_left_msec() == -1) {
+				m_loops_timer.set_timeout_msec(10);
+			}
+		}
 	}
 	if (m_sock_state == TCP_SOCK_INITED) {
 		//we get here if err_lwip_cb() was called and set m_sock_state=TCP_SOCK_INITED
