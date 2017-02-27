@@ -329,6 +329,7 @@ public:
 	volatile struct mlx5_cqe64*			mlx5_check_error_completion(volatile struct mlx5_cqe64 *cqe, volatile uint16_t *ci, uint8_t op_own);
 	inline void 						mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, vma_ibv_wc *wce);
 	inline void 						mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, mem_buf_desc_t* p_rx_wc_buf_desc);
+	static inline uint8_t 				get_cqe_l3_hdr_type(volatile struct mlx5_cqe64 *cqe);
 
 	virtual int							drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id = NULL);
 	virtual int							poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);

@@ -60,20 +60,17 @@
 #define FICTIVE_AH_DLID		0x3
 
 qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num, const uint32_t tx_num_wr):
-	m_qp(NULL), m_p_ring((ring_simple*)p_ring), m_port_num((uint8_t)port_num), m_p_ib_ctx_handler((ib_ctx_handler*)p_context),
-	m_p_ahc_head(NULL), m_p_ahc_tail(NULL), m_max_inline_data(0), m_max_qp_wr(0), m_p_cq_mgr_rx(NULL), m_p_cq_mgr_tx(NULL),
-	m_rx_num_wr(safe_mce_sys().rx_num_wr), m_tx_num_wr(tx_num_wr), m_hw_dummy_send_support(false),
-	m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv),
-	m_n_sysvar_tx_num_wr_to_signal(safe_mce_sys().tx_num_wr_to_signal),
-	m_n_sysvar_rx_prefetch_bytes_before_poll(safe_mce_sys().rx_prefetch_bytes_before_poll),
-	m_curr_rx_wr(0), m_last_posted_rx_wr_id(0), m_n_unsignaled_count(0), m_n_tx_count(0),
-	m_p_last_tx_mem_buf_desc(NULL), m_p_prev_rx_desc_pushed(NULL),
-	m_n_ip_id_base(0), m_n_ip_id_offset(0)
+	m_rq_wqe_counter(0), m_rq_wqe_idx_to_wrid(NULL), m_mlx5_hw_qp(NULL), m_qp(NULL), m_p_ring((ring_simple*)p_ring),
+	m_port_num((uint8_t)port_num), m_p_ib_ctx_handler((ib_ctx_handler*)p_context), m_p_ahc_head(NULL), m_p_ahc_tail(NULL),
+	m_max_inline_data(0), m_max_qp_wr(0), m_p_cq_mgr_rx(NULL), m_p_cq_mgr_tx(NULL), m_rx_num_wr(safe_mce_sys().rx_num_wr),
+	m_tx_num_wr(tx_num_wr), m_hw_dummy_send_support(false), m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv),
+	m_n_sysvar_tx_num_wr_to_signal(safe_mce_sys().tx_num_wr_to_signal), m_n_sysvar_rx_prefetch_bytes_before_poll(safe_mce_sys().rx_prefetch_bytes_before_poll),
+	m_curr_rx_wr(0), m_last_posted_rx_wr_id(0), m_n_unsignaled_count(0), m_n_tx_count(0), m_p_last_tx_mem_buf_desc(NULL),
+	m_p_prev_rx_desc_pushed(NULL), m_n_ip_id_base(0), m_n_ip_id_offset(0)
 {
 	m_ibv_rx_sg_array = new ibv_sge[m_n_sysvar_rx_num_wr_to_post_recv];
 	m_ibv_rx_wr_array = new ibv_recv_wr[m_n_sysvar_rx_num_wr_to_post_recv];
 
-	m_rq_wqe_counter = 0;
 	m_rq_wqe_idx_to_wrid = (uint64_t*)malloc(m_rx_num_wr * sizeof *m_rq_wqe_idx_to_wrid);
 
 #ifdef DEFINED_VMAPOLL

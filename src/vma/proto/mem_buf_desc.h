@@ -141,9 +141,7 @@ public:
 			uint32_t	poll_byte_len;
 			uint32_t	poll_status;
 			uint32_t	poll_vendor_err;
-			bool		poll_rx_hw_csum_ok;
 			uint32_t	poll_qp_num;
-			uint64_t	poll_flags;
 		} rx;
 		struct {
 			ibv_send_wr_ud 	wr_ud_info;

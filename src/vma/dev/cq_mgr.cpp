@@ -1893,13 +1893,10 @@ inline mem_buf_desc_t*		cq_mgr_mlx5::poll()
 	return buff;
 }
 
-// --//wr_id
-// ++//status
-//qp_num
-//exp_wc_flags //wc_flags
-//exp_opcode   //opcode
-//byte_len
-//timestamp
+inline uint8_t cq_mgr_mlx5::get_cqe_l3_hdr_type(volatile struct mlx5_cqe64 *cqe)
+{
+	return (cqe->l4_hdr_type_etc >> 2) & 0x3;
+}
 
 inline void		cq_mgr_mlx5::mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, mem_buf_desc_t* p_rx_wc_buf_desc)
 {
@@ -1942,28 +1939,28 @@ inline void		cq_mgr_mlx5::mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, 
 
 
 	//Checksum
-	p_rx_wc_buf_desc->is_rx_sw_csum_need = true;
-	p_rx_wc_buf_desc->path.rx.poll_rx_hw_csum_ok = true;
+//	bool checksumok = (cqe->hds_ip_ext & MLX5_CQE_L4_OK) && (cqe->hds_ip_ext & MLX5_CQE_L3_OK)/* && (MLX5_CQE_L3_HDR_TYPE_IPV4 == get_cqe_l3_hdr_type(cqe))*/;
+	p_rx_wc_buf_desc->is_rx_sw_csum_need = !(m_b_is_rx_hw_csum_on && false /* checksumok get checksum status from cqe*/);
+
+//	static bool print = true;
+//	if (print) {
+//		print = false;
+//
+////		m_mlx5_hw_qp->qp_cap_cache & MLX5_RX_CSUM_VALID
+//
+//		printf("m_b_is_rx_hw_csum_on = %d\n",(int)m_b_is_rx_hw_csum_on);
+//		printf("cqe->hds_ip_ext = %d\n",(int)cqe->hds_ip_ext);
+//		printf("(cqe->hds_ip_ext & MLX5_CQE_L4_OK) %s\n", 0 != (cqe->hds_ip_ext & MLX5_CQE_L4_OK)?"true":"false");
+//		printf("(cqe->hds_ip_ext & MLX5_CQE_L3_OK) %s\n", 0 != (cqe->hds_ip_ext & MLX5_CQE_L3_OK)?"true":"false");
+//		printf("(MLX5_CQE_L3_HDR_TYPE_IPV4 == get_cqe_l3_hdr_type(cqe)) %s\n", 0 != (MLX5_CQE_L3_HDR_TYPE_IPV4 == get_cqe_l3_hdr_type(cqe))?"true":"false");
+//	}
 
 	//Others
 
 
 	//Log
 //	p_rx_wc_buf_desc->path.rx.poll_vendor_err = ecqe->vendor_err_synd;
-
-//	bool is_rx_sw_csum_need;
-//	p_mem_buf_desc->is_rx_sw_csum_need = is_rx_sw_csum_need;
-//
-//	if  (m_b_sysvar_is_rx_sw_csum_on) {
-//		// no changes in bad_wce
-//		is_rx_sw_csum_need = !(m_b_is_rx_hw_csum_on && vma_wc_rx_hw_csum_ok(*p_wce));
-//	} else {
-//		bad_wce =  bad_wce || (m_b_is_rx_hw_csum_on && !vma_wc_rx_hw_csum_ok(*p_wce));
-//		is_rx_sw_csum_need = false;
-//	}
-	//TODO - check sum!!!
-
-	p_rx_wc_buf_desc->path.rx.poll_flags = 0; //?????????
+//	p_rx_wc_buf_desc->path.rx.poll_flags = 0; //?????????
 }
 
 int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/)
@@ -2045,25 +2042,10 @@ mem_buf_desc_t* cq_mgr_mlx5::process_cq_element_rx(mem_buf_desc_t* p_mem_buf_des
 	// Assume locked!!!
 	cq_logfuncall("");
 
-	bool bad_wce = p_mem_buf_desc->path.rx.poll_status != IBV_WC_SUCCESS;
-
-	if  (m_b_sysvar_is_rx_sw_csum_on) {
-		// no changes in bad_wce
-//		is_rx_sw_csum_need = !(m_b_is_rx_hw_csum_on && vma_wc_rx_hw_csum_ok(*p_wce));
-	} else {
-//		bad_wce =  bad_wce || (m_b_is_rx_hw_csum_on && !vma_wc_rx_hw_csum_ok(*p_wce));
-		bad_wce =  bad_wce || (m_b_is_rx_hw_csum_on && !p_mem_buf_desc->path.rx.poll_rx_hw_csum_ok);
-		p_mem_buf_desc->is_rx_sw_csum_need = false;
-	}
-
-	if (unlikely(bad_wce)) {
+	if (unlikely((p_mem_buf_desc->path.rx.poll_status != IBV_WC_SUCCESS) ||
+			     (m_b_is_rx_hw_csum_on && p_mem_buf_desc->is_rx_sw_csum_need))) {
 //		process_cq_element_log_helper(p_mem_buf_desc, p_wce);
 		m_p_next_rx_desc_poll = NULL;
-
-		if (p_mem_buf_desc == NULL) {
-			cq_logdbg("wce->wr_id = 0!!! When status != IBV_WC_SUCCESS");
-			return NULL;
-		}
 		if (p_mem_buf_desc->p_desc_owner) {
 			p_mem_buf_desc->p_desc_owner->mem_buf_desc_completion_with_error_rx(p_mem_buf_desc);
 			return NULL;
