@@ -869,7 +869,7 @@ static void do_global_ctors_helper()
 //	igmp_test();
 }
 
-void do_global_ctors()
+int do_global_ctors()
 {
 	try {
 		do_global_ctors_helper();
@@ -877,11 +877,14 @@ void do_global_ctors()
 	catch (const vma_exception& error) {
 		vlog_printf(VLOG_DETAILS, "Error: %s", error.what());
 		free_libvma_resources();
+		return 1;
 	}
 	catch (const std::exception& error ) {
 		vlog_printf(VLOG_ERROR, "%s", error.what());
 		free_libvma_resources();
+		return 1;
 	}
+	return 0;
 }
 
 void reset_globals()
