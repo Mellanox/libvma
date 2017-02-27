@@ -699,7 +699,7 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 		struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
 		p_rx_wc_buf_desc->rx.tcp.p_ip_h        = p_ip_h;
 		p_rx_wc_buf_desc->rx.tcp.p_tcp_h       = p_tcp_h;
-		p_rx_wc_buf_desc->transport_header_len  = transport_header_len;
+		p_rx_wc_buf_desc->rx.tcp.n_transport_header_len  = transport_header_len;
 		p_rx_wc_buf_desc->rx.vma_polled = true;
 		p_rfs_single_tcp->rx_dispatch_packet(p_rx_wc_buf_desc, NULL);
 		p_rx_wc_buf_desc->rx.vma_polled = false;
@@ -923,7 +923,7 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 		p_rfs = m_flow_tcp_map.get((flow_spec_tcp_key_t){p_rx_wc_buf_desc->rx.src.sin_addr.s_addr,
 			p_rx_wc_buf_desc->rx.dst.sin_port, p_rx_wc_buf_desc->rx.src.sin_port}, NULL);
 
-		p_rx_wc_buf_desc->transport_header_len = transport_header_len;
+		p_rx_wc_buf_desc->rx.tcp.n_transport_header_len = transport_header_len;
 
 		if (unlikely(p_rfs == NULL)) {	// If we didn't find a match for TCP 5T, look for a match with TCP 3T
 			p_rfs = m_flow_tcp_map.get((flow_spec_tcp_key_t){0, p_rx_wc_buf_desc->rx.dst.sin_port, 0}, NULL);
@@ -983,7 +983,7 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 		struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
 		p_rx_wc_buf_desc->rx.tcp.p_ip_h        = p_ip_h;
 		p_rx_wc_buf_desc->rx.tcp.p_tcp_h       = p_tcp_h;
-		p_rx_wc_buf_desc->transport_header_len  = transport_header_len;
+		p_rx_wc_buf_desc->rx.tcp.n_transport_header_len  = transport_header_len;
 		return p_rfs_single_tcp->rx_dispatch_packet(p_rx_wc_buf_desc, pv_fd_ready_array);
 	}
 #endif // DEFINED_VMAPOLL
