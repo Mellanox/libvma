@@ -106,6 +106,7 @@ int nl_cache_mngr_compatible_add(struct nl_cache_mngr*	mngr, const char* name, c
 	int err = nl_cache_mngr_add(mngr, name, cb, data, result);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (err) {
+		errno = ELIBEXEC;
 		nl_logerr("Fail to add to cache manager, error=%s", nl_geterror(err));
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -190,6 +191,7 @@ nl_cache_mngr* nl_cache_mngr_compatible_alloc(nl_socket_handle* handle, int prot
 int nl_cache_mngr_compatible_add(struct nl_cache_mngr*	mngr, const char* name, change_func_t cb, void*	, struct nl_cache** result){
 	*result = nl_cache_mngr_add(mngr, name, cb);
 	if (*result == NULL) {
+		errno = ELIBEXEC;
 		nl_logerr("Fail adding to cache manager, error=%d %s\n",
 			nl_get_errno(), nl_geterror());
 		return -1;
