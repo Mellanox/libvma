@@ -341,6 +341,9 @@ int vma_recvfrom_zcopy(int __fd, void *__buf, size_t __nbytes, int *__flags,
 		return p_socket_object->rx(RX_RECVFROM, piov, 1, __flags, __from, __fromlen);
 
 	}
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.recvfrom) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
 	return orig_os_api.recvfrom(__fd, __buf, __nbytes, *__flags, __from, __fromlen);
 }
 
@@ -576,6 +579,10 @@ int socket_internal(int __domain, int __type, int __protocol, bool check_offload
 
 	dbg_check_if_need_to_send_mcpkt();
 
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.socket) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
 	int fd = orig_os_api.socket(__domain, __type, __protocol);
 	vlog_printf(VLOG_DEBUG, "ENTER: %s(domain=%s(%d), type=%s(%d), protocol=%d) = %d\n",__func__, socket_get_domain_str(__domain), __domain, socket_get_type_str(__type), __type, __protocol, fd);
 	if (fd < 0) {
@@ -597,6 +604,10 @@ int socket_internal(int __domain, int __type, int __protocol, bool check_offload
 extern "C"
 int close(int __fd)
 {
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.close) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
 	srdr_logdbg_entry("fd=%d", __fd);
 
 	/*
@@ -612,13 +623,17 @@ int close(int __fd)
 extern "C"
 void __res_iclose(res_state statp, bool free_addr)
 {
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.__res_iclose) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
 	srdr_logdbg_entry("");
-        for (int ns = 0; ns < statp->_u._ext.nscount; ns++) {
-        	int sock = statp->_u._ext.nssocks[ns];
-                if (sock != -1) {
-                	handle_close(sock);
-                }
-        }
+	for (int ns = 0; ns < statp->_u._ext.nscount; ns++) {
+		int sock = statp->_u._ext.nssocks[ns];
+		if (sock != -1) {
+			handle_close(sock);
+		}
+	}
 	orig_os_api.__res_iclose(statp, free_addr);
 }
 
@@ -638,38 +653,54 @@ int shutdown(int __fd, int __how)
 	if (p_socket_object)
 		return p_socket_object->shutdown(__how);
 
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.shutdown) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
 	return orig_os_api.shutdown(__fd, __how);
 }
 
 extern "C"
 int listen(int __fd, int backlog)
 {
-       srdr_logdbg_entry("fd=%d, backlog=%d", __fd, backlog);
+	srdr_logdbg_entry("fd=%d, backlog=%d", __fd, backlog);
 
-       socket_fd_api* p_socket_object = NULL;
-       p_socket_object = fd_collection_get_sockfd(__fd);
+	socket_fd_api* p_socket_object = NULL;
+	p_socket_object = fd_collection_get_sockfd(__fd);
 
-       if (p_socket_object) {
-    	   int ret = p_socket_object->prepareListen(); // for verifying that the socket is really offloaded
-    	   if (ret < 0) return ret; //error
-    	   if (ret > 0) { //Passthrough
-    		   handle_close(__fd, false, true);
-    		   p_socket_object = NULL;
-    	   }
-       }
+	if (p_socket_object) {
+		int ret = p_socket_object->prepareListen(); // for verifying that the socket is really offloaded
+		if (ret < 0)
+			return ret; //error
+		if (ret > 0) { //Passthrough
+			handle_close(__fd, false, true);
+			p_socket_object = NULL;
+		}
+	}
+	if (p_socket_object) {
+		return p_socket_object->listen(backlog);
+	}
 
-       return p_socket_object ? p_socket_object->listen(backlog) : orig_os_api.listen(__fd, backlog);
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.listen) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	return orig_os_api.listen(__fd, backlog);
 }
 
 extern "C"
 int accept(int __fd, struct sockaddr *__addr, socklen_t *__addrlen)
 {
-       socket_fd_api* p_socket_object = NULL;
-       p_socket_object = fd_collection_get_sockfd(__fd);
-       if (p_socket_object)
-               return p_socket_object->accept(__addr, __addrlen);
+	socket_fd_api* p_socket_object = NULL;
+	p_socket_object = fd_collection_get_sockfd(__fd);
+	if (p_socket_object)
+		return p_socket_object->accept(__addr, __addrlen);
 
-       return orig_os_api.accept(__fd, __addr, __addrlen);
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.accept) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	return orig_os_api.accept(__fd, __addr, __addrlen);
 }
 
 extern "C"
@@ -680,6 +711,10 @@ int accept4(int __fd, struct sockaddr *__addr, socklen_t *__addrlen, int __flags
 	if (p_socket_object)
 		return p_socket_object->accept4(__addr, __addrlen, __flags);
 
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.accept4) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
 	return orig_os_api.accept4(__fd, __addr, __addrlen, __flags);
 }
 
@@ -687,6 +722,10 @@ int accept4(int __fd, struct sockaddr *__addr, socklen_t *__addrlen, int __flags
 extern "C"
 int bind(int __fd, const struct sockaddr *__addr, socklen_t __addrlen)
 {
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.bind) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
 	char buf[256];
 	NOT_IN_USE(buf); /* to suppress warning in case VMA_OPTIMIZE_LOG */
 	srdr_logdbg_entry("fd=%d, %s", __fd, sprintf_sockaddr(buf, 256, __addr, __addrlen));
@@ -724,6 +763,10 @@ int bind(int __fd, const struct sockaddr *__addr, socklen_t __addrlen)
 extern "C"
 int connect(int __fd, const struct sockaddr *__to, socklen_t __tolen)
 {
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.connect) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
 	char buf[256];
 	NOT_IN_USE(buf); /* to suppress warning in case VMA_OPTIMIZE_LOG */
 	srdr_logdbg_entry("fd=%d, %s", __fd, sprintf_sockaddr(buf, 256, __to, __tolen));
@@ -776,6 +819,9 @@ int setsockopt(int __fd, int __level, int __optname,
 		ret = p_socket_object->setsockopt(__level, __optname, __optval, __optlen);
 	}
 	else {
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (!orig_os_api.setsockopt) get_orig_funcs();
+		BULLSEYE_EXCLUDE_BLOCK_END
 		ret = orig_os_api.setsockopt(__fd, __level, __optname, __optval, __optlen);
 	}
 
@@ -829,10 +875,14 @@ int getsockopt(int __fd, int __level, int __optname,
 	int ret = 0;
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
-	if (p_socket_object)
+	if (p_socket_object) {
 		ret = p_socket_object->getsockopt(__level, __optname, __optval, __optlen);
-	else
+	} else {
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (!orig_os_api.getsockopt) get_orig_funcs();
+		BULLSEYE_EXCLUDE_BLOCK_END
 		ret = orig_os_api.getsockopt(__fd, __level, __optname, __optval, __optlen);
+	}
 
 	if (ret >= 0)
 		srdr_logdbg_exit("returned with %d", ret);
@@ -865,10 +915,14 @@ int fcntl(int __fd, int __cmd, ...) VMA_THROW
 	int ret = 0;
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
-	if (p_socket_object)
+	if (p_socket_object) {
 		res = p_socket_object->fcntl(__cmd, arg);
-	else
+	} else {
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (!orig_os_api.fcntl) get_orig_funcs();
+		BULLSEYE_EXCLUDE_BLOCK_END
 		res = orig_os_api.fcntl(__fd, __cmd, arg);
+	}
 
 	if (__cmd == F_DUPFD) {
 		handle_close(__fd);
@@ -899,10 +953,14 @@ int ioctl (int __fd, unsigned long int __request, ...) VMA_THROW
 
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
-	if (p_socket_object && arg)
+	if (p_socket_object && arg) {
 		res = p_socket_object->ioctl(__request, arg);
-	else
+	} else {
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (!orig_os_api.ioctl) get_orig_funcs();
+		BULLSEYE_EXCLUDE_BLOCK_END
 		res = orig_os_api.ioctl(__fd, __request, arg);
+	}
 
 	if (ret >= 0)
 		srdr_logfunc_exit("returned with %d", ret);
@@ -923,6 +981,9 @@ int getsockname(int __fd, struct sockaddr *__name, socklen_t *__namelen)
 		ret = p_socket_object->getsockname(__name, __namelen);
 	}
 	else {
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (!orig_os_api.getsockname) get_orig_funcs();
+		BULLSEYE_EXCLUDE_BLOCK_END
 		ret = orig_os_api.getsockname(__fd, __name, __namelen);
 	}
 
@@ -945,6 +1006,9 @@ int getpeername(int __fd, struct sockaddr *__name, socklen_t *__namelen)
 		ret = p_socket_object->getpeername(__name, __namelen);
 	}
 	else {
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (!orig_os_api.getpeername) get_orig_funcs();
+		BULLSEYE_EXCLUDE_BLOCK_END
 		ret = orig_os_api.getpeername(__fd, __name, __namelen);
 	}
 
@@ -976,6 +1040,10 @@ ssize_t read(int __fd, void *__buf, size_t __nbytes)
 		return p_socket_object->rx(RX_READ, piov, 1, &dummy_flags);
 	}
 
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.read) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
 	return orig_os_api.read(__fd, __buf, __nbytes);
 }
 
@@ -1006,6 +1074,9 @@ ssize_t __read_chk(int __fd, void *__buf, size_t __nbytes, size_t __buflen)
 		int dummy_flags = 0;
 		return p_socket_object->rx(RX_READ, piov, 1, &dummy_flags);
 	}
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.__read_chk) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
 
 	return orig_os_api.__read_chk(__fd, __buf, __nbytes, __buflen);
 }
@@ -1028,6 +1099,9 @@ ssize_t readv(int __fd, const struct iovec *iov, int iovcnt)
 		int dummy_flags = 0;
 		return p_socket_object->rx(RX_READV, piov, iovcnt, &dummy_flags);
 	}
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.readv) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
 
 	return orig_os_api.readv(__fd, iov, iovcnt);
 }
@@ -1050,6 +1124,9 @@ ssize_t recv(int __fd, void *__buf, size_t __nbytes, int __flags)
 		piov[0].iov_len = __nbytes;
 		return p_socket_object->rx(RX_RECV, piov, 1, &__flags);
 	}
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.recv) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
 
 	return orig_os_api.recv(__fd, __buf, __nbytes, __flags);
 }
@@ -1080,6 +1157,9 @@ ssize_t __recv_chk(int __fd, void *__buf, size_t __nbytes, size_t __buflen, int 
 		piov[0].iov_len = __nbytes;
 		return p_socket_object->rx(RX_RECV, piov, 1, &__flags);
 	}
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.__recv_chk) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
 
 	return orig_os_api.__recv_chk(__fd, __buf, __nbytes, __buflen, __flags);
 }
@@ -1106,6 +1186,9 @@ ssize_t recvmsg(int __fd, struct msghdr *__msg, int __flags)
 		__msg->msg_flags = 0;
 		return p_socket_object->rx(RX_RECVMSG, __msg->msg_iov, __msg->msg_iovlen, &__flags, (__SOCKADDR_ARG)__msg->msg_name, (socklen_t*)&__msg->msg_namelen, __msg);
 	}
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.recvmsg) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
 
 	return orig_os_api.recvmsg(__fd, __msg, __flags);
 }
@@ -1182,7 +1265,10 @@ int recvmmsg(int __fd, struct mmsghdr *__mmsghdr, unsigned int __vlen, int __fla
                 	return ret;
                 }
         }
-        
+        BULLSEYE_EXCLUDE_BLOCK_START
+        if (!orig_os_api.recvmmsg) get_orig_funcs();
+        BULLSEYE_EXCLUDE_BLOCK_END
+
         return orig_os_api.recvmmsg(__fd, __mmsghdr, __vlen, __flags, __timeout);
 }
 
@@ -1211,7 +1297,10 @@ ssize_t recvfrom(int __fd, void *__buf, size_t __nbytes, int __flags,
 		ret_val = p_socket_object->rx(RX_RECVFROM, piov, 1, &__flags, __from, __fromlen);
 	}
 	else {
-		ret_val = orig_os_api.recvfrom(__fd, __buf, __nbytes, __flags, __from, __fromlen);;
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (!orig_os_api.recvfrom) get_orig_funcs();
+		BULLSEYE_EXCLUDE_BLOCK_END
+		ret_val = orig_os_api.recvfrom(__fd, __buf, __nbytes, __flags, __from, __fromlen);
 	}
 #ifdef DEFINED_VMAPOLL
 #ifdef RDTSC_MEASURE_RX_PROCCESS_BUFFER_TO_RECIVEFROM
@@ -1262,6 +1351,9 @@ ssize_t __recvfrom_chk(int __fd, void *__buf, size_t __nbytes, size_t __buflen, 
 		piov[0].iov_len = __nbytes;
 		return p_socket_object->rx(RX_RECVFROM, piov, 1, &__flags, __from, __fromlen);
 	}
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.__recvfrom_chk) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
 
 	return orig_os_api.__recvfrom_chk(__fd, __buf, __nbytes, __buflen, __flags, __from, __fromlen);
 }
@@ -1283,6 +1375,9 @@ ssize_t write(int __fd, __const void *__buf, size_t __nbytes)
 		piov[0].iov_len = __nbytes;
 		return p_socket_object->tx(TX_WRITE, piov, 1);
 	}
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.write) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
 
 	return orig_os_api.write(__fd, __buf, __nbytes);
 }
@@ -1301,6 +1396,10 @@ ssize_t writev(int __fd, const struct iovec *iov, int iovcnt)
 	if (p_socket_object) {
 		return p_socket_object->tx(TX_WRITEV, iov, iovcnt);
 	}
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.writev) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
 	return orig_os_api.writev(__fd, iov, iovcnt);
 }
 
@@ -1327,9 +1426,12 @@ ssize_t send(int __fd, __const void *__buf, size_t __nbytes, int __flags)
 	if (unlikely(IS_DUMMY_PACKET(__flags))) {
 		errno = EINVAL;
 		return -1;
-	} else {
-		return orig_os_api.send(__fd, __buf, __nbytes, __flags);
 	}
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.send) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	return orig_os_api.send(__fd, __buf, __nbytes, __flags);
 }
 
 /* Sends a message as described by MESSAGE to socket FD.
@@ -1352,9 +1454,13 @@ ssize_t sendmsg(int __fd, __const struct msghdr *__msg, int __flags)
 	if (unlikely(IS_DUMMY_PACKET(__flags))) {
 		errno = EINVAL;
 		return -1;
-	} else {
-		return orig_os_api.sendmsg(__fd, __msg, __flags);
 	}
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.sendmsg) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	return orig_os_api.sendmsg(__fd, __msg, __flags);
+
 }
 
 /* Send multiple messages as described by MESSAGE from socket FD.
@@ -1397,9 +1503,12 @@ int sendmmsg(int __fd, struct mmsghdr *__mmsghdr, unsigned int __vlen, int __fla
 	if (unlikely(IS_DUMMY_PACKET(__flags))) {
 		errno = EINVAL;
 		return -1;
-	} else {
-		return orig_os_api.sendmmsg(__fd, __mmsghdr, __vlen, __flags);
 	}
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.sendmmsg) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	return orig_os_api.sendmmsg(__fd, __mmsghdr, __vlen, __flags);
 }
 
 /* Send N bytes of BUF on socket FD to peer at address ADDR (which is
@@ -1435,9 +1544,12 @@ ssize_t sendto(int __fd, __const void *__buf, size_t __nbytes, int __flags,
 	if (unlikely(IS_DUMMY_PACKET(__flags))) {
 		errno = EINVAL;
 		return -1;
-	} else {
-		return orig_os_api.sendto(__fd, __buf, __nbytes, __flags, __to, __tolen);
 	}
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.sendto) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	return orig_os_api.sendto(__fd, __buf, __nbytes, __flags, __to, __tolen);
 }
 
 
@@ -1540,8 +1652,12 @@ int select(int __nfds,
 	   fd_set * __exceptfds,
 	   struct timeval * __timeout)
 {
-	if (!g_p_fd_collection)
+	if (!g_p_fd_collection) {
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (!orig_os_api.select) get_orig_funcs();
+		BULLSEYE_EXCLUDE_BLOCK_END
 		return orig_os_api.select(__nfds, __readfds, __writefds, __exceptfds, __timeout);
+	}
 
 	if (__timeout) {
 		srdr_logfunc_entry("nfds=%d, timeout=(%d sec, %d usec)",
@@ -1561,8 +1677,12 @@ int pselect(int __nfds,
 	    const struct timespec *__timeout,
 	    const sigset_t *__sigmask)
 {
-	if (!g_p_fd_collection)
+	if (!g_p_fd_collection) {
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (!orig_os_api.pselect) get_orig_funcs();
+		BULLSEYE_EXCLUDE_BLOCK_END
 		return orig_os_api.pselect(__nfds, __readfds, __writefds, __errorfds, __timeout, __sigmask);
+	}
 
 	struct timeval select_time;
 	if (__timeout) {
@@ -1606,8 +1726,12 @@ int poll_helper(struct pollfd *__fds, nfds_t __nfds, int __timeout, const sigset
 extern "C"
 int poll(struct pollfd *__fds, nfds_t __nfds, int __timeout)
 {
-	if (!g_p_fd_collection)
+	if (!g_p_fd_collection) {
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (!orig_os_api.poll) get_orig_funcs();
+		BULLSEYE_EXCLUDE_BLOCK_END
 		return orig_os_api.poll(__fds, __nfds, __timeout);
+	}
 
 	srdr_logfunc_entry("nfds=%d, timeout=(%d milli-sec)", __nfds, __timeout);
 
@@ -1617,8 +1741,12 @@ int poll(struct pollfd *__fds, nfds_t __nfds, int __timeout)
 extern "C"
 int ppoll(struct pollfd *__fds, nfds_t __nfds, const struct timespec *__timeout, const sigset_t *__sigmask)
 {
-	if (!g_p_fd_collection)
+	if (!g_p_fd_collection) {
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (!orig_os_api.ppoll) get_orig_funcs();
+		BULLSEYE_EXCLUDE_BLOCK_END
 		return orig_os_api.ppoll(__fds, __nfds, __timeout, __sigmask);
+	}
 
 	int timeout = (__timeout == NULL) ? -1 :
 	           (__timeout->tv_sec * 1000 + __timeout->tv_nsec / 1000000);
@@ -1654,6 +1782,10 @@ int epoll_create(int __size)
 		return -1;
 	}
 
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.epoll_create) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
 	int epfd = orig_os_api.epoll_create(__size + 1);  // +1 for the cq epfd
 	vlog_printf(VLOG_DEBUG, "ENTER: %s(size=%d) = %d\n",__func__, __size, epfd);
 
@@ -1669,6 +1801,10 @@ extern "C"
 int epoll_create1(int __flags)
 {
 	do_global_ctors();
+
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.epoll_create1) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
 
 	int epfd = orig_os_api.epoll_create1(__flags);
 	vlog_printf(VLOG_DEBUG, "ENTER: %s(flags=%d) = %d\n",__func__, __flags, epfd);
@@ -1780,6 +1916,10 @@ int epoll_pwait(int __epfd, struct epoll_event *__events, int __maxevents, int _
 extern "C"
 int socketpair(int __domain, int __type, int __protocol, int __sv[2])
 {
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.socketpair) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
 	int ret = orig_os_api.socketpair(__domain, __type, __protocol, __sv);
 
 	vlog_printf(VLOG_DEBUG, MODULE_HDR_ENTRY "%s(domain=%s(%d) type=%s(%d) protocol=%d, fd[%d,%d]) = %d\n", __func__, socket_get_domain_str(__domain), __domain, socket_get_type_str(__type), __type, __protocol, __sv[0], __sv[1], ret);
@@ -1805,6 +1945,10 @@ int pipe(int __filedes[2])
 	if (offload_pipe)
 		do_global_ctors();
 
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.pipe) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
 	int ret = orig_os_api.pipe(__filedes);
 	vlog_printf(VLOG_DEBUG, MODULE_HDR_ENTRY "%s(fd[%d,%d]) = %d\n", __func__, __filedes[0], __filedes[1], ret);
 
@@ -1829,6 +1973,11 @@ int open(__const char *__file, int __oflag, ...)
 	va_list va;
 	va_start(va, __oflag);
 	mode_t mode = va_arg(va, mode_t);
+
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.open) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
 	int fd = orig_os_api.open(__file, __oflag, mode);
 	va_end(va);
 
@@ -1843,6 +1992,10 @@ int open(__const char *__file, int __oflag, ...)
 extern "C"
 int creat(const char *__pathname, mode_t __mode)
 {
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.creat) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
 	int fd = orig_os_api.creat(__pathname, __mode);
 
 	vlog_printf(VLOG_DEBUG, MODULE_HDR_ENTRY "%s(pathname=%s, mode=%#x) = %d\n", __func__, __pathname, __mode, fd);
@@ -1857,6 +2010,10 @@ int creat(const char *__pathname, mode_t __mode)
 extern "C"
 int dup(int __fd)
 {
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.dup) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
 	int fid = orig_os_api.dup(__fd);
 
 	vlog_printf(VLOG_DEBUG, MODULE_HDR_ENTRY "%s(fd=%d) = %d\n", __func__, __fd, fid);
@@ -1876,6 +2033,10 @@ int dup2(int __fd, int __fd2)
 		handle_close(__fd2);
 	}
 
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.dup2) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
 	int fid = orig_os_api.dup2(__fd, __fd2);
 
 	vlog_printf(VLOG_DEBUG, MODULE_HDR_ENTRY "%s(fd=%d, fd2=%d) = %d\n", __func__, __fd, __fd2, fid);
@@ -1891,6 +2052,11 @@ extern "C"
 int clone(int (*__fn)(void *), void *__child_stack, int __flags, void *__arg)
 {
 	srdr_logfunc_entry("flags=%#x", __flags);
+
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.clone) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
 	return orig_os_api.clone(__fn, __child_stack, __flags, __arg);
 }
 #endif
@@ -1911,6 +2077,10 @@ pid_t fork(void)
 
 	if (!g_init_ibv_fork_done)
 		vlog_printf(VLOG_DEBUG, "ERROR: ibv_fork_init failed, the effect of an application calling fork() is undefined!!\n");
+
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.fork) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
 
 	pid_t pid = orig_os_api.fork();
 	if (pid == 0) {
@@ -1962,6 +2132,10 @@ int daemon(int __nochdir, int __noclose)
 		prepare_fork();
 	}
 
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.daemon) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+
 	int ret = orig_os_api.daemon(__nochdir, __noclose);
 	if (ret == 0) {
 		g_is_forked_child = true;
@@ -2008,6 +2182,10 @@ extern "C"
 int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 {
 	int ret = 0;
+
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.sigaction) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
 
 	if (safe_mce_sys().handle_sigintr) {
 		srdr_logdbg_entry("signum=%d, act=%p, oldact=%p", signum, act, oldact);
