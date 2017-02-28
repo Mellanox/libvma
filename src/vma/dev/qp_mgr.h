@@ -143,6 +143,8 @@ public:
 	void			release_rx_buffers();
 	void 			release_tx_buffers();
 	void			trigger_completion_for_all_sent_packets();
+	bool			set_qp_ratelimit(const uint32_t ratelimit_kbps);
+	int			modify_qp_ratelimit(const uint32_t ratelimit_kbps);
 #ifdef DEFINED_VMAPOLL
 	void 			set_signal_in_next_send_wqe();	
 	void 			mlx5_send(vma_ibv_send_wr* p_send_wqe);
@@ -209,6 +211,8 @@ protected:
 
 	int 			configure(struct ibv_comp_channel* p_rx_comp_event_channel);
 	virtual int		prepare_ibv_qp(struct ibv_qp_init_attr& qp_init_attr) = 0;
+
+	uint32_t		m_ratelimit_kbps;
 };
 
 

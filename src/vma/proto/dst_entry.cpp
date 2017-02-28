@@ -521,7 +521,7 @@ bool dst_entry::offloaded_according_to_rules()
 	return ret_val;
 }
 
-bool dst_entry::prepare_to_send(bool skip_rules, bool is_connect)
+bool dst_entry::prepare_to_send(const int ratelimit_kbps, bool skip_rules, bool is_connect)
 {
 	bool resolved = false;
 	m_slow_path_lock.lock();
@@ -542,6 +542,9 @@ bool dst_entry::prepare_to_send(bool skip_rules, bool is_connect)
 			m_max_ip_payload_size = ((m_p_net_dev_val->get_mtu()-sizeof(struct iphdr)) & ~0x7);
 			if (resolve_ring()) {
 				is_ofloaded = true;
+				if( 0 != ratelimit_kbps) {
+					modify_ratelimit(ratelimit_kbps);
+				}
 				if (resolve_neigh()) {
 					if (get_obs_transport_type() == VMA_TRANSPORT_ETH) {
 						dst_logdbg("local mac: %s peer mac: %s", m_p_net_dev_val->get_l2_address()->to_str().c_str(), m_p_neigh_val->get_l2_address()->to_str().c_str());
@@ -732,4 +735,12 @@ void dst_entry::return_buffers_pool()
 	} else {
 		set_tx_buff_list_pending(true);
 	}
+}
+
+int dst_entry::modify_ratelimit(const uint32_t ratelimit_kbps)
+{
+	if (m_p_ring) {
+	        return m_p_ring->modify_ratelimit(ratelimit_kbps);
+	}
+	return 0;
 }
