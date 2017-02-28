@@ -158,8 +158,6 @@ protected:
 #ifdef DEFINED_VMAPOLL
 	volatile struct mlx5_wqe64* m_sq_hot_wqe;
 	int			m_sq_hot_wqe_index;
-	unsigned int		m_rq_wqe_counter;
-	uint64_t		*m_rq_wqe_idx_to_wrid;
 	volatile struct mlx5_wqe64 (*m_mlx5_sq_wqes)[];
 	volatile uint32_t 		*m_sq_db;
 	volatile void 			*m_sq_bf_reg;
@@ -168,7 +166,6 @@ protected:
 	uint16_t				m_sq_wqe_counter;
 	uint64_t				*m_sq_wqe_idx_to_wrid;
 	unsigned int 			m_qp_num;
-	struct mlx5_qp			*m_mlx5_hw_qp;
 #endif // DEFINED_VMAPOLL	
 	struct ibv_qp*		m_qp;
 
