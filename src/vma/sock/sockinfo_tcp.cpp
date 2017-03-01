@@ -2942,7 +2942,7 @@ int sockinfo_tcp::wait_for_conn_ready()
 			si_tcp_logdbg("connect interrupted");
 			return -1;
 		}
-		if(errno == EAGAIN || errno == EBUSY ) {
+		if (errno == EAGAIN || errno == EBUSY ) {
 			if (m_loops_timer.time_left_msec() == -1) {
 				m_loops_timer.set_timeout_msec(10);
 			}
