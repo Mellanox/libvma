@@ -97,7 +97,8 @@ void assign_dlsym(T &ptr, const char *name) {
 #define DO_GLOBAL_CTORS() do { \
 	int __res = do_global_ctors(); \
 	if (__res) { \
-		vlog_printf(VLOG_ERROR, "vma failed to start errno: %m\n", errno); \
+		vlog_printf(VLOG_ERROR, "%s vma failed to start errno: %m\n", \
+			__FUNCTION__, errno); \
 		return -1; \
 	} \
 } while (0)
