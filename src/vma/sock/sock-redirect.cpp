@@ -94,6 +94,15 @@ void assign_dlsym(T &ptr, const char *name) {
 
 #define FD_MAP_SIZE 		(g_p_fd_collection ? g_p_fd_collection->get_fd_map_size() : 1024)
 
+#define DO_GLOBAL_CTORS() do { \
+	int __res = do_global_ctors(); \
+	if (__res) { \
+		vlog_printf(VLOG_ERROR, "%s vma failed to start errno: %m\n", \
+			__FUNCTION__, errno); \
+		return -1; \
+	} \
+} while (0)
+
 #define GET_ORIG_FUNC(__name) \
 	if (!orig_os_api.__name) { \
 		dlerror(); \
@@ -510,7 +519,7 @@ int vma_get_socket_rings_fds(int fd, int *ring_fds, int ring_fds_sz)
 extern "C"
 int vma_add_conf_rule(char *config_line)
 {
-	do_global_ctors();
+	DO_GLOBAL_CTORS();
 
 	srdr_logdbg("adding conf rule: %s", config_line);
 
@@ -525,7 +534,7 @@ int vma_add_conf_rule(char *config_line)
 extern "C"
 int vma_thread_offload(int offload, pthread_t tid)
 {
-	do_global_ctors();
+	DO_GLOBAL_CTORS();
 
 	if (g_p_fd_collection) {
 		g_p_fd_collection->offloading_rule_change_thread(offload, tid);
@@ -544,7 +553,7 @@ NOT_IN_USE(fd);
 NOT_IN_USE(log_level);
 	return 0;
 #else
-	do_global_ctors();
+	DO_GLOBAL_CTORS();
 
 	if (g_p_fd_collection) {
 		g_p_fd_collection->statistics_print(fd, log_level::from_int(log_level));
@@ -575,7 +584,7 @@ int socket_internal(int __domain, int __type, int __protocol, bool check_offload
 	bool offload_sockets = (__type & 0xf) == SOCK_DGRAM || (__type & 0xf) == SOCK_STREAM;
 
 	if (offload_sockets)
-		do_global_ctors();
+		DO_GLOBAL_CTORS();
 
 	dbg_check_if_need_to_send_mcpkt();
 
@@ -1774,7 +1783,7 @@ void vma_epoll_create(int epfd, int size)
 extern "C"
 int epoll_create(int __size)
 {
-	do_global_ctors();
+	DO_GLOBAL_CTORS();
 
 	if (__size <= 0 ) {
 		vlog_printf(VLOG_DEBUG, "%s: invalid size (size=%d) - must be a positive integer\n", __func__, __size);
@@ -1800,7 +1809,7 @@ int epoll_create(int __size)
 extern "C"
 int epoll_create1(int __flags)
 {
-	do_global_ctors();
+	DO_GLOBAL_CTORS();
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.epoll_create1) get_orig_funcs();
@@ -1943,7 +1952,7 @@ int pipe(int __filedes[2])
 	bool offload_pipe = safe_mce_sys().mce_spec == MCE_SPEC_29WEST_LBM_29 ||
 			    safe_mce_sys().mce_spec == MCE_SPEC_WOMBAT_FH_LBM_554;
 	if (offload_pipe)
-		do_global_ctors();
+		DO_GLOBAL_CTORS();
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.pipe) get_orig_funcs();
