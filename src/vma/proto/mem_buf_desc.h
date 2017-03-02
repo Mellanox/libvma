@@ -138,10 +138,7 @@ public:
 			bool 		vma_polled;
 #endif // DEFINED_VMAPOLL
 			uint32_t	poll_opcode;
-			uint32_t	poll_byte_len;
 			uint32_t	poll_status;
-			uint32_t	poll_vendor_err;
-			uint32_t	poll_qp_num;
 		} rx;
 		struct {
 			ibv_send_wr_ud 	wr_ud_info;

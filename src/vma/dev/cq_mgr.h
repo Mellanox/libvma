@@ -316,14 +316,12 @@ public:
 	cq_mgr_mlx5(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx);
 	virtual ~cq_mgr_mlx5();
 
-	virtual inline mem_buf_desc_t*		poll();
+	virtual inline mem_buf_desc_t*		poll(uint64_t* p_cq_poll_sn);
 	virtual void						add_qp_rx(qp_mgr* qp);
 	virtual void						del_qp_rx(qp_mgr *qp);
 	inline volatile struct mlx5_cqe64*	get_cqe64(void);
-	inline volatile struct mlx5_cqe64*	get_cqe64(volatile struct mlx5_cqe64 **cqe_err);
-	volatile struct mlx5_cqe64*			check_error_completion(volatile struct mlx5_cqe64 *cqe, volatile uint16_t *ci, uint8_t op_own);
-	inline void 						cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, vma_ibv_wc *wce);
-	inline void 						cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, mem_buf_desc_t* p_rx_wc_buf_desc);
+	volatile struct mlx5_cqe64*			check_error_completion(uint8_t op_own);
+	inline void							cqe64_to_mem_buff_desc(volatile struct mlx5_cqe64 *cqe, mem_buf_desc_t* p_rx_wc_buf_desc);
 	static inline uint8_t 				get_cqe_l3_hdr_type(volatile struct mlx5_cqe64 *cqe);
 
 	virtual int							drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id = NULL);
