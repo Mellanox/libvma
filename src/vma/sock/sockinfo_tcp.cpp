@@ -266,6 +266,7 @@ sockinfo_tcp::sockinfo_tcp(int fd) throw (vma_exception) :
 	m_tcp_seg_list = g_tcp_seg_pool->get_tcp_segs(TCP_SEG_COMPENSATION);
 	if (m_tcp_seg_list) m_tcp_seg_count += TCP_SEG_COMPENSATION;
 	m_tx_consecutive_eagain_count = 0;
+	m_n_wait_for_conn_ready_threshold = 0;
 
 	si_tcp_logfunc("done");
 }
