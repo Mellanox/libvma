@@ -404,6 +404,7 @@ private:
 	void process_reuse_ctl_packets();
 	void process_rx_ctl_packets();
 	bool check_dummy_send_conditions(const int flags, const struct iovec* p_iov, const ssize_t sz_iov);
+	int m_n_wait_for_conn_ready_threshold;
 };
 typedef struct tcp_seg tcp_seg;
 
