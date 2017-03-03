@@ -184,6 +184,7 @@ private:
 		}
 	};
 
+
 /*	in_addr_t 	m_bound_if;
 	in_port_t 	m_bound_port;
 	in_addr_t 	m_connected_ip;
