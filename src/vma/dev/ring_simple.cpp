@@ -327,13 +327,9 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		return false;
 
 	if (m_flow_tag_enabled) {
-#ifdef DEFINED_VMAPOLL
 		// sockfd=0 is valid too but flow_tag_id=0 is invalid, increment it
 		// effectively limiting our sockfd range to FLOW_TAG_MASK-1
 		int flow_tag_id_candidate = si->get_fd() + 1;
-#else
-		int flow_tag_id_candidate = 0;
-#endif
 		if (flow_tag_id_candidate > 0) {
 			flow_tag_id = flow_tag_id_candidate & FLOW_TAG_MASK;
 			if ((uint32_t)flow_tag_id_candidate != flow_tag_id) {
@@ -713,7 +709,6 @@ const char* priv_igmp_type_tostr(uint8_t igmptype)
 	}
 }
 
-#ifdef DEFINED_VMAPOLL
 // calling sockinfo callback with RFS bypass
 static inline bool check_rx_packet(sockinfo *si, mem_buf_desc_t* p_rx_wc_buf_desc)
 {
@@ -738,6 +733,7 @@ static inline bool check_rx_packet(sockinfo *si, mem_buf_desc_t* p_rx_wc_buf_des
 	return false;
 }
 
+#ifdef DEFINED_VMAPOLL
 inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_buf_desc)
 {
 	//size_t sz_data = 0;
@@ -1069,7 +1065,7 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_type_t transport_type, void* pv_fd_ready_array /*=NULL*/)
 {
 	size_t sz_data = 0;
-	size_t transport_header_len = 0;
+	size_t transport_header_len = ETH_HDR_LEN;
 	uint16_t ip_hdr_len = 0;
 	uint16_t ip_tot_len = 0;
 	uint16_t ip_frag_off = 0;
@@ -1086,6 +1082,67 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 #endif // DEFINED_VMAPOLL
 
 	// This is an internal function (within ring and 'friends'). No need for lock mechanism.
+
+	if (likely(m_flow_tag_enabled && p_rx_wc_buf_desc->rx.flow_tag_id)) {
+		sockinfo* si = NULL;
+		// trying to get sockinfo per flow_tag_id-1 as it was incremented at attach
+		// to allow mapping sockfd=0
+		si = static_cast <sockinfo* >(g_p_fd_collection->get_sockfd(p_rx_wc_buf_desc->rx.flow_tag_id-1));
+
+		if (likely((si != NULL) && si->flow_tag_enabled())) { 
+			// will process packets with set flow_tag_id and enabled for the socket
+			p_ip_h = (struct iphdr*)(p_rx_wc_buf_desc->p_buffer + transport_header_len);
+			ip_hdr_len = 20; //(int)(p_ip_h->ihl)*4;
+			ip_tot_len = ntohs(p_ip_h->tot_len);
+
+			if (likely(si->tcp_flow_is_5t())) {
+				// we have a single 5tuple TCP connected socket, use simpler fast path
+				struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
+				size_t sz_payload = ip_tot_len - ip_hdr_len - p_tcp_h->doff*4;
+
+				// Update packet descriptor with datagram base address and length
+				p_rx_wc_buf_desc->rx.frag.iov_base = (uint8_t*)p_tcp_h + sizeof(struct tcphdr);
+				p_rx_wc_buf_desc->rx.frag.iov_len  = ip_tot_len - ip_hdr_len - sizeof(struct tcphdr);
+
+				p_rx_wc_buf_desc->rx.sz_payload                 = sz_payload;
+
+				p_rx_wc_buf_desc->rx.tcp.p_ip_h                 = p_ip_h;
+				p_rx_wc_buf_desc->rx.tcp.p_tcp_h                = p_tcp_h;
+				p_rx_wc_buf_desc->rx.tcp.n_transport_header_len = transport_header_len;
+
+/*				ring_logfunc("FAST PATH Rx TCP segment info: src_port=%d, dst_port=%d, flags='%s%s%s%s%s%s' seq=%u, ack=%u, win=%u, payload_sz=%u",
+					ntohs(p_tcp_h->source), ntohs(p_tcp_h->dest),
+					p_tcp_h->urg?"U":"", p_tcp_h->ack?"A":"", p_tcp_h->psh?"P":"",
+					p_tcp_h->rst?"R":"", p_tcp_h->syn?"S":"", p_tcp_h->fin?"F":"",
+					ntohl(p_tcp_h->seq), ntohl(p_tcp_h->ack_seq), ntohs(p_tcp_h->window),
+					sz_payload);
+*/
+				return check_rx_packet(si, p_rx_wc_buf_desc);
+
+			} else if (p_ip_h->protocol==IPPROTO_UDP) {
+				// Get the udp header pointer + udp payload size
+				p_udp_h = (struct udphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
+				size_t sz_payload = ntohs(p_udp_h->len) - sizeof(struct udphdr);
+				// Update packet descriptor with datagram base address and length
+				p_rx_wc_buf_desc->rx.frag.iov_base = (uint8_t*)p_udp_h + sizeof(struct udphdr);
+				p_rx_wc_buf_desc->rx.frag.iov_len  = ip_tot_len - ip_hdr_len - sizeof(struct udphdr);
+
+				// Update the L4 info
+				p_rx_wc_buf_desc->rx.src.sin_port        = p_udp_h->source;
+				p_rx_wc_buf_desc->rx.dst.sin_port        = p_udp_h->dest;
+				p_rx_wc_buf_desc->rx.sz_payload          = sz_payload;
+
+				// Update the L3 info
+				p_rx_wc_buf_desc->rx.src.sin_family      = AF_INET;
+				p_rx_wc_buf_desc->rx.src.sin_addr.s_addr = p_ip_h->saddr;
+
+/*				ring_logfunc("FAST PATH Rx UDP datagram info: src_port=%d, dst_port=%d, payload_sz=%d, csum=%#x",
+					     ntohs(p_udp_h->source), ntohs(p_udp_h->dest), sz_payload, p_udp_h->check);
+*/
+				return check_rx_packet(si, p_rx_wc_buf_desc);
+			}
+		}
+	}
 
 	// Validate buffer size
 	sz_data = p_rx_wc_buf_desc->sz_data;
@@ -1129,7 +1186,6 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 				ETH_HW_ADDR_PRINT_ADDR(p_eth_h->h_source),
 				htons(p_eth_h->h_proto));
 
-		transport_header_len = ETH_HDR_LEN;
 		uint16_t* p_h_proto = &p_eth_h->h_proto;
 
 		// Handle VLAN header as next protocol
@@ -1258,7 +1314,7 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 		return false;
 	}
 #endif
-	rfs *p_rfs = NULL;
+	rfs* p_rfs = NULL;
 
 	// Update the L3 info
 	p_rx_wc_buf_desc->rx.src.sin_family      = AF_INET;
