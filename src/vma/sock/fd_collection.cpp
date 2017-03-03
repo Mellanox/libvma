@@ -281,7 +281,7 @@ int fd_collection::addsocket(int fd, int domain, int type, bool check_offload /*
 				return -1;
 		}
 	} catch (vma_exception& e) {
-	  fdcoll_logdetails("recovering from %s", e.what());
+	  fdcoll_logdbg("recovering from %s", e.what());
 	  return -1;
 	}
 	lock();
@@ -552,7 +552,7 @@ int fd_collection::del_sockfd(int fd, bool b_cleanup /*=false*/)
 				try {
 					m_timer_handle = g_p_event_handler_manager->register_timer_event(250, this, PERIODIC_TIMER, 0);
 				} catch (vma_exception &error) {
-	  				fdcoll_logdetails("recovering from %s", error.what());
+	  				fdcoll_logdbg("recovering from %s", error.what());
 					unlock();
 	  				return -1;
 				}

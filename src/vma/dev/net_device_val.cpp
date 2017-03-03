@@ -302,7 +302,7 @@ void net_device_val::verify_bonding_mode()
 
 		bond_xhp = strtok_r(bond_xmit_hash_policy_file_content, " ", &saveptr);
 		if (NULL == bond_xhp) {
-			vlog_printf(VLOG_DEBUG, "could not parse bond xmit hash policy, staying with default (L2)\n");
+			nd_logdbg("could not parse bond xmit hash policy, staying with default (L2)\n");
 		} else {
 			bond_xhp = strtok_r(NULL, " ", &saveptr);
 			if (bond_xhp) {
@@ -312,10 +312,10 @@ void net_device_val::verify_bonding_mode()
 					m_bond_xmit_hash_policy = XHP_LAYER_2;
 				}
 			}
-			vlog_printf(VLOG_DEBUG, "got bond xmit hash policy = %d\n", m_bond_xmit_hash_policy);
+			nd_logdbg("got bond xmit hash policy = %d\n", m_bond_xmit_hash_policy);
 		}
 	} else {
-		vlog_printf(VLOG_DEBUG, "could not read bond xmit hash policy, staying with default (L2)\n");
+		nd_logdbg("could not read bond xmit hash policy, staying with default (L2)\n");
 	}
 
 	if (m_bond == NO_BOND || m_bond_fail_over_mac > 1) {

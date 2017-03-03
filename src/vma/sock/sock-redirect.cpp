@@ -525,8 +525,10 @@ int vma_add_conf_rule(char *config_line)
 
 	int ret = __vma_parse_config_line(config_line);
 
+#if defined(VMA_OPTIMIZE_LOG) && (VMA_OPTIMIZE_LOG <= 5)
 	if (*g_p_vlogger_level >= VLOG_DEBUG)
 		__vma_print_conf_file(__instance_list);
+#endif
 
 	return ret;
 }
@@ -1786,7 +1788,7 @@ int epoll_create(int __size)
 	DO_GLOBAL_CTORS();
 
 	if (__size <= 0 ) {
-		vlog_printf(VLOG_DEBUG, "%s: invalid size (size=%d) - must be a positive integer\n", __func__, __size);
+		srdr_logdbg("invalid size (size=%d) - must be a positive integer\n", __size);
 		errno = EINVAL;
 		return -1;
 	}
@@ -1796,7 +1798,7 @@ int epoll_create(int __size)
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	int epfd = orig_os_api.epoll_create(__size + 1);  // +1 for the cq epfd
-	vlog_printf(VLOG_DEBUG, "ENTER: %s(size=%d) = %d\n",__func__, __size, epfd);
+	srdr_logdbg("ENTER: (size=%d) = %d\n", __size, epfd);
 
 	if (epfd <=0)
 		return epfd;
@@ -1816,7 +1818,7 @@ int epoll_create1(int __flags)
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	int epfd = orig_os_api.epoll_create1(__flags);
-	vlog_printf(VLOG_DEBUG, "ENTER: %s(flags=%d) = %d\n",__func__, __flags, epfd);
+	srdr_logdbg("ENTER: (flags=%d) = %d\n", __flags, epfd);
 
 	if (epfd <=0)
 		return epfd;
@@ -1931,7 +1933,7 @@ int socketpair(int __domain, int __type, int __protocol, int __sv[2])
 
 	int ret = orig_os_api.socketpair(__domain, __type, __protocol, __sv);
 
-	vlog_printf(VLOG_DEBUG, MODULE_HDR_ENTRY "%s(domain=%s(%d) type=%s(%d) protocol=%d, fd[%d,%d]) = %d\n", __func__, socket_get_domain_str(__domain), __domain, socket_get_type_str(__type), __type, __protocol, __sv[0], __sv[1], ret);
+	srdr_logdbg("(domain=%s(%d) type=%s(%d) protocol=%d, fd[%d,%d]) = %d\n", socket_get_domain_str(__domain), __domain, socket_get_type_str(__type), __type, __protocol, __sv[0], __sv[1], ret);
 
 	// Sanity check to remove any old sockinfo object using the same fd!!
 	if (ret == 0 && g_p_fd_collection) {
@@ -1959,7 +1961,7 @@ int pipe(int __filedes[2])
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	int ret = orig_os_api.pipe(__filedes);
-	vlog_printf(VLOG_DEBUG, MODULE_HDR_ENTRY "%s(fd[%d,%d]) = %d\n", __func__, __filedes[0], __filedes[1], ret);
+	srdr_logdbg("(fd[%d,%d]) = %d\n", __filedes[0], __filedes[1], ret);
 
 	if (ret == 0 && g_p_fd_collection) {
 		// Sanity check to remove any old sockinfo object using the same fd!!
@@ -1990,7 +1992,7 @@ int open(__const char *__file, int __oflag, ...)
 	int fd = orig_os_api.open(__file, __oflag, mode);
 	va_end(va);
 
-	vlog_printf(VLOG_DEBUG, MODULE_HDR_ENTRY "%s(file=%s, flags=%#x, mode=%#x) = %d\n", __func__, __file, __oflag, mode, fd);
+	srdr_logdbg("(file=%s, flags=%#x, mode=%#x) = %d\n", __file, __oflag, mode, fd);
 
 	// Sanity check to remove any old sockinfo object using the same fd!!
 	handle_close(fd, true);
@@ -2007,7 +2009,7 @@ int creat(const char *__pathname, mode_t __mode)
 
 	int fd = orig_os_api.creat(__pathname, __mode);
 
-	vlog_printf(VLOG_DEBUG, MODULE_HDR_ENTRY "%s(pathname=%s, mode=%#x) = %d\n", __func__, __pathname, __mode, fd);
+	srdr_logdbg("(pathname=%s, mode=%#x) = %d\n", __pathname, __mode, fd);
 
 	// Sanity check to remove any old sockinfo object using the same fd!!
 	handle_close(fd, true);
@@ -2025,7 +2027,7 @@ int dup(int __fd)
 
 	int fid = orig_os_api.dup(__fd);
 
-	vlog_printf(VLOG_DEBUG, MODULE_HDR_ENTRY "%s(fd=%d) = %d\n", __func__, __fd, fid);
+	srdr_logdbg("(fd=%d) = %d\n", __fd, fid);
 
 	// Sanity check to remove any old sockinfo object using the same fd!!
 	handle_close(fid, true);
@@ -2048,7 +2050,7 @@ int dup2(int __fd, int __fd2)
 
 	int fid = orig_os_api.dup2(__fd, __fd2);
 
-	vlog_printf(VLOG_DEBUG, MODULE_HDR_ENTRY "%s(fd=%d, fd2=%d) = %d\n", __func__, __fd, __fd2, fid);
+	srdr_logdbg("(fd=%d, fd2=%d) = %d\n",  __fd, __fd2, fid);
 
 	// Sanity check to remove any old sockinfo object using the same fd!!
 	handle_close(fid, true);
@@ -2077,7 +2079,7 @@ int clone(int (*__fn)(void *), void *__child_stack, int __flags, void *__arg)
 extern "C"
 pid_t fork(void)
 {
-	vlog_printf(VLOG_DEBUG, "ENTER: ***** %s *****\n", __func__);
+	srdr_logdbg("ENTER: **********\n");
 
 	if (!g_init_global_ctors_done) {
 		set_env_params();
@@ -2085,7 +2087,7 @@ pid_t fork(void)
 	}
 
 	if (!g_init_ibv_fork_done)
-		vlog_printf(VLOG_DEBUG, "ERROR: ibv_fork_init failed, the effect of an application calling fork() is undefined!!\n");
+		srdr_logdbg("ERROR: ibv_fork_init failed, the effect of an application calling fork() is undefined!!\n");
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.fork) get_orig_funcs();
@@ -2134,7 +2136,7 @@ pid_t vfork(void)
 extern "C"
 int daemon(int __nochdir, int __noclose)
 {
-	vlog_printf(VLOG_DEBUG, "ENTER: ***** %s(%d, %d) *****\n", __func__, __nochdir, __noclose);
+	srdr_logdbg("ENTER: ***** (%d, %d) *****\n", __nochdir, __noclose);
 
 	if (!g_init_global_ctors_done) {
 		set_env_params();
@@ -2176,10 +2178,10 @@ static void handler_intr(int sig)
 	switch (sig) {
 	case SIGINT:
 		g_b_exit = true;
-		vlog_printf(VLOG_DEBUG, "Catch Signal: SIGINT (%d)\n", sig);
+		srdr_logdbg("Catch Signal: SIGINT (%d)\n", sig);
 		break;
 	default:
-		vlog_printf(VLOG_DEBUG, "Catch Signal: %d\n", sig);
+		srdr_logdbg("Catch Signal: %d\n", sig);
 		break;
 	}
 
@@ -2213,10 +2215,10 @@ int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 				ret = orig_os_api.sigaction(SIGINT, &vma_action, NULL);
 
 				if (ret < 0) {
-					vlog_printf(VLOG_DEBUG, "Failed to register VMA SIGINT handler, calling to original sigaction handler\n");
+					srdr_logdbg("Failed to register VMA SIGINT handler, calling to original sigaction handler\n");
 					break;
 				}
-				vlog_printf(VLOG_DEBUG, "Registered VMA SIGINT handler\n");
+				srdr_logdbg("Registered VMA SIGINT handler\n");
 				g_act_prev = *act;
 			}
 			if (ret >= 0)
