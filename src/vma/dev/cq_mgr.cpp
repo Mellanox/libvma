@@ -1933,7 +1933,7 @@ int cq_mgr_mlx5::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_
 	cq_logfuncall("");
 
 	/* coverity[stack_use_local_overflow] */
-	int ret = 0;
+	uint32_t ret = 0;
 	uint32_t ret_rx_processed = process_recv_queue(pv_fd_ready_array);
 	if (unlikely(ret_rx_processed >= m_n_sysvar_cq_poll_batch_max)) {
 		m_p_ring->m_gro_mgr.flush_all(pv_fd_ready_array);
@@ -1944,12 +1944,11 @@ int cq_mgr_mlx5::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_
 		prefetch_range((uint8_t*)m_p_next_rx_desc_poll->p_buffer, m_n_sysvar_rx_prefetch_bytes_before_poll);
 	}
 
-	while (ret < (int)m_n_sysvar_cq_poll_batch_max) {
+	while (ret < m_n_sysvar_cq_poll_batch_max) {
 		mem_buf_desc_t *buff = poll(p_cq_poll_sn);
 		if (buff) {
-			++m_n_wce_counter;
 			++ret;
-			if (process_cq_element_rx(buff) && (buff->path.rx.poll_opcode & VMA_IBV_WC_RECV)) {
+			if ((buff->path.rx.poll_opcode & VMA_IBV_WC_RECV) && process_cq_element_rx(buff)) {
 				if (!compensate_qp_poll_success(buff)) {
 					process_recv_buffer(buff, pv_fd_ready_array);
 				}
@@ -1962,6 +1961,7 @@ int cq_mgr_mlx5::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_
 
 	if (0 < ret) {
 		ret_rx_processed += ret;
+		m_n_wce_counter += ret;
 		m_p_ring->m_gro_mgr.flush_all(pv_fd_ready_array);
 	} else {
 		compensate_qp_poll_failed();
