@@ -1698,7 +1698,7 @@ void	cq_mgr_mlx5::del_qp_rx(qp_mgr *qp)
 	m_qp_mgr = NULL;
 }
 
-inline mem_buf_desc_t*		cq_mgr_mlx5::poll(uint64_t* p_cq_poll_sn)
+inline mem_buf_desc_t*		cq_mgr_mlx5::poll()
 {
 	mem_buf_desc_t *buff = NULL;
 
@@ -1719,15 +1719,10 @@ inline mem_buf_desc_t*		cq_mgr_mlx5::poll(uint64_t* p_cq_poll_sn)
 	if (likely(cqe)) {
 		cqe64_to_mem_buff_desc(cqe, m_rx_hot_buffer);
 		//if error cqe64_to_mem_buff_desc
-
 		++m_qp_mgr->m_mlx5_hw_qp->rq.tail;
 		buff = m_rx_hot_buffer;
 		m_rx_hot_buffer = NULL;
 	}
-
-	// Zero polled wce    OR    ibv_poll_cq() has driver specific errors
-	// so we can't really do anything with them
-	*p_cq_poll_sn = m_n_global_sn;
 
 	if (buff) {
 #ifdef RDTSC_MEASURE_RX_VERBS_READY_POLL
@@ -1747,19 +1742,6 @@ inline mem_buf_desc_t*		cq_mgr_mlx5::poll(uint64_t* p_cq_poll_sn)
 			RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM);
 #endif //RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL || RDTSC_MEASURE_RX_CQE_RECEIVEFROM
 	}
-
-	// spoil the global sn if we have packets ready
-	union __attribute__((packed)) {
-		uint64_t global_sn;
-		struct {
-			uint32_t cq_id;
-			uint32_t cq_sn;
-		} bundle;
-	} next_sn;
-	next_sn.bundle.cq_sn = ++m_n_cq_poll_sn;
-	next_sn.bundle.cq_id = m_cq_id;
-
-	*p_cq_poll_sn = m_n_global_sn = next_sn.global_sn;
 
 	return buff;
 }
@@ -1821,7 +1803,6 @@ int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=N
 
 	// CQ polling loop until max wce limit is reached for this interval or CQ is drained
 	uint32_t ret_total = 0;
-	uint64_t cq_poll_sn = 0;
 
 	if (p_recycle_buffers_last_wr_id != NULL) {
 		m_b_was_drained = false;
@@ -1830,7 +1811,7 @@ int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=N
 	while ((m_n_sysvar_progress_engine_wce_max && (m_n_sysvar_progress_engine_wce_max > m_n_wce_counter)) &&
 		!m_b_was_drained) {
 
-		mem_buf_desc_t* buff = poll(&cq_poll_sn);
+		mem_buf_desc_t* buff = poll();
 		if (NULL == buff) {
 			m_b_was_drained = true;
 			m_p_ring->m_gro_mgr.flush_all(NULL);
@@ -1878,6 +1859,7 @@ int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=N
 
 		++ret_total;
 	}
+
 	m_p_ring->m_gro_mgr.flush_all(NULL);
 
 	m_n_wce_counter = 0;
@@ -1902,7 +1884,6 @@ mem_buf_desc_t* cq_mgr_mlx5::process_cq_element_rx(mem_buf_desc_t* p_mem_buf_des
 			p_mem_buf_desc->p_desc_owner->mem_buf_desc_completion_with_error_rx(p_mem_buf_desc);
 			return NULL;
 		}
-		// AlexR: can this wce have a valid mem_buf_desc pointer?
 		// AlexR: are we throwing away a data buffer and a mem_buf_desc element?
 		cq_logdbg("no desc_owner(wr_id=%p)", p_mem_buf_desc);
 		return NULL;
@@ -1945,7 +1926,7 @@ int cq_mgr_mlx5::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_
 	}
 
 	while (ret < m_n_sysvar_cq_poll_batch_max) {
-		mem_buf_desc_t *buff = poll(p_cq_poll_sn);
+		mem_buf_desc_t *buff = poll();
 		if (buff) {
 			++ret;
 			if ((buff->path.rx.poll_opcode & VMA_IBV_WC_RECV) && process_cq_element_rx(buff)) {
@@ -1963,7 +1944,25 @@ int cq_mgr_mlx5::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_
 		ret_rx_processed += ret;
 		m_n_wce_counter += ret;
 		m_p_ring->m_gro_mgr.flush_all(pv_fd_ready_array);
+
+		// spoil the global sn if we have packets ready
+		union __attribute__((packed)) {
+			uint64_t global_sn;
+			struct {
+				uint32_t cq_id;
+				uint32_t cq_sn;
+			} bundle;
+		} next_sn;
+		next_sn.bundle.cq_sn = ++m_n_cq_poll_sn;
+		next_sn.bundle.cq_id = m_cq_id;
+
+		*p_cq_poll_sn = m_n_global_sn = next_sn.global_sn;
+
 	} else {
+		// Zero polled wce    OR    ibv_poll_cq() has driver specific errors
+		// so we can't really do anything with them
+		*p_cq_poll_sn = m_n_global_sn;
+
 		compensate_qp_poll_failed();
 	}
 

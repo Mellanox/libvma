@@ -316,7 +316,7 @@ public:
 	cq_mgr_mlx5(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx);
 	virtual ~cq_mgr_mlx5();
 
-	virtual inline mem_buf_desc_t*		poll(uint64_t* p_cq_poll_sn);
+	virtual inline mem_buf_desc_t*		poll();
 	virtual void						add_qp_rx(qp_mgr* qp);
 	virtual void						del_qp_rx(qp_mgr *qp);
 	inline volatile struct mlx5_cqe64*	get_cqe64(void);
