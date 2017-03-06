@@ -1630,7 +1630,6 @@ cq_mgr_mlx5::cq_mgr_mlx5(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, 
 	, m_cq_cindex(0)
 	, m_cqes(NULL)
 	, m_cq_dbell(NULL)
-	, m_qp_mgr(NULL)
 	, m_rx_hot_buffer(NULL)
 {
 	cq_logfunc("");
@@ -1686,18 +1685,6 @@ volatile struct mlx5_cqe64*	cq_mgr_mlx5::check_error_completion(uint8_t op_own)
 	}
 }
 
-void	cq_mgr_mlx5::add_qp_rx(qp_mgr* qp)
-{
-	cq_mgr::add_qp_rx(qp);
-	m_qp_mgr = qp;
-}
-
-void	cq_mgr_mlx5::del_qp_rx(qp_mgr *qp)
-{
-	cq_mgr::del_qp_rx(qp);
-	m_qp_mgr = NULL;
-}
-
 inline mem_buf_desc_t*		cq_mgr_mlx5::poll()
 {
 	mem_buf_desc_t *buff = NULL;
@@ -1711,15 +1698,15 @@ inline mem_buf_desc_t*		cq_mgr_mlx5::poll()
 #endif //RDTSC_MEASURE_RX_VERBS_READY_POLL || RDTSC_MEASURE_RX_VERBS_IDLE_POLL
 
 	if (unlikely(NULL == m_rx_hot_buffer)) {
-		uint32_t index = m_qp_mgr->m_mlx5_hw_qp->rq.tail & (m_qp_mgr->m_rx_num_wr - 1);
-		m_rx_hot_buffer = (mem_buf_desc_t *)m_qp_mgr->m_rq_wqe_idx_to_wrid[index];
+		uint32_t index = m_qp_rec.qp->m_mlx5_hw_qp->rq.tail & (m_qp_rec.qp->m_rx_num_wr - 1);
+		m_rx_hot_buffer = (mem_buf_desc_t *)m_qp_rec.qp->m_rq_wqe_idx_to_wrid[index];
 	}
 
 	volatile mlx5_cqe64 *cqe = get_cqe64();
 	if (likely(cqe)) {
 		cqe64_to_mem_buff_desc(cqe, m_rx_hot_buffer);
 		//if error cqe64_to_mem_buff_desc
-		++m_qp_mgr->m_mlx5_hw_qp->rq.tail;
+		++m_qp_rec.qp->m_mlx5_hw_qp->rq.tail;
 		buff = m_rx_hot_buffer;
 		m_rx_hot_buffer = NULL;
 	}

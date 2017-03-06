@@ -317,8 +317,6 @@ public:
 	virtual ~cq_mgr_mlx5();
 
 	virtual inline mem_buf_desc_t*		poll();
-	virtual void						add_qp_rx(qp_mgr* qp);
-	virtual void						del_qp_rx(qp_mgr *qp);
 	inline volatile struct mlx5_cqe64*	get_cqe64(void);
 	volatile struct mlx5_cqe64*			check_error_completion(uint8_t op_own);
 	inline void							cqe64_to_mem_buff_desc(volatile struct mlx5_cqe64 *cqe, mem_buf_desc_t* p_rx_wc_buf_desc);
@@ -333,7 +331,6 @@ private:
 	uint16_t 					m_cq_cindex;
 	volatile struct mlx5_cqe64 	(*m_cqes)[];
 	volatile uint32_t 			*m_cq_dbell;
-	qp_mgr*						m_qp_mgr;
 	mem_buf_desc_t		 		*m_rx_hot_buffer;
 };
 
