@@ -1700,6 +1700,8 @@ inline mem_buf_desc_t*		cq_mgr_mlx5::poll()
 	if (unlikely(NULL == m_rx_hot_buffer)) {
 		uint32_t index = m_qp_rec.qp->m_mlx5_hw_qp->rq.tail & (m_qp_rec.qp->m_rx_num_wr - 1);
 		m_rx_hot_buffer = (mem_buf_desc_t *)m_qp_rec.qp->m_rq_wqe_idx_to_wrid[index];
+		prefetch((void*)m_rx_hot_buffer);
+		prefetch((void*)&(*m_cqes)[m_cq_cindex & (m_cq_size - 1)]);
 	}
 
 	volatile mlx5_cqe64 *cqe = get_cqe64();
