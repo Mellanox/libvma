@@ -168,10 +168,12 @@ void fd_collection::clear()
 		}
 
 		if (m_p_epfd_map[fd]) {
+#if 0 // Disabled due to unexpected behaviour
 			epfd_info *p_epfd = get_epfd(fd);
 			if (p_epfd) {
 				delete p_epfd;
 			}
+#endif
 			m_p_epfd_map[fd] = NULL;
 			fdcoll_logdbg("destroyed epfd=%d", fd);
 		}
