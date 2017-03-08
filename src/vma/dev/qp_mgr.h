@@ -217,7 +217,7 @@ protected:
 	uint16_t		m_n_ip_id_offset;
 
 	mgid_ref_count_map_t	m_attach_mc_grp_ref_cnt;
-
+	bool			m_skip_tx_release;
 	int 			configure(struct ibv_comp_channel* p_rx_comp_event_channel);
 	virtual int		prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr) = 0;
 	virtual cq_mgr*		init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_channel);

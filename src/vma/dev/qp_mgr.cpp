@@ -76,7 +76,8 @@ qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context,
 	m_ibv_rx_sg_array(NULL), m_ibv_rx_wr_array(NULL), m_curr_rx_wr(0),
 	m_last_posted_rx_wr_id(0), m_n_unsignaled_count(0), m_n_tx_count(0),
 	m_p_last_tx_mem_buf_desc(NULL), m_p_prev_rx_desc_pushed(NULL),
-	m_n_ip_id_base(0), m_n_ip_id_offset(0)
+	m_n_ip_id_base(0), m_n_ip_id_offset(0),
+	m_skip_tx_release(false)
 
 {
 #ifdef DEFINED_VMAPOLL
@@ -101,7 +102,8 @@ qp_mgr::~qp_mgr()
 
 	// Don't assume anything
 	// release_tx/rx_buffers() - poll and process the CQ's
-	release_tx_buffers();
+	if (!m_skip_tx_release)
+		release_tx_buffers();
 	release_rx_buffers();
 
 	qp_logdbg("calling ibv_destroy_qp(qp=%p)", m_qp);

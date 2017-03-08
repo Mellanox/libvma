@@ -186,6 +186,7 @@ int qp_mgr_mp::post_qp_create(void)
 		qp_logdbg("sge %u addr %p size %d lkey %u", i, ptr, size, lkey);
 		ptr += size;
 	}
+	m_skip_tx_release = true;
 	return 0;
 }
 
@@ -257,7 +258,30 @@ int qp_mgr_mp::post_recv(uint32_t sg_index, uint32_t num_of_sge)
 
 qp_mgr_mp::~qp_mgr_mp()
 {
-
+	//destroy TX QP
+	if (m_p_tx_qp) {
+		IF_VERBS_FAILURE(ibv_destroy_qp(m_p_tx_qp)) {
+			qp_logdbg("TX QP destroy failure (errno = %d %m)", -errno);
+		} ENDIF_VERBS_FAILURE;
+	}
+	if (m_p_wq_family) {
+		ibv_exp_release_intf_params params;
+		memset(&params, 0, sizeof(params));
+		IF_VERBS_FAILURE(ibv_exp_release_intf(m_p_ib_ctx_handler->get_ibv_context(),
+				m_p_wq_family, &params)) {
+			qp_logdbg("ibv_exp_release_intf failed (errno = %d %m)", -errno);
+		} ENDIF_VERBS_FAILURE;
+	}
+	if (m_p_wq) {
+		IF_VERBS_FAILURE(ibv_exp_destroy_wq(m_p_wq)) {
+			qp_logdbg("ibv_exp_destroy_wq failed (errno = %d %m)", -errno);
+		} ENDIF_VERBS_FAILURE;
+	}
+	if (m_p_rwq_ind_tbl) {
+		IF_VERBS_FAILURE(ibv_exp_destroy_rwq_ind_table(m_p_rwq_ind_tbl)) {
+			qp_logdbg("ibv_exp_destroy_rwq_ind_table failed (errno = %d %m)", -errno);
+		} ENDIF_VERBS_FAILURE;
+	}
 }
 #endif
 
