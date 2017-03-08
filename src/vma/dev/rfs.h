@@ -92,6 +92,35 @@ typedef struct __attribute__ ((packed)) ibv_flow_attr_ib_ipv4_tcp_udp {
 } ibv_flow_attr_ib_ipv4_tcp_udp;
 #endif
 
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
+typedef struct __attribute__ ((packed)) ibv_flow_attr_flow_tag {
+	vma_ibv_flow_attr             attr;
+	vma_ibv_flow_spec_eth         eth;
+	vma_ibv_flow_spec_ipv4        ipv4;
+	vma_ibv_flow_spec_tcp_udp     tcp_udp;
+	vma_ibv_exp_flow_spec_action_tag  flow_tag;
+
+	ibv_flow_attr_flow_tag(uint8_t port) {
+		memset(this, 0, sizeof(*this));
+		attr.size = sizeof(struct ibv_flow_attr_flow_tag);
+		attr.num_of_specs = 4;
+		attr.type = VMA_IBV_FLOW_ATTR_NORMAL;
+		attr.priority = 1;
+		attr.port = port;
+	}
+} ibv_flow_attr_flow_tag;
+
+typedef struct __attribute__ ((packed)) attach_flow_data_flow_tag_t {
+	struct ibv_flow *                       ibv_flow;
+	qp_mgr*                                 p_qp_mgr;
+	struct ibv_flow_attr_flow_tag   ibv_flow_attr;
+	attach_flow_data_flow_tag_t(qp_mgr* qp_mgr) :
+		ibv_flow(NULL),
+		p_qp_mgr(qp_mgr),
+		ibv_flow_attr(qp_mgr->get_port_num()) {}
+} attach_flow_data_flow_tag_t;
+#endif
+
 typedef struct __attribute__ ((packed)) ibv_flow_attr_eth_ipv4_tcp_udp {
 	vma_ibv_flow_attr             attr;
 	vma_ibv_flow_spec_eth         eth;
@@ -209,7 +238,9 @@ private:
 	inline void 		prepare_filter_attach(int& filter_counter, rule_filter_map_t::iterator& filter_iter);
 	inline void 		filter_keep_attached(rule_filter_map_t::iterator& filter_iter);
 	inline void 		prepare_filter_detach(int& filter_counter);
-
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)	
+	bool				m_b_flow_tag_enabled;
+#endif
 };
 
 #endif /* RFS_H */

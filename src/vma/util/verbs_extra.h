@@ -245,6 +245,9 @@ typedef struct ibv_exp_flow_spec_ib		vma_ibv_flow_spec_ib;
 typedef struct ibv_exp_flow_spec_eth		vma_ibv_flow_spec_eth;
 typedef struct ibv_exp_flow_spec_ipv4		vma_ibv_flow_spec_ipv4;
 typedef struct ibv_exp_flow_spec_tcp_udp	vma_ibv_flow_spec_tcp_udp;
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
+typedef struct ibv_exp_flow_spec_action_tag vma_ibv_exp_flow_spec_action_tag;
+#endif
 #endif
 
 static inline void init_vma_ibv_cq_init_attr(vma_ibv_cq_init_attr* attr)
@@ -310,4 +313,12 @@ static inline void ibv_flow_spec_tcp_udp_set(vma_ibv_flow_spec_tcp_udp* tcp_udp,
 	if(tcp_udp->val.dst_port) tcp_udp->mask.dst_port = FS_MASK_ON_16;
 }
 
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
+static inline void ibv_flow_spec_flow_tag_set(vma_ibv_exp_flow_spec_action_tag* flow_tag, uint32_t tag_id, uint32_t mask)
+{
+	flow_tag->type = IBV_EXP_FLOW_SPEC_ACTION_TAG;
+	flow_tag->size = sizeof(vma_ibv_exp_flow_spec_action_tag);
+	flow_tag->tag_id = tag_id & mask;
+}
+#endif
 #endif

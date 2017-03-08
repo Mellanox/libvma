@@ -63,6 +63,9 @@ public:
 	uint8_t* const	p_buffer;
 	size_t const	sz_buffer; 	// this is the size of the buffer
 	size_t		sz_data;   	// this is the amount of data inside the buffer (sz_data <= sz_buffer)
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
+	uint32_t	tag_id;
+#endif
 	uint32_t	lkey;      	// Buffers lkey for QP access
 private:
 	atomic_t	n_ref_count;	// number of interested receivers (sockinfo) [can be modified only in cq_mgr context]

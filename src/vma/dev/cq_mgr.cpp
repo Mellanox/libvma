@@ -100,7 +100,18 @@ inline void cq_mgr::process_recv_buffer(mem_buf_desc_t* p_mem_buf_desc, void* pv
 		reclaim_recv_buffer_helper(p_mem_buf_desc);
 	}
 }
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
+inline void cq_mgr::process_recv_buffer_ft(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array)
+{
+	// Assume locked!!!
 
+	// Pass the Rx buffer ib_comm_mgr for further IP processing
+	if (!m_p_ring->rx_process_buffer_ft(p_mem_buf_desc, m_transport_type, pv_fd_ready_array)) {
+		// If buffer is dropped by callback - return to RX pool
+		reclaim_recv_buffer_helper(p_mem_buf_desc);
+	}
+}
+#endif
 inline int cq_mgr::post_recv_qp(qp_rec *qprec, mem_buf_desc_t *buff)
 {
 	if (buff->serial_num > m_buffer_prev_id + BUFF_STAT_THRESHOLD)
@@ -852,8 +863,72 @@ int cq_mgr::vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 	}
 
 	return packets_num;
-
 }
+
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
+int cq_mgr::vma_poll_and_process_element_rx_ft(mem_buf_desc_t **p_desc_lst)
+{
+	int packets_num = 0;
+
+	if (unlikely(m_rx_hot_buff == NULL)) {
+		int index = m_qp->m_mlx5_hw_qp->rq.tail & (m_qp->m_rx_num_wr - 1);
+		m_rx_hot_buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_rq_wqe_idx_to_wrid[index];
+		m_rx_hot_buff->path.rx.context = NULL;
+		m_rx_hot_buff->path.rx.is_vma_thr = false;
+	}
+	//prefetch_range((uint8_t*)m_rx_hot_buff->p_buffer,safe_mce_sys().rx_prefetch_bytes_before_poll);
+#ifdef RDTSC_MEASURE_RX_VERBS_READY_POLL
+	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VERBS_READY_POLL]);
+#endif //RDTSC_MEASURE_RX_VERBS_READY_POLL
+
+#ifdef RDTSC_MEASURE_RX_VERBS_IDLE_POLL
+	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VERBS_IDLE_POLL]);
+#endif //RDTSC_MEASURE_RX_VERBS_IDLE_POLL
+
+#ifdef RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL]);
+#endif //RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
+	volatile mlx5_cqe64 *cqe_err = NULL;
+	volatile mlx5_cqe64 *cqe = mlx5_get_cqe64(&cqe_err);
+
+	if (likely(cqe)) {
+		++m_n_wce_counter;
+		++m_qp->m_mlx5_hw_qp->rq.tail;
+		m_rx_hot_buff->sz_data = ntohl(cqe->byte_cnt);
+		m_rx_hot_buff->tag_id = ntohl((uint32_t)(cqe->sop_drop_qpn));
+
+		if (unlikely(++m_qp_rec.debth >= m_n_sysvar_rx_num_wr_to_post_recv)) {
+			compensate_qp_poll_success(m_rx_hot_buff);
+		}
+		++packets_num;
+		*p_desc_lst = m_rx_hot_buff;
+		m_rx_hot_buff = NULL;
+	}
+	else if (cqe_err) {
+		/* Return nothing in case error wc
+		 * It is difference with poll_and_process_helper_rx()
+		 */
+		mlx5_poll_and_process_error_element_rx(cqe_err, NULL);
+		*p_desc_lst = NULL;
+	}
+	else {
+#ifdef RDTSC_MEASURE_RX_VERBS_IDLE_POLL
+		RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VERBS_IDLE_POLL]);
+#endif
+
+#ifdef RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
+		RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL]);
+#endif
+
+#ifdef RDTSC_MEASURE_RX_CQE_RECEIVEFROM
+		RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM]);
+#endif
+		compensate_qp_poll_failed();
+	}
+
+	return packets_num;
+}
+#endif /* DEFINED_IBV_EXP_FLOW_TAG */
 
 int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array)
 {
@@ -899,11 +974,61 @@ int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready
 		else {
 			compensate_qp_poll_failed();
 		}
-
 	}
-
 	return ret_rx_processed;
 }
+
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
+int cq_mgr::poll_and_process_helper_rx_ft(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array)
+{
+	// Assume locked!!!
+
+	NOT_IN_USE(p_cq_poll_sn);
+	uint32_t ret_rx_processed = process_recv_queue(pv_fd_ready_array);
+	if (unlikely(ret_rx_processed >= safe_mce_sys().cq_poll_batch_max)) {
+		m_p_ring->m_gro_mgr.flush_all(pv_fd_ready_array);
+		return ret_rx_processed;
+	}
+
+	if (m_p_next_rx_desc_poll) {
+		prefetch_range((uint8_t*)m_p_next_rx_desc_poll->p_buffer,safe_mce_sys().rx_prefetch_bytes_before_poll);
+	}
+
+	if (unlikely(m_rx_hot_buff == NULL)) {
+		int index = m_qp->m_mlx5_hw_qp->rq.tail & (m_qp->m_rx_num_wr - 1);
+		m_rx_hot_buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_rq_wqe_idx_to_wrid[index];
+		m_rx_hot_buff->path.rx.context = NULL;
+		m_rx_hot_buff->path.rx.is_vma_thr = false;
+		m_rx_hot_buff->path.rx.vma_polled = false;
+	}
+	else {
+		volatile mlx5_cqe64 *cqe_err = NULL;
+		volatile mlx5_cqe64 *cqe = mlx5_get_cqe64(&cqe_err);
+
+		if (likely(cqe)) {
+			++m_n_wce_counter;
+			++m_qp->m_mlx5_hw_qp->rq.tail;
+			m_rx_hot_buff->sz_data = ntohl(cqe->byte_cnt);
+			m_rx_hot_buff->tag_id = ntohl((uint32_t)(cqe->sop_drop_qpn));
+
+			if (unlikely(++m_qp_rec.debth >= m_n_sysvar_rx_num_wr_to_post_recv)) {
+				compensate_qp_poll_success(m_rx_hot_buff);
+			}
+			process_recv_buffer_ft(m_rx_hot_buff, pv_fd_ready_array);
+			++ret_rx_processed;
+			m_rx_hot_buff = NULL;
+		}
+		else if (cqe_err) {
+			ret_rx_processed += mlx5_poll_and_process_error_element_rx(cqe_err, pv_fd_ready_array);
+		}
+		else {
+			compensate_qp_poll_failed();
+		}
+
+	}
+	return ret_rx_processed;
+}
+#endif /* DEFINED_IBV_EXP_FLOW_TAG */
 
 int cq_mgr::poll_and_process_helper_tx(uint64_t* p_cq_poll_sn)
 {
@@ -1354,7 +1479,15 @@ int cq_mgr::wait_for_notification_and_process_element(uint64_t* p_cq_poll_sn, vo
 
 			// Now try processing the ready element
 			if (m_b_is_rx) {
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
+				if (likely(m_p_ring->m_b_flow_tag_enabled)) {
+					ret = poll_and_process_helper_rx_ft(p_cq_poll_sn, pv_fd_ready_array);
+				} else {
 				ret = poll_and_process_helper_rx(p_cq_poll_sn, pv_fd_ready_array);
+				}
+#else
+				ret = poll_and_process_helper_rx(p_cq_poll_sn, pv_fd_ready_array);
+#endif
 			} else {
 				ret = poll_and_process_helper_tx(p_cq_poll_sn);
 			}

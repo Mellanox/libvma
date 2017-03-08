@@ -35,6 +35,11 @@ public:
 
 protected:
 	virtual void prepare_flow_spec();
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
+	bool m_b_flow_tag_enabled;
+	uint32_t m_n_tag_id_mask;
+	uint32_t m_n_tag_id;
+#endif	
 };
 
 

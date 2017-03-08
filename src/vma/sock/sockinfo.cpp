@@ -418,6 +418,9 @@ bool sockinfo::attach_receiver(flow_tuple_with_local_if &flow_key)
 		si_logerr("Failed to attach %s to ring %p", flow_key.to_str(), p_nd_resources->p_ring);
 		return false;
 	}
+#if	defined(DEFINED_IBV_EXP_FLOW_TAG)
+	m_b_flow_tag_enabled = p_nd_resources->p_ring->get_flow_tag(m_n_tag_id);
+#endif
 	lock_rx_q();
 	BULLSEYE_EXCLUDE_BLOCK_END
 

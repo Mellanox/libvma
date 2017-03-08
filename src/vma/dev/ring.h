@@ -227,6 +227,9 @@ public:
 	virtual ~ring();
 
 	virtual bool		attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) = 0;
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
+	virtual bool		get_flow_tag(uint32_t& tag_id) = 0;
+#endif	
 	virtual bool		detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) = 0;
 
 	virtual void		restart(ring_resource_creation_info_t* p_ring_info) = 0; //todo move to bond ?

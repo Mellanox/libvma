@@ -132,11 +132,11 @@ protected:
 	bool			m_rx_reuse_buf_postponed; //used to mark threshold was reached, but free was not done yet
 	inline void		set_rx_reuse_pending(bool is_pending = true) {m_rx_reuse_buf_pending = is_pending;}
 
-	rx_ring_map_t		m_rx_ring_map; // CQ map
+	rx_ring_map_t	m_rx_ring_map; // CQ map
 	lock_mutex_recursive	m_rx_ring_map_lock;
 	ring_allocation_logic_rx m_ring_alloc_logic;
 
-	loops_timer             m_loops_timer;
+	loops_timer		m_loops_timer;
 
 	/**
 	 * list of pending ready packet on the Rx,
@@ -146,7 +146,12 @@ protected:
 	size_t 			m_rx_pkt_ready_offset;
 	size_t			m_rx_ready_byte_count;
 
-	int			m_rx_num_buffs_reuse;
+	int				m_rx_num_buffs_reuse;
+
+#if defined(DEFINED_IBV_EXP_FLOW_TAG)
+	uint32_t		m_n_tag_id;
+	bool			m_b_flow_tag_enabled;
+#endif
 
 	/* Track internal events to return in vma_poll()
 	 * Current design support single event for socket at a particular time

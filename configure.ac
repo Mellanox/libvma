@@ -353,6 +353,26 @@ else
 fi
 
 #
+# Experimental Verbs Flow Tagging
+#
+AC_ARG_ENABLE(flow_tag,
+	AC_HELP_STRING([--disable-flow-tag], [Disable Flow Tagging]),
+	[with_flow_tag=no],
+	[with_flow_tag=yes])
+
+if test "x${with_flow_tag}" = "xyes" ; then
+	AC_COMPILE_CHECK([VERBS Flow Tag check],
+	[#include <infiniband/verbs_exp.h>],
+	[struct ibv_exp_flow_spec_action_tag tag; tag = tag;],
+	ac_cv_libverbs_flow_tag=yes,
+	ac_cv_libverbs_flow_tag=no)
+	AC_MSG_RESULT($ac_cv_libverbs_flow_tag)
+	if test $ac_cv_libverbs_flow_tag = yes ; then
+		AC_DEFINE([DEFINED_IBV_EXP_FLOW_TAG], [1], [Define to 1 enable Flow Tagging functionality])
+ 	fi
+fi
+
+#
 # Experimental Verbs CQ
 #
 AC_ARG_ENABLE([exp-cq],
