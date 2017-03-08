@@ -54,6 +54,9 @@
 REVIEW: verify can remove: #include "vma/dev/ring.h"
 #endif
 
+//#define ALIGN_WR_UP(_num_wr_) 		(max(32, ((_num_wr_ + 0xf) & ~(0xf))))
+#define ALIGN_WR_DOWN(_num_wr_) 		(max(32, ((_num_wr_      ) & ~(0xf))))
+
 #ifdef DEFINED_VMAPOLL
 #include <infiniband/mlx5_hw.h>
 #include "vma/hw/mlx5/wqe.h"
@@ -63,6 +66,7 @@ class buffer_pool;
 class cq_mgr;
 class ring;
 class ring_simple;
+class ring_eth_mp;
 
 #ifndef MAX_SUPPORTED_IB_INLINE_SIZE
 #define MAX_SUPPORTED_IB_INLINE_SIZE	884
@@ -108,7 +112,7 @@ public:
 	qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num, const uint32_t tx_num_wr);
 	virtual ~qp_mgr();
 
-	void 			up();
+	virtual void		up();
 	void 			down();
 
 	int			post_recv(mem_buf_desc_t* p_mem_buf_desc); // Post for receive a list of mem_buf_desc
@@ -129,7 +133,7 @@ public:
 	class cq_mgr*  	get_rx_cq_mgr() const { return m_p_cq_mgr_rx; }
 	ib_ctx_handler* 	get_ib_ctx_handler() const { return m_p_ib_ctx_handler; }
 	uint32_t		get_rx_max_wr_num();
-
+	ibv_sge*		get_rx_ibv() { return m_ibv_rx_sg_array;}
 	// This function can be replaced with a parameter during ring creation.
 	// chain of calls may serve as cache warm for dummy send feature.
 	inline bool		get_hw_dummy_send_support() {return m_hw_dummy_send_support; }
@@ -207,7 +211,7 @@ protected:
 
 	mgid_ref_count_map_t	m_attach_mc_grp_ref_cnt;
 
-	int 			configure(struct ibv_comp_channel* p_rx_comp_event_channel);
+	virtual int		configure(struct ibv_comp_channel* p_rx_comp_event_channel);
 	virtual int		prepare_ibv_qp(struct ibv_qp_init_attr& qp_init_attr) = 0;
 };
 
@@ -215,9 +219,14 @@ protected:
 class qp_mgr_eth : public qp_mgr
 {
 public:
-	qp_mgr_eth(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num,
-			struct ibv_comp_channel* p_rx_comp_event_channel, const uint32_t tx_num_wr, const uint16_t vlan) throw (vma_error) :
-		qp_mgr(p_ring, p_context, port_num, tx_num_wr), m_vlan(vlan) { if(configure(p_rx_comp_event_channel)) throw_vma_exception("failed creating qp"); };
+	qp_mgr_eth(const ring_simple* p_ring, const ib_ctx_handler* p_context,
+		   const uint8_t port_num,
+		   struct ibv_comp_channel* p_rx_comp_event_channel,
+		   const uint32_t tx_num_wr, const uint16_t vlan, bool call_conf = true) throw (vma_error) :
+			   qp_mgr(p_ring, p_context, port_num, tx_num_wr), m_vlan(vlan) {
+		if(call_conf && configure(p_rx_comp_event_channel))
+			throw_vma_exception("failed creating qp");
+	};
 
 	virtual void 		modify_qp_to_ready_state();
 	virtual uint16_t	get_partiton() const { return m_vlan; };
