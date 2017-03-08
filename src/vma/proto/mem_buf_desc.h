@@ -137,8 +137,6 @@ public:
 #ifdef DEFINED_VMAPOLL 
 			bool 		vma_polled;
 #endif // DEFINED_VMAPOLL
-			uint32_t	poll_opcode;
-			uint32_t	poll_status;
 		} rx;
 		struct {
 			ibv_send_wr_ud 	wr_ud_info;
