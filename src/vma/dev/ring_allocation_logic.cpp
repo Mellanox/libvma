@@ -31,6 +31,7 @@
  */
 
 
+#include <dev/ring_profile.h>
 #include "vma/dev/ring_allocation_logic.h"
 
 
@@ -49,58 +50,74 @@
 #define ral_logfunc		__log_info_func
 #define ral_logfuncall		__log_info_funcall
 
+ring_allocation_logic::ring_allocation_logic():m_ring_migration_ratio(0),
+						m_fd(-1),
+						m_migration_try_count(0),
+						m_migration_candidate(0),
+						m_res_key() {}
 
-ring_allocation_logic::ring_allocation_logic(ring_logic_t _ring_allocation_logic, int ring_migration_ratio, int fd):
-	m_tostr("base"), m_ring_allocation_logic(_ring_allocation_logic), m_ring_migration_ratio(ring_migration_ratio),
-	m_fd(fd), m_migration_try_count(ring_migration_ratio), m_migration_candidate(0)
+ring_allocation_logic::ring_allocation_logic(ring_logic_t allocation_logic,
+					     int ring_migration_ratio, int fd,
+					     resource_allocation_key ring_profile):
+	m_tostr("base"), m_ring_migration_ratio(ring_migration_ratio),
+	m_fd(fd), m_migration_try_count(ring_migration_ratio)
 {
-	m_res_key = get_res_key_by_logic();
+	if (ring_profile.m_ring_alloc_logic == RING_LOGIC_PER_INTERFACE &&
+	    ring_profile.m_ring_profile_key < START_RING_INDEX) {
+		ring_profile.m_ring_alloc_logic = allocation_logic;
+	}
+	m_res_key = resource_allocation_key(ring_profile);
+	m_migration_candidate = 0;
+	update_res_key_by_logic();
 }
 
-resource_allocation_key ring_allocation_logic::get_res_key_by_logic()
+/**
+ *
+ * @return the key that is part of a unique id in rings map
+ */
+void ring_allocation_logic::update_res_key_by_logic()
 {
-	resource_allocation_key key = DEFAULT_RING_KEY;
-
-	switch (m_ring_allocation_logic) {
+	switch (m_res_key.m_ring_alloc_logic) {
 	case RING_LOGIC_PER_INTERFACE:
-		key = 0;
+		m_res_key.m_user_id_key = 0;
 		if (safe_mce_sys().tcp_ctl_thread > CTL_THREAD_DISABLE)
-			key = 1;
+			m_res_key.m_user_id_key = 1;
 		break;
 	case RING_LOGIC_PER_SOCKET:
-		key = m_fd;
+		m_res_key.m_user_id_key = m_fd;
+		break;
+	case RING_LOGIC_PER_USER_ID:
+		// already in m_ring_attr.m_user_id_key
 		break;
 	case RING_LOGIC_PER_THREAD:
-		key = pthread_self();
+		m_res_key.m_user_id_key = pthread_self();
 		break;
 	case RING_LOGIC_PER_CORE:
 	case RING_LOGIC_PER_CORE_ATTACH_THREADS:
-		key = sched_getcpu();
+		m_res_key.m_user_id_key = sched_getcpu();
 		break;
 	BULLSEYE_EXCLUDE_BLOCK_START
 	default:
 		//not suppose to get here
-		ral_logdbg("non-valid ring logic = %d", m_ring_allocation_logic);
+		ral_logdbg("non-valid ring logic = %d", m_res_key.m_ring_alloc_logic);
 		break;
 	BULLSEYE_EXCLUDE_BLOCK_END
 	}
-
-	return key;
 }
 
-resource_allocation_key ring_allocation_logic::create_new_key(int suggested_cpu /* = NO_CPU */)
+resource_allocation_key* ring_allocation_logic::create_new_key(int suggested_cpu /* = NO_CPU */)
 {
-	if (m_ring_allocation_logic == RING_LOGIC_PER_CORE_ATTACH_THREADS) {
+	if (m_res_key.m_ring_alloc_logic == RING_LOGIC_PER_CORE_ATTACH_THREADS) {
 		pthread_t tid = pthread_self();
 		int cpu = g_cpu_manager.reserve_cpu_for_thread(tid, suggested_cpu);
 		if (cpu >= 0) {
-			m_res_key = cpu;
-			return cpu;
+			m_res_key.m_user_id_key = cpu;
+			return &m_res_key;
 		}
 	}
 
-	m_res_key = get_res_key_by_logic();
-	return m_res_key;
+	update_res_key_by_logic();
+	return &m_res_key;
 }
 
 /*
@@ -108,7 +125,7 @@ resource_allocation_key ring_allocation_logic::create_new_key(int suggested_cpu 
  */
 bool ring_allocation_logic::should_migrate_ring()
 {
-	if (m_ring_allocation_logic < RING_LOGIC_PER_THREAD) {
+	if (m_res_key.m_ring_alloc_logic < RING_LOGIC_PER_USER_ID) {
 		return false;
 	}
 
@@ -121,13 +138,14 @@ bool ring_allocation_logic::should_migrate_ring()
 	int count_max = m_ring_migration_ratio;
 	if (m_migration_candidate) {
 		count_max = CANDIDATE_STABILITY_ROUNDS;
-		resource_allocation_key current_id = get_res_key_by_logic();
-		if (m_migration_candidate != current_id) {
+		update_res_key_by_logic();
+		if (m_migration_candidate != m_res_key.m_user_id_key) {
 			m_migration_candidate = 0;
 			m_migration_try_count = 0;
 			return false;
 		}
 	}
+
 
 	if (m_migration_try_count < count_max) {
 		m_migration_try_count++;
@@ -137,20 +155,24 @@ bool ring_allocation_logic::should_migrate_ring()
 	}
 
 	if (!m_migration_candidate) {
-		resource_allocation_key current_id = get_res_key_by_logic();
-		if (m_res_key == current_id || g_n_internal_thread_id == current_id) {
+		// save current used allocation key
+		// no need to save profile, and allocation logic
+		uint64_t old_id = m_res_key.m_user_id_key;
+		// check new key
+		update_res_key_by_logic();
+		if (m_res_key.m_user_id_key == old_id || g_n_internal_thread_id == old_id) {
 			return false;
 		}
-		m_migration_candidate = current_id;
+		m_migration_candidate = m_res_key.m_user_id_key;
 		return false;
 	}
 
-	ral_logdbg("migrating from ring of id=%lu to ring of id=%lu", m_res_key, m_migration_candidate);
+	ral_logdbg("migrating from ring of id=%s to ring of id=%lu",
+		   m_res_key.to_str().c_str(), m_migration_candidate);
 	m_migration_candidate = 0;
 
 	return true;
 }
-
 
 cpu_manager g_cpu_manager;
 __thread int g_n_thread_cpu_core = NO_CPU;

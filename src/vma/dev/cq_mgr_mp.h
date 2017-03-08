@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -30,29 +30,32 @@
  * SOFTWARE.
  */
 
+#ifndef SRC_VMA_DEV_CQ_MGR_MP_H_
+#define SRC_VMA_DEV_CQ_MGR_MP_H_
 
-#include "ring.h"
+#include "dev/cq_mgr_mlx5.h"
+#include "dev/ring_eth_cb.h"
+#include "dev/qp_mgr_mp.h"
 
-#undef  MODULE_NAME
-#define MODULE_NAME     "ring"
-#undef  MODULE_HDR
-#define MODULE_HDR      MODULE_NAME "%d:%s() "
+#ifdef HAVE_MP_RQ
 
-ring::ring(int count, uint32_t mtu) :
-	m_n_num_resources(count), m_p_n_rx_channel_fds(NULL), m_parent(NULL),
-	m_is_mp_ring(false), m_mtu(mtu)
+class cq_mgr_mp : public cq_mgr_mlx5
 {
-#ifdef DEFINED_VMAPOLL
-	m_vma_active = true; /* TODO: This VMA version supports vma_poll() usage mode only */
-	INIT_LIST_HEAD(&m_ec_list);
-	m_vma_poll_completion = NULL;
-#endif // DEFINED_VMAPOLL	
-}
+public:
+	cq_mgr_mp(const ring_eth_cb *p_ring, ib_ctx_handler *p_ib_ctx_handler,
+		  uint32_t cq_size, struct ibv_comp_channel *p_comp_event_channel,
+		  bool is_rx);
+	~cq_mgr_mp();
+	int		poll_mp_cq(uint16_t &size, uint32_t &strides_used,
+				   uint32_t &flags,
+				   volatile struct mlx5_cqe64 *&cqe64);
+protected:
+	virtual void	prep_ibv_cq(vma_ibv_cq_init_attr &attr) const;
+	virtual void	add_qp_rx(qp_mgr *qp);
+private:
+	const ring_eth_cb		*m_p_ring;
+	static const uint32_t		UDP_OK_FLAGS;
+};
+#endif /* HAVE_MP_RQ */
 
-ring::~ring()
-{
-#ifdef DEFINED_VMAPOLL
-	ring_logdbg("queue of event completion elements is %s",
-			(list_empty(&m_ec_list) ? "empty" : "not empty"));
-#endif // DEFINED_VMAPOLL		
-}
+#endif /* SRC_VMA_DEV_CQ_MGR_MP_H_ */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -30,29 +30,49 @@
  * SOFTWARE.
  */
 
+#ifndef SRC_VMA_DEV_RING_PROFILE_H_
+#define SRC_VMA_DEV_RING_PROFILE_H_
 
-#include "ring.h"
+#include <tr1/unordered_map>
+#include "net_device_val.h"
+#include "vma_extra.h"
 
-#undef  MODULE_NAME
-#define MODULE_NAME     "ring"
-#undef  MODULE_HDR
-#define MODULE_HDR      MODULE_NAME "%d:%s() "
+#define START_RING_INDEX	1 // beneath it's not defined
 
-ring::ring(int count, uint32_t mtu) :
-	m_n_num_resources(count), m_p_n_rx_channel_fds(NULL), m_parent(NULL),
-	m_is_mp_ring(false), m_mtu(mtu)
+class ring_profile;
+class ring_profiles_collection;
+
+
+typedef std::tr1::unordered_map<vma_ring_profile_key, ring_profile *> ring_profile_map_t;
+
+extern ring_profiles_collection *g_p_ring_profile;
+
+
+class ring_profile
 {
-#ifdef DEFINED_VMAPOLL
-	m_vma_active = true; /* TODO: This VMA version supports vma_poll() usage mode only */
-	INIT_LIST_HEAD(&m_ec_list);
-	m_vma_poll_completion = NULL;
-#endif // DEFINED_VMAPOLL	
-}
+public:
+	ring_profile();
+	ring_profile(struct vma_ring_type_attr *ring_desc);
+	vma_ring_type get_ring_type() {return m_ring_desc.ring_type;}
+	struct vma_ring_type_attr* get_desc(){return &m_ring_desc;}
+	const char* to_str(){ return m_str.c_str();}
+	const char* get_vma_ring_type_str();
+private:
+	void			create_string();
+	std::string		m_str;
+	vma_ring_type_attr	m_ring_desc;
+};
 
-ring::~ring()
+class ring_profiles_collection
 {
-#ifdef DEFINED_VMAPOLL
-	ring_logdbg("queue of event completion elements is %s",
-			(list_empty(&m_ec_list) ? "empty" : "not empty"));
-#endif // DEFINED_VMAPOLL		
-}
+public:
+	ring_profiles_collection();
+	~ring_profiles_collection();
+	vma_ring_profile_key	add_profile(vma_ring_type_attr *profile);
+	ring_profile*		get_profile(vma_ring_profile_key key);
+
+private:
+	ring_profile_map_t	m_profs_map;
+	vma_ring_profile_key	m_curr_idx;
+};
+#endif /* SRC_VMA_DEV_RING_PROFILE_H_ */

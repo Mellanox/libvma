@@ -57,6 +57,7 @@
 #include "vma/dev/buffer_pool.h"
 #include "vma/dev/ib_ctx_handler_collection.h"
 #include "vma/dev/net_device_table_mgr.h"
+#include "vma/dev/ring_profile.h"
 #include "vma/proto/ip_frag.h"
 #include "vma/proto/vma_lwip.h"
 #include "vma/proto/route_table_mgr.h"
@@ -224,6 +225,9 @@ static int free_libvma_resources()
 
 	if (g_p_agent) delete g_p_agent;
 	g_p_agent = NULL;
+
+	if (g_p_ring_profile) delete g_p_ring_profile;
+	g_p_ring_profile = NULL;
 
 	vlog_printf(VLOG_DEBUG, "Stopping logger module\n");
 
@@ -440,6 +444,17 @@ void print_vma_global_settings()
 
 	VLOG_PARAM_NUMSTR("Ring allocation logic TX", safe_mce_sys().ring_allocation_logic_tx, MCE_DEFAULT_RING_ALLOCATION_LOGIC_TX, SYS_VAR_RING_ALLOCATION_LOGIC_TX, ring_logic_str(safe_mce_sys().ring_allocation_logic_tx));
 	VLOG_PARAM_NUMSTR("Ring allocation logic RX", safe_mce_sys().ring_allocation_logic_rx, MCE_DEFAULT_RING_ALLOCATION_LOGIC_RX, SYS_VAR_RING_ALLOCATION_LOGIC_RX, ring_logic_str(safe_mce_sys().ring_allocation_logic_rx));
+	if (safe_mce_sys().ring_allocation_logic_rx == RING_LOGIC_PER_USER_ID) {
+		vlog_printf(VLOG_WARNING,"user_id is not supported using "
+			    "environment variable , use etra_api, using default\n");
+		safe_mce_sys().ring_allocation_logic_rx = MCE_DEFAULT_RING_ALLOCATION_LOGIC_RX;
+	}
+
+	if (safe_mce_sys().ring_allocation_logic_tx == RING_LOGIC_PER_USER_ID) {
+		vlog_printf(VLOG_WARNING,"user_id is not supported using "
+			    "environment variable , use etra_api, using default\n");
+		safe_mce_sys().ring_allocation_logic_tx = MCE_DEFAULT_RING_ALLOCATION_LOGIC_TX;
+	}
 
 	VLOG_PARAM_NUMBER("Ring migration ratio TX", safe_mce_sys().ring_migration_ratio_tx, MCE_DEFAULT_RING_MIGRATION_RATIO_TX, SYS_VAR_RING_MIGRATION_RATIO_TX);
 	VLOG_PARAM_NUMBER("Ring migration ratio RX", safe_mce_sys().ring_migration_ratio_rx, MCE_DEFAULT_RING_MIGRATION_RATIO_RX, SYS_VAR_RING_MIGRATION_RATIO_RX);
@@ -860,6 +875,7 @@ static void do_global_ctors_helper()
 
 // 	neigh_test();
 //	igmp_test();
+	NEW_CTOR(g_p_ring_profile, ring_profiles_collection());
 }
 
 int do_global_ctors()
@@ -899,6 +915,7 @@ void reset_globals()
 	g_p_lwip = NULL;
 	g_p_netlink_handler = NULL;
 	g_p_ib_ctx_handler_collection = NULL;
+	g_p_ring_profile = NULL;
 	g_cpu_manager.reset();
 }
 

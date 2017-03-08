@@ -69,7 +69,6 @@
 		}}
 
 #define RDMA_CM_TIMEOUT 3500
-#define RING_KEY 0
 
 
 /**/
@@ -175,12 +174,23 @@ neigh_val & neigh_ib_val::operator=(const neigh_val & val)
 
 neigh_entry::neigh_entry(neigh_key key, transport_type_t _type, bool is_init_resources):
 	cache_entry_subject<neigh_key, neigh_val *>(key),
-	m_cma_id(NULL), m_rdma_port_space((enum rdma_port_space)0), m_state_machine(NULL), m_type(UNKNOWN), m_trans_type(_type),
-	m_state(false), m_err_counter(0), m_timer_handle(NULL),
-	m_arp_counter(0), m_p_dev(NULL), m_p_ring(NULL), m_is_loopback(false),
+	m_cma_id(NULL),
+	m_rdma_port_space((enum rdma_port_space)0),
+	m_state_machine(NULL),
+	m_type(UNKNOWN),
+	m_trans_type(_type),
+	m_state(false),
+	m_err_counter(0),
+	m_timer_handle(NULL),
+	m_arp_counter(0),
+	m_p_dev(NULL),
+	m_p_ring(NULL),
+	m_is_loopback(false),
 	m_to_str(std::string(priv_vma_transport_type_str(m_trans_type)) + ":" + get_key().to_str()), m_id(0),
 	m_is_first_send_arp(true), m_n_sysvar_neigh_wait_till_send_arp_msec(safe_mce_sys().neigh_wait_till_send_arp_msec),
-	m_n_sysvar_neigh_uc_arp_quata(safe_mce_sys().neigh_uc_arp_quata), m_n_sysvar_neigh_num_err_retries(safe_mce_sys().neigh_num_err_retries)
+	m_n_sysvar_neigh_uc_arp_quata(safe_mce_sys().neigh_uc_arp_quata),
+	m_n_sysvar_neigh_num_err_retries(safe_mce_sys().neigh_num_err_retries),
+	m_res_key(NULL)
 {
 	m_val = NULL;
 	m_p_dev = key.get_net_device_val();
@@ -191,7 +201,8 @@ neigh_entry::neigh_entry(neigh_key key, transport_type_t _type, bool is_init_res
 	}
 
 	if(is_init_resources) {
-		m_p_ring = m_p_dev->reserve_ring(RING_KEY);
+		m_res_key = new resource_allocation_key;
+		m_p_ring = m_p_dev->reserve_ring(m_res_key);
 		if (m_p_ring == NULL) {
 			neigh_logpanic("reserve_ring return NULL");
 		}
@@ -226,9 +237,10 @@ neigh_entry::~neigh_entry()
 		delete m_state_machine;
 		m_state_machine = NULL;
 	}
-	if (m_p_dev && m_p_ring) {
-		m_p_dev->release_ring(RING_KEY);
+	if (m_p_dev && m_p_ring && m_res_key) {
+		m_p_dev->release_ring(m_res_key);
 		m_p_ring = NULL;
+		delete m_res_key;
 	}
 
 	//TODO:Do we want to check here that unsent queue is empty and if not to send everything?
