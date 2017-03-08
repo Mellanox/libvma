@@ -151,15 +151,27 @@ inline uint32_t cq_mgr::process_recv_queue(void* pv_fd_ready_array)
 	return processed;
 }
 
-cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx) :
-		m_p_ring(p_ring), m_p_ib_ctx_handler(p_ib_ctx_handler), m_b_is_rx(is_rx), m_b_sysvar_is_rx_sw_csum_on(safe_mce_sys().rx_sw_csum),
-		m_comp_event_channel(p_comp_event_channel), m_n_sysvar_rx_prefetch_bytes_before_poll(safe_mce_sys().rx_prefetch_bytes_before_poll),
-		m_n_sysvar_rx_prefetch_bytes(safe_mce_sys().rx_prefetch_bytes), m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv),
-		m_n_sysvar_cq_poll_batch_max(safe_mce_sys().cq_poll_batch_max), m_n_sysvar_qp_compensation_level(safe_mce_sys().qp_compensation_level),
-		m_b_sysvar_cq_keep_qp_full(safe_mce_sys().cq_keep_qp_full), m_n_sysvar_progress_engine_wce_max(safe_mce_sys().progress_engine_wce_max),
-		m_p_next_rx_desc_poll(NULL)
+cq_mgr::cq_mgr(ring_simple *p_ring, ib_ctx_handler *p_ib_ctx_handler,
+	       int cq_size, struct ibv_comp_channel *p_comp_event_channel,
+	       bool is_rx, bool config) : m_p_ring(p_ring), m_b_is_rx(is_rx),
+	       m_b_sysvar_is_rx_sw_csum_on(safe_mce_sys().rx_sw_csum),
+	       m_comp_event_channel(p_comp_event_channel),
+	       m_n_sysvar_rx_prefetch_bytes_before_poll(safe_mce_sys().rx_prefetch_bytes_before_poll),
+	       m_n_sysvar_rx_prefetch_bytes(safe_mce_sys().rx_prefetch_bytes),
+	       m_n_sysvar_cq_poll_batch_max(safe_mce_sys().cq_poll_batch_max),
+	       m_n_sysvar_qp_compensation_level(safe_mce_sys().qp_compensation_level),
+	       m_b_sysvar_cq_keep_qp_full(safe_mce_sys().cq_keep_qp_full),
+	       m_n_sysvar_progress_engine_wce_max(safe_mce_sys().progress_engine_wce_max),
+	       m_p_next_rx_desc_poll(NULL), m_p_ib_ctx_handler(p_ib_ctx_handler),
+	       m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv),
+	       m_skip_dtor(false)
 {
-	cq_logfunc("");
+	if (config)
+		configure(cq_size);
+}
+
+void cq_mgr::configure(int cq_size)
+{
 
 #ifdef DEFINED_VMAPOLL	
 	m_rx_hot_buff = NULL;
@@ -186,18 +198,18 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 	vma_ibv_cq_init_attr attr;
 	memset(&attr, 0, sizeof(attr));
 
-	if (m_p_ib_ctx_handler->get_ctx_time_converter_status()) {
-		init_vma_ibv_cq_init_attr(&attr);
-	}
+	prep_ibv_cq(attr);
 
-// REVIEW - check versus master
-	m_p_ibv_cq = vma_ibv_create_cq(m_p_ib_ctx_handler->get_ibv_context(), cq_size - 1, (void*)this, m_comp_event_channel, 0, &attr);
+	m_p_ibv_cq = vma_ibv_create_cq(m_p_ib_ctx_handler->get_ibv_context(),
+			cq_size - 1, (void *)this, m_comp_event_channel, 0, &attr);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_p_ibv_cq) {
 		cq_logpanic("ibv_create_cq failed (errno=%d %m)", errno);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-
+	if (post_ibv_cq()) {
+		cq_logpanic("post_ibv_cq failed (errno=%d %m)", errno);
+	}
 	// use local copy of stats by default (on rx cq get shared memory stats)
 	m_p_cq_stat = &m_cq_stat_static;
 	memset(m_p_cq_stat , 0, sizeof(*m_p_cq_stat));
@@ -243,8 +255,17 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 	cq_logdbg("Created CQ as %s with fd[%d] and of size %d elements (ibv_cq_hndl=%p)", (m_b_is_rx?"Rx":"Tx"), get_channel_fd(), cq_size, m_p_ibv_cq);
 }
 
+void cq_mgr::prep_ibv_cq(vma_ibv_cq_init_attr& attr)
+{
+	if (m_p_ib_ctx_handler->get_ctx_time_converter_status()) {
+		init_vma_ibv_cq_init_attr(&attr);
+	}
+}
+
 cq_mgr::~cq_mgr()
 {
+	if (m_skip_dtor)
+		return;
 	cq_logdbg("destroying CQ as %s", (m_b_is_rx?"Rx":"Tx"));
 	uint32_t ret_total = 0;
 

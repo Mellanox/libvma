@@ -112,9 +112,12 @@ class cq_mgr
 	friend class cq_mgr_mlx5;
 
 public:
-
-	cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx);
+	cq_mgr(ring_simple *p_ring, ib_ctx_handler *p_ib_ctx_handler,
+	       int cq_size, struct ibv_comp_channel *p_comp_event_channel,
+	       bool is_rx, bool config=true);
 	virtual ~cq_mgr();
+
+	void configure(int cq_size);
 
 	ibv_cq *get_ibv_cq_hndl();
 	int	get_channel_fd();
@@ -207,30 +210,25 @@ private:
 	volatile uint32_t 		*m_cq_db;
 #endif // DEFINED_VMAPOLL
 	ring_simple*			m_p_ring;
-	ib_ctx_handler*			m_p_ib_ctx_handler;
 	bool				m_b_is_rx;
 	bool				m_b_is_rx_hw_csum_on;
 	const bool			m_b_sysvar_is_rx_sw_csum_on;
 	struct ibv_comp_channel*	m_comp_event_channel;
-	struct ibv_cq*			m_p_ibv_cq;
 	bool				m_b_notification_armed;
 	bool				m_b_was_drained;
 	uint32_t			m_n_wce_counter;
 	const uint32_t			m_n_sysvar_rx_prefetch_bytes_before_poll;
 	const uint32_t			m_n_sysvar_rx_prefetch_bytes;
-	const uint32_t			m_n_sysvar_rx_num_wr_to_post_recv;
 	const uint32_t			m_n_sysvar_cq_poll_batch_max;
 	const uint32_t			m_n_sysvar_qp_compensation_level;
 	const bool				m_b_sysvar_cq_keep_qp_full;
 	const uint32_t			m_n_sysvar_progress_engine_wce_max;
-	qp_rec				m_qp_rec;
 
 	mem_buf_desc_t*			m_p_next_rx_desc_poll;
 
 	descq_t				m_rx_queue;
 	descq_t				m_rx_pool;
 	int32_t				m_n_out_of_free_bufs_warning;
-	cq_stats_t* 			m_p_cq_stat;
 	cq_stats_t 			m_cq_stat_static;
 	uint32_t			m_cq_id;
 	uint32_t 			m_n_cq_poll_sn;
@@ -298,6 +296,15 @@ private:
 	inline void 	find_buff_dest_vma_if_ctx(mem_buf_desc_t * buff);
 
 	void		process_cq_element_log_helper(mem_buf_desc_t* p_mem_buf_desc, vma_ibv_wc* p_wce);
+protected:
+	struct ibv_cq*			m_p_ibv_cq;
+	ib_ctx_handler*			m_p_ib_ctx_handler;
+	cq_stats_t*			m_p_cq_stat;
+	const uint32_t			m_n_sysvar_rx_num_wr_to_post_recv;
+	qp_rec				m_qp_rec;
+	bool				m_skip_dtor;
+	virtual		void prep_ibv_cq(vma_ibv_cq_init_attr &attr);
+	virtual		int post_ibv_cq() { return 0;}
 };
 
 // Helper gunction to extract the Tx cq_mgr from the CQ event,

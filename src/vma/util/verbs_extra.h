@@ -308,7 +308,7 @@ static inline void init_vma_ibv_cq_init_attr(vma_ibv_cq_init_attr* attr)
 {
 #ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
 		attr->flags = IBV_EXP_CQ_TIMESTAMP;
-		attr->comp_mask = IBV_EXP_CQ_INIT_ATTR_FLAGS;
+		attr->comp_mask |= IBV_EXP_CQ_INIT_ATTR_FLAGS;
 #else
 		NOT_IN_USE(attr);
 #endif
