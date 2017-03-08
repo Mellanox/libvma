@@ -41,6 +41,12 @@
 
 class qp_mgr_mp;
 
+enum POLL_MP_RET {
+	POLL_MP_ERROR = -1,
+	POLL_MP_EMPTY = 0,
+	POLL_MP_FILLER,
+	POLL_MP_LAST_WQ,
+};
 
 class cq_mgr_mp : public cq_mgr
 {
@@ -51,6 +57,7 @@ public:
 		  int cq_size, struct ibv_comp_channel *p_comp_event_channel,
 		  bool is_rx);
 	~cq_mgr_mp(){};
+	POLL_MP_RET	poll_mp_cq(int &size, uint32_t &offset);
 protected:
 	virtual void	prep_ibv_cq(vma_ibv_cq_init_attr &attr);
 	virtual int	post_ibv_cq();

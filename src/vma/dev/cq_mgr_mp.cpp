@@ -101,5 +101,34 @@ void cq_mgr_mp::add_qp_rx(qp_mgr *_qp)
 		  qp->get_wq_count());
 }
 
+/*
+ * this function handles error in poll_cq and returns the size offset and flags
+ * when prm will be used it will have more logic
+ */
+POLL_MP_RET cq_mgr_mp::poll_mp_cq(int &size, uint32_t &offset)
+{
+	uint32_t flags = 0;
+	// offset is the offset in the general buffer
+	size = m_p_cq_family1->poll_length_flags_mp_rq(m_p_ibv_cq, &offset,
+			&flags);
+	if (unlikely(size == -1)) {
+		cq_logdbg("poll_length_flags_mp_rq failed with CQ_POLL_ERR "
+			  "errno %m",errno);
+		return POLL_MP_ERROR;
+	}
+	if (size == 0) {
+		cq_logdbg("poll_length_flags_mp_rq return 0 with "
+			  "errno %m", errno);
+		// no packet might be filler need to distinguish
+		return POLL_MP_EMPTY;
+	}
+	// when will have prm return FILLER
+	/*return POLL_MP_FILLER;*/
+	if (flags & IBV_EXP_CQ_RX_MULTI_PACKET_LAST_V1) {
+		// last packet in wq call post_recv and save current wq used
+		return POLL_MP_LAST_WQ;
+	}
+	return POLL_MP_EMPTY;
+}
 #endif //DEFINED_IBV_OLD_VERBS_MLX_OFED
 
