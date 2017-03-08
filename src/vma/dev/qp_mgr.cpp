@@ -51,30 +51,34 @@
 #define qp_logfuncall		__log_info_funcall
 
 
-//#define ALIGN_WR_UP(_num_wr_) 		(max(32, ((_num_wr_ + 0xf) & ~(0xf))))
-#define ALIGN_WR_DOWN(_num_wr_) 		(max(32, ((_num_wr_      ) & ~(0xf))))
-
 #define FICTIVE_REMOTE_QPN	0x48
 #define FICTIVE_REMOTE_QKEY	0x01234567
 #define FICTIVE_AH_SL		5
 #define FICTIVE_AH_DLID		0x3
 
-qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num, const uint32_t tx_num_wr):
+
+qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context,
+		const uint8_t port_num, const uint32_t tx_num_wr):
 	m_rq_wqe_counter(0), m_rq_wqe_idx_to_wrid(NULL),
 #ifdef DEFINED_VMAPOLL
 	m_mlx5_hw_qp(NULL),
 #endif
-	m_qp(NULL), m_p_ring((ring_simple*)p_ring),
-	m_port_num((uint8_t)port_num), m_p_ib_ctx_handler((ib_ctx_handler*)p_context), m_p_ahc_head(NULL), m_p_ahc_tail(NULL),
-	m_max_inline_data(0), m_max_qp_wr(0), m_p_cq_mgr_rx(NULL), m_p_cq_mgr_tx(NULL), m_rx_num_wr(safe_mce_sys().rx_num_wr),
-	m_tx_num_wr(tx_num_wr), m_hw_dummy_send_support(false), m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv),
-	m_n_sysvar_tx_num_wr_to_signal(safe_mce_sys().tx_num_wr_to_signal), m_n_sysvar_rx_prefetch_bytes_before_poll(safe_mce_sys().rx_prefetch_bytes_before_poll),
-	m_curr_rx_wr(0), m_last_posted_rx_wr_id(0), m_n_unsignaled_count(0), m_n_tx_count(0), m_p_last_tx_mem_buf_desc(NULL),
-	m_p_prev_rx_desc_pushed(NULL), m_n_ip_id_base(0), m_n_ip_id_offset(0)
-{
-	m_ibv_rx_sg_array = new ibv_sge[m_n_sysvar_rx_num_wr_to_post_recv];
-	m_ibv_rx_wr_array = new ibv_recv_wr[m_n_sysvar_rx_num_wr_to_post_recv];
+	m_tx_num_wr(tx_num_wr), m_qp(NULL), m_p_ring((ring_simple*)p_ring),
+	m_port_num((uint8_t)port_num),
+	m_p_ib_ctx_handler((ib_ctx_handler*)p_context),
+	m_p_ahc_head(NULL), m_p_ahc_tail(NULL), m_max_inline_data(0),
+	m_max_qp_wr(0), m_p_cq_mgr_rx(NULL), m_p_cq_mgr_tx(NULL),
+	m_rx_num_wr(safe_mce_sys().rx_num_wr),
+	m_hw_dummy_send_support(false),
+	m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv),
+	m_n_sysvar_tx_num_wr_to_signal(safe_mce_sys().tx_num_wr_to_signal),
+	m_n_sysvar_rx_prefetch_bytes_before_poll(safe_mce_sys().rx_prefetch_bytes_before_poll),
+	m_ibv_rx_sg_array(NULL), m_ibv_rx_wr_array(NULL), m_curr_rx_wr(0),
+	m_last_posted_rx_wr_id(0), m_n_unsignaled_count(0), m_n_tx_count(0),
+	m_p_last_tx_mem_buf_desc(NULL), m_p_prev_rx_desc_pushed(NULL),
+	m_n_ip_id_base(0), m_n_ip_id_offset(0)
 
+{
 #ifdef DEFINED_VMAPOLL
 	m_sq_wqe_counter = 0;
 
@@ -176,6 +180,8 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	qp_logdbg("Creating QP of transport type '%s' on ibv device '%s' [%p] on port %d",
 			priv_vma_transport_type_str(m_p_ring->get_transport_type()),
 			m_p_ib_ctx_handler->get_ibv_device()->name, m_p_ib_ctx_handler->get_ibv_device(), m_port_num);
+	m_ibv_rx_sg_array = new ibv_sge[m_n_sysvar_rx_num_wr_to_post_recv];
+	m_ibv_rx_wr_array = new ibv_recv_wr[m_n_sysvar_rx_num_wr_to_post_recv];
 
 	vma_ibv_device_attr& r_ibv_dev_attr = m_p_ib_ctx_handler->get_ibv_device_attr();
 	
@@ -236,14 +242,6 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 		return -1;
 	}
 
-	int attr_mask = IBV_QP_CAP;
-	struct ibv_qp_attr tmp_ibv_qp_attr;
-	struct ibv_qp_init_attr tmp_ibv_qp_init_attr;
-	IF_VERBS_FAILURE(ibv_query_qp(m_qp, &tmp_ibv_qp_attr, (enum ibv_qp_attr_mask)attr_mask, &tmp_ibv_qp_init_attr)) {
-		qp_logerr("ibv_query_qp failed (errno=%d %m)", errno);
-		return -1;
-	} ENDIF_VERBS_FAILURE;
-
 #ifdef DEFINED_VMAPOLL
 	struct verbs_qp *vqp = (struct verbs_qp *)m_qp;
 	m_mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
@@ -256,10 +254,9 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	mlx5_init_sq();
 #endif // DEFINED_VMAPOLL
 
-	m_max_inline_data = min(tmp_ibv_qp_init_attr.cap.max_inline_data, tx_max_inline);
-	qp_logdbg("requested max inline = %d QP, actual max inline = %d, VMA max inline set to %d, max_send_wr=%d, max_recv_wr=%d, max_recv_sge=%d, max_send_sge=%d",
-			tx_max_inline, tmp_ibv_qp_init_attr.cap.max_inline_data, m_max_inline_data, qp_init_attr.cap.max_send_wr, qp_init_attr.cap.max_recv_wr, qp_init_attr.cap.max_recv_sge, qp_init_attr.cap.max_send_sge);
-
+	if (post_qp_create()) {
+		return -1;
+	}
 	// All buffers will be allocated from this qp_mgr buffer pool so we can already set the Rx & Tx lkeys
 	for (uint32_t wr_idx = 0; wr_idx < m_n_sysvar_rx_num_wr_to_post_recv; wr_idx++) {
 		m_ibv_rx_wr_array[wr_idx].sg_list = &m_ibv_rx_sg_array[wr_idx];
@@ -810,6 +807,18 @@ int qp_mgr_eth::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 		return ret;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
+
+	int attr_mask = IBV_QP_CAP;
+	struct ibv_qp_attr tmp_ibv_qp_attr;
+	struct ibv_qp_init_attr tmp_ibv_qp_init_attr;
+	IF_VERBS_FAILURE(ibv_query_qp(m_qp, &tmp_ibv_qp_attr, (enum ibv_qp_attr_mask)attr_mask, &tmp_ibv_qp_init_attr)) {
+		qp_logerr("ibv_query_qp failed (errno=%d %m)", errno);
+		return -1;
+	} ENDIF_VERBS_FAILURE;
+	uint32_t tx_max_inline = safe_mce_sys().tx_max_inline;
+	m_max_inline_data = min(tmp_ibv_qp_init_attr.cap.max_inline_data, tx_max_inline);
+	qp_logdbg("requested max inline = %d QP, actual max inline = %d, VMA max inline set to %d, max_send_wr=%d, max_recv_wr=%d, max_recv_sge=%d, max_send_sge=%d",
+			tx_max_inline, tmp_ibv_qp_init_attr.cap.max_inline_data, m_max_inline_data, qp_init_attr.cap.max_send_wr, qp_init_attr.cap.max_recv_wr, qp_init_attr.cap.max_recv_sge, qp_init_attr.cap.max_send_sge);
 
 	return 0;
 }
