@@ -39,7 +39,6 @@
 
 class cq_mgr_mp;
 
-
 class ring_eth_mp : public ring_eth
 {
 public:
@@ -54,16 +53,31 @@ public:
 	uint32_t get_wq_count() const {return m_wq_count;};
 	void* get_mem_block() {return alloc.get_ptr();};
 	uint32_t get_mem_lkey(ib_ctx_handler* ib_ctx) {return alloc.find_lkey_by_ib_ctx(ib_ctx);}
-	
 protected:
-
+	virtual int drain_and_proccess(cq_type_t cq_type);
+protected:
+	virtual qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx,
+				      uint8_t port_num,
+				      struct ibv_comp_channel* p_rx_comp_event_channel)
+				      throw (vma_error);
+	void create_resources(ring_resource_creation_info_t* p_ring_info,
+			      bool active) throw (vma_error);
 private:
+	inline int mp_loop(size_t limit);
+	inline void reload_wq();
 	vma_allocator			alloc;
 	int				m_strides_num;
 	int				m_stride_size;
 	struct ibv_exp_res_domain*	m_res_domain;
 	size_t				m_buffer_size;
 	uint32_t			m_wq_count;
+	//save results that weren't returned yet
+	int				m_curr_wq;
+	uint64_t			m_curr_d_addr;
+	uint64_t**			m_curr_h_ptr;
+	size_t				m_curr_packets;
+	size_t				m_cuur_size;
+	struct timespec			m_curr_hw_timestamp;
 };
 
 #endif /* DEFINED_IBV_OLD_VERBS_MLX_OFED */

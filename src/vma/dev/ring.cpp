@@ -38,7 +38,9 @@
 #undef  MODULE_HDR
 #define MODULE_HDR      MODULE_NAME "%d:%s() "
 
-ring::ring(int count, uint32_t mtu) : m_n_num_resources(count), m_p_n_rx_channel_fds(NULL), m_parent(NULL), m_mtu(mtu)
+ring::ring(int count, uint32_t mtu) :
+	m_n_num_resources(count), m_p_n_rx_channel_fds(NULL), m_parent(NULL),
+	m_is_mp_ring(false), m_mtu(mtu)
 {
 #ifdef DEFINED_VMAPOLL
 	m_vma_active = true; /* TODO: This VMA version supports vma_poll() usage mode only */
