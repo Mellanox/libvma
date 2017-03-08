@@ -899,7 +899,7 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 		rx_ring_iter->second->refcnt++;
 	}
 
-#ifdef DEFINED_VMAPOLL
+#if defined(DEFINED_VMAPOLL) || !defined(DEFINED_IBV_OLD_VERBS_MLX_OFED)
 	if (m_rx_ring_map.size() == 1) {
 		/* m_p_rx_ring is updated in following functions:
 		 *  - rx_add_ring_cb()
@@ -910,7 +910,7 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 	} else {
 		si_logdbg("ring map size: %d", m_rx_ring_map.size());
 	}
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_VMAPOLL || !DEFINED_IBV_OLD_VERBS_MLX_OFED
 
 	unlock_rx_q();
 	m_rx_ring_map_lock.unlock();
