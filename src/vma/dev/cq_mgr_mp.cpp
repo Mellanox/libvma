@@ -31,6 +31,7 @@
  */
 
 #include <dev/cq_mgr_mp.h>
+#include "dev/qp_mgr_mp.h"
 
 #define MODULE_NAME 		"cqm"
 

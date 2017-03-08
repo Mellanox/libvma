@@ -191,7 +191,10 @@ typedef struct ibv_exp_qp_init_attr             vma_ibv_qp_init_attr;
 //ibv_query_device
 #define vma_ibv_query_device(context, attr)	ibv_exp_query_device(context, attr)
 typedef struct ibv_exp_device_attr		vma_ibv_device_attr;
-#define vma_ibv_device_attr_comp_mask(attr)	(attr).comp_mask = IBV_EXP_DEVICE_ATTR_EXP_CAP_FLAGS
+#define vma_ibv_device_attr_comp_mask(attr)	(attr).comp_mask = IBV_EXP_DEVICE_ATTR_EXP_CAP_FLAGS | \
+								   IBV_EXP_DEVICE_ATTR_MP_RQ | \
+								   IBV_EXP_DEVICE_ATTR_VLAN_OFFLOADS |\
+								   IBV_EXP_DEVICE_ATTR_MAX_CTX_RES_DOMAIN
 #ifdef DEFINED_IBV_EXP_DEVICE_RX_CSUM_L4_PKT
 #define vma_is_rx_hw_csum_supported(attr)	(((attr).exp_device_cap_flags & IBV_EXP_DEVICE_RX_CSUM_L3_PKT) \
 						&& ((attr).exp_device_cap_flags & IBV_EXP_DEVICE_RX_CSUM_L4_PKT))
