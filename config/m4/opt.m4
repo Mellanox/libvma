@@ -7,28 +7,26 @@
 ##########################
 # Logging control
 #
+# VMA_OPTIMIZE_LOG values:
+# 5 - VMA_DEBUG and up
+# 6 - VMA_FINE and up
+#
 AC_ARG_ENABLE(
     [opt-log],
     AC_HELP_STRING(
         [--enable-opt-log],
-        [Optimize logging output: none, auto, details, debug, func (default=no)]),,
-    enableval=none)
+        [Optimize logging output: none, medium, high (default=medium)]),,
+    enableval=medium)
 AC_MSG_CHECKING(
     [checking for logging optimization])
 case "$enableval" in
-    yes | auto)
-        CPPFLAGS="$CPPFLAGS -DVMA_OPTIMIZE_LOG=5 -DNDEBUG"
+    yes | medium)
+        CPPFLAGS="$CPPFLAGS -DVMA_OPTIMIZE_LOG=6 -DNDEBUG"
         ;;
     no | none)
         ;;
-    details)
-        CPPFLAGS="$CPPFLAGS -DVMA_OPTIMIZE_LOG=4 -DNDEBUG"
-        ;;
-    debug)
+    high)
         CPPFLAGS="$CPPFLAGS -DVMA_OPTIMIZE_LOG=5 -DNDEBUG"
-        ;;
-    func)
-        CPPFLAGS="$CPPFLAGS -DVMA_OPTIMIZE_LOG=6 -DNDEBUG"
         ;;
     *)
         AC_MSG_ERROR([Unrecognized --enable-opt-log parameter as $enableval])
