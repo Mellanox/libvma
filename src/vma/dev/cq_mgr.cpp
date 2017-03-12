@@ -1739,10 +1739,10 @@ inline void		cq_mgr_mlx5::cqe64_to_mem_buff_desc(volatile struct mlx5_cqe64 *cqe
 		status = IBV_WC_SUCCESS;
 
 		//Checksum
-		p_rx_wc_buf_desc->is_rx_sw_csum_need = !(m_b_is_rx_hw_csum_on && (cqe->hds_ip_ext & MLX5_CQE_L4_OK) && (cqe->hds_ip_ext & MLX5_CQE_L3_OK));
+		p_rx_wc_buf_desc->rx.is_sw_csum_need = !(m_b_is_rx_hw_csum_on && (cqe->hds_ip_ext & MLX5_CQE_L4_OK) && (cqe->hds_ip_ext & MLX5_CQE_L3_OK));
 
 		//Time stamp
-		p_rx_wc_buf_desc->path.rx.hw_raw_timestamp = cqe->timestamp;
+		p_rx_wc_buf_desc->rx.hw_raw_timestamp = cqe->timestamp;
 		//this is not a deadcode if timestamping is defined in verbs API
 		// coverity[dead_error_condition]
 	//	if (p_rx_wc_buf_desc->path.rx.poll_flags & VMA_IBV_WC_WITH_TIMESTAMP) {
@@ -1806,7 +1806,7 @@ int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=N
 				}
 				// We process immediately all non udp/ip traffic..
 				if (procces_now) {
-					buff->path.rx.is_vma_thr = true;
+					buff->rx.is_vma_thr = true;
 					if (!compensate_qp_poll_success(buff)) {
 						process_recv_buffer(buff, NULL);
 					}
@@ -1847,7 +1847,7 @@ mem_buf_desc_t* cq_mgr_mlx5::process_cq_element_rx(mem_buf_desc_t* p_mem_buf_des
 	cq_logfuncall("");
 
 	if (unlikely((status != IBV_WC_SUCCESS) ||
-			     (m_b_is_rx_hw_csum_on && p_mem_buf_desc->is_rx_sw_csum_need))) {
+			     (m_b_is_rx_hw_csum_on && p_mem_buf_desc->rx.is_sw_csum_need))) {
 		m_p_next_rx_desc_poll = NULL;
 		if (p_mem_buf_desc->p_desc_owner) {
 			p_mem_buf_desc->p_desc_owner->mem_buf_desc_completion_with_error_rx(p_mem_buf_desc);
@@ -1865,8 +1865,8 @@ mem_buf_desc_t* cq_mgr_mlx5::process_cq_element_rx(mem_buf_desc_t* p_mem_buf_des
 
 	if (likely(opcode & VMA_IBV_WC_RECV)) {
 		//we use context to verify that on reclaim rx buffer path we return the buffer to the right CQ
-		p_mem_buf_desc->path.rx.is_vma_thr = false;
-		p_mem_buf_desc->path.rx.context = this;
+		p_mem_buf_desc->rx.is_vma_thr = false;
+		p_mem_buf_desc->rx.context = this;
 
 		VALGRIND_MAKE_MEM_DEFINED(p_mem_buf_desc->p_buffer, p_mem_buf_desc->sz_data);
 
