@@ -1693,6 +1693,9 @@ inline mem_buf_desc_t*		cq_mgr_mlx5::poll(uint32_t&	opcode, uint32_t&	status)
 		m_rx_hot_buffer = NULL;
 	}
 
+	prefetch((void*)m_rx_hot_buffer);
+	prefetch((void*)&(*m_cqes)[m_cq_cons_index & (m_cq_size - 1)]);
+
 	if (buff) {
 #ifdef RDTSC_MEASURE_RX_VERBS_READY_POLL
 		RDTSC_TAKE_END(RDTSC_FLOW_RX_VERBS_READY_POLL);
