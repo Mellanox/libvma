@@ -60,7 +60,8 @@ void             L3_level_tcp_input   (struct pbuf *p, struct tcp_pcb *pcb);
 /* Used within the TCP code only: */
 struct tcp_pcb * tcp_alloc   (u8_t prio);
 struct pbuf *    tcp_tx_pbuf_alloc(struct tcp_pcb * pcb, u16_t length, pbuf_type type);
-void		 tcp_tx_pbuf_free(struct tcp_pcb * pcb, struct pbuf * pbuf);
+void             tcp_tx_preallocted_buffers_free(struct tcp_pcb * pcb);
+void             tcp_tx_pbuf_free(struct tcp_pcb * pcb, struct pbuf * pbuf);
 void             tcp_abandon (struct tcp_pcb *pcb, int reset);
 err_t            tcp_send_empty_ack(struct tcp_pcb *pcb);
 void             tcp_rexmit  (struct tcp_pcb *pcb);

@@ -285,6 +285,8 @@ sockinfo_tcp::~sockinfo_tcp()
 
 	destructor_helper();
 
+	tcp_tx_preallocted_buffers_free(&m_pcb);
+
 	if (m_tcp_seg_in_use) {
 		si_tcp_logwarn("still %d tcp segs in use!", m_tcp_seg_in_use);
 	}

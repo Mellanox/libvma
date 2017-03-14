@@ -1134,22 +1134,42 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio)
 
 	pcb->keep_cnt_sent = 0;
 	pcb->enable_ts_opt = enable_ts_option;
+	pcb->pbuf_alloc = NULL;
 }
 
 struct pbuf *
 tcp_tx_pbuf_alloc(struct tcp_pcb * pcb, u16_t length, pbuf_type type)
 {
-	struct pbuf * p = external_tcp_tx_pbuf_alloc(pcb);
-	if (!p) return NULL;
+	struct pbuf * p;
+
+	if (!pcb->pbuf_alloc) {
+
+		p = external_tcp_tx_pbuf_alloc(pcb);
+		if (!p) return NULL;
+
+		p->next = NULL;
+		p->type = type;
+		/* set reference count */
+		p->ref = 1;
+		/* set flags */
+		p->flags = 0;
+	} else {
+		p = pcb->pbuf_alloc;
+		pcb->pbuf_alloc = NULL;
+	}
+
 	/* Set up internal structure of the pbuf. */
 	p->len = p->tot_len = length;
-	p->next = NULL;
-	p->type = type;
-	/* set reference count */
-	p->ref = 1;
-	/* set flags */
-	p->flags = 0;
+
 	return p;
+}
+
+void tcp_tx_preallocted_buffers_free(struct tcp_pcb * pcb)
+{
+	if (pcb->pbuf_alloc) {
+		tcp_tx_pbuf_free(pcb, pcb->pbuf_alloc);
+		pcb->pbuf_alloc = NULL;
+	}
 }
 
 void

@@ -364,12 +364,13 @@ struct tcp_pcb {
   struct tcp_seg *unsent;   /* Unsent (queued) segments. */
   struct tcp_seg *last_unsent;   /* Last unsent (queued) segment. */
   struct tcp_seg *unacked;  /* Sent but unacknowledged segments. */
-  struct tcp_seg *last_unacked;  /* Lase element in unacknowledged segments list. */
+  struct tcp_seg *last_unacked;  /* Last element in unacknowledged segments list. */
 #if TCP_QUEUE_OOSEQ  
   struct tcp_seg *ooseq;    /* Received out of sequence segments. */
 #endif /* TCP_QUEUE_OOSEQ */
 
   struct pbuf *refused_data; /* Data previously received but not yet taken by upper layer */
+  struct pbuf *pbuf_alloc; /* Available pbuf element for use */
 
 #if LWIP_CALLBACK_API
   /* Function to be called when more send buffer space is available. */

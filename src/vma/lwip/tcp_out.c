@@ -1136,6 +1136,12 @@ tcp_output(struct tcp_pcb *pcb)
 #endif /* TCP_OVERSIZE */
 
   pcb->flags &= ~TF_NAGLEMEMERR;
+
+  if (!pcb->pbuf_alloc) {
+	  // Fetch pbuf for the next packet.
+	  pcb->pbuf_alloc = tcp_tx_pbuf_alloc(pcb, 0, PBUF_RAM);
+  }
+
   return ERR_OK;
 }
 
