@@ -53,12 +53,20 @@
 #include "hash.h"
 #include "daemon.h"
 
+#ifndef KERNEL_O_LARGEFILE
+#if defined(__aarch64__)
+/* Check architecture: if we are running on ARM,
+ * omit KERNEL_O_LARGEFILE from fanotify_init invocation because
+ * KERNEL_O_LARGEFILE breaks program on armv running at least kernel 4.4+
+ */
+#define KERNEL_O_LARGEFILE O_LARGEFILE
+#else
 /* work around kernels which do not have this fix yet:
  * http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=1e2ee49f7
  * O_LARGEFILE is usually 0, so hardcode it here
  */
-#ifndef KERNEL_O_LARGEFILE
 #define KERNEL_O_LARGEFILE 00100000
+#endif
 #endif
 
 
