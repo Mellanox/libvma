@@ -72,6 +72,7 @@ class buffer_pool;
 #define ring_logdbg			__log_info_dbg
 #define ring_logfunc		__log_info_func
 #define ring_logfuncall		__log_info_funcall
+#define ring_logfine		__log_info_fine
 
 #define RING_TX_BUFS_COMPENSATE 256
 

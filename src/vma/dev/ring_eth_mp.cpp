@@ -149,6 +149,108 @@ int ring_eth_mp::drain_and_proccess(cq_type_t cq_type)
 	return 0;
 }
 
+int ring_eth_mp::cyclic_buffer_read(vma_completion_mp_t &completion,
+				    size_t min, size_t max, int &flags)
+{
+	uint32_t offset = 0, p_flags = 0;
+	int size = 0;
+
+	// sanity check
+	if (unlikely(min > max || max == 0 || flags != MSG_DONTWAIT)) {
+		errno = EINVAL;
+		ring_logdbg("Illegal values, got min: %d, max: %d, flags %d",
+			    min, max, flags);
+		if (flags != MSG_DONTWAIT) {
+			ring_logdbg("only %d flag is currently supported",
+				    MSG_DONTWAIT);
+		}
+		return -1;
+	}
+
+	int ret = ((cq_mgr_mp *)m_p_cq_mgr_rx)->poll_mp_cq(size, offset, p_flags);
+	if (unlikely(ret == -1)) {
+		ring_logdbg("poll_mp_cq failed with errno %m", errno);
+		return -1;
+	}
+	// no message currently no way to distinguish if FILLER
+	if (size == 0) {
+		return 0;
+	}
+	// set it here because we might not have min packets avail in this run
+	if (unlikely(m_curr_d_addr == 0)) {
+		m_curr_d_addr = m_p_qp_mgr->get_rx_sge()[m_curr_wq].addr + offset;
+//		m_curr_hw_timestamp = RAFI SET IT HERE
+//		m_curr_h_ptr[0] = ((uint64_t *)m_p_qp_mgr->get_rx_sge()[m_curr_wq].addr) + offset;
+		m_curr_packets = 1;
+		m_cuur_size = size;
+	} else {
+		m_curr_packets++;
+		m_cuur_size += size;
+	}
+
+	if (unlikely(p_flags & IBV_EXP_CQ_RX_MULTI_PACKET_LAST_V1)) {
+		reload_wq();
+	} else {
+		ret = mp_loop(min);
+		if (ret == 1) { // there might be more to drain
+			mp_loop(max);
+		} else if (ret == 0) { // no packets left
+			return 0;
+		}
+	}
+
+	completion.payload_ptr = (void *)m_curr_d_addr;
+	completion.payload_length = m_cuur_size;
+	completion.packets = m_curr_packets;
+	completion.hw_timestamp = m_curr_hw_timestamp;
+	m_curr_d_addr = 0;
+	ring_logdbg("Returning completion, buffer ptr %p, data size %zd, "
+		    "number of packets %zd WQ index %d",
+		    completion.payload_ptr, m_cuur_size, m_curr_packets,
+		    m_curr_wq);
+	return 0;
+}
+
+/**
+ * loop poll_cq
+ * @param limit
+ * @return TBD about -1 on error,
+ * 	0 if cq is empty
+ * 	1 if done looping
+ * 	2 if WQ was reloaded
+ */
+inline int ring_eth_mp::mp_loop(size_t limit)
+{
+	uint32_t offset = 0, flags = 0;
+	int size = 0;
+	int ret;
+	while (m_curr_packets < limit) {
+		ret = ((cq_mgr_mp *)m_p_cq_mgr_rx)->poll_mp_cq(size, offset, flags);
+		if (size == 0) {
+			ring_logfine("no packet found");
+			return 0;
+		}
+		m_cuur_size += size;
+		++m_curr_packets;
+		if (flags & IBV_EXP_CQ_RX_MULTI_PACKET_LAST_V1) {
+			reload_wq();
+			return 2;
+		}
+		if (unlikely(ret == -1)) {
+			// RAFI not sure if we should silent this and return 0 and ++m_curr_packets
+			return 0;
+		}
+	}
+	ring_logfine("mp_loop finished all iterations");
+	return 1;
+}
+
+inline void ring_eth_mp::reload_wq()
+{
+	((qp_mgr_mp *)m_p_qp_mgr)->post_recv(m_curr_wq, 1);
+	m_curr_wq = (m_curr_wq + 1) % m_wq_count;
+}
+
 ring_eth_mp::~ring_eth_mp()
 {
 	struct ibv_exp_destroy_res_domain_attr attr;
