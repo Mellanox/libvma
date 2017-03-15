@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -62,6 +62,8 @@ public:
 	virtual void            handle_event_ibverbs_cb(void *ev_data, void *ctx);
 	void                    handle_event_DEVICE_FATAL();
 	ts_conversion_mode_t    get_ctx_time_converter_status();
+	void                    set_flow_tag_capability(bool flow_tag_capability); 
+	bool                    get_flow_tag_capability() { return m_flow_tag_enabled;} // m_flow_tag_capability
 
 	inline void convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) { ctx_time_converter.convert_hw_time_to_system_time(hwtime, systime); }
 
@@ -71,6 +73,7 @@ private:
 	ibv_device*             m_p_ibv_device; // HCA handle
 	vma_ibv_device_attr     m_ibv_device_attr;
 	ibv_pd*                 m_p_ibv_pd;
+	bool                    m_flow_tag_enabled;
 	bool                    m_removed;
 
 	bool                    update_port_attr(int port_num);
