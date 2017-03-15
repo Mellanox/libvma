@@ -42,6 +42,7 @@
 #define cq_logdbg		__log_info_dbg
 #define cq_logfunc		__log_info_func
 #define cq_logfuncall		__log_info_funcall
+#define cq_logfine		__log_info_fine
 
 
 #ifndef DEFINED_IBV_OLD_VERBS_MLX_OFED
@@ -114,6 +115,8 @@ int cq_mgr_mp::poll_mp_cq(int &size, uint32_t &offset, uint32_t &flags)
 			  "errno %m",errno);
 		return -1;
 	}
+	cq_logfine("returning packet size %d, offset %u flags %d",size, offset,
+		   flags);
 	return 0;
 }
 
