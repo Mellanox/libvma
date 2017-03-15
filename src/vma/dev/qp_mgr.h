@@ -209,6 +209,7 @@ protected:
 
 	int 			configure(struct ibv_comp_channel* p_rx_comp_event_channel);
 	virtual int		prepare_ibv_qp(struct ibv_qp_init_attr& qp_init_attr) = 0;
+	bool 			m_b_is_hypervisor;
 };
 
 
