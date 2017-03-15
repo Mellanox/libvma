@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -85,8 +85,8 @@ int priv_ibv_find_pkey_index(struct ibv_context *verbs, uint8_t port_num, uint16
 
 int priv_ibv_modify_qp_to_err(struct ibv_qp *qp);
 int priv_ibv_modify_qp_from_err_to_init_raw(struct ibv_qp *qp, uint8_t port_num);
-int priv_ibv_modify_qp_from_err_to_init_ud(struct ibv_qp *qp, uint8_t port_num, uint16_t pkey_index);
-int priv_ibv_modify_qp_from_init_to_rts(struct ibv_qp *qp);
+int priv_ibv_modify_qp_from_err_to_init_ud(struct ibv_qp *qp, uint8_t port_num, uint16_t pkey_index, uint32_t underly_qpn = 0);
+int priv_ibv_modify_qp_from_init_to_rts(struct ibv_qp *qp, uint32_t underly_qpn = 0);
 
 // Return 'ibv_qp_state' of the ibv_qp
 int priv_ibv_query_qp_state(struct ibv_qp *qp);
@@ -100,8 +100,16 @@ int priv_ibv_query_qp_state(struct ibv_qp *qp);
 #define FS_MASK_ON_16     (0xffff)
 #define FS_MASK_ON_32     (0xffffffff)
 
+#define FLOW_TAG_MASK     ((1 << 20) -1)
+int priv_ibv_query_flow_tag_supported(struct ibv_qp *qp, uint8_t port_num);
+
 //old MLNX_OFED verbs (2.1 and older)
 #ifdef DEFINED_IBV_OLD_VERBS_MLX_OFED
+//ibv_create_qp
+#define vma_ibv_create_qp(pd, attr)             ibv_create_qp(pd, attr)
+typedef struct ibv_qp_init_attr                 vma_ibv_qp_init_attr;
+#define vma_ibv_qp_init_attr_comp_mask(_pd, _attr)	\
+	{ NOT_IN_USE(_pd); NOT_IN_USE(_attr); }
 //ibv_query_device
 #define vma_ibv_query_device(context, attr)	ibv_query_device(context, attr)
 typedef struct ibv_device_attr			vma_ibv_device_attr;
@@ -171,7 +179,15 @@ typedef struct ibv_flow_spec_ib			vma_ibv_flow_spec_ib;
 typedef struct ibv_flow_spec_eth		vma_ibv_flow_spec_eth;
 typedef struct ibv_flow_spec_ipv4		vma_ibv_flow_spec_ipv4;
 typedef struct ibv_flow_spec_tcp_udp		vma_ibv_flow_spec_tcp_udp;
+#define vma_get_flow_tag			0
+typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_tag;
+
 #else //new MLNX_OFED verbs (2.2 and newer)
+
+#define vma_ibv_create_qp(pd, attr)             ibv_exp_create_qp((pd)->context, attr)
+typedef struct ibv_exp_qp_init_attr             vma_ibv_qp_init_attr;
+#define vma_ibv_qp_init_attr_comp_mask(_pd, _attr)	\
+	{ (_attr).pd = _pd; (_attr).comp_mask = IBV_EXP_QP_INIT_ATTR_PD; }
 //ibv_query_device
 #define vma_ibv_query_device(context, attr)	ibv_exp_query_device(context, attr)
 typedef struct ibv_exp_device_attr		vma_ibv_device_attr;
@@ -230,10 +246,9 @@ typedef int            vma_ibv_cq_init_attr;
 #define VMA_IBV_WC_WITH_TIMESTAMP              IBV_EXP_WC_WITH_TIMESTAMP
 #define vma_wc_timestamp(wc)			(wc).timestamp
 #else
-#define VMA_IBV_WC_WITH_TIMESTAMP              0
+#define VMA_IBV_WC_WITH_TIMESTAMP		0
 #define vma_wc_timestamp(wc)			0
 #endif
-
 
 //ibv_post_send
 #define VMA_IBV_SEND_SIGNALED			IBV_EXP_SEND_SIGNALED
@@ -277,6 +292,14 @@ typedef struct ibv_exp_flow_spec_ib		vma_ibv_flow_spec_ib;
 typedef struct ibv_exp_flow_spec_eth		vma_ibv_flow_spec_eth;
 typedef struct ibv_exp_flow_spec_ipv4		vma_ibv_flow_spec_ipv4;
 typedef struct ibv_exp_flow_spec_tcp_udp	vma_ibv_flow_spec_tcp_udp;
+//Flow tag
+#ifdef DEFINED_IBV_EXP_FLOW_TAG
+#define vma_get_flow_tag(wc)			ntohl((uint32_t)(wc->sop_drop_qpn))
+typedef struct ibv_exp_flow_spec_action_tag	vma_ibv_flow_spec_action_tag;
+#else
+#define vma_get_flow_tag(cqe)			0
+typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_tag;
+#endif //DEFINED_IBV_EXP_FLOW_TAG
 #endif
 
 static inline void init_vma_ibv_cq_init_attr(vma_ibv_cq_init_attr* attr)
@@ -340,6 +363,18 @@ static inline void ibv_flow_spec_tcp_udp_set(vma_ibv_flow_spec_tcp_udp* tcp_udp,
 	if(tcp_udp->val.src_port) tcp_udp->mask.src_port = FS_MASK_ON_16;
 	tcp_udp->val.dst_port = dst_port;
 	if(tcp_udp->val.dst_port) tcp_udp->mask.dst_port = FS_MASK_ON_16;
+}
+
+static inline void ibv_flow_spec_flow_tag_set(vma_ibv_flow_spec_action_tag* flow_tag, uint32_t tag_id)
+{
+	NOT_IN_USE(tag_id);
+	if (flow_tag == NULL)
+		return;
+#ifdef DEFINED_IBV_EXP_FLOW_TAG
+	flow_tag->type = IBV_EXP_FLOW_SPEC_ACTION_TAG;
+	flow_tag->size = sizeof(vma_ibv_flow_spec_action_tag);
+	flow_tag->tag_id = tag_id;
+#endif //DEFINED_IBV_EXP_FLOW_TAG
 }
 
 #endif

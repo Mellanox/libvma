@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -49,7 +49,7 @@ public:
 	virtual void		adapt_cq_moderation();
 	bool			reclaim_recv_buffers_no_lock(descq_t *rx_reuse); // No locks
 // REVIEW - in experimental next method was defined as virtual	
-	bool		reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst); // No locks
+	bool			reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst); // No locks
 #ifdef DEFINED_VMAPOLL	
 	virtual int 		vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);	
 	virtual int		vma_poll_reclaim_single_recv_buffer(mem_buf_desc_t* rx_reuse_lst); // No locks
@@ -84,6 +84,7 @@ public:
 	transport_type_t	get_transport_type() const { return m_transport_type; }
 	virtual bool 		get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe);
 	inline void 		convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) { m_p_cq_mgr_rx->convert_hw_time_to_system_time(hwtime, systime); }
+	inline uint32_t		get_qpn() const { return (m_p_l2_addr ? ((IPoIB_addr *)m_p_l2_addr)->get_qpn() : 0); }
 
 	friend class cq_mgr;
 	friend class qp_mgr;
@@ -159,10 +160,12 @@ private:
 	flow_spec_udp_mc_map_t	m_flow_udp_mc_map;
 	flow_spec_udp_uc_map_t	m_flow_udp_uc_map;
 	const bool		m_b_sysvar_eth_mc_l2_only_rules;
-#ifdef DEFINED_VMAPOLL	
+	const bool		m_b_sysvar_mc_force_flowtag;
+#ifdef DEFINED_VMAPOLL
 	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_head;
 	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_tail;
 #endif // DEFINED_VMAPOLL		
+	bool			m_flow_tag_enabled;
 };
 
 class ring_eth : public ring_simple

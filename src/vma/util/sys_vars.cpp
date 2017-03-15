@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -435,6 +435,7 @@ void mce_sys_var::get_env_params()
 
 	tcp_3t_rules		= MCE_DEFAULT_TCP_3T_RULES;
 	eth_mc_l2_only_rules	= MCE_DEFAULT_ETH_MC_L2_ONLY_RULES;
+	mc_force_flowtag	= MCE_DEFAULT_MC_FORCE_FLOWTAG;
 
 	select_poll_num		= MCE_DEFAULT_SELECT_NUM_POLLS;
 	select_poll_os_force	= MCE_DEFAULT_SELECT_POLL_OS_FORCE;
@@ -831,8 +832,12 @@ void mce_sys_var::get_env_params()
 	if ((env_ptr = getenv(SYS_VAR_ETH_MC_L2_ONLY_RULES)) != NULL)
 		eth_mc_l2_only_rules = atoi(env_ptr) ? true : false;
 
+	if ((env_ptr = getenv(SYS_VAR_MC_FORCE_FLOWTAG)) != NULL)
+		mc_force_flowtag = atoi(env_ptr) ? true : false;
+
 	if ((env_ptr = getenv(SYS_VAR_SELECT_NUM_POLLS)) != NULL)
 		select_poll_num = atoi(env_ptr);
+
 	if (select_poll_num < MCE_MIN_RX_NUM_POLLS || select_poll_num >  MCE_MAX_RX_NUM_POLLS) {
 		vlog_printf(VLOG_WARNING," Select Poll loops can not be below zero [%d]\n", select_poll_num);
 		select_poll_num = MCE_DEFAULT_SELECT_NUM_POLLS;

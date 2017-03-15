@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -134,9 +134,9 @@ private:
 
 	bool 			verify_ipoib_mode(struct ifaddrs* ifa);
 	bool			verify_mlx4_ib_device(const char* ifname);
-	bool 			verify_eth_qp_creation(const char* ifname);
-	bool 			verify_bond_ipoib_or_eth_qp_creation(struct ifaddrs * ifa);
-	bool 			verify_ipoib_or_eth_qp_creation(const char* interface_name, struct ifaddrs * ifa);
+	bool 			verify_eth_qp_creation(const char* ifname, uint8_t port_num);
+	bool 			verify_bond_ipoib_or_eth_qp_creation(struct ifaddrs * ifa, uint8_t port_num);
+	bool 			verify_ipoib_or_eth_qp_creation(const char* interface_name, struct ifaddrs * ifa, uint8_t port_num);
 	bool 			verify_enable_ipoib(const char* ifname);
 };
 
