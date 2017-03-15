@@ -53,8 +53,10 @@ public:
 	uint32_t get_wq_count() const {return m_wq_count;};
 	void* get_mem_block() {return alloc.get_ptr();};
 	uint32_t get_mem_lkey(ib_ctx_handler* ib_ctx) {return alloc.find_lkey_by_ib_ctx(ib_ctx);}
-protected:
+	int cyclic_buffer_read(vma_completion_mp_t &completion,
+			       size_t min, size_t max, int &flags);
 	virtual int drain_and_proccess(cq_type_t cq_type);
+
 protected:
 	virtual qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx,
 				      uint8_t port_num,
@@ -62,6 +64,7 @@ protected:
 				      throw (vma_error);
 	void create_resources(ring_resource_creation_info_t* p_ring_info,
 			      bool active) throw (vma_error);
+
 private:
 	inline int mp_loop(size_t limit);
 	inline void reload_wq();
@@ -74,7 +77,7 @@ private:
 	//save results that weren't returned yet
 	int				m_curr_wq;
 	uint64_t			m_curr_d_addr;
-	uint64_t**			m_curr_h_ptr;
+//	uint64_t**			m_curr_h_ptr;
 	size_t				m_curr_packets;
 	size_t				m_cuur_size;
 	struct timespec			m_curr_hw_timestamp;
