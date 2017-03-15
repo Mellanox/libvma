@@ -188,9 +188,10 @@ int priv_ibv_modify_qp_from_err_to_init_raw(struct ibv_qp *qp, uint8_t port_num)
 	return 0;
 }
 
-int priv_ibv_modify_qp_from_err_to_init_ud(struct ibv_qp *qp, uint8_t port_num, uint16_t pkey_index)
+int priv_ibv_modify_qp_from_err_to_init_ud(struct ibv_qp *qp, uint8_t port_num, uint16_t pkey_index, uint32_t underly_qpn)
 {
 	vma_ibv_qp_attr qp_attr;
+	ibv_qp_attr_mask qp_attr_mask = (ibv_qp_attr_mask)IBV_QP_STATE;
 
 	if (qp->qp_type != IBV_QPT_UD)
 		return -1;
@@ -203,11 +204,15 @@ int priv_ibv_modify_qp_from_err_to_init_ud(struct ibv_qp *qp, uint8_t port_num, 
 
 	memset(&qp_attr, 0, sizeof(qp_attr));
 	qp_attr.qp_state = IBV_QPS_INIT;
-	qp_attr.qkey = IPOIB_QKEY;
-	qp_attr.pkey_index = pkey_index;
-	qp_attr.port_num = port_num;
+	if (0 == underly_qpn) {
+		qp_attr_mask = (ibv_qp_attr_mask)(qp_attr_mask | IBV_QP_QKEY | IBV_QP_PKEY_INDEX | IBV_QP_PORT);
+		qp_attr.qkey = IPOIB_QKEY;
+		qp_attr.pkey_index = pkey_index;
+		qp_attr.port_num = port_num;
+	}
+
 	BULLSEYE_EXCLUDE_BLOCK_START
-	IF_VERBS_FAILURE(vma_ibv_modify_qp(qp, &qp_attr, IBV_QP_STATE | IBV_QP_QKEY | IBV_QP_PKEY_INDEX | IBV_QP_PORT)) {
+	IF_VERBS_FAILURE(vma_ibv_modify_qp(qp, &qp_attr, qp_attr_mask)) {
 		return -3;
 	} ENDIF_VERBS_FAILURE;
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -215,25 +220,26 @@ int priv_ibv_modify_qp_from_err_to_init_ud(struct ibv_qp *qp, uint8_t port_num, 
 	return 0;
 }
 
-int priv_ibv_modify_qp_from_init_to_rts(struct ibv_qp *qp)
+int priv_ibv_modify_qp_from_init_to_rts(struct ibv_qp *qp, uint32_t underly_qpn)
 {
+	vma_ibv_qp_attr qp_attr;
+	ibv_qp_attr_mask qp_attr_mask = (ibv_qp_attr_mask)IBV_QP_STATE;
+
 	if (priv_ibv_query_qp_state(qp) !=  IBV_QPS_INIT) {
 		return -1;
 	}
 
-	vma_ibv_qp_attr qp_attr;
 	memset(&qp_attr, 0, sizeof(qp_attr));
 	qp_attr.qp_state = IBV_QPS_RTR;
 	BULLSEYE_EXCLUDE_BLOCK_START
-	IF_VERBS_FAILURE(vma_ibv_modify_qp(qp, &qp_attr, (ibv_qp_attr_mask)IBV_QP_STATE)) {
+	IF_VERBS_FAILURE(vma_ibv_modify_qp(qp, &qp_attr, qp_attr_mask)) {
 		return -2;
 	} ENDIF_VERBS_FAILURE;
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	qp_attr.qp_state = IBV_QPS_RTS;
-	ibv_qp_attr_mask qp_attr_mask = (ibv_qp_attr_mask)IBV_QP_STATE;
 
-	if (qp->qp_type == IBV_QPT_UD) {
+	if ((qp->qp_type == IBV_QPT_UD) && (0 == underly_qpn)) {
 		qp_attr_mask = (ibv_qp_attr_mask)(qp_attr_mask | IBV_QP_SQ_PSN);
 		qp_attr.sq_psn = 0;
 	}

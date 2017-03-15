@@ -63,24 +63,38 @@ bool rfs_uc::prepare_flow_spec()
 	 * if one of these assumptions change, we must lock.
 	 */
 	attach_flow_data_t* 		       p_attach_flow_data = NULL;
-	attach_flow_data_ib_ipv4_tcp_udp_t*    attach_flow_data_ib = NULL;
-	attach_flow_data_eth_ipv4_tcp_udp_t*   attach_flow_data_eth = NULL;
 	vma_ibv_flow_spec_ipv4*             p_ipv4 = NULL;
 	vma_ibv_flow_spec_tcp_udp*          p_tcp_udp = NULL;
 
 	switch (type) {
 		case VMA_TRANSPORT_IB:
-			attach_flow_data_ib = new attach_flow_data_ib_ipv4_tcp_udp_t(m_p_ring->m_p_qp_mgr);
+			{
+			attach_flow_data_ib_ipv4_tcp_udp_t* attach_flow_data_ib = NULL;
 
 #ifdef DEFINED_IBV_FLOW_SPEC_IB
-			ibv_flow_spec_ib_set_by_dst_qpn(&(attach_flow_data_ib->ibv_flow_attr.ib),
-						htonl(((IPoIB_addr*)m_p_ring->m_p_l2_addr)->get_qpn()));
+			if (0 == m_p_ring->m_p_qp_mgr->get_underly_qpn()) {
+				attach_flow_data_ib_ipv4_tcp_udp_v1_t* attach_flow_data_ib_v1 = NULL;
+
+				attach_flow_data_ib_v1 = new attach_flow_data_ib_ipv4_tcp_udp_v1_t(m_p_ring->m_p_qp_mgr);
+				ibv_flow_spec_ib_set_by_dst_qpn(&(attach_flow_data_ib_v1->ibv_flow_attr.ib),
+							htonl(((IPoIB_addr*)m_p_ring->m_p_l2_addr)->get_qpn()));
+				p_ipv4 = &(attach_flow_data_ib_v1->ibv_flow_attr.ipv4);
+				p_tcp_udp = &(attach_flow_data_ib_v1->ibv_flow_attr.tcp_udp);
+				p_attach_flow_data = (attach_flow_data_t*)attach_flow_data_ib_v1;
+				break;
+			}
 #endif
+			attach_flow_data_ib = new attach_flow_data_ib_ipv4_tcp_udp_t(m_p_ring->m_p_qp_mgr);
+
 			p_ipv4 = &(attach_flow_data_ib->ibv_flow_attr.ipv4);
 			p_tcp_udp = &(attach_flow_data_ib->ibv_flow_attr.tcp_udp);
 			p_attach_flow_data = (attach_flow_data_t*)attach_flow_data_ib;
 			break;
+			}
 		case VMA_TRANSPORT_ETH:
+			{
+			attach_flow_data_eth_ipv4_tcp_udp_t*   attach_flow_data_eth = NULL;
+
 			attach_flow_data_eth = new attach_flow_data_eth_ipv4_tcp_udp_t(m_p_ring->m_p_qp_mgr);
 
 			ibv_flow_spec_eth_set(&(attach_flow_data_eth->ibv_flow_attr.eth),
@@ -92,6 +106,7 @@ bool rfs_uc::prepare_flow_spec()
 			p_tcp_udp = &(attach_flow_data_eth->ibv_flow_attr.tcp_udp);
 			p_attach_flow_data = (attach_flow_data_t*)attach_flow_data_eth;
 			break;
+			}
 		BULLSEYE_EXCLUDE_BLOCK_START
 		default:
 			return false;

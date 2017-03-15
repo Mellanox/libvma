@@ -671,6 +671,22 @@ AC_TRY_LINK(
   AC_MSG_RESULT([no])
 ])
 
+AC_MSG_CHECKING([if IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN is defined])
+AC_TRY_LINK(
+#include <infiniband/verbs_exp.h>
+,
+[
+  int access = (int)IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN;
+  access = access;
+],
+[
+  AC_MSG_RESULT([yes])
+  AC_DEFINE(DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN, 1, [Define to 1 if IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN is defined])
+],
+[
+  AC_MSG_RESULT([no])
+])
+
 AC_MSG_CHECKING([if IBV_EXP_FLOW_SPEC_IB is defined])
 AC_TRY_LINK(
 #include <infiniband/verbs_exp.h>

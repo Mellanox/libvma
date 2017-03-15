@@ -121,6 +121,7 @@ public:
 #endif
 	virtual uint16_t	get_pkey_index() const { return 0; };
 	virtual uint16_t	get_partiton() const { return 0; };
+	virtual uint32_t	get_underly_qpn() const { return 0; };
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif
@@ -208,7 +209,7 @@ protected:
 	mgid_ref_count_map_t	m_attach_mc_grp_ref_cnt;
 
 	int 			configure(struct ibv_comp_channel* p_rx_comp_event_channel);
-	virtual int		prepare_ibv_qp(struct ibv_qp_init_attr& qp_init_attr) = 0;
+	virtual int		prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr) = 0;
 };
 
 
@@ -223,7 +224,7 @@ public:
 	virtual uint16_t	get_partiton() const { return m_vlan; };
 
 protected:
-	virtual int		prepare_ibv_qp(struct ibv_qp_init_attr& qp_init_attr);
+	virtual int		prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr);
 private:
 	const uint16_t 		m_vlan;
 };
@@ -234,7 +235,9 @@ class qp_mgr_ib : public qp_mgr
 public:
 	qp_mgr_ib(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num,
 			struct ibv_comp_channel* p_rx_comp_event_channel, const uint32_t tx_num_wr, const uint16_t pkey) throw (vma_error) :
-		qp_mgr(p_ring, p_context, port_num, tx_num_wr), m_pkey(pkey) { update_pkey_index(); if(configure(p_rx_comp_event_channel)) throw_vma_exception("failed creating qp"); };
+		qp_mgr(p_ring, p_context, port_num, tx_num_wr), m_pkey(pkey), m_underly_qpn(0) {
+			update_pkey_index();
+			if(configure(p_rx_comp_event_channel)) throw_vma_exception("failed creating qp"); };
 
 	virtual void 		modify_qp_to_ready_state();
 	virtual uint16_t	get_partiton() const { return m_pkey; };
@@ -245,13 +248,15 @@ public:
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif
+	virtual uint32_t	get_underly_qpn() const { return m_underly_qpn; };
 
 protected:
-	virtual int		prepare_ibv_qp(struct ibv_qp_init_attr& qp_init_attr);
+	virtual int		prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr);
 
 private:
 	const uint16_t 		m_pkey;
 	uint16_t 		m_pkey_index;
+	uint32_t 		m_underly_qpn;
 
 	void 			update_pkey_index();
 };
