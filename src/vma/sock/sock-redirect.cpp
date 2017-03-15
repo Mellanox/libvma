@@ -562,18 +562,30 @@ NOT_IN_USE(log_level);
 	return -1;
 #endif // DEFINED_VMAPOLL
 }
-
+#ifndef DEFINED_IBV_OLD_VERBS_MLX_OFED
 extern "C"
 int vma_cyclic_buffer_read(int fd, struct vma_completion_mp_t *completion,
 			   size_t min, size_t max, int *flags)
 {
-	(void)fd;
-	(void)completion;
-	(void)min;
-	(void)max;
-	(void)flags;
-	return 0;
+	cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(fd);
+	if (p_cq_ch_info) {
+		//RAFI remove the dynamic cast some how
+		ring_eth_mp* p_ring = (ring_eth_mp *)p_cq_ch_info->get_ring();
+		if (likely(p_ring && p_ring->is_mp_ring())) {
+			return p_ring->cyclic_buffer_read(*completion, min, max,
+					*flags);
+		} else {
+			vlog_printf(VLOG_ERROR, "could not find ring, got fd "
+					"%d\n", fd);
+			return -1;
+		}
+	} else {
+		vlog_printf(VLOG_ERROR, "could not find p_cq_ch_info, got fd "
+							"%d\n", fd);
+		return -1;
+	}
 }
+#endif
 
 //-----------------------------------------------------------------------------
 //  replacement functions
