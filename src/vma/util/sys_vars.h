@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -347,6 +347,7 @@ struct mce_sys_var {
 
 	bool		tcp_3t_rules;
 	bool		eth_mc_l2_only_rules;
+	bool		mc_force_flowtag;
 
 	int32_t		select_poll_num;
 	bool		select_poll_os_force;
@@ -477,6 +478,7 @@ extern mce_sys_var & safe_mce_sys();
 #define SYS_VAR_GRO_STREAMS_MAX				"VMA_GRO_STREAMS_MAX"
 #define SYS_VAR_TCP_3T_RULES				"VMA_TCP_3T_RULES"
 #define SYS_VAR_ETH_MC_L2_ONLY_RULES			"VMA_ETH_MC_L2_ONLY_RULES"
+#define SYS_VAR_MC_FORCE_FLOWTAG			"VMA_MC_FORCE_FLOWTAG"
 
 #define SYS_VAR_SELECT_CPU_USAGE_STATS			"VMA_CPU_USAGE_STATS"
 #define SYS_VAR_SELECT_NUM_POLLS			"VMA_SELECT_POLL"
@@ -600,6 +602,7 @@ extern mce_sys_var & safe_mce_sys();
 #endif // DEFINED_VMAPOLL
 #define MCE_DEFAULT_TCP_3T_RULES			(false)
 #define MCE_DEFAULT_ETH_MC_L2_ONLY_RULES		(false)
+#define MCE_DEFAULT_MC_FORCE_FLOWTAG			(false)
 #define MCE_DEFAULT_SELECT_NUM_POLLS			(100000)
 #define MCE_DEFAULT_SELECT_POLL_OS_FORCE		(0)
 #define MCE_DEFAULT_SELECT_POLL_OS_RATIO		(10)

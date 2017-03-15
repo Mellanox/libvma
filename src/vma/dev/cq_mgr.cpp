@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -703,6 +703,7 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 #ifdef DEFINED_VMAPOLL				
 				temp->rx.vma_polled = false;
 #endif // DEFINED_VMAPOLL				
+				temp->rx.flow_tag_id = 0;
 				temp->rx.tcp.p_ip_h = NULL;
 				temp->rx.tcp.p_tcp_h = NULL;
 				temp->rx.udp.sw_timestamp.tv_nsec = 0;
@@ -742,6 +743,7 @@ void cq_mgr::vma_poll_reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 				temp->rx.tcp.gro = 0;
 				temp->rx.is_vma_thr = false;
 				temp->rx.vma_polled = false;
+				temp->rx.flow_tag_id = 0;
 				temp->rx.tcp.p_ip_h = NULL;
 				temp->rx.tcp.p_tcp_h = NULL;
 				temp->rx.udp.sw_timestamp.tv_nsec = 0;
@@ -780,6 +782,7 @@ int cq_mgr::vma_poll_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff)
 		buff->rx.tcp.gro = 0;
 		buff->rx.is_vma_thr = false;
 		buff->rx.vma_polled = false;
+		buff->rx.flow_tag_id = 0;
 		buff->rx.tcp.p_ip_h = NULL;
 		buff->rx.tcp.p_tcp_h = NULL;
 		buff->rx.udp.sw_timestamp.tv_nsec = 0;
@@ -858,6 +861,7 @@ int cq_mgr::vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 		++m_n_wce_counter;
 		++m_qp->m_mlx5_hw_qp->rq.tail;
 		m_rx_hot_buff->sz_data = ntohl(cqe->byte_cnt);
+		m_rx_hot_buff->rx.flow_tag_id = vma_get_flow_tag(cqe);
 
 		if (unlikely(++m_qp_rec.debth >= (int)m_n_sysvar_rx_num_wr_to_post_recv)) {
 			compensate_qp_poll_success(m_rx_hot_buff);
@@ -927,6 +931,7 @@ int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready
 			++m_n_wce_counter;
 			++m_qp->m_mlx5_hw_qp->rq.tail;
 			m_rx_hot_buff->sz_data = ntohl(cqe->byte_cnt);
+			m_rx_hot_buff->rx.flow_tag_id = vma_get_flow_tag(cqe);
 
 			if (unlikely(++m_qp_rec.debth >= (int)m_n_sysvar_rx_num_wr_to_post_recv)) {
 				compensate_qp_poll_success(m_rx_hot_buff);
