@@ -172,6 +172,7 @@ io_mux_call::io_mux_call(int *off_fds_buffer, offloaded_mode_t *off_modes_buffer
 	m_n_sysvar_select_poll_num(safe_mce_sys().select_poll_num),
 	m_b_sysvar_select_poll_os_force(safe_mce_sys().select_poll_os_force),
 	m_b_sysvar_select_handle_cpu_usage_stats(safe_mce_sys().select_handle_cpu_usage_stats),
+	m_b_is_hypervisor(safe_mce_sys().is_hypervisor),
 	m_p_all_offloaded_fds(off_fds_buffer),
 	m_p_offloaded_modes(off_modes_buffer),
 	m_num_all_offloaded_fds(0),

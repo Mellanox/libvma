@@ -69,7 +69,7 @@ qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context, const
 	m_n_sysvar_rx_prefetch_bytes_before_poll(safe_mce_sys().rx_prefetch_bytes_before_poll),
 	m_curr_rx_wr(0), m_last_posted_rx_wr_id(0), m_n_unsignaled_count(0), m_n_tx_count(0),
 	m_p_last_tx_mem_buf_desc(NULL), m_p_prev_rx_desc_pushed(NULL),
-	m_n_ip_id_base(0), m_n_ip_id_offset(0)
+	m_n_ip_id_base(0), m_n_ip_id_offset(0), m_b_is_hypervisor(safe_mce_sys().is_hypervisor)
 {
 	m_ibv_rx_sg_array = new ibv_sge[m_n_sysvar_rx_num_wr_to_post_recv];
 	m_ibv_rx_wr_array = new ibv_recv_wr[m_n_sysvar_rx_num_wr_to_post_recv];
@@ -548,6 +548,11 @@ static inline void mlx5_bf_copy(volatile uintptr_t *dst, volatile uintptr_t *src
 	COPY_64B_NT(dst, src);
 }
 
+static inline void mlx5_bf_copy_c(volatile uintptr_t *dst, volatile uintptr_t *src)
+{
+	COPY_64B_NT_C(dst, src);
+}
+
 void qp_mgr::mlx5_send(vma_ibv_send_wr *p_send_wqe)
 {
 	uintptr_t addr = 0;
@@ -587,8 +592,13 @@ void qp_mgr::mlx5_send(vma_ibv_send_wr *p_send_wqe)
 	 * implementations may use move-string-buffer assembler instructions,
 	 * which do not guarantee order of copying.
 	 */
+	if (likely(!m_b_is_hypervisor)) {
 	mlx5_bf_copy((volatile uintptr_t *)((uintptr_t)m_sq_bf_reg + m_sq_bf_offset),
 		(volatile uintptr_t *)m_sq_hot_wqe);
+	} else {
+		mlx5_bf_copy_c((volatile uintptr_t *)((uintptr_t)m_sq_bf_reg + m_sq_bf_offset),
+				(volatile uintptr_t *)m_sq_hot_wqe);
+	}
 
 	m_sq_bf_offset ^= m_sq_bf_buf_size;
 
