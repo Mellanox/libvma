@@ -35,9 +35,12 @@
 
 #include <dev/ring_simple.h>
 
-#ifndef DEFINED_IBV_OLD_VERBS_MLX_OFED
+#ifdef HAVE_MP_RQ
+
+#define VMA_MP_RQ_FILLER_CQE		(1 << 31) // last bit
 
 class cq_mgr_mp;
+
 
 class ring_eth_mp : public ring_eth
 {
@@ -71,9 +74,12 @@ private:
 	vma_allocator			alloc;
 	int				m_strides_num;
 	int				m_stride_size;
+	uint32_t			m_pow_strides_num;
 	struct ibv_exp_res_domain*	m_res_domain;
 	size_t				m_buffer_size;
 	uint32_t			m_wq_count;
+	uint32_t			m_stride_counter;
+	ibv_sge*			m_ibv_rx_sg_array;
 	//save results that weren't returned yet
 	int				m_curr_wq;
 	uint64_t			m_curr_d_addr;
@@ -83,5 +89,5 @@ private:
 	struct timespec			m_curr_hw_timestamp;
 };
 
-#endif /* DEFINED_IBV_OLD_VERBS_MLX_OFED */
+#endif /* HAVE_MP_RQ */
 #endif /* SRC_VMA_DEV_RING_ETH_MP_H_ */
