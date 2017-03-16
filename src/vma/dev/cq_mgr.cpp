@@ -205,9 +205,6 @@ void cq_mgr::configure(int cq_size)
 		cq_logpanic("ibv_create_cq failed (errno=%d %m)", errno);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-	if (post_ibv_cq()) {
-		cq_logpanic("post_ibv_cq failed (errno=%d %m)", errno);
-	}
 	// use local copy of stats by default (on rx cq get shared memory stats)
 	m_p_cq_stat = &m_cq_stat_static;
 	memset(m_p_cq_stat , 0, sizeof(*m_p_cq_stat));
@@ -1618,8 +1615,9 @@ void cq_mgr::mlx5_init_cq()
 #endif // DEFINED_VMAPOLL
 
 #ifdef HAVE_INFINIBAND_MLX5_HW_H
-cq_mgr_mlx5::cq_mgr_mlx5(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, uint32_t cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx):
-	cq_mgr(p_ring, p_ib_ctx_handler, cq_size, p_comp_event_channel, is_rx)
+
+cq_mgr_mlx5::cq_mgr_mlx5(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, uint32_t cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx, bool config):
+	cq_mgr(p_ring, p_ib_ctx_handler, cq_size, p_comp_event_channel, is_rx, config)
 	, m_cq_size(cq_size)
 	, m_cq_cons_index(0)
 	, m_cqes(NULL)
@@ -1629,7 +1627,10 @@ cq_mgr_mlx5::cq_mgr_mlx5(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, 
 	,m_p_rq_wqe_idx_to_wrid(NULL)
 {
 	cq_logfunc("");
+}
 
+void cq_mgr_mlx5::set_mlx_cq()
+{
 	struct ibv_cq *ibcq = m_p_ibv_cq;
 	struct mlx5_cq* mlx5_cq = _to_mxxx(cq, cq);
 	m_cq_dbell = mlx5_cq->dbrec;
@@ -1954,6 +1955,7 @@ int cq_mgr_mlx5::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_
 
 void	cq_mgr_mlx5::add_qp_rx(qp_mgr* qp)
 {
+	set_mlx_cq();
 	cq_mgr::add_qp_rx(qp);
 	struct verbs_qp *vqp = (struct verbs_qp *)qp->m_qp;
 	struct mlx5_qp	* mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
