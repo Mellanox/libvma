@@ -60,10 +60,8 @@
 qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context,
 		const uint8_t port_num, const uint32_t tx_num_wr):
 	m_rq_wqe_counter(0), m_rq_wqe_idx_to_wrid(NULL),
-#ifdef DEFINED_VMAPOLL
-	m_mlx5_hw_qp(NULL),
-#endif
-	m_tx_num_wr(tx_num_wr), m_qp(NULL), m_p_ring((ring_simple*)p_ring),
+
+	m_tx_num_wr(tx_num_wr), m_mlx5_hw_qp(NULL), m_qp(NULL), m_p_ring((ring_simple*)p_ring),
 	m_port_num((uint8_t)port_num),
 	m_p_ib_ctx_handler((ib_ctx_handler*)p_context),
 	m_p_ahc_head(NULL), m_p_ahc_tail(NULL), m_max_inline_data(0),
@@ -138,18 +136,6 @@ qp_mgr::~qp_mgr()
 #endif
 	qp_logdbg("Rx buffer poll: %d free global buffers available", g_buffer_pool_rx->get_free_count());
 	qp_logdbg("delete done");
-}
-
-static inline uint32_t align32pow2(uint32_t x)
-{
-	x--;
-	x |= x >> 1;
-	x |= x >> 2;
-	x |= x >> 4;
-	x |= x >> 8;
-	x |= x >> 16;
-
-	return x + 1;
 }
 
 cq_mgr*	qp_mgr::init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_channel)

@@ -45,17 +45,20 @@
 #define cq_logfine		__log_info_fine
 
 
-#ifndef DEFINED_IBV_OLD_VERBS_MLX_OFED
+#ifdef HAVE_MP_RQ
 
 cq_mgr_mp::cq_mgr_mp(ring_eth_mp *p_ring, ib_ctx_handler *p_ib_ctx_handler,
-		     int cq_size, struct ibv_comp_channel *p_comp_event_channel,
-		     bool is_rx):
-		     cq_mgr((ring_simple*)p_ring, p_ib_ctx_handler,
+		     uint32_t cq_size,
+		     struct ibv_comp_channel *p_comp_event_channel,
+		     bool is_rx, int stride_size):
+		     cq_mgr_mlx5((ring_simple*)p_ring, p_ib_ctx_handler,
 			    cq_size , p_comp_event_channel, is_rx, false),
-		     m_p_ring(p_ring), m_p_cq_family1(NULL)
+		     m_p_ring(p_ring)
 {
 	// must call from derive in order to call derived hooks
+	m_pow_stride_size = (1 << stride_size);
 	configure(cq_size);
+	set_cq();
 }
 
 void cq_mgr_mp::prep_ibv_cq(vma_ibv_cq_init_attr &attr)
@@ -65,33 +68,17 @@ void cq_mgr_mp::prep_ibv_cq(vma_ibv_cq_init_attr &attr)
 	attr.res_domain = m_p_ring->get_res_domain();
 }
 
-int cq_mgr_mp::post_ibv_cq()
-{
-	struct ibv_exp_query_intf_params intf_params;
-	enum ibv_exp_query_intf_status intf_status;
-
-	memset(&intf_params, 0, sizeof(intf_params));
-	intf_params.intf_scope = IBV_EXP_INTF_GLOBAL;
-	intf_params.intf_version = 1;
-	intf_params.intf = IBV_EXP_INTF_CQ;
-	intf_params.obj = m_p_ibv_cq;
-
-	m_p_cq_family1 = (struct ibv_exp_cq_family_v1 *)
-		ibv_exp_query_intf(m_p_ib_ctx_handler->get_ibv_context(),
-				&intf_params, &intf_status);
-	if (!m_p_cq_family1) {
-		return -1;
-	}
-	return 0;
-
-}
-
 void cq_mgr_mp::add_qp_rx(qp_mgr *_qp)
 {
 	cq_logdbg("qp_mgr=%p", _qp);
-	qp_mgr_mp* qp = (qp_mgr_mp *)_qp;
-	m_p_cq_stat->n_rx_drained_at_once_max = 0;
+	struct verbs_qp *vqp = (struct verbs_qp *)_qp->m_qp;
+	struct mlx5_qp * mlx5_hw_qp = (struct mlx5_qp*)
+			container_of(vqp, struct mlx5_qp, verbs_qp);
+	m_rq = &(mlx5_hw_qp->rq);
 
+	m_p_rq_wqe_idx_to_wrid = _qp->m_rq_wqe_idx_to_wrid;
+	m_p_cq_stat->n_rx_drained_at_once_max = 0;
+	qp_mgr_mp* qp = (qp_mgr_mp *)_qp;
 	if (qp->post_recv(0, qp->get_wq_count()) != 0) {
 		cq_logdbg("qp post recv failed");
 	}
@@ -100,24 +87,76 @@ void cq_mgr_mp::add_qp_rx(qp_mgr *_qp)
 		  qp->get_wq_count());
 }
 
-/*
- * this function handles error in poll_cq and returns the size offset and flags
- * all the check logic will be in the ring in order to save double if checks
- * eventually this function will use the prm so it will have more logic
+enum {
+	/* Masks to handle the CQE byte_count field in case of MP RQ */
+	MP_RQ_BYTE_CNT_FIELD_MASK = 0x0000FFFF,
+	MP_RQ_NUM_STRIDES_FIELD_MASK = 0x7FFF0000,
+	MP_RQ_FILLER_FIELD_MASK = 0x80000000,
+	MP_RQ_NUM_STRIDES_FIELD_SHIFT = 16,
+};
+
+/**
+ * this function
+ *
+ *
+ * flags is based on struct ibv_exp_cq_family_flags, with the addion of
+ * filler bit equal to VMA_MP_RQ_FILLER_CQE
  */
-int cq_mgr_mp::poll_mp_cq(int &size, uint32_t &offset, uint32_t &flags)
+int cq_mgr_mp::poll_mp_cq(uint16_t &size, uint16_t &strides_used,
+			  uint32_t &offset, uint32_t &flags,
+			  volatile struct mlx5_cqe64 *&cqe64)
 {
-	// offset is the offset in the general buffer
-	size = m_p_cq_family1->poll_length_flags_mp_rq(m_p_ibv_cq, &offset,
-			&flags);
-	if (unlikely(size == -1)) {
-		cq_logdbg("poll_length_flags_mp_rq failed with CQ_POLL_ERR "
-			  "errno %m",errno);
+	volatile struct mlx5_cqe64 *cqe;
+	volatile struct mlx5_cqe64 *cqes;
+
+	cqes = *m_cqes;
+	cqe = &cqes[m_cq_cons_index & (m_cq_size - 1)];
+	uint8_t op_own = cqe->op_own;
+	uint8_t op_code = (((op_own) & 0xf0) >> 4);
+	if (unlikely(op_code == MLX5_CQE_INVALID ||
+	    (op_own & MLX5_CQE_OWNER_MASK) == !(m_cq_cons_index & m_cq_size))) {
+		return 0;
+	} else if (unlikely(op_own & 0x80)) {
+		check_error_completion(op_own);
 		return -1;
 	}
-	cq_logfine("returning packet size %d, offset %u flags %d",size, offset,
-		   flags);
-	return 0;
+	int ret = 0;
+	if (likely(cqe)) {
+		cqe64 = cqe;
+		uint32_t byte_strides = ntohl(cqe->byte_cnt);
+		strides_used = (byte_strides & MP_RQ_NUM_STRIDES_FIELD_MASK) >>
+				MP_RQ_NUM_STRIDES_FIELD_SHIFT;
+		if (likely(!(byte_strides & MP_RQ_FILLER_FIELD_MASK))) {
+			size = byte_strides & MP_RQ_BYTE_CNT_FIELD_MASK;
+			offset = ntohs(cqe->wqe_counter) * m_pow_stride_size;
+			flags = 0;
+			/*
+			uint8_t l3_hdr = (cqe->l4_hdr_type_etc) & MLX5_CQE_L3_HDR_TYPE_MASK;
+			uint8_t l4_hdr = (cqe->l4_hdr_type_etc) & MLX5_CQE_L4_HDR_TYPE_MASK;
+			// RAFI currently only udp is used
+			(!!(cqe->hds_ip_ext & MLX5_CQE_L4_OK) * IBV_EXP_CQ_RX_TCP_UDP_CSUM_OK) |
+				(!!(cqe->hds_ip_ext & MLX5_CQE_L3_OK) * IBV_EXP_CQ_RX_IP_CSUM_OK) |
+				((l3_hdr == MLX5_CQE_L3_HDR_TYPE_IPV4) * IBV_EXP_CQ_RX_IPV4_PACKET) |
+//				(((l4_hdr == MLX5_CQE_L4_HDR_TYPE_TCP) || (l4_hdr == MLX5_CQE_L4_HDR_TYPE_TCP_EMP_ACK) ||
+//				  (l4_hdr == MLX5_CQE_L4_HDR_TYPE_TCP_ACK)) * IBV_EXP_CQ_RX_TCP_PACKET) |
+				((l4_hdr == MLX5_CQE_L4_HDR_TYPE_UDP) * IBV_EXP_CQ_RX_UDP_PACKET);*/
+		} else {
+			flags = VMA_MP_RQ_FILLER_CQE;
+			ret = 2;
+			// optimize checks in ring by setting size non zero
+			size = -1;
+
+		}
+		prefetch((void*)&(*m_cqes)[m_cq_cons_index & (m_cq_size - 1)]);
+
+		m_cq_cons_index++;
+		wmb();
+		*m_cq_dbell = htonl(m_cq_cons_index);
+		m_rq->tail++;
+	}
+	cq_logfine("returning packet size %d, stride used %d offset %u "
+		   "flags %d", size, strides_used, offset, flags);
+	return ret;
 }
 
 
@@ -125,5 +164,5 @@ cq_mgr_mp::~cq_mgr_mp()
 {
 	m_skip_dtor = true;
 }
-#endif //DEFINED_IBV_OLD_VERBS_MLX_OFED
+#endif // HAVE_MP_RQ
 

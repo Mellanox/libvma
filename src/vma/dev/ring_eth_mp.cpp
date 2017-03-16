@@ -39,7 +39,7 @@
 #define MODULE_HDR		MODULE_NAME "%d:%s() "
 
 
-#ifndef DEFINED_IBV_OLD_VERBS_MLX_OFED
+#ifdef HAVE_MP_RQ
 
 ring_eth_mp::ring_eth_mp(in_addr_t local_if,
 			 ring_resource_creation_info_t *p_ring_info, int count,
@@ -53,9 +53,11 @@ ring_eth_mp::ring_eth_mp(in_addr_t local_if,
 {
 	// call function from derived not base
 	m_is_mp_ring = true;
-	m_buffer_size = (1 << m_stride_size) * (1 << m_strides_num) * m_wq_count + MCE_ALIGNMENT;
+	m_pow_strides_num = (1 << m_strides_num);
+	m_buffer_size = (1 << m_stride_size) * m_pow_strides_num * m_wq_count + MCE_ALIGNMENT;
 	memset(&m_curr_hw_timestamp, 0, sizeof(m_curr_hw_timestamp));
 	create_resources(p_ring_info, active);
+	m_ibv_rx_sg_array = m_p_qp_mgr->get_rx_sge();
 }
 
 void ring_eth_mp::create_resources(ring_resource_creation_info_t *p_ring_info,
@@ -153,7 +155,8 @@ int ring_eth_mp::cyclic_buffer_read(vma_completion_mp_t &completion,
 				    size_t min, size_t max, int &flags)
 {
 	uint32_t offset = 0, p_flags = 0;
-	int size = 0;
+	uint16_t size = 0, strides_used;
+	volatile struct mlx5_cqe64 *cqe64;
 
 	// sanity check
 	if (unlikely(min > max || max == 0 || flags != MSG_DONTWAIT)) {
@@ -167,35 +170,39 @@ int ring_eth_mp::cyclic_buffer_read(vma_completion_mp_t &completion,
 		return -1;
 	}
 
-	int ret = ((cq_mgr_mp *)m_p_cq_mgr_rx)->poll_mp_cq(size, offset, p_flags);
+	int ret = ((cq_mgr_mp *)m_p_cq_mgr_rx)->poll_mp_cq(size,
+					strides_used, offset, p_flags, cqe64);
+	// empty
+	if (size == 0) {
+		return 0;
+	}
 	if (unlikely(ret == -1)) {
 		ring_logdbg("poll_mp_cq failed with errno %m", errno);
 		return -1;
 	}
-	// no message currently no way to distinguish if FILLER
-	if (size == 0) {
-		return 0;
-	}
 	// set it here because we might not have min packets avail in this run
-	if (unlikely(m_curr_d_addr == 0)) {
-		m_curr_d_addr = m_p_qp_mgr->get_rx_sge()[m_curr_wq].addr + offset;
-//		m_curr_hw_timestamp = RAFI SET IT HERE
-//		m_curr_h_ptr[0] = ((uint64_t *)m_p_qp_mgr->get_rx_sge()[m_curr_wq].addr) + offset;
-		m_curr_packets = 1;
-		m_cuur_size = size;
-	} else {
-		m_curr_packets++;
-		m_cuur_size += size;
-	}
-
-	if (unlikely(p_flags & IBV_EXP_CQ_RX_MULTI_PACKET_LAST_V1)) {
-		reload_wq();
-	} else {
-		ret = mp_loop(min);
-		if (ret == 1) { // there might be more to drain
-			mp_loop(max);
-		} else if (ret == 0) { // no packets left
-			return 0;
+	if (likely(!(p_flags & VMA_MP_RQ_FILLER_CQE))) {
+		if (unlikely(m_curr_d_addr == 0)) {
+			m_curr_d_addr = m_ibv_rx_sg_array[m_curr_wq].addr + offset;
+			convert_hw_time_to_system_time(cqe64->timestamp,
+						       &m_curr_hw_timestamp);
+//			m_curr_h_ptr[0] = ((uint64_t *)m_ibv_rx_sg_array[m_curr_wq].addr) + offset;
+			m_curr_packets = 1;
+			m_cuur_size = size;
+		} else {
+			m_curr_packets++;
+			m_cuur_size += size;
+		}
+		m_stride_counter += strides_used;
+		if (unlikely(m_stride_counter >= m_pow_strides_num)) {
+			reload_wq();
+		} else {
+			ret = mp_loop(min);
+			if (ret == 1) { // there might be more to drain
+				mp_loop(max);
+			} else if (ret == 0) { // no packets left
+				return 0;
+			}
 		}
 	}
 
@@ -217,28 +224,36 @@ int ring_eth_mp::cyclic_buffer_read(vma_completion_mp_t &completion,
  * @return TBD about -1 on error,
  * 	0 if cq is empty
  * 	1 if done looping
- * 	2 if WQ was reloaded
+ * 	2 if need to return due to WQ or filler
  */
 inline int ring_eth_mp::mp_loop(size_t limit)
 {
 	uint32_t offset = 0, flags = 0;
-	int size = 0;
-	int ret;
+	volatile struct mlx5_cqe64 *cqe64;
+	uint16_t strides_used;
+
 	while (m_curr_packets < limit) {
-		ret = ((cq_mgr_mp *)m_p_cq_mgr_rx)->poll_mp_cq(size, offset, flags);
+		// must be 0 between calls
+		uint16_t size = 0;
+		((cq_mgr_mp *)m_p_cq_mgr_rx)->poll_mp_cq(size, strides_used,
+				offset, flags, cqe64);
 		if (size == 0) {
 			ring_logfine("no packet found");
 			return 0;
 		}
-		m_cuur_size += size;
-		++m_curr_packets;
-		if (flags & IBV_EXP_CQ_RX_MULTI_PACKET_LAST_V1) {
-			reload_wq();
+		m_stride_counter += strides_used;
+		if (unlikely(flags & VMA_MP_RQ_FILLER_CQE)){
+			if (m_stride_counter >= m_pow_strides_num) {
+				reload_wq();
+			}
 			return 2;
 		}
-		if (unlikely(ret == -1)) {
-			// RAFI not sure if we should silent this and return 0 and ++m_curr_packets
-			return 0;
+		m_cuur_size += size;
+		++m_curr_packets;
+		// check flasgs for checksum
+		if (unlikely(m_stride_counter >= m_pow_strides_num)) {
+			reload_wq();
+			return 2;
 		}
 	}
 	ring_logfine("mp_loop finished all iterations");
@@ -249,6 +264,7 @@ inline void ring_eth_mp::reload_wq()
 {
 	((qp_mgr_mp *)m_p_qp_mgr)->post_recv(m_curr_wq, 1);
 	m_curr_wq = (m_curr_wq + 1) % m_wq_count;
+	m_stride_counter = 0;
 }
 
 ring_eth_mp::~ring_eth_mp()
@@ -264,5 +280,5 @@ ring_eth_mp::~ring_eth_mp()
 		ring_logdbg("call to ibv_exp_destroy_res_domain returned %d", res);
 
 }
-#endif
+#endif /* HAVE_MP_RQ */
 

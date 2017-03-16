@@ -315,10 +315,10 @@ cq_mgr* get_cq_mgr_from_cq_event(struct ibv_comp_channel* p_cq_channel);
 class cq_mgr_mlx5: public cq_mgr
 {
 public:
-	cq_mgr_mlx5(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, uint32_t cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx);
+	cq_mgr_mlx5(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, uint32_t cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx, bool config=true);
 	virtual ~cq_mgr_mlx5();
-
-	virtual inline mem_buf_desc_t*		poll(uint32_t&	opcode, uint32_t&	status);
+	void set_cq();
+	virtual mem_buf_desc_t*		poll(uint32_t&	opcode, uint32_t&	status);
 	inline volatile struct mlx5_cqe64*	check_cqe(void);
 	volatile struct mlx5_cqe64*			check_error_completion(uint8_t op_own);
 	inline void							cqe64_to_mem_buff_desc(volatile struct mlx5_cqe64 *cqe, mem_buf_desc_t* p_rx_wc_buf_desc, uint32_t& opcode, uint32_t& status);
@@ -329,7 +329,7 @@ public:
 	virtual void						add_qp_rx(qp_mgr* qp);
 	virtual void						del_qp_rx(qp_mgr *qp);
 
-private:
+protected:
 	uint32_t					m_cq_size;
 	uint32_t					m_cq_cons_index;
 	volatile struct mlx5_cqe64	(*m_cqes)[];

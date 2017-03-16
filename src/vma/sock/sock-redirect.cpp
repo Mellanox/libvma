@@ -562,7 +562,8 @@ NOT_IN_USE(log_level);
 	return -1;
 #endif // DEFINED_VMAPOLL
 }
-#ifndef DEFINED_IBV_OLD_VERBS_MLX_OFED
+
+#ifdef HAVE_MP_RQ
 extern "C"
 int vma_cyclic_buffer_read(int fd, struct vma_completion_mp_t *completion,
 			   size_t min, size_t max, int *flags)
@@ -585,7 +586,7 @@ int vma_cyclic_buffer_read(int fd, struct vma_completion_mp_t *completion,
 		return -1;
 	}
 }
-#endif
+#endif // HAVE_MP_RQ
 
 //-----------------------------------------------------------------------------
 //  replacement functions
@@ -878,6 +879,8 @@ int getsockopt(int __fd, int __level, int __optname,
 	    __optlen && *__optlen >= sizeof(struct vma_api_t*)) {
 		srdr_logdbg("User request for VMA Extra API pointers");
 		struct vma_api_t *vma_api = new struct vma_api_t();
+		memset(vma_api, 0, sizeof(struct vma_api_t));
+
 		vma_api->register_recv_callback = vma_register_recv_callback;
 		vma_api->recvfrom_zcopy = vma_recvfrom_zcopy;
 		vma_api->free_packets = vma_free_packets;
@@ -891,20 +894,13 @@ int getsockopt(int __fd, int __level, int __optname,
 		vma_api->vma_poll = vma_poll;
 		vma_api->ref_vma_buff = vma_buff_ref;
 		vma_api->free_vma_buff = vma_buff_free;
-		vma_api->dump_fd_stats = NULL;
 #else
-		vma_api->free_vma_packets = NULL;
-		vma_api->vma_poll = NULL;
-		vma_api->ref_vma_buff = NULL;
-		vma_api->free_vma_buff = NULL;
 		vma_api->dump_fd_stats = vma_dump_fd_stats;
 #endif // DEFINED_VMAPOLL
 
-#ifndef DEFINED_IBV_OLD_VERBS_MLX_OFED
+#ifdef HAVE_MP_RQ
 		vma_api->vma_cyclic_buffer_read = vma_cyclic_buffer_read;
-#else
-		vma_api->vma_cyclic_buffer_read = NULL;
-#endif // DEFINED_IBV_OLD_VERBS_MLX_OFED
+#endif // HAVE_MP_RQ
 		*((vma_api_t**)__optval) = vma_api;
 		return 0;
 	}
