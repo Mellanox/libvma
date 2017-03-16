@@ -318,7 +318,7 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	rfs* p_rfs;
 	rfs* p_tmp_rfs = NULL;
 	sockinfo* si = static_cast<sockinfo*> (sink);
-	uint32_t flow_tag_id = 0;
+	uint32_t flow_tag_id = 0; // spec will not be attached to rule
 
 	ring_logdbg("flow: %s, with sink (%p), m_flow_tag_enabled: %d",
 		    flow_spec_5t.to_str(), si, m_flow_tag_enabled);
@@ -336,13 +336,13 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 				// tag_id is out of the range by mask, will not use it
 				ring_logdbg("flow_tag disabled as tag_id: %d is out of mask (%x) range!",
 					    flow_tag_id, FLOW_TAG_MASK);
-				flow_tag_id = 0;
+				flow_tag_id = FLOW_TAG_MASK;
 			}
 			ring_logdbg("sock_fd:%d enabled:%d with id:%d",
 				    flow_tag_id_candidate-1, m_flow_tag_enabled, flow_tag_id);
 		} else {
-			// 0 - means FT should not be used
-			ring_logdbg("flow_tag disabled as flow_tag_id_candidate:%d", flow_tag_id_candidate);
+			flow_tag_id = FLOW_TAG_MASK; // FLOW_TAG_MASK - modal, FT to be attached but will not be used
+			ring_logdbg("flow_tag:%d disabled as flow_tag_id_candidate:%d", flow_tag_id, flow_tag_id_candidate);
 		}
 	}
 
@@ -393,7 +393,7 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		} else {
 			ring_logdbg("MC FlowTag ID=%d for socketinfo=%p is disabled as force_flowtag=%d SO_REUSEADDR=%d",
 				    flow_tag_id, si, m_b_sysvar_mc_force_flowtag, si->addr_in_reuse());
-			flow_tag_id = 0; // MC so far can't be handled by flow_tag as socket is shared
+			flow_tag_id = FLOW_TAG_MASK; // MC so far can't be handled by flow_tag as socket is shared
 		}
 		// For IB MC flow, the port is zeroed in the ibv_flow_spec when calling to ibv_flow_spec().
 		// It means that for every MC group, even if we have sockets with different ports - only one rule in the HW.
@@ -488,7 +488,7 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 
 	bool ret = p_rfs->attach_flow(sink);
 	if (ret) {
-		if (m_flow_tag_enabled && flow_tag_id ) {
+		if (m_flow_tag_enabled && flow_tag_id && (flow_tag_id != FLOW_TAG_MASK) ) {
 			// A flow with FlowTag was attached succesfully, check stored rfs for fast path be tag_id
 			si->set_flow_tag(flow_tag_id);
 			ring_logdbg("flow_tag: %d registration is done!", flow_tag_id);
@@ -754,7 +754,8 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 
 	// This is an internal function (within ring and 'friends'). No need for lock mechanism.
 
-	if (likely(m_flow_tag_enabled && p_rx_wc_buf_desc->rx.flow_tag_id)) {
+	if (likely(m_flow_tag_enabled && p_rx_wc_buf_desc->rx.flow_tag_id &&
+		  (p_rx_wc_buf_desc->rx.flow_tag_id != FLOW_TAG_MASK))) {
 		sockinfo* si = NULL;
 		// trying to get sockinfo per flow_tag_id-1 as it was incremented at attach
 		// to allow mapping sockfd=0
@@ -780,6 +781,7 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 				p_rx_wc_buf_desc->rx.tcp.p_ip_h                 = p_ip_h;
 				p_rx_wc_buf_desc->rx.tcp.p_tcp_h                = p_tcp_h;
 				p_rx_wc_buf_desc->rx.tcp.n_transport_header_len = transport_header_len;
+				p_rx_wc_buf_desc->rx.n_frags = 1;
 
 /*				ring_logfunc("FAST PATH Rx TCP segment info: src_port=%d, dst_port=%d, flags='%s%s%s%s%s%s' seq=%u, ack=%u, win=%u, payload_sz=%u",
 					ntohs(p_tcp_h->source), ntohs(p_tcp_h->dest),
@@ -808,6 +810,7 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 				// Update the L3 info
 				p_rx_wc_buf_desc->rx.src.sin_family      = AF_INET;
 				p_rx_wc_buf_desc->rx.src.sin_addr.s_addr = p_ip_h->saddr;
+				p_rx_wc_buf_desc->rx.n_frags = 1;
 
 /*				ring_logfunc("FAST PATH Rx UDP datagram info: src_port=%d, dst_port=%d, payload_sz=%d, csum=%#x",
 					     ntohs(p_udp_h->source), ntohs(p_udp_h->dest), sz_payload, p_udp_h->check);
@@ -1083,7 +1086,8 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 
 	// This is an internal function (within ring and 'friends'). No need for lock mechanism.
 
-	if (likely(m_flow_tag_enabled && p_rx_wc_buf_desc->rx.flow_tag_id)) {
+	if (likely(m_flow_tag_enabled && p_rx_wc_buf_desc->rx.flow_tag_id &&
+		   (p_rx_wc_buf_desc->rx.flow_tag_id != FLOW_TAG_MASK))) {
 		sockinfo* si = NULL;
 		// trying to get sockinfo per flow_tag_id-1 as it was incremented at attach
 		// to allow mapping sockfd=0
@@ -1109,6 +1113,7 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 				p_rx_wc_buf_desc->rx.tcp.p_ip_h                 = p_ip_h;
 				p_rx_wc_buf_desc->rx.tcp.p_tcp_h                = p_tcp_h;
 				p_rx_wc_buf_desc->rx.tcp.n_transport_header_len = transport_header_len;
+				p_rx_wc_buf_desc->rx.n_frags = 1;
 
 /*				ring_logfunc("FAST PATH Rx TCP segment info: src_port=%d, dst_port=%d, flags='%s%s%s%s%s%s' seq=%u, ack=%u, win=%u, payload_sz=%u",
 					ntohs(p_tcp_h->source), ntohs(p_tcp_h->dest),
@@ -1135,6 +1140,7 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 				// Update the L3 info
 				p_rx_wc_buf_desc->rx.src.sin_family      = AF_INET;
 				p_rx_wc_buf_desc->rx.src.sin_addr.s_addr = p_ip_h->saddr;
+				p_rx_wc_buf_desc->rx.n_frags = 1;
 
 /*				ring_logfunc("FAST PATH Rx UDP datagram info: src_port=%d, dst_port=%d, payload_sz=%d, csum=%#x",
 					     ntohs(p_udp_h->source), ntohs(p_udp_h->dest), sz_payload, p_udp_h->check);

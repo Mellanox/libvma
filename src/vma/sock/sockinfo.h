@@ -124,8 +124,10 @@ public:
 	inline bool tcp_flow_is_5t(void) { return m_tcp_flow_is_5t; }
 	inline void set_tcp_flow_is_5t(void) { m_tcp_flow_is_5t = true; }
 	inline void set_flow_tag(int flow_tag_id) {
-		m_flow_tag_id = flow_tag_id;
-		m_flow_tag_enabled = flow_tag_id > 0 ? true : false;
+		if ( flow_tag_id && (flow_tag_id != FLOW_TAG_MASK)) {
+			m_flow_tag_id = flow_tag_id;
+			m_flow_tag_enabled = true;
+		}
 	}
 	inline bool flow_tag_enabled(void) { return m_flow_tag_enabled; }
 	
