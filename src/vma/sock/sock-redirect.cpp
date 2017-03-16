@@ -560,7 +560,8 @@ NOT_IN_USE(log_level);
 	return -1;
 #endif // DEFINED_VMAPOLL
 }
-#ifndef DEFINED_IBV_OLD_VERBS_MLX_OFED
+
+#ifdef HAVE_INFINIBAND_MLX5_HW_H
 extern "C"
 int vma_cyclic_buffer_read(int fd, struct vma_completion_mp_t *completion,
 			   size_t min, size_t max, int *flags)
@@ -583,7 +584,7 @@ int vma_cyclic_buffer_read(int fd, struct vma_completion_mp_t *completion,
 		return -1;
 	}
 }
-#endif
+#endif //HAVE_INFINIBAND_MLX5_HW_H
 
 //-----------------------------------------------------------------------------
 //  replacement functions

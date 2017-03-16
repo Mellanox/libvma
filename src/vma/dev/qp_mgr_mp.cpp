@@ -44,15 +44,16 @@
 #define qp_logfuncall		__log_info_funcall
 
 
-#ifndef DEFINED_IBV_OLD_VERBS_MLX_OFED
+#ifdef HAVE_INFINIBAND_MLX5_HW_H
 
 
 cq_mgr* qp_mgr_mp::init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_channel)
 {
-	int cq_size = ((1 << m_p_ring->get_strides_num()) *
-		       m_p_ring->get_wq_count()) + 1;
+	uint32_t cq_size = align32pow2(((1 << m_p_ring->get_strides_num()) *
+				       m_p_ring->get_wq_count()));
 	return new cq_mgr_mp(m_p_ring, m_p_ib_ctx_handler, cq_size,
-				      p_rx_comp_event_channel, true);
+			     p_rx_comp_event_channel, true,
+			     m_p_ring->get_stride_size());
 }
 
 int qp_mgr_mp::post_qp_create(void)

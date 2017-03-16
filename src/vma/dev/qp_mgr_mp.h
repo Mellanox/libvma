@@ -37,7 +37,7 @@
 #include "dev/ring_eth_mp.h"
 #include "dev/cq_mgr_mp.h"
 
-#ifndef DEFINED_IBV_OLD_VERBS_MLX_OFED
+#ifdef HAVE_INFINIBAND_MLX5_HW_H
 
 class cq_mgr_mp;
 
