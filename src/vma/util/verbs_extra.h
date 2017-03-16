@@ -279,6 +279,8 @@ typedef struct ibv_exp_flow_spec_ipv4		vma_ibv_flow_spec_ipv4;
 typedef struct ibv_exp_flow_spec_tcp_udp	vma_ibv_flow_spec_tcp_udp;
 #endif
 
+int vma_rdma_lib_reset();
+
 static inline void init_vma_ibv_cq_init_attr(vma_ibv_cq_init_attr* attr)
 {
 #ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP

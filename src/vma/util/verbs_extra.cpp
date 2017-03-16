@@ -259,3 +259,13 @@ int priv_ibv_query_qp_state(struct ibv_qp *qp)
 	BULLSEYE_EXCLUDE_BLOCK_END
 	return (ibv_qp_state)qp_attr.qp_state;
 }
+
+int vma_rdma_lib_reset() {
+#ifdef DEFINED_RDMA_LIB_RESET
+	vlog_printf(VLOG_DEBUG, "rdma_lib_reset called");
+	return rdma_lib_reset();
+#else
+	vlog_printf(VLOG_DEBUG, "rdma_lib_reset doesn't exist returning 0");
+	return 0;
+#endif
+}
