@@ -141,6 +141,7 @@ Example:
  VMA DETAILS: GRO max streams                32                         [VMA_GRO_STREAMS_MAX]
  VMA DETAILS: TCP 3T rules                   Disabled                   [VMA_TCP_3T_RULES]
  VMA DETAILS: ETH MC L2 only rules           Disabled                   [VMA_ETH_MC_L2_ONLY_RULES]
+ VMA DETAILS: MC Force FlowTag               Disabled                   [VMA_MC_FORCE_FLOWTAG]
  VMA DETAILS: Select Poll (usec)             100000                     [VMA_SELECT_POLL]
  VMA DETAILS: Select Poll OS Force           Disabled                   [VMA_SELECT_POLL_OS_FORCE]
  VMA DETAILS: Select Poll OS Ratio           10                         [VMA_SELECT_POLL_OS_RATIO]
@@ -546,6 +547,10 @@ connections.
 VMA_ETH_MC_L2_ONLY_RULES
 Use only L2 rules for Ethernet Multicast.
 All loopback traffic will be handled by VMA instead of OS.
+
+VMA_MC_FORCE_FLOWTAG
+Allows to use FlowTag acceleration for multicast flows by skip to check SO_REUSEADDR.
+Applicable if there are no other sockets opened for the same flow in system.
 
 VMA_SELECT_POLL
 The duration in micro-seconds (usec) in which to poll the hardware on Rx path before
