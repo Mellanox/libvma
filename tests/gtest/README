@@ -1,0 +1,21 @@
+VMA Testing Environment
+=======================
+
+This set of tests is based on Google Test C++ environment 
+https://github.com/google/googletest
+
+Testing VMA Extended API
+------------------------
+1. Enable VMA_EXTRA_API_ENABLED in tests/gtest/vma/vma_base.cc
+2. Configure libvma with --enable-vmapoll option and build it
+3. Compile the gtests by issuing from VMA root directory:
+   make -C tests/gtest
+4. Launch tests by issuing:
+   LD_PRELOAD=path_to_your_libvma.so tests/gtest/gtest --addr=client_ip:server_ip
+
+Testing Environment
+-------------------
+The VMA Extended API gtest environment requires that there be two interfaces
+connected back to back or via a switch. One is the server and the other is the
+client.
+
