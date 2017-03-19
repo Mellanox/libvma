@@ -110,7 +110,7 @@ namespace vma_spec {
 	static const char *spec_names_mcd_irq[]   = {"mcd-irq", "624", NULL};
 	static const char *spec_names_rti[]       = {"rti", "784", NULL};
 	static const char *spec_names_6973[]      = {"6973", NULL};
-	static const char *spec_names_stac[]      = {"stac", NULL};
+	static const char *spec_names_multi_ring[]      = {"multi_ring_latency", NULL};
 
 	// must be by order because "to_str" relies on that!
 	static const vma_spec_names specs[] = {
@@ -123,7 +123,7 @@ namespace vma_spec {
 		{MCE_SPEC_MCD_IRQ_624,    	  	"Memcached Interrupt Mode",	(const char ** )spec_names_mcd_irq},
 		{MCE_SPEC_RTI_784,    		  	"RTI Logic",    		(const char ** )spec_names_rti},
 		{MCE_SPEC_LL_6973,    		  	"6973 Low Latency Profile", 	(const char ** )spec_names_6973},
-		{MCE_SPEC_STAC,    		  	"STAC-N Benchmark",	 	(const char ** )spec_names_stac},
+		{MCE_SPEC_LL_MULTI_RING,    	"Multi Ring Latency Profile",	 	(const char ** )spec_names_multi_ring},
 	};
 
 	// convert str to vVMA_spec_t; upon error - returns the given 'def_value'
@@ -603,7 +603,7 @@ void mce_sys_var::get_env_params()
 		tcp_ctl_thread            = CTL_THREAD_NO_WAKEUP; //MCE_DEFAULT_TCP_CTL_THREAD (CTL_THREAD_DISABLE), wait for thread timer to expire
 		break;
 
-	case MCE_SPEC_STAC:
+	case MCE_SPEC_LL_MULTI_RING:
 		mem_alloc_type           = ALLOC_TYPE_HUGEPAGES; //MCE_DEFAULT_MEM_ALLOC_TYPE (ALLOC_TYPE_CONTIG) VMA_MEM_ALLOC_TYPE
 		select_poll_num          = -1; //MCE_DEFAULT_SELECT_NUM_POLLS (100000) VMA_SELECT_POLL
 		rx_poll_num              = -1; //MCE_DEFAULT_RX_NUM_POLLS(100000) VMA_RX_POLL
