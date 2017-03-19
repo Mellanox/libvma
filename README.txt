@@ -1,4 +1,4 @@
-Updated: 02 Feb 2017
+Updated: 19 Mar 2017
 
 Introduction
 ============
@@ -276,9 +276,13 @@ latency
      VMA_INTERNAL_THREAD_AFFINITY = 0         (default: -1)
      VMA_THREAD_MODE = Single                 (default: Multi spin lock)
      VMA_MEM_ALLOC_TYPE = 2                   (default: 1 (Contig Pages))
+
     Example: VMA_SPEC=latency
-stac
-Optimized profile for STAC-N Benchmark
+
+multi_ring_latency
+     Optimized for use cases that are keen on latency where two applications communicate using send-only and receive-only TCP sockets
+          
+    Multi ring latency SPEC changes the following default configuration
      VMA_MEM_ALLOC_TYPE = 2                   (default: 1 (Contig Pages))
      VMA_SELECT_POLL = -1                     (default: 100000)
      VMA_RX_POLL = -1                         (default: 100000)
@@ -287,7 +291,8 @@ Optimized profile for STAC-N Benchmark
      VMA_SELECT_POLL_OS_RATIO = 0             (default: 10)
      VMA_SELECT_SKIP_OS = 0                   (default: 4)
      VMA_RX_POLL_ON_TX_TCP = true             (dafault: false)
-    Example: VMA_SPEC=stac
+
+    Example: VMA_SPEC=multi_ring_latency
 
 VMA_STATS_FILE
 Redirect socket statistics to a specific user defined file.
