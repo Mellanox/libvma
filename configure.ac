@@ -830,7 +830,7 @@ fi
 AM_CONDITIONAL([HAVE_LIBNL], [test "$have_libnl" = "yes"])
 
 AC_CHECK_LIB([rdmacm], [rdma_lib_reset],
-		[AC_DEFINE([RDMA_LIB_RESET], [1], [rdma_lib_reset enabled])], [])
+		[AC_DEFINE([DEFINED_RDMA_LIB_RESET], [1], [rdma_lib_reset enabled])], [])
 
 AC_CONFIG_FILES([
 		Makefile
