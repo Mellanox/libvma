@@ -326,6 +326,9 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	if( si == NULL )
 		return false;
 
+	// If m_flow_tag_enabled==true then flow tag is supported and flow_tag_id is guaranteed
+	// to have a !0 value which will results in a flow id being added to the flow spec.
+	// Otherwise, flow tag is not supported, flow_tag_id=0 and no flow id will be set in the flow spec.
 	if (m_flow_tag_enabled) {
 		// sockfd=0 is valid too but flow_tag_id=0 is invalid, increment it
 		// effectively limiting our sockfd range to FLOW_TAG_MASK-1
@@ -387,13 +390,14 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	} else if (flow_spec_5t.is_udp_mc()) {
 		flow_spec_udp_mc_key_t key_udp_mc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
 
-		if (flow_tag_id && (m_b_sysvar_mc_force_flowtag || !si->addr_in_reuse())) {
-			ring_logdbg("MC FlowTag ID=%d is enabled as force_flowtag=%d SO_REUSEADDR=%d",
-				    flow_tag_id, m_b_sysvar_mc_force_flowtag, si->addr_in_reuse());
-		} else {
-			ring_logdbg("MC FlowTag ID=%d for socketinfo=%p is disabled as force_flowtag=%d SO_REUSEADDR=%d",
-				    flow_tag_id, si, m_b_sysvar_mc_force_flowtag, si->addr_in_reuse());
-			flow_tag_id = FLOW_TAG_MASK; // MC so far can't be handled by flow_tag as socket is shared
+		if (flow_tag_id) {
+			if (m_b_sysvar_mc_force_flowtag || !si->addr_in_reuse()) {
+				ring_logdbg("MC flow tag ID=%d for socketinfo=%p is enabled: force_flowtag=%d, SO_REUSEADDR=%d",
+					flow_tag_id, si, m_b_sysvar_mc_force_flowtag, si->addr_in_reuse());
+			} else {
+				flow_tag_id = FLOW_TAG_MASK;
+				ring_logdbg("MC flow tag for socketinfo=%p is disabled: force_flowtag=0, SO_REUSEADDR=1", si);
+			}
 		}
 		// Note for CX3:
 		// For IB MC flow, the port is zeroed in the ibv_flow_spec when calling to ibv_flow_spec().
@@ -489,7 +493,7 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 
 	bool ret = p_rfs->attach_flow(sink);
 	if (ret) {
-		if (m_flow_tag_enabled && flow_tag_id && (flow_tag_id != FLOW_TAG_MASK) ) {
+		if (flow_tag_id && (flow_tag_id != FLOW_TAG_MASK)) {
 			// A flow with FlowTag was attached succesfully, check stored rfs for fast path be tag_id
 			si->set_flow_tag(flow_tag_id);
 			ring_logdbg("flow_tag: %d registration is done!", flow_tag_id);
