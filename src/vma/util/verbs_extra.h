@@ -302,6 +302,16 @@ typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_ta
 #endif //DEFINED_IBV_EXP_FLOW_TAG
 #endif
 
+#ifdef DEFINED_RDMA_LIB_RESET
+static inline int vma_rdma_lib_reset() {
+	return rdma_lib_reset();
+}
+#else
+static inline int vma_rdma_lib_reset() {
+	return 0;
+}
+#endif
+
 static inline void init_vma_ibv_cq_init_attr(vma_ibv_cq_init_attr* attr)
 {
 #ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP

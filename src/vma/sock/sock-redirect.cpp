@@ -2107,12 +2107,10 @@ pid_t fork(void)
 
 		safe_mce_sys().get_env_params();
 		vlog_start("VMA", safe_mce_sys().log_level, safe_mce_sys().log_filename, safe_mce_sys().log_details, safe_mce_sys().log_colors);
-#ifdef DEFINED_RDMA_LIB_RESET
-		if (rdma_lib_reset()) {
+		if (vma_rdma_lib_reset()) {
 			srdr_logerr("Child Process: rdma_lib_reset failed %m",
 					errno);
 		}
-#endif
 		srdr_logdbg_exit("Child Process: starting with %d", getpid());
 		g_is_forked_child = false;
 		sock_redirect_main();
@@ -2167,12 +2165,10 @@ int daemon(int __nochdir, int __noclose)
 
 		safe_mce_sys().get_env_params();
 		vlog_start("VMA", safe_mce_sys().log_level, safe_mce_sys().log_filename, safe_mce_sys().log_details, safe_mce_sys().log_colors);
-#ifdef DEFINED_RDMA_LIB_RESET
-		if (rdma_lib_reset()) {
+		if (vma_rdma_lib_reset()) {
 			srdr_logerr("Child Process: rdma_lib_reset failed %m",
 					errno);
 		}
-#endif
 		srdr_logdbg_exit("Child Process: starting with %d", getpid());
 		g_is_forked_child = false;
 		sock_redirect_main();
