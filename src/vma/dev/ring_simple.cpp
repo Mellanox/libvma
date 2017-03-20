@@ -391,9 +391,13 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 			ring_logdbg("MC FlowTag ID=%d is enabled as force_flowtag=%d SO_REUSEADDR=%d",
 				    flow_tag_id, m_b_sysvar_mc_force_flowtag, si->addr_in_reuse());
 		} else {
+			if (m_flow_tag_enabled) {
+				// MC so far can't be handled by flow_tag as socket is shared
+				// forcing fallback to normal path
+				flow_tag_id = FLOW_TAG_MASK;
+			}
 			ring_logdbg("MC FlowTag ID=%d for socketinfo=%p is disabled as force_flowtag=%d SO_REUSEADDR=%d",
 				    flow_tag_id, si, m_b_sysvar_mc_force_flowtag, si->addr_in_reuse());
-			flow_tag_id = FLOW_TAG_MASK; // MC so far can't be handled by flow_tag as socket is shared
 		}
 		// For IB MC flow, the port is zeroed in the ibv_flow_spec when calling to ibv_flow_spec().
 		// It means that for every MC group, even if we have sockets with different ports - only one rule in the HW.
