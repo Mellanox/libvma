@@ -261,7 +261,7 @@ int priv_ibv_query_qp_state(struct ibv_qp *qp)
 }
 
 int vma_rdma_lib_reset() {
-#ifdef DEFINED_RDMA_LIB_RESET
+#ifdef HAVE_RDMA_LIB_RESET
 	vlog_printf(VLOG_DEBUG, "rdma_lib_reset called");
 	return rdma_lib_reset();
 #else
