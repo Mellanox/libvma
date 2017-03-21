@@ -814,11 +814,11 @@ AC_CHECK_LIB([pthread], [pthread_create])
 
 TMP_LDFLAGS=$LDFLAGS
 AC_CHECK_LIB([rdmacm], [rdma_create_id],
-		[LDFLAGS="$LDFLAGS -lrdmacm" VERBS_FLAGS="$VERBS_FLAGS -lrdmacm"],
-		[AC_MSG_FAILURE([rdmacm not found])])
+		[LDFLAGS="$LDFLAGS -lrdmacm" AC_SUBST([VERBS_FLAGS], ["$VERBS_FLAGS -lrdmacm"])],
+		[])
 AC_CHECK_FUNCS_ONCE([rdma_lib_reset])
-AC_CHECK_LIB([ibverbs], [ibv_cmd_poll_cq], [VERBS_FLAGS="$VERBS_FLAGS -libverbs"],
-		[AC_MSG_FAILURE([libibverbs not found])])
+AC_CHECK_LIB([ibverbs], [ibv_cmd_poll_cq], [AC_SUBST([VERBS_FLAGS], ["$VERBS_FLAGS -libverbs"])],
+		[])
 LDFLAGS=$TMP_LDFLAGS
 
 have_libnl=no
