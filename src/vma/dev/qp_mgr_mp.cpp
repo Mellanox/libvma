@@ -44,7 +44,7 @@
 #define qp_logfuncall		__log_info_funcall
 
 
-#ifdef HAVE_INFINIBAND_MLX5_HW_H
+#ifdef HAVE_MP_RQ
 
 
 cq_mgr* qp_mgr_mp::init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_channel)
@@ -260,6 +260,6 @@ qp_mgr_mp::~qp_mgr_mp()
 {
 
 }
-#endif
+#endif //HAVE_MP_RQ
 
 

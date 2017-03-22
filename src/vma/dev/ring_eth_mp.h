@@ -35,7 +35,7 @@
 
 #include <dev/ring_simple.h>
 
-#ifdef HAVE_INFINIBAND_MLX5_HW_H
+#ifdef HAVE_MP_RQ
 
 #define VMA_MP_RQ_FILLER_CQE		(1 << 31) // last bit
 
@@ -89,5 +89,5 @@ private:
 	struct timespec			m_curr_hw_timestamp;
 };
 
-#endif /* DEFINED_IBV_OLD_VERBS_MLX_OFED */
+#endif /* HAVE_MP_RQ */
 #endif /* SRC_VMA_DEV_RING_ETH_MP_H_ */

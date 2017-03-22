@@ -44,7 +44,7 @@
 #define cq_logfine		__log_info_fine
 
 
-#ifdef HAVE_INFINIBAND_MLX5_HW_H
+#ifdef HAVE_MP_RQ
 
 cq_mgr_mp::cq_mgr_mp(ring_eth_mp *p_ring, ib_ctx_handler *p_ib_ctx_handler,
 		     uint32_t cq_size,
@@ -163,5 +163,5 @@ cq_mgr_mp::~cq_mgr_mp()
 {
 	m_skip_dtor = true;
 }
-#endif //HAVE_INFINIBAND_MLX5_HW_H
+#endif // HAVE_MP_RQ
 

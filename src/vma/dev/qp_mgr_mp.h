@@ -37,7 +37,7 @@
 #include "dev/ring_eth_mp.h"
 #include "dev/cq_mgr_mp.h"
 
-#ifdef HAVE_INFINIBAND_MLX5_HW_H
+#ifdef HAVE_MP_RQ
 
 class cq_mgr_mp;
 
@@ -74,6 +74,6 @@ private:
 	struct ibv_exp_rwq_ind_table*	m_p_rwq_ind_tbl;
 	struct ibv_qp*			m_p_tx_qp;
 };
-#endif
+#endif /* HAVE_MP_RQ */
 
 #endif /* SRC_VMA_DEV_QP_MGR_MP_H_ */

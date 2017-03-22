@@ -806,7 +806,6 @@ AC_TRY_LINK(
   AC_MSG_RESULT([no])
 ])
 
-
 AC_CHECK_LIB([stdc++], [atoi])
 AC_CHECK_LIB([dl], [dlsym])
 AC_CHECK_LIB([rt], [clock_gettime])
@@ -820,6 +819,15 @@ AC_CHECK_FUNCS_ONCE([rdma_lib_reset])
 AC_CHECK_LIB([ibverbs], [ibv_cmd_poll_cq], [VERBS_FLAGS="$VERBS_FLAGS -libverbs"],
 		[])
 AC_SUBST([VERBS_FLAGS])
+AC_CHECK_DECLS([IBV_EXP_DEVICE_ATTR_VLAN_OFFLOADS,
+		IBV_EXP_DEVICE_ATTR_MAX_CTX_RES_DOMAIN,
+		IBV_EXP_CQ_RX_UDP_PACKET,
+		MLX5_CQE_L3_HDR_TYPE_MASK,
+		MLX5_CQE_L4_OK,
+		MLX5_CQE_L4_HDR_TYPE_UDP],
+		[AC_DEFINE([HAVE_MP_RQ], 1, [MP_RQ QP supported])],
+		[], [[#include <infiniband/verbs_exp.h>]
+			[#include <infiniband/mlx5_hw.h>]])
 LDFLAGS=$TMP_LDFLAGS
 
 have_libnl=no

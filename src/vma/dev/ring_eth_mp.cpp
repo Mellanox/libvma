@@ -39,7 +39,7 @@
 #define MODULE_HDR		MODULE_NAME "%d:%s() "
 
 
-#ifdef HAVE_INFINIBAND_MLX5_HW_H
+#ifdef HAVE_MP_RQ
 
 ring_eth_mp::ring_eth_mp(in_addr_t local_if,
 			 ring_resource_creation_info_t *p_ring_info, int count,
@@ -277,5 +277,5 @@ ring_eth_mp::~ring_eth_mp()
 		ring_logdbg("call to ibv_exp_destroy_res_domain returned %d", res);
 
 }
-#endif
+#endif /* HAVE_MP_RQ */
 
