@@ -1,3 +1,36 @@
+Version 8.2.10-0:
+Date + Time 2017-03-22 (branch: fast_update_release_20032017)
+=============================================================
+Fixed:
+        - RM #922411 Fix usage of AC_SUBST in rdma_lib_reset() detection
+
+Version 8.2.9-0:
+Date + Time 2017-03-21 (branch: fast_update_release_20032017)
+=============================================================
+Added:
+        - RM #964022 Optimize vma_list.h for performance
+        - RM #972524 Optimize data-path by removing unnecessary if statements
+        - RM #973211 Optimize buffer pool code
+        - RM #981372 Optimize mem_buf_desc_t class
+        - RM #987687 Request buffer for next packet after send_ring_buffer()
+        - RM #965720 Add new specification VMA_SPEC=multi_ring_latency
+        - RM #972524 Protect pointer access to OS API
+        - RM #981342 Remove buffer disorder statistics
+        - RM #964360 Reduce page fault events in mlx5_send() call
+        - RM #968751 Add boolean configuration parameter VMA_RX_POLL_ON_TX_TCP
+        - RM #969414 Set log severity to ERROR (was DEBUG) in case of insufficient buffers in pool
+        - RM #953380 Support dynamic routing in case of "add route" event
+        - RM #910917 Return error on socket API if exception occurred
+
+Fixed:
+        - RM #922411  Fix fork() in child process
+	- RM #922411  Fix rdma_lib_reset() auto detection
+        - RM #957729  Fix potential race condition in vma_stats
+        - RM #906042  Fix VMA errno when reaching TCP max backlog to match OS
+        - RM #973194  Fix configure on parameters that caused compilation errors
+        - RM #987687  Fix request buffer for next packet after send_ring_buffer()
+        - RM #1003524 Fix fanotify_init() failure on aarch64 architecture
+
 Version 8.2.8-0:
 Date + Time 2017-01-25
 =======================
