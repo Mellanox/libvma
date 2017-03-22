@@ -329,7 +329,7 @@ private:
 	volatile struct mlx5_cqe64	(*m_cqes)[];
 	volatile uint32_t			*m_cq_dbell;
 	mem_buf_desc_t				*m_rx_hot_buffer;
-	struct mlx5_wq				*m_rq;
+	volatile struct mlx5_wq		*m_rq;
 	uint64_t					*m_p_rq_wqe_idx_to_wrid;
 };
 #endif

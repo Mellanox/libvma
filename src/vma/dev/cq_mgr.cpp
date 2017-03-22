@@ -1684,9 +1684,8 @@ inline mem_buf_desc_t*		cq_mgr_mlx5::poll(uint32_t&	opcode, uint32_t&	status)
 		/* Update the consumer index. */
 		m_cq_cons_index++;
 		wmb();
-		*m_cq_dbell = htonl(m_cq_cons_index);
-
 		m_rq->tail++;
+		*m_cq_dbell = htonl(m_cq_cons_index);
 		buff = m_rx_hot_buffer;
 		m_rx_hot_buffer = NULL;
 	} else {
