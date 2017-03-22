@@ -395,11 +395,12 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 				    flow_tag_id, si, m_b_sysvar_mc_force_flowtag, si->addr_in_reuse());
 			flow_tag_id = FLOW_TAG_MASK; // MC so far can't be handled by flow_tag as socket is shared
 		}
+		// Note for CX3:
 		// For IB MC flow, the port is zeroed in the ibv_flow_spec when calling to ibv_flow_spec().
 		// It means that for every MC group, even if we have sockets with different ports - only one rule in the HW.
 		// So the hash map below keeps track of the number of sockets per rule so we know when to call ibv_attach and ibv_detach
 		rfs_rule_filter* l2_mc_ip_filter = NULL;
-		if (m_transport_type == VMA_TRANSPORT_IB || m_b_sysvar_eth_mc_l2_only_rules) {
+		if ((m_transport_type == VMA_TRANSPORT_IB && 0 == m_p_qp_mgr->get_underly_qpn()) || m_b_sysvar_eth_mc_l2_only_rules) {
 			rule_filter_map_t::iterator l2_mc_iter = m_l2_mc_ip_attach_map.find(key_udp_mc.dst_ip);
 			if (l2_mc_iter == m_l2_mc_ip_attach_map.end()) { // It means that this is the first time attach called with this MC ip
 				m_l2_mc_ip_attach_map[key_udp_mc.dst_ip].counter = 1;
