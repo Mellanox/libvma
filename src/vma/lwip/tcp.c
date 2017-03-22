@@ -854,7 +854,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 
 	/* Check if this PCB has stayed too long in LAST-ACK */
 	if (get_tcp_state(pcb) == LAST_ACK) {
-	  if ((u32_t)(tcp_ticks - pcb->tmr) > 2 * TCP_MSL / TCP_SLOW_INTERVAL) {
+	  if ((u32_t)(tcp_ticks - pcb->tmr) > 2 * get_tcp_msl(pcb) / TCP_SLOW_INTERVAL) {
 		++pcb_remove;
 		err = ERR_ABRT;
 		LWIP_DEBUGF(TCP_DEBUG, ("tcp_slowtmr: removing pcb stuck in LAST-ACK\n"));
@@ -892,7 +892,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 	pcb_remove = 0;
 
 	/* Check if this PCB has stayed long enough in TIME-WAIT */
-	if ((u32_t)(tcp_ticks - pcb->tmr) > 2 * TCP_MSL / TCP_SLOW_INTERVAL) {
+	if ((u32_t)(tcp_ticks - pcb->tmr) > 2 * get_tcp_msl(pcb) / TCP_SLOW_INTERVAL) {
 	  ++pcb_remove;
 	  /* err = ERR_ABRT; */ /* Note: suppress warning 'err' is never read */
 	}

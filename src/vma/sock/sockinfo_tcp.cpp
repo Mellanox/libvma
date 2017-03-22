@@ -227,6 +227,7 @@ sockinfo_tcp::sockinfo_tcp(int fd) throw (vma_exception) :
 	si_tcp_logdbg("tcp socket created");
 
 	tcp_pcb_init(&m_pcb, TCP_PRIO_NORMAL);
+	m_pcb.tcp_msl = safe_mce_sys().tcp_msl;
 
 	si_tcp_logdbg("new pcb %p pcb state %d", &m_pcb, get_tcp_state(&m_pcb));
 	tcp_arg(&m_pcb, this);

@@ -159,6 +159,7 @@ Example:
  VMA DETAILS: CQ Keeps QP Full               Enabled                    [VMA_CQ_KEEP_QP_FULL]
  VMA DETAILS: QP Compensation Level          256                        [VMA_QP_COMPENSATION_LEVEL]
  VMA DETAILS: Offloaded Sockets              Enabled                    [VMA_OFFLOADED_SOCKETS]
+ VMA DETAILS: TCP max segment lifetime (msec) 60000                      [VMA_TCP_MSL]
  VMA DETAILS: Timer Resolution (msec)        10                         [VMA_TIMER_RESOLUTION_MSEC]
  VMA DETAILS: TCP Timer Resolution (msec)    100                        [VMA_TCP_TIMER_RESOLUTION_MSEC]
  VMA DETAILS: TCP control thread             0 (Disabled)               [VMA_TCP_CTL_THREAD]
@@ -672,6 +673,10 @@ VMA_OFFLOADED_SOCKETS
 Create all sockets as offloaded/not-offloaded by default.
 Value of 1 is for offloaded, 0 for not-offloaded.
 Default value is 1 (Enabled)
+
+VMA_TCP_MSL
+Maximum Segment Lifetime, the time a TCP segment can exist in the internetwork system.
+Default value is 60000 (milli-sec)
 
 VMA_TIMER_RESOLUTION_MSEC
 Control VMA internal thread wakeup timer resolution (in milli seconds)
