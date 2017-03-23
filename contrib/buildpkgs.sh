@@ -10,10 +10,10 @@ DEST_DIR="${C_DIR}/PKGS"
 
 if [ -x /usr/bin/dpkg-buildpackage ] ; then
 	PKGM="deb"
-	PKG_DIR=${PWD}/deb
+	PKG_DIR=${C_DIR}/deb
 else
 	PKGM="rpm"
-	PKG_DIR=${PWD}/rpm
+	PKG_DIR=${C_DIR}/rpm
 	SRC_PKG_DIR="${PKG_DIR}/SRC"
 	PKG_SPEC=${WORKSPACE}/build/libvma.spec
 fi
@@ -38,9 +38,6 @@ prep_deb_env()
 make_dist()
 {
 	cd ${WORKSPACE} ; ${WORKSPACE}/autogen.sh ; ${WORKSPACE}/configure
-	#[ -n "$(automake --version | grep 'automake (GNU automake) 1.10.1')" ] && make dist
-	#|| make dist && make distcheck'
-	# distcheck is not needed
 	dist=$(make dist | grep  tardir=libvma | awk -F ' ' '{print $1}' | awk -F '=' '{print $2}') ; dist+=".tar.gz"
 	[ -f  "${WORKSPACE}/${dist}" ] && cp ${WORKSPACE}/${dist} ${SRC_PKG_DIR}/${dist} || err "file not found ${dist}"
 	cd ${C_DIR} 
@@ -51,11 +48,11 @@ build_rpm_stage()
 	local rpmspec=$1 ; local stage=$2 ; local src_dir=$3 ; local rpm_dir=$4
 	rpmmacros=" --define='_rpmdir ${rpm_dir}/rpm-dist'"
 	rpmmacros+=" --define='_srcrpmdir ${rpm_dir}/rpm-dist'"
-        rpmmacros+=" --define='_sourcedir ${src_dir}'"
-        rpmmacros+=" --define='_specdir ${rpm_dir}'"
-        rpmmacros+=" --define='_builddir ${rpm_dir}'"
-        rpmopts=" --nodeps --buildroot='${rpm_dir}/_rpm'"
-        eval rpmbuild ${stage} -v ${rpmmacros} ${rpmopts} ${rpmspec}
+	rpmmacros+=" --define='_sourcedir ${src_dir}'"
+	rpmmacros+=" --define='_specdir ${rpm_dir}'"
+	rpmmacros+=" --define='_builddir ${rpm_dir}'"
+	rpmopts=" --nodeps --buildroot='${rpm_dir}/_rpm'"
+	eval rpmbuild ${stage} -v ${rpmmacros} ${rpmopts} ${rpmspec}
 }
 
 build_rpm()
