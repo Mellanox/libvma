@@ -182,6 +182,7 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
                         total_packet_len- p_tcp_h->doff*4 -34);
 #endif
 
+	// Request tx buffers for the next packets
 	if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
 		m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, m_n_sysvar_tx_bufs_batch_tcp);
 	}

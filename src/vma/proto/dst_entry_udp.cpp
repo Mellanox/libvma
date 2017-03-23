@@ -78,30 +78,31 @@ void dst_entry_udp::configure_headers()
 
 inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked, size_t sz_udp_payload, ssize_t sz_data_payload)
 {
-	mem_buf_desc_t* p_mem_buf_desc;
+	// Check if the next buffers is ready
+	if (unlikely(m_p_tx_mem_buf_desc_head == NULL)) {
 
-	// Get a bunch of tx buf descriptor and data buffers
-	if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
+		// Get a bunch of tx buf descriptor and data buffers
 		m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, m_n_sysvar_tx_bufs_batch_udp);
-	}
-	p_mem_buf_desc = m_p_tx_mem_buf_desc_list;
 
-	if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
-		if (b_blocked) {
-			dst_udp_logdbg("Error when blocking for next tx buffer (errno=%d %m)", errno);
+		if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
+			if (b_blocked) {
+				dst_udp_logdbg("Error when blocking for next tx buffer (errno=%d %m)", errno);
+			}
+			else {
+				dst_udp_logfunc("Packet dropped. NonBlocked call but not enough tx buffers. Returning OK");
+				if (!m_b_sysvar_tx_nonblocked_eagains) return sz_data_payload;
+			}
+			errno = EAGAIN;
+			return -1;
 		}
 		else {
-			dst_udp_logfunc("Packet dropped. NonBlocked call but not enough tx buffers. Returning OK");
-			if (!m_b_sysvar_tx_nonblocked_eagains) return sz_data_payload;
+			// Disconnect the first buffer from the list
+			m_p_tx_mem_buf_desc_head = m_p_tx_mem_buf_desc_list;
+			m_p_tx_mem_buf_desc_list = m_p_tx_mem_buf_desc_list->p_next_desc;
+			m_p_tx_mem_buf_desc_head->p_next_desc = NULL;
 		}
-		errno = EAGAIN;
-		return -1;
 	}
-	else {
-		m_p_tx_mem_buf_desc_list = m_p_tx_mem_buf_desc_list->p_next_desc;
-		set_tx_buff_list_pending(false);
-	}
-	p_mem_buf_desc->p_next_desc = NULL;
+	set_tx_buff_list_pending(false);
 
 	// Check if inline is possible
 	if (sz_iov == 1 && (sz_data_payload + m_header.m_total_hdr_len) < m_max_inline) {
@@ -117,11 +118,11 @@ inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const
 	} else {
 		m_p_send_wqe = &m_not_inline_send_wqe;
 
-		tx_packet_template_t *p_pkt = (tx_packet_template_t*)p_mem_buf_desc->p_buffer;
+		tx_packet_template_t *p_pkt = (tx_packet_template_t*)m_p_tx_mem_buf_desc_head->p_buffer;
 		size_t hdr_len = m_header.m_transport_header_len + m_header.m_ip_header_len + sizeof(udphdr); // Add count of L2 (ipoib or mac) header length and udp header
 
 		if (m_n_sysvar_tx_prefetch_bytes) {
-			prefetch_range(p_mem_buf_desc->p_buffer + m_header.m_transport_header_tx_offset,
+			prefetch_range(m_p_tx_mem_buf_desc_head->p_buffer + m_header.m_transport_header_tx_offset,
 					min(sz_udp_payload, (size_t)m_n_sysvar_tx_prefetch_bytes));
 		}
 
@@ -135,17 +136,17 @@ inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const
 
 		// Update the payload addr + len
 		m_sge[1].length = sz_data_payload + hdr_len;
-		m_sge[1].addr = (uintptr_t)(p_mem_buf_desc->p_buffer + (uint8_t)m_header.m_transport_header_tx_offset);
+		m_sge[1].addr = (uintptr_t)(m_p_tx_mem_buf_desc_head->p_buffer + (uint8_t)m_header.m_transport_header_tx_offset);
 
 		// Calc payload start point (after the udp header if present else just after ip header)
-		uint8_t* p_payload = p_mem_buf_desc->p_buffer + m_header.m_transport_header_tx_offset + hdr_len;
+		uint8_t* p_payload = m_p_tx_mem_buf_desc_head->p_buffer + m_header.m_transport_header_tx_offset + hdr_len;
 
 		// Copy user data to our tx buffers
 		int ret = memcpy_fromiovec(p_payload, p_iov, sz_iov, 0, sz_data_payload);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (ret != (int)sz_data_payload) {
 			dst_udp_logerr("memcpy_fromiovec error (sz_user_data_to_copy=%d, ret=%d)", sz_data_payload, ret);
-			m_p_ring->mem_buf_tx_release(p_mem_buf_desc, true);
+			m_p_ring->mem_buf_tx_release(m_p_tx_mem_buf_desc_head, true);
 			errno = EINVAL;
 			return -1;
 		}
@@ -158,13 +159,23 @@ inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const
 	m_header.m_header.hdr.m_ip_hdr.check = compute_ip_checksum((unsigned short*)&m_header.m_header.hdr.m_ip_hdr, m_header.m_header.hdr.m_ip_hdr.ihl * 2);
 #endif
 
-	m_p_send_wqe->wr_id = (uintptr_t)p_mem_buf_desc;
+	m_p_send_wqe->wr_id = (uintptr_t)m_p_tx_mem_buf_desc_head;
 	send_ring_buffer(m_id, m_p_send_wqe, b_blocked, is_dummy);
 
-	// request tx buffers for the next packets
+	// Request tx buffers for the next packets
 	if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
 		m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, m_n_sysvar_tx_bufs_batch_udp);
+
+		if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
+			m_p_tx_mem_buf_desc_head = NULL;
+			return sz_data_payload;
+		}
 	}
+
+	// Disconnect the first buffer from the list for the next packet
+	m_p_tx_mem_buf_desc_head = m_p_tx_mem_buf_desc_list;
+	m_p_tx_mem_buf_desc_list = m_p_tx_mem_buf_desc_list->p_next_desc;
+	m_p_tx_mem_buf_desc_head->p_next_desc = NULL;
 
 	// If all went well :) then return the user data count transmitted
 	return sz_data_payload;
