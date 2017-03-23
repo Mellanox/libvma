@@ -46,7 +46,7 @@ inline void cq_mgr::process_recv_buffer(mem_buf_desc_t* p_mem_buf_desc, void* pv
 	// Assume locked!!!
 
 	// Pass the Rx buffer ib_comm_mgr for further IP processing
-	if (!m_p_ring->rx_process_buffer(p_mem_buf_desc, m_transport_type, pv_fd_ready_array)) {
+	if (!m_p_ring->rx_process_buffer(p_mem_buf_desc, pv_fd_ready_array)) {
 		// If buffer is dropped by callback - return to RX pool
 		reclaim_recv_buffer_helper(p_mem_buf_desc);
 	}

@@ -365,6 +365,7 @@ tscval_t g_si_tscv_last_poll = 0;
 
 sockinfo_udp::sockinfo_udp(int fd) throw (vma_exception) :
 	sockinfo(fd)
+	,m_rx_packet_processor(&sockinfo_udp::rx_process_udp_packet_full)
 	,m_mc_tx_if(INADDR_ANY)
 	,m_b_mc_tx_loop(safe_mce_sys().tx_mc_loopback_default) // default value is 'true'. User can change this with config parameter SYS_VAR_TX_MC_LOOPBACK
 	,m_n_mc_ttl(DEFAULT_MC_TTL)
@@ -385,6 +386,9 @@ sockinfo_udp::sockinfo_udp(int fd) throw (vma_exception) :
 	,m_n_sysvar_rx_cq_drain_rate_nsec(safe_mce_sys().rx_cq_drain_rate_nsec)
 	,m_n_sysvar_rx_delta_tsc_between_cq_polls(safe_mce_sys().rx_delta_tsc_between_cq_polls)
 	,m_reuseaddr(false)
+	,m_sockopt_mapped(false)
+	,m_is_connected(false)
+	,m_multicast(false)
 {
 	si_udp_logfunc("");
 
@@ -584,6 +588,9 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 			return 0; // zero returned from orig_connect()
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
+
+		m_is_connected = true; // will inspect for SRC
+
 		on_sockname_change(name, *namelen);
 
 		si_udp_logdbg("bound to %s", m_bound.to_str());
@@ -609,6 +616,7 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 			m_p_socket_stats->connected_ip = INADDR_ANY;
 			m_connected.set_in_port(INPORT_ANY);
 			m_p_socket_stats->connected_port = INPORT_ANY;
+			m_is_connected = false; // will skip inspection for SRC
 			return 0;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
@@ -1109,6 +1117,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 				si_udp_logdbg("found UDP_MAP_ADD socket fd for port %d. fd is %d", ntohs(port_socket.port), port_socket.fd);			
 				m_port_map.push_back(port_socket);
 			}
+			m_sockopt_mapped = true;
 			m_port_map_lock.unlock();
 			return 0;
 
@@ -1121,6 +1130,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 			si_udp_logdbg("stopping de-muxing packets to port %d", ntohs(port));
 			m_port_map_lock.lock();
 			m_port_map.erase(std::remove(m_port_map.begin(), m_port_map.end(), port), m_port_map.end());
+			m_sockopt_mapped = false;
 			m_port_map_lock.unlock();
 			return 0;
 		} // case IPPROTO_UDP
@@ -1776,57 +1786,24 @@ bool sockinfo_udp::tx_check_if_would_not_block()
     #pragma BullseyeCoverage on
 #endif
 
-bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
+/**
+ * sockinfo_udp::inspect_uc_packet inspects the input packet for basic rules,
+ * common for all cases. Its applicable for UC case as well.
+ */
+inline bool sockinfo_udp::inspect_uc_packet(mem_buf_desc_t* p_desc)
 {
 	// Check that sockinfo is bound to the packets dest port
+	// This protects the case where a socket is closed and a new one is rapidly opened
+	// receiving the same socket id.
+	// In this case packets arriving for the old sockets should be dropped.
+	// This distinction assumes that the OS guarantees the old and new sockets to receive different
+	// port numbers from bind().
+	// If the user requests to bind the new socket to the same port number as the old one it will be
+	// impossible to identify packets designated for the old socket in this way.
 	if (unlikely(p_desc->rx.dst.sin_port != m_bound.get_in_port())) {
 		si_udp_logfunc("rx packet discarded - not socket's bound port (pkt: %d, sock:%s)",
-		           ntohs(p_desc->rx.dst.sin_port), m_bound.to_str_in_port());
+			   ntohs(p_desc->rx.dst.sin_port), m_bound.to_str_in_port());
 		return false;
-	}
-
-	if (m_connected.get_in_port() != INPORT_ANY && m_connected.get_in_addr() != INADDR_ANY) {
-		if (unlikely(m_connected.get_in_port() != p_desc->rx.src.sin_port)) {
-			si_udp_logfunc("rx packet discarded - not socket's connected port (pkt: %d, sock:%s)",
-				   ntohs(p_desc->rx.src.sin_port), m_connected.to_str_in_port());
-			return false;
-		}
-
-		if (unlikely(m_connected.get_in_addr() != p_desc->rx.src.sin_addr.s_addr)) {
-			si_udp_logfunc("rx packet discarded - not socket's connected port (pkt: [%d:%d:%d:%d], sock:[%s])",
-				   NIPQUAD(p_desc->rx.src.sin_addr.s_addr), m_connected.to_str_in_addr());
-			return false;
-		}
-	}
-
-	// if loopback is disabled, discard loopback packets.
-	// in linux, loopback control (set by setsockopt) is done in TX flow.
-	// since we currently can't control it in TX, we behave like windows, which filter on RX
-	if (unlikely(!m_b_mc_tx_loop && p_desc->rx.udp.local_if == p_desc->rx.src.sin_addr.s_addr)) {
-		si_udp_logfunc("rx packet discarded - loopback is disabled (pkt: [%d:%d:%d:%d], sock:%s)",
-			NIPQUAD(p_desc->rx.src.sin_addr.s_addr), m_bound.to_str_in_addr());
-		return false;
-	}
-
-	// Check port mapping - redirecting packets to another socket
-	while (!m_port_map.empty()) {
-		m_port_map_lock.lock();
-		if (m_port_map.empty()) {
-			m_port_map_lock.unlock();
-			break;
-		}
-		m_port_map_index = ((m_port_map_index + 1) >= m_port_map.size() ? 0 : (m_port_map_index + 1));
-		int new_port = m_port_map[m_port_map_index].port;
-		socket_fd_api* sock_api = g_p_fd_collection->get_sockfd(m_port_map[m_port_map_index].fd);
-		if (!sock_api || sock_api->get_type()!=FD_TYPE_SOCKET) {
-			m_port_map.erase(std::remove(m_port_map.begin(), m_port_map.end(), m_port_map[m_port_map_index].port));
-			if(m_port_map_index) m_port_map_index--;
-			m_port_map_lock.unlock();
-			continue;
-		}
-		m_port_map_lock.unlock();
-		p_desc->rx.dst.sin_port = new_port;
-		return ((sockinfo_udp*)sock_api)->rx_input_cb(p_desc, pv_fd_ready_array);
 	}
 
 	// Check if sockinfo rx byte quato reached - then disregard this packet
@@ -1841,7 +1818,45 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 		si_udp_logfunc("rx packet discarded - fd closed");
 		return false;
 	}
+	return true;
+}
 
+/**
+ *	Inspects UDP packets in case socket was connected
+ *
+ */
+inline bool sockinfo_udp::inspect_connected(mem_buf_desc_t* p_desc)
+{
+	if ((m_connected.get_in_port() != INPORT_ANY) && (m_connected.get_in_addr() != INADDR_ANY)) {
+		if (unlikely(m_connected.get_in_port() != p_desc->rx.src.sin_port)) {
+			si_udp_logfunc("rx packet discarded - not socket's connected port (pkt: %d, sock:%s)",
+				   ntohs(p_desc->rx.src.sin_port), m_connected.to_str_in_port());
+			return false;
+		}
+
+		if (unlikely(m_connected.get_in_addr() != p_desc->rx.src.sin_addr.s_addr)) {
+			si_udp_logfunc("rx packet discarded - not socket's connected port (pkt: [%d:%d:%d:%d], sock:[%s])",
+				   NIPQUAD(p_desc->rx.src.sin_addr.s_addr), m_connected.to_str_in_addr());
+			return false;
+		}
+	}
+	return true;
+}
+
+/**
+ *	Inspects multicast packets
+ *
+ */
+inline bool sockinfo_udp::inspect_mc_packet(mem_buf_desc_t* p_desc)
+{
+	// if loopback is disabled, discard loopback packets.
+	// in linux, loopback control (set by setsockopt) is done in TX flow.
+	// since we currently can't control it in TX, we behave like windows, which filter on RX
+	if (unlikely(!m_b_mc_tx_loop && p_desc->rx.udp.local_if == p_desc->rx.src.sin_addr.s_addr)) {
+		si_udp_logfunc("rx packet discarded - loopback is disabled (pkt: [%d:%d:%d:%d], sock:%s)",
+			NIPQUAD(p_desc->rx.src.sin_addr.s_addr), m_bound.to_str_in_addr());
+		return false;
+	}
 	if (m_mc_num_grp_with_src_filter) {
 		in_addr_t mc_grp = p_desc->rx.dst.sin_addr.s_addr;
 		if (IN_MULTICAST_N(mc_grp)) {
@@ -1855,6 +1870,14 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 			}
 		}
 	}
+	return true;
+}
+
+/**
+ * Function to process SW & HW timestamps
+ */
+inline void sockinfo_udp::process_timestamps(mem_buf_desc_t* p_desc)
+{
 	// keep the sw_timestamp the same to all sockets
 	if ((m_b_rcvtstamp ||
 		 (m_n_tsing_flags &
@@ -1870,60 +1893,52 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 			owner_ring->convert_hw_time_to_system_time(p_desc->rx.hw_raw_timestamp, &p_desc->rx.udp.hw_timestamp);
 		}
 	}
+}
 
-	vma_recv_callback_retval_t callback_retval = VMA_PACKET_RECV;
-	if (m_rx_callback) {
-		mem_buf_desc_t *tmp;
-		vma_info_t pkt_info;
-		int nr_frags = 0;
+/**
+ *	Performs inspection by registered user callback
+ *
+ */
+inline vma_recv_callback_retval_t sockinfo_udp::inspect_by_user_cb(mem_buf_desc_t* p_desc)
+{
+	vma_info_t pkt_info;
 
-		pkt_info.struct_sz = sizeof(pkt_info);
-		pkt_info.packet_id = (void*)p_desc;
-		pkt_info.src = &p_desc->rx.src;
-		pkt_info.dst = &p_desc->rx.dst;
-		pkt_info.socket_ready_queue_pkt_count = m_p_socket_stats->n_rx_ready_pkt_count;
-		pkt_info.socket_ready_queue_byte_count = m_p_socket_stats->n_rx_ready_byte_count;
-		if (m_n_tsing_flags & SOF_TIMESTAMPING_RAW_HARDWARE) {
-			pkt_info.hw_timestamp = p_desc->rx.udp.hw_timestamp;
-		}
-		if (p_desc->rx.udp.sw_timestamp.tv_sec) {
-			pkt_info.sw_timestamp = p_desc->rx.udp.sw_timestamp;
-		}
+	pkt_info.struct_sz = sizeof(pkt_info);
+	pkt_info.packet_id = (void*)p_desc;
+	pkt_info.src = &p_desc->rx.src;
+	pkt_info.dst = &p_desc->rx.dst;
+	pkt_info.socket_ready_queue_pkt_count = m_p_socket_stats->n_rx_ready_pkt_count;
+	pkt_info.socket_ready_queue_byte_count = m_p_socket_stats->n_rx_ready_byte_count;
 
-		// fill io vector array with data buffer pointers
-		iovec iov[p_desc->rx.n_frags];
-		nr_frags = 0;
-		for (tmp = p_desc; tmp; tmp = tmp->p_next_desc) {
-			iov[nr_frags++] = tmp->rx.frag;
-		}
-
-		// call user callback
-		callback_retval = m_rx_callback(m_fd, nr_frags, iov,
-		                                &pkt_info, m_rx_callback_context);
-
-		if (callback_retval == VMA_PACKET_DROP) {
-			si_udp_logfunc("rx packet discarded - by user callback");
-			return false;
-		}
+	if (m_n_tsing_flags & SOF_TIMESTAMPING_RAW_HARDWARE) {
+		pkt_info.hw_timestamp = p_desc->rx.udp.hw_timestamp;
+	}
+	if (p_desc->rx.udp.sw_timestamp.tv_sec) {
+		pkt_info.sw_timestamp = p_desc->rx.udp.sw_timestamp;
 	}
 
-	// Yes, we want to keep this packet!
-	// And we must increment ref_counter before pushing this packet into the ready queue
-	//  to prevent race condition with the 'if( (--ref_count) <= 0)' in ib_comm_mgr
-	p_desc->inc_ref_count();
+	// fill io vector array with data buffer pointers
+	iovec iov[p_desc->rx.n_frags];
+	int nr_frags = 0;
+
+	for (mem_buf_desc_t *tmp = p_desc; tmp; tmp = tmp->p_next_desc) {
+		iov[nr_frags++] = tmp->rx.frag;
+	}
+
+	// call user callback
+	return m_rx_callback(m_fd, nr_frags, iov, &pkt_info, m_rx_callback_context);
+}
 
 #ifdef DEFINED_VMAPOLL
-	/* Update vma_completion with
-	 * VMA_POLL_PACKET related data
-	 */
+/* Update vma_completion with
+ * VMA_POLL_PACKET related data
+ */
+inline void sockinfo_udp::fill_completion(mem_buf_desc_t* p_desc)
+{
 	struct vma_completion_t *completion;
-	mem_buf_desc_t *tmp_p;
 
 	/* Try to process vma_poll() completion directly */
-	if (p_desc->rx.vma_polled) {
-		m_vma_poll_completion = m_p_rx_ring->get_comp();
-		m_vma_poll_last_buff_lst = NULL;
-	}
+	m_vma_poll_completion = m_p_rx_ring->get_comp();
 
 	if (m_vma_poll_completion) {
 		completion = m_vma_poll_completion;
@@ -1931,25 +1946,32 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 		completion = &m_ec.completion;
 	}
 
-	completion->packet.buff_lst = (struct vma_buff_t*)p_desc;
-	completion->packet.total_len = 0;
-	completion->src = p_desc->rx.src;
 	completion->packet.num_bufs = p_desc->rx.n_frags;
+	completion->packet.total_len = 0;
 
-	for(tmp_p = p_desc; tmp_p; tmp_p = tmp_p->p_next_desc) {
-		completion->packet.buff_lst = (struct vma_buff_t*)tmp_p;
-		completion->packet.buff_lst->next = (struct vma_buff_t*)tmp_p->p_next_desc;
-		completion->packet.buff_lst->len = p_desc->rx.frag.iov_len;
+	for(mem_buf_desc_t *tmp_p=p_desc; tmp_p; tmp_p=tmp_p->p_next_desc) {
+		completion->packet.total_len        += tmp_p->rx.sz_payload;
+		completion->packet.buff_lst          = (struct vma_buff_t*)tmp_p;
+		completion->packet.buff_lst->next    = (struct vma_buff_t*)tmp_p->p_next_desc;
 		completion->packet.buff_lst->payload = p_desc->rx.frag.iov_base;
-		completion->packet.total_len += tmp_p->rx.sz_payload;
+		completion->packet.buff_lst->len     = p_desc->rx.frag.iov_len;
 	}
+	completion->src = p_desc->rx.src;
 	NOTIFY_ON_EVENTS(this, VMA_POLL_PACKET);
 
 	m_vma_poll_completion = NULL;
-		m_vma_poll_last_buff_lst = NULL;
-#else		
+	m_vma_poll_last_buff_lst = NULL;
+}
+#endif //DEFINED_VMAPOLL
+
+/**
+ *	Performs packet processing for NON-VMAPOLL cases and store packet
+ *	in ready queue.
+ */
+inline void sockinfo_udp::update_ready(mem_buf_desc_t* p_desc, void* pv_fd_ready_array, vma_recv_callback_retval_t cb_ret)
+{
 	// In ZERO COPY case we let the user's application manage the ready queue
-	if (callback_retval != VMA_PACKET_HOLD) {
+	if (cb_ret != VMA_PACKET_HOLD) {
 		m_lock_rcv.lock();
 		// Save rx packet info in our ready list
 		m_rx_pkt_ready_list.push_back(p_desc);
@@ -1957,8 +1979,10 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 		m_rx_ready_byte_count += p_desc->rx.sz_payload;
 		m_p_socket_stats->n_rx_ready_pkt_count++;
 		m_p_socket_stats->n_rx_ready_byte_count += p_desc->rx.sz_payload;
-		m_p_socket_stats->counters.n_rx_ready_pkt_max = max((uint32_t)m_p_socket_stats->n_rx_ready_pkt_count, m_p_socket_stats->counters.n_rx_ready_pkt_max);
-		m_p_socket_stats->counters.n_rx_ready_byte_max = max((uint32_t)m_p_socket_stats->n_rx_ready_byte_count, m_p_socket_stats->counters.n_rx_ready_byte_max);
+		m_p_socket_stats->counters.n_rx_ready_pkt_max = max((uint32_t)m_p_socket_stats->n_rx_ready_pkt_count, 
+								    m_p_socket_stats->counters.n_rx_ready_pkt_max);
+		m_p_socket_stats->counters.n_rx_ready_byte_max = max((uint32_t)m_p_socket_stats->n_rx_ready_byte_count,
+								     m_p_socket_stats->counters.n_rx_ready_byte_max);
 		do_wakeup();
 		m_lock_rcv.unlock();
 	} else {
@@ -1975,11 +1999,124 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 	io_mux_call::update_fd_array((fd_array_t*)pv_fd_ready_array, m_fd);
 
 	si_udp_logfunc("rx ready count = %d packets / %d bytes", m_n_rx_pkt_ready_list_count, m_p_socket_stats->n_rx_ready_byte_count);
+}
 
-	// Yes we like this packet - keep it!
-#endif // DEFINED_VMAPOLL
+/**
+ *	Performs full inspection and processing for generic UDP
+ *	It will be bypassing some inspections if appropriate flags were
+ *	not set.
+ */
+inline bool sockinfo_udp::rx_process_udp_packet_full(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
+{
+	if (!inspect_uc_packet(p_desc))
+		return false;
 
-return true;
+	if (m_is_connected && !inspect_connected(p_desc))
+		return false;
+
+	if (m_multicast && !inspect_mc_packet(p_desc))
+		return false;
+
+	if (m_sockopt_mapped) {
+		// Check port mapping - redirecting packets to another socket
+		while (!m_port_map.empty()) {
+			m_port_map_lock.lock();
+			if (m_port_map.empty()) {
+				m_port_map_lock.unlock();
+				break;
+			}
+			m_port_map_index = ((m_port_map_index + 1) >= m_port_map.size() ? 0 : (m_port_map_index + 1));
+			int new_port = m_port_map[m_port_map_index].port;
+			socket_fd_api* sock_api = g_p_fd_collection->get_sockfd(m_port_map[m_port_map_index].fd);
+			if (!sock_api || sock_api->get_type()!=FD_TYPE_SOCKET) {
+				m_port_map.erase(std::remove(m_port_map.begin(), m_port_map.end(), m_port_map[m_port_map_index].port));
+				if (m_port_map_index)
+					m_port_map_index--;
+				m_port_map_lock.unlock();
+				continue;
+			}
+			m_port_map_lock.unlock();
+			p_desc->rx.dst.sin_port = new_port;
+			return ((sockinfo_udp*)sock_api)->rx_process_udp_packet_full(p_desc, pv_fd_ready_array);
+		}
+	}
+
+	process_timestamps(p_desc);
+
+	vma_recv_callback_retval_t cb_ret = VMA_PACKET_RECV;
+	if (m_rx_callback && ((cb_ret=inspect_by_user_cb(p_desc))==VMA_PACKET_DROP)) {
+		si_udp_logfunc("rx packet discarded - by user callback");
+		return false;
+	}
+	// Yes, we want to keep this packet!
+	// And we must increment ref_counter before pushing this packet into the ready queue
+	//  to prevent race condition with the 'if( (--ref_count) <= 0)' in ib_comm_mgr
+	p_desc->inc_ref_count();
+
+#ifdef DEFINED_VMAPOLL
+	if (p_desc->rx.vma_polled) {
+		fill_completion(p_desc);
+		p_desc->rx.vma_polled = false;
+	} else
+#endif
+	{
+		update_ready(p_desc, pv_fd_ready_array, cb_ret);
+	}
+	return true;
+}
+
+/**
+ *	Performs inspection and processing for simple UC UDP case
+ *	bypassing all other inspections
+ */
+inline bool sockinfo_udp::rx_process_udp_packet_partial(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
+{
+	if (!inspect_uc_packet(p_desc))
+		return false;
+
+	process_timestamps(p_desc);
+
+	vma_recv_callback_retval_t cb_ret = VMA_PACKET_RECV;
+	if (m_rx_callback && ((cb_ret=inspect_by_user_cb(p_desc))==VMA_PACKET_DROP)) {
+		si_udp_logfunc("rx packet discarded - by user callback");
+		return false;
+	}
+	// Yes, we want to keep this packet!
+	// And we must increment ref_counter before pushing this packet into the ready queue
+	//  to prevent race condition with the 'if( (--ref_count) <= 0)' in ib_comm_mgr
+	p_desc->inc_ref_count();
+
+#ifdef DEFINED_VMAPOLL
+	if (p_desc->rx.vma_polled) {
+		fill_completion(p_desc);
+		p_desc->rx.vma_polled = false;
+	} else
+#endif
+	{
+		update_ready(p_desc, pv_fd_ready_array, cb_ret);
+	}
+	return true;
+}
+
+/**
+ *	set packet inspector and processor
+ */
+inline void sockinfo_udp::set_rx_packet_processor(void)
+{
+	si_udp_logdbg("is_connected: %d mapped: %d multicast: %d",
+		      m_is_connected, m_sockopt_mapped, m_multicast);
+	// Select partial or full packet processing.
+	// Full packet processing is selected in case of:
+	// - connect() was done on the UDP socket
+	//   In this case the UDP 3-tuple is not sufficient for the packet matching.
+	// - In the case that socket mapping is enabled extra processing is required
+	// - Multicast packets
+	// For simple UC traffic reduced packet processing is selected.
+	if (m_is_connected || m_sockopt_mapped || m_multicast) {
+		m_rx_packet_processor = &sockinfo_udp::rx_process_udp_packet_full;
+	} else {
+		m_rx_packet_processor = &sockinfo_udp::rx_process_udp_packet_partial;
+	}
 }
 
 void sockinfo_udp::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool is_migration /* = false */)
@@ -2220,6 +2357,7 @@ int sockinfo_udp::mc_change_membership(const mc_pending_pram *p_mc_pram)
 		}
 		vma_stats_mc_group_add(mc_grp, m_p_socket_stats);
 		original_os_setsockopt_helper( &mreq_src, pram_size, p_mc_pram->optname);
+		m_multicast = true;
 		break;
 	}
 	case IP_ADD_SOURCE_MEMBERSHIP:
@@ -2232,6 +2370,7 @@ int sockinfo_udp::mc_change_membership(const mc_pending_pram *p_mc_pram)
 		vma_stats_mc_group_add(mc_grp, m_p_socket_stats);
 		pram_size = sizeof(ip_mreq_source);
 		original_os_setsockopt_helper( &mreq_src, pram_size, p_mc_pram->optname);
+		m_multicast = true;
 		break;
 	}
 	case IP_DROP_MEMBERSHIP:
@@ -2242,6 +2381,7 @@ int sockinfo_udp::mc_change_membership(const mc_pending_pram *p_mc_pram)
 			return -1;
 		}
 		vma_stats_mc_group_remove(mc_grp, m_p_socket_stats);
+		m_multicast = false;
 		break;
 	}
 	case IP_DROP_SOURCE_MEMBERSHIP:
@@ -2249,6 +2389,7 @@ int sockinfo_udp::mc_change_membership(const mc_pending_pram *p_mc_pram)
 		flow_tuple_with_local_if flow_key(mc_grp, m_bound.get_in_port(), 0, 0, PROTO_UDP, mc_if);
 		pram_size = sizeof(ip_mreq_source);
 		original_os_setsockopt_helper( &mreq_src, pram_size, p_mc_pram->optname);
+		m_multicast = false;
 		if (1 == m_mc_memberships_map[mc_grp].size()) { //Last source in the group
 			if (!detach_receiver(flow_key)) {
 				return -1;

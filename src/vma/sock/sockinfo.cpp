@@ -457,6 +457,7 @@ bool sockinfo::attach_receiver(flow_tuple_with_local_if &flow_key)
 		si_logdbg("Failed to attach %s to ring %p", flow_key.to_str(), p_nd_resources->p_ring);
 		return false;
 	}
+	set_rx_packet_processor();
 	lock_rx_q();
 	BULLSEYE_EXCLUDE_BLOCK_END
 

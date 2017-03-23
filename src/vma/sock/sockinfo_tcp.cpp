@@ -1898,6 +1898,7 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 #ifdef DEFINED_VMAPOLL		
 	m_vma_poll_completion = NULL;
 	m_vma_poll_last_buff_lst = NULL;
+	p_rx_pkt_mem_buf_desc_info->rx.vma_polled = false;
 #endif // DEFINED_VMAPOLL			
 
 	while (dropped_count--) {
