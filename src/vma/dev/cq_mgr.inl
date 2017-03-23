@@ -60,6 +60,7 @@ inline void cq_mgr::compensate_qp_poll_failed()
 		if (likely(m_rx_pool.size() || request_more_buffers())) {
 			do {
 				mem_buf_desc_t *buff_new = m_rx_pool.get_and_pop_front();
+				buff_new->reset_ref_count();
 				m_qp_rec.qp->post_recv(buff_new);
 			} while (--m_qp_rec.debth > 0 && m_rx_pool.size());
 			m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();

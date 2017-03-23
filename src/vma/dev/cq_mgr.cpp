@@ -601,6 +601,7 @@ bool cq_mgr::compensate_qp_poll_success(mem_buf_desc_t* buff_cur)
 		if (m_rx_pool.size() || request_more_buffers()) {
 			do {
 				mem_buf_desc_t *buff_new = m_rx_pool.get_and_pop_front();
+				buff_new->reset_ref_count();
 				m_qp_rec.qp->post_recv(buff_new);
 			} while (--m_qp_rec.debth > 0 && m_rx_pool.size());
 			m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
@@ -641,14 +642,8 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 				temp->rx.vma_polled = false;
 #endif // DEFINED_VMAPOLL
 				temp->rx.flow_tag_id = 0;
-				temp->rx.tcp.p_ip_h = NULL;
-				temp->rx.tcp.p_tcp_h = NULL;
-				temp->rx.udp.sw_timestamp.tv_nsec = 0;
-				temp->rx.udp.sw_timestamp.tv_sec = 0;
-				temp->rx.udp.hw_timestamp.tv_nsec = 0;
-				temp->rx.udp.hw_timestamp.tv_sec = 0;
-				temp->rx.hw_raw_timestamp = 0;
-				free_lwip_pbuf(&temp->lwip_pbuf);
+				temp->free_lwip_pbuf();
+
 				m_rx_pool.push_back(temp);
 			}
 			m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
@@ -677,14 +672,8 @@ void cq_mgr::vma_poll_reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 				temp->rx.is_vma_thr = false;
 				temp->rx.vma_polled = false;
 				temp->rx.flow_tag_id = 0;
-				temp->rx.tcp.p_ip_h = NULL;
-				temp->rx.tcp.p_tcp_h = NULL;
-				temp->rx.udp.sw_timestamp.tv_nsec = 0;
-				temp->rx.udp.sw_timestamp.tv_sec = 0;
-				temp->rx.udp.hw_timestamp.tv_nsec = 0;
-				temp->rx.udp.hw_timestamp.tv_sec = 0;
-				temp->rx.hw_raw_timestamp = 0;
-				free_lwip_pbuf(&temp->lwip_pbuf);
+				temp->free_lwip_pbuf();
+
 				m_rx_pool.push_back(temp);
 			}
 			else {
@@ -711,14 +700,8 @@ int cq_mgr::vma_poll_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff)
 		buff->rx.is_vma_thr = false;
 		buff->rx.vma_polled = false;
 		buff->rx.flow_tag_id = 0;
-		buff->rx.tcp.p_ip_h = NULL;
-		buff->rx.tcp.p_tcp_h = NULL;
-		buff->rx.udp.sw_timestamp.tv_nsec = 0;
-		buff->rx.udp.sw_timestamp.tv_sec = 0;
-		buff->rx.udp.hw_timestamp.tv_nsec = 0;
-		buff->rx.udp.hw_timestamp.tv_sec = 0;
-		buff->rx.hw_raw_timestamp = 0;
-		free_lwip_pbuf(&buff->lwip_pbuf);
+		buff->free_lwip_pbuf();
+
 		m_rx_pool.push_back(buff);
 		m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
 	}

@@ -41,11 +41,9 @@
 #include "dev/allocator.h"
 
 
-inline static void free_lwip_pbuf(struct pbuf_custom *pbuf_custom)
-{
-	pbuf_custom->pbuf.flags = 0;
-	pbuf_custom->pbuf.ref = 0;
-}
+class net_device;
+class mem_buf_desc_owner;
+class ib_ctx_handler;
 
 /**
  * A buffer pool which internally sorts the buffers.

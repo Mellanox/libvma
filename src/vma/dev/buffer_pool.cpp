@@ -57,7 +57,7 @@ inline void buffer_pool::put_buffer_helper(mem_buf_desc_t *buff)
 	}
 #endif
 	buff->p_next_desc = m_p_head;
-	free_lwip_pbuf(&buff->lwip_pbuf);
+	buff->free_lwip_pbuf();
 	m_p_head = buff;
 	m_n_buffers++;
 	m_p_bpool_stat->n_buffer_pool_size++;

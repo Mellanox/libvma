@@ -148,7 +148,6 @@ bool rfs_uc::prepare_flow_spec()
 bool rfs_uc::rx_dispatch_packet(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array)
 {
 	// Dispatching: Notify new packet to the FIRST registered receiver ONLY
-	p_rx_wc_buf_desc->reset_ref_count();
 #ifdef DEFINED_VMAPOLL	
 #ifdef RDTSC_MEASURE_RX_DISPATCH_PACKET
 	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_DISPATCH_PACKET]);
