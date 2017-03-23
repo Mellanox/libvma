@@ -506,7 +506,7 @@ err_t            tcp_shutdown(struct tcp_pcb *pcb, int shut_rx, int shut_tx);
 #define TCP_WRITE_FLAG_MORE 0x02
 
 err_t            tcp_write   (struct tcp_pcb *pcb, const void *dataptr, u32_t len,
-                              u8_t apiflags, u8_t is_dummy);
+                              u8_t is_dummy);
 
 void             tcp_setprio (struct tcp_pcb *pcb, u8_t prio);
 
