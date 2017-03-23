@@ -1775,8 +1775,8 @@ inline int ring_simple::send_buffer(vma_ibv_send_wr* p_send_wqe, bool b_block)
 {
 	int ret = 0;
 	if (likely(m_tx_num_wr_free > 0)) {
-		--m_tx_num_wr_free;
 		ret = m_p_qp_mgr->send(p_send_wqe);
+		--m_tx_num_wr_free;
 	} else if (is_available_qp_wr(b_block)) {
 		ret = m_p_qp_mgr->send(p_send_wqe);
 	} else {
@@ -1801,25 +1801,21 @@ bool ring_simple::get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* 
 void ring_simple::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block)
 {
 	NOT_IN_USE(id);
-	m_lock_ring_tx.lock();
+	auto_unlocker lock(m_lock_ring_tx);
 	p_send_wqe->sg_list[0].lkey = m_tx_lkey;	// The ring keeps track of the current device lkey (In case of bonding event...)
 	int ret = send_buffer(p_send_wqe, b_block);
 	send_status_handler(ret, p_send_wqe);
-	m_lock_ring_tx.unlock();
-	return;
 }
 
 void ring_simple::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block)
 {
 	NOT_IN_USE(id);
-	m_lock_ring_tx.lock();
+	auto_unlocker lock(m_lock_ring_tx);
 	p_send_wqe->sg_list[0].lkey = m_tx_lkey; // The ring keeps track of the current device lkey (In case of bonding event...)
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
 	p_mem_buf_desc->lwip_pbuf.pbuf.ref++;
 	int ret = send_buffer(p_send_wqe, b_block);
 	send_status_handler(ret, p_send_wqe);
-	m_lock_ring_tx.unlock();
-	return;
 }
 
 void ring_simple::flow_udp_uc_del_all()
@@ -1998,10 +1994,10 @@ mem_buf_desc_t* ring_simple::get_tx_buffers(uint32_t n_num_mem_bufs)
 		if (request_more_tx_buffers(count)) {
 			m_tx_num_bufs += count;
 		}
-	}
 
-	if (unlikely(m_tx_pool.size() < n_num_mem_bufs)) {
-		return head;
+		if (unlikely(m_tx_pool.size() < n_num_mem_bufs)) {
+			return head;
+		}
 	}
 
 	head = m_tx_pool.get_and_pop_back();
@@ -2185,7 +2181,7 @@ bool ring_simple::is_up() {
 	return m_up;
 }
 
-void ring_simple::inc_ring_stats(ring_user_id_t id) {
+void ring_simple::inc_tx_retransmissions(ring_user_id_t id) {
 	NOT_IN_USE(id);
 	m_p_ring_stat->n_tx_retransmits++;
 }

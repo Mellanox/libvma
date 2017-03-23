@@ -64,7 +64,6 @@
 #undef  __INFO__
 #define __INFO__                m_fd
 
-
 #define si_tcp_logpanic             __log_info_panic
 #define si_tcp_logerr               __log_info_err
 #define si_tcp_logwarn              __log_info_warn
@@ -73,7 +72,7 @@
 #define si_tcp_logfunc              __log_info_func
 #define si_tcp_logfuncall           __log_info_funcall
 
-
+#define BLOCK_THIS_RUN(blocking, flags) (blocking && !(flags & MSG_DONTWAIT))
 #define TCP_SEG_COMPENSATION 64
 
 tcp_seg_pool *g_tcp_seg_pool = NULL;
@@ -653,13 +652,12 @@ ssize_t sockinfo_tcp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 	int ret = 0;
 	int poll_count = 0;
 	bool is_dummy = IS_DUMMY_PACKET(flags);
-	bool block_this_run = m_b_blocking && !(flags & MSG_DONTWAIT);
 
 	if (unlikely(m_sock_offload != TCP_SOCK_LWIP)) {
 #ifdef VMA_TIME_MEASURE
 		INC_GO_TO_OS_TX_COUNT;
 #endif
-		
+
 		ret = socket_fd_api::tx_os(call_type, p_iov, sz_iov, flags, __to, __tolen);
 		save_stats_tx_os(ret);
 		return ret;
@@ -693,7 +691,7 @@ retry_is_ready:
 #ifdef VMA_TIME_MEASURE
 		INC_ERR_TX_COUNT;
 #endif
-		
+
 		return -1;
 	}
 	si_tcp_logfunc("tx: iov=%p niovs=%d dummy=%d", p_iov, sz_iov, is_dummy);
@@ -715,41 +713,41 @@ retry_is_ready:
 
 		pos = 0;
 		while (pos < p_iov[i].iov_len) {
-			if (unlikely(!is_rts())) {
-				si_tcp_logdbg("TX on disconnected socket");
-				ret = -1;
-				errno = ECONNRESET;
-				goto err;
-			}
 			//tx_size = tx_wait();
-                        tx_size = tcp_sndbuf(&m_pcb);
-                        if (tx_size == 0) { 
-                                //force out TCP data before going on wait()
-                                tcp_output(&m_pcb);
+			tx_size = tcp_sndbuf(&m_pcb);
+			if (tx_size == 0) {
+				if (unlikely(!is_rts())) {
+					si_tcp_logdbg("TX on disconnected socket");
+					ret = -1;
+					errno = ECONNRESET;
+					goto err;
+				}
+				//force out TCP data before going on wait()
+				tcp_output(&m_pcb);
 
-                                if (!block_this_run) {
-                                        // non blocking socket should return inorder not to tx_wait()
-                                        if ( total_tx ) {
-                                                m_tx_consecutive_eagain_count = 0;
-                                                goto done;
-                                        }
-                                        else {
-                                                m_tx_consecutive_eagain_count++;
-                                                if (m_tx_consecutive_eagain_count >= TX_CONSECUTIVE_EAGAIN_THREASHOLD) {
-                                                        // in case of zero sndbuf and non-blocking just try once polling CQ for ACK
-                                                        rx_wait(poll_count, false);
-                                                        m_tx_consecutive_eagain_count = 0;
-                                                }
-                                                ret = -1;
-                                                errno = EAGAIN;
-                                                goto err;
-                                        }
-                                }
+				if (!BLOCK_THIS_RUN(m_b_blocking, flags)) {
+					// non blocking socket should return inorder not to tx_wait()
+					if ( total_tx ) {
+						m_tx_consecutive_eagain_count = 0;
+						goto done;
+					}
+					else {
+						m_tx_consecutive_eagain_count++;
+						if (m_tx_consecutive_eagain_count >= TX_CONSECUTIVE_EAGAIN_THREASHOLD) {
+							// in case of zero sndbuf and non-blocking just try once polling CQ for ACK
+							rx_wait(poll_count, false);
+							m_tx_consecutive_eagain_count = 0;
+						}
+						ret = -1;
+						errno = EAGAIN;
+						goto err;
+					}
+				}
 
-                                tx_size = tx_wait(ret, block_this_run);
-                                if (ret < 0)
-                                        goto err;
-                        }
+				tx_size = tx_wait(ret, BLOCK_THIS_RUN(m_b_blocking, flags));
+				if (ret < 0)
+					goto err;
+			}
 
 			if (tx_size > p_iov[i].iov_len - pos)
 				tx_size = p_iov[i].iov_len - pos;
@@ -792,19 +790,19 @@ retry_write:
 					INC_ERR_TX_COUNT;
 #endif					
 					return -1;
-					*/
+					 */
 				}
 				if (total_tx > 0) 
 					goto done;
 
-				ret = rx_wait(poll_count, block_this_run);
+				ret = rx_wait(poll_count, BLOCK_THIS_RUN(m_b_blocking, flags));
 				if (ret < 0)
 					goto err;
 
 				//AlexV:Avoid from going to sleep, for the blocked socket of course, since
 				// progress engine may consume an arrived credit and it will not wakeup the
 				//transmit thread.
-				if (block_this_run) {
+				if (BLOCK_THIS_RUN(m_b_blocking, flags)) {
 					poll_count = 0;
 				}
 				//tcp_output(m_sock); // force data out
@@ -847,7 +845,7 @@ err:
 		m_p_socket_stats->counters.n_tx_errors++;
 	unlock_tcp_con();
 	return ret;
-	
+
 }
 
 err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit, uint8_t is_dummy)
@@ -871,26 +869,27 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit, uin
 			p = p->next;
 		}
 
-#if 1 // We don't expcet pbuf chain at all since we enabled  TCP_WRITE_FLAG_COPY and TCP_WRITE_FLAG_MORE in lwip
+		// We don't expect pbuf chain at all since we enabled  TCP_WRITE_FLAG_COPY and TCP_WRITE_FLAG_MORE in lwip
 		if (p) {
 			vlog_printf(VLOG_ERROR, "pbuf chain size > 64!!! silently dropped.");
 			return ERR_OK;
 		}
-#endif
 	}
-
-	if (p_dst->try_migrate_ring(p_si_tcp->m_tcp_con_lock)) {
-		p_si_tcp->m_p_socket_stats->counters.n_tx_migrations++;
-	}
-
-	if (is_rexmit)
-		p_si_tcp->m_p_socket_stats->counters.n_tx_retransmits++;
 
 	if (likely((p_dst->is_valid()))) {
 		p_dst->fast_send(p_iovec, count, is_dummy, false, is_rexmit);
 	} else {
 		p_dst->slow_send(p_iovec, count, is_dummy, false, is_rexmit);
 	}
+
+	if (p_dst->try_migrate_ring(p_si_tcp->m_tcp_con_lock)) {
+		p_si_tcp->m_p_socket_stats->counters.n_tx_migrations++;
+	}
+
+	if (is_rexmit) {
+		p_si_tcp->m_p_socket_stats->counters.n_tx_retransmits++;
+	}
+
 	return ERR_OK;
 }
 

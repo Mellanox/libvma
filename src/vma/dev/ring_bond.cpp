@@ -383,11 +383,11 @@ int ring_bond::request_notification(cq_type_t cq_type, uint64_t poll_sn)
 	return ret;
 }
 
-void ring_bond::inc_ring_stats(ring_user_id_t id)
+void ring_bond::inc_tx_retransmissions(ring_user_id_t id)
 {
 	ring_simple* active_ring = m_active_rings[id];
 	if (likely(active_ring))
-		active_ring->inc_ring_stats(id);
+		active_ring->inc_tx_retransmissions(id);
 }
 
 bool ring_bond::reclaim_recv_buffers(descq_t *rx_reuse)
