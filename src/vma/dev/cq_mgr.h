@@ -258,17 +258,11 @@ private:
 	mem_buf_desc_t*	process_cq_element_tx(vma_ibv_wc* p_wce);
 	mem_buf_desc_t*	process_cq_element_rx(vma_ibv_wc* p_wce);
 
-	/**
-	 * Helper function wrapping the poll and the process functionality in single call
-	 */
-	//a sub helper for poll_and_process_helper_rx in order to shorten the function
-	void		handle_tcp_ctl_packets(uint32_t rx_processed, void* pv_fd_ready_array);
 #ifdef DEFINED_VMAPOLL	
 	int		vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst);
 #endif // DEFINED_VMAPOLL	
-	int		poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
-	int		poll_and_process_helper_tx(uint64_t* p_cq_poll_sn);
 
+	void		handle_tcp_ctl_packets(uint32_t rx_processed, void* pv_fd_ready_array);
 	inline void	compensate_qp_poll_failed();
 	// Returns true if the given buffer was used,
 	//false if the given buffer was not used.

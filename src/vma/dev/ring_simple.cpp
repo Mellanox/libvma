@@ -1459,7 +1459,7 @@ int ring_simple::request_notification(cq_type_t cq_type, uint64_t poll_sn)
 int ring_simple::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array /*NULL*/)
 {
 	int ret = 0;
-	RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_rx, m_p_cq_mgr_rx->poll_and_process_helper_rx(p_cq_poll_sn, pv_fd_ready_array));
+	RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_rx, m_p_cq_mgr_rx->poll_and_process_element_rx(p_cq_poll_sn, pv_fd_ready_array));
 	return ret;
 }
 
