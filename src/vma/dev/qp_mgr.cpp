@@ -67,12 +67,14 @@ qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context, const
 	m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv),
 	m_n_sysvar_tx_num_wr_to_signal(safe_mce_sys().tx_num_wr_to_signal),
 	m_n_sysvar_rx_prefetch_bytes_before_poll(safe_mce_sys().rx_prefetch_bytes_before_poll),
-	m_curr_rx_wr(0), m_last_posted_rx_wr_id(0), m_n_unsignaled_count(0), m_n_tx_count(0),
+	m_curr_rx_wr(0), m_last_posted_rx_wr_id(0),
 	m_p_last_tx_mem_buf_desc(NULL), m_p_prev_rx_desc_pushed(NULL),
 	m_n_ip_id_base(0), m_n_ip_id_offset(0)
 {
 	m_ibv_rx_sg_array = new ibv_sge[m_n_sysvar_rx_num_wr_to_post_recv];
 	m_ibv_rx_wr_array = new ibv_recv_wr[m_n_sysvar_rx_num_wr_to_post_recv];
+	set_unsignaled_count();
+
 #ifdef DEFINED_VMAPOLL
 	m_rq_wqe_counter = 0;
 	m_sq_wqe_counter = 0;
@@ -248,7 +250,7 @@ void qp_mgr::up()
 	release_tx_buffers();
 
 	/* clean any link to completions with error we might have */
-	m_n_unsignaled_count = 0;
+	set_unsignaled_count();
 	m_p_last_tx_mem_buf_desc = NULL;
 
 	modify_qp_to_ready_state();
@@ -410,7 +412,7 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 		qp_logdbg("IBV_SEND_SIGNALED");
 
 		// Close the Tx unsignaled send list
-		m_n_unsignaled_count = 0;
+		set_unsignaled_count();
 		m_p_last_tx_mem_buf_desc = NULL;
 
 		if (!m_p_ring->m_tx_num_wr_free) {
@@ -637,39 +639,12 @@ void qp_mgr::mlx5_init_sq()
 int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 {
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t *)p_send_wqe->wr_id;
-	bool is_signaled;
-	int ret;
 
-#ifdef DEFINED_VMAPOLL
-	is_signaled = ++m_n_unsignaled_count >= NUM_TX_WRE_TO_SIGNAL_MAX;	
-#else
-	is_signaled = ++m_n_unsignaled_count >= m_n_sysvar_tx_num_wr_to_signal;
-#endif
-
-
-	// Link this new mem_buf_desc to the previous one sent
-	p_mem_buf_desc->p_next_desc = m_p_last_tx_mem_buf_desc;
-
-	if (is_signaled) {
-		m_n_unsignaled_count = 0;
-		m_p_last_tx_mem_buf_desc = NULL;
 #ifndef DEFINED_VMAPOLL	// not defined
+	if (!m_n_unsignaled_count) {
 		vma_send_wr_send_flags(*p_send_wqe) = (vma_ibv_send_flags)(vma_send_wr_send_flags(*p_send_wqe) | VMA_IBV_SEND_SIGNALED);
-#endif		
-		qp_logfunc("IBV_SEND_SIGNALED");
-
-		if (m_p_ahc_head) { // need to destroy ah
-			//save the orig owner
-			qp_logdbg("mark with signal!");
-			m_p_ahc_tail->m_next_owner = p_mem_buf_desc->p_desc_owner;
-			p_mem_buf_desc->p_desc_owner = m_p_ahc_head;
-			m_p_ahc_head = m_p_ahc_tail = NULL;
-		}
 	}
-	else {
-		m_p_last_tx_mem_buf_desc = p_mem_buf_desc;
-	}
-	++m_n_tx_count;
+#endif
 
 #ifdef VMA_TIME_MEASURE
 	TAKE_T_TX_POST_SEND_START;
@@ -706,7 +681,22 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 	TAKE_T_TX_POST_SEND_END;
 #endif
 
-	if (is_signaled) {
+	// Link this new mem_buf_desc to the previous one sent
+	p_mem_buf_desc->p_next_desc = m_p_last_tx_mem_buf_desc;
+
+	if (!m_n_unsignaled_count) {
+		int ret;
+
+		set_unsignaled_count();
+		m_p_last_tx_mem_buf_desc = NULL;
+
+		if (m_p_ahc_head) { // need to destroy ah
+			//save the orig owner
+			qp_logdbg("mark with signal!");
+			m_p_ahc_tail->m_next_owner = p_mem_buf_desc->p_desc_owner;
+			p_mem_buf_desc->p_desc_owner = m_p_ahc_head;
+			m_p_ahc_head = m_p_ahc_tail = NULL;
+		}
 
 		// Clear the SINGAL request
 #ifndef DEFINED_VMAPOLL	// not defined
@@ -715,7 +705,6 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 
 		// Poll the Tx CQ
 		uint64_t dummy_poll_sn = 0;
-		m_n_tx_count = 0;
 		ret = m_p_cq_mgr_tx->poll_and_process_element_tx(&dummy_poll_sn);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (ret < 0) {
@@ -723,12 +712,21 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		qp_logfunc("polling succeeded on tx cq_mgr (%d wce)", ret);
+	} else {
+		m_n_unsignaled_count--;
+		m_p_last_tx_mem_buf_desc = p_mem_buf_desc;
 	}
 
 	return 0;
-
 }
 
+inline void qp_mgr::set_unsignaled_count() {
+#ifdef DEFINED_VMAPOLL
+	m_n_unsignaled_count = NUM_TX_WRE_TO_SIGNAL_MAX - 1;
+#else
+	m_n_unsignaled_count = m_n_sysvar_tx_num_wr_to_signal - 1;
+#endif
+}
 
 void qp_mgr_eth::modify_qp_to_ready_state()
 {
