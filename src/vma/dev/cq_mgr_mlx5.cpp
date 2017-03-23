@@ -206,7 +206,9 @@ inline void cq_mgr_mlx5::cqe64_to_mem_buff_desc(volatile struct mlx5_cqe64 *cqe,
 		case MLX5_CQE_RESP_SEND_INV:
 		{
 			status = BS_OK;
-			p_rx_wc_buf_desc->sz_data = ntohl(cqe->byte_cnt);
+			/* Time stamp */
+			p_rx_wc_buf_desc->rx.hw_raw_timestamp = cqe->timestamp;
+			p_rx_wc_buf_desc->rx.flow_tag_id      = vma_get_flow_tag(cqe);
 
 #ifdef DEFINED_MLX5_HW_ETH_WQE_HEADER
 			/* Checksum */
@@ -214,8 +216,7 @@ inline void cq_mgr_mlx5::cqe64_to_mem_buff_desc(volatile struct mlx5_cqe64 *cqe,
 #else
 			p_rx_wc_buf_desc->rx.is_sw_csum_need = true;
 #endif
-			/* Time stamp */
-			p_rx_wc_buf_desc->rx.hw_raw_timestamp = cqe->timestamp;
+			p_rx_wc_buf_desc->sz_data = ntohl(cqe->byte_cnt);
 			return;
 		}
 		case MLX5_CQE_INVALID: /* No cqe!*/
