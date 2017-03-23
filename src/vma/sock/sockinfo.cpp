@@ -77,7 +77,7 @@ sockinfo::sockinfo(int fd) throw (vma_exception):
 		m_rx_reuse_buf_postponed(false),
 		m_rx_ring_map_lock(MODULE_NAME "::m_rx_ring_map_lock"),
 		m_ring_alloc_logic(fd, this),
-		m_n_rx_pkt_ready_list_count(0), m_rx_pkt_ready_offset(0), m_rx_ready_byte_count(0),
+		m_n_rx_pkt_ready_list_count(0), m_rx_pkt_ready_offset(0),
 		m_n_sysvar_rx_num_buffs_reuse(safe_mce_sys().rx_bufs_batch),
 		m_n_sysvar_rx_poll_num(safe_mce_sys().rx_poll_num),
 		m_rx_callback(NULL),
@@ -1051,8 +1051,6 @@ void sockinfo::move_owned_rx_ready_descs(const mem_buf_desc_owner* p_desc_owner,
 		}
 		m_n_rx_pkt_ready_list_count--;
 		m_p_socket_stats->n_rx_ready_pkt_count--;
-
-		m_rx_ready_byte_count -= temp->rx.sz_payload;
 		m_p_socket_stats->n_rx_ready_byte_count -= temp->rx.sz_payload;
 		toq->push_back(temp);
 	}

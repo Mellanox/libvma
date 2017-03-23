@@ -455,9 +455,9 @@ sockinfo_udp::~sockinfo_udp()
 
 	statistics_print();
 
-	if (m_n_rx_pkt_ready_list_count || m_rx_ready_byte_count || m_rx_pkt_ready_list.size() || m_rx_ring_map.size() || m_rx_reuse_buff.n_buff_num)
-		si_udp_logerr("not all buffers were freed. protocol=UDP. m_n_rx_pkt_ready_list_count=%d, m_rx_ready_byte_count=%d, m_rx_pkt_ready_list.size()=%d, m_rx_ring_map.size()=%d, m_rx_reuse_buff.n_buff_num=%d",
-				m_n_rx_pkt_ready_list_count, m_rx_ready_byte_count, (int)m_rx_pkt_ready_list.size() ,(int)m_rx_ring_map.size(), m_rx_reuse_buff.n_buff_num);
+	if (m_n_rx_pkt_ready_list_count || m_p_socket_stats->n_rx_ready_byte_count || m_rx_pkt_ready_list.size() || m_rx_ring_map.size() || m_rx_reuse_buff.n_buff_num)
+		si_udp_logerr("not all buffers were freed. protocol=UDP. m_n_rx_pkt_ready_list_count=%d, m_p_socket_stats->n_rx_ready_byte_count=%d, m_rx_pkt_ready_list.size()=%d, m_rx_ring_map.size()=%d, m_rx_reuse_buff.n_buff_num=%d",
+				m_n_rx_pkt_ready_list_count, m_p_socket_stats->n_rx_ready_byte_count, (int)m_rx_pkt_ready_list.size() ,(int)m_rx_ring_map.size(), m_rx_reuse_buff.n_buff_num);
 
 	si_udp_logfunc("done");
 }
@@ -1244,7 +1244,6 @@ void sockinfo_udp::rx_ready_byte_count_limit_update(size_t n_rx_ready_bytes_limi
 			mem_buf_desc_t* p_rx_pkt_desc = m_rx_pkt_ready_list.front();
 			m_rx_pkt_ready_list.pop_front();
 			m_n_rx_pkt_ready_list_count--;
-			m_rx_ready_byte_count -= p_rx_pkt_desc->rx.sz_payload;
 			m_p_socket_stats->n_rx_ready_pkt_count--;
 			m_p_socket_stats->n_rx_ready_byte_count -= p_rx_pkt_desc->rx.sz_payload;
 
@@ -1956,7 +1955,6 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 		// Save rx packet info in our ready list
 		m_rx_pkt_ready_list.push_back(p_desc);
 		m_n_rx_pkt_ready_list_count++;
-		m_rx_ready_byte_count += p_desc->rx.sz_payload;
 		m_p_socket_stats->n_rx_ready_pkt_count++;
 		m_p_socket_stats->n_rx_ready_byte_count += p_desc->rx.sz_payload;
 		m_p_socket_stats->counters.n_rx_ready_pkt_max = max((uint32_t)m_p_socket_stats->n_rx_ready_pkt_count, m_p_socket_stats->counters.n_rx_ready_pkt_max);
@@ -2423,7 +2421,6 @@ int sockinfo_udp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *p_desc, int *p_flag
 size_t sockinfo_udp::handle_msg_trunc(size_t total_rx, size_t payload_size, int in_flags, int* p_out_flags)
 {
 	if (payload_size > total_rx) {
-		m_rx_ready_byte_count -= (payload_size-total_rx);
 		m_p_socket_stats->n_rx_ready_byte_count -= (payload_size-total_rx);
 		*p_out_flags |= MSG_TRUNC;
 		if (in_flags & MSG_TRUNC) 

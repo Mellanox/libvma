@@ -312,9 +312,9 @@ sockinfo_tcp::~sockinfo_tcp()
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	if (m_n_rx_pkt_ready_list_count || m_rx_ready_byte_count || m_rx_pkt_ready_list.size() || m_rx_ring_map.size() || m_rx_reuse_buff.n_buff_num || m_rx_reuse_buff.rx_reuse.size() || m_rx_cb_dropped_list.size() || m_rx_ctl_packets_list.size() || m_rx_peer_packets.size() || m_rx_ctl_reuse_list.size())
-		si_tcp_logerr("not all buffers were freed. protocol=TCP. m_n_rx_pkt_ready_list_count=%d, m_rx_ready_byte_count=%d, m_rx_pkt_ready_list.size()=%d, m_rx_ring_map.size()=%d, m_rx_reuse_buff.n_buff_num=%d, m_rx_reuse_buff.rx_reuse.size=%d, m_rx_cb_dropped_list.size=%d, m_rx_ctl_packets_list.size=%d, m_rx_peer_packets.size=%d, m_rx_ctl_reuse_list.size=%d",
-				m_n_rx_pkt_ready_list_count, m_rx_ready_byte_count, (int)m_rx_pkt_ready_list.size() ,(int)m_rx_ring_map.size(), m_rx_reuse_buff.n_buff_num, m_rx_reuse_buff.rx_reuse.size(), m_rx_cb_dropped_list.size(), m_rx_ctl_packets_list.size(), m_rx_peer_packets.size(), m_rx_ctl_reuse_list.size());
+	if (m_n_rx_pkt_ready_list_count || m_p_socket_stats->n_rx_ready_byte_count || m_rx_pkt_ready_list.size() || m_rx_ring_map.size() || m_rx_reuse_buff.n_buff_num || m_rx_reuse_buff.rx_reuse.size() || m_rx_cb_dropped_list.size() || m_rx_ctl_packets_list.size() || m_rx_peer_packets.size() || m_rx_ctl_reuse_list.size())
+		si_tcp_logerr("not all buffers were freed. protocol=TCP. m_n_rx_pkt_ready_list_count=%d, m_p_socket_stats->n_rx_ready_byte_count=%d, m_rx_pkt_ready_list.size()=%d, m_rx_ring_map.size()=%d, m_rx_reuse_buff.n_buff_num=%d, m_rx_reuse_buff.rx_reuse.size=%d, m_rx_cb_dropped_list.size=%d, m_rx_ctl_packets_list.size=%d, m_rx_peer_packets.size=%d, m_rx_ctl_reuse_list.size=%d",
+				m_n_rx_pkt_ready_list_count, m_p_socket_stats->n_rx_ready_byte_count, (int)m_rx_pkt_ready_list.size() ,(int)m_rx_ring_map.size(), m_rx_reuse_buff.n_buff_num, m_rx_reuse_buff.rx_reuse.size(), m_rx_cb_dropped_list.size(), m_rx_ctl_packets_list.size(), m_rx_peer_packets.size(), m_rx_ctl_reuse_list.size());
 
 	si_tcp_logdbg("sock closed");
 }
@@ -396,14 +396,12 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 		abort_connection();
 	}
 
-	m_rx_ready_byte_count += m_rx_pkt_ready_offset;
 	m_p_socket_stats->n_rx_ready_byte_count += m_rx_pkt_ready_offset;
 	while (m_n_rx_pkt_ready_list_count)
 	{
 		mem_buf_desc_t* p_rx_pkt_desc = m_rx_pkt_ready_list.get_and_pop_front();
 		m_n_rx_pkt_ready_list_count--;
 		m_p_socket_stats->n_rx_ready_pkt_count--;
-		m_rx_ready_byte_count -= p_rx_pkt_desc->rx.sz_payload;
 		m_p_socket_stats->n_rx_ready_byte_count -= p_rx_pkt_desc->rx.sz_payload;
 		reuse_buffer(p_rx_pkt_desc);
 	}
@@ -1537,7 +1535,6 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 			// Save rx packet info in our ready list
 			conn->m_rx_pkt_ready_list.push_back(p_first_desc);
 			conn->m_n_rx_pkt_ready_list_count++;
-			conn->m_rx_ready_byte_count += p->tot_len;
 			conn->m_p_socket_stats->n_rx_ready_byte_count += p->tot_len;
 			conn->m_p_socket_stats->n_rx_ready_pkt_count++;
 			conn->m_p_socket_stats->counters.n_rx_ready_pkt_max = max((uint32_t)conn->m_p_socket_stats->n_rx_ready_pkt_count, conn->m_p_socket_stats->counters.n_rx_ready_pkt_max);
@@ -1649,7 +1646,7 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 
 	return_reuse_buffers_postponed();
 
-	while (m_rx_ready_byte_count < total_iov_sz) {
+	while (m_p_socket_stats->n_rx_ready_byte_count < total_iov_sz) {
         	if (unlikely(g_b_exit)) {
 			ret = -1;
 			errno = EINTR;
