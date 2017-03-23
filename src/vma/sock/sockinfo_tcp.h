@@ -48,6 +48,8 @@
 
 #include "sockinfo.h"
 
+#define BLOCK_THIS_RUN(blocking, flags) (blocking && !(flags & MSG_DONTWAIT))
+
 /**
  * Tcp socket states: rdma_offload or os_passthrough. in rdma_offload:
  * init --/bind()/ --> bound -- /listen()/ --> accept_ready -- /accept()may go to connected/ --> connected

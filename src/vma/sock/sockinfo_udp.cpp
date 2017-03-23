@@ -1610,7 +1610,6 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 		     const int __flags /*=0*/, const struct sockaddr *__dst /*=NULL*/, const socklen_t __dstlen /*=0*/)
 {
 	int ret;
-	bool is_dropped = false;
 	bool is_dummy = IS_DUMMY_PACKET(__flags);
 	dst_entry* p_dst_entry = m_p_connected_dst_entry; // Default for connected() socket but we'll update it on a specific sendTO(__to) call
 
@@ -1704,9 +1703,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 			*/
 			}
 		}
-	}
-
-	if (unlikely(!p_dst_entry)) {
+	} else if (unlikely(!p_dst_entry)) {
 		si_udp_logdbg("going to os, __dst = %p, m_p_connected_dst_entry = %p", __dst, m_p_connected_dst_entry);
 		goto tx_packet_to_os;
 	}
@@ -1716,10 +1713,6 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 		if (unlikely(__flags & MSG_DONTWAIT))
 			b_blocking = false;
 
-		if (unlikely(p_dst_entry->try_migrate_ring(m_lock_snd))) {
-			m_p_socket_stats->counters.n_tx_migrations++;
-		}
-
 		if (likely(p_dst_entry->is_valid())) {
 			// All set for fast path packet sending - this is our best performance flow
 			ret = p_dst_entry->fast_send((struct iovec*)p_iov, sz_iov, is_dummy, b_blocking);
@@ -1727,6 +1720,10 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 		else {
 			// updates the dst_entry internal information and packet headers
 			ret = p_dst_entry->slow_send(p_iov, sz_iov, is_dummy, b_blocking, false, __flags, this, call_type);
+		}
+
+		if (unlikely(p_dst_entry->try_migrate_ring(m_lock_snd))) {
+			m_p_socket_stats->counters.n_tx_migrations++;
 		}
 
 		// TODO ALEXR - still need to handle "is_dropped" in send path
@@ -1739,7 +1736,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 		// Yet we need to add this code to avoid deadlocks in case of EPOLLOUT ET.
 		NOTIFY_ON_EVENTS(this, EPOLLOUT);
 
-		save_stats_tx_offload(ret, is_dropped, is_dummy);
+		save_stats_tx_offload(ret, is_dummy);
 
 #ifdef VMA_TIME_MEASURE
 		TAKE_T_TX_END;
@@ -2320,7 +2317,7 @@ void sockinfo_udp::save_stats_rx_offload(int bytes)
     #pragma BullseyeCoverage on
 #endif
 
-void sockinfo_udp::save_stats_tx_offload(int bytes, bool is_dropped, bool is_dummy)
+void sockinfo_udp::save_stats_tx_offload(int bytes, bool is_dummy)
 {
 	if (unlikely(is_dummy)) {
 		m_p_socket_stats->counters.n_tx_dummy++;
@@ -2334,10 +2331,6 @@ void sockinfo_udp::save_stats_tx_offload(int bytes, bool is_dropped, bool is_dum
 		}
 		else {
 			m_p_socket_stats->counters.n_tx_errors++;
-		}
-
-		if (is_dropped) {
-			m_p_socket_stats->counters.n_tx_drops++;
 		}
 	}
 }
