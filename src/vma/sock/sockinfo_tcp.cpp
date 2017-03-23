@@ -754,7 +754,7 @@ retry_write:
 				si_tcp_logdbg("returning with: EINTR");
 				goto err;
 			}
-			err = tcp_write(&m_pcb, (char *)p_iov[i].iov_base + pos, tx_size, 3, is_dummy);
+			err = tcp_write(&m_pcb, (char *)p_iov[i].iov_base + pos, tx_size, is_dummy);
 			if (unlikely(err != ERR_OK)) {
 				if (unlikely(err == ERR_CONN)) { // happens when remote drops during big write
 					si_tcp_logdbg("connection closed: tx'ed = %d", total_tx);
@@ -859,7 +859,7 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit, uin
 			p = p->next;
 		}
 
-		// We don't expect pbuf chain at all since we enabled  TCP_WRITE_FLAG_COPY and TCP_WRITE_FLAG_MORE in lwip
+		// We don't expect pbuf chain at all
 		if (p) {
 			vlog_printf(VLOG_ERROR, "pbuf chain size > 64!!! silently dropped.");
 			return ERR_OK;
@@ -909,12 +909,11 @@ err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rex
 			p = p->next;
 		}
 
-#if 1 // We don't expcet pbuf chain at all since we enabled  TCP_WRITE_FLAG_COPY and TCP_WRITE_FLAG_MORE in lwip
+		// We don't expect pbuf chain at all
 		if (p) {
 			vlog_printf(VLOG_ERROR, "pbuf chain size > 64!!! silently dropped.");
 			return ERR_OK;
 		}
-#endif
 	}
 
 	if (is_rexmit)
