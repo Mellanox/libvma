@@ -872,7 +872,7 @@ int cq_mgr::vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 	}
 	else if (cqe_err) {
 		/* Return nothing in case error wc
-		 * It is difference with poll_and_process_helper_rx()
+		 * It is difference with poll_and_process_element_rx()
 		 */
 		mlx5_poll_and_process_error_element_rx(cqe_err, NULL);
 		*p_desc_lst = NULL;
@@ -897,7 +897,7 @@ int cq_mgr::vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 }
 #endif // DEFINED_VMAPOLL
 
-int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array)
+int cq_mgr::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array)
 {
 	// Assume locked!!!
 	cq_logfuncall("");
@@ -991,7 +991,7 @@ int cq_mgr::poll_and_process_helper_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready
 #endif // DEFINED_VMAPOLL
 }
 
-int cq_mgr::poll_and_process_helper_tx(uint64_t* p_cq_poll_sn)
+int cq_mgr::poll_and_process_element_tx(uint64_t* p_cq_poll_sn)
 {
 	// Assume locked!!!
 	cq_logfuncall("");
@@ -1208,18 +1208,6 @@ inline volatile struct mlx5_cqe64 *cq_mgr::mlx5_get_cqe64(volatile struct mlx5_c
 	return cqe;
 }
 #endif // DEFINED_VMAPOLL
-
-int cq_mgr::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array /*=NULL*/)
-{
-	cq_logfuncall("");
-	return poll_and_process_helper_rx(p_cq_poll_sn, pv_fd_ready_array);
-}
-
-int cq_mgr::poll_and_process_element_tx(uint64_t* p_cq_poll_sn)
-{
-	cq_logfuncall("");
-	return poll_and_process_helper_tx(p_cq_poll_sn);
-}
 
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
@@ -1536,9 +1524,9 @@ int cq_mgr::wait_for_notification_and_process_element(uint64_t* p_cq_poll_sn, vo
 
 			// Now try processing the ready element
 			if (m_b_is_rx) {
-				ret = poll_and_process_helper_rx(p_cq_poll_sn, pv_fd_ready_array);
+				ret = poll_and_process_element_rx(p_cq_poll_sn, pv_fd_ready_array);
 			} else {
-				ret = poll_and_process_helper_tx(p_cq_poll_sn);
+				ret = poll_and_process_element_tx(p_cq_poll_sn);
 			}
 		} ENDIF_VERBS_FAILURE;
 	}
