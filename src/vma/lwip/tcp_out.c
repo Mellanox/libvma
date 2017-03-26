@@ -174,30 +174,39 @@ tcp_create_segment(struct tcp_pcb *pcb, struct pbuf *p, u8_t flags, u32_t seqno,
   struct tcp_seg *seg;
   u8_t optlen = LWIP_TCP_OPT_LENGTH(optflags);
 
-#if LWIP_3RD_PARTY_BUFS
-  if ((seg = external_tcp_seg_alloc(pcb)) == NULL) {
-#else
-  if ((seg = (struct tcp_seg *)memp_malloc(MEMP_TCP_SEG)) == NULL) {
-#endif
-    LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_create_segment: no memory.\n"));
-    tcp_tx_pbuf_free(pcb, p);
-    return NULL;
+  if (!pcb->seg_alloc) {
+    if ((seg = external_tcp_seg_alloc(pcb)) == NULL) {
+      LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_create_segment: no memory.\n"));
+      tcp_tx_pbuf_free(pcb, p);
+      return NULL;
+    }
+
+    seg->next = NULL;
+#if TCP_OVERSIZE_DBGCHECK
+    seg->oversize_left = 0;
+#endif /* TCP_OVERSIZE_DBGCHECK */
+#if TCP_CHECKSUM_ON_COPY
+    seg->chksum = 0;
+    seg->chksum_swapped = 0;
+    /* check optflags */
+    LWIP_ASSERT("invalid optflags passed: TF_SEG_DATA_CHECKSUMMED",
+              (optflags & TF_SEG_DATA_CHECKSUMMED) == 0);
+#endif /* TCP_CHECKSUM_ON_COPY */
+
+    if (p == NULL) {
+      // Fetch tcp segment for next request
+      seg->p = NULL;
+      return seg;
+    }
+  } else {
+    seg = pcb->seg_alloc;
+    pcb->seg_alloc = NULL;
   }
+
   seg->flags = optflags;
-  seg->next = NULL;
   seg->p = p;
   seg->dataptr = p->payload;
   seg->len = p->tot_len - optlen;
-#if TCP_OVERSIZE_DBGCHECK
-  seg->oversize_left = 0;
-#endif /* TCP_OVERSIZE_DBGCHECK */
-#if TCP_CHECKSUM_ON_COPY
-  seg->chksum = 0;
-  seg->chksum_swapped = 0;
-  /* check optflags */
-  LWIP_ASSERT("invalid optflags passed: TF_SEG_DATA_CHECKSUMMED",
-              (optflags & TF_SEG_DATA_CHECKSUMMED) == 0);
-#endif /* TCP_CHECKSUM_ON_COPY */
   seg->seqno = seqno;
 
   /* build TCP header */
@@ -1136,6 +1145,12 @@ tcp_output(struct tcp_pcb *pcb)
 #endif /* TCP_OVERSIZE */
 
   pcb->flags &= ~TF_NAGLEMEMERR;
+
+  // Fetch buffers for the next packet.
+  if (!pcb->seg_alloc) {
+	  // Fetch tcp segment for the next packet.
+	  pcb->seg_alloc = tcp_create_segment(pcb, NULL, 0, 0, 0);
+  }
 
   if (!pcb->pbuf_alloc) {
 	  // Fetch pbuf for the next packet.

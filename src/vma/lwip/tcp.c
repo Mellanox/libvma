@@ -1134,6 +1134,7 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio)
 
 	pcb->keep_cnt_sent = 0;
 	pcb->enable_ts_opt = enable_ts_option;
+	pcb->seg_alloc = NULL;
 	pcb->pbuf_alloc = NULL;
 }
 
@@ -1166,6 +1167,11 @@ tcp_tx_pbuf_alloc(struct tcp_pcb * pcb, u16_t length, pbuf_type type)
 
 void tcp_tx_preallocted_buffers_free(struct tcp_pcb * pcb)
 {
+	if (pcb->seg_alloc) {
+		tcp_tx_seg_free(pcb, pcb->seg_alloc);
+		pcb->seg_alloc = NULL;
+	}
+
 	if (pcb->pbuf_alloc) {
 		tcp_tx_pbuf_free(pcb, pcb->pbuf_alloc);
 		pcb->pbuf_alloc = NULL;
