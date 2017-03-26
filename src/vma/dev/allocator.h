@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -30,29 +30,43 @@
  * SOFTWARE.
  */
 
+#ifndef SRC_VMA_DEV_ALLOCATOR_H_
+#define SRC_VMA_DEV_ALLOCATOR_H_
 
-#include "ring.h"
+#include <deque>
+#include <stdlib.h>
+#include <sys/param.h> // for MIN
+#include <sys/shm.h>
+#include <sys/mman.h>
+#include "vlogger/vlogger.h"
+#include "vma/util/verbs_extra.h"
+#include "vma/util/sys_vars.h"
+#include "utils/bullseye.h"
+#include "util/utils.h"
+#include "ib_ctx_handler.h"
+#include "ib_ctx_handler_collection.h"
+#include "utils/lock_wrapper.h"
 
-#undef  MODULE_NAME
-#define MODULE_NAME     "ring"
-#undef  MODULE_HDR
-#define MODULE_HDR      MODULE_NAME "%d:%s() "
 
-ring::ring(int count, uint32_t mtu) :
-	m_n_num_resources(count), m_p_n_rx_channel_fds(NULL), m_parent(NULL),
-	m_is_mp_ring(false), m_mtu(mtu)
-{
-#ifdef DEFINED_VMAPOLL
-	m_vma_active = true; /* TODO: This VMA version supports vma_poll() usage mode only */
-	INIT_LIST_HEAD(&m_ec_list);
-	m_vma_poll_completion = NULL;
-#endif // DEFINED_VMAPOLL	
-}
+class ib_ctx_handler;
 
-ring::~ring()
-{
-#ifdef DEFINED_VMAPOLL
-	ring_logdbg("queue of event completion elements is %s",
-			(list_empty(&m_ec_list) ? "empty" : "not empty"));
-#endif // DEFINED_VMAPOLL		
-}
+class vma_allocator {
+public:
+	vma_allocator();
+	void* allocAndRegMr(size_t size, ib_ctx_handler *p_ib_ctx_h);
+	void* get_ptr() {return m_data_block;}
+	uint32_t find_lkey_by_ib_ctx(ib_ctx_handler *p_ib_ctx_h);
+	virtual ~vma_allocator();
+private:
+	bool register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint64_t access);
+	bool hugetlb_alloc(size_t sz_bytes);
+
+	int m_shmid;
+	void *m_data_block;
+	bool m_is_contig_alloc;
+	uint64_t m_access_mr;
+	// List of memory regions
+	std::deque<ibv_mr*> m_mrs;
+};
+
+#endif /* SRC_VMA_DEV_ALLOCATOR_H_ */

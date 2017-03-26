@@ -38,6 +38,8 @@
 #include "vma/util/utils.h"
 #include "vma/vma_extra.h"
 
+class ring_eth_mp;
+
 class ring_simple : public ring
 {
 public:
@@ -86,7 +88,9 @@ public:
 	inline void 		convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) { m_p_cq_mgr_rx->convert_hw_time_to_system_time(hwtime, systime); }
 	inline uint32_t		get_qpn() const { return (m_p_l2_addr ? ((IPoIB_addr *)m_p_l2_addr)->get_qpn() : 0); }
 
+	struct ibv_comp_channel* get_tx_comp_event_channel() { return m_p_tx_comp_event_channel; }
 	friend class cq_mgr;
+	friend class cq_mgr_mlx5;
 	friend class qp_mgr;
 	friend class rfs;
 	friend class rfs_uc;
@@ -96,7 +100,7 @@ public:
 
 protected:
 	virtual qp_mgr*		create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) = 0;
-	void			create_resources(ring_resource_creation_info_t* p_ring_info, bool active) throw (vma_error);
+	virtual void		create_resources(ring_resource_creation_info_t* p_ring_info, bool active) throw (vma_error);
 	// Internal functions. No need for locks mechanism.
 #ifdef DEFINED_VMAPOLL	
 	inline void 		vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_buf_desc);
@@ -109,15 +113,15 @@ protected:
 	void			flow_udp_mc_del_all();
 	void			flow_tcp_del_all();
 	bool			request_more_tx_buffers(uint32_t count);
-	struct ibv_comp_channel* get_tx_comp_event_channel() { return m_p_tx_comp_event_channel; }
 	uint32_t		get_tx_num_wr() { return m_tx_num_wr; }
 	uint16_t		get_partition() { return m_partition; }
 #ifdef DEFINED_VMAPOLL		
 	uint16_t		get_lkey() { return m_tx_lkey; }
 #endif // DEFINED_VMAPOLL		
 
+	qp_mgr*			m_p_qp_mgr;
 	struct cq_moderation_info m_cq_moderation_info;
-
+	cq_mgr*			m_p_cq_mgr_rx;
 private:
 	inline void		send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe);
 	inline mem_buf_desc_t*	get_tx_buffers(uint32_t n_num_mem_bufs);
@@ -130,8 +134,6 @@ private:
 
 	lock_spin_recursive	m_lock_ring_rx;
 	lock_spin_recursive	m_lock_ring_tx;
-	qp_mgr*			m_p_qp_mgr;
-	cq_mgr*			m_p_cq_mgr_rx;
 	cq_mgr*			m_p_cq_mgr_tx;
 	lock_mutex		m_lock_ring_tx_buf_wait;
 	descq_t			m_tx_pool;
@@ -171,9 +173,14 @@ private:
 class ring_eth : public ring_simple
 {
 public:
-	ring_eth(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count, bool active, uint16_t vlan, uint32_t mtu, ring* parent = NULL) throw (vma_error):
-		ring_simple(local_if, vlan, count, VMA_TRANSPORT_ETH, mtu, parent) { create_resources(p_ring_info, active); };
-
+	ring_eth(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info,
+		 int count, bool active, uint16_t vlan, uint32_t mtu,
+		 ring* parent = NULL, bool call_create_res = true) throw (vma_error):
+		ring_simple(local_if, vlan, count, VMA_TRANSPORT_ETH, mtu, parent) {
+		if (call_create_res)
+			create_resources(p_ring_info, active);
+	};
+	virtual ~ring_eth(){}
 protected:
 	virtual qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) throw (vma_error);
 };

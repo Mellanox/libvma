@@ -40,6 +40,7 @@
 #include "utils/lock_wrapper.h"
 #include <vma/proto/ip_frag.h>
 #include <vma/dev/buffer_pool.h>
+#include <vma/dev/ring_eth_mp.h>
 #include <vma/event/event_handler_manager.h>
 #include <vma/event/vlogger_timer_handler.h>
 #include <vma/iomux/poll_call.h>
@@ -483,19 +484,19 @@ int vma_buff_free(vma_buff_t *buff)
 }
 #endif // DEFINED_VMAPOLL
 
-#ifdef DEFINED_VMAPOLL
 extern "C"
 int vma_get_socket_rings_num(int fd)
 {
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(fd);
-
-	return p_socket_object->get_rings_num();
-
+	if (p_socket_object)
+		return p_socket_object->get_rings_num();
+	errno = EINVAL;
+	vlog_printf(VLOG_ERROR, "could not find ring num, got fd %d\n", fd);
+	return -1;
 }
-#endif // DEFINED_VMAPOLL
 
-#ifdef DEFINED_VMAPOLL
+
 extern "C"
 int vma_get_socket_rings_fds(int fd, int *ring_fds, int ring_fds_sz)
 {
@@ -514,7 +515,6 @@ int vma_get_socket_rings_fds(int fd, int *ring_fds, int ring_fds_sz)
 
 	return rings_num;
 }
-#endif // DEFINED_VMAPOLL
 
 extern "C"
 int vma_add_conf_rule(char *config_line)
@@ -562,6 +562,31 @@ NOT_IN_USE(log_level);
 	return -1;
 #endif // DEFINED_VMAPOLL
 }
+
+#ifdef HAVE_MP_RQ
+extern "C"
+int vma_cyclic_buffer_read(int fd, struct vma_completion_mp_t *completion,
+			   size_t min, size_t max, int *flags)
+{
+	cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(fd);
+	if (p_cq_ch_info) {
+		//RAFI remove the dynamic cast some how
+		ring_eth_mp* p_ring = (ring_eth_mp *)p_cq_ch_info->get_ring();
+		if (likely(p_ring && p_ring->is_mp_ring())) {
+			return p_ring->cyclic_buffer_read(*completion, min, max,
+					*flags);
+		} else {
+			vlog_printf(VLOG_ERROR, "could not find ring, got fd "
+					"%d\n", fd);
+			return -1;
+		}
+	} else {
+		vlog_printf(VLOG_ERROR, "could not find p_cq_ch_info, got fd "
+							"%d\n", fd);
+		return -1;
+	}
+}
+#endif // HAVE_MP_RQ
 
 //-----------------------------------------------------------------------------
 //  replacement functions
@@ -854,29 +879,28 @@ int getsockopt(int __fd, int __level, int __optname,
 	    __optlen && *__optlen >= sizeof(struct vma_api_t*)) {
 		srdr_logdbg("User request for VMA Extra API pointers");
 		struct vma_api_t *vma_api = new struct vma_api_t();
+		memset(vma_api, 0, sizeof(struct vma_api_t));
+
 		vma_api->register_recv_callback = vma_register_recv_callback;
 		vma_api->recvfrom_zcopy = vma_recvfrom_zcopy;
 		vma_api->free_packets = vma_free_packets;
 		vma_api->add_conf_rule = vma_add_conf_rule;
 		vma_api->thread_offload = vma_thread_offload;
-#ifdef DEFINED_VMAPOLL
+
 		vma_api->get_socket_rings_num = vma_get_socket_rings_num;
 		vma_api->get_socket_rings_fds = vma_get_socket_rings_fds;
+#ifdef DEFINED_VMAPOLL
 		vma_api->free_vma_packets = vma_free_vma_packets;
 		vma_api->vma_poll = vma_poll;
 		vma_api->ref_vma_buff = vma_buff_ref;
 		vma_api->free_vma_buff = vma_buff_free;
-		vma_api->dump_fd_stats = NULL;
 #else
-		vma_api->get_socket_rings_num = NULL;
-		vma_api->get_socket_rings_fds = NULL;
-		vma_api->free_vma_packets = NULL;
-		vma_api->vma_poll = NULL;
-		vma_api->ref_vma_buff = NULL;
-		vma_api->free_vma_buff = NULL;
-
 		vma_api->dump_fd_stats = vma_dump_fd_stats;
-#endif // DEFINED_VMAPOLL		
+#endif // DEFINED_VMAPOLL
+
+#ifdef HAVE_MP_RQ
+		vma_api->vma_cyclic_buffer_read = vma_cyclic_buffer_read;
+#endif // HAVE_MP_RQ
 		*((vma_api_t**)__optval) = vma_api;
 		return 0;
 	}

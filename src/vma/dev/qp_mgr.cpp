@@ -30,7 +30,6 @@
  * SOFTWARE.
  */
 
-
 #include "qp_mgr.h"
 #include "utils/bullseye.h"
 #include "vma/util/utils.h"
@@ -52,29 +51,33 @@
 #define qp_logfuncall		__log_info_funcall
 
 
-//#define ALIGN_WR_UP(_num_wr_) 		(max(32, ((_num_wr_ + 0xf) & ~(0xf))))
-#define ALIGN_WR_DOWN(_num_wr_) 		(max(32, ((_num_wr_      ) & ~(0xf))))
-
 #define FICTIVE_REMOTE_QPN	0x48
 #define FICTIVE_REMOTE_QKEY	0x01234567
 #define FICTIVE_AH_SL		5
 #define FICTIVE_AH_DLID		0x3
 
-qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num, const uint32_t tx_num_wr):
-	m_qp(NULL), m_p_ring((ring_simple*)p_ring), m_port_num((uint8_t)port_num), m_p_ib_ctx_handler((ib_ctx_handler*)p_context),
-	m_p_ahc_head(NULL), m_p_ahc_tail(NULL), m_max_inline_data(0), m_max_qp_wr(0), m_p_cq_mgr_rx(NULL), m_p_cq_mgr_tx(NULL),
-	m_rx_num_wr(safe_mce_sys().rx_num_wr), m_tx_num_wr(tx_num_wr), m_hw_dummy_send_support(false),
+
+qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context,
+		const uint8_t port_num, const uint32_t tx_num_wr):
+	m_rq_wqe_counter(0), m_rq_wqe_idx_to_wrid(NULL),
+
+	m_tx_num_wr(tx_num_wr), m_mlx5_hw_qp(NULL), m_qp(NULL), m_p_ring((ring_simple*)p_ring),
+	m_port_num((uint8_t)port_num),
+	m_p_ib_ctx_handler((ib_ctx_handler*)p_context),
+	m_p_ahc_head(NULL), m_p_ahc_tail(NULL), m_max_inline_data(0),
+	m_max_qp_wr(0), m_p_cq_mgr_rx(NULL), m_p_cq_mgr_tx(NULL),
+	m_rx_num_wr(safe_mce_sys().rx_num_wr),
+	m_hw_dummy_send_support(false),
 	m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv),
 	m_n_sysvar_tx_num_wr_to_signal(safe_mce_sys().tx_num_wr_to_signal),
 	m_n_sysvar_rx_prefetch_bytes_before_poll(safe_mce_sys().rx_prefetch_bytes_before_poll),
-	m_curr_rx_wr(0), m_last_posted_rx_wr_id(0), m_n_unsignaled_count(0), m_n_tx_count(0),
+	m_ibv_rx_sg_array(NULL), m_ibv_rx_wr_array(NULL), m_curr_rx_wr(0),
+	m_last_posted_rx_wr_id(0), m_n_unsignaled_count(0), m_n_tx_count(0),
 	m_p_last_tx_mem_buf_desc(NULL), m_p_prev_rx_desc_pushed(NULL),
 	m_n_ip_id_base(0), m_n_ip_id_offset(0)
+
 {
-	m_ibv_rx_sg_array = new ibv_sge[m_n_sysvar_rx_num_wr_to_post_recv];
-	m_ibv_rx_wr_array = new ibv_recv_wr[m_n_sysvar_rx_num_wr_to_post_recv];
 #ifdef DEFINED_VMAPOLL
-	m_rq_wqe_counter = 0;
 	m_sq_wqe_counter = 0;
 
 	m_rq_wqe_idx_to_wrid = (uint64_t*)mmap(NULL, m_rx_num_wr * sizeof(*m_rq_wqe_idx_to_wrid),
@@ -123,8 +126,39 @@ qp_mgr::~qp_mgr()
 	munmap(m_rq_wqe_idx_to_wrid, m_rx_num_wr * sizeof(*m_rq_wqe_idx_to_wrid));
 	munmap(m_sq_wqe_idx_to_wrid, m_tx_num_wr * sizeof(*m_sq_wqe_idx_to_wrid));
 #endif // DEFINED_VMAPOLL
+
+#ifndef DEFINED_VMAPOLL
+	delete[] m_rq_wqe_idx_to_wrid;
+#else
+	free(m_rq_wqe_idx_to_wrid);
+#endif
 	qp_logdbg("Rx buffer poll: %d free global buffers available", g_buffer_pool_rx->get_free_count());
 	qp_logdbg("delete done");
+}
+
+cq_mgr*	qp_mgr::init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_channel)
+{
+	 return new cq_mgr(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
+}
+
+#if !defined(DEFINED_VMAPOLL) && defined(HAVE_INFINIBAND_MLX5_HW_H)
+cq_mgr*	qp_mgr_eth_mlx5::init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_channel)
+{
+	m_rx_num_wr = align32pow2(m_rx_num_wr);
+
+	m_rq_wqe_idx_to_wrid = new uint64_t[m_rx_num_wr];
+	if (!m_rq_wqe_idx_to_wrid) {
+		qp_logerr("Failed allocating m_rq_wqe_idx_to_wrid (errno=%d %m)", errno);
+		return NULL;
+	}
+
+	return new cq_mgr_mlx5(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
+}
+#endif
+
+cq_mgr*	qp_mgr::init_tx_cq_mgr()
+{
+	return new cq_mgr(m_p_ring, m_p_ib_ctx_handler, m_tx_num_wr, m_p_ring->get_tx_comp_event_channel(), false);
 }
 
 int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
@@ -132,11 +166,13 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	qp_logdbg("Creating QP of transport type '%s' on ibv device '%s' [%p] on port %d",
 			priv_vma_transport_type_str(m_p_ring->get_transport_type()),
 			m_p_ib_ctx_handler->get_ibv_device()->name, m_p_ib_ctx_handler->get_ibv_device(), m_port_num);
+	m_ibv_rx_sg_array = new ibv_sge[m_n_sysvar_rx_num_wr_to_post_recv];
+	m_ibv_rx_wr_array = new ibv_recv_wr[m_n_sysvar_rx_num_wr_to_post_recv];
 
 	vma_ibv_device_attr& r_ibv_dev_attr = m_p_ib_ctx_handler->get_ibv_device_attr();
 	
 	// Check device capabilities for max QP work requests	
-	m_max_qp_wr = ALIGN_WR_DOWN(r_ibv_dev_attr.max_qp_wr - 1);;
+	m_max_qp_wr = ALIGN_WR_DOWN(r_ibv_dev_attr.max_qp_wr - 1);
 	if (m_rx_num_wr > m_max_qp_wr) {
 		qp_logwarn("Allocating only %d Rx QP work requests while user requested %s=%d for QP on <%p, %d>",
 			   m_max_qp_wr, SYS_VAR_RX_NUM_WRE, m_rx_num_wr, m_p_ib_ctx_handler, m_port_num);
@@ -150,14 +186,13 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	qp_logdbg("HW Dummy send support for QP = %d", m_hw_dummy_send_support);
 
 	// Create associated Tx & Rx cq_mgrs
-	m_p_cq_mgr_tx = new cq_mgr(m_p_ring, m_p_ib_ctx_handler, m_tx_num_wr, m_p_ring->get_tx_comp_event_channel(), false);
+	m_p_cq_mgr_tx = init_tx_cq_mgr();
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_p_cq_mgr_tx) {
 		qp_logerr("Failed allocating m_p_cq_mgr_tx (errno=%d %m)", errno);
 		return -1;
 	}
-
-	m_p_cq_mgr_rx = new cq_mgr(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
+	m_p_cq_mgr_rx = init_rx_cq_mgr(p_rx_comp_event_channel);
 	if (!m_p_cq_mgr_rx) {
 		qp_logerr("Failed allocating m_p_cq_mgr_rx (errno=%d %m)", errno);
 		return -1;
@@ -193,18 +228,9 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 		return -1;
 	}
 
-	int attr_mask = IBV_QP_CAP;
-	struct ibv_qp_attr tmp_ibv_qp_attr;
-	struct ibv_qp_init_attr tmp_ibv_qp_init_attr;
-	IF_VERBS_FAILURE(ibv_query_qp(m_qp, &tmp_ibv_qp_attr, (enum ibv_qp_attr_mask)attr_mask, &tmp_ibv_qp_init_attr)) {
-		qp_logerr("ibv_query_qp failed (errno=%d %m)", errno);
-		return -1;
-	} ENDIF_VERBS_FAILURE;
-
 #ifdef DEFINED_VMAPOLL
 	struct verbs_qp *vqp = (struct verbs_qp *)m_qp;
 	m_mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
-
 	m_qp_num = m_mlx5_hw_qp->ctrl_seg.qp_num;
 	m_mlx5_sq_wqes = (volatile struct mlx5_wqe64 (*)[])(uintptr_t)m_mlx5_hw_qp->gen_data.sqstart;
 	m_sq_db = &m_mlx5_hw_qp->gen_data.db[MLX5_SND_DBR];
@@ -214,10 +240,9 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	mlx5_init_sq();
 #endif // DEFINED_VMAPOLL
 
-	m_max_inline_data = min(tmp_ibv_qp_init_attr.cap.max_inline_data, tx_max_inline);
-	qp_logdbg("requested max inline = %d QP, actual max inline = %d, VMA max inline set to %d, max_send_wr=%d, max_recv_wr=%d, max_recv_sge=%d, max_send_sge=%d",
-			tx_max_inline, tmp_ibv_qp_init_attr.cap.max_inline_data, m_max_inline_data, qp_init_attr.cap.max_send_wr, qp_init_attr.cap.max_recv_wr, qp_init_attr.cap.max_recv_sge, qp_init_attr.cap.max_send_sge);
-
+	if (post_qp_create()) {
+		return -1;
+	}
 	// All buffers will be allocated from this qp_mgr buffer pool so we can already set the Rx & Tx lkeys
 	for (uint32_t wr_idx = 0; wr_idx < m_n_sysvar_rx_num_wr_to_post_recv; wr_idx++) {
 		m_ibv_rx_wr_array[wr_idx].sg_list = &m_ibv_rx_sg_array[wr_idx];
@@ -300,7 +325,6 @@ void qp_mgr::release_rx_buffers()
 			}
 		}
 	}
-
 	// Wait for all FLUSHed WQE on Rx CQ
 	qp_logdbg("draining rx cq_mgr %p (last_posted_rx_wr_id = %x)", m_p_cq_mgr_rx, m_last_posted_rx_wr_id);
 	uintptr_t last_polled_rx_wr_id = 0;
@@ -500,12 +524,11 @@ int qp_mgr::post_recv(mem_buf_desc_t* p_mem_buf_desc)
 		m_ibv_rx_sg_array[m_curr_rx_wr].length = p_mem_buf_desc->sz_buffer;
 		m_ibv_rx_sg_array[m_curr_rx_wr].lkey   = p_mem_buf_desc->lkey;
 
-#ifdef DEFINED_VMAPOLL
-		uint64_t index = m_rq_wqe_counter & (m_rx_num_wr - 1);
-
-		m_rq_wqe_idx_to_wrid[index] = (uintptr_t)p_mem_buf_desc;
-		m_rq_wqe_counter++;
-#endif // DEFINED_VMAPOLL
+		if (m_rq_wqe_idx_to_wrid) {
+			uint64_t index = m_rq_wqe_counter & (m_rx_num_wr - 1);
+			m_rq_wqe_idx_to_wrid[index] = (uintptr_t)p_mem_buf_desc;
+			++m_rq_wqe_counter;
+		}
 
 		if (m_curr_rx_wr == m_n_sysvar_rx_num_wr_to_post_recv - 1) {
 
@@ -519,9 +542,9 @@ int qp_mgr::post_recv(mem_buf_desc_t* p_mem_buf_desc)
 			IF_VERBS_FAILURE(ibv_post_recv(m_qp, &m_ibv_rx_wr_array[0], &bad_wr)) {
 				uint32_t n_pos_bad_rx_wr = ((uint8_t*)bad_wr - (uint8_t*)m_ibv_rx_wr_array) / sizeof(struct ibv_recv_wr);
 				qp_logerr("failed posting list (errno=%d %m)", errno);
-				qp_logdbg("bad_wr is %d in submitted list (bad_wr=%p, m_ibv_rx_wr_array=%p, size=%d)", n_pos_bad_rx_wr, bad_wr, m_ibv_rx_wr_array, sizeof(struct ibv_recv_wr));
-				qp_logdbg("bad_wr info: wr_id=%#x, next=%p, addr=%#x, length=%d, lkey=%#x", bad_wr[0].wr_id, bad_wr[0].next, bad_wr[0].sg_list[0].addr, bad_wr[0].sg_list[0].length, bad_wr[0].sg_list[0].lkey);
-				qp_logdbg("QP current state: %d", priv_ibv_query_qp_state(m_qp));
+				/*qp_logdbg*/qp_logerr("bad_wr is %d in submitted list (bad_wr=%p, m_ibv_rx_wr_array=%p, size=%d)", n_pos_bad_rx_wr, bad_wr, m_ibv_rx_wr_array, sizeof(struct ibv_recv_wr));
+				/*qp_logdbg*/qp_logerr("bad_wr info: wr_id=%#x, next=%p, addr=%#x, length=%d, lkey=%#x", bad_wr[0].wr_id, bad_wr[0].next, bad_wr[0].sg_list[0].addr, bad_wr[0].sg_list[0].length, bad_wr[0].sg_list[0].lkey);
+				/*qp_logdbg*/qp_logerr("QP current state: %d", priv_ibv_query_qp_state(m_qp));
 
 				// Fix broken linked list of rx_wr
 				if (n_pos_bad_rx_wr != (m_n_sysvar_rx_num_wr_to_post_recv - 1)) {
@@ -770,6 +793,18 @@ int qp_mgr_eth::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 		return ret;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
+
+	int attr_mask = IBV_QP_CAP;
+	struct ibv_qp_attr tmp_ibv_qp_attr;
+	struct ibv_qp_init_attr tmp_ibv_qp_init_attr;
+	IF_VERBS_FAILURE(ibv_query_qp(m_qp, &tmp_ibv_qp_attr, (enum ibv_qp_attr_mask)attr_mask, &tmp_ibv_qp_init_attr)) {
+		qp_logerr("ibv_query_qp failed (errno=%d %m)", errno);
+		return -1;
+	} ENDIF_VERBS_FAILURE;
+	uint32_t tx_max_inline = safe_mce_sys().tx_max_inline;
+	m_max_inline_data = min(tmp_ibv_qp_init_attr.cap.max_inline_data, tx_max_inline);
+	qp_logdbg("requested max inline = %d QP, actual max inline = %d, VMA max inline set to %d, max_send_wr=%d, max_recv_wr=%d, max_recv_sge=%d, max_send_sge=%d",
+			tx_max_inline, tmp_ibv_qp_init_attr.cap.max_inline_data, m_max_inline_data, qp_init_attr.cap.max_send_wr, qp_init_attr.cap.max_recv_wr, qp_init_attr.cap.max_recv_sge, qp_init_attr.cap.max_send_sge);
 
 	return 0;
 }

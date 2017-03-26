@@ -191,7 +191,16 @@ typedef struct ibv_exp_qp_init_attr             vma_ibv_qp_init_attr;
 //ibv_query_device
 #define vma_ibv_query_device(context, attr)	ibv_exp_query_device(context, attr)
 typedef struct ibv_exp_device_attr		vma_ibv_device_attr;
+
+#ifdef HAVE_MP_RQ
+#define vma_ibv_device_attr_comp_mask(attr)	(attr).comp_mask = IBV_EXP_DEVICE_ATTR_EXP_CAP_FLAGS | \
+								   IBV_EXP_DEVICE_ATTR_MP_RQ | \
+								   IBV_EXP_DEVICE_ATTR_VLAN_OFFLOADS |\
+								   IBV_EXP_DEVICE_ATTR_MAX_CTX_RES_DOMAIN
+#else
 #define vma_ibv_device_attr_comp_mask(attr)	(attr).comp_mask = IBV_EXP_DEVICE_ATTR_EXP_CAP_FLAGS
+#endif
+
 #ifdef DEFINED_IBV_EXP_DEVICE_RX_CSUM_L4_PKT
 #define vma_is_rx_hw_csum_supported(attr)	(((attr).exp_device_cap_flags & IBV_EXP_DEVICE_RX_CSUM_L3_PKT) \
 						&& ((attr).exp_device_cap_flags & IBV_EXP_DEVICE_RX_CSUM_L4_PKT))
@@ -308,7 +317,7 @@ static inline void init_vma_ibv_cq_init_attr(vma_ibv_cq_init_attr* attr)
 {
 #ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
 		attr->flags = IBV_EXP_CQ_TIMESTAMP;
-		attr->comp_mask = IBV_EXP_CQ_INIT_ATTR_FLAGS;
+		attr->comp_mask |= IBV_EXP_CQ_INIT_ATTR_FLAGS;
 #else
 		NOT_IN_USE(attr);
 #endif

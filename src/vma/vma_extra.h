@@ -171,6 +171,29 @@ struct __attribute__ ((packed)) vma_info_t {
 	struct timespec		sw_timestamp;
 };
 
+/**
+ * @param comp_mask IN_OUT what attributes you want to get, first bit goes to
+ * 	@ref headers_ptr second bit to @ref headers_ptr_length
+ * @param headers_ptr Array of pointers each one points to the user header,
+ * 	user header is set when you initialize the ring RAFI
+ * @param headers_ptr_length IN_OUT how many user headers do you want, VMA will
+ * 	spread the headers according to @ref headers_ptr_length/@ref packets
+ * 	e.g. when asking got 100 headers and VMA provided 200 packets you will
+ * 	get an array size 100 that points to every second user header
+ * @param payload_ptr pointer to user data no including user header
+ * @param payload_length size of payload_ptr
+ * @param packets  how many packets arrived
+ * @param hw_timestamp the HW time stamp of the first packet arrived
+ */
+struct vma_completion_mp_t {
+	uint32_t*	comp_mask;
+	void**		headers_ptr;
+	int*		headers_ptr_length;
+	void*		payload_ptr;
+	size_t		payload_length;
+	size_t		packets;
+	struct timespec	hw_timestamp;
+};
 
 /** 
  *  
@@ -421,6 +444,21 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * @return 0 on success, or error code on failure.
 	 */
 	int (*dump_fd_stats) (int fd, int log_level);
+
+	/**
+	 * Get data from the MP_RQ cyclic buffer
+	 * @param fd - the fd of the ring to query - get it using @ref get_socket_rings_fds
+	 * @param completion results see @ref struct vma_completion_mp_t
+	 * @param min min number of packet to return, if not available
+	 * 	will return 0 packets
+	 * @param max max packets to return
+	 * @param flags can be MSG_DONTWAIT, MSG_WAITALL, MSG_PEEK
+	 * @return 0 on success -1 on failure
+	 */
+	int (*vma_cyclic_buffer_read)(int fd,
+				      struct vma_completion_mp_t *completion,
+				      size_t min, size_t max, int *flags);
+
 };
 
 
