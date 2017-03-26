@@ -1,4 +1,4 @@
-Updated: 19 Mar 2017
+Updated: 28 Mar 2017
 
 Introduction
 ============
@@ -691,13 +691,13 @@ Use value of 2 for waiting for thread timer to expire.
 Default value is disabled
 
 VMA_TCP_TIMESTAMP_OPTION
+If set, enable TCP timestamp option.
 Currently, LWIP is not supporting RTTM and PAWS mechanisms. 
-see RFC1323 for info.
+See RFC1323 for info.
 Use value of 0 to disable.
 Use value of 1 for enable.
 Use value of 2 for OS follow up.
-Disabled by default (enabling causing a slight performance
-degradation of ~50-100 nano sec per half round trip)
+Disabled by default (enabling causing a slight performance degradation).
 
 VMA_RX_SW_CSUM
 This parameter enables/disables software checksum validation for ingress TCP/UDP IP packets.
