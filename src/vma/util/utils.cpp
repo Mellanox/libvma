@@ -670,27 +670,6 @@ int run_and_retreive_system_command(const char* cmd_line, char* return_str, int 
 	return ((!rc && return_str) ? 0 : -1);
 }
 
-bool get_local_if_info(in_addr_t local_if, char* ifname, unsigned int &ifflags)
-{
-	bool ret_val = true;
-
-	sock_addr sa_if(AF_INET, local_if, INPORT_ANY);
-	__log_dbg("checking local interface: %s", sa_if.to_str_in_addr());
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (get_ifinfo_from_ip(*sa_if.get_p_sa(), ifname, ifflags)) {
-		__log_dbg("ERROR from get_ifaddrs_from_ip() (errno=%d %m)", errno);
-		ret_val = false;
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-	if (ifflags & IFF_MASTER) {
-		__log_dbg("matching ip found on local device '%s' acting as bonding master", ifname);
-	}
-	else {
-		__log_dbg("matching ip found on local device '%s'", ifname);
-	}
-	return ret_val;
-}
-
 size_t get_local_ll_addr(IN const char * ifname, OUT unsigned char* addr, IN int addr_len, bool is_broadcast)
 {
 	char l2_addr_path[256] = {0};
