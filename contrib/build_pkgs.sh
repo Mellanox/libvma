@@ -89,7 +89,7 @@ copy_deb()
 usage()
 {
 cat << eOm
-	usage:$0 -b|-build -checkout commit/tag -c|-copy -clean -h
+	usage:$0 -b|-build -checkout tag/branch/commit -c|-copy -clean -h
 eOm
 	exit 0
 }
@@ -98,9 +98,9 @@ git_checkout()
 {
 	[ -z "$1" ] || [[ "$1" =~ ^- ]] && usage
 	cd "${WORKSPACE}"
-	$(git rev-parse $1 >/dev/null 2>&1 >/dev/null)
-	[ "$?" -ne 0 ] && err "commit or tag is invalid"
-	git checkout "$1"
+	[ ! -d .git ] && err "not a git repository"
+	$(git checkout "$1" >/dev/null 2>&1 >/dev/null)
+	[ "$?" -ne 0 ] && err "pathspec $1 did not match any file(s) known to git"
 }
 
 case "$1" in
