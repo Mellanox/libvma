@@ -126,5 +126,5 @@ case "$1" in
 esac
 
 exit 0;
-# </buildpkgs.sh>
+# </build_pkgs.sh>
 
