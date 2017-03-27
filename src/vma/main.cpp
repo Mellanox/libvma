@@ -110,15 +110,12 @@ const char *vma_version_str = "VMA_VERSION: " PACKAGE_VERSION "-" STR(VMA_LIBRAR
 			      ;	// End of vma_version_str - used in "$ strings libvma.so | grep VMA_VERSION"
 
 
-bool g_handle_iperf = false;
 bool g_b_exit = false;
 bool g_init_ibv_fork_done = false;
 bool g_is_forked_child = false;
 bool g_init_global_ctors_done = true;
 
-#define MAX_BACKTRACE		25
 #define MAX_VERSION_STR_LEN	128
-#define MAX_CMD_LINE		2048
 
 static int free_libvma_resources()
 {
@@ -665,15 +662,6 @@ extern "C" void sock_redirect_exit(void)
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
 #endif
-
-void vma_mcheck_abort_cb(enum mcheck_status status)
-{
-	printf("mcheck abort! Got %d\n", status);
-	printf("Press ENTER to continue...\n");
-	if (getchar() < 0)
-		printf("error reading char, errno %d %m!\n", errno);
-	handle_segfault(0);
-}
 
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on

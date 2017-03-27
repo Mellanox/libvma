@@ -321,7 +321,6 @@ struct mce_sys_var {
 	bool 		tx_mc_loopback_default;
 	bool		tx_nonblocked_eagains;
 	uint32_t	tx_prefetch_bytes;
-	int32_t         tx_backlog_max;
 	uint32_t        tx_bufs_batch_udp;
 	uint32_t        tx_bufs_batch_tcp;
 
@@ -335,7 +334,6 @@ struct mce_sys_var {
 	ts_conversion_mode_t	rx_udp_hw_ts_conversion;
 	bool 		rx_sw_csum;
 	uint32_t 	rx_poll_yield_loops;
-	uint32_t 	rx_skip_os_fd_check;
 	uint32_t 	rx_ready_byte_min_limit;
 	uint32_t 	rx_prefetch_bytes;
 	uint32_t 	rx_prefetch_bytes_before_poll;
@@ -353,7 +351,6 @@ struct mce_sys_var {
 	bool		select_poll_os_force;
 	uint32_t	select_poll_os_ratio;
 	uint32_t 	select_skip_os_fd_check;
-	bool		select_arm_cq;
 	bool            select_handle_cpu_usage_stats;
 
 	bool		cq_moderation_enable;
@@ -380,7 +377,6 @@ struct mce_sys_var {
 	bool		avoid_sys_calls_on_tcp_fd;
 	bool		allow_privileged_sock_opt;
 	uint32_t	wait_after_join_msec;
-	in_port_t	block_udp_port;
 	thread_mode_t	thread_mode;
 	buffer_batching_mode_t buffer_batching_mode;
 	alloc_mode_t	mem_alloc_type;
@@ -403,8 +399,6 @@ struct mce_sys_var {
 	uint32_t 	neigh_uc_arp_quata;
 	uint32_t	neigh_wait_till_send_arp_msec;
 	uint32_t	neigh_num_err_retries;
-
-	bool 		suppress_igmp_warning;
 
 	uint32_t 	vma_time_measure_num_samples;
 	char 		vma_time_measure_filename[FILENAME_MAX];
@@ -457,7 +451,6 @@ extern mce_sys_var & safe_mce_sys();
 #define SYS_VAR_TX_MC_LOOPBACK				"VMA_TX_MC_LOOPBACK"
 #define SYS_VAR_TX_NONBLOCKED_EAGAINS			"VMA_TX_NONBLOCKED_EAGAINS"
 #define SYS_VAR_TX_PREFETCH_BYTES			"VMA_TX_PREFETCH_BYTES"
-#define SYS_VAR_TX_BACKLOG_MAX				"VMA_TX_BACKLOG_MAX"
 
 #define SYS_VAR_RX_NUM_BUFS				"VMA_RX_BUFS"
 #define SYS_VAR_RX_NUM_WRE				"VMA_RX_WRE"
@@ -649,8 +642,6 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_MTU					(0)
 #define MCE_DEFAULT_MSS					(0)
 #define MCE_DEFAULT_LWIP_CC_ALGO_MOD			(0)
-#define MCE_DEFAULT_QP_LOGIC				(QP_ALLOC_LOGIC__SINGLE_QP_PER_PORT_PER_LOCAL_IP)
-#define MCE_DEFAULT_CQ_LOGIC				(CQ_ALLOC_LOGIC__CQ_PER_HCA)
 #define MCE_DEFAULT_INTERNAL_THREAD_AFFINITY		(-1)
 #define MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR	("-1")
 #define MCE_DEFAULT_INTERNAL_THREAD_CPUSET		("")
@@ -660,8 +651,6 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_NEIGH_UC_ARP_QUATA			3
 #define MCE_DEFAULT_NEIGH_UC_ARP_DELAY_MSEC		10000
 #define MCE_DEFAULT_NEIGH_NUM_ERR_RETRIES		1
-
-#define MCE_DEFAULT_SUPPRESS_IGMP_WARNING		0
 
 #define MCE_DEFAULT_TIME_MEASURE_NUM_SAMPLES		(10000)
 #define MCE_DEFAULT_TIME_MEASURE_DUMP_FILE		"/tmp/VMA_inst.dump"
@@ -687,10 +676,7 @@ extern mce_sys_var & safe_mce_sys();
 #define NUM_RX_WRE_TO_POST_RECV_MAX			1024
 #define TCP_MAX_SYN_RATE_TOP_LIMIT			100000
 #define DEFAULT_MC_TTL					64
-#define MAX_FREG_MEM_BUF				(MCE_DEFAULT_RX_NUM_BUFS/100)
-#define IBVERBS_ABI_VER_PARAM_FILE			"/sys/class/infiniband_verbs/abi_version"
 #define IFTYPE_PARAM_FILE				"/sys/class/net/%s/type"
-#define IFADDR_LEN_PARAM_FILE				"/sys/class/net/%s/addr_len"
 #define IFADDR_MTU_PARAM_FILE				"/sys/class/net/%s/mtu"
 #define UMCAST_PARAM_FILE				"/sys/class/net/%s/umcast"
 #define IPOIB_MODE_PARAM_FILE				"/sys/class/net/%s/mode"
@@ -706,29 +692,14 @@ extern mce_sys_var & safe_mce_sys();
 #define BONDING_SLAVE_STATE_PARAM_FILE			"/sys/class/net/%s/bonding_slave/state"
 #define L2_ADDR_FILE_FMT                                "/sys/class/net/%.*s/address"
 #define L2_BR_ADDR_FILE_FMT                                   "/sys/class/net/%.*s/broadcast"
-#define FLAGS_PARAM_FILE				"/sys/class/net/%s/flags"
 #define OPER_STATE_PARAM_FILE				"/sys/class/net/%s/operstate"
-#define TCP_SCALING_WINDOW_MAX_RECV_MEM_FILE		"/proc/sys/net/core/rmem_max"
-#define TCP_SCALING_WINDOW_FILE				"/proc/sys/net/ipv4/tcp_window_scaling"
-#define ARP_TABLE_FILE					"/proc/net/arp"
 #define RAW_QP_PRIVLIGES_PARAM_FILE			"/sys/module/ib_uverbs/parameters/disable_raw_qp_enforcement"
-#define FLOW_STEERING_PARAM_FILE			"/sys/module/mlx4_core/parameters/flow_steering"
-#define FLOW_STEERING_HASH_PARAM_FILE			"/sys/module/mlx4_core/parameters/flow_steering_hash"
 #define FLOW_STEERING_MGM_ENTRY_SIZE_PARAM_FILE		"/sys/module/mlx4_core/parameters/log_num_mgm_entry_size"
 #define VIRTUAL_DEVICE_FOLDER			"/sys/devices/virtual/net/%s/"
 #define BOND_DEVICE_FILE				"/proc/net/bonding/%s"
-#define MLX4_DRIVER_PATH				"/sys/class/net/%s/device/driver/module/drivers/pci:mlx4_core"
-#define PROC_STATUS_FILE				"/proc/%d/status"
 
 #define MAX_STATS_FD_NUM				1024
-#define UNSENT_QUEUEU_SIZE				1024
 #define MAX_WINDOW_SCALING				14
-
-/**
- * Macros for single/multi thread support
- */
-#define MULTI_THREAD_ONLY(x) 	{ if (safe_mce_sys().thread_mode > THREAD_MODE_SINGLE) x; }
-
 
 // REVIEW - extern struct mce_sys_var & mce_sys;
 extern bool g_b_exit;

@@ -487,7 +487,6 @@ void mce_sys_var::get_env_params()
 
 	timer_netlink_update_msec = MCE_DEFAULT_NETLINK_TIMER_MSEC;
 
-	suppress_igmp_warning	= MCE_DEFAULT_SUPPRESS_IGMP_WARNING;
 	rx_poll_on_tx_tcp	= MCE_DEFAULT_RX_POLL_ON_TX_TCP;
 
 #ifdef VMA_TIME_MEASURE
@@ -708,9 +707,6 @@ void mce_sys_var::get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_TX_PREFETCH_BYTES)) != NULL)
 		tx_prefetch_bytes = (uint32_t)atoi(env_ptr);
-
-	if ((env_ptr = getenv(SYS_VAR_TX_BACKLOG_MAX)) != NULL)
-		tx_backlog_max = atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_RING_ALLOCATION_LOGIC_TX)) != NULL) {
 		ring_allocation_logic_tx = (ring_logic_t)atoi(env_ptr);
