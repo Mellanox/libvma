@@ -71,7 +71,7 @@ copy_rpm()
 {
 	[ ! -d "${DEST_DIR}" ] && mkdir -p ${DEST_DIR} || rm -f ${DEST_DIR}/*.rpm
 	cp -v ${PKG_DIR}/rpm-dist/*.rpm ${DEST_DIR}
-	cp -v ${PKG_DIR}/rpm-dist/x86_64/*.rpm ${DEST_DIR}
+	cp -v ${PKG_DIR}/rpm-dist/*/*.rpm ${DEST_DIR}
 }
 
 build_deb()
@@ -89,8 +89,18 @@ copy_deb()
 usage()
 {
 cat << eOm
-	usage:$0 -b|-build -c|-copy -clean -h
+	usage:$0 -b|-build -checkout commit/tag -c|-copy -clean -h
 eOm
+	exit 0
+}
+
+git_checkout()
+{
+	[ -z "$1" ] || [[ "$1" =~ ^- ]] && usage
+	cd "${WORKSPACE}"
+	$(git rev-parse $1 >/dev/null 2>&1 >/dev/null)
+	[ "$?" -ne 0 ] && err "commit or tag is invalid"
+	git checkout "$1"
 }
 
 case "$1" in
@@ -99,6 +109,10 @@ case "$1" in
 		make_dist
 		build_${PKGM} "${PKG_SPEC}" "${SRC_PKG_DIR}" "${PKG_DIR}"
 		copy_${PKGM}
+		;;
+	-checkout)
+		shift
+		git_checkout "$1"
 		;;
 	-c|-copy)
 		copy_${PKGM}
