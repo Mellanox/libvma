@@ -539,6 +539,11 @@ sockets ready packet queue.
 Recommended value is 100-5000 (nsec)
 Default value is 0 (Disable)
 
+VMA_RX_POLL_ON_TX_TCP
+This parameter enables/disables TCP RX polling during TCP TX operation for faster 
+TCP ACK reception. 
+Default: 0 (Disable)
+
 VMA_GRO_STREAMS_MAX
 Control the number of TCP streams to perform GRO (generic receive offload) simultaneously.
 Disable GRO with a value of 0.
