@@ -1,3 +1,13 @@
+Version 8.3.1-0:
+Date + Time 2017-03-28
+=============================================================
+Added:
+        - RM #933410 Support IPoIB on ConnectX-4
+        - RM #968200 Support Flow tag for vmapoll mode
+        - RM #968200 Support flow tag for multicast flows
+        - RM #987802 Support Flow tag for non-VMAPOLL modes
+        - RM #996018 Add README file for GTEST suite
+
 Version 8.2.10-0:
 Date + Time 2017-03-22 (branch: fast_update_release_20032017)
 =============================================================
