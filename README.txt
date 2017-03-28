@@ -1,4 +1,4 @@
-Updated: 19 Mar 2017
+Updated: 28 Mar 2017
 
 Introduction
 ============
@@ -538,6 +538,10 @@ of over CQ polling. This will enable a more 'real time' monitoring of the
 sockets ready packet queue.
 Recommended value is 100-5000 (nsec)
 Default value is 0 (Disable)
+
+VMA_RX_POLL_ON_TX_TCP
+Enable TCP RX polling during TXP TX operation for faster TCP ACK reception
+Default: 0 (Disable)
 
 VMA_GRO_STREAMS_MAX
 Control the number of TCP streams to perform GRO (generic receive offload) simultaneously.
