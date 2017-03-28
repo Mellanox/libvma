@@ -411,7 +411,7 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		p_rfs = m_flow_udp_mc_map.get(key_udp_mc, NULL);
 		if (p_rfs == NULL) {		// It means that no rfs object exists so I need to create a new one and insert it to the flow map
 			m_lock_ring_rx.unlock();
-			if (m_transport_type == VMA_TRANSPORT_IB || m_b_sysvar_eth_mc_l2_only_rules) {
+			if ((m_transport_type == VMA_TRANSPORT_IB && 0 == m_p_qp_mgr->get_underly_qpn()) || m_b_sysvar_eth_mc_l2_only_rules) {
 				l2_mc_ip_filter = new rfs_rule_filter(m_l2_mc_ip_attach_map, key_udp_mc.dst_ip, flow_spec_5t);
 			}
 			try {
