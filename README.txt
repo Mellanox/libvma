@@ -691,6 +691,7 @@ Use value of 2 for waiting for thread timer to expire.
 Default value is disabled
 
 VMA_TCP_TIMESTAMP_OPTION
+If set, enable TCP timestamps for each TCP socket.
 Currently, LWIP is not supporting RTTM and PAWS mechanisms. 
 see RFC1323 for info.
 Use value of 0 to disable.
