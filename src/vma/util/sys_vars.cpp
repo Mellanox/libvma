@@ -463,6 +463,7 @@ void mce_sys_var::get_env_params()
 	internal_thread_tcp_timer_handling = MCE_DEFAULT_INTERNAL_THREAD_TCP_TIMER_HANDLING;
 	tcp_ctl_thread		= MCE_DEFAULT_TCP_CTL_THREAD;
 	tcp_ts_opt		= MCE_DEFAULT_TCP_TIMESTAMP_OPTION;
+	tcp_nodelay		= MCE_DEFAULT_TCP_NODELAY;
 //	exception_handling is handled by its CTOR
 	avoid_sys_calls_on_tcp_fd = MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD;
 	allow_privileged_sock_opt = MCE_DEFAULT_ALLOW_PRIVILEGED_SOCK_OPT;
@@ -524,6 +525,7 @@ void mce_sys_var::get_env_params()
 		cq_keep_qp_full		= false; //MCE_DEFAULT_CQ_KEEP_QP_FULL(true)
 		thread_mode		= THREAD_MODE_SINGLE;
 		mem_alloc_type          = ALLOC_TYPE_HUGEPAGES;
+		tcp_nodelay		= true; // MCE_DEFAULT_TCP_NODELAY (false)
 		strcpy(internal_thread_affinity_str, "0"); //MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR;
 		break;
 
@@ -547,6 +549,7 @@ void mce_sys_var::get_env_params()
 		progress_engine_interval_msec = 100; //MCE_DEFAULT_PROGRESS_ENGINE_INTERVAL_MSEC (10)
 		select_poll_os_ratio          = 100; //MCE_DEFAULT_SELECT_POLL_OS_RATIO (10)
 		select_poll_os_force	      = 1;   //MCE_DEFAULT_SELECT_POLL_OS_FORCE (0)
+		tcp_nodelay	      	      = true; // MCE_DEFAULT_TCP_NODELAY (falst)
 		break;
 
 	case MCE_SPEC_29WEST_LBM_29:
@@ -961,6 +964,10 @@ void mce_sys_var::get_env_params()
 			vlog_printf(VLOG_WARNING,"TCP timestamp option value is out of range [%d] (min=%d, max=%d). using default [%d]\n", tcp_ts_opt, TCP_TS_OPTION_DISABLE , TCP_TS_OPTION_LAST - 1, MCE_DEFAULT_TCP_TIMESTAMP_OPTION);
 			tcp_ts_opt = MCE_DEFAULT_TCP_TIMESTAMP_OPTION;
 		}
+	}
+
+	if ((env_ptr = getenv(SYS_VAR_TCP_NODELAY)) != NULL) {
+		tcp_nodelay = atoi(env_ptr) ? true : false;
 	}
 
 	// TODO: this should be replaced by calling "exception_handling.init()" that will be called from init()
