@@ -376,6 +376,7 @@ struct mce_sys_var {
 	uint32_t	tcp_timer_resolution_msec;
 	tcp_ctl_thread_t tcp_ctl_thread;
 	tcp_ts_opt_t	tcp_ts_opt;
+	bool	tcp_nodelay;
 	vma_exception_handling exception_handling;
 	bool		avoid_sys_calls_on_tcp_fd;
 	bool		allow_privileged_sock_opt;
@@ -504,6 +505,7 @@ extern mce_sys_var & safe_mce_sys();
 #define SYS_VAR_TCP_TIMER_RESOLUTION_MSEC		"VMA_TCP_TIMER_RESOLUTION_MSEC"
 #define SYS_VAR_TCP_CTL_THREAD				"VMA_TCP_CTL_THREAD"
 #define SYS_VAR_TCP_TIMESTAMP_OPTION			"VMA_TCP_TIMESTAMP_OPTION"
+#define SYS_VAR_TCP_NODELAY				"VMA_TCP_NODELAY"
 #define SYS_VAR_VMA_EXCEPTION_HANDLING			(vma_exception_handling::getSysVar())
 #define SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD		"VMA_AVOID_SYS_CALLS_ON_TCP_FD"
 #define SYS_VAR_ALLOW_PRIVILEGED_SOCK_OPT		"VMA_ALLOW_PRIVILEGED_SOCK_OPT"
@@ -632,6 +634,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC		(100)
 #define MCE_DEFAULT_TCP_CTL_THREAD			(CTL_THREAD_DISABLE)
 #define MCE_DEFAULT_TCP_TIMESTAMP_OPTION		(TCP_TS_OPTION_DISABLE)
+#define MCE_DEFAULT_TCP_NODELAY			(false)
 #define MCE_DEFAULT_VMA_EXCEPTION_HANDLING	(vma_exception_handling::MODE_DEFAULT)
 #define MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD		(false)
 #define MCE_DEFAULT_ALLOW_PRIVILEGED_SOCK_OPT		(true)
