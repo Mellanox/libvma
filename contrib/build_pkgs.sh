@@ -6,8 +6,6 @@ C_DIR=${PWD}
 
 DEST_DIR="${C_DIR}/PKGS"
 
-[ ! -z "${GHNL}" ] && . ${GHNL}
-
 if [ -x /usr/bin/dpkg-buildpackage ] ; then
 	PKGM="deb"
 	PKG_DIR=${C_DIR}/deb
@@ -17,6 +15,8 @@ else
 	SRC_PKG_DIR="${PKG_DIR}/SRC"
 	PKG_SPEC=${WORKSPACE}/build/libvma.spec
 fi
+
+[ ! -z "${GHNL}" ] && . ${GHNL}
 
 err()
 {
@@ -58,8 +58,8 @@ build_rpm_stage()
 build_rpm()
 {
 	local rpm_spec=$1 ; local src_dir=$2 ; local rpm_dir=$3
-	build_rpm_stage "${rpm_spec}" "-bs" "${src_dir}" "${rpm_dir}"
-	build_rpm_stage "${rpm_spec}" "-bb" "${src_dir}" "${rpm_dir}"
+	build_${PKGM}_stage "${rpm_spec}" "-bs" "${src_dir}" "${rpm_dir}"
+	build_${PKGM}_stage "${rpm_spec}" "-bb" "${src_dir}" "${rpm_dir}"
 }
 
 clean_rpm()
