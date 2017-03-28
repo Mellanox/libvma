@@ -50,7 +50,7 @@
 #define pi_logwarn(log_fmt, log_args...) 							VLOG_PRINTF(VLOG_WARNING, log_fmt, ##log_args)
 #define pi_loginfo(log_fmt, log_args...) 							VLOG_PRINTF(VLOG_INFO, log_fmt, ##log_args)
 
-#if defined(VMA_OPTIMIZE_LOG) && (VMA_OPTIMIZE_LOG <= 5)
+#if (VMA_OPTIMIZE_LOG <= 5)
 #define pi_logdbg_no_funcname(log_fmt, log_args...)    ((void)0)
 #define pi_logdbg(log_fmt, log_args...)                ((void)0)
 #define si_logdbg_no_funcname(log_fmt, log_args...)    ((void)0)
@@ -60,13 +60,13 @@
 #define si_logdbg_no_funcname(log_fmt, log_args...)	do { if (g_vlogger_level >= VLOG_DEBUG) 	vlog_printf(VLOG_DEBUG, MODULE_NAME "[fd=%d]:%d: " log_fmt "\n", m_fd, __LINE__, ##log_args); } while (0)
 #endif
 
-#if defined(VMA_OPTIMIZE_LOG) && (VMA_OPTIMIZE_LOG <= 6)
+#if (VMA_OPTIMIZE_LOG <= 6)
 #define pi_logfunc(log_fmt, log_args...)               ((void)0)
 #else
 #define pi_logfunc(log_fmt, log_args...)                if (g_vlogger_level >= VLOG_FUNC)       VLOG_PRINTF_DETAILS(VLOG_FUNC, log_fmt, ##log_args)
 #endif
 
-#if defined(VMA_OPTIMIZE_LOG) && (VMA_OPTIMIZE_LOG <= 7)
+#if (VMA_OPTIMIZE_LOG <= 7)
 #define pi_logfuncall(log_fmt, log_args...)            ((void)0)
 #else
 #define pi_logfuncall(log_fmt, log_args...) 		if (g_vlogger_level >= VLOG_FUNC_ALL) 	VLOG_PRINTF_DETAILS(VLOG_FUNC_ALL, log_fmt, ##log_args)

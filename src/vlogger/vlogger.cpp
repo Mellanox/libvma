@@ -75,13 +75,9 @@ namespace log_level
 	static const char *log_names_warn[]    = {"warn",  "warning", "2", NULL};
 	static const char *log_names_info[]    = {"info",  "information", "3", NULL};
 	static const char *log_names_details[] = {"details", NULL};
-#if !defined(VMA_OPTIMIZE_LOG) || (VMA_OPTIMIZE_LOG > 5)
 	static const char *log_names_debug[]   = {"debug", "4", NULL};
-#endif
-#if !defined(VMA_OPTIMIZE_LOG) || (VMA_OPTIMIZE_LOG > 6)
 	static const char *log_names_fine[]    = {"fine",  "func", "5", NULL};
 	static const char *log_names_finer[]   = {"finer", "func+", "funcall", "func_all", "func-all", "6", NULL};
-#endif
 	static const char *log_names_all[]     = {"all", NULL};
 
 	// must be by order because "to_str" relies on that!
@@ -92,13 +88,9 @@ namespace log_level
 			{VLOG_WARNING, "WARNING", "\e[2;35m" /*Magenta*/, (const char ** )log_names_warn},
 			{VLOG_INFO,    "INFO",    "\e[0m"    /*Default*/, (const char ** )log_names_info},
 			{VLOG_DETAILS, "DETAILS", "\e[0m"    /*Default*/, (const char ** )log_names_details},
-#if !defined(VMA_OPTIMIZE_LOG) || (VMA_OPTIMIZE_LOG > 5)
 			{VLOG_DEBUG,   "DEBUG",   "\e[0m"    /*Default*/, (const char ** )log_names_debug},
-#endif
-#if !defined(VMA_OPTIMIZE_LOG) || (VMA_OPTIMIZE_LOG > 6)
 			{VLOG_FINE,    "FINE",    "\e[2m"    /*Grey*/,    (const char ** )log_names_fine},
 			{VLOG_FINER,   "FINER",   "\e[2m"    /*Grey*/,    (const char ** )log_names_finer},
-#endif
 			{VLOG_ALL,     "ALL",     "\e[2m"    /*Grey*/,    (const char ** )log_names_all},
 	};
 
@@ -109,8 +101,20 @@ namespace log_level
 		for (size_t i = 0; i < num_levels; ++i) {
 			const char ** input_name = levels[i].input_names;
 			while (*input_name) {
-				if (strcasecmp(str, *input_name) == 0)
-					return levels[i].level;
+				if (strcasecmp(str, *input_name) == 0) {
+					/* Set maximum accessible logging level in case
+					 * a user requests level that is reduced during compilation
+					 * or requested one if the level is in valid range
+					 * VMA_OPTIMIZE_LOG is defined in any configuration and
+					 * accepts values as VLOG_DEBUG, VLOG_FINE
+					 */
+					if (levels[i].level < VMA_OPTIMIZE_LOG) {
+						return levels[i].level;
+					}
+					def_value = (vlog_levels_t)(VMA_OPTIMIZE_LOG - 1);
+					vlog_printf(VLOG_WARNING, "VMA trace level set to max level %s\n", to_str(def_value));
+					return def_value;
+				}
 				input_name++;
 			}
 		}

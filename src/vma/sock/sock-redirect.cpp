@@ -525,7 +525,7 @@ int vma_add_conf_rule(char *config_line)
 
 	int ret = __vma_parse_config_line(config_line);
 
-#if defined(VMA_OPTIMIZE_LOG) && (VMA_OPTIMIZE_LOG <= 5)
+#if (VMA_OPTIMIZE_LOG <= 5)
 	if (*g_p_vlogger_level >= VLOG_DEBUG)
 		__vma_print_conf_file(__instance_list);
 #endif

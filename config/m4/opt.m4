@@ -10,6 +10,7 @@
 # VMA_OPTIMIZE_LOG values:
 # 5 - VMA_DEBUG and up
 # 6 - VMA_FINE and up
+# 10 - invalid value (no logging optimization)
 #
 AC_ARG_ENABLE(
     [opt-log],
@@ -24,6 +25,7 @@ case "$enableval" in
         CPPFLAGS="$CPPFLAGS -DVMA_OPTIMIZE_LOG=6 -DNDEBUG"
         ;;
     no | none)
+	CPPFLAGS="$CPPFLAGS -DVMA_OPTIMIZE_LOG=10"
         ;;
     high)
         CPPFLAGS="$CPPFLAGS -DVMA_OPTIMIZE_LOG=5 -DNDEBUG"

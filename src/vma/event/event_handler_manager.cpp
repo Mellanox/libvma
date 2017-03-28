@@ -59,13 +59,13 @@
 #undef  VLOG_PRINTF_ENTRY
 #define VLOG_PRINTF_ENTRY(log_level, log_fmt, log_args...) 	vlog_printf(log_level, MODULE_NAME "%d:%s(" log_fmt ")\n", __LINE__, __FUNCTION__, ##log_args)
 
-#if defined(VMA_OPTIMIZE_LOG) && (VMA_OPTIMIZE_LOG <= 5)
+#if (VMA_OPTIMIZE_LOG <= 5)
 #define evh_logdbg_entry(log_fmt, log_args...)                  ((void)0)
 #else
 #define evh_logdbg_entry(log_fmt, log_args...)                  do { if (g_vlogger_level >= VLOG_DEBUG) VLOG_PRINTF_ENTRY(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
 #endif
 
-#if defined(VMA_OPTIMIZE_LOG) && (VMA_OPTIMIZE_LOG <= 6)
+#if (VMA_OPTIMIZE_LOG <= 6)
 #define evh_logfunc_entry(log_fmt, log_args...)                 ((void)0)
 #else
 #define evh_logfunc_entry(log_fmt, log_args...)			do { if (g_vlogger_level >= VLOG_FUNC)	VLOG_PRINTF_ENTRY(VLOG_FUNC, log_fmt, ##log_args); } while (0)
