@@ -236,8 +236,6 @@ sockinfo_tcp::sockinfo_tcp(int fd) throw (vma_exception) :
 	tcp_sent(&m_pcb, sockinfo_tcp::ack_recvd_lwip_cb);
 	m_pcb.my_container = this;
 
-	si_tcp_logdbg("TCP PCB FLAGS: 0x%x", m_pcb.flags);
-
 	m_n_pbufs_rcvd = m_n_pbufs_freed = 0;
 
 	m_parent = NULL;
@@ -267,6 +265,13 @@ sockinfo_tcp::sockinfo_tcp(int fd) throw (vma_exception) :
 	if (m_tcp_seg_list) m_tcp_seg_count += TCP_SEG_COMPENSATION;
 	m_tx_consecutive_eagain_count = 0;
 
+	// Disable Nagle algorithm if VMA_TCP_NODELAY flag was set.
+	if (safe_mce_sys().tcp_nodelay) {
+		tcp_nagle_disable(&m_pcb);
+		fit_snd_bufs_to_nagle(true);
+	}
+
+	si_tcp_logdbg("TCP PCB FLAGS: 0x%x", m_pcb.flags);
 	si_tcp_logfunc("done");
 }
 
@@ -2603,6 +2608,7 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 {
 	sockinfo_tcp *conn = (sockinfo_tcp *)(arg);
 	sockinfo_tcp *new_sock;
+	bool conn_nagle_disabled;
 
 	if (!conn || !child_pcb) {
 		return ERR_VAL;
@@ -2639,9 +2645,11 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 
 	vlog_printf(VLOG_DEBUG, "%s:%d: listen(fd=%d) state=%x: new sock(fd=%d) state=%x\n", __func__, __LINE__, conn->m_fd, get_tcp_state(&conn->m_pcb), new_sock->m_fd, get_tcp_state(&new_sock->m_pcb));
 
-	if (tcp_nagle_disabled(&(conn->m_pcb))) {
-		tcp_nagle_disable(&(new_sock->m_pcb));
-		new_sock->fit_snd_bufs_to_nagle(true);
+	/* Configure Nagle algorithm settings as they were set at the parent socket.
+	   This can happened if VMA_TCP_NAGLE flag was set, but we disabled it for the parent socket. */
+	if ((conn_nagle_disabled = tcp_nagle_disabled(&conn->m_pcb)) != tcp_nagle_disabled(&new_sock->m_pcb)) {
+		conn_nagle_disabled ? tcp_nagle_disable(&new_sock->m_pcb) : tcp_nagle_enable(&new_sock->m_pcb);
+		new_sock->fit_snd_bufs_to_nagle(conn_nagle_disabled);
 	}
 
 	if (new_sock->m_conn_state == TCP_CONN_INIT) { //in case m_conn_state is not in one of the error states

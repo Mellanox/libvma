@@ -163,6 +163,7 @@ Example:
  VMA DETAILS: TCP Timer Resolution (msec)    100                        [VMA_TCP_TIMER_RESOLUTION_MSEC]
  VMA DETAILS: TCP control thread             0 (Disabled)               [VMA_TCP_CTL_THREAD]
  VMA DETAILS: TCP timestamp option           0                          [VMA_TCP_TIMESTAMP_OPTION]
+ VMA DETAILS: TCP nodelay                    0                          [VMA_TCP_NODELAY]
  VMA DETAILS: Exception handling mode        -1 (just log debug message) [VMA_EXCEPTION_HANDLING]
  VMA DETAILS: Avoid sys-calls on tcp fd      Disabled                   [VMA_AVOID_SYS_CALLS_ON_TCP_FD]
  VMA DETAILS: Delay after join (msec)        0                          [VMA_WAIT_AFTER_JOIN_MSEC]
@@ -273,6 +274,7 @@ latency
      VMA_CQ_AIM_MAX_COUNT = 128               (default: 560)
      VMA_CQ_AIM_INTERVAL_MSEC = Disable       (default: 250)
      VMA_CQ_KEEP_QP_FULL = Disable            (default: Enable)
+     VMA_TCP_NODELAY = Enable                 (default: Disable)
      VMA_AVOID_SYS_CALLS_ON_TCP_FD = Enable   (default: Disable)
      VMA_INTERNAL_THREAD_AFFINITY = 0         (default: -1)
      VMA_THREAD_MODE = Single                 (default: Multi spin lock)
@@ -698,6 +700,16 @@ Use value of 1 for enable.
 Use value of 2 for OS follow up.
 Disabled by default (enabling causing a slight performance
 degradation of ~50-100 nano sec per half round trip)
+
+VMA_TCP_NODELAY
+If set, disable the Nagle algorithm for each tcp socket.
+This means that segments are always sent as soon as possible, even if there is
+only a small amount of data.
+For more info about TCP_NODELAY flag, Please refer to tcp manual page.
+Valid Values are:
+Use value of 0 to disable.
+Use value of 1 for enable.
+Default value is disabled.
 
 VMA_RX_SW_CSUM
 This parameter enables/disables software checksum validation for ingress TCP/UDP IP packets.
