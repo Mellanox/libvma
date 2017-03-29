@@ -432,13 +432,11 @@ Use a value of 0 for unlimited number of rings.
 Default value is 0 (no limit)
 
 VMA_RX_BUFS
-Number Rx data buffer elements allocation for the processes. These data buffers
-will be used by all QPs on all HCAs as determined by the VMA_QP_LOGIC.
+Number Rx data buffer elements allocation for the processes.
 Default value is 200000
 
 VMA_RX_WRE
-Number of Work Request Elements allocated in all receive QP's. 
-The number of QP's can change according to the VMA_QP_LOGIC.
+Number of Work Request Elements allocated in all receive QP's.
 Default value is 16000
 
 VMA_RX_WRE_BATCHING

@@ -117,48 +117,7 @@ bool compare_double(double a, double b);
  * @param cmd_line to be exceuted wiout VMA in process space
  * @param return_str is the output of the system call
  */
-#define MAX_CMD_LINE_LEN		512
 int run_and_retreive_system_command(const char* cmd_line, char* return_str, int return_str_len);
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-/**
- * Copy buffer to iovec
- * Returns total bytes copyed
- */
-static inline int memcpy_toiovec(u_int8_t* p_src, iovec* p_iov, size_t sz_iov,
-                                 size_t sz_dst_start_offset, size_t sz_data)
-{
-	/* Skip to start offset  */
-	int n_iovpos = 0;
-	while (n_iovpos < (int)sz_iov && sz_dst_start_offset >= p_iov[n_iovpos].iov_len) {
-		sz_dst_start_offset -= p_iov[n_iovpos].iov_len;
-		n_iovpos++;
-	}
-
-	/* Copy len size into iovec */
-	int n_total = 0;
-	while (n_iovpos < (int)sz_iov && sz_data > 0) {
-		if (p_iov[n_iovpos].iov_len)
-		{
-			u_int8_t* p_dst = ((u_int8_t*)(p_iov[n_iovpos].iov_base)) + sz_dst_start_offset;
-			int sz_data_block_to_copy = std::min(sz_data, p_iov[n_iovpos].iov_len - sz_dst_start_offset);
-			sz_dst_start_offset = 0;
-
-			memcpy(p_dst, p_src, sz_data_block_to_copy);
-
-			p_src += sz_data_block_to_copy;
-			sz_data -= sz_data_block_to_copy;
-			n_total += sz_data_block_to_copy;
-		}
-		n_iovpos++;
-	}
-	return n_total;
-}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 const char* iphdr_protocol_type_to_str(const int type);
 
@@ -282,17 +241,6 @@ size_t get_vlan_base_name_from_ifname(const char* ifname, char* base_ifname, siz
 
 /* Upon success - returns the actual address len in bytes; Upon error - returns zero*/
 size_t get_local_ll_addr(const char* ifname, unsigned char* addr, int addr_len,  bool is_broadcast);
-
-// This function translates the interface ipv4 address to IF name and queries the IF
-// Input params:
-// 	1. address of ib_con_mgr local if
-// Output params:
-//	1. name of ib_con_mgr local if
-//	2. if flags
-// Return Value
-// Type: boolean
-// Val:  if translation of ipv4 address fails return false otherwise true
-bool get_local_if_info(in_addr_t local_if, char* ifname, unsigned int &ifflags);
 
 bool get_bond_active_slave_name(IN const char* bond_name, OUT char* active_slave_name, IN int sz);
 bool get_bond_slave_state(IN const char* slave_name, OUT char* curr_state, IN int sz);
