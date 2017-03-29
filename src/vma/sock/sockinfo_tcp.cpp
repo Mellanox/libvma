@@ -267,8 +267,12 @@ sockinfo_tcp::sockinfo_tcp(int fd) throw (vma_exception) :
 
 	// Disable Nagle algorithm if VMA_TCP_NODELAY flag was set.
 	if (safe_mce_sys().tcp_nodelay) {
-		tcp_nagle_disable(&m_pcb);
-		fit_snd_bufs_to_nagle(true);
+		try {
+			int tcp_nodelay = 1;
+			setsockopt(IPPROTO_TCP, TCP_NODELAY, &tcp_nodelay, sizeof(tcp_nodelay));
+		} catch (vma_error&) {
+			// We should not be here
+		}
 	}
 
 	si_tcp_logdbg("TCP PCB FLAGS: 0x%x", m_pcb.flags);
