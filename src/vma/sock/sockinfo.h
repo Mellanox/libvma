@@ -133,11 +133,12 @@ public:
 	
 	virtual bool addr_in_reuse(void) = 0;
 
-#ifdef DEFINED_VMAPOLL
-	virtual int fast_nonblocking_rx(vma_packets_t *vma_pkts);
 	virtual int get_rings_num() {return 1;}
 	virtual bool check_rings() {return m_p_rx_ring ? true: false;}
 	virtual int* get_rings_fds() {int* channel_fds = m_p_rx_ring->get_rx_channel_fds(); return channel_fds;}
+
+#ifdef DEFINED_VMAPOLL
+	virtual int fast_nonblocking_rx(vma_packets_t *vma_pkts);
 #else
 	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);	
 #endif // DEFINED_VMAPOLL	

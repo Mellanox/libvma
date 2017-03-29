@@ -83,7 +83,15 @@ inline void ring_simple::send_status_handler(int ret, vma_ibv_send_wr* p_send_wq
 
 qp_mgr* ring_eth::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) throw (vma_error)
 {
+#if !defined(DEFINED_VMAPOLL) && defined(HAVE_INFINIBAND_MLX5_HW_H)
+	if (strstr(((ib_ctx_handler*)ib_ctx)->get_ibv_device()->name, "mlx5")) {
+		return new qp_mgr_eth_mlx5(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), get_partition());
+	} else {
+		return new qp_mgr_eth(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), get_partition());
+	}
+#else
 	return new qp_mgr_eth(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), get_partition());
+#endif
 }
 
 qp_mgr* ring_ib::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) throw (vma_error)
@@ -93,8 +101,9 @@ qp_mgr* ring_ib::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, s
 
 
 ring_simple::ring_simple(in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, uint32_t mtu, ring* parent /*=NULL*/) throw (vma_error):
-	ring(count, mtu), m_lock_ring_rx("ring_simple:lock_rx"), m_lock_ring_tx("ring_simple:lock_tx"),
-	m_p_qp_mgr(NULL), m_p_cq_mgr_rx(NULL), m_p_cq_mgr_tx(NULL),
+	ring(count, mtu), m_p_qp_mgr(NULL), m_p_cq_mgr_rx(NULL),
+	m_lock_ring_rx("ring_simple:lock_rx"),
+	m_lock_ring_tx("ring_simple:lock_tx"), m_p_cq_mgr_tx(NULL),
 	m_lock_ring_tx_buf_wait("ring:lock_tx_buf_wait"), m_tx_num_bufs(0), m_tx_num_wr(0), m_tx_num_wr_free(0),
 	m_b_qp_tx_first_flushed_completion_handled(false), m_missing_buf_ref_count(0),
 	m_tx_lkey(0), m_partition(partition_sn), m_gro_mgr(safe_mce_sys().gro_streams_max, MAX_GRO_BUFS), m_up(false),
@@ -1186,6 +1195,22 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 	break;
 	case VMA_TRANSPORT_ETH:
 	{
+//		printf("\nring_simple::rx_process_buffer\n");
+//		{
+//			struct ethhdr* p_eth_h = (struct ethhdr*)(p_rx_wc_buf_desc->p_buffer);
+//
+//			int i = 0;
+//			printf("p_eth_h->h_dest [0]=%d, [1]=%d, [2]=%d, [3]=%d, [4]=%d, [5]=%d\n",
+//					(uint8_t)p_eth_h->h_dest[0], (uint8_t)p_eth_h->h_dest[1], (uint8_t)p_eth_h->h_dest[2], (uint8_t)p_eth_h->h_dest[3], (uint8_t)p_eth_h->h_dest[4], (uint8_t)p_eth_h->h_dest[5]);
+//			printf("p_eth_h->h_source [0]=%d, [1]=%d, [2]=%d, [3]=%d, [4]=%d, [5]=%d\n",
+//					(uint8_t)p_eth_h->h_source[0], (uint8_t)p_eth_h->h_source[1], (uint8_t)p_eth_h->h_source[2], (uint8_t)p_eth_h->h_source[3], (uint8_t)p_eth_h->h_source[4], (uint8_t)p_eth_h->h_source[5]);
+//
+//			while(i++<62){
+//				printf("%d, ", (uint8_t)p_rx_wc_buf_desc->p_buffer[i]);
+//			}
+//			printf("\n");
+//		}
+
 		// Get the data buffer start pointer to the Ethernet header pointer
 		struct ethhdr* p_eth_h = (struct ethhdr*)(p_rx_wc_buf_desc->p_buffer);
 		ring_logfunc("Rx buffer Ethernet dst=" ETH_HW_ADDR_PRINT_FMT " <- src=" ETH_HW_ADDR_PRINT_FMT " type=%#x",
@@ -1891,6 +1916,7 @@ bool ring_simple::is_available_qp_wr(bool b_block)
 		ret = m_p_cq_mgr_tx->poll_and_process_element_tx(&poll_sn);
 		if (ret < 0) {
 			ring_logdbg("failed polling on tx cq_mgr (qp_mgr=%p, cq_mgr_tx=%p) (ret=%d %m)", m_p_qp_mgr, m_p_cq_mgr_tx, ret);
+			/* coverity[missing_unlock] */
 			return false;
 		} else if (ret > 0) {
 			ring_logfunc("polling succeeded on tx cq_mgr (%d wce)", ret);

@@ -68,9 +68,12 @@ libvma_la_LIBADD = \
 	
 libvma_la_SOURCES := \
 	dev/ah_cleaner.cpp \
+	dev/allocator.cpp \
 	dev/buffer_pool.cpp \
 	dev/cq_mgr.cpp \
+	dev/cq_mgr_mp.cpp \
 	dev/qp_mgr.cpp \
+	dev/qp_mgr_mp.cpp \
 	dev/gro_mgr.cpp \
 	dev/ring_allocation_logic.cpp \
 	dev/rfs.cpp \
@@ -87,6 +90,7 @@ libvma_la_SOURCES := \
 	dev/wqe_send_ib_handler.cpp \
 	dev/ring.cpp \
 	dev/ring_simple.cpp \
+	dev/ring_eth_mp.cpp \
 	dev/ring_bond.cpp \
 	\
 	event/delta_timer.cpp \
@@ -152,8 +156,10 @@ libvma_la_SOURCES := \
 	main.cpp \
 	\
 	dev/ah_cleaner.h \
+	dev/allocator.h \
 	dev/buffer_pool.h \
 	dev/cq_mgr.h \
+	dev/cq_mgr_mp.h \
 	dev/gro_mgr.h \
 	dev/ib_ctx_handler_collection.h \
 	dev/ib_ctx_handler.h \
@@ -162,6 +168,7 @@ libvma_la_SOURCES := \
 	dev/net_device_table_mgr.h \
 	dev/net_device_val.h \
 	dev/qp_mgr.h \
+	dev/qp_mgr_mp.h \
 	dev/rfs.h \
 	dev/rfs_mc.h \
 	dev/rfs_uc.h \
@@ -170,6 +177,7 @@ libvma_la_SOURCES := \
 	dev/ring_bond.h \
 	dev/ring.h \
 	dev/ring_simple.h \
+	dev/ring_eth_mp.h \
 	dev/wqe_send_handler.h \
 	dev/wqe_send_ib_handler.h \
 	\
