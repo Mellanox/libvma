@@ -1145,6 +1145,7 @@ tcp_tx_pbuf_alloc(struct tcp_pcb * pcb, u16_t length, pbuf_type type)
 
 	if (!pcb->pbuf_alloc) {
 
+		// pbuf_alloc is not valid, we should allocate a new pbuf.
 		p = external_tcp_tx_pbuf_alloc(pcb);
 		if (!p) return NULL;
 
@@ -1155,6 +1156,7 @@ tcp_tx_pbuf_alloc(struct tcp_pcb * pcb, u16_t length, pbuf_type type)
 		/* set flags */
 		p->flags = 0;
 	} else {
+		// pbuf_alloc is valid, we dont need to allocate a new pbuf element.
 		p = pcb->pbuf_alloc;
 		pcb->pbuf_alloc = NULL;
 	}
@@ -1165,6 +1167,7 @@ tcp_tx_pbuf_alloc(struct tcp_pcb * pcb, u16_t length, pbuf_type type)
 	return p;
 }
 
+// Release preallocated buffers
 void tcp_tx_preallocted_buffers_free(struct tcp_pcb * pcb)
 {
 	if (pcb->seg_alloc) {

@@ -284,6 +284,7 @@ sockinfo_tcp::~sockinfo_tcp()
 
 	destructor_helper();
 
+	// Release preallocated buffers
 	tcp_tx_preallocted_buffers_free(&m_pcb);
 
 	if (m_tcp_seg_in_use) {
