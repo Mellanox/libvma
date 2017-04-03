@@ -46,7 +46,7 @@
 #define ASSERT_LOCKED(lock) assert((lock).is_locked_by_me())
 #define ASSERT_NOT_LOCKED(lock) assert(!(lock).is_locked_by_me())
 
-#ifdef DEFINED_NO_THREAD_LOCK_RETURN
+#ifdef DEFINED_NO_THREAD_LOCK
 	#define DEFINED_NO_THREAD_LOCK_RETURN	return 0;
 #else
 	#define DEFINED_NO_THREAD_LOCK_RETURN
@@ -64,7 +64,7 @@
 	#define LOCK_BASE_UNLOCK            lock_base::unlock();
 	#define LOCK_BASE_START_LOCK_WAIT   tscval_t timeval = start_lock_wait();
 	#define LOCK_BASE_END_LOCK_WAIT     end_lock_wait(timeval);
-#endif // LOCK_BASE
+#endif
 
 #ifndef LOCK_STATS
 
