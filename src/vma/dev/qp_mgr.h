@@ -197,7 +197,6 @@ protected:
 
 	// send wr
 	uint32_t		m_n_unsignaled_count;
-	uint32_t		m_n_tx_count;
 	mem_buf_desc_t*		m_p_last_tx_mem_buf_desc; // Remembered so we can list several mem_buf_desc_t on a single notification request
 
 	mem_buf_desc_t*		m_p_prev_rx_desc_pushed;
@@ -210,6 +209,7 @@ protected:
 
 	int 			configure(struct ibv_comp_channel* p_rx_comp_event_channel);
 	virtual int		prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr) = 0;
+	inline void		set_unsignaled_count();
 };
 
 

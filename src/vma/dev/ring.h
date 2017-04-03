@@ -313,7 +313,7 @@ public:
 	virtual void		mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc) = 0;
 	virtual void		mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc) = 0;
 
-	virtual void		inc_ring_stats(ring_user_id_t id) = 0;
+	virtual void		inc_tx_retransmissions(ring_user_id_t id) = 0;
 	virtual bool		is_member(mem_buf_desc_owner* rng) = 0;
 	virtual bool		is_active_member(mem_buf_desc_owner* rng, ring_user_id_t id) = 0;
 	ring*			get_parent() { return m_parent; };

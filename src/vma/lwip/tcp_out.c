@@ -174,30 +174,41 @@ tcp_create_segment(struct tcp_pcb *pcb, struct pbuf *p, u8_t flags, u32_t seqno,
   struct tcp_seg *seg;
   u8_t optlen = LWIP_TCP_OPT_LENGTH(optflags);
 
-#if LWIP_3RD_PARTY_BUFS
-  if ((seg = external_tcp_seg_alloc(pcb)) == NULL) {
-#else
-  if ((seg = (struct tcp_seg *)memp_malloc(MEMP_TCP_SEG)) == NULL) {
-#endif
-    LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_create_segment: no memory.\n"));
-    tcp_tx_pbuf_free(pcb, p);
-    return NULL;
+  if (!pcb->seg_alloc) {
+    // seg_alloc is not valid, we should allocate a new segment.
+    if ((seg = external_tcp_seg_alloc(pcb)) == NULL) {
+      LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_create_segment: no memory.\n"));
+      tcp_tx_pbuf_free(pcb, p);
+      return NULL;
+    }
+
+    seg->next = NULL;
+#if TCP_OVERSIZE_DBGCHECK
+    seg->oversize_left = 0;
+#endif /* TCP_OVERSIZE_DBGCHECK */
+#if TCP_CHECKSUM_ON_COPY
+    seg->chksum = 0;
+    seg->chksum_swapped = 0;
+    /* check optflags */
+    LWIP_ASSERT("invalid optflags passed: TF_SEG_DATA_CHECKSUMMED",
+              (optflags & TF_SEG_DATA_CHECKSUMMED) == 0);
+#endif /* TCP_CHECKSUM_ON_COPY */
+
+    if (p == NULL) {
+      // Request a new segment in order to update seg_alloc for the next packet.
+      seg->p = NULL;
+      return seg;
+    }
+  } else {
+    // seg_alloc is valid, we dont need to allocate a new segment element.
+    seg = pcb->seg_alloc;
+    pcb->seg_alloc = NULL;
   }
+
   seg->flags = optflags;
-  seg->next = NULL;
   seg->p = p;
   seg->dataptr = p->payload;
   seg->len = p->tot_len - optlen;
-#if TCP_OVERSIZE_DBGCHECK
-  seg->oversize_left = 0;
-#endif /* TCP_OVERSIZE_DBGCHECK */
-#if TCP_CHECKSUM_ON_COPY
-  seg->chksum = 0;
-  seg->chksum_swapped = 0;
-  /* check optflags */
-  LWIP_ASSERT("invalid optflags passed: TF_SEG_DATA_CHECKSUMMED",
-              (optflags & TF_SEG_DATA_CHECKSUMMED) == 0);
-#endif /* TCP_CHECKSUM_ON_COPY */
   seg->seqno = seqno;
 
   /* build TCP header */
@@ -224,18 +235,17 @@ tcp_create_segment(struct tcp_pcb *pcb, struct pbuf *p, u8_t flags, u32_t seqno,
  * This function is like pbuf_alloc(layer, length, PBUF_RAM) except
  * there may be extra bytes available at the end.
  *
- * @param layer flag to define header size.
  * @param length size of the pbuf's payload.
  * @param max_length maximum usable size of payload+oversize.
  * @param oversize pointer to a u16_t that will receive the number of usable tail bytes.
  * @param pcb The TCP connection that willo enqueue the pbuf.
- * @param apiflags API flags given to tcp_write.
+ * @param tcp_write_flag_more true if TCP_WRITE_FLAG_MORE flag was enabled.
  * @param first_seg true when this pbuf will be used in the first enqueued segment.
  * @param 
  */
 static struct pbuf *
 tcp_pbuf_prealloc(u16_t length, u16_t max_length,
-                  u16_t *oversize, struct tcp_pcb *pcb, u8_t apiflags,
+                  u16_t *oversize, struct tcp_pcb *pcb, u8_t tcp_write_flag_more,
                   u8_t first_seg)
 {
   struct pbuf *p;
@@ -249,11 +259,9 @@ tcp_pbuf_prealloc(u16_t length, u16_t max_length,
      * save memory by allocating only length. We use a simple
      * heuristic based on the following information:
      *
-     * Did the user set TCP_WRITE_FLAG_MORE?
-     *
      * Will the Nagle algorithm defer transmission of this segment?
      */
-    if ((apiflags & TCP_WRITE_FLAG_MORE) ||
+    if (tcp_write_flag_more ||
         (!(pcb->flags & TF_NODELAY) &&
          (!first_seg ||
           pcb->unsent != NULL ||
@@ -330,14 +338,11 @@ tcp_write_checks(struct tcp_pcb *pcb, u32_t len)
  * @param pcb Protocol control block for the TCP connection to enqueue data for.
  * @param arg Pointer to the data to be enqueued for sending.
  * @param len Data length in bytes
- * @param apiflags combination of following flags :
- * - TCP_WRITE_FLAG_COPY (0x01) data will be copied into memory belonging to the stack
- * - TCP_WRITE_FLAG_MORE (0x02) for TCP connection, PSH flag will be set on last segment sent,
  * @param is_dummy indicates if the packet is a dummy packet
  * @return ERR_OK if enqueued, another err_t on error
  */
 err_t
-tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags, u8_t is_dummy)
+tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t is_dummy)
 {
   struct pbuf *concat_p = NULL;
   struct tcp_seg *seg = NULL, *prev_seg = NULL, *queue = NULL;
@@ -363,15 +368,10 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags, u8_t i
   if ( len < pcb->mss && !is_dummy)
           pcb->snd_sml_add = (pcb->unacked ? pcb->unacked->len : 0) + byte_queued;
 
-#if LWIP_NETIF_TX_SINGLE_PBUF
-  /* Always copy to try to create single pbufs for TX */
-  apiflags |= TCP_WRITE_FLAG_COPY;
-#endif /* LWIP_NETIF_TX_SINGLE_PBUF */
-
   optflags |= is_dummy ? TF_SEG_OPTS_DUMMY_MSG : 0;
 
-  LWIP_DEBUGF(TCP_OUTPUT_DEBUG, ("tcp_write(pcb=%p, data=%p, len=%"U16_F", apiflags=%"U16_F", is_dummy=%"U16_F")\n",
-    (void *)pcb, arg, len, (u16_t)apiflags, (u16_t)is_dummy));
+  LWIP_DEBUGF(TCP_OUTPUT_DEBUG, ("tcp_write(pcb=%p, data=%p, len=%"U16_F", is_dummy=%"U16_F")\n",
+    (void *)pcb, arg, len, (u16_t)is_dummy));
   LWIP_ERROR("tcp_write: arg == NULL (programmer violates API)", 
              arg != NULL, return ERR_ARG;);
 
@@ -467,25 +467,20 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags, u8_t i
       /* Create a pbuf with a copy or reference to seglen bytes. We
        * can use PBUF_RAW here since the data appears in the middle of
        * a segment. A header will never be prepended. */
-      if (apiflags & TCP_WRITE_FLAG_COPY) {
-        /* Data is copied */
-        if ((concat_p = tcp_pbuf_prealloc(seglen, space, &oversize, pcb, apiflags, 1)) == NULL) {
-          LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2,
-                      ("tcp_write : could not allocate memory for pbuf copy size %"U16_F"\n",
-                       seglen));
-          goto memerr;
-        }
-#if TCP_OVERSIZE_DBGCHECK
-        pcb->last_unsent->oversize_left += oversize;
-#endif /* TCP_OVERSIZE_DBGCHECK */
-        TCP_DATA_COPY2(concat_p->payload, (u8_t*)arg + pos, seglen, &concat_chksum, &concat_chksum_swapped);
-#if TCP_CHECKSUM_ON_COPY
-        concat_chksummed += seglen;
-#endif /* TCP_CHECKSUM_ON_COPY */
-      } else {
-    	  LWIP_ASSERT("tcp_write : we are never here", 0);
+      /* Data is copied */
+      if ((concat_p = tcp_pbuf_prealloc(seglen, space, &oversize, pcb, TCP_WRITE_FLAG_MORE, 1)) == NULL) {
+    	  LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2,
+    			  ("tcp_write : could not allocate memory for pbuf copy size %"U16_F"\n",
+    					  seglen));
     	  goto memerr;
       }
+#if TCP_OVERSIZE_DBGCHECK
+      pcb->last_unsent->oversize_left += oversize;
+#endif /* TCP_OVERSIZE_DBGCHECK */
+      TCP_DATA_COPY2(concat_p->payload, (u8_t*)arg + pos, seglen, &concat_chksum, &concat_chksum_swapped);
+#if TCP_CHECKSUM_ON_COPY
+      concat_chksummed += seglen;
+#endif /* TCP_CHECKSUM_ON_COPY */
 
       pos += seglen;
       queuelen += pbuf_clen(concat_p);
@@ -512,20 +507,15 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags, u8_t i
 
     LWIP_ASSERT("tcp_write: dummy packet should not be split", !(is_dummy && pos));
 
-    if (apiflags & TCP_WRITE_FLAG_COPY) {
-      /* If copy is set, memory should be allocated and data copied
-       * into pbuf */
-      if ((p = tcp_pbuf_prealloc(seglen + optlen, mss_local, &oversize, pcb, apiflags, queue == NULL)) == NULL) {
-        LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_write : could not allocate memory for pbuf copy size %"U16_F"\n", seglen));
-        goto memerr;
-      }
-      LWIP_ASSERT("tcp_write: check that first pbuf can hold the complete seglen",
-                  (p->len >= seglen));
-      TCP_DATA_COPY2((char *)p->payload + optlen, (u8_t*)arg + pos, seglen, &chksum, &chksum_swapped);
-    } else {
-    	LWIP_ASSERT("tcp_write: we are never here",0);
+    /* If copy is set, memory should be allocated and data copied
+     * into pbuf */
+    if ((p = tcp_pbuf_prealloc(seglen + optlen, mss_local, &oversize, pcb, TCP_WRITE_FLAG_MORE, queue == NULL)) == NULL) {
+    	LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_write : could not allocate memory for pbuf copy size %"U16_F"\n", seglen));
     	goto memerr;
     }
+    LWIP_ASSERT("tcp_write: check that first pbuf can hold the complete seglen",
+    		(p->len >= seglen));
+    TCP_DATA_COPY2((char *)p->payload + optlen, (u8_t*)arg + pos, seglen, &chksum, &chksum_swapped);
 
     queuelen += pbuf_clen(p);
 
@@ -549,10 +539,6 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags, u8_t i
     seg->chksum_swapped = chksum_swapped;
     seg->flags |= TF_SEG_DATA_CHECKSUMMED;
 #endif /* TCP_CHECKSUM_ON_COPY */
-    /* Fix dataptr for the nocopy case */
-    if ((apiflags & TCP_WRITE_FLAG_COPY) == 0) {
-      seg->dataptr = (u8_t*)arg + pos;
-    }
 
     /* first segment of to-be-queued data? */
     if (queue == NULL) {
@@ -860,7 +846,7 @@ tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
   struct tcp_seg *newseg = NULL;
   u32_t lentosend = (wnd - (seg->seqno - pcb->lastack));
   u16_t oversize = 0;
-  u8_t  optlen = 0, apiflags = 0, optflags = 0;
+  u8_t  optlen = 0, optflags = 0;
 
   if (((seg->seqno - pcb->lastack) >= wnd) || (NULL == seg->p) || (seg->p->ref>1)) {
     return;
@@ -882,7 +868,7 @@ tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
       return;
     }
 
-    if (NULL == (p = tcp_pbuf_prealloc(lentoqueue + optlen, lentoqueue + optlen, &oversize, pcb, apiflags, 0))) {
+    if (NULL == (p = tcp_pbuf_prealloc(lentoqueue + optlen, lentoqueue + optlen, &oversize, pcb, 0, 0))) {
       LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_split_segment: could not allocate memory for pbuf copy size %"U16_F"\n", (lentoqueue + optlen)));
       return;
     }
@@ -1161,6 +1147,18 @@ tcp_output(struct tcp_pcb *pcb)
 #endif /* TCP_OVERSIZE */
 
   pcb->flags &= ~TF_NAGLEMEMERR;
+
+  // Fetch buffers for the next packet.
+  if (!pcb->seg_alloc) {
+	  // Fetch tcp segment for the next packet.
+	  pcb->seg_alloc = tcp_create_segment(pcb, NULL, 0, 0, 0);
+  }
+
+  if (!pcb->pbuf_alloc) {
+	  // Fetch pbuf for the next packet.
+	  pcb->pbuf_alloc = tcp_tx_pbuf_alloc(pcb, 0, PBUF_RAM);
+  }
+
   return ERR_OK;
 }
 

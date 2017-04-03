@@ -182,7 +182,6 @@ protected:
 	 */
 	int						m_n_rx_pkt_ready_list_count;
 	size_t 					m_rx_pkt_ready_offset;
-	size_t					m_rx_ready_byte_count;
 
 	const int				m_n_sysvar_rx_num_buffs_reuse;
 	const int32_t				m_n_sysvar_rx_poll_num;
@@ -397,7 +396,6 @@ protected:
 			//save_stats_rx_offload(total_rx); //TODO??
 		}
 		else {
-			m_rx_ready_byte_count -= total_rx;
 			m_p_socket_stats->n_rx_ready_byte_count -= total_rx;
 			post_deqeue(relase_buff);
 			save_stats_rx_offload(total_rx);

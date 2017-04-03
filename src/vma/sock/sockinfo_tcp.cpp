@@ -64,7 +64,6 @@
 #undef  __INFO__
 #define __INFO__                m_fd
 
-
 #define si_tcp_logpanic             __log_info_panic
 #define si_tcp_logerr               __log_info_err
 #define si_tcp_logwarn              __log_info_warn
@@ -73,7 +72,7 @@
 #define si_tcp_logfunc              __log_info_func
 #define si_tcp_logfuncall           __log_info_funcall
 
-
+#define BLOCK_THIS_RUN(blocking, flags) (blocking && !(flags & MSG_DONTWAIT))
 #define TCP_SEG_COMPENSATION 64
 
 tcp_seg_pool *g_tcp_seg_pool = NULL;
@@ -294,6 +293,9 @@ sockinfo_tcp::~sockinfo_tcp()
 
 	destructor_helper();
 
+	// Release preallocated buffers
+	tcp_tx_preallocted_buffers_free(&m_pcb);
+
 	if (m_tcp_seg_in_use) {
 		si_tcp_logwarn("still %d tcp segs in use!", m_tcp_seg_in_use);
 	}
@@ -321,9 +323,9 @@ sockinfo_tcp::~sockinfo_tcp()
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	if (m_n_rx_pkt_ready_list_count || m_rx_ready_byte_count || m_rx_pkt_ready_list.size() || m_rx_ring_map.size() || m_rx_reuse_buff.n_buff_num || m_rx_reuse_buff.rx_reuse.size() || m_rx_cb_dropped_list.size() || m_rx_ctl_packets_list.size() || m_rx_peer_packets.size() || m_rx_ctl_reuse_list.size())
-		si_tcp_logerr("not all buffers were freed. protocol=TCP. m_n_rx_pkt_ready_list_count=%d, m_rx_ready_byte_count=%d, m_rx_pkt_ready_list.size()=%d, m_rx_ring_map.size()=%d, m_rx_reuse_buff.n_buff_num=%d, m_rx_reuse_buff.rx_reuse.size=%d, m_rx_cb_dropped_list.size=%d, m_rx_ctl_packets_list.size=%d, m_rx_peer_packets.size=%d, m_rx_ctl_reuse_list.size=%d",
-				m_n_rx_pkt_ready_list_count, m_rx_ready_byte_count, (int)m_rx_pkt_ready_list.size() ,(int)m_rx_ring_map.size(), m_rx_reuse_buff.n_buff_num, m_rx_reuse_buff.rx_reuse.size(), m_rx_cb_dropped_list.size(), m_rx_ctl_packets_list.size(), m_rx_peer_packets.size(), m_rx_ctl_reuse_list.size());
+	if (m_n_rx_pkt_ready_list_count || m_p_socket_stats->n_rx_ready_byte_count || m_rx_pkt_ready_list.size() || m_rx_ring_map.size() || m_rx_reuse_buff.n_buff_num || m_rx_reuse_buff.rx_reuse.size() || m_rx_cb_dropped_list.size() || m_rx_ctl_packets_list.size() || m_rx_peer_packets.size() || m_rx_ctl_reuse_list.size())
+		si_tcp_logerr("not all buffers were freed. protocol=TCP. m_n_rx_pkt_ready_list_count=%d, m_p_socket_stats->n_rx_ready_byte_count=%d, m_rx_pkt_ready_list.size()=%d, m_rx_ring_map.size()=%d, m_rx_reuse_buff.n_buff_num=%d, m_rx_reuse_buff.rx_reuse.size=%d, m_rx_cb_dropped_list.size=%d, m_rx_ctl_packets_list.size=%d, m_rx_peer_packets.size=%d, m_rx_ctl_reuse_list.size=%d",
+				m_n_rx_pkt_ready_list_count, m_p_socket_stats->n_rx_ready_byte_count, (int)m_rx_pkt_ready_list.size() ,(int)m_rx_ring_map.size(), m_rx_reuse_buff.n_buff_num, m_rx_reuse_buff.rx_reuse.size(), m_rx_cb_dropped_list.size(), m_rx_ctl_packets_list.size(), m_rx_peer_packets.size(), m_rx_ctl_reuse_list.size());
 
 	si_tcp_logdbg("sock closed");
 }
@@ -405,14 +407,12 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 		abort_connection();
 	}
 
-	m_rx_ready_byte_count += m_rx_pkt_ready_offset;
 	m_p_socket_stats->n_rx_ready_byte_count += m_rx_pkt_ready_offset;
 	while (m_n_rx_pkt_ready_list_count)
 	{
 		mem_buf_desc_t* p_rx_pkt_desc = m_rx_pkt_ready_list.get_and_pop_front();
 		m_n_rx_pkt_ready_list_count--;
 		m_p_socket_stats->n_rx_ready_pkt_count--;
-		m_rx_ready_byte_count -= p_rx_pkt_desc->rx.sz_payload;
 		m_p_socket_stats->n_rx_ready_byte_count -= p_rx_pkt_desc->rx.sz_payload;
 		reuse_buffer(p_rx_pkt_desc);
 	}
@@ -653,13 +653,12 @@ ssize_t sockinfo_tcp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 	int ret = 0;
 	int poll_count = 0;
 	bool is_dummy = IS_DUMMY_PACKET(flags);
-	bool block_this_run = m_b_blocking && !(flags & MSG_DONTWAIT);
 
 	if (unlikely(m_sock_offload != TCP_SOCK_LWIP)) {
 #ifdef VMA_TIME_MEASURE
 		INC_GO_TO_OS_TX_COUNT;
 #endif
-		
+
 		ret = socket_fd_api::tx_os(call_type, p_iov, sz_iov, flags, __to, __tolen);
 		save_stats_tx_os(ret);
 		return ret;
@@ -693,7 +692,7 @@ retry_is_ready:
 #ifdef VMA_TIME_MEASURE
 		INC_ERR_TX_COUNT;
 #endif
-		
+
 		return -1;
 	}
 	si_tcp_logfunc("tx: iov=%p niovs=%d dummy=%d", p_iov, sz_iov, is_dummy);
@@ -715,41 +714,41 @@ retry_is_ready:
 
 		pos = 0;
 		while (pos < p_iov[i].iov_len) {
-			if (unlikely(!is_rts())) {
-				si_tcp_logdbg("TX on disconnected socket");
-				ret = -1;
-				errno = ECONNRESET;
-				goto err;
-			}
 			//tx_size = tx_wait();
-                        tx_size = tcp_sndbuf(&m_pcb);
-                        if (tx_size == 0) { 
-                                //force out TCP data before going on wait()
-                                tcp_output(&m_pcb);
+			tx_size = tcp_sndbuf(&m_pcb);
+			if (tx_size == 0) {
+				if (unlikely(!is_rts())) {
+					si_tcp_logdbg("TX on disconnected socket");
+					ret = -1;
+					errno = ECONNRESET;
+					goto err;
+				}
+				//force out TCP data before going on wait()
+				tcp_output(&m_pcb);
 
-                                if (!block_this_run) {
-                                        // non blocking socket should return inorder not to tx_wait()
-                                        if ( total_tx ) {
-                                                m_tx_consecutive_eagain_count = 0;
-                                                goto done;
-                                        }
-                                        else {
-                                                m_tx_consecutive_eagain_count++;
-                                                if (m_tx_consecutive_eagain_count >= TX_CONSECUTIVE_EAGAIN_THREASHOLD) {
-                                                        // in case of zero sndbuf and non-blocking just try once polling CQ for ACK
-                                                        rx_wait(poll_count, false);
-                                                        m_tx_consecutive_eagain_count = 0;
-                                                }
-                                                ret = -1;
-                                                errno = EAGAIN;
-                                                goto err;
-                                        }
-                                }
+				if (!BLOCK_THIS_RUN(m_b_blocking, flags)) {
+					// non blocking socket should return inorder not to tx_wait()
+					if ( total_tx ) {
+						m_tx_consecutive_eagain_count = 0;
+						goto done;
+					}
+					else {
+						m_tx_consecutive_eagain_count++;
+						if (m_tx_consecutive_eagain_count >= TX_CONSECUTIVE_EAGAIN_THREASHOLD) {
+							// in case of zero sndbuf and non-blocking just try once polling CQ for ACK
+							rx_wait(poll_count, false);
+							m_tx_consecutive_eagain_count = 0;
+						}
+						ret = -1;
+						errno = EAGAIN;
+						goto err;
+					}
+				}
 
-                                tx_size = tx_wait(ret, block_this_run);
-                                if (ret < 0)
-                                        goto err;
-                        }
+				tx_size = tx_wait(ret, BLOCK_THIS_RUN(m_b_blocking, flags));
+				if (ret < 0)
+					goto err;
+			}
 
 			if (tx_size > p_iov[i].iov_len - pos)
 				tx_size = p_iov[i].iov_len - pos;
@@ -766,7 +765,7 @@ retry_write:
 				si_tcp_logdbg("returning with: EINTR");
 				goto err;
 			}
-			err = tcp_write(&m_pcb, (char *)p_iov[i].iov_base + pos, tx_size, 3, is_dummy);
+			err = tcp_write(&m_pcb, (char *)p_iov[i].iov_base + pos, tx_size, is_dummy);
 			if (unlikely(err != ERR_OK)) {
 				if (unlikely(err == ERR_CONN)) { // happens when remote drops during big write
 					si_tcp_logdbg("connection closed: tx'ed = %d", total_tx);
@@ -792,19 +791,19 @@ retry_write:
 					INC_ERR_TX_COUNT;
 #endif					
 					return -1;
-					*/
+					 */
 				}
 				if (total_tx > 0) 
 					goto done;
 
-				ret = rx_wait(poll_count, block_this_run);
+				ret = rx_wait(poll_count, BLOCK_THIS_RUN(m_b_blocking, flags));
 				if (ret < 0)
 					goto err;
 
 				//AlexV:Avoid from going to sleep, for the blocked socket of course, since
 				// progress engine may consume an arrived credit and it will not wakeup the
 				//transmit thread.
-				if (block_this_run) {
+				if (BLOCK_THIS_RUN(m_b_blocking, flags)) {
 					poll_count = 0;
 				}
 				//tcp_output(m_sock); // force data out
@@ -847,7 +846,7 @@ err:
 		m_p_socket_stats->counters.n_tx_errors++;
 	unlock_tcp_con();
 	return ret;
-	
+
 }
 
 err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit, uint8_t is_dummy)
@@ -871,26 +870,27 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit, uin
 			p = p->next;
 		}
 
-#if 1 // We don't expcet pbuf chain at all since we enabled  TCP_WRITE_FLAG_COPY and TCP_WRITE_FLAG_MORE in lwip
+		// We don't expect pbuf chain at all
 		if (p) {
 			vlog_printf(VLOG_ERROR, "pbuf chain size > 64!!! silently dropped.");
 			return ERR_OK;
 		}
-#endif
 	}
-
-	if (p_dst->try_migrate_ring(p_si_tcp->m_tcp_con_lock)) {
-		p_si_tcp->m_p_socket_stats->counters.n_tx_migrations++;
-	}
-
-	if (is_rexmit)
-		p_si_tcp->m_p_socket_stats->counters.n_tx_retransmits++;
 
 	if (likely((p_dst->is_valid()))) {
 		p_dst->fast_send(p_iovec, count, is_dummy, false, is_rexmit);
 	} else {
 		p_dst->slow_send(p_iovec, count, is_dummy, false, is_rexmit);
 	}
+
+	if (p_dst->try_migrate_ring(p_si_tcp->m_tcp_con_lock)) {
+		p_si_tcp->m_p_socket_stats->counters.n_tx_migrations++;
+	}
+
+	if (is_rexmit) {
+		p_si_tcp->m_p_socket_stats->counters.n_tx_retransmits++;
+	}
+
 	return ERR_OK;
 }
 
@@ -920,12 +920,11 @@ err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rex
 			p = p->next;
 		}
 
-#if 1 // We don't expcet pbuf chain at all since we enabled  TCP_WRITE_FLAG_COPY and TCP_WRITE_FLAG_MORE in lwip
+		// We don't expect pbuf chain at all
 		if (p) {
 			vlog_printf(VLOG_ERROR, "pbuf chain size > 64!!! silently dropped.");
 			return ERR_OK;
 		}
-#endif
 	}
 
 	if (is_rexmit)
@@ -1546,7 +1545,6 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 			// Save rx packet info in our ready list
 			conn->m_rx_pkt_ready_list.push_back(p_first_desc);
 			conn->m_n_rx_pkt_ready_list_count++;
-			conn->m_rx_ready_byte_count += p->tot_len;
 			conn->m_p_socket_stats->n_rx_ready_byte_count += p->tot_len;
 			conn->m_p_socket_stats->n_rx_ready_pkt_count++;
 			conn->m_p_socket_stats->counters.n_rx_ready_pkt_max = max((uint32_t)conn->m_p_socket_stats->n_rx_ready_pkt_count, conn->m_p_socket_stats->counters.n_rx_ready_pkt_max);
@@ -1658,7 +1656,7 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 
 	return_reuse_buffers_postponed();
 
-	while (m_rx_ready_byte_count < total_iov_sz) {
+	while (m_p_socket_stats->n_rx_ready_byte_count < total_iov_sz) {
         	if (unlikely(g_b_exit)) {
 			ret = -1;
 			errno = EINTR;

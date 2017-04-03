@@ -455,9 +455,9 @@ sockinfo_udp::~sockinfo_udp()
 
 	statistics_print();
 
-	if (m_n_rx_pkt_ready_list_count || m_rx_ready_byte_count || m_rx_pkt_ready_list.size() || m_rx_ring_map.size() || m_rx_reuse_buff.n_buff_num)
-		si_udp_logerr("not all buffers were freed. protocol=UDP. m_n_rx_pkt_ready_list_count=%d, m_rx_ready_byte_count=%d, m_rx_pkt_ready_list.size()=%d, m_rx_ring_map.size()=%d, m_rx_reuse_buff.n_buff_num=%d",
-				m_n_rx_pkt_ready_list_count, m_rx_ready_byte_count, (int)m_rx_pkt_ready_list.size() ,(int)m_rx_ring_map.size(), m_rx_reuse_buff.n_buff_num);
+	if (m_n_rx_pkt_ready_list_count || m_p_socket_stats->n_rx_ready_byte_count || m_rx_pkt_ready_list.size() || m_rx_ring_map.size() || m_rx_reuse_buff.n_buff_num)
+		si_udp_logerr("not all buffers were freed. protocol=UDP. m_n_rx_pkt_ready_list_count=%d, m_p_socket_stats->n_rx_ready_byte_count=%d, m_rx_pkt_ready_list.size()=%d, m_rx_ring_map.size()=%d, m_rx_reuse_buff.n_buff_num=%d",
+				m_n_rx_pkt_ready_list_count, m_p_socket_stats->n_rx_ready_byte_count, (int)m_rx_pkt_ready_list.size() ,(int)m_rx_ring_map.size(), m_rx_reuse_buff.n_buff_num);
 
 	si_udp_logfunc("done");
 }
@@ -1244,7 +1244,6 @@ void sockinfo_udp::rx_ready_byte_count_limit_update(size_t n_rx_ready_bytes_limi
 			mem_buf_desc_t* p_rx_pkt_desc = m_rx_pkt_ready_list.front();
 			m_rx_pkt_ready_list.pop_front();
 			m_n_rx_pkt_ready_list_count--;
-			m_rx_ready_byte_count -= p_rx_pkt_desc->rx.sz_payload;
 			m_p_socket_stats->n_rx_ready_pkt_count--;
 			m_p_socket_stats->n_rx_ready_byte_count -= p_rx_pkt_desc->rx.sz_payload;
 
@@ -1611,7 +1610,6 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 		     const int __flags /*=0*/, const struct sockaddr *__dst /*=NULL*/, const socklen_t __dstlen /*=0*/)
 {
 	int ret;
-	bool is_dropped = false;
 	bool is_dummy = IS_DUMMY_PACKET(__flags);
 	dst_entry* p_dst_entry = m_p_connected_dst_entry; // Default for connected() socket but we'll update it on a specific sendTO(__to) call
 
@@ -1705,9 +1703,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 			*/
 			}
 		}
-	}
-
-	if (unlikely(!p_dst_entry)) {
+	} else if (unlikely(!p_dst_entry)) {
 		si_udp_logdbg("going to os, __dst = %p, m_p_connected_dst_entry = %p", __dst, m_p_connected_dst_entry);
 		goto tx_packet_to_os;
 	}
@@ -1717,10 +1713,6 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 		if (unlikely(__flags & MSG_DONTWAIT))
 			b_blocking = false;
 
-		if (unlikely(p_dst_entry->try_migrate_ring(m_lock_snd))) {
-			m_p_socket_stats->counters.n_tx_migrations++;
-		}
-
 		if (likely(p_dst_entry->is_valid())) {
 			// All set for fast path packet sending - this is our best performance flow
 			ret = p_dst_entry->fast_send((struct iovec*)p_iov, sz_iov, is_dummy, b_blocking);
@@ -1728,6 +1720,10 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 		else {
 			// updates the dst_entry internal information and packet headers
 			ret = p_dst_entry->slow_send(p_iov, sz_iov, is_dummy, b_blocking, false, __flags, this, call_type);
+		}
+
+		if (unlikely(p_dst_entry->try_migrate_ring(m_lock_snd))) {
+			m_p_socket_stats->counters.n_tx_migrations++;
 		}
 
 		// TODO ALEXR - still need to handle "is_dropped" in send path
@@ -1740,7 +1736,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 		// Yet we need to add this code to avoid deadlocks in case of EPOLLOUT ET.
 		NOTIFY_ON_EVENTS(this, EPOLLOUT);
 
-		save_stats_tx_offload(ret, is_dropped, is_dummy);
+		save_stats_tx_offload(ret, is_dummy);
 
 #ifdef VMA_TIME_MEASURE
 		TAKE_T_TX_END;
@@ -1956,7 +1952,6 @@ bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 		// Save rx packet info in our ready list
 		m_rx_pkt_ready_list.push_back(p_desc);
 		m_n_rx_pkt_ready_list_count++;
-		m_rx_ready_byte_count += p_desc->rx.sz_payload;
 		m_p_socket_stats->n_rx_ready_pkt_count++;
 		m_p_socket_stats->n_rx_ready_byte_count += p_desc->rx.sz_payload;
 		m_p_socket_stats->counters.n_rx_ready_pkt_max = max((uint32_t)m_p_socket_stats->n_rx_ready_pkt_count, m_p_socket_stats->counters.n_rx_ready_pkt_max);
@@ -2322,7 +2317,7 @@ void sockinfo_udp::save_stats_rx_offload(int bytes)
     #pragma BullseyeCoverage on
 #endif
 
-void sockinfo_udp::save_stats_tx_offload(int bytes, bool is_dropped, bool is_dummy)
+void sockinfo_udp::save_stats_tx_offload(int bytes, bool is_dummy)
 {
 	if (unlikely(is_dummy)) {
 		m_p_socket_stats->counters.n_tx_dummy++;
@@ -2336,10 +2331,6 @@ void sockinfo_udp::save_stats_tx_offload(int bytes, bool is_dropped, bool is_dum
 		}
 		else {
 			m_p_socket_stats->counters.n_tx_errors++;
-		}
-
-		if (is_dropped) {
-			m_p_socket_stats->counters.n_tx_drops++;
 		}
 	}
 }
@@ -2423,7 +2414,6 @@ int sockinfo_udp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *p_desc, int *p_flag
 size_t sockinfo_udp::handle_msg_trunc(size_t total_rx, size_t payload_size, int in_flags, int* p_out_flags)
 {
 	if (payload_size > total_rx) {
-		m_rx_ready_byte_count -= (payload_size-total_rx);
 		m_p_socket_stats->n_rx_ready_byte_count -= (payload_size-total_rx);
 		*p_out_flags |= MSG_TRUNC;
 		if (in_flags & MSG_TRUNC) 
