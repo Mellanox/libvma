@@ -175,6 +175,7 @@ tcp_create_segment(struct tcp_pcb *pcb, struct pbuf *p, u8_t flags, u32_t seqno,
   u8_t optlen = LWIP_TCP_OPT_LENGTH(optflags);
 
   if (!pcb->seg_alloc) {
+    // seg_alloc is not valid, we should allocate a new segment.
     if ((seg = external_tcp_seg_alloc(pcb)) == NULL) {
       LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_create_segment: no memory.\n"));
       tcp_tx_pbuf_free(pcb, p);
@@ -194,11 +195,12 @@ tcp_create_segment(struct tcp_pcb *pcb, struct pbuf *p, u8_t flags, u32_t seqno,
 #endif /* TCP_CHECKSUM_ON_COPY */
 
     if (p == NULL) {
-      // Fetch tcp segment for next request
+      // Request a new segment in order to update seg_alloc for the next packet.
       seg->p = NULL;
       return seg;
     }
   } else {
+    // seg_alloc is valid, we dont need to allocate a new segment element.
     seg = pcb->seg_alloc;
     pcb->seg_alloc = NULL;
   }
