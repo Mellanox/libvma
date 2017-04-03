@@ -82,25 +82,25 @@ inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const
 	if (unlikely(m_p_tx_mem_buf_desc_head == NULL)) {
 
 		// Get a bunch of tx buf descriptor and data buffers
-		m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, m_n_sysvar_tx_bufs_batch_udp);
-
 		if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
-			if (b_blocked) {
-				dst_udp_logdbg("Error when blocking for next tx buffer (errno=%d %m)", errno);
+			m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, m_n_sysvar_tx_bufs_batch_udp);
+
+			if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
+				if (b_blocked) {
+					dst_udp_logdbg("Error when blocking for next tx buffer (errno=%d %m)", errno);
+				}
+				else {
+					dst_udp_logfunc("Packet dropped. NonBlocked call but not enough tx buffers. Returning OK");
+					if (!m_b_sysvar_tx_nonblocked_eagains) return sz_data_payload;
+				}
+				errno = EAGAIN;
+				return -1;
 			}
-			else {
-				dst_udp_logfunc("Packet dropped. NonBlocked call but not enough tx buffers. Returning OK");
-				if (!m_b_sysvar_tx_nonblocked_eagains) return sz_data_payload;
-			}
-			errno = EAGAIN;
-			return -1;
 		}
-		else {
-			// Disconnect the first buffer from the list
-			m_p_tx_mem_buf_desc_head = m_p_tx_mem_buf_desc_list;
-			m_p_tx_mem_buf_desc_list = m_p_tx_mem_buf_desc_list->p_next_desc;
-			m_p_tx_mem_buf_desc_head->p_next_desc = NULL;
-		}
+		// Disconnect the first buffer from the list
+		m_p_tx_mem_buf_desc_head = m_p_tx_mem_buf_desc_list;
+		m_p_tx_mem_buf_desc_list = m_p_tx_mem_buf_desc_list->p_next_desc;
+		m_p_tx_mem_buf_desc_head->p_next_desc = NULL;
 	}
 	set_tx_buff_list_pending(false);
 

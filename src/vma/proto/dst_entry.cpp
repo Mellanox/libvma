@@ -76,6 +76,7 @@ dst_entry::~dst_entry()
 	}
 
 	if (m_p_ring) {
+		// m_p_tx_mem_buf_desc_head will always be NULL for TCP.
 		if (m_p_tx_mem_buf_desc_head) {
 			m_p_ring->mem_buf_tx_release(m_p_tx_mem_buf_desc_head, true);
 			m_p_tx_mem_buf_desc_head = NULL;
