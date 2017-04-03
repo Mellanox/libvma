@@ -466,7 +466,7 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t is_dummy)
        * can use PBUF_RAW here since the data appears in the middle of
        * a segment. A header will never be prepended. */
       /* Data is copied */
-      if ((concat_p = tcp_pbuf_prealloc(seglen, space, &oversize, pcb, 1, 1)) == NULL) {
+      if ((concat_p = tcp_pbuf_prealloc(seglen, space, &oversize, pcb, TCP_WRITE_FLAG_MORE, 1)) == NULL) {
     	  LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2,
     			  ("tcp_write : could not allocate memory for pbuf copy size %"U16_F"\n",
     					  seglen));
@@ -507,7 +507,7 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t is_dummy)
 
     /* If copy is set, memory should be allocated and data copied
      * into pbuf */
-    if ((p = tcp_pbuf_prealloc(seglen + optlen, mss_local, &oversize, pcb, 1, queue == NULL)) == NULL) {
+    if ((p = tcp_pbuf_prealloc(seglen + optlen, mss_local, &oversize, pcb, TCP_WRITE_FLAG_MORE, queue == NULL)) == NULL) {
     	LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_write : could not allocate memory for pbuf copy size %"U16_F"\n", seglen));
     	goto memerr;
     }
