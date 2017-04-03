@@ -114,10 +114,22 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 		dst_tcp_logfine("using SW checksum calculation: p_pkt->hdr.m_ip_hdr.check=%d, p_tcphdr->check=%d", (int)p_pkt->hdr.m_ip_hdr.check, (int)p_tcphdr->check);
 #endif
 		send_lwip_buffer(m_id, m_p_send_wqe, b_blocked, is_dummy);
+
+		/* for DEBUG */
+		if ((uint8_t*)m_sge[0].addr < p_tcp_iov[0].p_desc->p_buffer || (uint8_t*)p_pkt < p_tcp_iov[0].p_desc->p_buffer) {
+			dst_tcp_logerr("p_buffer - addr=%d, m_total_hdr_len=%zd, p_buffer=%p, type=%d, len=%d, tot_len=%d, payload=%p, hdr_alignment_diff=%zd\n",
+					(int)(p_tcp_iov[0].p_desc->p_buffer - (uint8_t*)m_sge[0].addr), m_header.m_total_hdr_len,
+					p_tcp_iov[0].p_desc->p_buffer, p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.type,
+					p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.len, p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.tot_len,
+					p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.payload, hdr_alignment_diff);
+		}
 	}
 	else { // We don'nt support inline in this case, since we believe that this a very rare case
 		p_mem_buf_desc = get_buffer(b_blocked);
 		if (p_mem_buf_desc == NULL) {
+			if (unlikely(is_rexmit)) {
+				m_p_ring->inc_tx_retransmissions(m_id);
+			}
 			return -1;
 		}
 
@@ -135,15 +147,6 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 		m_sge[0].length = total_packet_len - hdr_alignment_diff;
 		// LKey will be updated in ring->send() // m_sge[0].lkey = p_mem_buf_desc->lkey; 
 
-		/* for DEBUG */
-		if ((uint8_t*)m_sge[0].addr < p_mem_buf_desc->p_buffer) {
-			dst_tcp_logerr("p_buffer - addr=%d, m_total_hdr_len=%zd, p_buffer=%p, type=%d, len=%d, tot_len=%d, payload=%p, hdr_alignment_diff=%zd\n",
-					(int)(p_mem_buf_desc->p_buffer - (uint8_t*)m_sge[0].addr), m_header.m_total_hdr_len,
-					p_mem_buf_desc->p_buffer, p_mem_buf_desc->lwip_pbuf.pbuf.type,
-					p_mem_buf_desc->lwip_pbuf.pbuf.len, p_mem_buf_desc->lwip_pbuf.pbuf.tot_len,
-					p_mem_buf_desc->lwip_pbuf.pbuf.payload, hdr_alignment_diff);
-		}
-
 		p_pkt = (tx_packet_template_t*)((uint8_t*)p_mem_buf_desc->p_buffer);
 		p_pkt->hdr.m_ip_hdr.tot_len = (htons)(m_sge[0].length - m_header.m_transport_header_len);
 #ifdef VMA_NO_HW_CSUM
@@ -157,10 +160,19 @@ ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov
 		m_p_send_wqe = &m_not_inline_send_wqe;
 		m_p_send_wqe->wr_id = (uintptr_t)p_mem_buf_desc;
 		send_ring_buffer(m_id, m_p_send_wqe, b_blocked, is_dummy);
+
+		/* for DEBUG */
+		if ((uint8_t*)m_sge[0].addr < p_mem_buf_desc->p_buffer) {
+			dst_tcp_logerr("p_buffer - addr=%d, m_total_hdr_len=%zd, p_buffer=%p, type=%d, len=%d, tot_len=%d, payload=%p, hdr_alignment_diff=%zd\n",
+					(int)(p_mem_buf_desc->p_buffer - (uint8_t*)m_sge[0].addr), m_header.m_total_hdr_len,
+					p_mem_buf_desc->p_buffer, p_mem_buf_desc->lwip_pbuf.pbuf.type,
+					p_mem_buf_desc->lwip_pbuf.pbuf.len, p_mem_buf_desc->lwip_pbuf.pbuf.tot_len,
+					p_mem_buf_desc->lwip_pbuf.pbuf.payload, hdr_alignment_diff);
+		}
 	}
 
 	if (unlikely(is_rexmit)) {
-		m_p_ring->inc_ring_stats(m_id);
+		m_p_ring->inc_tx_retransmissions(m_id);
 	}
 
 	// Request tx buffers for the next packets

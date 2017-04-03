@@ -64,7 +64,6 @@
 #undef  __INFO__
 #define __INFO__                m_fd
 
-
 #define si_tcp_logpanic             __log_info_panic
 #define si_tcp_logerr               __log_info_err
 #define si_tcp_logwarn              __log_info_warn
@@ -73,7 +72,7 @@
 #define si_tcp_logfunc              __log_info_func
 #define si_tcp_logfuncall           __log_info_funcall
 
-
+#define BLOCK_THIS_RUN(blocking, flags) (blocking && !(flags & MSG_DONTWAIT))
 #define TCP_SEG_COMPENSATION 64
 
 tcp_seg_pool *g_tcp_seg_pool = NULL;

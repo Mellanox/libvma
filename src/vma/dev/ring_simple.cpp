@@ -2180,7 +2180,7 @@ bool ring_simple::is_up() {
 	return m_up;
 }
 
-void ring_simple::inc_ring_stats(ring_user_id_t id) {
+void ring_simple::inc_tx_retransmissions(ring_user_id_t id) {
 	NOT_IN_USE(id);
 	m_p_ring_stat->n_tx_retransmits++;
 }
