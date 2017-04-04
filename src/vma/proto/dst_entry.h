@@ -60,7 +60,7 @@ class dst_entry : public cache_observer, public tostr, public neigh_observer
 {
 
 public:
-	dst_entry(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, int owner_fd);
+	dst_entry(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, int owner_fd, resource_allocation_key ring_profile);
 	virtual ~dst_entry();
 
 	virtual void 	notify_cb();

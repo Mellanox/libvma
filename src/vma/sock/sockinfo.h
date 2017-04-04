@@ -187,6 +187,8 @@ protected:
 
 	const int				m_n_sysvar_rx_num_buffs_reuse;
 	const int32_t				m_n_sysvar_rx_poll_num;
+	ring_alloc_logic_attr			m_ring_alloc_log_rx;
+	ring_alloc_logic_attr			m_ring_alloc_log_tx;
 
 #ifdef DEFINED_VMAPOLL
 	/* Track internal events to return in vma_poll()

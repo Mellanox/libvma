@@ -46,7 +46,8 @@ typedef struct tcp_iovec
 class dst_entry_tcp : public dst_entry
 {
 public:
-	dst_entry_tcp(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, int owner_fd);
+	dst_entry_tcp(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port,
+		      int owner_fd, resource_allocation_key ring_profile);
 	virtual ~dst_entry_tcp();
 
 	virtual ssize_t fast_send(const struct iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked = true, bool is_rexmit = false);

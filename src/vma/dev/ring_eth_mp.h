@@ -48,7 +48,7 @@ public:
 	ring_eth_mp(in_addr_t local_if,
 		    ring_resource_creation_info_t *p_ring_info, int count,
 		    bool active, uint16_t vlan, uint32_t mtu,
-		    ring *parent = NULL) throw (vma_error);
+		    vma_cyclic_buffer_ring_attr *mp_ring, ring *parent = NULL) throw (vma_error);
 	virtual ~ring_eth_mp();
 	struct ibv_exp_res_domain* get_res_domain() {return m_res_domain;};
 	int get_strides_num() const {return m_strides_num;};
@@ -71,6 +71,7 @@ protected:
 private:
 	inline int mp_loop(size_t limit);
 	inline void reload_wq();
+	vma_cyclic_buffer_ring_attr	m_cb_ring;
 	vma_allocator			alloc;
 	int				m_strides_num;
 	int				m_stride_size;

@@ -50,6 +50,7 @@
 #include "vma/event/event_handler_manager.h"
 #include "vma/dev/buffer_pool.h"
 #include "vma/dev/ring_simple.h"
+#include "vma/dev/ring_profile.h"
 #include "vma/proto/route_table_mgr.h"
 #include "vma/proto/rule_table_mgr.h"
 #include "vma/proto/dst_entry_tcp.h"
@@ -337,6 +338,7 @@ const char * setsockopt_so_opt_to_str(int opt)
 	case SO_TIMESTAMP:		return "SO_TIMESTAMP";
 	case SO_TIMESTAMPNS:		return "SO_TIMESTAMPNS";
 	case SO_BINDTODEVICE:		return "SO_BINDTODEVICE";
+	case SO_VMA_RING_ALLOC_LOGIC:	return "SO_VMA_RING_ALLOC_LOGIC";
 	default:			break;
 	}
 	return "UNKNOWN SO opt";
@@ -596,10 +598,12 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 		// Create the new dst_entry
 		if (IN_MULTICAST_N(dst_ip)) {
 			m_p_connected_dst_entry = new dst_entry_udp_mc(dst_ip, dst_port, src_port,
-					m_mc_tx_if ? m_mc_tx_if : m_bound.get_in_addr(), m_b_mc_tx_loop, m_n_mc_ttl, m_fd);
+					m_mc_tx_if ? m_mc_tx_if : m_bound.get_in_addr(),
+							m_b_mc_tx_loop, m_n_mc_ttl, m_fd, m_ring_alloc_log_tx);
 		}
 		else {
-			m_p_connected_dst_entry = new dst_entry_udp(dst_ip, dst_port, src_port, m_fd);
+			m_p_connected_dst_entry = new dst_entry_udp(dst_ip, dst_port,
+					src_port, m_fd, m_ring_alloc_log_tx);
 		}
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (!m_p_connected_dst_entry) {
@@ -699,6 +703,41 @@ int sockinfo_udp::on_sockname_change(struct sockaddr *__name, socklen_t __namele
 		handle_pending_mreq();
 	}
 
+	return 0;
+}
+
+int sockinfo_udp::set_ring_attr(vma_ring_alloc_logic_attr *attr)
+{
+	int res = 0;
+	if (attr->comp_mask & VMA_RING_ALLLOC_MASK_RING_ENGRESS) {
+		res += set_ring_attr_helper(&m_ring_alloc_log_tx, attr);
+	}
+	if (attr->comp_mask & VMA_RING_ALLLOC_MASK_RING_INGRESS) {
+		res += set_ring_attr_helper(&m_ring_alloc_log_rx, attr);
+		m_ring_alloc_logic = ring_allocation_logic_rx(get_fd(), m_ring_alloc_log_rx, this);
+	}
+	return res;
+}
+
+int sockinfo_udp::set_ring_attr_helper(ring_alloc_logic_attr *sock_attr,
+					vma_ring_alloc_logic_attr *user_attr)
+{
+	if (user_attr->comp_mask & VMA_RING_ALLLOC_MASK_RING_PROFILE_IDX) {
+		if (sock_attr->m_ring_profile_key) {
+			si_udp_logdbg("ring_profile_key is already set and "
+				      "cannot be changed");
+			return 1;
+		}
+		sock_attr->m_ring_profile_key = user_attr->ring_profile_key;
+	}
+	
+	if (user_attr->comp_mask & VMA_RING_ALLLOC_MASK_RING_ALLOC_LOGIC) {
+		sock_attr->m_ring_alloc_logic = user_attr->ring_alloc_logic;
+	}
+
+	if (user_attr->comp_mask & VMA_RING_ALLLOC_MASK_RING_USER_IDX) {
+		sock_attr->m_user_idx_key = user_attr->user_idx;
+	}
 	return 0;
 }
 
@@ -844,7 +883,23 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					si_udp_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
 				}
 				break;
-
+			case SO_VMA_RING_ALLOC_LOGIC:
+				if (__optval) {
+					if (__optlen == sizeof(vma_ring_alloc_logic_attr)) {
+						vma_ring_alloc_logic_attr *attr = (vma_ring_alloc_logic_attr *)__optval;
+						return set_ring_attr(attr);
+					}
+					else {
+						si_udp_logdbg("VMA_MP_RQ, %s=\"???\" - bad length expected %d got %d",
+							      setsockopt_so_opt_to_str(__optname),
+							      sizeof(vma_ring_alloc_logic_attr), __optlen);
+						break;
+					}
+				}
+				else {
+					si_udp_logdbg("VMA_MP_RQ, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
+				}
+				break;
 			default:
 				si_udp_logdbg("SOL_SOCKET, optname=%s (%d)", setsockopt_so_opt_to_str(__optname), __optname);
 				supported = false;
@@ -1679,12 +1734,23 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const struct iovec* p_iov, c
 
 				// Create the new dst_entry
 				if (dst.is_mc()) {
-					p_dst_entry = new dst_entry_udp_mc(dst.get_in_addr(), dst.get_in_port(), src_port,
-							m_mc_tx_if ? m_mc_tx_if : m_bound.get_in_addr(), m_b_mc_tx_loop, m_n_mc_ttl, m_fd);
+					p_dst_entry = new dst_entry_udp_mc(
+							dst.get_in_addr(),
+							dst.get_in_port(),
+							src_port,
+							m_mc_tx_if ? m_mc_tx_if : m_bound.get_in_addr(),
+							m_b_mc_tx_loop,
+							m_n_mc_ttl,
+							m_fd,
+							m_ring_alloc_log_tx);
 				}
 				else {
-					p_dst_entry = new dst_entry_udp(dst.get_in_addr(), dst.get_in_port(),
-							src_port, m_fd);
+					p_dst_entry = new dst_entry_udp(
+							dst.get_in_addr(),
+							dst.get_in_port(),
+							src_port,
+							m_fd,
+							m_ring_alloc_log_tx);
 				}
 				BULLSEYE_EXCLUDE_BLOCK_START
 				if (!p_dst_entry) {

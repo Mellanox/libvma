@@ -191,7 +191,8 @@ neigh_entry::neigh_entry(neigh_key key, transport_type_t _type, bool is_init_res
 	}
 
 	if(is_init_resources) {
-		m_p_ring = m_p_dev->reserve_ring(RING_KEY);
+		resource_allocation_key res_key;
+		m_p_ring = m_p_dev->reserve_ring(res_key);
 		if (m_p_ring == NULL) {
 			neigh_logpanic("reserve_ring return NULL");
 		}
@@ -227,7 +228,8 @@ neigh_entry::~neigh_entry()
 		m_state_machine = NULL;
 	}
 	if (m_p_dev && m_p_ring) {
-		m_p_dev->release_ring(RING_KEY);
+		resource_allocation_key res_key;
+		m_p_dev->release_ring(res_key);
 		m_p_ring = NULL;
 	}
 

@@ -159,6 +159,8 @@ static inline int memcpy_toiovec(u_int8_t* p_src, iovec* p_iov, size_t sz_iov,
 
 uint32_t align32pow2(uint32_t x);
 
+int ilog_2(uint32_t x);
+
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif

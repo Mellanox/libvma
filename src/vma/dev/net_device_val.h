@@ -50,12 +50,47 @@
 #include "vma/proto/neighbour_observer.h"
 #include "vma/infra/cache_subject_observer.h"
 
-typedef unsigned long int resource_allocation_key;
 
 class L2_address;
 class ring;
 class neigh_ib_broadcast;
 
+class ring_alloc_logic_attr
+{
+public:
+	ring_alloc_logic_attr();
+	ring_alloc_logic_attr(const ring_alloc_logic_attr &other);
+
+	/* ring allocation logic , per thread per fd ... */
+	ring_logic_t	m_ring_alloc_logic;
+	/* key in g_p_ring_profile */
+	uint32_t	m_ring_profile_key;
+	/* either user_idx or key as defined in ring_logic_t */
+	uint64_t	m_user_idx_key;
+
+	bool operator==(const ring_alloc_logic_attr& other) const;
+	bool operator!=(const ring_alloc_logic_attr& other) const;
+	ring_alloc_logic_attr& operator=(const ring_alloc_logic_attr& other);
+	const std::string to_str() const;
+};
+
+namespace std { namespace tr1 {
+template<>
+class hash<ring_alloc_logic_attr>
+{
+public:
+	size_t operator()(const ring_alloc_logic_attr &key) const
+	{
+		size_t res = (((uint64_t)key.m_ring_alloc_logic << 56) |
+			      ((uint64_t)key.m_ring_profile_key << 32) |
+			      key.m_ring_profile_key);
+		return res;
+
+	}
+};
+}}
+
+typedef ring_alloc_logic_attr resource_allocation_key;
 // each ring has a ref count
 typedef std::tr1::unordered_map<resource_allocation_key, std::pair<ring*, int> > rings_hash_map_t;
 
@@ -157,7 +192,7 @@ protected:
 	char           			m_base_name[IFNAMSIZ];
 	char 					m_active_slave_name[IFNAMSIZ]; //only for active-backup
 
-	virtual ring*		create_ring() = 0;
+	virtual ring*		create_ring(resource_allocation_key key) = 0;
 	virtual void		create_br_address(const char* ifname) = 0;
 	virtual L2_address*	create_L2_address(const char* ifname) = 0;
 	void 			delete_L2_address();
@@ -184,7 +219,7 @@ public:
 	std::string		to_str();
 
 protected:
-	virtual ring*		create_ring();
+	virtual ring*		create_ring(resource_allocation_key key);
 	virtual L2_address*	create_L2_address(const char* ifname);
 	virtual void		create_br_address(const char* ifname);
 
@@ -205,7 +240,7 @@ public:
 	virtual transport_type_t get_obs_transport_type() const {return get_transport_type();}
 
 protected:
-	ring*			create_ring();
+	ring*			create_ring(resource_allocation_key key);
 	virtual L2_address*	create_L2_address(const char* ifname);
 	virtual void		create_br_address(const char* ifname);
 

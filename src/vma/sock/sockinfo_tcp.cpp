@@ -532,7 +532,7 @@ void sockinfo_tcp::create_dst_entry()
 {
 	if (!m_p_connected_dst_entry) {
 		m_p_connected_dst_entry = new dst_entry_tcp(m_connected.get_in_addr(), m_connected.get_in_port(),
-				m_bound.get_in_port(), m_fd);
+				m_bound.get_in_port(), m_fd, m_ring_alloc_log_tx);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (!m_p_connected_dst_entry) {
 			si_tcp_logerr("Failed to allocate m_p_connected_dst_entry");

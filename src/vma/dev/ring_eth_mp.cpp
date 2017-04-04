@@ -44,20 +44,15 @@
 ring_eth_mp::ring_eth_mp(in_addr_t local_if,
 			 ring_resource_creation_info_t *p_ring_info, int count,
 			 bool active, uint16_t vlan, uint32_t mtu,
-			 ring *parent) throw (vma_error) :
+			 vma_cyclic_buffer_ring_attr *cb_ring, ring *parent) throw (vma_error) :
 			 ring_eth(local_if, p_ring_info, count, active, vlan,
 				  mtu, parent, false),
-			 m_strides_num(16), m_stride_size(11), m_res_domain(NULL),
-			 m_wq_count(2), m_curr_wq(0), m_curr_d_addr(0),
-			 m_curr_h_ptr(NULL)
+			 m_cb_ring(*cb_ring), m_res_domain(NULL),
+			 m_curr_wq(0), m_curr_d_addr(0)
+			 //,m_curr_h_ptr(NULL)
 {
 	// call function from derived not base
-	m_is_mp_ring = true;
-	m_pow_strides_num = (1 << m_strides_num);
-	m_buffer_size = (1 << m_stride_size) * m_pow_strides_num * m_wq_count + MCE_ALIGNMENT;
-	memset(&m_curr_hw_timestamp, 0, sizeof(m_curr_hw_timestamp));
 	create_resources(p_ring_info, active);
-	m_ibv_rx_sg_array = m_p_qp_mgr->get_rx_sge();
 }
 
 void ring_eth_mp::create_resources(ring_resource_creation_info_t *p_ring_info,
@@ -68,41 +63,16 @@ void ring_eth_mp::create_resources(ring_resource_creation_info_t *p_ring_info,
 	// check MP capabilities currently all caps are 0 due to a buf
 	vma_ibv_device_attr& r_ibv_dev_attr =
 			p_ring_info->p_ib_ctx->get_ibv_device_attr();
+
 	if (!r_ibv_dev_attr.max_ctx_res_domain) {
+		ring_logdbg("device doesn't support resource domain");
 		throw_vma_exception("device doesn't support resource domain");
-		return;
-	}
-	if (!(r_ibv_dev_attr.mp_rq_caps.supported_qps & IBV_EXP_QPT_RAW_PACKET)) {
-		throw_vma_exception("device doesn't support RC QP");
 	}
 
-	if (m_stride_size <
-		r_ibv_dev_attr.mp_rq_caps.min_single_stride_log_num_of_bytes) {
-		ring_logwarn("stride byte size is to low, supported %d, given %d",
-			     r_ibv_dev_attr.mp_rq_caps.min_single_stride_log_num_of_bytes,
-			     m_stride_size);
-		throw_vma_exception("stride byte size is to low");
-	}
-	if (m_stride_size >
-		r_ibv_dev_attr.mp_rq_caps.max_single_stride_log_num_of_bytes) {
-		ring_logwarn("stride byte size is to high, supported %d, given %d",
-			     r_ibv_dev_attr.mp_rq_caps.min_single_stride_log_num_of_bytes,
-			     m_stride_size);
-		throw_vma_exception("stride byte size is to high");
-	}
-	if (m_strides_num <
-		r_ibv_dev_attr.mp_rq_caps.min_single_wqe_log_num_of_strides) {
-		ring_logwarn("strides num is to low, supported %d, given %d",
-			     r_ibv_dev_attr.mp_rq_caps.min_single_wqe_log_num_of_strides,
-			     m_strides_num);
-		throw_vma_exception("strides num is to low");
-	}
-	if (m_strides_num >
-		r_ibv_dev_attr.mp_rq_caps.max_single_wqe_log_num_of_strides) {
-		ring_logwarn("strides num is to high, supported %d, given %d",
-			     r_ibv_dev_attr.mp_rq_caps.min_single_wqe_log_num_of_strides,
-			     m_strides_num);
-		throw_vma_exception("strides num is to high");
+	struct ibv_exp_mp_rq_caps *mp_rq_caps = &r_ibv_dev_attr.mp_rq_caps;
+	if (!(mp_rq_caps->supported_qps & IBV_EXP_QPT_RAW_PACKET)) {
+		ring_logdbg("mp_rq is not supported");
+		throw_vma_exception("device doesn't support RC QP");
 	}
 
 	res_domain_attr.comp_mask = IBV_EXP_RES_DOMAIN_THREAD_MODEL |
@@ -118,23 +88,50 @@ void ring_eth_mp::create_resources(ring_resource_creation_info_t *p_ring_info,
 				p_ring_info->p_ib_ctx->get_ibv_context(),
 				&res_domain_attr);
 	if (!m_res_domain) {
+		ring_logdbg("could not create resource domain");
 		throw_vma_exception("failed creating resource domain");
-		return;
 	}
+	// stride size is headers + user payload aligned to power of 2
+	m_stride_size = ilog_2(align32pow2(m_cb_ring.stride_bytes + ETH_HDR_LEN +
+					   sizeof(struct iphdr) +
+					   sizeof(struct udphdr)));
+	if (m_stride_size < mp_rq_caps->min_single_stride_log_num_of_bytes) {
+		m_stride_size = mp_rq_caps->min_single_stride_log_num_of_bytes;
+	}
+	if (m_stride_size > mp_rq_caps->max_single_stride_log_num_of_bytes) {
+		m_stride_size = mp_rq_caps->max_single_stride_log_num_of_bytes;
+	}
+	// RAFI need to adapt talk to DotanL
+	m_wq_count = 2;
+	m_pow_strides_num = align32pow2(m_cb_ring.num) / 2;
+	m_strides_num = ilog_2(m_pow_strides_num);
+	// for now use the max strides num and much less WQ
+	if (m_strides_num < mp_rq_caps->min_single_wqe_log_num_of_strides) {
+		m_strides_num = mp_rq_caps->min_single_wqe_log_num_of_strides;
+		m_pow_strides_num = align32pow2(m_cb_ring.num) / 2;
+	}
+	if (m_strides_num > mp_rq_caps->max_single_wqe_log_num_of_strides) {
+		m_strides_num = mp_rq_caps->max_single_wqe_log_num_of_strides;
+		m_pow_strides_num = align32pow2(m_cb_ring.num) / 2;
+	}
+
+	m_buffer_size = (1 << m_stride_size) * m_pow_strides_num * m_wq_count + MCE_ALIGNMENT;
+	if (m_buffer_size == 0) {
+		ring_logerr("problem with buffer parameters, m_buffer_size %zd "
+			    "strides_num %d stride size %d",
+			    m_buffer_size, m_strides_num, m_stride_size);
+		throw_vma_exception("bad cyclic buffer parameters");
+	}
+	memset(&m_curr_hw_timestamp, 0, sizeof(m_curr_hw_timestamp));
+
 	// create cyclic buffer get exception on failure
 	alloc.allocAndRegMr(m_buffer_size, p_ring_info->p_ib_ctx) ;
-	// point m_sge to buffer
-	int strides_num = 1 << m_strides_num;
-	int strides_length = 1 << m_stride_size;
-	ring_logdbg("strides num is %d stride size is %d", strides_num,
-		    strides_length);
-	// RAFI need to change to nice logic check
-	assert(uint32_t(strides_num * strides_length * m_wq_count) < m_buffer_size);
-	// create ring simple resources
 	ring_simple::create_resources(p_ring_info, active);
-	// some detect them as unused
-	NOT_IN_USE(strides_num);
-	NOT_IN_USE(strides_length);
+	m_is_mp_ring = true;
+	m_ibv_rx_sg_array = m_p_qp_mgr->get_rx_sge();
+	ring_logdbg("use buffer parameters, m_buffer_size %zd "
+		    "strides_num %d stride size %d",
+		    m_buffer_size, m_strides_num, m_stride_size);
 }
 
 qp_mgr* ring_eth_mp::create_qp_mgr(const ib_ctx_handler *ib_ctx,

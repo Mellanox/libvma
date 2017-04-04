@@ -39,7 +39,8 @@
 class dst_entry_udp : public dst_entry
 {
 public:
-	dst_entry_udp(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, int owner_fd);
+	dst_entry_udp(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port,
+			int owner_fd, resource_allocation_key ring_profile);
 	virtual ~dst_entry_udp();
 
 	virtual ssize_t 	slow_send(const iovec* p_iov, size_t sz_iov, bool is_dummy, bool b_blocked = true, bool is_rexmit = false, int flags = 0, socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF);

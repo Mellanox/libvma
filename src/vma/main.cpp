@@ -57,6 +57,7 @@
 #include "vma/dev/buffer_pool.h"
 #include "vma/dev/ib_ctx_handler_collection.h"
 #include "vma/dev/net_device_table_mgr.h"
+#include "vma/dev/ring_profile.h"
 #include "vma/proto/ip_frag.h"
 #include "vma/proto/vma_lwip.h"
 #include "vma/proto/route_table_mgr.h"
@@ -227,6 +228,9 @@ static int free_libvma_resources()
 
 	if (g_p_agent) delete g_p_agent;
 	g_p_agent = NULL;
+
+	if (g_p_ring_profile) delete g_p_ring_profile;
+	g_p_ring_profile = NULL;
 
 	vlog_printf(VLOG_DEBUG, "Stopping logger module\n");
 
@@ -868,6 +872,7 @@ static void do_global_ctors_helper()
 
 // 	neigh_test();
 //	igmp_test();
+	NEW_CTOR(g_p_ring_profile, ring_profiles_collection());
 }
 
 int do_global_ctors()
@@ -907,6 +912,7 @@ void reset_globals()
 	g_p_lwip = NULL;
 	g_p_netlink_handler = NULL;
 	g_p_ib_ctx_handler_collection = NULL;
+	g_p_ring_profile = NULL;
 	g_cpu_manager.reset();
 }
 

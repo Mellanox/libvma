@@ -916,3 +916,14 @@ uint32_t align32pow2(uint32_t x)
 
 	return x + 1;
 }
+
+int ilog_2(uint32_t n) {
+	if (n == 0)
+		return -1;
+
+	uint32_t t = 0;
+	while ((1 << t) < (int)n)
+		++t;
+
+	return (int)t;
+}

@@ -77,6 +77,7 @@ private:
 
 	ip_address 		m_mc_addr;
 	net_device_val*		m_p_ndvl;
+	resource_allocation_key	m_res_key;
 	bool 			m_ignore_timer;
 	void* 			m_timer_handle;
 	neigh_entry*		m_p_neigh_entry;

@@ -43,6 +43,7 @@
 #include "config.h"
 #include "verbs_extra.h"
 #include "vma/util/sysctl_reader.h"
+#include "vma/vma_extra.h"
 
 typedef enum {
 	MCE_SPEC_NONE = 0,
@@ -65,15 +66,6 @@ typedef enum {
 	ALLOC_TYPE_HUGEPAGES,
 	ALLOC_TYPE_LAST,
 } alloc_mode_t;
-
-typedef enum {
-	RING_LOGIC_PER_INTERFACE = 0,
-	RING_LOGIC_PER_SOCKET = 10,
-	RING_LOGIC_PER_THREAD = 20,
-	RING_LOGIC_PER_CORE = 30,
-	RING_LOGIC_PER_CORE_ATTACH_THREADS = 31,
-	RING_LOGIC_LAST
-} ring_logic_t;
 
 typedef enum {
 	TS_CONVERSION_MODE_DISABLE = 0, // TS_CONVERSION_MODE_DISABLE must be the first enum

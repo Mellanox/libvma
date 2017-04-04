@@ -92,6 +92,7 @@ libvma_la_SOURCES := \
 	dev/ring_simple.cpp \
 	dev/ring_eth_mp.cpp \
 	dev/ring_bond.cpp \
+	dev/ring_profile.cpp \
 	\
 	event/delta_timer.cpp \
 	event/event_handler_manager.cpp \
@@ -178,6 +179,7 @@ libvma_la_SOURCES := \
 	dev/ring.h \
 	dev/ring_simple.h \
 	dev/ring_eth_mp.h \
+	dev/ring_profile.h \
 	dev/wqe_send_handler.h \
 	dev/wqe_send_ib_handler.h \
 	\

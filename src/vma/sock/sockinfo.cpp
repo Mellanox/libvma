@@ -76,10 +76,11 @@ sockinfo::sockinfo(int fd) throw (vma_exception):
 		m_rx_reuse_buf_pending(false),
 		m_rx_reuse_buf_postponed(false),
 		m_rx_ring_map_lock(MODULE_NAME "::m_rx_ring_map_lock"),
-		m_ring_alloc_logic(fd, this),
 		m_n_rx_pkt_ready_list_count(0), m_rx_pkt_ready_offset(0), m_rx_ready_byte_count(0),
 		m_n_sysvar_rx_num_buffs_reuse(safe_mce_sys().rx_bufs_batch),
 		m_n_sysvar_rx_poll_num(safe_mce_sys().rx_poll_num),
+		m_ring_alloc_log_rx(),
+		m_ring_alloc_log_tx(),
 		m_rx_callback(NULL),
 		m_rx_callback_context(NULL)
 #ifdef DEFINED_VMAPOLL 		
@@ -88,7 +89,9 @@ sockinfo::sockinfo(int fd) throw (vma_exception):
 		, m_flow_tag_id(0)
 		, m_flow_tag_enabled(false)
 		, m_tcp_flow_is_5t(false)
+
 {
+	m_ring_alloc_logic = ring_allocation_logic_rx(get_fd(), m_ring_alloc_log_rx, this);
 	m_rx_epfd = orig_os_api.epoll_create(128);
 	if (unlikely(m_rx_epfd == -1)) {
 	  throw_vma_exception("create internal epoll");
@@ -545,7 +548,7 @@ net_device_resources_t* sockinfo::create_nd_resources(const ip_address ip_local)
 
 		unlock_rx_q();
 		m_rx_ring_map_lock.lock();
-		resource_allocation_key key = 0;
+		resource_allocation_key key;
 		if (m_rx_ring_map.size()) {
 			key = m_ring_alloc_logic.get_key();
 		} else {
@@ -555,7 +558,8 @@ net_device_resources_t* sockinfo::create_nd_resources(const ip_address ip_local)
 		m_rx_ring_map_lock.unlock();
 		lock_rx_q();
 		if (!nd_resources.p_ring) {
-			si_logdbg("Failed to reserve ring for allocation key %d on lip %s", m_ring_alloc_logic.get_key(), ip_local.to_str().c_str());
+			si_logdbg("Failed to reserve ring for allocation key %d on lip %s",
+				  m_ring_alloc_logic.get_key().to_str().c_str(), ip_local.to_str().c_str());
 			goto err;
 		}
 
@@ -617,7 +621,9 @@ bool sockinfo::destroy_nd_resources(const ip_address ip_local)
 		unlock_rx_q();
 		if (!p_nd_resources->p_ndv->release_ring(m_ring_alloc_logic.get_key())) {
 			lock_rx_q();
-			si_logerr("Failed to release ring for allocation key %d on lip %s", m_ring_alloc_logic.get_key(), ip_local.to_str().c_str());
+			si_logerr("Failed to release ring for allocation key %d on lip %s",
+				  m_ring_alloc_logic.get_key().to_str().c_str(),
+				  ip_local.to_str().c_str());
 			return false;
 		}
 		lock_rx_q();
@@ -640,7 +646,7 @@ void sockinfo::do_rings_migration()
 	lock_rx_q();
 
 	resource_allocation_key old_key = m_ring_alloc_logic.get_key();
-	resource_allocation_key new_key = m_ring_alloc_logic.create_new_key(old_key);
+	resource_allocation_key new_key = m_ring_alloc_logic.create_new_key();
 
 	if (old_key == new_key) {
 		unlock_rx_q();
@@ -662,7 +668,8 @@ void sockinfo::do_rings_migration()
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (!new_ring) {
 			ip_address ip_local(rx_nd_iter->first);
-			si_logerr("Failed to reserve ring for allocation key %d on lip %s", new_key, ip_local.to_str().c_str());
+			si_logerr("Failed to reserve ring for allocation key %d on lip %s",
+				  new_key.to_str().c_str(), ip_local.to_str().c_str());
 			lock_rx_q();
 			rx_nd_iter++;
 			continue;
@@ -722,7 +729,8 @@ void sockinfo::do_rings_migration()
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (!p_nd_resources->p_ndv->release_ring(old_key)) {
 			ip_address ip_local(rx_nd_iter->first);
-			si_logerr("Failed to release ring for allocation key %d on lip %s", old_key, ip_local.to_str().c_str());
+			si_logerr("Failed to release ring for allocation key %d on lip %s",
+				  old_key.to_str().c_str(), ip_local.to_str().c_str());
 		}
 		lock_rx_q();
 		BULLSEYE_EXCLUDE_BLOCK_END

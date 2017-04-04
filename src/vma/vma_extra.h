@@ -194,6 +194,108 @@ struct vma_completion_mp_t {
 	size_t		packets;
 	struct timespec	hw_timestamp;
 };
+/**
+ * use this in setsockopt for the ring creation
+ */
+#define SO_VMA_RING_ALLOC_LOGIC		2810
+
+enum ring_logic_t {
+	RING_LOGIC_PER_INTERFACE = 0,           //!< RING_LOGIC_PER_INTERFACE
+	RING_LOGIC_PER_SOCKET = 10,             //!< RING_LOGIC_PER_SOCKET
+	RING_LOGIC_PER_USER_ID = 11,             //!< RING_LOGIC_PER_USER_ID
+	RING_LOGIC_PER_THREAD = 20,             //!< RING_LOGIC_PER_THREAD
+	RING_LOGIC_PER_CORE = 30,               //!< RING_LOGIC_PER_CORE
+	RING_LOGIC_PER_CORE_ATTACH_THREADS = 31,//!< RING_LOGIC_PER_CORE_ATTACH_THREADS
+	RING_LOGIC_LAST                         //!< RING_LOGIC_LAST
+};
+
+enum vma_ring_alloc_logic_attr_mask {
+	VMA_RING_ATTR_MASK_ALLOC_LOGIC      = 1 << 0,
+	VMA_RING_ATTR_MASK_RING_PROFILE_IDX = 1 << 1,
+	VMA_RING_ATTR_MASK_USER_IDX         = 1 << 2,
+};
+
+
+enum vma_ring_type {
+	VMA_RING_PACKET,
+	VMA_RING_CYCLIC_BUFFER
+};
+enum vma_ring_alloc_logic_attr_comp_mask {
+	VMA_RING_ALLLOC_MASK_RING_PROFILE_IDX = (1 << 0),
+	VMA_RING_ALLLOC_MASK_RING_ALLOC_LOGIC = (1 << 1),
+	VMA_RING_ALLLOC_MASK_RING_USER_IDX = (1 << 2),
+	VMA_RING_ALLLOC_MASK_RING_INGRESS = (1 << 3),
+	VMA_RING_ALLLOC_MASK_RING_ENGRESS = (1 << 4),
+};
+/**
+ * @brief pass this struct to vma using setsockopt with @ref SO_VMA_RING_ALLOC_LOGIC
+ * 	to set the allocation logic of this FD when he requests a ring.
+ * @param comp_mask - what fields are read when processing this sturct
+ * @param ring_profile_key - what ring profile to use - get the profile using
+ * 	the function vma_add_ring_profile from the extra_api
+ * @param ring_alloc_logic- allocation ratio to use
+ * @param user_idx - when used RING_LOGIC_PER_USER_ID int @ref ring_alloc_logic
+ * 	this is the user id to define. This lets you define the same ring for
+ * 	few FD's regardless the interface\thread\core.
+ * @param ingress - RX ring
+ * @param engress - TX ring
+ */
+struct vma_ring_alloc_logic_attr {
+	uint32_t	comp_mask;
+	uint32_t	ring_profile_key;
+	ring_logic_t	ring_alloc_logic;
+	uint32_t	user_idx;
+	uint32_t	ingress:1;
+	uint32_t	engress:1;
+	uint32_t	reserved:30;
+};
+
+/**
+ * @param comp_mask - what fields are read when processing this sturct
+ * @param num - Minimum number of elements allocated in the circular buffer
+ * @param hdr_bytes - Bytes separated from UDP payload which are
+ * 	part of the application header
+ * 	@note this will be accesable from headers_ptr in @ref vma_completion_mp_t
+ * @param stride_bytes - Bytes separated for each ingress payload for alignment
+ * 	control (does not include the hdr_bytes). Should be smaller
+ * 	than MTU.
+ *
+ * @note general packet structure
+ * +--------------------------------------------------------------------------+
+ * |   mac+ip+udp   |           datagram payload                 |  alignment |
+ * +--------------------------------------------------------------------------+
+ * | Header to drop |       hdr_bytes    | stride_bytes                       |
+ * |                | e.g. RTP header    | e.g. RTP payload      | alignment  |
+ * +--------------------------------------------------------------------------+
+ */
+struct vma_cyclic_buffer_ring_attr {
+	uint32_t	comp_mask;
+	uint32_t	num;
+	uint16_t	hdr_bytes;
+	uint16_t	stride_bytes;
+};
+
+struct vma_packet_queue_ring_attr {
+	uint32_t	comp_mask;
+};
+
+enum vma_ring_type_attr_mask {
+	VMA_RING_TYPE_MASK = (1 << 0)
+};
+
+/**
+ * @param comp_mask - what fields are read when processing this sturct
+ * @param ring_type - use cyclic buffer ring or default packets ring
+ *
+ */
+struct vma_ring_type_attr {
+	uint32_t	comp_mask;
+	vma_ring_type	ring_type;
+	union {
+		struct vma_cyclic_buffer_ring_attr	ring_cyclicb;
+		struct vma_packet_queue_ring_attr	ring_pktq;
+	};
+};
 
 /** 
  *  
@@ -459,6 +561,22 @@ struct __attribute__ ((packed)) vma_api_t {
 				      struct vma_completion_mp_t *completion,
 				      size_t min, size_t max, int *flags);
 
+	/**
+	 * add a ring profile to VMA ring profile list. you can use this
+	 * to create advacned rings like MP_RQ ring
+	 * the need to pass vma the ring profile using the fd's setsockopt
+	 * @param profile the profile to add to the list
+	 * @param key - the profile key
+	 * @return 0 on success -1 on failure
+	 */
+	int (*vma_add_ring_profile)(struct vma_ring_type_attr *profile, int *key);
+
+	/**
+	 * get a @ref vma_ring_alloc_logic_attr describing the ring profile
+	 * @param key
+	 * @return ring profile or NULL if not found
+	 */
+	struct vma_ring_type_attr* (*vma_get_ring_profile)(int key);
 };
 
 
