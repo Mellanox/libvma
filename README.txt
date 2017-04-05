@@ -1,4 +1,4 @@
-Updated: 29 Mar 2017
+Updated: 5 Apr 2017
 
 Introduction
 ============
@@ -658,7 +658,7 @@ Default value is 5000
 
 VMA_CQ_POLL_BATCH_MAX
 Max size of the array while polling the CQs in the VMA
-Default value is 8
+Default value is 16
 
 VMA_CQ_KEEP_QP_FULL
 If disabled (default), CQ will not try to compensate for each poll on the
@@ -896,12 +896,6 @@ For example, in case you use 10 for this value than VMA will accept at most 10
 Use a value of 0 for un-limiting the number of TCP SYN packets that can be handled.
 Value range is 0 to 100000.
 Default value is 0 (no limit)
-
-VMA_IPERF
-Support iperf server default test which is multithreaded. 
-In you run the iperf server with the additional flag -U and you feel that the 
-VMA can do better, you can disable this function (VMA_IPERF=0)
-Default value is 1 (Enabled)
 
 
 VMA Monitoring & Performance Counters
