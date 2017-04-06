@@ -42,10 +42,29 @@
 #include "types.h"
 #include "utils/rdtsc.h"
 
-#define likely(x)			__builtin_expect(!!(x), 1)
-#define unlikely(x)			__builtin_expect(!!(x), 0)
+//todo disable assert
+#define ASSERT_LOCKED(lock) assert((lock).is_locked_by_me())
+#define ASSERT_NOT_LOCKED(lock) assert(!(lock).is_locked_by_me())
 
-#define NO_LOCK_STATS
+#ifdef DEFINED_NO_THREAD_LOCK
+	#define DEFINED_NO_THREAD_LOCK_RETURN	return 0;
+#else
+	#define DEFINED_NO_THREAD_LOCK_RETURN
+#endif
+
+#ifndef LOCK_STATS
+	#define LOCK_BASE_LOCK
+	#define LOCK_BASE_TRYLOCK
+	#define LOCK_BASE_UNLOCK
+	#define LOCK_BASE_START_LOCK_WAIT
+	#define LOCK_BASE_END_LOCK_WAIT
+#else
+	#define LOCK_BASE_LOCK              lock_base::lock();
+	#define LOCK_BASE_TRYLOCK           lock_base::trylock();
+	#define LOCK_BASE_UNLOCK            lock_base::unlock();
+	#define LOCK_BASE_START_LOCK_WAIT   tscval_t timeval = start_lock_wait();
+	#define LOCK_BASE_END_LOCK_WAIT     end_lock_wait(timeval);
+#endif
 
 #ifndef LOCK_STATS
 
@@ -56,19 +75,10 @@ class lock_base
 public:
 	lock_base(const char *_lock_name = NULL) : m_lock_name(_lock_name) {};
 	virtual ~lock_base() {};
-	virtual inline int      lock() { return 0; };
-	virtual inline int      trylock() { return 0; };
-	virtual inline int      unlock() { return 0; };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	const char*             to_str() { return m_lock_name; }
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-protected:
-	tscval_t                start_lock_wait() { return 0; };
-	void                    end_lock_wait(tscval_t start_time) {NOT_IN_USE(start_time);};
+	virtual int lock() =  0;
+	virtual int trylock() = 0;
+	virtual int unlock() = 0;
+	const char* to_str() { return m_lock_name; }
 private:
 	const char*             m_lock_name;
 };
@@ -165,40 +175,28 @@ public:
 		pthread_spin_destroy(&m_lock);
 	};
 	inline int lock() {
-#ifdef DEFINED_NO_THREAD_LOCK
-		return 0;
-#endif // DEFINED_NO_THREAD_LOCK
-		tscval_t t = start_lock_wait();
+		DEFINED_NO_THREAD_LOCK_RETURN
+		LOCK_BASE_START_LOCK_WAIT
 		int ret = pthread_spin_lock(&m_lock);
-		lock_base::lock();
-		end_lock_wait(t);
+		LOCK_BASE_LOCK
+		LOCK_BASE_END_LOCK_WAIT
 		return ret;
 	};
 	inline int trylock() {
-#ifdef DEFINED_NO_THREAD_LOCK
-		return 0;
-#endif // DEFINED_NO_THREAD_LOCK
+		DEFINED_NO_THREAD_LOCK_RETURN
 		int ret = pthread_spin_trylock(&m_lock);
-		lock_base::trylock();
+		LOCK_BASE_TRYLOCK
 		return ret;
 	};
 	inline int unlock() {
-#ifdef DEFINED_NO_THREAD_LOCK
-		return 0;
-#endif // DEFINED_NO_THREAD_LOCK
-		lock_base::unlock();
+		DEFINED_NO_THREAD_LOCK_RETURN
+		LOCK_BASE_UNLOCK
 		return pthread_spin_unlock(&m_lock);
 	};
 
 protected:
 	pthread_spinlock_t	m_lock;
 };
-
-//todo disable assert
-#define ASSERT_LOCKED(lock) assert((lock).is_locked_by_me())
-#define ASSERT_NOT_LOCKED(lock) assert(!(lock).is_locked_by_me())
-// #define ASSERT_LOCKED(lock)
-// #define ASSERT_NOT_LOCKED(lock)
 
 /**
  * pthread spinlock
@@ -214,27 +212,23 @@ public:
 	~lock_spin_recursive() {};
 
 	inline int lock() {
-#ifdef DEFINED_NO_THREAD_LOCK
-		return 0;
-#endif // DEFINED_NO_THREAD_LOCK
+		DEFINED_NO_THREAD_LOCK_RETURN
 		pthread_t self = pthread_self();
 		if (m_owner == self) {
 			++m_lock_count;
 			return 0;
 		}
-		tscval_t t = start_lock_wait();
+		LOCK_BASE_START_LOCK_WAIT
 		int ret = lock_spin::lock();
 		if (likely(ret == 0)) {
 			++m_lock_count;
 			m_owner = self;
 		}
-		end_lock_wait(t);
+		LOCK_BASE_END_LOCK_WAIT
 		return ret;
 	};
 	inline int trylock() {
-#ifdef DEFINED_NO_THREAD_LOCK
-		return 0;
-#endif // DEFINED_NO_THREAD_LOCK
+		DEFINED_NO_THREAD_LOCK_RETURN
 		pthread_t self = pthread_self();
 		if (m_owner == self) {
 			++m_lock_count;
@@ -248,9 +242,7 @@ public:
 		return ret;
 	};
 	inline int unlock() {
-#ifdef DEFINED_NO_THREAD_LOCK
-		return 0;
-#endif // DEFINED_NO_THREAD_LOCK
+		DEFINED_NO_THREAD_LOCK_RETURN
 		if (--m_lock_count == 0) {
 			m_owner = m_invalid_owner;
 			return lock_spin::unlock();
@@ -258,9 +250,7 @@ public:
 		return 0;
 	};
 	inline int is_locked_by_me() {
-#ifdef DEFINED_NO_THREAD_LOCK
-		return 1;
-#endif // DEFINED_NO_THREAD_LOCK
+		DEFINED_NO_THREAD_LOCK_RETURN
 		pthread_t self = pthread_self();
 		return (m_owner == self && m_lock_count);
 	};
@@ -288,28 +278,22 @@ public:
 		pthread_mutex_destroy(&m_lock);
 	};
 	inline int lock() {
-#ifdef DEFINED_NO_THREAD_LOCK
-		return 0;
-#endif // DEFINED_NO_THREAD_LOCK
-		tscval_t t = start_lock_wait();
+		DEFINED_NO_THREAD_LOCK_RETURN
+		LOCK_BASE_START_LOCK_WAIT
 		int ret = pthread_mutex_lock(&m_lock);
-		lock_base::lock();
-		end_lock_wait(t);
+		LOCK_BASE_LOCK
+		LOCK_BASE_END_LOCK_WAIT
 		return ret;
 	};
 	inline int trylock() {
-#ifdef DEFINED_NO_THREAD_LOCK
-		return 0;
-#endif // DEFINED_NO_THREAD_LOCK
+		DEFINED_NO_THREAD_LOCK_RETURN
 		int ret = pthread_mutex_trylock(&m_lock);
-		lock_base::trylock();
+		LOCK_BASE_TRYLOCK
 		return ret;
 		};
 	inline int unlock() {
-#ifdef DEFINED_NO_THREAD_LOCK
-		return 0;
-#endif // DEFINED_NO_THREAD_LOCK
-		lock_base::unlock();
+		DEFINED_NO_THREAD_LOCK_RETURN
+		LOCK_BASE_UNLOCK
 		return pthread_mutex_unlock(&m_lock);
 	};
 
