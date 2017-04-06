@@ -34,6 +34,10 @@
 #ifndef VLOGGER_H
 #define VLOGGER_H
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <iostream>
 #include <fstream>
 #include <time.h>
