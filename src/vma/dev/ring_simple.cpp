@@ -326,6 +326,9 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	if( si == NULL )
 		return false;
 
+	// If m_flow_tag_enabled==true then flow tag is supported and flow_tag_id is guaranteed
+	// to have a !0 value which will results in a flow id being added to the flow spec.
+	// Otherwise, flow tag is not supported, flow_tag_id=0 and no flow id will be used the flow spec.
 	if (m_flow_tag_enabled) {
 		// sockfd=0 is valid too but flow_tag_id=0 is invalid, increment it
 		// effectively limiting our sockfd range to FLOW_TAG_MASK-1
