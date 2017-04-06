@@ -20,19 +20,22 @@ AC_ARG_ENABLE(
     enableval=medium)
 AC_MSG_CHECKING(
     [checking for logging optimization])
+enable_opt_log=10
 case "$enableval" in
-    yes | medium)
-        CPPFLAGS="$CPPFLAGS -DVMA_OPTIMIZE_LOG=6 -DNDEBUG"
-        ;;
     no | none)
-	CPPFLAGS="$CPPFLAGS -DVMA_OPTIMIZE_LOG=10"
+        ;;
+    yes | medium)
+        enable_opt_log=6
+        CPPFLAGS="$CPPFLAGS -DNDEBUG"
         ;;
     high)
-        CPPFLAGS="$CPPFLAGS -DVMA_OPTIMIZE_LOG=5 -DNDEBUG"
+        enable_opt_log=5
+        CPPFLAGS="$CPPFLAGS -DNDEBUG"
         ;;
     *)
         AC_MSG_ERROR([Unrecognized --enable-opt-log parameter as $enableval])
         ;;
 esac
+AC_DEFINE_UNQUOTED([VMA_OPTIMIZE_LOG], [$enable_opt_log], [Log optimization level])
 AC_MSG_RESULT([$enableval])
 
