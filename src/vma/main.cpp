@@ -109,6 +109,8 @@ const char *vma_version_str = "VMA_VERSION: " PACKAGE_VERSION "-" STR(VMA_LIBRAR
 #endif
 			      ;	// End of vma_version_str - used in "$ strings libvma.so | grep VMA_VERSION"
 
+#define VMA_GIT_TITLE		"Git: "
+const char *vma_git_version_str = VMA_GIT_TITLE  VMA_GIT_VERSION;
 
 bool g_b_exit = false;
 bool g_init_ibv_fork_done = false;
@@ -404,6 +406,10 @@ void print_vma_global_settings()
 	int ret = get_ofed_version_info(ofed_version_info, MAX_VERSION_STR_LEN);
 	if (!ret && strlen(ofed_version_info) > 0) {
 		vlog_printf(VLOG_INFO,"OFED Version: %s\n", ofed_version_info);
+	}
+
+	if (vma_git_version_str[sizeof(VMA_GIT_TITLE)-1]) {
+		vlog_printf(VLOG_INFO,"%s\n", vma_git_version_str);
 	}
 
 	if (!uname(&sys_info)) {

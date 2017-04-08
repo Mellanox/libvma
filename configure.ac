@@ -13,6 +13,9 @@ AC_DEFINE(VMA_LIBRARY_MINOR, vma_ver_minor, [VMA Minor Version])
 AC_DEFINE(VMA_LIBRARY_REVISION, vma_ver_revision, [VMA Revision])
 AC_DEFINE(VMA_LIBRARY_RELEASE, vma_ver_release, [VMA Release])
 
+define([vma_git_version], esyscmd([sh -c "touch ./build/current-version; head -1 ./build/current-version  | tr -d '\n'"]))
+AC_DEFINE_UNQUOTED(VMA_GIT_VERSION, "vma_git_version", [VMA Git Version])
+
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 AC_CONFIG_SRCDIR(src)
