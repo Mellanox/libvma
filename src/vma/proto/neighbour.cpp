@@ -568,7 +568,7 @@ bool neigh_entry::post_send_tcp(iovec *iov, header *h)
 	m_p_ring->send_ring_buffer(m_id, &m_send_wqe, false);
 #ifndef __COVERITY__
 	struct tcphdr* p_tcp_h = (struct tcphdr*)(((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr)));
-	NOT_IN_USE(p_tcp_h); /* to supress warning in case VMA_OPTIMIZE_LOG */
+	NOT_IN_USE(p_tcp_h); /* to supress warning in case VMA_MAX_DEFINED_LOG_LEVEL */
 	neigh_logdbg("Tx TCP segment info: src_port=%d, dst_port=%d, flags='%s%s%s%s%s%s' seq=%u, ack=%u, win=%u, payload_sz=%u",
 			ntohs(p_tcp_h->source), ntohs(p_tcp_h->dest),
 			p_tcp_h->urg?"U":"", p_tcp_h->ack?"A":"", p_tcp_h->psh?"P":"",
@@ -937,7 +937,7 @@ void neigh_entry::dofunc_enter_ready(const sm_info_t& func_info)
 
 void neigh_entry::priv_general_st_entry(const sm_info_t& func_info)
 {
-	NOT_IN_USE(func_info); /* to supress warning in case VMA_OPTIMIZE_LOG */
+	NOT_IN_USE(func_info); /* to supress warning in case VMA_MAX_DEFINED_LOG_LEVEL */
 	neigh_logdbg("State change: %s (%d) => %s (%d) with event %s (%d)",
 		state_to_str((state_t) func_info.old_state), func_info.old_state,
 		state_to_str((state_t) func_info.new_state), func_info.new_state,
@@ -951,8 +951,8 @@ void neigh_entry::priv_general_st_leave(const sm_info_t& func_info)
 
 void neigh_entry::priv_print_event_info(state_t state, event_t event)
 {
-	NOT_IN_USE(state); /* to supress warning in case VMA_OPTIMIZE_LOG */
-	NOT_IN_USE(event); /* to supress warning in case VMA_OPTIMIZE_LOG */
+	NOT_IN_USE(state); /* to supress warning in case VMA_MAX_DEFINED_LOG_LEVEL */
+	NOT_IN_USE(event); /* to supress warning in case VMA_MAX_DEFINED_LOG_LEVEL */
 	neigh_logdbg("Got event '%s' (%d) in state '%s' (%d)",
 		event_to_str(event), event, state_to_str(state), state);
 }

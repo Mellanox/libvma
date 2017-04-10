@@ -120,10 +120,8 @@ vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip")
 {
 	m_run_timers = false;
 
-#if (VMA_OPTIMIZE_LOG <= 5)
 	if (*g_p_vlogger_level >= VLOG_DEBUG)
 		__vma_print_conf_file(__instance_list);
-#endif
 
 	lwip_logdbg("");
 

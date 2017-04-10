@@ -105,13 +105,11 @@ namespace log_level
 					/* Set maximum accessible logging level in case
 					 * a user requests level that is reduced during compilation
 					 * or requested one if the level is in valid range
-					 * VMA_OPTIMIZE_LOG is defined in any configuration and
-					 * accepts values as VLOG_DEBUG, VLOG_FINE
 					 */
-					if (levels[i].level < VMA_OPTIMIZE_LOG) {
+					if (levels[i].level <= VMA_MAX_DEFINED_LOG_LEVEL) {
 						return levels[i].level;
 					}
-					def_value = (vlog_levels_t)(VMA_OPTIMIZE_LOG - 1);
+					def_value = (vlog_levels_t)(VMA_MAX_DEFINED_LOG_LEVEL);
 					vlog_printf(VLOG_WARNING, "VMA trace level set to max level %s\n", to_str(def_value));
 					return def_value;
 				}
