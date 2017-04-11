@@ -2063,6 +2063,7 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 		return -1;
 	}
 	setPassthrough(false);
+	errno = 0;
 	unlock_tcp_con();
 	return 0;
 }
