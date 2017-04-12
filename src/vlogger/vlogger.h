@@ -84,94 +84,94 @@
 #define __log_warn(log_fmt, log_args...)         do { VLOG_PRINTF(VLOG_WARNING, log_fmt, ##log_args); } while (0)
 #define __log_info(log_fmt, log_args...)         do { VLOG_PRINTF(VLOG_INFO, log_fmt, ##log_args); } while (0)
 
-#if (VMA_OPTIMIZE_LOG <= 4)
+#if (VMA_MAX_DEFINED_LOG_LEVEL < DEFINED_VLOG_DETAIL)
 #define __log_details(log_fmt, log_args...)      ((void)0)
 #else
 #define __log_details(log_fmt, log_args...)      do { if (g_vlogger_level >= VLOG_DETAILS) 	VLOG_PRINTF(VLOG_DETAILS, log_fmt, ##log_args); } while (0)
 #endif
 
-#if (VMA_OPTIMIZE_LOG <= 5)
+#if (VMA_MAX_DEFINED_LOG_LEVEL < DEFINED_VLOG_DEBUG)
 #define __log_dbg(log_fmt, log_args...)          ((void)0)
 #else
 #define __log_dbg(log_fmt, log_args...)          do { if (g_vlogger_level >= VLOG_DEBUG) 	VLOG_PRINTF(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
 #endif
 
-#if (VMA_OPTIMIZE_LOG <= 6)
+#if (VMA_MAX_DEFINED_LOG_LEVEL < DEFINED_VLOG_FINE)
 #define __log_fine(log_fmt, log_args...)         ((void)0)
 #else
 #define __log_fine(log_fmt, log_args...)         do { if (g_vlogger_level >= VLOG_FINE) 		VLOG_PRINTF(VLOG_FINE, log_fmt, ##log_args); } while (0)
 #endif
 
-#if (VMA_OPTIMIZE_LOG <= 7)
+#if (VMA_MAX_DEFINED_LOG_LEVEL < DEFINED_VLOG_FINER)
 #define __log_finer(log_fmt, log_args...)        ((void)0)
 #else
 #define __log_finer(log_fmt, log_args...)        do { if (g_vlogger_level >= VLOG_FINER) 	VLOG_PRINTF(VLOG_FINER, log_fmt, ##log_args); } while (0)
-#endif /* VMA_OPTIMIZE_LOG */
+#endif /* VMA_MAX_DEFINED_LOG_LEVEL */
 
 #define __log_info_panic(log_fmt, log_args...)   do { VLOG_PRINTF_INFO(VLOG_PANIC, log_fmt, ##log_args); throw; } while (0)
 #define __log_info_err(log_fmt, log_args...)     do { VLOG_PRINTF_INFO(VLOG_ERROR, log_fmt, ##log_args); } while (0)
 #define __log_info_warn(log_fmt, log_args...)    do { VLOG_PRINTF_INFO(VLOG_WARNING, log_fmt, ##log_args); } while (0)
 #define __log_info_info(log_fmt, log_args...)    do { VLOG_PRINTF_INFO(VLOG_INFO, log_fmt, ##log_args); } while (0)
 
-#if (VMA_OPTIMIZE_LOG <= 4)
+#if (VMA_MAX_DEFINED_LOG_LEVEL < DEFINED_VLOG_DETAILS)
 #define __log_info_details(log_fmt, log_args...) ((void)0)
 #else
 #define __log_info_details(log_fmt, log_args...) do { if (g_vlogger_level >= VLOG_DETAILS) 	VLOG_PRINTF_INFO(VLOG_DETAILS, log_fmt, ##log_args); } while (0)
 #endif
 
-#if (VMA_OPTIMIZE_LOG <= 5)
+#if (VMA_MAX_DEFINED_LOG_LEVEL < DEFINED_VLOG_DEBUG)
 #define __log_info_dbg(log_fmt, log_args...)     ((void)0)
 #else
 #define __log_info_dbg(log_fmt, log_args...)     do { if (g_vlogger_level >= VLOG_DEBUG) 	VLOG_PRINTF_INFO(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
 #endif
 
-#if (VMA_OPTIMIZE_LOG <= 6)
+#if (VMA_MAX_DEFINED_LOG_LEVEL < DEFINED_VLOG_FINE)
 #define __log_info_fine(log_fmt, log_args...)    ((void)0)
 #else
-#define __log_info_fine(log_fmt, log_args...)    do { if (g_vlogger_level >= VLOG_FINE) 		VLOG_PRINTF_INFO(VLOG_FINE, log_fmt, ##log_args); } while (0)
+#define __log_info_fine(log_fmt, log_args...)    do { if (g_vlogger_level >= VLOG_FINE) 	VLOG_PRINTF_INFO(VLOG_FINE, log_fmt, ##log_args); } while (0)
 #endif
 
-#if (VMA_OPTIMIZE_LOG <= 7)
+#if (VMA_MAX_DEFINED_LOG_LEVEL < DEFINED_VLOG_FINER)
 #define __log_info_finer(log_fmt, log_args...)   ((void)0)
 #else
 #define __log_info_finer(log_fmt, log_args...)   do { if (g_vlogger_level >= VLOG_FINER) 	VLOG_PRINTF_INFO(VLOG_FINER, log_fmt, ##log_args); } while (0)
-#endif /* VMA_OPTIMIZE_LOG */
+#endif /* VMA_MAX_DEFINED_LOG_LEVEL */
 
-#if (VMA_OPTIMIZE_LOG <= 5)
+#if (VMA_MAX_DEFINED_LOG_LEVEL < DEFINED_VLOG_DEBUG)
 #define __log_entry_dbg(log_fmt, log_args...)    ((void)0)
 #else
 #define __log_entry_dbg(log_fmt, log_args...)    do { if (g_vlogger_level >= VLOG_DEBUG) 	VLOG_PRINTF_ENTRY(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
 #endif
 
-#if (VMA_OPTIMIZE_LOG <= 6)
+#if (VMA_MAX_DEFINED_LOG_LEVEL < DEFINED_VLOG_FINE)
 #define __log_entry_fine(log_fmt, log_args...)   ((void)0)
 #else
 #define __log_entry_fine(log_fmt, log_args...)   do { if (g_vlogger_level >= VLOG_FINE)		VLOG_PRINTF_ENTRY(VLOG_FINE, log_fmt, ##log_args); } while (0)
 #endif
 
-#if (VMA_OPTIMIZE_LOG <= 7)
+#if (VMA_MAX_DEFINED_LOG_LEVEL < DEFINED_VLOG_FINER)
 #define __log_entry_finer(log_fmt, log_args...)  ((void)0)
 #else
 #define __log_entry_finer(log_fmt, log_args...)  do { if (g_vlogger_level >= VLOG_FINER) 	VLOG_PRINTF_ENTRY(VLOG_FINER, log_fmt, ##log_args); } while (0)
 #endif
 
-#if (VMA_OPTIMIZE_LOG <= 5)
+#if (VMA_MAX_DEFINED_LOG_LEVEL < DEFINED_VLOG_DEBUG)
 #define __log_exit_dbg(log_fmt, log_args...)     ((void)0)
 #else
 #define __log_exit_dbg(log_fmt, log_args...)     do { if (g_vlogger_level >= VLOG_DEBUG) 	VLOG_PRINTF_EXIT(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
 #endif
 
-#if (VMA_OPTIMIZE_LOG <= 6)
+#if (VMA_MAX_DEFINED_LOG_LEVEL < DEFINED_VLOG_FINE)
 #define __log_exit_fine(log_fmt, log_args...)    ((void)0)
 #else
 #define __log_exit_fine(log_fmt, log_args...)    do { if (g_vlogger_level >= VLOG_FINE)		VLOG_PRINTF_EXIT(VLOG_FINE, log_fmt, ##log_args); } while (0)
 #endif
 
-#if (VMA_OPTIMIZE_LOG <= 7)
+#if (VMA_MAX_DEFINED_LOG_LEVEL < DEFINED_VLOG_FINER)
 #define __log_exit_finer(log_fmt, log_args...)   ((void)0)
 #else
 #define __log_exit_finer(log_fmt, log_args...)   do { if (g_vlogger_level >= VLOG_FINER) 	VLOG_PRINTF_EXIT(VLOG_FINER, log_fmt, ##log_args); } while (0)
-#endif /* VMA_OPTIMIZE_LOG */
+#endif /* VMA_MAX_DEFINED_LOG_LEVEL */
 
 // deprecated functions - only exist for Backward Compatibility.  Please avoid using them!
 #define __log_func(...)          __log_fine(__VA_ARGS__)
@@ -188,17 +188,17 @@ extern "C" {
 #endif //__cplusplus
 
 typedef enum {
-	VLOG_INIT = -2,
-	VLOG_NONE = -1,
-	VLOG_PANIC = 0,
-	VLOG_ERROR,
-	VLOG_WARNING,
-	VLOG_INFO, VLOG_DEFAULT = VLOG_INFO,
-	VLOG_DETAILS,
-	VLOG_DEBUG,
-	VLOG_FINE, VLOG_FUNC = VLOG_FINE,
-	VLOG_FINER, VLOG_FUNC_ALL = VLOG_FINER,
-	VLOG_ALL /* last element */
+	VLOG_INIT	= DEFINED_VLOG_INIT,
+	VLOG_NONE	= DEFINED_VLOG_NONE,
+	VLOG_PANIC	= DEFINED_VLOG_PANIC,
+	VLOG_ERROR	= DEFINED_VLOG_ERROR,
+	VLOG_WARNING	= DEFINED_VLOG_WARNING,
+	VLOG_INFO	= DEFINED_VLOG_INFO, VLOG_DEFAULT = VLOG_INFO,
+	VLOG_DETAILS	= DEFINED_VLOG_DETAILS,
+	VLOG_DEBUG	= DEFINED_VLOG_DEBUG,
+	VLOG_FINE	= DEFINED_VLOG_FINE, VLOG_FUNC = VLOG_FINE,
+	VLOG_FINER	= DEFINED_VLOG_FINER, VLOG_FUNC_ALL = VLOG_FINER,
+	VLOG_ALL	= DEFINED_VLOG_ALL /* last element */
 } vlog_levels_t;
 
 namespace log_level {
