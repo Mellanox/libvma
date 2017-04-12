@@ -26,11 +26,9 @@ case "$enableval" in
         ;;
     yes | medium)
         enable_opt_log=6
-        CPPFLAGS="$CPPFLAGS -DNDEBUG"
         ;;
     high)
         enable_opt_log=5
-        CPPFLAGS="$CPPFLAGS -DNDEBUG"
         ;;
     *)
         AC_MSG_ERROR([Unrecognized --enable-opt-log parameter as $enableval])
