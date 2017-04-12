@@ -372,55 +372,35 @@ int cq_mgr::poll(vma_ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn)
 	// Assume locked!!!
 	cq_logfuncall("");
 
-#ifdef RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
-	RDTSC_TAKE_END(RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL);
-#endif //RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
+	RDTSC_FLOW_RX_VERBS_READY_POLL_START;
+	RDTSC_FLOW_RX_VERBS_IDLE_POLL_START;
+	RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL_END;
 
-#if defined(RDTSC_MEASURE_RX_VERBS_READY_POLL) || defined(RDTSC_MEASURE_RX_VERBS_IDLE_POLL)
-	RDTSC_TAKE_START_RX_VERBS_POLL(RDTSC_FLOW_RX_VERBS_READY_POLL, RDTSC_FLOW_RX_VERBS_IDLE_POLL);
-#endif //RDTSC_MEASURE_RX_VERBS_READY_POLL || RDTSC_MEASURE_RX_VERBS_IDLE_POLL
 	int ret = vma_ibv_poll_cq(m_p_ibv_cq, num_entries, p_wce);
 	if (ret <= 0) {
-#ifdef RDTSC_MEASURE_RX_VERBS_IDLE_POLL
-		RDTSC_TAKE_END(RDTSC_FLOW_RX_VERBS_IDLE_POLL);
-#endif
-
-#if defined(RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL) || defined(RDTSC_MEASURE_RX_CQE_RECEIVEFROM)
-		RDTSC_TAKE_START_VMA_IDLE_POLL_CQE_TO_RECVFROM(RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL,
-			RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM);
-#endif //RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL || RDTSC_MEASURE_RX_CQE_RECEIVEFROM
+		RDTSC_FLOW_RX_VERBS_IDLE_POLL_END;
+		RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL_START;
 
 		// Zero polled wce    OR    ibv_poll_cq() has driver specific errors
 		// so we can't really do anything with them
+		RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM_START;
 		*p_cq_poll_sn = m_n_global_sn;
-#ifdef VMA_TIME_MEASURE
 		INC_ERR_POLL_COUNT;
-#endif
+
 		return 0;
 	}
-	else {
-#ifdef RDTSC_MEASURE_RX_VERBS_READY_POLL
-	RDTSC_TAKE_END(RDTSC_FLOW_RX_VERBS_READY_POLL);
-#endif //RDTSC_MEASURE_RX_VERBS_READY_POLL
 
-#ifdef RDTSC_MEASURE_RX_READY_POLL_TO_LWIP
-	RDTSC_TAKE_START(RDTSC_FLOW_RX_READY_POLL_TO_LWIP);
-#endif
-	}
-
-#ifdef VMA_TIME_MEASURE
+	RDTSC_FLOW_RX_READY_POLL_TO_LWIP_START;
 	TAKE_POLL_CQ_IN;
-#endif
 
-#ifdef DEFINED_VMAPOLL
-#else
-	if (unlikely(g_vlogger_level >= VLOG_FUNC_ALL)) {
-		for (int i = 0; i < ret; i++) {
-			cq_logfuncall("wce[%d] info wr_id=%x, status=%x, opcode=%x, vendor_err=%x, byte_len=%d, imm_data=%x", i, p_wce[i].wr_id, p_wce[i].status, vma_wc_opcode(p_wce[i]), p_wce[i].vendor_err, p_wce[i].byte_len, p_wce[i].imm_data);
-			cq_logfuncall("qp_num=%x, src_qp=%x, wc_flags=%x, pkey_index=%x, slid=%x, sl=%x, dlid_path_bits=%x", p_wce[i].qp_num, p_wce[i].src_qp, vma_wc_flags(p_wce[i]), p_wce[i].pkey_index, p_wce[i].slid, p_wce[i].sl, p_wce[i].dlid_path_bits);
+	#ifndef DEFINED_VMAPOLL
+		if (unlikely(g_vlogger_level >= VLOG_FUNC_ALL)) {
+			for (int i = 0; i < ret; i++) {
+				cq_logfuncall("wce[%d] info wr_id=%x, status=%x, opcode=%x, vendor_err=%x, byte_len=%d, imm_data=%x", i, p_wce[i].wr_id, p_wce[i].status, vma_wc_opcode(p_wce[i]), p_wce[i].vendor_err, p_wce[i].byte_len, p_wce[i].imm_data);
+				cq_logfuncall("qp_num=%x, src_qp=%x, wc_flags=%x, pkey_index=%x, slid=%x, sl=%x, dlid_path_bits=%x", p_wce[i].qp_num, p_wce[i].src_qp, vma_wc_flags(p_wce[i]), p_wce[i].pkey_index, p_wce[i].slid, p_wce[i].sl, p_wce[i].dlid_path_bits);
+			}
 		}
-	}
-#endif
+	#endif
 
 	// spoil the global sn if we have packets ready
 	union __attribute__((packed)) {
@@ -765,15 +745,11 @@ int cq_mgr::vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 		m_rx_hot_buff->rx.context = NULL;
 		m_rx_hot_buff->rx.is_vma_thr = false;
 	}
-#ifdef RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
-	RDTSC_TAKE_END(RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL);
-#endif //RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
-
 	//prefetch_range((uint8_t*)m_rx_hot_buff->p_buffer,safe_mce_sys().rx_prefetch_bytes_before_poll);
-#if defined(RDTSC_MEASURE_RX_VERBS_READY_POLL) || defined(RDTSC_MEASURE_RX_VERBS_IDLE_POLL)
-	RDTSC_TAKE_START_RX_VERBS_POLL(RDTSC_FLOW_RX_VERBS_READY_POLL,
-		RDTSC_FLOW_RX_VERBS_IDLE_POLL);
-#endif //RDTSC_MEASURE_RX_VERBS_READY_POLL || RDTSC_MEASURE_RX_VERBS_IDLE_POLL
+
+	RDTSC_FLOW_RX_VERBS_READY_POLL_START;
+	RDTSC_FLOW_RX_VERBS_IDLE_POLL_START;
+	RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL_END;
 
 	volatile mlx5_cqe64 *cqe_err = NULL;
 	volatile mlx5_cqe64 *cqe = mlx5_get_cqe64(&cqe_err);
@@ -799,14 +775,9 @@ int cq_mgr::vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 		*p_desc_lst = NULL;
 	}
 	else {
-#ifdef RDTSC_MEASURE_RX_VERBS_IDLE_POLL
-		RDTSC_TAKE_END(RDTSC_FLOW_RX_VERBS_IDLE_POLL);
-#endif
-
-#if defined(RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL) || defined(RDTSC_MEASURE_RX_CQE_RECEIVEFROM)
-		RDTSC_TAKE_START_VMA_IDLE_POLL_CQE_TO_RECVFROM(RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL,
-			RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM);
-#endif //RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL || RDTSC_MEASURE_RX_CQE_RECEIVEFROM
+		RDTSC_FLOW_RX_VERBS_IDLE_POLL_END;
+		RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL_START;
+		RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM_START;
 		compensate_qp_poll_failed();
 	}
 

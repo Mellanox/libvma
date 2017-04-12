@@ -48,7 +48,7 @@ char g_rdtsc_flow_names[RDTSC_FLOW_MAX][256] = {
 		{"RDTSC_FLOW_MEASURE_RECEIVEFROM_TO_SENDTO"},
 		{"RDTSC_FLOW_RX_LWIP"},
 		{"RDTSC_FLOW_MEASURE_RX_DISPATCH_PACKET"},
-		{"RDTSC_FLOW_PROCCESS_AFTER_BUFFER_TO_RECIVEFROM "},
+		{"RDTSC_FLOW_PROCCESS_AFTER_BUFFER_TO_RECIVEFROM"},
 		{"RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL"},
 		{"RDTSC_FLOW_RX_READY_POLL_TO_LWIP"},
 		{"RDTSC_FLOW_RX_LWIP_TO_RECEVEFROM"},
@@ -62,11 +62,11 @@ int reset_rdtsc_counter(int idx)
 	
 	if (g_rdtsc_instr_info_arr[idx].results) {
 		results = g_rdtsc_instr_info_arr[idx].results;
-	}
-	else {
+	} else {
 		results = (tscval_t*)malloc(RDTSC_PERCENTILE_BUF_SIZE * sizeof(tscval_t));
-		if (!results)
+		if (!results) {
 			return -1;
+		}
 	}
 
 	memset((void*)(&g_rdtsc_instr_info_arr[idx]), 0, sizeof(instr_info));
@@ -90,7 +90,7 @@ void init_rdtsc()
 	}
 	gettimeoftsc(&end);
 	g_rdtsc_cost = (end - start)/1000000;
-	vlog_printf(VLOG_ERROR,"RDTSC cost is: %u cycles\n", g_rdtsc_cost);
+	vlog_printf(VLOG_INFO,"RDTSC cost is: %u cycles\n", g_rdtsc_cost);
 
 	for(int i = 0; i < RDTSC_FLOW_MAX; i++) {
 		reset_rdtsc_counter(i); // need to check return value
@@ -111,29 +111,29 @@ void print_rdtsc_percentiles(tscval_t *results, uint64_t size, double hz)
 
 	qsort(results, size, sizeof(tscval_t), tscval_compare);
 
-	while (size && !*results) {
+	while (size && !(*results)) {
 		size--;
 		results++;
 	}
 	if (!size) {
-		vlog_printf(VLOG_ERROR, "All entries are zero!\n");
+		vlog_printf(VLOG_INFO, "All entries are zero!\n");
 		return;
 	}
 
-	vlog_printf(VLOG_ERROR, "Total %lu observations; each percentile contains %.2lf observations\n",
+	vlog_printf(VLOG_INFO, "Total %lu observations; each percentile contains %.2lf observations\n",
 		(long unsigned)size, (double)size/100);
 
-	vlog_printf(VLOG_ERROR, "---> <MAX> observation = %8.3lfns\n", results[size-1]/hz);
+	vlog_printf(VLOG_INFO, "---> <MAX> observation = %8.3lfns\n", results[size-1]/hz);
 
-	for (uint64_t i = 0; i < ARRAY_SIZE(percentile); i++) {
+	for (uint64_t i = 0; i < ARR_SIZE(percentile); i++) {
 		uint64_t index = (uint64_t)(0.5 + percentile[i]*size) - 1;
 
 		if (index < size) {
-			vlog_printf(VLOG_ERROR, "---> percentile %6.3lf = %8.3lfns\n",
+			vlog_printf(VLOG_INFO, "---> percentile %6.3lf = %8.3lfns\n",
 				percentile[i] * 100, results[index]/hz);
 		}
 	}
-	vlog_printf(VLOG_ERROR, "---> <MIN> observation = %8.3lfns\n", results[0]/hz);
+	vlog_printf(VLOG_INFO, "---> <MIN> observation = %8.3lfns\n", results[0]/hz);
 }
 
 void print_rdtsc_summary()
@@ -143,23 +143,23 @@ void print_rdtsc_summary()
 	int skip_percentile = 0;
 
 	if (!get_cpu_hz(hz_min, hz_max)) {
-		vlog_printf(VLOG_ERROR, "Failure in reading CPU speeds\n");
+		vlog_printf(VLOG_INFO, "Failure in reading CPU speeds\n");
 		skip_percentile = 1;
 	}
 	if (!compare_double(hz_min, hz_max)) {
-		vlog_printf(VLOG_ERROR, "CPU cores are running at different speeds\n");
+		vlog_printf(VLOG_INFO, "CPU cores are running at different speeds\n");
 		skip_percentile = 1;
 	}
 
-	vlog_printf(VLOG_ERROR,"*********** RDTSC Summary ************ \n");
+	vlog_printf(VLOG_INFO,"*********** RDTSC Summary ************ \n");
 	if (!skip_percentile) {
-		vlog_printf(VLOG_ERROR, "CPU speed: %8.3lfGHz\n", hz_min/1.e9);
+		vlog_printf(VLOG_INFO, "CPU speed: %8.3lfGHz\n", hz_min/1.e9);
 	}
 	for(int i = 0; i < RDTSC_FLOW_MAX; i++) {
 		if (g_rdtsc_instr_info_arr[i].results) {
 			if (g_rdtsc_instr_info_arr[i].counter) {
 				avg = g_rdtsc_instr_info_arr[i].cycles/g_rdtsc_instr_info_arr[i].counter;
-				vlog_printf(VLOG_ERROR,"%s: %8.3lfns\n", g_rdtsc_flow_names[g_rdtsc_instr_info_arr[i].trace_log_idx], (avg*1e9)/hz_min);
+				vlog_printf(VLOG_INFO,"%s: %8.3lfns\n", g_rdtsc_flow_names[g_rdtsc_instr_info_arr[i].trace_log_idx], (avg*1e9)/hz_min);
 				if (!skip_percentile) {
 					print_rdtsc_percentiles(g_rdtsc_instr_info_arr[i].results, RDTSC_PERCENTILE_BUF_SIZE, hz_min/1e9);
 				}

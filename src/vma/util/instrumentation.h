@@ -48,7 +48,6 @@
 
 #include <stdint.h>
 #include <unistd.h>
-#include "utils/rdtsc.h"
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 #include "vlogger/vlogger.h"
@@ -58,7 +57,7 @@ int reset_rdtsc_counter(int idx);
 void init_rdtsc();
 void print_rdtsc_summary();
 
-#define ARRAY_SIZE(arr) (sizeof(arr)/sizeof(arr[0]))
+#define ARR_SIZE(arr) (sizeof(arr)/sizeof(arr[0]))
 
 // recommended ratio: 100000
 #define RDTSC_PRINT_RATIO 0
@@ -97,20 +96,21 @@ void print_rdtsc_summary();
 #endif
 
 #define RDTSC_TAKE_END(instr) do { \
-	if (g_rdtsc_instr_info_arr[instr].start) { \
-		uint64_t idx = g_rdtsc_instr_info_arr[instr].counter & (RDTSC_PERCENTILE_BUF_SIZE - 1); \
-		gettimeoftsc(&g_rdtsc_instr_info_arr[instr].end); \
-		g_rdtsc_instr_info_arr[instr].results[idx] = \
-			g_rdtsc_instr_info_arr[instr].start + g_rdtsc_cost <= g_rdtsc_instr_info_arr[instr].end ? \
-			g_rdtsc_instr_info_arr[instr].end - g_rdtsc_instr_info_arr[instr].start - g_rdtsc_cost : 0; \
-		g_rdtsc_instr_info_arr[instr].cycles += g_rdtsc_instr_info_arr[instr].results[idx]; \
-		g_rdtsc_instr_info_arr[instr].counter++; \
-		g_rdtsc_instr_info_arr[instr].start = 0; \
-		if (g_rdtsc_instr_info_arr[instr].print_ratio && \
-				!(g_rdtsc_instr_info_arr[instr].counter % g_rdtsc_instr_info_arr[instr].print_ratio)) { \
+	instr_info *pinst = &g_rdtsc_instr_info_arr[instr]; \
+	if (pinst->start) { \
+		uint64_t idx = pinst->counter & (RDTSC_PERCENTILE_BUF_SIZE - 1); \
+		gettimeoftsc(&pinst->end); \
+		pinst->results[idx] = \
+			(pinst->start + g_rdtsc_cost <= pinst->end) ? \
+			(pinst->end - pinst->start - g_rdtsc_cost) : (0); \
+		pinst->cycles += pinst->results[idx]; \
+		pinst->counter++; \
+		pinst->start = 0; \
+		if (pinst->print_ratio && \
+				!(pinst->counter % pinst->print_ratio)) { \
 			vlog_printf(VLOG_ERROR,"%s: %" PRIu64 " [@runtime]\n", \
-				g_rdtsc_flow_names[g_rdtsc_instr_info_arr[instr].trace_log_idx], \
-					g_rdtsc_instr_info_arr[instr].cycles / g_rdtsc_instr_info_arr[instr].counter); \
+				g_rdtsc_flow_names[pinst->trace_log_idx], \
+					pinst->cycles / pinst->counter); \
 		} \
 	} \
 } while (0)
@@ -146,7 +146,227 @@ extern uint16_t g_rdtsc_cost;
 extern char g_rdtsc_flow_names[RDTSC_FLOW_MAX][256];
 extern instr_info g_rdtsc_instr_info_arr[RDTSC_FLOW_MAX];
 
-#endif //RDTS_MEASURE
+#endif //RDTSC_MEASURE
+
+#ifdef RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
+#define RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL_START \
+	RDTSC_TAKE_START(RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL)
+#else
+#define RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL_START do {} while (0)
+#endif //RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL_START
+
+#ifdef RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
+#define RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL_END \
+	RDTSC_TAKE_END(RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL)
+#else
+#define RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL_END do {} while (0)
+#endif //RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
+
+#ifdef RDTSC_MEASURE_RX_VERBS_IDLE_POLL
+#define RDTSC_FLOW_RX_VERBS_IDLE_POLL_START \
+        RDTSC_TAKE_START(RDTSC_FLOW_RX_VERBS_IDLE_POLL);
+#else
+#define RDTSC_FLOW_RX_VERBS_IDLE_POLL_START do {} while (0)
+#endif //RDTSC_FLOW_RX_VERBS_IDLE_POLL_START
+
+#ifdef RDTSC_MEASURE_RX_VERBS_IDLE_POLL
+#define RDTSC_FLOW_RX_VERBS_IDLE_POLL_END \
+	RDTSC_TAKE_END(RDTSC_FLOW_RX_VERBS_IDLE_POLL);
+#else
+#define RDTSC_FLOW_RX_VERBS_IDLE_POLL_END do {} while (0)
+#endif //RDTSC_FLOW_RX_VERBS_IDLE_POLL_END
+
+#if defined(RDTSC_MEASURE_RX_VERBS_READY_POLL) || defined(RDTSC_MEASURE_RX_VERBS_IDLE_POLL)
+#define RDTSC_MEASURE_RX_VERBS_READY_OR_IDLE_POLL_START \
+	RDTSC_TAKE_START_RX_VERBS_POLL(RDTSC_FLOW_RX_VERBS_READY_POLL, RDTSC_FLOW_RX_VERBS_IDLE_POLL)
+#else
+#define RDTSC_MEASURE_RX_VERBS_READY_OR_IDLE_POLL_START do {} while (0)
+#endif //RDTSC_MEASURE_RX_VERBS_READY_OR_IDLE_POLL_START
+
+#if defined(RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL) || defined(RDTSC_MEASURE_RX_CQE_RECEIVEFROM)
+#define RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL_OR_CQE_RECEIVEFROM_START \
+		RDTSC_TAKE_START_VMA_IDLE_POLL_CQE_TO_RECVFROM(RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL, \
+					RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM);
+#else
+#define RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL_OR_CQE_RECEIVEFROM_START do {} while (0)
+#endif //RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL_OR_CQE_RECEIVEFROM_START
+
+#ifdef RDTSC_MEASURE_RX_VERBS_READY_POLL
+#define RDTSC_FLOW_RX_VERBS_READY_POLL_START \
+	RDTSC_TAKE_START(RDTSC_FLOW_RX_VERBS_READY_POLL)
+#else
+#define RDTSC_FLOW_RX_VERBS_READY_POLL_START do {} while (0)
+#endif //RDTSC_FLOW_RX_VERBS_READY_POLL_START
+
+
+#ifdef RDTSC_MEASURE_RX_VERBS_READY_POLL
+#define RDTSC_FLOW_RX_VERBS_READY_POLL_END \
+	RDTSC_TAKE_END(RDTSC_FLOW_RX_VERBS_READY_POLL)
+#else
+#define RDTSC_FLOW_RX_VERBS_READY_POLL_END do {} while (0)
+#endif //RDTSC_FLOW_RX_VERBS_READY_POLL_END
+
+#ifdef RDTSC_MEASURE_RX_READY_POLL_TO_LWIP
+#define RDTSC_FLOW_RX_READY_POLL_TO_LWIP_START \
+	RDTSC_TAKE_START(RDTSC_FLOW_RX_READY_POLL_TO_LWIP)
+#else
+#define RDTSC_FLOW_RX_READY_POLL_TO_LWIP_START do {} while (0)
+#endif //RDTSC_FLOW_RX_READY_POLL_TO_LWIP_START
+
+#ifdef RDTSC_MEASURE_RX_READY_POLL_TO_LWIP
+#define RDTSC_FLOW_RX_READY_POLL_TO_LWIP_END \
+	RDTSC_TAKE_END(RDTSC_FLOW_RX_READY_POLL_TO_LWIP)
+#else
+#define RDTSC_FLOW_RX_READY_POLL_TO_LWIP_END do {} while (0)
+#endif //RDTSC_FLOW_RX_READY_POLL_TO_LWIP_END
+
+#ifdef RDTSC_MEASURE_RX_VERBS_POST_RECV
+#define RDTSC_FLOW_RX_VERBS_POST_RECV_START \
+	RDTSC_TAKE_START(RDTSC_FLOW_RX_VERBS_POST_RECV)
+#else
+#define RDTSC_FLOW_RX_VERBS_POST_RECV_START do {} while (0)
+#endif //RDTSC_FLOW_RX_VERBS_POST_RECV_START
+
+#ifdef RDTSC_MEASURE_RX_VERBS_POST_RECV
+#define RDTSC_FLOW_RX_VERBS_POST_RECV_RESET \
+	reset_rdtsc_counter(RDTSC_FLOW_RX_VERBS_POST_RECV);
+#else
+#define RDTSC_FLOW_RX_VERBS_POST_RECV_RESET do {} while (0)
+#endif//RDTSC_FLOW_RX_VERBS_POST_RECV_RESET
+
+#ifdef RDTSC_MEASURE_RX_VERBS_POST_RECV
+#define RDTSC_FLOW_RX_VERBS_POST_RECV_END \
+	RDTSC_TAKE_END(RDTSC_FLOW_RX_VERBS_POST_RECV);
+#else
+#define RDTSC_FLOW_RX_VERBS_POST_RECV_END do {} while (0)
+#endif //RDTSC_FLOW_RX_VERBS_POST_RECV_END
+
+#ifdef RDTSC_MEASURE_TX_VERBS_POST_SEND
+#define RDTSC_FLOW_TX_VERBS_POST_SEND_START \
+	RDTSC_TAKE_START(RDTSC_FLOW_TX_VERBS_POST_SEND);
+#else
+#define RDTSC_FLOW_TX_VERBS_POST_SEND_START do {} while (0)
+#endif //RDTSC_FLOW_TX_VERBS_POST_SEND_START
+
+#ifdef RDTSC_MEASURE_TX_VERBS_POST_SEND
+#define RDTSC_FLOW_TX_VERBS_POST_SEND_RESET \
+	reset_rdtsc_counter(RDTSC_FLOW_TX_VERBS_POST_SEND);
+#else
+#define RDTSC_FLOW_TX_VERBS_POST_SEND_RESET do {} while (0)
+#endif //RDTSC_FLOW_TX_VERBS_POST_SEND_RESET
+
+#ifdef RDTSC_MEASURE_TX_VERBS_POST_SEND
+#define RDTSC_FLOW_TX_VERBS_POST_SEND_END \
+	RDTSC_TAKE_END(RDTSC_FLOW_TX_VERBS_POST_SEND);
+#else
+#define RDTSC_FLOW_TX_VERBS_POST_SEND_END do {} while (0)
+#endif //RDTSC_FLOW_TX_VERBS_POST_SEND_END
+
+#ifdef RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
+#define RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND_START \
+	RDTSC_TAKE_START(RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND);
+#else
+#define RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND_START do {} while (0)
+#endif //RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND_START
+
+#ifdef RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
+#define RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND_RESET \
+	reset_rdtsc_counter(RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND);
+#else
+#define RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND_RESET do {} while (0)
+#endif //RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND_RESET
+
+#ifdef RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
+#define RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND_END \
+	RDTSC_TAKE_END(RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND);
+#else
+#define RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND_END do {} while (0)
+#endif //RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND_END
+
+#ifdef RDTSC_MEASURE_RX_DISPATCH_PACKET
+#define RDTSC_FLOW_RX_DISPATCH_PACKET_START \
+	RDTSC_TAKE_START(RDTSC_FLOW_RX_DISPATCH_PACKET)
+#else
+#define RDTSC_FLOW_RX_DISPATCH_PACKET_START do {} while (0)
+#endif //RDTSC_FLOW_RX_DISPATCH_PACKET_START
+
+#ifdef RDTSC_MEASURE_RX_DISPATCH_PACKET
+#define RDTSC_FLOW_RX_DISPATCH_PACKET_END \
+		RDTSC_TAKE_END(RDTSC_FLOW_RX_DISPATCH_PACKET)
+#else
+#define RDTSC_FLOW_RX_DISPATCH_PACKET_END do {} while (0)
+#endif //RDTSC_FLOW_RX_DISPATCH_PACKET_END
+
+#ifdef RDTSC_MEASURE_RX_PROCCESS_BUFFER_TO_RECIVEFROM
+#define RDTSC_FLOW_PROCCESS_RX_BUFFER_TO_RECIVEFROM_START \
+	RDTSC_TAKE_START(RDTSC_FLOW_PROCCESS_RX_BUFFER_TO_RECIVEFROM)
+#else
+#define RDTSC_FLOW_PROCCESS_RX_BUFFER_TO_RECIVEFROM_START do {} while (0)
+#endif //RDTSC_FLOW_PROCCESS_RX_BUFFER_TO_RECIVEFROM_START
+
+#ifdef RDTSC_MEASURE_RX_PROCCESS_BUFFER_TO_RECIVEFROM
+#define RDTSC_FLOW_PROCCESS_RX_BUFFER_TO_RECIVEFROM_END \
+		RDTSC_TAKE_END(RDTSC_FLOW_PROCCESS_RX_BUFFER_TO_RECIVEFROM)
+#else
+#define RDTSC_FLOW_PROCCESS_RX_BUFFER_TO_RECIVEFROM_END do {} while (0)
+#endif //RDTSC_FLOW_PROCCESS_RX_BUFFER_TO_RECIVEFROM_END
+
+#ifdef RDTSC_MEASURE_RX_LWIP_TO_RECEVEFROM
+#define RDTSC_FLOW_RX_LWIP_TO_RECEVEFROM_START \
+	RDTSC_TAKE_START(RDTSC_FLOW_RX_LWIP_TO_RECEVEFROM)
+#else
+#define RDTSC_FLOW_RX_LWIP_TO_RECEVEFROM_START do {} while (0)
+#endif //RDTSC_FLOW_RX_LWIP_TO_RECEVEFROM_START
+
+#ifdef RDTSC_MEASURE_RX_LWIP_TO_RECEVEFROM
+#define RDTSC_FLOW_RX_LWIP_TO_RECEVEFROM_END \
+		RDTSC_TAKE_END(RDTSC_FLOW_RX_LWIP_TO_RECEVEFROM)
+#else
+#define RDTSC_FLOW_RX_LWIP_TO_RECEVEFROM_END do {} while (0)
+#endif //RDTSC_FLOW_RX_LWIP_TO_RECEVEFROM_END
+
+#ifdef RDTSC_MEASURE_RX_CQE_RECEIVEFROM
+#define RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM_START \
+	RDTSC_TAKE_START(RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM)
+#else
+#define RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM_START do {} while (0)
+#endif //RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM_START
+
+#ifdef RDTSC_MEASURE_RX_CQE_RECEIVEFROM
+#define RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM_END \
+		RDTSC_TAKE_END(RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM)
+#else
+#define RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM_END do {} while (0)
+#endif //RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM_END
+
+#ifdef RDTSC_MEASURE_RX_CQE_RECEIVEFROM
+#define RDTSC_FLOW_RECEIVEFROM_TO_SENDTO_START \
+	RDTSC_TAKE_START(RDTSC_FLOW_RECEIVEFROM_TO_SENDTO)
+#else
+#define RDTSC_FLOW_RECEIVEFROM_TO_SENDTO_START do {} while (0)
+#endif //RDTSC_FLOW_RECEIVEFROM_TO_SENDTO_START
+
+#ifdef RDTSC_MEASURE_RX_CQE_RECEIVEFROM
+#define RDTSC_FLOW_RECEIVEFROM_TO_SENDTO_END \
+		RDTSC_TAKE_END(RDTSC_FLOW_RECEIVEFROM_TO_SENDTO)
+#else
+#define RDTSC_FLOW_RECEIVEFROM_TO_SENDTO_END do {} while (0)
+#endif //RDTSC_FLOW_RECEIVEFROM_TO_SENDTO_END
+
+#ifdef RDTSC_MEASURE_RX_LWIP
+#define RDTSC_FLOW_MEASURE_RX_LWIP_START \
+	RDTSC_TAKE_START(RDTSC_FLOW_MEASURE_RX_LWIP)
+#else
+#define RDTSC_FLOW_MEASURE_RX_LWIP_START do {} while (0)
+#endif //RDTSC_FLOW_MEASURE_RX_LWIP_START
+
+#ifdef RDTSC_MEASURE_RX_LWIP
+#define RDTSC_FLOW_MEASURE_RX_LWIP_END \
+		RDTSC_TAKE_END(RDTSC_FLOW_MEASURE_RX_LWIP)
+#else
+#define RDTSC_FLOW_MEASURE_RX_LWIP_END do {} while (0)
+#endif //RDTSC_FLOW_MEASURE_RX_LWIP_END
+
 
 //#define VMA_TIME_MEASURE 1
 #ifdef VMA_TIME_MEASURE
@@ -218,6 +438,23 @@ extern uint32_t g_dump_cnt;
 void init_instrumentation();
 void finit_instrumentation(char* dump_file_name);
 
+#else
+#define TAKE_T_POLL_START do {} while (0)
+#define TAKE_POLL_CQ_IN do {} while (0)
+#define TAKE_T_POLL_END do {} while (0)
+#define TAKE_T_RX_START do {} while (0)
+#define TAKE_T_RX_END do {} while (0)
+#define TAKE_T_TX_START do {} while (0)
+#define TAKE_T_TX_POST_SEND_START do {} while (0)
+#define TAKE_T_TX_POST_SEND_END do {} while (0)
+#define TAKE_T_TX_END do {} while (0)
+#define INC_ERR_TX_COUNT do {} while (0)
+#define INC_ERR_RX_COUNT do {} while (0)
+#define INC_GO_TO_OS_TX_COUNT do {} while (0)
+#define INC_GO_TO_OS_RX_COUNT do {} while (0)
+#define INC_ERR_POLL_COUNT do {} while (0)
+#define INC_POLL_COUNT do {} while (0)
+#define ZERO_POLL_COUNT do {} while (0)
 #endif //VMA_TIME_MEASURE
 
 #endif //INSTRUMENTATION

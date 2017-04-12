@@ -1399,9 +1399,7 @@ ssize_t sockinfo_udp::rx(const rx_call_t call_type, iovec* p_iov,ssize_t sz_iov,
 		goto out;
 	}
 
-#ifdef VMA_TIME_MEASURE
-	TAKE_T_RX_START;
-#endif
+	TAKE_T_RX_START; // VMA_TIME_MEASURE
 	save_stats_threadid_rx();
 
 	int rx_wait_ret;
@@ -1480,9 +1478,7 @@ os:
 		goto out;
 	}
 
-#ifdef VMA_TIME_MEASURE
-	INC_GO_TO_OS_RX_COUNT;
-#endif
+	INC_GO_TO_OS_RX_COUNT; // VMA_TIME_MEASURE
 
 	in_flags &= ~MSG_VMA_ZCOPY;
 	ret = socket_fd_api::rx_os(call_type, p_iov, sz_iov, in_flags, __from, __fromlen, __msg);
@@ -1502,15 +1498,11 @@ out:
 		__msg->msg_flags |= out_flags & MSG_TRUNC;
 
 	if (ret < 0) {
-#ifdef VMA_TIME_MEASURE
-		INC_ERR_RX_COUNT;
-#endif
+		INC_ERR_RX_COUNT; // VMA_TIME_MEASURE
 		si_udp_logfunc("returning with: %d (errno=%d %m)", ret, errno);
 	}
 	else {
-#ifdef VMA_TIME_MEASURE
-		TAKE_T_RX_END;
-#endif
+		TAKE_T_RX_END; // VMA_TIME_MEASURE
 		si_udp_logfunc("returning with: %d", ret);
 	}
 	return ret;
@@ -1769,9 +1761,8 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 		si_udp_logdbg("MSG_OOB not supported in UDP (tx-ing to os)");
 		goto tx_packet_to_os;
 	}
-#ifdef VMA_TIME_MEASURE
-	TAKE_T_TX_START;
-#endif
+
+	TAKE_T_TX_START; // VMA_TIME_MEASURE
 	if (__dst != NULL) {
 		if (unlikely(__dstlen < sizeof(struct sockaddr_in))) {
 			si_udp_logdbg("going to os, dstlen < sizeof(struct sockaddr_in), dstlen = %d", __dstlen);
@@ -1807,9 +1798,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 				if (m_bound.get_in_port() == INPORT_ANY) {
 					struct sockaddr addr = {AF_INET, {0}};
 					if (bind(&addr, sizeof(struct sockaddr))) {
-#ifdef VMA_TIME_MEASURE
-						INC_ERR_TX_COUNT;
-#endif
+						INC_ERR_TX_COUNT; // VMA_TIME_MEASURE
 						errno = EAGAIN;
 						m_lock_snd.unlock();
 						return -1;
@@ -1891,9 +1880,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 
 		save_stats_tx_offload(ret, is_dummy);
 
-#ifdef VMA_TIME_MEASURE
-		TAKE_T_TX_END;
-#endif
+		TAKE_T_TX_END; // VMA_TIME_MEASURE
 		m_lock_snd.unlock();
 
 		return ret;
@@ -1903,9 +1890,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 	}
 
 tx_packet_to_os:
-#ifdef VMA_TIME_MEASURE
-	INC_GO_TO_OS_TX_COUNT;
-#endif
+	INC_GO_TO_OS_TX_COUNT; // VMA_TIME_MEASURE
 	// Calling OS transmit
 	ret = socket_fd_api::tx_os(call_type, p_iov, sz_iov, __flags, __dst, __dstlen);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -691,9 +691,7 @@ ssize_t sockinfo_tcp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 		goto tx_packet_to_os;
 		}
 
-#ifdef VMA_TIME_MEASURE
-	TAKE_T_TX_START;
-#endif
+	TAKE_T_TX_START; // VMA_TIME_MEASURE
 
 retry_is_ready:
 
@@ -716,9 +714,7 @@ retry_is_ready:
 			errno = EPIPE;
 		}
 
-#ifdef VMA_TIME_MEASURE
 		INC_ERR_TX_COUNT;
-#endif
 
 		return -1;
 	}
@@ -801,9 +797,7 @@ retry_write:
 						goto done;
 					errno = EPIPE;
 					unlock_tcp_con();
-#ifdef VMA_TIME_MEASURE
-					INC_ERR_TX_COUNT;
-#endif					
+					INC_ERR_TX_COUNT; // VMA_TIME_MEASURE
 					return -1;
 				}
 				if (unlikely(err != ERR_MEM)) {
@@ -814,9 +808,7 @@ retry_write:
 					//coverity unreachable code
 					/*
 					unlock_tcp_con();
-#ifdef VMA_TIME_MEASURE
-					INC_ERR_TX_COUNT;
-#endif					
+					INC_ERR_TX_COUNT; // VMA_TIME_MEASURE
 					return -1;
 					 */
 				}
@@ -854,17 +846,11 @@ done:
 	}
 
 	unlock_tcp_con();
-
-#ifdef VMA_TIME_MEASURE	
-	TAKE_T_TX_END;
-#endif
-
+	TAKE_T_TX_END; // VMA_TIME_MEASURE
 	return total_tx; 
 
 err:
-#ifdef VMA_TIME_MEASURE
-	INC_ERR_TX_COUNT;
-#endif
+	INC_ERR_TX_COUNT; // VMA_TIME_MEASURE
 
 	// nothing send  nb mode or got some other error
 	if (errno == EAGAIN)
@@ -875,9 +861,7 @@ err:
 	return ret;
 
 tx_packet_to_os:
-#ifdef VMA_TIME_MEASURE
-	INC_GO_TO_OS_TX_COUNT;
-#endif
+	INC_GO_TO_OS_TX_COUNT; // VMA_TIME_MEASURE
 
 	ret = socket_fd_api::tx_os(call_type, p_iov, sz_iov, flags, __to, __tolen);
 	save_stats_tx_os(ret);
@@ -1706,18 +1690,13 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 	si_tcp_logfuncall("");
 	if (unlikely(m_sock_offload != TCP_SOCK_LWIP)) {
 		int ret = 0;
-#ifdef VMA_TIME_MEASURE
-		INC_GO_TO_OS_RX_COUNT;
-#endif
+		INC_GO_TO_OS_RX_COUNT; // VMA_TIME_MEASURE
 		ret = socket_fd_api::rx_os(call_type, p_iov, sz_iov, in_flags, __from, __fromlen, __msg);
 		save_stats_rx_os(ret);
 		return ret;
 	}
 
-#ifdef VMA_TIME_MEASURE
-	TAKE_T_RX_START;
-#endif
-
+	TAKE_T_RX_START; // VMA_TIME_MEASURE
 	if (unlikely((in_flags & MSG_WAITALL) && !(in_flags & MSG_PEEK))) {
 		total_iov_sz = 0;
 		for (int i = 0; i < sz_iov; i++) {
@@ -1883,26 +1862,15 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	}
 
 	sock->m_vma_thr = p_rx_pkt_mem_buf_desc_info->rx.is_vma_thr;
-#ifdef DEFINED_VMAPOLL	
-#ifdef RDTSC_MEASURE_RX_READY_POLL_TO_LWIP
-	RDTSC_TAKE_END(RDTSC_FLOW_RX_READY_POLL_TO_LWIP);
-#endif //RDTSC_MEASURE_RX_READY_POLL_TO_LWIP
 
-#ifdef RDTSC_MEASURE_RX_LWIP
-	RDTSC_TAKE_START(RDTSC_FLOW_MEASURE_RX_LWIP);
-#endif //RDTSC_MEASURE_RX_LWIP
-#endif // DEFINED_VMAPOLL	
+	RDTSC_FLOW_RX_READY_POLL_TO_LWIP_END;
+	RDTSC_FLOW_MEASURE_RX_LWIP_START;
+
 	L3_level_tcp_input((pbuf *)p_rx_pkt_mem_buf_desc_info, pcb);
 
-#ifdef DEFINED_VMAPOLL	
-#ifdef RDTSC_MEASURE_RX_LWIP
-	RDTSC_TAKE_END(RDTSC_FLOW_MEASURE_RX_LWIP);
-#endif //RDTSC_MEASURE_RX_LWIP
+	RDTSC_FLOW_MEASURE_RX_LWIP_END;
+	RDTSC_FLOW_RX_LWIP_TO_RECEVEFROM_START;
 
-#ifdef RDTSC_MEASURE_RX_LWIP_TO_RECEVEFROM
-	RDTSC_TAKE_START(RDTSC_FLOW_RX_LWIP_TO_RECEVEFROM);
-#endif //RDTSC_MEASURE_RX_LWIP_TO_RECEVEFROM
-#endif // DEFINED_VMAPOLL	
 	sock->m_vma_thr = false;
 
 	if (sock != this) {

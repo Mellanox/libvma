@@ -258,11 +258,9 @@ void io_mux_call::polling_loops()
 
 	if(immidiate_return()) return;
 
-#ifdef VMA_TIME_MEASURE
-	TAKE_T_POLL_START;
-	ZERO_POLL_COUNT;
-#endif
-			
+	TAKE_T_POLL_START; // VMA_TIME_MEASURE
+	ZERO_POLL_COUNT; // VMA_TIME_MEASURE
+
 	// Poll once before checking the time
 	check_timer_countdown = 1;
 
@@ -299,9 +297,9 @@ void io_mux_call::polling_loops()
 	}
 
 	do {
-#ifdef VMA_TIME_MEASURE		
-		INC_POLL_COUNT;
-#endif
+
+		INC_POLL_COUNT; // VMA_TIME_MEASURE
+
 		__log_funcall("2nd scenario loop %d", poll_counter);
 		__log_funcall("poll_os_countdown=%d, select_poll_os_ratio=%d, check_timer_countdown=%d, m_num_offloaded_rfds=%d,"
 		              "  m_n_all_ready_fds=%d, m_n_ready_rfds=%d, m_n_ready_wfds=%d, m_n_ready_efds=%d, multiple_polling_loops=%d",
@@ -394,9 +392,9 @@ void io_mux_call::polling_loops()
 	if (m_n_all_ready_fds) {//TODO: verify!
 		++m_p_stats->n_iomux_poll_hit;
 		__log_func("polling_loops found %d ready fds (rfds=%d, wfds=%d, efds=%d)", m_n_all_ready_fds, m_n_ready_rfds, m_n_ready_wfds, m_n_ready_efds);
-#ifdef VMA_TIME_MEASURE				
-		TAKE_T_POLL_END;
-#endif
+
+		TAKE_T_POLL_END; // VMA_TIME_MEASURE
+
 	}
 	else {
 		++m_p_stats->n_iomux_poll_miss;
