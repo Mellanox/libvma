@@ -389,6 +389,9 @@ void print_vma_global_settings()
 	
 	vlog_printf(VLOG_INFO,"---------------------------------------------------------------------------\n");
 	vlog_printf(VLOG_INFO,"%s\n", vma_version_str);
+	if (VMA_GIT_VERSION[0]) {
+		vlog_printf(VLOG_INFO,"%s\n", "Git: " VMA_GIT_VERSION);
+	}
 	vlog_printf(VLOG_INFO,"Cmd Line: %s\n", safe_mce_sys().app_name);
 
 	// Use DEBUG level logging with more details in RPM release builds
@@ -404,10 +407,6 @@ void print_vma_global_settings()
 	int ret = get_ofed_version_info(ofed_version_info, MAX_VERSION_STR_LEN);
 	if (!ret && strlen(ofed_version_info) > 0) {
 		vlog_printf(VLOG_INFO,"OFED Version: %s\n", ofed_version_info);
-	}
-
-	if (VMA_GIT_VERSION[0]) {
-		vlog_printf(VLOG_INFO,"%s\n", "Git: " VMA_GIT_VERSION);
 	}
 
 	if (!uname(&sys_info)) {
