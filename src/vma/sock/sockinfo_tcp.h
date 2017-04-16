@@ -351,6 +351,8 @@ private:
 
 	void handle_socket_linger();
 
+	int handle_rx_error();
+
 	/** Function prototype for tcp error callback functions. Called when the pcb
 	 * receives a RST or is unexpectedly closed for any other reason.
 	 *
@@ -390,7 +392,8 @@ private:
 
 	//lock_spin_recursive m_rx_cq_lck;
 	/* pick all cqs that match given address */
-	int 		rx_wait(int & poll_count, bool is_blocking);
+	inline int 	rx_wait(int & poll_count, bool is_blocking);
+	inline int 	rx_wait_lockless(int & poll_count, bool is_blocking);
 	int 		rx_wait_helper(int & poll_count, bool is_blocking);
 	void 		fit_rcv_wnd(bool force_fit);
 	void 		fit_snd_bufs(unsigned int new_max);
