@@ -138,6 +138,17 @@ inline int sockinfo_tcp::rx_wait(int &poll_count, bool is_blocking)
         return ret_val;
 }
 
+inline int sockinfo_tcp::rx_wait_lockless(int & poll_count, bool is_blocking)
+{
+	if (m_timer_pending) {
+		m_tcp_con_lock.lock();
+		tcp_timer();
+		m_tcp_con_lock.unlock();
+	}
+
+	return rx_wait_helper(poll_count, is_blocking);
+}
+
 inline void sockinfo_tcp::return_pending_rx_buffs()
 {
     // force reuse of buffers especially for avoiding deadlock in case all buffers were taken and we can NOT get new FIN packets that will release buffers
@@ -1615,13 +1626,53 @@ err_t sockinfo_tcp::rx_drop_lwip_cb(void *arg, struct tcp_pcb *tpcb,
 	return ERR_CONN;
 }
 
+int sockinfo_tcp::handle_rx_error()
+{
+	int ret = -1;
+
+	lock_tcp_con();
+
+	if (g_b_exit) {
+		errno = EINTR;
+		si_tcp_logdbg("returning with: EINTR");
+	} else if (!is_rtr()) {
+		if (m_conn_state == TCP_CONN_INIT) {
+			si_tcp_logdbg("RX on never connected socket");
+			errno = ENOTCONN;
+		} else if (m_conn_state == TCP_CONN_CONNECTING) {
+			si_tcp_logdbg("RX while async-connect on socket");
+			errno = EAGAIN;
+		} else if (m_conn_state == TCP_CONN_RESETED) {
+			si_tcp_logdbg("RX on reseted socket");
+			m_conn_state = TCP_CONN_FAILED;
+			errno = ECONNRESET;
+		} else {
+			si_tcp_logdbg("RX on disconnected socket - EOF");
+			ret = 0;
+		}
+	}
+
+#ifdef VMA_TIME_MEASURE
+	INC_ERR_RX_COUNT;
+#endif
+
+	if (errno == EAGAIN) {
+		m_p_socket_stats->counters.n_rx_eagain++;
+	} else {
+		m_p_socket_stats->counters.n_rx_errors++;
+	}
+
+	unlock_tcp_con();
+
+	return ret;
+}
+
 //
 // FIXME: we should not require lwip lock for rx
 //
 ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov, int* p_flags, sockaddr *__from, socklen_t *__fromlen, struct msghdr *__msg)
 {
 	int total_rx = 0;
-	int ret = 0;
 	int poll_count = 0;
 	int bytes_to_tcp_recved;
 	size_t total_iov_sz = 1;
@@ -1633,6 +1684,7 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 
 	si_tcp_logfuncall("");
 	if (unlikely(m_sock_offload != TCP_SOCK_LWIP)) {
+		int ret = 0;
 #ifdef VMA_TIME_MEASURE
 		INC_GO_TO_OS_RX_COUNT;
 #endif
@@ -1657,43 +1709,20 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 	si_tcp_logfunc("rx: iov=%p niovs=%d", p_iov, sz_iov);
 	 /* poll rx queue till we have something */
 	lock_tcp_con();
-
 	return_reuse_buffers_postponed();
+	unlock_tcp_con();
 
 	while (m_rx_ready_byte_count < total_iov_sz) {
-        	if (unlikely(g_b_exit)) {
-			ret = -1;
-			errno = EINTR;
-			si_tcp_logdbg("returning with: EINTR");
-			goto err;
+		if (unlikely(g_b_exit ||!is_rtr() || (rx_wait_lockless(poll_count, block_this_run) < 0))) {
+			return handle_rx_error();
 		}
-        	if (unlikely(!is_rtr())) {
-			if (m_conn_state == TCP_CONN_INIT) {
-				si_tcp_logdbg("RX on never connected socket");
-				errno = ENOTCONN;
-				ret = -1;
-			} else if (m_conn_state == TCP_CONN_CONNECTING) {
-				si_tcp_logdbg("RX while async-connect on socket");
-				errno = EAGAIN;
-				ret = -1;
-			} else if (m_conn_state == TCP_CONN_RESETED) {
-				si_tcp_logdbg("RX on reseted socket");
-				m_conn_state = TCP_CONN_FAILED;
-				errno = ECONNRESET;
-				ret = -1;
-			} else {
-				si_tcp_logdbg("RX on disconnected socket - EOF");
-				ret = 0;
-			}
-			goto err;
-        	}
-        	ret = rx_wait(poll_count, block_this_run);
-        	if (unlikely(ret < 0)) goto err;
 	}
+
+	lock_tcp_con();
+
 	si_tcp_logfunc("something in rx queues: %d %p", m_n_rx_pkt_ready_list_count, m_rx_pkt_ready_list.front());
 
 	total_rx = dequeue_packet(p_iov, sz_iov, (sockaddr_in *)__from, __fromlen, in_flags, &out_flags);
-
 
 	/*
 	* RCVBUFF Accounting: Going 'out' of the internal buffer: if some bytes are not tcp_recved yet  - do that.
@@ -1703,7 +1732,6 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 	if (!(in_flags & (MSG_PEEK | MSG_VMA_ZCOPY))) {
 		m_rcvbuff_current -= total_rx;
 
-
 		// data that was not tcp_recved should do it now.
 		if ( m_rcvbuff_non_tcp_recved > 0 ) {
 			bytes_to_tcp_recved = min(m_rcvbuff_non_tcp_recved, total_rx);
@@ -1712,9 +1740,8 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 		}
 	}
 
-	 // do it later - may want to ack less frequently ???:
-
 	unlock_tcp_con();
+
 	si_tcp_logfunc("rx completed, %d bytes sent", total_rx);
 
 #ifdef VMA_TIME_MEASURE
@@ -1723,17 +1750,6 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 #endif
 
 	return total_rx;
-err:
-#ifdef VMA_TIME_MEASURE
-	INC_ERR_RX_COUNT;
-#endif
-
-	if (errno == EAGAIN)
-		m_p_socket_stats->counters.n_rx_eagain++;
-	else
-		m_p_socket_stats->counters.n_rx_errors++;
-	unlock_tcp_con();
-	return ret;
 }
 
 void sockinfo_tcp::register_timer()
