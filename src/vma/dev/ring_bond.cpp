@@ -394,6 +394,7 @@ bool ring_bond::reclaim_recv_buffers(descq_t *rx_reuse)
 {
 	devide_buffers_helper(rx_reuse, m_buffer_per_ring);
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+		m_buffer_per_ring[i].clear_without_cleanup();
 		if (m_buffer_per_ring[i].size() > 0) {
 			if (!m_bond_rings[i]->reclaim_recv_buffers(&m_buffer_per_ring[i])) {
 				g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&m_buffer_per_ring[i]);
