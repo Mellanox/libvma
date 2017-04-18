@@ -1,0 +1,197 @@
+sudo: required
+dist: trusty
+language: c++
+
+
+# Notifications
+# The default is to send email on all failures and changed success
+notifications:
+  email:
+    on_success: changed
+    on_failure: always
+
+# OSs
+os:
+  - linux
+
+# Branches
+branches:
+  only:
+    - master
+
+
+# Commands before installing
+before_install:
+  - if [ $(git rev-list --count HEAD ^master) -gt 50 ] ; then exit 1; fi
+  - export COMPILERS="CC=${USED_CC} CXX=${USED_CXX}"
+  - export CONFIGURE_ARGS="--prefix=$HOME/bogus $COMPILERS"
+
+install:
+  - m4 --version
+  - autoconf --version
+  - automake --version
+  - make --version
+  - libtool --version
+  - echo $CC
+  - ./autogen.sh
+  - ./configure $CONFIGURE_ARGS
+
+# Main test script
+script:
+  - make -R -k -j2
+#  - make -R -k -j2 distcheck
+
+# Default configuration
+####################################
+compiler:
+    - gcc
+
+addons:
+    apt:
+        packages:
+            - autoconf
+            - automake
+            - libtool
+            - libnl-3-200
+            - libnl-3-dev
+            - libnl-route-3-200
+            - libnl-route-3-dev
+            - libibverbs-dev
+            - librdmacm-dev
+        sources:
+            - ubuntu-toolchain-r-test
+
+env:
+    matrix:
+        - gcc-default
+
+# Extended configuration
+####################################
+matrix:
+  include:
+#    - compiler: clang
+#      env: USED_CC=clang-3.5     USED_CXX=clang++-3.5
+#      addons:
+#        apt:
+#          sources:
+#          - llvm-toolchain-precise-3.5
+          # needed for libstdc++ headers
+#          - ubuntu-toolchain-r-test
+#          packages:
+#          - clang-3.5
+#          - libstdc++6-4.6-dbg
+#          - libnl-3-200
+#          - libnl-3-dev
+#          - libnl-route-3-200
+#          - libnl-route-3-dev
+#          - libibverbs-dev
+#          - librdmacm-dev
+#    - compiler: clang
+#      env: USED_CC=clang-3.6     USED_CXX=clang++-3.6
+#      addons:
+#        apt:
+#          sources:
+#          - llvm-toolchain-precise-3.6
+          # needed for libstdc++ headers
+#          - ubuntu-toolchain-r-test
+#          packages:
+#          - clang-3.6
+#          - libstdc++6-4.6-dbg
+#          - libnl-3-200
+#          - libnl-3-dev
+#          - libnl-route-3-200
+#          - libnl-route-3-dev
+#          - libibverbs-dev
+#          - librdmacm-dev
+#    - compiler: clang
+#      env: USED_CC=clang-3.7     USED_CXX=clang++-3.7
+#      addons:
+#        apt:
+#          sources:
+#          - llvm-toolchain-precise-3.7
+          # needed for libstdc++ headers
+#          - ubuntu-toolchain-r-test
+#          packages:
+#          - clang-3.7
+#          - libstdc++6-4.6-dbg
+#          - libnl-3-200
+#          - libnl-3-dev
+#          - libnl-route-3-200
+#          - libnl-route-3-dev
+#          - libibverbs-dev
+#          - librdmacm-dev
+    - compiler: gcc
+      env: USED_CC=gcc-4.4     USED_CXX=g++-4.4
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          packages:
+          - g++-4.4
+          - libstdc++6-4.4-dbg
+          - libnl-3-200
+          - libnl-3-dev
+          - libnl-route-3-200
+          - libnl-route-3-dev
+          - libibverbs-dev
+          - librdmacm-dev
+    - compiler: gcc
+      env: USED_CC=gcc-4.7     USED_CXX=g++-4.7
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          packages:
+          - g++-4.7
+          - libstdc++6-4.7-dbg
+          - libnl-3-200
+          - libnl-3-dev
+          - libnl-route-3-200
+          - libnl-route-3-dev
+          - libibverbs-dev
+          - librdmacm-dev
+    - compiler: gcc
+      env: USED_CC=gcc-4.8     USED_CXX=g++-4.8
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          packages:
+          - g++-4.8
+          - libstdc++6-4.8-dbg
+          - libnl-3-200
+          - libnl-3-dev
+          - libnl-route-3-200
+          - libnl-route-3-dev
+          - libibverbs-dev
+          - librdmacm-dev
+    - compiler: gcc
+      env: USED_CC=gcc-4.9     USED_CXX=g++-4.9
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          packages:
+          - g++-4.9
+          - libstdc++6-4.9-dbg
+          - libnl-3-200
+          - libnl-3-dev
+          - libnl-route-3-200
+          - libnl-route-3-dev
+          - libibverbs-dev
+          - librdmacm-dev
+    - compiler: gcc
+      env: USED_CC=gcc-5     USED_CXX=g++-5
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          packages:
+          - g++-5
+          - libstdc++6-5-dbg
+          - libnl-3-200
+          - libnl-3-dev
+          - libnl-route-3-200
+          - libnl-route-3-dev
+          - libibverbs-dev
+          - librdmacm-dev
