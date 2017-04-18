@@ -604,8 +604,24 @@ void vma_stats_instance_create_epoll_block(int fd, iomux_func_stats_t* local_sta
 void vma_stats_instance_remove_epoll_block(iomux_func_stats_t* local_stats_addr)
 {
 	g_lock_ep_stats.lock();
-        epoll_stats_t* ep_stats = (epoll_stats_t*)g_p_stats_data_reader->pop_p_skt_stats(local_stats_addr);
-        if (ep_stats)
-                ep_stats->enabled = false;
+	iomux_func_stats_t* ep_func_stats = (iomux_func_stats_t*)g_p_stats_data_reader->pop_p_skt_stats(local_stats_addr);
+
+	if (NULL == ep_func_stats) {
+		vlog_printf(VLOG_DEBUG, "%s:%d: application vma_stats pointer is NULL\n", __func__, __LINE__);
+		g_lock_ep_stats.unlock();
+		return;
+	}
+	// Search ep_mem block to release
+	for (int i=0; i<NUM_OF_SUPPORTED_EPFDS; i++) {
+		if (&g_sh_mem->iomux.epoll[i].stats == ep_func_stats) {
+			epoll_stats_t* ep_stats = &g_sh_mem->iomux.epoll[i];
+			ep_stats->enabled = false;
+			g_sh_mem->iomux.epoll[i].enabled = false;
+			g_lock_ep_stats.unlock();
+			return;
+		}
+	}
+	vlog_printf(VLOG_ERROR, "%s:%d: Could not find user pointer (%p)", __func__, __LINE__, ep_func_stats);
 	g_lock_ep_stats.unlock();
+	return;
 }

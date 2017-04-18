@@ -867,6 +867,133 @@ tcp_send_empty_ack(struct tcp_pcb *pcb)
   return ERR_OK;
 }
 
+void
+tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
+{
+  struct pbuf *p = NULL;
+  struct tcp_seg *newseg = NULL;
+  u32_t lentosend = (wnd - (seg->seqno - pcb->lastack));
+  u16_t oversize = 0;
+  u8_t  optlen = 0, apiflags = 0, optflags = 0;
+
+  if (((seg->seqno - pcb->lastack) >= wnd) || (NULL == seg->p) || (seg->p->ref>1)) {
+    return;
+  }
+
+#if LWIP_TCP_TIMESTAMPS
+  if ((pcb->flags & TF_TIMESTAMP)) {
+    optflags |= TF_SEG_OPTS_TS;
+  }
+#endif /* LWIP_TCP_TIMESTAMPS */
+
+  optlen += LWIP_TCP_OPT_LENGTH( optflags );
+
+  if (seg->p->len > lentosend) {/* First buffer is too big, split it */
+    u32_t lentoqueue = seg->p->len - TCP_HLEN - lentosend;
+
+    if (seg->p->len <= TCP_HLEN + lentosend) {
+      LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_split_segment: Segment data is too small %"U16_F", %"U16_F"\n", seg->p->len, lentosend));
+      return;
+    }
+
+    if (NULL == (p = tcp_pbuf_prealloc(lentoqueue + optlen, lentoqueue + optlen, &oversize, pcb, apiflags, 0))) {
+      LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_split_segment: could not allocate memory for pbuf copy size %"U16_F"\n", (lentoqueue + optlen)));
+      return;
+    }
+
+    /* Copy the data from the original buffer */
+    TCP_DATA_COPY2((char *)p->payload + optlen, (u8_t *)seg->dataptr + lentosend, lentoqueue , &chksum, &chksum_swapped);
+
+    /* Update new buffer */
+    p->tot_len = seg->p->tot_len - lentosend - TCP_HLEN;
+    p->next = seg->p->next;
+
+    /* Update original buffer */
+    seg->p->next = NULL;
+    seg->p->len = seg->p->len - lentoqueue;
+    seg->p->tot_len = seg->p->len;
+
+    /* Allocate memory for tcp_seg and fill in fields. */
+    if (NULL == (newseg = tcp_create_segment(pcb, p, 0,  seg->seqno + lentosend, optflags))) {
+      LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_split_segment: could not allocate memory for segment\n"));
+      tcp_tx_pbuf_free(pcb, p);
+      return;
+    }
+
+    /* New segment update */
+    newseg->next = seg->next;
+    newseg->flags = seg->flags;
+
+    /* Original segment update */
+    seg->next = newseg;
+    seg->len = seg->p->len - TCP_HLEN;
+
+    if (pcb->last_unsent == seg) {
+      pcb->last_unsent = newseg;
+      pcb->unsent_oversize = oversize;
+    }
+
+    /* Set the PSH flag in the last segment that we enqueued. */
+    TCPH_SET_FLAG(newseg->tcphdr, TCP_PSH);
+
+    /* Update number of buffer to be send */
+    pcb->snd_queuelen++;
+  }
+  else if (seg->p->next) {
+  	/* Segment with more than one pbuffer and seg->p->len <= lentosend
+       split segment pbuff chain. At least one pBuffer will be sent */
+    struct pbuf *pnewhead = seg->p->next;
+    struct pbuf *pnewtail = seg->p;
+    struct pbuf *ptmp = seg->p;
+    u32_t headchainlen = seg->p->len;
+
+    while ((headchainlen + pnewhead->len - TCP_HLEN)<= lentosend) {
+      if (pnewtail->ref > 1) {
+        return;
+      }
+
+      headchainlen += pnewhead->len;
+      pnewtail = pnewhead;
+      pnewhead = pnewhead->next;
+
+      if (NULL == pnewhead) {
+        LWIP_ASSERT("tcp_split_segment: We should not be here",0);
+      	return;
+      }
+    }
+
+    /* Allocate memory for tcp_seg, and fill in fields. */
+    if (NULL == (newseg = tcp_create_segment(pcb, pnewhead, 0,  seg->seqno + headchainlen - TCP_HLEN, optflags))) {
+      LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_split_segment: could not allocate memory for segment\n"));
+      tcp_tx_pbuf_free(pcb, p);
+      return;
+    }
+
+    /* Update new tail */
+    pnewtail->next = NULL;
+
+    /* New segment update */
+    newseg->next = seg->next;
+    newseg->flags = seg->flags;
+
+    /* Original segment update */
+    seg->next = newseg;
+    seg->len = headchainlen - TCP_HLEN;
+
+    /* Update original buffers */
+    while (ptmp) {
+      ptmp->tot_len = headchainlen;
+      headchainlen -= ptmp->len;
+      ptmp = ptmp->next;
+    }
+  }
+  else {
+    LWIP_ASSERT("tcp_split_segment: We should not be here [else]",0);
+  }
+
+  return;
+}
+
 /**
  * Find out what we can send and send it
  *
@@ -930,11 +1057,18 @@ tcp_output(struct tcp_pcb *pcb)
                  ntohl(seg->tcphdr->seqno), pcb->lastack));
   }
 #endif /* TCP_CWND_DEBUG */
-  /* data available and window allows it to be sent? */
-  while (seg != NULL &&
-         seg->seqno - pcb->lastack + seg->len <= wnd) {
+
+  while (seg) {
+    /* Split the segment in case of a small window */
+    if (( pcb->flags & (TF_NODELAY | TF_INFR)) && (wnd) && ((seg->len + seg->seqno - pcb->lastack) > wnd)) {
+      tcp_split_segment(pcb, seg, wnd);
+    }
+
+    /* data available and window allows it to be sent? */
+    if (((seg->seqno - pcb->lastack + seg->len) <= wnd)) {
     LWIP_ASSERT("RST not expected here!", 
                 (TCPH_FLAGS(seg->tcphdr) & TCP_RST) == 0);
+      
     /* Stop sending if the nagle algorithm would prevent it
      * Don't stop:
      * - if tcp_write had a memory error before (prevent delayed ACK timeout) or
@@ -1014,6 +1148,11 @@ tcp_output(struct tcp_pcb *pcb)
     }
     seg = pcb->unsent;
   }
+    else {
+      break;
+    }
+  }
+
 #if TCP_OVERSIZE
   if (pcb->unsent == NULL) {
     /* last unsent has been removed, reset unsent_oversize */
