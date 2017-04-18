@@ -390,9 +390,11 @@ bool ring_bond::reclaim_recv_buffers(descq_t *rx_reuse)
 {
 	/* use this local array to avoid locking mechanizm
 	 * for threads synchronization. So every thread should use
-	 * own array.
+	 * own array. Set hardcoded number to meet C++11
+	 * VLA is not an official part of C++11.
 	 */
-	descq_t buffer_per_ring[m_n_num_resources + 1];
+	descq_t buffer_per_ring[10];
+	assert(10 > m_n_num_resources);
 
 	devide_buffers_helper(rx_reuse, buffer_per_ring);
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
