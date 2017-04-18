@@ -84,7 +84,7 @@
 #define __log_warn(log_fmt, log_args...)         do { VLOG_PRINTF(VLOG_WARNING, log_fmt, ##log_args); } while (0)
 #define __log_info(log_fmt, log_args...)         do { VLOG_PRINTF(VLOG_INFO, log_fmt, ##log_args); } while (0)
 
-#if (VMA_MAX_DEFINED_LOG_LEVEL < DEFINED_VLOG_DETAIL)
+#if (VMA_MAX_DEFINED_LOG_LEVEL < DEFINED_VLOG_DETAILS)
 #define __log_details(log_fmt, log_args...)      ((void)0)
 #else
 #define __log_details(log_fmt, log_args...)      do { if (g_vlogger_level >= VLOG_DETAILS) 	VLOG_PRINTF(VLOG_DETAILS, log_fmt, ##log_args); } while (0)

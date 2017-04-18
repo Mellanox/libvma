@@ -65,7 +65,7 @@
 #define evh_logdbg_entry(log_fmt, log_args...)                  do { if (g_vlogger_level >= VLOG_DEBUG) VLOG_PRINTF_ENTRY(VLOG_DEBUG, log_fmt, ##log_args); } while (0)
 #endif
 
-#if (VMA_MAX_DEFINED_LOG_LEVEL < DEFINED_VLOG_FUNC)
+#if (VMA_MAX_DEFINED_LOG_LEVEL < DEFINED_VLOG_FINE)
 #define evh_logfunc_entry(log_fmt, log_args...)                 ((void)0)
 #else
 #define evh_logfunc_entry(log_fmt, log_args...)			do { if (g_vlogger_level >= VLOG_FUNC)	VLOG_PRINTF_ENTRY(VLOG_FUNC, log_fmt, ##log_args); } while (0)
