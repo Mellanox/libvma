@@ -35,6 +35,7 @@
 #define ATOMIC_H_
 
 #include "asm.h"
+#include "utils/bullseye.h"
 
 struct atomic_t {
 	__volatile__ int counter;

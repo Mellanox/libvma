@@ -40,6 +40,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "types.h"
+#include "utils/bullseye.h"
 #include "utils/rdtsc.h"
 
 //todo disable assert
