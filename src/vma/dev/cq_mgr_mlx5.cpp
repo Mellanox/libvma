@@ -47,6 +47,14 @@
 #define cq_logerr      __log_info_err
 #define cq_logfuncall  __log_info_funcall
 
+#ifdef DEFINED_MLX5_HW_ETH_WQE_HEADER
+#define VMA_MLX5_CQE_L3_OK (MLX5_CQE_L3_OK)
+#define VMA_MLX5_CQE_L4_OK (MLX5_CQE_L4_OK)
+#else
+#define VMA_MLX5_CQE_L3_OK (1 << 1)
+#define VMA_MLX5_CQE_L4_OK (1 << 2)
+#endif
+
 /* Get CQE owner bit. */
 #define MLX5_CQE_OWNER(op_own) ((op_own) & MLX5_CQE_OWNER_MASK)
 
@@ -208,12 +216,9 @@ inline void cq_mgr_mlx5::cqe64_to_mem_buff_desc(volatile struct mlx5_cqe64 *cqe,
 			status = BS_OK;
 			p_rx_wc_buf_desc->sz_data = ntohl(cqe->byte_cnt);
 
-#ifdef DEFINED_MLX5_HW_ETH_WQE_HEADER
 			/* Checksum */
-			p_rx_wc_buf_desc->rx.is_sw_csum_need = !(m_b_is_rx_hw_csum_on && (cqe->hds_ip_ext & MLX5_CQE_L4_OK) && (cqe->hds_ip_ext & MLX5_CQE_L3_OK));
-#else
-			p_rx_wc_buf_desc->rx.is_sw_csum_need = true;
-#endif
+			p_rx_wc_buf_desc->rx.is_sw_csum_need = !(m_b_is_rx_hw_csum_on && (cqe->hds_ip_ext & VMA_MLX5_CQE_L4_OK) && (cqe->hds_ip_ext & VMA_MLX5_CQE_L3_OK));
+
 			/* Time stamp */
 			p_rx_wc_buf_desc->rx.hw_raw_timestamp = cqe->timestamp;
 			return;
@@ -337,6 +342,7 @@ mem_buf_desc_t* cq_mgr_mlx5::process_cq_element_rx(mem_buf_desc_t* p_mem_buf_des
 	if (unlikely((status != BS_OK) ||
 			     (m_b_is_rx_hw_csum_on && p_mem_buf_desc->rx.is_sw_csum_need))) {
 		m_p_next_rx_desc_poll = NULL;
+
 		if (p_mem_buf_desc->p_desc_owner) {
 			p_mem_buf_desc->p_desc_owner->mem_buf_desc_completion_with_error_rx(p_mem_buf_desc);
 		} else {
