@@ -191,7 +191,7 @@ mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
 	return buff;
 }
 
-inline void cq_mgr_mlx5::cqe64_to_mem_buff_desc(volatile struct mlx5_cqe64 *cqe, mem_buf_desc_t* p_rx_wc_buf_desc, buff_status_e &status)
+inline void cq_mgr_mlx5::cqe64_to_mem_buff_desc(volatile struct mlx5_cqe64 *cqe, mem_buf_desc_t* p_rx_wc_buf_desc, enum buff_status_e &status)
 {
 	struct mlx5_err_cqe *ecqe;
 	ecqe = (struct mlx5_err_cqe *)cqe;
@@ -210,11 +210,11 @@ inline void cq_mgr_mlx5::cqe64_to_mem_buff_desc(volatile struct mlx5_cqe64 *cqe,
 			p_rx_wc_buf_desc->rx.hw_raw_timestamp = cqe->timestamp;
 			p_rx_wc_buf_desc->rx.flow_tag_id      = vma_get_flow_tag(cqe);
 
-#ifdef DEFINED_MLX5_HW_ETH_WQE_HEADER
 			/* Checksum */
+#ifdef DEFINED_MLX5_HW_ETH_WQE_HEADER
 			p_rx_wc_buf_desc->rx.is_sw_csum_need = !(m_b_is_rx_hw_csum_on && (cqe->hds_ip_ext & MLX5_CQE_L4_OK) && (cqe->hds_ip_ext & MLX5_CQE_L3_OK));
 #else
-			p_rx_wc_buf_desc->rx.is_sw_csum_need = true;
+			p_rx_wc_buf_desc->rx.is_sw_csum_need = !m_b_is_rx_hw_csum_on; /* we assume that the checksum is ok */
 #endif
 			p_rx_wc_buf_desc->sz_data = ntohl(cqe->byte_cnt);
 			return;
