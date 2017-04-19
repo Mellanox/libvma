@@ -115,6 +115,7 @@ inline void sockinfo_tcp::unlock_tcp_con()
 	if (m_timer_pending) {
 		tcp_timer();
 	}
+
 	m_tcp_con_lock.unlock();
 }
 
@@ -1694,7 +1695,6 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 
 	total_rx = dequeue_packet(p_iov, sz_iov, (sockaddr_in *)__from, __fromlen, in_flags, &out_flags);
 
-
 	/*
 	* RCVBUFF Accounting: Going 'out' of the internal buffer: if some bytes are not tcp_recved yet  - do that.
 	* The packet might not be 'acked' (tcp_recved) 
@@ -1702,7 +1702,6 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 	*/
 	if (!(in_flags & (MSG_PEEK | MSG_VMA_ZCOPY))) {
 		m_rcvbuff_current -= total_rx;
-
 
 		// data that was not tcp_recved should do it now.
 		if ( m_rcvbuff_non_tcp_recved > 0 ) {
