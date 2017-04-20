@@ -405,7 +405,8 @@ sockinfo_udp::sockinfo_udp(int fd) throw (vma_exception) :
 	si_udp_logdbg("Sockets RCVBUF = %d bytes", n_so_rcvbuf_bytes);
 	rx_ready_byte_count_limit_update(n_so_rcvbuf_bytes);
 
-	struct epoll_event ev;
+	epoll_event ev = {0, {0}};
+
 	ev.events = EPOLLIN;
 
 	// Add the user's orig fd to the rx epfd handle

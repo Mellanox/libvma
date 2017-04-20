@@ -61,7 +61,7 @@ inline void epfd_info::increase_ring_ref_count_no_lock(ring* ring)
 		int num_ring_rx_fds = ring->get_num_resources();
 		int *ring_rx_fds_array = ring->get_rx_channel_fds();
 		for (int i = 0; i < num_ring_rx_fds; i++) {
-			epoll_event evt;
+			epoll_event evt = {0, {0}};
 			evt.events = EPOLLIN | EPOLLPRI;
 			int fd = ring_rx_fds_array[i];
 			evt.data.u64 = (((uint64_t)CQ_FD_MARK << 32) | fd);
@@ -271,7 +271,8 @@ bool epfd_info::is_cq_fd(uint64_t data)
 int epfd_info::add_fd(int fd, epoll_event *event)
 {
 	int ret;
-	epoll_event evt;
+	epoll_event evt = {0, {0}};
+
 	bool is_offloaded = false;
 	
 	__log_funcall("fd=%d", fd);
