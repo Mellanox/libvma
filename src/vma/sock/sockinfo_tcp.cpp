@@ -275,6 +275,7 @@ sockinfo_tcp::sockinfo_tcp(int fd) throw (vma_exception) :
 	m_tcp_seg_list = g_tcp_seg_pool->get_tcp_segs(TCP_SEG_COMPENSATION);
 	if (m_tcp_seg_list) m_tcp_seg_count += TCP_SEG_COMPENSATION;
 	m_tx_consecutive_eagain_count = 0;
+	m_n_wait_for_conn_ready_threshold = 0;
 
 	// Disable Nagle algorithm if VMA_TCP_NODELAY flag was set.
 	if (safe_mce_sys().tcp_nodelay) {
@@ -2956,20 +2957,40 @@ err_t sockinfo_tcp::connect_lwip_cb(void *arg, struct tcp_pcb *tpcb, err_t err)
 	return ERR_OK;
 }
 
+#define	WAIT_CONN_EAGAIN_THRESHOLD	200
+#define	WAIT_CONN_EBUSY_THRESHOLD	6000
+
 int sockinfo_tcp::wait_for_conn_ready()
 {
 	int poll_count = 0;
 
 	si_tcp_logfuncall("");
 
+	m_n_wait_for_conn_ready_threshold = 0;
+
 	while(m_conn_state == TCP_CONN_CONNECTING && m_sock_state != TCP_SOCK_INITED) {
 		/*In case of connect error err_lwip_cb is called and not connect_lwip_cb
 		 * therefore in this case the m_conn_state will not be changed only
 		 * m_sock_state
 		 */
+		if (m_loops_timer.time_left_msec() == -1) {
+			m_n_wait_for_conn_ready_threshold++;
+		}
+
 		if (rx_wait(poll_count, m_b_blocking) < 0) {
 			si_tcp_logdbg("connect interrupted");
 			return -1;
+		}
+
+		if (errno == EAGAIN) {
+			if (m_n_wait_for_conn_ready_threshold > WAIT_CONN_EAGAIN_THRESHOLD) {
+				m_loops_timer.set_timeout_msec(10);
+			}
+		}
+		if (errno == EBUSY) {
+			if (m_n_wait_for_conn_ready_threshold > WAIT_CONN_EBUSY_THRESHOLD) {
+				m_loops_timer.set_timeout_msec(10);
+			}
 		}
 	}
 	if (m_sock_state == TCP_SOCK_INITED) {
