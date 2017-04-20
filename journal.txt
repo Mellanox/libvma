@@ -1,3 +1,20 @@
+Version 8.3.2-0:
+Date + Time 2017-04-20
+=============================================================
+Added:
+        - RM #968024  Improve latency by direct cq polling instead of interfacing libibverbs 
+        - RM #1006374 Optimize Tx data path - prepare in advance TCP next buffer and segment
+        - RM #1006374 Optimize Tx data path - remove redundant variable
+        - RM #1006374 Optimize Tx data path - reorder ring and qp_mgr::send() operations
+        - RM #1025129 Reduce TCP lock contention in case of high rate polling
+        - RM #1023714 Remove redundant if statement from dst_entry_udp fast path
+        - RM #1023040 Show VMA Git number in VMA banner at startup
+        - RM #996086  Add configuration option --enable-opt-log levels (max VMA log level is DEBUG) 
+        - RM #1011829 Add VMA_TCP_NODELAY parameter (Nagle algorithm)
+
+Fixed:
+        - RM #1005856 Fix MC flow_tag id when flow_tag is not supported
+
 Version 8.3.1-0:
 Date + Time 2017-03-28
 =============================================================
@@ -46,6 +63,7 @@ Date + Time 2017-01-25
 =======================
 Added:
         - RM #954841 Update README.txt file with last modification date
+
 Fixed:
         - RM #962718 Fix peer-notification daemon removal on Ubuntu 14.10
         - RM #955209 Fix vma_extra.h zero-copy example
@@ -148,6 +166,7 @@ Added:
         - RM #770746 Add csbuild support into jenkins
         - RM #770746 Update jenkins with valgrind support
         - RM #848172 Code updates to comply with Coverity 8.5 version
+
 Fixed:
         - RM #846042 Fix failure to receive fragmented multicast packets over ConnectX3-IB
         - RM #843662 Fix log WARNING to DEBUG in case not an mlx4 driver on IPoIB interface
