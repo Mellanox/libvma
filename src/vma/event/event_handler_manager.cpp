@@ -397,7 +397,8 @@ void event_handler_manager::stop_thread()
 
 void event_handler_manager::update_epfd(int fd, int operation)
 {
-	struct epoll_event ev;
+	epoll_event ev = {0, {0}};
+
 	ev.events = EPOLLIN | EPOLLPRI;
 	ev.data.fd = fd;
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -871,7 +872,7 @@ void* event_handler_manager::thread_loop()
 		if( m_b_sysvar_internal_thread_arm_cq_enabled && m_cq_epfd == 0 && g_p_net_device_table_mgr) {
 			m_cq_epfd = g_p_net_device_table_mgr->global_ring_epfd_get();
 			if( m_cq_epfd > 0 ) {
-				epoll_event evt;
+				epoll_event evt = {0, {0}};
 				evt.events = EPOLLIN | EPOLLPRI;
 				evt.data.fd = m_cq_epfd;
 				orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_ADD, m_cq_epfd, &evt);

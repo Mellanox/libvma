@@ -726,7 +726,8 @@ void net_device_table_mgr::handle_timer_expired(void* user_data)
 void net_device_table_mgr::global_ring_wakeup()
 {
 	ndtm_logdbg("");
-	struct epoll_event ev;
+	epoll_event ev = {0, {0}};
+
 	ev.events = EPOLLIN;
 	ev.data.ptr = NULL;
 	BULLSEYE_EXCLUDE_BLOCK_START

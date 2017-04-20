@@ -2371,7 +2371,7 @@ int sockinfo_tcp::listen(int backlog)
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	// Add the user's orig fd to the rx epfd handle
-	struct epoll_event ev;
+	epoll_event ev = {0, {0}};
 	ev.events = EPOLLIN;
 	ev.data.fd = m_fd;
 	int ret = orig_os_api.epoll_ctl(m_rx_epfd, EPOLL_CTL_ADD, ev.data.fd, &ev);

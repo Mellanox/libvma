@@ -55,9 +55,8 @@
 wakeup::wakeup()
 {
 	m_epfd = 0;
-        m_is_sleeping = 0;
-	m_ev.events = 0;
-	m_ev.data.fd = -1;
+	m_is_sleeping = 0;
+	memset(&m_ev, 0, sizeof(m_ev));
 }
 void wakeup::going_to_sleep()
 {

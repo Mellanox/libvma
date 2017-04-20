@@ -876,7 +876,7 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 		notify_epoll = true;
 
 		// Add this new CQ channel fd to the rx epfd handle (no need to wake up any sleeping thread about this new fd)
-		struct epoll_event ev;
+		epoll_event ev = {0, {0}};
 		ev.events = EPOLLIN;
 		int num_ring_rx_fds = p_ring->get_num_resources();
 		int *ring_rx_fds_array = p_ring->get_rx_channel_fds();

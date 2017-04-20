@@ -510,7 +510,7 @@ ring* net_device_val::reserve_ring(IN resource_allocation_key key)
 
 		m_h_ring_map[key] = std::make_pair(the_ring, 0); // each ring is born with ref_count = 0
 		ring_iter = m_h_ring_map.find(key);
-		struct epoll_event ev;
+		epoll_event ev = {0, {0}};
 		int num_ring_rx_fds = the_ring->get_num_resources();
 		int *ring_rx_fds_array = the_ring->get_rx_channel_fds();
 		ev.events = EPOLLIN;
