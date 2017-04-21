@@ -90,6 +90,7 @@ public:
 	friend class cq_mgr;
 	friend class cq_mgr_mlx5;
 	friend class qp_mgr;
+	friend class qp_mgr_eth_mlx5;
 	friend class rfs;
 	friend class rfs_uc;
 	friend class rfs_uc_tcp_gro;
@@ -113,9 +114,7 @@ protected:
 	bool			request_more_tx_buffers(uint32_t count);
 	uint32_t		get_tx_num_wr() { return m_tx_num_wr; }
 	uint16_t		get_partition() { return m_partition; }
-#ifdef DEFINED_VMAPOLL		
 	uint16_t		get_lkey() { return m_tx_lkey; }
-#endif // DEFINED_VMAPOLL		
 	ib_ctx_handler*		m_p_ib_ctx;
 	qp_mgr*			m_p_qp_mgr;
 	struct cq_moderation_info m_cq_moderation_info;

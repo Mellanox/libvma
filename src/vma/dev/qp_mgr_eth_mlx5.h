@@ -36,19 +36,49 @@
 
 #include "qp_mgr.h"
 
-#if !defined(DEFINED_VMAPOLL) && defined(HAVE_INFINIBAND_MLX5_HW_H)
+#if defined(HAVE_INFINIBAND_MLX5_HW_H)
 
 #include <infiniband/mlx5_hw.h>
 
 class qp_mgr_eth_mlx5 : public qp_mgr_eth
 {
+friend class cq_mgr_mlx5;
 public:
 	qp_mgr_eth_mlx5(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num,
 			struct ibv_comp_channel* p_rx_comp_event_channel, const uint32_t tx_num_wr, const uint16_t vlan) throw (vma_error);
 	virtual ~qp_mgr_eth_mlx5();
 
+protected:
+	int			send_to_wire(vma_ibv_send_wr* p_send_wqe);
+	void			trigger_completion_for_all_sent_packets();
+	struct mlx5_qp*		m_hw_qp;
+	uint64_t*               m_sq_wqe_idx_to_wrid;
+
 private:
-	cq_mgr* init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_channel);
+	cq_mgr*		init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_channel);
+	virtual cq_mgr* init_tx_cq_mgr(void);
+
+	inline void	set_signal_in_next_send_wqe();
+
+//	int		fill_wqe(vma_ibv_send_wr* p_send_wqe);
+//	inline void	send_by_bf(volatile uintptr_t *addr, int size);
+//	inline void	send_by_bf_wrap_up(volatile uintptr_t *first_addr, int first_times, volatile uintptr_t *sec_addr, int sec_times);
+//	inline void	bf_copy(volatile uintptr_t *dst, volatile uintptr_t *src, int times);
+
+	void		init_sq();
+
+	volatile struct mlx5_wqe64	(*m_sq_wqes)[];
+	volatile struct mlx5_wqe64*	m_sq_wqe_hot;
+	uint8_t*			m_sq_wqes_end;
+
+	volatile uint32_t*	m_sq_db;
+	volatile void*		m_sq_bf_reg;
+
+	unsigned int        m_qp_num;
+	int                 m_sq_wqe_hot_index;
+	uint16_t            m_sq_bf_offset;
+	uint16_t            m_sq_bf_buf_size;
+	uint16_t            m_sq_wqe_cntr;
 };
 #endif //!defined(DEFINED_VMAPOLL) && defined(HAVE_INFINIBAND_MLX5_HW_H)
 #endif //QP_MGR_ETH_MLX5_H
