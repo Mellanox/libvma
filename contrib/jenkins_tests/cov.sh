@@ -2,14 +2,9 @@
 
 source $(dirname $0)/globals.sh
 
-check_filter "Checking for coverity ..." "on"
+do_check_filter "Checking for coverity ..." "on"
 
-# This unit requires module so check for existence
-if [ $(command -v module >/dev/null 2>&1 || echo $?) ]; then
-	echo "[SKIP] module tool does not exist"
-	exit 0
-fi
-module load tools/cov
+do_module "tools/cov"
 
 cd $WORKSPACE
 
@@ -54,6 +49,7 @@ coverity_tap=${WORKSPACE}/${prefix}/coverity.tap
 echo 1..1 > $coverity_tap
 if [ $rc -gt 0 ]; then
     echo "not ok 1 Coverity Detected $nerrors failures # $cov_url" >> $coverity_tap
+    do_err "coverity" "${cov_build}/output/summary.txt"
     info="Coverity found $nerrors errors"
     status="error"
 else
@@ -71,6 +67,8 @@ echo Coverity report: $cov_url
 printf "%s\t%s\n" Coverity $cov_url >> jenkins_sidelinks.txt
 
 module unload tools/cov
+
+do_archive "${cov_build}"
 
 echo "[${0##*/}]..................exit code = $rc"
 exit $rc

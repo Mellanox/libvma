@@ -2,7 +2,8 @@
 
 source $(dirname $0)/globals.sh
 
-check_filter "Checking for gtest ..." "on"
+do_check_filter "Checking for gtest ..." "on"
+
 if [ $(command -v ibdev2netdev >/dev/null 2>&1 || echo $?) ]; then
 	echo "[SKIP] ibdev2netdev tool does not exist"
 	exit 0
@@ -18,11 +19,11 @@ gtest_app="$PWD/tests/gtest/gtest"
 gtest_lib=$install_dir/lib/libvma.so
 
 gtest_ip_list=""
-if [ ! -z $(get_ip 'eth') ]; then
-	gtest_ip_list="$(get_ip 'eth')"
+if [ ! -z $(do_get_ip 'eth') ]; then
+	gtest_ip_list="$(do_get_ip 'eth')"
 fi
-if [ ! -z $(get_ip 'eth' $gtest_ip_list) ]; then
-	gtest_ip_list="${gtest_ip_list}:$(get_ip 'eth' $gtest_ip_list)"
+if [ ! -z $(do_get_ip 'eth' $gtest_ip_list) ]; then
+	gtest_ip_list="${gtest_ip_list}:$(do_get_ip 'eth' $gtest_ip_list)"
 else
 	echo "[SKIP] two eth interfaces are required. found: ${gtest_ip_list}"
 	exit 0

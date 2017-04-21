@@ -2,7 +2,7 @@
 
 source $(dirname $0)/globals.sh
 
-check_filter "Checking for tool ..." "off"
+do_check_filter "Checking for tool ..." "off"
 
 cd $WORKSPACE
 
@@ -51,7 +51,7 @@ for tool in $tool_list; do
     cd ${tool_dir}/${tool}
     test_id=$((test_id+1))
     test_exec="[ 0 = $(check_daemon "${tool_dir}/${tool}/output.log") ]"
-    check_result "$test_exec" "$test_id" "$tool" "$tool_tap"
+    do_check_result "$test_exec" "$test_id" "$tool" "$tool_tap" "${tool_dir}/tool-${test_id}"
     cd ${tool_dir}
 done
 

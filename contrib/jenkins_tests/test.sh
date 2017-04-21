@@ -2,7 +2,8 @@
 
 source $(dirname $0)/globals.sh
 
-check_filter "Checking for test ..." "on"
+do_check_filter "Checking for test ..." "on"
+
 if [ $(command -v ibdev2netdev >/dev/null 2>&1 || echo $?) ]; then
 	echo "[SKIP] ibdev2netdev tool does not exist"
 	exit 0
@@ -28,11 +29,11 @@ if [ $(command -v $test_app >/dev/null 2>&1 || echo $?) ]; then
 fi
 
 test_ip_list=""
-if [ ! -z $(get_ip 'ib') ]; then
-	test_ip_list="${test_ip_list} ib:$(get_ip 'ib')"
+if [ ! -z $(do_get_ip 'ib') ]; then
+	test_ip_list="${test_ip_list} ib:$(do_get_ip 'ib')"
 fi
-if [ ! -z $(get_ip 'eth') ]; then
-    test_ip_list="${test_ip_list} eth:$(get_ip 'eth')"
+if [ ! -z $(do_get_ip 'eth') ]; then
+    test_ip_list="${test_ip_list} eth:$(do_get_ip 'eth')"
 fi
 
 test_list="tcp-pp tcp-tp tcp-ul"
@@ -53,6 +54,8 @@ for test_link in $test_ip_list; do
 
 		cp $PWD/${test_name}.dump ${test_dir}/${test_name}.dump
 		grep -e 'PASS' -e 'FAIL' ${test_dir}/${test_name}.dump > ${test_dir}/${test_name}.tmp
+
+        do_archive "${test_dir}/${test_name}.dump" "${test_dir}/${test_name}.log"
 
 		echo "1..$(wc -l < ${test_dir}/${test_name}.tmp)" > $test_tap
 
