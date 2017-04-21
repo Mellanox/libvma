@@ -2,14 +2,9 @@
 
 source $(dirname $0)/globals.sh
 
-check_filter "Checking for valgrind ..." "on"
+do_check_filter "Checking for valgrind ..." "on"
 
-# This unit requires module so check for existence
-if [ $(command -v module >/dev/null 2>&1 || echo $?) ]; then
-	echo "[SKIP] module tool does not exist"
-	exit 0
-fi
-module load tools/valgrind
+do_module "tools/valgrind"
 
 cd $WORKSPACE
 
@@ -22,7 +17,7 @@ ${WORKSPACE}/configure --prefix=${vg_dir} --with-valgrind $jenkins_test_custom_c
 make $make_opt all
 rc=$?
 
-test_ip="$(get_ip)"
+test_ip="$(do_get_ip)"
 test_lib=$install_dir/lib/libvma.so
 test_app=sockperf
 
@@ -54,6 +49,8 @@ eval "env VMA_TX_BUFS=20000 VMA_RX_BUFS=20000 LD_PRELOAD=$test_lib valgrind $vg_
 
 pkill -9 sockperf
 
+do_archive "${vg_dir}/valgrind.log"
+
 vg_tap=${WORKSPACE}/${prefix}/vg.tap
 
 nerrors=$(cat ${vg_dir}/valgrind.log | awk '/ERROR SUMMARY: [0-9]+ errors?/ { print $4 }' | head -n1)
@@ -61,6 +58,7 @@ nerrors=$(cat ${vg_dir}/valgrind.log | awk '/ERROR SUMMARY: [0-9]+ errors?/ { pr
 echo "1..1" > $vg_tap
 if [ $nerrors -gt 0 ]; then
     echo "not ok 1 Valgrind Detected $nerrors failures" >> $vg_tap
+    do_err "valgind"
     info="Valgrind found $nerrors errors"
     status="error"
 else

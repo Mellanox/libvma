@@ -2,7 +2,7 @@
 
 source $(dirname $0)/globals.sh
 
-check_filter "Checking for codying style ..." "on"
+do_check_filter "Checking for codying style ..." "on"
 
 cd $WORKSPACE
 

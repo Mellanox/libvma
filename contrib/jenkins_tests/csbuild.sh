@@ -2,9 +2,9 @@
 
 source $(dirname $0)/globals.sh
 
-check_filter "Checking for csbuild ..." "on"
+do_check_filter "Checking for csbuild ..." "on"
 
-# This unit requires module so check for existence
+# This unit requires csbuild so check for existence
 if [ $(command -v csbuild >/dev/null 2>&1 || echo $?) ]; then
 	echo "[SKIP] csbuild tool does not exist"
 	exit 0
@@ -24,10 +24,10 @@ cd $csbuild_dir
 
 set +eE
 
-${WORKSPACE}/configure --prefix=${csbuild_dir}/install $jenkins_test_custom_configure
+${WORKSPACE}/configure --prefix=${csbuild_dir}/install $jenkins_test_custom_configure > "${csbuild_dir}/csbuild.log" 2>&1
 make clean
 
-eval "csbuild --no-clean -c \"make $make_opt \" > ${csbuild_dir}/csbuild.log 2>&1"
+eval "csbuild --no-clean -c \"make $make_opt \" > \"${csbuild_dir}/csbuild.log\" 2>&1"
 rc=$(($rc+$?))
 
 set -eE
@@ -53,6 +53,7 @@ csbuild_tap=${WORKSPACE}/${prefix}/csbuild.tap
 echo 1..1 > $csbuild_tap
 if [ $rc -gt 0 ]; then
     echo "not ok 1 csbuild Detected $nerrors failures # ${csbuild_dir}/csbuild.err" >> $csbuild_tap
+    do_err "csbuild" "${csbuild_dir}/csbuild.err"
     info="csbuild found $nerrors errors"
     status="error"
 else
@@ -61,6 +62,7 @@ else
     status="success"
 fi
 
+do_archive "${csbuild_dir}/csbuild.err" "${csbuild_dir}/csbuild.log"
 
 echo "[${0##*/}]..................exit code = $rc"
 exit $rc
