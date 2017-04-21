@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -34,6 +34,8 @@
 #define WQE_H
 
 #define MLX5_ETH_INLINE_HEADER_SIZE 16
+#define OCTOWORD	16
+#define WQEBB		64
 
 #ifndef DEFINED_MLX5_HW_ETH_WQE_HEADER
 enum {

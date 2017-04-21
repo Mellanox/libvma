@@ -7,6 +7,7 @@ gtest_CPPFLAGS = \
 	-I$(top_srcdir)/src/vma \
 	-I$(top_srcdir)/tests/gtest
 
+CXXFLAGS      := $(filter-out -Wundef, $(CXXFLAGS))
 gtest_LDFLAGS  = $(GTEST_LDFLAGS) -no-install
 gtest_CXXFLAGS = $(GTEST_CXXFLAGS) -g -O3 -fno-tree-vectorize
 

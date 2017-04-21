@@ -103,12 +103,7 @@ public:
 		int8_t		n_frags;	//number of fragments
 		bool 		is_vma_thr; 	// specify whether packet drained from VMA internal thread or from user app thread
 		bool		is_sw_csum_need; // specify if software checksum is need for this packet
-
-#ifdef DEFINED_VMAPOLL
 		bool 		vma_polled;
-#else
-		bool		pad[1];
-#endif // DEFINED_VMAPOLL
 	} rx;
 
 private:
@@ -130,11 +125,9 @@ public:
 	inline int inc_ref_count() {return atomic_fetch_and_inc(&n_ref_count);}
 	inline int dec_ref_count() {return atomic_fetch_and_dec(&n_ref_count);}
 
-#ifdef DEFINED_VMAPOLL
 	inline unsigned int lwip_pbuf_inc_ref_count() {return ++lwip_pbuf.pbuf.ref;}
 	inline unsigned int lwip_pbuf_dec_ref_count() {if (likely(lwip_pbuf.pbuf.ref)) --lwip_pbuf.pbuf.ref; return lwip_pbuf.pbuf.ref;}
 	inline unsigned int lwip_pbuf_get_ref_count() const {return lwip_pbuf.pbuf.ref;}
-#endif // DEFINED_VMAPOLL
 };
 
 typedef vma_list_t<mem_buf_desc_t, mem_buf_desc_t::buffer_node_offset> descq_t;

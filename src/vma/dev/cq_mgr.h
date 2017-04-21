@@ -42,7 +42,8 @@
 #include "vma/proto/mem_buf_desc.h"
 #include "vma/proto/vma_lwip.h"
 #include "vma/dev/ib_ctx_handler.h"
-#if defined(DEFINED_VMAPOLL) || defined(HAVE_INFINIBAND_MLX5_HW_H)
+
+#if defined(HAVE_INFINIBAND_MLX5_HW_H)
 #include <infiniband/mlx5_hw.h>
 /* Get struct mlx5_cq* from struct ibv_cq* */
 #define _to_mxxx(xxx, type)\
@@ -149,7 +150,7 @@ public:
 	inline void mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, vma_ibv_wc *wce);
 	int mlx5_poll_and_process_error_element_rx(volatile struct mlx5_cqe64 *cqe, void* pv_fd_ready_array);
 	int mlx5_poll_and_process_error_element_tx(volatile struct mlx5_cqe64 *cqe, uint64_t* p_cq_poll_sn);
-#endif // DEFINED_VMAPOLL	
+#endif // DEFINED_VMAPOLL
 
 	/**
 	 * This will poll n_num_poll time on the cq or stop early if it gets
@@ -159,7 +160,7 @@ public:
 	 *         < 0 error
 	 */
 	virtual int	poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
-	int	poll_and_process_element_tx(uint64_t* p_cq_poll_sn);
+	virtual int	poll_and_process_element_tx(uint64_t* p_cq_poll_sn);
 
 	/**
 	 * This will check if the cq was drained, and if it wasn't it will drain it.
@@ -179,7 +180,7 @@ public:
 	virtual void	del_qp_rx(qp_mgr *qp);
 	virtual uint32_t	clean_cq();
 	
-	void 	add_qp_tx(qp_mgr* qp);
+	virtual void 	add_qp_tx(qp_mgr* qp);
 
 	bool	reclaim_recv_buffers(descq_t *rx_reuse);
 	bool	reclaim_recv_buffers_no_lock(descq_t *rx_reuse);
@@ -227,6 +228,8 @@ protected:
 	inline uint32_t process_recv_queue(void* pv_fd_ready_array = NULL);
 
 	virtual void	prep_ibv_cq(vma_ibv_cq_init_attr &attr) const;
+	//returns list of buffers to the owner.
+	void		process_tx_buffer_list(mem_buf_desc_t* p_mem_buf_desc);
 
 	struct ibv_cq*		m_p_ibv_cq;
 	bool			m_b_is_rx;
@@ -282,9 +285,6 @@ private:
 	int 		vma_poll_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff);
 	void		vma_poll_reclaim_recv_buffer_helper(mem_buf_desc_t* buff);
 #endif // DEFINED_VMAPOLL
-
-	//returns list of buffers to the owner.
-	void		process_tx_buffer_list(mem_buf_desc_t* p_mem_buf_desc);
 
 	// requests safe_mce_sys().qp_compensation_level buffers from global pool
 	bool 		request_more_buffers() __attribute__((noinline));

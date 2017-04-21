@@ -86,9 +86,11 @@ qp_mgr* ring_eth::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, 
 {
 #if !defined(DEFINED_VMAPOLL) && defined(HAVE_INFINIBAND_MLX5_HW_H)
 	if (qp_mgr::is_lib_mlx5(((ib_ctx_handler*)ib_ctx)->get_ibv_device()->name)) {
+		ring_logfunc("Using %s QPmanager",((ib_ctx_handler*)ib_ctx)->get_ibv_device()->name);
 		return new qp_mgr_eth_mlx5(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), get_partition());
 	}
 #endif
+	ring_logfunc("Using DEFAULT QPmanager, device: %s",((ib_ctx_handler*)ib_ctx)->get_ibv_device()->name);
 	return new qp_mgr_eth(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), get_partition());
 }
 
