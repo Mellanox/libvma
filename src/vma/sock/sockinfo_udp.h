@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -160,7 +160,20 @@ public:
 	void rx_del_ring_cb(flow_tuple_with_local_if& flow_key, ring* p_ring, bool is_migration = false);
 
 	// This callback will handle ready rx packet notification from any ib_conn_mgr
-	bool rx_input_cb(mem_buf_desc_t *p_rx_pkt_mem_buf_desc_info, void *pv_fd_ready_array = NULL);
+	/**
+	 *	Method sockinfo_udp::rx_process_packet run packet processor
+	 *	with inspection, in case packet is OK, completion for VMAPOLL mode
+	 *	will be filled or in other cases packet go to ready queue.
+	 *	If packet to be discarded, packet ref. counter will not be
+	 *	incremented and method returns false.
+	 *	Normally it is single point from sockinfo to be called from ring level.
+	 */
+	inline bool rx_input_cb(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array)
+	{
+		return (this->*m_rx_packet_processor)(p_rx_wc_buf_desc, pv_fd_ready_array);
+	}
+	inline void set_rx_packet_processor(void);
+
 	// This call will handle all rdma related events (bind->listen->connect_req->accept)
 	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);
 	virtual	int free_packets(struct vma_packet_t *pkts, size_t count);
@@ -184,12 +197,15 @@ private:
 		}
 	};
 
-
 /*	in_addr_t 	m_bound_if;
 	in_port_t 	m_bound_port;
 	in_addr_t 	m_connected_ip;
 	in_port_t 	m_connected_port;
 */
+	typedef bool (sockinfo_udp::* udp_rx_packet_processor_t)(mem_buf_desc_t* p_desc, void* pv_fd_ready_array);
+
+	udp_rx_packet_processor_t	m_rx_packet_processor; // to inspect and process incoming packet
+
 	in_addr_t 	m_mc_tx_if;
 	bool 		m_b_mc_tx_loop;
 	uint8_t 	m_n_mc_ttl;
@@ -225,6 +241,9 @@ private:
 	const uint32_t	m_n_sysvar_rx_delta_tsc_between_cq_polls;
 
 	bool		m_reuseaddr; // to track setsockopt with SO_REUSEADDR
+	bool		m_sockopt_mapped; // setsockopt IPPROTO_UDP UDP_MAP_ADD
+	bool		m_is_connected; // to inspect for in_addr.src
+	bool		m_multicast; // true when socket set MC rule
 
 	int mc_change_membership(const mc_pending_pram *p_mc_pram);
 	int mc_change_membership_start_helper(in_addr_t mc_grp, int optname);
@@ -253,6 +272,16 @@ private:
 	virtual inline void			reuse_buffer(mem_buf_desc_t *buff);
 	virtual 	mem_buf_desc_t*	get_next_desc (mem_buf_desc_t *p_desc);
 	virtual		mem_buf_desc_t* get_next_desc_peek(mem_buf_desc_t *p_desc, int& rx_pkt_ready_list_idx);
+
+	inline bool	rx_process_udp_packet_full(mem_buf_desc_t* p_desc, void* pv_fd_ready_array);
+	inline bool	rx_process_udp_packet_partial(mem_buf_desc_t* p_desc, void* pv_fd_ready_array);
+	inline bool	inspect_uc_packet(mem_buf_desc_t* p_desc);
+	inline bool	inspect_connected(mem_buf_desc_t* p_desc);
+	inline bool	inspect_mc_packet(mem_buf_desc_t* p_desc);
+	inline void	process_timestamps(mem_buf_desc_t* p_desc);
+	inline vma_recv_callback_retval_t inspect_by_user_cb(mem_buf_desc_t* p_desc);
+	inline void	fill_completion(mem_buf_desc_t* p_desc);
+	inline void	update_ready(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array, vma_recv_callback_retval_t cb_ret);
 
 	virtual void 	post_deqeue (bool release_buff);
 	virtual int 	zero_copy_rx (iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags);

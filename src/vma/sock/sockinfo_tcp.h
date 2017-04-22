@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -147,7 +147,9 @@ public:
 	static err_t ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rexmit, uint8_t is_dummy);
 	static void tcp_state_observer(void* pcb_container, enum tcp_state new_state);
 
-	virtual bool rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void* pv_fd_ready_array = NULL);
+	virtual bool rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void* pv_fd_ready_array);
+	virtual void set_rx_packet_processor(void) { }
+
 	static struct pbuf * tcp_tx_pbuf_alloc(void* p_conn);
 	static void tcp_tx_pbuf_free(void* p_conn, struct pbuf *p_buff);
 	static struct tcp_seg * tcp_seg_alloc(void* p_conn);
