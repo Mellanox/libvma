@@ -91,7 +91,7 @@ AC_ARG_ENABLE(build32,
 AC_ARG_ENABLE(gcov, AC_HELP_STRING([--enable-gcov], [turn on code coverage analysis tools]),[CFLAGS+=" --coverage -O0";CXXFLAGS+=" --coverage -O0";LIBS+=" -lgcov";VMA_GCOV=1],[VMA_GCOV=0])
 
 # time_measure support
-AC_ARG_ENABLE(time_measure, AC_HELP_STRING([--enable-time_measure], [turn on time measuring]),[CPPFLAGS+=" -DVMA_TIME_MEASURE";],[])
+AC_ARG_ENABLE(time_measure, AC_HELP_STRING([--enable-time-measure], [turn on time measuring]),[CPPFLAGS+=" -DVMA_TIME_MEASURE";],[])
 
 #
 # Valgrind support
@@ -138,6 +138,22 @@ AS_IF([test "x$enable_exp_cq" == xyes],
 	[
 	  AC_MSG_RESULT([yes])
 	  AC_DEFINE(DEFINED_IBV_EXP_CQ_TIMESTAMP, 1, [Define to 1 if IBV_EXP_CQ_TIMESTAMP is defined])
+	],
+	[
+	  AC_MSG_RESULT([no])
+	])
+
+	AC_MSG_CHECKING([if IBV_EXP_VALUES_CLOCK_INFO is defined])
+	AC_TRY_LINK(
+	#include <infiniband/verbs_exp.h>
+	,
+	[
+	  int access = (int)IBV_EXP_VALUES_CLOCK_INFO;
+	  access = access;
+	],
+	[
+	  AC_MSG_RESULT([yes])
+	  AC_DEFINE(DEFINED_IBV_EXP_VALUES_CLOCK_INFO, 1, [Define to 1 if IBV_EXP_VALUES_CLOCK_INFO is defined])
 	],
 	[
 	  AC_MSG_RESULT([no])

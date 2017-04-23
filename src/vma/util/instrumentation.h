@@ -34,7 +34,7 @@
 /*
  * VMA instrumental - measure the times that certain actions takes.
  * Currently support: RX,TX,IOMUX
- * Enable: use --enable-time_measure in ./configure
+ * Enable: use --enable-time-measure in ./configure
  * Parameters:
  * 	VMA_TIME_MEASURE_DUMP_FILE - Name of the results file. Default: /tmp/VMA_inst.dump
  * 	VMA_TIME_MEASURE_NUM_SAMPLES - Number of samples for a dump file. Default: 10000
