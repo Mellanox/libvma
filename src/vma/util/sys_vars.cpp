@@ -421,7 +421,7 @@ void mce_sys_var::get_env_params()
 	rx_poll_num             = MCE_DEFAULT_RX_NUM_POLLS;
 	rx_poll_num_init        = MCE_DEFAULT_RX_NUM_POLLS_INIT;
 	rx_udp_poll_os_ratio    = MCE_DEFAULT_RX_UDP_POLL_OS_RATIO;
-	rx_udp_hw_ts_conversion = MCE_DEFAULT_RX_UDP_HW_TS_CONVERSION;
+	hw_ts_conversion_mode   = MCE_DEFAULT_HW_TS_CONVERSION_MODE;
 	rx_sw_csum         	= MCE_DEFUALT_RX_SW_CSUM;
 	rx_poll_yield_loops     = MCE_DEFAULT_RX_POLL_YIELD;
 	select_handle_cpu_usage_stats   = MCE_DEFAULT_SELECT_CPU_USAGE_STATS;
@@ -771,11 +771,11 @@ void mce_sys_var::get_env_params()
 	if ((env_ptr = getenv(SYS_VAR_RX_UDP_POLL_OS_RATIO)) != NULL)
 		rx_udp_poll_os_ratio = (uint32_t)atoi(env_ptr);
 
-	if ((env_ptr = getenv(SYS_VAR_RX_UDP_HW_TS_CONVERSION)) != NULL) {
-		rx_udp_hw_ts_conversion = (ts_conversion_mode_t)atoi(env_ptr);
-		if ((uint32_t)rx_udp_hw_ts_conversion >= TS_CONVERSION_MODE_LAST) {
-			vlog_printf(VLOG_WARNING,"Rx UDP HW TS conversion size out of range [%d] (min=%d, max=%d). using default [%d]\n", rx_udp_hw_ts_conversion, TS_CONVERSION_MODE_DISABLE , TS_CONVERSION_MODE_LAST - 1, MCE_DEFAULT_RX_UDP_HW_TS_CONVERSION);
-			rx_udp_hw_ts_conversion = MCE_DEFAULT_RX_UDP_HW_TS_CONVERSION;
+	if ((env_ptr = getenv(SYS_VAR_HW_TS_CONVERSION_MODE)) != NULL) {
+		hw_ts_conversion_mode = (ts_conversion_mode_t)atoi(env_ptr);
+		if ((uint32_t)hw_ts_conversion_mode >= TS_CONVERSION_MODE_LAST) {
+			vlog_printf(VLOG_WARNING,"HW TS conversion size out of range [%d] (min=%d, max=%d). using default [%d]\n", hw_ts_conversion_mode, TS_CONVERSION_MODE_DISABLE , TS_CONVERSION_MODE_LAST - 1, MCE_DEFAULT_HW_TS_CONVERSION_MODE);
+			hw_ts_conversion_mode = MCE_DEFAULT_HW_TS_CONVERSION_MODE;
 		}
 	}
 

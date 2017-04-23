@@ -36,7 +36,7 @@
 
 #include <infiniband/verbs.h>
 #include "vma/event/event_handler_ibverbs.h"
-#include "vma/dev/ib_ctx_time_converter.h"
+#include "vma/dev/time_converter.h"
 
 // client to event manager 'command' invoker (??)
 //
@@ -65,7 +65,10 @@ public:
 	void                    set_flow_tag_capability(bool flow_tag_capability); 
 	bool                    get_flow_tag_capability() { return m_flow_tag_enabled;} // m_flow_tag_capability
 
-	inline void convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) { ctx_time_converter.convert_hw_time_to_system_time(hwtime, systime); }
+	inline void convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime)
+	{
+		m_p_ctx_time_converter->convert_hw_time_to_system_time(hwtime, systime);
+	}
 
 private:
 	struct ibv_context*     m_p_ibv_context;
@@ -86,7 +89,7 @@ private:
 	uint32_t                m_conf_attr_tx_max_inline;
 	uint32_t                m_conf_attr_tx_num_wre;
 
-	ib_ctx_time_converter  ctx_time_converter;
+	time_converter*         m_p_ctx_time_converter;
 };
 
 #endif

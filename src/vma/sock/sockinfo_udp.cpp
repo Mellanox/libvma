@@ -844,9 +844,9 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 
 					if (val & (SOF_TIMESTAMPING_RAW_HARDWARE | SOF_TIMESTAMPING_RX_HARDWARE)) {
 						if (g_p_ib_ctx_handler_collection->get_ctx_time_conversion_mode() == TS_CONVERSION_MODE_DISABLE){
-							if (safe_mce_sys().rx_udp_hw_ts_conversion ==  TS_CONVERSION_MODE_DISABLE) {
+							if (safe_mce_sys().hw_ts_conversion_mode ==  TS_CONVERSION_MODE_DISABLE) {
 								errno = EPERM;
-								si_udp_logdbg("SOL_SOCKET, SOF_TIMESTAMPING_RAW_HARDWARE and SOF_TIMESTAMPING_RX_HARDWARE socket options were disabled (VMA_UDP_RX_HW_TS_CONVERSION = %d) , errno set to EPERM", TS_CONVERSION_MODE_DISABLE);
+								si_udp_logdbg("SOL_SOCKET, SOF_TIMESTAMPING_RAW_HARDWARE and SOF_TIMESTAMPING_RX_HARDWARE socket options were disabled (VMA_HW_TS_CONVERSION = %d) , errno set to EPERM", TS_CONVERSION_MODE_DISABLE);
 								return -1;
 							} else {
 								errno = ENODEV;
