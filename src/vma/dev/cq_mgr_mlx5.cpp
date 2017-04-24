@@ -114,6 +114,7 @@ cq_mgr_mlx5::~cq_mgr_mlx5()
 	if (ret_total > 0) {
 		cq_logdbg("Drained %d wce", ret_total);
 	}
+	m_rq = NULL;
 	m_b_is_clean = true;
 }
 
@@ -437,7 +438,6 @@ void	cq_mgr_mlx5::add_qp_rx(qp_mgr* qp)
 void	cq_mgr_mlx5::del_qp_rx(qp_mgr *qp)
 {
 	cq_mgr::del_qp_rx(qp);
-	m_rq = NULL;
 	m_p_rq_wqe_idx_to_wrid = NULL;
 }
 
