@@ -821,6 +821,7 @@ inline void ring_simple::vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_bu
 				// Update the L3 info
 				p_rx_wc_buf_desc->rx.src.sin_family      = AF_INET;
 				p_rx_wc_buf_desc->rx.src.sin_addr.s_addr = p_ip_h->saddr;
+				p_rx_wc_buf_desc->rx.udp.local_if        = m_local_if;
 				p_rx_wc_buf_desc->rx.n_frags = 1;
 
 /*				ring_logfunc("FAST PATH Rx UDP datagram info: src_port=%d, dst_port=%d, payload_sz=%d, csum=%#x",
@@ -1151,6 +1152,7 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, transport_
 				// Update the L3 info
 				p_rx_wc_buf_desc->rx.src.sin_family      = AF_INET;
 				p_rx_wc_buf_desc->rx.src.sin_addr.s_addr = p_ip_h->saddr;
+				p_rx_wc_buf_desc->rx.udp.local_if        = m_local_if;
 				p_rx_wc_buf_desc->rx.n_frags = 1;
 
 /*				ring_logfunc("FAST PATH Rx UDP datagram info: src_port=%d, dst_port=%d, payload_sz=%d, csum=%#x",
