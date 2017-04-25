@@ -127,7 +127,7 @@ public:
 	 *         ==1 cq not armed (cq poll_sn out of sync)
 	 *         < 0 on error
 	 */
-	int	request_notification(uint64_t poll_sn);
+	virtual int	request_notification(uint64_t poll_sn);
 
 	/**
 	 * Block on the CQ's notification channel for the next event and process
@@ -137,7 +137,7 @@ public:
 	 *         < 0 error or if channel not armed or channel would block
 	 *             (on non-blocked channel) (some other thread beat you to it)
 	 */
-	int	wait_for_notification_and_process_element(uint64_t* p_cq_poll_sn,
+	virtual int	wait_for_notification_and_process_element(uint64_t* p_cq_poll_sn,
 	   	                                          void* pv_fd_ready_array = NULL);
 #ifdef DEFINED_VMAPOLL
 	inline volatile struct mlx5_cqe64 *mlx5_get_cqe64(void);
@@ -292,7 +292,7 @@ private:
 	inline void	find_buff_dest_local_if(mem_buf_desc_t * buff);
 
 	//Finds and sets the vma if to which the buff is addressed (according to qpn).
-	inline void 	find_buff_dest_vma_if_ctx(mem_buf_desc_t * buff);
+	inline void	find_buff_dest_vma_if_ctx(mem_buf_desc_t * buff);
 
 	void		process_cq_element_log_helper(mem_buf_desc_t* p_mem_buf_desc, vma_ibv_wc* p_wce);
 };

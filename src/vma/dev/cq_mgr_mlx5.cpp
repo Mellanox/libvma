@@ -426,7 +426,7 @@ int cq_mgr_mlx5::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd
 	return ret_rx_processed;
 }
 
-void	cq_mgr_mlx5::add_qp_rx(qp_mgr* qp)
+void cq_mgr_mlx5::add_qp_rx(qp_mgr* qp)
 {
 	cq_mgr::add_qp_rx(qp);
 	struct verbs_qp *vqp = (struct verbs_qp *)qp->m_qp;
@@ -435,10 +435,29 @@ void	cq_mgr_mlx5::add_qp_rx(qp_mgr* qp)
 	m_p_rq_wqe_idx_to_wrid = qp->m_rq_wqe_idx_to_wrid;
 }
 
-void	cq_mgr_mlx5::del_qp_rx(qp_mgr *qp)
+void cq_mgr_mlx5::del_qp_rx(qp_mgr *qp)
 {
 	cq_mgr::del_qp_rx(qp);
 	m_p_rq_wqe_idx_to_wrid = NULL;
+}
+
+void cq_mgr_mlx5::update_consumer_index()
+{
+	struct mlx5_cq* mlx5_cq = _to_mxxx(cq, cq);
+	mlx5_cq->cons_index = m_cq_cons_index;
+	wmb();
+}
+
+int cq_mgr_mlx5::request_notification(uint64_t poll_sn)
+{
+	update_consumer_index();
+	return cq_mgr::request_notification(poll_sn);
+}
+
+int cq_mgr_mlx5::wait_for_notification_and_process_element(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array/* = NULL*/)
+{
+	update_consumer_index();
+	return cq_mgr::wait_for_notification_and_process_element(p_cq_poll_sn, pv_fd_ready_array);
 }
 
 #endif//HAVE_INFINIBAND_MLX5_HW_H
