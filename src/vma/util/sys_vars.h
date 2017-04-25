@@ -312,6 +312,7 @@ struct mce_sys_var {
 	int		ring_migration_ratio_rx;
 	int		ring_limit_per_interface;
 	int		tcp_max_syn_rate;
+	int		tcp_msl;
 
 	uint32_t 	tx_num_segs_tcp;
 	uint32_t 	tx_num_bufs;
@@ -512,6 +513,7 @@ extern mce_sys_var & safe_mce_sys();
 #define SYS_VAR_CLOSE_ON_DUP2				"VMA_CLOSE_ON_DUP2"
 #define SYS_VAR_MTU					"VMA_MTU"
 #define SYS_VAR_TCP_MAX_SYN_RATE			"VMA_TCP_MAX_SYN_RATE"
+#define	SYS_VAR_TCP_MSL				"VMA_TCP_MSL"
 #define SYS_VAR_MSS					"VMA_MSS"
 #define SYS_VAR_TCP_CC_ALGO				"VMA_TCP_CC_ALGO"
 #define SYS_VAR_SPEC					"VMA_SPEC"
@@ -572,6 +574,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_TX_BUFS_BATCH_TCP			(16)
 #define MCE_DEFAULT_TX_NUM_SGE				(2)
 #define MCE_DEFAULT_RX_NUM_BUFS				(200000)
+#define MCE_DEFAULT_TCP_MSL					(60000)
 #define MCE_DEFAULT_RX_BUFS_BATCH			(64)
 #ifdef DEFINED_VMAPOLL
 #define MCE_DEFAULT_RX_NUM_WRE				(1024)
@@ -678,6 +681,7 @@ extern mce_sys_var & safe_mce_sys();
 #define NUM_TX_WRE_TO_SIGNAL_MAX			64
 #define NUM_RX_WRE_TO_POST_RECV_MAX			1024
 #define TCP_MAX_SYN_RATE_TOP_LIMIT			100000
+#define TCP_MSL_MAX							60000
 #define DEFAULT_MC_TTL					64
 #define IFTYPE_PARAM_FILE				"/sys/class/net/%s/type"
 #define IFADDR_MTU_PARAM_FILE				"/sys/class/net/%s/mtu"

@@ -543,6 +543,7 @@ void print_vma_global_settings()
 	VLOG_PARAM_STRING("CQ Keeps QP Full", safe_mce_sys().cq_keep_qp_full, MCE_DEFAULT_CQ_KEEP_QP_FULL, SYS_VAR_CQ_KEEP_QP_FULL, safe_mce_sys().cq_keep_qp_full ? "Enabled" : "Disabled");
 	VLOG_PARAM_NUMBER("QP Compensation Level", safe_mce_sys().qp_compensation_level, MCE_DEFAULT_QP_COMPENSATION_LEVEL, SYS_VAR_QP_COMPENSATION_LEVEL);
 	VLOG_PARAM_STRING("Offloaded Sockets", safe_mce_sys().offloaded_sockets, MCE_DEFAULT_OFFLOADED_SOCKETS, SYS_VAR_OFFLOADED_SOCKETS, safe_mce_sys().offloaded_sockets ? "Enabled" : "Disabled");
+	VLOG_PARAM_NUMBER("TCP max segment lifetime (msec)", safe_mce_sys().tcp_msl, MCE_DEFAULT_TCP_MSL, SYS_VAR_TCP_MSL);
 	VLOG_PARAM_NUMBER("Timer Resolution (msec)", safe_mce_sys().timer_resolution_msec, MCE_DEFAULT_TIMER_RESOLUTION_MSEC, SYS_VAR_TIMER_RESOLUTION_MSEC);
 	VLOG_PARAM_NUMBER("TCP Timer Resolution (msec)", safe_mce_sys().tcp_timer_resolution_msec, MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC, SYS_VAR_TCP_TIMER_RESOLUTION_MSEC);
 	VLOG_PARAM_NUMSTR("TCP control thread", safe_mce_sys().tcp_ctl_thread, MCE_DEFAULT_TCP_CTL_THREAD, SYS_VAR_TCP_CTL_THREAD, ctl_thread_str(safe_mce_sys().tcp_ctl_thread));

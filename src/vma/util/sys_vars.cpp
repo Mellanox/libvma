@@ -402,6 +402,7 @@ void mce_sys_var::get_env_params()
 	ring_migration_ratio_rx = MCE_DEFAULT_RING_MIGRATION_RATIO_RX;
 	ring_limit_per_interface= MCE_DEFAULT_RING_LIMIT_PER_INTERFACE;
 	tcp_max_syn_rate	= MCE_DEFAULT_TCP_MAX_SYN_RATE;
+	tcp_msl			= TCP_MSL_MAX;
 
 	tx_num_segs_tcp         = MCE_DEFAULT_TX_NUM_SEGS_TCP;
 	tx_num_bufs             = MCE_DEFAULT_TX_NUM_BUFS;
@@ -740,6 +741,9 @@ void mce_sys_var::get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_TCP_MAX_SYN_RATE)) != NULL)
 		tcp_max_syn_rate = MIN(TCP_MAX_SYN_RATE_TOP_LIMIT, MAX(0, (int32_t)atoi(env_ptr)));
+
+	if ((env_ptr = getenv(SYS_VAR_TCP_MSL)) != NULL)
+		tcp_msl = MIN(TCP_MSL_MAX, MAX(0, (int32_t)atoi(env_ptr)));
 
 	if ((env_ptr = getenv(SYS_VAR_RX_NUM_BUFS)) != NULL)
 		rx_num_bufs = (uint32_t)atoi(env_ptr);

@@ -350,6 +350,8 @@ struct tcp_pcb {
   u32_t snd_sml_snt; /* maintain state for minshall's algorithm */
   u32_t snd_sml_add; /* maintain state for minshall's algorithm */
 
+  u32_t	tcp_msl;	/* maximum segment lifetime */
+
 #define TCP_SNDQUEUELEN_OVERFLOW (0xffffffU-3)
   u32_t snd_queuelen; /* Available buffer space for sending (in tcp_segs). */
   u32_t max_tcp_snd_queuelen; 
@@ -521,7 +523,7 @@ err_t            tcp_output  (struct tcp_pcb *pcb);
 
 #define get_tcp_state(pcb) ((pcb)->private_state)
 #define set_tcp_state(pcb, state) external_tcp_state_observer((pcb)->my_container, (pcb)->private_state = state)
-
+#define	get_tcp_msl(pcb) ((pcb)->tcp_msl)
 const char* tcp_debug_state_str(enum tcp_state s);
 
 
