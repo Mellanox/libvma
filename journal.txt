@@ -1,3 +1,16 @@
+Version 8.3.3-0:
+Date + Time 2017-04-25
+=============================================================
+Added:
+        - RM #1030331 Update global_sn update in cq_mgr_mlx5 class
+
+Fixed:
+        - RM #1030299 Fix wrong consumer index in request notification
+        - RM #1027659 Fix timestamp cqe conversion in prm poll
+        - RM #1030134 Fix RX UDP hardware timestamp calculation
+        - RM #1029468 Fix crash in cq_mgr_mlx5 destructor
+        - RM #1029287 Fix RX UDP local if in buffer descriptor
+
 Version 8.3.2-0:
 Date + Time 2017-04-20
 =============================================================
