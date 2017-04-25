@@ -74,6 +74,7 @@ private:
 	ts_conversion_mode_t      m_converter_status;
 
 	void                      fix_hw_clock_deviation();
+	inline void               calculate_delta(struct timespec& hw_to_timespec, uint64_t hca_core_clock, uint64_t hw_time_diff);
 	bool                      sync_clocks(struct timespec* st, uint64_t* hw_clock);
 	static uint32_t           get_device_convertor_status(struct ibv_context* ctx);
 };

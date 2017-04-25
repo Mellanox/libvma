@@ -188,25 +188,33 @@ bool ib_ctx_time_converter::sync_clocks(struct timespec* ts, uint64_t* hw_clock)
 
 #endif
 
+inline void ib_ctx_time_converter::calculate_delta(struct timespec& hw_to_timespec, uint64_t hca_core_clock, uint64_t hw_time_diff) {
+	hw_to_timespec.tv_sec = hw_time_diff / hca_core_clock;
+	hw_time_diff -= hw_to_timespec.tv_sec * hca_core_clock;
+	hw_to_timespec.tv_nsec = (hw_time_diff * NSEC_PER_SEC) / hca_core_clock;
+}
+
 void ib_ctx_time_converter::convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) {
 
 	ctx_timestamping_params_t* current_parameters_set = &m_ctx_convert_parmeters[m_ctx_parmeters_id];
 	if (current_parameters_set->hca_core_clock && hwtime) {
 
 		struct timespec hw_to_timespec, sync_systime;
-		uint64_t hw_time_diff, hca_core_clock, sync_hw_clock;
+		uint64_t hca_core_clock, sync_hw_clock;
 
+		//  sync_hw_clock should be zero when m_conversion_mode is CONVERSION_MODE_RAW_OR_FAIL or CONVERSION_MODE_DISABLE
 		hca_core_clock = current_parameters_set->hca_core_clock;
 		sync_hw_clock = current_parameters_set->sync_hw_clock;
 		sync_systime = current_parameters_set->sync_systime;
 
-		hw_time_diff = hwtime - sync_hw_clock; // sync_hw_clock should be zero when m_conversion_mode is CONVERSION_MODE_RAW_OR_FAIL or CONVERSION_MODE_DISABLE
-
-		hw_to_timespec.tv_sec = hw_time_diff / hca_core_clock;
-		hw_time_diff -= hw_to_timespec.tv_sec * hca_core_clock;
-		hw_to_timespec.tv_nsec = (hw_time_diff * NSEC_PER_SEC) / hca_core_clock;
-
-		ts_add(&sync_systime, &hw_to_timespec, systime);
+		// Handle case in which the reference point occurred after the packet has been arrived.
+		if (hwtime > sync_hw_clock) {
+			calculate_delta(hw_to_timespec, hca_core_clock, hwtime - sync_hw_clock);
+			ts_add(&sync_systime, &hw_to_timespec, systime);
+		} else {
+			calculate_delta(hw_to_timespec, hca_core_clock, sync_hw_clock - hwtime);
+			ts_sub(&sync_systime, &hw_to_timespec, systime);
+		}
 	}
 }
 
