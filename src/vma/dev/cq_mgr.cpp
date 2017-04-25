@@ -83,6 +83,7 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 	cq_logfunc("");
 
 #ifdef DEFINED_VMAPOLL
+	m_qp = NULL;
 	m_rx_hot_buff = NULL;
 	m_cq_sz = cq_size;
 	m_cq_ci = 0;
@@ -1044,6 +1045,8 @@ inline void cq_mgr::mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, vma_ib
 	case MLX5_CQE_RESP_SEND_INV:
 		vma_wc_opcode(*wc) = VMA_IBV_WC_RECV; 
 		wc->byte_len = ntohl(cqe->byte_cnt);
+		wc->status = IBV_WC_SUCCESS;
+		return;
 	case MLX5_CQE_REQ:
 		wc->status = IBV_WC_SUCCESS;
 		return;
@@ -1093,11 +1096,9 @@ inline volatile struct mlx5_cqe64 *cq_mgr::mlx5_get_cqe64(void)
 		return NULL;
 	}
 
-	if (cqe) {
-		++m_cq_ci;
-		wmb();
-		*m_cq_db = htonl(m_cq_ci);
-	}
+	++m_cq_ci;
+	wmb();
+	*m_cq_db = htonl(m_cq_ci);
 
 	return cqe;
 }

@@ -490,8 +490,11 @@ int vma_get_socket_rings_num(int fd)
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(fd);
 
-	return p_socket_object->get_rings_num();
+	if (p_socket_object && p_socket_object->check_rings()) {
+		return p_socket_object->get_rings_num();
+	}
 
+	return 0;
 }
 #endif // DEFINED_VMAPOLL
 

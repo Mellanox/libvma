@@ -88,6 +88,15 @@ qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context, const
 	if (m_sq_wqe_idx_to_wrid == MAP_FAILED) {
 		qp_logerr("Failed allocating m_sq_wqe_idx_to_wrid (errno=%d %m)", errno);
 	}
+
+	m_sq_hot_wqe = NULL;
+	m_sq_hot_wqe_index = 0;
+	m_mlx5_sq_wqes = NULL;
+	m_sq_db = NULL;
+	m_sq_bf_reg = NULL;
+	m_sq_bf_offset = 0;
+	m_sq_bf_buf_size = 0;
+	m_qp_num = 0;
 #endif // DEFINED_VMAPOLL
 }
 
@@ -566,6 +575,12 @@ void qp_mgr::mlx5_send(vma_ibv_send_wr *p_send_wqe)
 	lkey = p_send_wqe->sg_list[0].lkey;
 
 	/* Copy the first bytes into the inline header */
+	/* This suppress warning due to mlx5_wqe_eth_seg struct format as
+	 * uint8_t inline_hdr_start[2];
+	 * uint8_t inline_hdr[16];
+	 */
+	/* coverity[buffer_size] */
+	/* coverity[overrun-buffer-arg] */
 	memcpy((void *)m_sq_hot_wqe->eseg.inline_hdr_start,
 	       (void *)addr,
 	       MLX5_ETH_INLINE_HEADER_SIZE);
