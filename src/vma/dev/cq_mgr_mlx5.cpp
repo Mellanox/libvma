@@ -89,6 +89,7 @@ uint32_t cq_mgr_mlx5::clean_cq()
 			}
 			++ret_total;
 		}
+		update_global_sn(cq_poll_sn, ret_total);
 	} else {//Tx
 		int ret = 0;
 		/* coverity[stack_use_local_overflow] */
@@ -263,6 +264,7 @@ int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=N
 
 	/* CQ polling loop until max wce limit is reached for this interval or CQ is drained */
 	uint32_t ret_total = 0;
+	uint64_t cq_poll_sn = 0;
 
 	if (p_recycle_buffers_last_wr_id != NULL) {
 		m_b_was_drained = false;
@@ -273,6 +275,7 @@ int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=N
 		buff_status_e status = BS_OK;
 		mem_buf_desc_t* buff = poll(status);
 		if (NULL == buff) {
+			update_global_sn(cq_poll_sn, ret_total);
 			m_b_was_drained = true;
 			m_p_ring->m_gro_mgr.flush_all(NULL);
 			return ret_total;
@@ -317,6 +320,8 @@ int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=N
 		++ret_total;
 	}
 
+	update_global_sn(cq_poll_sn, ret_total);
+
 	m_p_ring->m_gro_mgr.flush_all(NULL);
 
 	m_n_wce_counter = 0;
@@ -329,10 +334,35 @@ int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=N
 	return ret_total;
 }
 
+inline void cq_mgr_mlx5::update_global_sn(uint64_t& cq_poll_sn, uint32_t num_polled_cqes)
+{
+	if (num_polled_cqes > 0) {
+		// spoil the global sn if we have packets ready
+		union __attribute__((packed)) {
+			uint64_t global_sn;
+			struct {
+				uint32_t cq_id;
+				uint32_t cq_sn;
+			} bundle;
+		} next_sn;
+		m_n_cq_poll_sn += num_polled_cqes;
+		next_sn.bundle.cq_sn = m_n_cq_poll_sn;
+		next_sn.bundle.cq_id = m_cq_id;
+
+		m_n_global_sn = next_sn.global_sn;
+	}
+
+	cq_poll_sn = m_n_global_sn;
+}
+
 mem_buf_desc_t* cq_mgr_mlx5::process_cq_element_rx(mem_buf_desc_t* p_mem_buf_desc, enum buff_status_e status)
 {
 	/* Assume locked!!! */
 	cq_logfuncall("");
+
+	/* we use context to verify that on reclaim rx buffer path we return the buffer to the right CQ */
+	p_mem_buf_desc->rx.is_vma_thr = false;
+	p_mem_buf_desc->rx.context = this;
 
 	if (unlikely((status != BS_OK) ||
 			     (m_b_is_rx_hw_csum_on && p_mem_buf_desc->rx.is_sw_csum_need))) {
@@ -351,10 +381,6 @@ mem_buf_desc_t* cq_mgr_mlx5::process_cq_element_rx(mem_buf_desc_t* p_mem_buf_des
 		m_p_next_rx_desc_poll = p_mem_buf_desc->p_prev_desc;
 		p_mem_buf_desc->p_prev_desc = NULL;
 	}
-
-	/* we use context to verify that on reclaim rx buffer path we return the buffer to the right CQ */
-	p_mem_buf_desc->rx.is_vma_thr = false;
-	p_mem_buf_desc->rx.context = this;
 
 	VALGRIND_MAKE_MEM_DEFINED(p_mem_buf_desc->p_buffer, p_mem_buf_desc->sz_data);
 
@@ -397,29 +423,13 @@ int cq_mgr_mlx5::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd
 		}
 	}
 
+	update_global_sn(*p_cq_poll_sn, ret);
+
 	if (likely(ret > 0)) {
 		ret_rx_processed += ret;
 		m_n_wce_counter += ret;
 		m_p_ring->m_gro_mgr.flush_all(pv_fd_ready_array);
-
-		/* spoil the global sn if we have packets ready */
-		union __attribute__((packed)) {
-			uint64_t global_sn;
-			struct {
-				uint32_t cq_id;
-				uint32_t cq_sn;
-			} bundle;
-		} next_sn;
-		m_n_cq_poll_sn += ret;
-		next_sn.bundle.cq_sn = m_n_cq_poll_sn;
-		next_sn.bundle.cq_id = m_cq_id;
-
-		*p_cq_poll_sn = m_n_global_sn = next_sn.global_sn;
-
 	} else {
-		/* Zero polled wce  OR  ibv_poll_cq() has driver specific errors */
-		/* so we can't really do anything with them */
-		*p_cq_poll_sn = m_n_global_sn;
 		compensate_qp_poll_failed();
 	}
 

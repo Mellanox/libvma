@@ -61,6 +61,7 @@ public:
 
 private:
 	void                        update_consumer_index();
+	inline void                 update_global_sn(uint64_t& cq_poll_sn, uint32_t rettotal);
 
 	uint32_t                    m_cq_size;
 	uint32_t                    m_cq_cons_index;
