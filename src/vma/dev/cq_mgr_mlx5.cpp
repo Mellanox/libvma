@@ -69,7 +69,7 @@ cq_mgr_mlx5::cq_mgr_mlx5(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, 
 	,m_p_rq_wqe_idx_to_wrid(NULL)
 {
 	cq_logfunc("");
-
+	struct ibv_cq *ibcq = m_p_ibv_cq; // ibcp is used in next macro: _to_mxxx
 	struct mlx5_cq* mlx5_cq = _to_mxxx(cq, cq);
 	m_cq_dbell = mlx5_cq->dbrec;
 	m_cqes = (struct mlx5_cqe64 (*)[])(uintptr_t)mlx5_cq->active_buf->buf;
@@ -453,6 +453,10 @@ void cq_mgr_mlx5::del_qp_rx(qp_mgr *qp)
 
 void cq_mgr_mlx5::update_consumer_index()
 {
+<<<<<<< HEAD
+=======
+	struct ibv_cq *ibcq = m_p_ibv_cq; // ibcp is used in next macro: _to_mxxx
+>>>>>>> 9d179ab... issue: 998528 Cleanup code
 	struct mlx5_cq* mlx5_cq = _to_mxxx(cq, cq);
 	mlx5_cq->cons_index = m_cq_cons_index;
 	wmb();

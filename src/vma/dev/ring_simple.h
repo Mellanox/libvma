@@ -48,7 +48,6 @@ public:
 	virtual int		poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	virtual void		adapt_cq_moderation();
 	bool			reclaim_recv_buffers_no_lock(descq_t *rx_reuse); // No locks
-// REVIEW - in experimental next method was defined as virtual	
 	bool			reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst); // No locks
 #ifdef DEFINED_VMAPOLL	
 	virtual int 		vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);	

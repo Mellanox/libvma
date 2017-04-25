@@ -35,10 +35,6 @@
 #define CQ_MGR_H
 
 #include "utils/atomic.h"
-#if 0
-REVIEW
-#include <map> probably replaced by atomic.h
-#endif
 #include "vma/util/sys_vars.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/util/hash_map.h"
@@ -48,6 +44,10 @@ REVIEW
 #include "vma/dev/ib_ctx_handler.h"
 #if defined(DEFINED_VMAPOLL) || defined(HAVE_INFINIBAND_MLX5_HW_H)
 #include <infiniband/mlx5_hw.h>
+/* Get struct mlx5_cq* from struct ibv_cq* */
+#define _to_mxxx(xxx, type)\
+        ((struct mlx5_##type *)\
+        ((void *) ((uintptr_t)ib##xxx - offsetof(struct mlx5_##type, ibv_##xxx))))
 #endif
 #include "vma/vma_extra.h"
 

@@ -704,7 +704,6 @@ extern mce_sys_var & safe_mce_sys();
 #define MAX_STATS_FD_NUM				1024
 #define MAX_WINDOW_SCALING				14
 
-// REVIEW - extern struct mce_sys_var & mce_sys;
 extern bool g_b_exit;
 extern bool g_is_forked_child;
 extern bool g_init_global_ctors_done;

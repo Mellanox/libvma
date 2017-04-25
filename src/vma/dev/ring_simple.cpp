@@ -267,7 +267,7 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 	}
 
 #if 0
-REVIEW
+TODO:
 The following 3 lines were copied form below. Can it be OK for experimental if these lines
 remain below as in master?
 	m_tx_lkey = g_buffer_pool_tx->find_lkey_by_ib_ctx_thread_safe(p_ring_info->p_ib_ctx);
