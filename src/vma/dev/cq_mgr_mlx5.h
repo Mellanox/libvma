@@ -56,8 +56,12 @@ public:
 	virtual void                add_qp_rx(qp_mgr* qp);
 	virtual void                del_qp_rx(qp_mgr *qp);
 	virtual uint32_t            clean_cq();
+	virtual int                 request_notification(uint64_t poll_sn);
+	virtual int                 wait_for_notification_and_process_element(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 
 private:
+	void                        update_consumer_index();
+
 	uint32_t                    m_cq_size;
 	uint32_t                    m_cq_cons_index;
 	struct mlx5_cqe64           (*m_cqes)[];
