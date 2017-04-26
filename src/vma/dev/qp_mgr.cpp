@@ -202,7 +202,7 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	qp_init_attr.cap.max_send_wr = m_tx_num_wr;
 	qp_init_attr.cap.max_recv_wr = m_rx_num_wr;
 	qp_init_attr.cap.max_inline_data = tx_max_inline;
-	qp_init_attr.cap.max_send_sge = tx_num_sge; // REVIEW - AlexV please veriry
+	qp_init_attr.cap.max_send_sge = tx_num_sge;
 	qp_init_attr.cap.max_recv_sge = rx_num_sge;
 	qp_init_attr.recv_cq = m_p_cq_mgr_rx->get_ibv_cq_hndl();
 	qp_init_attr.send_cq = m_p_cq_mgr_tx->get_ibv_cq_hndl();
@@ -654,8 +654,6 @@ void qp_mgr::mlx5_init_sq()
 }
 #endif // DEFINED_VMAPOLL
 
-// REVIEW - qp_mgr::send() should be redesigend between master/slave. 
-// Most of the code before the merge is the same
 int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 {
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t *)p_send_wqe->wr_id;

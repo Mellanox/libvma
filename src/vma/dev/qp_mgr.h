@@ -51,10 +51,6 @@
 #include "vma/dev/ah_cleaner.h"
 #include "vma/dev/cq_mgr.h"
 
-#if 0
-REVIEW: verify can remove: #include "vma/dev/ring.h"
-#endif
-
 #ifdef DEFINED_VMAPOLL
 #include <infiniband/mlx5_hw.h>
 #include "vma/hw/mlx5/wqe.h"

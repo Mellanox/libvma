@@ -1399,7 +1399,6 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 
 	NOT_IN_USE(pcb);
 	assert((uintptr_t)pcb->my_container == (uintptr_t)arg);
-	// REVIEW: AlexV - please confirm using arg instead of pcb->my_container
 
 	vlog_func_enter();
 
@@ -3492,7 +3491,6 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 				m_so_bindtodevice_ip = sockaddr.sin_addr.s_addr;
 
 #ifdef DEFINED_VMAPOLL
-				// REVIEW - by Igor
 				if (!is_connected()) {
 					/* Current implementation allows to create separate rings for tx and rx.
 					 * tx ring is created basing on destination ip during connect() call,

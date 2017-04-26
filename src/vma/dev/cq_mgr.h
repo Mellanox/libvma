@@ -35,10 +35,6 @@
 #define CQ_MGR_H
 
 #include "utils/atomic.h"
-#if 0
-REVIEW
-#include <map> probably replaced by atomic.h
-#endif
 #include "vma/util/sys_vars.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/util/hash_map.h"

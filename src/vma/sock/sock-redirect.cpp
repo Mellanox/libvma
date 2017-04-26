@@ -1876,7 +1876,6 @@ int epoll_ctl(int __epfd, int __op, int __fd, struct epoll_event *__event)
    specifies the maximum wait time in milliseconds (-1 == infinite).  */
 inline int epoll_wait_helper(int __epfd, struct epoll_event *__events, int __maxevents, int __timeout, const sigset_t *__sigmask = NULL)
 {
-	// REVIEW: should return error in case of DEFINED_VMAPOLL?
 	if (__maxevents <= 0 || __maxevents > EP_MAX_EVENTS) {
 		srdr_logdbg("invalid value for maxevents: %d", __maxevents);
 		errno = EINVAL;
