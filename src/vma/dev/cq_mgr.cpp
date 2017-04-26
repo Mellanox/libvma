@@ -61,9 +61,6 @@
 
 #define cq_logdbg_no_funcname(log_fmt, log_args...) do { if (g_vlogger_level >= VLOG_DEBUG) vlog_printf(VLOG_DEBUG, MODULE_NAME "[%p]:%d: " log_fmt "\n", __INFO__, __LINE__, ##log_args); } while (0)
 
-#define _to_mxxx(xxx, type)\
-	((struct mlx5_##type *)\
-	 ((uintptr_t)((void *) ib##xxx) - (uintptr_t)offsetof(struct mlx5_##type, ibv_##xxx)))
 
 atomic_t cq_mgr::m_n_cq_id_counter = ATOMIC_INIT(1);
 

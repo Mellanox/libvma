@@ -48,6 +48,9 @@ REVIEW
 #include "vma/dev/ib_ctx_handler.h"
 #if defined(DEFINED_VMAPOLL) || defined(HAVE_INFINIBAND_MLX5_HW_H)
 #include <infiniband/mlx5_hw.h>
+#define _to_mxxx(xxx, type)\
+        ((struct mlx5_##type *)\
+        ((void *) ((uintptr_t)ib##xxx - offsetof(struct mlx5_##type, ibv_##xxx))))
 #endif
 #include "vma/vma_extra.h"
 
