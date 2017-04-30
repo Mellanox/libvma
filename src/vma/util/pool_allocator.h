@@ -84,7 +84,7 @@ private:
 	vma_list_t<container, container::container_node_offset> m_used_containers;
 
 	size_t allocate_chunks() {
-		pa_logdbg("Allocating %d chunks with %d bytes each", POOL_ALLOCATOR_READY_CONTAINERS_AMOUNT, POOL_ALLOCATOR_BUFFER_CHUNK_SIZE);
+		pa_logdbg("Allocating %d chunks of %d bytes each", POOL_ALLOCATOR_READY_CONTAINERS_AMOUNT, POOL_ALLOCATOR_BUFFER_CHUNK_SIZE);
 
 		container* cont;
 		for (int i = 0 ; i < POOL_ALLOCATOR_READY_CONTAINERS_AMOUNT ; i++) {
@@ -172,7 +172,7 @@ public:
 		pointer chunk;
 
 		if (unlikely(requested > POOL_ALLOCATOR_BUFFER_CHUNK_SIZE)) {
-			pa_logerr("Allocation is not supported for more than %d bytes (requested %d)", POOL_ALLOCATOR_BUFFER_CHUNK_SIZE, requested);
+			pa_logerr("Allocation is not supported of more than %d bytes (requested %d)", POOL_ALLOCATOR_BUFFER_CHUNK_SIZE, requested);
 			return NULL;
 		}
 
@@ -186,19 +186,19 @@ public:
 		cont->p_buffer = NULL;
 		m_used_containers.push_back(cont);
 
-		pa_logfunc("Completed to allocate chunk %p for %d items successfully", chunk, n);
+		pa_logfunc("Completed to allocate chunk %p of %d items successfully", chunk, n);
 
 		return chunk;
 	}
 
 	void deallocate(pointer p, size_type n) {
-		pa_logfunc("Deallocating chunk %p for %d items", p, n);
+		pa_logfunc("Deallocating chunk %p of %d items", p, n);
 
 		size_type requested = n * sizeof(size_type);
 		container* cont;
 
 		if (unlikely(requested > POOL_ALLOCATOR_BUFFER_CHUNK_SIZE)) {
-			pa_logerr("Deallocation is not supported for more than %d bytes (requested %d)", POOL_ALLOCATOR_BUFFER_CHUNK_SIZE, requested);
+			pa_logerr("Deallocation is not supported of more than %d bytes (requested %d)", POOL_ALLOCATOR_BUFFER_CHUNK_SIZE, requested);
 			return;
 		}
 
@@ -216,7 +216,7 @@ public:
 
 		m_ready_containers.push_back(cont);
 
-		pa_logfunc("Completed to deallocate chunk %p for %d items successfully", p, n);
+		pa_logfunc("Completed to deallocate chunk %p of %d items successfully", p, n);
 	}
 };
 

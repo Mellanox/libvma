@@ -34,8 +34,8 @@
 #ifndef V_SM_FIFO_H
 #define V_SM_FIFO_H
 
-#include <deque>
 #include <stdio.h>
+#include "vma/util/pool_allocator.h" // to include deque
 
 typedef struct {
 	int	event;             

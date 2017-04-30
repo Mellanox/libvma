@@ -42,8 +42,8 @@
 #include "config.h"
 #include "vlogger/vlogger.h"
 #include "utils/lock_wrapper.h"
-#include "vma/vma_extra.h"
 
+#include "vma/vma_extra.h"
 #include "vma/util/pool_allocator.h" // to include deque
 #include "vma/util/vma_stats.h"
 #include "vma/util/sys_vars.h"
