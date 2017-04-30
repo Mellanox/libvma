@@ -95,7 +95,6 @@ struct cmsg_state
 	size_t		cmsg_bytes_consumed;
 };
 
-
 /**
  * @class udp sockinfo
  * Represents an udp socket.

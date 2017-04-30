@@ -162,7 +162,7 @@ public:
 		*p = t;
 	};
 
-	inline void destroy(pointer &) {};
+	inline void destroy(pointer) {};
 
 	pointer allocate(size_t n) {
 		pa_logfunc("Allocating chunk of %d items", n);
