@@ -36,7 +36,7 @@
 
 #include <map>
 #include "utils/lock_wrapper.h"
-#include "vma/util/pool_allocator.h" // to include <deque>
+#include "vma/util/pool_allocator.h" // to include deque
 #include "vma/util/wakeup_pipe.h"
 #include "vma/netlink/netlink_wrapper.h"
 #include "vma/infra/subject_observer.h"

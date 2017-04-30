@@ -44,7 +44,7 @@
 #include "utils/lock_wrapper.h"
 #include "vma/vma_extra.h"
 
-#include "vma/util/pool_allocator.h"
+#include "vma/util/pool_allocator.h" // to include deque
 #include "vma/util/vma_stats.h"
 #include "vma/util/sys_vars.h"
 #include "vma/proto/mem_buf_desc.h"
@@ -54,9 +54,6 @@
 #include "pkt_sndr_source.h"
 #include "sock-redirect.h"
 #include "sockinfo.h"
-
-
-#define MAX_RX_MEM_BUF_DESC	32
 
 // Send flow dst_entry map
 namespace std {

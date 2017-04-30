@@ -35,7 +35,7 @@
 #define BUFFER_POOL_H
 
 #include "utils/lock_wrapper.h"
-#include "vma/util/pool_allocator.h" // to include <deque>
+#include "vma/util/pool_allocator.h" // to include deque
 #include "vma/util/verbs_extra.h"
 #include "vma/util/vma_stats.h"
 #include "vma/proto/mem_buf_desc.h"
