@@ -77,7 +77,6 @@
 
 tcp_seg_pool *g_tcp_seg_pool = NULL;
 tcp_timers_collection* g_tcp_timers_collection = NULL;
-
 const char * const tcp_sock_state_str[] = {
   "NA",
   "TCP_SOCK_INITED",

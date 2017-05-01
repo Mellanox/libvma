@@ -174,6 +174,7 @@ netlink_wrapper::~netlink_wrapper()
 	subject_map_iter iter = m_subjects_map.begin();
 	while (iter != m_subjects_map.end()) {
 		delete iter->second;
+		iter->second = NULL;
 		iter++;
 	}
 	nl_logdbg( "<--- netlink_route_listener DTOR");

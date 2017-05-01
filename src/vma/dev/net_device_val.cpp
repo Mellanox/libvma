@@ -94,6 +94,16 @@ net_device_val::~net_device_val()
 		delete m_p_L2_addr;
 		m_p_L2_addr = NULL;
 	}
+
+	for (slave_data_vector_t::iterator it = m_slaves.begin() ; it != m_slaves.end(); ++it) {
+		slave_data_t* sd = *it;
+		if (sd->if_name) {
+			free(sd->if_name);
+		}
+		delete sd->p_L2_addr;
+		sd->p_L2_addr = NULL;
+		delete sd;
+	}
 }
 
 void net_device_val::try_read_dev_id_and_port(const char *base_ifname, int *dev_id, int *dev_port)

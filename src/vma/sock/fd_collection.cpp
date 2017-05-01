@@ -90,8 +90,8 @@ fd_collection::~fd_collection()
 {
 	fdcoll_logfunc("");
 
-	m_n_fd_map_size = -1;
 	clear();
+	m_n_fd_map_size = -1;
 
 	delete [] m_p_sockfd_map;
 	m_p_sockfd_map = NULL;
@@ -168,10 +168,12 @@ void fd_collection::clear()
 		}
 
 		if (m_p_epfd_map[fd]) {
+#if 0 // Disabled due to unexpected behaviour
 			epfd_info *p_epfd = get_epfd(fd);
 			if (p_epfd) {
 				delete p_epfd;
 			}
+#endif
 			m_p_epfd_map[fd] = NULL;
 			fdcoll_logdbg("destroyed epfd=%d", fd);
 		}

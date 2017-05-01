@@ -1,0 +1,340 @@
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_M_lower_bound
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE4findERS1_
+   fun:find
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_M_lower_bound
+   fun:lower_bound
+   fun:lower_bound
+   fun:operator[]
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS3_ERS1_
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE17_M_insert_unique_ESt23_Rb_tree_const_iteratorIS3_ERKS3_
+   fun:insert
+   fun:operator[]
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZSt29_Rb_tree_insert_and_rebalancebPSt18_Rb_tree_node_baseS0_RS_
+   fun:_M_insert_
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE17_M_insert_unique_ESt23_Rb_tree_const_iteratorIS3_ERKS3_
+   fun:insert
+   fun:operator[]
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE4findERS1_
+   fun:find
+}
+{
+   Points_to_uninitialised_bytes
+   Memcheck:Param
+   poll(ufds.fd)
+   obj:*/libc-*
+   fun:_ZN21event_handler_manager38priv_prepare_ibverbs_async_event_queueERSt17_Rb_tree_iteratorISt4pairIKi12event_data_tEE
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_M_lower_bound
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE4findERS1_
+   fun:find
+   fun:_ZN21event_handler_manager28priv_register_command_eventsER18command_reg_info_t
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_M_lower_bound
+   fun:lower_bound
+   fun:lower_bound
+   fun:operator[]
+   fun:_ZN21event_handler_manager28priv_register_command_eventsER18command_reg_info_t
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE29_M_get_insert_hint_unique_posESt23_Rb_tree_const_iteratorIS3_ERS1_
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE17_M_insert_unique_ESt23_Rb_tree_const_iteratorIS3_ERKS3_
+   fun:insert
+   fun:operator[]
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZSt29_Rb_tree_insert_and_rebalancebPSt18_Rb_tree_node_baseS0_RS_
+   fun:_M_insert_
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE17_M_insert_unique_ESt23_Rb_tree_const_iteratorIS3_ERKS3_
+   fun:insert
+   fun:operator[]
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZN6cq_mgr4pollEP10ibv_exp_wciPm
+   fun:_ZN6cq_mgr18drain_and_proccessEPm
+   fun:_ZN6qp_mgr18release_rx_buffersEv
+   fun:_ZN6qp_mgr4downEv
+   fun:_ZN11ring_simpleD1Ev
+   fun:~ring_eth
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZN6cq_mgr18drain_and_proccessEPm
+   fun:_ZN6qp_mgr18release_rx_buffersEv
+   fun:_ZN6qp_mgr4downEv
+   fun:_ZN11ring_simpleD1Ev
+   fun:~ring_eth
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZN6cq_mgr16statistics_printEv
+   fun:_ZN6cq_mgrD1Ev
+   fun:_ZN6qp_mgrD1Ev
+   fun:~qp_mgr_eth
+   fun:_ZN10qp_mgr_ethD0Ev
+   fun:_ZN11ring_simpleD1Ev
+   fun:~ring_eth
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZN6cq_mgr4pollEP10ibv_exp_wciPm
+   fun:_ZN6cq_mgr18drain_and_proccessEPm
+   fun:_ZN6qp_mgr18release_rx_buffersEv
+   fun:_ZN6qp_mgr4downEv
+   fun:_ZN11ring_simpleD1Ev
+   fun:~ring_eth
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZN6cq_mgr18drain_and_proccessEPm
+   fun:_ZN6qp_mgr18release_rx_buffersEv
+   fun:_ZN6qp_mgr4downEv
+   fun:_ZN11ring_simpleD1Ev
+   fun:~ring_eth
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZN6cq_mgr16statistics_printEv
+   fun:_ZN6cq_mgrD1Ev
+   fun:_ZN6qp_mgrD1Ev
+   fun:~qp_mgr_eth
+   fun:_ZN10qp_mgr_ethD0Ev
+   fun:_ZN11ring_simpleD1Ev
+   fun:~ring_eth
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZN11buffer_pool11get_buffersEmj
+}
+{
+   Points_to_uninitialised_bytes
+   Memcheck:Param
+   epoll_ctl(event)
+   fun:epoll_ctl
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:is_valid_fd
+   ...
+   fun:ring_eth
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:is_valid_fd
+   ...
+   fun:~ring_eth
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:is_valid_fd
+   fun:get<epfd_info>
+   fun:get_epfd
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:is_valid_fd
+   fun:get<socket_fd_api>
+   fun:get_sockfd
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:is_valid_fd
+   fun:get<cq_channel_info>
+   fun:get_cq_channel_fd
+}
+{
+   Points_to_uninitialised_bytes
+   Memcheck:Param
+   epoll_ctl(fd)
+   fun:epoll_ctl
+   ...
+}
+{
+   Points_to_uninitialised_bytes
+   Memcheck:Param
+   fcntl(fd)
+   fun:fcntl
+}
+{
+   Invalid_read_size_8
+   Memcheck:Addr8
+   fun:operator++
+   ...
+   fun:~ring_eth
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZN20net_device_table_mgr15map_net_devicesEv
+}
+{
+   Uninitialised_value_of_size_8
+   Memcheck:Value8
+   fun:get<epfd_info>
+   fun:get_epfd
+}
+{
+   Uninitialised_value_of_size_8
+   Memcheck:Value8
+   fun:get<socket_fd_api>
+}
+{
+   Uninitialised_value_of_size_8
+   Memcheck:Value8
+   fun:get<cq_channel_info>
+}
+{
+   Uninitialised_value_of_size_8
+   Memcheck:Value8
+   fun:_ZN13fd_collection17add_cq_channel_fdEiP4ring
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_Z39priv_ibv_modify_qp_from_err_to_init_rawP6ibv_qph
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZN10qp_mgr_eth24modify_qp_to_ready_stateEv
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_Z35priv_ibv_modify_qp_from_init_to_rtsP6ibv_qp
+}
+{
+   Uninitialised_value_of_size_8
+   Memcheck:Value8
+   fun:_ZN13fd_collection3delI15cq_channel_infoEEiibPPT_
+   ...
+   fun:~ring_eth
+}
+{
+   Memcheck:Addr8
+   fun:_M_incr
+   fun:operator++
+   fun:_ZN15cache_table_mgrI9neigh_keyP9neigh_valED1Ev
+   fun:~neigh_table_mgr
+   ...
+   fun:_dl_fini
+}
+{
+   Memcheck:Addr8
+   fun:_M_incr
+   fun:operator++
+   fun:_ZN15cache_table_mgrI10ip_addressP14net_device_valED1Ev
+   ...
+   fun:_dl_fini
+}
+{
+   Memcheck:Addr8
+   fun:_M_incr
+   fun:operator++
+   fun:_ZN15cache_table_mgrI20route_rule_table_keyPSt5dequeIP8rule_valSaIS3_EEED1Ev
+   ...
+   fun:_dl_fini
+}
+{
+   Memcheck:Addr8
+   fun:_M_incr
+   fun:operator++
+   fun:_ZN15cache_table_mgrI20route_rule_table_keyP9route_valED1Ev
+   ...
+   fun:_dl_fini
+}
+{
+   Possible_leak_40_bytes
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:_Znwm
+   fun:_ZN13neigh_eth_valaSERK9neigh_val
+   fun:_ZN11neigh_entry13get_peer_infoEP9neigh_val
+   fun:_ZN9neigh_eth13get_peer_infoEP9neigh_val
+}
+#-H-
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZSt29_Rb_tree_insert_and_rebalancebPSt18_Rb_tree_node_baseS0_RS_
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE10_M_insert_EPKSt18_Rb_tree_node_baseSC_RKS3_
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE17_M_insert_unique_ESt23_Rb_tree_const_iteratorIS3_ERKS3_
+   fun:insert
+   fun:operator[]
+   fun:_ZN21event_handler_manager28priv_register_ibverbs_eventsER18ibverbs_reg_info_t
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_M_lower_bound
+   fun:find
+   fun:find
+   fun:_ZN21event_handler_manager28priv_register_ibverbs_eventsER18ibverbs_reg_info_t
+   fun:_ZN21event_handler_manager11thread_loopEv
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:_ZNSt8_Rb_treeIiSt4pairIKi12event_data_tESt10_Select1stIS3_ESt4lessIiESaIS3_EE17_M_insert_unique_ESt23_Rb_tree_const_iteratorIS3_ERKS3_
+   fun:insert
+   fun:operator[]
+   fun:_ZN21event_handler_manager28priv_register_ibverbs_eventsER18ibverbs_reg_info_t
+   fun:_ZN21event_handler_manager11thread_loopEv
+   fun:_Z20event_handler_threadPv
+   fun:start_thread
+   fun:clone
+}
+{
+   Conditional_on_uninitialised_value
+   Memcheck:Cond
+   fun:find
+   fun:find
+   fun:_ZN21event_handler_manager28priv_register_ibverbs_eventsER18ibverbs_reg_info_t
+   fun:_ZN21event_handler_manager11thread_loopEv
+   fun:_Z20event_handler_threadPv
+   fun:start_thread
+   fun:clone
+}
+
+
