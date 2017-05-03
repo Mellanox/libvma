@@ -61,9 +61,6 @@
 
 #define cq_logdbg_no_funcname(log_fmt, log_args...) do { if (g_vlogger_level >= VLOG_DEBUG) vlog_printf(VLOG_DEBUG, MODULE_NAME "[%p]:%d: " log_fmt "\n", __INFO__, __LINE__, ##log_args); } while (0)
 
-#define _to_mxxx(xxx, type)\
-	((struct mlx5_##type *)\
-	 ((uintptr_t)((void *) ib##xxx) - (uintptr_t)offsetof(struct mlx5_##type, ibv_##xxx)))
 
 atomic_t cq_mgr::m_n_cq_id_counter = ATOMIC_INIT(1);
 
@@ -83,6 +80,7 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 	cq_logfunc("");
 
 #ifdef DEFINED_VMAPOLL
+	m_qp = NULL;
 	m_rx_hot_buff = NULL;
 	m_cq_sz = cq_size;
 	m_cq_ci = 0;
@@ -105,7 +103,6 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 		init_vma_ibv_cq_init_attr(&attr);
 	}
 
-// REVIEW - check versus master
 	m_p_ibv_cq = vma_ibv_create_cq(m_p_ib_ctx_handler->get_ibv_context(), cq_size - 1, (void*)this, m_comp_event_channel, 0, &attr);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_p_ibv_cq) {
@@ -1044,6 +1041,8 @@ inline void cq_mgr::mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, vma_ib
 	case MLX5_CQE_RESP_SEND_INV:
 		vma_wc_opcode(*wc) = VMA_IBV_WC_RECV; 
 		wc->byte_len = ntohl(cqe->byte_cnt);
+		wc->status = IBV_WC_SUCCESS;
+		return;
 	case MLX5_CQE_REQ:
 		wc->status = IBV_WC_SUCCESS;
 		return;
@@ -1093,11 +1092,9 @@ inline volatile struct mlx5_cqe64 *cq_mgr::mlx5_get_cqe64(void)
 		return NULL;
 	}
 
-	if (cqe) {
-		++m_cq_ci;
-		wmb();
-		*m_cq_db = htonl(m_cq_ci);
-	}
+	++m_cq_ci;
+	wmb();
+	*m_cq_db = htonl(m_cq_ci);
 
 	return cqe;
 }

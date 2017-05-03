@@ -490,8 +490,11 @@ int vma_get_socket_rings_num(int fd)
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(fd);
 
-	return p_socket_object->get_rings_num();
+	if (p_socket_object && p_socket_object->check_rings()) {
+		return p_socket_object->get_rings_num();
+	}
 
+	return 0;
 }
 #endif // DEFINED_VMAPOLL
 
@@ -1873,7 +1876,6 @@ int epoll_ctl(int __epfd, int __op, int __fd, struct epoll_event *__event)
    specifies the maximum wait time in milliseconds (-1 == infinite).  */
 inline int epoll_wait_helper(int __epfd, struct epoll_event *__events, int __maxevents, int __timeout, const sigset_t *__sigmask = NULL)
 {
-	// REVIEW: should return error in case of DEFINED_VMAPOLL?
 	if (__maxevents <= 0 || __maxevents > EP_MAX_EVENTS) {
 		srdr_logdbg("invalid value for maxevents: %d", __maxevents);
 		errno = EINVAL;
