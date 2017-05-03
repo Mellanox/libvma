@@ -378,7 +378,7 @@ const char* buffer_batching_mode_str(buffer_batching_mode_t buffer_batching_mode
 
 int get_ofed_version_info(char* ofed_version_str, int len)
 {
-	return run_and_retreive_system_command("ofed_info -s 2>/dev/null | grep OFED | head -1 | tr -d '\n'", ofed_version_str, len);
+	return run_and_retreive_system_command("ofed_info -s 2>/dev/null | head -1 | tr -d '\n'", ofed_version_str, len);
 }
 
 void print_vma_global_settings()
