@@ -42,8 +42,9 @@
 #include "config.h"
 #include "vlogger/vlogger.h"
 #include "utils/lock_wrapper.h"
-#include "vma/vma_extra.h"
 
+#include "vma/vma_extra.h"
+#include "vma/util/allocate_list.h"
 #include "vma/util/vma_stats.h"
 #include "vma/util/sys_vars.h"
 #include "vma/proto/mem_buf_desc.h"
@@ -53,9 +54,6 @@
 #include "pkt_sndr_source.h"
 #include "sock-redirect.h"
 #include "sockinfo.h"
-
-
-#define MAX_RX_MEM_BUF_DESC	32
 
 // Send flow dst_entry map
 namespace std {
@@ -227,7 +225,7 @@ private:
 	dst_entry*	m_p_last_dst_entry;
 	sock_addr	m_last_sock_addr;
 
-	std::deque<mem_buf_desc_t *>	m_rx_pkt_ready_list;
+	allocate_list_t<mem_buf_desc_t *>	m_rx_pkt_ready_list;
 
 	bool		m_b_pktinfo;
 	bool		m_b_rcvtstamp;

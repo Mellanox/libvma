@@ -1252,8 +1252,7 @@ void sockinfo_udp::rx_ready_byte_count_limit_update(size_t n_rx_ready_bytes_limi
 	m_lock_rcv.lock();
 	while (m_p_socket_stats->n_rx_ready_byte_count > m_p_socket_stats->n_rx_ready_byte_limit) {
 		if (m_n_rx_pkt_ready_list_count) {
-			mem_buf_desc_t* p_rx_pkt_desc = m_rx_pkt_ready_list.front();
-			m_rx_pkt_ready_list.pop_front();
+			mem_buf_desc_t* p_rx_pkt_desc = m_rx_pkt_ready_list.get_and_pop_front();
 			m_n_rx_pkt_ready_list_count--;
 			m_rx_ready_byte_count -= p_rx_pkt_desc->rx.sz_payload;
 			m_p_socket_stats->n_rx_ready_pkt_count--;
@@ -1450,14 +1449,16 @@ void sockinfo_udp::handle_recv_timestamping(struct cmsg_state *cm_state)
 void sockinfo_udp::handle_ip_pktinfo(struct cmsg_state * cm_state)
 {
 	struct in_pktinfo in_pktinfo;
-	rx_net_device_map_t::iterator iter = m_rx_nd_map.find(m_rx_pkt_ready_list.front()->rx.udp.local_if);
+	mem_buf_desc_t* p_desc = m_rx_pkt_ready_list.front();
+
+	rx_net_device_map_t::iterator iter = m_rx_nd_map.find(p_desc->rx.udp.local_if);
 	if (iter == m_rx_nd_map.end()) {
-		si_udp_logerr("could not find net device for ip %d.%d.%d.%d", NIPQUAD(m_rx_pkt_ready_list.front()->rx.udp.local_if));
+		si_udp_logerr("could not find net device for ip %d.%d.%d.%d", NIPQUAD(p_desc->rx.udp.local_if));
 		return;
 	}
 	in_pktinfo.ipi_ifindex = iter->second.p_ndv->get_if_idx();
-	in_pktinfo.ipi_addr = m_rx_pkt_ready_list.front()->rx.dst.sin_addr;
-	in_pktinfo.ipi_spec_dst.s_addr = m_rx_pkt_ready_list.front()->rx.udp.local_if;
+	in_pktinfo.ipi_addr = p_desc->rx.dst.sin_addr;
+	in_pktinfo.ipi_spec_dst.s_addr = p_desc->rx.udp.local_if;
 	insert_cmsg(cm_state, IPPROTO_IP, IP_PKTINFO, &in_pktinfo, sizeof(struct in_pktinfo));
 }
 
@@ -2513,8 +2514,7 @@ mem_buf_desc_t* sockinfo_udp::get_next_desc_peek(mem_buf_desc_t *p_desc, int& rx
 
 void sockinfo_udp::post_deqeue(bool release_buff)
 {
-	mem_buf_desc_t *to_resue = m_rx_pkt_ready_list.front();
-	m_rx_pkt_ready_list.pop_front();
+	mem_buf_desc_t *to_resue = m_rx_pkt_ready_list.get_and_pop_front();
 	m_p_socket_stats->n_rx_ready_pkt_count--;
 	m_n_rx_pkt_ready_list_count--;
 	if (release_buff)

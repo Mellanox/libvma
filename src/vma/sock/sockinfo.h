@@ -56,7 +56,6 @@
 #ifndef BASE_SOCKINFO_H
 #define BASE_SOCKINFO_H
 
-#define MAX_RX_MEM_BUF_DESC		32
 #define SI_RX_EPFD_EVENT_MAX		16
 
 struct buff_info_t {
