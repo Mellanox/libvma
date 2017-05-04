@@ -272,6 +272,7 @@ libvma_la_SOURCES := \
 	util/valgrind.h \
 	util/verbs_extra.h \
 	util/vma_list.h \
+	util/chunk_list.h \
 	util/vma_stats.h \
 	util/vtypes.h \
 	util/wakeup.h \
