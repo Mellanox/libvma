@@ -70,7 +70,7 @@ int qp_mgr_mp::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 	enum ibv_exp_query_intf_status intf_status;
 	uint32_t lkey;
 	uint8_t *ptr;
-	uint32_t stride_size, strides_num, size;
+	uint32_t size;
 	uint8_t toeplitz_key[] = { 0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
 				   0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f, 0xb0,
 				   0xd0, 0xca, 0x2b, 0xcb, 0xae, 0x7b, 0x30, 0xb4,
@@ -178,12 +178,10 @@ int qp_mgr_mp::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 	// initlize the sge, the same sg will be used for all operations
-	ptr = (uint8_t *)(((unsigned long)m_p_mp_ring->get_mem_block()));
-	stride_size = m_p_mp_ring->get_stride_size();
-	strides_num = m_p_mp_ring->get_strides_num();
-	size = stride_size * strides_num;
-
-	lkey = m_p_mp_ring->get_mem_lkey(m_p_ib_ctx_handler);
+	ptr = (uint8_t *)m_umr_mr->addr;
+	lkey = m_umr_mr->lkey;
+	size = m_p_mp_ring->get_stride_size() * m_p_mp_ring->get_strides_num();
+	// initlize the sge, the same sg will be used for all operations
 	for (uint32_t i = 0; i < m_n_sysvar_rx_num_wr_to_post_recv; i++) {
 		m_ibv_rx_sg_array[i].addr = (uint64_t)ptr;
 		m_ibv_rx_sg_array[i].length = size;

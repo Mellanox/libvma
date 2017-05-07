@@ -117,14 +117,17 @@ bool ring_ib::is_ratelimit_supported(uint32_t rate)
 }
 
 ring_simple::ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, uint32_t mtu, ring* parent /*=NULL*/):
-	ring(count, mtu), m_p_qp_mgr(NULL), m_p_cq_mgr_rx(NULL),
+	ring(count, mtu),
+	m_p_ib_ctx(p_ring_info->p_ib_ctx),
+	m_p_qp_mgr(NULL),
+	m_p_cq_mgr_rx(NULL),
 	m_lock_ring_rx("ring_simple:lock_rx"),
 	m_b_is_hypervisor(safe_mce_sys().is_hypervisor),
 	m_p_ring_stat(NULL),
 	m_lock_ring_tx("ring_simple:lock_tx"), m_p_cq_mgr_tx(NULL),
 	m_lock_ring_tx_buf_wait("ring:lock_tx_buf_wait"), m_tx_num_bufs(0), m_tx_num_wr(0), m_tx_num_wr_free(0),
 	m_b_qp_tx_first_flushed_completion_handled(false), m_missing_buf_ref_count(0),
-	m_tx_lkey(g_buffer_pool_tx->find_lkey_by_ib_ctx_thread_safe(p_ring_info->p_ib_ctx)),
+	m_tx_lkey(g_buffer_pool_tx->find_lkey_by_ib_ctx_thread_safe(m_p_ib_ctx)),
 	m_partition(partition_sn), m_gro_mgr(safe_mce_sys().gro_streams_max, MAX_GRO_BUFS), m_up(false),
 	m_p_rx_comp_event_channel(NULL), m_p_tx_comp_event_channel(NULL), m_p_l2_addr(NULL),
 	m_local_if(local_if), m_transport_type(transport_type)
@@ -249,7 +252,7 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 	if(p_ring_info->p_ib_ctx == NULL) {
 		ring_logpanic("p_ring_info.p_ib_ctx = NULL. It can be related to wrong bonding configuration");
 	}
-	m_p_ib_ctx = p_ring_info->p_ib_ctx;
+
 	save_l2_address(p_ring_info->p_l2_addr);
 	m_p_tx_comp_event_channel = ibv_create_comp_channel(m_p_ib_ctx->get_ibv_context());
 	if (m_p_tx_comp_event_channel == NULL) {

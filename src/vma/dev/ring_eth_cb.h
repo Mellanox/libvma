@@ -48,6 +48,12 @@ enum mp_loop_result {
 	MP_LOOP_RETURN_TO_APP,
 };
 
+enum RING_CB_UMR_ALLOC_IDX {
+	CB_UMR_HDR = 0,
+	CB_UMR_PAYLOAD,
+	CB_UMR_LAST
+};
+
 class cq_mgr_mp;
 
 class ring_eth_cb : public ring_eth
@@ -60,7 +66,6 @@ public:
 	virtual		~ring_eth_cb();
 	ibv_exp_res_domain* get_res_domain() const {return m_res_domain;};
 	uint32_t	get_wq_count() const {return m_wq_count;};
-	void*		get_mem_block() const {return m_alloc.get_ptr();};
 	uint8_t		get_single_wqe_log_num_of_strides() const {return m_single_wqe_log_num_of_strides;};
 	uint32_t	get_strides_num() const {return m_strides_num;};
 	uint8_t		get_single_stride_log_num_of_bytes() const {return m_single_stride_log_num_of_bytes;};
@@ -88,17 +93,24 @@ private:
 	uint32_t			m_wq_count;
 	uint32_t			m_curr_wqe_used_strides;
 	uint32_t			m_all_wqes_used_strides;
-	uint32_t			m_curr_batch_starting_stride;
-	uint64_t			m_p_buffer_ptr;
+	struct ibv_mr*			m_p_umr_mr;
+	struct ibv_exp_send_wr		m_umr_wr;
+	ibv_exp_mem_repeat_block*	m_p_mem_rep_list;
+	size_t*				m_p_rpt_cnt;
+	int				m_umr_blocks;
 	// These members are used to store intermediate results before
 	// returning from the user's call to get the data.
 	int				m_curr_wq;
-	void*				m_curr_d_addr;
-	void*				m_curr_h_ptr;
+	void*				m_curr_payload_addr;
+	void*				m_curr_hdr_ptr;
 	size_t				m_curr_packets;
 	struct timespec			m_curr_hw_timestamp;
+	uint64_t			m_sge_ptrs[CB_UMR_LAST];
+	size_t				m_hdr_len;
+	size_t				m_payload_len;
 	inline mp_loop_result		mp_loop(size_t limit);
 	inline bool			reload_wq();
+	int				allocate_umr_mem();
 };
 
 #endif /* HAVE_MP_RQ */

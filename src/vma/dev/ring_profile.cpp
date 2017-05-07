@@ -45,7 +45,9 @@ ring_profile::ring_profile(struct vma_ring_type_attr *ring_desc) {
 		r.comp_mask = ring_desc->ring_cyclicb.comp_mask;
 		r.num = ring_desc->ring_cyclicb.num;
 		r.stride_bytes = ring_desc->ring_cyclicb.stride_bytes;
-		if (r.comp_mask & CB_COMP_HDR_BYTE) {
+		r.packet_receive_mode = ring_desc->ring_cyclicb.packet_receive_mode;
+
+		if (r.comp_mask & VMA_CB_HDR_BYTE) {
 			r.hdr_bytes = ring_desc->ring_cyclicb.hdr_bytes;
 		}
 		break;
