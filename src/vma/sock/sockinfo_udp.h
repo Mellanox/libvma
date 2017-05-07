@@ -44,7 +44,7 @@
 #include "utils/lock_wrapper.h"
 
 #include "vma/vma_extra.h"
-#include "vma/util/allocate_list.h"
+#include "vma/util/chunk_list.h"
 #include "vma/util/vma_stats.h"
 #include "vma/util/sys_vars.h"
 #include "vma/proto/mem_buf_desc.h"
@@ -225,7 +225,7 @@ private:
 	dst_entry*	m_p_last_dst_entry;
 	sock_addr	m_last_sock_addr;
 
-	allocate_list_t<mem_buf_desc_t *>	m_rx_pkt_ready_list;
+	chunk_list_t<mem_buf_desc_t *>	m_rx_pkt_ready_list;
 
 	bool		m_b_pktinfo;
 	bool		m_b_rcvtstamp;
