@@ -36,9 +36,9 @@
 #include <stdlib.h>
 #include "vma/util/vma_list.h"
 
-#define CHUNK_LIST_BUFFER_SIZE        64    // Amount of T elements of each chunk.
-#define CHUNK_LIST_BUFFER_AMOUNT       4    // Initial number of chunks.
-#define CHUNK_LIST_BUFFER_THRESHOLD   15    // Maximum number of chunks before free.
+#define CHUNK_LIST_CONTAINER_SIZE        64    // Amount of T elements of each container.
+#define CHUNK_LIST_CONTAINER_INIT         4    // Initial number of containers.
+#define CHUNK_LIST_CONTIANER_THRESHOLD   15    // Maximum number of containers before free.
 
 // debugging macros
 #undef  MODULE_HDR_INFO
@@ -49,66 +49,67 @@
 
 #define clist_logerr               __log_info_err
 #define clist_logwarn              __log_info_warn
-#define clist_logdbg               __log_info_dbg
+#define clist_logfunc              __log_info_func
 
 template <typename T>
 class chunk_list_t {
 
-	struct chunk {
-		static inline size_t node_offset(void) {return NODE_OFFSET(chunk, m_node);}
-		list_node<chunk, chunk::node_offset> m_node;
+	struct container {
+		static inline size_t node_offset(void) {return NODE_OFFSET(container, m_node);}
+		list_node<container, container::node_offset> m_node;
 		T*	m_p_buffer;
 
-		chunk(T* buffer) : m_p_buffer(buffer) {}
+		container(T* buffer) : m_p_buffer(buffer) {}
 
-		~chunk() {
+		~container() {
 			free(m_p_buffer);
 		}
 	};
 
-	typedef vma_list_t<chunk, chunk::node_offset> chunk_list;
+	typedef vma_list_t<container, container::node_offset> container_list;
 
 private:
 
-	chunk_list    m_free_chunks;   // Contains available chunks.
-	chunk_list    m_used_chunks;   // Contains used chunks.
-	size_t        m_size;          // The amount of T element in the list.
-	int           m_front;         // Index of the first element.
-	int           m_back;          // Index of the last element.
+	container_list    m_free_containers;   // Contains available containers.
+	container_list    m_used_containers;   // Contains used containers.
+	size_t            m_size;              // The amount of T element in the list.
+	int               m_front;             // Index of the first element.
+	int               m_back;              // Index of the last element.
 
-	size_t allocate_chunks(int chunks = 1) {
-		clist_logdbg("Allocating %d chunks of %d bytes each", chunks, CHUNK_LIST_BUFFER_SIZE * sizeof(T));
+	size_t allocate(int containers = 1) {
+		clist_logfunc("Allocating %d containers of %d bytes each", containers, CHUNK_LIST_CONTAINER_SIZE * sizeof(T));
 
-		chunk* cont;
-		for (int i = 0 ; i < chunks ; i++) {
-			T* data = (T*)calloc(CHUNK_LIST_BUFFER_SIZE, sizeof(T));
-			if (!data || !(cont  = new chunk(data))) {
+		container* cont;
+		for (int i = 0 ; i < containers ; i++) {
+			T* data = (T*)calloc(CHUNK_LIST_CONTAINER_SIZE, sizeof(T));
+			if (!data || !(cont  = new container(data))) {
 				clist_logerr("Failed to allocate memory");
 				goto out;
 			}
-			m_free_chunks.push_back(cont);
+			m_free_containers.push_back(cont);
 		}
 
 	out:
-		return m_free_chunks.size();
+		return m_free_containers.size();
 	}
 
 	void initialize() {
-		m_free_chunks.set_id("chunk_list_t (%p), m_free_chunks", this);
-		m_used_chunks.set_id("chunk_list_t (%p), m_used_chunks", this);
+		m_free_containers.set_id("chunk_list_t (%p), m_free_containers", this);
+		m_used_containers.set_id("chunk_list_t (%p), m_used_containers", this);
 
 		m_front = 0;
 		m_back = -1;
 		m_size = 0;
 
-		allocate_chunks(CHUNK_LIST_BUFFER_AMOUNT);
-		m_used_chunks.push_back(m_free_chunks.get_and_pop_front());
+		if (allocate(CHUNK_LIST_CONTAINER_INIT)) {
+			m_used_containers.push_back(m_free_containers.get_and_pop_front());
+		}
 	}
 
 public:
 
 	chunk_list_t() {
-		clist_logdbg("Constructor has been called");
+		clist_logfunc("Constructor has been called");
 		initialize();
 	}
 
@@ -118,18 +119,18 @@ public:
 	}
 
 	~chunk_list_t() {
-		clist_logdbg("Destructor has been called! m_free_chunks=%zu, m_used_chunks=%zu", m_free_chunks.size(), m_used_chunks.size());
+		clist_logfunc("Destructor has been called! m_size=%zu, m_free_containers=%zu, m_used_containers=%zu", m_size, m_free_containers.size(), m_used_containers.size());
 
 		if (!empty()) {
 			clist_logwarn("Not all buffers were freed. size=%zu\n", m_size);
+		} else {
+			while (!m_used_containers.empty()) {
+				delete(m_used_containers.get_and_pop_back());
+			}
 		}
 
-		while (!m_used_chunks.empty()) {
-			delete(m_used_chunks.get_and_pop_back());
-		}
-
-		while (!m_free_chunks.empty()) {
-			delete(m_free_chunks.get_and_pop_back());
+		while (!m_free_containers.empty()) {
+			delete(m_free_containers.get_and_pop_back());
 		}
 	}
 
@@ -145,7 +146,7 @@ public:
 		// Check if the list is empty.
 		if (unlikely(empty()))
 				return NULL;
-		return m_used_chunks.front()->m_p_buffer[m_front];
+		return m_used_containers.front()->m_p_buffer[m_front];
 	}
 
 	inline void pop_front() {
@@ -156,10 +157,10 @@ public:
 		}
 
 		// Container is empty, move it to the free list or delete it if necessary.
-		if (unlikely(++m_front == CHUNK_LIST_BUFFER_SIZE)) {
+		if (unlikely(++m_front == CHUNK_LIST_CONTAINER_SIZE)) {
 			m_front = 0;
-			chunk* cont = m_used_chunks.get_and_pop_front();
-			unlikely(m_free_chunks.size() > CHUNK_LIST_BUFFER_THRESHOLD) ? delete(cont) : m_free_chunks.push_back(cont);
+			container* cont = m_used_containers.get_and_pop_front();
+			unlikely(m_free_containers.size() > CHUNK_LIST_CONTIANER_THRESHOLD) ? delete(cont) : m_free_containers.push_back(cont);
 		}
 
 		m_size--;
@@ -172,17 +173,17 @@ public:
 	}
 
 	inline void push_back(T obj) {
-		// Container is full, request a free one or chunk if necessary.
-		if (unlikely(++m_back == CHUNK_LIST_BUFFER_SIZE)) {
-			if (unlikely(m_free_chunks.empty()) && !allocate_chunks()) {
+		// Container is full, request a free one or allocate if necessary.
+		if (unlikely(++m_back == CHUNK_LIST_CONTAINER_SIZE)) {
+			if (unlikely(m_free_containers.empty()) && !allocate()) {
 				clist_logerr("Failed to push back obj %p", obj);
 				return;
 			}
 			m_back = 0;
-			m_used_chunks.push_back(m_free_chunks.get_and_pop_back());
+			m_used_containers.push_back(m_free_containers.get_and_pop_back());
 		}
 
-		m_used_chunks.back()->m_p_buffer[m_back] = obj;
+		m_used_containers.back()->m_p_buffer[m_back] = obj;
 		m_size++;
 	}
 };

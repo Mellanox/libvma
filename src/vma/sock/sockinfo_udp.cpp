@@ -2045,7 +2045,7 @@ inline bool sockinfo_udp::rx_process_udp_packet_full(mem_buf_desc_t* p_desc, voi
 	process_timestamps(p_desc);
 
 	vma_recv_callback_retval_t cb_ret = VMA_PACKET_RECV;
-	if (m_rx_callback && ((cb_ret=inspect_by_user_cb(p_desc))==VMA_PACKET_DROP)) {
+	if (m_rx_callback && ((cb_ret = inspect_by_user_cb(p_desc)) == VMA_PACKET_DROP)) {
 		si_udp_logfunc("rx packet discarded - by user callback");
 		return false;
 	}
@@ -2078,7 +2078,7 @@ inline bool sockinfo_udp::rx_process_udp_packet_partial(mem_buf_desc_t* p_desc, 
 	process_timestamps(p_desc);
 
 	vma_recv_callback_retval_t cb_ret = VMA_PACKET_RECV;
-	if (m_rx_callback && ((cb_ret=inspect_by_user_cb(p_desc))==VMA_PACKET_DROP)) {
+	if (m_rx_callback && ((cb_ret = inspect_by_user_cb(p_desc)) == VMA_PACKET_DROP)) {
 		si_udp_logfunc("rx packet discarded - by user callback");
 		return false;
 	}
