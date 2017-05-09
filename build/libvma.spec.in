@@ -63,6 +63,11 @@ export revision=1
 #export CFLAGS CXXFLAGS LDFLAGS
 export CXXFLAGS='%{optflags}'
 
+%configure --with-ofed=%{ofed_dir} --enable-opt-log=none
+%{pmake}
+cp -f src/vma/.libs/%{name}.so %{name}-debug.so
+%{pmake} clean
+
 %configure --with-ofed=%{ofed_dir} --docdir=%{_docdir}/%{name}-%{version}
 %{pmake}
 
@@ -72,6 +77,7 @@ export CXXFLAGS='%{optflags}'
 mkdir -p $RPM_BUILD_ROOT%{include_dir}
 mkdir -p $RPM_BUILD_ROOT%{vma_datadir}/scripts
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}
+mkdir -p $RPM_BUILD_ROOT%{_libdir}
 
 %{pmake} DESTDIR=${RPM_BUILD_ROOT} install
 
@@ -83,6 +89,7 @@ install -m 644 src/vma/util/libvma.conf $RPM_BUILD_ROOT/%{_sysconfdir}/
 install -s -m 755 src/stats/vma_stats $RPM_BUILD_ROOT/%{_bindir}/vma_stats
 install -s -m 755 tools/daemon/vmad $RPM_BUILD_ROOT/%{_sbindir}/vmad
 install -m 755 contrib/scripts/vma.init $RPM_BUILD_ROOT/%{_sysconfdir}/init.d/vma
+install -m 755 ./%{name}-debug.so $RPM_BUILD_ROOT/%{_libdir}/%{name}-debug.so
 
 %post
 if [ `grep memlock /etc/security/limits.conf |grep unlimited |wc -l` -le 0 ]; then
@@ -135,6 +142,7 @@ fi
 %defattr(-,root,root,-)
 %{_libdir}/%{name}*.so.*
 %{_libdir}/%{name}.so
+%{_libdir}/%{name}-debug.so
 %{_docdir}/%{name}-%{version}/README.txt
 %{_docdir}/%{name}-%{version}/journal.txt
 %{_docdir}/%{name}-%{version}/VMA_VERSION
