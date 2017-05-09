@@ -78,14 +78,16 @@ uint32_t cq_mgr_mlx5::clean_cq()
 	mem_buf_desc_t* buff;
 
 	if (m_b_is_rx) {
-		buff_status_e status = BS_OK;
-		while((buff = poll(status))) {
-			if (process_cq_element_rx( buff, status)) {
-				m_rx_queue.push_back(buff);
+		if (m_rq) {
+			buff_status_e status = BS_OK;
+			while((buff = poll(status))) {
+				if (process_cq_element_rx( buff, status)) {
+					m_rx_queue.push_back(buff);
+				}
+				++ret_total;
 			}
-			++ret_total;
+			update_global_sn(cq_poll_sn, ret_total);
 		}
-		update_global_sn(cq_poll_sn, ret_total);
 	} else {//Tx
 		int ret = 0;
 		/* coverity[stack_use_local_overflow] */
