@@ -10,6 +10,7 @@ EXTRA_DIST = \
 	build \
 	contrib \
 	debian \
+	install.sh \
 	journal.txt \
 	README.txt \
 	VMA_VERSION
