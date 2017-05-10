@@ -818,7 +818,7 @@ AC_CHECK_LIB([rt], [clock_gettime])
 AC_CHECK_LIB([pthread], [pthread_create])
 
 TMP_LDFLAGS=$LDFLAGS
-AC_CHECK_LIB([rdmacm], [rdma_create_id],
+AC_SEARCH_LIBS([rdma_create_id],[rdmacm],
 		[LDFLAGS="$LDFLAGS -lrdmacm" VERBS_FLAGS="$VERBS_FLAGS -lrdmacm"],
 		[])
 AC_CHECK_FUNCS_ONCE([rdma_lib_reset])
