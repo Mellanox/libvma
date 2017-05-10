@@ -10,11 +10,8 @@ EXTRA_DIST = \
 	build \
 	contrib \
 	debian \
-	BUILD.txt \
 	install.sh \
 	journal.txt \
-	LOC_exclude_VMA.txt \
-	LOC.sh \
 	README.txt \
 	VMA_VERSION
 
