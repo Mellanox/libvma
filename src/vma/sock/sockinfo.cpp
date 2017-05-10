@@ -242,16 +242,16 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 
 	return ret;
 }
-#endif // DEFINED_VMAPOLL 
+#endif // DEFINED_VMAPOLL
 
 int sockinfo::getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen) throw (vma_error)
 {
 	int ret = -1;
 
 	switch (__level) {
-	case SOL_SOCKET: 
+	case SOL_SOCKET:
 		switch(__optname) {
-#ifdef DEFINED_VMAPOLL 
+#ifdef DEFINED_VMAPOLL
 		case SO_VMA_USER_DATA:
 			if (*__optlen == sizeof(m_fd_context)) {
 				*(void **)__optval = m_fd_context;
@@ -260,7 +260,7 @@ int sockinfo::getsockopt(int __level, int __optname, void *__optval, socklen_t *
 				errno = EINVAL;
 			}
 		break;
-#endif // DEFINED_VMAPOLL 
+#endif // DEFINED_VMAPOLL
 
 		case SO_MAX_PACING_RATE:
 			if (*__optlen >= sizeof(int)) {
@@ -271,7 +271,6 @@ int sockinfo::getsockopt(int __level, int __optname, void *__optval, socklen_t *
 				errno = EINVAL;
 			}
 		break;
-
 		}
 	}
 
@@ -1177,16 +1176,22 @@ int sockinfo::register_callback(vma_recv_callback_t callback, void *context)
 
 int sockinfo::modify_ratelimit(dst_entry* p_dst_entry, const uint32_t rate_limit_bytes_per_second)
 {
-       if(RING_LOGIC_PER_SOCKET == safe_mce_sys().ring_allocation_logic_tx ) {
+	if (m_ring_alloc_log_tx.m_ring_alloc_logic == RING_LOGIC_PER_SOCKET) {
+		// check in qp attr that device supports
+		if (m_p_rx_ring && !m_p_rx_ring->is_ratelimit_supp(rate_limit_bytes_per_second)) {
+			si_logwarn("device doesn't support packet pacing or bad value, run ibv_devinfo -v");
+			return -1;
+		}
 		m_so_ratelimit = rate_limit_bytes_per_second;
 		if (p_dst_entry) {
 			// value is in bytes (per second). we need to convert it to kilo-bits (per second)
-			uint32_t ratelimit_kbps = BYTE_TO_kb(m_so_ratelimit);
+			uint32_t ratelimit_kbps = BYTE_TO_KB(m_so_ratelimit);
 			return p_dst_entry->modify_ratelimit(ratelimit_kbps);
 		}
 		return 0;
 	}
-	si_logwarn("setsockopt SO_MAX_PACING_RATE failed. Please make sure VMA is configured with TX ring allocation logic per socket");
+	si_logwarn("setsockopt SO_MAX_PACING_RATE failed. Please make sure VMA "
+		   "is configured with TX ring allocation logic per socket");
 	return -1;
 }
 

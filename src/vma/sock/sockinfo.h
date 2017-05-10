@@ -57,7 +57,7 @@
 #define BASE_SOCKINFO_H
 
 #define SI_RX_EPFD_EVENT_MAX		16
-#define BYTE_TO_kb(BYTEVALUE) 		(( BYTEVALUE * 8) / 1000)
+#define BYTE_TO_KB(BYTEVALUE)		(((BYTEVALUE) * 8) / 1000)
 
 struct buff_info_t {
 		buff_info_t(){
@@ -115,7 +115,7 @@ public:
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif
-	int	get_ratelimit() {return m_so_ratelimit;}
+	int get_ratelimit() {return m_so_ratelimit;}
 
 	virtual void consider_rings_migration();
 

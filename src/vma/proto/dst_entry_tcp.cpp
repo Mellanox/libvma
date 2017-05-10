@@ -220,7 +220,7 @@ ssize_t dst_entry_tcp::slow_send_neigh( const iovec* p_iov, size_t sz_iov, const
 
 	m_slow_path_lock.lock();
 
-        prepare_to_send(ratelimit_kbps, true);
+	prepare_to_send(ratelimit_kbps, true);
 
 	if (m_b_is_offloaded) {
 		ret_val = pass_buff_to_neigh(p_iov, sz_iov);

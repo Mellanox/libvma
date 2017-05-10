@@ -116,7 +116,7 @@ protected:
 #ifdef DEFINED_VMAPOLL		
 	uint16_t		get_lkey() { return m_tx_lkey; }
 #endif // DEFINED_VMAPOLL		
-
+	ib_ctx_handler*		m_p_ib_ctx;
 	qp_mgr*			m_p_qp_mgr;
 	struct cq_moderation_info m_cq_moderation_info;
 	cq_mgr*			m_p_cq_mgr_rx;
@@ -178,6 +178,7 @@ public:
 		if (call_create_res)
 			create_resources(p_ring_info, active);
 	};
+	virtual bool is_ratelimit_supp(uint32_t rate);
 protected:
 	virtual qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) throw (vma_error);
 };
@@ -187,7 +188,7 @@ class ring_ib : public ring_simple
 public:
 	ring_ib(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count, bool active, uint16_t pkey, uint32_t mtu, ring* parent = NULL) throw (vma_error):
 		ring_simple(local_if, pkey, count, VMA_TRANSPORT_IB, mtu, parent) { create_resources(p_ring_info, active); };
-
+	virtual bool is_ratelimit_supp(uint32_t rate);
 protected:
 	virtual qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) throw (vma_error);
 };

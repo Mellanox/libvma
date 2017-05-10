@@ -760,9 +760,9 @@ void qp_mgr_eth::modify_qp_to_ready_state()
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if ((ret = priv_ibv_modify_qp_from_init_to_rts(m_qp)) != 0) {
 		qp_logpanic("failed to modify QP from INIT to RTS state (ret = %d)", ret);
-	} 
+	}
 
-	if (m_ratelimit_kbps != 0) {
+	if (m_ratelimit_kbps) {
 		modify_qp_ratelimit(m_ratelimit_kbps);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -922,7 +922,7 @@ void qp_mgr_ib::update_pkey_index()
 bool qp_mgr::set_qp_ratelimit(const uint32_t ratelimit_kbps)
 {
 	if (m_ratelimit_kbps != ratelimit_kbps) {
-	        m_ratelimit_kbps = ratelimit_kbps;
+	    m_ratelimit_kbps = ratelimit_kbps;
 		return true;
 	}
 	else {

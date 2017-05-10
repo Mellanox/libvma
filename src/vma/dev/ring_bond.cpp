@@ -638,12 +638,23 @@ ring_user_id_t ring_bond::generate_id(const address_t src_mac, const address_t d
 }
 
 int ring_bond::modify_ratelimit(const uint32_t ratelimit_kbps) {
-        for (uint32_t i = 0; i < m_n_num_resources; i++) {
-                if( NULL != m_bond_rings[i]) {
-                        m_bond_rings[i]->modify_ratelimit(ratelimit_kbps);
-                }
-        }
+	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+		if (m_bond_rings[i]) {
+			m_bond_rings[i]->modify_ratelimit(ratelimit_kbps);
+		}
+	}
 	return 0;
+}
+
+bool ring_bond::is_ratelimit_supp(uint32_t rate)
+{
+	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+		if (m_bond_rings[i]) {
+			if (!m_bond_rings[i]->is_ratelimit_supp(rate))
+				return false;
+		}
+	}
+	return true;
 }
 
 #ifdef DEFINED_VMAPOLL	

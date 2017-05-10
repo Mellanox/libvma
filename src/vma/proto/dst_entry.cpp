@@ -549,7 +549,7 @@ bool dst_entry::prepare_to_send(const int ratelimit_kbps, bool skip_rules, bool 
 			m_max_ip_payload_size = ((m_p_net_dev_val->get_mtu()-sizeof(struct iphdr)) & ~0x7);
 			if (resolve_ring()) {
 				is_ofloaded = true;
-				if( 0 != ratelimit_kbps) {
+				if (ratelimit_kbps) {
 					modify_ratelimit(ratelimit_kbps);
 				}
 				if (resolve_neigh()) {
@@ -751,7 +751,7 @@ void dst_entry::return_buffers_pool()
 int dst_entry::modify_ratelimit(const uint32_t ratelimit_kbps)
 {
 	if (m_p_ring) {
-	        return m_p_ring->modify_ratelimit(ratelimit_kbps);
+		return m_p_ring->modify_ratelimit(ratelimit_kbps);
 	}
 	return 0;
 }

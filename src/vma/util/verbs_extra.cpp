@@ -331,11 +331,9 @@ int priv_ibv_modify_qp_ratelimit(struct ibv_qp *qp, uint32_t ratelimit_kbps )
 		return -1;
 	}
 
-	vma_ibv_qp_attr qp_attr;
-	memset(&qp_attr, 0, sizeof(qp_attr));
-	qp_attr.qp_state = IBV_QPS_RTS;
 	BULLSEYE_EXCLUDE_BLOCK_START
-	IF_VERBS_FAILURE(vma_ibv_modify_qp_rate_limit(qp, &qp_attr, ratelimit_kbps)) {
+	IF_VERBS_FAILURE(vma_ibv_modify_qp_rate_limit(qp, ratelimit_kbps)) {
+		vlog_printf(VLOG_WARNING, "failed setting rate limit");
 		return -2;
 	} ENDIF_VERBS_FAILURE;
 	BULLSEYE_EXCLUDE_BLOCK_END
