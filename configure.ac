@@ -203,6 +203,9 @@ AC_ARG_ENABLE(
 AC_MSG_CHECKING(
     [if vmapoll API is enabled])
 if test "x$enable_vmapoll" = xyes; then
+    if test "x$ac_cv_header_infiniband_mlx5_hw_h" != xyes; then
+        AC_MSG_ERROR([vmapoll mode is not supported with the current installed OFED version])
+    fi
     AC_DEFINE([DEFINED_VMAPOLL], 1, [Define to 1 if vmapoll was enabled at configure time])
     AC_MSG_RESULT([yes])
 else
