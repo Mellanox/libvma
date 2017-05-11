@@ -19,7 +19,7 @@ cov_build="$cov_dir/$cov_build_id"
 
 set +eE
 
-${WORKSPACE}/configure --prefix=${cov_dir}/install $jenkins_test_custom_configure
+${WORKSPACE}/configure --prefix=${cov_dir}/install $jenkins_test_custom_configure > "${cov_dir}/cov.log" 2>&1
 make clean
 eval "cov-build --dir $cov_build make"
 rc=$(($rc+$?))
