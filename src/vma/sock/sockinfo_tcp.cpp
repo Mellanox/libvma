@@ -78,6 +78,7 @@
 tcp_seg_pool *g_tcp_seg_pool = NULL;
 tcp_timers_collection* g_tcp_timers_collection = NULL;
 
+#ifndef DEFINED_VMAPOLL // if not defined
 const char * const tcp_sock_state_str[] = {
   "NA",
   "TCP_SOCK_INITED",
@@ -100,6 +101,7 @@ const char * const tcp_conn_state_str[] = {
   "TCP_CONN_ERROR",
   "TCP_CONN_RESETED",
 };
+#endif // DEFINED_VMAPOLL
 
 /**/
 /** inlining functions can only help if they are implemented before their usage **/
@@ -2577,7 +2579,7 @@ void sockinfo_tcp::auto_accept_connection(sockinfo_tcp *parent, sockinfo_tcp *ch
 {
 	tcp_accepted(parent->m_sock);
 
-	struct flow_tuple key;
+	class flow_tuple key;
 	sockinfo_tcp::create_flow_tuple_key_from_pcb(key, &(child->m_pcb));
 
 	//Since pcb is already contained in connected sockinfo_tcp no need to keep it listen's socket SYN list

@@ -58,12 +58,14 @@
 #define si_logfunc		__log_info_func
 #define si_logfuncall		__log_info_funcall
 
+#ifndef DEFINED_VMAPOLL // if not defined
 const char * const in_protocol_str[] = {
   "PROTO_UNDEFINED",
   "PROTO_UDP",
   "PROTO_TCP",
   "PROTO_ALL",
 };
+#endif // DEFINED_VMAPOLL
 
 sockinfo::sockinfo(int fd) throw (vma_exception):
 		socket_fd_api(fd),
