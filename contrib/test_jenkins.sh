@@ -77,6 +77,15 @@ for target_v in "${target_list[@]}"; do
     set -x
 
     if [ "${target_name}" = "vmapoll" ]; then
+        if [ $(echo ${jenkins_ofed} | grep 3.[3-9] >/dev/null 2>&1 || echo $?) ]; then
+            set +x
+            echo "======================================================"
+            echo "Jenkins is skipping [${target_name}] target ..."
+            echo "Reason: unsupported ofed version as [${jenkins_ofed}]"
+            echo "======================================================"
+            set -x
+            continue
+        fi
         jenkins_test_gtest="no"
         jenkins_test_run="no"
     fi
