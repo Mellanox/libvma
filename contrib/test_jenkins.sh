@@ -65,6 +65,7 @@ rm -rf autom4te.cache
 
 
 for target_v in "${target_list[@]}"; do
+    ret=0
     IFS=':' read target_name target_option <<< "$target_v"
 
     export jenkins_test_artifacts="${WORKSPACE}/${prefix}/vma-${BUILD_NUMBER}-$(hostname -s)-${target_name}"
@@ -77,18 +78,30 @@ for target_v in "${target_list[@]}"; do
     set -x
 
     if [ "${target_name}" = "vmapoll" ]; then
+        if [ $(bc <<< "${jenkins_ofed} < 3.3") == 1 ]; then
+            set +x
+            echo "======================================================"
+            echo "Jenkins is skipping [${target_name}] target ..."
+            echo "Reason: unsupported ofed version as [${jenkins_ofed}]"
+            echo "======================================================"
+            set -x
+            continue
+        fi
         jenkins_test_gtest="no"
         jenkins_test_run="no"
+        jenkins_test_vg="no"
+        jenkins_test_tool="no"
     fi
 
     # check building and exit immediately in case failure
     #
     if [ "$jenkins_test_build" = "yes" ]; then
         $WORKSPACE/contrib/jenkins_tests/build.sh
-        rc=$((rc + $?))
-        if [ $rc -gt 0 ]; then
-           do_err "FAILURE: [build: rc=$rc]"
+        ret=$?
+        if [ $ret -gt 0 ]; then
+           do_err "case: [build: rc=$rc]"
         fi
+        rc=$((rc + $ret))
     fi
 
     set +e
@@ -96,78 +109,88 @@ for target_v in "${target_list[@]}"; do
     #
     if [ "$jenkins_test_compiler" = "yes" ]; then
         $WORKSPACE/contrib/jenkins_tests/compiler.sh
-        rc=$((rc + $?))
-        if [ $rc -gt 0 ]; then
-           do_err "FAILURE: [compiler: rc=$rc]"
+        ret=$?
+        if [ $ret -gt 0 ]; then
+           do_err "case: [compiler: rc=$rc]"
         fi
+        rc=$((rc + $ret))
     fi
     if [ "$jenkins_test_rpm" = "yes" ]; then
         $WORKSPACE/contrib/jenkins_tests/rpm.sh
-        rc=$((rc + $?))
-        if [ $rc -gt 0 ]; then
-           do_err "FAILURE: [rpm: rc=$rc]"
+        ret=$?
+        if [ $ret -gt 0 ]; then
+           do_err "case: [rpm: rc=$rc]"
         fi
+        rc=$((rc + $ret))
     fi
     if [ "$jenkins_test_cov" = "yes" ]; then
         $WORKSPACE/contrib/jenkins_tests/cov.sh
-        rc=$((rc + $?))
-        if [ $rc -gt 0 ]; then
-           do_err "FAILURE: [cov: rc=$rc]"
+        ret=$?
+        if [ $ret -gt 0 ]; then
+           do_err "case: [cov: rc=$rc]"
         fi
+        rc=$((rc + $ret))
     fi
     if [ "$jenkins_test_cppcheck" = "yes" ]; then
         $WORKSPACE/contrib/jenkins_tests/cppcheck.sh
-        rc=$((rc + $?))
-        if [ $rc -gt 0 ]; then
-           do_err "FAILURE: [cppcheck: rc=$rc]"
+        ret=$?
+        if [ $ret -gt 0 ]; then
+           do_err "case: [cppcheck: rc=$rc]"
         fi
+        rc=$((rc + $ret))
     fi
     if [ "$jenkins_test_csbuild" = "yes" ]; then
         $WORKSPACE/contrib/jenkins_tests/csbuild.sh
-        rc=$((rc + $?))
-        if [ $rc -gt 0 ]; then
-           do_err "FAILURE: [csbuild: rc=$rc]"
+        ret=$?
+        if [ $ret -gt 0 ]; then
+           do_err "case: [csbuild: rc=$rc]"
         fi
+        rc=$((rc + $ret))
     fi
     if [ "$jenkins_test_run" = "yes" ]; then
         $WORKSPACE/contrib/jenkins_tests/test.sh
-        rc=$((rc + $?))
-        if [ $rc -gt 0 ]; then
-           do_err "FAILURE: [test: rc=$rc]"
+        ret=$?
+        if [ $ret -gt 0 ]; then
+           do_err "case: [test: rc=$rc]"
         fi
+        rc=$((rc + $ret))
     fi
     if [ "$jenkins_test_gtest" = "yes" ]; then
         $WORKSPACE/contrib/jenkins_tests/gtest.sh
-        rc=$((rc + $?))
-        if [ $rc -gt 0 ]; then
-           do_err "FAILURE: [gtest: rc=$rc]"
+        ret=$?
+        if [ $ret -gt 0 ]; then
+           do_err "case: [gtest: rc=$rc]"
         fi
+        rc=$((rc + $ret))
     fi
     if [ "$jenkins_test_vg" = "yes" ]; then
         $WORKSPACE/contrib/jenkins_tests/vg.sh
-        rc=$((rc + $?))
-        if [ $rc -gt 0 ]; then
-           do_err "FAILURE: [vg: rc=$rc]"
+        ret=$?
+        if [ $ret -gt 0 ]; then
+           do_err "case: [vg: rc=$rc]"
         fi
+        rc=$((rc + $ret))
     fi
     if [ "$jenkins_test_style" = "yes" ]; then
         $WORKSPACE/contrib/jenkins_tests/style.sh
-        rc=$((rc + $?))
-        if [ $rc -gt 0 ]; then
-           do_err "FAILURE: [style: rc=$rc]"
+        ret=$?
+        if [ $ret -gt 0 ]; then
+           do_err "case: [style: rc=$rc]"
         fi
+        rc=$((rc + $ret))
     fi
     if [ "$jenkins_test_tool" = "yes" ]; then
         $WORKSPACE/contrib/jenkins_tests/tool.sh
-        rc=$((rc + $?))
-        if [ $rc -gt 0 ]; then
-           do_err "FAILURE: [tool: rc=$rc]"
+        ret=$?
+        if [ $ret -gt 0 ]; then
+           do_err "case: [tool: rc=$rc]"
         fi
+        rc=$((rc + $ret))
     fi
     set -e
 
     # Archive all logs in single file
-    do_archive "${WORKSPACE}/${prefix}/*.tap"
+    do_archive "${WORKSPACE}/${prefix}/${target_name}/*.tap"
     gzip "${jenkins_test_artifacts}.tar"
 
     set +x

@@ -21,13 +21,14 @@ function check_daemon()
     local out_log=$1
 
     rm -rf ${out_log}
-    pkill -9 vmad
+    sudo pkill -9 vmad
 
     echo "daemon check output: ${install_dir}/sbin/vmad" > ${out_log}
     if [ $(sudo ${install_dir}/etc/init.d/vma start >>${out_log} 2>&1 || echo $?) ]; then
         ret=1
     fi
-    if [ "0" == "$ret" -a "" != "$(pgrep vma >>${out_log} 2>&1 || echo $?)" ]; then
+    sleep 3
+    if [ "0" == "$ret" -a "" == "$(pgrep vmad)" ]; then
         ret=1
     fi
     if [ $(sudo ${install_dir}/etc/init.d/vma status >>${out_log} 2>&1 || echo $?) ]; then
@@ -36,11 +37,12 @@ function check_daemon()
     if [ $(sudo ${install_dir}/etc/init.d/vma stop >>${out_log} 2>&1 || echo $?) ]; then
         ret=1
     fi
-    if [ "0" == "$ret" -a "" = "$(pgrep vma >>${out_log} 2>&1 || echo $?)" ]; then
+    sleep 3
+    if [ "0" == "$ret" -a "" != "$(pgrep vmad)" ]; then
         ret=1
     fi
 
-    pkill -9 vmad
+    sudo pkill -9 vmad
 
     echo "$ret"
 }

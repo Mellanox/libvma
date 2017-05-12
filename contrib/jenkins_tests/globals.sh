@@ -183,8 +183,10 @@ function do_check_env()
 
     if [ $(command -v ofed_info >/dev/null 2>&1 || echo $?) ]; then
         echo "Configuration: INBOX : ${ghprbTargetBranch}"
+        export jenkins_ofed=inbox
     else
         echo "Configuration: MOFED[$(ofed_info -s)] : ${ghprbTargetBranch}"
+        export jenkins_ofed=$(ofed_info -s | sed 's/.*[l|X]-\([0-9\.]\+\).*/\1/')
     fi
 
     echo "environment [OK]"
