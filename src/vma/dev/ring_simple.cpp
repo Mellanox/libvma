@@ -784,13 +784,19 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_f
 			if (likely(si->tcp_flow_is_5t())) {
 				// we have a single 5tuple TCP connected socket, use simpler fast path
 				struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
-				size_t sz_payload = ip_tot_len - ip_hdr_len - p_tcp_h->doff*4;
 
+				// Update the L3 and L4 info
+				p_rx_wc_buf_desc->rx.src.sin_family      = AF_INET;
+				p_rx_wc_buf_desc->rx.src.sin_port        = p_tcp_h->source;
+				p_rx_wc_buf_desc->rx.src.sin_addr.s_addr = p_ip_h->saddr;
+
+				p_rx_wc_buf_desc->rx.dst.sin_family      = AF_INET;
+				p_rx_wc_buf_desc->rx.dst.sin_port        = p_tcp_h->dest;
+				p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr = p_ip_h->daddr;
 				// Update packet descriptor with datagram base address and length
 				p_rx_wc_buf_desc->rx.frag.iov_base = (uint8_t*)p_tcp_h + sizeof(struct tcphdr);
 				p_rx_wc_buf_desc->rx.frag.iov_len  = ip_tot_len - ip_hdr_len - sizeof(struct tcphdr);
-
-				p_rx_wc_buf_desc->rx.sz_payload                 = sz_payload;
+				p_rx_wc_buf_desc->rx.sz_payload    = ip_tot_len - ip_hdr_len - p_tcp_h->doff*4;
 
 				p_rx_wc_buf_desc->rx.tcp.p_ip_h                 = p_ip_h;
 				p_rx_wc_buf_desc->rx.tcp.p_tcp_h                = p_tcp_h;
@@ -809,19 +815,20 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_f
 			} else if (p_ip_h->protocol==IPPROTO_UDP) {
 				// Get the udp header pointer + udp payload size
 				p_udp_h = (struct udphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
-				size_t sz_payload = ntohs(p_udp_h->len) - sizeof(struct udphdr);
+
+				// Update the L3 and L4 info
+				p_rx_wc_buf_desc->rx.src.sin_family      = AF_INET;
+				p_rx_wc_buf_desc->rx.src.sin_port        = p_udp_h->source;
+				p_rx_wc_buf_desc->rx.src.sin_addr.s_addr = p_ip_h->saddr;
+
+				p_rx_wc_buf_desc->rx.dst.sin_family      = AF_INET;
+				p_rx_wc_buf_desc->rx.dst.sin_port        = p_udp_h->dest;
+				p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr = p_ip_h->daddr;
 				// Update packet descriptor with datagram base address and length
 				p_rx_wc_buf_desc->rx.frag.iov_base = (uint8_t*)p_udp_h + sizeof(struct udphdr);
 				p_rx_wc_buf_desc->rx.frag.iov_len  = ip_tot_len - ip_hdr_len - sizeof(struct udphdr);
+				p_rx_wc_buf_desc->rx.sz_payload    = ntohs(p_udp_h->len) - sizeof(struct udphdr);
 
-				// Update the L4 info
-				p_rx_wc_buf_desc->rx.src.sin_port        = p_udp_h->source;
-				p_rx_wc_buf_desc->rx.dst.sin_port        = p_udp_h->dest;
-				p_rx_wc_buf_desc->rx.sz_payload          = sz_payload;
-
-				// Update the L3 info
-				p_rx_wc_buf_desc->rx.src.sin_family      = AF_INET;
-				p_rx_wc_buf_desc->rx.src.sin_addr.s_addr = p_ip_h->saddr;
 				p_rx_wc_buf_desc->rx.udp.local_if        = m_local_if;
 				p_rx_wc_buf_desc->rx.n_frags = 1;
 
