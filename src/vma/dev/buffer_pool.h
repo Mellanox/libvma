@@ -141,6 +141,7 @@ private:
 	/**
 	 * Get buffers from the pool - no thread safe
 	 * @param count Number of buffers required.
+	 * @param lkey the registered memory lkey.
 	 * @return List of buffers, or NULL if don't have enough buffers.
 	 */
 	mem_buf_desc_t *get_buffers(size_t count, uint32_t lkey);

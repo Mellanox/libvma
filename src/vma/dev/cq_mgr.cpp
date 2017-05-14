@@ -251,8 +251,10 @@ void cq_mgr::add_qp_rx(qp_mgr* qp)
 			n_num_mem_bufs = qp_rx_wr_num;
 		p_temp_desc_list = g_buffer_pool_rx->get_buffers_thread_safe(n_num_mem_bufs, m_p_ib_ctx_handler);
 		if (p_temp_desc_list == NULL) {
-			cq_logdbg("WARNING Out of mem_buf_desc from Rx buffer pool for qp_mgr qp_mgr initialization (qp=%p)", qp);
-			cq_logdbg("WARNING This might happen due to wrong setting of VMA_RX_BUFS and VMA_RX_WRE. Please refer to README.txt for more info");
+			static vlog_levels_t log_severity = VLOG_WARNING; // WARNING severity will be used only once - at the 1st time
+			VLOG_PRINTF_INFO(log_severity, "WARNING Out of mem_buf_desc from Rx buffer pool for qp_mgr qp_mgr initialization (qp=%p)", qp);
+			VLOG_PRINTF_INFO(log_severity, "WARNING This might happen due to wrong setting of VMA_RX_BUFS and VMA_RX_WRE. Please refer to README.txt for more info");
+			log_severity = VLOG_DEBUG; // for all times but the 1st one
 			break;
 		}
 
