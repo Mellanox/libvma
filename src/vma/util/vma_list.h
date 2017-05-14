@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -33,9 +33,8 @@
 #ifndef VMA_LIST
 #define VMA_LIST
 
-#include "vlogger/vlogger.h"
-#include "utils/types.h"
 #include "vma/util/list.h"
+#include "vlogger/vlogger.h"
 
 #define _VMA_LIST_DEBUG 0
 #define ID_MAX_SIZE 200
@@ -190,7 +189,7 @@ public:
 		return *this;
 	}
 
-	T* operator[](size_t idx) const {
+	T* operator[](size_t idx) {
 		return get(idx);
 	}
 
@@ -198,17 +197,17 @@ public:
 		return m_size == 0;
 	}
 
-	inline size_t size() const {
+	inline size_t size(){
 		return m_size;
 	}
 
-	inline T* front() const {
+	inline T* front() {
 		if (unlikely(empty()))
 			return NULL;
 		return ((list_node<T, offset> *)m_list.head.next)->obj_ptr;
 	}
 
-	inline T* back() const {
+	inline T* back() {
 		if (unlikely(empty()))
 			return NULL;
 		return ((list_node<T, offset> *)m_list.head.prev)->obj_ptr;
@@ -297,7 +296,7 @@ public:
 		m_size++;
 	}
 
-	T* get(size_t index) const {
+	T* get(size_t index) {
 		if (m_size <= index) {
 			return NULL;
 		} else {

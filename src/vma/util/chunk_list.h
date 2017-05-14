@@ -63,6 +63,7 @@ class chunk_list_t {
 
 		~container() {
 			free(m_p_buffer);
+			m_p_buffer = NULL;
 		}
 	};
 
@@ -142,7 +143,7 @@ public:
 		return m_size;
 	}
 
-	inline T front() const {
+	inline T front() {
 		// Check if the list is empty.
 		if (unlikely(empty()))
 				return NULL;
