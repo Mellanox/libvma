@@ -1,4 +1,4 @@
-Updated: 5 Apr 2017
+Updated: 14 May 2017
 
 Introduction
 ============
@@ -622,7 +622,7 @@ Each time VMA's internal thread starts it's CQ draining, it will stop when
 reach this max value. 
 The application is not limited by this value in the number of CQ elements
 it can ProcessId form calling any of the receive path socket APIs.
-Default value is 2048
+Default value is 10000
 
 VMA_CQ_MODERATION_ENABLE
 Enable CQ interrupt moderation.
