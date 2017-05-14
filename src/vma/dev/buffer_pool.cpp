@@ -33,17 +33,11 @@
 
 #include "buffer_pool.h"
 
-#include <stdlib.h>
-#include <sys/param.h> // for MIN
 #include <sys/shm.h>
 #include <sys/mman.h>
 
-#include "utils/bullseye.h"
-#include "vlogger/vlogger.h"
 #include "vma/util/sys_vars.h"
-#include "vma/util/verbs_extra.h"
-#include "vma/proto/mem_buf_desc.h"
-#include "ib_ctx_handler_collection.h"
+#include "vma/dev/ib_ctx_handler_collection.h"
 
 #define MODULE_NAME 	"bpool"
 
@@ -342,8 +336,9 @@ bool buffer_pool::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint6
 	return true;
 }
 
-mem_buf_desc_t *buffer_pool::get_buffers(size_t count, uint32_t lkey)
+mem_buf_desc_t *buffer_pool::get_buffers_thread_safe(size_t count, uint32_t lkey)
 {
+	auto_unlocker lock(m_lock_spin);
 	mem_buf_desc_t *next, *head;
 
 	__log_info_funcall("requested %lu, present %lu, created %lu", count, m_n_buffers, m_n_buffers_created);
@@ -383,20 +378,9 @@ mem_buf_desc_t *buffer_pool::get_buffers(size_t count, uint32_t lkey)
 	return head;
 }
 
-mem_buf_desc_t *buffer_pool::get_buffers_thread_safe(size_t count, ib_ctx_handler *p_ib_ctx_h)
+uint32_t buffer_pool::find_lkey_by_ib_ctx_thread_safe(ib_ctx_handler *p_ib_ctx_h)
 {
 	auto_unlocker lock(m_lock_spin);
-	return get_buffers(count, find_lkey_by_ib_ctx(p_ib_ctx_h));
-}
-
-mem_buf_desc_t *buffer_pool::get_buffers_thread_safe(size_t count, uint32_t lkey)
-{
-	auto_unlocker lock(m_lock_spin);
-	return get_buffers(count, lkey);
-}
-
-inline uint32_t buffer_pool::find_lkey_by_ib_ctx(ib_ctx_handler* p_ib_ctx_h)
-{
 	uint32_t lkey = 0;
 	if (likely(p_ib_ctx_h)) {
 		std::deque<ibv_mr*>::iterator iter;
@@ -409,12 +393,6 @@ inline uint32_t buffer_pool::find_lkey_by_ib_ctx(ib_ctx_handler* p_ib_ctx_h)
 		}
 	}
 	return lkey;
-}
-
-uint32_t buffer_pool::find_lkey_by_ib_ctx_thread_safe(ib_ctx_handler* p_ib_ctx_h)
-{
-	auto_unlocker lock(m_lock_spin);
-	return find_lkey_by_ib_ctx(p_ib_ctx_h);
 }
 
 #if _BullseyeCoverage
@@ -553,8 +531,9 @@ void buffer_pool::put_buffers_thread_safe(mem_buf_desc_t *buff_list)
 	put_buffers(buff_list);
 }
 
-void buffer_pool::put_buffers(descq_t *buffers, size_t count)
+void buffer_pool::put_buffers_thread_safe(descq_t *buffers, size_t count)
 {
+	auto_unlocker lock(m_lock_spin);
 	mem_buf_desc_t *buff_list, *next;
 	size_t amount;
 	__log_info_funcall("returning %lu, present %lu, created %lu", count, m_n_buffers, m_n_buffers_created);
@@ -572,27 +551,15 @@ void buffer_pool::put_buffers(descq_t *buffers, size_t count)
 	}
 }
 
-void buffer_pool::put_buffers_thread_safe(descq_t *buffers, size_t count)
+void buffer_pool::put_buffers_after_deref_thread_safe(descq_t *pDeque)
 {
 	auto_unlocker lock(m_lock_spin);
-	put_buffers(buffers, count);
-}
-
-void buffer_pool::put_buffers_after_deref(descq_t *pDeque)
-{
-	// Assume locked owner!!!
 	while (!pDeque->empty()) {
 		mem_buf_desc_t * list = pDeque->get_and_pop_front();
 		if (list->dec_ref_count() <= 1 && (list->lwip_pbuf.pbuf.ref-- <= 1)) {
 			put_buffers(list);
 		}
 	}
-}
-
-void buffer_pool::put_buffers_after_deref_thread_safe(descq_t *pDeque)
-{
-	auto_unlocker lock(m_lock_spin);
-	put_buffers_after_deref(pDeque);
 }
 
 size_t buffer_pool::get_free_count()
