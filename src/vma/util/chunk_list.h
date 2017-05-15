@@ -146,7 +146,7 @@ public:
 		return m_size;
 	}
 
-	inline T front() {
+	inline T front() const {
 		// Check if the list is empty.
 		if (unlikely(empty()))
 				return NULL;

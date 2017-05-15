@@ -53,9 +53,9 @@ buffer_pool *g_buffer_pool_tx = NULL;
 // inlining a function only help in case it come before using it...
 inline void buffer_pool::put_buffer_helper(mem_buf_desc_t *buff)
 {
-#if _VMA_LIST_DEBUG
+#if VLIST_DEBUG
 	if (buff->buffer_node.is_list_member()) {
-		vlog_printf(VLOG_WARNING, "buffer_pool::put_buffer_helper - buff is already a member in a list (list id = %s)\n", buff->buffer_node.list_id());
+		__log_info_warn("Buffer is already a member in a list! id=[%s]", buff->buffer_node.list_id());
 	}
 #endif
 	buff->p_next_desc = m_p_head;
