@@ -1,10 +1,24 @@
 #!/usr/bin/make -f
 # -*- mode: makefile; coding: utf-8 -*-
 
+#export DH_VERBOSE=1
+
 %:
 	dh $@
 
-#override_dh_auto_clean:
+build: build-debug
+	./configure --with-ofed=/usr --prefix=/usr --libdir=/usr/lib --includedir=/usr/include --sysconfdir=/etc
 
+build-debug:
+	./configure --enable-opt-log=none --with-ofed=/usr --prefix=/usr --libdir=/usr/lib --includedir=/usr/include --sysconfdir=/etc
+	make
+	cp -f src/vma/.libs/libvma.so libvma-debug.so
+	make clean
+
+
+# Commands not to run
 override_dh_auto_configure:
-	revision=1 ./configure --with-ofed=/usr --prefix=/usr --libdir=/usr/lib --includedir=/usr/include --sysconfdir=/etc
+
+# Workaround for missing dependency information in libmongoclient package
+override_dh_shlibdeps:
+	dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info
