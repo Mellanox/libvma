@@ -47,9 +47,9 @@
 #undef  __INFO__
 #define __INFO__                this
 
-#define clist_logerr               __log_info_err
-#define clist_logwarn              __log_info_warn
 #define clist_logfunc              __log_info_func
+#define clist_logwarn              __log_info_warn
+#define clist_logerr               __log_info_err
 
 template <typename T>
 class chunk_list_t {
@@ -81,9 +81,12 @@ private:
 		clist_logfunc("Allocating %d containers of %d bytes each", containers, CHUNK_LIST_CONTAINER_SIZE * sizeof(T));
 
 		container* cont;
+		T* data;
 		for (int i = 0 ; i < containers ; i++) {
-			T* data = (T*)calloc(CHUNK_LIST_CONTAINER_SIZE, sizeof(T));
+			data = (T*)calloc(CHUNK_LIST_CONTAINER_SIZE, sizeof(T));
 			if (!data || !(cont  = new container(data))) {
+				// Memory allocation error
+				if (data) free(data);
 				clist_logerr("Failed to allocate memory");
 				goto out;
 			}
@@ -122,12 +125,12 @@ public:
 	~chunk_list_t() {
 		clist_logfunc("Destructor has been called! m_size=%zu, m_free_containers=%zu, m_used_containers=%zu", m_size, m_free_containers.size(), m_used_containers.size());
 
-		if (!empty()) {
-			clist_logwarn("Not all buffers were freed. size=%zu\n", m_size);
-		} else {
+		if (empty()) {
 			while (!m_used_containers.empty()) {
 				delete(m_used_containers.get_and_pop_back());
 			}
+		} else {
+			clist_logwarn("Not all buffers were freed. size=%zu\n", m_size);
 		}
 
 		while (!m_free_containers.empty()) {
@@ -153,7 +156,6 @@ public:
 	inline void pop_front() {
 		// Check if the list is empty.
 		if (unlikely(empty())) {
-			clist_logwarn("List is empty - ignoring.\n");
 			return;
 		}
 
