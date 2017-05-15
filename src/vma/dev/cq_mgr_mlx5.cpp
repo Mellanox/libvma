@@ -147,10 +147,25 @@ mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
 #endif //RDTSC_MEASURE_RX_VERBS_READY_POLL || RDTSC_MEASURE_RX_VERBS_IDLE_POLL
 
 	if (unlikely(NULL == m_rx_hot_buffer)) {
-		uint32_t index = m_rq->tail & (m_qp_rec.qp->m_rx_num_wr - 1);
-		m_rx_hot_buffer = (mem_buf_desc_t *)m_p_rq_wqe_idx_to_wrid[index];
-		prefetch((void*)m_rx_hot_buffer);
-		prefetch((void*)&(*m_cqes)[m_cq_cons_index & (m_cq_size - 1)]);
+		if (likely(m_rq->tail != m_rq->head)) {
+			uint32_t index = m_rq->tail & (m_qp_rec.qp->m_rx_num_wr - 1);
+			m_rx_hot_buffer = (mem_buf_desc_t *)m_p_rq_wqe_idx_to_wrid[index];
+			m_p_rq_wqe_idx_to_wrid[index] = 0;
+			prefetch((void*)m_rx_hot_buffer);
+			prefetch((void*)&(*m_cqes)[m_cq_cons_index & (m_cq_size - 1)]);
+		} else {
+#ifdef RDTSC_MEASURE_RX_VERBS_IDLE_POLL
+			RDTSC_TAKE_END(RDTSC_FLOW_RX_VERBS_IDLE_POLL);
+#endif
+
+#if defined(RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL) || defined(RDTSC_MEASURE_RX_CQE_RECEIVEFROM)
+			RDTSC_TAKE_START_VMA_IDLE_POLL_CQE_TO_RECVFROM(RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL,
+					RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM);
+#endif //RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL || RDTSC_MEASURE_RX_CQE_RECEIVEFROM
+			/* If rq_tail and rq_head are pointing to the same wqe,
+			 * the wq is empty and there is no cqe to be received */
+			return NULL;
+		}
 	}
 
 	volatile mlx5_cqe64 *cqe = check_cqe();
@@ -166,8 +181,6 @@ mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
 	} else {
 		prefetch((void*)m_rx_hot_buffer);
 	}
-
-	prefetch((void*)&(*m_cqes)[m_cq_cons_index & (m_cq_size - 1)]);
 
 	if (buff) {
 #ifdef RDTSC_MEASURE_RX_VERBS_READY_POLL
@@ -187,6 +200,8 @@ mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
 			RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM);
 #endif //RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL || RDTSC_MEASURE_RX_CQE_RECEIVEFROM
 	}
+
+	prefetch((void*)&(*m_cqes)[m_cq_cons_index & (m_cq_size - 1)]);
 
 	return buff;
 }
@@ -436,11 +451,13 @@ int cq_mgr_mlx5::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd
 
 void cq_mgr_mlx5::add_qp_rx(qp_mgr* qp)
 {
-	cq_mgr::add_qp_rx(qp);
 	struct verbs_qp *vqp = (struct verbs_qp *)qp->m_qp;
 	struct mlx5_qp * mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
 	m_rq = &(mlx5_hw_qp->rq);
 	m_p_rq_wqe_idx_to_wrid = qp->m_rq_wqe_idx_to_wrid;
+	qp->m_rq_wqe_counter = 0; /* In case of bonded qp, wqe_counter must be reset to zero */
+	m_rx_hot_buffer = NULL;
+	cq_mgr::add_qp_rx(qp);
 }
 
 void cq_mgr_mlx5::del_qp_rx(qp_mgr *qp)
