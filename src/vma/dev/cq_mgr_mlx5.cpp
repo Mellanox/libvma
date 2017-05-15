@@ -147,28 +147,28 @@ mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
 #endif //RDTSC_MEASURE_RX_VERBS_READY_POLL || RDTSC_MEASURE_RX_VERBS_IDLE_POLL
 
 	if (unlikely(NULL == m_rx_hot_buffer)) {
-		if (likely(m_rq->tail != m_rq->head)) { /* In case of empty wq, rq_tail & rq_head will be equal */
+		if (likely(m_rq->tail != m_rq->head)) {
 			uint32_t index = m_rq->tail & (m_qp_rec.qp->m_rx_num_wr - 1);
 			m_rx_hot_buffer = (mem_buf_desc_t *)m_p_rq_wqe_idx_to_wrid[index];
 			m_p_rq_wqe_idx_to_wrid[index] = 0;
 			prefetch((void*)m_rx_hot_buffer);
 			prefetch((void*)&(*m_cqes)[m_cq_cons_index & (m_cq_size - 1)]);
-		} else {
+		} else {/* If rq_tail & rq_head are pointing to the same wqe, the wq is empty and there is no cqe to be received */
 #ifdef RDTSC_MEASURE_RX_VERBS_IDLE_POLL
-		RDTSC_TAKE_END(RDTSC_FLOW_RX_VERBS_IDLE_POLL);
+			RDTSC_TAKE_END(RDTSC_FLOW_RX_VERBS_IDLE_POLL);
 #endif
 
 #if defined(RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL) || defined(RDTSC_MEASURE_RX_CQE_RECEIVEFROM)
-		RDTSC_TAKE_START_VMA_IDLE_POLL_CQE_TO_RECVFROM(RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL,
-			RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM);
+			RDTSC_TAKE_START_VMA_IDLE_POLL_CQE_TO_RECVFROM(RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL,
+					RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM);
 #endif //RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL || RDTSC_MEASURE_RX_CQE_RECEIVEFROM
-			return NULL;
+			return NULL;/*No cqe*/
 		}
 	}
 
 	volatile mlx5_cqe64 *cqe = check_cqe();
 	if (likely(cqe)) {
-		/* Update the consumer index. */
+		/* Update the consumer index */
 		++m_cq_cons_index;
 		wmb();
 		cqe64_to_mem_buff_desc(cqe, m_rx_hot_buffer, status);
@@ -176,11 +176,7 @@ mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
 		*m_cq_dbell = htonl(m_cq_cons_index & 0xffffff);
 		buff = m_rx_hot_buffer;
 		m_rx_hot_buffer = NULL;
-	} else {
-		prefetch((void*)m_rx_hot_buffer);
-	}
 
-	if (buff) {
 #ifdef RDTSC_MEASURE_RX_VERBS_READY_POLL
 		RDTSC_TAKE_END(RDTSC_FLOW_RX_VERBS_READY_POLL);
 #endif //RDTSC_MEASURE_RX_VERBS_READY_POLL
@@ -197,6 +193,8 @@ mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
 		RDTSC_TAKE_START_VMA_IDLE_POLL_CQE_TO_RECVFROM(RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL,
 			RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM);
 #endif //RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL || RDTSC_MEASURE_RX_CQE_RECEIVEFROM
+
+		prefetch((void*)m_rx_hot_buffer);
 	}
 
 	prefetch((void*)&(*m_cqes)[m_cq_cons_index & (m_cq_size - 1)]);
