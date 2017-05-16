@@ -1033,7 +1033,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 						si_udp_logdbg("IPPROTO_IP, %s=%d.%d.%d.%d, mc_if:INADDR_ANY (resolved to: %d.%d.%d.%d)", setsockopt_ip_opt_to_str(__optname), NIPQUAD(mc_grp), NIPQUAD(mc_if));
 					}
 					else {
-						si_udp_logdbg("IPPROTO_IP, %s=%d.%d.%d.%d, mc_if:%d.%d.%d.%d", setsockopt_ip_opt_to_str(__optname), NIPQUAD(mc_grp), NIPQUAD(mc_if));
+						si_udp_logdbg("IPPROTO_IP, %s=%d.%d.%d.%d, mc_if:%d.%d.%d.%d mc_src:%d.%d.%d.%d", setsockopt_ip_opt_to_str(__optname), NIPQUAD(mc_grp), NIPQUAD(mc_if), NIPQUAD(mreqprm.imr_sourceaddr.s_addr));
 					}
 
 					// Add multicast group membership
@@ -1118,6 +1118,8 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 				m_port_map.push_back(port_socket);
 			}
 			m_sockopt_mapped = true;
+			// set full versus partial RX UDP handling due to updates in m_socket_mapped
+			set_rx_packet_processor();
 			m_port_map_lock.unlock();
 			return 0;
 
@@ -1131,6 +1133,8 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 			m_port_map_lock.lock();
 			m_port_map.erase(std::remove(m_port_map.begin(), m_port_map.end(), port), m_port_map.end());
 			m_sockopt_mapped = false;
+			// set full versus partial RX UDP handling due to updates in m_socket_mapped			
+			set_rx_packet_processor();			
 			m_port_map_lock.unlock();
 			return 0;
 		} // case IPPROTO_UDP
@@ -2390,12 +2394,12 @@ int sockinfo_udp::mc_change_membership(const mc_pending_pram *p_mc_pram)
 		flow_tuple_with_local_if flow_key(mc_grp, m_bound.get_in_port(), 0, 0, PROTO_UDP, mc_if);
 		pram_size = sizeof(ip_mreq_source);
 		original_os_setsockopt_helper( &mreq_src, pram_size, p_mc_pram->optname);
-		m_multicast = false;
 		if (1 == m_mc_memberships_map[mc_grp].size()) { //Last source in the group
 			if (!detach_receiver(flow_key)) {
 				return -1;
 			}
 			vma_stats_mc_group_remove(mc_grp, m_p_socket_stats);
+			m_multicast = false; // get out from MC group
 		}
 		break;
 	}
@@ -2405,7 +2409,9 @@ int sockinfo_udp::mc_change_membership(const mc_pending_pram *p_mc_pram)
 		return -1;
 	BULLSEYE_EXCLUDE_BLOCK_END
 	}
-
+	
+	// set full versus partial RX UDP handling due to potential updates in m_multicast
+	set_rx_packet_processor();
 	return 0;
 }
 
