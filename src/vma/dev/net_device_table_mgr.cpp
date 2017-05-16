@@ -230,6 +230,19 @@ int net_device_table_mgr::map_net_devices()
 			continue;
 		}
 
+#ifdef DEFINED_VMAPOLL
+		// only support mlx5 device for vmapoll
+		if(strncmp(ib_ctx->get_ibv_device()->name, "mlx4", 4) == 0) {
+			ndtm_logdbg("Blocking offload: vmapoll mlx4 interfaces ('%s')", ifa->ifa_name);
+
+			// Close the cma_id which will not be offload
+			IF_RDMACM_FAILURE(rdma_destroy_id(cma_id)) {
+				ndtm_logerr("Failed in rdma_destroy_id (errno=%d %m)", errno);
+			} ENDIF_RDMACM_FAILURE;
+			continue;
+		}
+#endif // DEFINED_VMAPOLL
+
 		bool valid = false;
 		char base_ifname[IFNAMSIZ];
 		get_base_interface_name((const char*)(ifa->ifa_name), base_ifname, sizeof(base_ifname));
