@@ -604,9 +604,9 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 #endif // DEFINED_VMAPOLL
 			mem_buf_desc_t* temp = NULL;
 			while (buff) {
-			#if _VMA_LIST_DEBUG
+			#if VLIST_DEBUG
 				if (buff->buffer_node.is_list_member()) {
-					vlog_printf(VLOG_WARNING, "cq_mgr::reclaim_recv_buffer_helper - buff is already a member in a list , id = %s\n", buff->buffer_node.list_id());
+					cq_logwarn("Buffer is already a member in a list! id=[%s]", buff->node.list_id());
 				}
 			#endif
 				temp = buff;
@@ -645,9 +645,9 @@ void cq_mgr::vma_poll_reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 	if (buff->dec_ref_count() <= 1) {
 		mem_buf_desc_t* temp = NULL;
 		while (buff) {
-		#if _VMA_LIST_DEBUG
+		#if VLIST_DEBUG
 			if (buff->node.is_list_member()) {
-				vlog_printf(VLOG_WARNING, "cq_mgr::reclaim_recv_buffer_helper - buff is already a member in a list , id = %s\n", buff->node.list_id());
+				cq_logwarn("Buffer is already a member in a list! id=[%s]", buff->node.list_id());
 			}
 		#endif
 			if(buff->lwip_pbuf_dec_ref_count() <= 0) {
@@ -684,9 +684,9 @@ int cq_mgr::vma_poll_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff)
 {
 	int ref_cnt = buff->lwip_pbuf_dec_ref_count();
 	if (ref_cnt <= 0) {
-		#if _VMA_LIST_DEBUG
+		#if VLIST_DEBUG
 			if (buff->node.is_list_member()) {
-				vlog_printf(VLOG_WARNING, "cq_mgr::reclaim_recv_buffer_helper - buff is already a member in a list , id = %s\n", buff->node.list_id());
+				cq_logwarn("Buffer is already a member in a list! id=[%s]", buff->node.list_id());
 			}
 		#endif
 
