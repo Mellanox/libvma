@@ -53,8 +53,15 @@
 #undef  MODULE_HDR
 #define MODULE_HDR	 	MODULE_NAME "%d:%s() "
 
+/* Set limitation for number of rings for bonding device */
+#define MAX_NUM_RING_RESOURCES 10
+
+
 ring_bond::ring_bond(int count, net_device_val::bond_type type, net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy, uint32_t mtu) :
 ring(count, mtu), m_lock_ring_rx("ring_bond:lock_rx"), m_lock_ring_tx("ring_bond:lock_tx") {
+	if (m_n_num_resources > MAX_NUM_RING_RESOURCES) {
+		ring_logpanic("Error creating bond ring with more than %d resource", MAX_NUM_RING_RESOURCES);
+	}
 	m_bond_rings = new ring_simple*[count];
 	for (int i = 0; i < count; i++)
 		m_bond_rings[i] = NULL;
@@ -393,8 +400,7 @@ bool ring_bond::reclaim_recv_buffers(descq_t *rx_reuse)
 	 * own array. Set hardcoded number to meet C++11
 	 * VLA is not an official part of C++11.
 	 */
-	descq_t buffer_per_ring[10];
-	assert(10 > m_n_num_resources);
+	descq_t buffer_per_ring[MAX_NUM_RING_RESOURCES];
 
 	devide_buffers_helper(rx_reuse, buffer_per_ring);
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
