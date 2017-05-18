@@ -171,11 +171,11 @@ private:
 
 	T*	m_ptr;
 
-	void increment_ptr() {
+	inline void increment_ptr() {
 		m_ptr = ((list_node<T, offset> *)GET_NODE(m_ptr, T, offset)->head.next)->obj_ptr;
 	}
 
-	void decrement_ptr() {
+	inline void decrement_ptr() {
 		m_ptr = ((list_node<T, offset> *)GET_NODE(m_ptr, T, offset)->head.prev)->obj_ptr;
 	}
 
