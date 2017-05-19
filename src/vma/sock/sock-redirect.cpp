@@ -1190,7 +1190,7 @@ ssize_t recvmsg(int __fd, struct msghdr *__msg, int __flags)
 		srdr_logdbg("NULL msghdr");
 		errno = EINVAL;
 		return -1;
-	}
+	} 
 
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
