@@ -61,6 +61,14 @@
 
 #define cq_logdbg_no_funcname(log_fmt, log_args...) do { if (g_vlogger_level >= VLOG_DEBUG) vlog_printf(VLOG_DEBUG, MODULE_NAME "[%p]:%d: " log_fmt "\n", __INFO__, __LINE__, ##log_args); } while (0)
 
+#if VLIST_DEBUG
+#define VLIST_DEBUG_CQ_MGR_PRINT_ERROR_IS_MEMBER do { 	\
+		if (buff->buffer_node.is_list_member())         \
+			cq_logwarn("Buffer is already a member in a list! id=[%s]", buff->buffer_node.list_id()); \
+		} while (0)
+#else
+#define VLIST_DEBUG_CQ_MGR_PRINT_ERROR_IS_MEMBER
+#endif
 
 atomic_t cq_mgr::m_n_cq_id_counter = ATOMIC_INIT(1);
 
@@ -604,11 +612,7 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 #endif // DEFINED_VMAPOLL
 			mem_buf_desc_t* temp = NULL;
 			while (buff) {
-			#if VLIST_DEBUG
-				if (buff->buffer_node.is_list_member()) {
-					cq_logwarn("Buffer is already a member in a list! id=[%s]", buff->node.list_id());
-				}
-			#endif
+				VLIST_DEBUG_CQ_MGR_PRINT_ERROR_IS_MEMBER;
 				temp = buff;
 				buff = temp->p_next_desc;
 				temp->p_next_desc = NULL;
@@ -645,11 +649,7 @@ void cq_mgr::vma_poll_reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 	if (buff->dec_ref_count() <= 1) {
 		mem_buf_desc_t* temp = NULL;
 		while (buff) {
-		#if VLIST_DEBUG
-			if (buff->node.is_list_member()) {
-				cq_logwarn("Buffer is already a member in a list! id=[%s]", buff->node.list_id());
-			}
-		#endif
+			VLIST_DEBUG_CQ_MGR_PRINT_ERROR_IS_MEMBER
 			if(buff->lwip_pbuf_dec_ref_count() <= 0) {
 				temp = buff;
 				buff = temp->p_next_desc;
@@ -684,12 +684,7 @@ int cq_mgr::vma_poll_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff)
 {
 	int ref_cnt = buff->lwip_pbuf_dec_ref_count();
 	if (ref_cnt <= 0) {
-		#if VLIST_DEBUG
-			if (buff->node.is_list_member()) {
-				cq_logwarn("Buffer is already a member in a list! id=[%s]", buff->node.list_id());
-			}
-		#endif
-
+		VLIST_DEBUG_CQ_MGR_PRINT_ERROR_IS_MEMBER
 		//TBD: add check: buff->get_ref_count() <= 0 otherwise return with error
 		//(since that mean free_packet wasn't called)
 		buff->p_next_desc = NULL;

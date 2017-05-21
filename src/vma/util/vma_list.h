@@ -37,11 +37,16 @@
 #include "vlogger/vlogger.h"
 
 #define VLIST_DEBUG        0
-#define VLIST_ID_SIZE      200
+#define VLIST_ID_SIZE    200
 
 #if VLIST_DEBUG
 template <class T, size_t offset(void)>
 class vma_list_t;
+#define VLIST_DEBUG_PRINT_ERROR_IS_MEMBER          vlist_logerr("Buff is already a member in a list! parent.id=[%s], this.id=[%s]", node_obj->list_id(), this->list_id())
+#define VLIST_DEBUG_SET_PARENT(node_obj, val)      node_obj->parent = val
+#else
+#define VLIST_DEBUG_PRINT_ERROR_IS_MEMBER          vlist_logerr("Buff is already a member in a list!")
+#define VLIST_DEBUG_SET_PARENT(node_obj, val)
 #endif
 
 #define NODE_OFFSET(_obj_type, _node_name) \
@@ -79,17 +84,13 @@ public :
 	list_node() : obj_ptr(NULL) {
 		this->head.next = &this->head;
 		this->head.prev = &this->head;
-
-	#if VLIST_DEBUG
-		this->parent = NULL;
-	#endif
+		VLIST_DEBUG_SET_PARENT(this, NULL);
 	}
 
 	/* is_list_member - check if the node is already a member in a list. */
 	bool is_list_member() {
 		return this->head.next != &this->head || this->head.prev != &this->head;
 	}
-
 };
 
 template<typename T, size_t offset(void)>
@@ -271,10 +272,10 @@ public:
 			vlist_logwarn("Got NULL object - ignoring");
 			return;
 		}
-	#if VLIST_DEBUG
-		GET_NODE(obj, T, offset)->parent = NULL;
-	#endif
-		list_del_init(&GET_NODE(obj, T, offset)->head);
+
+		list_node<T, offset> *node_obj = GET_NODE(obj, T, offset);
+		VLIST_DEBUG_SET_PARENT(node_obj, NULL);
+		list_del_init(&node_obj->head);
 		m_size--;
 	}
 
@@ -289,15 +290,37 @@ public:
 	}
 
 	void push_back(T* obj) {
-		if (likely(handle_push(obj))) {
-			list_add_tail(&GET_NODE(obj, T, offset)->head, &m_list.head);
+		if (unlikely(!obj)) {
+			vlist_logwarn("Got NULL object - ignoring");
+			return;
 		}
+
+		list_node<T, offset> *node_obj = GET_NODE(obj, T, offset);
+		if (unlikely(node_obj->is_list_member())) {
+			VLIST_DEBUG_PRINT_ERROR_IS_MEMBER;
+		}
+
+		VLIST_DEBUG_SET_PARENT(node_obj, this);
+		node_obj->obj_ptr = obj;
+		list_add_tail(&node_obj->head, &m_list.head);
+		m_size++;
 	}
 
 	void push_front(T* obj) {
-		if (likely(handle_push(obj))) {
-			list_add(&GET_NODE(obj, T, offset)->head, &m_list.head);
+		if (unlikely(!obj)) {
+			vlist_logwarn("Got NULL object - ignoring");
+			return;
 		}
+
+		list_node<T, offset> *node_obj = GET_NODE(obj, T, offset);
+		if (unlikely(node_obj->is_list_member())) {
+			VLIST_DEBUG_PRINT_ERROR_IS_MEMBER;
+		}
+
+		VLIST_DEBUG_SET_PARENT(node_obj, this);
+		node_obj->obj_ptr = obj;
+		list_add(&node_obj->head, &m_list.head);
+		m_size++;
 	}
 
 	T* get(size_t index) const {
@@ -372,27 +395,6 @@ private:
 		list_splice_tail(&this->m_list.head, &to.m_list.head);
 		this->init_list();
 		// TODO: in case VLIST_DEBUG, this invalidates parent list of all nodes in the list
-	}
-
-	inline bool handle_push(T* obj) {
-		if (unlikely(!obj)) {
-			vlist_logwarn("Got NULL object - ignoring");
-			return false;
-		}
-		if (unlikely(GET_NODE(obj, T, offset)->is_list_member())) {
-		#if VLIST_DEBUG
-			vlist_logerr("Buff is already a member in a list! parent.id=[%s], this.id=[%s]", GET_NODE(obj, T, offset)->list_id(), this->list_id());
-		#else
-			vlist_logerr("Buff is already a member in a list!");
-		#endif
-		}
-
-	#if VLIST_DEBUG
-		GET_NODE(obj, T, offset)->parent = this;
-	#endif
-		GET_NODE(obj, T, offset)->obj_ptr = obj;
-		m_size++;
-		return true;
 	}
 
 	void init_list() {
