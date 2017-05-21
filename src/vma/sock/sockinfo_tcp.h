@@ -394,6 +394,7 @@ private:
 
 	//lock_spin_recursive m_rx_cq_lck;
 	/* pick all cqs that match given address */
+	virtual int	rx_verify_available_data();
 	inline int 	rx_wait(int & poll_count, bool is_blocking);
 	inline int 	rx_wait_lockless(int & poll_count, bool is_blocking);
 	int 		rx_wait_helper(int & poll_count, bool is_blocking);

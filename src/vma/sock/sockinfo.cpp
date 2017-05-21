@@ -201,6 +201,18 @@ int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg) throw 
 		}
 		break;
 
+	case FIONREAD:
+		{
+			si_logfunc("request=FIONREAD, arg=%d", *p_arg);
+			int ret = rx_verify_available_data();
+			if (ret >= 0) {
+				*p_arg = ret;
+				return 0;
+			}
+			return ret;
+		}
+		break;
+
 	default:
 		char buf[128];
 		snprintf(buf, sizeof(buf), "unimplemented ioctl request=%#x, flags=%#x", (unsigned)__request, (unsigned)__arg);
