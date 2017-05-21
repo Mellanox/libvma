@@ -235,6 +235,7 @@ protected:
 	void 			save_stats_tx_os(int bytes);
 	void 			save_stats_rx_offload(int nbytes);
 
+	virtual int             rx_verify_available_data() = 0;
 	virtual mem_buf_desc_t *get_next_desc (mem_buf_desc_t *p_desc) = 0;
 	virtual	mem_buf_desc_t* get_next_desc_peek(mem_buf_desc_t *p_desc, int& rx_pkt_ready_list_idx) = 0;
 	

@@ -1927,6 +1927,31 @@ bool sockinfo_udp::tx_check_if_would_not_block()
     #pragma BullseyeCoverage on
 #endif
 
+int sockinfo_udp::rx_verify_available_data()
+{
+	int ret = rx_wait(false);
+
+	if (ret == 0) {
+		// Got 0, means we might have a ready packet
+		auto_unlocker lock(m_lock_rcv);
+		if (!m_rx_pkt_ready_list.empty()) {
+			ret = m_rx_pkt_ready_list.front()->rx.sz_payload;
+		}
+	}
+	else if (ret == 1) {
+		// Got 1, means we have a ready packet in OS
+		uint64_t pending_data = 0;
+		ret = orig_os_api.ioctl(m_fd, FIONREAD, &pending_data);
+		if (ret != -1) {
+			// This will cause the next non-blocked read to check the OS again.
+			// We do this only after a successful read.
+			m_rx_udp_poll_os_ratio_counter = m_n_sysvar_rx_udp_poll_os_ratio;
+			ret = pending_data;
+		}
+	}
+	return ret;
+}
+
 /**
  * sockinfo_udp::inspect_uc_packet inspects the input packet for basic rules,
  * common for all cases. Its applicable for UC case as well.
