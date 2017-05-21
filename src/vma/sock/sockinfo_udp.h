@@ -265,7 +265,7 @@ private:
 	int 		rx_wait_helper(int &poll_count, bool is_blocking);
 	
 	inline int 	rx_wait(bool blocking);
-	inline ssize_t	poll_os();
+	inline int 	poll_os();
 
 	virtual inline void			reuse_buffer(mem_buf_desc_t *buff);
 	virtual 	mem_buf_desc_t*	get_next_desc (mem_buf_desc_t *p_desc);

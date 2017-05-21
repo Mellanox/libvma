@@ -117,21 +117,19 @@ inline void	sockinfo_udp::reuse_buffer(mem_buf_desc_t *buff)
 	}
 }
 
-inline ssize_t sockinfo_udp::poll_os()
+inline int sockinfo_udp::poll_os()
 {
-	ssize_t ret;
-	pollfd os_fd[1];
+	int ret;
+	uint64_t pending_data = 0;
 
 	m_rx_udp_poll_os_ratio_counter = 0;
-	os_fd[0].fd = m_fd;
-	os_fd[0].events = POLLIN;
-	ret = orig_os_api.poll(os_fd, 1, 0); // Zero timeout - just poll and return quickly
+	ret = orig_os_api.ioctl(m_fd, FIONREAD, &pending_data);
 	if (unlikely(ret == -1)) {
 		m_p_socket_stats->counters.n_rx_os_errors++;
-		si_udp_logdbg("orig_os_api.poll returned with error in polling loop (errno=%d %m)", errno);
+		si_udp_logdbg("orig_os_api.ioctl returned with error in polling loop (errno=%d %m)", errno);
 		return -1;
 	}
-	if (ret == 1) {
+	if (pending_data > 0) {
 		m_p_socket_stats->counters.n_rx_poll_os_hit++;
 		return 1;
 	}
