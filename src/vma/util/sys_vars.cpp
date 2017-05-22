@@ -326,14 +326,30 @@ int mce_sys_var::env_to_cpuset(char *orig_start, cpu_set_t *cpu_set)
 
 void mce_sys_var::read_env_variable_with_pid(char* mce_sys_name, size_t mce_sys_max_size, char* env_ptr)
 {
-	char* d_pos = strstr(env_ptr, "%d");
+	int n = -1;
+	char* d_pos = NULL;
+
+	if (NULL == env_ptr || NULL == mce_sys_name || mce_sys_max_size < 2) {
+		return;
+	}
+
+	d_pos = strstr(env_ptr, "%d");
 	if (!d_pos) { // no %d in the string
-		snprintf(mce_sys_name, mce_sys_max_size, "%s", env_ptr);
+		n = snprintf(mce_sys_name, mce_sys_max_size - 1, "%s", env_ptr);
+		if (n < 0) {
+			mce_sys_name[0] = '\0';
+		} else {
+			mce_sys_name[n] = '\0';
+		}
 	} else { // has at least one occurrence of %d - replace the first one with the process PID
 		size_t bytes_num = MIN((size_t)(d_pos - env_ptr), mce_sys_max_size - 1);
 		strncpy(mce_sys_name, env_ptr, bytes_num);
-		bytes_num += snprintf(mce_sys_name + bytes_num, mce_sys_max_size - bytes_num - 1, "%d", getpid());
-		snprintf(mce_sys_name + bytes_num, mce_sys_max_size - bytes_num, "%s", d_pos + 2);
+		mce_sys_name[bytes_num] = '\0';
+		n = snprintf(mce_sys_name + bytes_num, mce_sys_max_size - bytes_num - 1, "%d", getpid());
+		if (n > 0) {
+			bytes_num += n;
+			snprintf(mce_sys_name + bytes_num, mce_sys_max_size - bytes_num, "%s", d_pos + 2);
+		}
 	}
 }
 
