@@ -303,7 +303,7 @@ int mce_sys_var::hex_to_cpuset(char *start, cpu_set_t *cpu_set)
 int mce_sys_var::env_to_cpuset(char *orig_start, cpu_set_t *cpu_set)
 {
 	int ret;
-        char* start = strdup(orig_start); // save the caller string from strtok destruction.
+	char* start = strdup(orig_start); // save the caller string from strtok destruction.
 
 	/*
 	 * We expect a hex number or comma delimited cpulist.  Check for 
@@ -311,9 +311,10 @@ int mce_sys_var::env_to_cpuset(char *orig_start, cpu_set_t *cpu_set)
 	 * the string as a hexidecimal value, otherwise treat it as a 
 	 * cpulist.
 	 */
-	if ((start[0] == '0') &&
+	if ((strlen(start) > 2) &&
+		(start[0] == '0') &&
 		((start[1] == 'x') || (start[1] == 'X'))) {
-		ret = hex_to_cpuset(start+2, cpu_set);
+		ret = hex_to_cpuset(start + 2, cpu_set);
 	}
 	else {
 		ret = list_to_cpuset(start, cpu_set);
@@ -993,7 +994,14 @@ void mce_sys_var::get_env_params()
 
 	// handle internal thread affinity - default is CPU-0
 	if ((env_ptr = getenv(SYS_VAR_INTERNAL_THREAD_AFFINITY)) != NULL) {
-		snprintf(internal_thread_affinity_str, sizeof(internal_thread_affinity_str), "%s", env_ptr);
+		int n = snprintf(internal_thread_affinity_str,
+				sizeof(internal_thread_affinity_str) - 1, "%s", env_ptr);
+		if (n < 0) {
+			vlog_printf(VLOG_WARNING,"Failed to process: %s.\n",
+					SYS_VAR_INTERNAL_THREAD_AFFINITY);
+		} else {
+			internal_thread_affinity_str[n] = '\0';
+		}
 	}
 	if (env_to_cpuset(internal_thread_affinity_str, &internal_thread_affinity)) {
 		vlog_printf(VLOG_WARNING," Failed to set internal thread affinity: %s...  deferring to cpu-0.\n",
