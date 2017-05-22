@@ -299,26 +299,30 @@ int validate_raw_qp_privliges();
 
 static inline int get_procname(int pid, char *proc, size_t size)
 {
-	int ret = -1;
 	char pid_str[10];
-	char app_full_name[FILE_NAME_MAX_SIZE];
-	char proccess_proc_dir[FILE_NAME_MAX_SIZE];
+	char app_full_name[FILE_NAME_MAX_SIZE] = {0};
+	char proccess_proc_dir[FILE_NAME_MAX_SIZE] = {0};
+	char* app_base_name = NULL;
+	int n = -1;
 
 	if (NULL == proc) {
 		return -1;
 	}
 
-	memset((void*)app_full_name, 0, sizeof(app_full_name));
-	memset((void*)proccess_proc_dir, 0 , sizeof(proccess_proc_dir));
-
 	sprintf(pid_str, "%d", pid);
 	strcat(strcat(strcpy(proccess_proc_dir, "/proc/"), pid_str), "/exe");
-	if (readlink(proccess_proc_dir, app_full_name, FILE_NAME_MAX_SIZE) >= 0) {
-		strncpy(proc, strrchr(app_full_name, '/') + 1, size - 1);
-		ret = 0;
+	n = readlink(proccess_proc_dir, app_full_name, sizeof(app_full_name) - 1);
+	if (n > 0) {
+		app_full_name[n] = '\0';
+		app_base_name = strrchr(app_full_name, '/');
+		if (app_base_name) {
+			strncpy(proc, app_base_name + 1, size - 1);
+			proc[size - 1] = '\0';
+			return 0;
+		}
 	}
 
-	return ret;
+	return -1;
 }
 
 //Creates multicast MAC from multicast IP

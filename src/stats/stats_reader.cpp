@@ -1098,21 +1098,22 @@ out:
 
 bool check_if_app_match(char* app_name, char* pid_str)
 {
-	char app_full_name[FILE_NAME_MAX_SIZE];
-	char proccess_proc_dir[FILE_NAME_MAX_SIZE];
+	char app_full_name[FILE_NAME_MAX_SIZE] = {0};
+	char proccess_proc_dir[FILE_NAME_MAX_SIZE] = {0};
 	char* app_base_name = NULL;
+	int n = -1;
 	
-	memset((void*)app_full_name, 0 , sizeof(char) * FILE_NAME_MAX_SIZE);
-	memset((void*)proccess_proc_dir, 0 , sizeof(char) * FILE_NAME_MAX_SIZE);
+	strcat(strcat(strcpy(proccess_proc_dir, "/proc/"), pid_str), "/exe");
+	n = readlink(proccess_proc_dir, app_full_name, sizeof(app_full_name) - 1);
+	if (n > 0) {
+		app_full_name[n] = '\0';
+		app_base_name = strrchr(app_full_name, '/');
+		if (app_base_name) {
+			return strcmp((app_base_name + 1), app_name) == 0;
+		}
+	}
 	
-	strcat(strcat(strcpy(proccess_proc_dir, "/proc/"),pid_str),"/exe");
-	if (readlink(proccess_proc_dir,app_full_name,FILE_NAME_MAX_SIZE) < 0)
-		return false;
-	app_base_name = strrchr(app_full_name, '/');
-	if (app_base_name)
-		return strcmp(++app_base_name, app_name) == 0;
-	else
-		return false;
+	return false;
 }
 
 void clean_inactive_sh_ibj()
