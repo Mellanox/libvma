@@ -651,9 +651,9 @@ int run_and_retreive_system_command(const char* cmd_line, char* return_str, int 
 	if (file) {
 		int fd = fileno(file);
 		if (fd > 0) {
-			int actual_len = read(fd, return_str, return_str_len);
+			int actual_len = read(fd, return_str, return_str_len - 1);
 			if (actual_len > 0) {
-				return_str[min(return_str_len - 1, actual_len)] = '\0';
+				return_str[actual_len] = '\0';
 			} else {
 				return_str[0] = '\0';
 			}
