@@ -937,21 +937,29 @@ void set_defaults()
 
 bool check_if_process_running(char* pid_str)
 {
-	char proccess_proc_dir[FILE_NAME_MAX_SIZE];
+	char proccess_proc_dir[FILE_NAME_MAX_SIZE] = {0};
 	struct stat st;
+	int n = -1;
 	
-	memset((void*)proccess_proc_dir,0, sizeof(char) * FILE_NAME_MAX_SIZE);
-	strcat(strcpy(proccess_proc_dir, "/proc/"), pid_str);
-	return stat(proccess_proc_dir, &st) == 0;
-
+	n = snprintf(proccess_proc_dir, sizeof(proccess_proc_dir) - 1, "/proc/%s", pid_str);
+	if (n > 0) {
+		proccess_proc_dir[n] = '\0';
+		return stat(proccess_proc_dir, &st) == 0;
+	}
+	return false;
 }
 
 bool check_if_process_running(int pid)
 {
 	char pid_str[MAX_BUFF_SIZE];
-	
-	sprintf(pid_str, "%d", pid);
-	return check_if_process_running(pid_str);
+	int n = -1;
+
+	n = snprintf(pid_str, sizeof(pid_str) - 1, "%d", pid);
+	if (n > 0) {
+		pid_str[n] = '\0';
+		return check_if_process_running(pid_str);
+	}
+	return false;
 }
 
 void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
@@ -1103,13 +1111,16 @@ bool check_if_app_match(char* app_name, char* pid_str)
 	char* app_base_name = NULL;
 	int n = -1;
 	
-	strcat(strcat(strcpy(proccess_proc_dir, "/proc/"), pid_str), "/exe");
-	n = readlink(proccess_proc_dir, app_full_name, sizeof(app_full_name) - 1);
+	n = snprintf(proccess_proc_dir, sizeof(proccess_proc_dir) - 1, "/proc/%s/exe", pid_str);
 	if (n > 0) {
-		app_full_name[n] = '\0';
-		app_base_name = strrchr(app_full_name, '/');
-		if (app_base_name) {
-			return strcmp((app_base_name + 1), app_name) == 0;
+		proccess_proc_dir[n] = '\0';
+		n = readlink(proccess_proc_dir, app_full_name, sizeof(app_full_name) - 1);
+		if (n > 0) {
+			app_full_name[n] = '\0';
+			app_base_name = strrchr(app_full_name, '/');
+			if (app_base_name) {
+				return strcmp((app_base_name + 1), app_name) == 0;
+			}
 		}
 	}
 	
@@ -1134,9 +1145,14 @@ void clean_inactive_sh_ibj()
 			bool proccess_running = false;
 			proccess_running = check_if_process_running(dirent->d_name + pid_offset);
 			if (!proccess_running) {
-				char to_delete[FILE_NAME_MAX_SIZE];
-				memset((void*)to_delete,0,sizeof(char) * FILE_NAME_MAX_SIZE);
-				unlink(strcat(strcat(strcpy(to_delete, g_vma_shmem_dir), "/"),dirent->d_name));
+				char to_delete[FILE_NAME_MAX_SIZE] = {0};
+				int n = -1;
+
+				n = snprintf(to_delete, sizeof(to_delete) - 1, "%s/%s", g_vma_shmem_dir, dirent->d_name);
+				if (n > 0) {
+					to_delete[n] = '\0';
+					unlink(to_delete);
+				}
 			}		
 		}
 		dirent = readdir(dir);
@@ -1317,7 +1333,11 @@ int get_pid(char* proc_desc, char* argv0)
 {
 	char* app_name = NULL;
 	int pid = -1;
-	
+
+	if (NULL == proc_desc) {
+		return -1;
+	}
+
 	if (user_params.proc_ident_mode == e_by_pid_str) {
 		errno = 0;
 		pid = strtol(proc_desc, NULL, 0);
