@@ -380,7 +380,7 @@ struct mce_sys_var {
 	uint32_t	lwip_cc_algo_mod;
 	uint32_t 	lwip_mss;
 	char		internal_thread_cpuset[FILENAME_MAX];
-	char		internal_thread_affinity_str[CPU_SETSIZE/4];
+	char		internal_thread_affinity_str[FILENAME_MAX];
 	cpu_set_t	internal_thread_affinity;
 	bool		internal_thread_arm_cq_enabled;
 	internal_thread_tcp_timer_handling_t internal_thread_tcp_timer_handling;	
