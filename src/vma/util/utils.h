@@ -299,7 +299,6 @@ int validate_raw_qp_privliges();
 
 static inline int get_procname(int pid, char *proc, size_t size)
 {
-	char pid_str[10];
 	char app_full_name[FILE_NAME_MAX_SIZE] = {0};
 	char proccess_proc_dir[FILE_NAME_MAX_SIZE] = {0};
 	char* app_base_name = NULL;
@@ -309,16 +308,18 @@ static inline int get_procname(int pid, char *proc, size_t size)
 		return -1;
 	}
 
-	sprintf(pid_str, "%d", pid);
-	strcat(strcat(strcpy(proccess_proc_dir, "/proc/"), pid_str), "/exe");
-	n = readlink(proccess_proc_dir, app_full_name, sizeof(app_full_name) - 1);
+	n = snprintf(proccess_proc_dir, sizeof(proccess_proc_dir) - 1, "/proc/%d/exe", pid);
 	if (n > 0) {
-		app_full_name[n] = '\0';
-		app_base_name = strrchr(app_full_name, '/');
-		if (app_base_name) {
-			strncpy(proc, app_base_name + 1, size - 1);
-			proc[size - 1] = '\0';
-			return 0;
+		proccess_proc_dir[n] = '\0';
+		n = readlink(proccess_proc_dir, app_full_name, sizeof(app_full_name) - 1);
+		if (n > 0) {
+			app_full_name[n] = '\0';
+			app_base_name = strrchr(app_full_name, '/');
+			if (app_base_name) {
+				strncpy(proc, app_base_name + 1, size - 1);
+				proc[size - 1] = '\0';
+				return 0;
+			}
 		}
 	}
 
