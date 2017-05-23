@@ -47,10 +47,12 @@
 #include "vma/proto/L2_address.h"
 #include "vma/dev/ib_ctx_handler_collection.h"
 #include "vma/dev/ring_simple.h"
+#include "vma/dev/ring_eth_cb.h"
 #include "vma/dev/ring_bond.h"
 #include "vma/sock/sock-redirect.h"
 #include "vma/dev/net_device_table_mgr.h"
 #include "vma/proto/neighbour_table_mgr.h"
+#include "ring_profile.h"
 
 
 
@@ -68,6 +70,41 @@
 #define nd_logdbg             __log_info_dbg
 #define nd_logfunc            __log_info_func
 #define nd_logfuncall         __log_info_funcall
+
+ring_alloc_logic_attr::ring_alloc_logic_attr():
+				m_ring_alloc_logic(RING_LOGIC_PER_INTERFACE),
+				m_ring_profile_key(0),
+				m_user_id_key(0) {
+	ostringstream s;
+
+	s<<"alloc logic "<<m_ring_alloc_logic<<" profile"<<m_ring_profile_key<<
+			" key "<<m_user_id_key;
+	m_str = s.str();
+}
+
+ring_alloc_logic_attr::ring_alloc_logic_attr(ring_logic_t ring_logic):
+				m_ring_alloc_logic(ring_logic),
+				m_ring_profile_key(0),
+				m_user_id_key(0) {
+	ostringstream s;
+
+	s<<"alloc logic "<<m_ring_alloc_logic<<" profile"<<m_ring_profile_key<<
+			" key "<<m_user_id_key;
+	m_str = s.str();
+}
+
+ring_alloc_logic_attr::ring_alloc_logic_attr(const ring_alloc_logic_attr &other):
+	m_ring_alloc_logic(other.m_ring_alloc_logic),
+	m_ring_profile_key(other.m_ring_profile_key),
+	m_user_id_key(other.m_user_id_key) {
+	ostringstream s;
+
+	s<<"alloc logic "<<m_ring_alloc_logic<<" profile"<<m_ring_profile_key<<
+			" key "<<m_user_id_key;
+	m_str = s.str();
+}
+
+
 
 net_device_val::net_device_val(transport_type_t transport_type) : m_if_idx(0), m_local_addr(0),
 m_netmask(0), m_mtu(0), m_state(INVALID), m_p_L2_addr(NULL), m_p_br_addr(NULL),
@@ -493,7 +530,7 @@ std::string net_device_val::to_str()
 	return std::string("Net Device: " + m_name);
 }
 
-ring* net_device_val::reserve_ring(IN resource_allocation_key key)
+ring* net_device_val::reserve_ring(resource_allocation_key *key)
 {
 	nd_logfunc("");
 	auto_unlocker lock(m_lock);
@@ -501,9 +538,9 @@ ring* net_device_val::reserve_ring(IN resource_allocation_key key)
 	ring* the_ring = NULL;
 	rings_hash_map_t::iterator ring_iter = m_h_ring_map.find(key);
 	if (m_h_ring_map.end() == ring_iter) {
-		nd_logdbg("Creating new RING for key %#x", key);
+		nd_logdbg("Creating new RING for %s", key->to_str());
 
-		the_ring = create_ring();
+		the_ring = create_ring(key);
 		if (!the_ring) {
 			return NULL;
 		}
@@ -532,12 +569,12 @@ ring* net_device_val::reserve_ring(IN resource_allocation_key key)
 	ADD_RING_REF_CNT;
 	the_ring = GET_THE_RING(key);
 
-	nd_logdbg("Ref usage of RING %p for key %#x is %d", the_ring, key, RING_REF_CNT);
+	nd_logdbg("Ref usage of RING %p for key %s is %d", the_ring, key->to_str(), RING_REF_CNT);
 
 	return the_ring;
 }
 
-bool net_device_val::release_ring(IN resource_allocation_key key)
+bool net_device_val::release_ring(resource_allocation_key *key)
 {
 	nd_logfunc("");
 	auto_unlocker lock(m_lock);
@@ -548,8 +585,8 @@ bool net_device_val::release_ring(IN resource_allocation_key key)
 		if ( TEST_REF_CNT_ZERO ) {
 			int num_ring_rx_fds = THE_RING->get_num_resources();
 			int *ring_rx_fds_array = THE_RING->get_rx_channel_fds();
-			nd_logdbg("Deleting RING %p for key %#x and removing notification fd from global_table_mgr_epfd (epfd=%d)", THE_RING, key,
-					g_p_net_device_table_mgr->global_ring_epfd_get());
+			nd_logdbg("Deleting RING %p for key %s and removing notification fd from global_table_mgr_epfd (epfd=%d)",
+				  THE_RING, key->to_str(), g_p_net_device_table_mgr->global_ring_epfd_get());
 			for (int i = 0; i < num_ring_rx_fds; i++) {
 				int cq_ch_fd = ring_rx_fds_array[i];
 				BULLSEYE_EXCLUDE_BLOCK_START
@@ -564,59 +601,79 @@ bool net_device_val::release_ring(IN resource_allocation_key key)
 			m_h_ring_map.erase(ring_iter);
 		}
 		else {
-			nd_logdbg("Deref usage of RING %p for key %#x (count is %d)", THE_RING, key, RING_REF_CNT);
+			nd_logdbg("Deref usage of RING %p for key %s (count is %d)",
+					THE_RING, key->to_str(), RING_REF_CNT);
 		}
 		return true;
 	}
 	return false;
 }
 
-resource_allocation_key net_device_val::ring_key_redirection_reserve(IN resource_allocation_key key)
+/*
+ * this function maps key to new keys that it created
+ * the key that it creates is the size of the map
+ */
+resource_allocation_key* net_device_val::ring_key_redirection_reserve(resource_allocation_key *key)
 {
-	if (!safe_mce_sys().ring_limit_per_interface) return key;
+	// if allocation logic is usr idx feature disabled
+	if (!safe_mce_sys().ring_limit_per_interface ||
+	    key->m_ring_alloc_logic == RING_LOGIC_PER_USER_ID)
+		return key;
 
 	if (m_h_ring_key_redirection_map.find(key) != m_h_ring_key_redirection_map.end()) {
 		m_h_ring_key_redirection_map[key].second++;
-		nd_logdbg("redirecting key=%lu (ref-count:%d) to key=%lu", key,
-			m_h_ring_key_redirection_map[key].second, m_h_ring_key_redirection_map[key].first);
+		nd_logdbg("redirecting key=%s (ref-count:%d) to key=%s", key->to_str(),
+			m_h_ring_key_redirection_map[key].second,
+			m_h_ring_key_redirection_map[key].first->to_str());
 		return m_h_ring_key_redirection_map[key].first;
 	}
 
 	int ring_map_size = (int)m_h_ring_map.size();
 	if (safe_mce_sys().ring_limit_per_interface > ring_map_size) {
-		m_h_ring_key_redirection_map[key] = std::make_pair(ring_map_size, 1);
-		nd_logdbg("redirecting key=%lu (ref-count:1) to key=%lu", key, ring_map_size);
-		return ring_map_size;
+		resource_allocation_key *key2 = new resource_allocation_key;
+		// replace key to redirection key
+		key2->m_user_id_key = ring_map_size;
+		key2->m_ring_alloc_logic = key->m_ring_alloc_logic;
+		key2->m_ring_profile_key = key->m_ring_profile_key;
+		m_h_ring_key_redirection_map[key] = std::make_pair(key2, 1);
+		nd_logdbg("redirecting key=%s (ref-count:1) to key=%s",
+			  key->to_str(), key2->to_str());
+		return key2;
 	}
 
 	rings_hash_map_t::iterator ring_iter = m_h_ring_map.begin();
 	int min_ref_count = ring_iter->second.second;
-	resource_allocation_key min_key = ring_iter->first;
+	resource_allocation_key *min_key = ring_iter->first;
 	while (ring_iter != m_h_ring_map.end()) {
-		if (ring_iter->second.second < min_ref_count) {
+		// redirect only to ring with the same profile
+		if (ring_iter->first->m_ring_profile_key == key->m_ring_profile_key &&
+		    ring_iter->second.second < min_ref_count) {
 			min_ref_count = ring_iter->second.second;
 			min_key = ring_iter->first;
 		}
 		ring_iter++;
 	}
 	m_h_ring_key_redirection_map[key] = std::make_pair(min_key, 1);
-	nd_logdbg("redirecting key=%lu (ref-count:1) to key=%lu", key, min_key);
+	nd_logdbg("redirecting key=%s (ref-count:1) to key=%s",
+		  key->to_str(), min_key->to_str());
 	return min_key;
 }
 
-resource_allocation_key net_device_val::ring_key_redirection_release(IN resource_allocation_key key)
+resource_allocation_key* net_device_val::ring_key_redirection_release(resource_allocation_key *key)
 {
-	resource_allocation_key ret_key = key;
+	resource_allocation_key *ret_key = key;
 
 	if (!safe_mce_sys().ring_limit_per_interface) return ret_key;
 
 	if (m_h_ring_key_redirection_map.find(key) == m_h_ring_key_redirection_map.end()) {
-		nd_logdbg("key = %lu is not found in the redirection map", key);
+		nd_logdbg("key = %s is not found in the redirection map",
+			  key->to_str());
 		return ret_key;
 	}
 
-	nd_logdbg("release redirecting key=%lu (ref-count:%d) to key=%lu", key,
-			m_h_ring_key_redirection_map[key].second, m_h_ring_key_redirection_map[key].first);
+	nd_logdbg("release redirecting key=%s (ref-count:%d) to key=%s", key->to_str(),
+		m_h_ring_key_redirection_map[key].second,
+		m_h_ring_key_redirection_map[key].first->to_str());
 	ret_key = m_h_ring_key_redirection_map[key].first;
 	if (--m_h_ring_key_redirection_map[key].second == 0) {
 		m_h_ring_key_redirection_map.erase(key);
@@ -754,13 +811,13 @@ void net_device_val_eth::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_i
 		vlog_printf(VLOG_WARNING, " ******************************************************************\n");
 		m_state = INVALID;
 	}
-	if(!m_vlan && ifa->ifa_flags & IFF_MASTER) {
+	if(!m_vlan && (ifa->ifa_flags & IFF_MASTER)) {
 		//in case vlan is configured on slave
 		m_vlan = get_vlan_id_from_ifname(m_slaves[0]->if_name);
 	}
 }
 
-ring* net_device_val_eth::create_ring()
+ring* net_device_val_eth::create_ring(resource_allocation_key *key)
 {
 	size_t slave_count = m_slaves.size();
 	if(slave_count == 0) {
@@ -775,6 +832,39 @@ ring* net_device_val_eth::create_ring()
 		active_slaves[i] = m_slaves[i]->is_active_slave;
 	}
 
+	// if this is a ring profile key get the profile from the global map
+	if (key->m_ring_profile_key) {
+		if (!g_p_ring_profile) {
+			nd_logdbg("could not find ring profile");
+			return NULL;
+		}
+		ring_profile *prof =
+			g_p_ring_profile->get_profile(key->m_ring_profile_key);
+		if (prof == NULL) {
+			nd_logerr("could not find ring profile %d",
+				  key->m_ring_profile_key);
+			return NULL;
+		}
+		ring_eth* ring = NULL;
+		switch (prof->get_ring_type()) {
+#ifdef HAVE_MP_RQ
+		case VMA_RING_CYCLIC_BUFFER:
+			try {
+				ring = new ring_eth_cb(m_local_addr, p_ring_info,
+						       slave_count, true,
+						       get_vlan(), m_mtu,
+						       &prof->get_desc()->ring_cyclicb);
+			} catch (vma_error &error) {
+				nd_logdbg("failed creating ring %s",error.message);
+				return NULL;
+			}
+			return ring;
+#endif
+		default:
+			nd_logdbg("Unknown ring type");
+			return ring;
+		}
+	}
 	 //TODO check if need to create bond ring even if slave count is 1
 	if (m_bond != NO_BOND) {
 		ring_bond_eth* ring;
@@ -862,8 +952,9 @@ void net_device_val_ib::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id
 	m_pkey = cma_id->route.addr.addr.ibaddr.pkey; // In order to create a UD QP outside the RDMA_CM API we need the pkey value (qp_mgr will convert it to pkey_index)
 }
 
-ring* net_device_val_ib::create_ring()
+ring* net_device_val_ib::create_ring(resource_allocation_key *key)
 {
+	NOT_IN_USE(key);
 	size_t slave_count = m_slaves.size();
 	if(slave_count == 0) {
 		nd_logpanic("Bonding configuration problem. No slave found.");

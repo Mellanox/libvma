@@ -171,6 +171,141 @@ struct __attribute__ ((packed)) vma_info_t {
 	struct timespec		sw_timestamp;
 };
 
+typedef enum {
+	VMA_MP_MASK_HDR_PTR = (1 << 0),
+	VMA_MP_MASK_TIMESTAMP = (1 << 1),
+} vma_completion_mp_mask;
+
+/**
+ * @param comp_mask attributes you want to get from @ref vma_cyclic_buffer_read.
+ * 	see @ref vma_completion_mp_mask
+ * @param payload_ptr pointer to user data not including user header
+ * @param payload_length size of payload_ptr
+ * @param packets how many packets arrived
+ * @param headers_ptr points to the user header section within the payload defined when creating the ring
+ * 	@note currently same as @param payload_ptr
+ * @param headers_ptr_length headers_ptr length
+ *  	@note currently same as @param payload_length
+ * @param hw_timestamp the HW time stamp of the first packet arrived within the batch
+ */
+struct vma_completion_cb_t {
+	uint32_t	comp_mask;
+	void*		payload_ptr;
+	size_t		payload_length;
+	size_t		packets;
+	void*		headers_ptr;
+	size_t		headers_ptr_length;
+	struct timespec	hw_timestamp;
+};
+
+/**
+ * use this in setsockopt for the ring creation
+ */
+#define SO_VMA_RING_ALLOC_LOGIC		2810
+
+typedef int vma_ring_profile_key;
+
+typedef enum {
+	RING_LOGIC_PER_INTERFACE = 0,           //!< RING_LOGIC_PER_INTERFACE
+	RING_LOGIC_PER_SOCKET = 10,             //!< RING_LOGIC_PER_SOCKET
+	RING_LOGIC_PER_USER_ID = 11,             //!< RING_LOGIC_PER_USER_ID
+	RING_LOGIC_PER_THREAD = 20,             //!< RING_LOGIC_PER_THREAD
+	RING_LOGIC_PER_CORE = 30,               //!< RING_LOGIC_PER_CORE
+	RING_LOGIC_PER_CORE_ATTACH_THREADS = 31,//!< RING_LOGIC_PER_CORE_ATTACH_THREADS
+	RING_LOGIC_LAST                         //!< RING_LOGIC_LAST
+} ring_logic_t;
+
+typedef enum {
+	VMA_RING_ALLOC_MASK_RING_PROFILE_KEY = (1 << 0),
+	VMA_RING_ALLOC_MASK_RING_USER_ID = (1 << 1),
+	VMA_RING_ALLOC_MASK_RING_INGRESS = (1 << 2),
+	VMA_RING_ALLOC_MASK_RING_ENGRESS = (1 << 3),
+} vma_ring_alloc_logic_attr_comp_mask;
+
+/**
+ * @brief pass this struct to vma using setsockopt with @ref SO_VMA_RING_ALLOC_LOGIC
+ * 	to set the allocation logic of this FD when he requests a ring.
+ * 	@note ring_alloc_logic is a mandatory
+ * @param comp_mask - what fields are read when processing this sturct
+ * 	see @ref vma_ring_alloc_logic_attr_comp_mask
+ * @param ring_alloc_logic- allocation ratio to use
+ * @param ring_profile_key - what ring profile to use - get the profile when
+ * 	creating ring using @ref vma_add_ring_profile in extra_api
+ * 	can only be set once
+ * @param user_idx - when used RING_LOGIC_PER_USER_ID int @ref ring_alloc_logic
+ * 	this is the user id to define. This lets you define the same ring for
+ * 	few FD's regardless the interface\thread\core.
+ * @param ingress - RX ring
+ * @param engress - TX ring
+ */
+struct vma_ring_alloc_logic_attr {
+	uint32_t	comp_mask;
+	ring_logic_t	ring_alloc_logic;
+	uint32_t	ring_profile_key;
+	uint32_t	user_id;
+	uint32_t	ingress:1;
+	uint32_t	engress:1;
+	uint32_t	reserved:30;
+};
+
+typedef enum {
+	CB_COMP_HDR_BYTE = (1 << 0),
+} vma_cyclic_buffer_ring_attr_comp_mask;
+
+/**
+ * @param comp_mask - what fields are read when processing this sturct
+ * 	see @ref vma_cyclic_buffer_ring_attr_comp_mask
+ * @param num - Minimum number of elements allocated in the circular buffer
+ * @param hdr_bytes - Bytes separated from UDP payload which are
+ * 	part of the application header
+ * 	@note this will be accesable from headers_ptr in @ref vma_completion_cb_t
+ * @param stride_bytes - Bytes separated for each ingress payload for alignment
+ * 	control (does not include the hdr_bytes). Should be smaller
+ * 	than MTU.
+ *
+ * @note general packet structure
+ * +--------------------------------------------------------------------------+
+ * |   mac+ip+udp   |           datagram payload                 |  alignment |
+ * +--------------------------------------------------------------------------+
+ * | Header to drop |       hdr_bytes    | stride_bytes                       |
+ * |                | e.g. RTP header    | e.g. RTP payload      | alignment  |
+ * +--------------------------------------------------------------------------+
+ */
+struct vma_cyclic_buffer_ring_attr {
+	uint32_t	comp_mask;
+	uint32_t	num;
+	uint16_t	stride_bytes;
+	uint16_t	hdr_bytes;
+};
+
+struct vma_packet_queue_ring_attr {
+	uint32_t	comp_mask;
+};
+
+typedef enum {
+	// for future use
+	VMA_RING_ATTR_LAST
+} vma_ring_type_attr_mask;
+
+typedef enum {
+	VMA_RING_PACKET,
+	VMA_RING_CYCLIC_BUFFER
+} vma_ring_type;
+
+/**
+ * @param comp_mask - what fields are read when processing this sturct
+ * 	see @ref vma_ring_type_attr_mask
+ * @param ring_type - use cyclic buffer ring or default packets ring
+ *
+ */
+struct vma_ring_type_attr {
+	uint32_t	comp_mask;
+	vma_ring_type	ring_type;
+	union {
+		struct vma_cyclic_buffer_ring_attr	ring_cyclicb;
+		struct vma_packet_queue_ring_attr	ring_pktq;
+	};
+};
 
 /** 
  *  
@@ -421,6 +556,30 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * @return 0 on success, or error code on failure.
 	 */
 	int (*dump_fd_stats) (int fd, int log_level);
+
+	/**
+	 * Get data from the MP_RQ cyclic buffer
+	 * @param fd - the fd of the ring to query - get it using @ref get_socket_rings_fds
+	 * @param completion results see @ref struct vma_completion_cb_t
+	 * @param min min number of packet to return, if not available
+	 * 	will return 0 packets
+	 * @param max max packets to return
+	 * @param flags can be MSG_DONTWAIT, MSG_WAITALL (not yet supported), MSG_PEEK (not yet supported)
+	 * @return 0 on success -1 on failure
+	 */
+	int (*vma_cyclic_buffer_read)(int fd,
+				      struct vma_completion_cb_t *completion,
+				      size_t min, size_t max, int flags);
+
+	/**
+	 * add a ring profile to VMA ring profile list. you can use this
+	 * to create advacned rings like MP_RQ ring
+	 * the need to pass vma the ring profile using the fd's setsockopt
+	 * @param profile the profile to add to the list
+	 * @param key - the profile key
+	 * @return 0 on success -1 on failure
+	 */
+	int (*vma_add_ring_profile)(struct vma_ring_type_attr *profile, int *key);
 };
 
 

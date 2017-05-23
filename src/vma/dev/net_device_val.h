@@ -38,6 +38,7 @@
 #include <string>
 #include <vector>
 #include <tr1/unordered_map>
+#include <sstream>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
@@ -50,16 +51,78 @@
 #include "vma/proto/neighbour_observer.h"
 #include "vma/infra/cache_subject_observer.h"
 
-typedef unsigned long int resource_allocation_key;
 
 class L2_address;
 class ring;
 class neigh_ib_broadcast;
 
-// each ring has a ref count
-typedef std::tr1::unordered_map<resource_allocation_key, std::pair<ring*, int> > rings_hash_map_t;
+class ring_alloc_logic_attr
+{
+public:
+	ring_alloc_logic_attr();
+	ring_alloc_logic_attr(ring_logic_t ring_logic);
+	ring_alloc_logic_attr(const ring_alloc_logic_attr &other);
 
-typedef std::tr1::unordered_map<resource_allocation_key, std::pair<resource_allocation_key, int> > rings_key_redirection_hash_map_t;
+	/* ring allocation logic , per thread per fd ... */
+	ring_logic_t		m_ring_alloc_logic;
+	/* key in g_p_ring_profile */
+	vma_ring_profile_key	m_ring_profile_key;
+	/* either user_idx or key as defined in ring_logic_t */
+	uint64_t		m_user_id_key;
+	std::string		m_str;
+
+	bool operator==(const ring_alloc_logic_attr& other) const
+	{
+		return (m_ring_alloc_logic == other.m_ring_alloc_logic &&
+			m_ring_profile_key == other.m_ring_profile_key &&
+			m_user_id_key == other.m_user_id_key);
+	}
+
+	bool operator!=(const ring_alloc_logic_attr& other) const
+	{
+		return !(*this == other);
+	}
+
+	ring_alloc_logic_attr& operator=(const ring_alloc_logic_attr& other)
+	{
+		if (this != &other) {
+			m_ring_alloc_logic = other.m_ring_alloc_logic;
+			m_ring_profile_key = other.m_ring_profile_key;
+			m_user_id_key = other.m_user_id_key;
+		}
+		return *this;
+	}
+
+	const char* to_str() const
+	{
+
+		return m_str.c_str();
+	}
+
+	size_t operator()(const ring_alloc_logic_attr *key) const
+	{
+		size_t h = 5381;
+		int c;
+		ostringstream s;
+		s << key->m_ring_alloc_logic << key->m_ring_profile_key << key->m_user_id_key;
+		std::string tmp = s.str();
+		const char* chr = tmp.c_str();
+		while ((c = *chr++))
+			h = ((h << 5) + h) + c; /* hash * 33 + c */
+		return h;
+	}
+
+	bool operator()(const ring_alloc_logic_attr *k1, const ring_alloc_logic_attr *k2) const
+	{
+		return *k1 == *k2;
+	}
+};
+
+typedef ring_alloc_logic_attr resource_allocation_key;
+// each ring has a ref count
+typedef std::tr1::unordered_map<resource_allocation_key *, std::pair<ring*, int>, ring_alloc_logic_attr, ring_alloc_logic_attr> rings_hash_map_t;
+
+typedef std::tr1::unordered_map<resource_allocation_key *, std::pair<resource_allocation_key *, int> ,ring_alloc_logic_attr, ring_alloc_logic_attr> rings_key_redirection_hash_map_t;
 
 #define THE_RING                        ring_iter->second.first
 #define GET_THE_RING(key)               m_h_ring_map[key].first
@@ -118,8 +181,8 @@ public:
 	virtual ~net_device_val();
 	virtual void 		configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id);
 
-	ring*                   reserve_ring(IN resource_allocation_key); // create if not exists
-	bool 			release_ring(IN resource_allocation_key); // delete from hash if ref_cnt == 0
+	ring*                   reserve_ring(resource_allocation_key*); // create if not exists
+	bool 			release_ring(resource_allocation_key*); // delete from hash if ref_cnt == 0
 	state                   get_state() const  { return m_state; } // not sure, look at state init at c'tor
 	virtual std::string     to_str();
 	int                     get_mtu() { return m_mtu; }
@@ -157,13 +220,13 @@ protected:
 	char           			m_base_name[IFNAMSIZ];
 	char 					m_active_slave_name[IFNAMSIZ]; //only for active-backup
 
-	virtual ring*		create_ring() = 0;
+	virtual ring*		create_ring(resource_allocation_key *key) = 0;
 	virtual void		create_br_address(const char* ifname) = 0;
 	virtual L2_address*	create_L2_address(const char* ifname) = 0;
 	void 			delete_L2_address();
 
-	resource_allocation_key ring_key_redirection_reserve(IN resource_allocation_key key);
-	resource_allocation_key ring_key_redirection_release(IN resource_allocation_key key);
+	resource_allocation_key* ring_key_redirection_reserve(resource_allocation_key *key);
+	resource_allocation_key* ring_key_redirection_release(resource_allocation_key *key);
 
 	void verify_bonding_mode();
 	bond_type m_bond;
@@ -184,7 +247,7 @@ public:
 	std::string		to_str();
 
 protected:
-	virtual ring*		create_ring();
+	virtual ring*		create_ring(resource_allocation_key *key);
 	virtual L2_address*	create_L2_address(const char* ifname);
 	virtual void		create_br_address(const char* ifname);
 
@@ -205,7 +268,7 @@ public:
 	virtual transport_type_t get_obs_transport_type() const {return get_transport_type();}
 
 protected:
-	ring*			create_ring();
+	ring*			create_ring(resource_allocation_key *key);
 	virtual L2_address*	create_L2_address(const char* ifname);
 	virtual void		create_br_address(const char* ifname);
 
