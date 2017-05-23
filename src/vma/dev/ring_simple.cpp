@@ -342,10 +342,10 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		int flow_tag_id_candidate = si->get_fd() + 1;
 		if (flow_tag_id_candidate > 0) {
 			flow_tag_id = flow_tag_id_candidate & FLOW_TAG_MASK;
-			if (m_partition || ((uint32_t)flow_tag_id_candidate != flow_tag_id)) {
+			if ((uint32_t)flow_tag_id_candidate != flow_tag_id) {
 				// tag_id is out of the range by mask, will not use it
-				ring_logdbg("flow_tag disabled as VLAN_ID: %d set or tag_id: %d is out of mask (%x) range!",
-					    m_partition, flow_tag_id, FLOW_TAG_MASK);
+				ring_logdbg("flow_tag disabled as tag_id: %d is out of mask (%x) range!",
+					    flow_tag_id, FLOW_TAG_MASK);
 				flow_tag_id = FLOW_TAG_MASK;
 			}
 			ring_logdbg("sock_fd:%d enabled:%d with id:%d",
@@ -752,11 +752,12 @@ static inline bool check_rx_packet(sockinfo *si, mem_buf_desc_t* p_rx_wc_buf_des
 bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array)
 {
 	size_t sz_data = 0;
-	size_t transport_header_len = ETH_HDR_LEN;
+	size_t transport_header_len;
 	uint16_t ip_hdr_len = 0;
 	uint16_t ip_tot_len = 0;
 	uint16_t ip_frag_off = 0;
 	uint16_t n_frag_offset = 0;
+	struct ethhdr* p_eth_h = (struct ethhdr*)(p_rx_wc_buf_desc->p_buffer);
 	struct iphdr* p_ip_h = NULL;
 	struct udphdr* p_udp_h = NULL;
 
@@ -768,7 +769,6 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_f
 #endif // DEFINED_VMAPOLL
 
 	// This is an internal function (within ring and 'friends'). No need for lock mechanism.
-
 	if (likely(m_flow_tag_enabled && p_rx_wc_buf_desc->rx.flow_tag_id &&
 		   (p_rx_wc_buf_desc->rx.flow_tag_id != FLOW_TAG_MASK))) {
 		sockinfo* si = NULL;
@@ -778,9 +778,18 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_f
 
 		if (likely((si != NULL) && si->flow_tag_enabled())) { 
 			// will process packets with set flow_tag_id and enabled for the socket
+			if (p_eth_h->h_proto == htons(ETH_P_8021Q)) {
+				// Handle VLAN header as next protocol
+				transport_header_len = ETH_VLAN_HDR_LEN;
+			} else {
+				transport_header_len = ETH_HDR_LEN;
+			}
 			p_ip_h = (struct iphdr*)(p_rx_wc_buf_desc->p_buffer + transport_header_len);
 			ip_hdr_len = 20; //(int)(p_ip_h->ihl)*4;
 			ip_tot_len = ntohs(p_ip_h->tot_len);
+
+			ring_logfunc("FAST PATH Rx packet info: transport_header_len: %d, IP_header_len: %d L3 proto: %d tcp_5t: %d",
+				transport_header_len, p_ip_h->ihl, p_ip_h->protocol, si->tcp_flow_is_5t());
 
 			if (likely(si->tcp_flow_is_5t())) {
 				// we have a single 5tuple TCP connected socket, use simpler fast path
@@ -804,16 +813,16 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_f
 				p_rx_wc_buf_desc->rx.tcp.n_transport_header_len = transport_header_len;
 				p_rx_wc_buf_desc->rx.n_frags = 1;
 
-/*				ring_logfunc("FAST PATH Rx TCP segment info: src_port=%d, dst_port=%d, flags='%s%s%s%s%s%s' seq=%u, ack=%u, win=%u, payload_sz=%u",
+				ring_logfunc("FAST PATH Rx TCP segment info: src_port=%d, dst_port=%d, flags='%s%s%s%s%s%s' seq=%u, ack=%u, win=%u, payload_sz=%u",
 					ntohs(p_tcp_h->source), ntohs(p_tcp_h->dest),
 					p_tcp_h->urg?"U":"", p_tcp_h->ack?"A":"", p_tcp_h->psh?"P":"",
 					p_tcp_h->rst?"R":"", p_tcp_h->syn?"S":"", p_tcp_h->fin?"F":"",
 					ntohl(p_tcp_h->seq), ntohl(p_tcp_h->ack_seq), ntohs(p_tcp_h->window),
-					sz_payload);
-*/
+					p_rx_wc_buf_desc->rx.sz_payload);
+
 				return check_rx_packet(si, p_rx_wc_buf_desc, pv_fd_ready_array);
 
-			} else if (p_ip_h->protocol==IPPROTO_UDP) {
+			} else if (likely(p_ip_h->protocol==IPPROTO_UDP)) {
 				// Get the udp header pointer + udp payload size
 				p_udp_h = (struct udphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
 
@@ -833,9 +842,9 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_f
 				p_rx_wc_buf_desc->rx.udp.local_if        = m_local_if;
 				p_rx_wc_buf_desc->rx.n_frags = 1;
 
-/*				ring_logfunc("FAST PATH Rx UDP datagram info: src_port=%d, dst_port=%d, payload_sz=%d, csum=%#x",
-					     ntohs(p_udp_h->source), ntohs(p_udp_h->dest), sz_payload, p_udp_h->check);
-*/
+				ring_logfunc("FAST PATH Rx UDP datagram info: src_port=%d, dst_port=%d, payload_sz=%d, csum=%#x",
+					     ntohs(p_udp_h->source), ntohs(p_udp_h->dest), p_rx_wc_buf_desc->rx.sz_payload, p_udp_h->check);
+
 				return check_rx_packet(si, p_rx_wc_buf_desc, pv_fd_ready_array);
 			}
 		}
@@ -892,23 +901,23 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_f
 //			printf("\n");
 //		}
 
-		// Get the data buffer start pointer to the Ethernet header pointer
-		struct ethhdr* p_eth_h = (struct ethhdr*)(p_rx_wc_buf_desc->p_buffer);
+		uint16_t* p_h_proto = &p_eth_h->h_proto;
+
 		ring_logfunc("Rx buffer Ethernet dst=" ETH_HW_ADDR_PRINT_FMT " <- src=" ETH_HW_ADDR_PRINT_FMT " type=%#x",
 				ETH_HW_ADDR_PRINT_ADDR(p_eth_h->h_dest),
 				ETH_HW_ADDR_PRINT_ADDR(p_eth_h->h_source),
-				htons(p_eth_h->h_proto));
-
-		uint16_t* p_h_proto = &p_eth_h->h_proto;
+				htons(*p_h_proto));
 
 		// Handle VLAN header as next protocol
 		struct vlanhdr* p_vlan_hdr = NULL;
 		uint16_t packet_vlan = 0;
 		if (*p_h_proto == htons(ETH_P_8021Q)) {
-			p_vlan_hdr = (struct vlanhdr*)((uint8_t*)p_eth_h + transport_header_len);
+			p_vlan_hdr = (struct vlanhdr*)((uint8_t*)p_eth_h + ETH_HDR_LEN);
 			transport_header_len = ETH_VLAN_HDR_LEN;
 			p_h_proto = &p_vlan_hdr->h_vlan_encapsulated_proto;
 			packet_vlan = (htons(p_vlan_hdr->h_vlan_TCI) & VLAN_VID_MASK);
+		} else {
+			transport_header_len = ETH_HDR_LEN;
 		}
 
 		//TODO: Remove this code when handling vlan in flow steering will be available. Change this code if vlan stripping is performed.
