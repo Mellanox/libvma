@@ -1933,7 +1933,7 @@ int sockinfo_udp::rx_verify_available_data()
 
 	if (ret == 0) {
 		// Got 0, means we might have a ready packet
-		auto_unlocker lock(m_lock_rcv);
+		auto_unlocker locker(m_lock_rcv);
 		if (!m_rx_pkt_ready_list.empty()) {
 			ret = m_rx_pkt_ready_list.front()->rx.sz_payload;
 		}
