@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -31,28 +31,36 @@
  */
 
 
-#include "ring.h"
+#ifndef CQ_MGR_MLX5_INL_H
+#define CQ_MGR_MLX5_INL_H
 
-#undef  MODULE_NAME
-#define MODULE_NAME     "ring"
-#undef  MODULE_HDR
-#define MODULE_HDR      MODULE_NAME "%d:%s() "
+#include "dev/cq_mgr_mlx5.h"
 
-ring::ring(int count, uint32_t mtu) :
-	m_n_num_resources(count), m_p_n_rx_channel_fds(NULL), m_parent(NULL),
-	m_is_mp_ring(false), m_mtu(mtu)
+#ifdef HAVE_INFINIBAND_MLX5_HW_H
+
+/**/
+/** inlining functions can only help if they are implemented before their usage **/
+/**/
+inline volatile struct mlx5_cqe64* cq_mgr_mlx5::check_cqe(void)
 {
-#ifdef DEFINED_VMAPOLL
-	m_vma_active = true; /* TODO: This VMA version supports vma_poll() usage mode only */
-	INIT_LIST_HEAD(&m_ec_list);
-	m_vma_poll_completion = NULL;
-#endif // DEFINED_VMAPOLL	
+	volatile struct mlx5_cqe64 *cqe = &(*m_cqes)[m_cq_cons_index & (m_cq_size - 1)];
+
+	/*
+	 * CQE ownership is defined by Owner bit in the CQE.
+	 * The value indicating SW ownership is flipped every
+	 *  time CQ wraps around.
+	 * */
+	if (likely((MLX5_CQE_OPCODE(cqe->op_own)) != MLX5_CQE_INVALID) &&
+	    !((MLX5_CQE_OWNER(cqe->op_own)) ^ !!(m_cq_cons_index & m_cq_size))) {
+		++m_cq_cons_index;
+		wmb();
+		++m_rq->tail;
+		*m_cq_dbell = htonl(m_cq_cons_index & 0xffffff);
+		return cqe;
+	}
+
+	return NULL;
 }
 
-ring::~ring()
-{
-#ifdef DEFINED_VMAPOLL
-	ring_logdbg("queue of event completion elements is %s",
-			(list_empty(&m_ec_list) ? "empty" : "not empty"));
-#endif // DEFINED_VMAPOLL		
-}
+#endif //HAVE_INFINIBAND_MLX5_HW_H
+#endif//CQ_MGR_MLX5_INL_H

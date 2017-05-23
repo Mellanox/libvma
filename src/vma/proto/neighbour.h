@@ -352,6 +352,7 @@ private:
 	const uint32_t		m_n_sysvar_neigh_wait_till_send_arp_msec;
 	const uint32_t		m_n_sysvar_neigh_uc_arp_quata;
 	const uint32_t		m_n_sysvar_neigh_num_err_retries;
+	resource_allocation_key	*m_res_key;
 	event_t 		rdma_event_mapping(struct rdma_cm_event* p_event);
 	void 			empty_unsent_queue();
 	bool 			post_send_packet(uint8_t protocol, iovec * iov, header *h);

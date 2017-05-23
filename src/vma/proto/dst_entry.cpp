@@ -48,9 +48,10 @@
 #define dst_logfuncall         __log_info_funcall
 
 
-dst_entry::dst_entry(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, int owner_fd):
+dst_entry::dst_entry(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, int owner_fd, resource_allocation_key &ring_alloc_logic):
 	m_dst_ip(dst_ip), m_dst_port(dst_port), m_src_port(src_port), m_bound_ip(0),
-	m_so_bindtodevice_ip(0), m_route_src_ip(0), m_pkt_src_ip(0), m_ring_alloc_logic(owner_fd, this), 
+	m_so_bindtodevice_ip(0), m_route_src_ip(0), m_pkt_src_ip(0),
+	m_ring_alloc_logic(owner_fd, ring_alloc_logic, this),
 	m_p_tx_mem_buf_desc_list(NULL), m_b_tx_mem_buf_desc_list_pending(false), m_id(0)
 {
 	dst_logdbg("dst:%s:%d src: %d", m_dst_ip.to_str().c_str(), ntohs(m_dst_port), ntohs(m_src_port));
@@ -324,7 +325,10 @@ bool dst_entry::release_ring()
 				m_p_tx_mem_buf_desc_list = NULL;
 			}
 			dst_logdbg("releasing a ring");
-			m_p_net_dev_val->release_ring(m_ring_alloc_logic.get_key());
+			if (m_p_net_dev_val->release_ring(m_ring_alloc_logic.get_key())) {
+				dst_logerr("Failed to release ring for allocation key %s",
+					   m_ring_alloc_logic.get_key()->to_str());
+			}
 			m_p_ring = NULL;
 		}
 		ret_val = true;
@@ -600,9 +604,9 @@ void dst_entry::do_ring_migration(lock_base& socket_lock)
 		return;
 	}
 
-	resource_allocation_key old_key = m_ring_alloc_logic.get_key();
-	resource_allocation_key new_key = m_ring_alloc_logic.create_new_key(old_key);
-
+	resource_allocation_key *old_key = m_ring_alloc_logic.get_key();
+	resource_allocation_key *new_key = old_key;
+	new_key->m_user_id_key = m_ring_alloc_logic.calc_res_key_by_logic();
 	if (old_key == new_key) {
 		m_slow_path_lock.unlock();
 		return;
@@ -617,12 +621,16 @@ void dst_entry::do_ring_migration(lock_base& socket_lock)
 		return;
 	}
 	if (new_ring == m_p_ring) {
-		m_p_net_dev_val->release_ring(old_key);
+		if (!m_p_net_dev_val->release_ring(old_key)) {
+			dst_logerr("Failed to release ring for allocation key %s",
+				  old_key->to_str());
+		}
 		socket_lock.lock();
 		return;
 	}
 
-	dst_logdbg("migrating from key=%lu and ring=%p to key=%lu and ring=%p", old_key, m_p_ring, new_key, new_ring);
+	dst_logdbg("migrating from key=%s and ring=%p to key=%s and ring=%p",
+		   old_key->to_str(), m_p_ring, new_key->to_str(), new_ring);
 
 	socket_lock.lock();
 	m_slow_path_lock.lock();
