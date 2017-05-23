@@ -341,10 +341,10 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		int flow_tag_id_candidate = si->get_fd() + 1;
 		if (flow_tag_id_candidate > 0) {
 			flow_tag_id = flow_tag_id_candidate & FLOW_TAG_MASK;
-			if ((uint32_t)flow_tag_id_candidate != flow_tag_id) {
+			if (m_partition || ((uint32_t)flow_tag_id_candidate != flow_tag_id)) {
 				// tag_id is out of the range by mask, will not use it
-				ring_logdbg("flow_tag disabled as tag_id: %d is out of mask (%x) range!",
-					    flow_tag_id, FLOW_TAG_MASK);
+				ring_logdbg("flow_tag disabled as VLAN_ID: %d set or tag_id: %d is out of mask (%x) range!",
+					    m_partition, flow_tag_id, FLOW_TAG_MASK);
 				flow_tag_id = FLOW_TAG_MASK;
 			}
 			ring_logdbg("sock_fd:%d enabled:%d with id:%d",
