@@ -35,14 +35,12 @@
 #define BUFFER_POOL_H
 
 #include <deque>
+#include <infiniband/verbs.h>
+
 #include "utils/lock_wrapper.h"
-#include "vma/util/verbs_extra.h"
 #include "vma/util/vma_stats.h"
 #include "vma/proto/mem_buf_desc.h"
 
-
-class net_device;
-class mem_buf_desc_owner;
 class ib_ctx_handler;
 
 inline static void free_lwip_pbuf(struct pbuf_custom *pbuf_custom)
@@ -68,23 +66,20 @@ public:
 	 * @param lkey the registered memory lkey.
 	 * @return List of buffers, or NULL if don't have enough buffers.
 	 */
-	mem_buf_desc_t*	get_buffers_thread_safe(size_t count, ib_ctx_handler *p_ib_ctx_h);
 	mem_buf_desc_t *get_buffers_thread_safe(size_t count, uint32_t lkey);
 
 	/**
 	 * Return buffers to the pool.
 	 */
-	void 		put_buffers(descq_t *buffers, size_t count);
-	void 		put_buffers_thread_safe(descq_t *buffers, size_t count);
 	void 		put_buffers(mem_buf_desc_t *buff_list);
 	void 		put_buffers_thread_safe(mem_buf_desc_t *buff_list);
+	void 		put_buffers_thread_safe(descq_t *buffers, size_t count);
 	static void 	free_rx_lwip_pbuf_custom(struct pbuf *p_buff);
 	static void 	free_tx_lwip_pbuf_custom(struct pbuf *p_buff);
 
 	/**
 	 * Assume locked owner!!! Return buffers to the pool with ref_count check.
 	 */
-	void 		put_buffers_after_deref(descq_t *pDeque);
 	void 		put_buffers_after_deref_thread_safe(descq_t *pDeque);
 
 	/**
@@ -100,9 +95,9 @@ private:
 
 	// pointer to data block
 	void		*m_data_block;
-	
-        // contiguous pages allocation indicator
-        bool m_is_contig_alloc;
+
+	// contiguous pages allocation indicator
+	bool m_is_contig_alloc;
 
 	// Shared memory ID, if allocated in hugetlb
 	int		m_shmid;
@@ -125,7 +120,7 @@ private:
 	 * Allocate data block in hugetlb memory
 	 */
 	bool 		hugetlb_alloc(size_t sz_bytes);
-	
+
 	/**
 	 * Register memory
 	 */
@@ -135,16 +130,6 @@ private:
 	 * Add a buffer to the pool
 	 */
 	inline void 	put_buffer_helper(mem_buf_desc_t *buff);
-
-	inline uint32_t find_lkey_by_ib_ctx(ib_ctx_handler* p_ib_ctx_h);
-
-	/**
-	 * Get buffers from the pool - no thread safe
-	 * @param count Number of buffers required.
-	 * @param lkey the registered memory lkey.
-	 * @return List of buffers, or NULL if don't have enough buffers.
-	 */
-	mem_buf_desc_t *get_buffers(size_t count, uint32_t lkey);
 
 	void 		buffersPanic();
 

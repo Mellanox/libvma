@@ -110,6 +110,8 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
+	m_rx_lkey = g_buffer_pool_rx->find_lkey_by_ib_ctx_thread_safe(m_p_ib_ctx_handler);
+
 	// use local copy of stats by default (on rx cq get shared memory stats)
 	m_p_cq_stat = &m_cq_stat_static;
 	memset(m_p_cq_stat , 0, sizeof(*m_p_cq_stat));
@@ -249,7 +251,7 @@ void cq_mgr::add_qp_rx(qp_mgr* qp)
 		uint32_t n_num_mem_bufs = m_n_sysvar_rx_num_wr_to_post_recv;
 		if (n_num_mem_bufs > qp_rx_wr_num)
 			n_num_mem_bufs = qp_rx_wr_num;
-		p_temp_desc_list = g_buffer_pool_rx->get_buffers_thread_safe(n_num_mem_bufs, m_p_ib_ctx_handler);
+		p_temp_desc_list = g_buffer_pool_rx->get_buffers_thread_safe(n_num_mem_bufs, m_rx_lkey);
 		if (p_temp_desc_list == NULL) {
 			static vlog_levels_t log_severity = VLOG_WARNING; // WARNING severity will be used only once - at the 1st time
 			VLOG_PRINTF_INFO(log_severity, "WARNING Out of mem_buf_desc from Rx buffer pool for qp_mgr qp_mgr initialization (qp=%p)", qp);
@@ -313,7 +315,7 @@ bool cq_mgr::request_more_buffers()
 
 	// Assume locked!
 	// Add an additional free buffer descs to RX cq mgr
-	p_temp_desc_list = g_buffer_pool_rx->get_buffers_thread_safe(m_n_sysvar_qp_compensation_level, m_p_ib_ctx_handler);
+	p_temp_desc_list = g_buffer_pool_rx->get_buffers_thread_safe(m_n_sysvar_qp_compensation_level, m_rx_lkey);
 	if (p_temp_desc_list == NULL) {
 		cq_logfunc("Out of mem_buf_desc from RX free pool for internal object pool");
 		return false;

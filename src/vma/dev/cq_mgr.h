@@ -230,6 +230,7 @@ protected:
 	uint32_t		m_n_cq_poll_sn;
 	ring_simple*		m_p_ring;
 	uint32_t		m_n_wce_counter;
+	uint32_t		m_rx_lkey;	// this is the registered memory lkey for a given specific device for the buffer pool use
 	bool			m_b_was_drained;
 	bool			m_b_is_clean;
 	bool			m_b_is_rx_hw_csum_on;
