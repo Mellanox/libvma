@@ -1,3 +1,29 @@
+Version 8.3.4-0:
+Date + Time 2017-05-24
+=============================================================
+Added:
+        - RM #1014125 Support cyclic buffer handling of multi packets based on HW Striding-RQ 
+        - RM #1014125 Separate buffer memory allocation from buffer pool logic
+        - RM #968024 Improve latency with PRM implementation for poll cq
+        - RM #1037898 Reduce latency max numbers (high percentile) by avoiding malloc calls at runtime
+        - RM #1026406 Add libvma-debug.so installation (supporting max log level FUNC_ALL) 
+        - RM #998528 Verify --enable-vmapoll configuration is supported by OFED
+        - RM #959833 Do not offload ConnectX-3 interfaces in vmapoll mode
+        - RM #1023040 Show VMA Git number in VMA banner at startup
+        - RM #1025933 Add -Wundef flag to VMA compilation
+        - RM #1036427 Print driver (OFED) version in VMA banner
+        - RM #847360 Remove Coverity badge from README.md file
+        - RM #1010036 Update VMA_TCP_TIMESTAMP_OPTION description in README.txt
+        - RM #1042006 Delete redundant files from libvma home directory
+
+Fixed:
+        - RM #962481 Fix cqe error under vmapoll mode
+        - RM #1008712 Fix mutual exclusion access in ring bond
+        - RM #1027871 Fix valgrind uninitialized struct epoll_event
+        - RM #1037215 Fix autotool detection of rdma_lib_reset
+        - RM #1020667 Fix VMA_CQ_POLL_BATCH_MAX incorrect value in README.txt
+        - RM #1043382 Fix VMA_PROGRESS_ENGINE_WCE_MAX value in README.txt 
+
 Version 8.3.3-0:
 Date + Time 2017-04-25
 =============================================================
