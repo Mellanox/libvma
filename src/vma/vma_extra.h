@@ -579,7 +579,8 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * @param key - the profile key
 	 * @return 0 on success -1 on failure
 	 */
-	int (*vma_add_ring_profile)(struct vma_ring_type_attr *profile, int *key);
+	int (*vma_add_ring_profile)(struct vma_ring_type_attr *profile,
+				    vma_ring_profile_key *key);
 };
 
 
