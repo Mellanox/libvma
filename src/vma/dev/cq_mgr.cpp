@@ -114,7 +114,6 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 
 void cq_mgr::configure(int cq_size)
 {
-
 	vma_ibv_cq_init_attr attr;
 	memset(&attr, 0, sizeof(attr));
 
