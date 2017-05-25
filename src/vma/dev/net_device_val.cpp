@@ -119,9 +119,15 @@ net_device_val::~net_device_val()
 	rings_hash_map_t::iterator ring_iter;
 	while ((ring_iter = m_h_ring_map.begin()) != m_h_ring_map.end()) {
 		delete THE_RING;
+		delete ring_iter->first;
 		m_h_ring_map.erase(ring_iter);
 	}
-
+	rings_key_redirection_hash_map_t::iterator redirect_iter;
+	while ((redirect_iter = m_h_ring_key_redirection_map.begin()) !=
+		m_h_ring_key_redirection_map.end()) {
+		delete redirect_iter->second.first;
+		m_h_ring_key_redirection_map.erase(redirect_iter);
+	}
 	if (m_p_br_addr) {
 		delete m_p_br_addr;
 		m_p_br_addr = NULL;
@@ -539,14 +545,14 @@ ring* net_device_val::reserve_ring(resource_allocation_key *key)
 	rings_hash_map_t::iterator ring_iter = m_h_ring_map.find(key);
 	if (m_h_ring_map.end() == ring_iter) {
 		nd_logdbg("Creating new RING for %s", key->to_str());
-
-		the_ring = create_ring(key);
+		// copy key since we keep pointer and socket can die so map will lose pointer
+		resource_allocation_key *new_key = new resource_allocation_key(*key);
+		the_ring = create_ring(new_key);
 		if (!the_ring) {
 			return NULL;
 		}
-
-		m_h_ring_map[key] = std::make_pair(the_ring, 0); // each ring is born with ref_count = 0
-		ring_iter = m_h_ring_map.find(key);
+		m_h_ring_map[new_key] = std::make_pair(the_ring, 0); // each ring is born with ref_count = 0
+		ring_iter = m_h_ring_map.find(new_key);
 		epoll_event ev = {0, {0}};
 		int num_ring_rx_fds = the_ring->get_num_resources();
 		int *ring_rx_fds_array = the_ring->get_rx_channel_fds();
@@ -598,6 +604,7 @@ bool net_device_val::release_ring(resource_allocation_key *key)
 			}
 
 			delete THE_RING;
+			delete ring_iter->first;
 			m_h_ring_map.erase(ring_iter);
 		}
 		else {
@@ -676,6 +683,8 @@ resource_allocation_key* net_device_val::ring_key_redirection_release(resource_a
 		m_h_ring_key_redirection_map[key].first->to_str());
 	ret_key = m_h_ring_key_redirection_map[key].first;
 	if (--m_h_ring_key_redirection_map[key].second == 0) {
+		// this is allocated in ring_key_redirection_reserve
+		delete m_h_ring_key_redirection_map[key].first;
 		m_h_ring_key_redirection_map.erase(key);
 	}
 
