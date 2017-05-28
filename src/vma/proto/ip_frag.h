@@ -119,7 +119,7 @@ typedef struct ip_frag_desc {
 	struct ip_frag_desc		*next;
 } ip_frag_desc_t;
 
-typedef map<ip_frag_key_t, ip_frag_desc_t *, std::less<ip_frag_key_t> > ip_frags_list_t;
+typedef std::map<ip_frag_key_t, ip_frag_desc_t *, std::less<ip_frag_key_t> > ip_frags_list_t;
 typedef std::map<mem_buf_desc_owner*, mem_buf_desc_t*> owner_desc_map_t;
 
 class ip_frag_manager : private lock_spin, public timer_handler

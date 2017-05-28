@@ -35,23 +35,10 @@
 #include "config.h"
 #endif
 
-#include <fcntl.h>
-#include <errno.h>
-#include <iostream>
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-
-#include "utils/bullseye.h"
-#include "utils/lock_wrapper.h"
-#include "vlogger/vlogger.h"
 #include "stats/stats_data_reader.h"
 #include "vma/util/vma_stats.h"
-#include "vma/util/vtypes.h"
-#include "vma/vma_extra.h"
 #include "vma/sock/sock-redirect.h"
 #include "vma/event/event_handler_manager.h"
-#include "vma/event/timer_handler.h"
 
 #define MODULE_NAME                     "STATS: "
 
@@ -117,49 +104,49 @@ bool should_write()
 
 void stats_data_reader::handle_timer_expired(void *ctx)
 {
-        NOT_IN_USE(ctx); 
-        
-        if (!should_write()) {
-                return;
-        }
+	NOT_IN_USE(ctx);
 
-        if (g_sh_mem->fd_dump != STATS_FD_STATISTICS_DISABLED) {
-                vma_get_api()->dump_fd_stats(g_sh_mem->fd_dump, g_sh_mem->fd_dump_log_level);
-                g_sh_mem->fd_dump = STATS_FD_STATISTICS_DISABLED;
-                g_sh_mem->fd_dump_log_level = STATS_FD_STATISTICS_LOG_LEVEL_DEFAULT;
-        }
-        stats_read_map_t::iterator iter;
+	if (!should_write()) {
+		return;
+	}
+
+	if (g_sh_mem->fd_dump != STATS_FD_STATISTICS_DISABLED) {
+		vma_get_api()->dump_fd_stats(g_sh_mem->fd_dump, g_sh_mem->fd_dump_log_level);
+		g_sh_mem->fd_dump = STATS_FD_STATISTICS_DISABLED;
+		g_sh_mem->fd_dump_log_level = STATS_FD_STATISTICS_LOG_LEVEL_DEFAULT;
+	}
+	stats_read_map_t::iterator iter;
 	m_lock_data_map.lock();
 	for (iter = m_data_map.begin(); iter != m_data_map.end(); iter++) {
-                memcpy(SHM_DATA_ADDRESS, LOCAL_OBJECT_DATA, COPY_SIZE);
-        }
+		memcpy(SHM_DATA_ADDRESS, LOCAL_OBJECT_DATA, COPY_SIZE);
+	}
 	m_lock_data_map.unlock();
 
 }
 
 void stats_data_reader::register_to_timer()
 {
-        m_timer_handler = g_p_event_handler_manager->register_timer_event(STATS_PUBLISHER_TIMER_PERIOD, g_p_stats_data_reader, PERIODIC_TIMER, 0);
+	m_timer_handler = g_p_event_handler_manager->register_timer_event(STATS_PUBLISHER_TIMER_PERIOD, g_p_stats_data_reader, PERIODIC_TIMER, 0);
 }
 
 void stats_data_reader::add_data_reader(void* local_addr, void* shm_addr, int size)
 {
-        m_lock_data_map.lock();
-        m_data_map[local_addr] = std::make_pair(shm_addr, size);
-        m_lock_data_map.unlock();
+	m_lock_data_map.lock();
+	m_data_map[local_addr] = std::make_pair(shm_addr, size);
+	m_lock_data_map.unlock();
 }
 
 void* stats_data_reader::pop_data_reader(void* local_addr)
 {       
-        void* rv = NULL;
-        m_lock_data_map.lock();
-        stats_read_map_t::iterator iter = m_data_map.find(local_addr);
-        if (iter != m_data_map.end()) {//found
-                rv = SHM_DATA_ADDRESS;
-                m_data_map.erase(local_addr);
-        }
-        m_lock_data_map.unlock();
-        return rv;
+	void* rv = NULL;
+	m_lock_data_map.lock();
+	stats_read_map_t::iterator iter = m_data_map.find(local_addr);
+	if (iter != m_data_map.end()) {//found
+		rv = SHM_DATA_ADDRESS;
+		m_data_map.erase(local_addr);
+	}
+	m_lock_data_map.unlock();
+	return rv;
 }
 
 void write_version_details_to_shmem(version_info_t* p_ver_info)
@@ -173,12 +160,12 @@ void write_version_details_to_shmem(version_info_t* p_ver_info)
 void vma_shmem_stats_open(vlog_levels_t** p_p_vma_log_level, uint8_t** p_p_vma_log_details)
 {
 	void *buf = NULL;
- 	void *p_shmem = NULL;
+	void *p_shmem = NULL;
 	int ret;
 	size_t shmem_size = 0;
-        mode_t saved_mode;
+	mode_t saved_mode;
 
-        g_p_stats_data_reader = new stats_data_reader();
+	g_p_stats_data_reader = new stats_data_reader();
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (NULL == g_p_stats_data_reader) {
@@ -194,7 +181,7 @@ void vma_shmem_stats_open(vlog_levels_t** p_p_vma_log_level, uint8_t** p_p_vma_l
 	memset(buf, 0, shmem_size);
 
 	p_shmem = buf;
-	
+
 	if (strlen(safe_mce_sys().stats_shmem_dirname) <= 0)
 		goto no_shmem;
 
@@ -233,11 +220,11 @@ void vma_shmem_stats_open(vlog_levels_t** p_p_vma_log_level, uint8_t** p_p_vma_l
 	p_shmem = g_sh_mem_info.p_sh_stats;
 
 	free(buf);
-        buf = NULL;
+	buf = NULL;
 
 	goto success;
 
-no_shmem:
+	no_shmem:
 	if (g_sh_mem_info.p_sh_stats == MAP_FAILED) {
 		if (g_sh_mem_info.fd_sh_stats > 0) {
 			close(g_sh_mem_info.fd_sh_stats);
@@ -247,14 +234,14 @@ no_shmem:
 
 	g_sh_mem_info.p_sh_stats = 0;
 
-success:
+	success:
 
 	MAP_SH_MEM(g_sh_mem, p_shmem);
-	
+
 	write_version_details_to_shmem(&g_sh_mem->ver_info);
 	memcpy(g_sh_mem->stats_protocol_ver, STATS_PROTOCOL_VER, min(sizeof(g_sh_mem->stats_protocol_ver), sizeof(STATS_PROTOCOL_VER)));
 	g_sh_mem->max_skt_inst_num = safe_mce_sys().stats_fd_num_max;
-        g_sh_mem->reader_counter = 0;
+	g_sh_mem->reader_counter = 0;
 	__log_dbg("file '%s' fd %d shared memory at %p with %d max blocks\n", g_sh_mem_info.filename_sh_stats, g_sh_mem_info.fd_sh_stats, g_sh_mem_info.p_sh_stats, safe_mce_sys().stats_fd_num_max);
 
 	// Update the shmem initial log values
@@ -269,11 +256,11 @@ success:
 	*p_p_vma_log_level = &g_sh_mem->log_level;
 	*p_p_vma_log_details = &g_sh_mem->log_details_level;
 
-        g_p_stats_data_reader->register_to_timer();
+	g_p_stats_data_reader->register_to_timer();
 
 	return;
 
-shmem_error:
+	shmem_error:
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	g_sh_mem_info.fd_sh_stats = -1;
@@ -336,15 +323,15 @@ void vma_stats_instance_create_socket_block(socket_stats_t* local_stats_addr)
 	else {
 		if (!printed_sock_limit_info) {
 			printed_sock_limit_info = true;
-			vlog_printf(VLOG_INFO, "Can only monitor %d socket in statistics - increase VMA_STATS_FD_NUM!\n", safe_mce_sys().stats_fd_num_max);
+			vlog_printf(VLOG_INFO, "VMA Statistics can monitor up to %d sockets - increase VMA_STATS_FD_NUM\n", safe_mce_sys().stats_fd_num_max);
 		}
 		goto out;
 	}
 
-out:
+	out:
 	if (p_skt_stats) {
 		p_skt_stats->reset();
-                g_p_stats_data_reader->add_data_reader(local_stats_addr, p_skt_stats, sizeof(socket_stats_t));
+		g_p_stats_data_reader->add_data_reader(local_stats_addr, p_skt_stats, sizeof(socket_stats_t));
 	}
 	g_lock_skt_inst_arr.unlock();
 }
@@ -389,7 +376,7 @@ void vma_stats_mc_group_add(in_addr_t mc_grp, socket_stats_t* p_socket_stats)
 {
 	int empty_entry = -1; 
 	int index_to_insert = -1;
-	
+
 	g_lock_mc_info.lock();
 	for (int grp_idx = 0; grp_idx < g_sh_mem->mc_info.max_grp_num && index_to_insert == -1; grp_idx++) {
 		if (g_sh_mem->mc_info.mc_grp_tbl[grp_idx].sock_num == 0 && empty_entry == -1)
@@ -397,7 +384,7 @@ void vma_stats_mc_group_add(in_addr_t mc_grp, socket_stats_t* p_socket_stats)
 		else if (g_sh_mem->mc_info.mc_grp_tbl[grp_idx].sock_num && g_sh_mem->mc_info.mc_grp_tbl[grp_idx].mc_grp == mc_grp) 
 			index_to_insert = grp_idx;
 	}
-	
+
 	if (index_to_insert == -1  && empty_entry != -1)
 		index_to_insert = empty_entry;
 	else if (index_to_insert == -1 && g_sh_mem->mc_info.max_grp_num < MC_TABLE_SIZE) {
@@ -405,14 +392,14 @@ void vma_stats_mc_group_add(in_addr_t mc_grp, socket_stats_t* p_socket_stats)
 		g_sh_mem->mc_info.mc_grp_tbl[index_to_insert].mc_grp = mc_grp;
 		g_sh_mem->mc_info.max_grp_num++;
 	}
-	
+
 	if (index_to_insert != -1) {
 		g_sh_mem->mc_info.mc_grp_tbl[index_to_insert].sock_num++;
 		p_socket_stats->mc_grp_map.set((size_t)index_to_insert, 1);
 	}
 	g_lock_mc_info.unlock();
 	if (index_to_insert == -1)
-		vlog_printf(VLOG_WARNING, "Cannot stat more than %d mc groups !\n", MC_TABLE_SIZE);
+		vlog_printf(VLOG_INFO, "VMA Statistics can monitor up to %d mc groups\n", MC_TABLE_SIZE);
 }
 
 void vma_stats_mc_group_remove(in_addr_t mc_grp, socket_stats_t* p_socket_stats)
@@ -444,26 +431,26 @@ void vma_stats_instance_create_ring_block(ring_stats_t* local_stats_addr)
 	if (p_instance_ring == NULL) {
 		if (!printed_ring_limit_info) {
 			printed_ring_limit_info = true;
-			vlog_printf(VLOG_INFO, "Can only monitor %d ring elements for statistics !\n", NUM_OF_SUPPORTED_RINGS);
+			vlog_printf(VLOG_INFO, "VMA Statistics can monitor up to %d ring elements\n", NUM_OF_SUPPORTED_RINGS);
 		}
 	}
-        else {
-                g_p_stats_data_reader->add_data_reader(local_stats_addr, p_instance_ring, sizeof(ring_stats_t));
-                __log_dbg("Added ring local=%p shm=%p\n", local_stats_addr, p_instance_ring);
-        }
+	else {
+		g_p_stats_data_reader->add_data_reader(local_stats_addr, p_instance_ring, sizeof(ring_stats_t));
+		__log_dbg("Added ring local=%p shm=%p\n", local_stats_addr, p_instance_ring);
+	}
 	g_lock_ring_inst_arr.unlock();
 }
 
 void vma_stats_instance_remove_ring_block(ring_stats_t* local_stats_addr)
 {
 	g_lock_ring_inst_arr.lock();
-        __log_dbg("Remove ring local=%p\n", local_stats_addr);
+	__log_dbg("Remove ring local=%p\n", local_stats_addr);
 
-        ring_stats_t* p_ring_stats = (ring_stats_t*)g_p_stats_data_reader->pop_data_reader(local_stats_addr);
+	ring_stats_t* p_ring_stats = (ring_stats_t*)g_p_stats_data_reader->pop_data_reader(local_stats_addr);
 
 	if (p_ring_stats == NULL) { // happens on the tx cq (why don't we keep tx cq stats?)
 		__log_dbg("application vma_stats pointer is NULL\n");
-                g_lock_ring_inst_arr.unlock();
+		g_lock_ring_inst_arr.unlock();
 		return;
 	}
 
@@ -504,26 +491,26 @@ void vma_stats_instance_create_cq_block(cq_stats_t* local_stats_addr)
 	if (p_instance_cq == NULL) {
 		if (!printed_cq_limit_info) {
 			printed_cq_limit_info = true;
-			vlog_printf(VLOG_INFO, "Can only monitor %d cq elements for statistics !\n", NUM_OF_SUPPORTED_CQS);
+			vlog_printf(VLOG_INFO, "VMA Statistics can monitor up to %d cq elements\n", NUM_OF_SUPPORTED_CQS);
 		}
 	}
-        else {
-                g_p_stats_data_reader->add_data_reader(local_stats_addr, p_instance_cq, sizeof(cq_stats_t));
-                __log_dbg("Added cq local=%p shm=%p\n", local_stats_addr, p_instance_cq);
-        }
+	else {
+		g_p_stats_data_reader->add_data_reader(local_stats_addr, p_instance_cq, sizeof(cq_stats_t));
+		__log_dbg("Added cq local=%p shm=%p\n", local_stats_addr, p_instance_cq);
+	}
 	g_lock_cq_inst_arr.unlock();
 }
 
 void vma_stats_instance_remove_cq_block(cq_stats_t* local_stats_addr)
 {
 	g_lock_cq_inst_arr.lock();
-        __log_dbg("Remove cq local=%p\n", local_stats_addr);
+	__log_dbg("Remove cq local=%p\n", local_stats_addr);
 
-        cq_stats_t* p_cq_stats = (cq_stats_t*)g_p_stats_data_reader->pop_data_reader(local_stats_addr);
+	cq_stats_t* p_cq_stats = (cq_stats_t*)g_p_stats_data_reader->pop_data_reader(local_stats_addr);
 
 	if (p_cq_stats == NULL) { // happens on the tx cq (why don't we keep tx cq stats?)
 		__log_dbg("application vma_stats pointer is NULL\n");
-                g_lock_cq_inst_arr.unlock();
+		g_lock_cq_inst_arr.unlock();
 		return;
 	}
 
@@ -535,7 +522,7 @@ void vma_stats_instance_remove_cq_block(cq_stats_t* local_stats_addr)
 		return;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END*/
-	
+
 	// Search sh_mem block to release
 	for (int i=0; i<NUM_OF_SUPPORTED_CQS; i++) {
 		if (&g_sh_mem->cq_inst_arr[i].cq_stats == p_cq_stats) {
@@ -564,26 +551,26 @@ void vma_stats_instance_create_bpool_block(bpool_stats_t* local_stats_addr)
 	if (p_instance_bpool == NULL) {
 		if (!printed_bpool_limit_info) {
 			printed_bpool_limit_info = true;
-			vlog_printf(VLOG_INFO, "Can only monitor %d buffer pool elements for statistics !\n", NUM_OF_SUPPORTED_BPOOLS);
+			vlog_printf(VLOG_INFO, "VMA Statistics can monitor up to %d buffer pools\n", NUM_OF_SUPPORTED_BPOOLS);
 		}
 	}
-        else {
-                g_p_stats_data_reader->add_data_reader(local_stats_addr, p_instance_bpool, sizeof(bpool_stats_t));
-                __log_dbg("Added bpool local=%p shm=%p\n", local_stats_addr, p_instance_bpool);
-        }
+	else {
+		g_p_stats_data_reader->add_data_reader(local_stats_addr, p_instance_bpool, sizeof(bpool_stats_t));
+		__log_dbg("Added bpool local=%p shm=%p\n", local_stats_addr, p_instance_bpool);
+	}
 	g_lock_bpool_inst_arr.unlock();
 }
 
 void vma_stats_instance_remove_bpool_block(bpool_stats_t* local_stats_addr)
 {
 	g_lock_bpool_inst_arr.lock();
-        __log_dbg("Remove bpool local=%p\n", local_stats_addr);
+	__log_dbg("Remove bpool local=%p\n", local_stats_addr);
 
-        bpool_stats_t* p_bpool_stats = (bpool_stats_t*)g_p_stats_data_reader->pop_data_reader(local_stats_addr);
+	bpool_stats_t* p_bpool_stats = (bpool_stats_t*)g_p_stats_data_reader->pop_data_reader(local_stats_addr);
 
 	if (p_bpool_stats == NULL) {
 		__log_dbg("application vma_stats pointer is NULL\n");
-                g_lock_bpool_inst_arr.unlock();
+		g_lock_bpool_inst_arr.unlock();
 		return;
 	}
 
@@ -602,12 +589,12 @@ void vma_stats_instance_remove_bpool_block(bpool_stats_t* local_stats_addr)
 
 void  vma_stats_instance_get_poll_block(iomux_func_stats_t* local_stats_addr)
 {
-        g_p_stats_data_reader->add_data_reader(local_stats_addr, &g_sh_mem->iomux.poll, sizeof(iomux_func_stats_t));
+	g_p_stats_data_reader->add_data_reader(local_stats_addr, &g_sh_mem->iomux.poll, sizeof(iomux_func_stats_t));
 }
 
 void vma_stats_instance_get_select_block(iomux_func_stats_t* local_stats_addr)
 {
-        g_p_stats_data_reader->add_data_reader(local_stats_addr, &g_sh_mem->iomux.select, sizeof(iomux_func_stats_t));
+	g_p_stats_data_reader->add_data_reader(local_stats_addr, &g_sh_mem->iomux.select, sizeof(iomux_func_stats_t));
 }
 
 void vma_stats_instance_create_epoll_block(int fd, iomux_func_stats_t* local_stats_addr)
@@ -625,7 +612,7 @@ void vma_stats_instance_create_epoll_block(int fd, iomux_func_stats_t* local_sta
 		}
 	}
 
-	vlog_printf(VLOG_WARNING, "Cannot stat more than %d epoll sets\n", NUM_OF_SUPPORTED_EPFDS);
+	vlog_printf(VLOG_INFO, "VMA Statistics can monitor up to %d epoll fds", NUM_OF_SUPPORTED_EPFDS);
 	g_lock_iomux.unlock();
 	return;
 }
