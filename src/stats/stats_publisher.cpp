@@ -35,23 +35,10 @@
 #include "config.h"
 #endif
 
-#include <fcntl.h>
-#include <errno.h>
-#include <iostream>
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-
-#include "utils/bullseye.h"
-#include "utils/lock_wrapper.h"
-#include "vlogger/vlogger.h"
 #include "stats/stats_data_reader.h"
 #include "vma/util/vma_stats.h"
-#include "vma/util/vtypes.h"
-#include "vma/vma_extra.h"
 #include "vma/sock/sock-redirect.h"
 #include "vma/event/event_handler_manager.h"
-#include "vma/event/timer_handler.h"
 
 #define MODULE_NAME                     "STATS: "
 
