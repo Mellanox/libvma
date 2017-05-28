@@ -42,59 +42,18 @@
 #include <sys/stat.h>
 #include <vlogger/vlogger.h>
 
-using namespace std;
-
-//   ------------------------------
-//   | VERSION INFO		  | 
-//   ------------------------------
-//   | Max Num of fd blocks       |
-//   ------------------------------
-//   | LOG LEVEL                  |
-//   ------------------------------
-//   | DETAILS LEVEL              |
-//   ------------------------------	
-//   | MAX_VALID_SOCKINFO_BLOCKS  |
-//   ------------------------------
-//   | Sockinfo fd block (0)      |
-//   -----------------------------
-//   | Sockinfo fd block (1)      |
-//   ------------------------------
-//   | ...                        |
-//   ------------------------------
-//   | Sockinfo fd block (n)      |
-//   -----------------------------
-//   | empty                      |
-//   ------------------------------
-//   | empty                      |
-//   ------------------------------
-//   | CQ stats block (n)         |
-//   ------------------------------
-//   | MC GROUPS INFO             |
-//   ------------------------------
-//   | Poll stats block           |
-//   ------------------------------
-//   | Select stats block         |
-//   ------------------------------
-//   | Epoll stats block (0)      |
-//   ------------------------------
-//   | ...                        |
-//   ------------------------------
-//   | Epoll stats block (n)      |
-//   ------------------------------
-
-#define NUM_OF_SUPPORTED_CQS 		8 
-#define NUM_OF_SUPPORTED_RINGS 		8
-#define NUM_OF_SUPPORTED_BPOOLS		2
-#define NUM_OF_SUPPORTED_EPFDS          15
-#define MIN_STATS_SIZE	 		sizeof(sh_mem_t)
-#define SHMEM_STATS_SIZE(fds_num)	MIN_STATS_SIZE + (fds_num * sizeof(socket_instance_block_t))
-#define FILE_NAME_MAX_SIZE		256
-#define MC_TABLE_SIZE			1024
-#define MAP_SH_MEM(var,sh_stats)	(var = (sh_mem_t*)sh_stats)
-#define STATS_PUBLISHER_TIMER_PERIOD    10 // publisher will check for stats request every 10 msec
-#define STATS_READER_DELAY      (STATS_PUBLISHER_TIMER_PERIOD + 5) // reader will wait for vma to wakeup and write statistics to shmem (with extra 5 msec overhead)
-#define STATS_FD_STATISTICS_DISABLED	(-1)
-#define STATS_FD_STATISTICS_LOG_LEVEL_DEFAULT	(VLOG_DEFAULT)
+#define NUM_OF_SUPPORTED_CQS                        16
+#define NUM_OF_SUPPORTED_RINGS                      16
+#define NUM_OF_SUPPORTED_BPOOLS                     2
+#define NUM_OF_SUPPORTED_EPFDS                      32
+#define SHMEM_STATS_SIZE(fds_num)                   sizeof(sh_mem_t) + (fds_num * sizeof(socket_instance_block_t))
+#define FILE_NAME_MAX_SIZE                          256
+#define MC_TABLE_SIZE                               1024
+#define MAP_SH_MEM(var,sh_stats)                    var = (sh_mem_t*)sh_stats
+#define STATS_PUBLISHER_TIMER_PERIOD                10 // publisher will check for stats request every 10 msec
+#define STATS_READER_DELAY                          STATS_PUBLISHER_TIMER_PERIOD + 5 // reader will wait for vma to wakeup and write statistics to shmem (with extra 5 msec overhead)
+#define STATS_FD_STATISTICS_DISABLED                -1
+#define STATS_FD_STATISTICS_LOG_LEVEL_DEFAULT       VLOG_DEFAULT
 
 //statistic file
 extern FILE* g_stats_file;
@@ -236,7 +195,7 @@ typedef struct {
 	uint32_t		n_rx_zcopy_pkt_count;
 	uint32_t		n_tx_ready_byte_count;
 	socket_counters_t	counters;
-	bitset<MC_TABLE_SIZE>	mc_grp_map;
+	std::bitset<MC_TABLE_SIZE>	mc_grp_map;
 
 	void reset() {
 		fd = 0;
