@@ -58,18 +58,16 @@
 //statistic file
 extern FILE* g_stats_file;
 
-//
 // Common iomux stats
-//
 typedef struct {
-	pid_t		threadid_last;
-	uint32_t	n_iomux_poll_hit;
-	uint32_t	n_iomux_poll_miss;
-	uint32_t	n_iomux_timeouts;
-	uint32_t	n_iomux_errors;
-	uint32_t	n_iomux_rx_ready;
-	uint32_t	n_iomux_os_rx_ready;
-	uint32_t	n_iomux_polling_time;
+	pid_t       threadid_last;
+	uint32_t    n_iomux_poll_hit;
+	uint32_t    n_iomux_poll_miss;
+	uint32_t    n_iomux_timeouts;
+	uint32_t    n_iomux_errors;
+	uint32_t    n_iomux_rx_ready;
+	uint32_t    n_iomux_os_rx_ready;
+	uint32_t    n_iomux_polling_time;
 } iomux_func_stats_t;
 
 typedef enum {
@@ -92,110 +90,102 @@ typedef enum {
 } proc_ident_mode_t;
 
 struct user_params_t {
-	int 			interval;
-	print_details_mode_t 	print_details_mode;
-	view_mode_t		view_mode;
-	bool 			forbid_cleaning;
-	vlog_levels_t		vma_log_level;
-	int			vma_details_level;
-	bool 			zero_counters;
-	proc_ident_mode_t	proc_ident_mode;
-	bool 			write_auth;
-	int			cycles;
-	int			fd_dump;
-	vlog_levels_t		fd_dump_log_level;
+	int                     interval;
+	print_details_mode_t    print_details_mode;
+	view_mode_t             view_mode;
+	bool                    forbid_cleaning;
+	vlog_levels_t           vma_log_level;
+	int                     vma_details_level;
+	bool                    zero_counters;
+	proc_ident_mode_t       proc_ident_mode;
+	bool                    write_auth;
+	int                     cycles;
+	int                     fd_dump;
+	vlog_levels_t           fd_dump_log_level;
 };
 
 extern user_params_t user_params;
 
-//
 // Epoll group stats
-//
 typedef struct {
 	bool                   enabled;
 	int                    epfd;
 	iomux_func_stats_t     stats;
 } epoll_stats_t;
 
-//
 // iomux function stat info
-//
 typedef struct {
-	iomux_func_stats_t     poll;
-	iomux_func_stats_t     select;
-	epoll_stats_t          epoll[NUM_OF_SUPPORTED_EPFDS];
+	iomux_func_stats_t    poll;
+	iomux_func_stats_t    select;
+	epoll_stats_t         epoll[NUM_OF_SUPPORTED_EPFDS];
 } iomux_stats_t;
 
-//
 // multicast stat info
-//
 typedef struct {
-	uint32_t 	sock_num;
-	in_addr_t 	mc_grp;
+	uint32_t    sock_num;
+	in_addr_t   mc_grp;
 } mc_tbl_entry_t;
 
 typedef struct {
-	uint16_t	max_grp_num;
-	mc_tbl_entry_t 	mc_grp_tbl[MC_TABLE_SIZE];
+	uint16_t        max_grp_num;
+	mc_tbl_entry_t  mc_grp_tbl[MC_TABLE_SIZE];
 } mc_grp_info_t;
 
-//
 // socket stat info
-//
 typedef struct {
-	uint32_t		n_rx_packets;
-	uint32_t		n_rx_bytes;
-	uint32_t		n_rx_poll_hit;
-	uint32_t		n_rx_poll_miss;
-	uint32_t		n_rx_ready_pkt_max;
-	uint32_t		n_rx_ready_byte_drop;
-	uint32_t		n_rx_ready_pkt_drop;
-	uint32_t		n_rx_ready_byte_max;
-	uint32_t		n_rx_errors;
-	uint32_t		n_rx_eagain;
-	uint32_t		n_rx_os_packets;
-	uint32_t		n_rx_os_bytes;
-	uint32_t		n_rx_poll_os_hit;
-	uint32_t		n_rx_os_errors;
-	uint32_t		n_rx_os_eagain;
-	uint32_t		n_rx_migrations;
-	uint32_t		n_tx_sent_pkt_count;
-	uint32_t		n_tx_sent_byte_count;
-	uint32_t		n_tx_errors;
-	uint32_t		n_tx_drops;
-	uint32_t		n_tx_retransmits;
-	uint32_t		n_tx_os_packets;
-	uint32_t		n_tx_os_bytes;
-	uint32_t		n_tx_os_errors;
-	uint32_t		n_tx_os_eagain;
-	uint32_t		n_tx_migrations;
-	uint32_t		n_tx_dummy;
+	uint32_t    n_rx_packets;
+	uint32_t    n_rx_bytes;
+	uint32_t    n_rx_poll_hit;
+	uint32_t    n_rx_poll_miss;
+	uint32_t    n_rx_ready_pkt_max;
+	uint32_t    n_rx_ready_byte_drop;
+	uint32_t    n_rx_ready_pkt_drop;
+	uint32_t    n_rx_ready_byte_max;
+	uint32_t    n_rx_errors;
+	uint32_t    n_rx_eagain;
+	uint32_t    n_rx_os_packets;
+	uint32_t    n_rx_os_bytes;
+	uint32_t    n_rx_poll_os_hit;
+	uint32_t    n_rx_os_errors;
+	uint32_t    n_rx_os_eagain;
+	uint32_t    n_rx_migrations;
+	uint32_t    n_tx_sent_pkt_count;
+	uint32_t    n_tx_sent_byte_count;
+	uint32_t    n_tx_errors;
+	uint32_t    n_tx_drops;
+	uint32_t    n_tx_retransmits;
+	uint32_t    n_tx_os_packets;
+	uint32_t    n_tx_os_bytes;
+	uint32_t    n_tx_os_errors;
+	uint32_t    n_tx_os_eagain;
+	uint32_t    n_tx_migrations;
+	uint32_t    n_tx_dummy;
 } socket_counters_t;
 
 typedef struct {
-	int			fd;
-	uint32_t		inode;
-	uint32_t		tcp_state; // 	enum tcp_state
-	uint8_t			socket_type; // SOCK_STREAM, SOCK_DGRAM, ...
-	uint8_t 		padding1[3];
-	bool			b_is_offloaded;
-	bool			b_blocking;
-	bool			b_mc_loop;
-	bool			padding2;
-	in_addr_t		bound_if;
-	in_addr_t		connected_ip;
-	in_addr_t		mc_tx_if;
-	in_port_t		bound_port;
-	in_port_t		connected_port;
-	pid_t			threadid_last_rx;
-	pid_t			threadid_last_tx;
-	uint32_t		n_rx_ready_pkt_count;
-	uint32_t		n_rx_ready_byte_count;
-	uint32_t 		n_rx_ready_byte_limit;
-	uint32_t		n_rx_zcopy_pkt_count;
-	uint32_t		n_tx_ready_byte_count;
-	socket_counters_t	counters;
-	std::bitset<MC_TABLE_SIZE>	mc_grp_map;
+	int         fd;
+	uint32_t                     inode;
+	uint32_t                     tcp_state;   // enum tcp_state
+	uint8_t                      socket_type; // SOCK_STREAM, SOCK_DGRAM, ...
+	uint8_t                      padding1[3];
+	bool                         b_is_offloaded;
+	bool                         b_blocking;
+	bool                         b_mc_loop;
+	bool                         padding2;
+	in_addr_t                    bound_if;
+	in_addr_t                    connected_ip;
+	in_addr_t                    mc_tx_if;
+	in_port_t                    bound_port;
+	in_port_t                    connected_port;
+	pid_t                        threadid_last_rx;
+	pid_t                        threadid_last_tx;
+	uint32_t                     n_rx_ready_pkt_count;
+	uint32_t                     n_rx_ready_byte_count;
+	uint32_t                     n_rx_ready_byte_limit;
+	uint32_t                     n_rx_zcopy_pkt_count;
+	uint32_t                     n_tx_ready_byte_count;
+	socket_counters_t            counters;
+	std::bitset<MC_TABLE_SIZE>   mc_grp_map;
 
 	void reset() {
 		fd = 0;
@@ -212,8 +202,8 @@ typedef struct {
 } socket_stats_t;
 
 typedef struct {
-	bool 		b_enabled;
-	socket_stats_t 	skt_stats;
+	bool            b_enabled;
+	socket_stats_t  skt_stats;
 
 	void reset() {
 		b_enabled = false;
@@ -221,82 +211,74 @@ typedef struct {
 	}
 } socket_instance_block_t;
 
-//
 // CQ stat info
-//
 typedef struct {
-	uint64_t	n_rx_pkt_drop;
-	uint32_t	n_rx_sw_queue_len;
-	uint32_t	n_rx_drained_at_once_max;
-	uint32_t	n_buffer_pool_len;
+	uint64_t    n_rx_pkt_drop;
+	uint32_t    n_rx_sw_queue_len;
+	uint32_t    n_rx_drained_at_once_max;
+	uint32_t    n_buffer_pool_len;
 } cq_stats_t;
 
 typedef struct {
-	bool 		b_enabled;
-	cq_stats_t 	cq_stats;
+	bool        b_enabled;
+	cq_stats_t  cq_stats;
 } cq_instance_block_t;
 
-//
 // Ring stat info
-//
 typedef struct {
-	uint64_t	n_rx_pkt_count;
-	uint64_t	n_rx_byte_count;
-	uint64_t	n_rx_interrupt_requests;
-	uint64_t	n_rx_interrupt_received;
-	uint32_t	n_rx_cq_moderation_count;
-	uint32_t	n_rx_cq_moderation_period;
-	uint64_t	n_tx_retransmits;
-	void*		p_ring_master;
+	uint64_t    n_rx_pkt_count;
+	uint64_t    n_rx_byte_count;
+	uint64_t    n_rx_interrupt_requests;
+	uint64_t    n_rx_interrupt_received;
+	uint32_t    n_rx_cq_moderation_count;
+	uint32_t    n_rx_cq_moderation_period;
+	uint64_t    n_tx_retransmits;
+	void*       p_ring_master;
 } ring_stats_t;
 
 typedef struct {
-	bool 		b_enabled;
-	ring_stats_t 	ring_stats;
+	bool            b_enabled;
+	ring_stats_t    ring_stats;
 } ring_instance_block_t;
 
-//
 // Buffer Pool stat info
-//
 typedef struct {
-	bool		is_rx;
-	bool		is_tx;
-	uint32_t	n_buffer_pool_size;
-	uint32_t	n_buffer_pool_no_bufs;
+	bool        is_rx;
+	bool        is_tx;
+	uint32_t    n_buffer_pool_size;
+	uint32_t    n_buffer_pool_no_bufs;
 } bpool_stats_t;
 
 typedef struct {
-	bool 		b_enabled;
-	bpool_stats_t 	bpool_stats;
+	bool            b_enabled;
+	bpool_stats_t   bpool_stats;
 } bpool_instance_block_t;
 
-//
 // Version info
-//
 typedef struct {
-	uint8_t		vma_lib_maj;
-	uint8_t		vma_lib_min;
-	uint8_t		vma_lib_rev;
-	uint8_t		vma_lib_rel;
+	uint8_t    vma_lib_maj;
+	uint8_t    vma_lib_min;
+	uint8_t    vma_lib_rev;
+	uint8_t    vma_lib_rel;
 } version_info_t;
 
 typedef struct sh_mem_t {
-	int				reader_counter; //only copy to shm upon active reader
-	version_info_t			ver_info;
-	char				stats_protocol_ver[32];
-	vlog_levels_t			log_level;
-	uint8_t 			log_details_level;
-	int				fd_dump;
-	vlog_levels_t			fd_dump_log_level;
-	cq_instance_block_t		cq_inst_arr[NUM_OF_SUPPORTED_CQS];
-	ring_instance_block_t		ring_inst_arr[NUM_OF_SUPPORTED_RINGS];
-	bpool_instance_block_t		bpool_inst_arr[NUM_OF_SUPPORTED_BPOOLS];
-	mc_grp_info_t			mc_info;
-	iomux_stats_t			iomux;
-	size_t				max_skt_inst_num; // num of elemants allocated in 'socket_instance_block_t skt_inst_arr[]'
+	int                      reader_counter; //only copy to shm upon active reader
+	version_info_t           ver_info;
+	char                     stats_protocol_ver[32];
+	vlog_levels_t            log_level;
+	uint8_t                  log_details_level;
+	int                      fd_dump;
+	vlog_levels_t            fd_dump_log_level;
+	cq_instance_block_t      cq_inst_arr[NUM_OF_SUPPORTED_CQS];
+	ring_instance_block_t    ring_inst_arr[NUM_OF_SUPPORTED_RINGS];
+	bpool_instance_block_t   bpool_inst_arr[NUM_OF_SUPPORTED_BPOOLS];
+	mc_grp_info_t            mc_info;
+	iomux_stats_t            iomux;
+	size_t                   max_skt_inst_num; // number of elements allocated in 'socket_instance_block_t skt_inst_arr[]'
 
 	// MUST BE LAST ENTRY in struct: [0] is the allocation start point for all fd's
-	socket_instance_block_t  	skt_inst_arr[0]; //sockets statistics array
+	socket_instance_block_t  skt_inst_arr[0]; //sockets statistics array
 
 	void reset() {
 		reader_counter = 0;
@@ -319,41 +301,39 @@ typedef struct sh_mem_t {
 } sh_mem_t;
 
 typedef struct sh_mem_info {
-	char		filename_sh_stats[FILE_NAME_MAX_SIZE];
-	size_t 		shmem_size;
-	int		fd_sh_stats;
-	void*		p_sh_stats;
-	int pid;
+	char     filename_sh_stats[FILE_NAME_MAX_SIZE];
+	size_t   shmem_size;
+	int      fd_sh_stats;
+	void*    p_sh_stats;
+	int      pid;
 } sh_mem_info_t;
 
 // publisher functions
+void vma_shmem_stats_open(vlog_levels_t** p_p_vma_log_level, uint8_t** p_p_vma_log_details);
+void vma_shmem_stats_close();
 
-void 			vma_shmem_stats_open(vlog_levels_t** p_p_vma_log_level, uint8_t** p_p_vma_log_details);
-void 			vma_shmem_stats_close();
+void vma_stats_instance_create_socket_block(socket_stats_t*);
+void vma_stats_instance_remove_socket_block(socket_stats_t*);
 
-void              	vma_stats_instance_create_socket_block(socket_stats_t*);
-void 			vma_stats_instance_remove_socket_block(socket_stats_t*);
+void vma_stats_mc_group_add(in_addr_t mc_grp, socket_stats_t* p_socket_stats);
+void vma_stats_mc_group_remove(in_addr_t mc_grp, socket_stats_t* p_socket_stats);
 
-void 			vma_stats_mc_group_add(in_addr_t mc_grp, socket_stats_t* p_socket_stats);
-void 			vma_stats_mc_group_remove(in_addr_t mc_grp, socket_stats_t* p_socket_stats);
+void vma_stats_instance_create_ring_block(ring_stats_t*);
+void vma_stats_instance_remove_ring_block(ring_stats_t*);
 
-void     		vma_stats_instance_create_ring_block(ring_stats_t*);
-void 			vma_stats_instance_remove_ring_block(ring_stats_t*);
+void vma_stats_instance_create_cq_block(cq_stats_t*);
+void vma_stats_instance_remove_cq_block(cq_stats_t*);
 
-void     		vma_stats_instance_create_cq_block(cq_stats_t*);
-void 			vma_stats_instance_remove_cq_block(cq_stats_t*);
+void vma_stats_instance_create_bpool_block(bpool_stats_t*);
+void vma_stats_instance_remove_bpool_block(bpool_stats_t*);
 
-void     		vma_stats_instance_create_bpool_block(bpool_stats_t*);
-void 			vma_stats_instance_remove_bpool_block(bpool_stats_t*);
+void vma_stats_instance_get_poll_block(iomux_func_stats_t*);
+void vma_stats_instance_get_select_block(iomux_func_stats_t*);
 
-void             	vma_stats_instance_get_poll_block(iomux_func_stats_t*);
-void             	vma_stats_instance_get_select_block(iomux_func_stats_t*);
-
-void     		vma_stats_instance_create_epoll_block(int, iomux_func_stats_t*);
-void			vma_stats_instance_remove_epoll_block(iomux_func_stats_t* ep_stats);
+void vma_stats_instance_create_epoll_block(int, iomux_func_stats_t*);
+void vma_stats_instance_remove_epoll_block(iomux_func_stats_t* ep_stats);
 
 //reader functions
-
 void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, FILE* filename);
 void print_netstat_like(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, FILE* file, int pid);
 void print_netstat_like_headers(FILE* file);
