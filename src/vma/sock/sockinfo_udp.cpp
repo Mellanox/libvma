@@ -1749,15 +1749,26 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 
 	save_stats_threadid_tx();
 
-	if (unlikely(m_b_closed) || unlikely(g_b_exit))
+	/* Let allow OS to process all invalid scenarios to avoid any
+	 * inconsistencies in setting errno values.
+	 * Note: The field size sets a theoretical limit of 65,535 bytes
+	 * (8 byte header + 65,527 bytes of data) for a UDP datagram.
+	 * However the actual limit for the data length, which is imposed by
+	 * the underlying IPv4 protocol, is 65,507 bytes
+	 * (65,535 - 8 byte UDP header - 20 byte IP header).
+	 */
+	if (unlikely((m_b_closed) || (g_b_exit) ||
+			(NULL == p_iov) ||
+			(0 >= sz_iov) ||
+			(NULL == p_iov[0].iov_base) ||
+			(65507 < p_iov[0].iov_len))) {
 		goto tx_packet_to_os;
-
+	}
 #ifdef VMA_TIME_MEASURE
 	TAKE_T_TX_START;
 #endif
-
 	if (__dst != NULL) {
-		if (unlikely(__dstlen < sizeof(struct sockaddr_in))) {
+		if (unlikely(0 >= (int)__dstlen || __dstlen < sizeof(struct sockaddr_in))) {
 			si_udp_logdbg("going to os, dstlen < sizeof(struct sockaddr_in), dstlen = %d", __dstlen);
 			goto tx_packet_to_os;
 		}

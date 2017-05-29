@@ -672,15 +672,15 @@ ssize_t sockinfo_tcp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 	int poll_count = 0;
 	bool is_dummy = IS_DUMMY_PACKET(flags);
 
-	if (unlikely(m_sock_offload != TCP_SOCK_LWIP)) {
-#ifdef VMA_TIME_MEASURE
-		INC_GO_TO_OS_TX_COUNT;
-#endif
-
-		ret = socket_fd_api::tx_os(call_type, p_iov, sz_iov, flags, __to, __tolen);
-		save_stats_tx_os(ret);
-		return ret;
-	}
+	/* Let allow OS to process all invalid scenarios to avoid any
+	 * inconsistencies in setting errno values
+	 */
+	if (unlikely((m_sock_offload != TCP_SOCK_LWIP) ||
+			(NULL == p_iov) ||
+			(0 >= sz_iov) ||
+			(NULL == p_iov[0].iov_base))) {
+		goto tx_packet_to_os;
+		}
 
 #ifdef VMA_TIME_MEASURE
 	TAKE_T_TX_START;
@@ -723,7 +723,7 @@ retry_is_ready:
 
 	if (unlikely(is_dummy) && !check_dummy_send_conditions(flags, p_iov, sz_iov)) {
 		unlock_tcp_con();
-		errno = EIO;
+		errno = EAGAIN;
 		return -1;
 	}
 
@@ -865,6 +865,14 @@ err:
 	unlock_tcp_con();
 	return ret;
 
+tx_packet_to_os:
+#ifdef VMA_TIME_MEASURE
+	INC_GO_TO_OS_TX_COUNT;
+#endif
+
+	ret = socket_fd_api::tx_os(call_type, p_iov, sz_iov, flags, __to, __tolen);
+	save_stats_tx_os(ret);
+	return ret;
 }
 
 err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit, uint8_t is_dummy)
