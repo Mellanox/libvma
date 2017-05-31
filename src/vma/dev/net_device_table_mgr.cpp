@@ -746,12 +746,14 @@ void net_device_table_mgr::global_ring_wakeup()
 
 	ev.events = EPOLLIN;
 	ev.data.ptr = NULL;
+	int errno_tmp = errno; //don't let wakeup affect errno, as this can fail with EEXIST
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if ((orig_os_api.epoll_ctl(m_global_ring_epfd, EPOLL_CTL_ADD, 
 			   m_global_ring_pipe_fds[0], &ev)) && (errno != EEXIST)) {
 		ndtm_logerr("failed to add pipe channel fd to internal epfd (errno=%d %m)", errno);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
+	errno = errno_tmp;
 }
 
 void net_device_table_mgr::set_max_mtu(uint32_t mtu)
