@@ -1764,20 +1764,21 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 			(65507 < p_iov[0].iov_len))) {
 		goto tx_packet_to_os;
 	}
+
+	if (unlikely(__flags & MSG_OOB)) {
+		si_udp_logdbg("MSG_OOB not supported in UDP (tx-ing to os)");
+		goto tx_packet_to_os;
+	}
 #ifdef VMA_TIME_MEASURE
 	TAKE_T_TX_START;
 #endif
 	if (__dst != NULL) {
-		if (unlikely(0 >= (int)__dstlen || __dstlen < sizeof(struct sockaddr_in))) {
+		if (unlikely(__dstlen < sizeof(struct sockaddr_in))) {
 			si_udp_logdbg("going to os, dstlen < sizeof(struct sockaddr_in), dstlen = %d", __dstlen);
 			goto tx_packet_to_os;
 		}
 		if (unlikely(get_sa_family(__dst) != AF_INET)) {
 			si_udp_logdbg("to->sin_family != AF_INET (tx-ing to os)");
-			goto tx_packet_to_os;
-		}
-		if (unlikely(__flags & MSG_OOB)) {
-			si_udp_logdbg("MSG_OOB not supported in UDP (tx-ing to os)");
 			goto tx_packet_to_os;
 		}
 
