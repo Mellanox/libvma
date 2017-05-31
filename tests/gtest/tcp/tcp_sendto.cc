@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -35,73 +35,65 @@
 #include "common/sys.h"
 #include "common/base.h"
 
-#include "udp_base.h"
+#include "tcp_base.h"
 
-void udp_base::SetUp()
-{
+
+class tcp_sendto : public tcp_base {};
+
+/**
+ * @test tcp_sendto.ti_1
+ * @brief
+ *    send() invalid socket fd
+ * @details
+ */
+TEST_F(tcp_sendto, ti_1) {
+	int rc = EOK;
+	int fd;
+	char buf[] = "hello";
+
+	fd = tcp_base::sock_create();
+	ASSERT_LE(0, fd);
+
 	errno = EOK;
-}
+	rc = bind(fd, (struct sockaddr *)&client_addr, sizeof(client_addr));
+	EXPECT_EQ(EOK, errno);
+	EXPECT_EQ(0, rc);
 
-void udp_base::TearDown()
-{
-}
+	errno = EOK;
+	rc = sendto(0xFF, (void *)buf, sizeof(buf), 0,
+			(struct sockaddr *)&server_addr, sizeof(server_addr));
+	EXPECT_EQ(EBADF, errno);
+	EXPECT_EQ(-1, rc);
 
-int udp_base::sock_create(void)
-{
-	int rc;
-	int fd;
-	int opt_val = 0;
-	socklen_t opt_len;
-
-	fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
-	if (fd < 0) {
-		log_error("failed socket() %s\n", strerror(errno));
-		goto err;
-	}
-
-	rc = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt_val, sizeof(opt_len));
-	if (rc < 0) {
-		log_error("failed setsockopt(SO_REUSEADDR) %s\n", strerror(errno));
-		goto err;
-	}
-
-	return fd;
-
-err:
 	close(fd);
-
-	return (-1);
 }
 
-int udp_base::sock_create_nb(void)
-{
-	int rc;
+/**
+ * @test tcp_sendto.ti_2
+ * @brief
+ *    send() no connection
+ * @details
+ */
+TEST_F(tcp_sendto, ti_2) {
+	int rc = EOK;
 	int fd;
-	int opt_val = 0;
-	socklen_t opt_len;
+	char buf[] = "hello";
 
-	fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
-	if (fd < 0) {
-		log_error("failed socket() %s\n", strerror(errno));
-		goto err;
-	}
+	fd = tcp_base::sock_create();
+	ASSERT_LE(0, fd);
 
-	rc = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt_val, sizeof(opt_len));
-	if (rc < 0) {
-		log_error("failed setsockopt(SO_REUSEADDR) %s\n", strerror(errno));
-		goto err;
-	}
+	errno = EOK;
+	rc = bind(fd, (struct sockaddr *)&client_addr, sizeof(client_addr));
+	EXPECT_EQ(EOK, errno);
+	EXPECT_EQ(0, rc);
 
-	rc = test_base::sock_noblock(fd);
-	if (rc < 0) {
-		log_error("failed sock_noblock() %s\n", strerror(errno));
-		goto err;
-	}
+	errno = EOK;
+	(void)signal(SIGPIPE, SIG_IGN);
+	rc = sendto(fd, (void *)buf, sizeof(buf), 0,
+			(struct sockaddr *)&server_addr, sizeof(server_addr));
+	EXPECT_EQ(EPIPE, errno);
+	EXPECT_EQ(-1, rc);
+	(void)signal(SIGPIPE, SIG_DFL);
 
-	return fd;
-
-err:
 	close(fd);
-
-	return (-1);
 }

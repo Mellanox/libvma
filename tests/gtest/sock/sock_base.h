@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -30,78 +30,17 @@
  * SOFTWARE.
  */
 
-#include "common/def.h"
-#include "common/log.h"
-#include "common/sys.h"
-#include "common/base.h"
+#ifndef TESTS_GTEST_SOCK_BASE_H_
+#define TESTS_GTEST_SOCK_BASE_H_
 
-#include "udp_base.h"
 
-void udp_base::SetUp()
-{
-	errno = EOK;
-}
+/**
+ * SOCK Base class for tests
+ */
+class sock_base : public testing::Test, public test_base {
+protected:
+	virtual void SetUp();
+	virtual void TearDown();
+};
 
-void udp_base::TearDown()
-{
-}
-
-int udp_base::sock_create(void)
-{
-	int rc;
-	int fd;
-	int opt_val = 0;
-	socklen_t opt_len;
-
-	fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
-	if (fd < 0) {
-		log_error("failed socket() %s\n", strerror(errno));
-		goto err;
-	}
-
-	rc = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt_val, sizeof(opt_len));
-	if (rc < 0) {
-		log_error("failed setsockopt(SO_REUSEADDR) %s\n", strerror(errno));
-		goto err;
-	}
-
-	return fd;
-
-err:
-	close(fd);
-
-	return (-1);
-}
-
-int udp_base::sock_create_nb(void)
-{
-	int rc;
-	int fd;
-	int opt_val = 0;
-	socklen_t opt_len;
-
-	fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
-	if (fd < 0) {
-		log_error("failed socket() %s\n", strerror(errno));
-		goto err;
-	}
-
-	rc = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt_val, sizeof(opt_len));
-	if (rc < 0) {
-		log_error("failed setsockopt(SO_REUSEADDR) %s\n", strerror(errno));
-		goto err;
-	}
-
-	rc = test_base::sock_noblock(fd);
-	if (rc < 0) {
-		log_error("failed sock_noblock() %s\n", strerror(errno));
-		goto err;
-	}
-
-	return fd;
-
-err:
-	close(fd);
-
-	return (-1);
-}
+#endif /* TESTS_GTEST_SOCK_BASE_H_ */

@@ -1,5 +1,7 @@
 noinst_PROGRAMS = gtest
 
+CXXFLAGS = $(GTEST_CXXFLAGS)
+
 gtest_LDADD =
 
 gtest_CPPFLAGS = \
@@ -18,13 +20,21 @@ gtest_SOURCES = \
 	\
 	common/base.cc \
 	\
+	sock/sock_base.cc \
+	sock/sock_socket.cc \
+	\
 	tcp/tcp_base.cc \
-	tcp/tcp_socket.cc \
 	tcp/tcp_bind.cc \
-	tcp/tcp_event.cc \
 	tcp/tcp_connect.cc \
+	tcp/tcp_connect_nb.cc \
+	tcp/tcp_event.cc \
+	tcp/tcp_send.cc \
+	tcp/tcp_sendto.cc \
 	\
 	udp/udp_base.cc \
+	udp/udp_bind.cc \
+	udp/udp_send.cc \
+	udp/udp_sendto.cc \
 	\
 	vma/vma_base.cc \
 	vma/vma_ring.cc \
@@ -39,6 +49,8 @@ noinst_HEADERS = \
 	common/cmn.h \
 	\
 	common/base.h \
+	\
+	sock/sock_base.h \
 	\
 	tcp/tcp_base.h \
 	\

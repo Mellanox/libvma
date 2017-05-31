@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -35,22 +35,22 @@
 #include "common/sys.h"
 #include "common/base.h"
 
-#include "tcp_base.h"
+#include "udp_base.h"
 
 
-class tcp_bind : public tcp_base {};
+class udp_bind : public udp_base {};
 
 /**
- * @test tcp_bind.ti_1
+ * @test udp_bind.ti_1
  * @brief
- *    bind(SOCK_STREAM) socket to local ip
+ *    bind(SOCK_DGRAM) socket to local ip
  * @details
  */
-TEST_F(tcp_bind, ti_1) {
+TEST_F(udp_bind, ti_1) {
 	int rc = EOK;
 	int fd;
 
-	fd = tcp_base::sock_create();
+	fd = udp_base::sock_create();
 	ASSERT_LE(0, fd);
 
 	errno = EOK;
@@ -62,16 +62,16 @@ TEST_F(tcp_bind, ti_1) {
 }
 
 /**
- * @test tcp_bind.ti_2
+ * @test udp_bind.ti_2
  * @brief
- *    bind(SOCK_STREAM) socket to remote ip
+ *    bind(SOCK_DGRAM) socket to remote ip
  * @details
  */
-TEST_F(tcp_bind, ti_2) {
+TEST_F(udp_bind, ti_2) {
 	int rc = EOK;
 	int fd;
 
-	fd = tcp_base::sock_create();
+	fd = udp_base::sock_create();
 	ASSERT_LE(0, fd);
 
 	errno = EOK;
@@ -83,17 +83,17 @@ TEST_F(tcp_bind, ti_2) {
 }
 
 /**
- * @test tcp_bind.ti_3
+ * @test udp_bind.ti_3
  * @brief
- *    bind(SOCK_STREAM) socket twice
+ *    bind(SOCK_DGRAM) socket twice
  * @details
  */
-TEST_F(tcp_bind, ti_3) {
+TEST_F(udp_bind, ti_3) {
 	int rc = EOK;
 	int fd;
 	struct sockaddr_in addr;
 
-	fd = tcp_base::sock_create();
+	fd = udp_base::sock_create();
 	ASSERT_LE(0, fd);
 
 	errno = EOK;
@@ -113,17 +113,17 @@ TEST_F(tcp_bind, ti_3) {
 }
 
 /**
- * @test tcp_bind.ti_4
+ * @test udp_bind.ti_4
  * @brief
- *    bind(SOCK_STREAM) two sockets on the same ip
+ *    bind(SOCK_DGRAM) two sockets on the same ip
  * @details
  */
-TEST_F(tcp_bind, ti_4) {
+TEST_F(udp_bind, ti_4) {
 	int rc = EOK;
 	int fd;
 	int fd2;
 
-	fd = tcp_base::sock_create();
+	fd = udp_base::sock_create();
 	ASSERT_LE(0, fd);
 
 	errno = EOK;
@@ -131,7 +131,7 @@ TEST_F(tcp_bind, ti_4) {
 	EXPECT_EQ(EOK, errno);
 	EXPECT_EQ(0, rc);
 
-	fd2 = tcp_base::sock_create();
+	fd2 = udp_base::sock_create();
 	ASSERT_LE(0, fd);
 
 	errno = EOK;

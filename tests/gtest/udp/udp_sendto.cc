@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -35,22 +35,23 @@
 #include "common/sys.h"
 #include "common/base.h"
 
-#include "tcp_base.h"
+#include "udp_base.h"
 
 
-class tcp_bind : public tcp_base {};
+class udp_sendto : public udp_base {};
 
 /**
- * @test tcp_bind.ti_1
+ * @test udp_sendto.ti_1
  * @brief
- *    bind(SOCK_STREAM) socket to local ip
+ *    sendto() successful call
  * @details
  */
-TEST_F(tcp_bind, ti_1) {
+TEST_F(udp_sendto, ti_1) {
 	int rc = EOK;
 	int fd;
+	char buf[] = "hello";
 
-	fd = tcp_base::sock_create();
+	fd = udp_base::sock_create();
 	ASSERT_LE(0, fd);
 
 	errno = EOK;
@@ -58,42 +59,27 @@ TEST_F(tcp_bind, ti_1) {
 	EXPECT_EQ(EOK, errno);
 	EXPECT_EQ(0, rc);
 
-	close(fd);
-}
-
-/**
- * @test tcp_bind.ti_2
- * @brief
- *    bind(SOCK_STREAM) socket to remote ip
- * @details
- */
-TEST_F(tcp_bind, ti_2) {
-	int rc = EOK;
-	int fd;
-
-	fd = tcp_base::sock_create();
-	ASSERT_LE(0, fd);
-
 	errno = EOK;
-	rc = bind(fd, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
-	EXPECT_EQ(EADDRNOTAVAIL, errno);
-	EXPECT_GT(0, rc);
+	rc = sendto(fd, (void *)buf, sizeof(buf), 0,
+			(struct sockaddr *)&server_addr, sizeof(server_addr));
+	EXPECT_EQ(EOK, errno);
+	EXPECT_EQ(sizeof(buf), rc);
 
 	close(fd);
 }
 
 /**
- * @test tcp_bind.ti_3
+ * @test udp_sendto.ti_2
  * @brief
- *    bind(SOCK_STREAM) socket twice
+ *    sendto() invalid socket fd
  * @details
  */
-TEST_F(tcp_bind, ti_3) {
+TEST_F(udp_sendto, ti_2) {
 	int rc = EOK;
 	int fd;
-	struct sockaddr_in addr;
+	char buf[] = "hello";
 
-	fd = tcp_base::sock_create();
+	fd = udp_base::sock_create();
 	ASSERT_LE(0, fd);
 
 	errno = EOK;
@@ -101,29 +87,89 @@ TEST_F(tcp_bind, ti_3) {
 	EXPECT_EQ(EOK, errno);
 	EXPECT_EQ(0, rc);
 
-	memcpy(&addr, &client_addr, sizeof(addr));
-	addr.sin_port = htons(bogus_port);
+	errno = EOK;
+	rc = sendto(0xFF, (void *)buf, sizeof(buf), 0,
+			(struct sockaddr *)&server_addr, sizeof(server_addr));
+	EXPECT_EQ(EBADF, errno);
+	EXPECT_EQ(-1, rc);
+
+	close(fd);
+}
+
+/**
+ * @test udp_sendto.ti_3
+ * @brief
+ *    sendto() invalid buffer length (>65,507 bytes)
+ * @details
+ */
+TEST_F(udp_sendto, ti_3) {
+	int rc = EOK;
+	int fd;
+	char buf[65508] = "hello";
+
+	fd = udp_base::sock_create();
+	ASSERT_LE(0, fd);
 
 	errno = EOK;
-	rc = bind(fd, (struct sockaddr *)&addr, sizeof(addr));
+	rc = bind(fd, (struct sockaddr *)&client_addr, sizeof(client_addr));
+	EXPECT_EQ(EOK, errno);
+	EXPECT_EQ(0, rc);
+
+	errno = EOK;
+	rc = sendto(fd, (void *)buf, 65507, 0,
+			(struct sockaddr *)&server_addr, sizeof(server_addr));
+	EXPECT_EQ(EOK, errno);
+	EXPECT_EQ(65507, rc);
+
+	errno = EOK;
+	rc = sendto(fd, (void *)buf, sizeof(buf), 0,
+			(struct sockaddr *)&server_addr, sizeof(server_addr));
+	EXPECT_EQ(EMSGSIZE, errno);
+	EXPECT_EQ(-1, rc);
+
+	close(fd);
+}
+
+/**
+ * @test udp_sendto.ti_4
+ * @brief
+ *    sendto() invalid address length
+ * @details
+ */
+TEST_F(udp_sendto, ti_4) {
+	int rc = EOK;
+	int fd;
+	char buf[] = "hello";
+
+	fd = udp_base::sock_create();
+	ASSERT_LE(0, fd);
+
+	errno = EOK;
+	rc = bind(fd, (struct sockaddr *)&client_addr, sizeof(client_addr));
+	EXPECT_EQ(EOK, errno);
+	EXPECT_EQ(0, rc);
+
+	errno = EOK;
+	rc = sendto(fd, (void *)buf, sizeof(buf), 0,
+			(struct sockaddr *)&server_addr, sizeof(server_addr) - 1);
 	EXPECT_EQ(EINVAL, errno);
-	EXPECT_GT(0, rc);
+	EXPECT_EQ(-1, rc);
 
 	close(fd);
 }
 
 /**
- * @test tcp_bind.ti_4
+ * @test udp_sendto.ti_5
  * @brief
- *    bind(SOCK_STREAM) two sockets on the same ip
+ *    sendto() invalid flag set
  * @details
  */
-TEST_F(tcp_bind, ti_4) {
+TEST_F(udp_sendto, ti_5) {
 	int rc = EOK;
 	int fd;
-	int fd2;
+	char buf[] = "hello";
 
-	fd = tcp_base::sock_create();
+	fd = udp_base::sock_create();
 	ASSERT_LE(0, fd);
 
 	errno = EOK;
@@ -131,14 +177,11 @@ TEST_F(tcp_bind, ti_4) {
 	EXPECT_EQ(EOK, errno);
 	EXPECT_EQ(0, rc);
 
-	fd2 = tcp_base::sock_create();
-	ASSERT_LE(0, fd);
-
 	errno = EOK;
-	rc = bind(fd2, (struct sockaddr *)&client_addr, sizeof(client_addr));
-	EXPECT_EQ(EADDRINUSE, errno);
-	EXPECT_GT(0, rc);
+	rc = sendto(fd, (void *)buf, sizeof(buf), 0x000000FF,
+			(struct sockaddr *)&server_addr, sizeof(server_addr));
+	EXPECT_EQ(EOPNOTSUPP, errno);
+	EXPECT_EQ(-1, rc);
 
 	close(fd);
-	close(fd2);
 }
