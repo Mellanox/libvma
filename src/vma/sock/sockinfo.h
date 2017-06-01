@@ -176,7 +176,7 @@ protected:
 	inline void		set_rx_reuse_pending(bool is_pending = true) {m_rx_reuse_buf_pending = is_pending;}
 
 	rx_ring_map_t		m_rx_ring_map; // CQ map
-	lock_mutex_recursive	m_rx_ring_map_lock;
+	lock_mutex		m_rx_ring_map_lock;
 	ring_allocation_logic_rx m_ring_alloc_logic;
 
 	loops_timer             m_loops_timer;
