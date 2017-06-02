@@ -50,7 +50,7 @@
 #include "vma/dev/rfs_uc.h"
 #include "vma/dev/rfs_uc_tcp_gro.h"
 #include "vma/dev/cq_mgr.h"
-#if !defined(DEFINED_VMAPOLL) && defined(HAVE_INFINIBAND_MLX5_HW_H)
+#if defined(HAVE_INFINIBAND_MLX5_HW_H)
 #include "qp_mgr_eth_mlx5.h"
 #endif
 
@@ -85,8 +85,8 @@ inline void ring_simple::send_status_handler(int ret, vma_ibv_send_wr* p_send_wq
 
 qp_mgr* ring_eth::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) throw (vma_error)
 {
-#if !defined(DEFINED_VMAPOLL) && defined(HAVE_INFINIBAND_MLX5_HW_H)
-	if (qp_mgr::is_lib_mlx5(((ib_ctx_handler*)ib_ctx)->get_ibv_device()->name)) {
+#if defined(HAVE_INFINIBAND_MLX5_HW_H)
+	if (!m_b_is_hypervisor && qp_mgr::is_lib_mlx5(((ib_ctx_handler*)ib_ctx)->get_ibv_device()->name)) {
 		return new qp_mgr_eth_mlx5(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), get_partition());
 	}
 #endif
@@ -119,6 +119,7 @@ bool ring_ib::is_ratelimit_supported(uint32_t rate)
 ring_simple::ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, uint32_t mtu, ring* parent /*=NULL*/) throw (vma_error):
 	ring(count, mtu), m_p_qp_mgr(NULL), m_p_cq_mgr_rx(NULL),
 	m_lock_ring_rx("ring_simple:lock_rx"),
+	m_b_is_hypervisor(safe_mce_sys().is_hypervisor),
 	m_lock_ring_tx("ring_simple:lock_tx"), m_p_cq_mgr_tx(NULL),
 	m_lock_ring_tx_buf_wait("ring:lock_tx_buf_wait"), m_tx_num_bufs(0), m_tx_num_wr(0), m_tx_num_wr_free(0),
 	m_b_qp_tx_first_flushed_completion_handled(false), m_missing_buf_ref_count(0),
@@ -1527,6 +1528,9 @@ int ring_simple::get_max_tx_inline()
 /* note that this function is inline, so keep it above the functions using it */
 inline int ring_simple::send_buffer(vma_ibv_send_wr* p_send_wqe, bool b_block)
 {
+	//Note: this is debatable logic as it count of WQEs waiting completion but
+	//our SQ is cyclic buffer so in reality only last WQE is still being sent
+	//and other SQ is mostly free to work on.
 	int ret = 0;
 	if (likely(m_tx_num_wr_free > 0)) {
 		ret = m_p_qp_mgr->send(p_send_wqe);
@@ -1780,7 +1784,7 @@ mem_buf_desc_t* ring_simple::get_tx_buffers(uint32_t n_num_mem_bufs)
 //call under m_lock_ring_tx lock
 int ring_simple::put_tx_buffers(mem_buf_desc_t* buff_list)
 {
-	int count = 0;
+	int count = 0,freed=0;
 	mem_buf_desc_t *next;
 
 	while (buff_list) {
@@ -1796,10 +1800,12 @@ int ring_simple::put_tx_buffers(mem_buf_desc_t* buff_list)
 		if (buff_list->lwip_pbuf.pbuf.ref == 0) {
 			free_lwip_pbuf(&buff_list->lwip_pbuf);
 			m_tx_pool.push_back(buff_list);
+			freed++;
 		}
 		count++;
 		buff_list = next;
 	}
+	ring_logfunc("buf_list: %p count: %d freed: %d\n", buff_list, count, freed);
 
 	if (unlikely(m_tx_pool.size() > (m_tx_num_bufs / 2) &&  m_tx_num_bufs >= RING_TX_BUFS_COMPENSATE * 2)) {
 		int return_to_global_pool = m_tx_pool.size() / 2;

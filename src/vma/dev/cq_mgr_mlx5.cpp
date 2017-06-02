@@ -451,41 +451,6 @@ inline void cq_mgr_mlx5::cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, vma_ib
 	wc->vendor_err = ecqe->vendor_err_synd;
 }
 
-int cq_mgr_mlx5::poll_and_process_error_element_tx(volatile struct mlx5_cqe64 *cqe, uint64_t* p_cq_poll_sn)
-{
-	uint16_t wqe_ctr = ntohs(cqe->wqe_counter);
-	int index = wqe_ctr & (m_qp->m_tx_num_wr - 1);
-	mem_buf_desc_t* buff = NULL;
-	vma_ibv_wc wce;
-
-	m_qp->m_hw_qp->sq.tail += NUM_TX_WRE_TO_SIGNAL_MAX;
-
-	// spoil the global sn if we have packets ready
-	union __attribute__((packed)) {
-		uint64_t global_sn;
-		struct {
-			uint32_t cq_id;
-			uint32_t cq_sn;
-		} bundle;
-	} next_sn;
-	next_sn.bundle.cq_sn = ++m_n_cq_poll_sn;
-	next_sn.bundle.cq_id = m_cq_id;
-
-	*p_cq_poll_sn = m_n_global_sn = next_sn.global_sn;
-
-	memset(&wce, 0, sizeof(wce));
-	wce.wr_id = m_qp->m_sq_wqe_idx_to_wrid[index];
-
-	cqe64_to_vma_wc(cqe, &wce);
-
-	buff = cq_mgr::process_cq_element_tx(&wce);
-	if (buff) {
-		cq_mgr::process_tx_buffer_list(buff);
-	}
-
-	return 1;
-}
-
 inline volatile struct mlx5_cqe64* cq_mgr_mlx5::check_error_completion(volatile struct mlx5_cqe64 *cqe,
 								 volatile uint32_t *ci, uint8_t op_own)
 {
@@ -524,6 +489,41 @@ inline volatile struct mlx5_cqe64 *cq_mgr_mlx5::get_cqe64(volatile struct mlx5_c
 	return cqe;
 }
 
+int cq_mgr_mlx5::poll_and_process_error_element_tx(volatile struct mlx5_cqe64 *cqe, uint64_t* p_cq_poll_sn)
+{
+	uint16_t wqe_ctr = ntohs(cqe->wqe_counter);
+	int index = wqe_ctr & (m_qp->m_tx_num_wr - 1);
+	mem_buf_desc_t* buff = NULL;
+	vma_ibv_wc wce;
+
+	m_qp->m_hw_qp->sq.tail += NUM_TX_WRE_TO_SIGNAL_MAX;
+
+	// spoil the global sn if we have packets ready
+	union __attribute__((packed)) {
+		uint64_t global_sn;
+		struct {
+			uint32_t cq_id;
+			uint32_t cq_sn;
+		} bundle;
+	} next_sn;
+	next_sn.bundle.cq_sn = ++m_n_cq_poll_sn;
+	next_sn.bundle.cq_id = m_cq_id;
+
+	*p_cq_poll_sn = m_n_global_sn = next_sn.global_sn;
+
+	memset(&wce, 0, sizeof(wce));
+	wce.wr_id = m_qp->m_sq_wqe_idx_to_wrid[index];
+
+	cqe64_to_vma_wc(cqe, &wce);
+
+	buff = cq_mgr::process_cq_element_tx(&wce);
+	if (buff) {
+		cq_mgr::process_tx_buffer_list(buff);
+	}
+
+	return 1;
+}
+
 int cq_mgr_mlx5::poll_and_process_element_tx(uint64_t* p_cq_poll_sn)
 {
 	// Assume locked!!!
@@ -538,7 +538,6 @@ int cq_mgr_mlx5::poll_and_process_element_tx(uint64_t* p_cq_poll_sn)
 		uint16_t wqe_ctr = ntohs(cqe->wqe_counter);
 		int index = wqe_ctr & (m_qp->m_tx_num_wr - 1);
 		mem_buf_desc_t* buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_sq_wqe_idx_to_wrid[index];
-
 		// spoil the global sn if we have packets ready
 		union __attribute__((packed)) {
 			uint64_t global_sn;
