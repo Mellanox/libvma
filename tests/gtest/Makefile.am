@@ -1,5 +1,7 @@
 noinst_PROGRAMS = gtest
 
+CXXFLAGS = $(GTEST_CXXFLAGS)
+
 gtest_LDADD =
 
 gtest_CPPFLAGS = \
@@ -50,7 +52,6 @@ noinst_HEADERS = \
 
 
 all-local: gtest
-
 
 #
 # List variables
