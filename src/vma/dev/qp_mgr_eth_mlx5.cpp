@@ -109,7 +109,7 @@ qp_mgr_eth_mlx5::qp_mgr_eth_mlx5(const ring_simple* p_ring, const ib_ctx_handler
 	,m_sq_wqe_hot_index(0)
 	,m_sq_bf_offset(0)
 	,m_sq_bf_buf_size(0)
-	,m_sq_wqe_cntr(0)
+	,m_sq_wqe_counter(0)
 {
 	if(configure(p_rx_comp_event_channel)) {
 		throw_vma_exception("failed creating qp_mgr_eth");
@@ -152,8 +152,11 @@ cq_mgr* qp_mgr_eth_mlx5::init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event
 		qp_logerr("Failed allocating m_rq_wqe_idx_to_wrid (errno=%d %m)", errno);
 		return NULL;
 	}
-
+#ifdef DEFINED_VMAPOLL
+	return new cq_mgr(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
+#else
 	return new cq_mgr_mlx5(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
+#endif
 }
 
 cq_mgr* qp_mgr_eth_mlx5::init_tx_cq_mgr()
@@ -174,7 +177,7 @@ cq_mgr* qp_mgr_eth_mlx5::init_tx_cq_mgr()
 
 inline void qp_mgr_eth_mlx5::set_signal_in_next_send_wqe()
 {
-	volatile struct mlx5_wqe64 *wqe = &(*m_sq_wqes)[m_sq_wqe_cntr & (m_tx_num_wr - 1)];
+	volatile struct mlx5_wqe64 *wqe = &(*m_sq_wqes)[m_sq_wqe_counter & (m_tx_num_wr - 1)];
 	wqe->ctrl.data[2] = htonl(8);
 }
 
@@ -210,14 +213,14 @@ int qp_mgr_eth_mlx5::send_to_wire(vma_ibv_send_wr *p_send_wqe)
 	m_sq_wqe_hot->dseg.lkey = htonl(lkey);
 	m_sq_wqe_hot->dseg.addr = htonll(addr);
 
-	++m_sq_wqe_cntr;
+	++m_sq_wqe_counter;
 
 	/*
 	 * Make sure that descriptors are written before
 	 * updating doorbell record and ringing the doorbell
 	 */
 	wmb();
-	*m_sq_db = htonl(m_sq_wqe_cntr);
+	*m_sq_db = htonl(m_sq_wqe_counter);
 
 	/* This wc_wmb ensures ordering between DB record and BF copy */
 	wc_wmb();
@@ -235,11 +238,11 @@ int qp_mgr_eth_mlx5::send_to_wire(vma_ibv_send_wr *p_send_wqe)
 	m_sq_wqe_idx_to_wrid[m_sq_wqe_hot_index] = (uintptr_t)p_send_wqe->wr_id;
 
 	/*Set the next WQE and index*/
-	m_sq_wqe_hot = &(*m_sq_wqes)[m_sq_wqe_cntr & (m_tx_num_wr - 1)];
+	m_sq_wqe_hot = &(*m_sq_wqes)[m_sq_wqe_counter & (m_tx_num_wr - 1)];
 	/* Write only data[0] which is the single element which changes.
 	 * Other fields are already initialised in mlx5_init_sq. */
-	m_sq_wqe_hot->ctrl.data[0] = htonl((m_sq_wqe_cntr << 8) | MLX5_OPCODE_SEND);
-	m_sq_wqe_hot_index = m_sq_wqe_cntr & (m_tx_num_wr - 1);
+	m_sq_wqe_hot->ctrl.data[0] = htonl((m_sq_wqe_counter << 8) | MLX5_OPCODE_SEND);
+	m_sq_wqe_hot_index = m_sq_wqe_counter & (m_tx_num_wr - 1);
 	return 0;
 }
 

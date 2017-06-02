@@ -78,7 +78,7 @@ private:
 	int                 m_sq_wqe_hot_index;
 	uint16_t            m_sq_bf_offset;
 	uint16_t            m_sq_bf_buf_size;
-	uint16_t            m_sq_wqe_cntr;
+	uint16_t            m_sq_wqe_counter;
 };
-#endif //!defined(DEFINED_VMAPOLL) && defined(HAVE_INFINIBAND_MLX5_HW_H)
+#endif //defined(HAVE_INFINIBAND_MLX5_HW_H)
 #endif //QP_MGR_ETH_MLX5_H

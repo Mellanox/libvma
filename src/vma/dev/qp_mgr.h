@@ -144,20 +144,10 @@ public:
 	static inline bool  is_lib_mlx5(const char* device_name) {return strstr(device_name, "mlx5");}
 
 protected:
-	uint64_t                    m_rq_wqe_counter;
-	uint64_t*                   m_rq_wqe_idx_to_wrid;
+	uint64_t            m_rq_wqe_counter;
+	uint64_t*           m_rq_wqe_idx_to_wrid;
 #ifdef DEFINED_VMAPOLL
-	struct mlx5_qp*	            m_mlx5_hw_qp;
-	volatile struct mlx5_wqe64* m_sq_hot_wqe;
-	int                         m_sq_hot_wqe_index;
-	volatile struct mlx5_wqe64  (*m_mlx5_sq_wqes)[];
-	volatile uint32_t*          m_sq_db;
-	volatile void*              m_sq_bf_reg;
-	uint16_t                    m_sq_bf_offset;
-	uint16_t                    m_sq_bf_buf_size;
-	uint16_t                    m_sq_wqe_counter;
-	uint64_t*                   m_sq_wqe_idx_to_wrid;
-	unsigned int                m_qp_num;
+	struct mlx5_qp*	    m_mlx5_hw_qp;
 #endif // DEFINED_VMAPOLL
 	struct ibv_qp*      m_qp;
 
@@ -210,10 +200,6 @@ protected:
 
 	virtual int     post_qp_create(void) { return 0;};
 	virtual int     send_to_wire(vma_ibv_send_wr* p_send_wqe);
-#ifdef DEFINED_VMAPOLL
-	virtual void	set_signal_in_next_send_wqe();
-	virtual void	init_sq();
-#endif // DEFINED_VMAPOLL
 };
 
 class qp_mgr_eth : public qp_mgr

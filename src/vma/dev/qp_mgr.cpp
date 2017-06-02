@@ -64,9 +64,9 @@ qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context,
 		const uint8_t port_num, const uint32_t tx_num_wr):
 	 m_rq_wqe_counter(0)
 	,m_rq_wqe_idx_to_wrid(NULL)
-#ifdef DEFINED_VMAPOLL
+	#ifdef DEFINED_VMAPOLL
 	,m_mlx5_hw_qp(NULL)
-#endif
+	#endif
 	,m_qp(NULL)
 	,m_p_ring((ring_simple*)p_ring)
 	,m_port_num((uint8_t)port_num)
@@ -89,27 +89,11 @@ qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context,
 	set_unsignaled_count();
 
 #ifdef DEFINED_VMAPOLL
-	m_sq_wqe_counter = 0;
-
 	m_rq_wqe_idx_to_wrid = (uint64_t*)mmap(NULL, m_rx_num_wr * sizeof(*m_rq_wqe_idx_to_wrid),
 		PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 	if (m_rq_wqe_idx_to_wrid == MAP_FAILED) {
 		qp_logerr("Failed allocating m_rq_wqe_idx_to_wrid (errno=%d %m)", errno);
 	}
-	m_sq_wqe_idx_to_wrid = (uint64_t*)mmap(NULL, m_tx_num_wr * sizeof(*m_sq_wqe_idx_to_wrid),
-		PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-	if (m_sq_wqe_idx_to_wrid == MAP_FAILED) {
-		qp_logerr("Failed allocating m_sq_wqe_idx_to_wrid (errno=%d %m)", errno);
-	}
-
-	m_sq_hot_wqe = NULL;
-	m_sq_hot_wqe_index = 0;
-	m_mlx5_sq_wqes = NULL;
-	m_sq_db = NULL;
-	m_sq_bf_reg = NULL;
-	m_sq_bf_offset = 0;
-	m_sq_bf_buf_size = 0;
-	m_qp_num = 0;
 #endif // DEFINED_VMAPOLL
 	qp_logfunc("");
 }
@@ -149,12 +133,6 @@ qp_mgr::~qp_mgr()
 			qp_logerr("Failed deallocating memory with munmap m_rq_wqe_idx_to_wrid (errno=%d %m)", errno);
 		}
 		m_rq_wqe_idx_to_wrid = NULL;
-	}
-	if (m_sq_wqe_idx_to_wrid) {
-		if (0 != munmap(m_sq_wqe_idx_to_wrid, m_tx_num_wr * sizeof(*m_sq_wqe_idx_to_wrid))) {
-			qp_logerr("Failed deallocating memory with munmap m_sq_wqe_idx_to_wrid (errno=%d %m)", errno);
-		}
-		m_sq_wqe_idx_to_wrid = NULL;
 	}
 #endif // DEFINED_VMAPOLL
 
@@ -267,7 +245,8 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	m_p_ahc_tail = NULL;
 
 #ifdef DEFINED_VMAPOLL
-	init_sq();
+	struct verbs_qp *vqp = (struct verbs_qp *)m_qp;
+	m_mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
 #endif //DEFINED_VMAPOLL
 	if (m_p_cq_mgr_tx) {
 		m_p_cq_mgr_tx->add_qp_tx(this);
@@ -341,13 +320,13 @@ void qp_mgr::release_rx_buffers()
 		}
 	}
 	// Wait for all FLUSHed WQE on Rx CQ
-	qp_logdbg("draining rx cq_mgr %p (last_posted_rx_wr_id = %x)", m_p_cq_mgr_rx, m_last_posted_rx_wr_id);
+	qp_logdbg("draining rx cq_mgr %p (last_posted_rx_wr_id = %p)", m_p_cq_mgr_rx, m_last_posted_rx_wr_id);
 	uintptr_t last_polled_rx_wr_id = 0;
 	while (m_p_cq_mgr_rx && last_polled_rx_wr_id != m_last_posted_rx_wr_id) {
 
 		// Process the FLUSH'ed WQE's
 		int ret = m_p_cq_mgr_rx->drain_and_proccess(&last_polled_rx_wr_id);
-		qp_logdbg("draining completed on rx cq_mgr (%d wce)", ret);
+		qp_logdbg("draining completed on rx cq_mgr (%d wce) last_polled_rx_wr_id = %p", ret, last_polled_rx_wr_id);
 		total_ret += ret;
 
 		// Add short delay (500 usec) to allow for WQE's to be flushed to CQ every poll cycle
@@ -367,14 +346,6 @@ void qp_mgr::release_tx_buffers()
 		qp_logdbg("draining completed on tx cq_mgr (%d wce)", ret);
 	}
 }
-
-#ifdef DEFINED_VMAPOLL
-void qp_mgr::set_signal_in_next_send_wqe()
-{
-	volatile struct mlx5_wqe64 *wqe = &(*m_mlx5_sq_wqes)[m_sq_wqe_counter & (m_tx_num_wr - 1)];
-	wqe->ctrl.data[2] = htonl(8);
-}
-#endif // DEFINED_VMAPOLL
 
 void qp_mgr::trigger_completion_for_all_sent_packets()
 {
@@ -458,9 +429,6 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 		}
 		m_p_ring->m_tx_num_wr_free--;
 
-#ifdef DEFINED_VMAPOLL
-		set_signal_in_next_send_wqe();
-#endif // DEFINED_VMAPOLL
 		send_to_wire(&send_wr);
 		if (p_ah) {
 			IF_VERBS_FAILURE(ibv_destroy_ah(p_ah))
@@ -569,108 +537,6 @@ int qp_mgr::post_recv(mem_buf_desc_t* p_mem_buf_desc)
 	return 0;
 }
 
-#ifdef DEFINED_VMAPOLL
-void qp_mgr::init_sq()
-{
-	unsigned int i;
-	unsigned int comp = NUM_TX_WRE_TO_SIGNAL_MAX;
-	struct verbs_qp *vqp = (struct verbs_qp *)m_qp;
-	m_mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
-	m_qp_num = m_mlx5_hw_qp->ctrl_seg.qp_num;
-	m_mlx5_sq_wqes = (volatile struct mlx5_wqe64 (*)[])(uintptr_t)m_mlx5_hw_qp->gen_data.sqstart;
-	m_sq_db = &m_mlx5_hw_qp->gen_data.db[MLX5_SND_DBR];
-	m_sq_bf_reg = m_mlx5_hw_qp->gen_data.bf->reg;
-	m_sq_bf_offset = m_mlx5_hw_qp->gen_data.bf->offset;
-	m_sq_bf_buf_size = m_mlx5_hw_qp->gen_data.bf->buf_size;
-
-	for (i = 0; (i != m_tx_num_wr); ++i) {
-		volatile struct mlx5_wqe64 *wqe = &(*m_mlx5_sq_wqes)[i];
-
-		memset((void *)(uintptr_t)wqe, 0, sizeof(struct mlx5_wqe64));
-		wqe->eseg.inline_hdr_sz = htons(MLX5_ETH_INLINE_HEADER_SIZE);
-		wqe->eseg.cs_flags = MLX5_ETH_WQE_L3_CSUM | MLX5_ETH_WQE_L4_CSUM;
-		wqe->ctrl.data[1] = htonl((m_qp_num << 8) | 4);
-		//wqe->dseg.lkey = (m_p_ring->get_lkey());
-		/* Store the completion request in the WQE. */
-		if (--comp == 0) {
-			wqe->ctrl.data[2] = htonl(8);
-			comp = NUM_TX_WRE_TO_SIGNAL_MAX;
-		}
-		else
-			wqe->ctrl.data[2] = 0;
-	}
-	m_sq_hot_wqe = &(*m_mlx5_sq_wqes)[0];
-	m_sq_hot_wqe->ctrl.data[0] = htonl(MLX5_OPCODE_SEND);
-	m_sq_hot_wqe_index = 0;
-	qp_logdbg("%p: allocated and configured %u WRs", this, m_tx_num_wr);
-}
-
-static inline void mlx5_bf_copy(volatile uintptr_t *dst, volatile uintptr_t *src)
-{
-	COPY_64B_NT(dst, src);
-}
-
-inline int qp_mgr::send_to_wire(vma_ibv_send_wr *p_send_wqe)
-{
-	uintptr_t addr = 0;
-	uint32_t length = 0;
-	uint32_t lkey = 0;
-
-	addr = p_send_wqe->sg_list[0].addr;
-	length = p_send_wqe->sg_list[0].length;
-	lkey = p_send_wqe->sg_list[0].lkey;
-
-	/* Copy the first bytes into the inline header */
-	/* This suppress warning due to mlx5_wqe_eth_seg struct format as
-	 * uint8_t inline_hdr_start[2];
-	 * uint8_t inline_hdr[16];
-	 */
-	/* coverity[buffer_size] */
-	/* coverity[overrun-buffer-arg] */
-	memcpy((void *)m_sq_hot_wqe->eseg.inline_hdr_start,
-	       (void *)addr,
-	       MLX5_ETH_INLINE_HEADER_SIZE);
-
-	addr += MLX5_ETH_INLINE_HEADER_SIZE;
-	length -= MLX5_ETH_INLINE_HEADER_SIZE;
-
-	m_sq_hot_wqe->dseg.byte_count = htonl(length);
-	m_sq_hot_wqe->dseg.lkey = htonl(lkey);
-	m_sq_hot_wqe->dseg.addr = htonll(addr);
-
-	++m_sq_wqe_counter;
-
-	/*
-	 * Make sure that descriptors are written before
-	 * updating doorbell record and ringing the doorbell
-	 */
-	wmb();
-	*m_sq_db = htonl(m_sq_wqe_counter);
-
-	/* This wc_wmb ensures ordering between DB record and BF copy */
-	wc_wmb();
-
-	/*
-	 * Avoid using memcpy() to copy to BlueFlame page, since memcpy()
-	 * implementations may use move-string-buffer assembler instructions,
-	 * which do not guarantee order of copying.
-	 */
-	mlx5_bf_copy((volatile uintptr_t *)((uintptr_t)m_sq_bf_reg + m_sq_bf_offset),
-		(volatile uintptr_t *)m_sq_hot_wqe);
-
-	m_sq_bf_offset ^= m_sq_bf_buf_size;
-
-	m_sq_wqe_idx_to_wrid[m_sq_hot_wqe_index] = (uintptr_t)p_send_wqe->wr_id;
-
-	/*Set the next WQE and index*/
-	m_sq_hot_wqe = &(*m_mlx5_sq_wqes)[m_sq_wqe_counter & (m_tx_num_wr - 1)];
-	/* Write only data[0] which is the single element which changes.
-	 * Other fields are already initialised in mlx5_init_sq. */
-	m_sq_hot_wqe->ctrl.data[0] = htonl((m_sq_wqe_counter << 8) | MLX5_OPCODE_SEND);
-	m_sq_hot_wqe_index = m_sq_wqe_counter & (m_tx_num_wr - 1);
-	return 0;
-}
-#else //DEFINED_VMAPOLL
 inline int qp_mgr::send_to_wire(vma_ibv_send_wr* p_send_wqe)
 {
 	vma_ibv_send_wr *bad_wr = NULL;
@@ -685,18 +551,16 @@ inline int qp_mgr::send_to_wire(vma_ibv_send_wr* p_send_wqe)
 	} ENDIF_VERBS_FAILURE;
 	return 0;
 }
-#endif // DEFINED_VMAPOLL
+//#endif // DEFINED_VMAPOLL
 
 int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 {
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t *)p_send_wqe->wr_id;
 
 	qp_logfunc("VERBS send, unsignaled_count: %d", m_n_unsignaled_count);
-#ifndef DEFINED_VMAPOLL// not defined
 	if (!m_n_unsignaled_count) {
 		vma_send_wr_send_flags(*p_send_wqe) = (vma_ibv_send_flags)(vma_send_wr_send_flags(*p_send_wqe) | VMA_IBV_SEND_SIGNALED);
 	}
-#endif//DEFINED_VMAPOLL
 
 #ifdef VMA_TIME_MEASURE
 	TAKE_T_TX_POST_SEND_START;
@@ -742,9 +606,7 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 		}
 
 		// Clear the SINGAL request
-#ifndef DEFINED_VMAPOLL// not defined
 		vma_send_wr_send_flags(*p_send_wqe) = (vma_ibv_send_flags)(vma_send_wr_send_flags(*p_send_wqe) & ~VMA_IBV_SEND_SIGNALED);
-#endif // DEFINED_VMAPOLL
 
 		// Poll the Tx CQ
 		uint64_t dummy_poll_sn = 0;
