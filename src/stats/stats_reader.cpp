@@ -941,9 +941,8 @@ bool check_if_process_running(char* pid_str)
 	struct stat st;
 	int n = -1;
 	
-	n = snprintf(proccess_proc_dir, sizeof(proccess_proc_dir) - 1, "/proc/%s", pid_str);
-	if (n > 0) {
-		proccess_proc_dir[n] = '\0';
+	n = snprintf(proccess_proc_dir, sizeof(proccess_proc_dir), "/proc/%s", pid_str);
+	if (likely((0 < n) && (n < (int)sizeof(proccess_proc_dir)))) {
 		return stat(proccess_proc_dir, &st) == 0;
 	}
 	return false;
@@ -951,12 +950,11 @@ bool check_if_process_running(char* pid_str)
 
 bool check_if_process_running(int pid)
 {
-	char pid_str[MAX_BUFF_SIZE];
+	char pid_str[MAX_BUFF_SIZE] = {0};
 	int n = -1;
 
-	n = snprintf(pid_str, sizeof(pid_str) - 1, "%d", pid);
-	if (n > 0) {
-		pid_str[n] = '\0';
+	n = snprintf(pid_str, sizeof(pid_str), "%d", pid);
+	if (likely((0 < n) && (n < (int)sizeof(pid_str)))) {
 		return check_if_process_running(pid_str);
 	}
 	return false;
@@ -1111,9 +1109,8 @@ bool check_if_app_match(char* app_name, char* pid_str)
 	char* app_base_name = NULL;
 	int n = -1;
 	
-	n = snprintf(proccess_proc_dir, sizeof(proccess_proc_dir) - 1, "/proc/%s/exe", pid_str);
-	if (n > 0) {
-		proccess_proc_dir[n] = '\0';
+	n = snprintf(proccess_proc_dir, sizeof(proccess_proc_dir), "/proc/%s/exe", pid_str);
+	if (likely((0 < n) && (n < (int)sizeof(proccess_proc_dir)))) {
 		n = readlink(proccess_proc_dir, app_full_name, sizeof(app_full_name) - 1);
 		if (n > 0) {
 			app_full_name[n] = '\0';
@@ -1148,9 +1145,8 @@ void clean_inactive_sh_ibj()
 				char to_delete[FILE_NAME_MAX_SIZE] = {0};
 				int n = -1;
 
-				n = snprintf(to_delete, sizeof(to_delete) - 1, "%s/%s", g_vma_shmem_dir, dirent->d_name);
-				if (n > 0) {
-					to_delete[n] = '\0';
+				n = snprintf(to_delete, sizeof(to_delete), "%s/%s", g_vma_shmem_dir, dirent->d_name);
+				if (likely((0 < n) && (n < (int)sizeof(to_delete)))) {
 					unlink(to_delete);
 				}
 			}		
