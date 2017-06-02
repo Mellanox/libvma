@@ -265,9 +265,8 @@ static inline int get_procname(int pid, char *proc, size_t size)
 		return -1;
 	}
 
-	n = snprintf(proccess_proc_dir, sizeof(proccess_proc_dir) - 1, "/proc/%d/exe", pid);
-	if (n > 0) {
-		proccess_proc_dir[n] = '\0';
+	n = snprintf(proccess_proc_dir, sizeof(proccess_proc_dir), "/proc/%d/exe", pid);
+	if (likely((0 < n) && (n < (int)sizeof(proccess_proc_dir)))) {
 		n = readlink(proccess_proc_dir, app_full_name, sizeof(app_full_name) - 1);
 		if (n > 0) {
 			app_full_name[n] = '\0';

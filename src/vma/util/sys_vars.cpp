@@ -315,8 +315,7 @@ int mce_sys_var::env_to_cpuset(char *orig_start, cpu_set_t *cpu_set)
 		(start[0] == '0') &&
 		((start[1] == 'x') || (start[1] == 'X'))) {
 		ret = hex_to_cpuset(start + 2, cpu_set);
-	}
-	else {
+	} else {
 		ret = list_to_cpuset(start, cpu_set);
 	}
 
@@ -330,28 +329,27 @@ void mce_sys_var::read_env_variable_with_pid(char* mce_sys_name, size_t mce_sys_
 	char* d_pos = NULL;
 
 	if (NULL == env_ptr || NULL == mce_sys_name || mce_sys_max_size < 2) {
-		return;
+		return ;
 	}
 
 	d_pos = strstr(env_ptr, "%d");
 	if (!d_pos) { // no %d in the string
 		n = snprintf(mce_sys_name, mce_sys_max_size - 1, "%s", env_ptr);
-		if (n < 0) {
+		if (unlikely((((int)mce_sys_max_size - 1) < n) || (n < 0))) {
 			mce_sys_name[0] = '\0';
-		} else {
-			mce_sys_name[n] = '\0';
 		}
 	} else { // has at least one occurrence of %d - replace the first one with the process PID
 		size_t bytes_num = MIN((size_t)(d_pos - env_ptr), mce_sys_max_size - 1);
 		strncpy(mce_sys_name, env_ptr, bytes_num);
 		mce_sys_name[bytes_num] = '\0';
 		n = snprintf(mce_sys_name + bytes_num, mce_sys_max_size - bytes_num - 1, "%d", getpid());
-		if (n > 0) {
+		if (likely((0 < n) && (n < ((int)mce_sys_max_size - (int)bytes_num - 1)))) {
 			bytes_num += n;
 			snprintf(mce_sys_name + bytes_num, mce_sys_max_size - bytes_num, "%s", d_pos + 2);
 		}
 	}
 }
+
 
 void mce_sys_var::get_env_params()
 {
@@ -1011,12 +1009,10 @@ void mce_sys_var::get_env_params()
 	// handle internal thread affinity - default is CPU-0
 	if ((env_ptr = getenv(SYS_VAR_INTERNAL_THREAD_AFFINITY)) != NULL) {
 		int n = snprintf(internal_thread_affinity_str,
-				sizeof(internal_thread_affinity_str) - 1, "%s", env_ptr);
-		if (n < 0) {
+				sizeof(internal_thread_affinity_str), "%s", env_ptr);
+		if (unlikely(((int)sizeof(internal_thread_affinity_str) < n) || (n < 0))) {
 			vlog_printf(VLOG_WARNING,"Failed to process: %s.\n",
 					SYS_VAR_INTERNAL_THREAD_AFFINITY);
-		} else {
-			internal_thread_affinity_str[n] = '\0';
 		}
 	}
 	if (env_to_cpuset(internal_thread_affinity_str, &internal_thread_affinity)) {
