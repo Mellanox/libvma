@@ -2003,6 +2003,13 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 		return -1;
 	}
 	m_p_connected_dst_entry->prepare_to_send(false, true);
+	if (!m_p_connected_dst_entry->is_valid()) {
+		destructor_helper();
+		unlock_tcp_con();
+		si_tcp_logdbg("not a valid dst");
+		errno = EHOSTUNREACH;
+		return -1;
+	}
 
 	// update it after route was resolved and device was updated
 	m_p_socket_stats->bound_if = m_p_connected_dst_entry->get_src_addr();
