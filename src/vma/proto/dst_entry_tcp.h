@@ -50,7 +50,7 @@ public:
 		      int owner_fd, resource_allocation_key &ring_alloc_logic);
 	virtual ~dst_entry_tcp();
 
-	virtual ssize_t fast_send(const struct iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked = true, bool is_rexmit = false);
+	virtual ssize_t fast_send(const iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked = true, bool is_rexmit = false);
 	ssize_t slow_send(const iovec* p_iov, size_t sz_iov, bool is_dummy, const int ratelimit_kbps, bool b_blocked = true, bool is_rexmit = false, int flags = 0, socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF);
 	ssize_t slow_send_neigh(const iovec* p_iov, size_t sz_iov, const int ratelimit_kbps);
 

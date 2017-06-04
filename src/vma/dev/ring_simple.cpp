@@ -92,7 +92,7 @@ qp_mgr* ring_eth::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, 
 	return new qp_mgr_eth(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), get_partition());
 }
 
-bool ring_eth::is_ratelimit_supp(uint32_t rate)
+bool ring_eth::is_ratelimit_supported(uint32_t rate)
 {
 #ifdef DEFINED_IBV_EXP_QP_RATE_LIMIT
 	ibv_exp_packet_pacing_caps &pp_caps =
@@ -109,7 +109,7 @@ qp_mgr* ring_ib::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, s
 	return new qp_mgr_ib(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), get_partition());
 }
 
-bool ring_ib::is_ratelimit_supp(uint32_t rate)
+bool ring_ib::is_ratelimit_supported(uint32_t rate)
 {
 	NOT_IN_USE(rate);
 	return false;

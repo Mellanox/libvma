@@ -66,7 +66,7 @@ transport_t dst_entry_tcp::get_transport(sockaddr_in to)
 	return TRANS_VMA;
 }
 
-ssize_t dst_entry_tcp::fast_send(const struct iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked /*= true*/, bool is_rexmit /*= false*/)
+ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked /*= true*/, bool is_rexmit /*= false*/)
 {
 	int ret = 0;
 	tx_packet_template_t* p_pkt;

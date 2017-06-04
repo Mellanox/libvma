@@ -632,7 +632,7 @@ unsigned sockinfo_tcp::tx_wait(int & err, bool is_blocking)
 	return sz;
 }
 
-bool sockinfo_tcp::check_dummy_send_conditions(const int flags, const struct iovec* p_iov, const ssize_t sz_iov)
+bool sockinfo_tcp::check_dummy_send_conditions(const int flags, const iovec* p_iov, const ssize_t sz_iov)
 {
 	// Calculate segment max length
 	uint8_t optflags = TF_SEG_OPTS_DUMMY_MSG;
@@ -660,7 +660,7 @@ bool sockinfo_tcp::check_dummy_send_conditions(const int flags, const struct iov
 		(p_iov->iov_len + m_pcb.snd_lbb - m_pcb.lastack) <= wnd; // Window allows the dummy packet it to be sent
 }
 
-ssize_t sockinfo_tcp::tx(const tx_call_t call_type, const struct iovec* p_iov, const ssize_t sz_iov, const int flags, const struct sockaddr *__to, const socklen_t __tolen)
+ssize_t sockinfo_tcp::tx(const tx_call_t call_type, const iovec* p_iov, const ssize_t sz_iov, const int flags, const struct sockaddr *__to, const socklen_t __tolen)
 {
 	int total_tx = 0;
 	unsigned tx_size;
@@ -3534,15 +3534,20 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			si_tcp_logdbg("(SO_BINDTODEVICE) interface=%s", (char*)__optval);
 			break;
 		case SO_MAX_PACING_RATE: {
+			if (__optlen != sizeof(uint32_t) || !__optval) {
+				errno = EINVAL;
+				break;
+			}
 			val = *(uint32_t *)__optval;
-			auto_unlocker t_lock(m_tcp_con_lock);
+			lock_tcp_con();
 			ret = modify_ratelimit(m_p_connected_dst_entry, val);
+			unlock_tcp_con();
 			if (ret) {
 				si_tcp_logdbg("error setting setsockopt SO_MAX_PACING_RATE: %d bytes/second ", val);
-				return ret;
+			} else {
+				si_tcp_logdbg("setsockopt SO_MAX_PACING_RATE: %d bytes/second ", val);
 			}
-			si_tcp_logdbg("setsockopt SO_MAX_PACING_RATE: %d bytes/second ", val);
-			break;
+			return ret;
 		}
 		default:
 			ret = SOCKOPT_HANDLE_BY_OS;

@@ -1178,7 +1178,7 @@ int sockinfo::modify_ratelimit(dst_entry* p_dst_entry, const uint32_t rate_limit
 {
 	if (m_ring_alloc_log_tx.m_ring_alloc_logic == RING_LOGIC_PER_SOCKET) {
 		// check in qp attr that device supports
-		if (m_p_rx_ring && !m_p_rx_ring->is_ratelimit_supp(rate_limit_bytes_per_second)) {
+		if (m_p_rx_ring && !m_p_rx_ring->is_ratelimit_supported(BYTE_TO_KB(rate_limit_bytes_per_second))) {
 			si_logwarn("device doesn't support packet pacing or bad value, run ibv_devinfo -v");
 			return -1;
 		}
@@ -1190,8 +1190,8 @@ int sockinfo::modify_ratelimit(dst_entry* p_dst_entry, const uint32_t rate_limit
 		}
 		return 0;
 	}
-	si_logwarn("setsockopt SO_MAX_PACING_RATE failed. Please make sure VMA "
-		   "is configured with TX ring allocation logic per socket");
+	si_logwarn("VMA is not configured with TX ring allocation logic per "
+		   "socket.");
 	return -1;
 }
 

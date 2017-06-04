@@ -646,11 +646,11 @@ int ring_bond::modify_ratelimit(const uint32_t ratelimit_kbps) {
 	return 0;
 }
 
-bool ring_bond::is_ratelimit_supp(uint32_t rate)
+bool ring_bond::is_ratelimit_supported(uint32_t rate)
 {
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
-		if (m_bond_rings[i]) {
-			if (!m_bond_rings[i]->is_ratelimit_supp(rate))
+		if (m_bond_rings[i] &&
+		    !m_bond_rings[i]->is_ratelimit_supported(rate)) {
 				return false;
 		}
 	}

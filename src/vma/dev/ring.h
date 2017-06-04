@@ -323,7 +323,7 @@ public:
 	uint32_t		get_mtu() {return m_mtu;};
 	bool			is_mp_ring() {return m_is_mp_ring;};
 	virtual int		modify_ratelimit(const uint32_t ratelimit_kbps) = 0;
-	virtual bool		is_ratelimit_supp(uint32_t rate) = 0;
+	virtual bool		is_ratelimit_supported(uint32_t rate) = 0;
 
 #ifdef DEFINED_VMAPOLL		
 	virtual int		vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags) = 0;
