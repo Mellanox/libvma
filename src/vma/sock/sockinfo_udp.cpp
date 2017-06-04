@@ -1204,6 +1204,9 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 		break;
 	}
 
+	// update processor for dynamic multicast changes
+	set_rx_packet_processor();
+
 	if (! supported) {
 		char buf[256];
 		snprintf(buf, sizeof(buf), "unimplemented setsockopt __level=%#x, __optname=%#x, [__optlen (%d) bytes of __optval=%.*s]", (unsigned)__level, (unsigned)__optname, __optlen, __optlen, (char*)__optval);
