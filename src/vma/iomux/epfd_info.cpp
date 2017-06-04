@@ -30,14 +30,7 @@
  * SOFTWARE.
  */
 
-
-#include "utils/bullseye.h"
-#include "vlogger/vlogger.h"
-
-#include <vma/sock/sock-redirect.h>
-#include <vma/sock/socket_fd_api.h>
 #include <vma/sock/fd_collection.h>
-#include <vma/dev/net_device_table_mgr.h>
 #include <vma/iomux/epfd_info.h>
 
 #define MODULE_NAME "epfd_info:"
@@ -48,71 +41,7 @@
 
 #define CQ_FD_MARK 0xabcd
 
-inline void epfd_info::increase_ring_ref_count_no_lock(ring* ring)
-{
-	ring_map_t::iterator iter = m_ring_map.find(ring);
-	if (iter != m_ring_map.end()) {
-		//increase ref count
-		iter->second++;
-	} else {
-		m_ring_map[ring] = 1;
-
-		// add cq channel fd to the epfd
-		int num_ring_rx_fds = ring->get_num_resources();
-		int *ring_rx_fds_array = ring->get_rx_channel_fds();
-		for (int i = 0; i < num_ring_rx_fds; i++) {
-			epoll_event evt = {0, {0}};
-			evt.events = EPOLLIN | EPOLLPRI;
-			int fd = ring_rx_fds_array[i];
-			evt.data.u64 = (((uint64_t)CQ_FD_MARK << 32) | fd);
-			int ret = orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_ADD, fd, &evt);
-			BULLSEYE_EXCLUDE_BLOCK_START
-			if (ret < 0) {
-				__log_dbg("failed to add cq fd=%d to epoll epfd=%d (errno=%d %m)",
-						fd, m_epfd, errno);
-			} else {
-				__log_dbg("add cq fd=%d to epfd=%d", fd, m_epfd);
-			}
-			BULLSEYE_EXCLUDE_BLOCK_END
-		}
-	}
-}
-
-inline void epfd_info::decrease_ring_ref_count_no_lock(ring* ring)
-{
-	ring_map_t::iterator iter = m_ring_map.find(ring);
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (iter == m_ring_map.end()) {
-		__log_err("expected to find ring %p here!", ring);
-		return;
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-
-	//decrease ref count
-	iter->second--;
-
-	if (iter->second == 0) {
-		m_ring_map.erase(iter);
-
-		// remove cq channel fd from the epfd
-		int num_ring_rx_fds = ring->get_num_resources();
-		int *ring_rx_fds_array = ring->get_rx_channel_fds();
-		for (int i = 0; i < num_ring_rx_fds; i++) {
-			// delete cq fd from epfd
-			int ret = orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_DEL, ring_rx_fds_array[i], NULL);
-			BULLSEYE_EXCLUDE_BLOCK_START
-			if (ret < 0) {
-				__log_dbg("failed to remove cq fd=%d from epfd=%d (errno=%d %m)",
-						ring_rx_fds_array[i], m_epfd, errno);
-			} else {
-				__log_dbg("remove cq fd=%d from epfd=%d", ring_rx_fds_array[i], m_epfd);
-			}
-			BULLSEYE_EXCLUDE_BLOCK_END
-		}
-	}
-}
-
-inline int epfd_info::remove_fd_from_epoll_os(int fd)
+int epfd_info::remove_fd_from_epoll_os(int fd)
 {
 	int ret = orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_DEL, fd, NULL);
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -159,6 +88,7 @@ epfd_info::epfd_info(int epfd, int size) :
 epfd_info::~epfd_info()
 {
 	__log_funcall("");
+	socket_fd_api* sock_fd;
 
 	// Meny: going over all handled fds and removing epoll context.
 
@@ -166,21 +96,26 @@ epfd_info::~epfd_info()
 
 	while(!m_ready_fds.empty())
 	{
-		socket_fd_api* sock_fd = m_ready_fds.get_and_pop_front();
+		sock_fd = m_ready_fds.get_and_pop_front();
 		sock_fd->m_epoll_event_flags = 0;
 	}
 
-	socket_fd_api* temp_sock_fd_api;
+	while(!m_fd_offloaded_list.empty())
+	{
+		sock_fd = m_fd_offloaded_list.get_and_pop_front();
+		sock_fd->m_fd_rec.reset();
+	}
+
 	for (int i = 0; i < m_n_offloaded_fds; i++) {
-		temp_sock_fd_api = fd_collection_get_sockfd(m_p_offloaded_fds[i]);
+		sock_fd = fd_collection_get_sockfd(m_p_offloaded_fds[i]);
 		BULLSEYE_EXCLUDE_BLOCK_START
-		if(temp_sock_fd_api) {
+		if (sock_fd) {
 			unlock();
 			m_ring_map_lock.lock();
-			temp_sock_fd_api->remove_epoll_context(this);
+			sock_fd->remove_epoll_context(this);
 			m_ring_map_lock.unlock();
 			lock();
-		}else {
+		} else {
 			__log_err("Invalid temp_sock_fd_api==NULL. Deleted fds should have been removed from epfd.");
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
@@ -225,29 +160,6 @@ int epfd_info::ctl(int op, int fd, epoll_event *event)
 	return ret;
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
-int *epfd_info::get_offloaded_fds()
-{
-	return m_p_offloaded_fds;
-}
-
-int epfd_info::get_num_offloaded_fds()
-{
-	return m_n_offloaded_fds;
-}
-
-int *epfd_info::get_p_to_num_offloaded_fds()
-{
-	return &m_n_offloaded_fds;
-}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 void epfd_info::get_offloaded_fds_arr_and_size(int **p_p_num_offloaded_fds,
 					       int **p_p_offloadded_fds)
 {
@@ -271,6 +183,7 @@ bool epfd_info::is_cq_fd(uint64_t data)
 int epfd_info::add_fd(int fd, epoll_event *event)
 {
 	int ret;
+	epoll_fd_rec fd_rec;
 	epoll_event evt = {0, {0}};
 
 	bool is_offloaded = false;
@@ -295,7 +208,7 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 	if (temp_sock_fd_api && temp_sock_fd_api->skip_os_select()) {
 		__log_dbg("fd=%d must be skipped from os epoll()", fd);
 		// Checking for duplicate fds
-		if (m_fd_info.find(fd) != m_fd_info.end()) {
+		if (get_fd_rec(fd)) {
 			errno = EEXIST;
 			__log_dbg("epoll_ctl: fd=%d is already registered with this epoll instance %d (errno=%d %m)", fd, m_epfd, errno);
 			return -1;
@@ -315,9 +228,9 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 		BULLSEYE_EXCLUDE_BLOCK_END
 	}
 
-	m_fd_info[fd].events = event->events;
-	m_fd_info[fd].epdata = event->data;
-	m_fd_info[fd].offloaded_index = -1;
+	fd_rec.events = event->events;
+	fd_rec.epdata = event->data;
+
 	if (is_offloaded) {  // TODO: do we need to handle offloading only for one of read/write?
 		if (m_n_offloaded_fds >= m_size) {
 			__log_dbg("Reached max fds for epoll (%d)", m_size);
@@ -350,7 +263,10 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 
 		m_p_offloaded_fds[m_n_offloaded_fds] = fd;
 		++m_n_offloaded_fds;
-		m_fd_info[fd].offloaded_index = m_n_offloaded_fds;
+
+		m_fd_offloaded_list.push_back(temp_sock_fd_api);
+		fd_rec.offloaded_index = m_n_offloaded_fds;
+		temp_sock_fd_api->m_fd_rec = fd_rec;
 
 		// if the socket is ready, add it to ready events
 		uint32_t events = 0;
@@ -364,12 +280,16 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 			events |= EPOLLOUT;
 		}
 		if (events != 0) {
-			insert_epoll_event(fd, events); // mutex is recursive
+			insert_epoll_event(temp_sock_fd_api, events);
 		}
 		else{
 			do_wakeup();
 		}
+	} else {
+		fd_rec.offloaded_index = -1;
+		m_fd_non_offloaded_map[fd] = fd_rec;
 	}
+
 	__log_func("fd %d added in epfd %d with events=%#x and data=%#x", 
 		   fd, m_epfd, event->events, event->data);
 	return 0;
@@ -378,14 +298,69 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 void epfd_info::increase_ring_ref_count(ring* ring)
 {
 	m_ring_map_lock.lock();
-	increase_ring_ref_count_no_lock(ring);
+	ring_map_t::iterator iter = m_ring_map.find(ring);
+	if (iter != m_ring_map.end()) {
+		//increase ref count
+		iter->second++;
+	} else {
+		m_ring_map[ring] = 1;
+
+		// add cq channel fd to the epfd
+		int num_ring_rx_fds = ring->get_num_resources();
+		int *ring_rx_fds_array = ring->get_rx_channel_fds();
+		for (int i = 0; i < num_ring_rx_fds; i++) {
+			epoll_event evt = {0, {0}};
+			evt.events = EPOLLIN | EPOLLPRI;
+			int fd = ring_rx_fds_array[i];
+			evt.data.u64 = (((uint64_t)CQ_FD_MARK << 32) | fd);
+			int ret = orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_ADD, fd, &evt);
+			BULLSEYE_EXCLUDE_BLOCK_START
+			if (ret < 0) {
+				__log_dbg("failed to add cq fd=%d to epoll epfd=%d (errno=%d %m)",
+						fd, m_epfd, errno);
+			} else {
+				__log_dbg("add cq fd=%d to epfd=%d", fd, m_epfd);
+			}
+			BULLSEYE_EXCLUDE_BLOCK_END
+		}
+	}
 	m_ring_map_lock.unlock();
 }
 
 void epfd_info::decrease_ring_ref_count(ring* ring)
 {
 	m_ring_map_lock.lock();
-	decrease_ring_ref_count_no_lock(ring);
+	ring_map_t::iterator iter = m_ring_map.find(ring);
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (iter == m_ring_map.end()) {
+		__log_err("expected to find ring %p here!", ring);
+		m_ring_map_lock.unlock();
+		return;
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	//decrease ref count
+	iter->second--;
+
+	if (iter->second == 0) {
+		m_ring_map.erase(iter);
+
+		// remove cq channel fd from the epfd
+		int num_ring_rx_fds = ring->get_num_resources();
+		int *ring_rx_fds_array = ring->get_rx_channel_fds();
+		for (int i = 0; i < num_ring_rx_fds; i++) {
+			// delete cq fd from epfd
+			int ret = orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_DEL, ring_rx_fds_array[i], NULL);
+			BULLSEYE_EXCLUDE_BLOCK_START
+			if (ret < 0) {
+				__log_dbg("failed to remove cq fd=%d from epfd=%d (errno=%d %m)",
+						ring_rx_fds_array[i], m_epfd, errno);
+			} else {
+				__log_dbg("remove cq fd=%d from epfd=%d", ring_rx_fds_array[i], m_epfd);
+			}
+			BULLSEYE_EXCLUDE_BLOCK_END
+		}
+	}
 	m_ring_map_lock.unlock();
 }
 
@@ -399,6 +374,7 @@ int epfd_info::del_fd(int fd, bool passthrough)
 {
 	__log_funcall("fd=%d", fd);
 
+	epoll_fd_rec* fi;
 	socket_fd_api* temp_sock_fd_api = fd_collection_get_sockfd(fd);
 	if (temp_sock_fd_api && temp_sock_fd_api->skip_os_select()) {
 		__log_dbg("fd=%d must be skipped from os epoll()", fd);
@@ -407,41 +383,49 @@ int epfd_info::del_fd(int fd, bool passthrough)
 		remove_fd_from_epoll_os(fd);
 	}
 	
-	fd_info_map_t::iterator fd_iter = m_fd_info.find(fd);
-	if (fd_iter == m_fd_info.end()) {
+	fi = get_fd_rec(fd);
+	if (!fi) {
 		errno = ENOENT;
 		return -1;
 	}
 	
-	// create a copy and remove the record from m_fd_info
-	epoll_fd_rec fi = fd_iter->second;
-	
-	if (!passthrough) m_fd_info.erase(fd_iter);
+	if (temp_sock_fd_api && temp_sock_fd_api->get_epoll_context_fd() == m_epfd) {
+		m_fd_offloaded_list.erase(temp_sock_fd_api);
+		if (passthrough) {
+			// In case the socket is not offloaded we must copy it to the non offloaded sockets map.
+			// This can happen after bind(), listen() or accept() calls.
+			m_fd_non_offloaded_map[fd] = *fi;
+			m_fd_non_offloaded_map[fd].offloaded_index = -1;
+		}
+	} else {
+		fd_info_map_t::iterator fd_iter = m_fd_non_offloaded_map.find(fd);
+		if (fd_iter != m_fd_non_offloaded_map.end()) {
+			m_fd_non_offloaded_map.erase(fd_iter);
+		}
+	}
 
-	if(temp_sock_fd_api && temp_sock_fd_api->ep_ready_fd_node.is_list_member()) {
+	if (temp_sock_fd_api && temp_sock_fd_api->ep_ready_fd_node.is_list_member()) {
 		temp_sock_fd_api->m_epoll_event_flags = 0;
 		m_ready_fds.erase(temp_sock_fd_api);
 	}
 
 	// handle offloaded fds
-	if (fi.offloaded_index > 0) {
+	if (fi->offloaded_index > 0) {
 
 		//check if the index of fd, which is being removed, is the last one.
 		//if does, it is enough to decrease the val of m_n_offloaded_fds in order
 		//to shrink the offloaded fds array.
-		if (fi.offloaded_index < m_n_offloaded_fds) {
+		if (fi->offloaded_index < m_n_offloaded_fds) {
 			// remove fd and replace by last fd
-			m_p_offloaded_fds[fi.offloaded_index - 1] =
+			m_p_offloaded_fds[fi->offloaded_index - 1] =
 					m_p_offloaded_fds[m_n_offloaded_fds - 1];
 
-			fd_iter = m_fd_info.find(m_p_offloaded_fds[m_n_offloaded_fds - 1]);
-
-			BULLSEYE_EXCLUDE_BLOCK_START
-			if (fd_iter == m_fd_info.end()) {
-				__log_warn("Failed to update the index of offloaded fd: %d\n", m_p_offloaded_fds[m_n_offloaded_fds - 1]);
-			BULLSEYE_EXCLUDE_BLOCK_END
-			}else {
-				fd_iter->second.offloaded_index = fi.offloaded_index;
+			socket_fd_api* last_socket = fd_collection_get_sockfd(m_p_offloaded_fds[m_n_offloaded_fds - 1]);
+			if (last_socket && last_socket->get_epoll_context_fd() == m_epfd) {
+				last_socket->m_fd_rec.offloaded_index = fi->offloaded_index;
+			} else {
+				__log_warn("Failed to update the index of offloaded fd: %d last_socket %p\n",
+						m_p_offloaded_fds[m_n_offloaded_fds - 1], last_socket);
 			}
 		}
 
@@ -449,6 +433,7 @@ int epfd_info::del_fd(int fd, bool passthrough)
 	}
 
 	if (temp_sock_fd_api) {
+		temp_sock_fd_api->m_fd_rec.reset();
 		unlock();
 		m_ring_map_lock.lock();
 		temp_sock_fd_api->remove_epoll_context(this);
@@ -460,33 +445,23 @@ int epfd_info::del_fd(int fd, bool passthrough)
 	return 0;
 }
 
-int epfd_info::clear_events_for_fd(int fd, uint32_t events)
-{
-	fd_info_map_t::iterator fd_iter = m_fd_info.find(fd);
-	if (fd_iter == m_fd_info.end()) {
-		errno = ENOENT;
-		return -1;
-	}
-	fd_iter->second.events &= ~events;
-	return 0;
-}
-
 int epfd_info::mod_fd(int fd, epoll_event *event)
 {
 	epoll_event evt;
+	epoll_fd_rec* fd_rec;
 	int ret;
 
 	__log_funcall("fd=%d", fd);
-
 	// find the fd in local table
-	fd_info_map_t::iterator fd_iter = m_fd_info.find(fd);
-	if (fd_iter == m_fd_info.end()) {
+	fd_rec = get_fd_rec(fd);
+	if (!fd_rec) {
 		errno = ENOENT;
 		return -1;
 	}
 	
+	socket_fd_api* temp_sock_fd_api = fd_collection_get_sockfd(fd);
 	// check if fd is offloaded that new event mask is OK 
-	if (fd_iter->second.offloaded_index > 0) {
+	if (temp_sock_fd_api && temp_sock_fd_api->m_fd_rec.offloaded_index > 0) {
 		if (m_log_invalid_events && (event->events & ~SUPPORTED_EPOLL_EVENTS)) {
 			__log_dbg("invalid event mask 0x%x for offloaded fd=%d", event->events, fd);
 			__log_dbg("(event->events & ~%s)=0x%x", TO_STR(SUPPORTED_EPOLL_EVENTS),
@@ -495,7 +470,6 @@ int epfd_info::mod_fd(int fd, epoll_event *event)
 		}
 	}
 
-	socket_fd_api* temp_sock_fd_api = fd_collection_get_sockfd(fd);
 	if (temp_sock_fd_api && temp_sock_fd_api->skip_os_select()) {
 		__log_dbg("fd=%d must be skipped from os epoll()", fd);
 	}
@@ -514,8 +488,8 @@ int epfd_info::mod_fd(int fd, epoll_event *event)
 	}
 
 	// modify fd data in local table
-	fd_iter->second.epdata = event->data;
-	fd_iter->second.events = event->events;
+	fd_rec->epdata = event->data;
+	fd_rec->events = event->events;
 	
 	bool is_offloaded = temp_sock_fd_api && temp_sock_fd_api->get_type()== FD_TYPE_SOCKET;
 
@@ -532,11 +506,11 @@ int epfd_info::mod_fd(int fd, epoll_event *event)
 			events |= EPOLLOUT;
 		}
 		if (events != 0) {
-			insert_epoll_event(fd, events); // mutex is recursive
+			insert_epoll_event(temp_sock_fd_api, events);
 		}
 	}
 
-	if(event->events == 0 || events == 0){
+	if (event->events == 0 || events == 0) {
 		if (temp_sock_fd_api && temp_sock_fd_api->ep_ready_fd_node.is_list_member()) {
 			temp_sock_fd_api->m_epoll_event_flags = 0;
 			m_ready_fds.erase(temp_sock_fd_api);
@@ -548,104 +522,63 @@ int epfd_info::mod_fd(int fd, epoll_event *event)
 	return 0;
 }
 
-bool epfd_info::get_fd_rec_by_fd(int fd, epoll_fd_rec& fd_rec)
+epoll_fd_rec* epfd_info::get_fd_rec(int fd)
 {
-	fd_info_map_t::iterator iter = m_fd_info.find(fd);
-	if (iter != m_fd_info.end())
-		fd_rec = iter->second;
-	else {
-		__log_dbg("error - could not found fd %d in m_fd_info of epfd %d", fd, m_epfd);
-		return false;
-	}
-	return true;
-}
-
-bool epfd_info::get_data_by_fd(int fd, epoll_data *data)
-{
+	epoll_fd_rec* fd_rec = NULL;
+	socket_fd_api* temp_sock_fd_api = fd_collection_get_sockfd(fd);
 	lock();
-	fd_info_map_t::iterator iter = m_fd_info.find(fd);
-	if (iter != m_fd_info.end())
-		*data = m_fd_info[fd].epdata;
-	else {
-		__log_dbg("error - could not found fd %d in m_fd_info of epfd %d", fd, m_epfd);
-		unlock();
-		return false;
+
+	if (temp_sock_fd_api && temp_sock_fd_api->get_epoll_context_fd() == m_epfd) {
+		fd_rec = &temp_sock_fd_api->m_fd_rec;
+	} else {
+		fd_info_map_t::iterator iter = m_fd_non_offloaded_map.find(fd);
+		if (iter != m_fd_non_offloaded_map.end()) {
+			fd_rec = &iter->second;
+		}
 	}
+
 	unlock();
-	return true;
+	return fd_rec;
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
-bool epfd_info::is_offloaded_fd(int fd)
-{
-	fd_info_map_t::iterator iter;
-	iter = m_fd_info.find(fd);
-	return iter != m_fd_info.end() && iter->second.offloaded_index > 0;
-}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 void epfd_info::fd_closed(int fd, bool passthrough)
 {
 	lock();
-	if (m_fd_info.find(fd) != m_fd_info.end()) {
+	if (get_fd_rec(fd)) {
 		del_fd(fd, passthrough);
 	}
 	unlock();
 }
 
-void epfd_info::set_fd_as_offloaded_only(int fd)
+void epfd_info::insert_epoll_event_cb(socket_fd_api* sock_fd, uint32_t event_flags)
 {
 	lock();
-	if (m_fd_info.find(fd) != m_fd_info.end()) {
-		remove_fd_from_epoll_os(fd);
-	}
-	unlock();
-}
-
-void epfd_info::insert_epoll_event_cb(int fd, uint32_t event_flags)
-{
-	lock();
-	fd_info_map_t::iterator fd_iter = m_fd_info.find(fd);
-	if (fd_iter == m_fd_info.end()) {
-		unlock();
-		return;
-	}
 	//EPOLLHUP | EPOLLERR are reported without user request
-	if(event_flags & (fd_iter->second.events | EPOLLHUP | EPOLLERR)){
-		insert_epoll_event(fd, event_flags);
+	if (event_flags & (sock_fd->m_fd_rec.events | EPOLLHUP | EPOLLERR)) {
+		insert_epoll_event(sock_fd, event_flags);
 	}
 	unlock();
 }
 
-void epfd_info::insert_epoll_event(int fd, uint32_t event_flags)
+void epfd_info::insert_epoll_event(socket_fd_api *sock_fd, uint32_t event_flags)
 {
-	socket_fd_api* sock_fd = fd_collection_get_sockfd(fd);
-	if (sock_fd) {
-		if (sock_fd->ep_ready_fd_node.is_list_member()) {
-			sock_fd->m_epoll_event_flags |= event_flags;
-		}
-		else {
-			sock_fd->m_epoll_event_flags = event_flags;
-			m_ready_fds.push_back(sock_fd);
-		}
+	// assumed lock
+	if (sock_fd->ep_ready_fd_node.is_list_member()) {
+		sock_fd->m_epoll_event_flags |= event_flags;
 	}
+	else {
+		sock_fd->m_epoll_event_flags = event_flags;
+		m_ready_fds.push_back(sock_fd);
+	}
+
 	do_wakeup();
 }
 
-void epfd_info::remove_epoll_event(int fd, uint32_t event_flags)
+void epfd_info::remove_epoll_event(socket_fd_api *sock_fd, uint32_t event_flags)
 {
-	socket_fd_api* sock_fd = fd_collection_get_sockfd(fd);
-	if (sock_fd && sock_fd->ep_ready_fd_node.is_list_member()) {
-		sock_fd->m_epoll_event_flags &= ~event_flags;
-		if (sock_fd->m_epoll_event_flags == 0) {
-			m_ready_fds.erase(sock_fd);
-		}
+	sock_fd->m_epoll_event_flags &= ~event_flags;
+	if (sock_fd->m_epoll_event_flags == 0) {
+		m_ready_fds.erase(sock_fd);
 	}
 }
 

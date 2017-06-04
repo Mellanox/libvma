@@ -79,6 +79,7 @@ using namespace std;
 #define srdr_logdbg_exit	__log_exit_dbg
 #define srdr_logfunc_exit	__log_exit_func
 
+#define EP_MAX_EVENTS (int)((INT_MAX / sizeof(struct epoll_event)))
 
 struct os_api orig_os_api;
 struct sigaction g_act_prev;
