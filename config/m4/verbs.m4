@@ -303,12 +303,12 @@ AC_CHECK_DECLS([IBV_EXP_QP_RATE_LIMIT],
 
 TMP_LDFLAGS=$LDFLAGS
 AC_SEARCH_LIBS([rdma_create_id],[rdmacm],
-		[LDFLAGS="$LDFLAGS -lrdmacm" VERBS_FLAGS="$VERBS_FLAGS -lrdmacm"],
+		[LDFLAGS="$LDFLAGS -lrdmacm" VERBS_LIBS="$VERBS_LIBS -lrdmacm"],
 		[])
 AC_CHECK_FUNCS_ONCE([rdma_lib_reset])
-AC_CHECK_LIB([ibverbs], [ibv_cmd_poll_cq], [VERBS_FLAGS="$VERBS_FLAGS -libverbs"],
+AC_CHECK_LIB([ibverbs], [ibv_cmd_poll_cq], [VERBS_LIBS="$VERBS_LIBS -libverbs"],
 		[])
-AC_SUBST([VERBS_FLAGS])
+AC_SUBST([VERBS_LIBS])
 
 have_mp_rq=yes
 AC_CHECK_DECLS([IBV_EXP_DEVICE_ATTR_VLAN_OFFLOADS,
