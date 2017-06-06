@@ -35,6 +35,7 @@ if [ $rc -gt 0 ]; then
     echo "not ok 1 cppcheck Detected $nerrors failures # ${cppcheck_dir}/cppcheck.err" >> $cppcheck_tap
     do_err "cppcheck" "${cppcheck_dir}/cppcheck.err"
     info="cppcheck found $nerrors errors"
+    cat ${cppcheck_dir}/cppcheck.err
     status="error"
     do_err "$1" "${5}.err"
 else

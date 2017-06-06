@@ -55,6 +55,7 @@ if [ $rc -gt 0 ]; then
     echo "not ok 1 csbuild Detected $nerrors failures # ${csbuild_dir}/csbuild.err" >> $csbuild_tap
     do_err "csbuild" "${csbuild_dir}/csbuild.err"
     info="csbuild found $nerrors errors"
+    cat ${csbuild_dir}/csbuild.err
     status="error"
 else
     echo ok 1 csbuild found no issues >> $csbuild_tap
