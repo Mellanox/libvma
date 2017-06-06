@@ -69,6 +69,7 @@ const char * const in_protocol_str[] = {
 
 sockinfo::sockinfo(int fd) throw (vma_exception):
 		socket_fd_api(fd),
+		m_rings_fds(NULL),
 		m_b_closed(false), m_b_blocking(true), m_protocol(PROTO_UNDEFINED),
 		m_lock_rcv(MODULE_NAME "::m_lock_rcv"),
 		m_lock_snd(MODULE_NAME "::m_lock_snd"),
@@ -662,7 +663,7 @@ void sockinfo::do_rings_migration()
 
 	resource_allocation_key *old_key = m_ring_alloc_logic.get_key();
 	resource_allocation_key *new_key = old_key;
-	new_key->m_user_id_key = m_ring_alloc_logic.calc_res_key_by_logic();
+	new_key->set_user_id_key(m_ring_alloc_logic.calc_res_key_by_logic());
 
 	if (old_key == new_key) {
 		unlock_rx_q();
@@ -899,14 +900,16 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 		m_rx_ring_map[p_ring] = p_ring_info;
 		p_ring_info->refcnt = 1;
 		p_ring_info->rx_reuse_info.n_buff_num = 0;
-#if defined(DEFINED_VMAPOLL) || defined(HAVE_MP_RQ)
+#ifdef DEFINED_VMAPOLL
 		/* m_p_rx_ring is updated in following functions:
 		 *  - rx_add_ring_cb()
 		 *  - rx_del_ring_cb()
 		 *  - do_rings_migration()
 		 */
-		m_p_rx_ring = m_rx_ring_map.begin()->first;
-#endif // DEFINED_VMAPOLL || HAVE_MP_RQ
+		if (m_rx_ring_map.size() == 1) {
+			m_p_rx_ring = m_rx_ring_map.begin()->first;
+		}
+#endif
 		notify_epoll = true;
 
 		// Add this new CQ channel fd to the rx epfd handle (no need to wake up any sleeping thread about this new fd)
@@ -1176,7 +1179,7 @@ int sockinfo::register_callback(vma_recv_callback_t callback, void *context)
 
 int sockinfo::modify_ratelimit(dst_entry* p_dst_entry, const uint32_t rate_limit_bytes_per_second)
 {
-	if (m_ring_alloc_log_tx.m_ring_alloc_logic == RING_LOGIC_PER_SOCKET) {
+	if (m_ring_alloc_log_tx.get_ring_alloc_logic() == RING_LOGIC_PER_SOCKET) {
 		// check in qp attr that device supports
 		if (m_p_rx_ring && !m_p_rx_ring->is_ratelimit_supported(BYTE_TO_KB(rate_limit_bytes_per_second))) {
 			si_logwarn("device doesn't support packet pacing or bad value, run ibv_devinfo -v");
@@ -1201,3 +1204,48 @@ int sockinfo::fast_nonblocking_rx(vma_packets_t *vma_pkts)
 	return 0;
 }
 #endif // DEFINED_VMAPOLL
+
+int sockinfo::get_rings_num()
+{
+#ifdef DEFINED_VMAPOLL
+	return 1;
+#else
+	int count = 0;
+
+	rx_ring_map_t::iterator it = m_rx_ring_map.begin();
+	for (; it != m_rx_ring_map.end(); ++it) {
+		count += it->first->get_num_resources();
+	}
+	return count;
+#endif
+}
+
+int* sockinfo::get_rings_fds(int &res_length)
+{
+	res_length = get_rings_num();
+
+#ifdef DEFINED_VMAPOLL
+	return m_p_rx_ring->get_rx_channel_fds();
+#else
+	int index = 0;
+
+	if (m_rings_fds) {
+		return m_rings_fds;
+	}
+	m_rings_fds = new int[res_length];
+
+	rx_ring_map_t::iterator it = m_rx_ring_map.begin();
+	for (; it != m_rx_ring_map.end(); ++it) {
+		for (int j = 0; j < it->first->get_num_resources(); ++j) {
+			int fd = it->first->get_rx_channel_fds_index(j);
+			if (fd != -1) {
+				m_rings_fds[index] = it->first->get_rx_channel_fds_index(j);
+				++index;
+			} else {
+				si_logdbg("got ring with fd -1");
+			}
+		}
+	}
+	return m_rings_fds;
+#endif
+}

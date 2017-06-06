@@ -132,17 +132,22 @@ public:
 	inline bool flow_tag_enabled(void) { return m_flow_tag_enabled; }
 	
 	virtual bool addr_in_reuse(void) = 0;
+	virtual int* get_rings_fds(int &res_length);
+	virtual int get_rings_num();
+#ifdef DEFINED_VMAPOLL
 
-	virtual int get_rings_num() {return 1;}
 	virtual bool check_rings() {return m_p_rx_ring ? true: false;}
-	virtual int* get_rings_fds() {int* channel_fds = m_p_rx_ring->get_rx_channel_fds(); return channel_fds;}
+#else
+	virtual bool check_rings() {return true;}
+#endif
+
 
 #ifdef DEFINED_VMAPOLL
 	virtual int fast_nonblocking_rx(vma_packets_t *vma_pkts);
 #else
 	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);	
 #endif // DEFINED_VMAPOLL	
-
+	int*			m_rings_fds;
 protected:
 	bool			m_b_closed;
 	bool 			m_b_blocking;

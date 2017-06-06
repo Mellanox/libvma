@@ -92,8 +92,6 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 	,m_n_sysvar_rx_prefetch_bytes_before_poll(safe_mce_sys().rx_prefetch_bytes_before_poll)
 	,m_n_sysvar_rx_prefetch_bytes(safe_mce_sys().rx_prefetch_bytes)
 	,m_sz_transport_header(0)
-	,m_p_ib_ctx_handler(p_ib_ctx_handler)
-	,m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv)
 #ifdef DEFINED_VMAPOLL
 	,m_rx_hot_buff(NULL)
 	,m_qp(NULL)
@@ -103,14 +101,21 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 	,m_mlx5_cqes(NULL)
 	,m_cq_db(0)
 #endif
+	,m_p_ib_ctx_handler(p_ib_ctx_handler)
 	,m_b_sysvar_is_rx_sw_csum_on(safe_mce_sys().rx_sw_csum)
 	,m_comp_event_channel(p_comp_event_channel)
 	,m_b_notification_armed(false)
+	,m_rx_lkey(g_buffer_pool_rx->find_lkey_by_ib_ctx_thread_safe(m_p_ib_ctx_handler))
+	,m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv)
 	,m_n_sysvar_qp_compensation_level(safe_mce_sys().qp_compensation_level)
-	,m_rx_lkey(0)
 	,m_b_sysvar_cq_keep_qp_full(safe_mce_sys().cq_keep_qp_full)
 	,m_n_out_of_free_bufs_warning(0)
 {
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (m_rx_lkey == 0) {
+		__log_info_panic("invalid lkey found %lu", m_rx_lkey);
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
 	memset(&m_cq_stat_static, 0, sizeof(m_cq_stat_static));
 	memset(&m_qp_rec, 0, sizeof(m_qp_rec));
 	m_rx_queue.set_id("cq_mgr (%p) : m_rx_queue", this);
@@ -164,7 +169,6 @@ void cq_mgr::configure(int cq_size)
 		m_b_is_rx_hw_csum_on = vma_is_rx_hw_csum_supported(m_p_ib_ctx_handler->get_ibv_device_attr());
 		cq_logdbg("RX CSUM support = %d", m_b_is_rx_hw_csum_on);
 	}
-	m_rx_lkey = g_buffer_pool_rx->find_lkey_by_ib_ctx_thread_safe(m_p_ib_ctx_handler);
 
 	cq_logdbg("Created CQ as %s with fd[%d] and of size %d elements (ibv_cq_hndl=%p)", (m_b_is_rx?"Rx":"Tx"), get_channel_fd(), cq_size, m_p_ibv_cq);
 }
