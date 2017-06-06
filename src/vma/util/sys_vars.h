@@ -545,15 +545,11 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_TCP_MAX_SYN_RATE                	(0)
 #define MCE_DEFAULT_TX_NUM_SEGS_TCP			(1000000)
 #define MCE_DEFAULT_TX_NUM_BUFS				(200000)
-#ifdef DEFINED_VMAPOLL
-#define MCE_DEFAULT_TX_NUM_WRE				(1024)
-#else
-#define MCE_DEFAULT_TX_NUM_WRE				(3000)
-#endif // DEFINED_VMAPOLL
+#define MCE_DEFAULT_TX_NUM_WRE				(2048)
 #define MCE_DEFAULT_TX_NUM_WRE_TO_SIGNAL		(64)
-#ifdef DEFINED_VMAPOLL
+//TODO: exclude when enable in-lining !#ifdef DEFINED_VMAPOLL
 #define MCE_DEFAULT_TX_MAX_INLINE			(0) //220
-#else
+#if 0 //!else
 #define MCE_DEFAULT_TX_MAX_INLINE			(220) //224
 #endif // DEFINED_VMAPOLL
 #define MCE_DEFAULT_TX_BUILD_IP_CHKSUM			(true)
