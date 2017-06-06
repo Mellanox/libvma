@@ -147,7 +147,6 @@ public:
 #else
 	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);	
 #endif // DEFINED_VMAPOLL	
-	int*			m_rings_fds;
 protected:
 	bool			m_b_closed;
 	bool 			m_b_blocking;
@@ -215,6 +214,7 @@ protected:
 	bool			m_flow_tag_enabled; // for this socket
 	bool			m_tcp_flow_is_5t; // to bypass packet analysis
 
+	int*			m_rings_fds;
 	virtual void 		set_blocking(bool is_blocked);
 	virtual int 		fcntl(int __cmd, unsigned long int __arg) throw (vma_error);
 	virtual int 		ioctl(unsigned long int __request, unsigned long int __arg) throw (vma_error);

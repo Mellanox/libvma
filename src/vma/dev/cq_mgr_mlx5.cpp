@@ -37,6 +37,7 @@
 #include <infiniband/mlx5_hw.h>
 #include <vma/util/valgrind.h>
 #include "cq_mgr.inl"
+#include "cq_mgr_mlx5.inl"
 #include "qp_mgr.h"
 #include "ring_simple.h"
 
@@ -108,23 +109,6 @@ cq_mgr_mlx5::~cq_mgr_mlx5()
 	}
 	m_rq = NULL;
 	m_b_is_clean = true;
-}
-
-volatile struct mlx5_cqe64* cq_mgr_mlx5::check_cqe(void)
-{
-	volatile struct mlx5_cqe64 *cqe= &(*m_cqes)[m_cq_cons_index & (m_cq_size - 1)];
-
-	/*
-	 * CQE ownership is defined by Owner bit in the CQE.
-	 * The value indicating SW ownership is flipped every
-	 *  time CQ wraps around.
-	 * */
-	if (likely((MLX5_CQE_OPCODE(cqe->op_own)) != MLX5_CQE_INVALID) &&
-	    !((MLX5_CQE_OWNER(cqe->op_own)) ^ !!(m_cq_cons_index & m_cq_size))) {
-		return cqe;
-	}
-
-	return NULL;
 }
 
 mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)

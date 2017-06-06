@@ -69,7 +69,6 @@ const char * const in_protocol_str[] = {
 
 sockinfo::sockinfo(int fd) throw (vma_exception):
 		socket_fd_api(fd),
-		m_rings_fds(NULL),
 		m_b_closed(false), m_b_blocking(true), m_protocol(PROTO_UNDEFINED),
 		m_lock_rcv(MODULE_NAME "::m_lock_rcv"),
 		m_lock_snd(MODULE_NAME "::m_lock_snd"),
@@ -93,6 +92,7 @@ sockinfo::sockinfo(int fd) throw (vma_exception):
 		, m_flow_tag_id(0)
 		, m_flow_tag_enabled(false)
 		, m_tcp_flow_is_5t(false)
+		, m_rings_fds(NULL)
 
 {
 	m_ring_alloc_logic = ring_allocation_logic_rx(get_fd(), m_ring_alloc_log_rx, this);

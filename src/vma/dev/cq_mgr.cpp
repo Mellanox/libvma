@@ -102,12 +102,12 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 	,m_cq_db(0)
 #endif
 	,m_p_ib_ctx_handler(p_ib_ctx_handler)
+	,m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv)
 	,m_b_sysvar_is_rx_sw_csum_on(safe_mce_sys().rx_sw_csum)
 	,m_comp_event_channel(p_comp_event_channel)
 	,m_b_notification_armed(false)
-	,m_rx_lkey(g_buffer_pool_rx->find_lkey_by_ib_ctx_thread_safe(m_p_ib_ctx_handler))
-	,m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv)
 	,m_n_sysvar_qp_compensation_level(safe_mce_sys().qp_compensation_level)
+	,m_rx_lkey(g_buffer_pool_rx->find_lkey_by_ib_ctx_thread_safe(m_p_ib_ctx_handler))
 	,m_b_sysvar_cq_keep_qp_full(safe_mce_sys().cq_keep_qp_full)
 	,m_n_out_of_free_bufs_warning(0)
 {

@@ -27,6 +27,7 @@ SUBDIRS = infra netlink
 EXTRA_DIST = \
 	util/hash_map.inl \
 	dev/cq_mgr.inl \
+	dev/cq_mgr_mlx5.inl \
 	util/libvma.conf \
 	util/30-libvma-limits.conf
 
