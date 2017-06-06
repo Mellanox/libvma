@@ -112,7 +112,25 @@ enum {
 
 inline void	sockinfo_udp::reuse_buffer(mem_buf_desc_t *buff)
 {
-	if(buff->dec_ref_count() <= 1) {
+	if (m_p_rx_ring) {
+		m_rx_reuse_buff.n_buff_num += buff->rx.n_frags;
+		m_rx_reuse_buff.rx_reuse.push_back(buff);
+		if (m_rx_reuse_buff.n_buff_num < m_n_sysvar_rx_num_buffs_reuse) {
+			return;
+		}
+		if (m_rx_reuse_buff.n_buff_num >= 2 * m_n_sysvar_rx_num_buffs_reuse) {
+			if (m_p_rx_ring->reclaim_recv_buffers(&m_rx_reuse_buff.rx_reuse)) {
+				m_rx_reuse_buff.n_buff_num = 0;
+			} else {
+				g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&m_rx_reuse_buff.rx_reuse);
+				m_rx_reuse_buff.n_buff_num = 0;
+			}
+			m_rx_reuse_buf_postponed = false;
+		} else {
+			m_rx_reuse_buf_postponed = true;
+		}
+	}
+	else if(buff->dec_ref_count() <= 1) {
 		buff->inc_ref_count();
 		sockinfo::reuse_buffer(buff);
 	}
@@ -734,18 +752,18 @@ int sockinfo_udp::set_ring_attr_helper(ring_alloc_logic_attr *sock_attr,
 					vma_ring_alloc_logic_attr *user_attr)
 {
 	if (user_attr->comp_mask & VMA_RING_ALLOC_MASK_RING_PROFILE_KEY) {
-		if (sock_attr->m_ring_profile_key) {
+		if (sock_attr->get_ring_profile_key()) {
 			si_udp_logdbg("ring_profile_key is already set and "
 				      "cannot be changed");
 			return -1;
 		}
-		sock_attr->m_ring_profile_key = user_attr->ring_profile_key;
+		sock_attr->set_ring_profile_key(user_attr->ring_profile_key);
 	}
 	
-	sock_attr->m_ring_alloc_logic = user_attr->ring_alloc_logic;
+	sock_attr->set_ring_alloc_logic(user_attr->ring_alloc_logic);
 
 	if (user_attr->comp_mask & VMA_RING_ALLOC_MASK_RING_USER_ID) {
-		sock_attr->m_user_id_key = user_attr->user_id;
+		sock_attr->set_user_id_key(user_attr->user_id);
 	}
 	return 0;
 }

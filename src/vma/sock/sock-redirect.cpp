@@ -886,7 +886,6 @@ int getsockopt(int __fd, int __level, int __optname,
 		DO_GLOBAL_CTORS();
 		srdr_logdbg("User request for VMA Extra API pointers");
 		struct vma_api_t *vma_api = new struct vma_api_t();
-		memset(vma_api, 0, sizeof(struct vma_api_t));
 
 		vma_api->register_recv_callback = vma_register_recv_callback;
 		vma_api->recvfrom_zcopy = vma_recvfrom_zcopy;

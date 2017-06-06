@@ -662,7 +662,7 @@ void sockinfo::do_rings_migration()
 
 	resource_allocation_key *old_key = m_ring_alloc_logic.get_key();
 	resource_allocation_key *new_key = old_key;
-	new_key->m_user_id_key = m_ring_alloc_logic.calc_res_key_by_logic();
+	new_key->set_user_id_key(m_ring_alloc_logic.calc_res_key_by_logic());
 
 	if (old_key == new_key) {
 		unlock_rx_q();
@@ -899,14 +899,16 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 		m_rx_ring_map[p_ring] = p_ring_info;
 		p_ring_info->refcnt = 1;
 		p_ring_info->rx_reuse_info.n_buff_num = 0;
-#if defined(DEFINED_VMAPOLL) || defined(HAVE_MP_RQ)
 		/* m_p_rx_ring is updated in following functions:
 		 *  - rx_add_ring_cb()
 		 *  - rx_del_ring_cb()
 		 *  - do_rings_migration()
 		 */
-		m_p_rx_ring = m_rx_ring_map.begin()->first;
-#endif // DEFINED_VMAPOLL || HAVE_MP_RQ
+		if (m_rx_ring_map.size() == 1) {
+			m_p_rx_ring = m_rx_ring_map.begin()->first;
+		} else {
+			m_p_rx_ring = NULL;
+		}
 		notify_epoll = true;
 
 		// Add this new CQ channel fd to the rx epfd handle (no need to wake up any sleeping thread about this new fd)
@@ -1176,7 +1178,7 @@ int sockinfo::register_callback(vma_recv_callback_t callback, void *context)
 
 int sockinfo::modify_ratelimit(dst_entry* p_dst_entry, const uint32_t rate_limit_bytes_per_second)
 {
-	if (m_ring_alloc_log_tx.m_ring_alloc_logic == RING_LOGIC_PER_SOCKET) {
+	if (m_ring_alloc_log_tx.get_ring_alloc_logic() == RING_LOGIC_PER_SOCKET) {
 		// check in qp attr that device supports
 		if (m_p_rx_ring && !m_p_rx_ring->is_ratelimit_supported(BYTE_TO_KB(rate_limit_bytes_per_second))) {
 			si_logwarn("device doesn't support packet pacing or bad value, run ibv_devinfo -v");

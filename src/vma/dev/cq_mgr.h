@@ -248,8 +248,6 @@ protected:
 	const uint32_t		m_n_sysvar_rx_prefetch_bytes_before_poll;
 	const uint32_t		m_n_sysvar_rx_prefetch_bytes;
 	size_t			m_sz_transport_header;
-	ib_ctx_handler*		m_p_ib_ctx_handler;
-	const uint32_t		m_n_sysvar_rx_num_wr_to_post_recv;
 
 private:
 #ifdef DEFINED_VMAPOLL
@@ -261,11 +259,15 @@ private:
 	volatile struct		mlx5_cqe64 	(*m_mlx5_cqes)[];
 	volatile uint32_t 	*m_cq_db;
 #endif // DEFINED_VMAPOLL
+protected:
+	ib_ctx_handler*		m_p_ib_ctx_handler;
+private:
 	const bool		m_b_sysvar_is_rx_sw_csum_on;
 	struct ibv_comp_channel *m_comp_event_channel;
 	bool			m_b_notification_armed;
+	const uint32_t		m_rx_lkey;
+	const uint32_t		m_n_sysvar_rx_num_wr_to_post_recv;
 	const uint32_t		m_n_sysvar_qp_compensation_level;
-	uint32_t		m_rx_lkey;
 	const bool		m_b_sysvar_cq_keep_qp_full;
 	descq_t			m_rx_pool;
 	int32_t			m_n_out_of_free_bufs_warning;

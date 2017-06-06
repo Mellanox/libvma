@@ -39,7 +39,6 @@
 
 class ib_ctx_handler;
 
-typedef std::tr1::unordered_map<ibv_device* ,ibv_mr*> mr_map;
 
 class vma_allocator {
 public:
@@ -47,20 +46,13 @@ public:
 	~vma_allocator();
 	void* alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h);
 	void* get_ptr() const {return m_data_block;}
-
-	inline uint32_t find_lkey_by_ib_ctx(ib_ctx_handler *p_ib_ctx_h) const {
-		uint32_t lkey = 0;
-		mr_map::const_iterator it = m_mrs.find(p_ib_ctx_h->get_ibv_device());
-		if (likely(it != m_mrs.end())) {
-			lkey = it->second->lkey;
-		}
-		return lkey;
-	}
+	uint32_t find_lkey_by_ib_ctx(ib_ctx_handler *p_ib_ctx_h) const;
 private:
 	bool register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint64_t access);
 	bool hugetlb_alloc(size_t sz_bytes);
 	// List of memory regions
-	mr_map m_mrs;
+	ibv_mr** mr_list;
+	size_t mr_list_len;
 	int m_shmid;
 	void *m_data_block;
 	bool m_is_contig_alloc;

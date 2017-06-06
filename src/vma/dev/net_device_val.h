@@ -56,20 +56,20 @@ class L2_address;
 class ring;
 class neigh_ib_broadcast;
 
+#define RING_ALLOC_STR_SIZE	256
 class ring_alloc_logic_attr
 {
 public:
 	ring_alloc_logic_attr();
 	ring_alloc_logic_attr(ring_logic_t ring_logic);
 	ring_alloc_logic_attr(const ring_alloc_logic_attr &other);
-
-	/* ring allocation logic , per thread per fd ... */
-	ring_logic_t		m_ring_alloc_logic;
-	/* key in g_p_ring_profile */
-	vma_ring_profile_key	m_ring_profile_key;
-	/* either user_idx or key as defined in ring_logic_t */
-	uint64_t		m_user_id_key;
-	std::string		m_str;
+	void init();
+	void set_ring_alloc_logic(ring_logic_t logic);
+	void set_ring_profile_key(vma_ring_profile_key profile);
+	void set_user_id_key(uint64_t user_id_key);
+	inline ring_logic_t get_ring_alloc_logic() { return m_ring_alloc_logic;}
+	inline vma_ring_profile_key get_ring_profile_key() { return m_ring_profile_key;}
+	inline uint64_t get_user_id_key() { return m_user_id_key;}
 
 	bool operator==(const ring_alloc_logic_attr& other) const
 	{
@@ -89,6 +89,8 @@ public:
 			m_ring_alloc_logic = other.m_ring_alloc_logic;
 			m_ring_profile_key = other.m_ring_profile_key;
 			m_user_id_key = other.m_user_id_key;
+			m_hash = other.m_hash;
+			strncpy(m_str, other.m_str, strlen(m_str));
 		}
 		return *this;
 	}
@@ -96,26 +98,27 @@ public:
 	const char* to_str() const
 	{
 
-		return m_str.c_str();
+		return m_str;
 	}
 
 	size_t operator()(const ring_alloc_logic_attr *key) const
 	{
-		size_t h = 5381;
-		int c;
-		ostringstream s;
-		s << key->m_ring_alloc_logic << key->m_ring_profile_key << key->m_user_id_key;
-		std::string tmp = s.str();
-		const char* chr = tmp.c_str();
-		while ((c = *chr++))
-			h = ((h << 5) + h) + c; /* hash * 33 + c */
-		return h;
+		return key->m_hash;
 	}
 
 	bool operator()(const ring_alloc_logic_attr *k1, const ring_alloc_logic_attr *k2) const
 	{
 		return *k1 == *k2;
 	}
+private:
+	size_t			m_hash;
+	/* ring allocation logic , per thread per fd ... */
+	ring_logic_t		m_ring_alloc_logic;
+	/* key in g_p_ring_profile */
+	vma_ring_profile_key	m_ring_profile_key;
+	/* either user_idx or key as defined in ring_logic_t */
+	uint64_t		m_user_id_key;
+	char			m_str[RING_ALLOC_STR_SIZE];
 };
 
 typedef ring_alloc_logic_attr resource_allocation_key;
@@ -182,7 +185,7 @@ public:
 	virtual void 		configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id);
 
 	ring*                   reserve_ring(resource_allocation_key*); // create if not exists
-	bool 			release_ring(resource_allocation_key*); // delete from hash if ref_cnt == 0
+	bool 			release_ring(resource_allocation_key*); // delete from m_hash if ref_cnt == 0
 	state                   get_state() const  { return m_state; } // not sure, look at state init at c'tor
 	virtual std::string     to_str();
 	int                     get_mtu() { return m_mtu; }
