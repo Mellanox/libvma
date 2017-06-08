@@ -1,0 +1,230 @@
+.\" -*- groff -*-
+.\"
+.TH VMA 7 "#BUILD_DATE#" libvma "VMA(#BUILD_VERSION#) User's Manual"
+.SH NAME
+VMA \- Mellanox's Messaging Accelerator (VMA) library.
+
+.SH SYNOPSIS
+.B libvma.so
+
+.SH DESCRIPTION
+.B VMA
+Mellanox's Messaging Accelerator (VMA) boosts performance for message-based
+and streaming applications such as those found in financial services market
+data environments and Web2.0 clusters. It allows application written over
+standard socket API to run over Ethernet and/or Infiniband from user-space
+with full network stack bypass. The result is a reduction in latency by as
+much as 300%, an increase in application throughput by as much as 200%, higher
+packets rates and better CPU utilization as compared to applications running
+on standard Ethernet or InfiniBand interconnect networks.
+
+.SH FILES
+.I /etc/libvma.conf
+.RS
+The system wide configuration file. Look inside libvma.conf for instructions
+and examples.
+.RE
+.I /usr/share/doc/libvma-X.Y.Z/README.txt
+.RS
+General VMA Library description.
+.RE
+.I /usr/share/doc/libvma-X.Y.Z/VMA_VERSION
+.RS
+VMA Library version information.
+.RE
+
+.SH ENVIRONMENT
+.IP VMA_TRACELEVEL
+Trace level as
+.RS
+PANIC = 0 - Panic level logging
+.RE
+.RS
+ERROR = 1 - Runtime errors
+.RE
+.RS
+WARN = WARNING = 2 - Runtime warning that does not disrupt the application workflow
+.RE
+.RS
+INFO = INFORMATION = 3 - General information passed to the user of the application
+.RE
+.RS
+DETAILS - Greater general information passed to the user of the application
+.RE
+.RS
+DEBUG = 4 - High-level insight to the operations performed
+.RE
+.RS
+FINE = FUNC = 5 - Low-level runtime logging of activity
+.RE
+.RS
+FINER = FUNC_ALL = 6 - Very low-level runtime logging of activity
+.RE
+.IP VMA_LOG_DETAILS
+Provides additional logging details on each log line.
+.IP VMA_LOG_FILE
+Redirects all VMA logging to a specific user-defined file.
+.IP VMA_CONFIG_FILE
+Sets the full path to the VMA configuration file.
+.IP LOG_COLORS
+Uses a color scheme when logging; red for errors and warnings, and dim for very
+low level debugs.
+.IP VMA_CPU_USAGE_STATS
+Calculates the VMA CPU usage during polling hardware loops.
+.IP VMA_APPLICATION_ID
+Specifies a group of rules from libvma.conf for VMA to apply.
+.IP VMA_HANDLE_SIGINTR
+When enabled, the VMA handler is called when an interrupt signal is sent to the process.
+.IP VMA_HANDLE_SIGSEGV
+When enabled, a print backtrace is performed, if a segmentation fault occurs.
+.IP VMA_STATS_FD_NUM
+Maximum number of sockets monitored by the VMA statistics mechanism
+.IP VMA_STATS_FILE
+Redirects socket statistics to a specific user-defined file.
+.IP VMA_STATS_SHMEM_DIR
+Sets the directory path for VMA to create the shared memory files for vma_stats.
+.IP VMA_TCP_MAX_SYN_RATE
+Limits the number of TCP SYN packets that VMA handles per second for each listen socket.
+.IP VMA_TX_SEGS_TCP
+Number of TCP LWIP segments allocation for each VMA process.
+.IP VMA_TX_BUFS
+Number of global Tx data buffer elements allocation.
+.IP VMA_TX_WRE
+Number of Work Request Elements allocated in all transmit QP's. The number of QP's can change
+according to the number of network offloaded interfaces.
+.IP VMA_TX_WRE_BATCHING
+Controls the number of aggregated Work Requests Elements before receiving a completion signal
+(CQ entry) from the hardware. Previously this number was hard coded as 64.
+.IP VMA_TX_MAX_INLINE
+Max send inline data set for QP.
+.IP VMA_TX_MC_LOOPBACK
+Sets the initial value used internally by the VMA to control multicast loopback packet behavior
+during transmission.
+.IP VMA_TX_NONBLOCKED_EAGAINS
+Returns value 'OK' on all send operations that are performed on a non-blocked udp socket. This
+is the OS default behavior. The datagram sent is silently dropped inside the VMA or the network
+stack.
+.IP VMA_TX_PREFETCH_BYTES
+Accelerates an offloaded send operation by optimizing the cache.
+.IP VMA_RX_BUFS
+The number of Rx data buffer elements allocated for the processes.
+.IP VMA_RX_WRE
+The number of Work Request Elements allocated in all received QPs.
+.IP VMA_RX_BYTES_MIN
+The minimum value in bytes used per socket by the VMA when applications call to setsockopt(SO_RCVBUF).
+.IP VMA_RX_POLL
+The number of times to unsuccessfully poll an Rx for VMA packets before going to sleep.
+.IP VMA_RX_POLL_INIT
+VMA maps all UDP sockets as potential Offloaded-capable. Only after ADD_MEMBERSHIP is set,
+the offload starts working and the CQ polling starts VMA.
+.IP VMA_RX_UDP_POLL_OS_RATIO
+Defines the ratio between VMA CQ poll and OS FD poll.
+.IP VMA_RX_POLL_YIELD
+When an application is running with multiple threads on a limited number of cores, there is a need
+for each thread polling inside VMA (read, readv, recv, and recvfrom) to yield the CPU to another
+polling thread so as not to starve them from processing incoming packets.
+.IP VMA_RX_PREFETCH_BYTES
+The size of the receive buffer to prefetch into the cache while processing ingress packets.
+.IP VMA_RX_CQ_DRAIN_RATE_NSEC
+Socket's receive path CQ drain logic rate control.
+.IP VMA_GRO_STREAMS_MAX
+Controls the number of TCP streams to perform GRO (generic receive offload) simultaneously.
+.IP VMA_TCP_3T_RULES
+Uses only 3 tuple rules for TCP, instead of using 5 tuple rules.
+.IP VMA_ETH_MC_L2_ONLY_RULES
+Uses only L2 rules for Ethernet Multicast.
+.IP VMA_SELECT_POLL
+The duration in micro-seconds (usec) in which to poll the hardware on Rx path before blocking
+for an interrupt (when waiting and also when calling select(), poll(), or epoll_wait()).
+.IP VMA_SELECT_POLL_OS_RATIO
+This enables polling the OS file descriptors while the user thread calls select(), poll(),
+or epoll_wait(), and VMA is busy in the offloaded socket polling loop.
+.IP VMA_SELECT_SKIP_OS
+In select(), poll(), or epoll_wait()forces the VMA to check the non-offloaded sockets even
+though an offloaded socket has a ready packet that was found while polling.
+.IP VMA_CQ_POLL_BATCH_MAX
+The maximum size of the array while polling the CQs in the VMA.
+.IP VMA_PROGRESS_ENGINE_INTERVAL
+Internal VMA thread safety which checks that the CQ is drained at least once every N milliseconds.
+.IP VMA_PROGRESS_ENGINE_WCE_MAX
+Each time the VMA's internal thread starts its CQ draining, it stops when it reaches this maximum value.
+.IP VMA_CQ_MODERATION_ENABLE
+Enable CQ interrupt moderation.
+.IP VMA_CQ_MODERATION_COUNT
+Number of packets to hold before generating interrupt.
+.IP VMA_CQ_MODERATION_PERIOD_USEC
+Period in micro-seconds for holding the packet before generating interrupt.
+.IP VMA_CQ_AIM_MAX_COUNT
+Maximum count value to use in the adaptive interrupt moderation algorithm.
+.IP VMA_CQ_AIM_MAX_PERIOD_USEC
+Maximum period value to use in the adaptive interrupt moderation algorithm.
+.IP VMA_CQ_AIM_INTERVAL_MSEC
+Frequency of interrupt moderation adaptation.
+.IP VMA_CQ_AIM_INTERRUPTS_RATE_PER_SEC
+Desired interrupts rate per second for each ring (CQ).
+.IP VMA_CQ_KEEP_QP_FULL
+If disabled (default), the CQ does not try to compensate for each poll on the receive path.
+.IP VMA_QP_COMPENSATION_LEVEL
+The number of spare receive buffer CQ holds that can be allowed for filling up QP while full receive buffers
+are being processed inside VMA.
+.IP VMA_OFFLOADED_SOCKETS
+Creates all sockets as offloaded/not-offloaded by default.
+.IP VMA_TIMER_RESOLUTION_MSEC
+Control VMA internal thread wakeup timer resolution (in milliseconds).
+.IP VMA_TCP_TIMER_RESOLUTION_MSEC
+Controls VMA internal TCP timer resolution (fast timer) (in milliseconds).
+.IP VMA_TCP_CTL_THREAD
+Does all TCP control flows in the internal thread.
+.IP VMA_TCP_TIMESTAMP_OPTION
+Currently, LWIP is not supporting RTTM and PAWS mechanisms. see RFC1323 for info.
+.IP VMA_RX_SW_CSUM
+Enables/disables software checksum validation for ingress TCP/UDP IP packets.
+.IP VMA_EXCEPTION_HANDLING
+Handles missing support or error cases in Socket API or functionality by VMA.
+.IP VMA_AVOID_SYS_CALLS_ON_TCP_FD
+For TCP fd, avoid system calls for the supported options of:
+ioctl, fcntl, getsockopt, setsockopt.
+.IP VMA_THREAD_MODE
+By default VMA is ready for multi-threaded applications, meaning it is thread-safe.
+.IP VMA_BUFFER_BATCHING_MODE
+Enables batching of returning Rx buffers and pulling Tx buffers per socket.
+.IP VMA_MEM_ALLOC_TYPE
+This replaces the VMA_HUGETBL parameter logic.
+.IP VMA_FORK
+Controls VMA fork support.
+.IP VMA_MTU
+Size of each Rx and Tx data buffer (Maximum Transfer Unit).
+.IP VMA_MSS
+Defines the max TCP payload size that can be sent without IP fragmentation.
+.IP VMA_CLOSE_ON_DUP2
+When this parameter is enabled, VMA handles the duplicated file descriptor (oldfd),
+as if it is closed (clear internal data structures) and only then forwards the call
+to the OS.
+.IP VMA_INTERNAL_THREAD_AFFINITY
+Controls which CPU core(s) the VMA internal thread is serviced on.
+.IP VMA_INTERNAL_THREAD_CPUSET
+Selects a CPUSET for VMA internal thread (For further information, see man page of cpuset).
+.IP VMA_INTERNAL_THREAD_ARM_CQ
+Wakes up the internal thread for each packet that the CQ receives.
+.IP VMA_INTERNAL_THREAD_TCP_TIMER_HANDLING
+Selects the internal thread policy when handling TCP timers.
+.IP VMA_WAIT_AFTER_JOIN_MSEC
+This parameter indicates the time of delay the first packet is send after receiving the
+multicast JOINED event from the SM.
+.IP VMA_NEIGH_UC_ARP_QUATA
+VMA will send UC ARP in case neigh state is NUD_STALE.
+.IP VMA_NEIGH_UC_ARP_DELAY_MSEC
+This parameter indicates number of msec to wait between every UC ARP.
+.IP VMA_NEIGH_NUM_ERR_RETRIES
+Indicates number of retries to restart NEIGH state machine if NEIGH receives ERROR event.
+.IP VMA_BF
+Enables/disables BlueFlame usage of the card.
+
+.SH SEE ALSO
+.BR vma_get_api (3),
+.BR vma_add_conf_rule (3),
+.BR vma_dump_fd_stats (3),
+.BR vma_free_packets (3),
+.BR vma_recvfrom_zcopy (3),
+.BR vma_register_recv_callback (3),
+.BR vma_thread_offload (3)

@@ -1,0 +1,35 @@
+.\" -*- nroff -*-
+.\"
+.TH VMA_THREAD_OFFLOADED 3 "#BUILD_DATE#" libvma "VMA(#BUILD_VERSION#) User's Manual"
+.SH NAME
+vma_thread_offload
+
+.SH SYNOPSIS
+.B #include <mellanox/vma_extra.h>
+.sp
+.BI "int vma_thread_offload(int " "offload" ", pthread_t " "tid" );
+
+.SH DESCRIPTION
+.B vma_thread_offload()
+Creates sockets on pthread tid as off-loaded/not-off-loaded.
+.sp
+This does not affect existing sockets. Offloaded sockets are still
+subject to \fIlibvma.conf\fR rules.
+Usually combined with the \fBVMA_OFFLOADED_SOCKETS\fR parameter.
+
+.SH RETURN_VALUE
+.B On success, 0 is returned. On error, code value.
+
+.SH ERRORS
+.B Undefined.
+
+.SH NOTES
+
+.SH SEE ALSO
+.BR vma (7),
+.BR vma_get_api (3),
+.BR vma_add_conf_rule (3),
+.BR vma_dump_fd_stats (3),
+.BR vma_free_packets (3),
+.BR vma_recvfrom_zcopy (3),
+.BR vma_register_recv_callback (3),

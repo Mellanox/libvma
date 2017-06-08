@@ -1,0 +1,57 @@
+.\" -*- nroff -*-
+.\"
+.TH VMA_REGISTER_RECV_CALLBACK 3 "#BUILD_DATE#" libvma "VMA(#BUILD_VERSION#) User's Manual"
+.SH NAME
+vma_register_recv_callback
+
+.SH SYNOPSIS
+.B #include <mellanox/vma_extra.h>
+.sp
+.BI "int register_recv_callback(int " "s" ", vma_recv_callback_t " "callback" ", void *" "context" );
+
+.SH DESCRIPTION
+.B vma_register_recv_callback()
+Register a received packet notification callback.
+.sp
+The argument \fIcallback\fR is an ibv_qp_attr struct, as defined in <mellanox/vma_extra.h>.
+.PP
+typedef vma_recv_callback_retval_t 
+.in +8
+(*vma_recv_callback_t) (int fd, size_t sz_iov, struct iovec iov[], 
+                        struct vma_info_t* vma_info, void *context);
+.in -8
+.nf
+.PP
+struct __attribute__ ((packed)) vma_info_t {
+.in +8
+size_t              struct_sz;                     /* Compare this value with sizeof(vma_info_t) to check version compatability */
+void*               packet_id;                     /* VMA's handle to received packet buffer to be return if zero copy logic is used */
+struct sockaddr_in* src;
+struct sockaddr_in* dst;
+size_t              payload_sz;
+uint32_t            socket_ready_queue_pkt_count;	/* Current count of packets waiting to be read from the socket */
+uint32_t            socket_ready_queue_byte_count;	/* Current count of bytes waiting to be read from the socket */
+struct timespec     hw_timestamp;
+struct timespec     sw_timestamp;
+};
+.in -8
+.nf
+
+.SH RETURN_VALUE
+.B On success, 0 is returned. On error, -1.
+
+.SH ERRORS
+.B EINVAL
+.RS
+Socket not offloaded.
+
+.SH NOTES
+
+.SH SEE ALSO
+.BR vma (7),
+.BR vma_get_api (3),
+.BR vma_add_conf_rule (3),
+.BR vma_dump_fd_stats (3),
+.BR vma_free_packets (3),
+.BR vma_recvfrom_zcopy (3),
+.BR vma_thread_offload (3)

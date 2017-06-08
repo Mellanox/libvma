@@ -1,0 +1,43 @@
+.\" -*- nroff -*-
+.\"
+.TH VMA_GET_API 3 "#BUILD_DATE#" libvma "VMA(#BUILD_VERSION#) User's Manual"
+.SH NAME
+vma_get_api
+
+.SH SYNOPSIS
+.B #include <mellanox/vma_extra.h>
+.sp
+.BI "struct vma_api_t* vma_get_api()";
+
+.SH DESCRIPTION
+.B vma_get_api()
+Return a pointer to VMA API functions.
+.sp
+Use the vma_get_api() function to check if VMA is loaded in your
+application, and if the VMA Extra API is accessible.
+If the function returns with NULL, either VMA is not loaded with the application,
+or the VMA Extra API is not compatible with the header function used for compiling
+your application. NULL will be the typical return value when running the application
+on native OS without VMA loaded.
+Any non-NULL return value is a vma_api_t type structure pointer that holds pointers
+to the specific VMA Extra API function calls which are needed for the application to use.
+It is recommended to call vma_get_api() once on startup, and to use the returned
+pointer throughout the life of the process.
+There is no need to release this pointer in any way.
+
+.SH RETURN_VALUE
+.B On success, a pointer on VMA API functions. On error, NULL pointer.
+
+.SH ERRORS
+.B Undefined.
+
+.SH NOTES
+
+.SH SEE ALSO
+.BR vma (7),
+.BR vma_add_conf_rule (3),
+.BR vma_dump_fd_stats (3),
+.BR vma_free_packets (3),
+.BR vma_recvfrom_zcopy (3),
+.BR vma_register_recv_callback (3),
+.BR vma_thread_offload (3)

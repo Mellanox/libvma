@@ -53,8 +53,9 @@ AC_SUBST(VMA_LIBRARY_RELEASE)
 #LIBALIC_FLAG
 LIBALIC_FLAG=""
 AC_SUBST(LIBALIC_FLAG)
-AC_SUBST([BUILD_DATE], [$(date +'%b/%d/%Y')])
+AC_SUBST([BUILD_DATE], [$(date +'%d %b %Y')])
 AC_SUBST([BUILD_TIME], [$(date +'%H:%M:%S')])
+AC_SUBST([BUILD_VERSION], [${VMA_LIBRARY_MAJOR}.${VMA_LIBRARY_MINOR}.${VMA_LIBRARY_REVISION}])
 
 m4_include([config/m4/opt.m4])
 m4_include([config/m4/pkg.m4])
@@ -880,6 +881,7 @@ AC_CONFIG_FILES([
 		tests/throughput_test/Makefile
 		tools/Makefile
 		tools/daemon/Makefile
+		man/Makefile
 		contrib/scripts/vma.init
 		build/libvma.spec
 		debian/changelog

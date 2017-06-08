@@ -1,0 +1,51 @@
+.\" -*- nroff -*-
+.\"
+.TH VMA_RECVFROM_ZCOPY 3 "#BUILD_DATE#" libvma "VMA(#BUILD_VERSION#) User's Manual"
+.SH NAME
+vma_recvfrom_zcopy
+
+.SH SYNOPSIS
+.B #include <mellanox/vma_extra.h>
+.sp
+.BI "int vma_recvfrom_zcopy(int " "s" ", void* " "buf" ", size_t " "len" ", int* " "flags" ,
+.BI "struct sockaddr* " "from" ", socklen_t* " "fromlen" );
+
+.SH DESCRIPTION
+.B vma_recvfrom_zcopy()
+This function attempts to receive a packet without doing data copy.
+.sp
+This function attempts to receive a packet without doing data copy.
+The flags argument can contain the usual flags of recvmsg(), and also the
+\fBMSG_VMA_ZCOPY_FORCE\fR flag. If the latter is set, the function will not
+fall back to data copy. Otherwise, the function falls back to data copy
+if zero-copy cannot be performed. If zero-copy is done then MSG_VMA_ZCOPY
+flag is set upon exit.
+If zero copy is performed (\fBMSG_VMA_ZCOPY\fR flag is returned), the buffer 
+is filled with a vma_packets_t structure, holding as much fragments 
+as \fIlen\fR allows. The total size of all fragments is returned.
+Otherwise the \fBMSG_VMA_ZCOPY\fR flag is not set and the buffer is filled
+with actual data and it's size is returned (same as recvfrom())
+If no data was received the return value is zero.
+NOTE: The returned packet must be freed with free_packet() after
+the application finished using it.
+.PP
+.TP
+.B MSG_VMA_ZCOPY_FORCE \fR Don't fallback to bcopy
+.TP
+.B MSG_VMA_ZCOPY \fR Zero copy was done
+
+.SH RETURN_VALUE
+.B Number of copyied bytes.
+
+.SH ERRORS
+
+.SH NOTES
+
+.SH SEE ALSO
+.BR vma (7),
+.BR vma_get_api (3),
+.BR vma_add_conf_rule (3),
+.BR vma_dump_fd_stats (3),
+.BR vma_free_packets (3),
+.BR vma_register_recv_callback (3),
+.BR vma_thread_offload (3)

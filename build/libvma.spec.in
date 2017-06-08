@@ -150,6 +150,8 @@ fi
 %{_sysconfdir}/security/limits.d/30-libvma-limits.conf
 %{_sbindir}/vmad
 %{_sysconfdir}/init.d/vma
+%{_mandir}/man3/*
+%{_mandir}/man7/*
 
 %files devel
 %defattr(-,root,root,-)

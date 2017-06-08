@@ -1,0 +1,38 @@
+.\" -*- nroff -*-
+.\"
+.TH VMA_FREE_PACKETS 3 "#BUILD_DATE#" libvma "VMA(#BUILD_VERSION#) User's Manual"
+.SH NAME
+vma_free_packets
+
+.SH SYNOPSIS
+.B #include <mellanox/vma_extra.h>
+.sp
+.BI "int vma_free_packets(int " "s" ", struct vma_packet_t* " "pkts" ", size_t " "count" );
+
+.SH DESCRIPTION
+.B vma_free_packets()
+Frees a packet received by recvfrom_zcopy() or held by receive callback.
+
+.SH RETURN_VALUE
+.B On success, 0 is returned. On error, -1.
+
+.SH ERRORS
+.B EINVAL
+.RS
+Socket not offloaded.
+.RE
+.B ENOENT
+.RS
+The packet was not received from socket.
+.RE
+
+.SH NOTES
+
+.SH SEE ALSO
+.BR vma (7),
+.BR vma_get_api (3),
+.BR vma_add_conf_rule (3),
+.BR vma_dump_fd_stats (3),
+.BR vma_recvfrom_zcopy (3),
+.BR vma_register_recv_callback (3),
+.BR vma_therad_offload (3)

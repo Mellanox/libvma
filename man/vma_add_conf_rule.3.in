@@ -1,0 +1,34 @@
+.\" -*- nroff -*-
+.\"
+.TH VMA_ADD_CONF_RULE 3 "#BUILD_DATE#" libvma "VMA(#BUILD_VERSION#) User's Manual"
+.SH NAME
+vma_add_conf_rule
+
+.SH SYNOPSIS
+.B #include <mellanox/vma_extra.h>
+.sp
+.BI "int vma_add_conf_rule(char *" "config_line" );
+.
+.SH DESCRIPTION
+.B vma_add_conf_rule()
+Adds a libvma.conf rule to the top of the list.
+.sp
+This rule will not apply to existing sockets which already considered
+the conf rules. (around connect/listen/send/recv ..).
+
+.SH RETURN_VALUE
+.B On success, 0 is returned. On error, code value.
+
+.SH ERRORS
+.B Undefined.
+
+.SH NOTES
+
+.SH SEE ALSO
+.BR vma (7),
+.BR vma_get_api (3),
+.BR vma_dump_fd_stats (3),
+.BR vma_free_packets (3),
+.BR vma_recvfrom_zcopy (3),
+.BR vma_register_recv_callback (3),
+.BR vma_thread_offload (3)

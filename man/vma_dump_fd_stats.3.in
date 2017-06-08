@@ -1,0 +1,31 @@
+.\" -*- nroff -*-
+.\"
+.TH VMA_DUMP_FD_STATS 3 "#BUILD_DATE#" libvma "VMA(#BUILD_VERSION#) User's Manual"
+.SH NAME
+vma_dump_fd_stats
+
+.SH SYNOPSIS
+.B #include <mellanox/vma_extra.h>
+.sp
+.BI "int vma_dump_fd_stats(int " "fd" ", int " "log_level" );
+
+.SH DESCRIPTION
+.B vma_dump_fd_stats()
+Dumps statistics for fd number using log_level log level.
+
+.SH RETURN_VALUE
+.B On success, 0 is returned. On error, code value.
+
+.SH ERRORS
+.B Undefined.
+
+.SH NOTES
+
+.SH SEE ALSO
+.BR vma (7),
+.BR vma_get_api (3),
+.BR vma_add_conf_rule (3),
+.BR vma_free_packets (3),
+.BR vma_recvfrom_zcopy (3),
+.BR vma_register_recv_callback (3),
+.BR vma_thread_offload (3)
