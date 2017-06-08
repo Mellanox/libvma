@@ -292,8 +292,8 @@ ssize_t dst_entry_udp::fast_send_fragmented(const iovec* p_iov, const ssize_t sz
 	return sz_data_payload;
 }
 
-
-ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked /*=true*/, bool is_rexmit /*=false*/)
+ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov,
+				bool is_dummy, bool b_blocked /*=true*/, bool is_rexmit /*=false*/)
 {
 	NOT_IN_USE(is_rexmit);
 
@@ -319,7 +319,10 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 	}
 }
 
-ssize_t dst_entry_udp::slow_send(const iovec* p_iov, size_t sz_iov, bool is_dummy, bool b_blocked /*= true*/, bool is_rexmit /*= false*/, int flags /*= 0*/, socket_fd_api* sock /*= 0*/, tx_call_t call_type /*= 0*/)
+ssize_t dst_entry_udp::slow_send(const iovec* p_iov, size_t sz_iov, bool is_dummy,
+				 const int ratelimit_kbps, bool b_blocked /*= true*/,
+				 bool is_rexmit /*= false*/, int flags /*= 0*/,
+				 socket_fd_api* sock /*= 0*/, tx_call_t call_type /*= 0*/)
 {
 	NOT_IN_USE(is_rexmit);
 
@@ -327,7 +330,7 @@ ssize_t dst_entry_udp::slow_send(const iovec* p_iov, size_t sz_iov, bool is_dumm
 
 	dst_udp_logdbg("In slow send");
 
-	prepare_to_send();
+	prepare_to_send(ratelimit_kbps, false);
 
 	if (m_b_force_os || !m_b_is_offloaded) {
 		struct sockaddr_in to_saddr;

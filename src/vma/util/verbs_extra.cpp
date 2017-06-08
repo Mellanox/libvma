@@ -323,3 +323,19 @@ int vma_rdma_lib_reset() {
 	return 0;
 #endif
 }
+
+// be advised that this method will change packet pacing value and also change state to RTS
+int priv_ibv_modify_qp_ratelimit(struct ibv_qp *qp, uint32_t ratelimit_kbps )
+{
+	if (priv_ibv_query_qp_state(qp) != IBV_QPS_RTS) {
+		return -1;
+	}
+
+	BULLSEYE_EXCLUDE_BLOCK_START
+	IF_VERBS_FAILURE(vma_ibv_modify_qp_rate_limit(qp, ratelimit_kbps)) {
+		vlog_printf(VLOG_WARNING, "failed setting rate limit");
+		return -2;
+	} ENDIF_VERBS_FAILURE;
+	BULLSEYE_EXCLUDE_BLOCK_END
+	return 0;
+}

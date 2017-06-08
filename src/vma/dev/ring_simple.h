@@ -84,6 +84,7 @@ public:
 	virtual bool 		get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe);
 	inline void 		convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) { m_p_cq_mgr_rx->convert_hw_time_to_system_time(hwtime, systime); }
 	inline uint32_t		get_qpn() const { return (m_p_l2_addr ? ((IPoIB_addr *)m_p_l2_addr)->get_qpn() : 0); }
+	virtual int 		modify_ratelimit(const uint32_t ratelimit_kbps);
 
 	struct ibv_comp_channel* get_tx_comp_event_channel() { return m_p_tx_comp_event_channel; }
 	friend class cq_mgr;
@@ -115,7 +116,7 @@ protected:
 #ifdef DEFINED_VMAPOLL		
 	uint16_t		get_lkey() { return m_tx_lkey; }
 #endif // DEFINED_VMAPOLL		
-
+	ib_ctx_handler*		m_p_ib_ctx;
 	qp_mgr*			m_p_qp_mgr;
 	struct cq_moderation_info m_cq_moderation_info;
 	cq_mgr*			m_p_cq_mgr_rx;
@@ -177,6 +178,7 @@ public:
 		if (call_create_res)
 			create_resources(p_ring_info, active);
 	};
+	virtual bool is_ratelimit_supported(uint32_t rate);
 protected:
 	virtual qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) throw (vma_error);
 };
@@ -186,7 +188,7 @@ class ring_ib : public ring_simple
 public:
 	ring_ib(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count, bool active, uint16_t pkey, uint32_t mtu, ring* parent = NULL) throw (vma_error):
 		ring_simple(local_if, pkey, count, VMA_TRANSPORT_IB, mtu, parent) { create_resources(p_ring_info, active); };
-
+	virtual bool is_ratelimit_supported(uint32_t rate);
 protected:
 	virtual qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) throw (vma_error);
 };

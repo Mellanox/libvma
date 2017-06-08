@@ -814,6 +814,9 @@ AC_TRY_LINK(
   AC_MSG_RESULT([no])
 ])
 
+AC_CHECK_DECLS([IBV_EXP_QP_RATE_LIMIT],
+	[AC_DEFINE(DEFINED_IBV_EXP_QP_RATE_LIMIT, 1, [Define to 1 if IBV_EXP_QP_RATE_LIMIT defined])],
+	[], [[#include <infiniband/mlx5_hw.h>]])
 
 AC_CHECK_LIB([stdc++], [atoi])
 AC_CHECK_LIB([dl], [dlsym])
