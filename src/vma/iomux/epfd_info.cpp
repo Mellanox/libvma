@@ -431,7 +431,7 @@ int epfd_info::mod_fd(int fd, epoll_event *event)
 	__log_funcall("fd=%d", fd);
 	// find the fd in local table
 	socket_fd_api* temp_sock_fd_api = fd_collection_get_sockfd(fd);
-	if (!temp_sock_fd_api || !temp_sock_fd_api->get_epoll_context_fd() != m_epfd) {
+	if (!temp_sock_fd_api || temp_sock_fd_api->get_epoll_context_fd() != m_epfd) {
 		errno = ENOENT;
 		return -1;
 	}
