@@ -270,7 +270,7 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 			events |= EPOLLOUT;
 		}
 		if (events != 0) {
-			insert_epoll_event(temp_sock_fd_api, events); // mutex is recursive
+			insert_epoll_event(temp_sock_fd_api, events);
 		}
 		else{
 			do_wakeup();
@@ -377,28 +377,29 @@ int epfd_info::del_fd(int fd, bool passthrough)
 		m_fd_info_list.erase(temp_sock_fd_api);
 	}
 
-	if(temp_sock_fd_api->ep_ready_fd_node.is_list_member()) {
+	if (temp_sock_fd_api->ep_ready_fd_node.is_list_member()) {
 		temp_sock_fd_api->m_epoll_event_flags = 0;
 		m_ready_fds.erase(temp_sock_fd_api);
 	}
 
-	epoll_fd_rec* fi = &temp_sock_fd_api->m_fd_rec;
+	epoll_fd_rec& fi = temp_sock_fd_api->m_fd_rec;
 	// handle offloaded fds
-	if (fi->offloaded_index > 0) {
+	if (fi.offloaded_index > 0) {
 
 		//check if the index of fd, which is being removed, is the last one.
 		//if does, it is enough to decrease the val of m_n_offloaded_fds in order
 		//to shrink the offloaded fds array.
-		if (fi->offloaded_index < m_n_offloaded_fds) {
+		if (fi.offloaded_index < m_n_offloaded_fds) {
 			// remove fd and replace by last fd
-			m_p_offloaded_fds[fi->offloaded_index - 1] = m_p_offloaded_fds[m_n_offloaded_fds - 1];
+			m_p_offloaded_fds[fi.offloaded_index - 1] =
+					m_p_offloaded_fds[m_n_offloaded_fds - 1];
+
 			socket_fd_api* last_socket = fd_collection_get_sockfd(m_p_offloaded_fds[m_n_offloaded_fds - 1]);
-			if (last_socket){
-				if(!last_socket->ep_info_fd_node.is_list_member()) {
-					__log_warn("Failed to update the index of offloaded fd: %d\n", m_p_offloaded_fds[m_n_offloaded_fds - 1]);
-				} else {
-					last_socket->m_fd_rec.offloaded_index = fi->offloaded_index;
-				}
+			if (last_socket && last_socket->get_epoll_context_fd() == m_epfd) {
+				last_socket->m_fd_rec.offloaded_index = fi.offloaded_index;
+			} else {
+				__log_warn("Failed to update the index of offloaded fd: %d last_socket %p\n",
+						m_p_offloaded_fds[m_n_offloaded_fds - 1], last_socket);
 			}
 		}
 
@@ -414,7 +415,7 @@ int epfd_info::del_fd(int fd, bool passthrough)
 
 int epfd_info::clear_events_for_fd(socket_fd_api *sock_fd, uint32_t events)
 {
-	if (!sock_fd || !sock_fd->ep_info_fd_node.is_list_member()) {
+	if (!sock_fd->ep_info_fd_node.is_list_member()) {
 		errno = ENOENT;
 		return -1;
 	}
@@ -428,10 +429,9 @@ int epfd_info::mod_fd(int fd, epoll_event *event)
 	int ret;
 
 	__log_funcall("fd=%d", fd);
-
 	// find the fd in local table
 	socket_fd_api* temp_sock_fd_api = fd_collection_get_sockfd(fd);
-	if (!temp_sock_fd_api || !temp_sock_fd_api->ep_info_fd_node.is_list_member()) {
+	if (!temp_sock_fd_api || !temp_sock_fd_api->get_epoll_context_fd() != m_epfd) {
 		errno = ENOENT;
 		return -1;
 	}
@@ -482,7 +482,7 @@ int epfd_info::mod_fd(int fd, epoll_event *event)
 			events |= EPOLLOUT;
 		}
 		if (events != 0) {
-			insert_epoll_event(temp_sock_fd_api, events); // mutex is recursive
+			insert_epoll_event(temp_sock_fd_api, events);
 		}
 	}
 
@@ -516,7 +516,7 @@ void epfd_info::set_fd_as_offloaded_only(socket_fd_api* sock_fd)
 void epfd_info::insert_epoll_event_cb(socket_fd_api* sock_fd, uint32_t event_flags)
 {
 	//EPOLLHUP | EPOLLERR are reported without user request
-	if(event_flags & (sock_fd->m_fd_rec.events | EPOLLHUP | EPOLLERR)) {
+	if (event_flags & (sock_fd->m_fd_rec.events | EPOLLHUP | EPOLLERR)) {
 		lock();
 		insert_epoll_event(sock_fd, event_flags);
 		unlock();
@@ -525,6 +525,7 @@ void epfd_info::insert_epoll_event_cb(socket_fd_api* sock_fd, uint32_t event_fla
 
 void epfd_info::insert_epoll_event(socket_fd_api *sock_fd, uint32_t event_flags)
 {
+	// assumed lock
 	if (sock_fd->ep_ready_fd_node.is_list_member()) {
 		sock_fd->m_epoll_event_flags |= event_flags;
 	}
@@ -538,11 +539,9 @@ void epfd_info::insert_epoll_event(socket_fd_api *sock_fd, uint32_t event_flags)
 
 void epfd_info::remove_epoll_event(socket_fd_api *sock_fd, uint32_t event_flags)
 {
-	if (sock_fd->ep_ready_fd_node.is_list_member()) {
-		sock_fd->m_epoll_event_flags &= ~event_flags;
-		if (sock_fd->m_epoll_event_flags == 0) {
-			m_ready_fds.erase(sock_fd);
-		}
+	sock_fd->m_epoll_event_flags &= ~event_flags;
+	if (sock_fd->m_epoll_event_flags == 0) {
+		m_ready_fds.erase(sock_fd);
 	}
 }
 

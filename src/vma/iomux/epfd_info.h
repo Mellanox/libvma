@@ -34,12 +34,12 @@
 #ifndef VMA_EPOLL_H
 #define VMA_EPOLL_H
 
-#include <vma/sock/cleanable_obj.h>
 #include <vma/util/wakeup_pipe.h>
+#include <vma/sock/cleanable_obj.h>
 #include <vma/sock/sockinfo.h>
 
 typedef vma_list_t<socket_fd_api, socket_fd_api::ep_ready_fd_node_offset> ep_ready_fd_list_t;
-typedef vma_list_t<socket_fd_api, socket_fd_api::ep_info_fd_node_offset>  fd_info_list_t;
+typedef vma_list_t<socket_fd_api, socket_fd_api::ep_info_fd_node_offset> fd_info_list_t;
 
 typedef std::tr1::unordered_map<ring*, int /*ref count*/> ring_map_t;
 typedef std::deque<int> ready_cq_fd_q_t;
