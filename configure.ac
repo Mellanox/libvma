@@ -53,7 +53,7 @@ dateopt=""
     if test -n "$SOURCE_DATE_EPOCH" ; then
     dateopt="-u -d @$SOURCE_DATE_EPOCH"
 fi
-AC_SUBST([BUILD_DATE], [$(date $dateopt +'%b/%d/%Y')])
+AC_SUBST([BUILD_DATE], [$(date $dateopt +'%d %b %Y')])
 AC_SUBST([BUILD_TIME], [$(date $dateopt +'%H:%M:%S')])
 AC_SUBST([BUILD_DATE_CHANGELOG], [$(date $dateopt +'%a, %d %b %Y %T %z')])
 
@@ -102,9 +102,9 @@ show_section_title "Configure build tools"
 
 # Find compiler, libtools, etc
 #
+LT_INIT([disable-static])
 AC_PROG_CC
 AC_PROG_CXX
-AC_PROG_LIBTOOL
 AC_PROG_YACC
 AM_PROG_LEX
 
@@ -489,6 +489,7 @@ AC_CONFIG_FILES([
 		tests/throughput_test/Makefile
 		tools/Makefile
 		tools/daemon/Makefile
+		doc/man/Makefile
 		contrib/scripts/vma.init
 		contrib/scripts/vma.service
 		build/libvma.spec

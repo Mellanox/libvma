@@ -169,6 +169,8 @@ fi
 %else
 %{_sysconfdir}/init.d/vma
 %endif
+%{_mandir}/man7/vma.*
+%{_mandir}/man8/vmad.*
 
 %files devel
 %defattr(-,root,root,-)
@@ -178,6 +180,7 @@ fi
 %defattr(-,root,root)
 %{_bindir}/vma_stats
 %{vma_datadir}/scripts/vma_perf_envelope.sh
+%{_mandir}/man8/vma_stats.*
 
 %changelog
 * Mon Nov 28 2016 Igor Ivanov <igor.ivanov.va@gmail.com>

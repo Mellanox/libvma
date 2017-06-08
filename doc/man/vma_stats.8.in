@@ -1,0 +1,70 @@
+.\" -*- groff -*-
+.\"
+.TH VMA 8 "#BUILD_DATE#" libvma "VMA(#VMA_LIBRARY_MAJOR#.#VMA_LIBRARY_MINOR#.#VMA_LIBRARY_REVISION#) User's Manual"
+.SH NAME
+vma_stats \- Mellanox's Messaging Accelerator (VMA) statistic utility.
+
+.SH SYNOPSIS
+.B vma_stats
+[\-p \fIpid\fP] [\-k \fIdirectory\fP] [\-v \fIview\fP] [\-d \fIdetails\fP] [\-i \fIinterval\fP]
+[\-n \fIapplication\fP] [\-f] [\-F] [\-c \fIcycles\fP] [\-l \fIlevel\fP] [\-z]
+
+.SH DESCRIPTION
+vma_stats is program that reports information about sockets and internal related objects for vma (7).
+vma_stats can be configured using command-line options
+
+The options are as follows:
+.sp
+\fB\-p,\-\-pid\fP \fIid\fP
+Show VMA statistics for process with pid.
+.TP
+\fB\-k,\-\-directory\fP=\fIdirectory\fP
+Set shared memory directory path.
+.TP
+\fB\-n,\-\-name\fP=\fIapplication\fP
+Show VMA statistics for application.
+.TP
+\fB\-f,\-\-find_pid\fP
+Find and show statistics for VMA instance running.
+.TP
+\fB\-F,\-\-forbid_clean\fP
+By setting this flag inactive shared objects would not be removed.
+.TP
+\fB\-i,\-\-interval\fP=\fIinterval\fP
+Print report every interval seconds.
+.TP
+\fB\-c,\-\-cycles\fP=\fIcycles\fP
+Do report print cycles and exit, use 0 value for infinite.
+.TP
+\fB\-v,\-\-view\fP=\fI[1|2|3|4|5]\fP
+Set view type: 1\- basic info, 2\- extra info, 3\- full info, 4\- mc groups, 5\- similar to 'netstat \-tunaep'.
+.TP
+\fB\-d,\-\-details\fP=\fI[1|2]\fP
+Set details mode:1\- to see totals, 2\- to see deltas.
+.TP
+\fB\-z,\-\-zero\fP
+Zero counters.
+.TP
+\fB\-l,\-\-log_level\fP=\fIlevel\fP
+Set VMA log level (one of: none, panic, error, warn, info, details, debug, fine, finer, all).
+.TP
+\fB\-S,\-\-fd_dump\fP=\fIfd [level]\fP
+Dump statistics for fd number using log level. Use 0 value for all open fds.
+.TP
+\fB\-D,\-\-details_level\fP=\fIlevel\fP
+Set VMA log details level.
+.TP
+\fB\-s,\-\-sockets\fP=\fI[list|range]\fP
+Log only sockets that match list or range, format: 4-16 or 1,9 (or combination).
+.TP
+\fB\-V,\-\-version\fP
+Print version.
+.TP
+
+.SH SEE ALSO
+.BR vma (7),
+.BR vmad (8)
+
+.SH "AUTHORS"
+.TP
+Igor Ivanov <igori@mellanox.com>
