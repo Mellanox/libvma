@@ -486,6 +486,12 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 				tcp_dst_port_filter = new rfs_rule_filter(m_tcp_dst_port_attach_map, key_tcp.dst_port, tcp_3t_only);
 			}
 			if(safe_mce_sys().gro_streams_max && flow_spec_5t.is_5_tuple()) {
+				// When the gro mechanism is being used, packets must be processed in the rfs
+				// layer. This must not be bypassed by using flow tag.
+				if (flow_tag_id) {
+					flow_tag_id = FLOW_TAG_MASK;
+					ring_logdbg("flow_tag_id = %d is disabled to enable TCP GRO socket to be processed on RFS!", flow_tag_id);
+				}
 				p_tmp_rfs = new rfs_uc_tcp_gro(&flow_spec_5t, this, tcp_dst_port_filter, flow_tag_id);
 			} else {
 				try {
@@ -531,7 +537,7 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 			ring_logdbg("single 5T TCP update m_tcp_flow_is_5t m_flow_tag_enabled: %d", m_flow_tag_enabled);
 		}
 	} else {
-		ring_logerr("attach_flow=%d failed, flow_tag %d should be disabled!", ret, flow_tag_id);
+		ring_logerr("attach_flow=%d failed!", ret);
 	}
 	m_lock_ring_rx.unlock();
 	return ret;
