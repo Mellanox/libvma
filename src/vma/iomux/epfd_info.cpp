@@ -320,6 +320,7 @@ void epfd_info::decrease_ring_ref_count(ring* ring)
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (iter == m_ring_map.end()) {
 		__log_err("expected to find ring %p here!", ring);
+		m_ring_map_lock.unlock();
 		return;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
