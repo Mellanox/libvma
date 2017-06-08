@@ -1,0 +1,42 @@
+.\" -*- groff -*-
+.\"
+.TH VMA 7 "#BUILD_DATE#" libvma "VMA(#VMA_LIBRARY_MAJOR#.#VMA_LIBRARY_MINOR#.#VMA_LIBRARY_REVISION#) User's Manual"
+.SH NAME
+VMA \- Mellanox's Messaging Accelerator (VMA) library.
+
+.SH SYNOPSIS
+.B libvma.so
+
+.SH DESCRIPTION
+.B VMA
+Mellanox's Messaging Accelerator (VMA) boosts performance for message-based
+and streaming applications such as those found in financial services market
+data environments and Web2.0 clusters. It allows application written over
+standard socket API to run over Ethernet and/or Infiniband from user-space
+with full network stack bypass. The result is a reduction in latency by as
+much as 300%, an increase in application throughput by as much as 200%, higher
+packets rates and better CPU utilization as compared to applications running
+on standard Ethernet or InfiniBand interconnect networks.
+
+.SH FILES
+.I /etc/libvma.conf
+.RS
+The system wide configuration file. Look inside libvma.conf for instructions
+and examples.
+.RE
+.I /usr/share/doc/libvma/README.txt
+.RS
+General VMA Library description.
+.RE
+.I /usr/share/doc/libvma/VMA_VERSION
+.RS
+VMA Library version information.
+.RE
+
+.SH SEE ALSO
+.BR vmad (8),
+.BR vma_stats (8)
+
+.SH "AUTHORS"
+.TP
+Igor Ivanov <igori@mellanox.com>
