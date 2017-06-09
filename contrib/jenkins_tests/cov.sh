@@ -68,7 +68,7 @@ printf "%s\t%s\n" Coverity $cov_url >> jenkins_sidelinks.txt
 
 module unload tools/cov
 
-do_archive "${cov_build}"
+do_archive "$( find ${cov_build}/output -type f -name "*.txt" -or -name "*.html" -or -name "*.xml" )"
 
 echo "[${0##*/}]..................exit code = $rc"
 exit $rc
