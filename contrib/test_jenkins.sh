@@ -40,15 +40,25 @@ do_check_env
 rel_path=$(dirname $0)
 abs_path=$(readlink -f $rel_path)
 
-jenkins_test_build=${jenkins_test_build:="yes"}
-jenkins_test_run=${jenkins_test_run:="yes"}
+# Values: none, fail, always
+#
+jenkins_opt_artifacts=${jenkins_opt_artifacts:="always"}
 
-jenkins_test_gtest=${jenkins_test_gtest:="yes"}
+# Values: 0..N test (max 100)
+#
+jenkins_opt_exit=${jenkins_opt_exit:="6"}
+
+# Test scenario list
+#
+jenkins_test_build=${jenkins_test_build:="yes"}
+
 jenkins_test_compiler=${jenkins_test_compiler:="yes"}
 jenkins_test_rpm=${jenkins_test_rpm:="yes"}
 jenkins_test_cov=${jenkins_test_cov:="yes"}
 jenkins_test_cppcheck=${jenkins_test_cppcheck:="yes"}
 jenkins_test_csbuild=${jenkins_test_csbuild:="yes"}
+jenkins_test_run=${jenkins_test_run:="yes"}
+jenkins_test_gtest=${jenkins_test_gtest:="yes"}
 jenkins_test_vg=${jenkins_test_vg:="no"}
 jenkins_test_style=${jenkins_test_style:="no"}
 jenkins_test_tool=${jenkins_test_tool:="yes"}
@@ -104,101 +114,123 @@ for target_v in "${target_list[@]}"; do
         rc=$((rc + $ret))
     fi
 
-    set +e
     # check other units w/o forcing exiting
     #
-    if [ "$jenkins_test_compiler" = "yes" ]; then
-        $WORKSPACE/contrib/jenkins_tests/compiler.sh
-        ret=$?
-        if [ $ret -gt 0 ]; then
-           do_err "case: [compiler: rc=$rc]"
-        fi
-        rc=$((rc + $ret))
+    set +e
+    if [ 1 -lt "$jenkins_opt_exit" -o "$rc" -eq 0 ]; then
+	    if [ "$jenkins_test_compiler" = "yes" ]; then
+	        $WORKSPACE/contrib/jenkins_tests/compiler.sh
+	        ret=$?
+	        if [ $ret -gt 0 ]; then
+	           do_err "case: [compiler: rc=$rc]"
+	        fi
+	        rc=$((rc + $ret))
+	    fi
     fi
-    if [ "$jenkins_test_rpm" = "yes" ]; then
-        $WORKSPACE/contrib/jenkins_tests/rpm.sh
-        ret=$?
-        if [ $ret -gt 0 ]; then
-           do_err "case: [rpm: rc=$rc]"
-        fi
-        rc=$((rc + $ret))
+    if [ 2 -lt "$jenkins_opt_exit" -o "$rc" -eq 0 ]; then
+	    if [ "$jenkins_test_rpm" = "yes" ]; then
+	        $WORKSPACE/contrib/jenkins_tests/rpm.sh
+	        ret=$?
+	        if [ $ret -gt 0 ]; then
+	           do_err "case: [rpm: rc=$rc]"
+	        fi
+	        rc=$((rc + $ret))
+	    fi
+	fi
+    if [ 3 -lt "$jenkins_opt_exit" -o "$rc" -eq 0 ]; then
+	    if [ "$jenkins_test_cov" = "yes" ]; then
+	        $WORKSPACE/contrib/jenkins_tests/cov.sh
+	        ret=$?
+	        if [ $ret -gt 0 ]; then
+	           do_err "case: [cov: rc=$rc]"
+	        fi
+	        rc=$((rc + $ret))
+	    fi
     fi
-    if [ "$jenkins_test_cov" = "yes" ]; then
-        $WORKSPACE/contrib/jenkins_tests/cov.sh
-        ret=$?
-        if [ $ret -gt 0 ]; then
-           do_err "case: [cov: rc=$rc]"
-        fi
-        rc=$((rc + $ret))
+    if [ 4 -lt "$jenkins_opt_exit" -o "$rc" -eq 0 ]; then
+	    if [ "$jenkins_test_cppcheck" = "yes" ]; then
+	        $WORKSPACE/contrib/jenkins_tests/cppcheck.sh
+	        ret=$?
+	        if [ $ret -gt 0 ]; then
+	           do_err "case: [cppcheck: rc=$rc]"
+	        fi
+	        rc=$((rc + $ret))
+	    fi
     fi
-    if [ "$jenkins_test_cppcheck" = "yes" ]; then
-        $WORKSPACE/contrib/jenkins_tests/cppcheck.sh
-        ret=$?
-        if [ $ret -gt 0 ]; then
-           do_err "case: [cppcheck: rc=$rc]"
-        fi
-        rc=$((rc + $ret))
+    if [ 5 -lt "$jenkins_opt_exit" -o "$rc" -eq 0 ]; then
+	    if [ "$jenkins_test_csbuild" = "yes" ]; then
+	        $WORKSPACE/contrib/jenkins_tests/csbuild.sh
+	        ret=$?
+	        if [ $ret -gt 0 ]; then
+	           do_err "case: [csbuild: rc=$rc]"
+	        fi
+	        rc=$((rc + $ret))
+	    fi
     fi
-    if [ "$jenkins_test_csbuild" = "yes" ]; then
-        $WORKSPACE/contrib/jenkins_tests/csbuild.sh
-        ret=$?
-        if [ $ret -gt 0 ]; then
-           do_err "case: [csbuild: rc=$rc]"
-        fi
-        rc=$((rc + $ret))
+    if [ 6 -lt "$jenkins_opt_exit" -o "$rc" -eq 0 ]; then
+	    if [ "$jenkins_test_run" = "yes" ]; then
+	        $WORKSPACE/contrib/jenkins_tests/test.sh
+	        ret=$?
+	        if [ $ret -gt 0 ]; then
+	           do_err "case: [test: rc=$rc]"
+	        fi
+	        rc=$((rc + $ret))
+	    fi
     fi
-    if [ "$jenkins_test_run" = "yes" ]; then
-        $WORKSPACE/contrib/jenkins_tests/test.sh
-        ret=$?
-        if [ $ret -gt 0 ]; then
-           do_err "case: [test: rc=$rc]"
-        fi
-        rc=$((rc + $ret))
+    if [ 7 -lt "$jenkins_opt_exit" -o "$rc" -eq 0 ]; then
+	    if [ "$jenkins_test_gtest" = "yes" ]; then
+	        $WORKSPACE/contrib/jenkins_tests/gtest.sh
+	        ret=$?
+	        if [ $ret -gt 0 ]; then
+	           do_err "case: [gtest: rc=$rc]"
+	        fi
+	        rc=$((rc + $ret))
+	    fi
     fi
-    if [ "$jenkins_test_gtest" = "yes" ]; then
-        $WORKSPACE/contrib/jenkins_tests/gtest.sh
-        ret=$?
-        if [ $ret -gt 0 ]; then
-           do_err "case: [gtest: rc=$rc]"
-        fi
-        rc=$((rc + $ret))
+    if [ 8 -lt "$jenkins_opt_exit" -o "$rc" -eq 0 ]; then
+	    if [ "$jenkins_test_vg" = "yes" ]; then
+	        $WORKSPACE/contrib/jenkins_tests/vg.sh
+	        ret=$?
+	        if [ $ret -gt 0 ]; then
+	           do_err "case: [vg: rc=$rc]"
+	        fi
+	        rc=$((rc + $ret))
+	    fi
     fi
-    if [ "$jenkins_test_vg" = "yes" ]; then
-        $WORKSPACE/contrib/jenkins_tests/vg.sh
-        ret=$?
-        if [ $ret -gt 0 ]; then
-           do_err "case: [vg: rc=$rc]"
-        fi
-        rc=$((rc + $ret))
+    if [ 9 -lt "$jenkins_opt_exit" -o "$rc" -eq 0 ]; then
+	    if [ "$jenkins_test_style" = "yes" ]; then
+	        $WORKSPACE/contrib/jenkins_tests/style.sh
+	        ret=$?
+	        if [ $ret -gt 0 ]; then
+	           do_err "case: [style: rc=$rc]"
+	        fi
+	        rc=$((rc + $ret))
+	    fi
     fi
-    if [ "$jenkins_test_style" = "yes" ]; then
-        $WORKSPACE/contrib/jenkins_tests/style.sh
-        ret=$?
-        if [ $ret -gt 0 ]; then
-           do_err "case: [style: rc=$rc]"
-        fi
-        rc=$((rc + $ret))
-    fi
-    if [ "$jenkins_test_tool" = "yes" ]; then
-        $WORKSPACE/contrib/jenkins_tests/tool.sh
-        ret=$?
-        if [ $ret -gt 0 ]; then
-           do_err "case: [tool: rc=$rc]"
-        fi
-        rc=$((rc + $ret))
+    if [ 10 -lt "$jenkins_opt_exit" -o "$rc" -eq 0 ]; then
+	    if [ "$jenkins_test_tool" = "yes" ]; then
+	        $WORKSPACE/contrib/jenkins_tests/tool.sh
+	        ret=$?
+	        if [ $ret -gt 0 ]; then
+	           do_err "case: [tool: rc=$rc]"
+	        fi
+	        rc=$((rc + $ret))
+	    fi
     fi
     set -e
 
     # Archive all logs in single file
     do_archive "${WORKSPACE}/${prefix}/${target_name}/*.tap"
-    gzip "${jenkins_test_artifacts}.tar"
 
-    set +x
-    echo "======================================================"
-    echo "Jenkins result for [${target_name}] target: return $rc"
-    echo "Artifacts: ${jenkins_test_artifacts}.tar.gz"
-    echo "======================================================"
-    set -x
+    if [ "$jenkins_opt_artifacts" == "always" ] || [ "$jenkins_opt_artifacts" == "fail" -a "$rc" -gt 0 ]; then
+	    set +x
+	    gzip "${jenkins_test_artifacts}.tar"
+	    echo "======================================================"
+	    echo "Jenkins result for [${target_name}] target: return $rc"
+	    echo "Artifacts: ${jenkins_test_artifacts}.tar.gz"
+	    echo "======================================================"
+	    set -x
+    fi
 
 done
 
