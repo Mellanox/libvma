@@ -110,7 +110,11 @@ epfd_info::~epfd_info()
 		sock_fd = fd_collection_get_sockfd(m_p_offloaded_fds[i]);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (sock_fd) {
+			unlock();
+			m_ring_map_lock.lock();
 			sock_fd->remove_epoll_context(this);
+			m_ring_map_lock.unlock();
+			lock();
 		} else {
 			__log_err("Invalid temp_sock_fd_api==NULL. Deleted fds should have been removed from epfd.");
 		}
@@ -237,7 +241,11 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 
 		//NOTE: when supporting epoll on epfd, need to add epfd ring list
 		//NOTE: when having rings in pipes, need to overload add_epoll_context
+		unlock();
+		m_ring_map_lock.lock();
 		ret = temp_sock_fd_api->add_epoll_context(this);
+		m_ring_map_lock.unlock();
+		lock();
 
 		if (ret < 0) {
 			switch (errno) {
@@ -407,7 +415,11 @@ int epfd_info::del_fd(int fd, bool passthrough)
 	}
 
 	temp_sock_fd_api->m_fd_rec.reset();
+	unlock();
+	m_ring_map_lock.lock();
 	temp_sock_fd_api->remove_epoll_context(this);
+	m_ring_map_lock.unlock();
+	lock();
 
 	__log_func("fd %d removed from epfd %d", fd, m_epfd);
 	return 0;
@@ -501,21 +513,21 @@ int epfd_info::mod_fd(int fd, epoll_event *event)
 void epfd_info::fd_closed(int fd, bool passthrough)
 {
 	socket_fd_api* sock_fd = fd_collection_get_sockfd(fd);
+	lock();
 	if (sock_fd && sock_fd->get_epoll_context_fd() == m_epfd) {
-		lock();
 		del_fd(fd, passthrough);
-		unlock();
 	}
+	unlock();
 }
 
 void epfd_info::insert_epoll_event_cb(socket_fd_api* sock_fd, uint32_t event_flags)
 {
+	lock();
 	//EPOLLHUP | EPOLLERR are reported without user request
 	if (event_flags & (sock_fd->m_fd_rec.events | EPOLLHUP | EPOLLERR)) {
-		lock();
 		insert_epoll_event(sock_fd, event_flags);
-		unlock();
 	}
+	unlock();
 }
 
 void epfd_info::insert_epoll_event(socket_fd_api *sock_fd, uint32_t event_flags)

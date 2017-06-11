@@ -227,7 +227,7 @@ bool epoll_wait_call::_wait(int timeout)
 
 		// Copy event bits and data
 		m_events[m_n_all_ready_fds].events = m_p_ready_events[i].events;
-		if (temp_sock_fd_api && temp_sock_fd_api->ep_info_fd_node.is_list_member()) {
+		if (temp_sock_fd_api && temp_sock_fd_api->get_epoll_context_fd() == m_epfd) {
 			++m_n_all_ready_fds;
 			m_events[m_n_all_ready_fds].data = temp_sock_fd_api->m_fd_rec.epdata;
 		} else {
