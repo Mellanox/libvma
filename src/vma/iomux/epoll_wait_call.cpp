@@ -219,7 +219,7 @@ bool epoll_wait_call::_wait(int timeout)
 			continue;
 		}
 		
-		if ((temp_sock_fd_api && (m_p_ready_events[i].events & EPOLLIN))) {
+		if (temp_sock_fd_api && (m_p_ready_events[i].events & EPOLLIN)) {
 			// Instructing the socket to sample the OS immediately to prevent hitting EAGAIN on recvfrom(),
 			// after iomux returned a shadow fd as ready (only for non-blocking sockets)
 			temp_sock_fd_api->set_immediate_os_sample();
@@ -338,14 +338,14 @@ bool epoll_wait_call::immidiate_return()
 bool epoll_wait_call::handle_epoll_event(bool is_ready, uint32_t events, socket_fd_api *socket_object, int index)
 {
 	if (is_ready) {
-		epoll_fd_rec* fd_rec = &socket_object->m_fd_rec;
-		m_events[index].data = fd_rec->epdata;
+		epoll_fd_rec& fd_rec = socket_object->m_fd_rec;
+		m_events[index].data = fd_rec.epdata;
 		m_events[index].events |= events;
 
-		if (fd_rec->events & EPOLLONESHOT) {
+		if (fd_rec.events & EPOLLONESHOT) {
 			m_epfd_info->clear_events_for_fd(socket_object, events);
 		}
-		if (fd_rec->events & EPOLLET) {
+		if (fd_rec.events & EPOLLET) {
 			m_epfd_info->remove_epoll_event(socket_object, events);
 		}
 		return true;
