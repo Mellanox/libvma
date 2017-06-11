@@ -933,7 +933,8 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 						}
 					}
 					// if all dsts don't support return -1
-					if (count == m_dst_entry_map.size()) {
+					if (m_dst_entry_map.size() &&
+					    count == m_dst_entry_map.size()) {
 						return -1;
 					}
 					return 0;
