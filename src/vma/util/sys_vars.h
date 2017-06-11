@@ -72,6 +72,7 @@ typedef enum {
 	TS_CONVERSION_MODE_RAW,
 	TS_CONVERSION_MODE_BEST_POSSIBLE,
 	TS_CONVERSION_MODE_SYNC,
+	TS_CONVERSION_MODE_PTP,
 	TS_CONVERSION_MODE_LAST
 } ts_conversion_mode_t;
 
@@ -323,7 +324,7 @@ struct mce_sys_var {
 	int32_t		rx_poll_num;
 	int32_t		rx_poll_num_init;
 	uint32_t 	rx_udp_poll_os_ratio;
-	ts_conversion_mode_t	rx_udp_hw_ts_conversion;
+	ts_conversion_mode_t	hw_ts_conversion_mode;
 	bool 		rx_sw_csum;
 	uint32_t 	rx_poll_yield_loops;
 	uint32_t 	rx_ready_byte_min_limit;
@@ -452,7 +453,7 @@ extern mce_sys_var & safe_mce_sys();
 #define SYS_VAR_RX_NUM_POLLS_INIT			"VMA_RX_POLL_INIT"
 #define SYS_VAR_RX_UDP_POLL_OS_RATIO			"VMA_RX_UDP_POLL_OS_RATIO"
 #define SYS_VAR_RX_SW_CSUM				"VMA_RX_SW_CSUM"
-#define SYS_VAR_RX_UDP_HW_TS_CONVERSION			"VMA_RX_UDP_HW_TS_CONVERSION"
+#define SYS_VAR_HW_TS_CONVERSION_MODE			"VMA_HW_TS_CONVERSION"
 // The following 2 params were replaced by VMA_RX_UDP_POLL_OS_RATIO
 #define SYS_VAR_RX_POLL_OS_RATIO			"VMA_RX_POLL_OS_RATIO"
 #define SYS_VAR_RX_SKIP_OS				"VMA_RX_SKIP_OS"
@@ -575,7 +576,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_RX_NUM_POLLS			(100000)
 #define MCE_DEFAULT_RX_NUM_POLLS_INIT			(0)
 #define MCE_DEFAULT_RX_UDP_POLL_OS_RATIO		(100)
-#define MCE_DEFAULT_RX_UDP_HW_TS_CONVERSION		(TS_CONVERSION_MODE_SYNC)
+#define MCE_DEFAULT_HW_TS_CONVERSION_MODE		(TS_CONVERSION_MODE_SYNC)
 #define MCE_DEFUALT_RX_SW_CSUM				(true)
 #define MCE_DEFAULT_RX_POLL_YIELD			(0)
 #define MCE_DEFAULT_RX_BYTE_MIN_LIMIT			(65536)

@@ -133,7 +133,7 @@ Example:
  VMA DETAILS: Rx Poll Loops                  100000                     [VMA_RX_POLL]
  VMA DETAILS: Rx Poll Init Loops             0                          [VMA_RX_POLL_INIT]
  VMA DETAILS: Rx UDP Poll OS Ratio           100                        [VMA_RX_UDP_POLL_OS_RATIO]
- VMA DETAILS: Rx UDP HW TS Conversion        3                          [VMA_RX_UDP_HW_TS_CONVERSION]
+ VMA DETAILS: HW TS Conversion               3                          [VMA_HW_TS_CONVERSION]
  VMA DETAILS: Rx Poll Yield                  Disabled                   [VMA_RX_POLL_YIELD]
  VMA DETAILS: Rx Prefetch Bytes              256                        [VMA_RX_PREFETCH_BYTES]
  VMA DETAILS: Rx Prefetch Bytes Before Poll  0                          [VMA_RX_PREFETCH_BYTES_BEFORE_POLL]
@@ -488,22 +488,26 @@ VMA_RX_SKIP_OS
 Disable with 0
 Default value is 100
 
-VMA_RX_UDP_HW_TS_CONVERSION
-The above param will define the udp hardware receive time stamp conversion method.
+VMA_HW_TS_CONVERSION
+The above param defines the time stamp conversion method.
 Experimental verbs is required for converting the time stamp from hardware time (Hz) 
 to system time (seconds.nano_seconds). Hence, hardware support is not guaranteed.
-The value of VMA_RX_UDP_HW_TS_CONVERSION determined by all devices - i.e
-if the hardware of one device does not support the conversion, then it will
-be canceled for the other devices. 
-Disable with 0
-Raw HW time with 1            - only convert the time stamp to seconds.nano_seconds time
-                                units (or disable if hardware does not supports).
-Use best sync possible with 2 - Sync to system time, then Raw hardware time -
-                                disable if none of them are supported by hardware. 
-Sync to system time with 3    - convert the time stamp to seconds.nano_seconds time units.
-                                comparable to UDP receive software timestamp.
-                                disable if hardware does not supports.
-Default value 3
+The value of VMA_HW_TS_CONVERSION is determined by all devices - i.e if the hardware of
+one device does not support the conversion, then it will be disabled for the other devices.
+Currently only UDP RX flow is supported.
+Options = [0,1,2,3,4]:
+0 = Disabled
+1 = Raw-HW time                           - only convert the time stamp to seconds.nano_seconds time
+                                            units (or disable if hardware does not supports).
+2 = Best possible - Raw-HW or system time - Sync to system time, then Raw hardware time -
+                                            disable if none of them are supported by hardware. 
+3 = Sync to system time                   - convert the time stamp to seconds.nano_seconds time units.
+                                            comparable to UDP receive software timestamp.
+                                            disable if hardware does not supports.
+4 = PTP Sync                              - convert the time stamp to seconds.nano_seconds time units.
+                                            in case it is not supported - will apply option 3 (or disable
+                                            if hardware does not supports).
+Default value: 3
 
 VMA_RX_POLL_YIELD
 When an application is running with multiple threads, on a limited number of

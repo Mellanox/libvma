@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2016 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -31,12 +31,13 @@
  */
 
 
-#ifndef IB_CTX_TIME_CONVERTER_H
-#define IB_CTX_TIME_CONVERTER_H
+#ifndef TIME_CONVERTER_H
+#define TIME_CONVERTER_H
 
 #include <infiniband/verbs.h>
 #include "vma/event/timer_handler.h"
 #include <vma/util/sys_vars.h>
+
 
 class ctx_timestamping_params_t {
 public:
@@ -51,33 +52,25 @@ public:
 	}
 };
 
-class ib_ctx_time_converter :  public timer_handler
+class time_converter : public timer_handler
 {
 public:
+	time_converter(): m_converter_status(TS_CONVERSION_MODE_DISABLE) {};
+	virtual ~time_converter() = 0;
 
-	ib_ctx_time_converter(struct ibv_context* ctx, ts_conversion_mode_t ctx_time_converter_mode);
-	virtual ~ib_ctx_time_converter();
+	virtual void              convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) = 0;
+	virtual void              handle_timer_expired(void* user_data) = 0;
+	ts_conversion_mode_t      get_converter_status() { return m_converter_status; };
 
-	void                      convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime);
-	void                      handle_timer_expired(void* user_data);
+	static ts_conversion_mode_t     get_devices_converter_status(struct ibv_context** ibv_context_list, int num_devices);
 
-	uint64_t                  get_hca_core_clock();
-	ts_conversion_mode_t      get_converter_status();
-	static ts_conversion_mode_t     get_devices_convertor_status(struct ibv_context** ibv_context_list, int num_devices);
-
-private:
-
-	struct ibv_context*       m_p_ibv_context;
-	ctx_timestamping_params_t m_ctx_convert_parmeters[2];
-	int                       m_ctx_parmeters_id;
-	void*                     m_timer_handle;
+protected:
 	ts_conversion_mode_t      m_converter_status;
 
-	void                      fix_hw_clock_deviation();
-	inline void               calculate_delta(struct timespec& hw_to_timespec, uint64_t hca_core_clock, uint64_t hw_time_diff);
-	bool                      sync_clocks(struct timespec* st, uint64_t* hw_clock);
-	static uint32_t           get_device_convertor_status(struct ibv_context* ctx);
+	static uint32_t           get_single_converter_status(struct ibv_context* ctx);
 };
 
+// pure virtual destructor implementation
+inline time_converter::~time_converter() { }
 
-#endif
+#endif //TIME_CONVERTER_H

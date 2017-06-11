@@ -84,7 +84,9 @@ libvma_la_SOURCES := \
 	dev/rfs_uc.cpp \
 	dev/rfs_uc_tcp_gro.cpp \
 	dev/rfs_mc.cpp \
-	dev/ib_ctx_time_converter.cpp \
+	dev/time_converter.cpp \
+	dev/time_converter_ptp.cpp \
+	dev/time_converter_ib_ctx.cpp \
 	dev/ib_ctx_handler.cpp \
 	dev/ib_ctx_handler_collection.cpp \
 	dev/net_device_val.cpp \
@@ -169,7 +171,9 @@ libvma_la_SOURCES := \
 	dev/gro_mgr.h \
 	dev/ib_ctx_handler_collection.h \
 	dev/ib_ctx_handler.h \
-	dev/ib_ctx_time_converter.h \
+	dev/time_converter.h \
+        dev/time_converter_ptp.h \
+	dev/time_converter_ib_ctx.h \
 	dev/net_device_entry.h \
 	dev/net_device_table_mgr.h \
 	dev/net_device_val.h \

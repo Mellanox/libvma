@@ -38,11 +38,12 @@
 #include <vma/util/verbs_extra.h>
 #include <vma/util/sys_vars.h>
 #include "vma/dev/ib_ctx_handler.h"
+#include "vma/dev/time_converter_ib_ctx.h"
+#include "vma/dev/time_converter_ptp.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/event/event_handler_manager.h"
 
 #define MODULE_NAME             "ib_ctx_handler"
-
 
 #define ibch_logpanic           __log_panic
 #define ibch_logerr             __log_err
@@ -53,29 +54,76 @@
 #define ibch_logfuncall         __log_info_funcall
 
 
-
-ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx_time_converter_mode) :
+ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t m_p_ctx_time_converter_mode) :
 	m_flow_tag_enabled(false)
 	, m_removed(false)
 	, m_conf_attr_rx_num_wre(0)
 	, m_conf_attr_tx_num_to_signal(0)
 	, m_conf_attr_tx_max_inline(0)
 	, m_conf_attr_tx_num_wre(0)
-	, ctx_time_converter(ctx, ctx_time_converter_mode)
+	, m_p_ctx_time_converter(NULL)
 {
 	memset(&m_ibv_port_attr, 0, sizeof(m_ibv_port_attr));
 	m_p_ibv_context = ctx;
         m_p_ibv_device = ctx->device;
 
         BULLSEYE_EXCLUDE_BLOCK_START
-	if (m_p_ibv_device == NULL)
+	if (m_p_ibv_device == NULL) {
 		ibch_logpanic("ibv_device is NULL! (ibv context %p)", m_p_ibv_context);
+	}
+
+#ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
+	if (m_p_ctx_time_converter_mode != TS_CONVERSION_MODE_DISABLE) {
+		struct ibv_exp_device_attr device_attr;
+		memset(&device_attr, 0, sizeof(device_attr));
+		device_attr.comp_mask = IBV_EXP_DEVICE_ATTR_WITH_HCA_CORE_CLOCK;
+		if (!ibv_exp_query_device(m_p_ibv_context ,&device_attr)) {
+			if (m_p_ctx_time_converter_mode == TS_CONVERSION_MODE_PTP) {
+#ifdef DEFINED_IBV_EXP_VALUES_CLOCK_INFO
+				struct ibv_exp_values ibv_exp_values_tmp;
+				memset(&ibv_exp_values_tmp, 0, sizeof(ibv_exp_values_tmp));
+				int ret = ibv_exp_query_values(m_p_ibv_context, IBV_EXP_VALUES_CLOCK_INFO, &ibv_exp_values_tmp);
+				if (!ret) {
+					m_p_ctx_time_converter = new time_converter_ptp(ctx);
+				} else { // revert to mode TS_CONVERSION_MODE_SYNC
+					m_p_ctx_time_converter = new time_converter_ib_ctx(ctx, TS_CONVERSION_MODE_SYNC, device_attr.hca_core_clock);
+					ibch_logwarn("ibv_exp_query_values failure for clock_info, reverting to mode TS_CONVERSION_MODE_SYNC (ibv context %p) (return value=%d)",
+								m_p_ibv_context, ret);
+				}
+#else
+				m_p_ctx_time_converter = new time_converter_ib_ctx(ctx, TS_CONVERSION_MODE_SYNC, device_attr.hca_core_clock);
+				ibch_logwarn("PTP is not supported by the underlying Infiniband verbs. IBV_EXP_VALUES_CLOCK_INFO not defined. reverting to mode TS_CONVERSION_MODE_SYNC");
+#endif // DEFINED_IBV_EXP_VALUES_CLOCK_INFO
+			} else {
+				m_p_ctx_time_converter = new time_converter_ib_ctx(ctx, m_p_ctx_time_converter_mode, device_attr.hca_core_clock);
+			}
+		} else {
+			m_p_ctx_time_converter = new time_converter_ib_ctx(ctx, TS_CONVERSION_MODE_DISABLE, 0);
+			ibch_logwarn("device does not support hca_core_clock operations, reverting to mode TS_CONVERSION_MODE_DISABLE (ibv context %p) (hca_core_clock=%llu)",
+											m_p_ibv_context, device_attr.hca_core_clock);
+		}
+	} else {
+		m_p_ctx_time_converter = new time_converter_ib_ctx(ctx, TS_CONVERSION_MODE_DISABLE, 0);
+	}
+#else
+	m_p_ctx_time_converter = new time_converter_ib_ctx(ctx, TS_CONVERSION_MODE_DISABLE, 0);
+	if (m_p_ctx_time_converter_mode != TS_CONVERSION_MODE_DISABLE) {
+		ibch_logwarn("time converter mode not applicable (configuration value=%d). set to TS_CONVERSION_MODE_DISABLE.",
+				m_p_ctx_time_converter_mode);
+	}
+#endif // DEFINED_IBV_EXP_CQ_TIMESTAMP
+
+	if (!m_p_ctx_time_converter) {
+		ibch_logerr("Failed to allocate memory for time converter object");
+		return;
+	}
 
 	// Create pd for this device
 	m_p_ibv_pd = ibv_alloc_pd(m_p_ibv_context);
-	if (m_p_ibv_pd == NULL)
+	if (m_p_ibv_pd == NULL) {
 		ibch_logpanic("ibv device %p pd allocation failure (ibv context %p) (errno=%d %m)", 
 			    m_p_ibv_device, m_p_ibv_context, errno);
+	}
 
 	memset(&m_ibv_device_attr, 0, sizeof(m_ibv_device_attr));
 	vma_ibv_device_attr_comp_mask(m_ibv_device_attr);
@@ -86,10 +134,9 @@ ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx
 	} ENDIF_VERBS_FAILURE;
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	ibch_logdbg("ibv device '%s' [%p] has %d port%s. Vendor Part Id: %d, FW Ver: %s, max_qp_wr=%d, hca_core_clock (per sec)=%ld",
+	ibch_logdbg("ibv device '%s' [%p] has %d port%s. Vendor Part Id: %d, FW Ver: %s, max_qp_wr=%d",
 			m_p_ibv_device->name, m_p_ibv_device, m_ibv_device_attr.phys_port_cnt, ((m_ibv_device_attr.phys_port_cnt>1)?"s":""),
-			m_ibv_device_attr.vendor_part_id, m_ibv_device_attr.fw_ver, m_ibv_device_attr.max_qp_wr,
-			ctx_time_converter.get_hca_core_clock());
+			m_ibv_device_attr.vendor_part_id, m_ibv_device_attr.fw_ver, m_ibv_device_attr.max_qp_wr);
 
 	set_dev_configuration();
 
@@ -103,11 +150,12 @@ ib_ctx_handler::~ib_ctx_handler() {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (ibv_dealloc_pd(m_p_ibv_pd))
 		ibch_logdbg("pd deallocation failure (errno=%d %m)", errno);
+	delete m_p_ctx_time_converter;
 	BULLSEYE_EXCLUDE_BLOCK_END
 }
 
 ts_conversion_mode_t ib_ctx_handler::get_ctx_time_converter_status() {
-	return ctx_time_converter.get_converter_status();
+	return m_p_ctx_time_converter->get_converter_status();
 }
 
 ibv_mr* ib_ctx_handler::mem_reg(void *addr, size_t length, uint64_t access)

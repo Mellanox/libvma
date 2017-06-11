@@ -51,6 +51,8 @@ struct iphdr; //forward declaration
 
 #define VMA_ALIGN(x, y) ((((x) + (y) - 1) / (y)) * (y) )
 
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
+
 /**
 * Check if file type is regular
 **/
