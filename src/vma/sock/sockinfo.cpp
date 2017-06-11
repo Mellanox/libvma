@@ -264,7 +264,7 @@ int sockinfo::getsockopt(int __level, int __optname, void *__optval, socklen_t *
 
 		case SO_MAX_PACING_RATE:
 			if (*__optlen >= sizeof(int)) {
-				*(int *)__optval = m_so_ratelimit;
+				*(int *)__optval = KB_TO_BYTE(m_so_ratelimit);
 				si_logdbg("(SO_MAX_PACING_RATE) value: %d", *(int *)__optval);
 				ret = 0;
 			} else {
@@ -1182,11 +1182,10 @@ int sockinfo::modify_ratelimit(dst_entry* p_dst_entry, const uint32_t rate_limit
 			si_logwarn("device doesn't support packet pacing or bad value, run ibv_devinfo -v");
 			return -1;
 		}
-		m_so_ratelimit = rate_limit_bytes_per_second;
+		m_so_ratelimit = BYTE_TO_KB(rate_limit_bytes_per_second);
 		if (p_dst_entry) {
 			// value is in bytes (per second). we need to convert it to kilo-bits (per second)
-			uint32_t ratelimit_kbps = BYTE_TO_KB(m_so_ratelimit);
-			return p_dst_entry->modify_ratelimit(ratelimit_kbps);
+			return p_dst_entry->modify_ratelimit(m_so_ratelimit);
 		}
 		return 0;
 	}

@@ -1840,7 +1840,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 		}
 		else {
 			// updates the dst_entry internal information and packet headers
-			ret = p_dst_entry->slow_send(p_iov, sz_iov, is_dummy, BYTE_TO_KB(m_so_ratelimit), b_blocking, false, __flags, this, call_type);
+			ret = p_dst_entry->slow_send(p_iov, sz_iov, is_dummy, m_so_ratelimit, b_blocking, false, __flags, this, call_type);
 		}
 
 		if (unlikely(p_dst_entry->try_migrate_ring(m_lock_snd))) {

@@ -58,6 +58,7 @@
 
 #define SI_RX_EPFD_EVENT_MAX		16
 #define BYTE_TO_KB(BYTEVALUE)		(((BYTEVALUE) * 8) / 1000)
+#define KB_TO_BYTE(BYTEVALUE)		(((BYTEVALUE) * 1000) / 8)
 
 struct buff_info_t {
 		buff_info_t(){
