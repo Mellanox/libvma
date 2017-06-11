@@ -41,7 +41,7 @@
 
 #define CQ_FD_MARK 0xabcd
 
-inline int epfd_info::remove_fd_from_epoll_os(int fd)
+int epfd_info::remove_fd_from_epoll_os(int fd)
 {
 	int ret = orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_DEL, fd, NULL);
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -88,6 +88,7 @@ epfd_info::epfd_info(int epfd, int size) :
 epfd_info::~epfd_info()
 {
 	__log_funcall("");
+	socket_fd_api* sock_fd;
 
 	// Meny: going over all handled fds and removing epoll context.
 
@@ -95,23 +96,22 @@ epfd_info::~epfd_info()
 
 	while(!m_ready_fds.empty())
 	{
-		socket_fd_api* sock_fd = m_ready_fds.get_and_pop_front();
+		sock_fd = m_ready_fds.get_and_pop_front();
 		sock_fd->m_epoll_event_flags = 0;
 	}
 
 	while(!m_fd_info_list.empty())
 	{
-		socket_fd_api* sock_fd = m_fd_info_list.get_and_pop_front();
-		memset(&sock_fd->m_fd_rec, 0, sizeof(sock_fd->m_fd_rec));
+		sock_fd = m_fd_info_list.get_and_pop_front();
+		sock_fd->m_fd_rec.reset();
 	}
 
-	socket_fd_api* temp_sock_fd_api;
 	for (int i = 0; i < m_n_offloaded_fds; i++) {
-		temp_sock_fd_api = fd_collection_get_sockfd(m_p_offloaded_fds[i]);
+		sock_fd = fd_collection_get_sockfd(m_p_offloaded_fds[i]);
 		BULLSEYE_EXCLUDE_BLOCK_START
-		if(temp_sock_fd_api) {
-			temp_sock_fd_api->remove_epoll_context(this);
-		}else {
+		if (sock_fd) {
+			sock_fd->remove_epoll_context(this);
+		} else {
 			__log_err("Invalid temp_sock_fd_api==NULL. Deleted fds should have been removed from epfd.");
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
@@ -406,7 +406,7 @@ int epfd_info::del_fd(int fd, bool passthrough)
 		--m_n_offloaded_fds;
 	}
 
-	memset(&temp_sock_fd_api->m_fd_rec, 0, sizeof(temp_sock_fd_api->m_fd_rec));
+	temp_sock_fd_api->m_fd_rec.reset();
 	temp_sock_fd_api->remove_epoll_context(this);
 
 	__log_func("fd %d removed from epfd %d", fd, m_epfd);
@@ -467,7 +467,7 @@ int epfd_info::mod_fd(int fd, epoll_event *event)
 	temp_sock_fd_api->m_fd_rec.epdata = event->data;
 	temp_sock_fd_api->m_fd_rec.events = event->events;
 	
-	bool is_offloaded = temp_sock_fd_api && temp_sock_fd_api->get_type()== FD_TYPE_SOCKET;
+	bool is_offloaded = temp_sock_fd_api->get_type()== FD_TYPE_SOCKET;
 
 	uint32_t events = 0;
 	if (is_offloaded) {
@@ -486,8 +486,8 @@ int epfd_info::mod_fd(int fd, epoll_event *event)
 		}
 	}
 
-	if(event->events == 0 || events == 0){
-		if (temp_sock_fd_api && temp_sock_fd_api->ep_ready_fd_node.is_list_member()) {
+	if (event->events == 0 || events == 0) {
+		if (temp_sock_fd_api->ep_ready_fd_node.is_list_member()) {
 			temp_sock_fd_api->m_epoll_event_flags = 0;
 			m_ready_fds.erase(temp_sock_fd_api);
 		}
@@ -506,11 +506,6 @@ void epfd_info::fd_closed(int fd, bool passthrough)
 		del_fd(fd, passthrough);
 		unlock();
 	}
-}
-
-void epfd_info::set_fd_as_offloaded_only(socket_fd_api* sock_fd)
-{
-	remove_fd_from_epoll_os(sock_fd->get_fd());
 }
 
 void epfd_info::insert_epoll_event_cb(socket_fd_api* sock_fd, uint32_t event_flags)

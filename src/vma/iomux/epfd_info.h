@@ -119,17 +119,16 @@ private:
 	int add_fd(int fd, epoll_event *event);
 	int del_fd(int fd, bool passthrough = false);
 	int mod_fd(int fd, epoll_event *event);
-	inline int remove_fd_from_epoll_os(int fd);
 
 public:
 	int get_epoll_fd() {return m_epfd;};
+	int remove_fd_from_epoll_os(int fd);
 	size_t get_fd_info_size() {return  m_fd_info_list.size();}
 	void insert_epoll_event_cb(socket_fd_api* sock_fd, uint32_t event_flags);
 	void insert_epoll_event(socket_fd_api *sock_fd, uint32_t event_flags);
 	void remove_epoll_event(socket_fd_api *sock_fd, uint32_t event_flags);
 	void increase_ring_ref_count(ring* ring);
 	void decrease_ring_ref_count(ring* ring);
-	void set_fd_as_offloaded_only(socket_fd_api* sock_fd);
 };
 
 #endif

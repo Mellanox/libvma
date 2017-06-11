@@ -60,7 +60,16 @@ struct epoll_fd_rec
 	uint32_t    events;
 	epoll_data  epdata;
 	int         offloaded_index; // offloaded fd index + 1
-	epoll_fd_rec(): events(0), offloaded_index(0) { }
+
+	epoll_fd_rec() {
+		reset();
+	}
+
+	void reset() {
+		this->events = 0;
+		memset(&this->epdata, 0, sizeof(this->epdata));
+		this->offloaded_index = 0;
+	}
 };
 
 typedef enum {

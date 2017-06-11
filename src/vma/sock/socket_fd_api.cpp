@@ -402,7 +402,7 @@ bool socket_fd_api::notify_epoll_context_verify(epfd_info *epfd)
 void socket_fd_api::notify_epoll_context_fd_is_offloaded()
 {
 	if (m_econtext) {
-		m_econtext->set_fd_as_offloaded_only(this);
+		m_econtext->remove_fd_from_epoll_os(m_fd);
 	}
 }
 
