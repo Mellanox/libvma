@@ -137,6 +137,11 @@ net_device_val::~net_device_val()
 		delete m_p_L2_addr;
 		m_p_L2_addr = NULL;
 	}
+	slave_data_vector_t::iterator it = m_slaves.begin();
+	for (; it != m_slaves.end(); ++it) {
+		delete *it;
+	}
+	m_slaves.clear();
 }
 
 void net_device_val::try_read_dev_id_and_port(const char *base_ifname, int *dev_id, int *dev_port)
