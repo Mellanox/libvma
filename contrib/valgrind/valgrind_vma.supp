@@ -1,0 +1,440 @@
+# libvma issues to fix
+{
+   RM #1072426
+   Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   fun:_ZN20net_device_table_mgr16create_new_entryEj
+   fun:_ZN15cache_table_mgrI10ip_addressP14net_device_valE17register_observerES0_PK14cache_observerPP19cache_entry_subjectIS0_S2_E
+   fun:_ZN11route_entry22register_to_net_deviceEv
+}
+{
+   RM #1072427
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:_Znwm
+   fun:_ZN13fd_collection17add_cq_channel_fdEiP4ring
+   fun:_ZN11ring_simple16create_resourcesEP29ring_resource_creation_info_tb
+   fun:ring_eth
+   fun:_ZN18net_device_val_eth11create_ringEP21ring_alloc_logic_attr
+}
+{
+   RM #1073005
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:_Znwm
+   fun:do_global_ctors_helper
+   fun:_Z15do_global_ctorsv
+   fun:_Z15socket_internaliiib
+}
+{
+   RM #1072998
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:_ZN21event_handler_manager20register_timer_eventEiP13timer_handler16timer_req_type_tPvP12timers_group
+   fun:_ZN12sockinfo_tcp14register_timerEv
+   fun:_ZN12sockinfo_tcp7connectEPK8sockaddrj
+}
+###########################################################
+# false positive librdmacm.so
+{
+   rdmacm Cond rdma_get_devices
+   Memcheck:Cond
+   ...
+   fun:rdma_get_devices
+}
+{
+   rdmacm Value8 rdma_get_devices
+   Memcheck:Value8
+   ...
+   fun:rdma_get_devices
+}
+{
+   rdmacm Param rdma_get_devices
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:rdma_get_devices
+}
+{
+   rdmacm Cond rdma_create_id
+   Memcheck:Cond
+   obj:*/librdmacm.so*
+   fun:rdma_create_id
+}
+{
+   rdmacm Value8 rdma_create_id
+   Memcheck:Value8
+   obj:*/librdmacm.so*
+   fun:rdma_create_id
+}
+{
+   rdmacm Cond rdma_bind_addr
+   Memcheck:Cond
+   ...
+   fun:rdma_bind_addr
+}
+{
+   rdmacm Param rdma_bind_addr
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:rdma_bind_addr
+}
+{
+   rdmacm Cond rdma_destroy_id
+   Memcheck:Cond
+   ...
+   fun:rdma_destroy_id
+}
+{
+   rdmacm Value8 rdma_destroy_id
+   Memcheck:Value8
+   ...
+   fun:rdma_destroy_id
+}
+{
+   rdmacm Param rdma_destroy_id
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:rdma_destroy_id
+}
+
+# false positive verbs
+{
+   libibverbs Param ibv_exp_cmd_create_qp
+   Memcheck:Param
+   write(buf)
+   obj:*/libibverbs.so*
+   ...
+   fun:write
+   fun:ibv_exp_cmd_create_qp
+}
+{
+   libibverbs Param ibv_exp_cmd_create_flow
+   Memcheck:Param
+   write(buf)
+   ...
+   obj:*/libibverbs.so*
+   fun:ibv_exp_cmd_create_flow
+   fun:ibv_exp_create_flow
+}
+{
+   libibverbs Param ibv_exp_destroy_flow
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:write
+   fun:ibv_exp_cmd_destroy_flow
+   fun:ibv_exp_destroy_flow
+}
+###########################################################
+# false positive libmlx5\4
+{
+   libmlx5 Param ibv_exp_cmd_create_qp
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:ibv_exp_cmd_create_qp
+   obj:*/libmlx*-rdmav2.so*
+   ...
+   fun:ibv_create_qp
+}
+{
+   libmlx5 Cond ibv_exp_modify_qp
+   Memcheck:Cond
+   obj:*/libmlx*-rdmav2.so*
+   obj:*/libibverbs.so*
+   fun:ibv_exp_modify_qp
+}
+{
+   libmlx5 Cond ibv_destroy_qp
+   Memcheck:Cond
+   obj:*/libmlx*-rdmav2.so*
+   fun:_ZN6qp_mgrD1Ev
+}
+{
+   libibverbs Cond ibv_cmd_destroy_qp
+   Memcheck:Cond
+   fun:ibv_cmd_destroy_qp
+   obj:*/libmlx*-rdmav2.so*
+}
+{
+   libmlx5 Param ibv_exp_cmd_create_cq
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:ibv_exp_cmd_create_cq
+   obj:*/libmlx*-rdmav2.so*
+   fun:ibv_exp_create_cq
+}
+{
+   libmlx5 Param ibv_cmd_destroy_cq
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:ibv_cmd_destroy_cq
+   obj:/*libmlx*-rdmav2.so*
+   fun:ibv_destroy_cq
+}
+{
+   libmlx5 Cond ibv_destroy_cq
+   Memcheck:Cond
+   fun:ibv_cmd_destroy_cq
+   obj:*/libmlx*-rdmav2.so*
+   fun:ibv_destroy_cq
+}
+{
+   libmlx5 Value8 ibv_create_ah
+   Memcheck:Value8
+   obj:*/libmlx*-rdmav2.so*
+   fun:ibv_create_ah
+}
+{
+   libmlx5 Value8 ibv_create_ah
+   Memcheck:Value8
+   ...
+   obj:*/libmlx*-rdmav2.so*
+   fun:ibv_create_ah
+}
+{
+   libmlx5 Cond ibv_create_ah
+   Memcheck:Cond
+   ...
+   fun:ibv_create_ah
+}
+{
+   libmlx5 Param ibv_cmd_exp_reg_mr
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:ibv_cmd_exp_reg_mr
+   obj:*/libmlx*-rdmav2.so*
+}
+{
+   libmlx4\5 Cond
+   Memcheck:Cond
+   ...
+   obj:*/libmlx*-rdmav2.so
+   ...
+   fun:_ZN6qp_mgrD1Ev
+}
+###########################################################
+##### libmlx4 only
+{
+   libmlx4 Cond ibv_exp_query_device
+   Memcheck:Cond
+   obj:*/libmlx4-rdmav2.so*
+   fun:ibv_exp_query_device
+}
+{
+   libmlx4 Param ibv_exp_create_cq
+   Memcheck:Param
+   mmap(length)
+   ...
+   obj:*/libmlx4-rdmav2.so*
+   fun:ibv_exp_create_cq
+}
+{
+   libmlx4 Param ibv_exp_create_cq
+   Memcheck:Param
+   mmap(offset)
+   ...
+   obj:*/libmlx4-rdmav2.so*
+   fun:ibv_exp_create_cq
+}
+{
+   libmlx4 Param ibv_exp_create_cq
+   Memcheck:Param
+   madvise(length)
+   fun:madvise
+   ...
+   obj:*/libmlx4-rdmav2.so*
+   ...
+   fun:ibv_exp_create_cq
+}
+{
+   libmlx4 Cond ibv_exp_create_cq
+   Memcheck:Cond
+   ...
+   obj:*/libmlx4-rdmav2.so*
+   fun:ibv_exp_create_cq
+}
+{
+   libmlx4 Cond ibv_exp_create_cq
+   Memcheck:Cond
+   obj:*/libmlx4-rdmav2.so*
+   ...
+   fun:ibv_exp_create_cq
+}
+{
+   libmlx4 Param ibv_exp_create_cq
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:ibv_exp_cmd_create_cq
+}
+{
+   libmlx4 Cond ibv_destroy_cq
+   Memcheck:Cond
+   ...
+   obj:*/libmlx4-rdmav2.so*
+   ...
+   fun:ibv_destroy_cq
+}
+{
+   libmlx4 Param ibv_destroy_cq
+   Memcheck:Param
+   munmap(length)
+   fun:munmap
+   obj:*/libmlx4-rdmav2.so*
+   fun:ibv_destroy_cq
+}
+{
+   libmlx4 Cond ibv_create_qp
+   Memcheck:Cond
+   ...
+   obj:*/libmlx4-rdmav2.so*
+   ...
+   fun:ibv_create_qp
+}
+{
+   libmlx4 Param ibv_create_qp
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:ibv_exp_cmd_create_qp
+}
+{
+   libmlx4 Cond ibv_modify_qp_from_init_to_rts
+   Memcheck:Cond
+   obj:*/libmlx4-rdmav2.so
+   obj:*/libibverbs.so.1.0.0
+   fun:_Z35priv_ibv_modify_qp_from_init_to_rtsP6ibv_qpj
+}
+{
+   libmlx4 Cond ibv_exp_modify_qp
+   Memcheck:Cond
+   obj:*/libmlx4-rdmav2.so
+   ...
+   fun:ibv_exp_modify_qp
+}
+{
+   libmlx4 Cond ibv_destroy_qp
+   Memcheck:Cond
+   obj:*/libmlx4-rdmav2.so*
+   ...
+   fun:_ZN20net_device_table_mgr22verify_eth_qp_creationEPKch
+}
+{
+   libmlx4 Value8 ibv_destroy_qp
+   Memcheck:Value8
+   obj:*/libmlx4-rdmav2.so*
+   ...
+   fun:_ZN20net_device_table_mgr22verify_eth_qp_creationEPKch
+}
+{
+   libmlx4 Param ibv_cmd_reg_mr
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:ibv_cmd_reg_mr
+   obj:*/libmlx4-rdmav2.so*
+}
+{
+   libmlx4 Cond rdma_create_id
+   Memcheck:Cond
+   obj:*/librdmacm.so*
+   ...
+   fun:_ZN20net_device_table_mgr15map_net_devices*
+}
+{
+   libmlx4 Value8 rdma_create_id
+   Memcheck:Value8
+   obj:*/librdmacm.so*
+   ...
+   fun:_ZN20net_device_table_mgr15map_net_devicesEv
+}
+{
+   libmlx4 Value8
+   Memcheck:Value8
+   obj:*/libmlx4-rdmav2.so
+   ...
+   fun:_ZN6qp_mgrD1Ev
+}
+{
+   libmlx4 Value8 ibv_create_qp
+   Memcheck:Value8
+   obj:*/libmlx4-rdmav2.so
+   ...
+   fun:ibv_create_qp
+}
+{
+   libmlx4 ibv_exp_poll_cq
+   Memcheck:Value8
+   obj:*/libmlx4-rdmav2.so
+   fun:ibv_exp_poll_cq
+}
+{
+   libmlx4 Param ibv_exp_cmd_modify_cq
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:ibv_exp_cmd_modify_cq
+   obj:*/libmlx4-rdmav2.so
+}
+{
+   libmlx4 Cond ibv_exp_poll_cq
+   Memcheck:Cond
+   obj:*/libmlx4-rdmav2.so
+   fun:ibv_exp_poll_cq
+}
+{
+   libmlx4 Value8 ibv_exp_poll_cq
+   Memcheck:Value8
+   obj:*/libmlx4-rdmav2.so
+   ...
+   fun:ibv_exp_poll_cq
+}
+{
+   libmlx4 Param ibv_destroy_cq
+   Memcheck:Param
+   madvise(length)
+   fun:madvise
+   ...
+   obj:*/libmlx4-rdmav2.so
+   ...
+   fun:ibv_destroy_cq
+}
+###########################################################
+# sockperf
+{
+   sockperf Leak definite
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:_ZN6ServerI10IoRecvfrom9SwitchOffS1_E13server_acceptEi
+   fun:_ZN6ServerI10IoRecvfrom9SwitchOffS1_E6doLoopEv
+}
+###########################################################
+# libnl1
+{
+   ibnl Leak possible
+   Memcheck:Leak
+   match-leak-kinds: possible
+   ...
+   obj:*libnl.so*
+   fun:nl_cache_parse
+}
+{
+   ibnl leak definite
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:realloc
+   fun:__vasprintf_chk
+   fun:__asprintf_chk
+   ...
+   fun:nl_cache_pickup
+}

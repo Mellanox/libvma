@@ -296,6 +296,8 @@ void vma_shmem_stats_close()
 	g_sh_mem = NULL;
 	g_p_vlogger_level = NULL;
 	g_p_vlogger_details = NULL;
+	delete g_p_stats_data_reader;
+	g_p_stats_data_reader = NULL;
 }
 
 void vma_stats_instance_create_socket_block(socket_stats_t* local_stats_addr)

@@ -245,10 +245,12 @@ function do_check_result()
 
 # Detect interface ip
 # $1 - [ib|eth] to select link type or empty to select the first found
+# $2 - [empty|mlx4|mlx5]
+# $3 - ip address not to get
 #
 function do_get_ip()
 {
-    for ip in $(ibdev2netdev | grep Up | cut -f 5 -d ' '); do
+    for ip in $(ibdev2netdev | grep Up | grep "$2" | cut -f 5 -d ' '); do
         if [ -n "$1" -a "$1" == "ib" -a -n "$(ip link show $ip | grep 'link/inf')" ]; then
             found_ip=$(ip -4 address show $ip | grep 'inet' | sed 's/.*inet \([0-9\.]\+\).*/\1/')
             if [ -n "$(ibdev2netdev | grep $ip | grep mlx5)" ]; then
@@ -263,7 +265,7 @@ function do_get_ip()
         elif [ -z "$1" ]; then
             found_ip=$(ip -4 address show $ip | grep 'inet' | sed 's/.*inet \([0-9\.]\+\).*/\1/')
         fi
-        if [ -n "$found_ip" -a "$found_ip" != "$2" ]; then
+        if [ -n "$found_ip" -a "$found_ip" != "$3" ]; then
             echo $found_ip
             break
         fi

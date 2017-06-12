@@ -102,11 +102,6 @@ cq_mgr_mlx5::~cq_mgr_mlx5()
 {
 	cq_logfunc("");
 	cq_logdbg("destroying CQ as %s", (m_b_is_rx?"Rx":"Tx"));
-	uint32_t ret_total = 0;
-	ret_total = clean_cq();
-	if (ret_total > 0) {
-		cq_logdbg("Drained %d wce", ret_total);
-	}
 	m_rq = NULL;
 	m_b_is_clean = true;
 }

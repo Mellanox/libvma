@@ -132,10 +132,10 @@ void net_device_table_mgr::free_ndtm_resources()
 	orig_os_api.close(m_global_ring_pipe_fds[1]);
 	orig_os_api.close(m_global_ring_pipe_fds[0]);
 
-	net_device_map_t::iterator net_dev_iter;
-	for (net_dev_iter=m_net_device_map.begin(); net_dev_iter!=m_net_device_map.end(); net_dev_iter++)
-	{
-		delete net_dev_iter->second;
+	net_device_map_t::iterator iter;
+	while ((iter = m_net_device_map.begin()) != m_net_device_map.end()) {
+		delete iter->second;
+		m_net_device_map.erase(iter);
 	}
 	m_lock.unlock();
 

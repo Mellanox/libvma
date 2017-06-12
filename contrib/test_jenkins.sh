@@ -59,7 +59,7 @@ jenkins_test_cppcheck=${jenkins_test_cppcheck:="yes"}
 jenkins_test_csbuild=${jenkins_test_csbuild:="yes"}
 jenkins_test_run=${jenkins_test_run:="yes"}
 jenkins_test_gtest=${jenkins_test_gtest:="yes"}
-jenkins_test_vg=${jenkins_test_vg:="no"}
+jenkins_test_vg=${jenkins_test_vg:="yes"}
 jenkins_test_style=${jenkins_test_style:="no"}
 jenkins_test_tool=${jenkins_test_tool:="yes"}
 

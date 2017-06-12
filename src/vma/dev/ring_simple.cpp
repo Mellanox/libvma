@@ -1605,8 +1605,7 @@ void ring_simple::flow_tcp_del_all()
 	flow_spec_tcp_key_t map_key_tcp;
 	flow_spec_tcp_map_t::iterator itr_tcp;
 
-	itr_tcp = m_flow_tcp_map.begin();
-	for (; itr_tcp != m_flow_tcp_map.end(); ++itr_tcp) {
+	while ((itr_tcp = m_flow_tcp_map.begin()) != m_flow_tcp_map.end()) {
 		rfs *p_rfs = itr_tcp->second;
 		map_key_tcp = itr_tcp->first;
 		if (p_rfs) {

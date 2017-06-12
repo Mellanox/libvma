@@ -115,7 +115,7 @@ bool g_b_exit = false;
 bool g_init_ibv_fork_done = false;
 bool g_is_forked_child = false;
 bool g_init_global_ctors_done = true;
-
+static command_netlink *s_cmd_nl = NULL;
 #define MAX_VERSION_STR_LEN	128
 
 static int free_libvma_resources()
@@ -211,6 +211,9 @@ static int free_libvma_resources()
 	if (g_buffer_pool_rx) delete g_buffer_pool_rx;
 	g_buffer_pool_rx = NULL;
 
+	if (s_cmd_nl) delete s_cmd_nl;
+	s_cmd_nl = NULL;
+
 	if (g_p_netlink_handler) delete g_p_netlink_handler;
 	g_p_netlink_handler = NULL;
 
@@ -228,6 +231,8 @@ static int free_libvma_resources()
 
 	if (g_p_ring_profile) delete g_p_ring_profile;
 	g_p_ring_profile = NULL;
+
+	free(safe_mce_sys().app_name);
 
 	vlog_printf(VLOG_DEBUG, "Stopping logger module\n");
 
@@ -859,16 +864,15 @@ static void do_global_ctors_helper()
 		}
 
 		// Register netlink fd to the event_manager
-		command_netlink * cmd_nl = NULL;
-		cmd_nl = new command_netlink(g_p_netlink_handler);
-		if (cmd_nl == NULL) {
+		s_cmd_nl = new command_netlink(g_p_netlink_handler);
+		if (s_cmd_nl == NULL) {
 			throw_vma_exception("Failed allocating command_netlink\n");
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
-		g_p_event_handler_manager->register_command_event(fd, cmd_nl);
+		g_p_event_handler_manager->register_command_event(fd, s_cmd_nl);
 		g_p_event_handler_manager->register_timer_event(
 				safe_mce_sys().timer_netlink_update_msec,
-				cmd_nl,
+				s_cmd_nl,
 				PERIODIC_TIMER,
 				NULL);
 	}
@@ -916,6 +920,7 @@ void reset_globals()
 	g_p_netlink_handler = NULL;
 	g_p_ib_ctx_handler_collection = NULL;
 	g_p_ring_profile = NULL;
+	s_cmd_nl = NULL;
 	g_cpu_manager.reset();
 }
 

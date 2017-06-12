@@ -41,7 +41,7 @@ send_data::send_data(const send_info *si)
 send_data::~send_data()
 {
 	if(m_iov.iov_base) {
-		delete((uint8_t *)m_iov.iov_base);
+		delete[]((uint8_t *)m_iov.iov_base);
 	}
 }
 

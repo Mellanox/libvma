@@ -242,7 +242,10 @@ neigh_entry::~neigh_entry()
 		m_p_ring = NULL;
 		delete m_res_key;
 	}
-
+	if (m_val) {
+		delete m_val;
+		m_val = NULL;
+	}
 	//TODO:Do we want to check here that unsent queue is empty and if not to send everything?
 
 	neigh_logdbg("Done");

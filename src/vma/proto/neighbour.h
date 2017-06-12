@@ -114,8 +114,11 @@ public:
 
 	virtual neigh_val & operator=(const neigh_val & val)
 	{
-		*this = val;
-		return * this;
+		if (this != &val) {
+			m_l2_address = val.m_l2_address;
+			m_trans_type = val.m_trans_type;
+		}
+		return *this;
 	}
 
 protected:
@@ -138,8 +141,7 @@ public:
 
 	neigh_val & operator=(const neigh_val & val)
 	{
-		m_l2_address = new ETH_addr((val.get_l2_address())->get_address());
-		return *this;
+		return neigh_val::operator=(val);
 	}
 
 private:

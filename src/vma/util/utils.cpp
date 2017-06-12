@@ -579,6 +579,10 @@ uint16_t get_vlan_id_from_ifname(const char* ifname)
         struct vlan_ioctl_args ifr;
         int fd = orig_os_api.socket(AF_INET, SOCK_DGRAM, 0);
 
+        if (fd < 0) {
+            __log_err("ERROR from socket() (errno=%d %m)", errno);
+            return -1;
+        }
         memset(&ifr, 0, sizeof(ifr));
         ifr.cmd = GET_VLAN_VID_CMD;
         strncpy(ifr.device1, ifname, sizeof(ifr.device1) - 1);
@@ -602,7 +606,10 @@ size_t get_vlan_base_name_from_ifname(const char* ifname, char* base_ifname, siz
         // find vlan base name from interface name
         struct vlan_ioctl_args ifr;
         int fd = orig_os_api.socket(AF_INET, SOCK_DGRAM, 0);
-
+        if (fd < 0) {
+            __log_err("ERROR from socket() (errno=%d %m)", errno);
+            return -1;
+        }
         memset(&ifr,0, sizeof(ifr));
         ifr.cmd = GET_VLAN_REALDEV_NAME_CMD;
         strncpy(ifr.device1, ifname, sizeof(ifr.device1) - 1);
@@ -753,7 +760,8 @@ bool check_device_exist(const char* ifname, const char *path)
 	char device_path[256] = {0};
 	sprintf(device_path, path, ifname);
 	int fd = orig_os_api.open(device_path, O_RDONLY);
-	orig_os_api.close(fd);
+	if (fd >= 0)
+		orig_os_api.close(fd);
 	if (fd < 0 && errno == EMFILE) {
 		__log_warn("There are no free fds in the system. This may cause unexpected behavior");
 	}

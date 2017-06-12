@@ -4,79 +4,120 @@ source $(dirname $0)/globals.sh
 
 do_check_filter "Checking for valgrind ..." "on"
 
-do_module "tools/valgrind"
+do_module "tools/valgrind-3.12.0"
+
+set +eE
 
 cd $WORKSPACE
-
 rm -rf $vg_dir
 mkdir -p $vg_dir
 cd $vg_dir
 
-${WORKSPACE}/configure --prefix=${vg_dir} --with-valgrind $jenkins_test_custom_configure
+${WORKSPACE}/configure --prefix=${vg_dir}/install --with-valgrind $jenkins_test_custom_configure
 
 make $make_opt all
+make install
 rc=$?
 
-test_ip="$(do_get_ip)"
-test_lib=$install_dir/lib/libvma.so
-test_app=sockperf
 
-if [ $(command -v $test_app >/dev/null 2>&1 || echo $?) ]; then
-	test_app=${test_dir}/sockperf/install/bin/sockperf
-	if [ $(command -v $test_app >/dev/null 2>&1 || echo $?) ]; then
-	    echo can not find $test_app
-	    exit 1
+test_ip_list=""
+#if [ ! -z $(do_get_ip 'ib' 'mlx5') ]; then
+#	test_ip_list="${test_ip_list} ib:$(do_get_ip 'ib' 'mlx5')"
+#fi
+if [ ! -z $(do_get_ip 'eth' 'mlx5') ]; then
+	test_ip_list="${test_ip_list} eth:$(do_get_ip 'eth' 'mlx5')"
+fi
+test_list="tcp:--tcp udp:"
+test_lib=${vg_dir}/install/lib/libvma.so
+test_app=sockperf
+test_app_path=${test_dir}/sockperf/install/bin/sockperf
+
+if [ $(command -v $test_app_path >/dev/null 2>&1 || echo $?) ]; then
+	test_app_path=sockperf
+	if [ $(command -v $test_app_path >/dev/null 2>&1 || echo $?) ]; then
+		echo can not find $test_app_path
+		exit 1
 	fi
 fi
 
-vg_args="-v --log-file=${vg_dir}/valgrind.log \
-    --memcheck:leak-check=full --track-origins=yes --read-var-info=yes \
-    --undef-value-errors=yes --db-attach=no --track-fds=yes --show-reachable=yes \
-    --num-callers=32 \
-    --fullpath-after=${WORKSPACE} \
-    --suppressions=${WORKSPACE}/contrib/valgrind/valgrind_vma.supp \
-    --suppressions=${WORKSPACE}/contrib/valgrind/valgrind_libc.supp \
-    --suppressions=${WORKSPACE}/contrib/valgrind/valgrind_sockperf.supp \
-    --suppressions=${WORKSPACE}/contrib/valgrind/valgrind_rdma.supp \
-    "
-
-vg_tests=1
-
-eval "env VMA_TX_BUFS=20000 VMA_RX_BUFS=20000 LD_PRELOAD=$test_lib $test_app sr --tcp -i ${test_ip} > /dev/null 2>&1 &"
-sleep 5
-
-eval "env VMA_TX_BUFS=20000 VMA_RX_BUFS=20000 LD_PRELOAD=$test_lib valgrind $vg_args $test_app pp --tcp -i ${test_ip} -m202 -t5"
-
-pkill -9 sockperf
-
-do_archive "${vg_dir}/valgrind.log"
-
 vg_tap=${WORKSPACE}/${prefix}/vg.tap
+v1=$(echo $test_list | wc -w)
+v1=$(($v1*$(echo $test_ip_list | wc -w)))
+echo "1..$v1" > $vg_tap
 
-nerrors=$(cat ${vg_dir}/valgrind.log | awk '/ERROR SUMMARY: [0-9]+ errors?/ { print $4 }' | head -n1)
+nerrors=0
 
-echo "1..1" > $vg_tap
+for test_link in $test_ip_list; do
+	for test in $test_list; do
+		IFS=':' read test_n test_opt <<< "$test"
+		IFS=':' read test_in test_ip <<< "$test_link"
+		test_name=${test_in}-${test_n}
+
+		vg_args="-v \
+			--memcheck:leak-check=full --track-origins=yes --read-var-info=yes \
+			--errors-for-leak-kinds=definite --show-leak-kinds=definite,possible \
+			--undef-value-errors=yes --track-fds=yes --num-callers=32 \
+			--fullpath-after=${WORKSPACE} --gen-suppressions=all \
+			--suppressions=${WORKSPACE}/contrib/valgrind/valgrind_vma.supp \
+			"
+		eval "LD_PRELOAD=$test_lib \
+			valgrind --log-file=${vg_dir}/${test_name}-valgrind-sr.log $vg_args \
+			$test_app_path sr ${test_opt} -i ${test_ip} > /dev/null 2>&1 &"
+		sleep 20
+		eval "LD_PRELOAD=$test_lib \
+			valgrind --log-file=${vg_dir}/${test_name}-valgrind-cl.log $vg_args \
+			$test_app_path pp ${test_opt} -i ${test_ip} -t 10"
+
+		if [ `ps -ef | grep $test_app | wc -l` -gt 1 ];
+		then
+			sudo pkill -SIGINT -f $test_app
+			sleep 10
+			# in case SIGINT didn't work
+			if [ `ps -ef | grep $test_app | wc -l` -gt 1 ];
+			then
+				sudo pkill -15 -f $test_app
+				sleep 3
+			fi
+			if [ `ps -ef | grep $test_app | wc -l` -gt 1 ];
+			then
+				sudo pkill -9 -f $test_app
+			fi
+		fi
+
+		ret=$(cat ${vg_dir}/${test_name}-valgrind*.log | awk '/ERROR SUMMARY: [0-9]+ errors?/ { sum += $4 } END { print sum }')
+
+		do_archive "${vg_dir}/${test_name}-valgrind*.log"
+
+		if [ $ret -gt 0 ]; then
+			echo "not ok ${test_name}: valgrind Detected $ret failures # ${vg_dir}/${test_name}-valgrind*.log" >> $vg_tap
+			grep -A 10 'LEAK SUMMARY' ${vg_dir}/${test_name}-valgrind*.log >> ${vg_dir}/${test_name}-valgrind.err
+			cat ${vg_dir}/${test_name}-valgrind*.log
+			do_err "valgrind" "${vg_dir}/${test_name}-valgrind.err"
+		else
+			echo ok ${test_name}: Valgrind found no issues >> $vg_tap
+		fi
+		nerrors=$(($ret+$nerrors))
+	done
+done
+
 if [ $nerrors -gt 0 ]; then
-    echo "not ok 1 Valgrind Detected $nerrors failures" >> $vg_tap
-    do_err "valgind"
-    info="Valgrind found $nerrors errors"
-    status="error"
+	info="Valgrind found $nerrors errors"
+	status="error"
 else
-    echo ok 1 Valgrind found no issues >> $vg_tap
-    info="Valgrind found no issues"
-    status="success"
+	info="Valgrind found no issues"
+	status="success"
 fi
 
 vg_url="$BUILD_URL/valgrindResult/"
 
 if [ -n "$ghprbGhRepository" ]; then
-    context="MellanoxLab/valgrind"
-    do_github_status "repo='$ghprbGhRepository' sha1='$ghprbActualCommit' target_url='$vg_url' state='$status' info='$info' context='$context'"
+	context="MellanoxLab/valgrind"
+	do_github_status "repo='$ghprbGhRepository' sha1='$ghprbActualCommit' target_url='$vg_url' state='$status' info='$info' context='$context'"
 fi
 
-module unload tools/valgrind
+module unload tools/valgrind-3.12.0
 
 rc=$(($rc+$nerrors))
-
+set -eE
 echo "[${0##*/}]..................exit code = $rc"
 exit $rc
