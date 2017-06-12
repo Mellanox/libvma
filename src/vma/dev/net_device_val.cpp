@@ -95,19 +95,15 @@ ring_alloc_logic_attr::ring_alloc_logic_attr(const ring_alloc_logic_attr &other)
 void ring_alloc_logic_attr::init()
 {
 	size_t h = 5381;
-	ostringstream s;
 	int c;
+	char buff[RING_ALLOC_STR_SIZE];
 
-	s<<"alloc logic "<<m_ring_alloc_logic<<" profile "<<m_ring_profile_key<<
-			" key "<<m_user_id_key;
-	std::string tmp = s.str();
-	strncpy(m_str, tmp.c_str(), tmp.length());
-
-	s.str("");
-	s.clear();
-	s<<m_ring_alloc_logic<<m_ring_profile_key<<m_user_id_key;
-	tmp = s.str();
-	const char* chr = tmp.c_str();
+	snprintf(m_str, RING_ALLOC_STR_SIZE,
+		 "allocation logic %d profile %d key %ld", m_ring_alloc_logic,
+		 m_ring_profile_key, m_user_id_key);
+	snprintf(buff, RING_ALLOC_STR_SIZE, "%d%d%ld", m_ring_alloc_logic,
+		 m_ring_profile_key, m_user_id_key);
+	const char* chr = buff;
 	while ((c = *chr++))
 		h = ((h << 5) + h) + c; /* m_hash * 33 + c */
 	m_hash = h;

@@ -51,8 +51,8 @@ private:
 	bool register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint64_t access);
 	bool hugetlb_alloc(size_t sz_bytes);
 	// List of memory regions
-	ibv_mr** mr_list;
-	size_t mr_list_len;
+	ibv_mr** m_mr_list;
+	size_t m_mr_list_len;
 	int m_shmid;
 	void *m_data_block;
 	bool m_is_contig_alloc;

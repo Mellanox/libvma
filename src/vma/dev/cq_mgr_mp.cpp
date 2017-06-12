@@ -30,7 +30,7 @@
  * SOFTWARE.
  */
 
-#include <dev/cq_mgr_mp.h>
+#include "dev/cq_mgr_mp.h"
 #include "dev/qp_mgr_mp.h"
 
 #define MODULE_NAME 		"cqm"
@@ -129,7 +129,6 @@ int cq_mgr_mp::poll_mp_cq(uint16_t &size, uint32_t &strides_used,
 			out_cqe64 = cqe;
 			size = stride_byte_cnt & MP_RQ_BYTE_CNT_FIELD_MASK;
 		}
-		// will be optimized
 		++m_cq_cons_index;
 		prefetch((void*)&(*m_cqes)[m_cq_cons_index & (m_cq_size - 1)]);
 	} else {

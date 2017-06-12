@@ -63,7 +63,6 @@ public:
 	ring_alloc_logic_attr();
 	ring_alloc_logic_attr(ring_logic_t ring_logic);
 	ring_alloc_logic_attr(const ring_alloc_logic_attr &other);
-	void init();
 	void set_ring_alloc_logic(ring_logic_t logic);
 	void set_ring_profile_key(vma_ring_profile_key profile);
 	void set_user_id_key(uint64_t user_id_key);
@@ -119,6 +118,7 @@ private:
 	/* either user_idx or key as defined in ring_logic_t */
 	uint64_t		m_user_id_key;
 	char			m_str[RING_ALLOC_STR_SIZE];
+	void			init();
 };
 
 typedef ring_alloc_logic_attr resource_allocation_key;
