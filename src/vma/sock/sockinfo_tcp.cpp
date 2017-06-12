@@ -4470,7 +4470,7 @@ void tcp_timers_collection::free_tta_resources(void)
 		}
 	}
 
-	delete m_p_intervals;
+	delete[] m_p_intervals;
 }
 
 void tcp_timers_collection::clean_obj()

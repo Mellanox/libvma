@@ -146,8 +146,9 @@ net_device_val::~net_device_val()
 	rings_hash_map_t::iterator ring_iter;
 	while ((ring_iter = m_h_ring_map.begin()) != m_h_ring_map.end()) {
 		delete THE_RING;
-		delete ring_iter->first;
+		resource_allocation_key *tmp = ring_iter->first;
 		m_h_ring_map.erase(ring_iter);
+		delete tmp;
 	}
 	rings_key_redirection_hash_map_t::iterator redirect_iter;
 	while ((redirect_iter = m_h_ring_key_redirection_map.begin()) !=
@@ -164,6 +165,11 @@ net_device_val::~net_device_val()
 		delete m_p_L2_addr;
 		m_p_L2_addr = NULL;
 	}
+	slave_data_vector_t::iterator it = m_slaves.begin();
+	for (; it != m_slaves.end(); ++it) {
+		delete *it;
+	}
+	m_slaves.clear();
 }
 
 void net_device_val::try_read_dev_id_and_port(const char *base_ifname, int *dev_id, int *dev_port)

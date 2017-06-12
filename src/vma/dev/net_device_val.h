@@ -49,6 +49,7 @@
 #include "vma/event/event_handler_rdma_cm.h"
 #include "vma/dev/ib_ctx_handler.h"
 #include "vma/proto/neighbour_observer.h"
+#include "vma/proto/L2_address.h"
 #include "vma/infra/cache_subject_observer.h"
 
 
@@ -144,6 +145,12 @@ typedef struct slave_data {
         L2_address* 	p_L2_addr;
         bool 		is_active_slave;
 	slave_data() : if_name(NULL), p_ib_ctx(NULL), port_num(-1), pkey(0), p_L2_addr(NULL), is_active_slave(false) {}
+	~slave_data() {
+		free(if_name);
+		if_name = NULL;
+		delete p_L2_addr;
+		p_L2_addr = NULL;
+	}
 } slave_data_t;
 
 typedef std::vector<slave_data_t*> slave_data_vector_t;

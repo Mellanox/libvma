@@ -45,6 +45,9 @@
 
 #define ADDR_LEN 46 // needs 16-bytes for IPv4, and 46-bytes for IPv6
 
+typedef std::tr1::unordered_map<in_addr_t, route_entry*> in_addr_route_entry_map_t;
+typedef std::tr1::unordered_map<route_rule_table_key, cache_entry_subject<route_rule_table_key, route_val*> *> rt_tbl_cach_entry_map_t;
+
 class route_table_mgr : public netlink_socket_mgr<route_val>, public cache_table_mgr<route_rule_table_key, route_val*>, public observer
 {
 public:
@@ -65,7 +68,7 @@ protected:
 
 private:
 	// in constructor creates route_entry for each net_dev, to receive events in case there are no other route_entrys
-	std::tr1::unordered_map<in_addr_t, route_entry*> m_rte_list_for_each_net_dev;
+	in_addr_route_entry_map_t m_rte_list_for_each_net_dev;
 
 	bool		find_route_val(in_addr_t &dst_addr, unsigned char table_id, route_val* &p_val);
 	

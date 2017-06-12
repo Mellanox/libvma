@@ -116,6 +116,9 @@ qp_mgr::~qp_mgr()
 	release_tx_buffers();
 	release_rx_buffers();
 
+	if (m_p_cq_mgr_rx) {
+		m_p_cq_mgr_rx->clean_cq();
+	}
 	qp_logdbg("calling ibv_destroy_qp(qp=%p)", m_qp);
 	if (m_qp) {
 		IF_VERBS_FAILURE(ibv_destroy_qp(m_qp)) {

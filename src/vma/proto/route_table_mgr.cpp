@@ -80,7 +80,7 @@ route_table_mgr::route_table_mgr() : netlink_socket_mgr<route_val>(ROUTE_DATA_TY
 	{
 		p_val = &m_tab.value[i];
 		in_addr_t src_addr = p_val->get_src_addr();
-		std::tr1::unordered_map<in_addr_t, route_entry*>::iterator iter = m_rte_list_for_each_net_dev.find(src_addr);
+		in_addr_route_entry_map_t::iterator iter = m_rte_list_for_each_net_dev.find(src_addr);
 		// if src_addr of interface exists in the map, no need to create another route_entry
 		if (iter == m_rte_list_for_each_net_dev.end()) {
 			in_addr_t dst_ip	= src_addr;
@@ -105,12 +105,18 @@ route_table_mgr::~route_table_mgr()
 	rt_mgr_logdbg("");
 
 	// clear all route_entrys created in the constructor
-	std::tr1::unordered_map<in_addr_t, route_entry*>::iterator iter;
-	for (iter = m_rte_list_for_each_net_dev.begin(); iter != m_rte_list_for_each_net_dev.end(); iter++) {
-		route_entry* p_rte = iter->second;
-		delete(p_rte);
+	in_addr_route_entry_map_t::iterator iter;
+
+	while ((iter = m_rte_list_for_each_net_dev.begin()) != m_rte_list_for_each_net_dev.end()) {
+		delete(iter->second);
+		m_rte_list_for_each_net_dev.erase(iter);
 	}
 
+	rt_tbl_cach_entry_map_t::iterator cache_itr;
+	while ((cache_itr = m_cache_tbl.begin()) != m_cache_tbl.end()) {
+		delete(cache_itr->second);
+		m_cache_tbl.erase(cache_itr);
+	}
 	rt_mgr_logdbg("Done");
 }
 
@@ -473,7 +479,8 @@ void route_table_mgr::addr_change_event(int if_index)
 void route_table_mgr::update_invalid_entries()
 {
 	route_entry *p_ent;
-	std::tr1::unordered_map<route_rule_table_key, cache_entry_subject<route_rule_table_key, route_val*> *>::iterator cache_itr;
+	rt_tbl_cach_entry_map_t::iterator cache_itr;
+
 	for (cache_itr = m_cache_tbl.begin(); cache_itr != m_cache_tbl.end(); cache_itr++) {
 		p_ent = (route_entry *)cache_itr->second;
 		if(!p_ent->is_valid()) {

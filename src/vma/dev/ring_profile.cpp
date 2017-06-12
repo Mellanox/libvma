@@ -118,8 +118,10 @@ ring_profile* ring_profiles_collection::get_profile(vma_ring_profile_key key)
 
 ring_profiles_collection::~ring_profiles_collection()
 {
-	ring_profile_map_t::iterator iter = m_profs_map.begin();
-	for (;iter != m_profs_map.end(); ++iter) {
+	ring_profile_map_t::iterator iter;
+
+	while ((iter = m_profs_map.begin()) != m_profs_map.end()) {
 		delete (iter->second);
+		m_profs_map.erase(iter);
 	}
 }
