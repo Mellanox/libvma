@@ -73,6 +73,12 @@ neigh_table_mgr::neigh_table_mgr():m_neigh_cma_event_channel(NULL)
 	start_garbage_collector(DEFAULT_GARBAGE_COLLECTOR_TIME);
 }
 
+neigh_table_mgr::~neigh_table_mgr()
+{
+	stop_garbage_collector();
+	rdma_destroy_event_channel(m_neigh_cma_event_channel);
+}
+
 neigh_entry* neigh_table_mgr::create_new_entry(neigh_key neigh_key, const observer* new_observer)
 {
 	observer * tmp = const_cast<observer *>(new_observer);
