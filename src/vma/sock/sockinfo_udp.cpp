@@ -112,25 +112,7 @@ enum {
 
 inline void	sockinfo_udp::reuse_buffer(mem_buf_desc_t *buff)
 {
-	if (m_p_rx_ring) {
-		m_rx_reuse_buff.n_buff_num += buff->rx.n_frags;
-		m_rx_reuse_buff.rx_reuse.push_back(buff);
-		if (m_rx_reuse_buff.n_buff_num < m_n_sysvar_rx_num_buffs_reuse) {
-			return;
-		}
-		if (m_rx_reuse_buff.n_buff_num >= 2 * m_n_sysvar_rx_num_buffs_reuse) {
-			if (m_p_rx_ring->reclaim_recv_buffers(&m_rx_reuse_buff.rx_reuse)) {
-				m_rx_reuse_buff.n_buff_num = 0;
-			} else {
-				g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&m_rx_reuse_buff.rx_reuse);
-				m_rx_reuse_buff.n_buff_num = 0;
-			}
-			m_rx_reuse_buf_postponed = false;
-		} else {
-			m_rx_reuse_buf_postponed = true;
-		}
-	}
-	else if(buff->dec_ref_count() <= 1) {
+	if(buff->dec_ref_count() <= 1) {
 		buff->inc_ref_count();
 		sockinfo::reuse_buffer(buff);
 	}

@@ -49,6 +49,11 @@ ring::ring(int count, uint32_t mtu) :
 #endif // DEFINED_VMAPOLL	
 }
 
+int ring::get_rx_channel_fds_index(uint32_t index) const {
+	if (index < m_n_num_resources)
+		return m_p_n_rx_channel_fds[index];
+	return -1;
+};
 ring::~ring()
 {
 #ifdef DEFINED_VMAPOLL

@@ -69,6 +69,7 @@ const char * const in_protocol_str[] = {
 
 sockinfo::sockinfo(int fd) throw (vma_exception):
 		socket_fd_api(fd),
+		m_rings_fds(NULL),
 		m_b_closed(false), m_b_blocking(true), m_protocol(PROTO_UNDEFINED),
 		m_lock_rcv(MODULE_NAME "::m_lock_rcv"),
 		m_lock_snd(MODULE_NAME "::m_lock_snd"),
@@ -899,6 +900,7 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 		m_rx_ring_map[p_ring] = p_ring_info;
 		p_ring_info->refcnt = 1;
 		p_ring_info->rx_reuse_info.n_buff_num = 0;
+#ifdef DEFINED_VMAPOLL
 		/* m_p_rx_ring is updated in following functions:
 		 *  - rx_add_ring_cb()
 		 *  - rx_del_ring_cb()
@@ -906,9 +908,8 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 		 */
 		if (m_rx_ring_map.size() == 1) {
 			m_p_rx_ring = m_rx_ring_map.begin()->first;
-		} else {
-			m_p_rx_ring = NULL;
 		}
+#endif
 		notify_epoll = true;
 
 		// Add this new CQ channel fd to the rx epfd handle (no need to wake up any sleeping thread about this new fd)
@@ -1203,3 +1204,45 @@ int sockinfo::fast_nonblocking_rx(vma_packets_t *vma_pkts)
 	return 0;
 }
 #endif // DEFINED_VMAPOLL
+
+#ifdef DEFINED_VMAPOLL
+int* sockinfo::get_rings_fds(int &res_length)
+{
+	int* channel_fds = m_p_rx_ring->get_rx_channel_fds();
+	res_length = 1;
+	return channel_fds;
+}
+#else
+int* sockinfo::get_rings_fds(int &res_length)
+{
+	int count = 0;
+
+	if (m_rings_fds) {
+		res_length = count;
+		return m_rings_fds;
+	}
+	// count number of fds
+	rx_ring_map_t::iterator it = m_rx_ring_map.begin();
+	for (; it != m_rx_ring_map.end(); ++it) {
+		for (int j = 0; j < it->first->get_num_resources(); ++j) {
+			++count;
+		}
+	}
+	res_length = count;
+	m_rings_fds = new int[count];
+	int index = 0;
+	it = m_rx_ring_map.begin();
+	for (; it != m_rx_ring_map.end(); ++it) {
+		for (int j = 0; j < it->first->get_num_resources(); ++j) {
+			int fd = it->first->get_rx_channel_fds_index(j);
+			if (fd != -1) {
+				m_rings_fds[index] = it->first->get_rx_channel_fds_index(j);
+				++index;
+			} else {
+				si_logdbg("got ring with fd -1");
+			}
+		}
+	}
+	return m_rings_fds;
+}
+#endif
