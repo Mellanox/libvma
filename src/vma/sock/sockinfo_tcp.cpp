@@ -2444,16 +2444,18 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 
 		// Poll OS socket for pending connection
 		// smart bit to switch between the two
-		uint64_t pending_data = 0;
-		ret = orig_os_api.ioctl(m_fd, FIONREAD, &pending_data);
+		pollfd os_fd[1];
+		os_fd[0].fd = m_fd;
+		os_fd[0].events = POLLIN;
+		ret = orig_os_api.poll(os_fd, 1, 0); // Zero timeout - just poll and return quickly
 		if (unlikely(ret == -1)) {
 			m_p_socket_stats->counters.n_rx_os_errors++;
-			si_tcp_logdbg("orig_os_api.ioctl returned with error (errno=%d %m)", errno);
+			si_tcp_logdbg("orig_os_api.poll returned with error (errno=%d %m)", errno);
 			unlock_tcp_con();
 			return -1;
 		}
-		if (pending_data > 0) {
-			si_tcp_logdbg("orig_os_api.ioctl returned with packet");
+		if (ret == 1) {
+			si_tcp_logdbg("orig_os_api.poll returned with packet");
 			unlock_tcp_con();
 			if (__flags)
 				return orig_os_api.accept4(m_fd, __addr, __addrlen, __flags);
