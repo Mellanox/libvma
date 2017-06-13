@@ -1205,33 +1205,39 @@ int sockinfo::fast_nonblocking_rx(vma_packets_t *vma_pkts)
 }
 #endif // DEFINED_VMAPOLL
 
+int sockinfo::get_rings_num()
+{
 #ifdef DEFINED_VMAPOLL
+	return 1;
+#else
+	int count = 0;
+
+	rx_ring_map_t::iterator it = m_rx_ring_map.begin();
+	for (; it != m_rx_ring_map.end(); ++it) {
+		count += it->first->get_num_resources();
+	}
+	return count;
+#endif
+}
+
 int* sockinfo::get_rings_fds(int &res_length)
 {
+#ifdef DEFINED_VMAPOLL
 	int* channel_fds = m_p_rx_ring->get_rx_channel_fds();
 	res_length = 1;
 	return channel_fds;
-}
 #else
-int* sockinfo::get_rings_fds(int &res_length)
-{
-	int count = 0;
+	int count = get_rings_num();
+	int index = 0;
 
 	if (m_rings_fds) {
 		res_length = count;
 		return m_rings_fds;
 	}
-	// count number of fds
-	rx_ring_map_t::iterator it = m_rx_ring_map.begin();
-	for (; it != m_rx_ring_map.end(); ++it) {
-		for (int j = 0; j < it->first->get_num_resources(); ++j) {
-			++count;
-		}
-	}
 	res_length = count;
 	m_rings_fds = new int[count];
-	int index = 0;
-	it = m_rx_ring_map.begin();
+
+	rx_ring_map_t::iterator it = m_rx_ring_map.begin();
 	for (; it != m_rx_ring_map.end(); ++it) {
 		for (int j = 0; j < it->first->get_num_resources(); ++j) {
 			int fd = it->first->get_rx_channel_fds_index(j);
@@ -1244,5 +1250,5 @@ int* sockinfo::get_rings_fds(int &res_length)
 		}
 	}
 	return m_rings_fds;
-}
 #endif
+}

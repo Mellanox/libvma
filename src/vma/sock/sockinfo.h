@@ -133,11 +133,11 @@ public:
 	
 	virtual bool addr_in_reuse(void) = 0;
 	virtual int* get_rings_fds(int &res_length);
+	virtual int get_rings_num();
 #ifdef DEFINED_VMAPOLL
-	virtual int get_rings_num() {return 1;}
+
 	virtual bool check_rings() {return m_p_rx_ring ? true: false;}
 #else
-	virtual int get_rings_num() {return m_rx_ring_map.size();}
 	virtual bool check_rings() {return true;}
 #endif
 
