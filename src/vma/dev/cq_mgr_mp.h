@@ -49,6 +49,7 @@ public:
 	int		poll_mp_cq(uint16_t &size, uint32_t &strides_used,
 				   uint32_t &flags,
 				   volatile struct mlx5_cqe64 *&cqe64);
+	void update_dbell();
 protected:
 	virtual void	prep_ibv_cq(vma_ibv_cq_init_attr &attr) const;
 	virtual void	add_qp_rx(qp_mgr *qp);

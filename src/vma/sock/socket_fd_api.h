@@ -249,7 +249,7 @@ public:
 
 	virtual int get_rings_num() {return 0;}
 	virtual bool check_rings() {return false;}
-	virtual int* get_rings_fds() {return NULL;}
+	virtual int* get_rings_fds(int& res_length) { res_length=0; return NULL;}
 
 protected:
 	void notify_epoll_context(uint32_t events);

@@ -37,7 +37,6 @@
 #include <infiniband/mlx5_hw.h>
 #include <vma/util/valgrind.h>
 #include "cq_mgr.inl"
-#include "cq_mgr_mlx5.inl"
 #include "qp_mgr.h"
 #include "ring_simple.h"
 
@@ -56,8 +55,8 @@ cq_mgr_mlx5::cq_mgr_mlx5(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler,
 	,m_cq_size(cq_size)
 	,m_cq_cons_index(0)
 	,m_cqes(NULL)
-	,m_rq(NULL)
 	,m_cq_dbell(NULL)
+	,m_rq(NULL)
 	,m_rx_hot_buffer(NULL)
 	,m_p_rq_wqe_idx_to_wrid(NULL)
 {
@@ -111,6 +110,23 @@ cq_mgr_mlx5::~cq_mgr_mlx5()
 	m_b_is_clean = true;
 }
 
+volatile struct mlx5_cqe64* cq_mgr_mlx5::check_cqe(void)
+{
+	volatile struct mlx5_cqe64 *cqe= &(*m_cqes)[m_cq_cons_index & (m_cq_size - 1)];
+
+	/*
+	 * CQE ownership is defined by Owner bit in the CQE.
+	 * The value indicating SW ownership is flipped every
+	 *  time CQ wraps around.
+	 * */
+	if (likely((MLX5_CQE_OPCODE(cqe->op_own)) != MLX5_CQE_INVALID) &&
+	    !((MLX5_CQE_OWNER(cqe->op_own)) ^ !!(m_cq_cons_index & m_cq_size))) {
+		return cqe;
+	}
+
+	return NULL;
+}
+
 mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
 {
 	mem_buf_desc_t *buff = NULL;
@@ -144,10 +160,14 @@ mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
 			return NULL;
 		}
 	}
-	/* Update the consumer index. */
 	volatile mlx5_cqe64 *cqe = check_cqe();
 	if (likely(cqe)) {
+		/* Update the consumer index */
+		++m_cq_cons_index;
+		wmb();
 		cqe64_to_mem_buff_desc(cqe, m_rx_hot_buffer, status);
+		++m_rq->tail;
+		*m_cq_dbell = htonl(m_cq_cons_index & 0xffffff);
 		buff = m_rx_hot_buffer;
 		m_rx_hot_buffer = NULL;
 

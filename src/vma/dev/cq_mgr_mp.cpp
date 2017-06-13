@@ -31,9 +31,7 @@
  */
 
 #include "dev/cq_mgr_mp.h"
-#include "dev/cq_mgr_mlx5.inl"
 #include "dev/qp_mgr_mp.h"
-
 
 #define MODULE_NAME 		"cqm"
 
@@ -111,8 +109,7 @@ void cq_mgr_mp::add_qp_rx(qp_mgr *qp)
 int cq_mgr_mp::poll_mp_cq(uint16_t &size, uint32_t &strides_used,
 			  uint32_t &flags, volatile struct mlx5_cqe64 *&out_cqe64)
 {
-	volatile struct mlx5_cqe64 *cqe = check_cqe();
-
+	volatile struct mlx5_cqe64 *cqe= check_cqe();
 	if (likely(cqe)) {
 		if (unlikely(MLX5_CQE_OPCODE(cqe->op_own) != MLX5_CQE_RESP_SEND)) {
 			cq_logdbg("Warning op_own is %x", MLX5_CQE_OPCODE(cqe->op_own));
@@ -132,6 +129,7 @@ int cq_mgr_mp::poll_mp_cq(uint16_t &size, uint32_t &strides_used,
 			out_cqe64 = cqe;
 			size = stride_byte_cnt & MP_RQ_BYTE_CNT_FIELD_MASK;
 		}
+		++m_cq_cons_index;
 		prefetch((void*)&(*m_cqes)[m_cq_cons_index & (m_cq_size - 1)]);
 	} else {
 		size = 0;
@@ -142,6 +140,12 @@ int cq_mgr_mp::poll_mp_cq(uint16_t &size, uint32_t &strides_used,
 	return 0;
 }
 
+void cq_mgr_mp::update_dbell()
+{
+	wmb();
+	++m_rq->tail;
+	*m_cq_dbell = htonl(m_cq_cons_index & 0xffffff);
+}
 
 cq_mgr_mp::~cq_mgr_mp()
 {

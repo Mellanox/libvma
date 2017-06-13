@@ -61,7 +61,7 @@ protected:
 	ring_allocation_logic();
 	ring_allocation_logic(ring_logic_t ring_allocation_logic,
 			      int ring_migration_ratio, int fd,
-			      resource_allocation_key ring_profile);
+			      resource_allocation_key &ring_profile);
 
 
 public:

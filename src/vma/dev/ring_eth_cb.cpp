@@ -213,6 +213,7 @@ inline bool ring_eth_cb::reload_wq()
 {
 	// in current implementation after each WQe is used by the HW
 	// the ring reloads it to the HW again that why 1 is used
+	((cq_mgr_mp *)m_p_cq_mgr_rx)->update_dbell();
 	((qp_mgr_mp *)m_p_qp_mgr)->post_recv(m_curr_wq, 1);
 	m_curr_wq = (m_curr_wq + 1) % m_wq_count;
 	m_curr_wqe_used_strides = 0;

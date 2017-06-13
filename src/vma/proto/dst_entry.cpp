@@ -609,7 +609,7 @@ void dst_entry::do_ring_migration(lock_base& socket_lock)
 
 	resource_allocation_key *old_key = m_ring_alloc_logic.get_key();
 	resource_allocation_key *new_key = old_key;
-	new_key->m_user_id_key = m_ring_alloc_logic.calc_res_key_by_logic();
+	new_key->set_user_id_key(m_ring_alloc_logic.calc_res_key_by_logic());
 	if (old_key == new_key) {
 		m_slow_path_lock.unlock();
 		return;

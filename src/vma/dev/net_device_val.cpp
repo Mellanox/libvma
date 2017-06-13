@@ -75,36 +75,63 @@ ring_alloc_logic_attr::ring_alloc_logic_attr():
 				m_ring_alloc_logic(RING_LOGIC_PER_INTERFACE),
 				m_ring_profile_key(0),
 				m_user_id_key(0) {
-	ostringstream s;
-
-	s<<"alloc logic "<<m_ring_alloc_logic<<" profile"<<m_ring_profile_key<<
-			" key "<<m_user_id_key;
-	m_str = s.str();
+	init();
 }
 
 ring_alloc_logic_attr::ring_alloc_logic_attr(ring_logic_t ring_logic):
 				m_ring_alloc_logic(ring_logic),
 				m_ring_profile_key(0),
 				m_user_id_key(0) {
-	ostringstream s;
-
-	s<<"alloc logic "<<m_ring_alloc_logic<<" profile"<<m_ring_profile_key<<
-			" key "<<m_user_id_key;
-	m_str = s.str();
+	init();
 }
 
 ring_alloc_logic_attr::ring_alloc_logic_attr(const ring_alloc_logic_attr &other):
 	m_ring_alloc_logic(other.m_ring_alloc_logic),
 	m_ring_profile_key(other.m_ring_profile_key),
 	m_user_id_key(other.m_user_id_key) {
-	ostringstream s;
-
-	s<<"alloc logic "<<m_ring_alloc_logic<<" profile"<<m_ring_profile_key<<
-			" key "<<m_user_id_key;
-	m_str = s.str();
+	init();
 }
 
+void ring_alloc_logic_attr::init()
+{
+	size_t h = 5381;
+	int c;
+	char buff[RING_ALLOC_STR_SIZE];
 
+	snprintf(m_str, RING_ALLOC_STR_SIZE,
+		 "allocation logic %d profile %d key %ld", m_ring_alloc_logic,
+		 m_ring_profile_key, m_user_id_key);
+	snprintf(buff, RING_ALLOC_STR_SIZE, "%d%d%ld", m_ring_alloc_logic,
+		 m_ring_profile_key, m_user_id_key);
+	const char* chr = buff;
+	while ((c = *chr++))
+		h = ((h << 5) + h) + c; /* m_hash * 33 + c */
+	m_hash = h;
+}
+
+void ring_alloc_logic_attr::set_ring_alloc_logic(ring_logic_t logic)
+{
+	if (m_ring_alloc_logic != logic) {
+		m_ring_alloc_logic = logic;
+		init();
+	}
+}
+
+void ring_alloc_logic_attr::set_ring_profile_key(vma_ring_profile_key profile)
+{
+	if (m_ring_profile_key != profile) {
+		m_ring_profile_key = profile;
+		init();
+	}
+}
+
+void ring_alloc_logic_attr::set_user_id_key(uint64_t user_id_key)
+{
+	if (m_user_id_key != user_id_key) {
+		m_user_id_key = user_id_key;
+		init();
+	}
+}
 
 net_device_val::net_device_val(transport_type_t transport_type) : m_if_idx(0), m_local_addr(0),
 m_netmask(0), m_mtu(0), m_state(INVALID), m_p_L2_addr(NULL), m_p_br_addr(NULL),
@@ -624,7 +651,7 @@ resource_allocation_key* net_device_val::ring_key_redirection_reserve(resource_a
 {
 	// if allocation logic is usr idx feature disabled
 	if (!safe_mce_sys().ring_limit_per_interface ||
-	    key->m_ring_alloc_logic == RING_LOGIC_PER_USER_ID)
+	    key->get_ring_alloc_logic() == RING_LOGIC_PER_USER_ID)
 		return key;
 
 	if (m_h_ring_key_redirection_map.find(key) != m_h_ring_key_redirection_map.end()) {
@@ -637,11 +664,9 @@ resource_allocation_key* net_device_val::ring_key_redirection_reserve(resource_a
 
 	int ring_map_size = (int)m_h_ring_map.size();
 	if (safe_mce_sys().ring_limit_per_interface > ring_map_size) {
-		resource_allocation_key *key2 = new resource_allocation_key;
+		resource_allocation_key *key2 = new resource_allocation_key(*key);
 		// replace key to redirection key
-		key2->m_user_id_key = ring_map_size;
-		key2->m_ring_alloc_logic = key->m_ring_alloc_logic;
-		key2->m_ring_profile_key = key->m_ring_profile_key;
+		key2->set_user_id_key(ring_map_size);
 		m_h_ring_key_redirection_map[key] = std::make_pair(key2, 1);
 		nd_logdbg("redirecting key=%s (ref-count:1) to key=%s",
 			  key->to_str(), key2->to_str());
@@ -653,7 +678,8 @@ resource_allocation_key* net_device_val::ring_key_redirection_reserve(resource_a
 	resource_allocation_key *min_key = ring_iter->first;
 	while (ring_iter != m_h_ring_map.end()) {
 		// redirect only to ring with the same profile
-		if (ring_iter->first->m_ring_profile_key == key->m_ring_profile_key &&
+		if (ring_iter->first->get_ring_profile_key() ==
+		    key->get_ring_profile_key() &&
 		    ring_iter->second.second < min_ref_count) {
 			min_ref_count = ring_iter->second.second;
 			min_key = ring_iter->first;
@@ -842,16 +868,16 @@ ring* net_device_val_eth::create_ring(resource_allocation_key *key)
 	}
 
 	// if this is a ring profile key get the profile from the global map
-	if (key->m_ring_profile_key) {
+	if (key->get_ring_profile_key()) {
 		if (!g_p_ring_profile) {
 			nd_logdbg("could not find ring profile");
 			return NULL;
 		}
 		ring_profile *prof =
-			g_p_ring_profile->get_profile(key->m_ring_profile_key);
+			g_p_ring_profile->get_profile(key->get_ring_profile_key());
 		if (prof == NULL) {
 			nd_logerr("could not find ring profile %d",
-				  key->m_ring_profile_key);
+				  key->get_ring_profile_key());
 			return NULL;
 		}
 		ring_eth* ring = NULL;

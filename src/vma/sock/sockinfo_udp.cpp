@@ -734,18 +734,18 @@ int sockinfo_udp::set_ring_attr_helper(ring_alloc_logic_attr *sock_attr,
 					vma_ring_alloc_logic_attr *user_attr)
 {
 	if (user_attr->comp_mask & VMA_RING_ALLOC_MASK_RING_PROFILE_KEY) {
-		if (sock_attr->m_ring_profile_key) {
+		if (sock_attr->get_ring_profile_key()) {
 			si_udp_logdbg("ring_profile_key is already set and "
 				      "cannot be changed");
 			return -1;
 		}
-		sock_attr->m_ring_profile_key = user_attr->ring_profile_key;
+		sock_attr->set_ring_profile_key(user_attr->ring_profile_key);
 	}
 	
-	sock_attr->m_ring_alloc_logic = user_attr->ring_alloc_logic;
+	sock_attr->set_ring_alloc_logic(user_attr->ring_alloc_logic);
 
 	if (user_attr->comp_mask & VMA_RING_ALLOC_MASK_RING_USER_ID) {
-		sock_attr->m_user_id_key = user_attr->user_id;
+		sock_attr->set_user_id_key(user_attr->user_id);
 	}
 	return 0;
 }
