@@ -41,7 +41,7 @@ class neigh_table_mgr : public cache_table_mgr<neigh_key, class neigh_val*>, pub
 {
 public:
 				neigh_table_mgr();
-				~neigh_table_mgr();
+				~neigh_table_mgr(){ stop_garbage_collector();};
 	virtual void 		notify_cb(event * event);
 	rdma_event_channel*	m_neigh_cma_event_channel;
 
