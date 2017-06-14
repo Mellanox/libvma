@@ -56,24 +56,8 @@
 
 class cq_mgr;
 class epfd_info;
+
 class mem_buf_desc_t;
-
-struct epoll_fd_rec
-{
-	uint32_t    events;
-	epoll_data  epdata;
-	int         offloaded_index; // offloaded fd index + 1
-
-	epoll_fd_rec() {
-		reset();
-	}
-
-	void reset() {
-		this->events = 0;
-		memset(&this->epdata, 0, sizeof(this->epdata));
-		this->offloaded_index = 0;
-	}
-};
 
 typedef enum {
 	TX_WRITE = 13, TX_WRITEV, TX_SEND, TX_SENDTO, TX_SENDMSG, TX_UNDEF
@@ -241,12 +225,8 @@ public:
 
 	static inline size_t ep_ready_fd_node_offset(void) {return NODE_OFFSET(socket_fd_api, ep_ready_fd_node);}
 	list_node<socket_fd_api, socket_fd_api::ep_ready_fd_node_offset> ep_ready_fd_node;
+
 	uint32_t m_epoll_event_flags;
-
-	static inline size_t ep_info_fd_node_offset(void) {return NODE_OFFSET(socket_fd_api, ep_info_fd_node);}
-	list_node<socket_fd_api, socket_fd_api::ep_info_fd_node_offset> ep_info_fd_node;
-	epoll_fd_rec m_fd_rec;
-
 	virtual int get_rings_num() {return 0;}
 	virtual bool check_rings() {return false;}
 	virtual int* get_rings_fds(int& res_length) { res_length=0; return NULL;}
