@@ -1,3 +1,18 @@
+Version 8.3.6-0:
+Date + Time 2017-06-14
+=============================================================
+Added:
+        - RM #953382 Support Precision Time Protocol (PTP)
+        - RM #788404 Support Packet Pacing (socket option SO_MAX_PACING_RATE)
+        - RM #1048224 Improve performance while searching for non-offloaded data
+        - RM #1055915 Improve performance under MP-RQ mode
+        - RM #1052605 Increase monitored epoll fds, CQs and RINGs in vma_stats
+        - RM #1061898 Disable flow tag when TCP GRO is used
+
+Fixed:
+        - RM #1041107 Fix flow_tag handling on VLAN interfaces
+        - RM #1031172 Fix Checkmarx security application reported issues 
+
 Version 8.3.5-0:
 Date + Time 2017-05-25
 =============================================================
