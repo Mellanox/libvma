@@ -42,6 +42,13 @@
 #define MAX_MP_WQES			20 // limit max used memory
 #define MIN_MP_WQES			2
 
+
+#ifdef ENABLE_MP_RQ_TIMSTAMP_DUMP
+#include <vector>
+
+typedef std::vector<timespec> time_vec;
+#endif
+
 enum mp_loop_result {
 	MP_LOOP_DRAINED,
 	MP_LOOP_LIMIT,
@@ -97,6 +104,13 @@ private:
 	void*				m_curr_h_ptr;
 	size_t				m_curr_packets;
 	struct timespec			m_curr_hw_timestamp;
+#ifdef ENABLE_MP_RQ_TIMSTAMP_DUMP
+	size_t				m_vec_start_size;
+	time_vec			m_ts_collector;
+	char				m_path[PATH_MAX];
+	time_t				m_start_time;
+	void				dump_cqe_timestamp();
+#endif
 	inline mp_loop_result		mp_loop(size_t limit);
 	inline bool			reload_wq();
 };

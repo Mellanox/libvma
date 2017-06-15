@@ -60,6 +60,18 @@ ring_eth_cb::ring_eth_cb(in_addr_t local_if,
 {
 	// call function from derived not base
 	create_resources(p_ring_info, active);
+#ifdef ENABLE_MP_RQ_TIMSTAMP_DUMP
+	// max data size
+	m_vec_start_size = m_strides_num * m_wq_count;
+	m_ts_collector.reserve(m_vec_start_size);
+	struct tm* timeinfo;
+	time(&m_start_time);
+	timeinfo = localtime(&m_start_time);
+	// create a unique number, use the fd for that
+	snprintf(m_path, PATH_MAX, "/tmp/mp_rq_cqe_timestamp_dump_%d_%d_%d_%d_%d_%d.log",
+		 timeinfo->tm_mon, timeinfo->tm_mday, timeinfo->tm_hour,
+		 timeinfo->tm_min, timeinfo->tm_sec, get_rx_channel_fds_index(0));
+#endif
 }
 
 void ring_eth_cb::create_resources(ring_resource_creation_info_t *p_ring_info,
@@ -194,6 +206,11 @@ inline mp_loop_result ring_eth_cb::mp_loop(size_t limit)
 			return MP_LOOP_RETURN_TO_APP;
 		}
 		++m_curr_packets;
+#ifdef ENABLE_MP_RQ_TIMSTAMP_DUMP
+		timespec t;
+		convert_hw_time_to_system_time(ntohll(cqe64->timestamp), &t);
+		m_ts_collector.push_back(t);
+#endif
 		if (unlikely(m_curr_wqe_used_strides >= m_strides_num)) {
 			if (reload_wq()) {
 				return MP_LOOP_RETURN_TO_APP;
@@ -269,6 +286,9 @@ int ring_eth_cb::cyclic_buffer_read(vma_completion_cb_t &completion,
 			if (completion.comp_mask & VMA_MP_MASK_TIMESTAMP) {
 				convert_hw_time_to_system_time(ntohll(cqe64->timestamp),
 							       &m_curr_hw_timestamp);
+#ifdef ENABLE_MP_RQ_TIMSTAMP_DUMP
+				m_ts_collector.push_back(m_curr_hw_timestamp);
+#endif
 			}
 			// When UMR will be added this will be different
 			m_curr_h_ptr = m_curr_d_addr;
@@ -282,8 +302,14 @@ int ring_eth_cb::cyclic_buffer_read(vma_completion_cb_t &completion,
 		}
 		if (!return_to_app) {
 			ret = mp_loop(min);
+#ifdef ENABLE_MP_RQ_TIMSTAMP_DUMP
+			dump_cqe_timestamp();
+#endif
 			if (ret == MP_LOOP_LIMIT) { // there might be more to drain
 				mp_loop(max);
+#ifdef ENABLE_MP_RQ_TIMSTAMP_DUMP
+				dump_cqe_timestamp();
+#endif
 			} else if (ret == MP_LOOP_DRAINED) { // no packets left
 				return 0;
 			}
@@ -308,6 +334,20 @@ int ring_eth_cb::cyclic_buffer_read(vma_completion_cb_t &completion,
 		    m_curr_packets, m_curr_wq);
 	return 0;
 }
+
+#ifdef ENABLE_MP_RQ_TIMSTAMP_DUMP
+void ring_eth_cb::dump_cqe_timestamp()
+{
+	// iterate and dump result
+	std::ofstream file(m_path, std::ios::out | std::ios::app);
+	time_vec::iterator it = m_ts_collector.begin();
+	for (;it != m_ts_collector.end();++it) {
+		file<<uint64_t((uint64_t(it->tv_sec - m_start_time)) * 1000000000 +
+			it->tv_nsec)<<std::endl;
+	}
+	m_ts_collector.clear();
+}
+#endif
 
 ring_eth_cb::~ring_eth_cb()
 {
