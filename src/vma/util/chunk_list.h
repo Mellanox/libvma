@@ -40,16 +40,9 @@
 #define CHUNK_LIST_CONTAINER_INIT         4    // Initial number of containers.
 #define CHUNK_LIST_CONTIANER_THRESHOLD   15    // Maximum number of containers before free.
 
-// debugging macros
-#undef  MODULE_HDR_INFO
-#define MODULE_HDR_INFO         "clist[%p]:%d:%s() "
-
-#undef  __INFO__
-#define __INFO__                this
-
-#define clist_logfunc              __log_info_func
-#define clist_logwarn              __log_info_warn
-#define clist_logerr               __log_info_err
+#define clist_logfunc(log_fmt, log_args...)    vlog_printf(VLOG_FUNC,    "clist[%p]:%d:%s() " log_fmt "\n", this, __LINE__, __FUNCTION__, ##log_args)
+#define clist_logwarn(log_fmt, log_args...)    vlog_printf(VLOG_WARNING, "clist[%p]:%d:%s() " log_fmt "\n", this, __LINE__, __FUNCTION__, ##log_args)
+#define clist_logerr(log_fmt, log_args...)     vlog_printf(VLOG_ERROR,   "clist[%p]:%d:%s() " log_fmt "\n", this, __LINE__, __FUNCTION__, ##log_args)
 
 template <typename T>
 class chunk_list_t {

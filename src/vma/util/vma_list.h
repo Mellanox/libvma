@@ -39,6 +39,9 @@
 #define VLIST_DEBUG        0
 #define VLIST_ID_SIZE    200
 
+#define vlist_logwarn(log_fmt, log_args...)     vlog_printf(VLOG_WARNING, "vlist[%p]:%d:%s() " log_fmt "\n", this, __LINE__, __FUNCTION__, ##log_args)
+#define vlist_logerr(log_fmt, log_args...)      vlog_printf(VLOG_ERROR,   "vlist[%p]:%d:%s() " log_fmt "\n", this, __LINE__, __FUNCTION__, ##log_args)
+
 #if VLIST_DEBUG
 template <class T, size_t offset(void)>
 class vma_list_t;
@@ -53,16 +56,6 @@ class vma_list_t;
 		((size_t)(&(char &)(((_obj_type *) 1)->_node_name)) - 1)
 #define GET_NODE(_obj, _obj_type, _offset_func) \
 		((list_node<_obj_type, _offset_func> *) ((size_t)(_obj) + (size_t)(_offset_func())))
-
-// debugging macros
-#undef  MODULE_HDR_INFO
-#undef  __INFO__
-
-#define MODULE_HDR_INFO    "vlist[%p]:%d:%s() "
-#define __INFO__           this
-
-#define vlist_logwarn      __log_info_warn
-#define vlist_logerr       __log_info_err
 
 template <class T, size_t offset(void)>
 class list_node {
