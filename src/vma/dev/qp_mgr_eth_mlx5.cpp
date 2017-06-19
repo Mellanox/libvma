@@ -149,6 +149,7 @@ qp_mgr_eth_mlx5::qp_mgr_eth_mlx5(const ring_simple* p_ring, const ib_ctx_handler
 	,m_sq_bf_offset(0)
 	,m_sq_bf_buf_size(0)
 	,m_sq_wqe_counter(0)
+	,m_dm_enabled(0)
 {
 	if(configure(p_rx_comp_event_channel)) {
 		throw_vma_exception("failed creating qp_mgr_eth");
@@ -161,6 +162,15 @@ void qp_mgr_eth_mlx5::up()
 {
 	init_sq();
 	qp_mgr::up();
+
+	m_dm_enabled = m_dm_context.dm_allocate_resources(m_p_ib_ctx_handler, m_p_ring->m_p_ring_stat);
+}
+
+void qp_mgr_eth_mlx5::down()
+{
+	m_dm_context.dm_release_resources();
+
+	qp_mgr::down();
 }
 
 //! Cleanup resources QP itself will be freed by base class DTOR
@@ -283,7 +293,7 @@ inline int qp_mgr_eth_mlx5::fill_inl_segment(sg_array &sga, uint8_t *cur_seg, ui
 }
 
 inline int qp_mgr_eth_mlx5::fill_ptr_segment(sg_array &sga, struct mlx5_wqe_data_seg* dp_seg, uint8_t* data_addr,
-			     int data_len)
+			     int data_len, mem_buf_desc_t* buffer)
 {
 	int wqe_seg_size = 0;
 	int len = data_len;
@@ -293,12 +303,18 @@ inline int qp_mgr_eth_mlx5::fill_ptr_segment(sg_array &sga, struct mlx5_wqe_data
 	// configuration.
 	while ((data_addr!=NULL) && data_len) {
 		wqe_seg_size += sizeof(struct mlx5_wqe_data_seg);
-		dp_seg->lkey = htonl(sga.get_current_lkey());
 		data_addr = sga.get_data(&len);
 		dp_seg->byte_count = htonl(len);
-		dp_seg->addr = htonll((uint64_t)data_addr);
+
+		// Try to copy data to On Device Memory
+		if (!(m_dm_enabled && m_dm_context.dm_copy_data(dp_seg, data_addr, data_len, buffer))) {
+			// Use the registered buffer if copying did not succeed
+			dp_seg->lkey = htonl(sga.get_current_lkey());
+			dp_seg->addr = htonll((uint64_t)data_addr);
+		}
+
 		data_len -= len;
-		qp_logfunc("data_addr:%llx data_len: %d len: %d lkey: %x", data_addr, data_len, len, dp_seg->lkey);
+		qp_logfunc("data_addr:%llx data_len: %d len: %d lkey: %x", dp_seg->addr, data_len, len, dp_seg->lkey);
 		dp_seg++;
 	}
 	return wqe_seg_size;
@@ -403,7 +419,7 @@ inline int qp_mgr_eth_mlx5::fill_wqe(vma_ibv_send_wr *pswr)
 		// data is bigger than max to inline we inlined only ETH header + uint from IP (18 bytes)
 		// the rest will be in data pointer segment
 		// adding data seg with pointer if there still data to transfer
-		inline_len = fill_ptr_segment(sga, (struct mlx5_wqe_data_seg*)cur_seg, data_addr, data_len);
+		inline_len = fill_ptr_segment(sga, (struct mlx5_wqe_data_seg*)cur_seg, data_addr, data_len, (mem_buf_desc_t *)pswr->wr_id);
 		wqe_size  += inline_len/OCTOWORD;
 		qp_logfunc("data_addr: %p data_len: %d rest_space: %d wqe_size: %d",
 			data_addr, data_len, inline_len, wqe_size);
@@ -433,13 +449,14 @@ static inline uint32_t get_mlx5_opcode(vma_ibv_wr_opcode verbs_opcode)
 
 //! Send one RAW packet by MLX5 BlueFlame
 //
-int qp_mgr_eth_mlx5::send_to_wire(vma_ibv_send_wr *p_send_wqe, vma_wr_tx_packet_attr attr)
+int qp_mgr_eth_mlx5::send_to_wire(vma_ibv_send_wr *p_send_wqe, vma_wr_tx_packet_attr attr, bool request_comp)
 {
 	// Set current WQE's ethernet segment checksum flags
 	struct mlx5_wqe_eth_seg* eth_seg = (struct mlx5_wqe_eth_seg*)((uint8_t*)m_sq_wqe_hot+sizeof(struct mlx5_wqe_ctrl_seg));
 	eth_seg->cs_flags = (uint8_t)(attr & (VMA_TX_PACKET_L3_CSUM | VMA_TX_PACKET_L4_CSUM) & 0xff);
 
 	m_sq_wqe_hot->ctrl.data[0] = htonl((m_sq_wqe_counter << 8) | (get_mlx5_opcode(vma_send_wr_opcode(*p_send_wqe)) & 0xff) );
+	m_sq_wqe_hot->ctrl.data[2] =  request_comp ? htonl(8) : 0 ;
 
 	fill_wqe(p_send_wqe);
 	m_sq_wqe_idx_to_wrid[m_sq_wqe_hot_index] = (uintptr_t)p_send_wqe->wr_id;
@@ -451,11 +468,6 @@ int qp_mgr_eth_mlx5::send_to_wire(vma_ibv_send_wr *p_send_wqe, vma_wr_tx_packet_
 	m_sq_wqe_hot_index = m_sq_wqe_counter & (m_tx_num_wr - 1);
 
 	memset((void*)(uintptr_t)m_sq_wqe_hot, 0, sizeof(struct mlx5_wqe64));
-	//
-	// Write only data[0] which is the single element which changes.
-	// Other fields are already initialised in mlx5_init_sq.
-	//	memset(cur_seg, 0, 2*OCTOWORD);
-	m_sq_wqe_hot->ctrl.data[2] = m_n_unsignaled_count-1 == 0 ? htonl(8) : 0 ;
 
 	// Fill Ethernet segment with header inline
 	eth_seg = (struct mlx5_wqe_eth_seg*)((uint8_t*)m_sq_wqe_hot+sizeof(struct mlx5_wqe_ctrl_seg));
@@ -508,7 +520,6 @@ void qp_mgr_eth_mlx5::trigger_completion_for_all_sent_packets()
 		send_wr.num_sge = 1;
 		send_wr.next = NULL;
 		vma_send_wr_opcode(send_wr) = VMA_IBV_WR_SEND;
-		vma_send_wr_send_flags(send_wr) = (vma_ibv_send_flags)(VMA_IBV_SEND_SIGNALED /*| VMA_IBV_SEND_INLINE*/); //todo inline only if inline is on
 
 		// Close the Tx unsignaled send list
 		set_unsignaled_count();
@@ -521,7 +532,7 @@ void qp_mgr_eth_mlx5::trigger_completion_for_all_sent_packets()
 		m_p_ring->m_tx_num_wr_free--;
 
 		set_signal_in_next_send_wqe();
-		send_to_wire(&send_wr, (vma_wr_tx_packet_attr)(VMA_TX_PACKET_L3_CSUM|VMA_TX_PACKET_L4_CSUM));
+		send_to_wire(&send_wr, (vma_wr_tx_packet_attr)(VMA_TX_PACKET_L3_CSUM|VMA_TX_PACKET_L4_CSUM), true);
 	}
 }
 

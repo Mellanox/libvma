@@ -95,6 +95,7 @@ typedef enum {
 #define CYCLES_SEPARATOR		"-------------------------------------------------------------------------------\n" 
 #define FORMAT_CQ_STATS_32bit		"%-20s %10u\n"
 #define FORMAT_CQ_STATS_64bit		"%-20s %10llu %-3s\n"
+#define FORMAT_DEV_MEM				"%-20s %lu KB / %lu / %lu [bytes/packets/oob] %-3s\n"
 #define FORMAT_CQ_STATS_percent		"%-20s %10.2f%%\n"
 
 #define INTERVAL			1
@@ -233,6 +234,10 @@ void update_delta_ring_stat(ring_stats_t* p_curr_ring_stats, ring_stats_t* p_pre
 		p_prev_ring_stats->n_rx_cq_moderation_count = p_curr_ring_stats->n_rx_cq_moderation_count;
 		p_prev_ring_stats->n_rx_cq_moderation_period = p_curr_ring_stats->n_rx_cq_moderation_period;
 		p_prev_ring_stats->n_tx_retransmits = (p_curr_ring_stats->n_tx_retransmits - p_prev_ring_stats->n_tx_retransmits) / delay;
+		p_prev_ring_stats->n_tx_dev_mem_allocated = p_curr_ring_stats->n_tx_dev_mem_allocated;
+		p_prev_ring_stats->n_tx_dev_mem_byte_count = (p_curr_ring_stats->n_tx_dev_mem_byte_count - p_prev_ring_stats->n_tx_dev_mem_byte_count) / delay;
+		p_prev_ring_stats->n_tx_dev_mem_pkt_count = (p_curr_ring_stats->n_tx_dev_mem_pkt_count - p_prev_ring_stats->n_tx_dev_mem_pkt_count) / delay;
+		p_prev_ring_stats->n_tx_dev_mem_oob = (p_curr_ring_stats->n_tx_dev_mem_oob - p_prev_ring_stats->n_tx_dev_mem_oob) / delay;
 	}
 
 }
@@ -281,6 +286,10 @@ void print_ring_stats(ring_instance_block_t* p_ring_inst_arr)
 			printf(FORMAT_CQ_STATS_32bit, "Moderation frame count:",p_ring_stats->n_rx_cq_moderation_count);
 			printf(FORMAT_CQ_STATS_32bit, "Moderation usec period:",p_ring_stats->n_rx_cq_moderation_period);
 			printf(FORMAT_CQ_STATS_64bit, "Retransmissions:", (unsigned long long int)p_ring_stats->n_tx_retransmits, post_fix);
+			if (p_ring_stats->n_tx_dev_mem_allocated) {
+				printf(FORMAT_CQ_STATS_32bit, "Dev Mem allocation:", p_ring_stats->n_tx_dev_mem_allocated);
+				printf(FORMAT_DEV_MEM, "Dev Mem stats:", p_ring_stats->n_tx_dev_mem_byte_count/BYTES_TRAFFIC_UNIT,  p_ring_stats->n_tx_dev_mem_pkt_count, p_ring_stats->n_tx_dev_mem_oob, post_fix);
+			}
 		}
 	}
 	printf("======================================================\n");
@@ -1289,6 +1298,9 @@ void zero_ring_stats(ring_stats_t* p_ring_stats)
 	p_ring_stats->n_rx_interrupt_received = 0;
 	p_ring_stats->n_rx_interrupt_requests = 0;
 	p_ring_stats->n_tx_retransmits = 0;
+	p_ring_stats->n_tx_dev_mem_byte_count = 0;
+	p_ring_stats->n_tx_dev_mem_pkt_count = 0;
+	p_ring_stats->n_tx_dev_mem_oob = 0;
 }
 
 void zero_cq_stats(cq_stats_t* p_cq_stats)

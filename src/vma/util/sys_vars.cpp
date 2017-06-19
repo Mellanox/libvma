@@ -450,6 +450,8 @@ void mce_sys_var::get_env_params()
 	ring_migration_ratio_tx = MCE_DEFAULT_RING_MIGRATION_RATIO_TX;
 	ring_migration_ratio_rx = MCE_DEFAULT_RING_MIGRATION_RATIO_RX;
 	ring_limit_per_interface= MCE_DEFAULT_RING_LIMIT_PER_INTERFACE;
+	ring_dev_mem_tx         = MCE_DEFAULT_RING_DEV_MEM_TX;
+
 	tcp_max_syn_rate	= MCE_DEFAULT_TCP_MAX_SYN_RATE;
 
 	tx_num_segs_tcp         = MCE_DEFAULT_TX_NUM_SEGS_TCP;
@@ -574,6 +576,7 @@ void mce_sys_var::get_env_params()
 		thread_mode		= THREAD_MODE_SINGLE;
 		mem_alloc_type          = ALLOC_TYPE_HUGEPAGES;
 		tcp_nodelay		= true; // MCE_DEFAULT_TCP_NODELAY (false)
+		ring_dev_mem_tx         = 16384; // MCE_DEFAULT_RING_DEV_MEM_TX (0)
 		strcpy(internal_thread_affinity_str, "0"); //MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR;
 		break;
 
@@ -598,6 +601,7 @@ void mce_sys_var::get_env_params()
 		select_poll_os_ratio          = 100; //MCE_DEFAULT_SELECT_POLL_OS_RATIO (10)
 		select_poll_os_force	      = 1;   //MCE_DEFAULT_SELECT_POLL_OS_FORCE (0)
 		tcp_nodelay	      	      = true; // MCE_DEFAULT_TCP_NODELAY (falst)
+		ring_dev_mem_tx          = 16384; // MCE_DEFAULT_RING_DEV_MEM_TX (0)
 		break;
 
 	case MCE_SPEC_29WEST_LBM_29:
@@ -789,6 +793,9 @@ void mce_sys_var::get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_RING_LIMIT_PER_INTERFACE)) != NULL)
 		ring_limit_per_interface = MAX(0, (int32_t)atoi(env_ptr));
+
+	if ((env_ptr = getenv(SYS_VAR_RING_DEV_MEM_TX)) != NULL)
+		ring_dev_mem_tx = MAX(0, (int32_t)atoi(env_ptr));
 
 	if ((env_ptr = getenv(SYS_VAR_TCP_MAX_SYN_RATE)) != NULL)
 		tcp_max_syn_rate = MIN(TCP_MAX_SYN_RATE_TOP_LIMIT, MAX(0, (int32_t)atoi(env_ptr)));

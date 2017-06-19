@@ -320,12 +320,6 @@ remain below as in master?
 	request_more_tx_buffers(RING_TX_BUFS_COMPENSATE);
 	m_tx_num_bufs = m_tx_pool.size();
 
-	if (active) {
-		// 'up' the active QP/CQ resource
-		m_up = true;
-		m_p_qp_mgr->up();
-	}
-
 	// use local copy of stats by default
 	m_p_ring_stat = &m_ring_stat_static;
 	memset(m_p_ring_stat , 0, sizeof(*m_p_ring_stat));
@@ -334,6 +328,12 @@ remain below as in master?
 	}
 	if (safe_mce_sys().cq_moderation_enable) {
 		modify_cq_moderation(safe_mce_sys().cq_moderation_period_usec, safe_mce_sys().cq_moderation_count);
+	}
+
+	if (active) {
+		// 'up' the active QP/CQ resource
+		m_up = true;
+		m_p_qp_mgr->up();
 	}
 
 	vma_stats_instance_create_ring_block(m_p_ring_stat);
@@ -1795,6 +1795,9 @@ int ring_simple::put_tx_buffers(mem_buf_desc_t* buff_list)
 		next = buff_list->p_next_desc;
 		buff_list->p_next_desc = NULL;
 
+		if (buff_list->tx.dev_mem_length)
+			m_p_qp_mgr->dm_release_data(buff_list);
+
 		//potential race, ref is protected here by ring_tx lock, and in dst_entry_tcp & sockinfo_tcp by tcp lock
 		if (likely(buff_list->lwip_pbuf.pbuf.ref))
 			buff_list->lwip_pbuf.pbuf.ref--;
@@ -1826,6 +1829,9 @@ int ring_simple::put_tx_single_buffer(mem_buf_desc_t* buff)
 	int count = 0;
 
 	if (likely(buff)) {
+
+		if (buff->tx.dev_mem_length)
+			m_p_qp_mgr->dm_release_data(buff);
 
 		//potential race, ref is protected here by ring_tx lock, and in dst_entry_tcp & sockinfo_tcp by tcp lock
 		if (likely(buff->lwip_pbuf.pbuf.ref))

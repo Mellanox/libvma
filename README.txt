@@ -117,6 +117,7 @@ Example:
  VMA DETAILS: Ring migration ratio TX        100                        [VMA_RING_MIGRATION_RATIO_TX]
  VMA DETAILS: Ring migration ratio RX        100                        [VMA_RING_MIGRATION_RATIO_RX]
  VMA DETAILS: Ring limit per interface       0 (no limit)               [VMA_RING_LIMIT_PER_INTERFACE]
+ VMA DETAILS: Ring On Device Memory TX       0                          [VMA_RING_DEV_MEM_TX]
  VMA DETAILS: TCP max syn rate               0 (no limit)               [VMA_TCP_MAX_SYN_RATE]
  VMA DETAILS: Tx Mem Segs TCP                1000000                    [VMA_TX_SEGS_TCP]
  VMA DETAILS: Tx Mem Bufs                    200000                     [VMA_TX_BUFS]
@@ -434,6 +435,15 @@ same ring.
 rings in the system. Each ring consume VMA_RX_WRE buffers.]
 Use a value of 0 for unlimited number of rings.
 Default value is 0 (no limit)
+
+VMA_RING_DEV_MEM_TX
+VMA can use the On Device Memory to store the egress packet if it does not fit into
+the BF inline buffer. This improves application egress latency by reducing PCI transactions.
+Using VMA_RING_DEV_MEM_TX, the user can set the amount of On Device Memory buffer allocated
+for each TX ring.
+The total size of the On Device Memory is limited to 256k for a single port HCA and to
+128k for dual port HCA.
+Default value is 0
 
 VMA_RX_BUFS
 Number Rx data buffer elements allocation for the processes. These data buffers 
