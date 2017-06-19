@@ -273,12 +273,14 @@ libvma_la_SOURCES := \
 	sock/sockinfo_udp.h \
 	sock/sock-redirect.h \
 	\
+	util/chunk_list.h \
 	util/hash_map.h \
 	util/if.h \
 	util/instrumentation.h \
 	util/libvma.h \
 	util/linked_unordered_map.h \
 	util/list.h \
+	util/sg_array.h \
 	util/sock_addr.h \
 	util/sysctl_reader.h \
 	util/sys_vars.h \
@@ -287,7 +289,6 @@ libvma_la_SOURCES := \
 	util/valgrind.h \
 	util/verbs_extra.h \
 	util/vma_list.h \
-	util/chunk_list.h \
 	util/vma_stats.h \
 	util/vtypes.h \
 	util/wakeup.h \
