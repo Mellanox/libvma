@@ -69,6 +69,7 @@ transport_t dst_entry_tcp::get_transport(sockaddr_in to)
 ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked /*= true*/, bool is_rexmit /*= false*/)
 {
 	int ret = 0;
+	uint8_t* p_buffer_addr = NULL;
 	tx_packet_template_t* p_pkt;
 	mem_buf_desc_t *p_mem_buf_desc;
 	size_t total_packet_len = 0;
@@ -97,7 +98,8 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 		//p_pkt = (tx_packet_template_t*)((uint8_t*)p_pkt + hdr_alignment_diff);
 		p_pkt->hdr.m_ip_hdr.tot_len = (htons)(p_tcp_iov[0].iovec.iov_len + m_header.m_ip_header_len);
 
-		m_sge[0].addr = (uintptr_t)((uint8_t*)p_pkt + hdr_alignment_diff);
+		p_buffer_addr = (uint8_t*)p_pkt + hdr_alignment_diff;
+		m_sge[0].addr = (uintptr_t)p_buffer_addr;
 		m_sge[0].length = total_packet_len;
 
 		if (total_packet_len < m_max_inline) { // inline send
@@ -119,15 +121,15 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 		send_lwip_buffer(m_id, m_p_send_wqe, b_blocked, is_dummy);
 
 		/* for DEBUG */
-		if ((uint8_t*)m_sge[0].addr < p_tcp_iov[0].p_desc->p_buffer || (uint8_t*)p_pkt < p_tcp_iov[0].p_desc->p_buffer) {
+		if (p_buffer_addr < p_tcp_iov[0].p_desc->p_buffer || (uint8_t*)p_pkt < p_tcp_iov[0].p_desc->p_buffer) {
 			dst_tcp_logerr("p_buffer - addr=%d, m_total_hdr_len=%zd, p_buffer=%p, type=%d, len=%d, tot_len=%d, payload=%p, hdr_alignment_diff=%zd\n",
-					(int)(p_tcp_iov[0].p_desc->p_buffer - (uint8_t*)m_sge[0].addr), m_header.m_total_hdr_len,
+					(int)(p_tcp_iov[0].p_desc->p_buffer - p_buffer_addr), m_header.m_total_hdr_len,
 					p_tcp_iov[0].p_desc->p_buffer, p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.type,
 					p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.len, p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.tot_len,
 					p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.payload, hdr_alignment_diff);
 		}
 	}
-	else { // We don'nt support inline in this case, since we believe that this a very rare case
+	else { // We don't support inline in this case, since we believe that this a very rare case
 		p_mem_buf_desc = get_buffer(b_blocked);
 		if (p_mem_buf_desc == NULL) {
 			ret = -1;
@@ -144,7 +146,8 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 			total_packet_len += p_iov[i].iov_len;
 		}
 
-		m_sge[0].addr = (uintptr_t)(p_mem_buf_desc->p_buffer + hdr_alignment_diff);
+		p_buffer_addr = p_mem_buf_desc->p_buffer + hdr_alignment_diff;
+		m_sge[0].addr = (uintptr_t)p_buffer_addr;
 		m_sge[0].length = total_packet_len - hdr_alignment_diff;
 		// LKey will be updated in ring->send() // m_sge[0].lkey = p_mem_buf_desc->lkey; 
 
@@ -167,9 +170,9 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 		send_ring_buffer(m_id, m_p_send_wqe, attr);
 
 		/* for DEBUG */
-		if ((uint8_t*)m_sge[0].addr < p_mem_buf_desc->p_buffer) {
+		if (p_buffer_addr < p_mem_buf_desc->p_buffer) {
 			dst_tcp_logerr("p_buffer - addr=%d, m_total_hdr_len=%zd, p_buffer=%p, type=%d, len=%d, tot_len=%d, payload=%p, hdr_alignment_diff=%zd\n",
-					(int)(p_mem_buf_desc->p_buffer - (uint8_t*)m_sge[0].addr), m_header.m_total_hdr_len,
+					(int)(p_mem_buf_desc->p_buffer - p_buffer_addr), m_header.m_total_hdr_len,
 					p_mem_buf_desc->p_buffer, p_mem_buf_desc->lwip_pbuf.pbuf.type,
 					p_mem_buf_desc->lwip_pbuf.pbuf.len, p_mem_buf_desc->lwip_pbuf.pbuf.tot_len,
 					p_mem_buf_desc->lwip_pbuf.pbuf.payload, hdr_alignment_diff);

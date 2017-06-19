@@ -218,6 +218,23 @@ AS_IF([test "x$enable_exp_cq" == xyes],
 	])
 )
 
+# Device Memory
+AC_MSG_CHECKING([if IBV_DEV_MEM is defined])
+AC_TRY_LINK(
+#include <infiniband/verbs.h>
+,
+[
+int access = (int)IBV_DEV_MEM;
+return access;
+],
+[
+AC_MSG_RESULT([yes])
+AC_DEFINE(DEFINED_IBV_DEV_MEM, 1, [Define to 1 if IBV_DEV_MEM is defined])
+],
+[
+AC_MSG_RESULT([no])
+])
+
 #
 # VMAPOLL
 #

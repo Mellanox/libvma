@@ -158,6 +158,7 @@ libvma_la_SOURCES := \
 	util/instrumentation.cpp \
 	util/sys_vars.cpp \
 	util/agent.cpp \
+	util/dm_context.cpp \
 	\
 	libvma.c \
 	main.cpp \
@@ -281,6 +282,7 @@ libvma_la_SOURCES := \
 	util/linked_unordered_map.h \
 	util/list.h \
 	util/sg_array.h \
+	util/dm_context.h \
 	util/sock_addr.h \
 	util/sysctl_reader.h \
 	util/sys_vars.h \

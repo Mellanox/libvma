@@ -36,6 +36,7 @@
 
 #include "qp_mgr.h"
 #include "vma/util/sg_array.h"
+#include "vma/util/dm_context.h"
 
 #if defined(HAVE_INFINIBAND_MLX5_HW_H)
 
@@ -58,15 +59,18 @@ protected:
 private:
 	cq_mgr*		init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_channel);
 	virtual cq_mgr* init_tx_cq_mgr(void);
+	virtual bool    is_compilation_need() { return !m_n_unsignaled_count || m_dm_context.dm_request_completion(); };
+	virtual void    dm_release_data(mem_buf_desc_t* buff) { m_dm_context.dm_release_data(buff); }
+	virtual void    up();
 
 	inline void	set_signal_in_next_send_wqe();
 
-	int		send_to_wire(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
+	int		send_to_wire(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr, bool request_comp);
 	inline int	fill_wqe(vma_ibv_send_wr* p_send_wqe);
 	inline void	send_by_bf(uint64_t* addr, int num_wqebb);
 	inline void	send_by_bf_wrap_up(uint64_t* bottom_addr, int num_wqebb_bottom, int num_wqebb_top);
 	inline int	fill_inl_segment(sg_array &sga, uint8_t *cur_seg, uint8_t* data_addr, int max_inline_len, int inline_len);
-	inline int	fill_ptr_segment(sg_array &sga, struct mlx5_wqe_data_seg* dp_seg, uint8_t* data_addr, int data_len);
+	inline int	fill_ptr_segment(sg_array &sga, struct mlx5_wqe_data_seg* dp_seg, uint8_t* data_addr, int data_len, mem_buf_desc_t* buffer);
 	void		init_sq();
 
 	struct mlx5_wqe64	(*m_sq_wqes)[];
@@ -81,6 +85,7 @@ private:
 	uint16_t            m_sq_bf_offset;
 	uint16_t            m_sq_bf_buf_size;
 	uint16_t            m_sq_wqe_counter;
+	dm_context          m_dm_context;
 };
 #endif //defined(HAVE_INFINIBAND_MLX5_HW_H)
 #endif //QP_MGR_ETH_MLX5_H

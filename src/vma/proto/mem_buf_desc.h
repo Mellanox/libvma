@@ -74,42 +74,47 @@ public:
 	static inline size_t buffer_node_offset(void) {return NODE_OFFSET(mem_buf_desc_t, buffer_node);}
 	list_node<mem_buf_desc_t, mem_buf_desc_t::buffer_node_offset> buffer_node;
 
-	struct {
-		sockaddr_in	src; // L3 info
-		sockaddr_in	dst; // L3 info
+	union {
+		struct {
+			sockaddr_in	src; // L3 info
+			sockaddr_in	dst; // L3 info
 
-		iovec 		frag; // Datagram part base address and length
-		size_t		sz_payload; // This is the total amount of data of the packet, if (sz_payload>sz_data) means fragmented packet.
-		uint64_t	hw_raw_timestamp;
-		void* 		context;
-		uint32_t	flow_tag_id; // Flow Tag ID of this received packet
+			iovec 		frag; // Datagram part base address and length
+			size_t		sz_payload; // This is the total amount of data of the packet, if (sz_payload>sz_data) means fragmented packet.
+			uint64_t	hw_raw_timestamp;
+			void* 		context;
+			uint32_t	flow_tag_id; // Flow Tag ID of this received packet
 
-		union {
-			struct {
-				struct iphdr* 	p_ip_h;
-				struct tcphdr* 	p_tcp_h;
-				size_t		n_transport_header_len;
-				bool		gro;
-				bool		pad[7];
-			} tcp;
-			struct {
-				struct timespec sw_timestamp;
-				struct timespec	hw_timestamp;
-				in_addr_t	local_if; // L3 info
-				uint32_t	pad;
-			} udp;
-		};
+			union {
+				struct {
+					struct iphdr* 	p_ip_h;
+					struct tcphdr* 	p_tcp_h;
+					size_t		n_transport_header_len;
+					bool		gro;
+					bool		pad[7];
+				} tcp;
+				struct {
+					struct timespec sw_timestamp;
+					struct timespec	hw_timestamp;
+					in_addr_t	local_if; // L3 info
+					uint32_t	pad;
+				} udp;
+			};
 
-		int8_t		n_frags;	//number of fragments
-		bool 		is_vma_thr; 	// specify whether packet drained from VMA internal thread or from user app thread
-		bool		is_sw_csum_need; // specify if software checksum is need for this packet
+			int8_t		n_frags;	//number of fragments
+			bool 		is_vma_thr; 	// specify whether packet drained from VMA internal thread or from user app thread
+			bool		is_sw_csum_need; // specify if software checksum is need for this packet
 
-#ifdef DEFINED_VMAPOLL
-		bool 		vma_polled;
-#else
-		bool		pad[1];
-#endif // DEFINED_VMAPOLL
-	} rx;
+	#ifdef DEFINED_VMAPOLL
+			bool 		vma_polled;
+	#else
+			bool		pad[1];
+	#endif // DEFINED_VMAPOLL
+		} rx;
+		struct {
+			size_t		memic_length; // Total data aligned to 64 bytes.
+		} tx;
+	};
 
 private:
 	atomic_t	n_ref_count;	// number of interested receivers (sockinfo) [can be modified only in cq_mgr context]

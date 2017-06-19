@@ -450,6 +450,8 @@ void mce_sys_var::get_env_params()
 	ring_migration_ratio_tx = MCE_DEFAULT_RING_MIGRATION_RATIO_TX;
 	ring_migration_ratio_rx = MCE_DEFAULT_RING_MIGRATION_RATIO_RX;
 	ring_limit_per_interface= MCE_DEFAULT_RING_LIMIT_PER_INTERFACE;
+	ring_dev_mem_tx         = MCE_DEFAULT_RING_DEV_MEM_TX;
+
 	tcp_max_syn_rate	= MCE_DEFAULT_TCP_MAX_SYN_RATE;
 
 	tx_num_segs_tcp         = MCE_DEFAULT_TX_NUM_SEGS_TCP;
@@ -789,6 +791,9 @@ void mce_sys_var::get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_RING_LIMIT_PER_INTERFACE)) != NULL)
 		ring_limit_per_interface = MAX(0, (int32_t)atoi(env_ptr));
+
+	if ((env_ptr = getenv(SYS_VAR_RING_DEV_MEM_TX)) != NULL)
+		ring_dev_mem_tx = MAX(0, (int32_t)atoi(env_ptr));
 
 	if ((env_ptr = getenv(SYS_VAR_TCP_MAX_SYN_RATE)) != NULL)
 		tcp_max_syn_rate = MIN(TCP_MAX_SYN_RATE_TOP_LIMIT, MAX(0, (int32_t)atoi(env_ptr)));
