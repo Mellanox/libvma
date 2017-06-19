@@ -18,6 +18,8 @@ gtest_SOURCES = \
 	\
 	common/base.cc \
 	\
+	aux/sg_array.cc \
+	\
 	tcp/tcp_base.cc \
 	tcp/tcp_socket.cc \
 	tcp/tcp_bind.cc \
