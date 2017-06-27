@@ -33,6 +33,7 @@
 #include "qp_mgr.h"
 #include "utils/bullseye.h"
 #include "vma/util/utils.h"
+#include "vma/util/valgrind.h"
 #include "vma/util/instrumentation.h"
 #include "vma/iomux/io_mux_call.h"
 #include "buffer_pool.h"
@@ -120,6 +121,7 @@ qp_mgr::~qp_mgr()
 		IF_VERBS_FAILURE(ibv_destroy_qp(m_qp)) {
 			qp_logdbg("QP destroy failure (errno = %d %m)", -errno);
 		} ENDIF_VERBS_FAILURE;
+		VALGRIND_MAKE_MEM_UNDEFINED(m_qp, sizeof(ibv_qp));
 	}
 	m_qp = NULL;
 
@@ -782,7 +784,7 @@ int qp_mgr_eth::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 		qp_logerr("ibv_create_qp failed (errno=%d %m)", errno);
 		return -1;
 	}
-
+	VALGRIND_MAKE_MEM_DEFINED(m_qp, sizeof(ibv_qp));
 	if ((ret = priv_ibv_modify_qp_from_err_to_init_raw(m_qp, m_port_num)) != 0) {
 		qp_logerr("failed to modify QP from ERR to INIT state (ret = %d)", ret);
 		return ret;
@@ -894,6 +896,7 @@ int qp_mgr_ib::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 void qp_mgr_ib::update_pkey_index()
 {
 	qp_logdbg("");
+	VALGRIND_MAKE_MEM_DEFINED(&m_pkey, sizeof(m_pkey));
 	if (priv_ibv_find_pkey_index(m_p_ib_ctx_handler->get_ibv_context(), get_port_num(), m_pkey, &m_pkey_index)) {
 		qp_logdbg("IB: Can't find correct pkey_index for pkey '%d'", m_pkey);
 		m_pkey_index = (uint16_t)-1;

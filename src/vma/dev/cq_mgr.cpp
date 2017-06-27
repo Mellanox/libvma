@@ -139,7 +139,7 @@ void cq_mgr::configure(int cq_size)
 		cq_logpanic("ibv_create_cq failed (errno=%d %m)", errno);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-
+	VALGRIND_MAKE_MEM_DEFINED(m_p_ibv_cq, sizeof(ibv_cq));
 	switch (m_transport_type) {
 	case VMA_TRANSPORT_IB:
 		m_sz_transport_header = GRH_HDR_LEN;
@@ -238,6 +238,7 @@ cq_mgr::~cq_mgr()
 		IF_VERBS_FAILURE(ibv_destroy_cq(m_p_ibv_cq)) {
 			cq_logerr("destroy cq failed (errno=%d %m)", errno);
 		} ENDIF_VERBS_FAILURE;
+		VALGRIND_MAKE_MEM_UNDEFINED(m_p_ibv_cq, sizeof(ibv_cq));
 	}
 	
 	statistics_print();

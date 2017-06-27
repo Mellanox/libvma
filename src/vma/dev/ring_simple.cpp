@@ -39,6 +39,7 @@
 
 #include "utils/bullseye.h"
 #include "vma/util/utils.h"
+#include "vma/util/valgrind.h"
 #include "vma/proto/ip_frag.h"
 #include "vma/proto/L2_address.h"
 #include "vma/proto/igmp_mgr.h"
@@ -196,6 +197,7 @@ ring_simple::~ring_simple()
 		IF_VERBS_FAILURE(ibv_destroy_comp_channel(m_p_rx_comp_event_channel)) {
 			ring_logdbg("destroy comp channel failed (errno=%d %m)", errno);
 		} ENDIF_VERBS_FAILURE;
+		VALGRIND_MAKE_MEM_UNDEFINED(m_p_rx_comp_event_channel, sizeof(struct ibv_comp_channel));
 	}
 
 	delete[] m_p_n_rx_channel_fds;
@@ -218,6 +220,7 @@ ring_simple::~ring_simple()
 		IF_VERBS_FAILURE(ibv_destroy_comp_channel(m_p_tx_comp_event_channel)) {
 			ring_logdbg("destroy comp channel failed (errno=%d %m)", errno);
 		} ENDIF_VERBS_FAILURE;
+		VALGRIND_MAKE_MEM_UNDEFINED(m_p_tx_comp_event_channel, sizeof(struct ibv_comp_channel));
 		m_p_tx_comp_event_channel = NULL;
 	}
 
@@ -255,7 +258,7 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 		throw_vma_exception("create event channel failed");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-
+	VALGRIND_MAKE_MEM_DEFINED(m_p_tx_comp_event_channel, sizeof(struct ibv_comp_channel));
 	// Check device capabilities for max QP work requests
 	vma_ibv_device_attr& r_ibv_dev_attr = m_p_ib_ctx->get_ibv_device_attr();
 	uint32_t max_qp_wr = ALIGN_WR_DOWN(r_ibv_dev_attr.max_qp_wr - 1);
@@ -282,7 +285,7 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 		throw_vma_exception("create event channel failed");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-
+	VALGRIND_MAKE_MEM_DEFINED(m_p_rx_comp_event_channel, sizeof(struct ibv_comp_channel));
 	m_p_n_rx_channel_fds = new int[m_n_num_resources];
 	m_p_n_rx_channel_fds[0] = m_p_rx_comp_event_channel->fd;
 	// Add the rx channel fd to the global fd collection
