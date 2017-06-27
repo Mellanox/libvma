@@ -42,6 +42,7 @@
 #include "vma/event/event_handler_manager.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/util/utils.h"
+#include "vma/util/valgrind.h"
 #include "vma/sock/sock-redirect.h"
 #include "vma/sock/fd_collection.h"
 #include "vma/dev/ring.h"
@@ -440,6 +441,7 @@ bool net_device_table_mgr::verify_eth_qp_creation(const char* ifname, uint8_t po
 				success = false;
 				break;
 			}
+			VALGRIND_MAKE_MEM_DEFINED(channel, sizeof(ibv_comp_channel));
 			cq = vma_ibv_create_cq(p_ib_ctx->get_ibv_context(), safe_mce_sys().tx_num_wr, (void*)this, channel, 0, &attr);
 			if (!cq) {
 				ndtm_logdbg("cq creation failed for interface %s (errno=%d %m)", ifname, errno);
@@ -502,6 +504,7 @@ bool net_device_table_mgr::verify_eth_qp_creation(const char* ifname, uint8_t po
 			ndtm_logdbg("channel destroy failed on interface %s (errno=%d %m)", ifname, errno);
 			success = false;
 		} ENDIF_VERBS_FAILURE;
+		VALGRIND_MAKE_MEM_UNDEFINED(channel, sizeof(ibv_comp_channel));
 	}
 	rdma_free_devices(pp_ibv_context_list);
 	return success;

@@ -237,12 +237,7 @@ vma_allocator::~vma_allocator() {
 	for (size_t i = 0; i < m_mr_list_len; ++i) {
 		ib_ctx_handler* p_ib_ctx_handler =
 				g_p_ib_ctx_handler_collection->get_ib_ctx(m_mr_list[i]->context);
-		if (!p_ib_ctx_handler->is_removed()) {
-			IF_VERBS_FAILURE(ibv_dereg_mr(m_mr_list[i])) {
-				__log_info_err("failed de-registering a memory region "
-						"(errno=%d %m)", errno);
-			} ENDIF_VERBS_FAILURE;
-		}
+		p_ib_ctx_handler->mem_dereg(m_mr_list[i]);
 	}
 	delete[] m_mr_list;
 	// Release memory

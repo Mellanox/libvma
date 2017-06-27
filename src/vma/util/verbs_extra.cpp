@@ -35,6 +35,7 @@
 #include <vlogger/vlogger.h>
 
 #include "verbs_extra.h"
+#include "valgrind.h"
 
 #undef  MODULE_NAME
 #define MODULE_NAME 		"verbs_extra:"
@@ -263,6 +264,7 @@ int priv_ibv_query_qp_state(struct ibv_qp *qp)
 		return -1;
 	} ENDIF_VERBS_FAILURE;
 	BULLSEYE_EXCLUDE_BLOCK_END
+	VALGRIND_MAKE_MEM_DEFINED(&qp_attr, sizeof(qp_attr));
 	return (ibv_qp_state)qp_attr.qp_state;
 }
 
