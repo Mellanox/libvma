@@ -181,6 +181,9 @@ bool poll_call::wait(const timeval &elapsed)
 		pto = &to;
 		m_n_all_ready_fds = orig_os_api.ppoll(m_fds, m_nfds + 1, pto, m_sigmask);
 	}else {
+		if (m_nfds == 1 && m_fds[0].fd < 0) {
+			timeout = 0;
+		}
 		m_n_all_ready_fds = orig_os_api.poll(m_fds, m_nfds + 1, timeout);
 	}
 
