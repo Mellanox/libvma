@@ -743,7 +743,11 @@ int net_device_val::global_ring_request_notification(uint64_t poll_sn)
 	int ret_total = 0;
 	auto_unlocker lock(m_lock);
 	rings_hash_map_t::iterator ring_iter;
+	int rhm_sz = m_h_ring_map.size();
 	for (ring_iter = m_h_ring_map.begin(); ring_iter != m_h_ring_map.end(); ring_iter++) {
+		if (rhm_sz != (int)m_h_ring_map.size()) {
+			break;
+		}
 		int ret = THE_RING->request_notification(CQT_RX, poll_sn);
 		if (ret < 0) {
 			nd_logerr("Error ring[%p]->request_notification() (errno=%d %m)", THE_RING, errno);
