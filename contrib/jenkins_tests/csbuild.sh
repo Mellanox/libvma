@@ -27,7 +27,7 @@ set +eE
 ${WORKSPACE}/configure --prefix=${csbuild_dir}/install $jenkins_test_custom_configure > "${csbuild_dir}/csbuild.log" 2>&1
 make clean
 
-eval "csbuild --no-clean -c \"make $make_opt \" > \"${csbuild_dir}/csbuild.log\" 2>&1"
+eval "csbuild --cswrap-timeout=60 --no-clean -c \"make $make_opt \" > \"${csbuild_dir}/csbuild.log\" 2>&1"
 rc=$(($rc+$?))
 
 set -eE
@@ -45,7 +45,9 @@ eval "csgrep --quiet --event 'error|warning' \
 	csgrep --mode=grep --invert-match --event 'internal warning' --prune-events=1 | \
 	cssort --key=path > ${csbuild_dir}/csbuild.err 2>&1 \
 	"
-nerrors=$(cat ${csbuild_dir}/csbuild.err | grep 'Error:' | wc -l)
+eval "grep 'timed out' ${csbuild_dir}/csbuild.log >> ${csbuild_dir}/csbuild.err 2>&1"
+
+nerrors=$(cat ${csbuild_dir}/csbuild.err | grep 'Error:\|error:' | wc -l)
 rc=$(($rc+$nerrors))
 
 csbuild_tap=${WORKSPACE}/${prefix}/csbuild.tap
