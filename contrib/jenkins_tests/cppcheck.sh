@@ -17,8 +17,8 @@ mkdir -p $cppcheck_dir
 cd $cppcheck_dir
 
 set +eE
-eval "find ${WORKSPACE}/src -name '*.h' -o -name '*.cpp' -o -name '*.c' -o -name '*.hpp' | \
-	cppcheck --std=c99 --force --enable=information \
+eval "find ${WORKSPACE}/src -name '*.h' -o -name '*.cpp' -o -name '*.c' -o -name '*.hpp' -o -name '*.inl' | \
+	cppcheck --std=c99 --std=c++11 --language=c++ --force --enable=information \
 	--inline-suppr --suppress=memleak:config_parser.y \
 	--template='{severity}: {id}: {file}:{line}: {message}' \
 	--file-list=- 2> ${cppcheck_dir}/cppcheck.err 1> ${cppcheck_dir}/cppcheck.log"
