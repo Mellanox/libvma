@@ -303,10 +303,15 @@ AC_ARG_WITH(ofed,
         [ac_cv_ofed_path=$withval])
 if test -d "$ac_cv_ofed_path/lib64" ; then
         LDFLAGS="$LDFLAGS -L$ac_cv_ofed_path/lib64"
-else
+else 
         LDFLAGS="$LDFLAGS -L$ac_cv_ofed_path/lib"
 fi
 
+if test -f "$ac_cv_ofed_path/lib64/libibverbs.so" ; then
+	libibverbs_file="$ac_cv_ofed_path/lib64/libibverbs.so"
+else 
+	libibverbs_file="$ac_cv_ofed_path/lib/libibverbs.so"
+fi
 #
 # RDTSC measurements support
 #
@@ -867,20 +872,42 @@ AS_IF([test "x$have_mp_rq" == xyes],
 
 LDFLAGS=$TMP_LDFLAGS
 
-have_libnl=no
-PKG_CHECK_MODULES([LIBNL3],[libnl-route-3.0], have_libnl=yes AC_DEFINE([HAVE_LIBNL3], [1], [Use libnl-route-3.0]), [:])
-if test "$have_libnl" = yes; then
+ldd $libibverbs_file | grep libnl >/dev/null 2>&1
+if test $? -eq 0 ; then
+	ldd $libibverbs_file | grep -e 'libnl3' -e 'libnl-3' >/dev/null 2>&1
+	if test $? -eq 0 ; then
+		ibverbs_libnl="3"
+	else
+		ibverbs_libnl="1"
+	fi
+fi
+
+have_libnl1=no
+have_libnl3=no
+
+if test x"$ibverbs_libnl" == x3; then
+	PKG_CHECK_MODULES([LIBNL3],[libnl-route-3.0],have_libnl3=yes AC_DEFINE([HAVE_LIBNL3], [1], [Use libnl-route-3.0]),[:])
+	if test "$have_libnl3" == no; then
+		AC_MSG_ERROR([libibverbs is linked with libnl3 while libnl3-devel is not installed. Please install libnl3-devel and try again])	
+	fi
+else 
+	PKG_CHECK_MODULES([LIBNL1],[libnl-1], have_libnl1=yes AC_DEFINE([HAVE_LIBNL1], [1], [Use libnl-1]), [:]) 
+	if test "$have_libnl1" == no; then
+		AC_MSG_ERROR([libibverbs is linked with libnl1 while libnl1-devel is not installed. Please install libnl1-devel and try again])	
+	fi
+fi
+
+if test "$have_libnl3" = yes; then
 	AC_SUBST([LIBNL_LIBS], "$LIBNL3_LIBS")
 	AC_SUBST([LIBNL_CFLAGS], "$LIBNL3_CFLAGS")
 	AC_SUBST([LIBNLX_DEVEL], "libnl3-devel")
 else
-	PKG_CHECK_MODULES([LIBNL1],[libnl-1], have_libnl=yes AC_DEFINE([HAVE_LIBNL1], [1], [Use libnl-1]),  AC_MSG_ERROR([libnl3-devel or libnl-devel must be installed in order to build VMA]))
 	AC_SUBST([LIBNL_LIBS], "$LIBNL1_LIBS")
 	AC_SUBST([LIBNL_CFLAGS], "$LIBNL1_CFLAGS")
 	AC_SUBST([LIBNLX_DEVEL], "libnl-devel")
 fi
 
-AM_CONDITIONAL([HAVE_LIBNL], [test "$have_libnl" = "yes"])
+AM_CONDITIONAL([HAVE_LIBNL], [test "$have_libnl1" = "yes" -o "$have_libnl3" = "yes"])
 
 AC_CONFIG_FILES([
 		Makefile
