@@ -1,3 +1,12 @@
+Version 8.4.1-0:
+Date + Time 2017-07-04
+=============================================================
+Added:
+        - RM #959307 Link VMA with libnl1 or libnl3 based on libibverbs
+        - RM #1050652 Improve Jenkins - increase csbuild detection timeout, upgrade to cppcheck ver 1.79
+Fixed:
+        - RM #1065276 Fix incorrect logging strings
+
 Version 8.3.7-0:
 Date + Time 2017-06-19
 =============================================================
