@@ -109,7 +109,7 @@ for target_v in "${target_list[@]}"; do
         $WORKSPACE/contrib/jenkins_tests/build.sh
         ret=$?
         if [ $ret -gt 0 ]; then
-           do_err "case: [build: rc=$rc]"
+           do_err "case: [build: ret=$ret]"
         fi
         rc=$((rc + $ret))
     fi
@@ -122,7 +122,7 @@ for target_v in "${target_list[@]}"; do
 	        $WORKSPACE/contrib/jenkins_tests/compiler.sh
 	        ret=$?
 	        if [ $ret -gt 0 ]; then
-	           do_err "case: [compiler: rc=$rc]"
+	           do_err "case: [compiler: ret=$ret]"
 	        fi
 	        rc=$((rc + $ret))
 	    fi
@@ -132,7 +132,7 @@ for target_v in "${target_list[@]}"; do
 	        $WORKSPACE/contrib/jenkins_tests/rpm.sh
 	        ret=$?
 	        if [ $ret -gt 0 ]; then
-	           do_err "case: [rpm: rc=$rc]"
+	           do_err "case: [rpm: ret=$ret]"
 	        fi
 	        rc=$((rc + $ret))
 	    fi
@@ -142,7 +142,7 @@ for target_v in "${target_list[@]}"; do
 	        $WORKSPACE/contrib/jenkins_tests/cov.sh
 	        ret=$?
 	        if [ $ret -gt 0 ]; then
-	           do_err "case: [cov: rc=$rc]"
+	           do_err "case: [cov: ret=$ret]"
 	        fi
 	        rc=$((rc + $ret))
 	    fi
@@ -152,7 +152,7 @@ for target_v in "${target_list[@]}"; do
 	        $WORKSPACE/contrib/jenkins_tests/cppcheck.sh
 	        ret=$?
 	        if [ $ret -gt 0 ]; then
-	           do_err "case: [cppcheck: rc=$rc]"
+	           do_err "case: [cppcheck: ret=$ret]"
 	        fi
 	        rc=$((rc + $ret))
 	    fi
@@ -162,7 +162,7 @@ for target_v in "${target_list[@]}"; do
 	        $WORKSPACE/contrib/jenkins_tests/csbuild.sh
 	        ret=$?
 	        if [ $ret -gt 0 ]; then
-	           do_err "case: [csbuild: rc=$rc]"
+	           do_err "case: [csbuild: ret=$ret]"
 	        fi
 	        rc=$((rc + $ret))
 	    fi
@@ -172,7 +172,7 @@ for target_v in "${target_list[@]}"; do
 	        $WORKSPACE/contrib/jenkins_tests/test.sh
 	        ret=$?
 	        if [ $ret -gt 0 ]; then
-	           do_err "case: [test: rc=$rc]"
+	           do_err "case: [test: ret=$ret]"
 	        fi
 	        rc=$((rc + $ret))
 	    fi
@@ -182,7 +182,7 @@ for target_v in "${target_list[@]}"; do
 	        $WORKSPACE/contrib/jenkins_tests/gtest.sh
 	        ret=$?
 	        if [ $ret -gt 0 ]; then
-	           do_err "case: [gtest: rc=$rc]"
+	           do_err "case: [gtest: ret=$ret]"
 	        fi
 	        rc=$((rc + $ret))
 	    fi
@@ -192,7 +192,7 @@ for target_v in "${target_list[@]}"; do
 	        $WORKSPACE/contrib/jenkins_tests/vg.sh
 	        ret=$?
 	        if [ $ret -gt 0 ]; then
-	           do_err "case: [vg: rc=$rc]"
+	           do_err "case: [vg: ret=$ret]"
 	        fi
 	        rc=$((rc + $ret))
 	    fi
@@ -202,7 +202,7 @@ for target_v in "${target_list[@]}"; do
 	        $WORKSPACE/contrib/jenkins_tests/style.sh
 	        ret=$?
 	        if [ $ret -gt 0 ]; then
-	           do_err "case: [style: rc=$rc]"
+	           do_err "case: [style: ret=$ret]"
 	        fi
 	        rc=$((rc + $ret))
 	    fi
@@ -212,7 +212,7 @@ for target_v in "${target_list[@]}"; do
 	        $WORKSPACE/contrib/jenkins_tests/tool.sh
 	        ret=$?
 	        if [ $ret -gt 0 ]; then
-	           do_err "case: [tool: rc=$rc]"
+	           do_err "case: [tool: ret=$ret]"
 	        fi
 	        rc=$((rc + $ret))
 	    fi
