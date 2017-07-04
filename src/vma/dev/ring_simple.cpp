@@ -991,7 +991,6 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_f
 		return false;
 	} else if (sz_data > ip_tot_len) {
 		p_rx_wc_buf_desc->sz_data -= (sz_data - ip_tot_len);
-		sz_data = ip_tot_len;
 	}
 
 	// Read fragmentation parameters
@@ -1000,7 +999,7 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_f
 
 	ring_logfunc("Rx ip packet info: dst=%d.%d.%d.%d, src=%d.%d.%d.%d, packet_sz=%d, offset=%d, id=%d, proto=%s[%d] (local if: %d.%d.%d.%d)",
 			NIPQUAD(p_ip_h->daddr), NIPQUAD(p_ip_h->saddr),
-			sz_data, n_frag_offset, ntohs(p_ip_h->id),
+			(sz_data > ip_tot_len ? ip_tot_len : sz_data), n_frag_offset, ntohs(p_ip_h->id),
 			iphdr_protocol_type_to_str(p_ip_h->protocol), p_ip_h->protocol,
 			NIPQUAD(p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr));
 
@@ -1018,7 +1017,7 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_f
 		/*ring_logwarn("Rx packet dropped - VMA doesn't support fragmentation in receive flow!");
 		ring_logwarn("packet info: dst=%d.%d.%d.%d, src=%d.%d.%d.%d, packet_sz=%d, frag_offset=%d, id=%d, proto=%s[%d], transport type=%s, (local if: %d.%d.%d.%d)",
 				NIPQUAD(p_ip_h->daddr), NIPQUAD(p_ip_h->saddr),
-				sz_data, n_frag_offset, ntohs(p_ip_h->id),
+				(sz_data > ip_tot_len ? ip_tot_len : sz_data), n_frag_offset, ntohs(p_ip_h->id),
 				iphdr_protocol_type_to_str(p_ip_h->protocol), p_ip_h->protocol, (m_transport_type ? "ETH" : "IB"),
 				NIPQUAD(local_addr));
 		return false;*/

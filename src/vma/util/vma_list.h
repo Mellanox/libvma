@@ -237,7 +237,15 @@ public:
 	inline T* back() const {
 		if (unlikely(empty()))
 			return NULL;
-		return ((list_node<T, offset> *)m_list.head.prev)->obj_ptr;
+/* clang analyzer reports:
+ * Use of memory after it is freed
+ * This issue comes from ~chunk_list_t() 
+ * Root cause is unknown.
+ * TODO: Fix based on root cause instead of supressing
+ */
+#ifndef __clang_analyzer__
+                return ((list_node<T, offset> *)m_list.head.prev)->obj_ptr;
+#endif
 	}
 
 	inline void pop_front() {

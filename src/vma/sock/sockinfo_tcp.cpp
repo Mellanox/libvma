@@ -1472,16 +1472,12 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 	p_first_desc->rx.n_frags = 0;
 
 	mem_buf_desc_t *p_curr_desc = p_first_desc;
-#ifdef DEFINED_VMAPOLL	
-	mem_buf_desc_t* p_last_desc = NULL;
-#endif // DEFINED_VMAPOLL		
 
 	pbuf *p_curr_buff = p;
 	conn->m_connected.get_sa(p_first_desc->rx.src);
 
 	while (p_curr_buff) {
 #ifdef DEFINED_VMAPOLL		
-		p_last_desc = (mem_buf_desc_t*)p_curr_buff;
 		p_curr_desc->rx.context = conn;
 #endif // DEFINED_VMAPOLL				
 		p_first_desc->rx.n_frags++;
@@ -1539,7 +1535,6 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 		}
 
 		if (!buf_lst) {
-			buf_lst = (struct vma_buff_t*)p_last_desc;
 			completion->packet.buff_lst = (struct vma_buff_t*)p_first_desc;
 			completion->packet.total_len = p->tot_len;
 			completion->src = p_first_desc->rx.src;
@@ -2349,8 +2344,8 @@ int sockinfo_tcp::listen(int backlog)
 			rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.begin();
 			m_p_rx_ring = rx_ring_iter->first;
 		}
-		si_tcp_logdbg("sock state = %d", get_tcp_state(&m_pcb));
-		success = true;			
+		si_tcp_logdbg("sock state = %d success = %d", get_tcp_state(&m_pcb), success);
+		success = true;
 	} else {
 		success = false;
 	}
