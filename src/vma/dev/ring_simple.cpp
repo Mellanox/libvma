@@ -165,6 +165,7 @@ ring_simple::~ring_simple()
 	// Was done in order to allow iperf's FIN packet to be sent.
 	usleep(25000);
 
+        /* coverity[double_lock] TODO: RM#1049980 */
 	m_lock_ring_rx.lock();
 	m_lock_ring_tx.lock();
 
@@ -224,6 +225,7 @@ ring_simple::~ring_simple()
 		vma_stats_instance_remove_ring_block(m_p_ring_stat);
 	}
 
+	/* coverity[double_unlock] TODO: RM#1049980 */
 	m_lock_ring_rx.unlock();
 	m_lock_ring_tx.unlock();
 
@@ -507,6 +509,7 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 				return false;
 			}
 			BULLSEYE_EXCLUDE_BLOCK_END
+			/* coverity[double_lock] TODO: RM#1049980 */
 			m_lock_ring_rx.lock();
 			p_rfs = m_flow_tcp_map.get(key_tcp, NULL);
 			if (p_rfs) {
@@ -539,6 +542,7 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	} else {
 		ring_logerr("attach_flow=%d failed!", ret);
 	}
+	/* coverity[double_unlock] TODO: RM#1049980 */
 	m_lock_ring_rx.unlock();
 	return ret;
 }
@@ -1414,8 +1418,10 @@ mem_buf_desc_t* ring_simple::mem_buf_tx_get(ring_user_id_t id, bool b_block, int
 			// until we get a few freed tx mem_buf_desc & data buffers
 
 			// Only a single thread should block on next Tx cqe event, hence the dedicated lock!
+			/* coverity[double_unlock] TODO: RM#1049980 */
 			m_lock_ring_tx.unlock();
 			m_lock_ring_tx_buf_wait.lock();
+			/* coverity[double_lock] TODO: RM#1049980 */
 			m_lock_ring_tx.lock();
 
 			// poll once more (in the hope that we get a few freed tx mem_buf_desc)
@@ -1435,11 +1441,13 @@ mem_buf_desc_t* ring_simple::mem_buf_tx_get(ring_user_id_t id, bool b_block, int
 					poll_fd.fd = get_tx_comp_event_channel()->fd;
 
 					// Now it is time to release the ring lock (for restart events to be handled while this thread block on CQ channel)
+					/* coverity[double_unlock] TODO: RM#1049980 */
 					m_lock_ring_tx.unlock();
 
 					ret = orig_os_api.poll(&poll_fd, 1, 100);
 					if (ret == 0) {
 						m_lock_ring_tx_buf_wait.unlock();
+						/* coverity[double_lock] TODO: RM#1049980 */
 						m_lock_ring_tx.lock();
 						buff_list = get_tx_buffers(n_num_mem_bufs);
 						continue;
@@ -1448,7 +1456,7 @@ mem_buf_desc_t* ring_simple::mem_buf_tx_get(ring_user_id_t id, bool b_block, int
 						m_lock_ring_tx_buf_wait.unlock();
 						return NULL;
 					}
-
+					/* coverity[double_lock] TODO: RM#1049980 */
 					m_lock_ring_tx.lock();
 
 					// Find the correct Tx cq_mgr from the CQ event,
@@ -1472,8 +1480,10 @@ mem_buf_desc_t* ring_simple::mem_buf_tx_get(ring_user_id_t id, bool b_block, int
 				}
 				buff_list = get_tx_buffers(n_num_mem_bufs);
 			}
+			/* coverity[double_unlock] TODO: RM#1049980 */
 			m_lock_ring_tx.unlock();
 			m_lock_ring_tx_buf_wait.unlock();
+			/* coverity[double_lock] TODO: RM#1049980 */
 			m_lock_ring_tx.lock();
 		}
 		else {
@@ -1638,8 +1648,10 @@ bool ring_simple::is_available_qp_wr(bool b_block)
 			// until we get a few freed tx mem_buf_desc & data buffers
 
 			// Only a single thread should block on next Tx cqe event, hence the dedicated lock!
+			/* coverity[double_unlock] TODO: RM#1049980 */
 			m_lock_ring_tx.unlock();
 			m_lock_ring_tx_buf_wait.lock();
+			/* coverity[double_lock] TODO: RM#1049980 */
 			m_lock_ring_tx.lock();
 
 			if (m_tx_num_wr_free <= 0) {
@@ -1657,17 +1669,19 @@ bool ring_simple::is_available_qp_wr(bool b_block)
 					poll_fd.fd = get_tx_comp_event_channel()->fd;
 
 					// Now it is time to release the ring lock (for restart events to be handled while this thread block on CQ channel)
+					/* coverity[double_unlock] TODO: RM#1049980 */
 					m_lock_ring_tx.unlock();
 
 					ret = orig_os_api.poll(&poll_fd, 1, -1);
 					if (ret <= 0) {
 						ring_logdbg("failed blocking on tx cq_mgr (errno=%d %m)", errno);
 						m_lock_ring_tx_buf_wait.unlock();
+						/* coverity[double_lock] TODO: RM#1049980 */
 						m_lock_ring_tx.lock();
 						/* coverity[missing_unlock] */
 						return false;
 					}
-
+					/* coverity[double_lock] TODO: RM#1049980 */
 					m_lock_ring_tx.lock();
 
 					// Find the correct Tx cq_mgr from the CQ event,
@@ -1682,8 +1696,10 @@ bool ring_simple::is_available_qp_wr(bool b_block)
 						ret = p_cq_mgr_tx->poll_and_process_element_tx(&poll_sn);
 						if (ret < 0) {
 							ring_logdbg("failed handling Tx cq_mgr channel (qp_mgr=%p, cq_mgr_tx=%p) (errno=%d %m)", m_p_qp_mgr, m_p_cq_mgr_tx, errno);
+							/* coverity[double_unlock] TODO: RM#1049980 */
 							m_lock_ring_tx.unlock();
 							m_lock_ring_tx_buf_wait.unlock();
+							/* coverity[double_lock] TODO: RM#1049980 */
 							m_lock_ring_tx.lock();
 							return false;
 						}
@@ -1691,8 +1707,10 @@ bool ring_simple::is_available_qp_wr(bool b_block)
 					}
 				}
 			}
+			/* coverity[double_unlock] TODO: RM#1049980 */
 			m_lock_ring_tx.unlock();
 			m_lock_ring_tx_buf_wait.unlock();
+			/* coverity[double_lock] TODO: RM#1049980 */
 			m_lock_ring_tx.lock();
 		} else {
 			return false;
