@@ -210,6 +210,8 @@ public:
 	}
 
 	typedef enum {
+		MODE_FIRST = -3,
+		MODE_EXIT = -2,
 		MODE_DEBUG = -1,
 		MODE_UNOFFLOAD = 0,
 		MODE_LOG_ERROR,
@@ -223,6 +225,7 @@ public:
 	const char* to_str()
 	{
 		switch (m_mode) {
+		case MODE_EXIT:         return "(exit on failed startup)";
 		case MODE_DEBUG:        return "(just log debug message)";
 		case MODE_UNOFFLOAD:    return "(log debug and un-offload)";
 		case MODE_LOG_ERROR:    return "(log error and un-offload)";
@@ -239,6 +242,7 @@ public:
 
 	vlog_levels_t get_log_severity() {
 		switch (m_mode) {
+		case MODE_EXIT:
 		case MODE_DEBUG:
 		case MODE_UNOFFLOAD:
 			return VLOG_DEBUG;
@@ -255,12 +259,12 @@ public:
 	//
 
 	vma_exception_handling(mode _mode = MODE_DEFAULT) : m_mode(_mode) {
-		if (m_mode >= MODE_LAST || m_mode < MODE_DEBUG)
+		if (m_mode >= MODE_LAST || m_mode <= MODE_FIRST)
 			m_mode = MODE_DEFAULT;
 	}
 
 	explicit vma_exception_handling(int _mode) : m_mode((mode)_mode) {
-		if (m_mode >= MODE_LAST || m_mode < MODE_DEBUG)
+		if (m_mode >= MODE_LAST || m_mode <= MODE_FIRST)
 			m_mode = MODE_DEFAULT;
 	}
 
