@@ -983,7 +983,7 @@ void mce_sys_var::get_env_params()
 
 	// TODO: this should be replaced by calling "exception_handling.init()" that will be called from init()
 	if ((env_ptr = getenv(vma_exception_handling::getSysVar())) != NULL) {
-		exception_handling = vma_exception_handling(atoi(env_ptr)); // vma_exception_handling is responsible for its invariant
+		exception_handling = vma_exception_handling(strtol(env_ptr, NULL, 10)); // vma_exception_handling is responsible for its invariant
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD)) != NULL) {

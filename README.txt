@@ -1,4 +1,4 @@
-Updated: 14 May 2017
+Update: 10 Jul 2017
 
 Introduction
 ============
@@ -739,6 +739,7 @@ Default value is Enabled.
 VMA_EXCEPTION_HANDLING
 Mode for handling missing support or error cases in Socket API or functionality by VMA.
 Useful for quickly identifying VMA unsupported Socket API or features
+Use value of -2 to exit() on VMA startup failure.
 Use value of -1 for just handling at DEBUG severity.
 Use value of 0 to log DEBUG message and try recovering via Kernel network stack (un-offloading the socket).
 Use value of 1 to log ERROR message and try recovering via Kernel network stack (un-offloading the socket).
