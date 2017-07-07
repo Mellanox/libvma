@@ -1,6 +1,6 @@
 # verbs.m4 - Parsing verbs capabilities
-# 
-# Copyright (C) Mellanox Technologies Ltd. 2016-2017.  ALL RIGHTS RESERVED.
+#
+# Copyright (C) Mellanox Technologies Ltd. 2001-2017.  ALL RIGHTS RESERVED.
 # See file LICENSE for terms.
 #
 
@@ -10,13 +10,57 @@
 AC_DEFUN([VERBS_CAPABILITY_SETUP],
 [
 
+AC_CHECK_HEADERS([infiniband/verbs.h], ,
+    [AC_MSG_ERROR([Unable to find the libibverbs-devel header files])])
+
+AC_CHECK_HEADERS([rdma/rdma_cma.h], ,
+    [AC_MSG_ERROR([Unable to find the librdmacm-devel header files])])
+
+AC_CHECK_LIB(ibverbs,
+    ibv_get_device_list, [VERBS_LIBS="$VERBS_LIBS -libverbs"],
+    AC_MSG_ERROR([ibv_get_device_list() not found.]))
+
+AC_CHECK_LIB(rdmacm,
+    rdma_create_id, [VERBS_LIBS="$VERBS_LIBS -lrdmacm"],
+    AC_MSG_ERROR([rdma_create_id() not found.]))
+
+AC_SUBST([VERBS_LIBS])
+
+# Save LIBS
+verbs_saved_libs=$LIBS
+LIBS="$LIBS $VERBS_LIBS"
+
+#
+# Chech if direct hardware operations can be used instead of VERBS API
+# infiniband/mlx5_hw.h should exist
+#
+AC_CHECK_HEADER([infiniband/mlx5_hw.h],
+    [AC_CHECK_MEMBERS([struct mlx5_qp.ctrl_seg, struct mlx5_qp.gen_data],
+        [AC_DEFINE([HAVE_INFINIBAND_MLX5_HW_H],1,[infiniband/mlx5_hw.h can be used])
+            enable_mlx5=yes],
+        [enable_mlx5=no],
+        [[#include <infiniband/mlx5_hw.h>]] )],
+        [],[]
+)
+
+
+#
+# Enable tcp tx window availability
+#
+AC_ARG_ENABLE([tcp-tx-wnd-availability],
+    AC_HELP_STRING([--enable-tcp-tx-wnd-availability],
+                   [Enable TCP Tx window availability (TCP packets will only be sent if their size (hdr options + data) is less than or equal to the window size. Otherwise -1 is returned and errno is set to EAGAIN)]),
+    [AC_DEFINE(DEFINED_TCP_TX_WND_AVAILABILITY, 1, [Define to 1 to enable TCP Tx window availability])],
+    [])
+
+
 #
 # Experimental Verbs CQ
 #
 AC_ARG_ENABLE([exp-cq],
     AC_HELP_STRING([--disable-exp-cq],
-                   [Disable experimental Verbs CQ (required for UDP RX HW Timestamp and for RX CSUM verification offload)]),
-    [],
+                   [Disable experimental Verbs CQ (disables UDP RX HW Timestamp, RX CSUM verification offload and Multi Packet RQ)]),
+    [enable_exp_cq=no],
     [enable_exp_cq=yes]
 )
 
@@ -34,6 +78,22 @@ AS_IF([test "x$enable_exp_cq" == xyes],
 	[
 	  AC_MSG_RESULT([yes])
 	  AC_DEFINE(DEFINED_IBV_EXP_CQ_TIMESTAMP, 1, [Define to 1 if IBV_EXP_CQ_TIMESTAMP is defined])
+	],
+	[
+	  AC_MSG_RESULT([no])
+	])
+
+	AC_MSG_CHECKING([if IBV_EXP_VALUES_CLOCK_INFO is defined])
+	AC_TRY_LINK(
+	#include <infiniband/verbs_exp.h>
+	,
+	[
+	  int access = (int)IBV_EXP_VALUES_CLOCK_INFO;
+	  access = access;
+	],
+	[
+	  AC_MSG_RESULT([yes])
+	  AC_DEFINE(DEFINED_IBV_EXP_VALUES_CLOCK_INFO, 1, [Define to 1 if IBV_EXP_VALUES_CLOCK_INFO is defined])
 	],
 	[
 	  AC_MSG_RESULT([no])
@@ -290,10 +350,9 @@ AC_TRY_LINK(
 #
 # On Device Memory
 #
-AC_MSG_CHECKING([if on device memory is enabled])
 AC_CHECK_DECL([IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE],
-    [AC_DEFINE(HAVE_IBV_DM, 1, [Define to 1 if IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE is defined]) [AC_MSG_RESULT([yes])]],
-    [AC_MSG_RESULT([no])],
+    [AC_DEFINE(HAVE_IBV_DM, 1, [Define to 1 if IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE is defined])],
+    [],
     [[#include <infiniband/verbs_exp.h>]])
 
 
@@ -301,14 +360,9 @@ AC_CHECK_DECLS([IBV_EXP_QP_RATE_LIMIT],
 	[AC_DEFINE(DEFINED_IBV_EXP_QP_RATE_LIMIT, 1, [Define to 1 if IBV_EXP_QP_RATE_LIMIT defined])],
 	[], [[#include <infiniband/mlx5_hw.h>]])
 
-TMP_LDFLAGS=$LDFLAGS
-AC_SEARCH_LIBS([rdma_create_id],[rdmacm],
-		[LDFLAGS="$LDFLAGS -lrdmacm" VERBS_LIBS="$VERBS_LIBS -lrdmacm"],
-		[])
-AC_CHECK_FUNCS_ONCE([rdma_lib_reset])
-AC_CHECK_LIB([ibverbs], [ibv_cmd_poll_cq], [VERBS_LIBS="$VERBS_LIBS -libverbs"],
-		[])
-AC_SUBST([VERBS_LIBS])
+AC_CHECK_DECLS([IBV_EXP_QP_RATE_LIMIT],
+	[AC_DEFINE(DEFINED_IBV_EXP_QP_RATE_LIMIT, 1, [Define to 1 if IBV_EXP_QP_RATE_LIMIT defined])],
+	[], [[#include <infiniband/mlx5_hw.h>]])
 
 have_mp_rq=yes
 AC_CHECK_DECLS([IBV_EXP_DEVICE_ATTR_VLAN_OFFLOADS,
@@ -323,9 +377,12 @@ AC_CHECK_DECLS([IBV_EXP_DEVICE_ATTR_VLAN_OFFLOADS,
 		 [#include <infiniband/mlx5_hw.h>]])
 
 AC_MSG_CHECKING([if multi packet RQ is enabled])
-AS_IF([test "x$have_mp_rq" == xyes],
+AS_IF([test "x$have_mp_rq" == xyes -a "x$enable_exp_cq" == xyes -a "x$enable_mlx5" == xyes],
 	[AC_DEFINE([HAVE_MP_RQ], 1, [MP_RQ QP supported])] [AC_MSG_RESULT([yes])],
 	[AC_MSG_RESULT([no])])
 
-LDFLAGS=$TMP_LDFLAGS
+AC_CHECK_FUNCS([rdma_lib_reset])
+
+# Restore LIBS
+LIBS=$verbs_saved_libs
 ])

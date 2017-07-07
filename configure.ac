@@ -10,11 +10,6 @@ dnl=== SECTION 1: Setting product version
 dnl===
 dnl===-----------------------------------------------------------------------===
 
-# Definitions will be placed in this file rather than
-# in the DEFS variable
-#
-AC_CONFIG_HEADER([config.h])
-
 # Update version number here:
 #
 define([vma_ver_major], 8)
@@ -28,9 +23,14 @@ define([vma_ver_release], 0)
 #
 AC_INIT(libvma, [vma_ver_major.vma_ver_minor.vma_ver_revision], support@mellanox.com)
 
+# Definitions will be placed in this file rather than
+# in the DEFS variable
+#
+AC_CONFIG_HEADER([config.h])
+
 VMA_LIBRARY_MAJOR=8
-VMA_LIBRARY_MINOR=3
-VMA_LIBRARY_REVISION=5
+VMA_LIBRARY_MINOR=4
+VMA_LIBRARY_REVISION=1
 VMA_LIBRARY_RELEASE=0
 
 AC_DEFINE_UNQUOTED(VMA_LIBRARY_MAJOR, ${VMA_LIBRARY_MAJOR}, [VMA Major Version])
@@ -83,9 +83,10 @@ m4_include([config/m4/func.m4])
 m4_include([config/m4/opt.m4])
 m4_include([config/m4/pkg.m4])
 m4_include([config/m4/verbs.m4])
+m4_include([config/m4/nl.m4])
 m4_include([config/m4/prof.m4])
 
-FUNC_CONFIGURE_INIT
+FUNC_CONFIGURE_INIT()
 
 
 dnl===-----------------------------------------------------------------------===
@@ -141,14 +142,18 @@ AC_MSG_CHECKING([for compiler])
 case $CC in
     gcc*|g++*)
         AC_MSG_RESULT([gcc])
+        CFLAGS="$CFLAGS -Wall -Wextra -Werror -Wundef -ffunction-sections -fdata-sections -Wsequence-point -pipe -Winit-self -Wmissing-include-dirs"
+        CXXFLAGS="$CXXFLAGS -Wshadow -Wall -Wextra -Werror -Wundef -ffunction-sections -fdata-sections -Wsequence-point -pipe -Winit-self -Wmissing-include-dirs"
         ;;
     icc*|icpc*)
         AC_MSG_RESULT([icc])
+        CFLAGS="$CFLAGS -Wall -Werror"
+        CXXFLAGS="$CXXFLAGS -Wall -Werror"
         ;;
     clang*|clang++*)
         AC_MSG_RESULT([clang])
-        CFLAGS="$CFLAGS -Wno-format-security -Wno-self-assign"
-        CXXFLAGS="$CXXFLAGS -Wno-overloaded-virtual"
+        CFLAGS="$CFLAGS -Wall -Werror -Wno-format-security -Wno-self-assign"
+        CXXFLAGS="$CXXFLAGS -Wall -Werror -Wno-overloaded-virtual"
         ;;
     *)
         AC_MSG_RESULT([unknown])
@@ -163,22 +168,10 @@ dnl===
 dnl===-----------------------------------------------------------------------===
 show_section_title "Configure project"
 
-OPT_VMA_LOGGING
-PROF_IBPROF_SETUP
-PROF_RDTSC_SETUP
-VERBS_CAPABILITY_SETUP
-
-with_debug_info=yes
-with_debug=no
-
-AC_MSG_CHECKING([md5 version of VMA statistics is])
-STATS_PROTOCOL_VER=`md5sum ${srcdir}/src/vma/util/vma_stats.h | awk '{ print $1}'`
-AC_DEFINE_UNQUOTED(STATS_PROTOCOL_VER, "${STATS_PROTOCOL_VER}", [Stats Protocol Version])
-AC_SUBST(STATS_PROTOCOL_VER)
-AC_MSG_RESULT(${STATS_PROTOCOL_VER})
-
-
 OS=`cat /etc/issue | awk '{ print $3}'`
+
+CFLAGS="-D_GNU_SOURCE -fPIC $CFLAGS"
+CXXFLAGS="-D_GNU_SOURCE -fPIC $CXXFLAGS"
 
 AC_ARG_ENABLE([build32],
     AC_HELP_STRING([--enable-build32],
@@ -187,17 +180,27 @@ AC_ARG_ENABLE([build32],
     [CFLAGS="$CFLAGS"; CXXFLAGS="$CXXFLAGS"; LWIP_FLAG=""])
 
 # gcov support
+AC_MSG_CHECKING(
+    [if gcov is enabled])
 AC_ARG_ENABLE([gcov],
     AC_HELP_STRING([--enable-gcov],
         [turn on code coverage analysis tools]),
-    [CFLAGS+=" --coverage -O0"; CXXFLAGS+=" --coverage -O0"; LIBS+=" -lgcov";VMA_GCOV=1],
-    [VMA_GCOV=0])
+    [CFLAGS+=" --coverage -O0"; CXXFLAGS+=" --coverage -O0"; LIBS+=" -lgcov"; VMA_GCOV=1;
+     AC_MSG_RESULT([yes])],
+    [VMA_GCOV=0
+     AC_MSG_RESULT([no])]
+)
 
 # time_measure support
+AC_MSG_CHECKING(
+    [if time measurement is enabled])
 AC_ARG_ENABLE([time_measure],
-    AC_HELP_STRING([--enable-time_measure],
+    AC_HELP_STRING([--enable-time-measure],
         [turn on time measuring]),
-    [CPPFLAGS+=" -DVMA_TIME_MEASURE";],[])
+    [CPPFLAGS+=" -DVMA_TIME_MEASURE";
+     AC_MSG_RESULT([yes])],
+    [AC_MSG_RESULT([no])]
+)
 
 #
 # Valgrind support
@@ -209,16 +212,83 @@ AC_ARG_WITH([valgrind],
     [with_valgrind=no]
 )
 
+AC_MSG_CHECKING(
+    [if valgrind is enabled])
 AS_IF([test "x$with_valgrind" == xno],
       [AC_DEFINE([NVALGRIND], 1, [Define to 1 to disable Valgrind annotations.])
+       AC_MSG_RESULT([no])
       ],
       [AC_CHECK_HEADER([valgrind/memcheck.h], [],
                        [AC_MSG_ERROR([Valgrind memcheck support requested, but <valgrind/memcheck.h> not found, install valgrind-devel rpm.])])
        if test -d $with_valgrind; then
           CPPFLAGS="$CPPFLAGS -I$with_valgrind/include"
        fi
+       AC_MSG_RESULT([yes])
       ]
 )
+
+#
+# debug configuration.
+#
+with_debug_info=yes
+with_debug=no
+AC_ARG_ENABLE([debug],
+	AC_HELP_STRING([--enable-debug],
+	    [Enable debug mode build]),
+	[with_debug=yes])
+
+AC_ARG_ENABLE([debuginfo],
+    AC_HELP_STRING([--disable-debuginfo],
+        [Don't include debug information]),
+	[with_debug_info=no; with_debug=no])
+
+if test "x${with_debug}" = "xyes" ; then
+    CFLAGS="-g -D_DEBUG $CFLAGS"
+    CXXFLAGS="-g -D_DEBUG $CXXFLAGS"
+else
+    CFLAGS="$CFLAGS -O3"
+    CXXFLAGS="$CXXFLAGS -O3"
+	
+    if test "x${with_debug_info}" = "xyes" ; then
+        CFLAGS="-g $CFLAGS"
+        CXXFLAGS="-g $CXXFLAGS"
+    fi
+fi
+
+if test  ${date:-""} != "" ; then
+	CFLAGS="-DVMA_DATE_TIME='\"$date-$time\"' $CFLAGS"
+	CXXFLAGS="-DVMA_DATE_TIME='\"$date-$time\"' $CXXFLAGS"
+fi
+
+if test  ${revision:-0} -ne 0 ; then
+	CFLAGS="-DVMA_SVN_REVISION=$revision $CFLAGS"
+    	CXXFLAGS="-DVMA_SVN_REVISION=$revision $CXXFLAGS"
+fi
+
+#
+# OFED configuration.
+#
+AC_MSG_CHECKING([OFED path])
+AC_ARG_WITH(ofed,
+    AC_HELP_STRING([--with-ofed], [Path to OFED install]),
+    [ac_cv_ofed_path=$withval],
+    [if test -e "/etc/infiniband/info" ; then
+         ac_cv_ofed_path=`grep prefix /etc/infiniband/info | awk -F "=" '{print $2}'`
+     else
+         ac_cv_ofed_path="/usr"
+     fi])
+CPPFLAGS="-I$ac_cv_ofed_path/include"
+if test -d "$ac_cv_ofed_path/lib64" ; then
+    LDFLAGS="$LDFLAGS -L$ac_cv_ofed_path/lib64"
+else
+    LDFLAGS="$LDFLAGS -L$ac_cv_ofed_path/lib"
+fi
+AC_MSG_RESULT($ac_cv_ofed_path)
+
+VERBS_CAPABILITY_SETUP()
+OPT_VMA_LOGGING()
+PROF_IBPROF_SETUP()
+PROF_RDTSC_SETUP()
 
 #
 # VMAPOLL
@@ -229,9 +299,9 @@ AC_ARG_ENABLE([vmapoll],
 AC_MSG_CHECKING(
     [if vmapoll API is enabled])
 if test "x$enable_vmapoll" = xyes; then
-    AC_CHECK_HEADERS([infiniband/mlx5_hw.h],
+    AC_CHECK_HEADER([infiniband/mlx5_hw.h],
         [AC_DEFINE([DEFINED_VMAPOLL], 1, [Define to 1 if vmapoll was enabled at configure time])],
-        [AC_MSG_ERROR([vmapoll mode is not supported with the current installed OFED version])])  
+        [AC_MSG_ERROR([vmapoll mode is not supported with the current installed OFED version])])
     AC_MSG_RESULT([yes])
 else
     AC_MSG_RESULT([no])
@@ -256,65 +326,11 @@ else
     AC_MSG_RESULT([yes])
 fi
 
-#
-# debug configuration.
-#
-AC_ARG_ENABLE([debug],
-	AC_HELP_STRING([--enable-debug],
-	    [Enable debug mode build]),
-	[with_debug=yes])
-
-AC_ARG_ENABLE([debuginfo],
-    AC_HELP_STRING([--disable-debuginfo],
-        [Don't include debug information]),
-	[with_debug_info=no; with_debug=no])
-
-if test "x${with_debug}" = "xyes" ; then
-	CFLAGS="-g -D_DEBUG $CFLAGS"
-	CXXFLAGS="-g -D_DEBUG $CXXFLAGS"
-else
-	CFLAGS="$CFLAGS -O3"
-	CXXFLAGS="$CXXFLAGS -O3"
-	
-	if test "x${with_debug_info}" = "xyes" ; then
-		CFLAGS="-g $CFLAGS"
-        	CXXFLAGS="-g $CXXFLAGS"
-	fi
-fi
-
-if test  ${date:-""} != "" ; then
-	CFLAGS="-DVMA_DATE_TIME='\"$date-$time\"' $CFLAGS"
-	CXXFLAGS="-DVMA_DATE_TIME='\"$date-$time\"' $CXXFLAGS"
-fi
-
-if test  ${revision:-0} -ne 0 ; then
-	CFLAGS="-DVMA_SVN_REVISION=$revision $CFLAGS"
-    	CXXFLAGS="-DVMA_SVN_REVISION=$revision $CXXFLAGS"
-fi
-
-
-if test -e "/etc/infiniband/info" ; then
-        ac_cv_ofed_path=`grep prefix /etc/infiniband/info | awk -F "=" '{print $2}'`
-else
-        ac_cv_ofed_path="/usr"
-fi
-
-if test -e "include/voltaire/vma_extra.h" ; then
-    	CFLAGS="-DUSING_VMA_EXTRA_API $CFLAGS"
-    	CXXFLAGS="-DUSING_VMA_EXTRA_API $CXXFLAGS"
-fi
-
-AC_ARG_WITH(ofed,
-        AC_HELP_STRING([--with-ofed], [Path to OFED install]),
-        [ac_cv_ofed_path=$withval])
-if test -d "$ac_cv_ofed_path/lib64" ; then
-        LDFLAGS="$LDFLAGS -L$ac_cv_ofed_path/lib64"
-else
-        LDFLAGS="$LDFLAGS -L$ac_cv_ofed_path/lib"
-fi
-
-CFLAGS="-D_GNU_SOURCE -fPIC $CFLAGS -I$ac_cv_ofed_path/include"
-CXXFLAGS="-D_GNU_SOURCE -fPIC $CXXFLAGS -I$ac_cv_ofed_path/include"
+AC_MSG_CHECKING([md5 version of VMA statistics is])
+STATS_PROTOCOL_VER=`md5sum ${srcdir}/src/vma/util/vma_stats.h | awk '{ print $1}'`
+AC_DEFINE_UNQUOTED(STATS_PROTOCOL_VER, "${STATS_PROTOCOL_VER}", [Stats Protocol Version])
+AC_SUBST(STATS_PROTOCOL_VER)
+AC_MSG_RESULT(${STATS_PROTOCOL_VER})
 
 
 dnl===-----------------------------------------------------------------------===
@@ -328,14 +344,6 @@ show_section_title "Check for header files"
 #
 AC_HEADER_STDC
 
-AC_CHECK_HEADERS([infiniband/verbs.h], ,
-    [AC_MSG_ERROR([Unable to find the libibverbs-devel header files])])
-
-AC_CHECK_HEADERS([rdma/rdma_cma.h], ,
-    [AC_MSG_ERROR([Unable to find the librdmacm-devel header files])])
-
-AC_CHECK_HEADERS([infiniband/mlx5_hw.h])
-
 AC_CHECK_HEADERS([sys/prctl.h sys/inotify.h sys/fanotify.h])
 
 
@@ -346,34 +354,12 @@ dnl===
 dnl===-----------------------------------------------------------------------===
 show_section_title "Check for libraries"
 
-AC_CHECK_LIB(ibverbs,
-    ibv_get_device_list, [],
-    AC_MSG_ERROR([ibv_get_device_list() not found.]))
-
-AC_CHECK_LIB(rdmacm,
-    rdma_create_id, [],
-    AC_MSG_ERROR([rdma_create_id() not found.]))
-
 AC_CHECK_LIB([stdc++], [atoi])
 AC_CHECK_LIB([dl], [dlsym])
 AC_CHECK_LIB([rt], [clock_gettime])
 AC_CHECK_LIB([pthread], [pthread_create])
 
-have_libnl=no
-PKG_CHECK_MODULES([LIBNL3],[libnl-route-3.0], have_libnl=yes AC_DEFINE([HAVE_LIBNL3], [1], [Use libnl-route-3.0]), [:])
-if test "$have_libnl" = yes; then
-	AC_SUBST([LIBNL_LIBS], "$LIBNL3_LIBS")
-	AC_SUBST([LIBNL_CFLAGS], "$LIBNL3_CFLAGS")
-	AC_SUBST([LIBNLX_DEVEL], "libnl3-devel")
-else
-	PKG_CHECK_MODULES([LIBNL1],[libnl-1], have_libnl=yes AC_DEFINE([HAVE_LIBNL1], [1], [Use libnl-1]),  AC_MSG_ERROR([libnl3-devel or libnl-devel must be installed in order to build VMA]))
-	AC_SUBST([LIBNL_LIBS], "$LIBNL1_LIBS")
-	AC_SUBST([LIBNL_CFLAGS], "$LIBNL1_CFLAGS")
-	AC_SUBST([LIBNLX_DEVEL], "libnl-devel")
-fi
-
-AM_CONDITIONAL([HAVE_LIBNL], [test "$have_libnl" = "yes"])
-
+CHECK_NL_LIB()
 
 dnl===-----------------------------------------------------------------------===
 dnl===
