@@ -1516,6 +1516,11 @@ void sockinfo_udp::handle_recv_timestamping(struct cmsg_state *cm_state)
 	memset(&tsing, 0, sizeof(tsing));
 
 	mem_buf_desc_t* packet = m_rx_pkt_ready_list.front();
+	if (unlikely(!packet)) {
+		si_udp_logdbg("m_rx_pkt_ready_list empty");
+		return ;
+	}
+
 	struct timespec* packet_systime = &packet->rx.udp.sw_timestamp;
 
 	// Only fill in SO_TIMESTAMPNS if both requested.
