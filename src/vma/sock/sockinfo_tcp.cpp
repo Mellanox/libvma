@@ -434,12 +434,14 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 	}
 
 	while (!m_rx_ctl_packets_list.empty()) {
+		/* coverity[double_lock] TODO: RM#1049980 */
 		m_rx_ctl_packets_list_lock.lock();
 		if (m_rx_ctl_packets_list.empty()) {
 			m_rx_ctl_packets_list_lock.unlock();
 			break;
 		}
 		mem_buf_desc_t* p_rx_pkt_desc = m_rx_ctl_packets_list.get_and_pop_front();
+		/* coverity[double_unlock] TODO: RM#1049980 */
 		m_rx_ctl_packets_list_lock.unlock();
 		reuse_buffer(p_rx_pkt_desc);
 	}
@@ -1209,10 +1211,12 @@ void sockinfo_tcp::process_children_ctl_packets()
 		}
 		ready_pcb_map_t::iterator itr = m_ready_pcbs.begin();
 		if (itr == m_ready_pcbs.end()) {
+			/* coverity[double_unlock] TODO: RM#1049980 */
 			m_tcp_con_lock.unlock();
 			break;
 		}
 		sockinfo_tcp *sock = (sockinfo_tcp*)itr->first->my_container;
+		/* coverity[double_unlock] TODO: RM#1049980 */
 		m_tcp_con_lock.unlock();
 
 		if (sock->m_tcp_con_lock.trylock()) {
@@ -1240,11 +1244,13 @@ void sockinfo_tcp::process_children_ctl_packets()
 			break;
 		}
 
+		/* coverity[double_lock] TODO: RM#1049980 */
 		sock->m_rx_ctl_packets_list_lock.lock();
 		if (sock->m_rx_ctl_packets_list.empty())
 			m_ready_pcbs.erase(&sock->m_pcb);
 		sock->m_rx_ctl_packets_list_lock.unlock();
 
+		/* coverity[double_unlock] TODO: RM#1049980 */
 		m_tcp_con_lock.unlock();
 	}
 }
@@ -1257,6 +1263,7 @@ void sockinfo_tcp::process_reuse_ctl_packets()
 		}
 		mem_buf_desc_t* desc = m_rx_ctl_reuse_list.get_and_pop_front();
 		reuse_buffer(desc);
+		/* coverity[double_unlock] TODO: RM#1049980 */
 		m_tcp_con_lock.unlock();
 	}
 }

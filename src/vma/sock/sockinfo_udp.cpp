@@ -225,9 +225,11 @@ inline int sockinfo_udp::rx_wait(bool blocking)
 		// Block with epoll_wait()
 		// on all rx_cq's notification channels and the socket's OS fd until we get an ip packet
 		// release lock so other threads that wait on this socket will not consume CPU
+		/* coverity[double_lock] TODO: RM#1049980 */
 		m_lock_rcv.lock();
 		if (!m_n_rx_pkt_ready_list_count) {
 			going_to_sleep();
+			/* coverity[double_unlock] TODO: RM#1049980 */
 			m_lock_rcv.unlock();
 		} else {
 			m_lock_rcv.unlock();
@@ -236,8 +238,10 @@ inline int sockinfo_udp::rx_wait(bool blocking)
 
 		ret = orig_os_api.epoll_wait(m_rx_epfd, rx_epfd_events, SI_RX_EPFD_EVENT_MAX, m_loops_timer.time_left_msec());
 
+		/* coverity[double_lock] TODO: RM#1049980 */
 		m_lock_rcv.lock();
 		return_from_sleep();
+		/* coverity[double_unlock] TODO: RM#1049980 */
 		m_lock_rcv.unlock();
 
 		if ( ret == 0 ) { //timeout
@@ -273,8 +277,10 @@ inline int sockinfo_udp::rx_wait(bool blocking)
 			for (int event_idx = 0; event_idx < ret; ++event_idx) {
 				int fd = rx_epfd_events[event_idx].data.fd;
 				if (is_wakeup_fd(fd)) {
+					/* coverity[double_lock] TODO: RM#1049980 */
 					m_lock_rcv.lock();
 					remove_wakeup_fd();
+					/* coverity[double_unlock] TODO: RM#1049980 */
 					m_lock_rcv.unlock();
 					continue;
 				}
@@ -1409,10 +1415,12 @@ ssize_t sockinfo_udp::rx(const rx_call_t call_type, iovec* p_iov,ssize_t sz_iov,
 	if ((m_n_sysvar_rx_udp_poll_os_ratio > 0) && (m_rx_udp_poll_os_ratio_counter >= m_n_sysvar_rx_udp_poll_os_ratio)) {
 		ret = poll_os();
 		if (ret == -1) {
+			/* coverity[double_lock] TODO: RM#1049980 */
 			m_lock_rcv.lock();
 			goto out;
 		}
 		if (ret == 1) {
+			/* coverity[double_lock] TODO: RM#1049980 */
 			m_lock_rcv.lock();
 			goto os;
 		}
@@ -1421,6 +1429,7 @@ ssize_t sockinfo_udp::rx(const rx_call_t call_type, iovec* p_iov,ssize_t sz_iov,
 	// First check if we have a packet in the ready list
 	if ((m_n_rx_pkt_ready_list_count > 0 && m_n_sysvar_rx_cq_drain_rate_nsec == MCE_RX_CQ_DRAIN_RATE_DISABLED)
 	    || is_readable(&poll_sn)) {
+		/* coverity[double_lock] TODO: RM#1049980 */
 		m_lock_rcv.lock();
 		m_rx_udp_poll_os_ratio_counter++;
 		if (m_n_rx_pkt_ready_list_count > 0) {
@@ -1429,6 +1438,7 @@ ssize_t sockinfo_udp::rx(const rx_call_t call_type, iovec* p_iov,ssize_t sz_iov,
 			ret = dequeue_packet(p_iov, sz_iov, (sockaddr_in *)__from, __fromlen, in_flags, &out_flags);
 			goto out;
 		}
+		/* coverity[double_unlock] TODO: RM#1049980 */
 		m_lock_rcv.unlock();
 	}
 
@@ -1485,6 +1495,7 @@ os:
 	}
 
 out:
+	/* coverity[double_unlock] TODO: RM#1049980 */
 	m_lock_rcv.unlock();
 
 	if (__msg)
