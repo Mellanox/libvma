@@ -504,18 +504,20 @@ int vma_get_socket_rings_fds(int fd, int *ring_fds, int ring_fds_sz)
 	int* p_rings_fds = NULL;
 	socket_fd_api* p_socket_object = NULL;
 	int rings_num = 0;
-
-	if (ring_fds_sz > 0) {
-		p_socket_object = fd_collection_get_sockfd(fd);
-		if (p_socket_object && p_socket_object->check_rings()) {
-				p_rings_fds = p_socket_object->get_rings_fds(rings_num);
-				for (int i = 0; i < rings_num; i++) {
-					ring_fds[i] = p_rings_fds[i];
-				}
+	
+	if (ring_fds_sz <= 0 || ring_fds == NULL) {
+        	errno = EINVAL;
+        	return -1;
+	}
+	p_socket_object = fd_collection_get_sockfd(fd);
+	if (p_socket_object && p_socket_object->check_rings()) {
+		p_rings_fds = p_socket_object->get_rings_fds(rings_num);
+		for (int i = 0; i < min(ring_fds_sz, rings_num); i++) {
+			ring_fds[i] = p_rings_fds[i];
 		}
 	}
 
-	return rings_num;
+	return min(ring_fds_sz, rings_num);
 }
 
 extern "C"
