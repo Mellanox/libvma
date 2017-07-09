@@ -508,10 +508,10 @@ int vma_get_socket_rings_fds(int fd, int *ring_fds, int ring_fds_sz)
 	if (ring_fds_sz > 0) {
 		p_socket_object = fd_collection_get_sockfd(fd);
 		if (p_socket_object && p_socket_object->check_rings()) {
-				p_rings_fds = p_socket_object->get_rings_fds(rings_num);
-				for (int i = 0; i < rings_num; i++) {
-					ring_fds[i] = p_rings_fds[i];
-				}
+			p_rings_fds = p_socket_object->get_rings_fds(rings_num);
+			for (int i = 0; i < ring_fds_sz; i++) {
+				ring_fds[i] = p_rings_fds[i];
+			}
 		}
 	}
 
