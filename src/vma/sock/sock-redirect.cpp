@@ -515,7 +515,7 @@ int vma_get_socket_rings_fds(int fd, int *ring_fds, int ring_fds_sz)
 		}
 	}
 
-	return rings_num;
+	return min(ring_fds_sz, rings_num);
 }
 
 extern "C"
