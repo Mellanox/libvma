@@ -504,7 +504,11 @@ int vma_get_socket_rings_fds(int fd, int *ring_fds, int ring_fds_sz)
 	int* p_rings_fds = NULL;
 	socket_fd_api* p_socket_object = NULL;
 	int rings_num = 0;
-
+	
+	if (ring_fds_sz <= 0) {
+        	errno = EINVAL;
+        	return -1;
+	}
 	if (ring_fds_sz > 0) {
 		p_socket_object = fd_collection_get_sockfd(fd);
 		if (p_socket_object && p_socket_object->check_rings()) {
