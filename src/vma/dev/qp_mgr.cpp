@@ -172,10 +172,10 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 			priv_vma_transport_type_str(m_p_ring->get_transport_type()),
 			m_p_ib_ctx_handler->get_ibv_device()->name, m_p_ib_ctx_handler->get_ibv_device(), m_port_num);
 
-	vma_ibv_device_attr& r_ibv_dev_attr = m_p_ib_ctx_handler->get_ibv_device_attr();
+	vma_ibv_device_attr *r_ibv_dev_attr = m_p_ib_ctx_handler->get_ibv_device_attr();
 
 	// Check device capabilities for max QP work requests
-	m_max_qp_wr = ALIGN_WR_DOWN(r_ibv_dev_attr.max_qp_wr - 1);
+	m_max_qp_wr = ALIGN_WR_DOWN(r_ibv_dev_attr->max_qp_wr - 1);
 	if (m_rx_num_wr > m_max_qp_wr) {
 		qp_logwarn("Allocating only %d Rx QP work requests while user "
 			   "requested %s=%d for QP on <%p, %d>",
@@ -186,7 +186,7 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 
 	// Check device capabilities for dummy send support
 #ifdef DEFINED_IBV_EXP_WR_NOP
-	m_hw_dummy_send_support = r_ibv_dev_attr.exp_device_cap_flags & IBV_EXP_DEVICE_NOP;
+	m_hw_dummy_send_support = r_ibv_dev_attr->exp_device_cap_flags & IBV_EXP_DEVICE_NOP;
 #endif
 	qp_logdbg("HW Dummy send support for QP = %d", m_hw_dummy_send_support);
 

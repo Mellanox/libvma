@@ -97,7 +97,7 @@ bool ring_eth::is_ratelimit_supported(uint32_t rate)
 {
 #ifdef DEFINED_IBV_EXP_QP_RATE_LIMIT
 	ibv_exp_packet_pacing_caps &pp_caps =
-			m_p_ib_ctx->get_ibv_device_attr().packet_pacing_caps;
+			m_p_ib_ctx->get_ibv_device_attr()->packet_pacing_caps;
 	return rate >= pp_caps.qp_rate_limit_min && rate <= pp_caps.qp_rate_limit_max;
 #else
 	NOT_IN_USE(rate);
@@ -262,8 +262,7 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 	BULLSEYE_EXCLUDE_BLOCK_END
 	VALGRIND_MAKE_MEM_DEFINED(m_p_tx_comp_event_channel, sizeof(struct ibv_comp_channel));
 	// Check device capabilities for max QP work requests
-	vma_ibv_device_attr& r_ibv_dev_attr = m_p_ib_ctx->get_ibv_device_attr();
-	uint32_t max_qp_wr = ALIGN_WR_DOWN(r_ibv_dev_attr.max_qp_wr - 1);
+	uint32_t max_qp_wr = ALIGN_WR_DOWN(m_p_ib_ctx->get_ibv_device_attr()->max_qp_wr - 1);
 	m_tx_num_wr = safe_mce_sys().tx_num_wr;
 	if (m_tx_num_wr > max_qp_wr) {
 		ring_logwarn("Allocating only %d Tx QP work requests while user requested %s=%d for QP on interface %d.%d.%d.%d",
