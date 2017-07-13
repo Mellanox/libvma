@@ -746,6 +746,7 @@ int net_device_val::global_ring_request_notification(uint64_t poll_sn)
 	int rhm_sz = m_h_ring_map.size();
 	for (ring_iter = m_h_ring_map.begin(); ring_iter != m_h_ring_map.end(); ring_iter++) {
 		if (rhm_sz != (int)m_h_ring_map.size()) {
+			nd_logdbg("Ring hash map was modified previous=%d new=%d", rhm_sz, m_h_ring_map.size());
 			break;
 		}
 		int ret = THE_RING->request_notification(CQT_RX, poll_sn);
