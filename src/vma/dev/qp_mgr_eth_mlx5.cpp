@@ -68,6 +68,12 @@ static inline uint8_t* align_ptr_up(uint8_t* ptr)
 //
 void qp_mgr_eth_mlx5::init_sq()
 {
+	struct ibv_mlx5_qp_info qpi;
+	if (!ibv_mlx5_exp_get_qp_info(m_qp,&qpi)) {
+		qp_logfunc("QPN: %d dbrec: %p QP.info.SQ. buf: %p wqe_cnt: %d stride: %d bf.reg: %p bf.need_lock: %d",
+			qpi.qpn, qpi.dbrec, qpi.sq.buf, qpi.sq.wqe_cnt, qpi.sq.stride, qpi.bf.reg, qpi.bf.need_lock);
+	}
+
 	struct verbs_qp *vqp = (struct verbs_qp *)m_qp;
 	m_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
 	m_qp_num	 = m_hw_qp->ctrl_seg.qp_num;
@@ -81,28 +87,28 @@ void qp_mgr_eth_mlx5::init_sq()
 
 	m_sq_wqe_hot_index = 0;
 	m_sq_bf_offset	 = m_hw_qp->gen_data.bf->offset;
-/*
- * Preliminary fill WQE for completetion request
- * TODO: temporary - exclude for dynamic WQE
- */
-	unsigned int comp = NUM_TX_WRE_TO_SIGNAL_MAX;
 
-	for (uint32_t i = 0; i < m_tx_num_wr; ++i) {
-		volatile struct mlx5_wqe64 *wqe = &(*m_sq_wqes)[i];
+	m_tx_num_wr = (m_sq_wqes_end-(uint8_t *)m_sq_wqe_hot)/WQEBB;
+	m_max_inline_data = 3*WQEBB+OCTOWORD-4;
 
-		memset((void *)(uintptr_t)wqe, 0, sizeof(struct mlx5_wqe64));
-		wqe->eseg.inline_hdr_sz = htons(MLX5_ETH_INLINE_HEADER_SIZE);
-		wqe->eseg.cs_flags = MLX5_ETH_WQE_L3_CSUM | MLX5_ETH_WQE_L4_CSUM;
-		wqe->ctrl.data[1] = htonl((m_qp_num << 8) | 4);
-		//wqe->dseg.lkey = (m_p_ring->get_lkey());
-		/* Store the completion request in the WQE. */
-		if (--comp == 0) {
-			wqe->ctrl.data[2] = htonl(8);
-			comp = NUM_TX_WRE_TO_SIGNAL_MAX;
+	if (m_sq_wqe_idx_to_wrid == NULL) {
+		m_sq_wqe_idx_to_wrid = (uint64_t*)mmap(NULL, m_tx_num_wr * sizeof(*m_sq_wqe_idx_to_wrid),
+			PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+		if (m_sq_wqe_idx_to_wrid == MAP_FAILED) {
+			qp_logerr("Failed allocating m_sq_wqe_idx_to_wrid (errno=%d %m)", errno);
+			return;
 		}
-		else
-			wqe->ctrl.data[2] = 0;
 	}
+
+	qp_logfunc("m_tx_num_wr=%d m_max_inline_data: %d m_sq_wqe_idx_to_wrid=%p",
+		    m_tx_num_wr, m_max_inline_data, m_sq_wqe_idx_to_wrid);
+
+	memset((void *)(uintptr_t)m_sq_wqe_hot, 0, sizeof(struct mlx5_wqe64));
+	m_sq_wqe_hot->ctrl.data[0] = htonl(MLX5_OPCODE_SEND);
+	m_sq_wqe_hot->ctrl.data[1] = htonl((m_qp_num << 8) | 4);
+	m_sq_wqe_hot->ctrl.data[2] = 0;
+	m_sq_wqe_hot->eseg.inline_hdr_sz = htons(MLX5_ETH_INLINE_HEADER_SIZE);
+	m_sq_wqe_hot->eseg.cs_flags = MLX5_ETH_WQE_L3_CSUM | MLX5_ETH_WQE_L4_CSUM;
 
 	qp_logfunc("%p allocated for %d QPs sq_wqes:%p sq_wqes_end: %p and configured %d WRs BlueFlame: %p buf_size: %d offset: %d",
 			m_qp, m_qp_num, m_sq_wqes, m_sq_wqes_end,  m_tx_num_wr, m_sq_bf_reg, m_sq_bf_buf_size, m_sq_bf_offset);
@@ -165,6 +171,7 @@ cq_mgr* qp_mgr_eth_mlx5::init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event
 		qp_logerr("Failed allocating m_rq_wqe_idx_to_wrid (errno=%d %m)", errno);
 		return NULL;
 	}
+
 #ifdef DEFINED_VMAPOLL
 	return new cq_mgr(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
 #else
@@ -183,72 +190,247 @@ inline void qp_mgr_eth_mlx5::set_signal_in_next_send_wqe()
 	wqe->ctrl.data[2] = htonl(8);
 }
 
-static inline void mlx5_bf_copy(volatile uintptr_t *dst, volatile uintptr_t *src)
+//! Copying src to BlueFlame register buffer by Write Combining by WQEBB times
+static inline void copy_bf(uint64_t *dst, uint64_t *src, int times)
 {
-	COPY_64B_NT(dst, src);
+	while( times-- ) {
+		COPY_64B_NT(dst, src);
+	}
 }
 
+//! Copying two data chunks in wrap around case to BlueFlame register buffer
+//  by Write Combining
+static inline void copy_2bf(uint64_t* bot_dst, uint64_t* bot_src, uint64_t* top_src, int bot, int top)
+{
+	while( bot-- ) {
+		COPY_64B_NT(bot_dst, bot_src);
+	}
+	while( top-- ) {
+		COPY_64B_NT(bot_dst, top_src);
+	}
+}
+
+#define dump_wqe(addr, size) {\
+	uint32_t* wqe = (addr);\
+	int sz_=(size);\
+	qp_logfunc("Dumping %d bytes from %p", (size), (wqe));\
+	for(int i=0; i<sz_/4+1; i+=4) {\
+		qp_logfunc("%08x %08x %08x %08x",ntohl(wqe[i+0]), ntohl(wqe[i+1]), ntohl(wqe[i+2]), ntohl(wqe[i+3]));\
+	}\
+}
+
+inline void qp_mgr_eth_mlx5::send_by_bf(uint64_t* addr, int size_wqebb)
+{
+	m_sq_wqe_counter = (m_sq_wqe_counter + size_wqebb) & 0xFFFF;
+
+	// Make sure that descriptors are written before
+	// updating doorbell record and ringing the doorbell
+	wmb();
+	*m_sq_db = htonl(m_sq_wqe_counter);
+	// This wc_wmb ensures ordering between DB record and BF copy
+	wc_wmb();
+
+	// Avoid using memcpy() to copy to BlueFlame page, since memcpy()
+	// implementations may use move-string-buffer assembler instructions,
+	// which do not guarantee order of copying.
+	copy_bf((uint64_t *)((uint8_t*)m_sq_bf_reg+m_sq_bf_offset),addr,size_wqebb);
+//	dump_wqe((uint32_t*)addr,size_wqebb*WQEBB);
+	m_sq_bf_offset ^= m_sq_bf_buf_size;
+}
+
+inline void qp_mgr_eth_mlx5::send_by_bf_wrap_up(uint64_t* bot_addr, int bot_times, int top_times)
+{
+	m_sq_wqe_counter = (m_sq_wqe_counter + bot_times + top_times) & 0xFFFF;
+	// Make sure that descriptors are written before
+	// updating doorbell record and ringing the doorbell
+	wmb();
+	*m_sq_db = htonl(m_sq_wqe_counter);
+
+	// This wc_wmb ensures ordering between DB record and BF copy */
+	wc_wmb();
+	// Copying two times for wrap-up, first at the end of SQ and second from the start
+	copy_2bf((uint64_t*)((uint8_t*)m_sq_bf_reg+m_sq_bf_offset),bot_addr,(uint64_t*)m_sq_wqes,bot_times,top_times);
+	m_sq_bf_offset ^= m_sq_bf_buf_size;
+}
+
+inline int qp_mgr_eth_mlx5::fill_inl_seg(sg_array &sga, uint8_t *cur_seg, uint8_t* data_addr,
+			     int max_inline_len, int inline_len)
+{
+	int wqe_inline_size = 0;
+	while ((data_addr!=NULL) && inline_len) {
+		//{uint32_t len=inline_len; dump_wqe((uint32_t *)data_addr,len);}
+		memcpy(cur_seg,data_addr,inline_len);
+		wqe_inline_size += inline_len;
+		cur_seg += inline_len;
+		inline_len = max_inline_len-wqe_inline_size;
+		data_addr = sga.get_data(&inline_len);
+		qp_logfunc("data_addr:%p cur_seg: %p inline_len: %d wqe_inline_size: %d",
+			  data_addr, cur_seg, inline_len, wqe_inline_size);
+
+	}
+	return wqe_inline_size;
+}
+
+inline int qp_mgr_eth_mlx5::fill_ptr_seg(sg_array &sga, struct mlx5_wqe_data_seg* dp_seg, uint8_t* data_addr,
+			     int data_len)
+{
+	int wqe_seg_size = 0;
+	int len = data_len;
+	while ((data_addr!=NULL) && data_len) {
+		wqe_seg_size += sizeof(struct mlx5_wqe_data_seg);
+		dp_seg->lkey = htonl(sga.get_current_lkey());
+		data_addr = sga.get_data(&len);
+		dp_seg->byte_count = htonl(len);
+		dp_seg->addr = htonll((uint64_t)data_addr);
+		data_len -= len;
+		qp_logfunc("data_addr:%llx data_len: %d len: %d lkey: %x", data_addr, data_len, len, dp_seg->lkey);
+		dp_seg++;
+	}
+	return wqe_seg_size;
+}
+
+//! Fill WQE dynamically, based on amount of free WQEBB in SQ
+inline int qp_mgr_eth_mlx5::fill_wqe(vma_ibv_send_wr *pswr)
+{
+	// control segment is mostly filled by preset after previous packet
+	// we always inline ETH header
+	sg_array sga(pswr->sg_list, pswr->num_sge);
+	int      inline_len = MLX5_ETH_INLINE_HEADER_SIZE;
+	int      data_len   = sga.length()-inline_len;
+	int      max_inline_len = m_max_inline_data;
+	int      wqe_size = sizeof(struct mlx5_wqe_ctrl_seg)/OCTOWORD + sizeof(struct mlx5_wqe_eth_seg)/OCTOWORD;
+
+	uint8_t* cur_seg = (uint8_t*)m_sq_wqe_hot+sizeof(struct mlx5_wqe_ctrl_seg);
+	uint8_t* data_addr  = sga.get_data(&inline_len); // data for inlining in ETH header
+
+	qp_logfunc("wqe_hot:%p num_sge: %d data_addr: %p data_len: %d max_inline_len: %d inline_len$ %d",
+		m_sq_wqe_hot, pswr->num_sge, data_addr, data_len, max_inline_len, inline_len);
+
+	// Fill Ethernet segment with header inline, static data
+	// were populated in preset after previous packet send
+	memcpy(cur_seg+offsetof(struct mlx5_wqe_eth_seg,inline_hdr_start),data_addr,MLX5_ETH_INLINE_HEADER_SIZE);
+	data_addr  += MLX5_ETH_INLINE_HEADER_SIZE;
+	cur_seg += sizeof(struct mlx5_wqe_eth_seg);
+
+	// assume packet is full inline
+	if (likely(data_len <= max_inline_len)) {
+		max_inline_len = data_len;
+		// Filling inline data segment
+		// size of BlueFlame buffer is 4*WQEBBs, 3*OCTOWORDS of the first
+		// was allocated for control and ethernet segment so we have 3*WQEBB+16-4
+		int rest_space = min((int)(m_sq_wqes_end-cur_seg-4), (3*WQEBB+OCTOWORD-4));
+		// Filling till the end of inline WQE segment or
+		// to end of WQEs
+		if (likely(max_inline_len <= rest_space)) {
+			inline_len = max_inline_len;
+			qp_logfunc("NO WRAP data_addr:%p cur_seg: %p rest_space: %d inline_len: %d wqe_size: %d",
+					data_addr, cur_seg, rest_space, inline_len, wqe_size);
+			//bypass inline size and fill inline data segment
+			data_addr = sga.get_data(&inline_len);
+			inline_len = fill_inl_seg(sga,cur_seg+4,data_addr,max_inline_len,inline_len);
+
+			// store inline data size
+			*(uint32_t*)((uint8_t* )m_sq_wqe_hot+sizeof(struct mlx5_wqe_ctrl_seg)+sizeof(struct mlx5_wqe_eth_seg))
+					= htonl(0x80000000|inline_len);
+			rest_space = align_to_octoword_up(inline_len+4); // align to OCTOWORDs
+			wqe_size += rest_space/OCTOWORD;
+			//assert((data_len-inline_len)==0);
+			// configuring control
+			m_sq_wqe_hot->ctrl.data[1] = htonl((m_qp_num << 8) | wqe_size);
+			rest_space = align_to_WQEBB_up(wqe_size)/4;
+			qp_logfunc("data_len: %d inline_len: %d wqe_size: %d wqebbs: %d",
+				data_len-inline_len, inline_len, wqe_size, rest_space);
+			send_by_bf((uint64_t *)m_sq_wqe_hot, rest_space);
+			//dump_wqe((uint32_t *)m_sq_wqe_hot,wqe_size*16);
+			return rest_space;
+		} else {
+			// wrap around case, first filling till the end of m_sq_wqes
+			int wrap_up_size = max_inline_len-rest_space;
+			inline_len = rest_space;
+			qp_logfunc("WRAP_UP_SIZE: %d data_addr:%p cur_seg: %p rest_space: %d inline_len: %d wqe_size: %d",
+				wrap_up_size, data_addr, cur_seg, rest_space, inline_len, wqe_size);
+
+			data_addr  = sga.get_data(&inline_len);
+			inline_len = fill_inl_seg(sga,cur_seg+4,data_addr,rest_space,inline_len);
+			data_len  -= inline_len;
+			rest_space = align_to_octoword_up(inline_len+4);
+			wqe_size  += rest_space/OCTOWORD;
+			rest_space = align_to_WQEBB_up(rest_space/OCTOWORD)/4;// size of 1st chunk at the end
+
+			qp_logfunc("END chunk data_addr: %p data_len: %d inline_len: %d wqe_size: %d wqebbs: %d",
+				data_addr, data_len, inline_len, wqe_size, rest_space);
+			// Wrap around
+			//
+			cur_seg = (uint8_t*)m_sq_wqes;
+			data_addr  = sga.get_data(&wrap_up_size);
+
+			wrap_up_size = fill_inl_seg(sga,cur_seg,data_addr,data_len,wrap_up_size);
+			inline_len    += wrap_up_size;
+			max_inline_len = align_to_octoword_up(wrap_up_size);
+			wqe_size      += max_inline_len/OCTOWORD;
+			max_inline_len = align_to_WQEBB_up(max_inline_len/OCTOWORD)/4;
+			// store inline data size
+			*(uint32_t*)((uint8_t* )m_sq_wqe_hot+sizeof(struct mlx5_wqe_ctrl_seg)+sizeof(struct mlx5_wqe_eth_seg))
+					= htonl(0x80000000|inline_len);
+			qp_logfunc("BEGIN_CHUNK data_addr: %p data_len: %d wqe_size: %d inline_len: %d end_wqebbs: %d wqebbs: %d",
+				data_addr, data_len-wrap_up_size, wqe_size, inline_len+wrap_up_size, rest_space, max_inline_len);
+			//assert((data_len-wrap_up_size)==0);
+			// configuring control
+			m_sq_wqe_hot->ctrl.data[1] = htonl((m_qp_num << 8) | wqe_size);
+			//{int len=rest_space*4*16; dump_wqe((uint32_t *)m_sq_wqe_hot,len);}
+			//{int len=max_inline_len*4*16; dump_wqe((uint32_t *)m_sq_wqes,len);}
+
+			send_by_bf_wrap_up((uint64_t*)m_sq_wqe_hot,rest_space,max_inline_len);
+			return rest_space+max_inline_len;
+		}
+	} else {
+		// data is bigger than max to inline we inlined only ETH header + uint from IP (18 bytes)
+		// the rest will be in data pointer segment
+		// adding data seg with pointer if there still data to transfer
+		inline_len = fill_ptr_seg(sga,(struct mlx5_wqe_data_seg*)cur_seg, data_addr,data_len);
+		wqe_size  += inline_len/OCTOWORD;
+		qp_logfunc("data_addr: %p data_len: %d rest_space: %d wqe_size: %d",
+			data_addr, data_len, inline_len, wqe_size);
+		// configuring control
+		m_sq_wqe_hot->ctrl.data[1] = htonl((m_qp_num << 8) | wqe_size);
+		inline_len = align_to_WQEBB_up(wqe_size)/4;
+		send_by_bf((uint64_t*)m_sq_wqe_hot, inline_len);
+		//dump_wqe((uint32_t *)m_sq_wqe_hot,wqe_size*16);
+	}
+	return 1;
+}
+
+//! Send one RAW packet by MLX5 BlueFlame
+//
 int qp_mgr_eth_mlx5::send_to_wire(vma_ibv_send_wr *p_send_wqe)
 {
-	uintptr_t addr = 0;
-	uint32_t length = 0;
-	uint32_t lkey = 0;
+	fill_wqe(p_send_wqe);
+	m_sq_wqe_idx_to_wrid[m_sq_wqe_hot_index] = (uintptr_t)p_send_wqe->wr_id;
 
-	addr = p_send_wqe->sg_list[0].addr;
-	length = p_send_wqe->sg_list[0].length;
-	lkey = p_send_wqe->sg_list[0].lkey;
+	// Preparing next WQE and index
+	m_sq_wqe_hot = &(*m_sq_wqes)[m_sq_wqe_counter & (m_tx_num_wr - 1)];
+	qp_logdbg("m_sq_wqe_hot: %p m_sq_wqe_hot_index: %d wqe_counter: %d new_hot_index: %d wr_id: %llx",
+		   m_sq_wqe_hot, m_sq_wqe_hot_index, m_sq_wqe_counter, (m_sq_wqe_counter&(m_tx_num_wr-1)), p_send_wqe->wr_id);
+	m_sq_wqe_hot_index = m_sq_wqe_counter & (m_tx_num_wr - 1);
 
-	/* Copy the first bytes into the inline header */
-	/* This suppress warning due to mlx5_wqe_eth_seg struct format as
-	* uint8_t inline_hdr_start[2];
-	* uint8_t inline_hdr[16];
-	*/
-	/* coverity[buffer_size] */
-	/* coverity[overrun-buffer-arg] */
-	memcpy((void *)m_sq_wqe_hot->eseg.inline_hdr_start,
-		(void *)addr, MLX5_ETH_INLINE_HEADER_SIZE);
+	memset((void *)(uintptr_t)m_sq_wqe_hot, 0, sizeof(struct mlx5_wqe64));
+	//
+	// Write only data[0] which is the single element which changes.
+	// Other fields are already initialised in mlx5_init_sq.
+	//	memset(cur_seg, 0, 2*OCTOWORD);
+	m_sq_wqe_hot->ctrl.data[0] = htonl((m_sq_wqe_counter << 8) | MLX5_OPCODE_SEND);
+	m_sq_wqe_hot->ctrl.data[2] = m_n_unsignaled_count-1 == 0 ? htonl(8) : 0 ;
 
-	addr += MLX5_ETH_INLINE_HEADER_SIZE;
-	length -= MLX5_ETH_INLINE_HEADER_SIZE;
-
-	m_sq_wqe_hot->dseg.byte_count = htonl(length);
-	m_sq_wqe_hot->dseg.lkey = htonl(lkey);
-	m_sq_wqe_hot->dseg.addr = htonll(addr);
-
-	++m_sq_wqe_cntr;
-
-	/*
-	* Make sure that descriptors are written before
-	* updating doorbell record and ringing the doorbell
-	*/
-	wmb();
-	*m_sq_db = htonl(m_sq_wqe_cntr);
-	/* This wc_wmb ensures ordering between DB record and BF copy */
-        wc_wmb();
-
-	/*
-	 * Avoid using memcpy() to copy to BlueFlame page, since memcpy()
-	 * implementations may use move-string-buffer assembler instructions,
-	 * which do not guarantee order of copying.
-	 */
-	mlx5_bf_copy((volatile uintptr_t *)((uintptr_t)m_sq_bf_reg + m_sq_bf_offset),
-		     (volatile uintptr_t *)m_sq_wqe_hot);
-	m_sq_bf_offset ^= m_sq_bf_buf_size;
-        m_sq_wqe_idx_to_wrid[m_sq_wqe_hot_index] = (uintptr_t)p_send_wqe->wr_id;
-
-	/*Set the next WQE and index*/
-	m_sq_wqe_hot = &(*m_sq_wqes)[m_sq_wqe_cntr & (m_tx_num_wr - 1)];
-	/* Write only data[0] which is the single element which changes.
-	 * Other fields are already initialised in mlx5_init_sq. */
-	m_sq_wqe_hot->ctrl.data[0] = htonl((m_sq_wqe_cntr << 8) | MLX5_OPCODE_SEND);
-	m_sq_wqe_hot_index = m_sq_wqe_cntr & (m_tx_num_wr - 1);
+	// Fill Ethernet segment with header inline
+	struct mlx5_wqe_eth_seg* eth_seg = (struct mlx5_wqe_eth_seg*)((uint8_t*)m_sq_wqe_hot+sizeof(struct mlx5_wqe_ctrl_seg));
+	eth_seg->inline_hdr_sz = htons(MLX5_ETH_INLINE_HEADER_SIZE);
+	eth_seg->cs_flags = MLX5_ETH_WQE_L3_CSUM | MLX5_ETH_WQE_L4_CSUM;
 
 	return 0;
 }
 
 //! Handle releasing of Tx buffers
-//  Single post send with SIGNAL of a dummy packet
-
+// Single post send with SIGNAL of a dummy packet
 // NOTE: Since the QP is in ERROR state no packets will be sent on the wire!
 // So we can post_send anything we want :)
 void qp_mgr_eth_mlx5::trigger_completion_for_all_sent_packets()

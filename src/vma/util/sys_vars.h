@@ -552,11 +552,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_TX_NUM_BUFS				(200000)
 #define MCE_DEFAULT_TX_NUM_WRE				(2048)
 #define MCE_DEFAULT_TX_NUM_WRE_TO_SIGNAL		(64)
-//TODO: exclude when enable in-lining !#ifdef DEFINED_VMAPOLL
-#define MCE_DEFAULT_TX_MAX_INLINE                      (0) //220
-#if 0 //!else
 #define MCE_DEFAULT_TX_MAX_INLINE			(204) //+18(always inline ETH header) = 222
-#endif // DEFINED_VMAPOLL
 #define MCE_DEFAULT_TX_BUILD_IP_CHKSUM			(true)
 #define MCE_DEFAULT_TX_MC_LOOPBACK			(true)
 #define MCE_DEFAULT_TX_NONBLOCKED_EAGAINS		(false)
