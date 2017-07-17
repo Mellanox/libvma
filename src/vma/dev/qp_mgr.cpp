@@ -71,18 +71,29 @@ qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context,
 	,m_qp(NULL)
 	,m_p_ring((ring_simple*)p_ring)
 	,m_port_num((uint8_t)port_num)
-	,m_p_ib_ctx_handler((ib_ctx_handler*)p_context),
-	m_p_ahc_head(NULL), m_p_ahc_tail(NULL), m_max_inline_data(0), m_max_qp_wr(0), m_p_cq_mgr_rx(NULL), m_p_cq_mgr_tx(NULL),
-	m_rx_num_wr(safe_mce_sys().rx_num_wr), m_tx_num_wr(tx_num_wr), m_hw_dummy_send_support(false),
-	m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv),
-	m_n_sysvar_tx_num_wr_to_signal(NUM_TX_WRE_TO_SIGNAL_MAX),
+	,m_p_ib_ctx_handler((ib_ctx_handler*)p_context)
+	,m_p_ahc_head(NULL)
+	,m_p_ahc_tail(NULL)
+	,m_max_inline_data(0)
+	,m_max_qp_wr(0)
+	,m_p_cq_mgr_rx(NULL)
+	,m_p_cq_mgr_tx(NULL)
+	,m_rx_num_wr(safe_mce_sys().rx_num_wr)
+	,m_tx_num_wr(tx_num_wr)
+	,m_hw_dummy_send_support(false)
+	,m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv)
+	,m_n_sysvar_tx_num_wr_to_signal(NUM_TX_WRE_TO_SIGNAL_MAX)
 //TODO:replace previous by this when dynamic signaling to be implemented for TX PostSend PRM
-//     m_n_sysvar_tx_num_wr_to_signal(safe_mce_sys().tx_num_wr_to_signal),
-	m_n_sysvar_rx_prefetch_bytes_before_poll(safe_mce_sys().rx_prefetch_bytes_before_poll),
-	m_curr_rx_wr(0),
-	m_last_posted_rx_wr_id(0), m_n_unsignaled_count(0),
-	m_p_last_tx_mem_buf_desc(NULL), m_p_prev_rx_desc_pushed(NULL),
-	m_n_ip_id_base(0), m_n_ip_id_offset(0), m_ratelimit_kbps(0)
+//	,m_n_sysvar_tx_num_wr_to_signal(safe_mce_sys().tx_num_wr_to_signal)
+	,m_n_sysvar_rx_prefetch_bytes_before_poll(safe_mce_sys().rx_prefetch_bytes_before_poll)
+	,m_curr_rx_wr(0)
+	,m_last_posted_rx_wr_id(0)
+	,m_n_unsignaled_count(0)
+	,m_p_last_tx_mem_buf_desc(NULL)
+	,m_p_prev_rx_desc_pushed(NULL)
+	,m_n_ip_id_base(0)
+	,m_n_ip_id_offset(0)
+	,m_ratelimit_kbps(0)
 {
 	m_ibv_rx_sg_array = new ibv_sge[m_n_sysvar_rx_num_wr_to_post_recv];
 	m_ibv_rx_wr_array = new ibv_recv_wr[m_n_sysvar_rx_num_wr_to_post_recv];
@@ -208,7 +219,7 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	// Check device capabilities for max SG elements
 	uint32_t tx_max_inline = safe_mce_sys().tx_max_inline;
 	uint32_t rx_num_sge = (IS_VMAPOLL) ? 1 : MCE_DEFAULT_RX_NUM_SGE;
-	uint32_t tx_num_sge = (IS_VMAPOLL) ? 1 : MCE_DEFAULT_TX_NUM_SGE;
+	uint32_t tx_num_sge = MCE_DEFAULT_TX_NUM_SGE;
 
 	qp_init_attr.cap.max_send_wr = m_tx_num_wr;
 	qp_init_attr.cap.max_recv_wr = m_rx_num_wr;
@@ -558,11 +569,9 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t *)p_send_wqe->wr_id;
 
 	qp_logfunc("VERBS send, unsignaled_count: %d", m_n_unsignaled_count);
-#ifndef DEFINED_VMAPOLL// not defined
 	if (!m_n_unsignaled_count) {
 		vma_send_wr_send_flags(*p_send_wqe) = (vma_ibv_send_flags)(vma_send_wr_send_flags(*p_send_wqe) | VMA_IBV_SEND_SIGNALED);
 	}
-#endif//DEFINED_VMAPOLL
 
 #ifdef VMA_TIME_MEASURE
 	TAKE_T_TX_POST_SEND_START;
@@ -608,9 +617,7 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 		}
 
 		// Clear the SINGAL request
-#ifndef DEFINED_VMAPOLL// not defined
 		vma_send_wr_send_flags(*p_send_wqe) = (vma_ibv_send_flags)(vma_send_wr_send_flags(*p_send_wqe) & ~VMA_IBV_SEND_SIGNALED);
-#endif //DEFINED_VMAPOLL
 
 		// Poll the Tx CQ
 		uint64_t dummy_poll_sn = 0;

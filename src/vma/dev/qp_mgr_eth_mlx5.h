@@ -61,6 +61,11 @@ private:
 
 	inline void	set_signal_in_next_send_wqe();
 
+	inline int	fill_wqe(vma_ibv_send_wr* p_send_wqe);
+	inline void	send_by_bf(uint64_t* addr, int num_wqebb);
+	inline void	send_by_bf_wrap_up(uint64_t* bottom_addr, int num_wqebb_bottom, int num_wqebb_top);
+	inline int	fill_inl_segment(sg_array &sga, uint8_t *cur_seg, uint8_t* data_addr, int max_inline_len, int inline_len);
+	inline int	fill_ptr_segment(sg_array &sga, struct mlx5_wqe_data_seg* dp_seg, uint8_t* data_addr, int data_len);
 	void		init_sq();
 
 	struct mlx5_wqe64	(*m_sq_wqes)[];
