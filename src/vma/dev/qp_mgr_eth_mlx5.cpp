@@ -60,11 +60,6 @@ static inline uint64_t align_to_WQEBB_up(uint64_t val)
 	return ((val+4-1)>>2)<<2;
 }
 
-static inline uint8_t* align_ptr_up(uint8_t* ptr)
-{
-	return (uint8_t *)align_to_octoword_up((uint64_t)ptr);
-}
-
 //
 void qp_mgr_eth_mlx5::init_sq()
 {
@@ -136,11 +131,7 @@ qp_mgr_eth_mlx5::qp_mgr_eth_mlx5(const ring_simple* p_ring, const ib_ctx_handler
 
 	init_sq();
 
-	if (m_p_cq_mgr_tx) {
-		m_p_cq_mgr_tx->add_qp_tx(this);
-	}
-
-	qp_logfunc("cq_mgr_tx= %p", m_p_cq_mgr_tx);
+	qp_logfunc("m_p_cq_mgr_tx= %p", m_p_cq_mgr_tx);
 
 }
 

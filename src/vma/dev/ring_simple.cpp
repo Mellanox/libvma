@@ -1408,6 +1408,7 @@ mem_buf_desc_t* ring_simple::mem_buf_tx_get(ring_user_id_t id, bool b_block, int
 		ret = m_p_cq_mgr_tx->poll_and_process_element_tx(&poll_sn);
 		if (ret < 0) {
 			ring_logdbg("failed polling on tx cq_mgr (qp_mgr=%p, cq_mgr_tx=%p) (ret=%d %m)", m_p_qp_mgr, m_p_cq_mgr_tx, ret);
+			/* coverity[double_unlock] TODO: RM#1049980 */
 			m_lock_ring_tx.unlock();
 			return NULL;
 		}
@@ -1420,7 +1421,7 @@ mem_buf_desc_t* ring_simple::mem_buf_tx_get(ring_user_id_t id, bool b_block, int
 			// until we get a few freed tx mem_buf_desc & data buffers
 
 			// Only a single thread should block on next Tx cqe event, hence the dedicated lock!
-			/* coverity[double_unlock] TODO: RM#1049980 */
+			/* coverity[double_unlock] coverity[unlock] TODO: RM#1049980 */
 			m_lock_ring_tx.unlock();
 			m_lock_ring_tx_buf_wait.lock();
 			/* coverity[double_lock] TODO: RM#1049980 */
@@ -1443,7 +1444,7 @@ mem_buf_desc_t* ring_simple::mem_buf_tx_get(ring_user_id_t id, bool b_block, int
 					poll_fd.fd = get_tx_comp_event_channel()->fd;
 
 					// Now it is time to release the ring lock (for restart events to be handled while this thread block on CQ channel)
-					/* coverity[double_unlock] TODO: RM#1049980 */
+					/* coverity[double_unlock] coverity[unlock] TODO: RM#1049980 */
 					m_lock_ring_tx.unlock();
 
 					ret = orig_os_api.poll(&poll_fd, 1, 100);
@@ -1473,6 +1474,7 @@ mem_buf_desc_t* ring_simple::mem_buf_tx_get(ring_user_id_t id, bool b_block, int
 						ret = p_cq_mgr_tx->poll_and_process_element_tx(&poll_sn);
 						if (ret < 0) {
 							ring_logdbg("failed handling Tx cq_mgr channel (qp_mgr=%p, cq_mgr_tx=%p) (errno=%d %m)", m_p_qp_mgr, m_p_cq_mgr_tx, errno);
+							/* coverity[double_unlock] TODO: RM#1049980 */
 							m_lock_ring_tx.unlock();
 							m_lock_ring_tx_buf_wait.unlock();
 							return NULL;
@@ -1783,7 +1785,7 @@ mem_buf_desc_t* ring_simple::get_tx_buffers(uint32_t n_num_mem_bufs)
 //call under m_lock_ring_tx lock
 int ring_simple::put_tx_buffers(mem_buf_desc_t* buff_list)
 {
-	int count = 0,freed=0;
+	int count = 0, freed=0;
 	mem_buf_desc_t *next;
 
 	while (buff_list) {

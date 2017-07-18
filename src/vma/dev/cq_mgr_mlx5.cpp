@@ -592,7 +592,7 @@ void cq_mgr_mlx5::del_qp_rx(qp_mgr *qp)
 	m_p_rq_wqe_idx_to_wrid = NULL;
 }
 
-void cq_mgr_mlx5::update_consumer_index()
+inline void cq_mgr_mlx5::update_consumer_index()
 {
 	struct ibv_cq *ibcq = m_p_ibv_cq; // ibcp is used in next macro: _to_mxxx
 	struct mlx5_cq* mlx5_cq = _to_mxxx(cq, cq);

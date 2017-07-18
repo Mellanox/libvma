@@ -114,7 +114,6 @@ protected:
 	bool			request_more_tx_buffers(uint32_t count);
 	uint32_t		get_tx_num_wr() { return m_tx_num_wr; }
 	uint16_t		get_partition() { return m_partition; }
-	uint16_t		get_lkey() { return m_tx_lkey; }
 	ib_ctx_handler*		m_p_ib_ctx;
 	qp_mgr*			m_p_qp_mgr;
 	struct cq_moderation_info m_cq_moderation_info;

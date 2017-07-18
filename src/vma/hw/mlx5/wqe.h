@@ -33,6 +33,10 @@
 #ifndef WQE_H
 #define WQE_H
 
+#if !defined(MLX5_ETH_INLINE_HEADER_SIZE)
+#define MLX5_ETH_INLINE_HEADER_SIZE 18
+#endif
+
 #define OCTOWORD	16
 #define WQEBB		64
 
