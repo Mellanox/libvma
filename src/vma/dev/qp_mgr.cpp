@@ -82,9 +82,7 @@ qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context,
 	,m_tx_num_wr(tx_num_wr)
 	,m_hw_dummy_send_support(false)
 	,m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv)
-	,m_n_sysvar_tx_num_wr_to_signal(NUM_TX_WRE_TO_SIGNAL_MAX)
-//TODO:replace previous by this when dynamic signaling to be implemented for TX PostSend PRM
-//	,m_n_sysvar_tx_num_wr_to_signal(safe_mce_sys().tx_num_wr_to_signal)
+	,m_n_sysvar_tx_num_wr_to_signal(safe_mce_sys().tx_num_wr_to_signal)
 	,m_n_sysvar_rx_prefetch_bytes_before_poll(safe_mce_sys().rx_prefetch_bytes_before_poll)
 	,m_curr_rx_wr(0)
 	,m_last_posted_rx_wr_id(0)
@@ -562,7 +560,6 @@ inline int qp_mgr::send_to_wire(vma_ibv_send_wr* p_send_wqe)
 	} ENDIF_VERBS_FAILURE;
 	return 0;
 }
-//#endif // DEFINED_VMAPOLL
 
 int qp_mgr::send(vma_ibv_send_wr* p_send_wqe)
 {
