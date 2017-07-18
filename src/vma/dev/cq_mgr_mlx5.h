@@ -58,7 +58,6 @@ public:
 	virtual ~cq_mgr_mlx5();
 
 	virtual mem_buf_desc_t*     poll(enum buff_status_e& status);
-	inline volatile struct mlx5_cqe64* check_cqe(void);
 	inline volatile struct mlx5_cqe64* get_cqe64(volatile struct mlx5_cqe64 **cqe_err);
 	inline void                 cqe64_to_mem_buff_desc(volatile struct mlx5_cqe64 *cqe, mem_buf_desc_t* p_rx_wc_buf_desc, enum buff_status_e& status);
 	virtual int                 drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id = NULL);
@@ -76,6 +75,8 @@ public:
 	virtual int                 wait_for_notification_and_process_element(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 
 protected:
+	inline volatile struct mlx5_cqe64* check_cqe(void);
+
 	uint32_t                    m_cq_size;
 	uint32_t                    m_cq_cons_index;
 	struct mlx5_cqe64           (*m_cqes)[];
@@ -89,7 +90,7 @@ private:
 
 	void cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, vma_ibv_wc *wc);
 	inline volatile struct mlx5_cqe64* check_error_completion(volatile struct mlx5_cqe64 *cqe,volatile uint32_t *ci, uint8_t op_own);
-	void                        update_consumer_index();
+	inline void		    update_consumer_index();
 	inline void                 update_global_sn(uint64_t& cq_poll_sn, uint32_t rettotal);
 };
 

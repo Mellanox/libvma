@@ -233,14 +233,6 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 		return -1;
 	}
 
-	int attr_mask = IBV_QP_CAP;
-	struct ibv_qp_attr tmp_ibv_qp_attr;
-	struct ibv_qp_init_attr tmp_ibv_qp_init_attr;
-	IF_VERBS_FAILURE(ibv_query_qp(m_qp, &tmp_ibv_qp_attr, (enum ibv_qp_attr_mask)attr_mask, &tmp_ibv_qp_init_attr)) {
-		qp_logerr("ibv_query_qp failed (errno=%d %m)", errno);
-		return -1;
-	} ENDIF_VERBS_FAILURE;
-
 	// All buffers will be allocated from this qp_mgr buffer pool so we can already set the Rx & Tx lkeys
 	for (uint32_t wr_idx = 0; wr_idx < m_n_sysvar_rx_num_wr_to_post_recv; wr_idx++) {
 		m_ibv_rx_wr_array[wr_idx].sg_list = &m_ibv_rx_sg_array[wr_idx];
