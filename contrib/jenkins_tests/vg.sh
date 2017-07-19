@@ -70,17 +70,17 @@ for test_link in $test_ip_list; do
 
 		if [ `ps -ef | grep $test_app | wc -l` -gt 1 ];
 		then
-			sudo pkill -SIGINT -f $test_app
+			sudo pkill -SIGINT -f $test_app 2>/dev/null || true
 			sleep 10
 			# in case SIGINT didn't work
 			if [ `ps -ef | grep $test_app | wc -l` -gt 1 ];
 			then
-				sudo pkill -15 -f $test_app
+				sudo pkill -SIGTERM -f $test_app 2>/dev/null || true
 				sleep 3
 			fi
 			if [ `ps -ef | grep $test_app | wc -l` -gt 1 ];
 			then
-				sudo pkill -9 -f $test_app
+				sudo pkill -SIGKILL -f $test_app 2>/dev/null || true
 			fi
 		fi
 
