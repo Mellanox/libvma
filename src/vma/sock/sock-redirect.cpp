@@ -505,7 +505,7 @@ int vma_get_socket_rings_fds(int fd, int *ring_fds, int ring_fds_sz)
 	socket_fd_api* p_socket_object = NULL;
 	int rings_num = 0;
 	
-	if (ring_fds_sz <= 0) {
+	if (ring_fds_sz <= 0 || ring_fds == NULL) {
         	errno = EINVAL;
         	return -1;
 	}
