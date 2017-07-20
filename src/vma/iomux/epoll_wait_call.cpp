@@ -170,7 +170,7 @@ bool epoll_wait_call::_wait(int timeout)
 {
 	int i, ready_fds, fd;
 	bool cq_ready = false;
-	epoll_fd_rec fd_rec;
+	epoll_fd_rec* fd_rec;
 
 	__log_func("calling os epoll: %d", m_epfd);
 
@@ -231,8 +231,9 @@ bool epoll_wait_call::_wait(int timeout)
 
 		// Copy event bits and data
 		m_events[m_n_all_ready_fds].events = m_p_ready_events[i].events;
-		if (m_epfd_info->get_fd_rec(fd, fd_rec)) {
-			m_events[m_n_all_ready_fds].data = fd_rec.epdata;
+		fd_rec = m_epfd_info->get_fd_rec(fd);
+		if (fd_rec) {
+			m_events[m_n_all_ready_fds].data = fd_rec->epdata;
 			++m_n_all_ready_fds;
 		} else {
 			__log_dbg("error - could not found fd %d in m_fd_info of epfd %d", fd, m_epfd);

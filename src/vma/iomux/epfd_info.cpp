@@ -208,7 +208,7 @@ int epfd_info::add_fd(int fd, epoll_event *event)
 	if (temp_sock_fd_api && temp_sock_fd_api->skip_os_select()) {
 		__log_dbg("fd=%d must be skipped from os epoll()", fd);
 		// Checking for duplicate fds
-		if (get_fd_rec(fd, fd_rec)) {
+		if (get_fd_rec(fd)) {
 			errno = EEXIST;
 			__log_dbg("epoll_ctl: fd=%d is already registered with this epoll instance %d (errno=%d %m)", fd, m_epfd, errno);
 			return -1;
@@ -374,7 +374,7 @@ int epfd_info::del_fd(int fd, bool passthrough)
 {
 	__log_funcall("fd=%d", fd);
 
-	epoll_fd_rec fi;
+	epoll_fd_rec* fi;
 	socket_fd_api* temp_sock_fd_api = fd_collection_get_sockfd(fd);
 	if (temp_sock_fd_api && temp_sock_fd_api->skip_os_select()) {
 		__log_dbg("fd=%d must be skipped from os epoll()", fd);
@@ -383,7 +383,8 @@ int epfd_info::del_fd(int fd, bool passthrough)
 		remove_fd_from_epoll_os(fd);
 	}
 	
-	if (!get_fd_rec(fd, fi)) {
+	fi = get_fd_rec(fd);
+	if (!fi) {
 		errno = ENOENT;
 		return -1;
 	}
@@ -405,19 +406,19 @@ int epfd_info::del_fd(int fd, bool passthrough)
 	}
 
 	// handle offloaded fds
-	if (fi.offloaded_index > 0) {
+	if (fi->offloaded_index > 0) {
 
 		//check if the index of fd, which is being removed, is the last one.
 		//if does, it is enough to decrease the val of m_n_offloaded_fds in order
 		//to shrink the offloaded fds array.
-		if (fi.offloaded_index < m_n_offloaded_fds) {
+		if (fi->offloaded_index < m_n_offloaded_fds) {
 			// remove fd and replace by last fd
-			m_p_offloaded_fds[fi.offloaded_index - 1] =
+			m_p_offloaded_fds[fi->offloaded_index - 1] =
 					m_p_offloaded_fds[m_n_offloaded_fds - 1];
 
 			socket_fd_api* last_socket = fd_collection_get_sockfd(m_p_offloaded_fds[m_n_offloaded_fds - 1]);
 			if (last_socket && last_socket->get_epoll_context_fd() == m_epfd) {
-				last_socket->m_fd_rec.offloaded_index = fi.offloaded_index;
+				last_socket->m_fd_rec.offloaded_index = fi->offloaded_index;
 			} else {
 				__log_warn("Failed to update the index of offloaded fd: %d last_socket %p\n",
 						m_p_offloaded_fds[m_n_offloaded_fds - 1], last_socket);
@@ -443,12 +444,13 @@ int epfd_info::del_fd(int fd, bool passthrough)
 int epfd_info::mod_fd(int fd, epoll_event *event)
 {
 	epoll_event evt;
-	epoll_fd_rec fd_rec;
+	epoll_fd_rec* fd_rec;
 	int ret;
 
 	__log_funcall("fd=%d", fd);
 	// find the fd in local table
-	if (!get_fd_rec(fd, fd_rec)) {
+	fd_rec = get_fd_rec(fd);
+	if (!fd_rec) {
 		errno = ENOENT;
 		return -1;
 	}
@@ -482,8 +484,8 @@ int epfd_info::mod_fd(int fd, epoll_event *event)
 	}
 
 	// modify fd data in local table
-	fd_rec.epdata = event->data;
-	fd_rec.events = event->events;
+	fd_rec->epdata = event->data;
+	fd_rec->events = event->events;
 	
 	bool is_offloaded = temp_sock_fd_api && temp_sock_fd_api->get_type()== FD_TYPE_SOCKET;
 
@@ -516,32 +518,29 @@ int epfd_info::mod_fd(int fd, epoll_event *event)
 	return 0;
 }
 
-bool epfd_info::get_fd_rec(int fd, epoll_fd_rec& fd_rec)
+epoll_fd_rec* epfd_info::get_fd_rec(int fd)
 {
-	bool res = true;
+	epoll_fd_rec* fd_rec = NULL;
 	socket_fd_api* temp_sock_fd_api = fd_collection_get_sockfd(fd);
 	lock();
 
 	if (temp_sock_fd_api && temp_sock_fd_api->get_epoll_context_fd() == m_epfd) {
-		fd_rec = temp_sock_fd_api->m_fd_rec;
+		fd_rec = &temp_sock_fd_api->m_fd_rec;
 	} else {
 		fd_info_map_t::iterator iter = m_fd_non_offloaded_map.find(fd);
 		if (iter != m_fd_non_offloaded_map.end()) {
-			fd_rec = iter->second;
-		} else {
-			res = false;
+			fd_rec = &iter->second;
 		}
 	}
 
 	unlock();
-	return res;
+	return fd_rec;
 }
 
 void epfd_info::fd_closed(int fd, bool passthrough)
 {
-	epoll_fd_rec fd_rec;
 	lock();
-	if (get_fd_rec(fd, fd_rec)) {
+	if (get_fd_rec(fd)) {
 		del_fd(fd, passthrough);
 	}
 	unlock();

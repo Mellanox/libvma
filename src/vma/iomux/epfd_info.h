@@ -75,10 +75,9 @@ public:
 	/**
 	 * Get the original user data posted with this fd.
 	 * @param fd File descriptor.
-	 * @param fd_rec Reference to fill with user data.
-	 * @return True if the data for this fd was found.
+	 * @return Pointer to user data if the data for this fd was found.
 	 */
-	bool get_fd_rec(int fd, epoll_fd_rec& fd_rec);
+	epoll_fd_rec* get_fd_rec(int fd);
 
 	/**
 	 * Called when fd is closed, to remove it from this set.
