@@ -848,6 +848,11 @@ AC_CHECK_LIB([ibverbs], [ibv_cmd_poll_cq], [VERBS_FLAGS="$VERBS_FLAGS -libverbs"
 		[])
 AC_SUBST([VERBS_FLAGS])
 
+AC_ARG_ENABLE([multi-packet-timestamp-dump],
+	AS_HELP_STRING([--enable-multi-packet-timestamp-dump],
+		[enables dump file with multi_packet HW timestamp, default disabled]),
+	[AC_DEFINE([ENABLE_MP_RQ_TIMSTAMP_DUMP], 1, [enable multi packet timestamp dump])],[])
+
 have_mp_rq=yes
 AC_CHECK_DECLS([IBV_EXP_DEVICE_ATTR_VLAN_OFFLOADS,
 		IBV_EXP_DEVICE_ATTR_MAX_CTX_RES_DOMAIN,
