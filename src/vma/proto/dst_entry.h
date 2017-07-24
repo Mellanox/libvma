@@ -165,12 +165,12 @@ protected:
 	void			do_ring_migration(lock_base& socket_lock);
 	inline void		set_tx_buff_list_pending(bool is_pending = true) {m_b_tx_mem_buf_desc_list_pending = is_pending;}
 
-	inline void		send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block, bool b_dummy)
+	inline void		send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 	{
-		if (unlikely(b_dummy)) {
+		if (unlikely(is_set(attr, VMA_TX_PACKET_DUMMY))) {
 			if (m_p_ring->get_hw_dummy_send_support(id, p_send_wqe)) {
 				vma_ibv_wr_opcode last_opcode = m_p_send_wqe_handler->set_opcode(*p_send_wqe, VMA_IBV_WR_NOP);
-				m_p_ring->send_ring_buffer(id, p_send_wqe, b_block);
+				m_p_ring->send_ring_buffer(id, p_send_wqe, attr);
 				m_p_send_wqe_handler->set_opcode(*p_send_wqe, last_opcode);
 			} else {
 				/* free the buffer if dummy send is not supported */
@@ -178,7 +178,7 @@ protected:
 				m_p_ring->mem_buf_tx_release(p_mem_buf_desc, true);
 			}
 		} else {
-			m_p_ring->send_ring_buffer(id, p_send_wqe, b_block);
+			m_p_ring->send_ring_buffer(id, p_send_wqe, attr);
 		}
 	}
 

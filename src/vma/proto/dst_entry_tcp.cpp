@@ -160,7 +160,11 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 #endif
 		m_p_send_wqe = &m_not_inline_send_wqe;
 		m_p_send_wqe->wr_id = (uintptr_t)p_mem_buf_desc;
-		send_ring_buffer(m_id, m_p_send_wqe, b_blocked, is_dummy);
+		vma_wr_tx_packet_attr attr = (vma_wr_tx_packet_attr)((VMA_TX_PACKET_BLOCK*b_blocked) | 
+								     (VMA_TX_PACKET_DUMMY*is_dummy)  |
+								      VMA_TX_PACKET_L3_CSUM          |
+								      VMA_TX_PACKET_L4_CSUM);
+		send_ring_buffer(m_id, m_p_send_wqe, attr);
 
 		/* for DEBUG */
 		if ((uint8_t*)m_sge[0].addr < p_mem_buf_desc->p_buffer) {

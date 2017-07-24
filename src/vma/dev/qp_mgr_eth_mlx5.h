@@ -50,7 +50,6 @@ public:
 	virtual ~qp_mgr_eth_mlx5();
 
 protected:
-	int			send_to_wire(vma_ibv_send_wr* p_send_wqe);
 	void			trigger_completion_for_all_sent_packets();
 	struct mlx5_qp*		m_hw_qp;
 	uint64_t*               m_sq_wqe_idx_to_wrid;
@@ -61,6 +60,7 @@ private:
 
 	inline void	set_signal_in_next_send_wqe();
 
+	int		send_to_wire(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 	inline int	fill_wqe(vma_ibv_send_wr* p_send_wqe);
 	inline void	send_by_bf(uint64_t* addr, int num_wqebb);
 	inline void	send_by_bf_wrap_up(uint64_t* bottom_addr, int num_wqebb_bottom, int num_wqebb_top);

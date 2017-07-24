@@ -1528,17 +1528,17 @@ int ring_simple::get_max_tx_inline()
 }
 
 /* note that this function is inline, so keep it above the functions using it */
-inline int ring_simple::send_buffer(vma_ibv_send_wr* p_send_wqe, bool b_block)
+inline int ring_simple::send_buffer(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 {
 	//Note: this is debatable logic as it count of WQEs waiting completion but
 	//our SQ is cyclic buffer so in reality only last WQE is still being sent
 	//and other SQ is mostly free to work on.
 	int ret = 0;
 	if (likely(m_tx_num_wr_free > 0)) {
-		ret = m_p_qp_mgr->send(p_send_wqe);
+		ret = m_p_qp_mgr->send(p_send_wqe, attr);
 		--m_tx_num_wr_free;
-	} else if (is_available_qp_wr(b_block)) {
-		ret = m_p_qp_mgr->send(p_send_wqe);
+	} else if (is_available_qp_wr(is_set(attr, VMA_TX_PACKET_BLOCK))) {
+		ret = m_p_qp_mgr->send(p_send_wqe, attr);
 	} else {
 		ring_logdbg("silent packet drop, no available WR in QP!");
 		ret = -1;
@@ -1558,12 +1558,12 @@ bool ring_simple::get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* 
 	return m_p_qp_mgr->get_hw_dummy_send_support();
 }
 
-void ring_simple::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block)
+void ring_simple::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 {
 	NOT_IN_USE(id);
 	auto_unlocker lock(m_lock_ring_tx);
 	p_send_wqe->sg_list[0].lkey = m_tx_lkey;	// The ring keeps track of the current device lkey (In case of bonding event...)
-	int ret = send_buffer(p_send_wqe, b_block);
+	int ret = send_buffer(p_send_wqe, attr);
 	send_status_handler(ret, p_send_wqe);
 }
 
@@ -1574,7 +1574,8 @@ void ring_simple::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wq
 	p_send_wqe->sg_list[0].lkey = m_tx_lkey; // The ring keeps track of the current device lkey (In case of bonding event...)
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
 	p_mem_buf_desc->lwip_pbuf.pbuf.ref++;
-	int ret = send_buffer(p_send_wqe, b_block);
+	vma_wr_tx_packet_attr attr = (vma_wr_tx_packet_attr)((b_block*VMA_TX_PACKET_BLOCK)|VMA_TX_PACKET_L3_CSUM|VMA_TX_PACKET_L4_CSUM);
+	int ret = send_buffer(p_send_wqe, attr);
 	send_status_handler(ret, p_send_wqe);
 }
 

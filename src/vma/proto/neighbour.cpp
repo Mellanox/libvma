@@ -508,7 +508,7 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 		p_mem_buf_desc->p_next_desc = NULL;
 
 		// We don't check the return value of post send when we reach the HW we consider that we completed our job
-		m_p_ring->send_ring_buffer(m_id, &m_send_wqe, false);
+		m_p_ring->send_ring_buffer(m_id, &m_send_wqe, (vma_wr_tx_packet_attr)0);
 
 		p_mem_buf_desc = tmp;
 
@@ -572,6 +572,7 @@ bool neigh_entry::post_send_tcp(iovec *iov, header *h)
 	}
 
 	m_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
+	vma_wr_tx_packet_attr attr = (vma_wr_tx_packet_attr)0;
 #ifdef VMA_NO_HW_CSUM
 		p_pkt->hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
 		p_pkt->hdr.m_ip_hdr.check = compute_ip_checksum((unsigned short*)&p_pkt->hdr.m_ip_hdr, p_pkt->hdr.m_ip_hdr.ihl * 2);
@@ -579,8 +580,10 @@ bool neigh_entry::post_send_tcp(iovec *iov, header *h)
 		p_tcphdr->check = 0;
 		p_tcphdr->check = compute_tcp_checksum(&p_pkt->hdr.m_ip_hdr, (const uint16_t *)p_tcphdr);
 		neigh_logdbg("using SW checksum calculation: p_pkt->hdr.m_ip_hdr.check=%d, p_tcphdr->check=%d", (int)p_tcphdr->check, (int)p_pkt->hdr.m_ip_hdr.check);
+#else
+	attr = (vma_wr_tx_packet_attr)(VMA_TX_PACKET_L3_CSUM|VMA_TX_PACKET_L4_CSUM);
 #endif
-	m_p_ring->send_ring_buffer(m_id, &m_send_wqe, false);
+	m_p_ring->send_ring_buffer(m_id, &m_send_wqe, attr);
 #ifndef __COVERITY__
 	struct tcphdr* p_tcp_h = (struct tcphdr*)(((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr)));
 	NOT_IN_USE(p_tcp_h); /* to supress warning in case VMA_MAX_DEFINED_LOG_LEVEL */
@@ -1466,7 +1469,7 @@ bool neigh_eth::post_send_arp(bool is_broadcast)
 	p_mem_buf_desc->p_next_desc = NULL;
 	m_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
 
-	m_p_ring->send_ring_buffer(m_id, &m_send_wqe, false);
+	m_p_ring->send_ring_buffer(m_id, &m_send_wqe, (vma_wr_tx_packet_attr)0);
 
 	neigh_logdbg("ARP Sent");
 	return true;
@@ -1731,7 +1734,7 @@ bool neigh_ib::post_send_arp(bool is_broadcast)
 	p_mem_buf_desc->p_next_desc = NULL;
 	m_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
 
-	m_p_ring->send_ring_buffer(m_id, &m_send_wqe, false);
+	m_p_ring->send_ring_buffer(m_id, &m_send_wqe, (vma_wr_tx_packet_attr)0);
 
 	neigh_logdbg("ARP Sent");
 	return true;
