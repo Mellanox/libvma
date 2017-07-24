@@ -237,7 +237,6 @@ protected:
 	ring_simple*		m_p_ring;
 	uint32_t		m_n_wce_counter;
 	bool			m_b_was_drained;
-	bool			m_b_is_clean;
 	bool			m_b_is_rx_hw_csum_on;
 	qp_rec			m_qp_rec;
 	const uint32_t		m_n_sysvar_cq_poll_batch_max;
