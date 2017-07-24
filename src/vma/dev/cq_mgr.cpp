@@ -82,7 +82,6 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 	,m_p_ring(p_ring)
 	,m_n_wce_counter(0)
 	,m_b_was_drained(false)
-	,m_b_is_clean(false)
 	,m_b_is_rx_hw_csum_on(false)
 	,m_n_sysvar_cq_poll_batch_max(safe_mce_sys().cq_poll_batch_max)
 	,m_n_sysvar_progress_engine_wce_max(safe_mce_sys().progress_engine_wce_max)
@@ -182,6 +181,9 @@ void cq_mgr::prep_ibv_cq(vma_ibv_cq_init_attr& attr) const
 
 uint32_t cq_mgr::clean_cq()
 {
+#ifdef DEFINED_VMAPOLL
+	return 0;
+#else
 	uint32_t ret_total = 0;
 	int ret = 0;
 	uint64_t cq_poll_sn = 0;
@@ -202,6 +204,7 @@ uint32_t cq_mgr::clean_cq()
 	}
 
 	return ret_total;
+#endif
 }
 
 cq_mgr::~cq_mgr()
@@ -209,19 +212,7 @@ cq_mgr::~cq_mgr()
 	cq_logfunc("");
 	cq_logdbg("destroying CQ as %s", (m_b_is_rx?"Rx":"Tx"));
 
-#ifndef DEFINED_VMAPOLL
-	if (!m_b_is_clean) {
-		uint32_t ret_total;
-
-		ret_total = clean_cq();
-		if (ret_total > 0) {
-			cq_logdbg("Drained %d wce", ret_total);
-		}
-	}
-#endif
-	
 	m_b_was_drained = true;
-
 	if (m_rx_queue.size() + m_rx_pool.size()) {
 		cq_logdbg("Returning %d buffers to global Rx pool (ready queue %d, free pool %d))", m_rx_queue.size() + m_rx_pool.size(), m_rx_queue.size(), m_rx_pool.size());
 

@@ -103,7 +103,6 @@ cq_mgr_mlx5::~cq_mgr_mlx5()
 	cq_logfunc("");
 	cq_logdbg("destroying CQ as %s", (m_b_is_rx?"Rx":"Tx"));
 	m_rq = NULL;
-	m_b_is_clean = true;
 }
 
 mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
