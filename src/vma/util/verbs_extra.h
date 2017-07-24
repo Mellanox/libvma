@@ -44,6 +44,9 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <linux/if_ether.h>
+#ifdef HAVE_INFINIBAND_MLX5_HW_H
+# include <infiniband/mlx5_hw.h>
+#endif //HAVE_INFINIBAND_MLX5_HW_H
 
 #ifndef DEFINED_IBV_WC_WITH_VLAN
 //#warning probaly you are trying to compile on OFED which doesnt support VLAN for RAW QP.
@@ -306,6 +309,19 @@ typedef struct ibv_exp_flow_spec_action_tag	vma_ibv_flow_spec_action_tag;
 typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_tag;
 #endif //DEFINED_IBV_EXP_FLOW_TAG
 #endif
+
+typedef enum vma_wr_tx_packet_attr {
+	VMA_TX_PACKET_BLOCK   = (1 << 0), // blocking send
+	VMA_TX_PACKET_DUMMY   = (1 << 1), // dummy send
+	VMA_TX_PACKET_LSO     = (1 << 2), // packet to send by LSO
+	VMA_TX_PACKET_L3_CSUM = (1 << 6), //MLX5_ETH_WQE_L3_CSUM offload to HW L3 (IP) header checksum
+	VMA_TX_PACKET_L4_CSUM = (1 << 7)  //MLX5_ETH_WQE_L4_CSUM offload to HW L4 (TCP/UDP) header checksum
+} vma_wr_tx_packet_attr;
+
+inline bool is_set(vma_wr_tx_packet_attr state_, vma_wr_tx_packet_attr tx_mode_)
+{
+	return (uint32_t)state_ & (uint32_t)tx_mode_;
+}
 
 int vma_rdma_lib_reset();
 

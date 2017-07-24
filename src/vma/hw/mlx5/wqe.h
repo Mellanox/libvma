@@ -41,10 +41,6 @@
 #define WQEBB		64
 
 #ifndef DEFINED_MLX5_HW_ETH_WQE_HEADER
-enum {
-	MLX5_ETH_WQE_L3_CSUM	=	(1 << 6),
-	MLX5_ETH_WQE_L4_CSUM	=	(1 << 7),
-};
 
 struct mlx5_wqe_eth_seg {
 	uint32_t        rsvd0;

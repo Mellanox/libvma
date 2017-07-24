@@ -103,7 +103,7 @@ void qp_mgr_eth_mlx5::init_sq()
 	m_sq_wqe_hot->ctrl.data[1] = htonl((m_qp_num << 8) | 4);
 	m_sq_wqe_hot->ctrl.data[2] = 0;
 	m_sq_wqe_hot->eseg.inline_hdr_sz = htons(MLX5_ETH_INLINE_HEADER_SIZE);
-	m_sq_wqe_hot->eseg.cs_flags = MLX5_ETH_WQE_L3_CSUM | MLX5_ETH_WQE_L4_CSUM;
+	m_sq_wqe_hot->eseg.cs_flags = VMA_TX_PACKET_L3_CSUM | VMA_TX_PACKET_L4_CSUM;
 
 	qp_logfunc("%p allocated for %d QPs sq_wqes:%p sq_wqes_end: %p and configured %d WRs BlueFlame: %p buf_size: %d offset: %d",
 			m_qp, m_qp_num, m_sq_wqes, m_sq_wqes_end,  m_tx_num_wr, m_sq_bf_reg, m_sq_bf_buf_size, m_sq_bf_offset);
@@ -393,8 +393,11 @@ inline int qp_mgr_eth_mlx5::fill_wqe(vma_ibv_send_wr *pswr)
 
 //! Send one RAW packet by MLX5 BlueFlame
 //
-int qp_mgr_eth_mlx5::send_to_wire(vma_ibv_send_wr *p_send_wqe)
+int qp_mgr_eth_mlx5::send_to_wire(vma_ibv_send_wr *p_send_wqe, vma_wr_tx_packet_attr attr)
 {
+	struct mlx5_wqe_eth_seg* eth_seg = (struct mlx5_wqe_eth_seg*)((uint8_t*)m_sq_wqe_hot+sizeof(struct mlx5_wqe_ctrl_seg));
+	eth_seg->cs_flags = (uint8_t)(attr & (VMA_TX_PACKET_L3_CSUM | VMA_TX_PACKET_L4_CSUM)&0xff);
+
 	fill_wqe(p_send_wqe);
 	m_sq_wqe_idx_to_wrid[m_sq_wqe_hot_index] = (uintptr_t)p_send_wqe->wr_id;
 
@@ -413,9 +416,8 @@ int qp_mgr_eth_mlx5::send_to_wire(vma_ibv_send_wr *p_send_wqe)
 	m_sq_wqe_hot->ctrl.data[2] = m_n_unsignaled_count-1 == 0 ? htonl(8) : 0 ;
 
 	// Fill Ethernet segment with header inline
-	struct mlx5_wqe_eth_seg* eth_seg = (struct mlx5_wqe_eth_seg*)((uint8_t*)m_sq_wqe_hot+sizeof(struct mlx5_wqe_ctrl_seg));
+	eth_seg = (struct mlx5_wqe_eth_seg*)((uint8_t*)m_sq_wqe_hot+sizeof(struct mlx5_wqe_ctrl_seg));
 	eth_seg->inline_hdr_sz = htons(MLX5_ETH_INLINE_HEADER_SIZE);
-	eth_seg->cs_flags = MLX5_ETH_WQE_L3_CSUM | MLX5_ETH_WQE_L4_CSUM;
 
 	return 0;
 }
@@ -477,7 +479,7 @@ void qp_mgr_eth_mlx5::trigger_completion_for_all_sent_packets()
 		m_p_ring->m_tx_num_wr_free--;
 
 		set_signal_in_next_send_wqe();
-		send_to_wire(&send_wr);
+		send_to_wire(&send_wr,(vma_wr_tx_packet_attr)(VMA_TX_PACKET_L3_CSUM|VMA_TX_PACKET_L4_CSUM));
 	}
 }
 

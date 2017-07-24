@@ -213,13 +213,13 @@ void ring_bond::mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf
 	((ring_simple*)p_mem_buf_desc->p_desc_owner)->mem_buf_desc_return_single_to_owner_tx(p_mem_buf_desc);
 }
 
-void ring_bond::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block)
+void ring_bond::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 {
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
 	ring_simple* active_ring = m_active_rings[id];
 
 	if (likely(active_ring && p_mem_buf_desc->p_desc_owner == active_ring)) {
-		active_ring->send_ring_buffer(id, p_send_wqe, b_block);
+		active_ring->send_ring_buffer(id, p_send_wqe, attr);
 	} else {
 		ring_logfunc("active ring=%p, silent packet drop (%p), (HA event?)", active_ring, p_mem_buf_desc);
 		p_mem_buf_desc->p_next_desc = NULL;
