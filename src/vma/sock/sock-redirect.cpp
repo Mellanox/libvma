@@ -61,7 +61,6 @@
 
 using namespace std;
 
-
 #define MODULE_NAME 		"srdr:"
 
 #define srdr_logpanic		__log_panic
@@ -587,6 +586,26 @@ int vma_cyclic_buffer_read(int fd, struct vma_completion_cb_t *completion,
 	}
 }
 
+extern "C"
+int vma_cyclic_buffer_is_readable(int fd)
+{
+	cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(fd);
+	if (p_cq_ch_info) {
+		ring_eth_cb* p_ring = (ring_eth_cb *)p_cq_ch_info->get_ring();
+		if (likely(p_ring && p_ring->is_mp_ring())) {
+			return p_ring->cyclic_buffer_is_readable();
+		} else {
+			vlog_printf(VLOG_ERROR, "could not find ring, got fd "
+					"%d\n", fd);
+			return -1;
+		}
+	} else {
+		vlog_printf(VLOG_ERROR, "could not find p_cq_ch_info, got fd "
+							"%d\n", fd);
+		return -1;
+	}
+}
+
 #endif // HAVE_MP_RQ
 
 int vma_add_ring_profile(vma_ring_type_attr *profile, vma_ring_profile_key *res)
@@ -912,6 +931,7 @@ int getsockopt(int __fd, int __level, int __optname,
 
 #ifdef HAVE_MP_RQ
 		vma_api->vma_cyclic_buffer_read = vma_cyclic_buffer_read;
+		vma_api->vma_cyclic_buffer_is_readable = vma_cyclic_buffer_is_readable;
 #endif // HAVE_MP_RQ
 		*((vma_api_t**)__optval) = vma_api;
 		return 0;

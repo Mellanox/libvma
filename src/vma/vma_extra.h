@@ -572,6 +572,14 @@ struct __attribute__ ((packed)) vma_api_t {
 				      size_t min, size_t max, int flags);
 
 	/**
+	 * Get the size of the packet arrived to MP_RQ cyclic buffer to return, if not available
+	 * will return 0
+	 * @param fd - the fd of the ring to query - get it using @ref get_socket_rings_fds
+	 * @return the size of the packet arrived on success -1 on failure
+	 */
+	int (*vma_cyclic_buffer_is_readable)(int fd);
+
+	/**
 	 * add a ring profile to VMA ring profile list. you can use this
 	 * to create advacned rings like MP_RQ ring
 	 * the need to pass vma the ring profile using the fd's setsockopt
