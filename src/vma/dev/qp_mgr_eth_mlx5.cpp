@@ -135,6 +135,7 @@ qp_mgr_eth_mlx5::qp_mgr_eth_mlx5(const ring_simple* p_ring, const ib_ctx_handler
 
 }
 
+//! Cleanup resources QP itself will be freed by base class DTOR
 qp_mgr_eth_mlx5::~qp_mgr_eth_mlx5()
 {
 	if (m_rq_wqe_idx_to_wrid) {
