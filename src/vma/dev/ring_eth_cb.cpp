@@ -187,12 +187,15 @@ inline mp_loop_result ring_eth_cb::mp_loop(size_t limit)
 			ring_logdbg("poll_mp_cq failed with errno %m", errno);
 			return MP_LOOP_RETURN_TO_APP;
 		}
+
 		if (unlikely(flags & VMA_MP_RQ_BAD_PACKET)) {
 			if (m_curr_wqe_used_strides >= m_strides_num) {
 				reload_wq();
 			}
 			return MP_LOOP_RETURN_TO_APP;
 		}
+		m_p_ring_stat->n_rx_pkt_count++;
+		m_p_ring_stat->n_rx_byte_count += size;
 		++m_curr_packets;
 		if (unlikely(m_curr_wqe_used_strides >= m_strides_num)) {
 			if (reload_wq()) {
@@ -257,6 +260,8 @@ int ring_eth_cb::cyclic_buffer_read(vma_completion_cb_t &completion,
 		ring_logdbg("poll_mp_cq failed with errno %m", errno);
 		return -1;
 	}
+	m_p_ring_stat->n_rx_pkt_count++;
+	m_p_ring_stat->n_rx_byte_count += size;
 	// set it here because we might not have min packets avail in this run
 	if (likely(!(poll_flags & VMA_MP_RQ_BAD_PACKET))) {
 		if (unlikely(m_curr_d_addr == 0)) {
@@ -285,11 +290,12 @@ int ring_eth_cb::cyclic_buffer_read(vma_completion_cb_t &completion,
 			if (ret == MP_LOOP_LIMIT) { // there might be more to drain
 				mp_loop(max);
 			} else if (ret == MP_LOOP_DRAINED) { // no packets left
+				((cq_mgr_mp *)m_p_cq_mgr_rx)->update_max_drain(m_curr_packets);
 				return 0;
 			}
 		}
 	}
-
+	((cq_mgr_mp *)m_p_cq_mgr_rx)->update_max_drain(m_curr_packets);
 	m_curr_batch_starting_stride = m_curr_wqe_used_strides - m_curr_batch_starting_stride;
 	completion.payload_ptr = m_curr_d_addr;
 	completion.payload_length = m_curr_batch_starting_stride * m_stride_size;
