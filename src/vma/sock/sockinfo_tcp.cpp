@@ -2416,7 +2416,7 @@ int sockinfo_tcp::rx_verify_available_data()
 	int poll_count = 0;
 	int ret = rx_wait_helper(poll_count, false);
 
-	return ret == -1 ? ret : m_p_socket_stats->n_rx_ready_byte_count;
+	return (ret == -1 ? ret : m_p_socket_stats->n_rx_ready_byte_count);
 }
 
 int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, int __flags /* = 0 */)

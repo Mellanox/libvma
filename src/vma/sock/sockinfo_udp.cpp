@@ -1942,7 +1942,7 @@ int sockinfo_udp::rx_verify_available_data()
 		// Got 1, means we have a ready packet in OS
 		uint64_t pending_data = 0;
 		ret = orig_os_api.ioctl(m_fd, FIONREAD, &pending_data);
-		if (ret != -1) {
+		if (ret >= 0) {
 			// This will cause the next non-blocked read to check the OS again.
 			// We do this only after a successful read.
 			m_rx_udp_poll_os_ratio_counter = m_n_sysvar_rx_udp_poll_os_ratio;
