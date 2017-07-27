@@ -73,6 +73,8 @@ cq_mgr_mp::cq_mgr_mp(const ring_eth_cb *p_ring, ib_ctx_handler *p_ib_ctx_handler
 		     m_p_ring(p_ring)
 {
 	// must call from derive in order to call derived hooks
+	m_p_cq_stat->n_buffer_pool_len = cq_size;
+	m_p_cq_stat->n_rx_drained_at_once_max = 0;
 	configure(cq_size);
 }
 
@@ -116,8 +118,10 @@ int cq_mgr_mp::poll_mp_cq(uint16_t &size, uint32_t &strides_used,
 			cq_logdbg("Warning op_own is %x", MLX5_CQE_OPCODE(cqe->op_own));
 			// optimize checks in ring by setting size non zero
 			size = 1;
+			m_p_cq_stat->n_rx_pkt_drop++;
 			return -1;
 		}
+		m_p_cq_stat->n_rx_pkt_drop += cqe->sop_qpn.sop;
 		out_cqe64 = cqe;
 		uint32_t stride_byte_cnt = ntohl(cqe->byte_cnt);
 		strides_used += (stride_byte_cnt & MP_RQ_NUM_STRIDES_FIELD_MASK) >>

@@ -120,6 +120,7 @@ protected:
 	cq_mgr*			m_p_cq_mgr_rx;
 	lock_spin_recursive	m_lock_ring_rx;
 	bool			m_b_is_hypervisor;
+	ring_stats_t*		m_p_ring_stat;
 private:
 	inline void		send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe);
 	inline mem_buf_desc_t*	get_tx_buffers(uint32_t n_num_mem_bufs);
@@ -147,7 +148,6 @@ private:
 	struct ibv_comp_channel* m_p_rx_comp_event_channel;
 	struct ibv_comp_channel* m_p_tx_comp_event_channel;
 	L2_address*		m_p_l2_addr;
-	ring_stats_t*		m_p_ring_stat;
 	in_addr_t		m_local_if;
 	transport_type_t	m_transport_type;
 	// For IB MC flow, the port is zeroed in the ibv_flow_spec when calling to ibv_flow_spec().
