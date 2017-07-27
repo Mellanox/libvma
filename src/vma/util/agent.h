@@ -91,7 +91,7 @@ public:
 
 	void register_cb(agent_cb_t fn, void *arg);
 	void unregister_cb(agent_cb_t fn, void *arg);
-	int put(const void *data, size_t length, intptr_t tag, void **saveptr);
+	int put(const void *data, size_t length, intptr_t tag);
 	void progress(void);
 
 private:

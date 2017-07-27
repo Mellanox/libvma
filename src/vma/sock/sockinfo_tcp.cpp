@@ -681,7 +681,7 @@ void sockinfo_tcp::put_agent_msg(void *arg)
 	data.dst_ip = p_si_tcp->m_connected.get_in_addr();
 	data.dst_port = p_si_tcp->m_connected.get_in_port();
 
-	g_p_agent->put((const void*)&data, sizeof(data), (intptr_t)data.fid, NULL);
+	g_p_agent->put((const void*)&data, sizeof(data), (intptr_t)data.fid);
 }
 
 ssize_t sockinfo_tcp::tx(const tx_call_t call_type, const iovec* p_iov, const ssize_t sz_iov, const int flags, const struct sockaddr *__to, const socklen_t __tolen)

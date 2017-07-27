@@ -53,6 +53,10 @@
 #undef  MODULE_HDR
 #define MODULE_HDR      MODULE_NAME "%d:%s() "
 
+#define AGENT_DEFAULT_MSG_NUM    (512)
+#define AGENT_DEFAULT_MSG_GROW   (16)
+#define AGENT_DEFAULT_INACTIVE   (10)
+#define AGENT_DEFAULT_ALIVE      (10)
 
 /* Force system call */
 #define sys_call(_result, _func, ...) \
@@ -77,8 +81,8 @@ agent* g_p_agent = NULL;
 
 agent::agent() :
 		m_state(AGENT_CLOSED), m_sock_fd(-1), m_pid_fd(-1),
-		m_msg_num(512), m_msg_grow(16),
-		m_inactive_treshold(10), m_alive_treshold(10)
+		m_msg_num(AGENT_DEFAULT_MSG_NUM), m_msg_grow(AGENT_DEFAULT_MSG_GROW),
+		m_inactive_treshold(AGENT_DEFAULT_INACTIVE), m_alive_treshold(AGENT_DEFAULT_ALIVE)
 {
 	int rc = 0;
 	agent_msg_t *msg = NULL;
@@ -199,6 +203,7 @@ err:
 agent::~agent()
 {
 	agent_msg_t *msg = NULL;
+	agent_callback_t *cb = NULL;
 
 	if (AGENT_CLOSED == m_state) {
 		return ;
@@ -208,6 +213,12 @@ agent::~agent()
 	send_msg_exit();
 
 	m_state = AGENT_CLOSED;
+
+	while (!list_empty(&m_cb_queue)) {
+		cb = list_first_entry(&m_cb_queue, agent_callback_t, item);
+		list_del_init(&cb->item);
+		free(cb);
+	}
 
 	while (!list_empty(&m_free_queue)) {
 		msg = list_first_entry(&m_free_queue, agent_msg_t, item);
@@ -232,8 +243,8 @@ agent::~agent()
 
 void agent::register_cb(agent_cb_t fn, void *arg)
 {
-	agent_callback_t *cb;
-	struct list_head *entry;
+	agent_callback_t *cb = NULL;
+	struct list_head *entry = NULL;
 
 	if (AGENT_CLOSED == m_state) {
 		return ;
@@ -260,12 +271,13 @@ void agent::register_cb(agent_cb_t fn, void *arg)
 		list_add_tail(&cb->item, &m_cb_queue);
 	}
 	m_cb_lock.unlock();
+	/* coverity[leaked_storage] */
 }
 
 void agent::unregister_cb(agent_cb_t fn, void *arg)
 {
-	agent_callback_t *cb;
-	struct list_head *entry;
+	agent_callback_t *cb = NULL;
+	struct list_head *entry = NULL;
 
 	if (AGENT_CLOSED == m_state) {
 		return ;
@@ -285,7 +297,7 @@ void agent::unregister_cb(agent_cb_t fn, void *arg)
 	m_cb_lock.unlock();
 }
 
-int agent::put(const void *data, size_t length, intptr_t tag, void **saveptr)
+int agent::put(const void *data, size_t length, intptr_t tag)
 {
 	agent_msg_t *msg = NULL;
 	int i = 0;
@@ -304,18 +316,15 @@ int agent::put(const void *data, size_t length, intptr_t tag, void **saveptr)
 
 	m_msg_lock.lock();
 
-	if (saveptr) {
-		msg = (agent_msg_t *)(*saveptr);
-	}
-
-	if ((AGENT_ACTIVE == m_state) ||
-			((saveptr) &&
-			!((AGENT_INACTIVE == m_state) &&
-				(NULL != msg) &&
-				(tag == msg->tag)))) {
+	/* put any message in case agent is active to avoid queue uncontrolled grow
+         * progress() function is able to call registred callbacks in case
+         * it detects that link with daemon is up
+         */
+	if (AGENT_ACTIVE == m_state) {
 		/* allocate new message in case free queue is empty */
 		if (list_empty(&m_free_queue)) {
 			for (i = 0; i < m_msg_grow; i++) {
+				/* coverity[overwrite_var] */
 				msg = (agent_msg_t *)malloc(sizeof(*msg));
 				if (NULL == msg) {
 					break;
@@ -327,6 +336,7 @@ int agent::put(const void *data, size_t length, intptr_t tag, void **saveptr)
 			}
 		}
 		/* get message from free queue */
+		/* coverity[overwrite_var] */
 		msg = list_first_entry(&m_free_queue, agent_msg_t, item);
 		list_del_init(&msg->item);
 
@@ -339,11 +349,6 @@ int agent::put(const void *data, size_t length, intptr_t tag, void **saveptr)
 		memcpy(&msg->data, data, length);
 		msg->length = length;
 		msg->tag = tag;
-
-		/* cache message */
-		if (saveptr) {
-			*saveptr = (void *)msg;
-		}
 	}
 
 	m_msg_lock.unlock();
@@ -366,6 +371,7 @@ void agent::progress(void)
 
 	/* Attempt to establish connection with daemon */
 	if (AGENT_INACTIVE == m_state) {
+		/* Attempt can be done less often than progress in active state */
 		if (tv_cmp(&tv_inactive_elapsed, &tv_now, <)) {
 			tv_inactive_elapsed = tv_now;
 			tv_inactive_elapsed.tv_sec += m_inactive_treshold;
@@ -405,8 +411,8 @@ go:
 
 void agent::progress_cb(void)
 {
-	agent_callback_t *cb;
-	struct list_head *entry;
+	agent_callback_t *cb = NULL;
+	struct list_head *entry = NULL;
 
 	m_cb_lock.lock();
 	list_for_each(entry, &m_cb_queue) {
