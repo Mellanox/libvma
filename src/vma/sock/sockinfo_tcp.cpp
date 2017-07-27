@@ -3023,7 +3023,7 @@ bool sockinfo_tcp::is_readable(uint64_t *p_poll_sn, fd_array_t* p_fd_array)
 			return true;
 		}
 
-		return m_sock_state == TCP_SOCK_ACCEPT_SHUT ? true : false;
+		return (m_sock_state == TCP_SOCK_ACCEPT_SHUT ? true : false);
 	} 
 
 	if (m_sock_state == TCP_SOCK_ASYNC_CONNECT) {
@@ -3053,8 +3053,9 @@ bool sockinfo_tcp::is_readable(uint64_t *p_poll_sn, fd_array_t* p_fd_array)
 		while(!g_b_exit && is_rtr()) {
 			// likely scenario: rx socket bound to specific cq
 			ret = m_p_rx_ring->poll_and_process_element_rx(p_poll_sn, p_fd_array);
-			if (m_n_rx_pkt_ready_list_count)
+			if (m_n_rx_pkt_ready_list_count) {
 				return true;
+			}
 			if (ret <= 0) {
 				break;
 			}
@@ -3074,14 +3075,15 @@ bool sockinfo_tcp::is_readable(uint64_t *p_poll_sn, fd_array_t* p_fd_array)
 					m_rx_ring_map_lock.unlock();
 					return true;
 				}
-				if (ret <= 0)
+				if (ret <= 0) {
 					break;
+				}
 			}
 		}
 		m_rx_ring_map_lock.unlock();
 	}
 
-	return m_n_rx_pkt_ready_list_count ? true : false;
+	return (m_n_rx_pkt_ready_list_count ? true : false);
 }
 
 bool sockinfo_tcp::is_writeable()

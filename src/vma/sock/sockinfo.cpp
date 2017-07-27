@@ -771,8 +771,8 @@ void sockinfo::consider_rings_migration()
 
 int sockinfo::add_epoll_context(epfd_info *epfd)
 {
-	rx_ring_map_t::const_iterator sock_ring_map_iter;
 	int ret;
+	rx_ring_map_t::const_iterator sock_ring_map_iter;
 
 	m_rx_ring_map_lock.lock();
 	lock_rx_q();
@@ -782,8 +782,10 @@ int sockinfo::add_epoll_context(epfd_info *epfd)
 		goto unlock_locks;
 	}
 
-	for  (sock_ring_map_iter = m_rx_ring_map.begin(); sock_ring_map_iter != m_rx_ring_map.end(); sock_ring_map_iter++) {
+	sock_ring_map_iter = m_rx_ring_map.begin();
+	while (sock_ring_map_iter != m_rx_ring_map.end()) {
 		notify_epoll_context_add_ring(sock_ring_map_iter->first);
+		sock_ring_map_iter++;
 	}
 
 unlock_locks:
@@ -805,8 +807,10 @@ void sockinfo::remove_epoll_context(epfd_info *epfd)
 		goto unlock_locks;
 	}
 
-	for (sock_ring_map_iter = m_rx_ring_map.begin(); sock_ring_map_iter != m_rx_ring_map.end() ; sock_ring_map_iter++) {
+	sock_ring_map_iter = m_rx_ring_map.begin();
+	while (sock_ring_map_iter != m_rx_ring_map.end()) {
 		notify_epoll_context_remove_ring(sock_ring_map_iter->first);
+		sock_ring_map_iter++;
 	}
 
 	socket_fd_api::remove_epoll_context(epfd);
