@@ -1,4 +1,4 @@
-Update: 10 Jul 2017
+Update: 06 Aug 2017
 
 Introduction
 ============
@@ -184,6 +184,7 @@ Example:
  VMA DETAILS: MTU                            0 (follow actual MTU)      [VMA_MTU]
  VMA DETAILS: MSS                            0 (follow VMA_MTU)         [VMA_MSS]
  VMA DETAILS: TCP CC Algorithm               0 (LWIP)                   [VMA_TCP_CC_ALGO]
+ VMA_DETAILS: Trig dummy send getsockname()  Disabled                   [VMA_TRIGGER_DUMMY_SEND_GETSOCKNAME]
  VMA INFO: ---------------------------------------------------------------------------
 
 
@@ -286,14 +287,15 @@ multi_ring_latency
      Optimized for use cases that are keen on latency where two applications communicate using send-only and receive-only TCP sockets
           
     Multi ring latency SPEC changes the following default configuration
-     VMA_MEM_ALLOC_TYPE = 2                   (default: 1 (Contig Pages))
-     VMA_SELECT_POLL = -1                     (default: 100000)
-     VMA_RX_POLL = -1                         (default: 100000)
-     VMA_RING_ALLOCATION_LOGIC_TX = 20        (default: Ring per interface)
-     VMA_RING_ALLOCATION_LOGIC_RX = 20        (default: Ring per interface)
-     VMA_SELECT_POLL_OS_RATIO = 0             (default: 10)
-     VMA_SELECT_SKIP_OS = 0                   (default: 4)
-     VMA_RX_POLL_ON_TX_TCP = true             (dafault: false)
+     VMA_MEM_ALLOC_TYPE = 2                    (default: 1 (Contig Pages))
+     VMA_SELECT_POLL = -1                      (default: 100000)
+     VMA_RX_POLL = -1                          (default: 100000)
+     VMA_RING_ALLOCATION_LOGIC_TX = 20         (default: Ring per interface)
+     VMA_RING_ALLOCATION_LOGIC_RX = 20         (default: Ring per interface)
+     VMA_SELECT_POLL_OS_RATIO = 0              (default: 10)
+     VMA_SELECT_SKIP_OS = 0                    (default: 4)
+     VMA_RX_POLL_ON_TX_TCP = true              (dafault: false)
+     VMA_TRIGGER_DUMMY_SEND_GETSOCKNAME = true (dafault: false)
 
     Example: VMA_SPEC=multi_ring_latency
 
@@ -547,6 +549,12 @@ Default value is 0 (Disable)
 VMA_RX_POLL_ON_TX_TCP
 This parameter enables/disables TCP RX polling during TCP TX operation for faster 
 TCP ACK reception. 
+Default: 0 (Disable)
+
+VMA_TRIGGER_DUMMY_SEND_GETSOCKNAME
+This parameter triggers dummy packet send from getsockname(), this
+will warm up the caches. 
+For more information regarding dummy send, see VMA user manual document.
 Default: 0 (Disable)
 
 VMA_GRO_STREAMS_MAX
