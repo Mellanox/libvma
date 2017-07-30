@@ -39,6 +39,7 @@
 #undef  MODULE_HDR
 #define MODULE_HDR		MODULE_NAME "%d:%s() "
 
+#define MLX_CX4_DEV_ID		4117
 
 #ifdef HAVE_MP_RQ
 
@@ -57,6 +58,7 @@ ring_eth_cb::ring_eth_cb(in_addr_t local_if,
 			,m_curr_d_addr(NULL)
 			,m_curr_h_ptr(NULL)
 			,m_curr_packets(0)
+			,m_first_call(true)
 {
 	// call function from derived not base
 	create_resources(p_ring_info, active);
@@ -120,6 +122,11 @@ void ring_eth_cb::create_resources(ring_resource_creation_info_t *p_ring_info,
 		if (m_single_wqe_log_num_of_strides < mp_rq_caps->min_single_wqe_log_num_of_strides) {
 			m_single_wqe_log_num_of_strides = mp_rq_caps->min_single_wqe_log_num_of_strides;
 		}
+	}
+	// FW bug only exists in CX5 if more then 2048 (1<<11) strides in WQE
+	if (m_single_wqe_log_num_of_strides < 12 ||
+	    r_ibv_dev_attr.vendor_part_id == MLX_CX4_DEV_ID) {
+		m_first_call = false;
 	}
 	m_strides_num = 1 << m_single_wqe_log_num_of_strides;
 	m_buffer_size = m_stride_size * m_strides_num * m_wq_count;
@@ -243,6 +250,11 @@ int ring_eth_cb::cyclic_buffer_read(vma_completion_cb_t &completion,
 		}
 		return -1;
 	}
+	// workaround for bug #1070678 consume all first QWE in VMA
+	if (unlikely(m_first_call)) {
+		consume_first_wqe();
+		return 0;
+	}
 	if (!m_curr_batch_starting_stride) {
 		m_curr_batch_starting_stride = m_curr_wqe_used_strides;
 	}
@@ -307,6 +319,24 @@ int ring_eth_cb::cyclic_buffer_read(vma_completion_cb_t &completion,
 		    completion.payload_ptr, completion.payload_length,
 		    m_curr_packets, m_curr_wq);
 	return 0;
+}
+
+void ring_eth_cb::consume_first_wqe()
+{
+	uint32_t poll_flags = 0;
+	uint16_t size;
+	volatile struct mlx5_cqe64 *cqe64;
+
+	ring_logdbg("consuming first QWE");
+	do {
+		int ret = ((cq_mgr_mp *)m_p_cq_mgr_rx)->poll_mp_cq(size,
+				m_curr_wqe_used_strides, poll_flags, cqe64);
+		if (size == 0 || ret == -1) {
+			return;
+		}
+	} while (m_curr_wqe_used_strides <= m_strides_num);
+	m_first_call = false;
+	reload_wq();
 }
 
 ring_eth_cb::~ring_eth_cb()
