@@ -389,14 +389,18 @@ int epfd_info::del_fd(int fd, bool passthrough)
 		return -1;
 	}
 	
-	if (!passthrough) {
-		if (temp_sock_fd_api && temp_sock_fd_api->get_epoll_context_fd() == m_epfd) {
-			m_fd_offloaded_list.erase(temp_sock_fd_api);
-		} else {
-			fd_info_map_t::iterator fd_iter = m_fd_non_offloaded_map.find(fd);
-			if (fd_iter != m_fd_non_offloaded_map.end()) {
-				m_fd_non_offloaded_map.erase(fd_iter);
-			}
+	if (temp_sock_fd_api && temp_sock_fd_api->get_epoll_context_fd() == m_epfd) {
+		m_fd_offloaded_list.erase(temp_sock_fd_api);
+		if (passthrough) {
+			// In case the socket is not offloaded we must copy it to the non offloaded sockets map.
+			// This can happen after bind(), listen() or accept() calls.
+			m_fd_non_offloaded_map[fd] = *fi;
+			m_fd_non_offloaded_map[fd].offloaded_index = -1;
+		}
+	} else {
+		fd_info_map_t::iterator fd_iter = m_fd_non_offloaded_map.find(fd);
+		if (fd_iter != m_fd_non_offloaded_map.end()) {
+			m_fd_non_offloaded_map.erase(fd_iter);
 		}
 	}
 
