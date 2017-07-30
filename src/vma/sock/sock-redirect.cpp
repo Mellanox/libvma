@@ -1025,6 +1025,14 @@ int getsockname(int __fd, struct sockaddr *__name, socklen_t *__namelen)
 	p_socket_object = fd_collection_get_sockfd(__fd);
 	if (p_socket_object) {
 		ret = p_socket_object->getsockname(__name, __namelen);
+
+		if (safe_mce_sys().trigger_dummy_send_getsockname) {
+			char buf[264] = {0};
+			struct iovec msg_iov = {&buf, sizeof(buf)};
+			struct msghdr msg = {NULL, 0, &msg_iov, 1, NULL, 0, 0};
+			int ret_send = sendmsg(__fd, &msg, VMA_SND_FLAGS_DUMMY);
+			srdr_logdbg("Triggered dummy message for socket fd=%d (ret_send=%d)", __fd, ret_send);
+		}
 	}
 	else {
 		BULLSEYE_EXCLUDE_BLOCK_START

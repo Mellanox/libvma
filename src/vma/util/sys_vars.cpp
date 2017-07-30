@@ -530,14 +530,14 @@ void mce_sys_var::get_env_params()
 	mce_spec		= MCE_SPEC_NONE;
 	mce_spec_param1		= 1;
 	mce_spec_param2		= 1;
-	
+
 	neigh_num_err_retries	= MCE_DEFAULT_NEIGH_NUM_ERR_RETRIES;
 	neigh_uc_arp_quata	= MCE_DEFAULT_NEIGH_UC_ARP_QUATA;
 	neigh_wait_till_send_arp_msec = MCE_DEFAULT_NEIGH_UC_ARP_DELAY_MSEC;
-
 	timer_netlink_update_msec = MCE_DEFAULT_NETLINK_TIMER_MSEC;
 
 	rx_poll_on_tx_tcp	= MCE_DEFAULT_RX_POLL_ON_TX_TCP;
+	trigger_dummy_send_getsockname = MCE_DEFAULT_TRIGGER_DUMMY_SEND_GETSOCKNAME;
 
 #ifdef VMA_TIME_MEASURE
 	vma_time_measure_num_samples = MCE_DEFAULT_TIME_MEASURE_NUM_SAMPLES;
@@ -662,7 +662,8 @@ void mce_sys_var::get_env_params()
 		ring_allocation_logic_rx = RING_LOGIC_PER_THREAD; //MCE_DEFAULT_RING_ALLOCATION_LOGIC_RX(RING_LOGIC_PER_INTERFACE) VMA_RING_ALLOCATION_LOGIC_RX
 		select_poll_os_ratio     = 0; //MCE_DEFAULT_SELECT_POLL_OS_RATIO(10) VMA_SELECT_POLL_OS_RATIO
 		select_skip_os_fd_check  = 0; //MCE_DEFAULT_SELECT_SKIP_OS(4) VMA_SELECT_SKIP_OS
-		rx_poll_on_tx_tcp	 = true;
+		rx_poll_on_tx_tcp        = true; //MCE_DEFAULT_RX_POLL_ON_TX_TCP (false)
+		trigger_dummy_send_getsockname = true; //MCE_DEFAULT_TRIGGER_DUMMY_SEND_GETSOCKNAME (false)
 		break;
 
 	case MCE_SPEC_NONE:
@@ -1125,6 +1126,9 @@ void mce_sys_var::get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_VMA_RX_POLL_ON_TX_TCP)) != NULL)
 		rx_poll_on_tx_tcp = atoi(env_ptr) ? true : false;
+
+	if ((env_ptr = getenv(SYS_VAR_VMA_TRIGGER_DUMMY_SEND_GETSOCKNAME)) != NULL)
+		trigger_dummy_send_getsockname = atoi(env_ptr) ? true : false;
 
 #ifdef VMA_TIME_MEASURE
 	if ((env_ptr = getenv(SYS_VAR_VMA_TIME_MEASURE_NUM_SAMPLES)) != NULL) {
