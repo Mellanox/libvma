@@ -51,10 +51,9 @@
 #include "vma/dev/ah_cleaner.h"
 #include "vma/dev/cq_mgr.h"
 
-#ifdef DEFINED_VMAPOLL
+#ifdef HAVE_INFINIBAND_MLX5_HW_H
 #include <infiniband/mlx5_hw.h>
-#include "vma/hw/mlx5/wqe.h"
-#endif // DEFINED_VMAPOLL
+#endif // HAVE_INFINIBAND_MLX5_HW_H
 
 class buffer_pool;
 class cq_mgr;
@@ -99,10 +98,7 @@ typedef hash_map<ibv_gid, uint32_t> mgid_ref_count_map_t;
  */
 class qp_mgr
 {
-#ifdef DEFINED_VMAPOLL
 friend class cq_mgr;
-#endif // DEFINED_VMAPOLL
-
 friend class cq_mgr_mlx5;
 friend class cq_mgr_mp;
 public:
@@ -113,7 +109,7 @@ public:
 	void                down();
 
 	int                 post_recv(mem_buf_desc_t* p_mem_buf_desc); // Post for receive a list of mem_buf_desc
-	int                 send(vma_ibv_send_wr* p_send_wqe);
+	int                 send(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 
 	uint32_t            get_max_inline_tx_data() const {return m_max_inline_data; }
 	int                 get_port_num() const { return m_port_num; }
@@ -143,35 +139,16 @@ public:
 
 	void                release_rx_buffers();
 	void                release_tx_buffers();
-	void                trigger_completion_for_all_sent_packets();
+	virtual void        trigger_completion_for_all_sent_packets();
 	bool                set_qp_ratelimit(const uint32_t ratelimit_kbps);
 	int                 modify_qp_ratelimit(const uint32_t ratelimit_kbps);
-	static inline bool  is_lib_mlx5(const char* divace_name)
-	{
-		return strstr(divace_name, "mlx5");
-	}
-
-#ifdef DEFINED_VMAPOLL
-	void                set_signal_in_next_send_wqe();
-	void                mlx5_send(vma_ibv_send_wr* p_send_wqe);
-	void                mlx5_init_sq();
-#endif // DEFINED_VMAPOLL
+	static inline bool  is_lib_mlx5(const char* device_name) {return strstr(device_name, "mlx5");}
 
 protected:
 	uint64_t            m_rq_wqe_counter;
-	uint64_t            *m_rq_wqe_idx_to_wrid;
+	uint64_t*           m_rq_wqe_idx_to_wrid;
 #ifdef DEFINED_VMAPOLL
-	struct mlx5_qp      *m_mlx5_hw_qp;
-	volatile struct     mlx5_wqe64* m_sq_hot_wqe;
-	int                 m_sq_hot_wqe_index;
-	volatile struct     mlx5_wqe64 (*m_mlx5_sq_wqes)[];
-	volatile uint32_t   *m_sq_db;
-	volatile void       *m_sq_bf_reg;
-	uint16_t            m_sq_bf_offset;
-	uint16_t            m_sq_bf_buf_size;
-	uint16_t            m_sq_wqe_counter;
-	uint64_t            *m_sq_wqe_idx_to_wrid;
-	unsigned int        m_qp_num;
+	struct mlx5_qp*	    m_mlx5_hw_qp;
 #endif // DEFINED_VMAPOLL
 	struct ibv_qp*      m_qp;
 
@@ -218,10 +195,13 @@ protected:
 
 	int             configure(struct ibv_comp_channel* p_rx_comp_event_channel);
 	virtual int     prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr) = 0;
-	inline void     set_unsignaled_count();
+	inline void     set_unsignaled_count(void) { m_n_unsignaled_count = m_n_sysvar_tx_num_wr_to_signal - 1;	}
+
 	virtual cq_mgr* init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_channel);
 	virtual cq_mgr* init_tx_cq_mgr(void);
+
 	virtual int     post_qp_create(void) { return 0;};
+	virtual int     send_to_wire(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 };
 
 class qp_mgr_eth : public qp_mgr

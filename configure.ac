@@ -71,7 +71,16 @@ AC_CHECK_HEADERS([infiniband/verbs.h], ,
 AC_CHECK_HEADERS([rdma/rdma_cma.h], ,
                  [AC_MSG_ERROR([Unable to find the librdmacm-devel header files])])
 
-AC_CHECK_HEADERS([infiniband/mlx5_hw.h])
+#
+# Chech if infiniband/mlx5_hw.h can be used
+#
+AC_CHECK_HEADER([infiniband/mlx5_hw.h],
+	[AC_CHECK_MEMBERS([struct mlx5_qp.ctrl_seg, struct mlx5_qp.gen_data],
+		[AC_DEFINE([HAVE_INFINIBAND_MLX5_HW_H],1,[infiniband/mlx5_hw.h can be used])],
+		[ac_cv_header_infiniband_mlx5_hw_h="no"],
+		[[#include <infiniband/mlx5_hw.h>]] )],
+	[],[]
+)
 
 AC_MSG_CHECKING([md5 version of VMA statistics is])
 STATS_PROTOCOL_VER=`md5sum ${srcdir}/src/vma/util/vma_stats.h | awk '{ print $1}'`

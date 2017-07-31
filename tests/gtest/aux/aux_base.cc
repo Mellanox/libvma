@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2017 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -29,38 +29,17 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#include "common/def.h"
 
-#ifndef WQE_H
-#define WQE_H
+#include "aux_base.h"
 
-#if !defined(MLX5_ETH_INLINE_HEADER_SIZE)
-#define MLX5_ETH_INLINE_HEADER_SIZE 18
-#endif
+void aux_base::SetUp()
+{
+	errno = EOK;
+}
 
-#define OCTOWORD	16
-#define WQEBB		64
+void aux_base::TearDown()
+{
 
-#ifndef DEFINED_MLX5_HW_ETH_WQE_HEADER
+}
 
-struct mlx5_wqe_eth_seg {
-	uint32_t        rsvd0;
-	uint8_t         cs_flags;
-	uint8_t         rsvd1;
-	uint16_t        mss;
-	uint32_t        rsvd2;
-	uint16_t        inline_hdr_sz;
-	uint8_t         inline_hdr_start[2];
-	uint8_t         inline_hdr[16];
-};
-#endif //DEFINED_MLX5_HW_ETH_WQE_HEADER
-
-struct mlx5_wqe64 {
-	union {
-		struct mlx5_wqe_ctrl_seg ctrl;
-		uint32_t data[4];
-	} ctrl;
-	struct mlx5_wqe_eth_seg eseg;
-	struct mlx5_wqe_data_seg dseg;
-};
-
-#endif /* WQE_H */

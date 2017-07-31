@@ -77,10 +77,10 @@ void dst_entry_udp::configure_headers()
 	dst_entry::configure_headers();
 }
 
-inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked, size_t sz_udp_payload, ssize_t sz_data_payload)
+inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const ssize_t sz_iov, vma_wr_tx_packet_attr attr,  size_t sz_udp_payload, ssize_t sz_data_payload)
 {
 	mem_buf_desc_t* p_mem_buf_desc;
-
+        bool b_blocked = is_set(attr,VMA_TX_PACKET_BLOCK);
 	// Get a bunch of tx buf descriptor and data buffers
 	if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
 		m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, m_n_sysvar_tx_bufs_batch_udp);
@@ -157,10 +157,12 @@ inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const
 	dst_udp_logfunc("using SW checksum calculation");
 	m_header.m_header.hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
 	m_header.m_header.hdr.m_ip_hdr.check = compute_ip_checksum((unsigned short*)&m_header.m_header.hdr.m_ip_hdr, m_header.m_header.hdr.m_ip_hdr.ihl * 2);
+#else
+	attr = (vma_wr_tx_packet_attr)(attr|VMA_TX_PACKET_L3_CSUM|VMA_TX_PACKET_L4_CSUM);
 #endif
 
 	m_p_send_wqe->wr_id = (uintptr_t)p_mem_buf_desc;
-	send_ring_buffer(m_id, m_p_send_wqe, b_blocked, is_dummy);
+	send_ring_buffer(m_id, m_p_send_wqe, attr);
 
 	// request tx buffers for the next packets
 	if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
@@ -171,7 +173,7 @@ inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const
 	return sz_data_payload;
 }
 
-ssize_t dst_entry_udp::fast_send_fragmented(const iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked, size_t sz_udp_payload, ssize_t sz_data_payload)
+ssize_t dst_entry_udp::fast_send_fragmented(const iovec* p_iov, const ssize_t sz_iov, vma_wr_tx_packet_attr attr, size_t sz_udp_payload, ssize_t sz_data_payload)
 {
 	tx_packet_template_t *p_pkt;
 	mem_buf_desc_t* p_mem_buf_desc = NULL, *tmp;
@@ -185,6 +187,7 @@ ssize_t dst_entry_udp::fast_send_fragmented(const iovec* p_iov, const ssize_t sz
 			m_n_tx_ip_id++;
 	packet_id = htons(packet_id);
 
+	bool b_blocked = is_set(attr,VMA_TX_PACKET_BLOCK);
 
 	dst_udp_logfunc("udp info: payload_sz=%d, frags=%d, scr_port=%d, dst_port=%d, blocked=%s, ", sz_data_payload, n_num_frags, ntohs(m_header.m_header.hdr.m_udp_hdr.source), ntohs(m_dst_port), b_blocked?"true":"false");
 
@@ -276,7 +279,7 @@ ssize_t dst_entry_udp::fast_send_fragmented(const iovec* p_iov, const ssize_t sz
 		p_mem_buf_desc->p_next_desc = NULL;
 
 		// We don't check the return valuse of post send when we reach the HW we consider that we completed our job
-		send_ring_buffer(m_id, m_p_send_wqe, b_blocked, is_dummy);
+		send_ring_buffer(m_id, m_p_send_wqe, attr);
 
 		p_mem_buf_desc = tmp;
 
@@ -311,11 +314,11 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov,
 
 	// Calc udp payload size
 	size_t sz_udp_payload = sz_data_payload + sizeof(struct udphdr);
-
+        vma_wr_tx_packet_attr attr = (vma_wr_tx_packet_attr)((VMA_TX_PACKET_BLOCK*b_blocked) | (VMA_TX_PACKET_DUMMY*is_dummy));
 	if (sz_udp_payload <= m_max_ip_payload_size) {
-		return fast_send_not_fragmented(p_iov, sz_iov, is_dummy, b_blocked, sz_udp_payload, sz_data_payload);
+		return fast_send_not_fragmented(p_iov, sz_iov, attr, sz_udp_payload, sz_data_payload);
 	} else {
-		return fast_send_fragmented(p_iov, sz_iov, is_dummy, b_blocked, sz_udp_payload, sz_data_payload);
+		return fast_send_fragmented(p_iov, sz_iov, attr, sz_udp_payload, sz_data_payload);
 	}
 }
 

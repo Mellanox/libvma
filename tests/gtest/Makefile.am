@@ -23,6 +23,9 @@ gtest_SOURCES = \
 	sock/sock_base.cc \
 	sock/sock_socket.cc \
 	\
+	aux/aux_base.cc \
+	aux/sg_array.cc \
+	\
 	tcp/tcp_base.cc \
 	tcp/tcp_bind.cc \
 	tcp/tcp_connect.cc \
@@ -51,6 +54,8 @@ noinst_HEADERS = \
 	common/base.h \
 	\
 	sock/sock_base.h \
+	\
+	aux/aux_base.h \
 	\
 	tcp/tcp_base.h \
 	\

@@ -639,7 +639,7 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 				temp->rx.is_vma_thr = false;
 #ifdef DEFINED_VMAPOLL
 				temp->rx.vma_polled = false;
-#endif // DEFINED_VMAPOL
+#endif // DEFINED_VMAPOLL
 				temp->rx.flow_tag_id = 0;
 				temp->rx.tcp.p_ip_h = NULL;
 				temp->rx.tcp.p_tcp_h = NULL;
@@ -924,43 +924,6 @@ int cq_mgr::poll_and_process_element_tx(uint64_t* p_cq_poll_sn)
 	// Assume locked!!!
 	cq_logfuncall("");
 	
-#ifdef DEFINED_VMAPOLL
-	int ret = 0;
-	volatile mlx5_cqe64 *cqe_err = NULL;
-	volatile mlx5_cqe64 *cqe = mlx5_get_cqe64(&cqe_err);
-
-	if (likely(cqe)) {
-		m_qp->m_mlx5_hw_qp->sq.tail += NUM_TX_WRE_TO_SIGNAL_MAX;
-		uint16_t wqe_ctr = ntohs(cqe->wqe_counter);
-		int index = wqe_ctr & (m_qp->m_tx_num_wr - 1);
-		mem_buf_desc_t* buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_sq_wqe_idx_to_wrid[index];
-
-		// spoil the global sn if we have packets ready
-		union __attribute__((packed)) {
-			uint64_t global_sn;
-			struct {
-				uint32_t cq_id;
-				uint32_t cq_sn;
-			} bundle;
-		} next_sn;
-		next_sn.bundle.cq_sn = ++m_n_cq_poll_sn;
-		next_sn.bundle.cq_id = m_cq_id;
-
-		*p_cq_poll_sn = m_n_global_sn = next_sn.global_sn;
-
-		process_tx_buffer_list(buff);
-		ret = 1;
-	}
-	else if (cqe_err) {
-		ret = mlx5_poll_and_process_error_element_tx(cqe_err, p_cq_poll_sn);
-	}
-	else {
-		*p_cq_poll_sn = m_n_global_sn;
-	}
-
-	return ret;
-#else
-
 	/* coverity[stack_use_local_overflow] */
 	vma_ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
 	int ret = poll(wce, m_n_sysvar_cq_poll_batch_max, p_cq_poll_sn);
@@ -978,7 +941,6 @@ int cq_mgr::poll_and_process_element_tx(uint64_t* p_cq_poll_sn)
 	}
 
 	return ret;
-#endif // DEFINED_VMAPOLL
 }
 
 #ifdef DEFINED_VMAPOLL
@@ -1003,40 +965,6 @@ int cq_mgr::mlx5_poll_and_process_error_element_rx(volatile struct mlx5_cqe64 *c
 		}
 	}
 	m_rx_hot_buff = NULL;
-
-	return 1;
-}
-
-int cq_mgr::mlx5_poll_and_process_error_element_tx(volatile struct mlx5_cqe64 *cqe, uint64_t* p_cq_poll_sn)
-{
-	uint16_t wqe_ctr = ntohs(cqe->wqe_counter);
-	int index = wqe_ctr & (m_qp->m_tx_num_wr - 1);
-	mem_buf_desc_t* buff = NULL;
-	vma_ibv_wc wce;
-
-	m_qp->m_mlx5_hw_qp->sq.tail += NUM_TX_WRE_TO_SIGNAL_MAX;
-
-	// spoil the global sn if we have packets ready
-	union __attribute__((packed)) {
-		uint64_t global_sn;
-		struct {
-			uint32_t cq_id;
-			uint32_t cq_sn;
-		} bundle;
-	} next_sn;
-	next_sn.bundle.cq_sn = ++m_n_cq_poll_sn;
-	next_sn.bundle.cq_id = m_cq_id;
-
-	*p_cq_poll_sn = m_n_global_sn = next_sn.global_sn;
-
-	memset(&wce, 0, sizeof(wce));
-	wce.wr_id = m_qp->m_sq_wqe_idx_to_wrid[index];
-	mlx5_cqe64_to_vma_wc(cqe, &wce);
-
-	buff = process_cq_element_tx(&wce);
-	if (buff) {
-		process_tx_buffer_list(buff);
-	}
 
 	return 1;
 }
