@@ -225,6 +225,19 @@ inline bool ring_eth_cb::reload_wq()
 	return false;
 }
 
+int ring_eth_cb::cyclic_buffer_is_readable()
+{
+	volatile struct mlx5_cqe64 *cqe64;
+	uint16_t size = 0;
+	uint32_t flags = 0;
+
+	int ret = ((cq_mgr_mp *)m_p_cq_mgr_rx)->poll_mp_cq(size, m_curr_wqe_used_strides, flags, cqe64);
+	if (unlikely(ret == -1)) {
+		return ret;
+	}
+	return size;
+}
+
 int ring_eth_cb::cyclic_buffer_read(vma_completion_cb_t &completion,
 				    size_t min, size_t max, int flags)
 {

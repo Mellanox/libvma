@@ -70,6 +70,7 @@ public:
 	virtual int	poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	int		cyclic_buffer_read(vma_completion_cb_t &completion,
 					   size_t min, size_t max, int flags);
+	int		cyclic_buffer_is_readable();
 protected:
 	void		create_resources(ring_resource_creation_info_t* p_ring_info,
 					 bool active) throw (vma_error);
