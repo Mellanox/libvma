@@ -85,6 +85,18 @@ public:
 	inline void 		convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) { m_p_cq_mgr_rx->convert_hw_time_to_system_time(hwtime, systime); }
 	inline uint32_t		get_qpn() const { return (m_p_l2_addr ? ((IPoIB_addr *)m_p_l2_addr)->get_qpn() : 0); }
 	virtual int 		modify_ratelimit(const uint32_t ratelimit_kbps);
+	inline int		get_max_sge(void) const {
+		return m_max_sge;
+	}
+	inline uint32_t	get_max_payload_sz(void) const {
+		return m_tso.max_payload_sz;
+	}
+	inline uint16_t	get_max_header_sz(void) const {
+		return m_tso.max_header_sz;
+	}
+	inline bool		is_tso(void) const {
+		return (m_tso.max_payload_sz && m_tso.max_header_sz);
+	}
 
 	struct ibv_comp_channel* get_tx_comp_event_channel() { return m_p_tx_comp_event_channel; }
 	friend class cq_mgr;
@@ -121,6 +133,7 @@ protected:
 	lock_spin_recursive	m_lock_ring_rx;
 	bool			m_b_is_hypervisor;
 	ring_stats_t*		m_p_ring_stat;
+
 private:
 	inline void		send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe);
 	inline mem_buf_desc_t*	get_tx_buffers(uint32_t n_num_mem_bufs);
@@ -165,6 +178,17 @@ private:
 	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_tail;
 #endif // DEFINED_VMAPOLL		
 	bool			m_flow_tag_enabled;
+
+	/* Maximum number of scatter/gather elements */
+	int m_max_sge;
+
+	struct {
+		/* Maximum length of TCP payload for TSO */
+		uint32_t max_payload_sz;
+
+		/* Maximum length of header for TSO */
+		uint16_t max_header_sz;
+	} m_tso;
 };
 
 class ring_eth : public ring_simple

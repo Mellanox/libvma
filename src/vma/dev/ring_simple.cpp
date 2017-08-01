@@ -270,12 +270,33 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 			max_qp_wr, SYS_VAR_TX_NUM_WRE, m_tx_num_wr);
 		m_tx_num_wr = max_qp_wr;
 	}
+	ring_logdbg("ring attributes: m_tx_num_wr = %d", m_tx_num_wr);
 
 	m_tx_num_wr_free = m_tx_num_wr;
+
+	m_max_sge = r_ibv_dev_attr.max_sge;
+	ring_logdbg("ring attributes: m_max_sge = %d", get_max_sge());
+
+	memset(&m_tso, 0, sizeof(m_tso));
+#ifdef HAVE_TSO
+	if (r_ibv_dev_attr.comp_mask & IBV_EXP_DEVICE_ATTR_TSO_CAPS) {
+		const struct ibv_exp_tso_caps *caps = &r_ibv_dev_attr.tso_caps;
+		if (ibv_is_qpt_supported(caps->supported_qpts, IBV_QPT_RAW_PACKET) &&
+			ibv_is_qpt_supported(caps->supported_qpts, IBV_QPT_UD)) {
+			m_tso.max_payload_sz = caps->max_tso;
+			/* ETH(14) + IP(20) + TCP(20) + TCP OPTIONS(40) */
+			m_tso.max_header_sz = 94;
+		}
+	}
+#endif /* HAVE_TSO */
+	ring_logdbg("ring attributes: m_tso = %d", is_tso());
+	ring_logdbg("ring attributes: m_tso:max_payload_sz = %d", get_max_payload_sz());
+	ring_logdbg("ring attributes: m_tso:max_header_sz = %d", get_max_header_sz());
 
 	memset(&m_cq_moderation_info, 0, sizeof(m_cq_moderation_info));
 
 	m_flow_tag_enabled = m_p_ib_ctx->get_flow_tag_capability();
+	ring_logdbg("ring attributes: m_flow_tag_enabled = %d", m_flow_tag_enabled);
 
 	m_p_rx_comp_event_channel = ibv_create_comp_channel(m_p_ib_ctx->get_ibv_context()); // ODED TODO: Adjust the ibv_context to be the exact one in case of different devices
 	BULLSEYE_EXCLUDE_BLOCK_START
