@@ -197,6 +197,15 @@ if test "x$vma_cv_verbs" == x2; then
         [AC_MSG_RESULT([no])]
     )
 
+    AC_CHECK_DECL([IBV_EXP_DEVICE_ATTR_TSO_CAPS],
+        [], [], [[#include <infiniband/verbs_exp.h>]])
+    AC_MSG_CHECKING([for tso support])
+    AS_IF([test "x$ac_cv_have_decl_IBV_EXP_DEVICE_ATTR_TSO_CAPS" = "xyes" -a "x$vma_cv_directverbs" == x2],
+        [AC_DEFINE_UNQUOTED([HAVE_TSO], [1], [Define to 1 if tso is supported])]
+        [AC_MSG_RESULT([yes])],
+        [AC_MSG_RESULT([no])]
+    )
+
     AC_CHECK_FUNCS([rdma_lib_reset])
     AC_CHECK_FUNCS([ibv_exp_get_device_list])
 fi
