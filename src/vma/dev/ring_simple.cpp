@@ -1801,7 +1801,7 @@ int ring_simple::put_tx_buffers(mem_buf_desc_t* buff_list)
 			ring_logerr("ref count of %p is already zero, double free??", buff_list);
 
 		if (buff_list->lwip_pbuf.pbuf.ref == 0) {
-			free_lwip_pbuf(&buff_list->lwip_pbuf);
+			buff_list->free_lwip_pbuf();
 			m_tx_pool.push_back(buff_list);
 			freed++;
 		}
@@ -1834,7 +1834,7 @@ int ring_simple::put_tx_single_buffer(mem_buf_desc_t* buff)
 
 		if (buff->lwip_pbuf.pbuf.ref == 0) {
 			buff->p_next_desc = NULL;
-			free_lwip_pbuf(&buff->lwip_pbuf);
+			buff->free_lwip_pbuf();
 			m_tx_pool.push_back(buff);
 			count++;
 		}
