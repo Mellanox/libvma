@@ -31,7 +31,7 @@
  */
 #include "common/def.h"
 
-#include "aux_base.h"
+#include "mix_base.h"
 
 void aux_base::SetUp()
 {
