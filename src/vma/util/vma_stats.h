@@ -147,7 +147,6 @@ typedef struct {
 	uint32_t    n_rx_eagain;
 	uint32_t    n_rx_os_packets;
 	uint32_t    n_rx_os_bytes;
-	uint32_t    n_rx_poll_os_hit;
 	uint32_t    n_rx_os_errors;
 	uint32_t    n_rx_os_eagain;
 	uint32_t    n_rx_migrations;

@@ -240,6 +240,7 @@ inline cls* fd_collection::get(int fd, cls **map_type)
 
 inline bool fd_collection::set_immediate_os_sample(int fd)
 {
+	socket_fd_api* sock;
 	epfd_info* epfd_fd;
 	ring_tap* p_ring;
 
@@ -247,6 +248,11 @@ inline bool fd_collection::set_immediate_os_sample(int fd)
 
 	if ((p_ring = get_tapfd(fd))) {
 		p_ring->set_tap_data_available();
+		return true;
+	}
+
+	if ((sock = get_sockfd(fd))) {
+		sock->set_immediate_os_sample();
 		return true;
 	}
 

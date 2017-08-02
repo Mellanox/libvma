@@ -135,7 +135,6 @@ Example:
  VMA DETAILS: Rx Byte Min Limit              65536                      [VMA_RX_BYTES_MIN]
  VMA DETAILS: Rx Poll Loops                  100000                     [VMA_RX_POLL]
  VMA DETAILS: Rx Poll Init Loops             0                          [VMA_RX_POLL_INIT]
- VMA DETAILS: Rx UDP Poll OS Ratio           100                        [VMA_RX_UDP_POLL_OS_RATIO]
  VMA DETAILS: HW TS Conversion               3                          [VMA_HW_TS_CONVERSION]
  VMA DETAILS: Rx Poll Yield                  Disabled                   [VMA_RX_POLL_YIELD]
  VMA DETAILS: Rx Prefetch Bytes              256                        [VMA_RX_PREFETCH_BYTES]
@@ -500,17 +499,6 @@ Once the first ADD_MEMBERSHIP is called the above VMA_RX_POLL takes effect.
 Value range is similar to the above VMA_RX_POLL
 Default value is 0
 
-VMA_RX_UDP_POLL_OS_RATIO
-The above parameter will define the ratio between VMA CQ poll and OS FD poll.
-This will result in a single poll of the not-offloaded sockets every
-VMA_RX_UDP_POLL_OS_RATIO offloaded socket (CQ) polls. No matter if the CQ poll
-was a hit or miss. No matter if the socket is blocking or non-blocking.
-When disabled, only offloaded sockets are polled.
-This parameter replaces the two old parameters: VMA_RX_POLL_OS_RATIO and
-VMA_RX_SKIP_OS
-Disable with 0
-Default value is 100
-
 VMA_HW_TS_CONVERSION
 The above parameter defines the time stamp conversion method.
 Experimental verbs is required for converting the time stamp from hardware time (Hz)
@@ -635,9 +623,9 @@ Disable with 0
 Default value is 10
 
 VMA_SELECT_SKIP_OS
-Similar to VMA_RX_SKIP_OS, but in select() or poll() this will force the VMA
-to check the non offloaded fd even though an offloaded socket has ready
-packets found while polling.
+This will force the VMA to check the non offloaded fd even though an offloaded
+socket has ready packets found while polling.
+This will affect select() or poll().
 Default value is 4
 
 VMA_PROGRESS_ENGINE_INTERVAL

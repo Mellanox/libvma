@@ -110,14 +110,10 @@ public:
 	inline void set_reuseport(bool reuseport) { m_reuseport = reuseport; }
 	virtual bool flow_in_reuse(void) { return m_reuseaddr | m_reuseport; }
 
-	/**
-	* Sampling the OS immediately by matching the rx_skip_os counter (m_rx_udp_poll_os_ratio_counter) to the limit (safe_mce_sys().rx_udp_poll_os_ratio)
-	*/
+	// Instructing the socket to immediately sample/un-sample the OS in receive flow
 	void	set_immediate_os_sample();
-	/**
-	 * Reseting rx_skip_os counter to prevent sampling OS immediately
-	 */
 	void	unset_immediate_os_sample();
+
 	/**
 	 * Process a Rx request, we might have a ready packet, or we might block until
 	 * we have one (if sockinfo::m_b_blocking == true)
@@ -206,8 +202,6 @@ private:
 	uint8_t 	m_n_mc_ttl;
 
 	int32_t 	m_loops_to_go; // local param for polling loop on this socket
-	uint32_t	m_rx_udp_poll_os_ratio_counter; 	// Data member which sets how many offloaded polls on the cq
-							// we want to do before doing an OS poll, on this socket
 	bool 		m_sock_offload;
 
 	mc_pram_list_t 	m_pending_mreqs;
@@ -227,7 +221,6 @@ private:
 	uint8_t		m_tos;
 
 	const uint32_t	m_n_sysvar_rx_poll_yield_loops;
-	const uint32_t	m_n_sysvar_rx_udp_poll_os_ratio;
 	const uint32_t	m_n_sysvar_rx_ready_byte_min_limit;
 	const uint32_t	m_n_sysvar_rx_cq_drain_rate_nsec;
 	const uint32_t	m_n_sysvar_rx_delta_tsc_between_cq_polls;
@@ -237,6 +230,7 @@ private:
 	bool		m_sockopt_mapped; // setsockopt IPPROTO_UDP UDP_MAP_ADD
 	bool		m_is_connected; // to inspect for in_addr.src
 	bool		m_multicast; // true when socket set MC rule
+	bool		m_b_os_data_available; // true when not offloaded data is available
 
 	int mc_change_membership(const mc_pending_pram *p_mc_pram);
 	int mc_change_membership_start_helper(in_addr_t mc_grp, int optname);

@@ -343,7 +343,6 @@ public:
 	uint32_t	rx_num_wr_to_post_recv;
 	int32_t		rx_poll_num;
 	int32_t		rx_poll_num_init;
-	uint32_t 	rx_udp_poll_os_ratio;
 	ts_conversion_mode_t	hw_ts_conversion_mode;
 	uint32_t 	rx_poll_yield_loops;
 	uint32_t 	rx_ready_byte_min_limit;
@@ -479,11 +478,7 @@ extern mce_sys_var & safe_mce_sys();
 #define SYS_VAR_RX_NUM_WRE_TO_POST_RECV			"VMA_RX_WRE_BATCHING"
 #define SYS_VAR_RX_NUM_POLLS				"VMA_RX_POLL"
 #define SYS_VAR_RX_NUM_POLLS_INIT			"VMA_RX_POLL_INIT"
-#define SYS_VAR_RX_UDP_POLL_OS_RATIO			"VMA_RX_UDP_POLL_OS_RATIO"
 #define SYS_VAR_HW_TS_CONVERSION_MODE			"VMA_HW_TS_CONVERSION"
-// The following 2 params were replaced by VMA_RX_UDP_POLL_OS_RATIO
-#define SYS_VAR_RX_POLL_OS_RATIO			"VMA_RX_POLL_OS_RATIO"
-#define SYS_VAR_RX_SKIP_OS				"VMA_RX_SKIP_OS"
 #define SYS_VAR_RX_POLL_YIELD				"VMA_RX_POLL_YIELD"
 #define SYS_VAR_RX_BYTE_MIN_LIMIT			"VMA_RX_BYTES_MIN"
 #define SYS_VAR_RX_PREFETCH_BYTES			"VMA_RX_PREFETCH_BYTES"
@@ -598,7 +593,6 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_RX_NUM_SGE				(1)
 #define MCE_DEFAULT_RX_NUM_POLLS			(100000)
 #define MCE_DEFAULT_RX_NUM_POLLS_INIT			(0)
-#define MCE_DEFAULT_RX_UDP_POLL_OS_RATIO		(100)
 #define MCE_DEFAULT_HW_TS_CONVERSION_MODE		(TS_CONVERSION_MODE_SYNC)
 #define MCE_DEFAULT_RX_POLL_YIELD			(0)
 #define MCE_DEFAULT_RX_BYTE_MIN_LIMIT			(65536)
