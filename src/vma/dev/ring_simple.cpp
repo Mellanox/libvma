@@ -249,6 +249,12 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 	if(p_ring_info->p_ib_ctx == NULL) {
 		ring_logpanic("p_ring_info.p_ib_ctx = NULL. It can be related to wrong bonding configuration");
 	}
+
+	ring_logdbg("ring info: if_name = %s", p_ring_info->if_name);
+	ring_logdbg("ring info: l2_addr = %s", p_ring_info->p_l2_addr->to_str().c_str());
+	ring_logdbg("ring info: ib_name = %s", p_ring_info->p_ib_ctx->get_ibv_device()->name);
+	ring_logdbg("ring info: port    = %d", p_ring_info->port_num);
+
 	m_p_ib_ctx = p_ring_info->p_ib_ctx;
 	save_l2_address(p_ring_info->p_l2_addr);
 	m_p_tx_comp_event_channel = ibv_create_comp_channel(m_p_ib_ctx->get_ibv_context());
@@ -279,13 +285,15 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 
 	memset(&m_tso, 0, sizeof(m_tso));
 #ifdef HAVE_TSO
-	if (r_ibv_dev_attr.comp_mask & IBV_EXP_DEVICE_ATTR_TSO_CAPS) {
-		const struct ibv_exp_tso_caps *caps = &r_ibv_dev_attr.tso_caps;
-		if (ibv_is_qpt_supported(caps->supported_qpts, IBV_QPT_RAW_PACKET) &&
-			ibv_is_qpt_supported(caps->supported_qpts, IBV_QPT_UD)) {
-			m_tso.max_payload_sz = caps->max_tso;
-			/* ETH(14) + IP(20) + TCP(20) + TCP OPTIONS(40) */
-			m_tso.max_header_sz = 94;
+	if (0 != check_tso_from_ifname(p_ring_info->if_name)) {
+		if (r_ibv_dev_attr.comp_mask & IBV_EXP_DEVICE_ATTR_TSO_CAPS) {
+			const struct ibv_exp_tso_caps *caps = &r_ibv_dev_attr.tso_caps;
+			if (ibv_is_qpt_supported(caps->supported_qpts, IBV_QPT_RAW_PACKET) ||
+				ibv_is_qpt_supported(caps->supported_qpts, IBV_QPT_UD)) {
+				m_tso.max_payload_sz = caps->max_tso;
+				/* ETH(14) + IP(20) + TCP(20) + TCP OPTIONS(40) */
+				m_tso.max_header_sz = 94;
+			}
 		}
 	}
 #endif /* HAVE_TSO */

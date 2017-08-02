@@ -45,6 +45,9 @@
 #include <limits>
 #include <math.h>
 #include <linux/ip.h>  //IP  header (struct  iphdr) definition
+#ifdef HAVE_LINUX_ETHTOOL_H
+#include <linux/ethtool.h> // ioctl(SIOCETHTOOL)
+#endif
 #include <netinet/udp.h>
 
 #include "utils/bullseye.h"
@@ -830,6 +833,42 @@ int validate_raw_qp_privliges()
 		return 0;
 	}
 	return 1;
+}
+
+int check_tso_from_ifname(const char* ifname)
+{
+#ifdef HAVE_LINUX_ETHTOOL_H
+	int ret = -1;
+	int fd = -1;
+	struct ifreq req;
+	struct ethtool_value eval;
+
+	if (NULL == ifname) {
+		return -1;
+	}
+
+	fd = orig_os_api.socket(AF_INET, SOCK_DGRAM, 0);
+	if (fd < 0) {
+		__log_err("ERROR from socket() (errno=%d %m)", errno);
+		return -1;
+	}
+
+	memset(&req, 0, sizeof(req));
+	eval.cmd = ETHTOOL_GTSO;
+	strncpy(req.ifr_name, ifname, sizeof(req.ifr_name) - 1);
+	req.ifr_data = (char *)&eval;
+	ret = orig_os_api.ioctl(fd, SIOCETHTOOL, &req);
+	if (ret < 0) {
+		__log_dbg("ioctl(SIOCETHTOOL) cmd=ETHTOOL_GTSO (errno=%d %m)", errno);
+	} else {
+		ret = eval.data;
+	}
+
+	orig_os_api.close(fd);
+	return ret;
+#else
+	return -1;
+#endif
 }
 
 loops_timer::loops_timer()

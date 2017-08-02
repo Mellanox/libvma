@@ -97,6 +97,8 @@ AC_CHECK_HEADERS([infiniband/verbs.h], ,
 AC_CHECK_HEADERS([rdma/rdma_cma.h], ,
                  [AC_MSG_ERROR([Unable to find the librdmacm-devel header files])])
 
+AC_CHECK_HEADERS([linux/ethtool.h])
+
 #
 # Chech if infiniband/mlx5_hw.h can be used
 #

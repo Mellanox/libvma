@@ -221,10 +221,11 @@ typedef hash_map<flow_spec_tcp_key_t, rfs*> flow_spec_tcp_map_t;
 
 
 typedef struct {
-	ib_ctx_handler*	p_ib_ctx;
-	uint8_t 	port_num;
-	L2_address* 	p_l2_addr;
-	bool			active;
+	char            if_name[IFNAMSIZ];
+	ib_ctx_handler* p_ib_ctx;
+	L2_address*     p_l2_addr;
+	uint8_t         port_num;
+	bool            active;
 } ring_resource_creation_info_t;
 
 

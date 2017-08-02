@@ -297,6 +297,15 @@ int validate_ipoib_prop(const char* ifname, unsigned int ifflags,
 
 int validate_raw_qp_privliges();
 
+/**
+ * Get TSO support from interface name
+ *
+ * @param ifname input interface name of device (e.g. eth1, ib2)
+ *  should be of size IFNAMSIZ
+ * @return 0/1 or -1 on failure
+ */
+int check_tso_from_ifname(const char* ifname);
+
 static inline int get_procname(int pid, char *proc, size_t size)
 {
 	char app_full_name[FILE_NAME_MAX_SIZE] = {0};

@@ -433,6 +433,7 @@ bool net_device_val::update_active_backup_slaves()
 	size_t slave_count = m_slaves.size();
 	ring_resource_creation_info_t p_ring_info[slave_count];
 	for (size_t i = 0; i<slave_count; i++) {
+		snprintf(p_ring_info[i].if_name, sizeof(p_ring_info[i].if_name), "%s", m_base_name);
 		p_ring_info[i].p_ib_ctx = m_slaves[i]->p_ib_ctx;
 		p_ring_info[i].port_num = m_slaves[i]->port_num;
 		p_ring_info[i].p_l2_addr = m_slaves[i]->p_L2_addr;
@@ -526,10 +527,12 @@ bool net_device_val::update_active_slaves() {
 	bool up_and_active_slaves[m_slaves.size()];
 	size_t i = 0;
 
+	memset(up_and_active_slaves, 0, sizeof(up_and_active_slaves[0]) * m_slaves.size());
 	get_up_and_active_slaves(up_and_active_slaves, m_slaves.size());
 
 	/* compare to current status and prepare for restart */
 	for (i = 0; i< m_slaves.size(); i++) {
+		snprintf(p_ring_info[i].if_name, sizeof(p_ring_info[i].if_name), "%s", m_base_name);
 		p_ring_info[i].p_ib_ctx = m_slaves[i]->p_ib_ctx;
 		p_ring_info[i].port_num = m_slaves[i]->port_num;
 		p_ring_info[i].p_l2_addr = m_slaves[i]->p_L2_addr;
@@ -870,6 +873,7 @@ ring* net_device_val_eth::create_ring(resource_allocation_key *key)
 	ring_resource_creation_info_t p_ring_info[slave_count];
 	bool active_slaves[slave_count];
 	for (size_t i = 0; i<slave_count; i++) {
+		snprintf(p_ring_info[i].if_name, sizeof(p_ring_info[i].if_name), "%s", m_base_name);
 		p_ring_info[i].p_ib_ctx = m_slaves[i]->p_ib_ctx;
 		p_ring_info[i].port_num = m_slaves[i]->port_num;
 		p_ring_info[i].p_l2_addr = m_slaves[i]->p_L2_addr;
@@ -1006,6 +1010,7 @@ ring* net_device_val_ib::create_ring(resource_allocation_key *key)
 	ring_resource_creation_info_t p_ring_info[slave_count];
 	bool active_slaves[slave_count];
 	for (size_t i = 0; i<slave_count; i++) {
+		snprintf(p_ring_info[i].if_name, sizeof(p_ring_info[i].if_name), "%s", m_base_name);
 		p_ring_info[i].p_ib_ctx = m_slaves[i]->p_ib_ctx;
 		p_ring_info[i].port_num = m_slaves[i]->port_num;
 		p_ring_info[i].p_l2_addr = m_slaves[i]->p_L2_addr;
