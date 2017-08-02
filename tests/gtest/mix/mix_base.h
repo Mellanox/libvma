@@ -29,7 +29,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef TESTS_GTEST_AUX_BASE_H_
+#ifndef TESTS_GTEST_MIX_BASE_H_
+#define TESTS_GTEST_MIX_BASE_H_
 
 #include "common/def.h"
 #include "common/log.h"
@@ -44,5 +45,5 @@ protected:
 	virtual void TearDown();
 };
 
-#endif //TESTS_GTEST_AUX_VASE_H_
+#endif //TESTS_GTEST_MIX_VASE_H_
 
