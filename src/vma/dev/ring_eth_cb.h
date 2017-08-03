@@ -97,8 +97,11 @@ private:
 	void*				m_curr_h_ptr;
 	size_t				m_curr_packets;
 	struct timespec			m_curr_hw_timestamp;
+	// workaround for bug #1070678 consume all first WQE in VMA
+	bool				m_first_call;
 	inline mp_loop_result		mp_loop(size_t limit);
 	inline bool			reload_wq();
+	void 				consume_first_wqe();
 };
 
 #endif /* HAVE_MP_RQ */
