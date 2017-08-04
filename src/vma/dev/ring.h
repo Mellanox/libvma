@@ -95,7 +95,6 @@ public:
 	virtual int		get_num_resources() const = 0;
 	int*			get_rx_channel_fds() const { return m_p_n_rx_channel_fds; };
 	virtual int		get_tx_channel_fd() const { return -1; };
-	virtual int		get_max_tx_inline() = 0;
 	virtual bool 		get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe) = 0;
 	virtual int		request_notification(cq_type_t cq_type, uint64_t poll_sn) = 0;
 	virtual bool		reclaim_recv_buffers(descq_t *rx_reuse) = 0;
@@ -113,6 +112,8 @@ public:
 	ring_user_id_t		generate_id() { return 0; };
 	virtual ring_user_id_t	generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port) = 0;
 	virtual int		modify_ratelimit(struct vma_rate_limit_t &rate_limit) = 0;
+        virtual uint32_t        get_max_inline_data() = 0;
+        virtual uint32_t        get_max_send_sge(void) = 0;
 	virtual int		reg_mr(void *addr, size_t length, uint32_t &lkey) { NOT_IN_USE(addr); NOT_IN_USE(length); NOT_IN_USE(lkey); return -1;};
 	virtual int		dereg_mr(void *addr, size_t length) { NOT_IN_USE(addr);NOT_IN_USE(length); return -1;};
 

@@ -69,8 +69,9 @@ public:
 
 	virtual int modify_ratelimit(struct vma_rate_limit_t &rate_limit) { NOT_IN_USE(rate_limit); return 0; }
 	void inc_cq_moderation_stats(size_t sz_data) { NOT_IN_USE(sz_data); }
-	virtual int get_max_tx_inline() { return 0; }
 	virtual uint32_t get_underly_qpn() { return -1; }
+	virtual uint32_t get_max_inline_data() { return 0; }
+	virtual uint32_t get_max_send_sge() { return 1; }
 	inline void set_tap_data_available() { m_tap_data_available = true; }
 	inline void set_vf_ring(ring_slave *p_ring) { m_vf_ring = p_ring; }
 	inline void inc_vf_plugouts() { m_p_ring_stat->tap.n_vf_plugouts++; }

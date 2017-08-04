@@ -77,7 +77,6 @@ public:
 	void			mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc); // Assume locked...
 	void			mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc);
 	void			mem_buf_desc_return_to_owner_rx(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array = NULL);
-	virtual int		get_max_tx_inline();
 	inline int		send_buffer(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 	virtual bool		is_up();
 	void			start_active_qp_mgr();
@@ -93,9 +92,8 @@ public:
 	virtual uint32_t	get_underly_qpn() { return m_p_qp_mgr->get_underly_qpn(); }
 	virtual int		modify_ratelimit(struct vma_rate_limit_t &rate_limit);
 	virtual int		get_tx_channel_fd() const { return m_p_tx_comp_event_channel ? m_p_tx_comp_event_channel->fd : -1; };
-	inline int		get_max_sge(void) const {
-		return m_max_sge;
-	}
+	virtual uint32_t get_max_inline_data();
+	virtual uint32_t get_max_send_sge(void);
 	inline uint32_t	get_max_payload_sz(void) const {
 		return m_tso.max_payload_sz;
 	}
@@ -211,9 +209,6 @@ private:
 	struct ibv_comp_channel* m_p_tx_comp_event_channel;
 	L2_address*		m_p_l2_addr;
 	uint32_t		m_mtu;
-
-	/* Maximum number of scatter/gather elements */
-	int m_max_sge;
 
 	struct {
 		/* Maximum length of TCP payload for TSO */

@@ -162,7 +162,7 @@ void qp_mgr_eth_mlx5::init_sq()
 	 *     the 4 bytes used for stating the inline data size
 	 *   - 3 WQEBB are fully availabie for data inlining
 	 */
-	m_max_inline_data = OCTOWORD-4 + 3*WQEBB;
+	m_qp_cap.max_inline_data = OCTOWORD - 4 + 3 * WQEBB;
 
 	if (m_sq_wqe_idx_to_wrid == NULL) {
 		m_sq_wqe_idx_to_wrid = (uint64_t*)mmap(NULL, m_tx_num_wr * sizeof(*m_sq_wqe_idx_to_wrid),
@@ -173,8 +173,8 @@ void qp_mgr_eth_mlx5::init_sq()
 		}
 	}
 
-	qp_logfunc("m_tx_num_wr=%d m_max_inline_data: %d m_sq_wqe_idx_to_wrid=%p",
-		    m_tx_num_wr, m_max_inline_data, m_sq_wqe_idx_to_wrid);
+	qp_logfunc("m_tx_num_wr=%d max_inline_data: %d m_sq_wqe_idx_to_wrid=%p",
+		    m_tx_num_wr, get_max_inline_data(), m_sq_wqe_idx_to_wrid);
 
 	memset((void *)(uintptr_t)m_sq_wqe_hot, 0, sizeof(struct mlx5_wqe64));
 	m_sq_wqe_hot->ctrl.data[0] = htonl(MLX5_OPCODE_SEND);
@@ -402,7 +402,7 @@ inline int qp_mgr_eth_mlx5::fill_wqe(vma_ibv_send_wr *pswr)
 	sg_array sga(pswr->sg_list, pswr->num_sge);
 	int      inline_len = MLX5_ETH_INLINE_HEADER_SIZE;
 	int      data_len   = sga.length()-inline_len;
-	int      max_inline_len = m_max_inline_data;
+	int      max_inline_len = get_max_inline_data();
 	int      wqe_size = sizeof(struct mlx5_wqe_ctrl_seg)/OCTOWORD + sizeof(struct mlx5_wqe_eth_seg)/OCTOWORD;
 
 	uint8_t* cur_seg = (uint8_t*)m_sq_wqe_hot+sizeof(struct mlx5_wqe_ctrl_seg);

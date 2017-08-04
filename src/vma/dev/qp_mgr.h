@@ -106,7 +106,12 @@ public:
 	void                post_recv_buffers(descq_t* p_buffers, size_t count); // Post for receive a list of mem_buf_desc
 	int                 send(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 
-	uint32_t            get_max_inline_tx_data() const {return m_max_inline_data; }
+	inline uint32_t     get_max_inline_data() const {
+		return m_qp_cap.max_inline_data;
+	}
+	inline uint32_t     get_max_send_sge() const {
+		return m_qp_cap.max_send_sge;
+	}
 	int                 get_port_num() const { return m_port_num; }
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
@@ -144,7 +149,7 @@ protected:
 	uint8_t             m_port_num;
 	ib_ctx_handler*     m_p_ib_ctx_handler;
 
-	uint32_t            m_max_inline_data;
+	struct ibv_qp_cap   m_qp_cap;
 	uint32_t            m_max_qp_wr;
 
 	cq_mgr*             m_p_cq_mgr_rx;
