@@ -1552,11 +1552,6 @@ int ring_simple::mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_
 	return accounting;
 }
 
-int ring_simple::get_max_tx_inline()
-{
-	return m_p_qp_mgr->get_max_inline_tx_data();
-}
-
 /* note that this function is inline, so keep it above the functions using it */
 inline int ring_simple::send_buffer(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 {
@@ -2024,4 +2019,14 @@ int ring_simple::modify_ratelimit(const uint32_t ratelimit_kbps) {
 		return m_p_qp_mgr->modify_qp_ratelimit(ratelimit_kbps);
 	}
 	return 0;
+}
+
+uint32_t ring_simple::get_max_inline_data()
+{
+	return m_p_qp_mgr->get_max_inline_data();
+}
+
+uint32_t ring_simple::get_max_send_sge(void)
+{
+	return m_p_qp_mgr->get_max_send_sge();
 }
