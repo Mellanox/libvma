@@ -256,9 +256,6 @@ void ring_simple::create_resources()
 
 	m_tx_num_wr_free = m_tx_num_wr;
 
-	m_max_sge = m_p_ib_ctx->get_ibv_device_attr()->max_sge;
-	ring_logdbg("ring attributes: m_max_sge = %d", get_max_sge());
-
 	memset(&m_tso, 0, sizeof(m_tso));
 #ifdef HAVE_TSO
 	if (1 == validate_tso(get_if_index())) {
@@ -625,11 +622,6 @@ int ring_simple::mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_
 		m_missing_buf_ref_count -= accounting;
 	m_lock_ring_tx.unlock();
 	return accounting;
-}
-
-int ring_simple::get_max_tx_inline()
-{
-	return m_p_qp_mgr->get_max_inline_tx_data();
 }
 
 /* note that this function is inline, so keep it above the functions using it */
@@ -1063,4 +1055,14 @@ int ring_simple::get_ring_descriptors(vma_mlx_hw_device_data &d)
 	}
 	VALGRIND_MAKE_MEM_DEFINED(&d, sizeof(d));
 	return 0;
+}
+
+uint32_t ring_simple::get_max_inline_data()
+{
+	return m_p_qp_mgr->get_max_inline_data();
+}
+
+uint32_t ring_simple::get_max_send_sge(void)
+{
+	return m_p_qp_mgr->get_max_send_sge();
 }

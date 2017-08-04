@@ -307,8 +307,8 @@ bool dst_entry::resolve_ring()
 			m_p_ring = m_p_net_dev_val->reserve_ring(m_ring_alloc_logic.create_new_key(m_pkt_src_ip));
 		}
 		if (m_p_ring) {
-			m_max_inline = std::min<uint32_t>(m_p_ring->get_max_tx_inline(),
-					get_route_mtu() + m_header.m_transport_header_len);
+			m_max_inline = m_p_ring->get_max_inline_data();
+			m_max_inline = std::min<uint32_t>(m_max_inline, get_route_mtu() + (uint32_t)m_header.m_transport_header_len);
 			ret_val = true;
 		}
 	}
@@ -664,9 +664,8 @@ void dst_entry::do_ring_migration(lock_base& socket_lock, resource_allocation_ke
 
 	ring* old_ring = m_p_ring;
 	m_p_ring = new_ring;
-	m_max_inline = m_p_ring->get_max_tx_inline();
-	m_max_inline = std::min<uint32_t>(m_max_inline,
-				get_route_mtu() + m_header.m_transport_header_len);
+	m_max_inline = m_p_ring->get_max_inline_data();
+	m_max_inline = std::min<uint32_t>(m_max_inline, get_route_mtu() + (uint32_t)m_header.m_transport_header_len);
 
 	mem_buf_desc_t* tmp_list = m_p_tx_mem_buf_desc_list;
 	m_p_tx_mem_buf_desc_list = NULL;

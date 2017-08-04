@@ -61,7 +61,6 @@ public:
 	virtual int		drain_and_proccess();
 	virtual int		wait_for_notification_and_process_element(int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	virtual int		get_num_resources() const { return m_bond_rings.size(); };
-	virtual int		get_max_tx_inline();
 	virtual bool		attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
 	virtual bool		detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
 	virtual void		restart();
@@ -76,17 +75,20 @@ public:
 	virtual ring_user_id_t	generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port);
 	virtual bool 		get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe);
 	virtual int		modify_ratelimit(struct vma_rate_limit_t &rate_limit);
+        virtual uint32_t	get_max_inline_data();
+        virtual uint32_t	get_max_send_sge(void);
 	int 			socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);
 	virtual void    slave_create(int if_index) = 0;
 	virtual void    slave_destroy(int if_index);
 protected:
-	void			update_max_tx_inline(ring_slave *slave);
+	void			update_cap(ring_slave *slave = NULL);
 	void			update_rx_channel_fds();
 	void			popup_active_rings();
 
 	ring_slave_vector_t     m_bond_rings;
 	std::vector<struct flow_sink_t> m_rx_flows;
-	int			m_min_devices_tx_inline;
+        uint32_t    m_max_inline_data;
+        uint32_t    m_max_send_sge;
 
 private:
 	void devide_buffers_helper(descq_t *rx_reuse, descq_t *buffer_per_ring);
@@ -112,6 +114,7 @@ public:
 				g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
 		if (p_ndev) {
 			const slave_data_vector_t& slaves = p_ndev->get_slave_array();
+			update_cap();
 			for (size_t i = 0; i < slaves.size(); i++) {
 				slave_create(slaves[i]->if_index);
 			}
@@ -131,6 +134,7 @@ public:
 				g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
 		if (p_ndev) {
 			const slave_data_vector_t& slaves = p_ndev->get_slave_array();
+			update_cap();
 			for (size_t i = 0; i < slaves.size(); i++) {
 				slave_create(slaves[i]->if_index);
 			}
@@ -153,6 +157,7 @@ public:
 		m_tap_ring = NULL;
 		if (p_ndev) {
 			const slave_data_vector_t& slaves = p_ndev->get_slave_array();
+			update_cap();
 			slave_create(p_ndev->get_if_idx());
 			for (size_t i = 0; i < slaves.size(); i++) {
 				slave_create(slaves[i]->if_index);

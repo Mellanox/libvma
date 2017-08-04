@@ -64,7 +64,8 @@ ring_bond::ring_bond(int if_index) :
 	m_bond_rings.clear();
 	m_type = p_ndev->get_is_bond();
 	m_xmit_hash_policy = p_ndev->get_bond_xmit_hash_policy();
-	m_min_devices_tx_inline = -1;
+        m_max_inline_data = 0;
+        m_max_send_sge = 0;
 
 	print_val();
 }
@@ -422,11 +423,6 @@ bool ring_bond::get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_
 	return false;
 }
 
-int ring_bond::get_max_tx_inline()
-{
-	return m_min_devices_tx_inline;
-}
-
 int ring_bond::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array /*NULL*/)
 {
 	if (m_lock_ring_rx.trylock()) {
@@ -586,13 +582,21 @@ bool ring_bond::reclaim_recv_buffers(mem_buf_desc_t*)
 	return false;
 }
 
-void ring_bond::update_max_tx_inline(ring_slave *slave)
+void ring_bond::update_cap(ring_slave *slave)
 {
-	if (m_min_devices_tx_inline < 0) {
-		m_min_devices_tx_inline = slave->get_max_tx_inline();
-	} else {
-		m_min_devices_tx_inline = min(m_min_devices_tx_inline, slave->get_max_tx_inline());
+	if (NULL == slave) {
+		m_max_inline_data = (uint32_t)(-1);
+		m_max_send_sge = (uint32_t)(-1);
+		return ;
 	}
+
+	m_max_inline_data = (m_max_inline_data == (uint32_t)(-1) ? 
+		slave->get_max_inline_data() :
+		min(m_max_inline_data, slave->get_max_inline_data()));
+
+	m_max_send_sge = (m_max_send_sge == (uint32_t)(-1) ? 
+		slave->get_max_send_sge() :
+		min(m_max_send_sge, slave->get_max_send_sge()));
 }
 
 void ring_bond::devide_buffers_helper(descq_t *rx_reuse, descq_t* buffer_per_ring)
@@ -761,6 +765,16 @@ int ring_bond::modify_ratelimit(struct vma_rate_limit_t &rate_limit) {
 	return 0;
 }
 
+uint32_t ring_bond::get_max_inline_data()
+{
+        return m_max_inline_data;
+}
+
+uint32_t ring_bond::get_max_send_sge(void)
+{
+        return m_max_send_sge;
+}
+
 int ring_bond::socketxtreme_poll(struct vma_completion_t *, unsigned int, int)
 {
 	return 0;
@@ -787,7 +801,7 @@ void ring_bond_eth::slave_create(int if_index)
 	ring_slave *cur_slave = NULL;
 
 	cur_slave = new ring_eth(if_index, this);
-	update_max_tx_inline(cur_slave);
+	update_cap(cur_slave);
 	m_bond_rings.push_back(cur_slave);
 
 	if (m_bond_rings.size() > MAX_NUM_RING_RESOURCES) {
@@ -803,7 +817,7 @@ void ring_bond_ib::slave_create(int if_index)
 	ring_slave *cur_slave = NULL;
 
 	cur_slave = new ring_ib(if_index, this);
-	update_max_tx_inline(cur_slave);
+	update_cap(cur_slave);
 	m_bond_rings.push_back(cur_slave);
 
 	if (m_bond_rings.size() > MAX_NUM_RING_RESOURCES) {
@@ -830,7 +844,7 @@ void ring_bond_netvsc::slave_create(int if_index)
 	} else {
 		cur_slave = new ring_eth(if_index, this);
 		m_vf_ring = cur_slave;
-		update_max_tx_inline(cur_slave);
+		update_cap(cur_slave);
 	}
 
 	m_bond_rings.push_back(cur_slave);
