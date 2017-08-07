@@ -1111,6 +1111,7 @@ bool sockinfo::attach_as_uc_receiver(role_t role, bool skip_rules /* = false */)
 	}
 
 	if (local_if != INADDR_ANY) {
+		si_logdbg("Attached to specific local if: (%d.%d.%d.%d) addr: %s", NIPQUAD(local_if), addr.to_str());
 		
 		transport_t target_family = TRANS_VMA;
 		if (!skip_rules) target_family = find_target_family(role, addr.get_p_sa());
@@ -1120,6 +1121,7 @@ bool sockinfo::attach_as_uc_receiver(role_t role, bool skip_rules /* = false */)
 		}
 	}
 	else {
+		si_logdbg("Attaching to all offload if addr: %s", addr.to_str());
 
 		local_ip_list_t::iterator lip_iter;
 		local_ip_list_t lip_offloaded_list = g_p_net_device_table_mgr->get_ip_list();
@@ -1135,7 +1137,6 @@ bool sockinfo::attach_as_uc_receiver(role_t role, bool skip_rules /* = false */)
 			}
 		}
 	}
-	si_logdbg("Attached to specific local if: (%d.%d.%d.%d) addr: %s", NIPQUAD(local_if), addr.to_str());
 
 	return ret;
 }
