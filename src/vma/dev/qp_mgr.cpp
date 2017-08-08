@@ -89,8 +89,9 @@ qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context,
 {
 	memset(&m_qp_cap, 0, sizeof(m_qp_cap));
 	m_qp_cap.max_inline_data = safe_mce_sys().tx_max_inline;
-	m_qp_cap.max_send_sge = MCE_DEFAULT_TX_NUM_SGE;
-	m_qp_cap.max_recv_sge = (m_p_ring->is_socketxtreme()) ? 1 : MCE_DEFAULT_RX_NUM_SGE;
+	m_qp_cap.max_send_sge = (m_p_ring->is_tso() ?
+		m_p_ib_ctx_handler->get_ibv_device_attr()->max_sge : MCE_DEFAULT_TX_NUM_SGE);
+        m_qp_cap.max_recv_sge = (m_p_ring->is_socketxtreme()) ? 1 : MCE_DEFAULT_RX_NUM_SGE;
 
 	m_ibv_rx_sg_array = new ibv_sge[m_n_sysvar_rx_num_wr_to_post_recv];
 	m_ibv_rx_wr_array = new ibv_recv_wr[m_n_sysvar_rx_num_wr_to_post_recv];

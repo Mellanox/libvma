@@ -125,8 +125,7 @@ protected:
 	vma_ibv_send_wr 	m_not_inline_send_wqe;
 	vma_ibv_send_wr 	m_fragmented_send_wqe;
 	wqe_send_handler*	m_p_send_wqe_handler;
-	ibv_sge 		m_sge[MCE_DEFAULT_TX_NUM_SGE];
-	uint8_t 		m_num_sge;
+	ibv_sge 		*m_sge;
 	route_entry*		m_p_rt_entry;
 	route_val*		m_p_rt_val;
 	net_device_entry*	m_p_net_dev_entry;

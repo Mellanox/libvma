@@ -77,6 +77,11 @@ dst_entry::~dst_entry()
 	}
 
 	if (m_p_ring) {
+		if (m_sge) {
+			delete[] m_sge;
+			m_sge = NULL;
+		}
+
 		if (m_p_tx_mem_buf_desc_list) {
 			m_p_ring->mem_buf_tx_release(m_p_tx_mem_buf_desc_list, true);
 			m_p_tx_mem_buf_desc_list = NULL;
@@ -113,12 +118,11 @@ void dst_entry::init_members()
 	m_p_neigh_entry = NULL;
 	m_p_neigh_val = NULL;
 	m_p_rt_entry = NULL;
-	m_num_sge = 0;
 	memset(&m_inline_send_wqe, 0, sizeof(m_inline_send_wqe));
 	memset(&m_not_inline_send_wqe, 0, sizeof(m_not_inline_send_wqe));
 	memset(&m_fragmented_send_wqe, 0, sizeof(m_not_inline_send_wqe));
 	m_p_send_wqe_handler = NULL;
-	memset(&m_sge, 0, sizeof(m_sge));
+	m_sge = NULL;
 	m_b_is_offloaded = true;
 	m_b_is_initialized = false;
 	m_p_send_wqe = NULL;
@@ -307,6 +311,14 @@ bool dst_entry::resolve_ring()
 			m_p_ring = m_p_net_dev_val->reserve_ring(m_ring_alloc_logic.create_new_key(m_pkt_src_ip));
 		}
 		if (m_p_ring) {
+			if (m_sge) {
+				delete[] m_sge;
+				m_sge = NULL;
+			}
+			m_sge = new (nothrow) struct ibv_sge [m_p_ring->get_max_send_sge()];
+			if (!m_sge) {
+				dst_logpanic("%s Failed to allocate send SGE", to_str().c_str());
+			}
 			m_max_inline = m_p_ring->get_max_inline_data();
 			m_max_inline = std::min<uint32_t>(m_max_inline, get_route_mtu() + (uint32_t)m_header.m_transport_header_len);
 			ret_val = true;
@@ -664,6 +676,14 @@ void dst_entry::do_ring_migration(lock_base& socket_lock, resource_allocation_ke
 
 	ring* old_ring = m_p_ring;
 	m_p_ring = new_ring;
+	if (m_sge) {
+		delete[] m_sge;
+		m_sge = NULL;
+	}
+	m_sge = new (nothrow) struct ibv_sge [m_p_ring->get_max_send_sge()];
+	if (!m_sge) {
+		dst_logpanic("%s Failed to allocate send SGE", to_str().c_str());
+	}
 	m_max_inline = m_p_ring->get_max_inline_data();
 	m_max_inline = std::min<uint32_t>(m_max_inline, get_route_mtu() + (uint32_t)m_header.m_transport_header_len);
 
