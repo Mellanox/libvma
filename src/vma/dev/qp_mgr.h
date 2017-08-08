@@ -114,6 +114,9 @@ public:
 	inline uint32_t     get_max_inline_data() const {
 		return m_qp_cap.max_inline_data;
 	}
+	inline uint32_t     get_max_send_sge() const {
+		return m_qp_cap.max_send_sge;
+	}
 	int                 get_port_num() const { return m_port_num; }
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off

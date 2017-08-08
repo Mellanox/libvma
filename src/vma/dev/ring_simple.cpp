@@ -280,9 +280,6 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 
 	m_tx_num_wr_free = m_tx_num_wr;
 
-	m_max_sge = r_ibv_dev_attr.max_sge;
-	ring_logdbg("ring attributes: m_max_sge = %d", get_max_sge());
-
 	memset(&m_tso, 0, sizeof(m_tso));
 #ifdef HAVE_TSO
 	if (0 != check_tso_from_ifname(p_ring_info->if_name)) {

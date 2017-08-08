@@ -177,9 +177,6 @@ private:
 #endif // DEFINED_VMAPOLL		
 	bool			m_flow_tag_enabled;
 
-	/* Maximum number of scatter/gather elements */
-	int m_max_sge;
-
 	struct {
 		/* Maximum length of TCP payload for TSO */
 		uint32_t max_payload_sz;
