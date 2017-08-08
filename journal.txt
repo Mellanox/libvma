@@ -1,3 +1,35 @@
+Version 8.4.2-0:
+Date + Time 2017-08-08
+=============================================================
+Added:
+        - RM #1097641 Add a dummy packet send during getsockname()
+        - RM #1055917 Enable dynamic signaling for Tx PostSend PRM
+        - RM #1055917 Enable dynamic WQE size inlining in BlueFlame
+        - RM #1055917 Amend VMAPOLL Tx to use MLX5 PostSend PRM
+        - RM #1055917 Enable TX Post-Send PRM for non-VMAPOLL
+        - RM #1055917 Add scatter/gather array helper
+        - RM #933949 Add KVM virtualization detection
+        - RM #1049758 Support ioctl() with FIONREAD flag
+        - RM #1061103 Improve performance of epoll implementation
+        - RM #1080207 Add an option to gracefully exit() on startup failure
+        - RM #1063479 Add valgrind detection macros
+        - RM #1078695 Disable ring migration for RING_LOGIC_PER_USER_ID
+        - RM #1049980 Eliminate coverity-8.7 failures
+        - RM #1063164 Update License date to 2017
+
+Fixed:
+        - RM #884440 Fix handling of SO_LINGER in case l_linger is zero
+        - RM #863457 Change logic of interface selection in attach receiver
+        - RM #1097116 Reduce amount of log messaging for DBG level
+        - RM #1085670 Fix VMA_POLL crash when exiting
+        - RM #1043830 Add set of gtest cases
+        - RM #1043830 Fix flags parameter verification for UDP flow
+        - RM #1043830 Fix incorrect setting EEXIST in global_ring_wakeup
+        - RM #1043830 Fix error processing for send operations
+        - RM #1079098 Fix array out of range in vma_extra api
+        - RM #1063479 Fix some Valgrind issues in VMA
+        - RM #1075811 Fix csbuild reported errors (one error is suppressed)
+
 Version 8.4.1-0:
 Date + Time 2017-07-04
 =============================================================
