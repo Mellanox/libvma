@@ -775,6 +775,21 @@ uint32_t ring_bond::get_max_send_sge(void)
         return m_max_send_sge;
 }
 
+uint32_t ring_bond::get_max_payload_sz(void)
+{
+        return 0;
+}
+
+uint16_t ring_bond::get_max_header_sz(void)
+{
+        return 0;
+}
+
+bool ring_bond::is_tso(void)
+{
+        return false;
+}
+
 int ring_bond::socketxtreme_poll(struct vma_completion_t *, unsigned int, int)
 {
 	return 0;
