@@ -86,15 +86,9 @@ public:
 	virtual int 		modify_ratelimit(const uint32_t ratelimit_kbps);
 	virtual uint32_t    get_max_inline_data();
 	virtual uint32_t    get_max_send_sge(void);
-	inline uint32_t	get_max_payload_sz(void) const {
-		return m_tso.max_payload_sz;
-	}
-	inline uint16_t	get_max_header_sz(void) const {
-		return m_tso.max_header_sz;
-	}
-	inline bool		is_tso(void) const {
-		return (m_tso.max_payload_sz && m_tso.max_header_sz);
-	}
+	virtual uint32_t    get_max_payload_sz(void);
+	virtual uint16_t    get_max_header_sz(void);
+	virtual bool        is_tso(void);
 
 	struct ibv_comp_channel* get_tx_comp_event_channel() { return m_p_tx_comp_event_channel; }
 	friend class cq_mgr;

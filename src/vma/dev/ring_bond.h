@@ -68,7 +68,10 @@ public:
 	virtual int 		modify_ratelimit(const uint32_t ratelimit_kbps);
 	virtual uint32_t    get_max_inline_data();
 	virtual uint32_t    get_max_send_sge(void);
-	virtual bool		is_ratelimit_supported(uint32_t rate);
+	virtual uint32_t    get_max_payload_sz(void);
+	virtual uint16_t    get_max_header_sz(void);
+	virtual bool        is_tso(void);
+	virtual bool        is_ratelimit_supported(uint32_t rate);
 #ifdef DEFINED_VMAPOLL		
 	virtual int		fast_poll_and_process_element_rx(vma_packets_t *vma_pkts);
 	int 			vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);

@@ -669,6 +669,21 @@ uint32_t ring_bond::get_max_send_sge(void)
 	return m_max_send_sge;
 }
 
+uint32_t ring_bond::get_max_payload_sz(void)
+{
+	return 0;
+}
+
+uint16_t ring_bond::get_max_header_sz(void)
+{
+	return 0;
+}
+
+bool ring_bond::is_tso(void)
+{
+	return false;
+}
+
 #ifdef DEFINED_VMAPOLL	
 int ring_bond::fast_poll_and_process_element_rx(vma_packets_t *vma_pkts)
 {
