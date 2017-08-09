@@ -128,8 +128,8 @@ AS_IF([test "x$with_valgrind" == xno],
 #
 AC_ARG_ENABLE([exp-cq],
     AC_HELP_STRING([--disable-exp-cq],
-                   [Disable experimental Verbs CQ (required for UDP RX HW Timestamp and for RX CSUM verification offload)]),
-    [],
+                   [Disable experimental Verbs CQ (disables UDP RX HW Timestamp, RX CSUM verification offload and Multi Packet RQ)]),
+    [enable_exp_cq=no],
     [enable_exp_cq=yes]
 )
 
@@ -870,7 +870,7 @@ AC_CHECK_DECLS([IBV_EXP_DEVICE_ATTR_VLAN_OFFLOADS,
 		 [#include <infiniband/mlx5_hw.h>]])
 
 AC_MSG_CHECKING([multi packet RQ])
-AS_IF([test "x$have_mp_rq" == xyes],
+AS_IF([test "x$have_mp_rq" == xyes -a "x$enable_exp_cq" == xyes],
 	[AC_DEFINE([HAVE_MP_RQ], 1, [MP_RQ QP supported])] [AC_MSG_RESULT([enabled])],
 	[AC_MSG_RESULT([disabled])])
 
