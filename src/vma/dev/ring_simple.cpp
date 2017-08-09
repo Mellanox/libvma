@@ -1066,3 +1066,18 @@ uint32_t ring_simple::get_max_send_sge(void)
 {
 	return m_p_qp_mgr->get_max_send_sge();
 }
+
+uint32_t ring_simple::get_max_payload_sz(void)
+{
+	return m_tso.max_payload_sz;
+}
+
+uint16_t ring_simple::get_max_header_sz(void)
+{
+	return m_tso.max_header_sz;
+}
+
+bool ring_simple::is_tso(void)
+{
+	return (m_tso.max_payload_sz && m_tso.max_header_sz);
+}

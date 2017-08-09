@@ -91,23 +91,26 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 	vma_wr_tx_packet_attr attr = (vma_wr_tx_packet_attr)((VMA_TX_PACKET_BLOCK * b_blocked) | (VMA_TX_PACKET_DUMMY * is_dummy) | VMA_TX_PACKET_L3_CSUM | VMA_TX_PACKET_L4_CSUM);
 
 	if (likely(no_copy)) {
+		/* iov_base is a pointer to TCP header and data
+		 * so p_pkt should point to L2
+		 */
 		p_pkt = (tx_packet_template_t*)((uint8_t*)p_tcp_iov[0].iovec.iov_base - m_header.m_aligned_l2_l3_len);
+
+		/* iov_len is a size of TCP header and data
+		 * m_total_hdr_len is a size of L2/L3 header
+		 */
 		total_packet_len = p_tcp_iov[0].iovec.iov_len + m_header.m_total_hdr_len;
+
+		/* copy just L2/L3 headers to p_pkt */
 		m_header.copy_l2_ip_hdr(p_pkt);
-		// We've copied to aligned address, and now we must update p_pkt to point to real
-		// L2 header
-		//p_pkt = (tx_packet_template_t*)((uint8_t*)p_pkt + hdr_alignment_diff);
+
+		/* update L3(Total Length) with total size of L3 header, TCP header and data */
 		p_pkt->hdr.m_ip_hdr.tot_len = (htons)(p_tcp_iov[0].iovec.iov_len + m_header.m_ip_header_len);
+
+		m_p_send_wqe = (total_packet_len < m_max_inline ? &m_inline_send_wqe : &m_not_inline_send_wqe);
 
 		m_sge[0].addr = (uintptr_t)((uint8_t*)p_pkt + hdr_alignment_diff);
 		m_sge[0].length = total_packet_len;
-
-		if (total_packet_len < m_max_inline) { // inline send
-			m_p_send_wqe = &m_inline_send_wqe;
-		} else {
-			m_p_send_wqe = &m_not_inline_send_wqe;
-		}
-
 		m_p_send_wqe->wr_id = (uintptr_t)p_tcp_iov[0].p_desc;
 		p_tcp_iov[0].p_desc->tx.p_ip_h = &p_pkt->hdr.m_ip_hdr;
 		p_tcp_iov[0].p_desc->tx.p_tcp_h =(struct tcphdr*)((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr));

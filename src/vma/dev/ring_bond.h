@@ -77,6 +77,9 @@ public:
 	virtual int		modify_ratelimit(struct vma_rate_limit_t &rate_limit);
         virtual uint32_t	get_max_inline_data();
         virtual uint32_t	get_max_send_sge(void);
+        virtual uint32_t	get_max_payload_sz(void);
+        virtual uint16_t	get_max_header_sz(void);
+        virtual bool		is_tso(void);
 	int 			socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);
 	virtual void    slave_create(int if_index) = 0;
 	virtual void    slave_destroy(int if_index);

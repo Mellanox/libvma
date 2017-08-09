@@ -92,17 +92,11 @@ public:
 	virtual uint32_t	get_underly_qpn() { return m_p_qp_mgr->get_underly_qpn(); }
 	virtual int		modify_ratelimit(struct vma_rate_limit_t &rate_limit);
 	virtual int		get_tx_channel_fd() const { return m_p_tx_comp_event_channel ? m_p_tx_comp_event_channel->fd : -1; };
-	virtual uint32_t get_max_inline_data();
-	virtual uint32_t get_max_send_sge(void);
-	inline uint32_t	get_max_payload_sz(void) const {
-		return m_tso.max_payload_sz;
-	}
-	inline uint16_t	get_max_header_sz(void) const {
-		return m_tso.max_header_sz;
-	}
-	inline bool		is_tso(void) const {
-		return (m_tso.max_payload_sz && m_tso.max_header_sz);
-	}
+        virtual uint32_t	get_max_inline_data();
+        virtual uint32_t	get_max_send_sge(void);
+        virtual uint32_t	get_max_payload_sz(void);
+        virtual uint16_t	get_max_header_sz(void);
+        virtual bool		is_tso(void);
 
 	struct ibv_comp_channel* get_tx_comp_event_channel() { return m_p_tx_comp_event_channel; }
 	int			get_ring_descriptors(vma_mlx_hw_device_data &data);
