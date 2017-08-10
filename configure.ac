@@ -128,7 +128,7 @@ AS_IF([test "x$with_valgrind" == xno],
 #
 AC_ARG_ENABLE([exp-cq],
     AC_HELP_STRING([--disable-exp-cq],
-                   [Disable experimental Verbs CQ (required for UDP RX HW Timestamp and for RX CSUM verification offload), disables multi packet RQ]),
+                   [Disable experimental Verbs CQ (disables UDP RX HW Timestamp, RX CSUM verification offload and Multi Packet RQ)]),
     [enable_exp_cq=no],
     [enable_exp_cq=yes]
 )
