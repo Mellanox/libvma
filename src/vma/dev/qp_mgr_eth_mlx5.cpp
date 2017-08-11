@@ -50,6 +50,8 @@
 #define qp_logfunc	__log_info_func
 #define qp_logfuncall	__log_info_funcall
 
+//#define DBG_DUMP_WQE	1
+
 #ifdef DBG_DUMP_WQE
 #define dbg_dump_wqe(addr, size) { \
 	uint32_t* wqe = addr; \
@@ -410,6 +412,21 @@ inline int qp_mgr_eth_mlx5::fill_wqe(vma_ibv_send_wr *pswr)
 	return 1;
 }
 
+//! Maps vma_ibv_wr_opcode to real MLX5 opcode.
+//
+static inline uint32_t get_mlx5_opcode(vma_ibv_wr_opcode verbs_opcode)
+{
+	switch (verbs_opcode) {
+	case VMA_IBV_WR_NOP:
+		return MLX5_OPCODE_NOP;
+
+	case VMA_IBV_WR_SEND:
+	default:
+		return MLX5_OPCODE_SEND;
+
+	}
+}
+
 //! Send one RAW packet by MLX5 BlueFlame
 //
 int qp_mgr_eth_mlx5::send_to_wire(vma_ibv_send_wr *p_send_wqe, vma_wr_tx_packet_attr attr)
@@ -417,6 +434,8 @@ int qp_mgr_eth_mlx5::send_to_wire(vma_ibv_send_wr *p_send_wqe, vma_wr_tx_packet_
 	// Set current WQE's ethernet segment checksum flags
 	struct mlx5_wqe_eth_seg* eth_seg = (struct mlx5_wqe_eth_seg*)((uint8_t*)m_sq_wqe_hot+sizeof(struct mlx5_wqe_ctrl_seg));
 	eth_seg->cs_flags = (uint8_t)(attr & (VMA_TX_PACKET_L3_CSUM | VMA_TX_PACKET_L4_CSUM) & 0xff);
+
+	m_sq_wqe_hot->ctrl.data[0] = htonl((m_sq_wqe_counter << 8) | (get_mlx5_opcode(vma_send_wr_opcode(*p_send_wqe)) & 0xff) );
 
 	fill_wqe(p_send_wqe);
 	m_sq_wqe_idx_to_wrid[m_sq_wqe_hot_index] = (uintptr_t)p_send_wqe->wr_id;
@@ -432,7 +451,6 @@ int qp_mgr_eth_mlx5::send_to_wire(vma_ibv_send_wr *p_send_wqe, vma_wr_tx_packet_
 	// Write only data[0] which is the single element which changes.
 	// Other fields are already initialised in mlx5_init_sq.
 	//	memset(cur_seg, 0, 2*OCTOWORD);
-	m_sq_wqe_hot->ctrl.data[0] = htonl((m_sq_wqe_counter << 8) | MLX5_OPCODE_SEND);
 	m_sq_wqe_hot->ctrl.data[2] = m_n_unsignaled_count-1 == 0 ? htonl(8) : 0 ;
 
 	// Fill Ethernet segment with header inline
