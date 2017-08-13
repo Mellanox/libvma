@@ -46,8 +46,9 @@
 #define ibchtc_logdbg __log_dbg
 
 
-#define UPDATE_HW_TIMER_PERIOD_MS 10000
-#define UPDATE_HW_TIMER_INIT_MS 1000
+#define UPDATE_HW_TIMER_PERIOD_MS 1000
+#define UPDATE_HW_TIMER_INIT_MS 100
+#define UPDATE_HW_TIMER_SECONDARY_MS 200
 
 #define IB_CTX_TC_DEVIATION_THRESHOLD 10
 
@@ -69,6 +70,7 @@ time_converter_ib_ctx::time_converter_ib_ctx(struct ibv_context* ctx, ts_convers
 				m_converter_status = TS_CONVERSION_MODE_SYNC;
 
 				g_p_event_handler_manager->register_timer_event(UPDATE_HW_TIMER_INIT_MS, this, ONE_SHOT_TIMER, 0);
+				g_p_event_handler_manager->register_timer_event(UPDATE_HW_TIMER_SECONDARY_MS, this, ONE_SHOT_TIMER, 0);
 				m_timer_handle = g_p_event_handler_manager->register_timer_event(UPDATE_HW_TIMER_PERIOD_MS, this, PERIODIC_TIMER, 0);
 			}
 		}
