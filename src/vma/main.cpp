@@ -232,7 +232,8 @@ static int free_libvma_resources()
 	if (g_p_ring_profile) delete g_p_ring_profile;
 	g_p_ring_profile = NULL;
 
-	free(safe_mce_sys().app_name);
+	if (safe_mce_sys().app_name) free(safe_mce_sys().app_name);
+	safe_mce_sys().app_name = NULL;
 
 	vlog_printf(VLOG_DEBUG, "Stopping logger module\n");
 
