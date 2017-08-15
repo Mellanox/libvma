@@ -408,6 +408,7 @@ public:
 
 	bool 		enable_ipoib;
 	bool 		enable_socketxtreme;
+	bool 		enable_tso;
 	uint32_t	timer_netlink_update_msec;
 
 	//Neigh parameters
@@ -542,6 +543,7 @@ extern mce_sys_var & safe_mce_sys();
 
 #define SYS_VAR_IPOIB					"VMA_IPOIB"
 #define SYS_VAR_SOCKETXTREME				"VMA_SOCKETXTREME"
+#define SYS_VAR_TSO					"VMA_TSO"
 
 #define SYS_VAR_INTERNAL_THREAD_AFFINITY		"VMA_INTERNAL_THREAD_AFFINITY"
 #define SYS_VAR_INTERNAL_THREAD_CPUSET			"VMA_INTERNAL_THREAD_CPUSET"
@@ -682,6 +684,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_MAX_CQ_POLL_BATCH				(128)
 #define MCE_DEFAULT_IPOIB_FLAG				(1)
 #define MCE_DEFAULT_SOCKETXTREME			(false)
+#define MCE_DEFAULT_TSO					(false)
 #define MCE_DEFAULT_RX_POLL_ON_TX_TCP			(false)
 #define MCE_DEFAULT_TRIGGER_DUMMY_SEND_GETSOCKNAME	(false)
 

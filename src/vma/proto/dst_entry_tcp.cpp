@@ -74,6 +74,8 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 	size_t total_packet_len = 0;
 	// The header is aligned for fast copy but we need to maintain this diff in order to get the real header pointer easily
 	size_t hdr_alignment_diff = m_header.m_aligned_l2_l3_len - m_header.m_total_hdr_len;
+	vma_ibv_send_wr send_wqe;
+	wqe_send_handler send_wqe_h;
 
 	tcp_iovec* p_tcp_iov = NULL;
 	bool no_copy = true;
@@ -107,13 +109,26 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 		/* update L3(Total Length) with total size of L3 header, TCP header and data */
 		p_pkt->hdr.m_ip_hdr.tot_len = (htons)(p_tcp_iov[0].iovec.iov_len + m_header.m_ip_header_len);
 
-		m_p_send_wqe = (total_packet_len < m_max_inline ? &m_inline_send_wqe : &m_not_inline_send_wqe);
+		if ((total_packet_len >= m_max_inline) && m_p_ring->is_tso()) {
+			send_wqe_h.init_not_inline_wqe(send_wqe, m_sge, 1);
+			send_wqe_h.enable_tso(send_wqe,
+					(void *)((uint8_t*)p_pkt + hdr_alignment_diff),
+					m_header.m_total_hdr_len + p_pkt->hdr.m_tcp_hdr.doff * 4,
+					total_packet_len);
+			m_p_send_wqe = &send_wqe;
 
-		m_sge[0].addr = (uintptr_t)((uint8_t*)p_pkt + hdr_alignment_diff);
-		m_sge[0].length = total_packet_len;
-		m_p_send_wqe->wr_id = (uintptr_t)p_tcp_iov[0].p_desc;
-		p_tcp_iov[0].p_desc->tx.p_ip_h = &p_pkt->hdr.m_ip_hdr;
-		p_tcp_iov[0].p_desc->tx.p_tcp_h =(struct tcphdr*)((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr));
+			m_sge[0].addr = (uintptr_t)((uint8_t *)&p_pkt->hdr.m_tcp_hdr + p_pkt->hdr.m_tcp_hdr.doff * 4);
+			m_sge[0].length = p_tcp_iov[0].iovec.iov_len - p_pkt->hdr.m_tcp_hdr.doff * 4;
+			m_p_send_wqe->wr_id = (uintptr_t)p_tcp_iov[0].p_desc;
+		} else {
+			m_p_send_wqe = (total_packet_len < m_max_inline ? &m_inline_send_wqe : &m_not_inline_send_wqe);
+
+			m_sge[0].addr = (uintptr_t)((uint8_t*)p_pkt + hdr_alignment_diff);
+			m_sge[0].length = total_packet_len;
+			m_p_send_wqe->wr_id = (uintptr_t)p_tcp_iov[0].p_desc;
+		}
+                p_tcp_iov[0].p_desc->tx.p_ip_h = &p_pkt->hdr.m_ip_hdr;
+                p_tcp_iov[0].p_desc->tx.p_tcp_h =(struct tcphdr*)((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr));
 
 		send_lwip_buffer(m_id, m_p_send_wqe, attr);
 
