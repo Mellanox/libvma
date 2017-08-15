@@ -303,6 +303,7 @@
 //#define TCP_OUTPUT_DEBUG			LWIP_DBG_ON
 //#define TCP_RST_DEBUG 			LWIP_DBG_ON
 //#define TCP_QLEN_DEBUG			LWIP_DBG_ON
+//#define TCP_TSO_DEBUG				LWIP_DBG_ON
 #endif
 
 /*
@@ -864,6 +865,13 @@
 #define LWIP_CHECKSUM_ON_COPY           0
 #endif
 
+/**
+ * LWIP_TSO: Enable Large Segment Offload capability.
+ */
+#ifndef LWIP_TSO
+#define LWIP_TSO                        1
+#endif
+
 /* Define platform endianness */
 #ifndef BYTE_ORDER
 #define BYTE_ORDER LITTLE_ENDIAN
@@ -1055,8 +1063,16 @@ typedef unsigned long mem_ptr_t;
 #define TCP_QLEN_DEBUG                  LWIP_DBG_OFF
 #endif
 
+/**
+ * TCP_TSO_DEBUG: Enable debugging for TSO.
+ */
+#ifndef TCP_TSO_DEBUG
+#define TCP_TSO_DEBUG                  LWIP_DBG_OFF
+#endif
+
 #define LWIP_DEBUG_ENABLE PBUF_DEBUG | TCP_DEBUG | TCP_INPUT_DEBUG | TCP_FR_DEBUG | TCP_RTO_DEBUG \
-	| TCP_CWND_DEBUG | TCP_WND_DEBUG | TCP_OUTPUT_DEBUG | TCP_RST_DEBUG | TCP_QLEN_DEBUG
+	| TCP_CWND_DEBUG | TCP_WND_DEBUG | TCP_OUTPUT_DEBUG | TCP_RST_DEBUG | TCP_QLEN_DEBUG \
+	| TCP_TSO_DEBUG
 
 #if LWIP_DEBUG_ENABLE
 
