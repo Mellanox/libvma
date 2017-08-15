@@ -622,7 +622,20 @@ bool sockinfo_tcp::prepare_dst_to_send(bool is_accepted_socket /* = false */)
 	bool ret_val = false;
 
 	if(m_p_connected_dst_entry) {
-		ret_val = m_p_connected_dst_entry->prepare_to_send(m_so_ratelimit, is_accepted_socket);
+		if (is_accepted_socket) {
+			ret_val = m_p_connected_dst_entry->prepare_to_send(m_so_ratelimit, true, false);
+		} else {
+			ret_val = m_p_connected_dst_entry->prepare_to_send(m_so_ratelimit, false, true);
+		}
+
+		if (ret_val) {
+			/* dst_entry has resolved tx ring,
+			 * so it is a time to provide TSO information to PCB
+			 */
+			m_pcb.tso.max_payload_sz = m_p_connected_dst_entry->get_ring()->get_max_payload_sz();
+			m_pcb.tso.max_header_sz = m_p_connected_dst_entry->get_ring()->get_max_header_sz();
+			m_pcb.tso.max_send_sge = m_p_connected_dst_entry->get_ring()->get_max_send_sge();
+		}
 	}
 	return ret_val;
 }
@@ -2063,7 +2076,7 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 		return -1;
 	}
 
-	m_p_connected_dst_entry->prepare_to_send(m_so_ratelimit, false, true);
+	prepare_dst_to_send(false);
 
 	// update it after route was resolved and device was updated
 	m_p_socket_stats->bound_if = m_p_connected_dst_entry->get_src_addr();

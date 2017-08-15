@@ -97,6 +97,9 @@ public:
 
 	void	return_buffers_pool();
 	int	get_route_mtu();
+	ring*	get_ring() const {
+		return m_p_ring;
+	}
 
 protected:
 	ip_address 		m_dst_ip;
