@@ -413,6 +413,20 @@ struct tcp_pcb {
 
   /* Delayed ACK control: number of quick acks */
   u8_t quickack;
+
+#if LWIP_TSO
+  /* TSO description */
+  struct {
+    /* Maximum length of TCP payload for TSO */
+	u32_t max_payload_sz;
+
+    /* Maximum length of header for TSO */
+    u16_t max_header_sz;
+
+    /* Maximum number of SGE */
+    u32_t max_send_sge;
+  } tso;
+#endif /* LWIP_TSO */
 };
 
 typedef u16_t (*ip_route_mtu_fn)(struct tcp_pcb *pcb);
@@ -473,6 +487,12 @@ void             tcp_err     		(struct tcp_pcb *pcb, tcp_err_fn err);
 #define          tcp_nagle_disable(pcb)   ((pcb)->flags |= TF_NODELAY)
 #define          tcp_nagle_enable(pcb)    ((pcb)->flags &= ~TF_NODELAY)
 #define          tcp_nagle_disabled(pcb)  (((pcb)->flags & TF_NODELAY) != 0)
+
+#if LWIP_TSO
+#define          tcp_tso(pcb)          ((pcb)->tso.max_payload_sz)
+#else
+#define          tcp_tso(pcb)          (0)
+#endif /* LWIP_TSO */
 
 #define          tcp_accepted(pcb) LWIP_ASSERT("get_tcp_state(pcb) == LISTEN (called for wrong pcb?)", \
 		get_tcp_state(pcb) == LISTEN)

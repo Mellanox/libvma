@@ -67,6 +67,37 @@
 #define TCP_CHECKSUM_ON_COPY_SANITY_CHECK   0
 #endif
 
+#if LWIP_DEBUG_ENABLE
+static char* _dump_seg(struct tcp_seg *seg)
+{
+	static __thread char _tcp_dump_buf[100];
+	struct tcp_seg *cur_seg = NULL;
+	struct pbuf *cur_pbuf = NULL;
+	int seg_num = 0;
+	int pbuf_num = 0;
+	int seg_len = 0;
+	int pbuf_len = 0;
+
+	cur_seg = seg;
+	while (cur_seg) {
+		seg_len += cur_seg->len;
+		seg_num++;
+		cur_pbuf = cur_seg->p;
+		while (cur_pbuf) {
+			pbuf_len += cur_pbuf->len;
+			pbuf_num++;
+			cur_pbuf = cur_pbuf->next;
+		}
+		cur_seg = cur_seg->next;
+	}
+
+	snprintf(_tcp_dump_buf, sizeof(_tcp_dump_buf),
+			"[seg] num: %-2d len: %-6d [pbuf] num: %-2d len: %-6d",
+			seg_num, seg_len, pbuf_num, pbuf_len);
+	return _tcp_dump_buf;
+}
+#endif /* LWIP_DEBUG_ENABLE */
+
 sys_now_fn sys_now;
 void register_sys_now(sys_now_fn fn)
 {
@@ -633,6 +664,9 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t is_dummy)
     TCPH_SET_FLAG(seg->tcphdr, TCP_PSH);
   }
 
+  LWIP_DEBUGF(TCP_TSO_DEBUG | LWIP_DBG_TRACE,
+              ("tcp_write:  mss: %-5d unsent %s\n", mss_local, _dump_seg(pcb->unsent)));
+
   return ERR_OK;
 memerr:
   pcb->flags |= TF_NAGLEMEMERR;
@@ -1074,6 +1108,13 @@ tcp_output(struct tcp_pcb *pcb)
                  ntohl(seg->tcphdr->seqno), pcb->lastack));
   }
 #endif /* TCP_CWND_DEBUG */
+#if TCP_TSO_DEBUG
+  if (seg) {
+    LWIP_DEBUGF(TCP_TSO_DEBUG | LWIP_DBG_TRACE,
+                ("tcp_output: wnd: %-5d unsent %s\n",
+                		wnd, _dump_seg(pcb->unsent)));
+  }
+#endif /* TCP_TSO_DEBUG */
 
   while (seg){
     /* Split the segment in case of a small window */
