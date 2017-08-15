@@ -281,8 +281,8 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 	m_tx_num_wr_free = m_tx_num_wr;
 
 	memset(&m_tso, 0, sizeof(m_tso));
+	if (safe_mce_sys().enable_tso && (0 != check_tso_from_ifname(p_ring_info->if_name))) {
 #ifdef HAVE_TSO
-	if (0 != check_tso_from_ifname(p_ring_info->if_name)) {
 		if (r_ibv_dev_attr.comp_mask & IBV_EXP_DEVICE_ATTR_TSO_CAPS) {
 			const struct ibv_exp_tso_caps *caps = &r_ibv_dev_attr.tso_caps;
 			if (ibv_is_qpt_supported(caps->supported_qpts, IBV_QPT_RAW_PACKET) ||
@@ -292,8 +292,8 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 				m_tso.max_header_sz = 94;
 			}
 		}
-	}
 #endif /* HAVE_TSO */
+	}
 	ring_logdbg("ring attributes: m_tso = %d", is_tso());
 	ring_logdbg("ring attributes: m_tso:max_payload_sz = %d", get_max_payload_sz());
 	ring_logdbg("ring attributes: m_tso:max_header_sz = %d", get_max_header_sz());
