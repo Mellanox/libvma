@@ -265,7 +265,6 @@ typedef int            vma_ibv_cq_init_attr;
 #define vma_ibv_send_flags			ibv_exp_send_flags
 #define vma_send_wr_send_flags(wr)		(wr).exp_send_flags
 #define VMA_IBV_WR_SEND				IBV_EXP_WR_SEND
-#define VMA_IBV_WR_SEND_TSO			IBV_EXP_WR_TSO
 #define vma_ibv_wr_opcode			ibv_exp_wr_opcode
 #define vma_send_wr_opcode(wr)			(wr).exp_opcode
 
@@ -310,18 +309,6 @@ typedef struct ibv_exp_flow_spec_action_tag	vma_ibv_flow_spec_action_tag;
 typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_tag;
 #endif //DEFINED_IBV_EXP_FLOW_TAG
 #endif
-
-typedef enum vma_wr_tx_packet_attr {
-	VMA_TX_PACKET_BLOCK   = (1 << 0), // blocking send
-	VMA_TX_PACKET_DUMMY   = (1 << 1), // dummy send
-	VMA_TX_PACKET_L3_CSUM = (1 << 6), //MLX5_ETH_WQE_L3_CSUM offload to HW L3 (IP) header checksum
-	VMA_TX_PACKET_L4_CSUM = (1 << 7), //MLX5_ETH_WQE_L4_CSUM offload to HW L4 (TCP/UDP) header checksum
-} vma_wr_tx_packet_attr;
-
-inline bool is_set(vma_wr_tx_packet_attr state_, vma_wr_tx_packet_attr tx_mode_)
-{
-	return (uint32_t)state_ & (uint32_t)tx_mode_;
-}
 
 int vma_rdma_lib_reset();
 

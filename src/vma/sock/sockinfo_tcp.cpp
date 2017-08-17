@@ -923,6 +923,7 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit, uin
 	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)(((struct tcp_pcb*)v_p_conn)->my_container);
 	dst_entry *p_dst = p_si_tcp->m_p_connected_dst_entry;
 	int count = 1;
+	vma_wr_tx_packet_attr attr;
 
 	if (likely(!p->next)) { // We should hit this case 99% of cases
 		tcp_iovec_temp.iovec.iov_base = p->payload;
@@ -943,10 +944,11 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit, uin
 		}
 	}
 
+	attr = (vma_wr_tx_packet_attr)((is_rexmit * VMA_TX_PACKET_REXMIT) | (is_dummy * VMA_TX_PACKET_DUMMY));
 	if (likely((p_dst->is_valid()))) {
-		p_dst->fast_send(p_iovec, count, is_dummy, false, is_rexmit);
+		p_dst->fast_send(p_iovec, count, attr);
 	} else {
-		p_dst->slow_send(p_iovec, count, is_dummy, p_si_tcp->m_so_ratelimit, false, is_rexmit);
+		p_dst->slow_send(p_iovec, count, p_si_tcp->m_so_ratelimit, attr);
 	}
 
 	if (p_dst->try_migrate_ring(p_si_tcp->m_tcp_con_lock)) {

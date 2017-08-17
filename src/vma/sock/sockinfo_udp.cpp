@@ -1871,17 +1871,19 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 	}
 
 	{
+		vma_wr_tx_packet_attr attr;
 		bool b_blocking = m_b_blocking;
 		if (unlikely(__flags & MSG_DONTWAIT))
 			b_blocking = false;
 
+		attr = (vma_wr_tx_packet_attr)((b_blocking * VMA_TX_PACKET_BLOCK) | (is_dummy * VMA_TX_PACKET_DUMMY));
 		if (likely(p_dst_entry->is_valid())) {
 			// All set for fast path packet sending - this is our best performance flow
-			ret = p_dst_entry->fast_send((iovec*)p_iov, sz_iov, is_dummy, b_blocking);
+			ret = p_dst_entry->fast_send((iovec*)p_iov, sz_iov, attr);
 		}
 		else {
 			// updates the dst_entry internal information and packet headers
-			ret = p_dst_entry->slow_send(p_iov, sz_iov, is_dummy, m_so_ratelimit, b_blocking, false, __flags, this, call_type);
+			ret = p_dst_entry->slow_send(p_iov, sz_iov, m_so_ratelimit, attr, __flags, this, call_type);
 		}
 
 		if (unlikely(p_dst_entry->try_migrate_ring(m_lock_snd))) {
