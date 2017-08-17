@@ -403,7 +403,6 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 #ifdef VMA_NO_HW_CSUM
 	b_need_sw_csum = true;
 #endif
-
 	mem_buf_desc_t* p_mem_buf_desc, *tmp = NULL;
 	tx_packet_template_t *p_pkt;
 
@@ -486,6 +485,7 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 		BULLSEYE_EXCLUDE_BLOCK_END
 
 		wqe_send_handler wqe_sh;
+		vma_wr_tx_packet_attr attr = (vma_wr_tx_packet_attr)0;
 		if (b_need_sw_csum) {
 			neigh_logdbg("ip fragmentation detected, using SW checksum calculation");
 			p_pkt->hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
@@ -494,6 +494,7 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 		} else {
 			neigh_logdbg("using HW checksum calculation");
 			wqe_sh.enable_hw_csum(m_send_wqe);
+			attr = (vma_wr_tx_packet_attr)(VMA_TX_PACKET_L3_CSUM|VMA_TX_PACKET_L4_CSUM);
 		}
 
 		m_sge.addr = (uintptr_t)(p_mem_buf_desc->p_buffer + (uint8_t)h->m_transport_header_tx_offset);
@@ -508,7 +509,7 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 		p_mem_buf_desc->p_next_desc = NULL;
 
 		// We don't check the return value of post send when we reach the HW we consider that we completed our job
-		m_p_ring->send_ring_buffer(m_id, &m_send_wqe, (vma_wr_tx_packet_attr)0);
+		m_p_ring->send_ring_buffer(m_id, &m_send_wqe, attr);
 
 		p_mem_buf_desc = tmp;
 
