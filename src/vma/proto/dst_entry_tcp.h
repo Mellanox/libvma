@@ -50,8 +50,10 @@ public:
 		      socket_data &data, resource_allocation_key &ring_alloc_logic);
 	virtual ~dst_entry_tcp();
 
-	virtual ssize_t fast_send(const iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked = true, bool is_rexmit = false);
-	ssize_t slow_send(const iovec* p_iov, size_t sz_iov, bool is_dummy, struct vma_rate_limit_t &rate_limit, bool b_blocked = true, bool is_rexmit = false, int flags = 0, socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF);
+	virtual ssize_t fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_wr_tx_packet_attr attr);
+	ssize_t slow_send(const iovec* p_iov, size_t sz_iov, struct vma_rate_limit_t &rate_limit,
+			vma_wr_tx_packet_attr attr, int flags = 0,
+			socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF);
 	ssize_t slow_send_neigh(const iovec* p_iov, size_t sz_iov, struct vma_rate_limit_t &rate_limit);
 
 	mem_buf_desc_t* get_buffer(bool b_blocked = false);

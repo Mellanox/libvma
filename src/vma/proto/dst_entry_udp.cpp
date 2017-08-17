@@ -81,6 +81,7 @@ inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const
 {
 	mem_buf_desc_t* p_mem_buf_desc;
 	bool b_blocked = is_set(attr, VMA_TX_PACKET_BLOCK);
+
 	// Get a bunch of tx buf descriptor and data buffers
 	if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
 		m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, m_n_sysvar_tx_bufs_batch_udp);
@@ -293,18 +294,15 @@ ssize_t dst_entry_udp::fast_send_fragmented(const iovec* p_iov, const ssize_t sz
 	return sz_data_payload;
 }
 
-ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov,
-				bool is_dummy, bool b_blocked /*=true*/, bool is_rexmit /*=false*/)
+ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_wr_tx_packet_attr attr)
 {
-	NOT_IN_USE(is_rexmit);
-
 	// Calc user data payload size
 	ssize_t sz_data_payload = 0;
 	for (ssize_t i = 0; i < sz_iov; i++)
 		sz_data_payload += p_iov[i].iov_len;
 
 	if (unlikely(sz_data_payload > 65536)) {
-		dst_udp_logfunc("sz_data_payload=%d, to_port=%d, local_port=%d, b_blocked=%s", sz_data_payload, ntohs(m_dst_port), ntohs(m_src_port), b_blocked?"true":"false");
+		dst_udp_logfunc("sz_data_payload=%d, to_port=%d, local_port=%d, b_blocked=%s", sz_data_payload, ntohs(m_dst_port), ntohs(m_src_port), (is_set(attr, VMA_TX_PACKET_BLOCK) ? "true" : "false"));
 		dst_udp_logfunc("sz_data_payload=%d exceeds max of 64KB", sz_data_payload);
 		errno = EMSGSIZE;
 		return -1;
@@ -312,21 +310,19 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov,
 
 	// Calc udp payload size
 	size_t sz_udp_payload = sz_data_payload + sizeof(struct udphdr);
-	vma_wr_tx_packet_attr attr = (vma_wr_tx_packet_attr)((VMA_TX_PACKET_BLOCK * b_blocked) | (VMA_TX_PACKET_DUMMY * is_dummy) | VMA_TX_PACKET_L3_CSUM);
 	if (sz_udp_payload <= (size_t)m_max_udp_payload_size) {
-		return fast_send_not_fragmented(p_iov, sz_iov, (vma_wr_tx_packet_attr) (attr | VMA_TX_PACKET_L4_CSUM), sz_udp_payload, sz_data_payload);
+		attr = (vma_wr_tx_packet_attr)(attr | VMA_TX_PACKET_L3_CSUM | VMA_TX_PACKET_L4_CSUM);
+		return fast_send_not_fragmented(p_iov, sz_iov, attr, sz_udp_payload, sz_data_payload);
 	} else {
+                attr = (vma_wr_tx_packet_attr)(attr | VMA_TX_PACKET_L3_CSUM);
 		return fast_send_fragmented(p_iov, sz_iov, attr, sz_udp_payload, sz_data_payload);
 	}
 }
 
-ssize_t dst_entry_udp::slow_send(const iovec* p_iov, size_t sz_iov, bool is_dummy,
-				 struct vma_rate_limit_t &rate_limit, bool b_blocked /*= true*/,
-				 bool is_rexmit /*= false*/, int flags /*= 0*/,
+ssize_t dst_entry_udp::slow_send(const iovec* p_iov, size_t sz_iov,
+				 struct vma_rate_limit_t &rate_limit, vma_wr_tx_packet_attr attr, int flags /*= 0*/,
 				 socket_fd_api* sock /*= 0*/, tx_call_t call_type /*= 0*/)
 {
-	NOT_IN_USE(is_rexmit);
-
 	ssize_t ret_val = 0;
 
 	dst_udp_logdbg("In slow send");
@@ -346,7 +342,7 @@ ssize_t dst_entry_udp::slow_send(const iovec* p_iov, size_t sz_iov, bool is_dumm
 			ret_val = pass_buff_to_neigh(p_iov, sz_iov);
 		}
 		else {
-			ret_val = fast_send(p_iov, sz_iov, is_dummy, b_blocked);
+			ret_val = fast_send(p_iov, sz_iov, attr);
 		}
 	}
 

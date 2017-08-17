@@ -39,6 +39,26 @@
 #include "vma/sock/pkt_rcvr_sink.h"
 #include "vma/lwip/tcp.h"
 
+typedef enum vma_wr_tx_packet_attr {
+	/* blocking send operation */
+	VMA_TX_PACKET_BLOCK   = (1 << 0),
+	/* nop send operation. this option should be synchronized with lwip/tcp value */
+	VMA_TX_PACKET_DUMMY   = TCP_WRITE_DUMMY,
+	/* retransmit operation. */
+	VMA_TX_PACKET_REXMIT  = TCP_WRITE_REXMIT,
+	/* Force SW checksum */
+        VMA_TX_SW_CSUM        = (1 << 5),
+	/* MLX5_ETH_WQE_L3_CSUM offload to HW L3 (IP) header checksum */
+	VMA_TX_PACKET_L3_CSUM = (1 << 6),
+	/* MLX5_ETH_WQE_L4_CSUM offload to HW L4 (TCP/UDP) header checksum */
+	VMA_TX_PACKET_L4_CSUM = (1 << 7),
+} vma_wr_tx_packet_attr;
+
+static inline bool is_set(vma_wr_tx_packet_attr state_, vma_wr_tx_packet_attr tx_mode_)
+{
+	return (uint32_t)state_ & (uint32_t)tx_mode_;
+}
+
 static inline const char* lwip_cc_algo_str(uint32_t algo)
 {
 	switch (algo) {

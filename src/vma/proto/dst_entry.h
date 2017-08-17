@@ -72,8 +72,10 @@ public:
 	virtual void 	notify_cb();
 
 	virtual bool 	prepare_to_send(struct vma_rate_limit_t &rate_limit, bool skip_rules=false, bool is_connect=false);
-	virtual ssize_t slow_send(const iovec* p_iov, size_t sz_iov, bool is_dummy, struct vma_rate_limit_t &rate_limit, bool b_blocked = true, bool is_rexmit = false, int flags = 0, socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF) = 0 ;
-	virtual ssize_t fast_send(const iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked = true, bool is_rexmit = false) = 0;
+	virtual ssize_t slow_send(const iovec* p_iov, size_t sz_iov, struct vma_rate_limit_t &rate_limit,
+			vma_wr_tx_packet_attr attr, int flags = 0,
+			socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF) = 0;
+	virtual ssize_t fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_wr_tx_packet_attr attr) = 0;
 
 	bool		try_migrate_ring(lock_base& socket_lock);
 

@@ -38,6 +38,7 @@
 #include <ifaddrs.h>
 
 #include "vma/ib/base/verbs_extra.h"
+#include "vma/proto/vma_lwip.h"
 #include "vlogger/vlogger.h"
 #include "utils/atomic.h"
 #include "vma/util/vtypes.h"
