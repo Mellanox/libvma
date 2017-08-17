@@ -865,7 +865,7 @@ tcp_send_empty_ack(struct tcp_pcb *pcb)
     opts += 3;
   }
 #endif 
-  pcb->ip_output(p, pcb, 0, 0);
+  pcb->ip_output(p, pcb, 0);
   tcp_tx_pbuf_free(pcb, p);
 
   (void)opts; /* Fix warning -Wunused-but-set-variable */
@@ -1173,6 +1173,7 @@ tcp_output(struct tcp_pcb *pcb)
        #if TCP_OVERSIZE_DBGCHECK
          seg->oversize_left = 0;
        #endif /* TCP_OVERSIZE_DBGCHECK */
+
        tcp_output_segment(seg, pcb);
        snd_nxt = seg->seqno + TCP_TCPLEN(seg);
        if (TCP_SEQ_LT(pcb->snd_nxt, snd_nxt) && !LWIP_IS_DUMMY_SEGMENT(seg)) {
@@ -1261,6 +1262,7 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
 {
   u16_t len;
   u32_t *opts;
+  u16_t flags = 0;
 
   /* The TCP header has already been constructed, but the ackno and
    wnd fields remain. */
@@ -1340,7 +1342,9 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
 
   TCP_STATS_INC(tcp.xmit);
 
-  pcb->ip_output(seg->p, pcb, seg->seqno < pcb->snd_nxt, LWIP_IS_DUMMY_SEGMENT(seg));
+  flags |= seg->flags & TF_SEG_OPTS_DUMMY_MSG;
+  flags |= (seg->seqno < pcb->snd_nxt ? TCP_WRITE_REXMIT : 0);
+  pcb->ip_output(seg->p, pcb, flags);
 }
 
 /**
@@ -1395,7 +1399,7 @@ tcp_rst(u32_t seqno, u32_t ackno, u16_t local_port, u16_t remote_port, struct tc
 
   TCP_STATS_INC(tcp.xmit);
    /* Send output with hardcoded TTL since we have no access to the pcb */
-  if(pcb) pcb->ip_output(p, pcb, 0, 0);
+  if(pcb) pcb->ip_output(p, pcb, 0);
   /* external_ip_output(p, NULL, local_ip, remote_ip, TCP_TTL, 0, IP_PROTO_TCP) */;
   tcp_tx_pbuf_free(pcb, p);
   LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_rst: seqno %"U32_F" ackno %"U32_F".\n", seqno, ackno));
@@ -1564,7 +1568,7 @@ tcp_keepalive(struct tcp_pcb *pcb)
   TCP_STATS_INC(tcp.xmit);
 
   /* Send output to IP */
-  pcb->ip_output(p, pcb, 0, 0);
+  pcb->ip_output(p, pcb, 0);
 
   tcp_tx_pbuf_free(pcb, p);
 
@@ -1652,7 +1656,7 @@ tcp_zero_window_probe(struct tcp_pcb *pcb)
   TCP_STATS_INC(tcp.xmit);
 
   /* Send output to IP */
-  pcb->ip_output(p, pcb, 0, 0);
+  pcb->ip_output(p, pcb, 0);
 
   tcp_tx_pbuf_free(pcb, p);
 
