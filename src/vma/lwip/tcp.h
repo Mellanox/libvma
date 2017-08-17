@@ -51,7 +51,7 @@ void register_sys_now(sys_now_fn fn);
 extern u16_t lwip_tcp_mss;
 
 #if LWIP_3RD_PARTY_L3
-typedef err_t (*ip_output_fn)(struct pbuf *p, void* p_conn, int is_rexmit, u8_t is_dummy);
+typedef err_t (*ip_output_fn)(struct pbuf *p, void* p_conn, u16_t flags);
           
 void register_ip_output(ip_output_fn fn);
 

@@ -915,7 +915,7 @@ tx_packet_to_os:
 	return ret;
 }
 
-err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit, uint8_t is_dummy)
+err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, uint16_t flags)
 {
 	iovec iovec[64];
 	struct iovec* p_iovec = iovec;
@@ -944,7 +944,7 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit, uin
 		}
 	}
 
-	attr = (vma_wr_tx_packet_attr)((is_rexmit * VMA_TX_PACKET_REXMIT) | (is_dummy * VMA_TX_PACKET_DUMMY));
+	attr = (vma_wr_tx_packet_attr)flags;
 	if (likely((p_dst->is_valid()))) {
 		p_dst->fast_send(p_iovec, count, attr);
 	} else {
@@ -955,23 +955,22 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit, uin
 		p_si_tcp->m_p_socket_stats->counters.n_tx_migrations++;
 	}
 
-	if (is_rexmit) {
+	if (is_set(attr, VMA_TX_PACKET_REXMIT)) {
 		p_si_tcp->m_p_socket_stats->counters.n_tx_retransmits++;
 	}
 
 	return ERR_OK;
 }
 
-err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rexmit, uint8_t is_dummy)
+err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, uint16_t flags)
 {
-	NOT_IN_USE(is_dummy);
-
 	iovec iovec[64];
 	struct iovec* p_iovec = iovec;
 	tcp_iovec tcp_iovec_temp; //currently we pass p_desc only for 1 size iovec, since for bigger size we allocate new buffers
 	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)(((struct tcp_pcb*)v_p_conn)->my_container);
 	dst_entry *p_dst = p_si_tcp->m_p_connected_dst_entry;
 	int count = 1;
+	vma_wr_tx_packet_attr attr;
 
 	//ASSERT_NOT_LOCKED(p_si_tcp->m_tcp_con_lock);
 
@@ -995,7 +994,8 @@ err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rex
 		}
 	}
 
-	if (is_rexmit)
+	attr = (vma_wr_tx_packet_attr)flags;
+	if (is_set(attr, VMA_TX_PACKET_REXMIT))
 		p_si_tcp->m_p_socket_stats->counters.n_tx_retransmits++;
 
 	((dst_entry_tcp*)p_dst)->slow_send_neigh(p_iovec, count, p_si_tcp->m_so_ratelimit);
