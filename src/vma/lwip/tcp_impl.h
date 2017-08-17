@@ -297,7 +297,7 @@ struct tcp_seg {
 #define TF_SEG_DATA_CHECKSUMMED (u8_t)0x04U /* ALL data (not the header) is
                                                checksummed into 'chksum' */
 #define TF_SEG_OPTS_WNDSCALE	(u8_t)0x08U /* Include window scaling option */
-#define TF_SEG_OPTS_DUMMY_MSG	(u8_t)0x10U /* Include dummy send option */
+#define TF_SEG_OPTS_DUMMY_MSG	(u8_t)TCP_WRITE_DUMMY /* Include dummy send option */
   struct tcp_hdr *tcphdr;  /* the TCP header */
 };
 

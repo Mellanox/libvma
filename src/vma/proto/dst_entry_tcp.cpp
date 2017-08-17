@@ -66,7 +66,7 @@ transport_t dst_entry_tcp::get_transport(sockaddr_in to)
 	return TRANS_VMA;
 }
 
-ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked /*= true*/, bool is_rexmit /*= false*/)
+ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_wr_tx_packet_attr attr)
 {
 	int ret = 0;
 	tx_packet_template_t* p_pkt;
@@ -79,7 +79,7 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 
 	tcp_iovec* p_tcp_iov = NULL;
 	bool no_copy = true;
-	if (likely(sz_iov == 1 && !is_rexmit)) {
+	if (likely(sz_iov == 1 && !is_set(attr, VMA_TX_PACKET_REXMIT))) {
 		p_tcp_iov = (tcp_iovec*)p_iov;
 		if (unlikely(!m_p_ring->is_active_member(p_tcp_iov->p_desc->p_desc_owner, m_id))) {
 			no_copy = false;
@@ -90,7 +90,7 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 		no_copy = false;
 	}
 
-	vma_wr_tx_packet_attr attr = (vma_wr_tx_packet_attr)((VMA_TX_PACKET_BLOCK * b_blocked) | (VMA_TX_PACKET_DUMMY * is_dummy) | VMA_TX_PACKET_L3_CSUM | VMA_TX_PACKET_L4_CSUM);
+	attr = (vma_wr_tx_packet_attr)(attr | VMA_TX_PACKET_L3_CSUM | VMA_TX_PACKET_L4_CSUM);
 
 	if (likely(no_copy)) {
 		/* iov_base is a pointer to TCP header and data
@@ -142,7 +142,7 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 		}
 	}
 	else { // We don'nt support inline in this case, since we believe that this a very rare case
-		p_mem_buf_desc = get_buffer(b_blocked);
+		p_mem_buf_desc = get_buffer(is_set(attr, VMA_TX_PACKET_BLOCK));
 		if (p_mem_buf_desc == NULL) {
 			ret = -1;
 			goto out;
@@ -170,6 +170,7 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 
 		m_p_send_wqe = &m_not_inline_send_wqe;
 		m_p_send_wqe->wr_id = (uintptr_t)p_mem_buf_desc;
+		
 		send_ring_buffer(m_id, m_p_send_wqe, attr);
 
 		/* for DEBUG */
@@ -183,11 +184,12 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 	}
 
 	if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
-		m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, m_n_sysvar_tx_bufs_batch_tcp);
+		m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id,
+				is_set(attr, VMA_TX_PACKET_BLOCK), m_n_sysvar_tx_bufs_batch_tcp);
 	}
 
 out:
-	if (unlikely(is_rexmit)) {
+	if (unlikely(is_set(attr, VMA_TX_PACKET_REXMIT))) {
 		m_p_ring->inc_tx_retransmissions_stats(m_id);
 	}
 
@@ -196,7 +198,9 @@ out:
 
 
 
-ssize_t dst_entry_tcp::slow_send(const iovec* p_iov, size_t sz_iov, bool is_dummy, struct vma_rate_limit_t &rate_limit, bool b_blocked /*= true*/, bool is_rexmit /*= false*/, int flags /*= 0*/, socket_fd_api* sock /*= 0*/, tx_call_t call_type /*= 0*/)
+ssize_t dst_entry_tcp::slow_send(const iovec* p_iov, size_t sz_iov,
+		struct vma_rate_limit_t &rate_limit, vma_wr_tx_packet_attr attr, int flags /*= 0*/,
+		socket_fd_api* sock /*= 0*/, tx_call_t call_type /*= 0*/)
 {
 	ssize_t ret_val = -1;
 
@@ -214,7 +218,7 @@ ssize_t dst_entry_tcp::slow_send(const iovec* p_iov, size_t sz_iov, bool is_dumm
 			ret_val = pass_buff_to_neigh(p_iov, sz_iov);
 		}
 		else {
-			ret_val = fast_send(p_iov, sz_iov, is_dummy, b_blocked, is_rexmit);
+			ret_val = fast_send(p_iov, sz_iov, attr);
 		}
 	}
 	else {
