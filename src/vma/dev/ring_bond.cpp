@@ -659,6 +659,11 @@ bool ring_bond::is_ratelimit_supported(uint32_t rate)
 	return true;
 }
 
+uint32_t ring_bond::get_tx_lkey(ring_user_id_t id)
+{
+	return (m_active_rings[id] ? m_active_rings[id]->get_tx_lkey(id) : 0);
+}
+
 uint32_t ring_bond::get_max_inline_data()
 {
 	return m_max_inline_data;

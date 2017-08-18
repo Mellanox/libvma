@@ -326,6 +326,7 @@ public:
 	bool			is_mp_ring() {return m_is_mp_ring;};
 	virtual int		modify_ratelimit(const uint32_t ratelimit_kbps) = 0;
 	virtual bool		is_ratelimit_supported(uint32_t rate) = 0;
+	virtual uint32_t    get_tx_lkey(ring_user_id_t) = 0;
 	virtual uint32_t    get_max_inline_data() = 0;
 	virtual uint32_t    get_max_send_sge(void) = 0;
 	virtual uint32_t    get_max_payload_sz(void) = 0;

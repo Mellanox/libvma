@@ -2018,6 +2018,12 @@ int ring_simple::modify_ratelimit(const uint32_t ratelimit_kbps) {
 	return 0;
 }
 
+uint32_t ring_simple::get_tx_lkey(ring_user_id_t id)
+{
+	NOT_IN_USE(id);
+	return m_tx_lkey;
+}
+
 uint32_t ring_simple::get_max_inline_data()
 {
 	return m_p_qp_mgr->get_max_inline_data();

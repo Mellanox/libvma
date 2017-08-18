@@ -84,6 +84,7 @@ public:
 	inline void 		convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) { m_p_cq_mgr_rx->convert_hw_time_to_system_time(hwtime, systime); }
 	inline uint32_t		get_qpn() const { return (m_p_l2_addr ? ((IPoIB_addr *)m_p_l2_addr)->get_qpn() : 0); }
 	virtual int 		modify_ratelimit(const uint32_t ratelimit_kbps);
+	virtual uint32_t    get_tx_lkey(ring_user_id_t);
 	virtual uint32_t    get_max_inline_data();
 	virtual uint32_t    get_max_send_sge(void);
 	virtual uint32_t    get_max_payload_sz(void);
