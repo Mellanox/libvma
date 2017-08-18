@@ -51,6 +51,8 @@ typedef enum vma_wr_tx_packet_attr {
 	VMA_TX_PACKET_DUMMY   = TCP_WRITE_DUMMY,
 	/* retransmit operation. */
 	VMA_TX_PACKET_REXMIT  = TCP_WRITE_REXMIT,
+	/* large segment offload operation. */
+	VMA_TX_PACKET_TSO  = TCP_WRITE_TSO,
 	/* MLX5_ETH_WQE_L3_CSUM offload to HW L3 (IP) header checksum */
 	VMA_TX_PACKET_L3_CSUM = (1 << 6),
 	/* MLX5_ETH_WQE_L4_CSUM offload to HW L4 (TCP/UDP) header checksum */
