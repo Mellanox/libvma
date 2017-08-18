@@ -917,38 +917,30 @@ tx_packet_to_os:
 
 err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, uint16_t flags)
 {
-	iovec iovec[64];
-	struct iovec* p_iovec = iovec;
-	tcp_iovec tcp_iovec_temp; //currently we pass p_desc only for 1 size iovec, since for bigger size we allocate new buffers
+	tcp_iovec lwip_iovec[64];
 	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)(((struct tcp_pcb*)v_p_conn)->my_container);
 	dst_entry *p_dst = p_si_tcp->m_p_connected_dst_entry;
-	int count = 1;
 	vma_wr_tx_packet_attr attr;
+	int count = 0;
 
-	if (likely(!p->next)) { // We should hit this case 99% of cases
-		tcp_iovec_temp.iovec.iov_base = p->payload;
-		tcp_iovec_temp.iovec.iov_len = p->len;
-		tcp_iovec_temp.p_desc = (mem_buf_desc_t*)p;
-		p_iovec = (struct iovec*)&tcp_iovec_temp;
-	} else {
-		for (count = 0; count < 64 && p; ++count) {
-			iovec[count].iov_base = p->payload;
-			iovec[count].iov_len = p->len;
-			p = p->next;
-		}
-
-		// We don't expect pbuf chain at all
-		if (p) {
-			vlog_printf(VLOG_ERROR, "pbuf chain size > 64!!! silently dropped.");
+	while (p) {
+		if (count >= (int)p_dst->get_ring()->get_max_send_sge()) {
+			vlog_printf(VLOG_ERROR, "pbuf chain size greater than max send sge number as %d or iovec predefined size as %d silently dropped.",
+					p_dst->get_ring()->get_max_send_sge(), 64);
 			return ERR_OK;
 		}
+		lwip_iovec[count].iovec.iov_base = p->payload;
+		lwip_iovec[count].iovec.iov_len = p->len;
+		lwip_iovec[count].p_desc = (mem_buf_desc_t*)p;
+		p = p->next;
+		count++;
 	}
 
 	attr = (vma_wr_tx_packet_attr)flags;
 	if (likely((p_dst->is_valid()))) {
-		p_dst->fast_send(p_iovec, count, attr);
+		p_dst->fast_send((struct iovec *)lwip_iovec, count, attr);
 	} else {
-		p_dst->slow_send(p_iovec, count, p_si_tcp->m_so_ratelimit, attr);
+		p_dst->slow_send((struct iovec *)lwip_iovec, count, p_si_tcp->m_so_ratelimit, attr);
 	}
 
 	if (p_dst->try_migrate_ring(p_si_tcp->m_tcp_con_lock)) {
@@ -972,7 +964,11 @@ err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, uint16_t f
 	int count = 1;
 	vma_wr_tx_packet_attr attr;
 
-	//ASSERT_NOT_LOCKED(p_si_tcp->m_tcp_con_lock);
+	attr = (vma_wr_tx_packet_attr)flags;
+	if (is_set(attr, (vma_wr_tx_packet_attr)(VMA_TX_PACKET_BLOCK))) {
+		vlog_printf(VLOG_ERROR, "TSO packet should not be observed on here.");
+		return ERR_OK;
+	}
 
 	if (likely(!p->next)) { // We should hit this case 99% of cases
 		tcp_iovec_temp.iovec.iov_base = p->payload;
@@ -994,7 +990,6 @@ err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, uint16_t f
 		}
 	}
 
-	attr = (vma_wr_tx_packet_attr)flags;
 	if (is_set(attr, VMA_TX_PACKET_REXMIT))
 		p_si_tcp->m_p_socket_stats->counters.n_tx_retransmits++;
 

@@ -77,7 +77,7 @@ private:
 		if (unlikely(is_set(attr, VMA_TX_PACKET_DUMMY))) {
 			if (m_p_ring->get_hw_dummy_send_support(id, p_send_wqe)) {
 				vma_ibv_wr_opcode last_opcode = m_p_send_wqe_handler->set_opcode(*p_send_wqe, VMA_IBV_WR_NOP);
-				m_p_ring->send_lwip_buffer(id, p_send_wqe, is_set(attr, VMA_TX_PACKET_BLOCK));
+				m_p_ring->send_lwip_buffer(id, p_send_wqe, attr);
 				m_p_send_wqe_handler->set_opcode(*p_send_wqe, last_opcode);
 			}
 			/* no need to free the buffer if dummy send is not supported, as for lwip buffers we have 2 ref counts, */
@@ -85,7 +85,7 @@ private:
 			/* send_lwip_buffer(). Since we are not going in, the caller will free the    */
 			/* buffer. */
 		} else {
-			m_p_ring->send_lwip_buffer(id, p_send_wqe, is_set(attr, VMA_TX_PACKET_BLOCK));
+			m_p_ring->send_lwip_buffer(id, p_send_wqe, attr);
 		}
 	}
 
