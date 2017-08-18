@@ -281,7 +281,7 @@ struct tcp_seg {
   struct pbuf *p;          /* buffer containing data + TCP header */
   void *dataptr;           /* pointer to the TCP data in the pbuf */
   u32_t seqno;
-  u16_t len;               /* the TCP length of this segment */
+  u32_t len;               /* the TCP length of this segment should allow >64K size */
 #if TCP_OVERSIZE_DBGCHECK
   u16_t oversize_left;     /* Extra bytes available at the end of the last
                               pbuf in unsent (used for asserting vs.
@@ -298,6 +298,8 @@ struct tcp_seg {
                                                checksummed into 'chksum' */
 #define TF_SEG_OPTS_WNDSCALE	(u8_t)0x08U /* Include window scaling option */
 #define TF_SEG_OPTS_DUMMY_MSG	(u8_t)TCP_WRITE_DUMMY /* Include dummy send option */
+#define TF_SEG_OPTS_TSO         (u8_t)TCP_WRITE_TSO /* Use TSO send mode */
+
   struct tcp_hdr *tcphdr;  /* the TCP header */
 };
 
@@ -432,8 +434,6 @@ struct tcp_seg *tcp_seg_copy(struct tcp_pcb* pcb, struct tcp_seg *seg);
 
 err_t tcp_send_fin(struct tcp_pcb *pcb);
 err_t tcp_enqueue_flags(struct tcp_pcb *pcb, u8_t flags);
-
-void tcp_rexmit_seg(struct tcp_pcb *pcb, struct tcp_seg *seg);
 
 void tcp_rst(u32_t seqno, u32_t ackno,
        u16_t local_port, u16_t remote_port, struct tcp_pcb *pcb);

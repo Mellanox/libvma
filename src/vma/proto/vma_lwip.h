@@ -40,18 +40,22 @@
 #include "vma/lwip/tcp.h"
 
 typedef enum vma_wr_tx_packet_attr {
-	/* blocking send operation */
-	VMA_TX_PACKET_BLOCK   = (1 << 0),
+	/* 6 bits are reserved for TCP flags (see lwip/tcp.h)  */
 	/* nop send operation. this option should be synchronized with lwip/tcp value */
 	VMA_TX_PACKET_DUMMY   = TCP_WRITE_DUMMY,
 	/* retransmit operation. */
 	VMA_TX_PACKET_REXMIT  = TCP_WRITE_REXMIT,
-	/* Force SW checksum */
-        VMA_TX_SW_CSUM        = (1 << 5),
+	/* large segment offload operation. */
+	VMA_TX_PACKET_TSO  = TCP_WRITE_TSO,
+
 	/* MLX5_ETH_WQE_L3_CSUM offload to HW L3 (IP) header checksum */
-	VMA_TX_PACKET_L3_CSUM = (1 << 6),
+	VMA_TX_PACKET_L3_CSUM = (1 << 6), /* hardcoded values */
 	/* MLX5_ETH_WQE_L4_CSUM offload to HW L4 (TCP/UDP) header checksum */
-	VMA_TX_PACKET_L4_CSUM = (1 << 7),
+	VMA_TX_PACKET_L4_CSUM = (1 << 7), /* hardcoded values */
+        /* blocking send operation */
+        VMA_TX_PACKET_BLOCK   = (1 << 8),
+        /* Force SW checksum */
+        VMA_TX_SW_CSUM        = (1 << 9),
 } vma_wr_tx_packet_attr;
 
 static inline bool is_set(vma_wr_tx_packet_attr state_, vma_wr_tx_packet_attr tx_mode_)
