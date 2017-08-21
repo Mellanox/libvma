@@ -738,6 +738,8 @@ void event_handler_manager::handle_registration_action(reg_action_t& reg_action)
 		priv_unregister_all_handler_timers(reg_action.info.timer);
 		delete reg_action.info.timer.handler;
 		reg_action.info.timer.handler = NULL;
+		free((timer_node_t*) reg_action.info.timer.node);
+		reg_action.info.timer.node = NULL;
 		break;
 	BULLSEYE_EXCLUDE_BLOCK_START
 	default:
