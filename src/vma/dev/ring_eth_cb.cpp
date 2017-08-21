@@ -39,6 +39,7 @@
 #undef  MODULE_HDR
 #define MODULE_HDR		MODULE_NAME "%d:%s() "
 
+#define MLX_CX4_DEV_ID		(4117)
 
 #ifdef HAVE_MP_RQ
 
@@ -109,6 +110,10 @@ void ring_eth_cb::create_resources(ring_resource_creation_info_t *p_ring_info,
 		m_single_stride_log_num_of_bytes = mp_rq_caps->max_single_stride_log_num_of_bytes;
 	}
 	m_stride_size = 1 << m_single_stride_log_num_of_bytes;
+	// FW bug only exists in CX5 if more then (1<<12) strides in WQE
+	if (r_ibv_dev_attr.vendor_part_id != MLX_CX4_DEV_ID) {
+		mp_rq_caps->max_single_wqe_log_num_of_strides = 12;
+	}
 	uint32_t max_wqe_size = 1 << mp_rq_caps->max_single_wqe_log_num_of_strides;
 	uint32_t user_req_wq = m_cb_ring.num / max_wqe_size;
 	if (user_req_wq > 2) {

@@ -39,8 +39,8 @@
 #ifdef HAVE_MP_RQ
 
 #define VMA_MP_RQ_BAD_PACKET		(1 << 31) // last bit
-#define MAX_MP_WQES			20 // limit max used memory
-#define MIN_MP_WQES			2
+#define MAX_MP_WQES			(80) // limit max used memory
+#define MIN_MP_WQES			(2)
 
 enum mp_loop_result {
 	MP_LOOP_DRAINED,
