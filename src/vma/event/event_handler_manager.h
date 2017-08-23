@@ -194,7 +194,7 @@ private:
 	void	priv_register_timer_handler(timer_reg_info_t& info);
 	void	priv_wakeup_timer_handler(timer_reg_info_t& info);
 	void	priv_unregister_timer_handler(timer_reg_info_t& info);
-	void	priv_unregister_all_handler_timers(timer_reg_info_t& info);
+	void	priv_unregister_all_handler_timers_and_delete(timer_reg_info_t& info);
 	void	priv_register_ibverbs_events(ibverbs_reg_info_t& info);
 	void	priv_unregister_ibverbs_events(ibverbs_reg_info_t& info);
 	void	priv_register_rdma_cm_events(rdma_cm_reg_info_t& info);
