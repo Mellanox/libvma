@@ -683,8 +683,8 @@ void sockinfo::do_rings_migration()
 	}
 
 	rx_net_device_map_t::iterator rx_nd_iter = m_rx_nd_map.begin();
-	while (rx_nd_iter != m_rx_nd_map.end()) {
-		net_device_resources_t* p_nd_resources = &(rx_nd_iter->second);
+	for (;rx_nd_iter != m_rx_nd_map.end(); rx_nd_iter++) {
+		net_device_resources_t* p_nd_resources = &rx_nd_iter->second;
 		ring* p_old_ring = p_nd_resources->p_ring;
 		unlock_rx_q();
 		ring* new_ring = p_nd_resources->p_ndv->reserve_ring(new_key);
@@ -694,7 +694,6 @@ void sockinfo::do_rings_migration()
 						old_key->to_str());
 			}
 			lock_rx_q();
-			rx_nd_iter++;
 			continue;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_START
@@ -703,34 +702,39 @@ void sockinfo::do_rings_migration()
 			si_logerr("Failed to reserve ring for allocation key %s on lip %s",
 				  new_key->to_str(), ip_local.to_str().c_str());
 			lock_rx_q();
-			rx_nd_iter++;
 			continue;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
+		// lock new ring until all flows move to it from old ring
+		new_ring->lock_ring_rx();
 		lock_rx_q();
 		rx_flow_map_t::iterator rx_flow_iter = m_rx_flow_map.begin();
-		while (rx_flow_iter !=  m_rx_flow_map.end()) {
-
+		for (;rx_flow_iter !=  m_rx_flow_map.end(); rx_flow_iter++) {
 			ring* p_ring = rx_flow_iter->second;
 			if (p_ring != p_old_ring) {
-				rx_flow_iter++; // Pop next flow rule
 				continue;
 			}
 
 			flow_tuple_with_local_if flow_key = rx_flow_iter->first;
+			/*
+			 *  unlock socket to lock ring,
+			 *  prevent deadlock if packet just arrived then the
+			 *  other thread will first catch the ring lock and
+			 *  then the socket lock
+			 */
+			unlock_rx_q();
+			p_old_ring->lock_ring_rx();
+			lock_rx_q();
 			// Save the new CQ from ring
 			rx_add_ring_cb(flow_key, new_ring, true);
 
 			// Attach tuple
 			BULLSEYE_EXCLUDE_BLOCK_START
-			unlock_rx_q();
 			if (!new_ring->attach_flow(flow_key, this)) {
-				lock_rx_q();
 				si_logerr("Failed to attach %s to ring %p", flow_key.to_str(), new_ring);
-				rx_flow_iter++; // Pop next flow rule
+				p_old_ring->unlock_ring_rx();
 				continue;
 			}
-			lock_rx_q();
 			BULLSEYE_EXCLUDE_BLOCK_END
 
 			rx_flow_iter->second = new_ring;
@@ -740,14 +744,12 @@ void sockinfo::do_rings_migration()
 
 			si_logdbg("Detaching %s from ring %p", flow_key.to_str(), p_old_ring);
 			// Detach tuple
-			unlock_rx_q();
 			p_old_ring->detach_flow(flow_key, this);
-			lock_rx_q();
 			rx_del_ring_cb(flow_key, p_old_ring, true);
+			p_old_ring->unlock_ring_rx();
 
-			rx_flow_iter++; // Pop next flow rule;
 		}
-
+		new_ring->unlock_ring_rx();
 		unlock_rx_q();
 		m_rx_ring_map_lock.lock();
 		lock_rx_q();
@@ -767,7 +769,6 @@ void sockinfo::do_rings_migration()
 		lock_rx_q();
 		BULLSEYE_EXCLUDE_BLOCK_END
 		p_nd_resources->p_ring = new_ring;
-		rx_nd_iter++;
 	}
 
 	unlock_rx_q();

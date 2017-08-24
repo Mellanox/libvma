@@ -87,7 +87,6 @@ private:
 
 	net_device_val::bond_type m_type;
 	net_device_val::bond_xmit_hash_policy m_xmit_hash_policy;
-	lock_mutex_recursive	m_lock_ring_rx;
 	lock_mutex_recursive	m_lock_ring_tx;
 };
 

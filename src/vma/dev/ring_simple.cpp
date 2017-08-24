@@ -118,7 +118,6 @@ bool ring_ib::is_ratelimit_supported(uint32_t rate)
 
 ring_simple::ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, uint32_t mtu, ring* parent /*=NULL*/) throw (vma_error):
 	ring(count, mtu), m_p_qp_mgr(NULL), m_p_cq_mgr_rx(NULL),
-	m_lock_ring_rx("ring_simple:lock_rx"),
 	m_b_is_hypervisor(safe_mce_sys().is_hypervisor),
 	m_p_ring_stat(NULL),
 	m_lock_ring_tx("ring_simple:lock_tx"), m_p_cq_mgr_tx(NULL),

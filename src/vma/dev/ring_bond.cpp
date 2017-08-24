@@ -58,7 +58,7 @@
 
 
 ring_bond::ring_bond(int count, net_device_val::bond_type type, net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy, uint32_t mtu) :
-ring(count, mtu), m_lock_ring_rx("ring_bond:lock_rx"), m_lock_ring_tx("ring_bond:lock_tx") {
+ring(count, mtu), m_lock_ring_tx("ring_bond:lock_tx") {
 	if (m_n_num_resources > MAX_NUM_RING_RESOURCES) {
 		ring_logpanic("Error creating bond ring with more than %d resource", MAX_NUM_RING_RESOURCES);
 	}

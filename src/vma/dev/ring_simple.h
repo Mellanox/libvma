@@ -118,7 +118,6 @@ protected:
 	qp_mgr*			m_p_qp_mgr;
 	struct cq_moderation_info m_cq_moderation_info;
 	cq_mgr*			m_p_cq_mgr_rx;
-	lock_spin_recursive	m_lock_ring_rx;
 	bool			m_b_is_hypervisor;
 	ring_stats_t*		m_p_ring_stat;
 private:

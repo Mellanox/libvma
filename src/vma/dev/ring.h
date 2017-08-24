@@ -325,6 +325,8 @@ public:
 	bool			is_mp_ring() {return m_is_mp_ring;};
 	virtual int		modify_ratelimit(const uint32_t ratelimit_kbps) = 0;
 	virtual bool		is_ratelimit_supported(uint32_t rate) = 0;
+	void			lock_ring_rx() {m_lock_ring_rx.lock();};
+	void			unlock_ring_rx() {m_lock_ring_rx.unlock();};
 
 #ifdef DEFINED_VMAPOLL		
 	virtual int		vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags) = 0;
@@ -371,6 +373,7 @@ public:
 #endif // DEFINED_VMAPOLL	
 
 protected:
+	lock_spin_recursive	m_lock_ring_rx;
 	uint32_t		m_n_num_resources;
 	int*			m_p_n_rx_channel_fds;
 	ring*			m_parent;
