@@ -7,17 +7,17 @@ The sample requires some small modifications to support the netmap_vma API.
 * The ioctl(NETMAP_FD(d), NIOCRXSYNC, NULL) is not needed for the netmap_vma API
 
 * poll input/output multiplexing
-  netmap API 
+  - netmap API 
         int poll(struct pollfd *fds, nfds_t nfds, int timeout);
         poll(&pfd, nfds, -1);
 
-  netmap_vma API
+  - netmap_vma API
         poll_nm_vma(struct nm_desc *d, int timeout); 
         The poll_nm_vma API simulates the events POLLIN|POLLERR only
         poll_nm_vma(d, -1);
   
 * Packet processing
-  neatmp API
+  - neatmp API
         cur = rxring->cur;
         while (!nm_ring_empty(rxring)) {
             *slot = &rxring->slot[cur];
@@ -30,7 +30,7 @@ The sample requires some small modifications to support the netmap_vma API.
         // update ring buffer
         rxring->head = rxring->cur = nm_ring_next(rxring, cur);
 
-  netmap_vma API
+  - netmap_vma API
         while ((buf = (uint8_t*)nm_nextpkt(d, &h))) {
             // process the packet 
             handle(h.buf, h.len);
@@ -43,8 +43,8 @@ please refer to the User Manual
 "Mellanox Messaging Accelerator (VMA) Library for Linux" 8.7 Multi Packet Receive Queue
 http://www.mellanox.com/vma
 
-Build and Run Instructions
-==========================
+**Build and Run Instructions**
+
 Install the netmap framework https://github.com/luigirizzo/netmap
 Install the biTStream https://code.videolan.org/videolan/bitstream.git
 To build the application:
