@@ -86,10 +86,12 @@ ring_alloc_logic_attr::ring_alloc_logic_attr(ring_logic_t ring_logic):
 }
 
 ring_alloc_logic_attr::ring_alloc_logic_attr(const ring_alloc_logic_attr &other):
+	m_hash(other.m_hash),
 	m_ring_alloc_logic(other.m_ring_alloc_logic),
 	m_ring_profile_key(other.m_ring_profile_key),
-	m_user_id_key(other.m_user_id_key) {
-	init();
+	m_user_id_key(other.m_user_id_key)
+{
+	snprintf(m_str, RING_ALLOC_STR_SIZE, "%s", other.m_str);
 }
 
 void ring_alloc_logic_attr::init()
