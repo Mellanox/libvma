@@ -607,14 +607,17 @@ void dst_entry::do_ring_migration(lock_base& socket_lock)
 		return;
 	}
 
-	resource_allocation_key *old_key = m_ring_alloc_logic.get_key();
-	resource_allocation_key *new_key = old_key;
-	new_key->set_user_id_key(m_ring_alloc_logic.calc_res_key_by_logic());
-	if (old_key == new_key) {
+	resource_allocation_key *new_key = m_ring_alloc_logic.get_key();
+	uint64_t new_calc_id = m_ring_alloc_logic.calc_res_key_by_logic();
+	// Check again if migration is needed before migration
+	if (new_key->get_user_id_key() == new_calc_id) {
 		m_slow_path_lock.unlock();
 		return;
 	}
-
+	// Save old key for release
+	resource_allocation_key old_key(*m_ring_alloc_logic.get_key());
+	// Update key to new ID
+	new_key->set_user_id_key(new_calc_id);
 	m_slow_path_lock.unlock();
 	socket_lock.unlock();
 
@@ -624,16 +627,16 @@ void dst_entry::do_ring_migration(lock_base& socket_lock)
 		return;
 	}
 	if (new_ring == m_p_ring) {
-		if (!m_p_net_dev_val->release_ring(old_key)) {
+		if (!m_p_net_dev_val->release_ring(&old_key)) {
 			dst_logerr("Failed to release ring for allocation key %s",
-				  old_key->to_str());
+				  old_key.to_str());
 		}
 		socket_lock.lock();
 		return;
 	}
 
 	dst_logdbg("migrating from key=%s and ring=%p to key=%s and ring=%p",
-		   old_key->to_str(), m_p_ring, new_key->to_str(), new_ring);
+		   old_key.to_str(), m_p_ring, new_key->to_str(), new_ring);
 
 	socket_lock.lock();
 	m_slow_path_lock.lock();
@@ -655,7 +658,7 @@ void dst_entry::do_ring_migration(lock_base& socket_lock)
 		old_ring->mem_buf_tx_release(tmp_list, true);
 	}
 
-	m_p_net_dev_val->release_ring(old_key);
+	m_p_net_dev_val->release_ring(&old_key);
 
 	socket_lock.lock();
 }

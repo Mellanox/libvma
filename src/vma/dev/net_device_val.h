@@ -90,7 +90,7 @@ public:
 			m_ring_profile_key = other.m_ring_profile_key;
 			m_user_id_key = other.m_user_id_key;
 			m_hash = other.m_hash;
-			strncpy(m_str, other.m_str, strlen(m_str));
+			snprintf(m_str, RING_ALLOC_STR_SIZE, "%s", other.m_str);
 		}
 		return *this;
 	}
