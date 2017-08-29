@@ -586,7 +586,7 @@ net_device_resources_t* sockinfo::create_nd_resources(const ip_address ip_local)
 		m_rx_ring_map_lock.unlock();
 		lock_rx_q();
 		if (!nd_resources.p_ring) {
-			si_logdbg("Failed to reserve ring for allocation key %s on lip %s",
+			si_logdbg("Failed to reserve ring for allocation key %s on ip %s",
 				  m_ring_alloc_logic.get_key()->to_str(), ip_local.to_str().c_str());
 			goto err;
 		}
@@ -649,7 +649,7 @@ bool sockinfo::destroy_nd_resources(const ip_address ip_local)
 		unlock_rx_q();
 		if (!p_nd_resources->p_ndv->release_ring(m_ring_alloc_logic.get_key())) {
 			lock_rx_q();
-			si_logerr("Failed to release ring for allocation key %s on lip %s",
+			si_logerr("Failed to release ring for allocation key %s on ip %s",
 				  m_ring_alloc_logic.get_key()->to_str(),
 				  ip_local.to_str().c_str());
 			return false;
@@ -673,15 +673,18 @@ void sockinfo::do_rings_migration()
 {
 	lock_rx_q();
 
-	resource_allocation_key *old_key = m_ring_alloc_logic.get_key();
-	resource_allocation_key *new_key = old_key;
-	new_key->set_user_id_key(m_ring_alloc_logic.calc_res_key_by_logic());
-
-	if (old_key == new_key) {
+	resource_allocation_key *new_key = m_ring_alloc_logic.get_key();
+	uint64_t new_calc_id = m_ring_alloc_logic.calc_res_key_by_logic();
+	// check again migration is needed before migration
+	if (new_key->get_user_id_key() == new_calc_id) {
 		unlock_rx_q();
 		return;
 	}
 
+	// save old key for release
+	resource_allocation_key old_key(resource_allocation_key(*m_ring_alloc_logic.get_key()));
+	// update key to new ID
+	new_key->set_user_id_key(new_calc_id);
 	rx_net_device_map_t::iterator rx_nd_iter = m_rx_nd_map.begin();
 	while (rx_nd_iter != m_rx_nd_map.end()) {
 		net_device_resources_t* p_nd_resources = &(rx_nd_iter->second);
@@ -689,9 +692,9 @@ void sockinfo::do_rings_migration()
 		unlock_rx_q();
 		ring* new_ring = p_nd_resources->p_ndv->reserve_ring(new_key);
 		if (new_ring == p_old_ring) {
-			if (!p_nd_resources->p_ndv->release_ring(old_key)) {
+			if (!p_nd_resources->p_ndv->release_ring(&old_key)) {
 				si_logerr("Failed to release ring for allocation key %s",
-						old_key->to_str());
+						old_key.to_str());
 			}
 			lock_rx_q();
 			rx_nd_iter++;
@@ -759,10 +762,10 @@ void sockinfo::do_rings_migration()
 
 		// Release ring reference
 		BULLSEYE_EXCLUDE_BLOCK_START
-		if (!p_nd_resources->p_ndv->release_ring(old_key)) {
+		if (!p_nd_resources->p_ndv->release_ring(&old_key)) {
 			ip_address ip_local(rx_nd_iter->first);
 			si_logerr("Failed to release ring for allocation key %s on lip %s",
-				  old_key->to_str(), ip_local.to_str().c_str());
+				  old_key.to_str(), ip_local.to_str().c_str());
 		}
 		lock_rx_q();
 		BULLSEYE_EXCLUDE_BLOCK_END
