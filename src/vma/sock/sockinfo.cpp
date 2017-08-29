@@ -674,10 +674,9 @@ void sockinfo::do_rings_migration()
 	lock_rx_q();
 
 	resource_allocation_key *new_key = m_ring_alloc_logic.get_key();
-
+	uint64_t new_calc_id = m_ring_alloc_logic.calc_res_key_by_logic();
 	// check again migration is needed before migration
-	if (new_key->get_user_id_key() ==
-	    m_ring_alloc_logic.calc_res_key_by_logic()) {
+	if (new_key->get_user_id_key() == new_calc_id) {
 		unlock_rx_q();
 		return;
 	}
@@ -685,7 +684,7 @@ void sockinfo::do_rings_migration()
 	// save old key for release
 	resource_allocation_key old_key(resource_allocation_key(*m_ring_alloc_logic.get_key()));
 	// update key to new ID
-	new_key->set_user_id_key(m_ring_alloc_logic.calc_res_key_by_logic());
+	new_key->set_user_id_key(new_calc_id);
 	rx_net_device_map_t::iterator rx_nd_iter = m_rx_nd_map.begin();
 	while (rx_nd_iter != m_rx_nd_map.end()) {
 		net_device_resources_t* p_nd_resources = &(rx_nd_iter->second);

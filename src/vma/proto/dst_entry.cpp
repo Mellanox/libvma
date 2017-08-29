@@ -608,16 +608,15 @@ void dst_entry::do_ring_migration(lock_base& socket_lock)
 	}
 
 	resource_allocation_key *new_key = m_ring_alloc_logic.get_key();
-
+	uint64_t new_calc_id = m_ring_alloc_logic.calc_res_key_by_logic();
 	// check again migration is needed before migration
-	if (new_key->get_user_id_key() ==
-	    m_ring_alloc_logic.calc_res_key_by_logic()) {
+	if (new_key->get_user_id_key() == new_calc_id) {
 		m_slow_path_lock.unlock();
 		return;
 	}
 	resource_allocation_key old_key(*m_ring_alloc_logic.get_key());
 	// update to new key
-	new_key->set_user_id_key(m_ring_alloc_logic.calc_res_key_by_logic());
+	new_key->set_user_id_key(new_calc_id);
 	m_slow_path_lock.unlock();
 	socket_lock.unlock();
 
