@@ -3035,20 +3035,15 @@ bool sockinfo_tcp::is_readable(uint64_t *p_poll_sn, fd_array_t* p_fd_array)
 	int ret;
 
 	if (is_server()) {
-		bool state;
-		//tcp_si_logwarn("select on accept()");
-		//m_conn_cond.lock();
-		state = m_ready_conn_cnt == 0 ? false : true; 
-		if (state) {
+		if (m_ready_conn_cnt) {
 			si_tcp_logdbg("accept ready");
-			goto noblock_nolock;
+			return true;
 		}
 
-		if (m_sock_state == TCP_SOCK_ACCEPT_SHUT) goto noblock_nolock;
-
-		return false;
+		return (m_sock_state == TCP_SOCK_ACCEPT_SHUT ? true : false);
 	} 
-	else if (m_sock_state == TCP_SOCK_ASYNC_CONNECT) {
+
+	if (m_sock_state == TCP_SOCK_ASYNC_CONNECT) {
 		// socket is not ready to read in this state!!!
 		return false;
 	}
@@ -3057,29 +3052,34 @@ bool sockinfo_tcp::is_readable(uint64_t *p_poll_sn, fd_array_t* p_fd_array)
 		// unconnected tcp sock is always ready for read!
 		// return its fd as ready
 		si_tcp_logdbg("block check on unconnected socket");
-		goto noblock_nolock;
+		return true;
 	}
 
-	if (m_n_rx_pkt_ready_list_count)
-		goto noblock_nolock;
+	if (m_n_rx_pkt_ready_list_count) {
+		return true;
+	}
 
-	if (!p_poll_sn)
+	if (!p_poll_sn) {
 		return false;
+	}
 
 	consider_rings_migration();
 
-	m_rx_ring_map_lock.lock();
-	while(!g_b_exit && is_rtr()) {
-	   if (likely(m_p_rx_ring)) {
-		   // likely scenario: rx socket bound to specific cq
-		   ret = m_p_rx_ring->poll_and_process_element_rx(p_poll_sn, p_fd_array);
-		   if (m_n_rx_pkt_ready_list_count)
-			   goto noblock;
-		   if (ret <= 0) {
-			   break;
-		   }
+
+	if (likely(m_p_rx_ring)) {
+		while(!g_b_exit && is_rtr()) {
+			// likely scenario: rx socket bound to specific cq
+			ret = m_p_rx_ring->poll_and_process_element_rx(p_poll_sn, p_fd_array);
+			if (m_n_rx_pkt_ready_list_count) {
+				return true;
+			}
+			if (ret <= 0) {
+				break;
+			}
 		}
-		else {
+	} else {
+		m_rx_ring_map_lock.lock();
+		while(!g_b_exit && is_rtr()) {
 			rx_ring_map_t::iterator rx_ring_iter;
 			for (rx_ring_iter = m_rx_ring_map.begin(); rx_ring_iter != m_rx_ring_map.end(); rx_ring_iter++) {
 				if (rx_ring_iter->second->refcnt <= 0) {
@@ -3088,21 +3088,19 @@ bool sockinfo_tcp::is_readable(uint64_t *p_poll_sn, fd_array_t* p_fd_array)
 				ring* p_ring =  rx_ring_iter->first;
 				//g_p_lwip->do_timers();
 				ret = p_ring->poll_and_process_element_rx(p_poll_sn, p_fd_array);
-				if (m_n_rx_pkt_ready_list_count)
-					goto noblock;
-				if (ret <= 0)
+				if (m_n_rx_pkt_ready_list_count) {
+					m_rx_ring_map_lock.unlock();
+					return true;
+				}
+				if (ret <= 0) {
 					break;
+				}
 			}
 		}
-	}
-	if (!m_n_rx_pkt_ready_list_count) {
 		m_rx_ring_map_lock.unlock();
-		return false;
 	}
-noblock:
-	m_rx_ring_map_lock.unlock();
-noblock_nolock:
-	return true;
+
+	return (m_n_rx_pkt_ready_list_count ? true : false);
 }
 
 bool sockinfo_tcp::is_writeable()
@@ -3870,11 +3868,11 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 	consider_rings_migration();
 
 	// There's only one CQ
-	m_rx_ring_map_lock.lock();
 	if (likely(m_p_rx_ring)) {
 		n =  m_p_rx_ring->poll_and_process_element_rx(&poll_sn);
 	}
 	else { //There's more than one CQ, go over each one
+		m_rx_ring_map_lock.lock();
 		for (rx_ring_iter = m_rx_ring_map.begin(); rx_ring_iter != m_rx_ring_map.end(); rx_ring_iter++) {
 			if (unlikely(rx_ring_iter->second->refcnt <= 0)) {
 				__log_err("Attempt to poll illegal cq");
@@ -3884,8 +3882,8 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 			//g_p_lwip->do_timers();
 			n += p_ring->poll_and_process_element_rx(&poll_sn);
 		}
+		m_rx_ring_map_lock.unlock();
 	}
-	m_rx_ring_map_lock.unlock();
 	if (likely(n > 0)) { // got completions from CQ
 #ifdef DEFINED_VMAPOLL
 		__log_entry_funcall("got %d elements sn=%llu", n, (unsigned long long)poll_sn);
@@ -3920,15 +3918,14 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 	}
 
 	//arming CQs
-	m_rx_ring_map_lock.lock();
 	if (likely(m_p_rx_ring)) {
 		ret = m_p_rx_ring->request_notification(CQT_RX, poll_sn);
 		if (ret !=  0) {
-			m_rx_ring_map_lock.unlock();
 			return 0;
 		}
 	}
 	else {
+		m_rx_ring_map_lock.lock();
 		for (rx_ring_iter = m_rx_ring_map.begin(); rx_ring_iter != m_rx_ring_map.end(); rx_ring_iter++) {
 			if (rx_ring_iter->second->refcnt <= 0) {
 				continue;
@@ -3942,8 +3939,8 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 				}
 			}
 		}
+		m_rx_ring_map_lock.unlock();
 	}
-	m_rx_ring_map_lock.unlock();
 
 	//Check if we have a packet in receive queue before we going to sleep and
 	//update is_sleeping flag under the same lock to synchronize between
