@@ -55,6 +55,7 @@ LIBALIC_FLAG=""
 AC_SUBST(LIBALIC_FLAG)
 AC_SUBST([BUILD_DATE], [$(date +'%b/%d/%Y')])
 AC_SUBST([BUILD_TIME], [$(date +'%H:%M:%S')])
+AC_SUBST([BUILD_DATE_CHANGELOG], [$(date +'%a, %d %b %Y %T %z')])
 
 m4_include([config/m4/opt.m4])
 m4_include([config/m4/pkg.m4])
