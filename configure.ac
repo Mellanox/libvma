@@ -16,6 +16,8 @@ AC_DEFINE(VMA_LIBRARY_RELEASE, vma_ver_release, [VMA Release])
 GIT_VER=`git describe --long --abbrev=40 --dirty --tags 2> /dev/null || echo ""`
 if test -n "$GIT_VER"; then GIT_VER=`echo $GIT_VER | sed -e 's/-dirty/+/' | sed s/.*-g//`; else  GIT_VER=""; fi
 
+if test -e debian/changelog-util; then sh debian/changelog-util debian/changelog.in; fi
+
 AC_DEFINE_UNQUOTED(VMA_GIT_VERSION, "${GIT_VER}", [VMA Git Version])
 
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
