@@ -1231,7 +1231,11 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 			si_udp_logdbg("stopping de-muxing packets to port %d", ntohs(port));
 			m_port_map_lock.lock();
 			m_port_map.erase(std::remove(m_port_map.begin(), m_port_map.end(), port), m_port_map.end());
-			m_sockopt_mapped = false;
+			if (m_port_map.size()) {
+				m_sockopt_mapped = true;
+			} else {
+				m_sockopt_mapped = false;
+			}
 			// set full versus partial RX UDP handling due to updates in m_socket_mapped			
 			set_rx_packet_processor();			
 			m_port_map_lock.unlock();
