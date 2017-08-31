@@ -16,8 +16,6 @@ AC_DEFINE(VMA_LIBRARY_RELEASE, vma_ver_release, [VMA Release])
 GIT_VER=`git describe --long --abbrev=40 --dirty --tags 2> /dev/null || echo ""`
 if test -n "$GIT_VER"; then GIT_VER=`echo $GIT_VER | sed -e 's/-dirty/+/' | sed s/.*-g//`; else  GIT_VER=""; fi
 
-if test -e debian/changelog-util; then sh debian/changelog-util debian/changelog.in; fi
-
 AC_DEFINE_UNQUOTED(VMA_GIT_VERSION, "${GIT_VER}", [VMA Git Version])
 
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
@@ -57,6 +55,7 @@ LIBALIC_FLAG=""
 AC_SUBST(LIBALIC_FLAG)
 AC_SUBST([BUILD_DATE], [$(date +'%b/%d/%Y')])
 AC_SUBST([BUILD_TIME], [$(date +'%H:%M:%S')])
+AC_SUBST([BUILD_DATE_CHANGELOG], [$(date +'%a, %d %b %Y %T %z')])
 
 m4_include([config/m4/opt.m4])
 m4_include([config/m4/pkg.m4])
