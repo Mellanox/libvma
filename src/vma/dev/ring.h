@@ -325,8 +325,6 @@ public:
 	bool			is_mp_ring() {return m_is_mp_ring;};
 	virtual int		modify_ratelimit(const uint32_t ratelimit_kbps) = 0;
 	virtual bool		is_ratelimit_supported(uint32_t rate) = 0;
-	inline void		socket_map_add() { m_n_map_usage++; };
-	inline uint16_t		socket_map_remove() { if (m_n_map_usage > 0) --m_n_map_usage; return m_n_map_usage; };
 
 #ifdef DEFINED_VMAPOLL		
 	virtual int		vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags) = 0;
@@ -377,7 +375,6 @@ protected:
 	int*			m_p_n_rx_channel_fds;
 	ring*			m_parent;
 	bool			m_is_mp_ring;
-	uint16_t		m_n_map_usage;
 
 #ifdef DEFINED_VMAPOLL	
 	/* queue of event completion elements
