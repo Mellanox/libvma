@@ -129,6 +129,7 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_s
 		m_sge[0].addr = (uintptr_t)((uint8_t*)p_pkt + hdr_alignment_diff);
 		m_sge[0].length = total_packet_len;
 		m_sge[0].lkey = m_p_ring->get_tx_lkey(m_id);
+		p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.ref++;
 
 #ifdef VMA_NO_HW_CSUM
 		p_pkt->hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
@@ -180,10 +181,14 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_s
 		/* set wr_id as a pointer to memory descriptor */
 		m_p_send_wqe->wr_id = (uintptr_t)p_tcp_iov[0].p_desc;
 
-		/* Update scatter gather element list */
+		/* Update scatter gather element list
+		 * ref counter is incremented for the first memory descriptor only because it is needed
+		 * for processing send wr completion (tx batching mode)
+		 */
 		m_sge[0].addr = (uintptr_t)((uint8_t *)&p_pkt->hdr.m_tcp_hdr + p_pkt->hdr.m_tcp_hdr.doff * 4);
 		m_sge[0].length = p_tcp_iov[0].iovec.iov_len - p_pkt->hdr.m_tcp_hdr.doff * 4;
 		m_sge[0].lkey = m_p_ring->get_tx_lkey(m_id);
+		p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.ref++;
 		for (int i = 1; i < sz_iov; ++i) {
 			m_sge[i].addr = (uintptr_t)p_tcp_iov[i].iovec.iov_base;
 			m_sge[i].length = p_tcp_iov[i].iovec.iov_len;
