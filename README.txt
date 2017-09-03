@@ -1,4 +1,4 @@
-Update: 06 Aug 2017
+Update: 03 Sep 2017
 
 Introduction
 ============
@@ -92,13 +92,13 @@ Please notice that except VMA_TRACELEVEL, VMA logs just those parameters whose v
 
 Example:
  VMA INFO: ---------------------------------------------------------------------------
- VMA INFO: VMA_VERSION: 7.0.11-0
- VMA INFO: Cmd Line: sockperf sr
- VMA INFO: Current Time: Tue Dec 22 16:17:53 2015
- VMA INFO: Pid:  5797
- VMA INFO: OFED Version: MLNX_OFED_LINUX-3.1-1.5.5:
+ VMA INFO: VMA_VERSION: 8.4.3-0 Development Snapshot built on Sep  3 2017 11:58:07
+ VMA INFO: Cmd Line: sockperf sr -i 4.4.4.3
+ VMA INFO: Current Time: Sun Sep  3 12:03:14 2017
+ VMA INFO: Pid: 29881
+ VMA INFO: OFED Version: MLNX_OFED_LINUX-4.1-2.0.0.0:
  VMA INFO: Architecture: x86_64
- VMA INFO: Node: r-aa-bob06.mtr.labs.mlnx
+ VMA INFO: Node: r-aa-bob3.mtr.labs.mlnx
  VMA INFO: ---------------------------------------------------------------------------
  VMA INFO: Log Level                      DETAILS                    [VMA_TRACELEVEL]
  VMA DETAILS: Log Details                    0                          [VMA_LOG_DETAILS]
@@ -120,20 +120,21 @@ Example:
  VMA DETAILS: TCP max syn rate               0 (no limit)               [VMA_TCP_MAX_SYN_RATE]
  VMA DETAILS: Tx Mem Segs TCP                1000000                    [VMA_TX_SEGS_TCP]
  VMA DETAILS: Tx Mem Bufs                    200000                     [VMA_TX_BUFS]
- VMA DETAILS: Tx QP WRE                      3000                       [VMA_TX_WRE]
+ VMA DETAILS: Tx QP WRE                      2048                       [VMA_TX_WRE]
  VMA DETAILS: Tx QP WRE Batching             64                         [VMA_TX_WRE_BATCHING]
- VMA DETAILS: Tx Max QP INLINE               220                        [VMA_TX_MAX_INLINE]
+ VMA DETAILS: Tx Max QP INLINE               204                        [VMA_TX_MAX_INLINE]
  VMA DETAILS: Tx MC Loopback                 Enabled                    [VMA_TX_MC_LOOPBACK]
  VMA DETAILS: Tx non-blocked eagains         Disabled                   [VMA_TX_NONBLOCKED_EAGAINS]
  VMA DETAILS: Tx Prefetch Bytes              256                        [VMA_TX_PREFETCH_BYTES]
  VMA DETAILS: Rx Mem Bufs                    200000                     [VMA_RX_BUFS]
  VMA DETAILS: Rx QP WRE                      16000                      [VMA_RX_WRE]
- VMA DETAILS: Rx QP WRE BATCHING             64                         [VMA_RX_WRE_BATCHING]
+ VMA DETAILS: Rx QP WRE Batching             64                         [VMA_RX_WRE_BATCHING]
  VMA DETAILS: Rx Byte Min Limit              65536                      [VMA_RX_BYTES_MIN]
  VMA DETAILS: Rx Poll Loops                  100000                     [VMA_RX_POLL]
  VMA DETAILS: Rx Poll Init Loops             0                          [VMA_RX_POLL_INIT]
  VMA DETAILS: Rx UDP Poll OS Ratio           100                        [VMA_RX_UDP_POLL_OS_RATIO]
  VMA DETAILS: HW TS Conversion               3                          [VMA_HW_TS_CONVERSION]
+ VMA DETAILS: Rx SW CSUM                     1                          [VMA_RX_SW_CSUM]
  VMA DETAILS: Rx Poll Yield                  Disabled                   [VMA_RX_POLL_YIELD]
  VMA DETAILS: Rx Prefetch Bytes              256                        [VMA_RX_PREFETCH_BYTES]
  VMA DETAILS: Rx Prefetch Bytes Before Poll  0                          [VMA_RX_PREFETCH_BYTES_BEFORE_POLL]
@@ -141,7 +142,7 @@ Example:
  VMA DETAILS: GRO max streams                32                         [VMA_GRO_STREAMS_MAX]
  VMA DETAILS: TCP 3T rules                   Disabled                   [VMA_TCP_3T_RULES]
  VMA DETAILS: ETH MC L2 only rules           Disabled                   [VMA_ETH_MC_L2_ONLY_RULES]
- VMA DETAILS: MC Force FlowTag               Disabled                   [VMA_MC_FORCE_FLOWTAG]
+ VMA DETAILS: Force Flowtag for MC           Disabled                   [VMA_MC_FORCE_FLOWTAG]
  VMA DETAILS: Select Poll (usec)             100000                     [VMA_SELECT_POLL]
  VMA DETAILS: Select Poll OS Force           Disabled                   [VMA_SELECT_POLL_OS_FORCE]
  VMA DETAILS: Select Poll OS Ratio           10                         [VMA_SELECT_POLL_OS_RATIO]
@@ -164,8 +165,9 @@ Example:
  VMA DETAILS: TCP control thread             0 (Disabled)               [VMA_TCP_CTL_THREAD]
  VMA DETAILS: TCP timestamp option           0                          [VMA_TCP_TIMESTAMP_OPTION]
  VMA DETAILS: TCP nodelay                    0                          [VMA_TCP_NODELAY]
- VMA DETAILS: Exception handling mode        -1 (just log debug message) [VMA_EXCEPTION_HANDLING]
+ VMA DETAILS: Exception handling mode        -1(just log debug message) [VMA_EXCEPTION_HANDLING]
  VMA DETAILS: Avoid sys-calls on tcp fd      Disabled                   [VMA_AVOID_SYS_CALLS_ON_TCP_FD]
+ VMA DETAILS: Allow privileged sock opt      Enabled                    [VMA_ALLOW_PRIVILEGED_SOCK_OPT]
  VMA DETAILS: Delay after join (msec)        0                          [VMA_WAIT_AFTER_JOIN_MSEC]
  VMA DETAILS: Internal Thread Affinity       -1                         [VMA_INTERNAL_THREAD_AFFINITY]
  VMA DETAILS: Internal Thread Cpuset                                    [VMA_INTERNAL_THREAD_CPUSET]
@@ -184,9 +186,9 @@ Example:
  VMA DETAILS: MTU                            0 (follow actual MTU)      [VMA_MTU]
  VMA DETAILS: MSS                            0 (follow VMA_MTU)         [VMA_MSS]
  VMA DETAILS: TCP CC Algorithm               0 (LWIP)                   [VMA_TCP_CC_ALGO]
- VMA_DETAILS: Trig dummy send getsockname()  Disabled                   [VMA_TRIGGER_DUMMY_SEND_GETSOCKNAME]
+ VMA DETAILS: Polling Rx on Tx TCP           Disabled                   [VMA_RX_POLL_ON_TX_TCP]
+ VMA DETAILS: Trig dummy send getsockname()  Disabled                   [VMA_TRIGGER_DUMMY_SEND_GETSOCKNAME]
  VMA INFO: ---------------------------------------------------------------------------
-
 
 VMA_TRACELEVEL 
 Logging level the VMA library will be using. Default is info
@@ -259,7 +261,7 @@ latency
     Optimized for use cases that are keen on latency. i.e. Ping-Pong tests.
 
     Latency SPEC changes the following default configuration
-     VMA_TX_WRE = 256                         (default: 3000)
+     VMA_TX_WRE = 256                         (default: 2048)
      VMA_TX_WRE_BATCHING = 4                  (default: 64)
      VMA_RX_WRE = 256                         (default: 16000)
      VMA_RX_WRE_BATCHING = 4                  (default: 64)
@@ -352,7 +354,7 @@ VMA_TX_WRE
 Number of Work Request Elements allocated in all transmit QP's.
 The number of QP's can change according to the number of network offloaded
 interfaces.
-Default value is 3000
+Default value is 2048
 
 VMA_TX_WRE_BATCHING
 The number of Tx Work Request Elements used until a completion signal is requested.
@@ -368,7 +370,7 @@ Data copied into the INLINE space is at least 32 bytes of headers and
 the rest can be user datagram payload.
 VMA_TX_MAX_INLINE=0 disables INLINEing on the tx transmit path.
 In older releases this parameter was called: VMA_MAX_INLINE
-Default VMA_TX_MAX_INLINE is 220
+Default VMA_TX_MAX_INLINE is 204
 
 VMA_TX_MC_LOOPBACK
 This parameter sets the initial value used by VMA internally to controls the
@@ -457,7 +459,7 @@ application does not drain a sockets and the byte limit is reached, new
 received datagrams will be dropped.
 Monitor of the applications socket's usage of current, max and dropped bytes
 and packet counters can be done with vma_stats.
-Default value is 2000000
+Default value is 65536
 
 VMA_RX_POLL
 The number of times to poll on Rx path for ready packets before going to sleep

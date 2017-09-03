@@ -425,15 +425,17 @@ void print_vma_global_settings()
 		vlog_printf(log_level,"Node: %s\n", sys_info.nodename);
 	}
 
+	vlog_printf(VLOG_INFO,"---------------------------------------------------------------------------\n");
+
 	if (safe_mce_sys().mce_spec != MCE_SPEC_NONE) {
-		vlog_printf(VLOG_INFO, FORMAT_STRING, "Spec", vma_spec::to_str((vma_spec_t)safe_mce_sys().mce_spec), SYS_VAR_SPEC);
+		vlog_printf(VLOG_INFO, FORMAT_STRING, "VMA Spec", vma_spec::to_str((vma_spec_t)safe_mce_sys().mce_spec), SYS_VAR_SPEC);
 
 		if (safe_mce_sys().mce_spec == MCE_SPEC_29WEST_LBM_29 || safe_mce_sys().mce_spec == MCE_SPEC_WOMBAT_FH_LBM_554) {
 			vlog_printf(VLOG_INFO, FORMAT_NUMBER, "Param 1:", safe_mce_sys().mce_spec_param1, SYS_VAR_SPEC_PARAM1);
 			vlog_printf(VLOG_INFO, FORMAT_NUMBER, "Param 2:", safe_mce_sys().mce_spec_param2, SYS_VAR_SPEC_PARAM2);
 		}
-		vlog_printf(VLOG_INFO,"---------------------------------------------------------------------------\n");
 	}
+
 	VLOG_STR_PARAM_STRING("Log Level", log_level::to_str(safe_mce_sys().log_level), "", SYS_VAR_LOG_LEVEL, log_level::to_str(safe_mce_sys().log_level));
 	VLOG_PARAM_NUMBER("Log Details", safe_mce_sys().log_details, MCE_DEFAULT_LOG_DETAILS, SYS_VAR_LOG_DETAILS);
 	VLOG_PARAM_STRING("Log Colors", safe_mce_sys().log_colors, MCE_DEFAULT_LOG_COLORS, SYS_VAR_LOG_COLORS, safe_mce_sys().log_colors ? "Enabled " : "Disabled");
