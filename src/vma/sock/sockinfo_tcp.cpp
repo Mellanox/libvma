@@ -920,7 +920,7 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, uint16_t flags)
 	tcp_iovec lwip_iovec[64];
 	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)(((struct tcp_pcb*)v_p_conn)->my_container);
 	dst_entry *p_dst = p_si_tcp->m_p_connected_dst_entry;
-	vma_wr_tx_packet_attr attr;
+	vma_send_attr attr = {(vma_wr_tx_packet_attr)0, 0};
 	int count = 0;
 
 	while (p) {
@@ -936,7 +936,8 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, uint16_t flags)
 		count++;
 	}
 
-	attr = (vma_wr_tx_packet_attr)flags;
+	attr.flags = (vma_wr_tx_packet_attr)flags;
+	attr.mss = p_si_tcp->m_pcb.mss;
 	if (likely((p_dst->is_valid()))) {
 		p_dst->fast_send((struct iovec *)lwip_iovec, count, attr);
 	} else {
@@ -947,7 +948,7 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, uint16_t flags)
 		p_si_tcp->m_p_socket_stats->counters.n_tx_migrations++;
 	}
 
-	if (is_set(attr, VMA_TX_PACKET_REXMIT)) {
+	if (is_set(attr.flags, VMA_TX_PACKET_REXMIT)) {
 		p_si_tcp->m_p_socket_stats->counters.n_tx_retransmits++;
 	}
 
@@ -965,7 +966,7 @@ err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, uint16_t f
 	vma_wr_tx_packet_attr attr;
 
 	attr = (vma_wr_tx_packet_attr)flags;
-	if (is_set(attr, (vma_wr_tx_packet_attr)(VMA_TX_PACKET_BLOCK))) {
+	if (is_set(attr, (vma_wr_tx_packet_attr)(VMA_TX_PACKET_TSO | VMA_TX_PACKET_BLOCK))) {
 		vlog_printf(VLOG_ERROR, "TSO packet should not be observed on here.");
 		return ERR_OK;
 	}

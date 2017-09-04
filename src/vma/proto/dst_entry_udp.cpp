@@ -299,7 +299,7 @@ ssize_t dst_entry_udp::fast_send_fragmented(const iovec* p_iov, const ssize_t sz
 	return sz_data_payload;
 }
 
-ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_wr_tx_packet_attr attr)
+ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_send_attr attr)
 {
 	// Calc user data payload size
 	ssize_t sz_data_payload = 0;
@@ -307,7 +307,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_w
 		sz_data_payload += p_iov[i].iov_len;
 
 	if (unlikely(sz_data_payload > 65536)) {
-		dst_udp_logfunc("sz_data_payload=%d, to_port=%d, local_port=%d, b_blocked=%s", sz_data_payload, ntohs(m_dst_port), ntohs(m_src_port), (is_set(attr, VMA_TX_PACKET_BLOCK) ? "true" : "false"));
+		dst_udp_logfunc("sz_data_payload=%d, to_port=%d, local_port=%d, b_blocked=%s", sz_data_payload, ntohs(m_dst_port), ntohs(m_src_port), (is_set(attr.flags, VMA_TX_PACKET_BLOCK) ? "true" : "false"));
 		dst_udp_logfunc("sz_data_payload=%d exceeds max of 64KB", sz_data_payload);
 		errno = EMSGSIZE;
 		return -1;
@@ -316,14 +316,14 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_w
 	// Calc udp payload size
 	size_t sz_udp_payload = sz_data_payload + sizeof(struct udphdr);
 	if (sz_udp_payload <= (size_t)m_max_ip_payload_size) {
-		return fast_send_not_fragmented(p_iov, sz_iov, attr, sz_udp_payload, sz_data_payload);
+		return fast_send_not_fragmented(p_iov, sz_iov, attr.flags, sz_udp_payload, sz_data_payload);
 	} else {
-		return fast_send_fragmented(p_iov, sz_iov, attr, sz_udp_payload, sz_data_payload);
+		return fast_send_fragmented(p_iov, sz_iov, attr.flags, sz_udp_payload, sz_data_payload);
 	}
 }
 
 ssize_t dst_entry_udp::slow_send(const iovec* p_iov, size_t sz_iov,
-				 const int ratelimit_kbps, vma_wr_tx_packet_attr attr, int flags /*= 0*/,
+				 const int ratelimit_kbps, vma_send_attr attr, int flags /*= 0*/,
 				 socket_fd_api* sock /*= 0*/, tx_call_t call_type /*= 0*/)
 {
 	ssize_t ret_val = 0;

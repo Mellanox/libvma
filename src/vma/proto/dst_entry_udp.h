@@ -44,9 +44,9 @@ public:
 	virtual ~dst_entry_udp();
 
 	virtual ssize_t slow_send(const iovec* p_iov, size_t sz_iov, const int ratelimit_kbps,
-			vma_wr_tx_packet_attr attr, int flags = 0,
+			vma_send_attr attr, int flags = 0,
 			socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF);
-	virtual ssize_t 	fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_wr_tx_packet_attr attr);
+	virtual ssize_t 	fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_send_attr attr);
 
 protected:
 	virtual transport_t 	get_transport(sockaddr_in to);

@@ -56,6 +56,11 @@
 #include "header.h"
 #include "ip_address.h"
 
+typedef struct {
+	vma_wr_tx_packet_attr flags;
+	uint16_t mss;
+} vma_send_attr;
+
 class dst_entry : public cache_observer, public tostr, public neigh_observer
 {
 
@@ -67,9 +72,9 @@ public:
 
 	virtual bool 	prepare_to_send(const int ratelimit_kbps, bool skip_rules=false, bool is_connect=false);
 	virtual ssize_t slow_send(const iovec* p_iov, size_t sz_iov, const int ratelimit_kbps,
-			vma_wr_tx_packet_attr attr, int flags = 0,
+			vma_send_attr attr, int flags = 0,
 			socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF) = 0;
-	virtual ssize_t fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_wr_tx_packet_attr attr) = 0;
+	virtual ssize_t fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_send_attr attr) = 0;
 
 	bool		try_migrate_ring(lock_base& socket_lock);
 
