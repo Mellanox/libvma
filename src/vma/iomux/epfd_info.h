@@ -102,8 +102,14 @@ public:
 
 	void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);
 
+	// Instructing the socket to immediately sample/un-sample the OS in receive flow
+	void	set_immediate_os_sample();
+	void	unset_immediate_os_sample();
+
 	static inline size_t epfd_info_node_offset(void) {return NODE_OFFSET(epfd_info, epfd_info_node);}
 	list_node<epfd_info, epfd_info::epfd_info_node_offset>	epfd_info_node;
+
+	bool is_os_data_available();
 
 private:
 
@@ -120,6 +126,7 @@ private:
 	epoll_stats_t          m_local_stats;
 	epoll_stats_t          *m_stats;
 	int                    m_log_invalid_events;
+	bool                   m_b_os_data_available; // true when not offloaded data is available
 
 	int add_fd(int fd, epoll_event *event);
 	int del_fd(int fd, bool passthrough = false);

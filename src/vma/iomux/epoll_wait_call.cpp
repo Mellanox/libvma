@@ -364,6 +364,43 @@ bool epoll_wait_call::handle_epoll_event(bool is_ready, uint32_t events, socket_
 
 }
 
+bool epoll_wait_call::handle_os_countdown(int &poll_os_countdown)
+{
+	NOT_IN_USE(poll_os_countdown);
+
+	if (!m_epfd_info->is_os_data_available()) {
+		return false;
+	}
+
+	/*
+	 * Poll OS when count down reaches zero. This honors CQ-OS ratio.
+	 * This also handles the 0 ratio case - do not poll OS at all.
+	 */
+	bool cq_ready = wait_os(true);
+
+	m_epfd_info->unset_immediate_os_sample();
+
+	if (cq_ready) {
+		// This will empty the cqepfd
+		// (most likely in case of a wakeup and probably only under epoll_wait (Not select/poll))
+		ring_wait_for_notification_and_process_element(&m_poll_sn, NULL);
+	}
+	/* Before we exit with ready OS fd's we'll check the CQs once more and exit
+	 * below after calling check_all_offloaded_sockets();
+	 * IMPORTANT : We cannot do an opposite with current code,
+	 * means we cannot poll cq and then poll os (for epoll) - because poll os
+	 * will delete ready offloaded fds.
+	 */
+	if (m_n_all_ready_fds) {
+		m_p_stats->n_iomux_os_rx_ready += m_n_all_ready_fds; // TODO: fix it - we only know all counter, not read counter
+		ring_poll_and_process_element(&m_poll_sn, NULL);
+		check_all_offloaded_sockets(&m_poll_sn);
+		return true;
+	}
+
+	return false;
+}
+
 int epoll_wait_call::ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array/* = NULL*/)
 {
 	return m_epfd_info->ring_poll_and_process_element(p_poll_sn, pv_fd_ready_array);

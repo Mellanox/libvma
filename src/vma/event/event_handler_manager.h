@@ -127,7 +127,7 @@ struct reg_action_t {
 
 typedef std::deque<struct reg_action_t>	reg_action_q_t;
 
-enum {
+enum ev_type {
 	EV_IBVERBS,
 	EV_RDMA_CM,
 	EV_COMMAND,
@@ -135,7 +135,7 @@ enum {
 
 
 struct event_data_t {
-	int type;
+	ev_type type;
 	ibverbs_ev_t ibverbs_ev;
 	rdma_cm_ev_t rdma_cm_ev;
 	command_ev_t command_ev;
@@ -174,11 +174,13 @@ public:
 	void*   thread_loop();
 	void    stop_thread();
 
+	void    update_epfd(int fd, int operation, int events);
+
 private:
 	pthread_t		m_event_handler_tid;
 	bool			m_b_continue_running;
 	int 			m_cq_epfd;
-	int			m_epfd;
+	int 			m_epfd;
 
 	// pipe for the event registration handling
 	reg_action_q_t		m_reg_action_q;
@@ -209,7 +211,6 @@ private:
 	void	process_ibverbs_event(event_handler_map_t::iterator &i);
 	void	process_rdma_cm_event(event_handler_map_t::iterator &i);
 	int     start_thread();
-	void    update_epfd(int fd, int operation);
 
 	void 	event_channel_post_process_for_rdma_events(void* p_event);
 	void* 	event_channel_pre_process_for_rdma_events(void* p_event_channel_handle, void** p_event);

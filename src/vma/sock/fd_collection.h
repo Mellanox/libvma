@@ -123,6 +123,11 @@ public:
 	int			del_cq_channel_fd(int fd, bool b_cleanup = false);
 
 	/**
+	 * Call set_immediate_os_sample of the input fd.
+	 */
+	inline bool set_immediate_os_sample(int fd);
+
+	/**
 	 * Get sock_fd_api (sockinfo or pipeinfo) by fd.
 	 */
 	inline socket_fd_api*	get_sockfd(int fd);
@@ -212,6 +217,22 @@ inline cls* fd_collection::get(int fd, cls **map_type)
 
 	cls* obj = map_type[fd];
 	return obj;
+}
+
+inline bool fd_collection::set_immediate_os_sample(int fd)
+{
+	bool ret = false;
+	epfd_info* epfd_fd;
+
+	lock();
+
+	if ((epfd_fd = get_epfd(fd))){
+		epfd_fd->set_immediate_os_sample();
+		ret = true;
+	}
+
+	unlock();
+	return ret;
 }
 
 inline socket_fd_api* fd_collection::get_sockfd(int fd)
