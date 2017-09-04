@@ -1,7 +1,7 @@
 Source: libvma
 Section: libs
 Priority: extra
-Maintainer: Or Kehati <ork@mellanox.com> 
+Maintainer: Liran Oz <lirano@mellanox.com>
 Homepage: https://github.com/Mellanox/libvma
 
 Package: libvma
