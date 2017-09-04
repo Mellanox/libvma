@@ -53,7 +53,9 @@ int epfd_info::remove_fd_from_epoll_os(int fd)
 }
 
 epfd_info::epfd_info(int epfd, int size) :
-	lock_mutex_recursive("epfd_info"), m_epfd(epfd), m_size(size), m_ring_map_lock("epfd_ring_map_lock"), m_sysvar_thread_mode(safe_mce_sys().thread_mode)
+	lock_mutex_recursive("epfd_info"), m_epfd(epfd), m_size(size), m_ring_map_lock("epfd_ring_map_lock"),
+	m_lock_poll_os("epfd_lock_poll_os"), m_sysvar_thread_mode(safe_mce_sys().thread_mode),
+	m_b_os_data_available(false)
 {
 	__log_funcall("");
 	int max_sys_fd = get_sys_max_fd_num();
@@ -81,6 +83,9 @@ epfd_info::epfd_info(int epfd, int size) :
 	m_log_invalid_events = NUM_LOG_INVALID_EVENTS;
 
 	vma_stats_instance_create_epoll_block(m_epfd, &(m_stats->stats));
+
+	// Register this socket to read nonoffloaded data
+	g_p_event_handler_manager->update_epfd(m_epfd, EPOLL_CTL_ADD, EPOLLIN | EPOLLPRI | EPOLLONESHOT);
 
 	wakeup_set_epoll_fd(m_epfd);
 }
@@ -120,6 +125,9 @@ epfd_info::~epfd_info()
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 	}
+
+	g_p_event_handler_manager->update_epfd(m_epfd, EPOLL_CTL_DEL, EPOLLIN | EPOLLPRI | EPOLLONESHOT);
+
 	unlock();
 
 	vma_stats_instance_remove_epoll_block(&m_stats->stats);
@@ -764,4 +772,27 @@ void epfd_info::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 				vlog_printf(log_level, "Errors : %u\n", temp_iomux_stats.n_iomux_errors);
 		}
 	}
+}
+
+void epfd_info::set_os_data_available()
+{
+	auto_unlocker locker(m_lock_poll_os);
+	m_b_os_data_available = true;
+}
+
+void epfd_info::register_to_internal_thread()
+{
+	auto_unlocker locker(m_lock_poll_os);
+	m_b_os_data_available = false;
+
+	// Reassign EPOLLIN event
+	g_p_event_handler_manager->update_epfd(m_epfd, EPOLL_CTL_MOD, EPOLLIN | EPOLLPRI | EPOLLONESHOT);
+}
+
+bool epfd_info::get_and_unset_os_data_available()
+{
+	auto_unlocker locker(m_lock_poll_os);
+	bool ret = m_b_os_data_available;
+	m_b_os_data_available = false;
+	return ret;
 }

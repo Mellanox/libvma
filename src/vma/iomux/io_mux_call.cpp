@@ -245,37 +245,53 @@ void io_mux_call::check_offloaded_rsockets(uint64_t *p_poll_sn)
 	//return false;
 }
 
+bool io_mux_call::handle_os_countdown(int &poll_os_countdown)
+{
+	/*
+	 * Poll OS when count down reaches zero. This honors CQ-OS ratio.
+	 * This also handles the 0 ratio case - do not poll OS at all.
+	 */
+	if (poll_os_countdown-- == 0 && m_n_sysvar_select_poll_os_ratio > 0) {
+		if (wait_os(true)) {
+			// This will empty the cqepfd
+			// (most likely in case of a wakeup and probably only under epoll_wait (Not select/poll))
+			ring_wait_for_notification_and_process_element(&m_poll_sn, NULL);
+		}
+		/* Before we exit with ready OS fd's we'll check the CQs once more and exit
+		 * below after calling check_all_offloaded_sockets();
+		 * IMPORTANT : We cannot do an opposite with current code,
+		 * means we cannot poll cq and then poll os (for epoll) - because poll os
+		 * will delete ready offloaded fds.
+		 */
+		if (m_n_all_ready_fds) {
+
+			m_p_stats->n_iomux_os_rx_ready += m_n_all_ready_fds; // TODO: fix it - we only know all counter, not read counter
+			ring_poll_and_process_element(&m_poll_sn, NULL);
+			check_all_offloaded_sockets(&m_poll_sn);
+			return true;
+		}
+		poll_os_countdown = m_n_sysvar_select_poll_os_ratio - 1;
+	}
+
+	return false;
+}
+
 void io_mux_call::polling_loops()
 {
 	int poll_counter;
-	int check_timer_countdown;
-	int poll_os_countdown;
+	int check_timer_countdown = 1; // Poll once before checking the time
+	int poll_os_countdown = 0;
 	bool multiple_polling_loops, finite_polling;
 	timeval before_polling_timer = TIMEVAL_INITIALIZER, after_polling_timer = TIMEVAL_INITIALIZER, delta;
-	int delta_time; // in usec
 
-	prepare_to_poll();
-
-	if(immidiate_return()) return;
+	if(immidiate_return(poll_os_countdown)) {
+		return;
+	}
 
 #ifdef VMA_TIME_MEASURE
 	TAKE_T_POLL_START;
 	ZERO_POLL_COUNT;
 #endif
-			
-	// Poll once before checking the time
-	check_timer_countdown = 1;
-
-	/*
-	 * Give OS priority in 1 of SELECT_SKIP_OS times
-	 * In all other times, OS is never polled first (even if ratio is 1).
-	 */
-	if (--m_n_skip_os_count <= 0) {
-		m_n_skip_os_count = m_n_sysvar_select_skip_os_fd_check;
-		poll_os_countdown = 0;
-	} else {
-		poll_os_countdown = m_n_sysvar_select_poll_os_ratio;
-	}
 
 	poll_counter = 0;
 	finite_polling = m_n_sysvar_select_poll_num != -1;
@@ -308,31 +324,9 @@ void io_mux_call::polling_loops()
 		              poll_os_countdown, m_n_sysvar_select_poll_os_ratio, check_timer_countdown, *m_p_num_all_offloaded_fds,
 		              m_n_all_ready_fds, m_n_ready_rfds, m_n_ready_wfds, m_n_ready_efds, multiple_polling_loops);
 
-		/*
-		* Poll OS when count down reaches zero. This honors CQ-OS ratio.
-		* This also handles the 0 ratio case - do not poll OS at all.
-		*/
-		if (poll_os_countdown-- == 0 && m_n_sysvar_select_poll_os_ratio > 0) {
-			bool cq_ready = wait_os(true);
-			if (cq_ready) {
-				// This will empty the cqepfd
-				// (most likely in case of a wakeup and probably only under epoll_wait (Not select/poll))
-				ring_wait_for_notification_and_process_element(&m_poll_sn, NULL);
-			}
-			/* Before we exit with ready OS fd's we'll check the CQs once more and exit
-			* below after calling check_all_offloaded_sockets();
-			* IMPORTANT : We cannot do an opposite with current code,
-			* means we cannot poll cq and then poll os (for epoll) - because poll os
-			* will delete ready offloaded fds.
-			*/
-			if (m_n_all_ready_fds) {
-
-				m_p_stats->n_iomux_os_rx_ready += m_n_all_ready_fds; // TODO: fix it - we only know all counter, not read counter
-				ring_poll_and_process_element(&m_poll_sn, NULL);
-				check_all_offloaded_sockets(&m_poll_sn);
-				break;
-			}
-			poll_os_countdown = m_n_sysvar_select_poll_os_ratio - 1;
+		if (handle_os_countdown(poll_os_countdown)) {
+			// Break if non-offloaded data was found.
+			break;
 		}
 
 		/*
@@ -385,8 +379,7 @@ void io_mux_call::polling_loops()
 
 		//calc accumulated polling time
 		tv_sub(&after_polling_timer, &before_polling_timer, &delta);
-		delta_time=tv_to_usec(&delta);
-		g_polling_time_usec += delta_time ;
+		g_polling_time_usec += tv_to_usec(&delta);
 
 		zero_polling_cpu(after_polling_timer);
 	}
@@ -529,7 +522,10 @@ int io_mux_call::call()
 
 //check if we found anything in the constructor of select and poll
 //override in epoll
-bool io_mux_call::immidiate_return(){
+bool io_mux_call::immidiate_return(int &poll_os_countdown){
+
+	prepare_to_poll();
+
 	if(m_n_all_ready_fds){
 		m_n_ready_rfds = 0; //will be counted again in check_rfd_ready_array()
 		m_n_all_ready_fds = 0;
@@ -537,6 +533,18 @@ bool io_mux_call::immidiate_return(){
 		ring_poll_and_process_element(&m_poll_sn, NULL);
 		return true;
 	}
+
+	/*
+	 * Give OS priority in 1 of SELECT_SKIP_OS times
+	 * In all other times, OS is never polled first (even if ratio is 1).
+	 */
+	if (--m_n_skip_os_count <= 0) {
+		m_n_skip_os_count = m_n_sysvar_select_skip_os_fd_check;
+		poll_os_countdown = 0;
+	} else {
+		poll_os_countdown = m_n_sysvar_select_poll_os_ratio;
+	}
+
 	return false;
 }
 

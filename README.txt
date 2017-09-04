@@ -1,4 +1,4 @@
-Update: 03 Sep 2017
+Update: 13 Sep 2017
 
 Introduction
 ============
@@ -607,18 +607,18 @@ Default value is 0
 
 VMA_SELECT_POLL_OS_RATIO
 This will enable polling of the OS file descriptors while user thread calls
-select(), poll() or epoll_wait() and the VMA is busy in the offloaded sockets
-polling loop. This will result in a signle poll of the not-offloaded sockets
-every VMA_SELECT_POLL_RATIO offlaoded sockets (CQ) polls.
+select() or poll() and the VMA is busy in the offloaded sockets polling loop.
+This will result in a signle poll of the not-offloaded sockets every
+VMA_SELECT_POLL_RATIO offlaoded sockets (CQ) polls.
 When disabled, only offlaoded sockets are polled. 
 (See VMA_SELECT_POLL for more info)
 Disable with 0
 Default value is 10
 
 VMA_SELECT_SKIP_OS
-Similar to VMA_RX_SKIP_OS, but in select(), poll() or epoll_wait() this will
-force the VMA to check the non offloaded fd even though an offloaded socket
-has ready packets found while polling.
+Similar to VMA_RX_SKIP_OS, but in select() or poll() this will force the VMA
+to check the non offloaded fd even though an offloaded socket has ready
+packets found while polling.
 Default value is 4
 
 VMA_PROGRESS_ENGINE_INTERVAL

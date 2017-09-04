@@ -37,6 +37,7 @@
 #include <rdma/rdma_cma.h>
 #include <vma/dev/net_device_table_mgr.h>
 #include "vma/dev/ring_allocation_logic.h"
+#include "vma/sock/fd_collection.h"
 #include "vma/sock/sock-redirect.h" // calling orig_os_api.epoll()
 #include "vma/util/verbs_extra.h"
 
@@ -395,11 +396,11 @@ void event_handler_manager::stop_thread()
 	m_epfd = -1;
 }
 
-void event_handler_manager::update_epfd(int fd, int operation)
+void event_handler_manager::update_epfd(int fd, int operation, int events)
 {
 	epoll_event ev = {0, {0}};
 
-	ev.events = EPOLLIN | EPOLLPRI;
+	ev.events = events;
 	ev.data.fd = fd;
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (orig_os_api.epoll_ctl(m_epfd, operation, fd, &ev) < 0) {
@@ -520,7 +521,7 @@ void event_handler_manager::priv_register_ibverbs_events(ibverbs_reg_info_t& inf
 
 		priv_prepare_ibverbs_async_event_queue(i);
 
-		update_epfd(info.fd, EPOLL_CTL_ADD);
+		update_epfd(info.fd, EPOLL_CTL_ADD, EPOLLIN | EPOLLPRI);
 		evh_logdbg("%d added to event_handler_map_t!", info.fd);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -582,7 +583,7 @@ void event_handler_manager::priv_unregister_ibverbs_events(ibverbs_reg_info_t& i
 
 	i->second.ibverbs_ev.ev_map.erase(j);
 	if (n == 1) {
-		update_epfd(info.fd, EPOLL_CTL_DEL);
+		update_epfd(info.fd, EPOLL_CTL_DEL, EPOLLIN | EPOLLPRI);
 		m_event_handler_map.erase(i);
 		evh_logdbg("%d erased from event_handler_map_t!", info.fd);
 	}
@@ -607,7 +608,7 @@ void event_handler_manager::priv_register_rdma_cm_events(rdma_cm_reg_info_t& inf
 		/* cppcheck-suppress uninitStructMember */
 		m_event_handler_map[info.fd] = map_value;
 
-		update_epfd(info.fd, EPOLL_CTL_ADD);
+		update_epfd(info.fd, EPOLL_CTL_ADD, EPOLLIN | EPOLLPRI);
 	}
 	else {
 		BULLSEYE_EXCLUDE_BLOCK_START
@@ -651,7 +652,7 @@ void event_handler_manager::priv_unregister_rdma_cm_events(rdma_cm_reg_info_t& i
 			iter_fd->second.rdma_cm_ev.map_rdma_cm_id.erase(iter_id);
 			iter_fd->second.rdma_cm_ev.n_ref_count--;
 			if (iter_fd->second.rdma_cm_ev.n_ref_count == 0) {
-				update_epfd(info.fd, EPOLL_CTL_DEL);
+				update_epfd(info.fd, EPOLL_CTL_DEL, EPOLLIN | EPOLLPRI);
 				m_event_handler_map.erase(iter_fd);
 				evh_logdbg("Removed channel <%d %p>", info.fd, info.id);
 			}
@@ -679,7 +680,7 @@ void event_handler_manager::priv_register_command_events(command_reg_info_t& inf
 		/* coverity[uninit_use_in_call] */
 		/* cppcheck-suppress uninitStructMember */
 		m_event_handler_map[info.fd] = map_value;
-		update_epfd(info.fd, EPOLL_CTL_ADD);
+		update_epfd(info.fd, EPOLL_CTL_ADD, EPOLLIN | EPOLLPRI);
 	}
 
 }
@@ -696,7 +697,7 @@ void event_handler_manager::priv_unregister_command_events(command_reg_info_t& i
 		evh_logdbg(" This fd (%d) no longer COMMAND type fd", info.fd);
 	}
 	else {
-		update_epfd(info.fd, EPOLL_CTL_DEL);
+		update_epfd(info.fd, EPOLL_CTL_DEL, EPOLLIN | EPOLLPRI);
 	}
 }
 
@@ -954,7 +955,10 @@ void* event_handler_manager::thread_loop()
 
 			event_handler_map_t::iterator i = m_event_handler_map.find(fd);
 			if (i == m_event_handler_map.end()) {
-				evh_logdbg("No event handler (fd=%d)", fd);
+				// No event handler - this is probably a poll_os event!
+				if (!g_p_fd_collection->set_immediate_os_sample(fd)) {
+					evh_logdbg("No event handler (fd=%d)", fd);
+				}
 				continue;
 			}
 
