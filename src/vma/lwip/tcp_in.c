@@ -48,6 +48,8 @@
 #include "vma/lwip/tcp_impl.h"
 #include "vma/lwip/stats.h"
 
+#include <string.h>
+
 typedef struct tcp_in_data {
 	struct pbuf *recv_data;
 	struct tcp_hdr *tcphdr;
@@ -921,8 +923,11 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
 
       /* Remove segment from the unacknowledged list if the incoming
          ACK acknowlegdes them. */
-      while (pcb->unacked != NULL &&
-             TCP_SEQ_LEQ(pcb->unacked->seqno + TCP_TCPLEN(pcb->unacked), in_data->ackno)) {
+      while (pcb->unacked != NULL) {
+
+        if (!(TCP_SEQ_LEQ(pcb->unacked->seqno + TCP_TCPLEN(pcb->unacked), in_data->ackno))) {
+          break;
+        }
         LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_receive: removing %"U32_F":%"U32_F" from pcb->unacked\n",
                                       ntohl(pcb->unacked->tcphdr->seqno),
                                       ntohl(pcb->unacked->tcphdr->seqno) +
