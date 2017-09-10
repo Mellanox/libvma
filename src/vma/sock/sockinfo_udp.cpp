@@ -1213,12 +1213,14 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					m_port_map_lock.unlock();
 					return -1;
 				}
-				si_udp_logdbg("found UDP_MAP_ADD socket fd for port %d. fd is %d", ntohs(port_socket.port), port_socket.fd);			
+				if (!m_port_map.size()) {
+					m_sockopt_mapped = true;
+					// set full versus partial RX UDP handling due to updates in m_socket_mapped
+					set_rx_packet_processor();
+				}
+				si_udp_logdbg("found UDP_MAP_ADD socket fd for port %d. fd is %d", ntohs(port_socket.port), port_socket.fd);
 				m_port_map.push_back(port_socket);
 			}
-			m_sockopt_mapped = true;
-			// set full versus partial RX UDP handling due to updates in m_socket_mapped
-			set_rx_packet_processor();
 			m_port_map_lock.unlock();
 			return 0;
 
@@ -1230,10 +1232,15 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 			in_port_t port = *(in_port_t *)__optval;
 			si_udp_logdbg("stopping de-muxing packets to port %d", ntohs(port));
 			m_port_map_lock.lock();
-			m_port_map.erase(std::remove(m_port_map.begin(), m_port_map.end(), port), m_port_map.end());
-			m_sockopt_mapped = false;
-			// set full versus partial RX UDP handling due to updates in m_socket_mapped			
-			set_rx_packet_processor();			
+			std::vector<struct port_socket_t>::iterator iter = std::find(m_port_map.begin(), m_port_map.end(), port);
+			if (iter != m_port_map.end()) {
+				m_port_map.erase(iter);
+				if (!m_port_map.size()) {
+					m_sockopt_mapped = false;
+					// set full versus partial RX UDP handling due to updates in m_socket_mapped
+					set_rx_packet_processor();
+				}
+			}
 			m_port_map_lock.unlock();
 			return 0;
 		} // case IPPROTO_UDP
