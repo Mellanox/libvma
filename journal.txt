@@ -1,3 +1,18 @@
+Version 8.4.4-0:
+Date + Time 2017-09-10
+=============================================================
+Added:
+        - RM #1081001 Add netmap API VMA wrapper
+        - RM #1089826 Add statistics to Multi-Packet rings
+Fixed:
+        - RM #1131365 Update output example and default parameters in README.txt
+        - RM #1096849 Fix for the first packet checksum in case VLAN trunk
+        - RM #1127632 Remove ambiguous line from insufficient hugepage warning
+        - RM #1079751 Fix possible crash when migration occurs
+        - RM #1114239 Fix compilation error when configuring using disable-exp-cq
+        - RM #1094542 Reduce interval for syncing time_converter clock parameters
+        - RM #1117819 Nullify application name after freeing its pointer
+
 Version 8.4.3-0:
 Date + Time 2017-08-14
 =============================================================
