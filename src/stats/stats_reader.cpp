@@ -95,7 +95,7 @@ typedef enum {
 #define CYCLES_SEPARATOR		"-------------------------------------------------------------------------------\n" 
 #define FORMAT_CQ_STATS_32bit		"%-20s %10u\n"
 #define FORMAT_CQ_STATS_64bit		"%-20s %10llu %-3s\n"
-#define FORMAT_CQ_STATS_DEV_MEM		"%-20s %lu KB / %lu / %lu [bytes/packets/oob] %-3s\n"
+#define FORMAT_DEV_MEM				"%-20s %lu KB / %lu / %lu [bytes/packets/oob] %-3s\n"
 #define FORMAT_CQ_STATS_percent		"%-20s %10.2f%%\n"
 
 #define INTERVAL			1
@@ -288,7 +288,7 @@ void print_ring_stats(ring_instance_block_t* p_ring_inst_arr)
 			printf(FORMAT_CQ_STATS_64bit, "Retransmissions:", (unsigned long long int)p_ring_stats->n_tx_retransmits, post_fix);
 			if (p_ring_stats->n_tx_dev_mem_allocated) {
 				printf(FORMAT_CQ_STATS_32bit, "Dev Mem allocation:", p_ring_stats->n_tx_dev_mem_allocated);
-				printf(FORMAT_CQ_STATS_DEV_MEM, "Dev Mem stats:", p_ring_stats->n_tx_dev_mem_byte_count/BYTES_TRAFFIC_UNIT,  p_ring_stats->n_tx_dev_mem_pkt_count, p_ring_stats->n_tx_dev_mem_oob, post_fix);
+				printf(FORMAT_DEV_MEM, "Dev Mem stats:", p_ring_stats->n_tx_dev_mem_byte_count/BYTES_TRAFFIC_UNIT,  p_ring_stats->n_tx_dev_mem_pkt_count, p_ring_stats->n_tx_dev_mem_oob, post_fix);
 			}
 		}
 	}

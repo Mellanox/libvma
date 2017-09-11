@@ -219,17 +219,17 @@ AS_IF([test "x$enable_exp_cq" == xyes],
 )
 
 # Device Memory
-AC_MSG_CHECKING([if IBV_DEV_MEM is defined])
+AC_MSG_CHECKING([if IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE is defined])
 AC_TRY_LINK(
-#include <infiniband/verbs.h>
+#include <infiniband/verbs_exp.h>
 ,
 [
-int access = (int)IBV_DEV_MEM;
+int access = (int)IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE;
 return access;
 ],
 [
 AC_MSG_RESULT([yes])
-AC_DEFINE(DEFINED_IBV_DEV_MEM, 1, [Define to 1 if IBV_DEV_MEM is defined])
+AC_DEFINE(DEFINED_IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE, 1, [Define to 1 if IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE is defined])
 ],
 [
 AC_MSG_RESULT([no])

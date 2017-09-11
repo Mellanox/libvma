@@ -553,7 +553,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_RING_MIGRATION_RATIO_TX             (100)
 #define MCE_DEFAULT_RING_MIGRATION_RATIO_RX             (100)
 #define MCE_DEFAULT_RING_LIMIT_PER_INTERFACE            (0)
-#define MCE_DEFAULT_RING_DEV_MEM_TX                     (20480)
+#define MCE_DEFAULT_RING_DEV_MEM_TX                     (0)
 #define MCE_DEFAULT_TCP_MAX_SYN_RATE                	(0)
 #define MCE_DEFAULT_TX_NUM_SEGS_TCP			(1000000)
 #define MCE_DEFAULT_TX_NUM_BUFS				(200000)

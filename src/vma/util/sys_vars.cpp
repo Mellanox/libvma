@@ -576,6 +576,7 @@ void mce_sys_var::get_env_params()
 		thread_mode		= THREAD_MODE_SINGLE;
 		mem_alloc_type          = ALLOC_TYPE_HUGEPAGES;
 		tcp_nodelay		= true; // MCE_DEFAULT_TCP_NODELAY (false)
+		ring_dev_mem_tx	= 16384; // MCE_DEFAULT_RING_DEV_MEM_TX (0)
 		strcpy(internal_thread_affinity_str, "0"); //MCE_DEFAULT_INTERNAL_THREAD_AFFINITY_STR;
 		break;
 
@@ -600,6 +601,7 @@ void mce_sys_var::get_env_params()
 		select_poll_os_ratio          = 100; //MCE_DEFAULT_SELECT_POLL_OS_RATIO (10)
 		select_poll_os_force	      = 1;   //MCE_DEFAULT_SELECT_POLL_OS_FORCE (0)
 		tcp_nodelay	      	      = true; // MCE_DEFAULT_TCP_NODELAY (falst)
+		ring_dev_mem_tx	= 16384; // MCE_DEFAULT_RING_DEV_MEM_TX (0)
 		break;
 
 	case MCE_SPEC_29WEST_LBM_29:

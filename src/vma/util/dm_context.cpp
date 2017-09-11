@@ -61,7 +61,7 @@ dm_context::dm_context() :
 
 dm_context::~dm_context()
 {
-#ifdef DEFINED_IBV_DEV_MEM
+#ifdef DEFINED_IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE
 	// Free MEMIC data
 	if (m_p_dm_mr) {
 		if (ibv_dereg_mr(m_p_dm_mr))
@@ -84,7 +84,7 @@ size_t dm_context::dm_allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* r
 	NOT_IN_USE(ib_ctx);
 	m_p_ring_stat = ring_stats;
 
-#ifdef DEFINED_IBV_DEV_MEM
+#ifdef DEFINED_IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE
 	size_t allocation_size = DM_ALIGN_SIZE(safe_mce_sys().ring_dev_mem_tx, DM_MEMORY_MASK_64);
 	struct ibv_exp_alloc_dm_attr dm_attr = {allocation_size, 0};
 	struct ibv_mr_attr mr_attr;
