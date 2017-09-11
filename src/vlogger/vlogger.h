@@ -296,11 +296,11 @@ static inline void vlog_printf(vlog_levels_t log_level, const char* fmt , ... )
 
 	switch (g_vlogger_details) {
 	case 3: // Time
-		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, " Time: %9.3f", ((float)vlog_get_usec_since_start())/1000);
+		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, " Time: %9.3f", ((float)vlog_get_usec_since_start())/1000); // fallthrough
 	case 2: // Pid
-		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, " Pid: %5u", getpid());
+		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, " Pid: %5u", getpid()); // fallthrough
 	case 1: // Tid
-		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, " Tid: %5u", gettid());
+		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, " Tid: %5u", gettid()); // fallthrough
 	case 0: // Func
 	default:
 		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, " %s %s: ", g_vlogger_module_name, log_level::to_str(log_level));
