@@ -187,7 +187,7 @@ void qp_mgr_eth_mlx5::up()
 	qp_mgr::up();
 
 	size_t dm_bytes = m_dm_context.dm_allocate_resources(m_p_ib_ctx_handler, m_p_ring->m_p_ring_stat);
-	qp_logwarn("Allocated %d bytes of device memory", dm_bytes);
+	qp_logdbg("Allocated %d bytes of device memory", dm_bytes);
 }
 
 cq_mgr* qp_mgr_eth_mlx5::init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_channel)
@@ -418,7 +418,6 @@ inline int qp_mgr_eth_mlx5::fill_wqe(vma_ibv_send_wr *pswr)
 		// adding data seg with pointer if there still data to transfer
 		inline_len = fill_ptr_segment(sga, (struct mlx5_wqe_data_seg*)cur_seg, data_addr, data_len, (mem_buf_desc_t *)pswr->wr_id);
 		wqe_size  += inline_len/OCTOWORD;
-
 		qp_logfunc("data_addr: %p data_len: %d rest_space: %d wqe_size: %d",
 			data_addr, data_len, inline_len, wqe_size);
 		// configuring control

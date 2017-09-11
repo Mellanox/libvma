@@ -61,9 +61,8 @@ public:
 	void          dm_release_data(mem_buf_desc_t* buff);
 	inline bool   dm_is_enabled() { return m_allocation_size; };
 	inline bool   dm_request_completion() { return m_used_bytes >  m_allocation_size / 2; }
-private:
 
-	//void data_integrity();
+private:
 
 	struct ibv_mr  *m_p_dm_mr;
 	vma_mlx5_dm    *m_p_mlx5_dm;

@@ -127,7 +127,7 @@ size_t dm_context::dm_allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* r
 
 	m_allocation_size = allocation_size;
 	m_p_mlx5_dm = reinterpret_cast<struct vma_mlx5_dm *> (ibv_dm);
-	dmc_logwarn("allocated device memory completed! bytes[%zu] dm_mr handle[0x%.8x] dm_mr lkey[%d] start_addr[%p]",
+	dmc_logdbg("allocated device memory completed! bytes[%zu] dm_mr handle[0x%.8x] dm_mr lkey[%d] start_addr[%p]",
 			dm_attr.length, m_p_dm_mr->handle, m_p_dm_mr->lkey, m_p_mlx5_dm->start_va);
 
 	m_p_ring_stat->n_tx_dev_mem_allocated = m_allocation_size;
@@ -194,36 +194,10 @@ bool dm_context::dm_copy_data(struct mlx5_wqe_data_seg* seg, uint8_t* src, uint3
 	return true;
 
 	memic_failed:
-	dmc_logerr("Send! Buffer[%p] length[%d] length_aligned_4[%d] continuous_size_left[%zu] head_index[%zu] used_bytes[%zu] m_onair[%d]",
+	dmc_logfunc("Send! Buffer[%p] length[%d] length_aligned_4[%d] continuous_size_left[%zu] head_index[%zu] used_bytes[%zu] m_onair[%d]",
 			buff, length, length_aligned_4, continuous_size_left, m_head_index, m_used_bytes, m_onair);
 
 	m_p_ring_stat->n_tx_dev_mem_oob++;
 
 	return false;
 }
-
-/*
-void dm_context::data_integrity()
-{
-	int length = 65, offset = 12, cycles = 1000;
-	char value = 0x13;
-	char buff[length], buff2[length];
-
-	dmc_logwarn("length[%d] offset[%d] value[%d] cycles[%d]", length, offset, value, cycles);
-
-	for (int j = 0; j < cycles ; j++) {
-		memset(buff, value, length);
-		bzero(buff2, length);
-
-		memcpy((char *)m_p_mlx5_dm->start_va + offset, buff, length);
-		memcpy(buff2, (char *)m_p_mlx5_dm->start_va + offset, length);
-
-		for (int i = 0 ; i < length ; i++) {
-			if (buff2[i] != value) {
-				dmc_logerr("ERROR! cycle[%d] index[%d] value[%d]", j, i, buff2[i]);
-				return;
-			}
-		}
-	}
-}
-*/
