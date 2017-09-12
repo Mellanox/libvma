@@ -78,7 +78,7 @@ public:
 		if (list_empty(&m_free_queue)) {
 			for (i = 0; i < m_msg_grow; i++) {
 				/* coverity[overwrite_var] */
-				msg = (agent_msg_t *)malloc(sizeof(*msg));
+				msg = (agent_msg_t *)calloc(1, sizeof(*msg));
 				if (NULL == msg) {
 					break;
 				}

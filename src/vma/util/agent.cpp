@@ -91,7 +91,7 @@ agent::agent() :
 	m_msg_num = 0;
 	while (i--) {
 		/* coverity[overwrite_var] */
-		msg = (agent_msg_t *)malloc(sizeof(*msg));
+		msg = (agent_msg_t *)calloc(1, sizeof(*msg));
 		if (NULL == msg) {
 			rc = -ENOMEM;
 			__log_dbg("failed queue creation (rc = %d)\n", rc);
