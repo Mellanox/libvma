@@ -90,6 +90,7 @@ void qp_mgr_eth_mlx5::init_sq()
 	m_sq_wqes	 = (struct mlx5_wqe64 (*)[])(uintptr_t)m_hw_qp->gen_data.sqstart;
 	m_sq_wqe_hot	 = &(*m_sq_wqes)[0];
 	m_sq_wqes_end	 = (uint8_t*)m_hw_qp->gen_data.sqend;
+	m_sq_wqe_counter = 0;
 
 	m_sq_db		 = &m_hw_qp->gen_data.db[MLX5_SND_DBR];
 	m_sq_bf_reg	 = m_hw_qp->gen_data.bf->reg;
@@ -153,10 +154,13 @@ qp_mgr_eth_mlx5::qp_mgr_eth_mlx5(const ring_simple* p_ring, const ib_ctx_handler
 		throw_vma_exception("failed creating qp_mgr_eth");
 	}
 
-	init_sq();
-
 	qp_logfunc("m_p_cq_mgr_tx= %p", m_p_cq_mgr_tx);
+}
 
+void qp_mgr_eth_mlx5::up()
+{
+	init_sq();
+	qp_mgr::up();
 }
 
 //! Cleanup resources QP itself will be freed by base class DTOR
