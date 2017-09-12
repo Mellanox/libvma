@@ -54,6 +54,10 @@
 #include "vma/sock/sock-redirect.h"
 #include "vma/util/vtypes.h"
 
+#define NET_DUP_BAD_ARP_ANNOUNCE 0
+#define NET_DUP_GOOD_ARP_IGNORE  2
+#define NET_DUP_GOOD_RP_FILTER   0
+
 using namespace std;
 
 #undef  MODULE_NAME
@@ -571,6 +575,16 @@ int get_ipv4_from_ifindex(int ifindex, struct sockaddr_in *addr)
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 	return -1;
+}
+
+bool is_intf_arp_flux_valid(const char* const device)
+{
+	if (sysctl_reader_t::instance().get_intf_attr(device, "rp_filter") == NET_DUP_GOOD_RP_FILTER &&
+	    sysctl_reader_t::instance().get_intf_attr(device, "arp_announce") != NET_DUP_BAD_ARP_ANNOUNCE &&
+	    sysctl_reader_t::instance().get_intf_attr(device, "arp_ignore") == NET_DUP_GOOD_ARP_IGNORE) {
+		return true;
+	}
+	return false;
 }
 
 uint16_t get_vlan_id_from_ifname(const char* ifname)

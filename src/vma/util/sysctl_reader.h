@@ -146,6 +146,14 @@ public :
 		return val;
 	}
 
+	int get_intf_attr(const char* const interface, const char* const attr) {
+		char path[FILE_NAME_MAX_SIZE];
+
+		snprintf(path, sizeof(path), "/proc/sys/net/ipv4/conf/%s/%s",
+			interface, attr);
+		return read_file_to_int(path, -1);
+	}
+
 	int get_net_core_rmem_max(bool update = false) {
 		static int val;
 		if (update)

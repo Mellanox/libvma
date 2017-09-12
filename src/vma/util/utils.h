@@ -325,6 +325,8 @@ static inline int get_procname(int pid, char *proc, size_t size)
 	return -1;
 }
 
+bool is_intf_arp_flux_valid(const char* const device);
+
 //Creates multicast MAC from multicast IP
 //inline void create_multicast_mac_from_ip(uint8_t (& mc_mac) [6], in_addr_t ip)
 inline void create_multicast_mac_from_ip(unsigned char* mc_mac, in_addr_t ip)

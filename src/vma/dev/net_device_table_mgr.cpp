@@ -66,6 +66,13 @@ enum net_device_table_mgr_timers {
 	RING_PROGRESS_ENGINE_TIMER,
 	RING_ADAPT_CQ_MODERATION_TIMER
 };
+typedef std::list<ifaddrs *> ifaddrs_lst;
+typedef std::tr1::unordered_map<in_addr_t, ifaddrs_lst > map_ddr_ifaddr_t;
+
+struct network_interface_data {
+	in_addr_t	src_addr;
+	char*		if_name;
+};
 
 net_device_table_mgr::net_device_table_mgr() : cache_table_mgr<ip_address,net_device_val*>(), m_lock("net_device_table_mgr")
 {
@@ -154,6 +161,7 @@ int net_device_table_mgr::map_net_devices()
 {
 	int count = 0;
 	struct ifaddrs *ifaddr, *ifa;
+	map_ddr_ifaddr_t set_network;
 
 	ndtm_logdbg("Checking for offload capable network interfaces...");
 
@@ -278,7 +286,7 @@ int net_device_table_mgr::map_net_devices()
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		p_net_device_val->configure(ifa, cma_id);
-	        if ((int)get_max_mtu() < p_net_device_val->get_mtu()) {
+		if ((int)get_max_mtu() < p_net_device_val->get_mtu()) {
 			set_max_mtu(p_net_device_val->get_mtu());
 		}
 		m_net_device_map[((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr] = p_net_device_val;
@@ -291,10 +299,39 @@ int net_device_table_mgr::map_net_devices()
 		IF_RDMACM_FAILURE(rdma_destroy_id(cma_id)) {
 			ndtm_logerr("Failed in rdma_destroy_id (errno=%d %m)", errno);
 		} ENDIF_RDMACM_FAILURE;
-
+		in_addr_t network = ((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr &
+				((struct sockaddr_in *)ifa->ifa_netmask)->sin_addr.s_addr;
+		set_network[network].push_back(ifa);
 		count++;
 	} //for
-
+	// check for devices with ip on same network
+	map_ddr_ifaddr_t::iterator map_it = set_network.begin();
+	for (; map_it != set_network.end(); map_it++) {
+		if (map_it->second.size() > 1) {
+			ifaddrs_lst::iterator lst_it = map_it->second.begin();
+			bool valid_conf = true;
+			for (; lst_it != map_it->second.end(); lst_it++) {
+				if (!is_intf_arp_flux_valid((*lst_it)->ifa_name)) {
+					valid_conf = false;
+				}
+			}
+			if (valid_conf) {
+				continue;
+			}
+			vlog_printf(VLOG_WARNING, "**************************************************************\n");
+			vlog_printf(VLOG_WARNING, "VMA detected more than one interface on the same network\n");
+			vlog_printf(VLOG_WARNING, "VMA might not work properly!\n");
+			vlog_printf(VLOG_WARNING, "please read about ARP flux in VMA manual\n");
+			vlog_printf(VLOG_WARNING, "devices detected:\n");
+			lst_it = map_it->second.begin();
+			for (; lst_it != map_it->second.end(); lst_it++) {
+				vlog_printf(VLOG_WARNING, "%s: with ip %d.%d.%d.%d\n",
+						(*lst_it)->ifa_name,
+						NIPQUAD(((struct sockaddr_in *)(*lst_it)->ifa_addr)->sin_addr.s_addr));
+			}
+			vlog_printf(VLOG_WARNING, "**************************************************************\n");
+		}
+	}
 	freeifaddrs(ifaddr);
 
 	ndtm_logdbg("Check completed. Found %d offload capable network interfaces", count);
