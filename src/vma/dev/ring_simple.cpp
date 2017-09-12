@@ -1795,7 +1795,7 @@ int ring_simple::put_tx_buffers(mem_buf_desc_t* buff_list)
 		next = buff_list->p_next_desc;
 		buff_list->p_next_desc = NULL;
 
-		if (buff_list->tx.memic_length)
+		if (buff_list->tx.dev_mem_length)
 			m_p_qp_mgr->dm_release_data(buff_list);
 
 		//potential race, ref is protected here by ring_tx lock, and in dst_entry_tcp & sockinfo_tcp by tcp lock
@@ -1830,7 +1830,7 @@ int ring_simple::put_tx_single_buffer(mem_buf_desc_t* buff)
 
 	if (likely(buff)) {
 
-		if (buff->tx.memic_length)
+		if (buff->tx.dev_mem_length)
 			m_p_qp_mgr->dm_release_data(buff);
 
 		//potential race, ref is protected here by ring_tx lock, and in dst_entry_tcp & sockinfo_tcp by tcp lock

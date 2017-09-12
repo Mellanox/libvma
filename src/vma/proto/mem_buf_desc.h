@@ -112,7 +112,7 @@ public:
 	#endif // DEFINED_VMAPOLL
 		} rx;
 		struct {
-			size_t		memic_length; // Total data aligned to 4 bytes.
+			size_t		dev_mem_length; // Total data aligned to 4 bytes.
 		} tx;
 	};
 
