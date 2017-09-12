@@ -654,6 +654,7 @@ void mce_sys_var::get_env_params()
 		rx_num_wr               = 256; //MCE_DEFAULT_RX_NUM_WRE (16000)
 		rx_num_wr_to_post_recv  = 4; //MCE_DEFAULT_RX_NUM_WRE_TO_POST_RECV (64)
 		rx_poll_num             = -1; //MCE_DEFAULT_RX_NUM_POLLS
+		enable_tso              = false; //MCE_DEFAULT_TSO (true)
 		rx_udp_poll_os_ratio    = 0; //MCE_DEFAULT_RX_UDP_POLL_OS_RATIO
 		rx_prefetch_bytes	= MCE_DEFAULT_RX_PREFETCH_BYTES; //(256)
 		rx_prefetch_bytes_before_poll = 256; //MCE_DEFAULT_RX_PREFETCH_BYTES_BEFORE_POLL 0
@@ -680,6 +681,7 @@ void mce_sys_var::get_env_params()
 		rx_num_wr               = 256; //MCE_DEFAULT_RX_NUM_WRE (16000)
 		rx_num_wr_to_post_recv  = 4;   //MCE_DEFAULT_RX_NUM_WRE_TO_POST_RECV (64)
 		rx_poll_num             = -1;  //MCE_DEFAULT_RX_NUM_POLLS (100000)
+		enable_tso              = false; //MCE_DEFAULT_TSO (true)
 		rx_prefetch_bytes_before_poll = 256; //MCE_DEFAULT_RX_PREFETCH_BYTES_BEFORE_POLL (0)
 		select_poll_num         = -1;  //MCE_DEFAULT_SELECT_NUM_POLLS (100000)
 		avoid_sys_calls_on_tcp_fd = true; //MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD (false)

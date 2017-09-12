@@ -271,6 +271,7 @@ latency
      VMA_RX_WRE = 256                         (default: 16000)
      VMA_RX_WRE_BATCHING = 4                  (default: 64)
      VMA_RX_POLL = -1                         (default: 100000)
+     VMA_TSO = Disable                        (default: Enable)
      VMA_RX_PREFETCH_BYTES_BEFORE_POLL = 256  (default: 0)
      VMA_GRO_STREAMS_MAX = 0                  (default: 32)
      VMA_SELECT_POLL = -1                     (default: 100000)
@@ -491,6 +492,16 @@ is improved dramatically. This comes on account of CPU utilization.
 Value range is -1, 0 to 100,000,000
 Where value of -1 is used for infinite polling
 Default value is 100000
+
+VMA_TSO
+With Segmentation Offload, or TCP Large Send, TCP can pass a buffer to be
+transmitted that is bigger than the maximum transmission unit (MTU) supported
+by the medium. Intelligent adapters implement large sends by using the
+prototype TCP and IP headers of the incoming send buffer to carve out segments
+of required size. Copying the prototype header and options, then calculating
+the sequence number and checksum fields creates TCP segment headers.
+Expected benefits: Throughput increase and CPU unload.
+Default value is 1 (Enable)
 
 VMA_RX_POLL_INIT
 VMA maps all UDP sockets as potential offloaded capable. Only after the
