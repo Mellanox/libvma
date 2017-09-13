@@ -56,7 +56,7 @@ public:
 	ring_eth_cb(in_addr_t local_if,
 		    ring_resource_creation_info_t *p_ring_info, int count,
 		    bool active, uint16_t vlan, uint32_t mtu,
-		    vma_cyclic_buffer_ring_attr *mp_ring, ring *parent = NULL) throw (vma_error);
+		    vma_cyclic_buffer_ring_attr *mp_ring, ring *parent = NULL) VMA_THROW (vma_error);
 	virtual		~ring_eth_cb();
 	ibv_exp_res_domain* get_res_domain() const {return m_res_domain;};
 	uint32_t	get_wq_count() const {return m_wq_count;};
@@ -72,10 +72,10 @@ public:
 					   size_t min, size_t max, int flags);
 protected:
 	void		create_resources(ring_resource_creation_info_t* p_ring_info,
-					 bool active) throw (vma_error);
+					 bool active) VMA_THROW (vma_error);
 	virtual		qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx,
 					      uint8_t port_num,
-					      struct ibv_comp_channel* p_rx_comp_event_channel) throw (vma_error);
+					      struct ibv_comp_channel* p_rx_comp_event_channel) VMA_THROW (vma_error);
 private:
 	vma_cyclic_buffer_ring_attr	m_cb_ring;
 	vma_allocator			m_alloc;

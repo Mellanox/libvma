@@ -207,7 +207,7 @@ inline void sockinfo_tcp::reuse_buffer(mem_buf_desc_t *buff)
 	}
 }
 
-sockinfo_tcp::sockinfo_tcp(int fd) throw (vma_exception) :
+sockinfo_tcp::sockinfo_tcp(int fd) VMA_THROW (vma_exception) :
         sockinfo(fd),
         m_timer_handle(NULL),
         m_timer_pending(false),
@@ -3291,7 +3291,7 @@ bad_state:
 #define TCP_INFO         11     /* Information about this connection. */
 #define TCP_QUICKACK     12     /* Bock/reenable quick ACKs.  */
 
-int sockinfo_tcp::fcntl(int __cmd, unsigned long int __arg) throw (vma_error)
+int sockinfo_tcp::fcntl(int __cmd, unsigned long int __arg) VMA_THROW (vma_error)
 {
 	if (!safe_mce_sys().avoid_sys_calls_on_tcp_fd || !is_connected())
 		return sockinfo::fcntl(__cmd, __arg);
@@ -3322,7 +3322,7 @@ int sockinfo_tcp::fcntl(int __cmd, unsigned long int __arg) throw (vma_error)
 	return sockinfo::fcntl(__cmd, __arg);
 }
 
-int sockinfo_tcp::ioctl(unsigned long int __request, unsigned long int __arg)  throw (vma_error)
+int sockinfo_tcp::ioctl(unsigned long int __request, unsigned long int __arg)  VMA_THROW (vma_error)
 {
 	if (!safe_mce_sys().avoid_sys_calls_on_tcp_fd || !is_connected())
 		return sockinfo::ioctl(__request, __arg);
@@ -3408,7 +3408,7 @@ bool sockinfo_tcp::try_un_offloading() // un-offload the socket if possible
 ////////////////////////////////////////////////////////////////////////////////
 #define SOCKOPT_HANDLE_BY_OS -2
 int sockinfo_tcp::setsockopt(int __level, int __optname,
-                              __const void *__optval, socklen_t __optlen) throw (vma_error)
+                              __const void *__optval, socklen_t __optlen) VMA_THROW (vma_error)
 {
 	//todo check optlen and set proper errno on failure
 
@@ -3746,7 +3746,7 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 }
 
 int sockinfo_tcp::getsockopt(int __level, int __optname, void *__optval,
-		socklen_t *__optlen) throw (vma_error)
+		socklen_t *__optlen) VMA_THROW (vma_error)
 {
 	int ret = getsockopt_offload(__level, __optname, __optval, __optlen);
 	if (ret != SOCKOPT_HANDLE_BY_OS)

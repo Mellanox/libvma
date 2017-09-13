@@ -370,7 +370,7 @@ const char * setsockopt_ip_opt_to_str(int opt)
 // Throttle the amount of ring polling we do (remember last time we check for receive packets)
 tscval_t g_si_tscv_last_poll = 0;
 
-sockinfo_udp::sockinfo_udp(int fd) throw (vma_exception) :
+sockinfo_udp::sockinfo_udp(int fd) VMA_THROW (vma_exception) :
 	sockinfo(fd)
 	,m_rx_packet_processor(&sockinfo_udp::rx_process_udp_packet_full)
 	,m_mc_tx_if(INADDR_ANY)
@@ -757,7 +757,7 @@ int sockinfo_udp::set_ring_attr_helper(ring_alloc_logic_attr *sock_attr,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval, socklen_t __optlen) throw (vma_error)
+int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval, socklen_t __optlen) VMA_THROW (vma_error)
 {
 	si_udp_logfunc("level=%d, optname=%d", __level, __optname);
 
@@ -1272,7 +1272,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 	return orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
 }
 
-int sockinfo_udp::getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen) throw (vma_error)
+int sockinfo_udp::getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen) VMA_THROW (vma_error)
 {
 	si_udp_logfunc("level=%d, optname=%d", __level, __optname);
 

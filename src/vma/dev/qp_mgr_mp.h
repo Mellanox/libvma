@@ -45,7 +45,7 @@ public:
 		  const uint8_t port_num,
 		  struct ibv_comp_channel *p_rx_comp_event_channel,
 		  const uint32_t tx_num_wr, const uint16_t vlan)
-		  throw (vma_error) : qp_mgr_eth(p_ring,
+		  VMA_THROW (vma_error) : qp_mgr_eth(p_ring,
 						 p_context, port_num,
 						 p_rx_comp_event_channel,
 						 tx_num_wr, vlan, false),

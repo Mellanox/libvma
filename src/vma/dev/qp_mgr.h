@@ -211,7 +211,7 @@ public:
 		   const uint8_t port_num,
 		   struct ibv_comp_channel* p_rx_comp_event_channel,
 		   const uint32_t tx_num_wr, const uint16_t vlan,
-		   bool call_configure = true) throw (vma_error) :
+		   bool call_configure = true) VMA_THROW (vma_error) :
 			qp_mgr(p_ring, p_context, port_num, tx_num_wr), m_vlan(vlan) {
 		if(call_configure && configure(p_rx_comp_event_channel))
 			throw_vma_exception("failed creating qp");
@@ -232,7 +232,7 @@ class qp_mgr_ib : public qp_mgr
 {
 public:
 	qp_mgr_ib(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num,
-			struct ibv_comp_channel* p_rx_comp_event_channel, const uint32_t tx_num_wr, const uint16_t pkey) throw (vma_error) :
+			struct ibv_comp_channel* p_rx_comp_event_channel, const uint32_t tx_num_wr, const uint16_t pkey) VMA_THROW (vma_error) :
 	qp_mgr(p_ring, p_context, port_num, tx_num_wr), m_pkey(pkey), m_underly_qpn(0) {
 		update_pkey_index();
 		if(configure(p_rx_comp_event_channel)) throw_vma_exception("failed creating qp"); };

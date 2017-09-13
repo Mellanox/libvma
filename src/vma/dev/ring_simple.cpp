@@ -83,7 +83,7 @@ inline void ring_simple::send_status_handler(int ret, vma_ibv_send_wr* p_send_wq
 	BULLSEYE_EXCLUDE_BLOCK_END
 }
 
-qp_mgr* ring_eth::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) throw (vma_error)
+qp_mgr* ring_eth::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) VMA_THROW (vma_error)
 {
 #if defined(HAVE_INFINIBAND_MLX5_HW_H)
 	if (!m_b_is_hypervisor && qp_mgr::is_lib_mlx5(((ib_ctx_handler*)ib_ctx)->get_ibv_device()->name)) {
@@ -105,7 +105,7 @@ bool ring_eth::is_ratelimit_supported(uint32_t rate)
 #endif
 }
 
-qp_mgr* ring_ib::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) throw (vma_error)
+qp_mgr* ring_ib::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) VMA_THROW (vma_error)
 {
 	return new qp_mgr_ib(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), get_partition());
 }
@@ -116,7 +116,7 @@ bool ring_ib::is_ratelimit_supported(uint32_t rate)
 	return false;
 }
 
-ring_simple::ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, uint32_t mtu, ring* parent /*=NULL*/) throw (vma_error):
+ring_simple::ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, uint32_t mtu, ring* parent /*=NULL*/) VMA_THROW (vma_error):
 	ring(count, mtu), m_p_qp_mgr(NULL), m_p_cq_mgr_rx(NULL),
 	m_lock_ring_rx("ring_simple:lock_rx"),
 	m_b_is_hypervisor(safe_mce_sys().is_hypervisor),
@@ -237,7 +237,7 @@ ring_simple::~ring_simple()
 	ring_logdbg("delete ring() completed");
 }
 
-void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, bool active) throw (vma_error)
+void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, bool active) VMA_THROW (vma_error)
 {
 	ring_logdbg("new ring()");
 

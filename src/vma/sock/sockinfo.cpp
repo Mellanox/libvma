@@ -67,7 +67,7 @@ const char * const in_protocol_str[] = {
 };
 #endif // DEFINED_VMAPOLL
 
-sockinfo::sockinfo(int fd) throw (vma_exception):
+sockinfo::sockinfo(int fd) VMA_THROW (vma_exception):
 		socket_fd_api(fd),
 		m_b_closed(false), m_b_blocking(true), m_protocol(PROTO_UNDEFINED),
 		m_lock_rcv(MODULE_NAME "::m_lock_rcv"),
@@ -142,7 +142,7 @@ void sockinfo::set_blocking(bool is_blocked)
 	m_p_socket_stats->b_blocking = m_b_blocking;
 }
 
-int sockinfo::fcntl(int __cmd, unsigned long int __arg) throw (vma_error)
+int sockinfo::fcntl(int __cmd, unsigned long int __arg) VMA_THROW (vma_error)
 {
 	switch (__cmd) {
 	case F_SETFL:
@@ -185,7 +185,7 @@ int sockinfo::fcntl(int __cmd, unsigned long int __arg) throw (vma_error)
 	return orig_os_api.fcntl(m_fd, __cmd, __arg);
 }
 
-int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg) throw (vma_error)
+int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg) VMA_THROW (vma_error)
 {
 
 	int *p_arg = (int *)__arg;
@@ -234,7 +234,7 @@ int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg) throw 
 }
 
 #ifdef DEFINED_VMAPOLL 
-int sockinfo::setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen) throw (vma_error)
+int sockinfo::setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen) VMA_THROW (vma_error)
 {
 	int ret = -1;
 
@@ -257,7 +257,7 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 }
 #endif // DEFINED_VMAPOLL
 
-int sockinfo::getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen) throw (vma_error)
+int sockinfo::getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen) VMA_THROW (vma_error)
 {
 	int ret = -1;
 
