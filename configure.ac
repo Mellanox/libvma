@@ -229,7 +229,7 @@ return access;
 ],
 [
 AC_MSG_RESULT([yes])
-AC_DEFINE(DEFINED_IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE, 1, [Define to 1 if IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE is defined])
+AC_DEFINE(HAVE_IBV_DM, 1, [Define to 1 if IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE is defined])
 ],
 [
 AC_MSG_RESULT([no])

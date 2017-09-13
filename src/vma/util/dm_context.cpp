@@ -36,7 +36,7 @@
 #include "vma/dev/ib_ctx_handler.h"
 
 #if defined(HAVE_INFINIBAND_MLX5_HW_H)
-#if defined(DEFINED_IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE)
+#if defined(HAVE_IBV_DM)
 
 #define DM_MEMORY_MASK_4  3
 #define DM_MEMORY_MASK_64 63
@@ -194,5 +194,5 @@ dev_mem_oob:
 	return false;
 }
 
+#endif /* HAVE_IBV_DM */
 #endif /* HAVE_INFINIBAND_MLX5_HW_H */
-#endif /* DEFINED_IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE */

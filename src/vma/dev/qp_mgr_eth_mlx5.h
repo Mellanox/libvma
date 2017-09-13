@@ -61,7 +61,6 @@ private:
 	virtual cq_mgr* init_tx_cq_mgr(void);
 	virtual bool    is_compilation_need() { return !m_n_unsignaled_count || m_dm_context.dm_request_completion(); };
 	virtual void    dm_release_data(mem_buf_desc_t* buff) { m_dm_context.dm_release_data(buff); }
-	virtual void    up();
 
 	inline void	set_signal_in_next_send_wqe();
 

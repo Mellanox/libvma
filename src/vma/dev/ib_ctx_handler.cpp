@@ -161,7 +161,7 @@ ib_ctx_handler::~ib_ctx_handler() {
 
 void ib_ctx_handler::update_device_memory_size()
 {
-#ifdef DEFINED_IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE
+#if defined(HAVE_IBV_DM)
 	struct ibv_exp_device_attr attr;
 	memset(&attr, 0, sizeof(attr));
 

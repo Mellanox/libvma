@@ -161,6 +161,9 @@ void qp_mgr_eth_mlx5::up()
 {
 	init_sq();
 	qp_mgr::up();
+
+	size_t dm_bytes = m_dm_context.dm_allocate_resources(m_p_ib_ctx_handler, m_p_ring->m_p_ring_stat);
+	qp_logdbg("Allocated %d bytes of device memory", dm_bytes);
 }
 
 //! Cleanup resources QP itself will be freed by base class DTOR
@@ -180,14 +183,6 @@ qp_mgr_eth_mlx5::~qp_mgr_eth_mlx5()
 
 		m_sq_wqe_idx_to_wrid = NULL;
 	}
-}
-
-void qp_mgr_eth_mlx5::up()
-{
-	qp_mgr::up();
-
-	size_t dm_bytes = m_dm_context.dm_allocate_resources(m_p_ib_ctx_handler, m_p_ring->m_p_ring_stat);
-	qp_logdbg("Allocated %d bytes of device memory", dm_bytes);
 }
 
 cq_mgr* qp_mgr_eth_mlx5::init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_channel)

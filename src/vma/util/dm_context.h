@@ -40,7 +40,7 @@ class mem_buf_desc_t;
 class ib_ctx_handler;
 
 #if defined(HAVE_INFINIBAND_MLX5_HW_H)
-#if defined(DEFINED_IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE)
+#if defined(HAVE_IBV_DM)
 
 struct vma_mlx5_dm {
 	struct ibv_dm  ibv_dm;
@@ -80,6 +80,6 @@ public:
 	inline bool   dm_request_completion() { return false; };
 };
 
-#endif /* DEFINED_IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE */
+#endif /* HAVE_IBV_DM */
 #endif /* HAVE_INFINIBAND_MLX5_HW_H */
 #endif /* DM_CONTEXT_H */
