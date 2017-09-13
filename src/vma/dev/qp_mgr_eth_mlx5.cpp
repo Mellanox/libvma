@@ -134,7 +134,7 @@ void qp_mgr_eth_mlx5::init_sq()
 }
 
 qp_mgr_eth_mlx5::qp_mgr_eth_mlx5(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num,
-		struct ibv_comp_channel* p_rx_comp_event_channel, const uint32_t tx_num_wr, const uint16_t vlan) throw (vma_error):
+		struct ibv_comp_channel* p_rx_comp_event_channel, const uint32_t tx_num_wr, const uint16_t vlan) VMA_THROW (vma_error):
 	qp_mgr_eth(p_ring, p_context, port_num, p_rx_comp_event_channel, tx_num_wr, vlan, false)
 	,m_hw_qp(NULL)
 	,m_sq_wqe_idx_to_wrid(NULL)

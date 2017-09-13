@@ -39,7 +39,7 @@
 #define MODULE_NAME 		"rfs_mc"
 
 
-rfs_mc::rfs_mc(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* rule_filter /*= NULL*/, int flow_tag_id /*=0*/) throw (vma_exception):
+rfs_mc::rfs_mc(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* rule_filter /*= NULL*/, int flow_tag_id /*=0*/) VMA_THROW (vma_exception):
 	rfs (flow_spec_5t, p_ring, rule_filter, flow_tag_id)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START

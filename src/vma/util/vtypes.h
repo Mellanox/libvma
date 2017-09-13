@@ -67,6 +67,12 @@ static inline uint64_t ntohll(uint64_t x) { return x; }
 #define likely(x)			__builtin_expect(!!(x), 1)
 #define unlikely(x)			__builtin_expect(!!(x), 0)
 
+#if defined(__INTEL_COMPILER) || defined(__clang__) || ((defined(__GNUC__) && __GNUC__ >= 7))
+#define VMA_THROW(x)
+#else
+#define VMA_THROW(x)       throw(x)
+#endif
+
 // Check if given IP address is in a specific ip class / range
 #define ZERONET_N(a)			(((long int)(a)) == (long int)(htonl(0x00000000)))
 #define LOOPBACK_N(a)			(((long int)(a) & htonl(0xff000000)) == htonl(0x7f000000))
