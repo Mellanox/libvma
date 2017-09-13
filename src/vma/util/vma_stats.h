@@ -277,8 +277,26 @@ typedef struct sh_mem_t {
 	iomux_stats_t            iomux;
 	size_t                   max_skt_inst_num; // number of elements allocated in 'socket_instance_block_t skt_inst_arr[]'
 
-	// MUST BE LAST ENTRY in struct: [0] is the allocation start point for all fd's
-	socket_instance_block_t  skt_inst_arr[0]; //sockets statistics array
+	/* IMPORTANT:  MUST BE LAST ENTRY in struct: [0] is the allocation start point for all fd's
+	 *
+	 * Some compiler can report issue as 'array subscript is above array bounds'
+	 *
+	 * In ISO C90, you would have to give contents a length of 1,
+	 * which means either you waste space or complicate the argument to malloc.
+	 * Note:
+	 * - 1 was the portable way to go, though it was rather strange
+	 * - 0 was better at indicating intent, but not legal as far as
+	 * the Standard was concerned and supported as an extension by some compilers (including gcc)
+	 *
+	 * In ISO C99, you would use a flexible array member, which is slightly different in syntax and semantics:
+	 * - Flexible array members are written as contents[] without the 0.
+	 * - Flexible array members have incomplete type, and so the sizeof operator may not be applied.
+	 *   As a quirk of the original implementation of zero-length arrays, sizeof evaluates to zero.
+	 * - Flexible array members may only appear as the last member of a struct that is otherwise non-empty.
+	 * - A structure containing a flexible array member, or a union containing such a structure (possibly recursively),
+	 *   may not be a member of a structure or an element of an array. (However, these uses are permitted by GCC as extensions.)
+	 */
+	socket_instance_block_t  skt_inst_arr[1]; //sockets statistics array
 
 	void reset() {
 		reader_counter = 0;
