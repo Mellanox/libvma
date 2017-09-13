@@ -294,10 +294,10 @@ struct mce_sys_var {
 
 	vlog_levels_t 	log_level;
 	uint32_t	log_details;
-	char 		log_filename[FILENAME_MAX];
-	char		stats_filename[FILENAME_MAX];
-	char		stats_shmem_dirname[FILENAME_MAX];
-	char 		conf_filename[FILENAME_MAX];
+	char 		log_filename[FILE_NAME_MAX_SIZE];
+	char		stats_filename[FILE_NAME_MAX_SIZE];
+	char		stats_shmem_dirname[FILE_NAME_MAX_SIZE];
+	char 		conf_filename[FILE_NAME_MAX_SIZE];
 	bool		log_colors;
 	bool 		handle_sigintr;
 	bool		handle_segfault;

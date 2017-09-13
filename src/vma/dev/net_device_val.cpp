@@ -313,9 +313,10 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 			// find the ibv context and port num
 			for (int j=0; j<num_devices; j++) {
 				char ib_res[1024] = {0};
-				char ib_path[256] = {0};
-				sprintf(ib_path, "%s/device/resource", pp_ibv_context_list[j]->device->ibdev_path);
-				if (priv_read_file(ib_path, ib_res, 1024) <= 0) {
+				const char ib_path_format[] = "%s/device/resource";
+				char ib_path[IBV_SYSFS_PATH_MAX + sizeof(ib_path_format)] = {0};
+				snprintf(ib_path, sizeof(ib_path), ib_path_format, pp_ibv_context_list[j]->device->ibdev_path);
+				if (priv_read_file(ib_path, ib_res, sizeof(ib_res)) <= 0) {
 					continue;
 				}
 				if (strcmp(sys_res, ib_res) == 0) {
