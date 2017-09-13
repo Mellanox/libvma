@@ -104,7 +104,7 @@ public:
 	{
 		uint8_t csum = 0;
 		uint8_t* pval = (uint8_t*)this;
-		for (size_t i = 0; i < (sizeof(flow_tuple)-STR_MAX_LENGTH); ++i, ++pval) { csum ^= *pval; }
+		for (size_t i = 0; i < (sizeof(flow_tuple) - sizeof(m_str)); ++i, ++pval) { csum ^= *pval; }
 		return csum;
 	}
 #if _BullseyeCoverage
@@ -156,7 +156,7 @@ public:
 	{
 		uint8_t csum = 0;
 		uint8_t* pval = (uint8_t*)this;
-		for (size_t i = 0; i < (sizeof(flow_tuple_with_local_if)-STR_MAX_LENGTH); ++i, ++pval) { csum ^= *pval; }
+		for (size_t i = 0; i < (sizeof(flow_tuple_with_local_if) - sizeof(m_str)); ++i, ++pval) { csum ^= *pval; }
 		return csum;
 	}
 

@@ -161,7 +161,7 @@ bool flow_tuple::is_3_tuple()
 void flow_tuple::set_str()
 {
 	/* cppcheck-suppress wrongPrintfScanfArgNum */
-	snprintf(m_str, STR_MAX_LENGTH, "dst:%d.%d.%d.%d:%d, src:%d.%d.%d.%d:%d, protocol:%s",
+	snprintf(m_str, sizeof(m_str), "dst:%hhu.%hhu.%hhu.%hhu:%hu, src:%hhu.%hhu.%hhu.%hhu:%hu, proto:%s",
 			NIPQUAD(m_dst_ip), ntohs(m_dst_port),
 			NIPQUAD(m_src_ip), ntohs(m_src_port),
 			__vma_get_protocol_str(m_protocol));
@@ -174,7 +174,7 @@ void flow_tuple::set_str()
 void flow_tuple_with_local_if::set_str()
 {
 	/* cppcheck-suppress wrongPrintfScanfArgNum */
-	snprintf(m_str, STR_MAX_LENGTH, "dst:%d.%d.%d.%d:%d, src:%d.%d.%d.%d:%d, protocol:%s, local if:%d.%d.%d.%d",
+	snprintf(m_str, sizeof(m_str), "dst:%hhu.%hhu.%hhu.%hhu:%hu, src:%hhu.%hhu.%hhu.%hhu:%hu, proto:%s, if:%hhu.%hhu.%hhu.%hhu",
 			NIPQUAD(m_dst_ip), ntohs(m_dst_port),
 			NIPQUAD(m_src_ip), ntohs(m_src_port),
 			__vma_get_protocol_str(m_protocol), NIPQUAD(m_local_if));

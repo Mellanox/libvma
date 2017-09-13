@@ -429,9 +429,10 @@ bool net_device_table_mgr::verify_eth_qp_creation(const char* ifname, uint8_t po
 	priv_safe_read_file(resource_path, sys_res, 1024);
 	for (int j=0; j<num_devices; j++) {
 		char ib_res[1024] = {0};
-		char ib_path[256] = {0};
-		sprintf(ib_path, "%s/device/resource", pp_ibv_context_list[j]->device->ibdev_path);
-		priv_safe_read_file(ib_path, ib_res, 1024);
+		const char ib_path_format[] = "%s/device/resource";
+		char ib_path[IBV_SYSFS_PATH_MAX + sizeof(ib_path_format)] = {0};
+		snprintf(ib_path, sizeof(ib_path), ib_path_format, pp_ibv_context_list[j]->device->ibdev_path);
+		priv_safe_read_file(ib_path, ib_res, sizeof(ib_res));
 		if (strcmp(sys_res, ib_res) == 0) {
 			//create qp resources
 			ib_ctx_handler* p_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(pp_ibv_context_list[j]);

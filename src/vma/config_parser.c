@@ -117,7 +117,7 @@ static void __vma_set_ipv4_addr(short a0, short a1, short a2, short a3)
   
 	p_ipv4 = &(__vma_address_port_rule->ipv4);
   
-	sprintf(buf,"%d.%d.%d.%d", a0, a1, a2, a3);
+	snprintf(buf, sizeof(buf), "%hd.%hd.%hd.%hd", a0, a1, a2, a3);
 	if (1 != inet_pton(AF_INET, (const char*)buf, p_ipv4)) {
 		parse_err = 1;
 		yyerror("provided address is not legal");

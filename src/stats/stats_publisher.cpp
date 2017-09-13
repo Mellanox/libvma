@@ -187,7 +187,11 @@ void vma_shmem_stats_open(vlog_levels_t** p_p_vma_log_level, uint8_t** p_p_vma_l
 
 	g_sh_mem_info.filename_sh_stats[0] = '\0';
 	g_sh_mem_info.p_sh_stats = MAP_FAILED;
-	sprintf(g_sh_mem_info.filename_sh_stats, "%s/vmastat.%d", safe_mce_sys().stats_shmem_dirname, getpid());
+	ret = snprintf(g_sh_mem_info.filename_sh_stats, sizeof(g_sh_mem_info.filename_sh_stats), "%s/vmastat.%d", safe_mce_sys().stats_shmem_dirname, getpid());
+	if (!((0 < ret) && (ret < (int)sizeof(g_sh_mem_info.filename_sh_stats)))) {
+		vlog_printf(VLOG_ERROR, "%s: Could not create file under %s %m\n", __func__, safe_mce_sys().stats_shmem_dirname, errno);
+		goto no_shmem;
+	}
 	saved_mode = umask(0);
 	g_sh_mem_info.fd_sh_stats = open(g_sh_mem_info.filename_sh_stats, O_CREAT|O_RDWR, S_IRWXU | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
 	umask(saved_mode);
