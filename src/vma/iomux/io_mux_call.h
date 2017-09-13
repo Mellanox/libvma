@@ -103,7 +103,7 @@ public:
 	/**
 	 * Prepare to poll on fds
 	 */
-	virtual void prepare_to_poll() = 0;
+	virtual void prepare_to_poll() {};
 
 	/**
 	 * Prepare to block on fds.
@@ -173,7 +173,7 @@ public:
 
 	virtual void check_offloaded_rsockets(uint64_t *p_poll_sn);
 
-	virtual bool immidiate_return();
+	virtual bool immidiate_return(int &poll_os_countdown);
 	/**
 	 * @class io_error
 	 * Exception by OS IO functions.

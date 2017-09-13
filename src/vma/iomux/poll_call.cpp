@@ -115,11 +115,6 @@ poll_call::poll_call(int *off_rfds_buffer, offloaded_mode_t *off_modes_buffer, i
 	__log_func("num all offloaded_fds=%d", m_num_all_offloaded_fds);
 }
 
-void poll_call::prepare_to_poll()
-{
-	// Empty
-}
-
 void poll_call::prepare_to_block()
 {
 	m_cqepfd = g_p_net_device_table_mgr->global_ring_epfd_get();

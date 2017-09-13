@@ -221,18 +221,16 @@ inline cls* fd_collection::get(int fd, cls **map_type)
 
 inline bool fd_collection::set_immediate_os_sample(int fd)
 {
-	bool ret = false;
 	epfd_info* epfd_fd;
 
-	lock();
+	auto_unlocker locker(*this);
 
 	if ((epfd_fd = get_epfd(fd))){
 		epfd_fd->set_immediate_os_sample();
-		ret = true;
+		return true;
 	}
 
-	unlock();
-	return ret;
+	return false;
 }
 
 inline socket_fd_api* fd_collection::get_sockfd(int fd)

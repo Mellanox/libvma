@@ -63,9 +63,6 @@ public:
 	virtual void set_offloaded_efd_ready(int fd_index, int errors);
 
 	/// @override
-	virtual void prepare_to_poll();
-
-	/// @override
 	virtual void prepare_to_block();
  
 	/// @override

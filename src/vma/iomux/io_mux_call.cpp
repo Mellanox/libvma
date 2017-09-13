@@ -281,29 +281,18 @@ void io_mux_call::polling_loops()
 {
 	int poll_counter;
 	int check_timer_countdown = 1; // Poll once before checking the time
-	int poll_os_countdown;
+	int poll_os_countdown = 0;
 	bool multiple_polling_loops, finite_polling;
 	timeval before_polling_timer = TIMEVAL_INITIALIZER, after_polling_timer = TIMEVAL_INITIALIZER, delta;
 
-	prepare_to_poll();
-
-	if(immidiate_return()) return;
+	if(immidiate_return(poll_os_countdown)) {
+		return;
+	}
 
 #ifdef VMA_TIME_MEASURE
 	TAKE_T_POLL_START;
 	ZERO_POLL_COUNT;
 #endif
-
-	/*
-	 * Give OS priority in 1 of SELECT_SKIP_OS times
-	 * In all other times, OS is never polled first (even if ratio is 1).
-	 */
-	if (--m_n_skip_os_count <= 0) {
-		m_n_skip_os_count = m_n_sysvar_select_skip_os_fd_check;
-		poll_os_countdown = 0;
-	} else {
-		poll_os_countdown = m_n_sysvar_select_poll_os_ratio;
-	}
 
 	poll_counter = 0;
 	finite_polling = m_n_sysvar_select_poll_num != -1;
@@ -336,8 +325,8 @@ void io_mux_call::polling_loops()
 		              poll_os_countdown, m_n_sysvar_select_poll_os_ratio, check_timer_countdown, *m_p_num_all_offloaded_fds,
 		              m_n_all_ready_fds, m_n_ready_rfds, m_n_ready_wfds, m_n_ready_efds, multiple_polling_loops);
 
-		// TODO explain break
 		if (handle_os_countdown(poll_os_countdown)) {
+			// Break if non-offloaded data was found.
 			break;
 		}
 
@@ -534,7 +523,10 @@ int io_mux_call::call()
 
 //check if we found anything in the constructor of select and poll
 //override in epoll
-bool io_mux_call::immidiate_return(){
+bool io_mux_call::immidiate_return(int &poll_os_countdown){
+
+	prepare_to_poll();
+
 	if(m_n_all_ready_fds){
 		m_n_ready_rfds = 0; //will be counted again in check_rfd_ready_array()
 		m_n_all_ready_fds = 0;
@@ -542,6 +534,18 @@ bool io_mux_call::immidiate_return(){
 		ring_poll_and_process_element(&m_poll_sn, NULL);
 		return true;
 	}
+
+	/*
+	 * Give OS priority in 1 of SELECT_SKIP_OS times
+	 * In all other times, OS is never polled first (even if ratio is 1).
+	 */
+	if (--m_n_skip_os_count <= 0) {
+		m_n_skip_os_count = m_n_sysvar_select_skip_os_fd_check;
+		poll_os_countdown = 0;
+	} else {
+		poll_os_countdown = m_n_sysvar_select_poll_os_ratio;
+	}
+
 	return false;
 }
 

@@ -54,7 +54,8 @@ int epfd_info::remove_fd_from_epoll_os(int fd)
 
 epfd_info::epfd_info(int epfd, int size) :
 	lock_mutex_recursive("epfd_info"), m_epfd(epfd), m_size(size), m_ring_map_lock("epfd_ring_map_lock"),
-	m_sysvar_thread_mode(safe_mce_sys().thread_mode), m_b_os_data_available(false)
+	m_lock_poll_os("epfd_lock_poll_os"), m_sysvar_thread_mode(safe_mce_sys().thread_mode),
+	m_b_os_data_available(false)
 {
 	__log_funcall("");
 	int max_sys_fd = get_sys_max_fd_num();
@@ -775,25 +776,23 @@ void epfd_info::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 
 void epfd_info::set_immediate_os_sample()
 {
-	lock();
+	auto_unlocker locker(m_lock_poll_os);
 	m_b_os_data_available = true;
-	unlock();
 }
 
 void epfd_info::unset_immediate_os_sample()
 {
-	lock();
-	// Reassign EPOLLIN event
+	auto_unlocker locker(m_lock_poll_os);
 	m_b_os_data_available = false;
+
+	// Reassign EPOLLIN event
 	g_p_event_handler_manager->update_epfd(m_epfd, EPOLL_CTL_MOD, EPOLLIN | EPOLLPRI | EPOLLONESHOT);
-	unlock();
 }
 
-bool epfd_info::is_os_data_available() {
-	lock();
+bool epfd_info::get_and_unset_os_data_available()
+{
+	auto_unlocker locker(m_lock_poll_os);
 	bool ret = m_b_os_data_available;
 	m_b_os_data_available = false;
-	unlock();
 	return ret;
 }
-

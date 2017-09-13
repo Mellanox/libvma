@@ -63,9 +63,6 @@ public:
 	/// @override
 	virtual void set_offloaded_rfd_ready(int fd_index);
 	virtual void set_offloaded_wfd_ready(int fd_index);
-        
-	/// @override
-	virtual void prepare_to_poll();
 
 	/// @override
 	virtual void prepare_to_block();
@@ -95,7 +92,7 @@ public:
 	virtual void unlock();
 
 	/// @override
-	virtual bool immidiate_return();
+	virtual bool immidiate_return(int &poll_os_countdown);
 
 	/// @override
 	virtual bool check_all_offloaded_sockets(uint64_t *p_poll_sn);

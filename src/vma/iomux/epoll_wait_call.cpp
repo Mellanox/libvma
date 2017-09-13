@@ -156,11 +156,6 @@ epoll_wait_call::~epoll_wait_call()
 {
 }
 
-void epoll_wait_call::prepare_to_poll()
-{
-	// Empty
-}
-
 void epoll_wait_call::prepare_to_block()
 {
 	// Empty
@@ -335,8 +330,9 @@ bool epoll_wait_call::check_all_offloaded_sockets(uint64_t *p_poll_sn)
 	return m_n_all_ready_fds;
 }
 
-bool epoll_wait_call::immidiate_return()
+bool epoll_wait_call::immidiate_return(int &poll_os_countdown)
 {
+	NOT_IN_USE(poll_os_countdown);
 	return false;
 }
 
@@ -368,13 +364,12 @@ bool epoll_wait_call::handle_os_countdown(int &poll_os_countdown)
 {
 	NOT_IN_USE(poll_os_countdown);
 
-	if (!m_epfd_info->is_os_data_available()) {
+	if (!m_epfd_info->get_os_data_available() || !m_epfd_info->get_and_unset_os_data_available()) {
 		return false;
 	}
 
 	/*
-	 * Poll OS when count down reaches zero. This honors CQ-OS ratio.
-	 * This also handles the 0 ratio case - do not poll OS at all.
+	 * Poll OS when the internal thread found non offloaded data.
 	 */
 	bool cq_ready = wait_os(true);
 
