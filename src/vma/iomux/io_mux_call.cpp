@@ -252,8 +252,7 @@ bool io_mux_call::handle_os_countdown(int &poll_os_countdown)
 	 * This also handles the 0 ratio case - do not poll OS at all.
 	 */
 	if (poll_os_countdown-- == 0 && m_n_sysvar_select_poll_os_ratio > 0) {
-		bool cq_ready = wait_os(true);
-		if (cq_ready) {
+		if (wait_os(true)) {
 			// This will empty the cqepfd
 			// (most likely in case of a wakeup and probably only under epoll_wait (Not select/poll))
 			ring_wait_for_notification_and_process_element(&m_poll_sn, NULL);
