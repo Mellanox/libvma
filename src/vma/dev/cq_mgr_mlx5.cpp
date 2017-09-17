@@ -59,6 +59,7 @@ cq_mgr_mlx5::cq_mgr_mlx5(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler,
 	,m_cqes(NULL)
 	,m_cq_dbell(NULL)
 	,m_rq(NULL)
+	,m_cqe_log_sz(0)
 	,m_rx_hot_buffer(NULL)
 	,m_p_rq_wqe_idx_to_wrid(NULL)
 	,m_qp(NULL)
@@ -125,7 +126,7 @@ mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
 			m_rx_hot_buffer = (mem_buf_desc_t *)m_p_rq_wqe_idx_to_wrid[index];
 			m_p_rq_wqe_idx_to_wrid[index] = 0;
 			prefetch((void*)m_rx_hot_buffer);
-			prefetch((void*)&(*m_cqes)[m_cq_cons_index & (m_cq_size - 1)]);
+			prefetch((uint8_t*)m_cqes + ((m_cq_cons_index & (m_cq_size - 1)) << m_cqe_log_sz));
 		} else {
 #ifdef RDTSC_MEASURE_RX_VERBS_IDLE_POLL
 			RDTSC_TAKE_END(RDTSC_FLOW_RX_VERBS_IDLE_POLL);
@@ -171,7 +172,7 @@ mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
 		prefetch((void*)m_rx_hot_buffer);
 	}
 
-	prefetch((void*)&(*m_cqes)[m_cq_cons_index & (m_cq_size - 1)]);
+	prefetch((uint8_t*)m_cqes + ((m_cq_cons_index & (m_cq_size - 1)) << m_cqe_log_sz));
 
 	return buff;
 }
@@ -471,7 +472,8 @@ inline volatile struct mlx5_cqe64* cq_mgr_mlx5::check_error_completion(volatile 
 inline volatile struct mlx5_cqe64 *cq_mgr_mlx5::get_cqe64(volatile struct mlx5_cqe64 **cqe_err)
 {
 
-	volatile struct mlx5_cqe64 *cqe= &(*m_cqes)[m_cq_cons_index & (m_cq_size - 1)];
+	volatile struct mlx5_cqe64 *cqe = (volatile struct mlx5_cqe64 *)(((uint8_t*)m_cqes) +
+			((m_cq_cons_index & (m_cq_size - 1)) << m_cqe_log_sz));
 	uint8_t op_own = cqe->op_own;
 
 	*cqe_err = NULL;
@@ -567,14 +569,15 @@ void cq_mgr_mlx5::set_qp_rq(qp_mgr* qp)
 	struct ibv_cq *ibcq = m_p_ibv_cq; // ibcp is used in next macro: _to_mxxx
 	struct mlx5_cq *mlx5_cq = _to_mxxx(cq, cq);
 	struct verbs_qp *vqp = (struct verbs_qp *)qp->m_qp;
-	struct mlx5_qp * mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
+	struct mlx5_qp *mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
 
 	m_rq = &(mlx5_hw_qp->rq);
 	m_p_rq_wqe_idx_to_wrid = qp->m_rq_wqe_idx_to_wrid;
 	qp->m_rq_wqe_counter = 0; /* In case of bonded qp, wqe_counter must be reset to zero */
 	m_rx_hot_buffer = NULL;
 	m_cq_dbell = mlx5_cq->dbrec;
-	m_cqes = (struct mlx5_cqe64 (*)[])(uintptr_t)mlx5_cq->active_buf->buf;
+	m_cqe_log_sz = ilog_2(mlx5_cq->cqe_sz);
+	m_cqes = ((uint8_t*)mlx5_cq->active_buf->buf) + mlx5_cq->cqe_sz - sizeof(struct mlx5_cqe64);
 }
 
 void cq_mgr_mlx5::add_qp_rx(qp_mgr* qp)
@@ -618,7 +621,8 @@ void cq_mgr_mlx5::add_qp_tx(qp_mgr* qp)
 	struct mlx5_cq *mlx5_cq = _to_mxxx(cq, cq);
 	m_qp = static_cast<qp_mgr_eth_mlx5*> (qp);
 	m_cq_dbell = mlx5_cq->dbrec;
-	m_cqes = (struct mlx5_cqe64 (*)[])(uintptr_t)mlx5_cq->active_buf->buf;
+	m_cqe_log_sz = ilog_2(mlx5_cq->cqe_sz);
+	m_cqes = ((uint8_t*)mlx5_cq->active_buf->buf) + mlx5_cq->cqe_sz - sizeof(struct mlx5_cqe64);
 	cq_logfunc("qp_mgr=%p m_cq_dbell=%p m_cqes=%p", m_qp, m_cq_dbell, m_cqes);
 }
 
