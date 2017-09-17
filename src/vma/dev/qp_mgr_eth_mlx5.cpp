@@ -149,6 +149,7 @@ qp_mgr_eth_mlx5::qp_mgr_eth_mlx5(const ring_simple* p_ring, const ib_ctx_handler
 	,m_sq_bf_offset(0)
 	,m_sq_bf_buf_size(0)
 	,m_sq_wqe_counter(0)
+	,m_dm_enabled(0)
 {
 	if(configure(p_rx_comp_event_channel)) {
 		throw_vma_exception("failed creating qp_mgr_eth");
@@ -162,8 +163,14 @@ void qp_mgr_eth_mlx5::up()
 	init_sq();
 	qp_mgr::up();
 
-	size_t dm_bytes = m_dm_context.dm_allocate_resources(m_p_ib_ctx_handler, m_p_ring->m_p_ring_stat);
-	qp_logdbg("Allocated %d bytes of device memory", dm_bytes);
+	m_dm_enabled = m_dm_context.dm_allocate_resources(m_p_ib_ctx_handler, m_p_ring->m_p_ring_stat);
+}
+
+void qp_mgr_eth_mlx5::down()
+{
+	m_dm_context.dm_release_resources();
+
+	qp_mgr::down();
 }
 
 //! Cleanup resources QP itself will be freed by base class DTOR
@@ -302,7 +309,7 @@ inline int qp_mgr_eth_mlx5::fill_ptr_segment(sg_array &sga, struct mlx5_wqe_data
 		dp_seg->byte_count = htonl(len);
 
 		// Try to copy data to device memory
-		if (m_dm_context.dm_is_enabled() && m_dm_context.dm_copy_data(dp_seg, data_addr, data_len, buffer)) {
+		if (m_dm_enabled && m_dm_context.dm_copy_data(dp_seg, data_addr, data_len, buffer)) {
 			dev_mem_seg = true;
 		}
 

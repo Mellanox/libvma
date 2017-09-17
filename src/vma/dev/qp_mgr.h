@@ -106,7 +106,7 @@ public:
 	virtual ~qp_mgr();
 
 	virtual void        up();
-	void                down();
+	virtual void        down();
 
 	int                 post_recv(mem_buf_desc_t* p_mem_buf_desc); // Post for receive a list of mem_buf_desc
 	int                 send(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);

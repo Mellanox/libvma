@@ -437,8 +437,12 @@ Use a value of 0 for unlimited number of rings.
 Default value is 0 (no limit)
 
 VMA_RING_DEV_MEM_TX
-Limit the number of device memory
-Use a value of 0 in oreder to disable
+VMA can use the on device memory to store the egress packet if it does not fit into
+the BF inline buffer. This improves application egress latency by reducing PCI transactions.
+Using VMA_RING_DEV_MEM_TX, the user can set the amount of on device memory buffer allocated
+for each TX ring.
+The total size of the on device memory is limited to 256k for a single port HCA and to
+128k for dual port HCA.
 Default value is 0
 
 VMA_RX_BUFS

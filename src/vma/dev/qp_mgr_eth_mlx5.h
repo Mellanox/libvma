@@ -50,6 +50,7 @@ public:
 			struct ibv_comp_channel* p_rx_comp_event_channel, const uint32_t tx_num_wr, const uint16_t vlan) throw (vma_error);
 	virtual ~qp_mgr_eth_mlx5();
 	virtual void up();
+	virtual void down();
 
 protected:
 	void			trigger_completion_for_all_sent_packets();
@@ -85,6 +86,7 @@ private:
 	uint16_t            m_sq_bf_buf_size;
 	uint16_t            m_sq_wqe_counter;
 	dm_context          m_dm_context;
+	bool                m_dm_enabled;
 };
 #endif //defined(HAVE_INFINIBAND_MLX5_HW_H)
 #endif //QP_MGR_ETH_MLX5_H

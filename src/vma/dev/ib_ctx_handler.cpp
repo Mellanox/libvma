@@ -57,7 +57,7 @@
 
 ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx_time_converter_mode) :
 	m_flow_tag_enabled(false)
-	, m_device_memory(0)
+	, m_on_device_memory(0)
 	, m_removed(false)
 	, m_conf_attr_rx_num_wre(0)
 	, m_conf_attr_tx_num_to_signal(0)
@@ -137,7 +137,8 @@ ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx
 	} ENDIF_VERBS_FAILURE;
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	update_device_memory_size();
+	// Query device for on device memory capabilities
+	update_on_device_memory_size();
 
 	ibch_logdbg("ibv device '%s' [%p] has %d port%s. Vendor Part Id: %d, FW Ver: %s, max_qp_wr=%d",
 			m_p_ibv_device->name, m_p_ibv_device, m_ibv_device_attr.phys_port_cnt, ((m_ibv_device_attr.phys_port_cnt>1)?"s":""),
@@ -159,7 +160,7 @@ ib_ctx_handler::~ib_ctx_handler() {
 	BULLSEYE_EXCLUDE_BLOCK_END
 }
 
-void ib_ctx_handler::update_device_memory_size()
+void ib_ctx_handler::update_on_device_memory_size()
 {
 #if defined(HAVE_IBV_DM)
 	struct ibv_exp_device_attr attr;
@@ -171,11 +172,11 @@ void ib_ctx_handler::update_device_memory_size()
 		return;
 	}
 
-	m_device_memory = attr.max_dm_size;
+	m_on_device_memory = attr.max_dm_size;
 
 #endif
 
-	ibch_logdbg("Device %s [%p] supports %zu bytes of device memory", m_p_ibv_device->name, m_p_ibv_device, m_device_memory);
+	ibch_logdbg("ibv device '%s' [%p] supports %zu bytes of on device memory", m_p_ibv_device->name, m_p_ibv_device, m_on_device_memory);
 }
 
 ts_conversion_mode_t ib_ctx_handler::get_ctx_time_converter_status()
