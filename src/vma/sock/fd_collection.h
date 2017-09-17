@@ -226,7 +226,7 @@ inline bool fd_collection::set_immediate_os_sample(int fd)
 	auto_unlocker locker(*this);
 
 	if ((epfd_fd = get_epfd(fd))){
-		epfd_fd->set_immediate_os_sample();
+		epfd_fd->set_os_data_available();
 		return true;
 	}
 

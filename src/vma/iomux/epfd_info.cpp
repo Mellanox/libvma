@@ -774,13 +774,13 @@ void epfd_info::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 	}
 }
 
-void epfd_info::set_immediate_os_sample()
+void epfd_info::set_os_data_available()
 {
 	auto_unlocker locker(m_lock_poll_os);
 	m_b_os_data_available = true;
 }
 
-void epfd_info::unset_immediate_os_sample()
+void epfd_info::register_to_internal_thread()
 {
 	auto_unlocker locker(m_lock_poll_os);
 	m_b_os_data_available = false;

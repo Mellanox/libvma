@@ -102,10 +102,17 @@ public:
 
 	void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);
 
-	// Instructing the socket to immediately sample/un-sample the OS in receive flow
-	void set_immediate_os_sample();
-	void unset_immediate_os_sample();
+	// Called from the internal thread to mark that non offloaded data is available.
+	void set_os_data_available();
+
+	// Register this epfd to the internal thread, Called after non offloaded data has been received.
+	void register_to_internal_thread();
+
+	// Thread safe function which returns true if non offloaded data is available.
+	// Will also set m_b_os_data_available to false.
 	bool get_and_unset_os_data_available();
+
+	// Returns true if non offloaded data is available.
 	inline bool get_os_data_available() {return m_b_os_data_available;}
 
 	static inline size_t epfd_info_node_offset(void) {return NODE_OFFSET(epfd_info, epfd_info_node);}
@@ -127,7 +134,7 @@ private:
 	epoll_stats_t          m_local_stats;
 	epoll_stats_t          *m_stats;
 	int                    m_log_invalid_events;
-	bool                   m_b_os_data_available; // true when not offloaded data is available
+	bool                   m_b_os_data_available; // true when non offloaded data is available
 
 	int add_fd(int fd, epoll_event *event);
 	int del_fd(int fd, bool passthrough = false);

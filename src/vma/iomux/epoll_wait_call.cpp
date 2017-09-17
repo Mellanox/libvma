@@ -373,7 +373,7 @@ bool epoll_wait_call::handle_os_countdown(int &poll_os_countdown)
 	 */
 	bool cq_ready = wait_os(true);
 
-	m_epfd_info->unset_immediate_os_sample();
+	m_epfd_info->register_to_internal_thread();
 
 	if (cq_ready) {
 		// This will empty the cqepfd
