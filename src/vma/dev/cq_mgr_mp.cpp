@@ -136,7 +136,6 @@ int cq_mgr_mp::poll_mp_cq(uint16_t &size, uint32_t &strides_used,
 		}
 		++m_cq_cons_index;
 		prefetch((uint8_t*)m_cqes + ((m_cq_cons_index & (m_cq_size - 1)) << m_cqe_log_sz));
-
 	} else {
 		size = 0;
 		flags = 0;
