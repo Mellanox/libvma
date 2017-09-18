@@ -473,7 +473,7 @@ void print_vma_global_settings()
 		VLOG_PARAM_NUMSTR("Ring limit per interface", safe_mce_sys().ring_limit_per_interface, MCE_DEFAULT_RING_LIMIT_PER_INTERFACE, SYS_VAR_RING_LIMIT_PER_INTERFACE, "(no limit)");
 	}
 
-	VLOG_PARAM_NUMBER("Ring device memory TX", safe_mce_sys().ring_dev_mem_tx, MCE_DEFAULT_RING_DEV_MEM_TX, SYS_VAR_RING_DEV_MEM_TX);
+	VLOG_PARAM_NUMBER("Ring On Device Memory TX", safe_mce_sys().ring_dev_mem_tx, MCE_DEFAULT_RING_DEV_MEM_TX, SYS_VAR_RING_DEV_MEM_TX);
 
 	if (safe_mce_sys().tcp_max_syn_rate) {
 		VLOG_PARAM_NUMSTR("TCP max syn rate", safe_mce_sys().tcp_max_syn_rate, MCE_DEFAULT_TCP_MAX_SYN_RATE, SYS_VAR_TCP_MAX_SYN_RATE, "(per sec)");

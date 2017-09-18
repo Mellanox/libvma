@@ -74,11 +74,11 @@ private:
 
 class dm_context {
 public:
-	inline bool   dm_allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* ring_stats) { NOT_IN_USE(ib_ctx); NOT_IN_USE(ring_stats); return 0; };
+	inline bool   dm_allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* ring_stats) { NOT_IN_USE(ib_ctx); NOT_IN_USE(ring_stats); return false; };
 	inline void   dm_release_resources() {};
 	inline bool   dm_copy_data(struct mlx5_wqe_data_seg* seg, uint8_t* src, uint32_t length, mem_buf_desc_t* buff) { NOT_IN_USE(seg); NOT_IN_USE(src); NOT_IN_USE(length); NOT_IN_USE(buff); return false; };
 	inline void   dm_release_data(mem_buf_desc_t* buff) { NOT_IN_USE(buff); };
-	inline bool   dm_request_completion() { return false; };
+	inline bool   dm_is_compilation_need() { return false; };
 };
 
 #endif /* HAVE_IBV_DM */

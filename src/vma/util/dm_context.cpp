@@ -194,6 +194,8 @@ void dm_context::dm_release_resources()
 bool dm_context::dm_copy_data(struct mlx5_wqe_data_seg* seg, uint8_t* src, uint32_t length, mem_buf_desc_t* buff)
 {
 	uint32_t length_aligned_4 = DM_ALIGN_SIZE(length, DM_MEMORY_MASK_4);
+	__int128 data_128 = 0;
+	uint32_t data_32 = 0, offset = 0;
 	size_t continuous_left = 0;
 	size_t &dev_mem_length = buff->tx.dev_mem_length = 0;
 
@@ -219,7 +221,23 @@ bool dm_context::dm_copy_data(struct mlx5_wqe_data_seg* seg, uint8_t* src, uint3
 	}
 
 	// Data must be aligned to 4 bytes
-	memcpy(m_p_mlx5_dm->start_va + m_head, src, length_aligned_4);
+	while (offset <= length_aligned_4 - sizeof(data_128)) {
+		memcpy(&data_128, src + offset, sizeof(data_128));
+		*((volatile __int128 *)(m_p_mlx5_dm->start_va + m_head + offset)) = data_128;
+		offset += sizeof(data_128);
+	}
+
+	while (offset <= length_aligned_4 - sizeof(data_32)) {
+		memcpy(&data_32, src + offset, sizeof(data_32));
+		*((volatile uint32_t *)(m_p_mlx5_dm->start_va + m_head + offset)) = data_32;
+		offset += sizeof(data_32);
+	}
+
+	if (offset < length_aligned_4) {
+		data_32 = 0;
+		memcpy(&data_32, src + offset, length - offset);
+		*((volatile uint32_t *)(m_p_mlx5_dm->start_va + m_head + offset)) = data_32;
+	}
 
 	// Update values
 	seg->lkey = htonl(m_p_dm_mr->lkey);
