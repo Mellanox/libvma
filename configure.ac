@@ -217,23 +217,13 @@ AS_IF([test "x$enable_exp_cq" == xyes],
 	  AC_MSG_RESULT([no])
 	])
 )
-
-# Device Memory
-AC_MSG_CHECKING([if IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE is defined])
-AC_TRY_LINK(
-#include <infiniband/verbs_exp.h>
-,
-[
-int access = (int)IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE;
-return access;
-],
-[
-AC_MSG_RESULT([yes])
-AC_DEFINE(HAVE_IBV_DM, 1, [Define to 1 if IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE is defined])
-],
-[
-AC_MSG_RESULT([no])
-])
+#
+# On Device Memory
+#
+AC_CHECK_DECL([IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE],
+[AC_DEFINE(HAVE_IBV_DM, 1, [Define to 1 if IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE is defined])],
+[],
+[[#include <infiniband/verbs_exp.h>]])
 
 #
 # VMAPOLL

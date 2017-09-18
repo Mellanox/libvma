@@ -42,6 +42,8 @@ class ib_ctx_handler;
 #if defined(HAVE_INFINIBAND_MLX5_HW_H)
 #if defined(HAVE_IBV_DM)
 
+#define DM_COMPLIATION_THRESHOLD 8192
+
 struct vma_mlx5_dm {
 	struct ibv_dm  ibv_dm;
 	size_t         length;
@@ -56,7 +58,7 @@ public:
 	void          dm_release_resources();
 	bool          dm_copy_data(struct mlx5_wqe_data_seg* seg, uint8_t* src, uint32_t length, mem_buf_desc_t* buff);
 	void          dm_release_data(mem_buf_desc_t* buff);
-	inline bool   dm_request_completion() { return m_used >  m_allocation / 2; };
+	inline bool   dm_is_compilation_need() { return m_allocation - m_used < DM_COMPLIATION_THRESHOLD; };
 
 private:
 

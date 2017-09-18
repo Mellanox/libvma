@@ -73,12 +73,12 @@ bool dm_context::dm_allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* rin
 	m_p_ring_stat = ring_stats;
 
 	if (!allocation_size) {
-		// Device memory usage was disabled by the user
+		// On Device Memory usage was disabled by the user
 		return false;
 	}
 
 	if (!ib_ctx->get_on_device_memory_size()) {
-		// Device memory usage is not supported
+		// On Device Memory usage is not supported
 		return false;
 	}
 
@@ -91,14 +91,16 @@ bool dm_context::dm_allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* rin
 	mr_attr.mem_type.dev_mem.offset = 0;
 	mr_attr.comp_mask = 0;
 
-	// Allocate device memory buffer
+	// Allocate on device memory buffer
 	ibv_dm = ibv_exp_alloc_dm(ib_ctx->get_ibv_context(), &dm_attr);
 	if (!ibv_dm) {
-		dmc_logerr("ibv_exp_alloc_dm() error - device memory allocation failed, %d %m", errno);
+		// Memory allocation can fail if we have already allocated the maximum possible.
+		dmc_logdbg("ibv_exp_alloc_dm() error - On Device Memory allocation failed, %d %m", errno);
+		errno = 0;
 		return false;
 	}
 
-	// Register device memory MR
+	// Register On Device Memory MR
 	mr_attr.mem_type.dev_mem.dm = ibv_dm;
 	m_p_dm_mr = ibv_reg_mr_ex(ib_ctx->get_ibv_pd(), &mr_attr);
 	if (!m_p_dm_mr) {
@@ -111,7 +113,7 @@ bool dm_context::dm_allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* rin
 	m_p_mlx5_dm = reinterpret_cast<struct vma_mlx5_dm *> (ibv_dm);
 	m_p_ring_stat->n_tx_dev_mem_allocated = m_allocation;
 
-	dmc_logwarn("Device memory allocation completed successfully! device[%s] bytes[%zu] dm_mr handle[%d] dm_mr lkey[%d]",
+	dmc_logdbg("Device memory allocation completed successfully! device[%s] bytes[%zu] dm_mr handle[%d] dm_mr lkey[%d]",
 			ib_ctx->get_ibv_device()->name, dm_attr.length, m_p_dm_mr->handle, m_p_dm_mr->lkey);
 
 	return true;
@@ -142,15 +144,15 @@ void dm_context::dm_release_resources()
 
 	m_p_ring_stat = NULL;
 
-	dmc_logwarn("Device memory release completed!");
+	dmc_logdbg("Device memory release completed!");
 }
 
 /*
- * Copy data into the device memory buffer.
+ * Copy data into the On Device Memory buffer.
  *
- * The device memory buffer is implemented in a cycle way using two variables :
+ * On Device Memory buffer is implemented in a cycle way using two variables :
  * m_head - index of the next offset to be written.
- * m_used - amount of used bytes within the device memory buffer (which also used to calculate the tail of the buffer).
+ * m_used - amount of used bytes within the On Device Memory buffer (which also used to calculate the tail of the buffer).
  *
  * In order to maintain a proper order of allocation and release, we must distinguish between three possible cases:
  *
@@ -195,7 +197,7 @@ bool dm_context::dm_copy_data(struct mlx5_wqe_data_seg* seg, uint8_t* src, uint3
 	size_t continuous_left = 0;
 	size_t &dev_mem_length = buff->tx.dev_mem_length = 0;
 
-	// Check if device memory buffer is full
+	// Check if On Device Memory buffer is full
 	if (m_used >= m_allocation) {
 		goto dev_mem_oob;
 	}
@@ -226,7 +228,7 @@ bool dm_context::dm_copy_data(struct mlx5_wqe_data_seg* seg, uint8_t* src, uint3
 	dev_mem_length += length_aligned_4;
 	m_used += dev_mem_length;
 
-	// Update device memory statistics
+	// Update On Device Memory statistics
 	m_p_ring_stat->n_tx_dev_mem_pkt_count++;
 	m_p_ring_stat->n_tx_dev_mem_byte_count += length;
 
@@ -245,7 +247,7 @@ dev_mem_oob:
 }
 
 /*
- * Release device memory buffer.
+ * Release On Device Memory buffer.
  * This method should be called after completion was received.
  */
 void dm_context::dm_release_data(mem_buf_desc_t* buff)
