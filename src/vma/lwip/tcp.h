@@ -518,6 +518,7 @@ void             tcp_setprio (struct tcp_pcb *pcb, u8_t prio);
 
 err_t            tcp_output  (struct tcp_pcb *pcb);
 
+int            is_window_available(struct tcp_pcb *pcb, unsigned int data_len);
 
 #define get_tcp_state(pcb) ((pcb)->private_state)
 #define set_tcp_state(pcb, state) external_tcp_state_observer((pcb)->my_container, (pcb)->private_state = state)

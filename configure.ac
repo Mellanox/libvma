@@ -125,6 +125,15 @@ AS_IF([test "x$with_valgrind" == xno],
 )
 
 #
+# Enable tcp tx window availability
+#
+AC_ARG_ENABLE([tcp_tx_wnd_availability],
+    AC_HELP_STRING([--enable-tcp-tx-wnd-availability],
+                   [Enable TCP Tx window availability (TCP packets will only be sent if their size (hdrs + data) is less than or equal to the window size. Otherwise -1 is returned and errno is set to EAGAIN.)]),
+    [AC_DEFINE(DEFINED_TCP_TX_WND_AVAILABILITY, 1, [Define to 1 to enable TCP Tx window availability])],
+    [])
+
+#
 # Experimental Verbs CQ
 #
 AC_ARG_ENABLE([exp-cq],

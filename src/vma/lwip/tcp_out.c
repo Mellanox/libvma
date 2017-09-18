@@ -964,6 +964,24 @@ tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
   return;
 }
 
+int
+is_window_available(struct tcp_pcb *pcb, unsigned int data_len)
+{
+	s32_t tot_unacked_len = 0;
+	s32_t tot_unsent_len = 0;
+	s32_t wnd = (s32_t)(LWIP_MIN(pcb->snd_wnd, pcb->cwnd));
+
+	if (pcb->unacked) {
+		tot_unacked_len = pcb->last_unacked->seqno - pcb->unacked->seqno + pcb->last_unacked->len;
+	}
+
+	if (pcb->unsent) {
+		tot_unsent_len = pcb->last_unsent->seqno - pcb->unsent->seqno + pcb->last_unsent->len;
+	}
+
+	return ((wnd - tot_unacked_len) >= (tot_unsent_len + (signed int)(TCP_HLEN + data_len)));
+}
+
 /**
  * Find out what we can send and send it
  *

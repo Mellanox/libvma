@@ -736,6 +736,14 @@ retry_is_ready:
 		return -1;
 	}
 
+#ifdef DEFINED_TCP_TX_WND_AVAILABILITY
+	if (!is_window_available(&m_pcb, p_iov[0].iov_len)) {
+		unlock_tcp_con();
+		errno = EAGAIN;
+		return -1;
+	}
+#endif
+
 	for (int i = 0; i < sz_iov; i++) {
 		si_tcp_logfunc("iov:%d base=%p len=%d", i, p_iov[i].iov_base, p_iov[i].iov_len);
 
