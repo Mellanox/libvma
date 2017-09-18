@@ -965,6 +965,42 @@ tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
 }
 
 /**
+ * Check whether the input data_len fits the window
+ *
+ * @param pcb Protocol control block for the TCP connection to send data
+ * @parma data_len length to be checked
+ * @return 1 if input size fits the window, else 0.
+ */
+s32_t
+tcp_is_wnd_available(struct tcp_pcb *pcb, u32_t data_len)
+{
+	s32_t tot_unacked_len = 0;
+	s32_t tot_unsent_len = 0;
+	s32_t wnd = (s32_t)(LWIP_MIN(pcb->snd_wnd, pcb->cwnd));
+	s32_t tot_opts_hdrs_len = 0;
+
+#if LWIP_TCP_TIMESTAMPS
+	if (pcb->flags & TF_TIMESTAMP) {
+		/* The default TCP Maximum Segment Size is 536 (LWIP_TCP_MSS) - RFC-879 */
+		u16_t mss = pcb->mss ? pcb->mss : LWIP_TCP_MSS;
+		u16_t mss_local = LWIP_MIN(pcb->mss, pcb->snd_wnd_max / 2);
+		mss_local = mss_local ? mss_local : mss;
+		tot_opts_hdrs_len = ((LWIP_TCP_OPT_LENGTH(TF_SEG_OPTS_TS)) * (1 + ((data_len - 1) / (mss_local))));
+	}
+#endif
+
+	if (pcb->unacked) {
+		tot_unacked_len = pcb->last_unacked->seqno - pcb->unacked->seqno + pcb->last_unacked->len;
+	}
+
+	if (pcb->unsent) {
+		tot_unsent_len = pcb->last_unsent->seqno - pcb->unsent->seqno + pcb->last_unsent->len;
+	}
+
+	return ((wnd - tot_unacked_len) >= (tot_unsent_len + (tot_opts_hdrs_len + (s32_t)data_len)));
+}
+
+/**
  * Find out what we can send and send it
  *
  * @param pcb Protocol control block for the TCP connection to send data
