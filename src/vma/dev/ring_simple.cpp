@@ -1227,7 +1227,7 @@ int ring_simple::vma_poll(struct vma_completion_t *vma_completions, unsigned int
 
 		m_vma_poll_completion = vma_completions;
 
-		while (!g_b_exit && (i < (int)ncompletions)) {
+		while (!g_b_exit_vma && (i < (int)ncompletions)) {
 			m_vma_poll_completion->events = 0;
 			/* Check list size to avoid locking */
 			if (!list_empty(&m_ec_list)) {

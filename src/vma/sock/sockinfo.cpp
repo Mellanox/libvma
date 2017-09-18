@@ -356,7 +356,7 @@ int sockinfo::rx_wait_helper(int &poll_count, bool is_blocking)
 
 	// if we polling too much - go to sleep
 	si_logfunc("too many polls without data blocking=%d", is_blocking);
-	if (g_b_exit)
+	if (g_b_exit_vma)
 		return -1;
 
 	if (!is_blocking) {

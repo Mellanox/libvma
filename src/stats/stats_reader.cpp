@@ -130,7 +130,7 @@ typedef enum {
 # endif
 #endif
 
-bool 		g_b_exit = false;
+bool 		g_b_exit_vma = false;
 struct 		sigaction g_sigact;
 uint8_t* 	g_fd_mask;
 uint32_t 	g_fd_map_size = e_K;
@@ -886,7 +886,7 @@ void stats_reader_sig_handler(int signum)
 		log_msg("Got signal %d - exiting", signum);
 		break;
 	}
-	g_b_exit = true;
+	g_b_exit_vma = true;
 }
 
 void set_signal_action()
@@ -1015,14 +1015,14 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 		memcpy((void*)prev_bpool_blocks,(void*)p_sh_mem->bpool_inst_arr, NUM_OF_SUPPORTED_BPOOLS * sizeof(bpool_instance_block_t));
 		prev_iomux_blocks = curr_iomux_blocks;
 		uint64_t delay_int_micro = SEC_TO_MICRO(user_params.interval);
-		if (!g_b_exit && check_if_process_running(pid)){
+		if (!g_b_exit_vma && check_if_process_running(pid)){
 			usleep(delay_int_micro);
 		}
 	}
 	
 	set_signal_action();
 	
-	while (!g_b_exit && proc_running && (user_params.cycles ? (cycles < user_params.cycles) : (true)))
+	while (!g_b_exit_vma && proc_running && (user_params.cycles ? (cycles < user_params.cycles) : (true)))
 	{
 		++cycles;
 
@@ -1088,7 +1088,7 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 		}
 		uint64_t delay_int_micro = SEC_TO_MICRO(user_params.interval);
 		uint64_t adjasted_delay = delay_int_micro - TIME_DIFF_in_MICRO(start, end);
-		if (!g_b_exit && proc_running){
+		if (!g_b_exit_vma && proc_running){
 			usleep(adjasted_delay);
             inc_read_counter(p_sh_mem);
 		}

@@ -634,7 +634,7 @@ unsigned sockinfo_tcp::tx_wait(int & err, bool is_blocking)
 		}
 		if (err < 0)
 			return 0;
-                if (unlikely(g_b_exit)) {
+                if (unlikely(g_b_exit_vma)) {
                         errno = EINTR;
                         return 0;
                 }
@@ -786,7 +786,7 @@ retry_write:
 				errno = ECONNRESET;
 				goto err;
 			}
-			if (unlikely(g_b_exit)) {
+			if (unlikely(g_b_exit_vma)) {
 				ret = -1;
 				errno = EINTR;
 				si_tcp_logdbg("returning with: EINTR");
@@ -1653,7 +1653,7 @@ int sockinfo_tcp::handle_rx_error()
 
 	lock_tcp_con();
 
-	if (g_b_exit) {
+	if (g_b_exit_vma) {
 		errno = EINTR;
 		si_tcp_logdbg("returning with: EINTR");
 	} else if (!is_rtr()) {
@@ -1734,7 +1734,7 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 	unlock_tcp_con();
 
 	while (m_rx_ready_byte_count < total_iov_sz) {
-		if (unlikely(g_b_exit ||!is_rtr() || (rx_wait_lockless(poll_count, block_this_run) < 0))) {
+		if (unlikely(g_b_exit_vma ||!is_rtr() || (rx_wait_lockless(poll_count, block_this_run) < 0))) {
 			return handle_rx_error();
 		}
 	}
@@ -2458,7 +2458,7 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 	lock_tcp_con();
 
 	si_tcp_logdbg("sock state = %d", get_tcp_state(&m_pcb));
-	while (m_ready_conn_cnt == 0 && !g_b_exit) {
+	while (m_ready_conn_cnt == 0 && !g_b_exit_vma) {
 		if (m_sock_state != TCP_SOCK_ACCEPT_READY) {
 			unlock_tcp_con();
 			errno = EINVAL;
@@ -2496,7 +2496,7 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 			return -1;
 		}
 	}
-	if (g_b_exit) {
+	if (g_b_exit_vma) {
 		si_tcp_logdbg("interrupted accept");
 		unlock_tcp_con();
 		errno = EINTR;
@@ -3069,7 +3069,7 @@ bool sockinfo_tcp::is_readable(uint64_t *p_poll_sn, fd_array_t* p_fd_array)
 	consider_rings_migration();
 
 	m_rx_ring_map_lock.lock();
-	while(!g_b_exit && is_rtr()) {
+	while(!g_b_exit_vma && is_rtr()) {
 	   if (likely(m_p_rx_ring)) {
 		   // likely scenario: rx socket bound to specific cq
 		   ret = m_p_rx_ring->poll_and_process_element_rx(p_poll_sn, p_fd_array);
@@ -3915,7 +3915,7 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 	m_p_socket_stats->counters.n_rx_poll_miss++;
 	// if we polling too much - go to sleep
 	si_tcp_logfuncall("%d: too many polls without data blocking=%d", m_fd, is_blocking);
-	if (g_b_exit) {
+	if (g_b_exit_vma) {
 		return -1;
 	}
 

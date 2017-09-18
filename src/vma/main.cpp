@@ -111,7 +111,7 @@ const char *vma_version_str = "VMA_VERSION: " PACKAGE_VERSION "-" STR(VMA_LIBRAR
 			      ;	// End of vma_version_str - used in "$ strings libvma.so | grep VMA_VERSION"
 
 
-bool g_b_exit = false;
+bool g_b_exit_vma = false;
 bool g_init_ibv_fork_done = false;
 bool g_is_forked_child = false;
 bool g_init_global_ctors_done = true;
@@ -122,7 +122,7 @@ static int free_libvma_resources()
 {
 	vlog_printf(VLOG_DEBUG, "%s: Closing libvma resources\n", __FUNCTION__);
 
-	g_b_exit = true;
+	g_b_exit_vma = true;
 
 	//Triggers connection close, relevant for TCP which may need some time to terminate the connection.
 	//and for any socket that may wait from another thread

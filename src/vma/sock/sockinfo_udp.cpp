@@ -183,7 +183,7 @@ inline int sockinfo_udp::rx_wait(bool blocking)
 			si_udp_logdbg("returning with: EBADFD");
 			return -1;
 		}
-		else if (unlikely(g_b_exit)) {
+		else if (unlikely(g_b_exit_vma)) {
 			errno = EINTR;
 			si_udp_logdbg("returning with: EINTR");
 			return -1;
@@ -197,7 +197,7 @@ inline int sockinfo_udp::rx_wait(bool blocking)
 			si_udp_logdbg("returning with: EBADFD");
 			return -1;
 		}
-		else if (unlikely(g_b_exit)) {
+		else if (unlikely(g_b_exit_vma)) {
 			errno = EINTR;
 			si_udp_logdbg("returning with: EINTR");
 			return -1;
@@ -487,7 +487,7 @@ int sockinfo_udp::bind(const struct sockaddr *__addr, socklen_t __addrlen)
 		// TODO: Should we set errno again (maybe log write modified the orig.bind() errno)?
 		return ret;
 	}
-	if (unlikely(m_b_closed) || unlikely(g_b_exit)) {
+	if (unlikely(m_b_closed) || unlikely(g_b_exit_vma)) {
 		errno = EBUSY;
 		return -1; // zero returned from orig_bind()
 	}
@@ -531,7 +531,7 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 		si_udp_logdbg("orig connect failed (ret=%d, errno=%d %m)", ret, errno);
 		return ret;
 	}
-	if (unlikely(m_b_closed) || unlikely(g_b_exit)) {
+	if (unlikely(m_b_closed) || unlikely(g_b_exit_vma)) {
 		errno = EBUSY;
 		return -1; // zero returned from orig_connect()
 	}
@@ -645,7 +645,7 @@ int sockinfo_udp::getsockname(struct sockaddr *__name, socklen_t *__namelen)
 {
 	si_udp_logdbg("");
 
-	if (unlikely(m_b_closed) || unlikely(g_b_exit)) {
+	if (unlikely(m_b_closed) || unlikely(g_b_exit_vma)) {
 		errno = EINTR;
 		return -1;
 	}
@@ -761,7 +761,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 {
 	si_udp_logfunc("level=%d, optname=%d", __level, __optname);
 
-	if (unlikely(m_b_closed) || unlikely(g_b_exit))
+	if (unlikely(m_b_closed) || unlikely(g_b_exit_vma))
 		return orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
 
 #ifdef DEFINED_VMAPOLL
@@ -1278,7 +1278,7 @@ int sockinfo_udp::getsockopt(int __level, int __optname, void *__optval, socklen
 
 	int ret = orig_os_api.getsockopt(m_fd, __level, __optname, __optval, __optlen);
 
-	if (unlikely(m_b_closed) || unlikely(g_b_exit))
+	if (unlikely(m_b_closed) || unlikely(g_b_exit_vma))
 		return ret;
 
 #ifdef DEFINED_VMAPOLL
@@ -1400,7 +1400,7 @@ ssize_t sockinfo_udp::rx(const rx_call_t call_type, iovec* p_iov,ssize_t sz_iov,
 		ret = -1;
 		goto out;
 	}
-	else if (unlikely(g_b_exit)) {
+	else if (unlikely(g_b_exit_vma)) {
 		errno = EINTR;
 		ret = -1;
 		goto out;
@@ -1764,7 +1764,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 	 * the underlying IPv4 protocol, is 65,507 bytes
 	 * (65,535 - 8 byte UDP header - 20 byte IP header).
 	 */
-	if (unlikely((m_b_closed) || (g_b_exit) ||
+	if (unlikely((m_b_closed) || (g_b_exit_vma) ||
 			(NULL == p_iov) ||
 			(0 >= sz_iov) ||
 			(NULL == p_iov[0].iov_base) ||
@@ -1987,7 +1987,7 @@ inline bool sockinfo_udp::inspect_uc_packet(mem_buf_desc_t* p_desc)
 		return false;
 	}
 
-	if (unlikely(m_b_closed) || unlikely(g_b_exit)) {
+	if (unlikely(m_b_closed) || unlikely(g_b_exit_vma)) {
 		si_udp_logfunc("rx packet discarded - fd closed");
 		return false;
 	}

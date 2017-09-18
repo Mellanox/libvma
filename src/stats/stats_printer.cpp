@@ -131,7 +131,7 @@ user_params_t user_params;
 # endif
 #endif
 
-//extern bool 		g_b_exit;
+//extern bool 		g_b_exit_vma;
 //extern struct 		sigaction g_sigact;
 //extern uint8_t* 	g_fd_mask;
 //extern uint32_t 	g_fd_map_size;

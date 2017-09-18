@@ -367,7 +367,7 @@ void io_mux_call::polling_loops()
 		//check_timer_countdown -= m_num_offloaded_wfds; //TODO: consider the appropriate factor
 		poll_counter++;
 
-		if (g_b_exit || is_sig_pending()) {
+		if (g_b_exit_vma || is_sig_pending()) {
 			errno = EINTR;
 			vma_throw_object(io_mux_call::io_error);
 		}
@@ -413,7 +413,7 @@ void io_mux_call::blocking_loops()
 	 * If wait() returns without cq ready - timeout expired.
 	 */
 	do {
-		if (g_b_exit || is_sig_pending()) {
+		if (g_b_exit_vma || is_sig_pending()) {
 			errno = EINTR;
 			vma_throw_object(io_mux_call::io_error);
 		}
@@ -482,7 +482,7 @@ int io_mux_call::call()
 		// 1st scenario
 		timer_update();
 		wait_os(false);
-		if (g_b_exit || is_sig_pending()) {
+		if (g_b_exit_vma || is_sig_pending()) {
 			errno = EINTR;
 			vma_throw_object(io_mux_call::io_error);
 		}

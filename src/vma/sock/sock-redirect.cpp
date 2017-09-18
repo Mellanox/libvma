@@ -2227,7 +2227,7 @@ static void handler_intr(int sig)
 {
 	switch (sig) {
 	case SIGINT:
-		g_b_exit = true;
+		g_b_exit_vma = true;
 		srdr_logdbg("Catch Signal: SIGINT (%d)\n", sig);
 		break;
 	default:
