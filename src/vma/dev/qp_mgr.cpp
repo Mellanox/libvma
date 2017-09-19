@@ -417,7 +417,6 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 		send_wr.num_sge = 1;
 		send_wr.next = NULL;
 		vma_send_wr_opcode(send_wr) = VMA_IBV_WR_SEND;
-		vma_send_wr_send_flags(send_wr) = (vma_ibv_send_flags)(VMA_IBV_SEND_SIGNALED /*| VMA_IBV_SEND_INLINE*/); //todo inline only if inline is on
 		qp_logdbg("IBV_SEND_SIGNALED");
 
 		// Close the Tx unsignaled send list
@@ -430,7 +429,7 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 		}
 		m_p_ring->m_tx_num_wr_free--;
 
-		send_to_wire(&send_wr, (vma_wr_tx_packet_attr)(VMA_TX_PACKET_L3_CSUM|VMA_TX_PACKET_L4_CSUM));
+		send_to_wire(&send_wr, (vma_wr_tx_packet_attr)(VMA_TX_PACKET_L3_CSUM|VMA_TX_PACKET_L4_CSUM), true);
 		if (p_ah) {
 			IF_VERBS_FAILURE(ibv_destroy_ah(p_ah))
 			{
@@ -538,10 +537,15 @@ int qp_mgr::post_recv(mem_buf_desc_t* p_mem_buf_desc)
 	return 0;
 }
 
-inline int qp_mgr::send_to_wire(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
+inline int qp_mgr::send_to_wire(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr, bool request_comp)
 {
 	NOT_IN_USE(attr);
+	int ret = 0;
 	vma_ibv_send_wr *bad_wr = NULL;
+
+	if (request_comp) {
+		vma_send_wr_send_flags(*p_send_wqe) = (vma_ibv_send_flags)(vma_send_wr_send_flags(*p_send_wqe) | VMA_IBV_SEND_SIGNALED);
+	}
 
 	IF_VERBS_FAILURE(vma_ibv_post_send(m_qp, p_send_wqe, &bad_wr)) {
 		qp_logerr("failed post_send%s (errno=%d %m)\n", ((vma_send_wr_send_flags(*p_send_wqe) & VMA_IBV_SEND_INLINE)?"(+inline)":""), errno);
@@ -549,9 +553,13 @@ inline int qp_mgr::send_to_wire(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_at
 			qp_logerr("bad_wr info: wr_id=%#x, send_flags=%#x, addr=%#x, length=%d, lkey=%#x, max_inline_data=%d",
 			bad_wr->wr_id, vma_send_wr_send_flags(*bad_wr), bad_wr->sg_list[0].addr, bad_wr->sg_list[0].length, bad_wr->sg_list[0].lkey, m_max_inline_data);
 		}
-		return -1;
+		ret = -1;
 	} ENDIF_VERBS_FAILURE;
-	return 0;
+
+	// Clear the SINGAL request
+	vma_send_wr_send_flags(*p_send_wqe) = (vma_ibv_send_flags)(vma_send_wr_send_flags(*p_send_wqe) & ~VMA_IBV_SEND_SIGNALED);
+
+	return ret;
 }
 
 int qp_mgr::send(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
@@ -559,9 +567,7 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t *)p_send_wqe->wr_id;
 
 	qp_logfunc("VERBS send, unsignaled_count: %d", m_n_unsignaled_count);
-	if (!m_n_unsignaled_count) {
-		vma_send_wr_send_flags(*p_send_wqe) = (vma_ibv_send_flags)(vma_send_wr_send_flags(*p_send_wqe) | VMA_IBV_SEND_SIGNALED);
-	}
+	bool request_comp = is_compilation_need();
 
 #ifdef VMA_TIME_MEASURE
 	TAKE_T_TX_POST_SEND_START;
@@ -571,7 +577,7 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_TX_VERBS_POST_SEND]);
 #endif //RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
 
-	if (send_to_wire(p_send_wqe, attr)) {
+	if (send_to_wire(p_send_wqe, attr, request_comp)) {
 #ifdef VMA_TIME_MEASURE
 		INC_ERR_TX_COUNT;
 #endif
@@ -592,7 +598,7 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 	// Link this new mem_buf_desc to the previous one sent
 	p_mem_buf_desc->p_next_desc = m_p_last_tx_mem_buf_desc;
 
-	if (!m_n_unsignaled_count) {
+	if (request_comp) {
 		int ret;
 
 		set_unsignaled_count();
@@ -605,9 +611,6 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 			p_mem_buf_desc->p_desc_owner = m_p_ahc_head;
 			m_p_ahc_head = m_p_ahc_tail = NULL;
 		}
-
-		// Clear the SINGAL request
-		vma_send_wr_send_flags(*p_send_wqe) = (vma_ibv_send_flags)(vma_send_wr_send_flags(*p_send_wqe) & ~VMA_IBV_SEND_SIGNALED);
 
 		// Poll the Tx CQ
 		uint64_t dummy_poll_sn = 0;

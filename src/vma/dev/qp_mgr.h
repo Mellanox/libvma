@@ -106,7 +106,7 @@ public:
 	virtual ~qp_mgr();
 
 	virtual void        up();
-	void                down();
+	virtual void        down();
 
 	int                 post_recv(mem_buf_desc_t* p_mem_buf_desc); // Post for receive a list of mem_buf_desc
 	int                 send(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
@@ -143,6 +143,7 @@ public:
 	bool                set_qp_ratelimit(const uint32_t ratelimit_kbps);
 	int                 modify_qp_ratelimit(const uint32_t ratelimit_kbps);
 	static inline bool  is_lib_mlx5(const char* device_name) {return strstr(device_name, "mlx5");}
+	virtual void        dm_release_data(mem_buf_desc_t* buff) { NOT_IN_USE(buff); }
 
 protected:
 	uint64_t            m_rq_wqe_counter;
@@ -201,7 +202,8 @@ protected:
 	virtual cq_mgr* init_tx_cq_mgr(void);
 
 	virtual int     post_qp_create(void) { return 0;};
-	virtual int     send_to_wire(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
+	virtual int     send_to_wire(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr, bool request_comp);
+	virtual bool    is_compilation_need() { return !m_n_unsignaled_count; };
 };
 
 class qp_mgr_eth : public qp_mgr

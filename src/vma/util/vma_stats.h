@@ -233,6 +233,10 @@ typedef struct {
 	uint32_t    n_rx_cq_moderation_count;
 	uint32_t    n_rx_cq_moderation_period;
 	uint64_t    n_tx_retransmits;
+	uint64_t    n_tx_dev_mem_pkt_count;
+	uint64_t    n_tx_dev_mem_byte_count;
+	uint64_t    n_tx_dev_mem_oob;
+	uint32_t    n_tx_dev_mem_allocated;
 	void*       p_ring_master;
 } ring_stats_t;
 
