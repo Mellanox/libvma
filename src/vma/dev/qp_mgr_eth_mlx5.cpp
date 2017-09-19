@@ -297,8 +297,6 @@ inline int qp_mgr_eth_mlx5::fill_ptr_segment(sg_array &sga, struct mlx5_wqe_data
 {
 	int wqe_seg_size = 0;
 	int len = data_len;
-	bool dev_mem_seg;
-	NOT_IN_USE(dev_mem_seg);
 
 	// Currently, a maximum of 2 data pointer segments are utilized by
 	// VMA. This is enforced by the dst layer during l2 header
@@ -308,17 +306,15 @@ inline int qp_mgr_eth_mlx5::fill_ptr_segment(sg_array &sga, struct mlx5_wqe_data
 		data_addr = sga.get_data(&len);
 		dp_seg->byte_count = htonl(len);
 
-		// Try to copy data to device memory
-		if (m_dm_enabled && m_dm_context.dm_copy_data(dp_seg, data_addr, data_len, buffer)) {
-			dev_mem_seg = true;
-		} else {
-			dev_mem_seg = false;
+		// Try to copy data to On Device Memory
+		if (!(m_dm_enabled && m_dm_context.dm_copy_data(dp_seg, data_addr, data_len, buffer))) {
+			// Use the registered buffer if copying did not succeed
 			dp_seg->lkey = htonl(sga.get_current_lkey());
 			dp_seg->addr = htonll((uint64_t)data_addr);
 		}
 
 		data_len -= len;
-		qp_logfunc("addr:%llx data_len: %d len: %d lkey: %x dev_mem_segment: %d", dp_seg->addr, data_len, dp_seg->byte_count, dp_seg->lkey, dev_mem_seg);
+		qp_logfunc("data_addr:%llx data_len: %d len: %d lkey: %x", dp_seg->addr, data_len, len, dp_seg->lkey);
 		dp_seg++;
 	}
 	return wqe_seg_size;

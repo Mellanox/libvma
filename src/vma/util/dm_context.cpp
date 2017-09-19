@@ -38,7 +38,7 @@
 #if defined(HAVE_INFINIBAND_MLX5_HW_H)
 #if defined(HAVE_IBV_DM)
 
-#define DM_MEMORY_MASK_4  3
+#define DM_MEMORY_MASK_8  7
 #define DM_MEMORY_MASK_64 63
 #define DM_ALIGN_SIZE(size, mask) ((size + mask) & (~mask))
 
@@ -185,17 +185,18 @@ void dm_context::dm_release_resources()
  *                 head                 tail
  *
  * Due to hardware limitations:
- * 1. Data should be written to 4bytes aligned address.
+ * 1. Data should be written to 4bytes aligned addresses.
  * 2. Data length should be aligned to 4bytes.
  *
  * Due to performance reasons:
  *  1. Data should be written to a continuous memory area.
+ *  2. Data will be written to 8bytes aligned addresses.
  */
 bool dm_context::dm_copy_data(struct mlx5_wqe_data_seg* seg, uint8_t* src, uint32_t length, mem_buf_desc_t* buff)
 {
-	uint32_t length_aligned_4 = DM_ALIGN_SIZE(length, DM_MEMORY_MASK_4);
-	__int128 data_128 = 0;
-	uint32_t data_32 = 0, offset = 0;
+	uint32_t length_aligned_8 = DM_ALIGN_SIZE(length, DM_MEMORY_MASK_8);
+	uint32_t offset = 0;
+	uint64_t data_64 = 0;
 	size_t continuous_left = 0;
 	size_t &dev_mem_length = buff->tx.dev_mem_length = 0;
 
@@ -206,8 +207,8 @@ bool dm_context::dm_copy_data(struct mlx5_wqe_data_seg* seg, uint8_t* src, uint3
 
 	// Check for a continuous space to write
 	if (m_head >= m_used) {	// First case
-		if ((continuous_left = m_allocation - m_head) < length_aligned_4) {	// Second case
-			if (m_head - m_used >= length_aligned_4) {
+		if ((continuous_left = m_allocation - m_head) < length_aligned_8) {	// Second case
+			if (m_head - m_used >= length_aligned_8) {
 				// There is enough space at the beginning of the buffer.
 				m_head  = 0;
 				dev_mem_length = continuous_left;
@@ -216,48 +217,41 @@ bool dm_context::dm_copy_data(struct mlx5_wqe_data_seg* seg, uint8_t* src, uint3
 				goto dev_mem_oob;
 			}
 		}
-	} else if ((continuous_left = m_allocation - m_used) < length_aligned_4) {	// Third case
+	} else if ((continuous_left = m_allocation - m_used) < length_aligned_8) {	// Third case
 		goto dev_mem_oob;
 	}
 
-	// Data must be aligned to 4 bytes
-	while (offset <= length_aligned_4 - sizeof(data_128)) {
-		memcpy(&data_128, src + offset, sizeof(data_128));
-		*((volatile __int128 *)(m_p_mlx5_dm->start_va + m_head + offset)) = data_128;
-		offset += sizeof(data_128);
-	}
-
-	while (offset <= length_aligned_4 - sizeof(data_32)) {
-		memcpy(&data_32, src + offset, sizeof(data_32));
-		*((volatile uint32_t *)(m_p_mlx5_dm->start_va + m_head + offset)) = data_32;
-		offset += sizeof(data_32);
-	}
-
-	if (offset < length_aligned_4) {
-		data_32 = 0;
-		memcpy(&data_32, src + offset, length - offset);
-		*((volatile uint32_t *)(m_p_mlx5_dm->start_va + m_head + offset)) = data_32;
-	}
+	/* Copy data into the On Device Memory buffer.
+	 * The copy is done using a volatile pointer (and not using memcpy of the whole buffer) to prevent any
+	 * optimizations which can lead to unaligned writes.
+	 * The first memcpy is to support architectures without unaligned access support - this should be optimized
+	 * out for architectures with unaligned access.
+	 */
+	while (offset < length_aligned_8) {
+		memcpy(&data_64, src + offset, sizeof(data_64));
+		*((volatile typeof(data_64) *)(m_p_mlx5_dm->start_va + m_head + offset)) = data_64;
+		offset += sizeof(data_64);
+	};
 
 	// Update values
 	seg->lkey = htonl(m_p_dm_mr->lkey);
 	seg->addr = htonll(m_head);
-	m_head = (m_head + length_aligned_4) % m_allocation;
-	dev_mem_length += length_aligned_4;
+	m_head = (m_head + length_aligned_8) % m_allocation;
+	dev_mem_length += length_aligned_8;
 	m_used += dev_mem_length;
 
 	// Update On Device Memory statistics
 	m_p_ring_stat->n_tx_dev_mem_pkt_count++;
 	m_p_ring_stat->n_tx_dev_mem_byte_count += length;
 
-	dmc_logfunc("Send completed successfully! Buffer[%p] length[%d] length_aligned_4[%d] continuous_left[%zu] head[%zu] used[%zu]",
-			buff, length, length_aligned_4, continuous_left, m_head, m_used);
+	dmc_logfunc("Send completed successfully! Buffer[%p] length[%d] length_aligned_8[%d] continuous_left[%zu] head[%zu] used[%zu]",
+			buff, length, length_aligned_8, continuous_left, m_head, m_used);
 
 	return true;
 
 dev_mem_oob:
-	dmc_logfunc("Send OOB! Buffer[%p] length[%d] length_aligned_4[%d] continuous_left[%zu] head[%zu] used[%zu]",
-			buff, length, length_aligned_4, continuous_left, m_head, m_used);
+	dmc_logfunc("Send OOB! Buffer[%p] length[%d] length_aligned_8[%d] continuous_left[%zu] head[%zu] used[%zu]",
+			buff, length, length_aligned_8, continuous_left, m_head, m_used);
 
 	m_p_ring_stat->n_tx_dev_mem_oob++;
 
