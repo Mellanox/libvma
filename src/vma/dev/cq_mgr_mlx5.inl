@@ -41,10 +41,10 @@
 /**/
 /** inlining functions can only help if they are implemented before their usage **/
 /**/
-inline volatile struct mlx5_cqe64* cq_mgr_mlx5::check_cqe(void)
+inline struct mlx5_cqe64* cq_mgr_mlx5::check_cqe(void)
 {
-	volatile struct mlx5_cqe64 *cqe = &(*m_cqes)[m_cq_cons_index & (m_cq_size - 1)];
-
+	struct mlx5_cqe64* cqe = (struct mlx5_cqe64 *)(((uint8_t *)m_cqes) +
+			((m_cq_cons_index & (m_cq_size - 1)) << m_cqe_log_sz));
 	/*
 	 * CQE ownership is defined by Owner bit in the CQE.
 	 * The value indicating SW ownership is flipped every
