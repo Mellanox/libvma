@@ -1,3 +1,21 @@
+Version 8.4.5-0:
+Date + Time 2017-09-19
+=============================================================
+Added:
+        - RM #1065079 Add On Device Memory support
+        - RM #1117626 Move epoll's poll_os logic to the internal thread
+        - RM #1073223 Enable Debian package timestamp
+Fixed:
+        - RM #1088208 consider cache_line when getting CQE
+        - RM #1137302 Solve gcc7.x [deprecated]
+        - RM #1137302 Solve gcc7.x [format-overflow]
+        - RM #1137302 Solve gcc7.x [array-bounds]
+        - RM #1137302 Solve gcc7.x [implicit-fallthrough]
+        - RM #1062367 Fix TCP window deadlock in case of a small window
+        - RM #1134718 Fix lack of interface reinitialization (Tx PRM implementation)
+        - RM #1141586 Fix Valgrind issue - uninitialized byte(s)
+        - RM #1041212 Fix wrong handling of UDP setsockopt() using UDP_MAP_REMOVE
+
 Version 8.4.4-0:
 Date + Time 2017-09-10
 =============================================================
