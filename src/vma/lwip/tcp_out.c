@@ -902,7 +902,7 @@ tcp_join_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
    * 4. Ignore TSO segments (could be in unsent queue in case retransmission)
    */
   while (cur_seg &&
-          !(cur_seg-> flags & (TF_SEG_OPTS_TSO | TF_SEG_OPTS_DUMMY_MSG)) &&
+          !(cur_seg->flags & (TF_SEG_OPTS_TSO | TF_SEG_OPTS_DUMMY_MSG)) &&
           ((TCPH_FLAGS(cur_seg->tcphdr) & (TCP_SYN | TCP_FIN | TCP_RST)) == 0) &&
           (cur_seg->len == pcb->mss)) {
 
@@ -982,7 +982,8 @@ tcp_shrink_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t ackno)
   u32_t len = 0;
   u32_t count = 0;
 
-  if (!(seg && (TCP_SEQ_GT(ackno, seg->seqno) && TCP_SEQ_LT(ackno, seg->seqno + TCP_TCPLEN(seg))))) {
+  if ((NULL == seg) || (NULL == seg->p) || (seg->p->ref > 1) ||
+      !(TCP_SEQ_GT(ackno, seg->seqno) && TCP_SEQ_LT(ackno, seg->seqno + TCP_TCPLEN(seg)))) {
     return count;
   }
 
@@ -1053,7 +1054,74 @@ tcp_shrink_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t ackno)
     count++;
   }
 
+#if TCP_TSO_DEBUG
+    LWIP_DEBUGF(TCP_TSO_DEBUG | LWIP_DBG_TRACE,
+                ("tcp_shrink: count: %-5d unsent %s\n",
+                		count, _dump_seg(pcb->unsent)));
+#endif /* TCP_TSO_DEBUG */
+
   return count;
+}
+
+/**
+ * Called by tcp_output() to process TCP segment with ref > 1.
+ * This call should process retransmitted TSO segment.
+ *
+ * @param pcb the tcp_pcb for the TCP connection used to send the segment
+ * @param seg the tcp_seg to send
+ * @param wnd current window size
+ * @return current segment to proceed
+ */
+static struct tcp_seg *
+tcp_rexmit_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
+{
+  struct tcp_seg *cur_seg = NULL;
+  struct tcp_seg *new_seg = NULL;
+  struct pbuf *cur_p = NULL;
+  u8_t optflags = 0;
+
+  if ((NULL == seg) || (NULL == seg->p) ||
+      ((seg->p->ref == 1) && ((seg->len + seg->seqno - pcb->lastack) <= wnd))) {
+    return seg;
+  }
+
+#if LWIP_TCP_TIMESTAMPS
+  if ((pcb->flags & TF_TIMESTAMP)) {
+    optflags |= TF_SEG_OPTS_TS;
+  }
+#endif /* LWIP_TCP_TIMESTAMPS */
+
+  cur_seg = seg;
+  cur_seg->flags &= (~TF_SEG_OPTS_TSO);
+  cur_p = seg->p->next;
+  while (cur_p) {
+    /* Allocate memory for tcp_seg and fill in fields. */
+    if (NULL == (new_seg = tcp_create_segment(pcb, cur_p, 0,  cur_seg->seqno + cur_seg->p->len - TCP_HLEN, optflags))) {
+      LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_split_segment: could not allocate memory for segment\n"));
+      return seg;
+    }
+
+    /* New segment update */
+    new_seg->next = cur_seg->next;
+    new_seg->flags = cur_seg->flags;
+
+    /* Original segment update */
+    cur_seg->next = new_seg;
+    cur_seg->len = cur_seg->p->len - TCP_HLEN;
+    cur_seg->p->tot_len = cur_seg->p->len;
+
+    cur_seg->p->next = NULL;
+    cur_seg = new_seg;
+    cur_p = cur_seg->p->next;
+  }
+
+#if TCP_TSO_DEBUG
+  LWIP_DEBUGF(TCP_TSO_DEBUG | LWIP_DBG_TRACE,
+                ("tcp_rexmit: cwnd: %-5d unsent %s\n",
+                		pcb->cwnd, _dump_seg(pcb->unsent)));
+#endif /* TCP_TSO_DEBUG */
+
+  return seg;
 }
 #endif /* LWIP_TSO */
 
@@ -1069,7 +1137,7 @@ tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
   u16_t mss_local = LWIP_MIN(pcb->mss, pcb->snd_wnd_max/2);
   mss_local = mss_local ? mss_local : pcb->mss;
 
-  if (((seg->seqno - pcb->lastack) >= wnd) || (NULL == seg->p) || (seg->p->ref>1)) {
+  if (((seg->seqno - pcb->lastack) >= wnd) || (NULL == seg->p) || (seg->p->ref > 1)) {
     return;
   }
 
@@ -1083,13 +1151,8 @@ tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
 
   optlen += LWIP_TCP_OPT_LENGTH( optflags );
 
-  if (seg->p->len > lentosend) {/* First buffer is too big, split it */
+  if (seg->p->len > ((TCP_HLEN + optlen) + lentosend)) {/* First buffer is too big, split it */
     u32_t lentoqueue = seg->p->len - (TCP_HLEN + optlen) - lentosend;
-
-    if (seg->p->len <= ((TCP_HLEN + optlen) + lentosend)) {
-      LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_split_segment: Segment data is too small %"U16_F", %"U16_F"\n", seg->p->len, lentosend));
-      return;
-    }
 
     if (NULL == (p = tcp_pbuf_prealloc(lentoqueue + optlen, mss_local, &oversize, pcb, 0, 0))) {
       LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_split_segment: could not allocate memory for pbuf copy size %"U16_F"\n", (lentoqueue + optlen)));
@@ -1317,6 +1380,7 @@ tcp_output(struct tcp_pcb *pcb)
      */
     if (seg->flags & TF_SEG_OPTS_TSO) {
       pcb->snd_queuelen -= tcp_shrink_segment(pcb, seg, pcb->lastack);
+      seg = tcp_rexmit_segment(pcb, seg, wnd);
     }
 #endif /* LWIP_TSO */
 
