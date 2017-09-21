@@ -63,7 +63,7 @@
 #define dbg_dump_wqe(_addr, _size) { \
 	uint32_t* _wqe = _addr; \
 	qp_logfunc("Dumping %d bytes from %p", _size, _wqe); \
-	for (int i = 0; i < (int)_size / 4 + 1; i += 4) { \
+	for (int i = 0; i < (int)_size / 4; i += 4) { \
 		qp_logfunc("%08x %08x %08x %08x", ntohl(_wqe[i+0]), ntohl(_wqe[i+1]), ntohl(_wqe[i+2]), ntohl(_wqe[i+3])); \
 	} \
 }
@@ -110,6 +110,24 @@ static bool is_bf(struct ibv_context *ib_ctx)
 		}
 	}
 	return false;
+}
+
+//! Maps vma_ibv_wr_opcode to real MLX5 opcode.
+//
+static inline uint32_t get_mlx5_opcode(vma_ibv_wr_opcode verbs_opcode)
+{
+	switch (verbs_opcode) {
+	case VMA_IBV_WR_SEND:
+		return MLX5_OPCODE_SEND;
+#ifdef HAVE_TSO
+	case VMA_IBV_WR_SEND_TSO:
+		return MLX5_OPCODE_TSO;
+#endif /* HAVE_TSO */
+	case VMA_IBV_WR_NOP:
+		return MLX5_OPCODE_NOP;
+	default:
+		return MLX5_OPCODE_SEND;
+	}
 }
 
 qp_mgr_eth_mlx5::qp_mgr_eth_mlx5(const ring_simple* p_ring,
@@ -309,7 +327,7 @@ inline void qp_mgr_eth_mlx5::set_signal_in_next_send_wqe()
 	wqe->ctrl.data[2] = htonl(8);
 }
 
-inline void qp_mgr_eth_mlx5::ring_doorbell(uint64_t* wqe, int num_wqebb, int num_wqebb_top)
+inline void qp_mgr_eth_mlx5::ring_doorbell(uint64_t* wqe, int db_method, int num_wqebb, int num_wqebb_top)
 {
 	uint64_t* dst = (uint64_t*)((uint8_t*)m_mlx5_qp.bf.reg + m_mlx5_qp.bf.offset);
 	uint64_t* src = wqe;
@@ -323,7 +341,7 @@ inline void qp_mgr_eth_mlx5::ring_doorbell(uint64_t* wqe, int num_wqebb, int num
 
 	// This wc_wmb ensures ordering between DB record and BF copy */
 	wc_wmb();
-	if (likely(m_db_method == MLX5_DB_METHOD_BF)) {
+	if (likely(db_method == MLX5_DB_METHOD_BF)) {
 		/* Copying src to BlueFlame register buffer by Write Combining cnt WQEBBs
 		 * Avoid using memcpy() to copy to BlueFlame page, since memcpy()
 		 * implementations may use move-string-buffer assembler instructions,
@@ -387,8 +405,10 @@ inline int qp_mgr_eth_mlx5::fill_ptr_segment(sg_array &sga, struct mlx5_wqe_data
 			dp_seg->addr = htonll((uint64_t)data_addr);
 		}
 
+		dbg_dump_wqe((uint32_t*)data_addr, 10*4*16);
+
 		data_len -= len;
-		qp_logfunc("data_addr:%llx data_len: %d len: %d lkey: %x", dp_seg->addr, data_len, len, dp_seg->lkey);
+		qp_logfunc("data_addr:%llx data_len: %d len: %d lkey: %x", data_addr, data_len, len, dp_seg->lkey);
 		dp_seg++;
 	}
 	return wqe_seg_size;
@@ -400,10 +420,10 @@ inline int qp_mgr_eth_mlx5::fill_wqe(vma_ibv_send_wr *pswr)
 	// control segment is mostly filled by preset after previous packet
 	// we always inline ETH header
 	sg_array sga(pswr->sg_list, pswr->num_sge);
-	uint8_t* cur_seg = (uint8_t*)m_sq_wqe_hot+sizeof(struct mlx5_wqe_ctrl_seg);
+	uint8_t* cur_seg = (uint8_t*)m_sq_wqe_hot + sizeof(struct mlx5_wqe_ctrl_seg);
 	int      inline_len = MLX5_ETH_INLINE_HEADER_SIZE;
 	int      data_len   = sga.length();
-	int      wqe_size = sizeof(struct mlx5_wqe_ctrl_seg)/OCTOWORD;
+	int      wqe_size = sizeof(struct mlx5_wqe_ctrl_seg) / OCTOWORD;
 	int	 max_inline_len = get_max_inline_data();
 
 	// assume packet is full inline
@@ -428,7 +448,7 @@ inline int qp_mgr_eth_mlx5::fill_wqe(vma_ibv_send_wr *pswr)
 		// to end of WQEs
 		if (likely(max_inline_len <= rest_space)) {
 			inline_len = max_inline_len;
-			qp_logfunc("NO WRAP data_addr:%p cur_seg: %p rest_space: %d inline_len: %d wqe_size: %d",
+			qp_logfunc("data_addr:%p cur_seg: %p rest_space: %d inline_len: %d wqe_size: %d",
 					data_addr, cur_seg, rest_space, inline_len, wqe_size);
 			//bypass inline size and fill inline data segment
 			data_addr = sga.get_data(&inline_len);
@@ -445,8 +465,7 @@ inline int qp_mgr_eth_mlx5::fill_wqe(vma_ibv_send_wr *pswr)
 			rest_space = align_to_WQEBB_up(wqe_size)/4;
 			qp_logfunc("data_len: %d inline_len: %d wqe_size: %d wqebbs: %d",
 				data_len-inline_len, inline_len, wqe_size, rest_space);
-			ring_doorbell((uint64_t *)m_sq_wqe_hot, rest_space);
-			dbg_dump_wqe((uint32_t *)m_sq_wqe_hot, wqe_size*16);
+			ring_doorbell((uint64_t *)m_sq_wqe_hot, m_db_method, rest_space);
 			return rest_space;
 		} else {
 			// wrap around case, first filling till the end of m_sq_wqes
@@ -486,7 +505,7 @@ inline int qp_mgr_eth_mlx5::fill_wqe(vma_ibv_send_wr *pswr)
 			dbg_dump_wqe((uint32_t*)m_sq_wqe_hot, rest_space*4*16);
 			dbg_dump_wqe((uint32_t*)m_sq_wqes, max_inline_len*4*16);
 
-			ring_doorbell((uint64_t*)m_sq_wqe_hot, rest_space, max_inline_len);
+			ring_doorbell((uint64_t*)m_sq_wqe_hot, m_db_method, rest_space, max_inline_len);
 			return rest_space+max_inline_len;
 		}
 	} else {
@@ -513,8 +532,7 @@ inline int qp_mgr_eth_mlx5::fill_wqe(vma_ibv_send_wr *pswr)
 			// configuring control
 			m_sq_wqe_hot->ctrl.data[1] = htonl((m_mlx5_qp.qpn << 8) | wqe_size);
 			inline_len = align_to_WQEBB_up(wqe_size)/4;
-			ring_doorbell((uint64_t*)m_sq_wqe_hot, inline_len);
-			dbg_dump_wqe((uint32_t *)m_sq_wqe_hot, wqe_size*16);
+			ring_doorbell((uint64_t*)m_sq_wqe_hot, m_db_method, inline_len);
 		} else {
 			// We supporting also VMA_IBV_WR_SEND_TSO, it is the case
 			wqe_size = fill_wqe_lso(pswr);
@@ -529,6 +547,7 @@ inline int qp_mgr_eth_mlx5::fill_wqe_lso(vma_ibv_send_wr* pswr)
 {
 #ifdef HAVE_TSO
 	struct mlx5_wqe_eth_seg* eth_seg = (struct mlx5_wqe_eth_seg*)((uint8_t*)m_sq_wqe_hot + sizeof(struct mlx5_wqe_ctrl_seg));
+	struct mlx5_wqe_data_seg* dp_seg = NULL;
 	uint8_t* cur_seg = (uint8_t*)eth_seg;
 	uint8_t* p_hdr   = (uint8_t*)pswr->tso.hdr;
 	int wqe_size = sizeof(struct mlx5_wqe_ctrl_seg) / OCTOWORD;
@@ -551,102 +570,93 @@ inline int qp_mgr_eth_mlx5::fill_wqe_lso(vma_ibv_send_wr* pswr)
 		bottom_hdr_sz = rest - offsetof(struct mlx5_wqe_eth_seg, inline_hdr_start);
 		memcpy(cur_seg + offsetof(struct mlx5_wqe_eth_seg, inline_hdr_start), p_hdr, bottom_hdr_sz);
 		memcpy(m_sq_wqes, p_hdr + bottom_hdr_sz, inline_len - bottom_hdr_sz);
-		cur_seg = (uint8_t*)m_sq_wqes + inline_len - bottom_hdr_sz;
+		max_inline_len = align_to_octoword_up(inline_len - bottom_hdr_sz);
+		cur_seg = (uint8_t*)m_sq_wqes + max_inline_len;
+		wqe_size += rest / OCTOWORD;
+		bottom_hdr_sz = align_to_WQEBB_up(wqe_size) / 4;
 	}
 	wqe_size += max_inline_len / OCTOWORD;
-	qp_logfunc("TSO: wqe_hot:%p num_sge: %d p_hdr: %p max_inline_len: %d inline_len: %d rest: %d",
-			m_sq_wqe_hot, pswr->num_sge, p_hdr, max_inline_len, inline_len, rest);
+	qp_logfunc("TSO: num_sge: %d max_inline_len: %d inline_len: %d rest: %d",
+		pswr->num_sge, max_inline_len, inline_len, rest);
 	// Filling data pointer segments with payload by scatter-gather list elements
+	dp_seg = (struct mlx5_wqe_data_seg*)cur_seg;
 	for (i = 0; i < pswr->num_sge; i++) {
-		if (unlikely(cur_seg >= (uint8_t*)m_sq_wqes_end)) {
-			cur_seg = (uint8_t*)m_sq_wqes;
-			rest = align_to_WQEBB_up(wqe_size) / 4;
-			wqe_size = 0;
+		if (unlikely((uintptr_t)dp_seg >= (uintptr_t)m_sq_wqes_end)) {
+			dp_seg = (struct mlx5_wqe_data_seg *)m_sq_wqes;
+			bottom_hdr_sz = align_to_WQEBB_up(wqe_size)/4;
 		}
-		struct mlx5_wqe_data_seg* dp_seg = (struct mlx5_wqe_data_seg*)cur_seg;
-
 		dp_seg->addr       = htonll((uint64_t)pswr->sg_list[i].addr);
                 dp_seg->lkey       = htonl(pswr->sg_list[i].lkey);
 		dp_seg->byte_count = htonl(pswr->sg_list[i].length);
 
-		qp_logfunc("DATA_SEG: addr:%llx len: %d lkey: %x cur_seg: %p wqe_size: %d",
-			pswr->sg_list[i].addr, pswr->sg_list[i].length, dp_seg->lkey, cur_seg, wqe_size);
+		qp_logfunc("DATA_SEG: addr:%llx len: %d lkey: %x dp_seg: %p wqe_size: %d",
+			pswr->sg_list[i].addr, pswr->sg_list[i].length, dp_seg->lkey, dp_seg, wqe_size);
 
-		cur_seg += sizeof(struct mlx5_wqe_data_seg);
+		dp_seg ++;
 		wqe_size += sizeof(struct mlx5_wqe_data_seg)/OCTOWORD;
 	}
 	inline_len = align_to_WQEBB_up(wqe_size) / 4;
-	qp_logfunc("cur_seg: %p rest: %d inline_len: %d aligned: %d wqe_size: %d",
-		cur_seg, rest, inline_len, max_inline_len, wqe_size);
-	// configuring control
-	m_sq_wqe_hot->ctrl.data[0] = htonl((m_sq_wqe_counter << 8) | MLX5_OPCODE_TSO);
 	m_sq_wqe_hot->ctrl.data[1] = htonl((m_mlx5_qp.qpn << 8) | wqe_size);
 	// sending by BlueFlame or DoorBell covering wrap around
 	if (likely(inline_len <= 4)) {
 		if (likely(bottom_hdr_sz == 0)) {
-			dbg_dump_wqe((uint32_t*)m_sq_wqe_hot, inline_len * 4 * 16);
-			ring_doorbell((uint64_t*)m_sq_wqe_hot, inline_len);
+			ring_doorbell((uint64_t*)m_sq_wqe_hot, MLX5_DB_METHOD_DB, inline_len);
 		} else {
-			dbg_dump_wqe((uint32_t*)m_sq_wqe_hot, rest * 4 * 16);
-			dbg_dump_wqe((uint32_t*)m_sq_wqes, inline_len * 4 * 16);
-
-			ring_doorbell((uint64_t*)m_sq_wqe_hot, rest, inline_len);
-			return rest + inline_len;
+			ring_doorbell((uint64_t*)m_sq_wqe_hot, MLX5_DB_METHOD_DB, bottom_hdr_sz, inline_len - bottom_hdr_sz);
 		}
 	} else {
-		ring_doorbell((uint64_t*)m_sq_wqe_hot, inline_len);
+		ring_doorbell((uint64_t*)m_sq_wqe_hot, MLX5_DB_METHOD_DB, inline_len);
 	}
-	return inline_len;
+	return wqe_size;
 #else
 	NOT_IN_USE(pswr);
 	return 0;
 #endif /* HAVE_TSO */
 }
 
-//! Maps vma_ibv_wr_opcode to real MLX5 opcode.
-//
-static inline uint32_t get_mlx5_opcode(vma_ibv_wr_opcode verbs_opcode)
-{
-	switch (verbs_opcode) {
-	case VMA_IBV_WR_NOP:
-		return MLX5_OPCODE_NOP;
-#ifdef HAVE_TSO
-        case VMA_IBV_WR_SEND_TSO:
-                return MLX5_OPCODE_TSO;
-#endif /* HAVE_TSO */
-
-	case VMA_IBV_WR_SEND:
-	default:
-		return MLX5_OPCODE_SEND;
-
-	}
-}
-
 //! Send one RAW packet by MLX5 BlueFlame
 //
 int qp_mgr_eth_mlx5::send_to_wire(vma_ibv_send_wr *p_send_wqe, vma_wr_tx_packet_attr attr, bool request_comp)
 {
-	// Set current WQE's ethernet segment checksum flags
-	struct mlx5_wqe_eth_seg* eth_seg = (struct mlx5_wqe_eth_seg*)((uint8_t*)m_sq_wqe_hot+sizeof(struct mlx5_wqe_ctrl_seg));
-	eth_seg->cs_flags = (uint8_t)(attr & (VMA_TX_PACKET_L3_CSUM | VMA_TX_PACKET_L4_CSUM) & 0xff);
+	struct mlx5_wqe_ctrl_seg *ctrl = NULL;
+	struct mlx5_wqe_eth_seg *eseg = NULL;
 
-	m_sq_wqe_hot->ctrl.data[0] = htonl((m_sq_wqe_counter << 8) | (get_mlx5_opcode(vma_send_wr_opcode(*p_send_wqe)) & 0xff) );
-	m_sq_wqe_hot->ctrl.data[2] =  request_comp ? htonl(8) : 0 ;
+	ctrl = (struct mlx5_wqe_ctrl_seg *)m_sq_wqe_hot;
+	eseg = (struct mlx5_wqe_eth_seg *)((uint8_t *)m_sq_wqe_hot + sizeof(*ctrl));
 
+	/* Configure ctrl segment
+	 * qpn_ds or ctrl.data[1] is set inside fill_wqe()
+	 */
+	ctrl->opmod_idx_opcode = htonl(((m_sq_wqe_counter & 0xffff) << 8) | (get_mlx5_opcode(vma_send_wr_opcode(*p_send_wqe)) & 0xff));
+	m_sq_wqe_hot->ctrl.data[2] = 0;
+	ctrl->fm_ce_se = (request_comp ? (uint8_t)MLX5_WQE_CTRL_CQ_UPDATE : 0);
+	ctrl->imm = 0;
+
+	/* Configure eth segment
+	 * reset rsvd0, cs_flags, rsvd1, mss and rsvd2 fields
+	 * checksum flags are set here
+	 */
+	*((uint64_t *)eseg) = 0;
+	eseg->rsvd2 = 0;
+	eseg->cs_flags = (uint8_t)(attr & (VMA_TX_PACKET_L3_CSUM | VMA_TX_PACKET_L4_CSUM) & 0xff);
+
+	/* Complete WQE */
 	fill_wqe(p_send_wqe);
+
+	/* Store buffer descriptor */
 	m_sq_wqe_idx_to_wrid[m_sq_wqe_hot_index] = (uintptr_t)p_send_wqe->wr_id;
 
-	// Preparing next WQE and index
+	/* Preparing next WQE and index */
 	m_sq_wqe_hot = &(*m_sq_wqes)[m_sq_wqe_counter & (m_tx_num_wr - 1)];
 	qp_logfunc("m_sq_wqe_hot: %p m_sq_wqe_hot_index: %d wqe_counter: %d new_hot_index: %d wr_id: %llx",
 		   m_sq_wqe_hot, m_sq_wqe_hot_index, m_sq_wqe_counter, (m_sq_wqe_counter&(m_tx_num_wr-1)), p_send_wqe->wr_id);
 	m_sq_wqe_hot_index = m_sq_wqe_counter & (m_tx_num_wr - 1);
 
-	memset((void*)(uintptr_t)m_sq_wqe_hot, 0, sizeof(struct mlx5_wqe64));
+	memset((void*)m_sq_wqe_hot, 0, sizeof(struct mlx5_wqe64));
 
-	// Fill Ethernet segment with header inline
-	eth_seg = (struct mlx5_wqe_eth_seg*)((uint8_t*)m_sq_wqe_hot+sizeof(struct mlx5_wqe_ctrl_seg));
-	eth_seg->inline_hdr_sz = htons(MLX5_ETH_INLINE_HEADER_SIZE);
+	/* Fill Ethernet segment with header inline */
+	eseg = (struct mlx5_wqe_eth_seg*)((uint8_t*)m_sq_wqe_hot + sizeof(struct mlx5_wqe_ctrl_seg));
+	eseg->inline_hdr_sz = htons(MLX5_ETH_INLINE_HEADER_SIZE);
 
 	return 0;
 }
@@ -712,4 +722,3 @@ void qp_mgr_eth_mlx5::trigger_completion_for_all_sent_packets()
 }
 
 #endif /* DEFINED_DIRECT_VERBS */
-
