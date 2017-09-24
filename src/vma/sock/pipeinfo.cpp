@@ -143,7 +143,7 @@ void pipeinfo::clean_obj()
 	g_p_event_handler_manager->unregister_timers_event_and_delete(this);
 }
 
-int pipeinfo::fcntl(int __cmd, unsigned long int __arg) VMA_THROW (vma_error)
+int pipeinfo::fcntl(int __cmd, unsigned long int __arg)
 {
 	switch (__cmd) {
 	case F_SETFL:
@@ -181,7 +181,7 @@ int pipeinfo::fcntl(int __cmd, unsigned long int __arg) VMA_THROW (vma_error)
 	return orig_os_api.fcntl(m_fd, __cmd, __arg);
 }
 
-int pipeinfo::ioctl(unsigned long int __request, unsigned long int __arg) VMA_THROW (vma_error)
+int pipeinfo::ioctl(unsigned long int __request, unsigned long int __arg)
 {
 	int *p_arg = (int *)__arg;
 

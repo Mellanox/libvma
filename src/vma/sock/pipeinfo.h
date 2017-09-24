@@ -47,8 +47,8 @@ public:
 
 	virtual void clean_obj();
 
-	int	fcntl(int __cmd, unsigned long int __arg) VMA_THROW (vma_error);
-	int 	ioctl(unsigned long int __request, unsigned long int __arg) VMA_THROW (vma_error);
+	int	fcntl(int __cmd, unsigned long int __arg);
+	int 	ioctl(unsigned long int __request, unsigned long int __arg);
 
 	// Process a Rx request, we might have a ready packet, or we might block until
 	// we have one (if sockinfo::m_b_blocking == true)

@@ -104,7 +104,7 @@ typedef std::tr1::unordered_map<ring*, ring_info_t*> rx_ring_map_t;
 class sockinfo : public socket_fd_api, public pkt_rcvr_sink, public pkt_sndr_source, public wakeup_pipe
 {
 public:
-	sockinfo(int fd) VMA_THROW (vma_exception);
+	sockinfo(int fd);
 	virtual ~sockinfo();
 
 #if _BullseyeCoverage
@@ -216,12 +216,12 @@ protected:
 
 	int*			m_rings_fds;
 	virtual void 		set_blocking(bool is_blocked);
-	virtual int 		fcntl(int __cmd, unsigned long int __arg) VMA_THROW (vma_error);
-	virtual int 		ioctl(unsigned long int __request, unsigned long int __arg) VMA_THROW (vma_error);
+	virtual int 		fcntl(int __cmd, unsigned long int __arg);
+	virtual int 		ioctl(unsigned long int __request, unsigned long int __arg);
 #ifdef DEFINED_VMAPOLL	
-	virtual int setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen) VMA_THROW (vma_error);
+	virtual int setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen);
 #endif // DEFINED_VMAPOLL	
-	virtual int getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen) VMA_THROW (vma_error);
+	virtual int getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen);
 
 	virtual	mem_buf_desc_t* get_front_m_rx_pkt_ready_list() = 0;
 	virtual	size_t get_size_m_rx_pkt_ready_list() = 0;

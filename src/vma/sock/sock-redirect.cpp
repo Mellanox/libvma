@@ -842,7 +842,7 @@ int connect(int __fd, const struct sockaddr *__to, socklen_t __tolen)
    Returns 0 on success, -1 for errors.  */
 extern "C"
 int setsockopt(int __fd, int __level, int __optname,
-	       __const void *__optval, socklen_t __optlen) VMA_THROW(vma_error)
+	       __const void *__optval, socklen_t __optlen)
 {
 	srdr_logdbg_entry("fd=%d, level=%d, optname=%d", __fd, __level, __optname);
         
@@ -877,7 +877,7 @@ int setsockopt(int __fd, int __level, int __optname,
    Returns 0 on success, -1 for errors.  */
 extern "C"
 int getsockopt(int __fd, int __level, int __optname,
-	       void *__optval, socklen_t *__optlen) VMA_THROW(vma_error)
+	       void *__optval, socklen_t *__optlen)
 {
 	srdr_logdbg_entry("fd=%d, level=%d, optname=%d", __fd, __level, __optname);
 
@@ -936,13 +936,13 @@ int getsockopt(int __fd, int __level, int __optname,
 
    This function is a cancellation point and therefore not marked with
    __THROW.
-   NOTE: in VMA this function is marked as VMA_THROW (vma_error); however, throw will never occur during
-   handling of any command.  VMA will only throw in case VMA doesn't know to handle a command and the
-   user requested explicitly that VMA will throw an exception in such a case by setting VMA_EXCEPTION_HANDLING
-   accordingly (see README.txt)
+   NOTE: VMA throw will never occur during handling of any command.
+   VMA will only throw in case VMA doesn't know to handle a command and the
+   user requested explicitly that VMA will throw an exception in such a case
+   by setting VMA_EXCEPTION_HANDLING accordingly (see README.txt)
    */
 extern "C"
-int fcntl(int __fd, int __cmd, ...) VMA_THROW(vma_error)
+int fcntl(int __fd, int __cmd, ...)
 {
 	srdr_logfunc_entry("fd=%d, cmd=%d", __fd, __cmd);
 
@@ -979,7 +979,7 @@ int fcntl(int __fd, int __cmd, ...) VMA_THROW(vma_error)
    One argument may follow; its presence and type depend on REQUEST.
    Return value depends on REQUEST.  Usually -1 indicates error. */
 extern "C"
-int ioctl (int __fd, unsigned long int __request, ...) VMA_THROW(vma_error)
+int ioctl (int __fd, unsigned long int __request, ...)
 {
 	srdr_logfunc_entry("fd=%d, request=%d", __fd, __request);
 
