@@ -1936,7 +1936,17 @@ bool sockinfo_udp::tx_check_if_would_not_block()
 
 int sockinfo_udp::rx_verify_available_data()
 {
-	int ret = rx_wait(false);
+	int ret;
+
+	// Don't poll cq if offloaded data is ready
+	if (!m_rx_pkt_ready_list.empty()) {
+		auto_unlocker locker(m_lock_rcv);
+		if (!m_rx_pkt_ready_list.empty()) {
+			return m_rx_pkt_ready_list.front()->rx.sz_payload;
+		}
+	}
+
+	ret = rx_wait(false);
 
 	if (ret == 0) {
 		// Got 0, means we might have a ready packet
@@ -1955,7 +1965,11 @@ int sockinfo_udp::rx_verify_available_data()
 			m_rx_udp_poll_os_ratio_counter = m_n_sysvar_rx_udp_poll_os_ratio;
 			ret = pending_data;
 		}
+	} else if (errno == EAGAIN) {
+		errno = 0;
+		ret = 0;
 	}
+
 	return ret;
 }
 
