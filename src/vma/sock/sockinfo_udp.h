@@ -99,7 +99,7 @@ struct cmsg_state
 class sockinfo_udp : public sockinfo
 {
 public:
-	sockinfo_udp(int fd) VMA_THROW (vma_exception);
+	sockinfo_udp(int fd);
 	virtual ~sockinfo_udp();
 
 	void 	setPassthrough() { m_p_socket_stats->b_is_offloaded = m_sock_offload = false;}
@@ -110,8 +110,8 @@ public:
 	int	bind(const struct sockaddr *__addr, socklen_t __addrlen);
 	int	connect(const struct sockaddr *__to, socklen_t __tolen);
 	int	getsockname(struct sockaddr *__name, socklen_t *__namelen);
-	int	setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen) VMA_THROW (vma_error);
-	int	getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen) VMA_THROW (vma_error);
+	int	setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen);
+	int	getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen);
 
 	inline void set_reuseaddr(bool reuseaddr) { m_reuseaddr = reuseaddr; }
 	virtual bool addr_in_reuse(void) { return m_reuseaddr; }

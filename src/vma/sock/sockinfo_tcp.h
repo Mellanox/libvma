@@ -93,7 +93,7 @@ typedef std::map<peer_key, vma_desc_list_t> peer_map_t;
 class sockinfo_tcp : public sockinfo, public timer_handler
 {
 public:
-	sockinfo_tcp(int fd) VMA_THROW (vma_exception);
+	sockinfo_tcp(int fd);
 	virtual ~sockinfo_tcp();
 
 	virtual void clean_obj();
@@ -116,10 +116,10 @@ public:
 	void create_dst_entry();
 	bool prepare_dst_to_send(bool is_accepted_socket = false);
 
-	virtual int fcntl(int __cmd, unsigned long int __arg) VMA_THROW (vma_error);
-	virtual int ioctl(unsigned long int __request, unsigned long int __arg)  VMA_THROW (vma_error);
-	virtual int setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen) VMA_THROW (vma_error);
-	virtual int getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen) VMA_THROW (vma_error);
+	virtual int fcntl(int __cmd, unsigned long int __arg);
+	virtual int ioctl(unsigned long int __request, unsigned long int __arg);
+	virtual int setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen);
+	virtual int getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen);
 	int getsockopt_offload(int __level, int __optname, void *__optval, socklen_t *__optlen);
 	virtual int connect(const sockaddr*, socklen_t);
 	virtual int bind(const sockaddr *__addr, socklen_t __addrlen);

@@ -142,13 +142,13 @@ public:
 	virtual int getpeername(sockaddr *__name, socklen_t *__namelen);
 
 	virtual int setsockopt(int __level, int __optname,
-			       __const void *__optval, socklen_t __optlen) VMA_THROW (vma_error);
+			       __const void *__optval, socklen_t __optlen);
 
 	virtual int getsockopt(int __level, int __optname, void *__optval,
-			       socklen_t *__optlen) VMA_THROW (vma_error);
-	virtual int fcntl(int __cmd, unsigned long int __arg) VMA_THROW (vma_error) = 0;
+			       socklen_t *__optlen);
+	virtual int fcntl(int __cmd, unsigned long int __arg) = 0;
 
-	virtual int ioctl(unsigned long int __request, unsigned long int __arg) VMA_THROW (vma_error) = 0;
+	virtual int ioctl(unsigned long int __request, unsigned long int __arg) = 0;
 
 	virtual ssize_t rx(const rx_call_t call_type, iovec* iov,
 			   const ssize_t iovlen, int* p_flags = 0,

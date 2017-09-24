@@ -157,7 +157,7 @@ int socket_fd_api::getpeername(sockaddr *__name, socklen_t *__namelen)
 }
 
 int socket_fd_api::setsockopt(int __level, int __optname,
-			      __const void *__optval, socklen_t __optlen) VMA_THROW (vma_error)
+			      __const void *__optval, socklen_t __optlen)
 {
 	__log_info_func("");
 	int ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
@@ -168,7 +168,7 @@ int socket_fd_api::setsockopt(int __level, int __optname,
 }
 
 int socket_fd_api::getsockopt(int __level, int __optname, void *__optval,
-			      socklen_t *__optlen) VMA_THROW (vma_error)
+			      socklen_t *__optlen)
 {
 	__log_info_func("");
 	int ret = orig_os_api.getsockopt(m_fd, __level, __optname, __optval, __optlen);
