@@ -45,9 +45,9 @@ class ib_ctx_handler;
 #define DM_COMPLIATION_THRESHOLD 8192
 
 struct vma_mlx5_dm {
-	struct ibv_dm  ibv_dm;
-	size_t         length;
-	char           *start_va;
+	struct ibv_exp_dm  ibv_dm;
+	size_t             length;
+	char               *start_va;
 };
 
 class dm_context {
