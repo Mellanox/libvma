@@ -68,10 +68,9 @@ bool dm_context::dm_allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* rin
 {
 	size_t allocation_size = DM_ALIGN_SIZE(safe_mce_sys().ring_dev_mem_tx, DM_MEMORY_MASK_64);
 	struct ibv_exp_alloc_dm_attr dm_attr = {allocation_size, 0};
-	struct ibv_mr_attr mr_attr;
-	struct ibv_dm *ibv_dm;
+	struct ibv_exp_reg_mr_in mr_in;
+	struct ibv_exp_dm *ibv_dm;
 	m_p_ring_stat = ring_stats;
-
 	if (!allocation_size) {
 		// On Device Memory usage was disabled by the user
 		return false;
@@ -82,12 +81,6 @@ bool dm_context::dm_allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* rin
 		return false;
 	}
 
-	// Initialize attributes
-	memset(&mr_attr, 0, sizeof(mr_attr));
-	mr_attr.type = IBV_DEV_MEM;
-	mr_attr.length = allocation_size;
-	mr_attr.access = IBV_ACCESS_LOCAL_WRITE;
-
 	// Allocate on device memory buffer
 	ibv_dm = ibv_exp_alloc_dm(ib_ctx->get_ibv_context(), &dm_attr);
 	if (!ibv_dm) {
@@ -97,9 +90,15 @@ bool dm_context::dm_allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* rin
 		return false;
 	}
 
+	// Initialize MR attributes
+	memset(&mr_in, 0, sizeof(mr_in));
+	mr_in.pd = ib_ctx->get_ibv_pd();
+	mr_in.comp_mask = IBV_EXP_REG_MR_DM;
+	mr_in.length = allocation_size;
+	mr_in.dm = ibv_dm;
+
 	// Register On Device Memory MR
-	mr_attr.mem_type.dev_mem.dm = ibv_dm;
-	m_p_dm_mr = ibv_reg_mr_ex(ib_ctx->get_ibv_pd(), &mr_attr);
+	m_p_dm_mr = ibv_exp_reg_mr(&mr_in);
 	if (!m_p_dm_mr) {
 		ibv_exp_free_dm(ibv_dm);
 		dmc_logerr("ibv_exp_free_dm error - dm_mr registration failed, %d %m", errno);
@@ -131,7 +130,7 @@ void dm_context::dm_release_resources()
 	}
 
 	if (m_p_mlx5_dm) {
-		if (ibv_exp_free_dm((struct ibv_dm*) m_p_mlx5_dm)) {
+		if (ibv_exp_free_dm((struct ibv_exp_dm*) m_p_mlx5_dm)) {
 			dmc_logerr("ibv_free_dm failed %d %m", errno);
 		} else {
 			dmc_logdbg("ibv_free_dm success");

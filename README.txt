@@ -262,6 +262,7 @@ latency
     Optimized for use cases that are keen on latency. i.e. Ping-Pong tests.
 
     Latency SPEC changes the following default configuration
+     VMA_RING_DEV_MEM_TX = 16384              (default: 0)
      VMA_TX_WRE = 256                         (default: 2048)
      VMA_TX_WRE_BATCHING = 4                  (default: 64)
      VMA_RX_WRE = 256                         (default: 16000)

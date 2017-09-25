@@ -203,7 +203,7 @@ protected:
 
 	virtual int     post_qp_create(void) { return 0;};
 	virtual int     send_to_wire(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr, bool request_comp);
-	virtual bool    is_compilation_need() { return !m_n_unsignaled_count; };
+	virtual bool    is_completion_need() { return !m_n_unsignaled_count; };
 };
 
 class qp_mgr_eth : public qp_mgr

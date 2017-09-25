@@ -60,7 +60,7 @@ protected:
 private:
 	cq_mgr*		init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_channel);
 	virtual cq_mgr* init_tx_cq_mgr(void);
-	virtual bool    is_compilation_need() { return !m_n_unsignaled_count || (m_dm_enabled && m_dm_context.dm_is_compilation_need()); };
+	virtual bool    is_completion_need() { return !m_n_unsignaled_count || (m_dm_enabled && m_dm_context.dm_is_completion_need()); };
 	virtual void    dm_release_data(mem_buf_desc_t* buff) { m_dm_context.dm_release_data(buff); }
 
 	inline void	set_signal_in_next_send_wqe();
