@@ -438,3 +438,13 @@
    ...
    fun:nl_cache_pickup
 }
+{
+   ibnl malloc leak definite
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:__vasprintf_chk
+   fun:__asprintf_chk
+   fun:__nl_error
+   fun:nl_recvmsgs
+}
