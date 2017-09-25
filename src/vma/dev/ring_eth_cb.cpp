@@ -260,10 +260,10 @@ int ring_eth_cb::cyclic_buffer_read(vma_completion_cb_t &completion,
 		ring_logdbg("poll_mp_cq failed with errno %m", errno);
 		return -1;
 	}
-	m_p_ring_stat->n_rx_pkt_count++;
-	m_p_ring_stat->n_rx_byte_count += size;
 	// set it here because we might not have min packets avail in this run
 	if (likely(!(poll_flags & VMA_MP_RQ_BAD_PACKET))) {
+		m_p_ring_stat->n_rx_pkt_count++;
+		m_p_ring_stat->n_rx_byte_count += size;
 		if (unlikely(m_curr_d_addr == 0)) {
 			// user data is located at:
 			// (the beginning of allocated memory +

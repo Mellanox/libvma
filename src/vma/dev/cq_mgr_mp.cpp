@@ -48,10 +48,6 @@
 
 #ifdef HAVE_MP_RQ
 
-#define MLX5_CQE_UDP_IP_CSUM_OK(cqe) \
-	((!!((cqe)->hds_ip_ext & MLX5_CQE_L4_OK) * IBV_EXP_CQ_RX_TCP_UDP_CSUM_OK) | \
-	(!!((cqe)->hds_ip_ext & MLX5_CQE_L3_OK) * IBV_EXP_CQ_RX_IP_CSUM_OK))
-
 enum {
 	/* Masks to handle the CQE byte_count field in case of MP RQ */
 	MP_RQ_BYTE_CNT_FIELD_MASK = 0x0000FFFF,
@@ -126,17 +122,20 @@ int cq_mgr_mp::poll_mp_cq(uint16_t &size, uint32_t &strides_used,
 		uint32_t stride_byte_cnt = ntohl(cqe->byte_cnt);
 		strides_used += (stride_byte_cnt & MP_RQ_NUM_STRIDES_FIELD_MASK) >>
 				MP_RQ_NUM_STRIDES_FIELD_SHIFT;
-		if (unlikely((stride_byte_cnt & MP_RQ_FILLER_FIELD_MASK) ||
-			     ((flags = MLX5_CQE_UDP_IP_CSUM_OK(cqe)) != UDP_OK_FLAGS))) {
-			flags |= VMA_MP_RQ_BAD_PACKET;
-			size = 1; // optimize
-		} else {
-			out_cqe64 = cqe;
+		flags = (!!(cqe->hds_ip_ext & MLX5_CQE_L4_OK) * IBV_EXP_CQ_RX_TCP_UDP_CSUM_OK) |
+			(!!(cqe->hds_ip_ext & MLX5_CQE_L3_OK) * IBV_EXP_CQ_RX_IP_CSUM_OK);
+		if (likely(flags == UDP_OK_FLAGS)) {
 			size = stride_byte_cnt & MP_RQ_BYTE_CNT_FIELD_MASK;
+		} else {
+			// if CSUM is bad it can be either filler or bad packet
+			flags = VMA_MP_RQ_BAD_PACKET;
+			size = 1;
+			if (stride_byte_cnt & MP_RQ_FILLER_FIELD_MASK) {
+				m_p_cq_stat->n_rx_pkt_drop++;
+			}
 		}
 		++m_cq_cons_index;
 		prefetch((uint8_t*)m_cqes + ((m_cq_cons_index & (m_cq_size - 1)) << m_cqe_log_sz));
-
 	} else {
 		size = 0;
 		flags = 0;
