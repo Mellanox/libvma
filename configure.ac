@@ -282,8 +282,8 @@ if test "x${with_debug}" = "xyes" ; then
 	CXXFLAGS="-g -D_DEBUG $CXXFLAGS"
 	LIBALIC_FLAG="--enable-debug $LIBALIC_FLAG"
 else
-	CFLAGS="-O3 $CFLAGS"
-	CXXFLAGS="-O3 $CXXFLAGS"
+	CFLAGS="$CFLAGS -O3"
+	CXXFLAGS="$CXXFLAGS -O3"
 	
 	if test "x${with_debug_info}" = "xyes" ; then
 		CFLAGS="-g $CFLAGS"
