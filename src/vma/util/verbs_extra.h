@@ -88,7 +88,7 @@ int priv_ibv_find_pkey_index(struct ibv_context *verbs, uint8_t port_num, uint16
 
 int priv_ibv_modify_qp_to_err(struct ibv_qp *qp);
 int priv_ibv_modify_qp_from_err_to_init_raw(struct ibv_qp *qp, uint8_t port_num);
-int priv_ibv_modify_qp_from_err_to_init_ud(struct ibv_qp *qp, uint8_t port_num, uint16_t pkey_index, uint32_t underly_qpn = 0);
+int priv_ibv_modify_qp_from_err_to_init_ud(struct ibv_qp *qp, uint8_t port_num, uint16_t pkey_index, uint32_t underly_qpn);
 int priv_ibv_modify_qp_from_init_to_rts(struct ibv_qp *qp, uint32_t underly_qpn = 0);
 
 // Return 'ibv_qp_state' of the ibv_qp

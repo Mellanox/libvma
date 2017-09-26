@@ -703,7 +703,7 @@ void qp_mgr_ib::modify_qp_to_ready_state()
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (qp_state !=  IBV_QPS_INIT) {
-		if ((ret = priv_ibv_modify_qp_from_err_to_init_ud(m_qp, m_port_num, m_pkey_index)) != 0) {
+		if ((ret = priv_ibv_modify_qp_from_err_to_init_ud(m_qp, m_port_num, m_pkey_index, m_underly_qpn)) != 0) {
 			qp_logpanic("failed to modify QP from %d to RTS state (ret = %d)", qp_state, ret);
 		}
 	}
