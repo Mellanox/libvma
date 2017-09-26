@@ -47,8 +47,10 @@
 	*dst++ = *src++;	\
 	*dst++ = *src++
 
-#define wmb()	 asm volatile("sync" ::: "memory")
-#define wc_wmb() wmb()
+#define mb()	 asm volatile("sync" ::: "memory")
+#define rmb()	 asm volatile("lwsync" ::: "memory")
+#define wmb()	 rmb()
+#define wc_wmb() mb()
 
 /**
  * Add to the atomic variable.
