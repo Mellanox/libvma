@@ -40,6 +40,8 @@
 
 #define __xg(x) ((volatile long *)(x))
 
+#define mb()	 asm volatile("" ::: "memory")
+#define rmb()	 mb()
 #define wmb()	 asm volatile("" ::: "memory")
 #define wc_wmb() asm volatile("sfence" ::: "memory")
 

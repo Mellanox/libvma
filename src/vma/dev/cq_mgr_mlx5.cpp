@@ -145,7 +145,7 @@ mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
 	if (likely(cqe)) {
 		/* Update the consumer index */
 		++m_cq_cons_index;
-		wmb();
+		rmb();
 		cqe64_to_mem_buff_desc(cqe, m_rx_hot_buffer, status);
 		++m_rq->tail;
 		*m_cq_dbell = htonl(m_cq_cons_index & 0xffffff);
@@ -485,7 +485,7 @@ inline volatile struct mlx5_cqe64 *cq_mgr_mlx5::get_cqe64(volatile struct mlx5_c
 	}
 
 	++m_cq_cons_index;
-	wmb();
+	rmb();
 	*m_cq_dbell = htonl(m_cq_cons_index);
 
 	return cqe;
