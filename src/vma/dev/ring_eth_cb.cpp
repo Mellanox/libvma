@@ -45,7 +45,7 @@
 ring_eth_cb::ring_eth_cb(in_addr_t local_if,
 			 ring_resource_creation_info_t *p_ring_info, int count,
 			 bool active, uint16_t vlan, uint32_t mtu,
-			 vma_cyclic_buffer_ring_attr *cb_ring, ring *parent) VMA_THROW (vma_error) :
+			 vma_cyclic_buffer_ring_attr *cb_ring, ring *parent):
 			 ring_eth(local_if, p_ring_info, count, active, vlan,
 				  mtu, parent, false)
 			,m_cb_ring(*cb_ring)
@@ -63,7 +63,7 @@ ring_eth_cb::ring_eth_cb(in_addr_t local_if,
 }
 
 void ring_eth_cb::create_resources(ring_resource_creation_info_t *p_ring_info,
-				   bool active) VMA_THROW (vma_error)
+				   bool active)
 {
 	struct ibv_exp_res_domain_init_attr res_domain_attr;
 
@@ -142,7 +142,7 @@ void ring_eth_cb::create_resources(ring_resource_creation_info_t *p_ring_info,
 
 qp_mgr* ring_eth_cb::create_qp_mgr(const ib_ctx_handler *ib_ctx,
 				   uint8_t port_num,
-				   struct ibv_comp_channel *p_rx_comp_event_channel) VMA_THROW (vma_error)
+				   struct ibv_comp_channel *p_rx_comp_event_channel)
 {
 	return new qp_mgr_mp(this, ib_ctx, port_num, p_rx_comp_event_channel,
 			get_tx_num_wr(), get_partition());
