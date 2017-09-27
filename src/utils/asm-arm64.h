@@ -47,7 +47,9 @@
 	*dst++ = *src++;	\
 	*dst++ = *src++
 
-#define wmb()	 asm volatile("" ::: "memory")
+#define mb()	asm volatile("dsb sy" ::: "memory")
+#define rmb()	asm volatile("dsb ld" ::: "memory")
+#define wmb()	asm volatile("dsb st" ::: "memory")
 #define wc_wmb() wmb()
 
 /**
