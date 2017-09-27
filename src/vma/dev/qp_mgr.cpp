@@ -567,7 +567,7 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t *)p_send_wqe->wr_id;
 
 	qp_logfunc("VERBS send, unsignaled_count: %d", m_n_unsignaled_count);
-	bool request_comp = is_compilation_need();
+	bool request_comp = is_completion_need();
 
 #ifdef VMA_TIME_MEASURE
 	TAKE_T_TX_POST_SEND_START;

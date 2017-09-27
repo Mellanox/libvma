@@ -42,7 +42,7 @@ class ib_ctx_handler;
 #if defined(HAVE_INFINIBAND_MLX5_HW_H)
 #if defined(HAVE_IBV_DM)
 
-#define DM_COMPLIATION_THRESHOLD 8192
+#define DM_COMPLETION_THRESHOLD 8192
 
 struct vma_mlx5_dm {
 	struct ibv_exp_dm  ibv_dm;
@@ -58,7 +58,7 @@ public:
 	void          dm_release_resources();
 	bool          dm_copy_data(struct mlx5_wqe_data_seg* seg, uint8_t* src, uint32_t length, mem_buf_desc_t* buff);
 	void          dm_release_data(mem_buf_desc_t* buff);
-	inline bool   dm_is_compilation_need() { return m_allocation - m_used < DM_COMPLIATION_THRESHOLD; };
+	inline bool   dm_is_completion_need() { return m_allocation - m_used < DM_COMPLETION_THRESHOLD; };
 
 private:
 
@@ -78,7 +78,7 @@ public:
 	inline void   dm_release_resources() {};
 	inline bool   dm_copy_data(struct mlx5_wqe_data_seg* seg, uint8_t* src, uint32_t length, mem_buf_desc_t* buff) { NOT_IN_USE(seg); NOT_IN_USE(src); NOT_IN_USE(length); NOT_IN_USE(buff); return false; };
 	inline void   dm_release_data(mem_buf_desc_t* buff) { NOT_IN_USE(buff); };
-	inline bool   dm_is_compilation_need() { return false; };
+	inline bool   dm_is_completion_need() { return false; };
 };
 
 #endif /* HAVE_IBV_DM */
