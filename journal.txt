@@ -1,3 +1,13 @@
+Version 8.4.6-0:
+Date + Time 2017-09-27
+=============================================================
+Fixed:
+        - RM #1153175 Modify On Device Memory reg_mr API according to libmlx5/libibverbs
+        - RM #1150366 Align memory barrier to verbs's one
+        - RM #1151606 Modify valgrind suppresion file
+        - RM #1147574 Fix missing argument in modify_qp_to_ready_state()
+        - RM #1148076 Remove volatile when handling CQE
+
 Version 8.4.5-0:
 Date + Time 2017-09-19
 =============================================================
