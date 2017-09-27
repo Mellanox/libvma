@@ -38,8 +38,10 @@
 #include "asm-arm64.h"
 #elif defined(__powerpc64__)
 #include "asm-ppc64.h"
-#else
+#elif defined(__x86_64__)
 #include "asm-x86.h"
+#else
+#error No architecture specific memory barrier defenitions found!
 #endif
 
 #endif

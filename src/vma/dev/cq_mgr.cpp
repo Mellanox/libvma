@@ -1010,7 +1010,7 @@ volatile struct mlx5_cqe64 *cq_mgr::mlx5_check_error_completion(volatile struct 
 		case MLX5_CQE_REQ_ERR:
 		case MLX5_CQE_RESP_ERR:
 			++(*ci);
-			wmb();
+			rmb();
 			*m_cq_db = htonl(m_cq_ci);
 			return cqe;
 		default:
@@ -1035,7 +1035,7 @@ inline volatile struct mlx5_cqe64 *cq_mgr::mlx5_get_cqe64(void)
 	}
 
 	++m_cq_ci;
-	wmb();
+	rmb();
 	*m_cq_db = htonl(m_cq_ci);
 
 	return cqe;
@@ -1060,7 +1060,7 @@ inline volatile struct mlx5_cqe64 *cq_mgr::mlx5_get_cqe64(volatile struct mlx5_c
 	}
 
 	++m_cq_ci;
-	wmb();
+	rmb();
 	*m_cq_db = htonl(m_cq_ci);
 
 	return cqe;

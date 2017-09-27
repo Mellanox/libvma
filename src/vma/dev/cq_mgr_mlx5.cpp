@@ -459,7 +459,7 @@ inline volatile struct mlx5_cqe64* cq_mgr_mlx5::check_error_completion(volatile 
 	case MLX5_CQE_REQ_ERR:
 	case MLX5_CQE_RESP_ERR:
 		++(*ci);
-		wmb();
+		rmb();
 		*m_cq_dbell = htonl(m_cq_cons_index);
 		return cqe;
 
