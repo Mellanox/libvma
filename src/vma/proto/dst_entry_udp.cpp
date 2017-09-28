@@ -314,8 +314,8 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov,
 
 	// Calc udp payload size
 	size_t sz_udp_payload = sz_data_payload + sizeof(struct udphdr);
-        vma_wr_tx_packet_attr attr = (vma_wr_tx_packet_attr)((VMA_TX_PACKET_BLOCK*b_blocked) | (VMA_TX_PACKET_DUMMY*is_dummy));
-	if (sz_udp_payload <= m_max_ip_payload_size) {
+	vma_wr_tx_packet_attr attr = (vma_wr_tx_packet_attr)((VMA_TX_PACKET_BLOCK * b_blocked) | (VMA_TX_PACKET_DUMMY * is_dummy));
+	if (sz_udp_payload <= m_max_udp_payload_size) {
 		return fast_send_not_fragmented(p_iov, sz_iov, attr, sz_udp_payload, sz_data_payload);
 	} else {
 		return fast_send_fragmented(p_iov, sz_iov, attr, sz_udp_payload, sz_data_payload);
