@@ -230,6 +230,15 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	qp_init_attr.send_cq = m_p_cq_mgr_tx->get_ibv_cq_hndl();
 	qp_init_attr.sq_sig_all = 0;
 
+	// In case of enabled TSO we need to take into account amount of SGE together with header inline
+	// Per PRM maximum of CTRL + ETH + ETH_HEADER_INLINE+DATA_PTR*NUM_SGE+MAX_INLINE+INLINE_SIZE
+	// MLX5 return 32678 WQEBBs at max so minimal number 
+	int max_wqe_sz = 16+14+m_p_ring->m_tso.max_header_sz+16*qp_init_attr.cap.max_send_sge+qp_init_attr.cap.max_inline_data+4;
+	int num_wr = 32678*64/max_wqe_sz;
+	qp_logdbg("calculated max_wqe_sz=%d num_wr=%d", max_wqe_sz, num_wr);
+	if (num_wr < (signed)m_tx_num_wr) {
+		qp_init_attr.cap.max_send_wr = num_wr; // force min for create_qp or you will have error of memory allocation
+	}
 	qp_logdbg("Requested QP parameters: "
 			"wre: tx = %d rx = %d "
 			"sge: tx = %d rx = %d "
@@ -265,6 +274,12 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	m_qp_cap.max_send_sge = min(tmp_ibv_qp_attr.cap.max_send_sge, m_qp_cap.max_send_sge);
 	m_qp_cap.max_recv_sge = min(tmp_ibv_qp_attr.cap.max_recv_sge, m_qp_cap.max_recv_sge);
 	m_qp_cap.max_inline_data = min(tmp_ibv_qp_attr.cap.max_inline_data, m_qp_cap.max_inline_data);
+
+	if ( m_qp_cap.max_send_wr < m_tx_num_wr ) {
+		qp_logwarn("Amount of requested TX_WRE %d lowered to %d", m_tx_num_wr, m_qp_cap.max_send_wr);
+		m_tx_num_wr = m_qp_cap.max_send_wr;
+		m_p_ring->set_tx_num_wr( m_tx_num_wr );
+	}
 
 	qp_logdbg("Used QP (num=%d) "
 			"wre: tx = %d rx = %d "
@@ -710,7 +725,7 @@ int qp_mgr_eth::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_qp) {
-		qp_logerr("ibv_create_qp failed (errno=%d %m)", errno);
+		qp_logerr("ibv_create_qp with max_send_sge: %d failed (errno=%d %m)", qp_init_attr.cap.max_send_sge, errno);
 		return -1;
 	}
 	VALGRIND_MAKE_MEM_DEFINED(m_qp, sizeof(ibv_qp));

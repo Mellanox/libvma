@@ -118,6 +118,7 @@ protected:
 	void			flow_tcp_del_all();
 	bool			request_more_tx_buffers(uint32_t count);
 	uint32_t		get_tx_num_wr() { return m_tx_num_wr; }
+	void			set_tx_num_wr(int32_t num_wr) { m_tx_num_wr = m_tx_num_wr_free = num_wr; }
 	uint16_t		get_partition() { return m_partition; }
 	ib_ctx_handler*		m_p_ib_ctx;
 	qp_mgr*			m_p_qp_mgr;
