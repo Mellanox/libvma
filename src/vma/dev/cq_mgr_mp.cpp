@@ -110,9 +110,9 @@ void cq_mgr_mp::add_qp_rx(qp_mgr *qp)
  * if a bad checksum packet or a filler bit it will return VMA_MP_RQ_BAD_PACKET
  */
 int cq_mgr_mp::poll_mp_cq(uint16_t &size, uint32_t &strides_used,
-			  uint32_t &flags, volatile struct mlx5_cqe64 *&out_cqe64)
+			  uint32_t &flags, struct mlx5_cqe64 *&out_cqe64)
 {
-	volatile struct mlx5_cqe64 *cqe= check_cqe();
+	struct mlx5_cqe64 *cqe= check_cqe();
 	if (likely(cqe)) {
 		if (unlikely(MLX5_CQE_OPCODE(cqe->op_own) != MLX5_CQE_RESP_SEND)) {
 			cq_logdbg("Warning op_own is %x", MLX5_CQE_OPCODE(cqe->op_own));
@@ -154,7 +154,7 @@ void cq_mgr_mp::update_dbell()
 
 cq_mgr_mp::~cq_mgr_mp()
 {
-	volatile struct mlx5_cqe64 *out_cqe64;
+	struct mlx5_cqe64 *out_cqe64;
 	uint16_t size;
 	uint32_t strides_used = 0, flags = 0;
 	int ret;

@@ -172,7 +172,7 @@ int ring_eth_cb::poll_and_process_element_rx(uint64_t* p_cq_poll_sn,
  */
 inline mp_loop_result ring_eth_cb::mp_loop(size_t limit)
 {
-	volatile struct mlx5_cqe64 *cqe64;
+	struct mlx5_cqe64 *cqe64;
 	uint16_t size = 0;
 	uint32_t flags = 0;
 
@@ -233,7 +233,7 @@ int ring_eth_cb::cyclic_buffer_read(vma_completion_cb_t &completion,
 {
 	uint32_t poll_flags = 0;
 	uint16_t size;
-	volatile struct mlx5_cqe64 *cqe64;
+	struct mlx5_cqe64 *cqe64;
 
 	// sanity check
 	if (unlikely(min > max || max == 0 || flags != MSG_DONTWAIT)) {

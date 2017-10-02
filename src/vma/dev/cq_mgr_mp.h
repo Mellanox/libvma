@@ -48,7 +48,7 @@ public:
 	~cq_mgr_mp();
 	int		poll_mp_cq(uint16_t &size, uint32_t &strides_used,
 				   uint32_t &flags,
-				   volatile struct mlx5_cqe64 *&cqe64);
+				   struct mlx5_cqe64 *&cqe64);
 	void update_dbell();
 	void update_max_drain(uint32_t t) { m_p_cq_stat->n_rx_drained_at_once_max =
 			max(m_p_cq_stat->n_rx_drained_at_once_max, t);}
