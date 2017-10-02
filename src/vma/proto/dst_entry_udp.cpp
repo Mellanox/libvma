@@ -212,7 +212,7 @@ ssize_t dst_entry_udp::fast_send_fragmented(const iovec* p_iov, const ssize_t sz
 
 	while (n_num_frags--) {
 		// Calc this ip datagram fragment size (include any udp header)
-		size_t sz_ip_frag = min(m_max_ip_payload_size, (sz_udp_payload - n_ip_frag_offset));
+		size_t sz_ip_frag = min((size_t)m_max_ip_payload_size, (sz_udp_payload - n_ip_frag_offset));
 		size_t sz_user_data_to_copy = sz_ip_frag;
 		size_t hdr_len = m_header.m_transport_header_len + m_header.m_ip_header_len; // Add count of L2 (ipoib or mac) header length
 
@@ -315,7 +315,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov,
 	// Calc udp payload size
 	size_t sz_udp_payload = sz_data_payload + sizeof(struct udphdr);
 	vma_wr_tx_packet_attr attr = (vma_wr_tx_packet_attr)((VMA_TX_PACKET_BLOCK * b_blocked) | (VMA_TX_PACKET_DUMMY * is_dummy));
-	if (sz_udp_payload <= m_max_udp_payload_size) {
+	if (sz_udp_payload <= (size_t)m_max_udp_payload_size) {
 		return fast_send_not_fragmented(p_iov, sz_iov, attr, sz_udp_payload, sz_data_payload);
 	} else {
 		return fast_send_fragmented(p_iov, sz_iov, attr, sz_udp_payload, sz_data_payload);
