@@ -186,7 +186,6 @@ bool vma_allocator::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h,
 {
 	bool failed = false;
 	if (p_ib_ctx_h) {
-		m_mr_list_len = 1;
 		m_mr_list = new ibv_mr*[1];
 		m_mr_list[0] = p_ib_ctx_h->mem_reg(m_data_block, size, access);
 		BULLSEYE_EXCLUDE_BLOCK_START
@@ -194,13 +193,14 @@ bool vma_allocator::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h,
 			failed = true;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
+		m_mr_list_len = 1;
 	} else {
-		m_mr_list_len = g_p_ib_ctx_handler_collection->get_num_devices();
-		m_mr_list = new ibv_mr*[m_mr_list_len];
+		size_t dev_num = g_p_ib_ctx_handler_collection->get_num_devices();
+		m_mr_list = new ibv_mr*[dev_num];
 
 		BULLSEYE_EXCLUDE_BLOCK_START
-		if (g_p_ib_ctx_handler_collection->mem_reg_on_all_devices(m_data_block,
-				size, m_mr_list, m_mr_list_len, access) != m_mr_list_len) {
+		if ((m_mr_list_len = g_p_ib_ctx_handler_collection->mem_reg_on_all_devices(m_data_block,
+				size, m_mr_list, dev_num, access)) != dev_num) {
 			failed = true;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END

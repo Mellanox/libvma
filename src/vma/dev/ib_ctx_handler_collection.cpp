@@ -131,7 +131,7 @@ size_t ib_ctx_handler_collection::mem_reg_on_all_devices(void* addr, size_t leng
 		if (mr_array[mr_pos] == NULL) {
 			ibchc_logwarn("Failure in mem_reg: addr=%p, length=%d, mr_pos=%d, mr_array[mr_pos]=%d, dev=%p, ibv_dev=%s", 
 				    addr, length, mr_pos, mr_array[mr_pos], p_ib_ctx_handler, p_ib_ctx_handler->get_ibv_device()->name);
-			return (size_t)-1;
+			break;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		errno = 0; //ibv_reg_mr() set errno=12 despite successful returning
