@@ -737,7 +737,7 @@ retry_is_ready:
 	}
 
 #ifdef DEFINED_TCP_TX_WND_AVAILABILITY
-	if (!is_window_available(&m_pcb, p_iov[0].iov_len)) {
+	if (!tcp_is_wnd_available(&m_pcb, p_iov[0].iov_len)) {
 		unlock_tcp_con();
 		errno = EAGAIN;
 		return -1;
