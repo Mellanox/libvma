@@ -1,3 +1,14 @@
+Version 8.4.7-0:
+Date + Time 2017-10-08
+=============================================================
+Added:
+        - RM #1151343 Update MP RQ dropped packet statistics in case of bad CSUM
+        - RM #1150137 Remove VMA_THROW from functions signature
+Fixed:
+        - RM #1150011 Fix ioctl() FIONREAD return value
+        - RM #1154650 Fix IP fragmentation threshold
+        - RM #1152517 Fix flags order to compile VMA with O3
+
 Version 8.4.6-0:
 Date + Time 2017-09-27
 =============================================================
