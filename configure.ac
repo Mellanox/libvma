@@ -58,7 +58,22 @@ AC_SUBST([BUILD_TIME], [$(date +'%H:%M:%S')])
 AC_SUBST([BUILD_DATE_CHANGELOG], [$(date +'%a, %d %b %Y %T %z')])
 
 m4_include([config/m4/opt.m4])
-m4_include([config/m4/pkg.m4])
+
+##########################
+# Check for pkg-config package
+#
+AC_CHECK_PROG(
+    [have_pkg_config],
+    [pkg-config],
+    m4_ifdef([PKG_PROG_PKG_CONFIG], yes, no),
+    no)
+if test x"$have_pkg_config" = "xno"; then
+    AC_MSG_ERROR([
+        *** The pkg-config is required to build the library.
+        *** Make sure it is installed or set path to pkg-config.
+        *** Set the environment variable ACLOCAL="aclocal -I/path/to/pkg.m4"
+    ])
+fi
 PKG_PROG_PKG_CONFIG
 
 with_debug_info=yes
