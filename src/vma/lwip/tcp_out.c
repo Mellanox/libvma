@@ -972,14 +972,14 @@ tcp_is_wnd_available(struct tcp_pcb *pcb, u32_t data_len)
 	s32_t wnd = (s32_t)(LWIP_MIN(pcb->snd_wnd, pcb->cwnd));
 	s32_t tot_opts_hdrs_len = 0;
 
-	#if LWIP_TCP_TIMESTAMPS
-	  if (pcb->flags & TF_TIMESTAMP) {
-		u16_t mss = pcb->mss ? pcb->mss : 536;/* The default TCP Maximum Segment Size is 536 - RFC879 */
-		u16_t mss_local = LWIP_MIN(pcb->mss, pcb->snd_wnd_max/2);
+#if LWIP_TCP_TIMESTAMPS
+	if (pcb->flags & TF_TIMESTAMP) {
+		u16_t mss = pcb->mss ? pcb->mss : LWIP_TCP_MSS; /* The default TCP Maximum Segment Size is 536 (LWIP_TCP_MSS) - RFC-879 */
+		u16_t mss_local = LWIP_MIN(pcb->mss, pcb->snd_wnd_max / 2);
 		mss_local = mss_local ? mss_local : mss;
-		tot_opts_hdrs_len = ((LWIP_TCP_OPT_LENGTH(TF_SEG_OPTS_TS)) * ( 1 + ((data_len-1)/(mss_local))));
-	  }
-	#endif
+		tot_opts_hdrs_len = ((LWIP_TCP_OPT_LENGTH(TF_SEG_OPTS_TS)) * (1 + ((data_len - 1) / (mss_local))));
+	}
+#endif
 
 	if (pcb->unacked) {
 		tot_unacked_len = pcb->last_unacked->seqno - pcb->unacked->seqno + pcb->last_unacked->len;
