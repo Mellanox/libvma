@@ -65,16 +65,27 @@ m4_include([config/m4/opt.m4])
 AC_CHECK_PROG(
     [have_pkg_config],
     [pkg-config],
-    m4_ifdef([PKG_PROG_PKG_CONFIG], yes, no),
-    no)
-if test x"$have_pkg_config" = "xno"; then
-    AC_MSG_ERROR([
+    m4_ifdef([PKG_PROG_PKG_CONFIG], yes, no_pkg_m4),
+    no_pkg_config)
+case "$have_pkg_config" in
+    no_pkg_m4)
+        AC_MSG_ERROR([
+        *** You don't have pkg.m4 properly installed.
+        *** aclocal can not find one.
+        *** Set the environment variable ACLOCAL="aclocal -I/path/to/pkg.m4"
+        ])
+        ;;
+    no_pkg_config)
+        AC_MSG_ERROR([
         *** The pkg-config is required to build the library.
         *** Make sure it is installed or set path to pkg-config.
-        *** Set the environment variable ACLOCAL="aclocal -I/path/to/pkg.m4"
-    ])
-fi
+        ])
+        ;;
+    *)
+        ;;
+esac
 PKG_PROG_PKG_CONFIG
+
 
 with_debug_info=yes
 with_debug=no
