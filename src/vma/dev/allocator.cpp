@@ -195,6 +195,7 @@ bool vma_allocator::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h,
 			m_mr_list_len = 1;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
+		m_mr_list_len = 1;
 	} else {
 		size_t dev_num = g_p_ib_ctx_handler_collection->get_num_devices();
 		m_mr_list = new ibv_mr*[dev_num];
