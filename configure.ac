@@ -30,7 +30,7 @@ AC_CONFIG_HEADER([config.h])
 
 VMA_LIBRARY_MAJOR=8
 VMA_LIBRARY_MINOR=4
-VMA_LIBRARY_REVISION=1
+VMA_LIBRARY_REVISION=8
 VMA_LIBRARY_RELEASE=0
 
 AC_DEFINE_UNQUOTED(VMA_LIBRARY_MAJOR, ${VMA_LIBRARY_MAJOR}, [VMA Major Version])
@@ -81,7 +81,6 @@ m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 m4_include([config/m4/func.m4])
 m4_include([config/m4/opt.m4])
-m4_include([config/m4/pkg.m4])
 m4_include([config/m4/verbs.m4])
 m4_include([config/m4/nl.m4])
 m4_include([config/m4/prof.m4])
@@ -131,6 +130,7 @@ AC_SUBST([BUILD_DATE], [$(date $dateopt +'%b/%d/%y')])
 AC_SUBST([BUILD_TIME], [$(date $dateopt +'%H:%M:%S')])
 AC_SUBST([BUILD_DATE_CHANGELOG], [$(date $dateopt +'%a, %d %b %Y %T %z')])
 
+
 dnl===-----------------------------------------------------------------------===
 dnl===
 dnl=== SECTION 4: Setting compiler specific options
@@ -173,13 +173,8 @@ OS=`cat /etc/issue | awk '{ print $3}'`
 CFLAGS="-D_GNU_SOURCE -fPIC $CFLAGS"
 CXXFLAGS="-D_GNU_SOURCE -fPIC $CXXFLAGS"
 
-AC_ARG_ENABLE([build32],
-    AC_HELP_STRING([--enable-build32],
-        [Force build 32 bit]),
-    [CFLAGS="-m32 -L/usr/lib $CFLAGS"; CXXFLAGS="-m32 -L/usr/lib $CXXFLAGS"; LWIP_FLAG="-m32"; LDFLAGS='-m32 -L/usr/lib'; FFLAGS='-m32 -L/usr/lib'],
-    [CFLAGS="$CFLAGS"; CXXFLAGS="$CXXFLAGS"; LWIP_FLAG=""])
-
 # gcov support
+#
 AC_MSG_CHECKING(
     [if gcov is enabled])
 AC_ARG_ENABLE([gcov],
@@ -191,7 +186,8 @@ AC_ARG_ENABLE([gcov],
      AC_MSG_RESULT([no])]
 )
 
-# time_measure support
+# Performance time points  support
+#
 AC_MSG_CHECKING(
     [if time measurement is enabled])
 AC_ARG_ENABLE([time_measure],
@@ -202,7 +198,6 @@ AC_ARG_ENABLE([time_measure],
     [AC_MSG_RESULT([no])]
 )
 
-#
 # Valgrind support
 #
 AC_ARG_WITH([valgrind],
@@ -227,8 +222,7 @@ AS_IF([test "x$with_valgrind" == xno],
       ]
 )
 
-#
-# debug configuration.
+# Debug configuration.
 #
 with_debug_info=yes
 with_debug=no
@@ -265,7 +259,6 @@ if test  ${revision:-0} -ne 0 ; then
     	CXXFLAGS="-DVMA_SVN_REVISION=$revision $CXXFLAGS"
 fi
 
-#
 # OFED configuration.
 #
 AC_MSG_CHECKING([OFED path])
@@ -290,8 +283,7 @@ OPT_VMA_LOGGING()
 PROF_IBPROF_SETUP()
 PROF_RDTSC_SETUP()
 
-#
-# VMAPOLL
+# VMA Extreme configuration
 #
 AC_ARG_ENABLE([vmapoll],
     AC_HELP_STRING([--enable-vmapoll],
@@ -307,7 +299,6 @@ else
     AC_MSG_RESULT([no])
 fi
 
-#
 # Thread locking control
 #
 AC_ARG_ENABLE([thread-lock],
