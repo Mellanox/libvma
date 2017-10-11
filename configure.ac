@@ -288,16 +288,16 @@ PROF_RDTSC_SETUP()
 AC_ARG_ENABLE([vmapoll],
     AC_HELP_STRING([--enable-vmapoll],
         [Enable alternative API to standard sockets API for receiving packets (default=no)]))
-AC_MSG_CHECKING(
-    [if vmapoll API is enabled])
 if test "x$enable_vmapoll" = xyes; then
     AC_CHECK_HEADER([infiniband/mlx5_hw.h],
         [AC_DEFINE([DEFINED_VMAPOLL], 1, [Define to 1 if vmapoll was enabled at configure time])],
         [AC_MSG_ERROR([vmapoll mode is not supported with the current installed OFED version])])
-    AC_MSG_RESULT([yes])
 else
-    AC_MSG_RESULT([no])
+    enable_vmapoll=no
 fi
+AC_MSG_CHECKING([if vmapoll API is enabled])
+AC_MSG_RESULT([$enable_vmapoll])
+
 
 # Thread locking control
 #

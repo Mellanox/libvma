@@ -4,6 +4,25 @@
 # See file LICENSE for terms.
 #
 
+
+# Check attributes
+# Usage: CHECK_VERBS_ATTRIBUTE([attribute], [header file])
+#
+AC_DEFUN([CHECK_VERBS_ATTRIBUTE], [
+    AC_TRY_LINK(
+        [#include <$2>],
+        [int attr = (int)$1; attr = attr;],
+        [vma_cv_attribute_$1=yes],
+        [vma_cv_attribute_$1=no])
+
+    AC_MSG_CHECKING([for attribute $1])
+    AC_MSG_RESULT([$vma_cv_attribute_$1])
+    AS_IF([test "x$vma_cv_attribute_$1" = "xyes"], [
+        AC_DEFINE_UNQUOTED([DEFINED_$1], [1], [Define to 1 if attribute $1 is supported])
+    ])
+])
+
+
 ##########################
 # Configure ofed capabilities
 #
@@ -30,8 +49,19 @@ AC_SUBST([VERBS_LIBS])
 verbs_saved_libs=$LIBS
 LIBS="$LIBS $VERBS_LIBS"
 
+
+# Check if OFED verbs (2.1 and older)
 #
-# Chech if direct hardware operations can be used instead of VERBS API
+AC_CHECK_HEADER([infiniband/verbs_exp.h],
+    AC_CHECK_DECL([IBV_EXP_ACCESS_ALLOCATE_MR],
+        [],
+        [AC_DEFINE(DEFINED_IBV_OLD_VERBS_MLX_OFED, 1, [Define to 1 for ofed 2.1 and older])],
+        [[#include <infiniband/verbs_exp.h>]])
+    [],
+    [AC_DEFINE(DEFINED_IBV_OLD_VERBS_MLX_OFED, 1, [Define to 1 for ofed 2.1 and older])]
+)
+
+# Check if direct hardware operations can be used instead of VERBS API
 # infiniband/mlx5_hw.h should exist
 #
 AC_CHECK_HEADER([infiniband/mlx5_hw.h],
@@ -44,7 +74,6 @@ AC_CHECK_HEADER([infiniband/mlx5_hw.h],
 )
 
 
-#
 # Enable tcp tx window availability
 #
 AC_ARG_ENABLE([tcp-tx-wnd-availability],
@@ -65,271 +94,34 @@ AC_ARG_ENABLE([exp-cq],
 )
 
 AS_IF([test "x$enable_exp_cq" == xyes],
-        [AC_DEFINE([DEFINED_IBV_EXP_CQ], 1, [Define to 1 if Experimental Verbs CQ was enabled at configure time])]
+    [AC_DEFINE([DEFINED_IBV_EXP_CQ], 1, [Define to 1 if Experimental Verbs CQ was enabled at configure time])]
 
-	AC_MSG_CHECKING([if IBV_EXP_CQ_TIMESTAMP is defined])
-	AC_TRY_LINK(
-	#include <infiniband/verbs_exp.h>
-	,
-	[
-	  int access = (int)IBV_EXP_CQ_TIMESTAMP;
-	  access = access;
-	],
-	[
-	  AC_MSG_RESULT([yes])
-	  AC_DEFINE(DEFINED_IBV_EXP_CQ_TIMESTAMP, 1, [Define to 1 if IBV_EXP_CQ_TIMESTAMP is defined])
-	],
-	[
-	  AC_MSG_RESULT([no])
-	])
-
-	AC_MSG_CHECKING([if IBV_EXP_VALUES_CLOCK_INFO is defined])
-	AC_TRY_LINK(
-	#include <infiniband/verbs_exp.h>
-	,
-	[
-	  int access = (int)IBV_EXP_VALUES_CLOCK_INFO;
-	  access = access;
-	],
-	[
-	  AC_MSG_RESULT([yes])
-	  AC_DEFINE(DEFINED_IBV_EXP_VALUES_CLOCK_INFO, 1, [Define to 1 if IBV_EXP_VALUES_CLOCK_INFO is defined])
-	],
-	[
-	  AC_MSG_RESULT([no])
-	])
-
-	AC_MSG_CHECKING([if IBV_EXP_DEVICE_RX_CSUM_L4_PKT is defined])
-	AC_TRY_LINK(
-	#include <infiniband/verbs_exp.h>
-	,
-	[
-	  int access = (int)IBV_EXP_DEVICE_RX_CSUM_L4_PKT;
-	  access = access;
-	],
-	[
-	  AC_MSG_RESULT([yes])
-	  AC_DEFINE(DEFINED_IBV_EXP_DEVICE_RX_CSUM_L4_PKT, 1, [Define to 1 if IBV_EXP_DEVICE_RX_CSUM_L4_PKT is defined])
-	],
-	[
-	  AC_MSG_RESULT([no])
-	])
-
-	AC_MSG_CHECKING([if IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT is defined])
-	AC_TRY_LINK(
-	#include <infiniband/verbs_exp.h>
-	,
-	[
-	  int access = (int)IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT;
-	  access = access;
-	],
-	[
-	  AC_MSG_RESULT([yes])
-	  AC_DEFINE(DEFINED_IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT, 1, [Define to 1 if IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT is defined])
-	],
-	[
-	  AC_MSG_RESULT([no])
-	])
-
-	AC_MSG_CHECKING([if IBV_EXP_FLOW_SPEC_ACTION_TAG is defined])
-	AC_TRY_LINK(
-	#include <infiniband/verbs_exp.h>
-	,
-	[
-	  int access = (int)IBV_EXP_FLOW_SPEC_ACTION_TAG;
-	  return access;
-	],
-	[
-	  AC_MSG_RESULT([yes])
-	  AC_DEFINE(DEFINED_IBV_EXP_FLOW_TAG, 1, [Define to 1 if IBV_EXP_FLOW_SPEC_ACTION_TAG is defined])
-	],
-	[
-	  AC_MSG_RESULT([no])
-	])
+    CHECK_VERBS_ATTRIBUTE([IBV_EXP_CQ_TIMESTAMP], [infiniband/verbs_exp.h])
+    CHECK_VERBS_ATTRIBUTE([IBV_EXP_VALUES_CLOCK_INFO], [infiniband/verbs_exp.h])
+    CHECK_VERBS_ATTRIBUTE([IBV_EXP_DEVICE_RX_CSUM_L4_PKT], [infiniband/verbs_exp.h])
+    CHECK_VERBS_ATTRIBUTE([IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT], [infiniband/verbs_exp.h])
+    CHECK_VERBS_ATTRIBUTE([IBV_EXP_FLOW_SPEC_ACTION_TAG], [infiniband/verbs_exp.h])
 )
 
+# Check <verbs.h>
+#
+CHECK_VERBS_ATTRIBUTE([IBV_QPT_RAW_PACKET], [infiniband/verbs.h])
+CHECK_VERBS_ATTRIBUTE([IBV_WC_WITH_VLAN], [infiniband/verbs.h])
+CHECK_VERBS_ATTRIBUTE([IBV_ACCESS_ALLOCATE_MR], [infiniband/verbs.h])
+CHECK_VERBS_ATTRIBUTE([IBV_FLOW_SPEC_IB], [infiniband/verbs.h])
+CHECK_VERBS_ATTRIBUTE([IBV_DEVICE_RAW_IP_CSUM], [infiniband/verbs.h])
+CHECK_VERBS_ATTRIBUTE([IBV_SEND_IP_CSUM], [infiniband/verbs.h])
 
-AC_MSG_CHECKING([if IBV_QPT_RAW_PACKET is defined])
-AC_TRY_LINK(
-#include <infiniband/verbs.h>
-,
-[
-  int qp_type = (int)IBV_QPT_RAW_PACKET;
-  qp_type = qp_type;
-],
-[
-  AC_MSG_RESULT([yes])
-  AC_DEFINE(DEFINED_IBV_QPT_RAW_PACKET, 1, [Define to 1 if IBV_QPT_RAW_PACKET is defined])
-],
-[
-  AC_MSG_RESULT([no])
-])
+# Check <verbs_exp.h>
+#
+CHECK_VERBS_ATTRIBUTE([IBV_EXP_CQ_MODERATION], [infiniband/verbs_exp.h])
+CHECK_VERBS_ATTRIBUTE([IBV_EXP_WR_NOP], [infiniband/verbs_exp.h])
+CHECK_VERBS_ATTRIBUTE([IBV_EXP_ACCESS_ALLOCATE_MR], [infiniband/verbs_exp.h])
+CHECK_VERBS_ATTRIBUTE([IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN], [infiniband/verbs_exp.h])
+CHECK_VERBS_ATTRIBUTE([IBV_EXP_FLOW_SPEC_IB], [infiniband/verbs_exp.h])
 
-AC_MSG_CHECKING([if IBV_WC_WITH_VLAN is defined])
-AC_TRY_LINK(
-#include <infiniband/verbs.h>
-,
-[
-  int  vlan_flag = (int)IBV_WC_WITH_VLAN;
-  vlan_flag = vlan_flag;
-],
-[
-  AC_MSG_RESULT([yes])
-  AC_DEFINE(DEFINED_IBV_WC_WITH_VLAN, 1, [Define to 1 if IBV_WC_WITH_VLAN is defined])
-],
-[
-  AC_MSG_RESULT([no])
-])
-
-AC_MSG_CHECKING([if IBV_ACCESS_ALLOCATE_MR is defined])
-AC_TRY_LINK(
-#include <infiniband/verbs.h>
-,
-[
-  int access = (int)IBV_ACCESS_ALLOCATE_MR;
-  access = access;
-],
-[
-  AC_MSG_RESULT([yes])
-  AC_DEFINE(DEFINED_IBV_ACCESS_ALLOCATE_MR, 1, [Define to 1 if IBV_ACCESS_ALLOCATE_MR is defined])
-],
-[
-  AC_MSG_RESULT([no])
-])
-
-# Check if MLNX_OFED's experimental CQ moderiation API is supported
-# This API allows VMA to implement the CQ manual and automatic interrupt moderation logic
-# If it is not supported then VMA code will disable all of it's CQ interrupt moderation logic
-AC_MSG_CHECKING([if IBV_EXP_CQ_MODERATION is defined])
-AC_TRY_LINK(
-#include <infiniband/verbs_exp.h>
-,
-[
-  int access = (int)IBV_EXP_CQ_MODERATION;
-  access = access;
-],
-[
-  AC_MSG_RESULT([yes])
-  AC_DEFINE(DEFINED_IBV_EXP_CQ_MODERATION, 1, [Define to 1 if IBV_EXP_CQ_MODERATION is defined])
-],
-[
-  AC_MSG_RESULT([no])
-])
-
-AC_MSG_CHECKING([if IBV_EXP_WR_NOP is defined])
-AC_TRY_LINK(
-#include <infiniband/verbs_exp.h>
-,
-[
-  int access = (int)IBV_EXP_WR_NOP;
-  access = access;
-],
-[
-  AC_MSG_RESULT([yes])
-  AC_DEFINE(DEFINED_IBV_EXP_WR_NOP, 1, [Define to 1 if IBV_EXP_WR_NOP is defined])
-],
-[
-  AC_MSG_RESULT([no])
-])
-
-AC_MSG_CHECKING([if IBV_EXP_ACCESS_ALLOCATE_MR is defined])
-AC_TRY_LINK(
-#include <infiniband/verbs_exp.h>
-,
-[
-  int access = (int)IBV_EXP_ACCESS_ALLOCATE_MR;
-  access = access;
-],
-[
-  AC_MSG_RESULT([yes])
-  AC_DEFINE(DEFINED_IBV_EXP_ACCESS_ALLOCATE_MR, 1, [Define to 1 if IBV_EXP_ACCESS_ALLOCATE_MR is defined])
-],
-[
-  AC_MSG_RESULT([no])
-  AC_DEFINE(DEFINED_IBV_OLD_VERBS_MLX_OFED, 1, [Define to 1 if IBV_EXP_ACCESS_ALLOCATE_MR is defined])
-])
-
-AC_MSG_CHECKING([if IBV_DEVICE_RAW_IP_CSUM is defined])
-AC_TRY_LINK(
-#include <infiniband/verbs.h>
-,
-[
-  int access = (int)IBV_DEVICE_RAW_IP_CSUM;
-  access = access;
-],
-[
-  AC_MSG_RESULT([yes])
-  AC_DEFINE(DEFINED_IBV_DEVICE_RAW_IP_CSUM, 1, [Define to 1 if IBV_DEVICE_RAW_IP_CSUM is defined])
-],
-[
-  AC_MSG_RESULT([no])
-])
-
-AC_MSG_CHECKING([if IBV_SEND_IP_CSUM is defined])
-AC_TRY_LINK(
-#include <infiniband/verbs.h>
-,
-[
-  int access = (int)IBV_SEND_IP_CSUM;
-  access = access;
-],
-[
-  AC_MSG_RESULT([yes])
-  AC_DEFINE(DEFINED_IBV_SEND_IP_CSUM, 1, [Define to 1 if IBV_SEND_IP_CSUM is defined])
-],
-[
-  AC_MSG_RESULT([no])
-])
-
-AC_MSG_CHECKING([if IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN is defined])
-AC_TRY_LINK(
-#include <infiniband/verbs_exp.h>
-,
-[
-  int access = (int)IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN;
-  access = access;
-],
-[
-  AC_MSG_RESULT([yes])
-  AC_DEFINE(DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN, 1, [Define to 1 if IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN is defined])
-],
-[
-  AC_MSG_RESULT([no])
-])
-
-AC_MSG_CHECKING([if IBV_EXP_FLOW_SPEC_IB is defined])
-AC_TRY_LINK(
-#include <infiniband/verbs_exp.h>
-,
-[
-  int access = (int)IBV_EXP_FLOW_SPEC_IB;
-  access = access;
-],
-[
-  AC_MSG_RESULT([yes])
-  AC_DEFINE(DEFINED_IBV_FLOW_SPEC_IB, 1, [Define to 1 if IBV_EXP_FLOW_SPEC_IB is defined])
-],
-[
-  AC_MSG_RESULT([no])
-])
-
-AC_MSG_CHECKING([if IBV_FLOW_SPEC_IB is defined])
-AC_TRY_LINK(
-#include <infiniband/verbs.h>
-,
-[
-  int access = (int)IBV_FLOW_SPEC_IB;
-  access = access;
-],
-[
-  AC_MSG_RESULT([yes])
-  AC_DEFINE(DEFINED_IBV_FLOW_SPEC_IB, 1, [Define to 1 if IBV_FLOW_SPEC_IB is defined])
-],
-[
-  AC_MSG_RESULT([no])
-])
-
-
+# Check for <mlx5/wqe.h>
+#
 AC_MSG_CHECKING([if MLX5_ETH_WQE_L3_CSUM is defined])
 AC_TRY_LINK(
 #include <infiniband/mlx5_hw.h>
@@ -355,10 +147,6 @@ AC_CHECK_DECL([IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE],
     [],
     [[#include <infiniband/verbs_exp.h>]])
 
-
-AC_CHECK_DECLS([IBV_EXP_QP_RATE_LIMIT],
-	[AC_DEFINE(DEFINED_IBV_EXP_QP_RATE_LIMIT, 1, [Define to 1 if IBV_EXP_QP_RATE_LIMIT defined])],
-	[], [[#include <infiniband/mlx5_hw.h>]])
 
 AC_CHECK_DECLS([IBV_EXP_QP_RATE_LIMIT],
 	[AC_DEFINE(DEFINED_IBV_EXP_QP_RATE_LIMIT, 1, [Define to 1 if IBV_EXP_QP_RATE_LIMIT defined])],
