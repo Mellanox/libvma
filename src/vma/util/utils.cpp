@@ -55,6 +55,7 @@
 #include "vma/util/vtypes.h"
 
 #define NET_DUP_BAD_ARP_ANNOUNCE 0
+#define NET_DUP_GOOD_ARP_FILTER  1
 #define NET_DUP_GOOD_ARP_IGNORE  2
 #define NET_DUP_GOOD_RP_FILTER   0
 
@@ -579,9 +580,10 @@ int get_ipv4_from_ifindex(int ifindex, struct sockaddr_in *addr)
 
 bool is_intf_arp_flux_valid(const char* const device)
 {
-	if (sysctl_reader_t::instance().get_intf_attr(device, "rp_filter") == NET_DUP_GOOD_RP_FILTER &&
+	if ((sysctl_reader_t::instance().get_intf_attr(device, "rp_filter") == NET_DUP_GOOD_RP_FILTER &&
 	    sysctl_reader_t::instance().get_intf_attr(device, "arp_announce") != NET_DUP_BAD_ARP_ANNOUNCE &&
-	    sysctl_reader_t::instance().get_intf_attr(device, "arp_ignore") == NET_DUP_GOOD_ARP_IGNORE) {
+	    sysctl_reader_t::instance().get_intf_attr(device, "arp_ignore") == NET_DUP_GOOD_ARP_IGNORE) ||
+	    sysctl_reader_t::instance().get_intf_attr(device, "arp_filter") == NET_DUP_GOOD_ARP_FILTER) {
 		return true;
 	}
 	return false;
