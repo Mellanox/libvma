@@ -79,27 +79,28 @@ int nl_msg_rcv_cb(struct nl_msg *msg, void *arg) {
 	return 0;
 }
 
+/* This function is called from internal thread only as neigh_timer_expired()
+ * so it is protected by m_cache_lock call
+ */
 void netlink_wrapper::notify_observers(netlink_event *p_new_event, e_netlink_event_type type)
 {
-	g_nl_rcv_arg.netlink->m_cache_lock.unlock();
-	g_nl_rcv_arg.netlink->m_subj_map_lock.lock();
-
 	subject_map_iter iter = g_nl_rcv_arg.subjects_map->find(type);
 	if(iter != g_nl_rcv_arg.subjects_map->end())
 		iter->second->notify_observers(p_new_event);
-
-	g_nl_rcv_arg.netlink->m_subj_map_lock.unlock();
-	/* coverity[missing_unlock] */
-	g_nl_rcv_arg.netlink->m_cache_lock.lock();
 }
 
-extern void link_event_callback(nl_object* obj) {
-		netlink_wrapper::link_cache_callback(obj);
+extern void link_event_callback(nl_object* obj)
+{
+	netlink_wrapper::link_cache_callback(obj);
 }
-extern void neigh_event_callback(nl_object* obj) {
+
+extern void neigh_event_callback(nl_object* obj)
+{
 	netlink_wrapper::neigh_cache_callback(obj);
 }
-extern void route_event_callback(nl_object* obj) {
+
+extern void route_event_callback(nl_object* obj)
+{
 	netlink_wrapper::route_cache_callback(obj);
 }
 
@@ -113,7 +114,6 @@ void netlink_wrapper::neigh_cache_callback(nl_object* obj)
 
 	g_nl_rcv_arg.msghdr = NULL;
 	nl_logdbg( "<--- neigh_cache_callback");
-
 }
 
 void netlink_wrapper::link_cache_callback(nl_object* obj)
@@ -283,7 +283,6 @@ int netlink_wrapper::open_channel()
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	return 0;
-
 }
 
 int netlink_wrapper::get_channel()
@@ -297,14 +296,13 @@ int netlink_wrapper::get_channel()
 
 int netlink_wrapper::handle_events()
 {
-	m_cache_lock.lock();
+	auto_unlocker lock(m_cache_lock);
 
 	nl_logfunc("--->handle_events");
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_socket_handle) {
 		nl_logerr("Cannot handle events before opening the channel. please call first open_channel()");
-		m_cache_lock.unlock();
 		return -1;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -319,15 +317,13 @@ int netlink_wrapper::handle_events()
 
 	nl_logfunc("<---handle_events");
 
-	m_cache_lock.unlock();
-
 	return n;
 }
 
 bool netlink_wrapper::register_event(e_netlink_event_type type,
                 const observer* new_obs)
 {
-	auto_unlocker lock(m_subj_map_lock);
+	auto_unlocker lock(m_cache_lock);
 	subject* sub;
 	subject_map_iter iter = m_subjects_map.find(type);
 	if (iter == m_subjects_map.end()) {
@@ -344,7 +340,7 @@ bool netlink_wrapper::register_event(e_netlink_event_type type,
 bool netlink_wrapper::unregister(e_netlink_event_type type,
                 const observer* obs)
 {
-	auto_unlocker lock(m_subj_map_lock);
+	auto_unlocker lock(m_cache_lock);
 	if (obs == NULL)
 		return false;
 
@@ -395,18 +391,18 @@ int netlink_wrapper::get_neigh(const char* ipaddr, int ifindex, netlink_neigh_in
 	return 0;
 }
 
-void netlink_wrapper::neigh_timer_expired() {
-	m_cache_lock.lock();
+void netlink_wrapper::neigh_timer_expired()
+{
+	auto_unlocker lock(m_cache_lock);
 
 	nl_logfunc("--->netlink_wrapper::neigh_timer_expired");
 	nl_cache_refill(m_socket_handle, m_cache_neigh);
 	notify_neigh_cache_entries();
 	nl_logfunc("<---netlink_wrapper::neigh_timer_expired");
-
-	m_cache_lock.unlock();
 }
 
-void netlink_wrapper::notify_neigh_cache_entries() {
+void netlink_wrapper::notify_neigh_cache_entries()
+{
 	nl_logfunc("--->netlink_wrapper::notify_cache_entries");
 	g_nl_rcv_arg.msghdr = NULL;
 	nl_object* obj = nl_cache_get_first(m_cache_neigh);
@@ -417,7 +413,6 @@ void netlink_wrapper::notify_neigh_cache_entries() {
 		obj = nl_cache_get_next(obj);
 	}
 	nl_logfunc("<---netlink_wrapper::notify_cache_entries");
-
 }
 
 
