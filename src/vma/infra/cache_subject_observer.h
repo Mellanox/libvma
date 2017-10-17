@@ -324,6 +324,8 @@ cache_entry_subject<Key, Val>*  cache_table_mgr <Key, Val>::get_entry(Key key)
 {
 	cache_entry_subject<Key, Val>* ret_entry = NULL;
 
+	auto_unlocker lock(m_lock);
+
 	if (m_cache_tbl.count(key))
 		ret_entry = m_cache_tbl.find(key)->second;
 	return ret_entry;
