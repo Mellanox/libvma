@@ -71,15 +71,27 @@ neigh_table_mgr::neigh_table_mgr():m_neigh_cma_event_channel(NULL)
 	neigh_mgr_logdbg("Creation of neigh_cma_event_channel on fd=%d", m_neigh_cma_event_channel->fd);
 
 	start_garbage_collector(DEFAULT_GARBAGE_COLLECTOR_TIME);
-
-	g_p_netlink_handler->register_event(nlgrpNEIGH, this);
-	neigh_mgr_logdbg("Registered to g_p_netlink_handler");
 }
 
 neigh_table_mgr::~neigh_table_mgr()
 {
 	stop_garbage_collector();
 	rdma_destroy_event_channel(m_neigh_cma_event_channel);
+}
+
+bool neigh_table_mgr::register_observer(neigh_key key,
+				const cache_observer *new_observer,
+				cache_entry_subject<neigh_key, class neigh_val*> **cache_entry)
+{
+
+	//Register to netlink event handler only if this is the first entry
+	if (get_cache_tbl_size() == 0) {
+		g_p_netlink_handler->register_event(nlgrpNEIGH, this);
+		neigh_mgr_logdbg("Registered to g_p_netlink_handler");
+	}
+	cache_table_mgr<neigh_key, class neigh_val*>::register_observer(key, new_observer, cache_entry);
+
+	return true;
 }
 
 neigh_entry* neigh_table_mgr::create_new_entry(neigh_key neigh_key, const observer* new_observer)
