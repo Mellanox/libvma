@@ -357,12 +357,12 @@ void neigh_entry::handle_timer_expired(void* ctx)
 	}
 
 	if (!priv_is_reachable(state)) {
-		neigh_logdbg("State is different from NUD_REACHABLE or NUD_PERMANENT and L2 address wasn't changed. Sending ARP");
+		neigh_logdbg("State (%d) is not reachable and L2 address wasn't changed. Sending ARP", state);
 		send_arp();
 		m_timer_handle = priv_register_timer_event(m_n_sysvar_neigh_wait_till_send_arp_msec, this, ONE_SHOT_TIMER, NULL);
 	}
 	else {
-		neigh_logdbg("State is NUD_REACHABLE or NUD_PERMANENT and L2 address wasn't changed. Stop sending ARP");
+		neigh_logdbg("State is reachable (%s %d) and L2 address wasn't changed. Stop sending ARP", (state == NUD_REACHABLE) ? "NUD_REACHABLE" : "NUD_PERMANENT", state);
 	}
 }
 
