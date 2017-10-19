@@ -286,7 +286,7 @@ int netlink_wrapper::get_channel()
 {
 	int ret = -1;
 
-	_try_lock(m_cache_lock, 1, ret);
+	m_cache_lock.lock();
 
 	ret = (m_socket_handle ? nl_socket_get_fd(m_socket_handle) : (-1));
 
@@ -298,7 +298,7 @@ int netlink_wrapper::handle_events()
 {
 	int ret = -1;
 
-	_try_lock(m_cache_lock, 1, ret);
+	m_cache_lock.lock();
 
 	nl_logfunc("--->handle_events");
 
@@ -330,7 +330,7 @@ bool netlink_wrapper::register_event(e_netlink_event_type type,
 {
 	bool ret = false;
 
-	_try_lock(m_cache_lock, 1, ret);
+	m_cache_lock.lock();
 
 	subject* sub;
 	subject_map_iter iter = m_subjects_map.find(type);
@@ -356,7 +356,7 @@ bool netlink_wrapper::unregister(e_netlink_event_type type,
 	if (obs == NULL)
 		return false;
 
-	_try_lock(m_cache_lock, 1, ret);
+	m_cache_lock.lock();
 
 	subject_map_iter iter = m_subjects_map.find(type);
 	if (iter != m_subjects_map.end()) {
@@ -374,7 +374,7 @@ int netlink_wrapper::get_neigh(const char* ipaddr, int ifindex, netlink_neigh_in
 	rtnl_neigh* neigh;
 	char addr_str[256];
 
-	_try_lock(m_cache_lock, 1, ret);
+	m_cache_lock.lock();
 
 	nl_logfunc("--->netlink_listener::get_neigh");
 
@@ -415,6 +415,7 @@ err:
 
 void netlink_wrapper::neigh_timer_expired()
 {
+	/* Do not wait in case another thread use netlink */
 	_try_lock(m_cache_lock, 1, );
 
 	nl_logfunc("--->netlink_wrapper::neigh_timer_expired");
