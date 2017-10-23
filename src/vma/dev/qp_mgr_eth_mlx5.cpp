@@ -255,6 +255,12 @@ inline void qp_mgr_eth_mlx5::send_by_doorbell(uint64_t* wqe, int num_wqebb)
 	wc_wmb();
 
 	*(uint64_t*)((uint8_t*)m_sq_bf_reg + m_sq_bf_offset) = *wqe;
+
+	/* Use wc_wmb() to ensure write combining buffers are flushed out
+	 * of the running CPU.
+	 * sfence instruction affects only the WC buffers of the CPU that executes it
+	 */
+	wc_wmb();
 	m_sq_bf_offset ^= m_sq_bf_buf_size;
 }
 
@@ -271,6 +277,7 @@ inline void qp_mgr_eth_mlx5::send_by_bf(uint64_t* addr, int num_wqebb)
 
 	copy_bf((uint64_t*)((uint8_t*)m_sq_bf_reg + m_sq_bf_offset), addr, num_wqebb);
 	dbg_dump_wqe((uint32_t*)addr, num_wqebb*WQEBB);
+
 	m_sq_bf_offset ^= m_sq_bf_buf_size;
 }
 
@@ -286,6 +293,7 @@ inline void qp_mgr_eth_mlx5::send_by_bf_wrap_up(uint64_t* bottom_addr, int num_w
 	wc_wmb();
 	// Copying two times for wrap-up, first at the end of SQ and second from the start
 	copy_bf2((uint64_t*)((uint8_t*)m_sq_bf_reg+m_sq_bf_offset), bottom_addr, (uint64_t*)m_sq_wqes, num_wqebb_bottom, num_wqebb_top);
+
 	m_sq_bf_offset ^= m_sq_bf_buf_size;
 }
 
@@ -592,8 +600,11 @@ int qp_mgr_eth_mlx5::send_to_wire(vma_ibv_send_wr *p_send_wqe, vma_wr_tx_packet_
 	ctrl->imm = 0;
 
 	/* Configure eth segment
+	 * reset rsvd0, cs_flags, rsvd1, mss and rsvd2 fields
 	 * checksum flags are set here
 	 */
+	*((uint64_t *)eseg) = 0;
+	eseg->rsvd2 = 0;
 	eseg->cs_flags = (uint8_t)(attr & (VMA_TX_PACKET_L3_CSUM | VMA_TX_PACKET_L4_CSUM) & 0xff);
 
 	/* Complete WQE */
