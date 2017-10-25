@@ -33,6 +33,7 @@ done
 eval "cov-analyze --config $cov_dir/coverity_config.xml \
 	--all --aggressiveness-level low \
 	--enable-fnptr --fnptr-models --paths 20000 \
+	--disable-parse-warnings \
 	--dir $cov_build"
 rc=$(($rc+$?))
 
