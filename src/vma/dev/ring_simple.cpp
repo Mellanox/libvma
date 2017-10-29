@@ -803,6 +803,23 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_f
 	NOT_IN_USE(p_udp_h);
 #endif // DEFINED_VMAPOLL
 
+	// Validate buffer size
+	sz_data = p_rx_wc_buf_desc->sz_data;
+	if (unlikely(sz_data > p_rx_wc_buf_desc->sz_buffer)) {
+		if (sz_data == IP_FRAG_FREED) {
+			ring_logfuncall("Rx buffer dropped - old fragment part");
+		} else {
+			ring_logwarn("Rx buffer dropped - buffer too small (%d, %d)", sz_data, p_rx_wc_buf_desc->sz_buffer);
+		}
+		return false;
+	}
+
+	m_cq_moderation_info.bytes += sz_data;
+	++m_cq_moderation_info.packets;
+
+	m_ring_stat_static.n_rx_byte_count += sz_data;
+	++m_ring_stat_static.n_rx_pkt_count;
+
 	// This is an internal function (within ring and 'friends'). No need for lock mechanism.
 	if (likely(m_flow_tag_enabled && p_rx_wc_buf_desc->rx.flow_tag_id &&
 		   (p_rx_wc_buf_desc->rx.flow_tag_id != FLOW_TAG_MASK))) {
@@ -884,23 +901,6 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_f
 			}
 		}
 	}
-
-	// Validate buffer size
-	sz_data = p_rx_wc_buf_desc->sz_data;
-	if (unlikely(sz_data > p_rx_wc_buf_desc->sz_buffer)) {
-		if (sz_data == IP_FRAG_FREED) {
-			ring_logfuncall("Rx buffer dropped - old fragment part");
-		} else {
-			ring_logwarn("Rx buffer dropped - buffer too small (%d, %d)", sz_data, p_rx_wc_buf_desc->sz_buffer);
-		}
-		return false;
-	}
-
-	m_cq_moderation_info.bytes += sz_data;
-	++m_cq_moderation_info.packets;
-
-	m_ring_stat_static.n_rx_byte_count += sz_data;
-	++m_ring_stat_static.n_rx_pkt_count;
 
 	// Validate transport type headers
 	switch (m_transport_type) {
