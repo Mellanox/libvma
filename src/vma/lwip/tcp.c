@@ -728,7 +728,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 	  LWIP_DEBUGF(TCP_DEBUG, ("tcp_slowtmr: max DATA retries reached\n"));
 	} else {
 	  if (pcb->persist_backoff > 0) {
-		/* If snd_wnd is zero, use persist timer to send 1 byte probes
+		/* If snd_wnd is zero and pcb->unacked is NULL , use persist timer to send 1 byte probes
 		 * instead of using the standard retransmission mechanism. */
 		pcb->persist_cnt++;
 		if (pcb->persist_cnt >= tcp_persist_backoff[pcb->persist_backoff-1]) {

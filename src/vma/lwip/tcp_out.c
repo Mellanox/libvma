@@ -1564,12 +1564,10 @@ tcp_zero_window_probe(struct tcp_pcb *pcb)
                "   pcb->tmr %"U32_F" pcb->keep_cnt_sent %"U16_F"\n",
                tcp_ticks, pcb->tmr, pcb->keep_cnt_sent));
 
-  seg = pcb->unacked;
-
+  /* Only consider unsent, persist timer should be off when there data is in-flight */
+  seg = pcb->unsent;
   if(seg == NULL) {
-    seg = pcb->unsent;
-  }
-  if(seg == NULL) {
+    /* Not expected, persist timer should be off when the send buffer is empty */
     return;
   }
 

@@ -763,7 +763,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
       pcb->snd_wl1 = in_data->seqno;
       pcb->snd_wl2 = in_data->ackno;
       if (pcb->snd_wnd == 0) {
-        if (pcb->persist_backoff == 0) {
+        if (pcb->persist_backoff == 0 && pcb->unacked == NULL) {
           /* start persist timer */
           pcb->persist_cnt = 0;
           pcb->persist_backoff = 1;
