@@ -38,6 +38,7 @@
 
 #include "route_val.h"
 #include "route_table_mgr.h"
+#include "vma/dev/net_device_table_mgr.h"
 
 #define MODULE_NAME 		"rtv"
 
@@ -61,6 +62,7 @@ route_val::route_val()
 	m_is_valid = false;
 	m_b_deleted = false;
 	m_b_if_up = true;
+	m_mtu = 0;
 	memset(m_str, 0, BUFF_SIZE * sizeof(char));
 }
 
@@ -130,4 +132,13 @@ void route_val::print_val()
 {
 	set_str();
 	rt_val_logdbg("%s", to_str());
+}
+
+void route_val::set_mtu(uint32_t mtu)
+{
+	if (mtu > g_p_net_device_table_mgr->get_max_mtu()) {
+		rt_val_logdbg("route mtu cannot be bigger then max mtu set on devices");
+	} else {
+		m_mtu = mtu;
+	}
 }
