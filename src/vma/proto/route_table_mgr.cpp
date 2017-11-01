@@ -56,7 +56,6 @@
 
 // debugging macros
 #define MODULE_NAME 		"rtm:"
-
 #define rt_mgr_if_logpanic	__log_panic
 #define	rt_mgr_logerr		__log_err
 #define rt_mgr_logwarn		__log_warn
@@ -289,7 +288,29 @@ void route_table_mgr::parse_attr(struct rtattr *rt_attribute, route_val *p_val)
 	case RTA_PREFSRC:
 		p_val->set_src_addr(*(in_addr_t *)RTA_DATA(rt_attribute));
 		break;
+	case RTA_METRICS:
+	{
+		struct rtattr *rta = (struct rtattr *)RTA_DATA(rt_attribute);
+		int len = RTA_PAYLOAD(rt_attribute);
+		uint16_t type;
+		while (RTA_OK(rta, len)) {
+			type = rta->rta_type;
+			switch (type) {
+			case RTAX_MTU:
+				p_val->set_mtu(*(uint32_t *)RTA_DATA(rta));
+				break;
+			default:
+				rt_mgr_logdbg("got unexpected METRICS %d %x",
+					type, *(uint32_t *)RTA_DATA(rta));
+				break;
+			}
+			rta = RTA_NEXT(rta, len);
+		}
+		break;
+	}
 	default:
+		rt_mgr_logdbg("got unexpected type %d %x", rt_attribute->rta_type,
+				*(uint32_t *)RTA_DATA(rt_attribute));
 		break;
 	}
 }
