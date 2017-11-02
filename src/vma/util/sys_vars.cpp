@@ -515,6 +515,7 @@ void mce_sys_var::get_env_params()
 	tcp_ctl_thread		= MCE_DEFAULT_TCP_CTL_THREAD;
 	tcp_ts_opt		= MCE_DEFAULT_TCP_TIMESTAMP_OPTION;
 	tcp_nodelay		= MCE_DEFAULT_TCP_NODELAY;
+	tcp_quickack		= MCE_DEFAULT_TCP_QUICKACK;
 //	exception_handling is handled by its CTOR
 	avoid_sys_calls_on_tcp_fd = MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD;
 	allow_privileged_sock_opt = MCE_DEFAULT_ALLOW_PRIVILEGED_SOCK_OPT;
@@ -1023,6 +1024,10 @@ void mce_sys_var::get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_TCP_NODELAY)) != NULL) {
 		tcp_nodelay = atoi(env_ptr) ? true : false;
+	}
+
+	if ((env_ptr = getenv(SYS_VAR_TCP_QUICKACK)) != NULL) {
+		tcp_quickack = atoi(env_ptr) ? true : false;
 	}
 
 	// TODO: this should be replaced by calling "exception_handling.init()" that will be called from init()

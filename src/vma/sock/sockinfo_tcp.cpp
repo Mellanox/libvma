@@ -288,6 +288,15 @@ sockinfo_tcp::sockinfo_tcp(int fd):
 		}
 	}
 
+	if (safe_mce_sys().tcp_quickack) {
+		try {
+			int value = 1;
+			setsockopt(IPPROTO_TCP, TCP_QUICKACK, &value, sizeof(value));
+		} catch (vma_error&) {
+			// We should not be here
+		}
+	}
+
 	si_tcp_logdbg("TCP PCB FLAGS: 0x%x", m_pcb.flags);
 	si_tcp_logfunc("done");
 }
