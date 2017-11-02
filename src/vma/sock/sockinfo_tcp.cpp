@@ -288,6 +288,16 @@ sockinfo_tcp::sockinfo_tcp(int fd):
 		}
 	}
 
+	// Enable Quickack if VMA_TCP_QUICKACK flag was set.
+	if (safe_mce_sys().tcp_quickack) {
+		try {
+			int tcp_quickack = 1;
+			setsockopt(IPPROTO_TCP, TCP_QUICKACK, &tcp_quickack, sizeof(tcp_quickack));
+		} catch (vma_error&) {
+			// We should not be here
+		}
+	}
+
 	si_tcp_logdbg("TCP PCB FLAGS: 0x%x", m_pcb.flags);
 	si_tcp_logfunc("done");
 }

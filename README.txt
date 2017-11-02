@@ -1,4 +1,4 @@
-Update: 13 Sep 2017
+Update: 07 Nov 2017
 
 Introduction
 ============
@@ -166,6 +166,7 @@ Example:
  VMA DETAILS: TCP control thread             0 (Disabled)               [VMA_TCP_CTL_THREAD]
  VMA DETAILS: TCP timestamp option           0                          [VMA_TCP_TIMESTAMP_OPTION]
  VMA DETAILS: TCP nodelay                    0                          [VMA_TCP_NODELAY]
+ VMA DETAILS: TCP quickack                   0                          [VMA_TCP_QUICKACK]
  VMA DETAILS: Exception handling mode        -1(just log debug message) [VMA_EXCEPTION_HANDLING]
  VMA DETAILS: Avoid sys-calls on tcp fd      Disabled                   [VMA_AVOID_SYS_CALLS_ON_TCP_FD]
  VMA DETAILS: Allow privileged sock opt      Enabled                    [VMA_ALLOW_PRIVILEGED_SOCK_OPT]
@@ -735,6 +736,15 @@ If set, disable the Nagle algorithm option for each TCP socket during initializa
 This means that TCP segments are always sent as soon as possible, even if there is
 only a small amount of data.
 For more information on TCP_NODELAY flag refer to tcp manual page.
+Valid Values are:
+Use value of 0 to disable.
+Use value of 1 for enable.
+Default value is Disabled.
+
+VMA_TCP_QUICKACK
+If set, disable delayed ack ability.
+This means that TCP responds after every packet.
+For more information on TCP_QUICKACK flag refer to tcp manual page.
 Valid Values are:
 Use value of 0 to disable.
 Use value of 1 for enable.
