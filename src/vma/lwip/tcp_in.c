@@ -1263,7 +1263,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
 
 
         /* Acknowledge the segment(s). */
-        if (in_data->recv_data && in_data->recv_data->next) {
+        if ((0 != pcb->quickack) || (in_data->recv_data && in_data->recv_data->next)) {
         	tcp_ack_now(pcb);
         } else {
         	tcp_ack(pcb);

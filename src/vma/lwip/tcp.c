@@ -1133,6 +1133,7 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio)
 #endif /* LWIP_TCP_KEEPALIVE */
 
 	pcb->keep_cnt_sent = 0;
+	pcb->quickack = 0;
 	pcb->enable_ts_opt = enable_ts_option;
 	pcb->seg_alloc = NULL;
 	pcb->pbuf_alloc = NULL;
