@@ -767,14 +767,9 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 	if (unlikely(m_b_closed) || unlikely(g_b_exit))
 		return orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
 
-#ifdef DEFINED_SOCKETXTREME
-	/* Process VMA specific options only at the moment
-	 * VMA option does not require additional processing after return
-	 */
 	if (0 == sockinfo::setsockopt(__level, __optname, __optval, __optlen)) {
 		return 0;
 	}
-#endif // DEFINED_SOCKETXTREME
 
 	auto_unlocker lock_tx(m_lock_snd);
 	auto_unlocker lock_rx(m_lock_rcv);
@@ -1291,14 +1286,9 @@ int sockinfo_udp::getsockopt(int __level, int __optname, void *__optval, socklen
 	if (unlikely(m_b_closed) || unlikely(g_b_exit))
 		return ret;
 
-#ifdef DEFINED_SOCKETXTREME
-	/* Process VMA specific options only at the moment
-	 * VMA option does not require additional processing after return
-	 */
 	if (0 == sockinfo::getsockopt(__level, __optname, __optval, __optlen)) {
 		return 0;
 	}
-#endif // DEFINED_SOCKETXTREME	
 
 	auto_unlocker lock_tx(m_lock_snd);
 	auto_unlocker lock_rx(m_lock_rcv);

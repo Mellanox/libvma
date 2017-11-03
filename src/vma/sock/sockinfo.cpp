@@ -85,14 +85,12 @@ sockinfo::sockinfo(int fd):
 		m_ring_alloc_log_tx(safe_mce_sys().ring_allocation_logic_tx),
 		m_pcp(0),
 		m_rx_callback(NULL),
-		m_rx_callback_context(NULL)
-#ifdef DEFINED_SOCKETXTREME
-		, m_fd_context((void *)((uintptr_t)m_fd))
-#endif // DEFINED_SOCKETXTREME
-		, m_flow_tag_id(0)
-		, m_flow_tag_enabled(false)
-		, m_tcp_flow_is_5t(false)
-		, m_p_rings_fds(NULL)
+		m_rx_callback_context(NULL),
+		m_fd_context((void *)((uintptr_t)m_fd)),
+		m_flow_tag_id(0),
+		m_flow_tag_enabled(false),
+		m_tcp_flow_is_5t(false),
+		m_p_rings_fds(NULL)
 
 {
 	m_ring_alloc_logic = ring_allocation_logic_rx(get_fd(), m_ring_alloc_log_rx, this);
@@ -238,7 +236,6 @@ int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg)
 	return orig_os_api.ioctl(m_fd, __request, __arg);
 }
 
-#ifdef DEFINED_SOCKETXTREME 
 int sockinfo::setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen)
 {
 	int ret = -1;
@@ -260,7 +257,6 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 
 	return ret;
 }
-#endif // DEFINED_SOCKETXTREME
 
 int sockinfo::getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen)
 {
@@ -269,7 +265,6 @@ int sockinfo::getsockopt(int __level, int __optname, void *__optval, socklen_t *
 	switch (__level) {
 	case SOL_SOCKET:
 		switch(__optname) {
-#ifdef DEFINED_SOCKETXTREME
 		case SO_VMA_USER_DATA:
 			if (*__optlen == sizeof(m_fd_context)) {
 				*(void **)__optval = m_fd_context;
@@ -278,7 +273,6 @@ int sockinfo::getsockopt(int __level, int __optname, void *__optval, socklen_t *
 				errno = EINVAL;
 			}
 		break;
-#endif // DEFINED_SOCKETXTREME
 
 		case SO_MAX_PACING_RATE:
 			if (*__optlen == sizeof(struct vma_rate_limit_t)) {
@@ -1243,14 +1237,6 @@ int sockinfo::modify_ratelimit(dst_entry* p_dst_entry, struct vma_rate_limit_t &
 		   "socket or user-id.");
 	return -1;
 }
-
-#ifdef DEFINED_SOCKETXTREME
-int sockinfo::fast_nonblocking_rx(vma_packets_t *vma_pkts)
-{
-	NOT_IN_USE(vma_pkts);
-	return 0;
-}
-#endif // DEFINED_SOCKETXTREME
 
 int sockinfo::get_rings_num()
 {
