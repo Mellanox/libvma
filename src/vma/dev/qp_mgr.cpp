@@ -63,12 +63,8 @@
 
 qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context,
 		const uint8_t port_num, const uint32_t tx_num_wr):
-	 m_rq_wqe_counter(0)
-	,m_rq_wqe_idx_to_wrid(NULL)
-#ifdef DEFINED_VMAPOLL
-	,m_mlx5_hw_qp(NULL)
-#endif
-	,m_qp(NULL)
+	m_qp(NULL)
+	,m_p_rq_wqe_idx_to_wrid(NULL)
 	,m_p_ring((ring_simple*)p_ring)
 	,m_port_num((uint8_t)port_num)
 	,m_p_ib_ctx_handler((ib_ctx_handler*)p_context)
@@ -98,13 +94,6 @@ qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context,
 
 	set_unsignaled_count();
 
-#ifdef DEFINED_VMAPOLL
-	m_rq_wqe_idx_to_wrid = (uint64_t*)mmap(NULL, m_rx_num_wr * sizeof(*m_rq_wqe_idx_to_wrid),
-		PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-	if (m_rq_wqe_idx_to_wrid == MAP_FAILED) {
-		qp_logerr("Failed allocating m_rq_wqe_idx_to_wrid (errno=%d %m)", errno);
-	}
-#endif // DEFINED_VMAPOLL
 	qp_logfunc("");
 }
 
@@ -140,15 +129,6 @@ qp_mgr::~qp_mgr()
 
 	delete[] m_ibv_rx_sg_array;
 	delete[] m_ibv_rx_wr_array;
-
-#ifdef DEFINED_VMAPOLL
-        if (m_rq_wqe_idx_to_wrid) {
-		if (0 != munmap(m_rq_wqe_idx_to_wrid, m_rx_num_wr * sizeof(*m_rq_wqe_idx_to_wrid))) {
-			qp_logerr("Failed deallocating memory with munmap m_rq_wqe_idx_to_wrid (errno=%d %m)", errno);
-		}
-		m_rq_wqe_idx_to_wrid = NULL;
-	}
-#endif // DEFINED_VMAPOLL
 
 	qp_logdbg("Rx buffer poll: %d free global buffers available", g_buffer_pool_rx->get_free_count());
 	qp_logdbg("delete done");
@@ -216,7 +196,7 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 
 	// Check device capabilities for max SG elements
 	uint32_t tx_max_inline = safe_mce_sys().tx_max_inline;
-	uint32_t rx_num_sge = (IS_VMAPOLL) ? 1 : MCE_DEFAULT_RX_NUM_SGE;
+	uint32_t rx_num_sge = (m_p_ring->get_xtreme_active() ? 1 : MCE_DEFAULT_RX_NUM_SGE);
 	uint32_t tx_num_sge = MCE_DEFAULT_TX_NUM_SGE;
 
 	qp_init_attr.cap.max_send_wr = m_tx_num_wr;
@@ -246,10 +226,6 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	m_p_ahc_head = NULL;
 	m_p_ahc_tail = NULL;
 
-#ifdef DEFINED_VMAPOLL
-	struct verbs_qp *vqp = (struct verbs_qp *)m_qp;
-	m_mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
-#endif //DEFINED_VMAPOLL
 	if (m_p_cq_mgr_tx) {
 		m_p_cq_mgr_tx->add_qp_tx(this);
 	}
@@ -495,12 +471,6 @@ int qp_mgr::post_recv(mem_buf_desc_t* p_mem_buf_desc)
 		m_ibv_rx_sg_array[m_curr_rx_wr].addr   = (uintptr_t)p_mem_buf_desc->p_buffer;
 		m_ibv_rx_sg_array[m_curr_rx_wr].length = p_mem_buf_desc->sz_buffer;
 		m_ibv_rx_sg_array[m_curr_rx_wr].lkey   = p_mem_buf_desc->lkey;
-
-		if (m_rq_wqe_idx_to_wrid) {
-			uint32_t index = m_rq_wqe_counter & (m_rx_num_wr - 1);
-			m_rq_wqe_idx_to_wrid[index] = (uintptr_t)p_mem_buf_desc;
-			++m_rq_wqe_counter;
-		}
 
 		if (m_curr_rx_wr == m_n_sysvar_rx_num_wr_to_post_recv - 1) {
 

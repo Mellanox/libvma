@@ -139,6 +139,8 @@ qp_mgr_eth_mlx5::qp_mgr_eth_mlx5(const ring_simple* p_ring, const ib_ctx_handler
 	qp_mgr_eth(p_ring, p_context, port_num, p_rx_comp_event_channel, tx_num_wr, vlan, false)
 	,m_hw_qp(NULL)
 	,m_sq_wqe_idx_to_wrid(NULL)
+	,m_rq_wqe_counter(0)
+	,m_rq_wqe_idx_to_wrid(NULL)
 	,m_sq_wqes(NULL)
 	,m_sq_wqe_hot(NULL)
 	,m_sq_wqes_end(NULL)
@@ -201,12 +203,9 @@ cq_mgr* qp_mgr_eth_mlx5::init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event
 		qp_logerr("Failed allocating m_rq_wqe_idx_to_wrid (errno=%d %m)", errno);
 		return NULL;
 	}
+	m_p_rq_wqe_idx_to_wrid = m_rq_wqe_idx_to_wrid;
 
-#ifdef DEFINED_VMAPOLL
-	return new cq_mgr(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
-#else
 	return new cq_mgr_mlx5(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
-#endif
 }
 
 cq_mgr* qp_mgr_eth_mlx5::init_tx_cq_mgr()
@@ -445,6 +444,67 @@ static inline uint32_t get_mlx5_opcode(vma_ibv_wr_opcode verbs_opcode)
 		return MLX5_OPCODE_SEND;
 
 	}
+}
+
+int qp_mgr_eth_mlx5::post_recv(mem_buf_desc_t* p_mem_buf_desc)
+{
+	qp_logfuncall("");
+	// Called from cq_mgr context under cq_mgr::LOCK!
+	mem_buf_desc_t *next;
+	while (p_mem_buf_desc) {
+		next = p_mem_buf_desc->p_next_desc;
+		p_mem_buf_desc->p_next_desc = NULL;
+
+		if (m_n_sysvar_rx_prefetch_bytes_before_poll) {
+			if (m_p_prev_rx_desc_pushed)
+				m_p_prev_rx_desc_pushed->p_prev_desc = p_mem_buf_desc;
+			m_p_prev_rx_desc_pushed = p_mem_buf_desc;
+		}
+
+		m_ibv_rx_wr_array[m_curr_rx_wr].wr_id  = (uintptr_t)p_mem_buf_desc;
+		m_ibv_rx_sg_array[m_curr_rx_wr].addr   = (uintptr_t)p_mem_buf_desc->p_buffer;
+		m_ibv_rx_sg_array[m_curr_rx_wr].length = p_mem_buf_desc->sz_buffer;
+		m_ibv_rx_sg_array[m_curr_rx_wr].lkey   = p_mem_buf_desc->lkey;
+
+		if (m_rq_wqe_idx_to_wrid) {
+			uint32_t index = m_rq_wqe_counter & (m_rx_num_wr - 1);
+			m_rq_wqe_idx_to_wrid[index] = (uintptr_t)p_mem_buf_desc;
+			++m_rq_wqe_counter;
+		}
+
+		if (m_curr_rx_wr == m_n_sysvar_rx_num_wr_to_post_recv - 1) {
+
+			m_last_posted_rx_wr_id = (uintptr_t)p_mem_buf_desc;
+
+			m_p_prev_rx_desc_pushed = NULL;
+			p_mem_buf_desc->p_prev_desc = NULL;
+
+			m_curr_rx_wr = 0;
+			struct ibv_recv_wr *bad_wr = NULL;
+			IF_VERBS_FAILURE(ibv_post_recv(m_qp, &m_ibv_rx_wr_array[0], &bad_wr)) {
+				uint32_t n_pos_bad_rx_wr = ((uint8_t*)bad_wr - (uint8_t*)m_ibv_rx_wr_array) / sizeof(struct ibv_recv_wr);
+				qp_logerr("failed posting list (errno=%d %m)", errno);
+				qp_logerr("bad_wr is %d in submitted list (bad_wr=%p, m_ibv_rx_wr_array=%p, size=%d)", n_pos_bad_rx_wr, bad_wr, m_ibv_rx_wr_array, sizeof(struct ibv_recv_wr));
+				qp_logerr("bad_wr info: wr_id=%#x, next=%p, addr=%#x, length=%d, lkey=%#x", bad_wr[0].wr_id, bad_wr[0].next, bad_wr[0].sg_list[0].addr, bad_wr[0].sg_list[0].length, bad_wr[0].sg_list[0].lkey);
+				qp_logerr("QP current state: %d", priv_ibv_query_qp_state(m_qp));
+
+				// Fix broken linked list of rx_wr
+				if (n_pos_bad_rx_wr != (m_n_sysvar_rx_num_wr_to_post_recv - 1)) {
+					m_ibv_rx_wr_array[n_pos_bad_rx_wr].next = &m_ibv_rx_wr_array[n_pos_bad_rx_wr+1];
+				}
+				throw;
+			} ENDIF_VERBS_FAILURE;
+			qp_logfunc("Successful ibv_post_recv");
+		}
+		else {
+			m_curr_rx_wr++;
+		}
+
+
+		p_mem_buf_desc = next;
+	}
+
+	return 0;
 }
 
 //! Send one RAW packet by MLX5 BlueFlame

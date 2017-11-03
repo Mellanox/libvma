@@ -60,6 +60,8 @@
 #define BYTE_TO_KB(BYTEVALUE)		(((BYTEVALUE) * 8) / 1000)
 #define KB_TO_BYTE(BYTEVALUE)		(((BYTEVALUE) * 1000) / 8)
 
+#define NOTIFY_ON_EVENTS(context, events) context->set_events(events)
+
 struct buff_info_t {
 		buff_info_t(){
 			rx_reuse.set_id("buff_info_t (%p) : rx_reuse", this);
@@ -134,19 +136,9 @@ public:
 	virtual bool addr_in_reuse(void) = 0;
 	virtual int* get_rings_fds(int &res_length);
 	virtual int get_rings_num();
-#ifdef DEFINED_VMAPOLL
-
 	virtual bool check_rings() {return m_p_rx_ring ? true: false;}
-#else
-	virtual bool check_rings() {return true;}
-#endif
 
-
-#ifdef DEFINED_VMAPOLL
-	virtual int fast_nonblocking_rx(vma_packets_t *vma_pkts);
-#else
 	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);	
-#endif // DEFINED_VMAPOLL	
 protected:
 	bool			m_b_closed;
 	bool 			m_b_blocking;
@@ -194,22 +186,20 @@ protected:
 	ring_alloc_logic_attr			m_ring_alloc_log_rx;
 	ring_alloc_logic_attr			m_ring_alloc_log_tx;
 
-#ifdef DEFINED_VMAPOLL
-	/* Track internal events to return in vma_poll()
+	/* Track internal events to return in socketxtreme()
 	 * Current design support single event for socket at a particular time
 	 */
-	struct ring_ec m_ec;
-	struct vma_completion_t* m_vma_poll_completion;
-	struct vma_buff_t*       m_vma_poll_last_buff_lst;
-#endif // DEFINED_VMAPOLL
+	struct {
+		struct ring_ec m_ec;
+		struct vma_completion_t* m_vma_poll_completion;
+		struct vma_buff_t*       m_vma_poll_last_buff_lst;
+	} xtreme;
 
 	// Callback function pointer to support VMA extra API (vma_extra.h)
 	vma_recv_callback_t	m_rx_callback;
 	void*			m_rx_callback_context; // user context
 	uint32_t		m_so_ratelimit;
-#ifdef DEFINED_VMAPOLL	
-	void*			m_fd_context;
-#endif // DEFINED_VMAPOLL	
+	void*			m_fd_context; // Context data stored with socket
 	uint32_t		m_flow_tag_id;	// Flow Tag for this socket
 	bool			m_flow_tag_enabled; // for this socket
 	bool			m_tcp_flow_is_5t; // to bypass packet analysis
@@ -218,9 +208,7 @@ protected:
 	virtual void 		set_blocking(bool is_blocked);
 	virtual int 		fcntl(int __cmd, unsigned long int __arg);
 	virtual int 		ioctl(unsigned long int __request, unsigned long int __arg);
-#ifdef DEFINED_VMAPOLL	
 	virtual int setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen);
-#endif // DEFINED_VMAPOLL	
 	virtual int getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen);
 
 	virtual	mem_buf_desc_t* get_front_m_rx_pkt_ready_list() = 0;
@@ -272,54 +260,57 @@ protected:
 	void 			move_owned_rx_ready_descs(const mem_buf_desc_owner* p_desc_owner, descq_t* toq); // Move all owner's rx ready packets ro 'toq'
 
 	virtual bool try_un_offloading(); // un-offload the socket if possible
-#ifdef DEFINED_VMAPOLL	
+
 	virtual inline void do_wakeup()
 	{
 		/* TODO: Let consider if we really need this check */
-		if (!check_vma_active()) {
+		if (!check_xtreme_active()) {
 			wakeup_pipe::do_wakeup();
 		}
 	}
 
-	inline bool check_vma_active(void)
+	inline bool check_xtreme_active(void)
 	{
-		return (m_p_rx_ring && m_p_rx_ring->get_vma_active());
+		return (m_p_rx_ring && m_p_rx_ring->get_xtreme_active());
 	}
 
 	inline void set_events(uint64_t events)
 	{
+#ifdef DEFINED_VMAPOLL
 		/* Collect all events if rx ring is enabled */
 		if (m_p_rx_ring) {
-			if (m_vma_poll_completion) {
-				if (!m_vma_poll_completion->events) {
-					m_vma_poll_completion->user_data = (uint64_t)m_fd_context;
+			if (xtreme.m_vma_poll_completion) {
+				if (!xtreme.m_vma_poll_completion->events) {
+					xtreme.m_vma_poll_completion->user_data = (uint64_t)m_fd_context;
 				}
-				m_vma_poll_completion->events |= events;
+				xtreme.m_vma_poll_completion->events |= events;
 			}
 			else {
-				if (!m_ec.completion.events) {
-					m_ec.completion.user_data = (uint64_t)m_fd_context;
-					m_p_rx_ring->put_ec(&m_ec);
+				if (!xtreme.m_ec.completion.events) {
+					xtreme.m_ec.completion.user_data = (uint64_t)m_fd_context;
+					m_p_rx_ring->put_ec(&xtreme.m_ec);
 				}
-				m_ec.completion.events |= events;
+				xtreme.m_ec.completion.events |= events;
 			}
 		}
 
 		if ((uint32_t)events) {
 			socket_fd_api::notify_epoll_context((uint32_t)events);
 		}
+#else
+		socket_fd_api::notify_epoll_context((uint32_t)events);
+#endif /* DEFINED_VMAPOLL */
 	}
 
 	inline uint64_t get_events(void)
 	{
-		return m_ec.completion.events;
+		return xtreme.m_ec.completion.events;
 	}
 
 	inline void clear_events(void)
 	{
-		m_ec.completion.events = 0;
+		xtreme.m_ec.completion.events = 0;
 	}
-#endif // DEFINED_VMAPOLL	
 
 	// This function validates the ipoib's properties
 	// Input params:
@@ -541,11 +532,5 @@ protected:
     }
     //////////////////////////////////////////////////////////////////
 };
-
-#ifdef DEFINED_VMAPOLL
-#define NOTIFY_ON_EVENTS(context, events) context->set_events(events)
-#else
-#define NOTIFY_ON_EVENTS(context, events) context->notify_epoll_context(events)
-#endif // DEFINED_VMAPOLL
 
 #endif /* BASE_SOCKINFO_H */

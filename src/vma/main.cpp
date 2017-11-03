@@ -83,11 +83,7 @@ void check_netperf_flags();
 // Start of vma_version_str - used in "$ strings libvma.so | grep VMA_VERSION"
 #define STR_EXPAND(x) #x
 #define STR(x) STR_EXPAND(x)
-#ifdef DEFINED_VMAPOLL
-const char *vma_version_str = "VMA_VERSION: " PACKAGE_VERSION "-" STR(VMA_LIBRARY_RELEASE) " (vmapoll)"
-#else
 const char *vma_version_str = "VMA_VERSION: " PACKAGE_VERSION "-" STR(VMA_LIBRARY_RELEASE)
-#endif // DEFINED_VMAPOLL
 
 #if _BullseyeCoverage
 			      " Bullseye"
@@ -599,6 +595,7 @@ void print_vma_global_settings()
 	VLOG_PARAM_NUMBER("Num of neigh restart retries", safe_mce_sys().neigh_num_err_retries, MCE_DEFAULT_NEIGH_NUM_ERR_RETRIES, SYS_VAR_NEIGH_NUM_ERR_RETRIES );
 
 	VLOG_PARAM_STRING("IPOIB support", safe_mce_sys().enable_ipoib, MCE_DEFAULT_IPOIB_FLAG, SYS_VAR_IPOIB, safe_mce_sys().enable_ipoib ? "Enabled " : "Disabled");
+	VLOG_PARAM_STRING("SocketXtreme mode", safe_mce_sys().enable_xtreme, MCE_DEFAULT_XTREME, SYS_VAR_XTREME, safe_mce_sys().enable_xtreme ? "Enabled " : "Disabled");
 	VLOG_PARAM_STRING("BF (Blue Flame)", safe_mce_sys().handle_bf, MCE_DEFAULT_BF_FLAG, SYS_VAR_BF, safe_mce_sys().handle_bf ? "Enabled " : "Disabled");
 	VLOG_PARAM_STRING("fork() support", safe_mce_sys().handle_fork, MCE_DEFAULT_FORK_SUPPORT, SYS_VAR_FORK, safe_mce_sys().handle_fork ? "Enabled " : "Disabled");
 	VLOG_PARAM_STRING("close on dup2()", safe_mce_sys().close_on_dup2, MCE_DEFAULT_CLOSE_ON_DUP2, SYS_VAR_CLOSE_ON_DUP2, safe_mce_sys().close_on_dup2 ? "Enabled " : "Disabled");
@@ -685,9 +682,7 @@ extern "C" void sock_redirect_exit(void)
 	finit_instrumentation(safe_mce_sys().vma_time_measure_filename);
 #endif
 	vlog_printf(VLOG_DEBUG, "%s()\n", __FUNCTION__);
-#ifndef DEFINED_VMAPOLL // if not defined	
 	vma_shmem_stats_close();
-#endif // DEFINED_VMAPOLL
 }
 
 #if _BullseyeCoverage

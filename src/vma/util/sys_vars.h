@@ -393,6 +393,7 @@ struct mce_sys_var {
 	bool 		handle_bf;
 
 	bool 		enable_ipoib;
+	bool 		enable_xtreme;
 	uint32_t	timer_netlink_update_msec;
 
 	//Neigh parameters
@@ -523,6 +524,7 @@ extern mce_sys_var & safe_mce_sys();
 #define SYS_VAR_SPEC_PARAM2				"VMA_SPEC_PARAM2"
 
 #define SYS_VAR_IPOIB					"VMA_IPOIB"
+#define SYS_VAR_XTREME					"VMA_XTREME"
 
 #define SYS_VAR_INTERNAL_THREAD_AFFINITY		"VMA_INTERNAL_THREAD_AFFINITY"
 #define SYS_VAR_INTERNAL_THREAD_CPUSET			"VMA_INTERNAL_THREAD_CPUSET"
@@ -571,11 +573,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_TX_NUM_SGE				(2)
 #define MCE_DEFAULT_RX_NUM_BUFS				(200000)
 #define MCE_DEFAULT_RX_BUFS_BATCH			(64)
-#ifdef DEFINED_VMAPOLL
-#define MCE_DEFAULT_RX_NUM_WRE				(1024)
-#else
 #define MCE_DEFAULT_RX_NUM_WRE				(16000)
-#endif // DEFINED_VMAPOLL
 #define MCE_DEFAULT_RX_NUM_WRE_TO_POST_RECV		(64)
 #define MCE_DEFAULT_RX_NUM_SGE				(1)
 #define MCE_DEFAULT_RX_NUM_POLLS			(100000)
@@ -588,11 +586,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_RX_PREFETCH_BYTES			(256)
 #define MCE_DEFAULT_RX_PREFETCH_BYTES_BEFORE_POLL	(0)
 #define MCE_DEFAULT_RX_CQ_DRAIN_RATE			(MCE_RX_CQ_DRAIN_RATE_DISABLED)
-#ifdef DEFINED_VMAPOLL
-#define MCE_DEFAULT_GRO_STREAMS_MAX			(0)
-#else
 #define MCE_DEFAULT_GRO_STREAMS_MAX			(32)
-#endif // DEFINED_VMAPOLL
 #define MCE_DEFAULT_TCP_3T_RULES			(false)
 #define MCE_DEFAULT_ETH_MC_L2_ONLY_RULES		(false)
 #define MCE_DEFAULT_MC_FORCE_FLOWTAG			(false)
@@ -669,6 +663,11 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_MIN_CQ_POLL_BATCH				(1)
 #define MCE_MAX_CQ_POLL_BATCH				(128)
 #define MCE_DEFAULT_IPOIB_FLAG				(1)
+#ifdef DEFINED_VMAPOLL
+#define MCE_DEFAULT_XTREME				(true)
+#else
+#define MCE_DEFAULT_XTREME				(false)
+#endif // DEFINED_VMAPOLL
 #define MCE_DEFAULT_RX_POLL_ON_TX_TCP			(false)
 #define MCE_DEFAULT_TRIGGER_DUMMY_SEND_GETSOCKNAME	(false)
 

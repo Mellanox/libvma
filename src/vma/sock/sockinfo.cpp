@@ -58,14 +58,6 @@
 #define si_logfunc		__log_info_func
 #define si_logfuncall		__log_info_funcall
 
-#ifndef DEFINED_VMAPOLL // if not defined
-const char * const in_protocol_str[] = {
-  "PROTO_UNDEFINED",
-  "PROTO_UDP",
-  "PROTO_TCP",
-  "PROTO_ALL",
-};
-#endif // DEFINED_VMAPOLL
 
 sockinfo::sockinfo(int fd):
 		socket_fd_api(fd),
@@ -86,9 +78,7 @@ sockinfo::sockinfo(int fd):
 		m_rx_callback(NULL),
 		m_rx_callback_context(NULL),
 		m_so_ratelimit(0)
-#ifdef DEFINED_VMAPOLL
 		, m_fd_context((void *)((uintptr_t)m_fd))
-#endif // DEFINED_VMAPOLL
 		, m_flow_tag_id(0)
 		, m_flow_tag_enabled(false)
 		, m_tcp_flow_is_5t(false)
@@ -110,11 +100,9 @@ sockinfo::sockinfo(int fd):
 	m_p_socket_stats->b_blocking = m_b_blocking;
 	m_rx_reuse_buff.n_buff_num = 0;
 
-#ifdef DEFINED_VMAPOLL 
-	m_ec.clear();
-	m_vma_poll_completion = NULL;
-	m_vma_poll_last_buff_lst = NULL;
-#endif // DEFINED_VMAPOLL 
+	xtreme.m_ec.clear();
+	xtreme.m_vma_poll_completion = NULL;
+	xtreme.m_vma_poll_last_buff_lst = NULL;
 }
 
 sockinfo::~sockinfo()
@@ -233,7 +221,6 @@ int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg)
 	return orig_os_api.ioctl(m_fd, __request, __arg);
 }
 
-#ifdef DEFINED_VMAPOLL 
 int sockinfo::setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen)
 {
 	int ret = -1;
@@ -255,7 +242,6 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 
 	return ret;
 }
-#endif // DEFINED_VMAPOLL
 
 int sockinfo::getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen)
 {
@@ -264,7 +250,6 @@ int sockinfo::getsockopt(int __level, int __optname, void *__optval, socklen_t *
 	switch (__level) {
 	case SOL_SOCKET:
 		switch(__optname) {
-#ifdef DEFINED_VMAPOLL
 		case SO_VMA_USER_DATA:
 			if (*__optlen == sizeof(m_fd_context)) {
 				*(void **)__optval = m_fd_context;
@@ -273,7 +258,6 @@ int sockinfo::getsockopt(int __level, int __optname, void *__optval, socklen_t *
 				errno = EINVAL;
 			}
 		break;
-#endif // DEFINED_VMAPOLL
 
 		case SO_MAX_PACING_RATE:
 			if (*__optlen >= sizeof(int)) {
@@ -474,10 +458,6 @@ bool sockinfo::attach_receiver(flow_tuple_with_local_if &flow_key)
 
 	// Map flow in local map
 	m_rx_flow_map[flow_key] = p_nd_resources->p_ring;
-#ifndef DEFINED_VMAPOLL // is not defined
-		// Save the new CQ from ring
-		rx_add_ring_cb(flow_key, p_nd_resources->p_ring);
-#endif // DEFINED_VMAPOLL
 
 	// Attach tuple
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -535,9 +515,6 @@ bool sockinfo::detach_receiver(flow_tuple_with_local_if &flow_key)
 	lock_rx_q();
 
 	// Un-map flow from local map
-#ifndef DEFINED_VMAPOLL // is not defined
-	rx_del_ring_cb(flow_key, p_ring);
-#endif // DEFINED_VMAPOLL
 	m_rx_flow_map.erase(rx_flow_iter);
 
 	return destroy_nd_resources((const ip_address)flow_key.get_local_if());
@@ -609,13 +586,12 @@ net_device_resources_t* sockinfo::create_nd_resources(const ip_address ip_local)
 	/* just increment reference counter on attach */
 	p_nd_resources->refcnt++;
 
-#ifdef DEFINED_VMAPOLL
-	// Save the new CQ from ring (dummy_flow_key is not used)
+	/* Save the new CQ from ring (dummy_flow_key is not used) */
 	{
 		flow_tuple_with_local_if dummy_flow_key(m_bound, m_connected, m_protocol, ip_local.get_in_addr());
 		rx_add_ring_cb(dummy_flow_key, p_nd_resources->p_ring);
 	}
-#endif // DEFINED_VMAPOLL
+
 	return p_nd_resources;
 err:
 	return NULL;
@@ -636,11 +612,11 @@ bool sockinfo::destroy_nd_resources(const ip_address ip_local)
 
 	p_nd_resources->refcnt--;
 
-#ifdef DEFINED_VMAPOLL
-		// Release the new CQ from ring (dummy_flow_key is not used)
+	/* Release the new CQ from ring (dummy_flow_key is not used) */
+	{
 		flow_tuple_with_local_if dummy_flow_key(m_bound, m_connected, m_protocol, ip_local.get_in_addr());
 		rx_del_ring_cb(dummy_flow_key, p_nd_resources->p_ring);
-#endif // DEFINED_VMAPOLL
+	}
 
 	if (p_nd_resources->refcnt == 0) {
 
@@ -834,10 +810,19 @@ void sockinfo::remove_epoll_context(epfd_info *epfd)
 	m_rx_ring_map_lock.unlock();
 }
 
-#ifndef DEFINED_VMAPOLL // if not defined
 void sockinfo::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 {
+	const char * const in_protocol_str[] = {
+	  "PROTO_UNDEFINED",
+	  "PROTO_UDP",
+	  "PROTO_TCP",
+	  "PROTO_ALL",
+	};
 	bool b_any_activity = false;
+
+	if (check_xtreme_active()) {
+		return ;
+	}
 
 	socket_fd_api::statistics_print(log_level);
 
@@ -894,7 +879,6 @@ void sockinfo::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 		vlog_printf(log_level, "Socket activity : Rx and Tx where not active\n");
 	}
 }
-#endif // DEFINED_VMAPOLL
 
 void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool is_migration /*= false*/)
 {
@@ -915,7 +899,7 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 		m_rx_ring_map[p_ring] = p_ring_info;
 		p_ring_info->refcnt = 1;
 		p_ring_info->rx_reuse_info.n_buff_num = 0;
-#ifdef DEFINED_VMAPOLL
+
 		/* m_p_rx_ring is updated in following functions:
 		 *  - rx_add_ring_cb()
 		 *  - rx_del_ring_cb()
@@ -924,7 +908,7 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 		if (m_rx_ring_map.size() == 1) {
 			m_p_rx_ring = m_rx_ring_map.begin()->first;
 		}
-#endif
+
 		notify_epoll = true;
 
 		// Add this new CQ channel fd to the rx epfd handle (no need to wake up any sleeping thread about this new fd)
@@ -1023,14 +1007,12 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 				if (m_rx_ring_map.size() == 1) {
 					m_p_rx_ring = m_rx_ring_map.begin()->first;
 				} else {
-#ifdef DEFINED_VMAPOLL
 					/* Remove event from rx ring if it is active
 					 * or just reinitialize
 					 * ring should not have events related closed socket
 					 * in wait list
 					 */
-					m_p_rx_ring->del_ec(&m_ec);
-#endif // DEFINED_VMAPOLL					
+					m_p_rx_ring->del_ec(&xtreme.m_ec);
 					m_p_rx_ring = NULL;
 				}
 
@@ -1182,12 +1164,10 @@ void sockinfo::destructor_helper()
 		rx_flow_iter = m_rx_flow_map.begin(); // Pop next flow rule
 	}
 
-#ifdef DEFINED_VMAPOLL
 	/* Destroy resources in case they are allocated using SO_BINDTODEVICE call */
 	if (m_rx_nd_map.size()) {
 		destroy_nd_resources(m_so_bindtodevice_ip);
 	}
-#endif // DEFINED_VMAPOLL
 
 	// Delete all dst_entry in our list
 	if (m_p_connected_dst_entry)
@@ -1223,41 +1203,36 @@ int sockinfo::modify_ratelimit(dst_entry* p_dst_entry, const uint32_t rate_limit
 	return -1;
 }
 
-#ifdef DEFINED_VMAPOLL
-int sockinfo::fast_nonblocking_rx(vma_packets_t *vma_pkts)
-{
-	NOT_IN_USE(vma_pkts);
-	return 0;
-}
-#endif // DEFINED_VMAPOLL
-
 int sockinfo::get_rings_num()
 {
-#ifdef DEFINED_VMAPOLL
-	return 1;
-#else
 	int count = 0;
 
+	if (check_xtreme_active()) {
+		/* socketXtreme mode support just single ring */
+		return 1;
+	}
 	rx_ring_map_t::iterator it = m_rx_ring_map.begin();
 	for (; it != m_rx_ring_map.end(); ++it) {
 		count += it->first->get_num_resources();
 	}
 	return count;
-#endif
 }
 
 int* sockinfo::get_rings_fds(int &res_length)
 {
-	res_length = get_rings_num();
-
-#ifdef DEFINED_VMAPOLL
-	return m_p_rx_ring->get_rx_channel_fds();
-#else
+	res_length = 0;
 	int index = 0;
+
+	if (check_xtreme_active()) {
+		/* socketXtreme mode support just single ring */
+		res_length = 1;
+		return m_p_rx_ring->get_rx_channel_fds();
+	}
 
 	if (m_rings_fds) {
 		return m_rings_fds;
 	}
+	res_length = get_rings_num();
 	m_rings_fds = new int[res_length];
 
 	rx_ring_map_t::iterator it = m_rx_ring_map.begin();
@@ -1273,5 +1248,4 @@ int* sockinfo::get_rings_fds(int &res_length)
 		}
 	}
 	return m_rings_fds;
-#endif
 }

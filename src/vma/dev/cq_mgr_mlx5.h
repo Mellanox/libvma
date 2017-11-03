@@ -57,12 +57,12 @@ public:
 	virtual ~cq_mgr_mlx5();
 
 	virtual mem_buf_desc_t*     poll(enum buff_status_e& status);
-	inline struct mlx5_cqe64*   get_cqe64(struct mlx5_cqe64 **cqe_err);
-	inline void                 cqe64_to_mem_buff_desc(struct mlx5_cqe64 *cqe, mem_buf_desc_t* p_rx_wc_buf_desc, enum buff_status_e& status);
 	virtual int                 drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id = NULL);
 	virtual int                 poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
+	virtual int                 poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst);
 	virtual int                 poll_and_process_element_tx(uint64_t* p_cq_poll_sn);
 	int                         poll_and_process_error_element_tx(struct mlx5_cqe64 *cqe, uint64_t* p_cq_poll_sn);
+	int                         poll_and_process_error_element_rx(struct mlx5_cqe64 *cqe, void* pv_fd_ready_array);
 
 	virtual mem_buf_desc_t*     process_cq_element_rx(mem_buf_desc_t* p_mem_buf_desc, enum buff_status_e status);
 	virtual void                add_qp_rx(qp_mgr* qp);
@@ -84,11 +84,15 @@ protected:
 	int                         m_cqe_log_sz;
 
 private:
+	const uint32_t              m_n_sysvar_rx_num_wr_to_post_recv;
+	const bool                  m_b_sysvar_enable_xtreme;
+
 	mem_buf_desc_t              *m_rx_hot_buffer;
-	uint64_t                    *m_p_rq_wqe_idx_to_wrid;
-	qp_mgr_eth_mlx5*            m_qp; //for tx
+	qp_mgr_eth_mlx5*            m_qp;
 	struct mlx5_cq*             m_mlx5_cq;
 
+	inline struct mlx5_cqe64*   get_cqe64(struct mlx5_cqe64 **cqe_err = NULL);
+	inline void                 cqe64_to_mem_buff_desc(struct mlx5_cqe64 *cqe, mem_buf_desc_t* p_rx_wc_buf_desc, enum buff_status_e& status);
 	void                        cqe64_to_vma_wc(struct mlx5_cqe64 *cqe, vma_ibv_wc *wc);
 	inline struct mlx5_cqe64*   check_error_completion(struct mlx5_cqe64 *cqe, uint32_t *ci, uint8_t op_own);
 	inline void                 update_consumer_index();

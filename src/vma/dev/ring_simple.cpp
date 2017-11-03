@@ -130,10 +130,6 @@ ring_simple::ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t l
 	m_local_if(local_if), m_transport_type(transport_type)
 	, m_b_sysvar_eth_mc_l2_only_rules(safe_mce_sys().eth_mc_l2_only_rules)
 	, m_b_sysvar_mc_force_flowtag(safe_mce_sys().mc_force_flowtag)
-#ifdef DEFINED_VMAPOLL
-	, m_rx_buffs_rdy_for_free_head(NULL) 
-	, m_rx_buffs_rdy_for_free_tail(NULL) 
-#endif // DEFINED_VMAPOLL		
 	, m_flow_tag_enabled(false)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -171,13 +167,6 @@ ring_simple::~ring_simple()
         /* coverity[double_lock] TODO: RM#1049980 */
 	m_lock_ring_rx.lock();
 	m_lock_ring_tx.lock();
-
-#ifdef DEFINED_VMAPOLL	
-	if (m_rx_buffs_rdy_for_free_head) {
-		m_p_cq_mgr_rx->vma_poll_reclaim_recv_buffer_helper(m_rx_buffs_rdy_for_free_head);
-		m_rx_buffs_rdy_for_free_head = m_rx_buffs_rdy_for_free_tail = NULL;
-	}
-#endif // DEFINED_VMAPOLL		
 
 	if (m_p_qp_mgr) {
 		// 'down' the active QP/CQ
@@ -795,13 +784,6 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_f
 	struct iphdr* p_ip_h = NULL;
 	struct udphdr* p_udp_h = NULL;
 
-#ifdef DEFINED_VMAPOLL
-	NOT_IN_USE(ip_tot_len);
-	NOT_IN_USE(ip_frag_off);
-	NOT_IN_USE(n_frag_offset);
-	NOT_IN_USE(p_udp_h);
-#endif // DEFINED_VMAPOLL
-
 	// Validate buffer size
 	sz_data = p_rx_wc_buf_desc->sz_data;
 	if (unlikely(sz_data > p_rx_wc_buf_desc->sz_buffer)) {
@@ -1212,29 +1194,27 @@ int ring_simple::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd
 	return ret;
 }
 
-#ifdef DEFINED_VMAPOLL
-int ring_simple::vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags)
+int ring_simple::xtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags)
 {
 	int ret = 0;
 	int i = 0;
-	mem_buf_desc_t *desc;
 
 	NOT_IN_USE(flags);
 
 	if (likely(vma_completions) && ncompletions) {
 		struct ring_ec *ec = NULL;
 
-		m_vma_poll_completion = vma_completions;
+		xtreme.m_vma_poll_completion = vma_completions;
 
 		while (!g_b_exit && (i < (int)ncompletions)) {
-			m_vma_poll_completion->events = 0;
+			xtreme.m_vma_poll_completion->events = 0;
 			/* Check list size to avoid locking */
-			if (!list_empty(&m_ec_list)) {
+			if (!list_empty(&xtreme.m_ec_list)) {
 				ec = get_ec();
 				if (ec) {
-					memcpy(m_vma_poll_completion, &ec->completion, sizeof(ec->completion));
+					memcpy(xtreme.m_vma_poll_completion, &ec->completion, sizeof(ec->completion));
 					ec->clear();
-					m_vma_poll_completion++;
+					xtreme.m_vma_poll_completion++;
 					i++;
 				}
 			} else {
@@ -1243,11 +1223,12 @@ int ring_simple::vma_poll(struct vma_completion_t *vma_completions, unsigned int
 				 * in right order. It is done to avoid locking and
 				 * may be it is not so critical
 				 */
-				if (likely(m_p_cq_mgr_rx->vma_poll_and_process_element_rx(&desc))) {
+				mem_buf_desc_t *desc;
+				if (likely(m_p_cq_mgr_rx->poll_and_process_element_rx(&desc))) {
 					desc->rx.vma_polled = true;
 					rx_process_buffer(desc, NULL);
-					if (m_vma_poll_completion->events) {
-						m_vma_poll_completion++;
+					if (xtreme.m_vma_poll_completion->events) {
+						xtreme.m_vma_poll_completion++;
 						i++;
 					}
 				} else {
@@ -1256,7 +1237,7 @@ int ring_simple::vma_poll(struct vma_completion_t *vma_completions, unsigned int
 			}
 		}
 
-		m_vma_poll_completion = NULL;
+		xtreme.m_vma_poll_completion = NULL;
 
 		ret = i;
 	}
@@ -1267,7 +1248,6 @@ int ring_simple::vma_poll(struct vma_completion_t *vma_completions, unsigned int
 
 	return ret;
 }
-#endif // DEFINED_VMAPOLL
 
 int ring_simple::wait_for_notification_and_process_element(cq_type_t cq_type, int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array /*NULL*/)
 {
@@ -1294,6 +1274,13 @@ bool ring_simple::reclaim_recv_buffers(descq_t *rx_reuse)
 	return ret;
 }
 
+bool ring_simple::reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst)
+{
+	bool ret = false;
+	RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_rx, m_p_cq_mgr_rx->reclaim_recv_buffers(rx_reuse_lst));
+	return ret;
+}
+
 bool ring_simple::reclaim_recv_buffers_no_lock(descq_t *rx_reuse)
 {
 	return m_p_cq_mgr_rx->reclaim_recv_buffers_no_lock(rx_reuse);
@@ -1301,50 +1288,13 @@ bool ring_simple::reclaim_recv_buffers_no_lock(descq_t *rx_reuse)
 
 bool ring_simple::reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst)
 {
-	return m_p_cq_mgr_rx->reclaim_recv_buffers(rx_reuse_lst);
+	return m_p_cq_mgr_rx->reclaim_recv_buffers_no_lock(rx_reuse_lst);
 }
 
-#ifdef DEFINED_VMAPOLL
-int ring_simple::vma_poll_reclaim_single_recv_buffer(mem_buf_desc_t* rx_reuse_buff)
+int ring_simple::reclaim_recv_single_buffer(mem_buf_desc_t* rx_reuse)
 {
-	int ret_val = 0;
-
-	ret_val = rx_reuse_buff->lwip_pbuf_dec_ref_count();
-
-	if ((ret_val == 0) && (rx_reuse_buff->get_ref_count() <= 0)) {
-		/*if ((safe_mce_sys().thread_mode > THREAD_MODE_SINGLE)) {
-			m_lock_ring_rx.lock();
-		}*/
-
-		if (!m_rx_buffs_rdy_for_free_head) {
-			m_rx_buffs_rdy_for_free_head = m_rx_buffs_rdy_for_free_tail = rx_reuse_buff;
-		}
-		else {
-			m_rx_buffs_rdy_for_free_tail->p_next_desc = rx_reuse_buff;
-			m_rx_buffs_rdy_for_free_tail = rx_reuse_buff;
-		}
-		m_rx_buffs_rdy_for_free_tail->p_next_desc = NULL;
-
-		/*if ((safe_mce_sys().thread_mode > THREAD_MODE_SINGLE)) {
-			m_lock_ring_rx.lock();
-		}*/
-	}
-
-	return ret_val;
+	return m_p_cq_mgr_rx->reclaim_recv_single_buffer(rx_reuse);
 }
-
-void ring_simple::vma_poll_reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst)
-{
-	m_lock_ring_rx.lock();
-	if (m_rx_buffs_rdy_for_free_head) {
-		m_p_cq_mgr_rx->vma_poll_reclaim_recv_buffer_helper(m_rx_buffs_rdy_for_free_head);
-		m_rx_buffs_rdy_for_free_head = m_rx_buffs_rdy_for_free_tail = NULL;
-	}
-
-	m_p_cq_mgr_rx->vma_poll_reclaim_recv_buffer_helper(rx_reuse_lst);
-	m_lock_ring_rx.unlock();
-}
-#endif // DEFINED_VMAPOLL
 
 void ring_simple::mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc)
 {

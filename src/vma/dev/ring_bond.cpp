@@ -393,6 +393,20 @@ void ring_bond::inc_tx_retransmissions(ring_user_id_t id)
 		active_ring->inc_tx_retransmissions(id);
 }
 
+bool ring_bond::reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst)
+{
+	/* TODO: not supported */
+	NOT_IN_USE(rx_reuse_lst);
+	return false;
+}
+
+int ring_bond::reclaim_recv_single_buffer(mem_buf_desc_t* rx_reuse)
+{
+	/* TODO: not supported */
+	NOT_IN_USE(rx_reuse);
+	return -1;
+}
+
 bool ring_bond::reclaim_recv_buffers(descq_t *rx_reuse)
 {
 	/* use this local array to avoid locking mechanizm
@@ -657,14 +671,7 @@ bool ring_bond::is_ratelimit_supported(uint32_t rate)
 	return true;
 }
 
-#ifdef DEFINED_VMAPOLL	
-int ring_bond::fast_poll_and_process_element_rx(vma_packets_t *vma_pkts)
-{
-	NOT_IN_USE(vma_pkts);
-	return 0;
-}
-
-int ring_bond::vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags)
+int ring_bond::xtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags)
 {
 	NOT_IN_USE(vma_completions);
 	NOT_IN_USE(ncompletions);
@@ -672,4 +679,3 @@ int ring_bond::vma_poll(struct vma_completion_t *vma_completions, unsigned int n
 
 	return 0;
 }
-#endif // DEFINED_VMAPOLL	

@@ -147,26 +147,23 @@ bool rfs_uc::prepare_flow_spec()
 
 bool rfs_uc::rx_dispatch_packet(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array)
 {
-	// Dispatching: Notify new packet to the FIRST registered receiver ONLY
+#ifdef DEFINED_VMAPOLL
+	uint32_t num_sinks = (safe_mce_sys().enable_xtreme ? 1 : m_n_sinks_list_entries);
+#else
+	uint32_t num_sinks = m_n_sinks_list_entries;
+#endif /* DEFINED_VMAPOLL */
+
 	p_rx_wc_buf_desc->reset_ref_count();
-#ifdef DEFINED_VMAPOLL	
+	for (uint32_t i=0; i < num_sinks; ++i) {
+		if (m_sinks_list[i]) {
 #ifdef RDTSC_MEASURE_RX_DISPATCH_PACKET
 	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_DISPATCH_PACKET]);
 #endif //RDTSC_MEASURE_RX_DISPATCH_PACKET
-	//for (uint32_t i=0; i < m_n_sinks_list_entries; ++i) 
-	{
-		if (likely(m_sinks_list[0])) {
 			p_rx_wc_buf_desc->inc_ref_count();
-			m_sinks_list[0]->rx_input_cb(p_rx_wc_buf_desc, pv_fd_ready_array);
+			m_sinks_list[i]->rx_input_cb(p_rx_wc_buf_desc, pv_fd_ready_array);
 #ifdef RDTSC_MEASURE_RX_DISPATCH_PACKET
 	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_DISPATCH_PACKET]);
 #endif //RDTSC_MEASURE_RX_DISPATCH_PACKET
-#else
-	for (uint32_t i=0; i < m_n_sinks_list_entries; ++i) {
-		if (m_sinks_list[i]) {
-			p_rx_wc_buf_desc->inc_ref_count();
-			m_sinks_list[i]->rx_input_cb(p_rx_wc_buf_desc, pv_fd_ready_array);
-#endif // DEFINED_VMAPOLL
 			// Check packet ref_count to see the last receiver is interested in this packet
 			if (p_rx_wc_buf_desc->dec_ref_count() > 1) {
 				// The sink will be responsible to return the buffer to CQ for reuse

@@ -52,11 +52,6 @@
 #endif
 #include "vma/vma_extra.h"
 
-#ifdef DEFINED_VMAPOLL
-	#define IS_VMAPOLL true
-#else
-	#define IS_VMAPOLL false
-#endif // DEFINED_VMAPOLL
 
 class net_device_mgr;
 class ring;
@@ -143,13 +138,6 @@ public:
 	 */
 	virtual int	wait_for_notification_and_process_element(uint64_t* p_cq_poll_sn,
 	   	                                          void* pv_fd_ready_array = NULL);
-#ifdef DEFINED_VMAPOLL
-	inline volatile struct mlx5_cqe64 *mlx5_get_cqe64(void);
-	inline volatile struct mlx5_cqe64 *mlx5_get_cqe64(volatile struct mlx5_cqe64 **cqe_err);
-	volatile struct mlx5_cqe64 *mlx5_check_error_completion(volatile struct mlx5_cqe64 *cqe, volatile uint16_t *ci, uint8_t op_own);
-	inline void mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, vma_ibv_wc *wce);
-	int mlx5_poll_and_process_error_element_rx(volatile struct mlx5_cqe64 *cqe, void* pv_fd_ready_array);
-#endif // DEFINED_VMAPOLL
 
 	/**
 	 * This will poll n_num_poll time on the cq or stop early if it gets
@@ -160,6 +148,8 @@ public:
 	 */
 	virtual int	poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	virtual int	poll_and_process_element_tx(uint64_t* p_cq_poll_sn);
+
+	virtual int	poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst);
 
 	/**
 	 * This will check if the cq was drained, and if it wasn't it will drain it.
@@ -184,6 +174,8 @@ public:
 	bool	reclaim_recv_buffers(descq_t *rx_reuse);
 	bool	reclaim_recv_buffers_no_lock(descq_t *rx_reuse);
 	bool	reclaim_recv_buffers(mem_buf_desc_t *rx_reuse_lst);
+	bool	reclaim_recv_buffers_no_lock(mem_buf_desc_t *rx_reuse_lst);
+	int	reclaim_recv_single_buffer(mem_buf_desc_t* rx_reuse);
 
 	//maps between qpn and vlan id to the local interface
 	void	map_vlan_and_qpn_to_local_if(int qp_num, uint16_t vlan_id, in_addr_t local_if);
@@ -194,9 +186,6 @@ public:
 	void 	modify_cq_moderation(uint32_t period, uint32_t count);
 
 	inline void convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) { m_p_ib_ctx_handler->convert_hw_time_to_system_time(hwtime, systime); }
-#ifdef DEFINED_VMAPOLL
-	void 	mlx5_init_cq();
-#endif // DEFINED_VMAPOLL
 
 
 protected:
@@ -218,7 +207,7 @@ protected:
 	 * - for Tx wce the data buffers will be released to the associated ring before the mem_buf_desc are returned
 	 */
 	mem_buf_desc_t* process_cq_element_tx(vma_ibv_wc* p_wce);
-	virtual         mem_buf_desc_t* process_cq_element_rx(vma_ibv_wc* p_wce);
+	mem_buf_desc_t* process_cq_element_rx(vma_ibv_wc* p_wce);
 	void            reclaim_recv_buffer_helper(mem_buf_desc_t* buff);
 
 	// Returns true if the given buffer was used,
@@ -250,18 +239,9 @@ protected:
 	const uint32_t		m_n_sysvar_rx_prefetch_bytes;
 	size_t			m_sz_transport_header;
 
-private:
-#ifdef DEFINED_VMAPOLL
-	mem_buf_desc_t* 	m_rx_hot_buff;
-	qp_mgr*			m_qp;
-	struct mlx5_cq* 	m_mlx5_cq;
-	int 			m_cq_sz;
-	uint16_t		m_cq_ci;
-	volatile struct		mlx5_cqe64 	(*m_mlx5_cqes)[];
-	volatile uint32_t 	*m_cq_db;
-#endif // DEFINED_VMAPOLL
 protected:
 	ib_ctx_handler*		m_p_ib_ctx_handler;
+
 private:
 	const uint32_t		m_n_sysvar_rx_num_wr_to_post_recv;
 	const bool		m_b_sysvar_is_rx_sw_csum_on;
@@ -275,16 +255,14 @@ private:
 	cq_stats_t 		m_cq_stat_static;
 	static atomic_t		m_n_cq_id_counter;
 
-#ifdef DEFINED_VMAPOLL
-	int	vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst);
-#endif // DEFINED_VMAPOLL
+	/* This fields are needed to track internal memory buffers
+	 * represented as struct vma_buff_t
+	 * from user application by special VMA extended API
+	 */
+	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_head;
+	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_tail;
 
 	void		handle_tcp_ctl_packets(uint32_t rx_processed, void* pv_fd_ready_array);
-
-#ifdef DEFINED_VMAPOLL
-	int 		vma_poll_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff);
-	void		vma_poll_reclaim_recv_buffer_helper(mem_buf_desc_t* buff);
-#endif // DEFINED_VMAPOLL
 
 	// requests safe_mce_sys().qp_compensation_level buffers from global pool
 	bool 		request_more_buffers() __attribute__((noinline));

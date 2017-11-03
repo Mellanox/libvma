@@ -60,8 +60,9 @@ cq_mgr_mlx5::cq_mgr_mlx5(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler,
 	,m_cq_dbell(NULL)
 	,m_rq(NULL)
 	,m_cqe_log_sz(0)
+	,m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv)
+	,m_b_sysvar_enable_xtreme(safe_mce_sys().enable_xtreme)
 	,m_rx_hot_buffer(NULL)
-	,m_p_rq_wqe_idx_to_wrid(NULL)
 	,m_qp(NULL)
 	,m_mlx5_cq(NULL)
 {
@@ -124,8 +125,8 @@ mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
 	if (unlikely(NULL == m_rx_hot_buffer)) {
 		if (likely(m_rq->tail != m_rq->head)) {
 			uint32_t index = m_rq->tail & (m_qp_rec.qp->m_rx_num_wr - 1);
-			m_rx_hot_buffer = (mem_buf_desc_t *)m_p_rq_wqe_idx_to_wrid[index];
-			m_p_rq_wqe_idx_to_wrid[index] = 0;
+			m_rx_hot_buffer = (mem_buf_desc_t *)m_qp->m_p_rq_wqe_idx_to_wrid[index];
+			m_qp->m_p_rq_wqe_idx_to_wrid[index] = 0;
 			prefetch((void*)m_rx_hot_buffer);
 			prefetch((uint8_t*)m_cqes + ((m_cq_cons_index & (m_cq_size - 1)) << m_cqe_log_sz));
 		} else {
@@ -255,60 +256,160 @@ int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=N
 		m_b_was_drained = false;
 	}
 
-	while ((m_n_sysvar_progress_engine_wce_max > m_n_wce_counter) &&
-		!m_b_was_drained) {
-		buff_status_e status = BS_OK;
-		mem_buf_desc_t* buff = poll(status);
-		if (NULL == buff) {
-			update_global_sn(cq_poll_sn, ret_total);
-			m_b_was_drained = true;
-			m_p_ring->m_gro_mgr.flush_all(NULL);
-			return ret_total;
-		}
+#ifdef DEFINED_VMAPOLL
+	if (m_b_sysvar_enable_xtreme) {
+		while ((m_n_sysvar_progress_engine_wce_max && (m_n_sysvar_progress_engine_wce_max > m_n_wce_counter)) &&
+			!m_b_was_drained) {
+			int ret = 0;
+			mlx5_cqe64 *cqe_arr[MCE_MAX_CQ_POLL_BATCH];
 
-		++m_n_wce_counter;
-
-		if (process_cq_element_rx(buff, status)) {
-			if (p_recycle_buffers_last_wr_id) {
-				m_p_cq_stat->n_rx_pkt_drop++;
-				reclaim_recv_buffer_helper(buff);
-			} else {
-				bool procces_now = false;
-				if (m_transport_type == VMA_TRANSPORT_ETH) {
-					procces_now = is_eth_tcp_frame(buff);
-				}
-				if (m_transport_type == VMA_TRANSPORT_IB) {
-					procces_now = is_ib_tcp_frame(buff);
-				}
-				/* We process immediately all non udp/ip traffic.. */
-				if (procces_now) {
-					buff->rx.is_vma_thr = true;
-					if (!compensate_qp_poll_success(buff)) {
-						process_recv_buffer(buff, NULL);
+			for (int i = 0; i < MCE_MAX_CQ_POLL_BATCH; ++i)
+			{
+				cqe_arr[i] = get_cqe64();
+				if (cqe_arr[i]) {
+					++ret;
+					wmb();
+					*m_cq_dbell = htonl(m_cq_cons_index);
+					if (m_b_is_rx) {
+						++m_qp->m_hw_qp->rq.tail;
 					}
 				}
-				else { /* udp/ip traffic we just put in the cq's rx queue */
-					m_rx_queue.push_back(buff);
-					mem_buf_desc_t* buff_cur = m_rx_queue.front();
-					m_rx_queue.pop_front();
-					if (!compensate_qp_poll_success(buff_cur)) {
-						m_rx_queue.push_front(buff_cur);
+				else {
+					break;
+				}
+			}
+
+			if (!ret) {
+				m_b_was_drained = true;
+				return ret_total;
+			}
+
+
+			m_n_wce_counter += ret;
+			if (ret < MCE_MAX_CQ_POLL_BATCH)
+				m_b_was_drained = true;
+
+			for (int i = 0; i < ret; i++) {
+				uint32_t wqe_sz = 0;
+				mlx5_cqe64 *cqe = cqe_arr[i];
+				vma_ibv_wc wce;
+
+				uint16_t wqe_ctr = ntohs(cqe->wqe_counter);
+				if (m_b_is_rx) {
+					wqe_sz = m_qp->m_rx_num_wr;
+				}
+				else {
+					wqe_sz = m_qp->m_tx_num_wr;
+				}
+
+				int index = wqe_ctr & (wqe_sz - 1);
+
+				/* We need to processes rx data in case
+				 * wce.status == IBV_WC_SUCCESS
+				 * and release buffers to rx pool
+				 * in case failure
+				 */
+				m_rx_hot_buffer = (mem_buf_desc_t*)(uintptr_t)m_qp->m_p_rq_wqe_idx_to_wrid[index];
+				memset(&wce, 0, sizeof(wce));
+				wce.wr_id = (uintptr_t)m_rx_hot_buffer;
+				cqe64_to_vma_wc(cqe, &wce);
+
+				m_rx_hot_buffer = cq_mgr::process_cq_element_rx(&wce);
+				if (m_rx_hot_buffer) {
+					if (p_recycle_buffers_last_wr_id) {
+						m_p_cq_stat->n_rx_pkt_drop++;
+						reclaim_recv_buffer_helper(m_rx_hot_buffer);
+					} else {
+						bool procces_now = false;
+						if (m_transport_type == VMA_TRANSPORT_ETH) {
+							procces_now = is_eth_tcp_frame(m_rx_hot_buffer);
+						}
+						if (m_transport_type == VMA_TRANSPORT_IB) {
+							procces_now = is_ib_tcp_frame(m_rx_hot_buffer);
+						}
+						// We process immediately all non udp/ip traffic..
+						if (procces_now) {
+							m_rx_hot_buffer->rx.is_vma_thr = true;
+							if ((++m_qp_rec.debth < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
+								!compensate_qp_poll_success(m_rx_hot_buffer)) {
+								process_recv_buffer(m_rx_hot_buffer, NULL);
+							}
+						}
+						else { //udp/ip traffic we just put in the cq's rx queue
+							m_rx_queue.push_back(m_rx_hot_buffer);
+							mem_buf_desc_t* buff_cur = m_rx_queue.get_and_pop_front();
+							if ((++m_qp_rec.debth < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
+								!compensate_qp_poll_success(buff_cur)) {
+								m_rx_queue.push_front(buff_cur);
+							}
+						}
+					}
+				}
+				if (p_recycle_buffers_last_wr_id) {
+					*p_recycle_buffers_last_wr_id = (uintptr_t)wce.wr_id;
+				}
+			}
+			ret_total += ret;
+		}
+	} else
+#endif /* DEFINED_VMAPOLL */
+	{
+		while ((m_n_sysvar_progress_engine_wce_max > m_n_wce_counter) &&
+			!m_b_was_drained) {
+			buff_status_e status = BS_OK;
+			mem_buf_desc_t* buff = poll(status);
+			if (NULL == buff) {
+				update_global_sn(cq_poll_sn, ret_total);
+				m_b_was_drained = true;
+				m_p_ring->m_gro_mgr.flush_all(NULL);
+				return ret_total;
+			}
+
+			++m_n_wce_counter;
+
+			if (process_cq_element_rx(buff, status)) {
+				if (p_recycle_buffers_last_wr_id) {
+					m_p_cq_stat->n_rx_pkt_drop++;
+					reclaim_recv_buffer_helper(buff);
+				} else {
+					bool procces_now = false;
+					if (m_transport_type == VMA_TRANSPORT_ETH) {
+						procces_now = is_eth_tcp_frame(buff);
+					}
+					if (m_transport_type == VMA_TRANSPORT_IB) {
+						procces_now = is_ib_tcp_frame(buff);
+					}
+					/* We process immediately all non udp/ip traffic.. */
+					if (procces_now) {
+						buff->rx.is_vma_thr = true;
+						if ((++m_qp_rec.debth < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
+								!compensate_qp_poll_success(buff)) {
+							process_recv_buffer(buff, NULL);
+						}
+					}
+					else { /* udp/ip traffic we just put in the cq's rx queue */
+						m_rx_queue.push_back(buff);
+						mem_buf_desc_t* buff_cur = m_rx_queue.front();
+						m_rx_queue.pop_front();
+						if ((++m_qp_rec.debth < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
+								!compensate_qp_poll_success(buff_cur)) {
+							m_rx_queue.push_front(buff_cur);
+						}
 					}
 				}
 			}
+
+			if (p_recycle_buffers_last_wr_id) {
+				*p_recycle_buffers_last_wr_id = (uintptr_t)buff;
+			}
+
+			++ret_total;
 		}
 
-		if (p_recycle_buffers_last_wr_id) {
-			*p_recycle_buffers_last_wr_id = (uintptr_t)buff;
-		}
+		update_global_sn(cq_poll_sn, ret_total);
 
-		++ret_total;
+		m_p_ring->m_gro_mgr.flush_all(NULL);
 	}
-
-	update_global_sn(cq_poll_sn, ret_total);
-
-	m_p_ring->m_gro_mgr.flush_all(NULL);
-
 	m_n_wce_counter = 0;
 	m_b_was_drained = false;
 
@@ -347,7 +448,8 @@ mem_buf_desc_t* cq_mgr_mlx5::process_cq_element_rx(mem_buf_desc_t* p_mem_buf_des
 
 	/* we use context to verify that on reclaim rx buffer path we return the buffer to the right CQ */
 	p_mem_buf_desc->rx.is_vma_thr = false;
-	p_mem_buf_desc->rx.context = this;
+	p_mem_buf_desc->rx.context = NULL;
+	p_mem_buf_desc->rx.vma_polled = false;
 
 	if (unlikely((status != BS_OK) ||
 			     (m_b_is_rx_hw_csum_on && p_mem_buf_desc->rx.is_sw_csum_need))) {
@@ -391,34 +493,137 @@ int cq_mgr_mlx5::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd
 		prefetch_range((uint8_t*)m_p_next_rx_desc_poll->p_buffer, m_n_sysvar_rx_prefetch_bytes_before_poll);
 	}
 
-	buff_status_e status = BS_OK;
-	uint32_t ret = 0;
-	while (ret < m_n_sysvar_cq_poll_batch_max) {
-		mem_buf_desc_t *buff = poll(status);
-		if (buff) {
-			++ret;
-			if (process_cq_element_rx(buff, status)) {
-				if (!compensate_qp_poll_success(buff)) {
-					process_recv_buffer(buff, pv_fd_ready_array);
+#ifdef DEFINED_VMAPOLL
+	if (m_b_sysvar_enable_xtreme) {
+		if (unlikely(m_rx_hot_buffer == NULL)) {
+			int index = m_qp->m_hw_qp->rq.tail & (m_qp->m_rx_num_wr - 1);
+			m_rx_hot_buffer = (mem_buf_desc_t*)(uintptr_t)m_qp->m_p_rq_wqe_idx_to_wrid[index];
+			m_rx_hot_buffer->rx.context = NULL;
+			m_rx_hot_buffer->rx.is_vma_thr = false;
+			m_rx_hot_buffer->rx.vma_polled = false;
+		}
+		else {
+			mlx5_cqe64 *cqe_err = NULL;
+			mlx5_cqe64 *cqe = get_cqe64(&cqe_err);
+
+			if (likely(cqe)) {
+				++m_n_wce_counter;
+				++m_qp->m_hw_qp->rq.tail;
+				m_rx_hot_buffer->sz_data = ntohl(cqe->byte_cnt);
+				m_rx_hot_buffer->rx.flow_tag_id = vma_get_flow_tag(cqe);
+
+				if (unlikely(++m_qp_rec.debth >= (int)m_n_sysvar_rx_num_wr_to_post_recv)) {
+					(void)compensate_qp_poll_success(m_rx_hot_buffer);
 				}
+				process_recv_buffer(m_rx_hot_buffer, pv_fd_ready_array);
+				++ret_rx_processed;
+				m_rx_hot_buffer = NULL;
 			}
+			else if (cqe_err) {
+				ret_rx_processed += poll_and_process_error_element_rx(cqe_err, pv_fd_ready_array);
+			}
+			else {
+				compensate_qp_poll_failed();
+			}
+
+		}
+	} else
+#endif /* DEFINED_VMAPOLL */
+	{
+		buff_status_e status = BS_OK;
+		uint32_t ret = 0;
+		while (ret < m_n_sysvar_cq_poll_batch_max) {
+			mem_buf_desc_t *buff = poll(status);
+			if (buff) {
+				++ret;
+				if (process_cq_element_rx(buff, status)) {
+					if ((++m_qp_rec.debth < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
+							!compensate_qp_poll_success(buff)) {
+						process_recv_buffer(buff, pv_fd_ready_array);
+					}
+				}
+			} else {
+				m_b_was_drained = true;
+				break;
+			}
+		}
+
+		update_global_sn(*p_cq_poll_sn, ret);
+
+		if (likely(ret > 0)) {
+			ret_rx_processed += ret;
+			m_n_wce_counter += ret;
+			m_p_ring->m_gro_mgr.flush_all(pv_fd_ready_array);
 		} else {
-			m_b_was_drained = true;
-			break;
+			compensate_qp_poll_failed();
 		}
 	}
 
-	update_global_sn(*p_cq_poll_sn, ret);
+	return ret_rx_processed;
+}
 
-	if (likely(ret > 0)) {
-		ret_rx_processed += ret;
-		m_n_wce_counter += ret;
-		m_p_ring->m_gro_mgr.flush_all(pv_fd_ready_array);
-	} else {
+int cq_mgr_mlx5::poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
+{
+	int packets_num = 0;
+
+	if (unlikely(m_rx_hot_buffer == NULL)) {
+		int index = m_qp->m_hw_qp->rq.tail & (m_qp->m_rx_num_wr - 1);
+		m_rx_hot_buffer = (mem_buf_desc_t*)(uintptr_t)m_qp->m_p_rq_wqe_idx_to_wrid[index];
+		m_rx_hot_buffer->rx.context = NULL;
+		m_rx_hot_buffer->rx.is_vma_thr = false;
+	}
+	//prefetch_range((uint8_t*)m_rx_hot_buffer->p_buffer,safe_mce_sys().rx_prefetch_bytes_before_poll);
+#ifdef RDTSC_MEASURE_RX_VERBS_READY_POLL
+	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VERBS_READY_POLL]);
+#endif //RDTSC_MEASURE_RX_VERBS_READY_POLL
+
+#ifdef RDTSC_MEASURE_RX_VERBS_IDLE_POLL
+	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VERBS_IDLE_POLL]);
+#endif //RDTSC_MEASURE_RX_VERBS_IDLE_POLL
+
+#ifdef RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
+	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL]);
+#endif //RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
+	mlx5_cqe64 *cqe_err = NULL;
+	mlx5_cqe64 *cqe = get_cqe64(&cqe_err);
+
+	if (likely(cqe)) {
+		++m_n_wce_counter;
+		++m_qp->m_hw_qp->rq.tail;
+		m_rx_hot_buffer->sz_data = ntohl(cqe->byte_cnt);
+		m_rx_hot_buffer->rx.flow_tag_id = vma_get_flow_tag(cqe);
+
+		if (unlikely(++m_qp_rec.debth >= (int)m_n_sysvar_rx_num_wr_to_post_recv)) {
+			(void)compensate_qp_poll_success(m_rx_hot_buffer);
+		}
+		++packets_num;
+		*p_desc_lst = m_rx_hot_buffer;
+		m_rx_hot_buffer = NULL;
+	}
+	else if (cqe_err) {
+		/* Return nothing in case error wc
+		 * It is difference with poll_and_process_element_rx()
+		 */
+		poll_and_process_error_element_rx(cqe_err, NULL);
+		*p_desc_lst = NULL;
+	}
+	else {
+#ifdef RDTSC_MEASURE_RX_VERBS_IDLE_POLL
+		RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VERBS_IDLE_POLL]);
+#endif
+
+#ifdef RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
+		RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL]);
+#endif
+
+#ifdef RDTSC_MEASURE_RX_CQE_RECEIVEFROM
+		RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_CQE_TO_RECEIVEFROM]);
+#endif
 		compensate_qp_poll_failed();
 	}
 
-	return ret_rx_processed;
+	return packets_num;
+
 }
 
 inline void cq_mgr_mlx5::cqe64_to_vma_wc(struct mlx5_cqe64 *cqe, vma_ibv_wc *wc)
@@ -476,19 +681,19 @@ inline struct mlx5_cqe64 *cq_mgr_mlx5::get_cqe64(struct mlx5_cqe64 **cqe_err)
 			((m_cq_cons_index & (m_cq_size - 1)) << m_cqe_log_sz));
 	uint8_t op_own = cqe->op_own;
 
-	*cqe_err = NULL;
-	if (unlikely((op_own & MLX5_CQE_OWNER_MASK) == !(m_cq_cons_index & m_cq_size))) {
-		return NULL;
-	} else if (unlikely(op_own & 0x80)) {
+	if (likely(op_own >> 4 != MLX5_CQE_INVALID) &&
+			((op_own & MLX5_CQE_OWNER_MASK) != !(m_cq_cons_index & m_cq_size))) {
+		++m_cq_cons_index;
+		rmb();
+		*m_cq_dbell = htonl(m_cq_cons_index);
+
+		return cqe;
+	}
+	if ((op_own & 0x80) && cqe_err) {
 		*cqe_err = check_error_completion(cqe, &m_cq_cons_index, op_own);
-		return NULL;
 	}
 
-	++m_cq_cons_index;
-	rmb();
-	*m_cq_dbell = htonl(m_cq_cons_index);
-
-	return cqe;
+	return NULL;
 }
 
 int cq_mgr_mlx5::poll_and_process_error_element_tx(struct mlx5_cqe64 *cqe, uint64_t* p_cq_poll_sn)
@@ -571,9 +776,9 @@ void cq_mgr_mlx5::set_qp_rq(qp_mgr* qp)
 	struct verbs_qp *vqp = (struct verbs_qp *)qp->m_qp;
 	struct mlx5_qp *mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
 
+	m_qp = static_cast<qp_mgr_eth_mlx5*> (qp);
 	m_rq = &mlx5_hw_qp->rq;
-	m_p_rq_wqe_idx_to_wrid = qp->m_rq_wqe_idx_to_wrid;
-	qp->m_rq_wqe_counter = 0; /* In case of bonded qp, wqe_counter must be reset to zero */
+	m_qp->m_rq_wqe_counter = 0; /* In case of bonded qp, wqe_counter must be reset to zero */
 	m_rx_hot_buffer = NULL;
 	m_cq_dbell = m_mlx5_cq->dbrec;
 	m_cqe_log_sz = ilog_2(m_mlx5_cq->cqe_sz);
@@ -590,7 +795,6 @@ void cq_mgr_mlx5::add_qp_rx(qp_mgr* qp)
 void cq_mgr_mlx5::del_qp_rx(qp_mgr *qp)
 {
 	cq_mgr::del_qp_rx(qp);
-	m_p_rq_wqe_idx_to_wrid = NULL;
 }
 
 inline void cq_mgr_mlx5::update_consumer_index()
@@ -622,6 +826,31 @@ void cq_mgr_mlx5::add_qp_tx(qp_mgr* qp)
 	m_cqe_log_sz = ilog_2(m_mlx5_cq->cqe_sz);
 	m_cqes = ((uint8_t *)m_mlx5_cq->active_buf->buf) + m_mlx5_cq->cqe_sz - sizeof(struct mlx5_cqe64);
 	cq_logfunc("qp_mgr=%p m_cq_dbell=%p m_cqes=%p", m_qp, m_cq_dbell, m_cqes);
+}
+
+int cq_mgr_mlx5::poll_and_process_error_element_rx(struct mlx5_cqe64 *cqe, void* pv_fd_ready_array)
+{
+	vma_ibv_wc wce;
+
+	memset(&wce, 0, sizeof(wce));
+	wce.wr_id = (uintptr_t)m_rx_hot_buffer;
+	cqe64_to_vma_wc(cqe, &wce);
+
+	++m_n_wce_counter;
+	++m_qp->m_hw_qp->rq.tail;
+
+	m_rx_hot_buffer = cq_mgr::process_cq_element_rx(&wce);
+	if (m_rx_hot_buffer) {
+		if (vma_wc_opcode(wce) & VMA_IBV_WC_RECV) {
+			if ((++m_qp_rec.debth < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
+				!compensate_qp_poll_success(m_rx_hot_buffer)) {
+					process_recv_buffer(m_rx_hot_buffer, pv_fd_ready_array);
+			}
+		}
+	}
+	m_rx_hot_buffer = NULL;
+
+	return 1;
 }
 
 #endif//HAVE_INFINIBAND_MLX5_HW_H
