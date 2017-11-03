@@ -135,19 +135,14 @@ public:
 	virtual int* get_rings_fds(int &res_length);
 	virtual int get_rings_num();
 	virtual int get_socket_network_ptr(void *ptr, uint16_t &len);
-#ifdef DEFINED_SOCKETXTREME
 
+#ifdef DEFINED_SOCKETXTREME
 	virtual bool check_rings() {return m_p_rx_ring ? true: false;}
 #else
 	virtual bool check_rings() {return true;}
+	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);
 #endif
 
-
-#ifdef DEFINED_SOCKETXTREME
-	virtual int fast_nonblocking_rx(vma_packets_t *vma_pkts);
-#else
-	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);	
-#endif // DEFINED_SOCKETXTREME	
 protected:
 	bool			m_b_closed;
 	bool 			m_b_blocking;
@@ -208,9 +203,7 @@ protected:
 	vma_recv_callback_t	m_rx_callback;
 	void*			m_rx_callback_context; // user context
 	struct vma_rate_limit_t m_so_ratelimit;
-#ifdef DEFINED_SOCKETXTREME	
-	void*			m_fd_context;
-#endif // DEFINED_SOCKETXTREME	
+	void*			m_fd_context; // Context data stored with socket
 	uint32_t		m_flow_tag_id;	// Flow Tag for this socket
 	bool			m_flow_tag_enabled; // for this socket
 	bool			m_tcp_flow_is_5t; // to bypass packet analysis
@@ -219,9 +212,7 @@ protected:
 	virtual void 		set_blocking(bool is_blocked);
 	virtual int 		fcntl(int __cmd, unsigned long int __arg);
 	virtual int 		ioctl(unsigned long int __request, unsigned long int __arg);
-#ifdef DEFINED_SOCKETXTREME	
 	virtual int setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen);
-#endif // DEFINED_SOCKETXTREME	
 	int setsockopt_kernel(int __level, int __optname, const void *__optval, socklen_t __optlen, int supported, bool allow_priv);
 	virtual int getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen);
 

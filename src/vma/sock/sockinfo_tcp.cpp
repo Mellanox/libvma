@@ -3480,14 +3480,9 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 	bool supported = true;
 	bool allow_privileged_sock_opt = false;
 
-#ifdef DEFINED_SOCKETXTREME
-	/* Process VMA specific options only at the moment
-	 * VMA option does not require additional processing after return
-	 */
 	if (0 == sockinfo::setsockopt(__level, __optname, __optval, __optlen)) {
 		return 0;
 	}
-#endif // DEFINED_SOCKETXTREME
 
 	if (__level == IPPROTO_IP) {
 		switch(__optname) {
@@ -3619,7 +3614,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 					 * (!m_bound.is_anyaddr() && !m_bound.is_local_loopback())
 					 * and can not detect offload/non-offload socket
 					 * Note:
-					 * This inconsistence should be resolved.
+					 * This inconsistency should be resolved.
 					 */
 					ip_address local_ip(m_so_bindtodevice_ip);
 
@@ -3702,15 +3697,11 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 		errno = EFAULT;
 		return ret;
 	}
-	
-#ifdef DEFINED_SOCKETXTREME
-	/* Process VMA specific options only at the moment
-	 * VMA option does not require additional processing after return
-	 */
+
 	if (0 == sockinfo::getsockopt(__level, __optname, __optval, __optlen)) {
 		return 0;
 	}
-#endif // DEFINED_SOCKETXTREME	
+
 	switch (__level) {
 	case IPPROTO_TCP:
 		switch(__optname) {
