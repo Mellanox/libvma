@@ -136,9 +136,7 @@ public:
 	virtual int get_rings_num();
 	virtual bool check_rings() {return m_p_rx_ring ? true: false;}
 
-#ifdef DEFINED_VMAPOLL
-	virtual int fast_nonblocking_rx(vma_packets_t *vma_pkts);
-#else
+#ifndef DEFINED_VMAPOLL
 	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);	
 #endif // DEFINED_VMAPOLL	
 protected:
@@ -201,9 +199,7 @@ protected:
 	vma_recv_callback_t	m_rx_callback;
 	void*			m_rx_callback_context; // user context
 	uint32_t		m_so_ratelimit;
-#ifdef DEFINED_VMAPOLL	
-	void*			m_fd_context;
-#endif // DEFINED_VMAPOLL	
+	void*			m_fd_context; // Context data stored with socket
 	uint32_t		m_flow_tag_id;	// Flow Tag for this socket
 	bool			m_flow_tag_enabled; // for this socket
 	bool			m_tcp_flow_is_5t; // to bypass packet analysis
@@ -212,9 +208,7 @@ protected:
 	virtual void 		set_blocking(bool is_blocked);
 	virtual int 		fcntl(int __cmd, unsigned long int __arg);
 	virtual int 		ioctl(unsigned long int __request, unsigned long int __arg);
-#ifdef DEFINED_VMAPOLL	
 	virtual int setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen);
-#endif // DEFINED_VMAPOLL	
 	virtual int getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen);
 
 	virtual	mem_buf_desc_t* get_front_m_rx_pkt_ready_list() = 0;

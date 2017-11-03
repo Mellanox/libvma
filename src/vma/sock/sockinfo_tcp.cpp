@@ -3440,14 +3440,12 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 	bool supported = true;
 	bool allow_privileged_sock_opt = false;
 
-#ifdef DEFINED_VMAPOLL
 	/* Process VMA specific options only at the moment
 	 * VMA option does not require additional processing after return
 	 */
 	if (0 == sockinfo::setsockopt(__level, __optname, __optval, __optlen)) {
 		return 0;
 	}
-#endif // DEFINED_VMAPOLL
 
 	if (__level == IPPROTO_TCP) {
 		switch(__optname) {
@@ -3552,7 +3550,6 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			} else {
 				m_so_bindtodevice_ip = sockaddr.sin_addr.s_addr;
 
-#ifdef DEFINED_VMAPOLL
 				if (!is_connected()) {
 					/* Current implementation allows to create separate rings for tx and rx.
 					 * tx ring is created basing on destination ip during connect() call,
@@ -3563,7 +3560,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 					 * (!m_bound.is_anyaddr() && !m_bound.is_local_loopback())
 					 * and can not detect offload/non-offload socket
 					 * Note:
-					 * This inconsistence should be resolved.
+					 * This inconsistency should be resolved.
 					 */
 					ip_address local_ip(m_so_bindtodevice_ip);
 
@@ -3576,7 +3573,6 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 					}
 					unlock_tcp_con();
 				}
-#endif // DEFINED_VMAPOLL				
 			}
 			// handle TX side
 			if (m_p_connected_dst_entry) {
@@ -3660,14 +3656,12 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 		return ret;
 	}
 	
-#ifdef DEFINED_VMAPOLL
 	/* Process VMA specific options only at the moment
 	 * VMA option does not require additional processing after return
 	 */
 	if (0 == sockinfo::getsockopt(__level, __optname, __optval, __optlen)) {
 		return 0;
 	}
-#endif // DEFINED_VMAPOLL	
 
 	if (__level == IPPROTO_TCP) {
 		switch(__optname) {
