@@ -73,7 +73,6 @@ public:
 	virtual int		modify_ratelimit(struct vma_rate_limit_t &rate_limit);
 	virtual bool		is_ratelimit_supported(struct vma_rate_limit_t &rate_limit);
 #ifdef DEFINED_SOCKETXTREME		
-	virtual int		fast_poll_and_process_element_rx(vma_packets_t *vma_pkts);
 	int 			socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);
 #endif // DEFINED_SOCKETXTREME		
 protected:

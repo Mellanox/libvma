@@ -138,9 +138,11 @@ public:
 	virtual int getpeername(sockaddr *__name, socklen_t *__namelen);
 
 	virtual	int	free_packets(struct vma_packet_t *pkts, size_t count);
-#ifdef DEFINED_SOCKETXTREME	
-	virtual	int	free_buffs(uint16_t len);
-#else
+
+	/* This function is used for socketxtreme mode */
+	virtual int free_buffs(uint16_t len);
+
+#ifndef DEFINED_SOCKETXTREME // if not defined
 	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);	
 #endif // DEFINED_SOCKETXTREME	
 
