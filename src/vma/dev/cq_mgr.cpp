@@ -565,10 +565,10 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 		p_mem_buf_desc->rx.is_vma_thr = false;
 #ifdef DEFINED_VMAPOLL
 		p_mem_buf_desc->rx.context = NULL;
-		p_mem_buf_desc->rx.vma_polled = false;
 #else
 		p_mem_buf_desc->rx.context = this;
 #endif // DEFINED_VMAPOLL
+		p_mem_buf_desc->rx.vma_polled = false;
 
 		//this is not a deadcode if timestamping is defined in verbs API
 		// coverity[dead_error_condition]
@@ -637,9 +637,7 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 				temp->reset_ref_count();
 				temp->rx.tcp.gro = 0;
 				temp->rx.is_vma_thr = false;
-#ifdef DEFINED_VMAPOLL
 				temp->rx.vma_polled = false;
-#endif // DEFINED_VMAPOLL
 				temp->rx.flow_tag_id = 0;
 				temp->rx.tcp.p_ip_h = NULL;
 				temp->rx.tcp.p_tcp_h = NULL;
@@ -695,34 +693,6 @@ void cq_mgr::vma_poll_reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 		return_extra_buffers();
 		m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
 	}
-}
-
-int cq_mgr::vma_poll_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff)
-{
-	int ref_cnt = buff->lwip_pbuf_dec_ref_count();
-	if (ref_cnt <= 0) {
-		VLIST_DEBUG_CQ_MGR_PRINT_ERROR_IS_MEMBER
-		//TBD: add check: buff->get_ref_count() <= 0 otherwise return with error
-		//(since that mean free_packet wasn't called)
-		buff->p_next_desc = NULL;
-		buff->p_prev_desc = NULL;
-		buff->reset_ref_count();
-		buff->rx.tcp.gro = 0;
-		buff->rx.is_vma_thr = false;
-		buff->rx.vma_polled = false;
-		buff->rx.flow_tag_id = 0;
-		buff->rx.tcp.p_ip_h = NULL;
-		buff->rx.tcp.p_tcp_h = NULL;
-		buff->rx.udp.sw_timestamp.tv_nsec = 0;
-		buff->rx.udp.sw_timestamp.tv_sec = 0;
-		buff->rx.udp.hw_timestamp.tv_nsec = 0;
-		buff->rx.udp.hw_timestamp.tv_sec = 0;
-		buff->rx.hw_raw_timestamp = 0;
-		free_lwip_pbuf(&buff->lwip_pbuf);
-		m_rx_pool.push_back(buff);
-		m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
-	}
-	return ref_cnt;
 }
 #endif // DEFINED_VMAPOLL
 
@@ -1435,14 +1405,3 @@ void cq_mgr::modify_cq_moderation(uint32_t period, uint32_t count)
 	NOT_IN_USE(period);
 #endif
 }
-
-#ifdef DEFINED_VMAPOLL
-void cq_mgr::mlx5_init_cq()
-{
-	struct ibv_cq *ibcq = m_p_ibv_cq; // ibcp is used in next macro: _to_mxxx
-	m_mlx5_cq = _to_mxxx(cq, cq);
-	m_cq_db = m_mlx5_cq->dbrec;
-	m_mlx5_cqes = (volatile struct mlx5_cqe64 (*)[])(uintptr_t)m_mlx5_cq->active_buf->buf;
-}
-#endif // DEFINED_VMAPOLL
-

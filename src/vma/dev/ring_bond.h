@@ -69,7 +69,6 @@ public:
 	virtual int 		modify_ratelimit(const uint32_t ratelimit_kbps);
 	virtual bool		is_ratelimit_supported(uint32_t rate);
 #ifdef DEFINED_VMAPOLL		
-	virtual int		fast_poll_and_process_element_rx(vma_packets_t *vma_pkts);
 	int 			vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);
 #endif // DEFINED_VMAPOLL		
 protected:

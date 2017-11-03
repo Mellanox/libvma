@@ -194,9 +194,6 @@ public:
 	void 	modify_cq_moderation(uint32_t period, uint32_t count);
 
 	inline void convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) { m_p_ib_ctx_handler->convert_hw_time_to_system_time(hwtime, systime); }
-#ifdef DEFINED_VMAPOLL
-	void 	mlx5_init_cq();
-#endif // DEFINED_VMAPOLL
 
 
 protected:
@@ -282,7 +279,6 @@ private:
 	void		handle_tcp_ctl_packets(uint32_t rx_processed, void* pv_fd_ready_array);
 
 #ifdef DEFINED_VMAPOLL
-	int 		vma_poll_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff);
 	void		vma_poll_reclaim_recv_buffer_helper(mem_buf_desc_t* buff);
 #endif // DEFINED_VMAPOLL
 

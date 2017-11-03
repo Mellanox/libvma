@@ -658,11 +658,6 @@ bool ring_bond::is_ratelimit_supported(uint32_t rate)
 }
 
 #ifdef DEFINED_VMAPOLL	
-int ring_bond::fast_poll_and_process_element_rx(vma_packets_t *vma_pkts)
-{
-	NOT_IN_USE(vma_pkts);
-	return 0;
-}
 
 int ring_bond::vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags)
 {

@@ -105,11 +105,7 @@ public:
 			bool 		is_vma_thr; 	// specify whether packet drained from VMA internal thread or from user app thread
 			bool		is_sw_csum_need; // specify if software checksum is need for this packet
 
-	#ifdef DEFINED_VMAPOLL
-			bool 		vma_polled;
-	#else
-			bool		pad[1];
-	#endif // DEFINED_VMAPOLL
+			bool 		vma_polled; // special flag used for socketxtreme
 		} rx;
 		struct {
 			size_t		dev_mem_length; // Total data aligned to 4 bytes.
