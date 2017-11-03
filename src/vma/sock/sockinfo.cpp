@@ -58,14 +58,6 @@
 #define si_logfunc		__log_info_func
 #define si_logfuncall		__log_info_funcall
 
-#ifndef DEFINED_SOCKETXTREME // if not defined
-const char * const in_protocol_str[] = {
-  "PROTO_UNDEFINED",
-  "PROTO_UDP",
-  "PROTO_TCP",
-  "PROTO_ALL",
-};
-#endif // DEFINED_SOCKETXTREME
 
 sockinfo::sockinfo(int fd):
 		socket_fd_api(fd),
@@ -845,6 +837,12 @@ void sockinfo::remove_epoll_context(epfd_info *epfd)
 #ifndef DEFINED_SOCKETXTREME // if not defined
 void sockinfo::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 {
+	const char * const in_protocol_str[] = {
+	  "PROTO_UNDEFINED",
+	  "PROTO_UDP",
+	  "PROTO_TCP",
+	  "PROTO_ALL",
+	};
 	bool b_any_activity = false;
 
 	socket_fd_api::statistics_print(log_level);

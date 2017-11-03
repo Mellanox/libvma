@@ -659,12 +659,6 @@ bool ring_bond::is_ratelimit_supported(struct vma_rate_limit_t &rate_limit)
 }
 
 #ifdef DEFINED_SOCKETXTREME	
-int ring_bond::fast_poll_and_process_element_rx(vma_packets_t *vma_pkts)
-{
-	NOT_IN_USE(vma_pkts);
-	return 0;
-}
-
 int ring_bond::socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags)
 {
 	NOT_IN_USE(vma_completions);

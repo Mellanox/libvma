@@ -195,10 +195,6 @@ public:
 
 	inline void convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) { m_p_ib_ctx_handler->convert_hw_time_to_system_time(hwtime, systime); }
 	virtual bool fill_cq_hw_descriptors(struct hw_cq_data &data) {NOT_IN_USE(data);return false;};
-#ifdef DEFINED_SOCKETXTREME
-	void 	mlx5_init_cq();
-#endif // DEFINED_SOCKETXTREME
-
 
 protected:
 
@@ -283,7 +279,6 @@ private:
 	void		handle_tcp_ctl_packets(uint32_t rx_processed, void* pv_fd_ready_array);
 
 #ifdef DEFINED_SOCKETXTREME
-	int 		socketxtreme_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff);
 	void		socketxtreme_reclaim_recv_buffer_helper(mem_buf_desc_t* buff);
 #endif // DEFINED_SOCKETXTREME
 

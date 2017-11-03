@@ -193,9 +193,8 @@ public:
 	
 	virtual int free_packets(struct vma_packet_t *pkts, size_t count);
 
-#ifdef DEFINED_SOCKETXTREME
+	/* This function is used for socketxtreme mode */
 	virtual	int free_buffs(uint16_t len);
-#endif // DEFINED_SOCKETXTREME	
 
 	virtual int get_fd( ) const { return m_fd; };
 
