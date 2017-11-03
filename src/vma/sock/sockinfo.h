@@ -134,13 +134,7 @@ public:
 	virtual bool addr_in_reuse(void) = 0;
 	virtual int* get_rings_fds(int &res_length);
 	virtual int get_rings_num();
-#ifdef DEFINED_VMAPOLL
-
 	virtual bool check_rings() {return m_p_rx_ring ? true: false;}
-#else
-	virtual bool check_rings() {return true;}
-#endif
-
 
 #ifdef DEFINED_VMAPOLL
 	virtual int fast_nonblocking_rx(vma_packets_t *vma_pkts);

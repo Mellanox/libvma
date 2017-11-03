@@ -474,10 +474,6 @@ bool sockinfo::attach_receiver(flow_tuple_with_local_if &flow_key)
 
 	// Map flow in local map
 	m_rx_flow_map[flow_key] = p_nd_resources->p_ring;
-#ifndef DEFINED_VMAPOLL // is not defined
-		// Save the new CQ from ring
-		rx_add_ring_cb(flow_key, p_nd_resources->p_ring);
-#endif // DEFINED_VMAPOLL
 
 	// Attach tuple
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -535,9 +531,6 @@ bool sockinfo::detach_receiver(flow_tuple_with_local_if &flow_key)
 	lock_rx_q();
 
 	// Un-map flow from local map
-#ifndef DEFINED_VMAPOLL // is not defined
-	rx_del_ring_cb(flow_key, p_ring);
-#endif // DEFINED_VMAPOLL
 	m_rx_flow_map.erase(rx_flow_iter);
 
 	return destroy_nd_resources((const ip_address)flow_key.get_local_if());
@@ -609,13 +602,12 @@ net_device_resources_t* sockinfo::create_nd_resources(const ip_address ip_local)
 	/* just increment reference counter on attach */
 	p_nd_resources->refcnt++;
 
-#ifdef DEFINED_VMAPOLL
-	// Save the new CQ from ring (dummy_flow_key is not used)
+	/* Save the new CQ from ring (dummy_flow_key is not used) */
 	{
 		flow_tuple_with_local_if dummy_flow_key(m_bound, m_connected, m_protocol, ip_local.get_in_addr());
 		rx_add_ring_cb(dummy_flow_key, p_nd_resources->p_ring);
 	}
-#endif // DEFINED_VMAPOLL
+
 	return p_nd_resources;
 err:
 	return NULL;
@@ -636,11 +628,11 @@ bool sockinfo::destroy_nd_resources(const ip_address ip_local)
 
 	p_nd_resources->refcnt--;
 
-#ifdef DEFINED_VMAPOLL
-		// Release the new CQ from ring (dummy_flow_key is not used)
+	/* Release the new CQ from ring (dummy_flow_key is not used) */
+	{
 		flow_tuple_with_local_if dummy_flow_key(m_bound, m_connected, m_protocol, ip_local.get_in_addr());
 		rx_del_ring_cb(dummy_flow_key, p_nd_resources->p_ring);
-#endif // DEFINED_VMAPOLL
+	}
 
 	if (p_nd_resources->refcnt == 0) {
 
@@ -915,7 +907,7 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 		m_rx_ring_map[p_ring] = p_ring_info;
 		p_ring_info->refcnt = 1;
 		p_ring_info->rx_reuse_info.n_buff_num = 0;
-#ifdef DEFINED_VMAPOLL
+
 		/* m_p_rx_ring is updated in following functions:
 		 *  - rx_add_ring_cb()
 		 *  - rx_del_ring_cb()
@@ -924,7 +916,7 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 		if (m_rx_ring_map.size() == 1) {
 			m_p_rx_ring = m_rx_ring_map.begin()->first;
 		}
-#endif
+
 		notify_epoll = true;
 
 		// Add this new CQ channel fd to the rx epfd handle (no need to wake up any sleeping thread about this new fd)
@@ -1182,12 +1174,10 @@ void sockinfo::destructor_helper()
 		rx_flow_iter = m_rx_flow_map.begin(); // Pop next flow rule
 	}
 
-#ifdef DEFINED_VMAPOLL
 	/* Destroy resources in case they are allocated using SO_BINDTODEVICE call */
 	if (m_rx_nd_map.size()) {
 		destroy_nd_resources(m_so_bindtodevice_ip);
 	}
-#endif // DEFINED_VMAPOLL
 
 	// Delete all dst_entry in our list
 	if (m_p_connected_dst_entry)
