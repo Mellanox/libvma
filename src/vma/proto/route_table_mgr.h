@@ -48,6 +48,12 @@
 typedef std::tr1::unordered_map<in_addr_t, route_entry*> in_addr_route_entry_map_t;
 typedef std::tr1::unordered_map<route_rule_table_key, cache_entry_subject<route_rule_table_key, route_val*> *> rt_tbl_cach_entry_map_t;
 
+struct route_result {
+	in_addr_t	p_src;
+	in_addr_t	p_gw;
+	uint32_t	mtu;
+};
+
 class route_table_mgr : public netlink_socket_mgr<route_val>, public cache_table_mgr<route_rule_table_key, route_val*>, public observer
 {
 public:
@@ -55,7 +61,7 @@ public:
 	virtual ~route_table_mgr();
 
 	void		get_default_gw(in_addr_t *p_gw_ip, int *p_if_index);
-	bool		route_resolve(IN route_rule_table_key key, OUT in_addr_t *p_src, OUT in_addr_t *p_gw = NULL);
+	bool		route_resolve(IN route_rule_table_key key, OUT route_result &res);
 
 	route_entry* 	create_new_entry(route_rule_table_key key, const observer *obs);
 	void 		update_entry(INOUT route_entry* p_ent, bool b_register_to_net_dev = false);

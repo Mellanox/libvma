@@ -182,6 +182,8 @@ protected:
 			m_p_ring->send_ring_buffer(id, p_send_wqe, attr);
 		}
 	}
+private:
+	int get_route_mtu();
 
 };
 

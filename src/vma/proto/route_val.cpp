@@ -112,7 +112,7 @@ void route_val::set_str()
 	str_x[0] = '\0';
 	if (m_table_id != RT_TABLE_MAIN) {
 		sprintf(str_x, " table :%-10u", m_table_id);
-       	} else {
+	} else {
 		sprintf(str_x, " table :%-10s", "main");
 	}		
 	strcat(m_str, str_x);
@@ -120,8 +120,11 @@ void route_val::set_str()
 	str_x[0] = '\0';
 	sprintf(str_x, " scope %3d type %2d index %2d", m_scope, m_type, m_if_index);
 	strcat(m_str, str_x);
-
-	str_x[0] = '\0';
+	// add route metrics
+	if (m_mtu) {
+		sprintf(str_x, " mtu %d", m_mtu);
+		strcat(m_str, str_x);
+	}
 	if (m_b_deleted) {
 		sprintf(str_x, " ---> DELETED");
 	}

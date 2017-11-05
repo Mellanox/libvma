@@ -308,8 +308,8 @@ bool dst_entry::resolve_ring()
 			m_p_ring = m_p_net_dev_val->reserve_ring(m_ring_alloc_logic.create_new_key());
 		}
 		if (m_p_ring) {
-			m_max_inline = m_p_ring->get_max_tx_inline();
-			m_max_inline = std::min(m_max_inline, m_p_net_dev_val->get_mtu() + (uint32_t)m_header.m_transport_header_len);
+			m_max_inline = std::min<uint32_t>(m_p_ring->get_max_tx_inline(),
+					get_route_mtu() + m_header.m_transport_header_len);
 			ret_val = true;
 		}
 	}
@@ -547,7 +547,8 @@ bool dst_entry::prepare_to_send(const int ratelimit_kbps, bool skip_rules, bool 
 		set_state(true);
 		if (resolve_net_dev(is_connect)) {
 			set_src_addr();
-			m_max_udp_payload_size = m_p_net_dev_val->get_mtu() - sizeof(struct iphdr);
+			// overwrite mtu from route if exists
+			m_max_udp_payload_size = get_route_mtu() - sizeof(struct iphdr);
 			m_max_ip_payload_size = m_max_udp_payload_size & ~0x7;
 			if (resolve_ring()) {
 				is_ofloaded = true;
@@ -600,6 +601,14 @@ bool dst_entry::try_migrate_ring(lock_base& socket_lock)
 	return false;
 }
 
+int dst_entry::get_route_mtu()
+{
+	if (m_p_rt_val && m_p_rt_val->get_mtu() > 0 ) {
+		return m_p_rt_val->get_mtu();
+	}
+	return m_p_net_dev_val->get_mtu();
+}
+
 void dst_entry::do_ring_migration(lock_base& socket_lock)
 {
 	m_slow_path_lock.lock();
@@ -648,7 +657,8 @@ void dst_entry::do_ring_migration(lock_base& socket_lock)
 	ring* old_ring = m_p_ring;
 	m_p_ring = new_ring;
 	m_max_inline = m_p_ring->get_max_tx_inline();
-	m_max_inline = std::min(m_max_inline, m_p_net_dev_val->get_mtu() + (uint32_t)m_header.m_transport_header_len);
+	m_max_inline = std::min<uint32_t>(m_max_inline,
+				get_route_mtu() + m_header.m_transport_header_len);
 
 	mem_buf_desc_t* tmp_list = m_p_tx_mem_buf_desc_list;
 	m_p_tx_mem_buf_desc_list = NULL;
