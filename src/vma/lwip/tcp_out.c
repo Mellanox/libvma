@@ -1552,6 +1552,7 @@ tcp_zero_window_probe(struct tcp_pcb *pcb)
   struct tcp_seg *seg;
   u16_t len;
   u8_t is_fin;
+  u32_t snd_nxt;
 
   LWIP_DEBUGF(TCP_DEBUG,
               ("tcp_zero_window_probe: sending ZERO WINDOW probe to %"
@@ -1564,12 +1565,10 @@ tcp_zero_window_probe(struct tcp_pcb *pcb)
                "   pcb->tmr %"U32_F" pcb->keep_cnt_sent %"U16_F"\n",
                tcp_ticks, pcb->tmr, pcb->keep_cnt_sent));
 
-  seg = pcb->unacked;
-
+  /* Only consider unsent, persist timer should be off when there data is in-flight */
+  seg = pcb->unsent;
   if(seg == NULL) {
-    seg = pcb->unsent;
-  }
-  if(seg == NULL) {
+    /* Not expected, persist timer should be off when the send buffer is empty */
     return;
   }
 
@@ -1591,6 +1590,12 @@ tcp_zero_window_probe(struct tcp_pcb *pcb)
     /* Data segment, copy in one byte from the head of the unacked queue */
     *((char *)p->payload + TCP_HLEN) = *(char *)seg->dataptr;
   }
+
+   /* The byte may be acknowledged without the window being opened. */
+   snd_nxt = lwip_ntohl(seg->tcphdr->seqno) + 1;
+   if (TCP_SEQ_LT(pcb->snd_nxt, snd_nxt)) {
+     pcb->snd_nxt = snd_nxt;
+   }
 
 #if CHECKSUM_GEN_TCP
   tcphdr->chksum = inet_chksum_pseudo(p, &pcb->local_ip, &pcb->remote_ip,
