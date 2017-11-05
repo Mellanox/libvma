@@ -204,13 +204,17 @@ u16_t vma_lwip::vma_ip_route_mtu(ip_addr_t *dest)
 	in_addr_t dst_ip	= dest->addr;
 	in_addr_t src_ip	= 0;
 	uint8_t tos		= 0;
-	
-	g_p_route_table_mgr->route_resolve(route_rule_table_key(dst_ip, src_ip, tos), &addr.sin_addr.s_addr);
+	route_result		res;
+	g_p_route_table_mgr->route_resolve(route_rule_table_key(dst_ip, src_ip, tos), res);
+	addr.sin_addr.s_addr = res.p_src;
 	net_device_val* ndv = g_p_net_device_table_mgr->get_net_device_val(addr.sin_addr.s_addr);
 	if (ndv) {
 		ifmtu = ndv->get_mtu();
 	}
-
+	// override with mtu route if exist
+	if (res.mtu > 0) {
+		ifmtu = res.mtu;
+	}
 	if (ifmtu <= 0) {
 		return 0;
 	}

@@ -347,7 +347,7 @@ bool route_table_mgr::find_route_val(in_addr_t &dst, unsigned char table_id, rou
 	return false;
 }
 
-bool route_table_mgr::route_resolve(IN route_rule_table_key key, OUT in_addr_t *p_src, OUT in_addr_t *p_gw /*NULL*/)
+bool route_table_mgr::route_resolve(IN route_rule_table_key key, OUT route_result &res)
 {
 	in_addr_t dst = key.get_dst_ip();
 	ip_address dst_addr = dst;
@@ -359,16 +359,18 @@ bool route_table_mgr::route_resolve(IN route_rule_table_key key, OUT in_addr_t *
 	g_p_rule_table_mgr->rule_resolve(key, table_id_list);
 
 	auto_unlocker lock(m_lock);
-	for (std::deque<unsigned char>::iterator table_id_iter = table_id_list.begin(); table_id_iter != table_id_list.end(); table_id_iter++) {
+	std::deque<unsigned char>::iterator table_id_iter = table_id_list.begin();
+	for (; table_id_iter != table_id_list.end(); table_id_iter++) {
 		if (find_route_val(dst, *table_id_iter, p_val)) {
-			if (p_src) {
-				*p_src = p_val->get_src_addr();
-				rt_mgr_logdbg("dst ip '%s' resolved to src addr '%d.%d.%d.%d'", dst_addr.to_str().c_str(), NIPQUAD(*p_src));
-			}
-			if (p_gw) {
-				*p_gw = p_val->get_gw_addr();
-				rt_mgr_logdbg("dst ip '%s' resolved to gw addr '%d.%d.%d.%d'", dst_addr.to_str().c_str(), NIPQUAD(*p_gw));
-			}
+			res.p_src = p_val->get_src_addr();
+			rt_mgr_logdbg("dst ip '%s' resolved to src addr "
+					"'%d.%d.%d.%d'", dst_addr.to_str().c_str(),
+					NIPQUAD(res.p_src));
+			res.p_gw = p_val->get_gw_addr();
+			rt_mgr_logdbg("dst ip '%s' resolved to gw addr '%d.%d.%d.%d'",
+					dst_addr.to_str().c_str(), NIPQUAD(res.p_gw));
+			res.mtu = p_val->get_mtu();
+			rt_mgr_logdbg("found route mtu %d", res.mtu);
 			return true;
 		}
 	}
@@ -565,10 +567,11 @@ void route_table_mgr::new_route_event(route_val* netlink_route_val)
 	p_route_val->set_table_id(netlink_route_val->get_table_id());
 	p_route_val->set_if_index(netlink_route_val->get_if_index());
 	p_route_val->set_if_name(const_cast<char*> (netlink_route_val->get_if_name()));
+	p_route_val->set_mtu((netlink_route_val->get_mtu()));
 	p_route_val->set_state(true);
 	p_route_val->set_str();
 	p_route_val->print_val();
-	++m_tab.entries_num;			
+	++m_tab.entries_num;
 }
 
 void route_table_mgr::notify_cb(event *ev)
