@@ -295,15 +295,8 @@ void route_table_mgr::parse_attr(struct rtattr *rt_attribute, route_val *p_val)
 		uint16_t type;
 		while (RTA_OK(rta, len)) {
 			type = rta->rta_type;
-			switch (type) {
-			case RTAX_MTU:
-				p_val->set_mtu(*(uint32_t *)RTA_DATA(rta));
-				break;
-			default:
-				rt_mgr_logdbg("got unexpected METRICS %d %x",
-					type, *(uint32_t *)RTA_DATA(rta));
-				break;
-			}
+			if ((type <= VMA_RT_METRIC_MAX))
+				p_val->set_metric(type, *(uint32_t *)RTA_DATA(rta));
 			rta = RTA_NEXT(rta, len);
 		}
 		break;
@@ -370,7 +363,9 @@ bool route_table_mgr::route_resolve(IN route_rule_table_key key, OUT route_resul
 			rt_mgr_logdbg("dst ip '%s' resolved to gw addr '%d.%d.%d.%d'",
 					dst_addr.to_str().c_str(), NIPQUAD(res.p_gw));
 			res.mtu = p_val->get_mtu();
-			rt_mgr_logdbg("found route mtu %d", res.mtu);
+			res.advmss = p_val->get_advmss();
+			rt_mgr_logdbg("found route with mtu %d advmss %d",
+					res.mtu, res.advmss);
 			return true;
 		}
 	}
@@ -567,7 +562,9 @@ void route_table_mgr::new_route_event(route_val* netlink_route_val)
 	p_route_val->set_table_id(netlink_route_val->get_table_id());
 	p_route_val->set_if_index(netlink_route_val->get_if_index());
 	p_route_val->set_if_name(const_cast<char*> (netlink_route_val->get_if_name()));
-	p_route_val->set_mtu((netlink_route_val->get_mtu()));
+	for (int i = 0; i < VMA_RT_METRIC_MAX; i++) {
+		p_route_val->set_metric(i, (netlink_route_val->get_metric(i)));
+	}
 	p_route_val->set_state(true);
 	p_route_val->set_str();
 	p_route_val->print_val();

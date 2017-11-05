@@ -146,7 +146,7 @@ public:
 	static err_t ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit, uint8_t is_dummy);
 	static err_t ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rexmit, uint8_t is_dummy);
 	static void tcp_state_observer(void* pcb_container, enum tcp_state new_state);
-	static uint16_t get_route_mtu(struct tcp_pcb *pcb);
+	static uint16_t get_route_mtu_mss(struct tcp_pcb *pcb);
 
 	virtual bool rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void* pv_fd_ready_array);
 	virtual void set_rx_packet_processor(void) { }
@@ -413,6 +413,8 @@ private:
 	void process_reuse_ctl_packets();
 	void process_rx_ctl_packets();
 	bool check_dummy_send_conditions(const int flags, const iovec* p_iov, const ssize_t sz_iov);
+	void set_lwip_connect_metrics();
+	void set_lwip_init_metrics();
 };
 typedef struct tcp_seg tcp_seg;
 

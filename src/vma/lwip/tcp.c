@@ -91,8 +91,6 @@ void register_tcp_state_observer(tcp_state_observer_fn fn)
 }
 
 
-enum cc_algo_mod lwip_cc_algo_module = CC_MOD_LWIP;
-
 u16_t lwip_tcp_mss = CONST_TCP_MSS;
 
 u8_t enable_ts_option = 0;
@@ -646,32 +644,6 @@ tcp_connect(struct tcp_pcb *pcb, ip_addr_t *ipaddr, u16_t port,
   pcb->lastack = iss - 1;
   pcb->snd_lbb = iss - 1;
   pcb->rcv_ann_right_edge = pcb->rcv_nxt;
-  pcb->snd_wnd = TCP_WND;
-  /* 
-   * For effective and advertized MSS without MTU consideration:
-   * If MSS is configured - do not accept a higher value than 536 
-   * If MSS is not configured assume minimum value of 536 
-   * The send MSS is updated when an MSS option is received 
-   */
-  u16_t snd_mss = pcb->advtsd_mss = (LWIP_TCP_MSS) ? ((LWIP_TCP_MSS > 536) ? 536 : LWIP_TCP_MSS) : 536;
-  UPDATE_PCB_BY_MSS(pcb, snd_mss); 
-#if TCP_CALCULATE_EFF_SEND_MSS
-  /* 
-   * For advertized MSS with MTU knowledge - it is highly likely that it can be derived from the MTU towards the remote IP address. 
-   * Otherwise (if unlikely MTU==0)
-   * If LWIP_TCP_MSS>0 use it as MSS 
-   * If LWIP_TCP_MSS==0 set advertized MSS value to default 536
-   */
-  pcb->advtsd_mss = (LWIP_TCP_MSS > 0) ? tcp_eff_send_mss(LWIP_TCP_MSS, pcb) : tcp_mss_follow_mtu_with_default(536, pcb);
-  /* 
-   * For effective MSS with MTU knowledge - get the minimum between pcb->mss and the MSS derived from the 
-   * MTU towards the remote IP address 
-   * */
-  u16_t eff_mss = tcp_eff_send_mss(pcb->mss, pcb);
-  UPDATE_PCB_BY_MSS(pcb, eff_mss);
-#endif /* TCP_CALCULATE_EFF_SEND_MSS */
-  pcb->cwnd = 1;
-  pcb->ssthresh = pcb->mss * 10;
   pcb->connected = connected;
 
   /* Send a SYN together with the MSS option. */
@@ -1081,7 +1053,6 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio)
 	pcb->snd_queuelen = 0;
 	pcb->snd_scale = 0;
 	pcb->rcv_scale = 0;
-	pcb->rcv_wnd = TCP_WND_SCALED(pcb);
 	pcb->rcv_ann_wnd = TCP_WND_SCALED(pcb);
 	pcb->rcv_wnd_max = TCP_WND_SCALED(pcb);
 	pcb->rcv_wnd_max_desired = TCP_WND_SCALED(pcb);
@@ -1092,26 +1063,9 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio)
 	u16_t snd_mss = pcb->advtsd_mss = (LWIP_TCP_MSS) ? ((LWIP_TCP_MSS > 536) ? 536 : LWIP_TCP_MSS) : 536;
 	UPDATE_PCB_BY_MSS(pcb, snd_mss);
 	pcb->max_unsent_len = pcb->max_tcp_snd_queuelen;
-	pcb->rto = 3000 / TCP_SLOW_INTERVAL;
 	pcb->sa = 0;
 	pcb->sv = 3000 / TCP_SLOW_INTERVAL;
 	pcb->rtime = -1;
-#if TCP_CC_ALGO_MOD
-	switch (lwip_cc_algo_module) {
-	case CC_MOD_CUBIC:
-		pcb->cc_algo = &cubic_cc_algo;
-		break;
-	case CC_MOD_NONE:
-		pcb->cc_algo = &none_cc_algo;
-		break;
-	case CC_MOD_LWIP:
-	default:
-		pcb->cc_algo = &lwip_cc_algo;
-		break;
-	}
-	cc_init(pcb);
-#endif
-	pcb->cwnd = 1;
 	iss = tcp_next_iss();
 	pcb->snd_wl2 = iss;
 	pcb->snd_nxt = iss;
@@ -1455,7 +1409,7 @@ tcp_eff_send_mss(u16_t sendmss, struct tcp_pcb *pcb)
 {
   u16_t mtu;
 
-  mtu = external_ip_route_mtu(pcb);
+  mtu = external_ip_route_mtu_mss(pcb);
   if (mtu != 0) {
     sendmss = LWIP_MIN(sendmss, mtu - IP_HLEN - TCP_HLEN);
   }
@@ -1472,7 +1426,7 @@ tcp_mss_follow_mtu_with_default(u16_t defsendmss, struct tcp_pcb *pcb)
 {
   u16_t mtu;
 
-  mtu = external_ip_route_mtu(pcb);
+  mtu = external_ip_route_mtu_mss(pcb);
   if (mtu != 0) {
     defsendmss = mtu - IP_HLEN - TCP_HLEN;
     defsendmss = LWIP_MAX(defsendmss, 1); /* MSS must be a positive number */
