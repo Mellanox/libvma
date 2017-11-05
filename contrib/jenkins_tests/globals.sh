@@ -118,7 +118,7 @@ function do_github_status()
 function do_module()
 {
     echo "Checking module $1"
-    if [[ $(module avail 2>&1 | grep $1 -q > /dev/null || echo $?) ]]; then
+    if [[ $(module avail 2>&1 | grep "$1" -q > /dev/null || echo $?) ]]; then
 	    echo "[SKIP] module tool does not exist"
 	    exit 0
 	else
