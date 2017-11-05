@@ -411,9 +411,9 @@ bool net_device_table_mgr::verify_eth_qp_creation(const char* ifname, uint8_t po
 	vma_ibv_cq_init_attr attr;
 	memset(&attr, 0, sizeof(attr));
 
-	qp_init_attr.cap.max_send_wr = safe_mce_sys().tx_num_wr;
-	qp_init_attr.cap.max_recv_wr = safe_mce_sys().rx_num_wr;
-	qp_init_attr.cap.max_inline_data = safe_mce_sys().tx_max_inline;
+	qp_init_attr.cap.max_send_wr = MCE_DEFAULT_TX_NUM_WRE;
+	qp_init_attr.cap.max_recv_wr = MCE_DEFAULT_RX_NUM_WRE;
+	qp_init_attr.cap.max_inline_data = MCE_DEFAULT_TX_MAX_INLINE;
 	qp_init_attr.cap.max_send_sge = MCE_DEFAULT_TX_NUM_SGE;
 	qp_init_attr.cap.max_recv_sge = MCE_DEFAULT_RX_NUM_SGE;
 	qp_init_attr.sq_sig_all = 0;
