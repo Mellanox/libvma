@@ -127,9 +127,6 @@ void ring_eth_cb::create_resources(ring_resource_creation_info_t *p_ring_info,
 	}
 	ring_simple::create_resources(p_ring_info, active);
 	m_is_mp_ring = true;
-	ring_logdbg("use buffer parameters, m_buffer_size %zd "
-		    "strides_num %d stride size %d",
-		    m_buffer_size, m_strides_num, m_stride_size);
 }
 
 qp_mgr* ring_eth_cb::create_qp_mgr(const ib_ctx_handler *ib_ctx,
@@ -163,10 +160,10 @@ int ring_eth_cb::allocate_umr_mem()
 {
 	ibv_exp_create_mr_in mrin;
 	ibv_mr* mr = NULL;
-	size_t curr_data_len = 0, packet_len, pad_len, net_len;
+	size_t curr_data_len = 0, packet_len, pad_len, net_len, buffer_size;
 	size_t packets_num = m_strides_num * m_wq_count;
 	uint64_t base_ptr, prev_addr;
-	int index = 0, count = 1;
+	int index = 0, count = 1, pack_written_size;
 	const int ndim = 1; // we only use one dimension see UMR docs
 
 	// the min mr is two one for padding and one for data
@@ -213,12 +210,6 @@ int ring_eth_cb::allocate_umr_mem()
 	}
 
 	m_p_rpt_cnt[ndim - 1] = packets_num;
-	// allocate packet
-	m_buffer_size = m_stride_size * packets_num;
-	base_ptr = (uint64_t)m_alloc.alloc_and_reg_mr(m_buffer_size, m_p_ib_ctx);
-	prev_addr = base_ptr;
-	mr = m_alloc.find_ibv_mr_by_ib_ctx(m_p_ib_ctx);
-
 	if (get_partition()) {
 		net_len = ETH_VLAN_HDR_LEN + sizeof(struct iphdr) + sizeof(struct udphdr);
 	} else {
@@ -233,6 +224,20 @@ int ring_eth_cb::allocate_umr_mem()
 	}
 
 	pad_len = (m_stride_size * count) - net_len - m_hdr_len - m_payload_len;
+	// no need to allocate all padding add one so starting address will be valid
+	pack_written_size = (m_stride_size * count) - pad_len + 1;
+	// allocate buffer
+	buffer_size = pack_written_size * packets_num;
+	base_ptr = (uint64_t)m_alloc.alloc_and_reg_mr(buffer_size, m_p_ib_ctx);
+	ring_logdbg("use buffer parameters, buffer_size %zd "
+		    "strides_num %d stride size %d",
+		    buffer_size, m_strides_num, m_stride_size);
+	prev_addr = base_ptr;
+	mr = m_alloc.find_ibv_mr_by_ib_ctx(m_p_ib_ctx);
+	if (unlikely(mr == NULL)) {
+		ring_logerr("could not find mr");
+		return -1;
+	}
 	packet_len = net_len;
 	switch (m_cb_ring.packet_receive_mode) {
 		case RAW_PACKET:
@@ -252,7 +257,8 @@ int ring_eth_cb::allocate_umr_mem()
 			// network not accessible to application
 			m_p_mem_rep_list[index].base_addr = base_ptr;
 			m_p_mem_rep_list[index].byte_count[0] = net_len;
-			m_p_mem_rep_list[index].stride[0] = net_len;
+			// optimize write header to the same place
+			m_p_mem_rep_list[index].stride[0] = 0;
 			m_p_mem_rep_list[index].mr = mr;
 			curr_data_len = packets_num * net_len;
 			prev_addr += curr_data_len;
@@ -529,10 +535,10 @@ int ring_eth_cb::cyclic_buffer_read(vma_completion_cb_t &completion,
 	completion.hw_timestamp = m_curr_hw_timestamp;
 	m_curr_payload_addr = 0;
 	ring_logdbg("Returning completion, buffer ptr %p, data size %zd, "
-		    "usr hdr ptr %p usr hdr size %zd, number of packets %zd",
+		    "usr hdr ptr %p usr hdr size %zd, number of packets %zd curr wqe idx %d",
 		    completion.payload_ptr, completion.payload_length,
 		    completion.usr_hdr_ptr, completion.usr_hdr_ptr_length,
-		    m_curr_packets);
+		    m_curr_packets, m_curr_wq);
 	return 0;
 }
 

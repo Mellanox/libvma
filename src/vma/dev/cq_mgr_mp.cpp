@@ -113,6 +113,15 @@ int cq_mgr_mp::poll_mp_cq(uint16_t &size, uint32_t &strides_used,
 		if (unlikely(MLX5_CQE_OPCODE(cqe->op_own) != MLX5_CQE_RESP_SEND)) {
 			cq_logdbg("Warning op_own is %x", MLX5_CQE_OPCODE(cqe->op_own));
 			// optimize checks in ring by setting size non zero
+			if (MLX5_CQE_OPCODE(cqe->op_own) == MLX5_CQE_RESP_ERR) {
+				cq_logdbg("poll_length, CQE response error, "
+					 "syndrome=0x%x, vendor syndrome error=0x%x, "
+					 "HW syndrome 0x%x, HW syndrome type 0x%x\n",
+					 ((struct mlx5_err_cqe *)cqe)->syndrome,
+					 ((struct mlx5_err_cqe *)cqe)->vendor_err_synd,
+					 ((struct mlx5_err_cqe *)cqe)->hw_err_synd,
+					 ((struct mlx5_err_cqe *)cqe)->hw_synd_type);
+			}
 			size = 1;
 			m_p_cq_stat->n_rx_pkt_drop++;
 			return -1;

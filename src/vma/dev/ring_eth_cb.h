@@ -89,7 +89,6 @@ private:
 	uint32_t			m_stride_size;
 	uint32_t			m_strides_num;
 	struct ibv_exp_res_domain*	m_res_domain;
-	size_t				m_buffer_size;
 	uint32_t			m_wq_count;
 	uint32_t			m_curr_wqe_used_strides;
 	uint32_t			m_all_wqes_used_strides;
