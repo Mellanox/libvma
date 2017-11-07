@@ -56,18 +56,6 @@
 netlink_wrapper* g_p_netlink_handler = NULL;
 
 
-#define _try_lock(_lock, _try, _ret) \
-	do {                                                                   \
-		int _rc = 0;                                                   \
-		int _attempt = (_try);                                         \
-		while (0 != (_rc = _lock.trylock())) {                         \
-			_attempt--;                                            \
-			if (!((EBUSY == _rc) && (_attempt > 0))) return _ret;  \
-			usleep(5);                                             \
-		}                                                              \
-	} while (0)
-
-
 
 // structure to pass arguments on internal netlink callbacks handling
 typedef struct rcv_msg_arg
@@ -96,23 +84,25 @@ int nl_msg_rcv_cb(struct nl_msg *msg, void *arg) {
  */
 void netlink_wrapper::notify_observers(netlink_event *p_new_event, e_netlink_event_type type)
 {
+	g_nl_rcv_arg.netlink->m_cache_lock.unlock();
+	g_nl_rcv_arg.netlink->m_subj_map_lock.lock();
+
 	subject_map_iter iter = g_nl_rcv_arg.subjects_map->find(type);
 	if(iter != g_nl_rcv_arg.subjects_map->end())
 		iter->second->notify_observers(p_new_event);
+
+	g_nl_rcv_arg.netlink->m_subj_map_lock.unlock();
+	/* coverity[missing_unlock] */		
+	g_nl_rcv_arg.netlink->m_cache_lock.lock();
 }
 
-extern void link_event_callback(nl_object* obj)
-{
-	netlink_wrapper::link_cache_callback(obj);
+extern void link_event_callback(nl_object* obj) {
+		netlink_wrapper::link_cache_callback(obj);
 }
-
-extern void neigh_event_callback(nl_object* obj)
-{
+extern void neigh_event_callback(nl_object* obj) {
 	netlink_wrapper::neigh_cache_callback(obj);
 }
-
-extern void route_event_callback(nl_object* obj)
-{
+extern void route_event_callback(nl_object* obj) {
 	netlink_wrapper::route_cache_callback(obj);
 }
 
@@ -126,6 +116,7 @@ void netlink_wrapper::neigh_cache_callback(nl_object* obj)
 
 	g_nl_rcv_arg.msghdr = NULL;
 	nl_logdbg( "<--- neigh_cache_callback");
+
 }
 
 void netlink_wrapper::link_cache_callback(nl_object* obj)
@@ -205,11 +196,35 @@ netlink_wrapper::~netlink_wrapper()
 
 int netlink_wrapper::open_channel()
 {
-	int ret = 0;
-
 	auto_unlocker lock(m_cache_lock);
-
 	nl_logdbg("opening netlink channel");
+
+	/*
+	 // build to subscriptions groups mask for indicating what type of events the kernel will send on channel
+	 unsigned subscriptions = ~RTMGRP_TC;
+	 if (netlink_route_group_mask & nlgrpLINK) {
+	 subscriptions |= (1 << (RTNLGRP_LINK - 1));
+	 }
+	 if (netlink_route_group_mask & nlgrpADDRESS) {
+	 if (!m_preferred_family || m_preferred_family == AF_INET)
+	 subscriptions |= (1 << (RTNLGRP_IPV4_IFADDR - 1));
+	 if (!m_preferred_family || m_preferred_family == AF_INET6)
+	 subscriptions |= (1 << (RTNLGRP_IPV6_IFADDR - 1));
+	 }
+	 if (netlink_route_group_mask & nlgrpROUTE) {
+	 if (!m_preferred_family || m_preferred_family == AF_INET)
+	 subscriptions |= (1 << (RTNLGRP_IPV4_ROUTE - 1));
+	 if (!m_preferred_family || m_preferred_family == AF_INET6)
+	 subscriptions |= (1 << (RTNLGRP_IPV4_ROUTE - 1));
+	 }
+	 if (netlink_route_group_mask & nlgrpPREFIX) {
+	 if (!m_preferred_family || m_preferred_family == AF_INET6)
+	 subscriptions |= (1 << (RTNLGRP_IPV6_PREFIX - 1));
+	 }
+	 if (netlink_route_group_mask & nlgrpNEIGH) {
+	 subscriptions |= (1 << (RTNLGRP_NEIGH - 1));
+	 }
+	 */
 
 	// Allocate a new netlink socket/handle
 	m_socket_handle = nl_socket_handle_alloc();
@@ -217,8 +232,7 @@ int netlink_wrapper::open_channel()
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_socket_handle == NULL) {
 		nl_logerr("failed to allocate netlink handle");
-		ret = -1;
-		goto err;
+		return -1;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
@@ -243,27 +257,21 @@ int netlink_wrapper::open_channel()
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_mngr) {
 		nl_logerr("Fail to allocate cache manager");
-		ret = -1;
-		goto err;
+		return -1;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	nl_logdbg("netlink socket is open");
 
-	if (nl_cache_mngr_compatible_add(m_mngr, "route/neigh", neigh_callback, NULL, &m_cache_neigh)) {
-		ret = -1;
-		goto err;
-	}
+
+	if (nl_cache_mngr_compatible_add(m_mngr, "route/neigh", neigh_callback, NULL, &m_cache_neigh))
+		return -1;
 	usleep(500);
-	if (nl_cache_mngr_compatible_add(m_mngr, "route/link", link_callback, NULL, &m_cache_link)) {
-		ret = -1;
-		goto err;
-	}
+	if (nl_cache_mngr_compatible_add(m_mngr, "route/link", link_callback, NULL, &m_cache_link))
+		return -1;
 	usleep(500);
-	if (nl_cache_mngr_compatible_add(m_mngr, "route/route", route_callback, NULL, &m_cache_route)) {
-		ret = -1;
-		goto err;
-	}
+	if (nl_cache_mngr_compatible_add(m_mngr, "route/route", route_callback, NULL, &m_cache_route))
+		return -1;
 	usleep(500);
 
 	// set custom callback for every message to update message
@@ -273,31 +281,25 @@ int netlink_wrapper::open_channel()
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (nl_socket_set_nonblocking(m_socket_handle)) {
 		nl_logerr("Failed to set the socket non-blocking");
-		ret = -1;
-		goto err;
+		return -1;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-err:
-	return ret;
+	return 0;
+
 }
 
 int netlink_wrapper::get_channel()
 {
-	int ret = -1;
-
-	m_cache_lock.lock();
-
-	ret = (m_socket_handle ? nl_socket_get_fd(m_socket_handle) : (-1));
-
-	m_cache_lock.unlock();
-	return ret;
+	auto_unlocker lock(m_cache_lock);
+	if (m_socket_handle)
+		return nl_socket_get_fd(m_socket_handle);
+	else
+		return -1;
 }
 
 int netlink_wrapper::handle_events()
 {
-	int ret = -1;
-
 	m_cache_lock.lock();
 
 	nl_logfunc("--->handle_events");
@@ -305,33 +307,30 @@ int netlink_wrapper::handle_events()
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_socket_handle) {
 		nl_logerr("Cannot handle events before opening the channel. please call first open_channel()");
-		ret = -1;
-		goto err;
+		m_cache_lock.unlock();
+		return -1;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	ret = nl_cache_mngr_data_ready(m_mngr);
+	int n = nl_cache_mngr_data_ready(m_mngr);
 
 	//int n = nl_recvmsgs_default(m_handle);
-	nl_logfunc("nl_recvmsgs=%d", ret);
-	if (ret < 0)
-		nl_logdbg("recvmsgs returned with error = %d", ret);
+	nl_logfunc("nl_recvmsgs=%d", n);
+	if (n < 0)
+		nl_logdbg("recvmsgs returned with error = %d", n);
 
 
 	nl_logfunc("<---handle_events");
 
-err:
 	m_cache_lock.unlock();
-	return ret;
+
+	return n;
 }
 
 bool netlink_wrapper::register_event(e_netlink_event_type type,
                 const observer* new_obs)
 {
-	bool ret = false;
-
-	m_cache_lock.lock();
-
+	auto_unlocker lock(m_subj_map_lock);
 	subject* sub;
 	subject_map_iter iter = m_subjects_map.find(type);
 	if (iter == m_subjects_map.end()) {
@@ -342,47 +341,36 @@ bool netlink_wrapper::register_event(e_netlink_event_type type,
 		sub = m_subjects_map[type];
 	}
 
-	ret = sub->register_observer(new_obs);
-
-	m_cache_lock.unlock();
-	return ret;
+	return sub->register_observer(new_obs);
 }
 
 bool netlink_wrapper::unregister(e_netlink_event_type type,
                 const observer* obs)
 {
-	bool ret = false;
-
+	auto_unlocker lock(m_subj_map_lock);
 	if (obs == NULL)
 		return false;
 
-	m_cache_lock.lock();
-
 	subject_map_iter iter = m_subjects_map.find(type);
 	if (iter != m_subjects_map.end()) {
-		ret = m_subjects_map[type]->unregister_observer(obs);
+		return m_subjects_map[type]->unregister_observer(obs);
 	}
 
-	m_cache_lock.unlock();
-	return ret;
+	return true;
 }
 
 int netlink_wrapper::get_neigh(const char* ipaddr, int ifindex, netlink_neigh_info* new_neigh_info)
 {
-	int ret = 0;
+	auto_unlocker lock(m_cache_lock);
+	nl_logfunc("--->netlink_listener::get_neigh");
 	nl_object* obj;
 	rtnl_neigh* neigh;
 	char addr_str[256];
 
-	m_cache_lock.lock();
-
-	nl_logfunc("--->netlink_listener::get_neigh");
-
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!new_neigh_info) {
 		nl_logerr("Illegal argument. user pass NULL neigh_info to fill");
-		ret = -1;
-		goto err;
+		return -1;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
@@ -398,8 +386,8 @@ int netlink_wrapper::get_neigh(const char* ipaddr, int ifindex, netlink_neigh_in
 				new_neigh_info->fill(neigh);
 				nl_object_put(obj);
 				nl_logdbg("neigh - DST_IP:%s IF_INDEX:%d LLADDR:%s", addr_str, index, new_neigh_info->lladdr_str.c_str() );
-				ret = 1;
-				break;
+				nl_logfunc("<---netlink_listener::get_neigh");
+				return 1;
 			}
 		}
 		nl_object_put(obj);
@@ -407,16 +395,11 @@ int netlink_wrapper::get_neigh(const char* ipaddr, int ifindex, netlink_neigh_in
 	}
 
 	nl_logfunc("<---netlink_listener::get_neigh");
-
-err:
-	m_cache_lock.unlock();
-	return ret;
+	return 0;
 }
 
-void netlink_wrapper::neigh_timer_expired()
-{
-	/* Do not wait in case another thread use netlink */
-	_try_lock(m_cache_lock, 1, );
+void netlink_wrapper::neigh_timer_expired() {
+	m_cache_lock.lock();
 
 	nl_logfunc("--->netlink_wrapper::neigh_timer_expired");
 	nl_cache_refill(m_socket_handle, m_cache_neigh);
@@ -426,8 +409,7 @@ void netlink_wrapper::neigh_timer_expired()
 	m_cache_lock.unlock();
 }
 
-void netlink_wrapper::notify_neigh_cache_entries()
-{
+void netlink_wrapper::notify_neigh_cache_entries() {
 	nl_logfunc("--->netlink_wrapper::notify_cache_entries");
 	g_nl_rcv_arg.msghdr = NULL;
 	nl_object* obj = nl_cache_get_first(m_cache_neigh);
@@ -438,6 +420,7 @@ void netlink_wrapper::notify_neigh_cache_entries()
 		obj = nl_cache_get_next(obj);
 	}
 	nl_logfunc("<---netlink_wrapper::notify_cache_entries");
+
 }
 
 

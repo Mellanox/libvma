@@ -83,15 +83,12 @@ bool neigh_table_mgr::register_observer(neigh_key key,
 				const cache_observer *new_observer,
 				cache_entry_subject<neigh_key, class neigh_val*> **cache_entry)
 {
-
 	//Register to netlink event handler only if this is the first entry
 	if (get_cache_tbl_size() == 0) {
 		g_p_netlink_handler->register_event(nlgrpNEIGH, this);
 		neigh_mgr_logdbg("Registered to g_p_netlink_handler");
 	}
-	cache_table_mgr<neigh_key, class neigh_val*>::register_observer(key, new_observer, cache_entry);
-
-	return true;
+	return cache_table_mgr<neigh_key, class neigh_val*>::register_observer(key, new_observer, cache_entry);
 }
 
 neigh_entry* neigh_table_mgr::create_new_entry(neigh_key neigh_key, const observer* new_observer)
@@ -150,6 +147,7 @@ void neigh_table_mgr::notify_cb(event *ev)
 	in_addr_t neigh_ip = in.s_addr;
 
 	// Search for this neigh ip in cache_table
+	m_lock.lock();
 	net_dev_lst_t* p_ndv_val_lst = g_p_net_device_table_mgr->get_net_device_val_lst_from_index(nl_info->ifindex);
 
 	//find all neigh entries with an appropriate peer_ip and net_device
@@ -159,14 +157,12 @@ void neigh_table_mgr::notify_cb(event *ev)
 			net_device_val* p_ndev = dynamic_cast <net_device_val *>(*itr);
 			if (p_ndev) {
 				neigh_entry *p_ne = dynamic_cast <neigh_entry *>(get_entry(neigh_key(ip_address(neigh_ip), p_ndev)));
-
 				if (p_ne) {
 					// Call the relevant neigh_entry to handle the event
 					p_ne->handle_neigh_event(nl_ev);
 				} else {
-					neigh_mgr_logdbg("Ignoring netlink neigh event for IP = %s if:%s, index=%d, p_ndev=%p", nl_info->dst_addr_str.c_str(), p_ndev->to_str().c_str(), nl_info->ifindex, p_ndev);
-				}
-
+ 					neigh_mgr_logdbg("Ignoring netlink neigh event for IP = %s if:%s, index=%d, p_ndev=%p", nl_info->dst_addr_str.c_str(), p_ndev->to_str().c_str(), nl_info->ifindex, p_ndev);
+ 				}
 			} else {
 				neigh_mgr_logdbg("could not find ndv_val for ifindex=%d", nl_info->ifindex);
 			}
@@ -175,6 +171,7 @@ void neigh_table_mgr::notify_cb(event *ev)
 	} else {
 		neigh_mgr_logdbg("could not find ndv_val list for ifindex=%d", nl_info->ifindex);
 	}
+	m_lock.unlock();
 
 	return;
 }

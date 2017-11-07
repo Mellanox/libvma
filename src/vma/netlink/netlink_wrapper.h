@@ -128,7 +128,8 @@ private:
 	struct nl_cache* m_cache_route;
 
 	map<e_netlink_event_type, subject*> m_subjects_map;
-	lock_mutex m_cache_lock;
+	lock_mutex_recursive m_cache_lock;
+	lock_mutex_recursive m_subj_map_lock;
 
 	//This method should be called with m_cache_lock held!
 	static void notify_observers(netlink_event *p_new_event, e_netlink_event_type type);
