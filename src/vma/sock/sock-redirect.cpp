@@ -1026,6 +1026,7 @@ int getsockname(int __fd, struct sockaddr *__name, socklen_t *__namelen)
 			struct msghdr msg = {NULL, 0, &msg_iov, 1, NULL, 0, 0};
 			int ret_send = sendmsg(__fd, &msg, VMA_SND_FLAGS_DUMMY);
 			srdr_logdbg("Triggered dummy message for socket fd=%d (ret_send=%d)", __fd, ret_send);
+			NOT_IN_USE(ret_send);
 		}
 	}
 	else {
