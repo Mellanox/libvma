@@ -133,33 +133,33 @@
 ###########################################################
 # false positive libmlx5\4
 {
-   libmlx5 Param ibv_exp_cmd_create_qp
+   libmlx5 Param ibv_create_qp
    Memcheck:Param
    write(buf)
    ...
    fun:ibv_exp_cmd_create_qp
-   obj:*/libmlx*-rdmav2.so*
+   obj:*/libmlx*.so*
    ...
    fun:ibv_create_qp
 }
 {
-   libmlx5 Cond ibv_exp_modify_qp
+   libmlx Cond ibv_exp_modify_qp
    Memcheck:Cond
-   obj:*/libmlx*-rdmav2.so*
-   obj:*/libibverbs.so*
+   obj:*/libmlx*.so*
+   ...
    fun:ibv_exp_modify_qp
 }
 {
    libmlx5 Cond ibv_destroy_qp
    Memcheck:Cond
-   obj:*/libmlx*-rdmav2.so*
+   obj:*/libmlx*.so*
    fun:_ZN6qp_mgrD1Ev
 }
 {
    libibverbs Cond ibv_cmd_destroy_qp
    Memcheck:Cond
    fun:ibv_cmd_destroy_qp
-   obj:*/libmlx*-rdmav2.so*
+   obj:*/libmlx*.so*
 }
 {
    libmlx5 Param ibv_exp_cmd_create_cq
@@ -167,7 +167,7 @@
    write(buf)
    ...
    fun:ibv_exp_cmd_create_cq
-   obj:*/libmlx*-rdmav2.so*
+   obj:*/libmlx*.so*
    fun:ibv_exp_create_cq
 }
 {
@@ -176,27 +176,27 @@
    write(buf)
    ...
    fun:ibv_cmd_destroy_cq
-   obj:/*libmlx*-rdmav2.so*
+   obj:/*libmlx*.so*
    fun:ibv_destroy_cq
 }
 {
    libmlx5 Cond ibv_destroy_cq
    Memcheck:Cond
    fun:ibv_cmd_destroy_cq
-   obj:*/libmlx*-rdmav2.so*
+   obj:*/libmlx*.so*
    fun:ibv_destroy_cq
 }
 {
    libmlx5 Value8 ibv_create_ah
    Memcheck:Value8
-   obj:*/libmlx*-rdmav2.so*
+   obj:*/libmlx*.so*
    fun:ibv_create_ah
 }
 {
    libmlx5 Value8 ibv_create_ah
    Memcheck:Value8
    ...
-   obj:*/libmlx*-rdmav2.so*
+   obj:*/libmlx*.so*
    fun:ibv_create_ah
 }
 {
@@ -211,13 +211,13 @@
    write(buf)
    ...
    fun:ibv_cmd_exp_reg_mr
-   obj:*/libmlx*-rdmav2.so*
+   obj:*/libmlx*.so*
 }
 {
    libmlx4\5 Cond
    Memcheck:Cond
    ...
-   obj:*/libmlx*-rdmav2.so
+   obj:*/libmlx*.so
    ...
    fun:_ZN6qp_mgrD1Ev
 }
@@ -226,7 +226,7 @@
 {
    libmlx4 Cond ibv_exp_query_device
    Memcheck:Cond
-   obj:*/libmlx4-rdmav2.so*
+   obj:*/libmlx4*.so*
    fun:ibv_exp_query_device
 }
 {
@@ -234,7 +234,7 @@
    Memcheck:Param
    mmap(length)
    ...
-   obj:*/libmlx4-rdmav2.so*
+   obj:*/libmlx4*.so*
    fun:ibv_exp_create_cq
 }
 {
@@ -242,7 +242,7 @@
    Memcheck:Param
    mmap(offset)
    ...
-   obj:*/libmlx4-rdmav2.so*
+   obj:*/libmlx4*.so*
    fun:ibv_exp_create_cq
 }
 {
@@ -251,7 +251,7 @@
    madvise(length)
    fun:madvise
    ...
-   obj:*/libmlx4-rdmav2.so*
+   obj:*/libmlx4*.so*
    ...
    fun:ibv_exp_create_cq
 }
@@ -259,13 +259,13 @@
    libmlx4 Cond ibv_exp_create_cq
    Memcheck:Cond
    ...
-   obj:*/libmlx4-rdmav2.so*
+   obj:*/libmlx4*.so*
    fun:ibv_exp_create_cq
 }
 {
    libmlx4 Cond ibv_exp_create_cq
    Memcheck:Cond
-   obj:*/libmlx4-rdmav2.so*
+   obj:*/libmlx4*.so*
    ...
    fun:ibv_exp_create_cq
 }
@@ -280,7 +280,7 @@
    libmlx4 Cond ibv_destroy_cq
    Memcheck:Cond
    ...
-   obj:*/libmlx4-rdmav2.so*
+   obj:*/libmlx4*.so*
    ...
    fun:ibv_destroy_cq
 }
@@ -289,14 +289,14 @@
    Memcheck:Param
    munmap(length)
    fun:munmap
-   obj:*/libmlx4-rdmav2.so*
+   obj:*/libmlx4*.so*
    fun:ibv_destroy_cq
 }
 {
    libmlx4 Cond ibv_create_qp
    Memcheck:Cond
    ...
-   obj:*/libmlx4-rdmav2.so*
+   obj:*/libmlx4*.so*
    ...
    fun:ibv_create_qp
 }
@@ -310,28 +310,21 @@
 {
    libmlx4 Cond ibv_modify_qp_from_init_to_rts
    Memcheck:Cond
-   obj:*/libmlx4-rdmav2.so
-   obj:*/libibverbs.so.1.0.0
+   obj:*/libmlx4*.so*
+   obj:*/libibverbs.so*
    fun:_Z35priv_ibv_modify_qp_from_init_to_rtsP6ibv_qpj
-}
-{
-   libmlx4 Cond ibv_exp_modify_qp
-   Memcheck:Cond
-   obj:*/libmlx4-rdmav2.so
-   ...
-   fun:ibv_exp_modify_qp
 }
 {
    libmlx4 Cond ibv_destroy_qp
    Memcheck:Cond
-   obj:*/libmlx4-rdmav2.so*
+   obj:*/libmlx4*.so*
    ...
    fun:_ZN20net_device_table_mgr22verify_eth_qp_creationEPKch
 }
 {
    libmlx4 Value8 ibv_destroy_qp
    Memcheck:Value8
-   obj:*/libmlx4-rdmav2.so*
+   obj:*/libmlx4*.so*
    ...
    fun:_ZN20net_device_table_mgr22verify_eth_qp_creationEPKch
 }
@@ -341,7 +334,7 @@
    write(buf)
    ...
    fun:ibv_cmd_reg_mr
-   obj:*/libmlx4-rdmav2.so*
+   obj:*/libmlx4*.so*
 }
 {
    libmlx4 Cond rdma_create_id
@@ -360,21 +353,21 @@
 {
    libmlx4 Value8
    Memcheck:Value8
-   obj:*/libmlx4-rdmav2.so
+   obj:*/libmlx4*.so
    ...
    fun:_ZN6qp_mgrD1Ev
 }
 {
    libmlx4 Value8 ibv_create_qp
    Memcheck:Value8
-   obj:*/libmlx4-rdmav2.so
+   obj:*/libmlx4*.so
    ...
    fun:ibv_create_qp
 }
 {
    libmlx4 ibv_exp_poll_cq
    Memcheck:Value8
-   obj:*/libmlx4-rdmav2.so
+   obj:*/libmlx4*.so
    fun:ibv_exp_poll_cq
 }
 {
@@ -383,18 +376,18 @@
    write(buf)
    ...
    fun:ibv_exp_cmd_modify_cq
-   obj:*/libmlx4-rdmav2.so
+   obj:*/libmlx4*.so
 }
 {
    libmlx4 Cond ibv_exp_poll_cq
    Memcheck:Cond
-   obj:*/libmlx4-rdmav2.so
+   obj:*/libmlx4*.so
    fun:ibv_exp_poll_cq
 }
 {
    libmlx4 Value8 ibv_exp_poll_cq
    Memcheck:Value8
-   obj:*/libmlx4-rdmav2.so
+   obj:*/libmlx4*.so
    ...
    fun:ibv_exp_poll_cq
 }
@@ -404,7 +397,7 @@
    madvise(length)
    fun:madvise
    ...
-   obj:*/libmlx4-rdmav2.so
+   obj:*/libmlx4*.so
    ...
    fun:ibv_destroy_cq
 }
