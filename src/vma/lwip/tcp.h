@@ -418,6 +418,9 @@ struct tcp_pcb {
   u8_t accepts_pending;
 #endif /* TCP_LISTEN_BACKLOG */
 #endif /* VMA_NO_TCP_PCB_LISTEN_STRUCT */
+
+  /* Delayed ACK control: number of quick acks */
+  u8_t ack_quick;
 };
 
 #ifdef VMA_NO_TCP_PCB_LISTEN_STRUCT

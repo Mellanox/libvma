@@ -572,7 +572,8 @@ void print_vma_global_settings()
 	VLOG_PARAM_NUMBER("TCP Timer Resolution (msec)", safe_mce_sys().tcp_timer_resolution_msec, MCE_DEFAULT_TCP_TIMER_RESOLUTION_MSEC, SYS_VAR_TCP_TIMER_RESOLUTION_MSEC);
 	VLOG_PARAM_NUMSTR("TCP control thread", safe_mce_sys().tcp_ctl_thread, MCE_DEFAULT_TCP_CTL_THREAD, SYS_VAR_TCP_CTL_THREAD, ctl_thread_str(safe_mce_sys().tcp_ctl_thread));
 	VLOG_PARAM_NUMBER("TCP timestamp option", safe_mce_sys().tcp_ts_opt, MCE_DEFAULT_TCP_TIMESTAMP_OPTION, SYS_VAR_TCP_TIMESTAMP_OPTION);
-	VLOG_PARAM_NUMBER("TCP nodelay", safe_mce_sys().tcp_nodelay, MCE_DEFAULT_TCP_NODELAY, SYS_VAR_TCP_NODELAY);
+	VLOG_PARAM_NUMBER("TCP nodelay mode", safe_mce_sys().tcp_nodelay, MCE_DEFAULT_TCP_NODELAY, SYS_VAR_TCP_NODELAY);
+	VLOG_PARAM_NUMBER("TCP quickack mode", safe_mce_sys().tcp_quickack, MCE_DEFAULT_TCP_QUICKACK, SYS_VAR_TCP_QUICKACK);
 	VLOG_PARAM_NUMSTR(vma_exception_handling::getName(), (int)safe_mce_sys().exception_handling, vma_exception_handling::MODE_DEFAULT, vma_exception_handling::getSysVar(), safe_mce_sys().exception_handling.to_str());
 	VLOG_PARAM_STRING("Avoid sys-calls on tcp fd", safe_mce_sys().avoid_sys_calls_on_tcp_fd, MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD, SYS_VAR_AVOID_SYS_CALLS_ON_TCP_FD, safe_mce_sys().avoid_sys_calls_on_tcp_fd ? "Enabled" : "Disabled");
 	VLOG_PARAM_STRING("Allow privileged sock opt", safe_mce_sys().allow_privileged_sock_opt, MCE_DEFAULT_ALLOW_PRIVILEGED_SOCK_OPT, SYS_VAR_ALLOW_PRIVILEGED_SOCK_OPT, safe_mce_sys().allow_privileged_sock_opt ? "Enabled" : "Disabled");

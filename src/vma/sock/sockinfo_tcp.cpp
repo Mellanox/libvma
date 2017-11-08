@@ -288,6 +288,15 @@ sockinfo_tcp::sockinfo_tcp(int fd):
 		}
 	}
 
+	if (safe_mce_sys().tcp_quickack) {
+		try {
+			int value = 1;
+			setsockopt(IPPROTO_TCP, TCP_QUICKACK, &value, sizeof(value));
+		} catch (vma_error&) {
+			// We should not be here
+		}
+	}
+
 	si_tcp_logdbg("TCP PCB FLAGS: 0x%x", m_pcb.flags);
 	si_tcp_logfunc("done");
 }
@@ -3304,7 +3313,7 @@ bad_state:
 #define TCP_DEFER_ACCEPT 9      /* Wake up listener only when data arrive */
 #define TCP_WINDOW_CLAMP 10     /* Bound advertised window */
 #define TCP_INFO         11     /* Information about this connection. */
-#define TCP_QUICKACK     12     /* Bock/reenable quick ACKs.  */
+#define TCP_QUICKACK     12     /* Block/reenable quick ACKs.  */
 
 int sockinfo_tcp::fcntl(int __cmd, unsigned long int __arg)
 {
@@ -3453,6 +3462,13 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			unlock_tcp_con();
 			si_tcp_logdbg("(TCP_NODELAY) nagle: %d", val);
 			break;	
+		case TCP_QUICKACK:
+			val = *(int *)__optval;
+			lock_tcp_con();
+			m_pcb.ack_quick = (uint8_t)(val > 0 ? val : 0);
+			unlock_tcp_con();
+			si_tcp_logdbg("(TCP_QUICKACK) value: %d", val);
+			break;
 		default:
 			ret = SOCKOPT_HANDLE_BY_OS;
 			supported = false;
@@ -3659,6 +3675,15 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
         		if (*__optlen >= sizeof(int)) {
         			*(int *)__optval = tcp_nagle_disabled(&m_pcb);
         			si_tcp_logdbg("(TCP_NODELAY) nagle: %d", *(int *)__optval);
+        			ret = 0;
+        		} else {
+        			errno = EINVAL;
+        		}
+        		break;
+		case TCP_QUICKACK:
+        		if (*__optlen >= sizeof(int)) {
+        			*(int *)__optval = m_pcb.ack_quick;
+        			si_tcp_logdbg("(TCP_QUICKACK) value: %d", *(int *)__optval);
         			ret = 0;
         		} else {
         			errno = EINVAL;
