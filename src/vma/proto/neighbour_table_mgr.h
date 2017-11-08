@@ -44,6 +44,9 @@ public:
 				~neigh_table_mgr();
 	virtual void 		notify_cb(event * event);
 	rdma_event_channel*	m_neigh_cma_event_channel;
+	bool			register_observer(neigh_key,
+					const cache_observer *,
+					cache_entry_subject<neigh_key, class neigh_val*> **);
 
 private:
 	/* This function will retrieve neigh transport type by the following actions:

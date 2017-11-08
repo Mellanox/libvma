@@ -54,12 +54,24 @@
 #define nl_logfunc		__log_func
 
 netlink_wrapper* g_p_netlink_handler = NULL;
-rcv_msg_arg_t  	g_nl_rcv_arg;
+
+
+
+// structure to pass arguments on internal netlink callbacks handling
+typedef struct rcv_msg_arg
+{
+	netlink_wrapper* netlink;
+	nl_socket_handle* socket_handle;
+	map<e_netlink_event_type, subject*>* subjects_map;
+	nlmsghdr* msghdr;
+} rcv_msg_arg_t;
+
+static rcv_msg_arg_t  	g_nl_rcv_arg;
 
 
 int nl_msg_rcv_cb(struct nl_msg *msg, void *arg) {
 	nl_logfunc( "---> nl_msg_rcv_cb");
-	if (arg) {} // avoid warn message
+	NOT_IN_USE(arg);
 	g_nl_rcv_arg.msghdr = nlmsg_hdr(msg);
 	// NETLINK MESAGE DEBUG
 	//nl_msg_dump(msg, stdout);
@@ -67,6 +79,9 @@ int nl_msg_rcv_cb(struct nl_msg *msg, void *arg) {
 	return 0;
 }
 
+/* This function is called from internal thread only as neigh_timer_expired()
+ * so it is protected by m_cache_lock call
+ */
 void netlink_wrapper::notify_observers(netlink_event *p_new_event, e_netlink_event_type type)
 {
 	g_nl_rcv_arg.netlink->m_cache_lock.unlock();
@@ -77,7 +92,7 @@ void netlink_wrapper::notify_observers(netlink_event *p_new_event, e_netlink_eve
 		iter->second->notify_observers(p_new_event);
 
 	g_nl_rcv_arg.netlink->m_subj_map_lock.unlock();
-	/* coverity[missing_unlock] */
+	/* coverity[missing_unlock] */		
 	g_nl_rcv_arg.netlink->m_cache_lock.lock();
 }
 

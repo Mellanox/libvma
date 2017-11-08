@@ -138,15 +138,6 @@ int nl_object_get_compatible_oif(struct rtnl_route* nl_route_obj) {
 
 #else //HAVE_LIBNL1
 
-// structure to pass arguments on internal netlink callbacks handling
-typedef struct rcv_msg_arg
-{
-	netlink_wrapper* netlink;
-	struct nl_handle* socket_handle;
-	map<e_netlink_event_type, subject*>* subjects_map;
-	nlmsghdr* msghdr;
-} rcv_msg_arg_t;
-
 nl_handle* nl_socket_handle_alloc() {
 	return nl_handle_alloc();
 }
