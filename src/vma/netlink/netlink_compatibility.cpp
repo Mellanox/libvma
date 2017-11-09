@@ -38,6 +38,7 @@
 #define MODULE_NAME 		"nl_wrapper:"
 #define nl_logerr		__log_err
 #define nl_logwarn		__log_warn
+#define nl_logdbg		__log_dbg
 
 
 extern void link_event_callback(nl_object* obj);
@@ -135,6 +136,17 @@ int nl_object_get_compatible_oif(struct rtnl_route* nl_route_obj) {
 	return -1;
 }
 
+int nl_object_get_compatible_metric(struct rtnl_route* nl_route_obj, int attr) {
+	uint32_t val;
+
+	int rc = rtnl_route_get_metric(nl_route_obj, attr, &val);
+	if (rc == 0) {
+		return val;
+	}
+	nl_logdbg("Fail parsing route metric %d error=%d\n", attr, rc);
+	return 0;
+}
+
 
 #else //HAVE_LIBNL1
 
@@ -212,4 +224,12 @@ int nl_object_get_compatible_oif(struct rtnl_route* nl_route_obj) {
 	return rtnl_route_get_oif(nl_route_obj);
 }
 
+int nl_object_get_compatible_metric(struct rtnl_route* nl_route_obj, int attr) {
+	uint32_t val = rtnl_route_get_metric(nl_route_obj, attr);
+	if (val == UINT_MAX) {
+		nl_logdbg("Fail parsing route metric %d error=%d\n", attr, val);
+		return 0;
+	}
+	return val;
+}
 #endif
