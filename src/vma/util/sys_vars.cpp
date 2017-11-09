@@ -109,7 +109,7 @@ namespace vma_spec {
 	static const char *spec_names_mcd[]       = {"mcd", "623", NULL};
 	static const char *spec_names_mcd_irq[]   = {"mcd-irq", "624", NULL};
 	static const char *spec_names_rti[]       = {"rti", "784", NULL};
-	static const char *spec_names_6973[]      = {"6973", NULL};
+	static const char *spec_names_7750[]      = {"7750", NULL};
 	static const char *spec_names_multi_ring[]      = {"multi_ring_latency", NULL};
 
 	// must be by order because "to_str" relies on that!
@@ -122,7 +122,7 @@ namespace vma_spec {
 		{MCE_SPEC_MCD_623,    		  	"Memcached Logic",    		(const char ** )spec_names_mcd},
 		{MCE_SPEC_MCD_IRQ_624,    	  	"Memcached Interrupt Mode",	(const char ** )spec_names_mcd_irq},
 		{MCE_SPEC_RTI_784,    		  	"RTI Logic",    		(const char ** )spec_names_rti},
-		{MCE_SPEC_LL_6973,    		  	"6973 Low Latency Profile", 	(const char ** )spec_names_6973},
+		{MCE_SPEC_LL_7750,    		  	"7750 Low Latency Profile", 	(const char ** )spec_names_7750},
 		{MCE_SPEC_LL_MULTI_RING,    	"Multi Ring Latency Profile",	 	(const char ** )spec_names_multi_ring},
 	};
 
@@ -644,7 +644,7 @@ void mce_sys_var::get_env_params()
 		cq_moderation_enable = false;
 		break;
 
-	case MCE_SPEC_LL_6973:
+	case MCE_SPEC_LL_7750:
 		tx_num_bufs               = 8192; // MCE_DEFAULT_TX_NUM_BUFS (200000), Global TX data buffers allocated
 		rx_num_bufs               = 204800; // MCE_DEFAULT_RX_NUM_BUFS (200000), RX data buffers used on all QPs on all HCAs
 		log_level                 = VLOG_WARNING; //VLOG_DEFAULT(VLOG_INFO) VMA_TRACELEVEL
