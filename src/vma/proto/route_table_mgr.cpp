@@ -462,8 +462,6 @@ route_entry* route_table_mgr::create_new_entry(route_rule_table_key key, const o
 	return p_ent;
 }
 
-//code coverage
-#if 0
 route_val* route_table_mgr::find_route_val(route_val &netlink_route_val)
 {
 	in_addr_t dst_addr = netlink_route_val.get_dst_addr();
@@ -474,7 +472,9 @@ route_val* route_table_mgr::find_route_val(route_val &netlink_route_val)
 		route_val* p_val_from_tbl = &m_tab.value[i];
 		if (!p_val_from_tbl->is_deleted() && p_val_from_tbl->is_if_up()) {
 			if (p_val_from_tbl->get_table_id() == table_id) {
-				if(p_val_from_tbl->get_dst_addr() == dst_addr && p_val_from_tbl->get_dst_pref_len() == dst_prefix_len && p_val_from_tbl->get_if_index() == if_index) {
+				if (p_val_from_tbl->get_dst_addr() == dst_addr &&
+				    p_val_from_tbl->get_dst_pref_len() == dst_prefix_len &&
+				    p_val_from_tbl->get_if_index() == if_index) {
 					return p_val_from_tbl;
 				}
 			}
@@ -483,6 +483,8 @@ route_val* route_table_mgr::find_route_val(route_val &netlink_route_val)
 	return NULL;
 }
 
+//code coverage
+#if 0
 void route_table_mgr::addr_change_event(int if_index)
 {
 	for (int i = 0; i < m_tab.entries_num; i++) {
@@ -553,9 +555,16 @@ void route_table_mgr::new_route_event(route_val* netlink_route_val)
 		rt_mgr_logwarn("No available space for new route entry");	
 		return;
 	}
-	
-	auto_unlocker lock(m_lock);	
-	route_val* p_route_val = &m_tab.value[m_tab.entries_num];
+	auto_unlocker lock(m_lock);
+	// check if val already in table if so edit and mark as invalid
+	route_val* p_route_val = find_route_val(*netlink_route_val);
+	if (p_route_val) {
+		p_route_val->set_state(false);
+	} else {
+		p_route_val = &m_tab.value[m_tab.entries_num];
+		p_route_val->set_state(true);
+		++m_tab.entries_num;
+	}
 	p_route_val->set_dst_addr(netlink_route_val->get_dst_addr());
 	p_route_val->set_dst_mask(netlink_route_val->get_dst_mask());
 	p_route_val->set_dst_pref_len(netlink_route_val->get_dst_pref_len());
@@ -568,10 +577,8 @@ void route_table_mgr::new_route_event(route_val* netlink_route_val)
 	p_route_val->set_if_index(netlink_route_val->get_if_index());
 	p_route_val->set_if_name(const_cast<char*> (netlink_route_val->get_if_name()));
 	p_route_val->set_mtu((netlink_route_val->get_mtu()));
-	p_route_val->set_state(true);
 	p_route_val->set_str();
 	p_route_val->print_val();
-	++m_tab.entries_num;
 }
 
 void route_table_mgr::notify_cb(event *ev)

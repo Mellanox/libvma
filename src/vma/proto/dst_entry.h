@@ -80,7 +80,7 @@ public:
 		return m_pkt_src_ip;
 	}
 	int		modify_ratelimit(const uint32_t ratelimit_kbps);
-
+	bool		is_valid() { return cache_observer::is_valid() && m_p_rt_entry->is_valid(); };
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
 #endif
