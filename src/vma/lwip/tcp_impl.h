@@ -68,7 +68,7 @@ void             tcp_rexmit  (struct tcp_pcb *pcb);
 void             tcp_rexmit_rto  (struct tcp_pcb *pcb);
 void             tcp_rexmit_fast (struct tcp_pcb *pcb);
 u32_t            tcp_update_rcv_ann_wnd(struct tcp_pcb *pcb);
-
+void             set_tmr_resolution(u32_t v);
 /**
  * This is the Nagle algorithm: try to combine user data to send as few TCP
  * segments as possible. Only send if
@@ -109,18 +109,6 @@ u32_t            tcp_update_rcv_ann_wnd(struct tcp_pcb *pcb);
 
 /* Length of the TCP header, excluding options. */
 #define TCP_HLEN 20
-
-#ifndef TCP_TMR_INTERVAL
-#define TCP_TMR_INTERVAL       250  /* The TCP timer interval in milliseconds. */
-#endif /* TCP_TMR_INTERVAL */
-
-#ifndef TCP_FAST_INTERVAL
-#define TCP_FAST_INTERVAL      TCP_TMR_INTERVAL /* the fine grained timeout in milliseconds */
-#endif /* TCP_FAST_INTERVAL */
-
-#ifndef TCP_SLOW_INTERVAL
-#define TCP_SLOW_INTERVAL      (2*TCP_TMR_INTERVAL)  /* the coarse grained timeout in milliseconds */
-#endif /* TCP_SLOW_INTERVAL */
 
 #define TCP_FIN_WAIT_TIMEOUT 20000 /* milliseconds */
 #define TCP_SYN_RCVD_TIMEOUT 20000 /* milliseconds */

@@ -1031,7 +1031,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
       pcb->rto = (pcb->sa >> 3) + pcb->sv;
 
       LWIP_DEBUGF(TCP_RTO_DEBUG, ("tcp_receive: RTO %"U16_F" (%"U16_F" milliseconds)\n",
-                                  pcb->rto, pcb->rto * TCP_SLOW_INTERVAL));
+                                  pcb->rto, pcb->rto * slow_tmr_interval));
 
       pcb->rttest = 0;
     }

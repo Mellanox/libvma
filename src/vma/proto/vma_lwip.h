@@ -77,8 +77,7 @@ static inline const char* lwip_cc_algo_str(uint32_t algo)
 #endif
 
 
-class vma_lwip : 
-	public lock_spin_recursive, public timer_handler
+class vma_lwip : public timer_handler
 {
 public:
 	vma_lwip();
