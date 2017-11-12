@@ -152,6 +152,7 @@ void rule_table_mgr::parse_attr(struct rtattr *rt_attribute, rule_val *p_val)
 			break;				
 #endif
 		default:
+			rr_mgr_logdbg("got undetected rta_type %d %x", rt_attribute->rta_type, *(uint32_t *)RTA_DATA(rt_attribute));
 			break;
 	}
 }

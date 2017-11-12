@@ -1128,7 +1128,9 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 							src_ip = m_so_bindtodevice_ip;
 						}
 						// Find local if for this MC ADD/DROP
-						g_p_route_table_mgr->route_resolve(route_rule_table_key(dst_ip, src_ip, tos), &mc_if);
+						struct route_result res;
+						g_p_route_table_mgr->route_resolve(route_rule_table_key(dst_ip, src_ip, tos), res);
+						mc_if = res.p_src;
 						si_udp_logdbg("IPPROTO_IP, %s=%d.%d.%d.%d, mc_if:INADDR_ANY (resolved to: %d.%d.%d.%d)", setsockopt_ip_opt_to_str(__optname), NIPQUAD(mc_grp), NIPQUAD(mc_if));
 					}
 					else {
@@ -2506,7 +2508,9 @@ int sockinfo_udp::mc_change_membership(const mc_pending_pram *p_mc_pram)
 			src_ip = m_so_bindtodevice_ip;
 		}
 		// Find local if for this MC ADD/DROP
-		g_p_route_table_mgr->route_resolve(route_rule_table_key(dst_ip, src_ip, tos), &mc_if);
+		route_result res;
+		g_p_route_table_mgr->route_resolve(route_rule_table_key(dst_ip, src_ip, tos), res);
+		mc_if = res.p_src;
 	}
 
 	// MNY: TODO: Check rules for local_if (blacklist interface feature)

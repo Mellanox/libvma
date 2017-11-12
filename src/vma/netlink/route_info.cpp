@@ -73,7 +73,10 @@ void netlink_route_info::fill(struct rtnl_route* nl_route_obj)
 	if (scope > 0) {
 		m_route_val->set_scope(scope);
 	}
-	
+	int mtu = nl_object_get_compatible_metric(nl_route_obj, RTAX_MTU);
+	if (mtu > 0) {
+		m_route_val->set_mtu(mtu);
+	}
 	int protocol = rtnl_route_get_protocol(nl_route_obj);
 	if (protocol > 0) {
 		m_route_val->set_protocol(protocol);

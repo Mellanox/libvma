@@ -42,6 +42,8 @@
 #include "vma/dev/ib_ctx_handler_collection.h"
 #include "vma/proto/neighbour.h"
 #include "vma/proto/neighbour_table_mgr.h"
+#include "vma/proto/route_rule_table_key.h"
+#include "vma/proto/route_table_mgr.h"
 #include "vma/dev/wqe_send_handler.h"
 #include "vma/dev/wqe_send_ib_handler.h"
 
@@ -405,9 +407,18 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 #endif
 	mem_buf_desc_t* p_mem_buf_desc, *tmp = NULL;
 	tx_packet_template_t *p_pkt;
-
+	route_result res;
 	size_t sz_data_payload = iov->iov_len;
-	size_t max_ip_payload_size = ((m_p_ring->get_mtu() - sizeof(struct iphdr)) & ~0x7);
+	iphdr* p_hdr = &h->m_header.hdr.m_ip_hdr;
+
+	g_p_route_table_mgr->route_resolve(route_rule_table_key(p_hdr->daddr, p_hdr->saddr, 0), res);
+	int mtu;
+	if (res.mtu) {
+		mtu = res.mtu;
+	} else {
+		mtu = m_p_ring->get_mtu();
+	}
+	size_t max_ip_payload_size = ((mtu - sizeof(struct iphdr)) & ~0x7);
 
 	if (sz_data_payload > 65536) {
 		neigh_logdbg("sz_data_payload=%d exceeds max of 64KB", sz_data_payload);

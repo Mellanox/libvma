@@ -38,6 +38,7 @@
 
 #include "route_val.h"
 #include "route_table_mgr.h"
+#include "vma/dev/net_device_table_mgr.h"
 
 #define MODULE_NAME 		"rtv"
 
@@ -61,6 +62,7 @@ route_val::route_val()
 	m_is_valid = false;
 	m_b_deleted = false;
 	m_b_if_up = true;
+	m_mtu = 0;
 	memset(m_str, 0, BUFF_SIZE * sizeof(char));
 }
 
@@ -110,7 +112,7 @@ void route_val::set_str()
 	str_x[0] = '\0';
 	if (m_table_id != RT_TABLE_MAIN) {
 		sprintf(str_x, " table :%-10u", m_table_id);
-       	} else {
+	} else {
 		sprintf(str_x, " table :%-10s", "main");
 	}		
 	strcat(m_str, str_x);
@@ -118,8 +120,11 @@ void route_val::set_str()
 	str_x[0] = '\0';
 	sprintf(str_x, " scope %3d type %2d index %2d", m_scope, m_type, m_if_index);
 	strcat(m_str, str_x);
-
-	str_x[0] = '\0';
+	// add route metrics
+	if (m_mtu) {
+		sprintf(str_x, " mtu %d", m_mtu);
+		strcat(m_str, str_x);
+	}
 	if (m_b_deleted) {
 		sprintf(str_x, " ---> DELETED");
 	}
@@ -130,4 +135,13 @@ void route_val::print_val()
 {
 	set_str();
 	rt_val_logdbg("%s", to_str());
+}
+
+void route_val::set_mtu(uint32_t mtu)
+{
+	if (mtu > g_p_net_device_table_mgr->get_max_mtu()) {
+		rt_val_logdbg("route mtu cannot be bigger then max mtu set on devices");
+	} else {
+		m_mtu = mtu;
+	}
 }
