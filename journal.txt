@@ -1,3 +1,24 @@
+Version 8.4.9-0:
+Date + Time 2017-11-13
+=============================================================
+Added:
+        - RM #1179641 Override MTU from route over interface MTU
+        - RM #1179641 Add parsing route table metrics
+        - RM #1190054 Rename VMA_SPEC parameter 6973 to 7750
+        - RM #1176937 Add VMA_TCP_QUICKACK environment variable
+        - RM #1176937 Add TCP_QUICKACK option support
+        - RM #1176937 Add delayed ack control into LWIP
+        - RM #1151606 Modify valgrind suppression file
+        - RM #1182826 Check if the module parameters exists
+        - RM #847360 Add Coverity badge to README.md
+        - RM #1172255 Disable parser warning coverity checker
+Fixed:
+        - RM #1182981 Fix TCP zero-window probe message sequence number
+        - RM #1181379 Fix TCP zero window probe when there is data in-flight
+        - RM #1185978 Fix compilation for --enable-opt-log=high
+        - RM #1164732 Fix possible deadlock during connect
+        - RM #1185372 Fix traffic is not offloaded for high VMA_RX_WRE values
+
 Version 8.4.8-0:
 Date + Time 2017-10-10
 =============================================================
