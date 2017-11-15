@@ -2883,9 +2883,24 @@ err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_
 	NOT_IN_USE(err);
 
 	ASSERT_LOCKED(listen_sock->m_tcp_con_lock);
+
+	/* Inherite properties from the parent */
+	new_sock->set_conn_properties_from_pcb();
+
+	new_sock->m_so_bindtodevice_ip = listen_sock->m_so_bindtodevice_ip;
+	new_sock->m_linger = listen_sock->m_linger;
+
+	new_sock->m_rcvbuff_max = MAX(listen_sock->m_rcvbuff_max, 2 * new_sock->m_pcb.mss);
+	new_sock->fit_rcv_wnd(true);
+
+	new_sock->m_sndbuff_max = listen_sock->m_sndbuff_max;
+	if (listen_sock->m_sndbuff_max) {
+		new_sock->m_sndbuff_max = MAX(listen_sock->m_sndbuff_max, 2 * new_sock->m_pcb.mss);
+		new_sock->fit_snd_bufs(new_sock->m_sndbuff_max);
+	}
+
 	listen_sock->m_tcp_con_lock.unlock();
 
-	new_sock->set_conn_properties_from_pcb();
 	new_sock->create_dst_entry();
 	bool is_new_offloaded = new_sock->m_p_connected_dst_entry && new_sock->prepare_dst_to_send(true); // pass true for passive socket to skip the transport rules checking
 
@@ -2904,15 +2919,6 @@ err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_
 	new_sock->register_timer();
 
 	listen_sock->m_tcp_con_lock.lock();
-
-	new_sock->m_rcvbuff_max = MAX(listen_sock->m_rcvbuff_max, 2 * new_sock->m_pcb.mss);
-	new_sock->fit_rcv_wnd(true);
-
-	new_sock->m_sndbuff_max = listen_sock->m_sndbuff_max;
-	if (listen_sock->m_sndbuff_max) {
-		new_sock->m_sndbuff_max = MAX(listen_sock->m_sndbuff_max, 2 * new_sock->m_pcb.mss);
-		new_sock->fit_snd_bufs(new_sock->m_sndbuff_max);
-	}
 
 	flow_tuple key;
 	create_flow_tuple_key_from_pcb(key, newpcb);
