@@ -644,15 +644,20 @@ unsigned sockinfo_tcp::tx_wait(int & err, bool is_blocking)
 		//AlexV:Avoid from going to sleep, for the blocked socket of course, since
 		// progress engine may consume an arrived credit and it will not wakeup the
 		//transmit thread.
+		if (unlikely(err < 0)) {
+			return 0;
+		}
+		if (unlikely(g_b_exit)) {
+			errno = EINTR;
+			return 0;
+		}
 		if (is_blocking) {
+			/* force out TCP data to avoid spinning in this loop
+			 * in case data is not seen on rx
+			 */
+			tcp_output(&m_pcb);
 			poll_count = 0;
 		}
-		if (err < 0)
-			return 0;
-                if (unlikely(g_b_exit)) {
-                        errno = EINTR;
-                        return 0;
-                }
 	}
 	si_tcp_logfunc("end sz=%d rx_count=%d", sz, m_n_rx_pkt_ready_list_count);
 	return sz;
