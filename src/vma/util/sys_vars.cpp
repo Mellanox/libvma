@@ -1082,11 +1082,12 @@ void mce_sys_var::get_env_params()
 		buffer_batching_mode = (buffer_batching_mode_t)atoi(env_ptr);
 		if (buffer_batching_mode < 0 || buffer_batching_mode >= BUFFER_BATCHING_LAST)
 			buffer_batching_mode = MCE_DEFAULT_BUFFER_BATCHING_MODE;
-		if (buffer_batching_mode == BUFFER_BATCHING_NONE) {
-			tx_bufs_batch_tcp = 1;
-			tx_bufs_batch_udp = 1;
-			rx_bufs_batch = 1;
-		}
+	}
+
+	if (buffer_batching_mode == BUFFER_BATCHING_NONE) {
+		tx_bufs_batch_tcp = 1;
+		tx_bufs_batch_udp = 1;
+		rx_bufs_batch = 1;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_NETLINK_TIMER_MSEC)) != NULL)
