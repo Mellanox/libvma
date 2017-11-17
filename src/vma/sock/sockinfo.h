@@ -97,6 +97,8 @@ struct cmsg_state
 	size_t		cmsg_bytes_consumed;
 };
 
+#define NOTIFY_ON_EVENTS(context, events) context->set_events(events)
+
 struct buff_info_t {
 		buff_info_t(){
 			rx_reuse.set_id("buff_info_t (%p) : rx_reuse", this);
@@ -346,34 +348,28 @@ protected:
 	}
 
 	inline void set_events(uint64_t events) {
-		/* Collect all events if rx ring is enabled */
-		if (m_p_rx_ring) {
-			if (m_socketxtreme.completion) {
-				if (!m_socketxtreme.completion->events) {
-					m_socketxtreme.completion->user_data = (uint64_t)m_fd_context;
+		static int enable_socketxtreme = safe_mce_sys().enable_socketxtreme;
+
+		if (enable_socketxtreme) {
+			/* Collect all events if rx ring is enabled */
+			if (is_socketxtreme()) {
+				if (m_socketxtreme.completion) {
+					if (!m_socketxtreme.completion->events) {
+						m_socketxtreme.completion->user_data = (uint64_t)m_fd_context;
+					}
+					m_socketxtreme.completion->events |= events;
 				}
-				m_socketxtreme.completion->events |= events;
-			}
-			else {
-				if (!m_socketxtreme.ec.completion.events) {
+				else {
+					if (!m_socketxtreme.ec.completion.events) {
 					m_socketxtreme.ec.completion.user_data = (uint64_t)m_fd_context;
 					m_p_rx_ring->put_ec(&m_socketxtreme.ec);
+					}
+					m_socketxtreme.ec.completion.events |= events;
 				}
-				m_socketxtreme.ec.completion.events |= events;
 			}
 		}
 
-		if ((uint32_t)events) {
-			socket_fd_api::notify_epoll_context((uint32_t)events);
-		}
-	}
-
-	inline uint64_t get_events(void) {
-		return m_socketxtreme.ec.completion.events;
-	}
-
-	inline void clear_events(void) {
-		m_socketxtreme.ec.completion.events = 0;
+		socket_fd_api::notify_epoll_context((uint32_t)events);
 	}
 
 	// This function validates the ipoib's properties
@@ -616,11 +612,5 @@ protected:
     }
     //////////////////////////////////////////////////////////////////
 };
-
-#ifdef DEFINED_SOCKETXTREME
-#define NOTIFY_ON_EVENTS(context, events) context->set_events(events)
-#else
-#define NOTIFY_ON_EVENTS(context, events) context->notify_epoll_context((uint32_t)events)
-#endif // DEFINED_SOCKETXTREME
 
 #endif /* BASE_SOCKINFO_H */
