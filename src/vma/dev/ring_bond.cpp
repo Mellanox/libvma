@@ -393,6 +393,20 @@ void ring_bond::inc_tx_retransmissions(ring_user_id_t id)
 		active_ring->inc_tx_retransmissions(id);
 }
 
+bool ring_bond::reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst)
+{
+	/* TODO: not supported */
+	NOT_IN_USE(rx_reuse_lst);
+	return false;
+}
+
+int ring_bond::reclaim_recv_single_buffer(mem_buf_desc_t* rx_reuse)
+{
+	/* TODO: not supported */
+	NOT_IN_USE(rx_reuse);
+	return -1;
+}
+
 bool ring_bond::reclaim_recv_buffers(descq_t *rx_reuse)
 {
 	/* use this local array to avoid locking mechanizm
