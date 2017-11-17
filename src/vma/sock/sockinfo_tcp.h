@@ -158,9 +158,7 @@ public:
 	/* This function is used for socketxtreme mode */
 	virtual int free_buffs(uint16_t len);
 
-#ifndef DEFINED_SOCKETXTREME // if not defined
 	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);	
-#endif // DEFINED_SOCKETXTREME	
 
 	//Returns the connected pcb, with 5 tuple which matches the input arguments,
 	//in state "SYN Received" or NULL if pcb wasn't found
@@ -321,10 +319,8 @@ private:
 	//Builds rfs key
 	static void create_flow_tuple_key_from_pcb(flow_tuple &key, struct tcp_pcb *pcb);
 
-#ifdef DEFINED_SOCKETXTREME
 	//auto accept function
 	static void auto_accept_connection(sockinfo_tcp *parent, sockinfo_tcp *child);
-#endif // DEFINED_SOCKETXTREME	
 
 	// accept cb func
 	static err_t accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t err);

@@ -193,9 +193,9 @@ public:
 #ifdef DEFINED_SOCKETXTREME
 	virtual bool check_rings() {return m_p_rx_ring ? true: false;}
 #else
-	virtual bool check_rings() {return true;}
+        virtual bool check_rings() {return true;}
+#endif /* DEFINED_SOCKETXTREME */
 	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);
-#endif
 	uint32_t get_flow_tag_val() { return m_flow_tag_id; }
 protected:
 	bool			m_b_closed;

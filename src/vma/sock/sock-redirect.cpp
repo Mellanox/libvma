@@ -579,17 +579,11 @@ int vma_thread_offload(int offload, pthread_t tid)
 extern "C"
 int vma_dump_fd_stats(int fd, int log_level)
 {
-#ifdef DEFINED_SOCKETXTREME
-	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG, "Function is not supported when socketXtreme is enabled. ignoring...", fd, log_level);
-	errno = EOPNOTSUPP;
-	return -1;
-#else
 	if (g_p_fd_collection) {
 		g_p_fd_collection->statistics_print(fd, log_level::from_int(log_level));
 		return 0;
 	}
 	return -1;
-#endif // DEFINED_SOCKETXTREME
 }
 
 extern "C"

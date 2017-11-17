@@ -540,15 +540,13 @@ void sockinfo_tcp::handle_socket_linger() {
 	memset(&elapsed, 0,sizeof(elapsed));
 	gettime(&start);
 	while ((tv_to_usec(&elapsed) <= linger_time_usec) && (m_pcb.unsent || m_pcb.unacked)) {
-#ifdef DEFINED_SOCKETXTREME
-		NOT_IN_USE(poll_cnt);
-		/* SOCKETXTREME WA: Don't call rx_wait() in order not to miss VMA events in socketxtreme_poll() flow.
+                /* SOCKETXTREME WA: Don't call rx_wait() in order not to miss VMA events in socketxtreme_poll() flow.
 		 * TBD: find proper solution!
 		 * rx_wait(poll_cnt, false);
 		 * */
-#else
-		rx_wait(poll_cnt, false);
-#endif // DEFINED_SOCKETXTREME			
+		if (!is_socketxtreme()) {
+			rx_wait(poll_cnt, false);
+		}
 		tcp_output(&m_pcb);
 		gettime(&current);
 		tv_sub(&current, &start, &elapsed);
@@ -1470,11 +1468,7 @@ err_t sockinfo_tcp::ack_recvd_lwip_cb(void *arg, struct tcp_pcb *tpcb, u16_t ack
 
 	ASSERT_LOCKED(conn->m_tcp_con_lock);
 
-#ifdef DEFINED_SOCKETXTREME 
-	NOT_IN_USE(ack);
-#else
 	conn->m_p_socket_stats->n_tx_ready_byte_count -= ack;
-#endif // DEFINED_SOCKETXTREME		
 
 	NOTIFY_ON_EVENTS(conn, EPOLLOUT);
 
@@ -2618,7 +2612,6 @@ sockinfo_tcp *sockinfo_tcp::accept_clone()
         return si;
 }
 
-#ifdef DEFINED_SOCKETXTREME
 //Must be taken under parent's tcp connection lock
 void sockinfo_tcp::auto_accept_connection(sockinfo_tcp *parent, sockinfo_tcp *child)
 {
@@ -2672,7 +2665,6 @@ void sockinfo_tcp::auto_accept_connection(sockinfo_tcp *parent, sockinfo_tcp *ch
 
 	__log_dbg("CONN AUTO ACCEPTED: TCP PCB FLAGS: acceptor:0x%x newsock: fd=%d 0x%x new state: %d\n", parent->m_pcb.flags, child->m_fd, child->m_pcb.flags, get_tcp_state(&child->m_pcb));
 }
-#endif // DEFINED_SOCKETXTREME
 
 err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t err)
 {
@@ -2764,14 +2756,14 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 	//todo check that listen socket was not closed by now ? (is_server())
 	conn->m_ready_pcbs.erase(&new_sock->m_pcb);
 
-#ifdef DEFINED_SOCKETXTREME
-	auto_accept_connection(conn, new_sock);	
-#else
-	conn->m_accepted_conns.push_back(new_sock);
-	conn->m_ready_conn_cnt++;
+	if (conn->is_socketxtreme()) {
+		auto_accept_connection(conn, new_sock);
+	} else {
+		conn->m_accepted_conns.push_back(new_sock);
+		conn->m_ready_conn_cnt++;
 
-	NOTIFY_ON_EVENTS(conn, EPOLLIN);
-#endif // DEFINED_SOCKETXTREME	
+		NOTIFY_ON_EVENTS(conn, EPOLLIN);
+	}
 
 	//OLG: Now we should wakeup all threads that are sleeping on this socket.
 	conn->do_wakeup();
@@ -3947,12 +3939,10 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 	}
 	m_rx_ring_map_lock.unlock();
 	if (likely(n > 0)) { // got completions from CQ
-#ifdef DEFINED_SOCKETXTREME
 		__log_entry_funcall("got %d elements sn=%llu", n, (unsigned long long)poll_sn);
 
 		if (m_n_rx_pkt_ready_list_count)
 			m_p_socket_stats->counters.n_rx_poll_hit++;
-#endif // DEFINED_SOCKETXTREME
 		return n;
 	}
 
@@ -4182,7 +4172,6 @@ int sockinfo_tcp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags
 	return total_rx;
 }
 
-#ifndef DEFINED_SOCKETXTREME // if not defined
 void sockinfo_tcp::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 {
 	const char * const tcp_sock_state_str[] = {
@@ -4336,7 +4325,6 @@ void sockinfo_tcp::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 	}
 #endif
 }
-#endif // DEFINED_SOCKETXTREME
 
 int sockinfo_tcp::free_packets(struct vma_packet_t *pkts, size_t count)
 {
