@@ -248,7 +248,6 @@ struct cq_moderation_info {
 
 typedef int ring_user_id_t;
 
-#ifdef DEFINED_VMAPOLL	
 /* Ring event completion */
 struct ring_ec {
 	struct list_head list;
@@ -262,7 +261,6 @@ struct ring_ec {
 		last_buff_lst = NULL;
 	}
 };
-#endif // DEFINED_VMAPOLL	
 
 /**
  * @class ring
@@ -329,45 +327,43 @@ public:
 	virtual int		modify_ratelimit(const uint32_t ratelimit_kbps) = 0;
 	virtual bool		is_ratelimit_supported(uint32_t rate) = 0;
 
-#ifdef DEFINED_VMAPOLL		
-	virtual int		vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags) = 0;
+	virtual int		xtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags) = 0;
 
-	inline void set_vma_active(bool flag) {m_vma_active = flag;}
-	inline bool get_vma_active(void) {return m_vma_active;}
+	inline void set_xtreme_active(bool flag) {xtreme.m_active = flag;}
+	inline bool get_xtreme_active(void) {return xtreme.m_active;}
 
 	inline void put_ec(struct ring_ec *ec)
 	{
-		m_lock_ec_list.lock();
-		list_add_tail(&ec->list, &m_ec_list);
-		m_lock_ec_list.unlock();
+		xtreme.m_lock_ec_list.lock();
+		list_add_tail(&ec->list, &xtreme.m_ec_list);
+		xtreme.m_lock_ec_list.unlock();
 	}
 
 	inline void del_ec(struct ring_ec *ec)
 	{
-		m_lock_ec_list.lock();
+		xtreme.m_lock_ec_list.lock();
 		list_del_init(&ec->list);
 		ec->clear();
-		m_lock_ec_list.unlock();
+		xtreme.m_lock_ec_list.unlock();
 	}
 
 	inline ring_ec* get_ec(void)
 	{
 		struct ring_ec *ec = NULL;
 
-		m_lock_ec_list.lock();
-		if (!list_empty(&m_ec_list)) {
-			ec = list_entry(m_ec_list.next, struct ring_ec, list);
+		xtreme.m_lock_ec_list.lock();
+		if (!list_empty(&xtreme.m_ec_list)) {
+			ec = list_entry(xtreme.m_ec_list.next, struct ring_ec, list);
 			list_del_init(&ec->list);
 		}
-		m_lock_ec_list.unlock();
+		xtreme.m_lock_ec_list.unlock();
 		return ec;
 	}
 
 	struct vma_completion_t *get_comp(void)
 	{
-		return m_vma_poll_completion;
+		return xtreme.m_vma_poll_completion;
 	}
-#endif // DEFINED_VMAPOLL	
 
 protected:
 	uint32_t		m_n_num_resources;
@@ -375,25 +371,27 @@ protected:
 	ring*			m_parent;
 	bool			m_is_mp_ring;
 	uint32_t		m_mtu;
-#ifdef DEFINED_VMAPOLL
-	/* queue of event completion elements
-	 * this queue is stored events related different sockinfo (sockets)
-	 * In current implementation every sockinfo (socket) can have single event
-	 * in this queue
-	 */
-	struct list_head         m_ec_list;
 
-	/* Thread-safity lock for get/put operations under the queue */
-	lock_spin                m_lock_ec_list;
+	struct {
+		/* queue of event completion elements
+		 * this queue is stored events related different sockinfo (sockets)
+		 * In current implementation every sockinfo (socket) can have single event
+		 * in this queue
+		 */
+		struct list_head         m_ec_list;
 
-	/* This completion is introduced to process events directly w/o
-	 * storing them in the queue of event completion elements
-	 */
-	struct vma_completion_t* m_vma_poll_completion;
-private:
-	/* This flag is enabled in case vma_poll() call is done */
-	bool                     m_vma_active;
-#endif // DEFINED_VMAPOLL
+		/* Thread-safity lock for get/put operations under the queue */
+		lock_spin                m_lock_ec_list;
+
+		/* This completion is introduced to process events directly w/o
+		 * storing them in the queue of event completion elements
+		 */
+		struct vma_completion_t* m_vma_poll_completion;
+
+		/* This flag is enabled in case socketXtreme mode */
+		bool                     m_active;
+	} xtreme;
+
 };
 
 #endif /* RING_H */

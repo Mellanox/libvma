@@ -381,7 +381,7 @@ int vma_poll(int fd, struct vma_completion_t* completions, unsigned int ncomplet
 	if (likely(cq_ch_info)) {
 		ring* p_ring = cq_ch_info->get_ring();
 
-		ret_val = p_ring->vma_poll(completions, ncompletions, flags);
+		ret_val = p_ring->xtreme_poll(completions, ncompletions, flags);
 #ifdef RDTSC_MEASURE_RX_PROCCESS_BUFFER_TO_RECIVEFROM
 	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_PROCCESS_RX_BUFFER_TO_RECIVEFROM]);
 #endif //RDTSC_MEASURE_RX_PROCCESS_BUFFER_TO_RECIVEFROM

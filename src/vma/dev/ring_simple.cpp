@@ -1194,29 +1194,27 @@ int ring_simple::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd
 	return ret;
 }
 
-#ifdef DEFINED_VMAPOLL
-int ring_simple::vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags)
+int ring_simple::xtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags)
 {
 	int ret = 0;
 	int i = 0;
-	mem_buf_desc_t *desc;
 
 	NOT_IN_USE(flags);
 
 	if (likely(vma_completions) && ncompletions) {
 		struct ring_ec *ec = NULL;
 
-		m_vma_poll_completion = vma_completions;
+		xtreme.m_vma_poll_completion = vma_completions;
 
 		while (!g_b_exit && (i < (int)ncompletions)) {
-			m_vma_poll_completion->events = 0;
+			xtreme.m_vma_poll_completion->events = 0;
 			/* Check list size to avoid locking */
-			if (!list_empty(&m_ec_list)) {
+			if (!list_empty(&xtreme.m_ec_list)) {
 				ec = get_ec();
 				if (ec) {
-					memcpy(m_vma_poll_completion, &ec->completion, sizeof(ec->completion));
+					memcpy(xtreme.m_vma_poll_completion, &ec->completion, sizeof(ec->completion));
 					ec->clear();
-					m_vma_poll_completion++;
+					xtreme.m_vma_poll_completion++;
 					i++;
 				}
 			} else {
@@ -1225,20 +1223,23 @@ int ring_simple::vma_poll(struct vma_completion_t *vma_completions, unsigned int
 				 * in right order. It is done to avoid locking and
 				 * may be it is not so critical
 				 */
+#ifdef DEFINED_VMAPOLL
+				mem_buf_desc_t *desc;
 				if (likely(m_p_cq_mgr_rx->vma_poll_and_process_element_rx(&desc))) {
 					desc->rx.vma_polled = true;
 					rx_process_buffer(desc, NULL);
-					if (m_vma_poll_completion->events) {
-						m_vma_poll_completion++;
+					if (xtreme.m_vma_poll_completion->events) {
+						xtreme.m_vma_poll_completion++;
 						i++;
 					}
 				} else {
 					break;
 				}
+#endif // DEFINED_VMAPOLL
 			}
 		}
 
-		m_vma_poll_completion = NULL;
+		xtreme.m_vma_poll_completion = NULL;
 
 		ret = i;
 	}
@@ -1249,7 +1250,6 @@ int ring_simple::vma_poll(struct vma_completion_t *vma_completions, unsigned int
 
 	return ret;
 }
-#endif // DEFINED_VMAPOLL
 
 int ring_simple::wait_for_notification_and_process_element(cq_type_t cq_type, int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array /*NULL*/)
 {

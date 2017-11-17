@@ -161,7 +161,7 @@ public:
 	// This callback will handle ready rx packet notification from any ib_conn_mgr
 	/**
 	 *	Method sockinfo_udp::rx_process_packet run packet processor
-	 *	with inspection, in case packet is OK, completion for VMAPOLL mode
+	 *	with inspection, in case packet is OK, completion for socketXtreme mode
 	 *	will be filled or in other cases packet go to ready queue.
 	 *	If packet to be discarded, packet ref. counter will not be
 	 *	incremented and method returns false.

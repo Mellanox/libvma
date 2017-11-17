@@ -100,11 +100,9 @@ sockinfo::sockinfo(int fd):
 	m_p_socket_stats->b_blocking = m_b_blocking;
 	m_rx_reuse_buff.n_buff_num = 0;
 
-#ifdef DEFINED_VMAPOLL 
-	m_ec.clear();
-	m_vma_poll_completion = NULL;
-	m_vma_poll_last_buff_lst = NULL;
-#endif // DEFINED_VMAPOLL 
+	xtreme.m_ec.clear();
+	xtreme.m_vma_poll_completion = NULL;
+	xtreme.m_vma_poll_last_buff_lst = NULL;
 }
 
 sockinfo::~sockinfo()
@@ -1007,14 +1005,12 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 				if (m_rx_ring_map.size() == 1) {
 					m_p_rx_ring = m_rx_ring_map.begin()->first;
 				} else {
-#ifdef DEFINED_VMAPOLL
 					/* Remove event from rx ring if it is active
 					 * or just reinitialize
 					 * ring should not have events related closed socket
 					 * in wait list
 					 */
-					m_p_rx_ring->del_ec(&m_ec);
-#endif // DEFINED_VMAPOLL					
+					m_p_rx_ring->del_ec(&xtreme.m_ec);
 					m_p_rx_ring = NULL;
 				}
 

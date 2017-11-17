@@ -52,9 +52,7 @@ public:
 	bool			reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst); // No locks
 	virtual bool		reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst);
 	virtual int		reclaim_recv_single_buffer(mem_buf_desc_t* rx_reuse); // No locks
-#ifdef DEFINED_VMAPOLL	
-	virtual int 		vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);	
-#endif // DEFINED_VMAPOLL
+	virtual int 		xtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);	
 	virtual int		drain_and_proccess(cq_type_t cq_type);
 	virtual int		wait_for_notification_and_process_element(cq_type_t cq_type, int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	virtual void		mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc); // Assume locked...

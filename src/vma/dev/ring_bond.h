@@ -70,9 +70,7 @@ public:
 	virtual bool 		get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe);
 	virtual int 		modify_ratelimit(const uint32_t ratelimit_kbps);
 	virtual bool		is_ratelimit_supported(uint32_t rate);
-#ifdef DEFINED_VMAPOLL		
-	int 			vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);
-#endif // DEFINED_VMAPOLL		
+	int 			xtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);
 protected:
 	virtual void		create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t partition) = 0;
 	void			update_rx_channel_fds();
