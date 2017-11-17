@@ -810,7 +810,6 @@ void sockinfo::remove_epoll_context(epfd_info *epfd)
 	m_rx_ring_map_lock.unlock();
 }
 
-#ifndef DEFINED_VMAPOLL // if not defined
 void sockinfo::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 {
 	const char * const in_protocol_str[] = {
@@ -820,6 +819,10 @@ void sockinfo::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 	  "PROTO_ALL",
 	};
 	bool b_any_activity = false;
+
+	if (check_xtreme_active()) {
+		return ;
+	}
 
 	socket_fd_api::statistics_print(log_level);
 
@@ -876,7 +879,6 @@ void sockinfo::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 		vlog_printf(log_level, "Socket activity : Rx and Tx where not active\n");
 	}
 }
-#endif // DEFINED_VMAPOLL
 
 void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool is_migration /*= false*/)
 {
@@ -1203,31 +1205,34 @@ int sockinfo::modify_ratelimit(dst_entry* p_dst_entry, const uint32_t rate_limit
 
 int sockinfo::get_rings_num()
 {
-#ifdef DEFINED_VMAPOLL
-	return 1;
-#else
 	int count = 0;
 
+	if (check_xtreme_active()) {
+		/* socketXtreme mode support just single ring */
+		return 1;
+	}
 	rx_ring_map_t::iterator it = m_rx_ring_map.begin();
 	for (; it != m_rx_ring_map.end(); ++it) {
 		count += it->first->get_num_resources();
 	}
 	return count;
-#endif
 }
 
 int* sockinfo::get_rings_fds(int &res_length)
 {
-	res_length = get_rings_num();
-
-#ifdef DEFINED_VMAPOLL
-	return m_p_rx_ring->get_rx_channel_fds();
-#else
+	res_length = 0;
 	int index = 0;
+
+	if (check_xtreme_active()) {
+		/* socketXtreme mode support just single ring */
+		res_length = 1;
+		return m_p_rx_ring->get_rx_channel_fds();
+	}
 
 	if (m_rings_fds) {
 		return m_rings_fds;
 	}
+	res_length = get_rings_num();
 	m_rings_fds = new int[res_length];
 
 	rx_ring_map_t::iterator it = m_rx_ring_map.begin();
@@ -1243,5 +1248,4 @@ int* sockinfo::get_rings_fds(int &res_length)
 		}
 	}
 	return m_rings_fds;
-#endif
 }

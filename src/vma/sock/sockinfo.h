@@ -138,9 +138,7 @@ public:
 	virtual int get_rings_num();
 	virtual bool check_rings() {return m_p_rx_ring ? true: false;}
 
-#ifndef DEFINED_VMAPOLL
 	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);	
-#endif // DEFINED_VMAPOLL	
 protected:
 	bool			m_b_closed;
 	bool 			m_b_blocking;

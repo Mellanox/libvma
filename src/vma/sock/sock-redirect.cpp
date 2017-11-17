@@ -404,9 +404,7 @@ int vma_poll(int fd, struct vma_completion_t* completions, unsigned int ncomplet
 		return ret_val;
 	}
 }
-#endif // DEFINED_VMAPOLL
 
-#ifdef DEFINED_VMAPOLL
 extern "C"
 int vma_free_vma_packets(struct vma_packet_desc_t *packets, int num)
 {
@@ -442,9 +440,7 @@ err:
 	errno = EINVAL;
 	return -1;
 }
-#endif // DEFINED_VMAPOLL
 
-#ifdef DEFINED_VMAPOLL
 extern "C"
 int vma_buff_ref(vma_buff_t *buff)
 {
@@ -461,9 +457,7 @@ int vma_buff_ref(vma_buff_t *buff)
 	}
 	return ret_val;
 }
-#endif // DEFINED_VMAPOLL
 
-#ifdef DEFINED_VMAPOLL
 extern "C"
 int vma_buff_free(vma_buff_t *buff)
 {
@@ -546,17 +540,11 @@ int vma_thread_offload(int offload, pthread_t tid)
 extern "C"
 int vma_dump_fd_stats(int fd, int log_level)
 {
-#ifdef DEFINED_VMAPOLL
-NOT_IN_USE(fd);
-NOT_IN_USE(log_level);
-	return 0;
-#else
 	if (g_p_fd_collection) {
 		g_p_fd_collection->statistics_print(fd, log_level::from_int(log_level));
 		return 0;
 	}
 	return -1;
-#endif // DEFINED_VMAPOLL
 }
 
 #ifdef HAVE_MP_RQ
