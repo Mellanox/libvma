@@ -69,6 +69,17 @@ static void tcp_parseopt(struct tcp_pcb *pcb, tcp_in_data* in_data);
 
 static err_t tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data);
 static err_t tcp_timewait_input(struct tcp_pcb *pcb, tcp_in_data* in_data);
+static s32_t tcp_quickack(struct tcp_pcb *pcb, u32_t tcplen);
+
+/**
+ * Send quickack only if quickack is enabled
+ * TODO - Send quickack depending on the payload size
+ */
+s32_t
+tcp_quickack(struct tcp_pcb *pcb, u32_t tcplen)
+{
+	return pcb->quickack && tcplen;
+}
 
 #if LWIP_3RD_PARTY_L3
 void
@@ -1263,7 +1274,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
 
 
         /* Acknowledge the segment(s). */
-        if ((0 != pcb->quickack) || (in_data->recv_data && in_data->recv_data->next)) {
+        if (tcp_quickack(pcb, in_data->tcplen) || (in_data->recv_data && in_data->recv_data->next)) {
         	tcp_ack_now(pcb);
         } else {
         	tcp_ack(pcb);
