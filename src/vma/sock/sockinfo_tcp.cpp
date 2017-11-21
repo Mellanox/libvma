@@ -1019,6 +1019,31 @@ err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rex
 	}
 }
 
+uint16_t sockinfo_tcp::get_route_mtu(struct tcp_pcb *pcb)
+{
+	sockinfo_tcp *tcp_sock = (sockinfo_tcp *)pcb->my_container;
+	// in case of listen m_p_connected_dst_entry is still NULL
+	if (tcp_sock->m_p_connected_dst_entry) {
+		return tcp_sock->m_p_connected_dst_entry->get_route_mtu();
+	}
+	route_result res;
+	// m_tos is always 0 in VMA
+	g_p_route_table_mgr->route_resolve(
+			route_rule_table_key(pcb->local_ip.addr,
+					     pcb->remote_ip.addr, 0),
+			res);
+	if (res.mtu) {
+		vlog_printf(VLOG_DEBUG, "using route mtu %u", res.mtu);
+		return res.mtu;
+	}
+	net_device_val* ndv = g_p_net_device_table_mgr->get_net_device_val(res.p_src);
+	if (ndv && ndv->get_mtu() > 0) {
+		return ndv->get_mtu();
+	}
+	vlog_printf(VLOG_DEBUG, "could not find device, mtu 0 is used");
+	return 0;
+}
+
 void sockinfo_tcp::err_lwip_cb(void *pcb_container, err_t err)
 {
 

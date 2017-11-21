@@ -52,6 +52,7 @@ struct route_result {
 	in_addr_t	p_src;
 	in_addr_t	p_gw;
 	uint32_t	mtu;
+	route_result(): p_src(0),p_gw(0),mtu(0){}
 };
 
 class route_table_mgr : public netlink_socket_mgr<route_val>, public cache_table_mgr<route_rule_table_key, route_val*>, public observer
