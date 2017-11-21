@@ -2618,7 +2618,6 @@ sockinfo_tcp *sockinfo_tcp::accept_clone()
 
         si->m_sock_state = TCP_SOCK_BOUND;
         si->setPassthrough(false);
-
         if (m_sysvar_tcp_ctl_thread  > CTL_THREAD_DISABLE) {
         	tcp_ip_output(&si->m_pcb, sockinfo_tcp::ip_output_syn_ack);
         }
