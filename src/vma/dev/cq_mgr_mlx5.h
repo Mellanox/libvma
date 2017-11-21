@@ -85,7 +85,6 @@ protected:
 
 private:
 	mem_buf_desc_t              *m_rx_hot_buffer;
-	uint64_t                    *m_p_rq_wqe_idx_to_wrid;
 	qp_mgr_eth_mlx5*            m_qp; //for tx
 	struct mlx5_cq*             m_mlx5_cq;
 

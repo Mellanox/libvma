@@ -51,11 +51,15 @@ public:
 	virtual ~qp_mgr_eth_mlx5();
 	virtual void up();
 	virtual void down();
+	virtual int  post_recv(mem_buf_desc_t* p_mem_buf_desc); // Post for receive a list of mem_buf_desc
 
 protected:
 	void			trigger_completion_for_all_sent_packets();
 	struct mlx5_qp*		m_hw_qp;
-	uint64_t*               m_sq_wqe_idx_to_wrid;
+	uint64_t*           m_sq_wqe_idx_to_wrid;
+
+	uint64_t            m_rq_wqe_counter;
+	uint64_t*           m_rq_wqe_idx_to_wrid;
 
 private:
 	cq_mgr*		init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_channel);

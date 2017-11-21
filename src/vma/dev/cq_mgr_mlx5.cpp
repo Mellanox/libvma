@@ -61,7 +61,6 @@ cq_mgr_mlx5::cq_mgr_mlx5(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler,
 	,m_rq(NULL)
 	,m_cqe_log_sz(0)
 	,m_rx_hot_buffer(NULL)
-	,m_p_rq_wqe_idx_to_wrid(NULL)
 	,m_qp(NULL)
 	,m_mlx5_cq(NULL)
 {
@@ -124,8 +123,8 @@ mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
 	if (unlikely(NULL == m_rx_hot_buffer)) {
 		if (likely(m_rq->tail != m_rq->head)) {
 			uint32_t index = m_rq->tail & (m_qp_rec.qp->m_rx_num_wr - 1);
-			m_rx_hot_buffer = (mem_buf_desc_t *)m_p_rq_wqe_idx_to_wrid[index];
-			m_p_rq_wqe_idx_to_wrid[index] = 0;
+			m_rx_hot_buffer = (mem_buf_desc_t *)m_qp->m_p_rq_wqe_idx_to_wrid[index];
+			m_qp->m_p_rq_wqe_idx_to_wrid[index] = 0;
 			prefetch((void*)m_rx_hot_buffer);
 			prefetch((uint8_t*)m_cqes + ((m_cq_cons_index & (m_cq_size - 1)) << m_cqe_log_sz));
 		} else {
@@ -571,9 +570,9 @@ void cq_mgr_mlx5::set_qp_rq(qp_mgr* qp)
 	struct verbs_qp *vqp = (struct verbs_qp *)qp->m_qp;
 	struct mlx5_qp *mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
 
+	m_qp = static_cast<qp_mgr_eth_mlx5*> (qp);
 	m_rq = &mlx5_hw_qp->rq;
-	m_p_rq_wqe_idx_to_wrid = qp->m_rq_wqe_idx_to_wrid;
-	qp->m_rq_wqe_counter = 0; /* In case of bonded qp, wqe_counter must be reset to zero */
+	m_qp->m_rq_wqe_counter = 0; /* In case of bonded qp, wqe_counter must be reset to zero */
 	m_rx_hot_buffer = NULL;
 	m_cq_dbell = m_mlx5_cq->dbrec;
 	m_cqe_log_sz = ilog_2(m_mlx5_cq->cqe_sz);
@@ -590,7 +589,6 @@ void cq_mgr_mlx5::add_qp_rx(qp_mgr* qp)
 void cq_mgr_mlx5::del_qp_rx(qp_mgr *qp)
 {
 	cq_mgr::del_qp_rx(qp);
-	m_p_rq_wqe_idx_to_wrid = NULL;
 }
 
 inline void cq_mgr_mlx5::update_consumer_index()

@@ -108,7 +108,7 @@ public:
 	virtual void        up();
 	virtual void        down();
 
-	int                 post_recv(mem_buf_desc_t* p_mem_buf_desc); // Post for receive a list of mem_buf_desc
+	virtual int         post_recv(mem_buf_desc_t* p_mem_buf_desc); // Post for receive a list of mem_buf_desc
 	int                 send(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 
 	uint32_t            get_max_inline_tx_data() const {return m_max_inline_data; }
@@ -146,12 +146,11 @@ public:
 	virtual void        dm_release_data(mem_buf_desc_t* buff) { NOT_IN_USE(buff); }
 
 protected:
-	uint64_t            m_rq_wqe_counter;
-	uint64_t*           m_rq_wqe_idx_to_wrid;
+	struct ibv_qp*      m_qp;
+	uint64_t*           m_p_rq_wqe_idx_to_wrid;
 #ifdef DEFINED_VMAPOLL
 	struct mlx5_qp*	    m_mlx5_hw_qp;
 #endif // DEFINED_VMAPOLL
-	struct ibv_qp*      m_qp;
 
 	ring_simple*        m_p_ring;
 	uint8_t             m_port_num;

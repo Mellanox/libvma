@@ -705,7 +705,7 @@ int cq_mgr::vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 
 	if (unlikely(m_rx_hot_buff == NULL)) {
 		int index = m_qp->m_mlx5_hw_qp->rq.tail & (m_qp->m_rx_num_wr - 1);
-		m_rx_hot_buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_rq_wqe_idx_to_wrid[index];
+		m_rx_hot_buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_p_rq_wqe_idx_to_wrid[index];
 		m_rx_hot_buff->rx.context = NULL;
 		m_rx_hot_buff->rx.is_vma_thr = false;
 	}
@@ -785,7 +785,7 @@ int cq_mgr::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_read
 
 	if (unlikely(m_rx_hot_buff == NULL)) {
 		int index = m_qp->m_mlx5_hw_qp->rq.tail & (m_qp->m_rx_num_wr - 1);
-		m_rx_hot_buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_rq_wqe_idx_to_wrid[index];
+		m_rx_hot_buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_p_rq_wqe_idx_to_wrid[index];
 		m_rx_hot_buff->rx.context = NULL;
 		m_rx_hot_buff->rx.is_vma_thr = false;
 		m_rx_hot_buff->rx.vma_polled = false;
@@ -1171,7 +1171,7 @@ int cq_mgr::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/
 			 * and release buffers to rx pool
 			 * in case failure
 			 */
-			m_rx_hot_buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_rq_wqe_idx_to_wrid[index];
+			m_rx_hot_buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_p_rq_wqe_idx_to_wrid[index];
 			memset(&wce, 0, sizeof(wce));
 			wce.wr_id = (uintptr_t)m_rx_hot_buff;
 			mlx5_cqe64_to_vma_wc(cqe, &wce);
