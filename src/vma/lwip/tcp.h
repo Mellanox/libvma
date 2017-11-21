@@ -55,9 +55,6 @@ typedef err_t (*ip_output_fn)(struct pbuf *p, void* p_conn, int is_rexmit, u8_t 
           
 void register_ip_output(ip_output_fn fn);
 
-typedef u16_t (*ip_route_mtu_fn)(ip_addr_t *dest);
-void register_ip_route_mtu(ip_route_mtu_fn fn);
-
 #endif
 
 #if LWIP_3RD_PARTY_BUFS
@@ -422,6 +419,9 @@ struct tcp_pcb {
   /* Delayed ACK control: number of quick acks */
   u8_t quickack;
 };
+
+typedef u16_t (*ip_route_mtu_fn)(struct tcp_pcb *pcb);
+void register_ip_route_mtu(ip_route_mtu_fn fn);
 
 #ifdef VMA_NO_TCP_PCB_LISTEN_STRUCT
 #define tcp_pcb_listen tcp_pcb

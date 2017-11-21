@@ -86,8 +86,6 @@ public:
 	static int sockaddr2ipaddr(const sockaddr *__to, socklen_t __tolen, ip_addr_t & ip, uint16_t & port);
 	void do_timers();
 
-	static u16_t vma_ip_route_mtu(ip_addr_t *dest);
-
 	//RX: feed packet to the LWIP stack
 	static int  vma_tcp_input(mem_buf_desc_t* p_rx_wc_buf_desc, tcp_pcb* p_conn, void* pv_fd_ready_array);
 

@@ -662,12 +662,12 @@ tcp_connect(struct tcp_pcb *pcb, ip_addr_t *ipaddr, u16_t port,
    * If LWIP_TCP_MSS>0 use it as MSS 
    * If LWIP_TCP_MSS==0 set advertized MSS value to default 536
    */
-  pcb->advtsd_mss = (LWIP_TCP_MSS > 0) ? tcp_eff_send_mss(LWIP_TCP_MSS, ipaddr) : tcp_mss_follow_mtu_with_default(536, ipaddr); 
+  pcb->advtsd_mss = (LWIP_TCP_MSS > 0) ? tcp_eff_send_mss(LWIP_TCP_MSS, pcb) : tcp_mss_follow_mtu_with_default(536, pcb);
   /* 
    * For effective MSS with MTU knowledge - get the minimum between pcb->mss and the MSS derived from the 
    * MTU towards the remote IP address 
    * */
-  u16_t eff_mss = tcp_eff_send_mss(pcb->mss, ipaddr); 
+  u16_t eff_mss = tcp_eff_send_mss(pcb->mss, pcb);
   UPDATE_PCB_BY_MSS(pcb, eff_mss);
 #endif /* TCP_CALCULATE_EFF_SEND_MSS */
   pcb->cwnd = 1;
@@ -1448,11 +1448,11 @@ tcp_next_iss(void)
  * calculating the minimum of TCP_MSS and that netif's mtu (if set).
  */
 u16_t
-tcp_eff_send_mss(u16_t sendmss, ip_addr_t *addr)
+tcp_eff_send_mss(u16_t sendmss, struct tcp_pcb *pcb)
 {
   u16_t mtu;
 
-  mtu = external_ip_route_mtu(addr);
+  mtu = external_ip_route_mtu(pcb);
   if (mtu != 0) {
     sendmss = LWIP_MIN(sendmss, mtu - IP_HLEN - TCP_HLEN);
   }
@@ -1465,11 +1465,11 @@ tcp_eff_send_mss(u16_t sendmss, ip_addr_t *addr)
  * In case MTU is unkonw - return the default MSS 
  */
 u16_t
-tcp_mss_follow_mtu_with_default(u16_t defsendmss, ip_addr_t *addr)
+tcp_mss_follow_mtu_with_default(u16_t defsendmss, struct tcp_pcb *pcb)
 {
   u16_t mtu;
 
-  mtu = external_ip_route_mtu(addr);
+  mtu = external_ip_route_mtu(pcb);
   if (mtu != 0) {
     defsendmss = mtu - IP_HLEN - TCP_HLEN;
     defsendmss = LWIP_MAX(defsendmss, 1); /* MSS must be a positive number */

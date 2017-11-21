@@ -96,6 +96,7 @@ public:
 	virtual flow_tuple get_flow_tuple() const;
 
 	void	return_buffers_pool();
+	int	get_route_mtu();
 
 protected:
 	ip_address 		m_dst_ip;
@@ -182,9 +183,6 @@ protected:
 			m_p_ring->send_ring_buffer(id, p_send_wqe, attr);
 		}
 	}
-private:
-	int get_route_mtu();
-
 };
 
 
