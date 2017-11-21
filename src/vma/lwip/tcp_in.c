@@ -370,7 +370,7 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
     npcb->rcv_scale = 0;
 
     /* calculate advtsd_mss before parsing MSS option such that the resulting mss will take into account the updated advertized MSS */
-    npcb->advtsd_mss = (LWIP_TCP_MSS > 0) ? tcp_eff_send_mss(LWIP_TCP_MSS, &(npcb->remote_ip)) : tcp_mss_follow_mtu_with_default(536, &(npcb->remote_ip));
+    npcb->advtsd_mss = (LWIP_TCP_MSS > 0) ? tcp_eff_send_mss(LWIP_TCP_MSS, npcb) : tcp_mss_follow_mtu_with_default(536, npcb);
 
     /* Parse any options in the SYN. */
     tcp_parseopt(npcb, in_data);
@@ -384,7 +384,7 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
   	npcb->snd_wnd_max = npcb->snd_wnd;
   	npcb->ssthresh = npcb->snd_wnd;
 #if TCP_CALCULATE_EFF_SEND_MSS
-    u16_t snd_mss = tcp_eff_send_mss(npcb->mss, &(npcb->remote_ip));
+    u16_t snd_mss = tcp_eff_send_mss(npcb->mss, npcb);
     UPDATE_PCB_BY_MSS(npcb, snd_mss); 
 #endif /* TCP_CALCULATE_EFF_SEND_MSS */
 
@@ -529,7 +529,7 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
       set_tcp_state(pcb, ESTABLISHED);
 
 #if TCP_CALCULATE_EFF_SEND_MSS
-      u16_t eff_mss = tcp_eff_send_mss(pcb->mss, &(pcb->remote_ip));
+      u16_t eff_mss = tcp_eff_send_mss(pcb->mss, pcb);
       UPDATE_PCB_BY_MSS(pcb, eff_mss);
 #endif /* TCP_CALCULATE_EFF_SEND_MSS */
 
