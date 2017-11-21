@@ -973,7 +973,7 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 {
 	int ret;
 	int num_act_inst = 0;
-	int cycles = 0;
+	int cycles = user_params.cycles ? user_params.cycles : -1;
 	int printed_line_num = SCREEN_SIZE;
 	struct timespec start, end;	
 	bool proc_running = true;
@@ -1031,9 +1031,9 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 	
 	set_signal_action();
 	
-	while (!g_b_exit && proc_running && (user_params.cycles ? (cycles < user_params.cycles) : (true)))
+	while (!g_b_exit && proc_running && cycles)
 	{
-		++cycles;
+		--cycles;
 
 		if (gettime(&start)) {
 			log_system_err("gettime()");
@@ -1098,7 +1098,9 @@ void stats_reader_handler(sh_mem_t* p_sh_mem, int pid)
 		uint64_t delay_int_micro = SEC_TO_MICRO(user_params.interval);
 		uint64_t adjasted_delay = delay_int_micro - TIME_DIFF_in_MICRO(start, end);
 		if (!g_b_exit && proc_running){
-			usleep(adjasted_delay);
+			if (cycles) {
+				usleep(adjasted_delay);
+			}
             inc_read_counter(p_sh_mem);
 		}
 		proc_running = check_if_process_running(pid);
