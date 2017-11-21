@@ -67,15 +67,19 @@ inline void rfs::filter_keep_attached(rule_filter_map_t::iterator& filter_iter)
 	}
 }
 
-inline void rfs::prepare_filter_detach(int& filter_counter)
+inline void rfs::prepare_filter_detach(int& filter_counter, bool decrease_counter)
 {
 	// If filter, need to detach flow only if this is the last attached rule for this specific group (i.e. counter == 0)
 	if (!m_p_rule_filter) return;
 
 	rule_filter_map_t::iterator filter_iter = m_p_rule_filter->m_map.find(m_p_rule_filter->m_key);
 	if (filter_iter == m_p_rule_filter->m_map.end()) {
-		rfs_logdbg("No matching counter for filter!!!");
+		rfs_logdbg("No matching counter for filter");
 		return;
+	}
+
+	if (decrease_counter) {
+		filter_iter->second.counter = filter_iter->second.counter > 0 ? filter_iter->second.counter - 1 : 0;
 	}
 
 	filter_counter = filter_iter->second.counter;
@@ -120,14 +124,12 @@ rfs::rfs(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* rule_fi
 rfs::~rfs()
 {
 	// If filter, need to detach flow only if this is the last attached rule for this specific filter group (i.e. counter == 0)
-	if (m_p_rule_filter) {
-		rule_filter_map_t::iterator filter_iter = m_p_rule_filter->m_map.find(m_p_rule_filter->m_key);
-		if (filter_iter !=  m_p_rule_filter->m_map.end() && (m_b_tmp_is_attached == true)) {
-			filter_iter->second.counter = (filter_iter->second.counter > 0 ? ((filter_iter->second.counter) - 1) : 0);
-			if (filter_iter->second.counter == 0) {
-				destroy_ibv_flow();
-				m_p_rule_filter->m_map.erase(m_p_rule_filter->m_key);
-			}
+	if (m_p_rule_filter && m_b_tmp_is_attached) {
+		int counter = 0;
+		prepare_filter_detach(counter, true);
+		if (counter == 0) {
+			destroy_ibv_flow();
+			m_p_rule_filter->m_map.erase(m_p_rule_filter->m_key);
 		}
 	} else {
 		if (m_b_tmp_is_attached) {
@@ -253,7 +255,7 @@ bool rfs::detach_flow(pkt_rcvr_sink *sink)
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	prepare_filter_detach(filter_counter);
+	prepare_filter_detach(filter_counter, false);
 
 	// We also need to check if this is the LAST sink so we need to call ibv_attach_flow
 	if ((m_n_sinks_list_entries == 0) && (filter_counter == 0)) {
