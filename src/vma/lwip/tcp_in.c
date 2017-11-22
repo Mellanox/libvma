@@ -72,7 +72,7 @@ static err_t tcp_timewait_input(struct tcp_pcb *pcb, tcp_in_data* in_data);
 static s8_t tcp_quickack(struct tcp_pcb *pcb, tcp_in_data* in_data);
 
 /**
- * Send quickack if TCP_QUICKACK was enabled
+ * Send quickack if TCP_QUICKACK is enabled
  * Change LWIP_TCP_QUICKACK_THRESHOLD value in order to send quickacks
  * depending on the payload size.
  */
