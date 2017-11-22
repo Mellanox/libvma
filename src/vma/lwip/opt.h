@@ -388,6 +388,14 @@
 #define LWIP_TCP                        1
 
 /**
+ * TCP_QUICKACK_THRESHOLD: TCP quickack threshold (bytes)
+ * Quickack will be sent for payload <= TCP_QUICKACK_THRESHOLD.
+ * if TCP_QUICKACK_THRESHOLD = 0, quickack threshold is disabled.
+ * The threshold is effective only when TCP_QUICKACK is enabled.
+ */
+#define TCP_QUICKACK_THRESHOLD          0
+
+/**
  * TCP_WND: The size of a TCP window.  This must be at least
  * (2 * TCP_MSS) for things to work well
  */

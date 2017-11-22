@@ -71,7 +71,6 @@ static err_t tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data);
 static err_t tcp_timewait_input(struct tcp_pcb *pcb, tcp_in_data* in_data);
 static s8_t tcp_quickack(struct tcp_pcb *pcb, tcp_in_data* in_data);
 
-#define LWIP_TCP_QUICKACK_BYTES_THRESHOLD 0
 /**
  * Send quickack if TCP_QUICKACK was enabled
  * Change LWIP_TCP_QUICKACK_THRESHOLD value in order to send quickacks
@@ -80,8 +79,8 @@ static s8_t tcp_quickack(struct tcp_pcb *pcb, tcp_in_data* in_data);
 s8_t
 tcp_quickack(struct tcp_pcb *pcb, tcp_in_data* in_data)
 {
-#if LWIP_TCP_QUICKACK_BYTES_THRESHOLD
-	return pcb->quickack && in_data->tcplen <= LWIP_TCP_QUICKACK_BYTES_THRESHOLD;
+#if TCP_QUICKACK_THRESHOLD
+	return pcb->quickack && in_data->tcplen <= TCP_QUICKACK_THRESHOLD;
 #else
 	LWIP_UNUSED_ARG(in_data);
 	return pcb->quickack;
