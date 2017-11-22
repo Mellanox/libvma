@@ -510,7 +510,7 @@ void ring_bond::mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc)
 void ring_bond_eth::create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t vlan)
 {
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
-		m_bond_rings[i] = new ring_eth(local_if, &p_ring_info[i], 1, active_slaves[i], vlan, get_mtu(), this);
+		m_bond_rings[i] = new ring_eth(local_if, &p_ring_info[i], 1, active_slaves[i], vlan, m_mtu, this);
 		if (m_min_devices_tx_inline < 0)
 			m_min_devices_tx_inline = m_bond_rings[i]->get_max_tx_inline();
 		else
@@ -527,7 +527,7 @@ void ring_bond_eth::create_slave_list(in_addr_t local_if, ring_resource_creation
 void ring_bond_ib::create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t pkey)
 {
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
-		m_bond_rings[i] = new ring_ib(local_if, &p_ring_info[i], 1, active_slaves[i], pkey, get_mtu(), this); // get_mtu() reads the MTU from ifconfig when created. Now passing it to its slaves. could have sent 0 here, as the MTU of the bond is already on the bond
+		m_bond_rings[i] = new ring_ib(local_if, &p_ring_info[i], 1, active_slaves[i], pkey, m_mtu, this); // m_mtu is the value from ifconfig when ring created. Now passing it to its slaves. could have sent 0 here, as the MTU of the bond is already on the bond
 		if (m_min_devices_tx_inline < 0)
 			m_min_devices_tx_inline = m_bond_rings[i]->get_max_tx_inline();
 		else

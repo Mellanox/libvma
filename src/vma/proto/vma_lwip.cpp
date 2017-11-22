@@ -152,7 +152,7 @@ vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip")
 	register_tcp_seg_free(sockinfo_tcp::tcp_seg_free);
 	register_ip_output(sockinfo_tcp::ip_output);
 	register_tcp_state_observer(sockinfo_tcp::tcp_state_observer);
-	register_ip_route_mtu(vma_ip_route_mtu);
+	register_ip_route_mtu(sockinfo_tcp::get_route_mtu);
 	register_sys_now(sys_now);
 
 	//tcp_ticks increases in the rate of tcp slow_timer
@@ -193,34 +193,6 @@ int vma_lwip::sockaddr2ipaddr(const sockaddr *__to, socklen_t __tolen, ip_addr_t
     #pragma BullseyeCoverage on
 #endif
 
-u16_t vma_lwip::vma_ip_route_mtu(ip_addr_t *dest)
-{
-	struct sockaddr_in addr;
-	int ifmtu = 0;
-
-	addr.sin_family = AF_INET;
-	addr.sin_port = 0;
-	
-	in_addr_t dst_ip	= dest->addr;
-	in_addr_t src_ip	= 0;
-	uint8_t tos		= 0;
-	route_result		res;
-	g_p_route_table_mgr->route_resolve(route_rule_table_key(dst_ip, src_ip, tos), res);
-	addr.sin_addr.s_addr = res.p_src;
-	net_device_val* ndv = g_p_net_device_table_mgr->get_net_device_val(addr.sin_addr.s_addr);
-	if (ndv) {
-		ifmtu = ndv->get_mtu();
-	}
-	// override with mtu route if exist
-	if (res.mtu > 0) {
-		ifmtu = res.mtu;
-	}
-	if (ifmtu <= 0) {
-		return 0;
-	}
-
-	return ifmtu;
-}
 
 void vma_lwip::handle_timer_expired(void* user_data) {
 	NOT_IN_USE(user_data);

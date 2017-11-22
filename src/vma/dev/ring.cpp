@@ -32,6 +32,7 @@
 
 
 #include "ring.h"
+#include "vma/proto/route_table_mgr.h"
 
 #undef  MODULE_NAME
 #define MODULE_NAME     "ring"
@@ -47,6 +48,17 @@ ring::ring(int count, uint32_t mtu) :
 	INIT_LIST_HEAD(&m_ec_list);
 	m_vma_poll_completion = NULL;
 #endif // DEFINED_VMAPOLL	
+}
+
+uint32_t ring::get_mtu(const route_rule_table_key &key)
+{
+	route_result res;
+
+	g_p_route_table_mgr->route_resolve(key, res);
+	if (res.mtu) {
+		return res.mtu;
+	}
+	return m_mtu;
 }
 
 int ring::get_rx_channel_fds_index(uint32_t index) const {
