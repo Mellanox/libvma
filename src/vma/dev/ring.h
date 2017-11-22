@@ -53,6 +53,7 @@ class rfs;
 class cq_mgr;
 class L2_address;
 class buffer_pool;
+class route_rule_table_key;
 
 #define RING_LOCK_AND_RUN(__lock__, __func_and_params__) 	\
 		__lock__.lock(); __func_and_params__; __lock__.unlock();
@@ -321,7 +322,7 @@ public:
 	ring*			get_parent() { return m_parent; };
 	virtual ring_user_id_t	generate_id() = 0;
 	virtual ring_user_id_t	generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port) = 0;
-	uint32_t		get_mtu() {return m_mtu;};
+	uint32_t		get_mtu(const route_rule_table_key &key);
 	bool			is_mp_ring() {return m_is_mp_ring;};
 	virtual int		modify_ratelimit(const uint32_t ratelimit_kbps) = 0;
 	virtual bool		is_ratelimit_supported(uint32_t rate) = 0;
@@ -375,7 +376,7 @@ protected:
 	int*			m_p_n_rx_channel_fds;
 	ring*			m_parent;
 	bool			m_is_mp_ring;
-
+	uint32_t		m_mtu;
 #ifdef DEFINED_VMAPOLL	
 	/* queue of event completion elements
 	 * this queue is stored events related different sockinfo (sockets)
@@ -391,14 +392,10 @@ protected:
 	 * storing them in the queue of event completion elements
 	 */
 	struct vma_completion_t* m_vma_poll_completion;
-#endif // DEFINED_VMAPOLL	
-
 private:
-#ifdef DEFINED_VMAPOLL	
 	/* This flag is enabled in case vma_poll() call is done */
 	bool                     m_vma_active;
-#endif // DEFINED_VMAPOLL	
-	uint32_t		m_mtu;
+#endif // DEFINED_VMAPOLL
 };
 
 #endif /* RING_H */
