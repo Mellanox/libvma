@@ -262,7 +262,7 @@ private:
 	rfs();		// I don't want anyone to use the default constructor
 	inline void 		prepare_filter_attach(int& filter_counter, rule_filter_map_t::iterator& filter_iter);
 	inline void 		filter_keep_attached(rule_filter_map_t::iterator& filter_iter);
-	inline void 		prepare_filter_detach(int& filter_counter);
+	inline void 		prepare_filter_detach(int& filter_counter, bool decrease_counter);
 
 };
 
