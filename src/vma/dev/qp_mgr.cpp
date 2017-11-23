@@ -65,9 +65,6 @@ qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context,
 		const uint8_t port_num, const uint32_t tx_num_wr):
 	m_qp(NULL)
 	,m_p_rq_wqe_idx_to_wrid(NULL)
-#ifdef DEFINED_VMAPOLL
-	,m_mlx5_hw_qp(NULL)
-#endif
 	,m_p_ring((ring_simple*)p_ring)
 	,m_port_num((uint8_t)port_num)
 	,m_p_ib_ctx_handler((ib_ctx_handler*)p_context)
@@ -229,10 +226,6 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	m_p_ahc_head = NULL;
 	m_p_ahc_tail = NULL;
 
-#ifdef DEFINED_VMAPOLL
-	struct verbs_qp *vqp = (struct verbs_qp *)m_qp;
-	m_mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
-#endif //DEFINED_VMAPOLL
 	if (m_p_cq_mgr_tx) {
 		m_p_cq_mgr_tx->add_qp_tx(this);
 	}

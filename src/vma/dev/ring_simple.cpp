@@ -1223,9 +1223,8 @@ int ring_simple::xtreme_poll(struct vma_completion_t *vma_completions, unsigned 
 				 * in right order. It is done to avoid locking and
 				 * may be it is not so critical
 				 */
-#ifdef DEFINED_VMAPOLL
 				mem_buf_desc_t *desc;
-				if (likely(m_p_cq_mgr_rx->vma_poll_and_process_element_rx(&desc))) {
+				if (likely(m_p_cq_mgr_rx->poll_and_process_element_rx(&desc))) {
 					desc->rx.vma_polled = true;
 					rx_process_buffer(desc, NULL);
 					if (xtreme.m_vma_poll_completion->events) {
@@ -1235,7 +1234,6 @@ int ring_simple::xtreme_poll(struct vma_completion_t *vma_completions, unsigned 
 				} else {
 					break;
 				}
-#endif // DEFINED_VMAPOLL
 			}
 		}
 

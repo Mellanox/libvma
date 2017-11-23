@@ -148,9 +148,6 @@ public:
 protected:
 	struct ibv_qp*      m_qp;
 	uint64_t*           m_p_rq_wqe_idx_to_wrid;
-#ifdef DEFINED_VMAPOLL
-	struct mlx5_qp*	    m_mlx5_hw_qp;
-#endif // DEFINED_VMAPOLL
 
 	ring_simple*        m_p_ring;
 	uint8_t             m_port_num;

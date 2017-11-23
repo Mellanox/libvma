@@ -61,6 +61,9 @@ public:
 	inline void                 cqe64_to_mem_buff_desc(struct mlx5_cqe64 *cqe, mem_buf_desc_t* p_rx_wc_buf_desc, enum buff_status_e& status);
 	virtual int                 drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id = NULL);
 	virtual int                 poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
+#ifdef DEFINED_VMAPOLL
+	virtual int                 poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst);
+#endif // DEFINED_VMAPOLL
 	virtual int                 poll_and_process_element_tx(uint64_t* p_cq_poll_sn);
 	int                         poll_and_process_error_element_tx(struct mlx5_cqe64 *cqe, uint64_t* p_cq_poll_sn);
 
@@ -73,6 +76,14 @@ public:
 	virtual int                 request_notification(uint64_t poll_sn);
 	virtual int                 wait_for_notification_and_process_element(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 
+#ifdef DEFINED_VMAPOLL
+	inline volatile struct mlx5_cqe64 *mlx5_get_cqe64(void);
+	inline volatile struct mlx5_cqe64 *mlx5_get_cqe64(volatile struct mlx5_cqe64 **cqe_err);
+	volatile struct mlx5_cqe64 *mlx5_check_error_completion(volatile struct mlx5_cqe64 *cqe, volatile uint16_t *ci, uint8_t op_own);
+	inline void mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, vma_ibv_wc *wce);
+	int mlx5_poll_and_process_error_element_rx(volatile struct mlx5_cqe64 *cqe, void* pv_fd_ready_array);
+#endif // DEFINED_VMAPOLL
+
 protected:
 	inline struct mlx5_cqe64*   check_cqe(void);
 
@@ -84,8 +95,18 @@ protected:
 	int                         m_cqe_log_sz;
 
 private:
+	const uint32_t		m_n_sysvar_rx_num_wr_to_post_recv;
+
+#ifdef DEFINED_VMAPOLL
+	mem_buf_desc_t* 	m_rx_hot_buff;
+	int 			m_cq_sz;
+	uint16_t		m_cq_ci;
+	volatile struct		mlx5_cqe64 	(*m_mlx5_cqes)[];
+	volatile uint32_t 	*m_cq_db;
+#endif // DEFINED_VMAPOLL
+
 	mem_buf_desc_t              *m_rx_hot_buffer;
-	qp_mgr_eth_mlx5*            m_qp; //for tx
+	qp_mgr_eth_mlx5*            m_qp;
 	struct mlx5_cq*             m_mlx5_cq;
 
 	void                        cqe64_to_vma_wc(struct mlx5_cqe64 *cqe, vma_ibv_wc *wc);

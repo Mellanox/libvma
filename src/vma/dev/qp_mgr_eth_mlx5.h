@@ -61,6 +61,10 @@ protected:
 	uint64_t            m_rq_wqe_counter;
 	uint64_t*           m_rq_wqe_idx_to_wrid;
 
+#ifdef DEFINED_VMAPOLL
+	struct mlx5_qp*	    m_mlx5_hw_qp;
+#endif // DEFINED_VMAPOLL
+
 private:
 	cq_mgr*		init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_channel);
 	virtual cq_mgr* init_tx_cq_mgr(void);

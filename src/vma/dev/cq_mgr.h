@@ -143,13 +143,6 @@ public:
 	 */
 	virtual int	wait_for_notification_and_process_element(uint64_t* p_cq_poll_sn,
 	   	                                          void* pv_fd_ready_array = NULL);
-#ifdef DEFINED_VMAPOLL
-	inline volatile struct mlx5_cqe64 *mlx5_get_cqe64(void);
-	inline volatile struct mlx5_cqe64 *mlx5_get_cqe64(volatile struct mlx5_cqe64 **cqe_err);
-	volatile struct mlx5_cqe64 *mlx5_check_error_completion(volatile struct mlx5_cqe64 *cqe, volatile uint16_t *ci, uint8_t op_own);
-	inline void mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, vma_ibv_wc *wce);
-	int mlx5_poll_and_process_error_element_rx(volatile struct mlx5_cqe64 *cqe, void* pv_fd_ready_array);
-#endif // DEFINED_VMAPOLL
 
 	/**
 	 * This will poll n_num_poll time on the cq or stop early if it gets
@@ -160,6 +153,8 @@ public:
 	 */
 	virtual int	poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	virtual int	poll_and_process_element_tx(uint64_t* p_cq_poll_sn);
+
+	virtual int	poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst) { NOT_IN_USE(p_desc_lst); return 0; }
 
 	/**
 	 * This will check if the cq was drained, and if it wasn't it will drain it.
@@ -217,7 +212,7 @@ protected:
 	 * - for Tx wce the data buffers will be released to the associated ring before the mem_buf_desc are returned
 	 */
 	mem_buf_desc_t* process_cq_element_tx(vma_ibv_wc* p_wce);
-	virtual         mem_buf_desc_t* process_cq_element_rx(vma_ibv_wc* p_wce);
+	mem_buf_desc_t* process_cq_element_rx(vma_ibv_wc* p_wce);
 	void            reclaim_recv_buffer_helper(mem_buf_desc_t* buff);
 
 	// Returns true if the given buffer was used,
@@ -249,20 +244,10 @@ protected:
 	const uint32_t		m_n_sysvar_rx_prefetch_bytes;
 	size_t			m_sz_transport_header;
 
-private:
-#ifdef DEFINED_VMAPOLL
-	mem_buf_desc_t* 	m_rx_hot_buff;
-	qp_mgr*			m_qp;
-	struct mlx5_cq* 	m_mlx5_cq;
-	int 			m_cq_sz;
-	uint16_t		m_cq_ci;
-	volatile struct		mlx5_cqe64 	(*m_mlx5_cqes)[];
-	volatile uint32_t 	*m_cq_db;
-#endif // DEFINED_VMAPOLL
 protected:
 	ib_ctx_handler*		m_p_ib_ctx_handler;
+
 private:
-	const uint32_t		m_n_sysvar_rx_num_wr_to_post_recv;
 	const bool		m_b_sysvar_is_rx_sw_csum_on;
 	struct ibv_comp_channel *m_comp_event_channel;
 	bool			m_b_notification_armed;
@@ -280,10 +265,6 @@ private:
 	 */
 	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_head;
 	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_tail;
-
-#ifdef DEFINED_VMAPOLL
-	int	vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst);
-#endif // DEFINED_VMAPOLL
 
 	void		handle_tcp_ctl_packets(uint32_t rx_processed, void* pv_fd_ready_array);
 
