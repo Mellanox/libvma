@@ -49,7 +49,7 @@ inline void rfs::prepare_filter_attach(int& filter_counter, rule_filter_map_t::i
 
 	filter_iter = m_p_rule_filter->m_map.find(m_p_rule_filter->m_key);
 	if (filter_iter == m_p_rule_filter->m_map.end()) {
-		rfs_logdbg("No matching counter for filter!!!");
+		rfs_logdbg("No matching counter for filter");
 		return;
 	}
 
@@ -131,10 +131,8 @@ rfs::~rfs()
 			destroy_ibv_flow();
 			m_p_rule_filter->m_map.erase(m_p_rule_filter->m_key);
 		}
-	} else {
-		if (m_b_tmp_is_attached) {
-			destroy_ibv_flow();
-		}
+	} else if (m_b_tmp_is_attached) {
+		destroy_ibv_flow();
 	}
 
 	if (m_p_rule_filter) {
