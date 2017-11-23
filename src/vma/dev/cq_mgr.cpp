@@ -92,6 +92,7 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 	,m_n_sysvar_rx_prefetch_bytes(safe_mce_sys().rx_prefetch_bytes)
 	,m_sz_transport_header(0)
 	,m_p_ib_ctx_handler(p_ib_ctx_handler)
+	,m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv)
 	,m_b_sysvar_is_rx_sw_csum_on(safe_mce_sys().rx_sw_csum)
 	,m_comp_event_channel(p_comp_event_channel)
 	,m_b_notification_armed(false)
@@ -256,7 +257,7 @@ void cq_mgr::add_qp_rx(qp_mgr* qp)
 	uint32_t qp_rx_wr_num = qp->get_rx_max_wr_num();
 	cq_logdbg("Trying to push %d WRE to allocated qp (%p)", qp_rx_wr_num, qp);
 	while (qp_rx_wr_num) {
-		uint32_t n_num_mem_bufs = safe_mce_sys().rx_num_wr_to_post_recv;
+		uint32_t n_num_mem_bufs = m_n_sysvar_rx_num_wr_to_post_recv;
 		if (n_num_mem_bufs > qp_rx_wr_num)
 			n_num_mem_bufs = qp_rx_wr_num;
 		p_temp_desc_list = g_buffer_pool_rx->get_buffers_thread_safe(n_num_mem_bufs, m_rx_lkey);
@@ -396,15 +397,12 @@ int cq_mgr::poll(vma_ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn)
 	TAKE_POLL_CQ_IN;
 #endif
 
-#ifdef DEFINED_VMAPOLL
-#else
 	if (unlikely(g_vlogger_level >= VLOG_FUNC_ALL)) {
 		for (int i = 0; i < ret; i++) {
 			cq_logfuncall("wce[%d] info wr_id=%x, status=%x, opcode=%x, vendor_err=%x, byte_len=%d, imm_data=%x", i, p_wce[i].wr_id, p_wce[i].status, vma_wc_opcode(p_wce[i]), p_wce[i].vendor_err, p_wce[i].byte_len, p_wce[i].imm_data);
 			cq_logfuncall("qp_num=%x, src_qp=%x, wc_flags=%x, pkey_index=%x, slid=%x, sl=%x, dlid_path_bits=%x", p_wce[i].qp_num, p_wce[i].src_qp, vma_wc_flags(p_wce[i]), p_wce[i].pkey_index, p_wce[i].slid, p_wce[i].sl, p_wce[i].dlid_path_bits);
 		}
 	}
-#endif
 
 	// spoil the global sn if we have packets ready
 	union __attribute__((packed)) {
@@ -543,6 +541,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 		//we use context to verify that on reclaim rx buffer path we return the buffer to the right CQ
 		p_mem_buf_desc->rx.is_vma_thr = false;
 		p_mem_buf_desc->rx.context = this;
+		p_mem_buf_desc->rx.vma_polled = false;
 
 		//this is not a deadcode if timestamping is defined in verbs API
 		// coverity[dead_error_condition]
@@ -564,28 +563,20 @@ bool cq_mgr::compensate_qp_poll_success(mem_buf_desc_t* buff_cur)
 {
 	// Assume locked!!!
 	// Compensate QP for all completions that we found
-	if (IS_VMAPOLL || likely(m_qp_rec.qp)) {
-#ifndef DEFINED_VMAPOLL // not defined
-		++m_qp_rec.debth;
-		if (likely(m_qp_rec.debth < (int)m_n_sysvar_rx_num_wr_to_post_recv)) {
-			return false;
-		}
-#endif // DEFINED_VMAPOLL
 		
-		if (m_rx_pool.size() || request_more_buffers()) {
-			do {
-				mem_buf_desc_t *buff_new = m_rx_pool.get_and_pop_front();
-				m_qp_rec.qp->post_recv(buff_new);
-			} while (--m_qp_rec.debth > 0 && m_rx_pool.size());
-			m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
-		}
-		else if (m_b_sysvar_cq_keep_qp_full ||
-				m_qp_rec.debth + MCE_MAX_CQ_POLL_BATCH > (int)m_qp_rec.qp->get_rx_max_wr_num()) {
-			m_p_cq_stat->n_rx_pkt_drop++;
-			m_qp_rec.qp->post_recv(buff_cur);
-			--m_qp_rec.debth;
-			return true;
-		}
+	if (m_rx_pool.size() || request_more_buffers()) {
+		do {
+			mem_buf_desc_t *buff_new = m_rx_pool.get_and_pop_front();
+			m_qp_rec.qp->post_recv(buff_new);
+		} while (--m_qp_rec.debth > 0 && m_rx_pool.size());
+		m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
+	}
+	else if (m_b_sysvar_cq_keep_qp_full ||
+			m_qp_rec.debth + MCE_MAX_CQ_POLL_BATCH > (int)m_qp_rec.qp->get_rx_max_wr_num()) {
+		m_p_cq_stat->n_rx_pkt_drop++;
+		m_qp_rec.qp->post_recv(buff_cur);
+		--m_qp_rec.debth;
+		return true;
 	}
 
 	return false;
@@ -695,7 +686,8 @@ int cq_mgr::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_read
 			mem_buf_desc_t *buff = process_cq_element_rx((&wce[i]));
 			if (buff) {
 				if (vma_wc_opcode(wce[i]) & VMA_IBV_WC_RECV) {
-					if (!compensate_qp_poll_success(buff)) {
+					if ((++m_qp_rec.debth < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
+							!compensate_qp_poll_success(buff)) {
 						process_recv_buffer(buff, pv_fd_ready_array);
 					}
 				}
@@ -869,14 +861,16 @@ int cq_mgr::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/
 					// We process immediately all non udp/ip traffic..
 					if (procces_now) {
 						buff->rx.is_vma_thr = true;
-						if (!compensate_qp_poll_success(buff)) {
+						if ((++m_qp_rec.debth < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
+								!compensate_qp_poll_success(buff)) {
 							process_recv_buffer(buff, NULL);
 						}
 					}
 					else { //udp/ip traffic we just put in the cq's rx queue
 						m_rx_queue.push_back(buff);
 						mem_buf_desc_t* buff_cur = m_rx_queue.get_and_pop_front();
-						if (!compensate_qp_poll_success(buff_cur)) {
+						if ((++m_qp_rec.debth < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
+								!compensate_qp_poll_success(buff_cur)) {
 							m_rx_queue.push_front(buff_cur);
 						}
 					}
