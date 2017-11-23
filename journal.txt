@@ -1,3 +1,17 @@
+Version 8.4.10-0:
+Date + Time 2017-11-23
+=============================================================
+Added:
+        - RM #1207424 Send quickack depending on the payload size
+        - RM #1179641 Add MTU find logic to ring
+        - RM #1190606 VMA stats - Remove timewait interval in last cycle
+Fixed:
+        - RM #1192017 Fix ibv_destroy_cq() failure while VMA_TCP_3T_RULES=1
+        - RM #1213984 Use dst_enty to find the route MTU
+        - RM #1175479 Inherit missing properties from the parent
+        - RM #1175657 Fix ring statistics are not updated was flowtag is enabled
+        - RM #1201040 Fix VMA_BUFFER_BATCHING_MODE is ignored while set from spec
+
 Version 8.4.9-0:
 Date + Time 2017-11-13
 =============================================================
