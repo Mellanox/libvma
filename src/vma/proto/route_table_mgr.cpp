@@ -519,17 +519,18 @@ void route_table_mgr::update_invalid_entries()
 #endif
 
 //code coverage
-#if 0
 void route_table_mgr::del_route_event(route_val &netlink_route_val)
 {
 	in_addr_t del_dst_addr = netlink_route_val.get_dst_addr();
 	in_addr_t del_dst_mask = netlink_route_val.get_dst_mask();
 	char *del_if_name = (char *) netlink_route_val.get_if_name();
 
-	rt_mgr_logdbg("netlink event- route deleted: dst '%d.%d.%d.%d', netmask '%d.%d.%d.%d', interface '%s'", NIPQUAD(del_dst_addr), NIPQUAD(del_dst_mask), del_if_name);
+	rt_mgr_logdbg("netlink event- route deleted: dst '%d.%d.%d.%d', "
+			"netmask '%d.%d.%d.%d', interface '%s'",
+			NIPQUAD(del_dst_addr), NIPQUAD(del_dst_mask), del_if_name);
 
 	route_val* p_val_from_tbl = find_route_val(netlink_route_val);
-	if(p_val_from_tbl) {
+	if (p_val_from_tbl) {
 		rt_mgr_logdbg("found deleted route val[%p]: %s", p_val_from_tbl, p_val_from_tbl->to_str());
 		p_val_from_tbl->set_deleted();
 		p_val_from_tbl->set_state(false);
@@ -537,12 +538,15 @@ void route_table_mgr::del_route_event(route_val &netlink_route_val)
 	}
 	rt_mgr_logdbg("route does not exist!");
 
-	if (g_vlogger_level >= VLOG_FUNC) {
-		print_route_tbl();
+	if (unlikely(g_vlogger_level >= VLOG_FUNC)) {
+		route_val *p_rtv;
+		for (int i = 0; i < m_tab.entries_num; i++) {
+			p_rtv = &m_tab.value[i];
+			p_rtv->print_val();
+		}
 	}
 	update_invalid_entries();
 }
-#endif
 
 void route_table_mgr::new_route_event(route_val* netlink_route_val)
 {
@@ -601,11 +605,9 @@ void route_table_mgr::notify_cb(event *ev)
 		case RTM_NEWROUTE:
 			new_route_event(p_netlink_route_info->get_route_val());
 			break;
-#if 0
 		case RTM_DELROUTE:
-			del_route_event(p_netlink_route_info->get_route_val());
+			del_route_event(*p_netlink_route_info->get_route_val());
 			break;
-#endif
 		default:
 			rt_mgr_logdbg("Route event (%u) is not handled", route_netlink_ev->nl_type);
 			break;
