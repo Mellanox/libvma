@@ -103,7 +103,7 @@ uint32_t cq_mgr_mlx5::clean_cq()
 	}
 
 	return ret_total;
-#endif
+#endif // DEFINED_VMAPOLL
 }
 
 cq_mgr_mlx5::~cq_mgr_mlx5()
@@ -325,7 +325,7 @@ int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=N
 			m_rx_hot_buffer = (mem_buf_desc_t*)(uintptr_t)m_qp->m_p_rq_wqe_idx_to_wrid[index];
 			memset(&wce, 0, sizeof(wce));
 			wce.wr_id = (uintptr_t)m_rx_hot_buffer;
-			mlx5_cqe64_to_vma_wc(cqe, &wce);
+			cqe64_to_vma_wc(cqe, &wce);
 
 			m_rx_hot_buffer = cq_mgr::process_cq_element_rx(&wce);
 			if (m_rx_hot_buffer) {
@@ -556,7 +556,7 @@ int cq_mgr_mlx5::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd
 			m_rx_hot_buffer = NULL;
 		}
 		else if (cqe_err) {
-			ret_rx_processed += mlx5_poll_and_process_error_element_rx(cqe_err, pv_fd_ready_array);
+			ret_rx_processed += poll_and_process_error_element_rx(cqe_err, pv_fd_ready_array);
 		}
 		else {
 			compensate_qp_poll_failed();
@@ -608,7 +608,6 @@ int cq_mgr_mlx5::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd
 #endif // DEFINED_VMAPOLL
 }
 
-#ifdef DEFINED_VMAPOLL
 int cq_mgr_mlx5::poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 {
 	int packets_num = 0;
@@ -651,7 +650,7 @@ int cq_mgr_mlx5::poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 		/* Return nothing in case error wc
 		 * It is difference with poll_and_process_element_rx()
 		 */
-		mlx5_poll_and_process_error_element_rx(cqe_err, NULL);
+		poll_and_process_error_element_rx(cqe_err, NULL);
 		*p_desc_lst = NULL;
 	}
 	else {
@@ -672,7 +671,6 @@ int cq_mgr_mlx5::poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 	return packets_num;
 
 }
-#endif // DEFINED_VMAPOLL
 
 inline void cq_mgr_mlx5::cqe64_to_vma_wc(struct mlx5_cqe64 *cqe, vma_ibv_wc *wc)
 {
@@ -729,11 +727,12 @@ inline struct mlx5_cqe64 *cq_mgr_mlx5::get_cqe64(struct mlx5_cqe64 **cqe_err)
 			((m_cq_cons_index & (m_cq_size - 1)) << m_cqe_log_sz));
 	uint8_t op_own = cqe->op_own;
 
-	*cqe_err = NULL;
 	if (unlikely((op_own & MLX5_CQE_OWNER_MASK) == !(m_cq_cons_index & m_cq_size))) {
 		return NULL;
 	} else if (unlikely(op_own & 0x80)) {
-		*cqe_err = check_error_completion(cqe, &m_cq_cons_index, op_own);
+		if (cqe_err) {
+			*cqe_err = check_error_completion(cqe, &m_cq_cons_index, op_own);
+		}
 		return NULL;
 	}
 
@@ -876,14 +875,13 @@ void cq_mgr_mlx5::add_qp_tx(qp_mgr* qp)
 	cq_logfunc("qp_mgr=%p m_cq_dbell=%p m_cqes=%p", m_qp, m_cq_dbell, m_cqes);
 }
 
-#ifdef DEFINED_VMAPOLL
-int cq_mgr_mlx5::mlx5_poll_and_process_error_element_rx(struct mlx5_cqe64 *cqe, void* pv_fd_ready_array)
+int cq_mgr_mlx5::poll_and_process_error_element_rx(struct mlx5_cqe64 *cqe, void* pv_fd_ready_array)
 {
 	vma_ibv_wc wce;
 
 	memset(&wce, 0, sizeof(wce));
 	wce.wr_id = (uintptr_t)m_rx_hot_buffer;
-	mlx5_cqe64_to_vma_wc(cqe, &wce);
+	cqe64_to_vma_wc(cqe, &wce);
 
 	++m_n_wce_counter;
 	++m_qp->m_hw_qp->rq.tail;
@@ -900,55 +898,6 @@ int cq_mgr_mlx5::mlx5_poll_and_process_error_element_rx(struct mlx5_cqe64 *cqe, 
 	m_rx_hot_buffer = NULL;
 
 	return 1;
-}
-
-inline void cq_mgr_mlx5::mlx5_cqe64_to_vma_wc(struct mlx5_cqe64 *cqe, vma_ibv_wc *wc)
-{
-	struct mlx5_err_cqe *ecqe;
-	ecqe = (struct mlx5_err_cqe *)cqe;
-
-	switch (cqe->op_own >> 4) {
-	case MLX5_CQE_RESP_WR_IMM:
-		cq_logerr("IBV_WC_RECV_RDMA_WITH_IMM is not supported");
-		break;
-	case MLX5_CQE_RESP_SEND:
-	case MLX5_CQE_RESP_SEND_IMM:
-	case MLX5_CQE_RESP_SEND_INV:
-		vma_wc_opcode(*wc) = VMA_IBV_WC_RECV;
-		wc->byte_len = ntohl(cqe->byte_cnt);
-		wc->status = IBV_WC_SUCCESS;
-		return;
-	case MLX5_CQE_REQ:
-		wc->status = IBV_WC_SUCCESS;
-		return;
-	default:
-		break;
-	}
-
-	/* Only IBV_WC_WR_FLUSH_ERR is used in code */
-	if (MLX5_CQE_SYNDROME_WR_FLUSH_ERR == ecqe->syndrome) {
-		wc->status = IBV_WC_WR_FLUSH_ERR;
-	} else {
-		wc->status = IBV_WC_GENERAL_ERR;
-	}
-
-	wc->vendor_err = ecqe->vendor_err_synd;
-}
-
-struct mlx5_cqe64 *cq_mgr_mlx5::mlx5_check_error_completion(struct mlx5_cqe64 *cqe, uint32_t *ci, uint8_t op_own)
-{
-	switch (op_own >> 4) {
-		case MLX5_CQE_INVALID:
-			return NULL; /* No CQE */
-		case MLX5_CQE_REQ_ERR:
-		case MLX5_CQE_RESP_ERR:
-			++(*ci);
-			rmb();
-			*m_cq_dbell = htonl(m_cq_cons_index);
-			return cqe;
-		default:
-			return NULL;
-	}
 }
 
 inline struct mlx5_cqe64 *cq_mgr_mlx5::mlx5_get_cqe64(void)
@@ -969,27 +918,5 @@ inline struct mlx5_cqe64 *cq_mgr_mlx5::mlx5_get_cqe64(void)
 
 	return cqe;
 }
-
-inline struct mlx5_cqe64 *cq_mgr_mlx5::mlx5_get_cqe64(struct mlx5_cqe64 **cqe_err)
-{
-	struct mlx5_cqe64 *cqe = (struct mlx5_cqe64 *)(((uint8_t*)m_cqes) +
-			((m_cq_cons_index & (m_cq_size - 1)) << m_cqe_log_sz));
-	uint8_t op_own = cqe->op_own;
-
-	*cqe_err = NULL;
-	if (unlikely((op_own & MLX5_CQE_OWNER_MASK) == !(m_cq_cons_index & m_cq_size))) {
-		return NULL;
-	} else if (unlikely(op_own & 0x80)) {
-		*cqe_err = mlx5_check_error_completion(cqe, &m_cq_cons_index, op_own);
-		return NULL;
-	}
-
-	++m_cq_cons_index;
-	rmb();
-	*m_cq_dbell = htonl(m_cq_cons_index);
-
-	return cqe;
-}
-#endif // DEFINED_VMAPOLL
 
 #endif//HAVE_INFINIBAND_MLX5_HW_H
