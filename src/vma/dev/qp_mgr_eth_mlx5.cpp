@@ -86,9 +86,6 @@ void qp_mgr_eth_mlx5::init_sq()
 
 	struct verbs_qp *vqp = (struct verbs_qp *)m_qp;
 	m_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
-#ifdef DEFINED_VMAPOLL
-	m_mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
-#endif //DEFINED_VMAPOLL
 	m_qp_num	 = m_hw_qp->ctrl_seg.qp_num;
 	m_sq_wqes	 = (struct mlx5_wqe64 (*)[])(uintptr_t)m_hw_qp->gen_data.sqstart;
 	m_sq_wqe_hot	 = &(*m_sq_wqes)[0];
@@ -144,9 +141,6 @@ qp_mgr_eth_mlx5::qp_mgr_eth_mlx5(const ring_simple* p_ring, const ib_ctx_handler
 	,m_sq_wqe_idx_to_wrid(NULL)
 	,m_rq_wqe_counter(0)
 	,m_rq_wqe_idx_to_wrid(NULL)
-#ifdef DEFINED_VMAPOLL
-	,m_mlx5_hw_qp(NULL)
-#endif
 	,m_sq_wqes(NULL)
 	,m_sq_wqe_hot(NULL)
 	,m_sq_wqes_end(NULL)
