@@ -478,11 +478,7 @@ mem_buf_desc_t* cq_mgr_mlx5::process_cq_element_rx(mem_buf_desc_t* p_mem_buf_des
 
 	/* we use context to verify that on reclaim rx buffer path we return the buffer to the right CQ */
 	p_mem_buf_desc->rx.is_vma_thr = false;
-#ifdef DEFINED_VMAPOLL
 	p_mem_buf_desc->rx.context = NULL;
-#else
-	p_mem_buf_desc->rx.context = this;
-#endif // DEFINED_VMAPOLL
 	p_mem_buf_desc->rx.vma_polled = false;
 
 	if (unlikely((status != BS_OK) ||

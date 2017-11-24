@@ -1513,9 +1513,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 	conn->m_connected.get_sa(p_first_desc->rx.src);
 
 	while (p_curr_buff) {
-#ifdef DEFINED_VMAPOLL		
 		p_curr_desc->rx.context = conn;
-#endif // DEFINED_VMAPOLL				
 		p_first_desc->rx.n_frags++;
 		p_curr_desc->rx.frag.iov_base = p_curr_buff->payload;
 		p_curr_desc->rx.frag.iov_len = p_curr_buff->len;
@@ -1601,7 +1599,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 			}
 			// notify io_mux
 			NOTIFY_ON_EVENTS(conn, EPOLLIN);
-		}				
+		}
 		io_mux_call::update_fd_array(conn->m_iomux_ready_fd_array, conn->m_fd);
 
 		if (callback_retval != VMA_PACKET_HOLD) {
@@ -1610,8 +1608,8 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 		} else {
 			conn->m_p_socket_stats->n_rx_zcopy_pkt_count++;
 		}
-	}	
-	
+	}
+
 	/*
 	* RCVBUFF Accounting: tcp_recved here(stream into the 'internal' buffer) only if the user buffer is not 'filled'
 	*/
