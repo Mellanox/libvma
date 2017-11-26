@@ -124,6 +124,10 @@ sockinfo::~sockinfo()
 	// Change to non-blocking socket so calling threads can exit
 	m_b_blocking = false;
 	orig_os_api.close(m_rx_epfd); // this will wake up any blocked thread in rx() call to orig_os_api.epoll_wait()
+	if (m_rings_fds) {
+		delete[] m_rings_fds;
+		m_rings_fds = NULL;
+	}
         vma_stats_instance_remove_socket_block(m_p_socket_stats);
 }
 
