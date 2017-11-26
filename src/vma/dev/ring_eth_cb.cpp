@@ -159,15 +159,17 @@ qp_mgr* ring_eth_cb::create_qp_mgr(const ib_ctx_handler *ib_ctx,
 int ring_eth_cb::allocate_umr_mem()
 {
 	ibv_exp_create_mr_in mrin;
+	ibv_exp_mem_repeat_block* p_mem_rep_list = NULL;
 	ibv_mr* mr = NULL;
 	size_t curr_data_len = 0, packet_len, pad_len, net_len, buffer_size;
 	size_t packets_num = m_strides_num * m_wq_count;
 	uint64_t base_ptr, prev_addr;
-	int index = 0, count = 1, pack_written_size;
+	int index = 0, count = 1, pack_written_size, umr_blocks;
 	const int ndim = 1; // we only use one dimension see UMR docs
+	int retval = 0;
 
 	// the min mr is two one for padding and one for data
-	m_umr_blocks = 2;
+	umr_blocks = 2;
 	if ((m_cb_ring.comp_mask & VMA_CB_HDR_BYTE) && m_cb_ring.hdr_bytes &&
 	    m_cb_ring.packet_receive_mode == RAW_PACKET) {
 		ring_logwarn("bad parameters!, you cannot choose "
@@ -177,39 +179,19 @@ int ring_eth_cb::allocate_umr_mem()
 	}
 
 	if (m_cb_ring.packet_receive_mode != RAW_PACKET) {
-		m_umr_blocks++; // add user_hd\netwrok_hdr
+		umr_blocks++; // add user_hd\netwrok_hdr
 		if ((m_cb_ring.comp_mask & VMA_CB_HDR_BYTE) &&
 		    m_cb_ring.hdr_bytes && m_cb_ring.packet_receive_mode == STRIP_NETWORK_HDRS) {
-			m_umr_blocks++; // strip network hdr
+			umr_blocks++; // strip network hdr
 		}
 	}
 
-	m_p_mem_rep_list = new ibv_exp_mem_repeat_block[m_umr_blocks];
-	if (!m_p_mem_rep_list) {
-		ring_logdbg("Failed to allocate rep_list\n");
-		return -1;
+	p_mem_rep_list = new ibv_exp_mem_repeat_block[umr_blocks];
+	for (int i = 0; i < umr_blocks; i++) {
+		p_mem_rep_list[i].byte_count = new size_t[ndim];
+		p_mem_rep_list[i].stride = new size_t[ndim];
 	}
 
-	for (int i = 0; i < m_umr_blocks; i++) {
-		m_p_mem_rep_list[i].byte_count = new size_t[ndim];
-		if (!m_p_mem_rep_list[i].byte_count) {
-			ring_logdbg("Failed to allocate byte_count\n");
-			goto cleanup;
-		}
-		m_p_mem_rep_list[i].stride = new size_t[ndim];
-		if (!m_p_mem_rep_list[i].stride) {
-			ring_logdbg("Failed to allocate stride\n");
-			goto cleanup;
-		}
-
-	}
-	m_p_rpt_cnt = new size_t[ndim];
-	if (!m_p_rpt_cnt) {
-		ring_logdbg("Failed to allocate rpt_cnt\n");
-		goto cleanup;
-	}
-
-	m_p_rpt_cnt[ndim - 1] = packets_num;
 	if (get_partition()) {
 		net_len = ETH_VLAN_HDR_LEN + sizeof(struct iphdr) + sizeof(struct udphdr);
 	} else {
@@ -236,149 +218,159 @@ int ring_eth_cb::allocate_umr_mem()
 	mr = m_alloc.find_ibv_mr_by_ib_ctx(m_p_ib_ctx);
 	if (unlikely(mr == NULL)) {
 		ring_logerr("could not find mr");
-		return -1;
+		retval = -1;
+		goto cleanup;
 	}
 	packet_len = net_len;
 	switch (m_cb_ring.packet_receive_mode) {
-		case RAW_PACKET:
-			packet_len += m_payload_len;
+	case RAW_PACKET:
+		packet_len += m_payload_len;
+		// for size calculation in read_cyclic
+		m_payload_len = packet_len;
+		m_sge_ptrs[CB_UMR_PAYLOAD] = base_ptr;
+		p_mem_rep_list[index].base_addr = base_ptr;
+		p_mem_rep_list[index].byte_count[0] = packet_len;
+		p_mem_rep_list[index].stride[0] = packet_len;
+		p_mem_rep_list[index].mr = mr;
+		curr_data_len = packets_num * packet_len;
+		prev_addr += curr_data_len;
+		index++;
+	break;
+	case STRIP_NETWORK_HDRS:
+		// network not accessible to application
+		p_mem_rep_list[index].base_addr = base_ptr;
+		p_mem_rep_list[index].byte_count[0] = net_len;
+		// optimize write header to the same place
+		p_mem_rep_list[index].stride[0] = 0;
+		p_mem_rep_list[index].mr = mr;
+		curr_data_len = packets_num * net_len;
+		prev_addr += curr_data_len;
+		index++;
+		if (m_hdr_len) {
+			p_mem_rep_list[index].base_addr = prev_addr;
+			p_mem_rep_list[index].byte_count[0] = m_hdr_len;
+			p_mem_rep_list[index].stride[0] = m_hdr_len;
+			p_mem_rep_list[index].mr = mr;
+			m_sge_ptrs[CB_UMR_HDR] = prev_addr;
+			curr_data_len = packets_num * m_hdr_len;
+			prev_addr += curr_data_len;
+			index++;
+		}
+		p_mem_rep_list[index].base_addr = prev_addr;
+		p_mem_rep_list[index].byte_count[0] = m_payload_len;
+		p_mem_rep_list[index].stride[0] = m_payload_len;
+		p_mem_rep_list[index].mr = mr;
+		m_sge_ptrs[CB_UMR_PAYLOAD] = prev_addr;
+		curr_data_len = packets_num * m_payload_len;
+		prev_addr += curr_data_len;
+		index++;
+	break;
+	case SEPERATE_NETWORK_HDRS:
+		if (m_hdr_len) {
+			packet_len += m_hdr_len;
 			// for size calculation in read_cyclic
-			m_payload_len = packet_len;
-			m_sge_ptrs[CB_UMR_PAYLOAD] = base_ptr;
-			m_p_mem_rep_list[index].base_addr = base_ptr;
-			m_p_mem_rep_list[index].byte_count[0] = packet_len;
-			m_p_mem_rep_list[index].stride[0] = packet_len;
-			m_p_mem_rep_list[index].mr = mr;
-			curr_data_len = packets_num * packet_len;
-			prev_addr += curr_data_len;
-			index++;
+			m_hdr_len = packet_len;
+		} else {
+			m_hdr_len = net_len;
+		}
+		p_mem_rep_list[index].base_addr = base_ptr;
+		p_mem_rep_list[index].byte_count[0] = packet_len;
+		p_mem_rep_list[index].stride[0] = packet_len;
+		p_mem_rep_list[index].mr = mr;
+		m_sge_ptrs[CB_UMR_HDR] = base_ptr;
+		curr_data_len = packets_num * packet_len;
+		prev_addr += curr_data_len;
+		index++;
+		p_mem_rep_list[index].base_addr = prev_addr;
+		p_mem_rep_list[index].byte_count[0] = m_payload_len;
+		p_mem_rep_list[index].stride[0] = m_payload_len;
+		p_mem_rep_list[index].mr = mr;
+		m_sge_ptrs[CB_UMR_PAYLOAD] = prev_addr;
+		curr_data_len = packets_num * m_payload_len;
+		prev_addr += curr_data_len;
+		index++;
 		break;
-		case STRIP_NETWORK_HDRS:
-			// network not accessible to application
-			m_p_mem_rep_list[index].base_addr = base_ptr;
-			m_p_mem_rep_list[index].byte_count[0] = net_len;
-			// optimize write header to the same place
-			m_p_mem_rep_list[index].stride[0] = 0;
-			m_p_mem_rep_list[index].mr = mr;
-			curr_data_len = packets_num * net_len;
-			prev_addr += curr_data_len;
-			index++;
-			if (m_hdr_len) {
-				m_p_mem_rep_list[index].base_addr = prev_addr;
-				m_p_mem_rep_list[index].byte_count[0] = m_hdr_len;
-				m_p_mem_rep_list[index].stride[0] = m_hdr_len;
-				m_p_mem_rep_list[index].mr = mr;
-				m_sge_ptrs[CB_UMR_HDR] = prev_addr;
-				curr_data_len = packets_num * m_hdr_len;
-				prev_addr += curr_data_len;
-				index++;
-			}
-			m_p_mem_rep_list[index].base_addr = prev_addr;
-			m_p_mem_rep_list[index].byte_count[0] = m_payload_len;
-			m_p_mem_rep_list[index].stride[0] = m_payload_len;
-			m_p_mem_rep_list[index].mr = mr;
-			m_sge_ptrs[CB_UMR_PAYLOAD] = prev_addr;
-			curr_data_len = packets_num * m_payload_len;
-			prev_addr += curr_data_len;
-			index++;
-		break;
-		case SEPERATE_NETWORK_HDRS:
-			if (m_hdr_len) {
-				packet_len += m_hdr_len;
-				// for size calculation in read_cyclic
-				m_hdr_len = packet_len;
-			} else {
-				m_hdr_len = net_len;
-			}
-			m_p_mem_rep_list[index].base_addr = base_ptr;
-			m_p_mem_rep_list[index].byte_count[0] = packet_len;
-			m_p_mem_rep_list[index].stride[0] = packet_len;
-			m_p_mem_rep_list[index].mr = mr;
-			m_sge_ptrs[CB_UMR_HDR] = base_ptr;
-			curr_data_len = packets_num * packet_len;
-			prev_addr += curr_data_len;
-			index++;
-			m_p_mem_rep_list[index].base_addr = prev_addr;
-			m_p_mem_rep_list[index].byte_count[0] = m_payload_len;
-			m_p_mem_rep_list[index].stride[0] = m_payload_len;
-			m_p_mem_rep_list[index].mr = mr;
-			m_sge_ptrs[CB_UMR_PAYLOAD] = prev_addr;
-			curr_data_len = packets_num * m_payload_len;
-			prev_addr += curr_data_len;
-			index++;
-			break;
-		default:
-			ring_logpanic("bad packet_receive_mode\n");
+	default:
+		ring_logpanic("bad packet_receive_mode\n");
 	}
 
-	m_p_mem_rep_list[index].base_addr = prev_addr;
-	m_p_mem_rep_list[index].byte_count[0] = pad_len;
-	m_p_mem_rep_list[index].stride[0] = pad_len;
-	m_p_mem_rep_list[index].mr = mr;
+	p_mem_rep_list[index].base_addr = prev_addr;
+	p_mem_rep_list[index].byte_count[0] = pad_len;
+	p_mem_rep_list[index].stride[0] = pad_len;
+	p_mem_rep_list[index].mr = mr;
 
 	// allocate empty lkey
 	memset(&mrin, 0, sizeof(mrin));
 	mrin.pd = m_p_ib_ctx->get_ibv_pd();
 	mrin.attr.create_flags = IBV_EXP_MR_INDIRECT_KLMS;
 	mrin.attr.exp_access_flags = IBV_EXP_ACCESS_LOCAL_WRITE;
-	mrin.attr.max_klm_list_size = m_umr_blocks;
+	mrin.attr.max_klm_list_size = umr_blocks;
 	m_p_umr_mr = ibv_exp_create_mr(&mrin);
 	if (!m_p_umr_mr) {
 		ring_logdbg("Failed creating mr %m", errno);
+		retval = -1;
 		goto cleanup;
 	}
 
 	memset(&m_umr_wr, 0, sizeof(m_umr_wr));
 	m_umr_wr.ext_op.umr.umr_type = IBV_EXP_UMR_REPEAT;
-	m_umr_wr.ext_op.umr.mem_list.rb.mem_repeat_block_list = m_p_mem_rep_list;
+	m_umr_wr.ext_op.umr.mem_list.rb.mem_repeat_block_list = p_mem_rep_list;
 	m_umr_wr.ext_op.umr.mem_list.rb.stride_dim = ndim;
-	m_umr_wr.ext_op.umr.mem_list.rb.repeat_count = m_p_rpt_cnt;
+	m_umr_wr.ext_op.umr.mem_list.rb.repeat_count = &packets_num;
 	m_umr_wr.exp_send_flags = IBV_EXP_SEND_INLINE;
 	m_umr_wr.ext_op.umr.exp_access = IBV_EXP_ACCESS_LOCAL_WRITE;
 	m_umr_wr.ext_op.umr.modified_mr = m_p_umr_mr;
 	m_umr_wr.ext_op.umr.base_addr = (uint64_t)mr->addr;
-	m_umr_wr.ext_op.umr.num_mrs = m_umr_blocks;
+	m_umr_wr.ext_op.umr.num_mrs = umr_blocks;
 	m_umr_wr.exp_send_flags |= IBV_EXP_SEND_SIGNALED;
 	m_umr_wr.exp_opcode = IBV_EXP_WR_UMR_FILL;
 
 	if (!m_p_ib_ctx->post_umr_wr(m_umr_wr)) {
 		ring_logerr("Failed in ibv_exp_post_send IBV_EXP_WR_UMR_FILL\n");
+		// prevent removal
+		m_umr_wr.exp_opcode = IBV_EXP_WR_NOP;
+		retval = -1;
 		goto cleanup;
 	}
 
 	// redmine.mellanox.com/issues/396761/
 	m_p_umr_mr->addr = (void *)m_umr_wr.ext_op.umr.base_addr;
-	return 0;
+
 cleanup:
+	for (int i = 0; i < umr_blocks; i++) {
+		if (p_mem_rep_list[i].stride) {
+			delete[] p_mem_rep_list[i].stride;
+			p_mem_rep_list[i].stride = NULL;
+		}
+		if (p_mem_rep_list[i].byte_count) {
+			delete[] p_mem_rep_list[i].byte_count;
+			p_mem_rep_list[i].byte_count = NULL;
+		}
+	}
+
+	delete[] p_mem_rep_list;
+	p_mem_rep_list = NULL;
+
+	if (retval == -1) {
+		remove_umr_res();
+	}
+	return retval;
+}
+
+void ring_eth_cb::remove_umr_res()
+{
 	if (m_umr_wr.exp_opcode == IBV_EXP_WR_UMR_FILL) {
 		m_umr_wr.exp_opcode = IBV_EXP_WR_UMR_INVALIDATE;
-		m_p_ib_ctx->post_umr_wr(m_umr_wr);
+		if (m_p_ib_ctx->post_umr_wr(m_umr_wr)) {
+			ring_logdbg("Releasing UMR failed\n");
+		}
 	}
 
 	if (m_p_umr_mr) {
-		ibv_dereg_mr(m_p_umr_mr);
+		m_p_ib_ctx->mem_dereg(m_p_umr_mr);
 		m_p_umr_mr = NULL;
 	}
-
-	if (m_p_rpt_cnt) {
-		delete[] m_p_rpt_cnt;
-		m_p_rpt_cnt = NULL;
-	}
-
-	for (int i = 0; i < m_umr_blocks; i++) {
-		if (m_p_mem_rep_list[i].stride) {
-			delete[] m_p_mem_rep_list[i].stride;
-			m_p_mem_rep_list[i].stride = NULL;
-		}
-		if (m_p_mem_rep_list[i].byte_count) {
-			delete[] m_p_mem_rep_list[i].byte_count;
-			m_p_mem_rep_list[i].byte_count = NULL;
-		}
-	}
-
-	delete[] m_p_mem_rep_list;
-	m_p_mem_rep_list = NULL;
-	return -1;
+	ring_logdbg("UMR resources removed\n");
 }
 
 int ring_eth_cb::drain_and_proccess(cq_type_t cq_type)
@@ -564,31 +556,7 @@ ring_eth_cb::~ring_eth_cb()
 	delete m_p_qp_mgr;
 	m_p_qp_mgr = NULL;
 
-	if (m_p_umr_mr) {
-		m_umr_wr.exp_opcode = IBV_EXP_WR_UMR_INVALIDATE;
-		m_p_ib_ctx->post_umr_wr(m_umr_wr);
-		ring_logdbg("Releasing UMR failed\n");
-		ibv_dereg_mr(m_p_umr_mr);
-	}
-	if (m_p_rpt_cnt) {
-		delete[] m_p_rpt_cnt;
-		m_p_rpt_cnt = NULL;
-	}
-
-	if (m_p_mem_rep_list) {
-		for (int i = 0; i < m_umr_blocks; i++) {
-			if (m_p_mem_rep_list[i].stride) {
-				delete[] m_p_mem_rep_list[i].stride;
-				m_p_mem_rep_list[i].stride = NULL;
-			}
-			if (m_p_mem_rep_list[i].byte_count) {
-				delete[] m_p_mem_rep_list[i].byte_count;
-				m_p_mem_rep_list[i].byte_count = NULL;
-			}
-		}
-		delete[] m_p_mem_rep_list;
-		m_p_mem_rep_list = NULL;
-	}
+	remove_umr_res();
 }
 #endif /* HAVE_MP_RQ */
 

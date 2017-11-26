@@ -94,9 +94,6 @@ private:
 	uint32_t			m_all_wqes_used_strides;
 	struct ibv_mr*			m_p_umr_mr;
 	struct ibv_exp_send_wr		m_umr_wr;
-	ibv_exp_mem_repeat_block*	m_p_mem_rep_list;
-	size_t*				m_p_rpt_cnt;
-	int				m_umr_blocks;
 	// These members are used to store intermediate results before
 	// returning from the user's call to get the data.
 	int				m_curr_wq;
@@ -110,6 +107,7 @@ private:
 	inline mp_loop_result		mp_loop(size_t limit);
 	inline bool			reload_wq();
 	int				allocate_umr_mem();
+	void				remove_umr_res();
 };
 
 #endif /* HAVE_MP_RQ */
