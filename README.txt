@@ -8,9 +8,9 @@ library for transparently enhancing the performance of networking-heavy
 applications. It boosts performance for message-based and streaming applications
 such as those found in financial services market data environments and Web2.0
 clusters.
-It allows application written over standard socket API to run over Infiniband 
+It allows application written over standard socket API to run over Infiniband
 and/or Ethernet from user-space with full network stack bypass.
-The result is a reduction in latency by as much as 300%, 
+The result is a reduction in latency by as much as 300%,
 an increase in application throughput by as much as 200%,
 higher packets rates and better CPU utilization as compared to applications
 running on standard Ethernet or InfiniBand interconnect networks.
@@ -55,7 +55,7 @@ Install the package as any other rpm or debian package [rpm -i libvma.X.Y.Z-R.rp
 The installation copies the VMA library to: /usr/lib[64]/libvma.so
 The VMA monitoring utility is installed at: /usr/bin/vma_stat
 The VMA extra socket API is located at: /usr/include/mellanox/vma_extra.h
-The installation location of the README.txt and version information file 
+The installation location of the README.txt and version information file
 (VMA_VERSION), are as follows:
 - Redhat: /usr/share/doc/libvma-X.Y.Z-R/
 - SuSE:   /usr/share/doc/packages/libvma-X.Y.Z-R/
@@ -66,7 +66,7 @@ for the following system parameters:
 1. Force IPoIB to work in 'datagram' mode (disabling IPoIB 'connected' mode)
    Modify "SET_IPOIB_CM=no" in file "/etc/infiniband/openib.conf"
 2. Force IGMP to work in V2 on IB interfaces
-   Add "net.ipv4.conf.all.force_igmp_version = 2" in file "/etc/sysctl.conf" 
+   Add "net.ipv4.conf.all.force_igmp_version = 2" in file "/etc/sysctl.conf"
 
 Upgrading:
 Use rpm update procedure: # rpm -U libvma.X.Y.Z-R.rpm
@@ -74,7 +74,7 @@ You can upgrade by uninstalling (rpm -e) the previously installed package
 before starting to install the new VMA rpm.
 
 Uninstalling:
-When uninstalling remember to uninstall (rpm -e) the package before you 
+When uninstalling remember to uninstall (rpm -e) the package before you
 uninstall ofed.
 
 Running:
@@ -192,7 +192,7 @@ Example:
  VMA DETAILS: Trig dummy send getsockname()  Disabled                   [VMA_TRIGGER_DUMMY_SEND_GETSOCKNAME]
  VMA INFO: ---------------------------------------------------------------------------
 
-VMA_TRACELEVEL 
+VMA_TRACELEVEL
 Logging level the VMA library will be using. Default is info
 Example: # VMA_TRACELEVEL=debug
 
@@ -200,7 +200,7 @@ none
     Print no log at all
 panic
     Panic level logging, this would generally cause fatal behavior and an exception
-    will be thrown by the VMA library. Typically, this is caused by memory 
+    will be thrown by the VMA library. Typically, this is caused by memory
     allocation problems. This level is rarely used.
 error
     Runtime ERRORs in the VMA.
@@ -208,14 +208,14 @@ error
     logic like: Errors from underlaying OS or Infiniband verbs calls. internal
     double mapping/unmapping of objects.
 warn
-    Runtime warning that do not disrupt the workflow of the application but 
-    might warn of a problem in the setup or the overall setup configuration. 
-    Typically, these can be address resolution failure (due to wrong routing 
-    setup configuration), corrupted ip packets in the receive path or 
+    Runtime warning that do not disrupt the workflow of the application but
+    might warn of a problem in the setup or the overall setup configuration.
+    Typically, these can be address resolution failure (due to wrong routing
+    setup configuration), corrupted ip packets in the receive path or
     unsupported functions requested by the user application
 info
-    General information passed to the user of the application. Bring up 
-    configuration logging or some general info to help the user better 
+    General information passed to the user of the application. Bring up
+    configuration logging or some general info to help the user better
     use the VMA library
 details
     Complete VMA's configuration information.
@@ -224,8 +224,8 @@ debug
     High level insight to the operations done in the VMA. All socket API calls
     are logged and internal high level control channels log there activity.
 fine
-    Low level run time logging of activity. This logging level includes basic 
-    Tx and Rx logging in the fast path and it will lower application 
+    Low level run time logging of activity. This logging level includes basic
+    Tx and Rx logging in the fast path and it will lower application
     performance. It is recommended to use this level with VMA_LOG_FILE param.
 finer
     Very low level run time logging of activity!
@@ -244,11 +244,11 @@ Default value is 0
 
 VMA_LOG_COLORS
 Use color scheme when logging. Red for errors, purple for warnings and dim for
-low level debugs. VMA_LOG_COLORS is automatically disabled when logging is direct 
+low level debugs. VMA_LOG_COLORS is automatically disabled when logging is direct
 to a non terminal device (e.g. VMA_LOG_FILE is configured).
 Default value is 1 (Enabled)
 
-VMA_LOG_FILE 
+VMA_LOG_FILE
 Redirect all VMA logging to a specific user defined file.
 This is very useful when raising the VMA_TRACELEVEL
 VMA will replace a single '%d' appearing in the log file name with the pid of
@@ -290,7 +290,7 @@ latency
 
 multi_ring_latency
      Optimized for use cases that are keen on latency where two applications communicate using send-only and receive-only TCP sockets
-          
+
     Multi ring latency SPEC changes the following default configuration
      VMA_MEM_ALLOC_TYPE = 2                    (default: 1 (Contig Pages))
      VMA_SELECT_POLL = -1                      (default: 100000)
@@ -311,7 +311,7 @@ Example:  VMA_STATS_FILE=/tmp/stats
 
 VMA_STATS_SHMEM_DIR
 Set the directory path for vma to create the shared memory files for vma_stats.
-No files will be created when setting this value to empty string "". 
+No files will be created when setting this value to empty string "".
 Default value is /tmp/
 
 VMA_STATS_FD_NUM
@@ -346,7 +346,7 @@ Value range is 0 to 1
 Default value is 0 (Disabled)
 
 VMA_TX_SEGS_TCP
-Number of TCP LWIP segments allocation for each VMA process.  
+Number of TCP LWIP segments allocation for each VMA process.
 Default value is 1000000
 
 VMA_TX_BUFS
@@ -361,14 +361,14 @@ Default value is 2048
 
 VMA_TX_WRE_BATCHING
 The number of Tx Work Request Elements used until a completion signal is requested.
-Tuning this parameter allows a better control of the jitter encountered from the 
-Tx CQE handling. Setting a high batching value results in high PPS and lower 
+Tuning this parameter allows a better control of the jitter encountered from the
+Tx CQE handling. Setting a high batching value results in high PPS and lower
 avarge latency. Setting a low batching value results in lower latency std-dev.
 Value range is 1-64
 Default value is 64
 
 VMA_TX_MAX_INLINE
-Max send inline data set for QP. 
+Max send inline data set for QP.
 Data copied into the INLINE space is at least 32 bytes of headers and
 the rest can be user datagram payload.
 VMA_TX_MAX_INLINE=0 disables INLINEing on the tx transmit path.
@@ -386,14 +386,14 @@ Default value is 1 (Enabled)
 VMA_TX_NONBLOCKED_EAGAINS
 Return value 'OK' on all send operation done on a non-blocked udp sockets. This
 is the OS default behavior. The datagram sent is silently dropped inside VMA
-or the network stack. 
+or the network stack.
 When set Enabled (set to 1), VMA will return with error EAGAIN if it was unable
 accomplish the send operation and the datagram was dropped.
 In both cases a dropped Tx statistical counter is incremented.
 Default value is 0 (Disabled)
 
 VMA_TX_PREFETCH_BYTES
-Accelerate offloaded send operation by optimizing cache. Different values 
+Accelerate offloaded send operation by optimizing cache. Different values
 give optimized send rate on different machines. We recommend you tune this
 for your specific hardware.
 Value range is 0 to MTU size
@@ -404,10 +404,10 @@ VMA_RING_ALLOCATION_LOGIC_TX
 VMA_RING_ALLOCATION_LOGIC_RX
 Ring allocation logic is used to separate the traffic to different rings.
 By default all sockets use the same ring for both RX and TX over the same interface.
-Even when specifing the logic to be per socket or thread, for different interfaces 
-we use different rings. This is useful when tuning for a multi-threaded application 
+Even when specifing the logic to be per socket or thread, for different interfaces
+we use different rings. This is useful when tuning for a multi-threaded application
 and aiming for HW resource separation.
-Warning: This feature might hurt performance for applications which their main 
+Warning: This feature might hurt performance for applications which their main
 processing loop is based in select() and/or poll().
 The logic options are:
 0  - Ring per interface
@@ -421,17 +421,17 @@ VMA_RING_MIGRATION_RATIO_TX
 VMA_RING_MIGRATION_RATIO_RX
 Ring migration ratio is used with the "ring per thread" logic in order to decide when
 it is beneficial to replace the socket's ring with the ring allocated for the current thread.
-Each VMA_RING_MIGRATION_RATIO iterations (of accessing the ring) we check the current 
+Each VMA_RING_MIGRATION_RATIO iterations (of accessing the ring) we check the current
 thread ID and see if our ring is matching the current thread.
-If not, we consider ring migration. If we keep accessing the ring from the same thread for some 
+If not, we consider ring migration. If we keep accessing the ring from the same thread for some
 iterations, we migrate the socket to this thread ring.
-Use a value of -1 in order to disable migration. 
+Use a value of -1 in order to disable migration.
 Default value is 100
 
 VMA_RING_LIMIT_PER_INTERFACE
 Limit the number of rings that can be allocated per interface.
-For example, in ring allocation per socket logic, if the number of sockets using 
-the same interface is larger than the limit, then several sockets will be sharing the 
+For example, in ring allocation per socket logic, if the number of sockets using
+the same interface is larger than the limit, then several sockets will be sharing the
 same ring.
 [Note:VMA_RX_BUFS might need to be adjusted in order to have enough buffers for all
 rings in the system. Each ring consume VMA_RX_WRE buffers.]
@@ -448,7 +448,7 @@ The total size of the On Device Memory is limited to 256k for a single port HCA 
 Default value is 0
 
 VMA_RX_BUFS
-Number Rx data buffer elements allocation for the processes. These data buffers 
+Number Rx data buffer elements allocation for the processes. These data buffers
 may be used by all QPs on all HCAs
 Default value is 200000
 
@@ -463,7 +463,7 @@ Value range is 1-1024.
 Default value is 64
 
 VMA_RX_BYTES_MIN
-Minimum value in bytes that will be used per socket by VMA when applications 
+Minimum value in bytes that will be used per socket by VMA when applications
 call to setsockopt(SO_RCVBUF). If application tries to set a smaller value then
 configured in VMA_RX_BYTES_MIN, VMA will force this minimum limit value on the
 socket.VMA offloaded socket's receive max limit of ready bytes count. If the
@@ -485,10 +485,10 @@ Where value of -1 is used for infinite polling
 Default value is 100000
 
 VMA_RX_POLL_INIT
-VMA maps all UDP sockets as potential offloaded capable. Only after the 
+VMA maps all UDP sockets as potential offloaded capable. Only after the
 ADD_MEMBERSHIP does the offload start to work and the CQ polling kicks in VMA.
 This parameter control the polling count during this transition phase where the
-socket is a UDP unicast socket and no multicast addresses where added to it. 
+socket is a UDP unicast socket and no multicast addresses where added to it.
 Once the first ADD_MEMBERSHIP is called the above VMA_RX_POLL takes effect.
 Value range is similar to the above VMA_RX_POLL
 Default value is 0
@@ -496,17 +496,17 @@ Default value is 0
 VMA_RX_UDP_POLL_OS_RATIO
 The above param will define the ratio between VMA CQ poll and OS FD poll.
 This will result in a single poll of the not-offloaded sockets every
-VMA_RX_UDP_POLL_OS_RATIO offloaded socket (CQ) polls. No matter if the CQ poll 
+VMA_RX_UDP_POLL_OS_RATIO offloaded socket (CQ) polls. No matter if the CQ poll
 was a hit or miss. No matter if the socket is blocking or non-blocking.
 When disabled, only offloaded sockets are polled.
-This parameter replaces the two old parameters: VMA_RX_POLL_OS_RATIO and 
+This parameter replaces the two old parameters: VMA_RX_POLL_OS_RATIO and
 VMA_RX_SKIP_OS
 Disable with 0
 Default value is 100
 
 VMA_HW_TS_CONVERSION
 The above param defines the time stamp conversion method.
-Experimental verbs is required for converting the time stamp from hardware time (Hz) 
+Experimental verbs is required for converting the time stamp from hardware time (Hz)
 to system time (seconds.nano_seconds). Hence, hardware support is not guaranteed.
 The value of VMA_HW_TS_CONVERSION is determined by all devices - i.e if the hardware of
 one device does not support the conversion, then it will be disabled for the other devices.
@@ -516,7 +516,7 @@ Options = [0,1,2,3,4]:
 1 = Raw-HW time                           - only convert the time stamp to seconds.nano_seconds time
                                             units (or disable if hardware does not supports).
 2 = Best possible - Raw-HW or system time - Sync to system time, then Raw hardware time -
-                                            disable if none of them are supported by hardware. 
+                                            disable if none of them are supported by hardware.
 3 = Sync to system time                   - convert the time stamp to seconds.nano_seconds time units.
                                             comparable to UDP receive software timestamp.
                                             disable if hardware does not supports.
@@ -527,47 +527,47 @@ Default value: 3
 
 VMA_RX_POLL_YIELD
 When an application is running with multiple threads, on a limited number of
-cores, there is a need for each thread polling inside the VMA (read, readv, 
-recv & recvfrom) to yield the CPU to other polling thread so not to starve 
+cores, there is a need for each thread polling inside the VMA (read, readv,
+recv & recvfrom) to yield the CPU to other polling thread so not to starve
 them from processing incoming packets.
 Default value is 0 (Disable)
 
 VMA_RX_PREFETCH_BYTES
 Size of receive buffer to prefetch into cache while processing ingress packets.
-The default is a single cache line of 64 bytes which should be at least 32 
+The default is a single cache line of 64 bytes which should be at least 32
 bytes to cover the IPoIB+IP+UDP headers and a small part of the users payload.
 Increasing this can help improve performance for larger user payload sizes.
 Value range is 32 bytes to MTU size
 Default value is 256 bytes
 
 VMA_RX_PREFETCH_BYTES_BEFORE_POLL
-Same as the above VMA_RX_PREFETCH_BYTES, only that prefetch is done before 
+Same as the above VMA_RX_PREFETCH_BYTES, only that prefetch is done before
 acutally getting the packets.
 This benefit low pps traffic latency.
 Disable with 0.
 Default value is 0
 
 VMA_RX_CQ_DRAIN_RATE_NSEC
-Socket's receive path CQ drain logic rate control. 
+Socket's receive path CQ drain logic rate control.
 When disabled (Default) the socket's receive path will first try to return a
 ready packet from the socket's receive ready packet queue. Only if that queue
 is empty will the socket check the CQ for ready completions for processing.
 When enabled, even if the socket's receive ready packet queue is not empty it
 will still check the CQ for ready completions for processing. This CQ polling
 rate is controls in nano-second resolution to prevent CPU consumption because
-of over CQ polling. This will enable a more 'real time' monitoring of the 
+of over CQ polling. This will enable a more 'real time' monitoring of the
 sockets ready packet queue.
 Recommended value is 100-5000 (nsec)
 Default value is 0 (Disable)
 
 VMA_RX_POLL_ON_TX_TCP
-This parameter enables/disables TCP RX polling during TCP TX operation for faster 
-TCP ACK reception. 
+This parameter enables/disables TCP RX polling during TCP TX operation for faster
+TCP ACK reception.
 Default: 0 (Disable)
 
 VMA_TRIGGER_DUMMY_SEND_GETSOCKNAME
 This parameter triggers dummy packet send from getsockname(), this
-will warm up the caches. 
+will warm up the caches.
 For more information regarding dummy send, see VMA user manual document.
 Default: 0 (Disable)
 
@@ -593,10 +593,10 @@ Applicable if there are no other sockets opened for the same flow in system.
 VMA_SELECT_POLL
 The duration in micro-seconds (usec) in which to poll the hardware on Rx path before
 going to sleep (pending an interrupt blocking on OS select(), poll() or epoll_wait().
-The max polling duration will be limited by the timeout the user is using when 
+The max polling duration will be limited by the timeout the user is using when
 calling select(), poll() or epoll_wait().
 When select(), poll() or epoll_wait() path has successfull receive poll hits
-(see performace monitoring) the latency is improved dramatically. This comes 
+(see performace monitoring) the latency is improved dramatically. This comes
 on account of CPU utilization.
 Value range is -1, 0 to 100,000,000
 Where value of -1 is used for infinite polling
@@ -622,7 +622,7 @@ This will enable polling of the OS file descriptors while user thread calls
 select() or poll() and the VMA is busy in the offloaded sockets polling loop.
 This will result in a signle poll of the not-offloaded sockets every
 VMA_SELECT_POLL_RATIO offlaoded sockets (CQ) polls.
-When disabled, only offlaoded sockets are polled. 
+When disabled, only offlaoded sockets are polled.
 (See VMA_SELECT_POLL for more info)
 Disable with 0
 Default value is 10
@@ -635,8 +635,8 @@ Default value is 4
 
 VMA_PROGRESS_ENGINE_INTERVAL
 VMA Internal thread safe check that the CQ is drained at least onse
-every N milliseconds. 
-This mechanism allows VMA to progress the TCP stack even when the application 
+every N milliseconds.
+This mechanism allows VMA to progress the TCP stack even when the application
 doesn't access its socket (so it doesn't provide a context to VMA).
 If CQ was already drained by the application receive
 socket API calls then this thread goes back to sleep without any processing.
@@ -644,8 +644,8 @@ Disable with 0
 Default value is 10 msec
 
 VMA_PROGRESS_ENGINE_WCE_MAX
-Each time VMA's internal thread starts it's CQ draining, it will stop when 
-reach this max value. 
+Each time VMA's internal thread starts it's CQ draining, it will stop when
+reach this max value.
 The application is not limited by this value in the number of CQ elements
 it can ProcessId form calling any of the receive path socket APIs.
 Default value is 10000
@@ -696,8 +696,8 @@ drop and will be monitored in the vma_stats.
 Default value is 1 (Enabled)
 
 VMA_QP_COMPENSATION_LEVEL
-Number of spare receive buffer CQ holds to allow for filling up QP while full 
-receive buffers are being processes inside VMA. 
+Number of spare receive buffer CQ holds to allow for filling up QP while full
+receive buffers are being processes inside VMA.
 Default value is 256 buffers
 
 VMA_OFFLOADED_SOCKETS
@@ -724,7 +724,7 @@ Default value is disabled
 
 VMA_TCP_TIMESTAMP_OPTION
 If set, enable TCP timestamp option.
-Currently, LWIP is not supporting RTTM and PAWS mechanisms. 
+Currently, LWIP is not supporting RTTM and PAWS mechanisms.
 See RFC1323 for info.
 Use value of 0 to disable.
 Use value of 1 for enable.
@@ -787,7 +787,7 @@ Default value is disabled
 
 VMA_INTERNAL_THREAD_AFFINITY
 Control which CPU core(s) the VMA internal thread is serviced on. The cpu set
-should be provided as *EITHER* a hexidecmal value that represents a bitmask. *OR* as a 
+should be provided as *EITHER* a hexidecmal value that represents a bitmask. *OR* as a
 comma delimited of values (ranges are ok). Both the bitmask and comma delimited list
 methods are identical to what is supported by the taskset command. See the man page
 on taskset for additional information.
@@ -804,22 +804,22 @@ VMA_INTERNAL_THREAD_CPUSET
 Select a cpuset for VMA internal thread (see man page of cpuset).
 The value is the path to the cpuset (for example: /dev/cpuset/my_set), or an empty
 string to run it on the same cpuset the process runs on.
-Default value is an empty string. 
+Default value is an empty string.
 
 VMA_INTERNAL_THREAD_TCP_TIMER_HANDLING
-Select the internal thread policy when handling TCP timers 
-Use value of 0 for deferred handling. The internal thread will not handle TCP timers upon timer 
+Select the internal thread policy when handling TCP timers
+Use value of 0 for deferred handling. The internal thread will not handle TCP timers upon timer
 expiration (once every 100ms) in order to let application threads handling it first
-Use value of 1 for immediate handling. The internal thread will try locking and handling TCP timers upon 
+Use value of 1 for immediate handling. The internal thread will try locking and handling TCP timers upon
 timer expiration (once every 100ms).  Application threads may be blocked till internal thread finishes handling TCP timers
 Default value is 0 (deferred handling)
 
 VMA_INTERNAL_THREAD_ARM_CQ
-Wakeup the internal thread for each packet that the CQ recieve. 
+Wakeup the internal thread for each packet that the CQ recieve.
 Poll and process the packet and bring it to the socket layer.
-This can minimize latency in case of a busy application which is not available to 
+This can minimize latency in case of a busy application which is not available to
 recieve the packet when it arrived.
-However, this might decrease performance in case of high pps rate application.   
+However, this might decrease performance in case of high pps rate application.
 Default value is 0 (Disabled)
 
 VMA_WAIT_AFTER_JOIN_MSEC
@@ -835,7 +835,7 @@ If the users application is a single threaded one, then using this configuration
 parameter you can help eliminate VMA locks and get even better performance.
 Single threaded application value is 0
 Multi threaded application using spin lock value is 1
-Multi threaded application using mutex lock value is 2 
+Multi threaded application using mutex lock value is 2
 Multi threaded application with more threads than cores using spin lock value is 3
 Default value is 1 (Multi with spin lock)
 
@@ -863,12 +863,12 @@ OFED will also try to allocate QP & CQ memory accordingly:
 To overrive OFED use: (MLX_QP_ALLOC_TYPE, MLX_CQ_ALLOC_TYPE)
 Default value is 1 (Contiguous pages)
 
-The following VMA neigh parameters are for advanced users or Mellanox support only: 
+The following VMA neigh parameters are for advanced users or Mellanox support only:
 
 VMA_NEIGH_UC_ARP_QUATA
 VMA will send UC ARP in case neigh state is NUD_STALE.
-In case that neigh state is still NUD_STALE VMA will try 
-VMA_NEIGH_UC_ARP_QUATA retries to send UC ARP again and then will send BC ARP.  
+In case that neigh state is still NUD_STALE VMA will try
+VMA_NEIGH_UC_ARP_QUATA retries to send UC ARP again and then will send BC ARP.
 
 VMA_NEIGH_UC_ARP_DELAY_MSEC
 This parameter indicates number of msec to wait betwen every UC ARP.
@@ -885,7 +885,7 @@ VMA_FORK
 Control whether VMA should support fork. Setting this flag on will cause VMA to
 call ibv_fork_init() function. ibv_fork_init() initializes libibverbs's data
 structures to handle fork() function calls correctly and avoid data corruption.
-If ibv_fork_init() is not called or returns a non-zero status, then libibverbs 
+If ibv_fork_init() is not called or returns a non-zero status, then libibverbs
 data structures are not fork()-safe and the effect of an application calling
 fork() is undefined.
 ibv_fork_init() works on Linux kernels 2.6.17 and higher which support the
@@ -911,7 +911,7 @@ Default value is 0 (following interface actual MTU)
 
 VMA_MSS
 VMA_MSS define the max TCP payload size that can sent without IP fragmentation.
-Value of 0 will set VMA's TCP MSS to be aligned with VMA_MTU configuration 
+Value of 0 will set VMA's TCP MSS to be aligned with VMA_MTU configuration
 (leaving 40 bytes room for IP + TCP headers; "TCP MSS = VMA_MTU - 40").
 Other VMA_MSS values will force VMA's TCP MSS to that specific value.
 Default value is 0 (following VMA_MTU)
@@ -983,7 +983,7 @@ VMA: [fd=10] Rx poll: 0 / 233020 (100.00%) [miss/hit]
 
 Looking good :)
 - No errors on transmite or receive on this socket (user fd=10)
-- All the traffic was offloaded. No packets transmitted or receive via the OS. 
+- All the traffic was offloaded. No packets transmitted or receive via the OS.
 - Just about no missed Rx polls (see VMA_RX_POLL & VMA_SELECT_POLL), meaning
  the receiving thread did not get to a blocked state to cause a contexts
  switch and hurt latency.
@@ -992,7 +992,7 @@ Looking good :)
 Interrupt Moderation
 ====================
 The basic idea behind interrupt moderation is that the HW will not generate
-interrupt for each packet, but instead only after some amount of packets received 
+interrupt for each packet, but instead only after some amount of packets received
 or after the packet was held for some time.
 
 The adaptive interrupt moderation change this packet count and time period
@@ -1019,14 +1019,14 @@ automatically to reach a desired rate of interrupts.
 
 Notes
 =====
-* Multicast loopback behavior: 
-	There is a different behavior between IPoIB and VMA when dealing with 
+* Multicast loopback behavior:
+	There is a different behavior between IPoIB and VMA when dealing with
 	multicast packets at the same machine:
 	- When sending from VMA application to ipoib application on the same
-	machine the packet will never be accepted by the ipoib side (even when 
+	machine the packet will never be accepted by the ipoib side (even when
 	the loopback is enabled)
-	- When sending from ipoib application to VMA application on the same 
-	machine, the packet will always be accepted by the VMA side (even when 
+	- When sending from ipoib application to VMA application on the same
+	machine, the packet will always be accepted by the VMA side (even when
 	the loop is disabled
 
 
@@ -1045,8 +1045,8 @@ VMA_TRACELEVEL variable value is set to 4 or more.
 In order to fix it - set VMA_TRACELEVEL to it's default value: 3
 
 
-* Ethernet RAW_PACKET_QP limited to privilege users 
- 
+* Ethernet RAW_PACKET_QP limited to privilege users
+
  VMA WARNING: ******************************************************************************
  VMA WARNING: * Verbs RAW_PACKET QP type creation is limited for root user access          *
  VMA WARNING: * Working in this mode might causes VMA malfunction over Ethernet interfaces *
@@ -1055,8 +1055,8 @@ In order to fix it - set VMA_TRACELEVEL to it's default value: 3
  VMA WARNING: * 2. "/etc/init.d/openibd restart"                                           *
  VMA WARNING: * Read the RAW_PACKET QP root access enforcement section in the VMA's User Manual for more information *
  VMA WARNING: ******************************************************************************
-This warning message means that VMA tried to create a HW QP resource over Eth 
-interface while the kernel requires this operation to be done only by privileged 
+This warning message means that VMA tried to create a HW QP resource over Eth
+interface while the kernel requires this operation to be done only by privileged
 users. root can enable this for regular users as well by:
  1. "echo options ib_uverbs disable_raw_qp_enforcement=1 > /etc/modprobe.d/ib_uverbs.conf"
  2. "/etc/init.d/openibd restart"
@@ -1100,8 +1100,8 @@ pages shared memory segments with the below script.
 
 NOTE: Use 'ipcs -m' and 'ipcrm -m shmid' to check and clean unused shared memory segments.
 Below is a short script to help you release VMAs unused huge pages resources:
-    for shmid in `ipcs -m | grep 0x00000000 | awk '{print $2}'`; 
-    do echo 'Clearing' $shmid; ipcrm -m $shmid; 
+    for shmid in `ipcs -m | grep 0x00000000 | awk '{print $2}'`;
+    do echo 'Clearing' $shmid; ipcrm -m $shmid;
     done;
 
 
@@ -1112,12 +1112,12 @@ Below is a short script to help you release VMAs unused huge pages resources:
  VMA WARNING: The only supported bonding mode is "802.3ad(#4)" or "active-backup(#1)"
  VMA WARNING: with "fail_over_mac=1" or "fail_over_mac=0".
  VMA WARNING: The effect of working in unsupported bonding mode is undefined.
- VMA WARNING: Read more about Bonding in the VMA's User Manual  
+ VMA WARNING: Read more about Bonding in the VMA's User Manual
  VMA WARNING: ******************************************************************************
 
-This warning message means that VMA has detected bonding device which is configured 
-to work in mode which is not supported by VMA, this means that VMA will not support 
-high avilability events for that interface. 
+This warning message means that VMA has detected bonding device which is configured
+to work in mode which is not supported by VMA, this means that VMA will not support
+high avilability events for that interface.
 VMA currently supports just active-backup(#1) or 802.3ad(#4) and fail_over_mac = 1 or 0 mode.
 In order to fix this issue please change the bonding configuration.
 
@@ -1131,7 +1131,7 @@ Shut down the bond0 interface:
 
 Find all the slaves of bond0:
 #cat sys/class/net/bond0/bonding/slaves
-ib0 ib1 
+ib0 ib1
 
 Free all the slaves:
 #echo -ib0 > /sys/class/net/bond0/bonding/slaves
@@ -1158,7 +1158,7 @@ OR
  VMA WARNING: bond0.10: vlan over bond while fail_over_mac=1 is not offloaded
  VMA WARNING: ******************************************************************
 
-This warning message means that VMA has detected bonding device which is configured with 
+This warning message means that VMA has detected bonding device which is configured with
 VLAN over it while fail_over_mac=1.
 This means that the bond will not be offloaded.
 In order to fix this issue please change the bonding configuration.
