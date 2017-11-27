@@ -310,6 +310,12 @@ typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_ta
 #endif //DEFINED_IBV_EXP_FLOW_TAG
 #endif
 
+#if defined(HAVE_IBV_DM)
+#define vma_ibv_dm_size(attr)			((attr)->max_dm_size)
+#else
+#define vma_ibv_dm_size(attr)			(0)
+#endif
+
 typedef enum vma_wr_tx_packet_attr {
 	VMA_TX_PACKET_BLOCK   = (1 << 0), // blocking send
 	VMA_TX_PACKET_DUMMY   = (1 << 1), // dummy send

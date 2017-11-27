@@ -131,16 +131,16 @@ ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx
 				ctx_time_converter_mode);
 	}
 #endif // DEFINED_IBV_EXP_CQ_TIMESTAMP
-
-	// Query device for on device memory capabilities
-	update_on_device_memory_size();
-
+	// update device memory capabilities
+	m_on_device_memory = vma_ibv_dm_size(m_p_ibv_device_attr);
 	ibch_logdbg("ibv device '%s' [%p] has %d port%s. Vendor Part Id: %d, "
-		    "FW Ver: %s, max_qp_wr=%d", m_p_ibv_device->name,
-		    m_p_ibv_device, m_p_ibv_device_attr->phys_port_cnt,
+		    "FW Ver: %s, max_qp_wr=%d %zu bytes of on device memory",
+		    m_p_ibv_device->name, m_p_ibv_device,
+		    m_p_ibv_device_attr->phys_port_cnt,
 		    ((m_p_ibv_device_attr->phys_port_cnt>1)?"s":""),
 		    m_p_ibv_device_attr->vendor_part_id,
-		    m_p_ibv_device_attr->fw_ver, m_p_ibv_device_attr->max_qp_wr);
+		    m_p_ibv_device_attr->fw_ver, m_p_ibv_device_attr->max_qp_wr,
+		    m_p_ibv_device, m_on_device_memory);
 
 	g_p_event_handler_manager->register_ibverbs_event(m_p_ibv_context->async_fd,
 						this, m_p_ibv_context, 0);
@@ -156,25 +156,6 @@ ib_ctx_handler::~ib_ctx_handler() {
 	delete m_p_ctx_time_converter;
 	delete m_p_ibv_device_attr;
 	BULLSEYE_EXCLUDE_BLOCK_END
-}
-
-void ib_ctx_handler::update_on_device_memory_size()
-{
-#if defined(HAVE_IBV_DM)
-	struct ibv_exp_device_attr attr;
-	memset(&attr, 0, sizeof(attr));
-
-	attr.comp_mask = IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE;
-	if (ibv_exp_query_device(m_p_ibv_context, &attr)) {
-		ibch_logerr("Couldn't query device for its features");
-		return;
-	}
-
-	m_on_device_memory = attr.max_dm_size;
-
-#endif
-
-	ibch_logdbg("ibv device '%s' [%p] supports %zu bytes of on device memory", m_p_ibv_device->name, m_p_ibv_device, m_on_device_memory);
 }
 
 ts_conversion_mode_t ib_ctx_handler::get_ctx_time_converter_status()

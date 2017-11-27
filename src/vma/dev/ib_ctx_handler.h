@@ -70,7 +70,6 @@ public:
 	}
 private:
 	void                    handle_event_device_fatal();
-	void                    update_on_device_memory_size();
 	ibv_device*             m_p_ibv_device; // HCA handle
 	struct ibv_context*     m_p_ibv_context;
 	vma_ibv_device_attr*    m_p_ibv_device_attr;
