@@ -151,7 +151,7 @@ void usage(const char *argv0)
 	printf("\tfind_pid=enabled, directory=\"%s\", view=1, details=1, interval=1, \n", MCE_DEFAULT_STATS_SHMEM_DIR);
 	printf("\n");
 	printf("Options:\n");
-	printf("  -p, --pid=<pid>\t\tShow VMA statistics for proccess with pid: <pid>\n");
+	printf("  -p, --pid=<pid>\t\tShow VMA statistics for process with pid: <pid>\n");
 	printf("  -k, --directory=<directory>\tSet shared memory directory path to <directory>\n");
 	printf("  -n, --name=<application>\tShow VMA statistics for application: <application>\n");
 	printf("  -f, --find_pid\t\tFind and show statistics for VMA instance running (default)\n");
