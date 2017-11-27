@@ -312,7 +312,7 @@ void check_flow_steering_log_num_mgm_entry_size()
 	if (priv_safe_try_read_file((const char*)FLOW_STEERING_MGM_ENTRY_SIZE_PARAM_FILE, flow_steering_val, sizeof(flow_steering_val)) == -1) {
 		vlog_printf(VLOG_DEBUG, "Flow steering option for mlx4 driver does not exist in current OFED version");
 	}
-	else if (flow_steering_val[0] != '-' || flow_steering_val[1] != '1') {
+	else if (flow_steering_val[0] != '-' || (strtol(&flow_steering_val[1], NULL, 0) % 2) == 0) {
 		vlog_printf(VLOG_WARNING, "***************************************************************************************\n");
 		vlog_printf(VLOG_WARNING, "* VMA will not operate properly while flow steering option is disabled                *\n");
 		vlog_printf(VLOG_WARNING, "* In order to enable flow steering please restart your VMA applications after running *\n");
