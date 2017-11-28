@@ -92,6 +92,7 @@ private:
 	uint32_t			m_wq_count;
 	uint32_t			m_curr_wqe_used_strides;
 	uint32_t			m_all_wqes_used_strides;
+	uint16_t			m_packet_size;
 	struct ibv_mr*			m_p_umr_mr;
 	struct ibv_exp_send_wr		m_umr_wr;
 	// These members are used to store intermediate results before

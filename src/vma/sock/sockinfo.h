@@ -214,7 +214,7 @@ protected:
 	bool			m_flow_tag_enabled; // for this socket
 	bool			m_tcp_flow_is_5t; // to bypass packet analysis
 
-	int*			m_rings_fds;
+	int*			m_p_rings_fds;
 	virtual void 		set_blocking(bool is_blocked);
 	virtual int 		fcntl(int __cmd, unsigned long int __arg);
 	virtual int 		ioctl(unsigned long int __request, unsigned long int __arg);

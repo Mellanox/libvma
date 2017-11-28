@@ -52,6 +52,7 @@ ring_eth_cb::ring_eth_cb(in_addr_t local_if,
 			,m_res_domain(NULL)
 			,m_curr_wqe_used_strides(0)
 			,m_all_wqes_used_strides(0)
+			,m_p_umr_mr(NULL)
 			,m_curr_wq(0)
 			,m_curr_payload_addr(NULL)
 			,m_curr_hdr_ptr(NULL)
@@ -164,7 +165,7 @@ int ring_eth_cb::allocate_umr_mem()
 	size_t curr_data_len = 0, packet_len, pad_len, net_len, buffer_size;
 	size_t packets_num = m_strides_num * m_wq_count;
 	uint64_t base_ptr, prev_addr;
-	int index = 0, count = 1, pack_written_size, umr_blocks;
+	int index = 0, count = 1, umr_blocks;
 	const int ndim = 1; // we only use one dimension see UMR docs
 	int retval = 0;
 
@@ -181,15 +182,28 @@ int ring_eth_cb::allocate_umr_mem()
 	if (m_cb_ring.packet_receive_mode != RAW_PACKET) {
 		umr_blocks++; // add user_hd\netwrok_hdr
 		if ((m_cb_ring.comp_mask & VMA_CB_HDR_BYTE) &&
-		    m_cb_ring.hdr_bytes && m_cb_ring.packet_receive_mode == STRIP_NETWORK_HDRS) {
+		    m_cb_ring.hdr_bytes &&
+		    m_cb_ring.packet_receive_mode == STRIP_NETWORK_HDRS) {
 			umr_blocks++; // strip network hdr
 		}
 	}
 
-	p_mem_rep_list = new ibv_exp_mem_repeat_block[umr_blocks];
+	p_mem_rep_list = new(nothrow) ibv_exp_mem_repeat_block[umr_blocks]();
+	if (p_mem_rep_list == NULL) {
+		ring_logwarn("failed allocating memory");
+		errno = ENOMEM;
+		return -1;
+	}
 	for (int i = 0; i < umr_blocks; i++) {
-		p_mem_rep_list[i].byte_count = new size_t[ndim];
-		p_mem_rep_list[i].stride = new size_t[ndim];
+		p_mem_rep_list[i].byte_count = new(nothrow) size_t[ndim];
+		p_mem_rep_list[i].stride = new(nothrow) size_t[ndim];
+		if (p_mem_rep_list[i].byte_count == NULL ||
+		    p_mem_rep_list[i].stride == NULL) {
+			ring_logwarn("failed allocating memory");
+			errno = ENOMEM;
+			retval = -1;
+			goto cleanup;
+		}
 	}
 
 	if (get_partition()) {
@@ -206,21 +220,24 @@ int ring_eth_cb::allocate_umr_mem()
 	}
 
 	pad_len = (m_stride_size * count) - net_len - m_hdr_len - m_payload_len;
-	// no need to allocate all padding add one so starting address will be valid
-	pack_written_size = (m_stride_size * count) - pad_len + 1;
+	// no need to allocate padding
+	m_packet_size = (m_stride_size * count) - pad_len;
 	// allocate buffer
-	buffer_size = pack_written_size * packets_num;
+	buffer_size = m_packet_size * packets_num;
+	// will raise an exception on failure
 	base_ptr = (uint64_t)m_alloc.alloc_and_reg_mr(buffer_size, m_p_ib_ctx);
 	ring_logdbg("use buffer parameters, buffer_size %zd "
 		    "strides_num %d stride size %d",
 		    buffer_size, m_strides_num, m_stride_size);
 	prev_addr = base_ptr;
 	mr = m_alloc.find_ibv_mr_by_ib_ctx(m_p_ib_ctx);
+	BULLSEYE_EXCLUDE_BLOCK_START
 	if (unlikely(mr == NULL)) {
 		ring_logerr("could not find mr");
 		retval = -1;
 		goto cleanup;
 	}
+	BULLSEYE_EXCLUDE_BLOCK_END
 	packet_len = net_len;
 	switch (m_cb_ring.packet_receive_mode) {
 	case RAW_PACKET:
@@ -232,15 +249,13 @@ int ring_eth_cb::allocate_umr_mem()
 		p_mem_rep_list[index].byte_count[0] = packet_len;
 		p_mem_rep_list[index].stride[0] = packet_len;
 		p_mem_rep_list[index].mr = mr;
-		curr_data_len = packets_num * packet_len;
-		prev_addr += curr_data_len;
 		index++;
 	break;
 	case STRIP_NETWORK_HDRS:
 		// network not accessible to application
 		p_mem_rep_list[index].base_addr = base_ptr;
 		p_mem_rep_list[index].byte_count[0] = net_len;
-		// optimize write header to the same place
+		// optimize write header to the same physical address
 		p_mem_rep_list[index].stride[0] = 0;
 		p_mem_rep_list[index].mr = mr;
 		curr_data_len = packets_num * net_len;
@@ -261,8 +276,6 @@ int ring_eth_cb::allocate_umr_mem()
 		p_mem_rep_list[index].stride[0] = m_payload_len;
 		p_mem_rep_list[index].mr = mr;
 		m_sge_ptrs[CB_UMR_PAYLOAD] = prev_addr;
-		curr_data_len = packets_num * m_payload_len;
-		prev_addr += curr_data_len;
 		index++;
 	break;
 	case SEPERATE_NETWORK_HDRS:
@@ -286,15 +299,14 @@ int ring_eth_cb::allocate_umr_mem()
 		p_mem_rep_list[index].stride[0] = m_payload_len;
 		p_mem_rep_list[index].mr = mr;
 		m_sge_ptrs[CB_UMR_PAYLOAD] = prev_addr;
-		curr_data_len = packets_num * m_payload_len;
-		prev_addr += curr_data_len;
 		index++;
 		break;
 	default:
 		ring_logpanic("bad packet_receive_mode\n");
 	}
-
-	p_mem_rep_list[index].base_addr = prev_addr;
+	// use base_ptr as base_addr to corrupt user data and prevent stack
+	// corruption in case of unexpected big packet
+	p_mem_rep_list[index].base_addr = base_ptr;
 	p_mem_rep_list[index].byte_count[0] = pad_len;
 	p_mem_rep_list[index].stride[0] = pad_len;
 	p_mem_rep_list[index].mr = mr;
@@ -306,12 +318,13 @@ int ring_eth_cb::allocate_umr_mem()
 	mrin.attr.exp_access_flags = IBV_EXP_ACCESS_LOCAL_WRITE;
 	mrin.attr.max_klm_list_size = umr_blocks;
 	m_p_umr_mr = ibv_exp_create_mr(&mrin);
+	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_p_umr_mr) {
 		ring_logdbg("Failed creating mr %m", errno);
 		retval = -1;
 		goto cleanup;
 	}
-
+	BULLSEYE_EXCLUDE_BLOCK_END
 	memset(&m_umr_wr, 0, sizeof(m_umr_wr));
 	m_umr_wr.ext_op.umr.umr_type = IBV_EXP_UMR_REPEAT;
 	m_umr_wr.ext_op.umr.mem_list.rb.mem_repeat_block_list = p_mem_rep_list;
@@ -408,6 +421,13 @@ inline mp_loop_result ring_eth_cb::mp_loop(size_t limit)
 			ring_logfine("no packet found");
 			return MP_LOOP_DRAINED;
 		}
+		if (unlikely(size > m_packet_size)) {
+			errno = EMSGSIZE;
+			ring_logerr("got unexpected packet size, expected "
+				    "packet size %u but got %d, user data is "
+				    "corrupted", size, m_packet_size);
+			return MP_LOOP_RETURN_TO_APP;
+		}
 		if (unlikely(ret == -1)) {
 			ring_logdbg("poll_mp_cq failed with errno %m", errno);
 			return MP_LOOP_RETURN_TO_APP;
@@ -477,6 +497,13 @@ int ring_eth_cb::cyclic_buffer_read(vma_completion_cb_t &completion,
 	// empty
 	if (size == 0) {
 		return 0;
+	}
+	if (unlikely(size > m_packet_size)) {
+		errno = EMSGSIZE;
+		ring_logerr("got unexpected packet size, expected "
+			    "packet size %u but got %d, user data is "
+			    "corrupted", size, m_packet_size);
+		return -1;
 	}
 	if (unlikely(ret == -1)) {
 		ring_logdbg("poll_mp_cq failed with errno %m", errno);
