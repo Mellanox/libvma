@@ -100,6 +100,7 @@ int open_notify(void);
 void close_notify(void);
 int proc_notify(void);
 
+static int setup_notify(void);
 static int create_raw_socket(void);
 static int send_peer_notification(pid_t pid);
 static int check_process(pid_t pid);
@@ -129,19 +130,10 @@ int open_notify(void)
 {
 	int rc = 0;
 
-	/* Set method for processing
-	 * fanotify has the highest priority because it has better
-	 * performance
-	 */
-#if defined(HAVE_SYS_INOTIFY_H)
-	do_open_notify = open_inotify;
-	do_proc_notify = proc_inotify;
-#endif
-
-#if defined(HAVE_SYS_FANOTIFY_H)
-	do_open_notify = open_fanotify;
-	do_proc_notify = proc_fanotify;
-#endif
+	rc = setup_notify();
+	if (rc < 0) {
+		goto err;
+	}
 
 	rc = create_raw_socket();
 	if (rc < 0) {
@@ -198,6 +190,46 @@ again:
 
 err:
 	return rc;
+}
+
+static int setup_notify(void)
+{
+	int fd = -1;
+
+	/* Set method for processing
+	 * fanotify has the highest priority because it has better
+	 * performance
+	 */
+	errno = 0;
+#if defined(HAVE_SYS_FANOTIFY_H)
+	fd = fanotify_init(0, KERNEL_O_LARGEFILE);
+	if (fd >= 0) {
+		do_open_notify = open_fanotify;
+		do_proc_notify = proc_fanotify;
+		close(fd);
+		return 0;
+	} else {
+		log_debug("fanotify_init() errno %d (%s)\n", errno,
+			(ENOSYS == errno ? "missing support for fanotify (check CONFIG_FANOTIFY=y)\n" : strerror(errno)));
+	}
+#endif
+
+#if defined(HAVE_SYS_INOTIFY_H)
+	fd = inotify_init();
+	if (fd >= 0) {
+		do_open_notify = open_inotify;
+		do_proc_notify = proc_inotify;
+		close(fd);
+		return 0;
+	} else {
+		log_debug("inotify_init() errno %d (%s)\n", errno,
+			(ENOSYS == errno ? "missing support for inotify (check CONFIG_INOTIFY_USER=y)\n" : strerror(errno)));
+	}
+#endif
+
+	log_error("Failed notify way selection, check kernel configuration errno %d (%s)\n", errno,
+			strerror(errno));
+	return -ENOSYS;
 }
 
 static int create_raw_socket(void)
