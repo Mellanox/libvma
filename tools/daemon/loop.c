@@ -110,16 +110,16 @@ int proc_loop(void)
 			continue;
 		}
 
-		/* Check any events from fanotify */
-		if (FD_ISSET(daemon_cfg.notify_fd, &readfds)) {
-			log_debug("notification processing ...\n");
-			rc = proc_notify();
-		}
-
 		/* Check messages from processes */
 		if (FD_ISSET(daemon_cfg.sock_fd, &readfds)) {
 			log_debug("message processing ...\n");
 			rc = proc_message();
+		}
+
+		/* Check any events from file system monitor */
+		if (FD_ISSET(daemon_cfg.notify_fd, &readfds)) {
+			log_debug("notification processing ...\n");
+			rc = proc_notify();
 		}
 	}
 

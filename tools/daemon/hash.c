@@ -168,6 +168,10 @@ void *hash_put(hash_t ht, hash_key_t key, void *value)
 			if (ht->free && entry->value) {
 				ht->free(entry->value);
 			}
+			if (entry->key == HASH_KEY_INVALID) {
+				ht->count++;
+			}
+			entry->key = key;
 			entry->value = value;
 			return value;
 		}
@@ -186,13 +190,23 @@ void hash_del(hash_t ht, hash_key_t key)
 			if (ht->free && entry->value) {
 				ht->free(entry->value);
 			}
+			if (entry->key != HASH_KEY_INVALID) {
+				ht->count--;
+			}
 			entry->key = HASH_KEY_INVALID;
 			entry->value = NULL;
-			ht->count--;
 		}
 	}
 }
 
+/* hash_find():
+ *
+ * Find a place (hash element) in the hash related key or
+ * new element.
+ * @param ht - point to hash object
+ * @param key - key identified data
+ * @return hash element or NULL in case there is no place.
+ */
 static struct hash_element* hash_find(hash_t ht, hash_key_t key)
 {
 	struct hash_element *entry = NULL;
@@ -209,9 +223,6 @@ static struct hash_element* hash_find(hash_t ht, hash_key_t key)
 
 		if ((ht->count < ht->size) &&
 			(entry->key == HASH_KEY_INVALID)) {
-			entry->key = key;
-			entry->value = NULL;
-			ht->count++;
 			break;
 		} else {
 			if (attempts >= (ht->size - 1)) {
