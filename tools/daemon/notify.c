@@ -633,7 +633,7 @@ static int proc_fanotify(void *buffer, int nbyte)
 
 			/* Process event related pid file only */
 			rc = 0;
-			if (!strcmp(buf, pathname)) {
+			if (!strncmp(buf, pathname, strlen(buf))) {
 				log_debug("[%d] check the event\n", data->pid);
 
 				/* Check if termination is unexpected and send RST to peers
@@ -645,6 +645,8 @@ static int proc_fanotify(void *buffer, int nbyte)
 				if (0 == rc) {
 					/* Cleanup unexpected termination */
 					log_debug("[%d] cleanup after unexpected termination\n", data->pid);
+					/* To suppress TOCTOU (time-of-check, time-of-use race condition) */
+					strcpy(pathname, buf);
 					unlink(pathname);
 					if (snprintf(pathname, sizeof(pathname) - 1, "%s/%s.%d.sock",
 							VMA_AGENT_PATH, VMA_AGENT_BASE_NAME, data->pid) > 0) {
@@ -705,21 +707,43 @@ static int proc_inotify(void *buffer, int nbyte)
 
 	while ((uintptr_t)data < ((uintptr_t)buffer + nbyte)) {
 		pid_t pid;
-		char buf[PATH_MAX];
-
-		memset(buf, 0, sizeof(buf));
 
 		/* Monitor only events from files */
 		if ((data->len > 0) &&
 				!(data->mask & IN_ISDIR ) &&
-				(0 < sscanf(data->name, VMA_AGENT_BASE_NAME ".%d.pid", &pid))) {
+				(1 == sscanf(data->name, VMA_AGENT_BASE_NAME ".%d.pid", &pid)) &&
+				hash_get(daemon_cfg.ht, pid)) {
+
+			char buf[PATH_MAX];
+			char pathname[PATH_MAX];
+
+			memset(buf, 0, sizeof(buf));
+			memset(pathname, 0, sizeof(pathname));
+
+			rc = snprintf(pathname, sizeof(pathname) - 1, "%s/%s",
+					VMA_AGENT_PATH, data->name);
+			if ((rc < 0 ) || (rc == (sizeof(pathname) - 1) )) {
+				rc = -ENOMEM;
+				log_error("failed allocate pid file errno %d (%s)\n", errno,
+					strerror(errno));
+				goto err;
+			}
 
 			log_debug("getting event ([0x%x] pid: %d name: %s)\n",
-					data->mask, pid, data->name);
+					data->mask, pid, pathname);
+
+			rc = snprintf(buf, sizeof(buf) - 1, "%s/%s.%d.pid",
+					VMA_AGENT_PATH, VMA_AGENT_BASE_NAME, pid);
+			if ((rc < 0 ) || (rc == (sizeof(buf) - 1) )) {
+				rc = -ENOMEM;
+				log_error("failed allocate pid file errno %d (%s)\n", errno,
+					strerror(errno));
+				goto err;
+			}
 
 			/* Process event related pid file only */
 			rc = 0;
-			if (hash_get(daemon_cfg.ht, pid)) {
+			if (!strncmp(buf, pathname, strlen(buf))) {
 				log_debug("[%d] check the event\n", pid);
 
 				/* Check if termination is unexpected and send RST to peers
@@ -750,6 +774,7 @@ static int proc_inotify(void *buffer, int nbyte)
 		data =  (struct inotify_event *)((uintptr_t)data + sizeof(*data) + data->len);
 	}
 
+err:
 	return rc;
 }
 #endif

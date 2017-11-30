@@ -206,6 +206,11 @@ agent::~agent()
 
 	m_state = AGENT_CLOSED;
 
+	/* This delay is needed to allow process EXIT message
+	 * before event from system file monitor is raised
+	 */
+	usleep(1000);
+
 	while (!list_empty(&m_free_queue)) {
 		msg = list_first_entry(&m_free_queue, agent_msg_t, item);
 		list_del_init(&msg->item);
