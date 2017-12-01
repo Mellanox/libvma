@@ -6,4 +6,5 @@ usr/share/doc/libvma/VMA_VERSION
 etc/libvma.conf
 usr/sbin/vmad
 etc/init.d/vma
+etc/systemd/system/vma.service
 libvma-debug.so usr/lib
