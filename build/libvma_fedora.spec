@@ -16,6 +16,8 @@ Requires(postun): /sbin/ldconfig
 BuildRequires: librdmacm-devel libibverbs-devel libnl3-devel
 BuildRequires: automake autoconf libtool
 
+%global use_systemd %(if ( test -d "%{_unitdir}" > /dev/null); then echo -n '1'; else echo -n '0'; fi)
+
 %description
 libvma is a LD_PRELOAD-able library that boosts performance
 of TCP and UDP traffic.
@@ -67,6 +69,9 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/*.la
 %config(noreplace) %{_sysconfdir}/security/limits.d/30-libvma-limits.conf
 %{_sbindir}/vmad
 %config(noreplace) %{_sysconfdir}/init.d/vma
+%if "%{use_systemd}" == "1"
+%config(noreplace) %{_sysconfdir}/systemd/system/vma.service
+%endif
 
 %files devel
 %{_includedir}/*

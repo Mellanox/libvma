@@ -100,11 +100,12 @@ int proc_loop(void)
 
 		rc = select(max_fd + 1, &readfds, NULL, NULL, &tv);
 		if (rc < 0) {
+			rc = 0;
 			if (errno != EINTR) {
+				rc = -errno;
 				log_error("Failed select() errno %d (%s)\n", errno,
 						strerror(errno));
 			}
-			rc = -errno;
 			goto err;
 		} else if (rc == 0) {
 			continue;

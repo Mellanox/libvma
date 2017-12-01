@@ -23,11 +23,17 @@ mydoc_DATA = README.txt journal.txt VMA_VERSION
 
 install-exec-hook:
 	mkdir -p $(DESTDIR)/$(sysconfdir)/init.d
-	cp $(top_builddir)/contrib/scripts/vma.init $(DESTDIR)/$(sysconfdir)/init.d/vma
-	chmod 755 $(DESTDIR)/$(sysconfdir)/init.d/vma
+	cp $(top_builddir)/contrib/scripts/vma.init $(DESTDIR)$(sysconfdir)/init.d/vma
+	chmod 755 $(DESTDIR)$(sysconfdir)/init.d/vma
+	if type systemctl >/dev/null 2>&1; then \
+		$(top_srcdir)/config/install-sh -m 755 -d $(DESTDIR)$(sysconfdir)/systemd/system/; \
+		cp $(top_builddir)/contrib/scripts/vma.service $(DESTDIR)$(sysconfdir)/systemd/system/vma.service; \
+		chmod 644 $(DESTDIR)$(sysconfdir)/systemd/system/vma.service; \
+	fi
 
 uninstall-hook:
-	rm -rf $(DESTDIR)/$(sysconfdir)/init.d
+	rm -rf $(DESTDIR)$(sysconfdir)/init.d/vma
+	rm -rf $(DESTDIR)$(sysconfdir)/systemd/system/vma.service
 
 install-all: install
 
