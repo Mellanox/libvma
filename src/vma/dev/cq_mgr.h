@@ -141,10 +141,7 @@ public:
 	 */
 	virtual int	poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	virtual int	poll_and_process_element_tx(uint64_t* p_cq_poll_sn);
-	virtual int	poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst) {
-		NOT_IN_USE(p_desc_lst);
-		return 0;
-	}
+	virtual int	poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst);
 
 	/**
 	 * This will check if the cq was drained, and if it wasn't it will drain it.
