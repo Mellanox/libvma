@@ -68,15 +68,15 @@ void ring_eth_cb::create_resources(ring_resource_creation_info_t *p_ring_info,
 	struct ibv_exp_res_domain_init_attr res_domain_attr;
 
 	// check MP capabilities currently all caps are 0 due to a buf
-	vma_ibv_device_attr& r_ibv_dev_attr =
+	vma_ibv_device_attr* r_ibv_dev_attr =
 			p_ring_info->p_ib_ctx->get_ibv_device_attr();
 
-	if (!r_ibv_dev_attr.max_ctx_res_domain) {
+	if (!r_ibv_dev_attr->max_ctx_res_domain) {
 		ring_logdbg("device doesn't support resource domain");
 		throw_vma_exception("device doesn't support resource domain");
 	}
 
-	struct ibv_exp_mp_rq_caps *mp_rq_caps = &r_ibv_dev_attr.mp_rq_caps;
+	struct ibv_exp_mp_rq_caps *mp_rq_caps = &r_ibv_dev_attr->mp_rq_caps;
 	if (!(mp_rq_caps->supported_qps & IBV_EXP_QPT_RAW_PACKET)) {
 		ring_logdbg("mp_rq is not supported");
 		throw_vma_exception("device doesn't support RC QP");
