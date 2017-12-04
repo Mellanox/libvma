@@ -1898,7 +1898,6 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	}
 
 	sock->m_vma_thr = p_rx_pkt_mem_buf_desc_info->rx.is_vma_thr;
-#ifdef DEFINED_VMAPOLL	
 #ifdef RDTSC_MEASURE_RX_READY_POLL_TO_LWIP
 	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_READY_POLL_TO_LWIP]);
 #endif //RDTSC_MEASURE_RX_READY_POLL_TO_LWIP
@@ -1906,10 +1905,8 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 #ifdef RDTSC_MEASURE_RX_LWIP
 	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_MEASURE_RX_LWIP]);
 #endif //RDTSC_MEASURE_RX_LWIP
-#endif // DEFINED_VMAPOLL	
 	L3_level_tcp_input((pbuf *)p_rx_pkt_mem_buf_desc_info, pcb);
 
-#ifdef DEFINED_VMAPOLL	
 #ifdef RDTSC_MEASURE_RX_LWIP
 	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_MEASURE_RX_LWIP]);
 #endif //RDTSC_MEASURE_RX_LWIP
@@ -1917,7 +1914,6 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 #ifdef RDTSC_MEASURE_RX_LWIP_TO_RECEVEFROM
 	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_LWIP_TO_RECEVEFROM]);
 #endif //RDTSC_MEASURE_RX_LWIP_TO_RECEVEFROM
-#endif // DEFINED_VMAPOLL	
 	sock->m_vma_thr = false;
 
 	if (sock != this) {

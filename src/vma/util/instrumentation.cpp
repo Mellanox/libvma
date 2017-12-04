@@ -32,7 +32,6 @@
 
 #include "config.h"
 #include "instrumentation.h"
-#ifdef DEFINED_VMAPOLL
 #include <string.h>
 
 #ifdef RDTSC_MEASURE
@@ -91,7 +90,6 @@ void print_rdtsc_summary()
 
 
 #endif //RDTSC_MEASURE
-#endif // DEFINED_VMAPOLL
 
 #ifdef VMA_TIME_MEASURE
 
