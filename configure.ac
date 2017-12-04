@@ -30,7 +30,7 @@ AC_CONFIG_HEADER([config.h])
 
 VMA_LIBRARY_MAJOR=8
 VMA_LIBRARY_MINOR=4
-VMA_LIBRARY_REVISION=8
+VMA_LIBRARY_REVISION=10
 VMA_LIBRARY_RELEASE=0
 
 AC_DEFINE_UNQUOTED(VMA_LIBRARY_MAJOR, ${VMA_LIBRARY_MAJOR}, [VMA Major Version])
@@ -103,32 +103,31 @@ AC_PROG_LIBTOOL
 AC_PROG_YACC
 AM_PROG_LEX
 
-#VMA_LIBRARY_MAJOR-vma_ver_major
-VMA_LIBRARY_MAJOR=8
-AC_SUBST(VMA_LIBRARY_MAJOR)
-
-#VMA_LIBRARY_MINOR-vma_ver_minor
-VMA_LIBRARY_MINOR=4
-AC_SUBST(VMA_LIBRARY_MINOR)
-
-#VMA_LIBRARY_REVISION-vma_ver_revision
-VMA_LIBRARY_REVISION=10
-AC_SUBST(VMA_LIBRARY_REVISION)
-
-#VMA_LIBRARY_RELEASE-vma_ver_release
-VMA_LIBRARY_RELEASE=0
-AC_SUBST(VMA_LIBRARY_RELEASE)
-
-#LIBALIC_FLAG
-LIBALIC_FLAG=""
-AC_SUBST(LIBALIC_FLAG)
-dateopt=""
-if test -n "$SOURCE_DATE_EPOCH" ; then
-    dateopt="-u -d @$SOURCE_DATE_EPOCH"
-fi
-AC_SUBST([BUILD_DATE], [$(date $dateopt +'%b/%d/%y')])
-AC_SUBST([BUILD_TIME], [$(date $dateopt +'%H:%M:%S')])
-AC_SUBST([BUILD_DATE_CHANGELOG], [$(date $dateopt +'%a, %d %b %Y %T %z')])
+# Check for pkg-config package
+#
+AC_CHECK_PROG(
+    [have_pkg_config],
+    [pkg-config],
+    m4_ifdef([PKG_PROG_PKG_CONFIG], yes, no_pkg_m4),
+    no_pkg_config)
+case "$have_pkg_config" in
+    no_pkg_m4)
+        AC_MSG_ERROR([
+        *** You do not have pkg.m4 properly installed.
+        *** aclocal can not find one.
+        *** Set the environment variable ACLOCAL="aclocal -I/path/to/pkg.m4"
+        ])
+        ;;
+    no_pkg_config)
+        AC_MSG_ERROR([
+        *** The pkg-config is required to build the library.
+        *** Make sure it is installed or set path to pkg-config.
+        ])
+        ;;
+    *)
+        ;;
+esac
+PKG_PROG_PKG_CONFIG()
 
 
 dnl===-----------------------------------------------------------------------===
