@@ -6,7 +6,9 @@
 
 
 # Check attributes
-# Usage: CHECK_VERBS_ATTRIBUTE([attribute], [header file])
+# Usage: CHECK_VERBS_ATTRIBUTE([attribute], [header file], [definition])
+# Note:
+# - [definition] can be omitted if it is equal to attribute
 #
 AC_DEFUN([CHECK_VERBS_ATTRIBUTE], [
     AC_TRY_LINK(
@@ -18,9 +20,13 @@ AC_DEFUN([CHECK_VERBS_ATTRIBUTE], [
     AC_MSG_CHECKING([for attribute $1])
     AC_MSG_RESULT([$vma_cv_attribute_$1])
     AS_IF([test "x$vma_cv_attribute_$1" = "xyes"], [
-        AC_DEFINE_UNQUOTED([DEFINED_$1], [1], [Define to 1 if attribute $1 is supported])
+        AS_IF([test "x$3" = "x"],
+            [AC_DEFINE_UNQUOTED([DEFINED_$1], [1], [Define to 1 if attribute $1 is supported])],
+            [AC_DEFINE_UNQUOTED([DEFINED_$3], [1], [Define to 1 if attribute $1 is supported])]
+        )
     ])
 ])
+
 
 
 ##########################
@@ -52,14 +58,22 @@ LIBS="$LIBS $VERBS_LIBS"
 
 # Check if OFED verbs (2.1 and older)
 #
-AC_CHECK_HEADER([infiniband/verbs_exp.h],
-    AC_CHECK_DECL([IBV_EXP_ACCESS_ALLOCATE_MR],
-        [],
-        [AC_DEFINE(DEFINED_IBV_OLD_VERBS_MLX_OFED, 1, [Define to 1 for ofed 2.1 and older])],
-        [[#include <infiniband/verbs_exp.h>]])
-    [],
-    [AC_DEFINE(DEFINED_IBV_OLD_VERBS_MLX_OFED, 1, [Define to 1 for ofed 2.1 and older])]
-)
+AC_MSG_CHECKING([if Mellanox OFED verbs (2.1 and older)])
+AC_TRY_LINK(
+#include <infiniband/verbs_exp.h>
+,
+[
+  int access = (int)IBV_EXP_ACCESS_ALLOCATE_MR;
+  access = access;
+],
+[
+  AC_MSG_RESULT([no])
+],
+[
+  AC_MSG_RESULT([yes])
+  AC_DEFINE(DEFINED_IBV_OLD_VERBS_MLX_OFED, 1, [Define to 1 for ofed 2.1 and older])
+])
+
 
 # Check if direct hardware operations can be used instead of VERBS API
 # infiniband/mlx5_hw.h should exist
@@ -100,7 +114,7 @@ AS_IF([test "x$enable_exp_cq" == xyes],
     CHECK_VERBS_ATTRIBUTE([IBV_EXP_VALUES_CLOCK_INFO], [infiniband/verbs_exp.h])
     CHECK_VERBS_ATTRIBUTE([IBV_EXP_DEVICE_RX_CSUM_L4_PKT], [infiniband/verbs_exp.h])
     CHECK_VERBS_ATTRIBUTE([IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT], [infiniband/verbs_exp.h])
-    CHECK_VERBS_ATTRIBUTE([IBV_EXP_FLOW_SPEC_ACTION_TAG], [infiniband/verbs_exp.h])
+    CHECK_VERBS_ATTRIBUTE([IBV_EXP_FLOW_SPEC_ACTION_TAG], [infiniband/verbs_exp.h], [IBV_EXP_FLOW_TAG])
 )
 
 # Check <verbs.h>
@@ -108,7 +122,7 @@ AS_IF([test "x$enable_exp_cq" == xyes],
 CHECK_VERBS_ATTRIBUTE([IBV_QPT_RAW_PACKET], [infiniband/verbs.h])
 CHECK_VERBS_ATTRIBUTE([IBV_WC_WITH_VLAN], [infiniband/verbs.h])
 CHECK_VERBS_ATTRIBUTE([IBV_ACCESS_ALLOCATE_MR], [infiniband/verbs.h])
-CHECK_VERBS_ATTRIBUTE([IBV_FLOW_SPEC_IB], [infiniband/verbs.h])
+CHECK_VERBS_ATTRIBUTE([IBV_FLOW_SPEC_IB], [infiniband/verbs.h], [IBV_FLOW_SPEC_IB])
 CHECK_VERBS_ATTRIBUTE([IBV_DEVICE_RAW_IP_CSUM], [infiniband/verbs.h])
 CHECK_VERBS_ATTRIBUTE([IBV_SEND_IP_CSUM], [infiniband/verbs.h])
 
@@ -118,26 +132,11 @@ CHECK_VERBS_ATTRIBUTE([IBV_EXP_CQ_MODERATION], [infiniband/verbs_exp.h])
 CHECK_VERBS_ATTRIBUTE([IBV_EXP_WR_NOP], [infiniband/verbs_exp.h])
 CHECK_VERBS_ATTRIBUTE([IBV_EXP_ACCESS_ALLOCATE_MR], [infiniband/verbs_exp.h])
 CHECK_VERBS_ATTRIBUTE([IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN], [infiniband/verbs_exp.h])
-CHECK_VERBS_ATTRIBUTE([IBV_EXP_FLOW_SPEC_IB], [infiniband/verbs_exp.h])
+CHECK_VERBS_ATTRIBUTE([IBV_EXP_FLOW_SPEC_IB], [infiniband/verbs_exp.h], [IBV_FLOW_SPEC_IB])
 
 # Check for <mlx5/wqe.h>
 #
-AC_MSG_CHECKING([if MLX5_ETH_WQE_L3_CSUM is defined])
-AC_TRY_LINK(
-#include <infiniband/mlx5_hw.h>
-,
-[
-  int access = (int)MLX5_ETH_WQE_L3_CSUM;
-  access = access;
-],
-[
-  AC_MSG_RESULT([yes])
-  AC_DEFINE(DEFINED_MLX5_HW_ETH_WQE_HEADER, 1, [Define to 1 if MLX5_ETH_WQE_L3_CSUM is defined])
-],
-[
-  AC_MSG_RESULT([no])
-])
-
+CHECK_VERBS_ATTRIBUTE([MLX5_ETH_WQE_L3_CSUM], [infiniband/mlx5_hw.h], [MLX5_HW_ETH_WQE_HEADER])
 
 #
 # On Device Memory

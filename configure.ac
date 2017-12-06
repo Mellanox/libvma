@@ -269,7 +269,7 @@ AC_ARG_WITH(ofed,
      else
          ac_cv_ofed_path="/usr"
      fi])
-CPPFLAGS="-I$ac_cv_ofed_path/include"
+CPPFLAGS="$CPPFLAGS -I$ac_cv_ofed_path/include"
 if test -d "$ac_cv_ofed_path/lib64" ; then
     LDFLAGS="$LDFLAGS -L$ac_cv_ofed_path/lib64"
 else
