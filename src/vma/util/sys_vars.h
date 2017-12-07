@@ -393,6 +393,7 @@ struct mce_sys_var {
 	bool 		handle_bf;
 
 	bool 		enable_ipoib;
+	bool 		enable_xtreme;
 	uint32_t	timer_netlink_update_msec;
 
 	//Neigh parameters
@@ -523,6 +524,7 @@ extern mce_sys_var & safe_mce_sys();
 #define SYS_VAR_SPEC_PARAM2				"VMA_SPEC_PARAM2"
 
 #define SYS_VAR_IPOIB					"VMA_IPOIB"
+#define SYS_VAR_XTREME					"VMA_XTREME"
 
 #define SYS_VAR_INTERNAL_THREAD_AFFINITY		"VMA_INTERNAL_THREAD_AFFINITY"
 #define SYS_VAR_INTERNAL_THREAD_CPUSET			"VMA_INTERNAL_THREAD_CPUSET"
@@ -669,6 +671,11 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_MIN_CQ_POLL_BATCH				(1)
 #define MCE_MAX_CQ_POLL_BATCH				(128)
 #define MCE_DEFAULT_IPOIB_FLAG				(1)
+#ifdef DEFINED_VMAPOLL
+#define MCE_DEFAULT_XTREME				(true)
+#else
+#define MCE_DEFAULT_XTREME				(false)
+#endif // DEFINED_VMAPOLL
 #define MCE_DEFAULT_RX_POLL_ON_TX_TCP			(false)
 #define MCE_DEFAULT_TRIGGER_DUMMY_SEND_GETSOCKNAME	(false)
 

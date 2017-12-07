@@ -524,6 +524,7 @@ void mce_sys_var::get_env_params()
 	buffer_batching_mode	= MCE_DEFAULT_BUFFER_BATCHING_MODE;
 	mem_alloc_type          = MCE_DEFAULT_MEM_ALLOC_TYPE;
 	enable_ipoib		= MCE_DEFAULT_IPOIB_FLAG;
+	enable_xtreme		= MCE_DEFAULT_XTREME;
 	handle_fork		= MCE_DEFAULT_FORK_SUPPORT;
 	handle_bf		= MCE_DEFAULT_BF_FLAG;
 	close_on_dup2		= MCE_DEFAULT_CLOSE_ON_DUP2;
@@ -1124,6 +1125,9 @@ void mce_sys_var::get_env_params()
 
 	if((env_ptr = getenv(SYS_VAR_IPOIB )) != NULL)
 		enable_ipoib = atoi(env_ptr) ? true : false;
+
+	if((env_ptr = getenv(SYS_VAR_XTREME )) != NULL)
+		enable_xtreme = atoi(env_ptr) ? true : false;
 
 	if ((env_ptr = getenv(SYS_VAR_CLOSE_ON_DUP2)) != NULL)
 		close_on_dup2 = atoi(env_ptr) ? true : false;
