@@ -679,7 +679,18 @@ void mce_sys_var::get_env_params()
 
 	is_hypervisor = check_cpuinfo_flag(VIRTUALIZATION_FLAG);
 
-       if ((env_ptr = getenv(SYS_VAR_SPEC_PARAM1)) != NULL)
+	if ((env_ptr = getenv(SYS_VAR_XTREME )) != NULL) {
+		enable_xtreme = atoi(env_ptr) ? true : false;
+	}
+	/* TODO: consider avoiding these settings and use VMA_SPEC as ultra latency or latency
+	 * It is done just as a part of code unification
+	 */
+	if (enable_xtreme) {
+		rx_num_wr = 1024;
+		gro_streams_max = 0;
+	}
+
+	if ((env_ptr = getenv(SYS_VAR_SPEC_PARAM1)) != NULL)
 		mce_spec_param1 = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_SPEC_PARAM2)) != NULL)
@@ -1125,9 +1136,6 @@ void mce_sys_var::get_env_params()
 
 	if((env_ptr = getenv(SYS_VAR_IPOIB )) != NULL)
 		enable_ipoib = atoi(env_ptr) ? true : false;
-
-	if((env_ptr = getenv(SYS_VAR_XTREME )) != NULL)
-		enable_xtreme = atoi(env_ptr) ? true : false;
 
 	if ((env_ptr = getenv(SYS_VAR_CLOSE_ON_DUP2)) != NULL)
 		close_on_dup2 = atoi(env_ptr) ? true : false;
