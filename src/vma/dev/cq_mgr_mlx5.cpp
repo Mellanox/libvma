@@ -70,9 +70,6 @@ cq_mgr_mlx5::cq_mgr_mlx5(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler,
 
 uint32_t cq_mgr_mlx5::clean_cq()
 {
-#ifdef DEFINED_VMAPOLL
-	return 0;
-#else
 	uint32_t ret_total = 0;
 	uint64_t cq_poll_sn = 0;
 	mem_buf_desc_t* buff;
@@ -103,7 +100,6 @@ uint32_t cq_mgr_mlx5::clean_cq()
 	}
 
 	return ret_total;
-#endif // DEFINED_VMAPOLL
 }
 
 cq_mgr_mlx5::~cq_mgr_mlx5()
