@@ -369,7 +369,6 @@ int vma_free_packets(int __fd, struct vma_packet_t *pkts, size_t count)
 	return -1;
 }
 
-#ifdef DEFINED_VMAPOLL
 extern "C"
 int vma_poll(int fd, struct vma_completion_t* completions, unsigned int ncompletions, int flags)
 {
@@ -475,7 +474,6 @@ int vma_buff_free(vma_buff_t *buff)
 	}
 	return ret_val;
 }
-#endif // DEFINED_VMAPOLL
 
 extern "C"
 int vma_get_socket_rings_num(int fd)
@@ -884,14 +882,11 @@ int getsockopt(int __fd, int __level, int __optname,
 		vma_api->get_socket_rings_num = vma_get_socket_rings_num;
 		vma_api->get_socket_rings_fds = vma_get_socket_rings_fds;
 		vma_api->vma_add_ring_profile = vma_add_ring_profile;
-#ifdef DEFINED_VMAPOLL
+		vma_api->dump_fd_stats = vma_dump_fd_stats;
 		vma_api->free_vma_packets = vma_free_vma_packets;
 		vma_api->vma_poll = vma_poll;
 		vma_api->ref_vma_buff = vma_buff_ref;
 		vma_api->free_vma_buff = vma_buff_free;
-#else
-		vma_api->dump_fd_stats = vma_dump_fd_stats;
-#endif // DEFINED_VMAPOLL
 
 #ifdef HAVE_MP_RQ
 		vma_api->vma_cyclic_buffer_read = vma_cyclic_buffer_read;
