@@ -84,7 +84,8 @@ protected:
 	int                         m_cqe_log_sz;
 
 private:
-	const uint32_t		m_n_sysvar_rx_num_wr_to_post_recv;
+	const uint32_t              m_n_sysvar_rx_num_wr_to_post_recv;
+	const bool                  m_b_sysvar_enable_xtreme;
 
 	mem_buf_desc_t              *m_rx_hot_buffer;
 	qp_mgr_eth_mlx5*            m_qp;
