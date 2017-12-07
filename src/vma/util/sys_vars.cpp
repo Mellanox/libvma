@@ -688,6 +688,7 @@ void mce_sys_var::get_env_params()
 	if (enable_xtreme) {
 		rx_num_wr = 1024;
 		gro_streams_max = 0;
+		progress_engine_interval_msec = MCE_CQ_DRAIN_INTERVAL_DISABLED;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_SPEC_PARAM1)) != NULL)
@@ -992,8 +993,13 @@ void mce_sys_var::get_env_params()
 		cq_poll_batch_max = MCE_DEFAULT_CQ_POLL_BATCH;
 	}
 
-	if ((env_ptr = getenv(SYS_VAR_PROGRESS_ENGINE_INTERVAL)) != NULL)
+	if ((env_ptr = getenv(SYS_VAR_PROGRESS_ENGINE_INTERVAL)) != NULL) {
 		progress_engine_interval_msec = (uint32_t)atoi(env_ptr);
+	}
+	if (enable_xtreme && (progress_engine_interval_msec != MCE_CQ_DRAIN_INTERVAL_DISABLED)) {
+		progress_engine_interval_msec = MCE_CQ_DRAIN_INTERVAL_DISABLED;
+		vlog_printf(VLOG_WARNING,"%s parameter is ignored in case %s is enabled\n", SYS_VAR_PROGRESS_ENGINE_INTERVAL, SYS_VAR_XTREME);
+	}
 
 	if ((env_ptr = getenv(SYS_VAR_PROGRESS_ENGINE_WCE_MAX)) != NULL)
 		progress_engine_wce_max = (uint32_t)atoi(env_ptr);

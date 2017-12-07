@@ -43,11 +43,7 @@ ring::ring(int count, uint32_t mtu) :
 	m_n_num_resources(count), m_p_n_rx_channel_fds(NULL), m_parent(NULL),
 	m_is_mp_ring(false), m_mtu(mtu)
 {
-#ifdef DEFINED_VMAPOLL
-	xtreme.m_active = true; /* TODO: This VMA version supports socketXtreme usage mode only */
-#else
-	xtreme.m_active = false; /* TODO: This VMA version supports socketXtreme usage mode only */
-#endif // DEFINED_VMAPOLL
+	xtreme.m_active = safe_mce_sys().enable_xtreme;
 	INIT_LIST_HEAD(&xtreme.m_ec_list);
 	xtreme.m_vma_poll_completion = NULL;
 }

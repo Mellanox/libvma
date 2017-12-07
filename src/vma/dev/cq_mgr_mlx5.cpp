@@ -252,17 +252,6 @@ int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=N
 #ifdef DEFINED_VMAPOLL
 	cq_logfuncall("cq was %s drained. %d processed wce since last check. %d wce in m_rx_queue", (m_b_was_drained?"":"not "), m_n_wce_counter, m_rx_queue.size());
 
-#if 0 /* TODO: see explanation */
-	/* This function should be called during destructor only.
-	 * Intrenal thread does not launch draining RX logic for vma_poll mode
-	 * See: net_device_table_mgr::handle_timer_expired(RING_PROGRESS_ENGINE_TIMER)
-	 */
-
-	/* Check if we are in socketXtreme usage mode */
-	if (true == m_p_ring->get_xtreme_active()) {
-		return 0;
-	}
-#endif
 	// CQ polling loop until max wce limit is reached for this interval or CQ is drained
 	uint32_t ret_total = 0;
 	//uint64_t cq_poll_sn = 0;
