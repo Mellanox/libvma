@@ -663,11 +663,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_MIN_CQ_POLL_BATCH				(1)
 #define MCE_MAX_CQ_POLL_BATCH				(128)
 #define MCE_DEFAULT_IPOIB_FLAG				(1)
-#ifdef DEFINED_VMAPOLL
-#define MCE_DEFAULT_XTREME				(true)
-#else
 #define MCE_DEFAULT_XTREME				(false)
-#endif // DEFINED_VMAPOLL
 #define MCE_DEFAULT_RX_POLL_ON_TX_TCP			(false)
 #define MCE_DEFAULT_TRIGGER_DUMMY_SEND_GETSOCKNAME	(false)
 
