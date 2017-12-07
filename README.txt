@@ -183,6 +183,7 @@ Example:
  VMA DETAILS: UC ARP delay (msec)            10000                      [VMA_NEIGH_UC_ARP_DELAY_MSEC]
  VMA DETAILS: Num of neigh restart retries   1                          [VMA_NEIGH_NUM_ERR_RETRIES]
  VMA DETAILS: IPOIB support                  Enabled                    [VMA_IPOIB]
+ VMA DETAILS: SocketXtreme                   Disabled                   [VMA_SOCKETXTREME]
  VMA DETAILS: BF (Blue Flame)                Enabled                    [VMA_BF]
  VMA DETAILS: fork() support                 Enabled                    [VMA_FORK]
  VMA DETAILS: close on dup2()                Enabled                    [VMA_CLOSE_ON_DUP2]
@@ -891,6 +892,13 @@ will forward the call to the OS.
 This is, in practice, a very rudimentary dup2 support.
 It only supports the case, where dup2 is used to close file descriptors,
 Default value is 1 (Enabled)
+
+VMA_SOCKETXTREME
+When this parameter is enabled, VMA operates in SocketXtreme mode.
+SocketXtreme mode brings latency down, eliminating copy operations and
+increasing throughput allowing applications to further utilize true kernel
+bypass architecture. An application should use a socket extension API named SocketXtreme.
+Default value is 0 (Disabled)
 
 VMA_MTU
 Size of each Rx and Tx data buffer (Maximum Transfer Unit).
