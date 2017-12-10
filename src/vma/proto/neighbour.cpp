@@ -358,13 +358,13 @@ void neigh_entry::handle_timer_expired(void* ctx)
 		}
 	}
 
-	if (state != NUD_REACHABLE) {
-		neigh_logdbg("State is different from NUD_REACHABLE and L2 address wasn't changed. Sending ARP");
+	if (!priv_is_reachable(state)) {
+		neigh_logdbg("State (%d) is not reachable and L2 address wasn't changed. Sending ARP", state);
 		send_arp();
 		m_timer_handle = priv_register_timer_event(m_n_sysvar_neigh_wait_till_send_arp_msec, this, ONE_SHOT_TIMER, NULL);
 	}
 	else {
-		neigh_logdbg("State is NUD_REACHABLE and L2 address wasn't changed. Stop sending ARP");
+		neigh_logdbg("State is reachable (%s %d) and L2 address wasn't changed. Stop sending ARP", (state == NUD_REACHABLE) ? "NUD_REACHABLE" : "NUD_PERMANENT", state);
 	}
 }
 
@@ -717,6 +717,7 @@ void neigh_entry::handle_neigh_event(neigh_nl_event* nl_ev)
 		break;
 	}
 	case NUD_REACHABLE:
+	case NUD_PERMANENT:
 	{
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if(m_state_machine == NULL) {
@@ -1040,7 +1041,7 @@ int neigh_entry::priv_enter_addr_resolved()
 
 	int state;
 
-	if (!priv_get_neigh_state(state) || state != NUD_REACHABLE) {
+	if (!priv_get_neigh_state(state) || !priv_is_reachable(state)) {
 		neigh_logdbg("got addr_resolved but state=%d", state);
 		send_arp();
 		m_timer_handle = priv_register_timer_event(m_n_sysvar_neigh_wait_till_send_arp_msec, this, ONE_SHOT_TIMER, NULL);
@@ -1142,7 +1143,7 @@ int neigh_entry::priv_enter_ready()
 	// This is the case when VMA was started with neigh in STALE state and
 	// rdma_adress_resolve() in this case will not initiate ARP
 	if (m_type == UC && ! m_is_loopback) {
-		if (priv_get_neigh_state(state) && (state != NUD_REACHABLE)) {
+		if (priv_get_neigh_state(state) && !priv_is_reachable(state)) {
 			send_arp();
 			m_timer_handle = priv_register_timer_event(m_n_sysvar_neigh_wait_till_send_arp_msec, this, ONE_SHOT_TIMER, NULL);
 		}

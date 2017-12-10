@@ -325,6 +325,7 @@ protected:
 
 	bool 			priv_get_neigh_state(int & state);
 	bool 			priv_get_neigh_l2(address_t & l2_addr);
+	bool 			priv_is_reachable(int state) { return state & (NUD_REACHABLE | NUD_PERMANENT); }
 
 	void			event_handler(event_t event, void* p_event_info = NULL);
 	void			priv_event_handler_no_locks(event_t event, void* p_event_info = NULL);
