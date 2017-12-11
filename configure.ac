@@ -53,9 +53,13 @@ AC_SUBST(VMA_LIBRARY_RELEASE)
 #LIBALIC_FLAG
 LIBALIC_FLAG=""
 AC_SUBST(LIBALIC_FLAG)
-AC_SUBST([BUILD_DATE], [$(date +'%b/%d/%Y')])
-AC_SUBST([BUILD_TIME], [$(date +'%H:%M:%S')])
-AC_SUBST([BUILD_DATE_CHANGELOG], [$(date +'%a, %d %b %Y %T %z')])
+dateopt=""
+if test -n "$SOURCE_DATE_EPOCH" ; then
+    dateopt="-u -d @$SOURCE_DATE_EPOCH"
+fi
+AC_SUBST([BUILD_DATE], [$(date $dateopt +'%b/%d/%y')])
+AC_SUBST([BUILD_TIME], [$(date $dateopt +'%H:%M:%S')])
+AC_SUBST([BUILD_DATE_CHANGELOG], [$(date $dateopt +'%a, %d %b %Y %T %z')])
 
 m4_include([config/m4/opt.m4])
 
