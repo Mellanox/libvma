@@ -49,9 +49,13 @@ if test -n "$GIT_VER"; then GIT_VER=`echo $GIT_VER | sed -e 's/-dirty/+/' | sed 
 
 AC_DEFINE_UNQUOTED(VMA_GIT_VERSION, "${GIT_VER}", [VMA Git Version])
 
-AC_SUBST([BUILD_DATE], [$(date +'%b/%d/%Y')])
-AC_SUBST([BUILD_TIME], [$(date +'%H:%M:%S')])
-AC_SUBST([BUILD_DATE_CHANGELOG], [$(date +'%a, %d %b %Y %T %z')])
+dateopt=""
+    if test -n "$SOURCE_DATE_EPOCH" ; then
+    dateopt="-u -d @$SOURCE_DATE_EPOCH"
+fi
+AC_SUBST([BUILD_DATE], [$(date $dateopt +'%b/%d/%Y')])
+AC_SUBST([BUILD_TIME], [$(date $dateopt +'%H:%M:%S')])
+AC_SUBST([BUILD_DATE_CHANGELOG], [$(date $dateopt +'%a, %d %b %Y %T %z')])
 
 dnl===-----------------------------------------------------------------------===
 dnl===
