@@ -54,7 +54,7 @@
 #include "daemon.h"
 
 #ifndef KERNEL_O_LARGEFILE
-#if defined(__aarch64__)
+#if defined(__aarch64__) || defined(__powerpc__)
 /* Check architecture: if we are running on ARM,
  * omit KERNEL_O_LARGEFILE from fanotify_init invocation because
  * KERNEL_O_LARGEFILE breaks program on armv running at least kernel 4.4+
