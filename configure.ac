@@ -264,7 +264,7 @@ fi
 
 # OFED configuration.
 #
-AC_MSG_CHECKING([OFED path])
+AC_MSG_CHECKING([for OFED path])
 AC_ARG_WITH(ofed,
     AC_HELP_STRING([--with-ofed], [Path to OFED install]),
     [ac_cv_ofed_path=$withval],
@@ -284,7 +284,11 @@ AC_MSG_RESULT($ac_cv_ofed_path)
 VERBS_CAPABILITY_SETUP()
 OPT_VMA_LOGGING()
 PROF_IBPROF_SETUP()
-PROF_RDTSC_SETUP()
+
+# Enable internal performance counters
+# Note: uncomment setup to activate this ability
+#
+#PROF_RDTSC_SETUP()
 
 # VMA Extreme configuration
 #
@@ -320,7 +324,7 @@ else
     AC_MSG_RESULT([yes])
 fi
 
-AC_MSG_CHECKING([md5 version of VMA statistics is])
+AC_MSG_CHECKING([for md5 version of VMA statistics is])
 STATS_PROTOCOL_VER=`md5sum ${srcdir}/src/vma/util/vma_stats.h | awk '{ print $1}'`
 AC_DEFINE_UNQUOTED(STATS_PROTOCOL_VER, "${STATS_PROTOCOL_VER}", [Stats Protocol Version])
 AC_SUBST(STATS_PROTOCOL_VER)
