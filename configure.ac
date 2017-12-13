@@ -179,7 +179,7 @@ CXXFLAGS="-D_GNU_SOURCE -fPIC $CXXFLAGS"
 # gcov support
 #
 AC_MSG_CHECKING(
-    [if gcov is enabled])
+    [for gcov support])
 AC_ARG_ENABLE([gcov],
     AC_HELP_STRING([--enable-gcov],
         [turn on code coverage analysis tools]),
@@ -189,10 +189,10 @@ AC_ARG_ENABLE([gcov],
      AC_MSG_RESULT([no])]
 )
 
-# Performance time points  support
+# Performance time points support
 #
 AC_MSG_CHECKING(
-    [if time measurement is enabled])
+    [for time measurement support])
 AC_ARG_ENABLE([time_measure],
     AC_HELP_STRING([--enable-time-measure],
         [turn on time measuring]),
@@ -211,7 +211,7 @@ AC_ARG_WITH([valgrind],
 )
 
 AC_MSG_CHECKING(
-    [if valgrind is enabled])
+    [for valgrind support])
 AS_IF([test "x$with_valgrind" == xno],
       [AC_DEFINE([NVALGRIND], 1, [Define to 1 to disable Valgrind annotations.])
        AC_MSG_RESULT([no])
@@ -302,7 +302,7 @@ if test "x$enable_vmapoll" = xyes; then
 else
     enable_vmapoll=no
 fi
-AC_MSG_CHECKING([if vmapoll API is enabled])
+AC_MSG_CHECKING([for vmapoll API support])
 AC_MSG_RESULT([$enable_vmapoll])
 
 
@@ -312,7 +312,7 @@ AC_ARG_ENABLE([thread-lock],
     AC_HELP_STRING([--enable-thread-lock],
         [Enable thread locking (default=yes)]))
 AC_MSG_CHECKING(
-    [if thread locking is enabled])
+    [for thread locking support])
 if test "x$enable_thread_lock" = "xno"; then
     if test "x$enable_vmapoll" = xyes; then
         AC_DEFINE([DEFINED_NO_THREAD_LOCK], 1, [Define to 1 to disable thread locking])
@@ -367,7 +367,7 @@ dnl===-----------------------------------------------------------------------===
 show_section_title "Check for functions, types and structures"
 
 # Does this compiler have built-in functions for atomic memory access?
-AC_MSG_CHECKING([if gcc supports atomic memory access (__sync_bool_compare_and_swap)])
+AC_MSG_CHECKING([for atomic memory access (__sync_bool_compare_and_swap) support])
 AC_TRY_LINK(,
 [
   int variable = 1;
@@ -382,7 +382,7 @@ AC_TRY_LINK(,
   AC_MSG_RESULT([no])
 ])
 
-AC_MSG_CHECKING([if SOF_TIMESTAMPING_SOFTWARE is defined])
+AC_MSG_CHECKING([for SOF_TIMESTAMPING_SOFTWARE support])
 AC_TRY_LINK(
 #include <linux/net_tstamp.h>
 ,
@@ -399,7 +399,7 @@ AC_TRY_LINK(
   AC_DEFINE(DEFINED_MISSING_NET_TSTAMP, 1, [Define to 1 if linux/net_tstamp.h is missing])
 ])
 
-AC_MSG_CHECKING([if 'FRA_OIFNAME' enum value is defined])
+AC_MSG_CHECKING([for FRA_OIFNAME enum value support])
 AC_TRY_LINK(
 #include <linux/fib_rules.h>
 ,
@@ -418,7 +418,7 @@ AC_TRY_LINK(
 
 AC_CHECK_TYPES([struct mmsghdr],[],[],[#include <sys/socket.h>])
 
-AC_MSG_CHECKING([if 'struct timespec' for recvmmsg() is const])
+AC_MSG_CHECKING([for 'struct timespec' for recvmmsg() const])
 AC_TRY_LINK(
 #include <sys/socket.h>
 ,

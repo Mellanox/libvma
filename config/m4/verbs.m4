@@ -58,7 +58,7 @@ LIBS="$LIBS $VERBS_LIBS"
 
 # Check if OFED verbs (2.1 and older)
 #
-AC_MSG_CHECKING([if Mellanox OFED verbs (2.1 and older)])
+AC_MSG_CHECKING([for Mellanox OFED verbs (2.1 and older)])
 AC_TRY_LINK(
 #include <infiniband/verbs_exp.h>
 ,
@@ -163,7 +163,7 @@ AC_CHECK_DECLS([IBV_EXP_DEVICE_ATTR_VLAN_OFFLOADS,
 		[[#include <infiniband/verbs_exp.h>]
 		 [#include <infiniband/mlx5_hw.h>]])
 
-AC_MSG_CHECKING([if multi packet RQ is enabled])
+AC_MSG_CHECKING([for multi packet RQ support])
 AS_IF([test "x$have_mp_rq" == xyes -a "x$enable_exp_cq" == xyes -a "x$enable_mlx5" == xyes],
 	[AC_DEFINE([HAVE_MP_RQ], 1, [MP_RQ QP supported])] [AC_MSG_RESULT([yes])],
 	[AC_MSG_RESULT([no])])
