@@ -1101,6 +1101,9 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio)
 	case CC_MOD_CUBIC:
 		pcb->cc_algo = &cubic_cc_algo;
 		break;
+	case CC_MOD_NONE:
+		pcb->cc_algo = &none_cc_algo;
+		break;
 	case CC_MOD_LWIP:
 	default:
 		pcb->cc_algo = &lwip_cc_algo;
