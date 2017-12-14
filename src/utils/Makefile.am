@@ -1,6 +1,3 @@
-AM_CFLAGS = -Wall -g -fPIC #-O3
-AM_CXXFLAGS = -Wall -g -fPIC #-O3
-
 AM_CPPFLAGS := -I$(top_srcdir)/src
 
 noinst_LTLIBRARIES = libutils.la
