@@ -53,6 +53,8 @@ extern u16_t lwip_tcp_mss;
 #if LWIP_3RD_PARTY_L3
 typedef err_t (*ip_output_fn)(struct pbuf *p, void* p_conn, int is_rexmit, u8_t is_dummy);
           
+typedef err_t (*ip_output_nc_fn)(struct pbuf *p, void* p_conn, int is_rexmit, u8_t is_dummy);
+          
 void register_ip_output(ip_output_fn fn);
 
 #endif
@@ -98,6 +100,17 @@ extern enum cc_algo_mod lwip_cc_algo_module;
  *            callback function!
  */
 typedef err_t (*tcp_accept_fn)(void *arg, struct tcp_pcb *newpcb, err_t err);
+
+
+/** Function prototype for tcp prepare destination to send callback functions.
+ *
+ * @param arg Additional argument to pass to the callback function (@see tcp_arg())
+ * @param newpcb The new connection pcb
+ * @param err An error code if there has been an error.
+ *            Only return ERR_ABRT if you have called tcp_abort from within the
+ *            callback function!
+ */
+typedef err_t (*tcp_prepare_dst_fn)(void *arg, struct tcp_pcb *newpcb, err_t err);
 
 /** Function prototype for tcp syn received callback functions. Called when a new
  * syn is received.
@@ -407,6 +420,8 @@ struct tcp_pcb {
   u8_t snd_scale;
   u8_t rcv_scale;
 #ifdef VMA_NO_TCP_PCB_LISTEN_STRUCT
+  tcp_prepare_dst_fn tcp_prepare_dst_cb;
+  ip_output_nc_fn ip_output_nc;
   tcp_syn_handled_fn syn_handled_cb;
   tcp_clone_conn_fn clone_conn;
 
@@ -431,6 +446,8 @@ struct tcp_pcb_listen {
   IP_PCB;
 /* Protocol specific PCB members */
   TCP_PCB_COMMON(struct tcp_pcb_listen);
+  tcp_prepare_dst_fn tcp_prepare_dst_cb;
+  ip_output_nc_fn ip_output_nc;
   tcp_syn_handled_fn syn_handled_cb;
   tcp_clone_conn_fn clone_conn;
 
@@ -469,7 +486,9 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio);
 
 void             tcp_arg     		(struct tcp_pcb *pcb, void *arg);
 void             tcp_ip_output          (struct tcp_pcb *pcb, ip_output_fn ip_output);
+void             tcp_ip_output_nc       (struct tcp_pcb *pcb, ip_output_nc_fn ip_output_nc);
 void             tcp_accept  		(struct tcp_pcb *pcb, tcp_accept_fn accept);
+void             tcp_prepare_dst	(struct tcp_pcb_listen *pcb, tcp_prepare_dst_fn rst_handled);
 void             tcp_syn_handled	(struct tcp_pcb_listen *pcb, tcp_syn_handled_fn syn_handled);
 void             tcp_clone_conn		(struct tcp_pcb_listen *pcb, tcp_clone_conn_fn clone_conn);
 void             tcp_recv    		(struct tcp_pcb *pcb, tcp_recv_fn recv);

@@ -342,8 +342,26 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
     /* For incoming segments with the ACK flag set, respond with a
        RST. */
     LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_listen_input: ACK in LISTEN, sending reset\n"));
-    tcp_rst(in_data->ackno + 1, in_data->seqno + in_data->tcplen,
-      in_data->tcphdr->dest, in_data->tcphdr->src, NULL);
+    rc = tcp_rst(in_data->ackno + 1, in_data->seqno + in_data->tcplen,
+      in_data->tcphdr->dest, in_data->tcphdr->src, pcb);
+    if (rc < 0) {
+          struct tcp_hdr tcphdr, *ptcp_hdr = (struct tcp_hdr*)&tcphdr;
+          TCP_EVENT_CLONE_PCB(pcb, &npcb, ERR_OK, rc);
+          ip_addr_copy(npcb->local_ip, in_data->iphdr->dest);
+          npcb->local_port = pcb->local_port;
+          ip_addr_copy(npcb->remote_ip, in_data->iphdr->src);
+          npcb->remote_port = in_data->tcphdr->src;
+          TCP_PREPARE_DST_TO_SEND(pcb, npcb, ERR_OK, rc);
+          ptcp_hdr->src = htons(in_data->tcphdr->dest);
+          ptcp_hdr->dest = htons(in_data->tcphdr->src);
+          ptcp_hdr->seqno = htonl(in_data->ackno);
+          ptcp_hdr->ackno = htonl(in_data->seqno + in_data->tcplen);
+          TCPH_HDRLEN_FLAGS_SET(ptcp_hdr, TCP_HLEN/4, TCP_RST);
+          ptcp_hdr->wnd = 0;
+          ptcp_hdr->chksum = 0;
+          ptcp_hdr->urgp = 0;
+          tcp_rst_nc(npcb, ptcp_hdr);
+    }
   } else if (in_data->flags & TCP_SYN) {
     LWIP_DEBUGF(TCP_DEBUG, ("TCP connection request %"U16_F" -> %"U16_F".\n", in_data->tcphdr->src, in_data->tcphdr->dest));
 #if TCP_LISTEN_BACKLOG

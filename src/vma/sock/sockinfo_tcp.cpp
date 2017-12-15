@@ -2391,6 +2391,7 @@ int sockinfo_tcp::listen(int backlog)
 	m_sock_state = TCP_SOCK_ACCEPT_READY;
 
 	tcp_accept(&m_pcb, sockinfo_tcp::accept_lwip_cb);
+	tcp_prepare_dst((struct tcp_pcb_listen*)(&m_pcb), sockinfo_tcp::prepare_dst_lwip_cb);
 	tcp_syn_handled((struct tcp_pcb_listen*)(&m_pcb), sockinfo_tcp::syn_received_lwip_cb);
 	tcp_clone_conn((struct tcp_pcb_listen*)(&m_pcb), sockinfo_tcp::clone_conn_cb);
 
@@ -2645,6 +2646,7 @@ sockinfo_tcp *sockinfo_tcp::accept_clone()
         if (m_sysvar_tcp_ctl_thread  > CTL_THREAD_DISABLE) {
         	tcp_ip_output(&si->m_pcb, sockinfo_tcp::ip_output_syn_ack);
         }
+        tcp_ip_output_nc(&si->m_pcb, sockinfo_tcp::ip_output_syn_ack);
 
         return si;
 }
@@ -2891,6 +2893,34 @@ err_t sockinfo_tcp::clone_conn_cb(void *arg, struct tcp_pcb **newpcb, err_t err)
 	conn->m_tcp_con_lock.lock();
 
 	return ret_val;
+}
+
+err_t sockinfo_tcp::prepare_dst_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_t err)
+{
+	sockinfo_tcp *listen_sock = (sockinfo_tcp *)((arg));
+
+	if (!listen_sock || !newpcb) {
+		return ERR_VAL;
+	}
+
+	sockinfo_tcp *new_sock = (sockinfo_tcp *)((newpcb->my_container));
+
+	NOT_IN_USE(err);
+
+	ASSERT_LOCKED(listen_sock->m_tcp_con_lock);
+	listen_sock->m_tcp_con_lock.unlock();
+
+	new_sock->set_conn_properties_from_pcb();
+	new_sock->create_dst_entry();
+	if (new_sock->m_p_connected_dst_entry) {
+		new_sock->prepare_dst_to_send(true);
+		new_sock->abort_connection();
+	}
+	close(new_sock->get_fd());
+
+	listen_sock->m_tcp_con_lock.lock();
+
+	return ERR_OK;
 }
 
 err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_t err)
