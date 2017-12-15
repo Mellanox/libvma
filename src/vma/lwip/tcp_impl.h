@@ -268,6 +268,13 @@ PACK_STRUCT_END
       (errf)((arg),(err));                                     \
   } while (0)
 
+#define TCP_PREPARE_DST_TO_SEND(pcb,p_npcb,err,ret)              \
+  do {                                                         \
+    if((pcb)->tcp_prepare_dst_cb != NULL)                            \
+      (ret) = (pcb)->tcp_prepare_dst_cb((pcb)->callback_arg,(p_npcb),(err)); \
+    else (ret) = ERR_ARG;                                           \
+  } while (0)
+
 #endif /* LWIP_EVENT_API */
 
 /** Enabled extra-check for TCP_OVERSIZE if LWIP_DEBUG is enabled */
@@ -455,7 +462,9 @@ err_t tcp_enqueue_flags(struct tcp_pcb *pcb, u8_t flags);
 
 void tcp_rexmit_seg(struct tcp_pcb *pcb, struct tcp_seg *seg);
 
-void tcp_rst(u32_t seqno, u32_t ackno,
+err_t tcp_rst_nc(struct tcp_pcb *pcb, struct tcp_hdr *tcphdr);
+
+err_t tcp_rst(u32_t seqno, u32_t ackno,
        u16_t local_port, u16_t remote_port, struct tcp_pcb *pcb);
 
 u32_t tcp_next_iss(void);

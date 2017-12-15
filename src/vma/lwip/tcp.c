@@ -1280,6 +1280,33 @@ tcp_ip_output(struct tcp_pcb *pcb, ip_output_fn ip_output)
 }
 
 /**
+ * Used for specifying the function that should be called
+ * for sending packets.
+ *
+ * @param pcb tcp_pcb to set the outputcallback
+ * @param output callback function
+ */
+void
+tcp_ip_output_nc(struct tcp_pcb *pcb, ip_output_nc_fn ip_output_nc)
+{
+  pcb->ip_output_nc = ip_output_nc;
+}
+
+/**
+ * Used for specifying the function that should be called to
+ * prepare the destination to send
+ *
+ * @param pcb tcp_pcb to set the accept callback
+ * @param accept callback function to call for this pcb when SYN
+ *        is received
+ */
+void
+tcp_prepare_dst(struct tcp_pcb_listen *pcb, tcp_prepare_dst_fn rst_handled)
+{
+  pcb->tcp_prepare_dst_cb = rst_handled;
+}
+
+/**
  * Used for specifying the function that should be called when a
  * SYN was received.
  *

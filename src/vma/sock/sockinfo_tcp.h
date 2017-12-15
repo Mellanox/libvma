@@ -319,6 +319,9 @@ private:
 	// accept cb func
 	static err_t accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t err);
 
+	// Prepare destination to send
+	static err_t prepare_dst_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_t err);
+
 	//Called when legal syn is received in order to remember the new active pcb which
 	//is already created by lwip, but no sockinfo instance is created yet at this stage
 	static err_t syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_t err);
