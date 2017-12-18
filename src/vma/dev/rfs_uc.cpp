@@ -147,7 +147,11 @@ bool rfs_uc::prepare_flow_spec()
 
 bool rfs_uc::rx_dispatch_packet(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array)
 {
+#ifdef DEFINED_VMAPOLL
 	uint32_t num_sinks = (safe_mce_sys().enable_xtreme ? 1 : m_n_sinks_list_entries);
+#else
+	uint32_t num_sinks = m_n_sinks_list_entries;
+#endif /* DEFINED_VMAPOLL */
 
 	p_rx_wc_buf_desc->reset_ref_count();
 	for (uint32_t i=0; i < num_sinks; ++i) {

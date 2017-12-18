@@ -256,6 +256,7 @@ int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=N
 		m_b_was_drained = false;
 	}
 
+#ifdef DEFINED_VMAPOLL
 	if (m_b_sysvar_enable_xtreme) {
 		while ((m_n_sysvar_progress_engine_wce_max && (m_n_sysvar_progress_engine_wce_max > m_n_wce_counter)) &&
 			!m_b_was_drained) {
@@ -350,7 +351,9 @@ int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=N
 			}
 			ret_total += ret;
 		}
-	} else {
+	} else
+#endif /* DEFINED_VMAPOLL */
+	{
 		while ((m_n_sysvar_progress_engine_wce_max > m_n_wce_counter) &&
 			!m_b_was_drained) {
 			buff_status_e status = BS_OK;
@@ -490,6 +493,7 @@ int cq_mgr_mlx5::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd
 		prefetch_range((uint8_t*)m_p_next_rx_desc_poll->p_buffer, m_n_sysvar_rx_prefetch_bytes_before_poll);
 	}
 
+#ifdef DEFINED_VMAPOLL
 	if (m_b_sysvar_enable_xtreme) {
 		if (unlikely(m_rx_hot_buffer == NULL)) {
 			int index = m_qp->m_hw_qp->rq.tail & (m_qp->m_rx_num_wr - 1);
@@ -523,7 +527,9 @@ int cq_mgr_mlx5::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd
 			}
 
 		}
-	} else {
+	} else
+#endif /* DEFINED_VMAPOLL */
+	{
 		buff_status_e status = BS_OK;
 		uint32_t ret = 0;
 		while (ret < m_n_sysvar_cq_poll_batch_max) {

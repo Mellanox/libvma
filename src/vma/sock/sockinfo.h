@@ -276,6 +276,7 @@ protected:
 
 	inline void set_events(uint64_t events)
 	{
+#ifdef DEFINED_VMAPOLL
 		/* Collect all events if rx ring is enabled */
 		if (m_p_rx_ring) {
 			if (xtreme.m_vma_poll_completion) {
@@ -296,6 +297,9 @@ protected:
 		if ((uint32_t)events) {
 			socket_fd_api::notify_epoll_context((uint32_t)events);
 		}
+#else
+		socket_fd_api::notify_epoll_context((uint32_t)events);
+#endif /* DEFINED_VMAPOLL */
 	}
 
 	inline uint64_t get_events(void)
