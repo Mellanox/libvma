@@ -290,6 +290,21 @@ PROF_IBPROF_SETUP()
 #
 #PROF_RDTSC_SETUP()
 
+# VMA Extreme configuration
+#
+AC_ARG_ENABLE([vmapoll],
+    AC_HELP_STRING([--enable-vmapoll],
+        [Enable alternative API to standard sockets API for receiving packets (default=no)]))
+if test "x$enable_vmapoll" = xyes; then
+    AC_CHECK_HEADER([infiniband/mlx5_hw.h],
+        [AC_DEFINE([DEFINED_VMAPOLL], 1, [Define to 1 if vmapoll was enabled at configure time])],
+        [AC_MSG_ERROR([vmapoll mode is not supported with the current installed OFED version])])
+else
+    enable_vmapoll=no
+fi
+AC_MSG_CHECKING([for vmapoll API support])
+AC_MSG_RESULT([$enable_vmapoll])
+
 
 # Thread locking control
 #
@@ -299,8 +314,12 @@ AC_ARG_ENABLE([thread-lock],
 AC_MSG_CHECKING(
     [for thread locking support])
 if test "x$enable_thread_lock" = "xno"; then
-    AC_DEFINE([DEFINED_NO_THREAD_LOCK], 1, [Define to 1 to disable thread locking])
-    AC_MSG_RESULT([no])
+    if test "x$enable_vmapoll" = xyes; then
+        AC_DEFINE([DEFINED_NO_THREAD_LOCK], 1, [Define to 1 to disable thread locking])
+        AC_MSG_RESULT([no])
+    else
+        AC_MSG_RESULT([yes (vmapoll is not enabled)])
+    fi
 else
     AC_MSG_RESULT([yes])
 fi
