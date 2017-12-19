@@ -2120,13 +2120,13 @@ inline vma_recv_callback_retval_t sockinfo_udp::inspect_by_user_cb(mem_buf_desc_
 
 #ifdef DEFINED_SOCKETXTREME
 /* Update vma_completion with
- * VMA_POLL_PACKET related data
+ * VMA_SOCKETXTREME_PACKET related data
  */
 inline void sockinfo_udp::fill_completion(mem_buf_desc_t* p_desc)
 {
 	struct vma_completion_t *completion;
 
-	/* Try to process vma_poll() completion directly */
+	/* Try to process socketxtreme_poll() completion directly */
 	m_vma_poll_completion = m_p_rx_ring->get_comp();
 
 	if (m_vma_poll_completion) {
@@ -2146,7 +2146,7 @@ inline void sockinfo_udp::fill_completion(mem_buf_desc_t* p_desc)
 		completion->packet.buff_lst->len     = p_desc->rx.frag.iov_len;
 	}
 	completion->src = p_desc->rx.src;
-	NOTIFY_ON_EVENTS(this, VMA_POLL_PACKET);
+	NOTIFY_ON_EVENTS(this, VMA_SOCKETXTREME_PACKET);
 
 	m_vma_poll_completion = NULL;
 	m_vma_poll_last_buff_lst = NULL;
@@ -2154,7 +2154,7 @@ inline void sockinfo_udp::fill_completion(mem_buf_desc_t* p_desc)
 #endif //DEFINED_SOCKETXTREME
 
 /**
- *	Performs packet processing for NON-VMAPOLL cases and store packet
+ *	Performs packet processing for NON-SOCKETXTREME cases and store packet
  *	in ready queue.
  */
 inline void sockinfo_udp::update_ready(mem_buf_desc_t* p_desc, void* pv_fd_ready_array, vma_recv_callback_retval_t cb_ret)
@@ -2182,7 +2182,7 @@ inline void sockinfo_udp::update_ready(mem_buf_desc_t* p_desc, void* pv_fd_ready
 
 	// Add this fd to the ready fd list
 	/*
-	 * Note: No issue is expected in case vma_poll() usage because 'pv_fd_ready_array' is null
+	 * Note: No issue is expected in case socketxtreme_poll() usage because 'pv_fd_ready_array' is null
 	 * in such case and as a result update_fd_array() call means nothing
 	 */
 	io_mux_call::update_fd_array((fd_array_t*)pv_fd_ready_array, m_fd);

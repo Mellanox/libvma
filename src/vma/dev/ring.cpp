@@ -44,7 +44,7 @@ ring::ring(int count, uint32_t mtu) :
 	m_is_mp_ring(false), m_mtu(mtu)
 {
 #ifdef DEFINED_SOCKETXTREME
-	m_vma_active = true; /* TODO: This VMA version supports vma_poll() usage mode only */
+	m_vma_active = true; /* TODO: This VMA version supports socketxtreme_poll() usage mode only */
 	INIT_LIST_HEAD(&m_ec_list);
 	m_vma_poll_completion = NULL;
 #endif // DEFINED_SOCKETXTREME	

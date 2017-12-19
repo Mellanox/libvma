@@ -1127,7 +1127,7 @@ int cq_mgr::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/
 	 * See: net_device_table_mgr::handle_timer_expired(RING_PROGRESS_ENGINE_TIMER)
 	 */
 
-	/* Check if we are in vma_poll() usage mode */
+	/* Check if we are in socketxtreme_poll() usage mode */
 	if (true == m_p_ring->get_vma_active()) {
 		return 0;
 	}

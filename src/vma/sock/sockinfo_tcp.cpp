@@ -529,7 +529,7 @@ void sockinfo_tcp::handle_socket_linger() {
 	while ((tv_to_usec(&elapsed) <= linger_time_usec) && (m_pcb.unsent || m_pcb.unacked)) {
 #ifdef DEFINED_SOCKETXTREME
 		NOT_IN_USE(poll_cnt);
-		/* VMAPOLL WA: Don't call rx_wait() in order not to miss VMA events in vma_poll() flow.
+		/* SOCKETXTREME WA: Don't call rx_wait() in order not to miss VMA events in socketxtreme_poll() flow.
 		 * TBD: find proper solution!
 		 * rx_wait(poll_cnt, false);
 		 * */
@@ -1093,9 +1093,9 @@ void sockinfo_tcp::err_lwip_cb(void *pcb_container, err_t err)
 		}
 
 
-		/* VMAPOLL comment:
+		/* SOCKETXTREME comment:
 		 * Add this fd to the ready fd list
-		 * Note: No issue is expected in case vma_poll() usage because 'pv_fd_ready_array' is null
+		 * Note: No issue is expected in case socketxtreme_poll() usage because 'pv_fd_ready_array' is null
 		 * in such case and as a result update_fd_array() call means nothing
 		 */
 		
@@ -1481,9 +1481,9 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 
 		NOTIFY_ON_EVENTS(conn, EPOLLIN|EPOLLRDHUP);
 				
-		/* VMAPOLL comment:
+		/* SOCKETXTREME comment:
 		 * Add this fd to the ready fd list
-		 * Note: No issue is expected in case vma_poll() usage because 'pv_fd_ready_array' is null
+		 * Note: No issue is expected in case socketxtreme_poll() usage because 'pv_fd_ready_array' is null
 		 * in such case and as a result update_fd_array() call means nothing
 		 */
 		io_mux_call::update_fd_array(conn->m_iomux_ready_fd_array, conn->m_fd);
@@ -1604,7 +1604,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 			completion->packet.total_len = p->tot_len;
 			completion->src = p_first_desc->rx.src;
 			completion->packet.num_bufs = p_first_desc->rx.n_frags;
-			NOTIFY_ON_EVENTS(conn, VMA_POLL_PACKET);
+			NOTIFY_ON_EVENTS(conn, VMA_SOCKETXTREME_PACKET);
 		}
 		else {
 			mem_buf_desc_t* prev_lst_tail_desc = (mem_buf_desc_t*)buf_lst;
@@ -1857,7 +1857,7 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	m_iomux_ready_fd_array = (fd_array_t*)pv_fd_ready_array;
 
 #ifdef DEFINED_SOCKETXTREME
-	/* Try to process vma_poll() completion directly */
+	/* Try to process socketxtreme_poll() completion directly */
 	if (p_rx_pkt_mem_buf_desc_info->rx.vma_polled) {
 		m_vma_poll_completion = m_p_rx_ring->get_comp();
 		m_vma_poll_last_buff_lst = NULL;
@@ -2681,7 +2681,7 @@ void sockinfo_tcp::auto_accept_connection(sockinfo_tcp *parent, sockinfo_tcp *ch
 	}
 
 	/* Update vma_completion with
-	 * VMA_POLL_NEW_CONNECTION_ACCEPTED related data
+	 * VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED related data
 	 */
 	if (likely(child->m_parent)) {
 		if (child->m_vma_poll_completion) {
@@ -2691,10 +2691,10 @@ void sockinfo_tcp::auto_accept_connection(sockinfo_tcp *parent, sockinfo_tcp *ch
 			child->m_ec.completion.src = parent->m_ec.completion.src;
 			child->m_ec.completion.listen_fd = child->m_parent->get_fd();
 		}
-		child->set_events(VMA_POLL_NEW_CONNECTION_ACCEPTED);
+		child->set_events(VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED);
 	}
 	else {
-		vlog_printf(VLOG_ERROR, "VMA_POLL_NEW_CONNECTION_ACCEPTED: can't find listen socket for new connected socket with [fd=%d]",
+		vlog_printf(VLOG_ERROR, "VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED: can't find listen socket for new connected socket with [fd=%d]",
 				__func__, __LINE__, child->get_fd());
 	}
 
