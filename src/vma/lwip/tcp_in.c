@@ -341,6 +341,11 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
     return ERR_OK;
   }
 
+  if (in_data->flags & TCP_FIN) {
+    /* An incoming FIN should be ignored. Return. */
+    return ERR_OK;
+  }
+
   /* In the LISTEN state, we check for incoming SYN segments,
      creates a new PCB, and responds with a SYN|ACK. */
   if (in_data->flags & TCP_ACK) {
