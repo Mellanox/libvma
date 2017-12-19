@@ -393,7 +393,7 @@ protected:
 	 */
 	struct vma_completion_t* m_vma_poll_completion;
 private:
-	/* This flag is enabled in case vma_poll() call is done */
+	/* This flag is enabled in case socketxtreme_poll() call is done */
 	bool                     m_vma_active;
 #endif // DEFINED_SOCKETXTREME
 };

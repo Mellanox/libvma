@@ -84,7 +84,7 @@ void check_netperf_flags();
 #define STR_EXPAND(x) #x
 #define STR(x) STR_EXPAND(x)
 #ifdef DEFINED_SOCKETXTREME
-const char *vma_version_str = "VMA_VERSION: " PACKAGE_VERSION "-" STR(VMA_LIBRARY_RELEASE) " (vmapoll)"
+const char *vma_version_str = "VMA_VERSION: " PACKAGE_VERSION "-" STR(VMA_LIBRARY_RELEASE) " (socketxtreme)"
 #else
 const char *vma_version_str = "VMA_VERSION: " PACKAGE_VERSION "-" STR(VMA_LIBRARY_RELEASE)
 #endif // DEFINED_SOCKETXTREME

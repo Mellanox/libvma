@@ -195,7 +195,7 @@ protected:
 	ring_alloc_logic_attr			m_ring_alloc_log_tx;
 
 #ifdef DEFINED_SOCKETXTREME
-	/* Track internal events to return in vma_poll()
+	/* Track internal events to return in socketxtreme_poll()
 	 * Current design support single event for socket at a particular time
 	 */
 	struct ring_ec m_ec;

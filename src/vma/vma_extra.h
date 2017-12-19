@@ -71,16 +71,16 @@ typedef enum {
 } vma_recv_callback_retval_t;
 
 
-/************ vma_poll() API types definition start***************/
+/************ SocketXtreme API types definition start***************/
 
 typedef enum {
-    VMA_POLL_PACKET 			= (1ULL << 32), /* New packet is available */
-    VMA_POLL_NEW_CONNECTION_ACCEPTED	= (1ULL << 33)  /* New connection is auto accepted by server */
-} vma_poll_events_t;
+    VMA_SOCKETXTREME_PACKET 			= (1ULL << 32), /* New packet is available */
+    VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED	= (1ULL << 33)  /* New connection is auto accepted by server */
+} vma_socketxtreme_events_t;
 
 /*
  * Represents  VMA buffer
- * Used in vma_poll() extended API.
+ * Used in SocketXtreme extended API.
  */
 struct vma_buff_t {
 	struct vma_buff_t*	next;		/* next buffer (for last buffer next == NULL) */
@@ -90,7 +90,7 @@ struct vma_buff_t {
 
 /**
  * Represents one VMA packet
- * Used in vma_poll() extended API.
+ * Used in SocketXtreme extended API.
  */
 struct vma_packet_desc_t {
 	size_t			num_bufs;	/* number of packet's buffers */
@@ -100,10 +100,10 @@ struct vma_packet_desc_t {
 
 /*
  * Represents VMA Completion.
- * Used in vma_poll() extended API.
+ * Used in SocketXtreme extended API.
  */
 struct vma_completion_t {
-	/* Packet is valid in case VMA_POLL_PACKET event is set
+	/* Packet is valid in case VMA_SOCKETXTREME_PACKET event is set
          */
 	struct vma_packet_desc_t packet;
 	/* Set of events
@@ -116,16 +116,16 @@ struct vma_completion_t {
          */ 
 	uint64_t                 user_data;
 	/* Source address (in network byte order) set for:
-	 * VMA_POLL_PACKET and VMA_POLL_NEW_CONNECTION_ACCEPTED events
+	 * VMA_SOCKETXTREME_PACKET and VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED events
 	 */
 	struct sockaddr_in       src;
 	/* Connected socket's parent/listen socket fd number.
-	 * Valid in case VMA_POLL_NEW_CONNECTION_ACCEPTED event is set.
+	 * Valid in case VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED event is set.
 	*/
 	int 			listen_fd;
 };
 
-/************ vma_poll() API types definition end ***************/
+/************ SocketXtreme API types definition end ***************/
 
 /**
  * Represents one VMA packets 
@@ -421,7 +421,7 @@ struct __attribute__ ((packed)) vma_api_t {
 
 
 	/**
-	 * vma_poll() polls for VMA completions
+	 * socketxtreme_poll() polls for VMA completions
 	 *
 	 * @param fd File descriptor.
 	 * @param completions VMA completions array.
@@ -435,37 +435,37 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * The `fd` can represent a ring, socket or epoll file descriptor.
 	 *
 	 * VMA completions are indicated for incoming packets and/or for other events.
-	 * If VMA_POLL_PACKET flag is enabled in vma_completion_t.events field
+	 * If VMA_SOCKETXTREME_PACKET flag is enabled in vma_completion_t.events field
 	 * the completion points to incoming packet descriptor that can be accesses
 	 * via vma_completion_t.packet field.
 	 * Packet descriptor points to VMA buffers that contain data scattered
 	 * by HW, so the data is deliver to application with zero copy.
 	 * Notice: after application finished using the returned packets
-	 * and their buffers it must free them using free_vma_packets()/free_vma_buff()
+	 * and their buffers it must free them using socketxtreme_free_vma_packets()/socketxtreme_free_vma_buff()
 	 * functions.
-	 * If VMA_POLL_PACKET flag is disabled vma_completion_t.packet field is
+	 * If VMA_SOCKETXTREME_PACKET flag is disabled vma_completion_t.packet field is
 	 * reserved.
 	 *
-	 * In addition to packet arrival event (indicated by VMA_POLL_PACKET flag)
-	 * VMA also reports VMA_POLL_NEW_CONNECTION_ACCEPTED event and standard
+	 * In addition to packet arrival event (indicated by VMA_SOCKETXTREME_PACKET flag)
+	 * VMA also reports VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED event and standard
 	 * epoll events via vma_completion_t.events field.
-	 * VMA_POLL_NEW_CONNECTION_ACCEPTED event is reported when new connection is
+	 * VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED event is reported when new connection is
 	 * accepted by the server.
-	 * When working with vma_poll() new connections are accepted
+	 * When working with socketxtreme_poll() new connections are accepted
 	 * automatically and accept(listen_socket) must not be called.
-	 * VMA_POLL_NEW_CONNECTION_ACCEPTED event is reported for the new
+	 * VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED event is reported for the new
 	 * connected/child socket (vma_completion_t.user_data refers to child socket)
 	 * and EPOLLIN event is not generated for the listen socket.
 	 * For events other than packet arrival and new connection acceptance
 	 * vma_completion_t.events bitmask composed using standard epoll API
 	 * events types.
 	 * Notice: the same completion can report multiple events, for example
-	 * VMA_POLL_PACKET flag can be enabled together with EPOLLOUT event,
+	 * VMA_SOCKETXTREME_PACKET flag can be enabled together with EPOLLOUT event,
 	 * etc...
 	 *
 	 * * errno is set to: TBD...
 	 */
-	 int (*vma_poll)(int fd, struct vma_completion_t* completions, unsigned int ncompletions, int flags);
+	 int (*socketxtreme_poll)(int fd, struct vma_completion_t* completions, unsigned int ncompletions, int flags);
 
 	 /**
 	 * Returns the amount of rings that are associated with socket.
@@ -476,7 +476,7 @@ struct __attribute__ ((packed)) vma_api_t {
 	 *
 	 * errno is set to: EINVAL - not a VMA offloaded fd
 	 */
-	 int (*get_socket_rings_num)(int fd);
+	 int (*socketxtreme_get_socket_rings_num)(int fd);
 
 	 /**
 	 * Returns FDs of the rings that are associated with the socket.
@@ -493,10 +493,10 @@ struct __attribute__ ((packed)) vma_api_t {
 	 *
 	 * errno is set to: EINVAL - not a VMA offloaded fd + TBD
 	 */
-	 int (*get_socket_rings_fds)(int fd, int *ring_fds, int ring_fds_sz);
+	 int (*socketxtreme_get_socket_rings_fds)(int fd, int *ring_fds, int ring_fds_sz);
 
 	/**
-	 * Frees packets received by vma_poll().
+	 * Frees packets received by socketxtreme_poll().
 	 *
 	 * @param packets Packets to free.
 	 * @param num Number of packets in `packets` array
@@ -511,15 +511,15 @@ struct __attribute__ ((packed)) vma_api_t {
 	 *   ref count and only buffers with ref count zero are deallocated.
 	 *   Notice:
 	 *   - Application can increase buffer reference count,
-	 *     in order to hold the buffer even after free_vma_packets()
+	 *     in order to hold the buffer even after socketxtreme_free_vma_packets()
 	 *     was called for the buffer, using vma_buff_ref().
 	 *   - Application is responsible to free buffers, that
-	 *     couldn't be deallocated during free_vma_packets() due to
-	 *     non zero reference count, using free_vma_buff() function.
+	 *     couldn't be deallocated during socketxtreme_free_vma_packets() due to
+	 *     non zero reference count, using socketxtreme_free_vma_buff() function.
 	 *
 	 * errno is set to: EINVAL if NULL pointer is provided.
 	 */
-	int (*free_vma_packets)(struct vma_packet_desc_t *packets, int num);
+	int (*socketxtreme_free_vma_packets)(struct vma_packet_desc_t *packets, int num);
 
 	/* This function increments the reference count of the buffer.
 	 * This function should be used in order to hold the buffer
@@ -533,7 +533,7 @@ struct __attribute__ ((packed)) vma_api_t {
 	 *
 	 * errno is set to EINVAL if NULL pointer is provided.
 	 */
-	int (*ref_vma_buff)(struct vma_buff_t *buff);
+	int (*socketxtreme_ref_vma_buff)(struct vma_buff_t *buff);
 
 	/* This function decrements the buff reference count.
 	 * When buff's reference count reaches zero, the buff is
@@ -547,7 +547,7 @@ struct __attribute__ ((packed)) vma_api_t {
 	 *
 	 * errno is set to EINVAL if NULL pointer is provided.
 	 */
-	int (*free_vma_buff)(struct vma_buff_t *buff);
+	int (*socketxtreme_free_vma_buff)(struct vma_buff_t *buff);
 
 	/*
 	 * Dump fd statistics using VMA logger.
@@ -559,7 +559,7 @@ struct __attribute__ ((packed)) vma_api_t {
 
 	/**
 	 * Get data from the MP_RQ cyclic buffer
-	 * @param fd - the fd of the ring to query - get it using @ref get_socket_rings_fds
+	 * @param fd - the fd of the ring to query - get it using @ref socketxtreme_get_socket_rings_fds
 	 * @param completion results see @ref struct vma_completion_cb_t
 	 * @param min min number of packet to return, if not available
 	 * 	will return 0 packets
@@ -605,7 +605,7 @@ static inline struct vma_api_t* vma_get_api()
 
 /* 
  ********************************
- * vma_poll() Demo Usage
+ * socketxtreme_poll() Demo Usage
  ********************************
 
 
@@ -639,7 +639,7 @@ myapp_socket_main_loop()
 	//Get socket's ring, we skip reading the number of rings
 	//since connected TCP socket is associated with a single ring
 	if (vma_api) {
-		vma_api->get_socket_rings_fds(fd, &ring, 1);
+		vma_api->socketxtreme_get_socket_rings_fds(fd, &ring, 1);
 	}
 	else {
 		exit...
@@ -648,7 +648,7 @@ myapp_socket_main_loop()
 	// Main traffic processing loop going into VMA engine
 	while (!to_exit) {
 
-		ready_comp = vma_api->vma_poll(ring_fd, &comp, 1, flags);
+		ready_comp = vma_api->socketxtreme_poll(ring_fd, &comp, 1, flags);
 
 		// recv path socket API...
 		if (ready_comp > 0) {
@@ -662,7 +662,7 @@ myapp_socket_main_loop()
 					curr_buff = curr_buff->next;
 				}
 				//Update socket's TCP window size
-				vma_api->free_vma_packets(socket_fd, &comp.packet, 1);
+				vma_api->socketxtreme_free_vma_packets(socket_fd, &comp.packet, 1);
 			}
 			myapp_processes_events_func(comp.user_data,comp.events);
 
@@ -713,7 +713,7 @@ myapp_processes_events_func(
 
 
  *
- * vma_poll() UDP Demo Usage
+ * socketxtreme_poll() UDP Demo Usage
  *
 
 
@@ -745,7 +745,7 @@ myapp_socket_main_loop()
 	//Get socket's ring, we skip reading the number of rings
 	//since connected UDP socket is associated with a single ring
 	if (vma_api) {
-		vma_api->get_socket_rings_fds(fd, &ring, 1);
+		vma_api->socketxtreme_get_socket_rings_fds(fd, &ring, 1);
 	}
 	else {
 		exit...
@@ -754,11 +754,11 @@ myapp_socket_main_loop()
 	// Main traffic processing loop going into VMA engine
 	while (!to_exit) {
 
-		ready_comp = vma_api->vma_poll(ring_fd, &comp, 1, flags);
+		ready_comp = vma_api->socketxtreme_poll(ring_fd, &comp, 1, flags);
 
 		// recv path socket API...
 		if (ready_comp > 0) {
-			if (comp.events & VMA_POLL_PACKET) {
+			if (comp.events & VMA_SOCKETXTREME_PACKET) {
 				myapp_processes_packet_func(comp.user_data, &comp.packet);
 
 				//Hold the buffers
