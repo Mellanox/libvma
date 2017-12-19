@@ -1456,8 +1456,8 @@
  * when opening a connection. For the transmit size, this MSS sets
  * an upper limit on the MSS advertised by the remote host.
  */
-#ifndef LWIP_TCP_MSS
-#define LWIP_TCP_MSS                         536
+#ifndef LWIP_MIN_TCP_MSS
+#define LWIP_MIN_TCP_MSS                (536)
 #endif
 
 /**

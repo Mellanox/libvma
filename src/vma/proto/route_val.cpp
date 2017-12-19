@@ -44,7 +44,7 @@
 
 #define rt_val_loginfo		__log_info_info
 #define rt_val_logdbg		__log_info_dbg
-#define rt_val_logfunc		__log_info_func
+#define rt_val_logfunc		__log_info_func.
 
 route_val::route_val()
 {
@@ -62,12 +62,14 @@ route_val::route_val()
 	m_is_valid = false;
 	m_b_deleted = false;
 	m_b_if_up = true;
-	m_mtu = 0;
+	memset(m_metric, 0, sizeof(uint32_t)* VMA_RT_METRIC_MAX);
+	m_metric[RTAX_CC_ALGO] = (enum cc_algo_mod)safe_mce_sys().lwip_cc_algo_mod;
 	memset(m_str, 0, BUFF_SIZE * sizeof(char));
 }
 
 void route_val::set_str()
 {
+
 	char str_addr[INET_ADDRSTRLEN];
 	char str_x[100] = {0};
 
@@ -121,9 +123,12 @@ void route_val::set_str()
 	sprintf(str_x, " scope %3d type %2d index %2d", m_scope, m_type, m_if_index);
 	strcat(m_str, str_x);
 	// add route metrics
-	if (m_mtu) {
-		sprintf(str_x, " mtu %d", m_mtu);
-		strcat(m_str, str_x);
+	for (uint32_t i = 0; i < VMA_RT_METRIC_MAX; i++) {
+		if (m_metric[i]) {
+			const char *lock = is_attr_lock(i) ? "lock" : "";
+			sprintf(str_x, " %s %s %u", route_val::get_rtax_name(i), lock, m_metric[i]);
+			strcat(m_str, str_x);
+		}
 	}
 	if (m_b_deleted) {
 		sprintf(str_x, " ---> DELETED");
@@ -137,11 +142,37 @@ void route_val::print_val()
 	rt_val_logdbg("%s", to_str());
 }
 
-void route_val::set_mtu(uint32_t mtu)
+const char* route_val::get_rtax_name(int attr)
 {
-	if (mtu > g_p_net_device_table_mgr->get_max_mtu()) {
+	switch(attr) {
+	case RTAX_MTU:		return "mtu";
+	case RTAX_WINDOW:	return "windows";
+	case RTAX_SSTHRESH:	return "ssthresh";
+	case RTAX_CWND:		return "cwnd";
+	case RTAX_ADVMSS:	return "advmss";
+	case RTAX_INITCWND:	return "initcwnd";
+	case RTAX_RTO_MIN:	return "rto_min";
+	case RTAX_INITRWND:	return "initrwnd";
+	case RTAX_CC_ALGO:	return "congctl";
+	default:		return "";
+	};
+}
+
+uint32_t route_val::get_mtu() const
+{
+	if (m_metric[RTAX_MTU] > g_p_net_device_table_mgr->get_max_mtu()) {
 		rt_val_logdbg("route mtu cannot be bigger then max mtu set on devices");
-	} else {
-		m_mtu = mtu;
+		return 0;
 	}
+	return m_metric[RTAX_MTU];
+}
+
+// used only for tcp
+uint32_t route_val::get_advmss() const
+{
+	if (m_metric[RTAX_ADVMSS] > g_p_net_device_table_mgr->get_max_mtu()) {
+		rt_val_logdbg("route mtu cannot be bigger then max mtu set on devices");
+		return 0;
+	}
+	return m_metric[RTAX_ADVMSS];
 }

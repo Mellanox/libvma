@@ -80,7 +80,7 @@ public:
 		return m_pkt_src_ip;
 	}
 	int		modify_ratelimit(const uint32_t ratelimit_kbps);
-
+	const route_val* get_route_val() { return m_p_rt_val;};
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
 #endif
@@ -96,7 +96,7 @@ public:
 	virtual flow_tuple get_flow_tuple() const;
 
 	void	return_buffers_pool();
-	int	get_route_mtu();
+	virtual int	get_route_mtu();
 
 protected:
 	ip_address 		m_dst_ip;

@@ -125,8 +125,6 @@ vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip")
 
 	lwip_logdbg("");
 
-	lwip_cc_algo_module = (enum cc_algo_mod)safe_mce_sys().lwip_cc_algo_mod;
-
 	lwip_tcp_mss = get_lwip_tcp_mss(safe_mce_sys().mtu, safe_mce_sys().lwip_mss);
 	BULLSEYE_EXCLUDE_BLOCK_END
 
@@ -152,7 +150,7 @@ vma_lwip::vma_lwip() : lock_spin_recursive("vma_lwip")
 	register_tcp_seg_free(sockinfo_tcp::tcp_seg_free);
 	register_ip_output(sockinfo_tcp::ip_output);
 	register_tcp_state_observer(sockinfo_tcp::tcp_state_observer);
-	register_ip_route_mtu(sockinfo_tcp::get_route_mtu);
+	register_ip_route_mtu(sockinfo_tcp::get_route_mtu_mss);
 	register_sys_now(sys_now);
 
 	//tcp_ticks increases in the rate of tcp slow_timer

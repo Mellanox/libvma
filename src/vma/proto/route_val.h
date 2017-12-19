@@ -36,16 +36,49 @@
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <linux/rtnetlink.h>
+#include <linux/netlink.h>
+
 #include "utils/bullseye.h"
 
-#define BUFF_SIZE 255
+// old linux not all metrices supported
+#ifndef RTAX_INITRWND
+# define RTAX_INITRWND		(14)
+# define RTAX_CC_ALGO		(0) // to pass assignment lwip_cc_algo_mod
+# define VMA_RT_METRIC_MAX	(RTAX_MAX)
+#elif !defined(RTAX_CC_ALGO)
+# define RTAX_CC_ALGO		(0)
+# define VMA_RT_METRIC_MAX	(RTAX_MAX)
+#else
+# define VMA_RT_METRIC_MAX	(RTAX_CC_ALGO + 1)
+#endif
+
+#define ROUTE_BUFF_SIZE	(512)
+
+/* types of different cc algorithms */
+enum cc_algo_mod {
+	CC_MOD_LWIP,
+	CC_MOD_CUBIC,
+	CC_MOD_NONE
+};
+
+
+static inline const char* lwip_cc_algo_str(uint32_t algo)
+{
+	switch (algo) {
+	case CC_MOD_CUBIC:	return "(CUBIC)";
+	case CC_MOD_NONE:	return "(NONE)";
+	case CC_MOD_LWIP:
+	default:		return "(LWIP)";
+	}
+}
 
 class route_val
 {
 public:
 	route_val();
 	virtual ~route_val() {};
-
+	static const char* get_rtax_name(int attr);
 	inline void set_dst_addr(in_addr_t const &dst_addr) 	{ m_dst_addr = dst_addr; };
 	inline void set_dst_mask(in_addr_t const &dst_mask) 	{ m_dst_mask = dst_mask; };
 	inline void set_dst_pref_len(uint8_t dst_pref_len) 	{ m_dst_pref_len = dst_pref_len; };
@@ -58,7 +91,7 @@ public:
 	inline void set_scope(unsigned char scope) 		{ m_scope = scope; };
 	inline void set_type(unsigned char type) 		{ m_type = type; };
 	inline void set_table_id(unsigned char table_id)	{ m_table_id = table_id; };
-	void set_mtu(uint32_t mtu);
+	inline void set_metric(int attr, uint32_t val)		{ if (attr < VMA_RT_METRIC_MAX) m_metric[attr] = val; };
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif
@@ -77,7 +110,10 @@ public:
 	inline unsigned char 	get_table_id() const		{ return m_table_id; };
 	inline int 		get_if_index() const		{ return m_if_index; };
 	inline const char* 	get_if_name() const		{ return m_if_name; };
-	inline uint32_t		get_mtu() const			{ return m_mtu; };
+	uint32_t		get_mtu() const;
+	uint32_t		get_advmss() const;
+	inline uint32_t		get_metric(int attr) const	{ return attr < VMA_RT_METRIC_MAX ? m_metric[attr] : 0; };
+	inline bool		is_attr_lock(int attr) const	{ return m_metric[RTAX_LOCK] & (1 << attr); };
 
 	inline void set_state(bool state) 			{ m_is_valid = state; };
 	inline bool is_valid() const		 		{ return m_is_valid; };
@@ -127,8 +163,8 @@ private:
 	bool 		m_is_valid;
 	bool 		m_b_deleted;
 	bool 		m_b_if_up;
-	uint32_t	m_mtu;
-	char 		m_str[BUFF_SIZE]; // Nice str to represent route_val
+	uint32_t	m_metric[VMA_RT_METRIC_MAX];
+	char 		m_str[ROUTE_BUFF_SIZE]; // Nice str to represent route_val
 };
 
 #endif /* ROUTE_VAL_H */

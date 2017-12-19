@@ -81,11 +81,11 @@ void register_ip_output(ip_output_fn fn)
     external_ip_output = fn;
 }
 
-ip_route_mtu_fn external_ip_route_mtu;
+ip_route_mtu_fn external_ip_route_mtu_mss;
 
 void register_ip_route_mtu(ip_route_mtu_fn fn)
 {
-    external_ip_route_mtu = fn;
+    external_ip_route_mtu_mss = fn;
 }
 #endif
 

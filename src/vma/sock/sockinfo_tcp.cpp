@@ -993,17 +993,23 @@ err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rex
 	}
 }
 
-uint16_t sockinfo_tcp::get_route_mtu(struct tcp_pcb *pcb)
+uint16_t sockinfo_tcp::get_route_mtu_mss(struct tcp_pcb *pcb)
 {
 	sockinfo_tcp *tcp_sock = (sockinfo_tcp *)pcb->my_container;
 	// in case of listen m_p_connected_dst_entry is still NULL
 	if (tcp_sock->m_p_connected_dst_entry) {
 		return tcp_sock->m_p_connected_dst_entry->get_route_mtu();
 	}
-	route_result res;
 	// m_tos is always 0 in VMA
-	g_p_route_table_mgr->route_resolve(route_rule_table_key(pcb->local_ip.addr, pcb->remote_ip.addr, 0), res);
-
+	route_result res;
+	g_p_route_table_mgr->route_resolve(
+			route_rule_table_key(pcb->local_ip.addr, pcb->remote_ip.addr, 0),
+			res);
+	// always prefer adv_mss on route over mtu in ring
+	if (res.advmss) {
+		vlog_printf(VLOG_DEBUG, "Using advmss %u\n", res.advmss);
+		return res.advmss;
+	}
 	if (res.mtu) {
 		vlog_printf(VLOG_DEBUG, "Using route mtu %u\n", res.mtu);
 		return res.mtu;
@@ -1965,6 +1971,89 @@ int sockinfo_tcp::prepareConnect(const sockaddr *, socklen_t ){
     #pragma BullseyeCoverage on
 #endif
 
+void sockinfo_tcp::set_lwip_init_metrics()
+{
+	const route_val *rt = m_p_connected_dst_entry->get_route_val();
+
+	if (rt->get_metric(RTAX_INITCWND)) {
+		m_pcb.cwnd = rt->get_metric(RTAX_INITCWND);
+	} else {
+		m_pcb.cwnd = 1;
+	}
+	if (rt->get_metric(RTAX_INITRWND)) {
+		m_pcb.rcv_wnd = rt->get_metric(RTAX_INITRWND);
+	} else {
+		m_pcb.rcv_wnd = TCP_WND_SCALED(&m_pcb);
+	}
+	if (rt->get_metric(RTAX_RTT)) {
+		m_pcb.rto = rt->get_metric(RTAX_RTT);
+	} else {
+		m_pcb.rto = 3000 / TCP_SLOW_INTERVAL;
+	}
+#if TCP_CC_ALGO_MOD
+	switch (rt->get_metric(RTAX_CC_ALGO)) {
+	case CC_MOD_CUBIC:
+		m_pcb.cc_algo = &cubic_cc_algo;
+		break;
+	case CC_MOD_NONE:
+		m_pcb.cc_algo = &none_cc_algo;
+		break;
+	case CC_MOD_LWIP:
+	default:
+		m_pcb.cc_algo = &lwip_cc_algo;
+		break;
+	}
+#endif
+	cc_init(&m_pcb);
+}
+
+void sockinfo_tcp::set_lwip_connect_metrics()
+{
+	const route_val *rt = m_p_connected_dst_entry->get_route_val();
+
+	if (rt->get_metric(RTAX_WINDOW)) {
+		m_pcb.snd_wnd = rt->get_metric(RTAX_WINDOW);
+	} else {
+		m_pcb.snd_wnd = TCP_WND;
+	}
+	  /*
+	   * For effective and advertized MSS without MTU consideration:
+	   * If MSS is configured - do not accept a higher value than 536
+	   * If MSS is not configured assume minimum value of 536
+	   * The send MSS is updated when an MSS option is received
+	   */
+	uint16_t snd_mss = m_pcb.advtsd_mss = (LWIP_TCP_MSS) ? ((LWIP_TCP_MSS > LWIP_MIN_TCP_MSS) ? LWIP_MIN_TCP_MSS : LWIP_TCP_MSS) : LWIP_MIN_TCP_MSS;
+	UPDATE_PCB_BY_MSS(&m_pcb, snd_mss);
+#if TCP_CALCULATE_EFF_SEND_MSS
+	/*
+	 * For advertized MSS with MTU knowledge - it is highly likely that it can be derived from the MTU towards the remote IP address.
+	 * Otherwise (if unlikely MTU==0)
+	 * If LWIP_TCP_MSS>0 use it as MSS
+	 * If LWIP_TCP_MSS==0 set advertized MSS value to default 536
+	 */
+	m_pcb.advtsd_mss = (LWIP_TCP_MSS > 0) ? tcp_eff_send_mss(LWIP_TCP_MSS, &m_pcb) :
+			tcp_mss_follow_mtu_with_default(LWIP_MIN_TCP_MSS, &m_pcb);
+	/*
+	 * For effective MSS with MTU knowledge - get the minimum between pcb->mss and the MSS derived from the
+	 * MTU towards the remote IP address
+	 * */
+	u16_t eff_mss = tcp_eff_send_mss(m_pcb.mss, &m_pcb);
+	UPDATE_PCB_BY_MSS(&m_pcb, eff_mss);
+#endif /* TCP_CALCULATE_EFF_SEND_MSS */
+	UPDATE_PCB_BY_MSS(&m_pcb, m_pcb.advtsd_mss);
+	if (rt->get_metric(RTAX_SSTHRESH)) {
+		m_pcb.ssthresh = rt->get_metric(RTAX_SSTHRESH);
+	} else {
+		m_pcb.ssthresh = m_pcb.mss * 10;
+	}
+	// according to ip route man this must be with lock
+	if (rt->get_metric(RTAX_CWND) && rt->is_attr_lock(RTAX_CWND)) {
+		m_pcb.cwnd = rt->get_metric(RTAX_CWND);
+	} else {
+		m_pcb.cwnd = 1;
+	}
+}
+
 /**
  *  try to connect to the dest over RDMA cm
  *  try fallback to the OS connect (TODO)
@@ -2062,7 +2151,9 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 
 	in_addr_t peer_ip_addr = m_connected.get_in_addr();
 	fit_rcv_wnd(true);
-
+	// inject route metrics to pcb
+	set_lwip_init_metrics();
+	set_lwip_connect_metrics();
 	int err = tcp_connect(&m_pcb, (ip_addr_t*)(&peer_ip_addr), ntohs(m_connected.get_in_port()), /*(tcp_connected_fn)*/sockinfo_tcp::connect_lwip_cb);
 	if (err != ERR_OK) {
 		//todo consider setPassthrough and go to OS
@@ -2862,7 +2953,7 @@ err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_
 		listen_sock->m_tcp_con_lock.lock();
 		return ERR_ABRT;
 	}
-
+	new_sock->set_lwip_init_metrics();
 	new_sock->register_timer();
 
 	listen_sock->m_tcp_con_lock.lock();

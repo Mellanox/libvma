@@ -54,7 +54,6 @@ extern u16_t lwip_tcp_mss;
 typedef err_t (*ip_output_fn)(struct pbuf *p, void* p_conn, int is_rexmit, u8_t is_dummy);
           
 void register_ip_output(ip_output_fn fn);
-
 #endif
 
 #if LWIP_3RD_PARTY_BUFS
@@ -85,8 +84,6 @@ extern tcp_seg_free_fn external_tcp_seg_free;
 struct tcp_pcb;
 
 #include "vma/lwip/cc.h"
-
-extern enum cc_algo_mod lwip_cc_algo_module;
 
 /** Function prototype for tcp accept callback functions. Called when a new
  * connection can be accepted on a listening pcb.

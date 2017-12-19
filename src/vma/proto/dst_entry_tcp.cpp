@@ -302,3 +302,12 @@ void dst_entry_tcp::put_buffer(mem_buf_desc_t * p_desc)
 		}
 	}
 }
+
+int dst_entry_tcp::get_route_mtu()
+{
+	// prefer advmss over mtu
+	if (m_p_rt_val && m_p_rt_val->get_advmss() > 0 ) {
+		return m_p_rt_val->get_advmss();
+	}
+	return dst_entry::get_route_mtu();
+}
