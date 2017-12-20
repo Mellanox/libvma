@@ -1586,7 +1586,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 	else {
 #ifdef DEFINED_SOCKETXTREME
 		/* Update vma_completion with
-		 * VMA_POLL_PACKET related data
+		 * VMA_SOCKETXTREME_PACKET related data
 		 */
 		struct vma_completion_t *completion;
 		struct vma_buff_t *buf_lst;

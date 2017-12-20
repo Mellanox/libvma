@@ -53,9 +53,9 @@
 #include "vma/vma_extra.h"
 
 #ifdef DEFINED_SOCKETXTREME
-	#define IS_VMAPOLL true
+	#define IS_SOCKETXTREME true
 #else
-	#define IS_VMAPOLL false
+	#define IS_SOCKETXTREME false
 #endif // DEFINED_SOCKETXTREME
 
 class net_device_mgr;

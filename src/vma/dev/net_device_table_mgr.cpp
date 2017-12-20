@@ -723,7 +723,7 @@ void net_device_table_mgr::handle_timer_expired(void* user_data)
 	case RING_PROGRESS_ENGINE_TIMER:
 #ifdef DEFINED_SOCKETXTREME
 #if 0 /* TODO: see explanation */
-		/* Do not call draining RX logic from internal thread for vma_poll mode
+		/* Do not call draining RX logic from internal thread for socketxtreme mode
 		 * It is disable by default
 		 * See: cq_mgr::drain_and_proccess()
 		 */
