@@ -35,7 +35,7 @@
 ring_profiles_collection *g_p_ring_profile = NULL;
 
 
-ring_profile::ring_profile(struct vma_ring_type_attr *ring_desc) {
+ring_profile::ring_profile(const vma_ring_type_attr *ring_desc) {
 	memset(&m_ring_desc,0,sizeof(m_ring_desc));
 	m_ring_desc.comp_mask = ring_desc->comp_mask;
 	m_ring_desc.ring_type = ring_desc->ring_type;
@@ -96,12 +96,26 @@ void ring_profile::create_string()
 	m_str = s.str();
 }
 
+bool ring_profile::operator==(const vma_ring_type_attr &p2)
+{
+	ring_profile other(&p2);
+
+	return m_str.compare(other.to_str());
+}
+
 ring_profiles_collection::ring_profiles_collection(): m_curr_idx(START_RING_INDEX) {
 
 }
 
 vma_ring_profile_key ring_profiles_collection::add_profile(vma_ring_type_attr *profile)
 {
+	// first check if this profile exists
+	ring_profile_map_t::iterator it = m_profs_map.begin();
+	for (;it != m_profs_map.end(); it++) {
+		if (*it->second == *profile) {
+			return it->first;
+		}
+	}
 	// key 0 is invalid
 	vma_ring_profile_key key = m_curr_idx;
 	m_curr_idx++;
