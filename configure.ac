@@ -292,6 +292,11 @@ PROF_IBPROF_SETUP()
 
 # VMA SocketXtreme configuration
 #
+AC_ARG_ENABLE([vmapoll],
+    AC_HELP_STRING([--enable-vmapoll],
+        [(Deprecated) Please use --enable-socketxtreme instead]),
+    AC_MSG_ERROR([--enable-vmapoll option is deprecated: please use --enable-socketxtreme instead]))
+
 AC_ARG_ENABLE([socketxtreme],
     AC_HELP_STRING([--enable-socketxtreme],
         [Enable alternative API to standard sockets API for receiving packets (default=no)]))
