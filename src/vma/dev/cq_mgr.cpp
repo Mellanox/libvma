@@ -590,7 +590,7 @@ bool cq_mgr::compensate_qp_poll_success(mem_buf_desc_t* buff_cur)
 {
 	// Assume locked!!!
 	// Compensate QP for all completions that we found
-	if (IS_VMAPOLL || likely(m_qp_rec.qp)) {
+	if (IS_SOCKETXTREME || likely(m_qp_rec.qp)) {
 #ifndef DEFINED_SOCKETXTREME // not defined
 		++m_qp_rec.debth;
 		if (likely(m_qp_rec.debth < (int)m_n_sysvar_rx_num_wr_to_post_recv)) {
@@ -1123,7 +1123,7 @@ int cq_mgr::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/
 
 #if 0 /* TODO: see explanation */
 	/* This function should be called during destructor only.
-	 * Intrenal thread does not launch draining RX logic for vma_poll mode 
+	 * Intrenal thread does not launch draining RX logic for socketxtreme mode 
 	 * See: net_device_table_mgr::handle_timer_expired(RING_PROGRESS_ENGINE_TIMER)
 	 */
 
