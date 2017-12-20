@@ -199,8 +199,8 @@ protected:
 	 * Current design support single event for socket at a particular time
 	 */
 	struct ring_ec m_ec;
-	struct vma_completion_t* m_vma_poll_completion;
-	struct vma_buff_t*       m_vma_poll_last_buff_lst;
+	struct vma_completion_t* m_socketxtreme_completion;
+	struct vma_buff_t*       m_socketxtreme_last_buff_lst;
 #endif // DEFINED_SOCKETXTREME
 
 	// Callback function pointer to support VMA extra API (vma_extra.h)
@@ -290,11 +290,11 @@ protected:
 	{
 		/* Collect all events if rx ring is enabled */
 		if (m_p_rx_ring) {
-			if (m_vma_poll_completion) {
-				if (!m_vma_poll_completion->events) {
-					m_vma_poll_completion->user_data = (uint64_t)m_fd_context;
+			if (m_socketxtreme_completion) {
+				if (!m_socketxtreme_completion->events) {
+					m_socketxtreme_completion->user_data = (uint64_t)m_fd_context;
 				}
-				m_vma_poll_completion->events |= events;
+				m_socketxtreme_completion->events |= events;
 			}
 			else {
 				if (!m_ec.completion.events) {

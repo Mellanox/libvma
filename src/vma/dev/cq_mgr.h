@@ -276,14 +276,14 @@ private:
 	static atomic_t		m_n_cq_id_counter;
 
 #ifdef DEFINED_SOCKETXTREME
-	int	vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst);
+	int	socketxtreme_and_process_element_rx(mem_buf_desc_t **p_desc_lst);
 #endif // DEFINED_SOCKETXTREME
 
 	void		handle_tcp_ctl_packets(uint32_t rx_processed, void* pv_fd_ready_array);
 
 #ifdef DEFINED_SOCKETXTREME
-	int 		vma_poll_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff);
-	void		vma_poll_reclaim_recv_buffer_helper(mem_buf_desc_t* buff);
+	int 		socketxtreme_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff);
+	void		socketxtreme_reclaim_recv_buffer_helper(mem_buf_desc_t* buff);
 #endif // DEFINED_SOCKETXTREME
 
 	// requests safe_mce_sys().qp_compensation_level buffers from global pool

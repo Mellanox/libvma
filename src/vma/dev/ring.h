@@ -328,11 +328,11 @@ public:
 	virtual bool		is_ratelimit_supported(uint32_t rate) = 0;
 
 #ifdef DEFINED_SOCKETXTREME		
-	virtual int		vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags) = 0;
+	virtual int		socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags) = 0;
 	virtual bool		reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return false;}
 
-	virtual int		vma_poll_reclaim_single_recv_buffer(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return -1;}
-	virtual void		vma_poll_reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return;}
+	virtual int		socketxtreme_reclaim_single_recv_buffer(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return -1;}
+	virtual void		socketxtreme_reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return;}
 
 	inline void set_vma_active(bool flag) {m_vma_active = flag;}
 	inline bool get_vma_active(void) {return m_vma_active;}
@@ -367,7 +367,7 @@ public:
 
 	struct vma_completion_t *get_comp(void)
 	{
-		return m_vma_poll_completion;
+		return m_socketxtreme_completion;
 	}
 #endif // DEFINED_SOCKETXTREME	
 
@@ -391,7 +391,7 @@ protected:
 	/* This completion is introduced to process events directly w/o
 	 * storing them in the queue of event completion elements
 	 */
-	struct vma_completion_t* m_vma_poll_completion;
+	struct vma_completion_t* m_socketxtreme_completion;
 private:
 	/* This flag is enabled in case socketxtreme_poll() call is done */
 	bool                     m_vma_active;

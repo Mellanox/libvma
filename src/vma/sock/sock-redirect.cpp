@@ -381,7 +381,7 @@ int vma_socketxtreme_poll(int fd, struct vma_completion_t* completions, unsigned
 	if (likely(cq_ch_info)) {
 		ring* p_ring = cq_ch_info->get_ring();
 
-		ret_val = p_ring->vma_poll(completions, ncompletions, flags);
+		ret_val = p_ring->socketxtreme_poll(completions, ncompletions, flags);
 #ifdef RDTSC_MEASURE_RX_PROCCESS_BUFFER_TO_RECIVEFROM
 	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_PROCCESS_RX_BUFFER_TO_RECIVEFROM]);
 #endif //RDTSC_MEASURE_RX_PROCCESS_BUFFER_TO_RECIVEFROM
@@ -423,7 +423,7 @@ int vma_socketxtreme_free_vma_packets(struct vma_packet_desc_t *packets, int num
 					p_socket_object->free_buffs(packets[i].total_len);
 				}
 				if (rng) {
-					rng->vma_poll_reclaim_recv_buffers(desc);
+					rng->socketxtreme_reclaim_recv_buffers(desc);
 				} else {
 					goto err;
 				}
@@ -473,7 +473,7 @@ int vma_socketxtreme_free_vma_buff(vma_buff_t *buff)
 	if (likely(buff)) {
 		desc = (mem_buf_desc_t*)buff;
 		ring* rng = (ring*)desc->p_desc_owner;
-		ret_val = rng->vma_poll_reclaim_single_recv_buffer(desc);
+		ret_val = rng->socketxtreme_reclaim_single_recv_buffer(desc);
 	}
 	else {
 		errno = EINVAL;

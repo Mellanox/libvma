@@ -174,7 +174,7 @@ ring_simple::~ring_simple()
 
 #ifdef DEFINED_SOCKETXTREME	
 	if (m_rx_buffs_rdy_for_free_head) {
-		m_p_cq_mgr_rx->vma_poll_reclaim_recv_buffer_helper(m_rx_buffs_rdy_for_free_head);
+		m_p_cq_mgr_rx->socketxtreme_reclaim_recv_buffer_helper(m_rx_buffs_rdy_for_free_head);
 		m_rx_buffs_rdy_for_free_head = m_rx_buffs_rdy_for_free_tail = NULL;
 	}
 #endif // DEFINED_SOCKETXTREME		
@@ -1213,7 +1213,7 @@ int ring_simple::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd
 }
 
 #ifdef DEFINED_SOCKETXTREME
-int ring_simple::vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags)
+int ring_simple::socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags)
 {
 	int ret = 0;
 	int i = 0;
@@ -1224,17 +1224,17 @@ int ring_simple::vma_poll(struct vma_completion_t *vma_completions, unsigned int
 	if (likely(vma_completions) && ncompletions) {
 		struct ring_ec *ec = NULL;
 
-		m_vma_poll_completion = vma_completions;
+		m_socketxtreme_completion = vma_completions;
 
 		while (!g_b_exit && (i < (int)ncompletions)) {
-			m_vma_poll_completion->events = 0;
+			m_socketxtreme_completion->events = 0;
 			/* Check list size to avoid locking */
 			if (!list_empty(&m_ec_list)) {
 				ec = get_ec();
 				if (ec) {
-					memcpy(m_vma_poll_completion, &ec->completion, sizeof(ec->completion));
+					memcpy(m_socketxtreme_completion, &ec->completion, sizeof(ec->completion));
 					ec->clear();
-					m_vma_poll_completion++;
+					m_socketxtreme_completion++;
 					i++;
 				}
 			} else {
@@ -1243,11 +1243,11 @@ int ring_simple::vma_poll(struct vma_completion_t *vma_completions, unsigned int
 				 * in right order. It is done to avoid locking and
 				 * may be it is not so critical
 				 */
-				if (likely(m_p_cq_mgr_rx->vma_poll_and_process_element_rx(&desc))) {
-					desc->rx.vma_polled = true;
+				if (likely(m_p_cq_mgr_rx->socketxtreme_and_process_element_rx(&desc))) {
+					desc->rx.socketxtreme_polled = true;
 					rx_process_buffer(desc, NULL);
-					if (m_vma_poll_completion->events) {
-						m_vma_poll_completion++;
+					if (m_socketxtreme_completion->events) {
+						m_socketxtreme_completion++;
 						i++;
 					}
 				} else {
@@ -1256,7 +1256,7 @@ int ring_simple::vma_poll(struct vma_completion_t *vma_completions, unsigned int
 			}
 		}
 
-		m_vma_poll_completion = NULL;
+		m_socketxtreme_completion = NULL;
 
 		ret = i;
 	}
@@ -1305,7 +1305,7 @@ bool ring_simple::reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst)
 }
 
 #ifdef DEFINED_SOCKETXTREME
-int ring_simple::vma_poll_reclaim_single_recv_buffer(mem_buf_desc_t* rx_reuse_buff)
+int ring_simple::socketxtreme_reclaim_single_recv_buffer(mem_buf_desc_t* rx_reuse_buff)
 {
 	int ret_val = 0;
 
@@ -1333,15 +1333,15 @@ int ring_simple::vma_poll_reclaim_single_recv_buffer(mem_buf_desc_t* rx_reuse_bu
 	return ret_val;
 }
 
-void ring_simple::vma_poll_reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst)
+void ring_simple::socketxtreme_reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst)
 {
 	m_lock_ring_rx.lock();
 	if (m_rx_buffs_rdy_for_free_head) {
-		m_p_cq_mgr_rx->vma_poll_reclaim_recv_buffer_helper(m_rx_buffs_rdy_for_free_head);
+		m_p_cq_mgr_rx->socketxtreme_reclaim_recv_buffer_helper(m_rx_buffs_rdy_for_free_head);
 		m_rx_buffs_rdy_for_free_head = m_rx_buffs_rdy_for_free_tail = NULL;
 	}
 
-	m_p_cq_mgr_rx->vma_poll_reclaim_recv_buffer_helper(rx_reuse_lst);
+	m_p_cq_mgr_rx->socketxtreme_reclaim_recv_buffer_helper(rx_reuse_lst);
 	m_lock_ring_rx.unlock();
 }
 #endif // DEFINED_SOCKETXTREME
