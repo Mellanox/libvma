@@ -130,10 +130,10 @@ ring_simple::ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t l
 	m_local_if(local_if), m_transport_type(transport_type)
 	, m_b_sysvar_eth_mc_l2_only_rules(safe_mce_sys().eth_mc_l2_only_rules)
 	, m_b_sysvar_mc_force_flowtag(safe_mce_sys().mc_force_flowtag)
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 	, m_rx_buffs_rdy_for_free_head(NULL) 
 	, m_rx_buffs_rdy_for_free_tail(NULL) 
-#endif // DEFINED_VMAPOLL		
+#endif // DEFINED_SOCKETXTREME		
 	, m_flow_tag_enabled(false)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -172,12 +172,12 @@ ring_simple::~ring_simple()
 	m_lock_ring_rx.lock();
 	m_lock_ring_tx.lock();
 
-#ifdef DEFINED_VMAPOLL	
+#ifdef DEFINED_SOCKETXTREME	
 	if (m_rx_buffs_rdy_for_free_head) {
 		m_p_cq_mgr_rx->vma_poll_reclaim_recv_buffer_helper(m_rx_buffs_rdy_for_free_head);
 		m_rx_buffs_rdy_for_free_head = m_rx_buffs_rdy_for_free_tail = NULL;
 	}
-#endif // DEFINED_VMAPOLL		
+#endif // DEFINED_SOCKETXTREME		
 
 	if (m_p_qp_mgr) {
 		// 'down' the active QP/CQ
@@ -795,12 +795,12 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_f
 	struct iphdr* p_ip_h = NULL;
 	struct udphdr* p_udp_h = NULL;
 
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 	NOT_IN_USE(ip_tot_len);
 	NOT_IN_USE(ip_frag_off);
 	NOT_IN_USE(n_frag_offset);
 	NOT_IN_USE(p_udp_h);
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 
 	// Validate buffer size
 	sz_data = p_rx_wc_buf_desc->sz_data;
@@ -1212,7 +1212,7 @@ int ring_simple::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd
 	return ret;
 }
 
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 int ring_simple::vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags)
 {
 	int ret = 0;
@@ -1267,7 +1267,7 @@ int ring_simple::vma_poll(struct vma_completion_t *vma_completions, unsigned int
 
 	return ret;
 }
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 
 int ring_simple::wait_for_notification_and_process_element(cq_type_t cq_type, int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array /*NULL*/)
 {
@@ -1304,7 +1304,7 @@ bool ring_simple::reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst)
 	return m_p_cq_mgr_rx->reclaim_recv_buffers(rx_reuse_lst);
 }
 
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 int ring_simple::vma_poll_reclaim_single_recv_buffer(mem_buf_desc_t* rx_reuse_buff)
 {
 	int ret_val = 0;
@@ -1344,7 +1344,7 @@ void ring_simple::vma_poll_reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst)
 	m_p_cq_mgr_rx->vma_poll_reclaim_recv_buffer_helper(rx_reuse_lst);
 	m_lock_ring_rx.unlock();
 }
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 
 void ring_simple::mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc)
 {

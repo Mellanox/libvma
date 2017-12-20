@@ -69,7 +69,7 @@ timer::~timer()
 	timer_node_t* to_free = NULL;
 	tmr_logfunc("");
 	m_list_head = NULL;
-#ifdef DEFINED_VMAPOLL		
+#ifdef DEFINED_SOCKETXTREME		
 	NOT_IN_USE(iter);
 	NOT_IN_USE(to_free);
 	return;
@@ -80,7 +80,7 @@ timer::~timer()
 		iter = iter->next;
 		free(to_free);
 	}
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 }
 
 void timer::add_new_timer(unsigned int timeout_msec, timer_node_t* node, timer_handler* handler, void* user_data, timer_req_type_t req_type)
@@ -249,9 +249,9 @@ void timer::process_registered_timers()
 	timer_node_t* iter = m_list_head;
 	timer_node_t* next_iter;
 	while (iter && (iter->delta_time_msec == 0)) {
-#ifdef DEFINED_VMAPOLL		
+#ifdef DEFINED_SOCKETXTREME		
 		if (iter->handler){
-#endif // DEFINED_VMAPOLL			
+#endif // DEFINED_SOCKETXTREME			
 			tmr_logfuncall("timer expired on %p", iter->handler);
 
 			iter->handler->handle_timer_expired(iter->user_data);
@@ -277,12 +277,12 @@ void timer::process_registered_timers()
 			}
 			BULLSEYE_EXCLUDE_BLOCK_END
 			iter = next_iter;
-#ifdef DEFINED_VMAPOLL					
+#ifdef DEFINED_SOCKETXTREME					
 		}
 		else {
 			break;
 		}
-#endif // DEFINED_VMAPOLL				
+#endif // DEFINED_SOCKETXTREME				
 	}
 }
 

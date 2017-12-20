@@ -43,11 +43,11 @@ ring::ring(int count, uint32_t mtu) :
 	m_n_num_resources(count), m_p_n_rx_channel_fds(NULL), m_parent(NULL),
 	m_is_mp_ring(false), m_mtu(mtu)
 {
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 	m_vma_active = true; /* TODO: This VMA version supports vma_poll() usage mode only */
 	INIT_LIST_HEAD(&m_ec_list);
 	m_vma_poll_completion = NULL;
-#endif // DEFINED_VMAPOLL	
+#endif // DEFINED_SOCKETXTREME	
 }
 
 uint32_t ring::get_mtu(const route_rule_table_key &key)
@@ -68,8 +68,8 @@ int ring::get_rx_channel_fds_index(uint32_t index) const {
 };
 ring::~ring()
 {
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 	ring_logdbg("queue of event completion elements is %s",
 			(list_empty(&m_ec_list) ? "empty" : "not empty"));
-#endif // DEFINED_VMAPOLL		
+#endif // DEFINED_SOCKETXTREME		
 }
