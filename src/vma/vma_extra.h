@@ -282,6 +282,10 @@ struct vma_packet_queue_ring_attr {
 	uint32_t	comp_mask;
 };
 
+struct vma_external_mem_attr {
+	uint32_t	comp_mask;
+};
+
 typedef enum {
 	// for future use
 	VMA_RING_ATTR_LAST
@@ -289,7 +293,8 @@ typedef enum {
 
 typedef enum {
 	VMA_RING_PACKET,
-	VMA_RING_CYCLIC_BUFFER
+	VMA_RING_CYCLIC_BUFFER,
+	VMA_RING_EXTERNAL_MEM,
 } vma_ring_type;
 
 /**
@@ -304,6 +309,7 @@ struct vma_ring_type_attr {
 	union {
 		struct vma_cyclic_buffer_ring_attr	ring_cyclicb;
 		struct vma_packet_queue_ring_attr	ring_pktq;
+		struct vma_external_mem_attr		ring_ext;
 	};
 };
 
