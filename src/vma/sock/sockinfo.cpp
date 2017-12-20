@@ -112,8 +112,8 @@ sockinfo::sockinfo(int fd):
 
 #ifdef DEFINED_SOCKETXTREME 
 	m_ec.clear();
-	m_vma_poll_completion = NULL;
-	m_vma_poll_last_buff_lst = NULL;
+	m_socketxtreme_completion = NULL;
+	m_socketxtreme_last_buff_lst = NULL;
 #endif // DEFINED_SOCKETXTREME 
 }
 

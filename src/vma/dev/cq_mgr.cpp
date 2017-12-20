@@ -565,7 +565,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 		p_mem_buf_desc->rx.is_vma_thr = false;
 #ifdef DEFINED_SOCKETXTREME
 		p_mem_buf_desc->rx.context = NULL;
-		p_mem_buf_desc->rx.vma_polled = false;
+		p_mem_buf_desc->rx.socketxtreme_polled = false;
 #else
 		p_mem_buf_desc->rx.context = this;
 #endif // DEFINED_SOCKETXTREME
@@ -638,7 +638,7 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 				temp->rx.tcp.gro = 0;
 				temp->rx.is_vma_thr = false;
 #ifdef DEFINED_SOCKETXTREME
-				temp->rx.vma_polled = false;
+				temp->rx.socketxtreme_polled = false;
 #endif // DEFINED_SOCKETXTREME
 				temp->rx.flow_tag_id = 0;
 				temp->rx.tcp.p_ip_h = NULL;
@@ -661,7 +661,7 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 }
 
 #ifdef DEFINED_SOCKETXTREME
-void cq_mgr::vma_poll_reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
+void cq_mgr::socketxtreme_reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 {
 	if (buff->dec_ref_count() <= 1) {
 		mem_buf_desc_t* temp = NULL;
@@ -675,7 +675,7 @@ void cq_mgr::vma_poll_reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 				temp->reset_ref_count();
 				temp->rx.tcp.gro = 0;
 				temp->rx.is_vma_thr = false;
-				temp->rx.vma_polled = false;
+				temp->rx.socketxtreme_polled = false;
 				temp->rx.flow_tag_id = 0;
 				temp->rx.tcp.p_ip_h = NULL;
 				temp->rx.tcp.p_tcp_h = NULL;
@@ -697,7 +697,7 @@ void cq_mgr::vma_poll_reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 	}
 }
 
-int cq_mgr::vma_poll_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff)
+int cq_mgr::socketxtreme_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff)
 {
 	int ref_cnt = buff->lwip_pbuf_dec_ref_count();
 	if (ref_cnt <= 0) {
@@ -709,7 +709,7 @@ int cq_mgr::vma_poll_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff)
 		buff->reset_ref_count();
 		buff->rx.tcp.gro = 0;
 		buff->rx.is_vma_thr = false;
-		buff->rx.vma_polled = false;
+		buff->rx.socketxtreme_polled = false;
 		buff->rx.flow_tag_id = 0;
 		buff->rx.tcp.p_ip_h = NULL;
 		buff->rx.tcp.p_tcp_h = NULL;
@@ -760,7 +760,7 @@ void cq_mgr::mem_buf_desc_return_to_owner(mem_buf_desc_t* p_mem_buf_desc, void* 
 }
 
 #ifdef DEFINED_SOCKETXTREME
-int cq_mgr::vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
+int cq_mgr::socketxtreme_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 {
 	int packets_num = 0;
 
@@ -849,7 +849,7 @@ int cq_mgr::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_read
 		m_rx_hot_buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_rq_wqe_idx_to_wrid[index];
 		m_rx_hot_buff->rx.context = NULL;
 		m_rx_hot_buff->rx.is_vma_thr = false;
-		m_rx_hot_buff->rx.vma_polled = false;
+		m_rx_hot_buff->rx.socketxtreme_polled = false;
 	}
 	else {
 		volatile mlx5_cqe64 *cqe_err = NULL;

@@ -50,9 +50,9 @@ public:
 	bool			reclaim_recv_buffers_no_lock(descq_t *rx_reuse); // No locks
 	bool			reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst); // No locks
 #ifdef DEFINED_SOCKETXTREME	
-	virtual int 		vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);	
-	virtual int		vma_poll_reclaim_single_recv_buffer(mem_buf_desc_t* rx_reuse_lst); // No locks
-	virtual void		vma_poll_reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst); // No locks
+	virtual int 		socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);	
+	virtual int		socketxtreme_reclaim_single_recv_buffer(mem_buf_desc_t* rx_reuse_lst); // No locks
+	virtual void		socketxtreme_reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst); // No locks
 #endif // DEFINED_SOCKETXTREME
 	virtual bool		reclaim_recv_buffers(descq_t *rx_reuse);
 	virtual int		drain_and_proccess(cq_type_t cq_type);
@@ -102,7 +102,7 @@ protected:
 	virtual void		create_resources(ring_resource_creation_info_t* p_ring_info, bool active);
 	// Internal functions. No need for locks mechanism.
 #ifdef DEFINED_SOCKETXTREME	
-	inline void 		vma_poll_process_recv_buffer(mem_buf_desc_t* p_rx_wc_buf_desc);
+	inline void 		socketxtreme_process_recv_buffer(mem_buf_desc_t* p_rx_wc_buf_desc);
 #endif // DEFINED_SOCKETXTREME	
 	bool			rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array);
 	void			print_flow_to_rfs_udp_uc_map(flow_spec_udp_uc_map_t *p_flow_map);

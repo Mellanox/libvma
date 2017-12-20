@@ -106,7 +106,7 @@ public:
 			bool		is_sw_csum_need; // specify if software checksum is need for this packet
 
 	#ifdef DEFINED_SOCKETXTREME
-			bool 		vma_polled;
+			bool 		socketxtreme_polled;
 	#else
 			bool		pad[1];
 	#endif // DEFINED_SOCKETXTREME

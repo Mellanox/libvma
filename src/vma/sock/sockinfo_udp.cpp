@@ -2127,10 +2127,10 @@ inline void sockinfo_udp::fill_completion(mem_buf_desc_t* p_desc)
 	struct vma_completion_t *completion;
 
 	/* Try to process socketxtreme_poll() completion directly */
-	m_vma_poll_completion = m_p_rx_ring->get_comp();
+	m_socketxtreme_completion = m_p_rx_ring->get_comp();
 
-	if (m_vma_poll_completion) {
-		completion = m_vma_poll_completion;
+	if (m_socketxtreme_completion) {
+		completion = m_socketxtreme_completion;
 	} else {
 		completion = &m_ec.completion;
 	}
@@ -2148,8 +2148,8 @@ inline void sockinfo_udp::fill_completion(mem_buf_desc_t* p_desc)
 	completion->src = p_desc->rx.src;
 	NOTIFY_ON_EVENTS(this, VMA_SOCKETXTREME_PACKET);
 
-	m_vma_poll_completion = NULL;
-	m_vma_poll_last_buff_lst = NULL;
+	m_socketxtreme_completion = NULL;
+	m_socketxtreme_last_buff_lst = NULL;
 }
 #endif //DEFINED_SOCKETXTREME
 
@@ -2243,9 +2243,9 @@ inline bool sockinfo_udp::rx_process_udp_packet_full(mem_buf_desc_t* p_desc, voi
 	p_desc->inc_ref_count();
 
 #ifdef DEFINED_SOCKETXTREME
-	if (p_desc->rx.vma_polled) {
+	if (p_desc->rx.socketxtreme_polled) {
 		fill_completion(p_desc);
-		p_desc->rx.vma_polled = false;
+		p_desc->rx.socketxtreme_polled = false;
 	} else
 #endif
 	{
@@ -2276,9 +2276,9 @@ inline bool sockinfo_udp::rx_process_udp_packet_partial(mem_buf_desc_t* p_desc, 
 	p_desc->inc_ref_count();
 
 #ifdef DEFINED_SOCKETXTREME
-	if (p_desc->rx.vma_polled) {
+	if (p_desc->rx.socketxtreme_polled) {
 		fill_completion(p_desc);
-		p_desc->rx.vma_polled = false;
+		p_desc->rx.socketxtreme_polled = false;
 	} else
 #endif
 	{
