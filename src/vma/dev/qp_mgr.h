@@ -148,9 +148,9 @@ public:
 protected:
 	uint64_t            m_rq_wqe_counter;
 	uint64_t*           m_rq_wqe_idx_to_wrid;
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 	struct mlx5_qp*	    m_mlx5_hw_qp;
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 	struct ibv_qp*      m_qp;
 
 	ring_simple*        m_p_ring;

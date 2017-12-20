@@ -78,7 +78,7 @@
 tcp_seg_pool *g_tcp_seg_pool = NULL;
 tcp_timers_collection* g_tcp_timers_collection = NULL;
 
-#ifndef DEFINED_VMAPOLL // if not defined
+#ifndef DEFINED_SOCKETXTREME // if not defined
 const char * const tcp_sock_state_str[] = {
   "NA",
   "TCP_SOCK_INITED",
@@ -101,7 +101,7 @@ const char * const tcp_conn_state_str[] = {
   "TCP_CONN_ERROR",
   "TCP_CONN_RESETED",
 };
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 
 /**/
 /** inlining functions can only help if they are implemented before their usage **/
@@ -527,7 +527,7 @@ void sockinfo_tcp::handle_socket_linger() {
 	memset(&elapsed, 0,sizeof(elapsed));
 	gettime(&start);
 	while ((tv_to_usec(&elapsed) <= linger_time_usec) && (m_pcb.unsent || m_pcb.unacked)) {
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 		NOT_IN_USE(poll_cnt);
 		/* VMAPOLL WA: Don't call rx_wait() in order not to miss VMA events in vma_poll() flow.
 		 * TBD: find proper solution!
@@ -535,7 +535,7 @@ void sockinfo_tcp::handle_socket_linger() {
 		 * */
 #else
 		rx_wait(poll_cnt, false);
-#endif // DEFINED_VMAPOLL			
+#endif // DEFINED_SOCKETXTREME			
 		tcp_output(&m_pcb);
 		gettime(&current);
 		tv_sub(&current, &start, &elapsed);
@@ -1443,11 +1443,11 @@ err_t sockinfo_tcp::ack_recvd_lwip_cb(void *arg, struct tcp_pcb *tpcb, u16_t ack
 
 	ASSERT_LOCKED(conn->m_tcp_con_lock);
 
-#ifdef DEFINED_VMAPOLL 
+#ifdef DEFINED_SOCKETXTREME 
 	NOT_IN_USE(ack);
 #else
 	conn->m_p_socket_stats->n_tx_ready_byte_count -= ack;
-#endif // DEFINED_VMAPOLL		
+#endif // DEFINED_SOCKETXTREME		
 
 	NOTIFY_ON_EVENTS(conn, EPOLLOUT);
 
@@ -1542,9 +1542,9 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 	conn->m_connected.get_sa(p_first_desc->rx.src);
 
 	while (p_curr_buff) {
-#ifdef DEFINED_VMAPOLL		
+#ifdef DEFINED_SOCKETXTREME		
 		p_curr_desc->rx.context = conn;
-#endif // DEFINED_VMAPOLL				
+#endif // DEFINED_SOCKETXTREME				
 		p_first_desc->rx.n_frags++;
 		p_curr_desc->rx.frag.iov_base = p_curr_buff->payload;
 		p_curr_desc->rx.frag.iov_len = p_curr_buff->len;
@@ -1584,7 +1584,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 	// In ZERO COPY case we let the user's application manage the ready queue
 	}
 	else {
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 		/* Update vma_completion with
 		 * VMA_POLL_PACKET related data
 		 */
@@ -1629,7 +1629,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 		}
 		// notify io_mux
 		NOTIFY_ON_EVENTS(conn, EPOLLIN);
-#endif // DEFINED_VMAPOLL				
+#endif // DEFINED_SOCKETXTREME				
 		io_mux_call::update_fd_array(conn->m_iomux_ready_fd_array, conn->m_fd);
 
 		if (callback_retval != VMA_PACKET_HOLD) {
@@ -1856,13 +1856,13 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 
 	m_iomux_ready_fd_array = (fd_array_t*)pv_fd_ready_array;
 
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 	/* Try to process vma_poll() completion directly */
 	if (p_rx_pkt_mem_buf_desc_info->rx.vma_polled) {
 		m_vma_poll_completion = m_p_rx_ring->get_comp();
 		m_vma_poll_last_buff_lst = NULL;
 	}
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 
 	if (unlikely(get_tcp_state(&m_pcb) == LISTEN)) {
 		pcb = get_syn_received_pcb(p_rx_pkt_mem_buf_desc_info->rx.src.sin_addr.s_addr,
@@ -1890,20 +1890,20 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 				// TODO: consider check if we can now drain into Q of established
 				si_tcp_logdbg("SYN/CTL packet drop. established-backlog=%d (limit=%d) num_con_waiting=%d (limit=%d)",
 						(int)m_syn_received.size(), m_backlog, num_con_waiting, MAX_SYN_RCVD);
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 				m_vma_poll_completion = NULL;
 				m_vma_poll_last_buff_lst = NULL;
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 				unlock_tcp_con();
 				return false;// return without inc_ref_count() => packet will be dropped
 			}
 		}
 		if (m_sysvar_tcp_ctl_thread > CTL_THREAD_DISABLE || established_backlog_full) { /* 2nd check only worth when MAX_SYN_RCVD>0 for non tcp_ctl_thread  */
 			queue_rx_ctl_packet(pcb, p_rx_pkt_mem_buf_desc_info); // TODO: need to trigger queue pulling from accept in case no tcp_ctl_thread
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 			m_vma_poll_completion = NULL;
 			m_vma_poll_last_buff_lst = NULL;
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 			unlock_tcp_con();
 			return true;
 		}
@@ -1924,7 +1924,7 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	}
 
 	sock->m_vma_thr = p_rx_pkt_mem_buf_desc_info->rx.is_vma_thr;
-#ifdef DEFINED_VMAPOLL	
+#ifdef DEFINED_SOCKETXTREME	
 #ifdef RDTSC_MEASURE_RX_READY_POLL_TO_LWIP
 	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_READY_POLL_TO_LWIP]);
 #endif //RDTSC_MEASURE_RX_READY_POLL_TO_LWIP
@@ -1932,10 +1932,10 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 #ifdef RDTSC_MEASURE_RX_LWIP
 	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_MEASURE_RX_LWIP]);
 #endif //RDTSC_MEASURE_RX_LWIP
-#endif // DEFINED_VMAPOLL	
+#endif // DEFINED_SOCKETXTREME	
 	L3_level_tcp_input((pbuf *)p_rx_pkt_mem_buf_desc_info, pcb);
 
-#ifdef DEFINED_VMAPOLL	
+#ifdef DEFINED_SOCKETXTREME	
 #ifdef RDTSC_MEASURE_RX_LWIP
 	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_MEASURE_RX_LWIP]);
 #endif //RDTSC_MEASURE_RX_LWIP
@@ -1943,25 +1943,25 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 #ifdef RDTSC_MEASURE_RX_LWIP_TO_RECEVEFROM
 	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_LWIP_TO_RECEVEFROM]);
 #endif //RDTSC_MEASURE_RX_LWIP_TO_RECEVEFROM
-#endif // DEFINED_VMAPOLL	
+#endif // DEFINED_SOCKETXTREME	
 	sock->m_vma_thr = false;
 
 	if (sock != this) {
-#ifdef DEFINED_VMAPOLL		
+#ifdef DEFINED_SOCKETXTREME		
 		if (unlikely(sock->m_vma_poll_completion)) {
 			sock->m_vma_poll_completion = NULL;
 			sock->m_vma_poll_last_buff_lst = NULL;
 		}
-#endif // DEFINED_VMAPOLL			
+#endif // DEFINED_SOCKETXTREME			
 		sock->m_tcp_con_lock.unlock();
 	}
 
 	m_iomux_ready_fd_array = NULL;
-#ifdef DEFINED_VMAPOLL		
+#ifdef DEFINED_SOCKETXTREME		
 	m_vma_poll_completion = NULL;
 	m_vma_poll_last_buff_lst = NULL;
 	p_rx_pkt_mem_buf_desc_info->rx.vma_polled = false;
-#endif // DEFINED_VMAPOLL			
+#endif // DEFINED_SOCKETXTREME			
 
 	while (dropped_count--) {
 		mem_buf_desc_t* p_rx_pkt_desc = m_rx_cb_dropped_list.get_and_pop_front();
@@ -2100,12 +2100,12 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 		return -1;
 	}
 
-#ifndef DEFINED_VMAPOLL	// if not defined
+#ifndef DEFINED_SOCKETXTREME	// if not defined
 	if (m_rx_ring_map.size() == 1) {
 		rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.begin();
 		m_p_rx_ring = rx_ring_iter->first;
 	}
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 	in_addr_t peer_ip_addr = m_connected.get_in_addr();
 	fit_rcv_wnd(true);
 
@@ -2395,7 +2395,7 @@ int sockinfo_tcp::listen(int backlog)
 	tcp_clone_conn((struct tcp_pcb_listen*)(&m_pcb), sockinfo_tcp::clone_conn_cb);
 
 	bool success = attach_as_uc_receiver(ROLE_TCP_SERVER);
-#ifndef DEFINED_VMAPOLL // if not defiend
+#ifndef DEFINED_SOCKETXTREME // if not defiend
 /*TODO ALEXR
  *
  	if (attach_as_uc_receiver(ROLE_TCP_SERVER)) {
@@ -2414,7 +2414,7 @@ int sockinfo_tcp::listen(int backlog)
 	} else {
 		success = false;
 	}
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 
 	if (!success) {
 		/* we will get here if attach_as_uc_receiver failed */
@@ -2649,7 +2649,7 @@ sockinfo_tcp *sockinfo_tcp::accept_clone()
         return si;
 }
 
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 //Must be taken under parent's tcp connection lock
 void sockinfo_tcp::auto_accept_connection(sockinfo_tcp *parent, sockinfo_tcp *child)
 {
@@ -2703,7 +2703,7 @@ void sockinfo_tcp::auto_accept_connection(sockinfo_tcp *parent, sockinfo_tcp *ch
 
 	__log_dbg("CONN AUTO ACCEPTED: TCP PCB FLAGS: acceptor:0x%x newsock: fd=%d 0x%x new state: %d\n", parent->m_pcb.flags, child->m_fd, child->m_pcb.flags, get_tcp_state(&child->m_pcb));
 }
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 
 err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t err)
 {
@@ -2756,20 +2756,20 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 		new_sock->m_conn_state = TCP_CONN_CONNECTED;
 	}
 
-#ifndef DEFINED_VMAPOLL // if not defined
+#ifndef DEFINED_SOCKETXTREME // if not defined
 	new_sock->m_parent = NULL;
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 	
 	/* if attach failed, we should continue getting traffic through the listen socket */
 	// todo register as 3-tuple rule for the case the listener is gone?
 	new_sock->attach_as_uc_receiver(role_t (NULL), true);
 
-#ifndef DEFINED_VMAPOLL // if not defined
+#ifndef DEFINED_SOCKETXTREME // if not defined
 	if (new_sock->m_rx_ring_map.size() == 1) {
 		rx_ring_map_t::iterator rx_ring_iter = new_sock->m_rx_ring_map.begin();
 		new_sock->m_p_rx_ring = rx_ring_iter->first;
 	}
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 
 	if (new_sock->m_sysvar_tcp_ctl_thread > CTL_THREAD_DISABLE) {
 		new_sock->m_vma_thr = true;
@@ -2799,14 +2799,14 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 	//todo check that listen socket was not closed by now ? (is_server())
 	conn->m_ready_pcbs.erase(&new_sock->m_pcb);
 
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 	auto_accept_connection(conn, new_sock);	
 #else
 	conn->m_accepted_conns.push_back(new_sock);
 	conn->m_ready_conn_cnt++;
 
 	NOTIFY_ON_EVENTS(conn, EPOLLIN);
-#endif // DEFINED_VMAPOLL	
+#endif // DEFINED_SOCKETXTREME	
 
 	//OLG: Now we should wakeup all threads that are sleeping on this socket.
 	conn->do_wakeup();
@@ -2815,9 +2815,9 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 	conn->unlock_tcp_con();
 
 	new_sock->lock_tcp_con();
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 	new_sock->m_parent = NULL;
-#endif // DEFINED_VMAPOLL	
+#endif // DEFINED_SOCKETXTREME	
 
 	return ERR_OK;
 }
@@ -3470,14 +3470,14 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 	bool supported = true;
 	bool allow_privileged_sock_opt = false;
 
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 	/* Process VMA specific options only at the moment
 	 * VMA option does not require additional processing after return
 	 */
 	if (0 == sockinfo::setsockopt(__level, __optname, __optval, __optlen)) {
 		return 0;
 	}
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 
 	if (__level == IPPROTO_TCP) {
 		switch(__optname) {
@@ -3582,7 +3582,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			} else {
 				m_so_bindtodevice_ip = sockaddr.sin_addr.s_addr;
 
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 				if (!is_connected()) {
 					/* Current implementation allows to create separate rings for tx and rx.
 					 * tx ring is created basing on destination ip during connect() call,
@@ -3606,7 +3606,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 					}
 					unlock_tcp_con();
 				}
-#endif // DEFINED_VMAPOLL				
+#endif // DEFINED_SOCKETXTREME				
 			}
 			// handle TX side
 			if (m_p_connected_dst_entry) {
@@ -3690,14 +3690,14 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 		return ret;
 	}
 	
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 	/* Process VMA specific options only at the moment
 	 * VMA option does not require additional processing after return
 	 */
 	if (0 == sockinfo::getsockopt(__level, __optname, __optval, __optlen)) {
 		return 0;
 	}
-#endif // DEFINED_VMAPOLL	
+#endif // DEFINED_SOCKETXTREME	
 
 	if (__level == IPPROTO_TCP) {
 		switch(__optname) {
@@ -3957,12 +3957,12 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 	}
 	m_rx_ring_map_lock.unlock();
 	if (likely(n > 0)) { // got completions from CQ
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 		__log_entry_funcall("got %d elements sn=%llu", n, (unsigned long long)poll_sn);
 
 		if (m_n_rx_pkt_ready_list_count)
 			m_p_socket_stats->counters.n_rx_poll_hit++;
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 		return n;
 	}
 
@@ -4192,7 +4192,7 @@ int sockinfo_tcp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags
 	return total_rx;
 }
 
-#ifndef DEFINED_VMAPOLL // if not defined
+#ifndef DEFINED_SOCKETXTREME // if not defined
 void sockinfo_tcp::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 {
 	struct tcp_pcb pcb;
@@ -4324,7 +4324,7 @@ void sockinfo_tcp::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 	}
 #endif
 }
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 
 int sockinfo_tcp::free_packets(struct vma_packet_t *pkts, size_t count)
 {
@@ -4372,13 +4372,13 @@ int sockinfo_tcp::free_packets(struct vma_packet_t *pkts, size_t count)
 	return ret;
 }
 
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 int sockinfo_tcp::free_buffs(uint16_t len)
 {
 	tcp_recved(&m_pcb, len);
 	return 0;
 }
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 
 struct pbuf * sockinfo_tcp::tcp_tx_pbuf_alloc(void* p_conn)
 {

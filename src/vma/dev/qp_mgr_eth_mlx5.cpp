@@ -202,7 +202,7 @@ cq_mgr* qp_mgr_eth_mlx5::init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event
 		return NULL;
 	}
 
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 	return new cq_mgr(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
 #else
 	return new cq_mgr_mlx5(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);

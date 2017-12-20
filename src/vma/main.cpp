@@ -83,11 +83,11 @@ void check_netperf_flags();
 // Start of vma_version_str - used in "$ strings libvma.so | grep VMA_VERSION"
 #define STR_EXPAND(x) #x
 #define STR(x) STR_EXPAND(x)
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 const char *vma_version_str = "VMA_VERSION: " PACKAGE_VERSION "-" STR(VMA_LIBRARY_RELEASE) " (vmapoll)"
 #else
 const char *vma_version_str = "VMA_VERSION: " PACKAGE_VERSION "-" STR(VMA_LIBRARY_RELEASE)
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 
 #if _BullseyeCoverage
 			      " Bullseye"
@@ -685,9 +685,9 @@ extern "C" void sock_redirect_exit(void)
 	finit_instrumentation(safe_mce_sys().vma_time_measure_filename);
 #endif
 	vlog_printf(VLOG_DEBUG, "%s()\n", __FUNCTION__);
-#ifndef DEFINED_VMAPOLL // if not defined	
+#ifndef DEFINED_SOCKETXTREME // if not defined	
 	vma_shmem_stats_close();
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 }
 
 #if _BullseyeCoverage
