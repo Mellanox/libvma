@@ -336,6 +336,11 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
   struct tcp_pcb *npcb = NULL;
   err_t rc;
 
+  if (in_data->flags & TCP_FIN) {
+    /* An incoming SYN-FIN in the listen state should be ignored. Return. */
+    return ERR_OK;
+  }
+
   /* In the LISTEN state, we check for incoming SYN segments,
      creates a new PCB, and responds with a SYN|ACK. */
   if (in_data->flags & TCP_ACK) {
@@ -345,10 +350,6 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
     tcp_rst(in_data->ackno + 1, in_data->seqno + in_data->tcplen,
       in_data->tcphdr->dest, in_data->tcphdr->src, NULL);
   } else if (in_data->flags & TCP_SYN) {
-    if (in_data->flags & TCP_FIN) {
-      /* An incoming SYN-FIN in the listen state should be ignored. Return. */
-      return ERR_OK;
-    }
     LWIP_DEBUGF(TCP_DEBUG, ("TCP connection request %"U16_F" -> %"U16_F".\n", in_data->tcphdr->src, in_data->tcphdr->dest));
 #if TCP_LISTEN_BACKLOG
     if (pcb->accepts_pending >= pcb->backlog) {
