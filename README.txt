@@ -922,7 +922,7 @@ The default algorithm coming with LWIP is a variation of Reno/New-Reno.
 The new Cubic algorithm was adapted from FreeBsd implementation.
 Use value of 0 for LWIP algorithm.
 Use value of 1 for Cubic algorithm.
-Use vlaue of 2 for disabling the congestion algorithm.
+Use value of 2 in order to disable the congestion algorithm.
 Default value is 0 (LWIP).
 
 VMA_TCP_MAX_SYN_RATE
