@@ -1,4 +1,4 @@
-Update: 07 Nov 2017
+Update: 27 Feb 2019
 
 Introduction
 ============
@@ -921,7 +921,8 @@ TCP congestion control algorithm.
 The default algorithm coming with LWIP is a variation of Reno/New-Reno.
 The new Cubic algorithm was adapted from FreeBsd implementation.
 Use value of 0 for LWIP algorithm.
-Use value of 1 for the Cubic algorithm.
+Use value of 1 for Cubic algorithm.
+Use value of 2 in order to disable the congestion algorithm.
 Default value is 0 (LWIP).
 
 VMA_TCP_MAX_SYN_RATE
