@@ -136,20 +136,23 @@ void rule_table_mgr::parse_attr(struct rtattr *rt_attribute, rule_val *p_val)
 	switch (rt_attribute->rta_type) {
 		case FRA_PRIORITY:
 			p_val->set_priority(*(uint32_t *)RTA_DATA(rt_attribute));
-			break;			
+			break;
 		case FRA_DST:
 			p_val->set_dst_addr(*(in_addr_t *)RTA_DATA(rt_attribute));
 			break;
 		case FRA_SRC:
 			p_val->set_src_addr(*(in_addr_t *)RTA_DATA(rt_attribute));
-			break;			
+			break;
 		case FRA_IFNAME:
 			p_val->set_iif_name((char *)RTA_DATA(rt_attribute));
-			break;	
+			break;
+		case FRA_TABLE:
+			p_val->set_table_id(*(uint32_t *)RTA_DATA(rt_attribute));
+			break;
 #if DEFINED_FRA_OIFNAME
 		case FRA_OIFNAME:
 			p_val->set_oif_name((char *)RTA_DATA(rt_attribute));
-			break;				
+			break;
 #endif
 		default:
 			rr_mgr_logdbg("got undetected rta_type %d %x", rt_attribute->rta_type, *(uint32_t *)RTA_DATA(rt_attribute));
@@ -200,7 +203,7 @@ void rule_table_mgr::update_entry(rule_entry* p_ent)
 // Returns true if at least one rule match destination info, false otherwise.
 bool rule_table_mgr::find_rule_val(route_rule_table_key key, std::deque<rule_val*>* &p_val)
 {
-	rr_mgr_logfunc("destination info :", key.to_str().c_str());
+	rr_mgr_logfunc("destination info %s:", key.to_str().c_str());
 
 	for (int index = 0; index < m_tab.entries_num; index++) {
 		rule_val* p_val_from_tbl = &m_tab.value[index];

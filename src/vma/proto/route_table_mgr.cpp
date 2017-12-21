@@ -288,6 +288,9 @@ void route_table_mgr::parse_attr(struct rtattr *rt_attribute, route_val *p_val)
 	case RTA_PREFSRC:
 		p_val->set_src_addr(*(in_addr_t *)RTA_DATA(rt_attribute));
 		break;
+	case RTA_TABLE:
+		p_val->set_table_id(*(uint32_t *)RTA_DATA(rt_attribute));
+		break;
 	case RTA_METRICS:
 	{
 		struct rtattr *rta = (struct rtattr *)RTA_DATA(rt_attribute);

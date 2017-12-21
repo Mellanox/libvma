@@ -335,9 +335,14 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
 {
   struct tcp_pcb *npcb = NULL;
   err_t rc;
+  
+  if (in_data->flags & TCP_RST) {
+    /* An incoming RST should be ignored. Return. */
+    return ERR_OK;
+  }
 
   if (in_data->flags & TCP_FIN) {
-    /* An incoming SYN-FIN in the listen state should be ignored. Return. */
+    /* An incoming FIN should be ignored. Return. */
     return ERR_OK;
   }
 

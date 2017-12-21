@@ -119,6 +119,7 @@ libvma_la_SOURCES := \
 	lwip/cc.c \
 	lwip/cc_lwip.c \
 	lwip/cc_cubic.c \
+	lwip/cc_none.c \
 	lwip/init.c \
 	\
 	proto/ip_frag.cpp \
