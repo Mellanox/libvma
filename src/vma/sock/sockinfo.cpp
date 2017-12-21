@@ -1279,3 +1279,18 @@ int* sockinfo::get_rings_fds(int &res_length)
 	return m_p_rings_fds;
 #endif
 }
+
+int sockinfo::get_socket_network_ptr(void *&ptr, uint16_t &len)
+{
+	if (!m_p_connected_dst_entry) {
+		return -1;
+	}
+	header* hdr = m_p_connected_dst_entry->get_network_header();
+	if (hdr->m_total_hdr_len == 0) {
+		si_logdbg("header not created yet");
+		return -1;
+	}
+	ptr = (void *)hdr->m_actual_hdr_addr;
+	len = hdr->m_total_hdr_len;
+	return 0;
+}

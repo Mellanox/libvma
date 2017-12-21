@@ -584,6 +584,7 @@ int vma_cyclic_buffer_read(int fd, struct vma_completion_cb_t *completion,
 
 #endif // HAVE_MP_RQ
 
+extern "C"
 int vma_add_ring_profile(vma_ring_type_attr *profile, vma_ring_profile_key *res)
 {
 	if (!g_p_ring_profile) {
@@ -592,6 +593,20 @@ int vma_add_ring_profile(vma_ring_type_attr *profile, vma_ring_profile_key *res)
 	}
 	*res = g_p_ring_profile->add_profile(profile);
 	return 0;
+}
+
+extern "C"
+int vma_get_socket_netowrk_header(int __fd, void **ptr, uint16_t *len)
+{
+	srdr_logdbg_entry("fd=%d, ptr=%p len=%d", __fd, ptr, len);
+
+	socket_fd_api* p_socket_object = fd_collection_get_sockfd(__fd);
+
+	if (p_socket_object) {
+		return p_socket_object->get_socket_network_ptr(*ptr, *len);
+	}
+	errno = EINVAL;
+	return -1;
 }
 
 //-----------------------------------------------------------------------------
@@ -896,6 +911,7 @@ int getsockopt(int __fd, int __level, int __optname,
 		vma_api->get_socket_rings_num = vma_get_socket_rings_num;
 		vma_api->get_socket_rings_fds = vma_get_socket_rings_fds;
 		vma_api->vma_add_ring_profile = vma_add_ring_profile;
+		vma_api->get_socket_network_header = vma_get_socket_netowrk_header;
 #ifdef DEFINED_SOCKETXTREME
 		vma_api->socketxtreme_free_vma_packets = vma_socketxtreme_free_vma_packets;
 		vma_api->socketxtreme_poll = vma_socketxtreme_poll;

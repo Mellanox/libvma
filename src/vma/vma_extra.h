@@ -602,6 +602,19 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * @return 0 on success -1 on failure
 	 */
 	int (*vma_add_ring_profile)(struct vma_ring_type_attr *profile, int *key);
+
+	/**
+	 * get the socket's network header created by VMA
+	 * @param fd - the socket's fd
+	 * @param ptr - out parameter of the header pointer
+	 * @param len - ptr's length
+	 * @return 0 on success -1 on error
+	 * @note this function should be called for connected socket
+	 * @note since vma returns it internal pointer changing it will cause
+	 * the change of the header given to any packet sent on this socket using
+	 * send(), so be careful.
+	 */
+	int (*get_socket_network_header)(int fd, void **ptr, uint16_t *len);
 };
 
 

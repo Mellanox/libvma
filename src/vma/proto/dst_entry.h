@@ -84,7 +84,7 @@ public:
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
 #endif
-	net_device_val* get_net_dev()
+	net_device_val*	get_net_dev()
 	{
 		return m_p_net_dev_val;
 	}
@@ -95,9 +95,9 @@ public:
 	virtual transport_type_t get_obs_transport_type() const;
 	virtual flow_tuple get_flow_tuple() const;
 
-	void	return_buffers_pool();
-	int	get_route_mtu();
-
+	void		return_buffers_pool();
+	int		get_route_mtu();
+	inline header*	get_network_header() { return &m_header;}
 protected:
 	ip_address 		m_dst_ip;
 	uint16_t 		m_dst_port;
