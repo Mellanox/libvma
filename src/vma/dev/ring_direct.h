@@ -1,0 +1,61 @@
+/*
+ * Copyright (c) 2001-2017 Mellanox Technologies, Ltd. All rights reserved.
+ *
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and/or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+#ifndef SRC_VMA_DEV_RING_DIRECT_H_
+#define SRC_VMA_DEV_RING_DIRECT_H_
+
+#include "dev/ring_simple.h"
+
+
+class ring_direct : public ring_eth
+{
+public:
+	ring_direct(in_addr_t local_if,
+		    ring_resource_creation_info_t *p_ring_info, int count,
+		    bool active, uint16_t vlan, uint32_t mtu,
+		    vma_external_mem_attr *ext_ring_attr, ring *parent = NULL);
+	virtual		~ring_direct() {};
+	virtual int	get_ring_descriptors(vma_mlx_hw_device_data &data);
+	virtual qp_mgr*	create_qp_mgr(const ib_ctx_handler* ib_ctx,
+					      uint8_t port_num,
+					      struct ibv_comp_channel* p_rx_comp_event_channel);
+	// dummy functions to block memory and internal thread
+	virtual void	init_tx_buffers(uint32_t count);
+	virtual int	mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting, bool trylock = false);
+	virtual int	drain_and_proccess(cq_type_t cq_type);
+	virtual int	poll_and_process_element_rx(uint64_t* p_cq_poll_sn,
+					void* pv_fd_ready_array);
+private:
+	vma_external_mem_attr	m_ring_attr;
+};
+
+#endif /* SRC_VMA_DEV_RING_DIRECT_H_ */

@@ -329,6 +329,65 @@ struct vma_ring_type_attr {
 	};
 };
 
+typedef enum {
+	VMA_HW_RESERVED
+} mlx_hw_device_cap;
+
+struct dev_data {
+	uint32_t vendor_id;
+	uint32_t vendor_part_id;
+	uint32_t device_cap; // mlx_hw_device_cap
+};
+
+struct hw_cq_data {
+	void *buf;
+	volatile uint32_t *dbrec;
+	uint32_t cq_size;
+	uint32_t cqe_size;
+	uint32_t cqn;
+	void *uar;
+	// for notifications
+	uint32_t *cons_idx;
+};
+
+struct hw_wq_data {
+	void *buf;
+	uint32_t wqe_cnt;
+	uint32_t stride;
+	volatile uint32_t *dbrec;
+	struct hw_cq_data cq_data;
+};
+
+struct hw_rq_data {
+	struct hw_wq_data wq_data;
+	// TBD do we need it
+	uint32_t *head;
+	uint32_t *tail;
+};
+
+struct hw_sq_data {
+	struct hw_wq_data wq_data;
+	uint32_t sq_num;
+	struct {
+		void *reg;
+		uint32_t size;
+		uint32_t offset;
+	} bf;
+};
+
+typedef enum {
+	DATA_VALID_DEV,
+	DATA_VALID_SQ,
+	DATA_VALID_RQ,
+} vma_mlx_hw_valid_data_mask;
+
+struct vma_mlx_hw_device_data {
+	uint32_t valid_mask; // see vma_mlx_hw_valid_data_mask
+	struct dev_data dev_data;
+	struct hw_sq_data sq_data;
+	struct hw_rq_data rq_data;
+};
+
 /** 
  *  
  * VMA Notification callback for incoming packet on socket
@@ -625,6 +684,15 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * 	size actually used.
 	 */
 	int (*get_socket_network_header)(int fd, void *ptr, uint16_t *len);
+
+	/**
+	 * get the HW descriptors created by VMA
+	 * @param fd - the ring fd
+	 * @param data - result see @ref vma_mlx_hw_device_data
+	 * @return -1 on failure 0 on success
+	 */
+	int (*get_ring_direct_descriptors)(int fd,
+					   struct vma_mlx_hw_device_data *data);
 };
 
 

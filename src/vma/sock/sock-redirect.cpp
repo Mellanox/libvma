@@ -609,6 +609,29 @@ int vma_get_socket_netowrk_header(int __fd, void *ptr, uint16_t *len)
 	return -1;
 }
 
+extern "C"
+int vma_get_ring_direct_descriptors(int __fd,
+				    struct vma_mlx_hw_device_data *data)
+{
+	srdr_logdbg_entry("fd=%d, ptr=%p ", __fd, data);
+
+	cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(__fd);
+	if (p_cq_ch_info) {
+		ring* p_ring = p_cq_ch_info->get_ring();
+		if (likely(p_ring)) {
+			return p_ring->get_ring_descriptors(*data);
+		} else {
+			vlog_printf(VLOG_ERROR, "could not find ring, got fd "
+					"%d\n", __fd);
+			return -1;
+		}
+	} else {
+		vlog_printf(VLOG_ERROR, "could not find p_cq_ch_info, got fd "
+							"%d\n", __fd);
+		return -1;
+	}
+}
+
 //-----------------------------------------------------------------------------
 //  replacement functions
 //-----------------------------------------------------------------------------
@@ -912,6 +935,7 @@ int getsockopt(int __fd, int __level, int __optname,
 		vma_api->get_socket_rings_fds = vma_get_socket_rings_fds;
 		vma_api->vma_add_ring_profile = vma_add_ring_profile;
 		vma_api->get_socket_network_header = vma_get_socket_netowrk_header;
+		vma_api->get_ring_direct_descriptors = vma_get_ring_direct_descriptors;
 #ifdef DEFINED_SOCKETXTREME
 		vma_api->socketxtreme_free_vma_packets = vma_socketxtreme_free_vma_packets;
 		vma_api->socketxtreme_poll = vma_socketxtreme_poll;

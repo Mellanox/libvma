@@ -122,9 +122,10 @@ ring_simple::ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t l
 	m_p_qp_mgr(NULL),
 	m_p_cq_mgr_rx(NULL),
 	m_lock_ring_rx("ring_simple:lock_rx"),
+	m_p_cq_mgr_tx(NULL),
+	m_lock_ring_tx("ring_simple:lock_tx"),
 	m_b_is_hypervisor(safe_mce_sys().is_hypervisor),
 	m_p_ring_stat(NULL),
-	m_lock_ring_tx("ring_simple:lock_tx"), m_p_cq_mgr_tx(NULL),
 	m_lock_ring_tx_buf_wait("ring:lock_tx_buf_wait"), m_tx_num_bufs(0), m_tx_num_wr(0), m_tx_num_wr_free(0),
 	m_b_qp_tx_first_flushed_completion_handled(false), m_missing_buf_ref_count(0),
 	m_tx_lkey(g_buffer_pool_tx->find_lkey_by_ib_ctx_thread_safe(m_p_ib_ctx)),
@@ -319,8 +320,7 @@ remain below as in master?
 	m_p_cq_mgr_rx = m_p_qp_mgr->get_rx_cq_mgr();
 	m_p_cq_mgr_tx = m_p_qp_mgr->get_tx_cq_mgr();
 
-	request_more_tx_buffers(RING_TX_BUFS_COMPENSATE);
-	m_tx_num_bufs = m_tx_pool.size();
+	init_tx_buffers(RING_TX_BUFS_COMPENSATE);
 
 	// use local copy of stats by default
 	m_p_ring_stat = &m_ring_stat_static;
@@ -1755,6 +1755,12 @@ bool ring_simple::request_more_tx_buffers(uint32_t count)
 	}
 
 	return true;
+}
+
+void ring_simple::init_tx_buffers(uint32_t count)
+{
+	request_more_tx_buffers(count);
+	m_tx_num_bufs = m_tx_pool.size();
 }
 
 //call under m_lock_ring_tx lock
