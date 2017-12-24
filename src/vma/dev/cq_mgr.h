@@ -99,7 +99,7 @@ operator==(local_if_info_key_t const& key1, local_if_info_key_t const& key2) {
 
 struct qp_rec {
 	qp_mgr  *qp;
-	int     debth;
+	int     debt;
 };
 
 // Class cq_mgr
