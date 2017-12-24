@@ -33,8 +33,25 @@
 #ifndef SRC_VMA_DEV_RING_DIRECT_H_
 #define SRC_VMA_DEV_RING_DIRECT_H_
 
+#include <tr1/unordered_map>
 #include "dev/ring_simple.h"
 
+typedef std::pair<void*, size_t> pair_void_size_t;
+typedef std::pair<ibv_mr*, int> pair_mr_ref_t;
+namespace std { namespace tr1 {
+template<>
+class hash<pair_void_size_t>
+{
+public:
+	size_t operator()(const pair_void_size_t &key) const
+	{
+		hash<size_t>_hash;
+		return _hash((uint64_t)key.first ^ key.second);
+	}
+};
+}}
+
+typedef std::tr1::unordered_map<pair_void_size_t, pair_mr_ref_t> addr_len_mr_map_t;
 
 class ring_direct : public ring_eth
 {
@@ -43,11 +60,14 @@ public:
 		    ring_resource_creation_info_t *p_ring_info, int count,
 		    bool active, uint16_t vlan, uint32_t mtu,
 		    vma_external_mem_attr *ext_ring_attr, ring *parent = NULL);
-	virtual		~ring_direct() {};
+	virtual		~ring_direct();
 	virtual int	get_ring_descriptors(vma_mlx_hw_device_data &data);
 	virtual qp_mgr*	create_qp_mgr(const ib_ctx_handler* ib_ctx,
 					      uint8_t port_num,
 					      struct ibv_comp_channel* p_rx_comp_event_channel);
+	// memory handler
+	virtual int	reg_mr(void *addr, size_t length, uint32_t &lkey);
+	virtual int	dereg_mr(void *addr, size_t length);
 	// dummy functions to block memory and internal thread
 	virtual void	init_tx_buffers(uint32_t count);
 	virtual int	mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting, bool trylock = false);
@@ -56,6 +76,7 @@ public:
 					void* pv_fd_ready_array);
 private:
 	vma_external_mem_attr	m_ring_attr;
+	addr_len_mr_map_t	m_mr_map;
 };
 
 #endif /* SRC_VMA_DEV_RING_DIRECT_H_ */

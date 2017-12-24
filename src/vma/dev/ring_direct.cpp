@@ -112,3 +112,69 @@ int ring_direct::get_ring_descriptors(vma_mlx_hw_device_data &d)
 	d.valid_mask |= DATA_VALID_SQ;
 	return 0;
 }
+
+int ring_direct::reg_mr(void *addr, size_t length, uint32_t &lkey)
+{
+	ring_logdbg("reg_mr()");
+	if (unlikely(addr == NULL) || length == 0) {
+		ring_logdbg("address is %p length is %zd", addr, length);
+		errno = EINVAL;
+		return -1;
+	}
+	auto_unlocker lock(m_lock_ring_tx);
+
+	addr_len_mr_map_t::iterator it = m_mr_map.find(pair_void_size_t(addr, length));
+	if (unlikely(it != m_mr_map.end())) {
+		ring_logdbg("memory %p is already registered with length %zd",
+			    addr, length);
+		lkey = it->second.first->lkey;
+		it->second.second++;
+		return 0;
+	}
+	ibv_mr *mr = m_p_ib_ctx->mem_reg(addr, length, VMA_IBV_ACCESS_LOCAL_WRITE);
+	if (!mr) {
+		ring_logdbg("failed registering MR");
+		return -1;
+	}
+	ring_logdbg("registered memory with ptr %p, length %zd lkey %u",
+			addr, length, lkey);
+	m_mr_map[pair_void_size_t(addr, length)] = pair_mr_ref_t(mr, 1);
+	lkey = mr->lkey;
+	return 0;
+}
+
+int ring_direct::dereg_mr(void *addr, size_t length)
+{
+	auto_unlocker lock(m_lock_ring_tx);
+	pair_void_size_t p(addr, length);
+
+	addr_len_mr_map_t::iterator it = m_mr_map.find(p);
+	if (unlikely(it == m_mr_map.end())) {
+		ring_logdbg("could not find mr in map, addr is %p, length is %zd",
+				addr, length);
+		return -1;
+	}
+	if (it->second.second > 1) {
+		it->second.second--;
+		ring_logdbg("decreased ref count to %d",it->second.second);
+		return 0;
+	}
+	ibv_mr *mr = it->second.first;
+	ring_logdbg("dereg for req_addr %p mr %p addr %p len %zd lkey %u",
+			addr, mr, mr->addr, mr->length, mr->lkey);
+	m_p_ib_ctx->mem_dereg(mr);
+	m_mr_map.erase(p);
+	return 0;
+}
+
+ring_direct::~ring_direct()
+{
+	addr_len_mr_map_t::iterator it = m_mr_map.begin();
+
+	for (;it != m_mr_map.end();it++) {
+		ring_logwarn("resource leak! registered memory was not released,"
+				" addr %p, lenght %zd",it->second.first->addr,
+				it->second.first->length);
+	}
+	m_mr_map.clear();
+}

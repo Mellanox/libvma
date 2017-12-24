@@ -693,6 +693,30 @@ struct __attribute__ ((packed)) vma_api_t {
 	 */
 	int (*get_ring_direct_descriptors)(int fd,
 					   struct vma_mlx_hw_device_data *data);
+
+	/**
+	 * register memory to use on a ring.
+	 * @param fd - the ring fd see @ref socketxtreme_get_socket_rings_fds
+	 * @param addr - the virtual address to register
+	 * @param length - hte length of addr
+	 * @param key - out parameter to use when accessing this memory
+	 * @return 0 on success, -1 on failure
+	 *
+	 * @note in vma_extra_api ring is associated with device, although you
+	 * can use the key in other rings using the same port we decided to leave
+	 * the ring fd as the bridge in the "extra" convention instead of
+	 * using an opaque ib_ctx or src ip (that can cause routing issues).
+	 */
+	int (*register_memory_on_ring)(int fd, void *addr, size_t length,
+				       uint32_t *key);
+
+	/**
+	 * deregister the addr that was previously registered in this ring
+	 * @return 0 on success, -1 on failure
+	 *
+	 * @note - this function doens't free the memory
+	 */
+	int (*deregister_memory_on_ring)(int fd, void *addr, size_t length);
 };
 
 
