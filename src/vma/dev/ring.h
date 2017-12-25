@@ -301,6 +301,7 @@ public:
 	int			get_num_resources() const { return m_n_num_resources; };
 	int*			get_rx_channel_fds() const { return m_p_n_rx_channel_fds; };
 	int			get_rx_channel_fds_index(uint32_t index) const;
+	virtual int		get_tx_channel_fd() const { return -1; };
 	virtual int		get_max_tx_inline() = 0;
 	virtual bool 		get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe) = 0;
 	virtual int		request_notification(cq_type_t cq_type, uint64_t poll_sn) = 0;

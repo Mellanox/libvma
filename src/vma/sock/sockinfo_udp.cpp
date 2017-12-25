@@ -541,6 +541,7 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 	// Dissolve the current connection setting if it's not AF_INET
 	// (this also support the default dissolve by AF_UNSPEC)
 	if (connect_to.get_sa_family() == AF_INET) {
+		m_connected.set_sa_family(AF_INET);
 		m_connected.set_in_addr(INADDR_ANY);
 		m_p_socket_stats->connected_ip = m_connected.get_in_addr();
 
@@ -2758,6 +2759,42 @@ size_t sockinfo_udp::handle_msg_trunc(size_t total_rx, size_t payload_size, int 
 	} 
 
 	return total_rx;
+}
+
+int sockinfo_udp::get_socket_tx_ring_fd(struct sockaddr *to, socklen_t tolen)
+{
+	NOT_IN_USE(tolen);
+	si_udp_logfunc("get_socket_tx_ring_fd fd %d to %p tolen %d", m_fd, to ,tolen);
+
+	if (!to) {
+		si_udp_logdbg("got invalid to addr null for fd %d", m_fd);
+		errno = EINVAL;
+		return -1;
+	}
+	sock_addr dst(to);
+	ring *ring = NULL;
+
+	if (m_p_connected_dst_entry && m_connected == dst) {
+		ring = m_p_connected_dst_entry->get_ring();
+	} else {
+		dst_entry_map_t::iterator it = m_dst_entry_map.begin();
+		for (; it != m_dst_entry_map.end(); it++) {
+			if (it->first == dst) {
+				ring = it->second->get_ring();
+				break;
+			}
+		}
+	}
+	if (!ring) {
+		si_udp_logdbg("could not find TX ring for fd %d addr %s",
+				m_fd, dst.to_str());
+		errno = ENODATA;
+		return -1;
+	}
+	int res = ring->get_tx_channel_fd();
+	si_udp_logdbg("Returning TX ring fd %d for sock fd %d adrr %s",
+			res, m_fd, dst.to_str());
+	return res;
 }
 
 mem_buf_desc_t* sockinfo_udp::get_front_m_rx_pkt_ready_list(){
