@@ -1417,7 +1417,7 @@ static int _udp_client_init(struct sockaddr_in *addr)
 #if defined(VMA_ZCOPY_ENABLED) && (VMA_ZCOPY_ENABLED == 1)
 	/* Need to get ring after listen() or nonblocking connect() */
 	if (_vma_ring_fd < 0) {
-		_vma_api->socketxtreme_get_socket_rings_fds(fd, &_vma_ring_fd, 1);
+		_vma_api->get_socket_rings_fds(fd, &_vma_ring_fd, 1);
 		assert((-1) != _vma_ring_fd);
 	}
 #endif /* VMA_ZCOPY_ENABLED */
@@ -1434,7 +1434,7 @@ static int _udp_server_init(int fd)
 #if defined(VMA_ZCOPY_ENABLED) && (VMA_ZCOPY_ENABLED == 1)
 	/* Need to get ring after listen() or nonblocking connect() */
 	if (_vma_ring_fd < 0) {
-		_vma_api->socketxtreme_get_socket_rings_fds(fd, &_vma_ring_fd, 1);
+		_vma_api->get_socket_rings_fds(fd, &_vma_ring_fd, 1);
 		assert((-1) != _vma_ring_fd);
 	}
 #endif /* VMA_ZCOPY_ENABLED */
@@ -1514,7 +1514,7 @@ static int _tcp_client_init(struct sockaddr_in *addr)
 #if defined(VMA_ZCOPY_ENABLED) && (VMA_ZCOPY_ENABLED == 1)
 	/* Need to get ring after listen() or nonblocking connect() */
 	if (_vma_ring_fd < 0) {
-		_vma_api->socketxtreme_get_socket_rings_fds(fd, &_vma_ring_fd, 1);
+		_vma_api->get_socket_rings_fds(fd, &_vma_ring_fd, 1);
 		assert((-1) != _vma_ring_fd);
 	}
 #endif /* VMA_ZCOPY_ENABLED */
@@ -1589,7 +1589,7 @@ static int _tcp_server_init(int fd)
 	/* Need to get ring after listen() or nonblocking connect() */
 #if defined(VMA_ZCOPY_ENABLED) && (VMA_ZCOPY_ENABLED == 1)
 	if (_vma_ring_fd < 0) {
-		_vma_api->socketxtreme_get_socket_rings_fds(fd, &_vma_ring_fd, 1);
+		_vma_api->get_socket_rings_fds(fd, &_vma_ring_fd, 1);
 		assert((-1) != _vma_ring_fd);
 	}
 #endif /* VMA_ZCOPY_ENABLED */

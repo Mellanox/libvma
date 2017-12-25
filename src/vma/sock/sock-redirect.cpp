@@ -484,7 +484,7 @@ int vma_socketxtreme_free_vma_buff(vma_buff_t *buff)
 #endif // DEFINED_SOCKETXTREME
 
 extern "C"
-int vma_socketxtreme_get_socket_rings_num(int fd)
+int vma_get_socket_rings_num(int fd)
 {
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(fd);
@@ -497,7 +497,7 @@ int vma_socketxtreme_get_socket_rings_num(int fd)
 
 
 extern "C"
-int vma_socketxtreme_get_socket_rings_fds(int fd, int *ring_fds, int ring_fds_sz)
+int vma_get_socket_rings_fds(int fd, int *ring_fds, int ring_fds_sz)
 {
 	int* p_rings_fds = NULL;
 	socket_fd_api* p_socket_object = NULL;
@@ -893,8 +893,8 @@ int getsockopt(int __fd, int __level, int __optname,
 		vma_api->add_conf_rule = vma_add_conf_rule;
 		vma_api->thread_offload = vma_thread_offload;
 
-		vma_api->socketxtreme_get_socket_rings_num = vma_socketxtreme_get_socket_rings_num;
-		vma_api->socketxtreme_get_socket_rings_fds = vma_socketxtreme_get_socket_rings_fds;
+		vma_api->get_socket_rings_num = vma_get_socket_rings_num;
+		vma_api->get_socket_rings_fds = vma_get_socket_rings_fds;
 		vma_api->vma_add_ring_profile = vma_add_ring_profile;
 #ifdef DEFINED_SOCKETXTREME
 		vma_api->socketxtreme_free_vma_packets = vma_socketxtreme_free_vma_packets;
