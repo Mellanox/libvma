@@ -18,6 +18,8 @@ Added:
         - RM #1168028 Add support for static ARP entries
         - RM #1080998 Optimize ib_ctx_handler class
 Fixed:
+        - RM #1248185 Revert some vma_extra sockeXtreme names change
+        - RM #1247022 Fix typo in CQ struct debth->debt
         - RM #1235797 Not respond to incoming FIN in the listen state
         - RM #1229443 Not respond to incoming RST in the listen state
         - RM #1214453 Fix daemon for powerpc
