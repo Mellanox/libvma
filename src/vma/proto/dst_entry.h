@@ -98,6 +98,7 @@ public:
 	void		return_buffers_pool();
 	int		get_route_mtu();
 	inline header*	get_network_header() { return &m_header;}
+	inline ring*	get_ring() { return m_p_ring;}
 protected:
 	ip_address 		m_dst_ip;
 	uint16_t 		m_dst_port;

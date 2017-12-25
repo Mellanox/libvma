@@ -519,6 +519,18 @@ int vma_get_socket_rings_fds(int fd, int *ring_fds, int ring_fds_sz)
 }
 
 extern "C"
+int vma_get_socket_tx_ring_fd(int sock_fd, struct sockaddr *to, socklen_t tolen)
+{
+	socket_fd_api* p_socket_object = fd_collection_get_sockfd(sock_fd);
+
+	if (!p_socket_object) {
+		errno = EINVAL;
+		return -1;
+	}
+	return p_socket_object->get_socket_tx_ring_fd(to, tolen);
+}
+
+extern "C"
 int vma_add_conf_rule(char *config_line)
 {
 	srdr_logdbg("adding conf rule: %s", config_line);
@@ -983,6 +995,7 @@ int getsockopt(int __fd, int __level, int __optname,
 
 		vma_api->get_socket_rings_num = vma_get_socket_rings_num;
 		vma_api->get_socket_rings_fds = vma_get_socket_rings_fds;
+		vma_api->get_socket_tx_ring_fd = vma_get_socket_tx_ring_fd;
 		vma_api->vma_add_ring_profile = vma_add_ring_profile;
 		vma_api->get_socket_network_header = vma_get_socket_netowrk_header;
 		vma_api->get_ring_direct_descriptors = vma_get_ring_direct_descriptors;
