@@ -465,7 +465,7 @@ struct __attribute__ ((packed)) vma_api_t {
 	 *
 	 * * errno is set to: TBD...
 	 */
-	 int (*socketxtreme_poll)(int fd, struct vma_completion_t* completions, unsigned int ncompletions, int flags);
+	int (*socketxtreme_poll)(int fd, struct vma_completion_t* completions, unsigned int ncompletions, int flags);
 
 	 /**
 	 * Returns the amount of rings that are associated with socket.
@@ -476,7 +476,7 @@ struct __attribute__ ((packed)) vma_api_t {
 	 *
 	 * errno is set to: EINVAL - not a VMA offloaded fd
 	 */
-	 int (*socketxtreme_get_socket_rings_num)(int fd);
+	int (*get_socket_rings_num)(int fd);
 
 	 /**
 	 * Returns FDs of the rings that are associated with the socket.
@@ -493,7 +493,7 @@ struct __attribute__ ((packed)) vma_api_t {
 	 *
 	 * errno is set to: EINVAL - not a VMA offloaded fd + TBD
 	 */
-	 int (*socketxtreme_get_socket_rings_fds)(int fd, int *ring_fds, int ring_fds_sz);
+	int (*get_socket_rings_fds)(int fd, int *ring_fds, int ring_fds_sz);
 
 	/**
 	 * Frees packets received by socketxtreme_poll().
@@ -559,7 +559,7 @@ struct __attribute__ ((packed)) vma_api_t {
 
 	/**
 	 * Get data from the MP_RQ cyclic buffer
-	 * @param fd - the fd of the ring to query - get it using @ref socketxtreme_get_socket_rings_fds
+	 * @param fd - the fd of the ring to query - get it using @ref get_socket_rings_fds
 	 * @param completion results see @ref struct vma_completion_cb_t
 	 * @param min min number of packet to return, if not available
 	 * 	will return 0 packets
@@ -639,7 +639,7 @@ myapp_socket_main_loop()
 	//Get socket's ring, we skip reading the number of rings
 	//since connected TCP socket is associated with a single ring
 	if (vma_api) {
-		vma_api->socketxtreme_get_socket_rings_fds(fd, &ring, 1);
+		vma_api->get_socket_rings_fds(fd, &ring, 1);
 	}
 	else {
 		exit...
@@ -745,7 +745,7 @@ myapp_socket_main_loop()
 	//Get socket's ring, we skip reading the number of rings
 	//since connected UDP socket is associated with a single ring
 	if (vma_api) {
-		vma_api->socketxtreme_get_socket_rings_fds(fd, &ring, 1);
+		vma_api->get_socket_rings_fds(fd, &ring, 1);
 	}
 	else {
 		exit...
