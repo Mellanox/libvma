@@ -1,3 +1,32 @@
+Version 8.5.1-0:
+Date + Time 2017-12-24
+=============================================================
+Added:
+        - RM #1172298 Use --enable-socketxtreme configuration in jenkins
+        - RM #1172298 Add failure message for --enable-vmapoll
+        - RM #1172298 Rename inside tests
+        - RM #1172298 Rename vmapoll internal functions
+        - RM #1172298 Rename vmapoll interfaces
+        - RM #1172298 Use --enable-socketxtreme option
+        - RM #1214066 Add support for route and rule extended table id
+        - RM #1242606 Disable TCP congestion control using VMA parameter
+        - RM #1148076 Remove volatile when handling CQE in MP_RQ
+        - RM #1214451 Add systemd support for daemon
+        - RM #1056823 Improve build configure structure
+        - RM #1214453 Improve selection of filesystem monitor method
+        - RM #1235810 Allow to override build date
+        - RM #1168028 Add support for static ARP entries
+        - RM #1080998 Optimize ib_ctx_handler class
+Fixed:
+        - RM #1248185 Revert some vma_extra sockeXtreme names change
+        - RM #1247022 Fix typo in CQ struct debth->debt
+        - RM #1235797 Not respond to incoming FIN in the listen state
+        - RM #1229443 Not respond to incoming RST in the listen state
+        - RM #1214453 Fix daemon for powerpc
+        - RM #1214453 Fix issue in inotify processing
+        - RM #1222660 Correct warning check for flow steering
+        - RM #1224020 Fix typos in README.txt
+
 Version 8.4.10-0:
 Date + Time 2017-11-23
 =============================================================
