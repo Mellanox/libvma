@@ -245,8 +245,8 @@ struct vma_ring_alloc_logic_attr {
  */
 typedef enum {
 	RAW_PACKET,            // Full wire packet in payload_ptr cyclic buffer
-	STRIP_NETWORK_HDRS,    // Strip down packet’s network headers in cyclic buffers.
-	SEPERATE_NETWORK_HDRS, // Expose the packet’s network headers in headers_ptr
+	STRIP_NETWORK_HDRS,    // Strip down packet's network headers in cyclic buffers.
+	SEPERATE_NETWORK_HDRS, // Expose the packet's network headers in headers_ptr
 } vma_cb_packet_rec_mode;
 
 typedef enum {
