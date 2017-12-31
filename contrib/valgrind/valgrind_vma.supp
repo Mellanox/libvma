@@ -15,8 +15,6 @@
    fun:_Znwm
    fun:_ZN13fd_collection17add_cq_channel_fdEiP4ring
    fun:_ZN11ring_simple16create_resourcesEP29ring_resource_creation_info_tb
-   fun:ring_eth
-   fun:_ZN18net_device_val_eth11create_ringEP21ring_alloc_logic_attr
 }
 {
    RM #1073005
