@@ -750,7 +750,7 @@ int net_device_val::ring_drain_and_proccess()
 	auto_unlocker lock(m_lock);
 	rings_hash_map_t::iterator ring_iter;
 	for (ring_iter = m_h_ring_map.begin(); ring_iter != m_h_ring_map.end(); ring_iter++) {
-		int ret = THE_RING->drain_and_proccess(CQT_RX);
+		int ret = THE_RING->drain_and_proccess();
 		if (ret < 0)
 			return ret;
 		if (ret > 0)

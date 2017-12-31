@@ -307,35 +307,26 @@ int ring_bond::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_r
 	}
 }
 
-int ring_bond::drain_and_proccess(cq_type_t cq_type)
+int ring_bond::drain_and_proccess()
 {
-	if (likely(CQT_RX == cq_type)) {
-		if (m_lock_ring_rx.trylock()) {
-			errno = EBUSY;
-			return 0;
-		}
-	} else {
-		if (m_lock_ring_tx.trylock()) {
-			errno = EBUSY;
-			return 0;
-		}
+	if (m_lock_ring_rx.trylock()) {
+		errno = EBUSY;
+		return 0;
 	}
 
 	int temp = 0;
 	int ret = poll_and_process_element_tap_rx();
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
 		if (m_bond_rings[i]->is_up()) {
-			temp = m_bond_rings[i]->drain_and_proccess(cq_type);
+			temp = m_bond_rings[i]->drain_and_proccess();
 			if (temp > 0) {
 				ret += temp;
 			}
 		}
 	}
-	if (likely(CQT_RX == cq_type)) {
-		m_lock_ring_rx.unlock();
-	} else {
-		m_lock_ring_tx.unlock();
-	}
+
+	m_lock_ring_rx.unlock();
+
 	if (ret > 0) {
 		return ret;
 	} else {
@@ -343,8 +334,7 @@ int ring_bond::drain_and_proccess(cq_type_t cq_type)
 	}
 }
 
-int ring_bond::wait_for_notification_and_process_element(cq_type_t cq_type, int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array /*NULL*/)
-{
+int ring_bond::wait_for_notification_and_process_element(int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array /*NULL*/) {
 	if(m_lock_ring_rx.trylock()) {
 		errno = EBUSY;
 		return -1;
@@ -354,7 +344,7 @@ int ring_bond::wait_for_notification_and_process_element(cq_type_t cq_type, int 
 	int ret = poll_and_process_element_tap_rx(pv_fd_ready_array);
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
 		if (m_bond_rings[i]->is_up()) {
-			temp = m_bond_rings[i]->wait_for_notification_and_process_element(cq_type, cq_channel_fd, p_cq_poll_sn, pv_fd_ready_array);
+			temp = m_bond_rings[i]->wait_for_notification_and_process_element(cq_channel_fd, p_cq_poll_sn, pv_fd_ready_array);
 			if (temp > 0) {
 				ret += temp;
 			}
@@ -604,10 +594,6 @@ bool ring_bond::is_member(mem_buf_desc_owner* rng) {
 	return false;
 }
 
-ring_user_id_t ring_bond::generate_id() {
-	return 0;
-}
-
 ring_user_id_t ring_bond::generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port) {
 
 	if (m_type != net_device_val::LAG_8023ad)
@@ -646,7 +632,7 @@ ring_user_id_t ring_bond::generate_id(const address_t src_mac, const address_t d
 		hash ^= (hash >> 8);
 		break;
 	default:
-		return generate_id();
+		return ring::generate_id();
 	}
 
 	return hash % m_n_num_resources;

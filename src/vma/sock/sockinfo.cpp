@@ -397,7 +397,7 @@ int sockinfo::rx_wait_helper(int &poll_count, bool is_blocking)
 		if (p_cq_ch_info) {
 			ring* p_ring = p_cq_ch_info->get_ring();
 			if (p_ring) {
-				p_ring->wait_for_notification_and_process_element(CQT_RX, cq_channel_fd, &poll_sn);
+				p_ring->wait_for_notification_and_process_element(cq_channel_fd, &poll_sn);
 			}
 		}
 

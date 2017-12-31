@@ -636,7 +636,7 @@ int net_device_table_mgr::global_ring_wait_for_notification_and_process_element(
 			if (p_cq_ch_info) {
 				ring* p_ready_ring = p_cq_ch_info->get_ring();
 				// Handle the CQ notification channel
-				int ret = p_ready_ring->wait_for_notification_and_process_element(CQT_RX, fd, p_poll_sn, pv_fd_ready_array);
+				int ret = p_ready_ring->wait_for_notification_and_process_element(fd, p_poll_sn, pv_fd_ready_array);
 				if (ret < 0) {
 					if (errno == EAGAIN || errno == EBUSY) {
 						ndtm_logdbg("Error in ring[%d]->wait_for_notification_and_process_element() of %p (errno=%d %m)", event_idx, p_ready_ring, errno);
