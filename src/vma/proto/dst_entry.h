@@ -56,11 +56,16 @@
 #include "header.h"
 #include "ip_address.h"
 
+struct socket_data {
+	int	fd;
+	uint8_t	pcp;
+};
+
 class dst_entry : public cache_observer, public tostr, public neigh_observer
 {
 
 public:
-	dst_entry(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, int owner_fd, resource_allocation_key &ring_alloc_logic);
+	dst_entry(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, socket_data &sock_data, resource_allocation_key &ring_alloc_logic);
 	virtual ~dst_entry();
 
 	virtual void 	notify_cb();
@@ -130,6 +135,7 @@ protected:
 	header 			m_header_neigh;
 	uint8_t 		m_ttl;
 	uint8_t 		m_tos;
+	uint8_t 		m_pcp;
 	bool 			m_b_is_initialized;
 
 	vma_ibv_send_wr* 	m_p_send_wqe;

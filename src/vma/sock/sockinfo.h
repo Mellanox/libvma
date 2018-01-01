@@ -194,7 +194,7 @@ protected:
 	const int32_t				m_n_sysvar_rx_poll_num;
 	ring_alloc_logic_attr			m_ring_alloc_log_rx;
 	ring_alloc_logic_attr			m_ring_alloc_log_tx;
-
+	uint8_t					m_pcp;
 #ifdef DEFINED_SOCKETXTREME
 	/* Track internal events to return in socketxtreme_poll()
 	 * Current design support single event for socket at a particular time
@@ -272,6 +272,7 @@ protected:
 	int 			modify_ratelimit(dst_entry* p_dst_entry, const uint32_t rate_limit_bytes_per_second);
 
 	void 			move_owned_rx_ready_descs(const mem_buf_desc_owner* p_desc_owner, descq_t* toq); // Move all owner's rx ready packets ro 'toq'
+	void			set_sockopt_prio(__const void *__optval, socklen_t __optlen);
 
 	virtual bool try_un_offloading(); // un-offload the socket if possible
 #ifdef DEFINED_SOCKETXTREME	
