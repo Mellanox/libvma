@@ -1787,13 +1787,6 @@ inline bool sockinfo_udp::inspect_uc_packet(mem_buf_desc_t* p_desc)
 		return false;
 	}
 
-	// The address specified in bind() has a filtering role, i.e. sockets should discard datagrams which sent to an unbound ip address.
-	if (unlikely((m_bound.get_in_addr() != p_desc->rx.dst.sin_addr.s_addr) && !m_bound.is_anyaddr())) {
-		si_udp_logfunc("rx packet discarded - not socket's bound ip (pkt addr: [%d:%d:%d:%d], bound ip:[%s])",
-				NIPQUAD(p_desc->rx.dst.sin_addr.s_addr), m_bound.to_str_in_addr());
-		return false;
-	}
-
 	// Check if sockinfo rx byte quato reached - then disregard this packet
 	if (unlikely(m_p_socket_stats->n_rx_ready_byte_count >= m_p_socket_stats->n_rx_ready_byte_limit)) {
 		si_udp_logfunc("rx packet discarded - socket limit reached (%d bytes)", m_p_socket_stats->n_rx_ready_byte_limit);
@@ -1815,7 +1808,7 @@ inline bool sockinfo_udp::inspect_uc_packet(mem_buf_desc_t* p_desc)
  */
 inline bool sockinfo_udp::inspect_connected(mem_buf_desc_t* p_desc)
 {
-	if (!m_connected.is_anyport() && !m_connected.is_anyaddr()) {
+	if ((m_connected.get_in_port() != INPORT_ANY) && (m_connected.get_in_addr() != INADDR_ANY)) {
 		if (unlikely(m_connected.get_in_port() != p_desc->rx.src.sin_port)) {
 			si_udp_logfunc("rx packet discarded - not socket's connected port (pkt: %d, sock:%s)",
 				   ntohs(p_desc->rx.src.sin_port), m_connected.to_str_in_port());
@@ -1823,7 +1816,7 @@ inline bool sockinfo_udp::inspect_connected(mem_buf_desc_t* p_desc)
 		}
 
 		if (unlikely(m_connected.get_in_addr() != p_desc->rx.src.sin_addr.s_addr)) {
-			si_udp_logfunc("rx packet discarded - not socket's connected ip (pkt: [%d:%d:%d:%d], sock:[%s])",
+			si_udp_logfunc("rx packet discarded - not socket's connected port (pkt: [%d:%d:%d:%d], sock:[%s])",
 				   NIPQUAD(p_desc->rx.src.sin_addr.s_addr), m_connected.to_str_in_addr());
 			return false;
 		}
@@ -2315,6 +2308,8 @@ int sockinfo_udp::mc_change_membership(const mc_pending_pram *p_mc_pram)
 			return -1; // Same group with source filtering is already exist
 		}
 
+		// The address specified in bind() has a filtering role.
+		// i.e. sockets should discard datagrams which sent to an unbound ip address.
 		if (!m_bound.is_anyaddr() && mc_grp != m_bound.get_in_addr()) {
 			return -1; // Socket was bound to a different ip address
 		}
