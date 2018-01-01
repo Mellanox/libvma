@@ -77,8 +77,8 @@ public:
 	virtual bool operator==(flow_tuple const& other) const
 	{
 		return 	(m_dst_port == other.m_dst_port) &&
-			(m_src_port == other.m_src_port) &&
 			(m_dst_ip == other.m_dst_ip) &&
+			(m_src_port == other.m_src_port) &&
 			(m_src_ip == other.m_src_ip) &&
 			(m_protocol == other.m_protocol);
 	}
@@ -88,16 +88,15 @@ public:
 #endif
 	virtual bool operator <(flow_tuple const& other) const
 	{
-		if (m_dst_port < other.m_dst_port)	return true;
-		if (m_dst_port > other.m_dst_port)	return false;
-		if (m_src_port < other.m_src_port)	return true;
-		if (m_src_port > other.m_src_port)	return false;
-		if (m_src_ip < other.m_src_ip)		return true;
-		if (m_src_ip > other.m_src_ip)		return false;
-		if (m_dst_ip < other.m_dst_ip)		return true;
-		if (m_dst_ip > other.m_dst_ip)		return false;
-		if (m_protocol < other.m_protocol)	return true;
-		return false;
+		if (m_dst_port != other.m_dst_port)
+			return m_dst_port < other.m_dst_port;
+		if (m_dst_ip != other.m_dst_ip)
+			return m_dst_ip < other.m_dst_ip;
+		if (m_src_port != other.m_src_port)
+			return m_src_port < other.m_src_port;
+		if (m_src_ip != other.m_src_ip)
+			return m_src_ip < other.m_src_ip;
+		return m_protocol < other.m_protocol;
 	}
 
 	virtual size_t hash(void)
@@ -147,8 +146,8 @@ public:
 
 	virtual bool 	operator <(flow_tuple_with_local_if const& other) const
 	{
-		if (m_local_if < other.m_local_if)	return true;
-		if (m_local_if > other.m_local_if)	return false;
+		if (m_local_if != other.m_local_if)
+			return m_local_if < other.m_local_if;
 		return (*((flow_tuple*)this) < ((flow_tuple)other));
 	}
 
