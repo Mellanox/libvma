@@ -48,7 +48,7 @@ rfs_uc_tcp_gro::rfs_uc_tcp_gro(flow_tuple *flow_spec_5t, ring_simple *p_ring, rf
 	m_p_gro_mgr(&(p_ring->m_gro_mgr)), m_b_active(false), m_b_reserved(false)
 {
 	m_n_buf_max = m_p_gro_mgr->get_buf_max();
-	uint32_t mtu = p_ring->get_mtu(route_rule_table_key(flow_spec_5t->get_dst_ip(), flow_spec_5t->get_src_ip(), 0));
+	uint32_t mtu = p_ring->get_mtu();
 	m_n_byte_max = m_p_gro_mgr->get_byte_max() - mtu;
 	memset(&m_gro_desc, 0, sizeof(m_gro_desc));
 }

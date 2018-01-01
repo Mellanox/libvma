@@ -89,6 +89,14 @@ typedef std::map<tcp_pcb*, int>		ready_pcb_map_t;
 typedef std::map<flow_tuple, tcp_pcb*>	syn_received_map_t;
 typedef std::map<peer_key, vma_desc_list_t> peer_map_t;
 
+/* taken from inet_ecn.h in kernel */
+enum inet_ecns {
+	INET_ECN_NOT_ECT = 0,
+	INET_ECN_ECT_1 = 1,
+	INET_ECN_ECT_0 = 2,
+	INET_ECN_CE = 3,
+	INET_ECN_MASK = 3,
+};
 
 class sockinfo_tcp : public sockinfo, public timer_handler
 {

@@ -47,7 +47,9 @@ class event;
 class send_info : tostr
 {
 public:
-	send_info(): m_p_iov(NULL),m_sz_iov(0){};
+	send_info(iovec *iov, size_t sz):
+		m_p_iov(iov),
+		m_sz_iov(sz){};
 	virtual ~send_info(){};
 
 	iovec  *m_p_iov;
@@ -57,30 +59,32 @@ public:
 class neigh_send_info : public send_info
 {
 public:
-	neigh_send_info(): send_info(), m_p_header(NULL), m_protocol(0){};
-
-	header  *m_p_header;
+	neigh_send_info(iovec *iov, size_t sz, header *hdr, uint8_t proto,
+			uint32_t mtu, uint8_t tos):
+		send_info(iov, sz), m_p_header(hdr),m_mtu(mtu), m_tos(tos), m_protocol(proto){};
+	header *m_p_header;
+	uint32_t m_mtu;
+	uint8_t m_tos;
 	uint8_t m_protocol;
 };
 
 class send_data
 {
 public:
-	send_data(){};
 	send_data(const send_info *si);
 	virtual ~send_data();
-
 	iovec m_iov;
 };
 
 class neigh_send_data : public send_data
 {
 public:
-	neigh_send_data(): m_header(NULL){};
-
-	neigh_send_data(const neigh_send_info *nsi): send_data((const send_info*)nsi), m_protocol(nsi->m_protocol)
+	neigh_send_data(const neigh_send_info *nsi): send_data((const send_info*)nsi),
+			m_header(new header(*(nsi->m_p_header))),
+			m_mtu(nsi->m_mtu),
+			m_tos(nsi->m_tos),
+			m_protocol(nsi->m_protocol)
 	{
-		m_header = new header(*(nsi->m_p_header));
 	};
 
 	virtual ~neigh_send_data()
@@ -91,6 +95,8 @@ public:
 	};
 
 	header  *m_header;
+	uint32_t m_mtu;
+	uint8_t m_tos;
 	uint8_t m_protocol;
 };
 

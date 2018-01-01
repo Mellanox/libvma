@@ -359,9 +359,9 @@ private:
 	resource_allocation_key	*m_res_key;
 	event_t 		rdma_event_mapping(struct rdma_cm_event* p_event);
 	void 			empty_unsent_queue();
-	bool 			post_send_packet(uint8_t protocol, iovec * iov, header *h);
-	bool			post_send_udp(iovec * iov, header *h);
-	bool			post_send_tcp(iovec * iov, header *h);
+	bool 			post_send_packet(neigh_send_data *n_send_data);
+	bool			post_send_udp(neigh_send_data *n_send_data);
+	bool			post_send_tcp(neigh_send_data *n_send_data);
 };
 
 class neigh_ib : public neigh_entry, public event_handler_ibverbs

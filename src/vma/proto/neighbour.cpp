@@ -282,13 +282,7 @@ int neigh_entry::send(neigh_send_info &s_info)
 	neigh_logdbg("");
 	auto_unlocker lock(m_lock);
 	//Need to copy send info
-	neigh_send_data * ns_data = new neigh_send_data(&s_info);
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if(ns_data == NULL) {
-		neigh_logerr("Send() failed, failed to allocate ns_info");
-		return 0;
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
+	neigh_send_data *ns_data = new neigh_send_data(&s_info);
 
 	m_unsent_queue.push_back(ns_data);
 	int ret = ns_data->m_iov.iov_len;
@@ -306,8 +300,8 @@ void neigh_entry::empty_unsent_queue()
 	while (!m_unsent_queue.empty())
 	{
 		neigh_send_data * n_send_data = m_unsent_queue.front();
-		if(prepare_to_send_packet(n_send_data->m_header)) {
-			if(post_send_packet(n_send_data->m_protocol, &n_send_data->m_iov, n_send_data->m_header)) {
+		if (prepare_to_send_packet(n_send_data->m_header)) {
+			if (post_send_packet(n_send_data)) {
 				neigh_logdbg("sent one packet");
 			}
 			else {
@@ -380,16 +374,16 @@ void neigh_entry::send_arp()
 	}
 }
 
-bool neigh_entry::post_send_packet(uint8_t protocol, iovec * iov, header * h)
+bool neigh_entry::post_send_packet(neigh_send_data *p_n_send_data)
 {
-	neigh_logdbg("ENTER post_send_packet protocol = %d", protocol);
-	m_id = generate_ring_user_id(h);
-	switch(protocol)
+	neigh_logdbg("ENTER post_send_packet protocol = %d", p_n_send_data->m_protocol);
+	m_id = generate_ring_user_id(p_n_send_data->m_header);
+	switch(p_n_send_data->m_protocol)
 	{
 		case  IPPROTO_UDP:
-			return (post_send_udp(iov, h));
+			return (post_send_udp(p_n_send_data));
 		case  IPPROTO_TCP:
-			return(post_send_tcp(iov, h));
+			return (post_send_tcp(p_n_send_data));
 		default:
 			neigh_logdbg("Unsupported protocol");
 			return false;
@@ -397,7 +391,7 @@ bool neigh_entry::post_send_packet(uint8_t protocol, iovec * iov, header * h)
 	}
 }
 
-bool neigh_entry::post_send_udp(iovec * iov, header *h)
+bool neigh_entry::post_send_udp(neigh_send_data *n_send_data)
 {
 	// Find number of ip fragments (-> packets, buffers, buffer descs...)
 	neigh_logdbg("ENTER post_send_udp");
@@ -408,11 +402,10 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 #endif
 	mem_buf_desc_t* p_mem_buf_desc, *tmp = NULL;
 	tx_packet_template_t *p_pkt;
-	size_t sz_data_payload = iov->iov_len;
-	iphdr* p_hdr = &h->m_header.hdr.m_ip_hdr;
+	size_t sz_data_payload = n_send_data->m_iov.iov_len;
+	header *h = n_send_data->m_header;
 
-	int mtu = m_p_ring->get_mtu(route_rule_table_key(p_hdr->daddr, p_hdr->saddr, 0));
-	size_t max_ip_payload_size = ((mtu - sizeof(struct iphdr)) & ~0x7);
+	size_t max_ip_payload_size = ((n_send_data->m_mtu - sizeof(struct iphdr)) & ~0x7);
 
 	if (sz_data_payload > 65536) {
 		neigh_logdbg("sz_data_payload=%d exceeds max of 64KB", sz_data_payload);
@@ -479,7 +472,7 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 		uint8_t* p_payload = p_mem_buf_desc->p_buffer + h->m_transport_header_tx_offset + hdr_len;
 
 		// Copy user data to our tx buffers
-		int ret = memcpy_fromiovec(p_payload, iov, 1, sz_user_data_offset, sz_user_data_to_copy);
+		int ret = memcpy_fromiovec(p_payload, &n_send_data->m_iov, 1, sz_user_data_offset, sz_user_data_to_copy);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (ret != (int)sz_user_data_to_copy) {
 			neigh_logerr("memcpy_fromiovec error (sz_user_data_to_copy=%d, ret=%d)", sz_user_data_to_copy, ret);
@@ -530,11 +523,12 @@ bool neigh_entry::post_send_udp(iovec * iov, header *h)
 }
 
 
-bool neigh_entry::post_send_tcp(iovec *iov, header *h)
+bool neigh_entry::post_send_tcp(neigh_send_data *p_data)
 {
 	tx_packet_template_t* p_pkt;
 	mem_buf_desc_t *p_mem_buf_desc;
 	size_t total_packet_len = 0;
+	header *h = p_data->m_header;
 
 	wqe_send_handler wqe_sh;
 	wqe_sh.enable_hw_csum(m_send_wqe);
@@ -553,15 +547,16 @@ bool neigh_entry::post_send_tcp(iovec *iov, header *h)
 	p_mem_buf_desc->p_next_desc = NULL;
 
 	//copy L4 neigh buffer to tx buffer
-	memcpy((void*)(p_mem_buf_desc->p_buffer +h->m_aligned_l2_l3_len), iov->iov_base, iov->iov_len);
+	memcpy((void*)(p_mem_buf_desc->p_buffer + h->m_aligned_l2_l3_len),
+			p_data->m_iov.iov_base, p_data->m_iov.iov_len);
 
 	p_pkt = (tx_packet_template_t*)(p_mem_buf_desc->p_buffer);
-	total_packet_len = iov->iov_len + h->m_total_hdr_len;
+	total_packet_len = p_data->m_iov.iov_len + h->m_total_hdr_len;
 	h->copy_l2_ip_hdr(p_pkt);
 	// We've copied to aligned address, and now we must update p_pkt to point to real
 	// L2 header
 
-	p_pkt->hdr.m_ip_hdr.tot_len = (htons)(iov->iov_len + h->m_ip_header_len);
+	p_pkt->hdr.m_ip_hdr.tot_len = (htons)(p_data->m_iov.iov_len + h->m_ip_header_len);
 
 	// The header is aligned for fast copy but we need to maintain this diff in order to get the real header pointer easily
 	size_t hdr_alignment_diff = h->m_aligned_l2_l3_len - h->m_total_hdr_len;
