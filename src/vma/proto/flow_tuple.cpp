@@ -83,7 +83,7 @@ flow_tuple& flow_tuple::operator=(const flow_tuple &ft)
 	m_dst_port = ft.m_dst_port;
 	m_src_ip = ft.m_src_ip;
 	m_src_port = ft.m_src_port;
-	memcpy(m_str, ft.m_str, sizeof(m_str));
+	strncpy(m_str, ft.m_str, sizeof(m_str));
 
 	return *this;
 }
@@ -168,14 +168,12 @@ void flow_tuple::set_str()
 }
 
 
-
-
-
 void flow_tuple_with_local_if::set_str()
 {
+	char addr_str[32] = { 0 };
+
 	/* cppcheck-suppress wrongPrintfScanfArgNum */
-	snprintf(m_str, sizeof(m_str), "dst:%hhu.%hhu.%hhu.%hhu:%hu, src:%hhu.%hhu.%hhu.%hhu:%hu, proto:%s, if:%hhu.%hhu.%hhu.%hhu",
-			NIPQUAD(m_dst_ip), ntohs(m_dst_port),
-			NIPQUAD(m_src_ip), ntohs(m_src_port),
-			__vma_get_protocol_str(m_protocol), NIPQUAD(m_local_if));
+	snprintf(addr_str, sizeof(addr_str), ", if:%hhu.%hhu.%hhu.%hhu",
+		NIPQUAD(m_local_if));
+	strcat(m_str, addr_str);
 };
