@@ -529,7 +529,7 @@ bool dst_entry::offloaded_according_to_rules()
 	return ret_val;
 }
 
-bool dst_entry::prepare_to_send(const int ratelimit_kbps, bool skip_rules, bool is_connect)
+bool dst_entry::prepare_to_send(struct vma_rate_limit_t &rate_limit, bool skip_rules, bool is_connect)
 {
 	bool resolved = false;
 	m_slow_path_lock.lock();
@@ -552,9 +552,7 @@ bool dst_entry::prepare_to_send(const int ratelimit_kbps, bool skip_rules, bool 
 			m_max_ip_payload_size = m_max_udp_payload_size & ~0x7;
 			if (resolve_ring()) {
 				is_ofloaded = true;
-				if (ratelimit_kbps) {
-					modify_ratelimit(ratelimit_kbps);
-				}
+				modify_ratelimit(rate_limit);
 				if (resolve_neigh()) {
 					if (get_obs_transport_type() == VMA_TRANSPORT_ETH) {
 						dst_logdbg("local mac: %s peer mac: %s", m_p_net_dev_val->get_l2_address()->to_str().c_str(), m_p_neigh_val->get_l2_address()->to_str().c_str());
@@ -763,10 +761,10 @@ void dst_entry::return_buffers_pool()
 	}
 }
 
-int dst_entry::modify_ratelimit(const uint32_t ratelimit_kbps)
+int dst_entry::modify_ratelimit(struct vma_rate_limit_t &rate_limit)
 {
 	if (m_p_ring) {
-		return m_p_ring->modify_ratelimit(ratelimit_kbps);
+		return m_p_ring->modify_ratelimit(rate_limit);
 	}
 	return 0;
 }

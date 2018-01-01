@@ -207,7 +207,7 @@ protected:
 	// Callback function pointer to support VMA extra API (vma_extra.h)
 	vma_recv_callback_t	m_rx_callback;
 	void*			m_rx_callback_context; // user context
-	uint32_t		m_so_ratelimit;
+	struct vma_rate_limit_t m_so_ratelimit;
 #ifdef DEFINED_SOCKETXTREME	
 	void*			m_fd_context;
 #endif // DEFINED_SOCKETXTREME	
@@ -268,7 +268,7 @@ protected:
 	virtual void		unlock_rx_q() {m_lock_rcv.unlock();}
 
 	void 			destructor_helper();
-	int 			modify_ratelimit(dst_entry* p_dst_entry, const uint32_t rate_limit_bytes_per_second);
+	int 			modify_ratelimit(dst_entry* p_dst_entry, struct vma_rate_limit_t &rate_limit);
 
 	void 			move_owned_rx_ready_descs(const mem_buf_desc_owner* p_desc_owner, descq_t* toq); // Move all owner's rx ready packets ro 'toq'
 

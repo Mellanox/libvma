@@ -917,9 +917,24 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 				break;
 			case SO_MAX_PACING_RATE:
 				if (__optval) {
-					uint32_t val = *(uint32_t *)__optval; // value is in bytes per second
+					struct vma_rate_limit_t val;
+
+					if (sizeof(struct vma_rate_limit_t) <= __optlen) {
+						val = *(struct vma_rate_limit_t*)__optval; // value is in bytes per second
+					} else if (sizeof(uint32_t) <= __optlen) {
+						val.rate = *(uint32_t*)__optval; // value is in bytes per second
+						val.upper_bound_sz = 0;
+						val.typical_pkt_sz = 0;
+					} else {
+						si_udp_logdbg("SOL_SOCKET, %s=\"???\" - bad length got %d",
+							      setsockopt_so_opt_to_str(__optname), __optlen);
+						return -1;
+					}
+
+					val.rate = BYTE_TO_KB(val.rate); // value is in bytes per second
+
 					if (modify_ratelimit(m_p_connected_dst_entry, val) < 0) {
-						si_udp_logdbg("error setting setsockopt SO_MAX_PACING_RATE for connected dst_entry %p: %d bytes/second ", m_p_connected_dst_entry, val);
+						si_udp_logdbg("error setting setsockopt SO_MAX_PACING_RATE for connected dst_entry %p: %d bytes/second ", m_p_connected_dst_entry, val.rate);
 
 						// Do not fall back to kernel in this case.
 						// The kernel's support for packet pacing is of no consequence
@@ -936,7 +951,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 						if (modify_ratelimit(p_dst_entry, val) < 0) {
 							si_udp_logdbg("error setting setsockopt SO_MAX_PACING_RATE "
 								      "for dst_entry %p: %d bytes/second ",
-								      p_dst_entry, val);
+								      p_dst_entry, val.rate);
 							dst_entries_not_modified++;
 						}
 					}
