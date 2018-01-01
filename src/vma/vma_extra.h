@@ -47,9 +47,9 @@
 /*
  * Options for setsockopt()/getsockopt()
  */
-#define SO_VMA_GET_API       2800
-#define SO_VMA_USER_DATA     2801
-
+#define SO_VMA_GET_API		2800
+#define SO_VMA_USER_DATA	2801
+#define SO_VMA_RING_ALLOC_LOGIC 2810
 /*
  * Flags for Dummy send API
  */
@@ -172,36 +172,28 @@ struct __attribute__ ((packed)) vma_info_t {
 };
 
 typedef enum {
-	VMA_MP_MASK_HDR_PTR = (1 << 0),
-	VMA_MP_MASK_TIMESTAMP = (1 << 1),
-} vma_completion_mp_mask;
+	VMA_CB_MASK_TIMESTAMP = (1 << 0),
+} vma_completion_cb_mask;
 
 /**
  * @param comp_mask attributes you want to get from @ref vma_cyclic_buffer_read.
- * 	see @ref vma_completion_mp_mask
+ * 	see @ref vma_completion_cb_mask
  * @param payload_ptr pointer to user data not including user header
  * @param payload_length size of payload_ptr
  * @param packets how many packets arrived
- * @param headers_ptr points to the user header section within the payload defined when creating the ring
- * 	@note currently same as @param payload_ptr
- * @param headers_ptr_length headers_ptr length
- *  	@note currently same as @param payload_length
- * @param hw_timestamp the HW time stamp of the first packet arrived within the batch
+ * @param usr_hdr_ptr points to the user header defined when creating the ring
+ * @param usr_hdr_ptr_length user header length
+ * @param hw_timestamp the HW time stamp of the first packet arrived
  */
 struct vma_completion_cb_t {
 	uint32_t	comp_mask;
 	void*		payload_ptr;
 	size_t		payload_length;
 	size_t		packets;
-	void*		headers_ptr;
-	size_t		headers_ptr_length;
+	void*		usr_hdr_ptr;
+	size_t		usr_hdr_ptr_length;
 	struct timespec	hw_timestamp;
 };
-
-/**
- * use this in setsockopt for the ring creation
- */
-#define SO_VMA_RING_ALLOC_LOGIC		2810
 
 typedef int vma_ring_profile_key;
 
@@ -248,13 +240,21 @@ struct vma_ring_alloc_logic_attr {
 	uint32_t	reserved:30;
 };
 
+/*
+ * @note you cannot use RAW_PACKET with hdr_bytes > 0
+ */
 typedef enum {
-	CB_COMP_HDR_BYTE = (1 << 0),
-} vma_cyclic_buffer_ring_attr_comp_mask;
+	RAW_PACKET,            // Full wire packet in payload_ptr cyclic buffer
+	STRIP_NETWORK_HDRS,    // Strip down packet's network headers in cyclic buffers.
+	SEPERATE_NETWORK_HDRS, // Expose the packet's network headers in headers_ptr
+} vma_cb_packet_rec_mode;
+
+typedef enum {
+	VMA_CB_HDR_BYTE = (1 << 0),
+} vma_cb_ring_attr_mask;
 
 /**
- * @param comp_mask - what fields are read when processing this sturct
- * 	see @ref vma_cyclic_buffer_ring_attr_comp_mask
+ * @param comp_mask - what fields are read when processing this sturct see @ref vma_cb_ring_attr_mask
  * @param num - Minimum number of elements allocated in the circular buffer
  * @param hdr_bytes - Bytes separated from UDP payload which are
  * 	part of the application header
@@ -263,19 +263,35 @@ typedef enum {
  * 	control (does not include the hdr_bytes). Should be smaller
  * 	than MTU.
  *
- * @note general packet structure
- * +--------------------------------------------------------------------------+
- * |   mac+ip+udp   |           datagram payload                 |  alignment |
- * +--------------------------------------------------------------------------+
- * | Header to drop |       hdr_bytes    | stride_bytes                       |
- * |                | e.g. RTP header    | e.g. RTP payload      | alignment  |
- * +--------------------------------------------------------------------------+
+ * @note your packet will be written to the memory in a different way depending
+ * on the packet_receive_mode and hdr_bytes.
+ * In all modes all the packets and\or headers will be contiguous in the memory.
+ * The number of headers\packets is equal to packets in @ref vma_completion_cb_t.
+ * the packet memory layout has five options:
+ * 1. RAW_PACKET - payload_ptr will point to the raw packet containing the
+ *     network headers and user payload.
+ * 2. STRIP_NETWORK_HDRS - network headers will be ignored by VMA.
+ *      payload_ptr - will point to the first packet which it size is defined in
+ *          stride_bytes.
+ *      a. hdr_bytes > 0
+ *          usr_hdr_ptr will point to the first header.
+ *      b. hdr_bytes = 0
+ *          usr_hdr_ptr is NULL
+ * 2. SEPERATE_NETWORK_HDRS - network headers will be dropped
+ *     payload_ptr - will point to the first packet as it size is defined
+ *     in stride_bytes.
+ *     a. hdr_bytes > 0
+ *         usr_hdr_ptr will point to the first network header + user header
+ *         (contiguous in memory).
+ *     b. hdr_bytes = 0
+ *         usr_hdr_ptr will point to the first network header.
  */
 struct vma_cyclic_buffer_ring_attr {
-	uint32_t	comp_mask;
-	uint32_t	num;
-	uint16_t	stride_bytes;
-	uint16_t	hdr_bytes;
+	uint32_t		comp_mask;
+	uint32_t		num;
+	uint16_t		stride_bytes;
+	uint16_t		hdr_bytes;
+	vma_cb_packet_rec_mode	packet_receive_mode;
 };
 
 struct vma_packet_queue_ring_attr {

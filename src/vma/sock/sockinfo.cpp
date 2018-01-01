@@ -92,7 +92,7 @@ sockinfo::sockinfo(int fd):
 		, m_flow_tag_id(0)
 		, m_flow_tag_enabled(false)
 		, m_tcp_flow_is_5t(false)
-		, m_rings_fds(NULL)
+		, m_p_rings_fds(NULL)
 
 {
 	m_ring_alloc_logic = ring_allocation_logic_rx(get_fd(), m_ring_alloc_log_rx, this);
@@ -124,6 +124,10 @@ sockinfo::~sockinfo()
 	// Change to non-blocking socket so calling threads can exit
 	m_b_blocking = false;
 	orig_os_api.close(m_rx_epfd); // this will wake up any blocked thread in rx() call to orig_os_api.epoll_wait()
+	if (m_p_rings_fds) {
+		delete[] m_p_rings_fds;
+		m_p_rings_fds = NULL;
+	}
         vma_stats_instance_remove_socket_block(m_p_socket_stats);
 }
 
@@ -1255,23 +1259,23 @@ int* sockinfo::get_rings_fds(int &res_length)
 #else
 	int index = 0;
 
-	if (m_rings_fds) {
-		return m_rings_fds;
+	if (m_p_rings_fds) {
+		return m_p_rings_fds;
 	}
-	m_rings_fds = new int[res_length];
+	m_p_rings_fds = new int[res_length];
 
 	rx_ring_map_t::iterator it = m_rx_ring_map.begin();
 	for (; it != m_rx_ring_map.end(); ++it) {
 		for (int j = 0; j < it->first->get_num_resources(); ++j) {
 			int fd = it->first->get_rx_channel_fds_index(j);
 			if (fd != -1) {
-				m_rings_fds[index] = it->first->get_rx_channel_fds_index(j);
+				m_p_rings_fds[index] = it->first->get_rx_channel_fds_index(j);
 				++index;
 			} else {
 				si_logdbg("got ring with fd -1");
 			}
 		}
 	}
-	return m_rings_fds;
+	return m_p_rings_fds;
 #endif
 }

@@ -23,7 +23,6 @@
    fun:_Znwm
    fun:do_global_ctors_helper
    fun:_Z15do_global_ctorsv
-   fun:_Z15socket_internaliiib
 }
 {
    RM #1072998
@@ -125,8 +124,18 @@
    write(buf)
    ...
    fun:write
-   fun:ibv_exp_cmd_destroy_flow
-   fun:ibv_exp_destroy_flow
+   fun:*cmd_destroy_flow
+   fun:ibv_exp*_destroy_flow
+}
+# issue in verbs_exp
+{
+   verbs resource_domain leak
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:calloc
+   fun:allocate_send_db
+   fun:mlx5_exp_create_res_domain
+   fun:ibv_exp_create_res_domain
 }
 ###########################################################
 # false positive libmlx5\4
@@ -175,14 +184,14 @@
    ...
    fun:ibv_cmd_destroy_cq
    obj:/*libmlx*.so*
-   fun:ibv_destroy_cq
+   fun:ibv_destroy_cq*
 }
 {
    libmlx5 Cond ibv_destroy_cq
    Memcheck:Cond
    fun:ibv_cmd_destroy_cq
-   obj:*/libmlx*.so*
-   fun:ibv_destroy_cq
+   ...
+   fun:*_destroy_cq*
 }
 {
    libmlx5 Value8 ibv_create_ah
@@ -218,6 +227,47 @@
    obj:*/libmlx*.so
    ...
    fun:_ZN6qp_mgrD1Ev
+}
+{
+   libmlx5 umr ibv_exp_create_mr
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:write
+   fun:ibv_exp_cmd_create_mr
+}
+{
+   libmlx5 umr ibv_exp_cmd_create_wq
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:write
+   fun:ibv_exp_cmd_create_wq
+   fun:mlx5_exp_create_wq
+}
+{
+   libmlx5 umr mlx5_poll_one Value8
+   Memcheck:Value8
+   ...
+   fun:mlx5_poll_one
+   ...
+   fun:_ZN11ring_eth_cbD1Ev
+}
+{
+   libmlx5 umr mlx5_poll_one Cond
+   Memcheck:Cond
+   ...
+   fun:mlx5_poll_one
+   ...
+   fun:_ZN11ring_eth_cbD0Ev
+}
+{
+   umr destroy qp
+   Memcheck:Value8
+   fun:get_sw_cqe
+   fun:__mlx5_cq_clean
+   ...
+   fun:_ZN14ib_ctx_handlerD1Ev
 }
 ###########################################################
 ##### libmlx4 only
