@@ -1316,3 +1316,40 @@ int sockinfo::get_socket_network_ptr(void *ptr, uint16_t &len)
 	errno = ENOBUFS;
 	return -1;
 }
+
+int sockinfo::setsockopt_kernel(int __level, int __optname, const void *__optval,
+		socklen_t __optlen, int supported, bool allow_privileged)
+{
+	if (!supported) {
+		char buf[256];
+		snprintf(buf, sizeof(buf), "unimplemented setsockopt __level=%#x, __optname=%#x, [__optlen (%d) bytes of __optval=%.*s]", (unsigned)__level, (unsigned)__optname, __optlen, __optlen, (char*)__optval);
+		buf[ sizeof(buf)-1 ] = '\0';
+
+		VLOG_PRINTF_INFO(safe_mce_sys().exception_handling.get_log_severity(), "%s", buf);
+		int rc = handle_exception_flow();
+		switch (rc) {
+		case -1:
+			return rc;
+		case -2:
+			vma_throw_object_with_msg(vma_unsupported_api, buf);
+		}
+	}
+
+	si_logdbg("going to OS for setsockopt level %d optname %d", __level, __optname);
+	int ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (ret) {
+		if (EPERM == errno && allow_privileged) {
+			si_logdbg("setsockopt failure is suppressed (ret=%d %m)", ret);
+			ret = 0;
+			errno = 0;
+		}
+		else {
+			si_logdbg("setsockopt failed (ret=%d %m)", ret);
+		}
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	return ret;
+}
+

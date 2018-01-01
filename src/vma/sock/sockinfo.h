@@ -222,6 +222,7 @@ protected:
 #ifdef DEFINED_SOCKETXTREME	
 	virtual int setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen);
 #endif // DEFINED_SOCKETXTREME	
+	int setsockopt_kernel(int __level, int __optname, const void *__optval, socklen_t __optlen, int supported, bool allow_priv);
 	virtual int getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen);
 
 	virtual	mem_buf_desc_t* get_front_m_rx_pkt_ready_list() = 0;

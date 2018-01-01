@@ -3660,38 +3660,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 
 	if (safe_mce_sys().avoid_sys_calls_on_tcp_fd && ret != SOCKOPT_HANDLE_BY_OS && is_connected())
 		return ret;
-
-	if (! supported) {
-		char buf[256];
-		snprintf(buf, sizeof(buf), "unimplemented setsockopt __level=%#x, __optname=%#x, [__optlen (%d) bytes of __optval=%.*s]", (unsigned)__level, (unsigned)__optname, __optlen, __optlen, (char*)__optval);
-		buf[ sizeof(buf)-1 ] = '\0';
-
-		VLOG_PRINTF_INFO(safe_mce_sys().exception_handling.get_log_severity(), "%s", buf);
-		int rc = handle_exception_flow();
-		switch (rc) {
-		case -1:
-			return rc;
-		case -2:
-			vma_throw_object_with_msg(vma_unsupported_api, buf);
-		}
-	}
-
-	si_tcp_logdbg("going to OS for setsockopt level %d optname %d", __level, __optname);
-	ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (ret) {
-		if (EPERM == errno && allow_privileged_sock_opt) {
-			si_tcp_logdbg("setsockopt failure is suppressed (ret=%d %m)", ret);
-			ret = 0;
-			errno = 0;
-		}
-		else {
-			si_tcp_logdbg("setsockopt failed (ret=%d %m)", ret);
-		}
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-
-	return ret;
+	return setsockopt_kernel(__level, __optname, __optval, __optlen, supported, allow_privileged_sock_opt);
 }
 
 int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,

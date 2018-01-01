@@ -1271,23 +1271,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 		}
 		break;
 	}
-
-	if (! supported) {
-		char buf[256];
-		snprintf(buf, sizeof(buf), "unimplemented setsockopt __level=%#x, __optname=%#x, [__optlen (%d) bytes of __optval=%.*s]", (unsigned)__level, (unsigned)__optname, __optlen, __optlen, (char*)__optval);
-		buf[ sizeof(buf)-1 ] = '\0';
-
-		VLOG_PRINTF_INFO(safe_mce_sys().exception_handling.get_log_severity(), "%s", buf);
-		int rc = handle_exception_flow();
-		switch (rc) {
-		case -1:
-			return rc;
-		case -2:
-			vma_throw_object_with_msg(vma_unsupported_api, buf);
-		}
-	}
-
-	return orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
+	return setsockopt_kernel(__level, __optname, __optval, __optlen, supported, false);
 }
 
 int sockinfo_udp::getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen)
