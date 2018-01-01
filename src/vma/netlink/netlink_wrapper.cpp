@@ -260,16 +260,12 @@ int netlink_wrapper::open_channel()
 
 	nl_logdbg("netlink socket is open");
 
-
-	if (nl_cache_mngr_compatible_add(m_mngr, "route/neigh", neigh_callback, NULL, &m_cache_neigh))
-		return -1;
-	usleep(500);
 	if (nl_cache_mngr_compatible_add(m_mngr, "route/link", link_callback, NULL, &m_cache_link))
 		return -1;
-	usleep(500);
 	if (nl_cache_mngr_compatible_add(m_mngr, "route/route", route_callback, NULL, &m_cache_route))
 		return -1;
-	usleep(500);
+	if (nl_cache_mngr_compatible_add(m_mngr, "route/neigh", neigh_callback, NULL, &m_cache_neigh))
+		return -1;
 
 	// set custom callback for every message to update message
 	nl_socket_modify_cb(m_socket_handle, NL_CB_MSG_IN, NL_CB_CUSTOM, nl_msg_rcv_cb ,NULL);
