@@ -47,8 +47,8 @@
 
 
 dst_entry_udp::dst_entry_udp(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port,
-			int owner_fd, resource_allocation_key &ring_alloc_logic):
-	dst_entry(dst_ip, dst_port, src_port, owner_fd, ring_alloc_logic),
+			     socket_data &sock_data, resource_allocation_key &ring_alloc_logic):
+	dst_entry(dst_ip, dst_port, src_port, sock_data, ring_alloc_logic),
 	m_n_sysvar_tx_bufs_batch_udp(safe_mce_sys().tx_bufs_batch_udp),
 	m_b_sysvar_tx_nonblocked_eagains(safe_mce_sys().tx_nonblocked_eagains),
 	m_sysvar_thread_mode(safe_mce_sys().thread_mode),
