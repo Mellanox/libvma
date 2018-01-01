@@ -387,6 +387,7 @@ sockinfo_udp::sockinfo_udp(int fd):
 	,m_b_rcvtstamp(false)
 	,m_b_rcvtstampns(false)
 	,m_n_tsing_flags(0)
+	,m_tos(0)
 	,m_n_sysvar_rx_poll_yield_loops(safe_mce_sys().rx_poll_yield_loops)
 	,m_n_sysvar_rx_udp_poll_os_ratio(safe_mce_sys().rx_udp_poll_os_ratio)
 	,m_n_sysvar_rx_ready_byte_min_limit(safe_mce_sys().rx_ready_byte_min_limit)
@@ -608,7 +609,7 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 			setPassthrough();
 			return 0;
 		}
-		socket_data data = { m_fd, m_pcp};
+		socket_data data = { m_fd, m_tos, m_pcp};
 		// Create the new dst_entry
 		if (IN_MULTICAST_N(dst_ip)) {
 			m_p_connected_dst_entry = new dst_entry_udp_mc(dst_ip, dst_port, src_port,
@@ -1140,7 +1141,6 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					if (INADDR_ANY == mc_if) {
 						in_addr_t dst_ip	= mc_grp;
 						in_addr_t src_ip	= 0;
-						uint8_t tos		= 0;
 
 						if ((!m_bound.is_anyaddr()) && (!m_bound.is_mc())) {
 							src_ip = m_bound.get_in_addr();
@@ -1148,8 +1148,8 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 							src_ip = m_so_bindtodevice_ip;
 						}
 						// Find local if for this MC ADD/DROP
-						struct route_result res;
-						g_p_route_table_mgr->route_resolve(route_rule_table_key(dst_ip, src_ip, tos), res);
+						route_result res;
+						g_p_route_table_mgr->route_resolve(route_rule_table_key(dst_ip, src_ip, m_tos), res);
 						mc_if = res.p_src;
 						si_udp_logdbg("IPPROTO_IP, %s=%d.%d.%d.%d, mc_if:INADDR_ANY (resolved to: %d.%d.%d.%d)", setsockopt_ip_opt_to_str(__optname), NIPQUAD(mc_grp), NIPQUAD(mc_if));
 					}
@@ -1206,6 +1206,11 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 						m_b_pktinfo = true;
 					else
 						m_b_pktinfo = false;
+				}
+				break;
+			case IP_TOS:
+				if (__optlen <= sizeof(int)) {
+					m_tos =(uint8_t) *(int *)__optval;
 				}
 				break;
 			default:
@@ -1301,7 +1306,6 @@ int sockinfo_udp::getsockopt(int __level, int __optname, void *__optval, socklen
 
 	bool supported = true;
 	switch (__level) {
-
 	case SOL_SOCKET:
 		{
 			switch (__optname) {
@@ -1829,7 +1833,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 					}
 				}
 				in_port_t src_port = m_bound.get_in_port();
-				socket_data data = { m_fd, m_pcp};
+				socket_data data = { m_fd, m_tos, m_pcp};
 				// Create the new dst_entry
 				if (dst.is_mc()) {
 					p_dst_entry = new dst_entry_udp_mc(
@@ -2504,7 +2508,6 @@ int sockinfo_udp::mc_change_membership(const mc_pending_pram *p_mc_pram)
 	if (mc_if == INADDR_ANY) {
 		in_addr_t dst_ip	= mc_grp;
 		in_addr_t src_ip	= 0;
-		uint8_t tos		= 0;
 		
 		if (!m_bound.is_anyaddr() && !m_bound.is_mc()) {
 			src_ip = m_bound.get_in_addr();
@@ -2513,7 +2516,7 @@ int sockinfo_udp::mc_change_membership(const mc_pending_pram *p_mc_pram)
 		}
 		// Find local if for this MC ADD/DROP
 		route_result res;
-		g_p_route_table_mgr->route_resolve(route_rule_table_key(dst_ip, src_ip, tos), res);
+		g_p_route_table_mgr->route_resolve(route_rule_table_key(dst_ip, src_ip, m_tos), res);
 		mc_if = res.p_src;
 	}
 

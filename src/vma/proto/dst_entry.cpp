@@ -53,7 +53,7 @@ dst_entry::dst_entry(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, soc
 	m_so_bindtodevice_ip(0), m_route_src_ip(0), m_pkt_src_ip(0),
 	m_ring_alloc_logic(sock_data.fd, ring_alloc_logic, this),
 	m_p_tx_mem_buf_desc_list(NULL), m_b_tx_mem_buf_desc_list_pending(false),
-	m_pcp(sock_data.pcp), m_id(0)
+	m_tos(sock_data.tos), m_pcp(sock_data.pcp), m_id(0)
 {
 	dst_logdbg("dst:%s:%d src: %d", m_dst_ip.to_str().c_str(), ntohs(m_dst_port), ntohs(m_src_port));
 	init_members();
@@ -119,7 +119,6 @@ void dst_entry::init_members()
 	memset(&m_fragmented_send_wqe, 0, sizeof(m_not_inline_send_wqe));
 	m_p_send_wqe_handler = NULL;
 	memset(&m_sge, 0, sizeof(m_sge));
-	m_tos = 0;
 	m_ttl = 64;
 	m_b_is_offloaded = true;
 	m_b_is_initialized = false;
@@ -702,17 +701,16 @@ uint16_t dst_entry::get_dst_port()
 ssize_t dst_entry::pass_buff_to_neigh(const iovec * p_iov, size_t & sz_iov, uint16_t packet_id)
 {
 	ssize_t ret_val = 0;
-	neigh_send_info n_send_info;
 
 	dst_logdbg("");
 
 	configure_ip_header(&m_header_neigh, packet_id);
 
 	if (m_p_neigh_entry) {
-		n_send_info.m_p_iov = const_cast<iovec *>(p_iov);
-		n_send_info.m_sz_iov = sz_iov;
-		n_send_info.m_protocol = get_protocol_type();
-		n_send_info.m_p_header = &m_header_neigh;
+		neigh_send_info n_send_info(const_cast<iovec *>(p_iov),
+				sz_iov, &m_header_neigh,
+				get_protocol_type(), get_route_mtu(),
+				m_tos);
 		ret_val = m_p_neigh_entry->send(n_send_info);
 	}
 
