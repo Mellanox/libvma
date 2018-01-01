@@ -48,8 +48,8 @@
 
 
 dst_entry_tcp::dst_entry_tcp(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port,
-			     int owner_fd, resource_allocation_key &ring_alloc_logic):
-			     dst_entry(dst_ip, dst_port, src_port, owner_fd, ring_alloc_logic),
+			     socket_data &sock_data , resource_allocation_key &ring_alloc_logic):
+			     dst_entry(dst_ip, dst_port, src_port, sock_data, ring_alloc_logic),
 			     m_n_sysvar_tx_bufs_batch_tcp(safe_mce_sys().tx_bufs_batch_tcp)
 {
 

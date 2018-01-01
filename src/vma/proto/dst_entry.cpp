@@ -48,11 +48,12 @@
 #define dst_logfuncall         __log_info_funcall
 
 
-dst_entry::dst_entry(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, int owner_fd, resource_allocation_key &ring_alloc_logic):
+dst_entry::dst_entry(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, socket_data &sock_data, resource_allocation_key &ring_alloc_logic):
 	m_dst_ip(dst_ip), m_dst_port(dst_port), m_src_port(src_port), m_bound_ip(0),
 	m_so_bindtodevice_ip(0), m_route_src_ip(0), m_pkt_src_ip(0),
-	m_ring_alloc_logic(owner_fd, ring_alloc_logic, this),
-	m_p_tx_mem_buf_desc_list(NULL), m_b_tx_mem_buf_desc_list_pending(false), m_id(0)
+	m_ring_alloc_logic(sock_data.fd, ring_alloc_logic, this),
+	m_p_tx_mem_buf_desc_list(NULL), m_b_tx_mem_buf_desc_list_pending(false),
+	m_pcp(sock_data.pcp), m_id(0)
 {
 	dst_logdbg("dst:%s:%d src: %d", m_dst_ip.to_str().c_str(), ntohs(m_dst_port), ntohs(m_src_port));
 	init_members();
@@ -376,8 +377,9 @@ bool dst_entry::conf_l2_hdr_and_snd_wqe_eth()
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (src && dst) {
 		BULLSEYE_EXCLUDE_BLOCK_END
-			if (netdevice_eth->get_vlan()) { //vlam interface
-				m_header.configure_vlan_eth_headers(*src, *dst, netdevice_eth->get_vlan());
+			if (netdevice_eth->get_vlan()) { //vlan interface
+				uint16_t vlan_tci = (m_pcp << 12) | netdevice_eth->get_vlan();
+				m_header.configure_vlan_eth_headers(*src, *dst, vlan_tci);
 			}
 			else {
 				m_header.configure_eth_headers(*src, *dst);

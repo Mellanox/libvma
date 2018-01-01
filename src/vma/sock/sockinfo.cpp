@@ -83,6 +83,7 @@ sockinfo::sockinfo(int fd):
 		m_n_sysvar_rx_poll_num(safe_mce_sys().rx_poll_num),
 		m_ring_alloc_log_rx(safe_mce_sys().ring_allocation_logic_rx),
 		m_ring_alloc_log_tx(safe_mce_sys().ring_allocation_logic_tx),
+		m_pcp(0),
 		m_rx_callback(NULL),
 		m_rx_callback_context(NULL)
 #ifdef DEFINED_SOCKETXTREME
@@ -1353,3 +1354,20 @@ int sockinfo::setsockopt_kernel(int __level, int __optname, const void *__optval
 	return ret;
 }
 
+void sockinfo::set_sockopt_prio(__const void *__optval, socklen_t __optlen)
+{
+	int val = -1;
+
+	if (__optlen == 1) {
+		val = *(uint8_t*)__optval;
+	} else if (__optlen >= 1) {
+		val = *(int*)__optval;
+	} else {
+		/* error flow is handled in kernel setsockopt */
+		si_logdbg("bad parameter size in set_sockopt_prio");
+	}
+	if (val >= 0 && val <= 6) {
+		m_pcp = (uint8_t)val;
+		si_logdbg("set socket pcp to be %d", m_pcp);
+	}
+}

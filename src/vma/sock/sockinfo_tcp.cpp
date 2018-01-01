@@ -577,8 +577,13 @@ void sockinfo_tcp::force_close()
 void sockinfo_tcp::create_dst_entry()
 {
 	if (!m_p_connected_dst_entry) {
-		m_p_connected_dst_entry = new dst_entry_tcp(m_connected.get_in_addr(), m_connected.get_in_port(),
-				m_bound.get_in_port(), m_fd, m_ring_alloc_log_tx);
+		socket_data data = { m_fd, m_pcp};
+		m_p_connected_dst_entry = new dst_entry_tcp(m_connected.get_in_addr(),
+					m_connected.get_in_port(),
+					m_bound.get_in_port(),
+					data,
+					m_ring_alloc_log_tx);
+
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (!m_p_connected_dst_entry) {
 			si_tcp_logerr("Failed to allocate m_p_connected_dst_entry");
@@ -3651,6 +3656,11 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			}
 			return ret;
 		}
+		case SO_PRIORITY: {
+			set_sockopt_prio(__optval, __optlen);
+			ret = SOCKOPT_HANDLE_BY_OS;
+			break;
+		}
 		default:
 			ret = SOCKOPT_HANDLE_BY_OS;
 			supported = false;
@@ -3681,8 +3691,8 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 		return 0;
 	}
 #endif // DEFINED_SOCKETXTREME	
-
-	if (__level == IPPROTO_TCP) {
+	switch (__level) {
+	case IPPROTO_TCP:
 		switch(__optname) {
 		case TCP_NODELAY:
         		if (*__optlen >= sizeof(int)) {
@@ -3706,7 +3716,8 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 			ret = SOCKOPT_HANDLE_BY_OS;
 			break;
 		}
-	} else if (__level == SOL_SOCKET) {
+		break;
+	case SOL_SOCKET:
 		switch(__optname) {
 		case SO_ERROR:
 			if (*__optlen >= sizeof(int)) {
@@ -3786,8 +3797,17 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 			ret = SOCKOPT_HANDLE_BY_OS;
 			break;
 		}
-	} else {
+		break;
+	case IPPROTO_IP:
+		switch (__optname) {
+		default:
+			ret = SOCKOPT_HANDLE_BY_OS;
+			break;
+		}
+		break;
+	default:
 		ret = SOCKOPT_HANDLE_BY_OS;
+		break;
 	}
 
 	BULLSEYE_EXCLUDE_BLOCK_START

@@ -608,17 +608,18 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 			setPassthrough();
 			return 0;
 		}
-
+		socket_data data = { m_fd, m_pcp};
 		// Create the new dst_entry
 		if (IN_MULTICAST_N(dst_ip)) {
 			m_p_connected_dst_entry = new dst_entry_udp_mc(dst_ip, dst_port, src_port,
 					m_mc_tx_if ? m_mc_tx_if : m_bound.get_in_addr(),
-							m_b_mc_tx_loop, m_n_mc_ttl, m_fd, m_ring_alloc_log_tx);
+							m_b_mc_tx_loop, m_n_mc_ttl, data, m_ring_alloc_log_tx);
 		}
 		else {
 			m_p_connected_dst_entry = new dst_entry_udp(dst_ip, dst_port,
-					src_port, m_fd, m_ring_alloc_log_tx);
+					src_port, data, m_ring_alloc_log_tx);
 		}
+
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (!m_p_connected_dst_entry) {
 			si_udp_logerr("Failed to create dst_entry(dst_ip:%s, dst_port:%d, src_port:%d)", NIPQUAD(dst_ip), ntohs(dst_port), ntohs(src_port));
@@ -969,6 +970,9 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					si_udp_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
 				}
 				break;
+			case SO_PRIORITY:
+				set_sockopt_prio(__optval, __optlen);
+			break;
 			default:
 				si_udp_logdbg("SOL_SOCKET, optname=%s (%d)", setsockopt_so_opt_to_str(__optname), __optname);
 				supported = false;
@@ -1825,7 +1829,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 					}
 				}
 				in_port_t src_port = m_bound.get_in_port();
-
+				socket_data data = { m_fd, m_pcp};
 				// Create the new dst_entry
 				if (dst.is_mc()) {
 					p_dst_entry = new dst_entry_udp_mc(
@@ -1835,7 +1839,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 							m_mc_tx_if ? m_mc_tx_if : m_bound.get_in_addr(),
 							m_b_mc_tx_loop,
 							m_n_mc_ttl,
-							m_fd,
+							data,
 							m_ring_alloc_log_tx);
 				}
 				else {
@@ -1843,7 +1847,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 							dst.get_in_addr(),
 							dst.get_in_port(),
 							src_port,
-							m_fd,
+							data,
 							m_ring_alloc_log_tx);
 				}
 				BULLSEYE_EXCLUDE_BLOCK_START

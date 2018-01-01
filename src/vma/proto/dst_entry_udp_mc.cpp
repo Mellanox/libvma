@@ -47,8 +47,8 @@
 dst_entry_udp_mc::dst_entry_udp_mc(in_addr_t dst_ip, uint16_t dst_port,
 				   uint16_t src_port, in_addr_t tx_if_ip,
 				   bool mc_b_loopback, uint8_t mc_ttl,
-				   int owner_fd, resource_allocation_key &ring_alloc_logic):
-					dst_entry_udp(dst_ip, dst_port, src_port, owner_fd, ring_alloc_logic),
+				   socket_data &sock_data, resource_allocation_key &ring_alloc_logic):
+					dst_entry_udp(dst_ip, dst_port, src_port, sock_data, ring_alloc_logic),
 					m_mc_tx_if_ip(tx_if_ip), m_b_mc_loopback_enabled(mc_b_loopback)
 {
 	m_ttl = mc_ttl;
