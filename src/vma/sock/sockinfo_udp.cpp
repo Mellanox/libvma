@@ -1788,7 +1788,7 @@ inline bool sockinfo_udp::inspect_uc_packet(mem_buf_desc_t* p_desc)
 	}
 
 	// The address specified in bind() has a filtering role, i.e. sockets should discard datagrams which sent to an unbound ip address.
-	if (unlikely(m_bound.get_in_addr() != p_desc->rx.dst.sin_addr.s_addr) && !m_bound.is_anyaddr()) {
+	if (unlikely((m_bound.get_in_addr() != p_desc->rx.dst.sin_addr.s_addr) && !m_bound.is_anyaddr())) {
 		si_udp_logfunc("rx packet discarded - not socket's bound ip (pkt addr: [%d:%d:%d:%d], bound ip:[%s])",
 				NIPQUAD(p_desc->rx.dst.sin_addr.s_addr), m_bound.to_str_in_addr());
 		return false;
@@ -1806,7 +1806,6 @@ inline bool sockinfo_udp::inspect_uc_packet(mem_buf_desc_t* p_desc)
 		si_udp_logfunc("rx packet discarded - fd closed");
 		return false;
 	}
-
 	return true;
 }
 
