@@ -95,7 +95,7 @@ int priv_ibv_modify_qp_from_init_to_rts(struct ibv_qp *qp, uint32_t underly_qpn 
 int priv_ibv_query_qp_state(struct ibv_qp *qp);
 
 // change  ib rate limit
-int priv_ibv_modify_qp_ratelimit(struct ibv_qp *qp, uint32_t ratelimit_kbps);
+int priv_ibv_modify_qp_ratelimit(struct ibv_qp *qp, struct vma_rate_limit_t &rate_limit, uint32_t rl_changes);
 
 
 #ifndef VLAN_VID_MASK
@@ -315,6 +315,12 @@ typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_ta
 #else
 #define vma_ibv_dm_size(attr)			(0)
 #endif
+
+typedef enum {
+	RL_RATE = 1<<0,
+	RL_BURST_SIZE = 1<<1,
+	RL_PKT_SIZE = 1<<2,
+} vma_rl_changed;
 
 typedef enum vma_wr_tx_packet_attr {
 	VMA_TX_PACKET_BLOCK   = (1 << 0), // blocking send

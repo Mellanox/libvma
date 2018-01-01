@@ -78,6 +78,12 @@ typedef enum {
     VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED	= (1ULL << 33)  /* New connection is auto accepted by server */
 } vma_socketxtreme_events_t;
 
+struct vma_rate_limit_t {
+	uint32_t rate;				/* rate limit in Kbps */
+	uint32_t upper_bound_sz;		/* maximum burst size in bytes */
+	uint16_t typical_pkt_sz;		/* typical packet size in bytes */
+};
+
 /*
  * Represents  VMA buffer
  * Used in SocketXtreme extended API.

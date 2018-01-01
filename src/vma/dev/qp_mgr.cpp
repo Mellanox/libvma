@@ -91,12 +91,12 @@ qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context,
 	,m_p_prev_rx_desc_pushed(NULL)
 	,m_n_ip_id_base(0)
 	,m_n_ip_id_offset(0)
-	,m_ratelimit_kbps(0)
 {
 	m_ibv_rx_sg_array = new ibv_sge[m_n_sysvar_rx_num_wr_to_post_recv];
 	m_ibv_rx_wr_array = new ibv_recv_wr[m_n_sysvar_rx_num_wr_to_post_recv];
 
 	set_unsignaled_count();
+	memset(&m_rate_limit, 0, sizeof(struct vma_rate_limit_t));
 
 #ifdef DEFINED_SOCKETXTREME
 	m_rq_wqe_idx_to_wrid = (uint64_t*)mmap(NULL, m_rx_num_wr * sizeof(*m_rq_wqe_idx_to_wrid),
@@ -643,9 +643,7 @@ void qp_mgr_eth::modify_qp_to_ready_state()
 		qp_logpanic("failed to modify QP from INIT to RTS state (ret = %d)", ret);
 	}
 
-	if (m_ratelimit_kbps) {
-		modify_qp_ratelimit(m_ratelimit_kbps);
-	}
+	modify_qp_ratelimit(m_rate_limit, RL_RATE | RL_BURST_SIZE | RL_PKT_SIZE);
 	BULLSEYE_EXCLUDE_BLOCK_END
 }
 
@@ -801,23 +799,62 @@ void qp_mgr_ib::update_pkey_index()
 #endif /* DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN */
 }
 
-bool qp_mgr::set_qp_ratelimit(const uint32_t ratelimit_kbps)
+uint32_t qp_mgr::is_ratelimit_change(struct vma_rate_limit_t &rate_limit)
 {
-	if (m_ratelimit_kbps != ratelimit_kbps) {
-	    m_ratelimit_kbps = ratelimit_kbps;
-		return true;
+	uint32_t rl_changes = 0;
+
+	if (m_rate_limit.rate != rate_limit.rate) {
+		rl_changes |= RL_RATE;
 	}
-	else {
-		return false;
+	if (m_rate_limit.upper_bound_sz != rate_limit.upper_bound_sz) {
+		rl_changes |= RL_BURST_SIZE;
 	}
+	if (m_rate_limit.typical_pkt_sz != rate_limit.typical_pkt_sz) {
+		rl_changes |= RL_PKT_SIZE;
+	}
+
+	return rl_changes;
 }
 
-int qp_mgr::modify_qp_ratelimit(const uint32_t ratelimit_kbps)
+bool qp_mgr::is_ratelimit_supported(ibv_exp_packet_pacing_caps &pp_caps, struct vma_rate_limit_t &rate_limit)
 {
-	int ret = priv_ibv_modify_qp_ratelimit(m_qp, ratelimit_kbps);
+#ifdef DEFINED_IBV_EXP_QP_RATE_LIMIT
+	/* for any rate limit settings the rate must be between the supported min and max values */
+	if (rate_limit.rate < pp_caps.qp_rate_limit_min || pp_caps.qp_rate_limit_max < rate_limit.rate) {
+		return false;
+	}
+
+	uint32_t rl_changes = is_ratelimit_change(rate_limit);
+
+	/* support_burst capability is required to handle any burst/packet size change */
+	if (rl_changes & (RL_BURST_SIZE | RL_PKT_SIZE)) {
+#ifdef DEFINED_IBV_EXP_QP_BURST_INFO
+		if (!pp_caps.support_burst) {
+			return false;
+		}
+#else
+		return false;
+#endif
+	}
+
+	return true;
+#else
+	NOT_IN_USE(pp_caps);
+	NOT_IN_USE(rate_limit);
+	return false;
+#endif
+}
+
+int qp_mgr::modify_qp_ratelimit(struct vma_rate_limit_t &rate_limit, uint32_t rl_changes)
+{
+	int ret;
+
+	ret = priv_ibv_modify_qp_ratelimit(m_qp, rate_limit, rl_changes);
 	if (ret) {
 		qp_logdbg("failed to modify qp ratelimit ret %d (errno=%d %m)", ret, errno);
 		return -1;
 	}
+
+	m_rate_limit = rate_limit;
 	return 0;
 }
