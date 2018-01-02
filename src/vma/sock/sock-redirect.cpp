@@ -596,14 +596,14 @@ int vma_add_ring_profile(vma_ring_type_attr *profile, vma_ring_profile_key *res)
 }
 
 extern "C"
-int vma_get_socket_netowrk_header(int __fd, void **ptr, uint16_t *len)
+int vma_get_socket_netowrk_header(int __fd, void *ptr, uint16_t *len)
 {
 	srdr_logdbg_entry("fd=%d, ptr=%p len=%d", __fd, ptr, len);
 
 	socket_fd_api* p_socket_object = fd_collection_get_sockfd(__fd);
 
 	if (p_socket_object) {
-		return p_socket_object->get_socket_network_ptr(*ptr, *len);
+		return p_socket_object->get_socket_network_ptr(ptr, *len);
 	}
 	errno = EINVAL;
 	return -1;

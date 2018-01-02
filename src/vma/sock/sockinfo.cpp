@@ -1280,17 +1280,28 @@ int* sockinfo::get_rings_fds(int &res_length)
 #endif
 }
 
-int sockinfo::get_socket_network_ptr(void *&ptr, uint16_t &len)
+int sockinfo::get_socket_network_ptr(void *ptr, uint16_t &len)
 {
 	if (!m_p_connected_dst_entry) {
+		si_logdbg("dst entry no created fd %d", m_fd);
+		errno = ENOTCONN;
 		return -1;
 	}
 	header* hdr = m_p_connected_dst_entry->get_network_header();
 	if (hdr->m_total_hdr_len == 0) {
-		si_logdbg("header not created yet");
+		si_logdbg("header not created yet fd %d", m_fd);
+		errno = ENOTCONN;
 		return -1;
 	}
-	ptr = (void *)hdr->m_actual_hdr_addr;
-	len = hdr->m_total_hdr_len;
-	return 0;
+	if (!ptr) {
+		len = hdr->m_total_hdr_len;
+		return 0;
+	}
+	if (ptr && len >= hdr->m_total_hdr_len) {
+		len = hdr->m_total_hdr_len;
+		memcpy(ptr, ((uint8_t*)hdr->m_actual_hdr_addr), len);
+		return 0;
+	}
+	errno = ENOBUFS;
+	return -1;
 }

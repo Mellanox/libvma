@@ -606,15 +606,25 @@ struct __attribute__ ((packed)) vma_api_t {
 	/**
 	 * get the socket's network header created by VMA
 	 * @param fd - the socket's fd
-	 * @param ptr - out parameter of the header pointer
-	 * @param len - ptr's length
+	 * @param ptr - pointer to write the data to. can be NULL see notes
+	 * @param len - IN\OUT parameter
+	 * 	IN - len given by user
+	 * 	OUT- len used by header
 	 * @return 0 on success -1 on error
+	 * 	errno EINVAL - bad fd
+	 * 	errno ENOBUFS - ptr is too small
+	 * 	errno ENOTCONN - header no available since socket is not
+	 * 		ofloaded or not connected
 	 * @note this function should be called for connected socket
-	 * @note since vma returns it internal pointer changing it will cause
-	 * the change of the header given to any packet sent on this socket using
-	 * send(), so be careful.
+	 * @note calling with ptr NULL will update the len with the size needed
+	 * 	by VMA so application will allocate the exact needed space
+	 * @note application can:
+	 * 	call twice once with ptr == NULL and get the size needed to allocate
+	 * 	and call again to get the data.
+	 * 	if application called with big enough buffer vma will update the
+	 * 	size actually used.
 	 */
-	int (*get_socket_network_header)(int fd, void **ptr, uint16_t *len);
+	int (*get_socket_network_header)(int fd, void *ptr, uint16_t *len);
 };
 
 
