@@ -92,8 +92,8 @@ fd_collection::~fd_collection()
 {
 	fdcoll_logfunc("");
 
-	m_n_fd_map_size = -1;
 	clear();
+	m_n_fd_map_size = -1;
 
 	delete [] m_p_sockfd_map;
 	m_p_sockfd_map = NULL;
@@ -149,9 +149,10 @@ void fd_collection::clear()
 	}
 
 	//internal thread should be already dead and these sockets should have been deleted through the internal thread.
-	sock_fd_api_list_t::iterator itr;
-	for (itr = m_pendig_to_remove_lst.begin(); itr != m_pendig_to_remove_lst.end(); itr++) {
-		(*itr)->force_close();
+	while (!m_pendig_to_remove_lst.empty()) {
+		socket_fd_api *p_sfd_api = m_pendig_to_remove_lst.get_and_pop_back();
+		p_sfd_api->force_close();
+		delete p_sfd_api;
 	}
 
 	// Clean up all left overs sockinfo
@@ -161,7 +162,9 @@ void fd_collection::clear()
 				socket_fd_api *p_sfd_api = get_sockfd(fd);
 				if (p_sfd_api) {
 					p_sfd_api->statistics_print();
-					p_sfd_api->destructor_helper();
+					if (!p_sfd_api->is_cleaned()) {
+						p_sfd_api->clean_obj();
+					}
 				}
 			}
 	/**** Problem here - if one sockinfo is in a blocked call rx()/tx() then this will block too!!!

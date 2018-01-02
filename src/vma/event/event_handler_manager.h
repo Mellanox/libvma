@@ -206,7 +206,7 @@ private:
 	void	priv_prepare_ibverbs_async_event_queue(event_handler_map_t::iterator& i);
 
 	const char* reg_action_str(event_action_type_e	reg_action_type);
-	void    post_new_reg_action(reg_action_t& reg_action);
+	bool    post_new_reg_action(reg_action_t& reg_action);
 	void    handle_registration_action(reg_action_t& reg_action);
 	void	process_ibverbs_event(event_handler_map_t::iterator &i);
 	void	process_rdma_cm_event(event_handler_map_t::iterator &i);

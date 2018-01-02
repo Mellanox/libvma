@@ -152,7 +152,9 @@ void event_handler_manager::unregister_timers_event_and_delete(timer_handler* ha
 	memset(&reg_action, 0, sizeof(reg_action));
 	reg_action.type = UNREGISTER_TIMERS_AND_DELETE;
 	reg_action.info.timer.handler = handler;
-	post_new_reg_action(reg_action);
+	if (!post_new_reg_action(reg_action)) {
+		delete handler;
+	}
 }
 
 void event_handler_manager::register_ibverbs_event(int fd, event_handler_ibverbs *handler, 
@@ -435,10 +437,10 @@ const char* event_handler_manager::reg_action_str(event_action_type_e reg_action
 }
 
 //get new action of event (register / unregister), and post to the thread's pipe
-void event_handler_manager::post_new_reg_action(reg_action_t& reg_action)
+bool event_handler_manager::post_new_reg_action(reg_action_t& reg_action)
 {
 	if (!m_b_continue_running)
-		return;
+		return false;
 
 	start_thread();
 
@@ -448,6 +450,8 @@ void event_handler_manager::post_new_reg_action(reg_action_t& reg_action)
 	m_reg_action_q.push_back(reg_action);
 	m_reg_action_q_lock.unlock();
 	do_wakeup();
+
+	return true;
 }
 
 void event_handler_manager::priv_register_timer_handler(timer_reg_info_t& info)

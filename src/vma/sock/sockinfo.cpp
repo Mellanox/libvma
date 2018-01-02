@@ -120,7 +120,7 @@ sockinfo::~sockinfo()
 		delete[] m_p_rings_fds;
 		m_p_rings_fds = NULL;
 	}
-        vma_stats_instance_remove_socket_block(m_p_socket_stats);
+	vma_stats_instance_remove_socket_block(m_p_socket_stats);
 }
 
 void sockinfo::set_blocking(bool is_blocked)
