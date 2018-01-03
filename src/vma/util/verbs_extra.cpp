@@ -319,10 +319,10 @@ int priv_ibv_query_flow_tag_supported(struct ibv_qp *qp, uint8_t port_num)
 
 int vma_rdma_lib_reset() {
 #ifdef HAVE_RDMA_LIB_RESET
-	vlog_printf(VLOG_DEBUG, "rdma_lib_reset called");
+	vlog_printf(VLOG_DEBUG, "rdma_lib_reset called\n");
 	return rdma_lib_reset();
 #else
-	vlog_printf(VLOG_DEBUG, "rdma_lib_reset doesn't exist returning 0");
+	vlog_printf(VLOG_DEBUG, "rdma_lib_reset doesn't exist returning 0\n");
 	return 0;
 #endif
 }
@@ -335,7 +335,7 @@ int priv_ibv_modify_qp_ratelimit(struct ibv_qp *qp, struct vma_rate_limit_t &rat
 	uint64_t exp_attr_mask = IBV_QP_STATE;
 
 	if (priv_ibv_query_qp_state(qp) != IBV_QPS_RTS) {
-		vlog_printf(VLOG_DEBUG, "failed querying QP");
+		vlog_printf(VLOG_DEBUG, "failed querying QP\n");
 		return -1;
 	}
 	memset(&qp_attr, 0, sizeof(qp_attr));
@@ -354,19 +354,19 @@ int priv_ibv_modify_qp_ratelimit(struct ibv_qp *qp, struct vma_rate_limit_t &rat
 #endif
 	BULLSEYE_EXCLUDE_BLOCK_START
 	IF_VERBS_FAILURE(vma_ibv_modify_qp(qp, &qp_attr, exp_attr_mask)) {
-		vlog_printf(VLOG_WARNING, "failed setting rate limit");
+		vlog_printf(VLOG_WARNING, "failed setting rate limit\n");
 		return -2;
 	} ENDIF_VERBS_FAILURE;
 	BULLSEYE_EXCLUDE_BLOCK_END
 #ifdef DEFINED_IBV_EXP_QP_BURST_INFO
-	vlog_printf(VLOG_DEBUG, "qp was set to rate limit %d, burst size %d, packet size %d",
+	vlog_printf(VLOG_DEBUG, "qp was set to rate limit %d, burst size %d, packet size %d\n",
 			rate_limit.rate, rate_limit.upper_bound_sz, rate_limit.typical_pkt_sz);
 #else
-	vlog_printf(VLOG_DEBUG, "qp was set to rate limit %d", rate_limit.rate);
+	vlog_printf(VLOG_DEBUG, "qp was set to rate limit %d\n", rate_limit.rate);
 #endif
 	return 0;
 #else
-	vlog_printf(VLOG_DEBUG, "rate limit not supported");
+	vlog_printf(VLOG_DEBUG, "rate limit not supported\n");
 	NOT_IN_USE(qp);
 	NOT_IN_USE(rate_limit);
 	NOT_IN_USE(rl_changes);
