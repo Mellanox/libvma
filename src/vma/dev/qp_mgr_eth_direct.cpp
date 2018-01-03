@@ -29,7 +29,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include "qp_mgr_direct.h"
+#include "qp_mgr_eth_direct.h"
 #include "vlogger/vlogger.h"
 
 #if defined(HAVE_INFINIBAND_MLX5_HW_H)
@@ -44,16 +44,17 @@
 #define qp_logfunc	__log_info_func
 #define qp_logfuncall	__log_info_funcall
 
-qp_mgr_direct::qp_mgr_direct(const ring_simple* p_ring,
+qp_mgr_eth_direct::qp_mgr_eth_direct(const ring_simple* p_ring,
 		const ib_ctx_handler* p_context, const uint8_t port_num,
 		ibv_comp_channel* p_rx_comp_event_channel,
 		const uint32_t tx_num_wr, const uint16_t vlan):
-		qp_mgr_eth_mlx5(p_ring, p_context, port_num, p_rx_comp_event_channel, tx_num_wr, vlan)
+			qp_mgr_eth_mlx5(p_ring, p_context, port_num,
+				p_rx_comp_event_channel, tx_num_wr, vlan)
 {
 
 }
 
-void qp_mgr_direct::up()
+void qp_mgr_eth_direct::up()
 {
 	init_sq();
 	m_p_last_tx_mem_buf_desc = NULL;
@@ -61,7 +62,7 @@ void qp_mgr_direct::up()
 	m_p_cq_mgr_rx->add_qp_rx(this);
 }
 
-bool qp_mgr_direct::fill_hw_descriptors(vma_mlx_hw_device_data &data)
+bool qp_mgr_eth_direct::fill_hw_descriptors(vma_mlx_hw_device_data &data)
 {
 	ibv_mlx5_qp_info qpi;
 
@@ -95,7 +96,7 @@ bool qp_mgr_direct::fill_hw_descriptors(vma_mlx_hw_device_data &data)
 	return true;
 }
 
-qp_mgr_direct::~qp_mgr_direct()
+qp_mgr_eth_direct::~qp_mgr_eth_direct()
 {
 }
 

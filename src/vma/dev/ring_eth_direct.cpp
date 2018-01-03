@@ -30,8 +30,9 @@
  * SOFTWARE.
  */
 
-#include "ring_direct.h"
-#include "qp_mgr_direct.h"
+#include "ring_eth_direct.h"
+
+#include "qp_mgr_eth_direct.h"
 
 
 #undef  MODULE_NAME
@@ -40,22 +41,24 @@
 #define MODULE_HDR		MODULE_NAME "%d:%s() "
 
 
-ring_direct::ring_direct(in_addr_t local_if,
-			 ring_resource_creation_info_t *p_ring_info, int count,
-			 bool active, uint16_t vlan, uint32_t mtu,
-			 vma_external_mem_attr *ext_ring_attr, ring *parent):
-			 ring_eth(local_if, p_ring_info, count, active, vlan,
-				  mtu, parent, false)
+ring_eth_direct::ring_eth_direct(in_addr_t local_if,
+				ring_resource_creation_info_t *p_ring_info,
+				int count, bool active, uint16_t vlan, uint32_t mtu,
+				vma_external_mem_attr *ext_ring_attr, ring *parent):
+					ring_eth(local_if, p_ring_info, count,
+						active, vlan, mtu, parent, false)
 {
 	m_ring_attr.comp_mask = ext_ring_attr->comp_mask;
 	create_resources(p_ring_info, active);
 }
 
-qp_mgr* ring_direct::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel)
+qp_mgr* ring_eth_direct::create_qp_mgr(const ib_ctx_handler* ib_ctx,
+					uint8_t port_num,
+					struct ibv_comp_channel* p_rx_comp_event_channel)
 {
 #if defined(HAVE_INFINIBAND_MLX5_HW_H)
-	return new qp_mgr_direct(this, ib_ctx, port_num, p_rx_comp_event_channel,
-				get_tx_num_wr(), get_partition());
+	return new qp_mgr_eth_direct(this, ib_ctx, port_num, p_rx_comp_event_channel,
+				     get_tx_num_wr(), get_partition());
 #endif
 	NOT_IN_USE(ib_ctx);
 	NOT_IN_USE(port_num);
@@ -63,35 +66,35 @@ qp_mgr* ring_direct::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_nu
 	return NULL;
 }
 
-void ring_direct::init_tx_buffers(uint32_t count)
+void ring_eth_direct::init_tx_buffers(uint32_t count)
 {
 	NOT_IN_USE(count);
 }
 
-int ring_direct::mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list,
-				    bool b_accounting, bool trylock)
+mem_buf_desc_t* ring_eth_direct::mem_buf_tx_get(ring_user_id_t id, bool b_block,
+						int n_num_mem_bufs)
 {
-	NOT_IN_USE(p_mem_buf_desc_list);
-	NOT_IN_USE(b_accounting);
-	NOT_IN_USE(trylock);
-	return 0;
+	NOT_IN_USE(id);
+	NOT_IN_USE(b_block);
+	NOT_IN_USE(n_num_mem_bufs);
+	return NULL;
 }
 
-int ring_direct::drain_and_proccess(cq_type_t cq_type)
+int ring_eth_direct::drain_and_proccess(cq_type_t cq_type)
 {
 	NOT_IN_USE(cq_type);
 	return 0;
 }
 
-int ring_direct::poll_and_process_element_rx(uint64_t* p_cq_poll_sn,
-						   void* pv_fd_ready_array)
+int ring_eth_direct::poll_and_process_element_rx(uint64_t* p_cq_poll_sn,
+						 void* pv_fd_ready_array)
 {
 	NOT_IN_USE(p_cq_poll_sn);
 	NOT_IN_USE(pv_fd_ready_array);
 	return 0;
 }
 
-int ring_direct::get_ring_descriptors(vma_mlx_hw_device_data &d)
+int ring_eth_direct::get_ring_descriptors(vma_mlx_hw_device_data &d)
 {
 
 	d.dev_data.vendor_id = m_p_ib_ctx->get_ibv_device_attr()->vendor_id;
@@ -113,7 +116,7 @@ int ring_direct::get_ring_descriptors(vma_mlx_hw_device_data &d)
 	return 0;
 }
 
-int ring_direct::reg_mr(void *addr, size_t length, uint32_t &lkey)
+int ring_eth_direct::reg_mr(void *addr, size_t length, uint32_t &lkey)
 {
 	ring_logdbg("reg_mr()");
 	if (unlikely(addr == NULL) || length == 0) {
@@ -143,7 +146,7 @@ int ring_direct::reg_mr(void *addr, size_t length, uint32_t &lkey)
 	return 0;
 }
 
-int ring_direct::dereg_mr(void *addr, size_t length)
+int ring_eth_direct::dereg_mr(void *addr, size_t length)
 {
 	auto_unlocker lock(m_lock_ring_tx);
 	pair_void_size_t p(addr, length);
@@ -167,7 +170,7 @@ int ring_direct::dereg_mr(void *addr, size_t length)
 	return 0;
 }
 
-ring_direct::~ring_direct()
+ring_eth_direct::~ring_eth_direct()
 {
 	addr_len_mr_map_t::iterator it = m_mr_map.begin();
 

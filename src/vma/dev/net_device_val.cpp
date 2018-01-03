@@ -48,7 +48,7 @@
 #include "vma/dev/ib_ctx_handler_collection.h"
 #include "vma/dev/ring_simple.h"
 #include "vma/dev/ring_eth_cb.h"
-#include "vma/dev/ring_direct.h"
+#include "vma/dev/ring_eth_direct.h"
 #include "vma/dev/ring_bond.h"
 #include "vma/sock/sock-redirect.h"
 #include "vma/dev/net_device_table_mgr.h"
@@ -902,10 +902,10 @@ ring* net_device_val_eth::create_ring(resource_allocation_key *key)
 			break;
 #endif
 			case VMA_RING_EXTERNAL_MEM:
-				ring = new ring_direct(m_local_addr, p_ring_info,
-						       slave_count, true,
-						       get_vlan(), m_mtu,
-						       &prof->get_desc()->ring_ext);
+				ring = new ring_eth_direct(m_local_addr, p_ring_info,
+							   slave_count, true,
+							   get_vlan(), m_mtu,
+							   &prof->get_desc()->ring_ext);
 			break;
 			default:
 				nd_logdbg("Unknown ring type");

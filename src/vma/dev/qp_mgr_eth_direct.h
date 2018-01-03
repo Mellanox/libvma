@@ -29,24 +29,24 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef SRC_VMA_DEV_QP_MGR_DIRECT_H_
-#define SRC_VMA_DEV_QP_MGR_DIRECT_H_
+#ifndef SRC_VMA_DEV_QP_MGR_ETH_DIRECT_H_
+#define SRC_VMA_DEV_QP_MGR_ETH_DIRECT_H_
 
 #include "qp_mgr_eth_mlx5.h"
 
 #if defined(HAVE_INFINIBAND_MLX5_HW_H)
 
-class qp_mgr_direct: public qp_mgr_eth_mlx5
+class qp_mgr_eth_direct: public qp_mgr_eth_mlx5
 {
 public:
-	qp_mgr_direct(const ring_simple* p_ring, const ib_ctx_handler* p_context,
-		      const uint8_t port_num, ibv_comp_channel* p_rx_comp_event_channel,
-		      const uint32_t tx_num_wr, const uint16_t vlan);
-	virtual ~qp_mgr_direct();
+	qp_mgr_eth_direct(const ring_simple* p_ring, const ib_ctx_handler* p_context,
+			  const uint8_t port_num, ibv_comp_channel* p_rx_comp_event_channel,
+			  const uint32_t tx_num_wr, const uint16_t vlan);
+	virtual ~qp_mgr_eth_direct();
 	virtual void		up();
 	virtual uint32_t	get_rx_max_wr_num() { return 0;};
 	virtual bool		fill_hw_descriptors(vma_mlx_hw_device_data &data);
 };
 
 #endif /* HAVE_INFINIBAND_MLX5_HW_H */
-#endif /* SRC_VMA_DEV_QP_MGR_DIRECT_H_ */
+#endif /* SRC_VMA_DEV_QP_MGR_ETH_DIRECT_H_ */

@@ -30,8 +30,8 @@
  * SOFTWARE.
  */
 
-#ifndef SRC_VMA_DEV_RING_DIRECT_H_
-#define SRC_VMA_DEV_RING_DIRECT_H_
+#ifndef SRC_VMA_DEV_RING_ETH_DIRECT_H_
+#define SRC_VMA_DEV_RING_ETH_DIRECT_H_
 
 #include <tr1/unordered_map>
 #include "dev/ring_simple.h"
@@ -53,14 +53,14 @@ public:
 
 typedef std::tr1::unordered_map<pair_void_size_t, pair_mr_ref_t> addr_len_mr_map_t;
 
-class ring_direct : public ring_eth
+class ring_eth_direct : public ring_eth
 {
 public:
-	ring_direct(in_addr_t local_if,
+	ring_eth_direct(in_addr_t local_if,
 		    ring_resource_creation_info_t *p_ring_info, int count,
 		    bool active, uint16_t vlan, uint32_t mtu,
 		    vma_external_mem_attr *ext_ring_attr, ring *parent = NULL);
-	virtual		~ring_direct();
+	virtual		~ring_eth_direct();
 	virtual int	get_ring_descriptors(vma_mlx_hw_device_data &data);
 	virtual qp_mgr*	create_qp_mgr(const ib_ctx_handler* ib_ctx,
 					      uint8_t port_num,
@@ -68,9 +68,9 @@ public:
 	// memory handler
 	virtual int	reg_mr(void *addr, size_t length, uint32_t &lkey);
 	virtual int	dereg_mr(void *addr, size_t length);
-	// dummy functions to block memory and internal thread
+	// dummy functions to block memory usage and internal thread
 	virtual void	init_tx_buffers(uint32_t count);
-	virtual int	mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting, bool trylock = false);
+	virtual mem_buf_desc_t* mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_num_mem_bufs = 1);
 	virtual int	drain_and_proccess(cq_type_t cq_type);
 	virtual int	poll_and_process_element_rx(uint64_t* p_cq_poll_sn,
 					void* pv_fd_ready_array);
@@ -79,4 +79,4 @@ private:
 	addr_len_mr_map_t	m_mr_map;
 };
 
-#endif /* SRC_VMA_DEV_RING_DIRECT_H_ */
+#endif /* SRC_VMA_DEV_RING_ETH_DIRECT_H_ */
