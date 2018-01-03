@@ -359,10 +359,10 @@ int priv_ibv_modify_qp_ratelimit(struct ibv_qp *qp, struct vma_rate_limit_t &rat
 	} ENDIF_VERBS_FAILURE;
 	BULLSEYE_EXCLUDE_BLOCK_END
 #ifdef DEFINED_IBV_EXP_QP_BURST_INFO
-	vlog_printf(VLOG_DEBUG, "qp was set to rate limit %d", rate_limit.rate);
-#else
 	vlog_printf(VLOG_DEBUG, "qp was set to rate limit %d, burst size %d, packet size %d",
 			rate_limit.rate, rate_limit.upper_bound_sz, rate_limit.typical_pkt_sz);
+#else
+	vlog_printf(VLOG_DEBUG, "qp was set to rate limit %d", rate_limit.rate);
 #endif
 	return 0;
 #else
