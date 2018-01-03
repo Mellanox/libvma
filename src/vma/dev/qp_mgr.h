@@ -142,7 +142,7 @@ public:
 	void                release_tx_buffers();
 	virtual void        trigger_completion_for_all_sent_packets();
 	uint32_t            is_ratelimit_change(struct vma_rate_limit_t &rate_limit);
-	bool                is_ratelimit_supported(ibv_exp_packet_pacing_caps &pp_caps, struct vma_rate_limit_t &rate_limit);
+	bool                is_ratelimit_supported(vma_ibv_device_attr *attr, struct vma_rate_limit_t &rate_limit);
 	int                 modify_qp_ratelimit(struct vma_rate_limit_t &rate_limit, uint32_t rl_changes);
 	static inline bool  is_lib_mlx5(const char* device_name) {return strstr(device_name, "mlx5");}
 	virtual void        dm_release_data(mem_buf_desc_t* buff) { NOT_IN_USE(buff); }
