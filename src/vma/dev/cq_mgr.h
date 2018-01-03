@@ -194,6 +194,7 @@ public:
 	void 	modify_cq_moderation(uint32_t period, uint32_t count);
 
 	inline void convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) { m_p_ib_ctx_handler->convert_hw_time_to_system_time(hwtime, systime); }
+	virtual bool fill_cq_hw_descriptors(struct hw_cq_data &data) {NOT_IN_USE(data);return false;};
 #ifdef DEFINED_SOCKETXTREME
 	void 	mlx5_init_cq();
 #endif // DEFINED_SOCKETXTREME

@@ -111,6 +111,7 @@ protected:
 	void			flow_udp_uc_del_all();
 	void			flow_udp_mc_del_all();
 	void			flow_tcp_del_all();
+	virtual void		init_tx_buffers(uint32_t count);
 	bool			request_more_tx_buffers(uint32_t count);
 	uint32_t		get_tx_num_wr() { return m_tx_num_wr; }
 	uint16_t		get_partition() { return m_partition; }
@@ -119,6 +120,8 @@ protected:
 	struct cq_moderation_info m_cq_moderation_info;
 	cq_mgr*			m_p_cq_mgr_rx;
 	lock_spin_recursive	m_lock_ring_rx;
+	cq_mgr*			m_p_cq_mgr_tx;
+	lock_spin_recursive	m_lock_ring_tx;
 	bool			m_b_is_hypervisor;
 	ring_stats_t*		m_p_ring_stat;
 private:
@@ -131,8 +134,6 @@ private:
 	void			save_l2_address(const L2_address* p_l2_addr) { delete_l2_address(); m_p_l2_addr = p_l2_addr->clone(); };
 	void			delete_l2_address() { if (m_p_l2_addr) delete m_p_l2_addr; m_p_l2_addr = NULL; };
 
-	lock_spin_recursive	m_lock_ring_tx;
-	cq_mgr*			m_p_cq_mgr_tx;
 	lock_mutex		m_lock_ring_tx_buf_wait;
 	descq_t			m_tx_pool;
 	uint32_t		m_tx_num_bufs;

@@ -49,19 +49,19 @@ public:
 	qp_mgr_eth_mlx5(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num,
 			struct ibv_comp_channel* p_rx_comp_event_channel, const uint32_t tx_num_wr, const uint16_t vlan);
 	virtual ~qp_mgr_eth_mlx5();
-	virtual void up();
-	virtual void down();
-
+	virtual void	up();
+	virtual void	down();
 protected:
-	void			trigger_completion_for_all_sent_packets();
-	struct mlx5_qp*		m_hw_qp;
-	uint64_t*               m_sq_wqe_idx_to_wrid;
+	void		trigger_completion_for_all_sent_packets();
+	void		init_sq();
+	struct mlx5_qp*	m_hw_qp;
+	uint64_t*	m_sq_wqe_idx_to_wrid;
 
 private:
 	cq_mgr*		init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_channel);
-	virtual cq_mgr* init_tx_cq_mgr(void);
-	virtual bool    is_completion_need() { return !m_n_unsignaled_count || (m_dm_enabled && m_dm_context.dm_is_completion_need()); };
-	virtual void    dm_release_data(mem_buf_desc_t* buff) { m_dm_context.dm_release_data(buff); }
+	virtual cq_mgr*	init_tx_cq_mgr(void);
+	virtual bool	is_completion_need() { return !m_n_unsignaled_count || (m_dm_enabled && m_dm_context.dm_is_completion_need()); };
+	virtual void	dm_release_data(mem_buf_desc_t* buff) { m_dm_context.dm_release_data(buff); }
 
 	inline void	set_signal_in_next_send_wqe();
 
@@ -71,7 +71,6 @@ private:
 	inline void	send_by_bf_wrap_up(uint64_t* bottom_addr, int num_wqebb_bottom, int num_wqebb_top);
 	inline int	fill_inl_segment(sg_array &sga, uint8_t *cur_seg, uint8_t* data_addr, int max_inline_len, int inline_len);
 	inline int	fill_ptr_segment(sg_array &sga, struct mlx5_wqe_data_seg* dp_seg, uint8_t* data_addr, int data_len, mem_buf_desc_t* buffer);
-	void		init_sq();
 
 	struct mlx5_wqe64	(*m_sq_wqes)[];
 	struct mlx5_wqe64*	m_sq_wqe_hot;

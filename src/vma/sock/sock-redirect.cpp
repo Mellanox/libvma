@@ -609,6 +609,79 @@ int vma_get_socket_netowrk_header(int __fd, void *ptr, uint16_t *len)
 	return -1;
 }
 
+extern "C"
+int vma_get_ring_direct_descriptors(int __fd,
+				    struct vma_mlx_hw_device_data *data)
+{
+	srdr_logdbg_entry("fd=%d, ptr=%p ", __fd, data);
+
+	cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(__fd);
+	if (p_cq_ch_info) {
+		ring* p_ring = p_cq_ch_info->get_ring();
+		if (likely(p_ring)) {
+			return p_ring->get_ring_descriptors(*data);
+		} else {
+			vlog_printf(VLOG_ERROR, "could not find ring, got fd "
+					"%d\n", __fd);
+			return -1;
+		}
+	} else {
+		vlog_printf(VLOG_ERROR, "could not find p_cq_ch_info, got fd "
+							"%d\n", __fd);
+		return -1;
+	}
+}
+
+extern "C"
+int vma_reg_mr_on_ring(int __fd, void *addr, size_t length, uint32_t *lkey)
+{
+	srdr_logdbg_entry("fd=%d, addr=%p length %zd key %p", __fd, addr, length, lkey);
+
+	if (!lkey) {
+		vlog_printf(VLOG_DEBUG, "key is null fd %d, addr %p, length %zd\n",
+				__fd, addr, length);
+		errno = EINVAL;
+		return -1;
+	}
+	cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(__fd);
+	if (p_cq_ch_info) {
+		ring* p_ring = p_cq_ch_info->get_ring();
+		if (likely(p_ring)) {
+			return p_ring->reg_mr(addr, length, *lkey);
+		} else {
+			vlog_printf(VLOG_ERROR, "could not find ring, got fd "
+					"%d\n", __fd);
+			return -1;
+		}
+	} else {
+		vlog_printf(VLOG_ERROR, "could not find p_cq_ch_info, got fd "
+							"%d\n", __fd);
+		return -1;
+	}
+}
+
+extern "C"
+int vma_dereg_mr_on_ring(int __fd, void *addr, size_t length)
+{
+	srdr_logdbg_entry("fd=%d, addr=%p ", __fd, addr);
+
+	cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(__fd);
+	if (p_cq_ch_info) {
+		ring* p_ring = p_cq_ch_info->get_ring();
+		if (likely(p_ring)) {
+			return p_ring->dereg_mr(addr, length);
+		} else {
+			vlog_printf(VLOG_ERROR, "could not find ring, got fd "
+					"%d\n", __fd);
+			return -1;
+		}
+	} else {
+		vlog_printf(VLOG_ERROR, "could not find p_cq_ch_info, got fd "
+							"%d\n", __fd);
+		return -1;
+	}
+}
+
 //-----------------------------------------------------------------------------
 //  replacement functions
 //-----------------------------------------------------------------------------
@@ -912,6 +985,9 @@ int getsockopt(int __fd, int __level, int __optname,
 		vma_api->get_socket_rings_fds = vma_get_socket_rings_fds;
 		vma_api->vma_add_ring_profile = vma_add_ring_profile;
 		vma_api->get_socket_network_header = vma_get_socket_netowrk_header;
+		vma_api->get_ring_direct_descriptors = vma_get_ring_direct_descriptors;
+		vma_api->register_memory_on_ring = vma_reg_mr_on_ring;
+		vma_api->deregister_memory_on_ring = vma_dereg_mr_on_ring;
 #ifdef DEFINED_SOCKETXTREME
 		vma_api->socketxtreme_free_vma_packets = vma_socketxtreme_free_vma_packets;
 		vma_api->socketxtreme_poll = vma_socketxtreme_poll;

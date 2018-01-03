@@ -126,7 +126,7 @@ public:
 	class cq_mgr*       get_tx_cq_mgr() const { return m_p_cq_mgr_tx; }
 	class cq_mgr*       get_rx_cq_mgr() const { return m_p_cq_mgr_rx; }
 	ib_ctx_handler*     get_ib_ctx_handler() const { return m_p_ib_ctx_handler; }
-	uint32_t            get_rx_max_wr_num();
+	virtual uint32_t    get_rx_max_wr_num();
 	// This function can be replaced with a parameter during ring creation.
 	// chain of calls may serve as cache warm for dummy send feature.
 	inline bool         get_hw_dummy_send_support() {return m_hw_dummy_send_support; }
@@ -144,7 +144,7 @@ public:
 	int                 modify_qp_ratelimit(const uint32_t ratelimit_kbps);
 	static inline bool  is_lib_mlx5(const char* device_name) {return strstr(device_name, "mlx5");}
 	virtual void        dm_release_data(mem_buf_desc_t* buff) { NOT_IN_USE(buff); }
-
+	virtual bool        fill_hw_descriptors(vma_mlx_hw_device_data &data) {NOT_IN_USE(data);return false;};
 protected:
 	uint64_t            m_rq_wqe_counter;
 	uint64_t*           m_rq_wqe_idx_to_wrid;
