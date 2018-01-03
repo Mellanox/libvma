@@ -281,15 +281,14 @@ int sockinfo::getsockopt(int __level, int __optname, void *__optval, socklen_t *
 #endif // DEFINED_SOCKETXTREME
 
 		case SO_MAX_PACING_RATE:
-#ifdef DEFINED_IBV_EXP_QP_BURST_INFO
 			if (*__optlen >= sizeof(struct vma_rate_limit_t)) {
 				*(struct vma_rate_limit_t*)__optval = m_so_ratelimit;
 				(*(struct vma_rate_limit_t*)__optval).rate = KB_TO_BYTE(m_so_ratelimit.rate);
+				*__optlen = sizeof(struct vma_rate_limit_t);
 				si_logdbg("(SO_MAX_PACING_RATE) value: %d, %d, %d", (*(struct vma_rate_limit_t*)__optval).rate, (*(struct vma_rate_limit_t*)__optval).upper_bound_sz, (*(struct vma_rate_limit_t*)__optval).typical_pkt_sz);
-			} else
-#endif
-			if (*__optlen >= sizeof(uint32_t)) {
+			} else if (*__optlen >= sizeof(uint32_t)) {
 				*(uint32_t*)__optval = KB_TO_BYTE(m_so_ratelimit.rate);
+				*__optlen = sizeof(uint32_t);
 				si_logdbg("(SO_MAX_PACING_RATE) value: %d", *(int *)__optval);
 				ret = 0;
 			} else {
