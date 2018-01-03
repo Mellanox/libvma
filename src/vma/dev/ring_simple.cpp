@@ -96,9 +96,7 @@ qp_mgr* ring_eth::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, 
 bool ring_eth::is_ratelimit_supported(struct vma_rate_limit_t &rate_limit)
 {
 #ifdef DEFINED_IBV_EXP_QP_RATE_LIMIT
-	ibv_exp_packet_pacing_caps &pp_caps =
-		m_p_ib_ctx->get_ibv_device_attr()->packet_pacing_caps;
-	return m_p_qp_mgr->is_ratelimit_supported(pp_caps, rate_limit);
+	return m_p_qp_mgr->is_ratelimit_supported(m_p_ib_ctx->get_ibv_device_attr(), rate_limit);
 #else
 	NOT_IN_USE(rate_limit);
 	return false;
