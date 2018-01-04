@@ -346,7 +346,7 @@ void neigh_entry::handle_timer_expired(void* ctx)
 		return;
 	}
 
-	if(state != NUD_FAILED) {
+	if(!priv_is_failed(state)) {
 		//We want to verify that L2 address wasn't changed
 		unsigned char tmp[IPOIB_HW_ADDR_LEN];
 		address_t l2_addr = (address_t)tmp;
@@ -683,6 +683,10 @@ void neigh_entry::handle_neigh_event(neigh_nl_event* nl_ev)
 	int neigh_state = nl_info->state;
 	switch (neigh_state)
 	{
+	case NUD_INCOMPLETE:
+		neigh_logdbg("state = INCOMPLETE");
+		break;
+
 	case NUD_FAILED:
 		neigh_logdbg("state = FAILED");
 		event_handler(EV_ERROR);
@@ -1184,7 +1188,7 @@ bool neigh_entry::priv_get_neigh_l2(address_t & l2_addr)
 
 	if (inet_ntop(AF_INET, &(m_dst_addr.sin_addr), str_addr, sizeof(str_addr)) &&
 			g_p_netlink_handler->get_neigh(str_addr, m_p_dev->get_if_idx(), &info)){
-		if (info.state != NUD_FAILED) {
+		if (!priv_is_failed(info.state)) {
 			memcpy(l2_addr, info.lladdr, info.lladdr_len);
 			return true;
 		}
@@ -1350,7 +1354,7 @@ int neigh_eth::priv_enter_init()
 {
 	int state;
 
-	if (priv_get_neigh_state(state) && (state != NUD_FAILED)) {
+	if (priv_get_neigh_state(state) && !priv_is_failed(state)) {
 		event_handler(EV_ARP_RESOLVED);
 		return 0;
 	}
@@ -1364,7 +1368,7 @@ int neigh_eth::priv_enter_init_resolution()
 
 	if (!(neigh_entry::priv_enter_init_resolution())) {
 		// query netlink - if this entry already exist and REACHABLE we can use it
-		if (priv_get_neigh_state(state) && (state != NUD_FAILED)) {
+		if (priv_get_neigh_state(state) && !priv_is_failed(state)) {
 				event_handler(EV_ARP_RESOLVED);
 		}
 		return 0;
