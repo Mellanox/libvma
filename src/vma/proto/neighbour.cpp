@@ -1066,6 +1066,7 @@ void neigh_entry::priv_enter_not_active()
 
 	priv_destroy_cma_id();
 	priv_unregister_timer();
+	m_is_first_send_arp = true; // force send boardcast next cycle
 	m_arp_counter = 0;
 
 	// Flush unsent_queue in case that neigh entry is in error state
@@ -1100,6 +1101,7 @@ void neigh_entry::priv_enter_error()
 
 	priv_destroy_cma_id();
 	priv_unregister_timer();
+	m_is_first_send_arp = true; // force send boardcast next cycle
 	m_arp_counter = 0;
 
 	if (m_val) {
