@@ -261,7 +261,9 @@ int cq_mgr::get_channel_fd()
 void cq_mgr::add_qp_rx(qp_mgr* qp)
 {
 	cq_logdbg("qp_mgr=%p", qp);
-	mem_buf_desc_t *p_temp_desc_list, *p_temp_desc_next;
+	descq_t temp_desc_list;
+	temp_desc_list.set_id("cq_mgr (%p) : temp_desc_list", this);
+	bool res;
 
 	m_p_cq_stat->n_rx_drained_at_once_max = 0;
 
@@ -274,8 +276,8 @@ void cq_mgr::add_qp_rx(qp_mgr* qp)
 		uint32_t n_num_mem_bufs = m_n_sysvar_rx_num_wr_to_post_recv;
 		if (n_num_mem_bufs > qp_rx_wr_num)
 			n_num_mem_bufs = qp_rx_wr_num;
-		p_temp_desc_list = g_buffer_pool_rx->get_buffers_thread_safe(n_num_mem_bufs, m_rx_lkey);
-		if (p_temp_desc_list == NULL) {
+		res = g_buffer_pool_rx->get_buffers_thread_safe(&temp_desc_list, m_p_ring, n_num_mem_bufs, m_rx_lkey);
+		if (!res) {
 			static vlog_levels_t log_severity = VLOG_WARNING; // WARNING severity will be used only once - at the 1st time
 			VLOG_PRINTF_INFO(log_severity, "WARNING Out of mem_buf_desc from Rx buffer pool for qp_mgr qp_mgr initialization (qp=%p)", qp);
 			VLOG_PRINTF_INFO(log_severity, "WARNING This might happen due to wrong setting of VMA_RX_BUFS and VMA_RX_WRE. Please refer to README.txt for more info");
@@ -283,15 +285,10 @@ void cq_mgr::add_qp_rx(qp_mgr* qp)
 			break;
 		}
 
-		p_temp_desc_next = p_temp_desc_list;
-		while (p_temp_desc_next) {
-			p_temp_desc_next->p_desc_owner = m_p_ring;
-			p_temp_desc_next = p_temp_desc_next->p_next_desc;
-		}
-
-		if (qp->post_recv(p_temp_desc_list) != 0) {
+		qp->post_recv_buffers(&temp_desc_list, temp_desc_list.size());
+		if (!temp_desc_list.empty()) {
 			cq_logdbg("qp post recv is already full (push=%d, planned=%d)", qp->get_rx_max_wr_num()-qp_rx_wr_num, qp->get_rx_max_wr_num());
-			g_buffer_pool_rx->put_buffers_thread_safe(p_temp_desc_list);
+			g_buffer_pool_rx->put_buffers_thread_safe(&temp_desc_list, temp_desc_list.size());
 			break;
 		}
 		qp_rx_wr_num -= n_num_mem_bufs;
@@ -332,25 +329,15 @@ void cq_mgr::add_qp_tx(qp_mgr* qp)
 
 bool cq_mgr::request_more_buffers()
 {
-	mem_buf_desc_t *p_temp_desc_list, *p_temp_buff;
-
 	cq_logfuncall("Allocating additional %d buffers for internal use", m_n_sysvar_qp_compensation_level);
 
 	// Assume locked!
 	// Add an additional free buffer descs to RX cq mgr
-	p_temp_desc_list = g_buffer_pool_rx->get_buffers_thread_safe(m_n_sysvar_qp_compensation_level, m_rx_lkey);
-	if (p_temp_desc_list == NULL) {
+	bool res = g_buffer_pool_rx->get_buffers_thread_safe(&m_rx_pool, m_p_ring, m_n_sysvar_qp_compensation_level, m_rx_lkey);
+	if (!res) {
 		cq_logfunc("Out of mem_buf_desc from RX free pool for internal object pool");
 		return false;
-	}
-
-	while (p_temp_desc_list) {
-		p_temp_buff = p_temp_desc_list;
-		p_temp_desc_list = p_temp_buff->p_next_desc;
-		p_temp_buff->p_desc_owner = m_p_ring;
-		p_temp_buff->p_next_desc = NULL;
-		m_rx_pool.push_back(p_temp_buff);
-	}
+	};
 
 	m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
 	return true;
@@ -599,16 +586,13 @@ bool cq_mgr::compensate_qp_poll_success(mem_buf_desc_t* buff_cur)
 #endif // DEFINED_SOCKETXTREME
 		
 		if (m_rx_pool.size() || request_more_buffers()) {
-			do {
-				mem_buf_desc_t *buff_new = m_rx_pool.get_and_pop_front();
-				m_qp_rec.qp->post_recv(buff_new);
-			} while (--m_qp_rec.debt > 0 && m_rx_pool.size());
+			m_qp_rec.debt -= m_qp_rec.qp->post_recv_buffers(&m_rx_pool, MIN(m_qp_rec.debt, m_rx_pool.size()));
 			m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
 		}
 		else if (m_b_sysvar_cq_keep_qp_full ||
 				m_qp_rec.debt + MCE_MAX_CQ_POLL_BATCH > (int)m_qp_rec.qp->m_rx_num_wr) {
 			m_p_cq_stat->n_rx_pkt_drop++;
-			m_qp_rec.qp->post_recv(buff_cur);
+			m_qp_rec.qp->post_recv_buffer(buff_cur);
 			--m_qp_rec.debt;
 			return true;
 		}

@@ -147,10 +147,11 @@ void buffer_pool::free_bpool_resources()
 	__log_info_func("done");
 }
 
-
-mem_buf_desc_t *buffer_pool::get_buffers(size_t count, uint32_t lkey)
+bool buffer_pool::get_buffers_thread_safe(descq_t *pDeque, mem_buf_desc_owner* desc_owner, size_t count, uint32_t lkey)
 {
-	mem_buf_desc_t *next, *head;
+	auto_unlocker lock(m_lock_spin);
+
+	mem_buf_desc_t *head;
 
 	__log_info_funcall("requested %lu, present %lu, created %lu", count, m_n_buffers, m_n_buffers_created);
 
@@ -164,29 +165,27 @@ mem_buf_desc_t *buffer_pool::get_buffers(size_t count, uint32_t lkey)
 
 		m_p_bpool_stat->n_buffer_pool_no_bufs++;
 
-		return NULL;
+		return false;
 	}
 
 	// pop buffers from the list
-	head = NULL;
 	m_n_buffers -= count;
 	m_p_bpool_stat->n_buffer_pool_size -= count;
 	while (count > 0) {
-		next = m_p_head->p_next_desc;
-		m_p_head->p_next_desc = head;
+		// Remove from list
 		head = m_p_head;
-		m_p_head = next;
+		m_p_head = m_p_head->p_next_desc;
+		head->p_next_desc = NULL;
+
+		// Init
 		head->lkey = lkey;
+		head->p_desc_owner = desc_owner;
+
+		pDeque->push_back(head);
 		--count;
 	}
 
-	return head;
-}
-
-mem_buf_desc_t *buffer_pool::get_buffers_thread_safe(size_t count, uint32_t lkey)
-{
-	auto_unlocker lock(m_lock_spin);
-	return get_buffers(count, lkey);
+	return true;
 }
 
 uint32_t buffer_pool::find_lkey_by_ib_ctx_thread_safe(ib_ctx_handler* p_ib_ctx_h)

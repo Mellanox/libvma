@@ -476,65 +476,68 @@ uint32_t qp_mgr::get_rx_max_wr_num()
 	return m_rx_num_wr;
 }
 
-int qp_mgr::post_recv(mem_buf_desc_t* p_mem_buf_desc)
+int qp_mgr::post_recv_buffer(mem_buf_desc_t* p_mem_buf_desc)
 {
-	qp_logfuncall("");
-	// Called from cq_mgr context under cq_mgr::LOCK!
-	mem_buf_desc_t *next;
-	while (p_mem_buf_desc) {
-		next = p_mem_buf_desc->p_next_desc;
-		p_mem_buf_desc->p_next_desc = NULL;
+	if (m_n_sysvar_rx_prefetch_bytes_before_poll) {
+		if (m_p_prev_rx_desc_pushed)
+			m_p_prev_rx_desc_pushed->p_prev_desc = p_mem_buf_desc;
+		m_p_prev_rx_desc_pushed = p_mem_buf_desc;
+	}
 
-		if (m_n_sysvar_rx_prefetch_bytes_before_poll) {
-			if (m_p_prev_rx_desc_pushed)
-				m_p_prev_rx_desc_pushed->p_prev_desc = p_mem_buf_desc;
-			m_p_prev_rx_desc_pushed = p_mem_buf_desc;
-		}
+	m_ibv_rx_wr_array[m_curr_rx_wr].wr_id  = (uintptr_t)p_mem_buf_desc;
+	m_ibv_rx_sg_array[m_curr_rx_wr].addr   = (uintptr_t)p_mem_buf_desc->p_buffer;
+	m_ibv_rx_sg_array[m_curr_rx_wr].length = p_mem_buf_desc->sz_buffer;
+	m_ibv_rx_sg_array[m_curr_rx_wr].lkey   = p_mem_buf_desc->lkey;
 
-		m_ibv_rx_wr_array[m_curr_rx_wr].wr_id  = (uintptr_t)p_mem_buf_desc;
-		m_ibv_rx_sg_array[m_curr_rx_wr].addr   = (uintptr_t)p_mem_buf_desc->p_buffer;
-		m_ibv_rx_sg_array[m_curr_rx_wr].length = p_mem_buf_desc->sz_buffer;
-		m_ibv_rx_sg_array[m_curr_rx_wr].lkey   = p_mem_buf_desc->lkey;
+	if (m_rq_wqe_idx_to_wrid) {
+		uint32_t index = m_rq_wqe_counter & (m_rx_num_wr - 1);
+		m_rq_wqe_idx_to_wrid[index] = (uintptr_t)p_mem_buf_desc;
+		++m_rq_wqe_counter;
+	}
 
-		if (m_rq_wqe_idx_to_wrid) {
-			uint32_t index = m_rq_wqe_counter & (m_rx_num_wr - 1);
-			m_rq_wqe_idx_to_wrid[index] = (uintptr_t)p_mem_buf_desc;
-			++m_rq_wqe_counter;
-		}
+	if (m_curr_rx_wr == m_n_sysvar_rx_num_wr_to_post_recv - 1) {
 
-		if (m_curr_rx_wr == m_n_sysvar_rx_num_wr_to_post_recv - 1) {
+		m_last_posted_rx_wr_id = (uintptr_t)p_mem_buf_desc;
 
-			m_last_posted_rx_wr_id = (uintptr_t)p_mem_buf_desc;
+		m_p_prev_rx_desc_pushed = NULL;
+		p_mem_buf_desc->p_prev_desc = NULL;
 
-			m_p_prev_rx_desc_pushed = NULL;
-			p_mem_buf_desc->p_prev_desc = NULL;
+		m_curr_rx_wr = 0;
+		struct ibv_recv_wr *bad_wr = NULL;
+		IF_VERBS_FAILURE(ibv_post_recv(m_qp, &m_ibv_rx_wr_array[0], &bad_wr)) {
+			uint32_t n_pos_bad_rx_wr = ((uint8_t*)bad_wr - (uint8_t*)m_ibv_rx_wr_array) / sizeof(struct ibv_recv_wr);
+			qp_logerr("failed posting list (errno=%d %m)", errno);
+			qp_logerr("bad_wr is %d in submitted list (bad_wr=%p, m_ibv_rx_wr_array=%p, size=%d)", n_pos_bad_rx_wr, bad_wr, m_ibv_rx_wr_array, sizeof(struct ibv_recv_wr));
+			qp_logerr("bad_wr info: wr_id=%#x, next=%p, addr=%#x, length=%d, lkey=%#x", bad_wr[0].wr_id, bad_wr[0].next, bad_wr[0].sg_list[0].addr, bad_wr[0].sg_list[0].length, bad_wr[0].sg_list[0].lkey);
+			qp_logerr("QP current state: %d", priv_ibv_query_qp_state(m_qp));
 
-			m_curr_rx_wr = 0;
-			struct ibv_recv_wr *bad_wr = NULL;
-			IF_VERBS_FAILURE(ibv_post_recv(m_qp, &m_ibv_rx_wr_array[0], &bad_wr)) {
-				uint32_t n_pos_bad_rx_wr = ((uint8_t*)bad_wr - (uint8_t*)m_ibv_rx_wr_array) / sizeof(struct ibv_recv_wr);
-				qp_logerr("failed posting list (errno=%d %m)", errno);
-				qp_logerr("bad_wr is %d in submitted list (bad_wr=%p, m_ibv_rx_wr_array=%p, size=%d)", n_pos_bad_rx_wr, bad_wr, m_ibv_rx_wr_array, sizeof(struct ibv_recv_wr));
-				qp_logerr("bad_wr info: wr_id=%#x, next=%p, addr=%#x, length=%d, lkey=%#x", bad_wr[0].wr_id, bad_wr[0].next, bad_wr[0].sg_list[0].addr, bad_wr[0].sg_list[0].length, bad_wr[0].sg_list[0].lkey);
-				qp_logerr("QP current state: %d", priv_ibv_query_qp_state(m_qp));
-
-				// Fix broken linked list of rx_wr
-				if (n_pos_bad_rx_wr != (m_n_sysvar_rx_num_wr_to_post_recv - 1)) {
-					m_ibv_rx_wr_array[n_pos_bad_rx_wr].next = &m_ibv_rx_wr_array[n_pos_bad_rx_wr+1];
-				}
-				throw;
-			} ENDIF_VERBS_FAILURE;
-			qp_logfunc("Successful ibv_post_recv");
-		}
-		else {
-			m_curr_rx_wr++;
-		}
-
-
-		p_mem_buf_desc = next;
+			// Fix broken linked list of rx_wr
+			if (n_pos_bad_rx_wr != (m_n_sysvar_rx_num_wr_to_post_recv - 1)) {
+				m_ibv_rx_wr_array[n_pos_bad_rx_wr].next = &m_ibv_rx_wr_array[n_pos_bad_rx_wr+1];
+			}
+			throw;
+		} ENDIF_VERBS_FAILURE;
+		qp_logfunc("Successful ibv_post_recv");
+	}
+	else {
+		m_curr_rx_wr++;
 	}
 
 	return 0;
+}
+
+int qp_mgr::post_recv_buffers(descq_t* p_buffers, size_t count)
+{
+	qp_logfuncall("");
+	// Called from cq_mgr context under cq_mgr::LOCK!
+	int sum;
+	for (sum = 0; count > 0 ; sum++, count--) {
+		if (post_recv_buffer(p_buffers->get_and_pop_front()) < 0) {
+			break;
+		}
+	}
+
+	return sum;
 }
 
 inline int qp_mgr::send_to_wire(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr, bool request_comp)

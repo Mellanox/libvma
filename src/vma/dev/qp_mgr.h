@@ -108,7 +108,8 @@ public:
 	virtual void        up();
 	virtual void        down();
 
-	int                 post_recv(mem_buf_desc_t* p_mem_buf_desc); // Post for receive a list of mem_buf_desc
+	int                 post_recv_buffer(mem_buf_desc_t* p_mem_buf_desc); // Post for receive single mem_buf_desc
+	int                 post_recv_buffers(descq_t* p_buffers, size_t count); // Post for receive a list of mem_buf_desc
 	int                 send(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 
 	uint32_t            get_max_inline_tx_data() const {return m_max_inline_data; }

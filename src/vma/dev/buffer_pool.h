@@ -60,11 +60,13 @@ public:
 
 	/**
 	 * Get buffers from the pool - thread safe
+	 * @parma pDeque List to put the buffers.
+	 * @param desc_owner The new owner of the buffers.
 	 * @param count Number of buffers required.
-	 * @param lkey the registered memory lkey.
-	 * @return List of buffers, or NULL if don't have enough buffers.
+	 * @param lkey The registered memory lkey.
+	 * @return False if no buffers are available, else True.
 	 */
-	mem_buf_desc_t *get_buffers_thread_safe(size_t count, uint32_t lkey);
+	bool get_buffers_thread_safe(descq_t *pDeque, mem_buf_desc_owner* desc_owner, size_t count, uint32_t lkey);
 
 	/**
 	 * Return buffers to the pool.
@@ -104,14 +106,6 @@ private:
 	 * Add a buffer to the pool
 	 */
 	inline void	put_buffer_helper(mem_buf_desc_t *buff);
-
-	/**
-	 * Get buffers from the pool - no thread safe
-	 * @param count Number of buffers required.
-	 * @param lkey the registered memory lkey.
-	 * @return List of buffers, or NULL if don't have enough buffers.
-	 */
-	inline mem_buf_desc_t *get_buffers(size_t count, uint32_t lkey);
 
 	void		buffersPanic();
 
