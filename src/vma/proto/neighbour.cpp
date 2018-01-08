@@ -346,7 +346,7 @@ void neigh_entry::handle_timer_expired(void* ctx)
 		return;
 	}
 
-	if(state != NUD_FAILED) {
+	if(!priv_is_failed(state)) {
 		//We want to verify that L2 address wasn't changed
 		unsigned char tmp[IPOIB_HW_ADDR_LEN];
 		address_t l2_addr = (address_t)tmp;
@@ -683,10 +683,37 @@ void neigh_entry::handle_neigh_event(neigh_nl_event* nl_ev)
 	int neigh_state = nl_info->state;
 	switch (neigh_state)
 	{
-	case NUD_FAILED:
-		neigh_logdbg("state = FAILED");
-		event_handler(EV_ERROR);
+
+	case NUD_REACHABLE:
+	case NUD_PERMANENT:
+	{
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if(m_state_machine == NULL) {
+			neigh_logerr("m_state_machine: not a valid case");
+			break;
+		}
+		BULLSEYE_EXCLUDE_BLOCK_END
+
+		neigh_logdbg("state = '%s' (%d) L2 address = %s", nl_info->get_state2str().c_str(), neigh_state, nl_info->lladdr_str.c_str());
+		priv_handle_neigh_reachable_event();
+		/* In case we got REACHABLE event need to do the following
+		 * Check that neigh has L2 address
+		 * if not send event to neigh
+		 * else need to check that the new l2 address is equal to the old one
+		 * if not equal this is a remote bonding event - issue an EV_ERROR
+		 */
+		auto_unlocker lock(m_lock);
+		// This if and priv_handle_neigh_ha_event should be done under lock
+		if (m_state_machine->get_curr_state() != ST_READY) {
+			// This is new entry
+			event_handler(EV_ARP_RESOLVED);
+			break;
+		}
+
+		// Check if neigh L2 address changed (HA event) and restart the state machine
+		priv_handle_neigh_is_l2_changed(nl_info->lladdr);
 		break;
+	}
 
 	case NUD_STALE:
 	{
@@ -716,34 +743,17 @@ void neigh_entry::handle_neigh_event(neigh_nl_event* nl_ev)
 		}
 		break;
 	}
-	case NUD_REACHABLE:
-	case NUD_PERMANENT:
+
+	case NUD_INCOMPLETE:
 	{
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if(m_state_machine == NULL) {
-			neigh_logerr("m_state_machine: not a valid case");
-			break;
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
+		neigh_logdbg("state = INCOMPLETE");
+		break;
+	}
 
-		neigh_logdbg("state = '%s' (%d) L2 address = %s", nl_info->get_state2str().c_str(), neigh_state, nl_info->lladdr_str.c_str());
-		priv_handle_neigh_reachable_event();
-		/* In case we got REACHABLE event need to do the following
-		 * Check that neigh has L2 address
-		 * if not send event to neigh
-		 * else need to check that the new l2 address is equal to the old one
-		 * if not equal this is a remote bonding event - issue an EV_ERROR
-		 */
-		auto_unlocker lock(m_lock);
-		// This if and priv_handle_neigh_ha_event should be done under lock
-		if (m_state_machine->get_curr_state() != ST_READY) {
-			// This is new entry
-			event_handler(EV_ARP_RESOLVED);
-			break;
-		}
-
-		// Check if neigh L2 address changed (HA event) and restart the state machine
-		priv_handle_neigh_is_l2_changed(nl_info->lladdr);
+	case NUD_FAILED:
+	{
+		neigh_logdbg("state = FAILED");
+		event_handler(EV_ERROR);
 		break;
 	}
 
@@ -1184,7 +1194,7 @@ bool neigh_entry::priv_get_neigh_l2(address_t & l2_addr)
 
 	if (inet_ntop(AF_INET, &(m_dst_addr.sin_addr), str_addr, sizeof(str_addr)) &&
 			g_p_netlink_handler->get_neigh(str_addr, m_p_dev->get_if_idx(), &info)){
-		if (info.state != NUD_FAILED) {
+		if (!priv_is_failed(info.state)) {
 			memcpy(l2_addr, info.lladdr, info.lladdr_len);
 			return true;
 		}
@@ -1350,7 +1360,7 @@ int neigh_eth::priv_enter_init()
 {
 	int state;
 
-	if (priv_get_neigh_state(state) && (state != NUD_FAILED)) {
+	if (priv_get_neigh_state(state) && !priv_is_failed(state)) {
 		event_handler(EV_ARP_RESOLVED);
 		return 0;
 	}
@@ -1364,7 +1374,7 @@ int neigh_eth::priv_enter_init_resolution()
 
 	if (!(neigh_entry::priv_enter_init_resolution())) {
 		// query netlink - if this entry already exist and REACHABLE we can use it
-		if (priv_get_neigh_state(state) && (state != NUD_FAILED)) {
+		if (priv_get_neigh_state(state) && !priv_is_failed(state)) {
 				event_handler(EV_ARP_RESOLVED);
 		}
 		return 0;
