@@ -372,7 +372,8 @@ void neigh_entry::send_arp()
 {
 	// In case we already sent the quota number of unicast ARPs, start sending broadcast ARPs
 	// or we want to send broadcast ARP for the first time
-	bool is_broadcast = (m_arp_counter >= m_n_sysvar_neigh_uc_arp_quata) || m_is_first_send_arp;
+	// or m_val is not valid
+	bool is_broadcast = (m_arp_counter >= m_n_sysvar_neigh_uc_arp_quata) || m_is_first_send_arp || !m_val;
 	if (post_send_arp(is_broadcast)) {
 		m_is_first_send_arp = false;
 		m_arp_counter++;
@@ -1076,6 +1077,7 @@ void neigh_entry::priv_enter_not_active()
 
 	priv_destroy_cma_id();
 	priv_unregister_timer();
+	m_is_first_send_arp = true; // force send boardcast next cycle
 	m_arp_counter = 0;
 
 	// Flush unsent_queue in case that neigh entry is in error state
@@ -1110,6 +1112,7 @@ void neigh_entry::priv_enter_error()
 
 	priv_destroy_cma_id();
 	priv_unregister_timer();
+	m_is_first_send_arp = true; // force send boardcast next cycle
 	m_arp_counter = 0;
 
 	if (m_val) {
