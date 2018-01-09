@@ -17,7 +17,7 @@ echo "Running ./configure ..."
 if [ $? -ne 0 ]; then
 	echo "configure failed! see $LOG_FILE"
 	cd $BASE_DIR
-	exit
+	exit 1
 fi
 
 echo "Running make dist ..."
@@ -25,7 +25,7 @@ make dist >> $LOG_FILE 2>&1
 if [ $? -ne 0 ]; then
 	echo "make dist failed! see $LOG_FILE"
 	cd $BASE_DIR
-	exit
+	exit 2
 fi
 
 cp libvma*.tar.gz $BUILD_DIR/
@@ -39,7 +39,7 @@ dpkg-buildpackage -us -uc >> $LOG_FILE 2>&1
 if [ $? -ne 0 ]; then
 	echo "dpkg-buildpackage failed! see $LOG_FILE"
 	cd $BASE_DIR
-	exit
+	exit 3
 fi
 
 cd ..
