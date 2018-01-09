@@ -141,9 +141,9 @@ void buffer_pool::free_bpool_resources()
 		__log_info_dbg("count %lu, missing %lu", m_n_buffers,
 				m_n_buffers_created - m_n_buffers);
 	}
-
+	m_lock_spin.lock();
 	vma_stats_instance_remove_bpool_block(m_p_bpool_stat);
-
+	m_lock_spin.unlock();
 	__log_info_func("done");
 }
 
