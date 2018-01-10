@@ -369,10 +369,10 @@ int vma_free_packets(int __fd, struct vma_packet_t *pkts, size_t count)
 	return -1;
 }
 
-#ifdef DEFINED_SOCKETXTREME
 extern "C"
 int vma_socketxtreme_poll(int fd, struct vma_completion_t* completions, unsigned int ncompletions, int flags)
 {
+#ifdef DEFINED_SOCKETXTREME
 	int ret_val = -1;
 	cq_channel_info* cq_ch_info = NULL;
 
@@ -403,13 +403,17 @@ int vma_socketxtreme_poll(int fd, struct vma_completion_t* completions, unsigned
 		errno = EBADFD;
 		return ret_val;
 	}
-}
+#else
+	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG, "socketXtreme was not enabled during configuration time. ignoring...", fd, completions, ncompletions, flags);
+	errno = EOPNOTSUPP;
+	return -1;
 #endif // DEFINED_SOCKETXTREME
+}
 
-#ifdef DEFINED_SOCKETXTREME
 extern "C"
 int vma_socketxtreme_free_vma_packets(struct vma_packet_desc_t *packets, int num)
 {
+#ifdef DEFINED_SOCKETXTREME
 	mem_buf_desc_t* desc = NULL;
 	socket_fd_api* p_socket_object = NULL;
 
@@ -441,13 +445,17 @@ int vma_socketxtreme_free_vma_packets(struct vma_packet_desc_t *packets, int num
 err:
 	errno = EINVAL;
 	return -1;
-}
+#else
+	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG, "socketXtreme was not enabled during configuration time. ignoring...", packets, num);
+	errno = EOPNOTSUPP;
+	return -1;
 #endif // DEFINED_SOCKETXTREME
+}
 
-#ifdef DEFINED_SOCKETXTREME
 extern "C"
 int vma_socketxtreme_ref_vma_buff(vma_buff_t *buff)
 {
+#ifdef DEFINED_SOCKETXTREME
 	int ret_val = 0;
 	mem_buf_desc_t* desc = NULL;
 
@@ -460,13 +468,17 @@ int vma_socketxtreme_ref_vma_buff(vma_buff_t *buff)
 		ret_val = -1;
 	}
 	return ret_val;
-}
+#else
+	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG, "socketXtreme was not enabled during configuration time. ignoring...", buff);
+	errno = EOPNOTSUPP;
+	return -1;
 #endif // DEFINED_SOCKETXTREME
+}
 
-#ifdef DEFINED_SOCKETXTREME
 extern "C"
 int vma_socketxtreme_free_vma_buff(vma_buff_t *buff)
 {
+#ifdef DEFINED_SOCKETXTREME
 	int ret_val = 0;
 	mem_buf_desc_t* desc = NULL;
 
@@ -480,8 +492,12 @@ int vma_socketxtreme_free_vma_buff(vma_buff_t *buff)
 		ret_val = -1;
 	}
 	return ret_val;
-}
+#else
+	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG, "socketXtreme was not enabled during configuration time. ignoring...", buff);
+	errno = EOPNOTSUPP;
+	return -1;
 #endif // DEFINED_SOCKETXTREME
+}
 
 extern "C"
 int vma_get_socket_rings_num(int fd)
@@ -494,7 +510,6 @@ int vma_get_socket_rings_num(int fd)
 
 	return 0;
 }
-
 
 extern "C"
 int vma_get_socket_rings_fds(int fd, int *ring_fds, int ring_fds_sz)
@@ -547,9 +562,9 @@ extern "C"
 int vma_dump_fd_stats(int fd, int log_level)
 {
 #ifdef DEFINED_SOCKETXTREME
-NOT_IN_USE(fd);
-NOT_IN_USE(log_level);
-	return 0;
+	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG, "Function is not supported when socketXtreme is enabled. ignoring...", fd, log_level);
+	errno = EOPNOTSUPP;
+	return -1;
 #else
 	if (g_p_fd_collection) {
 		g_p_fd_collection->statistics_print(fd, log_level::from_int(log_level));
@@ -559,11 +574,11 @@ NOT_IN_USE(log_level);
 #endif // DEFINED_SOCKETXTREME
 }
 
-#ifdef HAVE_MP_RQ
 extern "C"
 int vma_cyclic_buffer_read(int fd, struct vma_completion_cb_t *completion,
 			   size_t min, size_t max, int flags)
 {
+#ifdef HAVE_MP_RQ
 	cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(fd);
 	if (p_cq_ch_info) {
 		ring_eth_cb* p_ring = (ring_eth_cb *)p_cq_ch_info->get_ring();
@@ -580,9 +595,12 @@ int vma_cyclic_buffer_read(int fd, struct vma_completion_cb_t *completion,
 							"%d\n", fd);
 		return -1;
 	}
-}
-
+#else
+	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG, "Striding RQ is no supported. ignoring...", fd, completion, min, max, flags);
+	errno = EOPNOTSUPP;
+	return -1;
 #endif // HAVE_MP_RQ
+}
 
 extern "C"
 int vma_add_ring_profile(vma_ring_type_attr *profile, vma_ring_profile_key *res)
@@ -988,18 +1006,13 @@ int getsockopt(int __fd, int __level, int __optname,
 		vma_api->get_ring_direct_descriptors = vma_get_ring_direct_descriptors;
 		vma_api->register_memory_on_ring = vma_reg_mr_on_ring;
 		vma_api->deregister_memory_on_ring = vma_dereg_mr_on_ring;
-#ifdef DEFINED_SOCKETXTREME
 		vma_api->socketxtreme_free_vma_packets = vma_socketxtreme_free_vma_packets;
 		vma_api->socketxtreme_poll = vma_socketxtreme_poll;
 		vma_api->socketxtreme_ref_vma_buff = vma_socketxtreme_ref_vma_buff;
 		vma_api->socketxtreme_free_vma_buff = vma_socketxtreme_free_vma_buff;
-#else
 		vma_api->dump_fd_stats = vma_dump_fd_stats;
-#endif // DEFINED_SOCKETXTREME
-
-#ifdef HAVE_MP_RQ
 		vma_api->vma_cyclic_buffer_read = vma_cyclic_buffer_read;
-#endif // HAVE_MP_RQ
+
 		*((vma_api_t**)__optval) = vma_api;
 		return 0;
 	}

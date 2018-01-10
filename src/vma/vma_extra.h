@@ -432,8 +432,8 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * @param s Socket file descriptor.
 	 * @param callback Callback function.
 	 * @param context user contex for callback function.
-	 * 
 	 * @return 0 - success, -1 - error
+	 * 
 	 * errno is set to: EINVAL - not VMA offloaded socket 
 	 */
 	int (*register_recv_callback)(int s, vma_recv_callback_t callback, void *context);
@@ -544,7 +544,7 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * VMA_SOCKETXTREME_PACKET flag can be enabled together with EPOLLOUT event,
 	 * etc...
 	 *
-	 * * errno is set to: TBD...
+	 * * errno is set to: EOPNOTSUPP - socketXtreme was not enabled during configuration time.
 	 */
 	int (*socketxtreme_poll)(int fd, struct vma_completion_t* completions, unsigned int ncompletions, int flags);
 
@@ -598,7 +598,8 @@ struct __attribute__ ((packed)) vma_api_t {
 	 *     couldn't be deallocated during socketxtreme_free_vma_packets() due to
 	 *     non zero reference count, using socketxtreme_free_vma_buff() function.
 	 *
-	 * errno is set to: EINVAL if NULL pointer is provided.
+	 * errno is set to: EINVAL - NULL pointer is provided.
+	 *                  EOPNOTSUPP - socketXtreme was not enabled during configuration time.
 	 */
 	int (*socketxtreme_free_vma_packets)(struct vma_packet_desc_t *packets, int num);
 
@@ -612,7 +613,8 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * @return On success, return buffer's reference count after the change
 	 * 	   On errors -1 is returned
 	 *
-	 * errno is set to EINVAL if NULL pointer is provided.
+	 * errno is set to: EINVAL - NULL pointer is provided.
+	 *                  EOPNOTSUPP - socketXtreme was not enabled during configuration time.
 	 */
 	int (*socketxtreme_ref_vma_buff)(struct vma_buff_t *buff);
 
@@ -626,7 +628,8 @@ struct __attribute__ ((packed)) vma_api_t {
 	 *
 	 * Notice: return value zero means that buffer was deallocated.
 	 *
-	 * errno is set to EINVAL if NULL pointer is provided.
+	 * errno is set to: EINVAL - NULL pointer is provided.
+	 *                  EOPNOTSUPP - socketXtreme was not enabled during configuration time.
 	 */
 	int (*socketxtreme_free_vma_buff)(struct vma_buff_t *buff);
 
@@ -635,6 +638,8 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * @param fd to dump, 0 for all open fds.
 	 * @param log_level dumping level corresponding vlog_levels_t enum (vlogger.h).
 	 * @return 0 on success, or error code on failure.
+	 *
+	 * errno is set to: EOPNOTSUPP - Function is not supported when socketXtreme is enabled.
 	 */
 	int (*dump_fd_stats) (int fd, int log_level);
 
@@ -647,6 +652,8 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * @param max max packets to return
 	 * @param flags can be MSG_DONTWAIT, MSG_WAITALL (not yet supported), MSG_PEEK (not yet supported)
 	 * @return 0 on success -1 on failure
+	 *
+	 * errno is set to: EOPNOTSUPP - Striding RQ is no supported.
 	 */
 	int (*vma_cyclic_buffer_read)(int fd,
 				      struct vma_completion_cb_t *completion,
