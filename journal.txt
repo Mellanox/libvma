@@ -1,3 +1,23 @@
+Version 8.5.2-0:
+Date + Time 2018-01-11
+=============================================================
+Added:
+        - RM #1262144 Print warning when extra api functions are not supported
+        - RM #1256248 Improve debian package build script
+        - RM #1226478 Add direct-ring creation and HW descriptors logic
+        - RM #1226473 Expose network header using new extra_api
+        - RM #1248697 Make profiles unique in the map
+        - RM #1178934 Add new structs for external ring type
+        - RM #1250147 Reorder netlink event registration at startup
+        - RM #1055916 Add support for Pattern Klm in MP-RQ
+        - RM #1151606 Modify valgrind suppression file
+        - RM #1069965 Remove ldconfig from installation
+        - RM #1171143 Add write combining barrier for Blue Flame send
+Fixed:
+        - RM #1256248 Fix systemd mode in debian package
+        - RM #1247358 Fix crash when VMA could not resolve neighbor
+        - RM #1258245 Fix SYN messages are sent to invalid peer
+
 Version 8.5.1-0:
 Date + Time 2017-12-24
 =============================================================
