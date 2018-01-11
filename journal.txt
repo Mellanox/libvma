@@ -1,3 +1,17 @@
+Version 8.4.11-0:
+Date + Time 2018-01-11
+=============================================================
+Added:
+        - RM #1214451 Add systemd support for daemon
+        - RM #1214453 Improve selection of filesystem monitor method
+Fixed:
+        - RM #1247358 Fix crash when VMA could not resolve neighbor
+        - RM #1258245 Fix SYN messages are sent to invalid peer
+        - RM #1250147 Reorder netlink event registration at startup
+        - RM #1214453 Fix daemon for powerpc
+        - RM #1214453 Fix issue in inotify processing
+        - RM #1222660 Correct warning check for flow steering
+
 Version 8.4.10-0:
 Date + Time 2017-11-23
 =============================================================
