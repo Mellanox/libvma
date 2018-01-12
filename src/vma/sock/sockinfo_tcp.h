@@ -325,6 +325,9 @@ private:
 
 	static err_t syn_received_drop_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_t err);
 
+	// send not connected
+	static err_t dst_nc_send_lwip_cb(void *arg, struct tcp_pcb *pcb, err_t err);
+
 	static err_t clone_conn_cb(void *arg, struct tcp_pcb **newpcb, err_t err);
 
 	int accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, int __flags = 0);

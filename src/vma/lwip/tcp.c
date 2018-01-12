@@ -1309,6 +1309,18 @@ tcp_clone_conn(struct tcp_pcb_listen *pcb, tcp_clone_conn_fn clone_conn)
 }
 #endif /* LWIP_CALLBACK_API */
 
+/**
+ * Used for specifying the function that should be called to
+ * prepare the destination an send
+ *
+ * @param pcb tcp_pcb to set the callback
+ * @param callback function to call
+ */
+void
+tcp_dst_nc_send(struct tcp_pcb_listen *pcb, tcp_dst_nc_send_fn rst_handled)
+{
+  pcb->tcp_dst_nc_send_cb = rst_handled;
+}
 
 /**
  * Used to specify the function that should be called periodically

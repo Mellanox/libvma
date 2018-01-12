@@ -2393,6 +2393,7 @@ int sockinfo_tcp::listen(int backlog)
 	tcp_accept(&m_pcb, sockinfo_tcp::accept_lwip_cb);
 	tcp_syn_handled((struct tcp_pcb_listen*)(&m_pcb), sockinfo_tcp::syn_received_lwip_cb);
 	tcp_clone_conn((struct tcp_pcb_listen*)(&m_pcb), sockinfo_tcp::clone_conn_cb);
+	tcp_dst_nc_send((struct tcp_pcb_listen*)(&m_pcb), sockinfo_tcp::dst_nc_send_lwip_cb);
 
 	bool success = attach_as_uc_receiver(ROLE_TCP_SERVER);
 #ifndef DEFINED_SOCKETXTREME // if not defiend
@@ -2982,6 +2983,58 @@ err_t sockinfo_tcp::syn_received_drop_lwip_cb(void *arg, struct tcp_pcb *newpcb,
 	return ERR_ABRT;
 }
 
+err_t sockinfo_tcp::dst_nc_send_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_t err)
+{
+	sockinfo_tcp *listen_sock = (sockinfo_tcp *)((arg));
+
+	if (!listen_sock || !newpcb) {
+		return ERR_VAL;
+	}
+
+	sockinfo_tcp *new_sock = (sockinfo_tcp *)((newpcb->my_container));
+
+	NOT_IN_USE(err);
+
+	ASSERT_LOCKED(listen_sock->m_tcp_con_lock);
+	listen_sock->m_tcp_con_lock.unlock();
+
+	new_sock->set_conn_properties_from_pcb();
+	new_sock->create_dst_entry();
+
+	struct pbuf *p = NULL;
+	if (new_sock->m_p_connected_dst_entry) {
+		new_sock->prepare_dst_to_send(true);
+		p = tcp_tx_pbuf_alloc(newpcb);
+		if (p == NULL) {
+			close(new_sock->get_fd());
+			listen_sock->m_tcp_con_lock.lock();
+			delete new_sock->m_p_connected_dst_entry;
+			new_sock->m_p_connected_dst_entry = NULL;
+			return ERR_ABRT;
+		}
+		p->next = NULL;
+		p->type = PBUF_RAM;
+		p->ref = 1;
+		p->flags = 0;
+		p->payload = (u8_t *)p->payload - TCP_HLEN;
+		p->len += TCP_HLEN;
+		p->tot_len += TCP_HLEN;
+		p->payload = (void *)newpcb->callback_arg;
+		ip_output_syn_ack(p, newpcb, 0, 0);
+		new_sock->abort_connection();
+		tcp_tx_pbuf_free(newpcb, p);
+	}
+	close(new_sock->get_fd());
+
+	listen_sock->m_tcp_con_lock.lock();
+
+	if (new_sock->m_p_connected_dst_entry) {
+		delete new_sock->m_p_connected_dst_entry;
+		new_sock->m_p_connected_dst_entry = NULL;
+	}
+
+	return ERR_OK;
+}
 void sockinfo_tcp::set_conn_properties_from_pcb()
 {
 	// setup peer address and local address
