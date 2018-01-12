@@ -369,10 +369,10 @@ int vma_free_packets(int __fd, struct vma_packet_t *pkts, size_t count)
 	return -1;
 }
 
-#ifdef DEFINED_VMAPOLL
 extern "C"
-int vma_poll(int fd, struct vma_completion_t* completions, unsigned int ncompletions, int flags)
+int vma_socketxtreme_poll(int fd, struct vma_completion_t* completions, unsigned int ncompletions, int flags)
 {
+#ifdef DEFINED_SOCKETXTREME
 	int ret_val = -1;
 	cq_channel_info* cq_ch_info = NULL;
 
@@ -381,7 +381,7 @@ int vma_poll(int fd, struct vma_completion_t* completions, unsigned int ncomplet
 	if (likely(cq_ch_info)) {
 		ring* p_ring = cq_ch_info->get_ring();
 
-		ret_val = p_ring->vma_poll(completions, ncompletions, flags);
+		ret_val = p_ring->socketxtreme_poll(completions, ncompletions, flags);
 #ifdef RDTSC_MEASURE_RX_PROCCESS_BUFFER_TO_RECIVEFROM
 	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_PROCCESS_RX_BUFFER_TO_RECIVEFROM]);
 #endif //RDTSC_MEASURE_RX_PROCCESS_BUFFER_TO_RECIVEFROM
@@ -403,13 +403,17 @@ int vma_poll(int fd, struct vma_completion_t* completions, unsigned int ncomplet
 		errno = EBADFD;
 		return ret_val;
 	}
+#else
+	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG, "socketXtreme was not enabled during configuration time. ignoring...", fd, completions, ncompletions, flags);
+	errno = EOPNOTSUPP;
+	return -1;
+#endif // DEFINED_SOCKETXTREME
 }
-#endif // DEFINED_VMAPOLL
 
-#ifdef DEFINED_VMAPOLL
 extern "C"
-int vma_free_vma_packets(struct vma_packet_desc_t *packets, int num)
+int vma_socketxtreme_free_vma_packets(struct vma_packet_desc_t *packets, int num)
 {
+#ifdef DEFINED_SOCKETXTREME
 	mem_buf_desc_t* desc = NULL;
 	socket_fd_api* p_socket_object = NULL;
 
@@ -423,7 +427,7 @@ int vma_free_vma_packets(struct vma_packet_desc_t *packets, int num)
 					p_socket_object->free_buffs(packets[i].total_len);
 				}
 				if (rng) {
-					rng->vma_poll_reclaim_recv_buffers(desc);
+					rng->socketxtreme_reclaim_recv_buffers(desc);
 				} else {
 					goto err;
 				}
@@ -441,13 +445,17 @@ int vma_free_vma_packets(struct vma_packet_desc_t *packets, int num)
 err:
 	errno = EINVAL;
 	return -1;
+#else
+	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG, "socketXtreme was not enabled during configuration time. ignoring...", packets, num);
+	errno = EOPNOTSUPP;
+	return -1;
+#endif // DEFINED_SOCKETXTREME
 }
-#endif // DEFINED_VMAPOLL
 
-#ifdef DEFINED_VMAPOLL
 extern "C"
-int vma_buff_ref(vma_buff_t *buff)
+int vma_socketxtreme_ref_vma_buff(vma_buff_t *buff)
 {
+#ifdef DEFINED_SOCKETXTREME
 	int ret_val = 0;
 	mem_buf_desc_t* desc = NULL;
 
@@ -460,28 +468,36 @@ int vma_buff_ref(vma_buff_t *buff)
 		ret_val = -1;
 	}
 	return ret_val;
+#else
+	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG, "socketXtreme was not enabled during configuration time. ignoring...", buff);
+	errno = EOPNOTSUPP;
+	return -1;
+#endif // DEFINED_SOCKETXTREME
 }
-#endif // DEFINED_VMAPOLL
 
-#ifdef DEFINED_VMAPOLL
 extern "C"
-int vma_buff_free(vma_buff_t *buff)
+int vma_socketxtreme_free_vma_buff(vma_buff_t *buff)
 {
+#ifdef DEFINED_SOCKETXTREME
 	int ret_val = 0;
 	mem_buf_desc_t* desc = NULL;
 
 	if (likely(buff)) {
 		desc = (mem_buf_desc_t*)buff;
 		ring* rng = (ring*)desc->p_desc_owner;
-		ret_val = rng->vma_poll_reclaim_single_recv_buffer(desc);
+		ret_val = rng->socketxtreme_reclaim_single_recv_buffer(desc);
 	}
 	else {
 		errno = EINVAL;
 		ret_val = -1;
 	}
 	return ret_val;
+#else
+	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG, "socketXtreme was not enabled during configuration time. ignoring...", buff);
+	errno = EOPNOTSUPP;
+	return -1;
+#endif // DEFINED_SOCKETXTREME
 }
-#endif // DEFINED_VMAPOLL
 
 extern "C"
 int vma_get_socket_rings_num(int fd)
@@ -494,7 +510,6 @@ int vma_get_socket_rings_num(int fd)
 
 	return 0;
 }
-
 
 extern "C"
 int vma_get_socket_rings_fds(int fd, int *ring_fds, int ring_fds_sz)
@@ -546,24 +561,24 @@ int vma_thread_offload(int offload, pthread_t tid)
 extern "C"
 int vma_dump_fd_stats(int fd, int log_level)
 {
-#ifdef DEFINED_VMAPOLL
-NOT_IN_USE(fd);
-NOT_IN_USE(log_level);
-	return 0;
+#ifdef DEFINED_SOCKETXTREME
+	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG, "Function is not supported when socketXtreme is enabled. ignoring...", fd, log_level);
+	errno = EOPNOTSUPP;
+	return -1;
 #else
 	if (g_p_fd_collection) {
 		g_p_fd_collection->statistics_print(fd, log_level::from_int(log_level));
 		return 0;
 	}
 	return -1;
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 }
 
-#ifdef HAVE_MP_RQ
 extern "C"
 int vma_cyclic_buffer_read(int fd, struct vma_completion_cb_t *completion,
 			   size_t min, size_t max, int flags)
 {
+#ifdef HAVE_MP_RQ
 	cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(fd);
 	if (p_cq_ch_info) {
 		ring_eth_cb* p_ring = (ring_eth_cb *)p_cq_ch_info->get_ring();
@@ -580,10 +595,14 @@ int vma_cyclic_buffer_read(int fd, struct vma_completion_cb_t *completion,
 							"%d\n", fd);
 		return -1;
 	}
+#else
+	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG, "Striding RQ is no supported. ignoring...", fd, completion, min, max, flags);
+	errno = EOPNOTSUPP;
+	return -1;
+#endif // HAVE_MP_RQ
 }
 
-#endif // HAVE_MP_RQ
-
+extern "C"
 int vma_add_ring_profile(vma_ring_type_attr *profile, vma_ring_profile_key *res)
 {
 	if (!g_p_ring_profile) {
@@ -592,6 +611,93 @@ int vma_add_ring_profile(vma_ring_type_attr *profile, vma_ring_profile_key *res)
 	}
 	*res = g_p_ring_profile->add_profile(profile);
 	return 0;
+}
+
+extern "C"
+int vma_get_socket_netowrk_header(int __fd, void *ptr, uint16_t *len)
+{
+	srdr_logdbg_entry("fd=%d, ptr=%p len=%d", __fd, ptr, len);
+
+	socket_fd_api* p_socket_object = fd_collection_get_sockfd(__fd);
+
+	if (p_socket_object) {
+		return p_socket_object->get_socket_network_ptr(ptr, *len);
+	}
+	errno = EINVAL;
+	return -1;
+}
+
+extern "C"
+int vma_get_ring_direct_descriptors(int __fd,
+				    struct vma_mlx_hw_device_data *data)
+{
+	srdr_logdbg_entry("fd=%d, ptr=%p ", __fd, data);
+
+	cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(__fd);
+	if (p_cq_ch_info) {
+		ring* p_ring = p_cq_ch_info->get_ring();
+		if (likely(p_ring)) {
+			return p_ring->get_ring_descriptors(*data);
+		} else {
+			vlog_printf(VLOG_ERROR, "could not find ring, got fd "
+					"%d\n", __fd);
+			return -1;
+		}
+	} else {
+		vlog_printf(VLOG_ERROR, "could not find p_cq_ch_info, got fd "
+							"%d\n", __fd);
+		return -1;
+	}
+}
+
+extern "C"
+int vma_reg_mr_on_ring(int __fd, void *addr, size_t length, uint32_t *lkey)
+{
+	srdr_logdbg_entry("fd=%d, addr=%p length %zd key %p", __fd, addr, length, lkey);
+
+	if (!lkey) {
+		vlog_printf(VLOG_DEBUG, "key is null fd %d, addr %p, length %zd\n",
+				__fd, addr, length);
+		errno = EINVAL;
+		return -1;
+	}
+	cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(__fd);
+	if (p_cq_ch_info) {
+		ring* p_ring = p_cq_ch_info->get_ring();
+		if (likely(p_ring)) {
+			return p_ring->reg_mr(addr, length, *lkey);
+		} else {
+			vlog_printf(VLOG_ERROR, "could not find ring, got fd "
+					"%d\n", __fd);
+			return -1;
+		}
+	} else {
+		vlog_printf(VLOG_ERROR, "could not find p_cq_ch_info, got fd "
+							"%d\n", __fd);
+		return -1;
+	}
+}
+
+extern "C"
+int vma_dereg_mr_on_ring(int __fd, void *addr, size_t length)
+{
+	srdr_logdbg_entry("fd=%d, addr=%p ", __fd, addr);
+
+	cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(__fd);
+	if (p_cq_ch_info) {
+		ring* p_ring = p_cq_ch_info->get_ring();
+		if (likely(p_ring)) {
+			return p_ring->dereg_mr(addr, length);
+		} else {
+			vlog_printf(VLOG_ERROR, "could not find ring, got fd "
+					"%d\n", __fd);
+			return -1;
+		}
+	} else {
+		vlog_printf(VLOG_ERROR, "could not find p_cq_ch_info, got fd "
+							"%d\n", __fd);
+		return -1;
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -896,18 +1002,17 @@ int getsockopt(int __fd, int __level, int __optname,
 		vma_api->get_socket_rings_num = vma_get_socket_rings_num;
 		vma_api->get_socket_rings_fds = vma_get_socket_rings_fds;
 		vma_api->vma_add_ring_profile = vma_add_ring_profile;
-#ifdef DEFINED_VMAPOLL
-		vma_api->free_vma_packets = vma_free_vma_packets;
-		vma_api->vma_poll = vma_poll;
-		vma_api->ref_vma_buff = vma_buff_ref;
-		vma_api->free_vma_buff = vma_buff_free;
-#else
+		vma_api->get_socket_network_header = vma_get_socket_netowrk_header;
+		vma_api->get_ring_direct_descriptors = vma_get_ring_direct_descriptors;
+		vma_api->register_memory_on_ring = vma_reg_mr_on_ring;
+		vma_api->deregister_memory_on_ring = vma_dereg_mr_on_ring;
+		vma_api->socketxtreme_free_vma_packets = vma_socketxtreme_free_vma_packets;
+		vma_api->socketxtreme_poll = vma_socketxtreme_poll;
+		vma_api->socketxtreme_ref_vma_buff = vma_socketxtreme_ref_vma_buff;
+		vma_api->socketxtreme_free_vma_buff = vma_socketxtreme_free_vma_buff;
 		vma_api->dump_fd_stats = vma_dump_fd_stats;
-#endif // DEFINED_VMAPOLL
-
-#ifdef HAVE_MP_RQ
 		vma_api->vma_cyclic_buffer_read = vma_cyclic_buffer_read;
-#endif // HAVE_MP_RQ
+
 		*((vma_api_t**)__optval) = vma_api;
 		return 0;
 	}
@@ -1351,7 +1456,7 @@ ssize_t recvfrom(int __fd, void *__buf, size_t __nbytes, int __flags,
 		BULLSEYE_EXCLUDE_BLOCK_END
 		ret_val = orig_os_api.recvfrom(__fd, __buf, __nbytes, __flags, __from, __fromlen);
 	}
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 #ifdef RDTSC_MEASURE_RX_PROCCESS_BUFFER_TO_RECIVEFROM
 	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_PROCCESS_RX_BUFFER_TO_RECIVEFROM]);
 #endif //RDTSC_MEASURE_RX_PROCCESS_BUFFER_TO_RECIVEFROM
@@ -1367,7 +1472,7 @@ ssize_t recvfrom(int __fd, void *__buf, size_t __nbytes, int __flags,
 #ifdef RDTSC_MEASURE_RECEIVEFROM_TO_SENDTO
 	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_RECEIVEFROM_TO_SENDTO]);
 #endif //RDTSC_MEASURE_RECEIVEFROM_TO_SENDTO
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 	return ret_val;
 }
 
@@ -1569,7 +1674,7 @@ extern "C"
 ssize_t sendto(int __fd, __const void *__buf, size_t __nbytes, int __flags,
 	       const struct sockaddr *__to, socklen_t __tolen)
 {
-#ifdef DEFINED_VMAPOLL	
+#ifdef DEFINED_SOCKETXTREME	
 #ifdef RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
 	RDTSC_TAKE_START(g_rdtsc_instr_info_arr[RDTSC_FLOW_SENDTO_TO_AFTER_POST_SEND]);
 #endif //RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
@@ -1577,7 +1682,7 @@ ssize_t sendto(int __fd, __const void *__buf, size_t __nbytes, int __flags,
 #ifdef RDTSC_MEASURE_RECEIVEFROM_TO_SENDTO
 	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RECEIVEFROM_TO_SENDTO]);
 #endif //RDTSC_MEASURE_TX_SENDTO_TO_AFTER_POST_SEND
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 	srdr_logfuncall_entry("fd=%d, nbytes=%d", __fd, __nbytes);
 
 	socket_fd_api* p_socket_object = NULL;

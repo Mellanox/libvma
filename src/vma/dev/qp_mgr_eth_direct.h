@@ -29,36 +29,24 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#ifndef SRC_VMA_DEV_QP_MGR_ETH_DIRECT_H_
+#define SRC_VMA_DEV_QP_MGR_ETH_DIRECT_H_
 
-#ifndef SRC_VMA_DEV_CQ_MGR_MP_H_
-#define SRC_VMA_DEV_CQ_MGR_MP_H_
+#include "qp_mgr_eth_mlx5.h"
 
-#include "dev/cq_mgr_mlx5.h"
-#include "dev/ring_eth_cb.h"
-#include "dev/qp_mgr_mp.h"
+#if defined(HAVE_INFINIBAND_MLX5_HW_H)
 
-#ifdef HAVE_MP_RQ
-
-class cq_mgr_mp : public cq_mgr_mlx5
+class qp_mgr_eth_direct: public qp_mgr_eth_mlx5
 {
 public:
-	cq_mgr_mp(const ring_eth_cb *p_ring, ib_ctx_handler *p_ib_ctx_handler,
-		  uint32_t cq_size, struct ibv_comp_channel *p_comp_event_channel,
-		  bool is_rx);
-	~cq_mgr_mp();
-	int		poll_mp_cq(uint16_t &size, uint32_t &strides_used,
-				   uint32_t &flags,
-				   struct mlx5_cqe64 *&cqe64);
-	void update_dbell();
-	void update_max_drain(uint32_t t) { m_p_cq_stat->n_rx_drained_at_once_max =
-			max(m_p_cq_stat->n_rx_drained_at_once_max, t);}
-protected:
-	virtual void	prep_ibv_cq(vma_ibv_cq_init_attr &attr) const;
-	virtual void	add_qp_rx(qp_mgr *qp);
-private:
-	const ring_eth_cb		*m_p_ring;
-	static const uint32_t		UDP_OK_FLAGS;
+	qp_mgr_eth_direct(const ring_simple* p_ring, const ib_ctx_handler* p_context,
+			  const uint8_t port_num, ibv_comp_channel* p_rx_comp_event_channel,
+			  const uint32_t tx_num_wr, const uint16_t vlan);
+	virtual ~qp_mgr_eth_direct();
+	virtual void		up();
+	virtual uint32_t	get_rx_max_wr_num() { return 0;};
+	virtual bool		fill_hw_descriptors(vma_mlx_hw_device_data &data);
 };
-#endif /* HAVE_MP_RQ */
 
-#endif /* SRC_VMA_DEV_CQ_MGR_MP_H_ */
+#endif /* HAVE_INFINIBAND_MLX5_HW_H */
+#endif /* SRC_VMA_DEV_QP_MGR_ETH_DIRECT_H_ */

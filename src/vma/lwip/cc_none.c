@@ -30,35 +30,22 @@
  * SOFTWARE.
  */
 
-#ifndef SRC_VMA_DEV_CQ_MGR_MP_H_
-#define SRC_VMA_DEV_CQ_MGR_MP_H_
+#include "vma/lwip/cc.h"
+#include "vma/lwip/tcp.h"
 
-#include "dev/cq_mgr_mlx5.h"
-#include "dev/ring_eth_cb.h"
-#include "dev/qp_mgr_mp.h"
+#if TCP_CC_ALGO_MOD
 
-#ifdef HAVE_MP_RQ
+static void	none_cc_conn_init(struct tcp_pcb *pcb);
 
-class cq_mgr_mp : public cq_mgr_mlx5
-{
-public:
-	cq_mgr_mp(const ring_eth_cb *p_ring, ib_ctx_handler *p_ib_ctx_handler,
-		  uint32_t cq_size, struct ibv_comp_channel *p_comp_event_channel,
-		  bool is_rx);
-	~cq_mgr_mp();
-	int		poll_mp_cq(uint16_t &size, uint32_t &strides_used,
-				   uint32_t &flags,
-				   struct mlx5_cqe64 *&cqe64);
-	void update_dbell();
-	void update_max_drain(uint32_t t) { m_p_cq_stat->n_rx_drained_at_once_max =
-			max(m_p_cq_stat->n_rx_drained_at_once_max, t);}
-protected:
-	virtual void	prep_ibv_cq(vma_ibv_cq_init_attr &attr) const;
-	virtual void	add_qp_rx(qp_mgr *qp);
-private:
-	const ring_eth_cb		*m_p_ring;
-	static const uint32_t		UDP_OK_FLAGS;
+struct cc_algo none_cc_algo = {
+		.name = "none_cc",
+		.conn_init = none_cc_conn_init,
 };
-#endif /* HAVE_MP_RQ */
 
-#endif /* SRC_VMA_DEV_CQ_MGR_MP_H_ */
+static void
+none_cc_conn_init(struct tcp_pcb *pcb)
+{
+	pcb->cwnd = UINT32_MAX;
+}
+
+#endif //TCP_CC_ALGO_MOD

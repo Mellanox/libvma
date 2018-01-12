@@ -115,8 +115,8 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 		desc->p_desc_owner = owner;
 		desc->lwip_pbuf.custom_free_function = custom_free_function;
 		put_buffer_helper(desc);
-#ifdef DEFINED_VMAPOLL
-		desc->rx.vma_polled = false;
+#ifdef DEFINED_SOCKETXTREME
+		desc->rx.socketxtreme_polled = false;
 #endif		
 
 		ptr_buff += sz_aligned_element;

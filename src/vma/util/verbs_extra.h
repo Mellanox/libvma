@@ -193,7 +193,7 @@ typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_ta
 #define vma_ibv_create_qp(pd, attr)             ibv_exp_create_qp((pd)->context, attr)
 typedef struct ibv_exp_qp_init_attr             vma_ibv_qp_init_attr;
 #define vma_ibv_qp_init_attr_comp_mask(_pd, _attr)	\
-	{ (_attr).pd = _pd; (_attr).comp_mask = IBV_EXP_QP_INIT_ATTR_PD; }
+	{ (_attr).pd = _pd; (_attr).comp_mask |= IBV_EXP_QP_INIT_ATTR_PD; }
 //ibv_query_device
 #define vma_ibv_query_device(context, attr)	ibv_exp_query_device(context, attr)
 typedef struct ibv_exp_device_attr		vma_ibv_device_attr;

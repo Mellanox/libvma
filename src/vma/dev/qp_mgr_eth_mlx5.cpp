@@ -202,7 +202,7 @@ cq_mgr* qp_mgr_eth_mlx5::init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event
 		return NULL;
 	}
 
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 	return new cq_mgr(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
 #else
 	return new cq_mgr_mlx5(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
@@ -256,6 +256,12 @@ inline void qp_mgr_eth_mlx5::send_by_bf(uint64_t* addr, int num_wqebb)
 
 	copy_bf((uint64_t*)((uint8_t*)m_sq_bf_reg + m_sq_bf_offset), addr, num_wqebb);
 	dbg_dump_wqe((uint32_t*)addr, num_wqebb*WQEBB);
+
+	/* Use wc_wmb() to ensure write combining buffers are flushed out
+	 * of the running CPU.
+	 * sfence instruction affects only the WC buffers of the CPU that executes it
+	 */
+	wc_wmb();
 	m_sq_bf_offset ^= m_sq_bf_buf_size;
 }
 
@@ -271,6 +277,12 @@ inline void qp_mgr_eth_mlx5::send_by_bf_wrap_up(uint64_t* bottom_addr, int num_w
 	wc_wmb();
 	// Copying two times for wrap-up, first at the end of SQ and second from the start
 	copy_bf2((uint64_t*)((uint8_t*)m_sq_bf_reg+m_sq_bf_offset), bottom_addr, (uint64_t*)m_sq_wqes, num_wqebb_bottom, num_wqebb_top);
+
+	/* Use wc_wmb() to ensure write combining buffers are flushed out
+	 * of the running CPU.
+	 * sfence instruction affects only the WC buffers of the CPU that executes it
+	 */
+	wc_wmb();
 	m_sq_bf_offset ^= m_sq_bf_buf_size;
 }
 

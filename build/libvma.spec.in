@@ -16,6 +16,7 @@
 %global ofed_dir %{?_ofed_dir}%{?!_ofed_dir:%{_prefix}}
 
 %global _use_internal_dependency_generator 0
+%global use_systemd %(if ( test -d "%{_unitdir}" > /dev/null); then echo -n '1'; else echo -n '0'; fi)
 
 Summary: A library for boosting TCP and UDP traffic (over RDMA hardware)
 Name: libvma
@@ -90,6 +91,10 @@ install -s -m 755 src/stats/vma_stats $RPM_BUILD_ROOT/%{_bindir}/vma_stats
 install -s -m 755 tools/daemon/vmad $RPM_BUILD_ROOT/%{_sbindir}/vmad
 install -m 755 contrib/scripts/vma.init $RPM_BUILD_ROOT/%{_sysconfdir}/init.d/vma
 install -m 755 ./%{name}-debug.so $RPM_BUILD_ROOT/%{_libdir}/%{name}-debug.so
+%if "%{use_systemd}" == "1"
+install -d %{buildroot}/etc/systemd/system
+install -m 644 contrib/scripts/vma.service $RPM_BUILD_ROOT/%{_sysconfdir}/systemd/system
+%endif
 
 %post
 if [ `grep memlock /etc/security/limits.conf |grep unlimited |wc -l` -le 0 ]; then
@@ -137,6 +142,10 @@ fi
 
 %postun
 /sbin/ldconfig
+if type systemctl >/dev/null 2>&1; then
+    systemctl --system daemon-reload
+fi
+
 
 %files
 %defattr(-,root,root,-)
@@ -150,6 +159,9 @@ fi
 %{_sysconfdir}/security/limits.d/30-libvma-limits.conf
 %{_sbindir}/vmad
 %{_sysconfdir}/init.d/vma
+%if "%{use_systemd}" == "1"
+%{_sysconfdir}/systemd/system/vma.service
+%endif
 
 %files devel
 %defattr(-,root,root,-)

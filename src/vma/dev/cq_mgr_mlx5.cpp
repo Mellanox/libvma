@@ -624,4 +624,30 @@ void cq_mgr_mlx5::add_qp_tx(qp_mgr* qp)
 	cq_logfunc("qp_mgr=%p m_cq_dbell=%p m_cqes=%p", m_qp, m_cq_dbell, m_cqes);
 }
 
+bool cq_mgr_mlx5::fill_cq_hw_descriptors(struct hw_cq_data &data)
+{
+
+	ibv_mlx5_cq_info cq_info;
+
+	memset(&cq_info, 0, sizeof(cq_info));
+
+	if (ibv_mlx5_exp_get_cq_info(m_p_ibv_cq, &cq_info)) {
+		cq_logerr("ibv_mlx5_exp_get_cq_info failed,"
+			"cq was already used, cannot use it in direct mode, "
+					"%p", m_p_ibv_cq);
+	}
+	cq_logdbg("Returning HW descriptors for CQ %p cqn %u cqe_cnt %u buf %p "
+		"dbrec %p cqe_size %u", m_p_ibv_cq, cq_info.cqn, cq_info.cqe_cnt,
+		cq_info.buf, cq_info.dbrec, cq_info.cqe_size);
+	data.buf = cq_info.buf;
+	data.cons_idx = &m_mlx5_cq->cons_index;
+	data.cq_size = m_cq_size;
+	data.cqe_size = cq_info.cqe_size;
+	data.cqn = cq_info.cqn;
+
+	data.dbrec = cq_info.dbrec;
+	/* Not supported yet */
+	data.uar = NULL;
+	return true;
+}
 #endif//HAVE_INFINIBAND_MLX5_HW_H

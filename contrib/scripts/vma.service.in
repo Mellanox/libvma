@@ -1,0 +1,15 @@
+[Unit]
+Description=VMA Daemon. Version: @VERSION@-@VMA_LIBRARY_RELEASE@
+After=openibd.service network.target syslog.target
+Requires=network.target openibd.service
+
+[Service]
+Type=forking
+Restart=on-failure
+ExecStart=/etc/init.d/vma start
+ExecStop=/etc/init.d/vma stop
+ExecReload=/etc/init.d/vma restart
+RestartForceExitStatus=1 SIGTERM
+
+[Install]
+WantedBy=multi-user.target

@@ -844,7 +844,7 @@ static int _proc_engine(void)
 				conn->vma_buf_offset = 0;
 				n = 1;
 			} else if (conn->vma_buf && !conn->vma_buf->next) {
-				_vma_api->free_vma_packets(&conn->vma_packet, 1);
+				_vma_api->socketxtreme_free_vma_packets(&conn->vma_packet, 1);
 				conn->vma_buf = NULL;
 				conn->vma_buf_offset = 0;
 				conn = NULL;
@@ -853,10 +853,10 @@ static int _proc_engine(void)
 		}
 		while (0 == n) {
 			struct vma_completion_t vma_comps;
-			n = _vma_api->vma_poll(_vma_ring_fd, &vma_comps, 1, 0);
+			n = _vma_api->socketxtreme_poll(_vma_ring_fd, &vma_comps, 1, 0);
 			if (n > 0) {
 				event = (uint32_t)vma_comps.events;
-				if (vma_comps.events & VMA_POLL_PACKET) {
+				if (vma_comps.events & VMA_SOCKETXTREME_PACKET) {
 					event |= EPOLLIN;
 #if defined(UDP_ENABLED) && (UDP_ENABLED == 1)
 					if (vma_comps.packet.buff_lst->len >= sizeof(struct msg_header)) {
@@ -1102,7 +1102,7 @@ static int _proc_receiver(void)
 				conn->vma_buf_offset = 0;
 				n = 1;
 			} else if (conn->vma_buf && !conn->vma_buf->next) {
-				_vma_api->free_vma_packets(&conn->vma_packet, 1);
+				_vma_api->socketxtreme_free_vma_packets(&conn->vma_packet, 1);
 				conn->vma_buf = NULL;
 				conn->vma_buf_offset = 0;
 				conn = NULL;
@@ -1111,10 +1111,10 @@ static int _proc_receiver(void)
 		}
 		while (0 == n) {
 			struct vma_completion_t vma_comps;
-			n = _vma_api->vma_poll(_vma_ring_fd, &vma_comps, 1, 0);
+			n = _vma_api->socketxtreme_poll(_vma_ring_fd, &vma_comps, 1, 0);
 			if (n > 0) {
 				event = (uint32_t)vma_comps.events;
-				if (vma_comps.events & VMA_POLL_PACKET) {
+				if (vma_comps.events & VMA_SOCKETXTREME_PACKET) {
 					event |= EPOLLIN;
 #if defined(UDP_ENABLED) && (UDP_ENABLED == 1)
 					if (vma_comps.packet.buff_lst->len >= sizeof(struct msg_header)) {
@@ -1525,7 +1525,7 @@ static int _tcp_client_init(struct sockaddr_in *addr)
 	while (0 == rc) {
 		uint32_t event;
 		struct vma_completion_t vma_comps;
-		rc = _vma_api->vma_poll(_vma_ring_fd, &vma_comps, 1, 0);
+		rc = _vma_api->socketxtreme_poll(_vma_ring_fd, &vma_comps, 1, 0);
 		if (rc > 0) {
 			event = (uint32_t)vma_comps.events;
 			if (vma_comps.events & EPOLLOUT) {
@@ -1598,10 +1598,10 @@ static int _tcp_server_init(int fd)
 	while (0 == rc) {
 		uint32_t event;
 		struct vma_completion_t vma_comps;
-		rc = _vma_api->vma_poll(_vma_ring_fd, &vma_comps, 1, 0);
+		rc = _vma_api->socketxtreme_poll(_vma_ring_fd, &vma_comps, 1, 0);
 		if (rc > 0) {
 			event = (uint32_t)vma_comps.events;
-			if (vma_comps.events & VMA_POLL_NEW_CONNECTION_ACCEPTED) {
+			if (vma_comps.events & VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED) {
 				fd = vma_comps.user_data;
 				in_len = sizeof(in_addr);
 				memcpy(&in_addr, &vma_comps.src, in_len);

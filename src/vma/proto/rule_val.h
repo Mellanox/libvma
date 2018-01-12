@@ -59,7 +59,7 @@ public:
 	inline void set_scope(unsigned char scope) 		{ m_scope = scope; };
 	inline void set_type(unsigned char type) 		{ m_type = type; };
 	inline void set_tos(unsigned char tos) 			{ m_tos = tos; };
-	inline void set_table_id(unsigned char table_id) 	{ m_table_id = table_id; };
+	inline void set_table_id(uint32_t table_id) 		{ m_table_id = table_id; };
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif
@@ -75,7 +75,7 @@ public:
 	inline unsigned char 	get_scope() const		{ return m_scope; };
 	inline unsigned char 	get_type() const	   	{ return m_type; };
 	inline unsigned char	get_tos() const		   	{ return m_tos; };
-	inline unsigned char 	get_table_id() const		{ return m_table_id; };
+	inline uint32_t 	get_table_id() const		{ return m_table_id; };
 	inline const char*  	get_iif_name() const		{ return m_iif_name; };
 	inline const char*  	get_oif_name() const		{ return m_oif_name; };
 	inline uint32_t     	get_priority() const		{ return m_priority; };
@@ -104,7 +104,7 @@ private:
 	char 		m_iif_name[IFNAMSIZ];
 	char 		m_oif_name[IFNAMSIZ];
 	uint32_t	m_priority;
-	unsigned char	m_table_id;
+	uint32_t	m_table_id;
 	
 	bool 		m_is_valid;
 	

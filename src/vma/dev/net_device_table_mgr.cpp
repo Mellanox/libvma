@@ -231,7 +231,7 @@ int net_device_table_mgr::map_net_devices()
 			continue;
 		}
 
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 		// only support mlx5 device for vmapoll
 		if(strncmp(ib_ctx->get_ibv_device()->name, "mlx4", 4) == 0) {
 			ndtm_logdbg("Blocking offload: vmapoll mlx4 interfaces ('%s')", ifa->ifa_name);
@@ -242,7 +242,7 @@ int net_device_table_mgr::map_net_devices()
 			} ENDIF_RDMACM_FAILURE;
 			continue;
 		}
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 
 		bool valid = false;
 		char base_ifname[IFNAMSIZ];
@@ -721,16 +721,16 @@ void net_device_table_mgr::handle_timer_expired(void* user_data)
 	int timer_type = (uint64_t)user_data;
 	switch (timer_type) {
 	case RING_PROGRESS_ENGINE_TIMER:
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 #if 0 /* TODO: see explanation */
-		/* Do not call draining RX logic from internal thread for vma_poll mode
+		/* Do not call draining RX logic from internal thread for socketxtreme mode
 		 * It is disable by default
 		 * See: cq_mgr::drain_and_proccess()
 		 */
 #endif // 0
 #else
 		global_ring_drain_and_procces();
-#endif // DEFINED_VMAPOLL		
+#endif // DEFINED_SOCKETXTREME		
 		break;
 	case RING_ADAPT_CQ_MODERATION_TIMER:
 		global_ring_adapt_cq_moderation();

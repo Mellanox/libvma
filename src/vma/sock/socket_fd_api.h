@@ -193,9 +193,9 @@ public:
 	
 	virtual int free_packets(struct vma_packet_t *pkts, size_t count);
 
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 	virtual	int free_buffs(uint16_t len);
-#endif // DEFINED_VMAPOLL	
+#endif // DEFINED_SOCKETXTREME	
 
 	virtual int get_fd( ) const { return m_fd; };
 
@@ -250,7 +250,7 @@ public:
 	virtual int get_rings_num() {return 0;}
 	virtual bool check_rings() {return false;}
 	virtual int* get_rings_fds(int& res_length) { res_length=0; return NULL;}
-
+	virtual int get_socket_network_ptr(void *ptr, uint16_t &len) { NOT_IN_USE(ptr);NOT_IN_USE(len);errno=ENOSYS;return -1;};
 protected:
 	void notify_epoll_context(uint32_t events);
 	void notify_epoll_context_add_ring(ring* ring);

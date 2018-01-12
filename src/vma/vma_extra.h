@@ -47,9 +47,9 @@
 /*
  * Options for setsockopt()/getsockopt()
  */
-#define SO_VMA_GET_API       2800
-#define SO_VMA_USER_DATA     2801
-
+#define SO_VMA_GET_API		2800
+#define SO_VMA_USER_DATA	2801
+#define SO_VMA_RING_ALLOC_LOGIC 2810
 /*
  * Flags for Dummy send API
  */
@@ -71,16 +71,16 @@ typedef enum {
 } vma_recv_callback_retval_t;
 
 
-/************ vma_poll() API types definition start***************/
+/************ SocketXtreme API types definition start***************/
 
 typedef enum {
-    VMA_POLL_PACKET 			= (1ULL << 32), /* New packet is available */
-    VMA_POLL_NEW_CONNECTION_ACCEPTED	= (1ULL << 33)  /* New connection is auto accepted by server */
-} vma_poll_events_t;
+    VMA_SOCKETXTREME_PACKET 			= (1ULL << 32), /* New packet is available */
+    VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED	= (1ULL << 33)  /* New connection is auto accepted by server */
+} vma_socketxtreme_events_t;
 
 /*
  * Represents  VMA buffer
- * Used in vma_poll() extended API.
+ * Used in SocketXtreme extended API.
  */
 struct vma_buff_t {
 	struct vma_buff_t*	next;		/* next buffer (for last buffer next == NULL) */
@@ -90,7 +90,7 @@ struct vma_buff_t {
 
 /**
  * Represents one VMA packet
- * Used in vma_poll() extended API.
+ * Used in SocketXtreme extended API.
  */
 struct vma_packet_desc_t {
 	size_t			num_bufs;	/* number of packet's buffers */
@@ -100,10 +100,10 @@ struct vma_packet_desc_t {
 
 /*
  * Represents VMA Completion.
- * Used in vma_poll() extended API.
+ * Used in SocketXtreme extended API.
  */
 struct vma_completion_t {
-	/* Packet is valid in case VMA_POLL_PACKET event is set
+	/* Packet is valid in case VMA_SOCKETXTREME_PACKET event is set
          */
 	struct vma_packet_desc_t packet;
 	/* Set of events
@@ -116,16 +116,16 @@ struct vma_completion_t {
          */ 
 	uint64_t                 user_data;
 	/* Source address (in network byte order) set for:
-	 * VMA_POLL_PACKET and VMA_POLL_NEW_CONNECTION_ACCEPTED events
+	 * VMA_SOCKETXTREME_PACKET and VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED events
 	 */
 	struct sockaddr_in       src;
 	/* Connected socket's parent/listen socket fd number.
-	 * Valid in case VMA_POLL_NEW_CONNECTION_ACCEPTED event is set.
+	 * Valid in case VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED event is set.
 	*/
 	int 			listen_fd;
 };
 
-/************ vma_poll() API types definition end ***************/
+/************ SocketXtreme API types definition end ***************/
 
 /**
  * Represents one VMA packets 
@@ -172,36 +172,28 @@ struct __attribute__ ((packed)) vma_info_t {
 };
 
 typedef enum {
-	VMA_MP_MASK_HDR_PTR = (1 << 0),
-	VMA_MP_MASK_TIMESTAMP = (1 << 1),
-} vma_completion_mp_mask;
+	VMA_CB_MASK_TIMESTAMP = (1 << 0),
+} vma_completion_cb_mask;
 
 /**
  * @param comp_mask attributes you want to get from @ref vma_cyclic_buffer_read.
- * 	see @ref vma_completion_mp_mask
+ * 	see @ref vma_completion_cb_mask
  * @param payload_ptr pointer to user data not including user header
  * @param payload_length size of payload_ptr
  * @param packets how many packets arrived
- * @param headers_ptr points to the user header section within the payload defined when creating the ring
- * 	@note currently same as @param payload_ptr
- * @param headers_ptr_length headers_ptr length
- *  	@note currently same as @param payload_length
- * @param hw_timestamp the HW time stamp of the first packet arrived within the batch
+ * @param usr_hdr_ptr points to the user header defined when creating the ring
+ * @param usr_hdr_ptr_length user header length
+ * @param hw_timestamp the HW time stamp of the first packet arrived
  */
 struct vma_completion_cb_t {
 	uint32_t	comp_mask;
 	void*		payload_ptr;
 	size_t		payload_length;
 	size_t		packets;
-	void*		headers_ptr;
-	size_t		headers_ptr_length;
+	void*		usr_hdr_ptr;
+	size_t		usr_hdr_ptr_length;
 	struct timespec	hw_timestamp;
 };
-
-/**
- * use this in setsockopt for the ring creation
- */
-#define SO_VMA_RING_ALLOC_LOGIC		2810
 
 typedef int vma_ring_profile_key;
 
@@ -248,13 +240,21 @@ struct vma_ring_alloc_logic_attr {
 	uint32_t	reserved:30;
 };
 
+/*
+ * @note you cannot use RAW_PACKET with hdr_bytes > 0
+ */
 typedef enum {
-	CB_COMP_HDR_BYTE = (1 << 0),
-} vma_cyclic_buffer_ring_attr_comp_mask;
+	RAW_PACKET,            // Full wire packet in payload_ptr cyclic buffer
+	STRIP_NETWORK_HDRS,    // Strip down packet's network headers in cyclic buffers.
+	SEPERATE_NETWORK_HDRS, // Expose the packet's network headers in headers_ptr
+} vma_cb_packet_rec_mode;
+
+typedef enum {
+	VMA_CB_HDR_BYTE = (1 << 0),
+} vma_cb_ring_attr_mask;
 
 /**
- * @param comp_mask - what fields are read when processing this sturct
- * 	see @ref vma_cyclic_buffer_ring_attr_comp_mask
+ * @param comp_mask - what fields are read when processing this sturct see @ref vma_cb_ring_attr_mask
  * @param num - Minimum number of elements allocated in the circular buffer
  * @param hdr_bytes - Bytes separated from UDP payload which are
  * 	part of the application header
@@ -263,22 +263,42 @@ typedef enum {
  * 	control (does not include the hdr_bytes). Should be smaller
  * 	than MTU.
  *
- * @note general packet structure
- * +--------------------------------------------------------------------------+
- * |   mac+ip+udp   |           datagram payload                 |  alignment |
- * +--------------------------------------------------------------------------+
- * | Header to drop |       hdr_bytes    | stride_bytes                       |
- * |                | e.g. RTP header    | e.g. RTP payload      | alignment  |
- * +--------------------------------------------------------------------------+
+ * @note your packet will be written to the memory in a different way depending
+ * on the packet_receive_mode and hdr_bytes.
+ * In all modes all the packets and\or headers will be contiguous in the memory.
+ * The number of headers\packets is equal to packets in @ref vma_completion_cb_t.
+ * the packet memory layout has five options:
+ * 1. RAW_PACKET - payload_ptr will point to the raw packet containing the
+ *     network headers and user payload.
+ * 2. STRIP_NETWORK_HDRS - network headers will be ignored by VMA.
+ *      payload_ptr - will point to the first packet which it size is defined in
+ *          stride_bytes.
+ *      a. hdr_bytes > 0
+ *          usr_hdr_ptr will point to the first header.
+ *      b. hdr_bytes = 0
+ *          usr_hdr_ptr is NULL
+ * 2. SEPERATE_NETWORK_HDRS - network headers will be dropped
+ *     payload_ptr - will point to the first packet as it size is defined
+ *     in stride_bytes.
+ *     a. hdr_bytes > 0
+ *         usr_hdr_ptr will point to the first network header + user header
+ *         (contiguous in memory).
+ *     b. hdr_bytes = 0
+ *         usr_hdr_ptr will point to the first network header.
  */
 struct vma_cyclic_buffer_ring_attr {
-	uint32_t	comp_mask;
-	uint32_t	num;
-	uint16_t	stride_bytes;
-	uint16_t	hdr_bytes;
+	uint32_t		comp_mask;
+	uint32_t		num;
+	uint16_t		stride_bytes;
+	uint16_t		hdr_bytes;
+	vma_cb_packet_rec_mode	packet_receive_mode;
 };
 
 struct vma_packet_queue_ring_attr {
+	uint32_t	comp_mask;
+};
+
+struct vma_external_mem_attr {
 	uint32_t	comp_mask;
 };
 
@@ -289,7 +309,8 @@ typedef enum {
 
 typedef enum {
 	VMA_RING_PACKET,
-	VMA_RING_CYCLIC_BUFFER
+	VMA_RING_CYCLIC_BUFFER,
+	VMA_RING_EXTERNAL_MEM,
 } vma_ring_type;
 
 /**
@@ -304,7 +325,67 @@ struct vma_ring_type_attr {
 	union {
 		struct vma_cyclic_buffer_ring_attr	ring_cyclicb;
 		struct vma_packet_queue_ring_attr	ring_pktq;
+		struct vma_external_mem_attr		ring_ext;
 	};
+};
+
+typedef enum {
+	VMA_HW_RESERVED
+} mlx_hw_device_cap;
+
+struct dev_data {
+	uint32_t vendor_id;
+	uint32_t vendor_part_id;
+	uint32_t device_cap; // mlx_hw_device_cap
+};
+
+struct hw_cq_data {
+	void *buf;
+	volatile uint32_t *dbrec;
+	uint32_t cq_size;
+	uint32_t cqe_size;
+	uint32_t cqn;
+	void *uar;
+	// for notifications
+	uint32_t *cons_idx;
+};
+
+struct hw_wq_data {
+	void *buf;
+	uint32_t wqe_cnt;
+	uint32_t stride;
+	volatile uint32_t *dbrec;
+	struct hw_cq_data cq_data;
+};
+
+struct hw_rq_data {
+	struct hw_wq_data wq_data;
+	// TBD do we need it
+	uint32_t *head;
+	uint32_t *tail;
+};
+
+struct hw_sq_data {
+	struct hw_wq_data wq_data;
+	uint32_t sq_num;
+	struct {
+		void *reg;
+		uint32_t size;
+		uint32_t offset;
+	} bf;
+};
+
+typedef enum {
+	DATA_VALID_DEV,
+	DATA_VALID_SQ,
+	DATA_VALID_RQ,
+} vma_mlx_hw_valid_data_mask;
+
+struct vma_mlx_hw_device_data {
+	uint32_t valid_mask; // see vma_mlx_hw_valid_data_mask
+	struct dev_data dev_data;
+	struct hw_sq_data sq_data;
+	struct hw_rq_data rq_data;
 };
 
 /** 
@@ -351,8 +432,8 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * @param s Socket file descriptor.
 	 * @param callback Callback function.
 	 * @param context user contex for callback function.
-	 * 
 	 * @return 0 - success, -1 - error
+	 * 
 	 * errno is set to: EINVAL - not VMA offloaded socket 
 	 */
 	int (*register_recv_callback)(int s, vma_recv_callback_t callback, void *context);
@@ -421,7 +502,7 @@ struct __attribute__ ((packed)) vma_api_t {
 
 
 	/**
-	 * vma_poll() polls for VMA completions
+	 * socketxtreme_poll() polls for VMA completions
 	 *
 	 * @param fd File descriptor.
 	 * @param completions VMA completions array.
@@ -435,37 +516,37 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * The `fd` can represent a ring, socket or epoll file descriptor.
 	 *
 	 * VMA completions are indicated for incoming packets and/or for other events.
-	 * If VMA_POLL_PACKET flag is enabled in vma_completion_t.events field
+	 * If VMA_SOCKETXTREME_PACKET flag is enabled in vma_completion_t.events field
 	 * the completion points to incoming packet descriptor that can be accesses
 	 * via vma_completion_t.packet field.
 	 * Packet descriptor points to VMA buffers that contain data scattered
 	 * by HW, so the data is deliver to application with zero copy.
 	 * Notice: after application finished using the returned packets
-	 * and their buffers it must free them using free_vma_packets()/free_vma_buff()
+	 * and their buffers it must free them using socketxtreme_free_vma_packets()/socketxtreme_free_vma_buff()
 	 * functions.
-	 * If VMA_POLL_PACKET flag is disabled vma_completion_t.packet field is
+	 * If VMA_SOCKETXTREME_PACKET flag is disabled vma_completion_t.packet field is
 	 * reserved.
 	 *
-	 * In addition to packet arrival event (indicated by VMA_POLL_PACKET flag)
-	 * VMA also reports VMA_POLL_NEW_CONNECTION_ACCEPTED event and standard
+	 * In addition to packet arrival event (indicated by VMA_SOCKETXTREME_PACKET flag)
+	 * VMA also reports VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED event and standard
 	 * epoll events via vma_completion_t.events field.
-	 * VMA_POLL_NEW_CONNECTION_ACCEPTED event is reported when new connection is
+	 * VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED event is reported when new connection is
 	 * accepted by the server.
-	 * When working with vma_poll() new connections are accepted
+	 * When working with socketxtreme_poll() new connections are accepted
 	 * automatically and accept(listen_socket) must not be called.
-	 * VMA_POLL_NEW_CONNECTION_ACCEPTED event is reported for the new
+	 * VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED event is reported for the new
 	 * connected/child socket (vma_completion_t.user_data refers to child socket)
 	 * and EPOLLIN event is not generated for the listen socket.
 	 * For events other than packet arrival and new connection acceptance
 	 * vma_completion_t.events bitmask composed using standard epoll API
 	 * events types.
 	 * Notice: the same completion can report multiple events, for example
-	 * VMA_POLL_PACKET flag can be enabled together with EPOLLOUT event,
+	 * VMA_SOCKETXTREME_PACKET flag can be enabled together with EPOLLOUT event,
 	 * etc...
 	 *
-	 * * errno is set to: TBD...
+	 * * errno is set to: EOPNOTSUPP - socketXtreme was not enabled during configuration time.
 	 */
-	 int (*vma_poll)(int fd, struct vma_completion_t* completions, unsigned int ncompletions, int flags);
+	int (*socketxtreme_poll)(int fd, struct vma_completion_t* completions, unsigned int ncompletions, int flags);
 
 	 /**
 	 * Returns the amount of rings that are associated with socket.
@@ -476,7 +557,7 @@ struct __attribute__ ((packed)) vma_api_t {
 	 *
 	 * errno is set to: EINVAL - not a VMA offloaded fd
 	 */
-	 int (*get_socket_rings_num)(int fd);
+	int (*get_socket_rings_num)(int fd);
 
 	 /**
 	 * Returns FDs of the rings that are associated with the socket.
@@ -493,10 +574,10 @@ struct __attribute__ ((packed)) vma_api_t {
 	 *
 	 * errno is set to: EINVAL - not a VMA offloaded fd + TBD
 	 */
-	 int (*get_socket_rings_fds)(int fd, int *ring_fds, int ring_fds_sz);
+	int (*get_socket_rings_fds)(int fd, int *ring_fds, int ring_fds_sz);
 
 	/**
-	 * Frees packets received by vma_poll().
+	 * Frees packets received by socketxtreme_poll().
 	 *
 	 * @param packets Packets to free.
 	 * @param num Number of packets in `packets` array
@@ -511,15 +592,16 @@ struct __attribute__ ((packed)) vma_api_t {
 	 *   ref count and only buffers with ref count zero are deallocated.
 	 *   Notice:
 	 *   - Application can increase buffer reference count,
-	 *     in order to hold the buffer even after free_vma_packets()
+	 *     in order to hold the buffer even after socketxtreme_free_vma_packets()
 	 *     was called for the buffer, using vma_buff_ref().
 	 *   - Application is responsible to free buffers, that
-	 *     couldn't be deallocated during free_vma_packets() due to
-	 *     non zero reference count, using free_vma_buff() function.
+	 *     couldn't be deallocated during socketxtreme_free_vma_packets() due to
+	 *     non zero reference count, using socketxtreme_free_vma_buff() function.
 	 *
-	 * errno is set to: EINVAL if NULL pointer is provided.
+	 * errno is set to: EINVAL - NULL pointer is provided.
+	 *                  EOPNOTSUPP - socketXtreme was not enabled during configuration time.
 	 */
-	int (*free_vma_packets)(struct vma_packet_desc_t *packets, int num);
+	int (*socketxtreme_free_vma_packets)(struct vma_packet_desc_t *packets, int num);
 
 	/* This function increments the reference count of the buffer.
 	 * This function should be used in order to hold the buffer
@@ -531,9 +613,10 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * @return On success, return buffer's reference count after the change
 	 * 	   On errors -1 is returned
 	 *
-	 * errno is set to EINVAL if NULL pointer is provided.
+	 * errno is set to: EINVAL - NULL pointer is provided.
+	 *                  EOPNOTSUPP - socketXtreme was not enabled during configuration time.
 	 */
-	int (*ref_vma_buff)(struct vma_buff_t *buff);
+	int (*socketxtreme_ref_vma_buff)(struct vma_buff_t *buff);
 
 	/* This function decrements the buff reference count.
 	 * When buff's reference count reaches zero, the buff is
@@ -545,15 +628,18 @@ struct __attribute__ ((packed)) vma_api_t {
 	 *
 	 * Notice: return value zero means that buffer was deallocated.
 	 *
-	 * errno is set to EINVAL if NULL pointer is provided.
+	 * errno is set to: EINVAL - NULL pointer is provided.
+	 *                  EOPNOTSUPP - socketXtreme was not enabled during configuration time.
 	 */
-	int (*free_vma_buff)(struct vma_buff_t *buff);
+	int (*socketxtreme_free_vma_buff)(struct vma_buff_t *buff);
 
 	/*
 	 * Dump fd statistics using VMA logger.
 	 * @param fd to dump, 0 for all open fds.
 	 * @param log_level dumping level corresponding vlog_levels_t enum (vlogger.h).
 	 * @return 0 on success, or error code on failure.
+	 *
+	 * errno is set to: EOPNOTSUPP - Function is not supported when socketXtreme is enabled.
 	 */
 	int (*dump_fd_stats) (int fd, int log_level);
 
@@ -566,6 +652,8 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * @param max max packets to return
 	 * @param flags can be MSG_DONTWAIT, MSG_WAITALL (not yet supported), MSG_PEEK (not yet supported)
 	 * @return 0 on success -1 on failure
+	 *
+	 * errno is set to: EOPNOTSUPP - Striding RQ is no supported.
 	 */
 	int (*vma_cyclic_buffer_read)(int fd,
 				      struct vma_completion_cb_t *completion,
@@ -580,6 +668,62 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * @return 0 on success -1 on failure
 	 */
 	int (*vma_add_ring_profile)(struct vma_ring_type_attr *profile, int *key);
+
+	/**
+	 * get the socket's network header created by VMA
+	 * @param fd - the socket's fd
+	 * @param ptr - pointer to write the data to. can be NULL see notes
+	 * @param len - IN\OUT parameter
+	 * 	IN - len given by user
+	 * 	OUT- len used by header
+	 * @return 0 on success -1 on error
+	 * 	errno EINVAL - bad fd
+	 * 	errno ENOBUFS - ptr is too small
+	 * 	errno ENOTCONN - header no available since socket is not
+	 * 		ofloaded or not connected
+	 * @note this function should be called for connected socket
+	 * @note calling with ptr NULL will update the len with the size needed
+	 * 	by VMA so application will allocate the exact needed space
+	 * @note application can:
+	 * 	call twice once with ptr == NULL and get the size needed to allocate
+	 * 	and call again to get the data.
+	 * 	if application called with big enough buffer vma will update the
+	 * 	size actually used.
+	 */
+	int (*get_socket_network_header)(int fd, void *ptr, uint16_t *len);
+
+	/**
+	 * get the HW descriptors created by VMA
+	 * @param fd - the ring fd
+	 * @param data - result see @ref vma_mlx_hw_device_data
+	 * @return -1 on failure 0 on success
+	 */
+	int (*get_ring_direct_descriptors)(int fd,
+					   struct vma_mlx_hw_device_data *data);
+
+	/**
+	 * register memory to use on a ring.
+	 * @param fd - the ring fd see @ref socketxtreme_get_socket_rings_fds
+	 * @param addr - the virtual address to register
+	 * @param length - hte length of addr
+	 * @param key - out parameter to use when accessing this memory
+	 * @return 0 on success, -1 on failure
+	 *
+	 * @note in vma_extra_api ring is associated with device, although you
+	 * can use the key in other rings using the same port we decided to leave
+	 * the ring fd as the bridge in the "extra" convention instead of
+	 * using an opaque ib_ctx or src ip (that can cause routing issues).
+	 */
+	int (*register_memory_on_ring)(int fd, void *addr, size_t length,
+				       uint32_t *key);
+
+	/**
+	 * deregister the addr that was previously registered in this ring
+	 * @return 0 on success, -1 on failure
+	 *
+	 * @note - this function doens't free the memory
+	 */
+	int (*deregister_memory_on_ring)(int fd, void *addr, size_t length);
 };
 
 
@@ -605,7 +749,7 @@ static inline struct vma_api_t* vma_get_api()
 
 /* 
  ********************************
- * vma_poll() Demo Usage
+ * socketxtreme_poll() Demo Usage
  ********************************
 
 
@@ -648,7 +792,7 @@ myapp_socket_main_loop()
 	// Main traffic processing loop going into VMA engine
 	while (!to_exit) {
 
-		ready_comp = vma_api->vma_poll(ring_fd, &comp, 1, flags);
+		ready_comp = vma_api->socketxtreme_poll(ring_fd, &comp, 1, flags);
 
 		// recv path socket API...
 		if (ready_comp > 0) {
@@ -662,7 +806,7 @@ myapp_socket_main_loop()
 					curr_buff = curr_buff->next;
 				}
 				//Update socket's TCP window size
-				vma_api->free_vma_packets(socket_fd, &comp.packet, 1);
+				vma_api->socketxtreme_free_vma_packets(socket_fd, &comp.packet, 1);
 			}
 			myapp_processes_events_func(comp.user_data,comp.events);
 
@@ -713,7 +857,7 @@ myapp_processes_events_func(
 
 
  *
- * vma_poll() UDP Demo Usage
+ * socketxtreme_poll() UDP Demo Usage
  *
 
 
@@ -754,11 +898,11 @@ myapp_socket_main_loop()
 	// Main traffic processing loop going into VMA engine
 	while (!to_exit) {
 
-		ready_comp = vma_api->vma_poll(ring_fd, &comp, 1, flags);
+		ready_comp = vma_api->socketxtreme_poll(ring_fd, &comp, 1, flags);
 
 		// recv path socket API...
 		if (ready_comp > 0) {
-			if (comp.events & VMA_POLL_PACKET) {
+			if (comp.events & VMA_SOCKETXTREME_PACKET) {
 				myapp_processes_packet_func(comp.user_data, &comp.packet);
 
 				//Hold the buffers

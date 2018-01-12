@@ -635,7 +635,7 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 		if (m_so_bindtodevice_ip) {
 			m_p_connected_dst_entry->set_so_bindtodevice_addr(m_so_bindtodevice_ip);
 		}
-
+		m_p_connected_dst_entry->prepare_to_send(m_so_ratelimit, false, true);
 		return 0;
 	}
 	return 0;
@@ -764,14 +764,14 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 	if (unlikely(m_b_closed) || unlikely(g_b_exit))
 		return orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
 
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 	/* Process VMA specific options only at the moment
 	 * VMA option does not require additional processing after return
 	 */
 	if (0 == sockinfo::setsockopt(__level, __optname, __optval, __optlen)) {
 		return 0;
 	}
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 
 	auto_unlocker lock_tx(m_lock_snd);
 	auto_unlocker lock_rx(m_lock_rcv);
@@ -1283,14 +1283,14 @@ int sockinfo_udp::getsockopt(int __level, int __optname, void *__optval, socklen
 	if (unlikely(m_b_closed) || unlikely(g_b_exit))
 		return ret;
 
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 	/* Process VMA specific options only at the moment
 	 * VMA option does not require additional processing after return
 	 */
 	if (0 == sockinfo::getsockopt(__level, __optname, __optval, __optlen)) {
 		return 0;
 	}
-#endif // DEFINED_VMAPOLL	
+#endif // DEFINED_SOCKETXTREME	
 
 	auto_unlocker lock_tx(m_lock_snd);
 	auto_unlocker lock_rx(m_lock_rcv);
@@ -2118,19 +2118,19 @@ inline vma_recv_callback_retval_t sockinfo_udp::inspect_by_user_cb(mem_buf_desc_
 	return m_rx_callback(m_fd, nr_frags, iov, &pkt_info, m_rx_callback_context);
 }
 
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 /* Update vma_completion with
- * VMA_POLL_PACKET related data
+ * VMA_SOCKETXTREME_PACKET related data
  */
 inline void sockinfo_udp::fill_completion(mem_buf_desc_t* p_desc)
 {
 	struct vma_completion_t *completion;
 
-	/* Try to process vma_poll() completion directly */
-	m_vma_poll_completion = m_p_rx_ring->get_comp();
+	/* Try to process socketxtreme_poll() completion directly */
+	m_socketxtreme_completion = m_p_rx_ring->get_comp();
 
-	if (m_vma_poll_completion) {
-		completion = m_vma_poll_completion;
+	if (m_socketxtreme_completion) {
+		completion = m_socketxtreme_completion;
 	} else {
 		completion = &m_ec.completion;
 	}
@@ -2146,15 +2146,15 @@ inline void sockinfo_udp::fill_completion(mem_buf_desc_t* p_desc)
 		completion->packet.buff_lst->len     = p_desc->rx.frag.iov_len;
 	}
 	completion->src = p_desc->rx.src;
-	NOTIFY_ON_EVENTS(this, VMA_POLL_PACKET);
+	NOTIFY_ON_EVENTS(this, VMA_SOCKETXTREME_PACKET);
 
-	m_vma_poll_completion = NULL;
-	m_vma_poll_last_buff_lst = NULL;
+	m_socketxtreme_completion = NULL;
+	m_socketxtreme_last_buff_lst = NULL;
 }
-#endif //DEFINED_VMAPOLL
+#endif //DEFINED_SOCKETXTREME
 
 /**
- *	Performs packet processing for NON-VMAPOLL cases and store packet
+ *	Performs packet processing for NON-SOCKETXTREME cases and store packet
  *	in ready queue.
  */
 inline void sockinfo_udp::update_ready(mem_buf_desc_t* p_desc, void* pv_fd_ready_array, vma_recv_callback_retval_t cb_ret)
@@ -2182,7 +2182,7 @@ inline void sockinfo_udp::update_ready(mem_buf_desc_t* p_desc, void* pv_fd_ready
 
 	// Add this fd to the ready fd list
 	/*
-	 * Note: No issue is expected in case vma_poll() usage because 'pv_fd_ready_array' is null
+	 * Note: No issue is expected in case socketxtreme_poll() usage because 'pv_fd_ready_array' is null
 	 * in such case and as a result update_fd_array() call means nothing
 	 */
 	io_mux_call::update_fd_array((fd_array_t*)pv_fd_ready_array, m_fd);
@@ -2242,10 +2242,10 @@ inline bool sockinfo_udp::rx_process_udp_packet_full(mem_buf_desc_t* p_desc, voi
 	//  to prevent race condition with the 'if( (--ref_count) <= 0)' in ib_comm_mgr
 	p_desc->inc_ref_count();
 
-#ifdef DEFINED_VMAPOLL
-	if (p_desc->rx.vma_polled) {
+#ifdef DEFINED_SOCKETXTREME
+	if (p_desc->rx.socketxtreme_polled) {
 		fill_completion(p_desc);
-		p_desc->rx.vma_polled = false;
+		p_desc->rx.socketxtreme_polled = false;
 	} else
 #endif
 	{
@@ -2275,10 +2275,10 @@ inline bool sockinfo_udp::rx_process_udp_packet_partial(mem_buf_desc_t* p_desc, 
 	//  to prevent race condition with the 'if( (--ref_count) <= 0)' in ib_comm_mgr
 	p_desc->inc_ref_count();
 
-#ifdef DEFINED_VMAPOLL
-	if (p_desc->rx.vma_polled) {
+#ifdef DEFINED_SOCKETXTREME
+	if (p_desc->rx.socketxtreme_polled) {
 		fill_completion(p_desc);
-		p_desc->rx.vma_polled = false;
+		p_desc->rx.socketxtreme_polled = false;
 	} else
 #endif
 	{

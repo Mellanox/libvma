@@ -13,8 +13,8 @@ dnl===-----------------------------------------------------------------------===
 # Update version number here:
 #
 define([vma_ver_major], 8)
-define([vma_ver_minor], 4)
-define([vma_ver_revision], 10)
+define([vma_ver_minor], 5)
+define([vma_ver_revision], 2)
 define([vma_ver_release], 0)
 
 
@@ -29,8 +29,8 @@ AC_INIT(libvma, [vma_ver_major.vma_ver_minor.vma_ver_revision], support@mellanox
 AC_CONFIG_HEADER([config.h])
 
 VMA_LIBRARY_MAJOR=8
-VMA_LIBRARY_MINOR=4
-VMA_LIBRARY_REVISION=10
+VMA_LIBRARY_MINOR=5
+VMA_LIBRARY_REVISION=2
 VMA_LIBRARY_RELEASE=0
 
 AC_DEFINE_UNQUOTED(VMA_LIBRARY_MAJOR, ${VMA_LIBRARY_MAJOR}, [VMA Major Version])
@@ -290,20 +290,25 @@ PROF_IBPROF_SETUP()
 #
 #PROF_RDTSC_SETUP()
 
-# VMA Extreme configuration
+# VMA SocketXtreme configuration
 #
 AC_ARG_ENABLE([vmapoll],
     AC_HELP_STRING([--enable-vmapoll],
+        [(Deprecated) Please use --enable-socketxtreme instead]),
+    AC_MSG_ERROR([--enable-vmapoll option is deprecated: please use --enable-socketxtreme instead]))
+
+AC_ARG_ENABLE([socketxtreme],
+    AC_HELP_STRING([--enable-socketxtreme],
         [Enable alternative API to standard sockets API for receiving packets (default=no)]))
-if test "x$enable_vmapoll" = xyes; then
+if test "x$enable_socketxtreme" = xyes; then
     AC_CHECK_HEADER([infiniband/mlx5_hw.h],
-        [AC_DEFINE([DEFINED_VMAPOLL], 1, [Define to 1 if vmapoll was enabled at configure time])],
-        [AC_MSG_ERROR([vmapoll mode is not supported with the current installed OFED version])])
+        [AC_DEFINE([DEFINED_SOCKETXTREME], 1, [Define to 1 if socketxtreme was enabled at configure time])],
+        [AC_MSG_ERROR([socketxtreme mode is not supported with the current installed OFED version])])
 else
-    enable_vmapoll=no
+    enable_socketxtreme=no
 fi
-AC_MSG_CHECKING([for vmapoll API support])
-AC_MSG_RESULT([$enable_vmapoll])
+AC_MSG_CHECKING([for socketxtreme API support])
+AC_MSG_RESULT([$enable_socketxtreme])
 
 
 # Thread locking control
@@ -314,11 +319,11 @@ AC_ARG_ENABLE([thread-lock],
 AC_MSG_CHECKING(
     [for thread locking support])
 if test "x$enable_thread_lock" = "xno"; then
-    if test "x$enable_vmapoll" = xyes; then
+    if test "x$enable_socketxtreme" = xyes; then
         AC_DEFINE([DEFINED_NO_THREAD_LOCK], 1, [Define to 1 to disable thread locking])
         AC_MSG_RESULT([no])
     else
-        AC_MSG_RESULT([yes (vmapoll is not enabled)])
+        AC_MSG_RESULT([yes (socketxtreme is not enabled)])
     fi
 else
     AC_MSG_RESULT([yes])
@@ -458,6 +463,7 @@ AC_CONFIG_FILES([
 		tools/Makefile
 		tools/daemon/Makefile
 		contrib/scripts/vma.init
+		contrib/scripts/vma.service
 		build/libvma.spec
 		debian/changelog
 		VMA_VERSION

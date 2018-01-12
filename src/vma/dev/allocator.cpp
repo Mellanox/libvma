@@ -104,13 +104,23 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
 	return m_data_block;
 }
 
-uint32_t vma_allocator::find_lkey_by_ib_ctx(ib_ctx_handler *p_ib_ctx_h) const
+ibv_mr* vma_allocator::find_ibv_mr_by_ib_ctx(ib_ctx_handler *p_ib_ctx_h) const
 {
 	ibv_device* dev = p_ib_ctx_h->get_ibv_device();
+
 	for (size_t i = 0; i < m_mr_list_len; ++i) {
 		if (dev == m_mr_list[i]->context->device) {
-			return m_mr_list[i]->lkey;
+			return m_mr_list[i];
 		}
+	}
+	return NULL;
+}
+
+uint32_t vma_allocator::find_lkey_by_ib_ctx(ib_ctx_handler *p_ib_ctx_h) const
+{
+	ibv_mr * mr = find_ibv_mr_by_ib_ctx(p_ib_ctx_h);
+	if (likely(mr)) {
+		return mr->lkey;
 	}
 	return 0;
 }

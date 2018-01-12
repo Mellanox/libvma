@@ -657,14 +657,14 @@ bool ring_bond::is_ratelimit_supported(uint32_t rate)
 	return true;
 }
 
-#ifdef DEFINED_VMAPOLL	
+#ifdef DEFINED_SOCKETXTREME	
 int ring_bond::fast_poll_and_process_element_rx(vma_packets_t *vma_pkts)
 {
 	NOT_IN_USE(vma_pkts);
 	return 0;
 }
 
-int ring_bond::vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags)
+int ring_bond::socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags)
 {
 	NOT_IN_USE(vma_completions);
 	NOT_IN_USE(ncompletions);
@@ -672,4 +672,4 @@ int ring_bond::vma_poll(struct vma_completion_t *vma_completions, unsigned int n
 
 	return 0;
 }
-#endif // DEFINED_VMAPOLL	
+#endif // DEFINED_SOCKETXTREME	

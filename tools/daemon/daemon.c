@@ -60,6 +60,8 @@ struct module_cfg daemon_cfg;
 
 int main(int argc, char *argv[])
 {
+	int rc = 0;
+
 	/* Setup syslog logging */
 	openlog(MODULE_NAME, LOG_PID, LOG_LOCAL5);
 
@@ -118,16 +120,16 @@ int main(int argc, char *argv[])
 	}
 
 	/* Main loop */
-	proc_loop();
+	rc = proc_loop();
 
 	/* Finish up */
 	close(daemon_cfg.lock_fd);
 	unlink(daemon_cfg.lock_file);
 
-	log_info("Terminated\n");
+	log_info("Terminated with code %d\n", rc);
 	closelog();
 
-	return EXIT_SUCCESS;
+	return (rc < 0 ? EXIT_FAILURE : EXIT_SUCCESS);
 err:
 	return EXIT_FAILURE;
 }

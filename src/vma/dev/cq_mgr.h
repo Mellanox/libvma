@@ -52,11 +52,11 @@
 #endif
 #include "vma/vma_extra.h"
 
-#ifdef DEFINED_VMAPOLL
-	#define IS_VMAPOLL true
+#ifdef DEFINED_SOCKETXTREME
+	#define IS_SOCKETXTREME true
 #else
-	#define IS_VMAPOLL false
-#endif // DEFINED_VMAPOLL
+	#define IS_SOCKETXTREME false
+#endif // DEFINED_SOCKETXTREME
 
 class net_device_mgr;
 class ring;
@@ -99,7 +99,7 @@ operator==(local_if_info_key_t const& key1, local_if_info_key_t const& key2) {
 
 struct qp_rec {
 	qp_mgr  *qp;
-	int     debth;
+	int     debt;
 };
 
 // Class cq_mgr
@@ -143,13 +143,13 @@ public:
 	 */
 	virtual int	wait_for_notification_and_process_element(uint64_t* p_cq_poll_sn,
 	   	                                          void* pv_fd_ready_array = NULL);
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 	inline volatile struct mlx5_cqe64 *mlx5_get_cqe64(void);
 	inline volatile struct mlx5_cqe64 *mlx5_get_cqe64(volatile struct mlx5_cqe64 **cqe_err);
 	volatile struct mlx5_cqe64 *mlx5_check_error_completion(volatile struct mlx5_cqe64 *cqe, volatile uint16_t *ci, uint8_t op_own);
 	inline void mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, vma_ibv_wc *wce);
 	int mlx5_poll_and_process_error_element_rx(volatile struct mlx5_cqe64 *cqe, void* pv_fd_ready_array);
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 
 	/**
 	 * This will poll n_num_poll time on the cq or stop early if it gets
@@ -194,9 +194,10 @@ public:
 	void 	modify_cq_moderation(uint32_t period, uint32_t count);
 
 	inline void convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) { m_p_ib_ctx_handler->convert_hw_time_to_system_time(hwtime, systime); }
-#ifdef DEFINED_VMAPOLL
+	virtual bool fill_cq_hw_descriptors(struct hw_cq_data &data) {NOT_IN_USE(data);return false;};
+#ifdef DEFINED_SOCKETXTREME
 	void 	mlx5_init_cq();
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 
 
 protected:
@@ -251,7 +252,7 @@ protected:
 	size_t			m_sz_transport_header;
 
 private:
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 	mem_buf_desc_t* 	m_rx_hot_buff;
 	qp_mgr*			m_qp;
 	struct mlx5_cq* 	m_mlx5_cq;
@@ -259,7 +260,7 @@ private:
 	uint16_t		m_cq_ci;
 	volatile struct		mlx5_cqe64 	(*m_mlx5_cqes)[];
 	volatile uint32_t 	*m_cq_db;
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 protected:
 	ib_ctx_handler*		m_p_ib_ctx_handler;
 private:
@@ -275,16 +276,16 @@ private:
 	cq_stats_t 		m_cq_stat_static;
 	static atomic_t		m_n_cq_id_counter;
 
-#ifdef DEFINED_VMAPOLL
-	int	vma_poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst);
-#endif // DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
+	int	socketxtreme_and_process_element_rx(mem_buf_desc_t **p_desc_lst);
+#endif // DEFINED_SOCKETXTREME
 
 	void		handle_tcp_ctl_packets(uint32_t rx_processed, void* pv_fd_ready_array);
 
-#ifdef DEFINED_VMAPOLL
-	int 		vma_poll_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff);
-	void		vma_poll_reclaim_recv_buffer_helper(mem_buf_desc_t* buff);
-#endif // DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
+	int 		socketxtreme_reclaim_single_recv_buffer_helper(mem_buf_desc_t* buff);
+	void		socketxtreme_reclaim_recv_buffer_helper(mem_buf_desc_t* buff);
+#endif // DEFINED_SOCKETXTREME
 
 	// requests safe_mce_sys().qp_compensation_level buffers from global pool
 	bool 		request_more_buffers() __attribute__((noinline));

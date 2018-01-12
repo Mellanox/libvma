@@ -248,7 +248,7 @@ struct cq_moderation_info {
 
 typedef int ring_user_id_t;
 
-#ifdef DEFINED_VMAPOLL	
+#ifdef DEFINED_SOCKETXTREME	
 /* Ring event completion */
 struct ring_ec {
 	struct list_head list;
@@ -262,7 +262,7 @@ struct ring_ec {
 		last_buff_lst = NULL;
 	}
 };
-#endif // DEFINED_VMAPOLL	
+#endif // DEFINED_SOCKETXTREME	
 
 /**
  * @class ring
@@ -326,13 +326,15 @@ public:
 	bool			is_mp_ring() {return m_is_mp_ring;};
 	virtual int		modify_ratelimit(const uint32_t ratelimit_kbps) = 0;
 	virtual bool		is_ratelimit_supported(uint32_t rate) = 0;
-
-#ifdef DEFINED_VMAPOLL		
-	virtual int		vma_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags) = 0;
+	virtual int		get_ring_descriptors(vma_mlx_hw_device_data &data) { NOT_IN_USE(data);return -1;};
+	virtual int		reg_mr(void *addr, size_t length, uint32_t &lkey) { NOT_IN_USE(addr); NOT_IN_USE(length); NOT_IN_USE(lkey); return -1;};
+	virtual int		dereg_mr(void *addr, size_t length) { NOT_IN_USE(addr);NOT_IN_USE(length); return -1;};
+#ifdef DEFINED_SOCKETXTREME		
+	virtual int		socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags) = 0;
 	virtual bool		reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return false;}
 
-	virtual int		vma_poll_reclaim_single_recv_buffer(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return -1;}
-	virtual void		vma_poll_reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return;}
+	virtual int		socketxtreme_reclaim_single_recv_buffer(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return -1;}
+	virtual void		socketxtreme_reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return;}
 
 	inline void set_vma_active(bool flag) {m_vma_active = flag;}
 	inline bool get_vma_active(void) {return m_vma_active;}
@@ -367,9 +369,9 @@ public:
 
 	struct vma_completion_t *get_comp(void)
 	{
-		return m_vma_poll_completion;
+		return m_socketxtreme_completion;
 	}
-#endif // DEFINED_VMAPOLL	
+#endif // DEFINED_SOCKETXTREME	
 
 protected:
 	uint32_t		m_n_num_resources;
@@ -377,7 +379,7 @@ protected:
 	ring*			m_parent;
 	bool			m_is_mp_ring;
 	uint32_t		m_mtu;
-#ifdef DEFINED_VMAPOLL
+#ifdef DEFINED_SOCKETXTREME
 	/* queue of event completion elements
 	 * this queue is stored events related different sockinfo (sockets)
 	 * In current implementation every sockinfo (socket) can have single event
@@ -391,11 +393,11 @@ protected:
 	/* This completion is introduced to process events directly w/o
 	 * storing them in the queue of event completion elements
 	 */
-	struct vma_completion_t* m_vma_poll_completion;
+	struct vma_completion_t* m_socketxtreme_completion;
 private:
-	/* This flag is enabled in case vma_poll() call is done */
+	/* This flag is enabled in case socketxtreme_poll() call is done */
 	bool                     m_vma_active;
-#endif // DEFINED_VMAPOLL
+#endif // DEFINED_SOCKETXTREME
 };
 
 #endif /* RING_H */

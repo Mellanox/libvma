@@ -42,7 +42,6 @@ install-exec-hook:
 	rm -f $(DESTDIR)$(libdir)/libvma.a
 	rm -f $(DESTDIR)$(bindir)/state_machine_test
 	rm -f $(DESTDIR)$(bindir)/vlogger_test
-	if [[ `id -u` -eq 0 ]];then /sbin/ldconfig || true;fi
 
 uninstall-hook:
 	rm -f $(DESTDIR)$(libdir)/libvma.so*
@@ -77,6 +76,7 @@ libvma_la_SOURCES := \
 	dev/cq_mgr_mp.cpp \
 	dev/qp_mgr.cpp \
 	dev/qp_mgr_eth_mlx5.cpp \
+	dev/qp_mgr_eth_direct.cpp \
 	dev/qp_mgr_mp.cpp \
 	dev/gro_mgr.cpp \
 	dev/ring_allocation_logic.cpp \
@@ -95,6 +95,7 @@ libvma_la_SOURCES := \
 	dev/wqe_send_handler.cpp \
 	dev/wqe_send_ib_handler.cpp \
 	dev/ring.cpp \
+	dev/ring_eth_direct.cpp \
 	dev/ring_simple.cpp \
 	dev/ring_eth_cb.cpp \
 	dev/ring_bond.cpp \
@@ -119,6 +120,7 @@ libvma_la_SOURCES := \
 	lwip/cc.c \
 	lwip/cc_lwip.c \
 	lwip/cc_cubic.c \
+	lwip/cc_none.c \
 	lwip/init.c \
 	\
 	proto/ip_frag.cpp \
@@ -180,6 +182,7 @@ libvma_la_SOURCES := \
 	dev/net_device_val.h \
 	dev/qp_mgr.h \
 	dev/qp_mgr_eth_mlx5.h \
+	dev/qp_mgr_eth_direct.h \
 	dev/qp_mgr_mp.h \
 	dev/rfs.h \
 	dev/rfs_mc.h \
@@ -190,6 +193,7 @@ libvma_la_SOURCES := \
 	dev/ring.h \
 	dev/ring_simple.h \
 	dev/ring_eth_cb.h \
+	dev/ring_eth_direct.h \
 	dev/ring_profile.h \
 	dev/wqe_send_handler.h \
 	dev/wqe_send_ib_handler.h \
