@@ -147,7 +147,7 @@ void buffer_pool::free_bpool_resources()
 	__log_info_func("done");
 }
 
-bool buffer_pool::get_buffers_thread_safe(descq_t *pDeque, mem_buf_desc_owner* desc_owner, size_t count, uint32_t lkey)
+bool buffer_pool::get_buffers_thread_safe(descq_t &pDeque, mem_buf_desc_owner* desc_owner, size_t count, uint32_t lkey)
 {
 	auto_unlocker lock(m_lock_spin);
 
@@ -156,22 +156,17 @@ bool buffer_pool::get_buffers_thread_safe(descq_t *pDeque, mem_buf_desc_owner* d
 	__log_info_funcall("requested %lu, present %lu, created %lu", count, m_n_buffers, m_n_buffers_created);
 
 	if (unlikely(m_n_buffers < count)) {
-		static vlog_levels_t log_severity = VLOG_DEBUG; // DEBUG severity will be used only once - at the 1st time
-
-		VLOG_PRINTF_INFO(log_severity, "ERROR! not enough buffers in the pool (requested: %lu, have: %lu, created: %lu, Buffer pool type: %s)",
+		VLOG_PRINTF_INFO_ONCE_THEN_ALWAYS(VLOG_DEBUG, VLOG_FUNC, "ERROR! not enough buffers in the pool (requested: %lu, have: %lu, created: %lu, Buffer pool type: %s)",
 				count, m_n_buffers, m_n_buffers_created, m_p_bpool_stat->is_rx ? "Rx" : "Tx");
 
-		log_severity = VLOG_FUNC; // for all times but the 1st one
-
 		m_p_bpool_stat->n_buffer_pool_no_bufs++;
-
 		return false;
 	}
 
 	// pop buffers from the list
 	m_n_buffers -= count;
 	m_p_bpool_stat->n_buffer_pool_size -= count;
-	while (count > 0) {
+	while (count-- > 0) {
 		// Remove from list
 		head = m_p_head;
 		m_p_head = m_p_head->p_next_desc;
@@ -181,8 +176,8 @@ bool buffer_pool::get_buffers_thread_safe(descq_t *pDeque, mem_buf_desc_owner* d
 		head->lkey = lkey;
 		head->p_desc_owner = desc_owner;
 
-		pDeque->push_back(head);
-		--count;
+		// Push to queue
+		pDeque.push_back(head);
 	}
 
 	return true;

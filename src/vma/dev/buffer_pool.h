@@ -66,7 +66,7 @@ public:
 	 * @param lkey The registered memory lkey.
 	 * @return False if no buffers are available, else True.
 	 */
-	bool get_buffers_thread_safe(descq_t *pDeque, mem_buf_desc_owner* desc_owner, size_t count, uint32_t lkey);
+	bool get_buffers_thread_safe(descq_t &pDeque, mem_buf_desc_owner* desc_owner, size_t count, uint32_t lkey);
 
 	/**
 	 * Return buffers to the pool.

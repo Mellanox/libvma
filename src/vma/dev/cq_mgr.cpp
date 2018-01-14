@@ -263,7 +263,6 @@ void cq_mgr::add_qp_rx(qp_mgr* qp)
 	cq_logdbg("qp_mgr=%p", qp);
 	descq_t temp_desc_list;
 	temp_desc_list.set_id("cq_mgr (%p) : temp_desc_list", this);
-	bool res;
 
 	m_p_cq_stat->n_rx_drained_at_once_max = 0;
 
@@ -276,12 +275,10 @@ void cq_mgr::add_qp_rx(qp_mgr* qp)
 		uint32_t n_num_mem_bufs = m_n_sysvar_rx_num_wr_to_post_recv;
 		if (n_num_mem_bufs > qp_rx_wr_num)
 			n_num_mem_bufs = qp_rx_wr_num;
-		res = g_buffer_pool_rx->get_buffers_thread_safe(&temp_desc_list, m_p_ring, n_num_mem_bufs, m_rx_lkey);
+		bool res = g_buffer_pool_rx->get_buffers_thread_safe(temp_desc_list, m_p_ring, n_num_mem_bufs, m_rx_lkey);
 		if (!res) {
-			static vlog_levels_t log_severity = VLOG_WARNING; // WARNING severity will be used only once - at the 1st time
-			VLOG_PRINTF_INFO(log_severity, "WARNING Out of mem_buf_desc from Rx buffer pool for qp_mgr qp_mgr initialization (qp=%p)", qp);
-			VLOG_PRINTF_INFO(log_severity, "WARNING This might happen due to wrong setting of VMA_RX_BUFS and VMA_RX_WRE. Please refer to README.txt for more info");
-			log_severity = VLOG_DEBUG; // for all times but the 1st one
+			VLOG_PRINTF_INFO_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG, "WARNING Out of mem_buf_desc from Rx buffer pool for qp_mgr qp_mgr initialization (qp=%p),\n"
+					"\tThis might happen due to wrong setting of VMA_RX_BUFS and VMA_RX_WRE. Please refer to README.txt for more info", qp);
 			break;
 		}
 
@@ -333,7 +330,7 @@ bool cq_mgr::request_more_buffers()
 
 	// Assume locked!
 	// Add an additional free buffer descs to RX cq mgr
-	bool res = g_buffer_pool_rx->get_buffers_thread_safe(&m_rx_pool, m_p_ring, m_n_sysvar_qp_compensation_level, m_rx_lkey);
+	bool res = g_buffer_pool_rx->get_buffers_thread_safe(m_rx_pool, m_p_ring, m_n_sysvar_qp_compensation_level, m_rx_lkey);
 	if (!res) {
 		cq_logfunc("Out of mem_buf_desc from RX free pool for internal object pool");
 		return false;
@@ -586,7 +583,7 @@ bool cq_mgr::compensate_qp_poll_success(mem_buf_desc_t* buff_cur)
 #endif // DEFINED_SOCKETXTREME
 		
 		if (m_rx_pool.size() || request_more_buffers()) {
-			m_qp_rec.debt -= m_qp_rec.qp->post_recv_buffers(&m_rx_pool, MIN((size_t)m_qp_rec.debt, m_rx_pool.size()));
+			m_qp_rec.debt -= m_qp_rec.qp->post_recv_buffers(&m_rx_pool, std::min<size_t>(m_qp_rec.debt, m_rx_pool.size()));
 			m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
 		}
 		else if (m_b_sysvar_cq_keep_qp_full ||

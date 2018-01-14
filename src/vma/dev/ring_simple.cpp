@@ -1737,7 +1737,7 @@ bool ring_simple::request_more_tx_buffers(uint32_t count)
 {
 	ring_logfuncall("Allocating additional %d buffers for internal use", count);
 
-	bool res = g_buffer_pool_tx->get_buffers_thread_safe(&m_tx_pool, this, count, m_tx_lkey);
+	bool res = g_buffer_pool_tx->get_buffers_thread_safe(m_tx_pool, this, count, m_tx_lkey);
 	if (!res) {
 		ring_logfunc("Out of mem_buf_desc from TX free pool for internal object pool");
 		return false;

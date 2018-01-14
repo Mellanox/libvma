@@ -476,7 +476,7 @@ uint32_t qp_mgr::get_rx_max_wr_num()
 	return m_rx_num_wr;
 }
 
-int qp_mgr::post_recv_buffer(mem_buf_desc_t* p_mem_buf_desc)
+void qp_mgr::post_recv_buffer(mem_buf_desc_t* p_mem_buf_desc)
 {
 	if (m_n_sysvar_rx_prefetch_bytes_before_poll) {
 		if (m_p_prev_rx_desc_pushed)
@@ -522,22 +522,17 @@ int qp_mgr::post_recv_buffer(mem_buf_desc_t* p_mem_buf_desc)
 	else {
 		m_curr_rx_wr++;
 	}
-
-	return 0;
 }
 
-int qp_mgr::post_recv_buffers(descq_t* p_buffers, size_t count)
+size_t qp_mgr::post_recv_buffers(descq_t* p_buffers, size_t count)
 {
 	qp_logfuncall("");
 	// Called from cq_mgr context under cq_mgr::LOCK!
-	int sum;
-	for (sum = 0; count > 0 ; sum++, count--) {
-		if (post_recv_buffer(p_buffers->get_and_pop_front()) < 0) {
-			break;
-		}
+	for (size_t i = 0; i < count ; i++) {
+		post_recv_buffer(p_buffers->get_and_pop_front());
 	}
 
-	return sum;
+	return count;
 }
 
 inline int qp_mgr::send_to_wire(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr, bool request_comp)
