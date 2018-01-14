@@ -583,7 +583,9 @@ bool cq_mgr::compensate_qp_poll_success(mem_buf_desc_t* buff_cur)
 #endif // DEFINED_SOCKETXTREME
 		
 		if (m_rx_pool.size() || request_more_buffers()) {
-			m_qp_rec.debt -= m_qp_rec.qp->post_recv_buffers(&m_rx_pool, std::min<size_t>(m_qp_rec.debt, m_rx_pool.size()));
+			size_t buffers = std::min<size_t>(m_qp_rec.debt, m_rx_pool.size());
+			m_qp_rec.qp->post_recv_buffers(&m_rx_pool, buffers);
+			m_qp_rec.debt -= buffers;
 			m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
 		}
 		else if (m_b_sysvar_cq_keep_qp_full ||

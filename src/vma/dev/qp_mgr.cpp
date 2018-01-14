@@ -524,15 +524,13 @@ void qp_mgr::post_recv_buffer(mem_buf_desc_t* p_mem_buf_desc)
 	}
 }
 
-size_t qp_mgr::post_recv_buffers(descq_t* p_buffers, size_t count)
+void qp_mgr::post_recv_buffers(descq_t* p_buffers, size_t count)
 {
 	qp_logfuncall("");
 	// Called from cq_mgr context under cq_mgr::LOCK!
-	for (size_t i = 0; i < count ; i++) {
+	while (count--) {
 		post_recv_buffer(p_buffers->get_and_pop_front());
 	}
-
-	return count;
 }
 
 inline int qp_mgr::send_to_wire(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr, bool request_comp)
