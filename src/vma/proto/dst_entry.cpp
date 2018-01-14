@@ -48,11 +48,12 @@
 #define dst_logfuncall         __log_info_funcall
 
 
-dst_entry::dst_entry(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, int owner_fd, resource_allocation_key &ring_alloc_logic):
+dst_entry::dst_entry(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, socket_data &sock_data, resource_allocation_key &ring_alloc_logic):
 	m_dst_ip(dst_ip), m_dst_port(dst_port), m_src_port(src_port), m_bound_ip(0),
 	m_so_bindtodevice_ip(0), m_route_src_ip(0), m_pkt_src_ip(0),
-	m_ring_alloc_logic(owner_fd, ring_alloc_logic, this),
-	m_p_tx_mem_buf_desc_list(NULL), m_b_tx_mem_buf_desc_list_pending(false), m_id(0)
+	m_ring_alloc_logic(sock_data.fd, ring_alloc_logic, this),
+	m_p_tx_mem_buf_desc_list(NULL), m_b_tx_mem_buf_desc_list_pending(false),
+	m_tos(sock_data.tos), m_pcp(sock_data.pcp), m_id(0)
 {
 	dst_logdbg("dst:%s:%d src: %d", m_dst_ip.to_str().c_str(), ntohs(m_dst_port), ntohs(m_src_port));
 	init_members();
@@ -118,7 +119,6 @@ void dst_entry::init_members()
 	memset(&m_fragmented_send_wqe, 0, sizeof(m_not_inline_send_wqe));
 	m_p_send_wqe_handler = NULL;
 	memset(&m_sge, 0, sizeof(m_sge));
-	m_tos = 0;
 	m_ttl = 64;
 	m_b_is_offloaded = true;
 	m_b_is_initialized = false;
@@ -376,8 +376,9 @@ bool dst_entry::conf_l2_hdr_and_snd_wqe_eth()
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (src && dst) {
 		BULLSEYE_EXCLUDE_BLOCK_END
-			if (netdevice_eth->get_vlan()) { //vlam interface
-				m_header.configure_vlan_eth_headers(*src, *dst, netdevice_eth->get_vlan());
+			if (netdevice_eth->get_vlan()) { //vlan interface
+				uint16_t vlan_tci = (m_pcp << 12) | netdevice_eth->get_vlan();
+				m_header.configure_vlan_eth_headers(*src, *dst, vlan_tci);
 			}
 			else {
 				m_header.configure_eth_headers(*src, *dst);
@@ -529,7 +530,7 @@ bool dst_entry::offloaded_according_to_rules()
 	return ret_val;
 }
 
-bool dst_entry::prepare_to_send(const int ratelimit_kbps, bool skip_rules, bool is_connect)
+bool dst_entry::prepare_to_send(struct vma_rate_limit_t &rate_limit, bool skip_rules, bool is_connect)
 {
 	bool resolved = false;
 	m_slow_path_lock.lock();
@@ -552,9 +553,7 @@ bool dst_entry::prepare_to_send(const int ratelimit_kbps, bool skip_rules, bool 
 			m_max_ip_payload_size = m_max_udp_payload_size & ~0x7;
 			if (resolve_ring()) {
 				is_ofloaded = true;
-				if (ratelimit_kbps) {
-					modify_ratelimit(ratelimit_kbps);
-				}
+				modify_ratelimit(rate_limit);
 				if (resolve_neigh()) {
 					if (get_obs_transport_type() == VMA_TRANSPORT_ETH) {
 						dst_logdbg("local mac: %s peer mac: %s", m_p_net_dev_val->get_l2_address()->to_str().c_str(), m_p_neigh_val->get_l2_address()->to_str().c_str());
@@ -702,17 +701,16 @@ uint16_t dst_entry::get_dst_port()
 ssize_t dst_entry::pass_buff_to_neigh(const iovec * p_iov, size_t & sz_iov, uint16_t packet_id)
 {
 	ssize_t ret_val = 0;
-	neigh_send_info n_send_info;
 
 	dst_logdbg("");
 
 	configure_ip_header(&m_header_neigh, packet_id);
 
 	if (m_p_neigh_entry) {
-		n_send_info.m_p_iov = const_cast<iovec *>(p_iov);
-		n_send_info.m_sz_iov = sz_iov;
-		n_send_info.m_protocol = get_protocol_type();
-		n_send_info.m_p_header = &m_header_neigh;
+		neigh_send_info n_send_info(const_cast<iovec *>(p_iov),
+				sz_iov, &m_header_neigh,
+				get_protocol_type(), get_route_mtu(),
+				m_tos);
 		ret_val = m_p_neigh_entry->send(n_send_info);
 	}
 
@@ -763,10 +761,10 @@ void dst_entry::return_buffers_pool()
 	}
 }
 
-int dst_entry::modify_ratelimit(const uint32_t ratelimit_kbps)
+int dst_entry::modify_ratelimit(struct vma_rate_limit_t &rate_limit)
 {
 	if (m_p_ring) {
-		return m_p_ring->modify_ratelimit(ratelimit_kbps);
+		return m_p_ring->modify_ratelimit(rate_limit);
 	}
 	return 0;
 }

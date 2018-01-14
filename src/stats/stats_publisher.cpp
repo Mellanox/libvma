@@ -46,7 +46,6 @@ static lock_spin	g_lock_mc_info("g_lock_mc_info");
 static lock_spin	g_lock_skt_inst_arr("g_lock_skt_inst_arr");
 static lock_spin	g_lock_ring_inst_arr("g_lock_ring_inst_arr");
 static lock_spin	g_lock_cq_inst_arr("g_lock_cq_inst_arr");
-static lock_spin	g_lock_bpool_inst_arr("g_lock_bpool_inst_arr");
 static lock_spin	g_lock_iomux("g_lock_iomux");
 
 static sh_mem_info_t	g_sh_mem_info;
@@ -545,12 +544,11 @@ void vma_stats_instance_remove_cq_block(cq_stats_t* local_stats_addr)
 void vma_stats_instance_create_bpool_block(bpool_stats_t* local_stats_addr)
 {
 	bpool_stats_t* p_instance_bpool = NULL;
-	g_lock_bpool_inst_arr.lock();
 	for (int i=0; i < NUM_OF_SUPPORTED_BPOOLS; i++) {
 		if (!g_sh_mem->bpool_inst_arr[i].b_enabled) {
-			g_sh_mem->bpool_inst_arr[i].b_enabled = true;
 			p_instance_bpool = &g_sh_mem->bpool_inst_arr[i].bpool_stats;
 			memset(p_instance_bpool, 0, sizeof(bpool_stats_t));
+			g_sh_mem->bpool_inst_arr[i].b_enabled = true;
 			break;
 		}
 	}
@@ -564,19 +562,16 @@ void vma_stats_instance_create_bpool_block(bpool_stats_t* local_stats_addr)
 		g_p_stats_data_reader->add_data_reader(local_stats_addr, p_instance_bpool, sizeof(bpool_stats_t));
 		__log_dbg("Added bpool local=%p shm=%p\n", local_stats_addr, p_instance_bpool);
 	}
-	g_lock_bpool_inst_arr.unlock();
 }
 
 void vma_stats_instance_remove_bpool_block(bpool_stats_t* local_stats_addr)
 {
-	g_lock_bpool_inst_arr.lock();
 	__log_dbg("Remove bpool local=%p\n", local_stats_addr);
 
 	bpool_stats_t* p_bpool_stats = (bpool_stats_t*)g_p_stats_data_reader->pop_data_reader(local_stats_addr);
 
 	if (p_bpool_stats == NULL) {
 		__log_dbg("application vma_stats pointer is NULL\n");
-		g_lock_bpool_inst_arr.unlock();
 		return;
 	}
 
@@ -584,13 +579,11 @@ void vma_stats_instance_remove_bpool_block(bpool_stats_t* local_stats_addr)
 	for (int i=0; i<NUM_OF_SUPPORTED_BPOOLS; i++) {
 		if (&g_sh_mem->bpool_inst_arr[i].bpool_stats == p_bpool_stats) {
 			g_sh_mem->bpool_inst_arr[i].b_enabled = false;
-			g_lock_bpool_inst_arr.unlock();
 			return;
 		}
 	}
 
 	vlog_printf(VLOG_ERROR, "%s:%d: Could not find user pointer (%p)", __func__, __LINE__, p_bpool_stats);
-	g_lock_bpool_inst_arr.unlock();
 }
 
 void  vma_stats_instance_get_poll_block(iomux_func_stats_t* local_stats_addr)

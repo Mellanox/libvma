@@ -83,9 +83,9 @@ sockinfo::sockinfo(int fd):
 		m_n_sysvar_rx_poll_num(safe_mce_sys().rx_poll_num),
 		m_ring_alloc_log_rx(safe_mce_sys().ring_allocation_logic_rx),
 		m_ring_alloc_log_tx(safe_mce_sys().ring_allocation_logic_tx),
+		m_pcp(0),
 		m_rx_callback(NULL),
-		m_rx_callback_context(NULL),
-		m_so_ratelimit(0)
+		m_rx_callback_context(NULL)
 #ifdef DEFINED_SOCKETXTREME
 		, m_fd_context((void *)((uintptr_t)m_fd))
 #endif // DEFINED_SOCKETXTREME
@@ -109,6 +109,7 @@ sockinfo::sockinfo(int fd):
 	m_p_socket_stats->inode = fd2inode(m_fd);
 	m_p_socket_stats->b_blocking = m_b_blocking;
 	m_rx_reuse_buff.n_buff_num = 0;
+	memset(&m_so_ratelimit, 0, sizeof(struct vma_rate_limit_t));
 
 #ifdef DEFINED_SOCKETXTREME 
 	m_ec.clear();
@@ -280,8 +281,14 @@ int sockinfo::getsockopt(int __level, int __optname, void *__optval, socklen_t *
 #endif // DEFINED_SOCKETXTREME
 
 		case SO_MAX_PACING_RATE:
-			if (*__optlen >= sizeof(int)) {
-				*(int *)__optval = KB_TO_BYTE(m_so_ratelimit);
+			if (*__optlen >= sizeof(struct vma_rate_limit_t)) {
+				*(struct vma_rate_limit_t*)__optval = m_so_ratelimit;
+				(*(struct vma_rate_limit_t*)__optval).rate = KB_TO_BYTE(m_so_ratelimit.rate);
+				*__optlen = sizeof(struct vma_rate_limit_t);
+				si_logdbg("(SO_MAX_PACING_RATE) value: %d, %d, %d", (*(struct vma_rate_limit_t*)__optval).rate, (*(struct vma_rate_limit_t*)__optval).upper_bound_sz, (*(struct vma_rate_limit_t*)__optval).typical_pkt_sz);
+			} else if (*__optlen >= sizeof(uint32_t)) {
+				*(uint32_t*)__optval = KB_TO_BYTE(m_so_ratelimit.rate);
+				*__optlen = sizeof(uint32_t);
 				si_logdbg("(SO_MAX_PACING_RATE) value: %d", *(int *)__optval);
 				ret = 0;
 			} else {
@@ -1207,23 +1214,28 @@ int sockinfo::register_callback(vma_recv_callback_t callback, void *context)
 	return 0;
 }
 
-int sockinfo::modify_ratelimit(dst_entry* p_dst_entry, const uint32_t rate_limit_bytes_per_second)
+int sockinfo::modify_ratelimit(dst_entry* p_dst_entry, struct vma_rate_limit_t &rate_limit)
 {
-	if (m_ring_alloc_log_tx.get_ring_alloc_logic() == RING_LOGIC_PER_SOCKET) {
+	if (m_ring_alloc_log_tx.get_ring_alloc_logic() == RING_LOGIC_PER_SOCKET ||
+	    m_ring_alloc_log_tx.get_ring_alloc_logic() == RING_LOGIC_PER_USER_ID) {
 		// check in qp attr that device supports
-		if (m_p_rx_ring && !m_p_rx_ring->is_ratelimit_supported(BYTE_TO_KB(rate_limit_bytes_per_second))) {
+		if (m_p_rx_ring && !m_p_rx_ring->is_ratelimit_supported(rate_limit)) {
 			si_logwarn("device doesn't support packet pacing or bad value, run ibv_devinfo -v");
 			return -1;
 		}
-		m_so_ratelimit = BYTE_TO_KB(rate_limit_bytes_per_second);
+
 		if (p_dst_entry) {
+			int ret = p_dst_entry->modify_ratelimit(rate_limit);
+
+			if (!ret)
+				m_so_ratelimit = rate_limit;
 			// value is in bytes (per second). we need to convert it to kilo-bits (per second)
-			return p_dst_entry->modify_ratelimit(m_so_ratelimit);
+			return ret;
 		}
 		return 0;
 	}
 	si_logwarn("VMA is not configured with TX ring allocation logic per "
-		   "socket.");
+		   "socket or user-id.");
 	return -1;
 }
 
@@ -1304,4 +1316,58 @@ int sockinfo::get_socket_network_ptr(void *ptr, uint16_t &len)
 	}
 	errno = ENOBUFS;
 	return -1;
+}
+
+int sockinfo::setsockopt_kernel(int __level, int __optname, const void *__optval,
+		socklen_t __optlen, int supported, bool allow_privileged)
+{
+	if (!supported) {
+		char buf[256];
+		snprintf(buf, sizeof(buf), "unimplemented setsockopt __level=%#x, __optname=%#x, [__optlen (%d) bytes of __optval=%.*s]", (unsigned)__level, (unsigned)__optname, __optlen, __optlen, (char*)__optval);
+		buf[ sizeof(buf)-1 ] = '\0';
+
+		VLOG_PRINTF_INFO(safe_mce_sys().exception_handling.get_log_severity(), "%s", buf);
+		int rc = handle_exception_flow();
+		switch (rc) {
+		case -1:
+			return rc;
+		case -2:
+			vma_throw_object_with_msg(vma_unsupported_api, buf);
+		}
+	}
+
+	si_logdbg("going to OS for setsockopt level %d optname %d", __level, __optname);
+	int ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (ret) {
+		if (EPERM == errno && allow_privileged) {
+			si_logdbg("setsockopt failure is suppressed (ret=%d %m)", ret);
+			ret = 0;
+			errno = 0;
+		}
+		else {
+			si_logdbg("setsockopt failed (ret=%d %m)", ret);
+		}
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	return ret;
+}
+
+void sockinfo::set_sockopt_prio(__const void *__optval, socklen_t __optlen)
+{
+	int val = -1;
+
+	if (__optlen == 1) {
+		val = *(uint8_t*)__optval;
+	} else if (__optlen >= 1) {
+		val = *(int*)__optval;
+	} else {
+		/* error flow is handled in kernel setsockopt */
+		si_logdbg("bad parameter size in set_sockopt_prio");
+	}
+	if (val >= 0 && val <= 6) {
+		m_pcp = (uint8_t)val;
+		si_logdbg("set socket pcp to be %d", m_pcp);
+	}
 }

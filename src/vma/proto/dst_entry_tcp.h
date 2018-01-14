@@ -47,12 +47,12 @@ class dst_entry_tcp : public dst_entry
 {
 public:
 	dst_entry_tcp(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port,
-		      int owner_fd, resource_allocation_key &ring_alloc_logic);
+		      socket_data &data, resource_allocation_key &ring_alloc_logic);
 	virtual ~dst_entry_tcp();
 
 	virtual ssize_t fast_send(const iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked = true, bool is_rexmit = false);
-	ssize_t slow_send(const iovec* p_iov, size_t sz_iov, bool is_dummy, const int ratelimit_kbps, bool b_blocked = true, bool is_rexmit = false, int flags = 0, socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF);
-	ssize_t slow_send_neigh(const iovec* p_iov, size_t sz_iov, const int ratelimit_kbps);
+	ssize_t slow_send(const iovec* p_iov, size_t sz_iov, bool is_dummy, struct vma_rate_limit_t &rate_limit, bool b_blocked = true, bool is_rexmit = false, int flags = 0, socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF);
+	ssize_t slow_send_neigh(const iovec* p_iov, size_t sz_iov, struct vma_rate_limit_t &rate_limit);
 
 	mem_buf_desc_t* get_buffer(bool b_blocked = false);
 	void put_buffer(mem_buf_desc_t * p_desc);

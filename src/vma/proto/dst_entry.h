@@ -56,17 +56,23 @@
 #include "header.h"
 #include "ip_address.h"
 
+struct socket_data {
+	int	fd;
+	uint8_t	tos;
+	uint8_t	pcp;
+};
+
 class dst_entry : public cache_observer, public tostr, public neigh_observer
 {
 
 public:
-	dst_entry(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, int owner_fd, resource_allocation_key &ring_alloc_logic);
+	dst_entry(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port, socket_data &sock_data, resource_allocation_key &ring_alloc_logic);
 	virtual ~dst_entry();
 
 	virtual void 	notify_cb();
 
-	virtual bool 	prepare_to_send(const int ratelimit_kbps, bool skip_rules=false, bool is_connect=false);
-	virtual ssize_t slow_send(const iovec* p_iov, size_t sz_iov, bool is_dummy, const int ratelimit_kbps, bool b_blocked = true, bool is_rexmit = false, int flags = 0, socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF) = 0 ;
+	virtual bool 	prepare_to_send(struct vma_rate_limit_t &rate_limit, bool skip_rules=false, bool is_connect=false);
+	virtual ssize_t slow_send(const iovec* p_iov, size_t sz_iov, bool is_dummy, struct vma_rate_limit_t &rate_limit, bool b_blocked = true, bool is_rexmit = false, int flags = 0, socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF) = 0 ;
 	virtual ssize_t fast_send(const iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked = true, bool is_rexmit = false) = 0;
 
 	bool		try_migrate_ring(lock_base& socket_lock);
@@ -79,7 +85,7 @@ public:
 	inline in_addr_t get_src_addr() const {
 		return m_pkt_src_ip;
 	}
-	int		modify_ratelimit(const uint32_t ratelimit_kbps);
+	int		modify_ratelimit(struct vma_rate_limit_t &rate_limit);
 
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
@@ -98,6 +104,7 @@ public:
 	void		return_buffers_pool();
 	int		get_route_mtu();
 	inline header*	get_network_header() { return &m_header;}
+	inline ring*	get_ring() { return m_p_ring;}
 protected:
 	ip_address 		m_dst_ip;
 	uint16_t 		m_dst_port;
@@ -130,6 +137,7 @@ protected:
 	header 			m_header_neigh;
 	uint8_t 		m_ttl;
 	uint8_t 		m_tos;
+	uint8_t 		m_pcp;
 	bool 			m_b_is_initialized;
 
 	vma_ibv_send_wr* 	m_p_send_wqe;

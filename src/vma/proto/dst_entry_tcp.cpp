@@ -48,8 +48,8 @@
 
 
 dst_entry_tcp::dst_entry_tcp(in_addr_t dst_ip, uint16_t dst_port, uint16_t src_port,
-			     int owner_fd, resource_allocation_key &ring_alloc_logic):
-			     dst_entry(dst_ip, dst_port, src_port, owner_fd, ring_alloc_logic),
+			     socket_data &sock_data , resource_allocation_key &ring_alloc_logic):
+			     dst_entry(dst_ip, dst_port, src_port, sock_data, ring_alloc_logic),
 			     m_n_sysvar_tx_bufs_batch_tcp(safe_mce_sys().tx_bufs_batch_tcp)
 {
 
@@ -190,7 +190,7 @@ out:
 
 
 
-ssize_t dst_entry_tcp::slow_send(const iovec* p_iov, size_t sz_iov, bool is_dummy, const int ratelimit_kbps, bool b_blocked /*= true*/, bool is_rexmit /*= false*/, int flags /*= 0*/, socket_fd_api* sock /*= 0*/, tx_call_t call_type /*= 0*/)
+ssize_t dst_entry_tcp::slow_send(const iovec* p_iov, size_t sz_iov, bool is_dummy, struct vma_rate_limit_t &rate_limit, bool b_blocked /*= true*/, bool is_rexmit /*= false*/, int flags /*= 0*/, socket_fd_api* sock /*= 0*/, tx_call_t call_type /*= 0*/)
 {
 	ssize_t ret_val = -1;
 
@@ -200,7 +200,7 @@ ssize_t dst_entry_tcp::slow_send(const iovec* p_iov, size_t sz_iov, bool is_dumm
 
 	m_slow_path_lock.lock();
 
-	prepare_to_send(ratelimit_kbps, true);
+	prepare_to_send(rate_limit, true);
 
 	if (m_b_is_offloaded) {
 		if (!is_valid()) { // That means that the neigh is not resolved yet
@@ -218,13 +218,13 @@ ssize_t dst_entry_tcp::slow_send(const iovec* p_iov, size_t sz_iov, bool is_dumm
 	return ret_val;
 }
 
-ssize_t dst_entry_tcp::slow_send_neigh( const iovec* p_iov, size_t sz_iov, const int ratelimit_kbps)
+ssize_t dst_entry_tcp::slow_send_neigh( const iovec* p_iov, size_t sz_iov, struct vma_rate_limit_t &rate_limit)
 {
 	ssize_t ret_val = -1;
 
 	m_slow_path_lock.lock();
 
-	prepare_to_send(ratelimit_kbps, true);
+	prepare_to_send(rate_limit, true);
 
 	if (m_b_is_offloaded) {
 		ret_val = pass_buff_to_neigh(p_iov, sz_iov);

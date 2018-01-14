@@ -194,7 +194,7 @@ protected:
 	const int32_t				m_n_sysvar_rx_poll_num;
 	ring_alloc_logic_attr			m_ring_alloc_log_rx;
 	ring_alloc_logic_attr			m_ring_alloc_log_tx;
-
+	uint8_t					m_pcp;
 #ifdef DEFINED_SOCKETXTREME
 	/* Track internal events to return in socketxtreme_poll()
 	 * Current design support single event for socket at a particular time
@@ -207,7 +207,7 @@ protected:
 	// Callback function pointer to support VMA extra API (vma_extra.h)
 	vma_recv_callback_t	m_rx_callback;
 	void*			m_rx_callback_context; // user context
-	uint32_t		m_so_ratelimit;
+	struct vma_rate_limit_t m_so_ratelimit;
 #ifdef DEFINED_SOCKETXTREME	
 	void*			m_fd_context;
 #endif // DEFINED_SOCKETXTREME	
@@ -222,6 +222,7 @@ protected:
 #ifdef DEFINED_SOCKETXTREME	
 	virtual int setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen);
 #endif // DEFINED_SOCKETXTREME	
+	int setsockopt_kernel(int __level, int __optname, const void *__optval, socklen_t __optlen, int supported, bool allow_priv);
 	virtual int getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen);
 
 	virtual	mem_buf_desc_t* get_front_m_rx_pkt_ready_list() = 0;
@@ -268,9 +269,10 @@ protected:
 	virtual void		unlock_rx_q() {m_lock_rcv.unlock();}
 
 	void 			destructor_helper();
-	int 			modify_ratelimit(dst_entry* p_dst_entry, const uint32_t rate_limit_bytes_per_second);
+	int 			modify_ratelimit(dst_entry* p_dst_entry, struct vma_rate_limit_t &rate_limit);
 
 	void 			move_owned_rx_ready_descs(const mem_buf_desc_owner* p_desc_owner, descq_t* toq); // Move all owner's rx ready packets ro 'toq'
+	void			set_sockopt_prio(__const void *__optval, socklen_t __optlen);
 
 	virtual bool try_un_offloading(); // un-offload the socket if possible
 #ifdef DEFINED_SOCKETXTREME	

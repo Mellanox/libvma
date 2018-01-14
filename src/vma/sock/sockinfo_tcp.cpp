@@ -577,8 +577,13 @@ void sockinfo_tcp::force_close()
 void sockinfo_tcp::create_dst_entry()
 {
 	if (!m_p_connected_dst_entry) {
-		m_p_connected_dst_entry = new dst_entry_tcp(m_connected.get_in_addr(), m_connected.get_in_port(),
-				m_bound.get_in_port(), m_fd, m_ring_alloc_log_tx);
+		socket_data data = { m_fd, m_pcb.tos, m_pcp};
+		m_p_connected_dst_entry = new dst_entry_tcp(m_connected.get_in_addr(),
+					m_connected.get_in_port(),
+					m_bound.get_in_port(),
+					data,
+					m_ring_alloc_log_tx);
+
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (!m_p_connected_dst_entry) {
 			si_tcp_logerr("Failed to allocate m_p_connected_dst_entry");
@@ -1027,8 +1032,8 @@ uint16_t sockinfo_tcp::get_route_mtu(struct tcp_pcb *pcb)
 		return tcp_sock->m_p_connected_dst_entry->get_route_mtu();
 	}
 	route_result res;
-	// m_tos is always 0 in VMA
-	g_p_route_table_mgr->route_resolve(route_rule_table_key(pcb->local_ip.addr, pcb->remote_ip.addr, 0), res);
+
+	g_p_route_table_mgr->route_resolve(route_rule_table_key(pcb->local_ip.addr, pcb->remote_ip.addr, pcb->tos), res);
 
 	if (res.mtu) {
 		vlog_printf(VLOG_DEBUG, "Using route mtu %u\n", res.mtu);
@@ -3479,6 +3484,22 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 	}
 #endif // DEFINED_SOCKETXTREME
 
+	if (__level == IPPROTO_IP) {
+		switch(__optname) {
+		case IP_TOS:
+			if (__optlen <= sizeof(int)) {
+				val = *(int *)__optval;
+				val &= ~INET_ECN_MASK;
+				m_pcb.tos |= val & INET_ECN_MASK;
+			}
+			ret = SOCKOPT_HANDLE_BY_OS;
+		break;
+		default:
+			ret = SOCKOPT_HANDLE_BY_OS;
+			supported = false;
+			break;
+		}
+	}
 	if (__level == IPPROTO_TCP) {
 		switch(__optname) {
 		case TCP_NODELAY:
@@ -3622,20 +3643,39 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			si_tcp_logdbg("(SO_BINDTODEVICE) interface=%s", (char*)__optval);
 			break;
 		case SO_MAX_PACING_RATE: {
-			if (__optlen != sizeof(uint32_t) || !__optval) {
+			struct vma_rate_limit_t rate_limit;
+
+			if (!__optval) {
 				errno = EINVAL;
 				break;
 			}
-			val = *(uint32_t *)__optval;
+			if (sizeof(struct vma_rate_limit_t) <= __optlen) {
+				rate_limit = *(struct vma_rate_limit_t*)__optval; // value is in bytes per second
+			} else if (sizeof(uint32_t) <= __optlen) {
+				rate_limit.rate = *(uint32_t*)__optval; // value is in bytes per second
+				rate_limit.upper_bound_sz = 0;
+				rate_limit.typical_pkt_sz = 0;
+			} else {
+				errno = EINVAL;
+				break;
+			}
+
+			rate_limit.rate = BYTE_TO_KB(rate_limit.rate); // value is in bytes per second
+
 			lock_tcp_con();
-			ret = modify_ratelimit(m_p_connected_dst_entry, val);
+			ret = modify_ratelimit(m_p_connected_dst_entry, rate_limit);
 			unlock_tcp_con();
 			if (ret) {
-				si_tcp_logdbg("error setting setsockopt SO_MAX_PACING_RATE: %d bytes/second ", val);
+				si_tcp_logdbg("error setting setsockopt SO_MAX_PACING_RATE: %d bytes/second ", rate_limit.rate);
 			} else {
-				si_tcp_logdbg("setsockopt SO_MAX_PACING_RATE: %d bytes/second ", val);
+				si_tcp_logdbg("setsockopt SO_MAX_PACING_RATE: %d bytes/second ", rate_limit.rate);
 			}
 			return ret;
+		}
+		case SO_PRIORITY: {
+			set_sockopt_prio(__optval, __optlen);
+			ret = SOCKOPT_HANDLE_BY_OS;
+			break;
 		}
 		default:
 			ret = SOCKOPT_HANDLE_BY_OS;
@@ -3646,38 +3686,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 
 	if (safe_mce_sys().avoid_sys_calls_on_tcp_fd && ret != SOCKOPT_HANDLE_BY_OS && is_connected())
 		return ret;
-
-	if (! supported) {
-		char buf[256];
-		snprintf(buf, sizeof(buf), "unimplemented setsockopt __level=%#x, __optname=%#x, [__optlen (%d) bytes of __optval=%.*s]", (unsigned)__level, (unsigned)__optname, __optlen, __optlen, (char*)__optval);
-		buf[ sizeof(buf)-1 ] = '\0';
-
-		VLOG_PRINTF_INFO(safe_mce_sys().exception_handling.get_log_severity(), "%s", buf);
-		int rc = handle_exception_flow();
-		switch (rc) {
-		case -1:
-			return rc;
-		case -2:
-			vma_throw_object_with_msg(vma_unsupported_api, buf);
-		}
-	}
-
-	si_tcp_logdbg("going to OS for setsockopt level %d optname %d", __level, __optname);
-	ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (ret) {
-		if (EPERM == errno && allow_privileged_sock_opt) {
-			si_tcp_logdbg("setsockopt failure is suppressed (ret=%d %m)", ret);
-			ret = 0;
-			errno = 0;
-		}
-		else {
-			si_tcp_logdbg("setsockopt failed (ret=%d %m)", ret);
-		}
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-
-	return ret;
+	return setsockopt_kernel(__level, __optname, __optval, __optlen, supported, allow_privileged_sock_opt);
 }
 
 int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
@@ -3698,8 +3707,8 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 		return 0;
 	}
 #endif // DEFINED_SOCKETXTREME	
-
-	if (__level == IPPROTO_TCP) {
+	switch (__level) {
+	case IPPROTO_TCP:
 		switch(__optname) {
 		case TCP_NODELAY:
         		if (*__optlen >= sizeof(int)) {
@@ -3723,7 +3732,8 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 			ret = SOCKOPT_HANDLE_BY_OS;
 			break;
 		}
-	} else if (__level == SOL_SOCKET) {
+		break;
+	case SOL_SOCKET:
 		switch(__optname) {
 		case SO_ERROR:
 			if (*__optlen >= sizeof(int)) {
@@ -3803,8 +3813,24 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 			ret = SOCKOPT_HANDLE_BY_OS;
 			break;
 		}
-	} else {
+		break;
+	case IPPROTO_IP:
+		switch (__optname) {
+		case IP_TOS:
+			if (*__optlen > 0) {
+				*(uint8_t *)__optval = m_pcb.tos;
+				*__optlen = 1;
+			} else {
+				errno = EINVAL;
+			}
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
 		ret = SOCKOPT_HANDLE_BY_OS;
+		break;
 	}
 
 	BULLSEYE_EXCLUDE_BLOCK_START

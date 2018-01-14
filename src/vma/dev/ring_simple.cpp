@@ -93,14 +93,12 @@ qp_mgr* ring_eth::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, 
 	return new qp_mgr_eth(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), get_partition());
 }
 
-bool ring_eth::is_ratelimit_supported(uint32_t rate)
+bool ring_eth::is_ratelimit_supported(struct vma_rate_limit_t &rate_limit)
 {
 #ifdef DEFINED_IBV_EXP_QP_RATE_LIMIT
-	ibv_exp_packet_pacing_caps &pp_caps =
-			m_p_ib_ctx->get_ibv_device_attr()->packet_pacing_caps;
-	return rate >= pp_caps.qp_rate_limit_min && rate <= pp_caps.qp_rate_limit_max;
+	return m_p_qp_mgr->is_ratelimit_supported(m_p_ib_ctx->get_ibv_device_attr(), rate_limit);
 #else
-	NOT_IN_USE(rate);
+	NOT_IN_USE(rate_limit);
 	return false;
 #endif
 }
@@ -110,9 +108,9 @@ qp_mgr* ring_ib::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, s
 	return new qp_mgr_ib(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), get_partition());
 }
 
-bool ring_ib::is_ratelimit_supported(uint32_t rate)
+bool ring_ib::is_ratelimit_supported(struct vma_rate_limit_t &rate_limit)
 {
-	NOT_IN_USE(rate);
+	NOT_IN_USE(rate_limit);
 	return false;
 }
 
@@ -195,8 +193,13 @@ ring_simple::~ring_simple()
 	delete_l2_address();
 
 	// Delete the rx channel fd from the global fd collection
-	if (g_p_fd_collection && m_p_rx_comp_event_channel) {
-		g_p_fd_collection->del_cq_channel_fd(m_p_rx_comp_event_channel->fd, true);
+	if (g_p_fd_collection) {
+		if (m_p_rx_comp_event_channel) {
+			g_p_fd_collection->del_cq_channel_fd(m_p_rx_comp_event_channel->fd, true);
+		}
+		if (m_p_tx_comp_event_channel) {
+			g_p_fd_collection->del_cq_channel_fd(m_p_tx_comp_event_channel->fd, true);
+		}
 	}
 
 	if (m_p_rx_comp_event_channel) {
@@ -297,6 +300,7 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 	if (g_p_fd_collection) {
 		// Create new cq_channel info in the global fd collection
 		g_p_fd_collection->add_cq_channel_fd(m_p_n_rx_channel_fds[0], this);
+		g_p_fd_collection->add_cq_channel_fd(m_p_tx_comp_event_channel->fd, this);
 	}
 
 #if 0
@@ -1998,9 +2002,12 @@ ring_user_id_t ring_simple::generate_id(const address_t src_mac, const address_t
 	return 0;
 }
 
-int ring_simple::modify_ratelimit(const uint32_t ratelimit_kbps) {
-	if (m_p_qp_mgr->set_qp_ratelimit(ratelimit_kbps) && m_up) {
-		return m_p_qp_mgr->modify_qp_ratelimit(ratelimit_kbps);
-	}
+int ring_simple::modify_ratelimit(struct vma_rate_limit_t &rate_limit)
+{
+	uint32_t rl_changes = m_p_qp_mgr->is_ratelimit_change(rate_limit);
+
+	if (m_up && rl_changes)
+		return m_p_qp_mgr->modify_qp_ratelimit(rate_limit, rl_changes);
+
 	return 0;
 }
