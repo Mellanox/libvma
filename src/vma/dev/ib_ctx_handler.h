@@ -59,11 +59,13 @@ public:
 	ibv_mr*                 mem_reg(void *addr, size_t length, uint64_t access);
 	void                    mem_dereg(ibv_mr *mr);
 	bool                    is_removed() { return m_removed;}
+	int                     get_port_num() { return m_port_num; }
+	void                    update_port(const char* base_ifname);
+	bool                    is_active();
 	ts_conversion_mode_t    get_ctx_time_converter_status();
 	void                    set_flow_tag_capability(bool flow_tag_capability); 
 	bool                    get_flow_tag_capability() { return m_flow_tag_enabled;} // m_flow_tag_capability
 	size_t                  get_on_device_memory_size() { return m_on_device_memory; }
-	ibv_port_state          get_port_state(int port_num);
 	virtual void            handle_event_ibverbs_cb(void *ev_data, void *ctx);
 
 	inline void convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime)
@@ -79,6 +81,7 @@ private:
 	ibv_pd*                 m_p_ibv_pd;
 	bool                    m_flow_tag_enabled;
 	size_t                  m_on_device_memory;
+	int                     m_port_num;
 	bool                    m_removed;
 	lock_spin               m_lock_umr;
 	struct ibv_cq*          m_umr_cq;
