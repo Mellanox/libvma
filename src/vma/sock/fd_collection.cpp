@@ -162,6 +162,7 @@ void fd_collection::clear()
 				socket_fd_api *p_sfd_api = get_sockfd(fd);
 				if (p_sfd_api) {
 					p_sfd_api->statistics_print();
+					orig_os_api.close(p_sfd_api->get_fd()); // The user did not call close
 					if (!p_sfd_api->is_cleaned()) {
 						p_sfd_api->clean_obj();
 					}

@@ -282,7 +282,7 @@ void neigh_entry::clean_obj()
 	set_cleaned();
 	m_timer_handle = NULL;
 	m_lock.unlock();
-
+	// Release lock before calling unregister_timers_event_and_delete.
 	g_p_event_handler_manager->unregister_timers_event_and_delete(this);
 }
 
