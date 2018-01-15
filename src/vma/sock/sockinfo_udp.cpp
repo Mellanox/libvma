@@ -2777,12 +2777,9 @@ int sockinfo_udp::get_socket_tx_ring_fd(struct sockaddr *to, socklen_t tolen)
 	if (m_p_connected_dst_entry && m_connected == dst) {
 		ring = m_p_connected_dst_entry->get_ring();
 	} else {
-		dst_entry_map_t::iterator it = m_dst_entry_map.begin();
-		for (; it != m_dst_entry_map.end(); it++) {
-			if (it->first == dst) {
-				ring = it->second->get_ring();
-				break;
-			}
+		dst_entry_map_t::iterator it = m_dst_entry_map.find(dst);
+		if (it != m_dst_entry_map.end()) {
+			ring = it->second->get_ring();
 		}
 	}
 	if (!ring) {
