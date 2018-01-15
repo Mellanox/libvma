@@ -74,9 +74,11 @@ bool qp_mgr_eth_direct::fill_hw_descriptors(vma_mlx_hw_device_data &data)
 		"stride: %d bf.reg: %p bf.need_lock: %d",
 		qpi.qpn, qpi.dbrec, qpi.sq.buf, qpi.sq.wqe_cnt,
 		qpi.sq.stride, qpi.bf.reg, qpi.bf.need_lock);
-	data.sq_data.sq_num = qpi.qpn;
 
-	data.sq_data.wq_data.buf = qpi.sq.buf;
+	data.sq_data.sq_num = qpi.qpn;
+	// bug in mlx5_hw
+	// data.sq_data.wq_data.buf = qpi.sq.buf;
+	data.sq_data.wq_data.buf = m_hw_qp->sq_buf.buf;
 	data.sq_data.wq_data.dbrec = &qpi.dbrec[MLX5_SND_DBR];
 	data.sq_data.wq_data.stride = qpi.sq.stride;
 	data.sq_data.wq_data.wqe_cnt = qpi.sq.wqe_cnt;
