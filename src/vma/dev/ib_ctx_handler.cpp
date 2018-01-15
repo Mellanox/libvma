@@ -58,7 +58,6 @@
 ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx_time_converter_mode) :
 	m_flow_tag_enabled(false)
 	, m_on_device_memory(0)
-	, m_port_num(-1)
 	, m_removed(false)
 	, m_lock_umr("spin_lock_umr")
 	, m_umr_cq(NULL)
@@ -217,48 +216,14 @@ void ib_ctx_handler::set_flow_tag_capability(bool flow_tag_capability)
 	m_flow_tag_enabled = flow_tag_capability;
 }
 
-int ib_ctx_handler::get_port_num(const char* base_ifname)
-{
-	if (m_port_num == -1) {
-		update_port(base_ifname);
-	}
-
-	return m_port_num;
-}
-
-
-void ib_ctx_handler::update_port(const char* base_ifname)
-{
-	int dev_id = -1;
-	int dev_port = -1;
-	// Depending of kernel version and OFED stack the files containing dev_id and dev_port may not exist.
-	// if file reading fails *dev_id or *dev_port may remain unmodified
-	char num_buf[24] = {0};
-	char dev_path[256] = {0};
-	sprintf(dev_path, VERBS_DEVICE_PORT_PARAM_FILE, base_ifname);
-	if (priv_safe_try_read_file(dev_path, num_buf, sizeof(num_buf)) > 0) {
-		dev_port = strtol(num_buf, NULL, 0); // base=0 means strtol() can parse hexadecimal and decimal
-		ibch_logdbg("dev_port file=%s dev_port str=%s dev_port val=%d", dev_path, num_buf, dev_port);
-	}
-	sprintf(dev_path, VERBS_DEVICE_ID_PARAM_FILE, base_ifname);
-	if (priv_safe_try_read_file(dev_path, num_buf, sizeof(num_buf)) > 0) {
-		dev_id = strtol(num_buf, NULL, 0); // base=0 means strtol() can parse hexadecimal and decimal
-		ibch_logdbg("dev_id file= %s dev_id str=%s dev_id val=%d", dev_path, num_buf, dev_id);
-	}
-
-	// take the max between dev_port and dev_id as port number
-	m_port_num = (dev_port > dev_id) ? dev_port : dev_id;
-	m_port_num++;
-}
-
-bool ib_ctx_handler::is_active()
+bool ib_ctx_handler::is_active(int port_num)
 {
 	ibv_port_attr port_attr;
 
 	memset(&port_attr, 0, sizeof(ibv_port_attr));
-	IF_VERBS_FAILURE(ibv_query_port(m_p_ibv_context, m_port_num, &port_attr)) {
+	IF_VERBS_FAILURE(ibv_query_port(m_p_ibv_context, port_num, &port_attr)) {
 		ibch_logdbg("ibv_query_port failed on ibv device %p, port %d "
-			    "(errno=%d)", m_p_ibv_context, m_port_num, errno);
+			    "(errno=%d)", m_p_ibv_context, port_num, errno);
 	}ENDIF_VERBS_FAILURE;
 	return port_attr.state == IBV_PORT_ACTIVE;
 }
