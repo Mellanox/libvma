@@ -59,8 +59,7 @@ public:
 	ibv_mr*                 mem_reg(void *addr, size_t length, uint64_t access);
 	void                    mem_dereg(ibv_mr *mr);
 	bool                    is_removed() { return m_removed;}
-	int                     get_port_num() { return m_port_num; }
-	void                    update_port(const char* base_ifname);
+	int                     get_port_num(const char* base_ifname);
 	bool                    is_active();
 	ts_conversion_mode_t    get_ctx_time_converter_status();
 	void                    set_flow_tag_capability(bool flow_tag_capability); 
@@ -75,6 +74,7 @@ public:
 private:
 	bool                    create_umr_qp();
 	void                    handle_event_device_fatal();
+	void                    update_port(const char* base_ifname);
 	ibv_device*             m_p_ibv_device; // HCA handle
 	struct ibv_context*     m_p_ibv_context;
 	vma_ibv_device_attr*    m_p_ibv_device_attr;

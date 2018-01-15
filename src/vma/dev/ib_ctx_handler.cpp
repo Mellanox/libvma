@@ -217,6 +217,16 @@ void ib_ctx_handler::set_flow_tag_capability(bool flow_tag_capability)
 	m_flow_tag_enabled = flow_tag_capability;
 }
 
+int ib_ctx_handler::get_port_num(const char* base_ifname)
+{
+	if (m_port_num == -1) {
+		update_port(base_ifname);
+	}
+
+	return m_port_num;
+}
+
+
 void ib_ctx_handler::update_port(const char* base_ifname)
 {
 	int dev_id = -1;

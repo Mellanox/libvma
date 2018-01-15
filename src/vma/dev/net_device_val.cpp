@@ -304,7 +304,7 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 				}
 				if (strcmp(sys_res, ib_res) == 0) {
 					m_slaves[i]->p_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(pp_ibv_context_list[j]);
-					m_slaves[i]->port_num = m_slaves[i]->p_ib_ctx->get_port_num();
+					m_slaves[i]->port_num = m_slaves[i]->p_ib_ctx->get_port_num(base_ifname);
 					if (m_slaves[i]->port_num < 1) {
 						nd_logdbg("Error: port %d ==> ifname=%s base_ifname=%s", m_slaves[i]->port_num, (const char*)m_slaves[i]->if_name, base_ifname);					
 					}

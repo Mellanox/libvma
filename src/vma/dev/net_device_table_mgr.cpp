@@ -260,7 +260,7 @@ int net_device_table_mgr::map_net_devices()
 		m_lock.unlock();
 
 		ndtm_logdbg("Offload interface '%s': Mapped to ibv device '%s' [%p] on port %d (Active: %d), Running: %d",
-				ifa->ifa_name, ib_ctx->get_ibv_device()->name, ib_ctx->get_ibv_device(), ib_ctx->get_port_num(), ib_ctx->is_active(), (!!(ifa->ifa_flags & IFF_RUNNING)));
+				ifa->ifa_name, ib_ctx->get_ibv_device()->name, ib_ctx->get_ibv_device(), ib_ctx->get_port_num(ifa->ifa_name), ib_ctx->is_active(), (!!(ifa->ifa_flags & IFF_RUNNING)));
 
 		count++;
 
@@ -430,8 +430,7 @@ bool net_device_table_mgr::verify_eth_qp_creation(const char* ifname)
 			qp = ibv_create_qp(p_ib_ctx->get_ibv_pd(), &qp_init_attr);
 			if (qp) {
 				success = true;
-				p_ib_ctx->update_port(ifname);
-				if (!priv_ibv_query_flow_tag_supported(qp, p_ib_ctx->get_port_num())) {
+				if (!priv_ibv_query_flow_tag_supported(qp, p_ib_ctx->get_port_num(base_ifname))) {
 					p_ib_ctx->set_flow_tag_capability(true);
 				}
 				ndtm_logdbg("verified interface %s for flow tag capabilities : %s", ifname, p_ib_ctx->get_flow_tag_capability() ? "enabled" : "disabled");
