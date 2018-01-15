@@ -685,7 +685,6 @@ extern mce_sys_var & safe_mce_sys();
 #define IPOIB_MODE_PARAM_FILE				"/sys/class/net/%s/mode"
 #define VERBS_DEVICE_PORT_PARAM_FILE			"/sys/class/net/%s/dev_port"
 #define VERBS_DEVICE_ID_PARAM_FILE			"/sys/class/net/%s/dev_id"
-#define VERBS_DEVICE_RESOURCE_PARAM_FILE		"/sys/class/net/%s/device/resource"
 #define BONDING_MODE_PARAM_FILE				"/sys/class/net/%s/bonding/mode"
 #define BONDING_SLAVES_PARAM_FILE			"/sys/class/net/%s/bonding/slaves"
 #define BONDING_ACTIVE_SLAVE_PARAM_FILE			"/sys/class/net/%s/bonding/active_slave"
