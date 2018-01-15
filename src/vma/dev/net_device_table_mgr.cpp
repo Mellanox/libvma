@@ -60,13 +60,6 @@
 #define ndtm_logfunc            __log_info_func
 #define ndtm_logfuncall         __log_info_funcall
 
-#define DESTROY_CMA_ID                                                         \
-  do {                                                                         \
-		IF_RDMACM_FAILURE(rdma_destroy_id(cma_id)) {                           \
-				ndtm_logerr("Failed in rdma_destroy_id (errno=%d %m)", errno); \
-			} ENDIF_RDMACM_FAILURE;                                            \
-  } while (0)
-
 net_device_table_mgr* g_p_net_device_table_mgr = NULL;
 
 enum net_device_table_mgr_timers {
@@ -160,6 +153,10 @@ net_device_table_mgr::~net_device_table_mgr()
 int net_device_table_mgr::map_net_devices()
 {
 	int count = 0;
+	bool valid;
+	rdma_cm_id* cma_id;
+	ib_ctx_handler* ib_ctx;
+	net_device_val* p_net_device_val;
 	struct ifaddrs *ifaddr, *ifa;
 
 	ndtm_logdbg("Checking for offload capable network interfaces...");
@@ -194,52 +191,42 @@ int net_device_table_mgr::map_net_devices()
 			m_p_cma_event_channel = rdma_create_event_channel();
 		}
 
-		rdma_cm_id* cma_id = NULL;
+		cma_id = NULL;
 		IF_RDMACM_FAILURE(rdma_create_id(m_p_cma_event_channel, &cma_id, NULL, RDMA_PS_UDP)) { // UDP vs IP_OVER_IB?
 			ndtm_logerr("Failed in rdma_create_id (RDMA_PS_UDP) (errno=%d %m)", errno);
 			continue;
 		} ENDIF_RDMACM_FAILURE;
 
-		// avoid nesting calls to IF_RDMACM_FAILURE macro - because it will raise gcc warning "declaration of '__ret__' shadows a previous local" in case -Wshadow is used
-		bool rdma_bind_addr_failed = false;
 		IF_RDMACM_FAILURE(rdma_bind_addr(cma_id, (struct sockaddr*)ifa->ifa_addr)) {
-			rdma_bind_addr_failed = true;
-		} ENDIF_RDMACM_FAILURE;
-		if (rdma_bind_addr_failed) {
 			ndtm_logdbg("Failed in rdma_bind_addr (src=%d.%d.%d.%d) (errno=%d %m)", NIPQUAD(((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr), errno);
 			errno = 0; //in case of not-offloaded, resource is not available (errno=11), but this is normal and we don't want the user to know about this
-			DESTROY_CMA_ID;
-			continue;
-		}
+			goto destroy_cma_id;
+		} ENDIF_RDMACM_FAILURE;
 
 		// loopback might get here but without ibv_context in the cma_id
 		if (NULL == cma_id->verbs) {
 			ndtm_logdbg("Blocking offload: No verbs context in cma_id on interfaces ('%s')", ifa->ifa_name);
-			DESTROY_CMA_ID;
-			continue;
+			goto destroy_cma_id;
 		}
 
 		//get and check ib context
-		ib_ctx_handler* ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(cma_id->verbs);
+		ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(cma_id->verbs);
 		if (NULL == ib_ctx) {
 			ndtm_logdbg("Blocking offload: can't create ib_ctx on interfaces ('%s')", ifa->ifa_name);
-			DESTROY_CMA_ID;
-			continue;
+			goto destroy_cma_id;
 		}
 
 #ifdef DEFINED_SOCKETXTREME
 		// only support mlx5 device for vmapoll
 		if(strncmp(ib_ctx->get_ibv_device()->name, "mlx4", 4) == 0) {
 			ndtm_logdbg("Blocking offload: vmapoll mlx4 interfaces ('%s')", ifa->ifa_name);
-			DESTROY_CMA_ID;
-			continue;
+			goto destroy_cma_id;
 		}
 #endif // DEFINED_SOCKETXTREME
 
-		// Update from number of interface name
+		// Update port number of interface name
 		ib_ctx->update_port(ifa->ifa_name);
 
-		bool valid = false;
 		char base_ifname[IFNAMSIZ];
 		get_base_interface_name((const char*)(ifa->ifa_name), base_ifname, sizeof(base_ifname));
 		if (check_device_exist(base_ifname, BOND_DEVICE_FILE)) {
@@ -249,12 +236,10 @@ int net_device_table_mgr::map_net_devices()
 			valid = verify_ipoib_or_eth_qp_creation(ifa->ifa_name, ifa, ib_ctx->get_port_num());
 		}
 		if (!valid) {
-			DESTROY_CMA_ID;
-			continue;
+			goto destroy_cma_id;
 		}
 		// arriving here means this is an offloadable device and VMA need to create a net_device.
 		m_lock.lock();
-		net_device_val* p_net_device_val = NULL;
 		if (get_iftype_from_ifname(ifa->ifa_name) == ARPHRD_INFINIBAND) {
 			p_net_device_val = new net_device_val_ib();
 		}
@@ -280,9 +265,13 @@ int net_device_table_mgr::map_net_devices()
 		ndtm_logdbg("Offload interface '%s': Mapped to ibv device '%s' [%p] on port %d (Active: %d), Running: %d",
 				ifa->ifa_name, ib_ctx->get_ibv_device()->name, ib_ctx->get_ibv_device(), ib_ctx->get_port_num(), ib_ctx->is_active(), (!!(ifa->ifa_flags & IFF_RUNNING)));
 
-		DESTROY_CMA_ID;
-
 		count++;
+
+	destroy_cma_id:
+		IF_RDMACM_FAILURE(rdma_destroy_id(cma_id)) {
+			ndtm_logerr("Failed in rdma_destroy_id (errno=%d %m)", errno);
+		} ENDIF_RDMACM_FAILURE;
+
 	} //for
 
 	freeifaddrs(ifaddr);
