@@ -560,7 +560,7 @@ struct __attribute__ ((packed)) vma_api_t {
 	int (*get_socket_rings_num)(int fd);
 
 	 /**
-	 * Returns FDs of the rings that are associated with the socket.
+	 * Returns FDs of the RX rings that are associated with the socket.
 	 *
 	 * This function gets socket FD + int array + array size and populates
 	 * the array with FD numbers of the rings that are associated
@@ -575,6 +575,19 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * errno is set to: EINVAL - not a VMA offloaded fd + TBD
 	 */
 	int (*get_socket_rings_fds)(int fd, int *ring_fds, int ring_fds_sz);
+
+	/**
+	 * Returns the ring FD of the TX rings used by this socket.
+	 * should be used after connect or joining a MC group.
+	 * @param sock_fd - UDP socket fd
+	 * @param to - the destination the socket is connected to.
+	 * @param tolen - so len
+	 * @return ring fd on success -1 on failure (e.g. no ring, non offloaded fd)
+	 * @note @ref get_socket_rings_fds returns the RX ring fd
+	 * errno is set to: EINVAL - not a VMA offloaded fd
+	 * 		    ENODATA - no rings fds available
+	 */
+	int (*get_socket_tx_ring_fd)(int sock_fd, struct sockaddr *to, socklen_t tolen);
 
 	/**
 	 * Frees packets received by socketxtreme_poll().

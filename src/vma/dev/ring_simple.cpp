@@ -195,8 +195,13 @@ ring_simple::~ring_simple()
 	delete_l2_address();
 
 	// Delete the rx channel fd from the global fd collection
-	if (g_p_fd_collection && m_p_rx_comp_event_channel) {
-		g_p_fd_collection->del_cq_channel_fd(m_p_rx_comp_event_channel->fd, true);
+	if (g_p_fd_collection) {
+		if (m_p_rx_comp_event_channel) {
+			g_p_fd_collection->del_cq_channel_fd(m_p_rx_comp_event_channel->fd, true);
+		}
+		if (m_p_tx_comp_event_channel) {
+			g_p_fd_collection->del_cq_channel_fd(m_p_tx_comp_event_channel->fd, true);
+		}
 	}
 
 	if (m_p_rx_comp_event_channel) {
@@ -297,6 +302,7 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 	if (g_p_fd_collection) {
 		// Create new cq_channel info in the global fd collection
 		g_p_fd_collection->add_cq_channel_fd(m_p_n_rx_channel_fds[0], this);
+		g_p_fd_collection->add_cq_channel_fd(m_p_tx_comp_event_channel->fd, this);
 	}
 
 #if 0
