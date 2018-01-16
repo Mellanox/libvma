@@ -3008,8 +3008,6 @@ err_t sockinfo_tcp::dst_nc_send_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_t
 		if (p == NULL) {
 			close(new_sock->get_fd());
 			listen_sock->m_tcp_con_lock.lock();
-			delete new_sock->m_p_connected_dst_entry;
-			new_sock->m_p_connected_dst_entry = NULL;
 			return ERR_ABRT;
 		}
 		p->next = NULL;
@@ -3027,11 +3025,6 @@ err_t sockinfo_tcp::dst_nc_send_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_t
 	close(new_sock->get_fd());
 
 	listen_sock->m_tcp_con_lock.lock();
-
-	if (new_sock->m_p_connected_dst_entry) {
-		delete new_sock->m_p_connected_dst_entry;
-		new_sock->m_p_connected_dst_entry = NULL;
-	}
 
 	return ERR_OK;
 }
