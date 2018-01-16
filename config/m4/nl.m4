@@ -43,7 +43,7 @@ if test "$use_libnl3" == yes; then
 	AC_SUBST([LIBNL_LIBS], "$LIBNL3_LIBS")
 	AC_SUBST([LIBNL_CFLAGS], "$LIBNL3_CFLAGS")
 	AC_SUBST([LIBNLX_DEVEL], "libnl3-devel")
-	AC_DEFINE([HAVE_LIBNL3], [1], [Use libnl-route-3.0])
+	AC_DEFINE([HAVE_LIBNL3], [1], [Use libnl-3])
 elif test "$use_libnl1" == yes; then
 	AC_SUBST([LIBNL_LIBS], "$LIBNL1_LIBS")
 	AC_SUBST([LIBNL_CFLAGS], "$LIBNL1_CFLAGS")
