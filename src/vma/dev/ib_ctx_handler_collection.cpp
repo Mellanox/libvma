@@ -127,8 +127,8 @@ ib_ctx_handler* ib_ctx_handler_collection::get_ib_ctx(const char *ifa_name)
 		snprintf(ib_path, sizeof(ib_path), "/sys/class/infiniband/%s/device/net/%s/ifindex", ib_ctx_iter->first->device->name, ifa_name);
 
 		fd = open(ib_path, O_RDONLY);
-		if (fd > 0) {
-			close (fd);
+		if (fd >= 0) {
+			close(fd);
 			return ib_ctx_iter->second;
 		}
 	}
