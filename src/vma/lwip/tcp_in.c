@@ -341,11 +341,6 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
     return ERR_OK;
   }
 
-  if (in_data->flags & TCP_FIN) {
-    /* An incoming FIN should be ignored. Return. */
-    return ERR_OK;
-  }
-
   /* In the LISTEN state, we check for incoming SYN segments,
      creates a new PCB, and responds with a SYN|ACK. */
   if (in_data->flags & TCP_ACK) {
@@ -368,7 +363,7 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
       ptcp_hdr->src = htons(in_data->tcphdr->dest);
       ptcp_hdr->dest = htons(in_data->tcphdr->src);
       ptcp_hdr->seqno = htonl(in_data->ackno);
-      ptcp_hdr->ackno = htonl(in_data->seqno + in_data->tcplen);
+      ptcp_hdr->ackno = 0;
       TCPH_HDRLEN_FLAGS_SET(ptcp_hdr, TCP_HLEN/4, TCP_RST);
       ptcp_hdr->wnd = 0;
       ptcp_hdr->chksum = 0;
