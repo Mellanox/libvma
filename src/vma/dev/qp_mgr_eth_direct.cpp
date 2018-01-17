@@ -31,6 +31,7 @@
  */
 #include "qp_mgr_eth_direct.h"
 #include "vlogger/vlogger.h"
+#include "vma/util/valgrind.h"
 
 #if defined(HAVE_INFINIBAND_MLX5_HW_H)
 
@@ -60,6 +61,18 @@ void qp_mgr_eth_direct::up()
 	m_p_last_tx_mem_buf_desc = NULL;
 	modify_qp_to_ready_state();
 	m_p_cq_mgr_rx->add_qp_rx(this);
+}
+
+void qp_mgr_eth_direct::down()
+{
+	qp_logdbg("QP current state: %d", priv_ibv_query_qp_state(m_qp));
+	modify_qp_to_error_state();
+
+	// let the QP drain all wqe's to flushed cqe's now that we moved
+	// it to error state and post_sent final trigger for completion
+	usleep(1000);
+
+	m_p_cq_mgr_rx->del_qp_rx(this);
 }
 
 bool qp_mgr_eth_direct::fill_hw_descriptors(vma_mlx_hw_device_data &data)
@@ -98,6 +111,17 @@ bool qp_mgr_eth_direct::fill_hw_descriptors(vma_mlx_hw_device_data &data)
 
 qp_mgr_eth_direct::~qp_mgr_eth_direct()
 {
+	if (m_qp) {
+		IF_VERBS_FAILURE(ibv_destroy_qp(m_qp)) {
+			qp_logdbg("QP destroy failure (errno = %d %m)", -errno);
+		} ENDIF_VERBS_FAILURE;
+		VALGRIND_MAKE_MEM_UNDEFINED(m_qp, sizeof(ibv_qp));
+	}
+	m_qp = NULL;
+	delete m_p_cq_mgr_tx;
+	m_p_cq_mgr_tx = NULL;
+	delete m_p_cq_mgr_rx;
+	m_p_cq_mgr_rx = NULL;
 }
 
 #endif
