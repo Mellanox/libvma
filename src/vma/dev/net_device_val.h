@@ -172,6 +172,7 @@ public:
 		NO_BOND,
 		ACTIVE_BACKUP,
 		LAG_8023ad,
+		NETVSC
 	};
 	enum bond_xmit_hash_policy {
 		XHP_LAYER_2,

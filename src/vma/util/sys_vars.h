@@ -700,6 +700,11 @@ extern mce_sys_var & safe_mce_sys();
 #define VIRTUAL_DEVICE_FOLDER			"/sys/devices/virtual/net/%s/"
 #define BOND_DEVICE_FILE				"/proc/net/bonding/%s"
 
+
+#define NETVSC_DEVICE_CLASS_FILE		"/sys/class/net/%s/device/class_id"
+#define NETVSC_DEVICE_LOWER_FILE		"/sys/class/net/%s/lower_%s/ifindex"
+#define NETVSC_ID               		"{f8615163-df3e-46c5-913f-f2d2f965ed0e}\n"
+
 #define MAX_STATS_FD_NUM				1024
 #define MAX_WINDOW_SCALING				14
 
