@@ -314,12 +314,10 @@ void epoll_wait_call::unlock()
 	m_epfd_info->unlock();
 }
 
-bool epoll_wait_call::check_all_offloaded_sockets(uint64_t *p_poll_sn)
+bool epoll_wait_call::check_all_offloaded_sockets()
 {
-	NOT_IN_USE(p_poll_sn);
-
 	// check cq for acks
-	ring_poll_and_process_element(&m_poll_sn, NULL);
+	ring_poll_and_process_element();
 	m_n_all_ready_fds = get_current_events();
 
 	__log_func("m_n_all_ready_fds=%d, m_n_ready_rfds=%d, m_n_ready_wfds=%d", m_n_all_ready_fds, m_n_ready_rfds, m_n_ready_wfds);
@@ -374,7 +372,7 @@ bool epoll_wait_call::handle_os_countdown(int &poll_os_countdown)
 	if (cq_ready) {
 		// This will empty the cqepfd
 		// (most likely in case of a wakeup and probably only under epoll_wait (Not select/poll))
-		ring_wait_for_notification_and_process_element(&m_poll_sn, NULL);
+		ring_wait_for_notification_and_process_element(NULL);
 	}
 	/* Before we exit with ready OS fd's we'll check the CQs once more and exit
 	 * below after calling check_all_offloaded_sockets();
@@ -384,24 +382,24 @@ bool epoll_wait_call::handle_os_countdown(int &poll_os_countdown)
 	 */
 	if (m_n_all_ready_fds) {
 		m_p_stats->n_iomux_os_rx_ready += m_n_all_ready_fds; // TODO: fix it - we only know all counter, not read counter
-		check_all_offloaded_sockets(&m_poll_sn);
+		check_all_offloaded_sockets();
 		return true;
 	}
 
 	return false;
 }
 
-int epoll_wait_call::ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array/* = NULL*/)
+int epoll_wait_call::ring_poll_and_process_element()
 {
-	return m_epfd_info->ring_poll_and_process_element(p_poll_sn, pv_fd_ready_array);
+	return m_epfd_info->ring_poll_and_process_element(&m_poll_sn, NULL);
 }
 
-int epoll_wait_call::ring_request_notification(uint64_t poll_sn)
+int epoll_wait_call::ring_request_notification()
 {
-	return m_epfd_info->ring_request_notification(poll_sn);
+	return m_epfd_info->ring_request_notification(m_poll_sn);
 }
 
-int epoll_wait_call::ring_wait_for_notification_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array /* = NULL*/)
+int epoll_wait_call::ring_wait_for_notification_and_process_element(void* pv_fd_ready_array)
 {
-	return m_epfd_info->ring_wait_for_notification_and_process_element(p_poll_sn, pv_fd_ready_array);
+	return m_epfd_info->ring_wait_for_notification_and_process_element(&m_poll_sn, pv_fd_ready_array);
 }
