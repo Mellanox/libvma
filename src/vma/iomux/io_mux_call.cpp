@@ -264,9 +264,7 @@ bool io_mux_call::handle_os_countdown(int &poll_os_countdown)
 		 * will delete ready offloaded fds.
 		 */
 		if (m_n_all_ready_fds) {
-
 			m_p_stats->n_iomux_os_rx_ready += m_n_all_ready_fds; // TODO: fix it - we only know all counter, not read counter
-			ring_poll_and_process_element(&m_poll_sn, NULL);
 			check_all_offloaded_sockets(&m_poll_sn);
 			return true;
 		}
@@ -426,16 +424,9 @@ void io_mux_call::blocking_loops()
 			vma_throw_object(io_mux_call::io_error);
 		}
 		else if (ret > 0) {
-			int n = 0;
-
-			
 			// arm failed - process pending wce
 			cq_ready = true;
 			fd_ready_array.fd_count = 0;
-			n = ring_poll_and_process_element(&m_poll_sn, &fd_ready_array);
-			__log_func("after global_ring_poll_and_process_element poll_sn=%lxs ret=%d", m_poll_sn, n);
-			NOT_IN_USE(n);
-
 			check_all_offloaded_sockets(&m_poll_sn);
 		}
 		else /* ret == 0 */ {
