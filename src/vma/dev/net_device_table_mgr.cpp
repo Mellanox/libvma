@@ -153,10 +153,11 @@ net_device_table_mgr::~net_device_table_mgr()
 int net_device_table_mgr::map_net_devices()
 {
 	int count = 0, port_num;
-	bool valid;
+	bool valid, is_netvsc;
 	rdma_cm_id* cma_id;
 	ib_ctx_handler* ib_ctx;
 	net_device_val* p_net_device_val;
+	struct ifaddrs slave;
 	struct ifaddrs *ifaddr, *ifa;
 
 	ndtm_logdbg("Checking for offload capable network interfaces...");
@@ -197,20 +198,31 @@ int net_device_table_mgr::map_net_devices()
 			continue;
 		} ENDIF_RDMACM_FAILURE;
 
-		IF_RDMACM_FAILURE(rdma_bind_addr(cma_id, (struct sockaddr*)ifa->ifa_addr)) {
-			ndtm_logdbg("Failed in rdma_bind_addr (src=%d.%d.%d.%d) (errno=%d %m)", NIPQUAD(((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr), errno);
-			errno = 0; //in case of not-offloaded, resource is not available (errno=11), but this is normal and we don't want the user to know about this
-			goto destroy_cma_id;
-		} ENDIF_RDMACM_FAILURE;
+		is_netvsc = check_netvsc_device_exist(ifa->ifa_name);
+		if (is_netvsc) {
+			ndtm_logdbg("Found netvsc interface ('%s')", ifa->ifa_name);
+			if (!get_netvsc_slave(ifa->ifa_name, &slave)) {
+				goto destroy_cma_id;
+			}
 
-		// loopback might get here but without ibv_context in the cma_id
-		if (NULL == cma_id->verbs) {
-			ndtm_logdbg("Blocking offload: No verbs context in cma_id on interfaces ('%s')", ifa->ifa_name);
-			goto destroy_cma_id;
+			ndtm_logdbg("Found netvsc lower interface ('%s') is lower of ('%s')", slave.ifa_name, ifa->ifa_name);
+			ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(slave.ifa_name);
+		} else {
+
+			IF_RDMACM_FAILURE(rdma_bind_addr(cma_id, (struct sockaddr*)ifa->ifa_addr)) {
+				ndtm_logdbg("Failed in rdma_bind_addr (src=%d.%d.%d.%d) (errno=%d %m)", NIPQUAD(((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr), errno);
+				errno = 0; //in case of not-offloaded, resource is not available (errno=11), but this is normal and we don't want the user to know about this
+				goto destroy_cma_id;
+			} ENDIF_RDMACM_FAILURE;
+
+			// loopback might get here but without ibv_context in the cma_id
+			if (NULL == cma_id->verbs) {
+				ndtm_logdbg("Blocking offload: No verbs context in cma_id on interfaces ('%s')", ifa->ifa_name);
+				goto destroy_cma_id;
+			}
+			ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(cma_id->verbs);
 		}
 
-		//get and check ib context
-		ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(cma_id->verbs);
 		if (NULL == ib_ctx) {
 			ndtm_logdbg("Blocking offload: can't create ib_ctx on interfaces ('%s')", ifa->ifa_name);
 			goto destroy_cma_id;
@@ -229,6 +241,8 @@ int net_device_table_mgr::map_net_devices()
 		if (check_device_exist(base_ifname, BOND_DEVICE_FILE)) {
 			// this is a bond interface (or a vlan/alias over bond), find the slaves
 			valid = verify_bond_ipoib_or_eth_qp_creation(ifa);
+		} else if (is_netvsc) {
+			valid = verify_netvsc_ipoib_or_eth_qp_creation(slave.ifa_name, ifa);
 		} else {
 			valid = verify_ipoib_or_eth_qp_creation(ifa->ifa_name, ifa);
 		}
@@ -311,6 +325,15 @@ bool net_device_table_mgr::verify_bond_ipoib_or_eth_qp_creation(struct ifaddrs *
 		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 	}
 	return bond_ok;
+}
+
+bool net_device_table_mgr::verify_netvsc_ipoib_or_eth_qp_creation(const char *slave_name, struct ifaddrs *ifa_netvsc)
+{
+	if (get_iftype_from_ifname(ifa_netvsc->ifa_name) == ARPHRD_INFINIBAND) {
+		return false;
+	}
+
+	return verify_eth_qp_creation(slave_name);
 }
 
 //interface name can be slave while ifa struct can describe bond

@@ -253,7 +253,24 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 			nd_logdbg("failed to find the active slave, Moving to LAG state");
 		}
 	}
-	else {
+	else if (check_netvsc_device_exist(ifa->ifa_name)) {
+		m_bond = NETVSC;
+		struct ifaddrs slave_ifa;
+		if (!get_netvsc_slave(m_base_name, &slave_ifa)) {
+			m_state = INVALID;
+			return;
+		}
+
+		if (!(slave_ifa.ifa_flags & IFF_UP)) {
+			nd_logwarn("VF %s is down! VMA failed to offload %s", slave_ifa.ifa_name, m_base_name);
+			m_state = INVALID;
+			return;
+		}
+
+		slave_data_t* s = new slave_data_t;
+		s->if_name = strdup(slave_ifa.ifa_name);
+		m_slaves.push_back(s);
+	} else {
 		slave_data_t* s = new slave_data_t;
 		s->if_name = strdup(m_name.c_str());
 		m_slaves.push_back(s);
@@ -279,6 +296,10 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 			if (up_and_active_slaves[i]) {
 				m_slaves[i]->is_active_slave = true;
 			}
+		}
+
+		if (m_bond == NETVSC) {
+			m_slaves[i]->is_active_slave = true;
 		}
 
 		char base_ifname[IFNAMSIZ];
