@@ -400,6 +400,10 @@ void event_handler_manager::update_epfd(int fd, int operation, int events)
 {
 	epoll_event ev = {0, {0}};
 
+	if (m_epfd < 0) {
+		return;
+	}
+
 	ev.events = events;
 	ev.data.fd = fd;
 	BULLSEYE_EXCLUDE_BLOCK_START

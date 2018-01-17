@@ -841,6 +841,7 @@ void net_device_val_eth::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_i
 
 ring* net_device_val_eth::create_ring(resource_allocation_key *key)
 {
+	ring* ring = NULL;
 	size_t slave_count = m_slaves.size();
 	if(slave_count == 0) {
 		nd_logpanic("Bonding configuration problem. No slave found.");
@@ -867,7 +868,6 @@ ring* net_device_val_eth::create_ring(resource_allocation_key *key)
 				  key->get_ring_profile_key());
 			return NULL;
 		}
-		ring_eth* ring = NULL;
 		try {
 			switch (prof->get_ring_type()) {
 #ifdef HAVE_MP_RQ
@@ -889,28 +889,31 @@ ring* net_device_val_eth::create_ring(resource_allocation_key *key)
 				break;
 			}
 		} catch (vma_error &error) {
-			nd_logdbg("failed creating ring %s",error.message);
+			nd_logdbg("failed creating ring %s", error.message);
 		}
-		return ring;
-	}
-	// TODO check if need to create bond ring even if slave count is 1
-	if (m_bond != NO_BOND) {
-		ring_bond_eth* ring;
-		try {
-			ring = new ring_bond_eth(m_local_addr, p_ring_info, slave_count, active_slaves, get_vlan(), m_bond, m_bond_xmit_hash_policy, m_mtu);
-		} catch (vma_error &error) {
-			return NULL;
-		}
-		return ring;
 	} else {
-		ring_eth* ring;
+		//TODO check if need to create bond ring even if slave count is 1
 		try {
-			ring = new ring_eth(m_local_addr, p_ring_info, slave_count, true, get_vlan(), m_mtu);
+			switch (m_bond) {
+			case NO_BOND:
+				ring = new ring_eth(m_local_addr, p_ring_info, slave_count, true, get_vlan(), m_mtu);
+				break;
+			case ACTIVE_BACKUP:
+			case LAG_8023ad:
+				ring = new ring_bond_eth(m_local_addr, p_ring_info, slave_count, active_slaves, get_vlan(), m_bond, m_bond_xmit_hash_policy, m_mtu);
+				break;
+			case NETVSC:
+				ring = new ring_bond_eth_netvsc(m_local_addr, p_ring_info, slave_count, active_slaves, get_vlan(), m_bond, m_bond_xmit_hash_policy, m_mtu, m_base_name, m_p_L2_addr->get_address());
+				break;
+			default:
+				nd_logdbg("Unknown ring type");
+				break;
+			}
 		} catch (vma_error &error) {
-			return NULL;
+			nd_logdbg("failed creating ring %s", error.message);
 		}
-		return ring;
 	}
+	return ring;
 }
 
 L2_address* net_device_val_eth::create_L2_address(const char* ifname)
@@ -983,6 +986,7 @@ void net_device_val_ib::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id
 ring* net_device_val_ib::create_ring(resource_allocation_key *key)
 {
 	NOT_IN_USE(key);
+	ring* ring = NULL;
 	size_t slave_count = m_slaves.size();
 	if(slave_count == 0) {
 		nd_logpanic("Bonding configuration problem. No slave found.");
@@ -996,23 +1000,17 @@ ring* net_device_val_ib::create_ring(resource_allocation_key *key)
 		active_slaves[i] = m_slaves[i]->is_active_slave;
 	}
 
-	if (m_bond != NO_BOND) {
-		ring_bond_ib* ring;
-		try {
-			ring = new ring_bond_ib(m_local_addr, p_ring_info, slave_count, active_slaves, m_pkey, m_bond, m_bond_xmit_hash_policy, m_mtu);
-		} catch (vma_error &error) {
-			return NULL;
-		}
-		return ring;
-	} else {
-		ring_ib* ring;
-		try {
+	try {
+		if (m_bond == NO_BOND) {
 			ring = new ring_ib(m_local_addr, p_ring_info, slave_count, true, m_pkey, m_mtu);
-		} catch (vma_error &error) {
-			return NULL;
+		} else {
+			ring = new ring_bond_ib(m_local_addr, p_ring_info, slave_count, active_slaves, m_pkey, m_bond, m_bond_xmit_hash_policy, m_mtu);
 		}
-		return ring;
+	} catch (vma_error &error) {
+		nd_logdbg("failed creating ring %s", error.message);
 	}
+
+	return ring;
 }
 
 L2_address* net_device_val_ib::create_L2_address(const char* ifname)

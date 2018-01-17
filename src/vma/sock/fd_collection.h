@@ -44,6 +44,7 @@
 #include "vma/event/timer_handler.h"
 #include "vma/event/event_handler_manager.h"
 #include <vma/sock/cleanable_obj.h>
+#include "vma/dev/ring_bond.h"
 
 typedef vma_list_t<socket_fd_api, socket_fd_api::pendig_to_remove_node_offset> sock_fd_api_list_t;
 typedef vma_list_t<epfd_info, epfd_info::epfd_info_node_offset> epfd_info_list_t;
@@ -107,6 +108,14 @@ public:
 	int			add_cq_channel_fd(int cq_ch_fd, ring* p_ring);
 	
 	/**
+	 * Add tap fd index to tap_map.
+	 * @param tapfd: tap fd.
+	 * @param p_ring: pointer to ring owner of the tap.
+	 * @return 0 on success, -1 on failure.
+	 */
+	int			addtapfd(int tapfd, ring_bond_eth_netvsc* p_ring);
+
+	/**
 	 * Remove pipeinfo/sockinfo.
 	 */
 	int			del_sockfd(int fd, bool b_cleanup = false);
@@ -121,6 +130,11 @@ public:
 	 * Remove cq_channel_info.
 	 */
 	int			del_cq_channel_fd(int fd, bool b_cleanup = false);
+
+	/**
+	 * Remove tap_fd from tap_map.
+	 */
+	void		del_tapfd(int fd);
 
 	/**
 	 * Call set_immediate_os_sample of the input fd.
@@ -141,6 +155,11 @@ public:
 	 * Get cq_channel_info by fd.
 	 */
 	inline cq_channel_info* get_cq_channel_fd(int fd);
+
+	/**
+	 * Get ring_bond_eth_netvsc by tap fd.
+	 */
+	inline ring_bond_eth_netvsc* get_tapfd(int fd);
 
 	/**
 	 * Get the fd_map size.
@@ -173,6 +192,7 @@ private:
 	socket_fd_api**			m_p_sockfd_map;
 	epfd_info**			m_p_epfd_map;
 	cq_channel_info**		m_p_cq_channel_map;
+	ring_bond_eth_netvsc**		m_p_tap_map;
 
 	epfd_info_list_t		m_epfd_lst;
 	//Contains fds which are in closing process
@@ -222,8 +242,14 @@ inline cls* fd_collection::get(int fd, cls **map_type)
 inline bool fd_collection::set_immediate_os_sample(int fd)
 {
 	epfd_info* epfd_fd;
+	ring_bond_eth_netvsc* p_ring;
 
 	auto_unlocker locker(*this);
+
+	if ((p_ring = get_tapfd(fd))) {
+		p_ring->set_tap_data_available();
+		return true;
+	}
 
 	if ((epfd_fd = get_epfd(fd))){
 		epfd_fd->set_os_data_available();
@@ -246,6 +272,11 @@ inline epfd_info* fd_collection::get_epfd(int fd)
 inline cq_channel_info* fd_collection::get_cq_channel_fd(int fd)
 {
 	return get(fd, m_p_cq_channel_map);
+}
+
+inline ring_bond_eth_netvsc* fd_collection::get_tapfd(int fd)
+{
+	return get(fd, m_p_tap_map);
 }
 
 #if _BullseyeCoverage

@@ -84,6 +84,9 @@ fd_collection::fd_collection() :
 
 	m_p_cq_channel_map = new cq_channel_info*[m_n_fd_map_size];
 	memset(m_p_cq_channel_map, 0, m_n_fd_map_size * sizeof(cq_channel_info*));
+
+	m_p_tap_map = new ring_bond_eth_netvsc*[m_n_fd_map_size];
+	memset(m_p_tap_map, 0, m_n_fd_map_size * sizeof(ring_bond_eth_netvsc*));
 }
 
 fd_collection::~fd_collection()
@@ -101,6 +104,9 @@ fd_collection::~fd_collection()
 
 	delete [] m_p_cq_channel_map;
 	m_p_cq_channel_map = NULL;
+
+	delete [] m_p_tap_map;
+	m_p_tap_map = NULL;
 
 	// TODO: check if NOT empty - apparently one of them contains 1 element according to debug printout from ~vma_list_t
 	m_epfd_lst.clear_without_cleanup();
@@ -183,6 +189,11 @@ void fd_collection::clear()
 			}
 			m_p_cq_channel_map[fd] = NULL;
 			fdcoll_logdbg("destroyed cq_channel_fd=%d", fd);
+		}
+
+		if (m_p_tap_map[fd]) {
+			m_p_tap_map[fd] = NULL;
+			fdcoll_logdbg("destroyed tapfd=%d", fd);
 		}
 	}
 
@@ -462,6 +473,30 @@ int fd_collection::addepfd(int epfd, int size)
 	return 0;
 }
 
+
+int fd_collection::addtapfd(int tapfd, ring_bond_eth_netvsc* p_ring)
+{
+	fdcoll_logfunc("tapfd=%d, p_ring=%p", tapfd, p_ring);
+
+	if (!is_valid_fd(tapfd))
+		return -1;
+
+	lock();
+
+	// Sanity check to remove any old object using the same fd!!
+	ring_bond_eth_netvsc* p_ring_bond_eth_netvsc = get_tapfd(tapfd);
+	if (p_ring_bond_eth_netvsc) {
+		fdcoll_logwarn("[tapfd=%d] already exist in the collection (ring %p)", tapfd, p_ring_bond_eth_netvsc);
+		return -1;
+	}
+
+	m_p_tap_map[tapfd] = p_ring;
+
+	unlock();
+
+	return 0;
+}
+
 int fd_collection::add_cq_channel_fd(int cq_ch_fd, ring* p_ring)
 {
 	fdcoll_logfunc("cq_ch_fd=%d", cq_ch_fd);
@@ -580,6 +615,16 @@ void fd_collection::remove_epfd_from_list(epfd_info* epfd)
 int fd_collection::del_cq_channel_fd(int fd, bool b_cleanup /*=false*/)
 {
 	return del(fd, b_cleanup, m_p_cq_channel_map);
+}
+
+void fd_collection::del_tapfd(int fd)
+{
+	if (!is_valid_fd(fd))
+		return;
+
+	lock();
+	m_p_tap_map[fd] = NULL;
+	unlock();
 }
 
 template <typename cls>
