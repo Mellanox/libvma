@@ -317,14 +317,10 @@ void epoll_wait_call::unlock()
 bool epoll_wait_call::check_all_offloaded_sockets(uint64_t *p_poll_sn)
 {
 	NOT_IN_USE(p_poll_sn);
-	m_n_all_ready_fds = get_current_events();
 
-	if (!m_n_ready_rfds)
-	{
-		// check cq for acks
-		ring_poll_and_process_element(&m_poll_sn, NULL);
-		m_n_all_ready_fds = get_current_events();
-	}
+	// check cq for acks
+	ring_poll_and_process_element(&m_poll_sn, NULL);
+	m_n_all_ready_fds = get_current_events();
 
 	__log_func("m_n_all_ready_fds=%d, m_n_ready_rfds=%d, m_n_ready_wfds=%d", m_n_all_ready_fds, m_n_ready_rfds, m_n_ready_wfds);
 	return m_n_all_ready_fds;
@@ -388,7 +384,6 @@ bool epoll_wait_call::handle_os_countdown(int &poll_os_countdown)
 	 */
 	if (m_n_all_ready_fds) {
 		m_p_stats->n_iomux_os_rx_ready += m_n_all_ready_fds; // TODO: fix it - we only know all counter, not read counter
-		ring_poll_and_process_element(&m_poll_sn, NULL);
 		check_all_offloaded_sockets(&m_poll_sn);
 		return true;
 	}
