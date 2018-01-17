@@ -34,6 +34,7 @@
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 #include <netinet/igmp.h>
+#include <linux/if_tun.h>
 
 #include "utils/bullseye.h"
 #include "vma/util/utils.h"
@@ -56,6 +57,9 @@
 /* Set limitation for number of rings for bonding device */
 #define MAX_NUM_RING_RESOURCES 10
 
+#define TAP_NAME_FORMAT "%.8s%x%x" //dev(8c)pid(4c)id(4c)
+#define TAP_STR_LENGTH	512
+#define TAP_DISABLE_IPV6 "sysctl -w net.ipv6.conf.%s.disable_ipv6=1"
 
 ring_bond::ring_bond(int count, net_device_val::bond_type type, net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy, uint32_t mtu) :
 ring(count, mtu), m_lock_ring_rx("ring_bond:lock_rx"), m_lock_ring_tx("ring_bond:lock_tx") {
@@ -208,6 +212,12 @@ int ring_bond::mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_ac
 	return ret;
 }
 
+int ring_bond::poll_and_process_element_tap_rx(void* pv_fd_ready_array /* = NULL */)
+{
+	NOT_IN_USE(pv_fd_ready_array);
+	return 0;
+}
+
 void ring_bond::mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc)
 {
 	((ring_simple*)p_mem_buf_desc->p_desc_owner)->mem_buf_desc_return_single_to_owner_tx(p_mem_buf_desc);
@@ -271,13 +281,15 @@ int ring_bond::get_max_tx_inline()
 	return m_min_devices_tx_inline;
 }
 
-int ring_bond::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array /*NULL*/) {
-	int ret = 0;
-	int temp = 0;
+int ring_bond::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array /*NULL*/)
+{
 	if (m_lock_ring_rx.trylock()) {
 		errno = EBUSY;
 		return 0;
 	}
+
+	int temp = 0;
+	int ret = poll_and_process_element_tap_rx(pv_fd_ready_array);
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
 		if (m_bond_rings[i]->is_up()) {
 			//TODO consider returning immediately after finding something, continue next time from next ring
@@ -308,8 +320,9 @@ int ring_bond::drain_and_proccess(cq_type_t cq_type)
 			return 0;
 		}
 	}
-	int ret = 0;
+
 	int temp = 0;
+	int ret = poll_and_process_element_tap_rx();
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
 		if (m_bond_rings[i]->is_up()) {
 			temp = m_bond_rings[i]->drain_and_proccess(cq_type);
@@ -330,13 +343,15 @@ int ring_bond::drain_and_proccess(cq_type_t cq_type)
 	}
 }
 
-int ring_bond::wait_for_notification_and_process_element(cq_type_t cq_type, int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array /*NULL*/) {
-	int ret = 0;
-	int temp = 0;
+int ring_bond::wait_for_notification_and_process_element(cq_type_t cq_type, int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array /*NULL*/)
+{
 	if(m_lock_ring_rx.trylock()) {
 		errno = EBUSY;
 		return -1;
 	}
+
+	int temp = 0;
+	int ret = poll_and_process_element_tap_rx(pv_fd_ready_array);
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
 		if (m_bond_rings[i]->is_up()) {
 			temp = m_bond_rings[i]->wait_for_notification_and_process_element(cq_type, cq_channel_fd, p_cq_poll_sn, pv_fd_ready_array);
@@ -673,3 +688,207 @@ int ring_bond::socketxtreme_poll(struct vma_completion_t *vma_completions, unsig
 	return 0;
 }
 #endif // DEFINED_SOCKETXTREME	
+
+ring_bond_eth_netvsc::ring_bond_eth_netvsc(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count,
+		bool active_slaves[], uint16_t vlan, net_device_val::bond_type type,
+		net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy, uint32_t mtu,
+		char* base_name, address_t l2_addr):
+	ring_bond_eth(local_if, p_ring_info, count, active_slaves, vlan, type, bond_xmit_hash_policy, mtu),
+	m_sysvar_qp_compensation_level(safe_mce_sys().qp_compensation_level),
+	m_netvsc_idx(if_nametoindex(base_name)),
+	m_tap_idx(-1),
+	m_tap_fd(-1),
+	m_tap_data_available(false)
+{
+	struct ifreq ifr;
+	static int tap_id = 0;
+	int err, pid = getpid(), ioctl_sock = -1;
+	char command_str[TAP_STR_LENGTH], return_str[TAP_STR_LENGTH], tap_name[IFNAMSIZ];
+
+	// Get netvsc interface index
+	if (!m_netvsc_idx) {
+		ring_logwarn("if_nametoindex failed to get netvsc index [%s]", base_name);
+		goto error;
+	}
+
+	// Initialize rx buffer poll
+	request_more_rx_buffers();
+	m_rx_pool.set_id("ring_bond_eth_netvsc (%p) : m_rx_pool", this);
+
+	// Tap name
+	snprintf(tap_name, IFNAMSIZ, TAP_NAME_FORMAT, base_name, pid & 0xFFFF, tap_id++ & 0xFFFF);
+
+	// Open TAP device
+	if( (m_tap_fd = open("/dev/net/tun", O_RDWR)) < 0 ) {
+		ring_logwarn("FAILED to open tap");
+		goto error;
+	}
+
+	// Init ifr
+	memset(&ifr, 0, sizeof(ifr));
+	snprintf(ifr.ifr_name, IFNAMSIZ, "%s", tap_name);
+
+	// Setting TAP attributes
+	ifr.ifr_flags = IFF_TAP | IFF_NO_PI | IFF_ONE_QUEUE;
+	if( (err = orig_os_api.ioctl(m_tap_fd, TUNSETIFF, (void *) &ifr)) < 0){
+		ring_logwarn("ioctl failed fd = %d, %d %m", m_tap_fd, err);
+		goto error;
+	}
+
+	// Set TAP fd nonblocking
+	if ( (err = orig_os_api.fcntl(m_tap_fd, F_SETFL, O_NONBLOCK))  < 0) {
+		ring_logwarn("fcntl failed fd = %d, %d %m", m_tap_fd, err);
+		goto error;
+	}
+
+	// Disable Ipv6 for TAP interface
+	snprintf(command_str, TAP_STR_LENGTH, TAP_DISABLE_IPV6, tap_name);
+	if (run_and_retreive_system_command(command_str, return_str, TAP_STR_LENGTH)  < 0) {
+		ring_logwarn("sysctl ipv6 failed fd = %d, %m", m_tap_fd);
+		goto error;
+	}
+
+	// Ioctl socket
+	if( (ioctl_sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
+		ring_logwarn("FAILED to open socket");
+		goto error;
+	}
+
+	// Set MAC address
+	ifr.ifr_hwaddr.sa_family = AF_LOCAL;
+	memcpy(ifr.ifr_hwaddr.sa_data, l2_addr, ETH_ALEN);
+	if ( ( err = orig_os_api.ioctl(ioctl_sock, SIOCSIFHWADDR, &ifr)) < 0) {
+		ring_logwarn("ioctl SIOCSIFHWADDR failed %d %m, %s", err, tap_name);
+		goto error;
+	}
+
+	// Set link UP
+	if ( ( err = orig_os_api.ioctl(ioctl_sock, SIOCGIFFLAGS, &ifr)) < 0) {
+		ring_logwarn("ioctl SIOCGIFFLAGS failed %d %m, %s", err, tap_name);
+		goto error;
+	}
+
+	ifr.ifr_flags |= IFF_UP;
+	if ( ( err = orig_os_api.ioctl(ioctl_sock, SIOCSIFFLAGS, &ifr)) < 0) {
+		ring_logwarn("ioctl SIOCSIFFLAGS failed %d %m, %s", err, tap_name);
+		goto error;
+	}
+
+	// Get TAP interface index
+	m_tap_idx = if_nametoindex(tap_name);
+	if (!m_tap_idx) {
+		ring_logwarn("if_nametoindex failed to get tap index [%s]", tap_name);
+		goto error;
+	}
+
+	// Register tap device to the internal thread
+	g_p_fd_collection->addtapfd(m_tap_fd, this);
+	g_p_event_handler_manager->update_epfd(m_tap_fd, EPOLL_CTL_ADD, EPOLLIN | EPOLLPRI | EPOLLONESHOT);
+
+	close(ioctl_sock);
+
+	ring_logdbg("Tap device %s [fd=%d] was created successfully", ifr.ifr_name, m_tap_fd);
+
+	return;
+
+error:
+	ring_logerr("Tap device creation failed");
+
+	if (ioctl_sock >= 0) {
+		close(ioctl_sock);
+	}
+
+	if (m_tap_fd >= 0) {
+		close(m_tap_fd);
+		m_tap_fd = -1;
+	}
+}
+
+ring_bond_eth_netvsc::~ring_bond_eth_netvsc()
+{
+	// Release Rx buffers
+	g_buffer_pool_rx->put_buffers_thread_safe(&m_rx_pool, m_rx_pool.size());
+
+	// Remove tap from fd collection
+	if (m_tap_fd >= 0) {
+		if (g_p_event_handler_manager)
+		g_p_event_handler_manager->update_epfd(m_tap_fd, EPOLL_CTL_DEL, EPOLLIN | EPOLLPRI | EPOLLONESHOT);
+		if (g_p_fd_collection)
+			g_p_fd_collection->del_tapfd(m_tap_fd);
+		close(m_tap_fd);
+		m_tap_fd = -1;
+	}
+}
+
+int ring_bond_eth_netvsc::poll_and_process_element_tap_rx(void* pv_fd_ready_array /* = NULL */)
+{
+	// Assume locked
+	int bytes = 0;
+	if(m_tap_data_available) {
+		if (m_rx_pool.size() || request_more_rx_buffers()) {
+			mem_buf_desc_t *buff = m_rx_pool.get_and_pop_front();
+			buff->sz_data = orig_os_api.read(m_tap_fd, buff->p_buffer, buff->sz_buffer);
+			if (buff->sz_data > 0 && m_bond_rings[0]->rx_process_buffer(buff, pv_fd_ready_array)) {
+				// Data was read and processed successfully
+				bytes = buff->sz_data;
+			} else {
+				// Unable to read data, return buffer to pool
+				m_rx_pool.push_front(buff);
+			}
+
+			m_tap_data_available = false;
+			g_p_event_handler_manager->update_epfd(m_tap_fd, EPOLL_CTL_MOD, EPOLLIN | EPOLLPRI | EPOLLONESHOT);
+		}
+	}
+
+	return bytes;
+}
+
+bool ring_bond_eth_netvsc::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
+{
+	bool ret;
+	auto_unlocker lock(m_lock_ring_rx);
+
+	if (m_tap_fd < 0) {
+		ring_logwarn("Tap fd < 0, ignoring");
+		return false;
+	}
+
+	ret = ring_bond::attach_flow(flow_spec_5t, sink);
+	if (ret && flow_spec_5t.is_tcp()) {
+		// TODO add TC rule
+	}
+
+	return true;
+}
+
+bool ring_bond_eth_netvsc::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
+{
+	bool ret;
+	auto_unlocker lock(m_lock_ring_rx);
+
+	if (m_tap_fd < 0) {
+		return false;
+	}
+
+	ret = ring_bond::detach_flow(flow_spec_5t, sink);
+	if (flow_spec_5t.is_tcp()) {
+		// TODO Remove TC rule
+	}
+
+	return ret;
+}
+
+bool ring_bond_eth_netvsc::request_more_rx_buffers()
+{
+	// Assume locked!
+	ring_logfuncall("Allocating additional %d buffers for internal use", m_sysvar_qp_compensation_level);
+
+	bool res = g_buffer_pool_rx->get_buffers_thread_safe(m_rx_pool, this, m_sysvar_qp_compensation_level, 0);
+	if (!res) {
+		ring_logfunc("Out of mem_buf_desc from TX free pool for internal object pool");
+		return false;
+	}
+
+	return true;
+}
