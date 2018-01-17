@@ -171,8 +171,6 @@ public:
 
         }
 
-	virtual void check_offloaded_rsockets(uint64_t *p_poll_sn);
-
 	virtual bool immidiate_return(int &poll_os_countdown);
 	/**
 	 * @class io_error
@@ -195,10 +193,10 @@ private:
 	 * If ready, calls set_offloaded_rfd_ready() & set_offloaded_wfd_ready() on that fd.
 	 * @return Whether an fd is ready.
 	 */
-   	virtual bool check_all_offloaded_sockets(uint64_t *p_poll_sn);
-	inline void check_offloaded_wsockets(uint64_t *p_poll_sn);
-	inline void check_offloaded_esockets(uint64_t *p_poll_sn);
-
+   	virtual bool check_all_offloaded_sockets();
+	inline void check_offloaded_rsockets();
+	inline void check_offloaded_wsockets();
+	inline void check_offloaded_esockets();
 
 	/**
 	 * Loop: Poll the CQ and check for ready fds
@@ -247,11 +245,11 @@ private:
 public:
 protected:
 
-	virtual int ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array = NULL);
+	virtual int ring_poll_and_process_element();
 
-	virtual int ring_request_notification(uint64_t poll_sn);
+	virtual int ring_request_notification();
 
-	virtual int ring_wait_for_notification_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array = NULL);
+	virtual int ring_wait_for_notification_and_process_element(void* pv_fd_ready_array);
 
 	virtual bool handle_os_countdown(int &poll_os_countdown);
 

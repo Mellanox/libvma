@@ -95,7 +95,7 @@ public:
 	virtual bool immidiate_return(int &poll_os_countdown);
 
 	/// @override
-	virtual bool check_all_offloaded_sockets(uint64_t *p_poll_sn);
+	virtual bool check_all_offloaded_sockets();
 
 	void init_offloaded_fds();
 
@@ -104,11 +104,11 @@ public:
 	bool handle_epoll_event(bool is_ready, uint32_t events, socket_fd_api *socket_object, int index);
 
 protected:
-	virtual int ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array = NULL);
+	virtual int ring_poll_and_process_element();
 
-	virtual int ring_request_notification(uint64_t poll_sn);
+	virtual int ring_request_notification();
 
-	virtual int ring_wait_for_notification_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array = NULL);
+	virtual int ring_wait_for_notification_and_process_element(void* pv_fd_ready_array);
 
 	virtual bool handle_os_countdown(int &poll_os_countdown);
 
