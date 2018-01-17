@@ -268,6 +268,12 @@ PACK_STRUCT_END
       (errf)((arg),(err));                                     \
   } while (0)
 
+#define TCP_SET_ERROR_STATUS(pcb,status)                       \
+  do {                                                         \
+    if((pcb)->tcp_set_error_status != NULL)                    \
+      (pcb)->tcp_set_error_status((pcb),(status));             \
+  } while (0)
+
 #endif /* LWIP_EVENT_API */
 
 /** Enabled extra-check for TCP_OVERSIZE if LWIP_DEBUG is enabled */

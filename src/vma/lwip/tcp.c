@@ -82,6 +82,13 @@ void register_tcp_seg_free(tcp_seg_free_fn fn)
 }
 #endif
 
+tcp_set_error_staus_fn external_tcp_set_error_status;
+
+void register_tcp_set_error_status(tcp_set_error_staus_fn fn)
+{
+	external_tcp_set_error_status = fn;
+}
+
 /* allow user to be notified upon tcp_state changes */
 tcp_state_observer_fn external_tcp_state_observer;
 
@@ -1140,6 +1147,7 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio)
 	pcb->enable_ts_opt = enable_ts_option;
 	pcb->seg_alloc = NULL;
 	pcb->pbuf_alloc = NULL;
+	pcb->in_flag_hndlg = 0;
 }
 
 struct pbuf *
@@ -1309,6 +1317,10 @@ tcp_clone_conn(struct tcp_pcb_listen *pcb, tcp_clone_conn_fn clone_conn)
 }
 #endif /* LWIP_CALLBACK_API */
 
+void tcp_set_error_status(struct tcp_pcb_listen *pcb, tcp_set_error_status_fn set_error_status)
+{
+	pcb->tcp_set_error_status = set_error_status;
+}
 
 /**
  * Used to specify the function that should be called periodically

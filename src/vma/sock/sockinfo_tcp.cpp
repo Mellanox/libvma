@@ -247,6 +247,7 @@ sockinfo_tcp::sockinfo_tcp(int fd):
 	tcp_recv(&m_pcb, sockinfo_tcp::rx_lwip_cb);
 	tcp_err(&m_pcb, sockinfo_tcp::err_lwip_cb);
 	tcp_sent(&m_pcb, sockinfo_tcp::ack_recvd_lwip_cb);
+	tcp_set_error_status(&m_pcb, sockinfo_tcp::set_error_status);
 	m_pcb.my_container = this;
 
 	m_n_pbufs_rcvd = m_n_pbufs_freed = 0;
@@ -3719,6 +3720,31 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 				errno = EINVAL;
 			}
 			break;
+		case TCP_INFO:
+			if (*__optlen >= sizeof(int)) {
+				struct tcp_info *ti = (struct tcp_info*)__optval;
+				int cnvt_to_tcpi_state[TCP_CLOSING] = { \
+					TCP_CLOSE, TCP_LISTEN, TCP_SYN_SENT, TCP_SYN_RECV,
+					TCP_ESTABLISHED, TCP_FIN_WAIT1, TCP_FIN_WAIT2, TCP_CLOSE_WAIT,
+					TCP_CLOSING, TCP_LAST_ACK, TCP_TIME_WAIT,
+				};
+				/* currently, limited support */
+				ti->tcpi_state = cnvt_to_tcpi_state[m_pcb.private_state];
+				ti->tcpi_retransmits = m_pcb.nrtx;
+				ti->tcpi_rto = m_pcb.rto;
+				ti->tcpi_snd_wscale = m_pcb.snd_scale;
+				ti->tcpi_rcv_wscale = m_pcb.rcv_scale;
+				ti->tcpi_snd_mss = m_pcb.mss;
+				ti->tcpi_rcv_mss = m_pcb.mss;
+				ti->tcpi_advmss = m_pcb.advtsd_mss;
+				ti->tcpi_snd_cwnd = m_pcb.cwnd;
+				ti->tcpi_snd_ssthresh = m_pcb.ssthresh;
+				ti->tcpi_unacked = m_pcb.unacked->seqno;
+				ret = 0;
+			} else {
+				errno = EINVAL;
+			}
+			break;
 		default:
 			ret = SOCKOPT_HANDLE_BY_OS;
 			break;
@@ -4463,6 +4489,12 @@ void sockinfo_tcp::put_tcp_seg(struct tcp_seg * seg)
 		m_tcp_seg_count -= count;
 	}
 	return;
+}
+
+void sockinfo_tcp::set_error_status(void* p_conn, int error_status)
+{
+	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)(((struct tcp_pcb*)p_conn)->my_container);
+	p_si_tcp->m_error_status = error_status;
 }
 
 //tcp_seg_pool

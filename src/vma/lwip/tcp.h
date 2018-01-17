@@ -186,6 +186,14 @@ typedef void  (*tcp_err_fn)(void *arg, err_t err);
  */
 typedef err_t (*tcp_connected_fn)(void *arg, struct tcp_pcb *tpcb, err_t err);
 
+/** Function prototype for tcp set error status callback functions. Called to change
+ *  the error_status.
+ *
+ * @param arg Additional argument to pass to the callback function (@see tcp_arg())
+ * @param status An error status
+ */
+typedef void  (*tcp_set_error_status_fn)(void *arg, int status);
+
 enum tcp_state {
   CLOSED      = 0,
   LISTEN      = 1,
@@ -237,6 +245,10 @@ static const char * const tcp_state_str[] = {
 typedef void (*tcp_state_observer_fn)(void* pcb_container, enum tcp_state new_state);
 void register_tcp_state_observer(tcp_state_observer_fn fn);
 extern tcp_state_observer_fn external_tcp_state_observer;
+
+typedef void (*tcp_set_error_staus_fn)(void* pcb_container, int status);
+void register_tcp_set_error_status(tcp_set_error_staus_fn fn);
+extern tcp_set_error_staus_fn external_tcp_set_error_staus;
 
 /**
  * members common to struct tcp_pcb and struct tcp_listen_pcb
@@ -381,6 +393,8 @@ struct tcp_pcb {
   tcp_poll_fn poll;
   /* Function to be called whenever a fatal error occurs. */
   tcp_err_fn errf;
+  /* Function to be called when an error status should be changed */
+  tcp_set_error_status_fn tcp_set_error_status;
 #endif /* LWIP_CALLBACK_API */
 
   u8_t enable_ts_opt;
@@ -418,6 +432,8 @@ struct tcp_pcb {
 
   /* Delayed ACK control: number of quick acks */
   u8_t quickack;
+  /* In flag handling */
+  u8_t in_flag_hndlg;
 };
 
 typedef u16_t (*ip_route_mtu_fn)(struct tcp_pcb *pcb);
@@ -472,6 +488,7 @@ void             tcp_ip_output          (struct tcp_pcb *pcb, ip_output_fn ip_ou
 void             tcp_accept  		(struct tcp_pcb *pcb, tcp_accept_fn accept);
 void             tcp_syn_handled	(struct tcp_pcb_listen *pcb, tcp_syn_handled_fn syn_handled);
 void             tcp_clone_conn		(struct tcp_pcb_listen *pcb, tcp_clone_conn_fn clone_conn);
+void             tcp_set_error_status (struct tcp_pcb_listen *pcb, tcp_set_error_status_fn set_error_status);
 void             tcp_recv    		(struct tcp_pcb *pcb, tcp_recv_fn recv);
 void             tcp_sent    		(struct tcp_pcb *pcb, tcp_sent_fn sent);
 void             tcp_poll    		(struct tcp_pcb *pcb, tcp_poll_fn poll, u8_t interval);

@@ -599,6 +599,16 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
       tcp_rst(in_data->ackno, in_data->seqno + in_data->tcplen,
         in_data->tcphdr->dest, in_data->tcphdr->src, pcb);
     }
+    /* received SYN? SYN_RCVD via SYN */
+    else if (in_data->flags & TCP_SYN) {
+      err = tcp_enqueue_flags(pcb, TCP_SYN);
+      if (err == ERR_OK) {
+        /* Changed the pcbs state now */
+        set_tcp_state(pcb, SYN_RCVD);
+        pcb->in_flag_hndlg |= TCP_SYN;
+        TCP_SET_ERROR_STATUS(pcb, 0);
+      }
+    }
     break;
   case SYN_RCVD:
     if (in_data->flags & TCP_ACK) {

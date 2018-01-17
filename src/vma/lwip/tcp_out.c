@@ -1121,6 +1121,11 @@ tcp_output(struct tcp_pcb *pcb)
        #if TCP_OVERSIZE_DBGCHECK
          seg->oversize_left = 0;
        #endif /* TCP_OVERSIZE_DBGCHECK */
+       if ((pcb->in_flag_hndlg & TCP_SYN) && (get_tcp_state(pcb) & SYN_RCVD)) {
+         pcb->in_flag_hndlg = 0;
+         pcb->rcv_nxt = 1;
+         seg->tcphdr->seqno = htonl(htonl(seg->tcphdr->seqno)-1);
+       }
        tcp_output_segment(seg, pcb);
        snd_nxt = seg->seqno + TCP_TCPLEN(seg);
        if (TCP_SEQ_LT(pcb->snd_nxt, snd_nxt) && !LWIP_IS_DUMMY_SEGMENT(seg)) {
