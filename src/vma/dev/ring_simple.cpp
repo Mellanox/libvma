@@ -1741,23 +1741,12 @@ bool ring_simple::is_available_qp_wr(bool b_block)
 //call under m_lock_ring_tx lock
 bool ring_simple::request_more_tx_buffers(uint32_t count)
 {
-	mem_buf_desc_t *p_temp_desc_list, *p_temp_buff;
-
 	ring_logfuncall("Allocating additional %d buffers for internal use", count);
 
-	//todo have get_buffers_thread_safe with given m_tx_pool as parameter, to save assembling and disassembling of buffer chain
-	p_temp_desc_list = g_buffer_pool_tx->get_buffers_thread_safe(count, m_tx_lkey);
-	if (p_temp_desc_list == NULL) {
+	bool res = g_buffer_pool_tx->get_buffers_thread_safe(m_tx_pool, this, count, m_tx_lkey);
+	if (!res) {
 		ring_logfunc("Out of mem_buf_desc from TX free pool for internal object pool");
 		return false;
-	}
-
-	while (p_temp_desc_list) {
-		p_temp_buff = p_temp_desc_list;
-		p_temp_desc_list = p_temp_buff->p_next_desc;
-		p_temp_buff->p_desc_owner = this;
-		p_temp_buff->p_next_desc = NULL;
-		m_tx_pool.push_back(p_temp_buff);
 	}
 
 	return true;
