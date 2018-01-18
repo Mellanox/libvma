@@ -107,7 +107,7 @@ bool dm_context::dm_allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* rin
 
 	m_allocation = allocation_size;
 	m_p_mlx5_dm = reinterpret_cast<struct vma_mlx5_dm *> (ibv_dm);
-	m_p_ring_stat->n_tx_dev_mem_allocated = m_allocation;
+	m_p_ring_stat->simple.n_tx_dev_mem_allocated = m_allocation;
 
 	dmc_logdbg("Device memory allocation completed successfully! device[%s] bytes[%zu] dm_mr handle[%d] dm_mr lkey[%d]",
 			ib_ctx->get_ibv_device()->name, dm_attr.length, m_p_dm_mr->handle, m_p_dm_mr->lkey);
@@ -237,8 +237,8 @@ bool dm_context::dm_copy_data(struct mlx5_wqe_data_seg* seg, uint8_t* src, uint3
 	m_used += dev_mem_length;
 
 	// Update On Device Memory statistics
-	m_p_ring_stat->n_tx_dev_mem_pkt_count++;
-	m_p_ring_stat->n_tx_dev_mem_byte_count += length;
+	m_p_ring_stat->simple.n_tx_dev_mem_pkt_count++;
+	m_p_ring_stat->simple.n_tx_dev_mem_byte_count += length;
 
 	dmc_logfunc("Send completed successfully! Buffer[%p] length[%d] length_aligned_8[%d] continuous_left[%zu] head[%zu] used[%zu]",
 			buff, length, length_aligned_8, continuous_left, m_head, m_used);
@@ -249,7 +249,7 @@ dev_mem_oob:
 	dmc_logfunc("Send OOB! Buffer[%p] length[%d] length_aligned_8[%d] continuous_left[%zu] head[%zu] used[%zu]",
 			buff, length, length_aligned_8, continuous_left, m_head, m_used);
 
-	m_p_ring_stat->n_tx_dev_mem_oob++;
+	m_p_ring_stat->simple.n_tx_dev_mem_oob++;
 
 	return false;
 }

@@ -328,6 +328,7 @@ remain below as in master?
 
 	// use local copy of stats by default
 	m_p_ring_stat = &m_ring_stat_static;
+	m_p_ring_stat->n_type = RING_SIMPLE;
 	memset(m_p_ring_stat , 0, sizeof(*m_p_ring_stat));
 	if (m_parent != this) {
 		m_ring_stat_static.p_ring_master = m_parent;
@@ -1204,7 +1205,7 @@ int ring_simple::request_notification(cq_type_t cq_type, uint64_t poll_sn)
 	if (likely(CQT_RX == cq_type)) {
 		RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_rx,
 				m_p_cq_mgr_rx->request_notification(poll_sn);
-				++m_ring_stat_static.n_rx_interrupt_requests);
+				++m_ring_stat_static.simple.n_rx_interrupt_requests);
 	}
 	else {
 		RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_tx, m_p_cq_mgr_tx->request_notification(poll_sn));
@@ -1283,7 +1284,7 @@ int ring_simple::wait_for_notification_and_process_element(cq_type_t cq_type, in
 		if (m_p_cq_mgr_rx != NULL) {
 			RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_rx,
 					m_p_cq_mgr_rx->wait_for_notification_and_process_element(p_cq_poll_sn, pv_fd_ready_array);
-					++m_ring_stat_static.n_rx_interrupt_received);
+					++m_ring_stat_static.simple.n_rx_interrupt_received);
 		} else {
 			ring_logerr("Can't find rx_cq for the rx_comp_event_channel_fd (= %d)", cq_channel_fd);
 		}
@@ -1870,8 +1871,8 @@ void ring_simple::modify_cq_moderation(uint32_t period, uint32_t count)
 	m_cq_moderation_info.period = period;
 	m_cq_moderation_info.count = count;
 
-	m_ring_stat_static.n_rx_cq_moderation_period = period;
-	m_ring_stat_static.n_rx_cq_moderation_count = count;
+	m_ring_stat_static.simple.n_rx_cq_moderation_period = period;
+	m_ring_stat_static.simple.n_rx_cq_moderation_count = count;
 
 	//todo all cqs or just active? what about HA?
 	m_p_cq_mgr_rx->modify_cq_moderation(period, count);
@@ -1962,7 +1963,7 @@ bool ring_simple::is_up() {
 
 void ring_simple::inc_tx_retransmissions(ring_user_id_t id) {
 	NOT_IN_USE(id);
-	m_p_ring_stat->n_tx_retransmits++;
+	m_p_ring_stat->simple.n_tx_retransmits++;
 }
 
 bool ring_simple::is_active_member(mem_buf_desc_owner* rng, ring_user_id_t id)

@@ -704,6 +704,7 @@ ring_bond_eth_netvsc::ring_bond_eth_netvsc(in_addr_t local_if, ring_resource_cre
 	static int tap_id = 0;
 	int err, pid = getpid(), ioctl_sock = -1;
 	char command_str[TAP_STR_LENGTH], return_str[TAP_STR_LENGTH], tap_name[IFNAMSIZ];
+	memset(&m_ring_stat , 0, sizeof(m_ring_stat));
 
 	// Get netvsc interface index
 	if (!m_netvsc_idx) {
@@ -787,6 +788,14 @@ ring_bond_eth_netvsc::ring_bond_eth_netvsc(in_addr_t local_if, ring_resource_cre
 
 	close(ioctl_sock);
 
+	// Update ring statistics
+	m_ring_stat.p_ring_master = this;
+	m_ring_stat.n_type = RING_TAP;
+	m_ring_stat.tap.n_tap_fd = m_tap_fd;
+	memcpy(m_ring_stat.tap.s_tap_name, tap_name, IFNAMSIZ);
+
+	vma_stats_instance_create_ring_block(&m_ring_stat);
+
 	ring_logdbg("Tap device %s [fd=%d] was created successfully", ifr.ifr_name, m_tap_fd);
 
 	return;
@@ -818,6 +827,8 @@ ring_bond_eth_netvsc::~ring_bond_eth_netvsc()
 		close(m_tap_fd);
 		m_tap_fd = -1;
 	}
+
+	vma_stats_instance_remove_ring_block(&m_ring_stat);
 }
 
 int ring_bond_eth_netvsc::poll_and_process_element_tap_rx(void* pv_fd_ready_array /* = NULL */)
@@ -831,6 +842,9 @@ int ring_bond_eth_netvsc::poll_and_process_element_tap_rx(void* pv_fd_ready_arra
 			if (buff->sz_data > 0 && m_bond_rings[0]->rx_process_buffer(buff, pv_fd_ready_array)) {
 				// Data was read and processed successfully
 				bytes = buff->sz_data;
+				m_ring_stat.n_rx_byte_count += bytes;
+				m_ring_stat.n_rx_pkt_count++;
+				m_ring_stat.tap.n_rx_buffers--;
 			} else {
 				// Unable to read data, return buffer to pool
 				m_rx_pool.push_front(buff);
@@ -889,6 +903,8 @@ bool ring_bond_eth_netvsc::request_more_rx_buffers()
 		ring_logfunc("Out of mem_buf_desc from TX free pool for internal object pool");
 		return false;
 	}
+
+	m_ring_stat.tap.n_rx_buffers = m_rx_pool.size();
 
 	return true;
 }

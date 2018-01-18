@@ -121,6 +121,7 @@ private:
 	int poll_and_process_element_tap_rx(void* pv_fd_ready_array = NULL);
 	bool request_more_rx_buffers();
 
+	ring_stats_t	m_ring_stat;
 	descq_t         m_rx_pool;
 	const uint32_t  m_sysvar_qp_compensation_level;
 	const int       m_netvsc_idx;
