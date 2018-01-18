@@ -93,10 +93,13 @@ typedef enum {
 #define RX_MEDIUM_VIEW			" %-3d %-3s %10u %7u %8u %7u %6.1f %6u  %6u  %6u %7u %7u %7u %7u\n"
 #define TX_MEDIUM_VIEW			" %-3s %-3s %10u %7u %8u %7u %29s %7u %7u %7u %7u\n"
 #define CYCLES_SEPARATOR		"-------------------------------------------------------------------------------\n" 
-#define FORMAT_CQ_STATS_32bit		"%-20s %10u\n"
-#define FORMAT_CQ_STATS_64bit		"%-20s %10llu %-3s\n"
-#define FORMAT_DEV_MEM				"%-20s %lu KB / %lu / %lu [bytes/packets/oob] %-3s\n"
-#define FORMAT_CQ_STATS_percent		"%-20s %10.2f%%\n"
+#define FORMAT_STATS_32bit		"%-20s %10u\n"
+#define FORMAT_STATS_64bit		"%-20s %10llu %-3s\n"
+#define FORMAT_RING_PACKETS			"%-20s %zu KB / %zu [bytes/packets] %-3s\n"
+#define FORMAT_RING_INTERRUPT		"%-20s %zu / %zu [requests/received] %-3s\n"
+#define FORMAT_RING_MODERATION		"%-20s %u / %u [frame count/usec period] %-3s\n"
+#define FORMAT_RING_DM_ALLOC			"%-20s %u\n"
+#define FORMAT_RING_DM_STATS			"%-20s %zu KB / %zu / %zu [bytes/packets/oob] %-3s\n"
 
 #define INTERVAL			1
 #define BYTES_TRAFFIC_UNIT		e_K
@@ -279,16 +282,19 @@ void print_ring_stats(ring_instance_block_t* p_ring_inst_arr)
 			} else {
 				printf("\tRING=[%u]\n", i);
 			}
-			printf(FORMAT_CQ_STATS_64bit, "Packets count:", (unsigned long long int)p_ring_stats->n_rx_pkt_count, post_fix);
-			printf(FORMAT_CQ_STATS_64bit, "Packets bytes:", (unsigned long long int)p_ring_stats->n_rx_byte_count, post_fix);
-			printf(FORMAT_CQ_STATS_64bit, "Interrupt requests:", (unsigned long long int)p_ring_stats->n_rx_interrupt_requests, post_fix);
-			printf(FORMAT_CQ_STATS_64bit, "Interrupt received:", (unsigned long long int)p_ring_stats->n_rx_interrupt_received, post_fix);
-			printf(FORMAT_CQ_STATS_32bit, "Moderation frame count:",p_ring_stats->n_rx_cq_moderation_count);
-			printf(FORMAT_CQ_STATS_32bit, "Moderation usec period:",p_ring_stats->n_rx_cq_moderation_period);
-			printf(FORMAT_CQ_STATS_64bit, "Retransmissions:", (unsigned long long int)p_ring_stats->n_tx_retransmits, post_fix);
+			printf(FORMAT_RING_PACKETS, "Rx Offload:", p_ring_stats->n_rx_byte_count/BYTES_TRAFFIC_UNIT, p_ring_stats->n_rx_pkt_count, post_fix);
+			if (p_ring_stats->n_rx_interrupt_requests || p_ring_stats->n_rx_interrupt_received) {
+				printf(FORMAT_RING_INTERRUPT, "Interrupts:", p_ring_stats->n_rx_interrupt_requests, p_ring_stats->n_rx_interrupt_received, post_fix);
+			}
+			if (p_ring_stats->n_rx_cq_moderation_count || p_ring_stats->n_rx_cq_moderation_period) {
+				printf(FORMAT_RING_MODERATION, "Moderation:", p_ring_stats->n_rx_cq_moderation_count, p_ring_stats->n_rx_cq_moderation_period, post_fix);
+			}
+			if (p_ring_stats->n_tx_retransmits) {
+				printf(FORMAT_STATS_64bit, "Retransmissions:", (unsigned long long int)p_ring_stats->n_tx_retransmits, post_fix);
+			}
 			if (p_ring_stats->n_tx_dev_mem_allocated) {
-				printf(FORMAT_CQ_STATS_32bit, "Dev Mem allocation:", p_ring_stats->n_tx_dev_mem_allocated);
-				printf(FORMAT_DEV_MEM, "Dev Mem stats:", p_ring_stats->n_tx_dev_mem_byte_count/BYTES_TRAFFIC_UNIT,  p_ring_stats->n_tx_dev_mem_pkt_count, p_ring_stats->n_tx_dev_mem_oob, post_fix);
+				printf(FORMAT_RING_DM_ALLOC, "Dev Mem Alloc:", p_ring_stats->n_tx_dev_mem_allocated);
+				printf(FORMAT_RING_DM_STATS, "Dev Mem Stats:", p_ring_stats->n_tx_dev_mem_byte_count/BYTES_TRAFFIC_UNIT,  p_ring_stats->n_tx_dev_mem_pkt_count, p_ring_stats->n_tx_dev_mem_oob, post_fix);
 			}
 		}
 	}
@@ -308,10 +314,10 @@ void print_cq_stats(cq_instance_block_t* p_cq_inst_arr)
 			p_cq_stats = &p_cq_inst_arr[i].cq_stats;
 			printf("======================================================\n");
 			printf("\tCQ=[%u]\n", i);
-			printf(FORMAT_CQ_STATS_64bit, "Packets dropped:", (unsigned long long int)p_cq_stats->n_rx_pkt_drop, post_fix);
-			printf(FORMAT_CQ_STATS_32bit, "Packets queue len:",p_cq_stats->n_rx_sw_queue_len);
-			printf(FORMAT_CQ_STATS_32bit, "Drained max:", p_cq_stats->n_rx_drained_at_once_max);
-			printf(FORMAT_CQ_STATS_32bit, "Buffer pool size:",p_cq_stats->n_buffer_pool_len);
+			printf(FORMAT_STATS_64bit, "Packets dropped:", (unsigned long long int)p_cq_stats->n_rx_pkt_drop, post_fix);
+			printf(FORMAT_STATS_32bit, "Packets queue len:",p_cq_stats->n_rx_sw_queue_len);
+			printf(FORMAT_STATS_32bit, "Drained max:", p_cq_stats->n_rx_drained_at_once_max);
+			printf(FORMAT_STATS_32bit, "Buffer pool size:",p_cq_stats->n_buffer_pool_len);
 		}
 	}
 	printf("======================================================\n");
@@ -335,8 +341,8 @@ void print_bpool_stats(bpool_instance_block_t* p_bpool_inst_arr)
 				printf("\tBUFFER_POOL(TX)=[%u]\n", i);
 			else
 				printf("\tBUFFER_POOL=[%u]\n", i);
-			printf(FORMAT_CQ_STATS_32bit, "Size:", p_bpool_stats->n_buffer_pool_size);
-			printf(FORMAT_CQ_STATS_32bit, "No buffers error:", p_bpool_stats->n_buffer_pool_no_bufs);
+			printf(FORMAT_STATS_32bit, "Size:", p_bpool_stats->n_buffer_pool_size);
+			printf(FORMAT_STATS_32bit, "No buffers error:", p_bpool_stats->n_buffer_pool_no_bufs);
 		}
 	}
 	printf("======================================================\n");
