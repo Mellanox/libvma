@@ -38,6 +38,7 @@
 #include <string.h>
 #include <bitset>
 #include <netinet/in.h>
+#include <linux/if.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <vlogger/vlogger.h>
@@ -224,20 +225,35 @@ typedef struct {
 	cq_stats_t  cq_stats;
 } cq_instance_block_t;
 
+typedef enum {
+	RING_SIMPLE = 0,
+	RING_TAP
+} ring_type_t;
+
 // Ring stat info
 typedef struct {
 	uint64_t    n_rx_pkt_count;
 	uint64_t    n_rx_byte_count;
-	uint64_t    n_rx_interrupt_requests;
-	uint64_t    n_rx_interrupt_received;
-	uint32_t    n_rx_cq_moderation_count;
-	uint32_t    n_rx_cq_moderation_period;
-	uint64_t    n_tx_retransmits;
-	uint64_t    n_tx_dev_mem_pkt_count;
-	uint64_t    n_tx_dev_mem_byte_count;
-	uint64_t    n_tx_dev_mem_oob;
-	uint32_t    n_tx_dev_mem_allocated;
 	void*       p_ring_master;
+	ring_type_t n_type;
+	union {
+		struct {
+			uint64_t    n_rx_interrupt_requests;
+			uint64_t    n_rx_interrupt_received;
+			uint32_t    n_rx_cq_moderation_count;
+			uint32_t    n_rx_cq_moderation_period;
+			uint64_t    n_tx_retransmits;
+			uint64_t    n_tx_dev_mem_pkt_count;
+			uint64_t    n_tx_dev_mem_byte_count;
+			uint64_t    n_tx_dev_mem_oob;
+			uint32_t    n_tx_dev_mem_allocated;
+		} simple;
+		struct {
+			char		s_tap_name[IFNAMSIZ];
+			uint32_t	n_tap_fd;
+			uint32_t	n_rx_buffers;
+		} tap;
+	};
 } ring_stats_t;
 
 typedef struct {
