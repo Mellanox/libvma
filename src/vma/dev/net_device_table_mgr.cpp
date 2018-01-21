@@ -431,7 +431,7 @@ bool net_device_table_mgr::verify_eth_qp_creation(const char* ifname)
 		ndtm_logdbg("QP creation failed on interface %s (errno=%d %m), Traffic will not be offloaded \n", ifname, errno);
 		int err = errno; //verify_raw_qp_privliges can overwrite errno so keep it before the call
 		if (validate_raw_qp_privliges() == 0) {
-			//// MLNX_OFED raw_qp_privliges file exist with bad value
+			// MLNX_OFED raw_qp_privliges file exist with bad value
 			vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 			vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", ifname);
 			vlog_printf(VLOG_WARNING,"* Working in this mode might causes VMA malfunction over Ethernet interfaces\n");
