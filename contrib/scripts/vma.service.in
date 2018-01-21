@@ -1,7 +1,7 @@
 [Unit]
 Description=VMA Daemon. Version: @VERSION@-@VMA_LIBRARY_RELEASE@
-After=openibd.service network.target syslog.target
-Requires=network.target openibd.service
+After=network.target syslog.target
+Requires=network.target
 
 [Service]
 Type=forking
