@@ -214,6 +214,14 @@ int read_file_to_int(const char *path, int default_value);
  */
 int get_ifinfo_from_ip(const struct sockaddr& local_addr, char* ifname, uint32_t &ifflags);
 
+/**
+ * Get port number from interface name
+ * @param ifname input interface name of device (e.g. eth1, ib2)
+ *  should be of size IFNAMSIZ
+ * @return zero on failure, else port number
+ */
+int get_port_from_ifname(const char* ifname);
+
 /** 
  * Get interface type value from interface name
  * 

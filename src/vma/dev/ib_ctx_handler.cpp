@@ -216,7 +216,7 @@ void ib_ctx_handler::set_flow_tag_capability(bool flow_tag_capability)
 	m_flow_tag_enabled = flow_tag_capability;
 }
 
-ibv_port_state ib_ctx_handler::get_port_state(int port_num)
+bool ib_ctx_handler::is_active(int port_num)
 {
 	ibv_port_attr port_attr;
 
@@ -225,7 +225,7 @@ ibv_port_state ib_ctx_handler::get_port_state(int port_num)
 		ibch_logdbg("ibv_query_port failed on ibv device %p, port %d "
 			    "(errno=%d)", m_p_ibv_context, port_num, errno);
 	}ENDIF_VERBS_FAILURE;
-	return port_attr.state;
+	return port_attr.state == IBV_PORT_ACTIVE;
 }
 
 void ib_ctx_handler::handle_event_ibverbs_cb(void *ev_data, void *ctx)

@@ -63,7 +63,7 @@ public:
 	void                    set_flow_tag_capability(bool flow_tag_capability); 
 	bool                    get_flow_tag_capability() { return m_flow_tag_enabled;} // m_flow_tag_capability
 	size_t                  get_on_device_memory_size() { return m_on_device_memory; }
-	ibv_port_state          get_port_state(int port_num);
+	bool                    is_active(int port_num);
 	virtual void            handle_event_ibverbs_cb(void *ev_data, void *ctx);
 
 	inline void convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime)
