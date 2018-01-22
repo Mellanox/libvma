@@ -33,6 +33,9 @@
 #ifndef TOOLS_DAEMON_HASH_H_
 #define TOOLS_DAEMON_HASH_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* The hash_t opaque data type
  */
@@ -119,5 +122,9 @@ void *hash_put(hash_t ht, hash_key_t key, void *value);
  * @return @a none
  */
 void hash_del(hash_t ht, hash_key_t key);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* TOOLS_DAEMON_HASH_H_ */

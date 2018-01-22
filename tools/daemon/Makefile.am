@@ -20,4 +20,5 @@ vmad_SOURCES = \
 
 noinst_HEADERS = \
 	daemon.h \
-	hash.h
+	hash.h \
+	bitmap.h

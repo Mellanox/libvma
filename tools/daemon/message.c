@@ -418,7 +418,10 @@ static int proc_msg_flow(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_u
 	if (VMA_MSG_FLOW_ADD == data->action) {
 		list_for_each(cur_entry, &pid_value->flow_list) {
 			cur_flow = container_of(cur_entry, struct store_flow, item);
-			if (!memcmp(&value->type, &cur_flow->type, sizeof(cur_flow) - sizeof(cur_flow->type))) {
+			if (value->type == cur_flow->type &&
+				value->if_id == cur_flow->if_id &&
+				value->tap_id == cur_flow->tap_id &&
+				!memcmp(&value->flow, &cur_flow->flow, sizeof(cur_flow->flow))) {
 				break;
 			}
 		}
@@ -439,8 +442,9 @@ static int proc_msg_flow(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_u
 		list_for_each(cur_entry, &pid_value->flow_list) {
 			cur_flow = container_of(cur_entry, struct store_flow, item);
 			if (value->type == cur_flow->type &&
-					value->if_id == cur_flow->if_id &&
-					!memcmp(&value->flow, &cur_flow->flow, sizeof(cur_flow->flow))) {
+				value->if_id == cur_flow->if_id &&
+				value->tap_id == cur_flow->tap_id &&
+				!memcmp(&value->flow, &cur_flow->flow, sizeof(cur_flow->flow))) {
 				log_debug("[%d] del flow handle: 0x%08X type: %d if_id: %d tap_id: %d\n",
 						pid_value->pid, cur_flow->handle, cur_flow->type, cur_flow->if_id, cur_flow->tap_id);
 				rc = del_flow(pid_value->pid, cur_flow);
