@@ -100,9 +100,12 @@ int open_notify(void);
 void close_notify(void);
 int proc_notify(void);
 
+extern int add_flow(pid_t pid, struct store_flow *value);
+extern int del_flow(pid_t pid, struct store_flow *value);
+
 static int setup_notify(void);
 static int create_raw_socket(void);
-static int send_peer_notification(pid_t pid);
+static int clean_process(pid_t pid);
 static int check_process(pid_t pid);
 static unsigned short calc_csum(unsigned short *ptr, int nbytes);
 static int get_seqno(struct rst_info *rst);
@@ -260,11 +263,10 @@ err:
 	return rc;
 }
 
-static int send_peer_notification(pid_t pid)
+static int clean_process(pid_t pid)
 {
 	int rc = -ESRCH;
 	int wait = 0;
-	struct rst_info rst;
 
 	wait = 100;
 	do {
@@ -275,9 +277,12 @@ static int send_peer_notification(pid_t pid)
 			log_debug("[%d] detect abnormal termination\n", pid);
 			pid_value = hash_get(daemon_cfg.ht, pid);
 			if (pid_value) {
-				struct store_fid *fid_value;
+				struct rst_info rst;
+				struct store_fid *fid_value = NULL;
+				struct store_flow *flow_value = NULL;
 				int i, j;
 
+				/* Cleanup fid store */
 				j = 0;
 				for (i = 0; (i < hash_size(pid_value->ht)) &&
 							(j < hash_count(pid_value->ht)); i++) {
@@ -288,17 +293,17 @@ static int send_peer_notification(pid_t pid)
 
 					j++;
 					log_debug("[%d] #%d found fid: %d type: %d state: %d\n",
-							pid, j,
+							pid_value->pid, j,
 							fid_value->fid, fid_value->type, fid_value->state);
 
 					if (STATE_ESTABLISHED != fid_value->state) {
 						log_debug("[%d] #%d skip fid: %d\n",
-								pid, j, fid_value->fid);
+								pid_value->pid, j, fid_value->fid);
 						continue;
 					}
 
 					log_debug("[%d] #%d process fid: %d\n",
-							pid, j, fid_value->fid);
+							pid_value->pid, j, fid_value->fid);
 
 					/* Notification is based on sending RST packet to all peers
 					 * and looks as spoofing attacks that uses a technique
@@ -325,6 +330,18 @@ static int send_peer_notification(pid_t pid)
 					if (0 == get_seqno(&rst)) {
 						send_rst(&rst);
 					}
+				}
+
+				/* Cleanup flow store */
+				j = 0;
+				while (!list_empty(&pid_value->flow_list)) {
+					flow_value = list_first_entry(&pid_value->flow_list, struct store_flow, item);
+					log_debug("[%d] #%d found handle: 0x%08X type: %d if_id: %d tap_id: %d\n",
+							pid_value->pid, j,
+							flow_value->handle, flow_value->type, flow_value->if_id, flow_value->tap_id);
+					rc = del_flow(pid_value->pid, flow_value);
+					list_del_init(&flow_value->item);
+					free(flow_value);
 				}
 
 				hash_del(daemon_cfg.ht, pid);
@@ -641,7 +658,7 @@ static int proc_fanotify(void *buffer, int nbyte)
 				 * nonzero in case we decide that processes exited accurately
 				 * or some internal error happens during RST send
 				 */
-				rc = send_peer_notification(data->pid);
+				rc = clean_process(data->pid);
 				if (0 == rc) {
 					/* Cleanup unexpected termination */
 					log_debug("[%d] cleanup after unexpected termination\n", data->pid);
@@ -751,7 +768,7 @@ static int proc_inotify(void *buffer, int nbyte)
 				 * nonzero in case we decide that processes exited accurately
 				 * or some internal error happens during RST send
 				 */
-				rc = send_peer_notification(pid);
+				rc = clean_process(pid);
 				if (0 == rc) {
 					/* Cleanup unexpected termination */
 					log_debug("[%d] cleanup after unexpected termination\n", pid);

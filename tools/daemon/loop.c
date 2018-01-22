@@ -46,6 +46,8 @@
 
 extern int open_store(void);
 extern void close_store(void);
+extern int open_flow(void);
+extern void close_flow(void);
 extern int open_message(void);
 extern void close_message(void);
 extern int proc_message(void);
@@ -70,6 +72,12 @@ int proc_loop(void)
 		goto err;
 	}
 
+	log_debug("setting flow ...\n");
+	rc = open_flow();
+	if (rc < 0) {
+		goto err;
+	}
+
 	log_debug("setting notification ...\n");
 	rc = open_notify();
 	if (rc < 0) {
@@ -83,7 +91,7 @@ int proc_loop(void)
 	}
 
 	log_debug("starting loop ...\n");
-	while ((0 == daemon_cfg.sig) && (0 == rc)) {
+	while ((0 == daemon_cfg.sig) && (errno != EINTR)) {
 		fd_set readfds;
 		struct timeval tv;
 		int max_fd = -1;
@@ -127,11 +135,10 @@ int proc_loop(void)
 err:
 	log_debug("finishing loop ...\n");
 
-	close_store();
-
 	close_message();
-
 	close_notify();
+	close_flow();
+	close_store();
 
 	return rc;
 }

@@ -53,9 +53,13 @@ int open_message(void);
 void close_message(void);
 int proc_message(void);
 
+extern int add_flow(pid_t pid, struct store_flow *value);
+extern int del_flow(pid_t pid, struct store_flow *value);
+
 static int proc_msg_init(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_un *peeraddr);
 static int proc_msg_exit(struct vma_hdr *msg_hdr, size_t size);
 static int proc_msg_state(struct vma_hdr *msg_hdr, size_t size);
+static int proc_msg_flow(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_un *peeraddr);
 
 
 int open_message(void)
@@ -168,9 +172,12 @@ again:
 		case VMA_MSG_EXIT:
 			rc = proc_msg_exit(msg_hdr, len);
 			break;
+		case VMA_MSG_FLOW:
+			rc = proc_msg_flow(msg_hdr, len, &peeraddr);
+			break;
 		default:
 			rc = -EPROTO;
-			log_error("Received unknow message errno %d (%s)\n", errno,
+			log_error("Received unknown message errno %d (%s)\n", errno,
 					strerror(errno));
 			goto err;
 		}
@@ -218,6 +225,7 @@ static int proc_msg_init(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_u
 	value->pid = data->hdr.pid;
 	value->lib_ver = data->ver;
 	gettimeofday(&value->t_start, NULL);
+	INIT_LIST_HEAD(&value->flow_list);
 
 	value->ht = hash_create(&free, daemon_cfg.opt.max_fid_num);
 	if (NULL == value->ht) {
@@ -252,6 +260,7 @@ static int proc_msg_init(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_u
 static int proc_msg_exit(struct vma_hdr *msg_hdr, size_t size)
 {
 	struct vma_msg_exit *data;
+	struct store_pid *pid_value = NULL;
 
 	assert(msg_hdr);
 	assert(msg_hdr->code == VMA_MSG_EXIT);
@@ -262,7 +271,18 @@ static int proc_msg_exit(struct vma_hdr *msg_hdr, size_t size)
 		return -EBADMSG;
 	}
 
-	hash_del(daemon_cfg.ht, data->hdr.pid);
+	pid_value = hash_get(daemon_cfg.ht, data->hdr.pid);
+	if (pid_value) {
+		struct store_flow *flow_value = NULL;
+		while (!list_empty(&pid_value->flow_list)) {
+			flow_value = list_first_entry(&pid_value->flow_list, struct store_flow, item);
+			del_flow(pid_value->pid, flow_value);
+			list_del_init(&flow_value->item);
+			free(flow_value);
+		}
+
+		hash_del(daemon_cfg.ht, pid_value->pid);
+	}
 
 	log_debug("[%d] remove from the storage\n", data->hdr.pid);
 
@@ -336,4 +356,112 @@ static int proc_msg_state(struct vma_hdr *msg_hdr, size_t size)
 					tcp_state_str[value->state] : "n/a"));
 
 	return (sizeof(*data));
+}
+
+static int proc_msg_flow(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_un *peeraddr)
+{
+	int rc = 0;
+	struct vma_msg_flow *data;
+	struct store_pid *pid_value;
+	struct store_flow *value;
+	struct store_flow *cur_flow = NULL;
+	struct list_head *cur_entry = NULL;
+
+	assert(msg_hdr);
+	assert(msg_hdr->code == VMA_MSG_FLOW);
+	assert(size);
+
+	data = (struct vma_msg_flow *)msg_hdr;
+	if (size < sizeof(*data)) {
+		rc = -EBADMSG;
+		goto err;
+	}
+
+	pid_value = hash_get(daemon_cfg.ht, data->hdr.pid);
+	if (NULL == pid_value) {
+		log_error("Failed hash_get() for pid %d errno %d (%s)\n",
+				data->hdr.pid, errno, strerror(errno));
+		rc = -ENOENT;
+		goto err;
+	}
+
+	/* Allocate memory for this value in this place
+	 */
+	value = (void *)calloc(1, sizeof(*value));
+	if (NULL == value) {
+		rc = -ENOMEM;
+		goto err;
+	}
+
+	value->type = data->type;
+	value->if_id = data->if_id;
+	value->tap_id = data->tap_id;
+	switch (value->type) {
+	case VMA_MSG_FLOW_TCP_3T:
+		value->flow.t3.dst_ip = data->flow.t3.dst_ip;
+		value->flow.t3.dst_port = data->flow.t3.dst_port;
+		break;
+	case VMA_MSG_FLOW_TCP_5T:
+		value->flow.t5.src_ip = data->flow.t5.src_ip;
+		value->flow.t5.dst_ip = data->flow.t5.dst_ip;
+		value->flow.t5.src_port = data->flow.t5.src_port;
+		value->flow.t5.dst_port = data->flow.t5.dst_port;
+		break;
+	default:
+		log_error("Received unknown message errno %d (%s)\n", errno,
+				strerror(errno));
+		free(value);
+		rc = -EPROTO;
+		goto err;
+	}
+
+	if (VMA_MSG_FLOW_ADD == data->action) {
+		list_for_each(cur_entry, &pid_value->flow_list) {
+			cur_flow = container_of(cur_entry, struct store_flow, item);
+			if (!memcmp(&value->type, &cur_flow->type, sizeof(cur_flow) - sizeof(cur_flow->type))) {
+				break;
+			}
+		}
+		if (cur_entry == &pid_value->flow_list) {
+			rc = add_flow(pid_value->pid, value);
+			if (rc < 0) {
+				free(value);
+				goto err;
+			}
+			list_add_tail(&value->item, &pid_value->flow_list);
+
+			log_debug("[%d] add flow handle: 0x%08X type: %d if_id: %d tap_id: %d\n",
+					pid_value->pid, value->handle, value->type, value->if_id, value->tap_id);
+		}
+	}
+
+	if (VMA_MSG_FLOW_DEL == data->action) {
+		list_for_each(cur_entry, &pid_value->flow_list) {
+			cur_flow = container_of(cur_entry, struct store_flow, item);
+			if (value->type == cur_flow->type &&
+					value->if_id == cur_flow->if_id &&
+					!memcmp(&value->flow, &cur_flow->flow, sizeof(cur_flow->flow))) {
+				log_debug("[%d] del flow handle: 0x%08X type: %d if_id: %d tap_id: %d\n",
+						pid_value->pid, cur_flow->handle, cur_flow->type, cur_flow->if_id, cur_flow->tap_id);
+				rc = del_flow(pid_value->pid, cur_flow);
+				list_del_init(&cur_flow->item);
+				free(cur_flow);
+				break;
+			}
+		}
+		free(value);
+	}
+
+err:
+	if (1 == data->hdr.status) {
+		data->hdr.code |= VMA_MSG_ACK;
+		data->hdr.status = (rc ? 1 : 0);
+		if (0 > sys_sendto(daemon_cfg.sock_fd, &data->hdr, sizeof(data->hdr), 0,
+				(struct sockaddr *)peeraddr, sizeof(*peeraddr))) {
+			log_error("Failed sendto() message errno %d (%s)\n", errno,
+					strerror(errno));
+		}
+	}
+
+	return (rc ? rc : (int)sizeof(*data));
 }
