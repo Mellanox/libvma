@@ -3486,7 +3486,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 
 	if (__level == IPPROTO_IP) {
 		switch(__optname) {
-		case IP_TOS:
+		case IP_TOS: /* might be missing ECN logic */
 			if (__optlen <= sizeof(int)) {
 				val = *(int *)__optval;
 				val &= ~INET_ECN_MASK;
@@ -3802,15 +3802,8 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 		break;
 	case IPPROTO_IP:
 		switch (__optname) {
-		case IP_TOS:
-			if (*__optlen > 0) {
-				*(uint8_t *)__optval = m_pcb.tos;
-				*__optlen = 1;
-			} else {
-				errno = EINVAL;
-			}
-			break;
 		default:
+			ret = SOCKOPT_HANDLE_BY_OS;
 			break;
 		}
 		break;
