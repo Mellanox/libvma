@@ -1321,18 +1321,18 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
  * @param local_port the local TCP port to send the segment from
  * @param remote_port the remote TCP port to send the segment to
  */
-err_t
-tcp_rst(u32_t seqno, u32_t ackno, u16_t local_port, u16_t remote_port, struct tcp_pcb *pcb)
+void
+tcp_rst(u32_t seqno, u32_t ackno, u16_t local_port, u16_t remote_port, struct tcp_pcb *pcb, u16_t *flags)
 {
   struct pbuf *p;
   struct tcp_hdr *tcphdr;
 #if LWIP_3RD_PARTY_BUFS
-  if (!pcb) return ERR_VAL;
+  if (!pcb) return;
 #endif
   p = tcp_tx_pbuf_alloc(pcb, 0, PBUF_RAM);
   if (p == NULL) {
       LWIP_DEBUGF(TCP_DEBUG, ("tcp_rst: could not allocate memory for pbuf\n"));
-      return ERR_BUF; /* or not connected state */
+      return;
   }
   pbuf_header(p, TCP_HLEN);
   LWIP_ASSERT("check that first pbuf can hold struct tcp_hdr",
@@ -1343,8 +1343,13 @@ tcp_rst(u32_t seqno, u32_t ackno, u16_t local_port, u16_t remote_port, struct tc
   tcphdr->dest = htons(remote_port);
   tcphdr->seqno = htonl(seqno);
   tcphdr->ackno = htonl(ackno);
-  TCPH_HDRLEN_FLAGS_SET(tcphdr, TCP_HLEN/4, TCP_RST | TCP_ACK);
-  tcphdr->wnd = PP_HTONS(( TCP_WND  & 0xFFFF ));
+  if (!flags) {
+      tcphdr->wnd = PP_HTONS(( TCP_WND  & 0xFFFF ));
+      TCPH_HDRLEN_FLAGS_SET(tcphdr, TCP_HLEN/4, TCP_RST | TCP_ACK);
+  } else {
+      tcphdr->wnd = 0;
+      TCPH_HDRLEN_FLAGS_SET(tcphdr, TCP_HLEN/4, *flags);
+  }
   tcphdr->chksum = 0;
   tcphdr->urgp = 0;
 
@@ -1354,8 +1359,6 @@ tcp_rst(u32_t seqno, u32_t ackno, u16_t local_port, u16_t remote_port, struct tc
   /* external_ip_output(p, NULL, local_ip, remote_ip, TCP_TTL, 0, IP_PROTO_TCP) */;
   tcp_tx_pbuf_free(pcb, p);
   LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_rst: seqno %"U32_F" ackno %"U32_F".\n", seqno, ackno));
-
-  return ERR_OK;
 }
 
 /**

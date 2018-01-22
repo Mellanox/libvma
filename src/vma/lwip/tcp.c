@@ -173,7 +173,7 @@ tcp_close_shutdown(struct tcp_pcb *pcb, u8_t rst_on_unacked_data)
 
       /* don't call tcp_abort here: we must not deallocate the pcb since
          that might not be expected when calling tcp_close */
-      tcp_rst(pcb->snd_nxt, pcb->rcv_nxt, pcb->local_port, pcb->remote_port, pcb);
+      tcp_rst(pcb->snd_nxt, pcb->rcv_nxt, pcb->local_port, pcb->remote_port, pcb, NULL);
 
       tcp_pcb_purge(pcb);
 
@@ -382,7 +382,7 @@ tcp_abandon(struct tcp_pcb *pcb, int reset)
     TCP_EVENT_ERR(errf, errf_arg, ERR_ABRT);
     if (send_rst) {
       LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_abandon: sending RST\n"));
-      tcp_rst(seqno, ackno, local_port, remote_port, pcb);
+      tcp_rst(seqno, ackno, local_port, remote_port, pcb, NULL);
     }
   }
   (void)local_ip;  /* Fix warning -Wunused-but-set-variable */
@@ -868,7 +868,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 	  TCP_EVENT_ERR(pcb->errf, pcb->my_container, err);
 
 	  if (pcb_reset) {
-		tcp_rst(pcb->snd_nxt, pcb->rcv_nxt, pcb->local_port, pcb->remote_port, pcb);
+		tcp_rst(pcb->snd_nxt, pcb->rcv_nxt, pcb->local_port, pcb->remote_port, pcb, NULL);
 	  }
 	  set_tcp_state(pcb, CLOSED);
 	} else {

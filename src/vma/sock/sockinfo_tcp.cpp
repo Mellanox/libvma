@@ -3001,26 +3001,9 @@ err_t sockinfo_tcp::dst_nc_send_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_t
 	new_sock->set_conn_properties_from_pcb();
 	new_sock->create_dst_entry();
 
-	struct pbuf *p = NULL;
 	if (new_sock->m_p_connected_dst_entry) {
-		new_sock->prepare_dst_to_send(true);
-		p = tcp_tx_pbuf_alloc(newpcb);
-		if (p == NULL) {
-			close(new_sock->get_fd());
-			listen_sock->m_tcp_con_lock.lock();
-			return ERR_ABRT;
-		}
-		p->next = NULL;
-		p->type = PBUF_RAM;
-		p->ref = 1;
-		p->flags = 0;
-		p->payload = (u8_t *)p->payload - TCP_HLEN;
-		p->len += TCP_HLEN;
-		p->tot_len += TCP_HLEN;
-		p->payload = (void *)newpcb->callback_arg;
-		ip_output_syn_ack(p, newpcb, 0, 0);
+		new_sock->prepare_dst_to_send(false);
 		new_sock->abort_connection();
-		tcp_tx_pbuf_free(newpcb, p);
 	}
 	close(new_sock->get_fd());
 

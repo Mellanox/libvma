@@ -310,7 +310,7 @@ L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb)
             TCP_STATS_INC(tcp.proterr);
             TCP_STATS_INC(tcp.drop);
             tcp_rst(in_data.ackno, in_data.seqno + in_data.tcplen, in_data.tcphdr->dest,
-            		in_data.tcphdr->src, pcb);
+            		in_data.tcphdr->src, pcb, NULL);
         }
         pbuf_free(p);
     }
@@ -346,31 +346,19 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
   if (in_data->flags & TCP_ACK) {
     /* For incoming segments with the ACK flag set, respond with a
        RST. */
+    u16_t flags = TCP_RST;
     LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_listen_input: ACK in LISTEN, sending reset\n"));
-    rc = tcp_rst(in_data->ackno + 1, in_data->seqno + in_data->tcplen,
-      in_data->tcphdr->dest, in_data->tcphdr->src, pcb);
-    if (rc < 0) {
-      struct tcp_hdr tcphdr, *ptcp_hdr = (struct tcp_hdr*)&tcphdr;
-      TCP_EVENT_CLONE_PCB(pcb, &npcb, ERR_OK, rc);
-      if (npcb == NULL) {
-        LWIP_DEBUGF(TCP_DEBUG, ("tcp_listen_input: could not allocate PCB\n"));
-        TCP_STATS_INC(tcp.memerr);
-        return ERR_MEM;
-      }
-      ip_addr_copy(npcb->local_ip, in_data->iphdr->dest);
-      ip_addr_copy(npcb->remote_ip, in_data->iphdr->src);
-      npcb->remote_port = in_data->tcphdr->src;
-      ptcp_hdr->src = htons(in_data->tcphdr->dest);
-      ptcp_hdr->dest = htons(in_data->tcphdr->src);
-      ptcp_hdr->seqno = htonl(in_data->ackno);
-      ptcp_hdr->ackno = 0;
-      TCPH_HDRLEN_FLAGS_SET(ptcp_hdr, TCP_HLEN/4, TCP_RST);
-      ptcp_hdr->wnd = 0;
-      ptcp_hdr->chksum = 0;
-      ptcp_hdr->urgp = 0;
-      npcb->callback_arg = (void*)ptcp_hdr;
-      TCP_DST_NC_SEND(pcb, npcb, ERR_OK, rc);
+    TCP_EVENT_CLONE_PCB(pcb, &npcb, ERR_OK, rc);
+    if (npcb == NULL) {
+      LWIP_DEBUGF(TCP_DEBUG, ("tcp_listen_input: could not allocate PCB\n"));
+      TCP_STATS_INC(tcp.memerr);
+      return ERR_MEM;
     }
+    ip_addr_copy(npcb->local_ip, in_data->iphdr->dest);
+    ip_addr_copy(npcb->remote_ip, in_data->iphdr->src);
+    npcb->remote_port = in_data->tcphdr->src;
+    TCP_DST_NC_SEND(pcb, npcb, ERR_OK, rc);
+    tcp_rst(in_data->ackno, 0, in_data->tcphdr->dest, in_data->tcphdr->src, npcb, &flags);
   } else if (in_data->flags & TCP_SYN) {
     LWIP_DEBUGF(TCP_DEBUG, ("TCP connection request %"U16_F" -> %"U16_F".\n", in_data->tcphdr->src, in_data->tcphdr->dest));
 #if TCP_LISTEN_BACKLOG
@@ -477,7 +465,7 @@ tcp_timewait_input(struct tcp_pcb *pcb, tcp_in_data* in_data)
     if (TCP_SEQ_BETWEEN(in_data->seqno, pcb->rcv_nxt, pcb->rcv_nxt+pcb->rcv_wnd)) {
       /* If the SYN is in the window it is an error, send a reset */
       tcp_rst(in_data->ackno, in_data->seqno + in_data->tcplen,
-        in_data->tcphdr->dest, in_data->tcphdr->src, pcb);
+        in_data->tcphdr->dest, in_data->tcphdr->src, pcb, NULL);
       return ERR_OK;
     }
   } else if (in_data->flags & TCP_FIN) {
@@ -614,7 +602,7 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
     else if (in_data->flags & TCP_ACK) {
       /* send a RST to bring the other side in a non-synchronized state. */
       tcp_rst(in_data->ackno, in_data->seqno + in_data->tcplen,
-        in_data->tcphdr->dest, in_data->tcphdr->src, pcb);
+        in_data->tcphdr->dest, in_data->tcphdr->src, pcb, NULL);
     }
     break;
   case SYN_RCVD:
@@ -660,7 +648,7 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
       } else {
         /* incorrect ACK number, send RST */
         tcp_rst(in_data->ackno, in_data->seqno + in_data->tcplen,
-                in_data->tcphdr->dest, in_data->tcphdr->src, pcb);
+                in_data->tcphdr->dest, in_data->tcphdr->src, pcb, NULL);
       }
     } else if ((in_data->flags & TCP_SYN) && (in_data->seqno == pcb->rcv_nxt - 1)) {
       /* Looks like another copy of the SYN - retransmit our SYN-ACK */
