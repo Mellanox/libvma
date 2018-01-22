@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <errno.h>
@@ -48,12 +49,14 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <arpa/inet.h>
+#include <net/if.h>
 
 #ifdef HAVE_LINUX_LIMITS_H
 #include <linux/limits.h>
 #endif
 
 #include "vma/util/agent_def.h"
+#include "vma/util/list.h"
 
 
 #define MODULE_NAME             "vmad"
@@ -129,6 +132,7 @@ struct module_cfg {
 	int notify_fd;
 	const char *notify_dir;
 	hash_t ht;
+	struct list_head if_list;
 };
 
 extern struct module_cfg daemon_cfg;
@@ -138,10 +142,11 @@ extern struct module_cfg daemon_cfg;
  * @brief Describe process using pid as unique key
  */
 struct store_pid {
-	pid_t          pid;         /**< Process id */
-	hash_t         ht;          /**< Handle to socket store */
-	uint32_t       lib_ver;     /**< Library version that the process uses */
-	struct timeval t_start;     /**< Start time of the process */
+	pid_t            pid;         /**< Process id */
+	hash_t           ht;          /**< Handle to socket store */
+	struct list_head flow_list;   /**< List of flows */
+	uint32_t         lib_ver;     /**< Library version that the process uses */
+	struct timeval   t_start;     /**< Start time of the process */
 };
 
 /**
@@ -156,6 +161,30 @@ struct store_fid {
 	uint16_t       dst_port;    /**< Destination port number */
 	uint8_t        type;        /**< Connection type */
 	uint8_t        state;       /**< Current TCP state of the connection */
+};
+
+/**
+ * @struct store_flow
+ * @brief Describe flow
+ */
+struct store_flow {
+	struct list_head       item;       /**< Link to use in queue */
+	uint32_t               handle;     /**< Handle value in term of tc */
+	int                    type;       /**< Flow type */
+	uint32_t               if_id;      /**< Interface index */
+	uint32_t               tap_id;     /**< Tap device index */
+	union {
+		struct {
+			uint32_t       dst_ip;
+			uint16_t       dst_port;
+		} t3;
+		struct {
+			uint32_t       dst_ip;
+			uint16_t       dst_port;
+			uint32_t       src_ip;
+			uint16_t       src_port;
+		} t5;
+	} flow;
 };
 
 
@@ -183,6 +212,17 @@ static inline char *sys_addr2str(struct sockaddr_in *addr)
 	return addrbuf;
 }
 
+static inline char *sys_ip2str(uint32_t ip)
+{
+	static __thread char ipbuf[100];
+	static char buf[100];
+	struct in_addr value = {0};
+	value.s_addr = ip;
+	inet_ntop(AF_INET, &value, buf, sizeof(buf) - 1);
+	sprintf(ipbuf, "%s", buf);
+
+	return ipbuf;
+}
 
 static inline ssize_t sys_sendto(int sockfd,
 		const void *buf, size_t len, int flags,
@@ -209,6 +249,55 @@ static inline ssize_t sys_sendto(int sockfd,
 	} while (!(flags & MSG_DONTWAIT) && (len > 0));
 
 	return nb;
+}
+
+static inline char *sys_exec(const char * format, ...)
+{
+	static __thread char outbuf[256];
+	FILE *file = NULL;
+	va_list va;
+	char *cmd;
+	int ret;
+
+	/* calculate needed size for command buffer */
+	va_start(va, format);
+	ret = vsnprintf(NULL, 0, format, va);
+	va_end(va);
+	if (ret <= 0) {
+		goto err;
+	}
+
+	/* allocate command buffer */
+	ret += 1;
+	cmd = malloc(ret);
+	if (NULL == cmd) {
+		goto err;
+	}
+
+	/* fill command buffer */
+	va_start(va, format);
+	ret = vsnprintf(cmd, ret, format, va);
+	va_end(va);
+
+	/* execute command */
+	file = popen(cmd, "r");
+	log_debug("Run command: %s\n", cmd);
+	free(cmd);
+	if (NULL == file) {
+		goto err;
+	}
+
+	/* save output */
+	memset(outbuf, 0, sizeof(outbuf));
+	if ((NULL == fgets(outbuf, sizeof(outbuf) - 1, file)) && (ferror(file))) {
+		pclose(file);
+		goto err;
+	}
+	pclose(file);
+
+	return outbuf;
+err:
+	return NULL;
 }
 
 #endif /* TOOLS_DAEMON_DAEMON_H_ */

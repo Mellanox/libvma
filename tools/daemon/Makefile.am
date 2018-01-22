@@ -14,6 +14,7 @@ vmad_SOURCES = \
 	loop.c \
 	hash.c \
 	store.c \
+	flow.c \
 	message.c \
 	notify.c
 
