@@ -94,6 +94,7 @@ public:
 		unlock();
 		return msg;
 	}
+	int send_msg_flow(struct vma_msg_flow *data);
 
 private:
 	/* state of this object */
