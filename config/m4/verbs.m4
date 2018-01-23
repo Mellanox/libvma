@@ -149,7 +149,11 @@ AC_CHECK_DECL([IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE],
 
 AC_CHECK_DECLS([IBV_EXP_QP_RATE_LIMIT],
 	[AC_DEFINE(DEFINED_IBV_EXP_QP_RATE_LIMIT, 1, [Define to 1 if IBV_EXP_QP_RATE_LIMIT defined])],
-	[], [[#include <infiniband/mlx5_hw.h>]])
+	[], [[#include <infiniband/verbs_exp.h>]])
+
+AC_CHECK_DECLS([IBV_EXP_QP_BURST_INFO],
+	[AC_DEFINE(DEFINED_IBV_EXP_QP_BURST_INFO, 1, [Define to 1 if IBV_EXP_QP_BURST_INFO defined])],
+	[], [[#include <infiniband/verbs_exp.h>]])
 
 have_mp_rq=yes
 AC_CHECK_DECLS([IBV_EXP_DEVICE_ATTR_VLAN_OFFLOADS,

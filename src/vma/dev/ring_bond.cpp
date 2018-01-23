@@ -637,20 +637,20 @@ ring_user_id_t ring_bond::generate_id(const address_t src_mac, const address_t d
 	return hash % m_n_num_resources;
 }
 
-int ring_bond::modify_ratelimit(const uint32_t ratelimit_kbps) {
+int ring_bond::modify_ratelimit(struct vma_rate_limit_t &rate_limit) {
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
 		if (m_bond_rings[i]) {
-			m_bond_rings[i]->modify_ratelimit(ratelimit_kbps);
+			m_bond_rings[i]->modify_ratelimit(rate_limit);
 		}
 	}
 	return 0;
 }
 
-bool ring_bond::is_ratelimit_supported(uint32_t rate)
+bool ring_bond::is_ratelimit_supported(struct vma_rate_limit_t &rate_limit)
 {
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
 		if (m_bond_rings[i] &&
-		    !m_bond_rings[i]->is_ratelimit_supported(rate)) {
+		    !m_bond_rings[i]->is_ratelimit_supported(rate_limit)) {
 				return false;
 		}
 	}

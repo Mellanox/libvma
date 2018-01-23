@@ -70,8 +70,8 @@ public:
 
 	virtual void 	notify_cb();
 
-	virtual bool 	prepare_to_send(const int ratelimit_kbps, bool skip_rules=false, bool is_connect=false);
-	virtual ssize_t slow_send(const iovec* p_iov, size_t sz_iov, bool is_dummy, const int ratelimit_kbps, bool b_blocked = true, bool is_rexmit = false, int flags = 0, socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF) = 0 ;
+	virtual bool 	prepare_to_send(struct vma_rate_limit_t &rate_limit, bool skip_rules=false, bool is_connect=false);
+	virtual ssize_t slow_send(const iovec* p_iov, size_t sz_iov, bool is_dummy, struct vma_rate_limit_t &rate_limit, bool b_blocked = true, bool is_rexmit = false, int flags = 0, socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF) = 0 ;
 	virtual ssize_t fast_send(const iovec* p_iov, const ssize_t sz_iov, bool is_dummy, bool b_blocked = true, bool is_rexmit = false) = 0;
 
 	bool		try_migrate_ring(lock_base& socket_lock);
@@ -84,7 +84,7 @@ public:
 	inline in_addr_t get_src_addr() const {
 		return m_pkt_src_ip;
 	}
-	int		modify_ratelimit(const uint32_t ratelimit_kbps);
+	int		modify_ratelimit(struct vma_rate_limit_t &rate_limit);
 
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off

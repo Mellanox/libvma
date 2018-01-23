@@ -141,8 +141,9 @@ public:
 	void                release_rx_buffers();
 	void                release_tx_buffers();
 	virtual void        trigger_completion_for_all_sent_packets();
-	bool                set_qp_ratelimit(const uint32_t ratelimit_kbps);
-	int                 modify_qp_ratelimit(const uint32_t ratelimit_kbps);
+	uint32_t            is_ratelimit_change(struct vma_rate_limit_t &rate_limit);
+	bool                is_ratelimit_supported(vma_ibv_device_attr *attr, struct vma_rate_limit_t &rate_limit);
+	int                 modify_qp_ratelimit(struct vma_rate_limit_t &rate_limit, uint32_t rl_changes);
 	static inline bool  is_lib_mlx5(const char* device_name) {return strstr(device_name, "mlx5");}
 	virtual void        dm_release_data(mem_buf_desc_t* buff) { NOT_IN_USE(buff); }
 	virtual bool        fill_hw_descriptors(vma_mlx_hw_device_data &data) {NOT_IN_USE(data);return false;};
@@ -191,7 +192,7 @@ protected:
 	// generating packet IDs
 	uint16_t            m_n_ip_id_base;
 	uint16_t            m_n_ip_id_offset;
-	uint32_t            m_ratelimit_kbps;
+	struct vma_rate_limit_t m_rate_limit;
 
 	mgid_ref_count_map_t  m_attach_mc_grp_ref_cnt;
 
