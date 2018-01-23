@@ -50,16 +50,6 @@ ring::ring(int count, uint32_t mtu) :
 #endif // DEFINED_SOCKETXTREME	
 }
 
-uint32_t ring::get_mtu(const route_rule_table_key &key)
-{
-	route_result res;
-
-	g_p_route_table_mgr->route_resolve(key, res);
-	if (res.mtu) {
-		return res.mtu;
-	}
-	return m_mtu;
-}
 
 int ring::get_rx_channel_fds_index(uint32_t index) const {
 	if (index < m_n_num_resources)

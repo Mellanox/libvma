@@ -232,6 +232,7 @@ private:
 	bool		m_b_rcvtstamp;
 	bool		m_b_rcvtstampns;
 	uint8_t		m_n_tsing_flags;
+	uint8_t		m_tos;
 
 	const uint32_t	m_n_sysvar_rx_poll_yield_loops;
 	const uint32_t	m_n_sysvar_rx_udp_poll_os_ratio;

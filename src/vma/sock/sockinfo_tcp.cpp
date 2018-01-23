@@ -577,7 +577,7 @@ void sockinfo_tcp::force_close()
 void sockinfo_tcp::create_dst_entry()
 {
 	if (!m_p_connected_dst_entry) {
-		socket_data data = { m_fd, m_pcp};
+		socket_data data = { m_fd, m_pcb.tos, m_pcp};
 		m_p_connected_dst_entry = new dst_entry_tcp(m_connected.get_in_addr(),
 					m_connected.get_in_port(),
 					m_bound.get_in_port(),
@@ -1032,8 +1032,8 @@ uint16_t sockinfo_tcp::get_route_mtu(struct tcp_pcb *pcb)
 		return tcp_sock->m_p_connected_dst_entry->get_route_mtu();
 	}
 	route_result res;
-	// m_tos is always 0 in VMA
-	g_p_route_table_mgr->route_resolve(route_rule_table_key(pcb->local_ip.addr, pcb->remote_ip.addr, 0), res);
+
+	g_p_route_table_mgr->route_resolve(route_rule_table_key(pcb->local_ip.addr, pcb->remote_ip.addr, pcb->tos), res);
 
 	if (res.mtu) {
 		vlog_printf(VLOG_DEBUG, "Using route mtu %u\n", res.mtu);
@@ -3484,6 +3484,22 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 	}
 #endif // DEFINED_SOCKETXTREME
 
+	if (__level == IPPROTO_IP) {
+		switch(__optname) {
+		case IP_TOS: /* might be missing ECN logic */
+			if (__optlen <= sizeof(int)) {
+				val = *(int *)__optval;
+				val &= ~INET_ECN_MASK;
+				m_pcb.tos |= val & INET_ECN_MASK;
+			}
+			ret = SOCKOPT_HANDLE_BY_OS;
+		break;
+		default:
+			ret = SOCKOPT_HANDLE_BY_OS;
+			supported = false;
+			break;
+		}
+	}
 	if (__level == IPPROTO_TCP) {
 		switch(__optname) {
 		case TCP_NODELAY:

@@ -58,6 +58,7 @@
 
 struct socket_data {
 	int	fd;
+	uint8_t	tos;
 	uint8_t	pcp;
 };
 
