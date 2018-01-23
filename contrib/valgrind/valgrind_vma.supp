@@ -33,6 +33,15 @@
    fun:_ZN12sockinfo_tcp14register_timerEv
    fun:_ZN12sockinfo_tcp7connectEPK8sockaddrj
 }
+{
+   RM #1228170
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:_Znwm
+   fun:_ZN15neigh_table_mgr16create_new_entryE9neigh_keyPK8observer
+   fun:register_observer
+   fun:_ZN15neigh_table_mgr17register_observerE9neigh_keyPK14cache_observerPP19cache_entry_subjectIS0_P9neigh_valE
+}
 ###########################################################
 # false positive librdmacm.so
 {
