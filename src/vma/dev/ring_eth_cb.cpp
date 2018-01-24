@@ -48,23 +48,24 @@ ring_eth_cb::ring_eth_cb(in_addr_t local_if,
 			 vma_cyclic_buffer_ring_attr *cb_ring, ring *parent):
 			 ring_eth(local_if, p_ring_info, count, active, vlan,
 				  mtu, parent, false)
-			,m_cb_ring(*cb_ring)
-			,m_res_domain(NULL)
 			,m_curr_wqe_used_strides(0)
+			,m_curr_packets(0)
+			,m_padd_mode_used_strides(0)
 			,m_all_wqes_used_strides(0)
-			,m_p_umr_mr(NULL)
+			,m_packet_receive_mode(cb_ring->packet_receive_mode)
 			,m_curr_wq(0)
 			,m_curr_payload_addr(NULL)
 			,m_curr_hdr_ptr(NULL)
-			,m_curr_packets(0)
+			,m_res_domain(NULL)
+
 {
 	// call function from derived not base
 	memset(m_sge_ptrs, 0, sizeof(m_sge_ptrs));
-	create_resources(p_ring_info, active);
+	create_resources(p_ring_info, active, cb_ring);
 }
 
 void ring_eth_cb::create_resources(ring_resource_creation_info_t *p_ring_info,
-				   bool active)
+				   bool active, vma_cyclic_buffer_ring_attr *cb_ring)
 {
 	struct ibv_exp_res_domain_init_attr res_domain_attr;
 
@@ -98,9 +99,14 @@ void ring_eth_cb::create_resources(ring_resource_creation_info_t *p_ring_info,
 		throw_vma_exception("failed creating resource domain");
 	}
 	// stride size is headers + user payload aligned to power of 2
+	uint16_t net_len = 0;
+	if (get_partition()) {
+		net_len = ETH_VLAN_HDR_LEN + sizeof(struct iphdr) + sizeof(struct udphdr);
+	} else {
+		net_len = ETH_HDR_LEN + sizeof(struct iphdr) + sizeof(struct udphdr);
+	}
 	m_single_stride_log_num_of_bytes = ilog_2(align32pow2(
-			m_cb_ring.stride_bytes +
-			ETH_HDR_LEN + sizeof(struct iphdr) + sizeof(struct udphdr)));
+			cb_ring->stride_bytes + cb_ring->hdr_bytes + net_len));
 	if (m_single_stride_log_num_of_bytes < mp_rq_caps->min_single_stride_log_num_of_bytes) {
 		m_single_stride_log_num_of_bytes = mp_rq_caps->min_single_stride_log_num_of_bytes;
 	}
@@ -109,20 +115,30 @@ void ring_eth_cb::create_resources(ring_resource_creation_info_t *p_ring_info,
 	}
 	m_stride_size = 1 << m_single_stride_log_num_of_bytes;
 	uint32_t max_wqe_size = 1 << mp_rq_caps->max_single_wqe_log_num_of_strides;
-	uint32_t user_req_wq = m_cb_ring.num / max_wqe_size;
+	uint32_t user_req_wq = cb_ring->num / max_wqe_size;
 	if (user_req_wq > 2) {
 		m_wq_count = min<uint32_t>(user_req_wq, MAX_MP_WQES);
 		m_single_wqe_log_num_of_strides = mp_rq_caps->max_single_wqe_log_num_of_strides;
 	} else {
 		m_wq_count = MIN_MP_WQES;
-		m_single_wqe_log_num_of_strides = ilog_2(align32pow2(m_cb_ring.num) / m_wq_count);
+		m_single_wqe_log_num_of_strides = ilog_2(align32pow2(cb_ring->num) / m_wq_count);
 		if (m_single_wqe_log_num_of_strides < mp_rq_caps->min_single_wqe_log_num_of_strides) {
 			m_single_wqe_log_num_of_strides = mp_rq_caps->min_single_wqe_log_num_of_strides;
 		}
 	}
 	m_strides_num = 1 << m_single_wqe_log_num_of_strides;
 	memset(&m_curr_hw_timestamp, 0, sizeof(m_curr_hw_timestamp));
-	if (allocate_umr_mem()) {
+	if (m_packet_receive_mode == PADDED_PACKET) {
+		size_t buffer_size = m_stride_size * m_strides_num * m_wq_count;
+		m_sge_ptrs[CB_UMR_PAYLOAD] =
+			(uint64_t)(uintptr_t)m_alloc.alloc_and_reg_mr(buffer_size,
+					p_ring_info->p_ib_ctx);
+		m_packet_size = cb_ring->stride_bytes + net_len;
+		m_payload_len = m_stride_size;
+		m_buff_data.addr = m_sge_ptrs[CB_UMR_PAYLOAD];
+		m_buff_data.length = m_stride_size * m_strides_num;
+		m_buff_data.lkey = get_mem_lkey(m_p_ib_ctx);
+	} else if (allocate_umr_mem(cb_ring, net_len)) {
 		ring_logerr("failed creating UMR QP");
 		throw_vma_exception("failed creating UMR QP");
 	}
@@ -135,7 +151,7 @@ qp_mgr* ring_eth_cb::create_qp_mgr(const ib_ctx_handler *ib_ctx,
 				   struct ibv_comp_channel *p_rx_comp_event_channel)
 {
 	return new qp_mgr_mp(this, ib_ctx, port_num, p_rx_comp_event_channel,
-			get_tx_num_wr(), get_partition(), m_p_umr_mr);
+			get_tx_num_wr(), get_partition(), m_buff_data);
 }
 
 /**
@@ -157,12 +173,12 @@ qp_mgr* ring_eth_cb::create_qp_mgr(const ib_ctx_handler *ib_ctx,
  * |	...			|
  * +----------------------------+
  */
-int ring_eth_cb::allocate_umr_mem()
+int ring_eth_cb::allocate_umr_mem(vma_cyclic_buffer_ring_attr *cb_ring, uint16_t net_len)
 {
 	ibv_exp_create_mr_in mrin;
 	ibv_exp_mem_repeat_block* p_mem_rep_list = NULL;
 	ibv_mr* mr = NULL;
-	size_t curr_data_len = 0, packet_len, pad_len, net_len, buffer_size;
+	size_t curr_data_len = 0, packet_len, pad_len, buffer_size;
 	size_t packets_num = m_strides_num * m_wq_count;
 	uint64_t base_ptr, prev_addr;
 	int index = 0, count = 1, umr_blocks;
@@ -171,19 +187,19 @@ int ring_eth_cb::allocate_umr_mem()
 
 	// the min mr is two one for padding and one for data
 	umr_blocks = 2;
-	if ((m_cb_ring.comp_mask & VMA_CB_HDR_BYTE) && m_cb_ring.hdr_bytes &&
-	    m_cb_ring.packet_receive_mode == RAW_PACKET) {
+	if ((cb_ring->comp_mask & VMA_CB_HDR_BYTE) && cb_ring->hdr_bytes &&
+	    m_packet_receive_mode == RAW_PACKET) {
 		ring_logwarn("bad parameters!, you cannot choose "
 			     "RAW_PACKET and define user header "
 			     "the header\n");
 		return -1;
 	}
 
-	if (m_cb_ring.packet_receive_mode != RAW_PACKET) {
+	if (m_packet_receive_mode != RAW_PACKET) {
 		umr_blocks++; // add user_hd\netwrok_hdr
-		if ((m_cb_ring.comp_mask & VMA_CB_HDR_BYTE) &&
-		    m_cb_ring.hdr_bytes &&
-		    m_cb_ring.packet_receive_mode == STRIP_NETWORK_HDRS) {
+		if ((cb_ring->comp_mask & VMA_CB_HDR_BYTE) &&
+		    cb_ring->hdr_bytes &&
+		    m_packet_receive_mode == STRIP_NETWORK_HDRS) {
 			umr_blocks++; // strip network hdr
 		}
 	}
@@ -206,14 +222,8 @@ int ring_eth_cb::allocate_umr_mem()
 		}
 	}
 
-	if (get_partition()) {
-		net_len = ETH_VLAN_HDR_LEN + sizeof(struct iphdr) + sizeof(struct udphdr);
-	} else {
-		net_len = ETH_HDR_LEN + sizeof(struct iphdr) + sizeof(struct udphdr);
-	}
-
-	m_payload_len = m_cb_ring.stride_bytes;
-	m_hdr_len = m_cb_ring.hdr_bytes;
+	m_payload_len = cb_ring->stride_bytes;
+	m_hdr_len = cb_ring->hdr_bytes;
 	// in case stride smaller then packet size
 	while ((m_stride_size * count) <= m_payload_len) {
 		++count;
@@ -239,7 +249,7 @@ int ring_eth_cb::allocate_umr_mem()
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 	packet_len = net_len;
-	switch (m_cb_ring.packet_receive_mode) {
+	switch (m_packet_receive_mode) {
 	case RAW_PACKET:
 		packet_len += m_payload_len;
 		// for size calculation in read_cyclic
@@ -346,9 +356,9 @@ int ring_eth_cb::allocate_umr_mem()
 		goto cleanup;
 	}
 
-	// redmine.mellanox.com/issues/396761/
-	m_p_umr_mr->addr = (void *)m_umr_wr.ext_op.umr.base_addr;
-
+	m_buff_data.addr = m_umr_wr.ext_op.umr.base_addr;
+	m_buff_data.length = m_stride_size * m_strides_num;
+	m_buff_data.lkey = m_p_umr_mr->lkey;
 cleanup:
 	for (int i = 0; i < umr_blocks; i++) {
 		if (p_mem_rep_list[i].stride) {
@@ -408,19 +418,70 @@ int ring_eth_cb::poll_and_process_element_rx(uint64_t* p_cq_poll_sn,
  * 	1 if done looping
  * 	2 if need to return due to WQ or filler
  */
-inline mp_loop_result ring_eth_cb::mp_loop(size_t limit)
+inline mp_loop_result ring_eth_cb::mp_loop_padded(size_t limit)
 {
 	struct mlx5_cqe64 *cqe64;
 	uint16_t size = 0;
-	uint32_t flags = 0;
+	uint32_t flags = 0, used_strides = 0;
 
 	while (m_curr_packets < limit) {
-		int ret = ((cq_mgr_mp *)m_p_cq_mgr_rx)->poll_mp_cq(size, m_curr_wqe_used_strides,
+		int ret = ((cq_mgr_mp *)m_p_cq_mgr_rx)->poll_mp_cq(size, used_strides,
 								   flags, cqe64);
 		if (size == 0) {
 			ring_logfine("no packet found");
 			return MP_LOOP_DRAINED;
 		}
+		if (unlikely(ret == -1)) {
+			ring_logdbg("poll_mp_cq failed with errno %m", errno);
+			return MP_LOOP_RETURN_TO_APP;
+		}
+		m_curr_wqe_used_strides += used_strides;
+		if (unlikely(flags & VMA_MP_RQ_BAD_PACKET)) {
+			if (m_curr_wqe_used_strides >= m_strides_num) {
+				reload_wq();
+			}
+			return MP_LOOP_RETURN_TO_APP;
+		}
+		m_padd_mode_used_strides += used_strides;
+		m_p_ring_stat->n_rx_pkt_count++;
+		m_p_ring_stat->n_rx_byte_count += size;
+		++m_curr_packets;
+		if (unlikely(m_curr_wqe_used_strides >= m_strides_num)) {
+			if (reload_wq()) {
+				return MP_LOOP_RETURN_TO_APP;
+			}
+		}
+	}
+	ring_logfine("mp_loop finished all iterations");
+	return MP_LOOP_LIMIT;
+}
+
+/**
+ * loop poll_cq
+ * @param limit
+ * @return TBD about -1 on error,
+ * 	0 if cq is empty
+ * 	1 if done looping
+ * 	2 if need to return due to WQ or filler
+ */
+inline mp_loop_result ring_eth_cb::mp_loop(size_t limit)
+{
+	struct mlx5_cqe64 *cqe64;
+	uint16_t size = 0;
+	uint32_t flags = 0, used_strides = 0;
+
+	while (m_curr_packets < limit) {
+		int ret = ((cq_mgr_mp *)m_p_cq_mgr_rx)->poll_mp_cq(size, used_strides,
+								   flags, cqe64);
+		if (size == 0) {
+			ring_logfine("no packet found");
+			return MP_LOOP_DRAINED;
+		}
+		if (unlikely(ret == -1)) {
+			ring_logdbg("poll_mp_cq failed with errno %m", errno);
+			return MP_LOOP_RETURN_TO_APP;
+		}
+		m_curr_wqe_used_strides += used_strides;
 		if (unlikely(size > m_packet_size)) {
 			errno = EMSGSIZE;
 			ring_logerr("got unexpected packet size, expected "
@@ -428,11 +489,6 @@ inline mp_loop_result ring_eth_cb::mp_loop(size_t limit)
 				    "corrupted", size, m_packet_size);
 			return MP_LOOP_RETURN_TO_APP;
 		}
-		if (unlikely(ret == -1)) {
-			ring_logdbg("poll_mp_cq failed with errno %m", errno);
-			return MP_LOOP_RETURN_TO_APP;
-		}
-
 		if (unlikely(flags & VMA_MP_RQ_BAD_PACKET)) {
 			if (m_curr_wqe_used_strides >= m_strides_num) {
 				reload_wq();
@@ -476,7 +532,7 @@ inline bool ring_eth_cb::reload_wq()
 int ring_eth_cb::cyclic_buffer_read(vma_completion_cb_t &completion,
 				    size_t min, size_t max, int flags)
 {
-	uint32_t poll_flags = 0;
+	uint32_t poll_flags = 0, used_strides = 0;
 	uint16_t size;
 	struct mlx5_cqe64 *cqe64;
 
@@ -491,14 +547,16 @@ int ring_eth_cb::cyclic_buffer_read(vma_completion_cb_t &completion,
 		}
 		return -1;
 	}
-	uint32_t used_strides = m_curr_wqe_used_strides;
-	int ret = ((cq_mgr_mp *)m_p_cq_mgr_rx)->poll_mp_cq(size,
-					m_curr_wqe_used_strides, poll_flags, cqe64);
+	int prev_used_strides = m_curr_wqe_used_strides;
+	int ret = ((cq_mgr_mp *)m_p_cq_mgr_rx)->poll_mp_cq(size, used_strides,
+							   poll_flags, cqe64);
 	// empty
 	if (size == 0) {
 		return 0;
 	}
-	if (unlikely(size > m_packet_size)) {
+
+	if (m_packet_receive_mode != PADDED_PACKET &&
+	    unlikely(size > m_packet_size)) {
 		errno = EMSGSIZE;
 		ring_logerr("got unexpected packet size, expected "
 			    "packet size %u but got %d, user data is "
@@ -509,19 +567,21 @@ int ring_eth_cb::cyclic_buffer_read(vma_completion_cb_t &completion,
 		ring_logdbg("poll_mp_cq failed with errno %m", errno);
 		return -1;
 	}
+	m_curr_wqe_used_strides += used_strides;
+	m_padd_mode_used_strides += used_strides;
 	// set it here because we might not have min packets avail in this run
 	if (likely(!(poll_flags & VMA_MP_RQ_BAD_PACKET))) {
 		m_p_ring_stat->n_rx_pkt_count++;
 		m_p_ring_stat->n_rx_byte_count += size;
-		if (unlikely(m_curr_payload_addr == 0)) {
+		if (unlikely(m_curr_payload_addr == NULL)) {
 			// data is in calculated UMR location array +
 			// number of strides in old WQEs (e.g. first WQE that was already consumed) +
 			// number of used strides in current WQE
-			used_strides += m_all_wqes_used_strides;
+			prev_used_strides += m_all_wqes_used_strides;
 			m_curr_payload_addr = (void *)(m_sge_ptrs[CB_UMR_PAYLOAD] +
-						m_payload_len * used_strides);
+						(uint32_t)m_payload_len * prev_used_strides);
 			m_curr_hdr_ptr = (void *)(m_sge_ptrs[CB_UMR_HDR] +
-						m_hdr_len * used_strides);
+						(uint32_t)m_hdr_len * prev_used_strides);
 			if (completion.comp_mask & VMA_CB_MASK_TIMESTAMP) {
 				convert_hw_time_to_system_time(ntohll(cqe64->timestamp),
 							       &m_curr_hw_timestamp);
@@ -535,10 +595,18 @@ int ring_eth_cb::cyclic_buffer_read(vma_completion_cb_t &completion,
 			return_to_app = reload_wq();
 		}
 		if (!return_to_app) {
-			ret = mp_loop(min);
-			if (ret == MP_LOOP_LIMIT) { // there might be more to drain
-				mp_loop(max);
-			} else if (ret == MP_LOOP_DRAINED) { // no packets left
+			if (m_packet_receive_mode == PADDED_PACKET) {
+				ret = mp_loop_padded(min);
+				if (ret == MP_LOOP_LIMIT) { // there might be more to drain
+					mp_loop_padded(max);
+				}
+			} else {
+				ret = mp_loop(min);
+				if (ret == MP_LOOP_LIMIT) { // there might be more to drain
+					mp_loop(max);
+				}
+			}
+			if (ret == MP_LOOP_DRAINED) { // no packets left
 				((cq_mgr_mp *)m_p_cq_mgr_rx)->update_max_drain(m_curr_packets);
 				return 0;
 			}
@@ -546,13 +614,19 @@ int ring_eth_cb::cyclic_buffer_read(vma_completion_cb_t &completion,
 	}
 	((cq_mgr_mp *)m_p_cq_mgr_rx)->update_max_drain(m_curr_packets);
 	completion.payload_ptr = m_curr_payload_addr;
-	completion.payload_length = m_payload_len * m_curr_packets;
+	if (m_packet_receive_mode == PADDED_PACKET) {
+		// support packet taking more then one stride
+		completion.payload_length = m_padd_mode_used_strides * m_stride_size;
+	} else {
+		completion.payload_length = m_payload_len * m_curr_packets;
+	}
 	completion.packets = m_curr_packets;
 	completion.usr_hdr_ptr = m_curr_hdr_ptr;
 	completion.usr_hdr_ptr_length = m_hdr_len * m_curr_packets;
 	// hw_timestamp of first packet in batch
 	completion.hw_timestamp = m_curr_hw_timestamp;
 	m_curr_payload_addr = 0;
+	m_padd_mode_used_strides = 0;
 	ring_logdbg("Returning completion, buffer ptr %p, data size %zd, "
 		    "usr hdr ptr %p usr hdr size %zd, number of packets %zd curr wqe idx %d",
 		    completion.payload_ptr, completion.payload_length,

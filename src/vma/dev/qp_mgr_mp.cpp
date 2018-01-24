@@ -178,9 +178,9 @@ int qp_mgr_mp::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 	// initlize the sge, the same sg will be used for all operations
-	ptr = (uint8_t *)m_umr_mr->addr;
-	lkey = m_umr_mr->lkey;
-	size = m_p_mp_ring->get_stride_size() * m_p_mp_ring->get_strides_num();
+	ptr = (uint8_t *)m_buff_data.addr;
+	lkey = m_buff_data.lkey;
+	size = m_buff_data.length;
 	// initlize the sge, the same sg will be used for all operations
 	for (uint32_t i = 0; i < m_n_sysvar_rx_num_wr_to_post_recv; i++) {
 		m_ibv_rx_sg_array[i].addr = (uint64_t)ptr;
