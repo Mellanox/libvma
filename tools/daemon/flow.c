@@ -224,6 +224,8 @@ int add_flow(pid_t pid, struct store_flow *value)
 		}
 
 		get_htid(ctx, get_prio(value), &ht_internal, &ht);
+		out_buf = sys_exec("tc filter del dev %s parent ffff: protocol ip prio %d handle %x: u32 > /dev/null 2>&1 || echo $?",
+							if_name, get_prio(value), ht);
 		out_buf = sys_exec("tc filter add dev %s parent ffff: prio %d handle %x: protocol ip u32 divisor 256 > /dev/null 2>&1 || echo $?",
 							if_name, get_prio(value), ht);
 		if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
@@ -444,7 +446,7 @@ int del_flow(pid_t pid, struct store_flow *value)
 
 				out_buf = sys_exec("tc filter del dev %s parent ffff: protocol ip prio %d handle %x: u32 > /dev/null 2>&1 || echo $?",
 									if_name, get_prio(value), ht);
-#if 1 /* Device busy error is returned (There is no issue if insert sleep(1) before execution */
+#if 0 /* Device busy error is returned (There is no issue if insert sleep(1) before execution */
 				if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
 					log_error("[%d] remove table dev %s prio %d handle %x:: output: %s\n",
 							pid, if_name, get_prio(value), ht, (out_buf ? out_buf : "n/a"));
