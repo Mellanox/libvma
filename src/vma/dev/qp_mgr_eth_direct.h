@@ -44,6 +44,7 @@ public:
 			  const uint32_t tx_num_wr, const uint16_t vlan);
 	virtual ~qp_mgr_eth_direct();
 	virtual void		up();
+	virtual void		down();
 	virtual uint32_t	get_rx_max_wr_num() { return 0;};
 	virtual bool		fill_hw_descriptors(vma_mlx_hw_device_data &data);
 };
