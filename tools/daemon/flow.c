@@ -236,7 +236,8 @@ int add_flow(pid_t pid, struct store_flow *value)
 			goto err;
 		}
 		out_buf = sys_exec("tc filter add dev %s protocol ip parent ffff: prio %d handle ::%x u32 ht %x:: match ip dst %s/32 hashkey mask 0x000000ff at 20 link %x: > /dev/null 2>&1 || echo $?",
-							if_name, get_prio(value), ht, ht_internal, sys_ip2str(ip), ht);
+							if_name, get_prio(value), ht, ht_internal,
+							sys_ip2str(ip), ht);
 		if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
 			log_error("[%d] failed link ht dev %s prio %d handle %x:: dst %s output: %s\n",
 					pid, if_name, get_prio(value), ht, sys_ip2str(ip), (out_buf ? out_buf : "n/a"));
@@ -273,8 +274,8 @@ int add_flow(pid_t pid, struct store_flow *value)
 			goto err;
 		}
 
-		bkt = port % 0xFF;
-		id = port / 0xFF;
+		bkt = ntohs(port) & 0xFF;
+		id = (ntohs(port) / 0xFF) & 0xFF;
 		switch (value->type) {
 		case VMA_MSG_FLOW_TCP_3T:
 			out_buf = sys_exec("tc filter add dev %s parent ffff: protocol ip "
@@ -285,6 +286,7 @@ int add_flow(pid_t pid, struct store_flow *value)
 								sys_ip2str(value->flow.t3.dst_ip), ntohs(value->flow.t3.dst_port), tap_name);
 			break;
 		case VMA_MSG_FLOW_TCP_5T:
+			id = id | (value->flow.t5.src_port & 0x0F00);
 			strcpy(str_tmp, sys_ip2str(value->flow.t5.src_ip));
 			out_buf = sys_exec("tc filter add dev %s parent ffff: protocol ip "
 								"prio %d handle ::%x u32 ht %x:%x: match ip protocol 6 0xff "
@@ -292,7 +294,7 @@ int add_flow(pid_t pid, struct store_flow *value)
 								"match ip dst %s/32 match ip dport %d 0xffff "
 								"action mirred egress redirect dev %s > /dev/null 2>&1 || echo $?",
 								if_name, get_prio(value), id, ht, bkt,
-								str_tmp, value->flow.t5.src_port,
+								str_tmp, ntohs(value->flow.t5.src_port),
 								sys_ip2str(value->flow.t5.dst_ip), ntohs(value->flow.t5.dst_port), tap_name);
 			break;
 		default:
