@@ -253,6 +253,7 @@ typedef enum {
 	RAW_PACKET,            // Full wire packet in payload_ptr cyclic buffer
 	STRIP_NETWORK_HDRS,    // Strip down packet's network headers in cyclic buffers.
 	SEPERATE_NETWORK_HDRS, // Expose the packet's network headers in headers_ptr
+	PADDED_PACKET,         // Full packet with padding to power of 2
 } vma_cb_packet_rec_mode;
 
 typedef enum {
@@ -283,7 +284,7 @@ typedef enum {
  *          usr_hdr_ptr will point to the first header.
  *      b. hdr_bytes = 0
  *          usr_hdr_ptr is NULL
- * 2. SEPERATE_NETWORK_HDRS - network headers will be dropped
+ * 3. SEPERATE_NETWORK_HDRS - network headers will be dropped
  *     payload_ptr - will point to the first packet as it size is defined
  *     in stride_bytes.
  *     a. hdr_bytes > 0
@@ -291,6 +292,20 @@ typedef enum {
  *         (contiguous in memory).
  *     b. hdr_bytes = 0
  *         usr_hdr_ptr will point to the first network header.
+ * 4. PADDED_PACKET - packet will be written to memory and additional padding
+ * will be added to the end of it to match the nearest power of two.
+ * e.g. if stride_bytes is 1400 then and the network size is 42 (eth+ip+udp) the
+ * passing will be 2048 - 1400 - 42 -> 606.
+ * This mode has the best performance and causes less PCI bus back pressure.
+ * In this mode hdr_bytes is ignored and usr_hdr_ptr is NULL.
+ * packet layout in PADDED_PACKET mode
+ * +--------------------------------------------------------------------------+
+ * | mac+ip+udp |               datagram payload                 |  alignment |
+ * +--------------------------------------------------------------------------+
+ * |            | e.g. RTP header    | e.g. RTP payload          | alignment  |
+ * |            | e.g. RTP header    | e.g. RTP payload          | alignment  |
+ * +--------------------------------------------------------------------------+
+ *
  */
 struct vma_cyclic_buffer_ring_attr {
 	uint32_t		comp_mask;

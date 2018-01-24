@@ -129,7 +129,7 @@ int cq_mgr_mp::poll_mp_cq(uint16_t &size, uint32_t &strides_used,
 		m_p_cq_stat->n_rx_pkt_drop += cqe->sop_qpn.sop;
 		out_cqe64 = cqe;
 		uint32_t stride_byte_cnt = ntohl(cqe->byte_cnt);
-		strides_used += (stride_byte_cnt & MP_RQ_NUM_STRIDES_FIELD_MASK) >>
+		strides_used = (stride_byte_cnt & MP_RQ_NUM_STRIDES_FIELD_MASK) >>
 				MP_RQ_NUM_STRIDES_FIELD_SHIFT;
 		flags = (!!(cqe->hds_ip_ext & MLX5_CQE_L4_OK) * IBV_EXP_CQ_RX_TCP_UDP_CSUM_OK) |
 			(!!(cqe->hds_ip_ext & MLX5_CQE_L3_OK) * IBV_EXP_CQ_RX_IP_CSUM_OK);

@@ -84,17 +84,22 @@ protected:
 private:
 	vma_cyclic_buffer_ring_attr	m_cb_ring;
 	vma_allocator			m_alloc;
-	uint8_t				m_single_wqe_log_num_of_strides;
-	uint8_t				m_single_stride_log_num_of_bytes;
+	ibv_sge				m_buff_data;
+	struct ibv_mr*			m_p_umr_mr;
+	struct ibv_exp_send_wr		m_umr_wr;
 	uint32_t			m_stride_size;
 	uint32_t			m_strides_num;
 	struct ibv_exp_res_domain*	m_res_domain;
-	uint32_t			m_wq_count;
+	uint8_t				m_single_wqe_log_num_of_strides;
+	uint8_t				m_single_stride_log_num_of_bytes;
+	uint16_t			m_wq_count;
 	uint32_t			m_curr_wqe_used_strides;
 	uint32_t			m_all_wqes_used_strides;
+	uint16_t			m_hdr_len; // calculate user header offset in buffer
+	uint16_t			m_payload_len; // calculate payload offset in buffer
 	uint16_t			m_packet_size;
-	struct ibv_mr*			m_p_umr_mr;
-	struct ibv_exp_send_wr		m_umr_wr;
+	uint32_t			m_padd_mode_used_strides;
+	vma_cb_packet_rec_mode		m_packet_receive_mode;
 	// These members are used to store intermediate results before
 	// returning from the user's call to get the data.
 	int				m_curr_wq;
@@ -103,11 +108,9 @@ private:
 	size_t				m_curr_packets;
 	struct timespec			m_curr_hw_timestamp;
 	uint64_t			m_sge_ptrs[CB_UMR_LAST];
-	size_t				m_hdr_len;
-	size_t				m_payload_len;
 	inline mp_loop_result		mp_loop(size_t limit);
 	inline bool			reload_wq();
-	int				allocate_umr_mem();
+	int				allocate_umr_mem(uint16_t net_len);
 	void				remove_umr_res();
 };
 
