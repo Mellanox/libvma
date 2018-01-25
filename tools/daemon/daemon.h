@@ -215,11 +215,9 @@ static inline char *sys_addr2str(struct sockaddr_in *addr)
 static inline char *sys_ip2str(uint32_t ip)
 {
 	static __thread char ipbuf[100];
-	static char buf[100];
 	struct in_addr value = {0};
 	value.s_addr = ip;
-	inet_ntop(AF_INET, &value, buf, sizeof(buf) - 1);
-	sprintf(ipbuf, "%s", buf);
+	inet_ntop(AF_INET, &value, ipbuf, sizeof(ipbuf) - 1);
 
 	return ipbuf;
 }
@@ -278,6 +276,10 @@ static inline char *sys_exec(const char * format, ...)
 	va_start(va, format);
 	ret = vsnprintf(cmd, ret, format, va);
 	va_end(va);
+	if (ret <= 0) {
+		free(cmd);
+		goto err;
+	}
 
 	/* execute command */
 	file = popen(cmd, "r");
