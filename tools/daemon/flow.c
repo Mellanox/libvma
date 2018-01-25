@@ -160,7 +160,7 @@ int add_flow(pid_t pid, struct store_flow *value)
 	/* if list processing */
 	cur_head = &daemon_cfg.if_list;
 	list_for_each(cur_entry, cur_head) {
-		cur_element = container_of(cur_entry, struct flow_element, item);
+		cur_element = list_entry(cur_entry, struct flow_element, item);
 		if (cur_element->value[0] == value->if_id) {
 			break;
 		}
@@ -173,7 +173,7 @@ int add_flow(pid_t pid, struct store_flow *value)
 		}
 
 		/* Cleanup from possible failure during last daemon session */
-		out_buf = sys_exec("tc qdisc del dev %s handle ffff: ingress > /dev/null 2>&1 || echo $?", if_name);
+		sys_exec("tc qdisc del dev %s handle ffff: ingress > /dev/null 2>&1 || echo $?", if_name);
 
 		out_buf = sys_exec("tc qdisc add dev %s handle ffff: ingress > /dev/null 2>&1 || echo $?", if_name);
 		if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
@@ -189,11 +189,19 @@ int add_flow(pid_t pid, struct store_flow *value)
 		cur_element->value[0] = value->if_id;
 		cur_element->ctx = (void *)calloc(1, sizeof(*cur_element->ctx));
 		if (NULL == cur_element->ctx) {
+			free(cur_element);
 			rc = -ENOMEM;
 			goto err;
 		}
 		/* tables from 0x800 are reserved by kernel */
 		bitmap_create(&cur_element->ctx->ht, (0x800 - 1));
+		if (NULL == cur_element->ctx->ht) {
+			free(cur_element->ctx);
+			free(cur_element);
+			rc = -ENOMEM;
+			goto err;
+		}
+
 		/* table id = 0 is not used */
 		bitmap_set(cur_element->ctx->ht, 0);
 		list_add_tail(&cur_element->item, cur_head);
@@ -205,10 +213,10 @@ int add_flow(pid_t pid, struct store_flow *value)
 	log_debug("[%d] add flow (if): 0x%p value: %d ref: %d\n",
 			pid, cur_element, cur_element->value[0], cur_element->ref);
 
-	/* ip list processing */
+	/* table list processing */
 	cur_head = &cur_element->list;
 	list_for_each(cur_entry, cur_head) {
-		cur_element = container_of(cur_entry, struct flow_element, item);
+		cur_element = list_entry(cur_entry, struct flow_element, item);
 		if (cur_element->value[0] == (uint32_t)value->type &&
 			cur_element->value[1] == ip) {
 			ht = cur_element->ht_id & 0x0000FFFF;
@@ -224,7 +232,7 @@ int add_flow(pid_t pid, struct store_flow *value)
 		}
 
 		get_htid(ctx, get_prio(value), &ht_internal, &ht);
-		out_buf = sys_exec("tc filter del dev %s parent ffff: protocol ip prio %d handle %x: u32 > /dev/null 2>&1 || echo $?",
+		sys_exec("tc filter del dev %s parent ffff: protocol ip prio %d handle %x: u32 > /dev/null 2>&1 || echo $?",
 							if_name, get_prio(value), ht);
 		out_buf = sys_exec("tc filter add dev %s parent ffff: prio %d handle %x: protocol ip u32 divisor 256 > /dev/null 2>&1 || echo $?",
 							if_name, get_prio(value), ht);
@@ -259,10 +267,10 @@ int add_flow(pid_t pid, struct store_flow *value)
 	log_debug("[%d] add flow (ip): 0x%p value: %d:%d ref: %d\n",
 			pid, cur_element, cur_element->value[0], cur_element->value[1], cur_element->ref);
 
-	/* port list processing */
+	/* bucket/id list processing */
 	cur_head = &cur_element->list;
 	list_for_each(cur_entry, cur_head) {
-		cur_element = container_of(cur_entry, struct flow_element, item);
+		cur_element = list_entry(cur_entry, struct flow_element, item);
 		if (cur_element->value[0] == port) {
 			break;
 		}
@@ -287,7 +295,8 @@ int add_flow(pid_t pid, struct store_flow *value)
 			break;
 		case VMA_MSG_FLOW_TCP_5T:
 			id = id | (value->flow.t5.src_port & 0x0F00);
-			strcpy(str_tmp, sys_ip2str(value->flow.t5.src_ip));
+			str_tmp[sizeof(str_tmp) - 1] = '\0';
+			strncpy(str_tmp, sys_ip2str(value->flow.t5.src_ip), sizeof(str_tmp) - 1);
 			out_buf = sys_exec("tc filter add dev %s parent ffff: protocol ip "
 								"prio %d handle ::%x u32 ht %x:%x: match ip protocol 6 0xff "
 								"match ip src %s/32 match ip sport %d 0xffff "
@@ -345,6 +354,7 @@ int del_flow(pid_t pid, struct store_flow *value)
 	int id = HANDLE_ID(value->handle);
 	int ht_internal = 0x800;
 	struct flow_ctx *ctx = NULL;
+	int found = 0;
 
 	switch (value->type) {
 	case VMA_MSG_FLOW_TCP_3T:
@@ -371,44 +381,53 @@ int del_flow(pid_t pid, struct store_flow *value)
 	}
 
 	/* if list processing */
+	found = 0;
 	cur_head = &daemon_cfg.if_list;
 	list_for_each(cur_entry, cur_head) {
-		cur_element = container_of(cur_entry, struct flow_element, item);
+		cur_element = list_entry(cur_entry, struct flow_element, item);
 		if (cur_element->value[0] == value->if_id) {
+			found = 1;
 			break;
 		}
 	}
-	if (cur_entry != cur_head) {
+	if (found) {
+		assert(cur_entry != cur_head);
 		assert(cur_element);
 		ctx = cur_element->ctx;
 		save_element[0] = cur_element;
 		save_entry[0] = cur_entry;
 
-		/* ip list processing */
+		/* table list processing */
+		found = 0;
 		cur_head = &cur_element->list;
 		list_for_each(cur_entry, cur_head) {
-			cur_element = container_of(cur_entry, struct flow_element, item);
+			cur_element = list_entry(cur_entry, struct flow_element, item);
 			if (cur_element->value[0] == (uint32_t)value->type &&
 				cur_element->value[1] == ip) {
 				ht = cur_element->ht_id & 0x0000FFFF;
 				ht_internal = (cur_element->ht_id >> 16) & 0x0000FFFF;
+				found = 1;
 				break;
 			}
 		}
-		if (cur_entry != cur_head) {
+		if (found) {
+			assert(cur_entry != cur_head);
 			assert(cur_element);
 			save_element[1] = cur_element;
 			save_entry[1] = cur_entry;
 
-			/* port list processing */
+			/* bucket/id list processing */
+			found = 0;
 			cur_head = &cur_element->list;
 			list_for_each(cur_entry, cur_head) {
-				cur_element = container_of(cur_entry, struct flow_element, item);
+				cur_element = list_entry(cur_entry, struct flow_element, item);
 				if (cur_element->value[0] == port) {
+					found = 1;
 					break;
 				}
 			}
-			if (cur_entry != cur_head) {
+			if (found) {
+				assert(cur_entry != cur_head);
 				assert(cur_element);
 
 				cur_element->ref--;
@@ -446,14 +465,17 @@ int del_flow(pid_t pid, struct store_flow *value)
 					rc = -EFAULT;
 				}
 
+#if 0 /* Device busy error is returned (There is no issue if insert sleep(1) before execution */
 				out_buf = sys_exec("tc filter del dev %s parent ffff: protocol ip prio %d handle %x: u32 > /dev/null 2>&1 || echo $?",
 									if_name, get_prio(value), ht);
-#if 0 /* Device busy error is returned (There is no issue if insert sleep(1) before execution */
 				if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
 					log_error("[%d] remove table dev %s prio %d handle %x:: output: %s\n",
 							pid, if_name, get_prio(value), ht, (out_buf ? out_buf : "n/a"));
 					rc = -EFAULT;
 				}
+#else
+				sys_exec("tc filter del dev %s parent ffff: protocol ip prio %d handle %x: u32 > /dev/null 2>&1 || echo $?",
+									if_name, get_prio(value), ht);
 #endif
 
 				free_htid(ctx, ht);
@@ -513,7 +535,7 @@ static inline void get_htid(struct flow_ctx *ctx, int prio, int *ht_krn, int *ht
 			}
 		}
 
-		if (0 == *ht_krn) {
+		if ((0 == *ht_krn) && (0 <= free_index)) {
 			ctx->ht_prio[free_index].prio = prio;
 			ctx->ht_prio[free_index].id = free_id + 1;
 
@@ -523,7 +545,9 @@ static inline void get_htid(struct flow_ctx *ctx, int prio, int *ht_krn, int *ht
 
 	if (ht_id) {
 		*ht_id = bitmap_find_first_zero(ctx->ht);
-		bitmap_set(ctx->ht, *ht_id);
+		if (*ht_id >= 0) {
+			bitmap_set(ctx->ht, *ht_id);
+		}
 	}
 }
 
