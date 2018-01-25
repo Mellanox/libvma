@@ -117,6 +117,26 @@ ib_ctx_handler* ib_ctx_handler_collection::get_ib_ctx(struct ibv_context* p_ibv_
 	return NULL;
 }
 
+ib_ctx_handler* ib_ctx_handler_collection::get_ib_ctx(const char *ifa_name)
+{
+	ib_context_map_t::iterator ib_ctx_iter;
+	for (ib_ctx_iter = m_ib_ctx_map.begin(); ib_ctx_iter != m_ib_ctx_map.end(); ib_ctx_iter++) {
+		int n = -1;
+		char ib_path[IBV_SYSFS_PATH_MAX]= {0};
+
+		n = snprintf(ib_path, sizeof(ib_path), "/sys/class/infiniband/%s/device/net/%s/ifindex", ib_ctx_iter->first->device->name, ifa_name);
+		if (likely((0 < n) && (n < (int)sizeof(ib_path)))) {
+			int fd = open(ib_path, O_RDONLY);
+			if (fd >= 0) {
+				close(fd);
+				return ib_ctx_iter->second;
+			}
+		}
+	}
+
+	return NULL;
+}
+
 size_t ib_ctx_handler_collection::mem_reg_on_all_devices(void* addr, size_t length, 
                                                   ibv_mr** mr_array, size_t mr_array_sz,
                                                   uint64_t access)

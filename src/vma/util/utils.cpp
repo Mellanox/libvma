@@ -467,12 +467,12 @@ int get_port_from_ifname(const char* ifname)
 	// if file reading fails *dev_id or *dev_port may remain unmodified
 	char num_buf[24] = {0};
 	char dev_path[256] = {0};
-	sprintf(dev_path, VERBS_DEVICE_PORT_PARAM_FILE, ifname);
+	snprintf(dev_path, sizeof(dev_path), VERBS_DEVICE_PORT_PARAM_FILE, ifname);
 	if (priv_safe_try_read_file(dev_path, num_buf, sizeof(num_buf)) > 0) {
 		dev_port = strtol(num_buf, NULL, 0); // base=0 means strtol() can parse hexadecimal and decimal
 		__log_dbg("dev_port file=%s dev_port str=%s dev_port val=%d", dev_path, num_buf, dev_port);
 	}
-	sprintf(dev_path, VERBS_DEVICE_ID_PARAM_FILE, ifname);
+	snprintf(dev_path, sizeof(dev_path), VERBS_DEVICE_ID_PARAM_FILE, ifname);
 	if (priv_safe_try_read_file(dev_path, num_buf, sizeof(num_buf)) > 0) {
 		dev_id = strtol(num_buf, NULL, 0); // base=0 means strtol() can parse hexadecimal and decimal
 		__log_dbg("dev_id file= %s dev_id str=%s dev_id val=%d", dev_path, num_buf, dev_id);
@@ -481,7 +481,6 @@ int get_port_from_ifname(const char* ifname)
 	// take the max between dev_port and dev_id as port number
 	port_num = (dev_port > dev_id) ? dev_port : dev_id;
 	return ++port_num;
-
 }
 
 int get_iftype_from_ifname(const char* ifname)

@@ -48,6 +48,7 @@ public:
 	~ib_ctx_handler_collection();
 	void            map_ib_devices(); //return num_devices, can use rdma_get_devices()
 	ib_ctx_handler* get_ib_ctx(struct ibv_context*);
+	ib_ctx_handler* get_ib_ctx(const char *ifa_name);
 	size_t		get_num_devices() {return m_n_num_devices; };
 	size_t          mem_reg_on_all_devices(void* addr, size_t length,
 			ibv_mr** mr_array, size_t mr_array_sz,

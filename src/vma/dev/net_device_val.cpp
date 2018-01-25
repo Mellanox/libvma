@@ -266,8 +266,6 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 		get_up_and_active_slaves(up_and_active_slaves, m_slaves.size());
 	}
 
-	int num_devices = 0;
-	struct ibv_context** pp_ibv_context_list = rdma_get_devices(&num_devices);
 	for (uint16_t i=0; i<m_slaves.size(); i++) {
 		// Save L2 address
 		m_slaves[i]->p_L2_addr = create_L2_address(m_slaves[i]->if_name);
@@ -289,31 +287,12 @@ void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
 			base_ifname[sizeof(base_ifname) - 1] = '\0';
 		}
 
-		char resource_path[256];
-		sprintf(resource_path, VERBS_DEVICE_RESOURCE_PARAM_FILE, base_ifname);
-		char sys_res[1024] = {0};
-		if (priv_read_file(resource_path, sys_res, 1024) > 0) {
-			// find the ibv context and port num
-			for (int j=0; j<num_devices; j++) {
-				char ib_res[1024] = {0};
-				const char ib_path_format[] = "%s/device/resource";
-				char ib_path[IBV_SYSFS_PATH_MAX + sizeof(ib_path_format)] = {0};
-				snprintf(ib_path, sizeof(ib_path), ib_path_format, pp_ibv_context_list[j]->device->ibdev_path);
-				if (priv_read_file(ib_path, ib_res, sizeof(ib_res)) <= 0) {
-					continue;
-				}
-				if (strcmp(sys_res, ib_res) == 0) {
-					m_slaves[i]->p_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(pp_ibv_context_list[j]);
-					m_slaves[i]->port_num = get_port_from_ifname(base_ifname);
-					if (m_slaves[i]->port_num < 1) {
-						nd_logdbg("Error: port %d ==> ifname=%s base_ifname=%s", m_slaves[i]->port_num, (const char*)m_slaves[i]->if_name, base_ifname);					
-					}
-					break;
-				}
-			}
+		m_slaves[i]->p_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(base_ifname);
+		m_slaves[i]->port_num = get_port_from_ifname(base_ifname);
+		if (m_slaves[i]->port_num < 1) {
+			nd_logdbg("Error: port %d ==> ifname=%s base_ifname=%s", m_slaves[i]->port_num, (const char*)m_slaves[i]->if_name, base_ifname);
 		}
 	}
-	rdma_free_devices(pp_ibv_context_list);
 }
 
 void net_device_val::verify_bonding_mode()
