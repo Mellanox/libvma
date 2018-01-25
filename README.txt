@@ -1,4 +1,4 @@
-Update: 14 Dec 2017
+Update: 25 Jan 2017
 
 Introduction
 ============
@@ -25,7 +25,7 @@ Prerequisites:
 
 Build:
 1. ./autogen.sh
-2. ./configure --with-ofed=/usr --prefix=/usr --libdir=/usr/lib64 --includedir=/usr/include/mellanox --docdir=/usr/share/doc/libvma --sysconfdir=/etc
+2. ./configure --with-ofed=/usr --prefix=/usr --libdir=/usr/lib64 --includedir=/usr/include --docdir=/usr/share/doc/libvma --sysconfdir=/etc
 3. make
 
 You will find libvma.so in path_to_vma_dir/src/vma/.libs/libvma.so.
