@@ -262,6 +262,14 @@ L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb)
 						}
 					}
 
+					/* Received a zero-window probe, we respond to it with linux-like SND.NXT-1
+					   a.k.a keepalive */
+					if (in_data.tcphdr->wnd == 0 && get_tcp_state(pcb) == ESTABLISHED) {
+						pcb->rto = 1;
+						pcb->rtime = 1;
+						pcb->rcv_wnd = 0; /* should be zeroed here */
+					}
+
 					tcp_input_pcb = NULL;
 					/* Try to send something out. */
 					tcp_output(pcb);
@@ -657,6 +665,10 @@ tcp_process(struct tcp_pcb *pcb, tcp_in_data* in_data)
     if (in_data->recv_flags & TF_GOT_FIN) { /* passive close */
       tcp_ack_now(pcb);
       set_tcp_state(pcb, CLOSE_WAIT);
+    }
+    if (pcb->rtime >= 0 && pcb->rcv_wnd == 0) {
+      pcb->rtime = -1;
+      pcb->rto = 3000 / TCP_SLOW_INTERVAL;
     }
     break;
   case FIN_WAIT_1:
