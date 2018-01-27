@@ -1,7 +1,15 @@
 Version 8.5.3-0:
-Date + Time 2018-01-25
+Date + Time 2018-01-27
 =============================================================
 Added:
+        - RM #1262610 Improve handle for 5t rule
+        - RM #1262610 Add free htid detection
+        - RM #1262610 Add VMA_MSG_FLOW processing
+        - RM #1262610 Inform daemon about flows
+        - RM #1272182 Add TAP statistics
+        - RM #1160029 Add ring_bond_eth_netvsc
+        - RM #1160029 Detect NetVSC interfaces
+        - RM #1277704 Cleanup redundant poll_sn occurrences
         - RM #1277085 Update recommended installation command
         - RM #1265099 Add get ib_ctx object from interface name
         - RM #1272179 Arrange Ring statistics
@@ -16,6 +24,9 @@ Added:
         - RM #1259552 Optimize global get buffers procedure
         - RM #1248705 Add extra api to get ring TX fd from socket
 Fixed:
+        - RM #1262610 Resolve issue from static analysis tools
+        - RM #1262610 Workaround for tc u32 thable deletion issue
+        - RM #1262198 Fix epoll_wait returns fd EPOLLOUT event twice
         - RM #1226478 Fix direct QP and CQ destruction
         - RM #1263120 Fix compilation if libibverbs doesn't use libnl
         - RM #1172298 Compile Sockperf for Jenkins against actual libvma
