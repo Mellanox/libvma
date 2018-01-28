@@ -57,7 +57,7 @@
 /* Set limitation for number of rings for bonding device */
 #define MAX_NUM_RING_RESOURCES 10
 
-#define TAP_NAME_FORMAT "%.8s%x%x" //dev(8c)pid(4c)id(4c)
+#define TAP_NAME_FORMAT "%.7s%x%x" // dev(7c)pid(4c)id(4c)
 #define TAP_STR_LENGTH	512
 #define TAP_DISABLE_IPV6 "sysctl -w net.ipv6.conf.%s.disable_ipv6=1"
 
@@ -721,7 +721,7 @@ ring_bond_eth_netvsc::ring_bond_eth_netvsc(in_addr_t local_if, ring_resource_cre
 
 	// Open TAP device
 	if( (m_tap_fd = open("/dev/net/tun", O_RDWR)) < 0 ) {
-		ring_logwarn("FAILED to open tap");
+		ring_logwarn("FAILED to open tap %m");
 		goto error;
 	}
 
