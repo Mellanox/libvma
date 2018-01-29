@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (C) Mellanox Technologies Ltd. 2001-2017.  ALL RIGHTS RESERVED.
+# Copyright (C) Mellanox Technologies Ltd. 2001-2018.  ALL RIGHTS RESERVED.
 # See file LICENSE for terms.
 #
 # vma:         Start the VMA Daemon
