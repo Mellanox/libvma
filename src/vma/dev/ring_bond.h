@@ -121,7 +121,7 @@ private:
 
 	int poll_and_process_element_tap_rx(void* pv_fd_ready_array = NULL);
 	bool request_more_rx_buffers();
-	void prepare_flow_message(vma_msg_flow& data, flow_tuple& flow_spec_5t, msg_flow_t flow_action);
+	inline void prepare_flow_message(vma_msg_flow& data, flow_tuple& flow_spec_5t, msg_flow_t flow_action);
 
 	ring_stats_t	m_ring_stat;
 	descq_t         m_rx_pool;
