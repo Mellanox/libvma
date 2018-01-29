@@ -325,8 +325,8 @@ private:
 
 	static err_t syn_received_drop_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_t err);
 
-	// send not connected
-	static err_t dst_nc_send_lwip_cb(void *arg, struct tcp_pcb *pcb, err_t err);
+	// send not connected helper
+	static err_t dst_nc_helper_lwip_cb(void *arg, struct tcp_pcb *pcb, int mode);
 
 	static err_t clone_conn_cb(void *arg, struct tcp_pcb **newpcb, err_t err);
 

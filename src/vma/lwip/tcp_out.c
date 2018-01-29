@@ -1320,6 +1320,7 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
  * @param remote_ip the remote IP address to send the segment to
  * @param local_port the local TCP port to send the segment from
  * @param remote_port the remote TCP port to send the segment to
+ * @param flags the header flags if required to change the default RST-ACK
  */
 void
 tcp_rst(u32_t seqno, u32_t ackno, u16_t local_port, u16_t remote_port, struct tcp_pcb *pcb, u16_t *flags)

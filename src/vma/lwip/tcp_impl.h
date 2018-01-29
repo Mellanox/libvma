@@ -268,10 +268,10 @@ PACK_STRUCT_END
       (errf)((arg),(err));                                     \
   } while (0)
 
-#define TCP_DST_NC_SEND(pcb,p_npcb, err,ret)                   \
+#define TCP_DST_NC_HELPER(pcb,p_npcb, mode,ret)                \
   do {                                                         \
-    if((pcb)->tcp_dst_nc_send_cb != NULL)                      \
-      (ret) = (pcb)->tcp_dst_nc_send_cb((pcb)->callback_arg,(p_npcb),(err)); \
+    if((pcb)->tcp_dst_nc_helper_cb != NULL)                      \
+      (ret) = (pcb)->tcp_dst_nc_helper_cb((pcb)->callback_arg,(p_npcb),(mode)); \
     else (ret) = ERR_ARG;                                      \
   } while (0)
 

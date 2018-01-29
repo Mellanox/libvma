@@ -357,8 +357,15 @@ tcp_listen_input(struct tcp_pcb_listen *pcb, tcp_in_data* in_data)
     ip_addr_copy(npcb->local_ip, in_data->iphdr->dest);
     ip_addr_copy(npcb->remote_ip, in_data->iphdr->src);
     npcb->remote_port = in_data->tcphdr->src;
-    TCP_DST_NC_SEND(pcb, npcb, ERR_OK, rc);
-    tcp_rst(in_data->ackno, 0, in_data->tcphdr->dest, in_data->tcphdr->src, npcb, &flags);
+    /* prepare dst to send */
+    TCP_DST_NC_HELPER(pcb, npcb, 0, rc);
+    if (rc == ERR_OK) {
+        tcp_rst(in_data->ackno, 0, in_data->tcphdr->dest, in_data->tcphdr->src, npcb, &flags);
+        /* release resources */
+        TCP_DST_NC_HELPER(pcb, npcb, 1, rc);
+    } else {
+        return ERR_ABRT;
+    }
   } else if (in_data->flags & TCP_SYN) {
     LWIP_DEBUGF(TCP_DEBUG, ("TCP connection request %"U16_F" -> %"U16_F".\n", in_data->tcphdr->src, in_data->tcphdr->dest));
 #if TCP_LISTEN_BACKLOG

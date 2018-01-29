@@ -2393,7 +2393,7 @@ int sockinfo_tcp::listen(int backlog)
 	tcp_accept(&m_pcb, sockinfo_tcp::accept_lwip_cb);
 	tcp_syn_handled((struct tcp_pcb_listen*)(&m_pcb), sockinfo_tcp::syn_received_lwip_cb);
 	tcp_clone_conn((struct tcp_pcb_listen*)(&m_pcb), sockinfo_tcp::clone_conn_cb);
-	tcp_dst_nc_send((struct tcp_pcb_listen*)(&m_pcb), sockinfo_tcp::dst_nc_send_lwip_cb);
+	tcp_dst_nc_helper((struct tcp_pcb_listen*)(&m_pcb), sockinfo_tcp::dst_nc_helper_lwip_cb);
 
 	bool success = attach_as_uc_receiver(ROLE_TCP_SERVER);
 #ifndef DEFINED_SOCKETXTREME // if not defiend
@@ -2983,7 +2983,7 @@ err_t sockinfo_tcp::syn_received_drop_lwip_cb(void *arg, struct tcp_pcb *newpcb,
 	return ERR_ABRT;
 }
 
-err_t sockinfo_tcp::dst_nc_send_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_t err)
+err_t sockinfo_tcp::dst_nc_helper_lwip_cb(void *arg, struct tcp_pcb *newpcb, int mode)
 {
 	sockinfo_tcp *listen_sock = (sockinfo_tcp *)((arg));
 
@@ -2993,21 +2993,34 @@ err_t sockinfo_tcp::dst_nc_send_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_t
 
 	sockinfo_tcp *new_sock = (sockinfo_tcp *)((newpcb->my_container));
 
-	NOT_IN_USE(err);
+	if (mode == 0) {
+		ASSERT_LOCKED(listen_sock->m_tcp_con_lock);
+		listen_sock->m_tcp_con_lock.unlock();
 
-	ASSERT_LOCKED(listen_sock->m_tcp_con_lock);
-	listen_sock->m_tcp_con_lock.unlock();
+		new_sock->set_conn_properties_from_pcb();
+		new_sock->create_dst_entry();
+		new_sock->m_sock_state = TCP_SOCK_INITED;
+		/* set state to remove the pcb later */
+		set_tcp_state(&new_sock->m_pcb, TIME_WAIT);
 
-	new_sock->set_conn_properties_from_pcb();
-	new_sock->create_dst_entry();
-
-	if (new_sock->m_p_connected_dst_entry) {
-		new_sock->prepare_dst_to_send(false);
+		if (new_sock->m_p_connected_dst_entry) {
+			new_sock->prepare_dst_to_send(false);
+		} else {
+			if (!orig_os_api.close) get_orig_funcs();
+			orig_os_api.close(new_sock->get_fd());
+			new_sock->abort_connection();
+			return ERR_ABRT;
+		}
+	} else if (mode == 1) {
 		new_sock->abort_connection();
+		if (!orig_os_api.close) get_orig_funcs();
+		orig_os_api.close(new_sock->get_fd());
+		if (new_sock->m_p_connected_dst_entry) {
+			delete new_sock->m_p_connected_dst_entry;
+			new_sock->m_p_connected_dst_entry = NULL;
+		}
+		listen_sock->m_tcp_con_lock.lock();
 	}
-	close(new_sock->get_fd());
-
-	listen_sock->m_tcp_con_lock.lock();
 
 	return ERR_OK;
 }

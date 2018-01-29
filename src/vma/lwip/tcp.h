@@ -194,7 +194,7 @@ typedef err_t (*tcp_connected_fn)(void *arg, struct tcp_pcb *tpcb, err_t err);
  *            Only return ERR_ABRT if you have called tcp_abort from within the
  *            callback function!
  */
-typedef err_t (*tcp_dst_nc_send_fn)(void *arg, struct tcp_pcb *pcb, err_t err);
+typedef err_t (*tcp_dst_nc_helper_fn)(void *arg, struct tcp_pcb *pcb, int mode);
 
 enum tcp_state {
   CLOSED      = 0,
@@ -419,7 +419,7 @@ struct tcp_pcb {
 #ifdef VMA_NO_TCP_PCB_LISTEN_STRUCT
   tcp_syn_handled_fn syn_handled_cb;
   tcp_clone_conn_fn clone_conn;
-  tcp_dst_nc_send_fn tcp_dst_nc_send_cb;
+  tcp_dst_nc_helper_fn tcp_dst_nc_helper_cb;
 
 #if TCP_LISTEN_BACKLOG
   u8_t backlog;
@@ -444,7 +444,7 @@ struct tcp_pcb_listen {
   TCP_PCB_COMMON(struct tcp_pcb_listen);
   tcp_syn_handled_fn syn_handled_cb;
   tcp_clone_conn_fn clone_conn;
-  tcp_dst_nc_send_fn tcp_dst_nc_send_cb;
+  tcp_dst_nc_helper_fn tcp_dst_nc_helper_cb;
 
 #if TCP_LISTEN_BACKLOG
   u8_t backlog;
@@ -488,7 +488,7 @@ void             tcp_recv    		(struct tcp_pcb *pcb, tcp_recv_fn recv);
 void             tcp_sent    		(struct tcp_pcb *pcb, tcp_sent_fn sent);
 void             tcp_poll    		(struct tcp_pcb *pcb, tcp_poll_fn poll, u8_t interval);
 void             tcp_err     		(struct tcp_pcb *pcb, tcp_err_fn err);
-void             tcp_dst_nc_send	(struct tcp_pcb_listen *pcb, tcp_dst_nc_send_fn rst_handled);
+void             tcp_dst_nc_helper	(struct tcp_pcb_listen *pcb, tcp_dst_nc_helper_fn hlpr_handled);
 
 #define          tcp_mss(pcb)             (((pcb)->flags & TF_TIMESTAMP) ? ((pcb)->mss - 12)  : (pcb)->mss)
 #define          tcp_sndbuf(pcb)          ((pcb)->snd_buf)
