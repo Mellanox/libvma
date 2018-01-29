@@ -123,7 +123,6 @@
    Memcheck:Param
    write(buf)
    ...
-   fun:write
    fun:*cmd_destroy_flow
    fun:ibv_exp*_destroy_flow
 }

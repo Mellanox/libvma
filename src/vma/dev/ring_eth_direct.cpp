@@ -30,8 +30,8 @@
  * SOFTWARE.
  */
 
+#include "util/valgrind.h"
 #include "ring_eth_direct.h"
-
 #include "qp_mgr_eth_direct.h"
 
 
@@ -113,6 +113,7 @@ int ring_eth_direct::get_ring_descriptors(vma_mlx_hw_device_data &d)
 		return -1;
 	}
 	d.valid_mask |= DATA_VALID_SQ;
+	VALGRIND_MAKE_MEM_DEFINED(&d, sizeof(d));
 	return 0;
 }
 
