@@ -31,7 +31,7 @@ fi
 cp libvma*.tar.gz $BUILD_DIR/
 cd $BUILD_DIR
 tar xzvf libvma*.tar.gz >> $LOG_FILE 2>&1
-cd libvma*
+cd $(find . -maxdepth 1 -type d -name "libvma*")
 VMA_DIR=`pwd`
 
 echo "Running dpkg-buildpackage ... this might take a while ..."
