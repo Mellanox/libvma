@@ -57,7 +57,7 @@
 /* Set limitation for number of rings for bonding device */
 #define MAX_NUM_RING_RESOURCES 10
 
-#define TAP_NAME_FORMAT "%.7s%x%x" // dev(7c)pid(4c)id(4c)
+#define TAP_NAME_FORMAT "t%x%x" // t<pid7c><fd7c>
 #define TAP_STR_LENGTH	512
 #define TAP_DISABLE_IPV6 "sysctl -w net.ipv6.conf.%s.disable_ipv6=1"
 
@@ -701,8 +701,7 @@ ring_bond_eth_netvsc::ring_bond_eth_netvsc(in_addr_t local_if, ring_resource_cre
 	m_tap_data_available(false)
 {
 	struct ifreq ifr;
-	static int tap_id = 0;
-	int err, pid = getpid(), ioctl_sock = -1;
+	int err, ioctl_sock = -1;
 	char command_str[TAP_STR_LENGTH], return_str[TAP_STR_LENGTH], tap_name[IFNAMSIZ];
 	memset(&m_ring_stat , 0, sizeof(m_ring_stat));
 
@@ -716,14 +715,14 @@ ring_bond_eth_netvsc::ring_bond_eth_netvsc(in_addr_t local_if, ring_resource_cre
 	request_more_rx_buffers();
 	m_rx_pool.set_id("ring_bond_eth_netvsc (%p) : m_rx_pool", this);
 
-	// Tap name
-	snprintf(tap_name, IFNAMSIZ, TAP_NAME_FORMAT, base_name, pid & 0xFFFF, tap_id++ & 0xFFFF);
-
 	// Open TAP device
 	if( (m_tap_fd = open("/dev/net/tun", O_RDWR)) < 0 ) {
 		ring_logwarn("FAILED to open tap %m");
 		goto error;
 	}
+
+	// Tap name
+	snprintf(tap_name, IFNAMSIZ, TAP_NAME_FORMAT, getpid() & 0xFFFFFFF, m_tap_fd & 0xFFFFFFF);
 
 	// Init ifr
 	memset(&ifr, 0, sizeof(ifr));
