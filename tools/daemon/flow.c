@@ -47,6 +47,9 @@
 #include "daemon.h"
 
 
+#define KERNEL_HT 0x800
+#define MAX_BKT 0xFF
+#define MAX_ID  0xFFF
 #define HANDLE_INVALID    (uint32_t)(-1)
 
 #define HANDLE_SET(ht, bkt, id)  \
@@ -95,6 +98,8 @@ int del_flow(pid_t pid, struct store_flow *value);
 static inline void get_htid(struct flow_ctx *ctx, int prio, int *ht_krn, int *ht_id);
 static inline void free_htid(struct flow_ctx *ctx, int ht_id);
 static inline int get_prio(struct store_flow *value);
+static inline int get_bkt(struct store_flow *value);
+static inline int get_node(struct store_flow *value, struct list_head **list);
 
 
 int open_flow(void)
@@ -118,22 +123,19 @@ int add_flow(pid_t pid, struct store_flow *value)
 	char tap_name[IF_NAMESIZE];
 	char *out_buf = NULL;
 	uint32_t ip = 0;
-	uint32_t port = 0;
 	int ht = HANDLE_HT(value->handle);
 	int bkt = HANDLE_BKT(value->handle);
 	int id = HANDLE_ID(value->handle);
-	int ht_internal = 0x800;
+	int ht_internal = KERNEL_HT;
 	struct flow_ctx *ctx = NULL;
 	char str_tmp[20];
 
 	switch (value->type) {
 	case VMA_MSG_FLOW_TCP_3T:
 		ip = value->flow.t3.dst_ip;
-		port = value->flow.t3.dst_port;
 		break;
 	case VMA_MSG_FLOW_TCP_5T:
 		ip = value->flow.t5.dst_ip;
-		port = value->flow.t5.dst_port;
 		break;
 	default:
 		log_error("Invalid format %d (%s)\n", errno,
@@ -157,7 +159,12 @@ int add_flow(pid_t pid, struct store_flow *value)
 		goto err;
 	}
 
-	/* if list processing */
+	/* interface list processing
+	 * use interface index as unique identifier
+	 * every network interface has qdisc
+	 * so as first step let find if interface referenced in this flow exists
+	 * in the if_list or allocate new element related one
+	 */
 	cur_head = &daemon_cfg.if_list;
 	list_for_each(cur_entry, cur_head) {
 		cur_element = list_entry(cur_entry, struct flow_element, item);
@@ -194,7 +201,7 @@ int add_flow(pid_t pid, struct store_flow *value)
 			goto err;
 		}
 		/* tables from 0x800 are reserved by kernel */
-		bitmap_create(&cur_element->ctx->ht, (0x800 - 1));
+		bitmap_create(&cur_element->ctx->ht, (KERNEL_HT - 1));
 		if (NULL == cur_element->ctx->ht) {
 			free(cur_element->ctx);
 			free(cur_element);
@@ -213,7 +220,11 @@ int add_flow(pid_t pid, struct store_flow *value)
 	log_debug("[%d] add flow (if): 0x%p value: %d ref: %d\n",
 			pid, cur_element, cur_element->value[0], cur_element->ref);
 
-	/* table list processing */
+	/* table list processing
+	 * table id calculation is based on ip and type
+	 * so as first step let find if hash table referenced in this flow exists
+	 * in the list of tables related specific interface or allocate new element related one
+	 */
 	cur_head = &cur_element->list;
 	list_for_each(cur_entry, cur_head) {
 		cur_element = list_entry(cur_entry, struct flow_element, item);
@@ -264,14 +275,24 @@ int add_flow(pid_t pid, struct store_flow *value)
 	assert(cur_element);
 	cur_element->ref++;
 
-	log_debug("[%d] add flow (ip): 0x%p value: %d:%d ref: %d\n",
+	log_debug("[%d] add flow (ht): 0x%p value: %d:%d ref: %d\n",
 			pid, cur_element, cur_element->value[0], cur_element->value[1], cur_element->ref);
 
-	/* bucket/id list processing */
+	/* bucket list processing
+	 * bucket number calculation can be different for flow types
+	 * so as first step let find if bucket referenced in this flow exists
+	 * in the list of buckets related specific hash table or allocate new element related one
+	 */
 	cur_head = &cur_element->list;
+	bkt = get_bkt(value);
+	if (bkt <= 0) {
+		log_warn("[%d] invalid flow bkt: %d\n",
+				pid, bkt);
+		goto err;
+	}
 	list_for_each(cur_entry, cur_head) {
 		cur_element = list_entry(cur_entry, struct flow_element, item);
-		if (cur_element->value[0] == port) {
+		if ((int)cur_element->value[0] == bkt) {
 			break;
 		}
 	}
@@ -282,8 +303,36 @@ int add_flow(pid_t pid, struct store_flow *value)
 			goto err;
 		}
 
-		bkt = ntohs(port) & 0xFF;
-		id = (ntohs(port) / 0xFF) & 0xFF;
+		INIT_LIST_HEAD(&cur_element->list);
+		cur_element->ref = 0;
+		cur_element->value[0] = bkt;
+		list_add_tail(&cur_element->item, cur_head);
+	}
+	assert(cur_element);
+	cur_element->ref++;
+
+	log_debug("[%d] add flow (bkt): 0x%p value: %d ref: %d\n",
+			pid, cur_element, cur_element->value[0], cur_element->ref);
+
+	/* node list processing
+	 * node number calculation can be different for flow types
+	 * allocate new element related one
+	 * cur_entry pointed by cur_head can depends on internal logic and
+	 * direct a place in the list where new entry should be inserted
+	 */
+	cur_head = &cur_element->list;
+	id = get_node(value, &cur_head);
+	if (id <= 0) {
+		log_warn("[%d] invalid flow id: %d\n",
+				pid, id);
+		goto err;
+	} else {
+		cur_element = (void *)calloc(1, sizeof(*cur_element));
+		if (NULL == cur_element) {
+			rc = -ENOMEM;
+			goto err;
+		}
+
 		switch (value->type) {
 		case VMA_MSG_FLOW_TCP_3T:
 			out_buf = sys_exec("tc filter add dev %s parent ffff: protocol ip "
@@ -294,7 +343,6 @@ int add_flow(pid_t pid, struct store_flow *value)
 								sys_ip2str(value->flow.t3.dst_ip), ntohs(value->flow.t3.dst_port), tap_name);
 			break;
 		case VMA_MSG_FLOW_TCP_5T:
-			id = id | (value->flow.t5.src_port & 0x0F00);
 			str_tmp[sizeof(str_tmp) - 1] = '\0';
 			strncpy(str_tmp, sys_ip2str(value->flow.t5.src_ip), sizeof(str_tmp) - 1);
 			out_buf = sys_exec("tc filter add dev %s parent ffff: protocol ip "
@@ -319,13 +367,13 @@ int add_flow(pid_t pid, struct store_flow *value)
 
 		INIT_LIST_HEAD(&cur_element->list);
 		cur_element->ref = 0;
-		cur_element->value[0] = port;
+		cur_element->value[0] = id;
 		list_add_tail(&cur_element->item, cur_head);
 	}
 	assert(cur_element);
 	cur_element->ref++;
 
-	log_debug("[%d] add flow (port): 0x%p value: %d ref: %d\n",
+	log_debug("[%d] add flow (node): 0x%p value: %d ref: %d\n",
 			pid, cur_element, cur_element->value[0], cur_element->ref);
 
 err:
@@ -343,27 +391,24 @@ int del_flow(pid_t pid, struct store_flow *value)
 	struct list_head *cur_head = NULL;
 	struct flow_element *cur_element = NULL;
 	struct list_head *cur_entry = NULL;
-	struct flow_element *save_element[2];
-	struct list_head *save_entry[2];
+	struct flow_element *save_element[3];
+	struct list_head *save_entry[3];
 	char if_name[IF_NAMESIZE];
 	char *out_buf = NULL;
 	uint32_t ip = 0;
-	uint32_t port = 0;
 	int ht = HANDLE_HT(value->handle);
 	int bkt = HANDLE_BKT(value->handle);
 	int id = HANDLE_ID(value->handle);
-	int ht_internal = 0x800;
+	int ht_internal = KERNEL_HT;
 	struct flow_ctx *ctx = NULL;
 	int found = 0;
 
 	switch (value->type) {
 	case VMA_MSG_FLOW_TCP_3T:
 		ip = value->flow.t3.dst_ip;
-		port = value->flow.t3.dst_port;
 		break;
 	case VMA_MSG_FLOW_TCP_5T:
 		ip = value->flow.t5.dst_ip;
-		port = value->flow.t5.dst_port;
 		break;
 	default:
 		log_error("Invalid format %d (%s)\n", errno,
@@ -380,7 +425,7 @@ int del_flow(pid_t pid, struct store_flow *value)
 		goto err;
 	}
 
-	/* if list processing */
+	/* interface list processing */
 	found = 0;
 	cur_head = &daemon_cfg.if_list;
 	list_for_each(cur_entry, cur_head) {
@@ -416,12 +461,12 @@ int del_flow(pid_t pid, struct store_flow *value)
 			save_element[1] = cur_element;
 			save_entry[1] = cur_entry;
 
-			/* bucket/id list processing */
+			/* bucket list processing */
 			found = 0;
 			cur_head = &cur_element->list;
 			list_for_each(cur_entry, cur_head) {
 				cur_element = list_entry(cur_entry, struct flow_element, item);
-				if (cur_element->value[0] == port) {
+				if ((int)cur_element->value[0] == bkt) {
 					found = 1;
 					break;
 				}
@@ -429,21 +474,49 @@ int del_flow(pid_t pid, struct store_flow *value)
 			if (found) {
 				assert(cur_entry != cur_head);
 				assert(cur_element);
+				save_element[2] = cur_element;
+				save_entry[2] = cur_entry;
 
+				/* node list processing */
+				found = 0;
+				cur_head = &cur_element->list;
+				list_for_each(cur_entry, cur_head) {
+					cur_element = list_entry(cur_entry, struct flow_element, item);
+					if ((int)cur_element->value[0] == id) {
+						found = 1;
+						break;
+					}
+				}
+				if (found) {
+					assert(cur_entry != cur_head);
+					assert(cur_element);
+
+					cur_element->ref--;
+
+					log_debug("[%d] del flow (node): 0x%p value: %d ref: %d\n",
+							pid, cur_element, cur_element->value[0], cur_element->value[1], cur_element->ref);
+					if (list_empty(&cur_element->list) && (cur_element->ref <=0 )) {
+
+						out_buf = sys_exec("tc filter del dev %s parent ffff: protocol ip prio %d handle %x:%x:%x u32 > /dev/null 2>&1 || echo $?",
+											if_name, get_prio(value), ht, bkt, id);
+						if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
+							log_warn("[%d] remove filter dev %s prio %d handle %x:%x:%x output: %s\n",
+									pid, if_name, get_prio(value), ht, bkt, id, (out_buf ? out_buf : "n/a"));
+							rc = -EFAULT;
+						}
+
+						list_del_init(cur_entry);
+						free(cur_element);
+					}
+				}
+
+				cur_element = save_element[2];
+				cur_entry = save_entry[2];
 				cur_element->ref--;
 
-				log_debug("[%d] del flow (port): 0x%p value: %d ref: %d\n",
-						pid, cur_element, cur_element->value[0], cur_element->value[1], cur_element->ref);
+				log_debug("[%d] del flow (bkt): 0x%p value: %d ref: %d\n",
+						pid, cur_element, cur_element->value[0], cur_element->ref);
 				if (list_empty(&cur_element->list) && (cur_element->ref <=0 )) {
-
-					out_buf = sys_exec("tc filter del dev %s parent ffff: protocol ip prio %d handle %x:%x:%x u32 > /dev/null 2>&1 || echo $?",
-										if_name, get_prio(value), ht, bkt, id);
-					if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
-						log_warn("[%d] remove filter dev %s prio %d handle %x:%x:%x output: %s\n",
-								pid, if_name, get_prio(value), ht, bkt, id, (out_buf ? out_buf : "n/a"));
-						rc = -EFAULT;
-					}
-
 					list_del_init(cur_entry);
 					free(cur_element);
 				}
@@ -453,7 +526,7 @@ int del_flow(pid_t pid, struct store_flow *value)
 			cur_entry = save_entry[1];
 			cur_element->ref--;
 
-			log_debug("[%d] del flow (ip): 0x%p value: %d:%d ref: %d\n",
+			log_debug("[%d] del flow (ht): 0x%p value: %d:%d ref: %d\n",
 					pid, cur_element, cur_element->value[0], cur_element->value[1], cur_element->ref);
 			if (list_empty(&cur_element->list) && (cur_element->ref <=0 )) {
 
@@ -525,7 +598,7 @@ static inline void get_htid(struct flow_ctx *ctx, int prio, int *ht_krn, int *ht
 		*ht_krn = 0;
 		for (i = 0; i < (int)(sizeof(ctx->ht_prio) / sizeof(ctx->ht_prio[0])); i++) {
 			if (ctx->ht_prio[i].prio == prio) {
-				*ht_krn = (0x800 + ctx->ht_prio[i].id);
+				*ht_krn = (KERNEL_HT + ctx->ht_prio[i].id);
 				break;
 			}
 			if (ctx->ht_prio[i].prio == 0) {
@@ -539,7 +612,7 @@ static inline void get_htid(struct flow_ctx *ctx, int prio, int *ht_krn, int *ht
 			ctx->ht_prio[free_index].prio = prio;
 			ctx->ht_prio[free_index].id = free_id + 1;
 
-			*ht_krn = (0x800 + ctx->ht_prio[free_index].id);
+			*ht_krn = (KERNEL_HT + ctx->ht_prio[free_index].id);
 		}
 	}
 
@@ -559,4 +632,73 @@ static inline void free_htid(struct flow_ctx *ctx, int ht_id)
 static inline int get_prio(struct store_flow *value)
 {
 	return value->type;
+}
+
+static inline int get_bkt(struct store_flow *value)
+{
+	int bkt = 0;
+
+	switch (value->type) {
+	case VMA_MSG_FLOW_TCP_3T:
+		bkt = ntohs(value->flow.t3.dst_port) & 0xFF;
+		break;
+	case VMA_MSG_FLOW_TCP_5T:
+		bkt = ntohs(value->flow.t5.dst_port) & 0xFF;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return bkt;
+}
+
+static inline int get_node(struct store_flow *value, struct list_head **cur_head)
+{
+	int id = 0;
+	struct flow_element *cur_element = NULL;
+	struct list_head *cur_entry = NULL;
+
+	switch (value->type) {
+	case VMA_MSG_FLOW_TCP_3T:
+		/* node id selection for this flow type is based
+		 * port value
+		 */
+		id = ((ntohs(value->flow.t3.dst_port) / 0xFF) & 0xFF) + 1;
+		break;
+	case VMA_MSG_FLOW_TCP_5T:
+		/* node id logic is smart (keep list entry in ascending order)
+		 * there are two ways as
+		 * 1 - simply take last entry in the list and increment id value until
+		 * maximum value is not achieved
+		 * 2 - if last entry has maximum possible value try look for first free
+		 * entry from start in the list
+		 */
+		id = 1;
+		if (!list_empty((*cur_head))) {
+			cur_entry = (*cur_head)->prev;
+			cur_element = list_entry(cur_entry, struct flow_element, item);
+			if (cur_element->value[0] < MAX_ID) {
+				id = cur_element->value[0] + 1;
+			} else {
+				id = 1;
+				list_for_each(cur_entry, (*cur_head)) {
+					cur_element = list_entry(cur_entry, struct flow_element, item);
+					if ((int)cur_element->value[0] > id) {
+						*cur_head = cur_entry;
+						break;
+					}
+					id++;
+				}
+			}
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if ((0 >= id) || (id > MAX_ID)) {
+		return -EINVAL;
+	}
+
+	return id;
 }
