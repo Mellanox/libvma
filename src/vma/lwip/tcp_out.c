@@ -868,7 +868,13 @@ tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
       return;
     }
 
+#if 1 // PATCH
+    u16_t mss_local = LWIP_MIN(pcb->mss, pcb->snd_wnd_max/2);
+    mss_local = mss_local ? mss_local : pcb->mss;
+    if (NULL == (p = tcp_pbuf_prealloc(lentoqueue + optlen, mss_local, &oversize, pcb, 0, 0))) {
+# else
     if (NULL == (p = tcp_pbuf_prealloc(lentoqueue + optlen, lentoqueue + optlen, &oversize, pcb, 0, 0))) {
+#endif
       LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_split_segment: could not allocate memory for pbuf copy size %"U16_F"\n", (lentoqueue + optlen)));
       return;
     }
