@@ -3653,7 +3653,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 				rate_limit = *(struct vma_rate_limit_t*)__optval; // value is in bytes per second
 			} else if (sizeof(uint32_t) <= __optlen) {
 				rate_limit.rate = *(uint32_t*)__optval; // value is in bytes per second
-				rate_limit.upper_bound_sz = 0;
+				rate_limit.max_burst_sz = 0;
 				rate_limit.typical_pkt_sz = 0;
 			} else {
 				errno = EINVAL;

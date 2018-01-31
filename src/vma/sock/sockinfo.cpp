@@ -285,7 +285,7 @@ int sockinfo::getsockopt(int __level, int __optname, void *__optval, socklen_t *
 				*(struct vma_rate_limit_t*)__optval = m_so_ratelimit;
 				(*(struct vma_rate_limit_t*)__optval).rate = KB_TO_BYTE(m_so_ratelimit.rate);
 				*__optlen = sizeof(struct vma_rate_limit_t);
-				si_logdbg("(SO_MAX_PACING_RATE) value: %d, %d, %d", (*(struct vma_rate_limit_t*)__optval).rate, (*(struct vma_rate_limit_t*)__optval).upper_bound_sz, (*(struct vma_rate_limit_t*)__optval).typical_pkt_sz);
+				si_logdbg("(SO_MAX_PACING_RATE) value: %d, %d, %d", (*(struct vma_rate_limit_t*)__optval).rate, (*(struct vma_rate_limit_t*)__optval).max_burst_sz, (*(struct vma_rate_limit_t*)__optval).typical_pkt_sz);
 			} else if (*__optlen >= sizeof(uint32_t)) {
 				*(uint32_t*)__optval = KB_TO_BYTE(m_so_ratelimit.rate);
 				*__optlen = sizeof(uint32_t);
