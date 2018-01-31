@@ -345,11 +345,11 @@ int priv_ibv_modify_qp_ratelimit(struct ibv_qp *qp, struct vma_rate_limit_t &rat
 		qp_attr.rate_limit = rate_limit.rate;
 		exp_attr_mask |= IBV_EXP_QP_RATE_LIMIT;
 	}
-#ifdef DEFINED_IBV_EXP_QP_BURST_INFO
-	if (rate_limit.upper_bound_sz && rate_limit.typical_pkt_sz && (rl_changes & (RL_BURST_SIZE | RL_PKT_SIZE))) {
-		qp_attr.burst_info.upper_bound_sz = rate_limit.upper_bound_sz;
+#ifdef DEFINED_IBV_EXP_QP_SUPPORT_BURST
+	if (rate_limit.max_burst_sz && rate_limit.typical_pkt_sz && (rl_changes & (RL_BURST_SIZE | RL_PKT_SIZE))) {
+		qp_attr.burst_info.max_burst_sz = rate_limit.max_burst_sz;
 		qp_attr.burst_info.typical_pkt_sz = rate_limit.typical_pkt_sz;
-		exp_attr_mask |= IBV_EXP_QP_BURST_INFO;
+		qp_attr.comp_mask |= IBV_EXP_QP_ATTR_BURST_INFO;
 	}
 #endif
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -358,9 +358,9 @@ int priv_ibv_modify_qp_ratelimit(struct ibv_qp *qp, struct vma_rate_limit_t &rat
 		return -2;
 	} ENDIF_VERBS_FAILURE;
 	BULLSEYE_EXCLUDE_BLOCK_END
-#ifdef DEFINED_IBV_EXP_QP_BURST_INFO
+#ifdef DEFINED_IBV_EXP_QP_SUPPORT_BURST
 	vlog_printf(VLOG_DEBUG, "qp was set to rate limit %d, burst size %d, packet size %d\n",
-			rate_limit.rate, rate_limit.upper_bound_sz, rate_limit.typical_pkt_sz);
+			rate_limit.rate, rate_limit.max_burst_sz, rate_limit.typical_pkt_sz);
 #else
 	vlog_printf(VLOG_DEBUG, "qp was set to rate limit %d\n", rate_limit.rate);
 #endif

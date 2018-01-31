@@ -926,7 +926,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 						val = *(struct vma_rate_limit_t*)__optval; // value is in bytes per second
 					} else if (sizeof(uint32_t) <= __optlen) {
 						val.rate = *(uint32_t*)__optval; // value is in bytes per second
-						val.upper_bound_sz = 0;
+						val.max_burst_sz = 0;
 						val.typical_pkt_sz = 0;
 					} else {
 						si_udp_logdbg("SOL_SOCKET, %s=\"???\" - bad length got %d",

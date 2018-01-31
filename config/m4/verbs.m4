@@ -151,8 +151,8 @@ AC_CHECK_DECLS([IBV_EXP_QP_RATE_LIMIT],
 	[AC_DEFINE(DEFINED_IBV_EXP_QP_RATE_LIMIT, 1, [Define to 1 if IBV_EXP_QP_RATE_LIMIT defined])],
 	[], [[#include <infiniband/verbs_exp.h>]])
 
-AC_CHECK_DECLS([IBV_EXP_QP_BURST_INFO],
-	[AC_DEFINE(DEFINED_IBV_EXP_QP_BURST_INFO, 1, [Define to 1 if IBV_EXP_QP_BURST_INFO defined])],
+AC_CHECK_DECLS([IBV_EXP_QP_SUPPORT_BURST],
+	[AC_DEFINE(DEFINED_IBV_EXP_QP_SUPPORT_BURST, 1, [Define to 1 if IBV_EXP_QP_SUPPORT_BURST defined])],
 	[], [[#include <infiniband/verbs_exp.h>]])
 
 have_mp_rq=yes

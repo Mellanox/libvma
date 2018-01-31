@@ -806,7 +806,7 @@ uint32_t qp_mgr::is_ratelimit_change(struct vma_rate_limit_t &rate_limit)
 	if (m_rate_limit.rate != rate_limit.rate) {
 		rl_changes |= RL_RATE;
 	}
-	if (m_rate_limit.upper_bound_sz != rate_limit.upper_bound_sz) {
+	if (m_rate_limit.max_burst_sz != rate_limit.max_burst_sz) {
 		rl_changes |= RL_BURST_SIZE;
 	}
 	if (m_rate_limit.typical_pkt_sz != rate_limit.typical_pkt_sz) {
@@ -819,6 +819,9 @@ uint32_t qp_mgr::is_ratelimit_change(struct vma_rate_limit_t &rate_limit)
 bool qp_mgr::is_ratelimit_supported(vma_ibv_device_attr *attr, struct vma_rate_limit_t &rate_limit)
 {
 #ifdef DEFINED_IBV_EXP_QP_RATE_LIMIT
+	if (!(attr->comp_mask & IBV_EXP_DEVICE_ATTR_PACKET_PACING_CAPS))
+		return false;
+
 	ibv_exp_packet_pacing_caps pp_caps = attr->packet_pacing_caps;
 
 	/* for any rate limit settings the rate must be between the supported min and max values */
@@ -828,10 +831,10 @@ bool qp_mgr::is_ratelimit_supported(vma_ibv_device_attr *attr, struct vma_rate_l
 
 	uint32_t rl_changes = is_ratelimit_change(rate_limit);
 
-	/* support_burst capability is required to handle any burst/packet size change */
+	/* burst support capability is required to handle any burst/packet size change */
 	if (rl_changes & (RL_BURST_SIZE | RL_PKT_SIZE)) {
-#ifdef DEFINED_IBV_EXP_QP_BURST_INFO
-		if (!pp_caps.support_burst) {
+#ifdef DEFINED_IBV_EXP_QP_SUPPORT_BURST
+		if (!(pp_caps.cap_flags & IBV_EXP_QP_SUPPORT_BURST)) {
 			return false;
 		}
 #else
