@@ -293,17 +293,17 @@ typedef enum {
  *     b. hdr_bytes = 0
  *         usr_hdr_ptr will point to the first network header.
  * 4. PADDED_PACKET - packet will be written to memory and additional padding
- * will be added to the end of it to match the nearest power of two.
- * e.g. if stride_bytes is 1400 then and the network size is 42 (eth+ip+udp) the
- * passing will be 2048 - 1400 - 42 -> 606.
- * This mode has the best performance and causes less PCI bus back pressure.
- * In this mode hdr_bytes is ignored and usr_hdr_ptr is NULL.
- * packet layout in PADDED_PACKET mode
+ *     will be added to the end of it to match the nearest power of two.
+ *     e.g. if stride_bytes is 1400 then and the network size is 42 (eth+ip+udp)
+ *     the padding will be 2048 - 1400 - 42 -> 606.
+ *     This mode has the best performance and causes less PCI bus back pressure.
+ *     In this mode hdr_bytes is ignored and usr_hdr_ptr is NULL.
+ *     packet layout in PADDED_PACKET mode
  * +--------------------------------------------------------------------------+
- * | mac+ip+udp |               datagram payload                 |  alignment |
+ * #| mac+ip+udp |               datagram payload                 |  alignment|
  * +--------------------------------------------------------------------------+
- * |            | e.g. RTP header    | e.g. RTP payload          | alignment  |
- * |            | e.g. RTP header    | e.g. RTP payload          | alignment  |
+ * 1|            | e.g. RTP header    | e.g. RTP payload          | alignment |
+ * 2|            | e.g. RTP header    | e.g. RTP payload          | alignment |
  * +--------------------------------------------------------------------------+
  *
  */

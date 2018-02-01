@@ -77,40 +77,40 @@ public:
 					   size_t min, size_t max, int flags);
 protected:
 	void		create_resources(ring_resource_creation_info_t* p_ring_info,
-					 bool active);
+					 bool active, vma_cyclic_buffer_ring_attr *cb_ring);
 	virtual		qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx,
 					      uint8_t port_num,
 					      struct ibv_comp_channel* p_rx_comp_event_channel);
 private:
-	vma_cyclic_buffer_ring_attr	m_cb_ring;
-	vma_allocator			m_alloc;
-	ibv_sge				m_buff_data;
-	struct ibv_mr*			m_p_umr_mr;
-	struct ibv_exp_send_wr		m_umr_wr;
-	uint32_t			m_stride_size;
-	uint32_t			m_strides_num;
-	struct ibv_exp_res_domain*	m_res_domain;
-	uint8_t				m_single_wqe_log_num_of_strides;
-	uint8_t				m_single_stride_log_num_of_bytes;
-	uint16_t			m_wq_count;
 	uint32_t			m_curr_wqe_used_strides;
-	uint32_t			m_all_wqes_used_strides;
-	uint16_t			m_hdr_len; // calculate user header offset in buffer
-	uint16_t			m_payload_len; // calculate payload offset in buffer
-	uint16_t			m_packet_size;
+	size_t				m_curr_packets;
 	uint32_t			m_padd_mode_used_strides;
-	vma_cb_packet_rec_mode		m_packet_receive_mode;
+	uint16_t			m_packet_size;
 	// These members are used to store intermediate results before
 	// returning from the user's call to get the data.
-	int				m_curr_wq;
+	uint32_t			m_strides_num;
+	uint32_t			m_stride_size;
+	uint32_t			m_all_wqes_used_strides;
+	uint8_t				m_single_wqe_log_num_of_strides;
+	uint8_t				m_single_stride_log_num_of_bytes;
+	vma_cb_packet_rec_mode		m_packet_receive_mode;
+	uint16_t			m_wq_count;
+	uint16_t			m_curr_wq;
 	void*				m_curr_payload_addr;
 	void*				m_curr_hdr_ptr;
-	size_t				m_curr_packets;
-	struct timespec			m_curr_hw_timestamp;
 	uint64_t			m_sge_ptrs[CB_UMR_LAST];
+	uint16_t			m_hdr_len; // calculate user header offset in buffer
+	uint16_t			m_payload_len; // calculate payload offset in buffer
+	ibv_sge				m_buff_data;
+	struct timespec			m_curr_hw_timestamp;
+	vma_allocator			m_alloc;
+	struct ibv_exp_send_wr		m_umr_wr;
+	struct ibv_exp_res_domain*	m_res_domain;
+	struct ibv_mr*			m_p_umr_mr;
 	inline mp_loop_result		mp_loop(size_t limit);
 	inline bool			reload_wq();
-	int				allocate_umr_mem(uint16_t net_len);
+	int				allocate_umr_mem(vma_cyclic_buffer_ring_attr *cb_ring,
+							 uint16_t net_len);
 	void				remove_umr_res();
 };
 
