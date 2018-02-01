@@ -74,6 +74,7 @@ libvma_la_SOURCES := \
 	dev/cq_mgr.cpp \
 	dev/cq_mgr_mlx5.cpp \
 	dev/cq_mgr_mp.cpp \
+	dev/dm_mgr.cpp \
 	dev/qp_mgr.cpp \
 	dev/qp_mgr_eth_mlx5.cpp \
 	dev/qp_mgr_eth_direct.cpp \
@@ -160,7 +161,6 @@ libvma_la_SOURCES := \
 	util/instrumentation.cpp \
 	util/sys_vars.cpp \
 	util/agent.cpp \
-	util/dm_context.cpp \
 	\
 	libvma.c \
 	main.cpp \
@@ -171,6 +171,7 @@ libvma_la_SOURCES := \
 	dev/cq_mgr.h \
 	dev/cq_mgr_mlx5.h \
 	dev/cq_mgr_mp.h \
+	dev/dm_mgr.h \
 	dev/gro_mgr.h \
 	dev/ib_ctx_handler_collection.h \
 	dev/ib_ctx_handler.h \
@@ -286,7 +287,6 @@ libvma_la_SOURCES := \
 	util/linked_unordered_map.h \
 	util/list.h \
 	util/sg_array.h \
-	util/dm_context.h \
 	util/sock_addr.h \
 	util/sysctl_reader.h \
 	util/sys_vars.h \

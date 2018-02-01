@@ -30,8 +30,8 @@
  * SOFTWARE.
  */
 
+#include "dm_mgr.h"
 #include "vlogger/vlogger.h"
-#include "vma/util/dm_context.h"
 #include "vma/proto/mem_buf_desc.h"
 #include "vma/dev/ib_ctx_handler.h"
 
@@ -43,16 +43,16 @@
 #define DM_ALIGN_SIZE(size, mask) ((size + mask) & (~mask))
 
 #undef  MODULE_NAME
-#define MODULE_NAME 		"dmc"
+#define MODULE_NAME 		"dm_mgr"
 #undef  MODULE_HDR
 #define MODULE_HDR MODULE_NAME "%d:%s() "
 
-#define dmc_logerr	__log_info_err
-#define dmc_logwarn	__log_info_warn
-#define dmc_logdbg	__log_info_dbg
-#define dmc_logfunc	__log_info_func
+#define dm_logerr	__log_info_err
+#define dm_logwarn	__log_info_warn
+#define dm_logdbg	__log_info_dbg
+#define dm_logfunc	__log_info_func
 
-dm_context::dm_context() :
+dm_mgr::dm_mgr() :
 	m_p_dm_mr(NULL),
 	m_p_mlx5_dm(NULL),
 	m_p_ring_stat(NULL),
@@ -64,7 +64,7 @@ dm_context::dm_context() :
 /*
  * Allocate dev_mem resources
  */
-bool dm_context::dm_allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* ring_stats)
+bool dm_mgr::allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* ring_stats)
 {
 	size_t allocation_size = DM_ALIGN_SIZE(safe_mce_sys().ring_dev_mem_tx, DM_MEMORY_MASK_64);
 	struct ibv_exp_alloc_dm_attr dm_attr = {allocation_size, 0};
@@ -85,7 +85,7 @@ bool dm_context::dm_allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* rin
 	ibv_dm = ibv_exp_alloc_dm(ib_ctx->get_ibv_context(), &dm_attr);
 	if (!ibv_dm) {
 		// Memory allocation can fail if we have already allocated the maximum possible.
-		dmc_logdbg("ibv_exp_alloc_dm() error - On Device Memory allocation failed, %d %m", errno);
+		dm_logdbg("ibv_exp_alloc_dm() error - On Device Memory allocation failed, %d %m", errno);
 		errno = 0;
 		return false;
 	}
@@ -101,7 +101,7 @@ bool dm_context::dm_allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* rin
 	m_p_dm_mr = ibv_exp_reg_mr(&mr_in);
 	if (!m_p_dm_mr) {
 		ibv_exp_free_dm(ibv_dm);
-		dmc_logerr("ibv_exp_free_dm error - dm_mr registration failed, %d %m", errno);
+		dm_logerr("ibv_exp_free_dm error - dm_mr registration failed, %d %m", errno);
 		return false;
 	}
 
@@ -109,7 +109,7 @@ bool dm_context::dm_allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* rin
 	m_p_mlx5_dm = reinterpret_cast<struct vma_mlx5_dm *> (ibv_dm);
 	m_p_ring_stat->simple.n_tx_dev_mem_allocated = m_allocation;
 
-	dmc_logdbg("Device memory allocation completed successfully! device[%s] bytes[%zu] dm_mr handle[%d] dm_mr lkey[%d]",
+	dm_logdbg("Device memory allocation completed successfully! device[%s] bytes[%zu] dm_mr handle[%d] dm_mr lkey[%d]",
 			ib_ctx->get_ibv_device()->name, dm_attr.length, m_p_dm_mr->handle, m_p_dm_mr->lkey);
 
 	return true;
@@ -118,29 +118,29 @@ bool dm_context::dm_allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* rin
 /*
  * Release dev_mem resources
  */
-void dm_context::dm_release_resources()
+void dm_mgr::release_resources()
 {
 	if (m_p_dm_mr) {
 		if (ibv_dereg_mr(m_p_dm_mr)) {
-			dmc_logerr("ibv_dereg_mr failed, %d %m", errno);
+			dm_logerr("ibv_dereg_mr failed, %d %m", errno);
 		} else {
-			dmc_logdbg("ibv_dereg_mr success");
+			dm_logdbg("ibv_dereg_mr success");
 		}
 		m_p_dm_mr = NULL;
 	}
 
 	if (m_p_mlx5_dm) {
 		if (ibv_exp_free_dm((struct ibv_exp_dm*) m_p_mlx5_dm)) {
-			dmc_logerr("ibv_free_dm failed %d %m", errno);
+			dm_logerr("ibv_free_dm failed %d %m", errno);
 		} else {
-			dmc_logdbg("ibv_free_dm success");
+			dm_logdbg("ibv_free_dm success");
 		}
 		m_p_mlx5_dm = NULL;
 	}
 
 	m_p_ring_stat = NULL;
 
-	dmc_logdbg("Device memory release completed!");
+	dm_logdbg("Device memory release completed!");
 }
 
 /*
@@ -188,7 +188,7 @@ void dm_context::dm_release_resources()
  *  1. Data should be written to a continuous memory area.
  *  2. Data will be written to 8bytes aligned addresses.
  */
-bool dm_context::dm_copy_data(struct mlx5_wqe_data_seg* seg, uint8_t* src, uint32_t length, mem_buf_desc_t* buff)
+bool dm_mgr::copy_data(struct mlx5_wqe_data_seg* seg, uint8_t* src, uint32_t length, mem_buf_desc_t* buff)
 {
 	uint32_t length_aligned_8 = DM_ALIGN_SIZE(length, DM_MEMORY_MASK_8);
 	uint32_t offset = 0;
@@ -240,13 +240,13 @@ bool dm_context::dm_copy_data(struct mlx5_wqe_data_seg* seg, uint8_t* src, uint3
 	m_p_ring_stat->simple.n_tx_dev_mem_pkt_count++;
 	m_p_ring_stat->simple.n_tx_dev_mem_byte_count += length;
 
-	dmc_logfunc("Send completed successfully! Buffer[%p] length[%d] length_aligned_8[%d] continuous_left[%zu] head[%zu] used[%zu]",
+	dm_logfunc("Send completed successfully! Buffer[%p] length[%d] length_aligned_8[%d] continuous_left[%zu] head[%zu] used[%zu]",
 			buff, length, length_aligned_8, continuous_left, m_head, m_used);
 
 	return true;
 
 dev_mem_oob:
-	dmc_logfunc("Send OOB! Buffer[%p] length[%d] length_aligned_8[%d] continuous_left[%zu] head[%zu] used[%zu]",
+	dm_logfunc("Send OOB! Buffer[%p] length[%d] length_aligned_8[%d] continuous_left[%zu] head[%zu] used[%zu]",
 			buff, length, length_aligned_8, continuous_left, m_head, m_used);
 
 	m_p_ring_stat->simple.n_tx_dev_mem_oob++;
@@ -258,12 +258,12 @@ dev_mem_oob:
  * Release On Device Memory buffer.
  * This method should be called after completion was received.
  */
-void dm_context::dm_release_data(mem_buf_desc_t* buff)
+void dm_mgr::release_data(mem_buf_desc_t* buff)
 {
 	m_used -= buff->tx.dev_mem_length;
 	buff->tx.dev_mem_length = 0;
 
-	dmc_logfunc("Device memory release! buffer[%p] buffer_dev_mem_length[%zu] head[%zu] used[%zu]",
+	dm_logfunc("Device memory release! buffer[%p] buffer_dev_mem_length[%zu] head[%zu] used[%zu]",
 			buff, buff->tx.dev_mem_length, m_head, m_used);
 
 }

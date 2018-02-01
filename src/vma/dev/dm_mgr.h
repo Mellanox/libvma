@@ -30,8 +30,8 @@
  * SOFTWARE.
  */
 
-#ifndef DM_CONTEXT_H
-#define DM_CONTEXT_H
+#ifndef DM_MGR_H
+#define DM_MGR_H
 
 #include "vma/util/vma_stats.h"
 #include "vma/util/verbs_extra.h"
@@ -50,15 +50,15 @@ struct vma_mlx5_dm {
 	char               *start_va;
 };
 
-class dm_context {
+class dm_mgr {
 public:
 
-	dm_context();
-	bool          dm_allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* ring_stats);
-	void          dm_release_resources();
-	bool          dm_copy_data(struct mlx5_wqe_data_seg* seg, uint8_t* src, uint32_t length, mem_buf_desc_t* buff);
-	void          dm_release_data(mem_buf_desc_t* buff);
-	inline bool   dm_is_completion_need() { return m_allocation - m_used < DM_COMPLETION_THRESHOLD; };
+	dm_mgr();
+	bool          allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* ring_stats);
+	void          release_resources();
+	bool          copy_data(struct mlx5_wqe_data_seg* seg, uint8_t* src, uint32_t length, mem_buf_desc_t* buff);
+	void          release_data(mem_buf_desc_t* buff);
+	inline bool   is_completion_need() { return m_allocation - m_used < DM_COMPLETION_THRESHOLD; };
 
 private:
 
@@ -72,15 +72,15 @@ private:
 
 #else
 
-class dm_context {
+class dm_mgr {
 public:
-	inline bool   dm_allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* ring_stats) { NOT_IN_USE(ib_ctx); NOT_IN_USE(ring_stats); return false; };
-	inline void   dm_release_resources() {};
-	inline bool   dm_copy_data(struct mlx5_wqe_data_seg* seg, uint8_t* src, uint32_t length, mem_buf_desc_t* buff) { NOT_IN_USE(seg); NOT_IN_USE(src); NOT_IN_USE(length); NOT_IN_USE(buff); return false; };
-	inline void   dm_release_data(mem_buf_desc_t* buff) { NOT_IN_USE(buff); };
-	inline bool   dm_is_completion_need() { return false; };
+	inline bool   allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* ring_stats) { NOT_IN_USE(ib_ctx); NOT_IN_USE(ring_stats); return false; };
+	inline void   release_resources() {};
+	inline bool   copy_data(struct mlx5_wqe_data_seg* seg, uint8_t* src, uint32_t length, mem_buf_desc_t* buff) { NOT_IN_USE(seg); NOT_IN_USE(src); NOT_IN_USE(length); NOT_IN_USE(buff); return false; };
+	inline void   release_data(mem_buf_desc_t* buff) { NOT_IN_USE(buff); };
+	inline bool   is_completion_need() { return false; };
 };
 
 #endif /* HAVE_IBV_DM */
 #endif /* HAVE_INFINIBAND_MLX5_HW_H */
-#endif /* DM_CONTEXT_H */
+#endif /* DM_MGR_H */
