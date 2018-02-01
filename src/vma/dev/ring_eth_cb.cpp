@@ -418,6 +418,52 @@ int ring_eth_cb::poll_and_process_element_rx(uint64_t* p_cq_poll_sn,
  * 	1 if done looping
  * 	2 if need to return due to WQ or filler
  */
+inline mp_loop_result ring_eth_cb::mp_loop_padded(size_t limit)
+{
+	struct mlx5_cqe64 *cqe64;
+	uint16_t size = 0;
+	uint32_t flags = 0, used_strides = 0;
+
+	while (m_curr_packets < limit) {
+		int ret = ((cq_mgr_mp *)m_p_cq_mgr_rx)->poll_mp_cq(size, used_strides,
+								   flags, cqe64);
+		if (size == 0) {
+			ring_logfine("no packet found");
+			return MP_LOOP_DRAINED;
+		}
+		if (unlikely(ret == -1)) {
+			ring_logdbg("poll_mp_cq failed with errno %m", errno);
+			return MP_LOOP_RETURN_TO_APP;
+		}
+		m_curr_wqe_used_strides += used_strides;
+		if (unlikely(flags & VMA_MP_RQ_BAD_PACKET)) {
+			if (m_curr_wqe_used_strides >= m_strides_num) {
+				reload_wq();
+			}
+			return MP_LOOP_RETURN_TO_APP;
+		}
+		m_padd_mode_used_strides += used_strides;
+		m_p_ring_stat->n_rx_pkt_count++;
+		m_p_ring_stat->n_rx_byte_count += size;
+		++m_curr_packets;
+		if (unlikely(m_curr_wqe_used_strides >= m_strides_num)) {
+			if (reload_wq()) {
+				return MP_LOOP_RETURN_TO_APP;
+			}
+		}
+	}
+	ring_logfine("mp_loop finished all iterations");
+	return MP_LOOP_LIMIT;
+}
+
+/**
+ * loop poll_cq
+ * @param limit
+ * @return TBD about -1 on error,
+ * 	0 if cq is empty
+ * 	1 if done looping
+ * 	2 if need to return due to WQ or filler
+ */
 inline mp_loop_result ring_eth_cb::mp_loop(size_t limit)
 {
 	struct mlx5_cqe64 *cqe64;
@@ -436,8 +482,7 @@ inline mp_loop_result ring_eth_cb::mp_loop(size_t limit)
 			return MP_LOOP_RETURN_TO_APP;
 		}
 		m_curr_wqe_used_strides += used_strides;
-		if (m_packet_receive_mode != PADDED_PACKET &&
-		    unlikely(size > m_packet_size)) {
+		if (unlikely(size > m_packet_size)) {
 			errno = EMSGSIZE;
 			ring_logerr("got unexpected packet size, expected "
 				    "packet size %u but got %d, user data is "
@@ -450,7 +495,6 @@ inline mp_loop_result ring_eth_cb::mp_loop(size_t limit)
 			}
 			return MP_LOOP_RETURN_TO_APP;
 		}
-		m_padd_mode_used_strides += used_strides;
 		m_p_ring_stat->n_rx_pkt_count++;
 		m_p_ring_stat->n_rx_byte_count += size;
 		++m_curr_packets;
@@ -551,10 +595,18 @@ int ring_eth_cb::cyclic_buffer_read(vma_completion_cb_t &completion,
 			return_to_app = reload_wq();
 		}
 		if (!return_to_app) {
-			ret = mp_loop(min);
-			if (ret == MP_LOOP_LIMIT) { // there might be more to drain
-				mp_loop(max);
-			} else if (ret == MP_LOOP_DRAINED) { // no packets left
+			if (m_packet_receive_mode == PADDED_PACKET) {
+				ret = mp_loop_padded(min);
+				if (ret == MP_LOOP_LIMIT) { // there might be more to drain
+					mp_loop_padded(max);
+				}
+			} else {
+				ret = mp_loop(min);
+				if (ret == MP_LOOP_LIMIT) { // there might be more to drain
+					mp_loop(max);
+				}
+			}
+			if (ret == MP_LOOP_DRAINED) { // no packets left
 				((cq_mgr_mp *)m_p_cq_mgr_rx)->update_max_drain(m_curr_packets);
 				return 0;
 			}

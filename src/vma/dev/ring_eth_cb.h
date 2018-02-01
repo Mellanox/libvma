@@ -108,6 +108,7 @@ private:
 	struct ibv_exp_res_domain*	m_res_domain;
 	struct ibv_mr*			m_p_umr_mr;
 	inline mp_loop_result		mp_loop(size_t limit);
+	inline mp_loop_result		mp_loop_padded(size_t limit);
 	inline bool			reload_wq();
 	int				allocate_umr_mem(vma_cyclic_buffer_ring_attr *cb_ring,
 							 uint16_t net_len);
