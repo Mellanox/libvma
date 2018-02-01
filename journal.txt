@@ -1,3 +1,15 @@
+Version 8.5.5-0:
+Date + Time 2018-02-01
+=============================================================
+Added:
+        - RM #1254846 Align burst control with libibverbs new API
+        - RM #1279684 Modify TAP interface name
+        - RM #1226478 Add valgrind detection macro to ring_eth_direct
+        - RM #1279599 Update License date to 2018
+Fixed:
+        - RM #1280126 Inline private function in ring_bond_eth_netvsc
+        - RM #1279340 Fix Ubuntu 17.10 issue in build_deb.sh
+
 Version 8.5.4-0:
 Date + Time 2018-01-28
 =============================================================
