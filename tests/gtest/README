@@ -7,7 +7,7 @@ https://github.com/google/googletest
 Testing VMA Extended API
 ------------------------
 1. Enable VMA_EXTRA_API_ENABLED in tests/gtest/vma/vma_base.cc
-2. Configure libvma with --enable-vmapoll option and build it
+2. Configure libvma with --enable-socketxtreme option and build it
 3. Compile the gtests by issuing from VMA root directory:
    make -C tests/gtest
 4. Launch tests by issuing:

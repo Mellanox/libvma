@@ -87,7 +87,7 @@ for target_v in "${target_list[@]}"; do
     echo "======================================================"
     set -x
 
-    if [ "${target_name}" = "vmapoll" ]; then
+    if [ "${target_name}" = "socketxtreme" ]; then
         if [ $(bc <<< "${jenkins_ofed} < 3.3") == 1 ]; then
             set +x
             echo "======================================================"

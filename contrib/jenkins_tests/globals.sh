@@ -17,8 +17,8 @@ if [ "$TARGET" == "all" -o "$TARGET" == "default" ]; then
 	target_list[$i]="default: "
 	i=$((i+1))
 fi
-if [ "$TARGET" == "all" -o "$TARGET" == "vmapoll" ]; then
-	target_list[$i]="vmapoll:--enable-socketxtreme"
+if [ "$TARGET" == "all" -o "$TARGET" == "socketxtreme" ]; then
+	target_list[$i]="socketxtreme:--enable-socketxtreme"
 	i=$((i+1))
 fi
 

@@ -229,9 +229,9 @@ int net_device_table_mgr::map_net_devices()
 		}
 
 #ifdef DEFINED_SOCKETXTREME
-		// only support mlx5 device for vmapoll
+		// only support mlx5 device in this mode
 		if(strncmp(ib_ctx->get_ibv_device()->name, "mlx4", 4) == 0) {
-			ndtm_logdbg("Blocking offload: vmapoll mlx4 interfaces ('%s')", ifa->ifa_name);
+			ndtm_logdbg("Blocking offload: mlx4 interfaces ('%s') in socketxtreme mode", ifa->ifa_name);
 			goto destroy_cma_id;
 		}
 #endif // DEFINED_SOCKETXTREME
