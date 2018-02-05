@@ -137,7 +137,7 @@ ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx
 	// update device memory capabilities
 	m_on_device_memory = vma_ibv_dm_size(m_p_ibv_device_attr);
 	ibch_logdbg("ibv device '%s' [%p] has %d port%s. Vendor Part Id: %d, "
-		    "FW Ver: %s, max_qp_wr=%d %zu bytes of on device memory",
+		    "FW Ver: %s, max_qp_wr=%d, on_device_memory_bytes=%zu",
 		    m_p_ibv_device->name, m_p_ibv_device,
 		    m_p_ibv_device_attr->phys_port_cnt,
 		    ((m_p_ibv_device_attr->phys_port_cnt>1)?"s":""),
