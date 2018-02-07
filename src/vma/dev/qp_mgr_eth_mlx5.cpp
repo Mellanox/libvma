@@ -163,12 +163,12 @@ void qp_mgr_eth_mlx5::up()
 	init_sq();
 	qp_mgr::up();
 
-	m_dm_enabled = m_dm_context.dm_allocate_resources(m_p_ib_ctx_handler, m_p_ring->m_p_ring_stat);
+	m_dm_enabled = m_dm_mgr.allocate_resources(m_p_ib_ctx_handler, m_p_ring->m_p_ring_stat);
 }
 
 void qp_mgr_eth_mlx5::down()
 {
-	m_dm_context.dm_release_resources();
+	m_dm_mgr.release_resources();
 
 	qp_mgr::down();
 }
@@ -319,7 +319,7 @@ inline int qp_mgr_eth_mlx5::fill_ptr_segment(sg_array &sga, struct mlx5_wqe_data
 		dp_seg->byte_count = htonl(len);
 
 		// Try to copy data to On Device Memory
-		if (!(m_dm_enabled && m_dm_context.dm_copy_data(dp_seg, data_addr, data_len, buffer))) {
+		if (!(m_dm_enabled && m_dm_mgr.copy_data(dp_seg, data_addr, data_len, buffer))) {
 			// Use the registered buffer if copying did not succeed
 			dp_seg->lkey = htonl(sga.get_current_lkey());
 			dp_seg->addr = htonll((uint64_t)data_addr);

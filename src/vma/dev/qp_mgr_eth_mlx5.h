@@ -36,7 +36,7 @@
 
 #include "qp_mgr.h"
 #include "vma/util/sg_array.h"
-#include "vma/util/dm_context.h"
+#include "vma/dev/dm_mgr.h"
 
 #if defined(HAVE_INFINIBAND_MLX5_HW_H)
 
@@ -60,8 +60,8 @@ protected:
 private:
 	cq_mgr*		init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_channel);
 	virtual cq_mgr*	init_tx_cq_mgr(void);
-	virtual bool	is_completion_need() { return !m_n_unsignaled_count || (m_dm_enabled && m_dm_context.dm_is_completion_need()); };
-	virtual void	dm_release_data(mem_buf_desc_t* buff) { m_dm_context.dm_release_data(buff); }
+	virtual bool	is_completion_need() { return !m_n_unsignaled_count || (m_dm_enabled && m_dm_mgr.is_completion_need()); };
+	virtual void	dm_release_data(mem_buf_desc_t* buff) { m_dm_mgr.release_data(buff); }
 
 	inline void	set_signal_in_next_send_wqe();
 
@@ -84,7 +84,7 @@ private:
 	uint16_t            m_sq_bf_offset;
 	uint16_t            m_sq_bf_buf_size;
 	uint16_t            m_sq_wqe_counter;
-	dm_context          m_dm_context;
+	dm_mgr              m_dm_mgr;
 	bool                m_dm_enabled;
 };
 #endif //defined(HAVE_INFINIBAND_MLX5_HW_H)
