@@ -1231,6 +1231,8 @@ int sockinfo::modify_ratelimit(dst_entry* p_dst_entry, struct vma_rate_limit_t &
 				m_so_ratelimit = rate_limit;
 			// value is in bytes (per second). we need to convert it to kilo-bits (per second)
 			return ret;
+		} else {
+			m_so_ratelimit = rate_limit;
 		}
 		return 0;
 	}
