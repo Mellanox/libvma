@@ -1,3 +1,16 @@
+Version 8.5.6-0:
+Date + Time 2018-02-08
+=============================================================
+Added:
+        - RM #1276626 Add support for padded stridingRQ
+Fixed:
+        - RM #1254846 Fix rate limit if no connection established yet
+        - RM #1149532 Fix Deadlock on blocking TCP send
+        - RM #1262610 Changed bucket node choice for 5t flow
+        - RM #1284253 Move dm_context class from util to dev
+        - RM #1172298 Rename jenkins target vmapoll with socketxtreme
+        - RM #1280902 Fix issues in tcp_split_segment function
+
 Version 8.5.5-0:
 Date + Time 2018-02-01
 =============================================================
