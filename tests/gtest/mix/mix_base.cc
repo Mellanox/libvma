@@ -33,12 +33,12 @@
 
 #include "mix_base.h"
 
-void aux_base::SetUp()
+void mix_base::SetUp()
 {
 	errno = EOK;
 }
 
-void aux_base::TearDown()
+void mix_base::TearDown()
 {
 
 }

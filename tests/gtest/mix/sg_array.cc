@@ -30,10 +30,13 @@
  * SOFTWARE.
  */
 #include "common/def.h"
-#include "vma/util/verbs_extra.h"
-#include "vma/util/sg_array.h"
 
-class sg_array_test : public ::testing::Test {
+#include "mix_base.h"
+
+#include "src/vma/util/verbs_extra.h"
+#include "src/vma/util/sg_array.h"
+
+class sg_array_test : public mix_base {
 public:
 	struct ibv_sge*	sge0;
 	struct ibv_sge	sge1;
