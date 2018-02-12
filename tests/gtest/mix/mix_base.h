@@ -38,7 +38,7 @@
 #include "common/base.h"
 
 
-class aux_base : public testing::Test, public test_base
+class mix_base : public testing::Test, public test_base
 {
 protected:
 	virtual void SetUp();

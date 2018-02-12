@@ -5,6 +5,7 @@ CXXFLAGS = $(GTEST_CXXFLAGS)
 gtest_LDADD =
 
 gtest_CPPFLAGS = \
+	-I$(top_srcdir)/ \
 	-I$(top_srcdir)/src \
 	-I$(top_srcdir)/src/vma \
 	-I$(top_srcdir)/tests/gtest
@@ -25,6 +26,7 @@ gtest_SOURCES = \
 	\
 	mix/mix_base.cc \
 	mix/sg_array.cc \
+	mix/mix_list.cc \
 	\
 	tcp/tcp_base.cc \
 	tcp/tcp_bind.cc \
