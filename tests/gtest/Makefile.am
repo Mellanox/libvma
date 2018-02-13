@@ -46,7 +46,8 @@ gtest_SOURCES = \
 	vma/vma_poll.cc \
 	\
 	vmad/vmad_base.cc \
-	vmad/vmad_bitmap.cc
+	vmad/vmad_bitmap.cc \
+	vmad/vmad_hash.cc
 
 noinst_HEADERS = \
 	common/gtest.h \
@@ -67,6 +68,19 @@ noinst_HEADERS = \
 	udp/udp_base.h \
 	\
 	vma/vma_base.h
+
+
+# This workaround allows to compile files located
+# at another directory.
+# This place resolve make distcheck isue
+nodist_gtest_SOURCES = \
+	hash.c
+
+CLEANFILES = hash.c
+
+hash.c:
+	@echo "#include \"$(top_builddir)/tools/daemon/$@\"" >$@
+
 
 .PHONY: test gdb valgrind
 
