@@ -52,7 +52,11 @@ struct bitmap {
 	size_t size; /**< Bitmap size */
 };
 
-#define BITMAP_ARRAY_SIZE(n)	(((n) + (sizeof(bitmap_item_t)) - 1) / (sizeof(bitmap_item_t)))
+/* Number of bits in single bitmap item */
+#define BITMAP_ITEM_SIZE        (8 * sizeof(bitmap_item_t))
+
+/* Number of items needed to store n bits */
+#define BITMAP_ARRAY_SIZE(n)    (((n) + BITMAP_ITEM_SIZE - 1) / BITMAP_ITEM_SIZE)
 
 /**
  * Initialize a bitmap.
@@ -64,7 +68,7 @@ struct bitmap {
  ***************************************************************************/
 static inline void bitmap_create(bitmap_t **bm, size_t size)
 {
-	*bm = malloc(sizeof(**bm));
+	*bm = (bitmap_t *)malloc(sizeof(**bm));
 	if (*bm) {
 		(*bm)->size = size;
 		(*bm)->bitmap =	(bitmap_item_t *)calloc(BITMAP_ARRAY_SIZE(size), sizeof(bitmap_item_t));
@@ -97,7 +101,7 @@ static inline void bitmap_destroy(bitmap_t *bm)
  ***************************************************************************/
 static inline size_t elem_idx(size_t bit)
 {
-	return (bit / sizeof(bitmap_item_t));
+	return (bit / BITMAP_ITEM_SIZE);
 }
 
 /**
@@ -109,11 +113,11 @@ static inline size_t elem_idx(size_t bit)
  ***************************************************************************/
 static inline bitmap_item_t bit_mask(size_t bit_idx)
 {
-	return (bitmap_item_t)(1 << (bit_idx % sizeof(bitmap_item_t)));
+	return (bitmap_item_t)(1 << (bit_idx % BITMAP_ITEM_SIZE));
 }
 
 /**
- * Returns the size of the bitmap.
+ * Returns the size of the bitmap in bits.
  *
  * @param bm    Bitmap handle.
  *
@@ -181,7 +185,7 @@ static inline int bitmap_test(bitmap_t *bm, size_t bit)
 {
 	size_t idx = elem_idx(bit);
 	bitmap_item_t mask = bit_mask(bit);
-	return (bm->bitmap[idx] & mask);
+	return (0 != (bm->bitmap[idx] & mask));
 }
 
 /**
@@ -252,7 +256,7 @@ static inline int bitmap_find_first_zero(bitmap_t *bm)
 
 	for (i = 0; i < BITMAP_ARRAY_SIZE(bm->size); i++) {
 		if (((bitmap_item_t)(-1)) != bm->bitmap[i]) {
-			return (i * sizeof(bitmap_item_t) + ffs(~bm->bitmap[i]) - 1);
+			return (i * BITMAP_ITEM_SIZE + ffs(~bm->bitmap[i]) - 1);
 		}
 	}
 	return -1;
