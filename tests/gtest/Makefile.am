@@ -43,7 +43,9 @@ gtest_SOURCES = \
 	\
 	vma/vma_base.cc \
 	vma/vma_ring.cc \
-	vma/vma_poll.cc
+	vma/vma_poll.cc \
+	\
+	vmad/vmad_base.cc
 
 noinst_HEADERS = \
 	common/gtest.h \
