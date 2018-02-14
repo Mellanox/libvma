@@ -140,7 +140,7 @@ int proc_message(void)
 again:
 	len = recvfrom(daemon_cfg.sock_fd, &msg_recv, sizeof(msg_recv), 0,
 			(struct sockaddr *) &peeraddr, &addrlen);
-	if ((len < 0 || len < (int)sizeof(struct vma_hdr))) {
+	if (len < 0) {
 		if (errno == EINTR) {
 			goto again;
 		}

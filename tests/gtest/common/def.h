@@ -43,6 +43,7 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/epoll.h>

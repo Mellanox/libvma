@@ -41,6 +41,29 @@ class vmad_base : public testing::Test, public test_base {
 protected:
 	virtual void SetUp();
 	virtual void TearDown();
+
+protected:
+	pid_t m_self_pid;
+	pid_t m_vmad_pid;
+
+	const char *m_base_name;
+
+	/* socket used for communication with daemon */
+	int m_sock_fd;
+
+	/* file descriptor that is tracked by daemon */
+	int m_pid_fd;
+
+	/* unix socket name
+	 * size should be less than sockaddr_un.sun_path
+	 */
+	char m_sock_file[100];
+
+	/* name of pid file */
+	char m_pid_file[100];
+
+	/* server address */
+	struct sockaddr_un server_addr;
 };
 
 #endif /* TESTS_GTEST_VMAD_BASE_H_ */
