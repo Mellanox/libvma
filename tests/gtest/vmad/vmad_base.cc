@@ -39,6 +39,7 @@
 #include "vmad_base.h"
 
 #include "src/vma/util/agent_def.h"
+#include "config.h"
 
 void vmad_base::SetUp()
 {
@@ -96,11 +97,11 @@ void vmad_base::SetUp()
 	ASSERT_FALSE(rc < 0);
 
 	/* Set server address */
-	memset(&server_addr, 0, sizeof(server_addr));
-	server_addr.sun_family = AF_UNIX;
-	strncpy(server_addr.sun_path, VMA_AGENT_ADDR, sizeof(server_addr.sun_path) - 1);
+	memset(&m_server_addr, 0, sizeof(m_server_addr));
+	m_server_addr.sun_family = AF_UNIX;
+	strncpy(m_server_addr.sun_path, VMA_AGENT_ADDR, sizeof(m_server_addr.sun_path) - 1);
 
-	rc = connect(m_sock_fd, (struct sockaddr *)&server_addr,
+	rc = connect(m_sock_fd, (struct sockaddr *)&m_server_addr,
 			sizeof(struct sockaddr_un));
 	ASSERT_FALSE(rc < 0);
 }
@@ -112,4 +113,68 @@ void vmad_base::TearDown()
 
 	close(m_pid_fd);
 	unlink(m_pid_file);
+}
+
+int vmad_base::msg_init(pid_t pid)
+{
+	int rc = 0;
+	struct vma_msg_init data;
+	uint8_t *version;
+
+	memset(&data, 0, sizeof(data));
+	data.hdr.code = VMA_MSG_INIT;
+	data.hdr.ver = VMA_AGENT_VER;
+	data.hdr.pid = pid;
+	version = (uint8_t *)&data.ver;
+	version[0] = VMA_LIBRARY_MAJOR;
+	version[1] = VMA_LIBRARY_MINOR;
+	version[2] = VMA_LIBRARY_RELEASE;
+	version[3] = VMA_LIBRARY_REVISION;
+
+	errno = 0;
+	rc = send(m_sock_fd, &data, sizeof(data), 0);
+	if (rc != sizeof(data)) {
+		rc = -ECONNREFUSED;
+		goto err;
+	}
+
+	memset(&data, 0, sizeof(data));
+	rc = recv(m_sock_fd, &data, sizeof(data), 0);
+	if (rc != sizeof(data)) {
+		rc = -ECONNREFUSED;
+		goto err;
+	}
+
+	if (data.hdr.code != (VMA_MSG_INIT | VMA_MSG_ACK) ||
+			data.hdr.ver < VMA_AGENT_VER ||
+			data.hdr.pid != pid) {
+		log_error("Protocol version mismatch: code = 0x%X ver = 0x%X pid = %d\n",
+				data.hdr.code, data.hdr.ver, data.hdr.pid);
+		rc = -EPROTO;
+		goto err;
+	}
+
+err:
+	return rc;
+}
+
+int vmad_base::msg_exit(pid_t pid)
+{
+	int rc = 0;
+	struct vma_msg_exit data;
+
+	memset(&data, 0, sizeof(data));
+	data.hdr.code = VMA_MSG_EXIT;
+	data.hdr.ver = VMA_AGENT_VER;
+	data.hdr.pid = pid;
+
+	errno = 0;
+	rc = send(m_sock_fd, &data, sizeof(data), 0);
+	if (rc != sizeof(data)) {
+		rc = -ECONNREFUSED;
+		goto err;
+	}
+
+err:
+	return rc;
 }

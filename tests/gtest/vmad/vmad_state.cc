@@ -30,43 +30,57 @@
  * SOFTWARE.
  */
 
-#ifndef TESTS_GTEST_VMAD_BASE_H_
-#define TESTS_GTEST_VMAD_BASE_H_
+#include "common/def.h"
+#include "common/log.h"
+#include "common/sys.h"
+#include "common/base.h"
+#include "common/cmn.h"
 
+#include "vmad_base.h"
 
-/**
- * VMAD Base class for tests
- */
-class vmad_base : public testing::Test, public test_base {
+#include "src/vma/util/agent_def.h"
+#include "src/vma/lwip/tcp.h"
+
+class vmad_state : public vmad_base {
 protected:
-	virtual void SetUp();
-	virtual void TearDown();
+	struct vma_msg_state m_data;
+	pid_t m_pid;
+	vmad_state()
+	{
+		m_pid = 0x53544154;
+		memset(&m_data, 0, sizeof(m_data));
+		m_data.hdr.code = VMA_MSG_STATE;
+		m_data.hdr.ver = VMA_AGENT_VER;
+		m_data.hdr.pid = m_pid;
+	}
 
-	int msg_init(pid_t pid);
-    int msg_exit(pid_t pid);
-
-protected:
-	pid_t m_self_pid;
-	pid_t m_vmad_pid;
-
-	const char *m_base_name;
-
-	/* socket used for communication with daemon */
-	int m_sock_fd;
-
-	/* file descriptor that is tracked by daemon */
-	int m_pid_fd;
-
-	/* unix socket name
-	 * size should be less than sockaddr_un.sun_path
-	 */
-	char m_sock_file[100];
-
-	/* name of pid file */
-	char m_pid_file[100];
-
-	/* server address */
-	struct sockaddr_un m_server_addr;
 };
 
-#endif /* TESTS_GTEST_VMAD_BASE_H_ */
+/**
+ * @test vmad_state.ti_1
+ * @brief
+ *    Send valid VMA_MSG_STATE
+ * @details
+ */
+TEST_F(vmad_state, ti_1) {
+	int rc = 0;
+
+	rc = vmad_base::msg_init(m_pid);
+	ASSERT_LT(0, rc);
+
+	m_data.fid = 0;
+	m_data.state = ESTABLISHED;
+	m_data.type = SOCK_STREAM;
+	m_data.src_ip = client_addr.sin_addr.s_addr;
+	m_data.src_port = client_addr.sin_port;
+	m_data.dst_ip = server_addr.sin_addr.s_addr;
+	m_data.dst_port = server_addr.sin_port;
+
+	errno = 0;
+	rc = send(m_sock_fd, &m_data, sizeof(m_data), 0);
+	EXPECT_EQ(0, errno);
+	EXPECT_EQ((int)sizeof(m_data), rc);
+
+	rc = vmad_base::msg_exit(m_pid);
+	ASSERT_LT(0, rc);
+}
