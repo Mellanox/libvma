@@ -48,7 +48,8 @@ gtest_SOURCES = \
 	vmad/vmad_base.cc \
 	vmad/vmad_bitmap.cc \
 	vmad/vmad_hash.cc \
-	vmad/vmad_init.cc
+	vmad/vmad_init.cc \
+	vmad/vmad_state.cc
 
 noinst_HEADERS = \
 	common/gtest.h \
