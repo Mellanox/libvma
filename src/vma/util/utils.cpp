@@ -749,9 +749,11 @@ bool get_bond_active_slave_name(IN const char* bond_name, OUT char* active_slave
 	return true;
 }
 
-bool get_netvsc_slave(IN const char* netvsc_name, OUT struct ifaddrs* slave)
+bool get_netvsc_slave(IN const char* ifname, OUT struct ifaddrs* slave)
 {
 	char netvsc_path[256];
+	char base_ifname[IFNAMSIZ];
+	get_base_interface_name(ifname, base_ifname, sizeof(base_ifname));
 	struct ifaddrs *ifaddr, *ifa;
 	bool ret = false;
 
@@ -761,7 +763,7 @@ bool get_netvsc_slave(IN const char* netvsc_name, OUT struct ifaddrs* slave)
 	}
 
 	for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-		snprintf(netvsc_path, sizeof(netvsc_path), NETVSC_DEVICE_LOWER_FILE, netvsc_name, ifa->ifa_name);
+		snprintf(netvsc_path, sizeof(netvsc_path), NETVSC_DEVICE_LOWER_FILE, base_ifname, ifa->ifa_name);
 		int fd = open(netvsc_path, O_RDONLY);
 		if (fd >= 0) {
 			close(fd);
@@ -780,7 +782,9 @@ bool get_netvsc_slave(IN const char* netvsc_name, OUT struct ifaddrs* slave)
 bool check_netvsc_device_exist(const char* ifname)
 {
 	char device_path[256] = {0};
-	sprintf(device_path, NETVSC_DEVICE_CLASS_FILE, ifname);
+	char base_ifname[IFNAMSIZ];
+	get_base_interface_name(ifname, base_ifname, sizeof(base_ifname));
+	sprintf(device_path, NETVSC_DEVICE_CLASS_FILE, base_ifname);
 	char sys_res[1024] = {0};
 	if (priv_read_file(device_path, sys_res, 1024, VLOG_FUNC) > 0) {
 		if (strcmp(sys_res, NETVSC_ID) == 0) {
