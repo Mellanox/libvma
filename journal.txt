@@ -1,3 +1,19 @@
+Version 8.5.7-0:
+Date + Time 2018-02-19
+=============================================================
+Added:
+        - RM #1284081 Extend gtest with vmad_flow tests
+        - RM #1284081 Extend gtest with vmad_state tests
+        - RM #1284081 Extend gtest with vmad_init tests
+        - RM #1284081 Extend gtest with vmad_hash tests
+        - RM #1284081 Extend gtest with vmad_bitmap tests
+        - RM #1284081 Create gtest/vmad unit
+        - RM #1284081 Extend gtest with mix_list tests
+Fixed:
+        - RM #1308755 Fix no traffic for Alias NetVSC interfaces
+        - RM #1284081 Fix issues found by gtest/vmad_hash
+        - RM #1284081 Fix issues found by gtest/vmad_bitmap
+
 Version 8.5.6-0:
 Date + Time 2018-02-08
 =============================================================
