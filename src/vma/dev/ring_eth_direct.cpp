@@ -80,9 +80,8 @@ mem_buf_desc_t* ring_eth_direct::mem_buf_tx_get(ring_user_id_t id, bool b_block,
 	return NULL;
 }
 
-int ring_eth_direct::drain_and_proccess(cq_type_t cq_type)
+int ring_eth_direct::drain_and_proccess()
 {
-	NOT_IN_USE(cq_type);
 	return 0;
 }
 
