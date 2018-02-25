@@ -277,7 +277,7 @@ struct ring_ec {
  * In the first stage it will be a part of the qp_mgr object.
  *
  */
-class ring : public mem_buf_desc_owner
+class ring
 {
 
 public:
@@ -310,11 +310,6 @@ public:
 	virtual int		wait_for_notification_and_process_element(int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL) = 0;
 	virtual int		poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL) = 0;
 	virtual void		adapt_cq_moderation() = 0;
-	virtual void		mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc) = 0; // Assume locked...
-	// Tx completion handling at the qp_mgr level is just re listing the desc+data buffer in the free lists
-	virtual void		mem_buf_desc_completion_with_error_tx(mem_buf_desc_t* p_tx_wc_buf_desc) = 0; // Assume locked...
-	virtual void		mem_buf_desc_return_to_owner_rx(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array = NULL) = 0;
-	virtual void		mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc) = 0;
 	virtual void		mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc) = 0;
 
 	virtual void		inc_tx_retransmissions(ring_user_id_t id) = 0;

@@ -1086,7 +1086,7 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 }
 
 // Move all owner's rx ready packets to 'toq'
-void sockinfo::move_owned_rx_ready_descs(const mem_buf_desc_owner* p_desc_owner, descq_t *toq)
+void sockinfo::move_owned_rx_ready_descs(ring* p_ring, descq_t *toq)
 {
 	// Assume locked by owner!!!
 
@@ -1095,7 +1095,7 @@ void sockinfo::move_owned_rx_ready_descs(const mem_buf_desc_owner* p_desc_owner,
 	for (size_t i = 0 ; i < size; i++) {
 		temp = get_front_m_rx_pkt_ready_list();
 		pop_front_m_rx_pkt_ready_list();
-		if (temp->p_desc_owner != p_desc_owner) {
+		if (!p_ring->is_member(temp->p_desc_owner)) {
 			push_back_m_rx_pkt_ready_list(temp);
 			continue;
 		}
