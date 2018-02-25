@@ -38,7 +38,7 @@
 #include "vma/util/utils.h"
 #include "vma/vma_extra.h"
 
-class ring_simple : public ring
+class ring_simple : public mem_buf_desc_owner, public ring
 {
 public:
 	ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, uint32_t mtu, ring* parent = NULL);

@@ -486,32 +486,6 @@ void ring_bond::devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_b
 	}
 }
 
-/* TODO consider only ring_simple to inherit mem_buf_desc_owner */
-void ring_bond::mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc)
-{
-	NOT_IN_USE(p_rx_wc_buf_desc);
-	ring_logpanic("programming error, how did we got here?");
-}
-
-void ring_bond::mem_buf_desc_completion_with_error_tx(mem_buf_desc_t* p_tx_wc_buf_desc)
-{
-	NOT_IN_USE(p_tx_wc_buf_desc);
-	ring_logpanic("programming error, how did we got here?");
-}
-
-void ring_bond::mem_buf_desc_return_to_owner_rx(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array /*NULL*/)
-{
-	NOT_IN_USE(p_mem_buf_desc);
-	NOT_IN_USE(pv_fd_ready_array);
-	ring_logpanic("programming error, how did we got here?");
-}
-
-void ring_bond::mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc)
-{
-	NOT_IN_USE(p_mem_buf_desc);
-	ring_logpanic("programming error, how did we got here?");
-}
-
 void ring_bond_eth::create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t vlan)
 {
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
@@ -922,7 +896,8 @@ bool ring_bond_eth_netvsc::request_more_rx_buffers()
 	// Assume locked!
 	ring_logfuncall("Allocating additional %d buffers for internal use", m_sysvar_qp_compensation_level);
 
-	bool res = g_buffer_pool_rx->get_buffers_thread_safe(m_rx_pool, this, m_sysvar_qp_compensation_level, 0);
+	// TODO change owner to ring_tap
+	bool res = g_buffer_pool_rx->get_buffers_thread_safe(m_rx_pool, m_bond_rings[0], m_sysvar_qp_compensation_level, 0);
 	if (!res) {
 		ring_logfunc("Out of mem_buf_desc from TX free pool for internal object pool");
 		return false;
