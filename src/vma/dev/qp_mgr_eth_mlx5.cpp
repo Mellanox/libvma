@@ -361,7 +361,7 @@ inline int qp_mgr_eth_mlx5::fill_wqe(vma_ibv_send_wr *pswr)
 		// Filling inline data segment
 		// size of BlueFlame buffer is 4*WQEBBs, 3*OCTOWORDS of the first
 		// was allocated for control and ethernet segment so we have 3*WQEBB+16-4
-		int rest_space = min((int)(m_sq_wqes_end-cur_seg-4), (3*WQEBB+OCTOWORD-4));
+		int rest_space = std::min((int)(m_sq_wqes_end-cur_seg-4), (3*WQEBB+OCTOWORD-4));
 		// Filling till the end of inline WQE segment or
 		// to end of WQEs
 		if (likely(max_inline_len <= rest_space)) {
