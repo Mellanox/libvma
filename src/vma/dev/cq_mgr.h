@@ -35,13 +35,14 @@
 #define CQ_MGR_H
 
 #include "utils/atomic.h"
+#include "vma/dev/qp_mgr.h"
+#include "vma/dev/ib_ctx_handler.h"
 #include "vma/util/sys_vars.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/util/hash_map.h"
 #include "vma/util/vma_stats.h"
 #include "vma/proto/mem_buf_desc.h"
 #include "vma/proto/vma_lwip.h"
-#include "vma/dev/ib_ctx_handler.h"
 
 #if defined(HAVE_INFINIBAND_MLX5_HW_H)
 #include <infiniband/mlx5_hw.h>

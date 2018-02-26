@@ -34,37 +34,13 @@
 #ifndef RING_H
 #define RING_H
 
-#include "utils/lock_wrapper.h"
-#include "vma/dev/gro_mgr.h"
-#include "vma/util/list.h"
-#include "vma/util/hash_map.h"
 #include "vma/util/verbs_extra.h"
-#include "vma/sock/pkt_rcvr_sink.h"
-#include "vma/proto/mem_buf_desc.h"
 #include "vma/proto/flow_tuple.h"
-#include "vma/proto/L2_address.h"
-#include "vma/infra/sender.h"
-#include "vma/dev/ib_ctx_handler.h"
-#include "vma/dev/net_device_val.h"
-#include "vma/dev/qp_mgr.h"
 #include "vma/sock/socket_fd_api.h"
 
-class rfs;
-class cq_mgr;
+class pkt_rcvr_sink;
+class ib_ctx_handler;
 class L2_address;
-class buffer_pool;
-class route_rule_table_key;
-
-#define RING_LOCK_AND_RUN(__lock__, __func_and_params__) 	\
-		__lock__.lock(); __func_and_params__; __lock__.unlock();
-
-#define RING_LOCK_RUN_AND_UPDATE_RET(__lock__, __func_and_params__) 	\
-		__lock__.lock(); ret = __func_and_params__; __lock__.unlock();
-
-#define RING_TRY_LOCK_RUN_AND_UPDATE_RET(__lock__, __func_and_params__) \
-		if (!__lock__.trylock()) { ret = __func_and_params__; __lock__.unlock(); } \
-		else { errno = EBUSY; }
-
 
 #define ring_logpanic 		__log_info_panic
 #define ring_logerr			__log_info_err
@@ -75,108 +51,10 @@ class route_rule_table_key;
 #define ring_logfuncall		__log_info_funcall
 #define ring_logfine		__log_info_fine
 
-#define RING_TX_BUFS_COMPENSATE 256
-
 typedef enum {
 	CQT_RX,
 	CQT_TX
 } cq_type_t;
-
-
-typedef struct __attribute__((packed)) flow_spec_udp_key_t {
-  in_addr_t	dst_ip;
-  in_port_t	dst_port;
-
-  flow_spec_udp_key_t () {
-    flow_spec_udp_key_helper(INADDR_ANY, INPORT_ANY);
-  } //Default constructor
-  flow_spec_udp_key_t (in_addr_t d_ip, in_addr_t d_port) {
-    flow_spec_udp_key_helper(d_ip, d_port);
-  }//Constructor
-  void flow_spec_udp_key_helper(in_addr_t d_ip, in_addr_t d_port) {
-    memset(this, 0, sizeof(*this));// Silencing coverity
-    dst_ip = d_ip;
-    dst_port = d_port;
-  };
-} flow_spec_udp_key_t;
-
-typedef struct __attribute__((packed)) flow_spec_tcp_key_t {
-  in_addr_t	src_ip;
-  in_port_t	dst_port;
-  in_port_t	src_port;
-
-  flow_spec_tcp_key_t () {
-  	flow_spec_tcp_key_helper (INADDR_ANY, INPORT_ANY, INPORT_ANY);
-  } //Default constructor
-  flow_spec_tcp_key_t (in_addr_t s_ip, in_addr_t d_port, in_addr_t s_port) {
-  	flow_spec_tcp_key_helper (s_ip, d_port, s_port);
-  }//Constructor
-  void flow_spec_tcp_key_helper(in_addr_t s_ip, in_addr_t d_port, in_addr_t s_port) {
-    memset(this, 0, sizeof(*this));// Silencing coverity
-    src_ip = s_ip;
-    dst_port = d_port;
-    src_port = s_port;
-  };
-} flow_spec_tcp_key_t;
-
-
-/* UDP flow to rfs object hash map */
-inline bool
-operator==(flow_spec_udp_key_t const& key1, flow_spec_udp_key_t const& key2)
-{
-	return 	(key1.dst_port == key2.dst_port) &&
-		(key1.dst_ip == key2.dst_ip);
-}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
-inline bool
-operator<(flow_spec_udp_key_t const& key1, flow_spec_udp_key_t const& key2)
-{
-	if (key1.dst_ip < key2.dst_ip)		return true;
-	if (key1.dst_ip > key2.dst_ip)		return false;
-	if (key1.dst_port < key2.dst_port)	return true;
-	return false;
-}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
-typedef hash_map<flow_spec_udp_key_t, rfs*> flow_spec_udp_map_t;
-
-
-/* TCP flow to rfs object hash map */
-inline bool
-operator==(flow_spec_tcp_key_t const& key1, flow_spec_tcp_key_t const& key2)
-{
-	return	(key1.src_port == key2.src_port) &&
-		(key1.src_ip == key2.src_ip) &&
-		(key1.dst_port == key2.dst_port);
-}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
-inline bool
-operator<(flow_spec_tcp_key_t const& key1, flow_spec_tcp_key_t const& key2)
-{
-	if (key1.src_ip < key2.src_ip)		return true;
-	if (key1.src_ip > key2.src_ip)		return false;
-	if (key1.dst_port < key2.dst_port)	return true;
-	if (key1.dst_port > key2.dst_port)	return false;
-	if (key1.src_port < key2.src_port)	return true;
-	return false;
-}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
-typedef hash_map<flow_spec_tcp_key_t, rfs*> flow_spec_tcp_map_t;
 
 
 typedef struct {
@@ -185,25 +63,6 @@ typedef struct {
 	L2_address* 	p_l2_addr;
 	bool			active;
 } ring_resource_creation_info_t;
-
-
-struct counter_and_ibv_flows {
-	int counter;
-	std::vector<vma_ibv_flow*> ibv_flows;
-};
-
-typedef std::tr1::unordered_map<uint32_t, struct counter_and_ibv_flows> rule_filter_map_t;
-
-
-struct cq_moderation_info {
-	uint32_t period;
-	uint32_t count;
-	uint64_t packets;
-	uint64_t bytes;
-	uint64_t prev_packets;
-	uint64_t prev_bytes;
-	uint32_t missed_rounds;
-};
 
 typedef int ring_user_id_t;
 
@@ -223,22 +82,8 @@ struct ring_ec {
 };
 #endif // DEFINED_SOCKETXTREME	
 
-/**
- * @class ring
- *
- * Object to manages the QP and CQ operation
- * This object is used for Rx & Tx at the same time
- * Once created it ...
- *
- *
- * NOTE:
- * In the end this object will contain a QP and CQ.
- * In the first stage it will be a part of the qp_mgr object.
- *
- */
 class ring : public mem_buf_desc_owner
 {
-
 public:
 	ring(int count, uint32_t mtu); //todo count can be moved to ring_bond
 
@@ -269,11 +114,6 @@ public:
 	virtual int		wait_for_notification_and_process_element(int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL) = 0;
 	virtual int		poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL) = 0;
 	virtual void		adapt_cq_moderation() = 0;
-	virtual void		mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc) = 0; // Assume locked...
-	// Tx completion handling at the qp_mgr level is just re listing the desc+data buffer in the free lists
-	virtual void		mem_buf_desc_completion_with_error_tx(mem_buf_desc_t* p_tx_wc_buf_desc) = 0; // Assume locked...
-	virtual void		mem_buf_desc_return_to_owner_rx(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array = NULL) = 0;
-	virtual void		mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc) = 0;
 	virtual void		mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc) = 0;
 
 	virtual void		inc_tx_retransmissions(ring_user_id_t id) = 0;
