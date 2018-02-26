@@ -183,7 +183,6 @@ public:
 	virtual void 	add_qp_tx(qp_mgr* qp);
 
 	bool	reclaim_recv_buffers(descq_t *rx_reuse);
-	bool	reclaim_recv_buffers_no_lock(descq_t *rx_reuse);
 	bool	reclaim_recv_buffers(mem_buf_desc_t *rx_reuse_lst);
 
 	//maps between qpn and vlan id to the local interface
