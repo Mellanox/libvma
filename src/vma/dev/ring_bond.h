@@ -35,6 +35,7 @@
 
 #include "ring.h"
 #include "vma/util/agent.h"
+#include "vma/dev/net_device_val.h"
 
 class ring_simple;
 

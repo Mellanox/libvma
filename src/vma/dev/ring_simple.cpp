@@ -60,6 +60,17 @@
 #define MODULE_HDR MODULE_NAME "%d:%s() "
 
 #define ALIGN_WR_DOWN(_num_wr_) (max(32, ((_num_wr_      ) & ~(0xf))))
+#define RING_TX_BUFS_COMPENSATE 256
+
+#define RING_LOCK_AND_RUN(__lock__, __func_and_params__) 	\
+		__lock__.lock(); __func_and_params__; __lock__.unlock();
+
+#define RING_LOCK_RUN_AND_UPDATE_RET(__lock__, __func_and_params__) 	\
+		__lock__.lock(); ret = __func_and_params__; __lock__.unlock();
+
+#define RING_TRY_LOCK_RUN_AND_UPDATE_RET(__lock__, __func_and_params__) \
+		if (!__lock__.trylock()) { ret = __func_and_params__; __lock__.unlock(); } \
+		else { errno = EBUSY; }
 
 /**/
 /** inlining functions can only help if they are implemented before their usage **/
