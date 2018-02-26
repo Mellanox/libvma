@@ -1021,10 +1021,6 @@ inline volatile struct mlx5_cqe64 *cq_mgr::mlx5_get_cqe64(volatile struct mlx5_c
 }
 #endif // DEFINED_SOCKETXTREME
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
 bool cq_mgr::reclaim_recv_buffers(mem_buf_desc_t *rx_reuse_lst)
 {
 	if (likely(rx_reuse_lst)) {
@@ -1032,23 +1028,6 @@ bool cq_mgr::reclaim_recv_buffers(mem_buf_desc_t *rx_reuse_lst)
 		return true;
 	}
 	return false;
-}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
-bool cq_mgr::reclaim_recv_buffers_no_lock(descq_t *rx_reuse)
-{
-	//Assume locked
-	cq_logfuncall("");
-	while (!rx_reuse->empty()) {
-		mem_buf_desc_t* buff = rx_reuse->get_and_pop_front();
-		reclaim_recv_buffer_helper(buff);
-	}
-	//return_extra_buffers();
-
-	return true;
 }
 
 bool cq_mgr::reclaim_recv_buffers(descq_t *rx_reuse)
