@@ -125,8 +125,8 @@ bool ring_ib::is_ratelimit_supported(struct vma_rate_limit_t &rate_limit)
 	return false;
 }
 
-ring_simple::ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, uint32_t mtu, ring* parent /*=NULL*/):
-	ring(count, mtu),
+ring_simple::ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t local_if, uint16_t partition_sn, transport_type_t transport_type, uint32_t mtu, ring* parent /*=NULL*/):
+	ring(),
 	m_p_ib_ctx(p_ring_info->p_ib_ctx),
 	m_p_qp_mgr(NULL),
 	m_p_cq_mgr_rx(NULL),
@@ -140,7 +140,7 @@ ring_simple::ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t l
 	m_tx_lkey(g_buffer_pool_tx->find_lkey_by_ib_ctx_thread_safe(m_p_ib_ctx)),
 	m_partition(partition_sn), m_gro_mgr(safe_mce_sys().gro_streams_max, MAX_GRO_BUFS), m_up(false),
 	m_p_rx_comp_event_channel(NULL), m_p_tx_comp_event_channel(NULL), m_p_l2_addr(NULL),
-	m_local_if(local_if), m_transport_type(transport_type)
+	m_local_if(local_if), m_mtu(mtu), m_transport_type(transport_type)
 	, m_b_sysvar_eth_mc_l2_only_rules(safe_mce_sys().eth_mc_l2_only_rules)
 	, m_b_sysvar_mc_force_flowtag(safe_mce_sys().mc_force_flowtag)
 #ifdef DEFINED_SOCKETXTREME
@@ -154,8 +154,6 @@ ring_simple::ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t l
 		__log_info_panic("invalid lkey found %lu", m_tx_lkey);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-	if (count != 1)
-		ring_logpanic("Error creating simple ring with more than 1 resource");
 	if (parent) {
 		m_parent = parent;
 	} else {
@@ -304,7 +302,7 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 	VALGRIND_MAKE_MEM_DEFINED(m_p_rx_comp_event_channel, sizeof(struct ibv_comp_channel));
-	m_p_n_rx_channel_fds = new int[m_n_num_resources];
+	m_p_n_rx_channel_fds = new int[1];
 	m_p_n_rx_channel_fds[0] = m_p_rx_comp_event_channel->fd;
 	// Add the rx channel fd to the global fd collection
 	if (g_p_fd_collection) {

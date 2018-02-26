@@ -164,7 +164,7 @@ struct cq_moderation_info {
 class ring_simple : public ring
 {
 public:
-	ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, uint32_t mtu, ring* parent = NULL);
+	ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t local_if, uint16_t partition_sn, transport_type_t transport_type, uint32_t mtu, ring* parent = NULL);
 	virtual ~ring_simple();
 
 	virtual int		request_notification(cq_type_t cq_type, uint64_t poll_sn);
@@ -184,6 +184,7 @@ public:
 	virtual void		mem_buf_desc_completion_with_error_tx(mem_buf_desc_t* p_tx_wc_buf_desc); // Assume locked...
 	virtual void		mem_buf_desc_return_to_owner_rx(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array = NULL);
 	virtual void		mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc);
+	virtual int		get_num_resources() const { return 1; };
 	virtual int		get_max_tx_inline();
 	inline int		send_buffer(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 	virtual bool		attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
@@ -231,6 +232,7 @@ protected:
 	bool			request_more_tx_buffers(uint32_t count);
 	uint32_t		get_tx_num_wr() { return m_tx_num_wr; }
 	uint16_t		get_partition() { return m_partition; }
+	uint32_t		get_mtu() { return m_mtu; }
 	ib_ctx_handler*		m_p_ib_ctx;
 	qp_mgr*			m_p_qp_mgr;
 	struct cq_moderation_info m_cq_moderation_info;
@@ -265,6 +267,7 @@ private:
 	struct ibv_comp_channel* m_p_tx_comp_event_channel;
 	L2_address*		m_p_l2_addr;
 	in_addr_t		m_local_if;
+	uint32_t		m_mtu;
 	transport_type_t	m_transport_type;
 	// For IB MC flow, the port is zeroed in the ibv_flow_spec when calling to ibv_flow_spec().
 	// It means that for every MC group, even if we have sockets with different ports - only one rule in the HW.
@@ -286,10 +289,8 @@ private:
 class ring_eth : public ring_simple
 {
 public:
-	ring_eth(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info,
-		 int count, bool active, uint16_t vlan, uint32_t mtu,
-		 ring* parent = NULL, bool call_create_res = true):
-		ring_simple(p_ring_info, local_if, vlan, count, VMA_TRANSPORT_ETH, mtu, parent) {
+	ring_eth(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active, uint16_t vlan, uint32_t mtu, ring* parent = NULL, bool call_create_res = true):
+		ring_simple(p_ring_info, local_if, vlan, VMA_TRANSPORT_ETH, mtu, parent) {
 		if (call_create_res)
 			create_resources(p_ring_info, active);
 	};
@@ -301,8 +302,8 @@ protected:
 class ring_ib : public ring_simple
 {
 public:
-	ring_ib(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count, bool active, uint16_t pkey, uint32_t mtu, ring* parent = NULL):
-		ring_simple(p_ring_info, local_if, pkey, count, VMA_TRANSPORT_IB, mtu, parent) { create_resources(p_ring_info, active); };
+	ring_ib(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active, uint16_t pkey, uint32_t mtu, ring* parent = NULL):
+		ring_simple(p_ring_info, local_if, pkey, VMA_TRANSPORT_IB, mtu, parent) { create_resources(p_ring_info, active); };
 	virtual bool is_ratelimit_supported(struct vma_rate_limit_t &rate_limit);
 protected:
 	virtual qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel);

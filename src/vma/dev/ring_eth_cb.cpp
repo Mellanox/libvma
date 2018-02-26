@@ -48,10 +48,10 @@
 #define MIN_MP_WQES		(4)
 
 ring_eth_cb::ring_eth_cb(in_addr_t local_if,
-			 ring_resource_creation_info_t *p_ring_info, int count,
+			 ring_resource_creation_info_t *p_ring_info,
 			 bool active, uint16_t vlan, uint32_t mtu,
 			 vma_cyclic_buffer_ring_attr *cb_ring, ring *parent):
-			 ring_eth(local_if, p_ring_info, count, active, vlan,
+			 ring_eth(local_if, p_ring_info, active, vlan,
 				  mtu, parent, false)
 			,m_curr_wqe_used_strides(0)
 			,m_curr_packets(0)

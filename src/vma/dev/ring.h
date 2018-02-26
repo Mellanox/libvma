@@ -85,7 +85,7 @@ struct ring_ec {
 class ring : public mem_buf_desc_owner
 {
 public:
-	ring(int count, uint32_t mtu); //todo count can be moved to ring_bond
+	ring();
 
 	virtual ~ring();
 
@@ -102,9 +102,8 @@ public:
 	virtual void		send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block) = 0;
 
 	// Funcs taken from cq_mgr.h
-	int			get_num_resources() const { return m_n_num_resources; };
+	virtual int		get_num_resources() const = 0;
 	int*			get_rx_channel_fds() const { return m_p_n_rx_channel_fds; };
-	int			get_rx_channel_fds_index(uint32_t index) const;
 	virtual int		get_tx_channel_fd() const { return -1; };
 	virtual int		get_max_tx_inline() = 0;
 	virtual bool 		get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe) = 0;
@@ -121,7 +120,6 @@ public:
 	ring*			get_parent() { return m_parent; };
 	ring_user_id_t		generate_id() { return 0; };
 	virtual ring_user_id_t	generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port) = 0;
-	uint32_t		get_mtu() { return m_mtu; }
 	bool			is_mp_ring() {return m_is_mp_ring;};
 	virtual int		modify_ratelimit(struct vma_rate_limit_t &rate_limit) = 0;
 	virtual bool		is_ratelimit_supported(struct vma_rate_limit_t &rate_limit) = 0;
@@ -170,11 +168,9 @@ public:
 #endif // DEFINED_SOCKETXTREME	
 
 protected:
-	uint32_t		m_n_num_resources;
 	int*			m_p_n_rx_channel_fds;
 	ring*			m_parent;
 	bool			m_is_mp_ring;
-	uint32_t		m_mtu;
 #ifdef DEFINED_SOCKETXTREME
 	/* queue of event completion elements
 	 * this queue is stored events related different sockinfo (sockets)
