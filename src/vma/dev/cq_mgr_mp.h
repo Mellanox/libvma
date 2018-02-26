@@ -51,7 +51,7 @@ public:
 				   struct mlx5_cqe64 *&cqe64);
 	void update_dbell();
 	void update_max_drain(uint32_t t) { m_p_cq_stat->n_rx_drained_at_once_max =
-			max(m_p_cq_stat->n_rx_drained_at_once_max, t);}
+			std::max(m_p_cq_stat->n_rx_drained_at_once_max, t);}
 protected:
 	virtual void	prep_ibv_cq(vma_ibv_cq_init_attr &attr) const;
 	virtual void	add_qp_rx(qp_mgr *qp);

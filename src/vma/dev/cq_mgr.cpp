@@ -563,7 +563,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 		VALGRIND_MAKE_MEM_DEFINED(p_mem_buf_desc->p_buffer, p_mem_buf_desc->sz_data);
 
 		prefetch_range((uint8_t*)p_mem_buf_desc->p_buffer + m_sz_transport_header, 
-				min(p_mem_buf_desc->sz_data - m_sz_transport_header, (size_t)m_n_sysvar_rx_prefetch_bytes));
+				std::min(p_mem_buf_desc->sz_data - m_sz_transport_header, (size_t)m_n_sysvar_rx_prefetch_bytes));
 		//prefetch((uint8_t*)p_mem_buf_desc->p_buffer + m_sz_transport_header);
 	}
 
@@ -1192,7 +1192,7 @@ int cq_mgr::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/
 
 	// Update cq statistics
 	m_p_cq_stat->n_rx_sw_queue_len = m_rx_queue.size();
-	m_p_cq_stat->n_rx_drained_at_once_max = max(ret_total, m_p_cq_stat->n_rx_drained_at_once_max);
+	m_p_cq_stat->n_rx_drained_at_once_max = std::max(ret_total, m_p_cq_stat->n_rx_drained_at_once_max);
 
 	return ret_total;
 #else
@@ -1264,7 +1264,7 @@ int cq_mgr::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/
 
 	// Update cq statistics
 	m_p_cq_stat->n_rx_sw_queue_len = m_rx_queue.size();
-	m_p_cq_stat->n_rx_drained_at_once_max = max(ret_total, m_p_cq_stat->n_rx_drained_at_once_max);
+	m_p_cq_stat->n_rx_drained_at_once_max = std::max(ret_total, m_p_cq_stat->n_rx_drained_at_once_max);
 
 	return ret_total;
 #endif // DEFINED_SOCKETXTREME
