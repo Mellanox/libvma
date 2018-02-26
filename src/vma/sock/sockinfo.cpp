@@ -1280,10 +1280,11 @@ int* sockinfo::get_rings_fds(int &res_length)
 
 	rx_ring_map_t::iterator it = m_rx_ring_map.begin();
 	for (; it != m_rx_ring_map.end(); ++it) {
+		int *p_n_rx_channel_fds = it->first->get_rx_channel_fds();
 		for (int j = 0; j < it->first->get_num_resources(); ++j) {
-			int fd = it->first->get_rx_channel_fds_index(j);
+			int fd = p_n_rx_channel_fds[j];
 			if (fd != -1) {
-				m_p_rings_fds[index] = it->first->get_rx_channel_fds_index(j);
+				m_p_rings_fds[index] = fd;
 				++index;
 			} else {
 				si_logdbg("got ring with fd -1");

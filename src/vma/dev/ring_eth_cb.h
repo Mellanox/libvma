@@ -60,7 +60,7 @@ class ring_eth_cb : public ring_eth
 {
 public:
 	ring_eth_cb(in_addr_t local_if,
-		    ring_resource_creation_info_t *p_ring_info, int count,
+		    ring_resource_creation_info_t *p_ring_info,
 		    bool active, uint16_t vlan, uint32_t mtu,
 		    vma_cyclic_buffer_ring_attr *mp_ring, ring *parent = NULL);
 	virtual		~ring_eth_cb();

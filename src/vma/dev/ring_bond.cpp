@@ -61,8 +61,8 @@
 #define TAP_STR_LENGTH	512
 #define TAP_DISABLE_IPV6 "sysctl -w net.ipv6.conf.%s.disable_ipv6=1"
 
-ring_bond::ring_bond(int count, net_device_val::bond_type type, net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy, uint32_t mtu) :
-ring(count, mtu), m_lock_ring_rx("ring_bond:lock_rx"), m_lock_ring_tx("ring_bond:lock_tx") {
+ring_bond::ring_bond(int count, net_device_val::bond_type type, net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy) :
+ring(), m_n_num_resources(count), m_lock_ring_rx("ring_bond:lock_rx"), m_lock_ring_tx("ring_bond:lock_tx") {
 	if (m_n_num_resources > MAX_NUM_RING_RESOURCES) {
 		ring_logpanic("Error creating bond ring with more than %d resource", MAX_NUM_RING_RESOURCES);
 	}
@@ -481,10 +481,10 @@ void ring_bond::devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_b
 	}
 }
 
-void ring_bond_eth::create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t vlan)
+void ring_bond_eth::create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t vlan, uint32_t mtu)
 {
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
-		m_bond_rings[i] = new ring_eth(local_if, &p_ring_info[i], 1, active_slaves[i], vlan, m_mtu, this);
+		m_bond_rings[i] = new ring_eth(local_if, &p_ring_info[i], active_slaves[i], vlan, mtu, this);
 		if (m_min_devices_tx_inline < 0)
 			m_min_devices_tx_inline = m_bond_rings[i]->get_max_tx_inline();
 		else
@@ -498,10 +498,10 @@ void ring_bond_eth::create_slave_list(in_addr_t local_if, ring_resource_creation
 	close_gaps_active_rings();
 }
 
-void ring_bond_ib::create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t pkey)
+void ring_bond_ib::create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t pkey, uint32_t mtu)
 {
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
-		m_bond_rings[i] = new ring_ib(local_if, &p_ring_info[i], 1, active_slaves[i], pkey, m_mtu, this); // m_mtu is the value from ifconfig when ring created. Now passing it to its slaves. could have sent 0 here, as the MTU of the bond is already on the bond
+		m_bond_rings[i] = new ring_ib(local_if, &p_ring_info[i], active_slaves[i], pkey, mtu, this); // m_mtu is the value from ifconfig when ring created. Now passing it to its slaves. could have sent 0 here, as the MTU of the bond is already on the bond
 		if (m_min_devices_tx_inline < 0)
 			m_min_devices_tx_inline = m_bond_rings[i]->get_max_tx_inline();
 		else
