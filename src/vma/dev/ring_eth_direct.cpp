@@ -42,9 +42,9 @@
 
 ring_eth_direct::ring_eth_direct(in_addr_t local_if,
 				ring_resource_creation_info_t *p_ring_info,
-				int count, bool active, uint16_t vlan, uint32_t mtu,
+				bool active, uint16_t vlan, uint32_t mtu,
 				vma_external_mem_attr *ext_ring_attr, ring *parent):
-					ring_eth(local_if, p_ring_info, count,
+					ring_eth(local_if, p_ring_info,
 						active, vlan, mtu, parent, false)
 {
 	m_ring_attr.comp_mask = ext_ring_attr->comp_mask;
