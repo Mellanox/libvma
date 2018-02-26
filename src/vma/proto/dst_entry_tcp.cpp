@@ -287,7 +287,7 @@ void dst_entry_tcp::put_buffer(mem_buf_desc_t * p_desc)
 		return;
 
 	if (likely(m_p_ring->is_member(p_desc->p_desc_owner))) {
-		m_p_ring->mem_buf_desc_return_single_to_owner_tx(p_desc);
+		p_desc->p_desc_owner->mem_buf_desc_return_to_owner_tx(p_desc);
 	} else {
 
 		//potential race, ref is protected here by tcp lock, and in ring by ring_tx lock
