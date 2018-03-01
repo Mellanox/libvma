@@ -33,7 +33,7 @@
 #ifndef RING_SIMPLE_H
 #define RING_SIMPLE_H
 
-#include "ring.h"
+#include "ring_slave.h"
 #include <vector>
 #include "vma/dev/gro_mgr.h"
 #include "vma/util/verbs_extra.h"
@@ -149,7 +149,7 @@ struct cq_moderation_info {
  * This object is used for Rx & Tx at the same time
  *
  */
-class ring_simple : public mem_buf_desc_owner, public ring
+class ring_simple : public mem_buf_desc_owner, public ring_slave
 {
 public:
 	ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t local_if, uint16_t partition_sn, transport_type_t transport_type, uint32_t mtu, ring* parent = NULL);
