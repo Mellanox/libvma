@@ -38,10 +38,28 @@
 #define MODULE_HDR MODULE_NAME "%d:%s() "
 
 
-ring_slave::ring_slave():
-	ring()
-{};
+ring_slave::ring_slave(ring_type_t type, ring* parent): ring()
+{
+	if (parent) {
+		m_parent = parent;
+	} else {
+		m_parent = this;
+	}
+
+	// use local copy of stats by default
+	m_p_ring_stat = &m_ring_stat;
+	memset(m_p_ring_stat, 0, sizeof(*m_p_ring_stat));
+	m_p_ring_stat->n_type = type;
+	if (m_parent != this) {
+		m_ring_stat.p_ring_master = m_parent;
+	}
+
+	vma_stats_instance_create_ring_block(m_p_ring_stat);
+}
 
 ring_slave::~ring_slave()
 {
+	if (m_p_ring_stat) {
+		vma_stats_instance_remove_ring_block(m_p_ring_stat);
+	}
 }
