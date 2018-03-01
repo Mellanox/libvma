@@ -126,7 +126,7 @@ bool ring_ib::is_ratelimit_supported(struct vma_rate_limit_t &rate_limit)
 }
 
 ring_simple::ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t local_if, uint16_t partition_sn, transport_type_t transport_type, uint32_t mtu, ring* parent /*=NULL*/):
-	ring(),
+	ring_slave(),
 	m_p_ib_ctx(p_ring_info->p_ib_ctx),
 	m_p_qp_mgr(NULL),
 	m_p_cq_mgr_rx(NULL),
