@@ -177,7 +177,7 @@ public:
 	virtual bool		attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
 	virtual bool		detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
 	virtual void		restart(ring_resource_creation_info_t* p_ring_info);
-	bool			is_up();
+	virtual bool		is_up();
 	void			start_active_qp_mgr();
 	void			stop_active_qp_mgr();
 	virtual mem_buf_desc_t*	mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_num_mem_bufs = 1);
@@ -210,7 +210,7 @@ protected:
 #ifdef DEFINED_SOCKETXTREME	
 	inline void 		socketxtreme_process_recv_buffer(mem_buf_desc_t* p_rx_wc_buf_desc);
 #endif // DEFINED_SOCKETXTREME	
-	bool			rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array);
+	virtual bool		rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array);
 	void			flow_udp_uc_del_all();
 	void			flow_udp_mc_del_all();
 	void			flow_tcp_del_all();

@@ -37,7 +37,7 @@
 #include "vma/util/agent.h"
 #include "vma/dev/net_device_val.h"
 
-class ring_simple;
+class ring_slave;
 
 class ring_bond : public ring {
 
@@ -77,8 +77,8 @@ protected:
 	void			update_rx_channel_fds();
 	void			close_gaps_active_rings();
 	uint32_t		m_n_num_resources;
-	ring_simple**		m_bond_rings;
-	ring_simple**		m_active_rings;
+	ring_slave**		m_bond_rings;
+	ring_slave**		m_active_rings;
 	lock_mutex_recursive	m_lock_ring_rx;
 	int			m_min_devices_tx_inline;
 
