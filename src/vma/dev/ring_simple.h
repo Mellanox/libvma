@@ -149,7 +149,7 @@ struct cq_moderation_info {
  * This object is used for Rx & Tx at the same time
  *
  */
-class ring_simple : public mem_buf_desc_owner, public ring_slave
+class ring_simple : public ring_slave
 {
 public:
 	ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t local_if, uint16_t partition_sn, transport_type_t transport_type, uint32_t mtu, ring* parent = NULL);
@@ -172,7 +172,6 @@ public:
 	virtual void		mem_buf_desc_completion_with_error_tx(mem_buf_desc_t* p_tx_wc_buf_desc); // Assume locked...
 	virtual void		mem_buf_desc_return_to_owner_rx(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array = NULL);
 	virtual void		mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc);
-	virtual int		get_num_resources() const { return 1; };
 	virtual int		get_max_tx_inline();
 	inline int		send_buffer(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 	virtual bool		attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
@@ -186,9 +185,6 @@ public:
 	virtual void		inc_tx_retransmissions(ring_user_id_t id);
 	virtual void		send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 	virtual void		send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block);
-	virtual bool		is_member(mem_buf_desc_owner* rng);
-	virtual bool		is_active_member(mem_buf_desc_owner* rng, ring_user_id_t id);
-	virtual ring_user_id_t	generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port);
 	transport_type_t	get_transport_type() const { return m_transport_type; }
 	virtual bool 		get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe);
 	inline void 		convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) { m_p_cq_mgr_rx->convert_hw_time_to_system_time(hwtime, systime); }
