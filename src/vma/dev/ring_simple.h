@@ -231,7 +231,6 @@ protected:
 	cq_mgr*			m_p_cq_mgr_tx;
 	lock_spin_recursive	m_lock_ring_tx;
 	bool			m_b_is_hypervisor;
-	ring_stats_t*		m_p_ring_stat;
 private:
 	inline void		send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe);
 	inline mem_buf_desc_t*	get_tx_buffers(uint32_t n_num_mem_bufs);
@@ -251,7 +250,6 @@ private:
 	const uint32_t		m_tx_lkey; // this is the registered memory lkey for a given specific device for the buffer pool use
 	uint16_t		m_partition; //vlan or pkey
 	gro_mgr			m_gro_mgr;
-	ring_stats_t		m_ring_stat_static;
 	bool			m_up;
 	struct ibv_comp_channel* m_p_rx_comp_event_channel;
 	struct ibv_comp_channel* m_p_tx_comp_event_channel;

@@ -38,8 +38,13 @@
 class ring_slave : public ring
 {
 public:
-	ring_slave();
+	ring_slave(ring_type_t type, ring* parent);
 	virtual ~ring_slave();
+
+protected:
+	ring_stats_t*		m_p_ring_stat;
+private:
+	ring_stats_t		m_ring_stat;
 };
 
 
