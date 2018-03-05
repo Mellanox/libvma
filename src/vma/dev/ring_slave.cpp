@@ -97,3 +97,8 @@ ring_user_id_t ring_slave::generate_id(const address_t src_mac, const address_t 
 
 	return 0;
 }
+
+void ring_slave::inc_tx_retransmissions(ring_user_id_t id) {
+	NOT_IN_USE(id);
+	m_p_ring_stat->simple.n_tx_retransmits++;
+}
