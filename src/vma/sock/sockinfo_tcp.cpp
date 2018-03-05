@@ -2748,7 +2748,7 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 	bool success = new_sock->attach_as_uc_receiver(role_t (NULL), true);
 	if (!success) {
 		/* we will get here if attach_as_uc_receiver failed */
-		__log_dbg("It should be wrong case");
+		__log_dbg("It should be unexpected case because attach_as_uc_receiver() returns failure");
 	}
 
 	if (new_sock->m_sysvar_tcp_ctl_thread > CTL_THREAD_DISABLE) {
