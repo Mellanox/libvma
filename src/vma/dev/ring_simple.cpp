@@ -1813,11 +1813,6 @@ bool ring_simple::is_up() {
 	return m_up;
 }
 
-void ring_simple::inc_tx_retransmissions(ring_user_id_t id) {
-	NOT_IN_USE(id);
-	m_p_ring_stat->simple.n_tx_retransmits++;
-}
-
 int ring_simple::modify_ratelimit(struct vma_rate_limit_t &rate_limit)
 {
 	uint32_t rl_changes = m_p_qp_mgr->is_ratelimit_change(rate_limit);
