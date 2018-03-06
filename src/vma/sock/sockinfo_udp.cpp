@@ -299,7 +299,7 @@ inline int sockinfo_udp::rx_wait(bool blocking)
 				if (p_cq_ch_info) {
 					ring* p_ring = p_cq_ch_info->get_ring();
 					if (p_ring) {
-						p_ring->wait_for_notification_and_process_element(CQT_RX, fd, &poll_sn);
+						p_ring->wait_for_notification_and_process_element(fd, &poll_sn);
 					}
 				}
 			}

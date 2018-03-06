@@ -396,9 +396,8 @@ void ring_eth_cb::remove_umr_res()
 	ring_logdbg("UMR resources removed\n");
 }
 
-int ring_eth_cb::drain_and_proccess(cq_type_t cq_type)
+int ring_eth_cb::drain_and_proccess()
 {
-	NOT_IN_USE(cq_type);
 	return 0;
 }
 

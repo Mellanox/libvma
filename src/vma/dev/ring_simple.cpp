@@ -1277,21 +1277,17 @@ int ring_simple::socketxtreme_poll(struct vma_completion_t *vma_completions, uns
 }
 #endif // DEFINED_SOCKETXTREME
 
-int ring_simple::wait_for_notification_and_process_element(cq_type_t cq_type, int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array /*NULL*/)
+int ring_simple::wait_for_notification_and_process_element(int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array /*NULL*/)
 {
 	int ret = -1;
-	if (likely(CQT_RX == cq_type)) {
-		if (m_p_cq_mgr_rx != NULL) {
-			RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_rx,
-					m_p_cq_mgr_rx->wait_for_notification_and_process_element(p_cq_poll_sn, pv_fd_ready_array);
-					++m_ring_stat_static.simple.n_rx_interrupt_received);
-		} else {
-			ring_logerr("Can't find rx_cq for the rx_comp_event_channel_fd (= %d)", cq_channel_fd);
-		}
+	if (m_p_cq_mgr_rx != NULL) {
+		RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_rx,
+				m_p_cq_mgr_rx->wait_for_notification_and_process_element(p_cq_poll_sn, pv_fd_ready_array);
+		++m_ring_stat_static.simple.n_rx_interrupt_received);
+	} else {
+		ring_logerr("Can't find rx_cq for the rx_comp_event_channel_fd (= %d)", cq_channel_fd);
 	}
-	else {
-		RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_tx, m_p_cq_mgr_tx->wait_for_notification_and_process_element(p_cq_poll_sn, pv_fd_ready_array));
-	}
+
 	return ret;
 }
 
@@ -1300,11 +1296,6 @@ bool ring_simple::reclaim_recv_buffers(descq_t *rx_reuse)
 	bool ret = false;
 	RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_rx, m_p_cq_mgr_rx->reclaim_recv_buffers(rx_reuse));
 	return ret;
-}
-
-bool ring_simple::reclaim_recv_buffers_no_lock(descq_t *rx_reuse)
-{
-	return m_p_cq_mgr_rx->reclaim_recv_buffers_no_lock(rx_reuse);
 }
 
 bool ring_simple::reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst)
@@ -1388,15 +1379,10 @@ void ring_simple::mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_b
 	RING_LOCK_AND_RUN(m_lock_ring_tx, put_tx_single_buffer(p_mem_buf_desc));
 }
 
-int ring_simple::drain_and_proccess(cq_type_t cq_type)
+int ring_simple::drain_and_proccess()
 {
 	int ret = 0;
-	if (likely(CQT_RX == cq_type)) {
-		RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_rx, m_p_cq_mgr_rx->drain_and_proccess());
-	}
-	else {
-		RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_tx, m_p_cq_mgr_tx->drain_and_proccess());
-	}
+	RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_rx, m_p_cq_mgr_rx->drain_and_proccess());
 	return ret;
 }
 
@@ -1974,10 +1960,6 @@ bool ring_simple::is_active_member(mem_buf_desc_owner* rng, ring_user_id_t id)
 
 bool ring_simple::is_member(mem_buf_desc_owner* rng) {
 	return (this == rng);
-}
-
-ring_user_id_t ring_simple::generate_id() {
-	return 0;
 }
 
 ring_user_id_t ring_simple::generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port) {

@@ -306,8 +306,8 @@ public:
 	virtual bool 		get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe) = 0;
 	virtual int		request_notification(cq_type_t cq_type, uint64_t poll_sn) = 0;
 	virtual bool		reclaim_recv_buffers(descq_t *rx_reuse) = 0;
-	virtual int		drain_and_proccess(cq_type_t cq_type) = 0;
-	virtual int		wait_for_notification_and_process_element(cq_type_t cq_type, int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL) = 0;
+	virtual int		drain_and_proccess() = 0;
+	virtual int		wait_for_notification_and_process_element(int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL) = 0;
 	virtual int		poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL) = 0;
 	virtual void		adapt_cq_moderation() = 0;
 	virtual void		mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc) = 0; // Assume locked...
@@ -321,7 +321,7 @@ public:
 	virtual bool		is_member(mem_buf_desc_owner* rng) = 0;
 	virtual bool		is_active_member(mem_buf_desc_owner* rng, ring_user_id_t id) = 0;
 	ring*			get_parent() { return m_parent; };
-	virtual ring_user_id_t	generate_id() = 0;
+	ring_user_id_t		generate_id() { return 0; };
 	virtual ring_user_id_t	generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port) = 0;
 	uint32_t		get_mtu() { return m_mtu; }
 	bool			is_mp_ring() {return m_is_mp_ring;};

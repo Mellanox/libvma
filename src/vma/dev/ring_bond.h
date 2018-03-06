@@ -48,8 +48,8 @@ public:
 	virtual int		poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	virtual void		adapt_cq_moderation();
 	virtual bool		reclaim_recv_buffers(descq_t *rx_reuse);
-	virtual int		drain_and_proccess(cq_type_t cq_type);
-	virtual int		wait_for_notification_and_process_element(cq_type_t cq_type, int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
+	virtual int		drain_and_proccess();
+	virtual int		wait_for_notification_and_process_element(int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	virtual void		mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc); // Assume locked...
 	// Tx completion handling at the qp_mgr level is just re listing the desc+data buffer in the free lists
 	virtual void		mem_buf_desc_completion_with_error_tx(mem_buf_desc_t* p_tx_wc_buf_desc); // Assume locked...
@@ -68,7 +68,6 @@ public:
 	virtual void		mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc);
 	virtual bool		is_member(mem_buf_desc_owner* rng);
 	virtual bool		is_active_member(mem_buf_desc_owner* rng, ring_user_id_t id);
-	virtual ring_user_id_t	generate_id();
 	virtual ring_user_id_t	generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port);
 	virtual bool 		get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe);
 	virtual int		modify_ratelimit(struct vma_rate_limit_t &rate_limit);

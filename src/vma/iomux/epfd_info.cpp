@@ -682,7 +682,7 @@ int epfd_info::ring_wait_for_notification_and_process_element(uint64_t *p_poll_s
 		if (p_cq_ch_info) {
 			ring* p_ready_ring = p_cq_ch_info->get_ring();
 			// Handle the CQ notification channel
-			int ret = p_ready_ring->wait_for_notification_and_process_element(CQT_RX, fd, p_poll_sn, pv_fd_ready_array);
+			int ret = p_ready_ring->wait_for_notification_and_process_element(fd, p_poll_sn, pv_fd_ready_array);
 			if (ret < 0) {
 				if (errno == EAGAIN || errno == EBUSY) {
 					__log_dbg("Error in ring->wait_for_notification_and_process_element() of %p (errno=%d %m)", p_ready_ring, errno);
