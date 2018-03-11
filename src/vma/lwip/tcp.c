@@ -793,7 +793,17 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 			}
 		}
 	}
-
+	/* Check if KEEPALIVE should be sent if zero-window ack probe was received */
+	if (pcb->rcv_wnd == 0 && get_tcp_state(pcb) == ESTABLISHED && pcb->rtime >= 0) {
+		if (pcb->rtime >= 0 && (u32_t)(tcp_ticks - pcb->tmr) == (u32_t)pcb->rto) {
+			if (pcb->nrtx < sizeof(tcp_backoff) -1) {
+				pcb->nrtx++;
+				pcb->tmr = tcp_ticks;
+				pcb->rto = 1 << tcp_backoff[pcb->nrtx];
+				tcp_keepalive(pcb);
+			}
+		}
+	}
 	/* Check if KEEPALIVE should be sent */
 	if((pcb->so_options & SOF_KEEPALIVE) &&
 	   ((get_tcp_state(pcb) == ESTABLISHED) ||
