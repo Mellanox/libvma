@@ -98,7 +98,7 @@ u16_t lwip_tcp_mss = CONST_TCP_MSS;
 u8_t enable_ts_option = 0;
 /* slow timer value */
 static u32_t slow_tmr_interval;
-/* Incremented every coarse grained timer shot (typically every 500 ms). */
+/* Incremented every coarse grained timer shot (typically every slow_tmr_interval ms). */
 u32_t tcp_ticks = 0;
 const u8_t tcp_backoff[13] =
     { 1, 2, 3, 4, 5, 6, 7, 7, 7, 7, 7, 7, 7};
@@ -144,11 +144,11 @@ set_tmr_resolution(u32_t v)
 void
 tcp_tmr(struct tcp_pcb* pcb)
 {
-  /* Call tcp_fasttmr() every 100 ms */
+  /* Call tcp_fasttmr() every (slow_tmr_interval / 2) ms */
   tcp_fasttmr(pcb);
 
   if (++(pcb->tcp_timer) & 1) {
-    /* Call tcp_tmr() every 200 ms, i.e., every other timer
+    /* Call tcp_tmr() every slow_tmr_interval ms, i.e., every other timer
        tcp_tmr() is called. */
     tcp_slowtmr(pcb);
   }
@@ -696,7 +696,7 @@ tcp_connect(struct tcp_pcb *pcb, ip_addr_t *ipaddr, u16_t port,
 }
 
 /**
- * Called every 500 ms and implements the retransmission timer and the timer that
+ * Called every slow_tmr_interval ms and implements the retransmission timer and the timer that
  * closes the psb if it in TIME_WAIT state for enough time. It also increments
  * various timers such as the inactivity timer in PCB.
  *
@@ -918,7 +918,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 
 
 /**
- * Is called every TCP_FAST_INTERVAL (250 ms) and process data previously
+ * Is called every slow_tmr_interval and process data previously
  * "refused" by upper layer (application) and sends delayed ACKs.
  *
  * Automatically called from tcp_tmr().

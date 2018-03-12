@@ -1018,7 +1018,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
       m = (s16_t)(tcp_ticks - pcb->rttest);
 
       LWIP_DEBUGF(TCP_RTO_DEBUG, ("tcp_receive: experienced rtt %"U16_F" ticks (%"U16_F" msec).\n",
-                                  m, m * TCP_SLOW_INTERVAL));
+                                  m, m * slow_tmr_interval));
 
       /* This is taken directly from VJs original code in his paper */
       m = m - (pcb->sa >> 3);

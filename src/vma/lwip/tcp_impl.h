@@ -46,9 +46,7 @@ extern "C" {
 
 /* Functions for interfacing with TCP: */
 
-void             tcp_tmr     (struct tcp_pcb* pcb);  /* Must be called every
-                                         TCP_TMR_INTERVAL
-                                         ms. (Typically 250 ms). */
+void             tcp_tmr     (struct tcp_pcb* pcb);  /* Must be called every (slow_tmr_interval / 2) ms. */
 /* It is also possible to call these two functions at the right
    intervals (instead of calling tcp_tmr()). */
 void             tcp_slowtmr (struct tcp_pcb* pcb);
