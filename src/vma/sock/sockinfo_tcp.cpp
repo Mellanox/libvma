@@ -3654,18 +3654,17 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 				errno = EINVAL;
 				break;
 			}
-			if (sizeof(struct vma_rate_limit_t) <= __optlen) {
-				rate_limit = *(struct vma_rate_limit_t*)__optval; // value is in bytes per second
-			} else if (sizeof(uint32_t) <= __optlen) {
-				rate_limit.rate = *(uint32_t*)__optval; // value is in bytes per second
+			if (sizeof(struct vma_rate_limit_t) == __optlen) {
+				rate_limit = *(struct vma_rate_limit_t*)__optval; // value is in Kbits per second
+			} else if (sizeof(uint32_t) == __optlen) {
+				// value is in bytes per second
+				rate_limit.rate = BYTE_TO_KB(*(uint32_t*)__optval); // value is in bytes per second
 				rate_limit.max_burst_sz = 0;
 				rate_limit.typical_pkt_sz = 0;
 			} else {
 				errno = EINVAL;
 				break;
 			}
-
-			rate_limit.rate = BYTE_TO_KB(rate_limit.rate); // value is in bytes per second
 
 			lock_tcp_con();
 			ret = modify_ratelimit(m_p_connected_dst_entry, rate_limit);
