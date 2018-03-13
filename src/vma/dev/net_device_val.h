@@ -252,7 +252,6 @@ protected:
 	virtual ring*		create_ring(resource_allocation_key *key) = 0;
 	virtual void		create_br_address(const char* ifname) = 0;
 	virtual L2_address*	create_L2_address(const char* ifname) = 0;
-	void 			delete_L2_address();
 
 	resource_allocation_key* ring_key_redirection_reserve(resource_allocation_key *key);
 	resource_allocation_key* ring_key_redirection_release(resource_allocation_key *key);
