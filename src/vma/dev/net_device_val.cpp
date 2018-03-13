@@ -220,9 +220,6 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 		nd_logwarn("Mismatch between interface %s MTU=%d and VMA_MTU=%d. Make sure VMA_MTU and all offloaded interfaces MTUs match.", m_name.c_str(), m_mtu, safe_mce_sys().mtu);
 	}
 
-	m_local_addr    = ((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr;
-	m_netmask       = ((struct sockaddr_in *)ifa->ifa_netmask)->sin_addr.s_addr;
-
 	if (check_device_exist(m_base_name, BOND_DEVICE_FILE)) {
 		// this is a bond interface (or a vlan/alias over bond), find the slaves
 		valid = verify_bond_ipoib_or_eth_qp_creation();
@@ -233,6 +230,12 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 	}
 	if (!valid) {
 		goto destroy_cma_id;
+	}
+
+	/* Valid interface should have at least one IP address */
+	set_ip_array(ifa);
+	if (m_ip.empty()) {
+                goto destroy_cma_id;
 	}
 
 	/* Set interface state after all verifucations */
@@ -292,6 +295,28 @@ net_device_val::~net_device_val()
 		delete *slave;
 	}
 	m_slaves.clear();
+
+	ip_data_vector_t::iterator ip = m_ip.begin();
+	for (; ip != m_ip.end(); ++ip) {
+		delete *ip;
+	}
+	m_ip.clear();
+}
+
+void net_device_val::set_ip_array(struct ifaddrs* ifa)
+{
+	ip_data_t* p_val = NULL;
+
+	m_local_addr    = ((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr;
+	m_netmask       = ((struct sockaddr_in *)ifa->ifa_netmask)->sin_addr.s_addr;
+
+	p_val = new ip_data_t;
+	p_val->label = strdup((char *)ifa->ifa_name);
+	memset(&p_val->local_addr, 0, sizeof(in_addr_t));
+	memcpy(&p_val->local_addr, (in_addr_t *)&((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr, sizeof(in_addr_t));
+	memset(&p_val->netmask, 0, sizeof(in_addr_t));
+	memcpy(&p_val->netmask, (in_addr_t *)&((struct sockaddr_in *)ifa->ifa_netmask)->sin_addr.s_addr, sizeof(in_addr_t));
+	m_ip.push_back(p_val);
 }
 
 void net_device_val::configure()
