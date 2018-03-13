@@ -480,7 +480,6 @@ bool net_device_val::update_active_backup_slaves()
 		return 0;
 	}
 
-	delete_L2_address();
 	m_p_L2_addr = create_L2_address(m_name.c_str());
 	nd_logdbg("Slave changed old=%s new=%s",m_active_slave_name, active_slave);
 	bool found_active_slave = false;
@@ -609,7 +608,6 @@ bool net_device_val::update_active_slaves() {
 
 	/* restart if status changed */
 	if (changed) {
-		delete_L2_address();
 		m_p_L2_addr = create_L2_address(m_name.c_str());
 		// restart rings
 		rings_hash_map_t::iterator ring_iter;
@@ -847,14 +845,6 @@ void net_device_val::ring_adapt_cq_moderation()
 	}
 }
 
-void net_device_val::delete_L2_address()
-{
-	if (m_p_L2_addr) {
-		delete m_p_L2_addr;
-		m_p_L2_addr = NULL;
-	}
-}
-
 void net_device_val::register_to_ibverbs_events(event_handler_ibverbs *handler) {
 	for (size_t i = 0; i < m_slaves.size(); i++) {
 		bool found = false;
@@ -889,7 +879,6 @@ void net_device_val::unregister_to_ibverbs_events(event_handler_ibverbs *handler
 
 void net_device_val_eth::configure()
 {
-	delete_L2_address();
 	m_p_L2_addr = create_L2_address(m_name.c_str());
 
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -992,6 +981,10 @@ ring* net_device_val_eth::create_ring(resource_allocation_key *key)
 
 L2_address* net_device_val_eth::create_L2_address(const char* ifname)
 {
+	if (m_p_L2_addr) {
+		delete m_p_L2_addr;
+		m_p_L2_addr = NULL;
+	}
 	unsigned char hw_addr[ETH_ALEN];
 	get_local_ll_addr(ifname, hw_addr, ETH_ALEN, false);
 	return new ETH_addr(hw_addr);
@@ -1030,7 +1023,6 @@ void net_device_val_ib::configure()
 {
 	struct in_addr in;
 
-	delete_L2_address();
 	m_p_L2_addr = create_L2_address(m_name.c_str());
 
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -1087,6 +1079,10 @@ ring* net_device_val_ib::create_ring(resource_allocation_key *key)
 
 L2_address* net_device_val_ib::create_L2_address(const char* ifname)
 {
+	if (m_p_L2_addr) {
+		delete m_p_L2_addr;
+		m_p_L2_addr = NULL;
+	}
 	unsigned char hw_addr[IPOIB_HW_ADDR_LEN];
 	get_local_ll_addr(ifname, hw_addr, IPOIB_HW_ADDR_LEN, false);
 	return new IPoIB_addr(hw_addr);
