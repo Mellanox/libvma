@@ -209,6 +209,19 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 	}
 #endif // DEFINED_SOCKETXTREME
 
+	m_rdma_key = cma_id->route.addr.addr.ibaddr.pkey;
+	m_name = ifa->ifa_name;
+
+	set_if_idx(if_nametoindex(m_name.c_str()));
+	set_flags(ifa->ifa_flags);
+	set_mtu(get_if_mtu_from_ifname(m_name.c_str()));
+	if (safe_mce_sys().mtu != 0 && (int)safe_mce_sys().mtu != m_mtu) {
+		nd_logwarn("Mismatch between interface %s MTU=%d and VMA_MTU=%d. Make sure VMA_MTU and all offloaded interfaces MTUs match.", m_name.c_str(), m_mtu, safe_mce_sys().mtu);
+	}
+
+	m_local_addr    = ((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr;
+	m_netmask       = ((struct sockaddr_in *)ifa->ifa_netmask)->sin_addr.s_addr;
+
 	char base_ifname[IFNAMSIZ];
 	get_base_interface_name((const char*)(ifa->ifa_name), base_ifname, sizeof(base_ifname));
 	if (check_device_exist(base_ifname, BOND_DEVICE_FILE)) {
@@ -223,21 +236,12 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 		goto destroy_cma_id;
 	}
 
-	m_rdma_key = cma_id->route.addr.addr.ibaddr.pkey;
-	m_name = ifa->ifa_name;
-	m_if_idx        = if_nametoindex(m_name.c_str());
-	m_mtu           = get_if_mtu_from_ifname(m_name.c_str());
-	if (safe_mce_sys().mtu != 0 && (int)safe_mce_sys().mtu != m_mtu) {
-		nd_logwarn("Mismatch between interface %s MTU=%d and VMA_MTU=%d. Make sure VMA_MTU and all offloaded interfaces MTUs match.", m_name.c_str(), m_mtu, safe_mce_sys().mtu);
-	}
-	m_local_addr    = ((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr;
-	m_netmask       = ((struct sockaddr_in *)ifa->ifa_netmask)->sin_addr.s_addr;
-
-	if (ifa->ifa_flags & IFF_RUNNING) {
+	/* Set interface state after all verifucations */
+	if (m_flags & IFF_RUNNING) {
 		m_state = RUNNING;
 	}
 	else {
-		if (ifa->ifa_flags & IFF_UP) {
+		if (m_flags & IFF_UP) {
 			m_state = UP;
 		}
 		else {
@@ -248,7 +252,7 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 	nd_logdbg("Offload interface '%s': Mapped to ibv device '%s' [%p] on port %d (Active: %d), Running: %d",
 		ifa->ifa_name, ib_ctx->get_ibv_device()->name, ib_ctx->get_ibv_device(),
 		get_port_from_ifname(base_ifname), ib_ctx->is_active(get_port_from_ifname(base_ifname)),
-		(!!(ifa->ifa_flags & IFF_RUNNING)));
+		(!!(m_flags & IFF_RUNNING)));
 
 destroy_cma_id:
 	IF_RDMACM_FAILURE(rdma_destroy_id(cma_id)) {
@@ -291,7 +295,7 @@ net_device_val::~net_device_val()
 	m_slaves.clear();
 }
 
-void net_device_val::configure(struct ifaddrs* ifa)
+void net_device_val::configure()
 {
 	nd_logdbg("");
 
@@ -303,7 +307,7 @@ void net_device_val::configure(struct ifaddrs* ifa)
 	// gather the slave data (only for active-backup)-
 	char active_slave[IFNAMSIZ] = {0};
 
-	if (ifa->ifa_flags & IFF_MASTER || check_device_exist(m_base_name, BOND_DEVICE_FILE)) {
+	if (m_flags & IFF_MASTER || check_device_exist(m_base_name, BOND_DEVICE_FILE)) {
 		// bond device
 
 		verify_bonding_mode();
@@ -331,7 +335,7 @@ void net_device_val::configure(struct ifaddrs* ifa)
 			nd_logdbg("failed to find the active slave, Moving to LAG state");
 		}
 	}
-	else if (check_netvsc_device_exist(ifa->ifa_name)) {
+	else if (check_netvsc_device_exist(m_name.c_str())) {
 		m_bond = NETVSC;
 		struct ifaddrs slave_ifa;
 		if (!get_netvsc_slave(m_base_name, &slave_ifa)) {
@@ -889,7 +893,7 @@ void net_device_val::unregister_to_ibverbs_events(event_handler_ibverbs *handler
 	}
 }
 
-void net_device_val_eth::configure(struct ifaddrs* ifa)
+void net_device_val_eth::configure()
 {
 	delete_L2_address();
 	m_p_L2_addr = create_L2_address(m_name.c_str());
@@ -909,7 +913,7 @@ void net_device_val_eth::configure(struct ifaddrs* ifa)
 		vlog_printf(VLOG_WARNING, " ******************************************************************\n");
 		m_state = INVALID;
 	}
-	if(!m_vlan && (ifa->ifa_flags & IFF_MASTER)) {
+	if(!m_vlan && (m_flags & IFF_MASTER)) {
 		//in case vlan is configured on slave
 		m_vlan = get_vlan_id_from_ifname(m_slaves[0]->if_name);
 	}
@@ -1028,11 +1032,9 @@ net_device_val_ib::~net_device_val_ib()
 	}
 }
 
-void net_device_val_ib::configure(struct ifaddrs* ifa)
+void net_device_val_ib::configure()
 {
 	struct in_addr in;
-
-	NOT_IN_USE(ifa);
 
 	delete_L2_address();
 	m_p_L2_addr = create_L2_address(m_name.c_str());
