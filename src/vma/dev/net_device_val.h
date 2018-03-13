@@ -183,14 +183,13 @@ public:
 	};
 public:
 
-	net_device_val(transport_type_t transport_type);
+	net_device_val(void *desc = NULL);
 	/* on init:
 	 *      get ibv, sys channel handlers from the relevant collections.
 	 *      register to ibv_ctx, rdma_cm and sys_net_channel
 	 *
 	 * */
 	virtual ~net_device_val();
-	virtual void 		configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id);
 
 	ring*                   reserve_ring(resource_allocation_key*); // create if not exists
 	bool 			release_ring(resource_allocation_key*); // delete from m_hash if ref_cnt == 0
@@ -198,11 +197,12 @@ public:
 	virtual std::string     to_str();
 	int                     get_mtu() { return m_mtu; }
 	int                     get_if_idx() { return m_if_idx; }
+	inline void set_transport_type(transport_type_t value) { m_transport_type = value; }
 	transport_type_t        get_transport_type() const { return m_transport_type; }
 	bool 			update_active_backup_slaves();
 	in_addr_t               get_local_addr() {return m_local_addr;};
 	in_addr_t               get_netmask() {return m_netmask;};
-	bool                    is_valid() { return true; };
+	bool                    is_valid() { return (INVALID != m_state); }
 	int                     global_ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array = NULL);
 	int                     global_ring_request_notification(uint64_t poll_sn) ;
 	int                     ring_drain_and_proccess();
@@ -231,6 +231,7 @@ protected:
 	char           			m_base_name[IFNAMSIZ];
 	char 					m_active_slave_name[IFNAMSIZ]; //only for active-backup
 
+	virtual void 		configure(struct ifaddrs* ifa);
 	virtual ring*		create_ring(resource_allocation_key *key) = 0;
 	virtual void		create_br_address(const char* ifname) = 0;
 	virtual L2_address*	create_L2_address(const char* ifname) = 0;
@@ -243,25 +244,39 @@ protected:
 	bond_type m_bond;
 	bond_xmit_hash_policy m_bond_xmit_hash_policy;
 	int m_bond_fail_over_mac;
+	uint16_t		m_rdma_key;
 
 private:
+	bool 			verify_ipoib_mode(struct ifaddrs* ifa);
+	bool 			verify_eth_qp_creation(const char* ifname);
+	bool 			verify_bond_ipoib_or_eth_qp_creation(struct ifaddrs * ifa);
+	bool 			verify_netvsc_ipoib_or_eth_qp_creation(const char *slave_name, struct ifaddrs *ifa_netvsc);
+	bool 			verify_ipoib_or_eth_qp_creation(const char* interface_name, struct ifaddrs * ifa);
+	bool 			verify_enable_ipoib(const char* ifname);
+
 	bool get_up_and_active_slaves(bool* up_and_active_slaves, size_t size);
 };
 
 class net_device_val_eth : public net_device_val
 {
 public:
-	net_device_val_eth() : net_device_val(VMA_TRANSPORT_ETH), m_vlan(0) {};
-	virtual void 		configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id);
+	net_device_val_eth(void *desc) : net_device_val(desc), m_vlan(0) {
+		set_transport_type(VMA_TRANSPORT_ETH);
+		if (INVALID != m_state) {
+			net_device_val::configure((struct ifaddrs*)desc);
+			configure((struct ifaddrs*)desc);
+		}
+	}
 	uint16_t		get_vlan() {return m_vlan;}
 	std::string		to_str();
 
 protected:
 	virtual ring*		create_ring(resource_allocation_key *key);
-	virtual L2_address*	create_L2_address(const char* ifname);
-	virtual void		create_br_address(const char* ifname);
 
 private:
+	void			configure(struct ifaddrs* ifa);
+	L2_address*		create_L2_address(const char* ifname);
+	void			create_br_address(const char* ifname);
 	uint16_t		m_vlan;
 };
 
@@ -269,20 +284,26 @@ private:
 class net_device_val_ib : public net_device_val,  public neigh_observer, public cache_observer
 {
 public:
-	net_device_val_ib() : net_device_val(VMA_TRANSPORT_IB), m_pkey(0), m_br_neigh(NULL) {};
+	net_device_val_ib(void *desc) : net_device_val(desc), m_pkey(0), m_br_neigh(NULL) {
+		set_transport_type(VMA_TRANSPORT_IB);
+		if (INVALID != m_state) {
+			net_device_val::configure((struct ifaddrs*)desc);
+			configure((struct ifaddrs*)desc);
+		}
+	}
 	~net_device_val_ib();
 
-	virtual void 		configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id);
 	std::string		to_str();
 	const neigh_ib_broadcast* get_br_neigh() {return m_br_neigh;}
 	virtual transport_type_t get_obs_transport_type() const {return get_transport_type();}
 
 protected:
 	ring*			create_ring(resource_allocation_key *key);
-	virtual L2_address*	create_L2_address(const char* ifname);
-	virtual void		create_br_address(const char* ifname);
 
 private:
+	void			configure(struct ifaddrs* ifa);
+	L2_address*		create_L2_address(const char* ifname);
+	void			create_br_address(const char* ifname);
 	uint16_t		m_pkey;
 	neigh_ib_broadcast*	m_br_neigh;
 };
