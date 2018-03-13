@@ -32,17 +32,18 @@
 
 
 
-#include "vma/dev/net_device_val.h"
 #include <string.h>
 #include <ifaddrs.h>
-#include "vma/util/if.h"
 #include <sys/epoll.h>
 #include <linux/if_infiniband.h>
 #include <linux/if_ether.h>
 #include <sys/epoll.h>
 
 #include "utils/bullseye.h"
+#include "vma/util/if.h"
+#include "vma/dev/net_device_val.h"
 #include "vma/util/utils.h"
+#include "vma/util/valgrind.h"
 #include "vma/event/event_handler_manager.h"
 #include "vma/proto/L2_address.h"
 #include "vma/dev/ib_ctx_handler_collection.h"
@@ -55,14 +56,7 @@
 #include "vma/proto/neighbour_table_mgr.h"
 #include "ring_profile.h"
 
-
-
 #define MODULE_NAME             "ndv"
-#undef  MODULE_HDR_INFO
-#define MODULE_HDR_INFO         MODULE_NAME "[%s]:%d:%s() "
-#undef	__INFO__
-#define __INFO__		m_name.c_str()
-
 
 #define nd_logpanic           __log_panic
 #define nd_logerr             __log_err
@@ -136,11 +130,132 @@ void ring_alloc_logic_attr::set_user_id_key(uint64_t user_id_key)
 	}
 }
 
-net_device_val::net_device_val(transport_type_t transport_type) : m_if_idx(0), m_local_addr(0),
-m_netmask(0), m_mtu(0), m_state(INVALID), m_p_L2_addr(NULL), m_p_br_addr(NULL),
-m_transport_type(transport_type),  m_lock("net_device_val lock"), m_bond(NO_BOND),
-m_bond_xmit_hash_policy(XHP_LAYER_2), m_bond_fail_over_mac(0)
+net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 {
+	struct rdma_event_channel *p_cma_event_channel = NULL;
+	struct ifaddrs* ifa = (struct ifaddrs*)desc;
+	bool valid, is_netvsc;
+	rdma_cm_id* cma_id;
+	ib_ctx_handler* ib_ctx;
+	struct ifaddrs slave;
+
+	if (NULL == desc) {
+		// invalid net_device_val
+		nd_logerr("Invalid net_device_val name=%s", "NA");
+		m_state = INVALID;
+		return;
+	}
+
+	m_if_idx = 0;
+	m_mtu = 0;
+	m_local_addr = 0;
+	m_netmask = 0;
+	m_state = INVALID;
+	m_p_L2_addr = NULL;
+	m_p_br_addr = NULL;
+	m_bond = NO_BOND;
+	m_bond_xmit_hash_policy = XHP_LAYER_2;
+	m_bond_fail_over_mac = 0;
+	m_transport_type = VMA_TRANSPORT_UNKNOWN;
+
+	p_cma_event_channel = rdma_create_event_channel();
+	if (NULL == p_cma_event_channel) {
+		nd_logerr("Failed rdma_create_event_channel() (errno=%d %m)", errno);
+		return ;
+	}
+
+	nd_logdbg("Checking if can offload on interface '%s' (addr=%d.%d.%d.%d, flags=%X)",
+			ifa->ifa_name, NIPQUAD(((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr), ifa->ifa_flags);
+
+	cma_id = NULL;
+	IF_RDMACM_FAILURE(rdma_create_id(p_cma_event_channel, &cma_id, NULL, RDMA_PS_UDP)) { // UDP vs IP_OVER_IB?
+		nd_logerr("Failed in rdma_create_id (RDMA_PS_UDP) (errno=%d %m)", errno);
+		return ;
+	} ENDIF_RDMACM_FAILURE;
+
+	is_netvsc = check_netvsc_device_exist(ifa->ifa_name);
+	if (is_netvsc) {
+		nd_logdbg("Found netvsc interface ('%s')", ifa->ifa_name);
+		if (!get_netvsc_slave(ifa->ifa_name, &slave)) {
+			goto destroy_cma_id;
+		}
+		nd_logdbg("Found netvsc lower interface ('%s') is lower of ('%s')", slave.ifa_name, ifa->ifa_name);
+		ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(slave.ifa_name);
+	} else {
+		IF_RDMACM_FAILURE(rdma_bind_addr(cma_id, (struct sockaddr*)ifa->ifa_addr)) {
+			nd_logdbg("Failed in rdma_bind_addr (src=%d.%d.%d.%d) (errno=%d %m)", NIPQUAD(((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr), errno);
+			errno = 0; //in case of not-offloaded, resource is not available (errno=11), but this is normal and we don't want the user to know about this
+			goto destroy_cma_id;
+		} ENDIF_RDMACM_FAILURE;
+
+		// loopback might get here but without ibv_context in the cma_id
+		if (NULL == cma_id->verbs) {
+			nd_logdbg("Blocking offload: No verbs context in cma_id on interfaces ('%s')", ifa->ifa_name);
+			goto destroy_cma_id;
+		}
+		ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(cma_id->verbs);
+	}
+
+	if (NULL == ib_ctx) {
+		nd_logdbg("Blocking offload: can't create ib_ctx on interfaces ('%s')", ifa->ifa_name);
+		goto destroy_cma_id;
+	}
+
+#ifdef DEFINED_SOCKETXTREME
+	// only support mlx5 device in this mode
+	if(strncmp(ib_ctx->get_ibv_device()->name, "mlx4", 4) == 0) {
+		nd_logdbg("Blocking offload: mlx4 interfaces ('%s') in socketxtreme mode", ifa->ifa_name);
+		goto destroy_cma_id;
+	}
+#endif // DEFINED_SOCKETXTREME
+
+	char base_ifname[IFNAMSIZ];
+	get_base_interface_name((const char*)(ifa->ifa_name), base_ifname, sizeof(base_ifname));
+	if (check_device_exist(base_ifname, BOND_DEVICE_FILE)) {
+		// this is a bond interface (or a vlan/alias over bond), find the slaves
+		valid = verify_bond_ipoib_or_eth_qp_creation(ifa);
+	} else if (is_netvsc) {
+		valid = verify_netvsc_ipoib_or_eth_qp_creation(slave.ifa_name, ifa);
+	} else {
+		valid = verify_ipoib_or_eth_qp_creation(ifa->ifa_name, ifa);
+	}
+	if (!valid) {
+		goto destroy_cma_id;
+	}
+
+	m_rdma_key = cma_id->route.addr.addr.ibaddr.pkey;
+	m_name = ifa->ifa_name;
+	m_if_idx        = if_nametoindex(m_name.c_str());
+	m_mtu           = get_if_mtu_from_ifname(m_name.c_str());
+	if (safe_mce_sys().mtu != 0 && (int)safe_mce_sys().mtu != m_mtu) {
+		nd_logwarn("Mismatch between interface %s MTU=%d and VMA_MTU=%d. Make sure VMA_MTU and all offloaded interfaces MTUs match.", m_name.c_str(), m_mtu, safe_mce_sys().mtu);
+	}
+	m_local_addr    = ((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr;
+	m_netmask       = ((struct sockaddr_in *)ifa->ifa_netmask)->sin_addr.s_addr;
+
+	if (ifa->ifa_flags & IFF_RUNNING) {
+		m_state = RUNNING;
+	}
+	else {
+		if (ifa->ifa_flags & IFF_UP) {
+			m_state = UP;
+		}
+		else {
+			m_state = DOWN;
+		}
+	}
+
+	nd_logdbg("Offload interface '%s': Mapped to ibv device '%s' [%p] on port %d (Active: %d), Running: %d",
+		ifa->ifa_name, ib_ctx->get_ibv_device()->name, ib_ctx->get_ibv_device(),
+		get_port_from_ifname(base_ifname), ib_ctx->is_active(get_port_from_ifname(base_ifname)),
+		(!!(ifa->ifa_flags & IFF_RUNNING)));
+
+destroy_cma_id:
+	IF_RDMACM_FAILURE(rdma_destroy_id(cma_id)) {
+		nd_logerr("Failed in rdma_destroy_id (errno=%d %m)", errno);
+	} ENDIF_RDMACM_FAILURE;
+
+	rdma_destroy_event_channel(p_cma_event_channel);
 }
 
 net_device_val::~net_device_val()
@@ -168,54 +283,17 @@ net_device_val::~net_device_val()
 		delete m_p_L2_addr;
 		m_p_L2_addr = NULL;
 	}
-	slave_data_vector_t::iterator it = m_slaves.begin();
-	for (; it != m_slaves.end(); ++it) {
-		delete *it;
+
+	slave_data_vector_t::iterator slave = m_slaves.begin();
+	for (; slave != m_slaves.end(); ++slave) {
+		delete *slave;
 	}
 	m_slaves.clear();
 }
 
-void net_device_val::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
+void net_device_val::configure(struct ifaddrs* ifa)
 {
 	nd_logdbg("");
-
-	if (NULL == ifa) {
-		// invalid net_device_val
-		nd_logerr("Invalid net_device_val name=%s", "NA");
-		m_state = INVALID;
-		return;
-	}
-
-	m_name = ifa->ifa_name;
-
-	if (NULL == cma_id) {
-		// invalid net_device_val
-		nd_logerr("Invalid net_device_val name=%s", ifa->ifa_name);
-		m_state = INVALID;
-		return;
-	}
-
-	m_p_L2_addr	= NULL;
-
-	m_if_idx        = if_nametoindex(m_name.c_str());
-	m_mtu           = get_if_mtu_from_ifname(m_name.c_str());
-	if (safe_mce_sys().mtu != 0 && (int)safe_mce_sys().mtu != m_mtu) {
-		nd_logwarn("Mismatch between interface %s MTU=%d and VMA_MTU=%d. Make sure VMA_MTU and all offloaded interfaces MTUs match.", m_name.c_str(), m_mtu, safe_mce_sys().mtu);
-	}
-	m_local_addr    = ((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr;
-	m_netmask       = ((struct sockaddr_in *)ifa->ifa_netmask)->sin_addr.s_addr;
-
-	if (ifa->ifa_flags & IFF_RUNNING) {
-		m_state = RUNNING;
-	}
-	else {
-		if (ifa->ifa_flags & IFF_UP) {
-			m_state = UP;
-		}
-		else {
-			m_state = DOWN;
-		}
-	}
 
 	if (get_base_interface_name(m_name.c_str(), m_base_name, sizeof(m_base_name))) {
 		nd_logerr("couldn't resolve bonding base interface name from %s", m_name.c_str());
@@ -811,10 +889,8 @@ void net_device_val::unregister_to_ibverbs_events(event_handler_ibverbs *handler
 	}
 }
 
-void net_device_val_eth::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
+void net_device_val_eth::configure(struct ifaddrs* ifa)
 {
-	net_device_val::configure(ifa, cma_id);
-
 	delete_L2_address();
 	m_p_L2_addr = create_L2_address(m_name.c_str());
 
@@ -952,11 +1028,11 @@ net_device_val_ib::~net_device_val_ib()
 	}
 }
 
-void net_device_val_ib::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id)
+void net_device_val_ib::configure(struct ifaddrs* ifa)
 {
 	struct in_addr in;
 
-	net_device_val::configure(ifa, cma_id);
+	NOT_IN_USE(ifa);
 
 	delete_L2_address();
 	m_p_L2_addr = create_L2_address(m_name.c_str());
@@ -980,7 +1056,7 @@ void net_device_val_ib::configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id
 	}
 	m_br_neigh = dynamic_cast<neigh_ib_broadcast*>(p_ces);
 
-	m_pkey = cma_id->route.addr.addr.ibaddr.pkey; // In order to create a UD QP outside the RDMA_CM API we need the pkey value (qp_mgr will convert it to pkey_index)
+	m_pkey = m_rdma_key; // In order to create a UD QP outside the RDMA_CM API we need the pkey value (qp_mgr will convert it to pkey_index)
 }
 
 ring* net_device_val_ib::create_ring(resource_allocation_key *key)
@@ -1042,4 +1118,206 @@ std::string net_device_val_ib::to_str()
 }
 
 
+bool net_device_val::verify_bond_ipoib_or_eth_qp_creation(struct ifaddrs * ifa)
+{
+	char base_ifname[IFNAMSIZ];
+	get_base_interface_name((const char*)(ifa->ifa_name), base_ifname, sizeof(base_ifname));
+	char slaves[IFNAMSIZ * MAX_SLAVES] = {0};
+	if (!get_bond_slaves_name_list(base_ifname, slaves, sizeof slaves)) {
+		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+		vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded, slave list or bond name could not be found\n", ifa->ifa_name);
+		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+		return false;
+	}
+	//go over all slaves and check preconditions
+	bool bond_ok = true;
+	char * slave_name;
+	slave_name = strtok (slaves," ");
+	while (slave_name != NULL)
+	{
+		char* p = strchr(slave_name, '\n');
+		if (p) *p = '\0'; // Remove the tailing 'new line" char
+		if (!verify_ipoib_or_eth_qp_creation(slave_name, ifa)) {
+			//check all slaves but print only once for bond
+			bond_ok =  false;
+		}
+		slave_name = strtok (NULL, " ");
+	}
+	if (!bond_ok) {
+		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+		vlog_printf(VLOG_WARNING,"* Bond %s will not be offloaded due to problem with it's slaves.\n", ifa->ifa_name);
+		vlog_printf(VLOG_WARNING,"* Check warning messages for more information.\n");
+		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+	}
+	return bond_ok;
+}
 
+bool net_device_val::verify_netvsc_ipoib_or_eth_qp_creation(const char *slave_name, struct ifaddrs *ifa_netvsc)
+{
+	if (get_iftype_from_ifname(ifa_netvsc->ifa_name) == ARPHRD_INFINIBAND) {
+		return false;
+	}
+
+	return verify_eth_qp_creation(slave_name);
+}
+
+//interface name can be slave while ifa struct can describe bond
+bool net_device_val::verify_ipoib_or_eth_qp_creation(const char* interface_name, struct ifaddrs * ifa)
+{
+	int iftype = get_iftype_from_ifname(interface_name);
+	if (iftype == ARPHRD_INFINIBAND) {
+		if (verify_enable_ipoib(interface_name) && verify_ipoib_mode(ifa)) {
+			return true;
+		}
+	} else {
+		if (verify_eth_qp_creation(interface_name)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool net_device_val::verify_enable_ipoib(const char* ifname)
+{
+	NOT_IN_USE(ifname);
+	if(!safe_mce_sys().enable_ipoib) {
+		nd_logdbg("Blocking offload: IPoIB interfaces ('%s')", ifname);
+		return false;
+	}
+	return true;
+}
+
+// Verify IPoIB is in 'datagram mode' for proper VMA with flow steering operation
+// Also verify umcast is disabled for IB flow
+bool net_device_val::verify_ipoib_mode(struct ifaddrs* ifa)
+{
+	char filename[256] = "\0";
+	char ifname[IFNAMSIZ] = "\0";
+	if (validate_ipoib_prop(ifa->ifa_name, ifa->ifa_flags, IPOIB_MODE_PARAM_FILE, "datagram", 8, filename, ifname)) {
+		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+		vlog_printf(VLOG_WARNING,"* IPoIB mode of interface '%s' is \"connected\" !\n", ifa->ifa_name);
+		vlog_printf(VLOG_WARNING,"* Please change it to datagram: \"echo datagram > %s\" before loading your application with VMA library\n", filename);
+		vlog_printf(VLOG_WARNING,"* VMA doesn't support IPoIB in connected mode.\n");
+		vlog_printf(VLOG_WARNING,"* Please refer to VMA Release Notes for more information\n");
+		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+		return false;
+	}
+	else {
+		nd_logdbg("verified interface '%s' is running in datagram mode", ifa->ifa_name);
+	}
+
+	if (validate_ipoib_prop(ifa->ifa_name, ifa->ifa_flags, UMCAST_PARAM_FILE, "0", 1, filename, ifname)) { // Extract UMCAST flag (only for IB transport types)
+		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+		vlog_printf(VLOG_WARNING,"* UMCAST flag is Enabled for interface %s !\n", ifa->ifa_name);
+		vlog_printf(VLOG_WARNING,"* Please disable it: \"echo 0 > %s\" before loading your application with VMA library\n", filename);
+		vlog_printf(VLOG_WARNING,"* This option in no longer needed in this version\n");
+		vlog_printf(VLOG_WARNING,"* Please refer to Release Notes for more information\n");
+		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+		return false;
+	}
+	else {
+		nd_logdbg("verified interface '%s' is running with umcast disabled", ifa->ifa_name);
+	}
+	return true;
+}
+
+//ifname should point to a physical device
+bool net_device_val::verify_eth_qp_creation(const char* ifname)
+{
+	bool success = false;
+	struct ibv_cq* cq = NULL;
+	struct ibv_comp_channel *channel = NULL;
+	struct ibv_qp* qp = NULL;
+
+	struct ibv_qp_init_attr qp_init_attr;
+	memset(&qp_init_attr, 0, sizeof(qp_init_attr));
+
+	vma_ibv_cq_init_attr attr;
+	memset(&attr, 0, sizeof(attr));
+
+	qp_init_attr.cap.max_send_wr = MCE_DEFAULT_TX_NUM_WRE;
+	qp_init_attr.cap.max_recv_wr = MCE_DEFAULT_RX_NUM_WRE;
+	qp_init_attr.cap.max_inline_data = MCE_DEFAULT_TX_MAX_INLINE;
+	qp_init_attr.cap.max_send_sge = MCE_DEFAULT_TX_NUM_SGE;
+	qp_init_attr.cap.max_recv_sge = MCE_DEFAULT_RX_NUM_SGE;
+	qp_init_attr.sq_sig_all = 0;
+	qp_init_attr.qp_type = IBV_QPT_RAW_PACKET;
+
+	//find ib_cxt
+	char base_ifname[IFNAMSIZ];
+	get_base_interface_name((const char*)(ifname), base_ifname, sizeof(base_ifname));
+	ib_ctx_handler* p_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(base_ifname);
+
+	if (!p_ib_ctx) {
+		nd_logdbg("Cant find ib_ctx for interface %s", base_ifname);
+		goto release_resources;
+	}
+
+	//create qp resources
+	channel = ibv_create_comp_channel(p_ib_ctx->get_ibv_context());
+	if (!channel) {
+		nd_logdbg("channel creation failed for interface %s (errno=%d %m)", ifname, errno);
+		goto release_resources;
+	}
+	VALGRIND_MAKE_MEM_DEFINED(channel, sizeof(ibv_comp_channel));
+	cq = vma_ibv_create_cq(p_ib_ctx->get_ibv_context(), safe_mce_sys().tx_num_wr, (void*)this, channel, 0, &attr);
+	if (!cq) {
+		nd_logdbg("cq creation failed for interface %s (errno=%d %m)", ifname, errno);
+		goto release_resources;
+	}
+	qp_init_attr.recv_cq = cq;
+	qp_init_attr.send_cq = cq;
+	qp = ibv_create_qp(p_ib_ctx->get_ibv_pd(), &qp_init_attr);
+	if (qp) {
+		success = true;
+		if (!priv_ibv_query_flow_tag_supported(qp, get_port_from_ifname(base_ifname))) {
+			p_ib_ctx->set_flow_tag_capability(true);
+		}
+		nd_logdbg("verified interface %s for flow tag capabilities : %s", ifname, p_ib_ctx->get_flow_tag_capability() ? "enabled" : "disabled");
+
+	} else {
+		nd_logdbg("QP creation failed on interface %s (errno=%d %m), Traffic will not be offloaded \n", ifname, errno);
+		int err = errno; //verify_raw_qp_privliges can overwrite errno so keep it before the call
+		if (validate_raw_qp_privliges() == 0) {
+			// MLNX_OFED raw_qp_privliges file exist with bad value
+			vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+			vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", ifname);
+			vlog_printf(VLOG_WARNING,"* Working in this mode might causes VMA malfunction over Ethernet interfaces\n");
+			vlog_printf(VLOG_WARNING,"* WARNING: the following steps will restart your network interface!\n");
+			vlog_printf(VLOG_WARNING,"* 1. \"echo options ib_uverbs disable_raw_qp_enforcement=1 > /etc/modprobe.d/ib_uverbs.conf\"\n");
+			vlog_printf(VLOG_WARNING,"* 2. \"/etc/init.d/openibd restart\"\n");
+			vlog_printf(VLOG_WARNING,"* Read the RAW_PACKET QP root access enforcement section in the VMA's User Manual for more information\n");
+			vlog_printf(VLOG_WARNING,"******************************************************************************************************\n");
+		}
+		else if (err == EPERM) {
+			// file doesn't exists, print msg if errno is a permission problem
+			vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+			vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", ifname);
+			vlog_printf(VLOG_WARNING,"* Offloaded resources are restricted to root or user with CAP_NET_RAW privileges\n");
+			vlog_printf(VLOG_WARNING,"* Read the CAP_NET_RAW and root access section in the VMA's User Manual for more information\n");
+			vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+		}
+	}
+
+release_resources:
+	if(qp) {
+		IF_VERBS_FAILURE(ibv_destroy_qp(qp)) {
+			nd_logdbg("qp destroy failed on interface %s (errno=%d %m)", ifname, errno);
+			success = false;
+		} ENDIF_VERBS_FAILURE;
+	}
+	if (cq) {
+		IF_VERBS_FAILURE(ibv_destroy_cq(cq)) {
+			nd_logdbg("cq destroy failed on interface %s (errno=%d %m)", ifname, errno);
+			success = false;
+		} ENDIF_VERBS_FAILURE;
+	}
+	if (channel) {
+		IF_VERBS_FAILURE(ibv_destroy_comp_channel(channel)) {
+			nd_logdbg("channel destroy failed on interface %s (errno=%d %m)", ifname, errno);
+			success = false;
+		} ENDIF_VERBS_FAILURE;
+		VALGRIND_MAKE_MEM_UNDEFINED(channel, sizeof(ibv_comp_channel));
+	}
+	return success;
+}
