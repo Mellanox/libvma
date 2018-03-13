@@ -155,6 +155,28 @@ typedef struct slave_data {
 
 typedef std::vector<slave_data_t*> slave_data_vector_t;
 
+typedef struct ip_data {
+	char*     label;
+	int       flags;
+	in_addr_t local_addr;
+	in_addr_t netmask;
+	ip_data() {
+		label = NULL;
+		flags = 0;
+		local_addr = 0;
+		netmask = 0;
+	}
+	~ip_data() {
+		free(label);
+		label = NULL;
+		flags = 0;
+		local_addr = 0;
+		netmask = 0;
+	}
+} ip_data_t;
+
+typedef std::vector<ip_data_t*> ip_data_vector_t;
+
 
 /*
  * Represents Offloading capable device such as eth4, ib1, eth3.5, eth5:6
@@ -199,6 +221,7 @@ public:
 		m_name = ifname;
 		get_base_interface_name(ifname, m_base_name, sizeof(m_base_name));
 	}
+	void set_ip_array(struct ifaddrs* ifa);
 
 	inline int get_type() { return m_type; }
 	inline int get_if_idx() { return m_if_idx; }
@@ -233,6 +256,9 @@ protected:
 	int              m_type;           /* This defines the type of the link. */
 	int              m_flags;          /* Device Flags (IFF_x).  */
 	int              m_mtu;            /* MTU of the device. */
+
+	/* See: RFC 3549 2.3.3.2. */
+	ip_data_vector_t m_ip;             /* vector of ip addresses */
 
 	in_addr_t		m_local_addr;
 	in_addr_t		m_netmask;
