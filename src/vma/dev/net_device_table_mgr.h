@@ -117,8 +117,6 @@ private:
 	if_index_to_net_dev_lst_t	m_if_indx_to_nd_val_lst;
 	int                             m_num_devices;
 
-	struct rdma_event_channel       *m_p_cma_event_channel;
-
 	int			        m_global_ring_epfd;
 	int 			    m_global_ring_pipe_fds[2];
 
@@ -131,14 +129,6 @@ private:
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif
-
-	bool 			verify_ipoib_mode(struct ifaddrs* ifa);
-	bool			verify_mlx4_ib_device(const char* ifname);
-	bool 			verify_eth_qp_creation(const char* ifname);
-	bool 			verify_bond_ipoib_or_eth_qp_creation(struct ifaddrs * ifa);
-	bool 			verify_netvsc_ipoib_or_eth_qp_creation(const char *slave_name, struct ifaddrs *ifa_netvsc);
-	bool 			verify_ipoib_or_eth_qp_creation(const char* interface_name, struct ifaddrs * ifa);
-	bool 			verify_enable_ipoib(const char* ifname);
 };
 
 extern net_device_table_mgr* g_p_net_device_table_mgr; 
