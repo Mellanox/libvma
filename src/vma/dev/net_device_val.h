@@ -195,11 +195,16 @@ public:
 	inline void set_if_idx(int if_idx) { m_if_idx = if_idx; }
 	inline void set_flags(int flags) { m_flags = flags; }
 	inline void set_mtu(int mtu) { m_mtu = mtu; }
+	inline void set_ifname(char *ifname) {
+		m_name = ifname;
+		get_base_interface_name(ifname, m_base_name, sizeof(m_base_name));
+	}
 
 	inline int get_type() { return m_type; }
 	inline int get_if_idx() { return m_if_idx; }
 	inline int get_flags() { return m_flags; }
 	inline int get_mtu() { return m_mtu; }
+	inline char* get_ifname() { return (char *)m_name.c_str(); }
 
 	ring*                   reserve_ring(resource_allocation_key*); // create if not exists
 	bool 			release_ring(resource_allocation_key*); // delete from m_hash if ref_cnt == 0

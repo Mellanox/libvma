@@ -210,8 +210,8 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 #endif // DEFINED_SOCKETXTREME
 
 	m_rdma_key = cma_id->route.addr.addr.ibaddr.pkey;
-	m_name = ifa->ifa_name;
 
+	set_ifname(ifa->ifa_name);
 	set_if_idx(if_nametoindex(m_name.c_str()));
 	set_flags(ifa->ifa_flags);
 	set_mtu(get_if_mtu_from_ifname(m_name.c_str()));
@@ -222,9 +222,7 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 	m_local_addr    = ((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr;
 	m_netmask       = ((struct sockaddr_in *)ifa->ifa_netmask)->sin_addr.s_addr;
 
-	char base_ifname[IFNAMSIZ];
-	get_base_interface_name((const char*)(ifa->ifa_name), base_ifname, sizeof(base_ifname));
-	if (check_device_exist(base_ifname, BOND_DEVICE_FILE)) {
+	if (check_device_exist(m_base_name, BOND_DEVICE_FILE)) {
 		// this is a bond interface (or a vlan/alias over bond), find the slaves
 		valid = verify_bond_ipoib_or_eth_qp_creation(ifa);
 	} else if (is_netvsc) {
@@ -251,7 +249,7 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 
 	nd_logdbg("Offload interface '%s': Mapped to ibv device '%s' [%p] on port %d (Active: %d), Running: %d",
 		ifa->ifa_name, ib_ctx->get_ibv_device()->name, ib_ctx->get_ibv_device(),
-		get_port_from_ifname(base_ifname), ib_ctx->is_active(get_port_from_ifname(base_ifname)),
+		get_port_from_ifname(m_base_name), ib_ctx->is_active(get_port_from_ifname(m_base_name)),
 		(!!(m_flags & IFF_RUNNING)));
 
 destroy_cma_id:
@@ -298,11 +296,6 @@ net_device_val::~net_device_val()
 void net_device_val::configure()
 {
 	nd_logdbg("");
-
-	if (get_base_interface_name(m_name.c_str(), m_base_name, sizeof(m_base_name))) {
-		nd_logerr("couldn't resolve bonding base interface name from %s", m_name.c_str());
-		return;
-	}
 
 	// gather the slave data (only for active-backup)-
 	char active_slave[IFNAMSIZ] = {0};
