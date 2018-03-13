@@ -195,11 +195,16 @@ public:
 	inline void set_if_idx(int if_idx) { m_if_idx = if_idx; }
 	inline void set_flags(int flags) { m_flags = flags; }
 	inline void set_mtu(int mtu) { m_mtu = mtu; }
+	inline void set_ifname(char *ifname) {
+		m_name = ifname;
+		get_base_interface_name(ifname, m_base_name, sizeof(m_base_name));
+	}
 
 	inline int get_type() { return m_type; }
 	inline int get_if_idx() { return m_if_idx; }
 	inline int get_flags() { return m_flags; }
 	inline int get_mtu() { return m_mtu; }
+	inline char* get_ifname() { return (char *)m_name.c_str(); }
 
 	ring*                   reserve_ring(resource_allocation_key*); // create if not exists
 	bool 			release_ring(resource_allocation_key*); // delete from m_hash if ref_cnt == 0
@@ -247,7 +252,6 @@ protected:
 	virtual ring*		create_ring(resource_allocation_key *key) = 0;
 	virtual void		create_br_address(const char* ifname) = 0;
 	virtual L2_address*	create_L2_address(const char* ifname) = 0;
-	void 			delete_L2_address();
 
 	resource_allocation_key* ring_key_redirection_reserve(resource_allocation_key *key);
 	resource_allocation_key* ring_key_redirection_release(resource_allocation_key *key);
@@ -259,11 +263,11 @@ protected:
 	uint16_t		m_rdma_key;
 
 private:
-	bool 			verify_ipoib_mode(struct ifaddrs* ifa);
+	bool 			verify_ipoib_mode();
 	bool 			verify_eth_qp_creation(const char* ifname);
-	bool 			verify_bond_ipoib_or_eth_qp_creation(struct ifaddrs * ifa);
-	bool 			verify_netvsc_ipoib_or_eth_qp_creation(const char *slave_name, struct ifaddrs *ifa_netvsc);
-	bool 			verify_ipoib_or_eth_qp_creation(const char* interface_name, struct ifaddrs * ifa);
+	bool 			verify_bond_ipoib_or_eth_qp_creation();
+	bool 			verify_netvsc_ipoib_or_eth_qp_creation(const char *slave_name);
+	bool 			verify_ipoib_or_eth_qp_creation(const char* interface_name);
 	bool 			verify_enable_ipoib(const char* ifname);
 
 	bool get_up_and_active_slaves(bool* up_and_active_slaves, size_t size);

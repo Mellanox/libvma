@@ -248,21 +248,17 @@ net_dev_lst_t* net_device_table_mgr::get_net_device_val_lst_from_index(int if_in
 	return ret_val;
 }
 
-net_device_entry* net_device_table_mgr::create_new_entry(in_addr_t local_ip)
+net_device_entry* net_device_table_mgr::create_new_entry(ip_address local_ip, const observer* obs)
 {
 	ndtm_logdbg("");
-	net_device_val *p_ndv = get_net_device_val(local_ip);
+	NOT_IN_USE(obs);
 
-	if (p_ndv) { //net device is offloaded
-		return new net_device_entry(local_ip, p_ndv);
+	net_device_val *p_ndv = get_net_device_val(local_ip.get_in_addr());
+
+	if (p_ndv) {
+		return new net_device_entry(local_ip.get_in_addr(), p_ndv);
 	}
-	return NULL; // Fail the observer registeration
-}
-
-net_device_entry* net_device_table_mgr::create_new_entry(ip_address local_ip, const observer* dst)
-{
-	NOT_IN_USE(dst);
-	return create_new_entry(local_ip.get_in_addr());
+	return NULL;
 }
 
 #if _BullseyeCoverage
