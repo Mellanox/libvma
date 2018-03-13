@@ -264,11 +264,11 @@ protected:
 	uint16_t		m_rdma_key;
 
 private:
-	bool 			verify_ipoib_mode(struct ifaddrs* ifa);
+	bool 			verify_ipoib_mode();
 	bool 			verify_eth_qp_creation(const char* ifname);
-	bool 			verify_bond_ipoib_or_eth_qp_creation(struct ifaddrs * ifa);
-	bool 			verify_netvsc_ipoib_or_eth_qp_creation(const char *slave_name, struct ifaddrs *ifa_netvsc);
-	bool 			verify_ipoib_or_eth_qp_creation(const char* interface_name, struct ifaddrs * ifa);
+	bool 			verify_bond_ipoib_or_eth_qp_creation();
+	bool 			verify_netvsc_ipoib_or_eth_qp_creation(const char *slave_name);
+	bool 			verify_ipoib_or_eth_qp_creation(const char* interface_name);
 	bool 			verify_enable_ipoib(const char* ifname);
 
 	bool get_up_and_active_slaves(bool* up_and_active_slaves, size_t size);

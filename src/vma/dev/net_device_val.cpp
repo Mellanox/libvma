@@ -212,9 +212,10 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 	m_rdma_key = cma_id->route.addr.addr.ibaddr.pkey;
 
 	set_ifname(ifa->ifa_name);
-	set_if_idx(if_nametoindex(m_name.c_str()));
+	set_if_idx(if_nametoindex(ifa->ifa_name));
+	set_type(get_iftype_from_ifname(ifa->ifa_name));
 	set_flags(ifa->ifa_flags);
-	set_mtu(get_if_mtu_from_ifname(m_name.c_str()));
+	set_mtu(get_if_mtu_from_ifname(ifa->ifa_name));
 	if (safe_mce_sys().mtu != 0 && (int)safe_mce_sys().mtu != m_mtu) {
 		nd_logwarn("Mismatch between interface %s MTU=%d and VMA_MTU=%d. Make sure VMA_MTU and all offloaded interfaces MTUs match.", m_name.c_str(), m_mtu, safe_mce_sys().mtu);
 	}
@@ -224,11 +225,11 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 
 	if (check_device_exist(m_base_name, BOND_DEVICE_FILE)) {
 		// this is a bond interface (or a vlan/alias over bond), find the slaves
-		valid = verify_bond_ipoib_or_eth_qp_creation(ifa);
+		valid = verify_bond_ipoib_or_eth_qp_creation();
 	} else if (is_netvsc) {
-		valid = verify_netvsc_ipoib_or_eth_qp_creation(slave.ifa_name, ifa);
+		valid = verify_netvsc_ipoib_or_eth_qp_creation(slave.ifa_name);
 	} else {
-		valid = verify_ipoib_or_eth_qp_creation(ifa->ifa_name, ifa);
+		valid = verify_ipoib_or_eth_qp_creation(m_name.c_str());
 	}
 	if (!valid) {
 		goto destroy_cma_id;
@@ -1113,14 +1114,12 @@ std::string net_device_val_ib::to_str()
 }
 
 
-bool net_device_val::verify_bond_ipoib_or_eth_qp_creation(struct ifaddrs * ifa)
+bool net_device_val::verify_bond_ipoib_or_eth_qp_creation()
 {
-	char base_ifname[IFNAMSIZ];
-	get_base_interface_name((const char*)(ifa->ifa_name), base_ifname, sizeof(base_ifname));
 	char slaves[IFNAMSIZ * MAX_SLAVES] = {0};
-	if (!get_bond_slaves_name_list(base_ifname, slaves, sizeof slaves)) {
+	if (!get_bond_slaves_name_list(m_base_name, slaves, sizeof slaves)) {
 		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
-		vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded, slave list or bond name could not be found\n", ifa->ifa_name);
+		vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded, slave list or bond name could not be found\n", m_name.c_str());
 		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 		return false;
 	}
@@ -1132,7 +1131,7 @@ bool net_device_val::verify_bond_ipoib_or_eth_qp_creation(struct ifaddrs * ifa)
 	{
 		char* p = strchr(slave_name, '\n');
 		if (p) *p = '\0'; // Remove the tailing 'new line" char
-		if (!verify_ipoib_or_eth_qp_creation(slave_name, ifa)) {
+		if (!verify_ipoib_or_eth_qp_creation(slave_name)) {
 			//check all slaves but print only once for bond
 			bond_ok =  false;
 		}
@@ -1140,16 +1139,16 @@ bool net_device_val::verify_bond_ipoib_or_eth_qp_creation(struct ifaddrs * ifa)
 	}
 	if (!bond_ok) {
 		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
-		vlog_printf(VLOG_WARNING,"* Bond %s will not be offloaded due to problem with it's slaves.\n", ifa->ifa_name);
+		vlog_printf(VLOG_WARNING,"* Bond %s will not be offloaded due to problem with it's slaves.\n", m_name.c_str());
 		vlog_printf(VLOG_WARNING,"* Check warning messages for more information.\n");
 		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 	}
 	return bond_ok;
 }
 
-bool net_device_val::verify_netvsc_ipoib_or_eth_qp_creation(const char *slave_name, struct ifaddrs *ifa_netvsc)
+bool net_device_val::verify_netvsc_ipoib_or_eth_qp_creation(const char *slave_name)
 {
-	if (get_iftype_from_ifname(ifa_netvsc->ifa_name) == ARPHRD_INFINIBAND) {
+	if (m_type == ARPHRD_INFINIBAND) {
 		return false;
 	}
 
@@ -1157,11 +1156,10 @@ bool net_device_val::verify_netvsc_ipoib_or_eth_qp_creation(const char *slave_na
 }
 
 //interface name can be slave while ifa struct can describe bond
-bool net_device_val::verify_ipoib_or_eth_qp_creation(const char* interface_name, struct ifaddrs * ifa)
+bool net_device_val::verify_ipoib_or_eth_qp_creation(const char* interface_name)
 {
-	int iftype = get_iftype_from_ifname(interface_name);
-	if (iftype == ARPHRD_INFINIBAND) {
-		if (verify_enable_ipoib(interface_name) && verify_ipoib_mode(ifa)) {
+	if (m_type == ARPHRD_INFINIBAND) {
+		if (verify_enable_ipoib(interface_name) && verify_ipoib_mode()) {
 			return true;
 		}
 	} else {
@@ -1184,13 +1182,13 @@ bool net_device_val::verify_enable_ipoib(const char* ifname)
 
 // Verify IPoIB is in 'datagram mode' for proper VMA with flow steering operation
 // Also verify umcast is disabled for IB flow
-bool net_device_val::verify_ipoib_mode(struct ifaddrs* ifa)
+bool net_device_val::verify_ipoib_mode()
 {
 	char filename[256] = "\0";
 	char ifname[IFNAMSIZ] = "\0";
-	if (validate_ipoib_prop(ifa->ifa_name, ifa->ifa_flags, IPOIB_MODE_PARAM_FILE, "datagram", 8, filename, ifname)) {
+	if (validate_ipoib_prop(m_name.c_str(), m_flags, IPOIB_MODE_PARAM_FILE, "datagram", 8, filename, ifname)) {
 		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
-		vlog_printf(VLOG_WARNING,"* IPoIB mode of interface '%s' is \"connected\" !\n", ifa->ifa_name);
+		vlog_printf(VLOG_WARNING,"* IPoIB mode of interface '%s' is \"connected\" !\n", m_name.c_str());
 		vlog_printf(VLOG_WARNING,"* Please change it to datagram: \"echo datagram > %s\" before loading your application with VMA library\n", filename);
 		vlog_printf(VLOG_WARNING,"* VMA doesn't support IPoIB in connected mode.\n");
 		vlog_printf(VLOG_WARNING,"* Please refer to VMA Release Notes for more information\n");
@@ -1198,12 +1196,12 @@ bool net_device_val::verify_ipoib_mode(struct ifaddrs* ifa)
 		return false;
 	}
 	else {
-		nd_logdbg("verified interface '%s' is running in datagram mode", ifa->ifa_name);
+		nd_logdbg("verified interface '%s' is running in datagram mode", m_name.c_str());
 	}
 
-	if (validate_ipoib_prop(ifa->ifa_name, ifa->ifa_flags, UMCAST_PARAM_FILE, "0", 1, filename, ifname)) { // Extract UMCAST flag (only for IB transport types)
+	if (validate_ipoib_prop(m_name.c_str(), m_flags, UMCAST_PARAM_FILE, "0", 1, filename, ifname)) { // Extract UMCAST flag (only for IB transport types)
 		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
-		vlog_printf(VLOG_WARNING,"* UMCAST flag is Enabled for interface %s !\n", ifa->ifa_name);
+		vlog_printf(VLOG_WARNING,"* UMCAST flag is Enabled for interface %s !\n", m_name.c_str());
 		vlog_printf(VLOG_WARNING,"* Please disable it: \"echo 0 > %s\" before loading your application with VMA library\n", filename);
 		vlog_printf(VLOG_WARNING,"* This option in no longer needed in this version\n");
 		vlog_printf(VLOG_WARNING,"* Please refer to Release Notes for more information\n");
@@ -1211,7 +1209,7 @@ bool net_device_val::verify_ipoib_mode(struct ifaddrs* ifa)
 		return false;
 	}
 	else {
-		nd_logdbg("verified interface '%s' is running with umcast disabled", ifa->ifa_name);
+		nd_logdbg("verified interface '%s' is running with umcast disabled", m_name.c_str());
 	}
 	return true;
 }
