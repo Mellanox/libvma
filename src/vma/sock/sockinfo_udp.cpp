@@ -922,10 +922,11 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 				if (__optval) {
 					struct vma_rate_limit_t val;
 
-					if (sizeof(struct vma_rate_limit_t) <= __optlen) {
-						val = *(struct vma_rate_limit_t*)__optval; // value is in bytes per second
-					} else if (sizeof(uint32_t) <= __optlen) {
-						val.rate = *(uint32_t*)__optval; // value is in bytes per second
+					if (sizeof(struct vma_rate_limit_t) == __optlen) {
+						val = *(struct vma_rate_limit_t*)__optval; // value is in Kbits per second
+					} else if (sizeof(uint32_t) == __optlen) {
+						// value is in bytes per second
+						val.rate = BYTE_TO_KB(*(uint32_t*)__optval); // value is in bytes per second
 						val.max_burst_sz = 0;
 						val.typical_pkt_sz = 0;
 					} else {
@@ -933,8 +934,6 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 							      setsockopt_so_opt_to_str(__optname), __optlen);
 						return -1;
 					}
-
-					val.rate = BYTE_TO_KB(val.rate); // value is in bytes per second
 
 					if (modify_ratelimit(m_p_connected_dst_entry, val) < 0) {
 						si_udp_logdbg("error setting setsockopt SO_MAX_PACING_RATE for connected dst_entry %p: %d bytes/second ", m_p_connected_dst_entry, val.rate);
