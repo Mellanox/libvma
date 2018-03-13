@@ -59,7 +59,6 @@ public:
 	net_device_table_mgr();
 	virtual ~net_device_table_mgr();
 
-	net_device_entry*	create_new_entry(in_addr_t local_ip);
 	net_device_entry*	create_new_entry(ip_address local_ip, const observer* dst);
 
 	int			map_net_devices();
