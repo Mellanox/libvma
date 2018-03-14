@@ -1481,11 +1481,14 @@ tcp_parseopt(struct tcp_pcb *pcb, tcp_in_data* in_data)
           LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_parseopt: bad length\n"));
           return;
         }
-        /* An MSS option with the right option length. */
-        mss = (opts[c + 2] << 8) | opts[c + 3];
-        /* Limit the mss to the configured TCP_MSS and prevent division by zero */
-        snd_mss = ((mss > pcb->advtsd_mss) || (mss == 0)) ? pcb->advtsd_mss : mss;
-        UPDATE_PCB_BY_MSS(pcb, snd_mss);
+        /* Check if the incoming flag is SYN. */
+        if(in_data->flags & TCP_SYN) {
+          /* An MSS option with the right option length. */
+          mss = (opts[c + 2] << 8) | opts[c + 3];
+          /* Limit the mss to the configured TCP_MSS and prevent division by zero */
+          snd_mss = ((mss > pcb->advtsd_mss) || (mss == 0)) ? pcb->advtsd_mss : mss;
+          UPDATE_PCB_BY_MSS(pcb, snd_mss);
+        }
         /* Advance to next option */
         c += 0x04;
         break;
