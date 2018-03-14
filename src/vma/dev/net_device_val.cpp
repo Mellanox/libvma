@@ -311,7 +311,6 @@ void net_device_val::set_ip_array(struct ifaddrs* ifa)
 	m_netmask       = ((struct sockaddr_in *)ifa->ifa_netmask)->sin_addr.s_addr;
 
 	p_val = new ip_data_t;
-	p_val->label = strdup((char *)ifa->ifa_name);
 	memset(&p_val->local_addr, 0, sizeof(in_addr_t));
 	memcpy(&p_val->local_addr, (in_addr_t *)&((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr, sizeof(in_addr_t));
 	memset(&p_val->netmask, 0, sizeof(in_addr_t));

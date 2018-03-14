@@ -49,7 +49,7 @@
 #include "net_device_entry.h"
 
 typedef std::tr1::unordered_map<in_addr_t, net_device_val*> net_device_map_t;
-typedef std::list<in_addr_t> local_ip_list_t;
+typedef std::list<ip_data_t> local_ip_list_t;
 typedef std::list<net_device_val*> net_dev_lst_t;
 typedef std::tr1::unordered_map<int, net_dev_lst_t > if_index_to_net_dev_lst_t;
 
