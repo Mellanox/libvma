@@ -280,13 +280,35 @@ std::string net_device_table_mgr::to_str()
     #pragma BullseyeCoverage on
 #endif
 
-local_ip_list_t net_device_table_mgr::get_ip_list()
+local_ip_list_t net_device_table_mgr::get_ip_list(int if_index)
 {
+	if_index_to_net_dev_lst_t::iterator itr_if_indx;
 	local_ip_list_t ip_list;
-	net_device_map_t::iterator net_dev_iter;
-	for (net_dev_iter=m_net_device_map.begin(); net_dev_iter!=m_net_device_map.end(); net_dev_iter++) {
-		ip_list.push_back(net_dev_iter->first);
+	size_t i;
+
+	m_lock.lock();
+
+	itr_if_indx = (if_index > 0 ?
+			m_if_indx_to_nd_val_lst.find(if_index) :
+			m_if_indx_to_nd_val_lst.begin());
+
+	for (; itr_if_indx != m_if_indx_to_nd_val_lst.end(); itr_if_indx++) {
+		net_dev_lst_t* p_ndv_val_lst = &itr_if_indx->second;
+		net_dev_lst_t::iterator itr_dev_lst;
+		for (itr_dev_lst = p_ndv_val_lst->begin(); itr_dev_lst != p_ndv_val_lst->end(); ++itr_dev_lst) {
+			net_device_val* p_ndev = dynamic_cast <net_device_val *>(*itr_dev_lst);
+			ip_data_vector_t* p_ip = p_ndev->get_ip_array();
+			for (i = 0; i < p_ip->size(); i++) {
+				ip_list.push_back(*(p_ip->at(i)));
+                        }
+		}
+		if (if_index > 0) {
+			break;
+		}
 	}
+
+	m_lock.unlock();
+
 	return ip_list;
 }
 
