@@ -156,19 +156,15 @@ typedef struct slave_data {
 typedef std::vector<slave_data_t*> slave_data_vector_t;
 
 typedef struct ip_data {
-	char*     label;
 	int       flags;
 	in_addr_t local_addr;
 	in_addr_t netmask;
 	ip_data() {
-		label = NULL;
 		flags = 0;
 		local_addr = 0;
 		netmask = 0;
 	}
 	~ip_data() {
-		free(label);
-		label = NULL;
 		flags = 0;
 		local_addr = 0;
 		netmask = 0;
@@ -221,13 +217,14 @@ public:
 		m_name = ifname;
 		get_base_interface_name(ifname, m_base_name, sizeof(m_base_name));
 	}
-	void set_ip_array(struct ifaddrs* ifa);
+	ip_data_vector_t* get_ip_array() { return &m_ip;}
 
 	inline int get_type() { return m_type; }
 	inline int get_if_idx() { return m_if_idx; }
 	inline int get_flags() { return m_flags; }
 	inline int get_mtu() { return m_mtu; }
 	inline char* get_ifname() { return (char *)m_name.c_str(); }
+	void set_ip_array(struct ifaddrs* ifa);
 
 	ring*                   reserve_ring(resource_allocation_key*); // create if not exists
 	bool 			release_ring(resource_allocation_key*); // delete from m_hash if ref_cnt == 0
