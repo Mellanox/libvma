@@ -191,7 +191,7 @@ int net_device_table_mgr::map_net_devices()
 			freeifaddrs(ifaddr);
 			return -1;
 		}
-		if (!p_net_device_val->is_valid()) {
+		if (p_net_device_val->get_state() == net_device_val::INVALID) {
 			delete p_net_device_val;
 			m_lock.unlock();
 			continue;
