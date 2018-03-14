@@ -115,7 +115,7 @@ bool dst_entry_udp_mc::resolve_net_dev(bool is_connect)
 		}
 		if (m_p_net_dev_entry) {
 			m_p_net_dev_entry->get_val(m_p_net_dev_val);
-			if (m_p_net_dev_val && m_p_net_dev_val->is_valid()) {
+			if (m_p_net_dev_val) {
 				ret_val = alloc_transport_dep_res();
 			}
 			else {
