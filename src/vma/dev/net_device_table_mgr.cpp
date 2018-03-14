@@ -146,6 +146,7 @@ int net_device_table_mgr::map_net_devices()
 	int count = 0;
 	net_device_val* p_net_device_val;
 	struct ifaddrs *ifaddr, *ifa;
+	size_t i = 0;
 
 	ndtm_logdbg("Checking for offload capable network interfaces...");
 
@@ -201,7 +202,11 @@ int net_device_table_mgr::map_net_devices()
 	        if ((int)get_max_mtu() < p_net_device_val->get_mtu()) {
 			set_max_mtu(p_net_device_val->get_mtu());
 		}
-		m_net_device_map[((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr] = p_net_device_val;
+
+		ip_data_vector_t* p_ip = p_net_device_val->get_ip_array();
+		for (i = 0; i < p_ip->size(); i++) {
+			m_net_device_map[p_ip->at(i)->local_addr] = p_net_device_val;
+		}
 		m_if_indx_to_nd_val_lst[p_net_device_val->get_if_idx()].push_back(p_net_device_val);
 		m_lock.unlock();
 
@@ -300,7 +305,7 @@ local_ip_list_t net_device_table_mgr::get_ip_list(int if_index)
 			ip_data_vector_t* p_ip = p_ndev->get_ip_array();
 			for (i = 0; i < p_ip->size(); i++) {
 				ip_list.push_back(*(p_ip->at(i)));
-                        }
+			}
 		}
 		if (if_index > 0) {
 			break;

@@ -139,14 +139,9 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 	ib_ctx_handler* ib_ctx;
 	struct ifaddrs slave;
 
-	if (NULL == desc) {
-		// invalid net_device_val
-		nd_logerr("Invalid net_device_val name=%s", "NA");
-		m_state = INVALID;
-		return;
-	}
-
 	m_if_idx = 0;
+	m_type = 0;
+	m_flags = 0;
 	m_mtu = 0;
 	m_local_addr = 0;
 	m_state = INVALID;
@@ -156,6 +151,14 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 	m_bond_xmit_hash_policy = XHP_LAYER_2;
 	m_bond_fail_over_mac = 0;
 	m_transport_type = VMA_TRANSPORT_UNKNOWN;
+	m_rdma_key = 0;
+
+	if (NULL == desc) {
+		// invalid net_device_val
+		nd_logerr("Invalid net_device_val name=%s", "NA");
+		m_state = INVALID;
+		return;
+	}
 
 	p_cma_event_channel = rdma_create_event_channel();
 	if (NULL == p_cma_event_channel) {
@@ -601,6 +604,7 @@ bool net_device_val::update_active_slaves() {
 	bool up_and_active_slaves[m_slaves.size()];
 	size_t i = 0;
 
+	memset(&up_and_active_slaves, 0, m_slaves.size() * sizeof(bool));
 	get_up_and_active_slaves(up_and_active_slaves, m_slaves.size());
 
 	/* compare to current status and prepare for restart */
