@@ -234,7 +234,6 @@ public:
 	transport_type_t        get_transport_type() const { return m_transport_type; }
 	bool 			update_active_backup_slaves();
 	in_addr_t               get_local_addr() {return m_local_addr;};
-	in_addr_t               get_netmask() {return m_netmask;};
 	bool                    is_valid() { return (INVALID != m_state); }
 	int                     global_ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array = NULL);
 	int                     global_ring_request_notification(uint64_t poll_sn) ;
@@ -258,7 +257,6 @@ protected:
 	ip_data_vector_t m_ip;             /* vector of ip addresses */
 
 	in_addr_t		m_local_addr;
-	in_addr_t		m_netmask;
 	state			m_state;
 	L2_address*		m_p_L2_addr;
 	L2_address* 		m_p_br_addr;
