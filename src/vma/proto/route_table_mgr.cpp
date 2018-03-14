@@ -140,17 +140,18 @@ void route_table_mgr::rt_mgr_update_source_ip()
 		if (g_p_net_device_table_mgr) { //try to get src ip from net_dev list of the interface
 			in_addr_t longest_prefix = 0;
 			in_addr_t correct_src = 0;
-			net_dev_lst_t* nd_lst = g_p_net_device_table_mgr->get_net_device_val_lst_from_index(p_val->get_if_index());
-			if (nd_lst) {
-				net_dev_lst_t::iterator iter = nd_lst->begin();
-				while (iter != nd_lst->end()) {
-					if((p_val->get_dst_addr() & (*iter)->get_netmask()) == ((*iter)->get_local_addr() & (*iter)->get_netmask())) { //found a match in routing table
-						if(((*iter)->get_netmask() | longest_prefix) != longest_prefix){
-							longest_prefix = (*iter)->get_netmask(); // this is the longest prefix match
-							correct_src = (*iter)->get_local_addr();
+			local_ip_list_t::iterator lip_iter;
+			local_ip_list_t lip_offloaded_list = g_p_net_device_table_mgr->get_ip_list(p_val->get_if_index());
+			if (!lip_offloaded_list.empty()) {
+				for (lip_iter = lip_offloaded_list.begin(); lip_offloaded_list.end() != lip_iter; lip_iter++)
+				{
+					ip_data_t ip = *lip_iter;
+					if((p_val->get_dst_addr() & ip.netmask) == (ip.local_addr & ip.netmask)) { //found a match in routing table
+						if((ip.netmask | longest_prefix) != longest_prefix){
+							longest_prefix = ip.netmask; // this is the longest prefix match
+							correct_src = ip.local_addr;
 						}
 					}
-					iter++;
 				}
 				if (correct_src) {
 					p_val->set_src_addr(correct_src);
@@ -186,16 +187,15 @@ void route_table_mgr::rt_mgr_update_source_ip()
 					if (p_val_dst->get_src_addr()) {
 						p_val->set_src_addr(p_val_dst->get_src_addr());
 					} else if (p_val == p_val_dst) { //gateway of the entry lead to same entry
-						net_dev_lst_t* nd_lst = g_p_net_device_table_mgr->get_net_device_val_lst_from_index(p_val->get_if_index());
-						if (nd_lst) {
-							net_dev_lst_t::iterator iter = nd_lst->begin();
-							while (iter != nd_lst->end()) {
-								if(p_val->get_gw_addr() == (*iter)->get_local_addr()) {
-									p_val->set_gw(0);
-									p_val->set_src_addr((*iter)->get_local_addr());
-									break;
-								}
-								iter++;
+						local_ip_list_t::iterator lip_iter;
+						local_ip_list_t lip_offloaded_list = g_p_net_device_table_mgr->get_ip_list(p_val->get_if_index());
+						for (lip_iter = lip_offloaded_list.begin(); lip_offloaded_list.end() != lip_iter; lip_iter++)
+						{
+							ip_data_t ip = *lip_iter;
+							if(p_val->get_gw_addr() == ip.local_addr) {
+								p_val->set_gw(0);
+								p_val->set_src_addr(ip.local_addr);
+								break;
 							}
 						}
 						if (!p_val->get_src_addr())

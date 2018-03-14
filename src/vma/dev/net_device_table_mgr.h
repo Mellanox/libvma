@@ -65,7 +65,7 @@ public:
 	net_device_val* 	get_net_device_val(const in_addr_t local_ip);
 	net_dev_lst_t*		get_net_device_val_lst_from_index(int if_index);
 
-	local_ip_list_t         get_ip_list(); // return list of the table_mgr managed ips
+	local_ip_list_t     get_ip_list(int if_index = 0); // return list of the table_mgr managed ips
 
 	std::string 		to_str();
 
