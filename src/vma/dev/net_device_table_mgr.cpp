@@ -97,11 +97,16 @@ net_device_table_mgr::net_device_table_mgr() : cache_table_mgr<ip_address,net_de
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	if (map_net_devices()) {
+	/* Read Link table from kernel and save it in local variable. */
+	update_tbl();
+	if (m_if_indx_to_nd_val_lst.empty()) {
 		ndtm_logdbg("map_net_devices failed");
 		free_ndtm_resources();
 		throw_vma_exception("map_net_devices failed");
 	}
+
+	//Print table
+	print_val_tbl();
 
 #ifndef DEFINED_NO_THREAD_LOCK
 	if (safe_mce_sys().progress_engine_interval_msec != MCE_CQ_DRAIN_INTERVAL_DISABLED && safe_mce_sys().progress_engine_wce_max != 0) {
@@ -141,18 +146,19 @@ net_device_table_mgr::~net_device_table_mgr()
 	free_ndtm_resources();
 }
 
-int net_device_table_mgr::map_net_devices()
+void net_device_table_mgr::update_tbl()
 {
 	int count = 0;
 	net_device_val* p_net_device_val;
 	struct ifaddrs *ifaddr, *ifa;
+	size_t i = 0;
 
 	ndtm_logdbg("Checking for offload capable network interfaces...");
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (getifaddrs(&ifaddr) == -1) {
 		ndtm_logerr("getifaddrs() failed (errno = %d %m)", errno); 
-		return -1;
+		return ;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
@@ -189,9 +195,9 @@ int net_device_table_mgr::map_net_devices()
 			ndtm_logerr("failed allocating new net_device (errno=%d %m)", errno);
 			m_lock.unlock();
 			freeifaddrs(ifaddr);
-			return -1;
+			return ;
 		}
-		if (!p_net_device_val->is_valid()) {
+		if (p_net_device_val->get_state() == net_device_val::INVALID) {
 			delete p_net_device_val;
 			m_lock.unlock();
 			continue;
@@ -201,7 +207,11 @@ int net_device_table_mgr::map_net_devices()
 	        if ((int)get_max_mtu() < p_net_device_val->get_mtu()) {
 			set_max_mtu(p_net_device_val->get_mtu());
 		}
-		m_net_device_map[((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr] = p_net_device_val;
+
+		ip_data_vector_t* p_ip = p_net_device_val->get_ip_array();
+		for (i = 0; i < p_ip->size(); i++) {
+			m_net_device_map[p_ip->at(i)->local_addr] = p_net_device_val;
+		}
 		m_if_indx_to_nd_val_lst[p_net_device_val->get_if_idx()].push_back(p_net_device_val);
 		m_lock.unlock();
 
@@ -212,8 +222,16 @@ int net_device_table_mgr::map_net_devices()
 	freeifaddrs(ifaddr);
 
 	ndtm_logdbg("Check completed. Found %d offload capable network interfaces", count);
+}
 
-	return 0;
+void net_device_table_mgr::print_val_tbl()
+{
+	if_index_to_net_dev_lst_t::iterator iter;
+	for (iter = m_if_indx_to_nd_val_lst.begin(); iter != m_if_indx_to_nd_val_lst.end(); iter++) {
+		net_dev_lst_t* p_ndv_val_lst = &iter->second;
+		net_device_val* p_ndev = dynamic_cast <net_device_val *>(*p_ndv_val_lst->begin());
+		p_ndev->print_val();
+	}
 }
 
 net_device_val* net_device_table_mgr::get_net_device_val(in_addr_t local_addr)
@@ -300,7 +318,7 @@ local_ip_list_t net_device_table_mgr::get_ip_list(int if_index)
 			ip_data_vector_t* p_ip = p_ndev->get_ip_array();
 			for (i = 0; i < p_ip->size(); i++) {
 				ip_list.push_back(*(p_ip->at(i)));
-                        }
+			}
 		}
 		if (if_index > 0) {
 			break;

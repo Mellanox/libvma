@@ -226,6 +226,9 @@ public:
 	inline char* get_ifname() { return (char *)m_name.c_str(); }
 	void set_ip_array(struct ifaddrs* ifa);
 
+	void set_str();
+	void print_val();
+
 	ring*                   reserve_ring(resource_allocation_key*); // create if not exists
 	bool 			release_ring(resource_allocation_key*); // delete from m_hash if ref_cnt == 0
 	state                   get_state() const  { return m_state; } // not sure, look at state init at c'tor
@@ -234,8 +237,6 @@ public:
 	transport_type_t        get_transport_type() const { return m_transport_type; }
 	bool 			update_active_backup_slaves();
 	in_addr_t               get_local_addr() {return m_local_addr;};
-	in_addr_t               get_netmask() {return m_netmask;};
-	bool                    is_valid() { return (INVALID != m_state); }
 	int                     global_ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array = NULL);
 	int                     global_ring_request_notification(uint64_t poll_sn) ;
 	int                     ring_drain_and_proccess();
@@ -258,7 +259,6 @@ protected:
 	ip_data_vector_t m_ip;             /* vector of ip addresses */
 
 	in_addr_t		m_local_addr;
-	in_addr_t		m_netmask;
 	state			m_state;
 	L2_address*		m_p_L2_addr;
 	L2_address* 		m_p_br_addr;
@@ -294,6 +294,7 @@ private:
 	bool 			verify_enable_ipoib(const char* ifname);
 
 	bool get_up_and_active_slaves(bool* up_and_active_slaves, size_t size);
+	char m_str[BUFF_SIZE];
 };
 
 class net_device_val_eth : public net_device_val
