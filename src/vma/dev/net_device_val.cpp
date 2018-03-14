@@ -149,7 +149,6 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 	m_if_idx = 0;
 	m_mtu = 0;
 	m_local_addr = 0;
-	m_netmask = 0;
 	m_state = INVALID;
 	m_p_L2_addr = NULL;
 	m_p_br_addr = NULL;
@@ -308,7 +307,6 @@ void net_device_val::set_ip_array(struct ifaddrs* ifa)
 	ip_data_t* p_val = NULL;
 
 	m_local_addr    = ((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr;
-	m_netmask       = ((struct sockaddr_in *)ifa->ifa_netmask)->sin_addr.s_addr;
 
 	p_val = new ip_data_t;
 	memset(&p_val->local_addr, 0, sizeof(in_addr_t));
