@@ -37,11 +37,14 @@
 #include <sys/epoll.h>
 #include <linux/if_infiniband.h>
 #include <linux/if_ether.h>
+#include <linux/rtnetlink.h>
+#include <linux/netlink.h>
 #include <sys/epoll.h>
 
 #include "utils/bullseye.h"
 #include "vma/util/if.h"
 #include "vma/dev/net_device_val.h"
+#include "vma/util/vtypes.h"
 #include "vma/util/utils.h"
 #include "vma/util/valgrind.h"
 #include "vma/event/event_handler_manager.h"
@@ -139,17 +142,11 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 	ib_ctx_handler* ib_ctx;
 	struct ifaddrs slave;
 
-	if (NULL == desc) {
-		// invalid net_device_val
-		nd_logerr("Invalid net_device_val name=%s", "NA");
-		m_state = INVALID;
-		return;
-	}
-
 	m_if_idx = 0;
+	m_type = 0;
+	m_flags = 0;
 	m_mtu = 0;
 	m_local_addr = 0;
-	m_netmask = 0;
 	m_state = INVALID;
 	m_p_L2_addr = NULL;
 	m_p_br_addr = NULL;
@@ -157,6 +154,14 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 	m_bond_xmit_hash_policy = XHP_LAYER_2;
 	m_bond_fail_over_mac = 0;
 	m_transport_type = VMA_TRANSPORT_UNKNOWN;
+	m_rdma_key = 0;
+
+	if (NULL == desc) {
+		// invalid net_device_val
+		nd_logerr("Invalid net_device_val name=%s", "NA");
+		m_state = INVALID;
+		return;
+	}
 
 	p_cma_event_channel = rdma_create_event_channel();
 	if (NULL == p_cma_event_channel) {
@@ -308,7 +313,6 @@ void net_device_val::set_ip_array(struct ifaddrs* ifa)
 	ip_data_t* p_val = NULL;
 
 	m_local_addr    = ((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr;
-	m_netmask       = ((struct sockaddr_in *)ifa->ifa_netmask)->sin_addr.s_addr;
 
 	p_val = new ip_data_t;
 	memset(&p_val->local_addr, 0, sizeof(in_addr_t));
@@ -316,6 +320,64 @@ void net_device_val::set_ip_array(struct ifaddrs* ifa)
 	memset(&p_val->netmask, 0, sizeof(in_addr_t));
 	memcpy(&p_val->netmask, (in_addr_t *)&((struct sockaddr_in *)ifa->ifa_netmask)->sin_addr.s_addr, sizeof(in_addr_t));
 	m_ip.push_back(p_val);
+}
+
+void net_device_val::set_str()
+{
+	char str_x[BUFF_SIZE] = {0};
+
+	m_str[0] = '\0';
+
+	str_x[0] = '\0';
+	sprintf(str_x, " %d:", m_if_idx);
+	strcat(m_str, str_x);
+
+	str_x[0] = '\0';
+	if (strcmp(m_base_name, "") != 0)
+		sprintf(str_x, " %s:", m_base_name);
+	strcat(m_str, str_x);
+
+	str_x[0] = '\0';
+	sprintf(str_x, " <%s%s%s%s%s%s%s%s%s%s%s>:",
+			(m_flags & IFF_UP        ? "UP," : ""),
+			(m_flags & IFF_RUNNING   ? "RUNNING," : ""),
+			(m_flags & IFF_NOARP     ? "NO_ARP," : ""),
+			(m_flags & IFF_LOOPBACK  ? "LOOPBACK," : ""),
+			(m_flags & IFF_BROADCAST ? "BROADCAST," : ""),
+			(m_flags & IFF_MULTICAST ? "MULTICAST," : ""),
+			(m_flags & IFF_MASTER    ? "MASTER," : ""),
+			(m_flags & IFF_SLAVE     ? "SLAVE," : ""),
+			(m_flags & IFF_LOWER_UP  ? "LOWER_UP," : ""),
+			(m_flags & IFF_DEBUG     ? "DEBUG," : ""),
+			(m_flags & IFF_PROMISC   ? "PROMISC," : ""));
+	strcat(m_str, str_x);
+
+	str_x[0] = '\0';
+	sprintf(str_x, " mtu %d", m_mtu);
+	strcat(m_str, str_x);
+
+	str_x[0] = '\0';
+	switch (m_type) {
+	case ARPHRD_LOOPBACK:
+		sprintf(str_x, " type %s", "loopback");
+		break;
+	case ARPHRD_ETHER:
+		sprintf(str_x, " type %s", "ether");
+		break;
+	case ARPHRD_INFINIBAND:
+		sprintf(str_x, " type %s", "infiniband");
+		break;
+	default:
+		sprintf(str_x, " type %s", "unknown");
+		break;
+	}
+	strcat(m_str, str_x);
+}
+
+void net_device_val::print_val()
+{
+	set_str();
+	nd_logdbg("%s", m_str);
 }
 
 void net_device_val::configure()
@@ -603,6 +665,7 @@ bool net_device_val::update_active_slaves() {
 	bool up_and_active_slaves[m_slaves.size()];
 	size_t i = 0;
 
+	memset(&up_and_active_slaves, 0, m_slaves.size() * sizeof(bool));
 	get_up_and_active_slaves(up_and_active_slaves, m_slaves.size());
 
 	/* compare to current status and prepare for restart */

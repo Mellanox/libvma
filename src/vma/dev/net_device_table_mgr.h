@@ -108,6 +108,9 @@ public:
 	uint32_t get_max_mtu();
 
 private:
+	void update_tbl();
+	void print_val_tbl();
+
 	void                            free_ndtm_resources();
 	void                            set_max_mtu(uint32_t);
 	
