@@ -96,8 +96,9 @@ enum cc_algo_mod lwip_cc_algo_module = CC_MOD_LWIP;
 u16_t lwip_tcp_mss = CONST_TCP_MSS;
 
 u8_t enable_ts_option = 0;
-
-/* Incremented every coarse grained timer shot (typically every 500 ms). */
+/* slow timer value */
+static u32_t slow_tmr_interval;
+/* Incremented every coarse grained timer shot (typically every slow_tmr_interval ms). */
 u32_t tcp_ticks = 0;
 const u8_t tcp_backoff[13] =
     { 1, 2, 3, 4, 5, 6, 7, 7, 7, 7, 7, 7, 7};
@@ -128,17 +129,26 @@ struct tcp_pcb *tcp_tmp_pcb;
 static u16_t tcp_new_port(void);
 
 /**
+ *
+ * @param v value to set
+ */
+void
+set_tmr_resolution(u32_t v)
+{
+	slow_tmr_interval = v * 2;
+}
+/**
  * Called periodically to dispatch TCP timers.
  *
  */
 void
 tcp_tmr(struct tcp_pcb* pcb)
 {
-  /* Call tcp_fasttmr() every 100 ms */
+  /* Call tcp_fasttmr() every (slow_tmr_interval / 2) ms */
   tcp_fasttmr(pcb);
 
   if (++(pcb->tcp_timer) & 1) {
-    /* Call tcp_tmr() every 200 ms, i.e., every other timer
+    /* Call tcp_tmr() every slow_tmr_interval ms, i.e., every other timer
        tcp_tmr() is called. */
     tcp_slowtmr(pcb);
   }
@@ -686,7 +696,7 @@ tcp_connect(struct tcp_pcb *pcb, ip_addr_t *ipaddr, u16_t port,
 }
 
 /**
- * Called every 500 ms and implements the retransmission timer and the timer that
+ * Called every slow_tmr_interval ms and implements the retransmission timer and the timer that
  * closes the psb if it in TIME_WAIT state for enough time. It also increments
  * various timers such as the inactivity timer in PCB.
  *
@@ -786,7 +796,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 			/* PCB was fully closed (either through close() or SHUT_RDWR):
 	   	   	   normal FIN-WAIT timeout handling. */
 			if ((u32_t)(tcp_ticks - pcb->tmr) >
-			TCP_FIN_WAIT_TIMEOUT / TCP_SLOW_INTERVAL) {
+			TCP_FIN_WAIT_TIMEOUT / slow_tmr_interval) {
 				++pcb_remove;
 				err = ERR_ABRT;
 				LWIP_DEBUGF(TCP_DEBUG, ("tcp_slowtmr: removing pcb stuck in FIN-WAIT-2\n"));
@@ -801,10 +811,10 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 #if LWIP_TCP_KEEPALIVE
 	  if((u32_t)(tcp_ticks - pcb->tmr) >
 		 (pcb->keep_idle + (pcb->keep_cnt*pcb->keep_intvl))
-		 / TCP_SLOW_INTERVAL)
+		 / slow_tmr_interval)
 #else
 	  if((u32_t)(tcp_ticks - pcb->tmr) >
-		 (pcb->keep_idle + TCP_MAXIDLE) / TCP_SLOW_INTERVAL)
+		 (pcb->keep_idle + TCP_MAXIDLE) / slow_tmr_interval)
 #endif /* LWIP_TCP_KEEPALIVE */
 	  {
 		LWIP_DEBUGF(TCP_DEBUG, ("tcp_slowtmr: KEEPALIVE timeout. Aborting connection to %"U16_F".%"U16_F".%"U16_F".%"U16_F".\n",
@@ -818,11 +828,11 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 #if LWIP_TCP_KEEPALIVE
 	  else if((u32_t)(tcp_ticks - pcb->tmr) >
 			  (pcb->keep_idle + pcb->keep_cnt_sent * pcb->keep_intvl)
-			  / TCP_SLOW_INTERVAL)
+			  / slow_tmr_interval)
 #else
 	  else if((u32_t)(tcp_ticks - pcb->tmr) >
 			  (pcb->keep_idle + pcb->keep_cnt_sent * TCP_KEEPINTVL_DEFAULT)
-			  / TCP_SLOW_INTERVAL)
+			  / slow_tmr_interval)
 #endif /* LWIP_TCP_KEEPALIVE */
 	  {
 		tcp_keepalive(pcb);
@@ -845,7 +855,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 	/* Check if this PCB has stayed too long in SYN-RCVD */
 	if (get_tcp_state(pcb) == SYN_RCVD) {
 	  if ((u32_t)(tcp_ticks - pcb->tmr) >
-		  TCP_SYN_RCVD_TIMEOUT / TCP_SLOW_INTERVAL) {
+		  TCP_SYN_RCVD_TIMEOUT / slow_tmr_interval) {
 		++pcb_remove;
 		err = ERR_ABRT;
 		LWIP_DEBUGF(TCP_DEBUG, ("tcp_slowtmr: removing pcb stuck in SYN-RCVD\n"));
@@ -854,7 +864,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 
 	/* Check if this PCB has stayed too long in LAST-ACK */
 	if (get_tcp_state(pcb) == LAST_ACK) {
-	  if ((u32_t)(tcp_ticks - pcb->tmr) > 2 * TCP_MSL / TCP_SLOW_INTERVAL) {
+	  if ((u32_t)(tcp_ticks - pcb->tmr) > 2 * TCP_MSL / slow_tmr_interval) {
 		++pcb_remove;
 		err = ERR_ABRT;
 		LWIP_DEBUGF(TCP_DEBUG, ("tcp_slowtmr: removing pcb stuck in LAST-ACK\n"));
@@ -892,7 +902,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 	pcb_remove = 0;
 
 	/* Check if this PCB has stayed long enough in TIME-WAIT */
-	if ((u32_t)(tcp_ticks - pcb->tmr) > 2 * TCP_MSL / TCP_SLOW_INTERVAL) {
+	if ((u32_t)(tcp_ticks - pcb->tmr) > 2 * TCP_MSL / slow_tmr_interval) {
 	  ++pcb_remove;
 	  /* err = ERR_ABRT; */ /* Note: suppress warning 'err' is never read */
 	}
@@ -908,7 +918,7 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 
 
 /**
- * Is called every TCP_FAST_INTERVAL (250 ms) and process data previously
+ * Is called every slow_tmr_interval and process data previously
  * "refused" by upper layer (application) and sends delayed ACKs.
  *
  * Automatically called from tcp_tmr().
@@ -1092,9 +1102,9 @@ void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio)
 	u16_t snd_mss = pcb->advtsd_mss = (LWIP_TCP_MSS) ? ((LWIP_TCP_MSS > 536) ? 536 : LWIP_TCP_MSS) : 536;
 	UPDATE_PCB_BY_MSS(pcb, snd_mss);
 	pcb->max_unsent_len = pcb->max_tcp_snd_queuelen;
-	pcb->rto = 3000 / TCP_SLOW_INTERVAL;
+	pcb->rto = 3000 / slow_tmr_interval;
 	pcb->sa = 0;
-	pcb->sv = 3000 / TCP_SLOW_INTERVAL;
+	pcb->sv = 3000 / slow_tmr_interval;
 	pcb->rtime = -1;
 #if TCP_CC_ALGO_MOD
 	switch (lwip_cc_algo_module) {
