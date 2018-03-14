@@ -1141,7 +1141,8 @@ bool sockinfo::attach_as_uc_receiver(role_t role, bool skip_rules /* = false */)
 		local_ip_list_t lip_offloaded_list = g_p_net_device_table_mgr->get_ip_list();
 		for (lip_iter = lip_offloaded_list.begin(); ret && lip_offloaded_list.end() != lip_iter; lip_iter++)
 		{
-			local_if = *lip_iter;
+			ip_data_t ip = *lip_iter;
+			local_if = ip.local_addr;
 			addr.set_in_addr(local_if);
 			transport_t target_family = TRANS_VMA;
 			if (!skip_rules) target_family = find_target_family(role, addr.get_p_sa());
