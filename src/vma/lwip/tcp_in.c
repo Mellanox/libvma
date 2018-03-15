@@ -773,6 +773,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
   u32_t right_wnd_edge;
   u16_t new_tot_len;
   int found_dupack = 0;
+  s8_t persist = 0;
 
   if (in_data->flags & TCP_ACK) {
     right_wnd_edge = pcb->snd_wnd + pcb->snd_wl2;
@@ -790,10 +791,8 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
       pcb->snd_wl1 = in_data->seqno;
       pcb->snd_wl2 = in_data->ackno;
       if (pcb->snd_wnd == 0) {
-        if (pcb->persist_backoff == 0 && pcb->unacked == NULL) {
-          /* start persist timer */
-          pcb->persist_cnt = 0;
-          pcb->persist_backoff = 1;
+        if (pcb->persist_backoff == 0) {
+          persist = 1;
         }
       } else if (pcb->persist_backoff > 0) {
         /* stop persist timer */
@@ -955,6 +954,11 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
       /* If there's nothing left to acknowledge, stop the retransmit
          timer, otherwise reset it to start again */
       if(pcb->unacked == NULL) {
+        if (persist) {
+          /* start persist timer */
+          pcb->persist_cnt = 0;
+          pcb->persist_backoff = 1;
+        }
         pcb->rtime = -1;
       } else {
         pcb->rtime = 0;
