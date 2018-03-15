@@ -133,11 +133,17 @@ void net_device_table_mgr::free_ndtm_resources()
 	orig_os_api.close(m_global_ring_pipe_fds[1]);
 	orig_os_api.close(m_global_ring_pipe_fds[0]);
 
-	net_device_map_t::iterator iter;
-	while ((iter = m_net_device_map.begin()) != m_net_device_map.end()) {
-		delete iter->second;
-		m_net_device_map.erase(iter);
+	if_index_to_net_dev_lst_t::iterator itr_if_indx;
+	while ((itr_if_indx = m_if_indx_to_nd_val_lst.begin()) != m_if_indx_to_nd_val_lst.end()) {
+		net_dev_lst_t* p_ndv_val_lst = &itr_if_indx->second;
+		net_dev_lst_t::iterator itr_dev_lst;
+		while ((itr_dev_lst = p_ndv_val_lst->begin()) != p_ndv_val_lst->end()) {
+			delete *itr_dev_lst;
+			p_ndv_val_lst->erase(itr_dev_lst);
+		}
+		m_if_indx_to_nd_val_lst.erase(itr_if_indx);
 	}
+
 	m_lock.unlock();
 }
 
@@ -148,80 +154,109 @@ net_device_table_mgr::~net_device_table_mgr()
 
 void net_device_table_mgr::update_tbl()
 {
-	int count = 0;
+	int rc = 0;
+	int fd = -1;
+	struct {
+		struct nlmsghdr hdr;
+		struct ifinfomsg infomsg;
+	} nl_req;
+	struct nlmsghdr *nl_msg;
+	int nl_msglen = 0;
+	char nl_res[8096];
+	static int _seq = 0;
 	net_device_val* p_net_device_val;
-	struct ifaddrs *ifaddr, *ifa;
-	size_t i = 0;
+
+	/* Set up the netlink socket */
+	fd = orig_os_api.socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
+	if (fd < 0) {
+		ndtm_logerr("netlink socket() creation");
+		return;
+	}
 
 	ndtm_logdbg("Checking for offload capable network interfaces...");
 
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (getifaddrs(&ifaddr) == -1) {
-		ndtm_logerr("getifaddrs() failed (errno = %d %m)", errno); 
-		return ;
+	/* Prepare RTM_GETLINK request */
+	memset(&nl_req, 0, sizeof(nl_req));
+	nl_req.hdr.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifinfomsg));
+	nl_req.hdr.nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;
+	nl_req.hdr.nlmsg_type = RTM_GETLINK;
+	nl_req.hdr.nlmsg_seq = _seq++;
+	nl_req.hdr.nlmsg_pid = getpid();
+	nl_req.infomsg.ifi_family = AF_INET;
+
+	/* Send the netlink request */
+	rc = orig_os_api.send(fd, &nl_req, nl_req.hdr.nlmsg_len, 0);
+	if (rc < 0) {
+		ndtm_logerr("netlink send() operation");
+		goto ret;
 	}
-	BULLSEYE_EXCLUDE_BLOCK_END
 
-	for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-
-		if (ifa->ifa_addr == NULL) {
-			ndtm_logdbg("Blocking offload: Interface ('%s') addr info in NULL", ifa->ifa_name);
-			continue;
-		}
-		if (AF_INET != ifa->ifa_addr->sa_family) {
-			ndtm_logdbg("Blocking offload: Interface ('%s') is not of type AF_INET", ifa->ifa_name);
-			continue;
-		}
-		if (ifa->ifa_flags & IFF_SLAVE) {
-			ndtm_logdbg("Blocking offload: Interface ('%s') is a bonding slave", ifa->ifa_name);
-			continue;
+	do {
+		/* Receive the netlink reply */
+		rc = orig_os_api.recv(fd, nl_res, sizeof(nl_res), 0);
+		if (rc < 0) {
+			ndtm_logerr("netlink recv() operation");
+			goto ret;
 		}
 
-		// arriving here means this is an offloadable device and VMA need to create a net_device.
-		m_lock.lock();
-		switch (get_iftype_from_ifname(ifa->ifa_name)) {
-		case ARPHRD_ETHER:
-			p_net_device_val = new net_device_val_eth(ifa);
-			break;
-		case ARPHRD_INFINIBAND:
-			p_net_device_val = new net_device_val_ib(ifa);
-			break;
-		default:
+		nl_msg = (struct nlmsghdr *)nl_res;
+		nl_msglen = rc;
+		while (NLMSG_OK(nl_msg, (size_t)nl_msglen) && (nl_msg->nlmsg_type != NLMSG_ERROR)) {
+			struct ifinfomsg *nl_msgdata;
+
+			nl_msgdata = (struct ifinfomsg *)NLMSG_DATA(nl_msg);
+
+			m_lock.lock();
+
+			/* Skip some types */
+			if (!(nl_msgdata->ifi_flags & IFF_SLAVE)) {
+				switch (nl_msgdata->ifi_type) {
+				case ARPHRD_ETHER:
+					p_net_device_val = new net_device_val_eth(nl_msg);
+					break;
+				case ARPHRD_INFINIBAND:
+					p_net_device_val = new net_device_val_ib(nl_msg);
+					break;
+				default:
+					goto next;
+				}
+				BULLSEYE_EXCLUDE_BLOCK_START
+				if (!p_net_device_val) {
+					ndtm_logerr("failed allocating new net_device (errno=%d %m)", errno);
+					goto next;
+				}
+				if (p_net_device_val->get_state() == net_device_val::INVALID) {
+					delete p_net_device_val;
+					goto next;
+				}
+
+				BULLSEYE_EXCLUDE_BLOCK_END
+			        if ((int)get_max_mtu() < p_net_device_val->get_mtu()) {
+					set_max_mtu(p_net_device_val->get_mtu());
+				}
+
+				ip_data_vector_t* p_ip = p_net_device_val->get_ip_array();
+				for (size_t i = 0; i < p_ip->size(); i++) {
+					m_net_device_map[p_ip->at(i)->local_addr] = p_net_device_val;
+				}
+				m_if_indx_to_nd_val_lst[p_net_device_val->get_if_idx()].push_back(p_net_device_val);
+			}
+
+next:
 			m_lock.unlock();
-			continue;
+
+			/* Check if it is the last message */
+			if(nl_msg->nlmsg_type == NLMSG_DONE) {
+				goto ret;
+			}
+			nl_msg = NLMSG_NEXT(nl_msg, nl_msglen);
 		}
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (!p_net_device_val) {
-			ndtm_logerr("failed allocating new net_device (errno=%d %m)", errno);
-			m_lock.unlock();
-			freeifaddrs(ifaddr);
-			return ;
-		}
-		if (p_net_device_val->get_state() == net_device_val::INVALID) {
-			delete p_net_device_val;
-			m_lock.unlock();
-			continue;
-		}
+	} while (1);
 
-		BULLSEYE_EXCLUDE_BLOCK_END
-	        if ((int)get_max_mtu() < p_net_device_val->get_mtu()) {
-			set_max_mtu(p_net_device_val->get_mtu());
-		}
+ret:
+	ndtm_logdbg("Check completed. Found %d offload capable network interfaces", m_if_indx_to_nd_val_lst.size());
 
-		ip_data_vector_t* p_ip = p_net_device_val->get_ip_array();
-		for (i = 0; i < p_ip->size(); i++) {
-			m_net_device_map[p_ip->at(i)->local_addr] = p_net_device_val;
-		}
-		m_if_indx_to_nd_val_lst[p_net_device_val->get_if_idx()].push_back(p_net_device_val);
-		m_lock.unlock();
-
-		count++;
-
-	} //for
-
-	freeifaddrs(ifaddr);
-
-	ndtm_logdbg("Check completed. Found %d offload capable network interfaces", count);
+	orig_os_api.close(fd);
 }
 
 void net_device_table_mgr::print_val_tbl()
