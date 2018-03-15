@@ -136,11 +136,14 @@ void ring_alloc_logic_attr::set_user_id_key(uint64_t user_id_key)
 net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 {
 	struct rdma_event_channel *p_cma_event_channel = NULL;
-	struct ifaddrs* ifa = (struct ifaddrs*)desc;
 	bool valid, is_netvsc;
 	rdma_cm_id* cma_id;
 	ib_ctx_handler* ib_ctx;
 	struct ifaddrs slave;
+	struct nlmsghdr *nl_msg = (struct nlmsghdr *)desc;
+	struct ifinfomsg *nl_msgdata = (struct ifinfomsg *)NLMSG_DATA(nl_msg);
+	int nl_attrlen;
+	struct rtattr *nl_attr;
 
 	m_if_idx = 0;
 	m_type = 0;
@@ -163,67 +166,98 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 		return;
 	}
 
+	nl_attr = (struct rtattr *)IFLA_RTA(nl_msgdata);
+	nl_attrlen = IFLA_PAYLOAD(nl_msg);
+
+	set_type(nl_msgdata->ifi_type);
+	set_if_idx(nl_msgdata->ifi_index);
+	set_flags(nl_msgdata->ifi_flags);
+	while (RTA_OK(nl_attr, nl_attrlen)) {
+		char *nl_attrdata = (char *)RTA_DATA(nl_attr);
+		size_t nl_attrpayload = RTA_PAYLOAD(nl_attr);
+
+		switch (nl_attr->rta_type) {
+		case IFLA_MTU:
+			set_mtu(*(int32_t *)nl_attrdata);
+			break;
+		case IFLA_IFNAME:
+			set_ifname(nl_attrdata);
+			break;
+		case IFLA_ADDRESS:
+			set_l2_if_addr((uint8_t *)nl_attrdata, nl_attrpayload);
+			break;
+		case IFLA_BROADCAST:
+			set_l2_bc_addr((uint8_t *)nl_attrdata, nl_attrpayload);
+			break;
+		default:
+			break;
+		}
+		nl_attr = RTA_NEXT(nl_attr, nl_attrlen);
+	}
+
+	/* Valid interface should have at least one IP address */
+	set_ip_array();
+	if (m_ip.empty()) {
+		return;
+	}
+	set_str();
+
 	p_cma_event_channel = rdma_create_event_channel();
 	if (NULL == p_cma_event_channel) {
 		nd_logerr("Failed rdma_create_event_channel() (errno=%d %m)", errno);
-		return ;
+		return;
 	}
-
-	nd_logdbg("Checking if can offload on interface '%s' (addr=%d.%d.%d.%d, flags=%X)",
-			ifa->ifa_name, NIPQUAD(((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr), ifa->ifa_flags);
 
 	cma_id = NULL;
 	IF_RDMACM_FAILURE(rdma_create_id(p_cma_event_channel, &cma_id, NULL, RDMA_PS_UDP)) { // UDP vs IP_OVER_IB?
 		nd_logerr("Failed in rdma_create_id (RDMA_PS_UDP) (errno=%d %m)", errno);
-		return ;
+		rdma_destroy_event_channel(p_cma_event_channel);
+		return;
 	} ENDIF_RDMACM_FAILURE;
 
-	is_netvsc = check_netvsc_device_exist(ifa->ifa_name);
+	nd_logdbg("Checking if can offload on interface '%s' (index=%d addr=%d.%d.%d.%d flags=%X)",
+			get_ifname(), get_if_idx(), NIPQUAD(get_local_addr()), get_flags());
+
+	is_netvsc = check_netvsc_device_exist(get_ifname());
 	if (is_netvsc) {
-		nd_logdbg("Found netvsc interface ('%s')", ifa->ifa_name);
-		if (!get_netvsc_slave(ifa->ifa_name, &slave)) {
-			goto destroy_cma_id;
+		nd_logdbg("Found netvsc interface ('%s')", get_ifname());
+		if (!get_netvsc_slave(get_ifname(), &slave)) {
+			goto err;
 		}
-		nd_logdbg("Found netvsc lower interface ('%s') is lower of ('%s')", slave.ifa_name, ifa->ifa_name);
+		nd_logdbg("Found netvsc lower interface ('%s') is lower of ('%s')", slave.ifa_name, get_ifname());
 		ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(slave.ifa_name);
 	} else {
-		IF_RDMACM_FAILURE(rdma_bind_addr(cma_id, (struct sockaddr*)ifa->ifa_addr)) {
-			nd_logdbg("Failed in rdma_bind_addr (src=%d.%d.%d.%d) (errno=%d %m)", NIPQUAD(((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr), errno);
+		struct sockaddr_in sin;
+		memset(&sin, 0, sizeof(sin));
+		sin.sin_family = AF_INET;
+		sin.sin_addr.s_addr = get_local_addr();
+		sin.sin_port = 0;
+		IF_RDMACM_FAILURE(rdma_bind_addr(cma_id, (struct sockaddr*)&sin)) {
+			nd_logdbg("Failed in rdma_bind_addr (src=%d.%d.%d.%d) (errno=%d %m)", NIPQUAD(get_local_addr()), errno);
 			errno = 0; //in case of not-offloaded, resource is not available (errno=11), but this is normal and we don't want the user to know about this
-			goto destroy_cma_id;
+			goto err;
 		} ENDIF_RDMACM_FAILURE;
 
 		// loopback might get here but without ibv_context in the cma_id
 		if (NULL == cma_id->verbs) {
-			nd_logdbg("Blocking offload: No verbs context in cma_id on interfaces ('%s')", ifa->ifa_name);
-			goto destroy_cma_id;
+			nd_logdbg("Blocking offload: No verbs context in cma_id on interfaces ('%s')", get_ifname());
+			goto err;
 		}
 		ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(cma_id->verbs);
 	}
 
 	if (NULL == ib_ctx) {
-		nd_logdbg("Blocking offload: can't create ib_ctx on interfaces ('%s')", ifa->ifa_name);
-		goto destroy_cma_id;
+		nd_logdbg("Blocking offload: can't create ib_ctx on interfaces ('%s')", get_ifname());
+		goto err;
 	}
 
 #ifdef DEFINED_SOCKETXTREME
 	// only support mlx5 device in this mode
 	if(strncmp(ib_ctx->get_ibv_device()->name, "mlx4", 4) == 0) {
-		nd_logdbg("Blocking offload: mlx4 interfaces ('%s') in socketxtreme mode", ifa->ifa_name);
-		goto destroy_cma_id;
+		nd_logdbg("Blocking offload: mlx4 interfaces ('%s') in socketxtreme mode", get_ifname());
+		goto err;
 	}
 #endif // DEFINED_SOCKETXTREME
-
-	m_rdma_key = cma_id->route.addr.addr.ibaddr.pkey;
-
-	set_ifname(ifa->ifa_name);
-	set_if_idx(if_nametoindex(ifa->ifa_name));
-	set_type(get_iftype_from_ifname(ifa->ifa_name));
-	set_flags(ifa->ifa_flags);
-	set_mtu(get_if_mtu_from_ifname(ifa->ifa_name));
-	if (safe_mce_sys().mtu != 0 && (int)safe_mce_sys().mtu != m_mtu) {
-		nd_logwarn("Mismatch between interface %s MTU=%d and VMA_MTU=%d. Make sure VMA_MTU and all offloaded interfaces MTUs match.", m_name.c_str(), m_mtu, safe_mce_sys().mtu);
-	}
 
 	if (check_device_exist(m_base_name, BOND_DEVICE_FILE)) {
 		// this is a bond interface (or a vlan/alias over bond), find the slaves
@@ -231,16 +265,16 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 	} else if (is_netvsc) {
 		valid = verify_netvsc_ipoib_or_eth_qp_creation(slave.ifa_name);
 	} else {
-		valid = verify_ipoib_or_eth_qp_creation(m_name.c_str());
+		valid = verify_ipoib_or_eth_qp_creation(get_ifname());
 	}
 	if (!valid) {
-		goto destroy_cma_id;
+		goto err;
 	}
 
-	/* Valid interface should have at least one IP address */
-	set_ip_array(ifa);
-	if (m_ip.empty()) {
-                goto destroy_cma_id;
+	m_rdma_key = cma_id->route.addr.addr.ibaddr.pkey;
+
+	if (safe_mce_sys().mtu != 0 && (int)safe_mce_sys().mtu != m_mtu) {
+		nd_logwarn("Mismatch between interface %s MTU=%d and VMA_MTU=%d. Make sure VMA_MTU and all offloaded interfaces MTUs match.", m_name.c_str(), m_mtu, safe_mce_sys().mtu);
 	}
 
 	/* Set interface state after all verifucations */
@@ -257,11 +291,11 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 	}
 
 	nd_logdbg("Offload interface '%s': Mapped to ibv device '%s' [%p] on port %d (Active: %d), Running: %d",
-		ifa->ifa_name, ib_ctx->get_ibv_device()->name, ib_ctx->get_ibv_device(),
+			get_ifname(), ib_ctx->get_ibv_device()->name, ib_ctx->get_ibv_device(),
 		get_port_from_ifname(m_base_name), ib_ctx->is_active(get_port_from_ifname(m_base_name)),
 		(!!(m_flags & IFF_RUNNING)));
 
-destroy_cma_id:
+err:
 	IF_RDMACM_FAILURE(rdma_destroy_id(cma_id)) {
 		nd_logerr("Failed in rdma_destroy_id (errno=%d %m)", errno);
 	} ENDIF_RDMACM_FAILURE;
@@ -308,18 +342,100 @@ net_device_val::~net_device_val()
 	m_ip.clear();
 }
 
-void net_device_val::set_ip_array(struct ifaddrs* ifa)
+void net_device_val::set_ip_array()
 {
-	ip_data_t* p_val = NULL;
+	int rc = 0;
+	int fd = -1;
+	struct {
+		struct nlmsghdr hdr;
+		struct ifaddrmsg addrmsg;
+	} nl_req;
+	struct nlmsghdr *nl_msg;
+	int nl_msglen = 0;
+	char nl_res[8096];
+	static int _seq = 0;
 
-	m_local_addr    = ((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr;
+	/* Set up the netlink socket */
+	fd = orig_os_api.socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
+	if (fd < 0) {
+		nd_logerr("netlink socket() creation");
+		return;
+	}
 
-	p_val = new ip_data_t;
-	memset(&p_val->local_addr, 0, sizeof(in_addr_t));
-	memcpy(&p_val->local_addr, (in_addr_t *)&((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr, sizeof(in_addr_t));
-	memset(&p_val->netmask, 0, sizeof(in_addr_t));
-	memcpy(&p_val->netmask, (in_addr_t *)&((struct sockaddr_in *)ifa->ifa_netmask)->sin_addr.s_addr, sizeof(in_addr_t));
-	m_ip.push_back(p_val);
+	/* Prepare RTM_GETADDR request */
+	memset(&nl_req, 0, sizeof(nl_req));
+	nl_req.hdr.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifaddrmsg));
+	nl_req.hdr.nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;
+	nl_req.hdr.nlmsg_type = RTM_GETADDR;
+	nl_req.hdr.nlmsg_seq = _seq++;
+	nl_req.hdr.nlmsg_pid = getpid();
+	nl_req.addrmsg.ifa_family = AF_INET;
+	nl_req.addrmsg.ifa_index = m_if_idx;
+
+	/* Send the netlink request */
+	rc = orig_os_api.send(fd, &nl_req, nl_req.hdr.nlmsg_len, 0);
+	if (rc < 0) {
+		nd_logerr("netlink send() operation");
+		goto ret;
+	}
+
+	do {
+		/* Receive the netlink reply */
+		rc = orig_os_api.recv(fd, nl_res, sizeof(nl_res), 0);
+		if (rc < 0) {
+			nd_logerr("netlink recv() operation");
+			goto ret;
+		}
+
+		nl_msg = (struct nlmsghdr *)nl_res;
+		nl_msglen = rc;
+		while (NLMSG_OK(nl_msg, (size_t)nl_msglen) && (nl_msg->nlmsg_type != NLMSG_ERROR)) {
+			int nl_attrlen;
+			struct ifaddrmsg *nl_msgdata;
+			struct rtattr *nl_attr;
+			ip_data_t* p_val = NULL;
+
+			nl_msgdata = (struct ifaddrmsg *)NLMSG_DATA(nl_msg);
+
+			/* Process just specific if index */
+			if ((int)nl_msgdata->ifa_index == m_if_idx) {
+				nl_attr = (struct rtattr *)IFA_RTA(nl_msgdata);
+				nl_attrlen = IFA_PAYLOAD(nl_msg);
+
+				p_val = new ip_data_t;
+				p_val->flags = nl_msgdata->ifa_flags;
+				memset(&p_val->netmask, 0, sizeof(in_addr_t));
+				p_val->netmask = prefix_to_netmask(nl_msgdata->ifa_prefixlen);
+				while (RTA_OK(nl_attr, nl_attrlen)) {
+					char *nl_attrdata = (char *)RTA_DATA(nl_attr);
+
+					switch (nl_attr->rta_type) {
+					case IFA_ADDRESS:
+						memset(&p_val->local_addr, 0, sizeof(in_addr_t));
+						memcpy(&p_val->local_addr, (in_addr_t *)nl_attrdata, sizeof(in_addr_t));
+						if (!m_local_addr) {
+							m_local_addr = p_val->local_addr;
+						}
+						break;
+					default:
+						break;
+					}
+					nl_attr = RTA_NEXT(nl_attr, nl_attrlen);
+				}
+
+				m_ip.push_back(p_val);
+			}
+
+			/* Check if it is the last message */
+			if(nl_msg->nlmsg_type == NLMSG_DONE) {
+				goto ret;
+			}
+			nl_msg = NLMSG_NEXT(nl_msg, nl_msglen);
+		}
+	} while (1);
+
+ret:
+	orig_os_api.close(fd);
 }
 
 void net_device_val::set_str()

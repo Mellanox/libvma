@@ -217,14 +217,22 @@ public:
 		m_name = ifname;
 		get_base_interface_name(ifname, m_base_name, sizeof(m_base_name));
 	}
-	ip_data_vector_t* get_ip_array() { return &m_ip;}
+	inline void set_l2_if_addr(uint8_t *addr, size_t size) {
+		memcpy(m_l2_if_addr, addr, std::min(sizeof(m_l2_if_addr), size));
+	}
+	inline void set_l2_bc_addr(uint8_t *addr, size_t size) {
+		memcpy(m_l2_bc_addr, addr, std::min(sizeof(m_l2_bc_addr), size));
+	}
+	void set_ip_array();
 
 	inline int get_type() { return m_type; }
 	inline int get_if_idx() { return m_if_idx; }
 	inline int get_flags() { return m_flags; }
 	inline int get_mtu() { return m_mtu; }
 	inline char* get_ifname() { return (char *)m_name.c_str(); }
-	void set_ip_array(struct ifaddrs* ifa);
+	inline uint8_t* get_l2_if_addr() { return m_l2_if_addr; }
+	inline uint8_t* get_l2_bc_addr() { return m_l2_bc_addr; }
+	ip_data_vector_t* get_ip_array() { return &m_ip;}
 
 	void set_str();
 	void print_val();
@@ -236,7 +244,7 @@ public:
 	inline void set_transport_type(transport_type_t value) { m_transport_type = value; }
 	transport_type_t        get_transport_type() const { return m_transport_type; }
 	bool 			update_active_backup_slaves();
-	in_addr_t               get_local_addr() {return m_local_addr;};
+	in_addr_t               get_local_addr() {return m_local_addr; }
 	int                     global_ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array = NULL);
 	int                     global_ring_request_notification(uint64_t poll_sn) ;
 	int                     ring_drain_and_proccess();
@@ -254,6 +262,8 @@ protected:
 	int              m_type;           /* This defines the type of the link. */
 	int              m_flags;          /* Device Flags (IFF_x).  */
 	int              m_mtu;            /* MTU of the device. */
+	uint8_t          m_l2_if_addr[20]; /* hardware L2 interface address */
+	uint8_t          m_l2_bc_addr[20]; /* hardware L2 broadcast address */
 
 	/* See: RFC 3549 2.3.3.2. */
 	ip_data_vector_t m_ip;             /* vector of ip addresses */
