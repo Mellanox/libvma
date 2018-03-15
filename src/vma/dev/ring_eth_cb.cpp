@@ -127,7 +127,7 @@ void ring_eth_cb::create_resources(ring_resource_creation_info_t *p_ring_info,
 		}
 	}
 	m_strides_num = 1 << m_single_wqe_log_num_of_strides;
-	ring_logdbg("useing strides_num %d stride size %d, wqe_count %d stride_bytes "
+	ring_logdbg("using strides_num %d stride size %d, wqe_count %d stride_bytes "
 		    "%d, hdr_bytes %d num %d rec mode %d", m_strides_num, m_stride_size,
 		    m_wq_count, cb_ring->stride_bytes, cb_ring->hdr_bytes, cb_ring->num,
 		    m_packet_receive_mode);
@@ -143,7 +143,7 @@ void ring_eth_cb::create_resources(ring_resource_creation_info_t *p_ring_info,
 		m_buff_data.addr = m_sge_ptrs[CB_UMR_PAYLOAD];
 		m_buff_data.length = m_stride_size * m_strides_num;
 		m_buff_data.lkey = get_mem_lkey(m_p_ib_ctx);
-		ring_logdbg("useing buffer size %zd", buffer_size);
+		ring_logdbg("using buffer size %zd", buffer_size);
 	} else if (allocate_umr_mem(cb_ring, net_len)) {
 		ring_logerr("failed creating UMR QP");
 		throw_vma_exception("failed creating UMR QP");
@@ -242,7 +242,7 @@ int ring_eth_cb::allocate_umr_mem(vma_cyclic_buffer_ring_attr *cb_ring, uint16_t
 	buffer_size = m_packet_size * packets_num;
 	// will raise an exception on failure
 	base_ptr = (uint64_t)m_alloc.alloc_and_reg_mr(buffer_size, m_p_ib_ctx);
-	ring_logdbg("use buffer parameters, buffer_size %zd "
+	ring_logdbg("using buffer parameters, buffer_size %zd "
 		    "pad len %d packet size %d",
 		    buffer_size, pad_len, m_packet_size);
 	prev_addr = base_ptr;
