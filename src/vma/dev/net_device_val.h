@@ -226,6 +226,9 @@ public:
 	inline char* get_ifname() { return (char *)m_name.c_str(); }
 	void set_ip_array(struct ifaddrs* ifa);
 
+	void set_str();
+	void print_val();
+
 	ring*                   reserve_ring(resource_allocation_key*); // create if not exists
 	bool 			release_ring(resource_allocation_key*); // delete from m_hash if ref_cnt == 0
 	state                   get_state() const  { return m_state; } // not sure, look at state init at c'tor
@@ -291,6 +294,7 @@ private:
 	bool 			verify_enable_ipoib(const char* ifname);
 
 	bool get_up_and_active_slaves(bool* up_and_active_slaves, size_t size);
+	char m_str[BUFF_SIZE];
 };
 
 class net_device_val_eth : public net_device_val
