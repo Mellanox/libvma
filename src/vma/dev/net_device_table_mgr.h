@@ -48,10 +48,9 @@
 #include "net_device_val.h"
 #include "net_device_entry.h"
 
-typedef std::tr1::unordered_map<in_addr_t, net_device_val*> net_device_map_t;
+typedef std::tr1::unordered_map<in_addr_t, net_device_val*> net_device_map_addr_t;
+typedef std::tr1::unordered_map<int, net_device_val*> net_device_map_index_t;
 typedef std::list<ip_data_t> local_ip_list_t;
-typedef std::list<net_device_val*> net_dev_lst_t;
-typedef std::tr1::unordered_map<int, net_dev_lst_t > if_index_to_net_dev_lst_t;
 
 class net_device_table_mgr : public cache_table_mgr<ip_address, net_device_val*>
 {
@@ -63,7 +62,7 @@ public:
 
 	int			map_net_devices();
 	net_device_val* 	get_net_device_val(const in_addr_t local_ip);
-	net_dev_lst_t*		get_net_device_val_lst_from_index(int if_index);
+	net_device_val*		get_net_device_val(int if_index);
 
 	local_ip_list_t     get_ip_list(int if_index = 0); // return list of the table_mgr managed ips
 
@@ -115,8 +114,8 @@ private:
 	void                            set_max_mtu(uint32_t);
 	
 	lock_mutex                      m_lock;
-	net_device_map_t                m_net_device_map;
-	if_index_to_net_dev_lst_t	m_if_indx_to_nd_val_lst;
+	net_device_map_addr_t           m_net_device_map_addr;
+	net_device_map_index_t          m_net_device_map_index;
 	int                             m_num_devices;
 
 	int			        m_global_ring_epfd;
