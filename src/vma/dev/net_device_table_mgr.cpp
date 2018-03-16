@@ -237,7 +237,7 @@ void net_device_table_mgr::update_tbl()
 
 				ip_data_vector_t* p_ip = p_net_device_val->get_ip_array();
 				for (size_t i = 0; i < p_ip->size(); i++) {
-					m_net_device_map[p_ip->at(i)->local_addr] = p_net_device_val;
+					m_net_device_map[(*p_ip)[i]->local_addr] = p_net_device_val;
 				}
 				m_if_indx_to_nd_val_lst[p_net_device_val->get_if_idx()].push_back(p_net_device_val);
 			}
@@ -352,7 +352,7 @@ local_ip_list_t net_device_table_mgr::get_ip_list(int if_index)
 			net_device_val* p_ndev = dynamic_cast <net_device_val *>(*itr_dev_lst);
 			ip_data_vector_t* p_ip = p_ndev->get_ip_array();
 			for (i = 0; i < p_ip->size(); i++) {
-				ip_list.push_back(*(p_ip->at(i)));
+				ip_list.push_back(*(*p_ip)[i]);
 			}
 		}
 		if (if_index > 0) {
