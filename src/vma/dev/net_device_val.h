@@ -244,7 +244,7 @@ public:
 	inline void set_transport_type(transport_type_t value) { m_transport_type = value; }
 	transport_type_t        get_transport_type() const { return m_transport_type; }
 	bool 			update_active_backup_slaves();
-	in_addr_t               get_local_addr() {return m_local_addr; }
+	in_addr_t               get_local_addr() { return m_ip[0]->local_addr; } // Valid object must have at least one address
 	int                     global_ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array = NULL);
 	int                     global_ring_request_notification(uint64_t poll_sn) ;
 	int                     ring_drain_and_proccess();
@@ -268,7 +268,6 @@ protected:
 	/* See: RFC 3549 2.3.3.2. */
 	ip_data_vector_t m_ip;             /* vector of ip addresses */
 
-	in_addr_t		m_local_addr;
 	state			m_state;
 	L2_address*		m_p_L2_addr;
 	L2_address* 		m_p_br_addr;
