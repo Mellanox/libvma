@@ -100,9 +100,9 @@ net_device_table_mgr::net_device_table_mgr() : cache_table_mgr<ip_address,net_de
 	/* Read Link table from kernel and save it in local variable. */
 	update_tbl();
 	if (m_net_device_map_index.empty()) {
-		ndtm_logdbg("map_net_devices failed");
+		ndtm_logdbg("net_device_map is empty");
 		free_ndtm_resources();
-		throw_vma_exception("map_net_devices failed");
+		throw_vma_exception("net_device_map is empty");
 	}
 
 	//Print table
@@ -205,12 +205,13 @@ void net_device_table_mgr::update_tbl()
 
 			/* Skip some types */
 			if (!(nl_msgdata->ifi_flags & IFF_SLAVE)) {
+				struct net_device_val::net_device_val_desc desc = {nl_msg};
 				switch (nl_msgdata->ifi_type) {
 				case ARPHRD_ETHER:
-					p_net_device_val = new net_device_val_eth(nl_msg);
+					p_net_device_val = new net_device_val_eth(&desc);
 					break;
 				case ARPHRD_INFINIBAND:
-					p_net_device_val = new net_device_val_ib(nl_msg);
+					p_net_device_val = new net_device_val_ib(&desc);
 					break;
 				default:
 					goto next;
