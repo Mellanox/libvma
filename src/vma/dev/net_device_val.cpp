@@ -242,7 +242,7 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 			nd_logdbg("Blocking offload: No verbs context in cma_id on interfaces ('%s')", get_ifname());
 			goto err;
 		}
-		ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(cma_id->verbs);
+		ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(get_ifname());
 	}
 
 	if (NULL == ib_ctx) {
