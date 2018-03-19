@@ -179,6 +179,9 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 		case IFLA_MTU:
 			set_mtu(*(int32_t *)nl_attrdata);
 			break;
+		case IFLA_LINK:
+			set_if_link(*(int32_t *)nl_attrdata);
+			break;
 		case IFLA_IFNAME:
 			set_ifname(nl_attrdata);
 			break;
@@ -242,7 +245,7 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 			nd_logdbg("Blocking offload: No verbs context in cma_id on interfaces ('%s')", get_ifname());
 			goto err;
 		}
-		ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(cma_id->verbs);
+		ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(get_ifname_link());
 	}
 
 	if (NULL == ib_ctx) {
@@ -445,8 +448,11 @@ void net_device_val::set_str()
 	strcat(m_str, str_x);
 
 	str_x[0] = '\0';
-	if (strcmp(m_base_name, "") != 0)
-		sprintf(str_x, " %s:", m_base_name);
+	if (!strcmp(get_ifname(), get_ifname_link())) {
+		sprintf(str_x, " %s:", get_ifname());
+	} else {
+		sprintf(str_x, " %s@%s:", get_ifname(), get_ifname_link());
+	}
 	strcat(m_str, str_x);
 
 	str_x[0] = '\0';

@@ -213,6 +213,7 @@ public:
 	inline void set_if_idx(int if_idx) { m_if_idx = if_idx; }
 	inline void set_flags(int flags) { m_flags = flags; }
 	inline void set_mtu(int mtu) { m_mtu = mtu; }
+	inline void set_if_link(int if_link) { m_if_link = if_link; }
 	inline void set_ifname(char *ifname) {
 		m_name = ifname;
 		get_base_interface_name(ifname, m_base_name, sizeof(m_base_name));
@@ -229,7 +230,9 @@ public:
 	inline int get_if_idx() { return m_if_idx; }
 	inline int get_flags() { return m_flags; }
 	inline int get_mtu() { return m_mtu; }
+	inline int get_if_link() { return m_if_link; }
 	inline char* get_ifname() { return (char *)m_name.c_str(); }
+	inline char* get_ifname_link() { return m_base_name; }
 	inline uint8_t* get_l2_if_addr() { return m_l2_if_addr; }
 	inline uint8_t* get_l2_bc_addr() { return m_l2_bc_addr; }
 	ip_data_vector_t* get_ip_array() { return &m_ip;}
@@ -262,6 +265,7 @@ protected:
 	int              m_type;           /* This defines the type of the link. */
 	int              m_flags;          /* Device Flags (IFF_x).  */
 	int              m_mtu;            /* MTU of the device. */
+	int              m_if_link;        /* ifindex of link to which this device is bound */
 	uint8_t          m_l2_if_addr[20]; /* hardware L2 interface address */
 	uint8_t          m_l2_bc_addr[20]; /* hardware L2 broadcast address */
 
