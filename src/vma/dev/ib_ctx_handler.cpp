@@ -55,7 +55,7 @@
 #define ibch_logfuncall         __log_info_funcall
 
 
-ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx_time_converter_mode) :
+ib_ctx_handler::ib_ctx_handler(void *desc, ts_conversion_mode_t ctx_time_converter_mode) :
 	m_flow_tag_enabled(false)
 	, m_on_device_memory(0)
 	, m_removed(false)
@@ -64,33 +64,39 @@ ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx
 	, m_umr_qp(NULL)
 	, m_p_ctx_time_converter(NULL)
 {
-	m_p_ibv_context = ctx;
-	VALGRIND_MAKE_MEM_DEFINED(m_p_ibv_context, sizeof(ibv_context));
-	m_p_ibv_device = ctx->device;
+	m_p_ibv_device = (struct ibv_device *)desc;
 
-	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_p_ibv_device == NULL) {
-		ibch_logpanic("ibv_device is NULL! (ibv context %p)", m_p_ibv_context);
+		ibch_logpanic("m_p_ibv_device is invalid");
+		goto err;
 	}
+
+	m_p_ibv_context = ibv_open_device(m_p_ibv_device);
+	if (m_p_ibv_context == NULL) {
+		ibch_logpanic("m_p_ibv_context is invalid");
+		goto err;
+	}
+	VALGRIND_MAKE_MEM_DEFINED(m_p_ibv_context, sizeof(ibv_context));
 
 	// Create pd for this device
 	m_p_ibv_pd = ibv_alloc_pd(m_p_ibv_context);
 	if (m_p_ibv_pd == NULL) {
 		ibch_logpanic("ibv device %p pd allocation failure (ibv context %p) (errno=%d %m)",
 			    m_p_ibv_device, m_p_ibv_context, errno);
+		goto err;
 	}
 	m_p_ibv_device_attr = new vma_ibv_device_attr();
 	vma_ibv_device_attr_comp_mask(m_p_ibv_device_attr);
 	IF_VERBS_FAILURE(vma_ibv_query_device(m_p_ibv_context, m_p_ibv_device_attr)) {
 		ibch_logerr("ibv_query_device failed on ibv device %p (ibv context %p) (errno=%d %m)",
 			  m_p_ibv_device, m_p_ibv_context, errno);
-		return;
+		goto err;
 	} ENDIF_VERBS_FAILURE;
-	BULLSEYE_EXCLUDE_BLOCK_END
+
 #ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
 	switch (ctx_time_converter_mode) {
 	case TS_CONVERSION_MODE_DISABLE:
-		m_p_ctx_time_converter = new time_converter_ib_ctx(ctx, TS_CONVERSION_MODE_DISABLE, 0);
+		m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context, TS_CONVERSION_MODE_DISABLE, 0);
 	break;
 	case TS_CONVERSION_MODE_PTP: {
 # ifdef DEFINED_IBV_EXP_VALUES_CLOCK_INFO
@@ -100,9 +106,9 @@ ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx
 					       IBV_EXP_VALUES_CLOCK_INFO,
 					       &ibv_exp_values_tmp);
 		if (!ret) {
-			m_p_ctx_time_converter = new time_converter_ptp(ctx);
+			m_p_ctx_time_converter = new time_converter_ptp(m_p_ibv_context);
 		} else { // revert to mode TS_CONVERSION_MODE_SYNC
-			m_p_ctx_time_converter = new time_converter_ib_ctx(ctx,
+			m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context,
 							TS_CONVERSION_MODE_SYNC,
 							m_p_ibv_device_attr->hca_core_clock);
 			ibch_logwarn("ibv_exp_query_values failure for clock_info, "
@@ -111,7 +117,7 @@ ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx
 					m_p_ibv_context, ret);
 		}
 # else
-		m_p_ctx_time_converter = new time_converter_ib_ctx(ctx,
+		m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context,
 				TS_CONVERSION_MODE_SYNC,
 				m_p_ibv_device_attr->hca_core_clock);
 		ibch_logwarn("PTP is not supported by the underlying Infiniband "
@@ -121,13 +127,13 @@ ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx
 	}
 	break;
 	default:
-		m_p_ctx_time_converter = new time_converter_ib_ctx(ctx,
+		m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context,
 				ctx_time_converter_mode,
 				m_p_ibv_device_attr->hca_core_clock);
 		break;
 	}
 #else
-	m_p_ctx_time_converter = new time_converter_ib_ctx(ctx, TS_CONVERSION_MODE_DISABLE, 0);
+	m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context, TS_CONVERSION_MODE_DISABLE, 0);
 	if (ctx_time_converter_mode != TS_CONVERSION_MODE_DISABLE) {
 		ibch_logwarn("time converter mode not applicable (configuration "
 				"value=%d). set to TS_CONVERSION_MODE_DISABLE.",
@@ -136,17 +142,24 @@ ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx
 #endif // DEFINED_IBV_EXP_CQ_TIMESTAMP
 	// update device memory capabilities
 	m_on_device_memory = vma_ibv_dm_size(m_p_ibv_device_attr);
-	ibch_logdbg("ibv device '%s' [%p] has %d port%s. Vendor Part Id: %d, "
-		    "FW Ver: %s, max_qp_wr=%d, on_device_memory_bytes=%zu",
-		    m_p_ibv_device->name, m_p_ibv_device,
-		    m_p_ibv_device_attr->phys_port_cnt,
-		    ((m_p_ibv_device_attr->phys_port_cnt>1)?"s":""),
-		    m_p_ibv_device_attr->vendor_part_id,
-		    m_p_ibv_device_attr->fw_ver, m_p_ibv_device_attr->max_qp_wr,
-		    m_p_ibv_device, m_on_device_memory);
 
 	g_p_event_handler_manager->register_ibverbs_event(m_p_ibv_context->async_fd,
 						this, m_p_ibv_context, 0);
+
+	return;
+
+err:
+	if (m_p_ibv_device_attr) {
+		delete m_p_ibv_device_attr;
+	}
+
+	if (m_p_ibv_pd) {
+		ibv_dealloc_pd(m_p_ibv_pd);
+	}
+
+	if (m_p_ibv_context) {
+		ibv_close_device(m_p_ibv_context);
+	}
 }
 
 ib_ctx_handler::~ib_ctx_handler() {
@@ -168,9 +181,42 @@ ib_ctx_handler::~ib_ctx_handler() {
 	}
 	if (ibv_dealloc_pd(m_p_ibv_pd))
 		ibch_logdbg("pd deallocation failure (errno=%d %m)", errno);
+
 	delete m_p_ctx_time_converter;
 	delete m_p_ibv_device_attr;
+
+	ibv_close_device(m_p_ibv_context);
+
 	BULLSEYE_EXCLUDE_BLOCK_END
+}
+
+void ib_ctx_handler::set_str()
+{
+	char str_x[255] = {0};
+
+	m_str[0] = '\0';
+
+	str_x[0] = '\0';
+	sprintf(str_x, " %s:", m_p_ibv_device->name);
+	strcat(m_str, str_x);
+
+	str_x[0] = '\0';
+	sprintf(str_x, " port(s): %d", m_p_ibv_device_attr->phys_port_cnt);
+	strcat(m_str, str_x);
+
+	str_x[0] = '\0';
+	sprintf(str_x, " vendor: %d", m_p_ibv_device_attr->vendor_part_id);
+	strcat(m_str, str_x);
+
+	str_x[0] = '\0';
+	sprintf(str_x, " fw: %s", m_p_ibv_device_attr->fw_ver);
+	strcat(m_str, str_x);
+}
+
+void ib_ctx_handler::print_val()
+{
+	set_str();
+	ibch_logdbg("%s", m_str);
 }
 
 ts_conversion_mode_t ib_ctx_handler::get_ctx_time_converter_status()
