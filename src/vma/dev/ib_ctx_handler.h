@@ -44,7 +44,7 @@
 class ib_ctx_handler : public event_handler_ibverbs
 {
 public:
-	ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx_time_converter_mode);
+	ib_ctx_handler(void *desc, ts_conversion_mode_t ctx_time_converter_mode);
 	virtual ~ib_ctx_handler();
 
 	/*
@@ -66,6 +66,9 @@ public:
 	bool                    is_active(int port_num);
 	virtual void            handle_event_ibverbs_cb(void *ev_data, void *ctx);
 
+	void set_str();
+	void print_val();
+
 	inline void convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime)
 	{
 		m_p_ctx_time_converter->convert_hw_time_to_system_time(hwtime, systime);
@@ -84,6 +87,8 @@ private:
 	struct ibv_cq*          m_umr_cq;
 	struct ibv_qp*          m_umr_qp;
 	time_converter*         m_p_ctx_time_converter;
+
+	char m_str[255];
 };
 
 #endif
