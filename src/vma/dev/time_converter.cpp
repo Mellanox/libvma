@@ -87,19 +87,25 @@ uint32_t time_converter::get_single_converter_status(struct ibv_context* ctx) {
 	return dev_status;
 }
 
-ts_conversion_mode_t time_converter::get_devices_converter_status(struct ibv_context** ibv_context_list, int num_devices) {
+ts_conversion_mode_t time_converter::get_devices_converter_status(struct ibv_device** ibv_dev_list, int num_devices) {
 
 	ts_conversion_mode_t ctx_time_conversion_mode;
 #ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
 	uint32_t devs_status = 0;
 
         ibchtc_logdbg("time_converter::get_devices_converter_status : Checking RX UDP HW time stamp "
-                        "status for all devices [%d], ibv_context_list = %p\n", num_devices, ibv_context_list);
+                        "status for all devices [%d], ibv_dev_list = %p\n", num_devices, ibv_dev_list);
 
 	if (safe_mce_sys().hw_ts_conversion_mode != TS_CONVERSION_MODE_DISABLE){
 		devs_status = IBV_EXP_QUERY_DEVICE_SUPPORTED | IBV_EXP_QUERY_VALUES_SUPPORTED;
 		for (int i = 0; i < num_devices; i++) {
-			devs_status &= get_single_converter_status(ibv_context_list[i]);
+			struct ibv_context *ibv_ctx = ibv_open_device(ibv_dev_list[i]);
+			if (ibv_ctx == NULL) {
+				ibchtc_logdbg("ibv_ctx is invalid");
+				continue;
+			}
+			devs_status &= get_single_converter_status(ibv_ctx);
+			ibv_close_device(ibv_ctx);
 		}
 	}
 
@@ -127,7 +133,7 @@ ts_conversion_mode_t time_converter::get_devices_converter_status(struct ibv_con
 		break;
 	}
 #else
-	NOT_IN_USE(ibv_context_list);
+	NOT_IN_USE(ibv_dev_list);
 	NOT_IN_USE(num_devices);
 	ctx_time_conversion_mode = TS_CONVERSION_MODE_DISABLE;
 #endif

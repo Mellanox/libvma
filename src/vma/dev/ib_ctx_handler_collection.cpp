@@ -51,13 +51,25 @@
 
 ib_ctx_handler_collection* g_p_ib_ctx_handler_collection = NULL;
 
-ib_ctx_handler_collection::ib_ctx_handler_collection() : m_n_num_devices(0), m_ctx_time_conversion_mode(TS_CONVERSION_MODE_DISABLE)
+ib_ctx_handler_collection::ib_ctx_handler_collection() :
+		m_n_num_devices(0), m_ctx_time_conversion_mode(TS_CONVERSION_MODE_DISABLE)
 {
+	ibchc_logdbg("");
+
+	/* Read ib table from kernel and save it in local variable. */
+	update_tbl();
+
+	//Print table
+	print_val_tbl();
+
+	ibchc_logdbg("Done");
 }
 
 ib_ctx_handler_collection::~ib_ctx_handler_collection()
 {
+	ibchc_logdbg("");
 	free_ibchc_resources();
+	ibchc_logdbg("Done");
 }
 
 void ib_ctx_handler_collection::free_ibchc_resources()
@@ -70,44 +82,66 @@ void ib_ctx_handler_collection::free_ibchc_resources()
 	}
 }
 
-ts_conversion_mode_t ib_ctx_handler_collection::get_ctx_time_conversion_mode() {
+ts_conversion_mode_t ib_ctx_handler_collection::get_ctx_time_conversion_mode()
+{
 	return m_ctx_time_conversion_mode;
 }
 
-void ib_ctx_handler_collection::map_ib_devices() //return num_devices, can use rdma_get_devices()
+void ib_ctx_handler_collection::update_tbl()
 {
-	struct ibv_context** pp_ibv_context_list = rdma_get_devices(&m_n_num_devices);
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!pp_ibv_context_list) {
-		ibchc_logwarn("Failure in rdma_get_devices() (error=%d %m)", errno);
-		ibchc_logwarn("Please check OFED installation");
-		free_ibchc_resources();
-		throw_vma_exception("Failure in rdma_get_devices()");
+	struct ibv_device **dev_list = NULL;
+	ib_ctx_handler * p_ib_ctx_handler = NULL;
+	int num_devices = 0;
+	int i;
 
+	dev_list = ibv_get_device_list(&m_n_num_devices);
+
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!dev_list) {
+		ibchc_logwarn("Failure in ibv_get_device_list() (error=%d %m)", errno);
+		ibchc_logwarn("Please check OFED installation");
+		throw_vma_exception("No IB capable devices found!");
+		goto ret;
 	}
 	if (!m_n_num_devices) {
-		rdma_free_devices(pp_ibv_context_list);
-		ibchc_logdbg("No RDMA capable devices found!");
-		free_ibchc_resources();
-		throw_vma_exception("No RDMA capable devices found!");
+		ibchc_logdbg("No IB capable devices found!");
+		throw_vma_exception("No IB capable devices found!");
+		goto ret;
 	}
+
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	m_ctx_time_conversion_mode = time_converter::get_devices_converter_status(pp_ibv_context_list, m_n_num_devices);
+	ibchc_logdbg("Checking for offload capable IB devices...");
+
+	/* Get common time conversion mode for all devices */
+	m_ctx_time_conversion_mode = time_converter::get_devices_converter_status(dev_list, num_devices);
 	ibchc_logdbg("TS converter status was set to %d", m_ctx_time_conversion_mode);
 
-	ibchc_logdbg("Mapping %d ibv devices", m_n_num_devices);
-	for (int i = 0; i < m_n_num_devices; i++) {
-		m_ib_ctx_map[pp_ibv_context_list[i]] = new ib_ctx_handler(pp_ibv_context_list[i], m_ctx_time_conversion_mode);
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (!m_ib_ctx_map[pp_ibv_context_list[i]]) {
-			ibchc_logdbg("failed to allocate ib context map");
-			throw_vma_exception("failed to allocate ib context map");
+	for (i = 0; i < num_devices; i++) {
+		p_ib_ctx_handler = new ib_ctx_handler(dev_list[i], m_ctx_time_conversion_mode);
+		if (!p_ib_ctx_handler) {
+			ibchc_logerr("failed allocating new ib_ctx_handler (errno=%d %m)", errno);
+			continue;
 		}
-		BULLSEYE_EXCLUDE_BLOCK_END
+		m_ib_ctx_map[p_ib_ctx_handler->get_ibv_context()] = p_ib_ctx_handler;
 	}
+	m_n_num_devices = m_ib_ctx_map.size();
 
-	rdma_free_devices(pp_ibv_context_list);
+	ibchc_logdbg("Check completed. Found %d offload capable IB devices", m_ib_ctx_map.size());
+
+ret:
+	if (dev_list) {
+		ibv_free_device_list(dev_list);
+	}
+}
+
+void ib_ctx_handler_collection::print_val_tbl()
+{
+	ib_context_map_t::iterator itr;
+	for (itr = m_ib_ctx_map.begin(); itr != m_ib_ctx_map.end(); itr++) {
+		ib_ctx_handler* p_ib_ctx_handler = itr->second;
+		p_ib_ctx_handler->print_val();
+	}
 }
 
 ib_ctx_handler* ib_ctx_handler_collection::get_ib_ctx(struct ibv_context* p_ibv_context)

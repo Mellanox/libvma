@@ -119,6 +119,8 @@ net_device_table_mgr::net_device_table_mgr() : cache_table_mgr<ip_address,net_de
 		g_p_event_handler_manager->register_timer_event(safe_mce_sys().cq_aim_interval_msec, this, PERIODIC_TIMER, (void*)RING_ADAPT_CQ_MODERATION_TIMER);
 	}
 #endif // DEFINED_NO_THREAD_LOCK
+
+	ndtm_logdbg("Done");
 }
 
 void net_device_table_mgr::free_ndtm_resources()
@@ -144,7 +146,9 @@ void net_device_table_mgr::free_ndtm_resources()
 
 net_device_table_mgr::~net_device_table_mgr()
 {
+	ndtm_logdbg("");
 	free_ndtm_resources();
+	ndtm_logdbg("Done");
 }
 
 void net_device_table_mgr::update_tbl()
