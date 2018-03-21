@@ -52,7 +52,7 @@
 ib_ctx_handler_collection* g_p_ib_ctx_handler_collection = NULL;
 
 ib_ctx_handler_collection::ib_ctx_handler_collection() :
-		m_n_num_devices(0), m_ctx_time_conversion_mode(TS_CONVERSION_MODE_DISABLE)
+		m_ctx_time_conversion_mode(TS_CONVERSION_MODE_DISABLE)
 {
 	ibchc_logdbg("");
 
@@ -68,23 +68,15 @@ ib_ctx_handler_collection::ib_ctx_handler_collection() :
 ib_ctx_handler_collection::~ib_ctx_handler_collection()
 {
 	ibchc_logdbg("");
-	free_ibchc_resources();
-	ibchc_logdbg("Done");
-}
 
-void ib_ctx_handler_collection::free_ibchc_resources()
-{
 	ib_context_map_t::iterator ib_ctx_iter;
 	while ((ib_ctx_iter = m_ib_ctx_map.begin()) != m_ib_ctx_map.end()) {
 		ib_ctx_handler* p_ib_ctx_handler = ib_ctx_iter->second;
 		delete p_ib_ctx_handler;
 		m_ib_ctx_map.erase(ib_ctx_iter);
 	}
-}
 
-ts_conversion_mode_t ib_ctx_handler_collection::get_ctx_time_conversion_mode()
-{
-	return m_ctx_time_conversion_mode;
+	ibchc_logdbg("Done");
 }
 
 void ib_ctx_handler_collection::update_tbl()
@@ -94,7 +86,7 @@ void ib_ctx_handler_collection::update_tbl()
 	int num_devices = 0;
 	int i;
 
-	dev_list = ibv_get_device_list(&m_n_num_devices);
+	dev_list = ibv_get_device_list(&num_devices);
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!dev_list) {
@@ -103,7 +95,7 @@ void ib_ctx_handler_collection::update_tbl()
 		throw_vma_exception("No IB capable devices found!");
 		goto ret;
 	}
-	if (!m_n_num_devices) {
+	if (!num_devices) {
 		ibchc_logdbg("No IB capable devices found!");
 		throw_vma_exception("No IB capable devices found!");
 		goto ret;
@@ -125,7 +117,6 @@ void ib_ctx_handler_collection::update_tbl()
 		}
 		m_ib_ctx_map[p_ib_ctx_handler->get_ibv_context()] = p_ib_ctx_handler;
 	}
-	m_n_num_devices = m_ib_ctx_map.size();
 
 	ibchc_logdbg("Check completed. Found %d offload capable IB devices", m_ib_ctx_map.size());
 
