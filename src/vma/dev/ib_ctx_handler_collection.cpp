@@ -93,12 +93,10 @@ void ib_ctx_handler_collection::update_tbl()
 		ibchc_logwarn("Failure in ibv_get_device_list() (error=%d %m)", errno);
 		ibchc_logwarn("Please check OFED installation");
 		throw_vma_exception("No IB capable devices found!");
-		goto ret;
 	}
 	if (!num_devices) {
 		ibchc_logdbg("No IB capable devices found!");
 		throw_vma_exception("No IB capable devices found!");
-		goto ret;
 	}
 
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -120,7 +118,6 @@ void ib_ctx_handler_collection::update_tbl()
 
 	ibchc_logdbg("Check completed. Found %d offload capable IB devices", m_ib_ctx_map.size());
 
-ret:
 	if (dev_list) {
 		ibv_free_device_list(dev_list);
 	}
@@ -144,14 +141,30 @@ ib_ctx_handler* ib_ctx_handler_collection::get_ib_ctx(struct ibv_context* p_ibv_
 
 ib_ctx_handler* ib_ctx_handler_collection::get_ib_ctx(const char *ifa_name)
 {
+	struct ifaddrs slave;
+	char active_slave[IFNAMSIZ] = {0};
 	ib_context_map_t::iterator ib_ctx_iter;
+
+	if (check_netvsc_device_exist(ifa_name)) {
+		if (!get_netvsc_slave(ifa_name, &slave)) {
+			return NULL;
+		}
+		ifa_name = (const char *)slave.ifa_name;
+	} else if (check_device_exist(ifa_name, BOND_DEVICE_FILE)) {
+		if (!get_bond_active_slave_name(ifa_name, active_slave, sizeof(active_slave))) {
+			return NULL;
+		}
+		ifa_name = (const char *)active_slave;
+	}
+
 	for (ib_ctx_iter = m_ib_ctx_map.begin(); ib_ctx_iter != m_ib_ctx_map.end(); ib_ctx_iter++) {
 		int n = -1;
+		int fd = -1;
 		char ib_path[IBV_SYSFS_PATH_MAX]= {0};
 
 		n = snprintf(ib_path, sizeof(ib_path), "/sys/class/infiniband/%s/device/net/%s/ifindex", ib_ctx_iter->first->device->name, ifa_name);
 		if (likely((0 < n) && (n < (int)sizeof(ib_path)))) {
-			int fd = open(ib_path, O_RDONLY);
+			fd = open(ib_path, O_RDONLY);
 			if (fd >= 0) {
 				close(fd);
 				return ib_ctx_iter->second;
