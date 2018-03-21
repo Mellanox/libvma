@@ -296,7 +296,6 @@ protected:
 	bond_type m_bond;
 	bond_xmit_hash_policy m_bond_xmit_hash_policy;
 	int m_bond_fail_over_mac;
-	uint16_t		m_rdma_key;
 
 private:
 	bool 			verify_ipoib_mode();

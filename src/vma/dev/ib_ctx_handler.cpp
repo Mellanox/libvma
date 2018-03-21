@@ -68,13 +68,11 @@ ib_ctx_handler::ib_ctx_handler(void *desc, ts_conversion_mode_t ctx_time_convert
 
 	if (m_p_ibv_device == NULL) {
 		ibch_logpanic("m_p_ibv_device is invalid");
-		goto err;
 	}
 
 	m_p_ibv_context = ibv_open_device(m_p_ibv_device);
 	if (m_p_ibv_context == NULL) {
 		ibch_logpanic("m_p_ibv_context is invalid");
-		goto err;
 	}
 	VALGRIND_MAKE_MEM_DEFINED(m_p_ibv_context, sizeof(ibv_context));
 
@@ -83,9 +81,12 @@ ib_ctx_handler::ib_ctx_handler(void *desc, ts_conversion_mode_t ctx_time_convert
 	if (m_p_ibv_pd == NULL) {
 		ibch_logpanic("ibv device %p pd allocation failure (ibv context %p) (errno=%d %m)",
 			    m_p_ibv_device, m_p_ibv_context, errno);
-		goto err;
 	}
 	m_p_ibv_device_attr = new vma_ibv_device_attr();
+	if (m_p_ibv_device_attr == NULL) {
+		ibch_logpanic("ibv device %p attr allocation failure (ibv context %p) (errno=%d %m)",
+			    m_p_ibv_device, m_p_ibv_context, errno);
+	}
 	vma_ibv_device_attr_comp_mask(m_p_ibv_device_attr);
 	IF_VERBS_FAILURE(vma_ibv_query_device(m_p_ibv_context, m_p_ibv_device_attr)) {
 		ibch_logerr("ibv_query_device failed on ibv device %p (ibv context %p) (errno=%d %m)",

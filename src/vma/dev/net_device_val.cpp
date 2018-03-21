@@ -135,17 +135,15 @@ void ring_alloc_logic_attr::set_user_id_key(uint64_t user_id_key)
 
 net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 {
-	struct rdma_event_channel *p_cma_event_channel = NULL;
-	bool valid, is_netvsc;
-	rdma_cm_id* cma_id;
+	bool valid = false;
 	ib_ctx_handler* ib_ctx;
-	struct ifaddrs slave;
 	struct nlmsghdr *nl_msg = (struct nlmsghdr *)desc;
 	struct ifinfomsg *nl_msgdata = (struct ifinfomsg *)NLMSG_DATA(nl_msg);
 	int nl_attrlen;
 	struct rtattr *nl_attr;
 
 	m_if_idx = 0;
+	m_if_link = 0;
 	m_type = 0;
 	m_flags = 0;
 	m_mtu = 0;
@@ -156,7 +154,6 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 	m_bond_xmit_hash_policy = XHP_LAYER_2;
 	m_bond_fail_over_mac = 0;
 	m_transport_type = VMA_TRANSPORT_UNKNOWN;
-	m_rdma_key = 0;
 
 	if (NULL == desc) {
 		// invalid net_device_val
@@ -204,76 +201,38 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 	}
 	set_str();
 
-	p_cma_event_channel = rdma_create_event_channel();
-	if (NULL == p_cma_event_channel) {
-		nd_logerr("Failed rdma_create_event_channel() (errno=%d %m)", errno);
-		return;
-	}
-
-	cma_id = NULL;
-	IF_RDMACM_FAILURE(rdma_create_id(p_cma_event_channel, &cma_id, NULL, RDMA_PS_UDP)) { // UDP vs IP_OVER_IB?
-		nd_logerr("Failed in rdma_create_id (RDMA_PS_UDP) (errno=%d %m)", errno);
-		rdma_destroy_event_channel(p_cma_event_channel);
-		return;
-	} ENDIF_RDMACM_FAILURE;
-
 	nd_logdbg("Checking if can offload on interface '%s' (index=%d addr=%d.%d.%d.%d flags=%X)",
 			get_ifname(), get_if_idx(), NIPQUAD(get_local_addr()), get_flags());
 
-	is_netvsc = check_netvsc_device_exist(get_ifname());
-	if (is_netvsc) {
-		nd_logdbg("Found netvsc interface ('%s')", get_ifname());
-		if (!get_netvsc_slave(get_ifname(), &slave)) {
-			goto err;
-		}
-		nd_logdbg("Found netvsc lower interface ('%s') is lower of ('%s')", slave.ifa_name, get_ifname());
-		ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(slave.ifa_name);
-	} else {
-		struct sockaddr_in sin;
-		memset(&sin, 0, sizeof(sin));
-		sin.sin_family = AF_INET;
-		sin.sin_addr.s_addr = get_local_addr();
-		sin.sin_port = 0;
-		IF_RDMACM_FAILURE(rdma_bind_addr(cma_id, (struct sockaddr*)&sin)) {
-			nd_logdbg("Failed in rdma_bind_addr (src=%d.%d.%d.%d) (errno=%d %m)", NIPQUAD(get_local_addr()), errno);
-			errno = 0; //in case of not-offloaded, resource is not available (errno=11), but this is normal and we don't want the user to know about this
-			goto err;
-		} ENDIF_RDMACM_FAILURE;
-
-		// loopback might get here but without ibv_context in the cma_id
-		if (NULL == cma_id->verbs) {
-			nd_logdbg("Blocking offload: No verbs context in cma_id on interfaces ('%s')", get_ifname());
-			goto err;
-		}
-		ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(get_ifname_link());
-	}
-
+	ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(get_ifname_link());
 	if (NULL == ib_ctx) {
 		nd_logdbg("Blocking offload: can't create ib_ctx on interfaces ('%s')", get_ifname());
-		goto err;
+		return;
 	}
 
 #ifdef DEFINED_SOCKETXTREME
 	// only support mlx5 device in this mode
 	if(strncmp(ib_ctx->get_ibv_device()->name, "mlx4", 4) == 0) {
 		nd_logdbg("Blocking offload: mlx4 interfaces ('%s') in socketxtreme mode", get_ifname());
-		goto err;
+		return;
 	}
 #endif // DEFINED_SOCKETXTREME
 
 	if (check_device_exist(m_base_name, BOND_DEVICE_FILE)) {
 		// this is a bond interface (or a vlan/alias over bond), find the slaves
 		valid = verify_bond_ipoib_or_eth_qp_creation();
-	} else if (is_netvsc) {
-		valid = verify_netvsc_ipoib_or_eth_qp_creation(slave.ifa_name);
+	} else if (check_netvsc_device_exist(get_ifname_link())) {
+		struct ifaddrs slave;
+		if (get_netvsc_slave(get_ifname_link(), &slave)) {
+			valid = verify_netvsc_ipoib_or_eth_qp_creation(slave.ifa_name);
+		}
 	} else {
-		valid = verify_ipoib_or_eth_qp_creation(get_ifname());
+		valid = verify_ipoib_or_eth_qp_creation(get_ifname_link());
 	}
 	if (!valid) {
-		goto err;
+		nd_logdbg("Blocking offload: verification failure on interfaces ('%s')", get_ifname());
+		return;
 	}
-
-	m_rdma_key = cma_id->route.addr.addr.ibaddr.pkey;
 
 	if (safe_mce_sys().mtu != 0 && (int)safe_mce_sys().mtu != m_mtu) {
 		nd_logwarn("Mismatch between interface %s MTU=%d and VMA_MTU=%d. Make sure VMA_MTU and all offloaded interfaces MTUs match.", m_name.c_str(), m_mtu, safe_mce_sys().mtu);
@@ -296,13 +255,6 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 			get_ifname(), ib_ctx->get_ibv_device()->name, ib_ctx->get_ibv_device(),
 		get_port_from_ifname(m_base_name), ib_ctx->is_active(get_port_from_ifname(m_base_name)),
 		(!!(m_flags & IFF_RUNNING)));
-
-err:
-	IF_RDMACM_FAILURE(rdma_destroy_id(cma_id)) {
-		nd_logerr("Failed in rdma_destroy_id (errno=%d %m)", errno);
-	} ENDIF_RDMACM_FAILURE;
-
-	rdma_destroy_event_channel(p_cma_event_channel);
 }
 
 net_device_val::~net_device_val()
@@ -1226,6 +1178,7 @@ net_device_val_ib::~net_device_val_ib()
 
 void net_device_val_ib::configure()
 {
+	ib_ctx_handler* p_ib_ctx = NULL;
 	struct in_addr in;
 
 	m_p_L2_addr = create_L2_address(m_name.c_str());
@@ -1249,7 +1202,11 @@ void net_device_val_ib::configure()
 	}
 	m_br_neigh = dynamic_cast<neigh_ib_broadcast*>(p_ces);
 
-	m_pkey = m_rdma_key; // In order to create a UD QP outside the RDMA_CM API we need the pkey value (qp_mgr will convert it to pkey_index)
+	p_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(get_ifname_link());
+	if (!p_ib_ctx || ibv_query_pkey(p_ib_ctx->get_ibv_context(), get_port_from_ifname(get_ifname_link()), 0, &m_pkey)) {
+		nd_logerr("failed querying pkey");
+	}
+	nd_logdbg("pkey: %d", m_pkey);
 }
 
 ring* net_device_val_ib::create_ring(resource_allocation_key *key)
