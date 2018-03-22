@@ -47,6 +47,9 @@ public:
 	ib_ctx_handler_collection();
 	~ib_ctx_handler_collection();
 
+	inline ib_context_map_t* get_ib_cxt_list() {
+		return &m_ib_ctx_map;
+	}
 	ib_ctx_handler* get_ib_ctx(struct ibv_context*);
 	ib_ctx_handler* get_ib_ctx(const char *ifa_name);
 	inline size_t get_num_devices() {
@@ -55,8 +58,6 @@ public:
 	inline ts_conversion_mode_t get_ctx_time_conversion_mode() {
 		return m_ctx_time_conversion_mode;
 	};
-	size_t mem_reg_on_all_devices(void* addr, size_t length,
-			ibv_mr** mr_array, size_t mr_array_sz, uint64_t access);
 
 private:
 	void update_tbl();

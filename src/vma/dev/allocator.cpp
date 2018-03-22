@@ -36,11 +36,12 @@
 
 #define MODULE_NAME	"allocator"
 
-vma_allocator::vma_allocator() :
-		m_mr_list(NULL),
-		m_mr_list_len(0),
-		m_shmid(-1),
-		m_data_block(NULL) {
+vma_allocator::vma_allocator()
+{
+	__log_info_dbg("");
+
+	m_shmid = -1;
+	m_data_block = NULL;
 	m_non_contig_access_mr = VMA_IBV_ACCESS_LOCAL_WRITE;
 #ifdef VMA_IBV_ACCESS_ALLOCATE_MR
 	m_is_contig_alloc = true;
@@ -51,6 +52,34 @@ vma_allocator::vma_allocator() :
 	m_contig_access_mr = 0;
 #endif
 
+	__log_info_dbg("Done");
+}
+
+vma_allocator::~vma_allocator()
+{
+	__log_info_dbg("");
+
+	// Unregister memory
+	lkey_map_ib_ctx_map_t::iterator iter;
+	while ((iter = m_lkey_map_ib_ctx.begin()) != m_lkey_map_ib_ctx.end()) {
+		ib_ctx_handler* p_ib_ctx_h = iter->first;
+		p_ib_ctx_h->mem_dereg(iter->second);
+		m_lkey_map_ib_ctx.erase(iter);
+	}
+	// Release memory
+	if (m_shmid >= 0) { // Huge pages mode
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (m_data_block && (shmdt(m_data_block) != 0)) {
+			__log_info_err("shmem detach failure %m");
+		}
+		BULLSEYE_EXCLUDE_BLOCK_END
+	// in contig mode 'ibv_dereg_mr' will free all allocates resources
+	} else if (!m_is_contig_alloc) {
+		if (m_data_block)
+			free(m_data_block);
+	}
+
+	__log_info_dbg("Done");
 }
 
 void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
@@ -106,23 +135,22 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
 
 ibv_mr* vma_allocator::find_ibv_mr_by_ib_ctx(ib_ctx_handler *p_ib_ctx_h) const
 {
-	ibv_device* dev = p_ib_ctx_h->get_ibv_device();
-
-	for (size_t i = 0; i < m_mr_list_len; ++i) {
-		if (dev == m_mr_list[i]->context->device) {
-			return m_mr_list[i];
-		}
+	lkey_map_ib_ctx_map_t::const_iterator iter = m_lkey_map_ib_ctx.find(p_ib_ctx_h);
+	if (iter != m_lkey_map_ib_ctx.end()) {
+		return p_ib_ctx_h->get_mem_reg(iter->second);
 	}
+
 	return NULL;
 }
 
 uint32_t vma_allocator::find_lkey_by_ib_ctx(ib_ctx_handler *p_ib_ctx_h) const
 {
-	ibv_mr * mr = find_ibv_mr_by_ib_ctx(p_ib_ctx_h);
-	if (likely(mr)) {
-		return mr->lkey;
+	lkey_map_ib_ctx_map_t::const_iterator iter = m_lkey_map_ib_ctx.find(p_ib_ctx_h);
+	if (iter != m_lkey_map_ib_ctx.end()) {
+		return iter->second;
 	}
-	return 0;
+
+	return (uint32_t)(-1);
 }
 
 bool vma_allocator::hugetlb_alloc(size_t sz_bytes)
@@ -194,28 +222,50 @@ bool vma_allocator::hugetlb_alloc(size_t sz_bytes)
 bool vma_allocator::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h,
 				    uint64_t access)
 {
+	ib_context_map_t *ib_ctx_map = NULL;
+	ib_ctx_handler *p_ib_ctx_h_ref = p_ib_ctx_h;
+	uint32_t lkey = (uint32_t)(-1);
 	bool failed = false;
-	if (p_ib_ctx_h) {
-		m_mr_list = new ibv_mr*[1];
-		m_mr_list[0] = p_ib_ctx_h->mem_reg(m_data_block, size, access);
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (m_mr_list[0] == NULL) {
-			failed = true;
-		} else {
-			m_mr_list_len = 1;
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-	} else {
-		size_t dev_num = g_p_ib_ctx_handler_collection->get_num_devices();
-		m_mr_list = new ibv_mr*[dev_num];
 
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if ((m_mr_list_len = g_p_ib_ctx_handler_collection->mem_reg_on_all_devices(m_data_block,
-				size, m_mr_list, dev_num, access)) != dev_num) {
-			failed = true;
+	ib_ctx_map = g_p_ib_ctx_handler_collection->get_ib_cxt_list();
+	if (ib_ctx_map) {
+		ib_context_map_t::iterator iter;
+
+		for (iter = ib_ctx_map->begin(); iter != ib_ctx_map->end(); iter++) {
+			p_ib_ctx_h = iter->second;
+			if (p_ib_ctx_h_ref && p_ib_ctx_h != p_ib_ctx_h_ref) {
+				continue;
+			}
+			lkey = p_ib_ctx_h->mem_reg(m_data_block, size, access);
+			if (lkey == (uint32_t)(-1)) {
+				__log_info_warn("Failure during memory registration on dev: %s addr=%p length=%d",
+						p_ib_ctx_h->get_ibv_device()->name, m_data_block, size);
+				failed = true;
+				break;
+			} else {
+				m_lkey_map_ib_ctx[p_ib_ctx_h] = lkey;
+				if (NULL == m_data_block) {
+					m_data_block = p_ib_ctx_h->get_mem_reg(lkey)->addr;
+				}
+				errno = 0; //ibv_reg_mr() set errno=12 despite successful returning
+#ifdef VMA_IBV_ACCESS_ALLOCATE_MR
+				if ((access & VMA_IBV_ACCESS_ALLOCATE_MR) != 0) { // contig pages mode
+					// When using 'IBV_ACCESS_ALLOCATE_MR', ibv_reg_mr will return a pointer that its 'addr' field will hold the address of the allocated memory.
+					// Second registration and above is done using 'IBV_ACCESS_LOCAL_WRITE' and the 'addr' we received from the first registration.
+					access &= ~VMA_IBV_ACCESS_ALLOCATE_MR;
+				}
+#endif
+				__log_info_dbg("Registered memory on dev: %s addr=%p length=%d",
+						p_ib_ctx_h->get_ibv_device()->name, m_data_block, size);
+			}
+			if (p_ib_ctx_h == p_ib_ctx_h_ref) {
+				break;
+			}
 		}
-		BULLSEYE_EXCLUDE_BLOCK_END
+	} else {
+		failed = true;
 	}
+
 	if (failed) {
 		if (m_data_block) {
 			__log_info_warn("Failed registering memory, This might happen "
@@ -231,36 +281,8 @@ bool vma_allocator::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h,
 				"info");
 		return false;
 	}
-	if (!m_data_block) { // contig pages mode
-		m_data_block = m_mr_list[0]->addr;
-		if (!m_data_block) {
-			__log_info_dbg("Failed registering memory, check that OFED is "
-					"loaded successfully");
-			throw_vma_exception("Failed registering memory");
-		}
-	}
+
+	__log_info_dbg("Registered memory on %d ib_ctx", m_lkey_map_ib_ctx.size());
+
 	return true;
 }
-
-vma_allocator::~vma_allocator() {
-	// Unregister memory
-	for (size_t i = 0; i < m_mr_list_len; ++i) {
-		ib_ctx_handler* p_ib_ctx_handler =
-				g_p_ib_ctx_handler_collection->get_ib_ctx(m_mr_list[i]->context);
-		p_ib_ctx_handler->mem_dereg(m_mr_list[i]);
-	}
-	delete[] m_mr_list;
-	// Release memory
-	if (m_shmid >= 0) { // Huge pages mode
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (m_data_block && (shmdt(m_data_block) != 0)) {
-			__log_info_err("shmem detach failure %m");
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-	// in contig mode 'ibv_dereg_mr' will free all allocates resources
-	} else if (!m_is_contig_alloc) {
-		if (m_data_block)
-			free(m_data_block);
-	}
-}
-
