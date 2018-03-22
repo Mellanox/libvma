@@ -162,7 +162,8 @@ ib_ctx_handler* ib_ctx_handler_collection::get_ib_ctx(const char *ifa_name)
 		int fd = -1;
 		char ib_path[IBV_SYSFS_PATH_MAX]= {0};
 
-		n = snprintf(ib_path, sizeof(ib_path), "/sys/class/infiniband/%s/device/net/%s/ifindex", ib_ctx_iter->first->device->name, ifa_name);
+		n = snprintf(ib_path, sizeof(ib_path), "/sys/class/infiniband/%s/device/net/%s/ifindex",
+				ib_ctx_iter->second->get_ibname(), ifa_name);
 		if (likely((0 < n) && (n < (int)sizeof(ib_path)))) {
 			fd = open(ib_path, O_RDONLY);
 			if (fd >= 0) {

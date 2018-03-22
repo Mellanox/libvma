@@ -212,7 +212,7 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 
 #ifdef DEFINED_SOCKETXTREME
 	// only support mlx5 device in this mode
-	if(strncmp(ib_ctx->get_ibv_device()->name, "mlx4", 4) == 0) {
+	if(strncmp(ib_ctx->get_ibname(), "mlx4", 4) == 0) {
 		nd_logdbg("Blocking offload: mlx4 interfaces ('%s') in socketxtreme mode", get_ifname());
 		return;
 	}
@@ -252,7 +252,7 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 	}
 
 	nd_logdbg("Offload interface '%s': Mapped to ibv device '%s' [%p] on port %d (Active: %d), Running: %d",
-			get_ifname(), ib_ctx->get_ibv_device()->name, ib_ctx->get_ibv_device(),
+			get_ifname(), ib_ctx->get_ibname(), ib_ctx->get_ibv_device(),
 		get_port_from_ifname(m_base_name), ib_ctx->is_active(get_port_from_ifname(m_base_name)),
 		(!!(m_flags & IFF_RUNNING)));
 }
@@ -651,7 +651,7 @@ bool net_device_val::update_active_backup_slaves()
 			m_slaves[i]->is_active_slave = true;
 			found_active_slave = true;
 			nd_logdbg("Offload interface '%s': Re-mapped to ibv device '%s' [%p] on port %d",
-					m_name.c_str(), p_ring_info[i].p_ib_ctx->get_ibv_device()->name, p_ring_info[i].p_ib_ctx->get_ibv_device(), p_ring_info[i].port_num);
+					m_name.c_str(), p_ring_info[i].p_ib_ctx->get_ibname(), p_ring_info[i].p_ib_ctx->get_ibv_device(), p_ring_info[i].port_num);
 		} else {
 			m_slaves[i]->is_active_slave = false;
 		}

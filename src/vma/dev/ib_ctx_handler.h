@@ -58,6 +58,7 @@ public:
 	ibv_pd*                 get_ibv_pd() { return m_p_ibv_pd;}
 	bool                    post_umr_wr(struct ibv_exp_send_wr &wr);
 	ibv_device*             get_ibv_device() { return m_p_ibv_device;}
+	inline char*            get_ibname() { return m_p_ibv_device->name; }
 	struct ibv_context*     get_ibv_context() { return m_p_ibv_context;}
 	vma_ibv_device_attr*    get_ibv_device_attr() { return m_p_ibv_device_attr;}
 	uint32_t                mem_reg(void *addr, size_t length, uint64_t access);
