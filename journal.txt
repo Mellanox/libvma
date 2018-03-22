@@ -1,3 +1,14 @@
+Version 8.6.0-0:
+Date + Time 2018-03-22
+=============================================================
+Added:
+        - RM #issue: 1330652 Use kbps value for setting enhanced rate limit (#591)
+Fixed:
+        - RM #1322084 Fix TCP MSS incompatibility with RFC-793
+        - RM #1262560 Fix zero-window ack probe
+        - RM #1190638 Align lwip timer interval to VMA tcp timer interval
+        - RM #1311399 Remove cq_type parameter from ring functions
+
 Version 8.5.7-0:
 Date + Time 2018-02-19
 =============================================================
