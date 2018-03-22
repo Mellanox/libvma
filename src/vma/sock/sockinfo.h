@@ -57,8 +57,8 @@
 #define BASE_SOCKINFO_H
 
 #define SI_RX_EPFD_EVENT_MAX		16
-#define BYTE_TO_KB(BYTEVALUE)		(((BYTEVALUE) * 8) / 1000)
-#define KB_TO_BYTE(BYTEVALUE)		(((BYTEVALUE) * 1000) / 8)
+#define BYTE_TO_KB(byte_value)		((byte_value) / 125)
+#define KB_TO_BYTE(kbit_value)		((kbit_value) * 125)
 
 struct buff_info_t {
 		buff_info_t(){
