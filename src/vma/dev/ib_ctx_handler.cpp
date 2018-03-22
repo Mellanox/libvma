@@ -74,7 +74,6 @@ ib_ctx_handler::ib_ctx_handler(void *desc, ts_conversion_mode_t ctx_time_convert
 	if (m_p_ibv_context == NULL) {
 		ibch_logpanic("m_p_ibv_context is invalid");
 	}
-	VALGRIND_MAKE_MEM_DEFINED(m_p_ibv_context, sizeof(ibv_context));
 
 	// Create pd for this device
 	m_p_ibv_pd = ibv_alloc_pd(m_p_ibv_context);
@@ -82,6 +81,7 @@ ib_ctx_handler::ib_ctx_handler(void *desc, ts_conversion_mode_t ctx_time_convert
 		ibch_logpanic("ibv device %p pd allocation failure (ibv context %p) (errno=%d %m)",
 			    m_p_ibv_device, m_p_ibv_context, errno);
 	}
+	VALGRIND_MAKE_MEM_DEFINED(m_p_ibv_pd, sizeof(struct ibv_pd));
 	m_p_ibv_device_attr = new vma_ibv_device_attr();
 	if (m_p_ibv_device_attr == NULL) {
 		ibch_logpanic("ibv device %p attr allocation failure (ibv context %p) (errno=%d %m)",
@@ -163,11 +163,24 @@ err:
 	}
 }
 
-ib_ctx_handler::~ib_ctx_handler() {
+ib_ctx_handler::~ib_ctx_handler()
+{
 	g_p_event_handler_manager->unregister_ibverbs_event(m_p_ibv_context->async_fd, this);
 	// must delete ib_ctx_handler only after freeing all resources that
 	// are still associated with the PD m_p_ibv_pd
 	BULLSEYE_EXCLUDE_BLOCK_START
+
+	mr_map_lkey_t::iterator iter;
+	while ((iter = m_mr_map_lkey.begin()) != m_mr_map_lkey.end()) {
+		struct ibv_mr* mr = iter->second;
+		if (mr) {
+			IF_VERBS_FAILURE(ibv_dereg_mr(mr)) {
+				ibch_logdbg("mr deallocation failure (errno=%d %m)", errno);
+			} ENDIF_VERBS_FAILURE;
+			m_p_ibv_pd = NULL;
+		}
+		m_mr_map_lkey.erase(iter);
+	}
 	if (m_umr_qp) {
 		IF_VERBS_FAILURE(ibv_destroy_qp(m_umr_qp)) {
 			ibch_logdbg("destroy qp failed (errno=%d %m)", errno);
@@ -180,13 +193,19 @@ ib_ctx_handler::~ib_ctx_handler() {
 		} ENDIF_VERBS_FAILURE;
 		m_umr_cq = NULL;
 	}
-	if (ibv_dealloc_pd(m_p_ibv_pd))
-		ibch_logdbg("pd deallocation failure (errno=%d %m)", errno);
+	if (m_p_ibv_pd) {
+		IF_VERBS_FAILURE(ibv_dealloc_pd(m_p_ibv_pd)) {
+			ibch_logdbg("pd deallocation failure (errno=%d %m)", errno);
+		} ENDIF_VERBS_FAILURE;
+		VALGRIND_MAKE_MEM_UNDEFINED(m_p_ibv_pd, sizeof(struct ibv_pd));
+		m_p_ibv_pd = NULL;
+	}
 
 	delete m_p_ctx_time_converter;
 	delete m_p_ibv_device_attr;
 
 	ibv_close_device(m_p_ibv_context);
+	m_p_ibv_context = NULL;
 
 	BULLSEYE_EXCLUDE_BLOCK_END
 }
@@ -225,12 +244,11 @@ ts_conversion_mode_t ib_ctx_handler::get_ctx_time_converter_status()
 	return m_p_ctx_time_converter->get_converter_status();
 }
 
-ibv_mr* ib_ctx_handler::mem_reg(void *addr, size_t length, uint64_t access)
+uint32_t ib_ctx_handler::mem_reg(void *addr, size_t length, uint64_t access)
 {
-	// Register the memory block with the HCA on this ibv_device
-	ibch_logfunc("(dev=%p) addr=%p, length=%d, m_p_ibv_pd=%p on dev=%p",
-			m_p_ibv_device, addr, length, m_p_ibv_pd,
-			m_p_ibv_pd->context->device);
+	struct ibv_mr *mr = NULL;
+	uint32_t lkey = (uint32_t)(-1);
+
 #ifdef DEFINED_IBV_EXP_ACCESS_ALLOCATE_MR
 	struct ibv_exp_reg_mr_in in;
 	memset(&in, 0 ,sizeof(in));
@@ -238,24 +256,51 @@ ibv_mr* ib_ctx_handler::mem_reg(void *addr, size_t length, uint64_t access)
 	in.addr = addr;
 	in.length = length;
 	in.pd = m_p_ibv_pd;
-	ibv_mr *mr = ibv_exp_reg_mr(&in);
+	mr = ibv_exp_reg_mr(&in);
 #else
-	ibv_mr *mr = ibv_reg_mr(m_p_ibv_pd, addr, length, access);
+	mr = ibv_reg_mr(m_p_ibv_pd, addr, length, access);
 #endif
 	VALGRIND_MAKE_MEM_DEFINED(mr, sizeof(ibv_mr));
-	return mr;
+	if (NULL == mr) {
+		ibch_logerr("failed registering a memory region "
+				"(errno=%d %m)", errno);
+	} else {
+		m_mr_map_lkey[mr->lkey] = mr;
+		lkey = mr->lkey;
+
+		ibch_logfunc("dev:%s (%p) addr=%p length=%d pd=%p",
+				m_p_ibv_device->name, m_p_ibv_device, addr, length, m_p_ibv_pd);
+	}
+
+	return lkey;
 }
 
-void ib_ctx_handler::mem_dereg(ibv_mr *mr)
+void ib_ctx_handler::mem_dereg(uint32_t lkey)
 {
-	if (is_removed()) {
-		return;
+	if (!is_removed()) {
+		mr_map_lkey_t::iterator iter = m_mr_map_lkey.find(lkey);
+		if (iter != m_mr_map_lkey.end()) {
+			struct ibv_mr* mr = iter->second;
+			ibch_logfunc("dev:%s (%p) addr=%p length=%d pd=%p",
+					m_p_ibv_device->name, m_p_ibv_device, mr->addr, mr->length, m_p_ibv_pd);
+			IF_VERBS_FAILURE(ibv_dereg_mr(mr)) {
+				ibch_logerr("failed de-registering a memory region "
+						"(errno=%d %m)", errno);
+			} ENDIF_VERBS_FAILURE;
+			VALGRIND_MAKE_MEM_UNDEFINED(mr, sizeof(ibv_mr));
+			m_mr_map_lkey.erase(iter);
+		}
 	}
-	IF_VERBS_FAILURE(ibv_dereg_mr(mr)) {
-		ibch_logerr("failed de-registering a memory region "
-				"(errno=%d %m)", errno);
-	} ENDIF_VERBS_FAILURE;
-	VALGRIND_MAKE_MEM_UNDEFINED(mr, sizeof(ibv_mr));
+}
+
+struct ibv_mr* ib_ctx_handler::get_mem_reg(uint32_t lkey)
+{
+	mr_map_lkey_t::iterator iter = m_mr_map_lkey.find(lkey);
+	if (iter != m_mr_map_lkey.end()) {
+		return iter->second;
+	}
+
+	return NULL;
 }
 
 void ib_ctx_handler::set_flow_tag_capability(bool flow_tag_capability)
