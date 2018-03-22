@@ -390,7 +390,7 @@ void ring_eth_cb::remove_umr_res()
 	}
 
 	if (m_p_umr_mr) {
-		m_p_ib_ctx->mem_dereg(m_p_umr_mr);
+		ibv_dereg_mr(m_p_umr_mr);
 		m_p_umr_mr = NULL;
 	}
 	ring_logdbg("UMR resources removed\n");
