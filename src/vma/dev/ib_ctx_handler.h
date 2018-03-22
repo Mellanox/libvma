@@ -35,9 +35,13 @@
 #define IB_CTX_HANDLER_H
 
 #include <infiniband/verbs.h>
+#include <tr1/unordered_map>
+
 #include "vma/event/event_handler_ibverbs.h"
 #include "vma/dev/time_converter.h"
 #include "utils/lock_wrapper.h"
+
+typedef std::tr1::unordered_map<uint32_t, struct ibv_mr*> mr_map_lkey_t;
 
 // client to event manager 'command' invoker (??)
 //
@@ -56,8 +60,9 @@ public:
 	ibv_device*             get_ibv_device() { return m_p_ibv_device;}
 	struct ibv_context*     get_ibv_context() { return m_p_ibv_context;}
 	vma_ibv_device_attr*    get_ibv_device_attr() { return m_p_ibv_device_attr;}
-	ibv_mr*                 mem_reg(void *addr, size_t length, uint64_t access);
-	void                    mem_dereg(ibv_mr *mr);
+	uint32_t                mem_reg(void *addr, size_t length, uint64_t access);
+	void                    mem_dereg(uint32_t lkey);
+	struct ibv_mr*          get_mem_reg(uint32_t lkey);
 	bool                    is_removed() { return m_removed;}
 	ts_conversion_mode_t    get_ctx_time_converter_status();
 	void                    set_flow_tag_capability(bool flow_tag_capability); 
@@ -87,6 +92,7 @@ private:
 	struct ibv_cq*          m_umr_cq;
 	struct ibv_qp*          m_umr_qp;
 	time_converter*         m_p_ctx_time_converter;
+	mr_map_lkey_t           m_mr_map_lkey;
 
 	char m_str[255];
 };
