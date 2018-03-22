@@ -239,7 +239,7 @@ bool vma_allocator::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h,
 			lkey = p_ib_ctx_h->mem_reg(m_data_block, size, access);
 			if (lkey == (uint32_t)(-1)) {
 				__log_info_warn("Failure during memory registration on dev: %s addr=%p length=%d",
-						p_ib_ctx_h->get_ibv_device()->name, m_data_block, size);
+						p_ib_ctx_h->get_ibname(), m_data_block, size);
 				failed = true;
 				break;
 			} else {
@@ -256,7 +256,7 @@ bool vma_allocator::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h,
 				}
 #endif
 				__log_info_dbg("Registered memory on dev: %s addr=%p length=%d",
-						p_ib_ctx_h->get_ibv_device()->name, m_data_block, size);
+						p_ib_ctx_h->get_ibname(), m_data_block, size);
 			}
 			if (p_ib_ctx_h == p_ib_ctx_h_ref) {
 				break;
