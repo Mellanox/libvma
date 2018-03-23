@@ -78,14 +78,22 @@
 {
    rdmacm Cond rdma_create_id
    Memcheck:Cond
+   ...
    obj:*/librdmacm.so*
    fun:rdma_create_id
 }
 {
    rdmacm Value8 rdma_create_id
    Memcheck:Value8
+   ...
    obj:*/librdmacm.so*
    fun:rdma_create_id
+}
+{
+   rdmacm Value8 rdma_bind_addr
+   Memcheck:Value8
+   ...
+   fun:rdma_bind_addr
 }
 {
    rdmacm Cond rdma_bind_addr
@@ -207,6 +215,14 @@
    fun:ibv_destroy_cq*
 }
 {
+   libmlx5 Param ibv_cmd_dealloc_pd
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:ibv_cmd_dealloc_pd
+   obj:/*libmlx*.so*
+}
+{
    libmlx5 Cond ibv_destroy_cq
    Memcheck:Cond
    fun:ibv_cmd_destroy_cq
@@ -214,8 +230,10 @@
    fun:*_destroy_cq*
 }
 {
-   libmlx5 Value8 ibv_create_ah
-   Memcheck:Value8
+   libmlx5 Param ibv_create_ah
+   Memcheck:Param
+   write(buf)
+   ...
    obj:*/libmlx*.so*
    fun:ibv_create_ah
 }
