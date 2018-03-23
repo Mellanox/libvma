@@ -1285,8 +1285,9 @@ bool net_device_val::verify_bond_ipoib_or_eth_qp_creation()
 	}
 	//go over all slaves and check preconditions
 	bool bond_ok = true;
-	char * slave_name;
-	slave_name = strtok (slaves," ");
+	char* slave_name;
+	char* save_ptr;
+	slave_name = strtok_r(slaves, " ", &save_ptr);
 	while (slave_name != NULL)
 	{
 		char* p = strchr(slave_name, '\n');
@@ -1295,7 +1296,7 @@ bool net_device_val::verify_bond_ipoib_or_eth_qp_creation()
 			//check all slaves but print only once for bond
 			bond_ok =  false;
 		}
-		slave_name = strtok (NULL, " ");
+		slave_name = strtok_r(NULL, " ", &save_ptr);
 	}
 	if (!bond_ok) {
 		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
