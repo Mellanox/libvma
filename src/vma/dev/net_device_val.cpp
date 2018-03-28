@@ -873,15 +873,13 @@ ring* net_device_val_eth::create_ring(resource_allocation_key *key)
 #ifdef HAVE_MP_RQ
 			case VMA_RING_CYCLIC_BUFFER:
 				ring = new ring_eth_cb(m_local_addr, p_ring_info,
-						       slave_count, true,
-						       get_vlan(), m_mtu,
+						       true, get_vlan(), m_mtu,
 						       &prof->get_desc()->ring_cyclicb);
 			break;
 #endif
 			case VMA_RING_EXTERNAL_MEM:
 				ring = new ring_eth_direct(m_local_addr, p_ring_info,
-							   slave_count, true,
-							   get_vlan(), m_mtu,
+							   true, get_vlan(), m_mtu,
 							   &prof->get_desc()->ring_ext);
 			break;
 			default:
@@ -896,7 +894,7 @@ ring* net_device_val_eth::create_ring(resource_allocation_key *key)
 		try {
 			switch (m_bond) {
 			case NO_BOND:
-				ring = new ring_eth(m_local_addr, p_ring_info, slave_count, true, get_vlan(), m_mtu);
+				ring = new ring_eth(m_local_addr, p_ring_info, true, get_vlan(), m_mtu);
 				break;
 			case ACTIVE_BACKUP:
 			case LAG_8023ad:
@@ -1002,7 +1000,7 @@ ring* net_device_val_ib::create_ring(resource_allocation_key *key)
 
 	try {
 		if (m_bond == NO_BOND) {
-			ring = new ring_ib(m_local_addr, p_ring_info, slave_count, true, m_pkey, m_mtu);
+			ring = new ring_ib(m_local_addr, p_ring_info, true, m_pkey, m_mtu);
 		} else {
 			ring = new ring_bond_ib(m_local_addr, p_ring_info, slave_count, active_slaves, m_pkey, m_bond, m_bond_xmit_hash_policy, m_mtu);
 		}

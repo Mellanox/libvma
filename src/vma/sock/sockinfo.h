@@ -271,7 +271,7 @@ protected:
 	void 			destructor_helper();
 	int 			modify_ratelimit(dst_entry* p_dst_entry, struct vma_rate_limit_t &rate_limit);
 
-	void 			move_owned_rx_ready_descs(const mem_buf_desc_owner* p_desc_owner, descq_t* toq); // Move all owner's rx ready packets ro 'toq'
+	void 			move_owned_rx_ready_descs(ring* p_ring, descq_t* toq); // Move all owner's rx ready packets ro 'toq'
 	void			set_sockopt_prio(__const void *__optval, socklen_t __optlen);
 
 	virtual bool try_un_offloading(); // un-offload the socket if possible

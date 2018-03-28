@@ -43,10 +43,10 @@
 #ifdef HAVE_MP_RQ
 
 ring_eth_cb::ring_eth_cb(in_addr_t local_if,
-			 ring_resource_creation_info_t *p_ring_info, int count,
+			 ring_resource_creation_info_t *p_ring_info,
 			 bool active, uint16_t vlan, uint32_t mtu,
 			 vma_cyclic_buffer_ring_attr *cb_ring, ring *parent):
-			 ring_eth(local_if, p_ring_info, count, active, vlan,
+			 ring_eth(local_if, p_ring_info, active, vlan,
 				  mtu, parent, false)
 			,m_curr_wqe_used_strides(0)
 			,m_curr_packets(0)
@@ -117,7 +117,7 @@ void ring_eth_cb::create_resources(ring_resource_creation_info_t *p_ring_info,
 	uint32_t max_wqe_size = 1 << mp_rq_caps->max_single_wqe_log_num_of_strides;
 	uint32_t user_req_wq = cb_ring->num / max_wqe_size;
 	if (user_req_wq > 2) {
-		m_wq_count = min<uint32_t>(user_req_wq, MAX_MP_WQES);
+		m_wq_count = std::min<uint32_t>(user_req_wq, MAX_MP_WQES);
 		m_single_wqe_log_num_of_strides = mp_rq_caps->max_single_wqe_log_num_of_strides;
 	} else {
 		m_wq_count = MIN_MP_WQES;
@@ -204,15 +204,15 @@ int ring_eth_cb::allocate_umr_mem(vma_cyclic_buffer_ring_attr *cb_ring, uint16_t
 		}
 	}
 
-	p_mem_rep_list = new(nothrow) ibv_exp_mem_repeat_block[umr_blocks]();
+	p_mem_rep_list = new(std::nothrow) ibv_exp_mem_repeat_block[umr_blocks]();
 	if (p_mem_rep_list == NULL) {
 		ring_logwarn("failed allocating memory");
 		errno = ENOMEM;
 		return -1;
 	}
 	for (int i = 0; i < umr_blocks; i++) {
-		p_mem_rep_list[i].byte_count = new(nothrow) size_t[ndim];
-		p_mem_rep_list[i].stride = new(nothrow) size_t[ndim];
+		p_mem_rep_list[i].byte_count = new(std::nothrow) size_t[ndim];
+		p_mem_rep_list[i].stride = new(std::nothrow) size_t[ndim];
 		if (p_mem_rep_list[i].byte_count == NULL ||
 		    p_mem_rep_list[i].stride == NULL) {
 			ring_logwarn("failed allocating memory");

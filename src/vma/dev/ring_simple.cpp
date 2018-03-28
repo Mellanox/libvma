@@ -60,6 +60,17 @@
 #define MODULE_HDR MODULE_NAME "%d:%s() "
 
 #define ALIGN_WR_DOWN(_num_wr_) (max(32, ((_num_wr_      ) & ~(0xf))))
+#define RING_TX_BUFS_COMPENSATE 256
+
+#define RING_LOCK_AND_RUN(__lock__, __func_and_params__) 	\
+		__lock__.lock(); __func_and_params__; __lock__.unlock();
+
+#define RING_LOCK_RUN_AND_UPDATE_RET(__lock__, __func_and_params__) 	\
+		__lock__.lock(); ret = __func_and_params__; __lock__.unlock();
+
+#define RING_TRY_LOCK_RUN_AND_UPDATE_RET(__lock__, __func_and_params__) \
+		if (!__lock__.trylock()) { ret = __func_and_params__; __lock__.unlock(); } \
+		else { errno = EBUSY; }
 
 /**/
 /** inlining functions can only help if they are implemented before their usage **/
@@ -114,8 +125,8 @@ bool ring_ib::is_ratelimit_supported(struct vma_rate_limit_t &rate_limit)
 	return false;
 }
 
-ring_simple::ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, uint32_t mtu, ring* parent /*=NULL*/):
-	ring(count, mtu),
+ring_simple::ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t local_if, uint16_t partition_sn, transport_type_t transport_type, uint32_t mtu, ring* parent /*=NULL*/):
+	ring(),
 	m_p_ib_ctx(p_ring_info->p_ib_ctx),
 	m_p_qp_mgr(NULL),
 	m_p_cq_mgr_rx(NULL),
@@ -129,7 +140,7 @@ ring_simple::ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t l
 	m_tx_lkey(g_buffer_pool_tx->find_lkey_by_ib_ctx_thread_safe(m_p_ib_ctx)),
 	m_partition(partition_sn), m_gro_mgr(safe_mce_sys().gro_streams_max, MAX_GRO_BUFS), m_up(false),
 	m_p_rx_comp_event_channel(NULL), m_p_tx_comp_event_channel(NULL), m_p_l2_addr(NULL),
-	m_local_if(local_if), m_transport_type(transport_type)
+	m_local_if(local_if), m_mtu(mtu), m_transport_type(transport_type)
 	, m_b_sysvar_eth_mc_l2_only_rules(safe_mce_sys().eth_mc_l2_only_rules)
 	, m_b_sysvar_mc_force_flowtag(safe_mce_sys().mc_force_flowtag)
 #ifdef DEFINED_SOCKETXTREME
@@ -143,8 +154,6 @@ ring_simple::ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t l
 		__log_info_panic("invalid lkey found %lu", m_tx_lkey);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-	if (count != 1)
-		ring_logpanic("Error creating simple ring with more than 1 resource");
 	if (parent) {
 		m_parent = parent;
 	} else {
@@ -294,7 +303,7 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 	VALGRIND_MAKE_MEM_DEFINED(m_p_rx_comp_event_channel, sizeof(struct ibv_comp_channel));
-	m_p_n_rx_channel_fds = new int[m_n_num_resources];
+	m_p_n_rx_channel_fds = new int[1];
 	m_p_n_rx_channel_fds[0] = m_p_rx_comp_event_channel->fd;
 	// Add the rx channel fd to the global fd collection
 	if (g_p_fd_collection) {
@@ -660,91 +669,6 @@ bool ring_simple::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 
 	return true;
 }
-
-/*
-void ring::print_ring_flow_to_rfs_map(flow_spec_map_t *p_flow_map)
-{
-	rfs *curr_rfs;
-	flow_spec_5_tuple_key_t map_key;
-	flow_spec_map_t::iterator itr;
-
-	for (itr = p_flow_map->begin(); itr != p_flow_map->end(); ++itr) {
-		curr_rfs = itr->second;
-		map_key = itr->first;
-		if (!curr_rfs) {
-			ring_logdbg("key: [%d.%d.%d.%d:%d; %d.%d.%d.%d:%d;%s], rfs: NULL",
-					 NIPQUAD(map_key.dst_ip), map_key.dst_port,
-					 NIPQUAD(map_key.src_ip), map_key.src_port,
-					 flow_type_to_str(map_key.l4_protocol));
-		}
-		else {
-			ring_logdbg("key: [%d.%d.%d.%d:%d; %d.%d.%d.%d:%d;%s], rfs: num of sinks = %d",
-					NIPQUAD(map_key.dst_ip), map_key.dst_port,
-					NIPQUAD(map_key.src_ip), map_key.src_port,
-					flow_type_to_str(map_key.l4_protocol), curr_rfs->get_num_of_sinks());
-		}
-	}
-}
-*/
-
-//code coverage
-#if 0
-void ring::print_flow_to_rfs_udp_uc_map(flow_spec_udp_uc_map_t *p_flow_map)
-{
-	rfs *curr_rfs;
-	flow_spec_udp_uc_key_t map_key;
-	flow_spec_udp_uc_map_t::iterator itr;
-
-	// This is an internal function (within ring and 'friends'). No need for lock mechanism.
-
-	ring_logdbg("\n\n********** Printing UDP UC map *********");
-
-	itr = p_flow_map->begin();
-	if (!(itr != p_flow_map->end())) {
-		ring_logdbg("flow_spec_udp_uc_map is EMPTY!\n");
-	} else {
-		for (itr = p_flow_map->begin(); itr != p_flow_map->end(); ++itr) {
-			curr_rfs = itr->second;
-			map_key = itr->first;
-			if (!curr_rfs) {
-				ring_logdbg("######### key: port = %d, rfs: NULL", ntohs(map_key.dst_port));
-			}
-			else {
-				ring_logdbg("######### key: port = %d, rfs = %p, num of sinks = %d", ntohs(map_key.dst_port), curr_rfs, curr_rfs->get_num_of_sinks());
-			}
-		}
-	}
-}
-
-void ring_simple::print_flow_to_rfs_tcp_map(flow_spec_tcp_map_t *p_flow_map)
-{
-	rfs *curr_rfs;
-	flow_spec_tcp_key_t map_key;
-	flow_spec_tcp_map_t::iterator itr;
-
-	// This is an internal function (within ring and 'friends'). No need for lock mechanism.
-
-	ring_logdbg("\n\n********** Printing TCP map *********");
-
-	itr = p_flow_map->begin();
-	if (!(itr != p_flow_map->end())) {
-		ring_logdbg("flow_spec_tcp_map is EMPTY!\n");
-	} else {
-		for (itr = p_flow_map->begin(); itr != p_flow_map->end(); ++itr) {
-			curr_rfs = itr->second;
-			map_key = itr->first;
-			if (!curr_rfs) {
-				ring_logdbg("######### key: port = %d, rfs: NULL", ntohs(map_key.dst_port));
-			}
-			else {
-				ring_logdbg("######### key: src=%d.%d.%d.%d:%d, dst_port=%d rfs: num of sinks = %d",
-					NIPQUAD(map_key.src_ip), ntohs(map_key.src_port),
-					ntohs(map_key.dst_port), curr_rfs->get_num_of_sinks());
-			}
-		}
-	}
-}
-#endif
 
 #ifndef IGMP_V3_MEMBERSHIP_REPORT
 #define IGMP_V3_MEMBERSHIP_REPORT	0x22	/* V3 version of 0x11 */ /* ALEXR: taken from <linux/igmp.h> */
@@ -1373,12 +1297,6 @@ void ring_simple::mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc
 	RING_LOCK_AND_RUN(m_lock_ring_tx, m_tx_num_wr_free += put_tx_buffers(p_mem_buf_desc));
 }
 
-void ring_simple::mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc)
-{
-	ring_logfuncall("");
-	RING_LOCK_AND_RUN(m_lock_ring_tx, put_tx_single_buffer(p_mem_buf_desc));
-}
-
 int ring_simple::drain_and_proccess()
 {
 	int ret = 0;
@@ -1801,39 +1719,6 @@ int ring_simple::put_tx_buffers(mem_buf_desc_t* buff_list)
 		buff_list = next;
 	}
 	ring_logfunc("buf_list: %p count: %d freed: %d\n", buff_list, count, freed);
-
-	if (unlikely(m_tx_pool.size() > (m_tx_num_bufs / 2) &&  m_tx_num_bufs >= RING_TX_BUFS_COMPENSATE * 2)) {
-		int return_to_global_pool = m_tx_pool.size() / 2;
-		m_tx_num_bufs -= return_to_global_pool;
-		g_buffer_pool_tx->put_buffers_thread_safe(&m_tx_pool, return_to_global_pool);
-	}
-
-	return count;
-}
-
-//call under m_lock_ring_tx lock
-int ring_simple::put_tx_single_buffer(mem_buf_desc_t* buff)
-{
-	int count = 0;
-
-	if (likely(buff)) {
-
-		if (buff->tx.dev_mem_length)
-			m_p_qp_mgr->dm_release_data(buff);
-
-		//potential race, ref is protected here by ring_tx lock, and in dst_entry_tcp & sockinfo_tcp by tcp lock
-		if (likely(buff->lwip_pbuf.pbuf.ref))
-			buff->lwip_pbuf.pbuf.ref--;
-		else
-			ring_logerr("ref count of %p is already zero, double free??", buff);
-
-		if (buff->lwip_pbuf.pbuf.ref == 0) {
-			buff->p_next_desc = NULL;
-			free_lwip_pbuf(&buff->lwip_pbuf);
-			m_tx_pool.push_back(buff);
-			count++;
-		}
-	}
 
 	if (unlikely(m_tx_pool.size() > (m_tx_num_bufs / 2) &&  m_tx_num_bufs >= RING_TX_BUFS_COMPENSATE * 2)) {
 		int return_to_global_pool = m_tx_pool.size() / 2;
