@@ -402,6 +402,10 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	/* Get the appropriate hash map (tcp, uc or mc) from the 5t details */
 	if (flow_spec_5t.is_udp_uc()) {
 		flow_spec_udp_key_t key_udp_uc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
+		if(flow_tag_id && si->addr_in_reuse()) {
+			flow_tag_id = FLOW_TAG_MASK;
+			ring_logdbg("UC flow tag for socketinfo=%p is disabled: force_flowtag=0, SO_REUSEADDR=1", si);
+		}
 		p_rfs = m_flow_udp_uc_map.get(key_udp_uc, NULL);
 		if (p_rfs == NULL) {
 			// No rfs object exists so a new one must be created and inserted in the flow map
