@@ -39,6 +39,7 @@
 
 #include "utils/bullseye.h"
 #include "vlogger/vlogger.h"
+#include "vma/event/netlink_event.h"
 #include "vma/event/event_handler_manager.h"
 #include "vma/util/vtypes.h"
 #include "vma/util/verbs_extra.h"
@@ -107,6 +108,10 @@ net_device_table_mgr::net_device_table_mgr() : cache_table_mgr<ip_address,net_de
 
 	//Print table
 	print_val_tbl();
+
+	// register to netlink event
+	g_p_netlink_handler->register_event(nlgrpLINK, this);
+	ndtm_logdbg("Registered to g_p_netlink_handler");
 
 #ifndef DEFINED_NO_THREAD_LOCK
 	if (safe_mce_sys().progress_engine_interval_msec != MCE_CQ_DRAIN_INTERVAL_DISABLED && safe_mce_sys().progress_engine_wce_max != 0) {
@@ -190,6 +195,7 @@ void net_device_table_mgr::update_tbl()
 		goto ret;
 	}
 
+	m_lock.lock();
 	do {
 		/* Receive the netlink reply */
 		rc = orig_os_api.recv(fd, nl_res, sizeof(nl_res), 0);
@@ -205,7 +211,10 @@ void net_device_table_mgr::update_tbl()
 
 			nl_msgdata = (struct ifinfomsg *)NLMSG_DATA(nl_msg);
 
-			m_lock.lock();
+			/* Skip existing interfaces */
+			if (m_net_device_map_index.find(nl_msgdata->ifi_index) != m_net_device_map_index.end()) {
+				goto next;
+			}
 
 			/* Skip some types */
 			if (!(nl_msgdata->ifi_flags & IFF_SLAVE)) {
@@ -242,7 +251,6 @@ void net_device_table_mgr::update_tbl()
 			}
 
 next:
-			m_lock.unlock();
 
 			/* Check if it is the last message */
 			if(nl_msg->nlmsg_type == NLMSG_DONE) {
@@ -253,6 +261,7 @@ next:
 	} while (1);
 
 ret:
+	m_lock.unlock();
 	ndtm_logdbg("Check completed. Found %d offload capable network interfaces", m_net_device_map_index.size());
 
 	orig_os_api.close(fd);
@@ -539,4 +548,54 @@ void net_device_table_mgr::set_max_mtu(uint32_t mtu)
 uint32_t net_device_table_mgr::get_max_mtu()
 {
 	return m_max_mtu;
+}
+
+void net_device_table_mgr::del_link_event(const netlink_link_info* info)
+{
+	net_device_map_index_t::iterator itr;
+	int if_index = info->ifindex;
+
+	ndtm_logdbg("netlink event: RTM_DELLINK if_index: %d", info->ifindex);
+
+	itr = m_net_device_map_index.find(if_index);
+	if(itr != m_net_device_map_index.end()) {
+		ndtm_logdbg("found entry [%p]: %s", itr->second, itr->second->to_str().c_str());
+	}
+}
+
+void net_device_table_mgr::new_link_event(const netlink_link_info* info)
+{
+	ndtm_logdbg("netlink event: RTM_NEWLINK if_index: %d", info->ifindex);
+
+	update_tbl();
+	print_val_tbl();
+}
+
+void net_device_table_mgr::notify_cb(event *ev)
+{
+	ndtm_logdbg("netlink event: LINK");
+
+	link_nl_event *link_netlink_ev = dynamic_cast <link_nl_event*>(ev);
+	if (!link_netlink_ev) {
+		ndtm_logwarn("netlink event: invalid!!!");
+		return;
+	}
+
+	const netlink_link_info* p_netlink_link_info = link_netlink_ev->get_link_info();
+	if (!p_netlink_link_info) {
+		ndtm_logwarn("netlink event: invalid!!!");
+		return;
+	}
+
+	switch(link_netlink_ev->nl_type) {
+		case RTM_NEWLINK:
+			new_link_event(p_netlink_link_info);
+			break;
+		case RTM_DELLINK:
+			del_link_event(p_netlink_link_info);
+			break;
+		default:
+			ndtm_logdbg("netlink event: (%u) is not handled", link_netlink_ev->nl_type);
+			break;
+	}
 }
