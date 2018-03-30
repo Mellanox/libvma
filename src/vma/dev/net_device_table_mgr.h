@@ -52,12 +52,13 @@ typedef std::tr1::unordered_map<in_addr_t, net_device_val*> net_device_map_addr_
 typedef std::tr1::unordered_map<int, net_device_val*> net_device_map_index_t;
 typedef std::list<ip_data_t> local_ip_list_t;
 
-class net_device_table_mgr : public cache_table_mgr<ip_address, net_device_val*>
+class net_device_table_mgr : public cache_table_mgr<ip_address, net_device_val*>, public observer
 {
 public:
 	net_device_table_mgr();
 	virtual ~net_device_table_mgr();
 
+	virtual void 	notify_cb(event *ev);
 	net_device_entry*	create_new_entry(ip_address local_ip, const observer* dst);
 
 	net_device_val* 	get_net_device_val(const in_addr_t local_ip);
@@ -108,6 +109,8 @@ public:
 private:
 	void update_tbl();
 	void print_val_tbl();
+	void del_link_event(const netlink_link_info* info);
+	void new_link_event(const netlink_link_info* info);
 
 	void                            free_ndtm_resources();
 	void                            set_max_mtu(uint32_t);
