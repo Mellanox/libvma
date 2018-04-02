@@ -199,38 +199,42 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 	if (m_ip.empty()) {
 		return;
 	}
+
+	/* Identify device type */
+	if ((get_flags() & IFF_MASTER) || check_device_exist(get_ifname_link(), BOND_DEVICE_FILE)) {
+		verify_bonding_mode();
+	} else if (check_netvsc_device_exist(get_ifname_link())) {
+		m_bond = NETVSC;
+	} else {
+		m_bond = NO_BOND;
+	}
+
 	set_str();
 
-	nd_logdbg("Checking if can offload on interface '%s' (index=%d addr=%d.%d.%d.%d flags=%X)",
+	nd_logdbg("Check interface '%s' (index=%d addr=%d.%d.%d.%d flags=%X)",
 			get_ifname(), get_if_idx(), NIPQUAD(get_local_addr()), get_flags());
 
+	valid = false;
 	ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(get_ifname_link());
-	if (NULL == ib_ctx) {
-		nd_logdbg("Blocking offload: can't create ib_ctx on interfaces ('%s')", get_ifname());
-		return;
-	}
-
-#ifdef DEFINED_SOCKETXTREME
-	// only support mlx5 device in this mode
-	if(strncmp(ib_ctx->get_ibname(), "mlx4", 4) == 0) {
-		nd_logdbg("Blocking offload: mlx4 interfaces ('%s') in socketxtreme mode", get_ifname());
-		return;
-	}
-#endif // DEFINED_SOCKETXTREME
-
-	if (check_device_exist(m_base_name, BOND_DEVICE_FILE)) {
-		// this is a bond interface (or a vlan/alias over bond), find the slaves
-		valid = verify_bond_ipoib_or_eth_qp_creation();
-	} else if (check_netvsc_device_exist(get_ifname_link())) {
-		struct ifaddrs slave;
-		if (get_netvsc_slave(get_ifname_link(), &slave)) {
-			valid = verify_netvsc_ipoib_or_eth_qp_creation(slave.ifa_name);
+	switch (m_bond) {
+	case NETVSC:
+		/* netvsc device can be offloaded or not */
+		if (get_type() == ARPHRD_ETHER) {
+			valid = true;
 		}
-	} else {
-		valid = verify_ipoib_or_eth_qp_creation(get_ifname_link());
+		break;
+	case LAG_8023ad:
+	case ACTIVE_BACKUP:
+		// this is a bond interface (or a vlan/alias over bond), find the slaves
+		valid = (bool)(ib_ctx && verify_bond_ipoib_or_eth_qp_creation());
+		break;
+	default:
+		valid = (bool)(ib_ctx && verify_ipoib_or_eth_qp_creation(get_ifname_link()));
+		break;
 	}
+
 	if (!valid) {
-		nd_logdbg("Blocking offload: verification failure on interfaces ('%s')", get_ifname());
+		nd_logdbg("Skip interface '%s'", get_ifname());
 		return;
 	}
 
@@ -251,10 +255,16 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 		}
 	}
 
-	nd_logdbg("Offload interface '%s': Mapped to ibv device '%s' [%p] on port %d (Active: %d), Running: %d",
-			get_ifname(), ib_ctx->get_ibname(), ib_ctx->get_ibv_device(),
-		get_port_from_ifname(m_base_name), ib_ctx->is_active(get_port_from_ifname(m_base_name)),
-		(!!(m_flags & IFF_RUNNING)));
+	nd_logdbg("Use interface '%s'", get_ifname());
+	if (ib_ctx) {
+		nd_logdbg("%s ==> %s port %d (%s)",
+				get_ifname(),
+				ib_ctx->get_ibname(), get_port_from_ifname(get_ifname_link()),
+				(ib_ctx->is_active(get_port_from_ifname(m_base_name)) ? "Up" : "Down"));
+	} else {
+		nd_logdbg("%s ==> none",
+				get_ifname());
+	}
 }
 
 net_device_val::~net_device_val()
@@ -441,6 +451,22 @@ void net_device_val::set_str()
 		sprintf(str_x, " type %s", "unknown");
 		break;
 	}
+
+	str_x[0] = '\0';
+	switch (m_bond) {
+	case NETVSC:
+		sprintf(str_x, " (%s)", "netvsc");
+		break;
+	case LAG_8023ad:
+		sprintf(str_x, " (%s)", "lag 8023ad");
+		break;
+	case ACTIVE_BACKUP:
+		sprintf(str_x, " (%s)", "active backup");
+		break;
+	default:
+		sprintf(str_x, " (%s)", "normal");
+		break;
+	}
 	strcat(m_str, str_x);
 }
 
@@ -450,17 +476,35 @@ void net_device_val::print_val()
 	nd_logdbg("%s", m_str);
 }
 
-void net_device_val::configure()
+void net_device_val::set_slave_array()
 {
+	char active_slave[IFNAMSIZ] = {0}; // gather the slave data (only for active-backup)-
+
 	nd_logdbg("");
 
-	// gather the slave data (only for active-backup)-
-	char active_slave[IFNAMSIZ] = {0};
+	if (m_bond == NETVSC) {
+		struct ifaddrs slave_ifa;
+		if (!get_netvsc_slave(m_base_name, &slave_ifa)) {
+			m_state = INVALID;
+			return;
+		}
 
-	if (m_flags & IFF_MASTER || check_device_exist(m_base_name, BOND_DEVICE_FILE)) {
+		if (!(slave_ifa.ifa_flags & IFF_UP)) {
+			nd_logwarn("VF %s is down! VMA failed to offload %s", slave_ifa.ifa_name, m_base_name);
+			m_state = INVALID;
+			return;
+		}
+
+		slave_data_t* s = new slave_data_t;
+		s->if_name = strdup(slave_ifa.ifa_name);
+		m_slaves.push_back(s);
+	} else if (m_bond == NO_BOND) {
+		slave_data_t* s = new slave_data_t;
+		s->if_name = strdup(m_name.c_str());
+		m_slaves.push_back(s);
+	} else {
 		// bond device
 
-		verify_bonding_mode();
 		// get list of all slave devices
 		char slaves_list[IFNAMSIZ * MAX_SLAVES] = {0};
 		if (get_bond_slaves_name_list(m_base_name, slaves_list, sizeof(slaves_list))) {
@@ -485,30 +529,9 @@ void net_device_val::configure()
 			nd_logdbg("failed to find the active slave, Moving to LAG state");
 		}
 	}
-	else if (check_netvsc_device_exist(m_name.c_str())) {
-		m_bond = NETVSC;
-		struct ifaddrs slave_ifa;
-		if (!get_netvsc_slave(m_base_name, &slave_ifa)) {
-			m_state = INVALID;
-			return;
-		}
-
-		if (!(slave_ifa.ifa_flags & IFF_UP)) {
-			nd_logwarn("VF %s is down! VMA failed to offload %s", slave_ifa.ifa_name, m_base_name);
-			m_state = INVALID;
-			return;
-		}
-
-		slave_data_t* s = new slave_data_t;
-		s->if_name = strdup(slave_ifa.ifa_name);
-		m_slaves.push_back(s);
-	} else {
-		slave_data_t* s = new slave_data_t;
-		s->if_name = strdup(m_name.c_str());
-		m_slaves.push_back(s);
-	}
 
 	bool up_and_active_slaves[m_slaves.size()];
+
 	memset(up_and_active_slaves, 0, sizeof(up_and_active_slaves));
 
 	if (m_bond == LAG_8023ad) {
