@@ -287,26 +287,26 @@ protected:
 	char           			m_base_name[IFNAMSIZ];
 	char 					m_active_slave_name[IFNAMSIZ]; //only for active-backup
 
-	virtual void 		configure();
+	void set_slave_array();
 	virtual ring*		create_ring(resource_allocation_key *key) = 0;
 	virtual void		create_br_address(const char* ifname) = 0;
 	virtual L2_address*	create_L2_address(const char* ifname) = 0;
 
-	resource_allocation_key* ring_key_redirection_reserve(resource_allocation_key *key);
-	resource_allocation_key* ring_key_redirection_release(resource_allocation_key *key);
-
-	void verify_bonding_mode();
 	bond_type m_bond;
 	bond_xmit_hash_policy m_bond_xmit_hash_policy;
 	int m_bond_fail_over_mac;
 
 private:
 	bool 			verify_ipoib_mode();
+	void 			verify_bonding_mode();
 	bool 			verify_eth_qp_creation(const char* ifname);
 	bool 			verify_bond_ipoib_or_eth_qp_creation();
 	bool 			verify_netvsc_ipoib_or_eth_qp_creation(const char *slave_name);
 	bool 			verify_ipoib_or_eth_qp_creation(const char* interface_name);
 	bool 			verify_enable_ipoib(const char* ifname);
+
+	resource_allocation_key* ring_key_redirection_reserve(resource_allocation_key *key);
+	resource_allocation_key* ring_key_redirection_release(resource_allocation_key *key);
 
 	bool get_up_and_active_slaves(bool* up_and_active_slaves, size_t size);
 	char m_str[BUFF_SIZE];
@@ -318,7 +318,7 @@ public:
 	net_device_val_eth(struct net_device_val_desc *desc) : net_device_val(desc), m_vlan(0) {
 		set_transport_type(VMA_TRANSPORT_ETH);
 		if (INVALID != m_state) {
-			net_device_val::configure();
+			set_slave_array();
 			configure();
 		}
 	}
@@ -342,7 +342,7 @@ public:
 	net_device_val_ib(struct net_device_val_desc *desc) : net_device_val(desc), m_pkey(0), m_br_neigh(NULL) {
 		set_transport_type(VMA_TRANSPORT_IB);
 		if (INVALID != m_state) {
-			net_device_val::configure();
+			set_slave_array();
 			configure();
 		}
 	}

@@ -108,6 +108,13 @@ void ib_ctx_handler_collection::update_tbl()
 	ibchc_logdbg("TS converter status was set to %d", m_ctx_time_conversion_mode);
 
 	for (i = 0; i < num_devices; i++) {
+#ifdef DEFINED_SOCKETXTREME
+		// only support mlx5 device in this mode
+		if(strncmp(dev_list[i]->name, "mlx4", 4) == 0) {
+			ibchc_logdbg("Blocking offload: mlx4 interfaces in socketxtreme mode");
+			continue;
+		}
+#endif // DEFINED_SOCKETXTREME
 		p_ib_ctx_handler = new ib_ctx_handler(dev_list[i], m_ctx_time_conversion_mode);
 		if (!p_ib_ctx_handler) {
 			ibchc_logerr("failed allocating new ib_ctx_handler (errno=%d %m)", errno);
