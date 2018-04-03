@@ -2155,6 +2155,11 @@ inline void sockinfo_udp::fill_completion(mem_buf_desc_t* p_desc)
 	completion->src = p_desc->rx.src;
 	NOTIFY_ON_EVENTS(this, VMA_SOCKETXTREME_PACKET);
 
+	if (m_n_tsing_flags & (SOF_TIMESTAMPING_RAW_HARDWARE |
+			       SOF_TIMESTAMPING_RX_HARDWARE)) {
+		completion->packet.timestamp = p_desc->rx.udp.hw_timestamp;
+	}
+
 	m_socketxtreme_completion = NULL;
 	m_socketxtreme_last_buff_lst = NULL;
 }
