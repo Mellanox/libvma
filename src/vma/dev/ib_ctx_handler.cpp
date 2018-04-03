@@ -147,6 +147,16 @@ ib_ctx_handler::ib_ctx_handler(void *desc, ts_conversion_mode_t ctx_time_convert
 	g_p_event_handler_manager->register_ibverbs_event(m_p_ibv_context->async_fd,
 						this, m_p_ibv_context, 0);
 
+	if(strncmp(get_ibname(), "mlx4", 4) == 0) {
+		/*
+		 * MLX4_DEVICE_FATAL_CLEANUP tells ibv_destroy functions we
+		 * want to get success errno value in case of calling them
+		 * when the device was removed.
+		 * It helps to destroy resources in DEVICE_FATAL state
+		 */
+		setenv("MLX4_DEVICE_FATAL_CLEANUP", "1", 1);
+	}
+
 	return;
 
 err:
