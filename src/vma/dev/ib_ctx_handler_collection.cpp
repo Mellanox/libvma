@@ -151,8 +151,23 @@ ib_ctx_handler* ib_ctx_handler_collection::get_ib_ctx(const char *ifa_name)
 		}
 		ifa_name = (const char *)slave.ifa_name;
 	} else if (check_device_exist(ifa_name, BOND_DEVICE_FILE)) {
+		/* active/backup: return active slave */
 		if (!get_bond_active_slave_name(ifa_name, active_slave, sizeof(active_slave))) {
-			return NULL;
+			char slaves[IFNAMSIZ * 16] = {0};
+			char* slave_name;
+			char* save_ptr;
+
+			/* active/active: return the first slave */
+			if (!get_bond_slaves_name_list(ifa_name, slaves, sizeof(slaves))) {
+				return NULL;
+			}
+			slave_name = strtok_r(slaves, " ", &save_ptr);
+			if (NULL == slave_name) {
+				return NULL;
+			}
+			save_ptr = strchr(slave_name, '\n');
+			if (save_ptr) *save_ptr = '\0'; // Remove the tailing 'new line" char
+			strncpy(active_slave, slave_name, sizeof(active_slave) - 1);
 		}
 		ifa_name = (const char *)active_slave;
 	}
