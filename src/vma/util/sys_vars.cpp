@@ -1166,30 +1166,38 @@ void set_env_params()
 
 	//setenv("MLX4_SINGLE_THREADED", "1", 0);
 
-	if(safe_mce_sys().handle_bf){
-                setenv("MLX4_POST_SEND_PREFER_BF", "1", 1);
-		setenv("MLX5_POST_SEND_PREFER_BF", "1", 1);
-        } else {
-		/* todo - these seem not to work if inline is on, since libmlx is doing (inl || bf) when deciding to bf*/
-                setenv("MLX4_POST_SEND_PREFER_BF", "0", 1);
-		setenv("MLX5_POST_SEND_PREFER_BF", "0", 1);
-        }
+	/*
+	 * MLX4_DEVICE_FATAL_CLEANUP tells ibv_destroy functions we
+	 * want to get success errno value in case of calling them
+	 * when the device was removed.
+	 * It helps to destroy resources in DEVICE_FATAL state
+	 */
+	setenv("MLX4_DEVICE_FATAL_CLEANUP", "1", 1);
 
-        switch (safe_mce_sys().mem_alloc_type) {
-        case ALLOC_TYPE_ANON:
-                setenv("MLX_QP_ALLOC_TYPE", "ANON", 0);
-                setenv("MLX_CQ_ALLOC_TYPE", "ANON", 0);
-                break;
-        case ALLOC_TYPE_HUGEPAGES:
-                setenv("RDMAV_HUGEPAGES_SAFE", "1", 0);
-                setenv("MLX_QP_ALLOC_TYPE", "ALL", 0);
-                setenv("MLX_CQ_ALLOC_TYPE", "ALL", 0);
-                break;
-        case ALLOC_TYPE_CONTIG:
-        default:
-                setenv("MLX_QP_ALLOC_TYPE", "PREFER_CONTIG", 0);
-                setenv("MLX_CQ_ALLOC_TYPE", "PREFER_CONTIG", 0);
-                break;
-        }
+	if (safe_mce_sys().handle_bf) {
+		setenv("MLX4_POST_SEND_PREFER_BF", "1", 1);
+		setenv("MLX5_POST_SEND_PREFER_BF", "1", 1);
+	} else {
+		/* todo - these seem not to work if inline is on, since libmlx is doing (inl || bf) when deciding to bf*/
+		setenv("MLX4_POST_SEND_PREFER_BF", "0", 1);
+		setenv("MLX5_POST_SEND_PREFER_BF", "0", 1);
+	}
+
+	switch (safe_mce_sys().mem_alloc_type) {
+	case ALLOC_TYPE_ANON:
+		setenv("MLX_QP_ALLOC_TYPE", "ANON", 0);
+		setenv("MLX_CQ_ALLOC_TYPE", "ANON", 0);
+		break;
+	case ALLOC_TYPE_HUGEPAGES:
+		setenv("RDMAV_HUGEPAGES_SAFE", "1", 0);
+		setenv("MLX_QP_ALLOC_TYPE", "ALL", 0);
+		setenv("MLX_CQ_ALLOC_TYPE", "ALL", 0);
+		break;
+	case ALLOC_TYPE_CONTIG:
+	default:
+		setenv("MLX_QP_ALLOC_TYPE", "PREFER_CONTIG", 0);
+		setenv("MLX_CQ_ALLOC_TYPE", "PREFER_CONTIG", 0);
+		break;
+	}
 }
 
