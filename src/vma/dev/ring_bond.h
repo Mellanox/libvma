@@ -77,7 +77,7 @@ public:
 	int 			socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);
 #endif // DEFINED_SOCKETXTREME		
 protected:
-	virtual void		create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t partition, uint32_t mtu) = 0;
+	virtual void		create_slave_list(int if_index, ring_resource_creation_info_t* p_ring_info, bool active_slaves[]) = 0;
 	void			update_rx_channel_fds();
 	void			close_gaps_active_rings();
 	uint32_t		m_n_num_resources;
@@ -101,15 +101,11 @@ public:
 	ring_bond_eth(int if_index,
 			ring_resource_creation_info_t* p_ring_info, int count, bool active_slaves[]):
 		ring_bond(if_index, count) {
-
-		net_device_val_eth* p_ndev =
-				dynamic_cast<net_device_val_eth *>(g_p_net_device_table_mgr->get_net_device_val(if_index));
-
-		create_slave_list(p_ndev->get_local_addr(), p_ring_info, active_slaves, p_ndev->get_vlan(), p_ndev->get_mtu());
+		create_slave_list(if_index, p_ring_info, active_slaves);
 		update_rx_channel_fds();
 	};
 protected:
-	virtual void create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t partition, uint32_t mtu);
+	virtual void create_slave_list(int if_index, ring_resource_creation_info_t* p_ring_info, bool active_slaves[]);
 };
 
 class ring_bond_eth_netvsc : public ring_bond_eth
@@ -145,15 +141,11 @@ public:
 	ring_bond_ib(int if_index,
 			ring_resource_creation_info_t* p_ring_info, int count, bool active_slaves[]):
 		ring_bond(if_index, count) {
-
-		net_device_val_ib* p_ndev =
-				dynamic_cast<net_device_val_ib *>(g_p_net_device_table_mgr->get_net_device_val(if_index));
-
-		create_slave_list(p_ndev->get_local_addr(), p_ring_info, active_slaves, p_ndev->get_pkey(), p_ndev->get_mtu());
+		create_slave_list(if_index, p_ring_info, active_slaves);
 		update_rx_channel_fds();
 	};
 protected:
-	virtual void create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t partition, uint32_t mtu);
+	virtual void create_slave_list(int if_index, ring_resource_creation_info_t* p_ring_info, bool active_slaves[]);
 };
 
 #endif /* RING_BOND_H */

@@ -512,10 +512,10 @@ void ring_bond::mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc)
 	ring_logpanic("programming error, how did we got here?");
 }
 
-void ring_bond_eth::create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t vlan, uint32_t mtu)
+void ring_bond_eth::create_slave_list(int if_index, ring_resource_creation_info_t* p_ring_info, bool active_slaves[])
 {
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
-		m_bond_rings[i] = new ring_eth(local_if, &p_ring_info[i], active_slaves[i], vlan, mtu, this);
+		m_bond_rings[i] = new ring_eth(if_index, &p_ring_info[i], active_slaves[i], this);
 		if (m_min_devices_tx_inline < 0)
 			m_min_devices_tx_inline = m_bond_rings[i]->get_max_tx_inline();
 		else
@@ -529,10 +529,10 @@ void ring_bond_eth::create_slave_list(in_addr_t local_if, ring_resource_creation
 	close_gaps_active_rings();
 }
 
-void ring_bond_ib::create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t pkey, uint32_t mtu)
+void ring_bond_ib::create_slave_list(int if_index, ring_resource_creation_info_t* p_ring_info, bool active_slaves[])
 {
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
-		m_bond_rings[i] = new ring_ib(local_if, &p_ring_info[i], active_slaves[i], pkey, mtu, this); // m_mtu is the value from ifconfig when ring created. Now passing it to its slaves. could have sent 0 here, as the MTU of the bond is already on the bond
+		m_bond_rings[i] = new ring_ib(if_index, &p_ring_info[i], active_slaves[i], this); // m_mtu is the value from ifconfig when ring created. Now passing it to its slaves. could have sent 0 here, as the MTU of the bond is already on the bond
 		if (m_min_devices_tx_inline < 0)
 			m_min_devices_tx_inline = m_bond_rings[i]->get_max_tx_inline();
 		else

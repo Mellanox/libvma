@@ -40,15 +40,18 @@
 #define MODULE_HDR		MODULE_NAME "%d:%s() "
 
 
-ring_eth_direct::ring_eth_direct(in_addr_t local_if,
+ring_eth_direct::ring_eth_direct(int if_index,
 				ring_resource_creation_info_t *p_ring_info,
-				bool active, uint16_t vlan, uint32_t mtu,
+				bool active,
 				vma_external_mem_attr *ext_ring_attr, ring *parent):
-					ring_eth(local_if, p_ring_info,
-						active, vlan, mtu, parent, false)
+					ring_eth(if_index, p_ring_info,
+						active, parent, false)
 {
+	net_device_val_eth* p_ndev =
+			dynamic_cast<net_device_val_eth *>(g_p_net_device_table_mgr->get_net_device_val(if_index));
+	create_resources(p_ring_info, active, p_ndev->get_vlan());
+
 	m_ring_attr.comp_mask = ext_ring_attr->comp_mask;
-	create_resources(p_ring_info, active);
 }
 
 qp_mgr* ring_eth_direct::create_qp_mgr(const ib_ctx_handler* ib_ctx,
