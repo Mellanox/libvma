@@ -1163,10 +1163,10 @@ ring* net_device_val_eth::create_ring(resource_allocation_key *key)
 				break;
 			case ACTIVE_BACKUP:
 			case LAG_8023ad:
-				ring = new ring_bond_eth(get_local_addr(), p_ring_info, slave_count, active_slaves, get_vlan(), m_bond, m_bond_xmit_hash_policy, get_mtu());
+				ring = new ring_bond_eth(get_if_idx(), p_ring_info, slave_count, active_slaves);
 				break;
 			case NETVSC:
-				ring = new ring_bond_eth_netvsc(get_local_addr(), p_ring_info, slave_count, active_slaves, get_vlan(), m_bond, m_bond_xmit_hash_policy, get_mtu(), get_ifname_link(), m_p_L2_addr->get_address());
+				ring = new ring_bond_eth_netvsc(get_if_idx(), p_ring_info, slave_count, active_slaves);
 				break;
 			default:
 				nd_logdbg("Unknown ring type");
@@ -1273,7 +1273,7 @@ ring* net_device_val_ib::create_ring(resource_allocation_key *key)
 		if (m_bond == NO_BOND) {
 			ring = new ring_ib(get_local_addr(), p_ring_info, true, m_pkey, get_mtu());
 		} else {
-			ring = new ring_bond_ib(get_local_addr(), p_ring_info, slave_count, active_slaves, m_pkey, m_bond, m_bond_xmit_hash_policy, get_mtu());
+			ring = new ring_bond_ib(get_if_idx(), p_ring_info, slave_count, active_slaves);
 		}
 	} catch (vma_error &error) {
 		nd_logdbg("failed creating ring %s", error.message);

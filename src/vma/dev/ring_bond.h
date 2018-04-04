@@ -35,14 +35,14 @@
 
 #include "ring.h"
 #include "vma/util/agent.h"
-#include "vma/dev/net_device_val.h"
+#include "vma/dev/net_device_table_mgr.h"
 
 class ring_slave;
 
 class ring_bond : public ring {
 
 public:
-	ring_bond(int count, net_device_val::bond_type type, net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy);
+	ring_bond(int if_index, int count);
 	virtual	~ring_bond();
 	void			free_ring_bond_resources();
 	virtual int		request_notification(cq_type_t cq_type, uint64_t poll_sn);
@@ -94,9 +94,14 @@ private:
 class ring_bond_eth : public ring_bond
 {
 public:
-	ring_bond_eth(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count, bool active_slaves[], uint16_t vlan, net_device_val::bond_type type, net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy, uint32_t mtu):
-		ring_bond(count, type, bond_xmit_hash_policy){
-		create_slave_list(local_if, p_ring_info, active_slaves, vlan, mtu);
+	ring_bond_eth(int if_index,
+			ring_resource_creation_info_t* p_ring_info, int count, bool active_slaves[]):
+		ring_bond(if_index, count) {
+
+		net_device_val_eth* p_ndev =
+				dynamic_cast<net_device_val_eth *>(g_p_net_device_table_mgr->get_net_device_val(if_index));
+
+		create_slave_list(p_ndev->get_local_addr(), p_ring_info, active_slaves, p_ndev->get_vlan(), p_ndev->get_mtu());
 		update_rx_channel_fds();
 	};
 protected:
@@ -106,7 +111,8 @@ protected:
 class ring_bond_eth_netvsc : public ring_bond_eth
 {
 public:
-	ring_bond_eth_netvsc(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count, bool active_slaves[], uint16_t vlan, net_device_val::bond_type type, net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy, uint32_t mtu, char* base_name, address_t l2_addr);
+	ring_bond_eth_netvsc(int if_index,
+			ring_resource_creation_info_t* p_ring_info, int count, bool active_slaves[]);
 	virtual ~ring_bond_eth_netvsc();
 
 	virtual bool attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
@@ -122,7 +128,7 @@ private:
 	ring_stats_t	m_ring_stat;
 	descq_t         m_rx_pool;
 	const uint32_t  m_sysvar_qp_compensation_level;
-	const int       m_netvsc_idx;
+	int             m_netvsc_idx;
 	int             m_tap_idx;
 	int             m_tap_fd;
 	bool            m_tap_data_available;
@@ -132,9 +138,14 @@ private:
 class ring_bond_ib : public ring_bond
 {
 public:
-	ring_bond_ib(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count, bool active_slaves[], uint16_t pkey, net_device_val::bond_type type, net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy, uint32_t mtu):
-		ring_bond(count, type, bond_xmit_hash_policy){
-		create_slave_list(local_if, p_ring_info, active_slaves, pkey, mtu);
+	ring_bond_ib(int if_index,
+			ring_resource_creation_info_t* p_ring_info, int count, bool active_slaves[]):
+		ring_bond(if_index, count) {
+
+		net_device_val_ib* p_ndev =
+				dynamic_cast<net_device_val_ib *>(g_p_net_device_table_mgr->get_net_device_val(if_index));
+
+		create_slave_list(p_ndev->get_local_addr(), p_ring_info, active_slaves, p_ndev->get_pkey(), p_ndev->get_mtu());
 		update_rx_channel_fds();
 	};
 protected:
