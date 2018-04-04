@@ -125,7 +125,7 @@ bool ring_ib::is_ratelimit_supported(struct vma_rate_limit_t &rate_limit)
 	return false;
 }
 
-ring_simple::ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t local_if, uint16_t partition_sn, transport_type_t transport_type, uint32_t mtu, ring* parent /*=NULL*/):
+ring_simple::ring_simple(int if_index, ring_resource_creation_info_t* p_ring_info, ring* parent /*=NULL*/):
 	ring_slave(RING_SIMPLE, parent),
 	m_p_ib_ctx(p_ring_info->p_ib_ctx),
 	m_p_qp_mgr(NULL),
@@ -137,9 +137,8 @@ ring_simple::ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t l
 	m_lock_ring_tx_buf_wait("ring:lock_tx_buf_wait"), m_tx_num_bufs(0), m_tx_num_wr(0), m_tx_num_wr_free(0),
 	m_b_qp_tx_first_flushed_completion_handled(false), m_missing_buf_ref_count(0),
 	m_tx_lkey(g_buffer_pool_tx->find_lkey_by_ib_ctx_thread_safe(m_p_ib_ctx)),
-	m_partition(partition_sn), m_gro_mgr(safe_mce_sys().gro_streams_max, MAX_GRO_BUFS), m_up(false),
-	m_p_rx_comp_event_channel(NULL), m_p_tx_comp_event_channel(NULL), m_p_l2_addr(NULL),
-	m_local_if(local_if), m_mtu(mtu), m_transport_type(transport_type)
+	m_gro_mgr(safe_mce_sys().gro_streams_max, MAX_GRO_BUFS), m_up(false),
+	m_p_rx_comp_event_channel(NULL), m_p_tx_comp_event_channel(NULL), m_p_l2_addr(NULL)
 	, m_b_sysvar_eth_mc_l2_only_rules(safe_mce_sys().eth_mc_l2_only_rules)
 	, m_b_sysvar_mc_force_flowtag(safe_mce_sys().mc_force_flowtag)
 #ifdef DEFINED_SOCKETXTREME
@@ -148,6 +147,16 @@ ring_simple::ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t l
 #endif // DEFINED_SOCKETXTREME		
 	, m_flow_tag_enabled(false)
 {
+	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(if_index);
+	if (!p_ndev) {
+		ring_logpanic("Invalid if_index = %d", if_index);
+	}
+
+	m_partition = 0;
+	m_local_if = p_ndev->get_local_addr();
+	m_mtu = p_ndev->get_mtu();
+	m_transport_type = p_ndev->get_transport_type();
+
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_tx_lkey == 0) {
 		__log_info_panic("invalid lkey found %lu", m_tx_lkey);
@@ -243,7 +252,7 @@ ring_simple::~ring_simple()
 	ring_logdbg("delete ring_simple() completed");
 }
 
-void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, bool active)
+void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, bool active, uint16_t partition)
 {
 	ring_logdbg("new ring_simple()");
 
@@ -256,6 +265,7 @@ void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, b
 		ring_logpanic("p_ring_info.p_ib_ctx = NULL. It can be related to wrong bonding configuration");
 	}
 
+	m_partition = partition;
 	save_l2_address(p_ring_info->p_l2_addr);
 	m_p_tx_comp_event_channel = ibv_create_comp_channel(m_p_ib_ctx->get_ibv_context());
 	if (m_p_tx_comp_event_channel == NULL) {

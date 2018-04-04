@@ -59,9 +59,9 @@ class cq_mgr_mp;
 class ring_eth_cb : public ring_eth
 {
 public:
-	ring_eth_cb(in_addr_t local_if,
+	ring_eth_cb(int if_index,
 		    ring_resource_creation_info_t *p_ring_info,
-		    bool active, uint16_t vlan, uint32_t mtu,
+		    bool active,
 		    vma_cyclic_buffer_ring_attr *mp_ring, ring *parent = NULL);
 	virtual		~ring_eth_cb();
 	ibv_exp_res_domain* get_res_domain() const {return m_res_domain;};
@@ -77,7 +77,7 @@ public:
 					   size_t min, size_t max, int flags);
 protected:
 	void		create_resources(ring_resource_creation_info_t* p_ring_info,
-					 bool active, vma_cyclic_buffer_ring_attr *cb_ring);
+					 bool active, uint16_t partition, vma_cyclic_buffer_ring_attr *cb_ring);
 	virtual		qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx,
 					      uint8_t port_num,
 					      struct ibv_comp_channel* p_rx_comp_event_channel);
