@@ -61,8 +61,15 @@
 #define TAP_STR_LENGTH	512
 #define TAP_DISABLE_IPV6 "sysctl -w net.ipv6.conf.%s.disable_ipv6=1"
 
-ring_bond::ring_bond(int count, net_device_val::bond_type type, net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy) :
-ring(), m_n_num_resources(count), m_lock_ring_rx("ring_bond:lock_rx"), m_lock_ring_tx("ring_bond:lock_tx") {
+ring_bond::ring_bond(int if_index, int count) :
+	ring(),
+	m_n_num_resources(count), m_lock_ring_rx("ring_bond:lock_rx"), m_lock_ring_tx("ring_bond:lock_tx")
+{
+	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(if_index);
+	if (!p_ndev) {
+		ring_logpanic("Invalid if_index = %d", if_index);
+	}
+
 	if (m_n_num_resources > MAX_NUM_RING_RESOURCES) {
 		ring_logpanic("Error creating bond ring with more than %d resource", MAX_NUM_RING_RESOURCES);
 	}
@@ -73,8 +80,8 @@ ring(), m_n_num_resources(count), m_lock_ring_rx("ring_bond:lock_rx"), m_lock_ri
 	for (int i = 0; i < count; i++)
 		m_active_rings[i] = NULL;
 	m_parent = this;
-	m_type = type;
-	m_xmit_hash_policy = bond_xmit_hash_policy;
+	m_type = p_ndev->get_is_bond();
+	m_xmit_hash_policy = p_ndev->get_bond_xmit_hash_policy();
 	m_min_devices_tx_inline = -1;
 }
 
@@ -662,13 +669,10 @@ int ring_bond::socketxtreme_poll(struct vma_completion_t *vma_completions, unsig
 }
 #endif // DEFINED_SOCKETXTREME	
 
-ring_bond_eth_netvsc::ring_bond_eth_netvsc(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count,
-		bool active_slaves[], uint16_t vlan, net_device_val::bond_type type,
-		net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy, uint32_t mtu,
-		char* base_name, address_t l2_addr):
-	ring_bond_eth(local_if, p_ring_info, count, active_slaves, vlan, type, bond_xmit_hash_policy, mtu),
+ring_bond_eth_netvsc::ring_bond_eth_netvsc(int if_index,
+		ring_resource_creation_info_t* p_ring_info, int count, bool active_slaves[]):
+	ring_bond_eth(if_index, p_ring_info, count, active_slaves),
 	m_sysvar_qp_compensation_level(safe_mce_sys().qp_compensation_level),
-	m_netvsc_idx(if_nametoindex(base_name)),
 	m_tap_idx(-1),
 	m_tap_fd(-1),
 	m_tap_data_available(false)
@@ -676,13 +680,16 @@ ring_bond_eth_netvsc::ring_bond_eth_netvsc(in_addr_t local_if, ring_resource_cre
 	struct ifreq ifr;
 	int err, ioctl_sock = -1;
 	char command_str[TAP_STR_LENGTH], return_str[TAP_STR_LENGTH], tap_name[IFNAMSIZ];
-	memset(&m_ring_stat , 0, sizeof(m_ring_stat));
 
-	// Get netvsc interface index
-	if (!m_netvsc_idx) {
-		ring_logwarn("if_nametoindex failed to get netvsc index [%s]", base_name);
+	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(if_index);
+	if (!p_ndev) {
+		ring_logerr("Invalid if_index = %d", if_index);
 		goto error;
 	}
+
+	m_netvsc_idx = if_index;
+
+	memset(&m_ring_stat , 0, sizeof(m_ring_stat));
 
 	// Initialize rx buffer poll
 	request_more_rx_buffers();
@@ -729,7 +736,7 @@ ring_bond_eth_netvsc::ring_bond_eth_netvsc(in_addr_t local_if, ring_resource_cre
 
 	// Set MAC address
 	ifr.ifr_hwaddr.sa_family = AF_LOCAL;
-	memcpy(ifr.ifr_hwaddr.sa_data, l2_addr, ETH_ALEN);
+	memcpy(ifr.ifr_hwaddr.sa_data, p_ndev->get_l2_address()->get_address(), ETH_ALEN);
 	if ( ( err = orig_os_api.ioctl(ioctl_sock, SIOCSIFHWADDR, &ifr)) < 0) {
 		ring_logwarn("ioctl SIOCSIFHWADDR failed %d %m, %s", err, tap_name);
 		goto error;
