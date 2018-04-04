@@ -138,16 +138,14 @@ typedef std::tr1::unordered_map<resource_allocation_key *, std::pair<resource_al
 #define MAX_SLAVES 16
 
 typedef struct slave_data {
-        char* 		if_name;
+        int         if_index;
         ib_ctx_handler* p_ib_ctx;
         int 		port_num;
-        uint16_t	pkey;
         L2_address* 	p_L2_addr;
-        bool 		is_active_slave;
-	slave_data() : if_name(NULL), p_ib_ctx(NULL), port_num(-1), pkey(0), p_L2_addr(NULL), is_active_slave(false) {}
+        bool 		active;
+	slave_data() :
+		if_index(0), p_ib_ctx(NULL), port_num(-1), p_L2_addr(NULL), active(false) {}
 	~slave_data() {
-		free(if_name);
-		if_name = NULL;
 		delete p_L2_addr;
 		p_L2_addr = NULL;
 	}
@@ -260,36 +258,23 @@ public:
 	void 			unregister_to_ibverbs_events(event_handler_ibverbs *handler);
 
 protected:
-	/* See: RFC 3549 2.3.3.1. */
-	int              m_if_idx;         /* Uniquely identifies interface (not unique: eth4 and eth4:5 has the same idx) */
-	int              m_type;           /* This defines the type of the link. */
-	int              m_flags;          /* Device Flags (IFF_x).  */
-	int              m_mtu;            /* MTU of the device. */
-	int              m_if_link;        /* ifindex of link to which this device is bound */
-	uint8_t          m_l2_if_addr[20]; /* hardware L2 interface address */
-	uint8_t          m_l2_bc_addr[20]; /* hardware L2 broadcast address */
-
-	/* See: RFC 3549 2.3.3.2. */
-	ip_data_vector_t m_ip;             /* vector of ip addresses */
-
-	state			m_state;
-	L2_address*		m_p_L2_addr;
-	L2_address* 		m_p_br_addr;
-	transport_type_t	m_transport_type;
-	lock_mutex_recursive	m_lock;
-	rings_hash_map_t        m_h_ring_map;
-	rings_key_redirection_hash_map_t        m_h_ring_key_redirection_map;
-	slave_data_vector_t	m_slaves;
-	std::string             m_name;
-	char           			m_base_name[IFNAMSIZ];
-	char 					m_active_slave_name[IFNAMSIZ]; //only for active-backup
 
 	void set_slave_array();
 	virtual ring*		create_ring(resource_allocation_key *key) = 0;
 	virtual void		create_br_address(const char* ifname) = 0;
 	virtual L2_address*	create_L2_address(const char* ifname) = 0;
 
-	bond_type m_bond;
+	L2_address*		m_p_L2_addr;
+	L2_address* 		m_p_br_addr;
+	transport_type_t	m_transport_type;
+	lock_mutex_recursive	m_lock;
+	rings_hash_map_t        m_h_ring_map;
+	rings_key_redirection_hash_map_t        m_h_ring_key_redirection_map;
+
+	state            m_state;          /* device current state */
+	bond_type        m_bond;           /* type of the device as simple, bond, etc */
+	slave_data_vector_t	m_slaves;      /* array of slaves */
+	int              m_if_active;      /* ifindex of active slave (only for active-backup) */
 	bond_xmit_hash_policy m_bond_xmit_hash_policy;
 	int m_bond_fail_over_mac;
 
@@ -306,7 +291,22 @@ private:
 	resource_allocation_key* ring_key_redirection_release(resource_allocation_key *key);
 
 	bool get_up_and_active_slaves(bool* up_and_active_slaves, size_t size);
-	char m_str[BUFF_SIZE];
+
+	/* See: RFC 3549 2.3.3.1. */
+	int              m_if_idx;         /* Uniquely identifies interface (not unique: eth4 and eth4:5 has the same idx) */
+	int              m_type;           /* This defines the type of the link. */
+	int              m_flags;          /* Device Flags (IFF_x).  */
+	int              m_mtu;            /* MTU of the device. */
+	int              m_if_link;        /* ifindex of link to which this device is bound */
+	uint8_t          m_l2_if_addr[20]; /* hardware L2 interface address */
+	uint8_t          m_l2_bc_addr[20]; /* hardware L2 broadcast address */
+
+	/* See: RFC 3549 2.3.3.2. */
+	ip_data_vector_t m_ip;             /* vector of ip addresses */
+
+	std::string      m_name;           /* container for ifname */
+	char             m_str[BUFF_SIZE]; /* detailed information about device */
+	char             m_base_name[IFNAMSIZ]; /* base name of device basing ifname */
 };
 
 class net_device_val_eth : public net_device_val
@@ -314,7 +314,7 @@ class net_device_val_eth : public net_device_val
 public:
 	net_device_val_eth(void *desc) : net_device_val(desc), m_vlan(0) {
 		set_transport_type(VMA_TRANSPORT_ETH);
-		if (INVALID != m_state) {
+		if (INVALID != get_state()) {
 			set_slave_array();
 			configure();
 		}
@@ -338,7 +338,7 @@ class net_device_val_ib : public net_device_val,  public neigh_observer, public 
 public:
 	net_device_val_ib(void *desc) : net_device_val(desc), m_pkey(0), m_br_neigh(NULL) {
 		set_transport_type(VMA_TRANSPORT_IB);
-		if (INVALID != m_state) {
+		if (INVALID != get_state()) {
 			set_slave_array();
 			configure();
 		}
