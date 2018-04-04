@@ -255,7 +255,8 @@ public:
 	void			ring_adapt_cq_moderation();
 	L2_address*		get_l2_address() { return m_p_L2_addr; };
 	L2_address* 		get_br_address() { return m_p_br_addr; };
-	bond_type 		get_is_bond() { return m_bond; };
+	inline bond_type  get_is_bond() { return m_bond; }
+	inline bond_xmit_hash_policy get_bond_xmit_hash_policy() { return m_bond_xmit_hash_policy; }
 	bool 			update_active_slaves();
 	void 			register_to_ibverbs_events(event_handler_ibverbs *handler);
 	void 			unregister_to_ibverbs_events(event_handler_ibverbs *handler);
@@ -349,6 +350,7 @@ public:
 	~net_device_val_ib();
 
 	std::string		to_str();
+	uint16_t		get_pkey() { return m_pkey; }
 	const neigh_ib_broadcast* get_br_neigh() {return m_br_neigh;}
 	virtual transport_type_t get_obs_transport_type() const {return get_transport_type();}
 
