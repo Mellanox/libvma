@@ -251,7 +251,7 @@ ring_simple::~ring_simple()
 	ring_logdbg("delete ring_simple() completed");
 }
 
-void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, bool active, uint16_t partition)
+void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, uint16_t partition)
 {
 	ring_logdbg("new ring_simple()");
 
@@ -338,7 +338,7 @@ remain below as in master?
 		modify_cq_moderation(safe_mce_sys().cq_moderation_period_usec, safe_mce_sys().cq_moderation_count);
 	}
 
-	if (active) {
+	if (p_ring_info->active) {
 		// 'up' the active QP/CQ resource
 		m_up = true;
 		m_p_qp_mgr->up();

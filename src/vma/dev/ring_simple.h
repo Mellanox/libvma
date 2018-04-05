@@ -218,7 +218,7 @@ public:
 
 protected:
 	virtual qp_mgr*		create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) = 0;
-	virtual void		create_resources(ring_resource_creation_info_t* p_ring_info, bool active, uint16_t partition);
+	virtual void		create_resources(ring_resource_creation_info_t* p_ring_info, uint16_t partition);
 	// Internal functions. No need for locks mechanism.
 	bool			rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array);
 	//	void	print_ring_flow_to_rfs_map(flow_spec_map_t *p_flow_map);
@@ -284,12 +284,12 @@ class ring_eth : public ring_simple
 {
 public:
 	ring_eth(int if_index,
-			ring_resource_creation_info_t* p_ring_info, bool active, ring* parent = NULL, bool call_create_res = true):
+			ring_resource_creation_info_t* p_ring_info, ring* parent = NULL, bool call_create_res = true):
 		ring_simple(if_index, p_ring_info, parent) {
 		if (call_create_res) {
 			net_device_val_eth* p_ndev =
 					dynamic_cast<net_device_val_eth *>(g_p_net_device_table_mgr->get_net_device_val(if_index));
-			create_resources(p_ring_info, active, p_ndev->get_vlan());
+			create_resources(p_ring_info, p_ndev->get_vlan());
 		}
 	}
 	virtual bool is_ratelimit_supported(struct vma_rate_limit_t &rate_limit);
@@ -301,11 +301,11 @@ class ring_ib : public ring_simple
 {
 public:
 	ring_ib(int if_index,
-			ring_resource_creation_info_t* p_ring_info, bool active, ring* parent = NULL):
+			ring_resource_creation_info_t* p_ring_info, ring* parent = NULL):
 		ring_simple(if_index, p_ring_info, parent) {
 		net_device_val_ib* p_ndev =
 				dynamic_cast<net_device_val_ib *>(g_p_net_device_table_mgr->get_net_device_val(if_index));
-		create_resources(p_ring_info, active, p_ndev->get_pkey());
+		create_resources(p_ring_info, p_ndev->get_pkey());
 	}
 	virtual bool is_ratelimit_supported(struct vma_rate_limit_t &rate_limit);
 protected:

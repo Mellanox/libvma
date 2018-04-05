@@ -49,9 +49,8 @@
 
 ring_eth_cb::ring_eth_cb(int if_index,
 			 ring_resource_creation_info_t *p_ring_info,
-			 bool active,
 			 vma_cyclic_buffer_ring_attr *cb_ring, ring *parent):
-			 ring_eth(if_index, p_ring_info, active, parent, false)
+			 ring_eth(if_index, p_ring_info, parent, false)
 			,m_curr_wqe_used_strides(0)
 			,m_curr_packets(0)
 			,m_padd_mode_used_strides(0)
@@ -69,11 +68,11 @@ ring_eth_cb::ring_eth_cb(int if_index,
 
 	// call function from derived not base
 	memset(m_sge_ptrs, 0, sizeof(m_sge_ptrs));
-	create_resources(p_ring_info, active, p_ndev->get_vlan(), cb_ring);
+	create_resources(p_ring_info, p_ndev->get_vlan(), cb_ring);
 }
 
 void ring_eth_cb::create_resources(ring_resource_creation_info_t *p_ring_info,
-				   bool active, uint16_t partition, vma_cyclic_buffer_ring_attr *cb_ring)
+				   uint16_t partition, vma_cyclic_buffer_ring_attr *cb_ring)
 {
 	struct ibv_exp_res_domain_init_attr res_domain_attr;
 
@@ -159,7 +158,7 @@ void ring_eth_cb::create_resources(ring_resource_creation_info_t *p_ring_info,
 		ring_logerr("failed creating UMR QP");
 		throw_vma_exception("failed creating UMR QP");
 	}
-	ring_simple::create_resources(p_ring_info, active, partition);
+	ring_simple::create_resources(p_ring_info, partition);
 	m_is_mp_ring = true;
 }
 
