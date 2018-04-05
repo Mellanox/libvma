@@ -486,15 +486,15 @@ void ring_bond::devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_b
 	}
 }
 
-void ring_bond_eth::create_slave_list(int if_index, ring_resource_creation_info_t* p_ring_info, bool active_slaves[])
+void ring_bond_eth::create_slave_list(int if_index, ring_resource_creation_info_t* p_ring_info)
 {
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
-		m_bond_rings[i] = new ring_eth(if_index, &p_ring_info[i], active_slaves[i], this);
+		m_bond_rings[i] = new ring_eth(if_index, &p_ring_info[i], this);
 		if (m_min_devices_tx_inline < 0)
 			m_min_devices_tx_inline = m_bond_rings[i]->get_max_tx_inline();
 		else
 			m_min_devices_tx_inline = min(m_min_devices_tx_inline, m_bond_rings[i]->get_max_tx_inline());
-		if (active_slaves[i]) {
+		if (p_ring_info[i].active) {
 			m_active_rings[i] = m_bond_rings[i];
 		} else {
 			m_active_rings[i] = NULL;
@@ -503,15 +503,15 @@ void ring_bond_eth::create_slave_list(int if_index, ring_resource_creation_info_
 	close_gaps_active_rings();
 }
 
-void ring_bond_ib::create_slave_list(int if_index, ring_resource_creation_info_t* p_ring_info, bool active_slaves[])
+void ring_bond_ib::create_slave_list(int if_index, ring_resource_creation_info_t* p_ring_info)
 {
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
-		m_bond_rings[i] = new ring_ib(if_index, &p_ring_info[i], active_slaves[i], this); // m_mtu is the value from ifconfig when ring created. Now passing it to its slaves. could have sent 0 here, as the MTU of the bond is already on the bond
+		m_bond_rings[i] = new ring_ib(if_index, &p_ring_info[i], this); // m_mtu is the value from ifconfig when ring created. Now passing it to its slaves. could have sent 0 here, as the MTU of the bond is already on the bond
 		if (m_min_devices_tx_inline < 0)
 			m_min_devices_tx_inline = m_bond_rings[i]->get_max_tx_inline();
 		else
 			m_min_devices_tx_inline = min(m_min_devices_tx_inline, m_bond_rings[i]->get_max_tx_inline());
-		if (active_slaves[i]) {
+		if (p_ring_info[i].active) {
 			m_active_rings[i] = m_bond_rings[i];
 		} else {
 			m_active_rings[i] = NULL;
@@ -650,8 +650,8 @@ int ring_bond::socketxtreme_poll(struct vma_completion_t *vma_completions, unsig
 #endif // DEFINED_SOCKETXTREME	
 
 ring_bond_eth_netvsc::ring_bond_eth_netvsc(int if_index,
-		ring_resource_creation_info_t* p_ring_info, int count, bool active_slaves[]):
-	ring_bond_eth(if_index, p_ring_info, count, active_slaves),
+		ring_resource_creation_info_t* p_ring_info, int count):
+	ring_bond_eth(if_index, p_ring_info, count),
 	m_sysvar_qp_compensation_level(safe_mce_sys().qp_compensation_level),
 	m_tap_idx(-1),
 	m_tap_fd(-1),
