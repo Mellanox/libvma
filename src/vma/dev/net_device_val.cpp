@@ -411,7 +411,7 @@ void net_device_val::set_str()
 	m_str[0] = '\0';
 
 	str_x[0] = '\0';
-	sprintf(str_x, " %d:", m_if_idx);
+	sprintf(str_x, "%d:", m_if_idx);
 	strcat(m_str, str_x);
 
 	str_x[0] = '\0';
@@ -477,8 +477,26 @@ void net_device_val::set_str()
 
 void net_device_val::print_val()
 {
+	size_t i = 0;
+
 	set_str();
 	nd_logdbg("%s", m_str);
+
+	nd_logdbg("  ip list:");
+	for (i = 0; i < m_ip.size(); i++) {
+		nd_logdbg("    inet: %d.%d.%d.%d netmask: %d.%d.%d.%d flags: 0x%X",
+				NIPQUAD(m_ip[i]->local_addr), NIPQUAD(m_ip[i]->netmask), m_ip[i]->flags);
+	}
+
+	nd_logdbg("  slave list:");
+	for (i = 0; i < m_slaves.size(); i++) {
+		char if_name[IFNAMSIZ + 1] = {0};
+
+		if_name[0] = '\0';
+		if_indextoname(m_slaves[i]->if_index, if_name);
+		nd_logdbg("    %d: %s: %s active: %d",
+				m_slaves[i]->if_index, if_name, m_slaves[i]->p_L2_addr->to_str().c_str(), m_slaves[i]->active);
+	}
 }
 
 void net_device_val::set_slave_array()
@@ -543,7 +561,7 @@ void net_device_val::set_slave_array()
 		get_up_and_active_slaves(up_and_active_slaves, m_slaves.size());
 	}
 
-	for (uint16_t i=0; i<m_slaves.size(); i++) {
+	for (uint16_t i = 0; i<m_slaves.size(); i++) {
 		char if_name[IFNAMSIZ + 1] = {0};
 		char base_ifname[IFNAMSIZ];
 
@@ -568,6 +586,10 @@ void net_device_val::set_slave_array()
 		}
 
 		if (m_bond == NETVSC) {
+			m_slaves[i]->active = true;
+		}
+
+		if (m_bond == NO_BOND) {
 			m_slaves[i]->active = true;
 		}
 
@@ -676,10 +698,6 @@ bool net_device_val::update_active_backup_slaves()
 	size_t slave_count = m_slaves.size();
 	ring_resource_creation_info_t p_ring_info[slave_count];
 	for (size_t i = 0; i<slave_count; i++) {
-		p_ring_info[i].p_ib_ctx = m_slaves[i]->p_ib_ctx;
-		p_ring_info[i].port_num = m_slaves[i]->port_num;
-		p_ring_info[i].p_l2_addr = m_slaves[i]->p_L2_addr;
-
 		if (if_active_slave == m_slaves[i]->if_index) {
 			m_slaves[i]->active = true;
 			found_active_slave = true;
@@ -690,6 +708,9 @@ bool net_device_val::update_active_backup_slaves()
 		} else {
 			m_slaves[i]->active = false;
 		}
+		p_ring_info[i].p_ib_ctx = m_slaves[i]->p_ib_ctx;
+		p_ring_info[i].port_num = m_slaves[i]->port_num;
+		p_ring_info[i].p_l2_addr = m_slaves[i]->p_L2_addr;
 		p_ring_info[i].active = m_slaves[i]->active;
 	}
 	if (!found_active_slave) {
@@ -779,10 +800,6 @@ bool net_device_val::update_active_slaves() {
 
 	/* compare to current status and prepare for restart */
 	for (i = 0; i< m_slaves.size(); i++) {
-		p_ring_info[i].p_ib_ctx = m_slaves[i]->p_ib_ctx;
-		p_ring_info[i].port_num = m_slaves[i]->port_num;
-		p_ring_info[i].p_l2_addr = m_slaves[i]->p_L2_addr;
-
 		if (up_and_active_slaves[i]) {
 			//slave came up
 			if (!m_slaves[i]->active) {
@@ -799,6 +816,9 @@ bool net_device_val::update_active_slaves() {
 				changed = true;
 			}
 		}
+		p_ring_info[i].p_ib_ctx = m_slaves[i]->p_ib_ctx;
+		p_ring_info[i].port_num = m_slaves[i]->port_num;
+		p_ring_info[i].p_l2_addr = m_slaves[i]->p_L2_addr;
 		p_ring_info[i].active = m_slaves[i]->active;
 	}
 
@@ -1112,12 +1132,11 @@ ring* net_device_val_eth::create_ring(resource_allocation_key *key)
 		nd_logpanic("Bonding configuration problem. No slave found.");
 	}
 	ring_resource_creation_info_t p_ring_info[slave_count];
-	bool active_slaves[slave_count];
-	for (size_t i = 0; i<slave_count; i++) {
+	for (size_t i = 0; i < slave_count; i++) {
 		p_ring_info[i].p_ib_ctx = m_slaves[i]->p_ib_ctx;
 		p_ring_info[i].port_num = m_slaves[i]->port_num;
 		p_ring_info[i].p_l2_addr = m_slaves[i]->p_L2_addr;
-		active_slaves[i] = m_slaves[i]->active;
+		p_ring_info[i].active = m_slaves[i]->active;
 	}
 
 	// if this is a ring profile key get the profile from the global map
@@ -1138,13 +1157,11 @@ ring* net_device_val_eth::create_ring(resource_allocation_key *key)
 #ifdef HAVE_MP_RQ
 			case VMA_RING_CYCLIC_BUFFER:
 				ring = new ring_eth_cb(get_if_idx(), p_ring_info,
-						       true,
 						       &prof->get_desc()->ring_cyclicb);
 			break;
 #endif
 			case VMA_RING_EXTERNAL_MEM:
 				ring = new ring_eth_direct(get_if_idx(), p_ring_info,
-							   true,
 							   &prof->get_desc()->ring_ext);
 			break;
 			default:
@@ -1159,14 +1176,14 @@ ring* net_device_val_eth::create_ring(resource_allocation_key *key)
 		try {
 			switch (m_bond) {
 			case NO_BOND:
-				ring = new ring_eth(get_if_idx(), p_ring_info, true);
+				ring = new ring_eth(get_if_idx(), p_ring_info);
 				break;
 			case ACTIVE_BACKUP:
 			case LAG_8023ad:
-				ring = new ring_bond_eth(get_if_idx(), p_ring_info, slave_count, active_slaves);
+				ring = new ring_bond_eth(get_if_idx(), p_ring_info, slave_count);
 				break;
 			case NETVSC:
-				ring = new ring_bond_eth_netvsc(get_if_idx(), p_ring_info, slave_count, active_slaves);
+				ring = new ring_bond_eth_netvsc(get_if_idx(), p_ring_info, slave_count);
 				break;
 			default:
 				nd_logdbg("Unknown ring type");
@@ -1261,19 +1278,18 @@ ring* net_device_val_ib::create_ring(resource_allocation_key *key)
 		nd_logpanic("Bonding configuration problem. No slave found.");
 	}
 	ring_resource_creation_info_t p_ring_info[slave_count];
-	bool active_slaves[slave_count];
 	for (size_t i = 0; i<slave_count; i++) {
 		p_ring_info[i].p_ib_ctx = m_slaves[i]->p_ib_ctx;
 		p_ring_info[i].port_num = m_slaves[i]->port_num;
 		p_ring_info[i].p_l2_addr = m_slaves[i]->p_L2_addr;
-		active_slaves[i] = m_slaves[i]->active;
+		p_ring_info[i].active = m_slaves[i]->active;
 	}
 
 	try {
 		if (m_bond == NO_BOND) {
-			ring = new ring_ib(get_if_idx(), p_ring_info, true);
+			ring = new ring_ib(get_if_idx(), p_ring_info);
 		} else {
-			ring = new ring_bond_ib(get_if_idx(), p_ring_info, slave_count, active_slaves);
+			ring = new ring_bond_ib(get_if_idx(), p_ring_info, slave_count);
 		}
 	} catch (vma_error &error) {
 		nd_logdbg("failed creating ring %s", error.message);

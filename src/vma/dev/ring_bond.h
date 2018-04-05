@@ -77,7 +77,7 @@ public:
 	int 			socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);
 #endif // DEFINED_SOCKETXTREME		
 protected:
-	virtual void		create_slave_list(int if_index, ring_resource_creation_info_t* p_ring_info, bool active_slaves[]) = 0;
+	virtual void		create_slave_list(int if_index, ring_resource_creation_info_t* p_ring_info) = 0;
 	void			update_rx_channel_fds();
 	void			close_gaps_active_rings();
 	uint32_t		m_n_num_resources;
@@ -99,20 +99,20 @@ class ring_bond_eth : public ring_bond
 {
 public:
 	ring_bond_eth(int if_index,
-			ring_resource_creation_info_t* p_ring_info, int count, bool active_slaves[]):
+			ring_resource_creation_info_t* p_ring_info, int count):
 		ring_bond(if_index, count) {
-		create_slave_list(if_index, p_ring_info, active_slaves);
+		create_slave_list(if_index, p_ring_info);
 		update_rx_channel_fds();
 	};
 protected:
-	virtual void create_slave_list(int if_index, ring_resource_creation_info_t* p_ring_info, bool active_slaves[]);
+	virtual void create_slave_list(int if_index, ring_resource_creation_info_t* p_ring_info);
 };
 
 class ring_bond_eth_netvsc : public ring_bond_eth
 {
 public:
 	ring_bond_eth_netvsc(int if_index,
-			ring_resource_creation_info_t* p_ring_info, int count, bool active_slaves[]);
+			ring_resource_creation_info_t* p_ring_info, int count);
 	virtual ~ring_bond_eth_netvsc();
 
 	virtual bool attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
@@ -139,13 +139,13 @@ class ring_bond_ib : public ring_bond
 {
 public:
 	ring_bond_ib(int if_index,
-			ring_resource_creation_info_t* p_ring_info, int count, bool active_slaves[]):
+			ring_resource_creation_info_t* p_ring_info, int count):
 		ring_bond(if_index, count) {
-		create_slave_list(if_index, p_ring_info, active_slaves);
+		create_slave_list(if_index, p_ring_info);
 		update_rx_channel_fds();
 	};
 protected:
-	virtual void create_slave_list(int if_index, ring_resource_creation_info_t* p_ring_info, bool active_slaves[]);
+	virtual void create_slave_list(int if_index, ring_resource_creation_info_t* p_ring_info);
 };
 
 #endif /* RING_BOND_H */
