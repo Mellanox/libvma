@@ -50,10 +50,13 @@ public:
 	virtual void		inc_tx_retransmissions(ring_user_id_t id);
 	virtual bool		rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array) = 0;
 
+	bool                m_active;       /* State indicator */
+
 protected:
-	ring_stats_t*		m_p_ring_stat;
+	ring_stats_t*       m_p_ring_stat;
+
 private:
-	ring_stats_t		m_ring_stat;
+	ring_stats_t        m_ring_stat;
 };
 
 

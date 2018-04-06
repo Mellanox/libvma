@@ -79,10 +79,9 @@ public:
 protected:
 	virtual void		create_slave_list(int if_index, ring_resource_creation_info_t* p_ring_info) = 0;
 	void			update_rx_channel_fds();
-	void			close_gaps_active_rings();
+	void			popup_active_rings();
 	uint32_t		m_n_num_resources;
 	ring_slave**		m_bond_rings;
-	ring_slave**		m_active_rings;
 	lock_mutex_recursive	m_lock_ring_rx;
 	int			m_min_devices_tx_inline;
 
