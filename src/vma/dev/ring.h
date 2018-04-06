@@ -57,10 +57,11 @@ typedef enum {
 } cq_type_t;
 
 typedef struct {
-	ib_ctx_handler*	p_ib_ctx;
-	uint8_t 	port_num;
-	L2_address* 	p_l2_addr;
-	bool			active;
+	int             if_index;   /* unique index of network device */
+	ib_ctx_handler* p_ib_ctx;   /* pointer to object for ib device with offload ability */
+	uint8_t         port_num;   /* port number */
+	L2_address*     p_l2_addr;  /* L2 address */
+	bool            active;     /* active indication */
 } ring_resource_creation_info_t;
 
 typedef int ring_user_id_t;
