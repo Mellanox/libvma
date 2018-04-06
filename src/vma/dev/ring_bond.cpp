@@ -88,6 +88,10 @@ void ring_bond::free_ring_bond_resources()
 		delete *iter;
 	}
 	m_bond_rings.clear();
+
+	if (m_p_n_rx_channel_fds) {
+		delete[] m_p_n_rx_channel_fds;
+	}
 }
 
 ring_bond::~ring_bond()
@@ -546,7 +550,11 @@ void ring_bond::popup_active_rings()
 	}
 }
 
-void ring_bond::update_rx_channel_fds() {
+void ring_bond::update_rx_channel_fds()
+{
+	if (m_p_n_rx_channel_fds) {
+		delete[] m_p_n_rx_channel_fds;
+	}
 	m_p_n_rx_channel_fds = new int[m_bond_rings.size()];
 	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		m_p_n_rx_channel_fds[i] = m_bond_rings[i]->get_rx_channel_fds()[0];
