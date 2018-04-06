@@ -46,6 +46,8 @@ ring_slave::ring_slave(ring_type_t type, ring* parent): ring()
 		m_parent = this;
 	}
 
+	m_active = true;
+
 	// use local copy of stats by default
 	m_p_ring_stat = &m_ring_stat;
 	memset(m_p_ring_stat, 0, sizeof(*m_p_ring_stat));
