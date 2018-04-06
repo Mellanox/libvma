@@ -63,19 +63,18 @@
 
 ring_bond::ring_bond(int if_index, int count) :
 	ring(),
-	m_n_num_resources(count), m_lock_ring_rx("ring_bond:lock_rx"), m_lock_ring_tx("ring_bond:lock_tx")
+	m_lock_ring_rx("ring_bond:lock_rx"), m_lock_ring_tx("ring_bond:lock_tx")
 {
 	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(if_index);
 	if (!p_ndev) {
 		ring_logpanic("Invalid if_index = %d", if_index);
 	}
 
-	if (m_n_num_resources > MAX_NUM_RING_RESOURCES) {
+	m_n_num_resources = count;
+	if (count > MAX_NUM_RING_RESOURCES) {
 		ring_logpanic("Error creating bond ring with more than %d resource", MAX_NUM_RING_RESOURCES);
 	}
-	m_bond_rings = new ring_slave*[count];
-	for (int i = 0; i < count; i++)
-		m_bond_rings[i] = NULL;
+	m_bond_rings.clear();
 	m_parent = this;
 	m_type = p_ndev->get_is_bond();
 	m_xmit_hash_policy = p_ndev->get_bond_xmit_hash_policy();
@@ -84,13 +83,11 @@ ring_bond::ring_bond(int if_index, int count) :
 
 void ring_bond::free_ring_bond_resources()
 {
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
-		delete m_bond_rings[i];
-		m_bond_rings[i] = NULL;
+	ring_slave_vector_t::iterator iter = m_bond_rings.begin();
+	for (; iter != m_bond_rings.end(); iter++) {
+		delete *iter;
 	}
-
-	delete [] m_bond_rings;
-	m_bond_rings = NULL;
+	m_bond_rings.clear();
 }
 
 ring_bond::~ring_bond()
@@ -101,7 +98,7 @@ ring_bond::~ring_bond()
 bool ring_bond::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) {
 	bool ret = true;
 	m_lock_ring_rx.lock();
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		bool step_ret = m_bond_rings[i]->attach_flow(flow_spec_5t, sink);
 		ret = ret && step_ret;
 	}
@@ -112,7 +109,7 @@ bool ring_bond::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) {
 bool ring_bond::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) {
 	bool ret = true;
 	auto_unlocker lock(m_lock_ring_rx);
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		bool step_ret = m_bond_rings[i]->detach_flow(flow_spec_5t, sink);
 		ret = ret && step_ret;
 	}
@@ -130,7 +127,7 @@ void ring_bond::restart(ring_resource_creation_info_t* p_ring_info) {
 	 */
 	ring_simple* previously_active = dynamic_cast<ring_simple*>(m_bond_rings[0]);
 
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		ring_simple* tmp_ring = dynamic_cast<ring_simple*>(m_bond_rings[i]);
 		if (!tmp_ring) {
 			continue;
@@ -182,7 +179,7 @@ void ring_bond::restart(ring_resource_creation_info_t* p_ring_info) {
 
 void ring_bond::adapt_cq_moderation()
 {
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (m_bond_rings[i]->is_up())
 			m_bond_rings[i]->adapt_cq_moderation();
 	}
@@ -197,11 +194,11 @@ mem_buf_desc_t* ring_bond::mem_buf_tx_get(ring_user_id_t id, bool b_block, int n
 
 int ring_bond::mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting, bool trylock/*=false*/)
 {
-	mem_buf_desc_t* buffer_per_ring[m_n_num_resources];
-	memset(buffer_per_ring, 0, m_n_num_resources * sizeof(mem_buf_desc_t*));
+	mem_buf_desc_t* buffer_per_ring[m_bond_rings.size()];
+	memset(buffer_per_ring, 0, m_bond_rings.size() * sizeof(mem_buf_desc_t*));
 	devide_buffers_helper(p_mem_buf_desc_list, buffer_per_ring);
 	int ret = 0;
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (buffer_per_ring[i])
 			ret += m_bond_rings[i]->mem_buf_tx_release(buffer_per_ring[i], b_accounting, trylock);
 	}
@@ -279,7 +276,7 @@ int ring_bond::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_r
 
 	int temp = 0;
 	int ret = poll_and_process_element_tap_rx(pv_fd_ready_array);
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (m_bond_rings[i]->is_up()) {
 			//TODO consider returning immediately after finding something, continue next time from next ring
 			temp = m_bond_rings[i]->poll_and_process_element_rx(p_cq_poll_sn, pv_fd_ready_array);
@@ -305,7 +302,7 @@ int ring_bond::drain_and_proccess()
 
 	int temp = 0;
 	int ret = poll_and_process_element_tap_rx();
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (m_bond_rings[i]->is_up()) {
 			temp = m_bond_rings[i]->drain_and_proccess();
 			if (temp > 0) {
@@ -331,7 +328,7 @@ int ring_bond::wait_for_notification_and_process_element(int cq_channel_fd, uint
 
 	int temp = 0;
 	int ret = poll_and_process_element_tap_rx(pv_fd_ready_array);
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (m_bond_rings[i]->is_up()) {
 			temp = m_bond_rings[i]->wait_for_notification_and_process_element(cq_channel_fd, p_cq_poll_sn, pv_fd_ready_array);
 			if (temp > 0) {
@@ -362,7 +359,7 @@ int ring_bond::request_notification(cq_type_t cq_type, uint64_t poll_sn)
 	}
 	int ret = 0;
 	int temp;
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (m_bond_rings[i]->is_up()) {
 			temp = m_bond_rings[i]->request_notification(cq_type, poll_sn);
 			if (temp < 0) {
@@ -397,7 +394,7 @@ bool ring_bond::reclaim_recv_buffers(descq_t *rx_reuse)
 	descq_t buffer_per_ring[MAX_NUM_RING_RESOURCES];
 
 	devide_buffers_helper(rx_reuse, buffer_per_ring);
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (buffer_per_ring[i].size() > 0) {
 			if (!m_bond_rings[i]->reclaim_recv_buffers(&buffer_per_ring[i])) {
 				g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&buffer_per_ring[i]);
@@ -405,8 +402,8 @@ bool ring_bond::reclaim_recv_buffers(descq_t *rx_reuse)
 		}
 	}
 
-	if (buffer_per_ring[m_n_num_resources].size() > 0)
-		g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&buffer_per_ring[m_n_num_resources]);
+	if (buffer_per_ring[m_bond_rings.size()].size() > 0)
+		g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&buffer_per_ring[m_bond_rings.size()]);
 
 	return true;
 }
@@ -418,7 +415,7 @@ void ring_bond::devide_buffers_helper(descq_t *rx_reuse, descq_t* buffer_per_rin
 		mem_buf_desc_t* buff = rx_reuse->get_and_pop_front();
 		uint32_t checked = 0;
 		int index = last_found_index;
-		while (checked < m_n_num_resources) {
+		while (checked < m_bond_rings.size()) {
 			if (m_bond_rings[index] == buff->p_desc_owner) {
 				buffer_per_ring[index].push_back(buff);
 				last_found_index = index;
@@ -426,20 +423,20 @@ void ring_bond::devide_buffers_helper(descq_t *rx_reuse, descq_t* buffer_per_rin
 			}
 			checked++;
 			index++;
-			index = index % m_n_num_resources;
+			index = index % m_bond_rings.size();
 		}
 		//no owner
-		if (checked == m_n_num_resources) {
+		if (checked == m_bond_rings.size()) {
 			ring_logfunc("No matching ring %p to return buffer", buff->p_desc_owner);
-			buffer_per_ring[m_n_num_resources].push_back(buff);
+			buffer_per_ring[m_bond_rings.size()].push_back(buff);
 		}
 	}
 }
 
 void ring_bond::devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_buf_desc_t **buffer_per_ring)
 {
-	mem_buf_desc_t* buffers_last[m_n_num_resources];
-	memset(buffers_last, 0, m_n_num_resources * sizeof(mem_buf_desc_t*));
+	mem_buf_desc_t* buffers_last[m_bond_rings.size()];
+	memset(buffers_last, 0, m_bond_rings.size() * sizeof(mem_buf_desc_t*));
 	mem_buf_desc_t *head, *current, *temp;
 	mem_buf_desc_owner* last_owner;
 
@@ -451,7 +448,7 @@ void ring_bond::devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_b
 			head = head->p_next_desc;
 		}
 		uint32_t i = 0;
-		for (i = 0; i < m_n_num_resources; i++) {
+		for (i = 0; i < m_bond_rings.size(); i++) {
 			if (m_bond_rings[i] == last_owner) {
 				if (buffers_last[i]) {
 					buffers_last[i]->p_next_desc = current;
@@ -465,7 +462,7 @@ void ring_bond::devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_b
 		}
 		temp = head->p_next_desc;
 		head->p_next_desc = NULL;
-		if (i == m_n_num_resources) {
+		if (i == m_bond_rings.size()) {
 			//handle no owner
 			ring_logdbg("No matching ring %p to return buffer", current->p_desc_owner);
 			g_buffer_pool_tx->put_buffers_thread_safe(current);
@@ -503,28 +500,32 @@ void ring_bond::mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc)
 
 void ring_bond_eth::create_slave_list(int if_index, ring_resource_creation_info_t* p_ring_info)
 {
+	ring_slave *cur_slave = NULL;
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
-		m_bond_rings[i] = new ring_eth(if_index, &p_ring_info[i], this);
+		cur_slave = new ring_eth(if_index, &p_ring_info[i], this);
 		if (m_min_devices_tx_inline < 0) {
-			m_min_devices_tx_inline = m_bond_rings[i]->get_max_tx_inline();
+			m_min_devices_tx_inline = cur_slave->get_max_tx_inline();
 		} else {
-			m_min_devices_tx_inline = min(m_min_devices_tx_inline, m_bond_rings[i]->get_max_tx_inline());
+			m_min_devices_tx_inline = min(m_min_devices_tx_inline, cur_slave->get_max_tx_inline());
 		}
-		m_bond_rings[i]->m_active = p_ring_info[i].active;
+		cur_slave->m_active = p_ring_info[i].active;
+		m_bond_rings.push_back(cur_slave);
 	}
 	popup_active_rings();
 }
 
 void ring_bond_ib::create_slave_list(int if_index, ring_resource_creation_info_t* p_ring_info)
 {
+	ring_slave *cur_slave = NULL;
 	for (uint32_t i = 0; i < m_n_num_resources; i++) {
-		m_bond_rings[i] = new ring_ib(if_index, &p_ring_info[i], this); // m_mtu is the value from ifconfig when ring created. Now passing it to its slaves. could have sent 0 here, as the MTU of the bond is already on the bond
+		cur_slave = new ring_ib(if_index, &p_ring_info[i], this);
 		if (m_min_devices_tx_inline < 0) {
-			m_min_devices_tx_inline = m_bond_rings[i]->get_max_tx_inline();
+			m_min_devices_tx_inline = cur_slave->get_max_tx_inline();
 		} else {
-			m_min_devices_tx_inline = min(m_min_devices_tx_inline, m_bond_rings[i]->get_max_tx_inline());
+			m_min_devices_tx_inline = min(m_min_devices_tx_inline, cur_slave->get_max_tx_inline());
 		}
-		m_bond_rings[i]->m_active = p_ring_info[i].active;
+		cur_slave->m_active = p_ring_info[i].active;
+		m_bond_rings.push_back(cur_slave);
 	}
 	popup_active_rings();
 }
@@ -534,8 +535,8 @@ void ring_bond::popup_active_rings()
 	ring_slave *cur_slave = NULL;
 	int i, j;
 
-	for (i = 0; i < (int)m_n_num_resources; i++) {
-		for (j = i + 1; j < (int)m_n_num_resources; j++) {
+	for (i = 0; i < (int)m_bond_rings.size(); i++) {
+		for (j = i + 1; j < (int)m_bond_rings.size(); j++) {
 			if (!m_bond_rings[i]->m_active && m_bond_rings[j]->m_active) {
 				cur_slave = m_bond_rings[i];
 				m_bond_rings[i] = m_bond_rings[j];
@@ -546,8 +547,8 @@ void ring_bond::popup_active_rings()
 }
 
 void ring_bond::update_rx_channel_fds() {
-	m_p_n_rx_channel_fds = new int[m_n_num_resources];
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	m_p_n_rx_channel_fds = new int[m_bond_rings.size()];
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		m_p_n_rx_channel_fds[i] = m_bond_rings[i]->get_rx_channel_fds()[0];
 	}
 }
@@ -581,7 +582,7 @@ ring_user_id_t ring_bond::generate_id(const address_t src_mac, const address_t d
 
 	if (eth_proto != htons(ETH_P_IP)) {
 		hash = dst_mac[5] ^ src_mac[5] ^ eth_proto;
-		return hash % m_n_num_resources;
+		return hash % m_bond_rings.size();
 	}
 
 	switch (m_xmit_hash_policy) {
@@ -606,11 +607,11 @@ ring_user_id_t ring_bond::generate_id(const address_t src_mac, const address_t d
 		return ring::generate_id();
 	}
 
-	return hash % m_n_num_resources;
+	return hash % m_bond_rings.size();
 }
 
 int ring_bond::modify_ratelimit(struct vma_rate_limit_t &rate_limit) {
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (m_bond_rings[i]) {
 			m_bond_rings[i]->modify_ratelimit(rate_limit);
 		}
@@ -620,7 +621,7 @@ int ring_bond::modify_ratelimit(struct vma_rate_limit_t &rate_limit) {
 
 bool ring_bond::is_ratelimit_supported(struct vma_rate_limit_t &rate_limit)
 {
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (m_bond_rings[i] &&
 		    !m_bond_rings[i]->is_ratelimit_supported(rate_limit)) {
 				return false;
