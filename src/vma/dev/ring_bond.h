@@ -38,6 +38,7 @@
 #include "vma/dev/net_device_table_mgr.h"
 
 class ring_slave;
+typedef std::vector<ring_slave*> ring_slave_vector_t;
 
 class ring_bond : public ring {
 
@@ -51,7 +52,7 @@ public:
 	virtual bool		reclaim_recv_buffers(descq_t *rx_reuse);
 	virtual int		drain_and_proccess();
 	virtual int		wait_for_notification_and_process_element(int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
-	virtual int		get_num_resources() const { return m_n_num_resources; };
+	virtual int		get_num_resources() const { return m_bond_rings.size(); };
 	virtual int		get_max_tx_inline();
 	virtual bool		attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
 	virtual bool		detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
@@ -77,7 +78,7 @@ protected:
 	void			update_rx_channel_fds();
 	void			popup_active_rings();
 	uint32_t		m_n_num_resources;
-	ring_slave**		m_bond_rings;
+	ring_slave_vector_t     m_bond_rings;
 	lock_mutex_recursive	m_lock_ring_rx;
 	int			m_min_devices_tx_inline;
 
