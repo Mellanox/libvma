@@ -61,19 +61,16 @@
 #define TAP_STR_LENGTH	512
 #define TAP_DISABLE_IPV6 "sysctl -w net.ipv6.conf.%s.disable_ipv6=1"
 
-ring_bond::ring_bond(int if_index, int count) :
+ring_bond::ring_bond(int if_index) :
 	ring(),
-	m_lock_ring_rx("ring_bond:lock_rx"), m_lock_ring_tx("ring_bond:lock_tx")
+	m_lock("ring_bond"), m_lock_ring_rx("ring_bond:lock_rx"), m_lock_ring_tx("ring_bond:lock_tx")
 {
 	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(if_index);
 	if (!p_ndev) {
 		ring_logpanic("Invalid if_index = %d", if_index);
 	}
 
-	m_n_num_resources = count;
-	if (count > MAX_NUM_RING_RESOURCES) {
-		ring_logpanic("Error creating bond ring with more than %d resource", MAX_NUM_RING_RESOURCES);
-	}
+	m_if_index = if_index;
 	m_bond_rings.clear();
 	m_parent = this;
 	m_type = p_ndev->get_is_bond();
@@ -502,38 +499,6 @@ void ring_bond::mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc)
 	ring_logpanic("programming error, how did we got here?");
 }
 
-void ring_bond_eth::create_slave_list(int if_index, ring_resource_creation_info_t* p_ring_info)
-{
-	ring_slave *cur_slave = NULL;
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
-		cur_slave = new ring_eth(if_index, &p_ring_info[i], this);
-		if (m_min_devices_tx_inline < 0) {
-			m_min_devices_tx_inline = cur_slave->get_max_tx_inline();
-		} else {
-			m_min_devices_tx_inline = min(m_min_devices_tx_inline, cur_slave->get_max_tx_inline());
-		}
-		cur_slave->m_active = p_ring_info[i].active;
-		m_bond_rings.push_back(cur_slave);
-	}
-	popup_active_rings();
-}
-
-void ring_bond_ib::create_slave_list(int if_index, ring_resource_creation_info_t* p_ring_info)
-{
-	ring_slave *cur_slave = NULL;
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
-		cur_slave = new ring_ib(if_index, &p_ring_info[i], this);
-		if (m_min_devices_tx_inline < 0) {
-			m_min_devices_tx_inline = cur_slave->get_max_tx_inline();
-		} else {
-			m_min_devices_tx_inline = min(m_min_devices_tx_inline, cur_slave->get_max_tx_inline());
-		}
-		cur_slave->m_active = p_ring_info[i].active;
-		m_bond_rings.push_back(cur_slave);
-	}
-	popup_active_rings();
-}
-
 void ring_bond::popup_active_rings()
 {
 	ring_slave *cur_slave = NULL;
@@ -649,9 +614,98 @@ int ring_bond::socketxtreme_poll(struct vma_completion_t *vma_completions, unsig
 }
 #endif // DEFINED_SOCKETXTREME	
 
-ring_bond_eth_netvsc::ring_bond_eth_netvsc(int if_index,
-		ring_resource_creation_info_t* p_ring_info, int count):
-	ring_bond_eth(if_index, p_ring_info, count),
+void ring_bond_eth::slave_create(int if_index, ring_resource_creation_info_t* p_ring_info)
+{
+	ring_slave *cur_slave = NULL;
+
+	if (NULL == p_ring_info || if_index != p_ring_info->if_index) {
+		ring_logerr("Invalid ring slave information");
+		return;
+	}
+
+	auto_unlocker lock(m_lock);
+	cur_slave = new ring_eth(get_if_index(), p_ring_info, this);
+	if (m_min_devices_tx_inline < 0) {
+		m_min_devices_tx_inline = cur_slave->get_max_tx_inline();
+	} else {
+		m_min_devices_tx_inline = min(m_min_devices_tx_inline, cur_slave->get_max_tx_inline());
+	}
+	cur_slave->m_if_index = p_ring_info->if_index;
+	cur_slave->m_active = p_ring_info->active;
+	m_bond_rings.push_back(cur_slave);
+
+	if (m_bond_rings.size() > MAX_NUM_RING_RESOURCES) {
+		ring_logpanic("Error creating bond ring with more than %d resource", MAX_NUM_RING_RESOURCES);
+	}
+
+	popup_active_rings();
+	update_rx_channel_fds();
+}
+
+void ring_bond_eth::slave_destroy(int if_index)
+{
+	ring_slave *cur_slave = NULL;
+	ring_slave_vector_t::iterator iter;
+
+	auto_unlocker lock(m_lock);
+	for (iter = m_bond_rings.begin(); iter != m_bond_rings.end(); iter++) {
+		cur_slave = *iter;
+		if (cur_slave->m_if_index == if_index) {
+			delete cur_slave;
+			m_bond_rings.erase(iter);
+			update_rx_channel_fds();
+			break;
+		}
+	}
+}
+
+void ring_bond_ib::slave_create(int if_index, ring_resource_creation_info_t* p_ring_info)
+{
+	ring_slave *cur_slave = NULL;
+
+	if (NULL == p_ring_info || if_index != p_ring_info->if_index) {
+		ring_logerr("Invalid ring slave information");
+		return;
+	}
+
+	auto_unlocker lock(m_lock);
+	cur_slave = new ring_ib(get_if_index(), p_ring_info, this);
+	if (m_min_devices_tx_inline < 0) {
+		m_min_devices_tx_inline = cur_slave->get_max_tx_inline();
+	} else {
+		m_min_devices_tx_inline = min(m_min_devices_tx_inline, cur_slave->get_max_tx_inline());
+	}
+	cur_slave->m_if_index = p_ring_info->if_index;
+	cur_slave->m_active = p_ring_info->active;
+	m_bond_rings.push_back(cur_slave);
+
+	if (m_bond_rings.size() > MAX_NUM_RING_RESOURCES) {
+		ring_logpanic("Error creating bond ring with more than %d resource", MAX_NUM_RING_RESOURCES);
+	}
+
+	popup_active_rings();
+	update_rx_channel_fds();
+}
+
+void ring_bond_ib::slave_destroy(int if_index)
+{
+	ring_slave *cur_slave = NULL;
+	ring_slave_vector_t::iterator iter;
+
+	auto_unlocker lock(m_lock);
+	for (iter = m_bond_rings.begin(); iter != m_bond_rings.end(); iter++) {
+		cur_slave = *iter;
+		if (cur_slave->m_if_index == if_index) {
+			delete cur_slave;
+			m_bond_rings.erase(iter);
+			update_rx_channel_fds();
+			break;
+		}
+	}
+}
+
+ring_bond_eth_netvsc::ring_bond_eth_netvsc(int if_index):
+	ring_bond_eth(if_index),
 	m_sysvar_qp_compensation_level(safe_mce_sys().qp_compensation_level),
 	m_tap_idx(-1),
 	m_tap_fd(-1),
@@ -666,14 +720,6 @@ ring_bond_eth_netvsc::ring_bond_eth_netvsc(int if_index,
 		ring_logerr("Invalid if_index = %d", if_index);
 		goto error;
 	}
-
-	m_netvsc_idx = if_index;
-
-	memset(&m_ring_stat , 0, sizeof(m_ring_stat));
-
-	// Initialize rx buffer poll
-	request_more_rx_buffers();
-	m_rx_pool.set_id("ring_bond_eth_netvsc (%p) : m_rx_pool", this);
 
 	// Open TAP device
 	if( (m_tap_fd = open("/dev/net/tun", O_RDWR)) < 0 ) {
