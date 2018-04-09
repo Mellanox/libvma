@@ -48,9 +48,8 @@
 #define MIN_MP_WQES		(4)
 
 ring_eth_cb::ring_eth_cb(int if_index,
-			 ring_resource_creation_info_t *p_ring_info,
 			 vma_cyclic_buffer_ring_attr *cb_ring, ring *parent):
-			 ring_eth(if_index, p_ring_info, parent, false)
+			 ring_eth(if_index, parent, false)
 			,m_curr_wqe_used_strides(0)
 			,m_curr_packets(0)
 			,m_padd_mode_used_strides(0)
@@ -66,13 +65,11 @@ ring_eth_cb::ring_eth_cb(int if_index,
 	net_device_val_eth* p_ndev =
 			dynamic_cast<net_device_val_eth *>(g_p_net_device_table_mgr->get_net_device_val(if_index));
 
-	// call function from derived not base
+	create_resources((p_ndev ? p_ndev->get_vlan() : 0), cb_ring);
 	memset(m_sge_ptrs, 0, sizeof(m_sge_ptrs));
-	create_resources(p_ring_info, p_ndev->get_vlan(), cb_ring);
 }
 
-void ring_eth_cb::create_resources(ring_resource_creation_info_t *p_ring_info,
-				   uint16_t partition, vma_cyclic_buffer_ring_attr *cb_ring)
+void ring_eth_cb::create_resources(uint16_t partition, vma_cyclic_buffer_ring_attr *cb_ring)
 {
 	struct ibv_exp_res_domain_init_attr res_domain_attr;
 
@@ -147,7 +144,7 @@ void ring_eth_cb::create_resources(ring_resource_creation_info_t *p_ring_info,
 		size_t buffer_size = m_stride_size * m_strides_num * m_wq_count;
 		m_sge_ptrs[CB_UMR_PAYLOAD] =
 			(uint64_t)(uintptr_t)m_alloc.alloc_and_reg_mr(buffer_size,
-					p_ring_info->p_ib_ctx);
+					m_p_ib_ctx);
 		m_packet_size = cb_ring->stride_bytes + net_len;
 		m_payload_len = m_stride_size;
 		m_buff_data.addr = m_sge_ptrs[CB_UMR_PAYLOAD];
@@ -158,7 +155,7 @@ void ring_eth_cb::create_resources(ring_resource_creation_info_t *p_ring_info,
 		ring_logerr("failed creating UMR QP");
 		throw_vma_exception("failed creating UMR QP");
 	}
-	ring_simple::create_resources(p_ring_info, partition);
+	ring_simple::create_resources(partition);
 	m_is_mp_ring = true;
 }
 

@@ -65,14 +65,20 @@ ring_bond::ring_bond(int if_index) :
 	ring(),
 	m_lock("ring_bond"), m_lock_ring_rx("ring_bond:lock_rx"), m_lock_ring_tx("ring_bond:lock_tx")
 {
-	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(if_index);
-	if (!p_ndev) {
+	net_device_val* p_ndev = NULL;
+
+	/* Configure ring() fields */
+	set_parent(this);
+	set_if_index(if_index);
+
+	/* Sanity check */
+	p_ndev = g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
+	if (NULL == p_ndev) {
 		ring_logpanic("Invalid if_index = %d", if_index);
 	}
 
-	m_if_index = if_index;
+	/* Configure ring_bond() fields */
 	m_bond_rings.clear();
-	m_parent = this;
 	m_type = p_ndev->get_is_bond();
 	m_xmit_hash_policy = p_ndev->get_bond_xmit_hash_policy();
 	m_min_devices_tx_inline = -1;
@@ -614,24 +620,17 @@ int ring_bond::socketxtreme_poll(struct vma_completion_t *vma_completions, unsig
 }
 #endif // DEFINED_SOCKETXTREME	
 
-void ring_bond_eth::slave_create(int if_index, ring_resource_creation_info_t* p_ring_info)
+void ring_bond_eth::slave_create(int if_index)
 {
 	ring_slave *cur_slave = NULL;
 
-	if (NULL == p_ring_info || if_index != p_ring_info->if_index) {
-		ring_logerr("Invalid ring slave information");
-		return;
-	}
-
 	auto_unlocker lock(m_lock);
-	cur_slave = new ring_eth(get_if_index(), p_ring_info, this);
+	cur_slave = new ring_eth(if_index, this);
 	if (m_min_devices_tx_inline < 0) {
 		m_min_devices_tx_inline = cur_slave->get_max_tx_inline();
 	} else {
 		m_min_devices_tx_inline = min(m_min_devices_tx_inline, cur_slave->get_max_tx_inline());
 	}
-	cur_slave->m_if_index = p_ring_info->if_index;
-	cur_slave->m_active = p_ring_info->active;
 	m_bond_rings.push_back(cur_slave);
 
 	if (m_bond_rings.size() > MAX_NUM_RING_RESOURCES) {
@@ -650,7 +649,7 @@ void ring_bond_eth::slave_destroy(int if_index)
 	auto_unlocker lock(m_lock);
 	for (iter = m_bond_rings.begin(); iter != m_bond_rings.end(); iter++) {
 		cur_slave = *iter;
-		if (cur_slave->m_if_index == if_index) {
+		if (cur_slave->get_if_index() == if_index) {
 			delete cur_slave;
 			m_bond_rings.erase(iter);
 			update_rx_channel_fds();
@@ -659,24 +658,17 @@ void ring_bond_eth::slave_destroy(int if_index)
 	}
 }
 
-void ring_bond_ib::slave_create(int if_index, ring_resource_creation_info_t* p_ring_info)
+void ring_bond_ib::slave_create(int if_index)
 {
 	ring_slave *cur_slave = NULL;
 
-	if (NULL == p_ring_info || if_index != p_ring_info->if_index) {
-		ring_logerr("Invalid ring slave information");
-		return;
-	}
-
 	auto_unlocker lock(m_lock);
-	cur_slave = new ring_ib(get_if_index(), p_ring_info, this);
+	cur_slave = new ring_ib(if_index, this);
 	if (m_min_devices_tx_inline < 0) {
 		m_min_devices_tx_inline = cur_slave->get_max_tx_inline();
 	} else {
 		m_min_devices_tx_inline = min(m_min_devices_tx_inline, cur_slave->get_max_tx_inline());
 	}
-	cur_slave->m_if_index = p_ring_info->if_index;
-	cur_slave->m_active = p_ring_info->active;
 	m_bond_rings.push_back(cur_slave);
 
 	if (m_bond_rings.size() > MAX_NUM_RING_RESOURCES) {
@@ -695,7 +687,7 @@ void ring_bond_ib::slave_destroy(int if_index)
 	auto_unlocker lock(m_lock);
 	for (iter = m_bond_rings.begin(); iter != m_bond_rings.end(); iter++) {
 		cur_slave = *iter;
-		if (cur_slave->m_if_index == if_index) {
+		if (cur_slave->get_if_index() == if_index) {
 			delete cur_slave;
 			m_bond_rings.erase(iter);
 			update_rx_channel_fds();
@@ -714,6 +706,9 @@ ring_bond_eth_netvsc::ring_bond_eth_netvsc(int if_index):
 	struct ifreq ifr;
 	int err, ioctl_sock = -1;
 	char command_str[TAP_STR_LENGTH], return_str[TAP_STR_LENGTH], tap_name[IFNAMSIZ];
+
+	m_netvsc_idx = if_index;
+	memset(&m_ring_stat , 0, sizeof(m_ring_stat));
 
 	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(if_index);
 	if (!p_ndev) {

@@ -237,6 +237,7 @@ public:
 	inline uint8_t* get_l2_if_addr() { return m_l2_if_addr; }
 	inline uint8_t* get_l2_bc_addr() { return m_l2_bc_addr; }
 	ip_data_vector_t* get_ip_array() { return &m_ip;}
+	slave_data_t* get_slave(int if_index);
 
 	void set_str();
 	void print_val();
