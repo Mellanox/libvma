@@ -50,6 +50,7 @@ public:
 	virtual void		inc_tx_retransmissions(ring_user_id_t id);
 	virtual bool		rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array) = 0;
 
+	int                 m_if_index;     /* Interface index */
 	bool                m_active;       /* State indicator */
 
 protected:
