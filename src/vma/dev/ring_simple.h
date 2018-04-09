@@ -165,7 +165,7 @@ struct cq_moderation_info {
 class ring_simple : public ring_slave
 {
 public:
-	ring_simple(int if_index, ring_resource_creation_info_t* p_ring_info, ring* parent = NULL);
+	ring_simple(int if_index, ring* parent = NULL);
 	virtual ~ring_simple();
 
 	virtual int		request_notification(cq_type_t cq_type, uint64_t poll_sn);
@@ -189,7 +189,6 @@ public:
 	inline int		send_buffer(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 	virtual bool		attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
 	virtual bool		detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
-	virtual void		restart(ring_resource_creation_info_t* p_ring_info);
 	virtual bool		is_up();
 	void			start_active_qp_mgr();
 	void			stop_active_qp_mgr();
@@ -218,7 +217,7 @@ public:
 
 protected:
 	virtual qp_mgr*		create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) = 0;
-	virtual void		create_resources(ring_resource_creation_info_t* p_ring_info, uint16_t partition);
+	virtual void		create_resources(uint16_t partition);
 	// Internal functions. No need for locks mechanism.
 	bool			rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array);
 	//	void	print_ring_flow_to_rfs_map(flow_spec_map_t *p_flow_map);
@@ -253,7 +252,7 @@ private:
 	int32_t			m_tx_num_wr_free;
 	bool			m_b_qp_tx_first_flushed_completion_handled;
 	uint32_t		m_missing_buf_ref_count;
-	const uint32_t		m_tx_lkey; // this is the registered memory lkey for a given specific device for the buffer pool use
+	uint32_t		m_tx_lkey; // this is the registered memory lkey for a given specific device for the buffer pool use
 	uint16_t		m_partition; //vlan or pkey
 	gro_mgr			m_gro_mgr;
 	bool			m_up;
@@ -284,12 +283,12 @@ class ring_eth : public ring_simple
 {
 public:
 	ring_eth(int if_index,
-			ring_resource_creation_info_t* p_ring_info, ring* parent = NULL, bool call_create_res = true):
-		ring_simple(if_index, p_ring_info, parent) {
-		if (call_create_res) {
-			net_device_val_eth* p_ndev =
-					dynamic_cast<net_device_val_eth *>(g_p_net_device_table_mgr->get_net_device_val(if_index));
-			create_resources(p_ring_info, p_ndev->get_vlan());
+			ring* parent = NULL, bool call_create_res = true):
+		ring_simple(if_index, parent) {
+		net_device_val_eth* p_ndev =
+				dynamic_cast<net_device_val_eth *>(g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index()));
+		if (p_ndev && call_create_res) {
+			create_resources(p_ndev->get_vlan());
 		}
 	}
 	virtual bool is_ratelimit_supported(struct vma_rate_limit_t &rate_limit);
@@ -301,11 +300,13 @@ class ring_ib : public ring_simple
 {
 public:
 	ring_ib(int if_index,
-			ring_resource_creation_info_t* p_ring_info, ring* parent = NULL):
-		ring_simple(if_index, p_ring_info, parent) {
+			ring* parent = NULL):
+		ring_simple(if_index, parent) {
 		net_device_val_ib* p_ndev =
-				dynamic_cast<net_device_val_ib *>(g_p_net_device_table_mgr->get_net_device_val(if_index));
-		create_resources(p_ring_info, p_ndev->get_pkey());
+				dynamic_cast<net_device_val_ib *>(g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index()));
+		if (p_ndev) {
+			create_resources(p_ndev->get_pkey());
+		}
 	}
 	virtual bool is_ratelimit_supported(struct vma_rate_limit_t &rate_limit);
 protected:

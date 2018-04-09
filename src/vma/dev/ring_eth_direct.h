@@ -57,7 +57,6 @@ class ring_eth_direct : public ring_eth
 {
 public:
 	ring_eth_direct(int if_index,
-		    ring_resource_creation_info_t *p_ring_info,
 		    vma_external_mem_attr *ext_ring_attr, ring *parent = NULL);
 	virtual		~ring_eth_direct();
 	virtual qp_mgr*	create_qp_mgr(const ib_ctx_handler* ib_ctx,

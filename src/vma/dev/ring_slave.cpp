@@ -38,15 +38,28 @@
 #define MODULE_HDR MODULE_NAME "%d:%s() "
 
 
-ring_slave::ring_slave(ring_type_t type, ring* parent): ring()
+ring_slave::ring_slave(int if_index, ring_type_t type, ring* parent): ring()
 {
-	if (parent) {
-		m_parent = parent;
-	} else {
-		m_parent = this;
+	net_device_val* p_ndev = NULL;
+	slave_data_t * p_slave = NULL;
+
+	/* Configure ring() fields */
+	set_parent(parent);
+	set_if_index(if_index);
+
+	/* Sanity check */
+	p_ndev = g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
+	if (NULL == p_ndev) {
+		ring_logpanic("Invalid if_index = %d", if_index);
 	}
 
-	m_active = true;
+	p_slave = p_ndev->get_slave(get_if_index());
+	if (NULL == p_slave) {
+		ring_logpanic("Invalid if_index = %d", if_index);
+	}
+
+	/* Configure ring_slave() fields */
+	m_active = p_slave->active;
 
 	// use local copy of stats by default
 	m_p_ring_stat = &m_ring_stat;
@@ -64,6 +77,12 @@ ring_slave::~ring_slave()
 	if (m_p_ring_stat) {
 		vma_stats_instance_remove_ring_block(m_p_ring_stat);
 	}
+}
+
+void ring_slave::restart(ring_resource_creation_info_t* p_ring_info)
+{
+	NOT_IN_USE(p_ring_info);
+	ring_logpanic("Can't restart a slave ring");
 }
 
 bool ring_slave::is_active_member(mem_buf_desc_owner* rng, ring_user_id_t id)

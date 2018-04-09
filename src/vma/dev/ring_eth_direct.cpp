@@ -41,15 +41,16 @@
 
 
 ring_eth_direct::ring_eth_direct(int if_index,
-				ring_resource_creation_info_t *p_ring_info,
 				vma_external_mem_attr *ext_ring_attr, ring *parent):
-					ring_eth(if_index, p_ring_info,
+					ring_eth(if_index,
 						parent, false)
 {
 	net_device_val_eth* p_ndev =
 			dynamic_cast<net_device_val_eth *>(g_p_net_device_table_mgr->get_net_device_val(if_index));
-	create_resources(p_ring_info, p_ndev->get_vlan());
 
+	if (p_ndev) {
+		create_resources(p_ndev->get_vlan());
+	}
 	m_ring_attr.comp_mask = ext_ring_attr->comp_mask;
 }
 
