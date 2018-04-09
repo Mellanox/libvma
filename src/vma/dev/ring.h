@@ -92,7 +92,7 @@ public:
 	virtual bool		attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) = 0;
 	virtual bool		detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) = 0;
 
-	virtual void		restart(ring_resource_creation_info_t* p_ring_info) = 0; //todo move to bond ?
+	virtual void		restart(ring_resource_creation_info_t* p_ring_info) = 0;
 
 	// Funcs taken from qp_mgr.h
 	// Get/Release memory buffer descriptor with a linked data memory buffer
@@ -170,7 +170,12 @@ public:
 	}
 #endif // DEFINED_SOCKETXTREME	
 
+	inline int get_if_index() { return m_if_index; }
+
 protected:
+	inline void set_parent(ring* parent) { m_parent = ( parent ? parent : this); }
+	inline void set_if_index(int if_index) { m_if_index = if_index; }
+
 	int*			m_p_n_rx_channel_fds;
 	ring*			m_parent;
 	bool			m_is_mp_ring;
@@ -193,6 +198,8 @@ private:
 	/* This flag is enabled in case socketxtreme_poll() call is done */
 	bool                     m_vma_active;
 #endif // DEFINED_SOCKETXTREME
+
+	int                 m_if_index;     /* Interface index */
 };
 
 #endif /* RING_H */

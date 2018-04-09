@@ -55,19 +55,19 @@ public:
 	 * on init or constructor:
 	 *      register to event manager with m_channel and this.
 	 * */
-	ibv_pd*                 get_ibv_pd() { return m_p_ibv_pd;}
+	ibv_pd*                 get_ibv_pd() { return m_p_ibv_pd; }
 	bool                    post_umr_wr(struct ibv_exp_send_wr &wr);
-	ibv_device*             get_ibv_device() { return m_p_ibv_device;}
-	inline char*            get_ibname() { return m_p_ibv_device->name; }
-	struct ibv_context*     get_ibv_context() { return m_p_ibv_context;}
-	vma_ibv_device_attr*    get_ibv_device_attr() { return m_p_ibv_device_attr;}
+	ibv_device*             get_ibv_device() { return m_p_ibv_device; }
+	inline char*            get_ibname() { return (m_p_ibv_device ? m_p_ibv_device->name : (char *)""); }
+	struct ibv_context*     get_ibv_context() { return m_p_ibv_context; }
+	vma_ibv_device_attr*    get_ibv_device_attr() { return m_p_ibv_device_attr; }
 	uint32_t                mem_reg(void *addr, size_t length, uint64_t access);
 	void                    mem_dereg(uint32_t lkey);
 	struct ibv_mr*          get_mem_reg(uint32_t lkey);
 	bool                    is_removed() { return m_removed;}
 	ts_conversion_mode_t    get_ctx_time_converter_status();
 	void                    set_flow_tag_capability(bool flow_tag_capability); 
-	bool                    get_flow_tag_capability() { return m_flow_tag_enabled;} // m_flow_tag_capability
+	bool                    get_flow_tag_capability() { return m_flow_tag_enabled; } // m_flow_tag_capability
 	size_t                  get_on_device_memory_size() { return m_on_device_memory; }
 	bool                    is_active(int port_num);
 	virtual void            handle_event_ibverbs_cb(void *ev_data, void *ctx);

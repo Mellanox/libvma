@@ -46,8 +46,6 @@ public:
 	ring_bond(int if_index);
 	virtual	~ring_bond();
 
-	inline int get_if_index() { return m_if_index; }
-
 	void			free_ring_bond_resources();
 	virtual int		request_notification(cq_type_t cq_type, uint64_t poll_sn);
 	virtual int		poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
@@ -76,7 +74,7 @@ public:
 	virtual int		fast_poll_and_process_element_rx(vma_packets_t *vma_pkts);
 	int 			socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);
 #endif // DEFINED_SOCKETXTREME		
-	virtual void    slave_create(int if_index, ring_resource_creation_info_t* p_ring_info) = 0;
+	virtual void    slave_create(int if_index) = 0;
 	virtual void    slave_destroy(int if_index) = 0;
 protected:
 	void			update_rx_channel_fds();
@@ -90,7 +88,6 @@ private:
 	void			devide_buffers_helper(descq_t *rx_reuse, descq_t *buffer_per_ring);
 	void			devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_buf_desc_t** buffer_per_ring);
 
-	int              m_if_index;       /* Interface index (Link to related net_device_val) */
 	net_device_val::bond_type m_type;
 	net_device_val::bond_xmit_hash_policy m_xmit_hash_policy;
 	lock_mutex_recursive	m_lock_ring_tx;
@@ -102,7 +99,7 @@ public:
 	ring_bond_eth(int if_index):
 		ring_bond(if_index) {}
 protected:
-	virtual void    slave_create(int if_index, ring_resource_creation_info_t* p_ring_info);
+	virtual void    slave_create(int if_index);
 	virtual void    slave_destroy(int if_index);
 };
 
@@ -143,7 +140,7 @@ public:
 	ring_bond_ib(int if_index):
 		ring_bond(if_index) {}
 protected:
-	virtual void    slave_create(int if_index, ring_resource_creation_info_t* p_ring_info);
+	virtual void    slave_create(int if_index);
 	virtual void    slave_destroy(int if_index);
 };
 

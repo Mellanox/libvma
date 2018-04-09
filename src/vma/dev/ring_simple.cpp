@@ -125,9 +125,9 @@ bool ring_ib::is_ratelimit_supported(struct vma_rate_limit_t &rate_limit)
 	return false;
 }
 
-ring_simple::ring_simple(int if_index, ring_resource_creation_info_t* p_ring_info, ring* parent /*=NULL*/):
-	ring_slave(RING_SIMPLE, parent),
-	m_p_ib_ctx(p_ring_info->p_ib_ctx),
+ring_simple::ring_simple(int if_index, ring* parent /*=NULL*/):
+	ring_slave(if_index, RING_SIMPLE, parent),
+	m_p_ib_ctx(NULL),
 	m_p_qp_mgr(NULL),
 	m_p_cq_mgr_rx(NULL),
 	m_lock_ring_rx("ring_simple:lock_rx"),
@@ -136,7 +136,7 @@ ring_simple::ring_simple(int if_index, ring_resource_creation_info_t* p_ring_inf
 	m_b_is_hypervisor(safe_mce_sys().is_hypervisor),
 	m_lock_ring_tx_buf_wait("ring:lock_tx_buf_wait"), m_tx_num_bufs(0), m_tx_num_wr(0), m_tx_num_wr_free(0),
 	m_b_qp_tx_first_flushed_completion_handled(false), m_missing_buf_ref_count(0),
-	m_tx_lkey(g_buffer_pool_tx->find_lkey_by_ib_ctx_thread_safe(m_p_ib_ctx)),
+	m_tx_lkey(0),
 	m_gro_mgr(safe_mce_sys().gro_streams_max, MAX_GRO_BUFS), m_up(false),
 	m_p_rx_comp_event_channel(NULL), m_p_tx_comp_event_channel(NULL), m_p_l2_addr(NULL)
 	, m_b_sysvar_eth_mc_l2_only_rules(safe_mce_sys().eth_mc_l2_only_rules)
@@ -147,21 +147,12 @@ ring_simple::ring_simple(int if_index, ring_resource_creation_info_t* p_ring_inf
 #endif // DEFINED_SOCKETXTREME		
 	, m_flow_tag_enabled(false)
 {
-	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(if_index);
-	if (!p_ndev) {
-		ring_logpanic("Invalid if_index = %d", if_index);
-	}
+	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
 
 	m_partition = 0;
 	m_local_if = p_ndev->get_local_addr();
 	m_mtu = p_ndev->get_mtu();
 	m_transport_type = p_ndev->get_transport_type();
-
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (m_tx_lkey == 0) {
-		__log_info_panic("invalid lkey found %lu", m_tx_lkey);
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
 
 	 // coverity[uninit_member]
 	m_tx_pool.set_id("ring_simple (%p) : m_tx_pool", this);
@@ -252,21 +243,27 @@ ring_simple::~ring_simple()
 	ring_logdbg("delete ring_simple() completed");
 }
 
-void ring_simple::create_resources(ring_resource_creation_info_t* p_ring_info, uint16_t partition)
+void ring_simple::create_resources(uint16_t partition)
 {
+	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
+	slave_data_t * p_slave = p_ndev->get_slave(get_if_index());
+
 	ring_logdbg("new ring_simple()");
 
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if(p_ring_info == NULL) {
-		ring_logpanic("p_ring_info = NULL");
+
+	m_p_ib_ctx = p_slave->p_ib_ctx;
+	if(m_p_ib_ctx == NULL) {
+		ring_logpanic("m_p_ib_ctx = NULL. It can be related to wrong bonding configuration");
 	}
 
-	if(p_ring_info->p_ib_ctx == NULL) {
-		ring_logpanic("p_ring_info.p_ib_ctx = NULL. It can be related to wrong bonding configuration");
+	m_tx_lkey = g_buffer_pool_tx->find_lkey_by_ib_ctx_thread_safe(m_p_ib_ctx);
+	if (m_tx_lkey == 0) {
+		__log_info_panic("invalid lkey found %lu", m_tx_lkey);
 	}
 
 	m_partition = partition;
-	save_l2_address(p_ring_info->p_l2_addr);
+	save_l2_address(p_slave->p_L2_addr);
 	m_p_tx_comp_event_channel = ibv_create_comp_channel(m_p_ib_ctx->get_ibv_context());
 	if (m_p_tx_comp_event_channel == NULL) {
 		VLOG_PRINTF_INFO_ONCE_THEN_ALWAYS(VLOG_ERROR, VLOG_DEBUG, "ibv_create_comp_channel for tx failed. m_p_tx_comp_event_channel = %p (errno=%d %m)", m_p_tx_comp_event_channel, errno);
@@ -321,7 +318,7 @@ remain below as in master?
 	request_more_tx_buffers(RING_TX_BUFS_COMPENSATE);
 	m_tx_num_bufs = m_tx_pool.size();
 #endif // 0
-	m_p_qp_mgr = create_qp_mgr(m_p_ib_ctx, p_ring_info->port_num, m_p_rx_comp_event_channel);
+	m_p_qp_mgr = create_qp_mgr(m_p_ib_ctx, p_slave->port_num, m_p_rx_comp_event_channel);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_p_qp_mgr == NULL) {
 		ring_logerr("Failed to allocate qp_mgr!");
@@ -339,19 +336,13 @@ remain below as in master?
 		modify_cq_moderation(safe_mce_sys().cq_moderation_period_usec, safe_mce_sys().cq_moderation_count);
 	}
 
-	if (p_ring_info->active) {
+	if (p_slave->active) {
 		// 'up' the active QP/CQ resource
 		m_up = true;
 		m_p_qp_mgr->up();
 	}
 
 	ring_logdbg("new ring_simple() completed");
-}
-
-void ring_simple::restart(ring_resource_creation_info_t* p_ring_info)
-{
-	NOT_IN_USE(p_ring_info);
-	ring_logpanic("Can't restart a ring_simple");
 }
 
 bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
