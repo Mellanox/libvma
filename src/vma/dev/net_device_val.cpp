@@ -1129,6 +1129,7 @@ void net_device_val_eth::configure()
 ring* net_device_val_eth::create_ring(resource_allocation_key *key)
 {
 	ring* ring = NULL;
+	ring_bond* p_ring = NULL;
 	size_t slave_count = m_slaves.size();
 	if(slave_count == 0) {
 		nd_logpanic("Bonding configuration problem. No slave found.");
@@ -1183,11 +1184,26 @@ ring* net_device_val_eth::create_ring(resource_allocation_key *key)
 				break;
 			case ACTIVE_BACKUP:
 			case LAG_8023ad:
-				ring = new ring_bond_eth(get_if_idx(), p_ring_info, slave_count);
+				ring = new ring_bond_eth(get_if_idx());
+				p_ring = dynamic_cast<ring_bond*>(ring);
+				for (size_t i = 0; i < slave_count; i++) {
+					p_ring->slave_create(p_ring_info[i].if_index, &p_ring_info[i]);
+				}
 				break;
 			case NETVSC:
-				ring = new ring_bond_eth_netvsc(get_if_idx(), p_ring_info, slave_count);
+				{
+				ring_bond_eth_netvsc* p_ring_netvsc = NULL;
+				ring = new ring_bond_eth_netvsc(get_if_idx());
+				p_ring = dynamic_cast<ring_bond*>(ring);
+				for (size_t i = 0; i < slave_count; i++) {
+					p_ring->slave_create(p_ring_info[i].if_index, &p_ring_info[i]);
+				}
+				p_ring_netvsc = dynamic_cast<ring_bond_eth_netvsc*>(ring);
+				if (p_ring_netvsc) {
+					p_ring_netvsc->create_resources();
+				}
 				break;
+				}
 			default:
 				nd_logdbg("Unknown ring type");
 				break;
@@ -1274,9 +1290,12 @@ void net_device_val_ib::configure()
 
 ring* net_device_val_ib::create_ring(resource_allocation_key *key)
 {
-	NOT_IN_USE(key);
 	ring* ring = NULL;
+	ring_bond* p_ring = NULL;
 	size_t slave_count = m_slaves.size();
+
+	NOT_IN_USE(key);
+
 	if(slave_count == 0) {
 		nd_logpanic("Bonding configuration problem. No slave found.");
 	}
@@ -1293,7 +1312,11 @@ ring* net_device_val_ib::create_ring(resource_allocation_key *key)
 		if (m_bond == NO_BOND) {
 			ring = new ring_ib(get_if_idx(), p_ring_info);
 		} else {
-			ring = new ring_bond_ib(get_if_idx(), p_ring_info, slave_count);
+			ring = new ring_bond_ib(get_if_idx());
+			p_ring = dynamic_cast<ring_bond*>(ring);
+			for (size_t i = 0; i < slave_count; i++) {
+				p_ring->slave_create(p_ring_info[i].if_index, &p_ring_info[i]);
+			}
 		}
 	} catch (vma_error &error) {
 		nd_logdbg("failed creating ring %s", error.message);
