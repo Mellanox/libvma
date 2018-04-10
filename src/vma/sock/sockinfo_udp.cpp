@@ -995,10 +995,13 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 
 					struct ip_mreqn mreqn;
 
+					memset(&mreqn, 0, sizeof(mreqn));
+
 					if (__optlen >= sizeof(struct ip_mreqn)) {
 						mreqn = *(struct ip_mreqn*)__optval;
+					} else if (__optlen == sizeof(struct ip_mreq)) {
+						mreqn.imr_address = ((struct ip_mreq*)__optval)->imr_interface;
 					} else {
-						memset(&mreqn, 0, sizeof(mreqn));
 						if (__optlen >= sizeof(struct in_addr)) {
 							mreqn.imr_address = *(struct in_addr*)__optval;
 						}
@@ -2154,6 +2157,11 @@ inline void sockinfo_udp::fill_completion(mem_buf_desc_t* p_desc)
 	}
 	completion->src = p_desc->rx.src;
 	NOTIFY_ON_EVENTS(this, VMA_SOCKETXTREME_PACKET);
+
+	if (m_n_tsing_flags & (SOF_TIMESTAMPING_RAW_HARDWARE |
+			       SOF_TIMESTAMPING_RX_HARDWARE)) {
+		completion->packet.timestamp = p_desc->rx.udp.hw_timestamp;
+	}
 
 	m_socketxtreme_completion = NULL;
 	m_socketxtreme_last_buff_lst = NULL;
