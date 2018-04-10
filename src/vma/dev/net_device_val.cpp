@@ -476,17 +476,18 @@ void net_device_val::set_str()
 void net_device_val::print_val()
 {
 	size_t i = 0;
+	rings_hash_map_t::iterator ring_iter;
 
 	set_str();
 	nd_logdbg("%s", m_str);
 
-	nd_logdbg("  ip list:");
+	nd_logdbg("  ip list:", (m_ip.empty() ? " empty " : ""));
 	for (i = 0; i < m_ip.size(); i++) {
 		nd_logdbg("    inet: %d.%d.%d.%d netmask: %d.%d.%d.%d flags: 0x%X",
 				NIPQUAD(m_ip[i]->local_addr), NIPQUAD(m_ip[i]->netmask), m_ip[i]->flags);
 	}
 
-	nd_logdbg("  slave list:");
+	nd_logdbg("  slave list:", (m_slaves.empty() ? " empty " : ""));
 	for (i = 0; i < m_slaves.size(); i++) {
 		char if_name[IFNAMSIZ + 1] = {0};
 
@@ -494,6 +495,13 @@ void net_device_val::print_val()
 		if_indextoname(m_slaves[i]->if_index, if_name);
 		nd_logdbg("    %d: %s: %s active: %d",
 				m_slaves[i]->if_index, if_name, m_slaves[i]->p_L2_addr->to_str().c_str(), m_slaves[i]->active);
+	}
+
+	nd_logdbg("  ring list:%s", (m_h_ring_map.empty() ? " empty " : ""));
+	for (ring_iter = m_h_ring_map.begin(); ring_iter != m_h_ring_map.end(); ring_iter++) {
+		ring *cur_ring = ring_iter->second.first;
+		nd_logdbg("    %d: 0x%X: parent 0x%X ref %d",
+				cur_ring->get_if_index(), cur_ring, cur_ring->get_parent(), ring_iter->second.second);
 	}
 }
 
@@ -865,6 +873,7 @@ ring* net_device_val::reserve_ring(resource_allocation_key *key)
 	key = ring_key_redirection_reserve(key);
 	ring* the_ring = NULL;
 	rings_hash_map_t::iterator ring_iter = m_h_ring_map.find(key);
+
 	if (m_h_ring_map.end() == ring_iter) {
 		nd_logdbg("Creating new RING for %s", key->to_str());
 		// copy key since we keep pointer and socket can die so map will lose pointer
@@ -897,7 +906,9 @@ ring* net_device_val::reserve_ring(resource_allocation_key *key)
 	ADD_RING_REF_CNT;
 	the_ring = GET_THE_RING(key);
 
-	nd_logdbg("Ref usage of RING %p for key %s is %d", the_ring, key->to_str(), RING_REF_CNT);
+	nd_logdbg("0x%X: if_index %d parent 0x%X ref %d key %s",
+			the_ring, the_ring->get_if_index(),
+			the_ring->get_parent(), RING_REF_CNT, key->to_str());
 
 	return the_ring;
 }
@@ -907,14 +918,22 @@ bool net_device_val::release_ring(resource_allocation_key *key)
 	nd_logfunc("");
 	auto_unlocker lock(m_lock);
 	key = ring_key_redirection_release(key);
+	ring* the_ring = NULL;
 	rings_hash_map_t::iterator ring_iter = m_h_ring_map.find(key);
+
 	if (m_h_ring_map.end() != ring_iter) {
 		DEC_RING_REF_CNT;
+		the_ring = GET_THE_RING(key);
+
+		nd_logdbg("0x%X: if_index %d parent 0x%X ref %d key %s",
+				the_ring, the_ring->get_if_index(),
+				the_ring->get_parent(), RING_REF_CNT, key->to_str());
+
 		if ( TEST_REF_CNT_ZERO ) {
-			int num_ring_rx_fds = THE_RING->get_num_resources();
-			int *ring_rx_fds_array = THE_RING->get_rx_channel_fds();
+			int num_ring_rx_fds = the_ring->get_num_resources();
+			int *ring_rx_fds_array = the_ring->get_rx_channel_fds();
 			nd_logdbg("Deleting RING %p for key %s and removing notification fd from global_table_mgr_epfd (epfd=%d)",
-				  THE_RING, key->to_str(), g_p_net_device_table_mgr->global_ring_epfd_get());
+					the_ring, key->to_str(), g_p_net_device_table_mgr->global_ring_epfd_get());
 			for (int i = 0; i < num_ring_rx_fds; i++) {
 				int cq_ch_fd = ring_rx_fds_array[i];
 				BULLSEYE_EXCLUDE_BLOCK_START
@@ -925,13 +944,9 @@ bool net_device_val::release_ring(resource_allocation_key *key)
 				BULLSEYE_EXCLUDE_BLOCK_END
 			}
 
-			delete THE_RING;
+			delete the_ring;
 			delete ring_iter->first;
 			m_h_ring_map.erase(ring_iter);
-		}
-		else {
-			nd_logdbg("Deref usage of RING %p for key %s (count is %d)",
-					THE_RING, key->to_str(), RING_REF_CNT);
 		}
 		return true;
 	}
