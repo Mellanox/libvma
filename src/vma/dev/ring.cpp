@@ -58,3 +58,9 @@ ring::~ring()
 			(list_empty(&m_ec_list) ? "empty" : "not empty"));
 #endif // DEFINED_SOCKETXTREME		
 }
+
+void ring::print_val()
+{
+	ring_logdbg("%d: 0x%X: parent 0x%X",
+			m_if_index, this, m_parent);
+}
