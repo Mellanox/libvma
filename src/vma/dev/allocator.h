@@ -38,7 +38,7 @@
 
 
 class ib_ctx_handler;
-
+typedef std::tr1::unordered_map<ib_ctx_handler*, uint32_t> lkey_map_ib_ctx_map_t;
 
 class vma_allocator {
 public:
@@ -51,9 +51,7 @@ public:
 private:
 	bool register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint64_t access);
 	bool hugetlb_alloc(size_t sz_bytes);
-	// List of memory regions
-	ibv_mr** m_mr_list;
-	size_t m_mr_list_len;
+	lkey_map_ib_ctx_map_t m_lkey_map_ib_ctx;
 	int m_shmid;
 	void *m_data_block;
 	bool m_is_contig_alloc;

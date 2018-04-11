@@ -563,7 +563,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 		VALGRIND_MAKE_MEM_DEFINED(p_mem_buf_desc->p_buffer, p_mem_buf_desc->sz_data);
 
 		prefetch_range((uint8_t*)p_mem_buf_desc->p_buffer + m_sz_transport_header, 
-				min(p_mem_buf_desc->sz_data - m_sz_transport_header, (size_t)m_n_sysvar_rx_prefetch_bytes));
+				std::min(p_mem_buf_desc->sz_data - m_sz_transport_header, (size_t)m_n_sysvar_rx_prefetch_bytes));
 		//prefetch((uint8_t*)p_mem_buf_desc->p_buffer + m_sz_transport_header);
 	}
 
@@ -1050,10 +1050,6 @@ inline volatile struct mlx5_cqe64 *cq_mgr::mlx5_get_cqe64(volatile struct mlx5_c
 }
 #endif // DEFINED_SOCKETXTREME
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
 bool cq_mgr::reclaim_recv_buffers(mem_buf_desc_t *rx_reuse_lst)
 {
 	if (likely(rx_reuse_lst)) {
@@ -1061,23 +1057,6 @@ bool cq_mgr::reclaim_recv_buffers(mem_buf_desc_t *rx_reuse_lst)
 		return true;
 	}
 	return false;
-}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
-bool cq_mgr::reclaim_recv_buffers_no_lock(descq_t *rx_reuse)
-{
-	//Assume locked
-	cq_logfuncall("");
-	while (!rx_reuse->empty()) {
-		mem_buf_desc_t* buff = rx_reuse->get_and_pop_front();
-		reclaim_recv_buffer_helper(buff);
-	}
-	//return_extra_buffers();
-
-	return true;
 }
 
 bool cq_mgr::reclaim_recv_buffers(descq_t *rx_reuse)
@@ -1221,7 +1200,7 @@ int cq_mgr::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/
 
 	// Update cq statistics
 	m_p_cq_stat->n_rx_sw_queue_len = m_rx_queue.size();
-	m_p_cq_stat->n_rx_drained_at_once_max = max(ret_total, m_p_cq_stat->n_rx_drained_at_once_max);
+	m_p_cq_stat->n_rx_drained_at_once_max = std::max(ret_total, m_p_cq_stat->n_rx_drained_at_once_max);
 
 	return ret_total;
 #else
@@ -1293,7 +1272,7 @@ int cq_mgr::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/
 
 	// Update cq statistics
 	m_p_cq_stat->n_rx_sw_queue_len = m_rx_queue.size();
-	m_p_cq_stat->n_rx_drained_at_once_max = max(ret_total, m_p_cq_stat->n_rx_drained_at_once_max);
+	m_p_cq_stat->n_rx_drained_at_once_max = std::max(ret_total, m_p_cq_stat->n_rx_drained_at_once_max);
 
 	return ret_total;
 #endif // DEFINED_SOCKETXTREME

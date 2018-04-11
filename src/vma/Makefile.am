@@ -80,7 +80,6 @@ libvma_la_SOURCES := \
 	dev/qp_mgr_eth_direct.cpp \
 	dev/qp_mgr_mp.cpp \
 	dev/gro_mgr.cpp \
-	dev/ring_allocation_logic.cpp \
 	dev/rfs.cpp \
 	dev/rfs_uc.cpp \
 	dev/rfs_uc_tcp_gro.cpp \
@@ -96,11 +95,13 @@ libvma_la_SOURCES := \
 	dev/wqe_send_handler.cpp \
 	dev/wqe_send_ib_handler.cpp \
 	dev/ring.cpp \
-	dev/ring_eth_direct.cpp \
+	dev/ring_bond.cpp \
+	dev/ring_slave.cpp \
 	dev/ring_simple.cpp \
 	dev/ring_eth_cb.cpp \
-	dev/ring_bond.cpp \
+	dev/ring_eth_direct.cpp \
 	dev/ring_profile.cpp \
+	dev/ring_allocation_logic.cpp \
 	\
 	event/delta_timer.cpp \
 	event/event_handler_manager.cpp \
@@ -189,13 +190,14 @@ libvma_la_SOURCES := \
 	dev/rfs_mc.h \
 	dev/rfs_uc.h \
 	dev/rfs_uc_tcp_gro.h \
-	dev/ring_allocation_logic.h \
-	dev/ring_bond.h \
 	dev/ring.h \
+	dev/ring_bond.h \
+	dev/ring_slave.h \
 	dev/ring_simple.h \
 	dev/ring_eth_cb.h \
 	dev/ring_eth_direct.h \
 	dev/ring_profile.h \
+	dev/ring_allocation_logic.h \
 	dev/wqe_send_handler.h \
 	dev/wqe_send_ib_handler.h \
 	\

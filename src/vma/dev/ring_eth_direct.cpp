@@ -41,15 +41,18 @@
 #define MODULE_HDR		MODULE_NAME "%d:%s() "
 
 
-ring_eth_direct::ring_eth_direct(in_addr_t local_if,
-				ring_resource_creation_info_t *p_ring_info,
-				int count, bool active, uint16_t vlan, uint32_t mtu,
+ring_eth_direct::ring_eth_direct(int if_index,
 				vma_external_mem_attr *ext_ring_attr, ring *parent):
-					ring_eth(local_if, p_ring_info, count,
-						active, vlan, mtu, parent, false)
+					ring_eth(if_index,
+						parent, false)
 {
+	net_device_val_eth* p_ndev =
+			dynamic_cast<net_device_val_eth *>(g_p_net_device_table_mgr->get_net_device_val(if_index));
+
+	if (p_ndev) {
+		create_resources(p_ndev->get_vlan());
+	}
 	m_ring_attr.comp_mask = ext_ring_attr->comp_mask;
-	create_resources(p_ring_info, active);
 }
 
 qp_mgr* ring_eth_direct::create_qp_mgr(const ib_ctx_handler* ib_ctx,
@@ -80,8 +83,9 @@ mem_buf_desc_t* ring_eth_direct::mem_buf_tx_get(ring_user_id_t id, bool b_block,
 	return NULL;
 }
 
-int ring_eth_direct::drain_and_proccess()
+int ring_eth_direct::drain_and_proccess(cq_type_t cq_type)
 {
+	NOT_IN_USE(cq_type);
 	return 0;
 }
 
@@ -130,19 +134,18 @@ int ring_eth_direct::reg_mr(void *addr, size_t length, uint32_t &lkey)
 	if (unlikely(it != m_mr_map.end())) {
 		ring_logdbg("memory %p is already registered with length %zd",
 			    addr, length);
-		lkey = it->second.first->lkey;
+		lkey = it->second.first;
 		it->second.second++;
 		return 0;
 	}
-	ibv_mr *mr = m_p_ib_ctx->mem_reg(addr, length, VMA_IBV_ACCESS_LOCAL_WRITE);
-	if (!mr) {
+	lkey = m_p_ib_ctx->mem_reg(addr, length, VMA_IBV_ACCESS_LOCAL_WRITE);
+	if (lkey == (uint32_t)-1) {
 		ring_logdbg("failed registering MR");
 		return -1;
 	}
-	ring_logdbg("registered memory with ptr %p, length %zd lkey %u",
-			addr, length, lkey);
-	m_mr_map[pair_void_size_t(addr, length)] = pair_mr_ref_t(mr, 1);
-	lkey = mr->lkey;
+	ring_logdbg("registered memory as lkey:%u addr ptr %p length %zd",
+			lkey, addr, length);
+	m_mr_map[pair_void_size_t(addr, length)] = pair_mr_ref_t(lkey, 1);
 	return 0;
 }
 
@@ -162,10 +165,10 @@ int ring_eth_direct::dereg_mr(void *addr, size_t length)
 		ring_logdbg("decreased ref count to %d",it->second.second);
 		return 0;
 	}
-	ibv_mr *mr = it->second.first;
-	ring_logdbg("dereg for req_addr %p mr %p addr %p len %zd lkey %u",
-			addr, mr, mr->addr, mr->length, mr->lkey);
-	m_p_ib_ctx->mem_dereg(mr);
+	uint32_t lkey = it->second.first;
+	ring_logdbg("deregistered memory as lkey:%u addr %p length %zd",
+			lkey, addr, length);
+	m_p_ib_ctx->mem_dereg(lkey);
 	m_mr_map.erase(p);
 	return 0;
 }
@@ -176,8 +179,8 @@ ring_eth_direct::~ring_eth_direct()
 
 	for (;it != m_mr_map.end();it++) {
 		ring_logwarn("resource leak! registered memory was not released,"
-				" addr %p, lenght %zd",it->second.first->addr,
-				it->second.first->length);
+				" addr %p, lenght %zd",it->first.first,
+				it->first.second);
 	}
 	m_mr_map.clear();
 }

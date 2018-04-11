@@ -30,43 +30,38 @@
  * SOFTWARE.
  */
 
+#ifndef RING_SLAVE_H_
+#define RING_SLAVE_H_
 
-#ifndef IB_CTX_HANDLER_COLLECTION_H
-#define IB_CTX_HANDLER_COLLECTION_H
+#include "ring.h"
+#include "vma/dev/net_device_table_mgr.h"
 
-#include <tr1/unordered_map>
 
-#include "vma/util/verbs_extra.h"
-#include "ib_ctx_handler.h"
-
-typedef std::tr1::unordered_map<struct ibv_context*, ib_ctx_handler*>  ib_context_map_t;
-
-class ib_ctx_handler_collection
+class ring_slave : public ring, public mem_buf_desc_owner
 {
 public:
-	ib_ctx_handler_collection();
-	~ib_ctx_handler_collection();
+	ring_slave(int if_index, ring_type_t type, ring* parent);
+	virtual ~ring_slave();
 
-	inline ib_context_map_t* get_ib_cxt_list() {
-		return &m_ib_ctx_map;
-	}
-	ib_ctx_handler* get_ib_ctx(struct ibv_context*);
-	ib_ctx_handler* get_ib_ctx(const char *ifa_name);
-	inline size_t get_num_devices() {
-		return m_ib_ctx_map.size();
-	};
-	inline ts_conversion_mode_t get_ctx_time_conversion_mode() {
-		return m_ctx_time_conversion_mode;
-	};
+	virtual void        restart(ring_resource_creation_info_t* p_ring_info);
+
+	virtual int         get_num_resources() const { return 1; };
+	virtual bool        is_member(mem_buf_desc_owner* rng);
+	virtual bool        is_active_member(mem_buf_desc_owner* rng, ring_user_id_t id);
+	virtual ring_user_id_t	generate_id();
+	virtual ring_user_id_t	generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port);
+	virtual bool        is_up() = 0;
+	virtual void        inc_tx_retransmissions(ring_user_id_t id);
+	virtual bool        rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array) = 0;
+
+	bool                m_active;       /* State indicator */
+
+protected:
+	ring_stats_t*       m_p_ring_stat;
 
 private:
-	void update_tbl();
-	void print_val_tbl();
-
-	ib_context_map_t	m_ib_ctx_map;
-	ts_conversion_mode_t m_ctx_time_conversion_mode;
+	ring_stats_t        m_ring_stat;
 };
 
-extern ib_ctx_handler_collection* g_p_ib_ctx_handler_collection;
 
-#endif
+#endif /* RING_SLAVE_H_ */

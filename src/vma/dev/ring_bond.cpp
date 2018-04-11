@@ -47,7 +47,7 @@
 #include "vma/dev/rfs_uc.h"
 #include "vma/dev/rfs_uc_tcp_gro.h"
 #include "vma/dev/cq_mgr.h"
-#include "ring_simple.h"
+#include "ring_slave.h"
 
 #undef  MODULE_NAME
 #define MODULE_NAME 		"ring_bond"
@@ -61,35 +61,40 @@
 #define TAP_STR_LENGTH	512
 #define TAP_DISABLE_IPV6 "sysctl -w net.ipv6.conf.%s.disable_ipv6=1"
 
-ring_bond::ring_bond(int count, net_device_val::bond_type type, net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy, uint32_t mtu) :
-ring(count, mtu), m_lock_ring_rx("ring_bond:lock_rx"), m_lock_ring_tx("ring_bond:lock_tx") {
-	if (m_n_num_resources > MAX_NUM_RING_RESOURCES) {
-		ring_logpanic("Error creating bond ring with more than %d resource", MAX_NUM_RING_RESOURCES);
+ring_bond::ring_bond(int if_index) :
+	ring(),
+	m_lock("ring_bond"), m_lock_ring_rx("ring_bond:lock_rx"), m_lock_ring_tx("ring_bond:lock_tx")
+{
+	net_device_val* p_ndev = NULL;
+
+	/* Configure ring() fields */
+	set_parent(this);
+	set_if_index(if_index);
+
+	/* Sanity check */
+	p_ndev = g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
+	if (NULL == p_ndev) {
+		ring_logpanic("Invalid if_index = %d", if_index);
 	}
-	m_bond_rings = new ring_simple*[count];
-	for (int i = 0; i < count; i++)
-		m_bond_rings[i] = NULL;
-	m_active_rings = new ring_simple*[count];
-	for (int i = 0; i < count; i++)
-		m_active_rings[i] = NULL;
-	m_parent = this;
-	m_type = type;
-	m_xmit_hash_policy = bond_xmit_hash_policy;
+
+	/* Configure ring_bond() fields */
+	m_bond_rings.clear();
+	m_type = p_ndev->get_is_bond();
+	m_xmit_hash_policy = p_ndev->get_bond_xmit_hash_policy();
 	m_min_devices_tx_inline = -1;
 }
 
 void ring_bond::free_ring_bond_resources()
 {
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
-		delete m_bond_rings[i];
-		m_bond_rings[i] = NULL;
+	ring_slave_vector_t::iterator iter = m_bond_rings.begin();
+	for (; iter != m_bond_rings.end(); iter++) {
+		delete *iter;
 	}
+	m_bond_rings.clear();
 
-	delete [] m_bond_rings;
-	m_bond_rings = NULL;
-
-	delete [] m_active_rings;
-	m_active_rings = NULL;
+	if (m_p_n_rx_channel_fds) {
+		delete[] m_p_n_rx_channel_fds;
+	}
 }
 
 ring_bond::~ring_bond()
@@ -100,7 +105,7 @@ ring_bond::~ring_bond()
 bool ring_bond::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) {
 	bool ret = true;
 	m_lock_ring_rx.lock();
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		bool step_ret = m_bond_rings[i]->attach_flow(flow_spec_5t, sink);
 		ret = ret && step_ret;
 	}
@@ -111,7 +116,7 @@ bool ring_bond::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) {
 bool ring_bond::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) {
 	bool ret = true;
 	auto_unlocker lock(m_lock_ring_rx);
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		bool step_ret = m_bond_rings[i]->detach_flow(flow_spec_5t, sink);
 		ret = ret && step_ret;
 	}
@@ -124,27 +129,27 @@ void ring_bond::restart(ring_resource_creation_info_t* p_ring_info) {
 	m_lock_ring_rx.lock();
 	m_lock_ring_tx.lock();
 
-	//for active-backup mode
-	ring_simple* previously_active = m_active_rings[0];
+	/* for active-backup mode
+	 * It is guaranteed that the first slave is active by popup_active_rings()
+	 */
+	ring_simple* previously_active = dynamic_cast<ring_simple*>(m_bond_rings[0]);
 
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
+		ring_simple* tmp_ring = dynamic_cast<ring_simple*>(m_bond_rings[i]);
+		if (!tmp_ring) {
+			continue;
+		}
 		if (p_ring_info[i].active) {
 			ring_logdbg("ring %d active", i);
-
-			/* TODO: consider avoid using sleep */
-			/* coverity[sleep] */
-			m_bond_rings[i]->start_active_qp_mgr();
-			m_active_rings[i] = m_bond_rings[i];
+			tmp_ring->start_active_qp_mgr();
+			m_bond_rings[i]->m_active = true;
 		} else {
 			ring_logdbg("ring %d not active", i);
-
-			/* TODO: consider avoid using sleep */
-			/* coverity[sleep] */
-			m_bond_rings[i]->stop_active_qp_mgr();
-			m_active_rings[i] = NULL;
+			tmp_ring->stop_active_qp_mgr();
+			m_bond_rings[i]->m_active = false;
 		}
 	}
-	close_gaps_active_rings();
+	popup_active_rings();
 
 	int ret = 0;
 	uint64_t poll_sn = cq_mgr::m_n_global_sn;
@@ -158,8 +163,8 @@ void ring_bond::restart(ring_resource_creation_info_t* p_ring_info) {
 	}
 
 	if (m_type == net_device_val::ACTIVE_BACKUP) {
-		ring_simple* currently_active = m_active_rings[0];
-		if (safe_mce_sys().cq_moderation_enable) {
+		ring_simple* currently_active = dynamic_cast<ring_simple*>(m_bond_rings[0]);
+		if (currently_active && safe_mce_sys().cq_moderation_enable) {
 			if (likely(previously_active)) {
 				currently_active->m_cq_moderation_info.period = previously_active->m_cq_moderation_info.period;
 				currently_active->m_cq_moderation_info.count = previously_active->m_cq_moderation_info.count;
@@ -181,7 +186,7 @@ void ring_bond::restart(ring_resource_creation_info_t* p_ring_info) {
 
 void ring_bond::adapt_cq_moderation()
 {
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (m_bond_rings[i]->is_up())
 			m_bond_rings[i]->adapt_cq_moderation();
 	}
@@ -190,22 +195,17 @@ void ring_bond::adapt_cq_moderation()
 mem_buf_desc_t* ring_bond::mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_num_mem_bufs /* default = 1 */)
 {
 	mem_buf_desc_t* ret;
-	ring_simple* active_ring = m_active_rings[id];
-	if (likely(active_ring)) {
-		ret =  active_ring->mem_buf_tx_get(id, b_block, n_num_mem_bufs);
-	} else {
-		ret = m_bond_rings[id]->mem_buf_tx_get(id, b_block, n_num_mem_bufs);
-	}
+	ret = m_bond_rings[id]->mem_buf_tx_get(id, b_block, n_num_mem_bufs);
 	return ret;
 }
 
 int ring_bond::mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting, bool trylock/*=false*/)
 {
-	mem_buf_desc_t* buffer_per_ring[m_n_num_resources];
-	memset(buffer_per_ring, 0, m_n_num_resources * sizeof(mem_buf_desc_t*));
+	mem_buf_desc_t* buffer_per_ring[m_bond_rings.size()];
+	memset(buffer_per_ring, 0, m_bond_rings.size() * sizeof(mem_buf_desc_t*));
 	devide_buffers_helper(p_mem_buf_desc_list, buffer_per_ring);
 	int ret = 0;
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (buffer_per_ring[i])
 			ret += m_bond_rings[i]->mem_buf_tx_release(buffer_per_ring[i], b_accounting, trylock);
 	}
@@ -218,22 +218,16 @@ int ring_bond::poll_and_process_element_tap_rx(void* pv_fd_ready_array /* = NULL
 	return 0;
 }
 
-void ring_bond::mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc)
-{
-	((ring_simple*)p_mem_buf_desc->p_desc_owner)->mem_buf_desc_return_single_to_owner_tx(p_mem_buf_desc);
-}
-
 void ring_bond::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 {
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
-	ring_simple* active_ring = m_active_rings[id];
+	ring_slave* active_ring = m_bond_rings[id];
 
-	if (likely(active_ring && p_mem_buf_desc->p_desc_owner == active_ring)) {
+	if (is_active_member(p_mem_buf_desc->p_desc_owner, id)) {
 		active_ring->send_ring_buffer(id, p_send_wqe, attr);
 	} else {
 		ring_logfunc("active ring=%p, silent packet drop (%p), (HA event?)", active_ring, p_mem_buf_desc);
 		p_mem_buf_desc->p_next_desc = NULL;
-		active_ring = m_bond_rings[id];
 		if (likely(p_mem_buf_desc->p_desc_owner == active_ring)) {
 			active_ring->mem_buf_tx_release(p_mem_buf_desc, true);
 		} else {
@@ -245,9 +239,9 @@ void ring_bond::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe,
 void ring_bond::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block)
 {
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
-	ring_simple* active_ring = m_active_rings[id];
+	ring_slave* active_ring = m_bond_rings[id];
 
-	if (likely(active_ring && p_mem_buf_desc->p_desc_owner == active_ring)) {
+	if (is_active_member(p_mem_buf_desc->p_desc_owner, id)) {
 		active_ring->send_lwip_buffer(id, p_send_wqe, b_block);
 	} else {
 		ring_logfunc("active ring=%p, silent packet drop (%p), (HA event?)", active_ring, p_mem_buf_desc);
@@ -262,12 +256,11 @@ void ring_bond::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe,
 bool ring_bond::get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe)
 {
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
-	ring_simple* active_ring = m_active_rings[id];
+	ring_slave* active_ring = m_bond_rings[id];
 
-	if (likely(active_ring && p_mem_buf_desc->p_desc_owner == active_ring)) {
+	if (is_active_member(p_mem_buf_desc->p_desc_owner, id)) {
 		return active_ring->get_hw_dummy_send_support(id, p_send_wqe);
 	} else {
-		active_ring = m_bond_rings[id];
 		if (likely(p_mem_buf_desc->p_desc_owner == active_ring)) {
 			return active_ring->get_hw_dummy_send_support(id, p_send_wqe);
 		} else {
@@ -290,7 +283,7 @@ int ring_bond::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_r
 
 	int temp = 0;
 	int ret = poll_and_process_element_tap_rx(pv_fd_ready_array);
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (m_bond_rings[i]->is_up()) {
 			//TODO consider returning immediately after finding something, continue next time from next ring
 			temp = m_bond_rings[i]->poll_and_process_element_rx(p_cq_poll_sn, pv_fd_ready_array);
@@ -316,7 +309,7 @@ int ring_bond::drain_and_proccess()
 
 	int temp = 0;
 	int ret = poll_and_process_element_tap_rx();
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (m_bond_rings[i]->is_up()) {
 			temp = m_bond_rings[i]->drain_and_proccess();
 			if (temp > 0) {
@@ -342,7 +335,7 @@ int ring_bond::wait_for_notification_and_process_element(int cq_channel_fd, uint
 
 	int temp = 0;
 	int ret = poll_and_process_element_tap_rx(pv_fd_ready_array);
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (m_bond_rings[i]->is_up()) {
 			temp = m_bond_rings[i]->wait_for_notification_and_process_element(cq_channel_fd, p_cq_poll_sn, pv_fd_ready_array);
 			if (temp > 0) {
@@ -373,7 +366,7 @@ int ring_bond::request_notification(cq_type_t cq_type, uint64_t poll_sn)
 	}
 	int ret = 0;
 	int temp;
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (m_bond_rings[i]->is_up()) {
 			temp = m_bond_rings[i]->request_notification(cq_type, poll_sn);
 			if (temp < 0) {
@@ -393,8 +386,8 @@ int ring_bond::request_notification(cq_type_t cq_type, uint64_t poll_sn)
 
 void ring_bond::inc_tx_retransmissions(ring_user_id_t id)
 {
-	ring_simple* active_ring = m_active_rings[id];
-	if (likely(active_ring))
+	ring_slave* active_ring = m_bond_rings[id];
+	if (likely(active_ring->m_active))
 		active_ring->inc_tx_retransmissions(id);
 }
 
@@ -408,7 +401,7 @@ bool ring_bond::reclaim_recv_buffers(descq_t *rx_reuse)
 	descq_t buffer_per_ring[MAX_NUM_RING_RESOURCES];
 
 	devide_buffers_helper(rx_reuse, buffer_per_ring);
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (buffer_per_ring[i].size() > 0) {
 			if (!m_bond_rings[i]->reclaim_recv_buffers(&buffer_per_ring[i])) {
 				g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&buffer_per_ring[i]);
@@ -416,8 +409,8 @@ bool ring_bond::reclaim_recv_buffers(descq_t *rx_reuse)
 		}
 	}
 
-	if (buffer_per_ring[m_n_num_resources].size() > 0)
-		g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&buffer_per_ring[m_n_num_resources]);
+	if (buffer_per_ring[m_bond_rings.size()].size() > 0)
+		g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&buffer_per_ring[m_bond_rings.size()]);
 
 	return true;
 }
@@ -429,7 +422,7 @@ void ring_bond::devide_buffers_helper(descq_t *rx_reuse, descq_t* buffer_per_rin
 		mem_buf_desc_t* buff = rx_reuse->get_and_pop_front();
 		uint32_t checked = 0;
 		int index = last_found_index;
-		while (checked < m_n_num_resources) {
+		while (checked < m_bond_rings.size()) {
 			if (m_bond_rings[index] == buff->p_desc_owner) {
 				buffer_per_ring[index].push_back(buff);
 				last_found_index = index;
@@ -437,20 +430,20 @@ void ring_bond::devide_buffers_helper(descq_t *rx_reuse, descq_t* buffer_per_rin
 			}
 			checked++;
 			index++;
-			index = index % m_n_num_resources;
+			index = index % m_bond_rings.size();
 		}
 		//no owner
-		if (checked == m_n_num_resources) {
+		if (checked == m_bond_rings.size()) {
 			ring_logfunc("No matching ring %p to return buffer", buff->p_desc_owner);
-			buffer_per_ring[m_n_num_resources].push_back(buff);
+			buffer_per_ring[m_bond_rings.size()].push_back(buff);
 		}
 	}
 }
 
 void ring_bond::devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_buf_desc_t **buffer_per_ring)
 {
-	mem_buf_desc_t* buffers_last[m_n_num_resources];
-	memset(buffers_last, 0, m_n_num_resources * sizeof(mem_buf_desc_t*));
+	mem_buf_desc_t* buffers_last[m_bond_rings.size()];
+	memset(buffers_last, 0, m_bond_rings.size() * sizeof(mem_buf_desc_t*));
 	mem_buf_desc_t *head, *current, *temp;
 	mem_buf_desc_owner* last_owner;
 
@@ -462,7 +455,7 @@ void ring_bond::devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_b
 			head = head->p_next_desc;
 		}
 		uint32_t i = 0;
-		for (i = 0; i < m_n_num_resources; i++) {
+		for (i = 0; i < m_bond_rings.size(); i++) {
 			if (m_bond_rings[i] == last_owner) {
 				if (buffers_last[i]) {
 					buffers_last[i]->p_next_desc = current;
@@ -476,7 +469,7 @@ void ring_bond::devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_b
 		}
 		temp = head->p_next_desc;
 		head->p_next_desc = NULL;
-		if (i == m_n_num_resources) {
+		if (i == m_bond_rings.size()) {
 			//handle no owner
 			ring_logdbg("No matching ring %p to return buffer", current->p_desc_owner);
 			g_buffer_pool_tx->put_buffers_thread_safe(current);
@@ -486,110 +479,42 @@ void ring_bond::devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_b
 	}
 }
 
-/* TODO consider only ring_simple to inherit mem_buf_desc_owner */
-void ring_bond::mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc)
+void ring_bond::popup_active_rings()
 {
-	NOT_IN_USE(p_rx_wc_buf_desc);
-	ring_logpanic("programming error, how did we got here?");
-}
+	ring_slave *cur_slave = NULL;
+	int i, j;
 
-void ring_bond::mem_buf_desc_completion_with_error_tx(mem_buf_desc_t* p_tx_wc_buf_desc)
-{
-	NOT_IN_USE(p_tx_wc_buf_desc);
-	ring_logpanic("programming error, how did we got here?");
-}
-
-void ring_bond::mem_buf_desc_return_to_owner_rx(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array /*NULL*/)
-{
-	NOT_IN_USE(p_mem_buf_desc);
-	NOT_IN_USE(pv_fd_ready_array);
-	ring_logpanic("programming error, how did we got here?");
-}
-
-void ring_bond::mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc)
-{
-	NOT_IN_USE(p_mem_buf_desc);
-	ring_logpanic("programming error, how did we got here?");
-}
-
-void ring_bond_eth::create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t vlan)
-{
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
-		m_bond_rings[i] = new ring_eth(local_if, &p_ring_info[i], 1, active_slaves[i], vlan, m_mtu, this);
-		if (m_min_devices_tx_inline < 0)
-			m_min_devices_tx_inline = m_bond_rings[i]->get_max_tx_inline();
-		else
-			m_min_devices_tx_inline = min(m_min_devices_tx_inline, m_bond_rings[i]->get_max_tx_inline());
-		if (active_slaves[i]) {
-			m_active_rings[i] = m_bond_rings[i];
-		} else {
-			m_active_rings[i] = NULL;
+	for (i = 0; i < (int)m_bond_rings.size(); i++) {
+		for (j = i + 1; j < (int)m_bond_rings.size(); j++) {
+			if (!m_bond_rings[i]->m_active && m_bond_rings[j]->m_active) {
+				cur_slave = m_bond_rings[i];
+				m_bond_rings[i] = m_bond_rings[j];
+				m_bond_rings[j] = cur_slave;
+			}
 		}
 	}
-	close_gaps_active_rings();
 }
 
-void ring_bond_ib::create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t pkey)
+void ring_bond::update_rx_channel_fds()
 {
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
-		m_bond_rings[i] = new ring_ib(local_if, &p_ring_info[i], 1, active_slaves[i], pkey, m_mtu, this); // m_mtu is the value from ifconfig when ring created. Now passing it to its slaves. could have sent 0 here, as the MTU of the bond is already on the bond
-		if (m_min_devices_tx_inline < 0)
-			m_min_devices_tx_inline = m_bond_rings[i]->get_max_tx_inline();
-		else
-			m_min_devices_tx_inline = min(m_min_devices_tx_inline, m_bond_rings[i]->get_max_tx_inline());
-		if (active_slaves[i]) {
-			m_active_rings[i] = m_bond_rings[i];
-		} else {
-			m_active_rings[i] = NULL;
-		}
+	if (m_p_n_rx_channel_fds) {
+		delete[] m_p_n_rx_channel_fds;
 	}
-	close_gaps_active_rings();
-}
-
-void ring_bond::close_gaps_active_rings()
-{
-	ring_simple* curr_active = NULL;
-	uint32_t i = 0;
-	for (i = 0; i < m_n_num_resources; i++) {
-		if (m_active_rings[i]) {
-			curr_active = m_active_rings[i];
-			break;
-		}
-	}
-	if (!curr_active)
-		return;
-	uint32_t checked = 1; //already checked 1
-	while (checked < m_n_num_resources) {
-		if (i == 0) {
-			i = m_n_num_resources - 1;
-		} else {
-			i--;
-		}
-		if (m_active_rings[i]) {
-			curr_active = m_active_rings[i];
-		} else {
-			m_active_rings[i] = curr_active;
-		}
-		checked++;
-	}
-}
-
-void ring_bond::update_rx_channel_fds() {
-	m_p_n_rx_channel_fds = new int[m_n_num_resources];
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	m_p_n_rx_channel_fds = new int[m_bond_rings.size()];
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		m_p_n_rx_channel_fds[i] = m_bond_rings[i]->get_rx_channel_fds()[0];
 	}
 }
 
 bool ring_bond::is_active_member(mem_buf_desc_owner* rng, ring_user_id_t id)
 {
-	return m_active_rings[id] == rng;
+	return (m_bond_rings[id] == rng && m_bond_rings[id]->m_active);
 }
 
 bool ring_bond::is_member(mem_buf_desc_owner* rng) {
-	ring_simple* r = dynamic_cast<ring_simple*>(rng);
+	ring_slave* r = dynamic_cast<ring_slave*>(rng);
 	if (r) {
-		return r->m_parent == this;
+		return r->get_parent() == this;
 	}
 	return false;
 }
@@ -610,7 +535,7 @@ ring_user_id_t ring_bond::generate_id(const address_t src_mac, const address_t d
 
 	if (eth_proto != htons(ETH_P_IP)) {
 		hash = dst_mac[5] ^ src_mac[5] ^ eth_proto;
-		return hash % m_n_num_resources;
+		return hash % m_bond_rings.size();
 	}
 
 	switch (m_xmit_hash_policy) {
@@ -635,11 +560,11 @@ ring_user_id_t ring_bond::generate_id(const address_t src_mac, const address_t d
 		return ring::generate_id();
 	}
 
-	return hash % m_n_num_resources;
+	return hash % m_bond_rings.size();
 }
 
 int ring_bond::modify_ratelimit(struct vma_rate_limit_t &rate_limit) {
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (m_bond_rings[i]) {
 			m_bond_rings[i]->modify_ratelimit(rate_limit);
 		}
@@ -649,7 +574,7 @@ int ring_bond::modify_ratelimit(struct vma_rate_limit_t &rate_limit) {
 
 bool ring_bond::is_ratelimit_supported(struct vma_rate_limit_t &rate_limit)
 {
-	for (uint32_t i = 0; i < m_n_num_resources; i++) {
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (m_bond_rings[i] &&
 		    !m_bond_rings[i]->is_ratelimit_supported(rate_limit)) {
 				return false;
@@ -675,13 +600,85 @@ int ring_bond::socketxtreme_poll(struct vma_completion_t *vma_completions, unsig
 }
 #endif // DEFINED_SOCKETXTREME	
 
-ring_bond_eth_netvsc::ring_bond_eth_netvsc(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count,
-		bool active_slaves[], uint16_t vlan, net_device_val::bond_type type,
-		net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy, uint32_t mtu,
-		char* base_name, address_t l2_addr):
-	ring_bond_eth(local_if, p_ring_info, count, active_slaves, vlan, type, bond_xmit_hash_policy, mtu),
+void ring_bond_eth::slave_create(int if_index)
+{
+	ring_slave *cur_slave = NULL;
+
+	auto_unlocker lock(m_lock);
+	cur_slave = new ring_eth(if_index, this);
+	if (m_min_devices_tx_inline < 0) {
+		m_min_devices_tx_inline = cur_slave->get_max_tx_inline();
+	} else {
+		m_min_devices_tx_inline = min(m_min_devices_tx_inline, cur_slave->get_max_tx_inline());
+	}
+	m_bond_rings.push_back(cur_slave);
+
+	if (m_bond_rings.size() > MAX_NUM_RING_RESOURCES) {
+		ring_logpanic("Error creating bond ring with more than %d resource", MAX_NUM_RING_RESOURCES);
+	}
+
+	popup_active_rings();
+	update_rx_channel_fds();
+}
+
+void ring_bond_eth::slave_destroy(int if_index)
+{
+	ring_slave *cur_slave = NULL;
+	ring_slave_vector_t::iterator iter;
+
+	auto_unlocker lock(m_lock);
+	while ((iter = m_bond_rings.begin()) != m_bond_rings.end()) {
+		cur_slave = *iter;
+		if (cur_slave->get_if_index() == if_index) {
+			delete cur_slave;
+			m_bond_rings.erase(iter);
+			update_rx_channel_fds();
+			break;
+		}
+	}
+}
+
+void ring_bond_ib::slave_create(int if_index)
+{
+	ring_slave *cur_slave = NULL;
+
+	auto_unlocker lock(m_lock);
+	cur_slave = new ring_ib(if_index, this);
+	if (m_min_devices_tx_inline < 0) {
+		m_min_devices_tx_inline = cur_slave->get_max_tx_inline();
+	} else {
+		m_min_devices_tx_inline = min(m_min_devices_tx_inline, cur_slave->get_max_tx_inline());
+	}
+	m_bond_rings.push_back(cur_slave);
+
+	if (m_bond_rings.size() > MAX_NUM_RING_RESOURCES) {
+		ring_logpanic("Error creating bond ring with more than %d resource", MAX_NUM_RING_RESOURCES);
+	}
+
+	popup_active_rings();
+	update_rx_channel_fds();
+}
+
+void ring_bond_ib::slave_destroy(int if_index)
+{
+	ring_slave *cur_slave = NULL;
+	ring_slave_vector_t::iterator iter;
+
+	auto_unlocker lock(m_lock);
+	while ((iter = m_bond_rings.begin()) != m_bond_rings.end()) {
+		cur_slave = *iter;
+		if (cur_slave->get_if_index() == if_index) {
+			delete cur_slave;
+			m_bond_rings.erase(iter);
+			update_rx_channel_fds();
+			break;
+		}
+	}
+}
+
+ring_bond_eth_netvsc::ring_bond_eth_netvsc(int if_index):
+	ring_bond_eth(if_index),
 	m_sysvar_qp_compensation_level(safe_mce_sys().qp_compensation_level),
-	m_netvsc_idx(if_nametoindex(base_name)),
 	m_tap_idx(-1),
 	m_tap_fd(-1),
 	m_tap_data_available(false)
@@ -689,17 +686,15 @@ ring_bond_eth_netvsc::ring_bond_eth_netvsc(in_addr_t local_if, ring_resource_cre
 	struct ifreq ifr;
 	int err, ioctl_sock = -1;
 	char command_str[TAP_STR_LENGTH], return_str[TAP_STR_LENGTH], tap_name[IFNAMSIZ];
+
+	m_netvsc_idx = if_index;
 	memset(&m_ring_stat , 0, sizeof(m_ring_stat));
 
-	// Get netvsc interface index
-	if (!m_netvsc_idx) {
-		ring_logwarn("if_nametoindex failed to get netvsc index [%s]", base_name);
+	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(if_index);
+	if (!p_ndev) {
+		ring_logerr("Invalid if_index = %d", if_index);
 		goto error;
 	}
-
-	// Initialize rx buffer poll
-	request_more_rx_buffers();
-	m_rx_pool.set_id("ring_bond_eth_netvsc (%p) : m_rx_pool", this);
 
 	// Open TAP device
 	if( (m_tap_fd = open("/dev/net/tun", O_RDWR)) < 0 ) {
@@ -742,7 +737,7 @@ ring_bond_eth_netvsc::ring_bond_eth_netvsc(in_addr_t local_if, ring_resource_cre
 
 	// Set MAC address
 	ifr.ifr_hwaddr.sa_family = AF_LOCAL;
-	memcpy(ifr.ifr_hwaddr.sa_data, l2_addr, ETH_ALEN);
+	memcpy(ifr.ifr_hwaddr.sa_data, p_ndev->get_l2_address()->get_address(), ETH_ALEN);
 	if ( ( err = orig_os_api.ioctl(ioctl_sock, SIOCSIFHWADDR, &ifr)) < 0) {
 		ring_logwarn("ioctl SIOCSIFHWADDR failed %d %m, %s", err, tap_name);
 		goto error;
@@ -922,7 +917,8 @@ bool ring_bond_eth_netvsc::request_more_rx_buffers()
 	// Assume locked!
 	ring_logfuncall("Allocating additional %d buffers for internal use", m_sysvar_qp_compensation_level);
 
-	bool res = g_buffer_pool_rx->get_buffers_thread_safe(m_rx_pool, this, m_sysvar_qp_compensation_level, 0);
+	// TODO change owner to ring_tap
+	bool res = g_buffer_pool_rx->get_buffers_thread_safe(m_rx_pool, m_bond_rings[0], m_sysvar_qp_compensation_level, 0);
 	if (!res) {
 		ring_logfunc("Out of mem_buf_desc from TX free pool for internal object pool");
 		return false;

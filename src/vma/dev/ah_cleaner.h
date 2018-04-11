@@ -38,7 +38,7 @@
 #include "vma/proto/mem_buf_desc.h"
 
 class mem_buf_desc_t;
-class ring;
+class ring_simple;
 
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
@@ -47,7 +47,7 @@ class ring;
 class ah_cleaner: public mem_buf_desc_owner
 {
 public:
-	ah_cleaner(struct ibv_ah* ah, ring* p_ring);
+	ah_cleaner(struct ibv_ah* ah, ring_simple* p_ring);
 
 	// Call back function
 	virtual void		mem_buf_desc_completion_with_error_tx(mem_buf_desc_t* p_rx_wc_buf_desc);
@@ -59,7 +59,7 @@ public:
 private:
 	void			destroy_ah_n_return_to_owner(mem_buf_desc_t* p_mem_buf_desc);
 	struct ibv_ah*		m_ah;
-	ring*			m_p_ring;
+	ring_simple*		m_p_ring;
 };
 
 #if _BullseyeCoverage

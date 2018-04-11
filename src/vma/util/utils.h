@@ -335,6 +335,18 @@ static inline int get_procname(int pid, char *proc, size_t size)
 	return -1;
 }
 
+static inline in_addr_t prefix_to_netmask(int prefix_length)
+{
+    in_addr_t mask = 0;
+
+    if (prefix_length <= 0 || prefix_length > 32) {
+        return 0;
+    }
+    mask = ~mask << (32 - prefix_length);
+    mask = htonl(mask);
+    return mask;
+}
+
 //Creates multicast MAC from multicast IP
 //inline void create_multicast_mac_from_ip(uint8_t (& mc_mac) [6], in_addr_t ip)
 inline void create_multicast_mac_from_ip(unsigned char* mc_mac, in_addr_t ip)

@@ -38,7 +38,7 @@
 
 #include "vma/util/vtypes.h"
 #include "vma/util/verbs_extra.h"
-#include "vma/dev/ring.h"
+#include "vma/dev/ring_simple.h"
 #include "vma/proto/mem_buf_desc.h"
 #include "vma/proto/flow_tuple.h"
 
@@ -55,8 +55,6 @@
 
 class qp_mgr;
 class pkt_rcvr_sink;
-class ring_simple;
-
 
 /* ETHERNET
  */

@@ -48,25 +48,23 @@
 #include "net_device_val.h"
 #include "net_device_entry.h"
 
-typedef std::tr1::unordered_map<in_addr_t, net_device_val*> net_device_map_t;
-typedef std::list<in_addr_t> local_ip_list_t;
-typedef std::list<net_device_val*> net_dev_lst_t;
-typedef std::tr1::unordered_map<int, net_dev_lst_t > if_index_to_net_dev_lst_t;
+typedef std::tr1::unordered_map<in_addr_t, net_device_val*> net_device_map_addr_t;
+typedef std::tr1::unordered_map<int, net_device_val*> net_device_map_index_t;
+typedef std::list<ip_data_t> local_ip_list_t;
 
-class net_device_table_mgr : public cache_table_mgr<ip_address, net_device_val*>
+class net_device_table_mgr : public cache_table_mgr<ip_address, net_device_val*>, public observer
 {
 public:
 	net_device_table_mgr();
 	virtual ~net_device_table_mgr();
 
-	net_device_entry*	create_new_entry(in_addr_t local_ip);
+	virtual void 	notify_cb(event *ev);
 	net_device_entry*	create_new_entry(ip_address local_ip, const observer* dst);
 
-	int			map_net_devices();
 	net_device_val* 	get_net_device_val(const in_addr_t local_ip);
-	net_dev_lst_t*		get_net_device_val_lst_from_index(int if_index);
+	net_device_val*		get_net_device_val(int if_index);
 
-	local_ip_list_t         get_ip_list(); // return list of the table_mgr managed ips
+	local_ip_list_t     get_ip_list(int if_index = 0); // return list of the table_mgr managed ips
 
 	std::string 		to_str();
 
@@ -109,15 +107,18 @@ public:
 	uint32_t get_max_mtu();
 
 private:
+	void update_tbl();
+	void print_val_tbl();
+	void del_link_event(const netlink_link_info* info);
+	void new_link_event(const netlink_link_info* info);
+
 	void                            free_ndtm_resources();
 	void                            set_max_mtu(uint32_t);
 	
 	lock_mutex                      m_lock;
-	net_device_map_t                m_net_device_map;
-	if_index_to_net_dev_lst_t	m_if_indx_to_nd_val_lst;
+	net_device_map_addr_t           m_net_device_map_addr;
+	net_device_map_index_t          m_net_device_map_index;
 	int                             m_num_devices;
-
-	struct rdma_event_channel       *m_p_cma_event_channel;
 
 	int			        m_global_ring_epfd;
 	int 			    m_global_ring_pipe_fds[2];
@@ -131,14 +132,6 @@ private:
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif
-
-	bool 			verify_ipoib_mode(struct ifaddrs* ifa);
-	bool			verify_mlx4_ib_device(const char* ifname);
-	bool 			verify_eth_qp_creation(const char* ifname);
-	bool 			verify_bond_ipoib_or_eth_qp_creation(struct ifaddrs * ifa);
-	bool 			verify_netvsc_ipoib_or_eth_qp_creation(const char *slave_name, struct ifaddrs *ifa_netvsc);
-	bool 			verify_ipoib_or_eth_qp_creation(const char* interface_name, struct ifaddrs * ifa);
-	bool 			verify_enable_ipoib(const char* ifname);
 };
 
 extern net_device_table_mgr* g_p_net_device_table_mgr; 

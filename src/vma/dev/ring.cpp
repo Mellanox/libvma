@@ -39,10 +39,11 @@
 #undef  MODULE_HDR
 #define MODULE_HDR      MODULE_NAME "%d:%s() "
 
-ring::ring(int count, uint32_t mtu) :
-	m_n_num_resources(count), m_p_n_rx_channel_fds(NULL), m_parent(NULL),
-	m_is_mp_ring(false), m_mtu(mtu)
+ring::ring() :
+	m_p_n_rx_channel_fds(NULL), m_parent(NULL), m_is_mp_ring(false)
 {
+	m_if_index = 0;
+
 #ifdef DEFINED_SOCKETXTREME
 	m_vma_active = true; /* TODO: This VMA version supports socketxtreme_poll() usage mode only */
 	INIT_LIST_HEAD(&m_ec_list);
@@ -50,16 +51,16 @@ ring::ring(int count, uint32_t mtu) :
 #endif // DEFINED_SOCKETXTREME	
 }
 
-
-int ring::get_rx_channel_fds_index(uint32_t index) const {
-	if (index < m_n_num_resources)
-		return m_p_n_rx_channel_fds[index];
-	return -1;
-};
 ring::~ring()
 {
 #ifdef DEFINED_SOCKETXTREME
 	ring_logdbg("queue of event completion elements is %s",
 			(list_empty(&m_ec_list) ? "empty" : "not empty"));
 #endif // DEFINED_SOCKETXTREME		
+}
+
+void ring::print_val()
+{
+	ring_logdbg("%d: 0x%X: parent 0x%X",
+			m_if_index, this, m_parent);
 }

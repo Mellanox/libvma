@@ -37,7 +37,7 @@
 #include "dev/ring_simple.h"
 
 typedef std::pair<void*, size_t> pair_void_size_t;
-typedef std::pair<ibv_mr*, int> pair_mr_ref_t;
+typedef std::pair<uint32_t, int> pair_mr_ref_t;
 namespace std { namespace tr1 {
 template<>
 class hash<pair_void_size_t>
@@ -56,9 +56,7 @@ typedef std::tr1::unordered_map<pair_void_size_t, pair_mr_ref_t> addr_len_mr_map
 class ring_eth_direct : public ring_eth
 {
 public:
-	ring_eth_direct(in_addr_t local_if,
-		    ring_resource_creation_info_t *p_ring_info, int count,
-		    bool active, uint16_t vlan, uint32_t mtu,
+	ring_eth_direct(int if_index,
 		    vma_external_mem_attr *ext_ring_attr, ring *parent = NULL);
 	virtual		~ring_eth_direct();
 	virtual int	get_ring_descriptors(vma_mlx_hw_device_data &data);
@@ -71,7 +69,7 @@ public:
 	// dummy functions to block memory usage and internal thread
 	virtual void	init_tx_buffers(uint32_t count);
 	virtual mem_buf_desc_t* mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_num_mem_bufs = 1);
-	virtual int	drain_and_proccess();
+	virtual int	drain_and_proccess(cq_type_t cq_type);
 	virtual int	poll_and_process_element_rx(uint64_t* p_cq_poll_sn,
 					void* pv_fd_ready_array);
 private:
