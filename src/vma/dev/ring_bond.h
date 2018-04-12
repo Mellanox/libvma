@@ -34,10 +34,11 @@
 #define RING_BOND_H
 
 #include "ring.h"
+#include "ring_slave.h"
+#include "ring_tap.h"
 #include "vma/util/agent.h"
 #include "vma/dev/net_device_table_mgr.h"
 
-class ring_slave;
 typedef std::vector<ring_slave*> ring_slave_vector_t;
 
 class ring_bond : public ring {
@@ -46,7 +47,8 @@ public:
 	ring_bond(int if_index);
 	virtual	~ring_bond();
 
-	void			free_ring_bond_resources();
+	virtual void print_val();
+
 	virtual int		request_notification(cq_type_t cq_type, uint64_t poll_sn);
 	virtual int		poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	virtual void		adapt_cq_moderation();
@@ -60,7 +62,6 @@ public:
 	virtual void		restart(ring_resource_creation_info_t* p_ring_info);
 	virtual mem_buf_desc_t* mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_num_mem_bufs = 1);
 	virtual int		mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting, bool trylock = false);
-	virtual int		poll_and_process_element_tap_rx(void* pv_fd_ready_array = NULL);
 	virtual void		inc_tx_retransmissions(ring_user_id_t id);
 	virtual void		send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 	virtual void		send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block);
@@ -75,7 +76,7 @@ public:
 	int 			socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);
 #endif // DEFINED_SOCKETXTREME		
 	virtual void    slave_create(int if_index) = 0;
-	virtual void    slave_destroy(int if_index) = 0;
+	virtual void    slave_destroy(int if_index);
 protected:
 	void			update_rx_channel_fds();
 	void			popup_active_rings();
@@ -97,51 +98,67 @@ class ring_bond_eth : public ring_bond
 {
 public:
 	ring_bond_eth(int if_index):
-		ring_bond(if_index) {}
-protected:
-	virtual void    slave_create(int if_index);
-	virtual void    slave_destroy(int if_index);
-};
-
-class ring_bond_eth_netvsc : public ring_bond_eth
-{
-public:
-	ring_bond_eth_netvsc(int if_index);
-	virtual ~ring_bond_eth_netvsc();
-
-	virtual bool attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
-	virtual bool detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
-	inline void set_tap_data_available() { m_tap_data_available = true;};
-	void create_resources() {
-		// Initialize rx buffer poll
-		request_more_rx_buffers();
-		m_rx_pool.set_id("ring_bond_eth_netvsc (%p) : m_rx_pool", this);
+		ring_bond(if_index) {
+		net_device_val* p_ndev =
+				g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
+		if (p_ndev) {
+			const slave_data_vector_t& slaves = p_ndev->get_slave_array();
+			for (size_t i = 0; i < slaves.size(); i++) {
+				slave_create(slaves[i]->if_index);
+			}
+		}
 	}
 
-private:
-
-	int poll_and_process_element_tap_rx(void* pv_fd_ready_array = NULL);
-	bool request_more_rx_buffers();
-	inline void prepare_flow_message(vma_msg_flow& data, flow_tuple& flow_spec_5t, msg_flow_t flow_action);
-
-	ring_stats_t	m_ring_stat;
-	descq_t         m_rx_pool;
-	const uint32_t  m_sysvar_qp_compensation_level;
-	int             m_netvsc_idx;
-	int             m_tap_idx;
-	int             m_tap_fd;
-	bool            m_tap_data_available;
+protected:
+	virtual void slave_create(int if_index);
 };
-
 
 class ring_bond_ib : public ring_bond
 {
 public:
 	ring_bond_ib(int if_index):
-		ring_bond(if_index) {}
+		ring_bond(if_index) {
+		net_device_val* p_ndev =
+				g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
+		if (p_ndev) {
+			const slave_data_vector_t& slaves = p_ndev->get_slave_array();
+			for (size_t i = 0; i < slaves.size(); i++) {
+				slave_create(slaves[i]->if_index);
+			}
+		}
+	}
+
 protected:
-	virtual void    slave_create(int if_index);
-	virtual void    slave_destroy(int if_index);
+	virtual void slave_create(int if_index);
+};
+
+class ring_bond_netvsc : public ring_bond
+{
+public:
+	ring_bond_netvsc(int if_index):
+		ring_bond(if_index) {
+		net_device_val* p_ndev =
+				g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
+
+		m_vf_ring = NULL;
+		m_tap_ring = NULL;
+		if (p_ndev) {
+			const slave_data_vector_t& slaves = p_ndev->get_slave_array();
+			for (size_t i = 0; i < slaves.size(); i++) {
+				slave_create(slaves[i]->if_index);
+			}
+			if (m_tap_ring && m_vf_ring) {
+				(dynamic_cast<ring_tap*>(m_tap_ring))->set_vf_ring(m_vf_ring);
+			}
+		}
+	}
+
+protected:
+	virtual void slave_create(int if_index);
+
+private:
+	ring_slave*      m_vf_ring;
+	ring_slave*      m_tap_ring;
 };
 
 #endif /* RING_BOND_H */

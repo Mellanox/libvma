@@ -44,7 +44,7 @@
 #include "util/valgrind.h"
 #include "vma/event/event_handler_manager.h"
 
-#define MODULE_NAME             "ib_ctx_handler"
+#define MODULE_NAME             "ibd"
 
 #define ibch_logpanic           __log_panic
 #define ibch_logerr             __log_err

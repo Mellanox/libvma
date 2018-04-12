@@ -48,7 +48,7 @@ ring::ring() :
 	m_vma_active = true; /* TODO: This VMA version supports socketxtreme_poll() usage mode only */
 	INIT_LIST_HEAD(&m_ec_list);
 	m_socketxtreme_completion = NULL;
-#endif // DEFINED_SOCKETXTREME	
+#endif // DEFINED_SOCKETXTREME
 }
 
 ring::~ring()
@@ -62,5 +62,5 @@ ring::~ring()
 void ring::print_val()
 {
 	ring_logdbg("%d: 0x%X: parent 0x%X",
-			m_if_index, this, m_parent);
+			m_if_index, this, ((uintptr_t)this == (uintptr_t)m_parent ? 0 : m_parent));
 }

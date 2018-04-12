@@ -98,6 +98,7 @@ libvma_la_SOURCES := \
 	dev/ring_bond.cpp \
 	dev/ring_slave.cpp \
 	dev/ring_simple.cpp \
+	dev/ring_tap.cpp \
 	dev/ring_eth_cb.cpp \
 	dev/ring_eth_direct.cpp \
 	dev/ring_profile.cpp \
@@ -194,6 +195,7 @@ libvma_la_SOURCES := \
 	dev/ring_bond.h \
 	dev/ring_slave.h \
 	dev/ring_simple.h \
+	dev/ring_tap.h \
 	dev/ring_eth_cb.h \
 	dev/ring_eth_direct.h \
 	dev/ring_profile.h \

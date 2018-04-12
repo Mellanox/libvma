@@ -47,7 +47,9 @@
 #include "vma/dev/rfs_uc.h"
 #include "vma/dev/rfs_uc_tcp_gro.h"
 #include "vma/dev/cq_mgr.h"
-#include "ring_slave.h"
+#include "vma/dev/ring_slave.h"
+#include "vma/dev/ring_simple.h"
+#include "vma/dev/ring_tap.h"
 
 #undef  MODULE_NAME
 #define MODULE_NAME 		"ring_bond"
@@ -82,10 +84,14 @@ ring_bond::ring_bond(int if_index) :
 	m_type = p_ndev->get_is_bond();
 	m_xmit_hash_policy = p_ndev->get_bond_xmit_hash_policy();
 	m_min_devices_tx_inline = -1;
+
+	print_val();
 }
 
-void ring_bond::free_ring_bond_resources()
+ring_bond::~ring_bond()
 {
+	print_val();
+
 	ring_slave_vector_t::iterator iter = m_bond_rings.begin();
 	for (; iter != m_bond_rings.end(); iter++) {
 		delete *iter;
@@ -97,9 +103,9 @@ void ring_bond::free_ring_bond_resources()
 	}
 }
 
-ring_bond::~ring_bond()
+void ring_bond::print_val()
 {
-	free_ring_bond_resources();
+	ring::print_val();
 }
 
 bool ring_bond::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) {
@@ -212,12 +218,6 @@ int ring_bond::mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_ac
 	return ret;
 }
 
-int ring_bond::poll_and_process_element_tap_rx(void* pv_fd_ready_array /* = NULL */)
-{
-	NOT_IN_USE(pv_fd_ready_array);
-	return 0;
-}
-
 void ring_bond::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 {
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
@@ -282,7 +282,7 @@ int ring_bond::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_r
 	}
 
 	int temp = 0;
-	int ret = poll_and_process_element_tap_rx(pv_fd_ready_array);
+	int ret = 0;
 	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (m_bond_rings[i]->is_up()) {
 			//TODO consider returning immediately after finding something, continue next time from next ring
@@ -308,7 +308,7 @@ int ring_bond::drain_and_proccess()
 	}
 
 	int temp = 0;
-	int ret = poll_and_process_element_tap_rx();
+	int ret = 0;
 	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (m_bond_rings[i]->is_up()) {
 			temp = m_bond_rings[i]->drain_and_proccess();
@@ -334,7 +334,7 @@ int ring_bond::wait_for_notification_and_process_element(int cq_channel_fd, uint
 	}
 
 	int temp = 0;
-	int ret = poll_and_process_element_tap_rx(pv_fd_ready_array);
+	int ret = 0;
 	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (m_bond_rings[i]->is_up()) {
 			temp = m_bond_rings[i]->wait_for_notification_and_process_element(cq_channel_fd, p_cq_poll_sn, pv_fd_ready_array);
@@ -600,6 +600,23 @@ int ring_bond::socketxtreme_poll(struct vma_completion_t *vma_completions, unsig
 }
 #endif // DEFINED_SOCKETXTREME	
 
+void ring_bond::slave_destroy(int if_index)
+{
+	ring_slave *cur_slave = NULL;
+	ring_slave_vector_t::iterator iter;
+
+	auto_unlocker lock(m_lock);
+	while ((iter = m_bond_rings.begin()) != m_bond_rings.end()) {
+		cur_slave = *iter;
+		if (cur_slave->get_if_index() == if_index) {
+			delete cur_slave;
+			m_bond_rings.erase(iter);
+			update_rx_channel_fds();
+			break;
+		}
+	}
+}
+
 void ring_bond_eth::slave_create(int if_index)
 {
 	ring_slave *cur_slave = NULL;
@@ -619,23 +636,6 @@ void ring_bond_eth::slave_create(int if_index)
 
 	popup_active_rings();
 	update_rx_channel_fds();
-}
-
-void ring_bond_eth::slave_destroy(int if_index)
-{
-	ring_slave *cur_slave = NULL;
-	ring_slave_vector_t::iterator iter;
-
-	auto_unlocker lock(m_lock);
-	while ((iter = m_bond_rings.begin()) != m_bond_rings.end()) {
-		cur_slave = *iter;
-		if (cur_slave->get_if_index() == if_index) {
-			delete cur_slave;
-			m_bond_rings.erase(iter);
-			update_rx_channel_fds();
-			break;
-		}
-	}
 }
 
 void ring_bond_ib::slave_create(int if_index)
@@ -659,272 +659,36 @@ void ring_bond_ib::slave_create(int if_index)
 	update_rx_channel_fds();
 }
 
-void ring_bond_ib::slave_destroy(int if_index)
+void ring_bond_netvsc::slave_create(int if_index)
 {
 	ring_slave *cur_slave = NULL;
-	ring_slave_vector_t::iterator iter;
+	net_device_val* p_ndev = NULL;
 
 	auto_unlocker lock(m_lock);
-	while ((iter = m_bond_rings.begin()) != m_bond_rings.end()) {
-		cur_slave = *iter;
-		if (cur_slave->get_if_index() == if_index) {
-			delete cur_slave;
-			m_bond_rings.erase(iter);
-			update_rx_channel_fds();
-			break;
-		}
-	}
-}
 
-ring_bond_eth_netvsc::ring_bond_eth_netvsc(int if_index):
-	ring_bond_eth(if_index),
-	m_sysvar_qp_compensation_level(safe_mce_sys().qp_compensation_level),
-	m_tap_idx(-1),
-	m_tap_fd(-1),
-	m_tap_data_available(false)
-{
-	struct ifreq ifr;
-	int err, ioctl_sock = -1;
-	char command_str[TAP_STR_LENGTH], return_str[TAP_STR_LENGTH], tap_name[IFNAMSIZ];
-
-	m_netvsc_idx = if_index;
-	memset(&m_ring_stat , 0, sizeof(m_ring_stat));
-
-	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(if_index);
-	if (!p_ndev) {
-		ring_logerr("Invalid if_index = %d", if_index);
-		goto error;
+	p_ndev = g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
+	if (NULL == p_ndev) {
+		ring_logpanic("Error creating bond ring");
 	}
 
-	// Open TAP device
-	if( (m_tap_fd = open("/dev/net/tun", O_RDWR)) < 0 ) {
-		ring_logwarn("FAILED to open tap %m");
-		goto error;
-	}
-
-	// Tap name
-	snprintf(tap_name, IFNAMSIZ, TAP_NAME_FORMAT, getpid() & 0xFFFFFFF, m_tap_fd & 0xFFFFFFF);
-
-	// Init ifr
-	memset(&ifr, 0, sizeof(ifr));
-	snprintf(ifr.ifr_name, IFNAMSIZ, "%s", tap_name);
-
-	// Setting TAP attributes
-	ifr.ifr_flags = IFF_TAP | IFF_NO_PI | IFF_ONE_QUEUE;
-	if( (err = orig_os_api.ioctl(m_tap_fd, TUNSETIFF, (void *) &ifr)) < 0){
-		ring_logwarn("ioctl failed fd = %d, %d %m", m_tap_fd, err);
-		goto error;
-	}
-
-	// Set TAP fd nonblocking
-	if ( (err = orig_os_api.fcntl(m_tap_fd, F_SETFL, O_NONBLOCK))  < 0) {
-		ring_logwarn("fcntl failed fd = %d, %d %m", m_tap_fd, err);
-		goto error;
-	}
-
-	// Disable Ipv6 for TAP interface
-	snprintf(command_str, TAP_STR_LENGTH, TAP_DISABLE_IPV6, tap_name);
-	if (run_and_retreive_system_command(command_str, return_str, TAP_STR_LENGTH)  < 0) {
-		ring_logwarn("sysctl ipv6 failed fd = %d, %m", m_tap_fd);
-		goto error;
-	}
-
-	// Ioctl socket
-	if( (ioctl_sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
-		ring_logwarn("FAILED to open socket");
-		goto error;
-	}
-
-	// Set MAC address
-	ifr.ifr_hwaddr.sa_family = AF_LOCAL;
-	memcpy(ifr.ifr_hwaddr.sa_data, p_ndev->get_l2_address()->get_address(), ETH_ALEN);
-	if ( ( err = orig_os_api.ioctl(ioctl_sock, SIOCSIFHWADDR, &ifr)) < 0) {
-		ring_logwarn("ioctl SIOCSIFHWADDR failed %d %m, %s", err, tap_name);
-		goto error;
-	}
-
-	// Set link UP
-	if ( ( err = orig_os_api.ioctl(ioctl_sock, SIOCGIFFLAGS, &ifr)) < 0) {
-		ring_logwarn("ioctl SIOCGIFFLAGS failed %d %m, %s", err, tap_name);
-		goto error;
-	}
-
-	ifr.ifr_flags |= IFF_UP;
-	if ( ( err = orig_os_api.ioctl(ioctl_sock, SIOCSIFFLAGS, &ifr)) < 0) {
-		ring_logwarn("ioctl SIOCSIFFLAGS failed %d %m, %s", err, tap_name);
-		goto error;
-	}
-
-	// Get TAP interface index
-	m_tap_idx = if_nametoindex(tap_name);
-	if (!m_tap_idx) {
-		ring_logwarn("if_nametoindex failed to get tap index [%s]", tap_name);
-		goto error;
-	}
-
-	// Register tap device to the internal thread
-	g_p_fd_collection->addtapfd(m_tap_fd, this);
-	g_p_event_handler_manager->update_epfd(m_tap_fd, EPOLL_CTL_ADD, EPOLLIN | EPOLLPRI | EPOLLONESHOT);
-
-	close(ioctl_sock);
-
-	// Update ring statistics
-	m_ring_stat.p_ring_master = this;
-	m_ring_stat.n_type = RING_TAP;
-	m_ring_stat.tap.n_tap_fd = m_tap_fd;
-	memcpy(m_ring_stat.tap.s_tap_name, tap_name, IFNAMSIZ);
-
-	vma_stats_instance_create_ring_block(&m_ring_stat);
-
-	ring_logdbg("Tap device %s [fd=%d] was created successfully", ifr.ifr_name, m_tap_fd);
-
-	return;
-
-error:
-	ring_logerr("Tap device creation failed");
-
-	if (ioctl_sock >= 0) {
-		close(ioctl_sock);
-	}
-
-	if (m_tap_fd >= 0) {
-		close(m_tap_fd);
-		m_tap_fd = -1;
-	}
-}
-
-ring_bond_eth_netvsc::~ring_bond_eth_netvsc()
-{
-	// Release Rx buffers
-	g_buffer_pool_rx->put_buffers_thread_safe(&m_rx_pool, m_rx_pool.size());
-
-	// Remove tap from fd collection
-	if (m_tap_fd >= 0) {
-		if (g_p_event_handler_manager)
-		g_p_event_handler_manager->update_epfd(m_tap_fd, EPOLL_CTL_DEL, EPOLLIN | EPOLLPRI | EPOLLONESHOT);
-		if (g_p_fd_collection)
-			g_p_fd_collection->del_tapfd(m_tap_fd);
-		close(m_tap_fd);
-		m_tap_fd = -1;
-	}
-
-	vma_stats_instance_remove_ring_block(&m_ring_stat);
-}
-
-int ring_bond_eth_netvsc::poll_and_process_element_tap_rx(void* pv_fd_ready_array /* = NULL */)
-{
-	// Assume locked
-	int bytes = 0;
-	if(m_tap_data_available) {
-		if (m_rx_pool.size() || request_more_rx_buffers()) {
-			mem_buf_desc_t *buff = m_rx_pool.get_and_pop_front();
-			buff->sz_data = orig_os_api.read(m_tap_fd, buff->p_buffer, buff->sz_buffer);
-			if (buff->sz_data > 0 && m_bond_rings[0]->rx_process_buffer(buff, pv_fd_ready_array)) {
-				// Data was read and processed successfully
-				bytes = buff->sz_data;
-				m_ring_stat.n_rx_byte_count += bytes;
-				m_ring_stat.n_rx_pkt_count++;
-				m_ring_stat.tap.n_rx_buffers--;
-			} else {
-				// Unable to read data, return buffer to pool
-				m_rx_pool.push_front(buff);
-			}
-
-			m_tap_data_available = false;
-			g_p_event_handler_manager->update_epfd(m_tap_fd, EPOLL_CTL_MOD, EPOLLIN | EPOLLPRI | EPOLLONESHOT);
-		}
-	}
-
-	return bytes;
-}
-
-void ring_bond_eth_netvsc::prepare_flow_message(vma_msg_flow& data, flow_tuple& flow_spec_5t, msg_flow_t flow_action)
-{
-	memset(&data, 0, sizeof(data));
-	data.hdr.code = VMA_MSG_FLOW;
-	data.hdr.ver = VMA_AGENT_VER;
-	data.hdr.pid = getpid();
-	data.action = flow_action;
-	data.if_id = m_netvsc_idx;
-	data.tap_id = m_tap_idx;
-	if (flow_spec_5t.is_3_tuple()) {
-		data.type = VMA_MSG_FLOW_TCP_3T;
-		data.flow.t3.dst_ip = flow_spec_5t.get_dst_ip();
-		data.flow.t3.dst_port = flow_spec_5t.get_dst_port();
+	if (if_index == p_ndev->get_tap_if_index()) {
+		cur_slave = new ring_tap(if_index, this);
+		m_tap_ring = cur_slave;
 	} else {
-		data.type = VMA_MSG_FLOW_TCP_5T;
-		data.flow.t5.src_ip = flow_spec_5t.get_src_ip();
-		data.flow.t5.src_port = flow_spec_5t.get_src_port();
-		data.flow.t5.dst_ip = flow_spec_5t.get_dst_ip();
-		data.flow.t5.dst_port = flow_spec_5t.get_dst_port();
+		cur_slave = new ring_eth(if_index, this);
+		m_vf_ring = cur_slave;
 	}
-}
+	if (m_min_devices_tx_inline < 0) {
+		m_min_devices_tx_inline = cur_slave->get_max_tx_inline();
+	} else {
+		m_min_devices_tx_inline = min(m_min_devices_tx_inline, cur_slave->get_max_tx_inline());
+	}
+	m_bond_rings.push_back(cur_slave);
 
-
-bool ring_bond_eth_netvsc::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
-{
-	bool ret;
-	auto_unlocker lock(m_lock_ring_rx);
-
-	if (m_tap_fd < 0) {
-		ring_logwarn("Tap fd < 0, ignoring");
-		return false;
+	if (m_bond_rings.size() > 2) {
+		ring_logpanic("Error creating bond ring with more than %d resource", 2);
 	}
 
-	ret = ring_bond::attach_flow(flow_spec_5t, sink);
-	if (ret && flow_spec_5t.is_tcp()) {
-		int rc = 0;
-		struct vma_msg_flow data;
-		prepare_flow_message(data, flow_spec_5t, VMA_MSG_FLOW_ADD);
-
-		rc = g_p_agent->send_msg_flow(&data);
-		if (rc != 0) {
-			ring_logwarn("Add TC rule failed with error=%d", rc);
-			return false;
-		}
-	}
-
-	return true;
-}
-
-bool ring_bond_eth_netvsc::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
-{
-	bool ret;
-	auto_unlocker lock(m_lock_ring_rx);
-
-	if (m_tap_fd < 0) {
-		return false;
-	}
-
-	ret = ring_bond::detach_flow(flow_spec_5t, sink);
-	if (ret && flow_spec_5t.is_tcp()) {
-		int rc = 0;
-		struct vma_msg_flow data;
-		prepare_flow_message(data, flow_spec_5t, VMA_MSG_FLOW_DEL);
-
-		rc = g_p_agent->send_msg_flow(&data);
-		if (rc != 0) {
-			ring_logwarn("Del TC rule failed with error=%d", rc);
-			return false;
-		}
-	}
-
-	return ret;
-}
-
-bool ring_bond_eth_netvsc::request_more_rx_buffers()
-{
-	// Assume locked!
-	ring_logfuncall("Allocating additional %d buffers for internal use", m_sysvar_qp_compensation_level);
-
-	// TODO change owner to ring_tap
-	bool res = g_buffer_pool_rx->get_buffers_thread_safe(m_rx_pool, m_bond_rings[0], m_sysvar_qp_compensation_level, 0);
-	if (!res) {
-		ring_logfunc("Out of mem_buf_desc from TX free pool for internal object pool");
-		return false;
-	}
-
-	m_ring_stat.tap.n_rx_buffers = m_rx_pool.size();
-
-	return true;
+	popup_active_rings();
+	update_rx_channel_fds();
 }

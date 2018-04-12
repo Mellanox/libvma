@@ -243,9 +243,9 @@ void net_device_table_mgr::update_tbl()
 					set_max_mtu(p_net_device_val->get_mtu());
 				}
 
-				ip_data_vector_t* p_ip = p_net_device_val->get_ip_array();
-				for (size_t i = 0; i < p_ip->size(); i++) {
-					m_net_device_map_addr[(*p_ip)[i]->local_addr] = p_net_device_val;
+				const ip_data_vector_t& ip = p_net_device_val->get_ip_array();
+				for (size_t i = 0; i < ip.size(); i++) {
+					m_net_device_map_addr[ip[i]->local_addr] = p_net_device_val;
 				}
 				m_net_device_map_index[p_net_device_val->get_if_idx()] = p_net_device_val;
 			}
@@ -358,9 +358,9 @@ local_ip_list_t net_device_table_mgr::get_ip_list(int if_index)
 
 	for (; iter != m_net_device_map_index.end(); iter++) {
 		net_device_val* p_ndev = iter->second;
-		ip_data_vector_t* p_ip = p_ndev->get_ip_array();
-		for (i = 0; i < p_ip->size(); i++) {
-			ip_list.push_back(*(*p_ip)[i]);
+		const ip_data_vector_t& ip = p_ndev->get_ip_array();
+		for (i = 0; i < ip.size(); i++) {
+			ip_list.push_back(*ip[i]);
 		}
 		if (if_index > 0) {
 			break;
