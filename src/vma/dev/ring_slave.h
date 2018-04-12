@@ -43,6 +43,8 @@ public:
 	ring_slave(int if_index, ring_type_t type, ring* parent);
 	virtual ~ring_slave();
 
+	virtual void print_val();
+
 	virtual void        restart(ring_resource_creation_info_t* p_ring_info);
 
 	virtual int         get_num_resources() const { return 1; };

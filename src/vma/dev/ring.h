@@ -179,6 +179,8 @@ protected:
 	int*			m_p_n_rx_channel_fds;
 	ring*			m_parent;
 	bool			m_is_mp_ring;
+
+	int                 m_if_index;     /* Interface index */
 #ifdef DEFINED_SOCKETXTREME
 	/* queue of event completion elements
 	 * this queue is stored events related different sockinfo (sockets)
@@ -198,8 +200,6 @@ private:
 	/* This flag is enabled in case socketxtreme_poll() call is done */
 	bool                     m_vma_active;
 #endif // DEFINED_SOCKETXTREME
-
-	int                 m_if_index;     /* Interface index */
 };
 
 #endif /* RING_H */

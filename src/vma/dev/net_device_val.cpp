@@ -39,6 +39,7 @@
 #include <linux/if_ether.h>
 #include <linux/rtnetlink.h>
 #include <linux/netlink.h>
+#include <linux/if_tun.h>
 #include <sys/epoll.h>
 
 #include "utils/bullseye.h"
@@ -155,6 +156,7 @@ net_device_val::net_device_val(struct net_device_val_desc *desc) : m_lock("net_d
 	m_bond_xmit_hash_policy = XHP_LAYER_2;
 	m_bond_fail_over_mac = 0;
 	m_transport_type = VMA_TRANSPORT_UNKNOWN;
+	memset(&m_netvsc, 0, sizeof(m_netvsc));
 
 	if (NULL == desc) {
 		nd_logerr("Invalid net_device_val name=%s", "NA");
@@ -221,9 +223,17 @@ net_device_val::net_device_val(struct net_device_val_desc *desc) : m_lock("net_d
 	ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(get_ifname_link());
 	switch (m_bond) {
 	case NETVSC:
-		/* netvsc device can be offloaded or not */
 		if (get_type() == ARPHRD_ETHER) {
-			valid = true;
+			valid = (bool)(!netvsc_create());
+			if (valid) {
+				struct ifaddrs slave;
+				if (get_netvsc_slave(get_ifname_link(), &slave)) {
+					valid = verify_eth_qp_creation(slave.ifa_name);
+					if (!valid) {
+						netvsc_destroy();
+					}
+				}
+			}
 		}
 		break;
 	case LAG_8023ad:
@@ -275,6 +285,11 @@ net_device_val::net_device_val(struct net_device_val_desc *desc) : m_lock("net_d
 net_device_val::~net_device_val()
 {
 	auto_unlocker lock(m_lock);
+
+	if (NETVSC == m_bond) {
+		netvsc_destroy();
+	}
+
 	rings_hash_map_t::iterator ring_iter;
 	while ((ring_iter = m_h_ring_map.begin()) != m_h_ring_map.end()) {
 		delete THE_RING;
@@ -282,6 +297,7 @@ net_device_val::~net_device_val()
 		m_h_ring_map.erase(ring_iter);
 		delete tmp;
 	}
+
 	rings_key_redirection_hash_map_t::iterator redirect_iter;
 	while ((redirect_iter = m_h_ring_key_redirection_map.begin()) !=
 		m_h_ring_key_redirection_map.end()) {
@@ -491,7 +507,7 @@ void net_device_val::print_val()
 
 	nd_logdbg("  slave list: %s", (m_slaves.empty() ? "empty " : ""));
 	for (i = 0; i < m_slaves.size(); i++) {
-		char if_name[IFNAMSIZ + 1] = {0};
+		char if_name[IFNAMSIZ] = {0};
 
 		if_name[0] = '\0';
 		if_indextoname(m_slaves[i]->if_index, if_name);
@@ -515,20 +531,17 @@ void net_device_val::set_slave_array()
 
 	if (m_bond == NETVSC) {
 		struct ifaddrs slave_ifa;
-		if (!get_netvsc_slave(get_ifname_link(), &slave_ifa)) {
-			m_state = INVALID;
-			return;
-		}
-
-		if (!(slave_ifa.ifa_flags & IFF_UP)) {
-			nd_logwarn("VF %s is down! VMA failed to offload %s", slave_ifa.ifa_name, get_ifname_link());
-			m_state = INVALID;
-			return;
-		}
-
 		slave_data_t* s = new slave_data_t;
-		s->if_index = if_nametoindex(slave_ifa.ifa_name);
+		s->if_index = get_tap_if_index();
 		m_slaves.push_back(s);
+
+		if (get_netvsc_slave(get_ifname_link(), &slave_ifa)) {
+			if (slave_ifa.ifa_flags & IFF_UP) {
+				s = new slave_data_t;
+				s->if_index = if_nametoindex(slave_ifa.ifa_name);
+				m_slaves.push_back(s);
+			}
+		}
 	} else if (m_bond == NO_BOND) {
 		slave_data_t* s = new slave_data_t;
 		s->if_index = if_nametoindex(get_ifname());
@@ -570,7 +583,7 @@ void net_device_val::set_slave_array()
 	}
 
 	for (uint16_t i = 0; i<m_slaves.size(); i++) {
-		char if_name[IFNAMSIZ + 1] = {0};
+		char if_name[IFNAMSIZ] = {0};
 		char base_ifname[IFNAMSIZ];
 
 		if (!if_indextoname(m_slaves[i]->if_index, if_name)) {
@@ -594,7 +607,11 @@ void net_device_val::set_slave_array()
 		}
 
 		if (m_bond == NETVSC) {
-			m_slaves[i]->active = true;
+			if ((m_slaves.size() > 1) && (m_slaves[i]->if_index == get_tap_if_index())) {
+				m_slaves[i]->active = false;
+			} else {
+				m_slaves[i]->active = true;
+			}
 		}
 
 		if (m_bond == NO_BOND) {
@@ -615,7 +632,7 @@ void net_device_val::set_slave_array()
 	}
 }
 
-slave_data_t* net_device_val::get_slave(int if_index)
+const slave_data_t* net_device_val::get_slave(int if_index)
 {
 	slave_data_vector_t::iterator iter;
 	for (iter = m_slaves.begin(); iter != m_slaves.end(); iter++) {
@@ -1148,7 +1165,7 @@ void net_device_val_eth::configure()
 		m_state = INVALID;
 	}
 	if(!m_vlan && (get_flags() & IFF_MASTER)) {
-		char if_name[IFNAMSIZ + 1] = {0};
+		char if_name[IFNAMSIZ] = {0};
 
 		if (!if_indextoname(m_slaves[0]->if_index, if_name)) {
 			nd_logerr("Can not find interface name by index=%d", m_slaves[0]->if_index);
@@ -1162,7 +1179,6 @@ void net_device_val_eth::configure()
 ring* net_device_val_eth::create_ring(resource_allocation_key *key)
 {
 	ring* ring = NULL;
-	ring_bond* p_ring = NULL;
 
 	// if this is a ring profile key get the profile from the global map
 	if (key->get_ring_profile_key()) {
@@ -1205,25 +1221,10 @@ ring* net_device_val_eth::create_ring(resource_allocation_key *key)
 			case ACTIVE_BACKUP:
 			case LAG_8023ad:
 				ring = new ring_bond_eth(get_if_idx());
-				p_ring = dynamic_cast<ring_bond*>(ring);
-				for (size_t i = 0; p_ring && (i < m_slaves.size()); i++) {
-					p_ring->slave_create(m_slaves[i]->if_index);
-				}
 				break;
 			case NETVSC:
-				{
-				ring_bond_eth_netvsc* p_ring_netvsc = NULL;
-				ring = new ring_bond_eth_netvsc(get_if_idx());
-				p_ring = dynamic_cast<ring_bond*>(ring);
-				for (size_t i = 0; p_ring && (i < m_slaves.size()); i++) {
-					p_ring->slave_create(m_slaves[i]->if_index);
-				}
-				p_ring_netvsc = dynamic_cast<ring_bond_eth_netvsc*>(ring);
-				if (p_ring_netvsc) {
-					p_ring_netvsc->create_resources();
-				}
+				ring = new ring_bond_netvsc(get_if_idx());
 				break;
-				}
 			default:
 				nd_logdbg("Unknown ring type");
 				break;
@@ -1311,19 +1312,21 @@ void net_device_val_ib::configure()
 ring* net_device_val_ib::create_ring(resource_allocation_key *key)
 {
 	ring* ring = NULL;
-	ring_bond* p_ring = NULL;
 
 	NOT_IN_USE(key);
 
 	try {
-		if (m_bond == NO_BOND) {
+		switch (m_bond) {
+		case NO_BOND:
 			ring = new ring_ib(get_if_idx());
-		} else {
+			break;
+		case ACTIVE_BACKUP:
+		case LAG_8023ad:
 			ring = new ring_bond_ib(get_if_idx());
-			p_ring = dynamic_cast<ring_bond*>(ring);
-			for (size_t i = 0; p_ring && (i < m_slaves.size()); i++) {
-				p_ring->slave_create(m_slaves[i]->if_index);
-			}
+			break;
+		default:
+			nd_logdbg("Unknown ring type");
+			break;
 		}
 	} catch (vma_error &error) {
 		nd_logdbg("failed creating ring %s", error.message);
@@ -1396,15 +1399,6 @@ bool net_device_val::verify_bond_ipoib_or_eth_qp_creation()
 		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 	}
 	return bond_ok;
-}
-
-bool net_device_val::verify_netvsc_ipoib_or_eth_qp_creation(const char *slave_name)
-{
-	if (m_type == ARPHRD_INFINIBAND) {
-		return false;
-	}
-
-	return verify_eth_qp_creation(slave_name);
 }
 
 //interface name can be slave while ifa struct can describe bond
@@ -1565,4 +1559,130 @@ release_resources:
 		VALGRIND_MAKE_MEM_UNDEFINED(channel, sizeof(ibv_comp_channel));
 	}
 	return success;
+}
+
+int net_device_val::netvsc_create()
+{
+	#define TAP_NAME_FORMAT "t%x%x" // t<pid7c><fd7c>
+	#define TAP_STR_LENGTH	512
+	#define TAP_DISABLE_IPV6 "sysctl -w net.ipv6.conf.%s.disable_ipv6=1"
+
+	int rc = 0;
+	struct ifreq ifr;
+	int ioctl_sock = -1;
+	char command_str[TAP_STR_LENGTH], return_str[TAP_STR_LENGTH], tap_name[IFNAMSIZ];
+	unsigned char hw_addr[ETH_ALEN];
+
+	/* Open TAP device */
+	if( (m_netvsc.tap_fd = orig_os_api.open("/dev/net/tun", O_RDWR)) < 0 ) {
+		nd_logerr("FAILED to open tap %m");
+		rc = -errno;
+		goto error;
+	}
+
+	/* Tap name */
+	rc = snprintf(tap_name, sizeof(tap_name), TAP_NAME_FORMAT, getpid() & 0xFFFFFFF, m_netvsc.tap_fd & 0xFFFFFFF);
+	if (unlikely(((int)sizeof(tap_name) < rc) || (rc < 0))) {
+		nd_logerr("FAILED to create tap name %m");
+		rc = -errno;
+		goto error;
+	}
+
+	/* Init ifr */
+	memset(&ifr, 0, sizeof(ifr));
+	rc = snprintf(ifr.ifr_name, IFNAMSIZ, "%s", tap_name);
+	if (unlikely((IFNAMSIZ < rc) || (rc < 0))) {
+		nd_logerr("FAILED to create tap name %m");
+		rc = -errno;
+		goto error;
+	}
+
+	/* Setting TAP attributes */
+	ifr.ifr_flags = IFF_TAP | IFF_NO_PI | IFF_ONE_QUEUE;
+	if ((rc = orig_os_api.ioctl(m_netvsc.tap_fd, TUNSETIFF, (void *) &ifr)) < 0) {
+		ring_logerr("ioctl failed fd = %d, %d %m", m_netvsc.tap_fd, rc);
+		rc = -errno;
+		goto error;
+	}
+
+	/* Set TAP fd nonblocking */
+	if ((rc = orig_os_api.fcntl(m_netvsc.tap_fd, F_SETFL, O_NONBLOCK))  < 0) {
+		ring_logerr("ioctl failed fd = %d, %d %m", m_netvsc.tap_fd, rc);
+		rc = -errno;
+		goto error;
+	}
+
+	/* Disable Ipv6 for TAP interface */
+	snprintf(command_str, TAP_STR_LENGTH, TAP_DISABLE_IPV6, tap_name);
+	if (run_and_retreive_system_command(command_str, return_str, TAP_STR_LENGTH)  < 0) {
+		ring_logerr("sysctl ipv6 failed fd = %d, %m", m_netvsc.tap_fd);
+		rc = -errno;
+		goto error;
+	}
+
+	/* Create socket */
+	if ((ioctl_sock = orig_os_api.socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
+		ring_logerr("FAILED to open socket");
+		rc = -errno;
+		goto error;
+	}
+
+	/* Set MAC address */
+	ifr.ifr_hwaddr.sa_family = AF_LOCAL;
+	get_local_ll_addr(get_ifname_link(), hw_addr, ETH_ALEN, false);
+	memcpy(ifr.ifr_hwaddr.sa_data, hw_addr, ETH_ALEN);
+	if ((rc = orig_os_api.ioctl(ioctl_sock, SIOCSIFHWADDR, &ifr)) < 0) {
+		ring_logerr("ioctl SIOCSIFHWADDR failed %d %m, %s", rc, tap_name);
+		rc = -errno;
+		goto error;
+	}
+
+	/* Set link UP */
+	ifr.ifr_flags |= (IFF_UP | IFF_SLAVE);
+	if ((rc = orig_os_api.ioctl(ioctl_sock, SIOCSIFFLAGS, &ifr)) < 0) {
+		ring_logerr("ioctl SIOCGIFFLAGS failed %d %m, %s", rc, tap_name);
+		rc = -errno;
+		goto error;
+	}
+
+	/* Get TAP interface index */
+	m_netvsc.tap_if_index = if_nametoindex(tap_name);
+	if (!m_netvsc.tap_if_index) {
+		ring_logerr("if_nametoindex failed to get tap index [%s]", tap_name);
+		rc = -errno;
+		goto error;
+	}
+
+	orig_os_api.close(ioctl_sock);
+
+	ring_logdbg("Tap device %d: %s [fd=%d] was created successfully",
+			m_netvsc.tap_if_index, ifr.ifr_name, m_netvsc.tap_fd);
+
+	return 0;
+
+error:
+	ring_logerr("Tap device creation failed");
+
+	if (ioctl_sock >= 0) {
+		orig_os_api.close(ioctl_sock);
+	}
+
+	if (m_netvsc.tap_fd >= 0) {
+		orig_os_api.close(m_netvsc.tap_fd);
+	}
+
+	m_netvsc.tap_if_index = 0;
+	m_netvsc.tap_fd = -1;
+
+	return rc;
+}
+
+void net_device_val::netvsc_destroy()
+{
+	if (m_netvsc.tap_fd >= 0) {
+		orig_os_api.close(m_netvsc.tap_fd);
+
+		m_netvsc.tap_if_index = 0;
+		m_netvsc.tap_fd = -1;
+	}
 }

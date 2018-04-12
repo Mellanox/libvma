@@ -236,11 +236,15 @@ public:
 	inline char* get_ifname_link() { return m_base_name; }
 	inline uint8_t* get_l2_if_addr() { return m_l2_if_addr; }
 	inline uint8_t* get_l2_bc_addr() { return m_l2_bc_addr; }
-	ip_data_vector_t* get_ip_array() { return &m_ip;}
-	slave_data_t* get_slave(int if_index);
+	const ip_data_vector_t& get_ip_array() const { return m_ip; }
+	const slave_data_vector_t& get_slave_array() const { return m_slaves; }
+	const slave_data_t* get_slave(int if_index);
 
 	void set_str();
 	void print_val();
+
+	inline int get_tap_if_index() { return m_netvsc.tap_if_index; }
+	inline int get_tap_fd() { return m_netvsc.tap_fd; }
 
 	ring*                   reserve_ring(resource_allocation_key*); // create if not exists
 	bool 			release_ring(resource_allocation_key*); // delete from m_hash if ref_cnt == 0
@@ -288,7 +292,6 @@ private:
 	void 			verify_bonding_mode();
 	bool 			verify_eth_qp_creation(const char* ifname);
 	bool 			verify_bond_ipoib_or_eth_qp_creation();
-	bool 			verify_netvsc_ipoib_or_eth_qp_creation(const char *slave_name);
 	bool 			verify_ipoib_or_eth_qp_creation(const char* interface_name);
 	bool 			verify_enable_ipoib(const char* ifname);
 
@@ -296,6 +299,8 @@ private:
 	resource_allocation_key* ring_key_redirection_release(resource_allocation_key *key);
 
 	bool get_up_and_active_slaves(bool* up_and_active_slaves, size_t size);
+	int netvsc_create();
+	void netvsc_destroy();
 
 	/* See: RFC 3549 2.3.3.1. */
 	int              m_if_idx;         /* Uniquely identifies interface (not unique: eth4 and eth4:5 has the same idx) */
@@ -312,6 +317,12 @@ private:
 	std::string      m_name;           /* container for ifname */
 	char             m_str[BUFF_SIZE]; /* detailed information about device */
 	char             m_base_name[IFNAMSIZ]; /* base name of device basing ifname */
+
+	/* These fields are NETVSC mode specific */
+	struct {
+		int tap_if_index;              /* if_index of tap device */
+		int tap_fd;                    /* file descriptor of tap device */
+	} m_netvsc;
 };
 
 class net_device_val_eth : public net_device_val

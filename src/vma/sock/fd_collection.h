@@ -44,7 +44,7 @@
 #include "vma/event/timer_handler.h"
 #include "vma/event/event_handler_manager.h"
 #include <vma/sock/cleanable_obj.h>
-#include "vma/dev/ring_bond.h"
+#include "vma/dev/ring_tap.h"
 
 typedef vma_list_t<socket_fd_api, socket_fd_api::pendig_to_remove_node_offset> sock_fd_api_list_t;
 typedef vma_list_t<epfd_info, epfd_info::epfd_info_node_offset> epfd_info_list_t;
@@ -113,7 +113,7 @@ public:
 	 * @param p_ring: pointer to ring owner of the tap.
 	 * @return 0 on success, -1 on failure.
 	 */
-	int			addtapfd(int tapfd, ring_bond_eth_netvsc* p_ring);
+	int			addtapfd(int tapfd, ring_tap* p_ring);
 
 	/**
 	 * Remove pipeinfo/sockinfo.
@@ -157,9 +157,9 @@ public:
 	inline cq_channel_info* get_cq_channel_fd(int fd);
 
 	/**
-	 * Get ring_bond_eth_netvsc by tap fd.
+	 * Get rint_tap by tap fd.
 	 */
-	inline ring_bond_eth_netvsc* get_tapfd(int fd);
+	inline ring_tap* get_tapfd(int fd);
 
 	/**
 	 * Get the fd_map size.
@@ -192,7 +192,7 @@ private:
 	socket_fd_api**			m_p_sockfd_map;
 	epfd_info**			m_p_epfd_map;
 	cq_channel_info**		m_p_cq_channel_map;
-	ring_bond_eth_netvsc**		m_p_tap_map;
+	ring_tap**		m_p_tap_map;
 
 	epfd_info_list_t		m_epfd_lst;
 	//Contains fds which are in closing process
@@ -242,7 +242,7 @@ inline cls* fd_collection::get(int fd, cls **map_type)
 inline bool fd_collection::set_immediate_os_sample(int fd)
 {
 	epfd_info* epfd_fd;
-	ring_bond_eth_netvsc* p_ring;
+	ring_tap* p_ring;
 
 	auto_unlocker locker(*this);
 
@@ -274,7 +274,7 @@ inline cq_channel_info* fd_collection::get_cq_channel_fd(int fd)
 	return get(fd, m_p_cq_channel_map);
 }
 
-inline ring_bond_eth_netvsc* fd_collection::get_tapfd(int fd)
+inline ring_tap* fd_collection::get_tapfd(int fd)
 {
 	return get(fd, m_p_tap_map);
 }
