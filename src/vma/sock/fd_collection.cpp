@@ -85,8 +85,8 @@ fd_collection::fd_collection() :
 	m_p_cq_channel_map = new cq_channel_info*[m_n_fd_map_size];
 	memset(m_p_cq_channel_map, 0, m_n_fd_map_size * sizeof(cq_channel_info*));
 
-	m_p_tap_map = new ring_bond_eth_netvsc*[m_n_fd_map_size];
-	memset(m_p_tap_map, 0, m_n_fd_map_size * sizeof(ring_bond_eth_netvsc*));
+	m_p_tap_map = new ring_tap*[m_n_fd_map_size];
+	memset(m_p_tap_map, 0, m_n_fd_map_size * sizeof(ring_tap*));
 }
 
 fd_collection::~fd_collection()
@@ -474,7 +474,7 @@ int fd_collection::addepfd(int epfd, int size)
 }
 
 
-int fd_collection::addtapfd(int tapfd, ring_bond_eth_netvsc* p_ring)
+int fd_collection::addtapfd(int tapfd, ring_tap* p_ring)
 {
 	fdcoll_logfunc("tapfd=%d, p_ring=%p", tapfd, p_ring);
 
@@ -483,10 +483,8 @@ int fd_collection::addtapfd(int tapfd, ring_bond_eth_netvsc* p_ring)
 
 	lock();
 
-	// Sanity check to remove any old object using the same fd!!
-	ring_bond_eth_netvsc* p_ring_bond_eth_netvsc = get_tapfd(tapfd);
-	if (p_ring_bond_eth_netvsc) {
-		fdcoll_logwarn("[tapfd=%d] already exist in the collection (ring %p)", tapfd, p_ring_bond_eth_netvsc);
+	if (get_tapfd(tapfd)) {
+		fdcoll_logwarn("[tapfd=%d] already exist in the collection (ring %p)", tapfd, get_tapfd(tapfd));
 		return -1;
 	}
 

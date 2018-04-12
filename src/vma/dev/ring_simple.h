@@ -213,7 +213,6 @@ public:
 	friend class rfs_uc_tcp_gro;
 	friend class rfs_mc;
 	friend class ring_bond;
-	friend class ring_bond_eth_netvsc;
 
 protected:
 	virtual qp_mgr*		create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) = 0;

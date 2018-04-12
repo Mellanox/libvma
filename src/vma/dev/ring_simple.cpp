@@ -251,7 +251,7 @@ ring_simple::~ring_simple()
 void ring_simple::create_resources(uint16_t partition)
 {
 	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
-	slave_data_t * p_slave = p_ndev->get_slave(get_if_index());
+	const slave_data_t * p_slave = p_ndev->get_slave(get_if_index());
 
 	ring_logdbg("new ring_simple()");
 

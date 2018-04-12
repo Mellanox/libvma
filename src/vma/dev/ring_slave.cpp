@@ -41,7 +41,7 @@
 ring_slave::ring_slave(int if_index, ring_type_t type, ring* parent): ring()
 {
 	net_device_val* p_ndev = NULL;
-	slave_data_t * p_slave = NULL;
+	const slave_data_t * p_slave = NULL;
 
 	/* Configure ring() fields */
 	set_parent(parent);
@@ -70,13 +70,22 @@ ring_slave::ring_slave(int if_index, ring_type_t type, ring* parent): ring()
 	}
 
 	vma_stats_instance_create_ring_block(m_p_ring_stat);
+
+	print_val();
 }
 
 ring_slave::~ring_slave()
 {
+	print_val();
+
 	if (m_p_ring_stat) {
 		vma_stats_instance_remove_ring_block(m_p_ring_stat);
 	}
+}
+
+void ring_slave::print_val()
+{
+	ring::print_val();
 }
 
 void ring_slave::restart(ring_resource_creation_info_t* p_ring_info)
