@@ -198,7 +198,6 @@ private:
 	//Contains fds which are in closing process
 	sock_fd_api_list_t		m_pendig_to_remove_lst;
 
-	rdma_event_channel* 		m_p_cma_event_channel;
 	void*				m_timer_handle;
 
 	const bool			m_b_sysvar_offloaded_sockets;
