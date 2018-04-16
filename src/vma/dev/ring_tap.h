@@ -52,16 +52,13 @@ public:
 			uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	virtual int drain_and_proccess();
 
-	virtual bool reclaim_recv_buffers(descq_t *rx_reuse) {
-		NOT_IN_USE(rx_reuse);
-		return true;
-	}
+	virtual bool reclaim_recv_buffers(descq_t *rx_reuse);
+	virtual bool reclaim_recv_buffers(mem_buf_desc_t *buff);
+	virtual bool rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array);
 
-	virtual bool rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array) {
-		NOT_IN_USE(p_rx_wc_buf_desc);
-		NOT_IN_USE(pv_fd_ready_array);
-		return true;
-	}
+	virtual void send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
+	virtual void send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block);
+
 	virtual void mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc) {
 		NOT_IN_USE(p_rx_wc_buf_desc);
 	}
@@ -87,16 +84,6 @@ public:
 		NOT_IN_USE(b_accounting);
 		NOT_IN_USE(trylock);
 		return 0;
-	}
-	virtual void send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr) {
-		NOT_IN_USE(id);
-		NOT_IN_USE(p_send_wqe);
-		NOT_IN_USE(attr);
-	}
-	virtual void send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block) {
-		NOT_IN_USE(id);
-		NOT_IN_USE(p_send_wqe);
-		NOT_IN_USE(b_block);
 	}
 	virtual bool get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe) {
 		NOT_IN_USE(id);
@@ -137,16 +124,35 @@ public:
 protected:
 
 private:
-	int process_element_rx(void* pv_fd_ready_array);
-	bool request_more_rx_buffers();
 	void prepare_flow_message(vma_msg_flow& data,
 			flow_tuple& flow_spec_5t, msg_flow_t flow_action);
+	int process_element_rx(void* pv_fd_ready_array);
+	bool request_more_rx_buffers();
+	int send_buffer(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
+	void send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe);
+	void flow_udp_del_all();
+	void flow_tcp_del_all();
 
 	ring_slave*      m_vf_ring;
 	const uint32_t   m_sysvar_qp_compensation_level;
 	descq_t          m_rx_pool;
 	int              m_tap_fd;
 	bool             m_tap_data_available;
+	lock_spin_recursive	m_lock_ring_rx;
+	lock_spin_recursive	m_lock_ring_tx;
+
+	bool             m_flow_tag_enabled;
+	in_addr_t        m_local_if;
+	uint32_t         m_mtu;
+	uint16_t         m_partition;
+	// For IB MC flow, the port is zeroed in the ibv_flow_spec when calling to ibv_flow_spec().
+	// It means that for every MC group, even if we have sockets with different ports - only one rule in the HW.
+	// So the hash map below keeps track of the number of sockets per rule so we know when to call ibv_attach and ibv_detach
+	rule_filter_map_t	m_l2_mc_ip_attach_map;
+	rule_filter_map_t	m_tcp_dst_port_attach_map;
+	flow_spec_tcp_map_t	m_flow_tcp_map;
+	flow_spec_udp_map_t	m_flow_udp_mc_map;
+	flow_spec_udp_map_t	m_flow_udp_uc_map;
 };
 
 
