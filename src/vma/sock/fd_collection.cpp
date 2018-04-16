@@ -62,7 +62,6 @@ fd_collection* g_p_fd_collection = NULL;
 
 fd_collection::fd_collection() :
 	lock_mutex_recursive("fd_collection"),
-	m_p_cma_event_channel(NULL),
 	m_timer_handle(0),
 	m_b_sysvar_offloaded_sockets(safe_mce_sys().offloaded_sockets)
 {
@@ -197,23 +196,6 @@ void fd_collection::clear()
 		}
 	}
 
-
-	if (!g_is_forked_child && m_p_cma_event_channel) {
-		fdcoll_logdbg("Removing rdma_cm event_channel");
-
-		// Set event channel as non-blocking
-		set_fd_block_mode(m_p_cma_event_channel->fd, false);
-
-		// Remove all pending events in cahnnel
-		struct rdma_cm_event* p_rdma_cm_event = NULL;
-		while (rdma_get_cm_event(m_p_cma_event_channel, &p_rdma_cm_event) == 0) {
-			rdma_ack_cm_event(p_rdma_cm_event);
-		}
-
-		rdma_destroy_event_channel(m_p_cma_event_channel);
-	}
-
-	m_p_cma_event_channel = NULL;
 	unlock();
 	fdcoll_logfunc("done");
 }
@@ -238,17 +220,6 @@ int fd_collection::addsocket(int fd, int domain, int type, bool check_offload /*
 
 	if (!is_valid_fd(fd))
 		return -1;
-
-	// On-demand creation of the fd_collection dedicated rdma event channel
-	if (m_p_cma_event_channel == NULL) {
-		m_p_cma_event_channel = rdma_create_event_channel();
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (m_p_cma_event_channel == NULL) {
-			fdcoll_logpanic("failed to create event channel");
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-		fdcoll_logdbg("On-demand creation of cma event channel on fd=%d", m_p_cma_event_channel->fd);
-	}
 
 	lock();
 
