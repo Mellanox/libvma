@@ -49,7 +49,7 @@
 class rfs_mc : public rfs
 {
 public:
-	rfs_mc(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* rule_filter = NULL, int32_t flow_tag_id = 0);
+	rfs_mc(flow_tuple *flow_spec_5t, ring_slave *p_ring, rfs_rule_filter* rule_filter = NULL, int32_t flow_tag_id = 0);
 
 	virtual bool rx_dispatch_packet(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array);
 
