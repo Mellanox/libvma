@@ -43,12 +43,19 @@
 #define TCP_H_LEN_TIMESTAMP 8
 
 
-rfs_uc_tcp_gro::rfs_uc_tcp_gro(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* rule_filter, uint32_t flow_tag_id) :
+rfs_uc_tcp_gro::rfs_uc_tcp_gro(flow_tuple *flow_spec_5t, ring_slave *p_ring, rfs_rule_filter* rule_filter, uint32_t flow_tag_id) :
 	rfs_uc(flow_spec_5t, p_ring, rule_filter, flow_tag_id),
-	m_p_gro_mgr(&(p_ring->m_gro_mgr)), m_b_active(false), m_b_reserved(false)
+	m_b_active(false), m_b_reserved(false)
 {
+	ring_simple* p_check_ring = dynamic_cast<ring_simple*>(p_ring);
+
+	if (!p_check_ring) {
+		rfs_logpanic("Incompatible ring type");
+	}
+
+	m_p_gro_mgr = &(p_check_ring->m_gro_mgr);
 	m_n_buf_max = m_p_gro_mgr->get_buf_max();
-	uint32_t mtu = p_ring->get_mtu();
+	uint32_t mtu = p_check_ring->get_mtu();
 	m_n_byte_max = m_p_gro_mgr->get_byte_max() - mtu;
 	memset(&m_gro_desc, 0, sizeof(m_gro_desc));
 }
@@ -145,6 +152,12 @@ struct __attribute__((packed)) tcphdr_ts
 
 void rfs_uc_tcp_gro::flush_gro_desc(void* pv_fd_ready_array)
 {
+	ring_simple* p_ring = dynamic_cast<ring_simple*>(m_p_ring);
+
+	if (!p_ring) {
+		rfs_logpanic("Incompatible ring type");
+	}
+
 	if (!m_b_active) return;
 
 	if (m_gro_desc.buf_count > 1) {
@@ -179,7 +192,7 @@ void rfs_uc_tcp_gro::flush_gro_desc(void* pv_fd_ready_array)
 					m_gro_desc.ip_tot_len - 40, m_gro_desc.buf_count);
 
 	if (!rfs_uc::rx_dispatch_packet(m_gro_desc.p_first, pv_fd_ready_array)) {
-		m_p_ring->reclaim_recv_buffers_no_lock(m_gro_desc.p_first);
+		p_ring->reclaim_recv_buffers_no_lock(m_gro_desc.p_first);
 	}
 
 	m_b_active = false;

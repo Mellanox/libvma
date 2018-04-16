@@ -221,7 +221,7 @@ public:
 class rfs
 {
 public:
-	rfs(flow_tuple *flow_spec_5t, ring_simple *p_ring,
+	rfs(flow_tuple *flow_spec_5t, ring_slave *p_ring,
 	    rfs_rule_filter* rule_filter = NULL, uint32_t flow_tag_id = 0);
 	virtual ~rfs();
 
@@ -241,7 +241,7 @@ public:
 
 protected:
 	flow_tuple		m_flow_tuple;
-	ring_simple*		m_p_ring;
+	ring_slave*		m_p_ring;
 	rfs_rule_filter*	m_p_rule_filter;
 	attach_flow_data_vector_t m_attach_flow_data_vector;
 	pkt_rcvr_sink**		m_sinks_list;

@@ -40,7 +40,7 @@
 #define MODULE_NAME 		"rfs_uc"
 
 
-rfs_uc::rfs_uc(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* rule_filter, uint32_t flow_tag_id) :
+rfs_uc::rfs_uc(flow_tuple *flow_spec_5t, ring_slave *p_ring, rfs_rule_filter* rule_filter, uint32_t flow_tag_id) :
 	rfs(flow_spec_5t, p_ring, rule_filter, flow_tag_id)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -49,14 +49,20 @@ rfs_uc::rfs_uc(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* r
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	if(!prepare_flow_spec()) {
+	if ((m_p_ring->get_type() == RING_SIMPLE) && !prepare_flow_spec()) {
 		throw_vma_exception("rfs_uc: Incompatible transport type");
 	}
 }
 
 bool rfs_uc::prepare_flow_spec()
 {
-	transport_type_t type = m_p_ring->get_transport_type();
+	ring_simple* p_ring = dynamic_cast<ring_simple*>(m_p_ring);
+
+	if (!p_ring) {
+		rfs_logpanic("Incompatible ring type");
+	}
+
+	transport_type_t type = p_ring->get_transport_type();
 	/*
 	 * todo note that ring is not locked here.
 	 * we touch members that should not change during the ring life.
@@ -76,19 +82,19 @@ bool rfs_uc::prepare_flow_spec()
 			attach_flow_data_ib_ipv4_tcp_udp_v2_t* attach_flow_data_ib_v2 = NULL;
 
 #ifdef DEFINED_IBV_FLOW_SPEC_IB
-			if (0 == m_p_ring->m_p_qp_mgr->get_underly_qpn()) {
+			if (0 == p_ring->m_p_qp_mgr->get_underly_qpn()) {
 				attach_flow_data_ib_ipv4_tcp_udp_v1_t* attach_flow_data_ib_v1 = NULL;
 
-				attach_flow_data_ib_v1 = new attach_flow_data_ib_ipv4_tcp_udp_v1_t(m_p_ring->m_p_qp_mgr);
+				attach_flow_data_ib_v1 = new attach_flow_data_ib_ipv4_tcp_udp_v1_t(p_ring->m_p_qp_mgr);
 				ibv_flow_spec_ib_set_by_dst_qpn(&(attach_flow_data_ib_v1->ibv_flow_attr.ib),
-							htonl(((IPoIB_addr*)m_p_ring->m_p_l2_addr)->get_qpn()));
+							htonl(((IPoIB_addr*)p_ring->m_p_l2_addr)->get_qpn()));
 				p_ipv4 = &(attach_flow_data_ib_v1->ibv_flow_attr.ipv4);
 				p_tcp_udp = &(attach_flow_data_ib_v1->ibv_flow_attr.tcp_udp);
 				p_attach_flow_data = (attach_flow_data_t*)attach_flow_data_ib_v1;
 				break;
 			}
 #endif
-			attach_flow_data_ib_v2 = new attach_flow_data_ib_ipv4_tcp_udp_v2_t(m_p_ring->m_p_qp_mgr);
+			attach_flow_data_ib_v2 = new attach_flow_data_ib_ipv4_tcp_udp_v2_t(p_ring->m_p_qp_mgr);
 
 			p_ipv4 = &(attach_flow_data_ib_v2->ibv_flow_attr.ipv4);
 			p_tcp_udp = &(attach_flow_data_ib_v2->ibv_flow_attr.tcp_udp);
@@ -97,11 +103,11 @@ bool rfs_uc::prepare_flow_spec()
 			}
 		case VMA_TRANSPORT_ETH:
 			{
-			attach_flow_data_eth = new attach_flow_data_eth_ipv4_tcp_udp_t(m_p_ring->m_p_qp_mgr);
+			attach_flow_data_eth = new attach_flow_data_eth_ipv4_tcp_udp_t(p_ring->m_p_qp_mgr);
 
 			ibv_flow_spec_eth_set(&(attach_flow_data_eth->ibv_flow_attr.eth),
-						m_p_ring->m_p_l2_addr->get_address(),
-						htons(m_p_ring->m_p_qp_mgr->get_partiton()));
+					p_ring->m_p_l2_addr->get_address(),
+						htons(p_ring->m_p_qp_mgr->get_partiton()));
 			p_ipv4 = &(attach_flow_data_eth->ibv_flow_attr.ipv4);
 			p_tcp_udp = &(attach_flow_data_eth->ibv_flow_attr.tcp_udp);
 			p_flow_tag = &(attach_flow_data_eth->ibv_flow_attr.flow_tag);

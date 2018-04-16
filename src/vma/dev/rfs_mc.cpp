@@ -39,7 +39,7 @@
 #define MODULE_NAME 		"rfs_mc"
 
 
-rfs_mc::rfs_mc(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* rule_filter /*= NULL*/, int flow_tag_id /*=0*/):
+rfs_mc::rfs_mc(flow_tuple *flow_spec_5t, ring_slave *p_ring, rfs_rule_filter* rule_filter /*= NULL*/, int flow_tag_id /*=0*/):
 	rfs (flow_spec_5t, p_ring, rule_filter, flow_tag_id)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -48,14 +48,20 @@ rfs_mc::rfs_mc(flow_tuple *flow_spec_5t, ring_simple *p_ring, rfs_rule_filter* r
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	if (!prepare_flow_spec()) {
+	if ((m_p_ring->get_type() == RING_SIMPLE) && !prepare_flow_spec()) {
 		throw_vma_exception("IB multicast offload is not supported");
 	}
 }
 
 bool rfs_mc::prepare_flow_spec()
 {
-	transport_type_t type = m_p_ring->get_transport_type();
+	ring_simple* p_ring = dynamic_cast<ring_simple*>(m_p_ring);
+
+	if (!p_ring) {
+		rfs_logpanic("Incompatible ring type");
+	}
+
+	transport_type_t type = p_ring->get_transport_type();
 
 	/*
 	 * todo note that ring is not locked here.
@@ -73,13 +79,13 @@ bool rfs_mc::prepare_flow_spec()
 #ifdef DEFINED_IBV_FLOW_SPEC_IB
 			attach_flow_data_ib_v2_t*  	      attach_flow_data_ib_v2 = NULL;
 
-			if (0 == m_p_ring->m_p_qp_mgr->get_underly_qpn()) {
+			if (0 == p_ring->m_p_qp_mgr->get_underly_qpn()) {
 				attach_flow_data_ib_v1_t*  attach_flow_data_ib_v1 = NULL;
 
-				attach_flow_data_ib_v1 = new attach_flow_data_ib_v1_t(m_p_ring->m_p_qp_mgr);
+				attach_flow_data_ib_v1 = new attach_flow_data_ib_v1_t(p_ring->m_p_qp_mgr);
 
 				uint8_t dst_gid[16];
-				create_mgid_from_ipv4_mc_ip(dst_gid, m_p_ring->m_p_qp_mgr->get_partiton(), m_flow_tuple.get_dst_ip());
+				create_mgid_from_ipv4_mc_ip(dst_gid, p_ring->m_p_qp_mgr->get_partiton(), m_flow_tuple.get_dst_ip());
 				ibv_flow_spec_ib_set_by_dst_gid(&(attach_flow_data_ib_v1->ibv_flow_attr.ib),
 							dst_gid);
 
@@ -87,7 +93,7 @@ bool rfs_mc::prepare_flow_spec()
 				break;
 			}
 
-			attach_flow_data_ib_v2 = new attach_flow_data_ib_v2_t(m_p_ring->m_p_qp_mgr);
+			attach_flow_data_ib_v2 = new attach_flow_data_ib_v2_t(p_ring->m_p_qp_mgr);
 
 			ibv_flow_spec_ipv4_set(&(attach_flow_data_ib_v2->ibv_flow_attr.ipv4),
 						m_flow_tuple.get_dst_ip(),
@@ -108,13 +114,13 @@ bool rfs_mc::prepare_flow_spec()
 			{
 			attach_flow_data_eth_ipv4_tcp_udp_t*  attach_flow_data_eth = NULL;
 
-			attach_flow_data_eth = new attach_flow_data_eth_ipv4_tcp_udp_t(m_p_ring->m_p_qp_mgr);
+			attach_flow_data_eth = new attach_flow_data_eth_ipv4_tcp_udp_t(p_ring->m_p_qp_mgr);
 
 			uint8_t dst_mac[6];
 			create_multicast_mac_from_ip(dst_mac, m_flow_tuple.get_dst_ip());
 			ibv_flow_spec_eth_set(&(attach_flow_data_eth->ibv_flow_attr.eth),
 						dst_mac,
-							htons(m_p_ring->m_p_qp_mgr->get_partiton()));
+							htons(p_ring->m_p_qp_mgr->get_partiton()));
 
 			if (safe_mce_sys().eth_mc_l2_only_rules) {
 				ibv_flow_spec_ipv4_set(&(attach_flow_data_eth->ibv_flow_attr.ipv4), 0, 0);
