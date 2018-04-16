@@ -132,7 +132,7 @@ bool ring_ib::is_ratelimit_supported(struct vma_rate_limit_t &rate_limit)
 }
 
 ring_simple::ring_simple(int if_index, ring* parent /*=NULL*/):
-	ring_slave(if_index, RING_SIMPLE, parent),
+	ring_slave(if_index, parent, RING_SIMPLE),
 	m_p_ib_ctx(NULL),
 	m_p_qp_mgr(NULL),
 	m_p_cq_mgr_rx(NULL),
