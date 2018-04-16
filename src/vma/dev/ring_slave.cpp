@@ -32,13 +32,14 @@
 
 #include "ring_slave.h"
 
+
 #undef  MODULE_NAME
 #define MODULE_NAME "ring_slave"
 #undef  MODULE_HDR
 #define MODULE_HDR MODULE_NAME "%d:%s() "
 
 
-ring_slave::ring_slave(int if_index, ring_type_t type, ring* parent): ring()
+ring_slave::ring_slave(int if_index, ring* parent, ring_type_t type): ring()
 {
 	net_device_val* p_ndev = NULL;
 	const slave_data_t * p_slave = NULL;
@@ -59,12 +60,14 @@ ring_slave::ring_slave(int if_index, ring_type_t type, ring* parent): ring()
 	}
 
 	/* Configure ring_slave() fields */
+	m_type = type;
+	m_transport_type = p_ndev->get_transport_type();
 	m_active = p_slave->active;
 
 	// use local copy of stats by default
 	m_p_ring_stat = &m_ring_stat;
 	memset(m_p_ring_stat, 0, sizeof(*m_p_ring_stat));
-	m_p_ring_stat->n_type = type;
+	m_p_ring_stat->n_type = m_type;
 	if (m_parent != this) {
 		m_ring_stat.p_ring_master = m_parent;
 	}
@@ -85,7 +88,10 @@ ring_slave::~ring_slave()
 
 void ring_slave::print_val()
 {
-	ring::print_val();
+	ring_logdbg("%d: 0x%X: parent 0x%X type %s",
+			m_if_index, this,
+			((uintptr_t)this == (uintptr_t)m_parent ? 0 : m_parent),
+			(m_type == RING_SIMPLE ? "simple" : "tap"));
 }
 
 void ring_slave::restart(ring_resource_creation_info_t* p_ring_info)
