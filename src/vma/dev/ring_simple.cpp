@@ -152,7 +152,6 @@ ring_simple::ring_simple(int if_index, ring* parent /*=NULL*/):
 	m_partition = 0;
 	m_local_if = p_ndev->get_local_addr();
 	m_mtu = p_ndev->get_mtu();
-	m_transport_type = p_ndev->get_transport_type();
 
 	 // coverity[uninit_member]
 	m_tx_pool.set_id("ring_simple (%p) : m_tx_pool", this);

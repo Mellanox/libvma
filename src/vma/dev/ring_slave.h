@@ -37,6 +37,99 @@
 #include "vma/dev/net_device_table_mgr.h"
 
 
+class rfs;
+
+/* udp uc key, only by destination port as we already know the rest */
+typedef struct __attribute__((packed)) flow_spec_udp_uc_key_t {
+  in_port_t 	dst_port;
+
+  flow_spec_udp_uc_key_t () {
+  	flow_spec_udp_uc_key_helper(INPORT_ANY);
+  } //Default constructor
+  flow_spec_udp_uc_key_t (in_port_t d_port) {
+  	flow_spec_udp_uc_key_helper(d_port);
+  }//Constructor
+  void flow_spec_udp_uc_key_helper(in_addr_t d_port) {
+    memset(this, 0, sizeof(*this));// Silencing coverity
+    dst_port = d_port;
+  };
+} flow_spec_udp_uc_key_t;
+
+typedef struct __attribute__((packed)) flow_spec_udp_mc_key_t {
+  in_addr_t	dst_ip;
+  in_port_t	dst_port;
+
+  flow_spec_udp_mc_key_t () {
+    flow_spec_udp_mc_key_helper( INADDR_ANY, INPORT_ANY);
+  } //Default constructor
+  flow_spec_udp_mc_key_t (in_addr_t d_ip, in_addr_t d_port) {
+    flow_spec_udp_mc_key_helper(d_ip, d_port);
+  }//Constructor
+  void flow_spec_udp_mc_key_helper(in_addr_t d_ip, in_addr_t d_port) {
+    memset(this, 0, sizeof(*this));// Silencing coverity
+    dst_ip = d_ip;
+    dst_port = d_port;
+  };
+} flow_spec_udp_mc_key_t;
+
+typedef struct __attribute__((packed)) flow_spec_tcp_key_t {
+  in_addr_t	src_ip;
+  in_port_t	dst_port;
+  in_port_t	src_port;
+
+  flow_spec_tcp_key_t () {
+  	flow_spec_tcp_key_helper (INADDR_ANY, INPORT_ANY, INPORT_ANY);
+  } //Default constructor
+  flow_spec_tcp_key_t (in_addr_t s_ip, in_addr_t d_port, in_addr_t s_port) {
+  	flow_spec_tcp_key_helper (s_ip, d_port, s_port);
+  }//Constructor
+  void flow_spec_tcp_key_helper(in_addr_t s_ip, in_addr_t d_port, in_addr_t s_port) {
+    memset(this, 0, sizeof(*this));// Silencing coverity
+    src_ip = s_ip;
+    dst_port = d_port;
+    src_port = s_port;
+  };
+} flow_spec_tcp_key_t;
+
+/* UDP UC flow to rfs object hash map */
+inline bool
+operator==(flow_spec_udp_uc_key_t const& key1, flow_spec_udp_uc_key_t const& key2)
+{
+	return (key1.dst_port == key2.dst_port);
+}
+
+typedef hash_map<flow_spec_udp_uc_key_t, rfs*> flow_spec_udp_uc_map_t;
+
+/* UDP MC flow to rfs object hash map */
+inline bool
+operator==(flow_spec_udp_mc_key_t const& key1, flow_spec_udp_mc_key_t const& key2)
+{
+	return 	(key1.dst_port == key2.dst_port) &&
+		(key1.dst_ip == key2.dst_ip);
+}
+
+typedef hash_map<flow_spec_udp_mc_key_t, rfs*> flow_spec_udp_mc_map_t;
+
+
+/* TCP flow to rfs object hash map */
+inline bool
+operator==(flow_spec_tcp_key_t const& key1, flow_spec_tcp_key_t const& key2)
+{
+	return	(key1.src_port == key2.src_port) &&
+		(key1.src_ip == key2.src_ip) &&
+		(key1.dst_port == key2.dst_port);
+}
+
+typedef hash_map<flow_spec_tcp_key_t, rfs*> flow_spec_tcp_map_t;
+
+struct counter_and_ibv_flows {
+	int counter;
+	std::vector<vma_ibv_flow*> ibv_flows;
+};
+
+typedef std::tr1::unordered_map<uint32_t, struct counter_and_ibv_flows> rule_filter_map_t;
+
+
 class ring_slave : public ring, public mem_buf_desc_owner
 {
 public:
