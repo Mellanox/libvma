@@ -105,7 +105,10 @@ ring_bond::~ring_bond()
 
 void ring_bond::print_val()
 {
-	ring::print_val();
+	ring_logdbg("%d: 0x%X: parent 0x%X type %s",
+			m_if_index, this,
+			((uintptr_t)this == (uintptr_t)m_parent ? 0 : m_parent),
+			"bond");
 }
 
 bool ring_bond::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) {

@@ -41,7 +41,7 @@
 
 
 ring_tap::ring_tap(int if_index, ring* parent):
-	ring_slave(if_index, RING_TAP, parent),
+	ring_slave(if_index, parent, RING_TAP),
 	m_sysvar_qp_compensation_level(safe_mce_sys().qp_compensation_level)
 {
 	char tap_if_name[IFNAMSIZ + 1] = {0};

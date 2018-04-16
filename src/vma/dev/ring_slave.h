@@ -40,7 +40,7 @@
 class ring_slave : public ring, public mem_buf_desc_owner
 {
 public:
-	ring_slave(int if_index, ring_type_t type, ring* parent);
+	ring_slave(int if_index, ring* parent, ring_type_t type);
 	virtual ~ring_slave();
 
 	virtual void print_val();
@@ -56,12 +56,18 @@ public:
 	virtual void        inc_tx_retransmissions(ring_user_id_t id);
 	virtual bool        rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array) = 0;
 
-	bool                m_active;       /* State indicator */
+	ring_type_t         get_type() const { return m_type; }
+	transport_type_t    get_transport_type() const { return m_transport_type; }
+
+
+	bool                m_active;         /* State indicator */
 
 protected:
+	transport_type_t    m_transport_type; /* transport ETH/IB */
 	ring_stats_t*       m_p_ring_stat;
 
 private:
+	ring_type_t         m_type;           /* ring type */
 	ring_stats_t        m_ring_stat;
 };
 
