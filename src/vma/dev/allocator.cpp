@@ -92,7 +92,8 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
 		}
 		else {
 			__log_info_dbg("Huge pages allocation passed successfully");
-			if (!register_memory(size, p_ib_ctx_h, m_non_contig_access_mr)) {
+			if (g_p_ib_ctx_handler_collection->get_ib_cxt_list() &&
+					!register_memory(size, p_ib_ctx_h, m_non_contig_access_mr)) {
 				__log_info_dbg("failed registering huge pages data memory block");
 				throw_vma_exception("failed registering huge pages data memory"
 						" block");
@@ -101,7 +102,8 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
 		}
 	// fallthrough
 	case ALLOC_TYPE_CONTIG:
-		if (m_is_contig_alloc) {
+		if (m_is_contig_alloc &&
+				g_p_ib_ctx_handler_collection->get_ib_cxt_list()) {
 			if (!register_memory(size, p_ib_ctx_h, m_contig_access_mr)) {
 				__log_info_dbg("Failed allocating contiguous pages");
 			}
@@ -123,7 +125,8 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
 			throw_vma_exception("failed allocating data memory block");
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
-		if (!register_memory(size, p_ib_ctx_h, m_non_contig_access_mr)) {
+		if (g_p_ib_ctx_handler_collection->get_ib_cxt_list() &&
+				!register_memory(size, p_ib_ctx_h, m_non_contig_access_mr)) {
 			__log_info_dbg("failed registering data memory block");
 			throw_vma_exception("failed registering data memory block");
 		}
@@ -262,27 +265,29 @@ bool vma_allocator::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h,
 				break;
 			}
 		}
-	} else {
-		failed = true;
 	}
 
+	/* Possible cases:
+	 * 1. no IB device: it is not possible to register memory
+	 *  - return w/o error
+	 * 2. p_ib_ctx_h is null: try to register on all IB devices
+	 *  - fatal return if at least one IB device can not register memory
+	 *  - return w/o error in case no issue is observed
+	 * 3. p_ib_ctx is defined: try to register on specific device
+	 *  - fatal return if device is found and registration fails
+	 *  - return w/o error in case no issue is observed or device is not found
+	 */
 	if (failed) {
+		__log_info_warn("Failed registering memory, This might happen "
+				"due to low MTT entries. Please refer to README.txt "
+				"for more info");
 		if (m_data_block) {
-			__log_info_warn("Failed registering memory, This might happen "
-					"due to low MTT entries. Please refer to README.txt "
-					"for more info");
 			__log_info_dbg("Failed registering memory block with device "
 					"(ptr=%p size=%ld%s) (errno=%d %m)",
 					m_data_block, size, errno);
-			throw_vma_exception("Failed registering memory");
 		}
-		__log_info_warn("Failed allocating or registering memory in "
-				"contiguous mode. Please refer to README.txt for more "
-				"info");
-		return false;
+		throw_vma_exception("Failed registering memory");
 	}
-
-	__log_info_dbg("Registered memory on %d ib_ctx", m_lkey_map_ib_ctx.size());
 
 	return true;
 }
