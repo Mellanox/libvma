@@ -1004,6 +1004,10 @@ int neigh_entry::priv_enter_init()
 //Private enter function for INIT_RESOLUTION state
 int neigh_entry::priv_enter_init_resolution()
 {
+	if (NULL == g_p_neigh_table_mgr->m_neigh_cma_event_channel) {
+		return 0;
+	}
+
 	// 1. Delete old cma_id
 	priv_destroy_cma_id();
 
