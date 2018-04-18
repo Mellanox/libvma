@@ -63,12 +63,11 @@ neigh_table_mgr::neigh_table_mgr():m_neigh_cma_event_channel(NULL)
 	m_neigh_cma_event_channel = rdma_create_event_channel();
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_neigh_cma_event_channel == NULL) {
-		neigh_mgr_logerr("Failed to create neigh_cma_event_channel (errno=%d %m)", errno);
-		throw_vma_exception("Failed to create neigh_cma_event_channel");
+		neigh_mgr_logdbg("Failed to create neigh_cma_event_channel (errno=%d %m)", errno);
+	} else {
+		neigh_mgr_logdbg("Creation of neigh_cma_event_channel on fd=%d", m_neigh_cma_event_channel->fd);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-
-	neigh_mgr_logdbg("Creation of neigh_cma_event_channel on fd=%d", m_neigh_cma_event_channel->fd);
 
 	start_garbage_collector(DEFAULT_GARBAGE_COLLECTOR_TIME);
 }
@@ -76,7 +75,9 @@ neigh_table_mgr::neigh_table_mgr():m_neigh_cma_event_channel(NULL)
 neigh_table_mgr::~neigh_table_mgr()
 {
 	stop_garbage_collector();
-	rdma_destroy_event_channel(m_neigh_cma_event_channel);
+	if (m_neigh_cma_event_channel) {
+		rdma_destroy_event_channel(m_neigh_cma_event_channel);
+	}
 }
 
 bool neigh_table_mgr::register_observer(neigh_key key,
