@@ -159,7 +159,10 @@ public:
 				slave_create(slaves[i]->if_index);
 			}
 			if (m_tap_ring && m_vf_ring) {
-				(dynamic_cast<ring_tap*>(m_tap_ring))->set_vf_ring(m_vf_ring);
+				ring_tap* p_ring_tap = dynamic_cast<ring_tap*>(m_tap_ring);
+				if (p_ring_tap) {
+					p_ring_tap->set_vf_ring(m_vf_ring);
+				}
 			}
 		}
 	}
