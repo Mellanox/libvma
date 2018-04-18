@@ -43,21 +43,24 @@ public:
 	ring_tap(int if_index, ring* parent = NULL);
 	virtual ~ring_tap();
 
+	virtual bool is_up() { return (m_vf_ring || m_active); }
+
 	virtual bool attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
 	virtual bool detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
-	virtual bool is_up() { return (m_vf_ring || m_active); }
+
 	virtual int poll_and_process_element_rx(uint64_t* p_cq_poll_sn,
 			void* pv_fd_ready_array = NULL);
 	virtual int wait_for_notification_and_process_element(int cq_channel_fd,
 			uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	virtual int drain_and_proccess();
-
 	virtual bool reclaim_recv_buffers(descq_t *rx_reuse);
 	virtual bool reclaim_recv_buffers(mem_buf_desc_t *buff);
 	virtual bool rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array);
 
 	virtual void send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 	virtual void send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block);
+	virtual mem_buf_desc_t* mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_num_mem_bufs = 1);
+	virtual int mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting, bool trylock = false);
 
 	virtual void mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc) {
 		NOT_IN_USE(p_rx_wc_buf_desc);
@@ -70,21 +73,7 @@ public:
 		NOT_IN_USE(p_mem_buf_desc);
 		NOT_IN_USE(pv_fd_ready_array);
 	}
-	virtual void mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc) {
-		NOT_IN_USE(p_mem_buf_desc);
-	}
-	virtual mem_buf_desc_t* mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_num_mem_bufs = 1) {
-		NOT_IN_USE(id);
-		NOT_IN_USE(b_block);
-		NOT_IN_USE(n_num_mem_bufs);
-		return NULL;
-	}
-	virtual int mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting, bool trylock = false) {
-		NOT_IN_USE(p_mem_buf_desc_list);
-		NOT_IN_USE(b_accounting);
-		NOT_IN_USE(trylock);
-		return 0;
-	}
+	virtual void mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc);
 	virtual bool get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe) {
 		NOT_IN_USE(id);
 		NOT_IN_USE(p_send_wqe);
@@ -127,6 +116,7 @@ private:
 	void prepare_flow_message(vma_msg_flow& data,
 			flow_tuple& flow_spec_5t, msg_flow_t flow_action);
 	int process_element_rx(void* pv_fd_ready_array);
+	bool request_more_tx_buffers();
 	bool request_more_rx_buffers();
 	int send_buffer(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 	void send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe);
@@ -135,6 +125,7 @@ private:
 
 	ring_slave*      m_vf_ring;
 	const uint32_t   m_sysvar_qp_compensation_level;
+	descq_t          m_tx_pool;
 	descq_t          m_rx_pool;
 	int              m_tap_fd;
 	bool             m_tap_data_available;
