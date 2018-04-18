@@ -65,7 +65,7 @@ ring_tap::ring_tap(int if_index, ring* parent):
 	/* Register tap ring to the internal thread */
 	m_p_n_rx_channel_fds = new int[1];
 	m_p_n_rx_channel_fds[0] = m_tap_fd;
-//	g_p_fd_collection->add_cq_channel_fd(m_p_n_rx_channel_fds[0], this);
+
 	g_p_fd_collection->addtapfd(m_tap_fd, this);
 	g_p_event_handler_manager->update_epfd(m_tap_fd,
 			EPOLL_CTL_ADD, EPOLLIN | EPOLLPRI | EPOLLONESHOT);
@@ -73,6 +73,10 @@ ring_tap::ring_tap(int if_index, ring* parent):
 	/* Initialize RX buffer poll */
 	request_more_rx_buffers();
 	m_rx_pool.set_id("ring_tap (%p) : m_rx_pool", this);
+
+	/* Initialize TX buffer poll */
+	request_more_tx_buffers();
+	m_tx_pool.set_id("ring_tap (%p) : m_tx_pool", this);
 
 	/* Update ring statistics */
 	m_p_ring_stat->p_ring_master = this;
@@ -97,8 +101,11 @@ ring_tap::~ring_tap()
 		g_p_fd_collection->del_tapfd(m_tap_fd);
 	}
 
-	/* Release Rx buffer poll */
+	/* Release RX buffer poll */
 	g_buffer_pool_rx->put_buffers_thread_safe(&m_rx_pool, m_rx_pool.size());
+
+	/* Release TX buffer poll */
+	g_buffer_pool_tx->put_buffers_thread_safe(&m_tx_pool, m_tx_pool.size());
 
 	delete[] m_p_n_rx_channel_fds;
 }
@@ -372,9 +379,9 @@ bool ring_tap::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 			delete p_rfs;
 		}
 	} else if (flow_spec_5t.is_udp_mc()) {
-		int keep_in_map = 1;
 		flow_spec_udp_mc_key_t key_udp_mc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
 #if 0 /* useless */
+		int keep_in_map = 1;
 		if (m_transport_type == VMA_TRANSPORT_IB || m_b_sysvar_eth_mc_l2_only_rules) {
 			rule_filter_map_t::iterator l2_mc_iter = m_l2_mc_ip_attach_map.find(key_udp_mc.dst_ip);
 			BULLSEYE_EXCLUDE_BLOCK_START
@@ -394,9 +401,11 @@ bool ring_tap::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		p_rfs->detach_flow(sink);
+#if 0 /* useless */
 		if(!keep_in_map){
 			m_l2_mc_ip_attach_map.erase(m_l2_mc_ip_attach_map.find(key_udp_mc.dst_ip));
 		}
+#endif
 		if (p_rfs->get_num_of_sinks() == 0) {
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (!(m_flow_udp_mc_map.del(key_udp_mc))) {
@@ -1017,7 +1026,7 @@ bool ring_tap::request_more_rx_buffers()
 	bool res = g_buffer_pool_rx->get_buffers_thread_safe(m_rx_pool,
 			this, m_sysvar_qp_compensation_level, 0);
 	if (!res) {
-		ring_logfunc("Out of mem_buf_desc from TX free pool for internal object pool");
+		ring_logfunc("Out of mem_buf_desc from RX free pool for internal object pool");
 		return false;
 	}
 
@@ -1026,11 +1035,112 @@ bool ring_tap::request_more_rx_buffers()
 	return true;
 }
 
-int ring_tap::send_buffer(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
+bool ring_tap::request_more_tx_buffers()
 {
-	NOT_IN_USE(p_send_wqe);
-	NOT_IN_USE(attr);
+	ring_logfuncall("Allocating additional %d buffers for internal use",
+			m_sysvar_qp_compensation_level);
+
+	bool res = g_buffer_pool_tx->get_buffers_thread_safe(m_tx_pool,
+			this, m_sysvar_qp_compensation_level, 0);
+	if (!res) {
+		ring_logfunc("Out of mem_buf_desc from TX free pool for internal object pool");
+		return false;
+	}
+
+	return true;
+}
+
+mem_buf_desc_t* ring_tap::mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_num_mem_bufs)
+{
+	mem_buf_desc_t* head = NULL;
+
+	NOT_IN_USE(id);
+	NOT_IN_USE(b_block);
+
+	ring_logfuncall("n_num_mem_bufs=%d", n_num_mem_bufs);
+
+	m_lock_ring_tx.lock();
+
+	if (unlikely((int)m_tx_pool.size() < n_num_mem_bufs)) {
+		request_more_tx_buffers();
+
+		if (unlikely((int)m_tx_pool.size() < n_num_mem_bufs)) {
+			return head;
+		}
+	}
+
+	head = m_tx_pool.get_and_pop_back();
+	head->lwip_pbuf.pbuf.ref = 1;
+	n_num_mem_bufs--;
+
+	mem_buf_desc_t* next = head;
+	while (n_num_mem_bufs) {
+		next->p_next_desc = m_tx_pool.get_and_pop_back();
+		next = next->p_next_desc;
+		next->lwip_pbuf.pbuf.ref = 1;
+		n_num_mem_bufs--;
+	}
+
+	m_lock_ring_tx.unlock();
+
+	return head;
+}
+
+int ring_tap::mem_buf_tx_release(mem_buf_desc_t* buff_list, bool b_accounting, bool trylock)
+{
+	int count = 0, freed=0;
+	mem_buf_desc_t *next;
+
+	NOT_IN_USE(b_accounting);
+
+	if (!trylock) {
+		m_lock_ring_tx.lock();
+	} else if (m_lock_ring_tx.trylock()) {
+		return 0;
+	}
+
+	while (buff_list) {
+		next = buff_list->p_next_desc;
+		buff_list->p_next_desc = NULL;
+
+		//potential race, ref is protected here by ring_tx lock, and in dst_entry_tcp & sockinfo_tcp by tcp lock
+		if (likely(buff_list->lwip_pbuf.pbuf.ref)) {
+			buff_list->lwip_pbuf.pbuf.ref--;
+		} else {
+			ring_logerr("ref count of %p is already zero, double free??", buff_list);
+		}
+
+		if (buff_list->lwip_pbuf.pbuf.ref == 0) {
+			free_lwip_pbuf(&buff_list->lwip_pbuf);
+			m_tx_pool.push_back(buff_list);
+			freed++;
+		}
+		count++;
+		buff_list = next;
+	}
+	ring_logfunc("buf_list: %p count: %d freed: %d\n", buff_list, count, freed);
+
+	m_lock_ring_tx.unlock();
+
+	return count;
+}
+
+int ring_tap::send_buffer(vma_ibv_send_wr* wr, vma_wr_tx_packet_attr attr)
+{
 	int ret = 0;
+//	mem_buf_desc_t* buff = (mem_buf_desc_t*)(p_send_wqe->wr_id);
+	int i = 0;
+
+	NOT_IN_USE(attr);
+
+	for (i = 0; i < wr->num_sge; i++) {
+		ret = orig_os_api.write(m_tap_fd, (const void *)wr->sg_list[i].addr, wr->sg_list[i].length);
+		if (ret < 0) {
+			ring_logdbg("write: %p count: %d errno: %d\n", wr->sg_list[i].addr, wr->sg_list[i].length, errno);
+			break;
+		}
+	}
+
 	return ret;
 }
 
@@ -1038,8 +1148,7 @@ void ring_tap::send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe)
 {
 	if (ret && p_send_wqe) {
 		mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
-		NOT_IN_USE(p_mem_buf_desc);
-//		mem_buf_tx_release(p_mem_buf_desc, true);
+		mem_buf_tx_release(p_mem_buf_desc, true);
 	}
 }
 
