@@ -182,10 +182,33 @@ int add_flow(pid_t pid, struct store_flow *value)
 		/* Cleanup from possible failure during last daemon session */
 		sys_exec("tc qdisc del dev %s handle ffff: ingress > /dev/null 2>&1 || echo $?", if_name);
 
+		/* Create filter to redirect traffic from netvsc device to tap device */
 		out_buf = sys_exec("tc qdisc add dev %s handle ffff: ingress > /dev/null 2>&1 || echo $?", if_name);
 		if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
 			log_error("[%d] failed tc qdisc add dev %s output: %s\n",
 					pid, if_name, (out_buf ? out_buf : "n/a"));
+			free(cur_element);
+			rc = -EFAULT;
+			goto err;
+		}
+
+		/* This cleanup is done just to support verification */
+		sys_exec("tc qdisc del dev %s handle ffff: ingress > /dev/null 2>&1 || echo $?", tap_name);
+
+		/* Create filter to redirect traffic from tap device to netvsc device */
+		out_buf = sys_exec("tc qdisc add dev %s handle ffff: ingress > /dev/null 2>&1 || echo $?", tap_name);
+		if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
+			log_error("[%d] failed tc qdisc add dev %s output: %s\n",
+					pid, tap_name, (out_buf ? out_buf : "n/a"));
+			free(cur_element);
+			rc = -EFAULT;
+			goto err;
+		}
+		out_buf = sys_exec("tc filter add dev %s parent ffff: protocol all u32 match u8 0 0 action mirred egress redirect dev %s > /dev/null 2>&1 || echo $?",
+				tap_name, if_name);
+		if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
+			log_error("[%d] failed tc filter add dev %s output: %s\n",
+					pid, tap_name, (out_buf ? out_buf : "n/a"));
 			free(cur_element);
 			rc = -EFAULT;
 			goto err;
