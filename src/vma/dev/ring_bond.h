@@ -163,6 +163,8 @@ public:
 		}
 	}
 
+	inline bool is_vf_mode() { return (bool)m_vf_ring; }
+
 protected:
 	virtual void slave_create(int if_index);
 
