@@ -2709,14 +2709,17 @@ int sockinfo_udp::free_packets(struct vma_packet_t *pkts, size_t count)
 	int ret = 0;
 	unsigned int 	index = 0;
 	mem_buf_desc_t 	*buff;
+	ring* p_ring = NULL;
 	
 	m_lock_rcv.lock();
 	for(index=0; index < count; index++){
 		buff = (mem_buf_desc_t*)pkts[index].packet_id;
-		if (m_rx_ring_map.find(((ring*)buff->p_desc_owner)->get_parent()) == m_rx_ring_map.end()) {
-			errno = ENOENT;
-			ret = -1;
-			break;
+		if (NULL != (p_ring = (dynamic_cast<ring*>(buff->p_desc_owner)))) {
+			if (m_rx_ring_map.find(p_ring->get_parent()) == m_rx_ring_map.end()) {
+				errno = ENOENT;
+				ret = -1;
+				break;
+			}
 		}
 		reuse_buffer(buff);
 		m_p_socket_stats->n_rx_zcopy_pkt_count--;

@@ -4358,6 +4358,7 @@ int sockinfo_tcp::free_packets(struct vma_packet_t *pkts, size_t count)
 	int total_rx = 0, offset = 0;
 	mem_buf_desc_t 	*buff;
 	char *buf = (char *)pkts;
+	ring* p_ring = NULL;
 
 	lock_tcp_con();
 	for(index=0; index < count; index++){
@@ -4369,10 +4370,12 @@ int sockinfo_tcp::free_packets(struct vma_packet_t *pkts, size_t count)
 			ret = -1;
 			break;
 		}
-		else if (m_rx_ring_map.find(((ring*)buff->p_desc_owner)->get_parent()) == m_rx_ring_map.end()) {
-			errno = ENOENT;
-			ret = -1;
-			break;
+		else if (NULL != (p_ring = (dynamic_cast<ring*>(buff->p_desc_owner)))) {
+			if (m_rx_ring_map.find(p_ring->get_parent()) == m_rx_ring_map.end()) {
+				errno = ENOENT;
+				ret = -1;
+				break;
+			}
 		}
 
 		total_rx += buff->rx.sz_payload;
