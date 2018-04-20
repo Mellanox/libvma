@@ -95,7 +95,10 @@ void ib_ctx_handler_collection::update_tbl()
 		throw_vma_exception("No IB capable devices found!");
 	}
 	if (!num_devices) {
-		ibchc_logwarn("No IB capable devices found!");
+		vlog_printf(VLOG_WARNING, "*************************************************************\n");
+		vlog_printf(VLOG_WARNING, "* VMA does not detect IB capable devices                    *\n");
+		vlog_printf(VLOG_WARNING, "* No performance gain is expected in current configuration  *\n");
+		vlog_printf(VLOG_WARNING, "*************************************************************\n");
 	}
 
 	BULLSEYE_EXCLUDE_BLOCK_END
