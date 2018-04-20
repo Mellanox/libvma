@@ -41,6 +41,12 @@
 
 typedef std::vector<ring_slave*> ring_slave_vector_t;
 
+struct flow_sink_t {
+	flow_tuple flow;
+	pkt_rcvr_sink *sink;
+};
+
+
 class ring_bond : public ring {
 
 public:
@@ -81,6 +87,7 @@ protected:
 	void			update_rx_channel_fds();
 	void			popup_active_rings();
 	ring_slave_vector_t     m_bond_rings;
+	std::vector<struct flow_sink_t> m_rx_flows;
 	lock_mutex              m_lock;
 	lock_mutex_recursive	m_lock_ring_rx;
 	int			m_min_devices_tx_inline;

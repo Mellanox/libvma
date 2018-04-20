@@ -92,6 +92,8 @@ ring_bond::~ring_bond()
 {
 	print_val();
 
+	m_rx_flows.clear();
+
 	ring_slave_vector_t::iterator iter = m_bond_rings.begin();
 	for (; iter != m_bond_rings.end(); iter++) {
 		delete *iter;
@@ -111,24 +113,45 @@ void ring_bond::print_val()
 			"bond");
 }
 
-bool ring_bond::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) {
+bool ring_bond::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
+{
 	bool ret = true;
-	m_lock_ring_rx.lock();
+	struct flow_sink_t value = {flow_spec_5t, sink};
+
+	auto_unlocker lock(m_lock_ring_rx);
+
+	/* Map flow in local map */
+	m_rx_flows.push_back(value);
+
 	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		bool step_ret = m_bond_rings[i]->attach_flow(flow_spec_5t, sink);
 		ret = ret && step_ret;
 	}
-	m_lock_ring_rx.unlock();
+
 	return ret;
 }
 
-bool ring_bond::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) {
+bool ring_bond::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
+{
 	bool ret = true;
+	struct flow_sink_t value = {flow_spec_5t, sink};
+
 	auto_unlocker lock(m_lock_ring_rx);
+
+	std::vector<struct flow_sink_t>::iterator iter;
+	for (iter = m_rx_flows.begin(); iter != m_rx_flows.end(); iter++) {
+		struct flow_sink_t cur = *iter;
+		if ((cur.flow == value.flow) && (cur.sink == value.sink)) {
+			m_rx_flows.erase(iter);
+			break;
+		}
+	}
+
 	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		bool step_ret = m_bond_rings[i]->detach_flow(flow_spec_5t, sink);
 		ret = ret && step_ret;
 	}
+
 	return ret;
 }
 
