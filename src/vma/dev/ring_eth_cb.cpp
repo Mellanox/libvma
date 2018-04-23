@@ -42,12 +42,9 @@
 
 #ifdef HAVE_MP_RQ
 
-ring_eth_cb::ring_eth_cb(in_addr_t local_if,
-			 ring_resource_creation_info_t *p_ring_info, int count,
-			 bool active, uint16_t vlan, uint32_t mtu,
+ring_eth_cb::ring_eth_cb(int if_index,
 			 vma_cyclic_buffer_ring_attr *cb_ring, ring *parent):
-			 ring_eth(local_if, p_ring_info, count, active, vlan,
-				  mtu, parent, false)
+			 ring_eth(if_index, parent, false)
 			,m_curr_wqe_used_strides(0)
 			,m_curr_packets(0)
 			,m_padd_mode_used_strides(0)
@@ -59,13 +56,14 @@ ring_eth_cb::ring_eth_cb(in_addr_t local_if,
 			,m_res_domain(NULL)
 
 {
-	// call function from derived not base
+	net_device_val_eth* p_ndev =
+			dynamic_cast<net_device_val_eth *>(g_p_net_device_table_mgr->get_net_device_val(if_index));
+
+	create_resources((p_ndev ? p_ndev->get_vlan() : 0), cb_ring);
 	memset(m_sge_ptrs, 0, sizeof(m_sge_ptrs));
-	create_resources(p_ring_info, active, cb_ring);
 }
 
-void ring_eth_cb::create_resources(ring_resource_creation_info_t *p_ring_info,
-				   bool active, vma_cyclic_buffer_ring_attr *cb_ring)
+void ring_eth_cb::create_resources(uint16_t partition, vma_cyclic_buffer_ring_attr *cb_ring)
 {
 	struct ibv_exp_res_domain_init_attr res_domain_attr;
 
@@ -117,7 +115,7 @@ void ring_eth_cb::create_resources(ring_resource_creation_info_t *p_ring_info,
 	uint32_t max_wqe_size = 1 << mp_rq_caps->max_single_wqe_log_num_of_strides;
 	uint32_t user_req_wq = cb_ring->num / max_wqe_size;
 	if (user_req_wq > 2) {
-		m_wq_count = min<uint32_t>(user_req_wq, MAX_MP_WQES);
+		m_wq_count = std::min<uint32_t>(user_req_wq, MAX_MP_WQES);
 		m_single_wqe_log_num_of_strides = mp_rq_caps->max_single_wqe_log_num_of_strides;
 	} else {
 		m_wq_count = MIN_MP_WQES;
@@ -132,7 +130,7 @@ void ring_eth_cb::create_resources(ring_resource_creation_info_t *p_ring_info,
 		size_t buffer_size = m_stride_size * m_strides_num * m_wq_count;
 		m_sge_ptrs[CB_UMR_PAYLOAD] =
 			(uint64_t)(uintptr_t)m_alloc.alloc_and_reg_mr(buffer_size,
-					p_ring_info->p_ib_ctx);
+					m_p_ib_ctx);
 		m_packet_size = cb_ring->stride_bytes + net_len;
 		m_payload_len = m_stride_size;
 		m_buff_data.addr = m_sge_ptrs[CB_UMR_PAYLOAD];
@@ -142,7 +140,7 @@ void ring_eth_cb::create_resources(ring_resource_creation_info_t *p_ring_info,
 		ring_logerr("failed creating UMR QP");
 		throw_vma_exception("failed creating UMR QP");
 	}
-	ring_simple::create_resources(p_ring_info, active);
+	ring_simple::create_resources(partition);
 	m_is_mp_ring = true;
 }
 
@@ -204,15 +202,15 @@ int ring_eth_cb::allocate_umr_mem(vma_cyclic_buffer_ring_attr *cb_ring, uint16_t
 		}
 	}
 
-	p_mem_rep_list = new(nothrow) ibv_exp_mem_repeat_block[umr_blocks]();
+	p_mem_rep_list = new(std::nothrow) ibv_exp_mem_repeat_block[umr_blocks]();
 	if (p_mem_rep_list == NULL) {
 		ring_logwarn("failed allocating memory");
 		errno = ENOMEM;
 		return -1;
 	}
 	for (int i = 0; i < umr_blocks; i++) {
-		p_mem_rep_list[i].byte_count = new(nothrow) size_t[ndim];
-		p_mem_rep_list[i].stride = new(nothrow) size_t[ndim];
+		p_mem_rep_list[i].byte_count = new(std::nothrow) size_t[ndim];
+		p_mem_rep_list[i].stride = new(std::nothrow) size_t[ndim];
 		if (p_mem_rep_list[i].byte_count == NULL ||
 		    p_mem_rep_list[i].stride == NULL) {
 			ring_logwarn("failed allocating memory");
@@ -390,7 +388,7 @@ void ring_eth_cb::remove_umr_res()
 	}
 
 	if (m_p_umr_mr) {
-		m_p_ib_ctx->mem_dereg(m_p_umr_mr);
+		ibv_dereg_mr(m_p_umr_mr);
 		m_p_umr_mr = NULL;
 	}
 	ring_logdbg("UMR resources removed\n");

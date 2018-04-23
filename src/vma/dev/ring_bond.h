@@ -34,38 +34,43 @@
 #define RING_BOND_H
 
 #include "ring.h"
+#include "ring_slave.h"
+#include "ring_tap.h"
 #include "vma/util/agent.h"
+#include "vma/dev/net_device_table_mgr.h"
 
-class ring_simple;
+typedef std::vector<ring_slave*> ring_slave_vector_t;
+
+struct flow_sink_t {
+	flow_tuple flow;
+	pkt_rcvr_sink *sink;
+};
+
 
 class ring_bond : public ring {
 
 public:
-	ring_bond(int count, net_device_val::bond_type type, net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy, uint32_t mtu);
+	ring_bond(int if_index);
 	virtual	~ring_bond();
-	void			free_ring_bond_resources();
+
+	virtual void print_val();
+
 	virtual int		request_notification(cq_type_t cq_type, uint64_t poll_sn);
 	virtual int		poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	virtual void		adapt_cq_moderation();
 	virtual bool		reclaim_recv_buffers(descq_t *rx_reuse);
 	virtual int		drain_and_proccess();
 	virtual int		wait_for_notification_and_process_element(int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
-	virtual void		mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc); // Assume locked...
-	// Tx completion handling at the qp_mgr level is just re listing the desc+data buffer in the free lists
-	virtual void		mem_buf_desc_completion_with_error_tx(mem_buf_desc_t* p_tx_wc_buf_desc); // Assume locked...
-	virtual void		mem_buf_desc_return_to_owner_rx(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array = NULL);
-	virtual void		mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc);
+	virtual int		get_num_resources() const { return m_bond_rings.size(); };
 	virtual int		get_max_tx_inline();
 	virtual bool		attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
 	virtual bool		detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
 	virtual void		restart(ring_resource_creation_info_t* p_ring_info);
 	virtual mem_buf_desc_t* mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_num_mem_bufs = 1);
 	virtual int		mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting, bool trylock = false);
-	virtual int		poll_and_process_element_tap_rx(void* pv_fd_ready_array = NULL);
 	virtual void		inc_tx_retransmissions(ring_user_id_t id);
 	virtual void		send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 	virtual void		send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block);
-	virtual void		mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc);
 	virtual bool		is_member(mem_buf_desc_owner* rng);
 	virtual bool		is_active_member(mem_buf_desc_owner* rng, ring_user_id_t id);
 	virtual ring_user_id_t	generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port);
@@ -76,12 +81,14 @@ public:
 	virtual int		fast_poll_and_process_element_rx(vma_packets_t *vma_pkts);
 	int 			socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);
 #endif // DEFINED_SOCKETXTREME		
+	virtual void    slave_create(int if_index) = 0;
+	virtual void    slave_destroy(int if_index);
 protected:
-	virtual void		create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t partition) = 0;
 	void			update_rx_channel_fds();
-	void			close_gaps_active_rings();
-	ring_simple**		m_bond_rings;
-	ring_simple**		m_active_rings;
+	void			popup_active_rings();
+	ring_slave_vector_t     m_bond_rings;
+	std::vector<struct flow_sink_t> m_rx_flows;
+	lock_mutex              m_lock;
 	lock_mutex_recursive	m_lock_ring_rx;
 	int			m_min_devices_tx_inline;
 
@@ -97,51 +104,73 @@ private:
 class ring_bond_eth : public ring_bond
 {
 public:
-	ring_bond_eth(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count, bool active_slaves[], uint16_t vlan, net_device_val::bond_type type, net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy, uint32_t mtu):
-		ring_bond(count, type, bond_xmit_hash_policy, mtu){
-		create_slave_list(local_if, p_ring_info, active_slaves, vlan);
-		update_rx_channel_fds();
-	};
+	ring_bond_eth(int if_index):
+		ring_bond(if_index) {
+		net_device_val* p_ndev =
+				g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
+		if (p_ndev) {
+			const slave_data_vector_t& slaves = p_ndev->get_slave_array();
+			for (size_t i = 0; i < slaves.size(); i++) {
+				slave_create(slaves[i]->if_index);
+			}
+		}
+	}
+
 protected:
-	virtual void create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t partition);
+	virtual void slave_create(int if_index);
 };
-
-class ring_bond_eth_netvsc : public ring_bond_eth
-{
-public:
-	ring_bond_eth_netvsc(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count, bool active_slaves[], uint16_t vlan, net_device_val::bond_type type, net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy, uint32_t mtu, char* base_name, address_t l2_addr);
-	virtual ~ring_bond_eth_netvsc();
-
-	virtual bool attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
-	virtual bool detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
-	inline void set_tap_data_available() { m_tap_data_available = true;};
-
-private:
-
-	int poll_and_process_element_tap_rx(void* pv_fd_ready_array = NULL);
-	bool request_more_rx_buffers();
-	inline void prepare_flow_message(vma_msg_flow& data, flow_tuple& flow_spec_5t, msg_flow_t flow_action);
-
-	ring_stats_t	m_ring_stat;
-	descq_t         m_rx_pool;
-	const uint32_t  m_sysvar_qp_compensation_level;
-	const int       m_netvsc_idx;
-	int             m_tap_idx;
-	int             m_tap_fd;
-	bool            m_tap_data_available;
-};
-
 
 class ring_bond_ib : public ring_bond
 {
 public:
-	ring_bond_ib(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count, bool active_slaves[], uint16_t pkey, net_device_val::bond_type type, net_device_val::bond_xmit_hash_policy bond_xmit_hash_policy, uint32_t mtu):
-		ring_bond(count, type, bond_xmit_hash_policy, mtu){
-		create_slave_list(local_if, p_ring_info, active_slaves, pkey);
-		update_rx_channel_fds();
-	};
+	ring_bond_ib(int if_index):
+		ring_bond(if_index) {
+		net_device_val* p_ndev =
+				g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
+		if (p_ndev) {
+			const slave_data_vector_t& slaves = p_ndev->get_slave_array();
+			for (size_t i = 0; i < slaves.size(); i++) {
+				slave_create(slaves[i]->if_index);
+			}
+		}
+	}
+
 protected:
-	virtual void create_slave_list(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, bool active_slaves[], uint16_t partition);
+	virtual void slave_create(int if_index);
+};
+
+class ring_bond_netvsc : public ring_bond
+{
+public:
+	ring_bond_netvsc(int if_index):
+		ring_bond(if_index) {
+		net_device_val* p_ndev =
+				g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
+
+		m_vf_ring = NULL;
+		m_tap_ring = NULL;
+		if (p_ndev) {
+			const slave_data_vector_t& slaves = p_ndev->get_slave_array();
+			for (size_t i = 0; i < slaves.size(); i++) {
+				slave_create(slaves[i]->if_index);
+			}
+			if (m_tap_ring && m_vf_ring) {
+				ring_tap* p_ring_tap = dynamic_cast<ring_tap*>(m_tap_ring);
+				if (p_ring_tap) {
+					p_ring_tap->set_vf_ring(m_vf_ring);
+				}
+			}
+		}
+	}
+
+	inline bool is_vf_mode() { return (bool)m_vf_ring; }
+
+protected:
+	virtual void slave_create(int if_index);
+
+private:
+	ring_slave*      m_vf_ring;
+	ring_slave*      m_tap_ring;
 };
 
 #endif /* RING_BOND_H */

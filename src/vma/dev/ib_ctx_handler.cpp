@@ -44,7 +44,7 @@
 #include "util/valgrind.h"
 #include "vma/event/event_handler_manager.h"
 
-#define MODULE_NAME             "ib_ctx_handler"
+#define MODULE_NAME             "ibd"
 
 #define ibch_logpanic           __log_panic
 #define ibch_logerr             __log_err
@@ -55,7 +55,7 @@
 #define ibch_logfuncall         __log_info_funcall
 
 
-ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx_time_converter_mode) :
+ib_ctx_handler::ib_ctx_handler(void *desc, ts_conversion_mode_t ctx_time_converter_mode) :
 	m_flow_tag_enabled(false)
 	, m_on_device_memory(0)
 	, m_removed(false)
@@ -64,13 +64,15 @@ ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx
 	, m_umr_qp(NULL)
 	, m_p_ctx_time_converter(NULL)
 {
-	m_p_ibv_context = ctx;
-	VALGRIND_MAKE_MEM_DEFINED(m_p_ibv_context, sizeof(ibv_context));
-	m_p_ibv_device = ctx->device;
+	m_p_ibv_device = (struct ibv_device *)desc;
 
-	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_p_ibv_device == NULL) {
-		ibch_logpanic("ibv_device is NULL! (ibv context %p)", m_p_ibv_context);
+		ibch_logpanic("m_p_ibv_device is invalid");
+	}
+
+	m_p_ibv_context = ibv_open_device(m_p_ibv_device);
+	if (m_p_ibv_context == NULL) {
+		ibch_logpanic("m_p_ibv_context is invalid");
 	}
 
 	// Create pd for this device
@@ -79,18 +81,23 @@ ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx
 		ibch_logpanic("ibv device %p pd allocation failure (ibv context %p) (errno=%d %m)",
 			    m_p_ibv_device, m_p_ibv_context, errno);
 	}
+	VALGRIND_MAKE_MEM_DEFINED(m_p_ibv_pd, sizeof(struct ibv_pd));
 	m_p_ibv_device_attr = new vma_ibv_device_attr();
+	if (m_p_ibv_device_attr == NULL) {
+		ibch_logpanic("ibv device %p attr allocation failure (ibv context %p) (errno=%d %m)",
+			    m_p_ibv_device, m_p_ibv_context, errno);
+	}
 	vma_ibv_device_attr_comp_mask(m_p_ibv_device_attr);
 	IF_VERBS_FAILURE(vma_ibv_query_device(m_p_ibv_context, m_p_ibv_device_attr)) {
 		ibch_logerr("ibv_query_device failed on ibv device %p (ibv context %p) (errno=%d %m)",
 			  m_p_ibv_device, m_p_ibv_context, errno);
-		return;
+		goto err;
 	} ENDIF_VERBS_FAILURE;
-	BULLSEYE_EXCLUDE_BLOCK_END
+
 #ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
 	switch (ctx_time_converter_mode) {
 	case TS_CONVERSION_MODE_DISABLE:
-		m_p_ctx_time_converter = new time_converter_ib_ctx(ctx, TS_CONVERSION_MODE_DISABLE, 0);
+		m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context, TS_CONVERSION_MODE_DISABLE, 0);
 	break;
 	case TS_CONVERSION_MODE_PTP: {
 # ifdef DEFINED_IBV_EXP_VALUES_CLOCK_INFO
@@ -100,9 +107,9 @@ ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx
 					       IBV_EXP_VALUES_CLOCK_INFO,
 					       &ibv_exp_values_tmp);
 		if (!ret) {
-			m_p_ctx_time_converter = new time_converter_ptp(ctx);
+			m_p_ctx_time_converter = new time_converter_ptp(m_p_ibv_context);
 		} else { // revert to mode TS_CONVERSION_MODE_SYNC
-			m_p_ctx_time_converter = new time_converter_ib_ctx(ctx,
+			m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context,
 							TS_CONVERSION_MODE_SYNC,
 							m_p_ibv_device_attr->hca_core_clock);
 			ibch_logwarn("ibv_exp_query_values failure for clock_info, "
@@ -111,7 +118,7 @@ ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx
 					m_p_ibv_context, ret);
 		}
 # else
-		m_p_ctx_time_converter = new time_converter_ib_ctx(ctx,
+		m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context,
 				TS_CONVERSION_MODE_SYNC,
 				m_p_ibv_device_attr->hca_core_clock);
 		ibch_logwarn("PTP is not supported by the underlying Infiniband "
@@ -121,13 +128,13 @@ ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx
 	}
 	break;
 	default:
-		m_p_ctx_time_converter = new time_converter_ib_ctx(ctx,
+		m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context,
 				ctx_time_converter_mode,
 				m_p_ibv_device_attr->hca_core_clock);
 		break;
 	}
 #else
-	m_p_ctx_time_converter = new time_converter_ib_ctx(ctx, TS_CONVERSION_MODE_DISABLE, 0);
+	m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context, TS_CONVERSION_MODE_DISABLE, 0);
 	if (ctx_time_converter_mode != TS_CONVERSION_MODE_DISABLE) {
 		ibch_logwarn("time converter mode not applicable (configuration "
 				"value=%d). set to TS_CONVERSION_MODE_DISABLE.",
@@ -136,24 +143,54 @@ ib_ctx_handler::ib_ctx_handler(struct ibv_context* ctx, ts_conversion_mode_t ctx
 #endif // DEFINED_IBV_EXP_CQ_TIMESTAMP
 	// update device memory capabilities
 	m_on_device_memory = vma_ibv_dm_size(m_p_ibv_device_attr);
-	ibch_logdbg("ibv device '%s' [%p] has %d port%s. Vendor Part Id: %d, "
-		    "FW Ver: %s, max_qp_wr=%d, on_device_memory_bytes=%zu",
-		    m_p_ibv_device->name, m_p_ibv_device,
-		    m_p_ibv_device_attr->phys_port_cnt,
-		    ((m_p_ibv_device_attr->phys_port_cnt>1)?"s":""),
-		    m_p_ibv_device_attr->vendor_part_id,
-		    m_p_ibv_device_attr->fw_ver, m_p_ibv_device_attr->max_qp_wr,
-		    m_p_ibv_device, m_on_device_memory);
 
 	g_p_event_handler_manager->register_ibverbs_event(m_p_ibv_context->async_fd,
 						this, m_p_ibv_context, 0);
+
+	if(strncmp(get_ibname(), "mlx4", 4) == 0) {
+		/*
+		 * MLX4_DEVICE_FATAL_CLEANUP tells ibv_destroy functions we
+		 * want to get success errno value in case of calling them
+		 * when the device was removed.
+		 * It helps to destroy resources in DEVICE_FATAL state
+		 */
+		setenv("MLX4_DEVICE_FATAL_CLEANUP", "1", 1);
+	}
+
+	return;
+
+err:
+	if (m_p_ibv_device_attr) {
+		delete m_p_ibv_device_attr;
+	}
+
+	if (m_p_ibv_pd) {
+		ibv_dealloc_pd(m_p_ibv_pd);
+	}
+
+	if (m_p_ibv_context) {
+		ibv_close_device(m_p_ibv_context);
+	}
 }
 
-ib_ctx_handler::~ib_ctx_handler() {
+ib_ctx_handler::~ib_ctx_handler()
+{
 	g_p_event_handler_manager->unregister_ibverbs_event(m_p_ibv_context->async_fd, this);
 	// must delete ib_ctx_handler only after freeing all resources that
 	// are still associated with the PD m_p_ibv_pd
 	BULLSEYE_EXCLUDE_BLOCK_START
+
+	mr_map_lkey_t::iterator iter;
+	while ((iter = m_mr_map_lkey.begin()) != m_mr_map_lkey.end()) {
+		struct ibv_mr* mr = iter->second;
+		if (mr) {
+			IF_VERBS_FAILURE(ibv_dereg_mr(mr)) {
+				ibch_logdbg("mr deallocation failure (errno=%d %m)", errno);
+			} ENDIF_VERBS_FAILURE;
+			m_p_ibv_pd = NULL;
+		}
+		m_mr_map_lkey.erase(iter);
+	}
 	if (m_umr_qp) {
 		IF_VERBS_FAILURE(ibv_destroy_qp(m_umr_qp)) {
 			ibch_logdbg("destroy qp failed (errno=%d %m)", errno);
@@ -166,11 +203,50 @@ ib_ctx_handler::~ib_ctx_handler() {
 		} ENDIF_VERBS_FAILURE;
 		m_umr_cq = NULL;
 	}
-	if (ibv_dealloc_pd(m_p_ibv_pd))
-		ibch_logdbg("pd deallocation failure (errno=%d %m)", errno);
+	if (m_p_ibv_pd) {
+		IF_VERBS_FAILURE(ibv_dealloc_pd(m_p_ibv_pd)) {
+			ibch_logdbg("pd deallocation failure (errno=%d %m)", errno);
+		} ENDIF_VERBS_FAILURE;
+		VALGRIND_MAKE_MEM_UNDEFINED(m_p_ibv_pd, sizeof(struct ibv_pd));
+		m_p_ibv_pd = NULL;
+	}
+
 	delete m_p_ctx_time_converter;
 	delete m_p_ibv_device_attr;
+
+	ibv_close_device(m_p_ibv_context);
+	m_p_ibv_context = NULL;
+
 	BULLSEYE_EXCLUDE_BLOCK_END
+}
+
+void ib_ctx_handler::set_str()
+{
+	char str_x[255] = {0};
+
+	m_str[0] = '\0';
+
+	str_x[0] = '\0';
+	sprintf(str_x, " %s:", get_ibname());
+	strcat(m_str, str_x);
+
+	str_x[0] = '\0';
+	sprintf(str_x, " port(s): %d", m_p_ibv_device_attr->phys_port_cnt);
+	strcat(m_str, str_x);
+
+	str_x[0] = '\0';
+	sprintf(str_x, " vendor: %d", m_p_ibv_device_attr->vendor_part_id);
+	strcat(m_str, str_x);
+
+	str_x[0] = '\0';
+	sprintf(str_x, " fw: %s", m_p_ibv_device_attr->fw_ver);
+	strcat(m_str, str_x);
+}
+
+void ib_ctx_handler::print_val()
+{
+	set_str();
+	ibch_logdbg("%s", m_str);
 }
 
 ts_conversion_mode_t ib_ctx_handler::get_ctx_time_converter_status()
@@ -178,12 +254,11 @@ ts_conversion_mode_t ib_ctx_handler::get_ctx_time_converter_status()
 	return m_p_ctx_time_converter->get_converter_status();
 }
 
-ibv_mr* ib_ctx_handler::mem_reg(void *addr, size_t length, uint64_t access)
+uint32_t ib_ctx_handler::mem_reg(void *addr, size_t length, uint64_t access)
 {
-	// Register the memory block with the HCA on this ibv_device
-	ibch_logfunc("(dev=%p) addr=%p, length=%d, m_p_ibv_pd=%p on dev=%p",
-			m_p_ibv_device, addr, length, m_p_ibv_pd,
-			m_p_ibv_pd->context->device);
+	struct ibv_mr *mr = NULL;
+	uint32_t lkey = (uint32_t)(-1);
+
 #ifdef DEFINED_IBV_EXP_ACCESS_ALLOCATE_MR
 	struct ibv_exp_reg_mr_in in;
 	memset(&in, 0 ,sizeof(in));
@@ -191,24 +266,51 @@ ibv_mr* ib_ctx_handler::mem_reg(void *addr, size_t length, uint64_t access)
 	in.addr = addr;
 	in.length = length;
 	in.pd = m_p_ibv_pd;
-	ibv_mr *mr = ibv_exp_reg_mr(&in);
+	mr = ibv_exp_reg_mr(&in);
 #else
-	ibv_mr *mr = ibv_reg_mr(m_p_ibv_pd, addr, length, access);
+	mr = ibv_reg_mr(m_p_ibv_pd, addr, length, access);
 #endif
 	VALGRIND_MAKE_MEM_DEFINED(mr, sizeof(ibv_mr));
-	return mr;
+	if (NULL == mr) {
+		ibch_logerr("failed registering a memory region "
+				"(errno=%d %m)", errno);
+	} else {
+		m_mr_map_lkey[mr->lkey] = mr;
+		lkey = mr->lkey;
+
+		ibch_logfunc("dev:%s (%p) addr=%p length=%d pd=%p",
+				get_ibname(), m_p_ibv_device, addr, length, m_p_ibv_pd);
+	}
+
+	return lkey;
 }
 
-void ib_ctx_handler::mem_dereg(ibv_mr *mr)
+void ib_ctx_handler::mem_dereg(uint32_t lkey)
 {
-	if (is_removed()) {
-		return;
+	if (!is_removed()) {
+		mr_map_lkey_t::iterator iter = m_mr_map_lkey.find(lkey);
+		if (iter != m_mr_map_lkey.end()) {
+			struct ibv_mr* mr = iter->second;
+			ibch_logfunc("dev:%s (%p) addr=%p length=%d pd=%p",
+					get_ibname(), m_p_ibv_device, mr->addr, mr->length, m_p_ibv_pd);
+			IF_VERBS_FAILURE(ibv_dereg_mr(mr)) {
+				ibch_logerr("failed de-registering a memory region "
+						"(errno=%d %m)", errno);
+			} ENDIF_VERBS_FAILURE;
+			VALGRIND_MAKE_MEM_UNDEFINED(mr, sizeof(ibv_mr));
+			m_mr_map_lkey.erase(iter);
+		}
 	}
-	IF_VERBS_FAILURE(ibv_dereg_mr(mr)) {
-		ibch_logerr("failed de-registering a memory region "
-				"(errno=%d %m)", errno);
-	} ENDIF_VERBS_FAILURE;
-	VALGRIND_MAKE_MEM_UNDEFINED(mr, sizeof(ibv_mr));
+}
+
+struct ibv_mr* ib_ctx_handler::get_mem_reg(uint32_t lkey)
+{
+	mr_map_lkey_t::iterator iter = m_mr_map_lkey.find(lkey);
+	if (iter != m_mr_map_lkey.end()) {
+		return iter->second;
+	}
+
+	return NULL;
 }
 
 void ib_ctx_handler::set_flow_tag_capability(bool flow_tag_capability)

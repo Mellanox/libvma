@@ -170,7 +170,7 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 {
 	qp_logdbg("Creating QP of transport type '%s' on ibv device '%s' [%p] on port %d",
 			priv_vma_transport_type_str(m_p_ring->get_transport_type()),
-			m_p_ib_ctx_handler->get_ibv_device()->name, m_p_ib_ctx_handler->get_ibv_device(), m_port_num);
+			m_p_ib_ctx_handler->get_ibname(), m_p_ib_ctx_handler->get_ibv_device(), m_port_num);
 
 	vma_ibv_device_attr *r_ibv_dev_attr = m_p_ib_ctx_handler->get_ibv_device_attr();
 
@@ -792,10 +792,10 @@ void qp_mgr_ib::update_pkey_index()
 	 * Note: mlx4 does not support this capability. Disable it explicitly because dynamic check
 	 * using ibv_create_qp does not help
 	 */
-	if (strncmp(m_p_ib_ctx_handler->get_ibv_device()->name, "mlx4", 4)) {
+	if (strncmp(m_p_ib_ctx_handler->get_ibname(), "mlx4", 4)) {
 		m_underly_qpn = m_p_ring->get_qpn();
 	}
-	qp_logdbg("IB: Use qpn = 0x%X for device: %s", m_underly_qpn, m_p_ib_ctx_handler->get_ibv_device()->name);
+	qp_logdbg("IB: Use qpn = 0x%X for device: %s", m_underly_qpn, m_p_ib_ctx_handler->get_ibname());
 #endif /* DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN */
 }
 

@@ -1004,6 +1004,10 @@ int neigh_entry::priv_enter_init()
 //Private enter function for INIT_RESOLUTION state
 int neigh_entry::priv_enter_init_resolution()
 {
+	if (NULL == g_p_neigh_table_mgr->m_neigh_cma_event_channel) {
+		return 0;
+	}
+
 	// 1. Delete old cma_id
 	priv_destroy_cma_id();
 
@@ -1803,6 +1807,11 @@ int neigh_ib::priv_enter_arp_resolved()
 {
 	neigh_logfunc("");
 
+	if (m_cma_id->verbs == NULL) {
+		neigh_logdbg("m_cma_id->verbs is NULL");
+		return -1;
+	}
+
 	if (find_pd())
 		return -1;
 
@@ -2007,12 +2016,7 @@ int neigh_ib::find_pd()
 {
 	neigh_logdbg("");
 
-	if (m_cma_id->verbs == NULL) {
-		neigh_logdbg("m_cma_id->verbs is NULL");
-		return -1;
-	}
-	ib_ctx_handler* ib_ctx_h = g_p_ib_ctx_handler_collection->get_ib_ctx(
-			m_cma_id->verbs);
+	ib_ctx_handler* ib_ctx_h = g_p_ib_ctx_handler_collection->get_ib_ctx(m_p_dev->get_ifname_link());
 
 	if (ib_ctx_h) {
 		m_pd = ib_ctx_h->get_ibv_pd();
@@ -2100,6 +2104,11 @@ void neigh_ib_broadcast::build_mc_neigh_val()
 		return;
 	}
 
+	if (m_cma_id->verbs == NULL) {
+		neigh_logdbg("m_cma_id->verbs is NULL");
+		return;
+	}
+
 	m_val->m_l2_address = new IPoIB_addr(((m_p_dev->get_br_address())->get_address()));
 	if (m_val->m_l2_address == NULL) {
 		neigh_logerr("Failed allocating m_val->m_l2_address");
@@ -2117,7 +2126,8 @@ void neigh_ib_broadcast::build_mc_neigh_val()
 	((neigh_ib_val *) m_val)->m_ah_attr.is_global	  =	0x1;
 
 	if(find_pd()) {
-			neigh_logerr("Failed find_pd()");
+		neigh_logerr("Failed find_pd()");
+		return;
 	}
 
 	/*neigh_logerr("m_pd = %p,  flow_label = %#x, sgid_index=%#x, hop_limit=%#x, traffic_class=%#x",

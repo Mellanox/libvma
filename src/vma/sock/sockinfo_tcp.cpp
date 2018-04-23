@@ -4357,21 +4357,24 @@ int sockinfo_tcp::free_packets(struct vma_packet_t *pkts, size_t count)
 	int total_rx = 0, offset = 0;
 	mem_buf_desc_t 	*buff;
 	char *buf = (char *)pkts;
+	ring* p_ring = NULL;
 
 	lock_tcp_con();
 	for(index=0; index < count; index++){
 		vma_packet_t *p_pkts = (vma_packet_t *)(buf + offset);
 		buff = (mem_buf_desc_t*)p_pkts->packet_id;
 
-		if (m_p_rx_ring && !m_p_rx_ring->is_member((ring*)buff->p_desc_owner)){
+		if (m_p_rx_ring && !m_p_rx_ring->is_member(buff->p_desc_owner)){
 			errno = ENOENT;
 			ret = -1;
 			break;
 		}
-		else if (m_rx_ring_map.find(((ring*)buff->p_desc_owner)->get_parent()) == m_rx_ring_map.end()) {
-			errno = ENOENT;
-			ret = -1;
-			break;
+		else if (NULL != (p_ring = (dynamic_cast<ring*>(buff->p_desc_owner)))) {
+			if (m_rx_ring_map.find(p_ring->get_parent()) == m_rx_ring_map.end()) {
+				errno = ENOENT;
+				ret = -1;
+				break;
+			}
 		}
 
 		total_rx += buff->rx.sz_payload;
@@ -4425,12 +4428,7 @@ void sockinfo_tcp::tcp_tx_pbuf_free(void* p_conn, struct pbuf *p_buff)
 		mem_buf_desc_t * p_desc = (mem_buf_desc_t *)p_buff;
 
 		//potential race, ref is protected here by tcp lock, and in ring by ring_tx lock
-		if (likely(p_desc->lwip_pbuf_get_ref_count()))
-			p_desc->lwip_pbuf_dec_ref_count();
-		else
-			__log_err("ref count of %p is already zero, double free??", p_desc);
-
-		if (p_desc->lwip_pbuf.pbuf.ref == 0) {
+		if (p_desc->lwip_pbuf_dec_ref_count() <= 0) {
 			p_desc->p_next_desc = NULL;
 			g_buffer_pool_tx->put_buffers_thread_safe(p_desc);
 		}

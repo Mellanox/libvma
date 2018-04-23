@@ -33,15 +33,36 @@
 #ifndef RING_SIMPLE_H
 #define RING_SIMPLE_H
 
-#include "ring.h"
+#include "ring_slave.h"
+#include <vector>
+#include "vma/dev/gro_mgr.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/util/utils.h"
 #include "vma/vma_extra.h"
+#include "vma/dev/net_device_table_mgr.h"
 
-class ring_simple : public ring
+
+struct cq_moderation_info {
+	uint32_t period;
+	uint32_t count;
+	uint64_t packets;
+	uint64_t bytes;
+	uint64_t prev_packets;
+	uint64_t prev_bytes;
+	uint32_t missed_rounds;
+};
+
+/**
+ * @class ring simple
+ *
+ * Object to manages the QP and CQ operation
+ * This object is used for Rx & Tx at the same time
+ *
+ */
+class ring_simple : public ring_slave
 {
 public:
-	ring_simple(ring_resource_creation_info_t* p_ring_info, in_addr_t local_if, uint16_t partition_sn, int count, transport_type_t transport_type, uint32_t mtu, ring* parent = NULL);
+	ring_simple(int if_index, ring* parent = NULL);
 	virtual ~ring_simple();
 
 	virtual int		request_notification(cq_type_t cq_type, uint64_t poll_sn);
@@ -65,20 +86,13 @@ public:
 	inline int		send_buffer(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 	virtual bool		attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
 	virtual bool		detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
-	virtual void		restart(ring_resource_creation_info_t* p_ring_info);
-	bool			is_up();
+	virtual bool		is_up();
 	void			start_active_qp_mgr();
 	void			stop_active_qp_mgr();
 	virtual mem_buf_desc_t*	mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_num_mem_bufs = 1);
 	virtual int		mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting, bool trylock = false);
-	virtual void		inc_tx_retransmissions(ring_user_id_t id);
 	virtual void		send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 	virtual void		send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block);
-	virtual void		mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc);
-	virtual bool		is_member(mem_buf_desc_owner* rng);
-	virtual bool		is_active_member(mem_buf_desc_owner* rng, ring_user_id_t id);
-	virtual ring_user_id_t	generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port);
-	transport_type_t	get_transport_type() const { return m_transport_type; }
 	virtual bool 		get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe);
 	inline void 		convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) { m_p_cq_mgr_rx->convert_hw_time_to_system_time(hwtime, systime); }
 	inline uint32_t		get_qpn() const { return (m_p_l2_addr ? ((IPoIB_addr *)m_p_l2_addr)->get_qpn() : 0); }
@@ -94,17 +108,15 @@ public:
 	friend class rfs_uc_tcp_gro;
 	friend class rfs_mc;
 	friend class ring_bond;
-	friend class ring_bond_eth_netvsc;
 
 protected:
 	virtual qp_mgr*		create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) = 0;
-	virtual void		create_resources(ring_resource_creation_info_t* p_ring_info, bool active);
+	virtual void		create_resources(uint16_t partition);
 	// Internal functions. No need for locks mechanism.
 #ifdef DEFINED_SOCKETXTREME	
 	inline void 		socketxtreme_process_recv_buffer(mem_buf_desc_t* p_rx_wc_buf_desc);
 #endif // DEFINED_SOCKETXTREME	
-	bool			rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array);
-	//	void	print_ring_flow_to_rfs_map(flow_spec_map_t *p_flow_map);
+	virtual bool		rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array);
 	void			flow_udp_uc_del_all();
 	void			flow_udp_mc_del_all();
 	void			flow_tcp_del_all();
@@ -112,6 +124,7 @@ protected:
 	bool			request_more_tx_buffers(uint32_t count);
 	uint32_t		get_tx_num_wr() { return m_tx_num_wr; }
 	uint16_t		get_partition() { return m_partition; }
+	uint32_t		get_mtu() { return m_mtu; }
 	ib_ctx_handler*		m_p_ib_ctx;
 	qp_mgr*			m_p_qp_mgr;
 	struct cq_moderation_info m_cq_moderation_info;
@@ -120,12 +133,10 @@ protected:
 	cq_mgr*			m_p_cq_mgr_tx;
 	lock_spin_recursive	m_lock_ring_tx;
 	bool			m_b_is_hypervisor;
-	ring_stats_t*		m_p_ring_stat;
 private:
 	inline void		send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe);
 	inline mem_buf_desc_t*	get_tx_buffers(uint32_t n_num_mem_bufs);
 	inline int		put_tx_buffers(mem_buf_desc_t* buff_list);
-	inline int		put_tx_single_buffer(mem_buf_desc_t* buff);
 	bool			is_available_qp_wr(bool b_block);
 	void			modify_cq_moderation(uint32_t period, uint32_t count);
 	void			save_l2_address(const L2_address* p_l2_addr) { delete_l2_address(); m_p_l2_addr = p_l2_addr->clone(); };
@@ -138,16 +149,15 @@ private:
 	int32_t			m_tx_num_wr_free;
 	bool			m_b_qp_tx_first_flushed_completion_handled;
 	uint32_t		m_missing_buf_ref_count;
-	const uint32_t		m_tx_lkey; // this is the registered memory lkey for a given specific device for the buffer pool use
+	uint32_t		m_tx_lkey; // this is the registered memory lkey for a given specific device for the buffer pool use
 	uint16_t		m_partition; //vlan or pkey
 	gro_mgr			m_gro_mgr;
-	ring_stats_t		m_ring_stat_static;
 	bool			m_up;
 	struct ibv_comp_channel* m_p_rx_comp_event_channel;
 	struct ibv_comp_channel* m_p_tx_comp_event_channel;
 	L2_address*		m_p_l2_addr;
 	in_addr_t		m_local_if;
-	transport_type_t	m_transport_type;
+	uint32_t		m_mtu;
 	// For IB MC flow, the port is zeroed in the ibv_flow_spec when calling to ibv_flow_spec().
 	// It means that for every MC group, even if we have sockets with different ports - only one rule in the HW.
 	// So the hash map below keeps track of the number of sockets per rule so we know when to call ibv_attach and ibv_detach
@@ -168,13 +178,15 @@ private:
 class ring_eth : public ring_simple
 {
 public:
-	ring_eth(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info,
-		 int count, bool active, uint16_t vlan, uint32_t mtu,
-		 ring* parent = NULL, bool call_create_res = true):
-		ring_simple(p_ring_info, local_if, vlan, count, VMA_TRANSPORT_ETH, mtu, parent) {
-		if (call_create_res)
-			create_resources(p_ring_info, active);
-	};
+	ring_eth(int if_index,
+			ring* parent = NULL, bool call_create_res = true):
+		ring_simple(if_index, parent) {
+		net_device_val_eth* p_ndev =
+				dynamic_cast<net_device_val_eth *>(g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index()));
+		if (p_ndev && call_create_res) {
+			create_resources(p_ndev->get_vlan());
+		}
+	}
 	virtual bool is_ratelimit_supported(struct vma_rate_limit_t &rate_limit);
 protected:
 	virtual qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel);
@@ -183,8 +195,15 @@ protected:
 class ring_ib : public ring_simple
 {
 public:
-	ring_ib(in_addr_t local_if, ring_resource_creation_info_t* p_ring_info, int count, bool active, uint16_t pkey, uint32_t mtu, ring* parent = NULL):
-		ring_simple(p_ring_info, local_if, pkey, count, VMA_TRANSPORT_IB, mtu, parent) { create_resources(p_ring_info, active); };
+	ring_ib(int if_index,
+			ring* parent = NULL):
+		ring_simple(if_index, parent) {
+		net_device_val_ib* p_ndev =
+				dynamic_cast<net_device_val_ib *>(g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index()));
+		if (p_ndev) {
+			create_resources(p_ndev->get_pkey());
+		}
+	}
 	virtual bool is_ratelimit_supported(struct vma_rate_limit_t &rate_limit);
 protected:
 	virtual qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel);

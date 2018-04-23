@@ -33,7 +33,7 @@
 
 
 #include "vma/util/verbs_extra.h"
-#include "ring.h"
+#include "ring_simple.h"
 #include "ah_cleaner.h"
 
 #define MODULE_NAME 		"ahc:"
@@ -45,7 +45,7 @@
     #pragma BullseyeCoverage off
 #endif
 
-ah_cleaner::ah_cleaner(struct ibv_ah* ah, ring* p_ring) : m_ah(ah), m_p_ring(p_ring)
+ah_cleaner::ah_cleaner(struct ibv_ah* ah, ring_simple* p_ring) : m_ah(ah), m_p_ring(p_ring)
 {
 	ach_logdbg("ah_cleaner created [ah=%p, ring=%p]", ah, p_ring);
 	m_next_owner = NULL;

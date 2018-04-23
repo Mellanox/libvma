@@ -49,6 +49,9 @@
 #include "vma/sock/fd_collection.h"
 #include "vma/event/event_handler_manager.h"
 #include "vma/dev/buffer_pool.h"
+#include "vma/dev/ring.h"
+#include "vma/dev/ring_slave.h"
+#include "vma/dev/ring_bond.h"
 #include "vma/dev/ring_simple.h"
 #include "vma/dev/ring_profile.h"
 #include "vma/proto/route_table_mgr.h"
@@ -1005,10 +1008,9 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					}
 
 					if (mreqn.imr_ifindex) {
-						net_dev_lst_t* p_ndv_val_lst = g_p_net_device_table_mgr->get_net_device_val_lst_from_index(mreqn.imr_ifindex);
-						net_device_val* p_ndev = NULL;
-						if (p_ndv_val_lst && (p_ndev = dynamic_cast <net_device_val *>(*(p_ndv_val_lst->begin())))) {
-							mreqn.imr_address.s_addr = p_ndev->get_local_addr();
+						local_ip_list_t lip_offloaded_list = g_p_net_device_table_mgr->get_ip_list(mreqn.imr_ifindex);
+						if (!lip_offloaded_list.empty()) {
+							mreqn.imr_address.s_addr = lip_offloaded_list.front().local_addr;
 						} else {
 							struct sockaddr_in src_addr;
 							if (get_ipv4_from_ifindex(mreqn.imr_ifindex, &src_addr) == 0) {
@@ -1105,10 +1107,9 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 						if (__optlen >= sizeof(struct ip_mreqn)) {
 							struct ip_mreqn* p_mreqn = (struct ip_mreqn*)__optval;
 							if (p_mreqn->imr_ifindex) {
-								net_dev_lst_t* p_ndv_val_lst = g_p_net_device_table_mgr->get_net_device_val_lst_from_index(p_mreqn->imr_ifindex);
-								net_device_val* p_ndev = NULL;
-								if (p_ndv_val_lst && (p_ndev = dynamic_cast <net_device_val *>(*(p_ndv_val_lst->begin())))) {
-									mreqprm.imr_interface.s_addr = p_ndev->get_local_addr();
+								local_ip_list_t lip_offloaded_list = g_p_net_device_table_mgr->get_ip_list(p_mreqn->imr_ifindex);
+								if (!lip_offloaded_list.empty()) {
+									mreqprm.imr_interface.s_addr = lip_offloaded_list.front().local_addr;
 								} else {
 									struct sockaddr_in src_addr;
 									if (get_ipv4_from_ifindex(p_mreqn->imr_ifindex, &src_addr) == 0) {
@@ -1755,7 +1756,7 @@ int sockinfo_udp::rx_request_notification(uint64_t poll_sn)
 ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ssize_t sz_iov,
 		     const int __flags /*=0*/, const struct sockaddr *__dst /*=NULL*/, const socklen_t __dstlen /*=0*/)
 {
-	int ret;
+	int ret = 0;
 	bool is_dummy = IS_DUMMY_PACKET(__flags);
 	dst_entry* p_dst_entry = m_p_connected_dst_entry; // Default for connected() socket but we'll update it on a specific sendTO(__to) call
 
@@ -1883,12 +1884,36 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 			b_blocking = false;
 
 		if (likely(p_dst_entry->is_valid())) {
+			/* Purpose of this condition to avoid redirect traffic to OS
+			 * in case this socket operates under NETVSC ring w/o SRIOV/VF
+			 * RX flow is able to work w/o special verification
+			 *
+			 * Note: This check is not effective but can be used as temporary
+			 * workaround to support Hyper-V solution
+			 * The first packet is lost as far as slow_send() includes
+			 * ring creation and send operations
+			 */
+			if (p_dst_entry->get_ring()) {
+				ring_bond_netvsc* p_ring = dynamic_cast<ring_bond_netvsc*>(p_dst_entry->get_ring());
+				if (p_ring && !p_ring->is_vf_mode()) {
+					goto tx_packet_to_os;
+				}
+			}
 			// All set for fast path packet sending - this is our best performance flow
 			ret = p_dst_entry->fast_send((iovec*)p_iov, sz_iov, is_dummy, b_blocking);
 		}
 		else {
 			// updates the dst_entry internal information and packet headers
 			ret = p_dst_entry->slow_send(p_iov, sz_iov, is_dummy, m_so_ratelimit, b_blocking, false, __flags, this, call_type);
+			/* See comment
+			 * above related socket operation under NETVSC ring w/o SRIOV/VF
+			 */
+			if (p_dst_entry->get_ring()) {
+				ring_bond_netvsc* p_ring = dynamic_cast<ring_bond_netvsc*>(p_dst_entry->get_ring());
+				if (p_ring && !p_ring->is_vf_mode()) {
+					goto tx_packet_to_os;
+				}
+			}
 		}
 
 		if (unlikely(p_dst_entry->try_migrate_ring(m_lock_snd))) {
@@ -2683,14 +2708,17 @@ int sockinfo_udp::free_packets(struct vma_packet_t *pkts, size_t count)
 	int ret = 0;
 	unsigned int 	index = 0;
 	mem_buf_desc_t 	*buff;
+	ring* p_ring = NULL;
 	
 	m_lock_rcv.lock();
 	for(index=0; index < count; index++){
 		buff = (mem_buf_desc_t*)pkts[index].packet_id;
-		if (m_rx_ring_map.find(((ring*)buff->p_desc_owner)->get_parent()) == m_rx_ring_map.end()) {
-			errno = ENOENT;
-			ret = -1;
-			break;
+		if (NULL != (p_ring = (dynamic_cast<ring*>(buff->p_desc_owner)))) {
+			if (m_rx_ring_map.find(p_ring->get_parent()) == m_rx_ring_map.end()) {
+				errno = ENOENT;
+				ret = -1;
+				break;
+			}
 		}
 		reuse_buffer(buff);
 		m_p_socket_stats->n_rx_zcopy_pkt_count--;

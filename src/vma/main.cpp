@@ -817,11 +817,12 @@ static void do_global_ctors_helper()
 	NEW_CTOR(g_p_netlink_handler, netlink_wrapper());
 
 	NEW_CTOR(g_p_ib_ctx_handler_collection, ib_ctx_handler_collection());
-        g_p_ib_ctx_handler_collection->map_ib_devices();
 
 	NEW_CTOR(g_p_neigh_table_mgr, neigh_table_mgr());
 
-	NEW_CTOR(g_p_net_device_table_mgr, net_device_table_mgr()); // net_device should be initialized after event_handler and before buffer pool and g_p_neigh_table_mgr.
+	// net_device should be initialized after event_handler and before buffer pool and g_p_neigh_table_mgr.
+	NEW_CTOR(g_p_net_device_table_mgr, net_device_table_mgr());
+
 	NEW_CTOR(g_p_rule_table_mgr, rule_table_mgr());
 
 	NEW_CTOR(g_p_route_table_mgr, route_table_mgr());

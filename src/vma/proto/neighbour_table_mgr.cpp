@@ -63,12 +63,11 @@ neigh_table_mgr::neigh_table_mgr():m_neigh_cma_event_channel(NULL)
 	m_neigh_cma_event_channel = rdma_create_event_channel();
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_neigh_cma_event_channel == NULL) {
-		neigh_mgr_logerr("Failed to create neigh_cma_event_channel (errno=%d %m)", errno);
-		throw_vma_exception("Failed to create neigh_cma_event_channel");
+		neigh_mgr_logdbg("Failed to create neigh_cma_event_channel (errno=%d %m)", errno);
+	} else {
+		neigh_mgr_logdbg("Creation of neigh_cma_event_channel on fd=%d", m_neigh_cma_event_channel->fd);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-
-	neigh_mgr_logdbg("Creation of neigh_cma_event_channel on fd=%d", m_neigh_cma_event_channel->fd);
 
 	start_garbage_collector(DEFAULT_GARBAGE_COLLECTOR_TIME);
 }
@@ -76,7 +75,9 @@ neigh_table_mgr::neigh_table_mgr():m_neigh_cma_event_channel(NULL)
 neigh_table_mgr::~neigh_table_mgr()
 {
 	stop_garbage_collector();
-	rdma_destroy_event_channel(m_neigh_cma_event_channel);
+	if (m_neigh_cma_event_channel) {
+		rdma_destroy_event_channel(m_neigh_cma_event_channel);
+	}
 }
 
 bool neigh_table_mgr::register_observer(neigh_key key,
@@ -148,28 +149,19 @@ void neigh_table_mgr::notify_cb(event *ev)
 
 	// Search for this neigh ip in cache_table
 	m_lock.lock();
-	net_dev_lst_t* p_ndv_val_lst = g_p_net_device_table_mgr->get_net_device_val_lst_from_index(nl_info->ifindex);
+	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(nl_info->ifindex);
 
 	//find all neigh entries with an appropriate peer_ip and net_device
-	if (p_ndv_val_lst) {
-		net_dev_lst_t::iterator itr;
-		for (itr = p_ndv_val_lst->begin(); itr != p_ndv_val_lst->end(); ++itr) {
-			net_device_val* p_ndev = dynamic_cast <net_device_val *>(*itr);
-			if (p_ndev) {
-				neigh_entry *p_ne = dynamic_cast <neigh_entry *>(get_entry(neigh_key(ip_address(neigh_ip), p_ndev)));
-				if (p_ne) {
-					// Call the relevant neigh_entry to handle the event
-					p_ne->handle_neigh_event(nl_ev);
-				} else {
-					neigh_mgr_logdbg("Ignoring netlink neigh event for IP = %s if:%s, index=%d, p_ndev=%p", nl_info->dst_addr_str.c_str(), p_ndev->to_str().c_str(), nl_info->ifindex, p_ndev);
-				}
-			} else {
-				neigh_mgr_logdbg("could not find ndv_val for ifindex=%d", nl_info->ifindex);
-			}
-
+	if (p_ndev) {
+		neigh_entry *p_ne = dynamic_cast <neigh_entry *>(get_entry(neigh_key(ip_address(neigh_ip), p_ndev)));
+		if (p_ne) {
+			// Call the relevant neigh_entry to handle the event
+			p_ne->handle_neigh_event(nl_ev);
+		} else {
+			neigh_mgr_logdbg("Ignoring netlink neigh event for IP = %s if:%s, index=%d, p_ndev=%p", nl_info->dst_addr_str.c_str(), p_ndev->to_str().c_str(), nl_info->ifindex, p_ndev);
 		}
 	} else {
-		neigh_mgr_logdbg("could not find ndv_val list for ifindex=%d", nl_info->ifindex);
+		neigh_mgr_logdbg("could not find ndv_val for ifindex=%d", nl_info->ifindex);
 	}
 	m_lock.unlock();
 

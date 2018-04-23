@@ -24,7 +24,7 @@ test_ip_list=""
 #if [ ! -z $(do_get_ip 'ib' 'mlx5') ]; then
 #	test_ip_list="${test_ip_list} ib:$(do_get_ip 'ib' 'mlx5')"
 #fi
-if [ ! -z $(do_get_ip 'eth' 'mlx5') ]; then
+if [ ! -z "$(do_get_ip 'eth' 'mlx5')" ]; then
 	test_ip_list="${test_ip_list} eth:$(do_get_ip 'eth' 'mlx5')"
 fi
 test_list="tcp:--tcp udp:"
