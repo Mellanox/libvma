@@ -4429,12 +4429,7 @@ void sockinfo_tcp::tcp_tx_pbuf_free(void* p_conn, struct pbuf *p_buff)
 		mem_buf_desc_t * p_desc = (mem_buf_desc_t *)p_buff;
 
 		//potential race, ref is protected here by tcp lock, and in ring by ring_tx lock
-		if (likely(p_desc->lwip_pbuf_get_ref_count()))
-			p_desc->lwip_pbuf_dec_ref_count();
-		else
-			__log_err("ref count of %p is already zero, double free??", p_desc);
-
-		if (p_desc->lwip_pbuf.pbuf.ref == 0) {
+		if (p_desc->lwip_pbuf_dec_ref_count() <= 0) {
 			p_desc->p_next_desc = NULL;
 			g_buffer_pool_tx->put_buffers_thread_safe(p_desc);
 		}
