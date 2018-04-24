@@ -669,6 +669,9 @@ void ring_bond::slave_destroy(int if_index)
 	ring_slave *cur_slave = NULL;
 	ring_slave_vector_t::iterator iter;
 
+	m_lock_ring_rx.lock();
+	m_lock_ring_tx.lock();
+
 	auto_unlocker lock(m_lock);
 	for (iter = m_bond_rings.begin(); iter != m_bond_rings.end(); iter++) {
 		cur_slave = *iter;
@@ -679,6 +682,8 @@ void ring_bond::slave_destroy(int if_index)
 			break;
 		}
 	}
+	m_lock_ring_tx.unlock();
+	m_lock_ring_rx.unlock();
 }
 
 void ring_bond_eth::slave_create(int if_index)
