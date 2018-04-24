@@ -737,24 +737,15 @@ bool net_device_val::update_active_backup_slaves()
 
 	m_p_L2_addr = create_L2_address(get_ifname());
 	bool found_active_slave = false;
-	ring_resource_creation_info_t p_ring_info[m_slaves.size()];
-	memset(p_ring_info, 0, sizeof(p_ring_info[0]) * m_slaves.size());
 	for (size_t i = 0; i < m_slaves.size(); i++) {
 		if (if_active_slave == m_slaves[i]->if_index) {
 			m_slaves[i]->active = true;
 			found_active_slave = true;
 			nd_logdbg("Slave changed old=%d new=%d", m_if_active, if_active_slave);
 			m_if_active = if_active_slave;
-			nd_logdbg("Offload interface '%s': Re-mapped to ibv device '%s' [%p] on port %d",
-					get_ifname(), p_ring_info[i].p_ib_ctx->get_ibname(), p_ring_info[i].p_ib_ctx->get_ibv_device(), p_ring_info[i].port_num);
 		} else {
 			m_slaves[i]->active = false;
 		}
-		p_ring_info[i].if_index = m_slaves[i]->if_index;
-		p_ring_info[i].p_ib_ctx = m_slaves[i]->p_ib_ctx;
-		p_ring_info[i].port_num = m_slaves[i]->port_num;
-		p_ring_info[i].p_l2_addr = m_slaves[i]->p_L2_addr;
-		p_ring_info[i].active = m_slaves[i]->active;
 	}
 	if (!found_active_slave) {
 		nd_logdbg("Failed to locate new active slave details");
@@ -763,7 +754,7 @@ bool net_device_val::update_active_backup_slaves()
 	// restart rings
 	rings_hash_map_t::iterator ring_iter;
 	for (ring_iter = m_h_ring_map.begin(); ring_iter != m_h_ring_map.end(); ring_iter++) {
-		THE_RING->restart(p_ring_info);
+		THE_RING->restart();
 	}
 	return 1;
 }
@@ -832,13 +823,12 @@ bool net_device_val::get_up_and_active_slaves(bool* up_and_active_slaves, size_t
 	return true;
 }
 
-bool net_device_val::update_active_slaves() {
+bool net_device_val::update_active_slaves()
+{
 	bool changed = false;
-	ring_resource_creation_info_t p_ring_info[m_slaves.size()];
 	bool up_and_active_slaves[m_slaves.size()];
 	size_t i = 0;
 
-	memset(p_ring_info, 0, sizeof(p_ring_info[0]) * m_slaves.size());
 	memset(&up_and_active_slaves, 0, m_slaves.size() * sizeof(bool));
 	get_up_and_active_slaves(up_and_active_slaves, m_slaves.size());
 
@@ -860,11 +850,6 @@ bool net_device_val::update_active_slaves() {
 				changed = true;
 			}
 		}
-		p_ring_info[i].if_index = m_slaves[i]->if_index;
-		p_ring_info[i].p_ib_ctx = m_slaves[i]->p_ib_ctx;
-		p_ring_info[i].port_num = m_slaves[i]->port_num;
-		p_ring_info[i].p_l2_addr = m_slaves[i]->p_L2_addr;
-		p_ring_info[i].active = m_slaves[i]->active;
 	}
 
 	/* restart if status changed */
@@ -873,7 +858,7 @@ bool net_device_val::update_active_slaves() {
 		// restart rings
 		rings_hash_map_t::iterator ring_iter;
 		for (ring_iter = m_h_ring_map.begin(); ring_iter != m_h_ring_map.end(); ring_iter++) {
-			THE_RING->restart(p_ring_info);
+			THE_RING->restart();
 		}
 		return 1;
 	}
