@@ -172,14 +172,7 @@ ib_ctx_handler::~ib_ctx_handler()
 
 	mr_map_lkey_t::iterator iter;
 	while ((iter = m_mr_map_lkey.begin()) != m_mr_map_lkey.end()) {
-		struct ibv_mr* mr = iter->second;
-		if (mr) {
-			IF_VERBS_FAILURE(ibv_dereg_mr(mr)) {
-				ibch_logdbg("mr deallocation failure (errno=%d %m)", errno);
-			} ENDIF_VERBS_FAILURE;
-			m_p_ibv_pd = NULL;
-		}
-		m_mr_map_lkey.erase(iter);
+		mem_dereg(iter->first);
 	}
 	if (m_umr_qp) {
 		IF_VERBS_FAILURE(ibv_destroy_qp(m_umr_qp)) {
@@ -268,7 +261,7 @@ uint32_t ib_ctx_handler::mem_reg(void *addr, size_t length, uint64_t access)
 		m_mr_map_lkey[mr->lkey] = mr;
 		lkey = mr->lkey;
 
-		ibch_logfunc("dev:%s (%p) addr=%p length=%d pd=%p",
+		ibch_logdbg("dev:%s (%p) addr=%p length=%d pd=%p",
 				get_ibname(), m_p_ibv_device, addr, length, m_p_ibv_pd);
 	}
 
@@ -277,19 +270,17 @@ uint32_t ib_ctx_handler::mem_reg(void *addr, size_t length, uint64_t access)
 
 void ib_ctx_handler::mem_dereg(uint32_t lkey)
 {
-	if (!is_removed()) {
-		mr_map_lkey_t::iterator iter = m_mr_map_lkey.find(lkey);
-		if (iter != m_mr_map_lkey.end()) {
-			struct ibv_mr* mr = iter->second;
-			ibch_logfunc("dev:%s (%p) addr=%p length=%d pd=%p",
-					get_ibname(), m_p_ibv_device, mr->addr, mr->length, m_p_ibv_pd);
-			IF_VERBS_FAILURE(ibv_dereg_mr(mr)) {
-				ibch_logerr("failed de-registering a memory region "
-						"(errno=%d %m)", errno);
-			} ENDIF_VERBS_FAILURE;
-			VALGRIND_MAKE_MEM_UNDEFINED(mr, sizeof(ibv_mr));
-			m_mr_map_lkey.erase(iter);
-		}
+	mr_map_lkey_t::iterator iter = m_mr_map_lkey.find(lkey);
+	if (iter != m_mr_map_lkey.end()) {
+		struct ibv_mr* mr = iter->second;
+		ibch_logdbg("dev:%s (%p) addr=%p length=%d pd=%p",
+				get_ibname(), m_p_ibv_device, mr->addr, mr->length, m_p_ibv_pd);
+		IF_VERBS_FAILURE(ibv_dereg_mr(mr)) {
+			ibch_logerr("failed de-registering a memory region "
+					"(errno=%d %m)", errno);
+		} ENDIF_VERBS_FAILURE;
+		VALGRIND_MAKE_MEM_UNDEFINED(mr, sizeof(ibv_mr));
+		m_mr_map_lkey.erase(iter);
 	}
 }
 
