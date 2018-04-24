@@ -155,7 +155,16 @@ bool ring_bond::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 	return ret;
 }
 
-void ring_bond::restart(ring_resource_creation_info_t* p_ring_info) {
+void ring_bond::restart()
+{
+	net_device_val* p_ndev =
+			g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
+
+	if (NULL == p_ndev) {
+		return;
+	}
+	const slave_data_vector_t& slaves = p_ndev->get_slave_array();
+
 	ring_logdbg("*** ring restart! ***");
 
 	m_lock_ring_rx.lock();
@@ -171,7 +180,7 @@ void ring_bond::restart(ring_resource_creation_info_t* p_ring_info) {
 		if (!tmp_ring) {
 			continue;
 		}
-		if (p_ring_info[i].active) {
+		if (slaves[i]->active) {
 			ring_logdbg("ring %d active", i);
 			tmp_ring->start_active_qp_mgr();
 			m_bond_rings[i]->m_active = true;
