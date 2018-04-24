@@ -450,10 +450,6 @@ err_t lwip_tcp_event(void *arg, struct tcp_pcb *pcb,
 
 #endif /* LWIP_EVENT_API */
 
-/* Application program's interface: */
-struct tcp_pcb * tcp_new     (void);
-/* Application program's interface: */
-
 /*Initialization of tcp_pcb structure*/
 void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio);
 
@@ -496,8 +492,6 @@ err_t            tcp_shutdown(struct tcp_pcb *pcb, int shut_rx, int shut_tx);
 err_t            tcp_write   (struct tcp_pcb *pcb, const void *dataptr, u32_t len,
                               u8_t is_dummy);
 
-void             tcp_setprio (struct tcp_pcb *pcb, u8_t prio);
-
 #define TCP_PRIO_MIN    1
 #define TCP_PRIO_NORMAL 64
 #define TCP_PRIO_MAX    127
@@ -508,9 +502,6 @@ s32_t            tcp_is_wnd_available(struct tcp_pcb *pcb, u32_t data_len);
 
 #define get_tcp_state(pcb) ((pcb)->private_state)
 #define set_tcp_state(pcb, state) external_tcp_state_observer((pcb)->my_container, (pcb)->private_state = state)
-
-const char* tcp_debug_state_str(enum tcp_state s);
-
 
 #ifdef __cplusplus
 }

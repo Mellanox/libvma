@@ -964,18 +964,6 @@ tcp_tx_seg_free(struct tcp_pcb * pcb, struct tcp_seg *seg)
   }
 }
 
-/**
- * Sets the priority of a connection.
- *
- * @param pcb the tcp_pcb to manipulate
- * @param prio new priority
- */
-void
-tcp_setprio(struct tcp_pcb *pcb, u8_t prio)
-{
-  pcb->prio = prio;
-}
-
 #if TCP_QUEUE_OOSEQ
 /**
  * Returns a copy of the given TCP segment.
@@ -1407,12 +1395,6 @@ tcp_mss_follow_mtu_with_default(u16_t defsendmss, struct tcp_pcb *pcb)
   return defsendmss;
 }
 #endif /* TCP_CALCULATE_EFF_SEND_MSS */
-
-const char*
-tcp_debug_state_str(enum tcp_state s)
-{
-  return tcp_state_str[s];
-}
 
 #if TCP_DEBUG || TCP_INPUT_DEBUG || TCP_OUTPUT_DEBUG
 /**
