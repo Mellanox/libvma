@@ -172,7 +172,7 @@ public:
 protected:
 	virtual void slave_create(int if_index);
 
-private:
+public:
 	ring_slave*      m_vf_ring;
 	ring_slave*      m_tap_ring;
 };

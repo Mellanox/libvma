@@ -263,6 +263,7 @@ public:
 	inline bond_type  get_is_bond() { return m_bond; }
 	inline bond_xmit_hash_policy get_bond_xmit_hash_policy() { return m_bond_xmit_hash_policy; }
 	bool 			update_active_slaves();
+	bool 			update_netvsc_slaves();
 	void 			register_to_ibverbs_events(event_handler_ibverbs *handler);
 	void 			unregister_to_ibverbs_events(event_handler_ibverbs *handler);
 

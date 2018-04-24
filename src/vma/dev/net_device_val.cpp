@@ -51,9 +51,11 @@
 #include "vma/event/event_handler_manager.h"
 #include "vma/proto/L2_address.h"
 #include "vma/dev/ib_ctx_handler_collection.h"
+#include "vma/dev/ring_tap.h"
 #include "vma/dev/ring_simple.h"
 #include "vma/dev/ring_eth_cb.h"
 #include "vma/dev/ring_eth_direct.h"
+#include "vma/dev/ring_slave.h"
 #include "vma/dev/ring_bond.h"
 #include "vma/sock/sock-redirect.h"
 #include "vma/dev/net_device_table_mgr.h"
@@ -863,6 +865,86 @@ bool net_device_val::update_active_slaves()
 		return 1;
 	}
 	return 0;
+}
+
+bool net_device_val::update_netvsc_slaves()
+{
+	bool changed = false;
+	struct ifaddrs slave_ifa;
+	slave_data_t* s = NULL;
+	uint16_t i = 0;
+
+	if (get_netvsc_slave(get_ifname_link(), &slave_ifa)) {
+		if (slave_ifa.ifa_flags & IFF_UP) {
+			s = new slave_data_t;
+			s->if_index = if_nametoindex(slave_ifa.ifa_name);
+			m_slaves.push_back(s);
+
+			nd_logdbg("slave %d is up ", s->if_index);
+			changed = true;
+		}
+	} else {
+		slave_data_vector_t::iterator slave = m_slaves.begin();
+		for (; slave != m_slaves.end(); ++slave) {
+			s = *slave;
+			if (s->if_index != get_tap_if_index()) {
+				nd_logdbg("slave %d is down ", s->if_index);
+				changed = true;
+
+				delete s;
+				m_slaves.erase(slave);
+				break;
+			}
+		}
+	}
+	for (i = 0; changed && (i < m_slaves.size()); i++) {
+		char if_name[IFNAMSIZ + 1] = {0};
+		char base_ifname[IFNAMSIZ];
+
+		if (!if_indextoname(m_slaves[i]->if_index, if_name)) {
+			nd_logerr("Can not find interface name by index=%d", m_slaves[i]->if_index);
+			continue;
+		}
+		get_base_interface_name((const char*)if_name, base_ifname, sizeof(base_ifname));
+
+		// Save L2 address
+		m_slaves[i]->p_L2_addr = create_L2_address(if_name);
+		m_slaves[i]->active = false;
+
+		if (m_bond == NETVSC) {
+			if ((m_slaves.size() > 1) && (m_slaves[i]->if_index == get_tap_if_index())) {
+				m_slaves[i]->active = false;
+			} else {
+				m_slaves[i]->active = true;
+			}
+		}
+
+		m_slaves[i]->p_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(base_ifname);
+		m_slaves[i]->port_num = get_port_from_ifname(base_ifname);
+	}
+
+	/* restart if status changed */
+	if (changed) {
+		m_p_L2_addr = create_L2_address(get_ifname());
+		rings_hash_map_t::iterator ring_iter;
+		for (ring_iter = m_h_ring_map.begin(); ring_iter != m_h_ring_map.end(); ring_iter++) {
+			if (m_slaves.size() == 1) {
+				ring_bond_netvsc* p_ring_bond_netvsc = dynamic_cast<ring_bond_netvsc*>(ring_iter->second.first);
+				if (p_ring_bond_netvsc) {
+					ring_tap* p_ring_tap = dynamic_cast<ring_tap*>(p_ring_bond_netvsc->m_tap_ring);
+					if (p_ring_tap) {
+						p_ring_tap->set_vf_ring(NULL);
+						p_ring_tap->m_active = true;
+					}
+					p_ring_bond_netvsc->m_vf_ring->m_active = false;
+					p_ring_bond_netvsc->slave_destroy(p_ring_bond_netvsc->m_vf_ring->get_if_index());
+					p_ring_bond_netvsc->m_vf_ring = NULL;
+				}
+			}
+		}
+	}
+
+	return changed;
 }
 
 std::string net_device_val::to_str()
