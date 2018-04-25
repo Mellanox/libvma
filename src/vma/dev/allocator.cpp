@@ -60,12 +60,8 @@ vma_allocator::~vma_allocator()
 	__log_info_dbg("");
 
 	// Unregister memory
-	lkey_map_ib_ctx_map_t::iterator iter;
-	while ((iter = m_lkey_map_ib_ctx.begin()) != m_lkey_map_ib_ctx.end()) {
-		ib_ctx_handler* p_ib_ctx_h = iter->first;
-		p_ib_ctx_h->mem_dereg(iter->second);
-		m_lkey_map_ib_ctx.erase(iter);
-	}
+	deregister_memory();
+
 	// Release memory
 	if (m_shmid >= 0) { // Huge pages mode
 		BULLSEYE_EXCLUDE_BLOCK_START
@@ -290,4 +286,26 @@ bool vma_allocator::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h,
 	}
 
 	return true;
+}
+
+void vma_allocator::deregister_memory()
+{
+	ib_ctx_handler *p_ib_ctx_h = NULL;
+	ib_context_map_t *ib_ctx_map = NULL;
+	uint32_t lkey = (uint32_t)(-1);
+
+	ib_ctx_map = g_p_ib_ctx_handler_collection->get_ib_cxt_list();
+	if (ib_ctx_map) {
+		ib_context_map_t::iterator iter;
+
+		for (iter = ib_ctx_map->begin(); iter != ib_ctx_map->end(); iter++) {
+			p_ib_ctx_h = iter->second;
+			lkey = find_lkey_by_ib_ctx(p_ib_ctx_h);
+			if (lkey != (uint32_t)(-1)) {
+				p_ib_ctx_h->mem_dereg(lkey);
+				m_lkey_map_ib_ctx.erase(p_ib_ctx_h);
+			}
+		}
+	}
+	m_lkey_map_ib_ctx.clear();
 }
