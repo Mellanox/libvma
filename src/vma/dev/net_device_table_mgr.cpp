@@ -145,6 +145,7 @@ void net_device_table_mgr::free_ndtm_resources()
 		delete itr->second;
 		m_net_device_map_index.erase(itr);
 	}
+	m_net_device_map_addr.clear();
 
 	m_lock.unlock();
 }
@@ -196,6 +197,7 @@ void net_device_table_mgr::update_tbl()
 	}
 
 	m_lock.lock();
+
 	do {
 		/* Receive the netlink reply */
 		rc = orig_os_api.recv(fd, nl_res, sizeof(nl_res), 0);
@@ -219,6 +221,7 @@ void net_device_table_mgr::update_tbl()
 			/* Skip some types */
 			if (!(nl_msgdata->ifi_flags & IFF_SLAVE)) {
 				struct net_device_val::net_device_val_desc desc = {nl_msg};
+				/* Add new interfaces */
 				switch (nl_msgdata->ifi_type) {
 				case ARPHRD_ETHER:
 					p_net_device_val = new net_device_val_eth(&desc);
@@ -262,6 +265,7 @@ next:
 	} while (1);
 
 ret:
+
 	m_lock.unlock();
 	ndtm_logdbg("Check completed. Found %d offload capable network interfaces", m_net_device_map_index.size());
 
@@ -355,7 +359,8 @@ std::string net_device_table_mgr::to_str()
 		rv += "\n";
 		net_device_iter++;
 	}
-	return rv;}
+	return rv;
+}
 
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
@@ -394,8 +399,8 @@ int net_device_table_mgr::global_ring_poll_and_process_element(uint64_t *p_poll_
 	ndtm_logfunc("");
 	int ret_total = 0;
 
-	net_device_map_addr_t::iterator net_dev_iter;
-	for (net_dev_iter=m_net_device_map_addr.begin(); net_dev_iter!=m_net_device_map_addr.end(); net_dev_iter++) {
+	net_device_map_index_t::iterator net_dev_iter;
+	for (net_dev_iter=m_net_device_map_index.begin(); net_dev_iter!=m_net_device_map_index.end(); net_dev_iter++) {
 		int ret = net_dev_iter->second->global_ring_poll_and_process_element(p_poll_sn, pv_fd_ready_array);
 		if (ret < 0) {
 			ndtm_logdbg("Error in net_device_val[%p]->poll_and_process_element() (errno=%d %m)", net_dev_iter->second, errno);
@@ -415,8 +420,8 @@ int net_device_table_mgr::global_ring_request_notification(uint64_t poll_sn)
 {
 	ndtm_logfunc("");
 	int ret_total = 0;
-	net_device_map_addr_t::iterator net_dev_iter;
-	for (net_dev_iter = m_net_device_map_addr.begin(); m_net_device_map_addr.end() != net_dev_iter; net_dev_iter++) {
+	net_device_map_index_t::iterator net_dev_iter;
+	for (net_dev_iter = m_net_device_map_index.begin(); m_net_device_map_index.end() != net_dev_iter; net_dev_iter++) {
 		int ret = net_dev_iter->second->global_ring_request_notification(poll_sn);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (ret < 0) {
@@ -489,8 +494,8 @@ int net_device_table_mgr::global_ring_drain_and_procces()
 	ndtm_logfuncall("");
 	int ret_total = 0;
 
-	net_device_map_addr_t::iterator net_dev_iter;
-        for (net_dev_iter=m_net_device_map_addr.begin(); m_net_device_map_addr.end() != net_dev_iter; net_dev_iter++) {
+	net_device_map_index_t::iterator net_dev_iter;
+        for (net_dev_iter=m_net_device_map_index.begin(); m_net_device_map_index.end() != net_dev_iter; net_dev_iter++) {
 		int ret = net_dev_iter->second->ring_drain_and_proccess();
 		if (ret < 0 && errno!= EBUSY) {
 			ndtm_logerr("Error in ring[%p]->drain() (errno=%d %m)", net_dev_iter->second, errno);
@@ -510,8 +515,8 @@ void net_device_table_mgr::global_ring_adapt_cq_moderation()
 {
 	ndtm_logfuncall("");
 
-	net_device_map_addr_t::iterator net_dev_iter;
-	for (net_dev_iter=m_net_device_map_addr.begin(); m_net_device_map_addr.end() != net_dev_iter; net_dev_iter++) {
+	net_device_map_index_t::iterator net_dev_iter;
+	for (net_dev_iter=m_net_device_map_index.begin(); m_net_device_map_index.end() != net_dev_iter; net_dev_iter++) {
 		net_dev_iter->second->ring_adapt_cq_moderation();
 	}
 }
