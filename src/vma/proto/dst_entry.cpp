@@ -569,8 +569,10 @@ bool dst_entry::prepare_to_send(struct vma_rate_limit_t &rate_limit, bool skip_r
 								     m_dst_ip.get_in_addr(),
 								     m_src_port,
 								     m_dst_port);
-					m_p_ring->mem_buf_tx_release(m_p_tx_mem_buf_desc_list, true);
-					m_p_tx_mem_buf_desc_list = NULL;
+					if (m_p_tx_mem_buf_desc_list) {
+						m_p_ring->mem_buf_tx_release(m_p_tx_mem_buf_desc_list, true);
+						m_p_tx_mem_buf_desc_list = NULL;
+					}
 					resolved = true;
 				}
 			}
