@@ -407,9 +407,10 @@ void event_handler_manager::update_epfd(int fd, int operation, int events)
 	ev.events = events;
 	ev.data.fd = fd;
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (orig_os_api.epoll_ctl(m_epfd, operation, fd, &ev) < 0) {
+	if ((orig_os_api.epoll_ctl(m_epfd, operation, fd, &ev) < 0) &&
+		(!(errno == ENOENT || errno == EBADF))) {
 		const char* operation_str[] = {"", "ADD", "DEL", "MOD"};
-		evh_logerr("epoll_ctl(%d, %s, fd=%d) failed (errno=%d %m)", 
+		evh_logerr("epoll_ctl(%d, %s, fd=%d) failed (errno=%d %m)",
 			   m_epfd, operation_str[operation], fd, errno);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
