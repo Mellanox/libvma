@@ -98,7 +98,7 @@ protected:
 
 private:
 	void			devide_buffers_helper(descq_t *rx_reuse, descq_t *buffer_per_ring);
-	void			devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_buf_desc_t** buffer_per_ring);
+	int			devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_buf_desc_t** buffer_per_ring);
 
 	net_device_val::bond_type m_type;
 	net_device_val::bond_xmit_hash_policy m_xmit_hash_policy;

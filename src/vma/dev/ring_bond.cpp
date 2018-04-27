@@ -242,10 +242,10 @@ mem_buf_desc_t* ring_bond::mem_buf_tx_get(ring_user_id_t id, bool b_block, int n
 
 int ring_bond::mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting, bool trylock/*=false*/)
 {
+	int ret = 0;
 	mem_buf_desc_t* buffer_per_ring[m_bond_rings.size()];
 	memset(buffer_per_ring, 0, m_bond_rings.size() * sizeof(mem_buf_desc_t*));
-	devide_buffers_helper(p_mem_buf_desc_list, buffer_per_ring);
-	int ret = 0;
+	ret = devide_buffers_helper(p_mem_buf_desc_list, buffer_per_ring);
 	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (buffer_per_ring[i])
 			ret += m_bond_rings[i]->mem_buf_tx_release(buffer_per_ring[i], b_accounting, trylock);
@@ -482,19 +482,23 @@ void ring_bond::devide_buffers_helper(descq_t *rx_reuse, descq_t* buffer_per_rin
 	}
 }
 
-void ring_bond::devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_buf_desc_t **buffer_per_ring)
+int ring_bond::devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_buf_desc_t **buffer_per_ring)
 {
-	mem_buf_desc_t* buffers_last[m_bond_rings.size()];
-	memset(buffers_last, 0, m_bond_rings.size() * sizeof(mem_buf_desc_t*));
+	mem_buf_desc_t* buffers_last[MAX_NUM_RING_RESOURCES];
 	mem_buf_desc_t *head, *current, *temp;
 	mem_buf_desc_owner* last_owner;
+	int count = 0;
+	int ret = 0;
 
+	memset(buffers_last, 0, sizeof(buffers_last));
 	head = p_mem_buf_desc_list;
 	while (head) {
 		last_owner = head->p_desc_owner;
 		current = head;
+		count = 1;
 		while(head && head->p_next_desc && head->p_next_desc->p_desc_owner == last_owner) {
 			head = head->p_next_desc;
+			count++;
 		}
 		uint32_t i = 0;
 		for (i = 0; i < m_bond_rings.size(); i++) {
@@ -515,10 +519,13 @@ void ring_bond::devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_b
 			//handle no owner
 			ring_logdbg("No matching ring %p to return buffer", current->p_desc_owner);
 			g_buffer_pool_tx->put_buffers_thread_safe(current);
+			ret += count;
 		}
 
 		head = temp;
 	}
+
+	return ret;
 }
 
 /* TODO consider only ring_simple to inherit mem_buf_desc_owner */
