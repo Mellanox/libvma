@@ -98,7 +98,7 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
 		}
 	// fallthrough
 	case ALLOC_TYPE_CONTIG:
-		if (m_is_contig_alloc &&
+		if (!safe_mce_sys().is_hypervisor && m_is_contig_alloc &&
 				g_p_ib_ctx_handler_collection->get_ib_cxt_list()) {
 			if (!register_memory(size, p_ib_ctx_h, m_contig_access_mr)) {
 				__log_info_dbg("Failed allocating contiguous pages");
