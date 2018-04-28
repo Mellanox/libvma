@@ -873,6 +873,7 @@ bool net_device_val::update_netvsc_slaves()
 	struct ifaddrs slave_ifa;
 	slave_data_t* s = NULL;
 	uint16_t i = 0;
+	ib_ctx_handler *ib_ctx = NULL;
 
 	if (get_netvsc_slave(get_ifname_link(), &slave_ifa)) {
 		if (slave_ifa.ifa_flags & IFF_UP) {
@@ -891,6 +892,7 @@ bool net_device_val::update_netvsc_slaves()
 				nd_logdbg("slave %d is down ", s->if_index);
 				changed = true;
 
+				ib_ctx = s->p_ib_ctx;
 				delete s;
 				m_slaves.erase(slave);
 				break;
@@ -926,21 +928,13 @@ bool net_device_val::update_netvsc_slaves()
 	/* restart if status changed */
 	if (changed) {
 		m_p_L2_addr = create_L2_address(get_ifname());
+		// restart rings
 		rings_hash_map_t::iterator ring_iter;
 		for (ring_iter = m_h_ring_map.begin(); ring_iter != m_h_ring_map.end(); ring_iter++) {
-			if (m_slaves.size() == 1) {
-				ring_bond_netvsc* p_ring_bond_netvsc = dynamic_cast<ring_bond_netvsc*>(ring_iter->second.first);
-				if (p_ring_bond_netvsc) {
-					ring_tap* p_ring_tap = dynamic_cast<ring_tap*>(p_ring_bond_netvsc->m_tap_ring);
-					if (p_ring_tap) {
-						p_ring_tap->set_vf_ring(NULL);
-						p_ring_tap->m_active = true;
-					}
-					p_ring_bond_netvsc->m_vf_ring->m_active = false;
-					p_ring_bond_netvsc->slave_destroy(p_ring_bond_netvsc->m_vf_ring->get_if_index());
-					p_ring_bond_netvsc->m_vf_ring = NULL;
-				}
-			}
+			THE_RING->restart();
+		}
+		if (ib_ctx) {
+			g_p_ib_ctx_handler_collection->del_ib_ctx(ib_ctx);
 		}
 	}
 

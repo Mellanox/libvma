@@ -574,22 +574,7 @@ uint32_t net_device_table_mgr::get_max_mtu()
 
 void net_device_table_mgr::del_link_event(const netlink_link_info* info)
 {
-	net_device_map_index_t::iterator itr;
-	net_device_val* net_dev = NULL;
-	int if_index = info->ifindex;
-
 	ndtm_logdbg("netlink event: RTM_DELLINK if_index: %d", info->ifindex);
-
-	net_dev = get_net_device_val(if_index);
-	if (net_dev) {
-		ndtm_logdbg("found entry [%p]: if_index: %d : %s",
-				net_dev, net_dev->get_if_idx(), net_dev->get_ifname());
-		if ((info->flags & IFF_SLAVE) &&
-				(if_index != net_dev->get_if_idx()) &&
-				(net_dev->get_is_bond() == net_device_val::NETVSC)) {
-			net_dev->update_netvsc_slaves();
-		}
-	}
 }
 
 void net_device_table_mgr::new_link_event(const netlink_link_info* info)
@@ -597,8 +582,23 @@ void net_device_table_mgr::new_link_event(const netlink_link_info* info)
 	ndtm_logdbg("netlink event: RTM_NEWLINK if_index: %d", info->ifindex);
 
 	if (info->flags & IFF_SLAVE) {
+		net_device_map_index_t::iterator itr;
+		net_device_val* net_dev = NULL;
+		int if_index = info->ifindex;
+
 		ndtm_logdbg("netlink event: if_index: %d state: %s",
 				info->ifindex, (info->flags & IFF_RUNNING ? "Up" : "Down"));
+
+		net_dev = get_net_device_val(if_index);
+		if (net_dev) {
+			ndtm_logdbg("found entry [%p]: if_index: %d : %s",
+					net_dev, net_dev->get_if_idx(), net_dev->get_ifname());
+			if ((info->flags & IFF_SLAVE) &&
+					(if_index != net_dev->get_if_idx()) &&
+					(net_dev->get_is_bond() == net_device_val::NETVSC)) {
+				net_dev->update_netvsc_slaves();
+			}
+		}
 	}
 }
 

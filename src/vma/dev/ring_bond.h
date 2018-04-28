@@ -92,16 +92,15 @@ protected:
 	void			popup_active_rings();
 	ring_slave_vector_t     m_bond_rings;
 	std::vector<struct flow_sink_t> m_rx_flows;
-	lock_mutex              m_lock;
-	lock_mutex_recursive	m_lock_ring_rx;
 	int			m_min_devices_tx_inline;
 
 private:
-	void			devide_buffers_helper(descq_t *rx_reuse, descq_t *buffer_per_ring);
-	int			devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_buf_desc_t** buffer_per_ring);
+	void devide_buffers_helper(descq_t *rx_reuse, descq_t *buffer_per_ring);
+	int devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_buf_desc_t** buffer_per_ring);
 
 	net_device_val::bond_type m_type;
 	net_device_val::bond_xmit_hash_policy m_xmit_hash_policy;
+	lock_mutex_recursive	m_lock_ring_rx;
 	lock_mutex_recursive	m_lock_ring_tx;
 };
 

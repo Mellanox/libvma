@@ -237,3 +237,14 @@ ib_ctx_handler* ib_ctx_handler_collection::get_ib_ctx(const char *ifa_name)
 
 	return NULL;
 }
+
+void ib_ctx_handler_collection::del_ib_ctx(ib_ctx_handler* ib_ctx)
+{
+	if (ib_ctx) {
+		ib_context_map_t::iterator ib_ctx_iter = m_ib_ctx_map.find(ib_ctx->get_ibv_device());
+		if (ib_ctx_iter != m_ib_ctx_map.end()) {
+			delete ib_ctx_iter->second;
+			m_ib_ctx_map.erase(ib_ctx_iter);
+		}
+	}
+}
