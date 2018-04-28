@@ -385,6 +385,61 @@ exit:
 	return ret;
 }
 
+/*
+ * Intel and AMD CPUs have reserved bit 31 of ECX of CPUID leaf 0x1 as the hypervisor present bit.
+ * This bit allows hypervisors to indicate their presence to the guest operating system.
+ * Hypervisors set this bit and physical CPUs (all existing and future CPUs) set this bit to zero.
+ * Guest operating systems can test bit 31 to detect if they are running inside a virtual machine.
+ */
+bool mce_sys_var::cpuid_hv()
+{
+#if defined(__x86_64__)
+	uint32_t _ecx;
+	__asm__ __volatile__("cpuid" \
+            : "=c"(_ecx) \
+	        : "a"(0x01));
+	usleep(0);
+	return (bool)((_ecx >> 31) & 0x1);
+#else
+	return check_cpuinfo_flag(VIRTUALIZATION_FLAG);
+#endif
+}
+
+/*
+ * Intel and AMD have also reserved CPUID leaves 0x40000000 - 0x400000FF for software use.
+ * Hypervisors can use these leaves to provide an interface to pass information from the
+ * hypervisor to the guest operating system running inside a virtual machine.
+ * The hypervisor bit indicates the presence of a hypervisor and that it is safe to test
+ * these additional software leaves. VMware defines the 0x40000000 leaf as the hypervisor CPUID
+ * information leaf. Code running on a VMware hypervisor can test the CPUID information leaf
+ * for the hypervisor signature. VMware stores the string "VMwareVMware" in
+ * EBX, ECX, EDX of CPUID leaf 0x40000000.
+ */
+const char* mce_sys_var::cpuid_hv_vendor()
+{
+#if defined(__x86_64__)
+	static __thread char vendor[13];
+	uint32_t _ebx = 0, _ecx = 0, _edx = 0;
+
+    if (!cpuid_hv()) {
+    	return NULL;
+    }
+	__asm__ __volatile__("cpuid" \
+            : "=b"(_ebx), \
+            "=c"(_ecx), \
+            "=d"(_edx) \
+            : "a"(0x40000000));
+	sprintf(vendor,     "%c%c%c%c", _ebx, (_ebx >> 8), (_ebx >> 16), (_ebx >> 24));
+	sprintf(vendor + 4, "%c%c%c%c", _ecx, (_ecx >> 8), (_ecx >> 16), (_ecx >> 24));
+	sprintf(vendor + 8, "%c%c%c%c", _edx, (_edx >> 8), (_edx >> 16), (_edx >> 24));
+	vendor[12] = 0x00;
+	return vendor;
+#else
+	static __thread char vendor[13] = "n/a";
+	return vendor;
+#endif
+}
+
 void mce_sys_var::get_env_params()
 {
 	int c = 0, len =0;
@@ -546,6 +601,8 @@ void mce_sys_var::get_env_params()
 	vma_time_measure_num_samples = MCE_DEFAULT_TIME_MEASURE_NUM_SAMPLES;
 #endif
 
+	is_hypervisor = cpuid_hv();
+
 	if ((env_ptr = getenv(SYS_VAR_SPEC)) != NULL){
 		mce_spec = (uint32_t)vma_spec::from_str(env_ptr, MCE_SPEC_NONE);
 	}
@@ -676,9 +733,7 @@ void mce_sys_var::get_env_params()
 		break;
 	}
 
-	is_hypervisor = check_cpuinfo_flag(VIRTUALIZATION_FLAG);
-
-       if ((env_ptr = getenv(SYS_VAR_SPEC_PARAM1)) != NULL)
+	if ((env_ptr = getenv(SYS_VAR_SPEC_PARAM1)) != NULL)
 		mce_spec_param1 = (uint32_t)atoi(env_ptr);
 
 	if ((env_ptr = getenv(SYS_VAR_SPEC_PARAM2)) != NULL)
@@ -1107,7 +1162,7 @@ void mce_sys_var::get_env_params()
 	if ((getenv(SYS_VAR_HUGETBL)) != NULL)
 	{
 		vlog_printf(VLOG_WARNING, "**********************************************************************************************************************\n");
-		vlog_printf(VLOG_WARNING, "The '%s' paramaeter is no longer supported, please refer to '%s' in README.txt for more info\n", SYS_VAR_HUGETBL, SYS_VAR_MEM_ALLOC_TYPE);
+		vlog_printf(VLOG_WARNING, "The '%s' parameter is no longer supported, please refer to '%s' in README.txt for more info\n", SYS_VAR_HUGETBL, SYS_VAR_MEM_ALLOC_TYPE);
 		vlog_printf(VLOG_WARNING, "**********************************************************************************************************************\n");
 	}
 
@@ -1115,6 +1170,11 @@ void mce_sys_var::get_env_params()
 		mem_alloc_type = (alloc_mode_t)atoi(env_ptr);
 	if (mem_alloc_type < 0 || mem_alloc_type >= ALLOC_TYPE_LAST)
 		mem_alloc_type = MCE_DEFAULT_MEM_ALLOC_TYPE;
+	if (is_hypervisor && (mem_alloc_type == ALLOC_TYPE_CONTIG)) {
+		vlog_printf(VLOG_DEBUG, "The '%s' parameter can not be %d for %s.\n",
+				SYS_VAR_MEM_ALLOC_TYPE, mem_alloc_type, cpuid_hv_vendor());
+		mem_alloc_type = ALLOC_TYPE_HUGEPAGES;
+	}
 
 	if ((env_ptr = getenv(SYS_VAR_BF)) != NULL)
 		handle_bf = atoi(env_ptr) ? true : false;
