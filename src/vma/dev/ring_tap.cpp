@@ -492,6 +492,13 @@ bool ring_tap::reclaim_recv_buffers(descq_t *rx_reuse)
 		reclaim_recv_buffers(buff);
 	}
 
+	if (m_rx_pool.size() >= m_sysvar_qp_compensation_level * 2) {
+		int buff_to_rel = m_rx_pool.size() - m_sysvar_qp_compensation_level;
+
+		g_buffer_pool_rx->put_buffers_thread_safe(&m_rx_pool, buff_to_rel);
+		m_p_ring_stat->tap.n_rx_buffers = m_rx_pool.size();
+	}
+
 	return true;
 }
 
