@@ -59,13 +59,10 @@
 /* Set limitation for number of rings for bonding device */
 #define MAX_NUM_RING_RESOURCES 10
 
-#define TAP_NAME_FORMAT "t%x%x" // t<pid7c><fd7c>
-#define TAP_STR_LENGTH	512
-#define TAP_DISABLE_IPV6 "sysctl -w net.ipv6.conf.%s.disable_ipv6=1"
 
 ring_bond::ring_bond(int if_index) :
 	ring(),
-	m_lock("ring_bond"), m_lock_ring_rx("ring_bond:lock_rx"), m_lock_ring_tx("ring_bond:lock_tx")
+	m_lock_ring_rx("ring_bond:lock_rx"), m_lock_ring_tx("ring_bond:lock_tx")
 {
 	net_device_val* p_ndev = NULL;
 
@@ -170,52 +167,68 @@ void ring_bond::restart()
 	m_lock_ring_rx.lock();
 	m_lock_ring_tx.lock();
 
-	/* for active-backup mode
-	 * It is guaranteed that the first slave is active by popup_active_rings()
-	 */
-	ring_simple* previously_active = dynamic_cast<ring_simple*>(m_bond_rings[0]);
-
-	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
-		ring_simple* tmp_ring = dynamic_cast<ring_simple*>(m_bond_rings[i]);
-		if (!tmp_ring) {
-			continue;
-		}
-		if (slaves[i]->active) {
-			ring_logdbg("ring %d active", i);
-			tmp_ring->start_active_qp_mgr();
-			m_bond_rings[i]->m_active = true;
-		} else {
-			ring_logdbg("ring %d not active", i);
-			tmp_ring->stop_active_qp_mgr();
-			m_bond_rings[i]->m_active = false;
-		}
-	}
-	popup_active_rings();
-
-	int ret = 0;
-	uint64_t poll_sn = cq_mgr::m_n_global_sn;
-	ret = request_notification(CQT_RX, poll_sn);
-	if (ret < 0) {
-		ring_logdbg("failed arming rx cq_mgr (errno=%d %m)", errno);
-	}
-	ret = request_notification(CQT_TX, poll_sn);
-	if (ret < 0) {
-		ring_logdbg("failed arming tx cq_mgr (errno=%d %m)", errno);
-	}
-
-	if (m_type == net_device_val::ACTIVE_BACKUP) {
-		ring_simple* currently_active = dynamic_cast<ring_simple*>(m_bond_rings[0]);
-		if (currently_active && safe_mce_sys().cq_moderation_enable) {
-			if (likely(previously_active)) {
-				currently_active->m_cq_moderation_info.period = previously_active->m_cq_moderation_info.period;
-				currently_active->m_cq_moderation_info.count = previously_active->m_cq_moderation_info.count;
+	if(p_ndev->get_is_bond() == net_device_val::NETVSC) {
+		if (slaves.size() == 1) {
+			ring_bond_netvsc* p_ring_bond_netvsc = dynamic_cast<ring_bond_netvsc*>(this);
+			if (p_ring_bond_netvsc) {
+				ring_tap* p_ring_tap = dynamic_cast<ring_tap*>(p_ring_bond_netvsc->m_tap_ring);
+				if (p_ring_tap) {
+					p_ring_tap->set_vf_ring(NULL);
+					p_ring_tap->m_active = true;
+				}
+				p_ring_bond_netvsc->m_vf_ring->m_active = false;
+				p_ring_bond_netvsc->slave_destroy(p_ring_bond_netvsc->m_vf_ring->get_if_index());
+				p_ring_bond_netvsc->m_vf_ring = NULL;
 			}
-			else {
-				currently_active->m_cq_moderation_info.period = safe_mce_sys().cq_moderation_period_usec;
-				currently_active->m_cq_moderation_info.count = safe_mce_sys().cq_moderation_count;
-			}
+		}
+	} else {
+		/* for active-backup mode
+		 * It is guaranteed that the first slave is active by popup_active_rings()
+		 */
+		ring_simple* previously_active = dynamic_cast<ring_simple*>(m_bond_rings[0]);
 
-			currently_active->modify_cq_moderation(safe_mce_sys().cq_moderation_period_usec, safe_mce_sys().cq_moderation_count);
+		for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
+			ring_simple* tmp_ring = dynamic_cast<ring_simple*>(m_bond_rings[i]);
+			if (!tmp_ring) {
+				continue;
+			}
+			if (slaves[i]->active) {
+				ring_logdbg("ring %d active", i);
+				tmp_ring->start_active_qp_mgr();
+				m_bond_rings[i]->m_active = true;
+			} else {
+				ring_logdbg("ring %d not active", i);
+				tmp_ring->stop_active_qp_mgr();
+				m_bond_rings[i]->m_active = false;
+			}
+		}
+		popup_active_rings();
+
+		int ret = 0;
+		uint64_t poll_sn = cq_mgr::m_n_global_sn;
+		ret = request_notification(CQT_RX, poll_sn);
+		if (ret < 0) {
+			ring_logdbg("failed arming rx cq_mgr (errno=%d %m)", errno);
+		}
+		ret = request_notification(CQT_TX, poll_sn);
+		if (ret < 0) {
+			ring_logdbg("failed arming tx cq_mgr (errno=%d %m)", errno);
+		}
+
+		if (m_type == net_device_val::ACTIVE_BACKUP) {
+			ring_simple* currently_active = dynamic_cast<ring_simple*>(m_bond_rings[0]);
+			if (currently_active && safe_mce_sys().cq_moderation_enable) {
+				if (likely(previously_active)) {
+					currently_active->m_cq_moderation_info.period = previously_active->m_cq_moderation_info.period;
+					currently_active->m_cq_moderation_info.count = previously_active->m_cq_moderation_info.count;
+				}
+				else {
+					currently_active->m_cq_moderation_info.period = safe_mce_sys().cq_moderation_period_usec;
+					currently_active->m_cq_moderation_info.count = safe_mce_sys().cq_moderation_count;
+				}
+
+				currently_active->modify_cq_moderation(safe_mce_sys().cq_moderation_period_usec, safe_mce_sys().cq_moderation_count);
+			}
 		}
 	}
 
@@ -227,28 +240,43 @@ void ring_bond::restart()
 
 void ring_bond::adapt_cq_moderation()
 {
+	if (m_lock_ring_rx.trylock()) {
+		return ;
+	}
+
 	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (m_bond_rings[i]->is_up())
 			m_bond_rings[i]->adapt_cq_moderation();
 	}
+
+	m_lock_ring_rx.unlock();
 }
 
 mem_buf_desc_t* ring_bond::mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_num_mem_bufs /* default = 1 */)
 {
-	mem_buf_desc_t* ret;
+	mem_buf_desc_t* ret = NULL;
+
+	auto_unlocker lock(m_lock_ring_tx);
 	ret = m_bond_rings[id]->mem_buf_tx_get(id, b_block, n_num_mem_bufs);
+
 	return ret;
 }
 
 int ring_bond::mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting, bool trylock/*=false*/)
 {
+	mem_buf_desc_t* buffer_per_ring[MAX_NUM_RING_RESOURCES];
 	int ret = 0;
-	mem_buf_desc_t* buffer_per_ring[m_bond_rings.size()];
-	memset(buffer_per_ring, 0, m_bond_rings.size() * sizeof(mem_buf_desc_t*));
+	uint32_t i = 0;
+
+	auto_unlocker lock(m_lock_ring_tx);
+
+	memset(buffer_per_ring, 0, sizeof(buffer_per_ring));
 	ret = devide_buffers_helper(p_mem_buf_desc_list, buffer_per_ring);
-	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
-		if (buffer_per_ring[i])
+
+	for (i = 0; i < m_bond_rings.size(); i++) {
+		if (buffer_per_ring[i]) {
 			ret += m_bond_rings[i]->mem_buf_tx_release(buffer_per_ring[i], b_accounting, trylock);
+		}
 	}
 	return ret;
 }
@@ -256,6 +284,8 @@ int ring_bond::mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_ac
 void ring_bond::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 {
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
+
+	auto_unlocker lock(m_lock_ring_tx);
 	ring_slave* active_ring = m_bond_rings[id];
 
 	if (is_active_member(p_mem_buf_desc->p_desc_owner, id)) {
@@ -274,6 +304,8 @@ void ring_bond::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe,
 void ring_bond::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block)
 {
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
+
+	auto_unlocker lock(m_lock_ring_tx);
 	ring_slave* active_ring = m_bond_rings[id];
 
 	if (is_active_member(p_mem_buf_desc->p_desc_owner, id)) {
@@ -291,6 +323,8 @@ void ring_bond::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe,
 bool ring_bond::get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe)
 {
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
+
+	auto_unlocker lock(m_lock_ring_tx);
 	ring_slave* active_ring = m_bond_rings[id];
 
 	if (is_active_member(p_mem_buf_desc->p_desc_owner, id)) {
@@ -298,10 +332,10 @@ bool ring_bond::get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_
 	} else {
 		if (likely(p_mem_buf_desc->p_desc_owner == active_ring)) {
 			return active_ring->get_hw_dummy_send_support(id, p_send_wqe);
-		} else {
-			return false;
 		}
 	}
+
+	return false;
 }
 
 int ring_bond::get_max_tx_inline()
@@ -421,9 +455,11 @@ int ring_bond::request_notification(cq_type_t cq_type, uint64_t poll_sn)
 
 void ring_bond::inc_tx_retransmissions(ring_user_id_t id)
 {
+	auto_unlocker lock(m_lock_ring_tx);
 	ring_slave* active_ring = m_bond_rings[id];
-	if (likely(active_ring->m_active))
+	if (likely(active_ring->m_active)) {
 		active_ring->inc_tx_retransmissions(id);
+	}
 }
 
 bool ring_bond::reclaim_recv_buffers(descq_t *rx_reuse)
@@ -434,6 +470,7 @@ bool ring_bond::reclaim_recv_buffers(descq_t *rx_reuse)
 	 * VLA is not an official part of C++11.
 	 */
 	descq_t buffer_per_ring[MAX_NUM_RING_RESOURCES];
+	uint32_t i = 0;
 
 	if(m_lock_ring_rx.trylock()) {
 		errno = EBUSY;
@@ -441,7 +478,8 @@ bool ring_bond::reclaim_recv_buffers(descq_t *rx_reuse)
 	}
 
 	devide_buffers_helper(rx_reuse, buffer_per_ring);
-	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
+
+	for (i = 0; i < m_bond_rings.size(); i++) {
 		if (buffer_per_ring[i].size() > 0) {
 			if (!m_bond_rings[i]->reclaim_recv_buffers(&buffer_per_ring[i])) {
 				g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&buffer_per_ring[i]);
@@ -449,8 +487,9 @@ bool ring_bond::reclaim_recv_buffers(descq_t *rx_reuse)
 		}
 	}
 
-	if (buffer_per_ring[m_bond_rings.size()].size() > 0)
+	if (buffer_per_ring[m_bond_rings.size()].size() > 0) {
 		g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&buffer_per_ring[m_bond_rings.size()]);
+	}
 
 	m_lock_ring_rx.unlock();
 
@@ -676,10 +715,6 @@ void ring_bond::slave_destroy(int if_index)
 	ring_slave *cur_slave = NULL;
 	ring_slave_vector_t::iterator iter;
 
-	m_lock_ring_rx.lock();
-	m_lock_ring_tx.lock();
-
-	auto_unlocker lock(m_lock);
 	for (iter = m_bond_rings.begin(); iter != m_bond_rings.end(); iter++) {
 		cur_slave = *iter;
 		if (cur_slave->get_if_index() == if_index) {
@@ -689,15 +724,12 @@ void ring_bond::slave_destroy(int if_index)
 			break;
 		}
 	}
-	m_lock_ring_tx.unlock();
-	m_lock_ring_rx.unlock();
 }
 
 void ring_bond_eth::slave_create(int if_index)
 {
 	ring_slave *cur_slave = NULL;
 
-	auto_unlocker lock(m_lock);
 	cur_slave = new ring_eth(if_index, this);
 	if (m_min_devices_tx_inline < 0) {
 		m_min_devices_tx_inline = cur_slave->get_max_tx_inline();
@@ -718,7 +750,6 @@ void ring_bond_ib::slave_create(int if_index)
 {
 	ring_slave *cur_slave = NULL;
 
-	auto_unlocker lock(m_lock);
 	cur_slave = new ring_ib(if_index, this);
 	if (m_min_devices_tx_inline < 0) {
 		m_min_devices_tx_inline = cur_slave->get_max_tx_inline();
@@ -739,8 +770,6 @@ void ring_bond_netvsc::slave_create(int if_index)
 {
 	ring_slave *cur_slave = NULL;
 	net_device_val* p_ndev = NULL;
-
-	auto_unlocker lock(m_lock);
 
 	p_ndev = g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
 	if (NULL == p_ndev) {

@@ -276,7 +276,7 @@ void ib_ctx_handler::mem_dereg(uint32_t lkey)
 		ibch_logdbg("dev:%s (%p) addr=%p length=%d pd=%p",
 				get_ibname(), m_p_ibv_device, mr->addr, mr->length, m_p_ibv_pd);
 		IF_VERBS_FAILURE(ibv_dereg_mr(mr)) {
-			ibch_logerr("failed de-registering a memory region "
+			ibch_logdbg("failed de-registering a memory region "
 					"(errno=%d %m)", errno);
 		} ENDIF_VERBS_FAILURE;
 		VALGRIND_MAKE_MEM_UNDEFINED(mr, sizeof(ibv_mr));
