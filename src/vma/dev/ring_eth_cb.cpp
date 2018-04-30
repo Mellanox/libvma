@@ -41,7 +41,11 @@
 
 
 #ifdef HAVE_MP_RQ
+
 #define DUMP_LKEY		(0x700)
+#define VMA_MP_MIN_LOG_STRIDES	(10)
+#define MAX_MP_WQES		(20) // limit max used memory
+#define MIN_MP_WQES		(4)
 
 ring_eth_cb::ring_eth_cb(in_addr_t local_if,
 			 ring_resource_creation_info_t *p_ring_info, int count,
@@ -117,14 +121,17 @@ void ring_eth_cb::create_resources(ring_resource_creation_info_t *p_ring_info,
 	m_stride_size = 1 << m_single_stride_log_num_of_bytes;
 	uint32_t max_wqe_size = 1 << mp_rq_caps->max_single_wqe_log_num_of_strides;
 	uint32_t user_req_wq = cb_ring->num / max_wqe_size;
-	if (user_req_wq > 2) {
+	if (user_req_wq > MIN_MP_WQES) {
 		m_wq_count = min<uint32_t>(user_req_wq, MAX_MP_WQES);
 		m_single_wqe_log_num_of_strides = mp_rq_caps->max_single_wqe_log_num_of_strides;
 	} else {
 		m_wq_count = MIN_MP_WQES;
 		m_single_wqe_log_num_of_strides = ilog_2(align32pow2(cb_ring->num) / m_wq_count);
-		if (m_single_wqe_log_num_of_strides < mp_rq_caps->min_single_wqe_log_num_of_strides) {
-			m_single_wqe_log_num_of_strides = mp_rq_caps->min_single_wqe_log_num_of_strides;
+		if (m_single_wqe_log_num_of_strides < VMA_MP_MIN_LOG_STRIDES) {
+			m_single_wqe_log_num_of_strides = VMA_MP_MIN_LOG_STRIDES;
+		}
+		if (m_single_wqe_log_num_of_strides > mp_rq_caps->max_single_wqe_log_num_of_strides) {
+			m_single_wqe_log_num_of_strides = mp_rq_caps->max_single_wqe_log_num_of_strides;
 		}
 	}
 	m_strides_num = 1 << m_single_wqe_log_num_of_strides;
@@ -244,8 +251,8 @@ int ring_eth_cb::allocate_umr_mem(vma_cyclic_buffer_ring_attr *cb_ring, uint16_t
 	// will raise an exception on failure
 	base_ptr = (uint64_t)m_alloc.alloc_and_reg_mr(buffer_size, m_p_ib_ctx);
 	ring_logdbg("using buffer parameters, buffer_size %zd "
-		    "pad len %d packet size %d",
-		    buffer_size, pad_len, m_packet_size);
+		    "pad len %d packet size %d stride size %d",
+		    buffer_size, pad_len, m_packet_size, m_stride_size);
 	prev_addr = base_ptr;
 	mr = m_alloc.find_ibv_mr_by_ib_ctx(m_p_ib_ctx);
 	// redmine.mellanox.com/issues/1379468
@@ -495,7 +502,7 @@ inline mp_loop_result ring_eth_cb::mp_loop(size_t limit)
 			errno = EMSGSIZE;
 			ring_logerr("got unexpected packet size, expected "
 				    "packet size %u but got %d, user data is "
-				    "corrupted", size, m_packet_size);
+				    "corrupted", m_packet_size, size);
 			return MP_LOOP_RETURN_TO_APP;
 		}
 		if (unlikely(flags & VMA_MP_RQ_BAD_PACKET)) {
