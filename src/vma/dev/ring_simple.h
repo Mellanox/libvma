@@ -85,6 +85,7 @@ public:
 	virtual int		modify_ratelimit(struct vma_rate_limit_t &rate_limit);
 	virtual int		get_tx_channel_fd() const { return m_p_tx_comp_event_channel ? m_p_tx_comp_event_channel->fd : -1; };
 	struct ibv_comp_channel* get_tx_comp_event_channel() { return m_p_tx_comp_event_channel; }
+	int			get_ring_descriptors(vma_mlx_hw_device_data &data);
 	friend class cq_mgr;
 	friend class cq_mgr_mlx5;
 	friend class qp_mgr;

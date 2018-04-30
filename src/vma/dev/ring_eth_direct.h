@@ -61,7 +61,6 @@ public:
 		    bool active, uint16_t vlan, uint32_t mtu,
 		    vma_external_mem_attr *ext_ring_attr, ring *parent = NULL);
 	virtual		~ring_eth_direct();
-	virtual int	get_ring_descriptors(vma_mlx_hw_device_data &data);
 	virtual qp_mgr*	create_qp_mgr(const ib_ctx_handler* ib_ctx,
 					      uint8_t port_num,
 					      struct ibv_comp_channel* p_rx_comp_event_channel);

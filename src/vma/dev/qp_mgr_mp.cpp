@@ -237,6 +237,22 @@ int qp_mgr_mp::post_recv(uint32_t sg_index, uint32_t num_of_sge)
 			num_of_sge);
 }
 
+bool qp_mgr_mp::fill_hw_descriptors(vma_mlx_hw_device_data &data)
+{
+	struct mlx5_rwq *mrwq = container_of(m_p_wq, struct mlx5_rwq, wq);
+
+	data.rq_data.wq_data.buf       = (uint8_t *)mrwq->buf.buf + mrwq->rq.offset;
+	data.rq_data.wq_data.dbrec     = mrwq->db;
+	data.rq_data.wq_data.wqe_cnt   = mrwq->rq.wqe_cnt;
+	data.rq_data.wq_data.stride    = (1 << mrwq->rq.wqe_shift);
+
+	qp_logdbg("QP: %d  WQ: dbrec: %p buf: %p wqe_cnt: %d stride: %d ",
+		m_qp->qp_num, data.rq_data.wq_data.dbrec,
+		data.rq_data.wq_data.buf, data.rq_data.wq_data.wqe_cnt,
+		data.rq_data.wq_data.stride);
+	return true;
+}
+
 qp_mgr_mp::~qp_mgr_mp()
 {
 	// destroy RX QP

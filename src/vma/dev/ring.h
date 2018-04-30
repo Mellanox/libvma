@@ -327,7 +327,6 @@ public:
 	bool			is_mp_ring() {return m_is_mp_ring;};
 	virtual int		modify_ratelimit(struct vma_rate_limit_t &rate_limit) = 0;
 	virtual bool		is_ratelimit_supported(struct vma_rate_limit_t &rate_limit) = 0;
-	virtual int		get_ring_descriptors(vma_mlx_hw_device_data &data) { NOT_IN_USE(data);return -1;};
 	virtual int		reg_mr(void *addr, size_t length, uint32_t &lkey) { NOT_IN_USE(addr); NOT_IN_USE(length); NOT_IN_USE(lkey); return -1;};
 	virtual int		dereg_mr(void *addr, size_t length) { NOT_IN_USE(addr);NOT_IN_USE(length); return -1;};
 #ifdef DEFINED_SOCKETXTREME		
