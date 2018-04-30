@@ -760,6 +760,15 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * @note - this function doens't free the memory
 	 */
 	int (*deregister_memory_on_ring)(int fd, void *addr, size_t length);
+
+	/**
+	 * returns memory information for the ring fd
+	 * @param fd - ring fd
+	 * @param addr - the buffer address used
+	 * @return 0 on success, -1 on failure
+	 *
+	 */
+	int (*get_mem_info)(int fd, void **addr, size_t *length, uint32_t *lkey);
 };
 
 
