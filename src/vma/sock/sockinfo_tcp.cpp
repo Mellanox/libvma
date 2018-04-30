@@ -1591,6 +1591,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 			completion->src = p_first_desc->rx.src;
 			completion->packet.num_bufs = p_first_desc->rx.n_frags;
 			NOTIFY_ON_EVENTS(conn, VMA_SOCKETXTREME_PACKET);
+			conn->save_stats_rx_offload(completion->packet.total_len);
 		}
 		else {
 			mem_buf_desc_t* prev_lst_tail_desc = (mem_buf_desc_t*)buf_lst;
