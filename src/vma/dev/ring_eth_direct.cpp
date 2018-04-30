@@ -30,7 +30,6 @@
  * SOFTWARE.
  */
 
-#include "util/valgrind.h"
 #include "ring_eth_direct.h"
 #include "qp_mgr_eth_direct.h"
 
@@ -90,29 +89,6 @@ int ring_eth_direct::poll_and_process_element_rx(uint64_t* p_cq_poll_sn,
 {
 	NOT_IN_USE(p_cq_poll_sn);
 	NOT_IN_USE(pv_fd_ready_array);
-	return 0;
-}
-
-int ring_eth_direct::get_ring_descriptors(vma_mlx_hw_device_data &d)
-{
-
-	d.dev_data.vendor_id = m_p_ib_ctx->get_ibv_device_attr()->vendor_id;
-	d.dev_data.vendor_part_id = m_p_ib_ctx->get_ibv_device_attr()->vendor_part_id;
-	d.dev_data.device_cap = 0;
-	d.valid_mask = DATA_VALID_DEV;
-
-	if (!m_p_qp_mgr->fill_hw_descriptors(d)) {
-		return -1;
-	}
-	if (!m_p_cq_mgr_rx->fill_cq_hw_descriptors(d.rq_data.wq_data.cq_data)) {
-		return -1;
-	}
-	d.valid_mask |= DATA_VALID_RQ;
-	if (!m_p_cq_mgr_tx->fill_cq_hw_descriptors(d.sq_data.wq_data.cq_data)) {
-		return -1;
-	}
-	d.valid_mask |= DATA_VALID_SQ;
-	VALGRIND_MAKE_MEM_DEFINED(&d, sizeof(d));
 	return 0;
 }
 

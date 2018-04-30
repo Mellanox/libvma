@@ -83,6 +83,8 @@ using namespace std;
 
 struct os_api orig_os_api;
 struct sigaction g_act_prev;
+class ring_simple;
+class ring_eth_cb;
 
 template<typename T>
 void assign_dlsym(T &ptr, const char *name) {
@@ -647,12 +649,12 @@ int vma_get_ring_direct_descriptors(int __fd,
 
 	cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(__fd);
 	if (p_cq_ch_info) {
-		ring* p_ring = p_cq_ch_info->get_ring();
+		ring_simple* p_ring = dynamic_cast<ring_simple *>(p_cq_ch_info->get_ring());
 		if (likely(p_ring)) {
 			return p_ring->get_ring_descriptors(*data);
 		} else {
-			vlog_printf(VLOG_ERROR, "could not find ring, got fd "
-					"%d\n", __fd);
+			vlog_printf(VLOG_ERROR, "could not find ring_simple,"
+					" got fd %d\n", __fd);
 			return -1;
 		}
 	} else {

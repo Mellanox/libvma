@@ -55,6 +55,7 @@ public:
 		if (configure(p_rx_comp_event_channel))
 			throw_vma_exception("failed creating mp qp");
 	};
+	bool 		fill_hw_descriptors(vma_mlx_hw_device_data &data);
 	virtual		~qp_mgr_mp();
 	virtual void	up();
 	int		post_recv(uint32_t sg_index, uint32_t num_of_sge);

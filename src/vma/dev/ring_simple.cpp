@@ -1983,3 +1983,26 @@ int ring_simple::modify_ratelimit(struct vma_rate_limit_t &rate_limit)
 
 	return 0;
 }
+
+int ring_simple::get_ring_descriptors(vma_mlx_hw_device_data &d)
+{
+	d.dev_data.vendor_id = m_p_ib_ctx->get_ibv_device_attr()->vendor_id;
+	d.dev_data.vendor_part_id = m_p_ib_ctx->get_ibv_device_attr()->vendor_part_id;
+	d.dev_data.device_cap = 0;
+	d.valid_mask = DATA_VALID_DEV;
+
+	ring_logdbg("found device with Vendor-ID %u, ID %u, Device cap %u", d.dev_data.vendor_part_id,
+		    d.dev_data.vendor_id, d.dev_data.device_cap);
+	if (!m_p_qp_mgr->fill_hw_descriptors(d)) {
+		return -1;
+	}
+	if (m_p_cq_mgr_rx->fill_cq_hw_descriptors(d.rq_data.wq_data.cq_data)) {
+		d.valid_mask |= DATA_VALID_RQ;
+	}
+
+	if (m_p_cq_mgr_tx->fill_cq_hw_descriptors(d.sq_data.wq_data.cq_data)) {
+		d.valid_mask |= DATA_VALID_SQ;
+	}
+	VALGRIND_MAKE_MEM_DEFINED(&d, sizeof(d));
+	return 0;
+}
