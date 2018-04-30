@@ -107,6 +107,7 @@ private:
 	struct ibv_exp_send_wr		m_umr_wr;
 	struct ibv_exp_res_domain*	m_res_domain;
 	struct ibv_mr*			m_p_umr_mr;
+	bool				m_external_mem;
 	inline mp_loop_result		mp_loop(size_t limit);
 	inline mp_loop_result		mp_loop_padded(size_t limit);
 	inline bool			reload_wq();

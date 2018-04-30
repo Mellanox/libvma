@@ -36,12 +36,13 @@ ring_profiles_collection *g_p_ring_profile = NULL;
 
 
 ring_profile::ring_profile(const vma_ring_type_attr *ring_desc) {
-	memset(&m_ring_desc,0,sizeof(m_ring_desc));
 	m_ring_desc.comp_mask = ring_desc->comp_mask;
 	m_ring_desc.ring_type = ring_desc->ring_type;
 	switch (ring_desc->ring_type) {
 	case VMA_RING_CYCLIC_BUFFER: {
 		vma_cyclic_buffer_ring_attr &r = m_ring_desc.ring_cyclicb;
+
+		memset(&r, 0, sizeof(m_ring_desc.ring_cyclicb));
 		r.comp_mask = ring_desc->ring_cyclicb.comp_mask;
 		r.num = ring_desc->ring_cyclicb.num;
 		r.stride_bytes = ring_desc->ring_cyclicb.stride_bytes;

@@ -63,10 +63,11 @@ const uint32_t cq_mgr_mp::UDP_OK_FLAGS = IBV_EXP_CQ_RX_IP_CSUM_OK |
 cq_mgr_mp::cq_mgr_mp(const ring_eth_cb *p_ring, ib_ctx_handler *p_ib_ctx_handler,
 		     uint32_t cq_size,
 		     struct ibv_comp_channel *p_comp_event_channel,
-		     bool is_rx):
+		     bool is_rx, bool external_mem):
 		     cq_mgr_mlx5((ring_simple*)p_ring, p_ib_ctx_handler,
 				 cq_size , p_comp_event_channel, is_rx, false),
-		     m_p_ring(p_ring)
+		     m_p_ring(p_ring),
+			 m_external_mem(external_mem)
 {
 	// must call from derive in order to call derived hooks
 	m_p_cq_stat->n_buffer_pool_len = cq_size;
@@ -92,11 +93,15 @@ void cq_mgr_mp::add_qp_rx(qp_mgr *qp)
 	}
 	set_qp_rq(qp);
 	m_qp_rec.qp = qp;
-	if (mp_qp->post_recv(0, mp_qp->get_wq_count()) != 0) {
-		cq_logdbg("qp post recv failed");
+	if (m_external_mem) {
+		cq_logdbg("this qp uses an external memory %p", qp);
 	} else {
-		cq_logdbg("Successfully post_recv qp with %d new Rx buffers",
-			  mp_qp->get_wq_count());
+		if (mp_qp->post_recv(0, mp_qp->get_wq_count()) != 0) {
+			cq_logdbg("qp post recv failed");
+		} else {
+			cq_logdbg("Successfully post_recv qp with %d new Rx buffers",
+				  mp_qp->get_wq_count());
+		}
 	}
 }
 
