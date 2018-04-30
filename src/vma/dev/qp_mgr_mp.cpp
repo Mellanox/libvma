@@ -56,7 +56,7 @@ cq_mgr* qp_mgr_mp::init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_chann
 	uint32_t cq_size = align32pow2((m_p_mp_ring->get_strides_num() *
 					m_p_mp_ring->get_wq_count()));
 	return new cq_mgr_mp(m_p_mp_ring, m_p_ib_ctx_handler, cq_size,
-			     p_rx_comp_event_channel, true);
+			     p_rx_comp_event_channel, true, m_external_mem);
 }
 
 int qp_mgr_mp::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)

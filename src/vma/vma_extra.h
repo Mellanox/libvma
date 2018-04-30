@@ -259,6 +259,7 @@ typedef enum {
 
 typedef enum {
 	VMA_CB_HDR_BYTE = (1 << 0),
+	VMA_CB_EXTERNAL_MEM = (1 << 1),
 } vma_cb_ring_attr_mask;
 
 /**

@@ -44,7 +44,7 @@ class cq_mgr_mp : public cq_mgr_mlx5
 public:
 	cq_mgr_mp(const ring_eth_cb *p_ring, ib_ctx_handler *p_ib_ctx_handler,
 		  uint32_t cq_size, struct ibv_comp_channel *p_comp_event_channel,
-		  bool is_rx);
+		  bool is_rx, bool external_mem);
 	~cq_mgr_mp();
 	int		poll_mp_cq(uint16_t &size, uint32_t &strides_used,
 				   uint32_t &flags,
@@ -57,6 +57,7 @@ protected:
 	virtual void	add_qp_rx(qp_mgr *qp);
 private:
 	const ring_eth_cb		*m_p_ring;
+	bool				m_external_mem;
 	static const uint32_t		UDP_OK_FLAGS;
 };
 #endif /* HAVE_MP_RQ */
