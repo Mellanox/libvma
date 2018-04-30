@@ -27,7 +27,7 @@ if test $? -eq 0 ; then
 	if test $? -eq 0 ; then
 		# libnl3 case
 		if test "$use_libnl3" == no; then
-			AC_MSG_ERROR([libibverbs is linked with libnl3 while libnl3-devel is not installed. Please install libnl3-devel and try again])
+			AC_MSG_ERROR([libibverbs is linked with libnl3 while libnl3-devel\libnl3-route-devel is not installed. Please install libnl3-devel\libnl3-route-devel and try again])
 		fi
 		use_libnl1=no
 	else
