@@ -995,7 +995,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					} else if (__optlen >= sizeof(struct ip_mreq)) {
 						memcpy(&mreqn, __optval, sizeof(struct ip_mreq));
 					} else {
-						memcpy(&mreqn, __optval, sizeof(struct in_addr));
+						memcpy(&mreqn.imr_address, __optval, sizeof(struct in_addr));
 					}
 
 					if (mreqn.imr_ifindex) {
