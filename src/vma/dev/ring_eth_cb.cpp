@@ -162,6 +162,20 @@ qp_mgr* ring_eth_cb::create_qp_mgr(const ib_ctx_handler *ib_ctx,
 			m_external_mem);
 }
 
+int ring_eth_cb::get_mem_info(ibv_sge &mem_info)
+{
+	if (!m_buff_data.addr) {
+		ring_logwarn("no valid memory to return");
+		return -1;
+	}
+	mem_info.addr = m_buff_data.addr;
+	mem_info.length = m_buff_data.length;
+	mem_info.lkey = m_buff_data.lkey;
+	ring_logdbg("returning ptr %p, legnth %zd, lkey %u", mem_info.addr,
+		    mem_info.length, mem_info.lkey);
+	return 0;
+}
+
 /**
  * allocate and set UMR addresses
  * @return 0 on success -1 on failure

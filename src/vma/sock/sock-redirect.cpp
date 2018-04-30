@@ -85,6 +85,7 @@ struct os_api orig_os_api;
 struct sigaction g_act_prev;
 class ring_simple;
 class ring_eth_cb;
+class ring_eth_direct;
 
 template<typename T>
 void assign_dlsym(T &ptr, const char *name) {
@@ -617,6 +618,44 @@ int vma_cyclic_buffer_read(int fd, struct vma_completion_cb_t *completion,
 }
 
 extern "C"
+int vma_get_mem_info(int fd, void **addr, size_t *length, uint32_t *lkey)
+{
+#ifdef HAVE_MP_RQ
+	cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(fd);
+	if (!length || !lkey ||! addr || !*addr) {
+		vlog_printf(VLOG_ERROR, "invalid pointers given. fd: %d, addr "
+			    "%p length %p lkey %p\n", fd, addr, length, lkey);
+		return -1;
+	}
+	if (p_cq_ch_info) {
+		ring_eth_cb *p_ring = dynamic_cast<ring_eth_cb*>(p_cq_ch_info->get_ring());
+		ibv_sge mem_info;
+		if (likely(p_ring && p_ring->get_mem_info(mem_info) == 0)) {
+			*addr = (void*)mem_info.addr;
+			*length = mem_info.length;
+			*lkey = mem_info.lkey;
+			return 0;
+		} else {
+			vlog_printf(VLOG_ERROR, "could not find ring_eth_cb, "
+					"got fd %d\n", fd);
+		}
+	} else {
+		vlog_printf(VLOG_ERROR, "could not find p_cq_ch_info, got fd "
+							"%d\n", fd);
+	}
+	return -1;
+#else
+	NOT_IN_USE(addr);
+	NOT_IN_USE(length);
+	NOT_IN_USE(lkey);
+	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG,
+			"vma_get_mem_info is no supported with this ring", fd);
+	errno = EOPNOTSUPP;
+	return -1;
+#endif // HAVE_MP_RQ
+}
+
+extern "C"
 int vma_add_ring_profile(vma_ring_type_attr *profile, vma_ring_profile_key *res)
 {
 	if (!g_p_ring_profile) {
@@ -1027,7 +1066,7 @@ int getsockopt(int __fd, int __level, int __optname,
 		vma_api->socketxtreme_free_vma_buff = vma_socketxtreme_free_vma_buff;
 		vma_api->dump_fd_stats = vma_dump_fd_stats;
 		vma_api->vma_cyclic_buffer_read = vma_cyclic_buffer_read;
-
+		vma_api->get_mem_info = vma_get_mem_info;
 		*((vma_api_t**)__optval) = vma_api;
 		return 0;
 	}
