@@ -104,6 +104,7 @@ private:
 	ibv_sge				m_buff_data;
 	struct timespec			m_curr_hw_timestamp;
 	vma_allocator			m_alloc;
+	vma_allocator			m_dump_mr;
 	struct ibv_exp_send_wr		m_umr_wr;
 	struct ibv_exp_res_domain*	m_res_domain;
 	struct ibv_mr*			m_p_umr_mr;
