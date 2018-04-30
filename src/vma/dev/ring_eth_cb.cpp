@@ -41,6 +41,7 @@
 
 
 #ifdef HAVE_MP_RQ
+#define DUMP_LKEY		(0x700)
 
 ring_eth_cb::ring_eth_cb(in_addr_t local_if,
 			 ring_resource_creation_info_t *p_ring_info, int count,
@@ -183,10 +184,10 @@ int ring_eth_cb::allocate_umr_mem(vma_cyclic_buffer_ring_attr *cb_ring, uint16_t
 {
 	ibv_exp_create_mr_in mrin;
 	ibv_exp_mem_repeat_block* p_mem_rep_list = NULL;
-	ibv_mr* mr = NULL;
+	ibv_mr* mr = NULL, *dump_mr;
 	size_t curr_data_len = 0, packet_len, pad_len, buffer_size;
 	size_t packets_num = m_strides_num * m_wq_count;
-	uint64_t base_ptr, prev_addr;
+	uint64_t base_ptr, prev_addr, pad_addr;
 	int index = 0, count = 1, umr_blocks;
 	const int ndim = 1; // we only use one dimension see UMR docs
 	int retval = 0;
@@ -247,13 +248,18 @@ int ring_eth_cb::allocate_umr_mem(vma_cyclic_buffer_ring_attr *cb_ring, uint16_t
 		    buffer_size, pad_len, m_packet_size);
 	prev_addr = base_ptr;
 	mr = m_alloc.find_ibv_mr_by_ib_ctx(m_p_ib_ctx);
+	// redmine.mellanox.com/issues/1379468
+	pad_addr = (uint64_t)m_dump_mr.alloc_and_reg_mr(128, m_p_ib_ctx);
+	dump_mr = m_dump_mr.find_ibv_mr_by_ib_ctx(m_p_ib_ctx);
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (unlikely(mr == NULL)) {
-		ring_logerr("could not find mr");
+	if (unlikely(mr == NULL || dump_mr == NULL)) {
+		ring_logerr("could not find mr %p, dump mr %p", mr, dump_mr);
 		retval = -1;
 		goto cleanup;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
+	// no problem overriding lkey since deregmr is not using it
+	dump_mr->lkey = DUMP_LKEY;
 	packet_len = net_len;
 	switch (m_packet_receive_mode) {
 	case RAW_PACKET:
@@ -269,20 +275,18 @@ int ring_eth_cb::allocate_umr_mem(vma_cyclic_buffer_ring_attr *cb_ring, uint16_t
 	break;
 	case STRIP_NETWORK_HDRS:
 		// network not accessible to application
-		p_mem_rep_list[index].base_addr = base_ptr;
+		p_mem_rep_list[index].base_addr = pad_addr;
 		p_mem_rep_list[index].byte_count[0] = net_len;
 		// optimize write header to the same physical address
 		p_mem_rep_list[index].stride[0] = 0;
-		p_mem_rep_list[index].mr = mr;
-		curr_data_len = packets_num * net_len;
-		prev_addr += curr_data_len;
+		p_mem_rep_list[index].mr = dump_mr;
 		index++;
 		if (m_hdr_len) {
-			p_mem_rep_list[index].base_addr = prev_addr;
+			p_mem_rep_list[index].base_addr = base_ptr;
 			p_mem_rep_list[index].byte_count[0] = m_hdr_len;
 			p_mem_rep_list[index].stride[0] = m_hdr_len;
 			p_mem_rep_list[index].mr = mr;
-			m_sge_ptrs[CB_UMR_HDR] = prev_addr;
+			m_sge_ptrs[CB_UMR_HDR] = base_ptr;
 			curr_data_len = packets_num * m_hdr_len;
 			prev_addr += curr_data_len;
 			index++;
@@ -322,10 +326,10 @@ int ring_eth_cb::allocate_umr_mem(vma_cyclic_buffer_ring_attr *cb_ring, uint16_t
 	}
 	// use base_ptr as base_addr to corrupt user data and prevent stack
 	// corruption in case of unexpected big packet
-	p_mem_rep_list[index].base_addr = base_ptr;
+	p_mem_rep_list[index].base_addr = pad_addr;
 	p_mem_rep_list[index].byte_count[0] = pad_len;
-	p_mem_rep_list[index].stride[0] = pad_len;
-	p_mem_rep_list[index].mr = mr;
+	p_mem_rep_list[index].stride[0] = 0;
+	p_mem_rep_list[index].mr = dump_mr;
 
 	// allocate empty lkey
 	memset(&mrin, 0, sizeof(mrin));
