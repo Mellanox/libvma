@@ -2144,6 +2144,11 @@ inline void sockinfo_udp::fill_completion(mem_buf_desc_t* p_desc)
 
 	completion->packet.num_bufs = p_desc->rx.n_frags;
 	completion->packet.total_len = 0;
+	completion->src = p_desc->rx.src;
+
+	if (m_n_tsing_flags & SOF_TIMESTAMPING_RAW_HARDWARE) {
+		completion->packet.hw_timestamp = p_desc->rx.udp.hw_timestamp;
+	}
 
 	for(mem_buf_desc_t *tmp_p=p_desc; tmp_p; tmp_p=tmp_p->p_next_desc) {
 		completion->packet.total_len        += tmp_p->rx.sz_payload;
@@ -2152,13 +2157,8 @@ inline void sockinfo_udp::fill_completion(mem_buf_desc_t* p_desc)
 		completion->packet.buff_lst->payload = p_desc->rx.frag.iov_base;
 		completion->packet.buff_lst->len     = p_desc->rx.frag.iov_len;
 	}
-	completion->src = p_desc->rx.src;
-	NOTIFY_ON_EVENTS(this, VMA_SOCKETXTREME_PACKET);
 
-	if (m_n_tsing_flags & (SOF_TIMESTAMPING_RAW_HARDWARE |
-			       SOF_TIMESTAMPING_RX_HARDWARE)) {
-		completion->packet.timestamp = p_desc->rx.udp.hw_timestamp;
-	}
+	NOTIFY_ON_EVENTS(this, VMA_SOCKETXTREME_PACKET);
 
 	m_socketxtreme_completion = NULL;
 	m_socketxtreme_last_buff_lst = NULL;
