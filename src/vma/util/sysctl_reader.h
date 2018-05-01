@@ -94,6 +94,7 @@ public :
 		get_net_core_rmem_max(true);
 		get_net_core_wmem_max(true);
 		get_net_ipv4_tcp_timestamps(true);
+		get_net_ipv4_ttl(true);
 		get_igmp_max_membership(true);
 		get_igmp_max_source_membership(true);
 	}
@@ -164,6 +165,13 @@ public :
 		static int val;
 		if (update)
 			val = read_file_to_int("/proc/sys/net/ipv4/tcp_timestamps", 0);
+		return val;
+	}
+
+	int get_net_ipv4_ttl(bool update = false) {
+		static int val;
+		if (update)
+			val = read_file_to_int("/proc/sys/net/ipv4/ip_default_ttl", 64);
 		return val;
 	}
 

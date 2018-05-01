@@ -127,6 +127,13 @@ void header::set_mac_to_eth_header(const L2_address &src, const L2_address &dst,
 	m_transport_header_len = sizeof(eth_header);
 }
 
+void header::set_ip_ttl(uint8_t ttl)
+{
+	iphdr* p_hdr = &m_header.hdr.m_ip_hdr;
+
+	p_hdr->ttl = ttl;
+}
+
 void header::configure_eth_headers(const L2_address &src, const L2_address &dst, uint16_t encapsulated_proto/*=ETH_P_IP*/)
 {
 	eth_hdr_template_t *p_eth_hdr = &m_header.hdr.m_l2_hdr.eth_hdr;

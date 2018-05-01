@@ -58,6 +58,7 @@
 
 struct socket_data {
 	int	fd;
+	uint8_t ttl;
 	uint8_t	tos;
 	uint8_t	pcp;
 };
@@ -103,6 +104,7 @@ public:
 
 	void		return_buffers_pool();
 	int		get_route_mtu();
+	inline void 	set_ip_ttl(uint8_t ttl) { m_header.set_ip_ttl(ttl); };
 	inline header*	get_network_header() { return &m_header;}
 	inline ring*	get_ring() { return m_p_ring;}
 protected:
