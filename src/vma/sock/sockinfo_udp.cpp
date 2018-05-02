@@ -982,21 +982,20 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 
 			case IP_MULTICAST_IF:
 				{
-					//XXX -check udp tx vma/os
+					struct ip_mreqn mreqn;
+					memset(&mreqn, 0, sizeof(mreqn));
+
 					if (!__optval || __optlen < sizeof(struct in_addr)) {
 						si_udp_loginfo("IPPROTO_IP, %s=\"???\", optlen:%d", setsockopt_ip_opt_to_str(__optname), (int)__optlen);
 						break;
 					}
 
-					struct ip_mreqn mreqn;
-
 					if (__optlen >= sizeof(struct ip_mreqn)) {
-						mreqn = *(struct ip_mreqn*)__optval;
+						memcpy(&mreqn, __optval, sizeof(struct ip_mreqn));
+					} else if (__optlen >= sizeof(struct ip_mreq)) {
+						memcpy(&mreqn, __optval, sizeof(struct ip_mreq));
 					} else {
-						memset(&mreqn, 0, sizeof(mreqn));
-						if (__optlen >= sizeof(struct in_addr)) {
-							mreqn.imr_address = *(struct in_addr*)__optval;
-						}
+						memcpy(&mreqn.imr_address, __optval, sizeof(struct in_addr));
 					}
 
 					if (mreqn.imr_ifindex) {
