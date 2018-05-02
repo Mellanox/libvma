@@ -96,6 +96,7 @@ struct vma_packet_desc_t {
 	size_t			num_bufs;	/* number of packet's buffers */
 	uint16_t		total_len;	/* total data length */
 	struct vma_buff_t*	buff_lst;	/* list of packet's buffers */
+	struct timespec 	hw_timestamp;	/* packet hw_timestamp */
 };
 
 /*

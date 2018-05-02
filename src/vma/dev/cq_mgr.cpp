@@ -742,6 +742,7 @@ int cq_mgr::socketxtreme_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 		++m_n_wce_counter;
 		++m_qp->m_mlx5_hw_qp->rq.tail;
 		m_rx_hot_buff->sz_data = ntohl(cqe->byte_cnt);
+		m_rx_hot_buff->rx.hw_raw_timestamp = ntohll(cqe->timestamp);
 		m_rx_hot_buff->rx.flow_tag_id = vma_get_flow_tag(cqe);
 
 		if (unlikely(++m_qp_rec.debt >= (int)m_n_sysvar_rx_num_wr_to_post_recv)) {
