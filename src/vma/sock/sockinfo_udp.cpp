@@ -2145,6 +2145,7 @@ inline void sockinfo_udp::fill_completion(mem_buf_desc_t* p_desc)
 	completion->src = p_desc->rx.src;
 	NOTIFY_ON_EVENTS(this, VMA_SOCKETXTREME_PACKET);
 
+	save_stats_rx_offload(completion->packet.total_len);
 	m_socketxtreme_completion = NULL;
 	m_socketxtreme_last_buff_lst = NULL;
 }
@@ -2629,26 +2630,6 @@ void sockinfo_udp::save_stats_threadid_tx()
 	if (g_vlogger_level >= VLOG_DEBUG)
 		m_p_socket_stats->threadid_last_tx = gettid();
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-void sockinfo_udp::save_stats_rx_offload(int bytes)
-{
-	if (bytes >= 0) {
-		m_p_socket_stats->counters.n_rx_bytes += bytes;
-		m_p_socket_stats->counters.n_rx_packets++;
-	}
-	else if (errno == EAGAIN) {
-		m_p_socket_stats->counters.n_rx_eagain++;
-	}
-	else {
-		m_p_socket_stats->counters.n_rx_errors++;
-	}
-}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 void sockinfo_udp::save_stats_tx_offload(int bytes, bool is_dummy)
 {
