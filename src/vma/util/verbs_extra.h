@@ -187,7 +187,6 @@ typedef struct ibv_flow_spec_ipv4		vma_ibv_flow_spec_ipv4;
 typedef struct ibv_flow_spec_tcp_udp		vma_ibv_flow_spec_tcp_udp;
 #define vma_get_flow_tag			0
 typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_tag;
-
 #else //new MLNX_OFED verbs (2.2 and newer)
 
 #define vma_ibv_create_qp(pd, attr)             ibv_exp_create_qp((pd)->context, attr)
@@ -308,12 +307,26 @@ typedef struct ibv_exp_flow_spec_action_tag	vma_ibv_flow_spec_action_tag;
 #define vma_get_flow_tag(cqe)			0
 typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_tag;
 #endif //DEFINED_IBV_EXP_FLOW_TAG
-#endif
+#endif //new MLNX_OFED verbs (2.2 and newer)
 
 #if defined(HAVE_IBV_DM)
 #define vma_ibv_dm_size(attr)			((attr)->max_dm_size)
 #else
 #define vma_ibv_dm_size(attr)			(0)
+#endif
+
+#ifdef HAVE_MP_RQ
+#define vma_is_umr_supported(attr)		((attr)->umr_caps.max_klm_list_size)
+#define vma_is_mp_rq_supported(attr)		((attr)->comp_mask & IBV_EXP_DEVICE_ATTR_MP_RQ)
+#else
+#define vma_is_umr_supported(attr)		(0)
+#define vma_is_mp_rq_supported(attr)		(0)
+#endif
+
+#ifdef DEFINED_IBV_EXP_QP_RATE_LIMIT
+#define vma_is_packet_pacing_supported(attr)	((attr)->packet_pacing_caps.qp_rate_limit_min)
+#else
+#define vma_is_packet_pacing_supported(attr)	(0)
 #endif
 
 typedef enum {

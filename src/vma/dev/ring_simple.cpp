@@ -1988,7 +1988,15 @@ int ring_simple::get_ring_descriptors(vma_mlx_hw_device_data &d)
 {
 	d.dev_data.vendor_id = m_p_ib_ctx->get_ibv_device_attr()->vendor_id;
 	d.dev_data.vendor_part_id = m_p_ib_ctx->get_ibv_device_attr()->vendor_part_id;
-	d.dev_data.device_cap = 0;
+	if (vma_is_packet_pacing_supported(m_p_ib_ctx->get_ibv_device_attr())) {
+		d.dev_data.device_cap |= VMA_HW_PP_EN;
+	}
+	if (vma_is_umr_supported(m_p_ib_ctx->get_ibv_device_attr())) {
+		d.dev_data.device_cap |= VMA_HW_UMR_EN;
+	}
+	if (vma_is_mp_rq_supported(m_p_ib_ctx->get_ibv_device_attr())) {
+		d.dev_data.device_cap |= VMA_HW_MP_RQ_EN;
+	}
 	d.valid_mask = DATA_VALID_DEV;
 
 	ring_logdbg("found device with Vendor-ID %u, ID %u, Device cap %u", d.dev_data.vendor_part_id,
