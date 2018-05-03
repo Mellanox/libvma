@@ -1,3 +1,23 @@
+Version 8.6.1-0:
+Date + Time 2018-05-06
+=============================================================
+Added:
+        - RM #1348872 Add capabiliy mask to device data
+        - RM #1348872 Add support retrieving the memory used by RING_CB
+        - RM #1348872 Add support to get RING_CB HW descriptors
+        - RM #1348872 add external mem support for RING_CB
+        - RM #1376089 Always use at least four WQEs with MP_RQ
+        - RM #1376088 use DUMP_LKEY to strip down network
+        - RM #1182150 Support UDP HW RX timestamp in SocketXtreme (#605)
+        - RM #1353974 Use ib_ctx inside ring to convert CQE TS to timespec (#599)
+        - RM #1332983 Add some debug prints to ring_cb (#595)
+        - RM #1075188 Reduce unnecessary socketxtreme code
+        - RM #1075188 Unify setsockopt/getsockopt
+Fixed:
+        - RM #1375982 Modify libnl3-route-dev error message (#608)
+        - RM #1357010 Fix setsockopt(IP_MULTICAST_IF) with struct mreq (#613)
+        - RM #1354251 Fix statistics for socketXreme income data (#611)
+
 Version 8.6.0-0:
 Date + Time 2018-03-22
 =============================================================
