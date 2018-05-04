@@ -580,7 +580,7 @@ net_device_resources_t* sockinfo::create_nd_resources(const ip_address ip_local)
 		if (m_rx_ring_map.size()) {
 			key = m_ring_alloc_logic.get_key();
 		} else {
-			key = m_ring_alloc_logic.create_new_key();
+			key = m_ring_alloc_logic.create_new_key(ip_local.get_in_addr());
 		}
 		nd_resources.p_ring = nd_resources.p_ndv->reserve_ring(key);
 		m_rx_ring_map_lock.unlock();

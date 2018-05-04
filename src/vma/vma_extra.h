@@ -211,6 +211,7 @@ typedef enum {
 	RING_LOGIC_PER_THREAD = 20,             //!< RING_LOGIC_PER_THREAD
 	RING_LOGIC_PER_CORE = 30,               //!< RING_LOGIC_PER_CORE
 	RING_LOGIC_PER_CORE_ATTACH_THREADS = 31,//!< RING_LOGIC_PER_CORE_ATTACH_THREADS
+	RING_LOGIC_PER_IP = 40,                 //!< RING_LOGIC_PER_IP
 	RING_LOGIC_LAST                         //!< RING_LOGIC_LAST
 } ring_logic_t;
 

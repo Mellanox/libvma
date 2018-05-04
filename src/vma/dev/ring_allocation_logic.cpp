@@ -84,6 +84,9 @@ uint64_t ring_allocation_logic::calc_res_key_by_logic()
 		if (safe_mce_sys().tcp_ctl_thread > CTL_THREAD_DISABLE)
 			res_key = 1;
 		break;
+	case RING_LOGIC_PER_IP:
+		res_key = m_res_key.get_user_id_key();
+		break;
 	case RING_LOGIC_PER_SOCKET:
 		res_key = m_fd;
 		break;
@@ -107,7 +110,7 @@ uint64_t ring_allocation_logic::calc_res_key_by_logic()
 	return res_key;
 }
 
-resource_allocation_key* ring_allocation_logic::create_new_key(int suggested_cpu /* = NO_CPU */)
+resource_allocation_key* ring_allocation_logic::create_new_key(in_addr_t addr, int suggested_cpu /* = NO_CPU */)
 {
 	if (m_res_key.get_ring_alloc_logic() == RING_LOGIC_PER_CORE_ATTACH_THREADS) {
 		pthread_t tid = pthread_self();
@@ -117,7 +120,10 @@ resource_allocation_key* ring_allocation_logic::create_new_key(int suggested_cpu
 			return &m_res_key;
 		}
 	}
-
+	if (m_res_key.get_ring_alloc_logic() == RING_LOGIC_PER_IP) {
+		m_res_key.set_user_id_key(addr);
+		return &m_res_key;
+	}
 	m_res_key.set_user_id_key(calc_res_key_by_logic());
 	return &m_res_key;
 }
