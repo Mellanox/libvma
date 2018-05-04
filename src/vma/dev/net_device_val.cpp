@@ -133,15 +133,15 @@ void ring_alloc_logic_attr::set_user_id_key(uint64_t user_id_key)
 	}
 }
 
-net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
+net_device_val::net_device_val(struct net_device_val_desc *desc) : m_lock("net_device_val lock")
 {
 	struct rdma_event_channel *p_cma_event_channel = NULL;
 	bool valid, is_netvsc;
 	rdma_cm_id* cma_id;
 	ib_ctx_handler* ib_ctx;
 	struct ifaddrs slave;
-	struct nlmsghdr *nl_msg = (struct nlmsghdr *)desc;
-	struct ifinfomsg *nl_msgdata = (struct ifinfomsg *)NLMSG_DATA(nl_msg);
+	struct nlmsghdr *nl_msg = NULL;
+	struct ifinfomsg *nl_msgdata = NULL;
 	int nl_attrlen;
 	struct rtattr *nl_attr;
 
@@ -159,11 +159,13 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 	m_rdma_key = 0;
 
 	if (NULL == desc) {
-		// invalid net_device_val
 		nd_logerr("Invalid net_device_val name=%s", "NA");
 		m_state = INVALID;
 		return;
 	}
+
+	nl_msg = desc->nl_msg;
+	nl_msgdata = (struct ifinfomsg *)NLMSG_DATA(nl_msg);
 
 	nl_attr = (struct rtattr *)IFLA_RTA(nl_msgdata);
 	nl_attrlen = IFLA_PAYLOAD(nl_msg);
@@ -276,7 +278,7 @@ net_device_val::net_device_val(void *desc) : m_lock("net_device_val lock")
 		nd_logwarn("Mismatch between interface %s MTU=%d and VMA_MTU=%d. Make sure VMA_MTU and all offloaded interfaces MTUs match.", m_name.c_str(), m_mtu, safe_mce_sys().mtu);
 	}
 
-	/* Set interface state after all verifucations */
+	/* Set interface state after all verifications */
 	if (m_flags & IFF_RUNNING) {
 		m_state = RUNNING;
 	}

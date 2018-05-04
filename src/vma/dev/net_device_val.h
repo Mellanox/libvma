@@ -199,9 +199,12 @@ public:
 		XHP_ENCAP_2_3,
 		XHP_ENCAP_3_4
 	};
+	struct net_device_val_desc {
+		struct nlmsghdr *nl_msg;
+	};
 public:
 
-	net_device_val(void *desc = NULL);
+	net_device_val(struct net_device_val_desc *desc);
 	/* on init:
 	 *      get ibv, sys channel handlers from the relevant collections.
 	 *      register to ibv_ctx, rdma_cm and sys_net_channel
@@ -309,7 +312,7 @@ private:
 class net_device_val_eth : public net_device_val
 {
 public:
-	net_device_val_eth(void *desc) : net_device_val(desc), m_vlan(0) {
+	net_device_val_eth(struct net_device_val_desc *desc) : net_device_val(desc), m_vlan(0) {
 		set_transport_type(VMA_TRANSPORT_ETH);
 		if (INVALID != m_state) {
 			net_device_val::configure();
@@ -333,7 +336,7 @@ private:
 class net_device_val_ib : public net_device_val,  public neigh_observer, public cache_observer
 {
 public:
-	net_device_val_ib(void *desc) : net_device_val(desc), m_pkey(0), m_br_neigh(NULL) {
+	net_device_val_ib(struct net_device_val_desc *desc) : net_device_val(desc), m_pkey(0), m_br_neigh(NULL) {
 		set_transport_type(VMA_TRANSPORT_IB);
 		if (INVALID != m_state) {
 			net_device_val::configure();
