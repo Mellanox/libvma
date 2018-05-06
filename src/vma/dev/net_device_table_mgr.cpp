@@ -40,6 +40,7 @@
 #include "utils/bullseye.h"
 #include "vlogger/vlogger.h"
 #include "vma/event/event_handler_manager.h"
+#include "vma/util/vtypes.h"
 #include "vma/util/verbs_extra.h"
 #include "vma/util/utils.h"
 #include "vma/util/valgrind.h"
@@ -67,19 +68,14 @@ enum net_device_table_mgr_timers {
 	RING_ADAPT_CQ_MODERATION_TIMER
 };
 
-net_device_table_mgr::net_device_table_mgr() : cache_table_mgr<ip_address,net_device_val*>(), m_lock("net_device_table_mgr")
+net_device_table_mgr::net_device_table_mgr() : cache_table_mgr<ip_address,net_device_val*>("net_device_table_mgr"), m_lock("net_device_table_mgr")
 {
 	m_num_devices = 0;
-	m_p_cma_event_channel = NULL;
 	m_global_ring_epfd = 0;
 	m_max_mtu = 0;
-	/* I have no idea why - but if I create the channel here - it doesn't bind well - grrrr
-        m_p_cma_event_channel = rdma_create_event_channel();
-        if (m_p_cma_event_channel == NULL) {
-                ndtm_logpanic("Failed to create event channel (errno=%d %m)", errno);
-        }
-        ndtm_logfunc("On-demand creation of cma event channel on fd=%d", m_p_cma_event_channel->fd);
-	 */
+
+	ndtm_logdbg("");
+
 	m_global_ring_epfd = orig_os_api.epoll_create(48);
 
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -101,11 +97,16 @@ net_device_table_mgr::net_device_table_mgr() : cache_table_mgr<ip_address,net_de
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	if (map_net_devices()) {
+	/* Read Link table from kernel and save it in local variable. */
+	update_tbl();
+	if (m_net_device_map_index.empty()) {
 		ndtm_logdbg("map_net_devices failed");
 		free_ndtm_resources();
 		throw_vma_exception("map_net_devices failed");
 	}
+
+	//Print table
+	print_val_tbl();
 
 #ifndef DEFINED_NO_THREAD_LOCK
 	if (safe_mce_sys().progress_engine_interval_msec != MCE_CQ_DRAIN_INTERVAL_DISABLED && safe_mce_sys().progress_engine_wce_max != 0) {
@@ -118,6 +119,8 @@ net_device_table_mgr::net_device_table_mgr() : cache_table_mgr<ip_address,net_de
 		g_p_event_handler_manager->register_timer_event(safe_mce_sys().cq_aim_interval_msec, this, PERIODIC_TIMER, (void*)RING_ADAPT_CQ_MODERATION_TIMER);
 	}
 #endif // DEFINED_NO_THREAD_LOCK
+
+	ndtm_logdbg("Done");
 }
 
 void net_device_table_mgr::free_ndtm_resources()
@@ -132,418 +135,185 @@ void net_device_table_mgr::free_ndtm_resources()
 	orig_os_api.close(m_global_ring_pipe_fds[1]);
 	orig_os_api.close(m_global_ring_pipe_fds[0]);
 
-	net_device_map_t::iterator iter;
-	while ((iter = m_net_device_map.begin()) != m_net_device_map.end()) {
-		delete iter->second;
-		m_net_device_map.erase(iter);
+	net_device_map_index_t::iterator itr;
+	while ((itr = m_net_device_map_index.begin()) != m_net_device_map_index.end()) {
+		delete itr->second;
+		m_net_device_map_index.erase(itr);
 	}
-	m_lock.unlock();
 
-	if (m_p_cma_event_channel != NULL) {
-		rdma_destroy_event_channel(m_p_cma_event_channel);
-		m_p_cma_event_channel = NULL;
-	}
+	m_lock.unlock();
 }
 
 net_device_table_mgr::~net_device_table_mgr()
 {
+	ndtm_logdbg("");
 	free_ndtm_resources();
+	ndtm_logdbg("Done");
 }
 
-int net_device_table_mgr::map_net_devices()
+void net_device_table_mgr::update_tbl()
 {
-	int count = 0, port_num;
-	bool valid, is_netvsc;
-	rdma_cm_id* cma_id;
-	ib_ctx_handler* ib_ctx;
+	int rc = 0;
+	int fd = -1;
+	struct {
+		struct nlmsghdr hdr;
+		struct ifinfomsg infomsg;
+	} nl_req;
+	struct nlmsghdr *nl_msg;
+	int nl_msglen = 0;
+	char nl_res[8096];
+	static int _seq = 0;
 	net_device_val* p_net_device_val;
-	struct ifaddrs slave;
-	struct ifaddrs *ifaddr, *ifa;
+
+	/* Set up the netlink socket */
+	fd = orig_os_api.socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
+	if (fd < 0) {
+		ndtm_logerr("netlink socket() creation");
+		return;
+	}
 
 	ndtm_logdbg("Checking for offload capable network interfaces...");
 
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (getifaddrs(&ifaddr) == -1) {
-		ndtm_logerr("getifaddrs() failed (errno = %d %m)", errno); 
-		return -1;
+	/* Prepare RTM_GETLINK request */
+	memset(&nl_req, 0, sizeof(nl_req));
+	nl_req.hdr.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifinfomsg));
+	nl_req.hdr.nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;
+	nl_req.hdr.nlmsg_type = RTM_GETLINK;
+	nl_req.hdr.nlmsg_seq = _seq++;
+	nl_req.hdr.nlmsg_pid = getpid();
+	nl_req.infomsg.ifi_family = AF_INET;
+
+	/* Send the netlink request */
+	rc = orig_os_api.send(fd, &nl_req, nl_req.hdr.nlmsg_len, 0);
+	if (rc < 0) {
+		ndtm_logerr("netlink send() operation");
+		goto ret;
 	}
-	BULLSEYE_EXCLUDE_BLOCK_END
 
-	for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-
-		if (ifa->ifa_addr == NULL) {
-			ndtm_logdbg("Blocking offload: Interface ('%s') addr info in NULL", ifa->ifa_name);
-			continue;
-		}
-		if (AF_INET != ifa->ifa_addr->sa_family) {
-			ndtm_logdbg("Blocking offload: Interface ('%s') is not of type AF_INET", ifa->ifa_name);
-			continue;
-		}
-		if (ifa->ifa_flags & IFF_SLAVE) {
-			ndtm_logdbg("Blocking offload: Interface ('%s') is a bonding slave", ifa->ifa_name);
-			continue;
+	do {
+		/* Receive the netlink reply */
+		rc = orig_os_api.recv(fd, nl_res, sizeof(nl_res), 0);
+		if (rc < 0) {
+			ndtm_logerr("netlink recv() operation");
+			goto ret;
 		}
 
-		ndtm_logdbg("Checking if can offload on interface '%s' (addr=%d.%d.%d.%d, flags=%X)",
-				ifa->ifa_name, NIPQUAD(((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr), ifa->ifa_flags);
+		nl_msg = (struct nlmsghdr *)nl_res;
+		nl_msglen = rc;
+		while (NLMSG_OK(nl_msg, (size_t)nl_msglen) && (nl_msg->nlmsg_type != NLMSG_ERROR)) {
+			struct ifinfomsg *nl_msgdata;
 
-		// I have no idea why - but if I do it in the c'tor - it doesn't bind well - grrrr
-		if (m_p_cma_event_channel == NULL) {
-			m_p_cma_event_channel = rdma_create_event_channel();
-		}
+			nl_msgdata = (struct ifinfomsg *)NLMSG_DATA(nl_msg);
 
-		cma_id = NULL;
-		IF_RDMACM_FAILURE(rdma_create_id(m_p_cma_event_channel, &cma_id, NULL, RDMA_PS_UDP)) { // UDP vs IP_OVER_IB?
-			ndtm_logerr("Failed in rdma_create_id (RDMA_PS_UDP) (errno=%d %m)", errno);
-			continue;
-		} ENDIF_RDMACM_FAILURE;
+			m_lock.lock();
 
-		is_netvsc = check_netvsc_device_exist(ifa->ifa_name);
-		if (is_netvsc) {
-			ndtm_logdbg("Found netvsc interface ('%s')", ifa->ifa_name);
-			if (!get_netvsc_slave(ifa->ifa_name, &slave)) {
-				goto destroy_cma_id;
+			/* Skip some types */
+			if (!(nl_msgdata->ifi_flags & IFF_SLAVE)) {
+				switch (nl_msgdata->ifi_type) {
+				case ARPHRD_ETHER:
+					p_net_device_val = new net_device_val_eth(nl_msg);
+					break;
+				case ARPHRD_INFINIBAND:
+					p_net_device_val = new net_device_val_ib(nl_msg);
+					break;
+				default:
+					goto next;
+				}
+				BULLSEYE_EXCLUDE_BLOCK_START
+				if (!p_net_device_val) {
+					ndtm_logerr("failed allocating new net_device (errno=%d %m)", errno);
+					goto next;
+				}
+				if (p_net_device_val->get_state() == net_device_val::INVALID) {
+					delete p_net_device_val;
+					goto next;
+				}
+
+				BULLSEYE_EXCLUDE_BLOCK_END
+			        if ((int)get_max_mtu() < p_net_device_val->get_mtu()) {
+					set_max_mtu(p_net_device_val->get_mtu());
+				}
+
+				ip_data_vector_t* p_ip = p_net_device_val->get_ip_array();
+				for (size_t i = 0; i < p_ip->size(); i++) {
+					m_net_device_map_addr[(*p_ip)[i]->local_addr] = p_net_device_val;
+				}
+				m_net_device_map_index[p_net_device_val->get_if_idx()] = p_net_device_val;
 			}
 
-			ndtm_logdbg("Found netvsc lower interface ('%s') is lower of ('%s')", slave.ifa_name, ifa->ifa_name);
-			ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(slave.ifa_name);
-		} else {
-
-			IF_RDMACM_FAILURE(rdma_bind_addr(cma_id, (struct sockaddr*)ifa->ifa_addr)) {
-				ndtm_logdbg("Failed in rdma_bind_addr (src=%d.%d.%d.%d) (errno=%d %m)", NIPQUAD(((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr), errno);
-				errno = 0; //in case of not-offloaded, resource is not available (errno=11), but this is normal and we don't want the user to know about this
-				goto destroy_cma_id;
-			} ENDIF_RDMACM_FAILURE;
-
-			// loopback might get here but without ibv_context in the cma_id
-			if (NULL == cma_id->verbs) {
-				ndtm_logdbg("Blocking offload: No verbs context in cma_id on interfaces ('%s')", ifa->ifa_name);
-				goto destroy_cma_id;
-			}
-			ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(cma_id->verbs);
-		}
-
-		if (NULL == ib_ctx) {
-			ndtm_logdbg("Blocking offload: can't create ib_ctx on interfaces ('%s')", ifa->ifa_name);
-			goto destroy_cma_id;
-		}
-
-#ifdef DEFINED_SOCKETXTREME
-		// only support mlx5 device in this mode
-		if(strncmp(ib_ctx->get_ibv_device()->name, "mlx4", 4) == 0) {
-			ndtm_logdbg("Blocking offload: mlx4 interfaces ('%s') in socketxtreme mode", ifa->ifa_name);
-			goto destroy_cma_id;
-		}
-#endif // DEFINED_SOCKETXTREME
-
-		char base_ifname[IFNAMSIZ];
-		get_base_interface_name((const char*)(ifa->ifa_name), base_ifname, sizeof(base_ifname));
-		if (check_device_exist(base_ifname, BOND_DEVICE_FILE)) {
-			// this is a bond interface (or a vlan/alias over bond), find the slaves
-			valid = verify_bond_ipoib_or_eth_qp_creation(ifa);
-		} else if (is_netvsc) {
-			valid = verify_netvsc_ipoib_or_eth_qp_creation(slave.ifa_name, ifa);
-		} else {
-			valid = verify_ipoib_or_eth_qp_creation(ifa->ifa_name, ifa);
-		}
-		if (!valid) {
-			goto destroy_cma_id;
-		}
-		// arriving here means this is an offloadable device and VMA need to create a net_device.
-		m_lock.lock();
-		if (get_iftype_from_ifname(ifa->ifa_name) == ARPHRD_INFINIBAND) {
-			p_net_device_val = new net_device_val_ib();
-		}
-		else {
-			p_net_device_val = new net_device_val_eth();
-		}
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (!p_net_device_val) {
-			ndtm_logerr("failed allocating new net_device (errno=%d %m)", errno);
+next:
 			m_lock.unlock();
-			freeifaddrs(ifaddr);
-			return -1;
+
+			/* Check if it is the last message */
+			if(nl_msg->nlmsg_type == NLMSG_DONE) {
+				goto ret;
+			}
+			nl_msg = NLMSG_NEXT(nl_msg, nl_msglen);
 		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-		p_net_device_val->configure(ifa, cma_id);
-	        if ((int)get_max_mtu() < p_net_device_val->get_mtu()) {
-			set_max_mtu(p_net_device_val->get_mtu());
-		}
-		m_net_device_map[((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr] = p_net_device_val;
-		m_if_indx_to_nd_val_lst[p_net_device_val->get_if_idx()].push_back(p_net_device_val);
-		m_lock.unlock();
+	} while (1);
 
-		port_num = get_port_from_ifname(base_ifname);
-		ndtm_logdbg("Offload interface '%s': Mapped to ibv device '%s' [%p] on port %d (Active: %d), Running: %d",
-				ifa->ifa_name, ib_ctx->get_ibv_device()->name, ib_ctx->get_ibv_device(), port_num, ib_ctx->is_active(port_num), (!!(ifa->ifa_flags & IFF_RUNNING)));
+ret:
+	ndtm_logdbg("Check completed. Found %d offload capable network interfaces", m_net_device_map_index.size());
 
-		count++;
-
-	destroy_cma_id:
-		IF_RDMACM_FAILURE(rdma_destroy_id(cma_id)) {
-			ndtm_logerr("Failed in rdma_destroy_id (errno=%d %m)", errno);
-		} ENDIF_RDMACM_FAILURE;
-
-	} //for
-
-	freeifaddrs(ifaddr);
-
-	ndtm_logdbg("Check completed. Found %d offload capable network interfaces", count);
-
-	return 0;
+	orig_os_api.close(fd);
 }
 
-bool net_device_table_mgr::verify_bond_ipoib_or_eth_qp_creation(struct ifaddrs * ifa)
+void net_device_table_mgr::print_val_tbl()
 {
-	char base_ifname[IFNAMSIZ];
-	get_base_interface_name((const char*)(ifa->ifa_name), base_ifname, sizeof(base_ifname));
-	char slaves[IFNAMSIZ * MAX_SLAVES] = {0};
-	if (!get_bond_slaves_name_list(base_ifname, slaves, sizeof slaves)) {
-		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
-		vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded, slave list or bond name could not be found\n", ifa->ifa_name);
-		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
-		return false;
+	net_device_map_index_t::iterator itr;
+	for (itr = m_net_device_map_index.begin(); itr != m_net_device_map_index.end(); itr++) {
+		net_device_val* p_ndev = dynamic_cast <net_device_val *>(itr->second);
+		p_ndev->print_val();
 	}
-	//go over all slaves and check preconditions
-	bool bond_ok = true;
-	char * slave_name;
-	slave_name = strtok (slaves," ");
-	while (slave_name != NULL)
-	{
-		char* p = strchr(slave_name, '\n');
-		if (p) *p = '\0'; // Remove the tailing 'new line" char
-		if (!verify_ipoib_or_eth_qp_creation(slave_name, ifa)) {
-			//check all slaves but print only once for bond
-			bond_ok =  false;
-		}
-		slave_name = strtok (NULL, " ");
-	}
-	if (!bond_ok) {
-		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
-		vlog_printf(VLOG_WARNING,"* Bond %s will not be offloaded due to problem with it's slaves.\n", ifa->ifa_name);
-		vlog_printf(VLOG_WARNING,"* Check warning messages for more information.\n");
-		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
-	}
-	return bond_ok;
-}
-
-bool net_device_table_mgr::verify_netvsc_ipoib_or_eth_qp_creation(const char *slave_name, struct ifaddrs *ifa_netvsc)
-{
-	if (get_iftype_from_ifname(ifa_netvsc->ifa_name) == ARPHRD_INFINIBAND) {
-		return false;
-	}
-
-	return verify_eth_qp_creation(slave_name);
-}
-
-//interface name can be slave while ifa struct can describe bond
-bool net_device_table_mgr::verify_ipoib_or_eth_qp_creation(const char* interface_name, struct ifaddrs * ifa)
-{
-	int iftype = get_iftype_from_ifname(interface_name);
-	if (iftype == ARPHRD_INFINIBAND) {
-		if (verify_enable_ipoib(interface_name) && verify_ipoib_mode(ifa)) {
-			return true;
-		}
-	} else {
-		if (verify_eth_qp_creation(interface_name)) {
-			return true;
-		}
-	}
-	return false;
-}
-
-bool net_device_table_mgr::verify_enable_ipoib(const char* ifname)
-{
-	NOT_IN_USE(ifname);
-	if(!safe_mce_sys().enable_ipoib) {
-		ndtm_logdbg("Blocking offload: IPoIB interfaces ('%s')", ifname);
-		return false;
-	}
-	return true;
-}
-
-// Verify IPoIB is in 'datagram mode' for proper VMA with flow steering operation
-// Also verify umcast is disabled for IB flow
-bool net_device_table_mgr::verify_ipoib_mode(struct ifaddrs* ifa)
-{
-	char filename[256] = "\0";
-	char ifname[IFNAMSIZ] = "\0";
-	if (validate_ipoib_prop(ifa->ifa_name, ifa->ifa_flags, IPOIB_MODE_PARAM_FILE, "datagram", 8, filename, ifname)) {
-		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
-		vlog_printf(VLOG_WARNING,"* IPoIB mode of interface '%s' is \"connected\" !\n", ifa->ifa_name);
-		vlog_printf(VLOG_WARNING,"* Please change it to datagram: \"echo datagram > %s\" before loading your application with VMA library\n", filename);
-		vlog_printf(VLOG_WARNING,"* VMA doesn't support IPoIB in connected mode.\n");
-		vlog_printf(VLOG_WARNING,"* Please refer to VMA Release Notes for more information\n");
-		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
-		return false;
-	}
-	else {
-		ndtm_logdbg("verified interface '%s' is running in datagram mode", ifa->ifa_name);
-	}
-
-	if (validate_ipoib_prop(ifa->ifa_name, ifa->ifa_flags, UMCAST_PARAM_FILE, "0", 1, filename, ifname)) { // Extract UMCAST flag (only for IB transport types)
-		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
-		vlog_printf(VLOG_WARNING,"* UMCAST flag is Enabled for interface %s !\n", ifa->ifa_name);
-		vlog_printf(VLOG_WARNING,"* Please disable it: \"echo 0 > %s\" before loading your application with VMA library\n", filename);
-		vlog_printf(VLOG_WARNING,"* This option in no longer needed in this version\n");
-		vlog_printf(VLOG_WARNING,"* Please refer to Release Notes for more information\n");
-		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
-		return false;
-	}
-	else {
-		ndtm_logdbg("verified interface '%s' is running with umcast disabled", ifa->ifa_name);
-	}
-	return true;
-}
-
-//ifname should point to a physical device
-bool net_device_table_mgr::verify_eth_qp_creation(const char* ifname)
-{
-	bool success = false;
-	struct ibv_cq* cq = NULL;
-	struct ibv_comp_channel *channel = NULL;
-	struct ibv_qp* qp = NULL;
-
-	struct ibv_qp_init_attr qp_init_attr;
-	memset(&qp_init_attr, 0, sizeof(qp_init_attr));
-
-	vma_ibv_cq_init_attr attr;
-	memset(&attr, 0, sizeof(attr));
-
-	qp_init_attr.cap.max_send_wr = MCE_DEFAULT_TX_NUM_WRE;
-	qp_init_attr.cap.max_recv_wr = MCE_DEFAULT_RX_NUM_WRE;
-	qp_init_attr.cap.max_inline_data = MCE_DEFAULT_TX_MAX_INLINE;
-	qp_init_attr.cap.max_send_sge = MCE_DEFAULT_TX_NUM_SGE;
-	qp_init_attr.cap.max_recv_sge = MCE_DEFAULT_RX_NUM_SGE;
-	qp_init_attr.sq_sig_all = 0;
-	qp_init_attr.qp_type = IBV_QPT_RAW_PACKET;
-
-	//find ib_cxt
-	char base_ifname[IFNAMSIZ];
-	get_base_interface_name((const char*)(ifname), base_ifname, sizeof(base_ifname));
-	ib_ctx_handler* p_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(base_ifname);
-
-	if (!p_ib_ctx) {
-		ndtm_logdbg("Cant find ib_ctx for interface %s", base_ifname);
-		goto release_resources;
-	}
-
-	//create qp resources
-	channel = ibv_create_comp_channel(p_ib_ctx->get_ibv_context());
-	if (!channel) {
-		ndtm_logdbg("channel creation failed for interface %s (errno=%d %m)", ifname, errno);
-		goto release_resources;
-	}
-	VALGRIND_MAKE_MEM_DEFINED(channel, sizeof(ibv_comp_channel));
-	cq = vma_ibv_create_cq(p_ib_ctx->get_ibv_context(), safe_mce_sys().tx_num_wr, (void*)this, channel, 0, &attr);
-	if (!cq) {
-		ndtm_logdbg("cq creation failed for interface %s (errno=%d %m)", ifname, errno);
-		goto release_resources;
-	}
-	qp_init_attr.recv_cq = cq;
-	qp_init_attr.send_cq = cq;
-	qp = ibv_create_qp(p_ib_ctx->get_ibv_pd(), &qp_init_attr);
-	if (qp) {
-		success = true;
-		if (!priv_ibv_query_flow_tag_supported(qp, get_port_from_ifname(base_ifname))) {
-			p_ib_ctx->set_flow_tag_capability(true);
-		}
-		ndtm_logdbg("verified interface %s for flow tag capabilities : %s", ifname, p_ib_ctx->get_flow_tag_capability() ? "enabled" : "disabled");
-
-	} else {
-		ndtm_logdbg("QP creation failed on interface %s (errno=%d %m), Traffic will not be offloaded \n", ifname, errno);
-		int err = errno; //verify_raw_qp_privliges can overwrite errno so keep it before the call
-		if (validate_raw_qp_privliges() == 0) {
-			// MLNX_OFED raw_qp_privliges file exist with bad value
-			vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
-			vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", ifname);
-			vlog_printf(VLOG_WARNING,"* Working in this mode might causes VMA malfunction over Ethernet interfaces\n");
-			vlog_printf(VLOG_WARNING,"* WARNING: the following steps will restart your network interface!\n");
-			vlog_printf(VLOG_WARNING,"* 1. \"echo options ib_uverbs disable_raw_qp_enforcement=1 > /etc/modprobe.d/ib_uverbs.conf\"\n");
-			vlog_printf(VLOG_WARNING,"* 2. \"/etc/init.d/openibd restart\"\n");
-			vlog_printf(VLOG_WARNING,"* Read the RAW_PACKET QP root access enforcement section in the VMA's User Manual for more information\n");
-			vlog_printf(VLOG_WARNING,"******************************************************************************************************\n");
-		}
-		else if (err == EPERM) {
-			// file doesn't exists, print msg if errno is a permission problem
-			vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
-			vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", ifname);
-			vlog_printf(VLOG_WARNING,"* Offloaded resources are restricted to root or user with CAP_NET_RAW privileges\n");
-			vlog_printf(VLOG_WARNING,"* Read the CAP_NET_RAW and root access section in the VMA's User Manual for more information\n");
-			vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
-		}
-	}
-
-release_resources:
-	if(qp) {
-		IF_VERBS_FAILURE(ibv_destroy_qp(qp)) {
-			ndtm_logdbg("qp destroy failed on interface %s (errno=%d %m)", ifname, errno);
-			success = false;
-		} ENDIF_VERBS_FAILURE;
-	}
-	if (cq) {
-		IF_VERBS_FAILURE(ibv_destroy_cq(cq)) {
-			ndtm_logdbg("cq destroy failed on interface %s (errno=%d %m)", ifname, errno);
-			success = false;
-		} ENDIF_VERBS_FAILURE;
-	}
-	if (channel) {
-		IF_VERBS_FAILURE(ibv_destroy_comp_channel(channel)) {
-			ndtm_logdbg("channel destroy failed on interface %s (errno=%d %m)", ifname, errno);
-			success = false;
-		} ENDIF_VERBS_FAILURE;
-		VALGRIND_MAKE_MEM_UNDEFINED(channel, sizeof(ibv_comp_channel));
-	}
-	return success;
 }
 
 net_device_val* net_device_table_mgr::get_net_device_val(in_addr_t local_addr)
 {
 	auto_unlocker lock(m_lock);
-	// return only valid net_device
-	net_device_map_t::iterator net_device_iter = m_net_device_map.find(local_addr);
-	if (net_device_iter != m_net_device_map.end()) {
-		net_device_val* net_dev = net_device_iter->second;
-		ndtm_logdbg("Found %s for %d.%d.%d.%d", net_dev->to_str().c_str(), NIPQUAD(local_addr));
+
+	net_device_map_addr_t::iterator iter = m_net_device_map_addr.find(local_addr);
+	if (iter != m_net_device_map_addr.end()) {
+		net_device_val* net_dev = iter->second;
+		ndtm_logdbg("Found %s for addr: %d.%d.%d.%d", net_dev->to_str().c_str(), NIPQUAD(local_addr));
 		if (net_dev->get_state() == net_device_val::INVALID) {
 			ndtm_logdbg("invalid net_device %s", net_dev->to_str().c_str());
 			return NULL;
 		}
-		return net_device_iter->second;
+		return iter->second;
 	}
-	ndtm_logdbg("Can't find net_device for %d.%d.%d.%d", NIPQUAD(local_addr));
+	ndtm_logdbg("Can't find net_device for addr: %d.%d.%d.%d", NIPQUAD(local_addr));
 	return NULL;
 }
 
-net_dev_lst_t* net_device_table_mgr::get_net_device_val_lst_from_index(int if_index)
+net_device_val* net_device_table_mgr::get_net_device_val(int if_index)
 {
-	m_lock.lock();
-	net_dev_lst_t* ret_val = NULL;
+	auto_unlocker lock(m_lock);
 
-	if_index_to_net_dev_lst_t::iterator itr = m_if_indx_to_nd_val_lst.find(if_index);
-	if (itr != m_if_indx_to_nd_val_lst.end()) {
-		ret_val = &itr->second;
+	net_device_map_index_t::iterator iter = m_net_device_map_index.find(if_index);
+	if (iter != m_net_device_map_index.end()) {
+		net_device_val* net_dev = iter->second;
+		ndtm_logdbg("Found %s for index: %d", net_dev->to_str().c_str(), if_index);
+		if (net_dev->get_state() == net_device_val::INVALID) {
+			ndtm_logdbg("invalid net_device %s", net_dev->to_str().c_str());
+			return NULL;
+		}
+		return iter->second;
 	}
-	m_lock.unlock();
-
-	return ret_val;
+	ndtm_logdbg("Can't find net_device for index: %d", if_index);
+	return NULL;
 }
 
-net_device_entry* net_device_table_mgr::create_new_entry(in_addr_t local_ip)
+net_device_entry* net_device_table_mgr::create_new_entry(ip_address local_ip, const observer* obs)
 {
 	ndtm_logdbg("");
-	net_device_val *p_ndv = get_net_device_val(local_ip);
+	NOT_IN_USE(obs);
 
-	if (p_ndv) { //net device is offloaded
-		return new net_device_entry(local_ip, p_ndv);
+	net_device_val *p_ndv = get_net_device_val(local_ip.get_in_addr());
+
+	if (p_ndv) {
+		return new net_device_entry(local_ip.get_in_addr(), p_ndv);
 	}
-	return NULL; // Fail the observer registeration
-}
-
-net_device_entry* net_device_table_mgr::create_new_entry(ip_address local_ip, const observer* dst)
-{
-	NOT_IN_USE(dst);
-	return create_new_entry(local_ip.get_in_addr());
+	return NULL;
 }
 
 #if _BullseyeCoverage
@@ -553,8 +323,8 @@ net_device_entry* net_device_table_mgr::create_new_entry(ip_address local_ip, co
 std::string net_device_table_mgr::to_str()
 {
 	std::string rv("net_device_table_mgr:\n");
-	net_device_map_t::iterator net_device_iter = m_net_device_map.begin();
-	while (net_device_iter != m_net_device_map.end()) {
+	net_device_map_addr_t::iterator net_device_iter = m_net_device_map_addr.begin();
+	while (net_device_iter != m_net_device_map_addr.end()) {
 		rv += net_device_iter->second->to_str();
 		rv += "\n";
 		net_device_iter++;
@@ -565,13 +335,31 @@ std::string net_device_table_mgr::to_str()
     #pragma BullseyeCoverage on
 #endif
 
-local_ip_list_t net_device_table_mgr::get_ip_list()
+local_ip_list_t net_device_table_mgr::get_ip_list(int if_index)
 {
+	net_device_map_index_t::iterator iter;
 	local_ip_list_t ip_list;
-	net_device_map_t::iterator net_dev_iter;
-	for (net_dev_iter=m_net_device_map.begin(); net_dev_iter!=m_net_device_map.end(); net_dev_iter++) {
-		ip_list.push_back(net_dev_iter->first);
+	size_t i;
+
+	m_lock.lock();
+
+	iter = (if_index > 0 ?
+			m_net_device_map_index.find(if_index) :
+			m_net_device_map_index.begin());
+
+	for (; iter != m_net_device_map_index.end(); iter++) {
+		net_device_val* p_ndev = iter->second;
+		ip_data_vector_t* p_ip = p_ndev->get_ip_array();
+		for (i = 0; i < p_ip->size(); i++) {
+			ip_list.push_back(*(*p_ip)[i]);
+		}
+		if (if_index > 0) {
+			break;
+		}
 	}
+
+	m_lock.unlock();
+
 	return ip_list;
 }
 
@@ -580,8 +368,8 @@ int net_device_table_mgr::global_ring_poll_and_process_element(uint64_t *p_poll_
 	ndtm_logfunc("");
 	int ret_total = 0;
 
-	net_device_map_t::iterator net_dev_iter;
-	for (net_dev_iter=m_net_device_map.begin(); net_dev_iter!=m_net_device_map.end(); net_dev_iter++) {
+	net_device_map_addr_t::iterator net_dev_iter;
+	for (net_dev_iter=m_net_device_map_addr.begin(); net_dev_iter!=m_net_device_map_addr.end(); net_dev_iter++) {
 		int ret = net_dev_iter->second->global_ring_poll_and_process_element(p_poll_sn, pv_fd_ready_array);
 		if (ret < 0) {
 			ndtm_logdbg("Error in net_device_val[%p]->poll_and_process_element() (errno=%d %m)", net_dev_iter->second, errno);
@@ -601,8 +389,8 @@ int net_device_table_mgr::global_ring_request_notification(uint64_t poll_sn)
 {
 	ndtm_logfunc("");
 	int ret_total = 0;
-	net_device_map_t::iterator net_dev_iter;
-	for (net_dev_iter = m_net_device_map.begin(); m_net_device_map.end() != net_dev_iter; net_dev_iter++) {
+	net_device_map_addr_t::iterator net_dev_iter;
+	for (net_dev_iter = m_net_device_map_addr.begin(); m_net_device_map_addr.end() != net_dev_iter; net_dev_iter++) {
 		int ret = net_dev_iter->second->global_ring_request_notification(poll_sn);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (ret < 0) {
@@ -675,8 +463,8 @@ int net_device_table_mgr::global_ring_drain_and_procces()
 	ndtm_logfuncall("");
 	int ret_total = 0;
 
-        net_device_map_t::iterator net_dev_iter;
-        for (net_dev_iter=m_net_device_map.begin(); m_net_device_map.end() != net_dev_iter; net_dev_iter++) {
+	net_device_map_addr_t::iterator net_dev_iter;
+        for (net_dev_iter=m_net_device_map_addr.begin(); m_net_device_map_addr.end() != net_dev_iter; net_dev_iter++) {
 		int ret = net_dev_iter->second->ring_drain_and_proccess();
 		if (ret < 0 && errno!= EBUSY) {
 			ndtm_logerr("Error in ring[%p]->drain() (errno=%d %m)", net_dev_iter->second, errno);
@@ -696,8 +484,8 @@ void net_device_table_mgr::global_ring_adapt_cq_moderation()
 {
 	ndtm_logfuncall("");
 
-	net_device_map_t::iterator net_dev_iter;
-	for (net_dev_iter=m_net_device_map.begin(); m_net_device_map.end() != net_dev_iter; net_dev_iter++) {
+	net_device_map_addr_t::iterator net_dev_iter;
+	for (net_dev_iter=m_net_device_map_addr.begin(); m_net_device_map_addr.end() != net_dev_iter; net_dev_iter++) {
 		net_dev_iter->second->ring_adapt_cq_moderation();
 	}
 }

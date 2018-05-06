@@ -181,6 +181,14 @@ static inline uint64_t ntohll(uint64_t x) { return x; }
 #define ARPHRD_INFINIBAND 32		/* InfiniBand			*/
 #endif
 
+#ifndef ARPHRD_ETHER
+#define ARPHRD_ETHER 1            /* Ethernet 10Mbps                   */
+#endif
+
+#ifndef ARPHRD_LOOPBACK
+#define ARPHRD_LOOPBACK 772            /* Loopback device                   */
+#endif
+
 #ifndef ETH_P_8021Q
 #define ETH_P_8021Q	0x8100          /* 802.1Q VLAN Extended Header  */
 #endif

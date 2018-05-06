@@ -51,63 +51,85 @@
 
 ib_ctx_handler_collection* g_p_ib_ctx_handler_collection = NULL;
 
-ib_ctx_handler_collection::ib_ctx_handler_collection() : m_n_num_devices(0), m_ctx_time_conversion_mode(TS_CONVERSION_MODE_DISABLE)
+ib_ctx_handler_collection::ib_ctx_handler_collection() :
+		m_ctx_time_conversion_mode(TS_CONVERSION_MODE_DISABLE)
 {
+	ibchc_logdbg("");
+
+	/* Read ib table from kernel and save it in local variable. */
+	update_tbl();
+
+	//Print table
+	print_val_tbl();
+
+	ibchc_logdbg("Done");
 }
 
 ib_ctx_handler_collection::~ib_ctx_handler_collection()
 {
-	free_ibchc_resources();
-}
+	ibchc_logdbg("");
 
-void ib_ctx_handler_collection::free_ibchc_resources()
-{
 	ib_context_map_t::iterator ib_ctx_iter;
 	while ((ib_ctx_iter = m_ib_ctx_map.begin()) != m_ib_ctx_map.end()) {
 		ib_ctx_handler* p_ib_ctx_handler = ib_ctx_iter->second;
 		delete p_ib_ctx_handler;
 		m_ib_ctx_map.erase(ib_ctx_iter);
 	}
+
+	ibchc_logdbg("Done");
 }
 
-ts_conversion_mode_t ib_ctx_handler_collection::get_ctx_time_conversion_mode() {
-	return m_ctx_time_conversion_mode;
-}
-
-void ib_ctx_handler_collection::map_ib_devices() //return num_devices, can use rdma_get_devices()
+void ib_ctx_handler_collection::update_tbl()
 {
-	struct ibv_context** pp_ibv_context_list = rdma_get_devices(&m_n_num_devices);
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!pp_ibv_context_list) {
-		ibchc_logwarn("Failure in rdma_get_devices() (error=%d %m)", errno);
-		ibchc_logwarn("Please check OFED installation");
-		free_ibchc_resources();
-		throw_vma_exception("Failure in rdma_get_devices()");
+	struct ibv_device **dev_list = NULL;
+	ib_ctx_handler * p_ib_ctx_handler = NULL;
+	int num_devices = 0;
+	int i;
 
+	dev_list = ibv_get_device_list(&num_devices);
+
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!dev_list) {
+		ibchc_logwarn("Failure in ibv_get_device_list() (error=%d %m)", errno);
+		ibchc_logwarn("Please check OFED installation");
+		throw_vma_exception("No IB capable devices found!");
 	}
-	if (!m_n_num_devices) {
-		rdma_free_devices(pp_ibv_context_list);
-		ibchc_logdbg("No RDMA capable devices found!");
-		free_ibchc_resources();
-		throw_vma_exception("No RDMA capable devices found!");
+	if (!num_devices) {
+		ibchc_logdbg("No IB capable devices found!");
+		throw_vma_exception("No IB capable devices found!");
 	}
+
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	m_ctx_time_conversion_mode = time_converter::get_devices_converter_status(pp_ibv_context_list, m_n_num_devices);
+	ibchc_logdbg("Checking for offload capable IB devices...");
+
+	/* Get common time conversion mode for all devices */
+	m_ctx_time_conversion_mode = time_converter::get_devices_converter_status(dev_list, num_devices);
 	ibchc_logdbg("TS converter status was set to %d", m_ctx_time_conversion_mode);
 
-	ibchc_logdbg("Mapping %d ibv devices", m_n_num_devices);
-	for (int i = 0; i < m_n_num_devices; i++) {
-		m_ib_ctx_map[pp_ibv_context_list[i]] = new ib_ctx_handler(pp_ibv_context_list[i], m_ctx_time_conversion_mode);
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (!m_ib_ctx_map[pp_ibv_context_list[i]]) {
-			ibchc_logdbg("failed to allocate ib context map");
-			throw_vma_exception("failed to allocate ib context map");
+	for (i = 0; i < num_devices; i++) {
+		p_ib_ctx_handler = new ib_ctx_handler(dev_list[i], m_ctx_time_conversion_mode);
+		if (!p_ib_ctx_handler) {
+			ibchc_logerr("failed allocating new ib_ctx_handler (errno=%d %m)", errno);
+			continue;
 		}
-		BULLSEYE_EXCLUDE_BLOCK_END
+		m_ib_ctx_map[p_ib_ctx_handler->get_ibv_context()] = p_ib_ctx_handler;
 	}
 
-	rdma_free_devices(pp_ibv_context_list);
+	ibchc_logdbg("Check completed. Found %d offload capable IB devices", m_ib_ctx_map.size());
+
+	if (dev_list) {
+		ibv_free_device_list(dev_list);
+	}
+}
+
+void ib_ctx_handler_collection::print_val_tbl()
+{
+	ib_context_map_t::iterator itr;
+	for (itr = m_ib_ctx_map.begin(); itr != m_ib_ctx_map.end(); itr++) {
+		ib_ctx_handler* p_ib_ctx_handler = itr->second;
+		p_ib_ctx_handler->print_val();
+	}
 }
 
 ib_ctx_handler* ib_ctx_handler_collection::get_ib_ctx(struct ibv_context* p_ibv_context)
@@ -119,14 +141,46 @@ ib_ctx_handler* ib_ctx_handler_collection::get_ib_ctx(struct ibv_context* p_ibv_
 
 ib_ctx_handler* ib_ctx_handler_collection::get_ib_ctx(const char *ifa_name)
 {
+	struct ifaddrs slave;
+	char active_slave[IFNAMSIZ] = {0};
 	ib_context_map_t::iterator ib_ctx_iter;
+
+	if (check_netvsc_device_exist(ifa_name)) {
+		if (!get_netvsc_slave(ifa_name, &slave)) {
+			return NULL;
+		}
+		ifa_name = (const char *)slave.ifa_name;
+	} else if (check_device_exist(ifa_name, BOND_DEVICE_FILE)) {
+		/* active/backup: return active slave */
+		if (!get_bond_active_slave_name(ifa_name, active_slave, sizeof(active_slave))) {
+			char slaves[IFNAMSIZ * 16] = {0};
+			char* slave_name;
+			char* save_ptr;
+
+			/* active/active: return the first slave */
+			if (!get_bond_slaves_name_list(ifa_name, slaves, sizeof(slaves))) {
+				return NULL;
+			}
+			slave_name = strtok_r(slaves, " ", &save_ptr);
+			if (NULL == slave_name) {
+				return NULL;
+			}
+			save_ptr = strchr(slave_name, '\n');
+			if (save_ptr) *save_ptr = '\0'; // Remove the tailing 'new line" char
+			strncpy(active_slave, slave_name, sizeof(active_slave) - 1);
+		}
+		ifa_name = (const char *)active_slave;
+	}
+
 	for (ib_ctx_iter = m_ib_ctx_map.begin(); ib_ctx_iter != m_ib_ctx_map.end(); ib_ctx_iter++) {
 		int n = -1;
+		int fd = -1;
 		char ib_path[IBV_SYSFS_PATH_MAX]= {0};
 
-		n = snprintf(ib_path, sizeof(ib_path), "/sys/class/infiniband/%s/device/net/%s/ifindex", ib_ctx_iter->first->device->name, ifa_name);
+		n = snprintf(ib_path, sizeof(ib_path), "/sys/class/infiniband/%s/device/net/%s/ifindex",
+				ib_ctx_iter->second->get_ibname(), ifa_name);
 		if (likely((0 < n) && (n < (int)sizeof(ib_path)))) {
-			int fd = open(ib_path, O_RDONLY);
+			fd = open(ib_path, O_RDONLY);
 			if (fd >= 0) {
 				close(fd);
 				return ib_ctx_iter->second;
@@ -135,37 +189,4 @@ ib_ctx_handler* ib_ctx_handler_collection::get_ib_ctx(const char *ifa_name)
 	}
 
 	return NULL;
-}
-
-size_t ib_ctx_handler_collection::mem_reg_on_all_devices(void* addr, size_t length, 
-                                                  ibv_mr** mr_array, size_t mr_array_sz,
-                                                  uint64_t access)
-{
-	ibchc_logfunc("");
-	size_t mr_pos = 0;
-	ib_context_map_t::iterator ib_ctx_iter;
-	for (ib_ctx_iter = m_ib_ctx_map.begin(); (ib_ctx_iter != m_ib_ctx_map.end()) && (mr_pos < mr_array_sz); ib_ctx_iter++, mr_pos++) {
-		ib_ctx_handler* p_ib_ctx_handler = ib_ctx_iter->second;
-		mr_array[mr_pos] = p_ib_ctx_handler->mem_reg(addr, length, access);
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (mr_array[mr_pos] == NULL) {
-			ibchc_logwarn("Failure in mem_reg: addr=%p, length=%d, mr_pos=%d, mr_array[mr_pos]=%d, dev=%p, ibv_dev=%s", 
-				    addr, length, mr_pos, mr_array[mr_pos], p_ib_ctx_handler, p_ib_ctx_handler->get_ibv_device()->name);
-			break;
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-		errno = 0; //ibv_reg_mr() set errno=12 despite successful returning
-#ifdef VMA_IBV_ACCESS_ALLOCATE_MR
-		if ((access & VMA_IBV_ACCESS_ALLOCATE_MR) != 0) { // contig pages mode
-			// When using 'IBV_ACCESS_ALLOCATE_MR', ibv_reg_mr will return a pointer that its 'addr' field will hold the address of the allocated memory.
-			// Second registration and above is done using 'IBV_ACCESS_LOCAL_WRITE' and the 'addr' we received from the first registration.
-			addr = mr_array[0]->addr;
-			access &= ~VMA_IBV_ACCESS_ALLOCATE_MR;
-		}
-#endif
-
-		ibchc_logdbg("addr=%p, length=%d, pos=%d, mr[pos]->lkey=%u, dev1=%p, dev2=%p",
-			   addr, length, mr_pos, mr_array[mr_pos]->lkey, mr_array[mr_pos]->context->device, p_ib_ctx_handler->get_ibv_device());
-	}
-	return mr_pos;
 }

@@ -155,6 +155,24 @@ typedef struct slave_data {
 
 typedef std::vector<slave_data_t*> slave_data_vector_t;
 
+typedef struct ip_data {
+	int       flags;
+	in_addr_t local_addr;
+	in_addr_t netmask;
+	ip_data() {
+		flags = 0;
+		local_addr = 0;
+		netmask = 0;
+	}
+	~ip_data() {
+		flags = 0;
+		local_addr = 0;
+		netmask = 0;
+	}
+} ip_data_t;
+
+typedef std::vector<ip_data_t*> ip_data_vector_t;
+
 
 /*
  * Represents Offloading capable device such as eth4, ib1, eth3.5, eth5:6
@@ -183,26 +201,53 @@ public:
 	};
 public:
 
-	net_device_val(transport_type_t transport_type);
+	net_device_val(void *desc = NULL);
 	/* on init:
 	 *      get ibv, sys channel handlers from the relevant collections.
 	 *      register to ibv_ctx, rdma_cm and sys_net_channel
 	 *
 	 * */
 	virtual ~net_device_val();
-	virtual void 		configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id);
+
+	inline void set_type(int type) { m_type = type; }
+	inline void set_if_idx(int if_idx) { m_if_idx = if_idx; }
+	inline void set_flags(int flags) { m_flags = flags; }
+	inline void set_mtu(int mtu) { m_mtu = mtu; }
+	inline void set_if_link(int if_link) { m_if_link = if_link; }
+	inline void set_ifname(char *ifname) {
+		m_name = ifname;
+		get_base_interface_name(ifname, m_base_name, sizeof(m_base_name));
+	}
+	inline void set_l2_if_addr(uint8_t *addr, size_t size) {
+		memcpy(m_l2_if_addr, addr, std::min(sizeof(m_l2_if_addr), size));
+	}
+	inline void set_l2_bc_addr(uint8_t *addr, size_t size) {
+		memcpy(m_l2_bc_addr, addr, std::min(sizeof(m_l2_bc_addr), size));
+	}
+	void set_ip_array();
+
+	inline int get_type() { return m_type; }
+	inline int get_if_idx() { return m_if_idx; }
+	inline int get_flags() { return m_flags; }
+	inline int get_mtu() { return m_mtu; }
+	inline int get_if_link() { return m_if_link; }
+	inline char* get_ifname() { return (char *)m_name.c_str(); }
+	inline char* get_ifname_link() { return m_base_name; }
+	inline uint8_t* get_l2_if_addr() { return m_l2_if_addr; }
+	inline uint8_t* get_l2_bc_addr() { return m_l2_bc_addr; }
+	ip_data_vector_t* get_ip_array() { return &m_ip;}
+
+	void set_str();
+	void print_val();
 
 	ring*                   reserve_ring(resource_allocation_key*); // create if not exists
 	bool 			release_ring(resource_allocation_key*); // delete from m_hash if ref_cnt == 0
 	state                   get_state() const  { return m_state; } // not sure, look at state init at c'tor
 	virtual std::string     to_str();
-	int                     get_mtu() { return m_mtu; }
-	int                     get_if_idx() { return m_if_idx; }
+	inline void set_transport_type(transport_type_t value) { m_transport_type = value; }
 	transport_type_t        get_transport_type() const { return m_transport_type; }
 	bool 			update_active_backup_slaves();
-	in_addr_t               get_local_addr() {return m_local_addr;};
-	in_addr_t               get_netmask() {return m_netmask;};
-	bool                    is_valid() { return true; };
+	in_addr_t               get_local_addr() { return m_ip[0]->local_addr; } // Valid object must have at least one address
 	int                     global_ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array = NULL);
 	int                     global_ring_request_notification(uint64_t poll_sn) ;
 	int                     ring_drain_and_proccess();
@@ -215,10 +260,18 @@ public:
 	void 			unregister_to_ibverbs_events(event_handler_ibverbs *handler);
 
 protected:
-	int                     m_if_idx; // not unique: eth4 and eth4:5 has the same idx
-	in_addr_t		m_local_addr;
-	in_addr_t		m_netmask;
-	int                     m_mtu;
+	/* See: RFC 3549 2.3.3.1. */
+	int              m_if_idx;         /* Uniquely identifies interface (not unique: eth4 and eth4:5 has the same idx) */
+	int              m_type;           /* This defines the type of the link. */
+	int              m_flags;          /* Device Flags (IFF_x).  */
+	int              m_mtu;            /* MTU of the device. */
+	int              m_if_link;        /* ifindex of link to which this device is bound */
+	uint8_t          m_l2_if_addr[20]; /* hardware L2 interface address */
+	uint8_t          m_l2_bc_addr[20]; /* hardware L2 broadcast address */
+
+	/* See: RFC 3549 2.3.3.2. */
+	ip_data_vector_t m_ip;             /* vector of ip addresses */
+
 	state			m_state;
 	L2_address*		m_p_L2_addr;
 	L2_address* 		m_p_br_addr;
@@ -231,10 +284,10 @@ protected:
 	char           			m_base_name[IFNAMSIZ];
 	char 					m_active_slave_name[IFNAMSIZ]; //only for active-backup
 
+	virtual void 		configure();
 	virtual ring*		create_ring(resource_allocation_key *key) = 0;
 	virtual void		create_br_address(const char* ifname) = 0;
 	virtual L2_address*	create_L2_address(const char* ifname) = 0;
-	void 			delete_L2_address();
 
 	resource_allocation_key* ring_key_redirection_reserve(resource_allocation_key *key);
 	resource_allocation_key* ring_key_redirection_release(resource_allocation_key *key);
@@ -245,23 +298,37 @@ protected:
 	int m_bond_fail_over_mac;
 
 private:
+	bool 			verify_ipoib_mode();
+	bool 			verify_eth_qp_creation(const char* ifname);
+	bool 			verify_bond_ipoib_or_eth_qp_creation();
+	bool 			verify_netvsc_ipoib_or_eth_qp_creation(const char *slave_name);
+	bool 			verify_ipoib_or_eth_qp_creation(const char* interface_name);
+	bool 			verify_enable_ipoib(const char* ifname);
+
 	bool get_up_and_active_slaves(bool* up_and_active_slaves, size_t size);
+	char m_str[BUFF_SIZE];
 };
 
 class net_device_val_eth : public net_device_val
 {
 public:
-	net_device_val_eth() : net_device_val(VMA_TRANSPORT_ETH), m_vlan(0) {};
-	virtual void 		configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id);
+	net_device_val_eth(void *desc) : net_device_val(desc), m_vlan(0) {
+		set_transport_type(VMA_TRANSPORT_ETH);
+		if (INVALID != m_state) {
+			net_device_val::configure();
+			configure();
+		}
+	}
 	uint16_t		get_vlan() {return m_vlan;}
 	std::string		to_str();
 
 protected:
 	virtual ring*		create_ring(resource_allocation_key *key);
-	virtual L2_address*	create_L2_address(const char* ifname);
-	virtual void		create_br_address(const char* ifname);
 
 private:
+	void			configure();
+	L2_address*		create_L2_address(const char* ifname);
+	void			create_br_address(const char* ifname);
 	uint16_t		m_vlan;
 };
 
@@ -269,20 +336,26 @@ private:
 class net_device_val_ib : public net_device_val,  public neigh_observer, public cache_observer
 {
 public:
-	net_device_val_ib() : net_device_val(VMA_TRANSPORT_IB), m_pkey(0), m_br_neigh(NULL) {};
+	net_device_val_ib(void *desc) : net_device_val(desc), m_pkey(0), m_br_neigh(NULL) {
+		set_transport_type(VMA_TRANSPORT_IB);
+		if (INVALID != m_state) {
+			net_device_val::configure();
+			configure();
+		}
+	}
 	~net_device_val_ib();
 
-	virtual void 		configure(struct ifaddrs* ifa, struct rdma_cm_id* cma_id);
 	std::string		to_str();
 	const neigh_ib_broadcast* get_br_neigh() {return m_br_neigh;}
 	virtual transport_type_t get_obs_transport_type() const {return get_transport_type();}
 
 protected:
 	ring*			create_ring(resource_allocation_key *key);
-	virtual L2_address*	create_L2_address(const char* ifname);
-	virtual void		create_br_address(const char* ifname);
 
 private:
+	void			configure();
+	L2_address*		create_L2_address(const char* ifname);
+	void			create_br_address(const char* ifname);
 	uint16_t		m_pkey;
 	neigh_ib_broadcast*	m_br_neigh;
 };

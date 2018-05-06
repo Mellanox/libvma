@@ -999,10 +999,9 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					}
 
 					if (mreqn.imr_ifindex) {
-						net_dev_lst_t* p_ndv_val_lst = g_p_net_device_table_mgr->get_net_device_val_lst_from_index(mreqn.imr_ifindex);
-						net_device_val* p_ndev = NULL;
-						if (p_ndv_val_lst && (p_ndev = dynamic_cast <net_device_val *>(*(p_ndv_val_lst->begin())))) {
-							mreqn.imr_address.s_addr = p_ndev->get_local_addr();
+						local_ip_list_t lip_offloaded_list = g_p_net_device_table_mgr->get_ip_list(mreqn.imr_ifindex);
+						if (!lip_offloaded_list.empty()) {
+							mreqn.imr_address.s_addr = lip_offloaded_list.front().local_addr;
 						} else {
 							struct sockaddr_in src_addr;
 							if (get_ipv4_from_ifindex(mreqn.imr_ifindex, &src_addr) == 0) {
@@ -1099,10 +1098,9 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 						if (__optlen >= sizeof(struct ip_mreqn)) {
 							struct ip_mreqn* p_mreqn = (struct ip_mreqn*)__optval;
 							if (p_mreqn->imr_ifindex) {
-								net_dev_lst_t* p_ndv_val_lst = g_p_net_device_table_mgr->get_net_device_val_lst_from_index(p_mreqn->imr_ifindex);
-								net_device_val* p_ndev = NULL;
-								if (p_ndv_val_lst && (p_ndev = dynamic_cast <net_device_val *>(*(p_ndv_val_lst->begin())))) {
-									mreqprm.imr_interface.s_addr = p_ndev->get_local_addr();
+								local_ip_list_t lip_offloaded_list = g_p_net_device_table_mgr->get_ip_list(p_mreqn->imr_ifindex);
+								if (!lip_offloaded_list.empty()) {
+									mreqprm.imr_interface.s_addr = lip_offloaded_list.front().local_addr;
 								} else {
 									struct sockaddr_in src_addr;
 									if (get_ipv4_from_ifindex(p_mreqn->imr_ifindex, &src_addr) == 0) {
