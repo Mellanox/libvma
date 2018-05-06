@@ -90,18 +90,18 @@ void route_entry::set_val(IN route_val* &val)
 
 void route_entry::register_to_net_device()
 {
-	net_dev_lst_t* dev_list = g_p_net_device_table_mgr->get_net_device_val_lst_from_index(m_val->get_if_index());
-	if (!dev_list || dev_list->empty()) {
+	net_device_val* ndv = g_p_net_device_table_mgr->get_net_device_val(m_val->get_src_addr());
+	if (!ndv) {
 		rt_entry_logdbg("No matched net device for %s interface", m_val->get_if_name());
 		m_b_offloaded_net_dev = false;
 	}
 	else {
-		ip_address src_addr = dev_list->front()->get_local_addr();
+		ip_address src_addr = ndv->get_local_addr();
 		rt_entry_logdbg("register to net device with src_addr %s", src_addr.to_str().c_str());
 
 		cache_entry_subject<ip_address, net_device_val*> *net_dev_entry = (cache_entry_subject<ip_address, net_device_val*> *)m_p_net_dev_entry;
 		if (g_p_net_device_table_mgr->register_observer(src_addr, this, &net_dev_entry)) {
-			rt_entry_logdbg("route_entry [%p] is registered to an offloaded device", this);
+			rt_entry_logdbg("route_entry [%p] is registered to an offloaded device [%p]", this, net_dev_entry);
 			m_p_net_dev_entry = (net_device_entry *) net_dev_entry;
 			m_p_net_dev_entry->get_val(m_p_net_dev_val);
 			m_b_offloaded_net_dev = true;
