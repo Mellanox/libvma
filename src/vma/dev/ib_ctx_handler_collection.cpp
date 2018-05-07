@@ -88,11 +88,11 @@ void ib_ctx_handler_collection::update_tbl()
 	int i;
 	std::vector<struct ibv_device*> cache_objs;
 
-	dev_list = ibv_get_device_list(&num_devices);
+	dev_list = vma_ibv_get_device_list(&num_devices);
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!dev_list) {
-		ibchc_logwarn("Failure in ibv_get_device_list() (error=%d %m)", errno);
+		ibchc_logwarn("Failure in vma_ibv_get_device_list() (error=%d %m)", errno);
 		ibchc_logwarn("Please check OFED installation");
 		throw_vma_exception("No IB capable devices found!");
 	}
@@ -132,15 +132,18 @@ void ib_ctx_handler_collection::update_tbl()
 
 	for (i = 0; i < num_devices; i++) {
 		/* 2. Skip existing devices */
-		if (m_ib_ctx_map.find(dev_list[i]) != m_ib_ctx_map.end()) {
-			std::vector<struct ibv_device*>::iterator cache_iter;
-			while ((cache_iter = cache_objs.begin()) != cache_objs.end()) {
-				if (dev_list[i] == (*cache_iter)) {
-					cache_objs.erase(cache_iter);
-					break;
+		ib_context_map_t::iterator ib_ctx_itr;
+		for (ib_ctx_itr = m_ib_ctx_map.begin(); ib_ctx_itr != m_ib_ctx_map.end(); ib_ctx_itr++) {
+			if (strcmp(dev_list[i]->name, ib_ctx_itr->first->name) == 0) {
+				std::vector<struct ibv_device*>::iterator cache_iter;
+				while ((cache_iter = cache_objs.begin()) != cache_objs.end()) {
+					if (strcmp(dev_list[i]->name, (*cache_iter)->name) == 0) {
+						cache_objs.erase(cache_iter);
+						break;
+					}
 				}
+				goto next;
 			}
-			continue;
 		}
 
 #ifdef DEFINED_SOCKETXTREME
@@ -157,6 +160,9 @@ void ib_ctx_handler_collection::update_tbl()
 			continue;
 		}
 		m_ib_ctx_map[p_ib_ctx_handler->get_ibv_device()] = p_ib_ctx_handler;
+
+next:
+		continue;
 	}
 
 	/* 4. Cleanup devices that are not found after update */

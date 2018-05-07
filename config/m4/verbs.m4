@@ -173,6 +173,7 @@ AS_IF([test "x$have_mp_rq" == xyes -a "x$enable_exp_cq" == xyes -a "x$enable_mlx
 	[AC_MSG_RESULT([no])])
 
 AC_CHECK_FUNCS([rdma_lib_reset])
+AC_CHECK_FUNCS([ibv_exp_get_device_list])
 
 # Restore LIBS
 LIBS=$verbs_saved_libs
