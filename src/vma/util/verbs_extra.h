@@ -307,7 +307,7 @@ typedef struct ibv_exp_flow_spec_action_tag	vma_ibv_flow_spec_action_tag;
 #define vma_get_flow_tag(cqe)			0
 typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_tag;
 #endif //DEFINED_IBV_EXP_FLOW_TAG
-#endif //new MLNX_OFED verbs (2.2 and newer)
+#endif /* DEFINED_IBV_OLD_VERBS_MLX_OFED */
 
 #if defined(HAVE_IBV_DM)
 #define vma_ibv_dm_size(attr)			((attr)->max_dm_size)
@@ -327,6 +327,12 @@ typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_ta
 #define vma_is_packet_pacing_supported(attr)	((attr)->packet_pacing_caps.qp_rate_limit_min)
 #else
 #define vma_is_packet_pacing_supported(attr)	(0)
+#endif
+
+#if defined(HAVE_IBV_EXP_GET_DEVICE_LIST)
+#define vma_ibv_get_device_list(num)		ibv_exp_get_device_list(num)
+#else
+#define vma_ibv_get_device_list(num)		ibv_get_device_list(num)
 #endif
 
 typedef enum {
