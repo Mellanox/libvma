@@ -82,38 +82,23 @@ typedef enum {
 	CQT_TX
 } cq_type_t;
 
-/* udp uc key, only by destination port as we already know the rest */
-typedef struct __attribute__((packed)) flow_spec_udp_uc_key_t {
-  in_port_t 	dst_port;
 
-  flow_spec_udp_uc_key_t () {
-  	flow_spec_udp_uc_key_helper(INPORT_ANY);
-  } //Default constructor
-  flow_spec_udp_uc_key_t (in_port_t d_port) {
-  	flow_spec_udp_uc_key_helper(d_port);
-  }//Constructor
-  void flow_spec_udp_uc_key_helper(in_addr_t d_port) {
-    memset(this, 0, sizeof(*this));// Silencing coverity
-    dst_port = d_port;
-  };
-} flow_spec_udp_uc_key_t;
-
-typedef struct __attribute__((packed)) flow_spec_udp_mc_key_t {
+typedef struct __attribute__((packed)) flow_spec_udp_key_t {
   in_addr_t	dst_ip;
   in_port_t	dst_port;
 
-  flow_spec_udp_mc_key_t () {
-    flow_spec_udp_mc_key_helper( INADDR_ANY, INPORT_ANY);
+  flow_spec_udp_key_t () {
+    flow_spec_udp_key_helper(INADDR_ANY, INPORT_ANY);
   } //Default constructor
-  flow_spec_udp_mc_key_t (in_addr_t d_ip, in_addr_t d_port) {
-    flow_spec_udp_mc_key_helper(d_ip, d_port);
+  flow_spec_udp_key_t (in_addr_t d_ip, in_addr_t d_port) {
+    flow_spec_udp_key_helper(d_ip, d_port);
   }//Constructor
-  void flow_spec_udp_mc_key_helper(in_addr_t d_ip, in_addr_t d_port) {
+  void flow_spec_udp_key_helper(in_addr_t d_ip, in_addr_t d_port) {
     memset(this, 0, sizeof(*this));// Silencing coverity
     dst_ip = d_ip;
     dst_port = d_port;
   };
-} flow_spec_udp_mc_key_t;
+} flow_spec_udp_key_t;
 
 typedef struct __attribute__((packed)) flow_spec_tcp_key_t {
   in_addr_t	src_ip;
@@ -134,36 +119,10 @@ typedef struct __attribute__((packed)) flow_spec_tcp_key_t {
   };
 } flow_spec_tcp_key_t;
 
-/* UDP UC flow to rfs object hash map */
+
+/* UDP flow to rfs object hash map */
 inline bool
-operator==(flow_spec_udp_uc_key_t const& key1, flow_spec_udp_uc_key_t const& key2)
-{
-	return (key1.dst_port == key2.dst_port);
-}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
-inline bool
-operator<(flow_spec_udp_uc_key_t const& key1, flow_spec_udp_uc_key_t const& key2)
-{
-	if (key1.dst_port < key2.dst_port)
-		return true;
-
-	return false;
-}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
-typedef hash_map<flow_spec_udp_uc_key_t, rfs*> flow_spec_udp_uc_map_t;
-
-
-/* UDP MC flow to rfs object hash map */
-inline bool
-operator==(flow_spec_udp_mc_key_t const& key1, flow_spec_udp_mc_key_t const& key2)
+operator==(flow_spec_udp_key_t const& key1, flow_spec_udp_key_t const& key2)
 {
 	return 	(key1.dst_port == key2.dst_port) &&
 		(key1.dst_ip == key2.dst_ip);
@@ -174,7 +133,7 @@ operator==(flow_spec_udp_mc_key_t const& key1, flow_spec_udp_mc_key_t const& key
 #endif
 
 inline bool
-operator<(flow_spec_udp_mc_key_t const& key1, flow_spec_udp_mc_key_t const& key2)
+operator<(flow_spec_udp_key_t const& key1, flow_spec_udp_key_t const& key2)
 {
 	if (key1.dst_ip < key2.dst_ip)		return true;
 	if (key1.dst_ip > key2.dst_ip)		return false;
@@ -186,7 +145,7 @@ operator<(flow_spec_udp_mc_key_t const& key1, flow_spec_udp_mc_key_t const& key2
     #pragma BullseyeCoverage on
 #endif
 
-typedef hash_map<flow_spec_udp_mc_key_t, rfs*> flow_spec_udp_mc_map_t;
+typedef hash_map<flow_spec_udp_key_t, rfs*> flow_spec_udp_map_t;
 
 
 /* TCP flow to rfs object hash map */
