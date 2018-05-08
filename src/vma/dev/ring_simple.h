@@ -103,8 +103,7 @@ protected:
 	// Internal functions. No need for locks mechanism.
 	bool			rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array);
 	//	void	print_ring_flow_to_rfs_map(flow_spec_map_t *p_flow_map);
-	void			flow_udp_uc_del_all();
-	void			flow_udp_mc_del_all();
+	void			flow_udp_del_all();
 	void			flow_tcp_del_all();
 	virtual void		init_tx_buffers(uint32_t count);
 	bool			request_more_tx_buffers(uint32_t count);
@@ -152,8 +151,8 @@ private:
 	rule_filter_map_t	m_l2_mc_ip_attach_map;
 	rule_filter_map_t	m_tcp_dst_port_attach_map;
 	flow_spec_tcp_map_t	m_flow_tcp_map;
-	flow_spec_udp_mc_map_t	m_flow_udp_mc_map;
-	flow_spec_udp_uc_map_t	m_flow_udp_uc_map;
+	flow_spec_udp_map_t	m_flow_udp_mc_map;
+	flow_spec_udp_map_t	m_flow_udp_uc_map;
 	const bool		m_b_sysvar_eth_mc_l2_only_rules;
 	const bool		m_b_sysvar_mc_force_flowtag;
 #ifdef DEFINED_SOCKETXTREME

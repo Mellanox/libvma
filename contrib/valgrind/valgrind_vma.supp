@@ -9,6 +9,27 @@
    fun:_ZN11route_entry22register_to_net_deviceEv
 }
 {
+   RM #1284069
+   Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   fun:_ZN20net_device_table_mgr16create_new_entryE10ip_addressPK8observer
+   fun:_ZN15cache_table_mgrI10ip_addressP14net_device_valE17register_observerES0_PK14cache_observerPP19cache_entry_subjectIS0_S2_E
+   fun:_ZN11route_entry22register_to_net_deviceEv
+}
+{
+   RM #1284069
+   Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   fun:_ZN15neigh_table_mgr16create_new_entryE9neigh_keyPK8observer
+   fun:register_observer
+   fun:_ZN15neigh_table_mgr17register_observerE9neigh_keyPK14cache_observerPP19cache_entry_subjectIS0_P9neigh_valE
+   fun:_ZN9dst_entry13resolve_neighEv
+   fun:_ZN9dst_entry15prepare_to_sendER16vma_rate_limit_tbb
+   ...
+}
+{
    RM #1072427
    Memcheck:Leak
    match-leak-kinds: definite
