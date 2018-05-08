@@ -672,8 +672,7 @@ ring_eth_cb::~ring_eth_cb()
 	struct ibv_exp_destroy_res_domain_attr attr;
 
 	m_lock_ring_rx.lock();
-	flow_udp_uc_del_all();
-	flow_udp_mc_del_all();
+	flow_udp_del_all();
 	flow_tcp_del_all();
 	m_lock_ring_rx.unlock();
 

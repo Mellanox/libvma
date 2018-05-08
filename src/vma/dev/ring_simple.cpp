@@ -161,8 +161,7 @@ ring_simple::~ring_simple()
 
 	// Go over all hash and for each flow: 1.Detach from qp 2.Delete related rfs object 3.Remove flow from hash
 	m_lock_ring_rx.lock();
-	flow_udp_uc_del_all();
-	flow_udp_mc_del_all();
+	flow_udp_del_all();
 	flow_tcp_del_all();
 	m_lock_ring_rx.unlock();
 
@@ -402,7 +401,7 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 
 	/* Get the appropriate hash map (tcp, uc or mc) from the 5t details */
 	if (flow_spec_5t.is_udp_uc()) {
-		flow_spec_udp_uc_key_t key_udp_uc(flow_spec_5t.get_dst_port());
+		flow_spec_udp_key_t key_udp_uc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
 		p_rfs = m_flow_udp_uc_map.get(key_udp_uc, NULL);
 		if (p_rfs == NULL) {
 			// No rfs object exists so a new one must be created and inserted in the flow map
@@ -429,7 +428,7 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 			}
 		}
 	} else if (flow_spec_5t.is_udp_mc()) {
-		flow_spec_udp_mc_key_t key_udp_mc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
+		flow_spec_udp_key_t key_udp_mc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
 
 		if (flow_tag_id) {
 			if (m_b_sysvar_mc_force_flowtag || !si->addr_in_reuse()) {
@@ -569,7 +568,7 @@ bool ring_simple::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 
 	/* Get the appropriate hash map (tcp, uc or mc) from the 5t details */
 	if (flow_spec_5t.is_udp_uc()) {
-		flow_spec_udp_uc_key_t key_udp_uc(flow_spec_5t.get_dst_port());
+		flow_spec_udp_key_t key_udp_uc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
 		p_rfs = m_flow_udp_uc_map.get(key_udp_uc, NULL);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (p_rfs == NULL) {
@@ -588,7 +587,7 @@ bool ring_simple::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 		}
 	} else if (flow_spec_5t.is_udp_mc()) {
 		int keep_in_map = 1;
-		flow_spec_udp_mc_key_t key_udp_mc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
+		flow_spec_udp_key_t key_udp_mc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
 		if (m_transport_type == VMA_TRANSPORT_IB || m_b_sysvar_eth_mc_l2_only_rules) {
 			rule_filter_map_t::iterator l2_mc_iter = m_l2_mc_ip_attach_map.find(key_udp_mc.dst_ip);
 			BULLSEYE_EXCLUDE_BLOCK_START
@@ -689,11 +688,11 @@ void ring::print_ring_flow_to_rfs_map(flow_spec_map_t *p_flow_map)
 
 //code coverage
 #if 0
-void ring::print_flow_to_rfs_udp_uc_map(flow_spec_udp_uc_map_t *p_flow_map)
+void ring_simple::print_flow_to_rfs_udp_map(flow_spec_udp_map_t *p_flow_map)
 {
 	rfs *curr_rfs;
-	flow_spec_udp_uc_key_t map_key;
-	flow_spec_udp_uc_map_t::iterator itr;
+	flow_spec_udp_key_t map_key;
+	flow_spec_udp_map_t::iterator itr;
 
 	// This is an internal function (within ring and 'friends'). No need for lock mechanism.
 
@@ -1112,10 +1111,11 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_f
 		p_rx_wc_buf_desc->rx.sz_payload          = sz_payload;
 
 		// Find the relevant hash map and pass the packet to the rfs for dispatching
-		if (!(IN_MULTICAST_N(p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr))) {	// This is UDP UC packet
-			p_rfs = m_flow_udp_uc_map.get(flow_spec_udp_uc_key_t(p_rx_wc_buf_desc->rx.dst.sin_port), NULL);
-		} else {	// This is UDP MC packet
-			p_rfs = m_flow_udp_mc_map.get(flow_spec_udp_mc_key_t(p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr,
+		if (!(IN_MULTICAST_N(p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr))) {      // This is UDP UC packet
+			p_rfs = m_flow_udp_uc_map.get(flow_spec_udp_key_t(p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr,
+				p_rx_wc_buf_desc->rx.dst.sin_port), NULL);
+		} else {        // This is UDP MC packet
+			p_rfs = m_flow_udp_mc_map.get(flow_spec_udp_key_t(p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr,
 				p_rx_wc_buf_desc->rx.dst.sin_port), NULL);
 		}
 	}
@@ -1573,41 +1573,35 @@ void ring_simple::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wq
 	send_status_handler(ret, p_send_wqe);
 }
 
-void ring_simple::flow_udp_uc_del_all()
+void ring_simple::flow_udp_del_all()
 {
-	flow_spec_udp_uc_key_t map_key_udp_uc;
-	flow_spec_udp_uc_map_t::iterator itr_udp_uc;
+	flow_spec_udp_key_t map_key_udp;
+	flow_spec_udp_map_t::iterator itr_udp;
 
-	itr_udp_uc = m_flow_udp_uc_map.begin();
-	while (itr_udp_uc != m_flow_udp_uc_map.end()) {
-		rfs *p_rfs = itr_udp_uc->second;
-		map_key_udp_uc = itr_udp_uc->first;
+	itr_udp = m_flow_udp_uc_map.begin();
+	while (itr_udp != m_flow_udp_uc_map.end()) {
+		rfs *p_rfs = itr_udp->second;
+		map_key_udp = itr_udp->first;
 		if (p_rfs) {
 			delete p_rfs;
 		}
-		if (!(m_flow_udp_uc_map.del(map_key_udp_uc))) {
+		if (!(m_flow_udp_uc_map.del(map_key_udp))) {
 			ring_logdbg("Could not find rfs object to delete in ring udp uc hash map!");
 		}
-		itr_udp_uc =  m_flow_udp_uc_map.begin();
+		itr_udp =  m_flow_udp_uc_map.begin();
 	}
-}
 
-void ring_simple::flow_udp_mc_del_all()
-{
-	flow_spec_udp_mc_key_t map_key_udp_mc;
-	flow_spec_udp_mc_map_t::iterator itr_udp_mc;
-
-	itr_udp_mc = m_flow_udp_mc_map.begin();
-	while (itr_udp_mc != m_flow_udp_mc_map.end()) {
-		rfs *p_rfs = itr_udp_mc->second;
-		map_key_udp_mc = itr_udp_mc->first;
+	itr_udp = m_flow_udp_mc_map.begin();
+	while (itr_udp != m_flow_udp_mc_map.end()) {
+		rfs *p_rfs = itr_udp->second;
+		map_key_udp = itr_udp->first;
 		if (p_rfs) {
 			delete p_rfs;
 		}
-		if (!(m_flow_udp_mc_map.del(map_key_udp_mc))) {
+		if (!(m_flow_udp_mc_map.del(map_key_udp))) {
 			ring_logdbg("Could not find rfs object to delete in ring udp mc hash map!");
 		}
-		itr_udp_mc = m_flow_udp_mc_map.begin();
+		itr_udp =  m_flow_udp_mc_map.begin();
 	}
 }
 
