@@ -234,6 +234,8 @@ typedef enum {
 typedef struct {
 	uint64_t    n_rx_pkt_count;
 	uint64_t    n_rx_byte_count;
+	uint64_t    n_tx_pkt_count;
+	uint64_t    n_tx_byte_count;
 	void*       p_ring_master;
 	ring_type_t n_type;
 	union {

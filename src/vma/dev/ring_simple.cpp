@@ -76,6 +76,11 @@ inline void ring_simple::send_status_handler(int ret, vma_ibv_send_wr* p_send_wq
 		}
 	}
 	else {
+		// Update TX statistics
+		sg_array sga(p_send_wqe->sg_list, p_send_wqe->num_sge);
+		m_ring_stat_static.n_tx_byte_count += sga.length();
+		++m_ring_stat_static.n_tx_pkt_count;
+
 		// Decrease counter in order to keep track of how many missing buffers we have when
 		// doing ring->restart() and then drain_tx_buffers_to_buffer_pool()
 		m_missing_buf_ref_count--;
