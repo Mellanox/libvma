@@ -96,10 +96,10 @@ typedef enum {
 #define FORMAT_STATS_32bit		"%-20s %10u\n"
 #define FORMAT_STATS_64bit		"%-20s %10llu %-3s\n"
 #define FORMAT_RING_32bit			"%-20s %u\n"
-#define FORMAT_RING_PACKETS			"%-20s %zu KB / %zu [bytes/packets] %-3s\n"
+#define FORMAT_RING_PACKETS			"%-20s %zu / %zu [kilobytes/packets] %-3s\n"
 #define FORMAT_RING_INTERRUPT		"%-20s %zu / %zu [requests/received] %-3s\n"
-#define FORMAT_RING_MODERATION		"%-20s %u / %u [frame count/usec period] %-3s\n"
-#define FORMAT_RING_DM_STATS		"%-20s %zu KB / %zu / %zu [bytes/packets/oob] %-3s\n"
+#define FORMAT_RING_MODERATION		"%-20s %u / %u [frames/usec period] %-3s\n"
+#define FORMAT_RING_DM_STATS		"%-20s %zu / %zu / %zu [kilobytes/packets/oob] %-3s\n"
 #define FORMAT_RING_TAP_NAME		"%-20s %s\n"
 
 #define INTERVAL			1
