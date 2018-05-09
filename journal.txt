@@ -1,3 +1,19 @@
+Version 8.6.2-0:
+Date + Time 2018-05-10
+=============================================================
+Added:
+        - RM #1284069 Unify flow_spec_udp
+        - RM #1284069 Improve code readability
+        - RM #1284069 Optimize storage for access net_device_val
+        - RM #1284069 Remove net_device_val::local_addr
+        - RM #1284069 Use netlink during device mapping
+        - RM #1284069 Net device enhancements
+        - RM #1284069 Add m_ip to net_dev_val
+        - RM #1284069 Add set_ip_array()
+        - RM #1284069 Improve net_dev_val verification functions
+        - RM #1284069 Modify net_dev_val parameters assignment
+        - RM #1284069 Modify map_device logic
+
 Version 8.6.1-0:
 Date + Time 2018-05-06
 =============================================================
