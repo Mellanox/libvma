@@ -48,7 +48,12 @@ typedef std::tr1::unordered_map<uint32_t, struct ibv_mr*> mr_map_lkey_t;
 class ib_ctx_handler : public event_handler_ibverbs
 {
 public:
-	ib_ctx_handler(void *desc, ts_conversion_mode_t ctx_time_converter_mode);
+	struct ib_ctx_handler_desc {
+		struct ibv_device *device;
+		ts_conversion_mode_t ctx_time_converter_mode;
+	};
+public:
+	ib_ctx_handler(struct ib_ctx_handler_desc *desc);
 	virtual ~ib_ctx_handler();
 
 	/*
