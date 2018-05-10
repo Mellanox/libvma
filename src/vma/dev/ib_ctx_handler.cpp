@@ -55,7 +55,7 @@
 #define ibch_logfuncall         __log_info_funcall
 
 
-ib_ctx_handler::ib_ctx_handler(void *desc, ts_conversion_mode_t ctx_time_converter_mode) :
+ib_ctx_handler::ib_ctx_handler(struct ib_ctx_handler_desc *desc) :
 	m_flow_tag_enabled(false)
 	, m_on_device_memory(0)
 	, m_removed(false)
@@ -64,7 +64,11 @@ ib_ctx_handler::ib_ctx_handler(void *desc, ts_conversion_mode_t ctx_time_convert
 	, m_umr_qp(NULL)
 	, m_p_ctx_time_converter(NULL)
 {
-	m_p_ibv_device = (struct ibv_device *)desc;
+	if (NULL == desc) {
+		ibch_logpanic("Invalid ib_ctx_handler");
+	}
+
+	m_p_ibv_device = desc->device;
 
 	if (m_p_ibv_device == NULL) {
 		ibch_logpanic("m_p_ibv_device is invalid");
@@ -95,7 +99,7 @@ ib_ctx_handler::ib_ctx_handler(void *desc, ts_conversion_mode_t ctx_time_convert
 	} ENDIF_VERBS_FAILURE;
 
 #ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
-	switch (ctx_time_converter_mode) {
+	switch (desc->ctx_time_converter_mode) {
 	case TS_CONVERSION_MODE_DISABLE:
 		m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context, TS_CONVERSION_MODE_DISABLE, 0);
 	break;
@@ -129,16 +133,16 @@ ib_ctx_handler::ib_ctx_handler(void *desc, ts_conversion_mode_t ctx_time_convert
 	break;
 	default:
 		m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context,
-				ctx_time_converter_mode,
+				desc->ctx_time_converter_mode,
 				m_p_ibv_device_attr->hca_core_clock);
 		break;
 	}
 #else
 	m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context, TS_CONVERSION_MODE_DISABLE, 0);
-	if (ctx_time_converter_mode != TS_CONVERSION_MODE_DISABLE) {
+	if (desc->ctx_time_converter_mode != TS_CONVERSION_MODE_DISABLE) {
 		ibch_logwarn("time converter mode not applicable (configuration "
 				"value=%d). set to TS_CONVERSION_MODE_DISABLE.",
-				ctx_time_converter_mode);
+				desc->ctx_time_converter_mode);
 	}
 #endif // DEFINED_IBV_EXP_CQ_TIMESTAMP
 	// update device memory capabilities

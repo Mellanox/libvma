@@ -131,7 +131,9 @@ void ib_ctx_handler_collection::update_tbl()
 	}
 
 	for (i = 0; i < num_devices; i++) {
-		/* 2. Skip existing devices */
+		struct ib_ctx_handler::ib_ctx_handler_desc desc = {dev_list[i], m_ctx_time_conversion_mode};
+
+		/* 2. Skip existing devices (compare by name) */
 		ib_context_map_t::iterator ib_ctx_itr;
 		for (ib_ctx_itr = m_ib_ctx_map.begin(); ib_ctx_itr != m_ib_ctx_map.end(); ib_ctx_itr++) {
 			if (strcmp(dev_list[i]->name, ib_ctx_itr->first->name) == 0) {
@@ -154,7 +156,7 @@ void ib_ctx_handler_collection::update_tbl()
 		}
 #endif // DEFINED_SOCKETXTREME
 		/* 3. Add new ib devices */
-		p_ib_ctx_handler = new ib_ctx_handler(dev_list[i], m_ctx_time_conversion_mode);
+		p_ib_ctx_handler = new ib_ctx_handler(&desc);
 		if (!p_ib_ctx_handler) {
 			ibchc_logerr("failed allocating new ib_ctx_handler (errno=%d %m)", errno);
 			continue;
