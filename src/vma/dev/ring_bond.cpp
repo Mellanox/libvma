@@ -168,17 +168,101 @@ void ring_bond::restart()
 	m_lock_ring_tx.lock();
 
 	if(p_ndev->get_is_bond() == net_device_val::NETVSC) {
-		if (slaves.size() == 1) {
-			ring_bond_netvsc* p_ring_bond_netvsc = dynamic_cast<ring_bond_netvsc*>(this);
-			if (p_ring_bond_netvsc) {
-				ring_tap* p_ring_tap = dynamic_cast<ring_tap*>(p_ring_bond_netvsc->m_tap_ring);
-				if (p_ring_tap) {
-					p_ring_tap->set_vf_ring(NULL);
+		ring_bond_netvsc* p_ring_bond_netvsc = dynamic_cast<ring_bond_netvsc*>(this);
+		if (p_ring_bond_netvsc) {
+			ring_tap* p_ring_tap = dynamic_cast<ring_tap*>(p_ring_bond_netvsc->m_tap_ring);
+			if (p_ring_tap) {
+				size_t num_ring_rx_fds = 0;
+				int *ring_rx_fds_array = NULL;
+				int epfd = -1;
+				int fd = -1;
+				int rc = 0;
+				size_t i, j, k;
+
+				if (slaves.size() == 1) {
+					num_ring_rx_fds = p_ring_bond_netvsc->m_vf_ring->get_num_resources();
+					ring_rx_fds_array = p_ring_bond_netvsc->m_vf_ring->get_rx_channel_fds();
+
+					for (k = 0; k < num_ring_rx_fds; k++ ) {
+						epfd = g_p_net_device_table_mgr->global_ring_epfd_get();
+						if (epfd > 0) {
+							fd = ring_rx_fds_array[k];
+							rc = orig_os_api.epoll_ctl(epfd, EPOLL_CTL_DEL, fd, NULL);
+							ring_logdbg("Remove fd=%d from epfd=%d rc=%d errno=%d", fd, epfd, rc, errno);
+						}
+					}
+					for (j = 0; j < m_rx_flows.size(); j++) {
+						sockinfo* si = static_cast<sockinfo*> (m_rx_flows[j].sink);
+						for (k = 0; k < num_ring_rx_fds; k++ ) {
+							epfd = si->get_rx_epfd();
+							if (epfd > 0) {
+								fd = ring_rx_fds_array[k];
+								rc = orig_os_api.epoll_ctl(epfd, EPOLL_CTL_DEL, fd, NULL);
+								ring_logdbg("Remove fd=%d from epfd=%d rc=%d errno=%d", fd, epfd, rc, errno);
+							}
+							epfd = si->get_epoll_context_fd();
+							if (epfd > 0) {
+								fd = ring_rx_fds_array[k];
+								rc = orig_os_api.epoll_ctl(epfd, EPOLL_CTL_DEL, fd, NULL);
+								ring_logdbg("Remove fd=%d from epfd=%d rc=%d errno=%d", fd, epfd, rc, errno);
+							}
+						}
+					}
+
 					p_ring_tap->m_active = true;
+					p_ring_bond_netvsc->slave_destroy(p_ring_bond_netvsc->m_vf_ring->get_if_index());
+					p_ring_bond_netvsc->m_vf_ring = NULL;
+					p_ring_tap->set_vf_ring(NULL);
+				} else {
+					for (i = 0; i < slaves.size(); i++) {
+						if (slaves[i]->if_index != p_ndev->get_tap_if_index()) {
+							p_ring_tap->m_active = false;
+							slave_create(slaves[i]->if_index);
+							p_ring_tap->set_vf_ring(p_ring_bond_netvsc->m_vf_ring);
+
+							num_ring_rx_fds = p_ring_bond_netvsc->m_vf_ring->get_num_resources();
+							ring_rx_fds_array = p_ring_bond_netvsc->m_vf_ring->get_rx_channel_fds();
+
+							for (k = 0; k < num_ring_rx_fds; k++ ) {
+								epfd = g_p_net_device_table_mgr->global_ring_epfd_get();
+								if (epfd > 0) {
+									epoll_event ev = {0, {0}};
+									fd = ring_rx_fds_array[k];
+									ev.events = EPOLLIN;
+									ev.data.fd = fd;
+									rc = orig_os_api.epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev);
+									ring_logdbg("Add fd=%d from epfd=%d rc=%d errno=%d", fd, epfd, rc, errno);
+								}
+							}
+							for (j = 0; j < m_rx_flows.size(); j++) {
+								sockinfo* si = static_cast<sockinfo*> (m_rx_flows[j].sink);
+								p_ring_bond_netvsc->m_vf_ring->attach_flow(m_rx_flows[j].flow, m_rx_flows[j].sink);
+								for (k = 0; k < num_ring_rx_fds; k++ ) {
+									epfd = si->get_rx_epfd();
+									if (epfd > 0) {
+										epoll_event ev = {0, {0}};
+										fd = ring_rx_fds_array[k];
+										ev.events = EPOLLIN;
+										ev.data.fd = fd;
+										rc = orig_os_api.epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev);
+										ring_logdbg("Add fd=%d from epfd=%d rc=%d errno=%d", fd, epfd, rc, errno);
+									}
+									epfd = si->get_epoll_context_fd();
+									if (epfd > 0) {
+										#define CQ_FD_MARK 0xabcd /* see socket_fd_api */
+										epoll_event ev = {0, {0}};
+										fd = ring_rx_fds_array[k];
+										ev.events = EPOLLIN | EPOLLPRI;
+										ev.data.u64 = (((uint64_t)CQ_FD_MARK << 32) | fd);
+										rc = orig_os_api.epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev);
+										ring_logdbg("Add fd=%d from epfd=%d rc=%d errno=%d", fd, epfd, rc, errno);
+									}
+								}
+							}
+							break;
+						}
+					}
 				}
-				p_ring_bond_netvsc->m_vf_ring->m_active = false;
-				p_ring_bond_netvsc->slave_destroy(p_ring_bond_netvsc->m_vf_ring->get_if_index());
-				p_ring_bond_netvsc->m_vf_ring = NULL;
 			}
 		}
 	} else {

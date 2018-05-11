@@ -883,6 +883,9 @@ bool net_device_val::update_netvsc_slaves()
 
 			nd_logdbg("slave %d is up ", s->if_index);
 			changed = true;
+			g_p_ib_ctx_handler_collection->update_tbl();
+			g_buffer_pool_rx->register_memory();
+			g_buffer_pool_tx->register_memory();
 		}
 	} else {
 		slave_data_vector_t::iterator slave = m_slaves.begin();
@@ -900,7 +903,7 @@ bool net_device_val::update_netvsc_slaves()
 		}
 	}
 	for (i = 0; changed && (i < m_slaves.size()); i++) {
-		char if_name[IFNAMSIZ + 1] = {0};
+		char if_name[IFNAMSIZ] = {0};
 		char base_ifname[IFNAMSIZ];
 
 		if (!if_indextoname(m_slaves[i]->if_index, if_name)) {

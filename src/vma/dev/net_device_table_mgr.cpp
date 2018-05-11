@@ -309,13 +309,31 @@ net_device_val* net_device_table_mgr::get_net_device_val(int if_index)
 	/* Find master interface */
 	for (iter = m_net_device_map_index.begin(); iter != m_net_device_map_index.end(); iter++) {
 		net_dev = iter->second;
+		/* Check if interface is master */
 		if (if_index == net_dev->get_if_idx()) {
 			goto out;
 		}
+		/* Check if interface is slave */
 		const slave_data_vector_t& slaves = net_dev->get_slave_array();
 		for (size_t i = 0; i < slaves.size(); i++) {
 			if (if_index == slaves[i]->if_index) {
 				goto out;
+			}
+		}
+		/* Check if interface is new slave */
+		char if_name[IFNAMSIZ] = {0};
+		char sys_path[256] = {0};
+		int ret = 0;
+		if (if_indextoname(if_index, if_name)) {
+			ret = snprintf(sys_path, sizeof(sys_path), NETVSC_DEVICE_UPPER_FILE, if_name, net_dev->get_ifname());
+			if (ret > 0 && (size_t)ret < sizeof(sys_path)) {
+				ret = errno; /* to suppress errno */
+				int fd = open(sys_path, O_RDONLY);
+				if (fd >= 0) {
+					close(fd);
+					goto out;
+				}
+				errno = ret;
 			}
 		}
 	}
@@ -590,14 +608,14 @@ void net_device_table_mgr::new_link_event(const netlink_link_info* info)
 				info->ifindex, (info->flags & IFF_RUNNING ? "Up" : "Down"));
 
 		net_dev = get_net_device_val(if_index);
-		if (net_dev) {
+		if (net_dev &&
+				(if_index != net_dev->get_if_idx()) &&
+				(net_dev->get_is_bond() == net_device_val::NETVSC) &&
+				((net_dev->get_slave(if_index) && !(info->flags & IFF_RUNNING)) ||
+						(!net_dev->get_slave(if_index) && (info->flags & IFF_RUNNING)))) {
 			ndtm_logdbg("found entry [%p]: if_index: %d : %s",
 					net_dev, net_dev->get_if_idx(), net_dev->get_ifname());
-			if ((info->flags & IFF_SLAVE) &&
-					(if_index != net_dev->get_if_idx()) &&
-					(net_dev->get_is_bond() == net_device_val::NETVSC)) {
-				net_dev->update_netvsc_slaves();
-			}
+			net_dev->update_netvsc_slaves();
 		}
 	}
 }
