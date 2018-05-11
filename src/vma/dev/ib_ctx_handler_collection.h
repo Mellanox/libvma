@@ -47,6 +47,9 @@ public:
 	ib_ctx_handler_collection();
 	~ib_ctx_handler_collection();
 
+	void update_tbl();
+	void print_val_tbl();
+
 	inline ib_context_map_t* get_ib_cxt_list() {
 		return (m_ib_ctx_map.size() ? &m_ib_ctx_map : NULL);
 	}
@@ -61,8 +64,6 @@ public:
 	};
 
 private:
-	void update_tbl();
-	void print_val_tbl();
 
 	ib_context_map_t	m_ib_ctx_map;
 	ts_conversion_mode_t m_ctx_time_conversion_mode;

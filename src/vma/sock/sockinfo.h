@@ -130,6 +130,7 @@ public:
 		}
 	}
 	inline bool flow_tag_enabled(void) { return m_flow_tag_enabled; }
+	inline int get_rx_epfd(void) { return m_rx_epfd; }
 	
 	virtual bool flow_in_reuse(void) { return false;};
 	virtual int* get_rings_fds(int &res_length);

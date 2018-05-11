@@ -58,6 +58,9 @@ public:
 	net_device_table_mgr();
 	virtual ~net_device_table_mgr();
 
+	void update_tbl();
+	void print_val_tbl();
+
 	virtual void 	notify_cb(event *ev);
 	net_device_entry*	create_new_entry(ip_address local_ip, const observer* dst);
 
@@ -107,8 +110,6 @@ public:
 	uint32_t get_max_mtu();
 
 private:
-	void update_tbl();
-	void print_val_tbl();
 	void del_link_event(const netlink_link_info* info);
 	void new_link_event(const netlink_link_info* info);
 
