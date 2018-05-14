@@ -56,6 +56,9 @@ public:
 	buffer_pool(size_t buffer_count, size_t size, ib_ctx_handler *p_ib_ctx_h, mem_buf_desc_owner *owner, pbuf_free_custom_fn custom_free_function);
 	~buffer_pool();
 
+	void register_memory();
+	void print_val_tbl();
+
 	uint32_t	find_lkey_by_ib_ctx_thread_safe(ib_ctx_handler* p_ib_ctx_h);
 
 	/**
@@ -95,6 +98,7 @@ private:
 	// XXX-dummy buffer list head and count
 	// to be replaced with a bucket-sorted array
 
+	size_t		m_size; /* pool size in bytes */
 	size_t		m_n_buffers;
 	size_t		m_n_buffers_created;
 	mem_buf_desc_t *m_p_head;
