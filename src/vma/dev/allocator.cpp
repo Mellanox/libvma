@@ -42,15 +42,7 @@ vma_allocator::vma_allocator()
 
 	m_shmid = -1;
 	m_data_block = NULL;
-	m_non_contig_access_mr = VMA_IBV_ACCESS_LOCAL_WRITE;
-#ifdef VMA_IBV_ACCESS_ALLOCATE_MR
-	m_is_contig_alloc = true;
-	m_contig_access_mr = VMA_IBV_ACCESS_LOCAL_WRITE |
-			     VMA_IBV_ACCESS_ALLOCATE_MR;
-#else
-	m_is_contig_alloc = false;
-	m_contig_access_mr = 0;
-#endif
+	m_mem_alloc_type = safe_mce_sys().mem_alloc_type;
 
 	__log_info_dbg("Done");
 }
@@ -70,7 +62,7 @@ vma_allocator::~vma_allocator()
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 	// in contig mode 'ibv_dereg_mr' will free all allocates resources
-	} else if (!m_is_contig_alloc) {
+	} else if (ALLOC_TYPE_CONTIG != m_mem_alloc_type) {
 		if (m_data_block)
 			free(m_data_block);
 	}
@@ -80,6 +72,8 @@ vma_allocator::~vma_allocator()
 
 void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
 {
+	uint64_t access = VMA_IBV_ACCESS_LOCAL_WRITE;
+
 	switch (safe_mce_sys().mem_alloc_type) {
 	case ALLOC_TYPE_HUGEPAGES:
 		if (!hugetlb_alloc(size)) {
@@ -89,30 +83,32 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
 		else {
 			__log_info_dbg("Huge pages allocation passed successfully");
 			if (g_p_ib_ctx_handler_collection->get_ib_cxt_list() &&
-					!register_memory(size, p_ib_ctx_h, m_non_contig_access_mr)) {
+					!register_memory(size, p_ib_ctx_h, access)) {
 				__log_info_dbg("failed registering huge pages data memory block");
 				throw_vma_exception("failed registering huge pages data memory"
 						" block");
 			}
+			m_mem_alloc_type = ALLOC_TYPE_HUGEPAGES;
 			break;
 		}
 	// fallthrough
 	case ALLOC_TYPE_CONTIG:
-		if (!safe_mce_sys().is_hypervisor && m_is_contig_alloc &&
-				g_p_ib_ctx_handler_collection->get_ib_cxt_list()) {
-			if (!register_memory(size, p_ib_ctx_h, m_contig_access_mr)) {
+#ifdef VMA_IBV_ACCESS_ALLOCATE_MR
+		if (!safe_mce_sys().is_hypervisor && g_p_ib_ctx_handler_collection->get_ib_cxt_list()) {
+			if (!register_memory(size, p_ib_ctx_h, (access | VMA_IBV_ACCESS_ALLOCATE_MR))) {
 				__log_info_dbg("Failed allocating contiguous pages");
 			}
 			else {
 				__log_info_dbg("Contiguous pages allocation passed successfully");
+				m_mem_alloc_type = ALLOC_TYPE_CONTIG;
 				break;
 			}
 		}
+#endif
 	// fallthrough
 	case ALLOC_TYPE_ANON:
 	default:
 		__log_info_dbg("allocating memory using malloc()");
-		m_is_contig_alloc = false;
 		m_data_block = malloc(size);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (m_data_block == NULL) {
@@ -122,10 +118,11 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		if (g_p_ib_ctx_handler_collection->get_ib_cxt_list() &&
-				!register_memory(size, p_ib_ctx_h, m_non_contig_access_mr)) {
+				!register_memory(size, p_ib_ctx_h, access)) {
 			__log_info_dbg("failed registering data memory block");
 			throw_vma_exception("failed registering data memory block");
 		}
+		m_mem_alloc_type = ALLOC_TYPE_ANON;
 		break;
 	}
 	__log_info_dbg("allocated memory at %p, size %zd", m_data_block, size);
