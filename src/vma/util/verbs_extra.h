@@ -152,7 +152,7 @@ typedef int            vma_ibv_cq_init_attr;
 #ifdef DEFINED_IBV_SEND_IP_CSUM
 	#define VMA_IBV_SEND_IP_CSUM			(IBV_SEND_IP_CSUM)
 #else
-	#define VMA_NO_HW_CSUM
+	#define DEFINED_SW_CSUM
 #endif
 #define vma_ibv_send_flags			ibv_send_flags
 #define vma_send_wr_send_flags(wr)		(wr).send_flags
@@ -261,7 +261,11 @@ typedef int            vma_ibv_cq_init_attr;
 //ibv_post_send
 #define VMA_IBV_SEND_SIGNALED			IBV_EXP_SEND_SIGNALED
 #define VMA_IBV_SEND_INLINE			IBV_EXP_SEND_INLINE
-#define VMA_IBV_SEND_IP_CSUM			(IBV_EXP_SEND_IP_CSUM)
+#ifdef DEFINED_IBV_EXP_SEND_IP_CSUM
+	#define VMA_IBV_SEND_IP_CSUM			(IBV_EXP_SEND_IP_CSUM)
+#else
+	#define DEFINED_SW_CSUM
+#endif
 #define vma_ibv_send_flags			ibv_exp_send_flags
 #define vma_send_wr_send_flags(wr)		(wr).exp_send_flags
 #define VMA_IBV_WR_SEND				IBV_EXP_WR_SEND

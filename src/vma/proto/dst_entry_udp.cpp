@@ -153,7 +153,7 @@ inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const
 		BULLSEYE_EXCLUDE_BLOCK_END
 	}
 
-#ifdef VMA_NO_HW_CSUM
+#ifdef DEFINED_SW_CSUM
 	dst_udp_logfunc("using SW checksum calculation");
 	m_header.m_header.hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
 	m_header.m_header.hdr.m_ip_hdr.check = compute_ip_checksum((unsigned short*)&m_header.m_header.hdr.m_ip_hdr, m_header.m_header.hdr.m_ip_hdr.ihl * 2);
