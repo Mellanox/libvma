@@ -216,8 +216,6 @@ public:
 		return FD_TYPE_SOCKET;
 	}
 
-	virtual bool addr_in_reuse(void) { return false; }
-
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
 #endif

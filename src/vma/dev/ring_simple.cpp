@@ -402,9 +402,9 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	/* Get the appropriate hash map (tcp, uc or mc) from the 5t details */
 	if (flow_spec_5t.is_udp_uc()) {
 		flow_spec_udp_key_t key_udp_uc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
-		if(flow_tag_id && si->addr_in_reuse()) {
+		if(flow_tag_id && si->flow_in_reuse()) {
 			flow_tag_id = FLOW_TAG_MASK;
-			ring_logdbg("UC flow tag for socketinfo=%p is disabled: force_flowtag=0, SO_REUSEADDR=1", si);
+			ring_logdbg("UC flow tag for socketinfo=%p is disabled: SO_REUSEADDR or SO_REUSEPORT were enabled", si);
 		}
 		p_rfs = m_flow_udp_uc_map.get(key_udp_uc, NULL);
 		if (p_rfs == NULL) {
@@ -435,12 +435,12 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		flow_spec_udp_key_t key_udp_mc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
 
 		if (flow_tag_id) {
-			if (m_b_sysvar_mc_force_flowtag || !si->addr_in_reuse()) {
-				ring_logdbg("MC flow tag ID=%d for socketinfo=%p is enabled: force_flowtag=%d, SO_REUSEADDR=%d",
-					flow_tag_id, si, m_b_sysvar_mc_force_flowtag, si->addr_in_reuse());
+			if (m_b_sysvar_mc_force_flowtag || !si->flow_in_reuse()) {
+				ring_logdbg("MC flow tag ID=%d for socketinfo=%p is enabled: force_flowtag=%d, SO_REUSEADDR | SO_REUSEPORT=%d",
+					flow_tag_id, si, m_b_sysvar_mc_force_flowtag, si->flow_in_reuse());
 			} else {
 				flow_tag_id = FLOW_TAG_MASK;
-				ring_logdbg("MC flow tag for socketinfo=%p is disabled: force_flowtag=0, SO_REUSEADDR=1", si);
+				ring_logdbg("MC flow tag for socketinfo=%p is disabled: force_flowtag=0, SO_REUSEADDR or SO_REUSEPORT were enabled", si);
 			}
 		}
 		// Note for CX3:
