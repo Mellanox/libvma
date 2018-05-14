@@ -397,7 +397,7 @@ bool neigh_entry::post_send_udp(neigh_send_data *n_send_data)
 	neigh_logdbg("ENTER post_send_udp");
 	int n_num_frags = 1;
 	bool b_need_sw_csum = false;
-#ifdef VMA_NO_HW_CSUM
+#ifdef DEFINED_SW_CSUM
 	b_need_sw_csum = true;
 #endif
 	mem_buf_desc_t* p_mem_buf_desc, *tmp = NULL;
@@ -574,7 +574,7 @@ bool neigh_entry::post_send_tcp(neigh_send_data *p_data)
 
 	m_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
 	vma_wr_tx_packet_attr attr = (vma_wr_tx_packet_attr)0;
-#ifdef VMA_NO_HW_CSUM
+#ifdef DEFINED_SW_CSUM
 		p_pkt->hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
 		p_pkt->hdr.m_ip_hdr.check = compute_ip_checksum((unsigned short*)&p_pkt->hdr.m_ip_hdr, p_pkt->hdr.m_ip_hdr.ihl * 2);
 		struct tcphdr* p_tcphdr = (struct tcphdr*)(((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr)));
