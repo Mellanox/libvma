@@ -133,6 +133,7 @@ CHECK_VERBS_ATTRIBUTE([IBV_EXP_WR_NOP], [infiniband/verbs_exp.h])
 CHECK_VERBS_ATTRIBUTE([IBV_EXP_ACCESS_ALLOCATE_MR], [infiniband/verbs_exp.h])
 CHECK_VERBS_ATTRIBUTE([IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN], [infiniband/verbs_exp.h])
 CHECK_VERBS_ATTRIBUTE([IBV_EXP_FLOW_SPEC_IB], [infiniband/verbs_exp.h], [IBV_FLOW_SPEC_IB])
+CHECK_VERBS_ATTRIBUTE([IBV_EXP_SEND_IP_CSUM], [infiniband/verbs_exp.h])
 
 # Check for <mlx5/wqe.h>
 #
