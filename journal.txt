@@ -1,3 +1,20 @@
+Version 8.6.3-0:
+Date + Time 2018-05-14
+=============================================================
+Added:
+        - RM #1284069 Modify get_ib_ctx() to process bonding mode=4
+        - RM #1284069 Update valgrind suppression file
+        - RM #1284069 Add ib_ctx_handle::get_ibname()
+        - RM #1284069 Modify operations with lkey
+        - RM #1284069 Remove rdma cm from vet_device_val()
+        - RM #1284069 Cleanup ib_ctx_handler_collection
+        - RM #1284069 Use Verbs API to create ib devices
+        - RM #1284069 Get ib_ctx_handler using ifname
+
+Fixed:
+        - RM #1284069 Valgrind strtok fix
+        - RM #1284069 Fix issue in deregestering memory in ring_eth_cb
+
 Version 8.6.2-0:
 Date + Time 2018-05-10
 =============================================================
