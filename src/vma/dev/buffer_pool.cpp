@@ -90,14 +90,13 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 	memset(m_p_bpool_stat , 0, sizeof(*m_p_bpool_stat));
 	vma_stats_instance_create_bpool_block(m_p_bpool_stat);
 
-	size_t size;
 	if (buffer_count) {
 		sz_aligned_element = (buf_size + MCE_ALIGNMENT) & (~MCE_ALIGNMENT);
-		size = (sizeof(mem_buf_desc_t) + sz_aligned_element) * buffer_count + MCE_ALIGNMENT;
+		m_size = (sizeof(mem_buf_desc_t) + sz_aligned_element) * buffer_count + MCE_ALIGNMENT;
 	} else {
-		size = buf_size;
+		m_size = buf_size;
 	}
-	void *data_block = m_allocator.alloc_and_reg_mr(size, p_ib_ctx_h);
+	void *data_block = m_allocator.alloc_and_reg_mr(m_size, p_ib_ctx_h);
 
 
 	if (!buffer_count) return;
@@ -143,6 +142,16 @@ void buffer_pool::free_bpool_resources()
 	vma_stats_instance_remove_bpool_block(m_p_bpool_stat);
 
 	__log_info_func("done");
+}
+
+void buffer_pool::register_memory()
+{
+	m_allocator.register_memory(m_size, NULL, VMA_IBV_ACCESS_LOCAL_WRITE);
+}
+
+void buffer_pool::print_val_tbl()
+{
+	__log_info_dbg("pool 0x%X size: %ld buffers: %lu", this, m_size, m_n_buffers);
 }
 
 bool buffer_pool::get_buffers_thread_safe(descq_t &pDeque, mem_buf_desc_owner* desc_owner, size_t count, uint32_t lkey)
