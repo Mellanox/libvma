@@ -294,10 +294,10 @@ struct mce_sys_var {
 
 	vlog_levels_t 	log_level;
 	uint32_t	log_details;
-	char 		log_filename[FILE_NAME_MAX_SIZE];
-	char		stats_filename[FILE_NAME_MAX_SIZE];
-	char		stats_shmem_dirname[FILE_NAME_MAX_SIZE];
-	char 		conf_filename[FILE_NAME_MAX_SIZE];
+	char 		log_filename[PATH_MAX];
+	char		stats_filename[PATH_MAX];
+	char		stats_shmem_dirname[PATH_MAX];
+	char 		conf_filename[PATH_MAX];
 	bool		log_colors;
 	bool 		handle_sigintr;
 	bool		handle_segfault;
@@ -401,7 +401,7 @@ struct mce_sys_var {
 	uint32_t	neigh_num_err_retries;
 
 	uint32_t 	vma_time_measure_num_samples;
-	char 		vma_time_measure_filename[FILENAME_MAX];
+	char 		vma_time_measure_filename[PATH_MAX];
 	sysctl_reader_t & sysctl_reader;
 	bool		rx_poll_on_tx_tcp;
 	bool		is_hypervisor;

@@ -309,7 +309,7 @@ int validate_raw_qp_privliges();
 
 static inline int get_procname(int pid, char *proc, size_t size)
 {
-	char app_full_name[FILE_NAME_MAX_SIZE] = {0};
+	char app_full_name[PATH_MAX] = {0};
 	char proccess_proc_dir[FILE_NAME_MAX_SIZE] = {0};
 	char* app_base_name = NULL;
 	int n = -1;

@@ -199,7 +199,7 @@ void print_netstat_like_headers(FILE* file)
 void print_netstat_like(socket_stats_t* p_si_stats, mc_grp_info_t* , FILE* file, int pid)
 {
 	static const int MAX_ADDR_LEN = strlen("123.123.123.123:12345"); // for max len of ip address and port together
-	char process[FILE_NAME_MAX_SIZE];
+	char process[PATH_MAX + 1];
 
 	if(! p_si_stats->inode) return; // shmem is not updated yet
 
