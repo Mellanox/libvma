@@ -533,20 +533,17 @@ void net_device_val::set_slave_array()
 
 	if (m_bond == NETVSC) {
 		struct ifaddrs slave_ifa;
-		slave_data_t* s = new slave_data_t;
-		s->if_index = get_tap_if_index();
+		slave_data_t* s = new slave_data_t(get_tap_if_index());
 		m_slaves.push_back(s);
 
 		if (get_netvsc_slave(get_ifname_link(), &slave_ifa)) {
 			if (slave_ifa.ifa_flags & IFF_UP) {
-				s = new slave_data_t;
-				s->if_index = if_nametoindex(slave_ifa.ifa_name);
+				s = new slave_data_t(if_nametoindex(slave_ifa.ifa_name));
 				m_slaves.push_back(s);
 			}
 		}
 	} else if (m_bond == NO_BOND) {
-		slave_data_t* s = new slave_data_t;
-		s->if_index = if_nametoindex(get_ifname());
+		slave_data_t* s = new slave_data_t(if_nametoindex(get_ifname()));
 		m_slaves.push_back(s);
 	} else {
 		// bond device
@@ -559,8 +556,7 @@ void net_device_val::set_slave_array()
 				char* p = strchr(slave, '\n');
 				if (p) *p = '\0'; // Remove the tailing 'new line" char
 
-				slave_data_t* s = new slave_data_t;
-				s->if_index = if_nametoindex(slave);
+				slave_data_t* s = new slave_data_t(if_nametoindex(slave));
 				m_slaves.push_back(s);
 				slave = strtok(NULL, " ");
 			}
@@ -877,8 +873,7 @@ bool net_device_val::update_netvsc_slaves()
 
 	if (get_netvsc_slave(get_ifname_link(), &slave_ifa)) {
 		if (slave_ifa.ifa_flags & IFF_UP) {
-			s = new slave_data_t;
-			s->if_index = if_nametoindex(slave_ifa.ifa_name);
+			s = new slave_data_t(if_nametoindex(slave_ifa.ifa_name));
 			m_slaves.push_back(s);
 
 			nd_logdbg("slave %d is up ", s->if_index);
