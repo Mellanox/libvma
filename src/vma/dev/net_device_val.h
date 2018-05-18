@@ -143,8 +143,8 @@ typedef struct slave_data {
         int 		port_num;
         L2_address* 	p_L2_addr;
         bool 		active;
-	slave_data() :
-		if_index(0), p_ib_ctx(NULL), port_num(-1), p_L2_addr(NULL), active(false) {}
+	slave_data(int _if_index) :
+		if_index(_if_index), p_ib_ctx(NULL), port_num(-1), p_L2_addr(NULL), active(false) {}
 	~slave_data() {
 		delete p_L2_addr;
 		p_L2_addr = NULL;
