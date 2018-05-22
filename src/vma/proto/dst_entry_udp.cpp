@@ -80,7 +80,7 @@ void dst_entry_udp::configure_headers()
 inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const ssize_t sz_iov, vma_wr_tx_packet_attr attr,  size_t sz_udp_payload, ssize_t sz_data_payload)
 {
 	mem_buf_desc_t* p_mem_buf_desc;
-        bool b_blocked = is_set(attr, VMA_TX_PACKET_BLOCK);
+	bool b_blocked = is_set(attr, VMA_TX_PACKET_BLOCK);
 	// Get a bunch of tx buf descriptor and data buffers
 	if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
 		m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id, b_blocked, m_n_sysvar_tx_bufs_batch_udp);
@@ -111,6 +111,13 @@ inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const
 		m_header.m_header.hdr.m_udp_hdr.len = htons((uint16_t)sz_udp_payload);
 		m_header.m_header.hdr.m_ip_hdr.tot_len = htons(m_header.m_ip_header_len + sz_udp_payload);
 
+#ifdef DEFINED_SW_CSUM
+		dst_udp_logfunc("using SW checksum calculation");
+		m_header.m_header.hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
+		m_header.m_header.hdr.m_ip_hdr.check = compute_ip_checksum((unsigned short*)&m_header.m_header.hdr.m_ip_hdr, m_header.m_header.hdr.m_ip_hdr.ihl * 2);
+		m_header.m_header.hdr.m_udp_hdr.check = 0;
+#endif
+
 		//m_sge[0].addr  already points to the header
 		//so we just need to update the payload addr + len
 		m_sge[1].length = p_iov[0].iov_len;
@@ -134,6 +141,13 @@ inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const
 		p_pkt->hdr.m_ip_hdr.id = 0;
 		p_pkt->hdr.m_ip_hdr.tot_len = htons(m_header.m_ip_header_len + sz_udp_payload);
 
+#ifdef DEFINED_SW_CSUM
+		dst_udp_logfunc("using SW checksum calculation");
+		p_pkt->hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
+		p_pkt->hdr.m_ip_hdr.check = compute_ip_checksum((unsigned short*)&p_pkt->hdr.m_ip_hdr, p_pkt->hdr.m_ip_hdr.ihl * 2);
+		p_pkt->hdr.m_udp_hdr.check = 0;
+#endif
+
 		// Update the payload addr + len
 		m_sge[1].length = sz_data_payload + hdr_len;
 		m_sge[1].addr = (uintptr_t)(p_mem_buf_desc->p_buffer + (uint8_t)m_header.m_transport_header_tx_offset);
@@ -153,11 +167,7 @@ inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const
 		BULLSEYE_EXCLUDE_BLOCK_END
 	}
 
-#ifdef DEFINED_SW_CSUM
-	dst_udp_logfunc("using SW checksum calculation");
-	m_header.m_header.hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
-	m_header.m_header.hdr.m_ip_hdr.check = compute_ip_checksum((unsigned short*)&m_header.m_header.hdr.m_ip_hdr, m_header.m_header.hdr.m_ip_hdr.ihl * 2);
-#else
+#ifndef DEFINED_SW_CSUM
 	attr = (vma_wr_tx_packet_attr)(attr|VMA_TX_PACKET_L3_CSUM|VMA_TX_PACKET_L4_CSUM);
 #endif
 
