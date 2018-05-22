@@ -1,3 +1,31 @@
+Version 8.6.4-0:
+Date + Time 2018-05-22
+=============================================================
+Added:
+        - RM #1284069 Update valgrind suppression file
+        - RM #1284069 Add print_val() for ring
+        - RM #1284069 Use if_index only to create any ring
+        - RM #1284069 Add special methods to add/remove slave ring
+        - RM #1284069 Change type of m_bond_rings to vector
+        - RM #1284069 Reduce m_active_rings usage from ring_bond
+        - RM #1284069 Remove active parameter from all ring CTORs
+        - RM #1284069 Pass if_index into ring_eth/ib constructor
+        - RM #1284069 Pass if_index into ring_bond constructor
+        - RM #1284069 Use ifindex in slave_data
+        - RM #1284069 Set MLX4_DEVICE_FATAL_CLEANUP env for mlx4 device
+        - RM #1284069 Set device type in net_device_val()
+        - RM #1284069 Enable RTM_NEWLINK, RTM_DELLINK notification
+        - RM #1284069 Move inc_tx_retransmissions to ring_slave
+        - RM #1284069 Use slave_ring in ring_bond
+        - RM #1284069 Move few methods to ring_slave
+        - RM #1284069 Move statistic to slave ring
+        - RM #1284069 Introduce ring slave
+        - RM #1331580 Remove redundant variables from ring
+        - RM #1331577 Remove dead code from_ring simple
+        - RM #1331574 Move flow spec declarations to ring_simple
+Fixed:
+        - RM #1284069 Fix memory leak for ring_bond::m_p_n_rx_channel_fds
+
 Version 8.6.3-0:
 Date + Time 2018-05-14
 =============================================================
