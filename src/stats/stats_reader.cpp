@@ -96,12 +96,11 @@ typedef enum {
 #define FORMAT_STATS_32bit		"%-20s %10u\n"
 #define FORMAT_STATS_64bit		"%-20s %10llu %-3s\n"
 #define FORMAT_RING_32bit			"%-20s %u\n"
-#define FORMAT_RING_PACKETS			"%-20s %zu KB / %zu [bytes/packets] %-3s\n"
+#define FORMAT_RING_PACKETS			"%-20s %zu / %zu [kilobytes/packets] %-3s\n"
 #define FORMAT_RING_INTERRUPT		"%-20s %zu / %zu [requests/received] %-3s\n"
-#define FORMAT_RING_MODERATION		"%-20s %u / %u [frame count/usec period] %-3s\n"
-#define FORMAT_RING_DM_STATS		"%-20s %zu KB / %zu / %zu [bytes/packets/oob] %-3s\n"
+#define FORMAT_RING_MODERATION		"%-20s %u / %u [frames/usec period] %-3s\n"
+#define FORMAT_RING_DM_STATS		"%-20s %zu / %zu / %zu [kilobytes/packets/oob] %-3s\n"
 #define FORMAT_RING_TAP_NAME		"%-20s %s\n"
-#define FORMAT_RING_TAP_PACKETS		"%-20s %zu    / %zu [bytes/packets] %-3s\n"
 
 #define INTERVAL			1
 #define BYTES_TRAFFIC_UNIT		e_K
@@ -234,6 +233,8 @@ void update_delta_ring_stat(ring_stats_t* p_curr_ring_stats, ring_stats_t* p_pre
 	if (p_curr_ring_stats && p_prev_ring_stats) {
 		p_prev_ring_stats->n_rx_byte_count = (p_curr_ring_stats->n_rx_byte_count - p_prev_ring_stats->n_rx_byte_count) / delay;
 		p_prev_ring_stats->n_rx_pkt_count = (p_curr_ring_stats->n_rx_pkt_count - p_prev_ring_stats->n_rx_pkt_count) / delay;
+		p_prev_ring_stats->n_tx_byte_count = (p_curr_ring_stats->n_tx_byte_count - p_prev_ring_stats->n_tx_byte_count) / delay;
+		p_prev_ring_stats->n_tx_pkt_count = (p_curr_ring_stats->n_tx_pkt_count - p_prev_ring_stats->n_tx_pkt_count) / delay;
 		if (p_prev_ring_stats->n_type == RING_SIMPLE) {
 			p_prev_ring_stats->simple.n_rx_interrupt_received = (p_curr_ring_stats->simple.n_rx_interrupt_received - p_prev_ring_stats->simple.n_rx_interrupt_received) / delay;
 			p_prev_ring_stats->simple.n_rx_interrupt_requests = (p_curr_ring_stats->simple.n_rx_interrupt_requests - p_prev_ring_stats->simple.n_rx_interrupt_requests) / delay;
@@ -291,8 +292,10 @@ void print_ring_stats(ring_instance_block_t* p_ring_inst_arr)
 				printf("\tRING=[%u]\n", i);
 			}
 
+			printf(FORMAT_RING_PACKETS, "Tx Offload:", p_ring_stats->n_tx_byte_count/BYTES_TRAFFIC_UNIT, p_ring_stats->n_tx_pkt_count, post_fix);
+			printf(FORMAT_RING_PACKETS, "Rx Offload:", p_ring_stats->n_rx_byte_count/BYTES_TRAFFIC_UNIT, p_ring_stats->n_rx_pkt_count, post_fix);
+
 			if (p_ring_stats->n_type == RING_SIMPLE) {
-				printf(FORMAT_RING_PACKETS, "Rx Offload:", p_ring_stats->n_rx_byte_count/BYTES_TRAFFIC_UNIT, p_ring_stats->n_rx_pkt_count, post_fix);
 				if (p_ring_stats->simple.n_rx_interrupt_requests || p_ring_stats->simple.n_rx_interrupt_received) {
 					printf(FORMAT_RING_INTERRUPT, "Interrupts:", p_ring_stats->simple.n_rx_interrupt_requests, p_ring_stats->simple.n_rx_interrupt_received, post_fix);
 				}
@@ -307,7 +310,6 @@ void print_ring_stats(ring_instance_block_t* p_ring_inst_arr)
 					printf(FORMAT_RING_DM_STATS, "Dev Mem Stats:", p_ring_stats->simple.n_tx_dev_mem_byte_count/BYTES_TRAFFIC_UNIT,  p_ring_stats->simple.n_tx_dev_mem_pkt_count, p_ring_stats->simple.n_tx_dev_mem_oob, post_fix);
 				}
 			} else {
-				printf(FORMAT_RING_TAP_PACKETS, "Rx Offload:", p_ring_stats->n_rx_byte_count, p_ring_stats->n_rx_pkt_count, post_fix);
 				printf(FORMAT_RING_32bit, "Rx Buffers:", p_ring_stats->tap.n_rx_buffers);
 				printf(FORMAT_RING_32bit, "Tap fd:", p_ring_stats->tap.n_tap_fd);
 				printf(FORMAT_RING_TAP_NAME, "Tap Device:", p_ring_stats->tap.s_tap_name);
@@ -1319,6 +1321,8 @@ void zero_ring_stats(ring_stats_t* p_ring_stats)
 {
 	p_ring_stats->n_rx_pkt_count = 0;
 	p_ring_stats->n_rx_byte_count = 0;
+	p_ring_stats->n_tx_pkt_count = 0;
+	p_ring_stats->n_tx_byte_count = 0;
 	if (p_ring_stats->n_type == RING_SIMPLE) {
 		p_ring_stats->simple.n_rx_interrupt_received = 0;
 		p_ring_stats->simple.n_rx_interrupt_requests = 0;

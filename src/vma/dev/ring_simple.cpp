@@ -40,6 +40,7 @@
 #include "utils/bullseye.h"
 #include "vma/util/utils.h"
 #include "vma/util/valgrind.h"
+#include "vma/util/sg_array.h"
 #include "vma/proto/ip_frag.h"
 #include "vma/proto/L2_address.h"
 #include "vma/proto/igmp_mgr.h"
@@ -87,6 +88,11 @@ inline void ring_simple::send_status_handler(int ret, vma_ibv_send_wr* p_send_wq
 		}
 	}
 	else {
+		// Update TX statistics
+		sg_array sga(p_send_wqe->sg_list, p_send_wqe->num_sge);
+		m_p_ring_stat->n_tx_byte_count += sga.length();
+		++m_p_ring_stat->n_tx_pkt_count;
+
 		// Decrease counter in order to keep track of how many missing buffers we have when
 		// doing ring->restart() and then drain_tx_buffers_to_buffer_pool()
 		m_missing_buf_ref_count--;
