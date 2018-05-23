@@ -86,6 +86,10 @@ enum {
 #define SO_TIMESTAMPING		37
 #endif
 
+#ifndef SO_REUSEPORT
+#define SO_REUSEPORT		15
+#endif
+
 /* useful debugging macros */
 
 #define MODULE_NAME 		"si_udp"
@@ -336,6 +340,7 @@ const char * setsockopt_so_opt_to_str(int opt)
 {
 	switch (opt) {
 	case SO_REUSEADDR: 		return "SO_REUSEADDR";
+	case SO_REUSEPORT: 		return "SO_REUSEPORT";
 	case SO_BROADCAST:	 	return "SO_BROADCAST";
 	case SO_RCVBUF:			return "SO_RCVBUF";
 	case SO_SNDBUF:			return "SO_SNDBUF";
@@ -394,6 +399,7 @@ sockinfo_udp::sockinfo_udp(int fd):
 	,m_n_sysvar_rx_cq_drain_rate_nsec(safe_mce_sys().rx_cq_drain_rate_nsec)
 	,m_n_sysvar_rx_delta_tsc_between_cq_polls(safe_mce_sys().rx_delta_tsc_between_cq_polls)
 	,m_reuseaddr(false)
+	,m_reuseport(false)
 	,m_sockopt_mapped(false)
 	,m_is_connected(false)
 	,m_multicast(false)
@@ -782,6 +788,11 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 			switch (__optname) {
 
 			case SO_REUSEADDR:
+				set_reuseaddr(*(bool*)__optval);
+				si_udp_logdbg("SOL_SOCKET, %s=%s", setsockopt_so_opt_to_str(__optname), (*(bool*)__optval ? "true" : "false"));
+				break;
+
+			case SO_REUSEPORT:
 				set_reuseaddr(*(bool*)__optval);
 				si_udp_logdbg("SOL_SOCKET, %s=%s", setsockopt_so_opt_to_str(__optname), (*(bool*)__optval ? "true" : "false"));
 				break;
