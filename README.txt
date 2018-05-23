@@ -106,6 +106,7 @@ Example:
  VMA DETAILS: Log File                                                  [VMA_LOG_FILE]
  VMA DETAILS: Stats File                                                [VMA_STATS_FILE]
  VMA DETAILS: Stats shared memory directory  /tmp/                      [VMA_STATS_SHMEM_DIR]
+ VMA DETAILS: VMAD output directory          /tmp/vma/                  [VMA_VMAD_NOTIFY_DIR]
  VMA DETAILS: Stats FD Num (max)             100                        [VMA_STATS_FD_NUM]
  VMA DETAILS: Conf File                      /etc/libvma.conf           [VMA_CONFIG_FILE]
  VMA DETAILS: Application ID                 VMA_DEFAULT_APPLICATION_ID [VMA_APPLICATION_ID]
@@ -313,6 +314,11 @@ VMA_STATS_SHMEM_DIR
 Set the directory path for VMA to create the shared memory files for vma_stats.
 No files will be created when setting this value to empty string "".
 Default value is /tmp/
+
+VMA_VMAD_NOTIFY_DIR
+Set the directory path for VMA to write files used by vmad.
+Default value is /tmp/vma/
+note: when used vmad must be run with --notify-dir directing the same folder
 
 VMA_STATS_FD_NUM
 Max number of sockets monitored by VMA statistic mechanism.

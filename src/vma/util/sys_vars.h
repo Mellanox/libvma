@@ -298,6 +298,7 @@ struct mce_sys_var {
 	char		stats_filename[PATH_MAX];
 	char		stats_shmem_dirname[PATH_MAX];
 	char 		conf_filename[PATH_MAX];
+	char		vmad_notify_dir[PATH_MAX];
 	bool		log_colors;
 	bool 		handle_sigintr;
 	bool		handle_segfault;
@@ -432,6 +433,7 @@ extern mce_sys_var & safe_mce_sys();
 #define SYS_VAR_LOG_DETAILS				"VMA_LOG_DETAILS"
 #define SYS_VAR_LOG_FILENAME				"VMA_LOG_FILE"
 #define SYS_VAR_STATS_FILENAME				"VMA_STATS_FILE"
+#define SYS_VAR_VMAD_DIR				"VMA_VMAD_NOTIFY_DIR"
 #define SYS_VAR_STATS_SHMEM_DIRNAME			"VMA_STATS_SHMEM_DIR"
 #define SYS_VAR_CONF_FILENAME				"VMA_CONFIG_FILE"
 #define SYS_VAR_LOG_COLORS				"VMA_LOG_COLORS"
@@ -543,6 +545,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_LOG_FILE				("")
 #define MCE_DEFAULT_CONF_FILE				("/etc/libvma.conf")
 #define MCE_DEFAULT_STATS_FILE				("")
+#define MCE_DEFAULT_VMAD_FOLDER			(VMA_AGENT_PATH)
 #define MCE_DEFAULT_STATS_SHMEM_DIR			("/tmp/")
 #define MCE_DEFAULT_LOG_DETAILS				(0)
 #define MCE_DEFAULT_LOG_COLORS				(true)

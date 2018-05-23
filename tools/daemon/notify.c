@@ -585,7 +585,8 @@ static int open_fanotify(void)
 	}
 
 	rc = fanotify_mark(daemon_cfg.notify_fd, FAN_MARK_ADD,
-			FAN_CLOSE | FAN_EVENT_ON_CHILD, AT_FDCWD, VMA_AGENT_PATH);
+			FAN_CLOSE | FAN_EVENT_ON_CHILD, AT_FDCWD,
+			daemon_cfg.notify_dir);
 	if (rc < 0) {
 		rc = -errno;
 		log_error("Failed to add watch for directory %s errno %d (%s)\n",
@@ -643,7 +644,7 @@ static int proc_fanotify(void *buffer, int nbyte)
 					data->mask, data->pid, data->fd, pathname);
 
 			rc = snprintf(buf, sizeof(buf) - 1, "%s/%s.%d.pid",
-					VMA_AGENT_PATH, VMA_AGENT_BASE_NAME, data->pid);
+					daemon_cfg.notify_dir, VMA_AGENT_BASE_NAME, data->pid);
 			if ((rc < 0 ) || (rc == (sizeof(buf) - 1) )) {
 				rc = -ENOMEM;
 				log_error("failed allocate pid file errno %d (%s)\n", errno,
@@ -669,7 +670,7 @@ static int proc_fanotify(void *buffer, int nbyte)
 					strcpy(pathname, buf);
 					unlink(pathname);
 					if (snprintf(pathname, sizeof(pathname) - 1, "%s/%s.%d.sock",
-							VMA_AGENT_PATH, VMA_AGENT_BASE_NAME, data->pid) > 0) {
+							daemon_cfg.notify_dir, VMA_AGENT_BASE_NAME, data->pid) > 0) {
 						unlink(pathname);
 					}
 				} else if (-ESRCH == rc) {
@@ -707,7 +708,7 @@ static int open_inotify(void)
 	}
 
 	rc = inotify_add_watch(daemon_cfg.notify_fd,
-			VMA_AGENT_PATH,
+			daemon_cfg.notify_dir,
 			IN_CLOSE_WRITE | IN_CLOSE_NOWRITE | IN_DELETE);
 	if (rc < 0) {
 		rc = -errno;
@@ -741,7 +742,7 @@ static int proc_inotify(void *buffer, int nbyte)
 			memset(pathname, 0, sizeof(pathname));
 
 			rc = snprintf(pathname, sizeof(pathname) - 1, "%s/%s",
-					VMA_AGENT_PATH, data->name);
+					daemon_cfg.notify_dir, data->name);
 			if ((rc < 0 ) || (rc == (sizeof(pathname) - 1) )) {
 				rc = -ENOMEM;
 				log_error("failed allocate pid file errno %d (%s)\n", errno,
@@ -753,7 +754,7 @@ static int proc_inotify(void *buffer, int nbyte)
 					data->mask, pid, pathname);
 
 			rc = snprintf(buf, sizeof(buf) - 1, "%s/%s.%d.pid",
-					VMA_AGENT_PATH, VMA_AGENT_BASE_NAME, pid);
+					daemon_cfg.notify_dir, VMA_AGENT_BASE_NAME, pid);
 			if ((rc < 0 ) || (rc == (sizeof(buf) - 1) )) {
 				rc = -ENOMEM;
 				log_error("failed allocate pid file errno %d (%s)\n", errno,
@@ -777,7 +778,7 @@ static int proc_inotify(void *buffer, int nbyte)
 					log_debug("[%d] cleanup after unexpected termination\n", pid);
 					unlink(buf);
 					if (snprintf(buf, sizeof(buf) - 1, "%s/%s.%d.sock",
-							VMA_AGENT_PATH, VMA_AGENT_BASE_NAME, pid) > 0) {
+							daemon_cfg.notify_dir, VMA_AGENT_BASE_NAME, pid) > 0) {
 						unlink(buf);
 					}
 				} else if (-ESRCH == rc) {

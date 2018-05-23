@@ -89,6 +89,7 @@ agent::agent() :
 	/* Fill free queue with empty messages */
 	i = m_msg_num;
 	m_msg_num = 0;
+	const char *path = safe_mce_sys().vmad_notify_dir;
 	while (i--) {
 		/* coverity[overwrite_var] */
 		msg = (agent_msg_t *)calloc(1, sizeof(*msg));
@@ -102,14 +103,14 @@ agent::agent() :
 		m_msg_num++;
 	}
 
-	if ((mkdir(VMA_AGENT_PATH, 0777) != 0) && (errno != EEXIST)) {
+	if ((mkdir(path, 0777) != 0) && (errno != EEXIST)) {
 		rc = -errno;
-		__log_dbg("failed create folder %s (rc = %d)\n", VMA_AGENT_PATH, rc);
+		__log_dbg("failed create folder %s (rc = %d)\n", path, rc);
 		goto err;
 	}
 
 	rc = snprintf(m_sock_file, sizeof(m_sock_file) - 1,
-			"%s/%s.%d.sock", VMA_AGENT_PATH, VMA_AGENT_BASE_NAME, getpid());
+			"%s/%s.%d.sock", path, VMA_AGENT_BASE_NAME, getpid());
 	if ((rc < 0 ) || (rc == (sizeof(m_sock_file) - 1) )) {
 		rc = -ENOMEM;
 		__log_dbg("failed allocate sock file (rc = %d)\n", rc);
@@ -117,7 +118,7 @@ agent::agent() :
 	}
 
 	rc = snprintf(m_pid_file, sizeof(m_pid_file) - 1,
-			"%s/%s.%d.pid", VMA_AGENT_PATH, VMA_AGENT_BASE_NAME, getpid());
+			"%s/%s.%d.pid", path, VMA_AGENT_BASE_NAME, getpid());
 	if ((rc < 0 ) || (rc == (sizeof(m_pid_file) - 1) )) {
 		rc = -ENOMEM;
 		__log_dbg("failed allocate pid file (rc = %d)\n", rc);
