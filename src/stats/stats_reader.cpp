@@ -143,8 +143,6 @@ uint32_t 	g_fd_map_size = e_K;
 //statistic file
 FILE* g_stats_file = stdout;
 
-char g_vma_shmem_dir[FILE_NAME_MAX_SIZE];
-
 void usage(const char *argv0)
 {
 	printf("\nVMA Statistics\n");
@@ -960,8 +958,7 @@ void set_defaults()
 	user_params.cycles = DEFAULT_CYCLES;
 	user_params.fd_dump = STATS_FD_STATISTICS_DISABLED;
 	user_params.fd_dump_log_level = STATS_FD_STATISTICS_LOG_LEVEL_DEFAULT;
-	
-	strcpy(g_vma_shmem_dir, MCE_DEFAULT_STATS_SHMEM_DIR);
+	user_params.vma_stats_path = MCE_DEFAULT_STATS_SHMEM_DIR;
 	
 	alloc_fd_mask();
 	if (g_fd_mask)
@@ -1139,7 +1136,7 @@ out:
 
 bool check_if_app_match(char* app_name, char* pid_str)
 {
-	char app_full_name[FILE_NAME_MAX_SIZE] = {0};
+	char app_full_name[PATH_MAX] = {0};
 	char proccess_proc_dir[FILE_NAME_MAX_SIZE] = {0};
 	char* app_base_name = NULL;
 	int n = -1;
@@ -1166,9 +1163,9 @@ void clean_inactive_sh_ibj()
 	int module_name_size = strlen(MODULE_NAME);
 	int pid_offset = module_name_size + 1;
 	
-	dir = opendir(g_vma_shmem_dir);	
+	dir = opendir(user_params.vma_stats_path.c_str());
 	if (dir == NULL){ 
-		log_system_err("opendir %s failed\n", g_vma_shmem_dir);
+		log_system_err("opendir %s failed\n", user_params.vma_stats_path.c_str());
 		return;
 	}
 	dirent = readdir(dir);
@@ -1177,10 +1174,10 @@ void clean_inactive_sh_ibj()
 			bool proccess_running = false;
 			proccess_running = check_if_process_running(dirent->d_name + pid_offset);
 			if (!proccess_running) {
-				char to_delete[FILE_NAME_MAX_SIZE] = {0};
+				char to_delete[PATH_MAX + 1] = {0};
 				int n = -1;
 
-				n = snprintf(to_delete, sizeof(to_delete), "%s/%s", g_vma_shmem_dir, dirent->d_name);
+				n = snprintf(to_delete, sizeof(to_delete), "%s/%s", user_params.vma_stats_path.c_str(), dirent->d_name);
 				if (likely((0 < n) && (n < (int)sizeof(to_delete)))) {
 					unlink(to_delete);
 				}
@@ -1200,9 +1197,9 @@ char* look_for_vma_stat_active_sh_obj(char* app_name)
 	int module_name_size = strlen(MODULE_NAME);
 	int pid_offset = module_name_size + 1;
 	
-	dir = opendir(g_vma_shmem_dir);	
+	dir = opendir(user_params.vma_stats_path.c_str());
 	if (dir == NULL){ 
-		log_system_err("opendir %s failed\n", g_vma_shmem_dir);
+		log_system_err("opendir %s failed\n", user_params.vma_stats_path.c_str());
 		return NULL;
 	}
 	dirent = readdir(dir);
@@ -1520,8 +1517,7 @@ int main (int argc, char **argv)
 			proc_desc[sizeof(proc_desc) - 1] = '\0';
 			break;	
 		case 'k': 
-			strncpy(g_vma_shmem_dir, optarg, sizeof(g_vma_shmem_dir) - 1);
-			g_vma_shmem_dir[sizeof(g_vma_shmem_dir) - 1] = '\0';;
+			user_params.vma_stats_path = std::string((char*)optarg);
 			break;			
 		case 's': {
 			if (update_fds_mask(optarg)) {
@@ -1649,12 +1645,13 @@ int  init_print_process_stats(sh_mem_info_t & sh_mem_info)
 	sh_mem_t* sh_mem;
 	int pid = sh_mem_info.pid;
 
-	sprintf(sh_mem_info.filename_sh_stats, "%s/vmastat.%d", g_vma_shmem_dir, pid);
+	sprintf(sh_mem_info.filename_sh_stats, "%s/vmastat.%d", user_params.vma_stats_path.c_str(), pid);
 	
-	if (user_params.write_auth)
-		sh_mem_info.fd_sh_stats = open(sh_mem_info.filename_sh_stats,O_RDWR, S_IRWXU|S_IROTH);
+	if (user_params.write_auth)//S_IRUSR | S_IWUSR | S_IRGRP
+		sh_mem_info.fd_sh_stats = open(sh_mem_info.filename_sh_stats,
+						O_RDWR, __S_IREAD | __S_IWRITE| S_IROTH);
 	else
-		sh_mem_info.fd_sh_stats = open(sh_mem_info.filename_sh_stats,  O_RDONLY);
+		sh_mem_info.fd_sh_stats = open(sh_mem_info.filename_sh_stats, O_RDONLY);
 	
 	if (sh_mem_info.fd_sh_stats < 0) {
 		log_err("VMA statistics data for process id %d not found\n", pid);
@@ -1743,9 +1740,9 @@ void get_all_processes_pids(std::vector<int> &pids)
 	const int MODULE_NAME_SIZE = strlen(MODULE_NAME);
 	const int PID_OFFSET = MODULE_NAME_SIZE + 1;
 
-	DIR *dir = opendir(g_vma_shmem_dir);
+	DIR *dir = opendir(user_params.vma_stats_path.c_str());
 	if (dir == NULL){
-		log_system_err("opendir %s failed\n", g_vma_shmem_dir);
+		log_system_err("opendir %s failed\n", user_params.vma_stats_path.c_str());
 		return;
 	}
 

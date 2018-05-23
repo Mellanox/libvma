@@ -48,7 +48,7 @@
 #define NUM_OF_SUPPORTED_BPOOLS                     2
 #define NUM_OF_SUPPORTED_EPFDS                      32
 #define SHMEM_STATS_SIZE(fds_num)                   sizeof(sh_mem_t) + (fds_num * sizeof(socket_instance_block_t))
-#define FILE_NAME_MAX_SIZE                          256
+#define FILE_NAME_MAX_SIZE                          (NAME_MAX + 1)
 #define MC_TABLE_SIZE                               1024
 #define MAP_SH_MEM(var,sh_stats)                    var = (sh_mem_t*)sh_stats
 #define STATS_PUBLISHER_TIMER_PERIOD                10 // publisher will check for stats request every 10 msec
@@ -103,6 +103,7 @@ struct user_params_t {
 	int                     cycles;
 	int                     fd_dump;
 	vlog_levels_t           fd_dump_log_level;
+	std::string             vma_stats_path;
 };
 
 extern user_params_t user_params;
@@ -341,7 +342,7 @@ typedef struct sh_mem_t {
 } sh_mem_t;
 
 typedef struct sh_mem_info {
-	char     filename_sh_stats[FILE_NAME_MAX_SIZE];
+	char     filename_sh_stats[PATH_MAX];
 	size_t   shmem_size;
 	int      fd_sh_stats;
 	void*    p_sh_stats;
