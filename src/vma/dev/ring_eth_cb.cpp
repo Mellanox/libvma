@@ -59,14 +59,15 @@ ring_eth_cb::ring_eth_cb(int if_index,
 			,m_curr_payload_addr(NULL)
 			,m_curr_hdr_ptr(NULL)
 			,m_res_domain(NULL)
+			,m_p_umr_mr(NULL)
 			,m_external_mem(cb_ring->comp_mask & VMA_CB_EXTERNAL_MEM)
 
 {
-	net_device_val_eth* p_ndev =
-			dynamic_cast<net_device_val_eth *>(g_p_net_device_table_mgr->get_net_device_val(if_index));
-
-	create_resources((p_ndev ? p_ndev->get_vlan() : 0), cb_ring);
+	memset(&m_umr_wr, 0, sizeof(m_umr_wr));
 	memset(m_sge_ptrs, 0, sizeof(m_sge_ptrs));
+	net_device_val_eth* p_ndev =
+		dynamic_cast<net_device_val_eth *>(g_p_net_device_table_mgr->get_net_device_val(if_index));
+	create_resources((p_ndev ? p_ndev->get_vlan() : 0), cb_ring);
 }
 
 void ring_eth_cb::create_resources(uint16_t partition, vma_cyclic_buffer_ring_attr *cb_ring)
