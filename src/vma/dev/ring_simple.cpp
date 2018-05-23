@@ -154,8 +154,29 @@ ring_simple::ring_simple(int if_index, ring* parent /*=NULL*/):
 	, m_flow_tag_enabled(false)
 {
 	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
+	slave_data_t * p_slave = p_ndev->get_slave(get_if_index());
 
+	ring_logdbg("new ring_simple()");
+
+	/* m_p_ib_ctx, m_tx_lkey should be initialized to be used
+	 * in ring_eth_direct, ring_eth_cb constructors
+	 */
+	BULLSEYE_EXCLUDE_BLOCK_START
+	m_p_ib_ctx = p_slave->p_ib_ctx;
+	if(m_p_ib_ctx == NULL) {
+		ring_logpanic("m_p_ib_ctx = NULL. It can be related to wrong bonding configuration");
+	}
+
+	m_tx_lkey = g_buffer_pool_tx->find_lkey_by_ib_ctx_thread_safe(m_p_ib_ctx);
+	if (m_tx_lkey == 0) {
+		__log_info_panic("invalid lkey found %lu", m_tx_lkey);
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	/* initialize m_partition in ring_eth() or ring_ib() */
 	m_partition = 0;
+
+	/* initialization basing on ndev information */
 	m_local_if = p_ndev->get_local_addr();
 	m_mtu = p_ndev->get_mtu();
 	m_transport_type = p_ndev->get_transport_type();
@@ -248,26 +269,11 @@ ring_simple::~ring_simple()
 	ring_logdbg("delete ring_simple() completed");
 }
 
-void ring_simple::create_resources(uint16_t partition)
+void ring_simple::create_resources()
 {
 	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
 	slave_data_t * p_slave = p_ndev->get_slave(get_if_index());
 
-	ring_logdbg("new ring_simple()");
-
-	BULLSEYE_EXCLUDE_BLOCK_START
-
-	m_p_ib_ctx = p_slave->p_ib_ctx;
-	if(m_p_ib_ctx == NULL) {
-		ring_logpanic("m_p_ib_ctx = NULL. It can be related to wrong bonding configuration");
-	}
-
-	m_tx_lkey = g_buffer_pool_tx->find_lkey_by_ib_ctx_thread_safe(m_p_ib_ctx);
-	if (m_tx_lkey == 0) {
-		__log_info_panic("invalid lkey found %lu", m_tx_lkey);
-	}
-
-	m_partition = partition;
 	save_l2_address(p_slave->p_L2_addr);
 	m_p_tx_comp_event_channel = ibv_create_comp_channel(m_p_ib_ctx->get_ibv_context());
 	if (m_p_tx_comp_event_channel == NULL) {

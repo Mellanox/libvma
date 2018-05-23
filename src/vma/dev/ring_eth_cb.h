@@ -73,7 +73,6 @@ public:
 	int		cyclic_buffer_read(vma_completion_cb_t &completion,
 					   size_t min, size_t max, int flags);
 protected:
-	void		create_resources(uint16_t partition, vma_cyclic_buffer_ring_attr *cb_ring);
 	virtual		qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx,
 					      uint8_t port_num,
 					      struct ibv_comp_channel* p_rx_comp_event_channel);

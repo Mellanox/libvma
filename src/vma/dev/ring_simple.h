@@ -217,7 +217,7 @@ public:
 
 protected:
 	virtual qp_mgr*		create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) = 0;
-	virtual void		create_resources(uint16_t partition);
+	void			create_resources();
 	// Internal functions. No need for locks mechanism.
 	bool			rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array);
 	//	void	print_ring_flow_to_rfs_map(flow_spec_map_t *p_flow_map);
@@ -226,6 +226,7 @@ protected:
 	virtual void		init_tx_buffers(uint32_t count);
 	bool			request_more_tx_buffers(uint32_t count);
 	uint32_t		get_tx_num_wr() { return m_tx_num_wr; }
+	void			set_partition(uint16_t partition) { m_partition = partition; }
 	uint16_t		get_partition() { return m_partition; }
 	uint32_t		get_mtu() { return m_mtu; }
 	ib_ctx_handler*		m_p_ib_ctx;
@@ -287,8 +288,17 @@ public:
 		ring_simple(if_index, parent) {
 		net_device_val_eth* p_ndev =
 				dynamic_cast<net_device_val_eth *>(g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index()));
-		if (p_ndev && call_create_res) {
-			create_resources(p_ndev->get_vlan());
+		if (p_ndev) {
+			set_partition(p_ndev->get_vlan());
+
+			/* Do resource initialization for 
+			 * ring_eth_direct, ring_eth_cb inside related
+			 * constructors because
+			 * they use own create_qp_mgr() methods
+			 */
+			if (call_create_res) {
+				create_resources();
+			}
 		}
 	}
 	virtual bool is_ratelimit_supported(struct vma_rate_limit_t &rate_limit);
@@ -305,7 +315,8 @@ public:
 		net_device_val_ib* p_ndev =
 				dynamic_cast<net_device_val_ib *>(g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index()));
 		if (p_ndev) {
-			create_resources(p_ndev->get_pkey());
+			set_partition(p_ndev->get_pkey());
+			create_resources();
 		}
 	}
 	virtual bool is_ratelimit_supported(struct vma_rate_limit_t &rate_limit);
