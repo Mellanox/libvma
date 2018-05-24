@@ -1,3 +1,25 @@
+Version 8.6.5-0:
+Date + Time 2018-05-24
+=============================================================
+Added:
+        - RM #1284069 Support outcome UDP traffic in ring_tap
+        - RM #1284069 Support outcome TCP traffic in ring_tap
+        - RM #1284069 Store flow:sink pair in ring_bond
+        - RM #1284069 Redirect traffic from tap to netvsc
+        - RM #1284069 Use m_neigh_cma_event_channel in case IB exists only
+        - RM #1284069 Allow memory allocation w/o registering
+        - RM #1284069 Remove m_p_cma_event_channel from fd_collection
+        - RM #1284069 Display message in case there is no IB devices
+        - RM #1284069 Ring tap support rfs creation
+        - RM #1284069 Use ring_slave in rfs classes
+        - RM #1284069 Introduce ring_slave::m_type
+        - RM #1284069 Introduce ring_tap
+        - RM #1338066 Disable flow tag for unicast flows
+        - RM #1382889 Add Tx statistics to ring
+
+Fixed:
+        - RM #1387232 Fix creating write permission files
+
 Version 8.6.4-0:
 Date + Time 2018-05-22
 =============================================================
@@ -23,6 +45,7 @@ Added:
         - RM #1331580 Remove redundant variables from ring
         - RM #1331577 Remove dead code from_ring simple
         - RM #1331574 Move flow spec declarations to ring_simple
+
 Fixed:
         - RM #1284069 Fix memory leak for ring_bond::m_p_n_rx_channel_fds
 
