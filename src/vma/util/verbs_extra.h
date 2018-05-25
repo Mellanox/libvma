@@ -64,6 +64,7 @@ inline int _errnocheck(int rc) {
     return rc;
 }
 
+#define IF_VERBS_FAILURE_EX(__func__, __err__)  { if (_errnocheck(__func__) && (errno != __err__))
 #define IF_VERBS_FAILURE(__func__)  { if (_errnocheck(__func__))
 #define ENDIF_VERBS_FAILURE			}
 
