@@ -144,7 +144,7 @@ int priv_ibv_modify_qp_to_err(struct ibv_qp *qp)
 	memset(&qp_attr, 0, sizeof(qp_attr));
 	qp_attr.qp_state = IBV_QPS_ERR;
 	BULLSEYE_EXCLUDE_BLOCK_START
-	IF_VERBS_FAILURE(vma_ibv_modify_qp(qp, &qp_attr, IBV_QP_STATE)) {
+	IF_VERBS_FAILURE_EX(vma_ibv_modify_qp(qp, &qp_attr, IBV_QP_STATE), EIO) {
 		return -1;
 	} ENDIF_VERBS_FAILURE;
 	BULLSEYE_EXCLUDE_BLOCK_END
