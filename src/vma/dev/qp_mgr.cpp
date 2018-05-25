@@ -122,7 +122,7 @@ qp_mgr::~qp_mgr()
 	}
 	qp_logdbg("calling ibv_destroy_qp(qp=%p)", m_qp);
 	if (m_qp) {
-		IF_VERBS_FAILURE(ibv_destroy_qp(m_qp)) {
+		IF_VERBS_FAILURE_EX(ibv_destroy_qp(m_qp), EIO) {
 			qp_logdbg("QP destroy failure (errno = %d %m)", -errno);
 		} ENDIF_VERBS_FAILURE;
 		VALGRIND_MAKE_MEM_UNDEFINED(m_qp, sizeof(ibv_qp));
@@ -295,13 +295,12 @@ void qp_mgr::down()
 void qp_mgr::modify_qp_to_error_state()
 {
 	qp_logdbg("");
-	if (!m_p_ib_ctx_handler->is_removed()) {
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (priv_ibv_modify_qp_to_err(m_qp)) {
-			qp_logdbg("ibv_modify_qp failure (errno = %d %m)", errno);
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
+
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (priv_ibv_modify_qp_to_err(m_qp)) {
+		qp_logdbg("ibv_modify_qp failure (errno = %d %m)", errno);
 	}
+	BULLSEYE_EXCLUDE_BLOCK_END
 }
 
 void qp_mgr::release_rx_buffers()

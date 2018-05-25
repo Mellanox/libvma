@@ -179,19 +179,19 @@ ib_ctx_handler::~ib_ctx_handler()
 		mem_dereg(iter->first);
 	}
 	if (m_umr_qp) {
-		IF_VERBS_FAILURE(ibv_destroy_qp(m_umr_qp)) {
+		IF_VERBS_FAILURE_EX(ibv_destroy_qp(m_umr_qp), EIO) {
 			ibch_logdbg("destroy qp failed (errno=%d %m)", errno);
 		} ENDIF_VERBS_FAILURE;
 		m_umr_qp = NULL;
 	}
 	if (m_umr_cq) {
-		IF_VERBS_FAILURE(ibv_destroy_cq(m_umr_cq)) {
+		IF_VERBS_FAILURE_EX(ibv_destroy_cq(m_umr_cq), EIO) {
 			ibch_logdbg("destroy cq failed (errno=%d %m)", errno);
 		} ENDIF_VERBS_FAILURE;
 		m_umr_cq = NULL;
 	}
 	if (m_p_ibv_pd) {
-		IF_VERBS_FAILURE(ibv_dealloc_pd(m_p_ibv_pd)) {
+		IF_VERBS_FAILURE_EX(ibv_dealloc_pd(m_p_ibv_pd), EIO) {
 			ibch_logdbg("pd deallocation failure (errno=%d %m)", errno);
 		} ENDIF_VERBS_FAILURE;
 		VALGRIND_MAKE_MEM_UNDEFINED(m_p_ibv_pd, sizeof(struct ibv_pd));
@@ -279,7 +279,7 @@ void ib_ctx_handler::mem_dereg(uint32_t lkey)
 		struct ibv_mr* mr = iter->second;
 		ibch_logdbg("dev:%s (%p) addr=%p length=%d pd=%p",
 				get_ibname(), m_p_ibv_device, mr->addr, mr->length, m_p_ibv_pd);
-		IF_VERBS_FAILURE(ibv_dereg_mr(mr)) {
+		IF_VERBS_FAILURE_EX(ibv_dereg_mr(mr), EIO) {
 			ibch_logdbg("failed de-registering a memory region "
 					"(errno=%d %m)", errno);
 		} ENDIF_VERBS_FAILURE;

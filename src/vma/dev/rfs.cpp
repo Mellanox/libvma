@@ -294,9 +294,8 @@ bool rfs::destroy_ibv_flow()
 		if (unlikely(!iter->ibv_flow)) {
 			rfs_logdbg("Destroy of QP flow ID failed - QP flow ID that was not created. This is OK for MC same ip diff port scenario."); //TODO ALEXR - Add info about QP, spec, priority into log msg
 		}
-		ib_ctx_handler* p_ib_ctx_handler = iter->p_qp_mgr->get_ib_ctx_handler(); 
-		if (!p_ib_ctx_handler->is_removed() && iter->ibv_flow) {
-			IF_VERBS_FAILURE(vma_ibv_destroy_flow(iter->ibv_flow)) {
+		if (iter->ibv_flow) {
+			IF_VERBS_FAILURE_EX(vma_ibv_destroy_flow(iter->ibv_flow), EIO) {
 				rfs_logerr("Destroy of QP flow ID failed"); //TODO ALEXR - Add info about QP, spec, priority into log msg
 			} ENDIF_VERBS_FAILURE;
 		}
