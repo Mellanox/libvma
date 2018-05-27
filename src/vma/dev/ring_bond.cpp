@@ -382,7 +382,7 @@ void ring_bond::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe,
 	}
 }
 
-void ring_bond::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block)
+void ring_bond::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 {
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
 
@@ -390,7 +390,7 @@ void ring_bond::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe,
 	ring_slave* active_ring = m_bond_rings[id];
 
 	if (is_active_member(p_mem_buf_desc->p_desc_owner, id)) {
-		active_ring->send_lwip_buffer(id, p_send_wqe, b_block);
+		active_ring->send_lwip_buffer(id, p_send_wqe, attr);
 	} else {
 		ring_logfunc("active ring=%p, silent packet drop (%p), (HA event?)", active_ring, p_mem_buf_desc);
 		p_mem_buf_desc->p_next_desc = NULL;

@@ -88,6 +88,8 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 		no_copy = false;
 	}
 
+	vma_wr_tx_packet_attr attr = (vma_wr_tx_packet_attr)((VMA_TX_PACKET_BLOCK * b_blocked) | (VMA_TX_PACKET_DUMMY * is_dummy) | VMA_TX_PACKET_L3_CSUM | VMA_TX_PACKET_L4_CSUM);
+
 	if (likely(no_copy)) {
 		p_pkt = (tx_packet_template_t*)((uint8_t*)p_tcp_iov[0].iovec.iov_base - m_header.m_aligned_l2_l3_len);
 		total_packet_len = p_tcp_iov[0].iovec.iov_len + m_header.m_total_hdr_len;
@@ -107,11 +109,10 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 		}
 
 		m_p_send_wqe->wr_id = (uintptr_t)p_tcp_iov[0].p_desc;
+		p_tcp_iov[0].p_desc->tx.p_ip_h = &p_pkt->hdr.m_ip_hdr;
+		p_tcp_iov[0].p_desc->tx.p_tcp_h =(struct tcphdr*)((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr));
 
-#ifdef DEFINED_SW_CSUM
-		compute_tcp_ip_checksum(&p_pkt->hdr.m_ip_hdr, (struct tcphdr*)((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr)));
-#endif
-		send_lwip_buffer(m_id, m_p_send_wqe, b_blocked, is_dummy);
+		send_lwip_buffer(m_id, m_p_send_wqe, attr);
 
 		/* for DEBUG */
 		if ((uint8_t*)m_sge[0].addr < p_tcp_iov[0].p_desc->p_buffer || (uint8_t*)p_pkt < p_tcp_iov[0].p_desc->p_buffer) {
@@ -145,15 +146,12 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 
 		p_pkt = (tx_packet_template_t*)((uint8_t*)p_mem_buf_desc->p_buffer);
 		p_pkt->hdr.m_ip_hdr.tot_len = (htons)(m_sge[0].length - m_header.m_transport_header_len);
-#ifdef DEFINED_SW_CSUM
-		compute_tcp_ip_checksum(&p_pkt->hdr.m_ip_hdr, (struct tcphdr*)((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr)));
-#endif
+
+		p_mem_buf_desc->tx.p_ip_h = &p_pkt->hdr.m_ip_hdr;
+		p_mem_buf_desc->tx.p_tcp_h =  (struct tcphdr*)((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr));
+
 		m_p_send_wqe = &m_not_inline_send_wqe;
 		m_p_send_wqe->wr_id = (uintptr_t)p_mem_buf_desc;
-		vma_wr_tx_packet_attr attr = (vma_wr_tx_packet_attr)((VMA_TX_PACKET_BLOCK*b_blocked) | 
-								     (VMA_TX_PACKET_DUMMY*is_dummy)  |
-								      VMA_TX_PACKET_L3_CSUM          |
-								      VMA_TX_PACKET_L4_CSUM);
 		send_ring_buffer(m_id, m_p_send_wqe, attr);
 
 		/* for DEBUG */

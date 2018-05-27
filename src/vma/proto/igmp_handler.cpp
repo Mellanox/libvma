@@ -212,6 +212,7 @@ bool igmp_handler::tx_igmp_report()
 	m_sge.length = m_header.m_total_hdr_len + sizeof(uint32_t /*m_ip_hdr_ext*/) + sizeof (igmphdr /*m_igmp_hdr*/);
 	m_sge.lkey = p_mem_buf_desc->lkey;
 	p_mem_buf_desc->p_next_desc = NULL;
+	p_mem_buf_desc->tx.p_ip_h = &p_ip_pkt->m_ip_hdr;
 	m_p_send_igmp_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
 
 	igmp_hdlr_logdbg("Sending igmp report");

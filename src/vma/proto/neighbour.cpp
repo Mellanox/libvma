@@ -483,15 +483,17 @@ bool neigh_entry::post_send_udp(neigh_send_data *n_send_data)
 		BULLSEYE_EXCLUDE_BLOCK_END
 
 		wqe_send_handler wqe_sh;
-		vma_wr_tx_packet_attr attr = (vma_wr_tx_packet_attr)0;
+		vma_wr_tx_packet_attr attr = (vma_wr_tx_packet_attr)(VMA_TX_PACKET_L3_CSUM|VMA_TX_PACKET_L4_CSUM);
 		if (b_need_sw_csum) {
-			compute_udp_ip_checksum(&p_pkt->hdr.m_ip_hdr, &p_pkt->hdr.m_udp_hdr);
+			attr = (vma_wr_tx_packet_attr)(attr|VMA_TX_SW_CSUM);
 			wqe_sh.disable_hw_csum(m_send_wqe);
 		} else {
 			neigh_logdbg("using HW checksum calculation");
 			wqe_sh.enable_hw_csum(m_send_wqe);
-			attr = (vma_wr_tx_packet_attr)(VMA_TX_PACKET_L3_CSUM|VMA_TX_PACKET_L4_CSUM);
 		}
+
+		p_mem_buf_desc->tx.p_ip_h = &p_pkt->hdr.m_ip_hdr;
+		p_mem_buf_desc->tx.p_udp_h = &p_pkt->hdr.m_udp_hdr;
 
 		m_sge.addr = (uintptr_t)(p_mem_buf_desc->p_buffer + (uint8_t)h->m_transport_header_tx_offset);
 		m_sge.length = sz_user_data_to_copy + hdr_len;
@@ -571,12 +573,10 @@ bool neigh_entry::post_send_tcp(neigh_send_data *p_data)
 	}
 
 	m_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
-	vma_wr_tx_packet_attr attr = (vma_wr_tx_packet_attr)0;
-#ifdef DEFINED_SW_CSUM
-	compute_tcp_ip_checksum(&p_pkt->hdr.m_ip_hdr, (struct tcphdr*)(((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr))));
-#else
-	attr = (vma_wr_tx_packet_attr)(VMA_TX_PACKET_L3_CSUM|VMA_TX_PACKET_L4_CSUM);
-#endif
+	vma_wr_tx_packet_attr attr = (vma_wr_tx_packet_attr)(VMA_TX_PACKET_L3_CSUM|VMA_TX_PACKET_L4_CSUM);
+	p_mem_buf_desc->tx.p_ip_h = &p_pkt->hdr.m_ip_hdr;
+	p_mem_buf_desc->tx.p_tcp_h = (struct tcphdr*)(((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr)));
+
 	m_p_ring->send_ring_buffer(m_id, &m_send_wqe, attr);
 #ifndef __COVERITY__
 	struct tcphdr* p_tcp_h = (struct tcphdr*)(((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr)));

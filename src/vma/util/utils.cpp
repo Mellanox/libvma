@@ -45,6 +45,7 @@
 #include <limits>
 #include <math.h>
 #include <linux/ip.h>  //IP  header (struct  iphdr) definition
+#include <netinet/tcp.h>
 #include <netinet/udp.h>
 
 #include "utils/bullseye.h"
@@ -157,28 +158,28 @@ int get_base_interface_name(const char *if_name, char *base_ifname, size_t sz_ba
 	return 0;
 }
 
-void compute_udp_ip_checksum(struct iphdr* ip_hdr, struct udphdr* udp_hdr)
+void compute_tx_checksum(mem_buf_desc_t* p_mem_buf_desc, bool l3_csum, bool l4_csum)
 {
 	// L3
-	ip_hdr->check = 0; // use 0 at csum calculation time
-	ip_hdr->check = compute_ip_checksum((unsigned short *)ip_hdr, ip_hdr->ihl * 2);
+	if (l3_csum) {
+		struct iphdr* ip_hdr = p_mem_buf_desc->tx.p_ip_h;
+		ip_hdr->check = 0; // use 0 at csum calculation time
+		ip_hdr->check = compute_ip_checksum((unsigned short *)ip_hdr, ip_hdr->ihl * 2);
 
-	// L4
-	udp_hdr->check = 0;
-
-	__log_entry_func("using SW checksum calculation: ip_hdr->check=%d, udp_hdr->check=%d", ip_hdr->check, udp_hdr->check);
-}
-
-void compute_tcp_ip_checksum(struct iphdr* ip_hdr, struct tcphdr* tcp_hdr)
-{
-	// L3
-	ip_hdr->check = 0; // use 0 at csum calculation time
-	ip_hdr->check = compute_ip_checksum((unsigned short *)ip_hdr, ip_hdr->ihl * 2);
-
-	// L4
-	tcp_hdr->check = 0;
-	tcp_hdr->check = compute_tcp_checksum(ip_hdr, (const uint16_t *)tcp_hdr);
-	__log_entry_func("using SW checksum calculation: ip_hdr->check=%d, tcp_hdr->check=%d", ip_hdr->check, tcp_hdr->check);
+		// L4
+		if (l4_csum) {
+			if (ip_hdr->protocol == IPPROTO_UDP) {
+				struct udphdr* udp_hdr = p_mem_buf_desc->tx.p_udp_h;
+				udp_hdr->check = 0;
+				__log_entry_func("using SW checksum calculation: ip_hdr->check=%d, udp_hdr->check=%d", ip_hdr->check, udp_hdr->check);
+			} else if (ip_hdr->protocol == IPPROTO_TCP) {
+				struct tcphdr* tcp_hdr = p_mem_buf_desc->tx.p_tcp_h;
+				tcp_hdr->check = 0;
+				tcp_hdr->check = compute_tcp_checksum(ip_hdr, (const uint16_t *)tcp_hdr);
+				__log_entry_func("using SW checksum calculation: ip_hdr->check=%d, tcp_hdr->check=%d", ip_hdr->check, tcp_hdr->check);
+			}
+		}
+	}
 }
 
 unsigned short compute_ip_checksum(const unsigned short *buf, unsigned int nshort_words)
