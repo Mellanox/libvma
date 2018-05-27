@@ -53,11 +53,7 @@ ring_tap::ring_tap(int if_index, ring* parent):
 	m_tap_fd(-1),
 	m_vf_ring(NULL),
 	m_sysvar_qp_compensation_level(safe_mce_sys().qp_compensation_level),
-	m_tap_data_available(false),
-	m_lock_ring_rx("ring_tap:lock_rx"),
-	m_lock_ring_tx("ring_tap:lock_tx"),
-	m_flow_tag_enabled(false),
-	m_partition(0)
+	m_tap_data_available(false)
 {
 	int rc = 0;
 	struct vma_msg_flow data;
@@ -66,9 +62,6 @@ ring_tap::ring_tap(int if_index, ring* parent):
 
 	/* Create TAP device and update ring class with new if_index */
 	tap_create(p_ndev);
-
-	m_local_if = p_ndev->get_local_addr();
-	m_mtu = p_ndev->get_mtu();
 
 	/* Register tap ring to the internal thread */
 	m_p_n_rx_channel_fds = new int[1];
@@ -1389,54 +1382,5 @@ void ring_tap::send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe)
 		}
 
 		mem_buf_tx_release(p_mem_buf_desc, true);
-	}
-}
-
-void ring_tap::flow_udp_del_all()
-{
-	flow_spec_udp_key_t map_key_udp;
-	flow_spec_udp_map_t::iterator itr_udp;
-
-	itr_udp = m_flow_udp_uc_map.begin();
-	while (itr_udp != m_flow_udp_uc_map.end()) {
-		rfs *p_rfs = itr_udp->second;
-		map_key_udp = itr_udp->first;
-		if (p_rfs) {
-			delete p_rfs;
-		}
-		if (!(m_flow_udp_uc_map.del(map_key_udp))) {
-			ring_logdbg("Could not find rfs object to delete in ring udp uc hash map!");
-		}
-		itr_udp =  m_flow_udp_uc_map.begin();
-	}
-
-	itr_udp = m_flow_udp_mc_map.begin();
-	while (itr_udp != m_flow_udp_mc_map.end()) {
-		rfs *p_rfs = itr_udp->second;
-		map_key_udp = itr_udp->first;
-		if (p_rfs) {
-			delete p_rfs;
-		}
-		if (!(m_flow_udp_mc_map.del(map_key_udp))) {
-			ring_logdbg("Could not find rfs object to delete in ring udp mc hash map!");
-		}
-		itr_udp =  m_flow_udp_mc_map.begin();
-	}
-}
-
-void ring_tap::flow_tcp_del_all()
-{
-	flow_spec_tcp_key_t map_key_tcp;
-	flow_spec_tcp_map_t::iterator itr_tcp;
-
-	while ((itr_tcp = m_flow_tcp_map.begin()) != m_flow_tcp_map.end()) {
-		rfs *p_rfs = itr_tcp->second;
-		map_key_tcp = itr_tcp->first;
-		if (p_rfs) {
-			delete p_rfs;
-		}
-		if (!(m_flow_tcp_map.del(map_key_tcp))) {
-			ring_logdbg("Could not find rfs object to delete in ring tcp hash map!");
-		}
 	}
 }

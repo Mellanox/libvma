@@ -100,7 +100,7 @@ ring_eth_cb::ring_eth_cb(int if_index, vma_cyclic_buffer_ring_attr *cb_ring,
 	}
 	// stride size is headers + user payload aligned to power of 2
 	uint16_t net_len = 0;
-	if (get_partition()) {
+	if (m_partition) {
 		net_len = ETH_VLAN_HDR_LEN + sizeof(struct iphdr) + sizeof(struct udphdr);
 	} else {
 		net_len = ETH_HDR_LEN + sizeof(struct iphdr) + sizeof(struct udphdr);
@@ -184,7 +184,7 @@ qp_mgr* ring_eth_cb::create_qp_mgr(const ib_ctx_handler *ib_ctx,
 				   struct ibv_comp_channel *p_rx_comp_event_channel)
 {
 	return new qp_mgr_mp(this, ib_ctx, port_num, p_rx_comp_event_channel,
-			get_tx_num_wr(), get_partition(), m_buff_data,
+			get_tx_num_wr(), m_partition, m_buff_data,
 			m_external_mem);
 }
 

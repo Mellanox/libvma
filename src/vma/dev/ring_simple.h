@@ -117,23 +117,16 @@ protected:
 	// Internal functions. No need for locks mechanism.
 	bool			rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array);
 	//	void	print_ring_flow_to_rfs_map(flow_spec_map_t *p_flow_map);
-	void			flow_udp_del_all();
-	void			flow_tcp_del_all();
 	virtual void		init_tx_buffers(uint32_t count);
 	bool			request_more_tx_buffers(uint32_t count);
 	uint32_t		get_tx_num_wr() { return m_tx_num_wr; }
-	void			set_partition(uint16_t partition) { m_partition = partition; }
-	uint16_t		get_partition() { return m_partition; }
 	uint32_t		get_mtu() { return m_mtu; }
 
 	ib_ctx_handler*		m_p_ib_ctx;
 	qp_mgr*			m_p_qp_mgr;
 	struct cq_moderation_info m_cq_moderation_info;
 	cq_mgr*			m_p_cq_mgr_rx;
-	lock_spin_recursive	m_lock_ring_rx;
 	cq_mgr*			m_p_cq_mgr_tx;
-	lock_spin_recursive	m_lock_ring_tx;
-
 private:
 	bool is_socketxtreme(void) {return m_socketxtreme.active;}
 
@@ -208,25 +201,12 @@ private:
 	bool			m_b_qp_tx_first_flushed_completion_handled;
 	uint32_t		m_missing_buf_ref_count;
 	uint32_t		m_tx_lkey; // this is the registered memory lkey for a given specific device for the buffer pool use
-	uint16_t		m_partition; //vlan or pkey
 	gro_mgr			m_gro_mgr;
 	bool			m_up;
 	struct ibv_comp_channel* m_p_rx_comp_event_channel;
 	struct ibv_comp_channel* m_p_tx_comp_event_channel;
 	L2_address*		m_p_l2_addr;
-	in_addr_t		m_local_if;
 	uint32_t		m_mtu;
-	// For IB MC flow, the port is zeroed in the ibv_flow_spec when calling to ibv_flow_spec().
-	// It means that for every MC group, even if we have sockets with different ports - only one rule in the HW.
-	// So the hash map below keeps track of the number of sockets per rule so we know when to call ibv_attach and ibv_detach
-	rule_filter_map_t	m_l2_mc_ip_attach_map;
-	rule_filter_map_t	m_tcp_dst_port_attach_map;
-	flow_spec_tcp_map_t	m_flow_tcp_map;
-	flow_spec_udp_map_t	m_flow_udp_mc_map;
-	flow_spec_udp_map_t	m_flow_udp_uc_map;
-	const bool		m_b_sysvar_eth_mc_l2_only_rules;
-	const bool		m_b_sysvar_mc_force_flowtag;
-	bool			m_flow_tag_enabled;
 };
 
 class ring_eth : public ring_simple
@@ -238,7 +218,7 @@ public:
 		net_device_val_eth* p_ndev =
 				dynamic_cast<net_device_val_eth *>(g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index()));
 		if (p_ndev) {
-			set_partition(p_ndev->get_vlan());
+			m_partition = p_ndev->get_vlan();
 
 			/* Do resource initialization for 
 			 * ring_eth_direct, ring_eth_cb inside related
@@ -264,7 +244,7 @@ public:
 		net_device_val_ib* p_ndev =
 				dynamic_cast<net_device_val_ib *>(g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index()));
 		if (p_ndev) {
-			set_partition(p_ndev->get_pkey());
+			m_partition = p_ndev->get_pkey();
 			create_resources();
 		}
 	}
