@@ -108,6 +108,11 @@ public:
 		} rx;
 		struct {
 			size_t		dev_mem_length; // Total data aligned to 4 bytes.
+			struct		iphdr* 	p_ip_h;
+			union {
+				struct		udphdr* p_udp_h;
+				struct		tcphdr* p_tcp_h;
+			};
 		} tx;
 	};
 

@@ -59,6 +59,11 @@ struct iphdr; //forward declaration
 int check_if_regular_file (char *path);
 
 /**
+ * L3 and L4 Header Checksum Calculation
+ */
+void compute_tx_checksum(mem_buf_desc_t* p_mem_buf_desc, bool l3_csum, bool l4_csum);
+
+/**
  * IP Header Checksum Calculation
  */
 unsigned short compute_ip_checksum(const unsigned short *buf, unsigned int nshort_words);

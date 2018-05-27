@@ -969,18 +969,21 @@ bool ring_tap::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_r
 void ring_tap::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 {
 	NOT_IN_USE(id);
+	compute_tx_checksum((mem_buf_desc_t*)(p_send_wqe->wr_id), attr & VMA_TX_PACKET_L3_CSUM, attr & VMA_TX_PACKET_L4_CSUM);
+
 	auto_unlocker lock(m_lock_ring_tx);
 	int ret = send_buffer(p_send_wqe, attr);
 	send_status_handler(ret, p_send_wqe);
 }
 
-void ring_tap::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block)
+void ring_tap::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 {
 	NOT_IN_USE(id);
+	compute_tx_checksum((mem_buf_desc_t*)(p_send_wqe->wr_id), attr & VMA_TX_PACKET_L3_CSUM, attr & VMA_TX_PACKET_L4_CSUM);
+
 	auto_unlocker lock(m_lock_ring_tx);
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
 	p_mem_buf_desc->lwip_pbuf.pbuf.ref++;
-	vma_wr_tx_packet_attr attr = (vma_wr_tx_packet_attr)((b_block*VMA_TX_PACKET_BLOCK)|VMA_TX_PACKET_L3_CSUM|VMA_TX_PACKET_L4_CSUM);
 	int ret = send_buffer(p_send_wqe, attr);
 	send_status_handler(ret, p_send_wqe);
 }

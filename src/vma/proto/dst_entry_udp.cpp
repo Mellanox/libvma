@@ -111,12 +111,8 @@ inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const
 		m_header.m_header.hdr.m_udp_hdr.len = htons((uint16_t)sz_udp_payload);
 		m_header.m_header.hdr.m_ip_hdr.tot_len = htons(m_header.m_ip_header_len + sz_udp_payload);
 
-#ifdef DEFINED_SW_CSUM
-		dst_udp_logfunc("using SW checksum calculation");
-		m_header.m_header.hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
-		m_header.m_header.hdr.m_ip_hdr.check = compute_ip_checksum((unsigned short*)&m_header.m_header.hdr.m_ip_hdr, m_header.m_header.hdr.m_ip_hdr.ihl * 2);
-		m_header.m_header.hdr.m_udp_hdr.check = 0;
-#endif
+		p_mem_buf_desc->tx.p_ip_h = &m_header.m_header.hdr.m_ip_hdr;
+		p_mem_buf_desc->tx.p_udp_h = &m_header.m_header.hdr.m_udp_hdr;
 
 		//m_sge[0].addr  already points to the header
 		//so we just need to update the payload addr + len
@@ -141,12 +137,8 @@ inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const
 		p_pkt->hdr.m_ip_hdr.id = 0;
 		p_pkt->hdr.m_ip_hdr.tot_len = htons(m_header.m_ip_header_len + sz_udp_payload);
 
-#ifdef DEFINED_SW_CSUM
-		dst_udp_logfunc("using SW checksum calculation");
-		p_pkt->hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
-		p_pkt->hdr.m_ip_hdr.check = compute_ip_checksum((unsigned short*)&p_pkt->hdr.m_ip_hdr, p_pkt->hdr.m_ip_hdr.ihl * 2);
-		p_pkt->hdr.m_udp_hdr.check = 0;
-#endif
+		p_mem_buf_desc->tx.p_ip_h = &p_pkt->hdr.m_ip_hdr;
+		p_mem_buf_desc->tx.p_udp_h = &p_pkt->hdr.m_udp_hdr;
 
 		// Update the payload addr + len
 		m_sge[1].length = sz_data_payload + hdr_len;
@@ -166,10 +158,6 @@ inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 	}
-
-#ifndef DEFINED_SW_CSUM
-	attr = (vma_wr_tx_packet_attr)(attr|VMA_TX_PACKET_L3_CSUM|VMA_TX_PACKET_L4_CSUM);
-#endif
 
 	m_p_send_wqe->wr_id = (uintptr_t)p_mem_buf_desc;
 	send_ring_buffer(m_id, m_p_send_wqe, attr);
@@ -273,9 +261,9 @@ ssize_t dst_entry_udp::fast_send_fragmented(const iovec* p_iov, const ssize_t sz
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 
-		dst_udp_logfunc("ip fragmentation detected, using SW checksum calculation");
-		p_pkt->hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
-		p_pkt->hdr.m_ip_hdr.check = compute_ip_checksum((unsigned short*)&p_pkt->hdr.m_ip_hdr, p_pkt->hdr.m_ip_hdr.ihl * 2);
+		attr = (vma_wr_tx_packet_attr)(attr|VMA_TX_SW_CSUM);
+		p_mem_buf_desc->tx.p_ip_h = &p_pkt->hdr.m_ip_hdr;
+		p_mem_buf_desc->tx.p_udp_h = &p_pkt->hdr.m_udp_hdr;
 
 		m_sge[1].addr = (uintptr_t)(p_mem_buf_desc->p_buffer + (uint8_t)m_header.m_transport_header_tx_offset);
 		m_sge[1].length = sz_user_data_to_copy + hdr_len;
@@ -324,9 +312,9 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov,
 
 	// Calc udp payload size
 	size_t sz_udp_payload = sz_data_payload + sizeof(struct udphdr);
-	vma_wr_tx_packet_attr attr = (vma_wr_tx_packet_attr)((VMA_TX_PACKET_BLOCK * b_blocked) | (VMA_TX_PACKET_DUMMY * is_dummy));
+	vma_wr_tx_packet_attr attr = (vma_wr_tx_packet_attr)((VMA_TX_PACKET_BLOCK * b_blocked) | (VMA_TX_PACKET_DUMMY * is_dummy) | VMA_TX_PACKET_L3_CSUM);
 	if (sz_udp_payload <= (size_t)m_max_udp_payload_size) {
-		return fast_send_not_fragmented(p_iov, sz_iov, attr, sz_udp_payload, sz_data_payload);
+		return fast_send_not_fragmented(p_iov, sz_iov, (vma_wr_tx_packet_attr) (attr | VMA_TX_PACKET_L4_CSUM), sz_udp_payload, sz_data_payload);
 	} else {
 		return fast_send_fragmented(p_iov, sz_iov, attr, sz_udp_payload, sz_data_payload);
 	}
