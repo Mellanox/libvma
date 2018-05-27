@@ -32,6 +32,9 @@
 
 #include "ring_slave.h"
 
+#include "vma/dev/rfs_mc.h"
+#include "vma/dev/rfs_uc.h"
+#include "vma/dev/rfs_uc_tcp_gro.h"
 
 #undef  MODULE_NAME
 #define MODULE_NAME "ring_slave"
@@ -39,7 +42,15 @@
 #define MODULE_HDR MODULE_NAME "%d:%s() "
 
 
-ring_slave::ring_slave(int if_index, ring* parent, ring_type_t type): ring()
+ring_slave::ring_slave(int if_index, ring* parent, ring_type_t type):
+	ring(),
+	m_lock_ring_rx("ring_slave:lock_rx"),
+	m_lock_ring_tx("ring_slave:lock_tx"),
+	m_partition(0),
+	m_flow_tag_enabled(false),
+	m_b_sysvar_eth_mc_l2_only_rules(safe_mce_sys().eth_mc_l2_only_rules),
+	m_b_sysvar_mc_force_flowtag(safe_mce_sys().mc_force_flowtag),
+	m_type(type)
 {
 	net_device_val* p_ndev = NULL;
 	const slave_data_t * p_slave = NULL;
@@ -57,8 +68,9 @@ ring_slave::ring_slave(int if_index, ring* parent, ring_type_t type): ring()
 	p_slave = p_ndev->get_slave(get_if_index());
 
 	/* Configure ring_slave() fields */
-	m_type = type;
 	m_transport_type = p_ndev->get_transport_type();
+	m_local_if = p_ndev->get_local_addr();
+
 	/* Set the same ring active status as related slave has for all ring types
 	 * excluding ring with type RING_TAP that does not have related slave device.
 	 * So it is marked as active just in case related netvsc device is absent.
@@ -139,4 +151,53 @@ ring_user_id_t ring_slave::generate_id(const address_t src_mac, const address_t 
 void ring_slave::inc_tx_retransmissions(ring_user_id_t id) {
 	NOT_IN_USE(id);
 	m_p_ring_stat->n_tx_retransmits++;
+}
+
+void ring_slave::flow_udp_del_all()
+{
+	flow_spec_udp_key_t map_key_udp;
+	flow_spec_udp_map_t::iterator itr_udp;
+
+	itr_udp = m_flow_udp_uc_map.begin();
+	while (itr_udp != m_flow_udp_uc_map.end()) {
+		rfs *p_rfs = itr_udp->second;
+		map_key_udp = itr_udp->first;
+		if (p_rfs) {
+			delete p_rfs;
+		}
+		if (!(m_flow_udp_uc_map.del(map_key_udp))) {
+			ring_logdbg("Could not find rfs object to delete in ring udp uc hash map!");
+		}
+		itr_udp =  m_flow_udp_uc_map.begin();
+	}
+
+	itr_udp = m_flow_udp_mc_map.begin();
+	while (itr_udp != m_flow_udp_mc_map.end()) {
+		rfs *p_rfs = itr_udp->second;
+		map_key_udp = itr_udp->first;
+		if (p_rfs) {
+			delete p_rfs;
+		}
+		if (!(m_flow_udp_mc_map.del(map_key_udp))) {
+			ring_logdbg("Could not find rfs object to delete in ring udp mc hash map!");
+		}
+		itr_udp =  m_flow_udp_mc_map.begin();
+	}
+}
+
+void ring_slave::flow_tcp_del_all()
+{
+	flow_spec_tcp_key_t map_key_tcp;
+	flow_spec_tcp_map_t::iterator itr_tcp;
+
+	while ((itr_tcp = m_flow_tcp_map.begin()) != m_flow_tcp_map.end()) {
+		rfs *p_rfs = itr_tcp->second;
+		map_key_tcp = itr_tcp->first;
+		if (p_rfs) {
+			delete p_rfs;
+		}
+		if (!(m_flow_tcp_map.del(map_key_tcp))) {
+			ring_logdbg("Could not find rfs object to delete in ring tcp hash map!");
+		}
+	}
 }

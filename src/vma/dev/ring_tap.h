@@ -113,8 +113,6 @@ private:
 	bool request_more_rx_buffers();
 	int send_buffer(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 	void send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe);
-	void flow_udp_del_all();
-	void flow_tcp_del_all();
 	void tap_create(net_device_val* p_ndev);
 	void tap_destroy();
 
@@ -125,27 +123,11 @@ private:
 
 	/* These fields are NETVSC mode specific */
 	int m_tap_fd;                    /* file descriptor of tap device */
-
 	ring_slave*      m_vf_ring;
 	const uint32_t   m_sysvar_qp_compensation_level;
 	descq_t          m_tx_pool;
 	descq_t          m_rx_pool;
 	bool             m_tap_data_available;
-	lock_spin_recursive	m_lock_ring_rx;
-	lock_spin_recursive	m_lock_ring_tx;
-
-	bool             m_flow_tag_enabled;
-	in_addr_t        m_local_if;
-	uint32_t         m_mtu;
-	uint16_t         m_partition;
-	// For IB MC flow, the port is zeroed in the ibv_flow_spec when calling to ibv_flow_spec().
-	// It means that for every MC group, even if we have sockets with different ports - only one rule in the HW.
-	// So the hash map below keeps track of the number of sockets per rule so we know when to call ibv_attach and ibv_detach
-	rule_filter_map_t	m_l2_mc_ip_attach_map;
-	rule_filter_map_t	m_tcp_dst_port_attach_map;
-	flow_spec_tcp_map_t	m_flow_tcp_map;
-	flow_spec_udp_map_t	m_flow_udp_mc_map;
-	flow_spec_udp_map_t	m_flow_udp_uc_map;
 };
 
 

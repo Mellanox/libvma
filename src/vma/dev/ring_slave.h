@@ -184,8 +184,29 @@ public:
 	bool                m_active;         /* State indicator */
 
 protected:
+
+	void			flow_udp_del_all();
+	void			flow_tcp_del_all();
+
+	flow_spec_tcp_map_t	m_flow_tcp_map;
+	flow_spec_udp_map_t	m_flow_udp_mc_map;
+	flow_spec_udp_map_t	m_flow_udp_uc_map;
+
+	// For IB MC flow, the port is zeroed in the ibv_flow_spec when calling to ibv_flow_spec().
+	// It means that for every MC group, even if we have sockets with different ports - only one rule in the HW.
+	// So the hash map below keeps track of the number of sockets per rule so we know when to call ibv_attach and ibv_detach
+	rule_filter_map_t	m_l2_mc_ip_attach_map;
+	rule_filter_map_t	m_tcp_dst_port_attach_map;
+
 	transport_type_t    m_transport_type; /* transport ETH/IB */
 	ring_stats_t*       m_p_ring_stat;
+	lock_spin_recursive	m_lock_ring_rx;
+	lock_spin_recursive	m_lock_ring_tx;
+	in_addr_t           m_local_if;
+	uint16_t            m_partition;
+	bool                m_flow_tag_enabled;
+	const bool          m_b_sysvar_eth_mc_l2_only_rules;
+	const bool          m_b_sysvar_mc_force_flowtag;
 
 private:
 	ring_type_t         m_type;           /* ring type */
