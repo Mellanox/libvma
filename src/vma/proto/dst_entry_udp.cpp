@@ -112,10 +112,7 @@ inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const
 		m_header.m_header.hdr.m_ip_hdr.tot_len = htons(m_header.m_ip_header_len + sz_udp_payload);
 
 #ifdef DEFINED_SW_CSUM
-		dst_udp_logfunc("using SW checksum calculation");
-		m_header.m_header.hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
-		m_header.m_header.hdr.m_ip_hdr.check = compute_ip_checksum((unsigned short*)&m_header.m_header.hdr.m_ip_hdr, m_header.m_header.hdr.m_ip_hdr.ihl * 2);
-		m_header.m_header.hdr.m_udp_hdr.check = 0;
+		compute_udp_ip_checksum(&m_header.m_header.hdr.m_ip_hdr, &m_header.m_header.hdr.m_udp_hdr);
 #endif
 
 		//m_sge[0].addr  already points to the header
@@ -142,10 +139,7 @@ inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const
 		p_pkt->hdr.m_ip_hdr.tot_len = htons(m_header.m_ip_header_len + sz_udp_payload);
 
 #ifdef DEFINED_SW_CSUM
-		dst_udp_logfunc("using SW checksum calculation");
-		p_pkt->hdr.m_ip_hdr.check = 0; // use 0 at csum calculation time
-		p_pkt->hdr.m_ip_hdr.check = compute_ip_checksum((unsigned short*)&p_pkt->hdr.m_ip_hdr, p_pkt->hdr.m_ip_hdr.ihl * 2);
-		p_pkt->hdr.m_udp_hdr.check = 0;
+		compute_udp_ip_checksum(&p_pkt->hdr.m_ip_hdr, &p_pkt->hdr.m_udp_hdr);
 #endif
 
 		// Update the payload addr + len

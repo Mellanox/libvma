@@ -39,6 +39,7 @@
 #include <string.h>
 #include <ifaddrs.h>
 #include <linux/if_ether.h>
+#include <netinet/tcp.h>
 #include <exception>
 
 #include "vtypes.h"
@@ -57,6 +58,12 @@ struct iphdr; //forward declaration
 * Check if file type is regular
 **/
 int check_if_regular_file (char *path);
+
+
+void compute_udp_ip_checksum(struct iphdr* ip_hdr, struct udphdr* udp_hdr);
+
+void compute_tcp_ip_checksum(struct iphdr* ip_hdr, struct tcphdr* tcp_hdr);
+
 
 /**
  * IP Header Checksum Calculation
