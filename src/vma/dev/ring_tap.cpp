@@ -31,6 +31,7 @@
  */
 
 #include "ring_tap.h"
+#include "vma/util/sg_array.h"
 #include "vma/dev/net_device_table_mgr.h"
 #include "vma/dev/rfs.h"
 #include "vma/dev/rfs_mc.h"
@@ -1014,6 +1015,7 @@ void ring_tap::prepare_flow_message(vma_msg_flow& data,
 int ring_tap::process_element_rx(void* pv_fd_ready_array)
 {
 	int ret = 0;
+	bool used_buff = false;
 
 	if(m_tap_data_available) {
 		auto_unlocker lock(m_lock_ring_rx);
@@ -1023,9 +1025,13 @@ int ring_tap::process_element_rx(void* pv_fd_ready_array)
 			if (ret > 0) {
 				/* Data was read and processed successfully */
 				buff->sz_data = ret;
-				rx_process_buffer(buff, pv_fd_ready_array);
-				m_p_ring_stat->tap.n_rx_buffers--;
-			} else {
+				buff->rx.is_sw_csum_need = 1;
+				if (rx_process_buffer(buff, pv_fd_ready_array)) {
+					m_p_ring_stat->tap.n_rx_buffers--;
+					used_buff = true;
+				}
+			}
+			if (!used_buff){
 				/* Unable to read data, return buffer to pool */
 				ret = 0;
 				m_rx_pool.push_front(buff);
@@ -1161,27 +1167,35 @@ void ring_tap::mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc)
 int ring_tap::send_buffer(vma_ibv_send_wr* wr, vma_wr_tx_packet_attr attr)
 {
 	int ret = 0;
-//	mem_buf_desc_t* buff = (mem_buf_desc_t*)(p_send_wqe->wr_id);
-	int i = 0;
-
+	iovec iovec[wr->num_sge];
 	NOT_IN_USE(attr);
 
-	for (i = 0; i < wr->num_sge; i++) {
-		ret = orig_os_api.write(m_tap_fd, (const void *)wr->sg_list[i].addr, wr->sg_list[i].length);
-		if (ret < 0) {
-			ring_logdbg("write: %p count: %d errno: %d\n", wr->sg_list[i].addr, wr->sg_list[i].length, errno);
-			break;
-		}
+	for (int i = 0; i < wr->num_sge; i++) {
+		iovec[i].iov_base = (void *) wr->sg_list[i].addr;
+		iovec[i].iov_len = wr->sg_list[i].length;
 	}
 
-	return ret;
+	ret = orig_os_api.writev(m_tap_fd, iovec , wr->num_sge);
+	if (ret < 0) {
+		ring_logdbg("writev: tap_fd %d, errno: %d\n", m_tap_fd, errno);
+	}
+
+	return ret == -1;
 }
 
 void ring_tap::send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe)
 {
-	if (ret && p_send_wqe) {
-		mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
-		mem_buf_tx_release(p_mem_buf_desc, true);
+	if (unlikely(ret)) {
+		if(p_send_wqe) {
+			mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
+			mem_buf_tx_release(p_mem_buf_desc, true);
+		}
+	}
+	else {
+		// Update TX statistics
+		sg_array sga(p_send_wqe->sg_list, p_send_wqe->num_sge);
+		m_p_ring_stat->n_tx_byte_count += sga.length();
+		++m_p_ring_stat->n_tx_pkt_count;
 	}
 }
 
