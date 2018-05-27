@@ -104,10 +104,10 @@ qp_mgr* ring_eth::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, 
 {
 #if defined(HAVE_INFINIBAND_MLX5_HW_H)
 	if (!m_b_is_hypervisor && qp_mgr::is_lib_mlx5(((ib_ctx_handler*)ib_ctx)->get_ibname())) {
-		return new qp_mgr_eth_mlx5(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), get_partition());
+		return new qp_mgr_eth_mlx5(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), m_partition);
 	}
 #endif
-	return new qp_mgr_eth(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), get_partition());
+	return new qp_mgr_eth(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), m_partition);
 }
 
 bool ring_eth::is_ratelimit_supported(struct vma_rate_limit_t &rate_limit)
@@ -122,7 +122,7 @@ bool ring_eth::is_ratelimit_supported(struct vma_rate_limit_t &rate_limit)
 
 qp_mgr* ring_ib::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel)
 {
-	return new qp_mgr_ib(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), get_partition());
+	return new qp_mgr_ib(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), m_partition);
 }
 
 bool ring_ib::is_ratelimit_supported(struct vma_rate_limit_t &rate_limit)
@@ -136,22 +136,17 @@ ring_simple::ring_simple(int if_index, ring* parent, ring_type_t type):
 	m_p_ib_ctx(NULL),
 	m_p_qp_mgr(NULL),
 	m_p_cq_mgr_rx(NULL),
-	m_lock_ring_rx("ring_simple:lock_rx"),
 	m_p_cq_mgr_tx(NULL),
-	m_lock_ring_tx("ring_simple:lock_tx"),
 	m_b_is_hypervisor(safe_mce_sys().hypervisor),
 	m_lock_ring_tx_buf_wait("ring:lock_tx_buf_wait"), m_tx_num_bufs(0), m_tx_num_wr(0), m_tx_num_wr_free(0),
 	m_b_qp_tx_first_flushed_completion_handled(false), m_missing_buf_ref_count(0),
 	m_tx_lkey(0),
 	m_gro_mgr(safe_mce_sys().gro_streams_max, MAX_GRO_BUFS), m_up(false),
 	m_p_rx_comp_event_channel(NULL), m_p_tx_comp_event_channel(NULL), m_p_l2_addr(NULL)
-	, m_b_sysvar_eth_mc_l2_only_rules(safe_mce_sys().eth_mc_l2_only_rules)
-	, m_b_sysvar_mc_force_flowtag(safe_mce_sys().mc_force_flowtag)
 #ifdef DEFINED_SOCKETXTREME
 	, m_rx_buffs_rdy_for_free_head(NULL) 
 	, m_rx_buffs_rdy_for_free_tail(NULL) 
 #endif // DEFINED_SOCKETXTREME		
-	, m_flow_tag_enabled(false)
 {
 	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
 	const slave_data_t * p_slave = p_ndev->get_slave(get_if_index());
@@ -172,9 +167,6 @@ ring_simple::ring_simple(int if_index, ring* parent, ring_type_t type):
 		__log_info_panic("invalid lkey found %lu", m_tx_lkey);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
-
-	/* initialize m_partition in ring_eth() or ring_ib() */
-	m_partition = 0;
 
 	/* initialization basing on ndev information */
 	m_local_if = p_ndev->get_local_addr();
@@ -1514,55 +1506,6 @@ void ring_simple::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wq
 	p_mem_buf_desc->lwip_pbuf.pbuf.ref++;
 	int ret = send_buffer(p_send_wqe, attr);
 	send_status_handler(ret, p_send_wqe);
-}
-
-void ring_simple::flow_udp_del_all()
-{
-	flow_spec_udp_key_t map_key_udp;
-	flow_spec_udp_map_t::iterator itr_udp;
-
-	itr_udp = m_flow_udp_uc_map.begin();
-	while (itr_udp != m_flow_udp_uc_map.end()) {
-		rfs *p_rfs = itr_udp->second;
-		map_key_udp = itr_udp->first;
-		if (p_rfs) {
-			delete p_rfs;
-		}
-		if (!(m_flow_udp_uc_map.del(map_key_udp))) {
-			ring_logdbg("Could not find rfs object to delete in ring udp uc hash map!");
-		}
-		itr_udp =  m_flow_udp_uc_map.begin();
-	}
-
-	itr_udp = m_flow_udp_mc_map.begin();
-	while (itr_udp != m_flow_udp_mc_map.end()) {
-		rfs *p_rfs = itr_udp->second;
-		map_key_udp = itr_udp->first;
-		if (p_rfs) {
-			delete p_rfs;
-		}
-		if (!(m_flow_udp_mc_map.del(map_key_udp))) {
-			ring_logdbg("Could not find rfs object to delete in ring udp mc hash map!");
-		}
-		itr_udp =  m_flow_udp_mc_map.begin();
-	}
-}
-
-void ring_simple::flow_tcp_del_all()
-{
-	flow_spec_tcp_key_t map_key_tcp;
-	flow_spec_tcp_map_t::iterator itr_tcp;
-
-	while ((itr_tcp = m_flow_tcp_map.begin()) != m_flow_tcp_map.end()) {
-		rfs *p_rfs = itr_tcp->second;
-		map_key_tcp = itr_tcp->first;
-		if (p_rfs) {
-			delete p_rfs;
-		}
-		if (!(m_flow_tcp_map.del(map_key_tcp))) {
-			ring_logdbg("Could not find rfs object to delete in ring tcp hash map!");
-		}
-	}
 }
 
 /*

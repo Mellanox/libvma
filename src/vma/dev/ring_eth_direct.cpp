@@ -57,7 +57,7 @@ qp_mgr* ring_eth_direct::create_qp_mgr(const ib_ctx_handler* ib_ctx,
 {
 #if defined(HAVE_INFINIBAND_MLX5_HW_H)
 	return new qp_mgr_eth_direct(this, ib_ctx, port_num, p_rx_comp_event_channel,
-				     get_tx_num_wr(), get_partition());
+				     get_tx_num_wr(), m_partition);
 #endif
 	NOT_IN_USE(ib_ctx);
 	NOT_IN_USE(port_num);
