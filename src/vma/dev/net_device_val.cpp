@@ -537,7 +537,8 @@ void net_device_val::set_slave_array()
 		m_slaves.push_back(s);
 
 		if (get_netvsc_slave(get_ifname_link(), &slave_ifa)) {
-			if (slave_ifa.ifa_flags & IFF_UP) {
+			if ((slave_ifa.ifa_flags & IFF_UP) &&
+					verify_eth_qp_creation(slave_ifa.ifa_name)) {
 				s = new slave_data_t(if_nametoindex(slave_ifa.ifa_name));
 				m_slaves.push_back(s);
 			}
