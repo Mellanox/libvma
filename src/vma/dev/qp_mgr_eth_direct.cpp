@@ -32,6 +32,8 @@
 #include "qp_mgr_eth_direct.h"
 #include "vlogger/vlogger.h"
 #include "vma/util/valgrind.h"
+#include "cq_mgr_mlx5.h"
+#include "ring_simple.h"
 
 #if defined(HAVE_INFINIBAND_MLX5_HW_H)
 
@@ -50,9 +52,32 @@ qp_mgr_eth_direct::qp_mgr_eth_direct(const ring_simple* p_ring,
 		ibv_comp_channel* p_rx_comp_event_channel,
 		const uint32_t tx_num_wr, const uint16_t vlan):
 			qp_mgr_eth_mlx5(p_ring, p_context, port_num,
-				p_rx_comp_event_channel, tx_num_wr, vlan)
+				p_rx_comp_event_channel, tx_num_wr, vlan, false)
 {
+	// must be called from this class to call derived prepare_ibv_qp
+	if (configure(p_rx_comp_event_channel)) {
+		throw_vma_exception("failed creating qp_mgr_eth");
+	}
 
+	qp_logfunc("m_p_qp= %p", m_qp);
+}
+
+cq_mgr* qp_mgr_eth_direct::init_tx_cq_mgr()
+{
+	m_tx_num_wr = m_p_ib_ctx_handler->get_ibv_device_attr()->max_qp_wr;
+	return new cq_mgr_mlx5(m_p_ring, m_p_ib_ctx_handler, m_tx_num_wr, m_p_ring->get_tx_comp_event_channel(), false);
+}
+
+int qp_mgr_eth_direct::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
+{
+	qp_init_attr.cap.max_send_wr = m_p_ib_ctx_handler->get_ibv_device_attr()->max_qp_wr;
+	qp_init_attr.cap.max_send_sge = 1;
+	qp_init_attr.cap.max_recv_sge = 1;
+	qp_init_attr.cap.max_inline_data = 0;
+	qp_init_attr.comp_mask |= IBV_EXP_QP_INIT_ATTR_CREATE_FLAGS;
+	qp_init_attr.exp_create_flags |= IBV_EXP_QP_CREATE_CROSS_CHANNEL;
+	qp_logdbg("using IBV_EXP_QP_CREATE_CROSS_CHANNEL in qp");
+	return qp_mgr_eth_mlx5::prepare_ibv_qp(qp_init_attr);
 }
 
 void qp_mgr_eth_direct::up()
