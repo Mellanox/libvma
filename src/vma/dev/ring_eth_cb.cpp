@@ -62,19 +62,15 @@ ring_eth_cb::ring_eth_cb(int if_index,
 			,m_external_mem(cb_ring->comp_mask & VMA_CB_EXTERNAL_MEM)
 
 {
-	net_device_val_eth* p_ndev =
-			dynamic_cast<net_device_val_eth *>(g_p_net_device_table_mgr->get_net_device_val(if_index));
-
-	create_resources((p_ndev ? p_ndev->get_vlan() : 0), cb_ring);
-	memset(m_sge_ptrs, 0, sizeof(m_sge_ptrs));
-}
-
-void ring_eth_cb::create_resources(uint16_t partition, vma_cyclic_buffer_ring_attr *cb_ring)
-{
 	struct ibv_exp_res_domain_init_attr res_domain_attr;
 
 	// check MP capabilities currently all caps are 0 due to a buf
 	vma_ibv_device_attr* r_ibv_dev_attr = m_p_ib_ctx->get_ibv_device_attr();
+
+	memset(&m_umr_wr, 0, sizeof(m_umr_wr));
+	memset(m_sge_ptrs, 0, sizeof(m_sge_ptrs));
+	m_p_umr_mr = NULL;
+	m_hdr_len = 0;
 
 	if (!r_ibv_dev_attr->max_ctx_res_domain) {
 		ring_logdbg("device doesn't support resource domain");
@@ -155,7 +151,10 @@ void ring_eth_cb::create_resources(uint16_t partition, vma_cyclic_buffer_ring_at
 		ring_logerr("failed creating UMR QP");
 		throw_vma_exception("failed creating UMR QP");
 	}
-	ring_simple::create_resources(partition);
+
+	/* Complete resources initialization */
+	ring_simple::create_resources();
+
 	m_is_mp_ring = true;
 }
 

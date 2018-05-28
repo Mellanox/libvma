@@ -45,13 +45,10 @@ ring_eth_direct::ring_eth_direct(int if_index,
 					ring_eth(if_index,
 						parent, false)
 {
-	net_device_val_eth* p_ndev =
-			dynamic_cast<net_device_val_eth *>(g_p_net_device_table_mgr->get_net_device_val(if_index));
-
-	if (p_ndev) {
-		create_resources(p_ndev->get_vlan());
-	}
 	m_ring_attr.comp_mask = ext_ring_attr->comp_mask;
+
+	/* Complete resources initialization */
+	ring_simple::create_resources();
 }
 
 qp_mgr* ring_eth_direct::create_qp_mgr(const ib_ctx_handler* ib_ctx,
