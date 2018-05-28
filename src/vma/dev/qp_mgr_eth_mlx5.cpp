@@ -211,6 +211,7 @@ cq_mgr* qp_mgr_eth_mlx5::init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event
 
 cq_mgr* qp_mgr_eth_mlx5::init_tx_cq_mgr()
 {
+	m_tx_num_wr = align32pow2(m_tx_num_wr);
 	return new cq_mgr_mlx5(m_p_ring, m_p_ib_ctx_handler, m_tx_num_wr, m_p_ring->get_tx_comp_event_channel(), false);
 }
 

@@ -578,6 +578,7 @@ void cq_mgr_mlx5::set_qp_rq(qp_mgr* qp)
 	m_cq_dbell = m_mlx5_cq->dbrec;
 	m_cqe_log_sz = ilog_2(m_mlx5_cq->cqe_sz);
 	m_cqes = ((uint8_t*)m_mlx5_cq->active_buf->buf) + m_mlx5_cq->cqe_sz - sizeof(struct mlx5_cqe64);
+	m_cq_size = m_p_ibv_cq->cqe + 1;
 }
 
 void cq_mgr_mlx5::add_qp_rx(qp_mgr* qp)
@@ -620,6 +621,7 @@ void cq_mgr_mlx5::add_qp_tx(qp_mgr* qp)
 	m_qp = static_cast<qp_mgr_eth_mlx5*> (qp);
 	m_cq_dbell = m_mlx5_cq->dbrec;
 	m_cqe_log_sz = ilog_2(m_mlx5_cq->cqe_sz);
+	m_cq_size = m_p_ibv_cq->cqe + 1;
 	m_cqes = ((uint8_t *)m_mlx5_cq->active_buf->buf) + m_mlx5_cq->cqe_sz - sizeof(struct mlx5_cqe64);
 	cq_logfunc("qp_mgr=%p m_cq_dbell=%p m_cqes=%p", m_qp, m_cq_dbell, m_cqes);
 }
