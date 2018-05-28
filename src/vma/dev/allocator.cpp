@@ -42,15 +42,7 @@ vma_allocator::vma_allocator()
 
 	m_shmid = -1;
 	m_data_block = NULL;
-	m_non_contig_access_mr = VMA_IBV_ACCESS_LOCAL_WRITE;
-#ifdef VMA_IBV_ACCESS_ALLOCATE_MR
-	m_is_contig_alloc = true;
-	m_contig_access_mr = VMA_IBV_ACCESS_LOCAL_WRITE |
-			     VMA_IBV_ACCESS_ALLOCATE_MR;
-#else
-	m_is_contig_alloc = false;
-	m_contig_access_mr = 0;
-#endif
+	m_mem_alloc_type = safe_mce_sys().mem_alloc_type;
 
 	__log_info_dbg("Done");
 }
@@ -60,12 +52,8 @@ vma_allocator::~vma_allocator()
 	__log_info_dbg("");
 
 	// Unregister memory
-	lkey_map_ib_ctx_map_t::iterator iter;
-	while ((iter = m_lkey_map_ib_ctx.begin()) != m_lkey_map_ib_ctx.end()) {
-		ib_ctx_handler* p_ib_ctx_h = iter->first;
-		p_ib_ctx_h->mem_dereg(iter->second);
-		m_lkey_map_ib_ctx.erase(iter);
-	}
+	deregister_memory();
+
 	// Release memory
 	if (m_shmid >= 0) { // Huge pages mode
 		BULLSEYE_EXCLUDE_BLOCK_START
@@ -74,7 +62,7 @@ vma_allocator::~vma_allocator()
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 	// in contig mode 'ibv_dereg_mr' will free all allocates resources
-	} else if (!m_is_contig_alloc) {
+	} else if (ALLOC_TYPE_CONTIG != m_mem_alloc_type) {
 		if (m_data_block)
 			free(m_data_block);
 	}
@@ -84,6 +72,8 @@ vma_allocator::~vma_allocator()
 
 void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
 {
+	uint64_t access = VMA_IBV_ACCESS_LOCAL_WRITE;
+
 	switch (safe_mce_sys().mem_alloc_type) {
 	case ALLOC_TYPE_HUGEPAGES:
 		if (!hugetlb_alloc(size)) {
@@ -93,30 +83,32 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
 		else {
 			__log_info_dbg("Huge pages allocation passed successfully");
 			if (g_p_ib_ctx_handler_collection->get_ib_cxt_list() &&
-					!register_memory(size, p_ib_ctx_h, m_non_contig_access_mr)) {
+					!register_memory(size, p_ib_ctx_h, access)) {
 				__log_info_dbg("failed registering huge pages data memory block");
 				throw_vma_exception("failed registering huge pages data memory"
 						" block");
 			}
+			m_mem_alloc_type = ALLOC_TYPE_HUGEPAGES;
 			break;
 		}
 	// fallthrough
 	case ALLOC_TYPE_CONTIG:
-		if (m_is_contig_alloc &&
-				g_p_ib_ctx_handler_collection->get_ib_cxt_list()) {
-			if (!register_memory(size, p_ib_ctx_h, m_contig_access_mr)) {
+#ifdef VMA_IBV_ACCESS_ALLOCATE_MR
+		if (!safe_mce_sys().is_hypervisor && g_p_ib_ctx_handler_collection->get_ib_cxt_list()) {
+			if (!register_memory(size, p_ib_ctx_h, (access | VMA_IBV_ACCESS_ALLOCATE_MR))) {
 				__log_info_dbg("Failed allocating contiguous pages");
 			}
 			else {
 				__log_info_dbg("Contiguous pages allocation passed successfully");
+				m_mem_alloc_type = ALLOC_TYPE_CONTIG;
 				break;
 			}
 		}
+#endif
 	// fallthrough
 	case ALLOC_TYPE_ANON:
 	default:
 		__log_info_dbg("allocating memory using malloc()");
-		m_is_contig_alloc = false;
 		m_data_block = malloc(size);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (m_data_block == NULL) {
@@ -126,10 +118,11 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 		if (g_p_ib_ctx_handler_collection->get_ib_cxt_list() &&
-				!register_memory(size, p_ib_ctx_h, m_non_contig_access_mr)) {
+				!register_memory(size, p_ib_ctx_h, access)) {
 			__log_info_dbg("failed registering data memory block");
 			throw_vma_exception("failed registering data memory block");
 		}
+		m_mem_alloc_type = ALLOC_TYPE_ANON;
 		break;
 	}
 	__log_info_dbg("allocated memory at %p, size %zd", m_data_block, size);
@@ -290,4 +283,26 @@ bool vma_allocator::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h,
 	}
 
 	return true;
+}
+
+void vma_allocator::deregister_memory()
+{
+	ib_ctx_handler *p_ib_ctx_h = NULL;
+	ib_context_map_t *ib_ctx_map = NULL;
+	uint32_t lkey = (uint32_t)(-1);
+
+	ib_ctx_map = g_p_ib_ctx_handler_collection->get_ib_cxt_list();
+	if (ib_ctx_map) {
+		ib_context_map_t::iterator iter;
+
+		for (iter = ib_ctx_map->begin(); iter != ib_ctx_map->end(); iter++) {
+			p_ib_ctx_h = iter->second;
+			lkey = find_lkey_by_ib_ctx(p_ib_ctx_h);
+			if (lkey != (uint32_t)(-1)) {
+				p_ib_ctx_h->mem_dereg(lkey);
+				m_lkey_map_ib_ctx.erase(p_ib_ctx_h);
+			}
+		}
+	}
+	m_lkey_map_ib_ctx.clear();
 }

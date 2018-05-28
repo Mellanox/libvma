@@ -143,8 +143,8 @@ typedef struct slave_data {
         int 		port_num;
         L2_address* 	p_L2_addr;
         bool 		active;
-	slave_data() :
-		if_index(0), p_ib_ctx(NULL), port_num(-1), p_L2_addr(NULL), active(false) {}
+	slave_data(int _if_index) :
+		if_index(_if_index), p_ib_ctx(NULL), port_num(-1), p_L2_addr(NULL), active(false) {}
 	~slave_data() {
 		delete p_L2_addr;
 		p_L2_addr = NULL;
@@ -263,6 +263,7 @@ public:
 	inline bond_type  get_is_bond() { return m_bond; }
 	inline bond_xmit_hash_policy get_bond_xmit_hash_policy() { return m_bond_xmit_hash_policy; }
 	bool 			update_active_slaves();
+	bool 			update_netvsc_slaves();
 	void 			register_to_ibverbs_events(event_handler_ibverbs *handler);
 	void 			unregister_to_ibverbs_events(event_handler_ibverbs *handler);
 

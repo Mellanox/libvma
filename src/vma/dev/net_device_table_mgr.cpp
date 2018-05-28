@@ -145,6 +145,7 @@ void net_device_table_mgr::free_ndtm_resources()
 		delete itr->second;
 		m_net_device_map_index.erase(itr);
 	}
+	m_net_device_map_addr.clear();
 
 	m_lock.unlock();
 }
@@ -196,6 +197,7 @@ void net_device_table_mgr::update_tbl()
 	}
 
 	m_lock.lock();
+
 	do {
 		/* Receive the netlink reply */
 		rc = orig_os_api.recv(fd, nl_res, sizeof(nl_res), 0);
@@ -219,6 +221,7 @@ void net_device_table_mgr::update_tbl()
 			/* Skip some types */
 			if (!(nl_msgdata->ifi_flags & IFF_SLAVE)) {
 				struct net_device_val::net_device_val_desc desc = {nl_msg};
+				/* Add new interfaces */
 				switch (nl_msgdata->ifi_type) {
 				case ARPHRD_ETHER:
 					p_net_device_val = new net_device_val_eth(&desc);
@@ -262,6 +265,7 @@ next:
 	} while (1);
 
 ret:
+
 	m_lock.unlock();
 	ndtm_logdbg("Check completed. Found %d offload capable network interfaces", m_net_device_map_index.size());
 
@@ -297,20 +301,54 @@ net_device_val* net_device_table_mgr::get_net_device_val(in_addr_t local_addr)
 
 net_device_val* net_device_table_mgr::get_net_device_val(int if_index)
 {
+	net_device_map_index_t::iterator iter;
+	net_device_val* net_dev = NULL;
+
 	auto_unlocker lock(m_lock);
 
-	net_device_map_index_t::iterator iter = m_net_device_map_index.find(if_index);
-	if (iter != m_net_device_map_index.end()) {
-		net_device_val* net_dev = iter->second;
-		ndtm_logdbg("Found %s for index: %d", net_dev->to_str().c_str(), if_index);
-		if (net_dev->get_state() == net_device_val::INVALID) {
-			ndtm_logdbg("invalid net_device %s", net_dev->to_str().c_str());
-			return NULL;
+	/* Find master interface */
+	for (iter = m_net_device_map_index.begin(); iter != m_net_device_map_index.end(); iter++) {
+		net_dev = iter->second;
+		/* Check if interface is master */
+		if (if_index == net_dev->get_if_idx()) {
+			goto out;
 		}
-		return iter->second;
+		/* Check if interface is slave */
+		const slave_data_vector_t& slaves = net_dev->get_slave_array();
+		for (size_t i = 0; i < slaves.size(); i++) {
+			if (if_index == slaves[i]->if_index) {
+				goto out;
+			}
+		}
+		/* Check if interface is new slave */
+		char if_name[IFNAMSIZ] = {0};
+		char sys_path[256] = {0};
+		int ret = 0;
+		if (if_indextoname(if_index, if_name)) {
+			ret = snprintf(sys_path, sizeof(sys_path), NETVSC_DEVICE_UPPER_FILE, if_name, net_dev->get_ifname());
+			if (ret > 0 && (size_t)ret < sizeof(sys_path)) {
+				ret = errno; /* to suppress errno */
+				int fd = open(sys_path, O_RDONLY);
+				if (fd >= 0) {
+					close(fd);
+					goto out;
+				}
+				errno = ret;
+			}
+		}
 	}
+
 	ndtm_logdbg("Can't find net_device for index: %d", if_index);
 	return NULL;
+
+out:
+
+	ndtm_logdbg("Found %s for index: %d", net_dev->to_str().c_str(), if_index);
+	if (net_dev->get_state() == net_device_val::INVALID) {
+		ndtm_logdbg("invalid net_device %s", net_dev->to_str().c_str());
+		return NULL;
+	}
+	return net_dev;
 }
 
 net_device_entry* net_device_table_mgr::create_new_entry(ip_address local_ip, const observer* obs)
@@ -339,7 +377,8 @@ std::string net_device_table_mgr::to_str()
 		rv += "\n";
 		net_device_iter++;
 	}
-	return rv;}
+	return rv;
+}
 
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
@@ -378,8 +417,8 @@ int net_device_table_mgr::global_ring_poll_and_process_element(uint64_t *p_poll_
 	ndtm_logfunc("");
 	int ret_total = 0;
 
-	net_device_map_addr_t::iterator net_dev_iter;
-	for (net_dev_iter=m_net_device_map_addr.begin(); net_dev_iter!=m_net_device_map_addr.end(); net_dev_iter++) {
+	net_device_map_index_t::iterator net_dev_iter;
+	for (net_dev_iter=m_net_device_map_index.begin(); net_dev_iter!=m_net_device_map_index.end(); net_dev_iter++) {
 		int ret = net_dev_iter->second->global_ring_poll_and_process_element(p_poll_sn, pv_fd_ready_array);
 		if (ret < 0) {
 			ndtm_logdbg("Error in net_device_val[%p]->poll_and_process_element() (errno=%d %m)", net_dev_iter->second, errno);
@@ -399,8 +438,8 @@ int net_device_table_mgr::global_ring_request_notification(uint64_t poll_sn)
 {
 	ndtm_logfunc("");
 	int ret_total = 0;
-	net_device_map_addr_t::iterator net_dev_iter;
-	for (net_dev_iter = m_net_device_map_addr.begin(); m_net_device_map_addr.end() != net_dev_iter; net_dev_iter++) {
+	net_device_map_index_t::iterator net_dev_iter;
+	for (net_dev_iter = m_net_device_map_index.begin(); m_net_device_map_index.end() != net_dev_iter; net_dev_iter++) {
 		int ret = net_dev_iter->second->global_ring_request_notification(poll_sn);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (ret < 0) {
@@ -473,8 +512,8 @@ int net_device_table_mgr::global_ring_drain_and_procces()
 	ndtm_logfuncall("");
 	int ret_total = 0;
 
-	net_device_map_addr_t::iterator net_dev_iter;
-        for (net_dev_iter=m_net_device_map_addr.begin(); m_net_device_map_addr.end() != net_dev_iter; net_dev_iter++) {
+	net_device_map_index_t::iterator net_dev_iter;
+        for (net_dev_iter=m_net_device_map_index.begin(); m_net_device_map_index.end() != net_dev_iter; net_dev_iter++) {
 		int ret = net_dev_iter->second->ring_drain_and_proccess();
 		if (ret < 0 && errno!= EBUSY) {
 			ndtm_logerr("Error in ring[%p]->drain() (errno=%d %m)", net_dev_iter->second, errno);
@@ -494,8 +533,8 @@ void net_device_table_mgr::global_ring_adapt_cq_moderation()
 {
 	ndtm_logfuncall("");
 
-	net_device_map_addr_t::iterator net_dev_iter;
-	for (net_dev_iter=m_net_device_map_addr.begin(); m_net_device_map_addr.end() != net_dev_iter; net_dev_iter++) {
+	net_device_map_index_t::iterator net_dev_iter;
+	for (net_dev_iter=m_net_device_map_index.begin(); m_net_device_map_index.end() != net_dev_iter; net_dev_iter++) {
 		net_dev_iter->second->ring_adapt_cq_moderation();
 	}
 }
@@ -553,23 +592,32 @@ uint32_t net_device_table_mgr::get_max_mtu()
 
 void net_device_table_mgr::del_link_event(const netlink_link_info* info)
 {
-	net_device_map_index_t::iterator itr;
-	int if_index = info->ifindex;
-
 	ndtm_logdbg("netlink event: RTM_DELLINK if_index: %d", info->ifindex);
-
-	itr = m_net_device_map_index.find(if_index);
-	if(itr != m_net_device_map_index.end()) {
-		ndtm_logdbg("found entry [%p]: %s", itr->second, itr->second->to_str().c_str());
-	}
 }
 
 void net_device_table_mgr::new_link_event(const netlink_link_info* info)
 {
 	ndtm_logdbg("netlink event: RTM_NEWLINK if_index: %d", info->ifindex);
 
-	update_tbl();
-	print_val_tbl();
+	if (info->flags & IFF_SLAVE) {
+		net_device_map_index_t::iterator itr;
+		net_device_val* net_dev = NULL;
+		int if_index = info->ifindex;
+
+		ndtm_logdbg("netlink event: if_index: %d state: %s",
+				info->ifindex, (info->flags & IFF_RUNNING ? "Up" : "Down"));
+
+		net_dev = get_net_device_val(if_index);
+		if (net_dev &&
+				(if_index != net_dev->get_if_idx()) &&
+				(net_dev->get_is_bond() == net_device_val::NETVSC) &&
+				((net_dev->get_slave(if_index) && !(info->flags & IFF_RUNNING)) ||
+						(!net_dev->get_slave(if_index) && (info->flags & IFF_RUNNING)))) {
+			ndtm_logdbg("found entry [%p]: if_index: %d : %s",
+					net_dev, net_dev->get_if_idx(), net_dev->get_ifname());
+			net_dev->update_netvsc_slaves();
+		}
+	}
 }
 
 void net_device_table_mgr::notify_cb(event *ev)

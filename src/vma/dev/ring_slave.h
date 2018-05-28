@@ -150,7 +150,7 @@ public:
 
 	virtual void print_val();
 
-	virtual void        restart(ring_resource_creation_info_t* p_ring_info);
+	virtual void        restart();
 
 	virtual int         get_num_resources() const { return 1; };
 	virtual bool        is_member(mem_buf_desc_owner* rng);

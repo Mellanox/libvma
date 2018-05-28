@@ -66,7 +66,7 @@ protected:
 
 public:
 	/* careful, you'll lose the previous key !! */
-	resource_allocation_key* create_new_key(int suggested_cpu = NO_CPU);
+	resource_allocation_key* create_new_key(in_addr_t addr = INADDR_ANY, int suggested_cpu = NO_CPU);
 
 	resource_allocation_key* get_key() { return &m_res_key; }
 

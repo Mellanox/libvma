@@ -52,7 +52,7 @@ public:
 		return last_opcode;
 	}
 
-#ifndef VMA_NO_HW_CSUM
+#ifndef DEFINED_SW_CSUM
 	inline void  enable_hw_csum (vma_ibv_send_wr &send_wqe) { vma_send_wr_send_flags(send_wqe) |= VMA_IBV_SEND_IP_CSUM; }
 	inline void disable_hw_csum (vma_ibv_send_wr &send_wqe) { vma_send_wr_send_flags(send_wqe) &= ~VMA_IBV_SEND_IP_CSUM; }
 #else

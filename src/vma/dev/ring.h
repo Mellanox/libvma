@@ -56,15 +56,6 @@ typedef enum {
 	CQT_TX
 } cq_type_t;
 
-
-typedef struct {
-	int             if_index;   /* unique index of network device */
-	ib_ctx_handler* p_ib_ctx;   /* pointer to object for ib device with offload ability */
-	uint8_t         port_num;   /* port number */
-	L2_address*     p_l2_addr;  /* L2 address */
-	bool            active;     /* active indication */
-} ring_resource_creation_info_t;
-
 typedef int ring_user_id_t;
 
 #ifdef DEFINED_SOCKETXTREME	
@@ -95,14 +86,14 @@ public:
 	virtual bool		attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) = 0;
 	virtual bool		detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink) = 0;
 
-	virtual void		restart(ring_resource_creation_info_t* p_ring_info) = 0;
+	virtual void		restart() = 0;
 
 	// Funcs taken from qp_mgr.h
 	// Get/Release memory buffer descriptor with a linked data memory buffer
 	virtual mem_buf_desc_t*	mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_num_mem_bufs = 1) = 0;
 	virtual int		mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting, bool trylock = false) = 0;
 	virtual void		send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr) = 0;
-	virtual void		send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block) = 0;
+	virtual void		send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr) = 0;
 
 	// Funcs taken from cq_mgr.h
 	virtual int		get_num_resources() const = 0;

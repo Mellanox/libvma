@@ -94,9 +94,8 @@ void ring_slave::print_val()
 			(m_type == RING_SIMPLE ? "simple" : "tap"));
 }
 
-void ring_slave::restart(ring_resource_creation_info_t* p_ring_info)
+void ring_slave::restart()
 {
-	NOT_IN_USE(p_ring_info);
 	ring_logpanic("Can't restart a slave ring");
 }
 

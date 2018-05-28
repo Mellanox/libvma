@@ -48,15 +48,14 @@ public:
 	void* get_ptr() const {return m_data_block;}
 	uint32_t find_lkey_by_ib_ctx(ib_ctx_handler *p_ib_ctx_h) const;
 	ibv_mr* find_ibv_mr_by_ib_ctx(ib_ctx_handler *p_ib_ctx_h) const;
-private:
 	bool register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint64_t access);
+	void deregister_memory();
+private:
 	bool hugetlb_alloc(size_t sz_bytes);
 	lkey_map_ib_ctx_map_t m_lkey_map_ib_ctx;
 	int m_shmid;
 	void *m_data_block;
-	bool m_is_contig_alloc;
-	uint64_t m_contig_access_mr;
-	uint64_t m_non_contig_access_mr;
+	alloc_mode_t m_mem_alloc_type;
 };
 
 #endif /* SRC_VMA_DEV_ALLOCATOR_H_ */

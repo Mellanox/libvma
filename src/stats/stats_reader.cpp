@@ -243,9 +243,13 @@ void update_delta_ring_stat(ring_stats_t* p_curr_ring_stats, ring_stats_t* p_pre
 			p_prev_ring_stats->simple.n_tx_dev_mem_byte_count = (p_curr_ring_stats->simple.n_tx_dev_mem_byte_count - p_prev_ring_stats->simple.n_tx_dev_mem_byte_count) / delay;
 			p_prev_ring_stats->simple.n_tx_dev_mem_pkt_count = (p_curr_ring_stats->simple.n_tx_dev_mem_pkt_count - p_prev_ring_stats->simple.n_tx_dev_mem_pkt_count) / delay;
 			p_prev_ring_stats->simple.n_tx_dev_mem_oob = (p_curr_ring_stats->simple.n_tx_dev_mem_oob - p_prev_ring_stats->simple.n_tx_dev_mem_oob) / delay;
+		} else if (p_prev_ring_stats->n_type == RING_TAP) {
+			memcpy(p_prev_ring_stats->tap.s_tap_name, p_curr_ring_stats->tap.s_tap_name, sizeof(p_curr_ring_stats->tap.s_tap_name));
+			p_prev_ring_stats->tap.n_tap_fd = p_curr_ring_stats->tap.n_tap_fd;
+			p_prev_ring_stats->tap.n_rx_buffers = p_curr_ring_stats->tap.n_rx_buffers;
+			p_prev_ring_stats->tap.n_vf_plugouts = (p_curr_ring_stats->tap.n_vf_plugouts - p_prev_ring_stats->tap.n_vf_plugouts);
 		}
 	}
-
 }
 
 void update_delta_cq_stat(cq_stats_t* p_curr_cq_stats, cq_stats_t* p_prev_cq_stats)
@@ -309,6 +313,7 @@ void print_ring_stats(ring_instance_block_t* p_ring_inst_arr)
 				}
 			} else {
 				printf(FORMAT_RING_32bit, "Rx Buffers:", p_ring_stats->tap.n_rx_buffers);
+				printf(FORMAT_RING_32bit, "VF Plugouts:", p_ring_stats->tap.n_vf_plugouts);
 				printf(FORMAT_RING_32bit, "Tap fd:", p_ring_stats->tap.n_tap_fd);
 				printf(FORMAT_RING_TAP_NAME, "Tap Device:", p_ring_stats->tap.s_tap_name);
 			}
@@ -1327,6 +1332,9 @@ void zero_ring_stats(ring_stats_t* p_ring_stats)
 		p_ring_stats->simple.n_tx_dev_mem_byte_count = 0;
 		p_ring_stats->simple.n_tx_dev_mem_pkt_count = 0;
 		p_ring_stats->simple.n_tx_dev_mem_oob = 0;
+	}
+	else if (p_ring_stats->n_type == RING_TAP) {
+		p_ring_stats->tap.n_vf_plugouts = 0;
 	}
 }
 

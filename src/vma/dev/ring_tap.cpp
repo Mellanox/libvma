@@ -56,7 +56,6 @@ ring_tap::ring_tap(int if_index, ring* parent):
 	char tap_if_name[IFNAMSIZ] = {0};
 	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
 
-	m_vf_ring = NULL;
 	m_tap_data_available = false;
 	m_tap_fd = p_ndev->get_tap_fd();
 	m_local_if = p_ndev->get_local_addr();
@@ -490,6 +489,13 @@ bool ring_tap::reclaim_recv_buffers(descq_t *rx_reuse)
 	while (!rx_reuse->empty()) {
 		mem_buf_desc_t* buff = rx_reuse->get_and_pop_front();
 		reclaim_recv_buffers(buff);
+	}
+
+	if (m_rx_pool.size() >= m_sysvar_qp_compensation_level * 2) {
+		int buff_to_rel = m_rx_pool.size() - m_sysvar_qp_compensation_level;
+
+		g_buffer_pool_rx->put_buffers_thread_safe(&m_rx_pool, buff_to_rel);
+		m_p_ring_stat->tap.n_rx_buffers = m_rx_pool.size();
 	}
 
 	return true;
@@ -962,18 +968,21 @@ bool ring_tap::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_r
 void ring_tap::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 {
 	NOT_IN_USE(id);
+	compute_tx_checksum((mem_buf_desc_t*)(p_send_wqe->wr_id), attr & VMA_TX_PACKET_L3_CSUM, attr & VMA_TX_PACKET_L4_CSUM);
+
 	auto_unlocker lock(m_lock_ring_tx);
 	int ret = send_buffer(p_send_wqe, attr);
 	send_status_handler(ret, p_send_wqe);
 }
 
-void ring_tap::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block)
+void ring_tap::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 {
 	NOT_IN_USE(id);
+	compute_tx_checksum((mem_buf_desc_t*)(p_send_wqe->wr_id), attr & VMA_TX_PACKET_L3_CSUM, attr & VMA_TX_PACKET_L4_CSUM);
+
 	auto_unlocker lock(m_lock_ring_tx);
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
 	p_mem_buf_desc->lwip_pbuf.pbuf.ref++;
-	vma_wr_tx_packet_attr attr = (vma_wr_tx_packet_attr)((b_block*VMA_TX_PACKET_BLOCK)|VMA_TX_PACKET_L3_CSUM|VMA_TX_PACKET_L4_CSUM);
 	int ret = send_buffer(p_send_wqe, attr);
 	send_status_handler(ret, p_send_wqe);
 }

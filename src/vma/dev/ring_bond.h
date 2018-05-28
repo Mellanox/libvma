@@ -70,12 +70,12 @@ public:
 	virtual int		get_max_tx_inline();
 	virtual bool		attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
 	virtual bool		detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
-	virtual void		restart(ring_resource_creation_info_t* p_ring_info);
+	virtual void		restart();
 	virtual mem_buf_desc_t* mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_num_mem_bufs = 1);
 	virtual int		mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting, bool trylock = false);
 	virtual void		inc_tx_retransmissions(ring_user_id_t id);
 	virtual void		send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
-	virtual void		send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, bool b_block);
+	virtual void		send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 	virtual bool		is_member(mem_buf_desc_owner* rng);
 	virtual bool		is_active_member(mem_buf_desc_owner* rng, ring_user_id_t id);
 	virtual ring_user_id_t	generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port);
@@ -92,16 +92,15 @@ protected:
 	void			popup_active_rings();
 	ring_slave_vector_t     m_bond_rings;
 	std::vector<struct flow_sink_t> m_rx_flows;
-	lock_mutex              m_lock;
-	lock_mutex_recursive	m_lock_ring_rx;
 	int			m_min_devices_tx_inline;
 
 private:
-	void			devide_buffers_helper(descq_t *rx_reuse, descq_t *buffer_per_ring);
-	void			devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_buf_desc_t** buffer_per_ring);
+	void devide_buffers_helper(descq_t *rx_reuse, descq_t *buffer_per_ring);
+	int devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_buf_desc_t** buffer_per_ring);
 
 	net_device_val::bond_type m_type;
 	net_device_val::bond_xmit_hash_policy m_xmit_hash_policy;
+	lock_mutex_recursive	m_lock_ring_rx;
 	lock_mutex_recursive	m_lock_ring_tx;
 };
 
@@ -158,12 +157,6 @@ public:
 			for (size_t i = 0; i < slaves.size(); i++) {
 				slave_create(slaves[i]->if_index);
 			}
-			if (m_tap_ring && m_vf_ring) {
-				ring_tap* p_ring_tap = dynamic_cast<ring_tap*>(m_tap_ring);
-				if (p_ring_tap) {
-					p_ring_tap->set_vf_ring(m_vf_ring);
-				}
-			}
 		}
 	}
 
@@ -172,7 +165,7 @@ public:
 protected:
 	virtual void slave_create(int if_index);
 
-private:
+public:
 	ring_slave*      m_vf_ring;
 	ring_slave*      m_tap_ring;
 };

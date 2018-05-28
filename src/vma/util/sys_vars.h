@@ -84,6 +84,7 @@ static inline bool is_ring_logic_valid(ring_logic_t logic)
 	case RING_LOGIC_PER_THREAD:
 	case RING_LOGIC_PER_CORE:
 	case RING_LOGIC_PER_CORE_ATTACH_THREADS:
+	case RING_LOGIC_PER_IP:
 		return true;
 	default:
 		return false;
@@ -98,6 +99,7 @@ static inline const char* ring_logic_str(ring_logic_t logic)
 	case RING_LOGIC_PER_THREAD:		return "(Ring per thread)";
 	case RING_LOGIC_PER_CORE:		return "(Ring per core)";
 	case RING_LOGIC_PER_CORE_ATTACH_THREADS: return "(Ring per core - attach threads)";
+	case RING_LOGIC_PER_IP:		return "(Ring per ip)";
 	default:				break;
 	}
 	return "unsupported";
@@ -407,6 +409,8 @@ struct mce_sys_var {
 	bool		is_hypervisor;
 	bool		trigger_dummy_send_getsockname;
 
+	bool cpuid_hv();
+
 private:
 	void print_vma_load_failure_msg();
 	int list_to_cpuset(char *cpulist, cpu_set_t *cpu_set);
@@ -414,6 +418,7 @@ private:
 	int env_to_cpuset(char *orig_start, cpu_set_t *cpu_set);
 	void read_env_variable_with_pid(char* mce_sys_name, size_t mce_sys_max_size, char* env_ptr);
 	bool check_cpuinfo_flag(const char* flag);
+	const char* cpuid_hv_vendor();
 
 	// prevent unautothrized creation of objects
 	mce_sys_var () : sysctl_reader(sysctl_reader_t::instance()){
@@ -703,6 +708,7 @@ extern mce_sys_var & safe_mce_sys();
 
 #define NETVSC_DEVICE_CLASS_FILE		"/sys/class/net/%s/device/class_id"
 #define NETVSC_DEVICE_LOWER_FILE		"/sys/class/net/%s/lower_%s/ifindex"
+#define NETVSC_DEVICE_UPPER_FILE		"/sys/class/net/%s/upper_%s/ifindex"
 #define NETVSC_ID               		"{f8615163-df3e-46c5-913f-f2d2f965ed0e}\n"
 
 #define MAX_STATS_FD_NUM				1024

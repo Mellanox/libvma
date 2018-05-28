@@ -30,6 +30,7 @@
  * SOFTWARE.
  */
 
+#include <vector>
 
 #include "utils/bullseye.h"
 #include "vlogger/vlogger.h"
@@ -85,12 +86,13 @@ void ib_ctx_handler_collection::update_tbl()
 	ib_ctx_handler * p_ib_ctx_handler = NULL;
 	int num_devices = 0;
 	int i;
+	std::vector<struct ibv_device*> cache_objs;
 
-	dev_list = ibv_get_device_list(&num_devices);
+	dev_list = vma_ibv_get_device_list(&num_devices);
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!dev_list) {
-		ibchc_logwarn("Failure in ibv_get_device_list() (error=%d %m)", errno);
+		ibchc_logwarn("Failure in vma_ibv_get_device_list() (error=%d %m)", errno);
 		ibchc_logwarn("Please check OFED installation");
 		throw_vma_exception("No IB capable devices found!");
 	}
@@ -109,7 +111,43 @@ void ib_ctx_handler_collection::update_tbl()
 	m_ctx_time_conversion_mode = time_converter::get_devices_converter_status(dev_list, num_devices);
 	ibchc_logdbg("TS converter status was set to %d", m_ctx_time_conversion_mode);
 
+
+	/* update_tbl() function is implemented to support removing unused(removed)
+	 * ib devices in case plugout scenario and adding new devices during
+	 * plugin flow.
+	 * Algorithm:
+	 * 1. save current ib elements in cache_objs before processing device list returned by netlink
+	 * 2. remove from cache_objs record about elements that exist in netlink respond
+	 * 3. add ib that is not found in cache_objs during processing netlink information
+	 * 4. remove all ib elements that remain in cache_objs on final stage
+	 */
+	/* 1. Initialize cache */
+	{
+		ib_context_map_t::iterator iter;
+		cache_objs.reserve(m_ib_ctx_map.size());
+		for (iter = m_ib_ctx_map.begin(); iter != m_ib_ctx_map.end(); iter++) {
+			cache_objs.push_back(iter->first);
+		}
+	}
+
 	for (i = 0; i < num_devices; i++) {
+		struct ib_ctx_handler::ib_ctx_handler_desc desc = {dev_list[i], m_ctx_time_conversion_mode};
+
+		/* 2. Skip existing devices (compare by name) */
+		ib_context_map_t::iterator ib_ctx_itr;
+		for (ib_ctx_itr = m_ib_ctx_map.begin(); ib_ctx_itr != m_ib_ctx_map.end(); ib_ctx_itr++) {
+			if (strcmp(dev_list[i]->name, ib_ctx_itr->first->name) == 0) {
+				std::vector<struct ibv_device*>::iterator cache_iter;
+				while ((cache_iter = cache_objs.begin()) != cache_objs.end()) {
+					if (strcmp(dev_list[i]->name, (*cache_iter)->name) == 0) {
+						cache_objs.erase(cache_iter);
+						break;
+					}
+				}
+				goto next;
+			}
+		}
+
 #ifdef DEFINED_SOCKETXTREME
 		// only support mlx5 device in this mode
 		if(strncmp(dev_list[i]->name, "mlx4", 4) == 0) {
@@ -117,12 +155,27 @@ void ib_ctx_handler_collection::update_tbl()
 			continue;
 		}
 #endif // DEFINED_SOCKETXTREME
-		p_ib_ctx_handler = new ib_ctx_handler(dev_list[i], m_ctx_time_conversion_mode);
+		/* 3. Add new ib devices */
+		p_ib_ctx_handler = new ib_ctx_handler(&desc);
 		if (!p_ib_ctx_handler) {
 			ibchc_logerr("failed allocating new ib_ctx_handler (errno=%d %m)", errno);
 			continue;
 		}
-		m_ib_ctx_map[p_ib_ctx_handler->get_ibv_context()] = p_ib_ctx_handler;
+		m_ib_ctx_map[p_ib_ctx_handler->get_ibv_device()] = p_ib_ctx_handler;
+
+next:
+		continue;
+	}
+
+	/* 4. Cleanup devices that are not found after update */
+	std::vector<struct ibv_device*>::iterator cache_iter;
+	while ((cache_iter = cache_objs.begin()) != cache_objs.end()) {
+		ib_context_map_t::iterator dev_iter = m_ib_ctx_map.find(*cache_iter);
+		if (dev_iter != m_ib_ctx_map.end()) {
+			delete dev_iter->second;
+			m_ib_ctx_map.erase(dev_iter);
+			cache_objs.erase(cache_iter);
+		}
 	}
 
 	ibchc_logdbg("Check completed. Found %d offload capable IB devices", m_ib_ctx_map.size());
@@ -139,13 +192,6 @@ void ib_ctx_handler_collection::print_val_tbl()
 		ib_ctx_handler* p_ib_ctx_handler = itr->second;
 		p_ib_ctx_handler->print_val();
 	}
-}
-
-ib_ctx_handler* ib_ctx_handler_collection::get_ib_ctx(struct ibv_context* p_ibv_context)
-{
-	if (m_ib_ctx_map.count(p_ibv_context) > 0)
-		return m_ib_ctx_map[p_ibv_context];
-	return NULL;
 }
 
 ib_ctx_handler* ib_ctx_handler_collection::get_ib_ctx(const char *ifa_name)
@@ -198,4 +244,15 @@ ib_ctx_handler* ib_ctx_handler_collection::get_ib_ctx(const char *ifa_name)
 	}
 
 	return NULL;
+}
+
+void ib_ctx_handler_collection::del_ib_ctx(ib_ctx_handler* ib_ctx)
+{
+	if (ib_ctx) {
+		ib_context_map_t::iterator ib_ctx_iter = m_ib_ctx_map.find(ib_ctx->get_ibv_device());
+		if (ib_ctx_iter != m_ib_ctx_map.end()) {
+			delete ib_ctx_iter->second;
+			m_ib_ctx_map.erase(ib_ctx_iter);
+		}
+	}
 }

@@ -39,7 +39,7 @@
 #include "vma/util/verbs_extra.h"
 #include "ib_ctx_handler.h"
 
-typedef std::tr1::unordered_map<struct ibv_context*, ib_ctx_handler*>  ib_context_map_t;
+typedef std::tr1::unordered_map<struct ibv_device*, ib_ctx_handler*>  ib_context_map_t;
 
 class ib_ctx_handler_collection
 {
@@ -47,11 +47,15 @@ public:
 	ib_ctx_handler_collection();
 	~ib_ctx_handler_collection();
 
+	void update_tbl();
+	void print_val_tbl();
+
 	inline ib_context_map_t* get_ib_cxt_list() {
 		return (m_ib_ctx_map.size() ? &m_ib_ctx_map : NULL);
 	}
-	ib_ctx_handler* get_ib_ctx(struct ibv_context*);
 	ib_ctx_handler* get_ib_ctx(const char *ifa_name);
+	void del_ib_ctx(ib_ctx_handler* ib_ctx);
+
 	inline size_t get_num_devices() {
 		return m_ib_ctx_map.size();
 	};
@@ -60,8 +64,6 @@ public:
 	};
 
 private:
-	void update_tbl();
-	void print_val_tbl();
 
 	ib_context_map_t	m_ib_ctx_map;
 	ts_conversion_mode_t m_ctx_time_conversion_mode;

@@ -64,6 +64,7 @@ inline int _errnocheck(int rc) {
     return rc;
 }
 
+#define IF_VERBS_FAILURE_EX(__func__, __err__)  { if (_errnocheck(__func__) && (errno != __err__))
 #define IF_VERBS_FAILURE(__func__)  { if (_errnocheck(__func__))
 #define ENDIF_VERBS_FAILURE			}
 
@@ -151,7 +152,7 @@ typedef int            vma_ibv_cq_init_attr;
 #ifdef DEFINED_IBV_SEND_IP_CSUM
 	#define VMA_IBV_SEND_IP_CSUM			(IBV_SEND_IP_CSUM)
 #else
-	#define VMA_NO_HW_CSUM
+	#define DEFINED_SW_CSUM
 #endif
 #define vma_ibv_send_flags			ibv_send_flags
 #define vma_send_wr_send_flags(wr)		(wr).send_flags
@@ -260,7 +261,11 @@ typedef int            vma_ibv_cq_init_attr;
 //ibv_post_send
 #define VMA_IBV_SEND_SIGNALED			IBV_EXP_SEND_SIGNALED
 #define VMA_IBV_SEND_INLINE			IBV_EXP_SEND_INLINE
-#define VMA_IBV_SEND_IP_CSUM			(IBV_EXP_SEND_IP_CSUM)
+#ifdef DEFINED_IBV_EXP_SEND_IP_CSUM
+	#define VMA_IBV_SEND_IP_CSUM			(IBV_EXP_SEND_IP_CSUM)
+#else
+	#define DEFINED_SW_CSUM
+#endif
 #define vma_ibv_send_flags			ibv_exp_send_flags
 #define vma_send_wr_send_flags(wr)		(wr).exp_send_flags
 #define VMA_IBV_WR_SEND				IBV_EXP_WR_SEND
@@ -307,7 +312,7 @@ typedef struct ibv_exp_flow_spec_action_tag	vma_ibv_flow_spec_action_tag;
 #define vma_get_flow_tag(cqe)			0
 typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_tag;
 #endif //DEFINED_IBV_EXP_FLOW_TAG
-#endif //new MLNX_OFED verbs (2.2 and newer)
+#endif /* DEFINED_IBV_OLD_VERBS_MLX_OFED */
 
 #if defined(HAVE_IBV_DM)
 #define vma_ibv_dm_size(attr)			((attr)->max_dm_size)
@@ -329,6 +334,12 @@ typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_ta
 #define vma_is_packet_pacing_supported(attr)	(0)
 #endif
 
+#if defined(HAVE_IBV_EXP_GET_DEVICE_LIST)
+#define vma_ibv_get_device_list(num)		ibv_exp_get_device_list(num)
+#else
+#define vma_ibv_get_device_list(num)		ibv_get_device_list(num)
+#endif
+
 typedef enum {
 	RL_RATE = 1<<0,
 	RL_BURST_SIZE = 1<<1,
@@ -338,8 +349,9 @@ typedef enum {
 typedef enum vma_wr_tx_packet_attr {
 	VMA_TX_PACKET_BLOCK   = (1 << 0), // blocking send
 	VMA_TX_PACKET_DUMMY   = (1 << 1), // dummy send
-	VMA_TX_PACKET_L3_CSUM = (1 << 6), //MLX5_ETH_WQE_L3_CSUM offload to HW L3 (IP) header checksum
-	VMA_TX_PACKET_L4_CSUM = (1 << 7), //MLX5_ETH_WQE_L4_CSUM offload to HW L4 (TCP/UDP) header checksum
+	VMA_TX_SW_CSUM        = (1 << 5), // Force SW checksum
+	VMA_TX_PACKET_L3_CSUM = (1 << 6), // MLX5_ETH_WQE_L3_CSUM offload to HW L3 (IP) header checksum
+	VMA_TX_PACKET_L4_CSUM = (1 << 7), // MLX5_ETH_WQE_L4_CSUM offload to HW L4 (TCP/UDP) header checksum
 } vma_wr_tx_packet_attr;
 
 inline bool is_set(vma_wr_tx_packet_attr state_, vma_wr_tx_packet_attr tx_mode_)

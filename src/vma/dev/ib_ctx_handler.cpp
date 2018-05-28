@@ -55,7 +55,7 @@
 #define ibch_logfuncall         __log_info_funcall
 
 
-ib_ctx_handler::ib_ctx_handler(void *desc, ts_conversion_mode_t ctx_time_converter_mode) :
+ib_ctx_handler::ib_ctx_handler(struct ib_ctx_handler_desc *desc) :
 	m_flow_tag_enabled(false)
 	, m_on_device_memory(0)
 	, m_removed(false)
@@ -64,7 +64,11 @@ ib_ctx_handler::ib_ctx_handler(void *desc, ts_conversion_mode_t ctx_time_convert
 	, m_umr_qp(NULL)
 	, m_p_ctx_time_converter(NULL)
 {
-	m_p_ibv_device = (struct ibv_device *)desc;
+	if (NULL == desc) {
+		ibch_logpanic("Invalid ib_ctx_handler");
+	}
+
+	m_p_ibv_device = desc->device;
 
 	if (m_p_ibv_device == NULL) {
 		ibch_logpanic("m_p_ibv_device is invalid");
@@ -95,7 +99,7 @@ ib_ctx_handler::ib_ctx_handler(void *desc, ts_conversion_mode_t ctx_time_convert
 	} ENDIF_VERBS_FAILURE;
 
 #ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
-	switch (ctx_time_converter_mode) {
+	switch (desc->ctx_time_converter_mode) {
 	case TS_CONVERSION_MODE_DISABLE:
 		m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context, TS_CONVERSION_MODE_DISABLE, 0);
 	break;
@@ -129,16 +133,16 @@ ib_ctx_handler::ib_ctx_handler(void *desc, ts_conversion_mode_t ctx_time_convert
 	break;
 	default:
 		m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context,
-				ctx_time_converter_mode,
+				desc->ctx_time_converter_mode,
 				m_p_ibv_device_attr->hca_core_clock);
 		break;
 	}
 #else
 	m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context, TS_CONVERSION_MODE_DISABLE, 0);
-	if (ctx_time_converter_mode != TS_CONVERSION_MODE_DISABLE) {
+	if (desc->ctx_time_converter_mode != TS_CONVERSION_MODE_DISABLE) {
 		ibch_logwarn("time converter mode not applicable (configuration "
 				"value=%d). set to TS_CONVERSION_MODE_DISABLE.",
-				ctx_time_converter_mode);
+				desc->ctx_time_converter_mode);
 	}
 #endif // DEFINED_IBV_EXP_CQ_TIMESTAMP
 	// update device memory capabilities
@@ -172,29 +176,22 @@ ib_ctx_handler::~ib_ctx_handler()
 
 	mr_map_lkey_t::iterator iter;
 	while ((iter = m_mr_map_lkey.begin()) != m_mr_map_lkey.end()) {
-		struct ibv_mr* mr = iter->second;
-		if (mr) {
-			IF_VERBS_FAILURE(ibv_dereg_mr(mr)) {
-				ibch_logdbg("mr deallocation failure (errno=%d %m)", errno);
-			} ENDIF_VERBS_FAILURE;
-			m_p_ibv_pd = NULL;
-		}
-		m_mr_map_lkey.erase(iter);
+		mem_dereg(iter->first);
 	}
 	if (m_umr_qp) {
-		IF_VERBS_FAILURE(ibv_destroy_qp(m_umr_qp)) {
+		IF_VERBS_FAILURE_EX(ibv_destroy_qp(m_umr_qp), EIO) {
 			ibch_logdbg("destroy qp failed (errno=%d %m)", errno);
 		} ENDIF_VERBS_FAILURE;
 		m_umr_qp = NULL;
 	}
 	if (m_umr_cq) {
-		IF_VERBS_FAILURE(ibv_destroy_cq(m_umr_cq)) {
+		IF_VERBS_FAILURE_EX(ibv_destroy_cq(m_umr_cq), EIO) {
 			ibch_logdbg("destroy cq failed (errno=%d %m)", errno);
 		} ENDIF_VERBS_FAILURE;
 		m_umr_cq = NULL;
 	}
 	if (m_p_ibv_pd) {
-		IF_VERBS_FAILURE(ibv_dealloc_pd(m_p_ibv_pd)) {
+		IF_VERBS_FAILURE_EX(ibv_dealloc_pd(m_p_ibv_pd), EIO) {
 			ibch_logdbg("pd deallocation failure (errno=%d %m)", errno);
 		} ENDIF_VERBS_FAILURE;
 		VALGRIND_MAKE_MEM_UNDEFINED(m_p_ibv_pd, sizeof(struct ibv_pd));
@@ -268,7 +265,7 @@ uint32_t ib_ctx_handler::mem_reg(void *addr, size_t length, uint64_t access)
 		m_mr_map_lkey[mr->lkey] = mr;
 		lkey = mr->lkey;
 
-		ibch_logfunc("dev:%s (%p) addr=%p length=%d pd=%p",
+		ibch_logdbg("dev:%s (%p) addr=%p length=%d pd=%p",
 				get_ibname(), m_p_ibv_device, addr, length, m_p_ibv_pd);
 	}
 
@@ -277,19 +274,17 @@ uint32_t ib_ctx_handler::mem_reg(void *addr, size_t length, uint64_t access)
 
 void ib_ctx_handler::mem_dereg(uint32_t lkey)
 {
-	if (!is_removed()) {
-		mr_map_lkey_t::iterator iter = m_mr_map_lkey.find(lkey);
-		if (iter != m_mr_map_lkey.end()) {
-			struct ibv_mr* mr = iter->second;
-			ibch_logfunc("dev:%s (%p) addr=%p length=%d pd=%p",
-					get_ibname(), m_p_ibv_device, mr->addr, mr->length, m_p_ibv_pd);
-			IF_VERBS_FAILURE(ibv_dereg_mr(mr)) {
-				ibch_logerr("failed de-registering a memory region "
-						"(errno=%d %m)", errno);
-			} ENDIF_VERBS_FAILURE;
-			VALGRIND_MAKE_MEM_UNDEFINED(mr, sizeof(ibv_mr));
-			m_mr_map_lkey.erase(iter);
-		}
+	mr_map_lkey_t::iterator iter = m_mr_map_lkey.find(lkey);
+	if (iter != m_mr_map_lkey.end()) {
+		struct ibv_mr* mr = iter->second;
+		ibch_logdbg("dev:%s (%p) addr=%p length=%d pd=%p",
+				get_ibname(), m_p_ibv_device, mr->addr, mr->length, m_p_ibv_pd);
+		IF_VERBS_FAILURE_EX(ibv_dereg_mr(mr), EIO) {
+			ibch_logdbg("failed de-registering a memory region "
+					"(errno=%d %m)", errno);
+		} ENDIF_VERBS_FAILURE;
+		VALGRIND_MAKE_MEM_UNDEFINED(mr, sizeof(ibv_mr));
+		m_mr_map_lkey.erase(iter);
 	}
 }
 
