@@ -56,7 +56,6 @@ ring_tap::ring_tap(int if_index, ring* parent):
 	char tap_if_name[IFNAMSIZ] = {0};
 	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
 
-	m_vf_ring = NULL;
 	m_tap_data_available = false;
 	m_tap_fd = p_ndev->get_tap_fd();
 	m_local_if = p_ndev->get_local_addr();

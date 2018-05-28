@@ -209,17 +209,13 @@ void ring_bond::restart()
 						}
 					}
 
-					p_ring_tap->m_active = true;
 					p_ring_tap->inc_vf_plugouts();
 					p_ring_bond_netvsc->slave_destroy(p_ring_bond_netvsc->m_vf_ring->get_if_index());
 					p_ring_bond_netvsc->m_vf_ring = NULL;
-					p_ring_tap->set_vf_ring(NULL);
 				} else {
 					for (i = 0; i < slaves.size(); i++) {
 						if (slaves[i]->if_index != p_ndev->get_tap_if_index()) {
-							p_ring_tap->m_active = false;
 							slave_create(slaves[i]->if_index);
-							p_ring_tap->set_vf_ring(p_ring_bond_netvsc->m_vf_ring);
 
 							num_ring_rx_fds = p_ring_bond_netvsc->m_vf_ring->get_num_resources();
 							ring_rx_fds_array = p_ring_bond_netvsc->m_vf_ring->get_rx_channel_fds();
@@ -879,6 +875,18 @@ void ring_bond_netvsc::slave_create(int if_index)
 		ring_logpanic("Error creating bond ring with more than %d resource", 2);
 	}
 
+	/* Important that VF ring should be first in case it is available
+	 * to allow optimized operation of is_active_member() check.
+	 * Following code track this condition in single place.
+	 */
+	if (m_tap_ring) {
+		m_tap_ring->m_active = false;
+	}
+
 	popup_active_rings();
 	update_rx_channel_fds();
+
+	if (m_tap_ring) {
+		m_tap_ring->m_active = true;
+	}
 }

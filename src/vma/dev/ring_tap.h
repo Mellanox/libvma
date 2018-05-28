@@ -43,7 +43,7 @@ public:
 	ring_tap(int if_index, ring* parent = NULL);
 	virtual ~ring_tap();
 
-	virtual bool is_up() { return (m_vf_ring || m_active); }
+	virtual bool is_up() { return m_active; }
 
 	virtual bool attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
 	virtual bool detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
@@ -108,9 +108,7 @@ public:
 	virtual int get_max_tx_inline() { return 0; }
 
 	inline void set_tap_data_available() { m_tap_data_available = true; }
-	inline void set_vf_ring(ring_slave *p_ring) { m_vf_ring = p_ring; }
 	inline void inc_vf_plugouts() { m_p_ring_stat->tap.n_vf_plugouts++; }
-	inline ring_slave* get_vf_ring() { return m_vf_ring; }
 protected:
 
 private:
@@ -124,7 +122,6 @@ private:
 	void flow_udp_del_all();
 	void flow_tcp_del_all();
 
-	ring_slave*      m_vf_ring;
 	const uint32_t   m_sysvar_qp_compensation_level;
 	descq_t          m_tx_pool;
 	descq_t          m_rx_pool;

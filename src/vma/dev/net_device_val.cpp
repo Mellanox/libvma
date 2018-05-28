@@ -606,11 +606,7 @@ void net_device_val::set_slave_array()
 		}
 
 		if (m_bond == NETVSC) {
-			if ((m_slaves.size() > 1) && (m_slaves[i]->if_index == get_tap_if_index())) {
-				m_slaves[i]->active = false;
-			} else {
-				m_slaves[i]->active = true;
-			}
+			m_slaves[i]->active = true;
 		}
 
 		if (m_bond == NO_BOND) {
@@ -911,15 +907,6 @@ bool net_device_val::update_netvsc_slaves()
 		// Save L2 address
 		m_slaves[i]->p_L2_addr = create_L2_address(if_name);
 		m_slaves[i]->active = false;
-
-		if (m_bond == NETVSC) {
-			if ((m_slaves.size() > 1) && (m_slaves[i]->if_index == get_tap_if_index())) {
-				m_slaves[i]->active = false;
-			} else {
-				m_slaves[i]->active = true;
-			}
-		}
-
 		m_slaves[i]->p_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(base_ifname);
 		m_slaves[i]->port_num = get_port_from_ifname(base_ifname);
 	}
