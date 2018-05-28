@@ -1004,6 +1004,7 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 
 			// Move all cq_mgr->rx_reuse buffers to temp reuse queue related to p_rx_cq_mgr
 			move_owned_descs(base_ring, &temp_rx_reuse, &p_ring_info->rx_reuse_info.rx_reuse);
+			move_not_owned_descs(base_ring, &temp_rx_reuse_global, &p_ring_info->rx_reuse_info.rx_reuse);
 			if (p_ring_info->rx_reuse_info.rx_reuse.size()) {
 				si_logerr("possible buffer leak, p_ring_info->rx_reuse_buff still contain %d buffers.", p_ring_info->rx_reuse_info.rx_reuse.size());
 			}
