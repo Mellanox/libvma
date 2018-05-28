@@ -255,6 +255,7 @@ typedef struct {
 			char		s_tap_name[IFNAMSIZ];
 			uint32_t	n_tap_fd;
 			uint32_t	n_rx_buffers;
+			uint32_t	n_vf_plugouts;
 		} tap;
 	};
 } ring_stats_t;

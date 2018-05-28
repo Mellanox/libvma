@@ -210,6 +210,7 @@ void ring_bond::restart()
 					}
 
 					p_ring_tap->m_active = true;
+					p_ring_tap->inc_vf_plugouts();
 					p_ring_bond_netvsc->slave_destroy(p_ring_bond_netvsc->m_vf_ring->get_if_index());
 					p_ring_bond_netvsc->m_vf_ring = NULL;
 					p_ring_tap->set_vf_ring(NULL);
