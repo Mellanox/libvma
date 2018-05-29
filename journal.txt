@@ -1,3 +1,35 @@
+Version 8.6.6-0:
+Date + Time 2018-05-29
+=============================================================
+Added:
+        - RM #1284069 Calculate csum at the ring level
+        - RM #1284069 Reclaim not owned buffers on socket close
+        - RM #1284069 Verify ib device before vf creation
+        - RM #1284069 Add plugout counter into statistic
+        - RM #1284069 Add IF_VERBS_FAILURE_EX macro
+        - RM #1284069 Pass if_index to slave_data_t constructor
+        - RM #1284069 Introduce plugin support under Hypervisor
+        - RM #1284069 Introduce register_memory() for buffer_pool
+        - RM #1284069 Improve code readability
+        - RM #1284069 Add ibv_exp_get_device_list usage
+        - RM #1284069 Introduce plugout support under Hypervisor
+        - RM #1284069 Add extra RX buffers reclaim
+        - RM #1284069 Validate memory allocation type for VM
+        - RM #1284069 Suppress error message for update_epfd()
+        - RM #1284069 Optimize m_p_tx_mem_buf_desc_list releasing
+        - RM #1284069 Improve ib_ctx_handler_collection::update_tbl()
+        - RM #1284069 Improve net_device_table_mgr processing
+        - RM #1284069 Introduce update_netvsc_slaves()
+        - RM #1284069 Introduce allocator::deregister_memory()
+        - RM #1284069 Improve ib memory registration
+        - RM #1284069 Change ring::restart() prototype
+
+Fixed:
+        - RM #1284069 Fix issue in UDP checksum calculation
+        - RM #1284069 Fix issue with csum ability detection
+        - RM #1284069 Fix issue in dst_entry::return_buffers_pool()
+        - RM #1398946 Fix issue with incorrect ring_eth_cb creation
+
 Version 8.6.5-0:
 Date + Time 2018-05-24
 =============================================================
