@@ -139,7 +139,7 @@ ring_simple::ring_simple(int if_index, ring* parent /*=NULL*/):
 	m_lock_ring_rx("ring_simple:lock_rx"),
 	m_p_cq_mgr_tx(NULL),
 	m_lock_ring_tx("ring_simple:lock_tx"),
-	m_b_is_hypervisor(safe_mce_sys().is_hypervisor),
+	m_b_is_hypervisor(safe_mce_sys().hypervisor),
 	m_lock_ring_tx_buf_wait("ring:lock_tx_buf_wait"), m_tx_num_bufs(0), m_tx_num_wr(0), m_tx_num_wr_free(0),
 	m_b_qp_tx_first_flushed_completion_handled(false), m_missing_buf_ref_count(0),
 	m_tx_lkey(0),

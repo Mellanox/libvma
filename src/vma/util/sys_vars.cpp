@@ -417,13 +417,13 @@ bool mce_sys_var::cpuid_hv()
  */
 const char* mce_sys_var::cpuid_hv_vendor()
 {
-#if defined(__x86_64__)
-	static __thread char vendor[13];
-	uint32_t _ebx = 0, _ecx = 0, _edx = 0;
+	static __thread char vendor[13] = {0};
 
     if (!cpuid_hv()) {
     	return NULL;
     }
+#if defined(__x86_64__)
+	uint32_t _ebx = 0, _ecx = 0, _edx = 0;
 	__asm__ __volatile__("cpuid" \
             : "=b"(_ebx), \
             "=c"(_ecx), \
@@ -433,11 +433,29 @@ const char* mce_sys_var::cpuid_hv_vendor()
 	sprintf(vendor + 4, "%c%c%c%c", _ecx, (_ecx >> 8), (_ecx >> 16), (_ecx >> 24));
 	sprintf(vendor + 8, "%c%c%c%c", _edx, (_edx >> 8), (_edx >> 16), (_edx >> 24));
 	vendor[12] = 0x00;
-	return vendor;
-#else
-	static __thread char vendor[13] = "n/a";
-	return vendor;
 #endif
+	return vendor;
+}
+
+void mce_sys_var::read_hv()
+{
+	const char *hyper_vendor_id = NULL;
+
+	hypervisor = mce_sys_var::HYPER_NONE;
+	hyper_vendor_id = cpuid_hv_vendor();
+	if (hyper_vendor_id) {
+		if (!strncmp("XenVMMXenVMM", hyper_vendor_id, 12)) {
+			hypervisor = HYPER_XEN;
+		} else if (!strncmp("KVMKVMKVM", hyper_vendor_id, 9)) {
+			hypervisor = HYPER_KVM;
+		} else if (!strncmp("Microsoft Hv", hyper_vendor_id, 12)) {
+			hypervisor = HYPER_MSHV;
+		} else if (!strncmp("VMwareVMware", hyper_vendor_id, 12)) {
+			hypervisor = HYPER_VMWARE;
+		} else {
+			hypervisor = HYPER_NONE;
+		}
+	}
 }
 
 void mce_sys_var::get_env_params()
@@ -601,7 +619,7 @@ void mce_sys_var::get_env_params()
 	vma_time_measure_num_samples = MCE_DEFAULT_TIME_MEASURE_NUM_SAMPLES;
 #endif
 
-	is_hypervisor = cpuid_hv();
+	read_hv();
 
 	if ((env_ptr = getenv(SYS_VAR_SPEC)) != NULL){
 		mce_spec = (uint32_t)vma_spec::from_str(env_ptr, MCE_SPEC_NONE);
@@ -1170,7 +1188,7 @@ void mce_sys_var::get_env_params()
 		mem_alloc_type = (alloc_mode_t)atoi(env_ptr);
 	if (mem_alloc_type < 0 || mem_alloc_type >= ALLOC_TYPE_LAST)
 		mem_alloc_type = MCE_DEFAULT_MEM_ALLOC_TYPE;
-	if (is_hypervisor && (mem_alloc_type == ALLOC_TYPE_CONTIG)) {
+	if (mce_sys_var::HYPER_MSHV == hypervisor && (mem_alloc_type == ALLOC_TYPE_CONTIG)) {
 		vlog_printf(VLOG_DEBUG, "The '%s' parameter can not be %d for %s.\n",
 				SYS_VAR_MEM_ALLOC_TYPE, mem_alloc_type, cpuid_hv_vendor());
 		mem_alloc_type = ALLOC_TYPE_HUGEPAGES;

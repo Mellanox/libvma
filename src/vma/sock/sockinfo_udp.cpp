@@ -409,6 +409,8 @@ sockinfo_udp::sockinfo_udp(int fd):
 {
 	si_udp_logfunc("");
 
+	m_use_hyperv = (mce_sys_var::HYPER_MSHV == safe_mce_sys().hypervisor);
+
 	m_protocol = PROTO_UDP;
 	m_p_socket_stats->socket_type = SOCK_DGRAM;
 	m_p_socket_stats->b_is_offloaded = m_sock_offload;
@@ -1893,7 +1895,8 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 			 * The first packet is lost as far as slow_send() includes
 			 * ring creation and send operations
 			 */
-			if (safe_mce_sys().is_hypervisor && p_dst_entry->get_ring()) {
+			if (m_use_hyperv &&
+					p_dst_entry->get_ring()) {
 				ring_bond_netvsc* p_ring = dynamic_cast<ring_bond_netvsc*>(p_dst_entry->get_ring());
 				if (p_ring && !p_ring->is_vf_mode()) {
 					goto tx_packet_to_os;
@@ -1908,7 +1911,8 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 			/* See comment
 			 * above related socket operation under NETVSC ring w/o SRIOV/VF
 			 */
-			if (safe_mce_sys().is_hypervisor && p_dst_entry->get_ring()) {
+			if (m_use_hyperv &&
+					p_dst_entry->get_ring()) {
 				ring_bond_netvsc* p_ring = dynamic_cast<ring_bond_netvsc*>(p_dst_entry->get_ring());
 				if (p_ring && !p_ring->is_vf_mode()) {
 					goto tx_packet_to_os;
