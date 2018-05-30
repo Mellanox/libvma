@@ -363,15 +363,26 @@ static int clean_process(pid_t pid)
 
 static int check_process(pid_t pid)
 {
-	char pid_str[NAME_MAX];
-	char proccess_proc_dir[PATH_MAX];
-	struct stat st;
+	char process_file[PATH_MAX];
+	int rc = 0;
 
-	sprintf(pid_str, "%d", pid);
-	memset((void*)proccess_proc_dir, 0, sizeof(PATH_MAX));
-	strcat(strcpy(proccess_proc_dir, "/proc/"), pid_str);
-	return stat(proccess_proc_dir, &st) == 0;
+	rc = snprintf(process_file, sizeof(process_file), "/proc/%d/stat", pid);
+	if ((0 < rc) && (rc < (int)sizeof(process_file))) {
+		FILE* fd = fopen(process_file, "r");;
+		if (fd) {
+			int pid_v = 0;
+			char name_v[32];
+			char stat_v = 0;
 
+			rc = fscanf(fd, "%d %30s %c", &pid_v, name_v, &stat_v);
+			fclose(fd);
+			if (rc == 3 && stat_v != 'Z') {
+				return 1;
+			}
+		}
+	}
+
+	return 0;
 }
 
 static unsigned short calc_csum(unsigned short *ptr, int nbytes)
