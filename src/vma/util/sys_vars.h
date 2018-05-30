@@ -283,6 +283,16 @@ struct mce_sys_var {
 		return the_instance;
 	}
 
+public:
+	enum hyper_t {
+		HYPER_NONE	= 0,
+		HYPER_XEN,
+		HYPER_KVM,
+		HYPER_MSHV,
+		HYPER_VMWARE
+	};
+
+public:
 	void		get_env_params();
 
 	char 		*app_name;
@@ -404,10 +414,8 @@ struct mce_sys_var {
 	char 		vma_time_measure_filename[PATH_MAX];
 	sysctl_reader_t & sysctl_reader;
 	bool		rx_poll_on_tx_tcp;
-	bool		is_hypervisor;
+	hyper_t		hypervisor;
 	bool		trigger_dummy_send_getsockname;
-
-	bool cpuid_hv();
 
 private:
 	void print_vma_load_failure_msg();
@@ -416,7 +424,9 @@ private:
 	int env_to_cpuset(char *orig_start, cpu_set_t *cpu_set);
 	void read_env_variable_with_pid(char* mce_sys_name, size_t mce_sys_max_size, char* env_ptr);
 	bool check_cpuinfo_flag(const char* flag);
+	bool cpuid_hv();
 	const char* cpuid_hv_vendor();
+	void read_hv();
 
 	// prevent unautothrized creation of objects
 	mce_sys_var () : sysctl_reader(sysctl_reader_t::instance()){

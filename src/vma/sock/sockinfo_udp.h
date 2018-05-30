@@ -246,6 +246,7 @@ private:
 	bool		m_sockopt_mapped; // setsockopt IPPROTO_UDP UDP_MAP_ADD
 	bool		m_is_connected; // to inspect for in_addr.src
 	bool		m_multicast; // true when socket set MC rule
+	bool		m_use_hyperv; // set in true for Hyper-V
 
 	int mc_change_membership(const mc_pending_pram *p_mc_pram);
 	int mc_change_membership_start_helper(in_addr_t mc_grp, int optname);

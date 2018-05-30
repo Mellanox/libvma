@@ -82,8 +82,7 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
 		}
 		else {
 			__log_info_dbg("Huge pages allocation passed successfully");
-			if (g_p_ib_ctx_handler_collection->get_ib_cxt_list() &&
-					!register_memory(size, p_ib_ctx_h, access)) {
+			if (!register_memory(size, p_ib_ctx_h, access)) {
 				__log_info_dbg("failed registering huge pages data memory block");
 				throw_vma_exception("failed registering huge pages data memory"
 						" block");
@@ -94,7 +93,7 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
 	// fallthrough
 	case ALLOC_TYPE_CONTIG:
 #ifdef VMA_IBV_ACCESS_ALLOCATE_MR
-		if (!safe_mce_sys().is_hypervisor && g_p_ib_ctx_handler_collection->get_ib_cxt_list()) {
+		if (mce_sys_var::HYPER_MSHV != safe_mce_sys().hypervisor) {
 			if (!register_memory(size, p_ib_ctx_h, (access | VMA_IBV_ACCESS_ALLOCATE_MR))) {
 				__log_info_dbg("Failed allocating contiguous pages");
 			}
@@ -117,8 +116,7 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
 			throw_vma_exception("failed allocating data memory block");
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
-		if (g_p_ib_ctx_handler_collection->get_ib_cxt_list() &&
-				!register_memory(size, p_ib_ctx_h, access)) {
+		if (!register_memory(size, p_ib_ctx_h, access)) {
 			__log_info_dbg("failed registering data memory block");
 			throw_vma_exception("failed registering data memory block");
 		}
