@@ -134,8 +134,10 @@ void qp_mgr_eth_mlx5::init_sq()
 			m_qp, m_qp_num, m_sq_wqes, m_sq_wqes_end,  m_tx_num_wr, m_sq_bf_reg, m_sq_bf_buf_size, m_sq_bf_offset);
 }
 
-qp_mgr_eth_mlx5::qp_mgr_eth_mlx5(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num,
-		struct ibv_comp_channel* p_rx_comp_event_channel, const uint32_t tx_num_wr, const uint16_t vlan):
+qp_mgr_eth_mlx5::qp_mgr_eth_mlx5(const ring_simple* p_ring,
+		const ib_ctx_handler* p_context, const uint8_t port_num,
+		struct ibv_comp_channel* p_rx_comp_event_channel,
+		const uint32_t tx_num_wr, const uint16_t vlan, bool call_configure):
 	qp_mgr_eth(p_ring, p_context, port_num, p_rx_comp_event_channel, tx_num_wr, vlan, false)
 	,m_hw_qp(NULL)
 	,m_sq_wqe_idx_to_wrid(NULL)
@@ -151,7 +153,7 @@ qp_mgr_eth_mlx5::qp_mgr_eth_mlx5(const ring_simple* p_ring, const ib_ctx_handler
 	,m_sq_wqe_counter(0)
 	,m_dm_enabled(0)
 {
-	if(configure(p_rx_comp_event_channel)) {
+	if (call_configure && configure(p_rx_comp_event_channel)) {
 		throw_vma_exception("failed creating qp_mgr_eth");
 	}
 

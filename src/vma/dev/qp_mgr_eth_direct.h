@@ -43,10 +43,13 @@ public:
 			  const uint8_t port_num, ibv_comp_channel* p_rx_comp_event_channel,
 			  const uint32_t tx_num_wr, const uint16_t vlan);
 	virtual ~qp_mgr_eth_direct();
+	virtual cq_mgr*		init_tx_cq_mgr(void);
 	virtual void		up();
 	virtual void		down();
 	virtual uint32_t	get_rx_max_wr_num() { return 0;};
 	virtual bool		fill_hw_descriptors(vma_mlx_hw_device_data &data);
+protected:
+	virtual int		prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr);
 };
 
 #endif /* HAVE_INFINIBAND_MLX5_HW_H */
