@@ -320,20 +320,22 @@ net_device_val* net_device_table_mgr::get_net_device_val(int if_index)
 				goto out;
 			}
 		}
-		/* Check if interface is new slave */
-		char if_name[IFNAMSIZ] = {0};
-		char sys_path[256] = {0};
-		int ret = 0;
-		if (if_indextoname(if_index, if_name)) {
-			ret = snprintf(sys_path, sizeof(sys_path), NETVSC_DEVICE_UPPER_FILE, if_name, net_dev->get_ifname());
-			if (ret > 0 && (size_t)ret < sizeof(sys_path)) {
-				ret = errno; /* to suppress errno */
-				int fd = open(sys_path, O_RDONLY);
-				if (fd >= 0) {
-					close(fd);
-					goto out;
+		/* Check if interface is new netvsc slave */
+		if (net_dev->get_is_bond() == net_device_val::NETVSC) {
+			char if_name[IFNAMSIZ] = {0};
+			char sys_path[256] = {0};
+			int ret = 0;
+			if (if_indextoname(if_index, if_name)) {
+				ret = snprintf(sys_path, sizeof(sys_path), NETVSC_DEVICE_UPPER_FILE, if_name, net_dev->get_ifname());
+				if (ret > 0 && (size_t)ret < sizeof(sys_path)) {
+					ret = errno; /* to suppress errno */
+					int fd = open(sys_path, O_RDONLY);
+					if (fd >= 0) {
+						close(fd);
+						goto out;
+					}
+					errno = ret;
 				}
-				errno = ret;
 			}
 		}
 	}
