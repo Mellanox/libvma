@@ -64,13 +64,15 @@
 	} while (0)
 
 /* Print user notification */
-#define output_warn() \
-	vlog_printf(VLOG_DEBUG, "Peer notification functionality is not active.\n"); \
-	vlog_printf(VLOG_DEBUG, "Check daemon state\n");
-
 #define output_fatal() \
-	vlog_printf(VLOG_DEBUG, "Peer notification functionality is not supported.\n"); \
-	vlog_printf(VLOG_DEBUG, "Increase output level to see a reason\n");
+	do { \
+		vlog_levels_t _level = (mce_sys_var::HYPER_MSHV == safe_mce_sys().hypervisor ?          \
+						VLOG_WARNING : VLOG_DEBUG);                                             \
+		vlog_printf(_level, "*************************************************************\n"); \
+		vlog_printf(_level, "* Can not establish connection with the daemon (vmad).      *\n"); \
+		vlog_printf(_level, "* TCP connections are likely to be limited.                 *\n"); \
+		vlog_printf(_level, "*************************************************************\n"); \
+	} while (0)
 
 agent* g_p_agent = NULL;
 
@@ -147,10 +149,7 @@ agent::agent() :
 	rc = send_msg_init();
 	if (rc < 0) {
 		__log_dbg("failed establish connection with daemon (rc = %d)\n", rc);
-		output_warn();
-		if (rc != -ECONNREFUSED) {
-			goto err;
-		}
+		goto err;
 	}
 
 	/* coverity[leaked_storage] */
