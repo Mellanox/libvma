@@ -144,15 +144,12 @@ struct counter_and_ibv_flows {
 	std::vector<vma_ibv_flow*> ibv_flows;
 };
 
+// rule key based on ip and port
 struct rule_key_t {
 	uint64_t key;
 
 	rule_key_t(in_addr_t addr, in_port_t port) {
-		memset(this, 0, sizeof(*this));// Silencing coverity
-
-		uint32_t* p_key = (uint32_t *)&key;
-		p_key[0] = addr;
-		p_key[1] = port;
+		key = (uint64_t) addr << 32 | port;
 	}
 };
 
