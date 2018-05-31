@@ -488,13 +488,14 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	} else if (flow_spec_5t.is_tcp()) {
 		flow_spec_tcp_key_t key_tcp(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_src_ip(),
 				flow_spec_5t.get_dst_port(), flow_spec_5t.get_src_port());
+		rule_key_t rule_key(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
 		rfs_rule_filter* tcp_dst_port_filter = NULL;
 		if (safe_mce_sys().tcp_3t_rules) {
-			rule_filter_map_t::iterator tcp_dst_port_iter = m_tcp_dst_port_attach_map.find(key_tcp.dst_port);
+			rule_filter_map_t::iterator tcp_dst_port_iter = m_tcp_dst_port_attach_map.find(rule_key.key);
 			if (tcp_dst_port_iter == m_tcp_dst_port_attach_map.end()) {
-				m_tcp_dst_port_attach_map[key_tcp.dst_port].counter = 1;
+				m_tcp_dst_port_attach_map[rule_key.key].counter = 1;
 			} else {
-				m_tcp_dst_port_attach_map[key_tcp.dst_port].counter = ((tcp_dst_port_iter->second.counter) + 1);
+				m_tcp_dst_port_attach_map[rule_key.key].counter = ((tcp_dst_port_iter->second.counter) + 1);
 			}
 		}
 
@@ -503,7 +504,7 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 			m_lock_ring_rx.unlock();
 			if (safe_mce_sys().tcp_3t_rules) {
 				flow_tuple tcp_3t_only(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port(), 0, 0, flow_spec_5t.get_protocol());
-				tcp_dst_port_filter = new rfs_rule_filter(m_tcp_dst_port_attach_map, key_tcp.dst_port, tcp_3t_only);
+				tcp_dst_port_filter = new rfs_rule_filter(m_tcp_dst_port_attach_map, rule_key.key, tcp_3t_only);
 			}
 			if(safe_mce_sys().gro_streams_max && flow_spec_5t.is_5_tuple()) {
 				// When the gro mechanism is being used, packets must be processed in the rfs
@@ -628,14 +629,15 @@ bool ring_simple::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 		int keep_in_map = 1;
 		flow_spec_tcp_key_t key_tcp(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_src_ip(),
 				flow_spec_5t.get_dst_port(), flow_spec_5t.get_src_port());
+		rule_key_t rule_key(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
 		if (safe_mce_sys().tcp_3t_rules) {
-			rule_filter_map_t::iterator tcp_dst_port_iter = m_tcp_dst_port_attach_map.find(key_tcp.dst_port);
+			rule_filter_map_t::iterator tcp_dst_port_iter = m_tcp_dst_port_attach_map.find(rule_key.key);
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (tcp_dst_port_iter == m_tcp_dst_port_attach_map.end()) {
 				ring_logdbg("Could not find matching counter for TCP src port!");
 				BULLSEYE_EXCLUDE_BLOCK_END
 			} else {
-				keep_in_map = m_tcp_dst_port_attach_map[key_tcp.dst_port].counter = MAX(0 , ((tcp_dst_port_iter->second.counter) - 1));
+				keep_in_map = m_tcp_dst_port_attach_map[rule_key.key].counter = MAX(0 , ((tcp_dst_port_iter->second.counter) - 1));
 			}
 		}
 		p_rfs = m_flow_tcp_map.get(key_tcp, NULL);
@@ -648,7 +650,7 @@ bool ring_simple::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 
 		p_rfs->detach_flow(sink);
 		if(!keep_in_map){
-			m_tcp_dst_port_attach_map.erase(m_tcp_dst_port_attach_map.find(key_tcp.dst_port));
+			m_tcp_dst_port_attach_map.erase(m_tcp_dst_port_attach_map.find(rule_key.key));
 		}
 		if (p_rfs->get_num_of_sinks() == 0) {
 			BULLSEYE_EXCLUDE_BLOCK_START

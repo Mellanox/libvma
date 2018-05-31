@@ -144,7 +144,19 @@ struct counter_and_ibv_flows {
 	std::vector<vma_ibv_flow*> ibv_flows;
 };
 
-typedef std::tr1::unordered_map<uint32_t, struct counter_and_ibv_flows> rule_filter_map_t;
+struct rule_key_t {
+	uint64_t key;
+
+	rule_key_t(in_addr_t addr, in_port_t port) {
+		memset(this, 0, sizeof(*this));// Silencing coverity
+
+		uint32_t* p_key = (uint32_t *)&key;
+		p_key[0] = addr;
+		p_key[1] = port;
+	}
+};
+
+typedef std::tr1::unordered_map<uint64_t, struct counter_and_ibv_flows> rule_filter_map_t;
 
 
 class ring_slave : public ring
