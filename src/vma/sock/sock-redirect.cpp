@@ -622,7 +622,7 @@ int vma_get_mem_info(int fd, void **addr, size_t *length, uint32_t *lkey)
 {
 #ifdef HAVE_MP_RQ
 	cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(fd);
-	if (!length || !lkey ||! addr || !*addr) {
+	if (!length || !lkey || !addr) {
 		vlog_printf(VLOG_ERROR, "invalid pointers given. fd: %d, addr "
 			    "%p length %p lkey %p\n", fd, addr, length, lkey);
 		return -1;
