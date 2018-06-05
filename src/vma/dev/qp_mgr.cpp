@@ -322,11 +322,14 @@ void qp_mgr::release_rx_buffers()
 	// Wait for all FLUSHed WQE on Rx CQ
 	qp_logdbg("draining rx cq_mgr %p (last_posted_rx_wr_id = %p)", m_p_cq_mgr_rx, m_last_posted_rx_wr_id);
 	uintptr_t last_polled_rx_wr_id = 0;
-	while (m_p_cq_mgr_rx && last_polled_rx_wr_id != m_last_posted_rx_wr_id) {
+	while (m_p_cq_mgr_rx &&
+			last_polled_rx_wr_id != m_last_posted_rx_wr_id &&
+			errno != EIO) {
 
 		// Process the FLUSH'ed WQE's
 		int ret = m_p_cq_mgr_rx->drain_and_proccess(&last_polled_rx_wr_id);
 		qp_logdbg("draining completed on rx cq_mgr (%d wce) last_polled_rx_wr_id = %p", ret, last_polled_rx_wr_id);
+
 		total_ret += ret;
 
 		// Add short delay (500 usec) to allow for WQE's to be flushed to CQ every poll cycle
@@ -342,7 +345,9 @@ void qp_mgr::release_tx_buffers()
 	int ret = 0;
 	uint64_t poll_sn;
 	qp_logdbg("draining tx cq_mgr %p", m_p_cq_mgr_tx);
-	while (m_p_cq_mgr_tx && m_qp && (ret = m_p_cq_mgr_tx->poll_and_process_element_tx(&poll_sn)) > 0) {
+	while (m_p_cq_mgr_tx && m_qp &&
+			((ret = m_p_cq_mgr_tx->poll_and_process_element_tx(&poll_sn)) > 0) &&
+			errno != EIO) {
 		qp_logdbg("draining completed on tx cq_mgr (%d wce)", ret);
 	}
 }
@@ -398,7 +403,7 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 
 			p_ah = ibv_create_ah(m_p_ib_ctx_handler->get_ibv_pd(), &ah_attr);
 			BULLSEYE_EXCLUDE_BLOCK_START
-			if (!p_ah) {
+			if (!p_ah && (errno != EIO)) {
 				qp_logpanic("failed creating address handler (errno=%d %m)", errno);
 			}
 			BULLSEYE_EXCLUDE_BLOCK_END
@@ -430,7 +435,7 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 
 		send_to_wire(&send_wr, (vma_wr_tx_packet_attr)(VMA_TX_PACKET_L3_CSUM|VMA_TX_PACKET_L4_CSUM), true);
 		if (p_ah) {
-			IF_VERBS_FAILURE(ibv_destroy_ah(p_ah))
+			IF_VERBS_FAILURE_EX(ibv_destroy_ah(p_ah), EIO)
 			{
 				qp_logpanic("failed destroying address handle (errno=%d %m)", errno);
 			}ENDIF_VERBS_FAILURE;
