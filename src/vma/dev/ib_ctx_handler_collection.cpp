@@ -196,15 +196,15 @@ void ib_ctx_handler_collection::print_val_tbl()
 
 ib_ctx_handler* ib_ctx_handler_collection::get_ib_ctx(const char *ifa_name)
 {
-	struct ifaddrs slave;
 	char active_slave[IFNAMSIZ] = {0};
+	unsigned int slave_flags = 0;
 	ib_context_map_t::iterator ib_ctx_iter;
 
 	if (check_netvsc_device_exist(ifa_name)) {
-		if (!get_netvsc_slave(ifa_name, &slave)) {
+		if (!get_netvsc_slave(ifa_name, active_slave, slave_flags)) {
 			return NULL;
 		}
-		ifa_name = (const char *)slave.ifa_name;
+		ifa_name = (const char *)active_slave;
 	} else if (check_device_exist(ifa_name, BOND_DEVICE_FILE)) {
 		/* active/backup: return active slave */
 		if (!get_bond_active_slave_name(ifa_name, active_slave, sizeof(active_slave))) {

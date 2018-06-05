@@ -303,7 +303,7 @@ bool get_bond_slave_state(IN const char* slave_name, OUT char* curr_state, IN in
 bool get_bond_slaves_name_list(IN const char* bond_name, OUT char* slaves_list, IN int sz);
 bool check_device_exist(const char* ifname, const char *path);
 bool check_netvsc_device_exist(const char* ifname);
-bool get_netvsc_slave(IN const char* ifname, OUT struct ifaddrs* slave);
+bool get_netvsc_slave(IN const char* ifname, OUT char* slave_name, OUT unsigned int &slave_flags);
 bool get_interface_oper_state(IN const char* interface_name, OUT char* slaves_list, IN int sz);
 
 int validate_ipoib_prop(const char* ifname, unsigned int ifflags,
