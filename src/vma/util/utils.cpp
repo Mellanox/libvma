@@ -774,7 +774,7 @@ bool get_bond_active_slave_name(IN const char* bond_name, OUT char* active_slave
 	return true;
 }
 
-bool get_netvsc_slave(IN const char* ifname, OUT struct ifaddrs* slave)
+bool get_netvsc_slave(IN const char* ifname, OUT char* slave_name, OUT unsigned int &slave_flags)
 {
 	char netvsc_path[256];
 	char base_ifname[IFNAMSIZ];
@@ -792,8 +792,9 @@ bool get_netvsc_slave(IN const char* ifname, OUT struct ifaddrs* slave)
 		int fd = open(netvsc_path, O_RDONLY);
 		if (fd >= 0) {
 			close(fd);
-			*slave = *ifa;
-			__log_dbg("Found ifa->name = %s, slave = %s", ifa->ifa_name, slave->ifa_name);
+			memcpy(slave_name, ifa->ifa_name, IFNAMSIZ);
+			slave_flags = ifa->ifa_flags;
+			__log_dbg("Found slave_name = %s, slave_flags = %u", slave_name, slave_flags);
 			ret = true;
 			break;
 		}

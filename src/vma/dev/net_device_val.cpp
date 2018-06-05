@@ -228,9 +228,10 @@ net_device_val::net_device_val(struct net_device_val_desc *desc) : m_lock("net_d
 		if (get_type() == ARPHRD_ETHER) {
 			valid = (bool)(!netvsc_create());
 			if (valid) {
-				struct ifaddrs slave;
-				if (get_netvsc_slave(get_ifname_link(), &slave)) {
-					valid = verify_eth_qp_creation(slave.ifa_name);
+				char slave_ifname[IFNAMSIZ] = {0};
+				unsigned int slave_flags = 0;
+				if (get_netvsc_slave(get_ifname_link(), slave_ifname, slave_flags)) {
+					valid = verify_eth_qp_creation(slave_ifname);
 					if (!valid) {
 						netvsc_destroy();
 					}
@@ -532,14 +533,13 @@ void net_device_val::set_slave_array()
 	nd_logdbg("");
 
 	if (m_bond == NETVSC) {
-		struct ifaddrs slave_ifa;
 		slave_data_t* s = new slave_data_t(get_tap_if_index());
 		m_slaves.push_back(s);
-
-		if (get_netvsc_slave(get_ifname_link(), &slave_ifa)) {
-			if ((slave_ifa.ifa_flags & IFF_UP) &&
-					verify_eth_qp_creation(slave_ifa.ifa_name)) {
-				s = new slave_data_t(if_nametoindex(slave_ifa.ifa_name));
+		unsigned int slave_flags = 0;
+		if (get_netvsc_slave(get_ifname_link(), active_slave, slave_flags)) {
+			if ((slave_flags & IFF_UP) &&
+					verify_eth_qp_creation(active_slave)) {
+				s = new slave_data_t(if_nametoindex(active_slave));
 				m_slaves.push_back(s);
 			}
 		}
@@ -867,14 +867,15 @@ bool net_device_val::update_active_slaves()
 bool net_device_val::update_netvsc_slaves()
 {
 	bool changed = false;
-	struct ifaddrs slave_ifa;
 	slave_data_t* s = NULL;
 	uint16_t i = 0;
 	ib_ctx_handler *ib_ctx = NULL;
+	char slave_ifname[IFNAMSIZ] = {0};
+	unsigned int slave_flags = 0;
 
-	if (get_netvsc_slave(get_ifname_link(), &slave_ifa)) {
-		if (slave_ifa.ifa_flags & IFF_UP) {
-			s = new slave_data_t(if_nametoindex(slave_ifa.ifa_name));
+	if (get_netvsc_slave(get_ifname_link(), slave_ifname, slave_flags)) {
+		if (slave_flags & IFF_UP) {
+			s = new slave_data_t(if_nametoindex(slave_ifname));
 			m_slaves.push_back(s);
 
 			nd_logdbg("slave %d is up ", s->if_index);
