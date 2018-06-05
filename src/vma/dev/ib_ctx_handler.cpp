@@ -170,6 +170,7 @@ err:
 ib_ctx_handler::~ib_ctx_handler()
 {
 	g_p_event_handler_manager->unregister_ibverbs_event(m_p_ibv_context->async_fd, this);
+
 	// must delete ib_ctx_handler only after freeing all resources that
 	// are still associated with the PD m_p_ibv_pd
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -332,7 +333,6 @@ void ib_ctx_handler::handle_event_ibverbs_cb(void *ev_data, void *ctx)
 void ib_ctx_handler::handle_event_device_fatal()
 {
 	m_removed = true;
-	g_p_event_handler_manager->unregister_ibverbs_event(m_p_ibv_context->async_fd, this);
 }
 
 bool ib_ctx_handler::post_umr_wr(struct ibv_exp_send_wr &wr)
