@@ -1906,8 +1906,9 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 			ret = p_dst_entry->fast_send((iovec*)p_iov, sz_iov, is_dummy, b_blocking);
 		}
 		else {
-			// updates the dst_entry internal information and packet headers
-			ret = p_dst_entry->slow_send(p_iov, sz_iov, is_dummy, m_so_ratelimit, b_blocking, false, __flags, this, call_type);
+			// for resolve ring
+			p_dst_entry->prepare_to_send(m_so_ratelimit, false);
+
 			/* See comment
 			 * above related socket operation under NETVSC ring w/o SRIOV/VF
 			 */
@@ -1918,6 +1919,9 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 					goto tx_packet_to_os;
 				}
 			}
+
+			// updates the dst_entry internal information and packet headers
+			ret = p_dst_entry->slow_send(p_iov, sz_iov, is_dummy, m_so_ratelimit, b_blocking, false, __flags, this, call_type);
 		}
 
 		if (unlikely(p_dst_entry->try_migrate_ring(m_lock_snd))) {
