@@ -1015,7 +1015,6 @@ void ring_tap::prepare_flow_message(vma_msg_flow& data,
 int ring_tap::process_element_rx(void* pv_fd_ready_array)
 {
 	int ret = 0;
-	bool used_buff = false;
 
 	if(m_tap_data_available) {
 		auto_unlocker lock(m_lock_ring_rx);
@@ -1026,12 +1025,11 @@ int ring_tap::process_element_rx(void* pv_fd_ready_array)
 				/* Data was read and processed successfully */
 				buff->sz_data = ret;
 				buff->rx.is_sw_csum_need = 1;
-				if (rx_process_buffer(buff, pv_fd_ready_array)) {
+				if ((ret = rx_process_buffer(buff, pv_fd_ready_array))) {
 					m_p_ring_stat->tap.n_rx_buffers--;
-					used_buff = true;
 				}
 			}
-			if (!used_buff){
+			if (ret <= 0){
 				/* Unable to read data, return buffer to pool */
 				ret = 0;
 				m_rx_pool.push_front(buff);
@@ -1180,7 +1178,7 @@ int ring_tap::send_buffer(vma_ibv_send_wr* wr, vma_wr_tx_packet_attr attr)
 		ring_logdbg("writev: tap_fd %d, errno: %d\n", m_tap_fd, errno);
 	}
 
-	return ret == -1;
+	return ret < 0;
 }
 
 void ring_tap::send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe)
