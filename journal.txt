@@ -1,3 +1,22 @@
+Version 8.6.7-0:
+Date + Time 2018-06-06
+=============================================================
+Added:
+        - RM #1383463 Report warning if there is no connection with daemon
+        - RM #1405041 Improve hypervisor type detection
+        - RM #1348872 Remove bad pointer check when getting memory info
+        - RM #1413587 Modify warning while log_num_mgm_entry_size != -1
+        - RM #1402512 Daemon is able to detect VMA zombie process
+        - RM #1403631 Add support master slave for qp direct
+
+Fixed:
+        - RM #1416053 Fix valgrind invalid read warning
+        - RM #1403304 Fix duplicate UDP Tx packets w/o SRIOV
+        - RM #1404279 Fix TCP sockets of secondary IPs are not offloaded
+        - RM #1405898 Fix get_net_device_val search method
+        - RM #1405113 Fix VMA crash if qp creation failed
+        - RM #1405111 When using tx prm verify cq_size is power of 2
+
 Version 8.6.6-0:
 Date + Time 2018-05-29
 =============================================================
