@@ -208,6 +208,7 @@ protected:
 	uint32_t		m_flow_tag_id;	// Flow Tag for this socket
 	bool			m_flow_tag_enabled; // for this socket
 	bool			m_tcp_flow_is_5t; // to bypass packet analysis
+	bool			m_use_hyperv; // set in true for Hyper-V
 
 	int*			m_p_rings_fds;
 	virtual void 		set_blocking(bool is_blocked);

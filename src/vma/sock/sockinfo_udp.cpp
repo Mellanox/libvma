@@ -409,8 +409,6 @@ sockinfo_udp::sockinfo_udp(int fd):
 {
 	si_udp_logfunc("");
 
-	m_use_hyperv = (mce_sys_var::HYPER_MSHV == safe_mce_sys().hypervisor);
-
 	m_protocol = PROTO_UDP;
 	m_p_socket_stats->socket_type = SOCK_DGRAM;
 	m_p_socket_stats->b_is_offloaded = m_sock_offload;
