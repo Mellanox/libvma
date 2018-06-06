@@ -2042,6 +2042,21 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 	// socket-redirect probably should do this
 	m_connected.set(*((sockaddr *)__to));
 
+	// ignore local connections for ms hyperv
+	if (m_use_hyperv) {
+		local_ip_list_t::iterator lip_iter;
+		local_ip_list_t lip_offloaded_list = g_p_net_device_table_mgr->get_ip_list();
+		for (lip_iter = lip_offloaded_list.begin(); lip_offloaded_list.end() != lip_iter; lip_iter++) {
+			ip_data_t ip = *lip_iter;
+			if  (ip.local_addr == m_connected.get_in_addr()) {
+				setPassthrough();
+				si_tcp_logwarn("Cant connect to local ip address %d.%d.%d.%d --> connect only via OS", NIPQUAD(ip.local_addr));
+				unlock_tcp_con();
+				return -1;
+			}
+		}
+	}
+
 	create_dst_entry();
 	if (!m_p_connected_dst_entry) {
 		setPassthrough();
