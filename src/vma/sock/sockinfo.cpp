@@ -1113,6 +1113,7 @@ bool sockinfo::attach_as_uc_receiver(role_t role, bool skip_rules /* = false */)
 	/* m_so_bindtodevice_ip has high priority */
 	if (m_so_bindtodevice_ip != INADDR_ANY) {
 		local_if = m_so_bindtodevice_ip;
+		addr.set_in_addr(local_if); // we should pass correct ip-address information in case SO_BINDTODEVICE is used
 		si_logdbg("Attaching using bind to device rule");
 	}
 	else {
@@ -1126,7 +1127,7 @@ bool sockinfo::attach_as_uc_receiver(role_t role, bool skip_rules /* = false */)
 		transport_t target_family = TRANS_VMA;
 		if (!skip_rules) target_family = find_target_family(role, addr.get_p_sa());
 		if (target_family == TRANS_VMA) {
-			flow_tuple_with_local_if flow_key(m_bound, m_connected, m_protocol, local_if);
+			flow_tuple_with_local_if flow_key(addr, m_connected, m_protocol, local_if);
 			ret = ret && attach_receiver(flow_key);
 		}
 	}
