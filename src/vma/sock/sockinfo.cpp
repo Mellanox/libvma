@@ -1113,7 +1113,7 @@ bool sockinfo::attach_as_uc_receiver(role_t role, bool skip_rules /* = false */)
 	/* m_so_bindtodevice_ip has high priority */
 	if (m_so_bindtodevice_ip != INADDR_ANY) {
 		local_if = m_so_bindtodevice_ip;
-		addr.set_in_addr(local_if);
+		addr.set_in_addr(local_if); // we should pass correct ip-address information in case SO_BINDTODEVICE is used
 		si_logdbg("Attaching using bind to device rule");
 	}
 	else {
