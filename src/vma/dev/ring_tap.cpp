@@ -1183,6 +1183,8 @@ int ring_tap::send_buffer(vma_ibv_send_wr* wr, vma_wr_tx_packet_attr attr)
 
 void ring_tap::send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe)
 {
+	// Pay attention that there is a difference in return values in ring_simple and ring_tap
+	// Non positive value of ret means that we are on error flow (unlike for ring_simple).
 	if (p_send_wqe) {
 		mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
 
