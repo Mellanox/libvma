@@ -633,6 +633,8 @@ void net_device_val::set_slave_array()
 
 const slave_data_t* net_device_val::get_slave(int if_index)
 {
+	auto_unlocker lock(m_lock);
+
 	slave_data_vector_t::iterator iter;
 	for (iter = m_slaves.begin(); iter != m_slaves.end(); iter++) {
 		slave_data_t *cur_slave = *iter;
@@ -873,7 +875,10 @@ bool net_device_val::update_netvsc_slaves()
 	char slave_ifname[IFNAMSIZ] = {0};
 	unsigned int slave_flags = 0;
 
-	if (get_netvsc_slave(get_ifname_link(), slave_ifname, slave_flags) && (slave_flags & IFF_UP)) {
+	m_lock.lock();
+
+	if (get_netvsc_slave(get_ifname_link(), slave_ifname, slave_flags) &&
+			(slave_flags & IFF_UP)) {
 		s = new slave_data_t(if_nametoindex(slave_ifname));
 		m_slaves.push_back(s);
 
@@ -922,6 +927,8 @@ bool net_device_val::update_netvsc_slaves()
 		m_slaves[i]->p_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(base_ifname);
 		m_slaves[i]->port_num = get_port_from_ifname(base_ifname);
 	}
+
+	m_lock.unlock();
 
 	/* restart if status changed */
 	if (changed) {
