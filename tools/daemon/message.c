@@ -53,8 +53,8 @@ int open_message(void);
 void close_message(void);
 int proc_message(void);
 
-extern int add_flow(pid_t pid, struct store_flow *value);
-extern int del_flow(pid_t pid, struct store_flow *value);
+extern int add_flow(struct store_pid *pid_value, struct store_flow *value);
+extern int del_flow(struct store_pid *pid_value, struct store_flow *value);
 
 static int proc_msg_init(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_un *peeraddr);
 static int proc_msg_exit(struct vma_hdr *msg_hdr, size_t size);
@@ -279,7 +279,7 @@ static int proc_msg_exit(struct vma_hdr *msg_hdr, size_t size)
 		list_for_each_safe(cur_entry, tmp_entry, &pid_value->flow_list) {
 			flow_value = list_entry(cur_entry, struct store_flow, item);
 			list_del_init(&flow_value->item);
-			del_flow(pid_value->pid, flow_value);
+			del_flow(pid_value, flow_value);
 			free(flow_value);
 		}
 
@@ -429,7 +429,7 @@ static int proc_msg_flow(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_u
 			}
 		}
 		if (cur_entry == &pid_value->flow_list) {
-			rc = add_flow(pid_value->pid, value);
+			rc = add_flow(pid_value, value);
 			if (rc < 0) {
 				goto err;
 			}
@@ -451,7 +451,7 @@ static int proc_msg_flow(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_u
 				log_debug("[%d] del flow handle: 0x%08X type: %d if_id: %d tap_id: %d\n",
 						pid_value->pid, cur_flow->handle, cur_flow->type, cur_flow->if_id, cur_flow->tap_id);
 				list_del_init(&cur_flow->item);
-				rc = del_flow(pid_value->pid, cur_flow);
+				rc = del_flow(pid_value, cur_flow);
 				free(cur_flow);
 				break;
 			}
