@@ -873,17 +873,15 @@ bool net_device_val::update_netvsc_slaves()
 	char slave_ifname[IFNAMSIZ] = {0};
 	unsigned int slave_flags = 0;
 
-	if (get_netvsc_slave(get_ifname_link(), slave_ifname, slave_flags)) {
-		if (slave_flags & IFF_UP) {
-			s = new slave_data_t(if_nametoindex(slave_ifname));
-			m_slaves.push_back(s);
+	if (get_netvsc_slave(get_ifname_link(), slave_ifname, slave_flags) && (slave_flags & IFF_UP)) {
+		s = new slave_data_t(if_nametoindex(slave_ifname));
+		m_slaves.push_back(s);
 
-			nd_logdbg("slave %d is up ", s->if_index);
-			changed = true;
-			g_p_ib_ctx_handler_collection->update_tbl();
-			g_buffer_pool_rx->register_memory();
-			g_buffer_pool_tx->register_memory();
-		}
+		nd_logdbg("slave %d is up ", s->if_index);
+		changed = true;
+		g_p_ib_ctx_handler_collection->update_tbl();
+		g_buffer_pool_rx->register_memory();
+		g_buffer_pool_tx->register_memory();
 	} else {
 		slave_data_vector_t::iterator slave = m_slaves.begin();
 		for (; slave != m_slaves.end(); ++slave) {
