@@ -100,8 +100,8 @@ int open_notify(void);
 void close_notify(void);
 int proc_notify(void);
 
-extern int add_flow(pid_t pid, struct store_flow *value);
-extern int del_flow(pid_t pid, struct store_flow *value);
+extern int add_flow(struct store_pid *pid_value, struct store_flow *value);
+extern int del_flow(struct store_pid *pid_value, struct store_flow *value);
 
 static int setup_notify(void);
 static int create_raw_socket(void);
@@ -343,7 +343,7 @@ static int clean_process(pid_t pid)
 							pid_value->pid, j,
 							flow_value->handle, flow_value->type, flow_value->if_id, flow_value->tap_id);
 					list_del_init(&flow_value->item);
-					del_flow(pid_value->pid, flow_value);
+					del_flow(pid_value, flow_value);
 					free(flow_value);
 				}
 
