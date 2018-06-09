@@ -250,7 +250,7 @@ static int proc_msg_init(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_u
 	data->hdr.ver = VMA_AGENT_VER;
 	if (0 > sys_sendto(daemon_cfg.sock_fd, data, sizeof(*data), 0,
 			(struct sockaddr *)peeraddr, sizeof(*peeraddr))) {
-		log_error("Failed sendto() message errno %d (%s)\n", errno,
+		log_warn("Failed sendto() message errno %d (%s)\n", errno,
 				strerror(errno));
 	}
 
@@ -308,9 +308,13 @@ static int proc_msg_state(struct vma_hdr *msg_hdr, size_t size)
 
 	pid_value = hash_get(daemon_cfg.ht, data->hdr.pid);
 	if (NULL == pid_value) {
-		log_error("Failed hash_get() for pid %d errno %d (%s)\n",
+		/* Return success because this case can be valid
+		 * if the process is terminated using abnormal way
+		 * So no needs in acknowledgement.
+		 */
+		log_debug("Failed hash_get() for pid %d errno %d (%s). The process should be abnormal terminated\n",
 				data->hdr.pid, errno, strerror(errno));
-		return -ENOENT;
+		return ((int)sizeof(*data));
 	}
 
 	/* Do not store information about closed socket
@@ -382,10 +386,13 @@ static int proc_msg_flow(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_u
 
 	pid_value = hash_get(daemon_cfg.ht, data->hdr.pid);
 	if (NULL == pid_value) {
-		log_error("Failed hash_get() for pid %d errno %d (%s)\n",
+		/* Return success because this case can be valid
+		 * if the process is terminated using abnormal way
+		 * So no needs in acknowledgement.
+		 */
+		log_debug("Failed hash_get() for pid %d errno %d (%s). The process should be abnormal terminated\n",
 				data->hdr.pid, errno, strerror(errno));
-		rc = -ENOENT;
-		goto err;
+		return ((int)sizeof(*data));
 	}
 
 	/* Allocate memory for this value in this place
@@ -464,7 +471,7 @@ err:
 		data->hdr.status = (rc ? 1 : 0);
 		if (0 > sys_sendto(daemon_cfg.sock_fd, &data->hdr, sizeof(data->hdr), 0,
 				(struct sockaddr *)peeraddr, sizeof(*peeraddr))) {
-			log_error("Failed sendto() message errno %d (%s)\n", errno,
+			log_warn("Failed sendto() message errno %d (%s)\n", errno,
 					strerror(errno));
 		}
 	}
