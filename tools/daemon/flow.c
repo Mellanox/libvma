@@ -49,7 +49,7 @@
 
 #define KERNEL_HT 0x800
 #define MAX_BKT 0xFF
-#define MAX_ID  0xFFF
+#define MAX_ID  0xFFE
 #define HANDLE_INVALID    (uint32_t)(-1)
 
 #define HANDLE_SET(ht, bkt, id)  \
@@ -307,7 +307,7 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 	 */
 	cur_head = &cur_element->list;
 	bkt = get_bkt(value);
-	if (bkt <= 0) {
+	if (bkt < 0) {
 		log_warn("[%d] invalid flow bkt: %d\n",
 				pid, bkt);
 		goto err;
@@ -548,7 +548,7 @@ int del_flow(struct store_pid *pid_value, struct store_flow *value)
 				out_buf = sys_exec("tc filter del dev %s parent ffff: protocol ip prio %d handle %x::%x u32 > /dev/null 2>&1 || echo $?",
 									if_name, get_prio(value), ht_internal, ht);
 				if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
-					log_error("[%d] unlink table dev %s prio %d handle ::%x output: %s\n",
+					log_warn("[%d] unlink table dev %s prio %d handle ::%x output: %s\n",
 							pid, if_name, get_prio(value), ht, (out_buf ? out_buf : "n/a"));
 					rc = -EFAULT;
 				}
@@ -682,7 +682,7 @@ static inline int get_node(struct store_flow *value, struct list_head **cur_head
 		/* node id selection for this flow type is based
 		 * port value
 		 */
-		id = ((ntohs(value->flow.dst_port) / 0xFF) & 0xFF) + 1;
+		id = ((ntohs(value->flow.dst_port) >> 8) & 0xFF) + 1;
 		break;
 	case VMA_MSG_FLOW_TCP_5T:
 	case VMA_MSG_FLOW_UDP_5T:
