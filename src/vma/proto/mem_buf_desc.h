@@ -64,8 +64,16 @@ public:
  */
 class mem_buf_desc_t {
 public:
-	mem_buf_desc_t(uint8_t *buffer, size_t size) : p_buffer(buffer), sz_buffer(size) {
-		// coverity[uninit_member]
+	mem_buf_desc_t(uint8_t *buffer, size_t size,  pbuf_free_custom_fn custom_free_function) :
+		p_buffer(buffer), lkey(0), p_next_desc(0),
+		p_prev_desc(0), sz_buffer(size), sz_data(0),
+		p_desc_owner(0) {
+		memset(&lwip_pbuf, 0, sizeof(lwip_pbuf));
+		memset(&rx, 0, sizeof(rx));
+		memset(&tx, 0, sizeof(tx));
+		reset_ref_count();
+
+		lwip_pbuf.custom_free_function = custom_free_function;
 	}
 
 	struct pbuf_custom lwip_pbuf;	//Do not change the location of this field.
