@@ -59,6 +59,7 @@ public:
 
 	virtual void send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 	virtual void send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
+	virtual void mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc);
 	virtual mem_buf_desc_t* mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_num_mem_bufs = 1);
 	virtual int mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting, bool trylock = false);
 
@@ -114,6 +115,7 @@ public:
 protected:
 
 private:
+	inline void return_to_global_pool();
 	void prepare_flow_message(vma_msg_flow& data,
 			flow_tuple& flow_spec_5t, msg_flow_t flow_action);
 	int process_element_rx(void* pv_fd_ready_array);
