@@ -51,9 +51,13 @@ public:
 	bool register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint64_t access);
 	void deregister_memory();
 private:
+	void align_simple_malloc(size_t sz_bytes);
 	bool hugetlb_alloc(size_t sz_bytes);
+	bool hugetlb_mmap_alloc();
+	bool hugetlb_sysv_alloc();
 	lkey_map_ib_ctx_map_t m_lkey_map_ib_ctx;
 	int m_shmid;
+	size_t m_length;
 	void *m_data_block;
 	alloc_mode_t m_mem_alloc_type;
 };

@@ -41,6 +41,7 @@ vma_allocator::vma_allocator()
 	__log_info_dbg("");
 
 	m_shmid = -1;
+	m_length = 0;
 	m_data_block = NULL;
 	m_mem_alloc_type = safe_mce_sys().mem_alloc_type;
 
@@ -53,20 +54,35 @@ vma_allocator::~vma_allocator()
 
 	// Unregister memory
 	deregister_memory();
-
-	// Release memory
-	if (m_shmid >= 0) { // Huge pages mode
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (m_data_block && (shmdt(m_data_block) != 0)) {
-			__log_info_err("shmem detach failure %m");
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-	// in contig mode 'ibv_dereg_mr' will free all allocates resources
-	} else if (ALLOC_TYPE_CONTIG != m_mem_alloc_type) {
-		if (m_data_block)
-			free(m_data_block);
+	if (!m_data_block) {
+		__log_info_dbg("m_data_block is null");
+		return;
 	}
-
+	switch (m_mem_alloc_type) {
+		case ALLOC_TYPE_CONTIG:
+			// freed as part of deregister_memory
+			break;
+		case ALLOC_TYPE_HUGEPAGES:
+			if (m_shmid > 0) {
+				if (shmdt(m_data_block) != 0) {
+					__log_info_err("shmem detach failure %m");
+				}
+			} else { // used mmap
+				if (munmap(m_data_block, m_length)) {
+					__log_info_err("failed freeing memory "
+							"with munmap errno "
+							"%d", errno);
+				}
+			}
+			break;
+		case ALLOC_TYPE_ANON:
+			free(m_data_block);
+			break;
+		default:
+			__log_info_err("Unknown memory allocation type %d",
+					m_mem_alloc_type);
+			break;
+	}
 	__log_info_dbg("Done");
 }
 
@@ -82,12 +98,12 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
 		}
 		else {
 			__log_info_dbg("Huge pages allocation passed successfully");
+			m_mem_alloc_type = ALLOC_TYPE_HUGEPAGES;
 			if (!register_memory(size, p_ib_ctx_h, access)) {
 				__log_info_dbg("failed registering huge pages data memory block");
 				throw_vma_exception("failed registering huge pages data memory"
 						" block");
 			}
-			m_mem_alloc_type = ALLOC_TYPE_HUGEPAGES;
 			break;
 		}
 	// fallthrough
@@ -108,19 +124,12 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
 	case ALLOC_TYPE_ANON:
 	default:
 		__log_info_dbg("allocating memory using malloc()");
-		m_data_block = malloc(size);
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (m_data_block == NULL) {
-			__log_info_dbg("failed allocating data memory block "
-					"(size=%d Kbytes) (errno=%d %m)", size/1024, errno);
-			throw_vma_exception("failed allocating data memory block");
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
+		align_simple_malloc(size); // if fail will raise exception
+		m_mem_alloc_type = ALLOC_TYPE_ANON;
 		if (!register_memory(size, p_ib_ctx_h, access)) {
 			__log_info_dbg("failed registering data memory block");
 			throw_vma_exception("failed registering data memory block");
 		}
-		m_mem_alloc_type = ALLOC_TYPE_ANON;
 		break;
 	}
 	__log_info_dbg("allocated memory at %p, size %zd", m_data_block, size);
@@ -149,34 +158,64 @@ uint32_t vma_allocator::find_lkey_by_ib_ctx(ib_ctx_handler *p_ib_ctx_h) const
 
 bool vma_allocator::hugetlb_alloc(size_t sz_bytes)
 {
-	size_t hugepagemask = 4 * 1024 * 1024 - 1;
-	sz_bytes = (sz_bytes + hugepagemask) & (~hugepagemask);
+	const size_t hugepagemask = 4 * 1024 * 1024 - 1;
 
-	__log_info_dbg("Allocating %zd bytes in huge tlb", sz_bytes);
+	m_length = (sz_bytes + hugepagemask) & (~hugepagemask);
+	if (hugetlb_mmap_alloc()) {
+		return true;
+	}
+	if (hugetlb_sysv_alloc()) {
+		return true;
+	}
+	// Stop trying to use HugePage if failed even once
+	safe_mce_sys().mem_alloc_type = ALLOC_TYPE_CONTIG;
+
+	vlog_printf(VLOG_WARNING, "**************************************************************\n");
+	vlog_printf(VLOG_WARNING, "* NO IMMEDIATE ACTION NEEDED!                                 \n");
+	vlog_printf(VLOG_WARNING, "* Not enough hugepage resources for VMA memory allocation.    \n");
+	vlog_printf(VLOG_WARNING, "* VMA will continue working with regular memory allocation.   \n");
+	vlog_printf(VLOG_INFO, "   * Optional:                                                   \n");
+	vlog_printf(VLOG_INFO, "   *   1. Switch to a different memory allocation type           \n");
+	vlog_printf(VLOG_INFO, "   *      (%s!= %d)                                              \n",
+			SYS_VAR_MEM_ALLOC_TYPE, ALLOC_TYPE_HUGEPAGES);
+	vlog_printf(VLOG_INFO, "   *   2. Restart process after increasing the number of         \n");
+	vlog_printf(VLOG_INFO, "   *      hugepages resources in the system:                     \n");
+	vlog_printf(VLOG_INFO, "   *      \"echo 1000000000 > /proc/sys/kernel/shmmax\"          \n");
+	vlog_printf(VLOG_INFO, "   *      \"echo 800 > /proc/sys/vm/nr_hugepages\"               \n");
+	vlog_printf(VLOG_WARNING, "* Please refer to the memory allocation section in the VMA's  \n");
+	vlog_printf(VLOG_WARNING, "* User Manual for more information                            \n");
+	vlog_printf(VLOG_WARNING, "***************************************************************\n");
+	return false;
+}
+
+bool vma_allocator::hugetlb_mmap_alloc()
+{
+#ifdef MAP_HUGETLB
+	__log_info_dbg("Allocating %zd bytes in huge tlb using mmap", m_length);
+
+	m_data_block = mmap(NULL, m_length,
+			PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS |
+			MAP_POPULATE | MAP_HUGETLB, -1, 0);
+	if (m_data_block == MAP_FAILED) {
+		__log_info_dbg("failed allocating %zd using mmap %d", m_length,
+				errno);
+		return false;
+	}
+	return true;
+#else
+	return false;
+#endif
+}
+
+
+bool vma_allocator::hugetlb_sysv_alloc()
+{
+	__log_info_dbg("Allocating %zd bytes in huge tlb with shmget", m_length);
 
 	// allocate memory
-	m_shmid = shmget(IPC_PRIVATE, sz_bytes,
+	m_shmid = shmget(IPC_PRIVATE, m_length,
 			SHM_HUGETLB | IPC_CREAT | SHM_R | SHM_W);
 	if (m_shmid < 0) {
-
-		// Stop trying to use HugePage if failed even once
-		safe_mce_sys().mem_alloc_type = ALLOC_TYPE_CONTIG;
-
-		vlog_printf(VLOG_WARNING, "**************************************************************\n");
-		vlog_printf(VLOG_WARNING, "* NO IMMEDIATE ACTION NEEDED!                                 \n");
-		vlog_printf(VLOG_WARNING, "* Not enough hugepage resources for VMA memory allocation.    \n");
-		vlog_printf(VLOG_WARNING, "* VMA will continue working with regular memory allocation.   \n");
-		vlog_printf(VLOG_INFO, "   * Optional:                                                   \n");
-		vlog_printf(VLOG_INFO, "   *   1. Switch to a different memory allocation type           \n");
-		vlog_printf(VLOG_INFO, "   *      (%s!= %d)                                              \n",
-				SYS_VAR_MEM_ALLOC_TYPE, ALLOC_TYPE_HUGEPAGES);
-		vlog_printf(VLOG_INFO, "   *   2. Restart process after increasing the number of         \n");
-		vlog_printf(VLOG_INFO, "   *      hugepages resources in the system:                     \n");
-		vlog_printf(VLOG_INFO, "   *      \"echo 1000000000 > /proc/sys/kernel/shmmax\"          \n");
-		vlog_printf(VLOG_INFO, "   *      \"echo 800 > /proc/sys/vm/nr_hugepages\"               \n");
-		vlog_printf(VLOG_WARNING, "* Please refer to the memory allocation section in the VMA's  \n");
-		vlog_printf(VLOG_WARNING, "* User Manual for more information                            \n");
-		vlog_printf(VLOG_WARNING, "***************************************************************\n");
 		return false;
 	}
 
@@ -199,7 +238,7 @@ bool vma_allocator::hugetlb_alloc(size_t sz_bytes)
 
 	// We want to determine now that we can lock it. Note: it was claimed
 	// that without actual mlock, linux might be buggy on this with huge-pages
-	int rc = mlock(m_data_block, sz_bytes);
+	int rc = mlock(m_data_block, m_length);
 	if (rc!=0) {
 		__log_info_warn("mlock of shared memory failure (errno=%d %m)", errno);
 		if (shmdt(m_data_block) != 0) {
@@ -211,6 +250,34 @@ bool vma_allocator::hugetlb_alloc(size_t sz_bytes)
 	}
 
 	return true;
+}
+
+void vma_allocator::align_simple_malloc(size_t sz_bytes)
+{
+	int ret = 0;
+	long page_size = sysconf(_SC_PAGESIZE);
+
+	if (page_size > 0) {
+		m_length = (sz_bytes + page_size - 1) & (~page_size - 1);
+		ret = posix_memalign(&m_data_block, page_size, m_length);
+		if (!ret) {
+			__log_info_dbg("allocated %zd aligned memory at %p",
+					m_length, m_data_block);
+			return;
+		}
+	}
+	__log_info_dbg("failed allocating memory with posix_memalign size %zd "
+			"returned %d (errno=%d %m) ", m_length, ret, errno);
+
+	m_length = sz_bytes;
+	m_data_block = malloc(sz_bytes);
+
+	if (m_data_block == NULL) {
+		__log_info_dbg("failed allocating data memory block "
+				"(size=%d bytes) (errno=%d %m)", sz_bytes, errno);
+		throw_vma_exception("failed allocating data memory block");
+	}
+	__log_info_dbg("allocated memory using malloc()");
 }
 
 bool vma_allocator::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h,
