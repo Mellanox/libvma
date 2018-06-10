@@ -75,7 +75,7 @@ void buffer_pool::free_tx_lwip_pbuf_custom(struct pbuf *p_buff)
 	g_buffer_pool_tx->put_buffers_thread_safe((mem_buf_desc_t *)p_buff);
 }
 
-buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p_ib_ctx_h, mem_buf_desc_owner *owner, pbuf_free_custom_fn custom_free_function) :
+buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, pbuf_free_custom_fn custom_free_function) :
 			m_lock_spin("buffer_pool"),
 			m_n_buffers(0),
 			m_n_buffers_created(buffer_count),
@@ -96,7 +96,7 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 	} else {
 		m_size = buf_size;
 	}
-	void *data_block = m_allocator.alloc_and_reg_mr(m_size, p_ib_ctx_h);
+	void *data_block = m_allocator.alloc_and_reg_mr(m_size, NULL);
 
 
 	if (!buffer_count) return;
@@ -107,12 +107,8 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, ib_ctx_handler *p
 
 	// Split the block to buffers
 	for (size_t i = 0; i < buffer_count; ++i) {
-		memset(ptr_desc, 0, sizeof(mem_buf_desc_t));
-		mem_buf_desc_t *desc = new (ptr_desc) mem_buf_desc_t(ptr_buff, buf_size);
-		desc->p_desc_owner = owner;
-		desc->lwip_pbuf.custom_free_function = custom_free_function;
+		mem_buf_desc_t *desc = new (ptr_desc) mem_buf_desc_t(ptr_buff, buf_size, custom_free_function);
 		put_buffer_helper(desc);
-		desc->rx.socketxtreme_polled = false;
 
 		ptr_buff += sz_aligned_element;
 		ptr_desc += sizeof(mem_buf_desc_t);
