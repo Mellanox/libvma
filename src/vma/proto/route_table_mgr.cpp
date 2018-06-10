@@ -378,7 +378,6 @@ bool route_table_mgr::route_resolve(IN route_rule_table_key key, OUT route_resul
 		}
 	}
 	/* prevent usage on false return */
-	memset(&res, 0, sizeof(route_result));
 	return false;
 }
 
