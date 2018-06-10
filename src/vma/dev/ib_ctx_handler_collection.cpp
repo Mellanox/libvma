@@ -138,7 +138,7 @@ void ib_ctx_handler_collection::update_tbl()
 		for (ib_ctx_itr = m_ib_ctx_map.begin(); ib_ctx_itr != m_ib_ctx_map.end(); ib_ctx_itr++) {
 			if (strcmp(dev_list[i]->name, ib_ctx_itr->first->name) == 0) {
 				std::vector<struct ibv_device*>::iterator cache_iter;
-				while ((cache_iter = cache_objs.begin()) != cache_objs.end()) {
+				for (cache_iter = cache_objs.begin(); cache_iter != cache_objs.end(); cache_iter++) {
 					if (strcmp(dev_list[i]->name, (*cache_iter)->name) == 0) {
 						cache_objs.erase(cache_iter);
 						break;
