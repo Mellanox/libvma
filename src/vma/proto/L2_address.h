@@ -59,7 +59,7 @@ public:
 	void		set(address_t const address, addrlen_t const len);
 
 	addrlen_t	get_addrlen() const { return m_len; };
-	address_t	get_address() const { return (const address_t)m_p_raw_address; };
+	address_t	get_address() const { return (address_t)m_p_raw_address; };
 
 	virtual bool 	compare(L2_address const& other) const;
 

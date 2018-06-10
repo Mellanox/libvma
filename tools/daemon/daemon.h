@@ -204,8 +204,8 @@ static inline void sys_log(int level, const char *format, ...)
 
 static inline char *sys_addr2str(struct sockaddr_in *addr)
 {
-	static __thread char addrbuf[100];
 	static char buf[100];
+	static __thread char addrbuf[sizeof(buf) + sizeof(addr->sin_port) + 5];
 	inet_ntop(AF_INET, &addr->sin_addr, buf, sizeof(buf) - 1);
 	sprintf(addrbuf, "%s:%d", buf, ntohs(addr->sin_port));
 
