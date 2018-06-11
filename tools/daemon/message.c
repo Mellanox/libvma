@@ -399,26 +399,17 @@ static int proc_msg_flow(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_u
 	value->type = data->type;
 	value->if_id = data->if_id;
 	value->tap_id = data->tap_id;
-	switch (value->type) {
+	value->flow.dst_ip = data->flow.dst_ip;
+	value->flow.dst_port = data->flow.dst_port;
+
+	switch (data->type) {
 	case VMA_MSG_FLOW_TCP_3T:
-		value->flow.t3.dst_ip = data->flow.t3.dst_ip;
-		value->flow.t3.dst_port = data->flow.t3.dst_port;
+	case VMA_MSG_FLOW_UDP_3T:
 		break;
 	case VMA_MSG_FLOW_TCP_5T:
-		value->flow.t5.src_ip = data->flow.t5.src_ip;
-		value->flow.t5.dst_ip = data->flow.t5.dst_ip;
-		value->flow.t5.src_port = data->flow.t5.src_port;
-		value->flow.t5.dst_port = data->flow.t5.dst_port;
-		break;
-	case VMA_MSG_FLOW_UDP_3T:
-		value->flow.t3.dst_ip = data->flow.t3.dst_ip;
-		value->flow.t3.dst_port = data->flow.t3.dst_port;
-		break;
 	case VMA_MSG_FLOW_UDP_5T:
 		value->flow.t5.src_ip = data->flow.t5.src_ip;
-		value->flow.t5.dst_ip = data->flow.t5.dst_ip;
 		value->flow.t5.src_port = data->flow.t5.src_port;
-		value->flow.t5.dst_port = data->flow.t5.dst_port;
 		break;
 	default:
 		log_error("Received unknown message errno %d (%s)\n", errno,

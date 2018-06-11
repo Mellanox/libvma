@@ -99,6 +99,7 @@ static inline void get_htid(struct flow_ctx *ctx, int prio, int *ht_krn, int *ht
 static inline void free_htid(struct flow_ctx *ctx, int ht_id);
 static inline int get_prio(struct store_flow *value);
 static inline int get_bkt(struct store_flow *value);
+static inline int get_protocol(struct store_flow *value);
 static inline int get_node(struct store_flow *value, struct list_head **list);
 
 
@@ -122,33 +123,13 @@ int add_flow(pid_t pid, struct store_flow *value)
 	char if_name[IF_NAMESIZE];
 	char tap_name[IF_NAMESIZE];
 	char *out_buf = NULL;
-	uint32_t ip = 0;
+	uint32_t ip = value->flow.dst_ip;
 	int ht = HANDLE_HT(value->handle);
 	int bkt = HANDLE_BKT(value->handle);
 	int id = HANDLE_ID(value->handle);
 	int ht_internal = KERNEL_HT;
 	struct flow_ctx *ctx = NULL;
 	char str_tmp[20];
-
-	switch (value->type) {
-	case VMA_MSG_FLOW_TCP_3T:
-		ip = value->flow.t3.dst_ip;
-		break;
-	case VMA_MSG_FLOW_TCP_5T:
-		ip = value->flow.t5.dst_ip;
-		break;
-	case VMA_MSG_FLOW_UDP_3T:
-		ip = value->flow.t3.dst_ip;
-		break;
-	case VMA_MSG_FLOW_UDP_5T:
-		ip = value->flow.t5.dst_ip;
-		break;
-	default:
-		log_error("Invalid format %d (%s)\n", errno,
-				strerror(errno));
-		rc = -EPROTO;
-		goto err;
-	}
 
 	errno = 0;
 	if (NULL == if_indextoname(value->if_id, if_name)) {
@@ -364,44 +345,26 @@ int add_flow(pid_t pid, struct store_flow *value)
 
 		switch (value->type) {
 		case VMA_MSG_FLOW_TCP_3T:
-			out_buf = sys_exec("tc filter add dev %s parent ffff: protocol ip "
-								"prio %d handle ::%x u32 ht %x:%x: match ip protocol 6 0xff "
-								"match ip dst %s/32 match ip dport %d 0xffff "
-								"action mirred egress redirect dev %s > /dev/null 2>&1 || echo $?",
-								if_name, get_prio(value), id, ht, bkt,
-								sys_ip2str(value->flow.t3.dst_ip), ntohs(value->flow.t3.dst_port), tap_name);
-			break;
-		case VMA_MSG_FLOW_TCP_5T:
-			str_tmp[sizeof(str_tmp) - 1] = '\0';
-			strncpy(str_tmp, sys_ip2str(value->flow.t5.src_ip), sizeof(str_tmp) - 1);
-			out_buf = sys_exec("tc filter add dev %s parent ffff: protocol ip "
-								"prio %d handle ::%x u32 ht %x:%x: match ip protocol 6 0xff "
-								"match ip src %s/32 match ip sport %d 0xffff "
-								"match ip dst %s/32 match ip dport %d 0xffff "
-								"action mirred egress redirect dev %s > /dev/null 2>&1 || echo $?",
-								if_name, get_prio(value), id, ht, bkt,
-								str_tmp, ntohs(value->flow.t5.src_port),
-								sys_ip2str(value->flow.t5.dst_ip), ntohs(value->flow.t5.dst_port), tap_name);
-			break;
 		case VMA_MSG_FLOW_UDP_3T:
 			out_buf = sys_exec("tc filter add dev %s parent ffff: protocol ip "
-								"prio %d handle ::%x u32 ht %x:%x: match ip protocol 17 0xff "
+								"prio %d handle ::%x u32 ht %x:%x: match ip protocol %d 0xff "
 								"match ip dst %s/32 match ip dport %d 0xffff "
 								"action mirred egress redirect dev %s > /dev/null 2>&1 || echo $?",
-								if_name, get_prio(value), id, ht, bkt,
-								sys_ip2str(value->flow.t3.dst_ip), ntohs(value->flow.t3.dst_port), tap_name);
+								if_name, get_prio(value), id, ht, bkt, get_protocol(value),
+								sys_ip2str(value->flow.dst_ip), ntohs(value->flow.dst_port), tap_name);
 			break;
+		case VMA_MSG_FLOW_TCP_5T:
 		case VMA_MSG_FLOW_UDP_5T:
 			str_tmp[sizeof(str_tmp) - 1] = '\0';
 			strncpy(str_tmp, sys_ip2str(value->flow.t5.src_ip), sizeof(str_tmp) - 1);
 			out_buf = sys_exec("tc filter add dev %s parent ffff: protocol ip "
-								"prio %d handle ::%x u32 ht %x:%x: match ip protocol 17 0xff "
+								"prio %d handle ::%x u32 ht %x:%x: match ip protocol %d 0xff "
 								"match ip src %s/32 match ip sport %d 0xffff "
 								"match ip dst %s/32 match ip dport %d 0xffff "
 								"action mirred egress redirect dev %s > /dev/null 2>&1 || echo $?",
-								if_name, get_prio(value), id, ht, bkt,
+								if_name, get_prio(value), id, ht, bkt, get_protocol(value),
 								str_tmp, ntohs(value->flow.t5.src_port),
-								sys_ip2str(value->flow.t5.dst_ip), ntohs(value->flow.t5.dst_port), tap_name);
+								sys_ip2str(value->flow.dst_ip), ntohs(value->flow.dst_port), tap_name);
 			break;
 		default:
 			break;
@@ -444,33 +407,13 @@ int del_flow(pid_t pid, struct store_flow *value)
 	struct list_head *save_entry[3];
 	char if_name[IF_NAMESIZE];
 	char *out_buf = NULL;
-	uint32_t ip = 0;
+	uint32_t ip = value->flow.dst_ip;
 	int ht = HANDLE_HT(value->handle);
 	int bkt = HANDLE_BKT(value->handle);
 	int id = HANDLE_ID(value->handle);
 	int ht_internal = KERNEL_HT;
 	struct flow_ctx *ctx = NULL;
 	int found = 0;
-
-	switch (value->type) {
-	case VMA_MSG_FLOW_TCP_3T:
-		ip = value->flow.t3.dst_ip;
-		break;
-	case VMA_MSG_FLOW_TCP_5T:
-		ip = value->flow.t5.dst_ip;
-		break;
-	case VMA_MSG_FLOW_UDP_3T:
-		ip = value->flow.t3.dst_ip;
-		break;
-	case VMA_MSG_FLOW_UDP_5T:
-		ip = value->flow.t5.dst_ip;
-		break;
-	default:
-		log_error("Invalid format %d (%s)\n", errno,
-				strerror(errno));
-		rc = -EPROTO;
-		goto err;
-	}
 
 	errno = 0;
 	if (NULL == if_indextoname(value->if_id, if_name)) {
@@ -691,26 +634,23 @@ static inline int get_prio(struct store_flow *value)
 
 static inline int get_bkt(struct store_flow *value)
 {
-	int bkt = 0;
+	return ntohs(value->flow.dst_port) & 0xFF;
+}
 
+static inline int get_protocol(struct store_flow *value)
+{
 	switch (value->type) {
-	case VMA_MSG_FLOW_TCP_3T:
-		bkt = ntohs(value->flow.t3.dst_port) & 0xFF;
-		break;
-	case VMA_MSG_FLOW_TCP_5T:
-		bkt = ntohs(value->flow.t5.dst_port) & 0xFF;
-		break;
 	case VMA_MSG_FLOW_UDP_3T:
-		bkt = ntohs(value->flow.t3.dst_port) & 0xFF;
-		break;
 	case VMA_MSG_FLOW_UDP_5T:
-		bkt = ntohs(value->flow.t5.dst_port) & 0xFF;
-		break;
+		return IPPROTO_UDP;
+
+	case VMA_MSG_FLOW_TCP_3T:
+	case VMA_MSG_FLOW_TCP_5T:
+		return IPPROTO_TCP;
+
 	default:
 		return -EINVAL;
 	}
-
-	return bkt;
 }
 
 static inline int get_node(struct store_flow *value, struct list_head **cur_head)
@@ -725,7 +665,7 @@ static inline int get_node(struct store_flow *value, struct list_head **cur_head
 		/* node id selection for this flow type is based
 		 * port value
 		 */
-		id = ((ntohs(value->flow.t3.dst_port) / 0xFF) & 0xFF) + 1;
+		id = ((ntohs(value->flow.dst_port) / 0xFF) & 0xFF) + 1;
 		break;
 	case VMA_MSG_FLOW_TCP_5T:
 	case VMA_MSG_FLOW_UDP_5T:

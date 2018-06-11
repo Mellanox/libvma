@@ -73,7 +73,7 @@ protected:
 /**
  * @test vmad_flow.ti_1
  * @brief
- *    Send valid 3tuple VMA_MSG_FLOW(ADD)
+ *    Send valid TCP 3tuple VMA_MSG_FLOW(ADD)
  * @details
  */
 TEST_F(vmad_flow, ti_1) {
@@ -86,8 +86,8 @@ TEST_F(vmad_flow, ti_1) {
 	m_data.hdr.status = 1;
 	m_data.action = VMA_MSG_FLOW_ADD;
 	m_data.type = VMA_MSG_FLOW_TCP_3T;
-	m_data.flow.t3.dst_ip = server_addr.sin_addr.s_addr;
-	m_data.flow.t3.dst_port = server_addr.sin_port;
+	m_data.flow.dst_ip = server_addr.sin_addr.s_addr;
+	m_data.flow.dst_port = server_addr.sin_port;
 
 	errno = 0;
 	rc = send(m_sock_fd, &m_data, sizeof(m_data), 0);
@@ -110,7 +110,7 @@ TEST_F(vmad_flow, ti_1) {
 /**
  * @test vmad_flow.ti_2
  * @brief
- *    Send valid 5tuple VMA_MSG_FLOW(ADD)
+ *    Send valid TCP 5tuple VMA_MSG_FLOW(ADD)
  * @details
  */
 TEST_F(vmad_flow, ti_2) {
@@ -123,8 +123,8 @@ TEST_F(vmad_flow, ti_2) {
 	m_data.hdr.status = 1;
 	m_data.action = VMA_MSG_FLOW_ADD;
 	m_data.type = VMA_MSG_FLOW_TCP_5T;
-	m_data.flow.t5.dst_ip = server_addr.sin_addr.s_addr;
-	m_data.flow.t5.dst_port = server_addr.sin_port;
+	m_data.flow.dst_ip = server_addr.sin_addr.s_addr;
+	m_data.flow.dst_port = server_addr.sin_port;
 	m_data.flow.t5.src_ip = client_addr.sin_addr.s_addr;
 	m_data.flow.t5.src_port = client_addr.sin_port;
 
@@ -162,8 +162,8 @@ TEST_F(vmad_flow, ti_3) {
 	m_data.hdr.status = 1;
 	m_data.action = VMA_MSG_FLOW_ADD;
 	m_data.type = VMA_MSG_FLOW_TCP_3T;
-	m_data.flow.t3.dst_ip = server_addr.sin_addr.s_addr;
-	m_data.flow.t3.dst_port = server_addr.sin_port;
+	m_data.flow.dst_ip = server_addr.sin_addr.s_addr;
+	m_data.flow.dst_port = server_addr.sin_port;
 
 	errno = 0;
 	rc = send(m_sock_fd, &m_data, sizeof(m_data), 0);
@@ -216,8 +216,8 @@ TEST_F(vmad_flow, ti_4) {
 	m_data.hdr.status = 1;
 	m_data.action = VMA_MSG_FLOW_ADD;
 	m_data.type = VMA_MSG_FLOW_TCP_5T;
-	m_data.flow.t5.dst_ip = server_addr.sin_addr.s_addr;
-	m_data.flow.t5.dst_port = server_addr.sin_port;
+	m_data.flow.dst_ip = server_addr.sin_addr.s_addr;
+	m_data.flow.dst_port = server_addr.sin_port;
 	m_data.flow.t5.src_ip = client_addr.sin_addr.s_addr;
 	m_data.flow.t5.src_port = client_addr.sin_port;
 
@@ -255,3 +255,80 @@ TEST_F(vmad_flow, ti_4) {
 	rc = vmad_base::msg_exit(m_pid);
 	ASSERT_LT(0, rc);
 }
+
+/**
+ * @test vmad_flow.ti_51
+ * @brief
+ *    Send valid UDP 3tuple VMA_MSG_FLOW(ADD)
+ * @details
+ */
+TEST_F(vmad_flow, ti_5) {
+	int rc = 0;
+	struct vma_hdr answer;
+
+	rc = vmad_base::msg_init(m_pid);
+	ASSERT_LT(0, rc);
+
+	m_data.hdr.status = 1;
+	m_data.action = VMA_MSG_FLOW_ADD;
+	m_data.type = VMA_MSG_FLOW_UDP_3T;
+	m_data.flow.dst_ip = server_addr.sin_addr.s_addr;
+	m_data.flow.dst_port = server_addr.sin_port;
+
+	errno = 0;
+	rc = send(m_sock_fd, &m_data, sizeof(m_data), 0);
+	EXPECT_EQ(0, errno);
+	EXPECT_EQ((int)sizeof(m_data), rc);
+
+	memset(&answer, 0, sizeof(answer));
+	rc = recv(m_sock_fd, &answer, sizeof(answer), 0);
+	EXPECT_EQ((int)sizeof(answer), rc);
+
+	EXPECT_EQ((VMA_MSG_FLOW | VMA_MSG_ACK), answer.code);
+	EXPECT_LE(VMA_AGENT_VER, answer.ver);
+	EXPECT_EQ(m_pid, answer.pid);
+	EXPECT_EQ(0, answer.status);
+
+	rc = vmad_base::msg_exit(m_pid);
+	ASSERT_LT(0, rc);
+}
+
+/**
+ * @test vmad_flow.ti_6
+ * @brief
+ *    Send valid UDP 5tuple VMA_MSG_FLOW(ADD)
+ * @details
+ */
+TEST_F(vmad_flow, ti_6) {
+	int rc = 0;
+	struct vma_hdr answer;
+
+	rc = vmad_base::msg_init(m_pid);
+	ASSERT_LT(0, rc);
+
+	m_data.hdr.status = 1;
+	m_data.action = VMA_MSG_FLOW_ADD;
+	m_data.type = VMA_MSG_FLOW_UDP_5T;
+	m_data.flow.dst_ip = server_addr.sin_addr.s_addr;
+	m_data.flow.dst_port = server_addr.sin_port;
+	m_data.flow.t5.src_ip = client_addr.sin_addr.s_addr;
+	m_data.flow.t5.src_port = client_addr.sin_port;
+
+	errno = 0;
+	rc = send(m_sock_fd, &m_data, sizeof(m_data), 0);
+	EXPECT_EQ(0, errno);
+	EXPECT_EQ((int)sizeof(m_data), rc);
+
+	memset(&answer, 0, sizeof(answer));
+	rc = recv(m_sock_fd, &answer, sizeof(answer), 0);
+	EXPECT_EQ((int)sizeof(answer), rc);
+
+	EXPECT_EQ((VMA_MSG_FLOW | VMA_MSG_ACK), answer.code);
+	EXPECT_LE(VMA_AGENT_VER, answer.ver);
+	EXPECT_EQ(m_pid, answer.pid);
+	EXPECT_EQ(0, answer.status);
+
+	rc = vmad_base::msg_exit(m_pid);
+	ASSERT_LT(0, rc);
+}
+

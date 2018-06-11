@@ -1002,31 +1002,15 @@ void ring_tap::prepare_flow_message(vma_msg_flow& data,
 	data.action = flow_action;
 	data.if_id = get_parent()->get_if_index();
 	data.tap_id = get_if_index();
+	data.flow.dst_ip = flow_spec_5t.get_dst_ip();
+	data.flow.dst_port = flow_spec_5t.get_dst_port();
 
-	if (flow_spec_5t.is_tcp()) {
-		if (flow_spec_5t.is_3_tuple()) {
-			data.type = VMA_MSG_FLOW_TCP_3T;
-			data.flow.t3.dst_ip = flow_spec_5t.get_dst_ip();
-			data.flow.t3.dst_port = flow_spec_5t.get_dst_port();
-		} else {
-			data.type = VMA_MSG_FLOW_TCP_5T;
-			data.flow.t5.src_ip = flow_spec_5t.get_src_ip();
-			data.flow.t5.src_port = flow_spec_5t.get_src_port();
-			data.flow.t5.dst_ip = flow_spec_5t.get_dst_ip();
-			data.flow.t5.dst_port = flow_spec_5t.get_dst_port();
-		}
+	if (flow_spec_5t.is_3_tuple()) {
+		data.type = flow_spec_5t.is_tcp() ? VMA_MSG_FLOW_TCP_3T : VMA_MSG_FLOW_UDP_3T;
 	} else {
-		if (flow_spec_5t.is_3_tuple()) {
-			data.type = VMA_MSG_FLOW_UDP_3T;
-			data.flow.t3.dst_ip = flow_spec_5t.get_dst_ip();
-			data.flow.t3.dst_port = flow_spec_5t.get_dst_port();
-		} else {
-			data.type = VMA_MSG_FLOW_UDP_5T;
-			data.flow.t5.src_ip = flow_spec_5t.get_src_ip();
-			data.flow.t5.src_port = flow_spec_5t.get_src_port();
-			data.flow.t5.dst_ip = flow_spec_5t.get_dst_ip();
-			data.flow.t5.dst_port = flow_spec_5t.get_dst_port();
-		}
+		data.type = flow_spec_5t.is_tcp() ? VMA_MSG_FLOW_TCP_5T : VMA_MSG_FLOW_UDP_5T;
+		data.flow.t5.src_ip = flow_spec_5t.get_src_ip();
+		data.flow.t5.src_port = flow_spec_5t.get_src_port();
 	}
 }
 
