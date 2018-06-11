@@ -339,9 +339,9 @@ static int clean_process(pid_t pid)
 				list_for_each_safe(cur_entry, tmp_entry, &pid_value->flow_list) {
 					flow_value = list_entry(cur_entry, struct store_flow, item);
 					j++;
-					log_debug("[%d] #%d found handle: 0x%08X type: %d if_id: %d tap_id: %d\n",
+					log_debug("[%d] #%d found handle: 0x%08X is_3t: %d protocol: %d if_id: %d tap_id: %d\n",
 							pid_value->pid, j,
-							flow_value->handle, flow_value->type, flow_value->if_id, flow_value->tap_id);
+							flow_value->handle, flow_value->is_3t, flow_value->protocol, flow_value->if_id, flow_value->tap_id);
 					list_del_init(&flow_value->item);
 					del_flow(pid_value->pid, flow_value);
 					free(flow_value);

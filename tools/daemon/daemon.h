@@ -170,17 +170,14 @@ struct store_fid {
 struct store_flow {
 	struct list_head       item;       /**< Link to use in queue */
 	uint32_t               handle;     /**< Handle value in term of tc */
-	int                    type;       /**< Flow type */
+	uint32_t               protocol;   /**< Protocol number */
+	uint32_t               is_3t;      /**< is 3t */
 	uint32_t               if_id;      /**< Interface index */
 	uint32_t               tap_id;     /**< Tap device index */
-	union {
+	struct {
+		uint32_t       dst_ip;
+		uint16_t       dst_port;
 		struct {
-			uint32_t       dst_ip;
-			uint16_t       dst_port;
-		} t3;
-		struct {
-			uint32_t       dst_ip;
-			uint16_t       dst_port;
 			uint32_t       src_ip;
 			uint16_t       src_port;
 		} t5;

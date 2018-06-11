@@ -396,29 +396,31 @@ static int proc_msg_flow(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_u
 		goto err;
 	}
 
-	value->type = data->type;
 	value->if_id = data->if_id;
 	value->tap_id = data->tap_id;
-	switch (value->type) {
+	value->flow.dst_ip = data->flow.dst_ip;
+	value->flow.dst_port = data->flow.dst_port;
+
+	switch (data->type) {
 	case VMA_MSG_FLOW_TCP_3T:
-		value->flow.t3.dst_ip = data->flow.t3.dst_ip;
-		value->flow.t3.dst_port = data->flow.t3.dst_port;
-		break;
-	case VMA_MSG_FLOW_TCP_5T:
-		value->flow.t5.src_ip = data->flow.t5.src_ip;
-		value->flow.t5.dst_ip = data->flow.t5.dst_ip;
-		value->flow.t5.src_port = data->flow.t5.src_port;
-		value->flow.t5.dst_port = data->flow.t5.dst_port;
+		value->is_3t = 1;
+		value->protocol = IPPROTO_TCP;
 		break;
 	case VMA_MSG_FLOW_UDP_3T:
-		value->flow.t3.dst_ip = data->flow.t3.dst_ip;
-		value->flow.t3.dst_port = data->flow.t3.dst_port;
+		value->is_3t = 1;
+		value->protocol = IPPROTO_UDP;
+		break;
+	case VMA_MSG_FLOW_TCP_5T:
+		value->is_3t = 0;
+		value->protocol = IPPROTO_TCP;
+		value->flow.t5.src_ip = data->flow.t5.src_ip;
+		value->flow.t5.src_port = data->flow.t5.src_port;
 		break;
 	case VMA_MSG_FLOW_UDP_5T:
+		value->is_3t = 0;
+		value->protocol = IPPROTO_UDP;
 		value->flow.t5.src_ip = data->flow.t5.src_ip;
-		value->flow.t5.dst_ip = data->flow.t5.dst_ip;
 		value->flow.t5.src_port = data->flow.t5.src_port;
-		value->flow.t5.dst_port = data->flow.t5.dst_port;
 		break;
 	default:
 		log_error("Received unknown message errno %d (%s)\n", errno,
@@ -430,7 +432,8 @@ static int proc_msg_flow(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_u
 	if (VMA_MSG_FLOW_ADD == data->action) {
 		list_for_each(cur_entry, &pid_value->flow_list) {
 			cur_flow = list_entry(cur_entry, struct store_flow, item);
-			if (value->type == cur_flow->type &&
+			if (value->is_3t == cur_flow->is_3t &&
+				value->protocol == cur_flow->protocol &&
 				value->if_id == cur_flow->if_id &&
 				value->tap_id == cur_flow->tap_id &&
 				!memcmp(&value->flow, &cur_flow->flow, sizeof(cur_flow->flow))) {
@@ -445,20 +448,21 @@ static int proc_msg_flow(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_u
 			value_new = 1; /* mark value as new to avoid releasing */
 			list_add_tail(&value->item, &pid_value->flow_list);
 
-			log_debug("[%d] add flow handle: 0x%08X type: %d if_id: %d tap_id: %d\n",
-					pid_value->pid, value->handle, value->type, value->if_id, value->tap_id);
+			log_debug("[%d] add flow handle: 0x%08X is_3t: %d protocol: %d if_id: %d tap_id: %d\n",
+					pid_value->pid, value->handle, value->is_3t, value->protocol, value->if_id, value->tap_id);
 		}
 	}
 
 	if (VMA_MSG_FLOW_DEL == data->action) {
 		list_for_each(cur_entry, &pid_value->flow_list) {
 			cur_flow = list_entry(cur_entry, struct store_flow, item);
-			if (value->type == cur_flow->type &&
+			if (value->is_3t == cur_flow->is_3t &&
+				value->protocol == cur_flow->protocol &&
 				value->if_id == cur_flow->if_id &&
 				value->tap_id == cur_flow->tap_id &&
 				!memcmp(&value->flow, &cur_flow->flow, sizeof(cur_flow->flow))) {
-				log_debug("[%d] del flow handle: 0x%08X type: %d if_id: %d tap_id: %d\n",
-						pid_value->pid, cur_flow->handle, cur_flow->type, cur_flow->if_id, cur_flow->tap_id);
+				log_debug("[%d] del flow handle: 0x%08X is_3t: %d protocol: %d if_id: %d tap_id: %d\n",
+						pid_value->pid, cur_flow->handle, value->is_3t, value->protocol, cur_flow->if_id, cur_flow->tap_id);
 				list_del_init(&cur_flow->item);
 				rc = del_flow(pid_value->pid, cur_flow);
 				free(cur_flow);

@@ -116,19 +116,16 @@ struct vma_msg_flow {
 	uint8_t        action;     /* add, del */
 	uint32_t       if_id;      /* interface index */
 	uint32_t       tap_id;     /* tap device index */
-	union {
-		struct {
-			uint32_t       dst_ip;
-			uint16_t       dst_port;
-		} t3;
+	struct {
+		uint32_t       dst_ip;
+		uint16_t       dst_port;
 		struct {
 			uint32_t       src_ip;
-			uint32_t       dst_ip;
 			uint16_t       src_port;
-			uint16_t       dst_port;
 		} t5;
 	} flow;
 };
+
 #pragma pack( pop )
 
 #endif /* SRC_VMA_UTIL_AGENT_DEF_H_ */
