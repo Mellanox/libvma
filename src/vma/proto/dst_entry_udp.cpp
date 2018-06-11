@@ -326,13 +326,12 @@ ssize_t dst_entry_udp::slow_send(const iovec* p_iov, size_t sz_iov, bool is_dumm
 				 socket_fd_api* sock /*= 0*/, tx_call_t call_type /*= 0*/)
 {
 	NOT_IN_USE(is_rexmit);
-	NOT_IN_USE(rate_limit);
 
 	ssize_t ret_val = 0;
 
 	dst_udp_logdbg("In slow send");
 
-	// prepare_to_send(rate_limit, false);
+	prepare_to_send(rate_limit, false);
 
 	if (m_b_force_os || !m_b_is_offloaded) {
 		struct sockaddr_in to_saddr;

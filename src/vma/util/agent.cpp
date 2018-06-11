@@ -70,7 +70,7 @@
 						VLOG_WARNING : VLOG_DEBUG);                                             \
 		vlog_printf(_level, "*************************************************************\n"); \
 		vlog_printf(_level, "* Can not establish connection with the daemon (vmad).      *\n"); \
-		vlog_printf(_level, "* TCP connections are likely to be limited.                 *\n"); \
+		vlog_printf(_level, "* UDP/TCP connections are likely to be limited.             *\n"); \
 		vlog_printf(_level, "*************************************************************\n"); \
 	} while (0)
 

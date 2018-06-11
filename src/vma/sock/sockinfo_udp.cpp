@@ -409,8 +409,6 @@ sockinfo_udp::sockinfo_udp(int fd):
 {
 	si_udp_logfunc("");
 
-	m_use_hyperv = (mce_sys_var::HYPER_MSHV == safe_mce_sys().hypervisor);
-
 	m_protocol = PROTO_UDP;
 	m_p_socket_stats->socket_type = SOCK_DGRAM;
 	m_p_socket_stats->b_is_offloaded = m_sock_offload;
@@ -1886,40 +1884,10 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 			b_blocking = false;
 
 		if (likely(p_dst_entry->is_valid())) {
-			/* Purpose of this condition to avoid redirect traffic to OS
-			 * in case this socket operates under NETVSC ring w/o SRIOV/VF
-			 * RX flow is able to work w/o special verification
-			 *
-			 * Note: This check is not effective but can be used as temporary
-			 * workaround to support Hyper-V solution
-			 * The first packet is lost as far as slow_send() includes
-			 * ring creation and send operations
-			 */
-			if (m_use_hyperv &&
-					p_dst_entry->get_ring()) {
-				ring_bond_netvsc* p_ring = dynamic_cast<ring_bond_netvsc*>(p_dst_entry->get_ring());
-				if (p_ring && !p_ring->is_vf_mode()) {
-					goto tx_packet_to_os;
-				}
-			}
 			// All set for fast path packet sending - this is our best performance flow
 			ret = p_dst_entry->fast_send((iovec*)p_iov, sz_iov, is_dummy, b_blocking);
 		}
 		else {
-			// for resolve ring
-			p_dst_entry->prepare_to_send(m_so_ratelimit, false);
-
-			/* See comment
-			 * above related socket operation under NETVSC ring w/o SRIOV/VF
-			 */
-			if (m_use_hyperv &&
-					p_dst_entry->get_ring()) {
-				ring_bond_netvsc* p_ring = dynamic_cast<ring_bond_netvsc*>(p_dst_entry->get_ring());
-				if (p_ring && !p_ring->is_vf_mode()) {
-					goto tx_packet_to_os;
-				}
-			}
-
 			// updates the dst_entry internal information and packet headers
 			ret = p_dst_entry->slow_send(p_iov, sz_iov, is_dummy, m_so_ratelimit, b_blocking, false, __flags, this, call_type);
 		}

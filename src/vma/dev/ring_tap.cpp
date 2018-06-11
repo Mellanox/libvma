@@ -125,7 +125,7 @@ bool ring_tap::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	if( sink == NULL )
 		return false;
 
-	if (flow_spec_5t.is_tcp()) {
+	if (flow_spec_5t.is_tcp() || flow_spec_5t.is_udp_uc()) {
 		int rc = 0;
 		struct vma_msg_flow data;
 		prepare_flow_message(data, flow_spec_5t, VMA_MSG_FLOW_ADD);
@@ -356,7 +356,7 @@ bool ring_tap::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 	if( sink == NULL )
 		return false;
 
-	if (flow_spec_5t.is_tcp()) {
+	if (flow_spec_5t.is_tcp() || flow_spec_5t.is_udp_uc()) {
 		int rc = 0;
 		struct vma_msg_flow data;
 		prepare_flow_message(data, flow_spec_5t, VMA_MSG_FLOW_DEL);
@@ -1002,16 +1002,31 @@ void ring_tap::prepare_flow_message(vma_msg_flow& data,
 	data.action = flow_action;
 	data.if_id = get_parent()->get_if_index();
 	data.tap_id = get_if_index();
-	if (flow_spec_5t.is_3_tuple()) {
-		data.type = VMA_MSG_FLOW_TCP_3T;
-		data.flow.t3.dst_ip = flow_spec_5t.get_dst_ip();
-		data.flow.t3.dst_port = flow_spec_5t.get_dst_port();
+
+	if (flow_spec_5t.is_tcp()) {
+		if (flow_spec_5t.is_3_tuple()) {
+			data.type = VMA_MSG_FLOW_TCP_3T;
+			data.flow.t3.dst_ip = flow_spec_5t.get_dst_ip();
+			data.flow.t3.dst_port = flow_spec_5t.get_dst_port();
+		} else {
+			data.type = VMA_MSG_FLOW_TCP_5T;
+			data.flow.t5.src_ip = flow_spec_5t.get_src_ip();
+			data.flow.t5.src_port = flow_spec_5t.get_src_port();
+			data.flow.t5.dst_ip = flow_spec_5t.get_dst_ip();
+			data.flow.t5.dst_port = flow_spec_5t.get_dst_port();
+		}
 	} else {
-		data.type = VMA_MSG_FLOW_TCP_5T;
-		data.flow.t5.src_ip = flow_spec_5t.get_src_ip();
-		data.flow.t5.src_port = flow_spec_5t.get_src_port();
-		data.flow.t5.dst_ip = flow_spec_5t.get_dst_ip();
-		data.flow.t5.dst_port = flow_spec_5t.get_dst_port();
+		if (flow_spec_5t.is_3_tuple()) {
+			data.type = VMA_MSG_FLOW_UDP_3T;
+			data.flow.t3.dst_ip = flow_spec_5t.get_dst_ip();
+			data.flow.t3.dst_port = flow_spec_5t.get_dst_port();
+		} else {
+			data.type = VMA_MSG_FLOW_UDP_5T;
+			data.flow.t5.src_ip = flow_spec_5t.get_src_ip();
+			data.flow.t5.src_port = flow_spec_5t.get_src_port();
+			data.flow.t5.dst_ip = flow_spec_5t.get_dst_ip();
+			data.flow.t5.dst_port = flow_spec_5t.get_dst_port();
+		}
 	}
 }
 
