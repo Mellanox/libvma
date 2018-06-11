@@ -173,14 +173,10 @@ struct store_flow {
 	int                    type;       /**< Flow type */
 	uint32_t               if_id;      /**< Interface index */
 	uint32_t               tap_id;     /**< Tap device index */
-	union {
+	struct {
+		uint32_t       dst_ip;
+		uint16_t       dst_port;
 		struct {
-			uint32_t       dst_ip;
-			uint16_t       dst_port;
-		} t3;
-		struct {
-			uint32_t       dst_ip;
-			uint16_t       dst_port;
 			uint32_t       src_ip;
 			uint16_t       src_port;
 		} t5;
