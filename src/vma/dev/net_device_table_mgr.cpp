@@ -100,10 +100,18 @@ net_device_table_mgr::net_device_table_mgr() : cache_table_mgr<ip_address,net_de
 
 	/* Read Link table from kernel and save it in local variable. */
 	update_tbl();
+
+	/* throw exception if there are no supported devices. */
 	if (m_net_device_map_index.empty()) {
-		ndtm_logdbg("net_device_map is empty");
-		free_ndtm_resources();
-		throw_vma_exception("net_device_map is empty");
+		int num_devices = 0;
+		struct ibv_device **dev_list = NULL;
+		dev_list = vma_ibv_get_device_list(&num_devices);
+		if (dev_list && num_devices == 0) {
+			ibv_free_device_list(dev_list);
+			ndtm_logdbg("net_device_map is empty %d", num_devices);
+			free_ndtm_resources();
+			throw_vma_exception("net_device_map is empty");
+		}
 	}
 
 	//Print table
