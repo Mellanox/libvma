@@ -347,7 +347,9 @@ int add_flow(pid_t pid, struct store_flow *value)
 		case VMA_MSG_FLOW_TCP_3T:
 		case VMA_MSG_FLOW_UDP_3T:
 			out_buf = sys_exec("tc filter add dev %s parent ffff: protocol ip "
-								"prio %d handle ::%x u32 ht %x:%x: match ip protocol %d 0xff "
+								"prio %d handle ::%x u32 ht %x:%x: "
+								"match ip protocol %d 0xff "
+								"match ip nofrag "
 								"match ip dst %s/32 match ip dport %d 0xffff "
 								"action mirred egress redirect dev %s > /dev/null 2>&1 || echo $?",
 								if_name, get_prio(value), id, ht, bkt, get_protocol(value),
@@ -358,7 +360,9 @@ int add_flow(pid_t pid, struct store_flow *value)
 			str_tmp[sizeof(str_tmp) - 1] = '\0';
 			strncpy(str_tmp, sys_ip2str(value->flow.t5.src_ip), sizeof(str_tmp) - 1);
 			out_buf = sys_exec("tc filter add dev %s parent ffff: protocol ip "
-								"prio %d handle ::%x u32 ht %x:%x: match ip protocol %d 0xff "
+								"prio %d handle ::%x u32 ht %x:%x: "
+								"match ip protocol %d 0xff "
+								"match ip nofrag "
 								"match ip src %s/32 match ip sport %d 0xffff "
 								"match ip dst %s/32 match ip dport %d 0xffff "
 								"action mirred egress redirect dev %s > /dev/null 2>&1 || echo $?",
