@@ -107,6 +107,7 @@ public:
 	virtual int		wait_for_notification_and_process_element(int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL) = 0;
 	virtual int		poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL) = 0;
 	virtual void		adapt_cq_moderation() = 0;
+	virtual void		mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc) = 0;
 
 	virtual void		inc_tx_retransmissions(ring_user_id_t id) = 0;
 	virtual bool		is_member(mem_buf_desc_owner* rng) = 0;
