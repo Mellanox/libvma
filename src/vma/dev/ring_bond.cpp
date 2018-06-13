@@ -586,6 +586,15 @@ bool ring_bond::reclaim_recv_buffers(descq_t *rx_reuse)
 	return true;
 }
 
+void ring_bond::update_max_tx_inline(ring_slave *slave)
+{
+	if (m_min_devices_tx_inline < 0) {
+		m_min_devices_tx_inline = slave->get_max_tx_inline();
+	} else {
+		m_min_devices_tx_inline = min(m_min_devices_tx_inline, slave->get_max_tx_inline());
+	}
+}
+
 void ring_bond::devide_buffers_helper(descq_t *rx_reuse, descq_t* buffer_per_ring)
 {
 	int last_found_index = 0;
@@ -821,11 +830,7 @@ void ring_bond_eth::slave_create(int if_index)
 	ring_slave *cur_slave = NULL;
 
 	cur_slave = new ring_eth(if_index, this);
-	if (m_min_devices_tx_inline < 0) {
-		m_min_devices_tx_inline = cur_slave->get_max_tx_inline();
-	} else {
-		m_min_devices_tx_inline = min(m_min_devices_tx_inline, cur_slave->get_max_tx_inline());
-	}
+	update_max_tx_inline(cur_slave);
 	m_bond_rings.push_back(cur_slave);
 
 	if (m_bond_rings.size() > MAX_NUM_RING_RESOURCES) {
@@ -841,11 +846,7 @@ void ring_bond_ib::slave_create(int if_index)
 	ring_slave *cur_slave = NULL;
 
 	cur_slave = new ring_ib(if_index, this);
-	if (m_min_devices_tx_inline < 0) {
-		m_min_devices_tx_inline = cur_slave->get_max_tx_inline();
-	} else {
-		m_min_devices_tx_inline = min(m_min_devices_tx_inline, cur_slave->get_max_tx_inline());
-	}
+	update_max_tx_inline(cur_slave);
 	m_bond_rings.push_back(cur_slave);
 
 	if (m_bond_rings.size() > MAX_NUM_RING_RESOURCES) {
@@ -872,12 +873,9 @@ void ring_bond_netvsc::slave_create(int if_index)
 	} else {
 		cur_slave = new ring_eth(if_index, this);
 		m_vf_ring = cur_slave;
+		update_max_tx_inline(cur_slave);
 	}
-	if (m_min_devices_tx_inline < 0) {
-		m_min_devices_tx_inline = cur_slave->get_max_tx_inline();
-	} else {
-		m_min_devices_tx_inline = min(m_min_devices_tx_inline, cur_slave->get_max_tx_inline());
-	}
+
 	m_bond_rings.push_back(cur_slave);
 
 	if (m_bond_rings.size() > 2) {

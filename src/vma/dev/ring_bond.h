@@ -89,6 +89,7 @@ public:
 	virtual void    slave_create(int if_index) = 0;
 	virtual void    slave_destroy(int if_index);
 protected:
+	void			update_max_tx_inline(ring_slave *slave);
 	void			update_rx_channel_fds();
 	void			popup_active_rings();
 	ring_slave_vector_t     m_bond_rings;
