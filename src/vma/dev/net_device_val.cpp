@@ -869,7 +869,7 @@ bool net_device_val::update_netvsc_slaves()
 
 		nd_logdbg("slave %d is up ", s->if_index);
 		changed = true;
-		g_p_ib_ctx_handler_collection->update_tbl();
+		g_p_ib_ctx_handler_collection->update_tbl(slave_ifname);
 		g_buffer_pool_rx->register_memory();
 		g_buffer_pool_tx->register_memory();
 	} else {

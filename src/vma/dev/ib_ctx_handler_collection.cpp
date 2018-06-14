@@ -80,13 +80,12 @@ ib_ctx_handler_collection::~ib_ctx_handler_collection()
 	ibchc_logdbg("Done");
 }
 
-void ib_ctx_handler_collection::update_tbl()
+void ib_ctx_handler_collection::update_tbl(const char *ifa_name)
 {
 	struct ibv_device **dev_list = NULL;
 	ib_ctx_handler * p_ib_ctx_handler = NULL;
 	int num_devices = 0;
 	int i;
-	std::vector<struct ibv_device*> cache_objs;
 
 	dev_list = vma_ibv_get_device_list(&num_devices);
 
@@ -107,45 +106,18 @@ void ib_ctx_handler_collection::update_tbl()
 
 	ibchc_logdbg("Checking for offload capable IB devices...");
 
-	/* Get common time conversion mode for all devices */
-	m_ctx_time_conversion_mode = time_converter::get_devices_converter_status(dev_list, num_devices);
-	ibchc_logdbg("TS converter status was set to %d", m_ctx_time_conversion_mode);
-
-
-	/* update_tbl() function is implemented to support removing unused(removed)
-	 * ib devices in case plugout scenario and adding new devices during
-	 * plugin flow.
-	 * Algorithm:
-	 * 1. save current ib elements in cache_objs before processing device list returned by netlink
-	 * 2. remove from cache_objs record about elements that exist in netlink respond
-	 * 3. add ib that is not found in cache_objs during processing netlink information
-	 * 4. remove all ib elements that remain in cache_objs on final stage
-	 */
-	/* 1. Initialize cache */
-	{
-		ib_context_map_t::iterator iter;
-		cache_objs.reserve(m_ib_ctx_map.size());
-		for (iter = m_ib_ctx_map.begin(); iter != m_ib_ctx_map.end(); iter++) {
-			cache_objs.push_back(iter->first);
-		}
+	if (!ifa_name) {
+		/* Get common time conversion mode for all devices */
+		m_ctx_time_conversion_mode = time_converter::get_devices_converter_status(dev_list, num_devices);
+		ibchc_logdbg("TS converter status was set to %d", m_ctx_time_conversion_mode);
 	}
 
 	for (i = 0; i < num_devices; i++) {
 		struct ib_ctx_handler::ib_ctx_handler_desc desc = {dev_list[i], m_ctx_time_conversion_mode};
 
 		/* 2. Skip existing devices (compare by name) */
-		ib_context_map_t::iterator ib_ctx_itr;
-		for (ib_ctx_itr = m_ib_ctx_map.begin(); ib_ctx_itr != m_ib_ctx_map.end(); ib_ctx_itr++) {
-			if (strcmp(dev_list[i]->name, ib_ctx_itr->first->name) == 0) {
-				std::vector<struct ibv_device*>::iterator cache_iter;
-				for (cache_iter = cache_objs.begin(); cache_iter != cache_objs.end(); cache_iter++) {
-					if (strcmp(dev_list[i]->name, (*cache_iter)->name) == 0) {
-						cache_objs.erase(cache_iter);
-						break;
-					}
-				}
-				goto next;
-			}
+		if (ifa_name && !check_device_name_ib_name(ifa_name, dev_list[i]->name)) {
+			continue;
 		}
 
 #ifdef DEFINED_SOCKETXTREME
@@ -162,20 +134,6 @@ void ib_ctx_handler_collection::update_tbl()
 			continue;
 		}
 		m_ib_ctx_map[p_ib_ctx_handler->get_ibv_device()] = p_ib_ctx_handler;
-
-next:
-		continue;
-	}
-
-	/* 4. Cleanup devices that are not found after update */
-	std::vector<struct ibv_device*>::iterator cache_iter;
-	while ((cache_iter = cache_objs.begin()) != cache_objs.end()) {
-		ib_context_map_t::iterator dev_iter = m_ib_ctx_map.find(*cache_iter);
-		if (dev_iter != m_ib_ctx_map.end()) {
-			delete dev_iter->second;
-			m_ib_ctx_map.erase(dev_iter);
-			cache_objs.erase(cache_iter);
-		}
 	}
 
 	ibchc_logdbg("Check completed. Found %d offload capable IB devices", m_ib_ctx_map.size());
@@ -228,18 +186,8 @@ ib_ctx_handler* ib_ctx_handler_collection::get_ib_ctx(const char *ifa_name)
 	}
 
 	for (ib_ctx_iter = m_ib_ctx_map.begin(); ib_ctx_iter != m_ib_ctx_map.end(); ib_ctx_iter++) {
-		int n = -1;
-		int fd = -1;
-		char ib_path[IBV_SYSFS_PATH_MAX]= {0};
-
-		n = snprintf(ib_path, sizeof(ib_path), "/sys/class/infiniband/%s/device/net/%s/ifindex",
-				ib_ctx_iter->second->get_ibname(), ifa_name);
-		if (likely((0 < n) && (n < (int)sizeof(ib_path)))) {
-			fd = open(ib_path, O_RDONLY);
-			if (fd >= 0) {
-				close(fd);
-				return ib_ctx_iter->second;
-			}
+		if (check_device_name_ib_name(ifa_name, ib_ctx_iter->second->get_ibname())) {
+			return ib_ctx_iter->second;
 		}
 	}
 

@@ -876,6 +876,25 @@ bool check_device_exist(const char* ifname, const char *path)
 	return (fd > 0);
 }
 
+bool check_device_name_ib_name(const char* ifname, const char* ibname)
+{
+	int n = -1;
+	int fd = -1;
+	char ib_path[IBV_SYSFS_PATH_MAX]= {0};
+
+	n = snprintf(ib_path, sizeof(ib_path), "/sys/class/infiniband/%s/device/net/%s/ifindex",
+			ibname, ifname);
+	if (likely((0 < n) && (n < (int)sizeof(ib_path)))) {
+		fd = open(ib_path, O_RDONLY);
+		if (fd >= 0) {
+			close(fd);
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool get_interface_oper_state(IN const char* interface_name, OUT char* curr_state, IN int sz)
 {
 	char interface_state_path[256] = {0};
