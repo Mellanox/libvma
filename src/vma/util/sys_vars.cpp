@@ -1188,10 +1188,14 @@ void mce_sys_var::get_env_params()
 		mem_alloc_type = (alloc_mode_t)atoi(env_ptr);
 	if (mem_alloc_type < 0 || mem_alloc_type >= ALLOC_TYPE_LAST)
 		mem_alloc_type = MCE_DEFAULT_MEM_ALLOC_TYPE;
-	if (mce_sys_var::HYPER_MSHV == hypervisor && (mem_alloc_type == ALLOC_TYPE_CONTIG)) {
+	if (mce_sys_var::HYPER_MSHV == hypervisor && mem_alloc_type == ALLOC_TYPE_CONTIG) {
 		vlog_printf(VLOG_DEBUG, "The '%s' parameter can not be %d for %s.\n",
 				SYS_VAR_MEM_ALLOC_TYPE, mem_alloc_type, cpuid_hv_vendor());
 		mem_alloc_type = ALLOC_TYPE_HUGEPAGES;
+
+		char mem_str[sizeof(int)] = {0};
+		sprintf(mem_str, "%d", ALLOC_TYPE_HUGEPAGES);
+		setenv(SYS_VAR_MEM_ALLOC_TYPE, mem_str, 1); // Setenv to avoid core dump while valgrind is used.
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_BF)) != NULL)
