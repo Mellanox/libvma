@@ -47,7 +47,7 @@ public:
 	ib_ctx_handler_collection();
 	~ib_ctx_handler_collection();
 
-	void update_tbl();
+	void update_tbl(const char *ifa_name = NULL);
 	void print_val_tbl();
 
 	inline ib_context_map_t* get_ib_cxt_list() {
