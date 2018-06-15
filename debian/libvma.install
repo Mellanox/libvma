@@ -3,7 +3,8 @@ usr/lib/libvma.so
 usr/share/doc/libvma/README.txt
 usr/share/doc/libvma/journal.txt
 usr/share/doc/libvma/VMA_VERSION
+usr/sbin/
 etc/libvma.conf
-usr/sbin/vmad
 etc/
+contrib/scripts/vma.service lib/systemd/system
 libvma-debug.so usr/lib

@@ -10,13 +10,12 @@ fi
 
 /sbin/ldconfig
 
-if [ -e /sbin/chkconfig ]; then
+if type systemctl >/dev/null 2>&1; then
+    systemctl --no-reload enable vma.service >/dev/null 2>&1 || true
+elif [ -e /sbin/chkconfig ]; then
     /sbin/chkconfig --add vma
 elif [ -e /usr/sbin/update-rc.d ]; then
     /usr/sbin/update-rc.d vma defaults
 else
     /usr/lib/lsb/install_initd /etc/init.d/vma
-fi
-if type systemctl >/dev/null 2>&1; then
-    systemctl --system daemon-reload
 fi

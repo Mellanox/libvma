@@ -6,9 +6,9 @@ Requires=network.target
 [Service]
 Type=forking
 Restart=on-failure
-ExecStart=/etc/init.d/vma start
-ExecStop=/etc/init.d/vma stop
-ExecReload=/etc/init.d/vma restart
+ExecStart=@prefix@/sbin/vma start
+ExecStop=@prefix@/sbin/vma stop
+ExecReload=@prefix@/sbin/vma restart
 RestartForceExitStatus=1 SIGTERM
 
 [Install]
