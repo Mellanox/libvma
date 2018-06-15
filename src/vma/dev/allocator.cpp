@@ -90,20 +90,20 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
 {
 	uint64_t access = VMA_IBV_ACCESS_LOCAL_WRITE;
 
-	switch (safe_mce_sys().mem_alloc_type) {
+	switch (m_mem_alloc_type) {
 	case ALLOC_TYPE_HUGEPAGES:
 		if (!hugetlb_alloc(size)) {
 			__log_info_dbg("Failed allocating huge pages, "
-				       "falling back to contiguous pages");
+				       "falling back to another memory allocation method");
 		}
 		else {
 			__log_info_dbg("Huge pages allocation passed successfully");
-			m_mem_alloc_type = ALLOC_TYPE_HUGEPAGES;
 			if (!register_memory(size, p_ib_ctx_h, access)) {
 				__log_info_dbg("failed registering huge pages data memory block");
 				throw_vma_exception("failed registering huge pages data memory"
 						" block");
 			}
+			m_mem_alloc_type = ALLOC_TYPE_HUGEPAGES;
 			break;
 		}
 	// fallthrough
@@ -125,14 +125,16 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
 	default:
 		__log_info_dbg("allocating memory using malloc()");
 		align_simple_malloc(size); // if fail will raise exception
-		m_mem_alloc_type = ALLOC_TYPE_ANON;
 		if (!register_memory(size, p_ib_ctx_h, access)) {
 			__log_info_dbg("failed registering data memory block");
 			throw_vma_exception("failed registering data memory block");
 		}
+		m_mem_alloc_type = ALLOC_TYPE_ANON;
 		break;
 	}
-	__log_info_dbg("allocated memory at %p, size %zd", m_data_block, size);
+	__log_info_dbg("allocated memory using type: %d at %p, size %zd",
+			m_mem_alloc_type, m_data_block, size);
+
 	return m_data_block;
 }
 
@@ -161,14 +163,13 @@ bool vma_allocator::hugetlb_alloc(size_t sz_bytes)
 	const size_t hugepagemask = 4 * 1024 * 1024 - 1;
 
 	m_length = (sz_bytes + hugepagemask) & (~hugepagemask);
+
 	if (hugetlb_mmap_alloc()) {
 		return true;
 	}
 	if (hugetlb_sysv_alloc()) {
 		return true;
 	}
-	// Stop trying to use HugePage if failed even once
-	safe_mce_sys().mem_alloc_type = ALLOC_TYPE_CONTIG;
 
 	vlog_printf(VLOG_WARNING, "**************************************************************\n");
 	vlog_printf(VLOG_WARNING, "* NO IMMEDIATE ACTION NEEDED!                                 \n");
@@ -199,6 +200,7 @@ bool vma_allocator::hugetlb_mmap_alloc()
 	if (m_data_block == MAP_FAILED) {
 		__log_info_dbg("failed allocating %zd using mmap %d", m_length,
 				errno);
+		m_data_block = NULL;
 		return false;
 	}
 	return true;
