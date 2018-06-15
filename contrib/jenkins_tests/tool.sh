@@ -19,22 +19,29 @@ function check_daemon()
 {
     local ret=0
     local out_log=$1
+    local service="vma"
 
     rm -rf ${out_log}
     sudo pkill -9 vmad
 
-    echo "daemon check output: ${install_dir}/sbin/vmad" > ${out_log}
-    if [ $(sudo ${install_dir}/etc/init.d/vma start >>${out_log} 2>&1 || echo $?) ]; then
+    if type systemctl >/dev/null 2>&1; then
+        service=${install_dir}/sbin/vma
+    else
+        service=${install_dir}/etc/init.d/vma
+    fi
+
+    echo "daemon check output: ${service}" > ${out_log}
+    if [ $(sudo ${service} start >>${out_log} 2>&1 || echo $?) ]; then
         ret=1
     fi
     sleep 3
     if [ "0" == "$ret" -a "" == "$(pgrep vmad)" ]; then
         ret=1
     fi
-    if [ $(sudo ${install_dir}/etc/init.d/vma status >>${out_log} 2>&1 || echo $?) ]; then
+    if [ $(sudo ${service} status >>${out_log} 2>&1 || echo $?) ]; then
         ret=1
     fi
-    if [ $(sudo ${install_dir}/etc/init.d/vma stop >>${out_log} 2>&1 || echo $?) ]; then
+    if [ $(sudo ${service} stop >>${out_log} 2>&1 || echo $?) ]; then
         ret=1
     fi
     sleep 3
