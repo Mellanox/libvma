@@ -98,12 +98,12 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
 		}
 		else {
 			__log_info_dbg("Huge pages allocation passed successfully");
+			m_mem_alloc_type = ALLOC_TYPE_HUGEPAGES;
 			if (!register_memory(size, p_ib_ctx_h, access)) {
 				__log_info_dbg("failed registering huge pages data memory block");
 				throw_vma_exception("failed registering huge pages data memory"
 						" block");
 			}
-			m_mem_alloc_type = ALLOC_TYPE_HUGEPAGES;
 			break;
 		}
 	// fallthrough
@@ -125,11 +125,11 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
 	default:
 		__log_info_dbg("allocating memory using malloc()");
 		align_simple_malloc(size); // if fail will raise exception
+		m_mem_alloc_type = ALLOC_TYPE_ANON;
 		if (!register_memory(size, p_ib_ctx_h, access)) {
 			__log_info_dbg("failed registering data memory block");
 			throw_vma_exception("failed registering data memory block");
 		}
-		m_mem_alloc_type = ALLOC_TYPE_ANON;
 		break;
 	}
 	__log_info_dbg("allocated memory using type: %d at %p, size %zd",
