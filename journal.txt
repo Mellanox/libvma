@@ -1,3 +1,34 @@
+Version 8.6.8-0:
+Date + Time 2018-06-21
+=============================================================
+Added:
+        - RM #1431683 Add retransmissions counter to ring_tap
+        - RM #1178926 Add HW RX checksum support for SocketXtreme
+        - RM #1431297 Remove VMA_RX_SW_CSUM control
+        - RM #1284069 Set MLX5_DEVICE_FATAL_CLEANUP env for mlx5 device
+        - RM #1387232 Add vmad configurable notify dir
+        - RM #1428737 Add pending to remove list to daemon
+        - RM #1284069 Improve device removing in plugout case
+        - RM #1392361 Improve daemon logging verbosity
+        - RM #1424159 Modify TC rule to offload only non-frag packets
+        - RM #1424157 Modify daemon flow structure
+        - RM #1423874 Offload UDP traffic to TAP
+        - RM #1423819 Enable Blue Flame send for NetVSC interfaces
+        - RM #1420228 Modify mem_buf_desc_t constructor
+        - RM #1365423 Use mmap to allocate huge pages
+        - RM #1413354 Add Ring tap enhancements
+
+Fixed:
+        - RM #1431269 Fix ring_bond_netvsc with more than 2 resources error
+        - RM #1365423 Fix fallback memory allocation logic
+        - RM #1418682 Fix TCP on ring tap from multiple processes on the same IP
+        - RM #1424602 Fix crash while valgrind is loaded without SRIOV
+        - RM #1405641 Fix crash when m_net_device_map_index is empty
+        - RM #1403118 Fix incorrect release memory of Tx buffers
+        - RM #1417243 Fix gcc8 build warnings
+        - RM #1418379 Fix incorrect handling of IF_DOWN event
+        - RM #1417077 Fix TCP bind to device same interface failure
+
 Version 8.6.7-0:
 Date + Time 2018-06-06
 =============================================================
