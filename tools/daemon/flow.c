@@ -686,7 +686,7 @@ static inline int add_pending_list(struct flow_ctx *ctx, int if_id, int ht_id, i
 	htid_node->htid = ht_id;
 	htid_node->prio = prio;
 
-	list_add_head(&htid_node->node, &ctx->pending_list);
+	list_add(&htid_node->node, &ctx->pending_list);
 	return 0;
 }
 
