@@ -651,21 +651,23 @@ static inline void free_pending_list(pid_t pid, struct flow_ctx *ctx, char* if_n
 	struct htid_node_t *cur_element = NULL;
 	struct list_head *cur_entry = NULL, *tmp_entry = NULL;
 
-	list_for_each_safe(cur_entry, tmp_entry, &ctx->pending_list) {
-		cur_element = list_entry(cur_entry, struct htid_node_t, node);
+	if (ctx) {
+		list_for_each_safe(cur_entry, tmp_entry, &ctx->pending_list) {
+			cur_element = list_entry(cur_entry, struct htid_node_t, node);
 
-		out_buf = sys_exec("tc filter del dev %s parent ffff: protocol ip prio %d handle %x: u32 > /dev/null 2>&1 || echo $?",
-				if_name, cur_element->prio, cur_element->htid);
-		if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
-			continue;
+			out_buf = sys_exec("tc filter del dev %s parent ffff: protocol ip prio %d handle %x: u32 > /dev/null 2>&1 || echo $?",
+					if_name, cur_element->prio, cur_element->htid);
+			if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
+				continue;
+			}
+
+			log_debug("[%d] del flow request was removed successfully : dev %s htid %d prio %d\n",
+									pid, if_name, cur_element->htid, cur_element->prio);
+
+			list_del_init(&cur_element->node);
+			free_htid(ctx, cur_element->htid);
+			free(cur_element);
 		}
-
-		log_debug("[%d] del flow request was removed successfully : dev %s htid %d prio %d\n",
-								pid, if_name, cur_element->htid, cur_element->prio);
-
-		free_htid(ctx, cur_element->htid);
-		list_del_init(cur_entry);
-		free(cur_element);
 	}
 }
 
