@@ -108,8 +108,8 @@ int del_flow(struct store_pid *pid_value, struct store_flow *value);
 
 static inline void get_htid(struct flow_ctx *ctx, int prio, int *ht_krn, int *ht_id);
 static inline void free_htid(struct flow_ctx *ctx, int ht_id);
+static inline void add_pending_list(pid_t pid, struct flow_ctx *ctx, char* if_name, int ht_id, int prio, int *rc);
 static inline void free_pending_list(pid_t pid, struct flow_ctx *ctx, char* if_name);
-static inline int add_pending_list(pid_t pid, struct flow_ctx *ctx, char* if_name, int ht_id, int prio);
 static inline int get_prio(struct store_flow *value);
 static inline int get_bkt(struct store_flow *value);
 static inline int get_protocol(struct store_flow *value);
@@ -569,7 +569,7 @@ int del_flow(struct store_pid *pid_value, struct store_flow *value)
 				}
 
 				/* Device busy error is returned while trying to remove table in this location */
-				rc = add_pending_list(pid, ctx, if_name, ht, get_prio(value));
+				add_pending_list(pid, ctx, if_name, ht, get_prio(value), &rc);
 
 				list_del_init(cur_entry);
 				free(cur_element);
@@ -669,11 +669,12 @@ static inline void free_pending_list(pid_t pid, struct flow_ctx *ctx, char* if_n
 	}
 }
 
-static inline int add_pending_list(pid_t pid, struct flow_ctx *ctx, char* if_name, int ht_id, int prio)
+static inline void add_pending_list(pid_t pid, struct flow_ctx *ctx, char* if_name, int ht_id, int prio, int *rc)
 {
 	struct htid_node_t *htid_node = (void *)calloc(1, sizeof(struct htid_node_t));
 	if (NULL == htid_node) {
-		return -ENOMEM;
+		*rc = -ENOMEM;
+		return;
 	}
 
 	INIT_LIST_HEAD(&htid_node->node);
@@ -684,8 +685,6 @@ static inline int add_pending_list(pid_t pid, struct flow_ctx *ctx, char* if_nam
 
 	log_debug("[%d] del flow request was added to the pending list : dev %s htid %d prio %d\n",
 							pid, if_name, ht_id, prio);
-
-	return 0;
 }
 
 static inline void free_htid(struct flow_ctx *ctx, int ht_id)
