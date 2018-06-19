@@ -53,7 +53,7 @@ extern long __vma_config_line_num;
 %}
 %option nounput
 %option noinput
-%s CANNAME APP_ID_S1 APP_ID_S2
+%s CANNAME APP_ID_S1 APP_ID_S2 DAEMON_VALUE_S
 %%
 
 ^[ \t]*#.* {}
@@ -250,6 +250,25 @@ udp_connect {
 #endif
 	BEGIN(0);
 	return (NAME);
+}
+
+daemon {
+	yylval.ival = DAEMON_KEY;
+#ifdef DEBUG
+	printf("DAEMON_KEY\n");
+#endif
+	BEGIN(DAEMON_VALUE_S);
+	return DAEMON_KEY;
+}
+
+<DAEMON_VALUE_S>[^ \t\n]+ {
+	yylval.sval = (char *)malloc(strlen(yytext) + 1);
+	strcpy(yylval.sval, yytext);
+#ifdef DEBUG
+	printf("DAEMON_VALUE:%s\n",yylval.sval);
+#endif
+	BEGIN(0);
+	return (DAEMON_VALUE);
 }
 
 \n {

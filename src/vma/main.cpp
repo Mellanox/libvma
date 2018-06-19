@@ -800,6 +800,16 @@ static void do_global_ctors_helper()
 	if (g_is_forked_child == true)
 		g_is_forked_child = false;
 
+	if (check_if_regular_file (safe_mce_sys().conf_filename))
+	{
+		vlog_printf(VLOG_WARNING,"FAILED to read VMA configuration file. %s is not a regular file.\n",
+				safe_mce_sys().conf_filename);
+		if (strcmp (MCE_DEFAULT_CONF_FILE, safe_mce_sys().conf_filename))
+			vlog_printf(VLOG_INFO,"Please see README.txt section regarding VMA_CONFIG_FILE\n");
+	}
+	else if (__vma_parse_config_file(safe_mce_sys().conf_filename))
+		vlog_printf(VLOG_DEBUG,"FAILED to read VMA configuration file: %s\n", safe_mce_sys().conf_filename);
+
 	/* Open communication with daemon */
 	NEW_CTOR(g_p_agent, agent());
 	vlog_printf(VLOG_DEBUG,"Agent setup state: g_p_agent=%p active=%d\n",
@@ -843,16 +853,6 @@ static void do_global_ctors_helper()
 	NEW_CTOR(g_p_ip_frag_manager, ip_frag_manager());
 
 	NEW_CTOR(g_p_fd_collection, fd_collection());
-
-	if (check_if_regular_file (safe_mce_sys().conf_filename))
-	{
-		vlog_printf(VLOG_WARNING,"FAILED to read VMA configuration file. %s is not a regular file.\n",
-				safe_mce_sys().conf_filename);
-		if (strcmp (MCE_DEFAULT_CONF_FILE, safe_mce_sys().conf_filename))
-			vlog_printf(VLOG_INFO,"Please see README.txt section regarding VMA_CONFIG_FILE\n");
-	}
-	else if (__vma_parse_config_file(safe_mce_sys().conf_filename))
-		vlog_printf(VLOG_DEBUG,"FAILED to read VMA configuration file: %s\n", safe_mce_sys().conf_filename);
 
 
 	// initialize LWIP tcp/ip stack
