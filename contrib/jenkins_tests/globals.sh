@@ -250,7 +250,43 @@ function do_check_result()
 #
 function do_get_ip()
 {
-    for ip in $(ibdev2netdev | grep Up | grep "$2" | cut -f 5 -d ' '); do
+    sv_ifs=${IFS}
+    netdevs=$(ibdev2netdev | grep Up | grep "$2" | cut -f 5 -d ' ')
+    IFS=$'\n' read -rd '' -a netdev_ifs <<< "${netdevs}"
+    lnkifs=$(ip -o link | awk '{print $2,$(NF-2)}')
+    IFS=$'\n' read -rd '' -a lnk_ifs <<< "${lnkifs}"
+    IFS=${sv_ifs}
+    ifs_array=()
+
+    for nd_if in "${netdev_ifs[@]}" ; do
+        found_if=''
+        for v_if in "${lnk_ifs[@]}" ; do
+            if [ ! -z "$(echo ${v_if} | grep ${nd_if})" ] ; then
+                mac=$(echo "${v_if}"| awk '{ print $NF }') #; echo "mac=$mac"
+                for p_if in "${lnk_ifs[@]}" ; do
+                    if [ ! -z "$(echo ${p_if} | grep -E ${mac} | grep -Ei eth)" ] ; then
+                        if_name=$(echo "${p_if}"| awk '{ print $1}')
+                        ifs_array+=(${if_name::-1})
+                        #-#echo "${nd_if} --> ${if_name::-1} "
+                        found_if=1
+                        break 2
+                    fi
+                done
+            fi
+        done
+        # use the netdevice if needed
+        [ -z "${found_if}" ] && {
+            ifs_array+=(${nd_if})
+        }
+    done
+
+    if [ "${#ifs_array[@]}" -le 1 ] ; then
+        if (dmesg | grep -i hypervisor > /dev/null 2>&1) ; then
+           ifs_array=(eth1 eth2)
+        fi
+    fi
+
+    for ip in ${ifs_array[@]}; do
         if [ -n "$1" -a "$1" == "ib" -a -n "$(ip link show $ip | grep 'link/inf')" ]; then
             found_ip=$(ip -4 address show $ip | grep 'inet' | sed 's/.*inet \([0-9\.]\+\).*/\1/')
             if [ -n "$(ibdev2netdev | grep $ip | grep mlx5)" ]; then
