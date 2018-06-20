@@ -1,4 +1,4 @@
-Update: 25 Jan 2018
+Update: 20 Jun 2018
 
 Introduction
 ============
@@ -318,7 +318,7 @@ Default value is /tmp/
 VMA_VMAD_NOTIFY_DIR
 Set the directory path for VMA to write files used by vmad.
 Default value is /tmp/vma/
-note: when used vmad must be run with --notify-dir directing the same folder
+Note: when used vmad must be run with --notify-dir directing the same folder.
 
 VMA_STATS_FD_NUM
 Max number of sockets monitored by VMA statistic mechanism.
