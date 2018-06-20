@@ -64,11 +64,22 @@
 #define HANDLE_ID(value)          ((((uint32_t)(value)) & 0x00000FFF) >> 0)   /* 12bits by offset 0 */
 
 /**
+ * @struct htid_node_t
+ * @brief It is an object to be used for removal workaround.
+ */
+struct htid_node_t {
+	struct list_head node;
+	int htid;
+	int prio;
+};
+
+/**
  * @struct flow_ctx
  * @brief It is an object described extra details for flow element
  */
 struct flow_ctx {
 	bitmap_t *ht;   /**< bitmap of used hash tables */
+	struct list_head pending_list;
 	struct {
 		int prio;
 		int id;
@@ -97,6 +108,8 @@ int del_flow(struct store_pid *pid_value, struct store_flow *value);
 
 static inline void get_htid(struct flow_ctx *ctx, int prio, int *ht_krn, int *ht_id);
 static inline void free_htid(struct flow_ctx *ctx, int ht_id);
+static inline void add_pending_list(pid_t pid, struct flow_ctx *ctx, char* if_name, int ht_id, int prio, int *rc);
+static inline void free_pending_list(pid_t pid, struct flow_ctx *ctx, char* if_name);
 static inline int get_prio(struct store_flow *value);
 static inline int get_bkt(struct store_flow *value);
 static inline int get_protocol(struct store_flow *value);
@@ -233,6 +246,7 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 
 		/* table id = 0 is not used */
 		bitmap_set(cur_element->ctx->ht, 0);
+		INIT_LIST_HEAD(&(cur_element->ctx->pending_list));
 		list_add_tail(&cur_element->item, cur_head);
 	}
 	assert(cur_element);
@@ -265,8 +279,7 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 		}
 
 		get_htid(ctx, get_prio(value), &ht_internal, &ht);
-		sys_exec("tc filter del dev %s parent ffff: protocol ip prio %d handle %x: u32 > /dev/null 2>&1 || echo $?",
-							if_name, get_prio(value), ht);
+
 		out_buf = sys_exec("tc filter add dev %s parent ffff: prio %d handle %x: protocol ip u32 divisor 256 > /dev/null 2>&1 || echo $?",
 							if_name, get_prio(value), ht);
 		if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
@@ -403,6 +416,8 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 
 	log_debug("[%d] add flow (node): 0x%p value: %d ref: %d\n",
 			pid, cur_element, cur_element->value[0], cur_element->ref);
+
+	free_pending_list(pid, ctx, if_name);
 
 err:
 
@@ -553,20 +568,9 @@ int del_flow(struct store_pid *pid_value, struct store_flow *value)
 					rc = -EFAULT;
 				}
 
-#if 0 /* Device busy error is returned (There is no issue if insert sleep(1) before execution */
-				out_buf = sys_exec("tc filter del dev %s parent ffff: protocol ip prio %d handle %x: u32 > /dev/null 2>&1 || echo $?",
-									if_name, get_prio(value), ht);
-				if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
-					log_error("[%d] remove table dev %s prio %d handle %x:: output: %s\n",
-							pid, if_name, get_prio(value), ht, (out_buf ? out_buf : "n/a"));
-					rc = -EFAULT;
-				}
-#else
-				sys_exec("tc filter del dev %s parent ffff: protocol ip prio %d handle %x: u32 > /dev/null 2>&1 || echo $?",
-									if_name, get_prio(value), ht);
-#endif
+				/* Device busy error is returned while trying to remove table in this location */
+				add_pending_list(pid, ctx, if_name, ht, get_prio(value), &rc);
 
-				free_htid(ctx, ht);
 				list_del_init(cur_entry);
 				free(cur_element);
 			}
@@ -593,6 +597,8 @@ int del_flow(struct store_pid *pid_value, struct store_flow *value)
 			free(cur_element);
 		}
 	}
+
+	free_pending_list(pid, ctx, if_name);
 
 err:
 
@@ -637,6 +643,50 @@ static inline void get_htid(struct flow_ctx *ctx, int prio, int *ht_krn, int *ht
 			bitmap_set(ctx->ht, *ht_id);
 		}
 	}
+}
+
+static inline void free_pending_list(pid_t pid, struct flow_ctx *ctx, char* if_name)
+{
+	char *out_buf = NULL;
+	struct htid_node_t *cur_element = NULL;
+	struct list_head *cur_entry = NULL, *tmp_entry = NULL;
+
+	if (ctx) {
+		list_for_each_safe(cur_entry, tmp_entry, &ctx->pending_list) {
+			cur_element = list_entry(cur_entry, struct htid_node_t, node);
+
+			out_buf = sys_exec("tc filter del dev %s parent ffff: protocol ip prio %d handle %x: u32 > /dev/null 2>&1 || echo $?",
+					if_name, cur_element->prio, cur_element->htid);
+			if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
+				continue;
+			}
+
+			log_debug("[%d] del flow request was removed successfully : dev %s htid %d prio %d\n",
+									pid, if_name, cur_element->htid, cur_element->prio);
+
+			list_del_init(&cur_element->node);
+			free_htid(ctx, cur_element->htid);
+			free(cur_element);
+		}
+	}
+}
+
+static inline void add_pending_list(pid_t pid, struct flow_ctx *ctx, char* if_name, int ht_id, int prio, int *rc)
+{
+	struct htid_node_t *htid_node = (void *)calloc(1, sizeof(struct htid_node_t));
+	if (NULL == htid_node) {
+		*rc = -ENOMEM;
+		return;
+	}
+
+	INIT_LIST_HEAD(&htid_node->node);
+	htid_node->htid = ht_id;
+	htid_node->prio = prio;
+
+	list_add(&htid_node->node, &ctx->pending_list);
+
+	log_debug("[%d] del flow request was added to the pending list : dev %s htid %d prio %d\n",
+							pid, if_name, ht_id, prio);
 }
 
 static inline void free_htid(struct flow_ctx *ctx, int ht_id)
