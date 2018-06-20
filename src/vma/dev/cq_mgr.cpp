@@ -102,7 +102,6 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 #endif
 	,m_p_ib_ctx_handler(p_ib_ctx_handler)
 	,m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv)
-	,m_b_sysvar_is_rx_sw_csum_on(safe_mce_sys().rx_sw_csum)
 	,m_comp_event_channel(p_comp_event_channel)
 	,m_b_notification_armed(false)
 	,m_n_sysvar_qp_compensation_level(safe_mce_sys().qp_compensation_level)
@@ -492,15 +491,6 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(uintptr_t)p_wce->wr_id;
 
 	bool bad_wce = p_wce->status != IBV_WC_SUCCESS;
-	bool is_rx_sw_csum_need;
-
-	if  (m_b_sysvar_is_rx_sw_csum_on) {
-		// no changes in bad_wce
-		is_rx_sw_csum_need = !(m_b_is_rx_hw_csum_on && vma_wc_rx_hw_csum_ok(*p_wce));
-	} else {
-		bad_wce =  bad_wce || (m_b_is_rx_hw_csum_on && !vma_wc_rx_hw_csum_ok(*p_wce));
-		is_rx_sw_csum_need = false;
-	}
 
 	if (unlikely(bad_wce || p_mem_buf_desc == NULL)) {
 		if (p_mem_buf_desc == NULL) {
@@ -536,7 +526,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 		p_mem_buf_desc->p_prev_desc = NULL;
 	}
 
-	p_mem_buf_desc->rx.is_sw_csum_need = is_rx_sw_csum_need;
+	p_mem_buf_desc->rx.is_sw_csum_need = !(m_b_is_rx_hw_csum_on && vma_wc_rx_hw_csum_ok(*p_wce));
 
 	if (likely(vma_wc_opcode(*p_wce) & VMA_IBV_WC_RECV)) {
 		// Save recevied total bytes

@@ -136,7 +136,6 @@ Example:
  VMA DETAILS: Rx Poll Init Loops             0                          [VMA_RX_POLL_INIT]
  VMA DETAILS: Rx UDP Poll OS Ratio           100                        [VMA_RX_UDP_POLL_OS_RATIO]
  VMA DETAILS: HW TS Conversion               3                          [VMA_HW_TS_CONVERSION]
- VMA DETAILS: Rx SW CSUM                     1                          [VMA_RX_SW_CSUM]
  VMA DETAILS: Rx Poll Yield                  Disabled                   [VMA_RX_POLL_YIELD]
  VMA DETAILS: Rx Prefetch Bytes              256                        [VMA_RX_PREFETCH_BYTES]
  VMA DETAILS: Rx Prefetch Bytes Before Poll  0                          [VMA_RX_PREFETCH_BYTES_BEFORE_POLL]
@@ -755,23 +754,6 @@ Valid Values are:
 Use value of 0 to disable.
 Use value of 1 for enable.
 Default value is Disabled.
-
-VMA_RX_SW_CSUM
-This parameter enables/disables software checksum validation for ingress TCP/UDP IP packets.
-Most Mellanox HCAs support hardware offload checksum validation. If the hardware does not
-support checksum validation offload, software checksum validation is required.
-When this parameter is enabled, software checksum validation is calculated only if hardware
-offload checksum validation is not performed.
-Performance degradation might occur if hardware offload fails to validate checksum and
-software calculation is used.
-Note that disabling software calculation might cause corrupt packets to be
-processed by VMA and the application, when the hardware does not perform this action.
-For further details on which adapter card supports hardware offload checksum validation,
-please refer to the VMA Release Notes.
-Valid Values are:
-Use value of 0 to disable.
-Use value of 1 for enable.
-Default value is Enabled.
 
 VMA_EXCEPTION_HANDLING
 Mode for handling missing support or error cases in Socket API or functionality by VMA.
