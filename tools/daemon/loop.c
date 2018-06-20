@@ -60,9 +60,10 @@ int proc_loop(void)
 	int rc = 0;
 
 	log_debug("setting working directory ...\n");
-	if ((mkdir(VMA_AGENT_PATH, 0777) != 0) && (errno != EEXIST)) {
+	if ((mkdir(daemon_cfg.notify_dir, 0777) != 0) && (errno != EEXIST)) {
 		rc = -errno;
-		log_error("failed create folder %s (errno = %d)\n", VMA_AGENT_PATH, errno);
+		log_error("failed create folder %s (errno = %d)\n",
+			  daemon_cfg.notify_dir, errno);
 		goto err;
 	}
 

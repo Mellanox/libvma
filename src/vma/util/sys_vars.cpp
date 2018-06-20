@@ -499,12 +499,14 @@ void mce_sys_var::get_env_params()
 	app_name[len-1] = '\0';
 	fclose(fp);
 
-	bzero(vma_time_measure_filename, sizeof(vma_time_measure_filename));
+	memset(vma_time_measure_filename, 0, sizeof(vma_time_measure_filename));
 	strcpy(vma_time_measure_filename, MCE_DEFAULT_TIME_MEASURE_DUMP_FILE);
-	bzero(log_filename, sizeof(log_filename));
-	bzero(stats_filename, sizeof(stats_filename));
-	bzero(stats_shmem_dirname, sizeof(stats_shmem_dirname));
+	memset(log_filename, 0, sizeof(log_filename));
+	memset(stats_filename, 0, sizeof(stats_filename));
+	memset(stats_shmem_dirname, 0, sizeof(stats_shmem_dirname));
+	memset(vmad_notify_dir, 0, sizeof(vmad_notify_dir));
 	strcpy(stats_filename, MCE_DEFAULT_STATS_FILE);
+	strcpy(vmad_notify_dir, MCE_DEFAULT_VMAD_FOLDER);
 	strcpy(stats_shmem_dirname, MCE_DEFAULT_STATS_SHMEM_DIR);
 	strcpy(conf_filename, MCE_DEFAULT_CONF_FILE);
 	strcpy(app_id, MCE_DEFAULT_APP_ID);
@@ -771,6 +773,10 @@ void mce_sys_var::get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_CONF_FILENAME)) != NULL){
 		read_env_variable_with_pid(conf_filename, sizeof(conf_filename), env_ptr);
+	}
+
+	if ((env_ptr = getenv(SYS_VAR_VMAD_DIR)) != NULL){
+		read_env_variable_with_pid(vmad_notify_dir, sizeof(vmad_notify_dir), env_ptr);
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_LOG_LEVEL)) != NULL)
