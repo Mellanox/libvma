@@ -818,6 +818,12 @@ int cq_mgr::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_read
 			m_rx_hot_buff->sz_data = ntohl(cqe->byte_cnt);
 			m_rx_hot_buff->rx.flow_tag_id = vma_get_flow_tag(cqe);
 
+	#ifdef DEFINED_MLX5_HW_ETH_WQE_HEADER
+			m_rx_hot_buff->rx.is_sw_csum_need = !(m_b_is_rx_hw_csum_on && (cqe->hds_ip_ext & MLX5_CQE_L4_OK) && (cqe->hds_ip_ext & MLX5_CQE_L3_OK));
+	#else
+			m_rx_hot_buff->rx.is_sw_csum_need = !m_b_is_rx_hw_csum_on; /* we assume that the checksum is ok */
+	#endif
+
 			if (unlikely(++m_qp_rec.debt >= (int)m_n_sysvar_rx_num_wr_to_post_recv)) {
 				compensate_qp_poll_success(m_rx_hot_buff);
 			}
