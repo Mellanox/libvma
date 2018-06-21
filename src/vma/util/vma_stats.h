@@ -237,6 +237,7 @@ typedef struct {
 	uint64_t    n_rx_byte_count;
 	uint64_t    n_tx_pkt_count;
 	uint64_t    n_tx_byte_count;
+	uint64_t    n_tx_retransmits;
 	void*       p_ring_master;
 	ring_type_t n_type;
 	union {
@@ -245,7 +246,6 @@ typedef struct {
 			uint64_t    n_rx_interrupt_received;
 			uint32_t    n_rx_cq_moderation_count;
 			uint32_t    n_rx_cq_moderation_period;
-			uint64_t    n_tx_retransmits;
 			uint64_t    n_tx_dev_mem_pkt_count;
 			uint64_t    n_tx_dev_mem_byte_count;
 			uint64_t    n_tx_dev_mem_oob;
