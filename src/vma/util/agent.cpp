@@ -45,6 +45,7 @@
 #include "vlogger/vlogger.h"
 #include "utils/lock_wrapper.h"
 #include "vma/sock/sock-redirect.h"
+#include "vma/util/libvma.h"
 #include "vma/util/list.h"
 #include "vma/util/agent.h"
 
@@ -84,9 +85,12 @@ agent::agent() :
 	int rc = 0;
 	agent_msg_t *msg = NULL;
 	int i = 0;
+	const char *path = (__vma_get_daemon_path() ? __vma_get_daemon_path() : VMA_AGENT_PATH);
 
 	INIT_LIST_HEAD(&m_free_queue);
 	INIT_LIST_HEAD(&m_wait_queue);
+
+	__log_dbg("use location: %s\n", path);
 
 	/* Fill free queue with empty messages */
 	i = m_msg_num;

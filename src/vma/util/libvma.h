@@ -329,6 +329,10 @@ static inline int __vma_log_set_log_file(char *filename )
 	return 0;
 };
 
+char* __vma_get_daemon_path(void);
+
+int __vma_set_daemon_path(char *pathname);
+
 int __vma_sockaddr_to_vma(const struct sockaddr *addr_in, socklen_t addrlen, struct sockaddr_in *addr_out, int *was_ipv6 );
 
 #ifdef __cplusplus

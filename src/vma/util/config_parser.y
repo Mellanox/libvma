@@ -100,6 +100,8 @@ static void __vma_set_inet_addr_prefix_len(unsigned char prefixlen)
 // SM: log part is  not used...
 int __vma_min_level = 9;
 
+char *__vma_daemon_path = "/tmp/vma";
+
 void __vma_dump_address_port_rule_config_state(char *buf) {
 	if (__vma_address_port_rule->match_by_addr) {
 		char str_addr[INET_ADDRSTRLEN];
@@ -338,8 +340,10 @@ static void __vma_add_rule() {
 %token NAME "a name"
 %token LEVEL "min-level"
 %token LINE "new line"
-%type <sval> NAME PROGRAM USER_DEFINED_ID_STR
-%type <ival> INT LOG DEST STDERR SYSLOG FILENAME APP_ID USE OS VMA SDP TCP UDP TCP_CLIENT TCP_SERVER UDP_SENDER UDP_RECEIVER UDP_CONNECT LEVEL LINE 
+%token DAEMON_KEY "daemon"
+%token DAEMON_VALUE "daemon path"
+%type <sval> NAME PROGRAM USER_DEFINED_ID_STR DAEMON_VALUE
+%type <ival> INT LOG DEST STDERR SYSLOG FILENAME APP_ID USE OS VMA SDP TCP UDP TCP_CLIENT TCP_SERVER UDP_SENDER UDP_RECEIVER UDP_CONNECT LEVEL LINE DAEMON_KEY 
 %start config
 
 %{
@@ -367,6 +371,7 @@ statement:
  	log_statement
 	| app_id_statement  
 	| socket_statement
+	| daemon_statement
 	;
 
 log_statement: 
@@ -397,6 +402,13 @@ app_id:
 	| APP_ID PROGRAM INT			{__vma_add_inst_with_int_uid($2, $3);	if ($2) free($2);		}
 	;
 
+daemon_statement:
+	daemon NL
+	;
+
+daemon:
+	DAEMON_KEY DAEMON_VALUE { __vma_set_daemon_path($2); if ($2) free($2); }
+	;
 
 socket_statement: 
     use transport role tuple NL { __vma_add_rule(); }

@@ -103,11 +103,32 @@ static int __vma_rule_push_head = 0;
 static int current_role = 0;
 static configuration_t current_conf_type = CONF_RULE;
 static struct instance *curr_instance = NULL;
+static char *__vma_daemon_path = NULL;
 
 int __vma_config_empty(void)
 {
 	return ((__instance_list.head == NULL) && (__instance_list.tail == NULL));
 }
+
+
+char* __vma_get_daemon_path(void)
+{
+	return __vma_daemon_path;
+};
+
+int __vma_set_daemon_path(char *pathname)
+{
+	static char __vma_daemon_path_buf[4096] = {0};
+	if (pathname) {
+		int n = -1;
+		n = snprintf(__vma_daemon_path_buf, sizeof(__vma_daemon_path_buf), "%s", pathname);
+		if (((int)sizeof(__vma_daemon_path_buf) < n) || (n < 0)) {
+			strcpy(__vma_daemon_path_buf, "/tmp/vma");
+		}
+		__vma_daemon_path = __vma_daemon_path_buf;
+	}
+	return 0;
+};
 
 /* define the address by 4 integers */
 static void __vma_set_ipv4_addr(short a0, short a1, short a2, short a3)
@@ -134,6 +155,8 @@ static void __vma_set_inet_addr_prefix_len(unsigned char prefixlen)
 
 // SM: log part is  not used...
 int __vma_min_level = 9;
+
+
 
 void __vma_dump_address_port_rule_config_state(char *buf) {
 	if (__vma_address_port_rule->match_by_addr) {
@@ -403,7 +426,9 @@ extern int libvma_yydebug;
      FILENAME = 278,
      NAME = 279,
      LEVEL = 280,
-     LINE = 281
+     LINE = 281,
+     DAEMON_KEY = 282,
+     DAEMON_VALUE = 283
    };
 #endif
 /* Tokens.  */
@@ -431,6 +456,8 @@ extern int libvma_yydebug;
 #define NAME 279
 #define LEVEL 280
 #define LINE 281
+#define DAEMON_KEY 282
+#define DAEMON_VALUE 283
 
 
 
@@ -438,14 +465,14 @@ extern int libvma_yydebug;
 typedef union YYSTYPE
 {
 /* Line 387 of yacc.c  */
-/* Line 306 of config_parser.y */
+/* Line 314 of config_parser.y */
 
   int        ival;
   char      *sval;
 
 
 /* Line 387 of yacc.c  */
-/* Line 442 of config_parser.c */
+/* Line 454 of config_parser.c */
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
@@ -472,12 +499,12 @@ int libvma_yyparse ();
 
 /* Copy the second part of user declarations.  */
 /* Line 390 of yacc.c  */
-/* Line 339 of config_parser.y */
+/* Line 349 of config_parser.y */
 
   long __vma_config_line_num;
 
 /* Line 390 of yacc.c  */
-/* Line 474 of config_parser.c */
+/* Line 486 of config_parser.c */
 
 #ifdef short
 # undef short
@@ -697,20 +724,20 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  7
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   48
+#define YYLAST   52
 
 /* YYNTOKENS -- Number of terminals.  */
-#define YYNTOKENS  32
+#define YYNTOKENS  34
 /* YYNNTS -- Number of nonterminals.  */
-#define YYNNTS  26
+#define YYNNTS  28
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  50
+#define YYNRULES  53
 /* YYNRULES -- Number of states.  */
-#define YYNSTATES  74
+#define YYNSTATES  79
 
 /* YYTRANSLATE(YYLEX) -- Bison symbol number corresponding to YYLEX.  */
 #define YYUNDEFTOK  2
-#define YYMAXUTOK   281
+#define YYMAXUTOK   283
 
 #define YYTRANSLATE(YYX)						\
   ((unsigned int) (YYX) <= YYMAXUTOK ? yytranslate[YYX] : YYUNDEFTOK)
@@ -722,8 +749,8 @@ static const yytype_uint8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,    27,     2,     2,    31,    30,    29,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,    28,     2,
+       2,     2,    29,     2,     2,    33,    32,    31,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,    30,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
@@ -746,7 +773,7 @@ static const yytype_uint8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     1,     2,     3,     4,
        5,     6,     7,     8,     9,    10,    11,    12,    13,    14,
       15,    16,    17,    18,    19,    20,    21,    22,    23,    24,
-      25,    26
+      25,    26,    27,    28
 };
 
 #if YYDEBUG
@@ -755,41 +782,42 @@ static const yytype_uint8 yytranslate[] =
 static const yytype_uint8 yyprhs[] =
 {
        0,     0,     3,     5,     8,     9,    10,    12,    15,    16,
-      19,    21,    23,    25,    29,    30,    33,    36,    39,    42,
-      46,    49,    52,    56,    60,    66,    68,    70,    72,    74,
-      76,    78,    80,    82,    84,    86,    88,    90,    92,    96,
-     104,   105,   108,   109,   112,   114,   118,   120,   128,   130,
-     134
+      19,    21,    23,    25,    27,    31,    32,    35,    38,    41,
+      44,    48,    51,    54,    58,    62,    65,    68,    74,    76,
+      78,    80,    82,    84,    86,    88,    90,    92,    94,    96,
+      98,   100,   104,   112,   113,   116,   117,   120,   122,   126,
+     128,   136,   138,   142
 };
 
 /* YYRHS -- A `-1'-separated list of the rules' RHS.  */
 static const yytype_int8 yyrhs[] =
 {
-      35,     0,    -1,    26,    -1,    33,    26,    -1,    -1,    -1,
-      33,    -1,    34,    36,    -1,    -1,    36,    37,    -1,    38,
-      -1,    42,    -1,    44,    -1,    19,    39,    33,    -1,    -1,
-      39,    40,    -1,    39,    41,    -1,    20,    21,    -1,    20,
-      22,    -1,    20,    23,    24,    -1,    25,    15,    -1,    43,
-      33,    -1,    16,    17,    18,    -1,    16,    17,    15,    -1,
-      45,    46,    47,    48,    33,    -1,     3,    -1,    11,    -1,
-      12,    -1,    13,    -1,    14,    -1,    27,    -1,     5,    -1,
-       4,    -1,     7,    -1,     6,    -1,     8,    -1,    49,    -1,
-      50,    -1,    51,    28,    57,    -1,    51,    28,    57,    28,
-      53,    28,    57,    -1,    -1,    52,    55,    -1,    -1,    54,
-      55,    -1,    56,    -1,    56,    29,    15,    -1,    27,    -1,
-      15,    30,    15,    30,    15,    30,    15,    -1,    15,    -1,
-      15,    31,    15,    -1,    27,    -1
+      37,     0,    -1,    26,    -1,    35,    26,    -1,    -1,    -1,
+      35,    -1,    36,    38,    -1,    -1,    38,    39,    -1,    40,
+      -1,    44,    -1,    48,    -1,    46,    -1,    19,    41,    35,
+      -1,    -1,    41,    42,    -1,    41,    43,    -1,    20,    21,
+      -1,    20,    22,    -1,    20,    23,    24,    -1,    25,    15,
+      -1,    45,    35,    -1,    16,    17,    18,    -1,    16,    17,
+      15,    -1,    47,    35,    -1,    27,    28,    -1,    49,    50,
+      51,    52,    35,    -1,     3,    -1,    11,    -1,    12,    -1,
+      13,    -1,    14,    -1,    29,    -1,     5,    -1,     4,    -1,
+       7,    -1,     6,    -1,     8,    -1,    53,    -1,    54,    -1,
+      55,    30,    61,    -1,    55,    30,    61,    30,    57,    30,
+      61,    -1,    -1,    56,    59,    -1,    -1,    58,    59,    -1,
+      60,    -1,    60,    31,    15,    -1,    29,    -1,    15,    32,
+      15,    32,    15,    32,    15,    -1,    15,    -1,    15,    33,
+      15,    -1,    29,    -1
 };
 
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   345,   345,   346,   347,   349,   350,   353,   356,   357,
-     361,   362,   363,   367,   370,   371,   372,   376,   377,   378,
-     382,   386,   390,   391,   396,   400,   404,   405,   406,   407,
-     408,   413,   414,   415,   416,   417,   421,   422,   426,   430,
-     434,   434,   438,   438,   442,   443,   444,   448,   452,   453,
-     454
+       0,   355,   355,   356,   357,   359,   360,   363,   366,   367,
+     371,   372,   373,   374,   378,   381,   382,   383,   387,   388,
+     389,   393,   397,   401,   402,   406,   410,   414,   418,   422,
+     423,   424,   425,   426,   431,   432,   433,   434,   435,   439,
+     440,   444,   448,   452,   452,   456,   456,   460,   461,   462,
+     466,   470,   471,   472
 };
 #endif
 
@@ -804,9 +832,10 @@ static const char *const yytname[] =
   "\"sa\"", "\"integer value\"", "\"application id\"", "\"program name\"",
   "\"userdefined id str\"", "\"log statement\"", "\"destination\"",
   "\"ystderr\"", "\"syslog\"", "\"yfile\"", "\"a name\"", "\"min-level\"",
-  "\"new line\"", "'*'", "':'", "'/'", "'.'", "'-'", "$accept", "NL",
-  "ONL", "config", "statements", "statement", "log_statement", "log_opts",
-  "log_dest", "verbosity", "app_id_statement", "app_id",
+  "\"new line\"", "\"daemon\"", "\"daemon path\"", "'*'", "':'", "'/'",
+  "'.'", "'-'", "$accept", "NL", "ONL", "config", "statements",
+  "statement", "log_statement", "log_opts", "log_dest", "verbosity",
+  "app_id_statement", "app_id", "daemon_statement", "daemon",
   "socket_statement", "use", "transport", "role", "tuple", "three_tuple",
   "five_tuple", "address_first", "$@1", "address_second", "$@2", "address",
   "ipv4", "ports", YY_NULL
@@ -820,31 +849,31 @@ static const yytype_uint16 yytoknum[] =
 {
        0,   256,   257,   258,   259,   260,   261,   262,   263,   264,
      265,   266,   267,   268,   269,   270,   271,   272,   273,   274,
-     275,   276,   277,   278,   279,   280,   281,    42,    58,    47,
-      46,    45
+     275,   276,   277,   278,   279,   280,   281,   282,   283,    42,
+      58,    47,    46,    45
 };
 # endif
 
 /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
 static const yytype_uint8 yyr1[] =
 {
-       0,    32,    33,    33,    33,    34,    34,    35,    36,    36,
-      37,    37,    37,    38,    39,    39,    39,    40,    40,    40,
-      41,    42,    43,    43,    44,    45,    46,    46,    46,    46,
-      46,    47,    47,    47,    47,    47,    48,    48,    49,    50,
-      52,    51,    54,    53,    55,    55,    55,    56,    57,    57,
-      57
+       0,    34,    35,    35,    35,    36,    36,    37,    38,    38,
+      39,    39,    39,    39,    40,    41,    41,    41,    42,    42,
+      42,    43,    44,    45,    45,    46,    47,    48,    49,    50,
+      50,    50,    50,    50,    51,    51,    51,    51,    51,    52,
+      52,    53,    54,    56,    55,    58,    57,    59,    59,    59,
+      60,    61,    61,    61
 };
 
 /* YYR2[YYN] -- Number of symbols composing right hand side of rule YYN.  */
 static const yytype_uint8 yyr2[] =
 {
        0,     2,     1,     2,     0,     0,     1,     2,     0,     2,
-       1,     1,     1,     3,     0,     2,     2,     2,     2,     3,
-       2,     2,     3,     3,     5,     1,     1,     1,     1,     1,
-       1,     1,     1,     1,     1,     1,     1,     1,     3,     7,
-       0,     2,     0,     2,     1,     3,     1,     7,     1,     3,
-       1
+       1,     1,     1,     1,     3,     0,     2,     2,     2,     2,
+       3,     2,     2,     3,     3,     2,     2,     5,     1,     1,
+       1,     1,     1,     1,     1,     1,     1,     1,     1,     1,
+       1,     3,     7,     0,     2,     0,     2,     1,     3,     1,
+       7,     1,     3,     1
 };
 
 /* YYDEFACT[STATE-NAME] -- Default reduction number in state STATE-NUM.
@@ -852,45 +881,45 @@ static const yytype_uint8 yyr2[] =
    means the default is an error.  */
 static const yytype_uint8 yydefact[] =
 {
-       4,     2,     6,     8,     0,     3,     7,     1,    25,     0,
-      14,     9,    10,    11,     4,    12,     0,     0,     4,    21,
-      26,    27,    28,    29,    30,     0,    23,    22,     0,     0,
-      13,    15,    16,    32,    31,    34,    33,    35,    40,    17,
-      18,     0,    20,     4,    36,    37,     0,     0,    19,    24,
-       0,     0,    46,    41,    44,    48,    50,    38,     0,     0,
-       0,    42,     0,    45,    49,     0,     0,     0,     0,    43,
-       0,    39,     0,    47
+       4,     2,     6,     8,     0,     3,     7,     1,    28,     0,
+      15,     0,     9,    10,    11,     4,    13,     4,    12,     0,
+       0,     4,    26,    22,    25,    29,    30,    31,    32,    33,
+       0,    24,    23,     0,     0,    14,    16,    17,    35,    34,
+      37,    36,    38,    43,    18,    19,     0,    21,     4,    39,
+      40,     0,     0,    20,    27,     0,     0,    49,    44,    47,
+      51,    53,    41,     0,     0,     0,    45,     0,    48,    52,
+       0,     0,     0,     0,    46,     0,    42,     0,    50
 };
 
 /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int8 yydefgoto[] =
 {
-      -1,     2,     3,     4,     6,    11,    12,    18,    31,    32,
-      13,    14,    15,    16,    25,    38,    43,    44,    45,    46,
-      47,    65,    66,    53,    54,    57
+      -1,     2,     3,     4,     6,    12,    13,    21,    36,    37,
+      14,    15,    16,    17,    18,    19,    30,    43,    48,    49,
+      50,    51,    52,    70,    71,    58,    59,    62
 };
 
 /* YYPACT[STATE-NUM] -- Index in YYTABLE of the portion describing
    STATE-NUM.  */
-#define YYPACT_NINF -25
+#define YYPACT_NINF -24
 static const yytype_int8 yypact[] =
 {
-     -24,   -25,   -17,   -25,    12,   -25,    -2,   -25,   -25,    -1,
-     -25,   -25,   -25,   -25,   -24,   -25,    -6,    13,    -7,   -17,
-     -25,   -25,   -25,   -25,   -25,    19,   -25,   -25,    11,    -4,
-     -17,   -25,   -25,   -25,   -25,   -25,   -25,   -25,   -25,   -25,
-     -25,     6,   -25,   -24,   -25,   -25,    -8,   -12,   -25,   -17,
-      -5,     5,   -25,   -25,     7,     8,   -25,     9,    23,    25,
-      26,   -25,    14,   -25,   -25,    15,   -12,    27,    -5,   -25,
-      16,   -25,    30,   -25
+     -23,   -24,     2,   -24,    15,   -24,    -2,   -24,   -24,    -1,
+     -24,     1,   -24,   -24,   -24,   -23,   -24,   -23,   -24,    -3,
+      12,   -13,   -24,     2,     2,   -24,   -24,   -24,   -24,   -24,
+      16,   -24,   -24,    13,    17,     2,   -24,   -24,   -24,   -24,
+     -24,   -24,   -24,   -24,   -24,   -24,     7,   -24,   -23,   -24,
+     -24,     8,   -11,   -24,     2,   -10,     5,   -24,   -24,     9,
+       6,   -24,    11,    27,    28,    29,   -24,    14,   -24,   -24,
+      18,   -11,    30,   -10,   -24,    19,   -24,    32,   -24
 };
 
 /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
-     -25,   -14,   -25,   -25,   -25,   -25,   -25,   -25,   -25,   -25,
-     -25,   -25,   -25,   -25,   -25,   -25,   -25,   -25,   -25,   -25,
-     -25,   -25,   -25,   -19,   -25,   -20
+     -24,   -15,   -24,   -24,   -24,   -24,   -24,   -24,   -24,   -24,
+     -24,   -24,   -24,   -24,   -24,   -24,   -24,   -24,   -24,   -24,
+     -24,   -24,   -24,   -24,   -24,   -22,   -24,   -21
 };
 
 /* YYTABLE[YYPACT[STATE-NUM]].  What to do in state STATE-NUM.  If
@@ -899,40 +928,42 @@ static const yytype_int8 yypgoto[] =
 #define YYTABLE_NINF -1
 static const yytype_uint8 yytable[] =
 {
-      19,     8,     1,    51,    30,    20,    21,    22,    23,     5,
-      55,    42,     7,    28,     9,    52,    17,    10,    29,     1,
-      50,    24,    56,    33,    34,    35,    36,    37,    26,    49,
-      48,    27,    39,    40,    41,    58,    59,    61,    62,    60,
-      63,    64,    70,    68,    67,    73,    72,    69,    71
+      23,     8,    24,     1,    56,    60,    35,    33,    25,    26,
+      27,    28,    34,     1,     9,     7,    20,    10,    57,    61,
+      38,    39,    40,    41,    42,    11,    29,    31,     5,    22,
+      32,    53,    47,    54,    44,    45,    46,    63,    55,    65,
+      64,    66,    67,    68,    69,    75,    72,    78,    73,    74,
+       0,    77,    76
 };
 
 #define yypact_value_is_default(Yystate) \
-  (!!((Yystate) == (-25)))
+  (!!((Yystate) == (-24)))
 
 #define yytable_value_is_error(Yytable_value) \
   YYID (0)
 
-static const yytype_uint8 yycheck[] =
+static const yytype_int8 yycheck[] =
 {
-      14,     3,    26,    15,    18,    11,    12,    13,    14,    26,
-      15,    15,     0,    20,    16,    27,    17,    19,    25,    26,
-      28,    27,    27,     4,     5,     6,     7,     8,    15,    43,
-      24,    18,    21,    22,    23,    30,    29,    28,    15,    31,
-      15,    15,    15,    28,    30,    15,    30,    66,    68
+      15,     3,    17,    26,    15,    15,    21,    20,    11,    12,
+      13,    14,    25,    26,    16,     0,    17,    19,    29,    29,
+       4,     5,     6,     7,     8,    27,    29,    15,    26,    28,
+      18,    24,    15,    48,    21,    22,    23,    32,    30,    33,
+      31,    30,    15,    15,    15,    15,    32,    15,    30,    71,
+      -1,    32,    73
 };
 
 /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
    symbol of state STATE-NUM.  */
 static const yytype_uint8 yystos[] =
 {
-       0,    26,    33,    34,    35,    26,    36,     0,     3,    16,
-      19,    37,    38,    42,    43,    44,    45,    17,    39,    33,
-      11,    12,    13,    14,    27,    46,    15,    18,    20,    25,
-      33,    40,    41,     4,     5,     6,     7,     8,    47,    21,
-      22,    23,    15,    48,    49,    50,    51,    52,    24,    33,
-      28,    15,    27,    55,    56,    15,    27,    57,    30,    29,
-      31,    28,    15,    15,    15,    53,    54,    30,    28,    55,
-      15,    57,    30,    15
+       0,    26,    35,    36,    37,    26,    38,     0,     3,    16,
+      19,    27,    39,    40,    44,    45,    46,    47,    48,    49,
+      17,    41,    28,    35,    35,    11,    12,    13,    14,    29,
+      50,    15,    18,    20,    25,    35,    42,    43,     4,     5,
+       6,     7,     8,    51,    21,    22,    23,    15,    52,    53,
+      54,    55,    56,    24,    35,    30,    15,    29,    59,    60,
+      15,    29,    61,    32,    31,    33,    30,    15,    15,    15,
+      57,    58,    32,    30,    59,    15,    61,    32,    15
 };
 
 #define yyerrok		(yyerrstatus = 0)
@@ -1742,171 +1773,177 @@ yyreduce:
   YY_REDUCE_PRINT (yyn);
   switch (yyn)
     {
-        case 17:
+        case 18:
 /* Line 1792 of yacc.c  */
-/* Line 376 of config_parser.y */
+/* Line 387 of config_parser.y */
     { __vma_log_set_log_stderr(); }
-    break;
-
-  case 18:
-/* Line 1792 of yacc.c  */
-/* Line 377 of config_parser.y */
-    { __vma_log_set_log_syslog(); }
     break;
 
   case 19:
 /* Line 1792 of yacc.c  */
-/* Line 378 of config_parser.y */
-    { __vma_log_set_log_file((yyvsp[(3) - (3)].sval)); }
+/* Line 388 of config_parser.y */
+    { __vma_log_set_log_syslog(); }
     break;
 
   case 20:
 /* Line 1792 of yacc.c  */
-/* Line 382 of config_parser.y */
-    { __vma_log_set_min_level((yyvsp[(2) - (2)].ival)); }
+/* Line 389 of config_parser.y */
+    { __vma_log_set_log_file((yyvsp[(3) - (3)].sval)); }
     break;
 
-  case 22:
+  case 21:
 /* Line 1792 of yacc.c  */
-/* Line 390 of config_parser.y */
-    {__vma_add_instance((yyvsp[(2) - (3)].sval), (yyvsp[(3) - (3)].sval));	if ((yyvsp[(2) - (3)].sval)) free((yyvsp[(2) - (3)].sval)); if ((yyvsp[(3) - (3)].sval)) free((yyvsp[(3) - (3)].sval));	}
+/* Line 393 of config_parser.y */
+    { __vma_log_set_min_level((yyvsp[(2) - (2)].ival)); }
     break;
 
   case 23:
 /* Line 1792 of yacc.c  */
-/* Line 391 of config_parser.y */
-    {__vma_add_inst_with_int_uid((yyvsp[(2) - (3)].sval), (yyvsp[(3) - (3)].ival));	if ((yyvsp[(2) - (3)].sval)) free((yyvsp[(2) - (3)].sval));		}
+/* Line 401 of config_parser.y */
+    {__vma_add_instance((yyvsp[(2) - (3)].sval), (yyvsp[(3) - (3)].sval));	if ((yyvsp[(2) - (3)].sval)) free((yyvsp[(2) - (3)].sval)); if ((yyvsp[(3) - (3)].sval)) free((yyvsp[(3) - (3)].sval));	}
     break;
 
   case 24:
 /* Line 1792 of yacc.c  */
-/* Line 396 of config_parser.y */
-    { __vma_add_rule(); }
-    break;
-
-  case 25:
-/* Line 1792 of yacc.c  */
-/* Line 400 of config_parser.y */
-    { current_conf_type = CONF_RULE; }
+/* Line 402 of config_parser.y */
+    {__vma_add_inst_with_int_uid((yyvsp[(2) - (3)].sval), (yyvsp[(3) - (3)].ival));	if ((yyvsp[(2) - (3)].sval)) free((yyvsp[(2) - (3)].sval));		}
     break;
 
   case 26:
 /* Line 1792 of yacc.c  */
-/* Line 404 of config_parser.y */
-    { __vma_rule.target_transport = TRANS_OS;	}
+/* Line 410 of config_parser.y */
+    { __vma_set_daemon_path((yyvsp[(2) - (2)].sval)); if ((yyvsp[(2) - (2)].sval)) free((yyvsp[(2) - (2)].sval)); }
     break;
 
   case 27:
 /* Line 1792 of yacc.c  */
-/* Line 405 of config_parser.y */
-    { __vma_rule.target_transport = TRANS_VMA;	}
+/* Line 414 of config_parser.y */
+    { __vma_add_rule(); }
     break;
 
   case 28:
 /* Line 1792 of yacc.c  */
-/* Line 406 of config_parser.y */
-    { __vma_rule.target_transport = TRANS_SDP;	}
+/* Line 418 of config_parser.y */
+    { current_conf_type = CONF_RULE; }
     break;
 
   case 29:
 /* Line 1792 of yacc.c  */
-/* Line 407 of config_parser.y */
-    { __vma_rule.target_transport = TRANS_SA;	}
+/* Line 422 of config_parser.y */
+    { __vma_rule.target_transport = TRANS_OS;	}
     break;
 
   case 30:
 /* Line 1792 of yacc.c  */
-/* Line 408 of config_parser.y */
-    { __vma_rule.target_transport = TRANS_ULP;	}
+/* Line 423 of config_parser.y */
+    { __vma_rule.target_transport = TRANS_VMA;	}
     break;
 
   case 31:
 /* Line 1792 of yacc.c  */
-/* Line 413 of config_parser.y */
-    { current_role = ROLE_TCP_SERVER; 	__vma_rule.protocol = PROTO_TCP; }
+/* Line 424 of config_parser.y */
+    { __vma_rule.target_transport = TRANS_SDP;	}
     break;
 
   case 32:
 /* Line 1792 of yacc.c  */
-/* Line 414 of config_parser.y */
-    { current_role = ROLE_TCP_CLIENT; 	__vma_rule.protocol = PROTO_TCP; }
+/* Line 425 of config_parser.y */
+    { __vma_rule.target_transport = TRANS_SA;	}
     break;
 
   case 33:
 /* Line 1792 of yacc.c  */
-/* Line 415 of config_parser.y */
-    { current_role = ROLE_UDP_RECEIVER; __vma_rule.protocol = PROTO_UDP; }
+/* Line 426 of config_parser.y */
+    { __vma_rule.target_transport = TRANS_ULP;	}
     break;
 
   case 34:
 /* Line 1792 of yacc.c  */
-/* Line 416 of config_parser.y */
-    { current_role = ROLE_UDP_SENDER;	__vma_rule.protocol = PROTO_UDP; }
+/* Line 431 of config_parser.y */
+    { current_role = ROLE_TCP_SERVER; 	__vma_rule.protocol = PROTO_TCP; }
     break;
 
   case 35:
 /* Line 1792 of yacc.c  */
-/* Line 417 of config_parser.y */
+/* Line 432 of config_parser.y */
+    { current_role = ROLE_TCP_CLIENT; 	__vma_rule.protocol = PROTO_TCP; }
+    break;
+
+  case 36:
+/* Line 1792 of yacc.c  */
+/* Line 433 of config_parser.y */
+    { current_role = ROLE_UDP_RECEIVER; __vma_rule.protocol = PROTO_UDP; }
+    break;
+
+  case 37:
+/* Line 1792 of yacc.c  */
+/* Line 434 of config_parser.y */
+    { current_role = ROLE_UDP_SENDER;	__vma_rule.protocol = PROTO_UDP; }
+    break;
+
+  case 38:
+/* Line 1792 of yacc.c  */
+/* Line 435 of config_parser.y */
     { current_role = ROLE_UDP_CONNECT;	__vma_rule.protocol = PROTO_UDP; }
     break;
 
-  case 40:
+  case 43:
 /* Line 1792 of yacc.c  */
-/* Line 434 of config_parser.y */
+/* Line 452 of config_parser.y */
     { __vma_address_port_rule = &(__vma_rule.first); __vma_rule.use_second = 0; }
-    break;
-
-  case 42:
-/* Line 1792 of yacc.c  */
-/* Line 438 of config_parser.y */
-    { __vma_address_port_rule = &(__vma_rule.second); __vma_rule.use_second = 1; }
-    break;
-
-  case 44:
-/* Line 1792 of yacc.c  */
-/* Line 442 of config_parser.y */
-    { if (current_conf_type == CONF_RULE) __vma_address_port_rule->match_by_addr = 1; __vma_set_inet_addr_prefix_len(32); }
     break;
 
   case 45:
 /* Line 1792 of yacc.c  */
-/* Line 443 of config_parser.y */
-    { if (current_conf_type == CONF_RULE) __vma_address_port_rule->match_by_addr = 1; __vma_set_inet_addr_prefix_len((yyvsp[(3) - (3)].ival)); }
-    break;
-
-  case 46:
-/* Line 1792 of yacc.c  */
-/* Line 444 of config_parser.y */
-    { if (current_conf_type == CONF_RULE) __vma_address_port_rule->match_by_addr = 0; __vma_set_inet_addr_prefix_len(32); }
+/* Line 456 of config_parser.y */
+    { __vma_address_port_rule = &(__vma_rule.second); __vma_rule.use_second = 1; }
     break;
 
   case 47:
 /* Line 1792 of yacc.c  */
-/* Line 448 of config_parser.y */
-    { __vma_set_ipv4_addr((yyvsp[(1) - (7)].ival),(yyvsp[(3) - (7)].ival),(yyvsp[(5) - (7)].ival),(yyvsp[(7) - (7)].ival)); }
+/* Line 460 of config_parser.y */
+    { if (current_conf_type == CONF_RULE) __vma_address_port_rule->match_by_addr = 1; __vma_set_inet_addr_prefix_len(32); }
     break;
 
   case 48:
 /* Line 1792 of yacc.c  */
-/* Line 452 of config_parser.y */
-    { __vma_address_port_rule->match_by_port = 1; __vma_address_port_rule->sport= (yyvsp[(1) - (1)].ival); __vma_address_port_rule->eport= (yyvsp[(1) - (1)].ival); }
+/* Line 461 of config_parser.y */
+    { if (current_conf_type == CONF_RULE) __vma_address_port_rule->match_by_addr = 1; __vma_set_inet_addr_prefix_len((yyvsp[(3) - (3)].ival)); }
     break;
 
   case 49:
 /* Line 1792 of yacc.c  */
-/* Line 453 of config_parser.y */
-    { __vma_address_port_rule->match_by_port = 1; __vma_address_port_rule->sport= (yyvsp[(1) - (3)].ival); __vma_address_port_rule->eport= (yyvsp[(3) - (3)].ival); }
+/* Line 462 of config_parser.y */
+    { if (current_conf_type == CONF_RULE) __vma_address_port_rule->match_by_addr = 0; __vma_set_inet_addr_prefix_len(32); }
     break;
 
   case 50:
 /* Line 1792 of yacc.c  */
-/* Line 454 of config_parser.y */
+/* Line 466 of config_parser.y */
+    { __vma_set_ipv4_addr((yyvsp[(1) - (7)].ival),(yyvsp[(3) - (7)].ival),(yyvsp[(5) - (7)].ival),(yyvsp[(7) - (7)].ival)); }
+    break;
+
+  case 51:
+/* Line 1792 of yacc.c  */
+/* Line 470 of config_parser.y */
+    { __vma_address_port_rule->match_by_port = 1; __vma_address_port_rule->sport= (yyvsp[(1) - (1)].ival); __vma_address_port_rule->eport= (yyvsp[(1) - (1)].ival); }
+    break;
+
+  case 52:
+/* Line 1792 of yacc.c  */
+/* Line 471 of config_parser.y */
+    { __vma_address_port_rule->match_by_port = 1; __vma_address_port_rule->sport= (yyvsp[(1) - (3)].ival); __vma_address_port_rule->eport= (yyvsp[(3) - (3)].ival); }
+    break;
+
+  case 53:
+/* Line 1792 of yacc.c  */
+/* Line 472 of config_parser.y */
     { __vma_address_port_rule->match_by_port = 0; __vma_address_port_rule->sport= 0;  __vma_address_port_rule->eport= 0;  }
     break;
 
 
 /* Line 1792 of yacc.c  */
-/* Line 1893 of config_parser.c */
+/* Line 1915 of config_parser.c */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -2138,7 +2175,7 @@ yyreturn:
 
 
 /* Line 2055 of yacc.c  */
-/* Line 457 of config_parser.y */
+/* Line 475 of config_parser.y */
 
 
 int yyerror(const char *msg)
@@ -2153,7 +2190,7 @@ int yyerror(const char *msg)
 	final_msg[0] = '\0';
 	while (word != NULL) {
 		if (!strncmp(word, "$undefined", 10)) {
-			strcat(final_msg, "unrecognized-token ");
+			strcat(final_msg, "	 ");
 		} else if (!strncmp(word, "$end",4)) {
 			strcat(final_msg, "end-of-file ");
 		} else {

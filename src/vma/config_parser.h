@@ -30,8 +30,8 @@
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
-#ifndef YY_LIBVMA_YY_CONFIG_PARSER_H_INCLUDED
-# define YY_LIBVMA_YY_CONFIG_PARSER_H_INCLUDED
+#ifndef YY_LIBVMA_YY_UTIL_CONFIG_PARSER_H_INCLUDED
+# define YY_LIBVMA_YY_UTIL_CONFIG_PARSER_H_INCLUDED
 /* Enabling traces.  */
 #ifndef YYDEBUG
 # define YYDEBUG 0
@@ -69,7 +69,9 @@ extern int libvma_yydebug;
      FILENAME = 278,
      NAME = 279,
      LEVEL = 280,
-     LINE = 281
+     LINE = 281,
+     DAEMON_KEY = 282,
+     DAEMON_VALUE = 283
    };
 #endif
 /* Tokens.  */
@@ -97,6 +99,8 @@ extern int libvma_yydebug;
 #define NAME 279
 #define LEVEL 280
 #define LINE 281
+#define DAEMON_KEY 282
+#define DAEMON_VALUE 283
 
 
 
@@ -104,14 +108,14 @@ extern int libvma_yydebug;
 typedef union YYSTYPE
 {
 /* Line 2058 of yacc.c  */
-/* Line 306 of config_parser.y */
+#line 314 "../../../src/vma/util/config_parser.y"
 
   int        ival;
   char      *sval;
 
 
 /* Line 2058 of yacc.c  */
-/* Line 115 of config_parser.h */
+#line 119 "util/config_parser.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
@@ -134,4 +138,4 @@ int libvma_yyparse ();
 #endif
 #endif /* ! YYPARSE_PARAM */
 
-#endif /* !YY_LIBVMA_YY_CONFIG_PARSER_H_INCLUDED  */
+#endif /* !YY_LIBVMA_YY_UTIL_CONFIG_PARSER_H_INCLUDED  */
