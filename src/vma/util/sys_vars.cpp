@@ -1256,12 +1256,13 @@ void set_env_params()
 	//setenv("MLX4_SINGLE_THREADED", "1", 0);
 
 	/*
-	 * MLX4_DEVICE_FATAL_CLEANUP tells ibv_destroy functions we
-	 * want to get success errno value in case of calling them
-	 * when the device was removed.
+	 * MLX4_DEVICE_FATAL_CLEANUP/MLX5_DEVICE_FATAL_CLEANUP tells
+	 * ibv_destroy functions we want to get success errno value
+	 * in case of calling them when the device was removed.
 	 * It helps to destroy resources in DEVICE_FATAL state
 	 */
 	setenv("MLX4_DEVICE_FATAL_CLEANUP", "1", 1);
+	setenv("MLX5_DEVICE_FATAL_CLEANUP", "1", 1);
 
 	if (safe_mce_sys().handle_bf) {
 		setenv("MLX4_POST_SEND_PREFER_BF", "1", 1);
