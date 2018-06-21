@@ -503,7 +503,7 @@ void print_vma_global_settings()
 	}
 
 	VLOG_PARAM_NUMBER("HW TS Conversion", safe_mce_sys().hw_ts_conversion_mode, MCE_DEFAULT_HW_TS_CONVERSION_MODE, SYS_VAR_HW_TS_CONVERSION_MODE);
-	VLOG_PARAM_NUMBER("Rx SW CSUM", safe_mce_sys().rx_sw_csum, MCE_DEFUALT_RX_SW_CSUM, SYS_VAR_RX_SW_CSUM);
+
 	if (safe_mce_sys().rx_poll_yield_loops) {
 		VLOG_PARAM_NUMBER("Rx Poll Yield", safe_mce_sys().rx_poll_yield_loops, MCE_DEFAULT_RX_POLL_YIELD, SYS_VAR_RX_POLL_YIELD);
 	}

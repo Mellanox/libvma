@@ -548,7 +548,6 @@ void mce_sys_var::get_env_params()
 	rx_poll_num_init        = MCE_DEFAULT_RX_NUM_POLLS_INIT;
 	rx_udp_poll_os_ratio    = MCE_DEFAULT_RX_UDP_POLL_OS_RATIO;
 	hw_ts_conversion_mode   = MCE_DEFAULT_HW_TS_CONVERSION_MODE;
-	rx_sw_csum         	= MCE_DEFUALT_RX_SW_CSUM;
 	rx_poll_yield_loops     = MCE_DEFAULT_RX_POLL_YIELD;
 	select_handle_cpu_usage_stats   = MCE_DEFAULT_SELECT_CPU_USAGE_STATS;
 	rx_ready_byte_min_limit = MCE_DEFAULT_RX_BYTE_MIN_LIMIT;
@@ -916,10 +915,6 @@ void mce_sys_var::get_env_params()
 			vlog_printf(VLOG_WARNING,"HW TS conversion size out of range [%d] (min=%d, max=%d). using default [%d]\n", hw_ts_conversion_mode, TS_CONVERSION_MODE_DISABLE , TS_CONVERSION_MODE_LAST - 1, MCE_DEFAULT_HW_TS_CONVERSION_MODE);
 			hw_ts_conversion_mode = MCE_DEFAULT_HW_TS_CONVERSION_MODE;
 		}
-	}
-
-	if ((env_ptr = getenv(SYS_VAR_RX_SW_CSUM)) != NULL) {
-		rx_sw_csum = atoi(env_ptr) ? true : false;
 	}
 
 	//The following 2 params were replaced by SYS_VAR_RX_UDP_POLL_OS_RATIO
