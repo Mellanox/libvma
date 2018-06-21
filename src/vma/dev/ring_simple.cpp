@@ -753,7 +753,8 @@ bool ring_simple::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_f
 
 	// This is an internal function (within ring and 'friends'). No need for lock mechanism.
 	if (likely(m_flow_tag_enabled && p_rx_wc_buf_desc->rx.flow_tag_id &&
-		   (p_rx_wc_buf_desc->rx.flow_tag_id != FLOW_TAG_MASK))) {
+		   p_rx_wc_buf_desc->rx.flow_tag_id != FLOW_TAG_MASK &&
+		   !p_rx_wc_buf_desc->rx.is_sw_csum_need)) {
 		sockinfo* si = NULL;
 		// trying to get sockinfo per flow_tag_id-1 as it was incremented at attach
 		// to allow mapping sockfd=0

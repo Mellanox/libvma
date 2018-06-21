@@ -349,8 +349,7 @@ mem_buf_desc_t* cq_mgr_mlx5::process_cq_element_rx(mem_buf_desc_t* p_mem_buf_des
 	p_mem_buf_desc->rx.is_vma_thr = false;
 	p_mem_buf_desc->rx.context = this;
 
-	if (unlikely((status != BS_OK) ||
-			     (m_b_is_rx_hw_csum_on && p_mem_buf_desc->rx.is_sw_csum_need))) {
+	if (unlikely(status != BS_OK)) {
 		m_p_next_rx_desc_poll = NULL;
 		if (p_mem_buf_desc->p_desc_owner) {
 			p_mem_buf_desc->p_desc_owner->mem_buf_desc_completion_with_error_rx(p_mem_buf_desc);
