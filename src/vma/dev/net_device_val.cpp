@@ -878,7 +878,7 @@ bool net_device_val::update_netvsc_slaves()
 	m_lock.lock();
 
 	if (get_netvsc_slave(get_ifname_link(), slave_ifname, slave_flags) &&
-			(slave_flags & IFF_UP)) {
+			(slave_flags & IFF_UP) && (slave_flags & IFF_RUNNING)) {
 		s = new slave_data_t(if_nametoindex(slave_ifname));
 		m_slaves.push_back(s);
 
