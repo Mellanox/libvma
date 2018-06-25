@@ -229,6 +229,14 @@ void ib_ctx_handler::set_str()
 	str_x[0] = '\0';
 	sprintf(str_x, " fw: %s", m_p_ibv_device_attr->fw_ver);
 	strcat(m_str, str_x);
+
+	str_x[0] = '\0';
+	sprintf(str_x, " max_qp_wr: %d", m_p_ibv_device_attr->max_qp_wr);
+	strcat(m_str, str_x);
+
+	str_x[0] = '\0';
+	sprintf(str_x, " on_device_memory: %zu", m_on_device_memory);
+	strcat(m_str, str_x);
 }
 
 void ib_ctx_handler::print_val()
