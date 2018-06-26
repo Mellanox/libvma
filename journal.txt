@@ -1,3 +1,13 @@
+Version 8.6.9-0:
+Date + Time 2018-06-27
+=============================================================
+Added:
+        - RM #1436435 Remove duplicate Hugepages warning
+        - RM #1433896 Enhance ib_ctx handler debug information
+Fixed:
+        - RM #1435682 Fix incorrect TCP seqno after zero-wnd-probe
+        - RM #1432927 Fix traffic stop after second fail over
+
 Version 8.6.8-0:
 Date + Time 2018-06-21
 =============================================================
