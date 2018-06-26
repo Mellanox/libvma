@@ -746,7 +746,10 @@ tcp_slowtmr(struct tcp_pcb* pcb)
 		  if (pcb->persist_backoff < sizeof(tcp_persist_backoff)) {
 			pcb->persist_backoff++;
 		  }
-		  tcp_zero_window_probe(pcb);
+		  /* Use tcp_keepalive() instead of tcp_zero_window_probe() to probe for window update
+		   * without sending any data (which will force us to split the segment).
+		   * tcp_zero_window_probe(pcb); */
+		  tcp_keepalive(pcb);
 		}
 	  } else {
 		/* Increase the retransmission timer if it is running */
