@@ -274,17 +274,26 @@ void ring_bond::restart()
 
 		for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 			ring_simple* tmp_ring = dynamic_cast<ring_simple*>(m_bond_rings[i]);
+
 			if (!tmp_ring) {
 				continue;
 			}
-			if (slaves[i]->active) {
-				ring_logdbg("ring %d active", i);
-				tmp_ring->start_active_qp_mgr();
-				m_bond_rings[i]->m_active = true;
-			} else {
-				ring_logdbg("ring %d not active", i);
-				tmp_ring->stop_active_qp_mgr();
-				m_bond_rings[i]->m_active = false;
+
+			for (uint32_t j = 0; j < slaves.size() ; j ++) {
+
+				if (slaves[j]->if_index != m_bond_rings[i]->get_if_index()) {
+					continue;
+				}
+
+				if (slaves[j]->active) {
+					ring_logdbg("ring %d active", i);
+					tmp_ring->start_active_qp_mgr();
+					m_bond_rings[i]->m_active = true;
+				} else {
+					ring_logdbg("ring %d not active", i);
+					tmp_ring->stop_active_qp_mgr();
+					m_bond_rings[i]->m_active = false;
+				}
 			}
 		}
 		popup_active_rings();
