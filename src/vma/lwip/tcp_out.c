@@ -1588,8 +1588,7 @@ tcp_zero_window_probe(struct tcp_pcb *pcb)
   len = is_fin ? 0 : 1;
 
  /**
-  * There is no support for partial acknolemgnet of segments is the unacked list.
-  * Hence, while sending 1 bytes probe me must split the segment.
+  * While sending probe of 1 byte we must split the first unsent segment.
   * This change is commented out because tcp_zero_window_probe() was replaced
   * with tcp_keepalive().
   * if (len > 0 && seg->len != 1) {
