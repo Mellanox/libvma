@@ -82,6 +82,13 @@
 		___log_level = log_level; \
 	} while (0)
 
+#define VLOG_PRINTF_ONCE_THEN_DEBUG(log_level_once, log_fmt,log_args...) \
+	do { \
+		static vlog_levels_t ___log_level = log_level_once; \
+		vlog_printf(___log_level, log_fmt, ##log_args); \
+		___log_level = VLOG_DEBUG; \
+	} while (0)
+
 #define VLOG_PRINTF_ENTRY(log_level, log_fmt, log_args...)	vlog_printf(log_level, MODULE_HDR_ENTRY "%s(" log_fmt ")\n", __FUNCTION__, ##log_args)
 #define VLOG_PRINTF_EXIT( log_level, log_fmt, log_args...)	vlog_printf(log_level, MODULE_HDR_EXIT  "%s() " log_fmt "\n", __FUNCTION__, ##log_args)
 
