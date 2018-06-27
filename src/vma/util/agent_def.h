@@ -65,7 +65,7 @@
 
 #define VMA_AGENT_BASE_NAME "vma_agent"
 #define VMA_AGENT_ADDR      "/var/run/" VMA_AGENT_BASE_NAME ".sock"
-#define VMA_AGENT_PATH      "/tmp/vma/"
+#define VMA_AGENT_PATH      "/tmp/vma"
 
 
 #pragma pack(push, 1)
