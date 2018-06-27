@@ -1587,6 +1587,17 @@ tcp_zero_window_probe(struct tcp_pcb *pcb)
   /* we want to send one seqno: either FIN or data (no options) */
   len = is_fin ? 0 : 1;
 
+ /**
+  * There is no support for partial acknolemgnet of segments is the unacked list.
+  * Hence, while sending 1 bytes probe me must split the segment.
+  * This change is commented out because tcp_zero_window_probe() was replaced
+  * with tcp_keepalive().
+  * if (len > 0 && seg->len != 1) {
+  *   tcp_split_segment(pcb, seg, seg->seqno - pcb->lastack + 1);
+  *   seg = pcb->unsent;
+  * }
+  */
+
   p = tcp_output_alloc_header(pcb, 0, len, seg->tcphdr->seqno);
   if(p == NULL) {
     LWIP_DEBUGF(TCP_DEBUG, ("tcp_zero_window_probe: no memory for pbuf\n"));
