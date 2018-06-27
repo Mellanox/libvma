@@ -1,4 +1,4 @@
-Update: 21 Jun 2018
+Update: 27 Jun 2018
 
 Introduction
 ============
@@ -92,13 +92,14 @@ Please notice that except VMA_TRACELEVEL, VMA logs just those parameters whose v
 
 Example:
  VMA INFO: ---------------------------------------------------------------------------
- VMA INFO: VMA_VERSION: 8.4.3-0 Development Snapshot built on Sep  3 2017 11:58:07
- VMA INFO: Cmd Line: sockperf sr -i 4.4.4.3
- VMA INFO: Current Time: Sun Sep  3 12:03:14 2017
- VMA INFO: Pid: 29881
- VMA INFO: OFED Version: MLNX_OFED_LINUX-4.1-2.0.0.0:
+ VMA INFO: VMA_VERSION: 8.6.9-0 Development Snapshot built on Jun 26 2018 14:36:59
+ VMA INFO: Git: 41d72e46ba99badb1d7be73ac42af8b7ee6879e8
+ VMA INFO: Cmd Line: sockperf sr
+ VMA INFO: Current Time: Tue Jun 26 14:49:19 2018
+ VMA INFO: Pid: 20439
+ VMA INFO: OFED Version: MLNX_OFED_LINUX-4.4-0.1.8.0:
  VMA INFO: Architecture: x86_64
- VMA INFO: Node: r-aa-bob3.mtr.labs.mlnx
+ VMA INFO: Node: r-aa-apollo03.mtr.labs.mlnx
  VMA INFO: ---------------------------------------------------------------------------
  VMA INFO: Log Level                      DETAILS                    [VMA_TRACELEVEL]
  VMA DETAILS: Log Details                    0                          [VMA_LOG_DETAILS]
