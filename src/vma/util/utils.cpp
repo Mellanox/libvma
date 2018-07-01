@@ -774,6 +774,20 @@ bool get_bond_active_slave_name(IN const char* bond_name, OUT char* active_slave
 	return true;
 }
 
+bool check_bond_roce_lag_exist(OUT char* bond_roce_lag_path, int sz, IN const char* bond_name, IN const char* slave_name)
+{
+	char sys_res[1024] = {0};
+	snprintf(bond_roce_lag_path, sz, BONDING_ROCE_LAG_FILE, bond_name, slave_name);
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (priv_read_file(bond_roce_lag_path, sys_res, 1024, VLOG_FUNC) > 0) {
+		if (strtol(sys_res, NULL,10)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool get_netvsc_slave(IN const char* ifname, OUT char* slave_name, OUT unsigned int &slave_flags)
 {
 	char netvsc_path[256];
