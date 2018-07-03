@@ -248,241 +248,24 @@ void ring_tap::tap_destroy()
 
 bool ring_tap::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 {
-	rfs* p_rfs;
-	rfs* p_tmp_rfs = NULL;
-	sockinfo* si = static_cast<sockinfo*> (sink);
-	uint32_t flow_tag_id = 0; // spec will not be attached to rule
-#if 0 /* useless: m_flow_tag_enabled=false for ring_tap */
-	bool m_b_sysvar_mc_force_flowtag = false;
-#endif /* useless */
+	auto_unlocker lock(m_lock_ring_rx);
 
-	ring_logdbg("flow: %s, with sink (%p)",
-		    flow_spec_5t.to_str(), sink);
-
-	if( sink == NULL )
-		return false;
-
-	if (flow_spec_5t.is_tcp() || flow_spec_5t.is_udp_uc()) {
+	if (ring_slave::attach_flow(flow_spec_5t, sink) && (flow_spec_5t.is_tcp() || flow_spec_5t.is_udp_uc())) {
 		int rc = 0;
 		struct vma_msg_flow data;
 		prepare_flow_message(data, VMA_MSG_FLOW_ADD, flow_spec_5t);
 
 		rc = g_p_agent->send_msg_flow(&data);
-		if (rc != 0) {
+		if (rc == 0) {
+			return true;
+		} else {
 			if (!g_b_exit) {
 				ring_logwarn("Add TC rule failed with error=%d", rc);
 			}
-			return false;
+			ring_slave::detach_flow(flow_spec_5t, sink);
 		}
 	}
-
-#if 0 /* useless: m_flow_tag_enabled=false for ring_tap */
-	// If m_flow_tag_enabled==true then flow tag is supported and flow_tag_id is guaranteed
-	// to have a !0 value which will results in a flow id being added to the flow spec.
-	// Otherwise, flow tag is not supported, flow_tag_id=0 and no flow id will be set in the flow spec.
-	if (m_flow_tag_enabled) {
-		// sockfd=0 is valid too but flow_tag_id=0 is invalid, increment it
-		// effectively limiting our sockfd range to FLOW_TAG_MASK-1
-		int flow_tag_id_candidate = si->get_fd() + 1;
-		if (flow_tag_id_candidate > 0) {
-			flow_tag_id = flow_tag_id_candidate & FLOW_TAG_MASK;
-			if ((uint32_t)flow_tag_id_candidate != flow_tag_id) {
-				// tag_id is out of the range by mask, will not use it
-				ring_logdbg("flow_tag disabled as tag_id: %d is out of mask (%x) range!",
-					    flow_tag_id, FLOW_TAG_MASK);
-				flow_tag_id = FLOW_TAG_MASK;
-			}
-			ring_logdbg("sock_fd:%d enabled:%d with id:%d",
-				    flow_tag_id_candidate-1, m_flow_tag_enabled, flow_tag_id);
-		} else {
-			flow_tag_id = FLOW_TAG_MASK; // FLOW_TAG_MASK - modal, FT to be attached but will not be used
-			ring_logdbg("flow_tag:%d disabled as flow_tag_id_candidate:%d", flow_tag_id, flow_tag_id_candidate);
-		}
-	}
-#endif /* useless */
-	/*
-	 * //auto_unlocker lock(m_lock_ring_rx);
-	 * todo instead of locking the whole function which have many "new" calls,
-	 * we'll only lock the parts that touch the ring members.
-	 * if some of the constructors need the ring locked, we need to modify
-	 * and add separate functions for that, which will be called after ctor with ring locked.
-	 * currently we assume the ctors does not require the ring to be locked.
-	 */
-	m_lock_ring_rx.lock();
-
-	/* Get the appropriate hash map (tcp, uc or mc) from the 5t details */
-	if (flow_spec_5t.is_udp_uc()) {
-		flow_spec_udp_key_t key_udp_uc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
-		if (flow_tag_id && si->flow_in_reuse()) {
-			flow_tag_id = FLOW_TAG_MASK;
-			ring_logdbg("UC flow tag for socketinfo=%p is disabled: SO_REUSEADDR or SO_REUSEPORT were enabled", si);
-		}
-		p_rfs = m_flow_udp_uc_map.get(key_udp_uc, NULL);
-		if (p_rfs == NULL) {
-			// No rfs object exists so a new one must be created and inserted in the flow map
-			m_lock_ring_rx.unlock();
-			try {
-				p_tmp_rfs = new rfs_uc(&flow_spec_5t, this, NULL, flow_tag_id);
-			} catch(vma_exception& e) {
-				ring_logerr("%s", e.message);
-				return false;
-			}
-			BULLSEYE_EXCLUDE_BLOCK_START
-			if (p_tmp_rfs == NULL) {
-				ring_logerr("Failed to allocate rfs!");
-				return false;
-			}
-			BULLSEYE_EXCLUDE_BLOCK_END
-			m_lock_ring_rx.lock();
-			p_rfs = m_flow_udp_uc_map.get(key_udp_uc, NULL);
-			if (p_rfs) {
-				delete p_tmp_rfs;
-			} else {
-				p_rfs = p_tmp_rfs;
-				m_flow_udp_uc_map.set(key_udp_uc, p_rfs);
-			}
-		}
-	} else if (flow_spec_5t.is_udp_mc()) {
-		flow_spec_udp_key_t key_udp_mc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
-
-#if 0 /* useless: m_flow_tag_enabled=false for ring_tap */
-		if (flow_tag_id) {
-			if (m_b_sysvar_mc_force_flowtag || !si->flow_in_reuse()) {
-				ring_logdbg("MC flow tag ID=%d for socketinfo=%p is enabled: force_flowtag=%d, SO_REUSEADDR | SO_REUSEPORT=%d",
-					flow_tag_id, si, m_b_sysvar_mc_force_flowtag, si->flow_in_reuse());
-			} else {
-				flow_tag_id = FLOW_TAG_MASK;
-				ring_logdbg("MC flow tag for socketinfo=%p is disabled: force_flowtag=0, SO_REUSEADDR or SO_REUSEPORT were enabled", si);
-			}
-		}
-#endif /* useless */
-		// Note for CX3:
-		// For IB MC flow, the port is zeroed in the ibv_flow_spec when calling to ibv_flow_spec().
-		// It means that for every MC group, even if we have sockets with different ports - only one rule in the HW.
-		// So the hash map below keeps track of the number of sockets per rule so we know when to call ibv_attach and ibv_detach
-		rfs_rule_filter* l2_mc_ip_filter = NULL;
-#if 0 /* useless */
-		if ((m_transport_type == VMA_TRANSPORT_IB && 0 == m_p_qp_mgr->get_underly_qpn()) || m_b_sysvar_eth_mc_l2_only_rules) {
-			rule_filter_map_t::iterator l2_mc_iter = m_l2_mc_ip_attach_map.find(key_udp_mc.dst_ip);
-			if (l2_mc_iter == m_l2_mc_ip_attach_map.end()) { // It means that this is the first time attach called with this MC ip
-				m_l2_mc_ip_attach_map[key_udp_mc.dst_ip].counter = 1;
-			} else {
-				m_l2_mc_ip_attach_map[key_udp_mc.dst_ip].counter = ((l2_mc_iter->second.counter) + 1);
-			}
-		}
-#endif /* useless */
-		p_rfs = m_flow_udp_mc_map.get(key_udp_mc, NULL);
-		if (p_rfs == NULL) {		// It means that no rfs object exists so I need to create a new one and insert it to the flow map
-			m_lock_ring_rx.unlock();
-#if 0 /* useless */
-			if ((m_transport_type == VMA_TRANSPORT_IB && 0 == m_p_qp_mgr->get_underly_qpn()) || m_b_sysvar_eth_mc_l2_only_rules) {
-				l2_mc_ip_filter = new rfs_rule_filter(m_l2_mc_ip_attach_map, key_udp_mc.dst_ip, flow_spec_5t);
-			}
-#endif /* useless */
-			try {
-				p_tmp_rfs = new rfs_mc(&flow_spec_5t, this, l2_mc_ip_filter, flow_tag_id);
-			} catch(vma_exception& e) {
-				ring_logerr("%s", e.message);
-				return false;
-			}
-			BULLSEYE_EXCLUDE_BLOCK_START
-			if (p_tmp_rfs == NULL) {
-				ring_logerr("Failed to allocate rfs!");
-				return false;
-			}
-			BULLSEYE_EXCLUDE_BLOCK_END
-			m_lock_ring_rx.lock();
-			p_rfs = m_flow_udp_mc_map.get(key_udp_mc, NULL);
-			if (p_rfs) {
-				delete p_tmp_rfs;
-			} else {
-				p_rfs = p_tmp_rfs;
-				m_flow_udp_mc_map.set(key_udp_mc, p_rfs);
-			}
-		}
-	} else if (flow_spec_5t.is_tcp()) {
-		flow_spec_tcp_key_t key_tcp(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_src_ip(), flow_spec_5t.get_dst_port(), flow_spec_5t.get_src_port());
-		rule_key_t rule_key(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
-		rfs_rule_filter* tcp_dst_port_filter = NULL;
-		if (safe_mce_sys().tcp_3t_rules) {
-			rule_filter_map_t::iterator tcp_dst_port_iter = m_tcp_dst_port_attach_map.find(rule_key.key);
-			if (tcp_dst_port_iter == m_tcp_dst_port_attach_map.end()) {
-				m_tcp_dst_port_attach_map[rule_key.key].counter = 1;
-			} else {
-				m_tcp_dst_port_attach_map[rule_key.key].counter = ((tcp_dst_port_iter->second.counter) + 1);
-			}
-		}
-
-		p_rfs = m_flow_tcp_map.get(key_tcp, NULL);
-		if (p_rfs == NULL) {		// It means that no rfs object exists so I need to create a new one and insert it to the flow map
-			m_lock_ring_rx.unlock();
-			if (safe_mce_sys().tcp_3t_rules) {
-				flow_tuple tcp_3t_only(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port(), 0, 0, flow_spec_5t.get_protocol());
-				tcp_dst_port_filter = new rfs_rule_filter(m_tcp_dst_port_attach_map, rule_key.key, tcp_3t_only);
-			}
-#if 0 /* useless */
-			if(safe_mce_sys().gro_streams_max && flow_spec_5t.is_5_tuple()) {
-				// When the gro mechanism is being used, packets must be processed in the rfs
-				// layer. This must not be bypassed by using flow tag.
-				if (flow_tag_id) {
-					flow_tag_id = FLOW_TAG_MASK;
-					ring_logdbg("flow_tag_id = %d is disabled to enable TCP GRO socket to be processed on RFS!", flow_tag_id);
-				}
-				p_tmp_rfs = new rfs_uc_tcp_gro(&flow_spec_5t, this, tcp_dst_port_filter, flow_tag_id);
-			} else
-#endif /* useless */
-			{
-				try {
-					p_tmp_rfs = new rfs_uc(&flow_spec_5t, this, tcp_dst_port_filter, flow_tag_id);
-				} catch(vma_exception& e) {
-					ring_logerr("%s", e.message);
-					return false;
-				}
-			}
-			BULLSEYE_EXCLUDE_BLOCK_START
-			if (p_tmp_rfs == NULL) {
-				ring_logerr("Failed to allocate rfs!");
-				return false;
-			}
-			BULLSEYE_EXCLUDE_BLOCK_END
-			/* coverity[double_lock] TODO: RM#1049980 */
-			m_lock_ring_rx.lock();
-			p_rfs = m_flow_tcp_map.get(key_tcp, NULL);
-			if (p_rfs) {
-				delete p_tmp_rfs;
-			} else {
-				p_rfs = p_tmp_rfs;
-				m_flow_tcp_map.set(key_tcp, p_rfs);
-			}
-		}
-	BULLSEYE_EXCLUDE_BLOCK_START
-	} else {
-		m_lock_ring_rx.unlock();
-		ring_logerr("Could not find map (TCP, UC or MC) for requested flow");
-		return false;
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-
-	bool ret = p_rfs->attach_flow(sink);
-	if (ret) {
-#if 0 /* useless: m_flow_tag_enabled=false for ring_tap */
-		if (flow_tag_id && (flow_tag_id != FLOW_TAG_MASK)) {
-			// A flow with FlowTag was attached succesfully, check stored rfs for fast path be tag_id
-			si->set_flow_tag(flow_tag_id);
-			ring_logdbg("flow_tag: %d registration is done!", flow_tag_id);
-		}
-#endif /* useless */
-		if (flow_spec_5t.is_tcp() && !flow_spec_5t.is_3_tuple()) {
-			// save the single 5tuple TCP connected socket for improved fast path
-			si->set_tcp_flow_is_5t();
-			ring_logdbg("single 5T TCP update m_tcp_flow_is_5t m_flow_tag_enabled: %d", m_flow_tag_enabled);
-		}
-	} else {
-		ring_logerr("attach_flow=%d failed!", ret);
-	}
-	/* coverity[double_unlock] TODO: RM#1049980 */
-	m_lock_ring_rx.unlock();
-	return ret;
+	return false;
 }
 
 bool ring_tap::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)

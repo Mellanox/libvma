@@ -95,6 +95,7 @@ public:
 		return false;
 	}
 	virtual int get_max_tx_inline() { return 0; }
+	virtual uint32_t get_underly_qpn() { return -1; }
 
 	inline void set_tap_data_available() { m_tap_data_available = true; }
 	inline void set_vf_ring(ring_slave *p_ring) { m_vf_ring = p_ring; }

@@ -174,6 +174,8 @@ public:
 	virtual bool        is_up() = 0;
 	virtual void        inc_tx_retransmissions(ring_user_id_t id);
 	virtual bool        rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array) = 0;
+	virtual uint32_t    get_underly_qpn() = 0;
+	virtual bool        attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
 
 	inline bool         is_simple() const { return m_type != RING_TAP; }
 	transport_type_t    get_transport_type() const { return m_transport_type; }
