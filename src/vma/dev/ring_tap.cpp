@@ -270,13 +270,7 @@ bool ring_tap::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 
 bool ring_tap::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 {
-	rfs* p_rfs = NULL;
-
-	ring_logdbg("flow: %s, with sink (%p)",
-		    flow_spec_5t.to_str(), sink);
-
-	if( sink == NULL )
-		return false;
+	bool ret = ring_slave::detach_flow(flow_spec_5t, sink);
 
 	if (flow_spec_5t.is_tcp() || flow_spec_5t.is_udp_uc()) {
 		int rc = 0;
@@ -288,109 +282,11 @@ bool ring_tap::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 			if (!g_b_exit) {
 				ring_logwarn("Del TC rule failed with error=%d", rc);
 			}
-			return false;
+			ret = false;
 		}
 	}
 
-	auto_unlocker lock(m_lock_ring_rx);
-
-	/* Get the appropriate hash map (tcp, uc or mc) from the 5t details */
-	if (flow_spec_5t.is_udp_uc()) {
-		flow_spec_udp_key_t key_udp_uc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
-		p_rfs = m_flow_udp_uc_map.get(key_udp_uc, NULL);
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (p_rfs == NULL) {
-			ring_logdbg("Could not find rfs object to detach!");
-			return false;
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-		p_rfs->detach_flow(sink);
-		if (p_rfs->get_num_of_sinks() == 0) {
-			BULLSEYE_EXCLUDE_BLOCK_START
-			if (!(m_flow_udp_uc_map.del(key_udp_uc))) {
-				ring_logdbg("Could not find rfs object to delete in ring udp uc hash map!");
-			}
-			BULLSEYE_EXCLUDE_BLOCK_END
-			delete p_rfs;
-		}
-	} else if (flow_spec_5t.is_udp_mc()) {
-		flow_spec_udp_key_t key_udp_mc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
-#if 0 /* useless */
-		int keep_in_map = 1;
-		if (m_transport_type == VMA_TRANSPORT_IB || m_b_sysvar_eth_mc_l2_only_rules) {
-			rule_filter_map_t::iterator l2_mc_iter = m_l2_mc_ip_attach_map.find(key_udp_mc.dst_ip);
-			BULLSEYE_EXCLUDE_BLOCK_START
-			if (l2_mc_iter == m_l2_mc_ip_attach_map.end()) {
-				ring_logdbg("Could not find matching counter for the MC group!");
-			BULLSEYE_EXCLUDE_BLOCK_END
-			} else {
-				keep_in_map = m_l2_mc_ip_attach_map[key_udp_mc.dst_ip].counter = MAX(0 , ((l2_mc_iter->second.counter) - 1));
-			}
-		}
-#endif /* useless */
-		p_rfs = m_flow_udp_mc_map.get(key_udp_mc, NULL);
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (p_rfs == NULL) {
-			ring_logdbg("Could not find rfs object to detach!");
-			return false;
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-		p_rfs->detach_flow(sink);
-#if 0 /* useless */
-		if(!keep_in_map){
-			m_l2_mc_ip_attach_map.erase(m_l2_mc_ip_attach_map.find(key_udp_mc.dst_ip));
-		}
-#endif /* useless */
-		if (p_rfs->get_num_of_sinks() == 0) {
-			BULLSEYE_EXCLUDE_BLOCK_START
-			if (!(m_flow_udp_mc_map.del(key_udp_mc))) {
-				ring_logdbg("Could not find rfs object to delete in ring udp mc hash map!");
-			}
-			BULLSEYE_EXCLUDE_BLOCK_END
-			delete p_rfs;
-		}
-	} else if (flow_spec_5t.is_tcp()) {
-		int keep_in_map = 1;
-		flow_spec_tcp_key_t key_tcp(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_src_ip(), flow_spec_5t.get_dst_port(), flow_spec_5t.get_src_port());
-		rule_key_t rule_key(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
-		if (safe_mce_sys().tcp_3t_rules) {
-			rule_filter_map_t::iterator tcp_dst_port_iter = m_tcp_dst_port_attach_map.find(rule_key.key);
-			BULLSEYE_EXCLUDE_BLOCK_START
-			if (tcp_dst_port_iter == m_tcp_dst_port_attach_map.end()) {
-				ring_logdbg("Could not find matching counter for TCP src port!");
-				BULLSEYE_EXCLUDE_BLOCK_END
-			} else {
-				keep_in_map = m_tcp_dst_port_attach_map[rule_key.key].counter = MAX(0 , ((tcp_dst_port_iter->second.counter) - 1));
-			}
-		}
-		p_rfs = m_flow_tcp_map.get(key_tcp, NULL);
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (p_rfs == NULL) {
-			ring_logdbg("Could not find rfs object to detach!");
-			return false;
-		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-
-		p_rfs->detach_flow(sink);
-		if(!keep_in_map){
-			m_tcp_dst_port_attach_map.erase(m_tcp_dst_port_attach_map.find(rule_key.key));
-		}
-		if (p_rfs->get_num_of_sinks() == 0) {
-			BULLSEYE_EXCLUDE_BLOCK_START
-			if (!(m_flow_tcp_map.del(key_tcp))) {
-				ring_logdbg("Could not find rfs object to delete in ring tcp hash map!");
-			}
-			BULLSEYE_EXCLUDE_BLOCK_END
-			delete p_rfs;
-		}
-	BULLSEYE_EXCLUDE_BLOCK_START
-	} else {
-		ring_logerr("Could not find map (TCP, UC or MC) for requested flow");
-		return false;
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-
-	return true;
+	return ret;
 }
 
 int ring_tap::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array)

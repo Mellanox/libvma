@@ -84,7 +84,6 @@ public:
 	void			mem_buf_desc_return_to_owner_rx(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array = NULL);
 	virtual int		get_max_tx_inline();
 	inline int		send_buffer(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
-	virtual bool		detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
 	virtual bool		is_up();
 	void			start_active_qp_mgr();
 	void			stop_active_qp_mgr();
