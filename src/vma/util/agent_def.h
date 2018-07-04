@@ -99,6 +99,7 @@ struct vma_msg_state {
 };
 
 enum {
+	VMA_MSG_FLOW_EGRESS = 0,
 	VMA_MSG_FLOW_UDP_5T = 1,
 	VMA_MSG_FLOW_UDP_3T = 2,
 	VMA_MSG_FLOW_TCP_5T = 3,

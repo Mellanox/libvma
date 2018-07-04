@@ -410,6 +410,7 @@ static int proc_msg_flow(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_u
 	value->flow.dst_port = data->flow.dst_port;
 
 	switch (data->type) {
+	case VMA_MSG_FLOW_EGRESS:
 	case VMA_MSG_FLOW_TCP_3T:
 	case VMA_MSG_FLOW_UDP_3T:
 		break;

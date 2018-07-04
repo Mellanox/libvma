@@ -55,14 +55,11 @@ ring_slave::ring_slave(int if_index, ring* parent, ring_type_t type): ring()
 	}
 
 	p_slave = p_ndev->get_slave(get_if_index());
-	if (NULL == p_slave) {
-		ring_logpanic("Invalid if_index = %d", if_index);
-	}
 
 	/* Configure ring_slave() fields */
 	m_type = type;
 	m_transport_type = p_ndev->get_transport_type();
-	m_active = p_slave->active;
+	m_active = (p_slave ? p_slave->active : false);
 
 	// use local copy of stats by default
 	m_p_ring_stat = &m_ring_stat;

@@ -179,7 +179,7 @@ void ring_bond::restart()
 				int rc = 0;
 				size_t i, j, k;
 
-				if (slaves.size() == 1) {
+				if (slaves.size() == 0) {
 					num_ring_rx_fds = p_ring_bond_netvsc->m_vf_ring->get_num_resources();
 					ring_rx_fds_array = p_ring_bond_netvsc->m_vf_ring->get_rx_channel_fds();
 
@@ -216,7 +216,7 @@ void ring_bond::restart()
 					p_ring_tap->set_vf_ring(NULL);
 				} else {
 					for (i = 0; i < slaves.size(); i++) {
-						if (slaves[i]->if_index != p_ndev->get_tap_if_index()) {
+						if (slaves[i]->if_index != p_ring_tap->get_tap_if_index()) {
 							p_ring_tap->m_active = false;
 							slave_create(slaves[i]->if_index);
 							p_ring_tap->set_vf_ring(p_ring_bond_netvsc->m_vf_ring);
@@ -876,8 +876,8 @@ void ring_bond_netvsc::slave_create(int if_index)
 		ring_logpanic("Error creating bond ring");
 	}
 
-	if (if_index == p_ndev->get_tap_if_index()) {
-		cur_slave = new ring_tap(if_index, this);
+	if (if_index == m_tap_if_index) {
+		cur_slave = new ring_tap(if_index, this, m_tap_fd);
 		m_tap_ring = cur_slave;
 	} else {
 		cur_slave = new ring_eth(if_index, this);
@@ -893,4 +893,126 @@ void ring_bond_netvsc::slave_create(int if_index)
 
 	popup_active_rings();
 	update_rx_channel_fds();
+}
+
+int ring_bond_netvsc::netvsc_create()
+{
+	#define TAP_NAME_FORMAT "t%x%x" // t<pid7c><fd7c>
+	#define TAP_STR_LENGTH	512
+	#define TAP_DISABLE_IPV6 "sysctl -w net.ipv6.conf.%s.disable_ipv6=1"
+
+	int rc = 0;
+	struct ifreq ifr;
+	int ioctl_sock = -1;
+	char command_str[TAP_STR_LENGTH], return_str[TAP_STR_LENGTH], tap_name[IFNAMSIZ];
+	unsigned char hw_addr[ETH_ALEN];
+	net_device_val* p_ndev = NULL;
+
+	p_ndev = g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
+	if (NULL == p_ndev) {
+		ring_logpanic("Error creating bond ring");
+	}
+
+	/* Open TAP device */
+	if( (m_tap_fd = orig_os_api.open("/dev/net/tun", O_RDWR)) < 0 ) {
+		ring_logerr("FAILED to open tap %m");
+		rc = -errno;
+		goto error;
+	}
+
+	/* Tap name */
+	rc = snprintf(tap_name, sizeof(tap_name), TAP_NAME_FORMAT, getpid() & 0xFFFFFFF, m_tap_fd & 0xFFFFFFF);
+	if (unlikely(((int)sizeof(tap_name) < rc) || (rc < 0))) {
+		ring_logerr("FAILED to create tap name %m");
+		rc = -errno;
+		goto error;
+	}
+
+	/* Init ifr */
+	memset(&ifr, 0, sizeof(ifr));
+	rc = snprintf(ifr.ifr_name, IFNAMSIZ, "%s", tap_name);
+	if (unlikely((IFNAMSIZ < rc) || (rc < 0))) {
+		ring_logerr("FAILED to create tap name %m");
+		rc = -errno;
+		goto error;
+	}
+
+	/* Setting TAP attributes */
+	ifr.ifr_flags = IFF_TAP | IFF_NO_PI | IFF_ONE_QUEUE;
+	if ((rc = orig_os_api.ioctl(m_tap_fd, TUNSETIFF, (void *) &ifr)) < 0) {
+		ring_logerr("ioctl failed fd = %d, %d %m", m_tap_fd, rc);
+		rc = -errno;
+		goto error;
+	}
+
+	/* Set TAP fd nonblocking */
+	if ((rc = orig_os_api.fcntl(m_tap_fd, F_SETFL, O_NONBLOCK))  < 0) {
+		ring_logerr("ioctl failed fd = %d, %d %m", m_tap_fd, rc);
+		rc = -errno;
+		goto error;
+	}
+
+	/* Disable Ipv6 for TAP interface */
+	snprintf(command_str, TAP_STR_LENGTH, TAP_DISABLE_IPV6, tap_name);
+	if (run_and_retreive_system_command(command_str, return_str, TAP_STR_LENGTH)  < 0) {
+		ring_logerr("sysctl ipv6 failed fd = %d, %m", m_tap_fd);
+		rc = -errno;
+		goto error;
+	}
+
+	/* Create socket */
+	if ((ioctl_sock = orig_os_api.socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
+		ring_logerr("FAILED to open socket");
+		rc = -errno;
+		goto error;
+	}
+
+	/* Set MAC address */
+	ifr.ifr_hwaddr.sa_family = AF_LOCAL;
+	get_local_ll_addr(p_ndev->get_ifname_link(), hw_addr, ETH_ALEN, false);
+	memcpy(ifr.ifr_hwaddr.sa_data, hw_addr, ETH_ALEN);
+	if ((rc = orig_os_api.ioctl(ioctl_sock, SIOCSIFHWADDR, &ifr)) < 0) {
+		ring_logerr("ioctl SIOCSIFHWADDR failed %d %m, %s", rc, tap_name);
+		rc = -errno;
+		goto error;
+	}
+
+	/* Set link UP */
+	ifr.ifr_flags |= (IFF_UP | IFF_SLAVE);
+	if ((rc = orig_os_api.ioctl(ioctl_sock, SIOCSIFFLAGS, &ifr)) < 0) {
+		ring_logerr("ioctl SIOCGIFFLAGS failed %d %m, %s", rc, tap_name);
+		rc = -errno;
+		goto error;
+	}
+
+	/* Get TAP interface index */
+	m_tap_if_index = if_nametoindex(tap_name);
+	if (!m_tap_if_index) {
+		ring_logerr("if_nametoindex failed to get tap index [%s]", tap_name);
+		rc = -errno;
+		goto error;
+	}
+
+	orig_os_api.close(ioctl_sock);
+
+	ring_logdbg("Tap device %d: %s [fd=%d] was created successfully",
+			m_tap_if_index, ifr.ifr_name, m_tap_fd);
+
+	return 0;
+
+error:
+	ring_logerr("Tap device creation failed");
+
+	if (ioctl_sock >= 0) {
+		orig_os_api.close(ioctl_sock);
+	}
+
+	if (m_tap_fd >= 0) {
+		orig_os_api.close(m_tap_fd);
+	}
+
+	m_tap_if_index = 0;
+	m_tap_fd = -1;
+
+	return rc;
 }

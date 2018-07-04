@@ -46,7 +46,7 @@
 #define MODULE_HDR MODULE_NAME "%d:%s() "
 
 
-ring_tap::ring_tap(int if_index, ring* parent):
+ring_tap::ring_tap(int if_index, ring* parent, int fd):
 	ring_slave(if_index, parent, RING_TAP),
 	m_sysvar_qp_compensation_level(safe_mce_sys().qp_compensation_level),
 	m_lock_ring_rx("ring_tap:lock_rx"),
@@ -54,12 +54,15 @@ ring_tap::ring_tap(int if_index, ring* parent):
 	m_flow_tag_enabled(false),
 	m_partition(0)
 {
+	int rc = 0;
+	struct vma_msg_flow data;
 	char tap_if_name[IFNAMSIZ] = {0};
 	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
 
+	m_tap_if_index = if_index;
+	m_tap_fd = fd;
 	m_vf_ring = NULL;
 	m_tap_data_available = false;
-	m_tap_fd = p_ndev->get_tap_fd();
 	m_local_if = p_ndev->get_local_addr();
 	m_mtu = p_ndev->get_mtu();
 
@@ -84,6 +87,13 @@ ring_tap::ring_tap(int if_index, ring* parent):
 	m_p_ring_stat->tap.n_tap_fd = m_tap_fd;
 	if_indextoname(get_if_index(), tap_if_name);
 	memcpy(m_p_ring_stat->tap.s_tap_name, tap_if_name, IFNAMSIZ);
+
+	/* create egress rule (redirect traffic from tap device to physical interface) */
+	prepare_flow_message(data, VMA_MSG_FLOW_ADD);
+	rc = g_p_agent->send_msg_flow(&data);
+	if (rc != 0) {
+		ring_logwarn("Add TC rule failed with error=%d", rc);
+	}
 }
 
 ring_tap::~ring_tap()
@@ -107,6 +117,8 @@ ring_tap::~ring_tap()
 	g_buffer_pool_tx->put_buffers_thread_safe(&m_tx_pool, m_tx_pool.size());
 
 	delete[] m_p_n_rx_channel_fds;
+
+	netvsc_destroy();
 }
 
 bool ring_tap::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
@@ -128,7 +140,7 @@ bool ring_tap::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	if (flow_spec_5t.is_tcp() || flow_spec_5t.is_udp_uc()) {
 		int rc = 0;
 		struct vma_msg_flow data;
-		prepare_flow_message(data, flow_spec_5t, VMA_MSG_FLOW_ADD);
+		prepare_flow_message(data, VMA_MSG_FLOW_ADD, flow_spec_5t);
 
 		rc = g_p_agent->send_msg_flow(&data);
 		if (rc != 0) {
@@ -361,7 +373,7 @@ bool ring_tap::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 	if (flow_spec_5t.is_tcp() || flow_spec_5t.is_udp_uc()) {
 		int rc = 0;
 		struct vma_msg_flow data;
-		prepare_flow_message(data, flow_spec_5t, VMA_MSG_FLOW_DEL);
+		prepare_flow_message(data, VMA_MSG_FLOW_DEL, flow_spec_5t);
 
 		rc = g_p_agent->send_msg_flow(&data);
 		if (rc != 0) {
@@ -996,8 +1008,8 @@ void ring_tap::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, 
 	send_status_handler(ret, p_send_wqe);
 }
 
-void ring_tap::prepare_flow_message(vma_msg_flow& data,
-		flow_tuple& flow_spec_5t, msg_flow_t flow_action)
+void ring_tap::prepare_flow_message(vma_msg_flow& data, msg_flow_t flow_action,
+		flow_tuple& flow_spec_5t)
 {
 	memset(&data, 0, sizeof(data));
 	data.hdr.code = VMA_MSG_FLOW;
@@ -1006,6 +1018,7 @@ void ring_tap::prepare_flow_message(vma_msg_flow& data,
 	data.action = flow_action;
 	data.if_id = get_parent()->get_if_index();
 	data.tap_id = get_if_index();
+
 	data.flow.dst_ip = flow_spec_5t.get_dst_ip();
 	data.flow.dst_port = flow_spec_5t.get_dst_port();
 
@@ -1016,6 +1029,18 @@ void ring_tap::prepare_flow_message(vma_msg_flow& data,
 		data.flow.t5.src_ip = flow_spec_5t.get_src_ip();
 		data.flow.t5.src_port = flow_spec_5t.get_src_port();
 	}
+}
+
+void ring_tap::prepare_flow_message(vma_msg_flow& data, msg_flow_t flow_action)
+{
+	memset(&data, 0, sizeof(data));
+	data.hdr.code = VMA_MSG_FLOW;
+	data.hdr.ver = VMA_AGENT_VER;
+	data.hdr.pid = getpid();
+	data.action = flow_action;
+	data.if_id = get_parent()->get_if_index();
+	data.tap_id = get_if_index();
+	data.type = VMA_MSG_FLOW_EGRESS;
 }
 
 int ring_tap::process_element_rx(void* pv_fd_ready_array)
@@ -1279,5 +1304,15 @@ void ring_tap::flow_tcp_del_all()
 		if (!(m_flow_tcp_map.del(map_key_tcp))) {
 			ring_logdbg("Could not find rfs object to delete in ring tcp hash map!");
 		}
+	}
+}
+
+void ring_tap::netvsc_destroy()
+{
+	if (m_tap_fd >= 0) {
+		orig_os_api.close(m_tap_fd);
+
+		m_tap_if_index = 0;
+		m_tap_fd = -1;
 	}
 }
