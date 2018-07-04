@@ -320,22 +320,6 @@ void cq_mgr::add_qp_tx(qp_mgr* qp)
 	m_qp_rec.debt = 0;
 }
 
-bool cq_mgr::request_more_buffers()
-{
-	cq_logfuncall("Allocating additional %d buffers for internal use", m_n_sysvar_qp_compensation_level);
-
-	// Assume locked!
-	// Add an additional free buffer descs to RX cq mgr
-	bool res = g_buffer_pool_rx->get_buffers_thread_safe(m_rx_pool, m_p_ring, m_n_sysvar_qp_compensation_level, m_rx_lkey);
-	if (!res) {
-		cq_logfunc("Out of mem_buf_desc from RX free pool for internal object pool");
-		return false;
-	};
-
-	m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
-	return true;
-}
-
 void cq_mgr::return_extra_buffers()
 {
 	if (m_rx_pool.size() < m_n_sysvar_qp_compensation_level * 2)
@@ -569,7 +553,7 @@ bool cq_mgr::compensate_qp_poll_success(mem_buf_desc_t* buff_cur)
 		}
 #endif // DEFINED_SOCKETXTREME
 		
-		if (m_rx_pool.size() || request_more_buffers()) {
+		if (m_rx_pool.size() || m_p_ring->request_more_buffers(m_rx_pool, m_n_sysvar_qp_compensation_level, m_rx_lkey, true)) {
 			size_t buffers = std::min<size_t>(m_qp_rec.debt, m_rx_pool.size());
 			m_qp_rec.qp->post_recv_buffers(&m_rx_pool, buffers);
 			m_qp_rec.debt -= buffers;

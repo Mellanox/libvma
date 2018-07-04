@@ -111,8 +111,6 @@ private:
 			flow_tuple& flow_spec_5t);
 	void prepare_flow_message(vma_msg_flow& data, msg_flow_t flow_action);
 	int process_element_rx(void* pv_fd_ready_array);
-	bool request_more_tx_buffers();
-	bool request_more_rx_buffers();
 	int send_buffer(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 	void send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe);
 	void tap_create(net_device_val* p_ndev);
@@ -122,7 +120,6 @@ private:
 	int m_tap_fd;                    /* file descriptor of tap device */
 	ring_slave*      m_vf_ring;
 	const uint32_t   m_sysvar_qp_compensation_level;
-	descq_t          m_tx_pool;
 	descq_t          m_rx_pool;
 	bool             m_tap_data_available;
 };

@@ -115,7 +115,6 @@ protected:
 	void			create_resources();
 	virtual void		init_tx_buffers(uint32_t count);
 	virtual void        inc_cq_moderation(size_t sz_data);
-	bool			request_more_tx_buffers(uint32_t count);
 	uint32_t		get_tx_num_wr() { return m_tx_num_wr; }
 	uint32_t		get_mtu() { return m_mtu; }
 	ib_ctx_handler*		m_p_ib_ctx;
@@ -136,7 +135,6 @@ private:
 	void			delete_l2_address() { if (m_p_l2_addr) delete m_p_l2_addr; m_p_l2_addr = NULL; };
 
 	lock_mutex		m_lock_ring_tx_buf_wait;
-	descq_t			m_tx_pool;
 	uint32_t		m_tx_num_bufs;
 	uint32_t		m_tx_num_wr;
 	int32_t			m_tx_num_wr_free;

@@ -280,9 +280,6 @@ private:
 	void		socketxtreme_reclaim_recv_buffer_helper(mem_buf_desc_t* buff);
 #endif // DEFINED_SOCKETXTREME
 
-	// requests safe_mce_sys().qp_compensation_level buffers from global pool
-	bool 		request_more_buffers() __attribute__((noinline));
-
 	// returns safe_mce_sys().qp_compensation_level buffers to global pool
 	void 		return_extra_buffers() __attribute__((noinline));
 

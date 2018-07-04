@@ -187,6 +187,7 @@ public:
 
 protected:
 
+	bool			request_more_buffers(descq_t &local_pool, uint32_t count, uint32_t lkey, bool is_rx);
 	void			flow_udp_del_all();
 	void			flow_tcp_del_all();
 
@@ -202,6 +203,7 @@ protected:
 
 	transport_type_t    m_transport_type; /* transport ETH/IB */
 	ring_stats_t*       m_p_ring_stat;
+	descq_t             m_tx_pool;
 	lock_spin_recursive	m_lock_ring_rx;
 	lock_spin_recursive	m_lock_ring_tx;
 	in_addr_t           m_local_if;

@@ -156,9 +156,6 @@ ring_simple::ring_simple(int if_index, ring* parent, ring_type_t type):
 	/* initialization basing on ndev information */
 	m_local_if = p_ndev->get_local_addr();
 	m_mtu = p_ndev->get_mtu();
-
-	 // coverity[uninit_member]
-	m_tx_pool.set_id("ring_simple (%p) : m_tx_pool", this);
 }
 
 ring_simple::~ring_simple()
@@ -816,23 +813,9 @@ bool ring_simple::is_available_qp_wr(bool b_block)
 	return true;
 }
 
-//call under m_lock_ring_tx lock
-bool ring_simple::request_more_tx_buffers(uint32_t count)
-{
-	ring_logfuncall("Allocating additional %d buffers for internal use", count);
-
-	bool res = g_buffer_pool_tx->get_buffers_thread_safe(m_tx_pool, this, count, m_tx_lkey);
-	if (!res) {
-		ring_logfunc("Out of mem_buf_desc from TX free pool for internal object pool");
-		return false;
-	}
-
-	return true;
-}
-
 void ring_simple::init_tx_buffers(uint32_t count)
 {
-	request_more_tx_buffers(count);
+	request_more_buffers(m_tx_pool, count, m_tx_lkey, false);
 	m_tx_num_bufs = m_tx_pool.size();
 }
 
@@ -848,7 +831,7 @@ mem_buf_desc_t* ring_simple::get_tx_buffers(uint32_t n_num_mem_bufs)
 	mem_buf_desc_t* head = NULL;
 	if (unlikely(m_tx_pool.size() < n_num_mem_bufs)) {
 		int count = MAX(RING_TX_BUFS_COMPENSATE, n_num_mem_bufs);
-		if (request_more_tx_buffers(count)) {
+		if (request_more_buffers(m_tx_pool, count, m_tx_lkey, false)) {
 			m_tx_num_bufs += count;
 		}
 

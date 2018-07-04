@@ -69,15 +69,15 @@ ring_tap::ring_tap(int if_index, ring* parent):
 	}
 
 	/* Initialize RX buffer poll */
-	request_more_rx_buffers();
+	request_more_buffers(m_rx_pool, m_sysvar_qp_compensation_level, 0, true);
 	m_rx_pool.set_id("ring_tap (%p) : m_rx_pool", this);
 
 	/* Initialize TX buffer poll */
-	request_more_tx_buffers();
-	m_tx_pool.set_id("ring_tap (%p) : m_tx_pool", this);
+	request_more_buffers(m_tx_pool, m_sysvar_qp_compensation_level, 0, false);
 
 	/* Update ring statistics */
 	m_p_ring_stat->tap.n_tap_fd = m_tap_fd;
+	m_p_ring_stat->tap.n_rx_buffers = m_rx_pool.size();
 	if_indextoname(get_if_index(), tap_if_name);
 	memcpy(m_p_ring_stat->tap.s_tap_name, tap_if_name, IFNAMSIZ);
 
@@ -421,16 +421,14 @@ int ring_tap::process_element_rx(void* pv_fd_ready_array)
 
 	if(m_tap_data_available) {
 		auto_unlocker lock(m_lock_ring_rx);
-		if (m_rx_pool.size() || request_more_rx_buffers()) {
+		if (m_rx_pool.size() || request_more_buffers(m_rx_pool, m_sysvar_qp_compensation_level, 0, true)) {
 			mem_buf_desc_t *buff = m_rx_pool.get_and_pop_front();
 			ret = orig_os_api.read(m_tap_fd, buff->p_buffer, buff->sz_buffer);
 			if (ret > 0) {
 				/* Data was read and processed successfully */
 				buff->sz_data = ret;
 				buff->rx.is_sw_csum_need = 1;
-				if ((ret = rx_process_buffer(buff, pv_fd_ready_array))) {
-					m_p_ring_stat->tap.n_rx_buffers--;
-				}
+				ret = rx_process_buffer(buff, pv_fd_ready_array);
 			}
 			if (ret <= 0){
 				/* Unable to read data, return buffer to pool */
@@ -442,41 +440,11 @@ int ring_tap::process_element_rx(void* pv_fd_ready_array)
 			g_p_event_handler_manager->update_epfd(m_tap_fd,
 					EPOLL_CTL_MOD, EPOLLIN | EPOLLPRI | EPOLLONESHOT);
 		}
+
+		m_p_ring_stat->tap.n_rx_buffers = m_rx_pool.size();
 	}
 
 	return ret;
-}
-
-bool ring_tap::request_more_rx_buffers()
-{
-	ring_logfuncall("Allocating additional %d buffers for internal use",
-			m_sysvar_qp_compensation_level);
-
-	bool res = g_buffer_pool_rx->get_buffers_thread_safe(m_rx_pool,
-			this, m_sysvar_qp_compensation_level, 0);
-	if (!res) {
-		ring_logfunc("Out of mem_buf_desc from RX free pool for internal object pool");
-		return false;
-	}
-
-	m_p_ring_stat->tap.n_rx_buffers = m_rx_pool.size();
-
-	return true;
-}
-
-bool ring_tap::request_more_tx_buffers()
-{
-	ring_logfuncall("Allocating additional %d buffers for internal use",
-			m_sysvar_qp_compensation_level);
-
-	bool res = g_buffer_pool_tx->get_buffers_thread_safe(m_tx_pool,
-			this, m_sysvar_qp_compensation_level, 0);
-	if (!res) {
-		ring_logfunc("Out of mem_buf_desc from TX free pool for internal object pool");
-		return false;
-	}
-
-	return true;
 }
 
 mem_buf_desc_t* ring_tap::mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_num_mem_bufs)
@@ -491,7 +459,7 @@ mem_buf_desc_t* ring_tap::mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_
 	m_lock_ring_tx.lock();
 
 	if (unlikely((int)m_tx_pool.size() < n_num_mem_bufs)) {
-		request_more_tx_buffers();
+		request_more_buffers(m_tx_pool, m_sysvar_qp_compensation_level, 0, false);
 
 		if (unlikely((int)m_tx_pool.size() < n_num_mem_bufs)) {
 			return head;

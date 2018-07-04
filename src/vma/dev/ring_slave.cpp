@@ -107,6 +107,8 @@ ring_slave::ring_slave(int if_index, ring* parent, ring_type_t type):
 		m_ring_stat.p_ring_master = m_parent;
 	}
 
+	m_tx_pool.set_id("ring_slave (%p) : m_tx_pool", this);
+
 	vma_stats_instance_create_ring_block(m_p_ring_stat);
 
 	print_val();
@@ -220,6 +222,22 @@ void ring_slave::flow_tcp_del_all()
 			ring_logdbg("Could not find rfs object to delete in ring tcp hash map!");
 		}
 	}
+}
+
+bool ring_slave::request_more_buffers(descq_t &local_pool, uint32_t count, uint32_t lkey, bool is_rx)
+{
+	buffer_pool *global_pool = is_rx ? g_buffer_pool_rx : g_buffer_pool_tx;
+
+	ring_logfuncall("Allocating additional %d buffers for internal use", count);
+
+	bool res = global_pool->get_buffers_thread_safe(local_pool,
+			this, count, lkey);
+	if (!res) {
+		ring_logfunc("Out of mem_buf_desc from %s free pool for internal object pool", is_rx ? "rx" : "tx");
+		return false;
+	}
+
+	return true;
 }
 
 bool ring_slave::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
