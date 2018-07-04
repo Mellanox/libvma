@@ -31,24 +31,9 @@
  */
 
 #include "ring_bond.h"
-#include <netinet/tcp.h>
-#include <netinet/udp.h>
-#include <netinet/igmp.h>
 
-#include "utils/bullseye.h"
-#include "vma/util/utils.h"
-#include "vma/proto/ip_frag.h"
-#include "vma/proto/L2_address.h"
-#include "vma/proto/igmp_mgr.h"
-#include "vma/sock/sockinfo_tcp.h"
-#include "vma/sock/fd_collection.h"
-#include "vma/dev/rfs_mc.h"
-#include "vma/dev/rfs_uc.h"
-#include "vma/dev/rfs_uc_tcp_gro.h"
-#include "vma/dev/cq_mgr.h"
-#include "vma/dev/ring_slave.h"
+#include "vma/sock/sockinfo.h"
 #include "vma/dev/ring_simple.h"
-#include "vma/dev/ring_tap.h"
 
 #undef  MODULE_NAME
 #define MODULE_NAME 		"ring_bond"
@@ -58,10 +43,10 @@
 /* Set limitation for number of rings for bonding device */
 #define MAX_NUM_RING_RESOURCES 10
 
-
 ring_bond::ring_bond(int if_index) :
 	ring(),
-	m_lock_ring_rx("ring_bond:lock_rx"), m_lock_ring_tx("ring_bond:lock_tx")
+	m_lock_ring_rx("ring_bond:lock_rx"),
+	m_lock_ring_tx("ring_bond:lock_tx")
 {
 	net_device_val* p_ndev = NULL;
 

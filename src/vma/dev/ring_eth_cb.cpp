@@ -154,8 +154,6 @@ ring_eth_cb::ring_eth_cb(int if_index,
 
 	/* Complete resources initialization */
 	ring_simple::create_resources();
-
-	m_is_mp_ring = true;
 }
 
 qp_mgr* ring_eth_cb::create_qp_mgr(const ib_ctx_handler *ib_ctx,
