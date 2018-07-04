@@ -55,7 +55,6 @@ public:
 	virtual int drain_and_proccess();
 	virtual bool reclaim_recv_buffers(descq_t *rx_reuse);
 	virtual bool reclaim_recv_buffers(mem_buf_desc_t *buff);
-	virtual bool rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array);
 
 	virtual void send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
 	virtual void send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);
@@ -93,6 +92,10 @@ public:
 	virtual bool is_ratelimit_supported(struct vma_rate_limit_t &rate_limit) {
 		NOT_IN_USE(rate_limit);
 		return false;
+	}
+	void inc_cq_moderation(size_t sz_data)
+	{
+		NOT_IN_USE(sz_data);
 	}
 	virtual int get_max_tx_inline() { return 0; }
 	virtual uint32_t get_underly_qpn() { return -1; }
