@@ -91,7 +91,7 @@ void ring_slave::print_val()
 	ring_logdbg("%d: 0x%X: parent 0x%X type %s",
 			m_if_index, this,
 			((uintptr_t)this == (uintptr_t)m_parent ? 0 : m_parent),
-			(m_type == RING_SIMPLE ? "simple" : "tap"));
+			ring_type_str[m_type]);
 }
 
 void ring_slave::restart()

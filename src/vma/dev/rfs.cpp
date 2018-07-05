@@ -128,13 +128,13 @@ rfs::~rfs()
 		int counter = 0;
 		prepare_filter_detach(counter, true);
 		if (counter == 0) {
-			if (m_p_ring->get_type() == RING_SIMPLE) {
+			if (m_p_ring->get_type() != RING_TAP) {
 				destroy_ibv_flow();
 			}
 			m_p_rule_filter->m_map.erase(m_p_rule_filter->m_key);
 		}
 	} else if (m_b_tmp_is_attached) {
-		if (m_p_ring->get_type() == RING_SIMPLE) {
+		if (m_p_ring->get_type() != RING_TAP) {
 			destroy_ibv_flow();
 		}
 	}
@@ -229,7 +229,7 @@ bool rfs::attach_flow(pkt_rcvr_sink *sink)
 
 	// We also check if this is the FIRST sink so we need to call ibv_attach_flow
 	if ((m_n_sinks_list_entries == 0) && (!m_b_tmp_is_attached) && (filter_counter == 1)) {
-		if ((m_p_ring->get_type() == RING_SIMPLE) &&
+		if ((m_p_ring->get_type() != RING_TAP) &&
 				!create_ibv_flow()) {
 			return false;
 		}
@@ -262,7 +262,7 @@ bool rfs::detach_flow(pkt_rcvr_sink *sink)
 	prepare_filter_detach(filter_counter, false);
 
 	// We also need to check if this is the LAST sink so we need to call ibv_attach_flow
-	if ((m_p_ring->get_type() == RING_SIMPLE) &&
+	if ((m_p_ring->get_type() != RING_TAP) &&
 			(m_n_sinks_list_entries == 0) && (filter_counter == 0)) {
 		ret = destroy_ibv_flow();
 	}

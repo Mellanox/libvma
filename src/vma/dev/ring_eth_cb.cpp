@@ -49,7 +49,7 @@
 
 ring_eth_cb::ring_eth_cb(int if_index,
 			 vma_cyclic_buffer_ring_attr *cb_ring, ring *parent):
-			 ring_eth(if_index, parent, false)
+			 ring_eth(if_index, parent, RING_ETH_CB, false)
 			,m_curr_wqe_used_strides(0)
 			,m_curr_packets(0)
 			,m_padd_mode_used_strides(0)
