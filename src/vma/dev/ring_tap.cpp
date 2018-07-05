@@ -132,7 +132,9 @@ bool ring_tap::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 
 		rc = g_p_agent->send_msg_flow(&data);
 		if (rc != 0) {
-			ring_logwarn("Add TC rule failed with error=%d", rc);
+			if (!g_b_exit) {
+				ring_logwarn("Add TC rule failed with error=%d", rc);
+			}
 			return false;
 		}
 	}
@@ -363,7 +365,9 @@ bool ring_tap::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 
 		rc = g_p_agent->send_msg_flow(&data);
 		if (rc != 0) {
-			ring_logwarn("Del TC rule failed with error=%d", rc);
+			if (!g_b_exit) {
+				ring_logwarn("Del TC rule failed with error=%d", rc);
+			}
 			return false;
 		}
 	}
