@@ -144,7 +144,7 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 	int id = HANDLE_ID(value->handle);
 	int ht_internal = KERNEL_HT;
 	struct flow_ctx *ctx = NULL;
-	char str_tmp[IP_STR_SIZE];
+	char str_tmp[100];
 
 	errno = 0;
 	if (NULL == if_indextoname(value->if_id, if_name)) {
