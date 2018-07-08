@@ -382,8 +382,8 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 			break;
 		case VMA_MSG_FLOW_TCP_5T:
 		case VMA_MSG_FLOW_UDP_5T:
-			str_tmp[sizeof(str_tmp) - 1] = '\0';
 			strncpy(str_tmp, sys_ip2str(value->flow.t5.src_ip), sizeof(str_tmp));
+			str_tmp[sizeof(str_tmp) - 1] = '\0';
 			out_buf = sys_exec("tc filter add dev %s parent ffff: protocol ip "
 								"prio %d handle ::%x u32 ht %x:%x: "
 								"match ip protocol %d 0xff "
