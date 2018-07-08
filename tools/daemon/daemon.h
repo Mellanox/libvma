@@ -71,6 +71,7 @@
                                     per node (should be prime number) */
 #define FID_MAX         2203   /**< Default maximum number of sockets
                                     per process (should be prime number) */
+#define IP_STR_SIZE     100
 
 #ifndef HAVE_LINUX_LIMITS_H
 #define NAME_MAX         255    /**< chars in a file name */
@@ -200,8 +201,8 @@ static inline void sys_log(int level, const char *format, ...)
 
 static inline char *sys_addr2str(struct sockaddr_in *addr)
 {
-	static char buf[100];
-	static __thread char addrbuf[sizeof(buf) + sizeof(addr->sin_port) + 5];
+	static __thread char addrbuf[IP_STR_SIZE];
+	static char buf[sizeof(addrbuf) - sizeof(addr->sin_port) - 5];
 	inet_ntop(AF_INET, &addr->sin_addr, buf, sizeof(buf) - 1);
 	sprintf(addrbuf, "%s:%d", buf, ntohs(addr->sin_port));
 
@@ -210,7 +211,7 @@ static inline char *sys_addr2str(struct sockaddr_in *addr)
 
 static inline char *sys_ip2str(uint32_t ip)
 {
-	static __thread char ipbuf[100];
+	static __thread char ipbuf[IP_STR_SIZE];
 	struct in_addr value = {0};
 	value.s_addr = ip;
 	inet_ntop(AF_INET, &value, ipbuf, sizeof(ipbuf) - 1);
