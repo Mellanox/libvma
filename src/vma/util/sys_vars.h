@@ -703,6 +703,7 @@ extern mce_sys_var & safe_mce_sys();
 #define BONDING_ACTIVE_SLAVE_PARAM_FILE			"/sys/class/net/%s/bonding/active_slave"
 #define BONDING_FAILOVER_MAC_PARAM_FILE			"/sys/class/net/%s/bonding/fail_over_mac"
 #define BONDING_XMIT_HASH_POLICY_PARAM_FILE		"/sys/class/net/%s/bonding/xmit_hash_policy"
+#define BONDING_ROCE_LAG_FILE				"/sys/class/net/%s/slave_%s/device/roce_lag_enable"
 /* BONDING_SLAVE_STATE_PARAM_FILE is for kernel  > 3.14 or RH7.2 and higher */
 #define BONDING_SLAVE_STATE_PARAM_FILE			"/sys/class/net/%s/bonding_slave/state"
 #define L2_ADDR_FILE_FMT                                "/sys/class/net/%.*s/address"

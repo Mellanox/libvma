@@ -1530,6 +1530,7 @@ bool net_device_val::verify_ipoib_mode()
 bool net_device_val::verify_eth_qp_creation(const char* ifname)
 {
 	bool success = false;
+	char bond_roce_lag_path[256] = {0};
 	struct ibv_cq* cq = NULL;
 	struct ibv_comp_channel *channel = NULL;
 	struct ibv_qp* qp = NULL;
@@ -1555,6 +1556,14 @@ bool net_device_val::verify_eth_qp_creation(const char* ifname)
 
 	if (!p_ib_ctx) {
 		nd_logdbg("Cant find ib_ctx for interface %s", base_ifname);
+		if (m_bond != NO_BOND && check_bond_roce_lag_exist(bond_roce_lag_path, sizeof(bond_roce_lag_path), get_ifname_link(), ifname)) {
+			vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+			vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", get_ifname_link());
+			vlog_printf(VLOG_WARNING,"* VMA cannot offload the device while RoCE LAG is enabled.\n");
+			vlog_printf(VLOG_WARNING,"* In order to disable RoCE LAG please use:\n", get_ifname_link());
+			vlog_printf(VLOG_WARNING,"* echo 0 > %s\n", bond_roce_lag_path);
+			vlog_printf(VLOG_WARNING,"******************************************************************************************************\n");
+		}
 		goto release_resources;
 	}
 
