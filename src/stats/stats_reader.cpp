@@ -1335,7 +1335,8 @@ void zero_ring_stats(ring_stats_t* p_ring_stats)
 		p_ring_stats->simple.n_rx_interrupt_requests = 0;
 		p_ring_stats->simple.n_tx_dev_mem_byte_count = 0;
 		p_ring_stats->simple.n_tx_dev_mem_pkt_count = 0;
-		p_ring_stats->simple.n_tx_dev_mem_oob = 0;	}
+		p_ring_stats->simple.n_tx_dev_mem_oob = 0;
+	}
 }
 
 void zero_cq_stats(cq_stats_t* p_cq_stats)

@@ -48,7 +48,7 @@ rfs_mc::rfs_mc(flow_tuple *flow_spec_5t, ring_slave *p_ring, rfs_rule_filter* ru
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	if ((m_p_ring->get_type() != RING_TAP) && !prepare_flow_spec()) {
+	if (m_p_ring->is_simple() && !prepare_flow_spec()) {
 		throw_vma_exception("IB multicast offload is not supported");
 	}
 }
