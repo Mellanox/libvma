@@ -144,7 +144,7 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 	int id = HANDLE_ID(value->handle);
 	int ht_internal = KERNEL_HT;
 	struct flow_ctx *ctx = NULL;
-	char str_tmp[20];
+	char str_tmp[100];
 
 	errno = 0;
 	if (NULL == if_indextoname(value->if_id, if_name)) {
@@ -382,8 +382,8 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 			break;
 		case VMA_MSG_FLOW_TCP_5T:
 		case VMA_MSG_FLOW_UDP_5T:
+			strncpy(str_tmp, sys_ip2str(value->flow.t5.src_ip), sizeof(str_tmp));
 			str_tmp[sizeof(str_tmp) - 1] = '\0';
-			strncpy(str_tmp, sys_ip2str(value->flow.t5.src_ip), sizeof(str_tmp) - 1);
 			out_buf = sys_exec("tc filter add dev %s parent ffff: protocol ip "
 								"prio %d handle ::%x u32 ht %x:%x: "
 								"match ip protocol %d 0xff "
