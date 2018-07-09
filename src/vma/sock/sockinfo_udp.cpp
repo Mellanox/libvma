@@ -2817,9 +2817,12 @@ void sockinfo_udp::set_dst_entry_ttl()
 
 	dst_entry_map_t::iterator dst_entry_iter;
 	for (dst_entry_iter = m_dst_entry_map.begin(); dst_entry_iter != m_dst_entry_map.end(); dst_entry_iter++) {
-		dst_entry_udp_mc* dst_mc = dynamic_cast<dst_entry_udp_mc*>(dst_entry_iter->second);
-		if (!dst_mc) {
+		if (!IN_MULTICAST_N(dst_entry_iter->second->get_dst_addr())) {
 			dst_entry_iter->second->set_ip_ttl(m_n_uc_ttl);
 		}
+	}
+
+	if (m_p_connected_dst_entry && !IN_MULTICAST_N(m_p_connected_dst_entry->get_dst_addr())) {
+		m_p_connected_dst_entry->set_ip_ttl(m_n_uc_ttl);
 	}
 }
