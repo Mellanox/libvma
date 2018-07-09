@@ -2739,8 +2739,6 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 		new_sock->fit_snd_bufs_to_nagle(conn_nagle_disabled);
 	}
 
-	new_sock->m_n_uc_ttl = conn->m_n_uc_ttl;
-
 	if (new_sock->m_conn_state == TCP_CONN_INIT) { //in case m_conn_state is not in one of the error states
 		new_sock->m_conn_state = TCP_CONN_CONNECTED;
 	}
@@ -2900,6 +2898,8 @@ err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_
 
 	new_sock->m_rcvbuff_max = MAX(listen_sock->m_rcvbuff_max, 2 * new_sock->m_pcb.mss);
 	new_sock->fit_rcv_wnd(true);
+
+	new_sock->m_n_uc_ttl = listen_sock->m_n_uc_ttl;
 
 	new_sock->m_sndbuff_max = listen_sock->m_sndbuff_max;
 	if (listen_sock->m_sndbuff_max) {
