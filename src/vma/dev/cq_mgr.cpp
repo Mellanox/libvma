@@ -464,7 +464,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_tx(vma_ibv_wc* p_wce)
 			return NULL;
 		}
 		if (p_mem_buf_desc->p_desc_owner) {
-			p_mem_buf_desc->p_desc_owner->mem_buf_desc_completion_with_error_tx(p_mem_buf_desc);
+			m_p_ring->mem_buf_desc_completion_with_error_tx(p_mem_buf_desc);
 		} else {
 			// AlexR: can this wce have a valid mem_buf_desc pointer?
 			// AlexR: are we throwing away a data buffer and a mem_buf_desc element?
@@ -508,7 +508,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 			return NULL;
 		}
 		if (p_mem_buf_desc->p_desc_owner) {
-			p_mem_buf_desc->p_desc_owner->mem_buf_desc_completion_with_error_rx(p_mem_buf_desc);
+			m_p_ring->mem_buf_desc_completion_with_error_rx(p_mem_buf_desc);
 			return NULL;
 		}
 		// AlexR: can this wce have a valid mem_buf_desc pointer?

@@ -307,7 +307,7 @@ void qp_mgr::release_rx_buffers()
 			--m_curr_rx_wr;
 			mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(uintptr_t)m_ibv_rx_wr_array[m_curr_rx_wr].wr_id;
 			if (p_mem_buf_desc && p_mem_buf_desc->p_desc_owner) {
-				p_mem_buf_desc->p_desc_owner->mem_buf_desc_return_to_owner_rx(p_mem_buf_desc);
+				m_p_ring->mem_buf_desc_return_to_owner_rx(p_mem_buf_desc);
 			}
 			else {
 				g_buffer_pool_rx->put_buffers_thread_safe(p_mem_buf_desc);

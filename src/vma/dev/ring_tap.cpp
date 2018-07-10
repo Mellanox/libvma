@@ -1348,11 +1348,6 @@ int ring_tap::mem_buf_tx_release(mem_buf_desc_t* buff_list, bool b_accounting, b
 	return count;
 }
 
-void ring_tap::mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc)
-{
-	mem_buf_tx_release(p_mem_buf_desc, true);
-}
-
 int ring_tap::send_buffer(vma_ibv_send_wr* wr, vma_wr_tx_packet_attr attr)
 {
 	int ret = 0;

@@ -46,10 +46,6 @@ class mem_buf_desc_owner
 public:
 	// Call back function
 	virtual ~mem_buf_desc_owner() {};
-	virtual void mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_mem_buf_desc) = 0;
-	virtual void mem_buf_desc_completion_with_error_tx(mem_buf_desc_t* p_mem_buf_desc) = 0;
-	virtual void mem_buf_desc_return_to_owner_rx(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array = NULL) = 0;
-	virtual void mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc) = 0;
 };
 
 /**
