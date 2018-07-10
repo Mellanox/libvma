@@ -61,11 +61,6 @@ public:
 	virtual bool		reclaim_recv_buffers(descq_t *rx_reuse);
 	virtual int		drain_and_proccess();
 	virtual int		wait_for_notification_and_process_element(int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
-	virtual void		mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc); // Assume locked...
-	// Tx completion handling at the qp_mgr level is just re listing the desc+data buffer in the free lists
-	virtual void		mem_buf_desc_completion_with_error_tx(mem_buf_desc_t* p_tx_wc_buf_desc); // Assume locked...
-	virtual void		mem_buf_desc_return_to_owner_rx(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array = NULL);
-	virtual void		mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc);
 	virtual int		get_num_resources() const { return m_bond_rings.size(); };
 	virtual int		get_max_tx_inline();
 	virtual bool		attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);

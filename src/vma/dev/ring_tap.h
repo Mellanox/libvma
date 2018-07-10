@@ -63,18 +63,6 @@ public:
 	virtual mem_buf_desc_t* mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_num_mem_bufs = 1);
 	virtual int mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_accounting, bool trylock = false);
 
-	virtual void mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc) {
-		NOT_IN_USE(p_rx_wc_buf_desc);
-	}
-	virtual void mem_buf_desc_completion_with_error_tx(mem_buf_desc_t* p_tx_wc_buf_desc) {
-		NOT_IN_USE(p_tx_wc_buf_desc);
-	}
-	virtual void mem_buf_desc_return_to_owner_rx(mem_buf_desc_t* p_mem_buf_desc,
-			void* pv_fd_ready_array = NULL) {
-		NOT_IN_USE(p_mem_buf_desc);
-		NOT_IN_USE(pv_fd_ready_array);
-	}
-	virtual void mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc);
 	virtual bool get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe) {
 		NOT_IN_USE(id);
 		NOT_IN_USE(p_send_wqe);

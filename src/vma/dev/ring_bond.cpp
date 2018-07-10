@@ -674,32 +674,6 @@ int ring_bond::devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_bu
 	return ret;
 }
 
-/* TODO consider only ring_simple to inherit mem_buf_desc_owner */
-void ring_bond::mem_buf_desc_completion_with_error_rx(mem_buf_desc_t* p_rx_wc_buf_desc)
-{
-	NOT_IN_USE(p_rx_wc_buf_desc);
-	ring_logpanic("programming error, how did we got here?");
-}
-
-void ring_bond::mem_buf_desc_completion_with_error_tx(mem_buf_desc_t* p_tx_wc_buf_desc)
-{
-	NOT_IN_USE(p_tx_wc_buf_desc);
-	ring_logpanic("programming error, how did we got here?");
-}
-
-void ring_bond::mem_buf_desc_return_to_owner_rx(mem_buf_desc_t* p_mem_buf_desc, void* pv_fd_ready_array /*NULL*/)
-{
-	NOT_IN_USE(p_mem_buf_desc);
-	NOT_IN_USE(pv_fd_ready_array);
-	ring_logpanic("programming error, how did we got here?");
-}
-
-void ring_bond::mem_buf_desc_return_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc)
-{
-	NOT_IN_USE(p_mem_buf_desc);
-	ring_logpanic("programming error, how did we got here?");
-}
-
 void ring_bond::popup_active_rings()
 {
 	ring_slave *cur_slave = NULL;

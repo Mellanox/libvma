@@ -352,7 +352,7 @@ mem_buf_desc_t* cq_mgr_mlx5::process_cq_element_rx(mem_buf_desc_t* p_mem_buf_des
 	if (unlikely(status != BS_OK)) {
 		m_p_next_rx_desc_poll = NULL;
 		if (p_mem_buf_desc->p_desc_owner) {
-			p_mem_buf_desc->p_desc_owner->mem_buf_desc_completion_with_error_rx(p_mem_buf_desc);
+			m_p_ring->mem_buf_desc_completion_with_error_rx(p_mem_buf_desc);
 		} else {
 			/* AlexR: are we throwing away a data buffer and a mem_buf_desc element? */
 			cq_logdbg("no desc_owner(wr_id=%p)", p_mem_buf_desc);
