@@ -39,14 +39,7 @@
 #include "vma/util/vma_list.h"
 #include "vma/lwip/pbuf.h"
 
-class mem_buf_desc_t;
-
-class mem_buf_desc_owner
-{
-public:
-	// Call back function
-	virtual ~mem_buf_desc_owner() {};
-};
+class ring_slave;
 
 /**
  * mem_buf_desc_t struct is used as the mapping of the wr_id in the wce to:
@@ -132,7 +125,7 @@ public:
 
 	// Tx: qp_mgr owns the mem_buf_desc and the associated data buffer
 	// Rx: cq_mgr owns the mem_buf_desc and the associated data buffer
-	mem_buf_desc_owner* p_desc_owner;
+	ring_slave* p_desc_owner;
 
 	inline int get_ref_count() const {return atomic_read(&n_ref_count);}
 	inline void  reset_ref_count() {atomic_set(&n_ref_count, 0);}

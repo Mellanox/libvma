@@ -102,14 +102,14 @@ void ring_slave::restart()
 	ring_logpanic("Can't restart a slave ring");
 }
 
-bool ring_slave::is_active_member(mem_buf_desc_owner* rng, ring_user_id_t id)
+bool ring_slave::is_active_member(ring_slave* rng, ring_user_id_t id)
 {
 	NOT_IN_USE(id);
 
 	return (this == rng);
 }
 
-bool ring_slave::is_member(mem_buf_desc_owner* rng)
+bool ring_slave::is_member(ring_slave* rng)
 {
 	return (this == rng);
 }

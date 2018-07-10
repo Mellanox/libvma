@@ -41,6 +41,7 @@
 class pkt_rcvr_sink;
 class ib_ctx_handler;
 class L2_address;
+class ring_slave;
 
 #define ring_logpanic 		__log_info_panic
 #define ring_logerr			__log_info_err
@@ -74,7 +75,7 @@ struct ring_ec {
 };
 #endif // DEFINED_SOCKETXTREME	
 
-class ring : public mem_buf_desc_owner
+class ring
 {
 public:
 	ring();
@@ -110,8 +111,8 @@ public:
 	virtual void		mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc) = 0;
 
 	virtual void		inc_tx_retransmissions(ring_user_id_t id) = 0;
-	virtual bool		is_member(mem_buf_desc_owner* rng) = 0;
-	virtual bool		is_active_member(mem_buf_desc_owner* rng, ring_user_id_t id) = 0;
+	virtual bool		is_member(ring_slave* rng) = 0;
+	virtual bool		is_active_member(ring_slave* rng, ring_user_id_t id) = 0;
 	ring*			get_parent() { return m_parent; };
 	ring_user_id_t		generate_id() { return 0; };
 	virtual ring_user_id_t	generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port) = 0;

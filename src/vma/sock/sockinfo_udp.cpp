@@ -2675,7 +2675,7 @@ int sockinfo_udp::free_packets(struct vma_packet_t *pkts, size_t count)
 	m_lock_rcv.lock();
 	for(index=0; index < count; index++){
 		buff = (mem_buf_desc_t*)pkts[index].packet_id;
-		if (m_rx_ring_map.find(((ring*)buff->p_desc_owner)->get_parent()) == m_rx_ring_map.end()) {
+		if (m_rx_ring_map.find(buff->p_desc_owner->get_parent()) == m_rx_ring_map.end()) {
 			errno = ENOENT;
 			ret = -1;
 			break;

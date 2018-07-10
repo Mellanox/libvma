@@ -376,7 +376,7 @@ int ring_bond::mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_ac
 
 void ring_bond::mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc)
 {
-	((ring_slave*)p_mem_buf_desc->p_desc_owner)->mem_buf_desc_return_single_to_owner_tx(p_mem_buf_desc);
+	p_mem_buf_desc->p_desc_owner->mem_buf_desc_return_single_to_owner_tx(p_mem_buf_desc);
 }
 
 void ring_bond::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
@@ -632,7 +632,7 @@ int ring_bond::devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_bu
 {
 	mem_buf_desc_t* buffers_last[MAX_NUM_RING_RESOURCES];
 	mem_buf_desc_t *head, *current, *temp;
-	mem_buf_desc_owner* last_owner;
+	ring_slave* last_owner;
 	int count = 0;
 	int ret = 0;
 
@@ -701,12 +701,12 @@ void ring_bond::update_rx_channel_fds()
 	}
 }
 
-bool ring_bond::is_active_member(mem_buf_desc_owner* rng, ring_user_id_t id)
+bool ring_bond::is_active_member(ring_slave* rng, ring_user_id_t id)
 {
 	return (m_bond_rings[id] == rng && m_bond_rings[id]->m_active);
 }
 
-bool ring_bond::is_member(mem_buf_desc_owner* rng)
+bool ring_bond::is_member(ring_slave* rng)
 {
 	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 		if (m_bond_rings[i]->is_member(rng)) {

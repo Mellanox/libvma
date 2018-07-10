@@ -45,7 +45,7 @@
 #include "vma/proto/mem_buf_desc.h"
 #include "vma/proto/dst_entry.h"
 #include "vma/dev/net_device_table_mgr.h"
-#include "vma/dev/ring.h"
+#include "vma/dev/ring_slave.h"
 #include "vma/dev/ring_allocation_logic.h"
 
 #include "socket_fd_api.h"
@@ -265,7 +265,7 @@ protected:
 	void 			destructor_helper();
 	int 			modify_ratelimit(dst_entry* p_dst_entry, struct vma_rate_limit_t &rate_limit);
 
-	void 			move_owned_rx_ready_descs(const mem_buf_desc_owner* p_desc_owner, descq_t* toq); // Move all owner's rx ready packets ro 'toq'
+	void 			move_owned_rx_ready_descs(ring* p_ring, descq_t* toq); // Move all owner's rx ready packets ro 'toq'
 	void			set_sockopt_prio(__const void *__optval, socklen_t __optlen);
 
 	virtual bool try_un_offloading(); // un-offload the socket if possible
@@ -419,7 +419,7 @@ protected:
     inline void reuse_buffer(mem_buf_desc_t *buff)
     {
     	set_rx_reuse_pending(false);
-    	ring* p_ring = ((ring*)(buff->p_desc_owner))->get_parent();
+    	ring* p_ring = buff->p_desc_owner->get_parent();
     	rx_ring_map_t::iterator iter = m_rx_ring_map.find(p_ring);
     	if(likely(iter != m_rx_ring_map.end())){
             descq_t *rx_reuse = &iter->second->rx_reuse_info.rx_reuse;
@@ -487,7 +487,7 @@ protected:
 	    }
     }
 
-    inline void move_owned_descs(ring* p_desc_owner, descq_t *toq, descq_t *fromq)
+    inline void move_owned_descs(ring* p_ring, descq_t *toq, descq_t *fromq)
     {
     	// Assume locked by owner!!!
 
@@ -496,14 +496,14 @@ protected:
     	for (size_t i = 0 ; i < size; i++) {
     		temp = fromq->front();
     		fromq->pop_front();
-    		if (p_desc_owner->is_member(temp->p_desc_owner))
+    		if (p_ring->is_member(temp->p_desc_owner))
     			toq->push_back(temp);
     		else
     			fromq->push_back(temp);
     	}
     }
 
-    inline void move_not_owned_descs(ring* p_desc_owner, descq_t *toq, descq_t *fromq)
+    inline void move_not_owned_descs(ring* p_ring, descq_t *toq, descq_t *fromq)
     {
     	// Assume locked by owner!!!
 
@@ -512,7 +512,7 @@ protected:
     	for (size_t i = 0 ; i < size; i++) {
     		temp = fromq->front();
     		fromq->pop_front();
-    		if (p_desc_owner->is_member(temp->p_desc_owner))
+    		if (p_ring->is_member(temp->p_desc_owner))
     			fromq->push_back(temp);
     		else
     			toq->push_back(temp);
