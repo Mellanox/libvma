@@ -38,8 +38,7 @@
 #include "vma/util/verbs_extra.h"
 #include "vma/util/vma_stats.h"
 #include "vma/proto/mem_buf_desc.h"
-#include "dev/allocator.h"
-
+#include "vma/dev/allocator.h"
 
 inline static void free_lwip_pbuf(struct pbuf_custom *pbuf_custom)
 {
@@ -69,7 +68,7 @@ public:
 	 * @param lkey The registered memory lkey.
 	 * @return False if no buffers are available, else True.
 	 */
-	bool get_buffers_thread_safe(descq_t &pDeque, mem_buf_desc_owner* desc_owner, size_t count, uint32_t lkey);
+	bool get_buffers_thread_safe(descq_t &pDeque, ring_slave* desc_owner, size_t count, uint32_t lkey);
 
 	/**
 	 * Return buffers to the pool.

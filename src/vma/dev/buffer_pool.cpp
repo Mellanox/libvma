@@ -148,7 +148,7 @@ void buffer_pool::print_val_tbl()
 	__log_info_dbg("pool 0x%X size: %ld buffers: %lu", this, m_size, m_n_buffers);
 }
 
-bool buffer_pool::get_buffers_thread_safe(descq_t &pDeque, mem_buf_desc_owner* desc_owner, size_t count, uint32_t lkey)
+bool buffer_pool::get_buffers_thread_safe(descq_t &pDeque, ring_slave* desc_owner, size_t count, uint32_t lkey)
 {
 	auto_unlocker lock(m_lock_spin);
 

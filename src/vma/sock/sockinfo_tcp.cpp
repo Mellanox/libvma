@@ -4351,12 +4351,12 @@ int sockinfo_tcp::free_packets(struct vma_packet_t *pkts, size_t count)
 		vma_packet_t *p_pkts = (vma_packet_t *)(buf + offset);
 		buff = (mem_buf_desc_t*)p_pkts->packet_id;
 
-		if (m_p_rx_ring && !m_p_rx_ring->is_member((ring*)buff->p_desc_owner)){
+		if (m_p_rx_ring && !m_p_rx_ring->is_member(buff->p_desc_owner)) {
 			errno = ENOENT;
 			ret = -1;
 			break;
 		}
-		else if (m_rx_ring_map.find(((ring*)buff->p_desc_owner)->get_parent()) == m_rx_ring_map.end()) {
+		else if (m_rx_ring_map.find(buff->p_desc_owner->get_parent()) == m_rx_ring_map.end()) {
 			errno = ENOENT;
 			ret = -1;
 			break;
