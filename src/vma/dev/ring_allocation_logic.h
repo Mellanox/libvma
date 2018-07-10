@@ -47,6 +47,15 @@
 #define MAX_CPU CPU_SETSIZE
 #define NO_CPU -1
 
+class source_t {
+public:
+
+	int         m_fd;
+	in_addr_t   m_ip;
+
+	source_t(int fd) : m_fd(fd), m_ip(INADDR_ANY) {}
+	source_t(in_addr_t ip) : m_fd(-1), m_ip(ip) {}
+};
 
 /**
  * this class is responsible for the AL (allocation logic).
@@ -60,25 +69,25 @@ class ring_allocation_logic
 protected:
 	ring_allocation_logic();
 	ring_allocation_logic(ring_logic_t ring_allocation_logic,
-			      int ring_migration_ratio, int fd,
+			      int ring_migration_ratio, source_t source,
 			      resource_allocation_key &ring_profile);
 
 
 public:
 	/* careful, you'll lose the previous key !! */
-	resource_allocation_key* create_new_key(in_addr_t addr = INADDR_ANY, int suggested_cpu = NO_CPU);
+	resource_allocation_key* create_new_key(in_addr_t addr, int suggested_cpu = NO_CPU);
 
 	resource_allocation_key* get_key() { return &m_res_key; }
 
 	bool			should_migrate_ring();
+	bool			is_logic_support_migration() { return m_res_key.get_ring_alloc_logic() >= RING_LOGIC_PER_THREAD; }
 	uint64_t		calc_res_key_by_logic();
 protected:
 	string			m_tostr;
 
 private:
 	int			m_ring_migration_ratio;
-	int			m_fd;
-
+	source_t		m_source;
 	int			m_migration_try_count;
 	uint64_t		m_migration_candidate;
 	resource_allocation_key	m_res_key;
@@ -88,10 +97,10 @@ class ring_allocation_logic_rx : public ring_allocation_logic
 {
 public:
 	ring_allocation_logic_rx():ring_allocation_logic(){}
-	ring_allocation_logic_rx(int fd, resource_allocation_key &ring_profile, const void* owner):
+	ring_allocation_logic_rx(source_t source, resource_allocation_key &ring_profile, const void* owner):
 		ring_allocation_logic(safe_mce_sys().ring_allocation_logic_rx,
 				      safe_mce_sys().ring_migration_ratio_rx,
-				      fd, ring_profile) {
+				      source, ring_profile) {
 		RAL_TOSTR(m_tostr, "Rx", owner);
 	}
 };
@@ -100,10 +109,10 @@ class ring_allocation_logic_tx : public ring_allocation_logic
 {
 public:
 	ring_allocation_logic_tx():ring_allocation_logic(){}
-	ring_allocation_logic_tx(int fd, resource_allocation_key &ring_profile, const void* owner):
+	ring_allocation_logic_tx(source_t source, resource_allocation_key &ring_profile, const void* owner):
 		ring_allocation_logic(safe_mce_sys().ring_allocation_logic_tx,
 				      safe_mce_sys().ring_migration_ratio_tx,
-				      fd, ring_profile) {
+				      source, ring_profile) {
 		RAL_TOSTR(m_tostr, "Tx",owner);
 	}
 };

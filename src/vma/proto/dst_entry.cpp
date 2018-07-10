@@ -304,7 +304,7 @@ bool dst_entry::resolve_ring()
 	if (m_p_net_dev_val) {
 		if (!m_p_ring) {
 			dst_logdbg("getting a ring");
-			m_p_ring = m_p_net_dev_val->reserve_ring(m_ring_alloc_logic.create_new_key());
+			m_p_ring = m_p_net_dev_val->reserve_ring(m_ring_alloc_logic.create_new_key(m_pkt_src_ip));
 		}
 		if (m_p_ring) {
 			m_max_inline = std::min<uint32_t>(m_p_ring->get_max_tx_inline(),

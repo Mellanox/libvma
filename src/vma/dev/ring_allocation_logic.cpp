@@ -51,16 +51,16 @@
 #define ral_logfuncall		__log_info_funcall
 
 ring_allocation_logic::ring_allocation_logic():m_ring_migration_ratio(0),
-						m_fd(-1),
+						m_source(-1),
 						m_migration_try_count(0),
 						m_migration_candidate(0),
 						m_res_key() {}
 
 ring_allocation_logic::ring_allocation_logic(ring_logic_t allocation_logic,
-					     int ring_migration_ratio, int fd,
+					     int ring_migration_ratio, source_t source,
 					     resource_allocation_key &ring_profile):
 	m_tostr("base"), m_ring_migration_ratio(ring_migration_ratio),
-	m_fd(fd), m_migration_try_count(ring_migration_ratio)
+	m_source(source), m_migration_try_count(ring_migration_ratio)
 {
 	if (ring_profile.get_ring_alloc_logic() == RING_LOGIC_PER_INTERFACE &&
 	    ring_profile.get_ring_profile_key() < START_RING_INDEX) {
@@ -85,10 +85,10 @@ uint64_t ring_allocation_logic::calc_res_key_by_logic()
 			res_key = 1;
 		break;
 	case RING_LOGIC_PER_IP:
-		res_key = m_res_key.get_user_id_key();
+		res_key = m_source.m_ip;
 		break;
 	case RING_LOGIC_PER_SOCKET:
-		res_key = m_fd;
+		res_key = m_source.m_fd;
 		break;
 	case RING_LOGIC_PER_USER_ID:
 		res_key = m_res_key.get_user_id_key();
@@ -120,10 +120,13 @@ resource_allocation_key* ring_allocation_logic::create_new_key(in_addr_t addr, i
 			return &m_res_key;
 		}
 	}
+
 	if (m_res_key.get_ring_alloc_logic() == RING_LOGIC_PER_IP) {
+		m_source.m_ip = addr;
 		m_res_key.set_user_id_key(addr);
 		return &m_res_key;
 	}
+
 	m_res_key.set_user_id_key(calc_res_key_by_logic());
 	return &m_res_key;
 }
@@ -133,7 +136,7 @@ resource_allocation_key* ring_allocation_logic::create_new_key(in_addr_t addr, i
  */
 bool ring_allocation_logic::should_migrate_ring()
 {
-	if (m_res_key.get_ring_alloc_logic() < RING_LOGIC_PER_THREAD) {
+	if (!is_logic_support_migration()) {
 		return false;
 	}
 

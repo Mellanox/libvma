@@ -51,6 +51,7 @@
 #include "vma/proto/L2_address.h"
 
 #include "vma/proto/header.h"
+#include "vma/dev/ring_allocation_logic.h"
 #include "vma/dev/net_device_val.h"
 #include "vma/dev/ring.h"
 #include "vma/proto/arp.h"
@@ -356,7 +357,7 @@ private:
 	const uint32_t		m_n_sysvar_neigh_wait_till_send_arp_msec;
 	const uint32_t		m_n_sysvar_neigh_uc_arp_quata;
 	const uint32_t		m_n_sysvar_neigh_num_err_retries;
-	resource_allocation_key	*m_res_key;
+	ring_allocation_logic_tx m_ring_allocation_logic;
 	event_t 		rdma_event_mapping(struct rdma_cm_event* p_event);
 	void 			empty_unsent_queue();
 	bool 			post_send_packet(neigh_send_data *n_send_data);
