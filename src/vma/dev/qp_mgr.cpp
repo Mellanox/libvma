@@ -72,8 +72,6 @@ qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context,
 	,m_p_ring((ring_simple*)p_ring)
 	,m_port_num((uint8_t)port_num)
 	,m_p_ib_ctx_handler((ib_ctx_handler*)p_context)
-	,m_p_ahc_head(NULL)
-	,m_p_ahc_tail(NULL)
 	,m_max_inline_data(0)
 	,m_max_qp_wr(0)
 	,m_p_cq_mgr_rx(NULL)
@@ -242,9 +240,6 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	m_ibv_rx_wr_array[m_n_sysvar_rx_num_wr_to_post_recv-1].next = NULL; // end linked list
 
 	m_curr_rx_wr = 0;
-
-	m_p_ahc_head = NULL;
-	m_p_ahc_tail = NULL;
 
 #ifdef DEFINED_SOCKETXTREME
 	struct verbs_qp *vqp = (struct verbs_qp *)m_qp;
@@ -443,38 +438,6 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 	}
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
-void qp_mgr::ah_cleanup(struct ibv_ah* ah)
-{
-	ah_cleaner * curr_ahc = new ah_cleaner(ah, m_p_ring);
-	qp_logdbg("insert new ah_cleaner to list");
-
-	if (!m_p_ahc_head) {  // empty list
-		m_p_ahc_head = curr_ahc;
-	}
-	else {
-		m_p_ahc_tail->m_next_owner = curr_ahc;
-	}
-	m_p_ahc_tail = curr_ahc;
-	
-#if 0
-	ah_cleaner* temp_ahc = m_p_ahc_head;
-	int i = 1;
-	while (temp_ahc) {
-		qp_logdbg("ah num %d, ahc =%p ", i, temp_ahc);
-		i++;
-		temp_ahc = (ah_cleaner*) temp_ahc->m_next_owner;
-	}
-#endif
-}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 uint32_t qp_mgr::get_rx_max_wr_num()
 {
 	return m_rx_num_wr;
@@ -603,14 +566,6 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 
 		set_unsignaled_count();
 		m_p_last_tx_mem_buf_desc = NULL;
-
-		if (m_p_ahc_head) { // need to destroy ah
-			//save the orig owner
-			qp_logdbg("mark with signal!");
-			m_p_ahc_tail->m_next_owner = p_mem_buf_desc->p_desc_owner;
-			p_mem_buf_desc->p_desc_owner = m_p_ahc_head;
-			m_p_ahc_head = m_p_ahc_tail = NULL;
-		}
 
 		// Poll the Tx CQ
 		uint64_t dummy_poll_sn = 0;
