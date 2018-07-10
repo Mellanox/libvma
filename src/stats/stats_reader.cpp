@@ -285,11 +285,7 @@ void print_ring_stats(ring_instance_block_t* p_ring_inst_arr)
 			p_ring_stats = &p_ring_inst_arr[i].ring_stats;
 			printf("======================================================\n");
 			if (p_ring_stats->p_ring_master) {
-				if (p_ring_stats->n_type == RING_TAP) {
-					printf("\t%s=[%u],  MASTER=[%p]\n", ring_type_str[p_ring_stats->n_type], i, p_ring_stats->p_ring_master);
-				} else {
-					printf("\t%s=[%u], MASTER=[%p]\n", ring_type_str[p_ring_stats->n_type], i, p_ring_stats->p_ring_master);
-				}
+				printf("\t%s=[%u], MASTER=[%p]\n", ring_type_str[p_ring_stats->n_type], i, p_ring_stats->p_ring_master);
 			} else {
 				printf("\t%s=[%u]\n", ring_type_str[p_ring_stats->n_type], i);
 			}
