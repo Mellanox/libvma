@@ -93,14 +93,14 @@ typedef enum {
 #define RX_MEDIUM_VIEW			" %-3d %-3s %10u %7u %8u %7u %6.1f %6u  %6u  %6u %7u %7u %7u %7u\n"
 #define TX_MEDIUM_VIEW			" %-3s %-3s %10u %7u %8u %7u %29s %7u %7u %7u %7u\n"
 #define CYCLES_SEPARATOR		"-------------------------------------------------------------------------------\n" 
-#define FORMAT_STATS_32bit		"%-20s %10u\n"
-#define FORMAT_STATS_64bit		"%-20s %10llu %-3s\n"
-#define FORMAT_RING_32bit			"%-20s %u\n"
-#define FORMAT_RING_PACKETS			"%-20s %zu / %zu [kilobytes/packets] %-3s\n"
+#define FORMAT_STATS_32bit		"%-20s %u\n"
+#define FORMAT_STATS_64bit		"%-20s %llu %-3s\n"
+#define FORMAT_RING_PACKETS 		"%-20s %zu / %zu [kilobytes/packets] %-3s\n"
 #define FORMAT_RING_INTERRUPT		"%-20s %zu / %zu [requests/received] %-3s\n"
 #define FORMAT_RING_MODERATION		"%-20s %u / %u [frames/usec period] %-3s\n"
 #define FORMAT_RING_DM_STATS		"%-20s %zu / %zu / %zu [kilobytes/packets/oob] %-3s\n"
 #define FORMAT_RING_TAP_NAME		"%-20s %s\n"
+#define FORMAT_RING_MASTER  		"%-20s %p\n"
 
 #define INTERVAL			1
 #define BYTES_TRAFFIC_UNIT		e_K
@@ -284,10 +284,11 @@ void print_ring_stats(ring_instance_block_t* p_ring_inst_arr)
 		if (p_ring_inst_arr[i].b_enabled) {
 			p_ring_stats = &p_ring_inst_arr[i].ring_stats;
 			printf("======================================================\n");
+
+			printf("\t%s=[%u]\n", ring_type_str[p_ring_stats->n_type], i);
+
 			if (p_ring_stats->p_ring_master) {
-				printf("\t%s=[%u], MASTER=[%p]\n", ring_type_str[p_ring_stats->n_type], i, p_ring_stats->p_ring_master);
-			} else {
-				printf("\t%s=[%u]\n", ring_type_str[p_ring_stats->n_type], i);
+				printf(FORMAT_RING_MASTER, "Master:", p_ring_stats->p_ring_master);
 			}
 
 			printf(FORMAT_RING_PACKETS, "Tx Offload:", p_ring_stats->n_tx_byte_count/BYTES_TRAFFIC_UNIT, p_ring_stats->n_tx_pkt_count, post_fix);
@@ -298,9 +299,11 @@ void print_ring_stats(ring_instance_block_t* p_ring_inst_arr)
 			}
 
 			if (p_ring_stats->n_type == RING_TAP) {
-				printf(FORMAT_RING_32bit, "Rx Buffers:", p_ring_stats->tap.n_rx_buffers);
-				printf(FORMAT_RING_32bit, "VF Plugouts:", p_ring_stats->tap.n_vf_plugouts);
-				printf(FORMAT_RING_32bit, "Tap fd:", p_ring_stats->tap.n_tap_fd);
+				printf(FORMAT_STATS_32bit, "Rx Buffers:", p_ring_stats->tap.n_rx_buffers);
+				if (p_ring_stats->tap.n_vf_plugouts) {
+					printf(FORMAT_STATS_32bit, "VF Plugouts:", p_ring_stats->tap.n_vf_plugouts);
+				}
+				printf(FORMAT_STATS_32bit, "Tap fd:", p_ring_stats->tap.n_tap_fd);
 				printf(FORMAT_RING_TAP_NAME, "Tap Device:", p_ring_stats->tap.s_tap_name);
 			} else {
 				if (p_ring_stats->simple.n_rx_interrupt_requests || p_ring_stats->simple.n_rx_interrupt_received) {
@@ -310,7 +313,7 @@ void print_ring_stats(ring_instance_block_t* p_ring_inst_arr)
 					printf(FORMAT_RING_MODERATION, "Moderation:", p_ring_stats->simple.n_rx_cq_moderation_count, p_ring_stats->simple.n_rx_cq_moderation_period, post_fix);
 				}
 				if (p_ring_stats->simple.n_tx_dev_mem_allocated) {
-					printf(FORMAT_RING_32bit, "Dev Mem Alloc:", p_ring_stats->simple.n_tx_dev_mem_allocated);
+					printf(FORMAT_STATS_32bit, "Dev Mem Alloc:", p_ring_stats->simple.n_tx_dev_mem_allocated);
 					printf(FORMAT_RING_DM_STATS, "Dev Mem Stats:", p_ring_stats->simple.n_tx_dev_mem_byte_count/BYTES_TRAFFIC_UNIT,  p_ring_stats->simple.n_tx_dev_mem_pkt_count, p_ring_stats->simple.n_tx_dev_mem_oob, post_fix);
 				}
 			}
