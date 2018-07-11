@@ -227,9 +227,20 @@ typedef struct {
 } cq_instance_block_t;
 
 typedef enum {
-	RING_SIMPLE = 0,
-	RING_TAP
+	RING_ETH = 0,
+	RING_ETH_CB,
+	RING_ETH_DIRECT,
+	RING_TAP,
+	RING_IB
 } ring_type_t;
+
+static const char * const ring_type_str[] = {
+	"RING_ETH",
+	"RING_ETH_CB",
+	"RING_ETH_DIRECT",
+	"RING_TAP",
+	"RING_IB"
+};
 
 // Ring stat info
 typedef struct {

@@ -43,7 +43,7 @@
 ring_eth_direct::ring_eth_direct(int if_index,
 				vma_external_mem_attr *ext_ring_attr, ring *parent):
 					ring_eth(if_index,
-						parent, false)
+						parent, RING_ETH_DIRECT, false)
 {
 	m_ring_attr.comp_mask = ext_ring_attr->comp_mask;
 
