@@ -252,11 +252,11 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 			if (__optlen < sizeof(m_n_uc_ttl)) {
 				errno = EINVAL;
 			} else {
-				int val = (uint8_t) *(uint8_t *)__optval;
-				if (val < 1 || val > 255) {
+				int val = __optlen < sizeof(val) ?  (uint8_t) *(uint8_t *)__optval : (int) *(int *)__optval;
+				if (val != -1 && (val < 1 || val > 255)) {
 					errno = EINVAL;
 				} else {
-					m_n_uc_ttl = (val == (uint8_t) -1) ? safe_mce_sys().sysctl_reader.get_net_ipv4_ttl() : (uint8_t) val;
+					m_n_uc_ttl = (val == -1) ? safe_mce_sys().sysctl_reader.get_net_ipv4_ttl() : (uint8_t) val;
 					set_dst_entry_ttl();
 					si_logdbg("IPPROTO_IP, optname=IP_TTL (%d)", m_n_uc_ttl);
 				}
