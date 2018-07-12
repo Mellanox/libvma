@@ -46,12 +46,11 @@
 
 dst_entry_udp_mc::dst_entry_udp_mc(in_addr_t dst_ip, uint16_t dst_port,
 				   uint16_t src_port, in_addr_t tx_if_ip,
-				   bool mc_b_loopback, uint8_t mc_ttl,
-				   socket_data &sock_data, resource_allocation_key &ring_alloc_logic):
+				   bool mc_b_loopback ,socket_data &sock_data,
+				   resource_allocation_key &ring_alloc_logic):
 					dst_entry_udp(dst_ip, dst_port, src_port, sock_data, ring_alloc_logic),
 					m_mc_tx_if_ip(tx_if_ip), m_b_mc_loopback_enabled(mc_b_loopback)
 {
-	m_ttl = mc_ttl;
 	dst_udp_mc_logdbg("%s", to_str().c_str());
 }
 
@@ -133,9 +132,6 @@ bool dst_entry_udp_mc::resolve_net_dev(bool is_connect)
 	return ret_val;
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
 //The following function supposed to be called under m_lock
 bool dst_entry_udp_mc::get_net_dev_val()
 {
@@ -157,27 +153,3 @@ bool dst_entry_udp_mc::get_net_dev_val()
 	}
 	return ret_val;
 }
-
-void dst_entry_udp_mc::set_mc_tx_if_ip(in_addr_t tx_if_ip)
-{
-	m_mc_tx_if_ip = tx_if_ip;
-	set_state(false);
-}
-
-void dst_entry_udp_mc::set_mc_loopback(bool b_mc_loopback)
-{
-	m_b_mc_loopback_enabled = b_mc_loopback;
-	set_state(false);
-}
-
-void dst_entry_udp_mc::set_mc_ttl(uint8_t mc_ttl)
-{
-	m_ttl = mc_ttl;
-	set_state(false);
-}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
-

@@ -618,14 +618,15 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 			setPassthrough();
 			return 0;
 		}
-		socket_data data = { m_fd, m_tos, m_pcp};
 		// Create the new dst_entry
 		if (IN_MULTICAST_N(dst_ip)) {
+			socket_data data = { m_fd, m_n_mc_ttl, m_tos, m_pcp };
 			m_p_connected_dst_entry = new dst_entry_udp_mc(dst_ip, dst_port, src_port,
 					m_mc_tx_if ? m_mc_tx_if : m_bound.get_in_addr(),
-							m_b_mc_tx_loop, m_n_mc_ttl, data, m_ring_alloc_log_tx);
+							m_b_mc_tx_loop, data, m_ring_alloc_log_tx);
 		}
 		else {
+			socket_data data = { m_fd, m_n_uc_ttl, m_tos, m_pcp };
 			m_p_connected_dst_entry = new dst_entry_udp(dst_ip, dst_port,
 					src_port, data, m_ring_alloc_log_tx);
 		}
@@ -1833,20 +1834,20 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 					}
 				}
 				in_port_t src_port = m_bound.get_in_port();
-				socket_data data = { m_fd, m_tos, m_pcp};
 				// Create the new dst_entry
 				if (dst.is_mc()) {
+					socket_data data = { m_fd, m_n_mc_ttl, m_tos, m_pcp };
 					p_dst_entry = new dst_entry_udp_mc(
 							dst.get_in_addr(),
 							dst.get_in_port(),
 							src_port,
 							m_mc_tx_if ? m_mc_tx_if : m_bound.get_in_addr(),
 							m_b_mc_tx_loop,
-							m_n_mc_ttl,
 							data,
 							m_ring_alloc_log_tx);
 				}
 				else {
+					socket_data data = { m_fd, m_n_uc_ttl, m_tos, m_pcp };
 					p_dst_entry = new dst_entry_udp(
 							dst.get_in_addr(),
 							dst.get_in_port(),
@@ -2808,4 +2809,20 @@ bool sockinfo_udp::prepare_to_close(bool process_shutdown) {
 	m_lock_rcv.unlock();
 	NOT_IN_USE(process_shutdown);
 	return is_closable();
+}
+
+void sockinfo_udp::set_dst_entry_ttl()
+{
+	auto_unlocker _lock(m_lock_snd);
+
+	dst_entry_map_t::iterator dst_entry_iter;
+	for (dst_entry_iter = m_dst_entry_map.begin(); dst_entry_iter != m_dst_entry_map.end(); dst_entry_iter++) {
+		if (!IN_MULTICAST_N(dst_entry_iter->second->get_dst_addr())) {
+			dst_entry_iter->second->set_ip_ttl(m_n_uc_ttl);
+		}
+	}
+
+	if (m_p_connected_dst_entry && !IN_MULTICAST_N(m_p_connected_dst_entry->get_dst_addr())) {
+		m_p_connected_dst_entry->set_ip_ttl(m_n_uc_ttl);
+	}
 }

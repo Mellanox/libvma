@@ -207,6 +207,7 @@ protected:
 	void*			m_fd_context; // Context data stored with socket
 	uint32_t		m_flow_tag_id;	// Flow Tag for this socket
 	bool			m_flow_tag_enabled; // for this socket
+	uint8_t			m_n_uc_ttl; // time to live
 	bool			m_tcp_flow_is_5t; // to bypass packet analysis
 
 	int*			m_p_rings_fds;
@@ -230,6 +231,7 @@ protected:
 	void 			save_stats_rx_offload(int nbytes);
 
 	virtual int             rx_verify_available_data() = 0;
+	virtual void            set_dst_entry_ttl() = 0;
 	virtual mem_buf_desc_t *get_next_desc (mem_buf_desc_t *p_desc) = 0;
 	virtual	mem_buf_desc_t* get_next_desc_peek(mem_buf_desc_t *p_desc, int& rx_pkt_ready_list_idx) = 0;
 	

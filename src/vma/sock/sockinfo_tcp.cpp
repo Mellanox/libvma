@@ -553,7 +553,7 @@ void sockinfo_tcp::force_close()
 void sockinfo_tcp::create_dst_entry()
 {
 	if (!m_p_connected_dst_entry) {
-		socket_data data = { m_fd, m_pcb.tos, m_pcp};
+		socket_data data = { m_fd, m_n_uc_ttl, m_pcb.tos, m_pcp };
 		m_p_connected_dst_entry = new dst_entry_tcp(m_connected.get_in_addr(),
 					m_connected.get_in_port(),
 					m_bound.get_in_port(),
@@ -2899,6 +2899,8 @@ err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_
 	new_sock->m_rcvbuff_max = MAX(listen_sock->m_rcvbuff_max, 2 * new_sock->m_pcb.mss);
 	new_sock->fit_rcv_wnd(true);
 
+	new_sock->setsockopt(IPPROTO_IP, IP_TTL, &listen_sock->m_n_uc_ttl, sizeof(listen_sock->m_n_uc_ttl));
+
 	new_sock->m_sndbuff_max = listen_sock->m_sndbuff_max;
 	if (listen_sock->m_sndbuff_max) {
 		new_sock->m_sndbuff_max = MAX(listen_sock->m_sndbuff_max, 2 * new_sock->m_pcb.mss);
@@ -4650,4 +4652,15 @@ void tcp_timers_collection::remove_timer(timer_node_t* node)
 	__log_dbg("TCP timer handler [%p] was removed", node->handler);
 
 	free(node);
+}
+
+void sockinfo_tcp::set_dst_entry_ttl()
+{
+	lock_tcp_con();
+
+	if (m_p_connected_dst_entry) {
+		m_p_connected_dst_entry->set_ip_ttl(m_n_uc_ttl);
+	}
+
+	unlock_tcp_con();
 }

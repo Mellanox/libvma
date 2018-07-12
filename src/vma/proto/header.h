@@ -110,6 +110,7 @@ public:
 	void configure_ip_header(uint8_t protocol, in_addr_t src_addr, in_addr_t dest_addr, uint8_t ttl = 64, uint8_t tos = 0, uint16_t packet_id = 0);
 	void configure_ipoib_headers(uint32_t ipoib_header = IPOIB_HEADER);
 	void set_mac_to_eth_header(const L2_address &src, const L2_address &dst, ethhdr &eth_header);
+	void set_ip_ttl(uint8_t ttl);
 	void configure_eth_headers(const L2_address &src, const L2_address &dst, uint16_t encapsulated_proto = ETH_P_IP);
 	void configure_vlan_eth_headers(const L2_address &src, const L2_address &dst, uint16_t tci, uint16_t encapsulated_proto = ETH_P_IP);
 
