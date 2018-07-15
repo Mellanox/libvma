@@ -73,9 +73,11 @@ ring_tap::ring_tap(int if_index, ring* parent):
 	m_p_n_rx_channel_fds = new int[1];
 	m_p_n_rx_channel_fds[0] = m_tap_fd;
 
-	g_p_fd_collection->addtapfd(m_tap_fd, this);
-	g_p_event_handler_manager->update_epfd(m_tap_fd,
-			EPOLL_CTL_ADD, EPOLLIN | EPOLLPRI | EPOLLONESHOT);
+	if (m_tap_fd >= 0) {
+		g_p_fd_collection->addtapfd(m_tap_fd, this);
+		g_p_event_handler_manager->update_epfd(m_tap_fd,
+				EPOLL_CTL_ADD, EPOLLIN | EPOLLPRI | EPOLLONESHOT);
+	}
 
 	/* Initialize RX buffer poll */
 	request_more_rx_buffers();
