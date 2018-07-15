@@ -61,7 +61,7 @@
 
 #define VMA_MSG_ACK     0x80
 
-#define VMA_AGENT_VER   0x02
+#define VMA_AGENT_VER   0x03
 
 #define VMA_AGENT_BASE_NAME "vma_agent"
 #define VMA_AGENT_ADDR      "/var/run/" VMA_AGENT_BASE_NAME ".sock"

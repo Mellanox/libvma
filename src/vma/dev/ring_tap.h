@@ -40,7 +40,7 @@
 class ring_tap : public ring_slave
 {
 public:
-	ring_tap(int if_index, ring* parent = NULL, int fd = -1);
+	ring_tap(int if_index, ring* parent);
 	virtual ~ring_tap();
 
 	virtual bool is_up() { return (m_vf_ring || m_active); }
@@ -113,10 +113,6 @@ public:
 	inline void inc_vf_plugouts() { m_p_ring_stat->tap.n_vf_plugouts++; }
 	inline ring_slave* get_vf_ring() { return m_vf_ring; }
 
-	inline int get_tap_if_index() { return m_tap_if_index; }
-	inline int get_tap_fd() { return m_tap_fd; }
-protected:
-
 private:
 	inline void return_to_global_pool();
 	void prepare_flow_message(vma_msg_flow& data, msg_flow_t flow_action,
@@ -129,7 +125,10 @@ private:
 	void send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe);
 	void flow_udp_del_all();
 	void flow_tcp_del_all();
-	void netvsc_destroy();
+	void tap_create(net_device_val* p_ndev);
+
+	/* These fields are NETVSC mode specific */
+	int m_tap_fd;                    /* file descriptor of tap device */
 
 	ring_slave*      m_vf_ring;
 	const uint32_t   m_sysvar_qp_compensation_level;
@@ -151,10 +150,6 @@ private:
 	flow_spec_tcp_map_t	m_flow_tcp_map;
 	flow_spec_udp_map_t	m_flow_udp_mc_map;
 	flow_spec_udp_map_t	m_flow_udp_uc_map;
-
-	/* These fields are NETVSC mode specific */
-	int m_tap_if_index;              /* if_index of tap device */
-	int m_tap_fd;                    /* file descriptor of tap device */
 };
 
 

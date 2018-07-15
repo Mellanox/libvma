@@ -610,7 +610,7 @@ void net_device_val::set_slave_array()
 		}
 	}
 
-	if (m_slaves.size() == 0 && NETVSC!= m_bond) {
+	if (m_slaves.empty() && NETVSC != m_bond) {
 		m_state = INVALID;
 		nd_logpanic("No slave found.");
 	}

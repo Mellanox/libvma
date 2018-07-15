@@ -152,26 +152,15 @@ public:
 		net_device_val* p_ndev =
 				g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
 
-		m_tap_if_index = -1;
-		m_tap_fd = -1;
 		m_vf_ring = NULL;
 		m_tap_ring = NULL;
 		if (p_ndev) {
 			const slave_data_vector_t& slaves = p_ndev->get_slave_array();
-			if (0 == netvsc_create()) {
-				slave_create(m_tap_if_index);
-				if (m_tap_ring) {
-					/* set status once before vf rings creation
-					 * because popup_active_rings() is called inside slave_create() that
-					 * can order rings in right way
-					 */
-					/* coverity[missing_lock] */
-					m_tap_ring->m_active = (slaves.size() ? false :true);
-				}
-				for (size_t i = 0; i < slaves.size(); i++) {
-					slave_create(slaves[i]->if_index);
-				}
+			slave_create(p_ndev->get_if_idx());
+			for (size_t i = 0; i < slaves.size(); i++) {
+				slave_create(slaves[i]->if_index);
 			}
+
 			if (m_tap_ring && m_vf_ring) {
 				ring_tap* p_ring_tap = dynamic_cast<ring_tap*>(m_tap_ring);
 				if (p_ring_tap) {
@@ -183,13 +172,6 @@ public:
 
 protected:
 	virtual void slave_create(int if_index);
-
-private:
-	int netvsc_create();
-
-	/* These fields are NETVSC mode specific */
-	int m_tap_if_index;              /* if_index of tap device */
-	int m_tap_fd;                    /* file descriptor of tap device */
 
 public:
 	ring_slave*      m_vf_ring;

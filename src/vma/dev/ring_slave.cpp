@@ -59,7 +59,7 @@ ring_slave::ring_slave(int if_index, ring* parent, ring_type_t type): ring()
 	/* Configure ring_slave() fields */
 	m_type = type;
 	m_transport_type = p_ndev->get_transport_type();
-	m_active = (p_slave ? p_slave->active : false);
+	m_active = p_slave ? p_slave->active : p_ndev->get_slave_array().empty();
 
 	// use local copy of stats by default
 	m_p_ring_stat = &m_ring_stat;
