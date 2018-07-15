@@ -49,7 +49,6 @@
 #include "vma/proto/mem_buf_desc.h"
 #include "vma/infra/sender.h"
 #include "vma/dev/ib_ctx_handler.h"
-#include "vma/dev/ah_cleaner.h"
 #include "vma/dev/cq_mgr.h"
 
 #ifdef HAVE_INFINIBAND_MLX5_HW_H
@@ -133,9 +132,6 @@ public:
 	// chain of calls may serve as cache warm for dummy send feature.
 	inline bool         get_hw_dummy_send_support() {return m_hw_dummy_send_support; }
 
-	// create a AH cleaner object which will be linked to the following post send (if any)
-	void                ah_cleanup(struct ibv_ah* ah);
-
 	virtual void        modify_qp_to_ready_state() = 0;
 	void                modify_qp_to_error_state();
 
@@ -159,9 +155,6 @@ protected:
 	ring_simple*        m_p_ring;
 	uint8_t             m_port_num;
 	ib_ctx_handler*     m_p_ib_ctx_handler;
-
-	ah_cleaner*         m_p_ahc_head;
-	ah_cleaner*         m_p_ahc_tail;
 
 	uint32_t            m_max_inline_data;
 	uint32_t            m_max_qp_wr;

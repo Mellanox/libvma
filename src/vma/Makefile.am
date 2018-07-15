@@ -68,7 +68,6 @@ libvma_la_LIBADD = \
 	libconfig_parser.la
 	
 libvma_la_SOURCES := \
-	dev/ah_cleaner.cpp \
 	dev/allocator.cpp \
 	dev/buffer_pool.cpp \
 	dev/cq_mgr.cpp \
@@ -167,7 +166,6 @@ libvma_la_SOURCES := \
 	libvma.c \
 	main.cpp \
 	\
-	dev/ah_cleaner.h \
 	dev/allocator.h \
 	dev/buffer_pool.h \
 	dev/cq_mgr.h \
