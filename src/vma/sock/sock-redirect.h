@@ -139,6 +139,7 @@ struct os_api {
 	ssize_t (*sendmsg) (int __fd, __const struct msghdr *__message, int __flags);
 	ssize_t (*sendmmsg) (int __fd, struct mmsghdr *__mmsghdr, unsigned int __vlen, int __flags);
 	ssize_t (*sendto) (int __fd, __const void *__buf, size_t __n,int __flags, const struct sockaddr *__to, socklen_t __tolen);
+	ssize_t (*sendfile) (int out_fd, int in_fd, off_t *offset, size_t count);
 
 	int (*select) (int __nfds, fd_set *__readfds, fd_set *__writefds, fd_set *__exceptfds, struct timeval *__timeout);
 	int (*pselect) (int __nfds, fd_set *__readfds, fd_set *__writefds, fd_set *__errorfds, const struct timespec *__timeout, const sigset_t *__sigmask);
