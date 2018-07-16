@@ -101,6 +101,8 @@ enum inet_ecns {
 class sockinfo_tcp : public sockinfo, public timer_handler
 {
 public:
+	static inline size_t accepted_conns_node_offset(void) {return NODE_OFFSET(sockinfo_tcp, accepted_conns_node);}
+	typedef vma_list_t<sockinfo_tcp, sockinfo_tcp::accepted_conns_node_offset> sock_list_t;
 	sockinfo_tcp(int fd);
 	virtual ~sockinfo_tcp();
 
@@ -232,7 +234,7 @@ public:
 
 	virtual bool delay_orig_close_to_dtor();
 
-	static inline size_t accepted_conns_node_offset(void) {return NODE_OFFSET(sockinfo_tcp, accepted_conns_node);}
+
 	list_node<sockinfo_tcp, sockinfo_tcp::accepted_conns_node_offset> accepted_conns_node;
 
 protected:
@@ -273,7 +275,7 @@ private:
 	uint32_t m_received_syn_num;
 
 	/* pending connections */
-	vma_list_t<sockinfo_tcp, sockinfo_tcp::accepted_conns_node_offset> m_accepted_conns;
+	sock_list_t m_accepted_conns;
 
 	uint32_t m_ready_conn_cnt;
 	int m_backlog;

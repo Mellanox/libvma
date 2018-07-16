@@ -179,7 +179,7 @@ template <class T, size_t offset(void)>
 class  vma_list_t
 {
 public:
-
+	typedef list_iterator_t<T, offset> iterator;
 	vma_list_t() {
 		init_list();
 	}

@@ -84,7 +84,7 @@ int epoll_wait_call::get_current_events()
 	int i, ready_rfds = 0, ready_wfds = 0;
 	i = m_n_all_ready_fds;
 	socket_fd_api *p_socket_object;
-	list_iterator_t<socket_fd_api, socket_fd_api::ep_ready_fd_node_offset> iter = m_epfd_info->m_ready_fds.begin();
+	ep_ready_fd_list_t::iterator iter = m_epfd_info->m_ready_fds.begin();
 	while (iter != m_epfd_info->m_ready_fds.end() && i < m_maxevents) {
 		p_socket_object = *iter;
 		++iter;
