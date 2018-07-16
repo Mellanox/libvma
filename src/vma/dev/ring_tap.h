@@ -126,6 +126,7 @@ private:
 	void flow_udp_del_all();
 	void flow_tcp_del_all();
 	void tap_create(net_device_val* p_ndev);
+	void tap_destroy();
 
 	/* These fields are NETVSC mode specific */
 	int m_tap_fd;                    /* file descriptor of tap device */

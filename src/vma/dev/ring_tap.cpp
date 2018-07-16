@@ -64,6 +64,7 @@ ring_tap::ring_tap(int if_index, ring* parent):
 	char tap_if_name[IFNAMSIZ] = {0};
 	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
 
+	/* Create TAP device and update ring class with new if_index */
 	tap_create(p_ndev);
 
 	m_local_if = p_ndev->get_local_addr();
@@ -99,6 +100,33 @@ ring_tap::ring_tap(int if_index, ring* parent):
 		ring_logwarn("Add TC rule failed with error=%d", rc);
 	}
 }
+
+ring_tap::~ring_tap()
+{
+	m_lock_ring_rx.lock();
+	flow_udp_del_all();
+	flow_tcp_del_all();
+	m_lock_ring_rx.unlock();
+
+	g_p_event_handler_manager->update_epfd(m_tap_fd,
+			EPOLL_CTL_DEL, EPOLLIN | EPOLLPRI | EPOLLONESHOT);
+
+	if (g_p_fd_collection) {
+		g_p_fd_collection->del_tapfd(m_tap_fd);
+	}
+
+	/* Release RX buffer poll */
+	g_buffer_pool_rx->put_buffers_thread_safe(&m_rx_pool, m_rx_pool.size());
+
+	/* Release TX buffer poll */
+	g_buffer_pool_tx->put_buffers_thread_safe(&m_tx_pool, m_tx_pool.size());
+
+	delete[] m_p_n_rx_channel_fds;
+
+	/* TAP device release */
+	tap_destroy();
+}
+
 
 void ring_tap::tap_create(net_device_val* p_ndev)
 {
@@ -191,7 +219,9 @@ void ring_tap::tap_create(net_device_val* p_ndev)
 		goto error;
 	}
 
+	/* Update if_index on ring class */
 	set_if_index(tap_if_index);
+
 	orig_os_api.close(ioctl_sock);
 
 	ring_logdbg("Tap device %d: %s [fd=%d] was created successfully",
@@ -213,29 +243,9 @@ error:
 	m_tap_fd = -1;
 }
 
-ring_tap::~ring_tap()
+
+void ring_tap::tap_destroy()
 {
-	m_lock_ring_rx.lock();
-	flow_udp_del_all();
-	flow_tcp_del_all();
-	m_lock_ring_rx.unlock();
-
-	g_p_event_handler_manager->update_epfd(m_tap_fd,
-			EPOLL_CTL_DEL, EPOLLIN | EPOLLPRI | EPOLLONESHOT);
-
-	if (g_p_fd_collection) {
-		g_p_fd_collection->del_tapfd(m_tap_fd);
-	}
-
-	/* Release RX buffer poll */
-	g_buffer_pool_rx->put_buffers_thread_safe(&m_rx_pool, m_rx_pool.size());
-
-	/* Release TX buffer poll */
-	g_buffer_pool_tx->put_buffers_thread_safe(&m_tx_pool, m_tx_pool.size());
-
-	delete[] m_p_n_rx_channel_fds;
-
-	/* netvsc destroy */
 	if (m_tap_fd >= 0) {
 		orig_os_api.close(m_tap_fd);
 
