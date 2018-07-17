@@ -31,6 +31,8 @@
  */
 
 #include "ring_tap.h"
+
+#include <linux/if_tun.h>
 #include "vma/util/sg_array.h"
 #include "vma/dev/net_device_table_mgr.h"
 #include "vma/dev/rfs.h"
@@ -48,18 +50,23 @@
 
 ring_tap::ring_tap(int if_index, ring* parent):
 	ring_slave(if_index, parent, RING_TAP),
+	m_tap_fd(-1),
+	m_vf_ring(NULL),
 	m_sysvar_qp_compensation_level(safe_mce_sys().qp_compensation_level),
+	m_tap_data_available(false),
 	m_lock_ring_rx("ring_tap:lock_rx"),
 	m_lock_ring_tx("ring_tap:lock_tx"),
 	m_flow_tag_enabled(false),
 	m_partition(0)
 {
+	int rc = 0;
+	struct vma_msg_flow data;
 	char tap_if_name[IFNAMSIZ] = {0};
 	net_device_val* p_ndev = g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
 
-	m_vf_ring = NULL;
-	m_tap_data_available = false;
-	m_tap_fd = p_ndev->get_tap_fd();
+	/* Create TAP device and update ring class with new if_index */
+	tap_create(p_ndev);
+
 	m_local_if = p_ndev->get_local_addr();
 	m_mtu = p_ndev->get_mtu();
 
@@ -67,9 +74,11 @@ ring_tap::ring_tap(int if_index, ring* parent):
 	m_p_n_rx_channel_fds = new int[1];
 	m_p_n_rx_channel_fds[0] = m_tap_fd;
 
-	g_p_fd_collection->addtapfd(m_tap_fd, this);
-	g_p_event_handler_manager->update_epfd(m_tap_fd,
-			EPOLL_CTL_ADD, EPOLLIN | EPOLLPRI | EPOLLONESHOT);
+	if (m_tap_fd >= 0) {
+		g_p_fd_collection->addtapfd(m_tap_fd, this);
+		g_p_event_handler_manager->update_epfd(m_tap_fd,
+				EPOLL_CTL_ADD, EPOLLIN | EPOLLPRI | EPOLLONESHOT);
+	}
 
 	/* Initialize RX buffer poll */
 	request_more_rx_buffers();
@@ -80,10 +89,16 @@ ring_tap::ring_tap(int if_index, ring* parent):
 	m_tx_pool.set_id("ring_tap (%p) : m_tx_pool", this);
 
 	/* Update ring statistics */
-	m_p_ring_stat->n_type = RING_TAP;
 	m_p_ring_stat->tap.n_tap_fd = m_tap_fd;
 	if_indextoname(get_if_index(), tap_if_name);
 	memcpy(m_p_ring_stat->tap.s_tap_name, tap_if_name, IFNAMSIZ);
+
+	/* create egress rule (redirect traffic from tap device to physical interface) */
+	prepare_flow_message(data, VMA_MSG_FLOW_ADD);
+	rc = g_p_agent->send_msg_flow(&data);
+	if (rc != 0) {
+		ring_logwarn("Add TC rule failed with error=%d", rc);
+	}
 }
 
 ring_tap::~ring_tap()
@@ -107,6 +122,135 @@ ring_tap::~ring_tap()
 	g_buffer_pool_tx->put_buffers_thread_safe(&m_tx_pool, m_tx_pool.size());
 
 	delete[] m_p_n_rx_channel_fds;
+
+	/* TAP device release */
+	tap_destroy();
+}
+
+
+void ring_tap::tap_create(net_device_val* p_ndev)
+{
+	#define TAP_NAME_FORMAT "t%x%x" // t<pid7c><fd7c>
+	#define TAP_STR_LENGTH	512
+	#define TAP_DISABLE_IPV6 "sysctl -w net.ipv6.conf.%s.disable_ipv6=1"
+
+	int rc = 0, tap_if_index = -1, ioctl_sock = -1;
+	struct ifreq ifr;
+	char command_str[TAP_STR_LENGTH], return_str[TAP_STR_LENGTH], tap_name[IFNAMSIZ];
+	unsigned char hw_addr[ETH_ALEN];
+
+	/* Open TAP device */
+	if( (m_tap_fd = orig_os_api.open("/dev/net/tun", O_RDWR)) < 0 ) {
+		ring_logerr("FAILED to open tap %m");
+		rc = -errno;
+		goto error;
+	}
+
+	/* Tap name */
+	rc = snprintf(tap_name, sizeof(tap_name), TAP_NAME_FORMAT, getpid() & 0xFFFFFFF, m_tap_fd & 0xFFFFFFF);
+	if (unlikely(((int)sizeof(tap_name) < rc) || (rc < 0))) {
+		ring_logerr("FAILED to create tap name %m");
+		rc = -errno;
+		goto error;
+	}
+
+	/* Init ifr */
+	memset(&ifr, 0, sizeof(ifr));
+	rc = snprintf(ifr.ifr_name, IFNAMSIZ, "%s", tap_name);
+	if (unlikely((IFNAMSIZ < rc) || (rc < 0))) {
+		ring_logerr("FAILED to create tap name %m");
+		rc = -errno;
+		goto error;
+	}
+
+	/* Setting TAP attributes */
+	ifr.ifr_flags = IFF_TAP | IFF_NO_PI | IFF_ONE_QUEUE;
+	if ((rc = orig_os_api.ioctl(m_tap_fd, TUNSETIFF, (void *) &ifr)) < 0) {
+		ring_logerr("ioctl failed fd = %d, %d %m", m_tap_fd, rc);
+		rc = -errno;
+		goto error;
+	}
+
+	/* Set TAP fd nonblocking */
+	if ((rc = orig_os_api.fcntl(m_tap_fd, F_SETFL, O_NONBLOCK))  < 0) {
+		ring_logerr("ioctl failed fd = %d, %d %m", m_tap_fd, rc);
+		rc = -errno;
+		goto error;
+	}
+
+	/* Disable Ipv6 for TAP interface */
+	snprintf(command_str, TAP_STR_LENGTH, TAP_DISABLE_IPV6, tap_name);
+	if (run_and_retreive_system_command(command_str, return_str, TAP_STR_LENGTH)  < 0) {
+		ring_logerr("sysctl ipv6 failed fd = %d, %m", m_tap_fd);
+		rc = -errno;
+		goto error;
+	}
+
+	/* Create socket */
+	if ((ioctl_sock = orig_os_api.socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
+		ring_logerr("FAILED to open socket");
+		rc = -errno;
+		goto error;
+	}
+
+	/* Set MAC address */
+	ifr.ifr_hwaddr.sa_family = AF_LOCAL;
+	get_local_ll_addr(p_ndev->get_ifname_link(), hw_addr, ETH_ALEN, false);
+	memcpy(ifr.ifr_hwaddr.sa_data, hw_addr, ETH_ALEN);
+	if ((rc = orig_os_api.ioctl(ioctl_sock, SIOCSIFHWADDR, &ifr)) < 0) {
+		ring_logerr("ioctl SIOCSIFHWADDR failed %d %m, %s", rc, tap_name);
+		rc = -errno;
+		goto error;
+	}
+
+	/* Set link UP */
+	ifr.ifr_flags |= (IFF_UP | IFF_SLAVE);
+	if ((rc = orig_os_api.ioctl(ioctl_sock, SIOCSIFFLAGS, &ifr)) < 0) {
+		ring_logerr("ioctl SIOCGIFFLAGS failed %d %m, %s", rc, tap_name);
+		rc = -errno;
+		goto error;
+	}
+
+	/* Get TAP interface index */
+	tap_if_index = if_nametoindex(tap_name);
+	if (!tap_if_index) {
+		ring_logerr("if_nametoindex failed to get tap index [%s]", tap_name);
+		rc = -errno;
+		goto error;
+	}
+
+	/* Update if_index on ring class */
+	set_if_index(tap_if_index);
+
+	orig_os_api.close(ioctl_sock);
+
+	ring_logdbg("Tap device %d: %s [fd=%d] was created successfully",
+			tap_if_index, ifr.ifr_name, m_tap_fd);
+
+	return;
+
+error:
+	ring_logerr("Tap device creation failed %d, %m", rc);
+
+	if (ioctl_sock >= 0) {
+		orig_os_api.close(ioctl_sock);
+	}
+
+	if (m_tap_fd >= 0) {
+		orig_os_api.close(m_tap_fd);
+	}
+
+	m_tap_fd = -1;
+}
+
+
+void ring_tap::tap_destroy()
+{
+	if (m_tap_fd >= 0) {
+		orig_os_api.close(m_tap_fd);
+
+		m_tap_fd = -1;
+	}
 }
 
 bool ring_tap::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
@@ -128,7 +272,7 @@ bool ring_tap::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	if (flow_spec_5t.is_tcp() || flow_spec_5t.is_udp_uc()) {
 		int rc = 0;
 		struct vma_msg_flow data;
-		prepare_flow_message(data, flow_spec_5t, VMA_MSG_FLOW_ADD);
+		prepare_flow_message(data, VMA_MSG_FLOW_ADD, flow_spec_5t);
 
 		rc = g_p_agent->send_msg_flow(&data);
 		if (rc != 0) {
@@ -361,7 +505,7 @@ bool ring_tap::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 	if (flow_spec_5t.is_tcp() || flow_spec_5t.is_udp_uc()) {
 		int rc = 0;
 		struct vma_msg_flow data;
-		prepare_flow_message(data, flow_spec_5t, VMA_MSG_FLOW_DEL);
+		prepare_flow_message(data, VMA_MSG_FLOW_DEL, flow_spec_5t);
 
 		rc = g_p_agent->send_msg_flow(&data);
 		if (rc != 0) {
@@ -996,8 +1140,8 @@ void ring_tap::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, 
 	send_status_handler(ret, p_send_wqe);
 }
 
-void ring_tap::prepare_flow_message(vma_msg_flow& data,
-		flow_tuple& flow_spec_5t, msg_flow_t flow_action)
+void ring_tap::prepare_flow_message(vma_msg_flow& data, msg_flow_t flow_action,
+		flow_tuple& flow_spec_5t)
 {
 	memset(&data, 0, sizeof(data));
 	data.hdr.code = VMA_MSG_FLOW;
@@ -1006,6 +1150,7 @@ void ring_tap::prepare_flow_message(vma_msg_flow& data,
 	data.action = flow_action;
 	data.if_id = get_parent()->get_if_index();
 	data.tap_id = get_if_index();
+
 	data.flow.dst_ip = flow_spec_5t.get_dst_ip();
 	data.flow.dst_port = flow_spec_5t.get_dst_port();
 
@@ -1016,6 +1161,18 @@ void ring_tap::prepare_flow_message(vma_msg_flow& data,
 		data.flow.t5.src_ip = flow_spec_5t.get_src_ip();
 		data.flow.t5.src_port = flow_spec_5t.get_src_port();
 	}
+}
+
+void ring_tap::prepare_flow_message(vma_msg_flow& data, msg_flow_t flow_action)
+{
+	memset(&data, 0, sizeof(data));
+	data.hdr.code = VMA_MSG_FLOW;
+	data.hdr.ver = VMA_AGENT_VER;
+	data.hdr.pid = getpid();
+	data.action = flow_action;
+	data.if_id = get_parent()->get_if_index();
+	data.tap_id = get_if_index();
+	data.type = VMA_MSG_FLOW_EGRESS;
 }
 
 int ring_tap::process_element_rx(void* pv_fd_ready_array)

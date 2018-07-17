@@ -34,7 +34,6 @@
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 #include <netinet/igmp.h>
-#include <linux/if_tun.h>
 
 #include "utils/bullseye.h"
 #include "vma/util/utils.h"
@@ -179,7 +178,7 @@ void ring_bond::restart()
 				int rc = 0;
 				size_t i, j, k;
 
-				if (slaves.size() == 1) {
+				if (slaves.empty()) {
 					num_ring_rx_fds = p_ring_bond_netvsc->m_vf_ring->get_num_resources();
 					ring_rx_fds_array = p_ring_bond_netvsc->m_vf_ring->get_rx_channel_fds();
 
@@ -216,7 +215,7 @@ void ring_bond::restart()
 					p_ring_tap->set_vf_ring(NULL);
 				} else {
 					for (i = 0; i < slaves.size(); i++) {
-						if (slaves[i]->if_index != p_ndev->get_tap_if_index()) {
+						if (slaves[i]->if_index != p_ring_tap->get_if_index()) {
 							p_ring_tap->m_active = false;
 							slave_create(slaves[i]->if_index);
 							p_ring_tap->set_vf_ring(p_ring_bond_netvsc->m_vf_ring);
@@ -876,7 +875,7 @@ void ring_bond_netvsc::slave_create(int if_index)
 		ring_logpanic("Error creating bond ring");
 	}
 
-	if (if_index == p_ndev->get_tap_if_index()) {
+	if (if_index == p_ndev->get_if_idx()) {
 		cur_slave = new ring_tap(if_index, this);
 		m_tap_ring = cur_slave;
 	} else {

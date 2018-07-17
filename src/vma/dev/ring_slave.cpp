@@ -55,14 +55,17 @@ ring_slave::ring_slave(int if_index, ring* parent, ring_type_t type): ring()
 	}
 
 	p_slave = p_ndev->get_slave(get_if_index());
-	if (NULL == p_slave) {
-		ring_logpanic("Invalid if_index = %d", if_index);
-	}
 
 	/* Configure ring_slave() fields */
 	m_type = type;
 	m_transport_type = p_ndev->get_transport_type();
-	m_active = p_slave->active;
+	/* Set the same ring active status as related slave has for all ring types
+	 * excluding ring with type RING_TAP that does not have related slave device.
+	 * So it is marked as active just in case related netvsc device is absent.
+	 */
+	m_active = p_slave ?
+			p_slave->active :
+			p_ndev->get_slave_array().empty();
 
 	// use local copy of stats by default
 	m_p_ring_stat = &m_ring_stat;

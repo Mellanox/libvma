@@ -40,7 +40,7 @@
 class ring_tap : public ring_slave
 {
 public:
-	ring_tap(int if_index, ring* parent = NULL);
+	ring_tap(int if_index, ring* parent);
 	virtual ~ring_tap();
 
 	virtual bool is_up() { return (m_vf_ring || m_active); }
@@ -112,12 +112,12 @@ public:
 	inline void set_vf_ring(ring_slave *p_ring) { m_vf_ring = p_ring; }
 	inline void inc_vf_plugouts() { m_p_ring_stat->tap.n_vf_plugouts++; }
 	inline ring_slave* get_vf_ring() { return m_vf_ring; }
-protected:
 
 private:
 	inline void return_to_global_pool();
-	void prepare_flow_message(vma_msg_flow& data,
-			flow_tuple& flow_spec_5t, msg_flow_t flow_action);
+	void prepare_flow_message(vma_msg_flow& data, msg_flow_t flow_action,
+			flow_tuple& flow_spec_5t);
+	void prepare_flow_message(vma_msg_flow& data, msg_flow_t flow_action);
 	int process_element_rx(void* pv_fd_ready_array);
 	bool request_more_tx_buffers();
 	bool request_more_rx_buffers();
@@ -125,12 +125,16 @@ private:
 	void send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe);
 	void flow_udp_del_all();
 	void flow_tcp_del_all();
+	void tap_create(net_device_val* p_ndev);
+	void tap_destroy();
+
+	/* These fields are NETVSC mode specific */
+	int m_tap_fd;                    /* file descriptor of tap device */
 
 	ring_slave*      m_vf_ring;
 	const uint32_t   m_sysvar_qp_compensation_level;
 	descq_t          m_tx_pool;
 	descq_t          m_rx_pool;
-	int              m_tap_fd;
 	bool             m_tap_data_available;
 	lock_spin_recursive	m_lock_ring_rx;
 	lock_spin_recursive	m_lock_ring_tx;

@@ -243,9 +243,6 @@ public:
 	void set_str();
 	void print_val();
 
-	inline int get_tap_if_index() { return m_netvsc.tap_if_index; }
-	inline int get_tap_fd() { return m_netvsc.tap_fd; }
-
 	ring*                   reserve_ring(resource_allocation_key*); // create if not exists
 	bool 			release_ring(resource_allocation_key*); // delete from m_hash if ref_cnt == 0
 	state                   get_state() const  { return m_state; } // not sure, look at state init at c'tor
@@ -300,8 +297,6 @@ private:
 	resource_allocation_key* ring_key_redirection_release(resource_allocation_key *key);
 
 	bool get_up_and_active_slaves(bool* up_and_active_slaves, size_t size);
-	int netvsc_create();
-	void netvsc_destroy();
 
 	/* See: RFC 3549 2.3.3.1. */
 	int              m_if_idx;         /* Uniquely identifies interface (not unique: eth4 and eth4:5 has the same idx) */
@@ -318,12 +313,6 @@ private:
 	std::string      m_name;           /* container for ifname */
 	char             m_str[BUFF_SIZE]; /* detailed information about device */
 	char             m_base_name[IFNAMSIZ]; /* base name of device basing ifname */
-
-	/* These fields are NETVSC mode specific */
-	struct {
-		int tap_if_index;              /* if_index of tap device */
-		int tap_fd;                    /* file descriptor of tap device */
-	} m_netvsc;
 };
 
 class net_device_val_eth : public net_device_val

@@ -192,6 +192,9 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 			goto err;
 		}
 	}
+	if (VMA_MSG_FLOW_EGRESS == value->type) {
+		return rc;
+	}
 
 	/* interface list processing
 	 * use interface index as unique identifier

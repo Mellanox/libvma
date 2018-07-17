@@ -156,9 +156,11 @@ public:
 		m_tap_ring = NULL;
 		if (p_ndev) {
 			const slave_data_vector_t& slaves = p_ndev->get_slave_array();
+			slave_create(p_ndev->get_if_idx());
 			for (size_t i = 0; i < slaves.size(); i++) {
 				slave_create(slaves[i]->if_index);
 			}
+
 			if (m_tap_ring && m_vf_ring) {
 				ring_tap* p_ring_tap = dynamic_cast<ring_tap*>(m_tap_ring);
 				if (p_ring_tap) {
