@@ -234,7 +234,6 @@ public:
 
 	virtual bool delay_orig_close_to_dtor();
 
-
 	list_node<sockinfo_tcp, sockinfo_tcp::accepted_conns_node_offset> accepted_conns_node;
 
 protected:
