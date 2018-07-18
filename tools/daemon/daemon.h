@@ -50,6 +50,7 @@
 #include <sys/stat.h>
 #include <arpa/inet.h>
 #include <net/if.h>
+#include <sys/time.h>
 
 #ifdef HAVE_LINUX_LIMITS_H
 #include <linux/limits.h>
@@ -57,6 +58,7 @@
 
 #include "vma/util/agent_def.h"
 #include "vma/util/list.h"
+#include "utils/clock.h"
 
 
 #define MODULE_NAME             "vmad"

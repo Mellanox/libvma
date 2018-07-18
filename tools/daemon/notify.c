@@ -329,7 +329,7 @@ static int clean_process(pid_t pid)
 					rst.remote_addr.sin_addr.s_addr = fid_value->dst_ip;
 					rst.seqno = 1;
 
-					if (0 == get_seqno(&rst)) {
+					if (0 == get_seqno(&rst) && daemon_cfg.opt.force_rst) {
 						send_rst(&rst);
 					}
 				}
@@ -414,6 +414,9 @@ static int get_seqno(struct rst_info *rst)
 	int rc = 0;
 	struct tcp_msg msg;
 	struct pseudo_header pheader;
+	int attempt = 3; /* Do maximum number of attempts */
+	struct timeval t_end = TIMEVAL_INITIALIZER;
+	struct timeval t_now = TIMEVAL_INITIALIZER;
 
 	/* zero out the packet */
 	memset(&msg, 0, sizeof(msg));
@@ -459,21 +462,17 @@ static int get_seqno(struct rst_info *rst)
 	bcopy((const void *)&msg.tcp, (void *)&pheader.tcp, sizeof(struct tcphdr));
 	msg.tcp.check = calc_csum((unsigned short *)&pheader, sizeof(pheader));
 
-	/* Send invalid SYN packet */
-	rc = sys_sendto(daemon_cfg.raw_fd, &msg, sizeof(msg) - sizeof(msg.data), 0,
-			(struct sockaddr *) &rst->remote_addr, sizeof(rst->remote_addr));
-	if (rc < 0) {
-		goto out;
-	}
-	log_debug("send SYN to: %s\n", sys_addr2str(&rst->remote_addr));
+	do {
+		/* Send invalid SYN packet */
+		rc = sys_sendto(daemon_cfg.raw_fd, &msg, sizeof(msg) - sizeof(msg.data), 0,
+				(struct sockaddr *) &rst->remote_addr, sizeof(rst->remote_addr));
+		if (rc < 0) {
+			goto out;
+		}
+		log_debug("send SYN to: %s\n", sys_addr2str(&rst->remote_addr));
 
-	rc = 0;
-
-	if (daemon_cfg.opt.force_rst) {
-		time_t wait;
-
-		/* Wait for 3s */
-		wait = time(0) + 3;
+		gettimeofday(&t_end, NULL);
+		t_end.tv_sec += 1;
 		do {
 			struct tcp_msg msg_recv;
 			struct sockaddr_in gotaddr;
@@ -487,6 +486,7 @@ static int get_seqno(struct rst_info *rst)
 			tv.tv_sec = 1;
 			tv.tv_usec = 0;
 
+			gettimeofday(&t_now, NULL);
 			rc = select(daemon_cfg.raw_fd + 1, &readfds, NULL, NULL, &tv);
 			if (rc == 0) {
 				continue;
@@ -498,25 +498,24 @@ static int get_seqno(struct rst_info *rst)
 				goto out;
 			}
 
-			if ( msg_recv.ip.version == 4 &&
+			if (msg_recv.ip.version == 4 &&
 					msg_recv.ip.ihl == 5 &&
 					msg_recv.ip.protocol == IPPROTO_TCP &&
 					msg_recv.ip.saddr == msg.ip.daddr &&
 					msg_recv.ip.daddr == msg.ip.saddr &&
 					msg_recv.tcp.source == msg.tcp.dest &&
 					msg_recv.tcp.dest == msg.tcp.source &&
-					msg_recv.tcp.ack == 1 ) {
+					msg_recv.tcp.ack == 1) {
 				rst->seqno = msg_recv.tcp.ack_seq;
 				log_debug("recv SYN|ACK from: %s with SegNo: %d\n",
 						sys_addr2str(&gotaddr), ntohl(rst->seqno));
-				rc = 0;
-				break;
+				return 0;
 			}
-		} while (time(0) < wait);
-	}
+		} while (tv_cmp(&t_now, &t_end, <));
+	} while (--attempt);
 
 out:
-	return rc;
+	return -EAGAIN;
 }
 
 static int send_rst(struct rst_info *rst) {
