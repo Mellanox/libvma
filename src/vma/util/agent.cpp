@@ -69,7 +69,10 @@
 		vlog_levels_t _level = (mce_sys_var::HYPER_MSHV == safe_mce_sys().hypervisor ?          \
 						VLOG_WARNING : VLOG_DEBUG);                                             \
 		vlog_printf(_level, "*************************************************************\n"); \
-		vlog_printf(_level, "* Can not establish connection with the daemon (vmad).      *\n"); \
+		if (rc == -EPROTONOSUPPORT)													        \
+			vlog_printf(_level, "* Protocol version mismatch was found between vma and vmad. *\n"); \
+		else 																			        \
+			vlog_printf(_level, "* Can not establish connection with the daemon (vmad).      *\n"); \
 		vlog_printf(_level, "* UDP/TCP connections are likely to be limited.             *\n"); \
 		vlog_printf(_level, "*************************************************************\n"); \
 	} while (0)
@@ -330,11 +333,17 @@ int agent::send_msg_init(void)
 	}
 
 	if (data.hdr.code != (VMA_MSG_INIT | VMA_MSG_ACK) ||
-			data.hdr.ver < VMA_AGENT_VER ||
 			data.hdr.pid != getpid()) {
-		__log_dbg("Protocol version mismatch: code = 0x%X ver = 0x%X pid = %d\n",
-				data.hdr.code, data.hdr.ver, data.hdr.pid);
+		__log_dbg("Protocol is not supported: code = 0x%X pid = %d\n",
+				data.hdr.code, data.hdr.pid);
 		rc = -EPROTO;
+		goto err;
+	}
+
+	if (data.hdr.ver < VMA_AGENT_VER) {
+		__log_dbg("Protocol version mismatch: agent ver = 0x%X vmad ver = 0x%X\n",
+				VMA_AGENT_VER, data.hdr.ver);
+		rc = -EPROTONOSUPPORT;
 		goto err;
 	}
 
