@@ -100,7 +100,7 @@ agent::agent() :
 		msg = (agent_msg_t *)calloc(1, sizeof(*msg));
 		if (NULL == msg) {
 			rc = -ENOMEM;
-			__log_dbg("failed queue creation (rc = %d)\n", rc);
+			__log_dbg("failed queue creation (rc = %d)", rc);
 			goto err;
 		}
 		msg->length = 0;
@@ -110,7 +110,7 @@ agent::agent() :
 
 	if ((mkdir(path, 0777) != 0) && (errno != EEXIST)) {
 		rc = -errno;
-		__log_dbg("failed create folder %s (rc = %d)\n", path, rc);
+		__log_dbg("failed create folder %s (rc = %d)", path, rc);
 		goto err;
 	}
 
@@ -118,7 +118,7 @@ agent::agent() :
 			"%s/%s.%d.sock", path, VMA_AGENT_BASE_NAME, getpid());
 	if ((rc < 0 ) || (rc == (sizeof(m_sock_file) - 1) )) {
 		rc = -ENOMEM;
-		__log_dbg("failed allocate sock file (rc = %d)\n", rc);
+		__log_dbg("failed allocate sock file (rc = %d)", rc);
 		goto err;
 	}
 
@@ -126,7 +126,7 @@ agent::agent() :
 			"%s/%s.%d.pid", path, VMA_AGENT_BASE_NAME, getpid());
 	if ((rc < 0 ) || (rc == (sizeof(m_pid_file) - 1) )) {
 		rc = -ENOMEM;
-		__log_dbg("failed allocate pid file (rc = %d)\n", rc);
+		__log_dbg("failed allocate pid file (rc = %d)", rc);
 		goto err;
 	}
 
@@ -134,13 +134,13 @@ agent::agent() :
 			O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP);
 	if (m_pid_fd < 0) {
 		rc = -errno;
-		__log_dbg("failed open pid file (rc = %d)\n", rc);
+		__log_dbg("failed open pid file (rc = %d)", rc);
 		goto err;
 	}
 
 	rc = create_agent_socket();
 	if (rc < 0) {
-		__log_dbg("failed open sock file (rc = %d)\n", rc);
+		__log_dbg("failed open sock file (rc = %d)", rc);
 		goto err;
 	}
 
@@ -152,7 +152,7 @@ agent::agent() :
 
 	rc = send_msg_init();
 	if (rc < 0) {
-		__log_dbg("failed establish connection with daemon (rc = %d)\n", rc);
+		__log_dbg("failed establish connection with daemon (rc = %d)", rc);
 		goto err;
 	}
 
@@ -268,7 +268,7 @@ int agent::send(agent_msg_t *msg)
 	/* send() in blocking manner */
 	sys_call(rc, send, m_sock_fd, (void *)&msg->data, msg->length, 0);
 	if (rc < 0) {
-		__log_dbg("Failed to send() errno %d (%s)\n",
+		__log_dbg("Failed to send() errno %d (%s)",
 				errno, strerror(errno));
 		rc = -errno;
 		goto err;
@@ -297,7 +297,7 @@ int agent::send_msg_init(void)
 	sys_call(rc, connect, m_sock_fd, (struct sockaddr *)&server_addr,
 			sizeof(struct sockaddr_un));
 	if (rc < 0) {
-		__log_dbg("Failed to connect() errno %d (%s)\n",
+		__log_dbg("Failed to connect() errno %d (%s)",
 				errno, strerror(errno));
 		rc = -ECONNREFUSED;
 		goto err;
@@ -316,7 +316,7 @@ int agent::send_msg_init(void)
 	/* send(VMA_MSG_INIT) in blocking manner */
 	sys_call(rc, send, m_sock_fd, &data, sizeof(data), 0);
 	if (rc < 0) {
-		__log_dbg("Failed to send(VMA_MSG_INIT) errno %d (%s)\n",
+		__log_dbg("Failed to send(VMA_MSG_INIT) errno %d (%s)",
 				errno, strerror(errno));
 		rc = -ECONNREFUSED;
 		goto err;
@@ -326,7 +326,7 @@ int agent::send_msg_init(void)
 	memset(&data, 0, sizeof(data));
 	sys_call(rc, recv, m_sock_fd, &data, sizeof(data), 0);
 	if (rc < (int)sizeof(data)) {
-		__log_dbg("Failed to recv(VMA_MSG_INIT) errno %d (%s)\n",
+		__log_dbg("Failed to recv(VMA_MSG_INIT) errno %d (%s)",
 				errno, strerror(errno));
 		rc = -ECONNREFUSED;
 		goto err;
@@ -334,14 +334,14 @@ int agent::send_msg_init(void)
 
 	if (data.hdr.code != (VMA_MSG_INIT | VMA_MSG_ACK) ||
 			data.hdr.pid != getpid()) {
-		__log_dbg("Protocol is not supported: code = 0x%X pid = %d\n",
+		__log_dbg("Protocol is not supported: code = 0x%X pid = %d",
 				data.hdr.code, data.hdr.pid);
 		rc = -EPROTO;
 		goto err;
 	}
 
 	if (data.hdr.ver < VMA_AGENT_VER) {
-		__log_dbg("Protocol version mismatch: agent ver = 0x%X vmad ver = 0x%X\n",
+		__log_dbg("Protocol version mismatch: agent ver = 0x%X vmad ver = 0x%X",
 				VMA_AGENT_VER, data.hdr.ver);
 		rc = -EPROTONOSUPPORT;
 		goto err;
@@ -376,7 +376,7 @@ int agent::send_msg_exit(void)
 	/* send(VMA_MSG_EXIT) in blocking manner */
 	sys_call(rc, send, m_sock_fd, &data, sizeof(data), 0);
 	if (rc < 0) {
-		__log_dbg("Failed to send(VMA_MSG_EXIT) errno %d (%s)\n",
+		__log_dbg("Failed to send(VMA_MSG_EXIT) errno %d (%s)",
 				errno, strerror(errno));
 		rc = -errno;
 		goto err;
@@ -416,7 +416,7 @@ int agent::send_msg_state(uint32_t fid, uint8_t st, uint8_t type,
 	/* send(VMA_MSG_STATE) in blocking manner */
 	sys_call(rc, send, m_sock_fd, &data, sizeof(data), 0);
 	if (rc < 0) {
-		__log_dbg("Failed to send(VMA_MSG_STATE) errno %d (%s)\n",
+		__log_dbg("Failed to send(VMA_MSG_STATE) errno %d (%s)",
 				errno, strerror(errno));
 		rc = -errno;
 		goto err;
@@ -445,7 +445,7 @@ int agent::send_msg_flow(struct vma_msg_flow *data)
 	/* send(VMA_MSG_TC) in blocking manner */
 	sys_call(rc, send, m_sock_fd, data, sizeof(*data), 0);
 	if (rc < 0) {
-		__log_dbg("Failed to send(VMA_MSG_TC) errno %d (%s)\n",
+		__log_dbg("Failed to send(VMA_MSG_TC) errno %d (%s)",
 				errno, strerror(errno));
 		rc = -errno;
 		goto err;
@@ -455,7 +455,7 @@ int agent::send_msg_flow(struct vma_msg_flow *data)
 	memset(&answer, 0, sizeof(answer));
 	sys_call(rc, recv, m_sock_fd, &answer.hdr, sizeof(answer.hdr), 0);
 	if (rc < (int)sizeof(answer.hdr)) {
-		__log_dbg("Failed to recv(VMA_MSG_TC) errno %d (%s)\n",
+		__log_dbg("Failed to recv(VMA_MSG_TC) errno %d (%s)",
 				errno, strerror(errno));
 		rc = -ECONNREFUSED;
 		goto err;
@@ -465,7 +465,7 @@ int agent::send_msg_flow(struct vma_msg_flow *data)
 	if (!(answer.hdr.code == (data->hdr.code | VMA_MSG_ACK) &&
 			answer.hdr.ver == data->hdr.ver &&
 			answer.hdr.pid == data->hdr.pid)) {
-		__log_dbg("Protocol version mismatch: code = 0x%X ver = 0x%X pid = %d\n",
+		__log_dbg("Protocol version mismatch: code = 0x%X ver = 0x%X pid = %d",
 				answer.hdr.code, answer.hdr.ver, answer.hdr.pid);
 		rc = -EPROTO;
 		goto err;
@@ -492,7 +492,7 @@ int agent::create_agent_socket(void)
 
 	sys_call(m_sock_fd, socket, AF_UNIX, SOCK_DGRAM, 0);
 	if (m_sock_fd < 0) {
-		__log_dbg("Failed to call socket() errno %d (%s)\n",
+		__log_dbg("Failed to call socket() errno %d (%s)",
 				errno, strerror(errno));
 		rc = -errno;
 		goto err;
@@ -502,7 +502,7 @@ int agent::create_agent_socket(void)
 	sys_call(rc, setsockopt, m_sock_fd, SOL_SOCKET, SO_REUSEADDR,
 			(const void *)&optval, sizeof(optval));
 	if (rc < 0) {
-		__log_dbg("Failed to call setsockopt(SO_REUSEADDR) errno %d (%s)\n",
+		__log_dbg("Failed to call setsockopt(SO_REUSEADDR) errno %d (%s)",
 				errno, strerror(errno));
 		rc = -errno;
 		goto err;
@@ -516,7 +516,7 @@ int agent::create_agent_socket(void)
 	sys_call(rc, setsockopt, m_sock_fd, SOL_SOCKET, SO_RCVTIMEO,
 			(const void *)&opttv, sizeof(opttv));
 	if (rc < 0) {
-		__log_dbg("Failed to call setsockopt(SO_RCVTIMEO) errno %d (%s)\n",
+		__log_dbg("Failed to call setsockopt(SO_RCVTIMEO) errno %d (%s)",
 				errno, strerror(errno));
 		rc = -errno;
 		goto err;
@@ -526,7 +526,7 @@ int agent::create_agent_socket(void)
 	sys_call(rc, bind, m_sock_fd, (struct sockaddr *)&sock_addr,
 			sizeof(sock_addr));
 	if (rc < 0) {
-		__log_dbg("Failed to call bind() errno %d (%s)\n",
+		__log_dbg("Failed to call bind() errno %d (%s)",
 				errno, strerror(errno));
 		rc = -errno;
 		goto err;
