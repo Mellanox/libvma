@@ -349,6 +349,7 @@ static int config_set(int argc, char **argv)
 	log_debug("lock file: %s\n", daemon_cfg.lock_file);
 	log_debug("sock file: %s\n", daemon_cfg.sock_file);
 	log_debug("notify dir: %s\n", daemon_cfg.notify_dir);
+	log_debug("version: 0x%X\n", VMA_AGENT_VER);
 
 	if (0 != rc) {
 		usage();

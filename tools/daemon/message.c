@@ -197,6 +197,7 @@ static int proc_msg_init(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_u
 {
 	struct vma_msg_init *data;
 	struct store_pid *value;
+	size_t err = 0;
 
 	assert(msg_hdr);
 	assert(msg_hdr->code == VMA_MSG_INIT);
@@ -211,7 +212,8 @@ static int proc_msg_init(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_u
 	if (data->hdr.ver > VMA_AGENT_VER) {
 		log_error("Protocol message mismatch (VMA_AGENT_VER = %d) errno %d (%s)\n",
 				VMA_AGENT_VER, errno, strerror(errno));
-		return -EBADMSG;
+		err = -EBADMSG;
+		goto send_response;
 	}
 
 	/* Allocate memory for this value in this place
@@ -246,6 +248,7 @@ static int proc_msg_init(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_u
 
 	log_debug("[%d] put into the storage\n", data->hdr.pid);
 
+send_response:
 	data->hdr.code |= VMA_MSG_ACK;
 	data->hdr.ver = VMA_AGENT_VER;
 	if (0 > sys_sendto(daemon_cfg.sock_fd, data, sizeof(*data), 0,
@@ -254,7 +257,7 @@ static int proc_msg_init(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_u
 				strerror(errno));
 	}
 
-	return (sizeof(*data));
+	return err ? err : (sizeof(*data));
 }
 
 static int proc_msg_exit(struct vma_hdr *msg_hdr, size_t size)
