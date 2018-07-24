@@ -64,14 +64,7 @@ public:
 	~sock_addr() {};
 
 	struct sockaddr* get_p_sa() { return &m_sa; }
-	void 		get_sa(struct sockaddr* p_sa) { memcpy(p_sa, &m_sa, get_socklen()); }
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	void 		get_sa(struct sockaddr& r_sa) { memcpy(&r_sa, &m_sa, get_socklen()); }
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
+	void 		get_sa(struct sockaddr* p_sa, size_t size) { memcpy(p_sa, &m_sa, std::min<size_t>(get_socklen(), size)); }
 	void 		get_sa(struct sockaddr_in& r_sa_in) { memcpy(&r_sa_in, &m_sa, get_socklen()); }
 
 	sa_family_t 	get_sa_family() { struct sockaddr_in* p_sa_in = (struct sockaddr_in*)&m_sa; return p_sa_in->sin_family; }
