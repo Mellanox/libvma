@@ -377,11 +377,7 @@ private:
 	 *            ERR_RST: the connection was reset by the remote host
 	 */
 	static void 	err_lwip_cb(void *arg, err_t err);
-	/* (re)alloc sockaddr of desired len. old addr may be freed if new_len != old_len
-	 * old_len will be changed to new_len
-	 */
-	struct sockaddr *sockaddr_realloc(struct sockaddr *old_addr, socklen_t & old_len, socklen_t new_len);
-	inline void 	return_rx_buffs(ring *p_ring);
+
 	// TODO: it is misleading to declare inline in file that doesn't contain the implementation as it can't help callers
 	inline void 	return_pending_rx_buffs();
 	inline void 	return_pending_tx_buffs();

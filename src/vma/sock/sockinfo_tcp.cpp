@@ -2481,14 +2481,14 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 			return orig_os_api.accept(m_fd, __addr, __addrlen);
 	}
 
+	si_tcp_logdbg("socket accept, __addr = %p, __addrlen = %p, *__addrlen = %d", __addr, __addrlen, __addrlen ? *__addrlen : 0);
+
 	if (!is_server()) {
 		// print error so we can better track apps not following our assumptions ;)
 		si_tcp_logdbg("socket is in wrong state for accept: %d", m_sock_state);
 		errno = EINVAL;
 		return -1;
 	}
-
-	si_tcp_logdbg("socket accept");
 
 	lock_tcp_con();
 
@@ -2569,8 +2569,13 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 
 	ns->lock_tcp_con();
 
-	if (__addr && __addrlen)
-		ns->getpeername(__addr, __addrlen);	
+	if (__addr && __addrlen) {
+		if ((ret = ns->getpeername(__addr, __addrlen)) < 0) {
+			ns->unlock_tcp_con();
+			close(ns->get_fd());
+			return ret;
+		}
+	}
 
 	ns->m_p_socket_stats->connected_ip = ns->m_connected.get_in_addr();
 	ns->m_p_socket_stats->connected_port = ns->m_connected.get_in_port();
@@ -3844,21 +3849,22 @@ int sockinfo_tcp::getsockname(sockaddr *__name, socklen_t *__namelen)
 		return orig_os_api.getsockname(m_fd, __name, __namelen);
 	}
 
-/* TODO ALEXR
-	if (!m_addr_local) {
-		// if not a server socket get local address from LWIP
-		errno = EINVAL;
-		return -1;
-	}
-*/
 	// according to man address should be truncated if given struct is too small
-	if (__name && __namelen && (*__namelen >= m_bound.get_socklen())) {
-		m_bound.get_sa(__name);
-		return 0;
+	if (__name && __namelen) {
+		if ((int)*__namelen < 0) {
+			si_tcp_logdbg("negative __namelen is not supported: %d", *__namelen);
+			errno = EINVAL;
+			return -1;
+		}
+
+		if (*__namelen) {
+			m_bound.get_sa(__name, *__namelen);
+		}
+
+		*__namelen = m_bound.get_socklen();
 	}
 
-	errno = EINVAL;
-	return -1;
+	return 0;
 }
 
 int sockinfo_tcp::getpeername(sockaddr *__name, socklen_t *__namelen)
@@ -3870,45 +3876,28 @@ int sockinfo_tcp::getpeername(sockaddr *__name, socklen_t *__namelen)
 		return orig_os_api.getpeername(m_fd, __name, __namelen);
 	}
 
-	/* TODO ALEXR
-	if (!m_addr_peer) {
-		// if not a server socket get local address from LWIP
-		errno = EINVAL;
-		return -1;
-	}
-*/
 	if (m_conn_state != TCP_CONN_CONNECTED) {
 		errno = ENOTCONN;
 		return -1;
 	}
 
 	// according to man address should be truncated if given struct is too small
-	if (__name && __namelen && (*__namelen >= m_connected.get_socklen())) {
-		m_connected.get_sa(__name);
-		return 0;
-	}
-	errno = EINVAL;
-	return -1;
-}
+	if (__name && __namelen) {
+		if ((int)*__namelen < 0) {
+			si_tcp_logdbg("negative __namelen is not supported: %d", *__namelen);
+			errno = EINVAL;
+			return -1;
+		}
 
-//code coverage
-#if 0
-struct sockaddr *sockinfo_tcp::sockaddr_realloc(struct sockaddr *old_addr, 
-		socklen_t & old_len, socklen_t new_len)
-{
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (old_addr && old_len != new_len) {
-		if (old_addr == 0) { si_tcp_logpanic("old_addr != 0"); }
-		delete old_addr;
-		old_addr = 0;
+		if (*__namelen) {
+			m_connected.get_sa(__name, *__namelen);
+		}
+
+		*__namelen = m_connected.get_socklen();
 	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-	if (old_addr == 0)
-		old_addr = (struct sockaddr *)new char [new_len];
-	old_len = new_len;
-	return old_addr;
+
+	return 0;
 }
-#endif
 
 int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 {
