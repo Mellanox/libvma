@@ -851,78 +851,54 @@ bool net_device_val::update_active_slaves()
 	return 0;
 }
 
-bool net_device_val::update_netvsc_slaves()
+void net_device_val::update_netvsc_slaves(int if_index, int if_flags)
 {
-	bool changed = false;
 	slave_data_t* s = NULL;
-	uint16_t i = 0;
-	ib_ctx_handler *ib_ctx = NULL;
-	char slave_ifname[IFNAMSIZ] = {0};
-	unsigned int slave_flags = 0;
+	ib_ctx_handler *ib_ctx = NULL, *up_ib_ctx = NULL;
+	char if_name[IFNAMSIZ] = {0};
 
 	m_lock.lock();
 
-	if (get_netvsc_slave(get_ifname_link(), slave_ifname, slave_flags) &&
-			(slave_flags & IFF_UP) && (slave_flags & IFF_RUNNING)) {
-		s = new slave_data_t(if_nametoindex(slave_ifname));
-		m_slaves.push_back(s);
+	if (if_indextoname(if_index, if_name) && (if_flags & IFF_UP) && (if_flags & IFF_RUNNING)) {
+		nd_logdbg("slave %d is up", if_index);
 
-		nd_logdbg("slave %d is up ", s->if_index);
-		changed = true;
-		g_p_ib_ctx_handler_collection->update_tbl(slave_ifname);
-		g_buffer_pool_rx->register_memory();
-		g_buffer_pool_tx->register_memory();
+		g_p_ib_ctx_handler_collection->update_tbl(if_name);
+		if ((up_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(if_name))) {
+			s = new slave_data_t(if_index);
+			s->active = true;
+			s->p_ib_ctx = up_ib_ctx;
+			s->p_L2_addr = create_L2_address(if_name);
+			s->port_num = get_port_from_ifname(if_name);
+			m_slaves.push_back(s);
+
+			g_buffer_pool_rx->register_memory();
+			g_buffer_pool_tx->register_memory();
+		}
 	} else {
-		slave_data_vector_t::iterator slave = m_slaves.begin();
-		if (slave != m_slaves.end()) {
-			s = *slave;
+		if (!m_slaves.empty()) {
+			s = m_slaves.back();
+			m_slaves.pop_back();
 
 			nd_logdbg("slave %d is down ", s->if_index);
-			changed = true;
 
 			ib_ctx = s->p_ib_ctx;
 			delete s;
-			m_slaves.erase(slave);
 		}
-	}
-	for (i = 0; changed && (i < m_slaves.size()); i++) {
-		char if_name[IFNAMSIZ] = {0};
-		char base_ifname[IFNAMSIZ];
-
-		if (!if_indextoname(m_slaves[i]->if_index, if_name)) {
-			nd_logerr("Can not find interface name by index=%d", m_slaves[i]->if_index);
-			continue;
-		}
-		get_base_interface_name((const char*)if_name, base_ifname, sizeof(base_ifname));
-
-		// Save L2 address
-		m_slaves[i]->p_L2_addr = create_L2_address(if_name);
-		m_slaves[i]->active = false;
-
-		if (m_bond == NETVSC) {
-			m_slaves[i]->active = true;
-		}
-
-		m_slaves[i]->p_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(base_ifname);
-		m_slaves[i]->port_num = get_port_from_ifname(base_ifname);
 	}
 
 	m_lock.unlock();
 
 	/* restart if status changed */
-	if (changed) {
-		m_p_L2_addr = create_L2_address(get_ifname());
-		// restart rings
-		rings_hash_map_t::iterator ring_iter;
-		for (ring_iter = m_h_ring_map.begin(); ring_iter != m_h_ring_map.end(); ring_iter++) {
-			THE_RING->restart();
-		}
-		if (ib_ctx) {
-			g_p_ib_ctx_handler_collection->del_ib_ctx(ib_ctx);
-		}
+	m_p_L2_addr = create_L2_address(get_ifname());
+	// restart rings
+	rings_hash_map_t::iterator ring_iter;
+	for (ring_iter = m_h_ring_map.begin(); ring_iter != m_h_ring_map.end(); ring_iter++) {
+		THE_RING->restart();
 	}
 
-	return changed;
+	if (ib_ctx) {
+		g_p_ib_ctx_handler_collection->del_ib_ctx(ib_ctx);
+	}
 }
 
 std::string net_device_val::to_str()
