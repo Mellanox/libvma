@@ -55,7 +55,7 @@ public:
 	buffer_pool(size_t buffer_count, size_t size, pbuf_free_custom_fn custom_free_function);
 	~buffer_pool();
 
-	void register_memory();
+	void register_memory(ib_ctx_handler *p_ib_ctx_h);
 	void print_val_tbl();
 
 	uint32_t	find_lkey_by_ib_ctx_thread_safe(ib_ctx_handler* p_ib_ctx_h);

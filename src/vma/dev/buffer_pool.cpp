@@ -138,9 +138,9 @@ void buffer_pool::free_bpool_resources()
 	__log_info_func("done");
 }
 
-void buffer_pool::register_memory()
+void buffer_pool::register_memory(ib_ctx_handler *p_ib_ctx_h)
 {
-	m_allocator.register_memory(m_size, NULL, VMA_IBV_ACCESS_LOCAL_WRITE);
+	m_allocator.register_memory(m_size, p_ib_ctx_h, VMA_IBV_ACCESS_LOCAL_WRITE);
 }
 
 void buffer_pool::print_val_tbl()
