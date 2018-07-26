@@ -625,7 +625,7 @@ void net_device_table_mgr::new_link_event(const netlink_link_info* info)
 						(!net_dev->get_slave(if_index) && (info->flags & IFF_RUNNING)))) {
 			ndtm_logdbg("found entry [%p]: if_index: %d : %s",
 					net_dev, net_dev->get_if_idx(), net_dev->get_ifname());
-			net_dev->update_netvsc_slaves();
+			net_dev->update_netvsc_slaves(info->ifindex, info->flags);
 		}
 	}
 }
