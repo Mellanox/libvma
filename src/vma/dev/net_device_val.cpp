@@ -871,8 +871,8 @@ void net_device_val::update_netvsc_slaves(int if_index, int if_flags)
 			s->port_num = get_port_from_ifname(if_name);
 			m_slaves.push_back(s);
 
-			g_buffer_pool_rx->register_memory();
-			g_buffer_pool_tx->register_memory();
+			g_buffer_pool_rx->register_memory(s->p_ib_ctx);
+			g_buffer_pool_tx->register_memory(s->p_ib_ctx);
 		}
 	} else {
 		if (!m_slaves.empty()) {
