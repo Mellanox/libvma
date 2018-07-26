@@ -115,9 +115,9 @@ public:
 
 private:
 	inline void return_to_global_pool();
-	void prepare_flow_message(vma_msg_flow& data, msg_flow_t flow_action,
+	int prepare_flow_message(vma_msg_flow& data, msg_flow_t flow_action,
 			flow_tuple& flow_spec_5t);
-	void prepare_flow_message(vma_msg_flow& data, msg_flow_t flow_action);
+	int prepare_flow_message(vma_msg_flow& data, msg_flow_t flow_action);
 	int process_element_rx(void* pv_fd_ready_array);
 	bool request_more_tx_buffers();
 	bool request_more_rx_buffers();
