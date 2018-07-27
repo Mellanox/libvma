@@ -223,9 +223,18 @@ neigh_entry::neigh_entry(neigh_key key, transport_type_t _type, bool is_init_res
 	memset(&m_send_wqe, 0, sizeof(m_send_wqe));
 	memset(&m_sge, 0, sizeof(m_sge));
 
-	if (m_dst_addr.sin_addr.s_addr == m_src_addr.sin_addr.s_addr) {
-		neigh_logdbg("This is loopback neigh");
-		m_is_loopback = true;
+	/* Verify if neigh is local (loopback) checking into account
+	 * primary and secondary ip-addresses
+	 */
+	{
+		const ip_data_vector_t& ip = m_p_dev->get_ip_array();
+		for (size_t i = 0; i < ip.size(); i++) {
+			if (ip[i]->local_addr == m_dst_addr.sin_addr.s_addr) {
+				neigh_logdbg("This is loopback neigh");
+				m_is_loopback = true;
+				break;
+			}
+		}
 	}
 
 	neigh_logdbg("Created new neigh_entry");
