@@ -191,8 +191,6 @@ public:
 	//unmaps the qpn and vlan id
 	void 	unmap_vlan_and_qpn(int qp_num, uint16_t vlan_id);
 
-	void 	modify_cq_moderation(uint32_t period, uint32_t count);
-
 	virtual bool fill_cq_hw_descriptors(struct hw_cq_data &data) {NOT_IN_USE(data);return false;};
 
 protected:

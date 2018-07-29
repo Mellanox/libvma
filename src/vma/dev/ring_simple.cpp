@@ -1799,7 +1799,7 @@ void ring_simple::modify_cq_moderation(uint32_t period, uint32_t count)
 	m_p_ring_stat->simple.n_rx_cq_moderation_count = count;
 
 	//todo all cqs or just active? what about HA?
-	m_p_cq_mgr_rx->modify_cq_moderation(period, count);
+	priv_ibv_modify_cq_moderation(m_p_cq_mgr_rx->get_ibv_cq_hndl(), period, count);
 }
 
 void ring_simple::adapt_cq_moderation()
