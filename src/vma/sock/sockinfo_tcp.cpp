@@ -3041,7 +3041,7 @@ int sockinfo_tcp::wait_for_conn_ready()
 		 * therefore in this case the m_conn_state will not be changed only
 		 * m_sock_state
 		 */
-		if (rx_wait(poll_count, m_b_blocking) < 0) {
+		if (rx_wait(poll_count, m_b_blocking) < 0 || unlikely(g_b_exit)) {
 			si_tcp_logdbg("connect interrupted");
 			return -1;
 		}
