@@ -119,6 +119,7 @@ AS_IF([test "x$enable_exp_cq" == xyes],
 
 # Check <verbs.h>
 #
+CHECK_VERBS_ATTRIBUTE([IBV_CQ_ATTR_MODERATE], [infiniband/verbs.h], [IBV_CQ_ATTR_MODERATE])
 CHECK_VERBS_ATTRIBUTE([IBV_QPT_RAW_PACKET], [infiniband/verbs.h])
 CHECK_VERBS_ATTRIBUTE([IBV_WC_WITH_VLAN], [infiniband/verbs.h])
 CHECK_VERBS_ATTRIBUTE([IBV_ACCESS_ALLOCATE_MR], [infiniband/verbs.h])
@@ -128,7 +129,7 @@ CHECK_VERBS_ATTRIBUTE([IBV_SEND_IP_CSUM], [infiniband/verbs.h])
 
 # Check <verbs_exp.h>
 #
-CHECK_VERBS_ATTRIBUTE([IBV_EXP_CQ_MODERATION], [infiniband/verbs_exp.h])
+CHECK_VERBS_ATTRIBUTE([IBV_EXP_CQ_MODERATION], [infiniband/verbs_exp.h], [IBV_CQ_ATTR_MODERATE])
 CHECK_VERBS_ATTRIBUTE([IBV_EXP_WR_NOP], [infiniband/verbs_exp.h])
 CHECK_VERBS_ATTRIBUTE([IBV_EXP_ACCESS_ALLOCATE_MR], [infiniband/verbs_exp.h])
 CHECK_VERBS_ATTRIBUTE([IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN], [infiniband/verbs_exp.h])
@@ -139,7 +140,6 @@ CHECK_VERBS_ATTRIBUTE([IBV_EXP_SEND_IP_CSUM], [infiniband/verbs_exp.h])
 #
 CHECK_VERBS_ATTRIBUTE([MLX5_ETH_WQE_L3_CSUM], [infiniband/mlx5_hw.h], [MLX5_HW_ETH_WQE_HEADER])
 
-#
 # On Device Memory
 #
 AC_CHECK_DECL([IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE],

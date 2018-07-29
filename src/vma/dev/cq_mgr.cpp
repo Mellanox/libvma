@@ -1344,24 +1344,3 @@ cq_mgr* get_cq_mgr_from_cq_event(struct ibv_comp_channel* p_cq_channel)
 
 	return p_cq_mgr;
 }
-
-void cq_mgr::modify_cq_moderation(uint32_t period, uint32_t count)
-{
-#ifdef DEFINED_IBV_EXP_CQ_MODERATION
-	struct ibv_exp_cq_attr cq_attr;
-	memset(&cq_attr, 0, sizeof(cq_attr));
-	cq_attr.comp_mask = IBV_EXP_CQ_ATTR_MODERATION;
-	cq_attr.moderation.cq_count = count;
-	cq_attr.moderation.cq_period = period;
-
-	cq_logfunc("modify cq moderation, period=%d, count=%d", period, count);
-
-	IF_VERBS_FAILURE_EX(ibv_exp_modify_cq(m_p_ibv_cq, &cq_attr, IBV_EXP_CQ_MODERATION), EIO) {
-		cq_logdbg("Failure modifying cq moderation (errno=%d %m)", errno);
-	} ENDIF_VERBS_FAILURE;
-
-#else
-	NOT_IN_USE(count);
-	NOT_IN_USE(period);
-#endif
-}

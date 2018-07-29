@@ -617,11 +617,12 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_SELECT_SKIP_OS			(4)
 #define MCE_DEFAULT_SELECT_CPU_USAGE_STATS		(false)
 
-#ifdef DEFINED_IBV_EXP_CQ_MODERATION
+#ifdef DEFINED_IBV_CQ_ATTR_MODERATE
 #define MCE_DEFAULT_CQ_MODERATION_ENABLE               (true)
 #else
 #define MCE_DEFAULT_CQ_MODERATION_ENABLE               (false)
 #endif
+
 #define MCE_DEFAULT_CQ_MODERATION_COUNT			(48)
 #define MCE_DEFAULT_CQ_MODERATION_PERIOD_USEC		(50)
 #define MCE_DEFAULT_CQ_AIM_MAX_COUNT			(560)

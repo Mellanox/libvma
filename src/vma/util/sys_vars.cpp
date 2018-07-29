@@ -990,7 +990,7 @@ void mce_sys_var::get_env_params()
 	if ((env_ptr = getenv(SYS_VAR_SELECT_SKIP_OS)) != NULL)
 		select_skip_os_fd_check = (uint32_t)atoi(env_ptr);
 
-#ifdef DEFINED_IBV_EXP_CQ_MODERATION
+#ifdef DEFINED_IBV_CQ_ATTR_MODERATE
 	if (rx_poll_num < 0 ||  select_poll_num < 0) {
 		cq_moderation_enable = false;
 	}
@@ -1045,7 +1045,7 @@ void mce_sys_var::get_env_params()
 	if ((env_ptr = getenv(SYS_VAR_CQ_AIM_INTERRUPTS_RATE_PER_SEC)) != NULL) {
 		vlog_printf(VLOG_WARNING,"'%s' is not supported on this environment\n", SYS_VAR_CQ_AIM_INTERRUPTS_RATE_PER_SEC);
 	}
-#endif /*DEFINED_IBV_EXP_CQ_MODERATION*/
+#endif /* DEFINED_IBV_CQ_ATTR_MODERATE */
 
 	if ((env_ptr = getenv(SYS_VAR_CQ_POLL_BATCH_MAX)) != NULL)
 		cq_poll_batch_max = (uint32_t)atoi(env_ptr);

@@ -98,6 +98,8 @@ int priv_ibv_query_qp_state(struct ibv_qp *qp);
 // change  ib rate limit
 int priv_ibv_modify_qp_ratelimit(struct ibv_qp *qp, struct vma_rate_limit_t &rate_limit, uint32_t rl_changes);
 
+// Modify cq moderation
+void priv_ibv_modify_cq_moderation(struct ibv_cq* cq, uint32_t period, uint32_t count);
 
 #ifndef VLAN_VID_MASK
 #define VLAN_VID_MASK      0xFFF	/* define vlan range: 1-4095. taken from <linux/if_vlan.h> */
@@ -188,6 +190,15 @@ typedef struct ibv_flow_spec_ipv4		vma_ibv_flow_spec_ipv4;
 typedef struct ibv_flow_spec_tcp_udp		vma_ibv_flow_spec_tcp_udp;
 #define vma_get_flow_tag			0
 typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_tag;
+
+#ifdef DEFINED_IBV_CQ_ATTR_MODERATE
+typedef struct ibv_modify_cq_attr               vma_ibv_cq_attr;
+#define vma_ibv_modify_cq(cq, cq_attr, mask)    ibv_modify_cq(cq, cq_attr)
+#define vma_cq_attr_mask(cq_attr)               (cq_attr).attr_mask
+#define vma_cq_attr_moderation(cq_attr)         (cq_attr).moderate
+#define VMA_IBV_CQ_MODERATION                   IBV_CQ_ATTR_MODERATE
+#endif
+
 #else //new MLNX_OFED verbs (2.2 and newer)
 
 #define vma_ibv_create_qp(pd, attr)             ibv_exp_create_qp((pd)->context, attr)
@@ -256,6 +267,14 @@ typedef int            vma_ibv_cq_init_attr;
 #else
 #define VMA_IBV_WC_WITH_TIMESTAMP		0
 #define vma_wc_timestamp(wc)			0
+#endif
+
+#ifdef DEFINED_IBV_CQ_ATTR_MODERATE
+typedef struct ibv_exp_cq_attr                  vma_ibv_cq_attr;
+#define vma_ibv_modify_cq(cq, cq_attr, mask)    ibv_exp_modify_cq(cq, cq_attr,mask)
+#define vma_cq_attr_mask(cq_attr)               (cq_attr).comp_mask
+#define vma_cq_attr_moderation(cq_attr)         (cq_attr).moderation
+#define VMA_IBV_CQ_MODERATION                   IBV_EXP_CQ_ATTR_MODERATION
 #endif
 
 //ibv_post_send
