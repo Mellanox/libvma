@@ -69,7 +69,7 @@ class ring_allocation_logic
 protected:
 	ring_allocation_logic();
 	ring_allocation_logic(ring_logic_t ring_allocation_logic,
-			      int ring_migration_ratio, source_t &source,
+			      int ring_migration_ratio, source_t source,
 			      resource_allocation_key &ring_profile);
 
 

@@ -57,7 +57,7 @@ ring_allocation_logic::ring_allocation_logic():m_ring_migration_ratio(0),
 						m_res_key() {}
 
 ring_allocation_logic::ring_allocation_logic(ring_logic_t allocation_logic,
-					     int ring_migration_ratio, source_t &source,
+					     int ring_migration_ratio, source_t source,
 					     resource_allocation_key &ring_profile):
 	m_tostr("base"), m_ring_migration_ratio(ring_migration_ratio),
 	m_source(source), m_migration_try_count(ring_migration_ratio)
