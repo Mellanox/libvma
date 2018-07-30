@@ -1,4 +1,4 @@
-Update: 27 Jun 2018
+Update: 10 Jul 2018
 
 Introduction
 ============
@@ -417,6 +417,7 @@ Warning: This feature might hurt performance for applications which their main
 processing loop is based in select() and/or poll().
 The logic options are:
 0  - Ring per interface
+1  - Ring per ip address (using ip address)
 10 - Ring per socket (using socket fd as separator)
 20 - Ring per thread (using the id of the thread in which the socket was created)
 30 - Ring per core (using cpu id)

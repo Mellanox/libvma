@@ -597,10 +597,10 @@ net_device_resources_t* sockinfo::create_nd_resources(const ip_address ip_local)
 		unlock_rx_q();
 		m_rx_ring_map_lock.lock();
 		resource_allocation_key *key;
-		if (m_rx_ring_map.size()) {
+		if (m_rx_ring_map.size() && m_ring_alloc_logic.is_logic_support_migration()) {
 			key = m_ring_alloc_logic.get_key();
 		} else {
-			key = m_ring_alloc_logic.create_new_key();
+			key = m_ring_alloc_logic.create_new_key(ip_local.get_in_addr());
 		}
 		nd_resources.p_ring = nd_resources.p_ndv->reserve_ring(key);
 		m_rx_ring_map_lock.unlock();
@@ -667,7 +667,13 @@ bool sockinfo::destroy_nd_resources(const ip_address ip_local)
 		// Release ring reference
 		BULLSEYE_EXCLUDE_BLOCK_START
 		unlock_rx_q();
-		if (!p_nd_resources->p_ndv->release_ring(m_ring_alloc_logic.get_key())) {
+		resource_allocation_key *key;
+		if (m_ring_alloc_logic.is_logic_support_migration()) {
+			key = m_ring_alloc_logic.get_key();
+		} else {
+			key = m_ring_alloc_logic.create_new_key(ip_local.get_in_addr());
+		}
+		if (!p_nd_resources->p_ndv->release_ring(key)) {
 			lock_rx_q();
 			si_logerr("Failed to release ring for allocation key %s on ip %s",
 				  m_ring_alloc_logic.get_key()->to_str(),

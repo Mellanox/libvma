@@ -65,7 +65,9 @@ igmp_handler::igmp_handler(const igmp_key &key, uint8_t igmp_code) : m_mc_addr (
 					   m_ignore_timer(false), m_timer_handle(NULL), m_p_neigh_entry(NULL), m_p_neigh_val(NULL),
 					   m_p_ring(NULL), m_igmp_code(igmp_code ? igmp_code : IGMPV1_MAX_RESPONSE_TIME), m_id(0)
 {
-	m_p_res_key = new resource_allocation_key();
+	ring_alloc_logic_attr ring_attr(safe_mce_sys().ring_allocation_logic_tx);
+	m_ring_allocation_logic = ring_allocation_logic_tx(m_p_ndvl->get_local_addr(), ring_attr, this);
+
 	memset(&m_sge, 0, sizeof(m_sge));
 	memset(&m_p_send_igmp_wqe, 0, sizeof(m_p_send_igmp_wqe));
 }
@@ -78,9 +80,7 @@ igmp_handler::~igmp_handler()
 	}
 
 	if (m_p_ring) {
-
-		m_p_ndvl->release_ring(m_p_res_key);
-		delete m_p_res_key;
+		m_p_ndvl->release_ring(m_ring_allocation_logic.get_key());
 		m_p_ring = NULL;
 	}
 
@@ -109,7 +109,7 @@ bool igmp_handler::init(const igmp_key &key)
 		return false;
 	}
 
-	m_p_ring = m_p_ndvl->reserve_ring(m_p_res_key);
+	m_p_ring = m_p_ndvl->reserve_ring(m_ring_allocation_logic.get_key());
 	if (!m_p_ring) {
 		igmp_hdlr_logerr("Ring was not reserved");
 		return false;

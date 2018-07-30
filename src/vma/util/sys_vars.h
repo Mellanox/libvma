@@ -80,6 +80,7 @@ static inline bool is_ring_logic_valid(ring_logic_t logic)
 {
 	switch (logic) {
 	case RING_LOGIC_PER_INTERFACE:
+	case RING_LOGIC_PER_IP:
 	case RING_LOGIC_PER_SOCKET:
 	case RING_LOGIC_PER_THREAD:
 	case RING_LOGIC_PER_CORE:
@@ -94,6 +95,7 @@ static inline const char* ring_logic_str(ring_logic_t logic)
 {
 	switch (logic) {
 	case RING_LOGIC_PER_INTERFACE:		return "(Ring per interface)";
+	case RING_LOGIC_PER_IP:			return "(Ring per ip)";
 	case RING_LOGIC_PER_SOCKET:		return "(Ring per socket)";
 	case RING_LOGIC_PER_THREAD:		return "(Ring per thread)";
 	case RING_LOGIC_PER_CORE:		return "(Ring per core)";
