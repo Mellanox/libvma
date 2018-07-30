@@ -3045,6 +3045,11 @@ int sockinfo_tcp::wait_for_conn_ready()
 			si_tcp_logdbg("connect interrupted");
 			return -1;
 		}
+
+		if (unlikely(g_b_exit)) {
+			errno = EINTR;
+			return -1;
+		}
 	}
 	if (m_sock_state == TCP_SOCK_INITED) {
 		//we get here if err_lwip_cb() was called and set m_sock_state=TCP_SOCK_INITED
@@ -3964,6 +3969,7 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 	// if we polling too much - go to sleep
 	si_tcp_logfuncall("%d: too many polls without data blocking=%d", m_fd, is_blocking);
 	if (g_b_exit) {
+		errno = EINTR;
 		return -1;
 	}
 
