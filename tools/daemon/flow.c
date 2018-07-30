@@ -197,9 +197,9 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 					/* Create filter to redirect traffic from tap device to lo device in case destination address relates netvsc */
 					out_buf = sys_exec("tc filter add dev %s protocol ip parent ffff: prio 1 "
 								"handle ::%d u32 ht 800:: "
-								"match ip dst %s/32 action mirred egress redirect dev lo "
+								"match ip dst %s/32 action mirred egress redirect dev %s "
 								"> /dev/null 2>&1 || echo $?",
-								tap_name, handle, addr);
+								tap_name, handle, addr, sys_lo_ifname());
 					if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
 						log_error("[%d] failed tc filter add dev %s redirect to lo output: %s\n",
 								pid, tap_name, (out_buf ? out_buf : "n/a"));
@@ -212,8 +212,11 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 			freeifaddrs(ifaddr);
 		}
 
-		/* Create filter to redirect traffic from tap device to netvsc device */
-		out_buf = sys_exec("tc filter add dev %s protocol ip parent ffff: prio 1 "
+		/* Create filter to redirect traffic from tap device to netvsc device
+		 * Use another prio value for common filter just to separate one
+		 * actually the same value should work too
+		 */
+		out_buf = sys_exec("tc filter add dev %s protocol ip parent ffff: prio 2 "
 					"handle ::%d u32 ht 800:: "
 					"match u8 0 0 action mirred egress redirect dev %s "
 					"> /dev/null 2>&1 || echo $?",

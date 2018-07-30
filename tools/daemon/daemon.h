@@ -51,6 +51,7 @@
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <sys/time.h>
+#include <ifaddrs.h>
 
 #ifdef HAVE_LINUX_LIMITS_H
 #include <linux/limits.h>
@@ -298,6 +299,44 @@ static inline char *sys_exec(const char * format, ...)
 	return outbuf;
 err:
 	return NULL;
+}
+
+static inline uint32_t sys_lo_ifindex(void)
+{
+	static __thread uint32_t lo_ifindex = 0;
+	struct ifaddrs *ifaddr, *ifa;
+
+	if (lo_ifindex > 0) {
+		return lo_ifindex;
+	}
+
+	if (!getifaddrs(&ifaddr)) {
+		for (ifa = ifaddr; NULL != ifa; ifa = ifa->ifa_next) {
+			if (ifa->ifa_addr->sa_family == AF_INET &&
+					(ifa->ifa_flags & IFF_LOOPBACK)) {
+				lo_ifindex = if_nametoindex(ifa->ifa_name);
+				break;
+			}
+		}
+		freeifaddrs(ifaddr);
+	}
+
+	return lo_ifindex;
+}
+
+static inline char *sys_lo_ifname(void)
+{
+	static __thread char lo_ifname[IF_NAMESIZE] = {0};
+
+	if (lo_ifname[0] > 0) {
+		return lo_ifname;
+	}
+
+	if (NULL == if_indextoname(sys_lo_ifindex(), lo_ifname)) {
+		lo_ifname[0] = 0;
+	}
+
+	return lo_ifname;
 }
 
 #endif /* TOOLS_DAEMON_DAEMON_H_ */

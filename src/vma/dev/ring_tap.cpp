@@ -1162,16 +1162,6 @@ int ring_tap::prepare_flow_message(vma_msg_flow& data, msg_flow_t flow_action,
 
 	rc = g_p_agent->send_msg_flow(&data);
 
-	/* Duplicate rules against lo interface
-	 * In fact 'lo' loopback interfaces can be renamed but in practice
-	 * nobody does it to avoid getting nonworking system
-	 */
-	if (0 == rc) {
-		data.if_id = if_nametoindex("lo");
-
-		rc = g_p_agent->send_msg_flow(&data);
-	}
-
 	return rc;
 }
 

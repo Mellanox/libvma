@@ -174,6 +174,8 @@ again:
 			break;
 		case VMA_MSG_FLOW:
 			rc = proc_msg_flow(msg_hdr, len, &peeraddr);
+			/* Note: special loopback logic */
+			proc_msg_flow(msg_hdr, len, NULL);
 			break;
 		default:
 			rc = -EPROTO;
@@ -373,9 +375,10 @@ static int proc_msg_flow(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_u
 	struct store_flow *cur_flow = NULL;
 	struct list_head *cur_entry = NULL;
 	int value_new = 0;
+	int ack = 0;
 
 	assert(msg_hdr);
-	assert(msg_hdr->code == VMA_MSG_FLOW);
+	assert((msg_hdr->code & ~VMA_MSG_ACK) == VMA_MSG_FLOW);
 	assert(size);
 
 	data = (struct vma_msg_flow *)msg_hdr;
@@ -383,6 +386,14 @@ static int proc_msg_flow(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_u
 		rc = -EBADMSG;
 		goto err;
 	}
+
+	/* Note: special loopback logic */
+	if (NULL == peeraddr &&
+			data->type == VMA_MSG_FLOW_EGRESS) {
+		return 0;
+	}
+
+	ack = (1 == data->hdr.status);
 
 	pid_value = hash_get(daemon_cfg.ht, data->hdr.pid);
 	if (NULL == pid_value) {
@@ -426,6 +437,16 @@ static int proc_msg_flow(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_u
 		goto err;
 	}
 
+	/* Note: special loopback logic */
+	if (NULL == peeraddr) {
+		value->if_id = sys_lo_ifindex();
+		ack = 0;
+		if (value->if_id <= 0) {
+			rc = -EFAULT;
+			goto err;
+		}
+	}
+
 	if (VMA_MSG_FLOW_ADD == data->action) {
 		list_for_each(cur_entry, &pid_value->flow_list) {
 			cur_flow = list_entry(cur_entry, struct store_flow, item);
@@ -467,7 +488,7 @@ static int proc_msg_flow(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_u
 	}
 
 err:
-	if (1 == data->hdr.status) {
+	if (ack) {
 		data->hdr.code |= VMA_MSG_ACK;
 		data->hdr.status = (rc ? 1 : 0);
 		if (0 > sys_sendto(daemon_cfg.sock_fd, &data->hdr, sizeof(data->hdr), 0,
