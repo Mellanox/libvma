@@ -40,7 +40,7 @@ class mem_buf_desc_t;
 class ib_ctx_handler;
 
 #if defined(HAVE_INFINIBAND_MLX5_HW_H)
-#if defined(HAVE_IBV_DM)
+#if defined(DEFINED_IBV_DM)
 
 #define DM_COMPLETION_THRESHOLD 8192
 
@@ -81,6 +81,6 @@ public:
 	inline bool   is_completion_need() { return false; };
 };
 
-#endif /* HAVE_IBV_DM */
+#endif /* DEFINED_IBV_DM */
 #endif /* HAVE_INFINIBAND_MLX5_HW_H */
 #endif /* DM_MGR_H */
