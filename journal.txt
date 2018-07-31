@@ -1,3 +1,28 @@
+Version 8.7.0-0:
+Date + Time 2018-07-31
+=============================================================
+Added:
+        - RM #1465058 Introduce ring per ip-address logic
+        - RM #1427836 Register memory of single context
+        - RM #1427835 Update update_netvsc_slaves() by parameter
+        - RM #1427833 Update ib_ctx collection table by parameter
+        - RM #1394737 Remove mem_buf_desc_owner
+        - RM #1475467 Remove virtual functions from mem_buf_desc_owner
+        - RM #1384362 Report version mismatch between vmad and agent
+        - RM #1469960 Add iterator shortcut to vma_list_t
+        - RM #1463833 Improve peer notification capability
+        - RM #1388840 Support ring allocation methods for ring tap
+        - RM #1467248 Remove ah_cleaner class
+        - RM #1322101 Add support for IP_TTL socket option
+        - RM #1450325 Enhance vma_stats output to monitor ring_type
+        - RM #1178933 Print warning while RoCE lag is enabled
+        - RM #1449421 Suppress warning in case flow attach is interrupted
+Fixed:
+        - RM #1480511 Fix TCP client hangs while connecting to local ip
+        - RM #1477680 Fix issue with loopback detection
+        - RM #1475443 Fix getsockname/getpeername returned data
+        - RM #1452014 Fix gcc8 stringop-truncation warning
+
 Version 8.6.10-0:
 Date + Time 2018-06-27
 =============================================================
