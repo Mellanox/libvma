@@ -135,26 +135,13 @@ CHECK_VERBS_ATTRIBUTE([IBV_EXP_ACCESS_ALLOCATE_MR], [infiniband/verbs_exp.h])
 CHECK_VERBS_ATTRIBUTE([IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN], [infiniband/verbs_exp.h])
 CHECK_VERBS_ATTRIBUTE([IBV_EXP_FLOW_SPEC_IB], [infiniband/verbs_exp.h], [IBV_FLOW_SPEC_IB])
 CHECK_VERBS_ATTRIBUTE([IBV_EXP_SEND_IP_CSUM], [infiniband/verbs_exp.h])
+CHECK_VERBS_ATTRIBUTE([IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE], [infiniband/verbs_exp.h], [IBV_DM])
+CHECK_VERBS_ATTRIBUTE([IBV_EXP_QP_RATE_LIMIT], [infiniband/verbs_exp.h])
+CHECK_VERBS_ATTRIBUTE([IBV_EXP_QP_SUPPORT_BURST], [infiniband/verbs_exp.h])
 
 # Check for <mlx5/wqe.h>
 #
 CHECK_VERBS_ATTRIBUTE([MLX5_ETH_WQE_L3_CSUM], [infiniband/mlx5_hw.h], [MLX5_HW_ETH_WQE_HEADER])
-
-# On Device Memory
-#
-AC_CHECK_DECL([IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE],
-    [AC_DEFINE(HAVE_IBV_DM, 1, [Define to 1 if IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE is defined])],
-    [],
-    [[#include <infiniband/verbs_exp.h>]])
-
-
-AC_CHECK_DECLS([IBV_EXP_QP_RATE_LIMIT],
-	[AC_DEFINE(DEFINED_IBV_EXP_QP_RATE_LIMIT, 1, [Define to 1 if IBV_EXP_QP_RATE_LIMIT defined])],
-	[], [[#include <infiniband/verbs_exp.h>]])
-
-AC_CHECK_DECLS([IBV_EXP_QP_SUPPORT_BURST],
-	[AC_DEFINE(DEFINED_IBV_EXP_QP_SUPPORT_BURST, 1, [Define to 1 if IBV_EXP_QP_SUPPORT_BURST defined])],
-	[], [[#include <infiniband/verbs_exp.h>]])
 
 have_mp_rq=yes
 AC_CHECK_DECLS([IBV_EXP_DEVICE_ATTR_VLAN_OFFLOADS,
