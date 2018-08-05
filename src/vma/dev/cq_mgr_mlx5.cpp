@@ -565,7 +565,7 @@ int cq_mgr_mlx5::poll_and_process_element_tx(uint64_t* p_cq_poll_sn)
 
 void cq_mgr_mlx5::set_qp_rq(qp_mgr* qp)
 {
-	struct ibv_cq *ibcq = m_p_ibv_cq; // ibcp is used in next macro: _to_mxxx
+	struct ibv_cq *ibcq = get_ibv_cq_hndl(); // ibcp is used in next macro: _to_mxxx
 	m_mlx5_cq = _to_mxxx(cq, cq);
 	struct verbs_qp *vqp = (struct verbs_qp *)qp->m_qp;
 	struct mlx5_qp *mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
@@ -577,7 +577,7 @@ void cq_mgr_mlx5::set_qp_rq(qp_mgr* qp)
 	m_cq_dbell = m_mlx5_cq->dbrec;
 	m_cqe_log_sz = ilog_2(m_mlx5_cq->cqe_sz);
 	m_cqes = ((uint8_t*)m_mlx5_cq->active_buf->buf) + m_mlx5_cq->cqe_sz - sizeof(struct mlx5_cqe64);
-	m_cq_size = m_p_ibv_cq->cqe + 1;
+	m_cq_size = get_ibv_cq_hndl()->cqe + 1;
 }
 
 void cq_mgr_mlx5::add_qp_rx(qp_mgr* qp)
@@ -615,7 +615,7 @@ void cq_mgr_mlx5::add_qp_tx(qp_mgr* qp)
 {
 	//Assume locked!
 	cq_mgr::add_qp_tx(qp);
-	struct ibv_cq *ibcq = m_p_ibv_cq; // ibcp is used in next macro: _to_mxxx
+	struct ibv_cq *ibcq = get_ibv_cq_hndl(); // ibcp is used in next macro: _to_mxxx
 	m_mlx5_cq = _to_mxxx(cq, cq);
 	m_qp = static_cast<qp_mgr_eth_mlx5*> (qp);
 	m_cq_dbell = m_mlx5_cq->dbrec;
@@ -632,7 +632,7 @@ bool cq_mgr_mlx5::fill_cq_hw_descriptors(struct hw_cq_data &data)
 
 	memset(&cq_info, 0, sizeof(cq_info));
 
-	if (ibv_mlx5_exp_get_cq_info(m_p_ibv_cq, &cq_info)) {
+	if (ibv_mlx5_exp_get_cq_info(get_ibv_cq_hndl(), &cq_info)) {
 		cq_logerr("ibv_mlx5_exp_get_cq_info failed,"
 			"cq was already used, cannot use it in direct mode, "
 					"%p", m_p_ibv_cq);

@@ -119,7 +119,7 @@ public:
 
 	void configure(int cq_size);
 
-	ibv_cq *get_ibv_cq_hndl();
+	inline ibv_cq *get_ibv_cq_hndl() { return vma_ibv_get_cq(m_p_ibv_cq); }
 	int	get_channel_fd();
 
 	/**
@@ -220,11 +220,11 @@ protected:
 	bool		compensate_qp_poll_success(mem_buf_desc_t* buff);
 	inline uint32_t process_recv_queue(void* pv_fd_ready_array = NULL);
 
-	virtual void	prep_ibv_cq(vma_ibv_cq_init_attr &attr) const;
+	virtual void	prep_ibv_cq(vma_ibv_cq_init_attr &attr, int cq_size) const;
 	//returns list of buffers to the owner.
 	void		process_tx_buffer_list(mem_buf_desc_t* p_mem_buf_desc);
 
-	struct ibv_cq*		m_p_ibv_cq;
+	vma_ibv_cq*		m_p_ibv_cq;
 	bool			m_b_is_rx;
 	descq_t			m_rx_queue;
 	static uint64_t		m_n_global_sn;

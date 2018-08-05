@@ -136,6 +136,7 @@ CHECK_VERBS_ATTRIBUTE([IBV_ACCESS_ALLOCATE_MR], [infiniband/verbs.h])
 CHECK_VERBS_ATTRIBUTE([IBV_FLOW_SPEC_IB], [infiniband/verbs.h], [IBV_FLOW_SPEC_IB])
 CHECK_VERBS_ATTRIBUTE([IBV_DEVICE_RAW_IP_CSUM], [infiniband/verbs.h])
 CHECK_VERBS_ATTRIBUTE([IBV_SEND_IP_CSUM], [infiniband/verbs.h])
+CHECK_VERBS_ATTRIBUTE([IBV_WC_EX_WITH_BYTE_LEN], [infiniband/verbs.h], [IBV_EX_CQ])
 
 # Check <verbs_exp.h>
 #

@@ -126,9 +126,7 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 void cq_mgr::configure(int cq_size)
 {
 	vma_ibv_cq_init_attr attr;
-	memset(&attr, 0, sizeof(attr));
-
-	prep_ibv_cq(attr);
+	prep_ibv_cq(attr, cq_size);
 
 	m_p_ibv_cq = vma_ibv_create_cq(m_p_ib_ctx_handler->get_ibv_context(),
 			cq_size - 1, (void *)this, m_comp_event_channel, 0, &attr);
@@ -171,10 +169,14 @@ void cq_mgr::configure(int cq_size)
 	cq_logdbg("Created CQ as %s with fd[%d] and of size %d elements (ibv_cq_hndl=%p)", (m_b_is_rx?"Rx":"Tx"), get_channel_fd(), cq_size, m_p_ibv_cq);
 }
 
-void cq_mgr::prep_ibv_cq(vma_ibv_cq_init_attr& attr) const
+void cq_mgr::prep_ibv_cq(vma_ibv_cq_init_attr& attr, int cq_size) const
 {
+	memset(&attr, 0, sizeof(attr));
+
+	init_vma_ibv_cq_init_attr(&attr, cq_size -1, (void *)this, m_comp_event_channel);
+
 	if (m_p_ib_ctx_handler->get_ctx_time_converter_status()) {
-		init_vma_ibv_cq_init_attr(&attr);
+		init_vma_ibv_cq_init_attr_ts(&attr);
 	}
 }
 
@@ -222,8 +224,8 @@ cq_mgr::~cq_mgr()
 		m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
 	}
 
-	cq_logfunc("destroying ibv_cq");
-	IF_VERBS_FAILURE_EX(ibv_destroy_cq(m_p_ibv_cq), EIO) {
+	cq_logfunc("destroying vma_ibv_cq");
+	IF_VERBS_FAILURE_EX(ibv_destroy_cq(get_ibv_cq_hndl()), EIO) {
 		cq_logerr("destroy cq failed (errno=%d %m)", errno);
 	} ENDIF_VERBS_FAILURE;
 	VALGRIND_MAKE_MEM_UNDEFINED(m_p_ibv_cq, sizeof(ibv_cq));
@@ -242,11 +244,6 @@ void cq_mgr::statistics_print()
 		cq_logdbg_no_funcname("Packets dropped: %12llu", m_p_cq_stat->n_rx_pkt_drop);
 		cq_logdbg_no_funcname("Drained max: %17u",  m_p_cq_stat->n_rx_drained_at_once_max);
 	}
-}
-
-ibv_cq* cq_mgr::get_ibv_cq_hndl()
-{
-	return m_p_ibv_cq;
 }
 
 int cq_mgr::get_channel_fd()
@@ -363,7 +360,7 @@ int cq_mgr::poll(vma_ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn)
 #ifdef RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
 	RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VMA_TCP_IDLE_POLL]);
 #endif //RDTSC_MEASURE_RX_VMA_TCP_IDLE_POLL
-	int ret = vma_ibv_poll_cq(m_p_ibv_cq, num_entries, p_wce);
+	int ret = vma_ibv_poll_cq(get_ibv_cq_hndl(), num_entries, p_wce);
 	if (ret <= 0) {
 #ifdef RDTSC_MEASURE_RX_VERBS_IDLE_POLL
 		RDTSC_TAKE_END(g_rdtsc_instr_info_arr[RDTSC_FLOW_RX_VERBS_IDLE_POLL]);
@@ -1265,7 +1262,7 @@ int cq_mgr::request_notification(uint64_t poll_sn)
 		cq_logfunc("arming cq_mgr notification channel");
 
 		// Arm the CQ notification channel
-		IF_VERBS_FAILURE(ibv_req_notify_cq(m_p_ibv_cq, 0)) {
+		IF_VERBS_FAILURE(ibv_req_notify_cq(get_ibv_cq_hndl(), 0)) {
 			cq_logerr("Failure arming the qp_mgr notification channel (errno=%d %m)", errno);
 		}
 		else {
@@ -1306,7 +1303,7 @@ int cq_mgr::wait_for_notification_and_process_element(uint64_t* p_cq_poll_sn, vo
 			}
 
 			// Ack event
-			ibv_ack_cq_events(m_p_ibv_cq, 1);
+			ibv_ack_cq_events(get_ibv_cq_hndl(), 1);
 
 			// Clear flag
 			m_b_notification_armed = false;

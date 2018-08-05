@@ -145,8 +145,14 @@ typedef struct ibv_wc				vma_ibv_wc;
 #define vma_wc_rx_hw_csum_ok(wc)		(1)
 #endif
 
+// Cq ex
+#ifdef DEFINED_IBV_EX_CQ
+typedef struct ibv_cq_init_attr_ex            vma_ibv_cq_init_attr;
+#define vma_ibv_create_cq(context, cqe, cq_context, channel, comp_vector, attr) ibv_create_cq_ex(context, attr)
+#else
 typedef int            vma_ibv_cq_init_attr;
 #define vma_ibv_create_cq(context, cqe, cq_context, channel, comp_vector, attr) ibv_create_cq(context, cqe, cq_context, channel, comp_vector)
+#endif // DEFINED_IBV_EX_CQ
 
 //rx hw timestamp
 #define VMA_IBV_WC_WITH_TIMESTAMP              0
@@ -252,7 +258,7 @@ typedef struct ibv_wc				vma_ibv_wc;
 //verbs cq
 typedef int            vma_ibv_cq_init_attr;
 #define vma_ibv_create_cq(context, cqe, cq_context, channel, comp_vector, attr) ibv_create_cq(context, cqe, cq_context, channel, comp_vector)
-#endif
+#endif // DEFINED_IBV_EXP_CQ
 
 #ifdef DEFINED_IBV_EXP_DEVICE_RX_CSUM_L4_PKT
 #define vma_wc_rx_hw_csum_ok(wc)		((vma_wc_flags(wc) & IBV_EXP_L3_RX_CSUM_OK) && (vma_wc_flags(wc) & IBV_EXP_L4_RX_CSUM_OK))
@@ -365,6 +371,15 @@ typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_ta
 #define vma_ibv_get_device_list(num)		ibv_get_device_list(num)
 #endif
 
+// Cq ex
+#ifdef DEFINED_IBV_EX_CQ
+#define vma_ibv_get_cq(cq)					ibv_cq_ex_to_cq(cq)
+typedef struct ibv_cq_ex					vma_ibv_cq;
+#else
+#define vma_ibv_get_cq(cq)					(cq)
+typedef struct ibv_cq						vma_ibv_cq;
+#endif // DEFINED_IBV_EX_CQ
+
 typedef enum {
 	RL_RATE = 1<<0,
 	RL_BURST_SIZE = 1<<1,
@@ -386,13 +401,27 @@ inline bool is_set(vma_wr_tx_packet_attr state_, vma_wr_tx_packet_attr tx_mode_)
 
 int vma_rdma_lib_reset();
 
-static inline void init_vma_ibv_cq_init_attr(vma_ibv_cq_init_attr* attr)
+static inline void init_vma_ibv_cq_init_attr_ts(vma_ibv_cq_init_attr* attr)
 {
 #ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
 		attr->flags |= IBV_EXP_CQ_TIMESTAMP;
 		attr->comp_mask |= IBV_EXP_CQ_INIT_ATTR_FLAGS;
 #else
 		NOT_IN_USE(attr);
+#endif
+}
+
+static inline void init_vma_ibv_cq_init_attr(vma_ibv_cq_init_attr* attr, int cq_size, void* cq_context, struct ibv_comp_channel *channel)
+{
+#ifdef DEFINED_IBV_EX_CQ
+	attr->cqe = cq_size;
+	attr->cq_context = cq_context;
+	attr->channel = channel;
+#else
+	NOT_IN_USE(attr);
+	NOT_IN_USE(cq_size);
+	NOT_IN_USE(cq_context);
+	NOT_IN_USE(channel);
 #endif
 }
 
