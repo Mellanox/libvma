@@ -12,6 +12,8 @@ AC_DEFUN([CHECK_NL_LIB],
 # checking for libnl1 or libnl3 in libibverbs
 if test -f "$ac_cv_ofed_path/lib64/libibverbs.so" ; then
 	libibverbs_file="$ac_cv_ofed_path/lib64/libibverbs.so"
+elif test -f "$(ls -d $ac_cv_ofed_path/lib/$(uname -m)-linux-*)/libibverbs.so" ; then
+	libibverbs_file="$(ls -d $ac_cv_ofed_path/lib/$(uname -m)-linux-*)/libibverbs.so"
 else
 	libibverbs_file="$ac_cv_ofed_path/lib/libibverbs.so"
 fi
