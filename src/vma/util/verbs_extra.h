@@ -131,10 +131,9 @@ typedef struct ibv_device_attr			vma_ibv_device_attr;
 #define vma_ibv_modify_qp(qp, attr, mask)	ibv_modify_qp(qp, attr, mask)
 typedef struct ibv_qp_attr			vma_ibv_qp_attr;
 //ibv_poll_cq
-#define vma_ibv_poll_cq(cq, num, wc)		ibv_poll_cq(cq, num, wc)
 typedef struct ibv_wc				vma_ibv_wc;
-#define vma_wc_flags(wc)			(wc).wc_flags
-#define vma_wc_opcode(wc)			(wc).opcode
+#define vma_wc_flags(wc)			(wc)->wc_flags
+#define vma_wc_opcode(wc)			(wc)->opcode
 #define VMA_IBV_WC_RECV				IBV_WC_RECV
 //csum offload
 #ifdef DEFINED_IBV_DEVICE_RAW_IP_CSUM
@@ -149,9 +148,11 @@ typedef struct ibv_wc				vma_ibv_wc;
 #ifdef DEFINED_IBV_EX_CQ
 typedef struct ibv_cq_init_attr_ex            vma_ibv_cq_init_attr;
 #define vma_ibv_create_cq(context, cqe, cq_context, channel, comp_vector, attr) ibv_create_cq_ex(context, attr)
+#define vma_ibv_poll_cq(cq, num, wc, attr) 	ibv_start_poll(cq, attr)
 #else
 typedef int            vma_ibv_cq_init_attr;
 #define vma_ibv_create_cq(context, cqe, cq_context, channel, comp_vector, attr) ibv_create_cq(context, cqe, cq_context, channel, comp_vector)
+#define vma_ibv_poll_cq(cq, num, wc, attr)	ibv_poll_cq(cq, num, wc)
 #endif // DEFINED_IBV_EX_CQ
 
 //rx hw timestamp
@@ -238,10 +239,10 @@ typedef struct ibv_exp_qp_attr			vma_ibv_qp_attr;
 
 //ibv_exp_poll_cq
 #ifdef DEFINED_IBV_EXP_CQ
-#define vma_ibv_poll_cq(cq, num, wc)		ibv_exp_poll_cq(cq, num, wc, sizeof(struct ibv_exp_wc))
+#define vma_ibv_poll_cq(cq, num, wc, attr)	ibv_exp_poll_cq(cq, num, wc, sizeof(struct ibv_exp_wc))
 typedef struct ibv_exp_wc			vma_ibv_wc;
-#define vma_wc_flags(wc)			(wc).exp_wc_flags
-#define vma_wc_opcode(wc)			(wc).exp_opcode
+#define vma_wc_flags(wc)			(wc)->exp_wc_flags
+#define vma_wc_opcode(wc)			(wc)->exp_opcode
 #define VMA_IBV_WC_RECV				IBV_EXP_WC_RECV
 
 //experimental cq
@@ -249,10 +250,10 @@ typedef struct ibv_exp_cq_init_attr           vma_ibv_cq_init_attr;
 #define vma_ibv_create_cq(context, cqe, cq_context, channel, comp_vector, attr) ibv_exp_create_cq(context, cqe, cq_context, channel, comp_vector, attr)
 #else
 //ibv_poll_cq
-#define vma_ibv_poll_cq(cq, num, wc)		ibv_poll_cq(cq, num, wc)
+#define vma_ibv_poll_cq(cq, num, wc, attr)	ibv_poll_cq(cq, num, wc)
 typedef struct ibv_wc				vma_ibv_wc;
-#define vma_wc_flags(wc)			(wc).wc_flags
-#define vma_wc_opcode(wc)			(wc).opcode
+#define vma_wc_flags(wc)			(wc)->wc_flags
+#define vma_wc_opcode(wc)			(wc)->opcode
 #define VMA_IBV_WC_RECV				IBV_WC_RECV
 
 //verbs cq
@@ -273,7 +274,7 @@ typedef int            vma_ibv_cq_init_attr;
 //rx hw timestamp
 #ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
 #define VMA_IBV_WC_WITH_TIMESTAMP              IBV_EXP_WC_WITH_TIMESTAMP
-#define vma_wc_timestamp(wc)			(wc).timestamp
+#define vma_wc_timestamp(wc)			(wc)->timestamp
 #else
 #define VMA_IBV_WC_WITH_TIMESTAMP		0
 #define vma_wc_timestamp(wc)			0
@@ -373,11 +374,55 @@ typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_ta
 
 // Cq ex
 #ifdef DEFINED_IBV_EX_CQ
-#define vma_ibv_get_cq(cq)					ibv_cq_ex_to_cq(cq)
-typedef struct ibv_cq_ex					vma_ibv_cq;
+#define vma_ibv_get_cq(cq)                    ibv_cq_ex_to_cq(cq)
+typedef struct ibv_cq_ex                      vma_ibv_cq;
+typedef struct ibv_cq_ex                      vma_wc_context;
+typedef struct ibv_poll_cq_attr               vma_poll_cq_attr;
+
+#define VMA_WC_CONTEXT_PREPARE
+#define VMA_WC_CONTEXT_INIT                   m_p_ibv_cq
+#define VMA_WC_CONTEXT_CHECK_STATUS           ret
+#define VMA_WC_CONTEXT_LOOP                   count = 0; !ret ; count++, ret = ibv_next_poll(wce)
+#define VMA_WC_CONTEXT_END                    ibv_end_poll(wce)
+
+#define vma_wc_context_opcode(cq_ex)          ibv_wc_read_opcode(cq_ex)
+#define vma_wc_context_flags(cq_ex)           ibv_wc_read_wc_flags(cq_ex)
+#define vma_wc_context_timestamp(cq_ex)       ibv_wc_read_completion_ts(cq_ex)
+#define vma_wc_context_rx_hw_csum_ok(cq_ex)  (vma_wc_context_flags(cq_ex) & IBV_WC_IP_CSUM_OK)
+#define vma_wc_context_vendor_err(cq_ex)      ibv_wc_read_vendor_err(cq_ex)
+#define vma_wc_context_byte_len(cq_ex)        ibv_wc_read_byte_len(cq_ex)
+#define vma_wc_context_imm_data(cq_ex)        ibv_wc_read_imm_data(cq_ex)
+#define vma_wc_context_qp_num(cq_ex)          ibv_wc_read_qp_num(cq_ex)
+#define vma_wc_context_src_qp(cq_ex)          ibv_wc_read_src_qp(cq_ex)
+#define vma_wc_context_pkey_index(cq_ex)      0
+#define vma_wc_context_slid(cq_ex)            ibv_wc_read_slid(cq_ex)
+#define vma_wc_context_sl(cq_ex)              ibv_wc_read_sl(cq_ex)
+#define vma_wc_context_dlid_path_bits(cq_ex)  ibv_wc_read_dlid_path_bits(cq_ex)
 #else
-#define vma_ibv_get_cq(cq)					(cq)
-typedef struct ibv_cq						vma_ibv_cq;
+typedef struct ibv_cq                         vma_ibv_cq;
+typedef vma_ibv_wc                            vma_wc_context;
+typedef struct ibv_poll_cq_attr_dummy {}      vma_poll_cq_attr;
+
+#define VMA_WC_CONTEXT_PREPARE                vma_ibv_wc wce_ctx[MCE_MAX_CQ_POLL_BATCH]
+#define VMA_WC_CONTEXT_INIT                   wce_ctx
+#define VMA_WC_CONTEXT_CHECK_STATUS           ret <= 0
+#define VMA_WC_CONTEXT_LOOP                   count = 0; count < ret; count++, wce++
+#define VMA_WC_CONTEXT_END
+
+#define vma_ibv_get_cq(cq)                    (cq)
+#define vma_wc_context_opcode                 vma_wc_opcode
+#define vma_wc_context_flags                  vma_wc_flags
+#define vma_wc_context_rx_hw_csum_ok          vma_wc_rx_hw_csum_ok
+#define vma_wc_context_timestamp              vma_wc_timestamp
+#define vma_wc_context_vendor_err(wcc)        (wcc)->vendor_err
+#define vma_wc_context_byte_len(wcc)          (wcc)->byte_len
+#define vma_wc_context_imm_data(wcc)          (wcc)->imm_data
+#define vma_wc_context_qp_num(wcc)            (wcc)->qp_num
+#define vma_wc_context_src_qp(wcc)            (wcc)->src_qp
+#define vma_wc_context_pkey_index(wcc)        (wcc)->pkey_index
+#define vma_wc_context_slid(wcc)              (wcc)->slid
+#define vma_wc_context_sl(wcc)                (wcc)->sl
+#define vma_wc_context_dlid_path_bits(wcc)    (wcc)->dlid_path_bits
 #endif // DEFINED_IBV_EX_CQ
 
 typedef enum {
@@ -417,6 +462,9 @@ static inline void init_vma_ibv_cq_init_attr(vma_ibv_cq_init_attr* attr, int cq_
 	attr->cqe = cq_size;
 	attr->cq_context = cq_context;
 	attr->channel = channel;
+	attr->wc_flags = IBV_WC_EX_WITH_BYTE_LEN | IBV_WC_EX_WITH_IMM |
+			IBV_WC_EX_WITH_QP_NUM | IBV_WC_EX_WITH_SRC_QP | IBV_WC_EX_WITH_SLID |
+			IBV_WC_EX_WITH_SL | IBV_WC_EX_WITH_DLID_PATH_BITS;
 #else
 	NOT_IN_USE(attr);
 	NOT_IN_USE(cq_size);

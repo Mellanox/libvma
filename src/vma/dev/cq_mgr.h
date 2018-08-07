@@ -202,7 +202,7 @@ protected:
 	 * @p_cq_poll_sn global unique wce id that maps last wce polled
 	 * @return Number of successfully polled wce
 	 */
-	virtual int     poll(vma_ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn);
+	virtual int     poll(vma_wc_context* p_wcc, int num_entries, uint64_t* p_cq_poll_sn);
 	inline void     compensate_qp_poll_failed();
 	inline void     process_recv_buffer(mem_buf_desc_t* buff, void* pv_fd_ready_array = NULL);
 
@@ -211,8 +211,8 @@ protected:
 	 *   and deliver them to their owner for further processing (sockinfo on Tx path and ib_conn_mgr on Rx path)
 	 * - for Tx wce the data buffers will be released to the associated ring before the mem_buf_desc are returned
 	 */
-	mem_buf_desc_t* process_cq_element_tx(vma_ibv_wc* p_wce);
-	virtual         mem_buf_desc_t* process_cq_element_rx(vma_ibv_wc* p_wce);
+	mem_buf_desc_t* process_cq_element_tx(vma_wc_context* p_wcc);
+	mem_buf_desc_t* process_cq_element_rx(vma_wc_context* p_wcc);
 	void            reclaim_recv_buffer_helper(mem_buf_desc_t* buff);
 
 	// Returns true if the given buffer was used,
@@ -292,7 +292,7 @@ private:
 	//Finds and sets the vma if to which the buff is addressed (according to qpn).
 	inline void	find_buff_dest_vma_if_ctx(mem_buf_desc_t * buff);
 
-	void		process_cq_element_log_helper(mem_buf_desc_t* p_mem_buf_desc, vma_ibv_wc* p_wce);
+	void		process_cq_element_log_helper(mem_buf_desc_t* p_mem_buf_desc, vma_wc_context* p_wcc);
 };
 
 // Helper gunction to extract the Tx cq_mgr from the CQ event,
