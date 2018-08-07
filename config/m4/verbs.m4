@@ -58,21 +58,31 @@ LIBS="$LIBS $VERBS_LIBS"
 
 # Check if OFED verbs (2.1 and older)
 #
-AC_MSG_CHECKING([for Mellanox OFED verbs (2.1 and older)])
+vma_cv_verbs=0
+vma_cv_verbs_str="None"
 AC_TRY_LINK(
 #include <infiniband/verbs_exp.h>
 ,
 [
-  int access = (int)IBV_EXP_ACCESS_ALLOCATE_MR;
-  access = access;
+    int access = (int)IBV_EXP_ACCESS_ALLOCATE_MR;
+    access = access;
 ],
 [
-  AC_MSG_RESULT([no])
+    vma_cv_verbs=2
+    vma_cv_verbs_str="Experimental"
 ],
 [
-  AC_MSG_RESULT([yes])
-  AC_DEFINE(DEFINED_IBV_OLD_VERBS_MLX_OFED, 1, [Define to 1 for ofed 2.1 and older])
+    AC_CHECK_HEADER([infiniband/verbs.h],
+        [AC_CHECK_MEMBERS([struct ibv_query_device_ex_input.comp_mask],
+            [vma_cv_verbs=3 vma_cv_verbs_str="Upstream"],
+            [vma_cv_verbs=1 vma_cv_verbs_str="Legacy"],
+            [[#include <infiniband/verbs.h>]] )],
+            [],[]
+    )
 ])
+AC_MSG_CHECKING([for OFED Verbs version])
+AC_MSG_RESULT([$vma_cv_verbs_str])
+AC_DEFINE_UNQUOTED([DEFINED_VERBS_VERSION], [$vma_cv_verbs], [Define found Verbs version])
 
 
 # Check if direct hardware operations can be used instead of VERBS API
