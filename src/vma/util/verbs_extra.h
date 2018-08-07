@@ -38,7 +38,7 @@
 #include <config.h>
 #include <infiniband/verbs.h>
 #include "vma/util/vtypes.h"
-#ifndef DEFINED_IBV_OLD_VERBS_MLX_OFED
+#if defined(DEFINED_VERBS_VERSION) && (DEFINED_VERBS_VERSION == 2)
 #include <infiniband/verbs_exp.h>
 #endif
 #include <string.h>
@@ -112,8 +112,12 @@ void priv_ibv_modify_cq_moderation(struct ibv_cq* cq, uint32_t period, uint32_t 
 #define FLOW_TAG_MASK     ((1 << 20) -1)
 int priv_ibv_query_flow_tag_supported(struct ibv_qp *qp, uint8_t port_num);
 
-//old MLNX_OFED verbs (2.1 and older)
-#ifdef DEFINED_IBV_OLD_VERBS_MLX_OFED
+/* DEFINED_VERBS_VERSION:
+ * 1 - Legacy Verbs API
+ * 2 - Experimental Verbs API
+ * 3 - Upstream Verbs API
+ */
+#if defined(DEFINED_VERBS_VERSION) && (DEFINED_VERBS_VERSION == 1 || DEFINED_VERBS_VERSION == 3)
 //ibv_create_qp
 #define vma_ibv_create_qp(pd, attr)             ibv_create_qp(pd, attr)
 typedef struct ibv_qp_init_attr                 vma_ibv_qp_init_attr;
@@ -199,7 +203,7 @@ typedef struct ibv_modify_cq_attr               vma_ibv_cq_attr;
 #define VMA_IBV_CQ_MODERATION                   IBV_CQ_ATTR_MODERATE
 #endif
 
-#else //new MLNX_OFED verbs (2.2 and newer)
+#else /* DEFINED_VERBS_VERSION */
 
 #define vma_ibv_create_qp(pd, attr)             ibv_exp_create_qp((pd)->context, attr)
 typedef struct ibv_exp_qp_init_attr             vma_ibv_qp_init_attr;
@@ -331,7 +335,8 @@ typedef struct ibv_exp_flow_spec_action_tag	vma_ibv_flow_spec_action_tag;
 #define vma_get_flow_tag(cqe)			0
 typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_tag;
 #endif //DEFINED_IBV_EXP_FLOW_TAG
-#endif /* DEFINED_IBV_OLD_VERBS_MLX_OFED */
+
+#endif /* DEFINED_VERBS_VERSION */
 
 // ibv_dm
 #ifdef DEFINED_IBV_DM
