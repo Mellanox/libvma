@@ -204,8 +204,15 @@ typedef struct ibv_flow_spec_ib			vma_ibv_flow_spec_ib;
 typedef struct ibv_flow_spec_eth		vma_ibv_flow_spec_eth;
 typedef struct ibv_flow_spec_ipv4		vma_ibv_flow_spec_ipv4;
 typedef struct ibv_flow_spec_tcp_udp		vma_ibv_flow_spec_tcp_udp;
+
+// Flow tag
 #define vma_get_flow_tag			0
+#ifdef DEFINED_IBV_FLOW_TAG
+#define VMA_IBV_FLOW_SPEC_ACTION_TAG  IBV_FLOW_SPEC_ACTION_TAG
+typedef struct ibv_flow_spec_action_tag 	vma_ibv_flow_spec_action_tag;
+#else
 typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_tag;
+#endif // DEFINED_IBV_FLOW_TAG
 
 #ifdef DEFINED_IBV_CQ_ATTR_MODERATE
 typedef struct ibv_modify_cq_attr               vma_ibv_cq_attr;
@@ -339,14 +346,15 @@ typedef struct ibv_exp_flow_spec_ib		vma_ibv_flow_spec_ib;
 typedef struct ibv_exp_flow_spec_eth		vma_ibv_flow_spec_eth;
 typedef struct ibv_exp_flow_spec_ipv4		vma_ibv_flow_spec_ipv4;
 typedef struct ibv_exp_flow_spec_tcp_udp	vma_ibv_flow_spec_tcp_udp;
-//Flow tag
-#ifdef DEFINED_IBV_EXP_FLOW_TAG
+
+#ifdef DEFINED_IBV_FLOW_TAG
+#define VMA_IBV_FLOW_SPEC_ACTION_TAG  IBV_EXP_FLOW_SPEC_ACTION_TAG
 #define vma_get_flow_tag(wc)			ntohl((uint32_t)(wc->sop_drop_qpn))
 typedef struct ibv_exp_flow_spec_action_tag	vma_ibv_flow_spec_action_tag;
 #else
 #define vma_get_flow_tag(cqe)			0
 typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_tag;
-#endif //DEFINED_IBV_EXP_FLOW_TAG
+#endif //DEFINED_IBV_FLOW_TAG
 
 #endif /* DEFINED_VERBS_VERSION */
 
@@ -365,11 +373,22 @@ typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_ta
 #define vma_is_mp_rq_supported(attr)		(0)
 #endif
 
-#ifdef DEFINED_IBV_EXP_QP_RATE_LIMIT
+#ifdef DEFINED_IBV_PACKET_PACING_CAPS
 #define vma_is_packet_pacing_supported(attr)	((attr)->packet_pacing_caps.qp_rate_limit_min)
+
+#ifdef DEFINED_IBV_EX_CQ
+#define VMA_IBV_QP_RATE_LIMIT IBV_QP_RATE_LIMIT
+#define vma_is_pacing_caps_supported(attr)		(attr->packet_pacing_caps.qp_rate_limit_min)
+typedef struct ibv_packet_pacing_caps	vma_ibv_packet_pacing_caps;
+#else
+#define VMA_IBV_QP_RATE_LIMIT IBV_EXP_QP_RATE_LIMIT
+#define vma_is_pacing_caps_supported(attr)		((attr)->comp_mask & IBV_EXP_DEVICE_ATTR_PACKET_PACING_CAPS)
+typedef struct ibv_exp_packet_pacing_caps	vma_ibv_packet_pacing_caps;
+#endif // DEFINED_IBV_EX_CQ
+
 #else
 #define vma_is_packet_pacing_supported(attr)	(0)
-#endif
+#endif // DEFINED_IBV_PACKET_PACING_CAPS
 
 #if defined(HAVE_IBV_EXP_GET_DEVICE_LIST)
 #define vma_ibv_get_device_list(num)		ibv_exp_get_device_list(num)
@@ -401,6 +420,7 @@ typedef struct ibv_poll_cq_attr               vma_poll_cq_attr;
 #define vma_wc_context_src_qp(cq_ex)          ibv_wc_read_src_qp(cq_ex)
 #define vma_wc_context_pkey_index(cq_ex)      0
 #define vma_wc_context_dlid_path_bits(cq_ex)  ibv_wc_read_dlid_path_bits(cq_ex)
+#define vma_wc_context_flow_tag(cq_ex)        ibv_wc_read_flow_tag(cq_ex)
 
 typedef struct ibv_device_attr_ex             vma_ibv_device_attr_ex;
 #define vma_get_device_orig_attr(device_attr) &device_attr->orig_attr
@@ -435,6 +455,7 @@ typedef struct ibv_poll_cq_attr_dummy {}      vma_poll_cq_attr;
 #define vma_wc_context_src_qp(wcc)            (wcc)->src_qp
 #define vma_wc_context_pkey_index(wcc)        (wcc)->pkey_index
 #define vma_wc_context_dlid_path_bits(wcc)    (wcc)->dlid_path_bits
+#define vma_wc_context_flow_tag(wcc)          0
 
 typedef vma_ibv_device_attr                   vma_ibv_device_attr_ex;
 #define vma_get_device_orig_attr(device_attr) device_attr
@@ -445,7 +466,6 @@ typedef vma_ibv_device_attr                   vma_ibv_device_attr_ex;
 #define vma_get_ts_val(values)                values.hwclock
 #define vma_contain_ts(wcc, is_supported)     vma_wc_context_flags(wcc) & VMA_IBV_WC_WITH_TIMESTAMP
 typedef struct ibv_exp_values                 vma_ts_values;
-
 #endif // DEFINED_IBV_EX_CQ
 
 typedef enum {
@@ -480,6 +500,15 @@ static inline void init_vma_ibv_cq_init_attr_ts(vma_ibv_cq_init_attr* attr)
 #endif
 #endif
 	NOT_IN_USE(attr);
+}
+
+static inline void init_vma_ibv_cq_init_attr_flow_tag(vma_ibv_cq_init_attr* attr)
+{
+#if defined(DEFINED_IBV_EX_CQ) && defined(DEFINED_IBV_FLOW_TAG)
+	attr->wc_flags |= IBV_WC_EX_WITH_FLOW_TAG;
+#else
+	NOT_IN_USE(attr);
+#endif
 }
 
 static inline void init_vma_ibv_cq_init_attr(vma_ibv_cq_init_attr* attr, int cq_size, void* cq_context, struct ibv_comp_channel *channel)
@@ -556,11 +585,12 @@ static inline void ibv_flow_spec_flow_tag_set(vma_ibv_flow_spec_action_tag* flow
 	NOT_IN_USE(tag_id);
 	if (flow_tag == NULL)
 		return;
-#ifdef DEFINED_IBV_EXP_FLOW_TAG
-	flow_tag->type = IBV_EXP_FLOW_SPEC_ACTION_TAG;
+
+#ifdef DEFINED_IBV_FLOW_TAG
+	flow_tag->type = VMA_IBV_FLOW_SPEC_ACTION_TAG;
 	flow_tag->size = sizeof(vma_ibv_flow_spec_action_tag);
 	flow_tag->tag_id = tag_id;
-#endif //DEFINED_IBV_EXP_FLOW_TAG
+#endif //DEFINED_IBV_FLOW_TAG
 }
 
 #endif

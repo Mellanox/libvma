@@ -235,6 +235,7 @@ protected:
 	bool			m_b_was_drained;
 	bool			m_b_is_rx_hw_csum_on;
 	bool			m_b_is_rx_ts_on;
+	const bool		m_b_is_flow_tag_on;
 	qp_rec			m_qp_rec;
 	const uint32_t		m_n_sysvar_cq_poll_batch_max;
 	const uint32_t		m_n_sysvar_progress_engine_wce_max;

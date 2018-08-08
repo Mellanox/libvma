@@ -775,13 +775,13 @@ uint32_t qp_mgr::is_ratelimit_change(struct vma_rate_limit_t &rate_limit)
 	return rl_changes;
 }
 
-bool qp_mgr::is_ratelimit_supported(vma_ibv_device_attr *attr, struct vma_rate_limit_t &rate_limit)
+bool qp_mgr::is_ratelimit_supported(vma_ibv_device_attr_ex *attr, struct vma_rate_limit_t &rate_limit)
 {
-#ifdef DEFINED_IBV_EXP_QP_RATE_LIMIT
-	if (!(attr->comp_mask & IBV_EXP_DEVICE_ATTR_PACKET_PACING_CAPS))
+#ifdef DEFINED_IBV_PACKET_PACING_CAPS
+	if (!vma_is_pacing_caps_supported(attr))
 		return false;
 
-	ibv_exp_packet_pacing_caps pp_caps = attr->packet_pacing_caps;
+	vma_ibv_packet_pacing_caps pp_caps = attr->packet_pacing_caps;
 
 	/* for any rate limit settings the rate must be between the supported min and max values */
 	if (rate_limit.rate < pp_caps.qp_rate_limit_min || pp_caps.qp_rate_limit_max < rate_limit.rate) {
@@ -806,7 +806,7 @@ bool qp_mgr::is_ratelimit_supported(vma_ibv_device_attr *attr, struct vma_rate_l
 	NOT_IN_USE(attr);
 	NOT_IN_USE(rate_limit);
 	return false;
-#endif
+#endif // DEFINED_IBV_PACKET_PACING_CAPS
 }
 
 int qp_mgr::modify_qp_ratelimit(struct vma_rate_limit_t &rate_limit, uint32_t rl_changes)

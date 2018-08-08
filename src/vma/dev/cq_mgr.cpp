@@ -84,6 +84,7 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 	,m_b_was_drained(false)
 	,m_b_is_rx_hw_csum_on(false)
 	,m_b_is_rx_ts_on(false)
+	,m_b_is_flow_tag_on(p_ib_ctx_handler->get_flow_tag_capability())
 	,m_n_sysvar_cq_poll_batch_max(safe_mce_sys().cq_poll_batch_max)
 	,m_n_sysvar_progress_engine_wce_max(safe_mce_sys().progress_engine_wce_max)
 	,m_p_cq_stat(&m_cq_stat_static) // use local copy of stats by default (on rx cq get shared memory stats)
@@ -179,6 +180,10 @@ void cq_mgr::prep_ibv_cq(vma_ibv_cq_init_attr& attr, int cq_size)
 	if (m_p_ib_ctx_handler->get_ctx_time_converter_status()) {
 		init_vma_ibv_cq_init_attr_ts(&attr);
 		m_b_is_rx_ts_on = true;
+	}
+
+	if (m_b_is_flow_tag_on) {
+		init_vma_ibv_cq_init_attr_flow_tag(&attr);
 	}
 }
 
@@ -557,6 +562,10 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_wc_context* p_wcc)
 		// coverity[dead_error_condition]
 		if (vma_contain_ts(p_wcc, m_b_is_rx_ts_on)) {
 			p_mem_buf_desc->rx.hw_raw_timestamp = vma_wc_context_timestamp(p_wcc);
+		}
+
+		if (m_b_is_flow_tag_on) {
+			p_mem_buf_desc->rx.flow_tag_id = vma_wc_context_flow_tag(p_wcc);
 		}
 
 		VALGRIND_MAKE_MEM_DEFINED(p_mem_buf_desc->p_buffer, p_mem_buf_desc->sz_data);
