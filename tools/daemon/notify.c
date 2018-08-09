@@ -284,6 +284,19 @@ static int clean_process(pid_t pid)
 				struct list_head *tmp_entry = NULL;
 				int i, j;
 
+				/* Cleanup flow store */
+				j = 0;
+				list_for_each_safe(cur_entry, tmp_entry, &pid_value->flow_list) {
+					flow_value = list_entry(cur_entry, struct store_flow, item);
+					j++;
+					log_debug("[%d] #%d found handle: 0x%08X type: %d if_id: %d tap_id: %d\n",
+							pid_value->pid, j,
+							flow_value->handle, flow_value->type, flow_value->if_id, flow_value->tap_id);
+					list_del_init(&flow_value->item);
+					del_flow(pid_value, flow_value);
+					free(flow_value);
+				}
+
 				/* Cleanup fid store */
 				j = 0;
 				for (i = 0; (i < hash_size(pid_value->ht)) &&
@@ -334,19 +347,6 @@ static int clean_process(pid_t pid)
 					}
 				}
 
-				/* Cleanup flow store */
-				j = 0;
-				list_for_each_safe(cur_entry, tmp_entry, &pid_value->flow_list) {
-					flow_value = list_entry(cur_entry, struct store_flow, item);
-					j++;
-					log_debug("[%d] #%d found handle: 0x%08X type: %d if_id: %d tap_id: %d\n",
-							pid_value->pid, j,
-							flow_value->handle, flow_value->type, flow_value->if_id, flow_value->tap_id);
-					list_del_init(&flow_value->item);
-					del_flow(pid_value, flow_value);
-					free(flow_value);
-				}
-
 				hash_del(daemon_cfg.ht, pid);
 				log_debug("[%d] remove from the storage\n", pid);
 
@@ -368,7 +368,7 @@ static int check_process(pid_t pid)
 
 	rc = snprintf(process_file, sizeof(process_file), "/proc/%d/stat", pid);
 	if ((0 < rc) && (rc < (int)sizeof(process_file))) {
-		FILE* fd = fopen(process_file, "r");;
+		FILE* fd = fopen(process_file, "r");
 		if (fd) {
 			int pid_v = 0;
 			char name_v[32];
