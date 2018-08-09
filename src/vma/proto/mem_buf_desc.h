@@ -135,6 +135,26 @@ public:
 	inline unsigned int lwip_pbuf_inc_ref_count() {return ++lwip_pbuf.pbuf.ref;}
 	inline unsigned int lwip_pbuf_dec_ref_count() {if (likely(lwip_pbuf.pbuf.ref)) --lwip_pbuf.pbuf.ref; return lwip_pbuf.pbuf.ref;}
 	inline unsigned int lwip_pbuf_get_ref_count() const {return lwip_pbuf.pbuf.ref;}
+
+	inline void clean() {
+		this->p_next_desc = NULL;
+		this->p_prev_desc = NULL;
+		this->reset_ref_count();
+		this->rx.tcp.gro = 0;
+		this->rx.is_vma_thr = false;
+		this->rx.socketxtreme_polled = false;
+		this->rx.flow_tag_id = 0;
+		this->rx.tcp.p_ip_h = NULL;
+		this->rx.tcp.p_tcp_h = NULL;
+		this->rx.udp.sw_timestamp.tv_nsec = 0;
+		this->rx.udp.sw_timestamp.tv_sec = 0;
+		this->rx.udp.hw_timestamp.tv_nsec = 0;
+		this->rx.udp.hw_timestamp.tv_sec = 0;
+		this->rx.hw_raw_timestamp = 0;
+		this->lwip_pbuf.pbuf.flags = 0;
+		this->lwip_pbuf.pbuf.ref = 0;
+	}
+
 };
 
 typedef vma_list_t<mem_buf_desc_t, mem_buf_desc_t::buffer_node_offset> descq_t;

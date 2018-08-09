@@ -328,16 +328,13 @@ void buffer_pool::put_buffers_thread_safe(mem_buf_desc_t *buff_list)
 
 void buffer_pool::put_buffers(descq_t *buffers, size_t count)
 {
-	mem_buf_desc_t *buff_list, *next;
+	mem_buf_desc_t *buff_list;
 	size_t amount;
 	__log_info_funcall("returning %lu, present %lu, created %lu", count, m_n_buffers, m_n_buffers_created);
 	for (amount = MIN(count, buffers->size()); amount > 0 ; amount--) {
 		buff_list = buffers->get_and_pop_back();
-		while (buff_list) {
-			next = buff_list->p_next_desc;
-			put_buffer_helper(buff_list);
-			buff_list = next;
-		}
+		buff_list->clean();
+		put_buffer_helper(buff_list);
 	}
 
 	if (unlikely(m_n_buffers > m_n_buffers_created)) {
