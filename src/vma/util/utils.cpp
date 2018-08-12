@@ -414,6 +414,23 @@ int read_file_to_int(const char *path, int default_value)
 	return (rc < 0) ? default_value : atoi(buf);
 }
 
+char *get_mlx4_conf()
+{
+	static char conf[100] = {0};
+	#define MLNX_CONF_FILE  "/etc/modprobe.d/mlnx.conf"
+	#define MLX4_CONF_FILE  "/etc/modprobe.d/mlx4.conf"
+
+	if (conf[0] == '\0') {
+		if(access(MLX4_CONF_FILE, F_OK ) != -1 ) {
+			snprintf(conf, sizeof(conf), MLX4_CONF_FILE);
+		} else {
+			snprintf(conf, sizeof(conf), MLNX_CONF_FILE);
+		}
+	}
+
+	return conf;
+}
+
 char *get_driver_restart()
 {
 	#define OPENIBD_FILE  "/etc/init.d/openibd"

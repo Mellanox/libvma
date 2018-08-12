@@ -1,4 +1,4 @@
-Update: 10 Jul 2018
+Update: 12 Aug 2018
 
 Introduction
 ============
@@ -20,7 +20,7 @@ Build libvma from source
 
 Prerequisites:
 1. MLNX_OFED as described in the "Pre Installation" step of next section.
-2. Or, upstream kernel and userspace verbs libraries (libibverbs, libmlx4, librdmacm)
+2. Or, upstream kernel and userspace verbs libraries (libibverbs, libmlx4, libmlx5, librdmacm)
 3. Autoconf, Automake, libtool, unzip, patch, libnl-devel (netlink 1 or 3)
 
 Build:

@@ -210,6 +210,11 @@ inline int priv_safe_try_read_file(const char *path, char *buf, size_t size) {
 int read_file_to_int(const char *path, int default_value);
 
 /**
+ * Get mlx4 conf location
+ */
+char *get_mlx4_conf();
+
+/**
  * Get driver restart instruction
  */
 char *get_driver_restart();
