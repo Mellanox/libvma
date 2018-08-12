@@ -49,6 +49,7 @@ Pre Installation:
    options mlx4_core fast_drop=1
    options mlx4_core log_num_mgm_entry_size=-1
    And restart the driver: /etc/init.d/openibd restart
+   - or reboot while openibd in not exist.
 
 Installing:
 Install the package as any other rpm or debian package [rpm -i libvma.X.Y.Z-R.rpm].
@@ -1051,6 +1052,7 @@ interface while the kernel requires this operation to be done only by privileged
 users. root can enable this for regular users as well by:
  1. "echo options ib_uverbs disable_raw_qp_enforcement=1 > /etc/modprobe.d/ib_uverbs.conf"
  2. "/etc/init.d/openibd restart"
+    - or reboot while openibd in not exist.
 
 
 * CAP_NET_RAW and root access

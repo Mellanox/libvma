@@ -414,6 +414,22 @@ int read_file_to_int(const char *path, int default_value)
 	return (rc < 0) ? default_value : atoi(buf);
 }
 
+char *get_driver_restart()
+{
+	#define OPENIBD_FILE  "/etc/init.d/openibd"
+	static char driver_restart[100] = {0};
+
+	if (driver_restart[0] == '\0') {
+		if(access(OPENIBD_FILE, F_OK ) != -1 ) {
+			snprintf(driver_restart, sizeof(driver_restart), "\"%s restart\"", OPENIBD_FILE);
+		} else {
+			snprintf(driver_restart, sizeof(driver_restart), "\"reboot\"");
+		}
+	}
+
+	return driver_restart;
+}
+
 int get_ifinfo_from_ip(const struct sockaddr& addr, char* ifname, uint32_t& ifflags)
 {
 	struct ifaddrs *ifap = NULL;

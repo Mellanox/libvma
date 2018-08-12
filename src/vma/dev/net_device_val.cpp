@@ -1554,7 +1554,7 @@ bool net_device_val::verify_eth_qp_creation(const char* ifname)
 			vlog_printf(VLOG_WARNING,"* Working in this mode might causes VMA malfunction over Ethernet interfaces\n");
 			vlog_printf(VLOG_WARNING,"* WARNING: the following steps will restart your network interface!\n");
 			vlog_printf(VLOG_WARNING,"* 1. \"echo options ib_uverbs disable_raw_qp_enforcement=1 > /etc/modprobe.d/ib_uverbs.conf\"\n");
-			vlog_printf(VLOG_WARNING,"* 2. \"/etc/init.d/openibd restart\"\n");
+			vlog_printf(VLOG_WARNING,"* 2. %s\n", get_driver_restart());
 			vlog_printf(VLOG_WARNING,"* Read the RAW_PACKET QP root access enforcement section in the VMA's User Manual for more information\n");
 			vlog_printf(VLOG_WARNING,"******************************************************************************************************\n");
 		}
