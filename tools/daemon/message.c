@@ -175,7 +175,9 @@ again:
 		case VMA_MSG_FLOW:
 			rc = proc_msg_flow(msg_hdr, len, &peeraddr);
 			/* Note: special loopback logic */
-			proc_msg_flow(msg_hdr, len, NULL);
+			if (rc >= 0) {
+				proc_msg_flow(msg_hdr, len, NULL);
+			}
 			break;
 		default:
 			rc = -EPROTO;

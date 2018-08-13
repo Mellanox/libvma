@@ -107,6 +107,7 @@ void close_flow(void);
 int add_flow(struct store_pid *pid_value, struct store_flow *value);
 int del_flow(struct store_pid *pid_value, struct store_flow *value);
 
+static int add_flow_egress(struct store_pid *pid_value, struct store_flow *value);
 static inline void get_htid(struct flow_ctx *ctx, int prio, int *ht_krn, int *ht_id);
 static inline void free_htid(struct flow_ctx *ctx, int ht_id);
 static inline void add_pending_list(pid_t pid, struct flow_ctx *ctx, char* if_name, int ht_id, int prio, int *rc);
@@ -135,7 +136,6 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 	struct list_head *cur_head = NULL;
 	struct flow_element *cur_element = NULL;
 	struct list_head *cur_entry = NULL;
-	struct store_flow *cur_flow = NULL;
 	char if_name[IF_NAMESIZE];
 	char tap_name[IF_NAMESIZE];
 	char *out_buf = NULL;
@@ -146,6 +146,12 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 	int ht_internal = KERNEL_HT;
 	struct flow_ctx *ctx = NULL;
 	char str_tmp[100];
+
+	/* Egress rules should be created for new tap device
+	 */
+	if (VMA_MSG_FLOW_EGRESS == value->type) {
+		return add_flow_egress(pid_value, value);
+	}
 
 	errno = 0;
 	if (NULL == if_indextoname(value->if_id, if_name)) {
@@ -160,76 +166,6 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 				pid, value->tap_id, errno, strerror(errno));
 		rc = -errno;
 		goto err;
-	}
-
-	/* Egress rules should be created for new tap device
-	 */
-	list_for_each(cur_entry, &pid_value->flow_list) {
-		cur_flow = list_entry(cur_entry, struct store_flow, item);
-		if (value->tap_id == cur_flow->tap_id) {
-			break;
-		}
-	}
-	if (cur_entry == &pid_value->flow_list) {
-		struct ifaddrs *ifaddr, *ifa;
-		char *addr = NULL;
-		int handle = 1;
-
-		/* This cleanup is done just to support verification */
-		sys_exec("tc qdisc del dev %s handle ffff: ingress > /dev/null 2>&1 || echo $?", tap_name);
-
-		/* Create rules to process ingress trafic on tap device */
-		out_buf = sys_exec("tc qdisc add dev %s handle ffff: ingress > /dev/null 2>&1 || echo $?", tap_name);
-		if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
-			log_error("[%d] failed tc qdisc add dev %s output: %s\n",
-					pid, tap_name, (out_buf ? out_buf : "n/a"));
-			rc = -EFAULT;
-			goto err;
-		}
-
-		if (!getifaddrs(&ifaddr)) {
-			for (ifa = ifaddr; NULL != ifa; ifa = ifa->ifa_next) {
-				if (ifa->ifa_addr->sa_family == AF_INET &&
-						!(ifa->ifa_flags & IFF_LOOPBACK) &&
-						value->if_id == if_nametoindex(ifa->ifa_name)) {
-					addr = inet_ntoa(((struct sockaddr_in *)ifa->ifa_addr)->sin_addr);
-
-					/* Create filter to redirect traffic from tap device to lo device in case destination address relates netvsc */
-					out_buf = sys_exec("tc filter add dev %s protocol ip parent ffff: prio 1 "
-								"handle ::%d u32 ht 800:: "
-								"match ip dst %s/32 action mirred egress redirect dev %s "
-								"> /dev/null 2>&1 || echo $?",
-								tap_name, handle, addr, sys_lo_ifname());
-					if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
-						log_error("[%d] failed tc filter add dev %s redirect to lo output: %s\n",
-								pid, tap_name, (out_buf ? out_buf : "n/a"));
-						rc = -EFAULT;
-						goto err;
-					}
-					handle++;
-				}
-			}
-			freeifaddrs(ifaddr);
-		}
-
-		/* Create filter to redirect traffic from tap device to netvsc device
-		 * Use another prio value for common filter just to separate one
-		 * actually the same value should work too
-		 */
-		out_buf = sys_exec("tc filter add dev %s protocol ip parent ffff: prio 2 "
-					"handle ::%d u32 ht 800:: "
-					"match u8 0 0 action mirred egress redirect dev %s "
-					"> /dev/null 2>&1 || echo $?",
-					tap_name, handle, if_name);
-		if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
-			log_error("[%d] failed tc filter add dev %s redirect to %s output: %s\n",
-					pid, tap_name, if_name, (out_buf ? out_buf : "n/a"));
-			rc = -EFAULT;
-			goto err;
-		}
-	}
-	if (VMA_MSG_FLOW_EGRESS == value->type) {
-		return rc;
 	}
 
 	/* interface list processing
@@ -647,6 +583,102 @@ err:
 	return rc;
 }
 
+static int add_flow_egress(struct store_pid *pid_value, struct store_flow *value)
+{
+	int rc = 0;
+	pid_t pid = pid_value->pid;
+	struct list_head *cur_entry = NULL;
+	struct store_flow *cur_flow = NULL;
+	char if_name[IF_NAMESIZE];
+	char tap_name[IF_NAMESIZE];
+	char *out_buf = NULL;
+
+	errno = 0;
+	if (NULL == if_indextoname(value->if_id, if_name)) {
+		log_error("[%d] network interface is not found by index %d errno %d (%s)\n",
+				pid, value->if_id, errno, strerror(errno));
+		rc = -errno;
+		goto err;
+	}
+
+	if (NULL == if_indextoname(value->tap_id, tap_name)) {
+		log_error("[%d] tap interface is not found by index %d errno %d (%s)\n",
+				pid, value->tap_id, errno, strerror(errno));
+		rc = -errno;
+		goto err;
+	}
+
+	/* Egress rules should be created for new tap device
+	 */
+	list_for_each(cur_entry, &pid_value->flow_list) {
+		cur_flow = list_entry(cur_entry, struct store_flow, item);
+		if (value->tap_id == cur_flow->tap_id) {
+			break;
+		}
+	}
+	if (cur_entry == &pid_value->flow_list) {
+		struct ifaddrs *ifaddr, *ifa;
+		char *addr = NULL;
+		int handle = 1;
+
+		/* This cleanup is done just to support verification */
+		sys_exec("tc qdisc del dev %s handle ffff: ingress > /dev/null 2>&1 || echo $?", tap_name);
+
+		/* Create rules to process ingress trafic on tap device */
+		out_buf = sys_exec("tc qdisc add dev %s handle ffff: ingress > /dev/null 2>&1 || echo $?", tap_name);
+		if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
+			log_error("[%d] failed tc qdisc add dev %s output: %s\n",
+					pid, tap_name, (out_buf ? out_buf : "n/a"));
+			rc = -EFAULT;
+			goto err;
+		}
+
+		if (!getifaddrs(&ifaddr)) {
+			for (ifa = ifaddr; NULL != ifa; ifa = ifa->ifa_next) {
+				if (ifa->ifa_addr->sa_family == AF_INET &&
+						!(ifa->ifa_flags & IFF_LOOPBACK) &&
+						value->if_id == if_nametoindex(ifa->ifa_name)) {
+					addr = inet_ntoa(((struct sockaddr_in *)ifa->ifa_addr)->sin_addr);
+
+					/* Create filter to redirect traffic from tap device to lo device in case destination address relates netvsc */
+					out_buf = sys_exec("tc filter add dev %s protocol ip parent ffff: prio 1 "
+								"handle ::%d u32 ht 800:: "
+								"match ip dst %s/32 action mirred egress redirect dev %s "
+								"> /dev/null 2>&1 || echo $?",
+								tap_name, handle, addr, sys_lo_ifname());
+					if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
+						log_error("[%d] failed tc filter add dev %s redirect to lo output: %s\n",
+								pid, tap_name, (out_buf ? out_buf : "n/a"));
+						rc = -EFAULT;
+						goto err;
+					}
+					handle++;
+				}
+			}
+			freeifaddrs(ifaddr);
+		}
+
+		/* Create filter to redirect traffic from tap device to netvsc device
+		 * Use another prio value for common filter just to separate one
+		 * actually the same value should work too
+		 */
+		out_buf = sys_exec("tc filter add dev %s protocol ip parent ffff: prio 2 "
+					"handle ::%d u32 ht 800:: "
+					"match u8 0 0 action mirred egress redirect dev %s "
+					"> /dev/null 2>&1 || echo $?",
+					tap_name, handle, if_name);
+		if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
+			log_error("[%d] failed tc filter add dev %s redirect to %s output: %s\n",
+					pid, tap_name, if_name, (out_buf ? out_buf : "n/a"));
+			rc = -EFAULT;
+			goto err;
+		}
+	}
+
+err:
+
+	return rc;
+}
 
 static inline void get_htid(struct flow_ctx *ctx, int prio, int *ht_krn, int *ht_id)
 {
