@@ -155,6 +155,7 @@ void get_orig_funcs()
 	GET_ORIG_FUNC(sendmmsg);
 	GET_ORIG_FUNC(sendto);
 	GET_ORIG_FUNC(sendfile);
+	GET_ORIG_FUNC(sendfile64);
 	GET_ORIG_FUNC(select);
 	GET_ORIG_FUNC(pselect);
 	GET_ORIG_FUNC(poll);
@@ -1762,22 +1763,12 @@ ssize_t sendto(int __fd, __const void *__buf, size_t __nbytes, int __flags,
 	return orig_os_api.sendto(__fd, __buf, __nbytes, __flags, __to, __tolen);
 }
 
-extern "C"
-ssize_t sendfile(int out_fd, int in_fd, off_t *offset, size_t count)
+inline ssize_t sendfile_helper(socket_fd_api* p_socket_object, int in_fd, __off64_t *offset, size_t count)
 {
-	srdr_logfuncall_entry("out_fd=%d, in_fd=%d, offset=%p, count=%d", out_fd, in_fd, offset, count);
-
 	off_t orig = 0;
 	iovec piov[1];
 	char buf[SENDFILE_BUFFER_SIZE];
 	ssize_t toRead, numRead, numSent, totSent = 0;
-	socket_fd_api* p_socket_object = NULL;
-
-	p_socket_object = fd_collection_get_sockfd(out_fd);
-	if (!p_socket_object) {
-		if (!orig_os_api.sendfile) get_orig_funcs();
-		return orig_os_api.sendfile(out_fd, in_fd, offset, count);
-	}
 
 	if (offset != NULL) {
 		/* Save current file offset and set offset to value in '*offset' */
@@ -1822,6 +1813,34 @@ ssize_t sendfile(int out_fd, int in_fd, off_t *offset, size_t count)
 	}
 
 	return totSent;
+}
+
+extern "C"
+ssize_t sendfile(int out_fd, int in_fd, off_t *offset, size_t count)
+{
+	srdr_logfuncall_entry("out_fd=%d, in_fd=%d, offset=%p, *offset=%zu, count=%d", out_fd, in_fd, offset, offset ? *offset : 0, count);
+
+	socket_fd_api* p_socket_object = fd_collection_get_sockfd(out_fd);
+	if (!p_socket_object) {
+		if (!orig_os_api.sendfile) get_orig_funcs();
+		return orig_os_api.sendfile(out_fd, in_fd, offset, count);
+	}
+
+	return sendfile_helper(p_socket_object, in_fd, offset, count);
+}
+
+extern "C"
+ssize_t sendfile64(int out_fd, int in_fd, __off64_t *offset, size_t count)
+{
+	srdr_logfuncall_entry("out_fd=%d, in_fd=%d, offset=%p, *offset=%zu, count=%d", out_fd, in_fd, offset, offset ? *offset : 0, count);
+
+	socket_fd_api* p_socket_object = fd_collection_get_sockfd(out_fd);
+	if (!p_socket_object) {
+		if (!orig_os_api.sendfile64) get_orig_funcs();
+		return orig_os_api.sendfile64(out_fd, in_fd, offset, count);
+	}
+
+	return sendfile_helper(p_socket_object, in_fd, offset, count);
 }
 
 // Format a fd_set into a string for logging
