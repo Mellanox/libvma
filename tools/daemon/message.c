@@ -173,11 +173,13 @@ again:
 			rc = proc_msg_exit(msg_hdr, len);
 			break;
 		case VMA_MSG_FLOW:
+			/* Note: special loopback logic, it 
+			 * should be added first as far as observed issue with delay
+			 * in activation loopback filters in case two processes
+			 * communicate locally w/o SRIOV
+			 */
+			proc_msg_flow(msg_hdr, len, NULL);
 			rc = proc_msg_flow(msg_hdr, len, &peeraddr);
-			/* Note: special loopback logic */
-			if (rc >= 0) {
-				proc_msg_flow(msg_hdr, len, NULL);
-			}
 			break;
 		default:
 			rc = -EPROTO;
