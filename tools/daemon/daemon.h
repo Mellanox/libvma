@@ -339,4 +339,26 @@ static inline char *sys_lo_ifname(void)
 	return lo_ifname;
 }
 
+static inline int sys_iplocal(uint32_t addr)
+{
+	int rc = 0;
+	struct ifaddrs *ifaddr, *ifa;
+	struct sockaddr_in *sa;
+
+	if (!getifaddrs(&ifaddr)) {
+		for (ifa = ifaddr; NULL != ifa; ifa = ifa->ifa_next) {
+			if (ifa->ifa_addr->sa_family == AF_INET) {
+				sa = (struct sockaddr_in *) ifa->ifa_addr;
+				if (addr == sa->sin_addr.s_addr) {
+					rc = 1;
+					break;
+				}
+			}
+		}
+		freeifaddrs(ifaddr);
+	}
+
+	return rc;
+}
+
 #endif /* TOOLS_DAEMON_DAEMON_H_ */

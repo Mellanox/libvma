@@ -173,7 +173,7 @@ again:
 			rc = proc_msg_exit(msg_hdr, len);
 			break;
 		case VMA_MSG_FLOW:
-			/* Note: special loopback logic, it 
+			/* Note: special loopback logic, it
 			 * should be added first as far as observed issue with delay
 			 * in activation loopback filters in case two processes
 			 * communicate locally w/o SRIOV
@@ -449,6 +449,11 @@ static int proc_msg_flow(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_u
 			rc = -EFAULT;
 			goto err;
 		}
+	} else if ((VMA_MSG_FLOW_TCP_5T == data->type ||
+			VMA_MSG_FLOW_UDP_5T == data->type) &&
+			sys_iplocal(value->flow.t5.src_ip)) {
+		rc = 0;
+		goto err;
 	}
 
 	if (VMA_MSG_FLOW_ADD == data->action) {
