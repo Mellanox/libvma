@@ -602,21 +602,7 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 				VLIST_DEBUG_CQ_MGR_PRINT_ERROR_IS_MEMBER;
 				temp = buff;
 				buff = temp->p_next_desc;
-				temp->p_next_desc = NULL;
-				temp->p_prev_desc = NULL;
-				temp->reset_ref_count();
-				temp->rx.tcp.gro = 0;
-				temp->rx.is_vma_thr = false;
-				temp->rx.socketxtreme_polled = false;
-				temp->rx.flow_tag_id = 0;
-				temp->rx.tcp.p_ip_h = NULL;
-				temp->rx.tcp.p_tcp_h = NULL;
-				temp->rx.udp.sw_timestamp.tv_nsec = 0;
-				temp->rx.udp.sw_timestamp.tv_sec = 0;
-				temp->rx.udp.hw_timestamp.tv_nsec = 0;
-				temp->rx.udp.hw_timestamp.tv_sec = 0;
-				temp->rx.hw_raw_timestamp = 0;
-				free_lwip_pbuf(&temp->lwip_pbuf);
+				temp->clean();
 				m_rx_pool.push_back(temp);
 			}
 			m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
@@ -638,21 +624,7 @@ void cq_mgr::socketxtreme_reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 			if(buff->lwip_pbuf_dec_ref_count() <= 0) {
 				temp = buff;
 				buff = temp->p_next_desc;
-				temp->p_next_desc = NULL;
-				temp->p_prev_desc = NULL;
-				temp->reset_ref_count();
-				temp->rx.tcp.gro = 0;
-				temp->rx.is_vma_thr = false;
-				temp->rx.socketxtreme_polled = false;
-				temp->rx.flow_tag_id = 0;
-				temp->rx.tcp.p_ip_h = NULL;
-				temp->rx.tcp.p_tcp_h = NULL;
-				temp->rx.udp.sw_timestamp.tv_nsec = 0;
-				temp->rx.udp.sw_timestamp.tv_sec = 0;
-				temp->rx.udp.hw_timestamp.tv_nsec = 0;
-				temp->rx.udp.hw_timestamp.tv_sec = 0;
-				temp->rx.hw_raw_timestamp = 0;
-				free_lwip_pbuf(&temp->lwip_pbuf);
+				temp->clean();
 				m_rx_pool.push_back(temp);
 			}
 			else {
@@ -1033,11 +1005,17 @@ bool cq_mgr::reclaim_recv_buffers(descq_t *rx_reuse)
 {
 	cq_logfuncall("");
 	// Called from outside cq_mgr context which is not locked!!
-	while (!rx_reuse->empty()) {
+
+	size_t count = std::min<size_t>(rx_reuse->size(), m_n_sysvar_qp_compensation_level * 2 - m_rx_pool.size());
+	while (count--) {
 		mem_buf_desc_t* buff = rx_reuse->get_and_pop_front();
 		reclaim_recv_buffer_helper(buff);
 	}
-	return_extra_buffers();
+
+	if (count) {
+		cq_logfunc("releasing %zu buffers to global rx pool", rx_reuse->size());
+		g_buffer_pool_rx->put_buffers_thread_safe(rx_reuse, rx_reuse->size());
+	}
 
 	return true;
 }

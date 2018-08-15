@@ -661,23 +661,7 @@ bool ring_tap::reclaim_recv_buffers(mem_buf_desc_t *buff)
 			if(buff->lwip_pbuf_dec_ref_count() <= 0) {
 				temp = buff;
 				buff = temp->p_next_desc;
-				temp->p_next_desc = NULL;
-				temp->p_prev_desc = NULL;
-				temp->reset_ref_count();
-				temp->rx.tcp.gro = 0;
-				temp->rx.is_vma_thr = false;
-#ifdef DEFINED_SOCKETXTREME
-				temp->rx.socketxtreme_polled = false;
-#endif // DEFINED_SOCKETXTREME
-				temp->rx.flow_tag_id = 0;
-				temp->rx.tcp.p_ip_h = NULL;
-				temp->rx.tcp.p_tcp_h = NULL;
-				temp->rx.udp.sw_timestamp.tv_nsec = 0;
-				temp->rx.udp.sw_timestamp.tv_sec = 0;
-				temp->rx.udp.hw_timestamp.tv_nsec = 0;
-				temp->rx.udp.hw_timestamp.tv_sec = 0;
-				temp->rx.hw_raw_timestamp = 0;
-				free_lwip_pbuf(&temp->lwip_pbuf);
+				temp->clean();
 				m_rx_pool.push_back(temp);
 			}
 			else {
