@@ -508,10 +508,10 @@ int agent::create_agent_socket(void)
 		goto err;
 	}
 
-	/* Sets the timeout value as 1 sec that specifies the maximum amount of time
+	/* Sets the timeout value as 3 sec that specifies the maximum amount of time
 	 * an input function waits until it completes.
 	 */
-	opttv.tv_sec = 1;
+	opttv.tv_sec = 3;
 	opttv.tv_usec = 0;
 	sys_call(rc, setsockopt, m_sock_fd, SOL_SOCKET, SO_RCVTIMEO,
 			(const void *)&opttv, sizeof(opttv));
