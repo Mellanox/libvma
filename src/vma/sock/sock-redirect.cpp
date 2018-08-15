@@ -1765,17 +1765,17 @@ ssize_t sendto(int __fd, __const void *__buf, size_t __nbytes, int __flags,
 
 inline ssize_t sendfile_helper(socket_fd_api* p_socket_object, int in_fd, __off64_t *offset, size_t count)
 {
-	off_t orig = 0;
+	__off64_t orig = 0;
 	iovec piov[1];
 	char buf[SENDFILE_BUFFER_SIZE];
 	ssize_t toRead, numRead, numSent, totSent = 0;
 
 	if (offset != NULL) {
 		/* Save current file offset and set offset to value in '*offset' */
-		orig = lseek(in_fd, 0, SEEK_CUR);
+		orig = lseek64(in_fd, 0, SEEK_CUR);
 		if (orig == -1)
 			return -1;
-		if (lseek(in_fd, *offset, SEEK_SET) == -1)
+		if (lseek64(in_fd, *offset, SEEK_SET) == -1)
 			return -1;
 	}
 
@@ -1805,10 +1805,10 @@ inline ssize_t sendfile_helper(socket_fd_api* p_socket_object, int in_fd, __off6
 	if (offset != NULL) {
 		/* Return updated file offset in '*offset', and reset the file offset
            to the value it had when we were called. */
-		*offset = lseek(in_fd, 0, SEEK_CUR);
+		*offset = lseek64(in_fd, 0, SEEK_CUR);
 		if (*offset == -1)
 			return -1;
-		if (lseek(in_fd, orig, SEEK_SET) == -1)
+		if (lseek64(in_fd, orig, SEEK_SET) == -1)
 			return -1;
 	}
 
