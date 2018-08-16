@@ -78,6 +78,37 @@
 tcp_seg_pool *g_tcp_seg_pool = NULL;
 tcp_timers_collection* g_tcp_timers_collection = NULL;
 
+/*
+ * The following socket options are inherited by a connected TCP socket from the listening socket:
+ * SO_DEBUG, SO_DONTROUTE, SO_KEEPALIVE, SO_LINGER, SO_OOBINLINE, SO_RCVBUF, SO_RCVLOWAT, SO_SNDBUF,
+ * SO_SNDLOWAT, TCP_MAXSEG, TCP_NODELAY.
+ */
+static bool is_inherited_option(int __level, int __optname)
+{
+	bool ret = false;
+	if (__level == SOL_SOCKET) {
+		switch (__optname) {
+		case SO_DEBUG:
+		case SO_DONTROUTE:
+		case SO_KEEPALIVE:
+		case SO_LINGER:
+		case SO_OOBINLINE:
+		case SO_RCVBUF:
+		case SO_RCVLOWAT:
+		case SO_SNDBUF:
+		case SO_SNDLOWAT:
+			ret = true;
+		}
+	} else if (__level == IPPROTO_TCP) {
+		switch (__optname) {
+		case TCP_MAXSEG:
+		case TCP_NODELAY:
+			ret = true;
+		}
+	}
+
+	return ret;
+}
 
 /**/
 /** inlining functions can only help if they are implemented before their usage **/
@@ -302,6 +333,13 @@ sockinfo_tcp::~sockinfo_tcp()
 	if (m_tcp_seg_count) {
 		g_tcp_seg_pool->put_tcp_segs(m_tcp_seg_list);
 	}
+
+	while (!m_socket_options_list.empty()) {
+		socket_option_t* opt = m_socket_options_list.front();
+		m_socket_options_list.pop_front();
+		delete(opt);
+	}
+
 	unlock_tcp_con();
 
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -2813,19 +2851,11 @@ err_t sockinfo_tcp::syn_received_lwip_cb(void *arg, struct tcp_pcb *newpcb, err_
 	/* Inherite properties from the parent */
 	new_sock->set_conn_properties_from_pcb();
 
-	new_sock->m_so_bindtodevice_ip = listen_sock->m_so_bindtodevice_ip;
-	new_sock->m_linger = listen_sock->m_linger;
-
 	new_sock->m_rcvbuff_max = MAX(listen_sock->m_rcvbuff_max, 2 * new_sock->m_pcb.mss);
 	new_sock->fit_rcv_wnd(true);
 
-	new_sock->setsockopt(IPPROTO_IP, IP_TTL, &listen_sock->m_n_uc_ttl, sizeof(listen_sock->m_n_uc_ttl));
-
-	new_sock->m_sndbuff_max = listen_sock->m_sndbuff_max;
-	if (listen_sock->m_sndbuff_max) {
-		new_sock->m_sndbuff_max = MAX(listen_sock->m_sndbuff_max, 2 * new_sock->m_pcb.mss);
-		new_sock->fit_snd_bufs(new_sock->m_sndbuff_max);
-	}
+	// Socket socket options
+	listen_sock->set_sock_options(new_sock);
 
 	listen_sock->m_tcp_con_lock.unlock();
 
@@ -2898,6 +2928,20 @@ void sockinfo_tcp::set_conn_properties_from_pcb()
 	m_bound.set_in_addr(m_pcb.local_ip.addr);
 	m_bound.set_in_port(htons(m_pcb.local_port));
 	m_bound.set_sa_family(AF_INET);
+}
+
+void sockinfo_tcp::set_sock_options(sockinfo_tcp *new_sock)
+{
+	si_tcp_logdbg("Applying all socket options on %p, fd %d", new_sock, new_sock->get_fd());
+
+	socket_options_list_t::iterator options_iter;
+	for (options_iter = m_socket_options_list.begin(); options_iter != m_socket_options_list.end(); options_iter++) {
+		socket_option_t* opt = *options_iter;
+		new_sock->setsockopt(opt->level, opt->optname, opt->optval, opt->optlen);
+	}
+	errno = 0;
+
+	si_tcp_logdbg("set_sock_options completed");
 }
 
 err_t sockinfo_tcp::connect_lwip_cb(void *arg, struct tcp_pcb *tpcb, err_t err)
@@ -3375,6 +3419,7 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
                               __const void *__optval, socklen_t __optlen)
 {
 	//todo check optlen and set proper errno on failure
+	si_tcp_logfunc("level=%d, optname=%d", __level, __optname);
 
 	int val, ret = 0;
 	bool supported = true;
@@ -3583,6 +3628,9 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 		}
 	}
 
+	if (m_sock_state <= TCP_SOCK_ACCEPT_READY && __optval != NULL && is_inherited_option(__level, __optname))
+		m_socket_options_list.push_back(new socket_option_t(__level, __optname,__optval, __optlen));
+
 	if (safe_mce_sys().avoid_sys_calls_on_tcp_fd && ret != SOCKOPT_HANDLE_BY_OS && is_connected())
 		return ret;
 	return setsockopt_kernel(__level, __optname, __optval, __optlen, supported, allow_privileged_sock_opt);
@@ -3651,7 +3699,7 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 			break;
 		case SO_KEEPALIVE:
 			if (*__optlen >= sizeof(int)) {
-				*(int *)__optval = m_pcb.so_options & SOF_KEEPALIVE;
+				*(int *)__optval = (bool)(m_pcb.so_options & SOF_KEEPALIVE);
 				si_tcp_logdbg("(SO_KEEPALIVE) keepalive: %d", *(int *)__optval);
 				ret = 0;
 			} else {
@@ -3677,8 +3725,8 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 			}
 			break;
 		case SO_LINGER:
-			if (*__optlen >= sizeof(struct linger)) {
-				*(struct linger *)__optval = m_linger;
+			if (*__optlen > 0) {
+				memcpy(__optval, &m_linger, std::min<size_t>(*__optlen , sizeof(struct linger)));
 				si_tcp_logdbg("(SO_LINGER) l_onoff = %d, l_linger = %d", m_linger.l_onoff, m_linger.l_linger);
 				ret = 0;
 			} else {
