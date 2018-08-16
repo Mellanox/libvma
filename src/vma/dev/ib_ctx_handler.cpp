@@ -86,7 +86,7 @@ ib_ctx_handler::ib_ctx_handler(struct ib_ctx_handler_desc *desc) :
 			    m_p_ibv_device, m_p_ibv_context, errno);
 	}
 	VALGRIND_MAKE_MEM_DEFINED(m_p_ibv_pd, sizeof(struct ibv_pd));
-	m_p_ibv_device_attr = new vma_ibv_device_attr();
+	m_p_ibv_device_attr = new vma_ibv_device_attr_ex();
 	if (m_p_ibv_device_attr == NULL) {
 		ibch_logpanic("ibv device %p attr allocation failure (ibv context %p) (errno=%d %m)",
 			    m_p_ibv_device, m_p_ibv_context, errno);
@@ -219,19 +219,19 @@ void ib_ctx_handler::set_str()
 	strcat(m_str, str_x);
 
 	str_x[0] = '\0';
-	sprintf(str_x, " port(s): %d", m_p_ibv_device_attr->phys_port_cnt);
+	sprintf(str_x, " port(s): %d", get_ibv_device_attr()->phys_port_cnt);
 	strcat(m_str, str_x);
 
 	str_x[0] = '\0';
-	sprintf(str_x, " vendor: %d", m_p_ibv_device_attr->vendor_part_id);
+	sprintf(str_x, " vendor: %d", get_ibv_device_attr()->vendor_part_id);
 	strcat(m_str, str_x);
 
 	str_x[0] = '\0';
-	sprintf(str_x, " fw: %s", m_p_ibv_device_attr->fw_ver);
+	sprintf(str_x, " fw: %s", get_ibv_device_attr()->fw_ver);
 	strcat(m_str, str_x);
 
 	str_x[0] = '\0';
-	sprintf(str_x, " max_qp_wr: %d", m_p_ibv_device_attr->max_qp_wr);
+	sprintf(str_x, " max_qp_wr: %d", get_ibv_device_attr()->max_qp_wr);
 	strcat(m_str, str_x);
 
 	str_x[0] = '\0';

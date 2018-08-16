@@ -124,7 +124,6 @@ typedef struct ibv_qp_init_attr                 vma_ibv_qp_init_attr;
 #define vma_ibv_qp_init_attr_comp_mask(_pd, _attr)	\
 	{ NOT_IN_USE(_pd); NOT_IN_USE(_attr); }
 //ibv_query_device
-#define vma_ibv_query_device(context, attr)	ibv_query_device(context, attr)
 typedef struct ibv_device_attr			vma_ibv_device_attr;
 #define vma_ibv_device_attr_comp_mask(attr)	NOT_IN_USE(attr)
 //ibv_modify_qp
@@ -149,10 +148,16 @@ typedef struct ibv_wc				vma_ibv_wc;
 typedef struct ibv_cq_init_attr_ex            vma_ibv_cq_init_attr;
 #define vma_ibv_create_cq(context, cqe, cq_context, channel, comp_vector, attr) ibv_create_cq_ex(context, attr)
 #define vma_ibv_poll_cq(cq, num, wc, attr) 	ibv_start_poll(cq, attr)
+
+//ibv_query_device
+#define vma_ibv_query_device(context, attr)	ibv_query_device_ex(context, NULL, attr)
 #else
 typedef int            vma_ibv_cq_init_attr;
 #define vma_ibv_create_cq(context, cqe, cq_context, channel, comp_vector, attr) ibv_create_cq(context, cqe, cq_context, channel, comp_vector)
 #define vma_ibv_poll_cq(cq, num, wc, attr)	ibv_poll_cq(cq, num, wc)
+
+//ibv_query_device
+#define vma_ibv_query_device(context, attr)	ibv_query_device(context, attr)
 #endif // DEFINED_IBV_EX_CQ
 
 //rx hw timestamp
@@ -398,6 +403,9 @@ typedef struct ibv_poll_cq_attr               vma_poll_cq_attr;
 #define vma_wc_context_slid(cq_ex)            ibv_wc_read_slid(cq_ex)
 #define vma_wc_context_sl(cq_ex)              ibv_wc_read_sl(cq_ex)
 #define vma_wc_context_dlid_path_bits(cq_ex)  ibv_wc_read_dlid_path_bits(cq_ex)
+
+typedef struct ibv_device_attr_ex             vma_ibv_device_attr_ex;
+#define vma_get_device_orig_attr(device_attr) &device_attr->orig_attr
 #else
 typedef struct ibv_cq                         vma_ibv_cq;
 typedef vma_ibv_wc                            vma_wc_context;
@@ -423,6 +431,9 @@ typedef struct ibv_poll_cq_attr_dummy {}      vma_poll_cq_attr;
 #define vma_wc_context_slid(wcc)              (wcc)->slid
 #define vma_wc_context_sl(wcc)                (wcc)->sl
 #define vma_wc_context_dlid_path_bits(wcc)    (wcc)->dlid_path_bits
+
+typedef vma_ibv_device_attr                   vma_ibv_device_attr_ex;
+#define vma_get_device_orig_attr(device_attr) device_attr
 #endif // DEFINED_IBV_EX_CQ
 
 typedef enum {
