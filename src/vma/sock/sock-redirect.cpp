@@ -80,6 +80,7 @@ using namespace std;
 #define srdr_logfunc_exit	__log_exit_func
 
 #define EP_MAX_EVENTS (int)((INT_MAX / sizeof(struct epoll_event)))
+#define SENDFILE_BUFFER_SIZE 1460
 
 struct os_api orig_os_api;
 struct sigaction g_act_prev;
@@ -153,6 +154,8 @@ void get_orig_funcs()
 	GET_ORIG_FUNC(sendmsg);
 	GET_ORIG_FUNC(sendmmsg);
 	GET_ORIG_FUNC(sendto);
+	GET_ORIG_FUNC(sendfile);
+	GET_ORIG_FUNC(sendfile64);
 	GET_ORIG_FUNC(select);
 	GET_ORIG_FUNC(pselect);
 	GET_ORIG_FUNC(poll);
@@ -1760,8 +1763,85 @@ ssize_t sendto(int __fd, __const void *__buf, size_t __nbytes, int __flags,
 	return orig_os_api.sendto(__fd, __buf, __nbytes, __flags, __to, __tolen);
 }
 
+inline ssize_t sendfile_helper(socket_fd_api* p_socket_object, int in_fd, __off64_t *offset, size_t count)
+{
+	__off64_t orig = 0;
+	iovec piov[1];
+	char buf[SENDFILE_BUFFER_SIZE];
+	ssize_t toRead, numRead, numSent, totSent = 0;
 
+	if (offset != NULL) {
+		/* Save current file offset and set offset to value in '*offset' */
+		orig = lseek64(in_fd, 0, SEEK_CUR);
+		if (orig == -1)
+			return -1;
+		if (lseek64(in_fd, *offset, SEEK_SET) == -1)
+			return -1;
+	}
 
+	piov[0].iov_base = (void*) buf;
+
+	while (count > 0) {
+		toRead = min(sizeof(buf), count);
+		numRead = orig_os_api.read(in_fd, buf, toRead);
+		if (numRead == -1)
+			return -1;
+		if (numRead == 0)
+			break;                      /* EOF */
+
+		// Update iovec size before send
+		piov[0].iov_len = numRead;
+
+		numSent = p_socket_object->tx(TX_WRITE, piov, 1);
+		if (numSent == -1)
+			return -1;
+		if (numSent == 0)               /* Should never happen */
+			srdr_logdbg("sendfile: write() transferred 0 bytes");
+
+		count -= numSent;
+		totSent += numSent;
+	}
+
+	if (offset != NULL) {
+		/* Return updated file offset in '*offset', and reset the file offset
+           to the value it had when we were called. */
+		*offset = lseek64(in_fd, 0, SEEK_CUR);
+		if (*offset == -1)
+			return -1;
+		if (lseek64(in_fd, orig, SEEK_SET) == -1)
+			return -1;
+	}
+
+	return totSent;
+}
+
+extern "C"
+ssize_t sendfile(int out_fd, int in_fd, off_t *offset, size_t count)
+{
+	srdr_logfuncall_entry("out_fd=%d, in_fd=%d, offset=%p, *offset=%zu, count=%d", out_fd, in_fd, offset, offset ? *offset : 0, count);
+
+	socket_fd_api* p_socket_object = fd_collection_get_sockfd(out_fd);
+	if (!p_socket_object) {
+		if (!orig_os_api.sendfile) get_orig_funcs();
+		return orig_os_api.sendfile(out_fd, in_fd, offset, count);
+	}
+
+	return sendfile_helper(p_socket_object, in_fd, offset, count);
+}
+
+extern "C"
+ssize_t sendfile64(int out_fd, int in_fd, __off64_t *offset, size_t count)
+{
+	srdr_logfuncall_entry("out_fd=%d, in_fd=%d, offset=%p, *offset=%zu, count=%d", out_fd, in_fd, offset, offset ? *offset : 0, count);
+
+	socket_fd_api* p_socket_object = fd_collection_get_sockfd(out_fd);
+	if (!p_socket_object) {
+		if (!orig_os_api.sendfile64) get_orig_funcs();
+		return orig_os_api.sendfile64(out_fd, in_fd, offset, count);
+	}
+
+	return sendfile_helper(p_socket_object, in_fd, offset, count);
+}
 
 // Format a fd_set into a string for logging
 // Check nfd to know how many 32 bits hexs do we want to sprintf into user buffer
