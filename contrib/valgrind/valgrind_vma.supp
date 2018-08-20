@@ -13,8 +13,6 @@
    match-leak-kinds: definite
    fun:malloc
    fun:_ZN21event_handler_manager20register_timer_eventEiP13timer_handler16timer_req_type_tPvP12timers_group
-   fun:_ZN12sockinfo_tcp14register_timerEv
-   fun:_ZN12sockinfo_tcp7connectEPK8sockaddrj
 }
 ###########################################################
 # false positive librdmacm.so
