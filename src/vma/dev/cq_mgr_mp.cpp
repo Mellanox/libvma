@@ -75,7 +75,7 @@ cq_mgr_mp::cq_mgr_mp(const ring_eth_cb *p_ring, ib_ctx_handler *p_ib_ctx_handler
 	configure(cq_size);
 }
 
-void cq_mgr_mp::prep_ibv_cq(vma_ibv_cq_init_attr &attr, int cq_size) const
+void cq_mgr_mp::prep_ibv_cq(vma_ibv_cq_init_attr &attr, int cq_size)
 {
 	cq_mgr::prep_ibv_cq(attr, cq_size);
 	attr.comp_mask |= IBV_EXP_CQ_INIT_ATTR_RES_DOMAIN;

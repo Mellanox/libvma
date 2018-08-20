@@ -51,35 +51,35 @@
 
 #define IB_CTX_TC_DEVIATION_THRESHOLD 10
 
-#define IBV_EXP_QUERY_DEVICE_SUPPORTED (1 << 0)
-#define IBV_EXP_QUERY_VALUES_SUPPORTED (1 << 1)
-
+#define VMA_QUERY_DEVICE_SUPPORTED (1 << 0)
+#define VMA_QUERY_VALUES_SUPPORTED (1 << 1)
 
 uint32_t time_converter::get_single_converter_status(struct ibv_context* ctx) {
 	uint32_t dev_status = 0;
-#ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
+#ifdef DEFINED_IBV_CQ_TIMESTAMP
 	int rval;
 
 	// Checking if ibv_exp_query_device() is valid
-	struct ibv_exp_device_attr device_attr;
+	vma_ibv_device_attr_ex device_attr;
 	memset(&device_attr, 0, sizeof(device_attr));
-	device_attr.comp_mask = IBV_EXP_DEVICE_ATTR_WITH_HCA_CORE_CLOCK;
+	device_attr.comp_mask = VMA_IBV_DEVICE_ATTR_HCA_CORE_CLOCK;
 
-	if ((rval = ibv_exp_query_device(ctx ,&device_attr)) || !device_attr.hca_core_clock) {
+	if ((rval = vma_ibv_query_device(ctx ,&device_attr)) || !device_attr.hca_core_clock) {
 		ibchtc_logdbg("time_converter::get_single_converter_status :Error in querying hca core clock "
 				"(ibv_exp_query_device() return value=%d ) (ibv context %p) (errno=%d %m)\n", rval, ctx, errno);
 	} else {
-		dev_status |= IBV_EXP_QUERY_DEVICE_SUPPORTED;
+		dev_status |= VMA_QUERY_DEVICE_SUPPORTED;
 	}
 
 	// Checking if ibv_exp_query_values() is valid
-	struct ibv_exp_values queried_values;
+	vma_ts_values queried_values;
 	memset(&queried_values, 0, sizeof(queried_values));
-	if ((rval = ibv_exp_query_values(ctx,IBV_EXP_VALUES_HW_CLOCK, &queried_values)) || !queried_values.hwclock) {
+	queried_values.comp_mask = VMA_IBV_VALUES_MASK_RAW_CLOCK;
+	if ((rval = vma_ibv_query_values(ctx, &queried_values)) || !vma_get_ts_val(queried_values)) {
 		ibchtc_logdbg("time_converter::get_single_converter_status :Error in querying hw clock, can't convert"
 				" hw time to system time (ibv_exp_query_values() return value=%d ) (ibv context %p) (errno=%d %m)\n", rval, ctx, errno);
 	} else {
-		dev_status |= IBV_EXP_QUERY_VALUES_SUPPORTED;
+		dev_status |= VMA_QUERY_VALUES_SUPPORTED;
 	}
 #else
 	NOT_IN_USE(ctx);
@@ -90,14 +90,14 @@ uint32_t time_converter::get_single_converter_status(struct ibv_context* ctx) {
 ts_conversion_mode_t time_converter::get_devices_converter_status(struct ibv_device** ibv_dev_list, int num_devices) {
 
 	ts_conversion_mode_t ctx_time_conversion_mode;
-#ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
+#ifdef DEFINED_IBV_CQ_TIMESTAMP
 	uint32_t devs_status = 0;
 
         ibchtc_logdbg("time_converter::get_devices_converter_status : Checking RX UDP HW time stamp "
                         "status for all devices [%d], ibv_dev_list = %p\n", num_devices, ibv_dev_list);
 
 	if (safe_mce_sys().hw_ts_conversion_mode != TS_CONVERSION_MODE_DISABLE){
-		devs_status = IBV_EXP_QUERY_DEVICE_SUPPORTED | IBV_EXP_QUERY_VALUES_SUPPORTED;
+		devs_status = VMA_QUERY_DEVICE_SUPPORTED | VMA_QUERY_VALUES_SUPPORTED;
 		for (int i = 0; i < num_devices; i++) {
 			struct ibv_context *ibv_ctx = ibv_open_device(ibv_dev_list[i]);
 			if (ibv_ctx == NULL) {
@@ -111,21 +111,21 @@ ts_conversion_mode_t time_converter::get_devices_converter_status(struct ibv_dev
 
 	switch (safe_mce_sys().hw_ts_conversion_mode) {
 	case TS_CONVERSION_MODE_RAW:
-		ctx_time_conversion_mode = devs_status & IBV_EXP_QUERY_DEVICE_SUPPORTED ? TS_CONVERSION_MODE_RAW : TS_CONVERSION_MODE_DISABLE;
+		ctx_time_conversion_mode = devs_status & VMA_QUERY_DEVICE_SUPPORTED ? TS_CONVERSION_MODE_RAW : TS_CONVERSION_MODE_DISABLE;
 		break;
 	case TS_CONVERSION_MODE_BEST_POSSIBLE:
-		if (devs_status == (IBV_EXP_QUERY_DEVICE_SUPPORTED | IBV_EXP_QUERY_VALUES_SUPPORTED)) {
+		if (devs_status == (VMA_QUERY_DEVICE_SUPPORTED | VMA_QUERY_VALUES_SUPPORTED)) {
 			ctx_time_conversion_mode = TS_CONVERSION_MODE_SYNC;
 		} else {
-			ctx_time_conversion_mode = devs_status & IBV_EXP_QUERY_DEVICE_SUPPORTED ? TS_CONVERSION_MODE_RAW : TS_CONVERSION_MODE_DISABLE;
+			ctx_time_conversion_mode = devs_status & VMA_QUERY_DEVICE_SUPPORTED ? TS_CONVERSION_MODE_RAW : TS_CONVERSION_MODE_DISABLE;
 		}
 		break;
 	case TS_CONVERSION_MODE_SYNC:
-		ctx_time_conversion_mode = devs_status == (IBV_EXP_QUERY_DEVICE_SUPPORTED | IBV_EXP_QUERY_VALUES_SUPPORTED) ? TS_CONVERSION_MODE_SYNC : TS_CONVERSION_MODE_DISABLE;
+		ctx_time_conversion_mode = devs_status == (VMA_QUERY_DEVICE_SUPPORTED | VMA_QUERY_VALUES_SUPPORTED) ? TS_CONVERSION_MODE_SYNC : TS_CONVERSION_MODE_DISABLE;
 		break;
 	case TS_CONVERSION_MODE_PTP:
-		ctx_time_conversion_mode = devs_status == (IBV_EXP_QUERY_DEVICE_SUPPORTED |
-				IBV_EXP_QUERY_VALUES_SUPPORTED) ?
+		ctx_time_conversion_mode = devs_status == (VMA_QUERY_DEVICE_SUPPORTED |
+				VMA_QUERY_VALUES_SUPPORTED) ?
 						TS_CONVERSION_MODE_PTP : TS_CONVERSION_MODE_DISABLE;
 		break;
 	default:

@@ -220,7 +220,7 @@ protected:
 	bool		compensate_qp_poll_success(mem_buf_desc_t* buff);
 	inline uint32_t process_recv_queue(void* pv_fd_ready_array = NULL);
 
-	virtual void	prep_ibv_cq(vma_ibv_cq_init_attr &attr, int cq_size) const;
+	virtual void	prep_ibv_cq(vma_ibv_cq_init_attr &attr, int cq_size);
 	//returns list of buffers to the owner.
 	void		process_tx_buffer_list(mem_buf_desc_t* p_mem_buf_desc);
 
@@ -234,6 +234,7 @@ protected:
 	uint32_t		m_n_wce_counter;
 	bool			m_b_was_drained;
 	bool			m_b_is_rx_hw_csum_on;
+	bool			m_b_is_rx_ts_on;
 	qp_rec			m_qp_rec;
 	const uint32_t		m_n_sysvar_cq_poll_batch_max;
 	const uint32_t		m_n_sysvar_progress_engine_wce_max;

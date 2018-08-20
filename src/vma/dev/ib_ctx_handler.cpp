@@ -98,7 +98,7 @@ ib_ctx_handler::ib_ctx_handler(struct ib_ctx_handler_desc *desc) :
 		goto err;
 	} ENDIF_VERBS_FAILURE;
 
-#ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
+#ifdef DEFINED_IBV_CQ_TIMESTAMP
 	switch (desc->ctx_time_converter_mode) {
 	case TS_CONVERSION_MODE_DISABLE:
 		m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context, TS_CONVERSION_MODE_DISABLE, 0);
@@ -144,7 +144,7 @@ ib_ctx_handler::ib_ctx_handler(struct ib_ctx_handler_desc *desc) :
 				"value=%d). set to TS_CONVERSION_MODE_DISABLE.",
 				desc->ctx_time_converter_mode);
 	}
-#endif // DEFINED_IBV_EXP_CQ_TIMESTAMP
+#endif // DEFINED_IBV_CQ_TIMESTAMP
 	// update device memory capabilities
 	m_on_device_memory = vma_ibv_dm_size(m_p_ibv_device_attr);
 

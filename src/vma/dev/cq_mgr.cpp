@@ -83,6 +83,7 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 	,m_n_wce_counter(0)
 	,m_b_was_drained(false)
 	,m_b_is_rx_hw_csum_on(false)
+	,m_b_is_rx_ts_on(false)
 	,m_n_sysvar_cq_poll_batch_max(safe_mce_sys().cq_poll_batch_max)
 	,m_n_sysvar_progress_engine_wce_max(safe_mce_sys().progress_engine_wce_max)
 	,m_p_cq_stat(&m_cq_stat_static) // use local copy of stats by default (on rx cq get shared memory stats)
@@ -169,7 +170,7 @@ void cq_mgr::configure(int cq_size)
 	cq_logdbg("Created CQ as %s with fd[%d] and of size %d elements (ibv_cq_hndl=%p)", (m_b_is_rx?"Rx":"Tx"), get_channel_fd(), cq_size, m_p_ibv_cq);
 }
 
-void cq_mgr::prep_ibv_cq(vma_ibv_cq_init_attr& attr, int cq_size) const
+void cq_mgr::prep_ibv_cq(vma_ibv_cq_init_attr& attr, int cq_size)
 {
 	memset(&attr, 0, sizeof(attr));
 
@@ -177,6 +178,7 @@ void cq_mgr::prep_ibv_cq(vma_ibv_cq_init_attr& attr, int cq_size) const
 
 	if (m_p_ib_ctx_handler->get_ctx_time_converter_status()) {
 		init_vma_ibv_cq_init_attr_ts(&attr);
+		m_b_is_rx_ts_on = true;
 	}
 }
 
@@ -428,12 +430,12 @@ void cq_mgr::process_cq_element_log_helper(mem_buf_desc_t* p_mem_buf_desc, vma_w
 		if (m_b_is_rx_hw_csum_on && ! vma_wc_context_rx_hw_csum_ok(p_wcc))
 			cq_logdbg("wce: bad rx_csum");
 		cq_logdbg("wce: opcode=%#x, byte_len=%#d, src_qp=%#x, wc_flags=%#x", vma_wc_context_opcode(p_wcc), vma_wc_context_byte_len(p_wcc), vma_wc_context_src_qp(p_wcc), vma_wc_context_flags(p_wcc));
-		cq_logdbg("wce: pkey_index=%#x, slid=%#x, sl=%#x, dlid_path_bits=%#x, imm_data=%#x", vma_wc_context_pkey_index(p_wcc), vma_wc_context_slid(p_wcc), vma_wc_context_sl(p_wcc), vma_wc_context_dlid_path_bits(p_wcc), vma_wc_context_imm_data(p_wcc));
+		cq_logdbg("wce: pkey_index=%#x, dlid_path_bits=%#x, imm_data=%#x", vma_wc_context_pkey_index(p_wcc), vma_wc_context_dlid_path_bits(p_wcc), vma_wc_context_imm_data(p_wcc));
 		cq_logdbg("mem_buf_desc: lkey=%#x, p_buffer=%p, sz_buffer=%#x", p_mem_buf_desc->lkey, p_mem_buf_desc->p_buffer, p_mem_buf_desc->sz_buffer);
 	} else if (p_wcc->status != IBV_WC_WR_FLUSH_ERR) {
 		cq_logwarn("wce: wr_id=%#x, status=%#x, vendor_err=%#x, qp_num=%#x", p_wcc->wr_id, p_wcc->status, vma_wc_context_vendor_err(p_wcc), vma_wc_context_qp_num(p_wcc));
 		cq_loginfo("wce: opcode=%#x, byte_len=%#d, src_qp=%#x, wc_flags=%#x", vma_wc_context_opcode(p_wcc), vma_wc_context_byte_len(p_wcc), vma_wc_context_src_qp(p_wcc), vma_wc_context_flags(p_wcc));
-		cq_loginfo("wce: pkey_index=%#x, slid=%#x, sl=%#x, dlid_path_bits=%#x, imm_data=%#x", vma_wc_context_pkey_index(p_wcc), vma_wc_context_slid(p_wcc), vma_wc_context_sl(p_wcc), vma_wc_context_dlid_path_bits(p_wcc), vma_wc_context_imm_data(p_wcc));
+		cq_loginfo("wce: pkey_index=%#x, dlid_path_bits=%#x, imm_data=%#x", vma_wc_context_pkey_index(p_wcc), vma_wc_context_dlid_path_bits(p_wcc), vma_wc_context_imm_data(p_wcc));
 
 		if (p_mem_buf_desc) {
 			cq_logwarn("mem_buf_desc: lkey=%#x, p_buffer=%p, sz_buffer=%#x", p_mem_buf_desc->lkey, p_mem_buf_desc->p_buffer, p_mem_buf_desc->sz_buffer);
@@ -452,7 +454,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_tx(vma_wc_context* p_wcc)
 #ifndef DEFINED_SOCKETXTREME
 	if (unlikely(g_vlogger_level >= VLOG_FUNC_ALL)) {
 		cq_logfuncall("wce=%p info wr_id=%x, status=%x, opcode=%x, vendor_err=%x, byte_len=%d, imm_data=%x", p_wcc->wr_id, p_wcc->status, vma_wc_context_opcode(p_wcc), vma_wc_context_vendor_err(p_wcc), vma_wc_context_byte_len(p_wcc), vma_wc_context_imm_data(p_wcc));
-		cq_logfuncall("qp_num=%x, src_qp=%x, wc_flags=%x, pkey_index=%x, slid=%x, sl=%x, dlid_path_bits=%x", vma_wc_context_qp_num(p_wcc), vma_wc_context_src_qp(p_wcc), vma_wc_context_flags(p_wcc), vma_wc_context_pkey_index(p_wcc), vma_wc_context_slid(p_wcc), vma_wc_context_sl(p_wcc), vma_wc_context_dlid_path_bits(p_wcc));
+		cq_logfuncall("qp_num=%x, src_qp=%x, wc_flags=%x, pkey_index=%x, dlid_path_bits=%x", vma_wc_context_qp_num(p_wcc), vma_wc_context_src_qp(p_wcc), vma_wc_context_flags(p_wcc), vma_wc_context_pkey_index(p_wcc), vma_wc_context_dlid_path_bits(p_wcc));
 	}
 #endif
 
@@ -493,7 +495,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_wc_context* p_wcc)
 #ifndef DEFINED_SOCKETXTREME
 	if (unlikely(g_vlogger_level >= VLOG_FUNC_ALL)) {
 		cq_logfuncall("wce=%p info wr_id=%x, status=%x, opcode=%x, vendor_err=%x, byte_len=%d, imm_data=%x", p_wcc->wr_id, p_wcc->status, vma_wc_context_opcode(p_wcc), vma_wc_context_vendor_err(p_wcc), vma_wc_context_byte_len(p_wcc), vma_wc_context_imm_data(p_wcc));
-		cq_logfuncall("qp_num=%x, src_qp=%x, wc_flags=%x, pkey_index=%x, slid=%x, sl=%x, dlid_path_bits=%x", vma_wc_context_qp_num(p_wcc), vma_wc_context_src_qp(p_wcc), vma_wc_context_flags(p_wcc), vma_wc_context_pkey_index(p_wcc), vma_wc_context_slid(p_wcc), vma_wc_context_sl(p_wcc), vma_wc_context_dlid_path_bits(p_wcc));
+		cq_logfuncall("qp_num=%x, src_qp=%x, wc_flags=%x, pkey_index=%x, dlid_path_bits=%x", vma_wc_context_qp_num(p_wcc), vma_wc_context_src_qp(p_wcc), vma_wc_context_flags(p_wcc), vma_wc_context_pkey_index(p_wcc), vma_wc_context_dlid_path_bits(p_wcc));
 	}
 #endif
 
@@ -553,7 +555,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_wc_context* p_wcc)
 
 		//this is not a deadcode if timestamping is defined in verbs API
 		// coverity[dead_error_condition]
-		if (vma_wc_context_flags(p_wcc) & VMA_IBV_WC_WITH_TIMESTAMP) {
+		if (vma_contain_ts(p_wcc, m_b_is_rx_ts_on)) {
 			p_mem_buf_desc->rx.hw_raw_timestamp = vma_wc_context_timestamp(p_wcc);
 		}
 

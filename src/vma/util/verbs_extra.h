@@ -277,7 +277,7 @@ typedef int            vma_ibv_cq_init_attr;
 #endif
 
 //rx hw timestamp
-#ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
+#ifdef DEFINED_IBV_CQ_TIMESTAMP
 #define VMA_IBV_WC_WITH_TIMESTAMP              IBV_EXP_WC_WITH_TIMESTAMP
 #define vma_wc_timestamp(wc)			(wc)->timestamp
 #else
@@ -400,12 +400,18 @@ typedef struct ibv_poll_cq_attr               vma_poll_cq_attr;
 #define vma_wc_context_qp_num(cq_ex)          ibv_wc_read_qp_num(cq_ex)
 #define vma_wc_context_src_qp(cq_ex)          ibv_wc_read_src_qp(cq_ex)
 #define vma_wc_context_pkey_index(cq_ex)      0
-#define vma_wc_context_slid(cq_ex)            ibv_wc_read_slid(cq_ex)
-#define vma_wc_context_sl(cq_ex)              ibv_wc_read_sl(cq_ex)
 #define vma_wc_context_dlid_path_bits(cq_ex)  ibv_wc_read_dlid_path_bits(cq_ex)
 
 typedef struct ibv_device_attr_ex             vma_ibv_device_attr_ex;
 #define vma_get_device_orig_attr(device_attr) &device_attr->orig_attr
+
+#define VMA_IBV_DEVICE_ATTR_HCA_CORE_CLOCK    0
+#define VMA_IBV_VALUES_MASK_RAW_CLOCK         IBV_VALUES_MASK_RAW_CLOCK
+#define vma_ibv_query_values(ctx, values)     ibv_query_rt_values_ex(ctx, values)
+#define vma_get_ts_val(values)                values.raw_clock.tv_nsec
+#define vma_contain_ts(wcc, is_supported)     is_supported
+typedef struct ibv_values_ex                  vma_ts_values;
+
 #else
 typedef struct ibv_cq                         vma_ibv_cq;
 typedef vma_ibv_wc                            vma_wc_context;
@@ -428,12 +434,18 @@ typedef struct ibv_poll_cq_attr_dummy {}      vma_poll_cq_attr;
 #define vma_wc_context_qp_num(wcc)            (wcc)->qp_num
 #define vma_wc_context_src_qp(wcc)            (wcc)->src_qp
 #define vma_wc_context_pkey_index(wcc)        (wcc)->pkey_index
-#define vma_wc_context_slid(wcc)              (wcc)->slid
-#define vma_wc_context_sl(wcc)                (wcc)->sl
 #define vma_wc_context_dlid_path_bits(wcc)    (wcc)->dlid_path_bits
 
 typedef vma_ibv_device_attr                   vma_ibv_device_attr_ex;
 #define vma_get_device_orig_attr(device_attr) device_attr
+
+#define VMA_IBV_DEVICE_ATTR_HCA_CORE_CLOCK    IBV_EXP_DEVICE_ATTR_WITH_HCA_CORE_CLOCK
+#define VMA_IBV_VALUES_MASK_RAW_CLOCK         0
+#define vma_ibv_query_values(ctx, values)     ibv_exp_query_values(ctx, IBV_EXP_VALUES_HW_CLOCK, values)
+#define vma_get_ts_val(values)                values.hwclock
+#define vma_contain_ts(wcc, is_supported)     vma_wc_context_flags(wcc) & VMA_IBV_WC_WITH_TIMESTAMP
+typedef struct ibv_exp_values                 vma_ts_values;
+
 #endif // DEFINED_IBV_EX_CQ
 
 typedef enum {
@@ -459,12 +471,15 @@ int vma_rdma_lib_reset();
 
 static inline void init_vma_ibv_cq_init_attr_ts(vma_ibv_cq_init_attr* attr)
 {
-#ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
-		attr->flags |= IBV_EXP_CQ_TIMESTAMP;
-		attr->comp_mask |= IBV_EXP_CQ_INIT_ATTR_FLAGS;
+#ifdef DEFINED_IBV_CQ_TIMESTAMP
+#ifdef DEFINED_IBV_EX_CQ
+	attr->wc_flags |= IBV_WC_EX_WITH_COMPLETION_TIMESTAMP;
 #else
-		NOT_IN_USE(attr);
+	attr->flags |= IBV_EXP_CQ_TIMESTAMP;
+	attr->comp_mask |= IBV_EXP_CQ_INIT_ATTR_FLAGS;
 #endif
+#endif
+	NOT_IN_USE(attr);
 }
 
 static inline void init_vma_ibv_cq_init_attr(vma_ibv_cq_init_attr* attr, int cq_size, void* cq_context, struct ibv_comp_channel *channel)
@@ -474,8 +489,7 @@ static inline void init_vma_ibv_cq_init_attr(vma_ibv_cq_init_attr* attr, int cq_
 	attr->cq_context = cq_context;
 	attr->channel = channel;
 	attr->wc_flags = IBV_WC_EX_WITH_BYTE_LEN | IBV_WC_EX_WITH_IMM |
-			IBV_WC_EX_WITH_QP_NUM | IBV_WC_EX_WITH_SRC_QP | IBV_WC_EX_WITH_SLID |
-			IBV_WC_EX_WITH_SL | IBV_WC_EX_WITH_DLID_PATH_BITS;
+			IBV_WC_EX_WITH_QP_NUM | IBV_WC_EX_WITH_SRC_QP | IBV_WC_EX_WITH_DLID_PATH_BITS;
 #else
 	NOT_IN_USE(attr);
 	NOT_IN_USE(cq_size);

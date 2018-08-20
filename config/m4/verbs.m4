@@ -27,8 +27,6 @@ AC_DEFUN([CHECK_VERBS_ATTRIBUTE], [
     ])
 ])
 
-
-
 ##########################
 # Configure ofed capabilities
 #
@@ -120,7 +118,7 @@ AC_ARG_ENABLE([exp-cq],
 AS_IF([test "x$enable_exp_cq" == xyes],
     [AC_DEFINE([DEFINED_IBV_EXP_CQ], 1, [Define to 1 if Experimental Verbs CQ was enabled at configure time])]
 
-    CHECK_VERBS_ATTRIBUTE([IBV_EXP_CQ_TIMESTAMP], [infiniband/verbs_exp.h])
+    CHECK_VERBS_ATTRIBUTE([IBV_EXP_CQ_TIMESTAMP], [infiniband/verbs_exp.h], [IBV_CQ_TIMESTAMP])
     CHECK_VERBS_ATTRIBUTE([IBV_EXP_VALUES_CLOCK_INFO], [infiniband/verbs_exp.h])
     CHECK_VERBS_ATTRIBUTE([IBV_EXP_DEVICE_RX_CSUM_L4_PKT], [infiniband/verbs_exp.h])
     CHECK_VERBS_ATTRIBUTE([IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT], [infiniband/verbs_exp.h])
@@ -137,6 +135,7 @@ CHECK_VERBS_ATTRIBUTE([IBV_FLOW_SPEC_IB], [infiniband/verbs.h], [IBV_FLOW_SPEC_I
 CHECK_VERBS_ATTRIBUTE([IBV_DEVICE_RAW_IP_CSUM], [infiniband/verbs.h])
 CHECK_VERBS_ATTRIBUTE([IBV_SEND_IP_CSUM], [infiniband/verbs.h])
 CHECK_VERBS_ATTRIBUTE([IBV_WC_EX_WITH_BYTE_LEN], [infiniband/verbs.h], [IBV_EX_CQ])
+CHECK_VERBS_ATTRIBUTE([IBV_WC_EX_WITH_COMPLETION_TIMESTAMP], [infiniband/verbs.h], [IBV_CQ_TIMESTAMP])
 
 # Check <verbs_exp.h>
 #
