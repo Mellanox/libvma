@@ -1,4 +1,4 @@
-Update: 10 Jul 2018
+Update: 12 Aug 2018
 
 Introduction
 ============
@@ -20,7 +20,7 @@ Build libvma from source
 
 Prerequisites:
 1. MLNX_OFED as described in the "Pre Installation" step of next section.
-2. Or, upstream kernel and userspace verbs libraries (libibverbs, libmlx4, librdmacm)
+2. Or, upstream kernel and userspace verbs libraries (libibverbs, libmlx4, libmlx5, librdmacm)
 3. Autoconf, Automake, libtool, unzip, patch, libnl-devel (netlink 1 or 3)
 
 Build:
@@ -48,7 +48,7 @@ Pre Installation:
    options ib_uverbs disable_raw_qp_enforcement=1
    options mlx4_core fast_drop=1
    options mlx4_core log_num_mgm_entry_size=-1
-   And restart the driver: /etc/init.d/openibd restart
+   And restart openibd or rdma service depending on your system configuration
 
 Installing:
 Install the package as any other rpm or debian package [rpm -i libvma.X.Y.Z-R.rpm].
@@ -1050,7 +1050,7 @@ This warning message means that VMA tried to create a HW QP resource over Eth
 interface while the kernel requires this operation to be done only by privileged
 users. root can enable this for regular users as well by:
  1. "echo options ib_uverbs disable_raw_qp_enforcement=1 > /etc/modprobe.d/ib_uverbs.conf"
- 2. "/etc/init.d/openibd restart"
+ 2. Restart openibd or rdma service depending on your system configuration
 
 
 * CAP_NET_RAW and root access
