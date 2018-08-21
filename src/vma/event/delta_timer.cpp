@@ -177,17 +177,6 @@ void timer::remove_all_timers(timer_handler *handler)
 	return;
 }
 
-//code coverage
-#if 0
-int timer::get_time_to_wait()
-{
-	if (m_list_head)
-		return m_list_head->delta_time_msec;
-	else
-		return INFINITE_TIMEOUT;
-}
-#endif
-
 int timer::update_timeout()
 {
 	int ret = 0, delta_msec = 0;

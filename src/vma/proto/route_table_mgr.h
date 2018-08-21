@@ -61,14 +61,12 @@ public:
 	route_table_mgr();
 	virtual ~route_table_mgr();
 
-	void		get_default_gw(in_addr_t *p_gw_ip, int *p_if_index);
 	bool		route_resolve(IN route_rule_table_key key, OUT route_result &res);
 
 	route_entry* 	create_new_entry(route_rule_table_key key, const observer *obs);
 	void 		update_entry(INOUT route_entry* p_ent, bool b_register_to_net_dev = false);
 
 	virtual void 	notify_cb(event *ev);
-	void 		addr_change_event(int if_index);
 
 protected:
 	virtual bool	parse_enrty(nlmsghdr *nl_header, route_val *p_val);
@@ -90,9 +88,7 @@ private:
 	void 		add_rt_entry_val(route_val *p_val);
 
 
-	void 		del_route_event(route_val &netlink_route_val);
 	void 		new_route_event(route_val* netlink_route_val);
-	route_val* 	find_route_val(route_val &netlink_route_val);
 };
 
 extern route_table_mgr* g_p_route_table_mgr;

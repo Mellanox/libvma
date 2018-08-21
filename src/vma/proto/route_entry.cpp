@@ -32,7 +32,6 @@
 
 
 #include "vma/proto/ip_address.h"
-#include "vma/event/route_net_dev_event.h"
 #include "route_entry.h"
 #include "route_table_mgr.h"
 #include "vma/infra/cache_subject_observer.h"

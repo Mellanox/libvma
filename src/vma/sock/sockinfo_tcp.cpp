@@ -304,18 +304,6 @@ sockinfo_tcp::~sockinfo_tcp()
 	}
 	unlock_tcp_con();
 
-	// hack to close conn as our tcp state machine is not really persistent
-	// give a chance for remote to respond with FIN ACK or
-	// else remote can be stack in LAST_ACK for about 2 min
-#if 0  // can not do this now because tcp flow entry is nuked. will miss wakeup as the result
-	sleep(1);
-	int poll_cnt;
-	poll_cnt = 0;
-	rx_wait_helper(poll_cnt, false);
-	//g_p_lwip->do_timers();
-#endif
-	//close(m_rx_epfd);
-
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_call_orig_close_on_dtor) {
 		si_tcp_logdbg("calling orig_os_close on dup %d of %d",m_call_orig_close_on_dtor, m_fd);
@@ -1960,38 +1948,6 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	return true;
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-int sockinfo_tcp::prepareConnect(const sockaddr *, socklen_t ){
-//int tcp_sockinfo::prepareConnect(const sockaddr *__to, socklen_t __tolen){
-
-#if 0
-	transport_t target_family;
-	si_tcp_logfuncall("");
-
-	if (m_sock_offload == TCP_SOCK_PASSTHROUGH)
-		return 1; //passthrough
-
-	/* obtain the target address family */
-	target_family = __vma_match_tcp_client(TRANS_VMA, __to, __tolen, safe_mce_sys().app_id);
-	si_tcp_logdbg("TRANSPORT: %s",__vma_get_transport_str(target_family));
-	if (target_family == TRANS_OS) {
-		setPassthrough();
-		return 1; //passthrough
-	}
-
-	// if (target_family == USE_VMA || target_family == USE_ULP || arget_family == USE_DEFAULT)
-
-	// find our local address
-	setPassthrough(false);
-#endif
-	return 0; //offloaded
-}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 /**
  *  try to connect to the dest over RDMA cm
  *  try fallback to the OS connect (TODO)
@@ -2291,47 +2247,6 @@ int sockinfo_tcp::prepareListen(){
 int sockinfo_tcp::listen(int backlog)
 {
 	si_tcp_logfuncall("");
-
-#if 0
-	transport_t target_family;
-	struct sockaddr_storage tmp_sin;
-	socklen_t tmp_sinlen = sizeof(tmp_sin);
-
-	if (m_sock_offload == TCP_SOCK_PASSTHROUGH)
-		return orig_os_api.listen(m_fd, backlog);
-
-	if (m_sock_state != TCP_SOCK_BOUND) {
-		// print error so we can better track apps not following our assumptions ;)
-		si_tcp_logerr("socket is in wrong state for connect: %d", m_sock_state);
-		errno = EINVAL;
-		return -1;
-	}
-
-	if (orig_os_api.getsockname(m_fd, (struct sockaddr *) &tmp_sin, &tmp_sinlen)) {
-		si_tcp_logerr("get sockname failed");
-		return -1;
-	}
-
-	lock();
-	target_family = __vma_match_tcp_server(TRANS_VMA, (struct sockaddr *) &tmp_sin, sizeof(tmp_sin), safe_mce_sys().app_id);
-	si_tcp_logdbg("TRANSPORT: %s", __vma_get_transport_str(target_family));
-	si_tcp_logdbg("sock state = %d", m_sock->state);
-
-	if (target_family == TRANS_OS) {
-		if (orig_os_api.listen(m_fd, backlog) < 0) {
-			unlock();
-			return -1;
-		}
-		setPassthrough();
-		m_sock_state = TCP_SOCK_ACCEPT_READY;
-		unlock();
-		return 0;
-	}
-	// if (target_family == USE_VMA || target_family == USE_ULP || arget_family == USE_DEFAULT)
-	setPassthrough(false);
-	//TODO unlock();
-#endif
-	//
 
 	int orig_backlog = backlog;
 
@@ -3950,12 +3865,6 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 	}
 
 	// if in blocking accept state skip poll phase and go to sleep directly
-#if 0
-	if (unlikely(is_server() && is_blocking == true)) {
-		si_tcp_logdbg("skip poll on accept!");
-		goto skip_poll;
-	}
-#endif
         if (m_loops_timer.is_timeout() || !is_blocking) {
 		errno = EAGAIN;
 		return -1;

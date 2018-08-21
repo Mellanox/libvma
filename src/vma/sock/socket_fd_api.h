@@ -114,14 +114,6 @@ public:
 	virtual void setPassthrough() {}
 	virtual bool isPassthrough()  {return false;}
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	virtual int prepareConnect(const sockaddr *, socklen_t ) {return 0;}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 	virtual int prepareListen()  {return 0;}
 
 	virtual void destructor_helper();
@@ -201,15 +193,6 @@ public:
 	// true if fd must be skipped from OS select()
 	// If m_n_sysvar_select_poll_os_ratio == 0, it means that user configured VMA not to poll os (i.e. TRUE...)
 	virtual bool skip_os_select() { return (!m_n_sysvar_select_poll_os_ratio); };
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	// true if EOF condition is detected on offloaded socket()
-	virtual bool is_eof() { return false; };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 	virtual fd_type_t get_type() = 0;
 

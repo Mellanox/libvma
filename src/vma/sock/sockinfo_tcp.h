@@ -114,7 +114,6 @@ public:
 	}
 	bool isPassthrough()  {return m_sock_offload == TCP_SOCK_PASSTHROUGH;}
 
-	int prepareConnect(const sockaddr *__to, socklen_t __tolen);
 	int prepareListen();
 	int shutdown(int __how);
 
@@ -181,17 +180,6 @@ public:
 		return (m_sock_offload == TCP_SOCK_LWIP && !is_server() && m_conn_state != TCP_CONN_INIT);
 	}
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	bool is_eof()
-	{
-		return m_sock_state == TCP_SOCK_INITED || m_sock_state == TCP_SOCK_CONNECTED_WR;
-	}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 	bool is_connected()
 	{
 		return m_sock_state == TCP_SOCK_CONNECTED_RDWR;
@@ -218,17 +206,6 @@ public:
 	{
 		return FD_TYPE_SOCKET;
 	}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	tcp_pcb *get_pcb()
-	{
-		return &m_pcb;
-	}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 	void handle_timer_expired(void* user_data);
 

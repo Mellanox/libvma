@@ -30,13 +30,6 @@
  * SOFTWARE.
  */
 
-/*
- * wqe_handler_send_ib.h
- *
- *  Created on: Jul 15, 2012
- *      Author: alexv
- */
-
 #include "wqe_send_handler.h"
 #include "vma/util/vtypes.h"
 
@@ -49,12 +42,9 @@ public:
 	wqe_send_ib_handler();
 	virtual ~wqe_send_ib_handler();
 
-
 	void init_ib_wqe(vma_ibv_send_wr &wqe_to_init, struct ibv_sge* sge_list, uint32_t num_sge, struct ibv_ah *ah, uint32_t rem_qpn, uint32_t rem_qkey);
 	void init_inline_ib_wqe(vma_ibv_send_wr & wqe_to_init, struct ibv_sge *sge_list, uint32_t num_sge, struct ibv_ah *ah, uint32_t rem_qpn, uint32_t rem_qkey);
 	void init_not_inline_ib_wqe(vma_ibv_send_wr & wqe_to_init, struct ibv_sge *sge_list, uint32_t num_sge, struct ibv_ah *ah, uint32_t rem_qpn, uint32_t rem_qkey);
-	void enable_imm_data(vma_ibv_send_wr &send_wqe);
-	void disable_imm_data(vma_ibv_send_wr &send_wqe);
 
 private:
     void init_path_record(vma_ibv_send_wr & wqe_to_init, struct ibv_ah *ah, uint32_t rem_qkey, uint32_t rem_qpn);

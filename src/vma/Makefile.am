@@ -107,7 +107,6 @@ libvma_la_SOURCES := \
 	event/event_handler_manager.cpp \
 	event/vlogger_timer_handler.cpp \
 	event/netlink_event.cpp \
-	event/route_net_dev_event.cpp\
 	\
 	iomux/epfd_info.cpp \
 	iomux/epoll_wait_call.cpp \
@@ -208,7 +207,6 @@ libvma_la_SOURCES := \
 	event/event_handler_manager.h \
 	event/event_handler_rdma_cm.h \
 	event/netlink_event.h \
-	event/route_net_dev_event.h \
 	event/timer_handler.h \
 	event/timers_group.h \
 	event/vlogger_timer_handler.h \
@@ -286,7 +284,6 @@ libvma_la_SOURCES := \
 	util/if.h \
 	util/instrumentation.h \
 	util/libvma.h \
-	util/linked_unordered_map.h \
 	util/list.h \
 	util/sg_array.h \
 	util/sock_addr.h \

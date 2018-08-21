@@ -137,54 +137,6 @@ select_call::select_call(int *off_fds_buffer, offloaded_mode_t *off_modes_buffer
 		}
 	}
 	__log_func("num all offloaded_fds=%d", m_num_all_offloaded_fds);
-
-
-#if 0 //older code
-	if (m_readfds) { // TODO: consider 1 loop, for saving calls to fd_collection_get_sockfd()
-		FD_COPY(&m_os_rfds, m_readfds, m_nfds);
-		// get offloaded fds in read set
-		for (fd = 0; fd < m_nfds; ++fd) {
-			if (FD_ISSET(fd, m_readfds)) {
-				__log_dbg("---> fd=%d IS SET for read!", fd);
-				socket_fd_api* psock = fd_collection_get_sockfd(fd);
-				if (psock && psock->get_type() == FD_TYPE_SOCKET) {
-					m_p_all_offloaded_fds[m_num_all_offloaded_fds++] = fd;
-					if (psock->skip_os_select()) {
-						__log_dbg("fd=%d must be skipped from os r select()", fd);
-						FD_CLR(fd, &m_os_rfds);
-					}
-				}
-			}
-		}
-		if (! safe_mce_sys().rx_offload_enabled) {
-			// reset counter once after the loop instead of 'if'ing N times in the loop
-			m_num_all_offloaded_fds = 0;
-		}
-	}
-	if (m_writefds) { // TODO: consider 1 loop, for saving calls to fd_collection_get_sockfd()
-		FD_COPY(&m_os_wfds, m_writefds, m_nfds);
-		// get offloaded fds in write set
-		for (fd = 0; fd < m_nfds; ++fd) {
-			if (FD_ISSET(fd, m_writefds)) {
-				__log_dbg("---> fd=%d IS SET for write!", fd);
-				socket_fd_api* psock = fd_collection_get_sockfd(fd);
-				if (psock && psock->get_type() == FD_TYPE_SOCKET) {
-					m_p_offloaded_wfds[m_num_offloaded_wfds++] = fd;
-					if (psock->skip_os_select()) {
-						__log_dbg("fd=%d must be skipped from os w select()", fd);
-						FD_CLR(fd, &m_os_wfds);
-					}
-				}
-			}
-		}
-		if (! safe_mce_sys().tx_offload_enabled) {
-			// reset counter once after the loop instead of 'if'ing N times in the loop
-			m_num_offloaded_wfds = 0;
-		}
-	}
-	__log_dbg("offloaded_rfds=%d; offloaded_wfds=%d", m_num_all_offloaded_fds, m_num_offloaded_wfds);
-#endif
-	// coverity[uninit_member]
 }
 
 
@@ -290,34 +242,6 @@ bool select_call::wait(const timeval &elapsed)
 		if (m_writefds)	FD_COPY(m_writefds, &m_os_wfds, m_nfds);
 		if (m_exceptfds)FD_COPY(m_exceptfds, &m_orig_exceptfds, m_nfds);
 	}
-
-/*  - TODO: do we need some of the EOF related code from the below ?
-
-	// remove exclusions from sets
-        // check them for EOF condition
-        for (int i = 0; i < m_n_exclude_fds; i++) {
-                socket_fd_api* psock;
-                FD_CLR(m_exclude_os_fds[i], m_readfds);
-                //TODO: may need to clear from write/except sets
-                psock =fd_collection_get_sockfd(m_exclude_os_fds[i]);
-                if (!psock)
-                        __log_panic("no socket object");
-
-                //TODO: this code is wrong - fix it!!
-                if (psock->is_eof()) {
-                        __log_dbg("eof detected on fd=%d", m_exclude_os_fds[i]);
-                        FD_ZERO(m_readfds, m_nfds);
-                        // copy sets, and zero out the originals
-                        if (m_writefds)
-                                FD_ZERO(m_writefds, m_nfds);
-                        if (m_exceptfds)
-                                FD_ZERO(m_exceptfds, m_nfds);
-                        FD_SET(m_exclude_os_fds[i], m_readfds);
-                        m_n_all_ready_fds = m_n_ready_rfds = 1;
-                        return false;
-                }
-        }
-*/
 
 	// Call OS select() on original sets + CQ epfd in read set
 	if (m_readfds)
