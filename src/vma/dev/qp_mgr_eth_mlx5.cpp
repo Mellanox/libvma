@@ -34,7 +34,6 @@
 #if defined(HAVE_INFINIBAND_MLX5_HW_H)
 
 #include <sys/mman.h>
-#include "vma/hw/mlx5/wqe.h"
 #include "cq_mgr_mlx5.h"
 #include "vma/util/utils.h"
 #include "vlogger/vlogger.h"
@@ -49,6 +48,14 @@
 #define qp_logdbg	__log_info_dbg
 #define qp_logfunc	__log_info_func
 #define qp_logfuncall	__log_info_funcall
+
+#if !defined(MLX5_ETH_INLINE_HEADER_SIZE)
+#define MLX5_ETH_INLINE_HEADER_SIZE 18
+#endif
+
+#define OCTOWORD	16
+#define WQEBB		64
+
 
 //#define DBG_DUMP_WQE	1
 

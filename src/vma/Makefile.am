@@ -303,8 +303,7 @@ libvma_la_SOURCES := \
 	\
 	config_parser.h \
 	main.h \
-	vma_extra.h \
-	hw/mlx5/wqe.h
+	vma_extra.h
 
 libvma_la_DEPENDENCIES = \
 	$(top_builddir)/src/vlogger/libvlogger.la \
