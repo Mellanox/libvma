@@ -673,25 +673,27 @@ int qp_mgr_ib::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 
 	qp_init_attr.qp_type = IBV_QPT_UD;
 	vma_ibv_qp_init_attr_comp_mask(m_p_ib_ctx_handler->get_ibv_pd(), qp_init_attr);
-#ifdef DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN
+#ifdef DEFINED_IBV_QP_INIT_SOURCE_QPN
 	if (m_underly_qpn) {
-		qp_init_attr.comp_mask |= IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN;
-		qp_init_attr.associated_qpn = m_underly_qpn;
+		qp_init_attr.comp_mask |= VMA_IBV_QP_INIT_QPN_MASK;
+		vma_ibv_qp_create_flags(qp_init_attr) |= VMA_IBV_QP_INIT_QPN_CREATE_FLAGS;
+		vma_ibv_qp_source_qpn(qp_init_attr) = m_underly_qpn;
 		qp_logdbg("create qp using underly qpn = 0x%X", m_underly_qpn);
 	}
-#endif /* DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN */
+#endif /* DEFINED_IBV_QP_INIT_SOURCE_QPN */
 
 	m_qp = vma_ibv_create_qp(m_p_ib_ctx_handler->get_ibv_pd(), &qp_init_attr);
-#ifdef DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN
+#ifdef DEFINED_IBV_QP_INIT_SOURCE_QPN
 	if (!m_qp && m_underly_qpn) {
 		qp_logdbg("ibv_create_qp failed to use underly qpn (errno=%d %m)", errno);
 
 		/* try to use traditional approach */
-		qp_init_attr.comp_mask &= ~IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN;
+		qp_init_attr.comp_mask &= ~VMA_IBV_QP_INIT_QPN_MASK;
+		vma_ibv_qp_create_flags(qp_init_attr) &= ~VMA_IBV_QP_INIT_QPN_CREATE_FLAGS;
 		m_underly_qpn = 0;
 		m_qp = vma_ibv_create_qp(m_p_ib_ctx_handler->get_ibv_pd(), &qp_init_attr);
 	}
-#endif /* DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN */
+#endif /* DEFINED_IBV_QP_INIT_SOURCE_QPN */
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_qp) {
@@ -740,7 +742,7 @@ void qp_mgr_ib::update_pkey_index()
 	else {
 		qp_logdbg("IB: Found correct pkey_index (%d) for pkey '%d'", m_pkey_index, m_pkey);
 	}
-#ifdef DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN
+#ifdef DEFINED_IBV_QP_INIT_SOURCE_QPN
 	/* m_underly_qpn is introduced to detect if current qp_mgr is able to
 	 * use associated qp.
 	 * It is set to non zero value if OFED supports such possibility only but final
@@ -755,7 +757,7 @@ void qp_mgr_ib::update_pkey_index()
 		m_underly_qpn = m_p_ring->get_qpn();
 	}
 	qp_logdbg("IB: Use qpn = 0x%X for device: %s", m_underly_qpn, m_p_ib_ctx_handler->get_ibname());
-#endif /* DEFINED_IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN */
+#endif /* DEFINED_IBV_QP_INIT_SOURCE_QPN */
 }
 
 uint32_t qp_mgr::is_ratelimit_change(struct vma_rate_limit_t &rate_limit)

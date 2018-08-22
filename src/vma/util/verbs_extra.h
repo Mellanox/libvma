@@ -119,10 +119,20 @@ int priv_ibv_query_flow_tag_supported(struct ibv_qp *qp, uint8_t port_num);
  */
 #if defined(DEFINED_VERBS_VERSION) && (DEFINED_VERBS_VERSION == 1 || DEFINED_VERBS_VERSION == 3)
 //ibv_create_qp
-#define vma_ibv_create_qp(pd, attr)             ibv_create_qp(pd, attr)
-typedef struct ibv_qp_init_attr                 vma_ibv_qp_init_attr;
-#define vma_ibv_qp_init_attr_comp_mask(_pd, _attr)	\
-	{ NOT_IN_USE(_pd); NOT_IN_USE(_attr); }
+#ifdef DEFINED_IBV_QP_INIT_SOURCE_QPN
+#define vma_ibv_create_qp(pd, attr)                ibv_create_qp_ex((pd)->context, attr)
+typedef struct ibv_qp_init_attr_ex                 vma_ibv_qp_init_attr;
+#define vma_ibv_qp_create_flags(attr)              (attr).create_flags
+#define vma_ibv_qp_source_qpn(attr)                (attr).source_qpn
+#define VMA_IBV_QP_INIT_QPN_CREATE_FLAGS           IBV_QP_CREATE_SOURCE_QPN
+#define VMA_IBV_QP_INIT_QPN_MASK                   IBV_QP_INIT_ATTR_CREATE_FLAGS
+#define vma_ibv_qp_init_attr_comp_mask(_pd, _attr) { (_attr).pd = _pd; (_attr).comp_mask |= IBV_QP_INIT_ATTR_PD; }
+#else
+#define vma_ibv_create_qp(pd, attr)                 ibv_create_qp(pd, attr)
+typedef struct ibv_qp_init_attr                     vma_ibv_qp_init_attr;
+#define vma_ibv_qp_init_attr_comp_mask(_pd, _attr)  { NOT_IN_USE(_pd); NOT_IN_USE(_attr); }
+#endif
+
 //ibv_query_device
 #define vma_ibv_query_device(context, attr)	ibv_query_device(context, attr)
 typedef struct ibv_device_attr			vma_ibv_device_attr;
@@ -205,10 +215,18 @@ typedef struct ibv_modify_cq_attr               vma_ibv_cq_attr;
 
 #else /* DEFINED_VERBS_VERSION */
 
+//ibv_create_qp
 #define vma_ibv_create_qp(pd, attr)             ibv_exp_create_qp((pd)->context, attr)
 typedef struct ibv_exp_qp_init_attr             vma_ibv_qp_init_attr;
-#define vma_ibv_qp_init_attr_comp_mask(_pd, _attr)	\
-	{ (_attr).pd = _pd; (_attr).comp_mask |= IBV_EXP_QP_INIT_ATTR_PD; }
+#define vma_ibv_qp_init_attr_comp_mask(_pd, _attr)	{ (_attr).pd = _pd; (_attr).comp_mask |= IBV_EXP_QP_INIT_ATTR_PD; }
+
+#ifdef DEFINED_IBV_QP_INIT_SOURCE_QPN
+#define vma_ibv_qp_create_flags(attr)              (attr).exp_create_flags
+#define vma_ibv_qp_source_qpn(attr)                (attr).associated_qpn
+#define VMA_IBV_QP_INIT_QPN_CREATE_FLAGS           0
+#define VMA_IBV_QP_INIT_QPN_MASK                   IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN
+#endif
+
 //ibv_query_device
 #define vma_ibv_query_device(context, attr)	ibv_exp_query_device(context, attr)
 typedef struct ibv_exp_device_attr		vma_ibv_device_attr;
