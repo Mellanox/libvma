@@ -108,6 +108,11 @@ libvma_la_SOURCES := \
 	event/vlogger_timer_handler.cpp \
 	event/netlink_event.cpp \
 	\
+	ib/base/verbs_extra.cpp \
+	ib/mlx5/ib_mlx5.cpp \
+	ib/mlx5/ib_mlx5_hw.cpp \
+	ib/mlx5/ib_mlx5_dv.cpp \
+	\
 	iomux/epfd_info.cpp \
 	iomux/epoll_wait_call.cpp \
 	iomux/io_mux_call.cpp \
@@ -210,6 +215,11 @@ libvma_la_SOURCES := \
 	event/timer_handler.h \
 	event/timers_group.h \
 	event/vlogger_timer_handler.h \
+	\
+	ib/base/verbs_extra.h \
+	ib/mlx5/ib_mlx5.h \
+	ib/mlx5/ib_mlx5_hw.h \
+	ib/mlx5/ib_mlx5_dv.h \
 	\
 	infra/sender.h \
 	infra/sender_info_dst.h \

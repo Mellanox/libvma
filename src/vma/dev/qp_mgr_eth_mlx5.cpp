@@ -31,7 +31,7 @@
  */
 #include "qp_mgr_eth_mlx5.h"
 
-#if defined(HAVE_INFINIBAND_MLX5_HW_H)
+#if defined(DEFINED_DIRECT_VERBS)
 
 #include <sys/mman.h>
 #include "cq_mgr_mlx5.h"
@@ -558,5 +558,5 @@ void qp_mgr_eth_mlx5::trigger_completion_for_all_sent_packets()
 	}
 }
 
-#endif
+#endif /* DEFINED_DIRECT_VERBS */
 

@@ -37,7 +37,7 @@
 #include "cq_mgr.h"
 #include "qp_mgr_eth_mlx5.h"
 
-#ifdef HAVE_INFINIBAND_MLX5_HW_H
+#if defined(DEFINED_DIRECT_VERBS)
 class qp_mgr_eth_mlx5;
 
 /* Get CQE opcode. */
@@ -96,5 +96,5 @@ private:
 	inline void                 update_global_sn(uint64_t& cq_poll_sn, uint32_t rettotal);
 };
 
-#endif //HAVE_INFINIBAND_MLX5_HW_H
+#endif /* DEFINED_DIRECT_VERBS */
 #endif //CQ_MGR_MLX5_H

@@ -51,10 +51,6 @@
 #include "vma/dev/ib_ctx_handler.h"
 #include "vma/dev/cq_mgr.h"
 
-#ifdef HAVE_INFINIBAND_MLX5_HW_H
-#include <infiniband/mlx5_hw.h>
-#endif // HAVE_INFINIBAND_MLX5_HW_H
-
 class buffer_pool;
 class cq_mgr;
 class ring;

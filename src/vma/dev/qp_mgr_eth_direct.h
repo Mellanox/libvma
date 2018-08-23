@@ -34,7 +34,7 @@
 
 #include "qp_mgr_eth_mlx5.h"
 
-#if defined(HAVE_INFINIBAND_MLX5_HW_H)
+#if defined(DEFINED_DIRECT_VERBS)
 
 class qp_mgr_eth_direct: public qp_mgr_eth_mlx5
 {
@@ -52,5 +52,5 @@ protected:
 	virtual int		prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr);
 };
 
-#endif /* HAVE_INFINIBAND_MLX5_HW_H */
+#endif /* DEFINED_DIRECT_VERBS */
 #endif /* SRC_VMA_DEV_QP_MGR_ETH_DIRECT_H_ */

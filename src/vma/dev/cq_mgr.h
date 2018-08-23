@@ -43,15 +43,8 @@
 #include "vma/util/vma_stats.h"
 #include "vma/proto/mem_buf_desc.h"
 #include "vma/proto/vma_lwip.h"
-
-#if defined(HAVE_INFINIBAND_MLX5_HW_H)
-#include <infiniband/mlx5_hw.h>
-/* Get struct mlx5_cq* from struct ibv_cq* */
-#define _to_mxxx(xxx, type)\
-        ((struct mlx5_##type *)\
-        ((void *) ((uintptr_t)ib##xxx - offsetof(struct mlx5_##type, ibv_##xxx))))
-#endif
 #include "vma/vma_extra.h"
+
 
 #ifdef DEFINED_SOCKETXTREME
 	#define IS_SOCKETXTREME true

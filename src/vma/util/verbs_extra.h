@@ -44,9 +44,19 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <linux/if_ether.h>
-#ifdef HAVE_INFINIBAND_MLX5_HW_H
-# include <infiniband/mlx5_hw.h>
-#endif //HAVE_INFINIBAND_MLX5_HW_H
+#if defined(DEFINED_DIRECT_VERBS)
+#if (DEFINED_DIRECT_VERBS == 2)
+#include <infiniband/mlx5_hw.h>
+#elif (DEFINED_DIRECT_VERBS == 3)
+#include <infiniband/mlx5dv.h>
+#else
+#error "Unsupported Direct VERBS parameter"
+#endif
+/* Get struct mlx5_cq* from struct ibv_cq* */
+#define _to_mxxx(xxx, type)\
+        ((struct mlx5_##type *)\
+        ((void *) ((uintptr_t)ib##xxx - offsetof(struct mlx5_##type, ibv_##xxx))))
+#endif /* DEFINED_DIRECT_VERBS */
 
 #ifndef DEFINED_IBV_WC_WITH_VLAN
 //#warning probaly you are trying to compile on OFED which doesnt support VLAN for RAW QP.
