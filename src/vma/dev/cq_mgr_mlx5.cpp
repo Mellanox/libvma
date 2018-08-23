@@ -32,9 +32,8 @@
 
 #include "cq_mgr_mlx5.h"
 
-#ifdef HAVE_INFINIBAND_MLX5_HW_H
+#if defined(DEFINED_DIRECT_VERBS)
 
-#include <infiniband/mlx5_hw.h>
 #include <vma/util/valgrind.h>
 #include "cq_mgr.inl"
 #include "cq_mgr_mlx5.inl"
@@ -647,4 +646,4 @@ bool cq_mgr_mlx5::fill_cq_hw_descriptors(struct hw_cq_data &data)
 	data.uar = NULL;
 	return true;
 }
-#endif//HAVE_INFINIBAND_MLX5_HW_H
+#endif /* DEFINED_DIRECT_VERBS */

@@ -35,7 +35,7 @@
 #include "vma/proto/mem_buf_desc.h"
 #include "vma/dev/ib_ctx_handler.h"
 
-#if defined(HAVE_INFINIBAND_MLX5_HW_H)
+#if defined(DEFINED_DIRECT_VERBS)
 #if defined(DEFINED_IBV_DM)
 
 #define DM_MEMORY_MASK_8  7
@@ -269,4 +269,4 @@ void dm_mgr::release_data(mem_buf_desc_t* buff)
 }
 
 #endif /* DEFINED_IBV_DM */
-#endif /* HAVE_INFINIBAND_MLX5_HW_H */
+#endif /* DEFINED_DIRECT_VERBS */

@@ -36,7 +36,7 @@
 
 #include "dev/cq_mgr_mlx5.h"
 
-#ifdef HAVE_INFINIBAND_MLX5_HW_H
+#if defined(DEFINED_DIRECT_VERBS)
 
 /**/
 /** inlining functions can only help if they are implemented before their usage **/
@@ -58,5 +58,5 @@ inline struct mlx5_cqe64* cq_mgr_mlx5::check_cqe(void)
 	return NULL;
 }
 
-#endif //HAVE_INFINIBAND_MLX5_HW_H
+#endif /* DEFINED_DIRECT_VERBS */
 #endif//CQ_MGR_MLX5_INL_H

@@ -35,7 +35,7 @@
 #include "cq_mgr_mlx5.h"
 #include "ring_simple.h"
 
-#if defined(HAVE_INFINIBAND_MLX5_HW_H)
+#if defined(DEFINED_DIRECT_VERBS)
 
 #undef  MODULE_NAME
 #define MODULE_NAME 	"qp_mgr_direct"
@@ -151,4 +151,4 @@ qp_mgr_eth_direct::~qp_mgr_eth_direct()
 	m_p_cq_mgr_rx = NULL;
 }
 
-#endif
+#endif /* DEFINED_DIRECT_VERBS */

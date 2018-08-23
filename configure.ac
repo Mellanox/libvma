@@ -331,6 +331,22 @@ else
     AC_MSG_RESULT([yes])
 fi
 
+# Enable tcp tx window availability
+#
+AC_ARG_ENABLE([tcp-tx-wnd-availability],
+    AC_HELP_STRING([--enable-tcp-tx-wnd-availability],
+        [Enable TCP Tx window availability
+         (TCP packets will only be sent if their size (hdr options + data) is less than or equal to the window size.
+         Otherwise -1 is returned and errno is set to EAGAIN)  (default=no)]))
+AC_MSG_CHECKING(
+    [for tcp tx window availability support])
+if test "x$enable_tcp_tx_wnd_availability" = "xyes"; then
+    AC_DEFINE(DEFINED_TCP_TX_WND_AVAILABILITY, 1, [Define to 1 to enable TCP Tx window availability])
+    AC_MSG_RESULT([yes])
+else
+    AC_MSG_RESULT([no])
+fi
+
 AC_MSG_CHECKING([for md5 version of VMA statistics is])
 STATS_PROTOCOL_VER=`md5sum ${srcdir}/src/vma/util/vma_stats.h | awk '{ print $1}'`
 AC_DEFINE_UNQUOTED(STATS_PROTOCOL_VER, "${STATS_PROTOCOL_VER}", [Stats Protocol Version])
