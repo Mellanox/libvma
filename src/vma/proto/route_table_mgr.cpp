@@ -432,28 +432,6 @@ void route_table_mgr::update_entry(INOUT route_entry* p_ent, bool b_register_to_
 	}
 }
 
-//code coverage
-#if 0
-void route_table_mgr::get_default_gw(in_addr_t *p_gw_ip, int *p_if_index)
-{
-	rt_mgr_logdbg("");
-	auto_unlocker lock(m_lock);
-
-	for (int i = 0; i < m_tab.entries_num; i++) {
-		route_val *p_val = &(m_tab.value[i]);
-		if (p_val->get_gw_addr() &&
-		    p_val->get_type() == RTN_UNICAST &&
-		    p_val->get_dst_addr() == INADDR_ANY &&
-		    p_val->get_dst_pref_len() == 0) {
-			rt_mgr_logdbg("detected default gateway %s, index: %d", p_val->get_if_name(), p_val->get_if_index());
-			*p_if_index = p_val->get_if_index();
-			*p_gw_ip = p_val->get_gw_addr();
-			return;
-		}
-	}
-}
-#endif
-
 route_entry* route_table_mgr::create_new_entry(route_rule_table_key key, const observer *obs)
 {
 	// no need for lock - lock is activated in cache_collection_mgr::register_observer
@@ -465,43 +443,6 @@ route_entry* route_table_mgr::create_new_entry(route_rule_table_key key, const o
 	rt_mgr_logdbg("new entry %p created successfully", p_ent);
 	return p_ent;
 }
-
-//code coverage
-#if 0
-route_val* route_table_mgr::find_route_val(route_val &netlink_route_val)
-{
-	in_addr_t dst_addr = netlink_route_val.get_dst_addr();
-	int dst_prefix_len = netlink_route_val.get_dst_pref_len();
-	int if_index = netlink_route_val.get_if_index();
-	unsigned char table_id = netlink_route_val.get_table_id();
-	for (int i = 0; i < m_tab.entries_num; i++) {
-		route_val* p_val_from_tbl = &m_tab.value[i];
-		if (!p_val_from_tbl->is_deleted() && p_val_from_tbl->is_if_up()) {
-			if (p_val_from_tbl->get_table_id() == table_id) {
-				if(p_val_from_tbl->get_dst_addr() == dst_addr && p_val_from_tbl->get_dst_pref_len() == dst_prefix_len && p_val_from_tbl->get_if_index() == if_index) {
-					return p_val_from_tbl;
-				}
-			}
-		}
-	}
-	return NULL;
-}
-
-void route_table_mgr::addr_change_event(int if_index)
-{
-	for (int i = 0; i < m_tab.entries_num; i++) {
-		route_val* p_val_from_tbl = &m_tab.value[i];
-		if (! p_val_from_tbl->is_deleted() && p_val_from_tbl->get_if_index() == if_index) {
-			p_val_from_tbl->set_state(false);
-			rt_mgr_logdbg("route_val %p is not valid", p_val_from_tbl);
-		}
-	}
-}
-#endif
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
 
 void route_table_mgr::update_invalid_entries()
 {
@@ -515,36 +456,6 @@ void route_table_mgr::update_invalid_entries()
 		}
 	}
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
-//code coverage
-#if 0
-void route_table_mgr::del_route_event(route_val &netlink_route_val)
-{
-	in_addr_t del_dst_addr = netlink_route_val.get_dst_addr();
-	in_addr_t del_dst_mask = netlink_route_val.get_dst_mask();
-	char *del_if_name = (char *) netlink_route_val.get_if_name();
-
-	rt_mgr_logdbg("netlink event- route deleted: dst '%d.%d.%d.%d', netmask '%d.%d.%d.%d', interface '%s'", NIPQUAD(del_dst_addr), NIPQUAD(del_dst_mask), del_if_name);
-
-	route_val* p_val_from_tbl = find_route_val(netlink_route_val);
-	if(p_val_from_tbl) {
-		rt_mgr_logdbg("found deleted route val[%p]: %s", p_val_from_tbl, p_val_from_tbl->to_str());
-		p_val_from_tbl->set_deleted();
-		p_val_from_tbl->set_state(false);
-		return;
-	}
-	rt_mgr_logdbg("route does not exist!");
-
-	if (g_vlogger_level >= VLOG_FUNC) {
-		print_route_tbl();
-	}
-	update_invalid_entries();
-}
-#endif
 
 void route_table_mgr::new_route_event(route_val* netlink_route_val)
 {

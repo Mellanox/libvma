@@ -84,9 +84,6 @@ public:
 	// called for stopping (unregistering) all timers
 	void    remove_all_timers(timer_handler* handler);
 
-	// returns the next time to wait
-	int     get_time_to_wait();
-
 	// update the timeout in first element in the list
 	// return the timeout needed. (or INFINITE_TIMEOUT if there's no timeout)
 	int     update_timeout();

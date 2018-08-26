@@ -30,7 +30,6 @@
  * SOFTWARE.
  */
 
-
 #include "wqe_send_ib_handler.h"
 
 wqe_send_ib_handler::wqe_send_ib_handler()
@@ -68,18 +67,3 @@ void wqe_send_ib_handler::init_not_inline_ib_wqe(vma_ibv_send_wr &wqe_to_init, s
 	wqe_send_handler::init_not_inline_wqe(wqe_to_init, sge_list, num_sge);
 	init_path_record(wqe_to_init, ah, rem_qkey, rem_qpn);
 }
-
-//code coverage
-#if 0
-void wqe_send_ib_handler::enable_imm_data(vma_ibv_send_wr &send_wqe)
-{
-	send_wqe.opcode = IBV_WR_SEND_WITH_IMM;
-	send_wqe.imm_data = MCE_IMM_DATA_MASK_MC_TX_LOOP_DISABLED;
-}
-
-void wqe_send_ib_handler::disable_imm_data(vma_ibv_send_wr &send_wqe)
-{
-	send_wqe.opcode = IBV_WR_SEND;
-	send_wqe.imm_data = 0;
-}
-#endif

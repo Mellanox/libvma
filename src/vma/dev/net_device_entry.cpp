@@ -35,7 +35,6 @@
 #include "net_device_entry.h"
 #include "net_device_table_mgr.h"
 #include "vma/event/event_handler_manager.h"
-#include "vma/event/route_net_dev_event.h"
 
 #define MODULE_NAME             "nde"
 
