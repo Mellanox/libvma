@@ -34,7 +34,8 @@
 #define SG_ARRAY_H
 
 #include <stdio.h>
-#include "util/verbs_extra.h"
+
+#include "vma/ib/base/verbs_extra.h"
 
 //! sg_array - helper class on top of scatter/gather elements array.
 //Represent it like a virtual one dimension vector/array.

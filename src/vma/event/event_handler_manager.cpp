@@ -39,8 +39,6 @@
 #include "vma/dev/ring_allocation_logic.h"
 #include "vma/sock/fd_collection.h"
 #include "vma/sock/sock-redirect.h" // calling orig_os_api.epoll()
-#include "vma/util/verbs_extra.h"
-
 #include "timer_handler.h"
 #include "event_handler_ibverbs.h"
 #include "event_handler_rdma_cm.h"

@@ -31,12 +31,13 @@
  */
 
 
+#include "vma/ib/base/verbs_extra.h"
+
 #include <errno.h>
 #include <vlogger/vlogger.h>
 
-#include "verbs_extra.h"
 #include "vma_extra.h"
-#include "valgrind.h"
+#include "vma/util/valgrind.h"
 
 #undef  MODULE_NAME
 #define MODULE_NAME 		"verbs_extra:"

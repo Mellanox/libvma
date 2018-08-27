@@ -44,7 +44,6 @@
 
 #include "utils/lock_wrapper.h"
 #include "vma/util/sys_vars.h"
-#include "vma/util/verbs_extra.h"
 #include "vma/event/event_handler_ibverbs.h"
 #include "vma/event/event_handler_rdma_cm.h"
 #include "vma/dev/ib_ctx_handler.h"

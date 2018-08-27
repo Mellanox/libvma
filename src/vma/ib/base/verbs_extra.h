@@ -45,17 +45,7 @@
 #include <netinet/in.h>
 #include <linux/if_ether.h>
 #if defined(DEFINED_DIRECT_VERBS)
-#if (DEFINED_DIRECT_VERBS == 2)
-#include <infiniband/mlx5_hw.h>
-#elif (DEFINED_DIRECT_VERBS == 3)
-#include <infiniband/mlx5dv.h>
-#else
-#error "Unsupported Direct VERBS parameter"
-#endif
-/* Get struct mlx5_cq* from struct ibv_cq* */
-#define _to_mxxx(xxx, type)\
-        ((struct mlx5_##type *)\
-        ((void *) ((uintptr_t)ib##xxx - offsetof(struct mlx5_##type, ibv_##xxx))))
+#include "vma/ib/mlx5/ib_mlx5.h"
 #endif /* DEFINED_DIRECT_VERBS */
 
 #ifndef DEFINED_IBV_WC_WITH_VLAN

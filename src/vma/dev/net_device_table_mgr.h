@@ -41,7 +41,6 @@
 #include <arpa/inet.h>
 
 #include "vma/event/timer_handler.h"
-#include "vma/util/verbs_extra.h"
 #include "vma/util/sys_vars.h"
 #include "vma/proto/ip_address.h"
 #include "vma/infra/cache_subject_observer.h"

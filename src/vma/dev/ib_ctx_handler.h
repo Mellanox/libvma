@@ -39,6 +39,7 @@
 
 #include "vma/event/event_handler_ibverbs.h"
 #include "vma/dev/time_converter.h"
+#include "vma/ib/base/verbs_extra.h"
 #include "utils/lock_wrapper.h"
 
 typedef std::tr1::unordered_map<uint32_t, struct ibv_mr*> mr_map_lkey_t;

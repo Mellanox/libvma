@@ -34,7 +34,7 @@
 #ifndef RING_H
 #define RING_H
 
-#include "vma/util/verbs_extra.h"
+#include "vma/ib/base/verbs_extra.h"
 #include "vma/proto/flow_tuple.h"
 #include "vma/sock/socket_fd_api.h"
 

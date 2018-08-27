@@ -38,8 +38,8 @@
 #include "vma/netlink/netlink_wrapper.h"
 #include "vma/event/netlink_event.h"
 #include "vma/proto/neighbour_table_mgr.h"
+
 #include "vma/proto/neighbour_observer.h"
-#include "vma/util/verbs_extra.h"
 #include "vma/dev/net_device_table_mgr.h"
 
 #define MODULE_NAME 		"ntm:"

@@ -55,7 +55,7 @@ qp_mgr* ring_eth_direct::create_qp_mgr(const ib_ctx_handler* ib_ctx,
 					uint8_t port_num,
 					struct ibv_comp_channel* p_rx_comp_event_channel)
 {
-#if defined(HAVE_INFINIBAND_MLX5_HW_H)
+#if defined(DEFINED_DIRECT_VERBS)
 	return new qp_mgr_eth_direct(this, ib_ctx, port_num, p_rx_comp_event_channel,
 				     get_tx_num_wr(), get_partition());
 #endif

@@ -36,7 +36,7 @@
 
 #include <tr1/unordered_map>
 
-#include "vma/util/verbs_extra.h"
+#include "vma/ib/base/verbs_extra.h"
 #include "ib_ctx_handler.h"
 
 typedef std::tr1::unordered_map<struct ibv_device*, ib_ctx_handler*>  ib_context_map_t;
