@@ -49,7 +49,6 @@
 
 #include "vlogger/vlogger.h"
 #include "utils/rdtsc.h"
-#include "vma/util/verbs_extra.h"
 #include "vma/util/vma_stats.h"
 #include "vma/util/utils.h"
 #include "vma/event/event_handler_manager.h"

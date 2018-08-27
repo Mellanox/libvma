@@ -34,8 +34,9 @@
 
 #include "utils/bullseye.h"
 #include "vlogger/vlogger.h"
-#include "vma/util/verbs_extra.h"
 #include "ib_ctx_handler_collection.h"
+
+#include "vma/ib/base/verbs_extra.h"
 #include "vma/util/utils.h"
 #include "vma/event/event_handler_manager.h"
 

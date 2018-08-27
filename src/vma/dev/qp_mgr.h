@@ -37,12 +37,12 @@
 #include <errno.h>
 #include <ifaddrs.h>
 
+#include "vma/ib/base/verbs_extra.h"
 #include "vlogger/vlogger.h"
 #include "utils/atomic.h"
 #include "vma/util/vtypes.h"
 #include "vma/util/sys_vars.h"
 #include "vma/util/libvma.h"
-#include "vma/util/verbs_extra.h"
 #include "vma/util/if.h"
 #include "vma/util/hash_map.h"
 #include "vma/lwip/opt.h"

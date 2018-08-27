@@ -33,8 +33,8 @@
 #ifndef DM_MGR_H
 #define DM_MGR_H
 
+#include "vma/ib/base/verbs_extra.h"
 #include "vma/util/vma_stats.h"
-#include "vma/util/verbs_extra.h"
 
 class mem_buf_desc_t;
 class ib_ctx_handler;

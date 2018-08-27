@@ -33,10 +33,10 @@
 
 #include <stdlib.h>
 #include <vlogger/vlogger.h>
-#include "vma/util/verbs_extra.h"
 #include "vma/event/event_handler_manager.h"
 #include <vma/util/sys_vars.h>
 #include "time_converter_ib_ctx.h"
+#include "vma/ib/base/verbs_extra.h"
 
 #define MODULE_NAME             "time_converter_ib_ctx"
 

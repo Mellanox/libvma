@@ -41,7 +41,6 @@
 #include "vlogger/vlogger.h"
 #include "vma/util/vtypes.h"
 #include "vma/util/utils.h"
-#include "vma/util/verbs_extra.h"
 #include "vma/proto/route_table_mgr.h"
 #include "vma/proto/rule_table_mgr.h"
 #include "vma/event/event_handler_manager.h"
@@ -49,6 +48,7 @@
 #include "vma/sock/sock-redirect.h"
 #include "vma/iomux/io_mux_call.h"
 #include "vma_lwip.h"
+
 #include "vma/sock/sockinfo_tcp.h"
 #include "vma/lwip/init.h"
 #include "vma/lwip/tcp_impl.h"

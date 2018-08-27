@@ -54,6 +54,7 @@
 #include "vma/util/sock_addr.h"
 #include "vma/sock/sock-redirect.h"
 #include "vma/util/vtypes.h"
+#include "vma/ib/base/verbs_extra.h"
 
 #ifdef HAVE_SYS_CAPABILITY_H
 	#include <sys/capability.h>

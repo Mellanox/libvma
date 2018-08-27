@@ -43,7 +43,6 @@
 
 #include "utils/bullseye.h"
 #include "utils/rdtsc.h"
-#include "vma/util/verbs_extra.h"
 #include "vma/util/libvma.h"
 #include "vma/sock/sock-redirect.h"
 #include "vma/sock/fd_collection.h"

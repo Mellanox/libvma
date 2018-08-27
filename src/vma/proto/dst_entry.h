@@ -41,7 +41,6 @@
 
 #include "vlogger/vlogger.h"
 #include "utils/lock_wrapper.h"
-#include "vma/util/verbs_extra.h"
 #include "vma/sock/socket_fd_api.h"
 #include "vma/proto/route_entry.h"
 #include "vma/proto/route_val.h"

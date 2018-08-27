@@ -40,7 +40,6 @@
 #include "vlogger/vlogger.h"
 #include "utils/lock_wrapper.h"
 #include "utils/rdtsc.h"
-#include "vma/util/verbs_extra.h"
 #include "vma/util/libvma.h"
 #include "vma/util/instrumentation.h"
 #include "vma/util/list.h"
@@ -54,6 +53,7 @@
 #include "sock-redirect.h"
 #include "fd_collection.h"
 #include "sockinfo_tcp.h"
+
 
 // debugging macros
 #define MODULE_NAME 		"si_tcp"

@@ -34,11 +34,11 @@
 #ifndef CQ_MGR_H
 #define CQ_MGR_H
 
+#include "vma/ib/base/verbs_extra.h"
 #include "utils/atomic.h"
 #include "vma/dev/qp_mgr.h"
 #include "vma/dev/ib_ctx_handler.h"
 #include "vma/util/sys_vars.h"
-#include "vma/util/verbs_extra.h"
 #include "vma/util/hash_map.h"
 #include "vma/util/vma_stats.h"
 #include "vma/proto/mem_buf_desc.h"

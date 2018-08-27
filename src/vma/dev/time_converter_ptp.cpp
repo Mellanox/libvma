@@ -33,13 +33,13 @@
 
 #include <stdlib.h>
 #include <vlogger/vlogger.h>
-#include "vma/util/verbs_extra.h"
 #include "vma/event/event_handler_manager.h"
 #include <vma/util/sys_vars.h>
 #include "utils/rdtsc.h"
 #include "vma/util/instrumentation.h"
 #include "vma/util/utils.h"
 #include "vma/dev/time_converter_ptp.h"
+#include "vma/ib/base/verbs_extra.h"
 
 
 #ifdef DEFINED_IBV_EXP_VALUES_CLOCK_INFO

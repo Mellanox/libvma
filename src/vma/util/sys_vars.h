@@ -41,7 +41,8 @@
 
 #include "vtypes.h"
 #include "config.h"
-#include "verbs_extra.h"
+
+#include "vma/ib/base/verbs_extra.h"
 #include "vma/util/sysctl_reader.h"
 #include "vma/vma_extra.h"
 

@@ -42,13 +42,13 @@
 #include "vma/event/netlink_event.h"
 #include "vma/event/event_handler_manager.h"
 #include "vma/util/vtypes.h"
-#include "vma/util/verbs_extra.h"
 #include "vma/util/utils.h"
 #include "vma/util/valgrind.h"
 #include "vma/sock/sock-redirect.h"
 #include "vma/sock/fd_collection.h"
 #include "vma/dev/ring.h"
 #include "net_device_table_mgr.h"
+
 #include "ib_ctx_handler_collection.h"
 
 #define MODULE_NAME             "ndtm"

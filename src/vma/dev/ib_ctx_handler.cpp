@@ -35,7 +35,6 @@
 
 #include "utils/bullseye.h"
 #include "vlogger/vlogger.h"
-#include <vma/util/verbs_extra.h>
 #include <vma/util/sys_vars.h>
 #include "vma/dev/ib_ctx_handler.h"
 #include "vma/ib/base/verbs_extra.h"

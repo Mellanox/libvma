@@ -560,11 +560,11 @@ int cq_mgr_mlx5::poll_and_process_element_tx(uint64_t* p_cq_poll_sn)
 
 void cq_mgr_mlx5::set_qp_rq(qp_mgr* qp)
 {
-	struct ibv_cq *ibcq = m_p_ibv_cq; // ibcp is used in next macro: _to_mxxx
-	m_mlx5_cq = _to_mxxx(cq, cq);
+	struct ibv_cq *ibcq = m_p_ibv_cq;
 	struct verbs_qp *vqp = (struct verbs_qp *)qp->m_qp;
 	struct mlx5_qp *mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
 
+	m_mlx5_cq = to_mcq(ibcq);
 	m_rq = &mlx5_hw_qp->rq;
 	m_p_rq_wqe_idx_to_wrid = qp->m_rq_wqe_idx_to_wrid;
 	qp->m_rq_wqe_counter = 0; /* In case of bonded qp, wqe_counter must be reset to zero */
@@ -610,8 +610,9 @@ void cq_mgr_mlx5::add_qp_tx(qp_mgr* qp)
 {
 	//Assume locked!
 	cq_mgr::add_qp_tx(qp);
-	struct ibv_cq *ibcq = m_p_ibv_cq; // ibcp is used in next macro: _to_mxxx
-	m_mlx5_cq = _to_mxxx(cq, cq);
+	struct ibv_cq *ibcq = m_p_ibv_cq;
+
+	m_mlx5_cq = to_mcq(ibcq);
 	m_qp = static_cast<qp_mgr_eth_mlx5*> (qp);
 	m_cq_dbell = m_mlx5_cq->dbrec;
 	m_cqe_log_sz = ilog_2(m_mlx5_cq->cqe_sz);

@@ -30,37 +30,21 @@
  * SOFTWARE.
  */
 
-#include "vma/ib/base/verbs_extra.h"
-#include "vma/util/to_str.h"
-
-#ifndef IB_WQE_TEMPLATE_H
-#define IB_WQE_TEMPLATE_H
-
-class wqe_send_handler: public tostr
-{
-public:
-	wqe_send_handler();
-	virtual ~wqe_send_handler();
-
-	void init_wqe(vma_ibv_send_wr &wqe_to_init, struct ibv_sge* sge_list, uint32_t num_sge);
-	void init_inline_wqe(vma_ibv_send_wr &wqe_to_init, struct ibv_sge* sge_list, uint32_t num_sge);
-	void init_not_inline_wqe(vma_ibv_send_wr &wqe_to_init, struct ibv_sge* sge_list, uint32_t num_sge);
-
-	inline vma_ibv_wr_opcode set_opcode(vma_ibv_send_wr &wqe, vma_ibv_wr_opcode opcode) {
-		vma_ibv_wr_opcode last_opcode = vma_send_wr_opcode(wqe);
-		vma_send_wr_opcode(wqe) = opcode;
-		return last_opcode;
-	}
-
-#ifndef DEFINED_SW_CSUM
-	inline void  enable_hw_csum (vma_ibv_send_wr &send_wqe) { vma_send_wr_send_flags(send_wqe) |= VMA_IBV_SEND_IP_CSUM; }
-	inline void disable_hw_csum (vma_ibv_send_wr &send_wqe) { vma_send_wr_send_flags(send_wqe) &= ~VMA_IBV_SEND_IP_CSUM; }
-#else
-	inline void  enable_hw_csum (vma_ibv_send_wr &) {}
-	inline void disable_hw_csum (vma_ibv_send_wr &) {}
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
-	inline void enable_inline (vma_ibv_send_wr &send_wqe) { vma_send_wr_send_flags(send_wqe) |= VMA_IBV_SEND_INLINE; }
-};
+#if defined(DEFINED_DIRECT_VERBS) && (DEFINED_DIRECT_VERBS == 3)
 
-#endif /* IB_WQE_TEMPLATE_H */
+#include "vma/ib/mlx5/ib_mlx5.h"
+
+int vma_ib_mlx5dv_init_obj(struct mlx5dv_obj *obj, uint64_t type)
+{
+	int ret = 0;
+
+	ret = mlx5dv_init_obj(obj, type);
+
+	return ret;
+}
+
+#endif /* (DEFINED_DIRECT_VERBS == 3) */

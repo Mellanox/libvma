@@ -41,9 +41,9 @@
 #include "utils/bullseye.h"
 #include <vma/util/vtypes.h>
 #include <vma/util/valgrind.h>
-#include <vma/util/verbs_extra.h>
 #include "vma/util/instrumentation.h"
 #include <vma/sock/sock-redirect.h>
+#include "vma/ib/base/verbs_extra.h"
 
 #include "buffer_pool.h"
 #include "qp_mgr.h"
@@ -157,8 +157,8 @@ void cq_mgr::configure(int cq_size)
 	}
 	
 #ifdef DEFINED_SOCKETXTREME
-	struct ibv_cq *ibcq = m_p_ibv_cq; // ibcp is used in next macro: _to_mxxx
-	m_mlx5_cq = _to_mxxx(cq, cq);
+	struct ibv_cq *ibcq = m_p_ibv_cq;
+	m_mlx5_cq = to_mcq(ibcq);
 	m_cq_db = m_mlx5_cq->dbrec;
 	m_mlx5_cqes = (volatile struct mlx5_cqe64 (*)[])(uintptr_t)m_mlx5_cq->active_buf->buf;
 #endif
