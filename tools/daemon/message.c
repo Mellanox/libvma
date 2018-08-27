@@ -441,7 +441,10 @@ static int proc_msg_flow(struct vma_hdr *msg_hdr, size_t size, struct sockaddr_u
 		goto err;
 	}
 
-	/* Note: special loopback logic */
+	/* Note:
+	 * - special loopback logic when peeraddr is null
+	 * - avoid useless rules creation in case expected 5t traffic is local
+	 */
 	if (NULL == peeraddr) {
 		value->if_id = sys_lo_ifindex();
 		ack = 0;
