@@ -74,12 +74,12 @@ bool rfs_mc::prepare_flow_spec()
 	switch (type) {
 		case VMA_TRANSPORT_IB:
 			{
-			// IB MC flow steering is done only on L2 --> need to zero other fields to get correct behaviour
-			// CX3 HW does not support L3+L4 MC flow steering rule
-#ifdef DEFINED_IBV_FLOW_SPEC_IB
 			attach_flow_data_ib_v2_t*  	      attach_flow_data_ib_v2 = NULL;
 
 			if (0 == p_ring->m_p_qp_mgr->get_underly_qpn()) {
+			// IB MC flow steering is done only on L2 --> need to zero other fields to get correct behaviour
+			// CX3 HW does not support L3+L4 MC flow steering rule
+#ifdef DEFINED_IBV_FLOW_SPEC_IB
 				attach_flow_data_ib_v1_t*  attach_flow_data_ib_v1 = NULL;
 
 				attach_flow_data_ib_v1 = new attach_flow_data_ib_v1_t(p_ring->m_p_qp_mgr);
@@ -91,6 +91,9 @@ bool rfs_mc::prepare_flow_spec()
 
 				p_attach_flow_data = (attach_flow_data_t*)attach_flow_data_ib_v1;
 				break;
+#else
+				return false;
+#endif
 			}
 
 			attach_flow_data_ib_v2 = new attach_flow_data_ib_v2_t(p_ring->m_p_qp_mgr);
@@ -106,9 +109,6 @@ bool rfs_mc::prepare_flow_spec()
 
 			p_attach_flow_data = (attach_flow_data_t*)attach_flow_data_ib_v2;
 			break;
-#else
-			return false;
-#endif
 			}
 		case VMA_TRANSPORT_ETH:
 			{

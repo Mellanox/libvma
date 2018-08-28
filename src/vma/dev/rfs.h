@@ -89,7 +89,6 @@ typedef struct __attribute__ ((packed)) attach_flow_data_eth_ipv4_tcp_udp_t {
 
 /* IPOIB (MC)
  */
-#ifdef DEFINED_IBV_FLOW_SPEC_IB
 typedef struct __attribute__ ((packed)) attach_flow_data_ib_v2_t {
 	struct ibv_flow *                       ibv_flow;
 	qp_mgr*                                 p_qp_mgr;
@@ -114,6 +113,7 @@ typedef struct __attribute__ ((packed)) attach_flow_data_ib_v2_t {
 
 } attach_flow_data_ib_v2_t;
 
+#ifdef DEFINED_IBV_FLOW_SPEC_IB
 typedef struct __attribute__ ((packed)) attach_flow_data_ib_v1_t {
 	struct ibv_flow *                       ibv_flow;
 	qp_mgr*                                 p_qp_mgr;
