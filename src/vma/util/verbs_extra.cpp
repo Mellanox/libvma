@@ -317,6 +317,37 @@ int priv_ibv_query_flow_tag_supported(struct ibv_qp *qp, uint8_t port_num)
 	return res;
 }
 
+int priv_ibv_create_flow_supported(struct ibv_qp *qp, uint8_t port_num)
+{
+	int res = -1;
+
+	struct __attribute__ ((packed)) {
+		vma_ibv_flow_attr             attr;
+		vma_ibv_flow_spec_ipv4        ipv4;
+		vma_ibv_flow_spec_tcp_udp     tcp_udp;
+	} cf_attr;
+
+	// Initialize
+	memset(&cf_attr, 0, sizeof(cf_attr));
+	cf_attr.attr.size = sizeof(cf_attr);
+	cf_attr.attr.num_of_specs = 2;
+	cf_attr.attr.type = VMA_IBV_FLOW_ATTR_NORMAL;
+	cf_attr.attr.priority = 1; // almost highest priority, 0 is used for 5-tuple later
+	cf_attr.attr.port = port_num;
+
+	ibv_flow_spec_ipv4_set(&cf_attr.ipv4, INADDR_LOOPBACK, INADDR_LOOPBACK); // L3 filter
+	ibv_flow_spec_tcp_udp_set(&cf_attr.tcp_udp, true, 0, 0); // L4 filter
+
+	// Create flow
+	vma_ibv_flow *ibv_flow = vma_ibv_create_flow(qp, &cf_attr.attr);
+	if (ibv_flow) {
+		res = 0;
+		vma_ibv_destroy_flow(ibv_flow);
+	}
+
+	return res;
+}
+
 int vma_rdma_lib_reset() {
 #ifdef HAVE_RDMA_LIB_RESET
 	vlog_printf(VLOG_DEBUG, "rdma_lib_reset called\n");
