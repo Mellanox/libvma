@@ -94,8 +94,7 @@ ring_tap::ring_tap(int if_index, ring* parent):
 	memcpy(m_p_ring_stat->tap.s_tap_name, tap_if_name, IFNAMSIZ);
 
 	/* create egress rule (redirect traffic from tap device to physical interface) */
-	prepare_flow_message(data, VMA_MSG_FLOW_ADD);
-	rc = g_p_agent->send_msg_flow(&data);
+	rc = prepare_flow_message(data, VMA_MSG_FLOW_ADD);
 	if (rc != 0) {
 		ring_logwarn("Add TC rule failed with error=%d", rc);
 	}
@@ -272,9 +271,7 @@ bool ring_tap::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	if (flow_spec_5t.is_tcp() || flow_spec_5t.is_udp_uc()) {
 		int rc = 0;
 		struct vma_msg_flow data;
-		prepare_flow_message(data, VMA_MSG_FLOW_ADD, flow_spec_5t);
-
-		rc = g_p_agent->send_msg_flow(&data);
+		rc = prepare_flow_message(data, VMA_MSG_FLOW_ADD, flow_spec_5t);
 		if (rc != 0) {
 			if (!g_b_exit) {
 				ring_logwarn("Add TC rule failed with error=%d", rc);
@@ -505,9 +502,7 @@ bool ring_tap::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 	if (flow_spec_5t.is_tcp() || flow_spec_5t.is_udp_uc()) {
 		int rc = 0;
 		struct vma_msg_flow data;
-		prepare_flow_message(data, VMA_MSG_FLOW_DEL, flow_spec_5t);
-
-		rc = g_p_agent->send_msg_flow(&data);
+		rc = prepare_flow_message(data, VMA_MSG_FLOW_DEL, flow_spec_5t);
 		if (rc != 0) {
 			if (!g_b_exit) {
 				ring_logwarn("Del TC rule failed with error=%d", rc);
@@ -1140,13 +1135,16 @@ void ring_tap::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, 
 	send_status_handler(ret, p_send_wqe);
 }
 
-void ring_tap::prepare_flow_message(vma_msg_flow& data, msg_flow_t flow_action,
+int ring_tap::prepare_flow_message(vma_msg_flow& data, msg_flow_t flow_action,
 		flow_tuple& flow_spec_5t)
 {
+	int rc = 0;
+
 	memset(&data, 0, sizeof(data));
 	data.hdr.code = VMA_MSG_FLOW;
 	data.hdr.ver = VMA_AGENT_VER;
 	data.hdr.pid = getpid();
+
 	data.action = flow_action;
 	data.if_id = get_parent()->get_if_index();
 	data.tap_id = get_if_index();
@@ -1161,10 +1159,16 @@ void ring_tap::prepare_flow_message(vma_msg_flow& data, msg_flow_t flow_action,
 		data.flow.t5.src_ip = flow_spec_5t.get_src_ip();
 		data.flow.t5.src_port = flow_spec_5t.get_src_port();
 	}
+
+	rc = g_p_agent->send_msg_flow(&data);
+
+	return rc;
 }
 
-void ring_tap::prepare_flow_message(vma_msg_flow& data, msg_flow_t flow_action)
+int ring_tap::prepare_flow_message(vma_msg_flow& data, msg_flow_t flow_action)
 {
+	int rc = 0;
+
 	memset(&data, 0, sizeof(data));
 	data.hdr.code = VMA_MSG_FLOW;
 	data.hdr.ver = VMA_AGENT_VER;
@@ -1173,6 +1177,10 @@ void ring_tap::prepare_flow_message(vma_msg_flow& data, msg_flow_t flow_action)
 	data.if_id = get_parent()->get_if_index();
 	data.tap_id = get_if_index();
 	data.type = VMA_MSG_FLOW_EGRESS;
+
+	rc = g_p_agent->send_msg_flow(&data);
+
+	return rc;
 }
 
 int ring_tap::process_element_rx(void* pv_fd_ready_array)
