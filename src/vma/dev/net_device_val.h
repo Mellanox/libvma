@@ -286,7 +286,6 @@ protected:
 	int m_bond_fail_over_mac;
 
 private:
-	bool 			verify_ipoib_mode();
 	void 			verify_bonding_mode();
 	bool 			verify_eth_qp_creation(const char* ifname);
 	bool 			verify_bond_ipoib_or_eth_qp_creation();

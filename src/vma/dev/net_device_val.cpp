@@ -1426,7 +1426,7 @@ bool net_device_val::verify_bond_ipoib_or_eth_qp_creation()
 bool net_device_val::verify_ipoib_or_eth_qp_creation(const char* interface_name)
 {
 	if (m_type == ARPHRD_INFINIBAND) {
-		if (verify_enable_ipoib(interface_name) && verify_ipoib_mode()) {
+		if (verify_enable_ipoib(interface_name)) {
 			return true;
 		}
 	} else {
@@ -1437,11 +1437,13 @@ bool net_device_val::verify_ipoib_or_eth_qp_creation(const char* interface_name)
 	return false;
 }
 
-bool net_device_val::verify_enable_ipoib(const char* ifname)
+bool net_device_val::verify_enable_ipoib(const char* interface_name)
 {
-	NOT_IN_USE(ifname);
+	char filename[256] = "\0";
+	char ifname[IFNAMSIZ] = "\0";
+
 	if(!safe_mce_sys().enable_ipoib) {
-		nd_logdbg("Blocking offload: IPoIB interfaces ('%s')", ifname);
+		nd_logdbg("Blocking offload: IPoIB interfaces ('%s')", interface_name);
 		return false;
 	}
 
@@ -1449,20 +1451,12 @@ bool net_device_val::verify_enable_ipoib(const char* ifname)
 	// Dont offload mlx5 devices if source qpn is not defined.
 	ib_ctx_handler* ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(get_ifname_link());
 	if (!strncmp(ib_ctx->get_ibname(), "mlx5", 4)) {
-		nd_logwarn("Blocking offload: SOURCE_QPN is not supported for this driver ('%s')", ifname);
+		nd_logwarn("Blocking offload: SOURCE_QPN is not supported for this driver ('%s')", interface_name);
 		return false;
 	}
 #endif
 
-	return true;
-}
-
-// Verify IPoIB is in 'datagram mode' for proper VMA with flow steering operation
-// Also verify umcast is disabled for IB flow
-bool net_device_val::verify_ipoib_mode()
-{
-	char filename[256] = "\0";
-	char ifname[IFNAMSIZ] = "\0";
+	// Verify IPoIB is in 'datagram mode' for proper VMA with flow steering operation
 	if (validate_ipoib_prop(get_ifname(), m_flags, IPOIB_MODE_PARAM_FILE, "datagram", 8, filename, ifname)) {
 		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 		vlog_printf(VLOG_WARNING,"* IPoIB mode of interface '%s' is \"connected\" !\n", get_ifname());
@@ -1476,6 +1470,7 @@ bool net_device_val::verify_ipoib_mode()
 		nd_logdbg("verified interface '%s' is running in datagram mode", get_ifname());
 	}
 
+	// Verify umcast is disabled for IB flow
 	if (validate_ipoib_prop(get_ifname(), m_flags, UMCAST_PARAM_FILE, "0", 1, filename, ifname)) { // Extract UMCAST flag (only for IB transport types)
 		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 		vlog_printf(VLOG_WARNING,"* UMCAST flag is Enabled for interface %s !\n", get_ifname());
@@ -1488,6 +1483,7 @@ bool net_device_val::verify_ipoib_mode()
 	else {
 		nd_logdbg("verified interface '%s' is running with umcast disabled", get_ifname());
 	}
+
 	return true;
 }
 
