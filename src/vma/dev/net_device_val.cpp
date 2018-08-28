@@ -1555,20 +1555,26 @@ bool net_device_val::verify_qp_creation(const char* ifname, enum ibv_qp_type qp_
 
 	qp = vma_ibv_create_qp(p_ib_ctx->get_ibv_pd(), &qp_init_attr);
 	if (qp) {
-		success = true;
-		if (!priv_ibv_query_flow_tag_supported(qp, get_port_from_ifname(base_ifname))) {
-			p_ib_ctx->set_flow_tag_capability(true);
-		}
-		nd_logdbg("verified interface %s for flow tag capabilities : %s", ifname, p_ib_ctx->get_flow_tag_capability() ? "enabled" : "disabled");
+		if (qp_type == IBV_QPT_UD && priv_ibv_create_flow_supported(qp, get_port_from_ifname(base_ifname)) == -1) {
+			nd_logdbg("Create_ibv_flow failed on interface %s (errno=%d %m), Traffic will not be offloaded", ifname, errno);
+			goto qp_failure;
+		} else {
+			success = true;
+			if (qp_type == IBV_QPT_RAW_PACKET && !priv_ibv_query_flow_tag_supported(qp, get_port_from_ifname(base_ifname))) {
+				p_ib_ctx->set_flow_tag_capability(true);
 
+			}
+			nd_logdbg("verified interface %s for flow tag capabilities : %s", ifname, p_ib_ctx->get_flow_tag_capability() ? "enabled" : "disabled");
+		}
 	} else {
-		nd_logdbg("QP creation failed on interface %s (errno=%d %m), Traffic will not be offloaded \n", ifname, errno);
+		nd_logdbg("QP creation failed on interface %s (errno=%d %m), Traffic will not be offloaded", ifname, errno);
+qp_failure:
 		int err = errno; //verify_raw_qp_privliges can overwrite errno so keep it before the call
 		if (validate_raw_qp_privliges() == 0) {
 			// MLNX_OFED raw_qp_privliges file exist with bad value
 			vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 			vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", ifname);
-			vlog_printf(VLOG_WARNING,"* Working in this mode might causes VMA malfunction over Ethernet interfaces\n");
+			vlog_printf(VLOG_WARNING,"* Working in this mode might causes VMA malfunction over Ethernet/InfiniBand interfaces\n");
 			vlog_printf(VLOG_WARNING,"* WARNING: the following steps will restart your network interface!\n");
 			vlog_printf(VLOG_WARNING,"* 1. \"echo options ib_uverbs disable_raw_qp_enforcement=1 > /etc/modprobe.d/ib_uverbs.conf\"\n");
 			vlog_printf(VLOG_WARNING,"* 2. Restart openibd or rdma service depending on your system configuration\n");
