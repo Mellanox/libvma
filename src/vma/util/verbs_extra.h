@@ -479,4 +479,19 @@ static inline void ibv_flow_spec_flow_tag_set(vma_ibv_flow_spec_action_tag* flow
 #endif //DEFINED_IBV_EXP_FLOW_TAG
 }
 
+
+static inline void ibv_source_qpn_set(vma_ibv_qp_init_attr& qp_init_attr, uint32_t source_qpn)
+{
+	NOT_IN_USE(qp_init_attr);
+	NOT_IN_USE(source_qpn);
+
+#ifdef DEFINED_IBV_QP_INIT_SOURCE_QPN
+	if (source_qpn) {
+		qp_init_attr.comp_mask |= VMA_IBV_QP_INIT_QPN_MASK;
+		vma_ibv_qp_create_flags(qp_init_attr) |= VMA_IBV_QP_INIT_QPN_CREATE_FLAGS;
+		vma_ibv_qp_source_qpn(qp_init_attr) = source_qpn;
+	}
+#endif /* DEFINED_IBV_QP_INIT_SOURCE_QPN */
+}
+
 #endif
