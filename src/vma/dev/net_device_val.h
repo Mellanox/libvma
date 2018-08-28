@@ -287,7 +287,7 @@ protected:
 
 private:
 	void 			verify_bonding_mode();
-	bool 			verify_eth_qp_creation(const char* ifname);
+	bool 			verify_qp_creation(const char* ifname, enum ibv_qp_type qp_type);
 	bool 			verify_bond_ipoib_or_eth_qp_creation();
 	bool 			verify_ipoib_or_eth_qp_creation(const char* interface_name);
 	bool 			verify_enable_ipoib(const char* ifname);

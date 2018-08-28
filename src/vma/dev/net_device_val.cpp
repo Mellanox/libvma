@@ -229,7 +229,7 @@ net_device_val::net_device_val(struct net_device_val_desc *desc) : m_lock("net_d
 			unsigned int slave_flags = 0;
 			valid = true; /* it is valid flow to operate w/o SRIOV */
 			if (get_netvsc_slave(get_ifname_link(), slave_ifname, slave_flags)) {
-				valid = verify_eth_qp_creation(slave_ifname);
+				valid = verify_qp_creation(slave_ifname, IBV_QPT_RAW_PACKET);
 			}
 		}
 		break;
@@ -527,7 +527,7 @@ void net_device_val::set_slave_array()
 		unsigned int slave_flags = 0;
 		if (get_netvsc_slave(get_ifname_link(), active_slave, slave_flags)) {
 			if ((slave_flags & IFF_UP) &&
-					verify_eth_qp_creation(active_slave)) {
+					verify_qp_creation(active_slave, IBV_QPT_RAW_PACKET)) {
 				s = new slave_data_t(if_nametoindex(active_slave));
 				m_slaves.push_back(s);
 			}
@@ -1426,11 +1426,11 @@ bool net_device_val::verify_bond_ipoib_or_eth_qp_creation()
 bool net_device_val::verify_ipoib_or_eth_qp_creation(const char* interface_name)
 {
 	if (m_type == ARPHRD_INFINIBAND) {
-		if (verify_enable_ipoib(interface_name)) {
+		if (verify_enable_ipoib(interface_name) && verify_qp_creation(interface_name, IBV_QPT_UD)) {
 			return true;
 		}
 	} else {
-		if (verify_eth_qp_creation(interface_name)) {
+		if (verify_qp_creation(interface_name, IBV_QPT_RAW_PACKET)) {
 			return true;
 		}
 	}
@@ -1488,7 +1488,7 @@ bool net_device_val::verify_enable_ipoib(const char* interface_name)
 }
 
 //ifname should point to a physical device
-bool net_device_val::verify_eth_qp_creation(const char* ifname)
+bool net_device_val::verify_qp_creation(const char* ifname, enum ibv_qp_type qp_type)
 {
 	bool success = false;
 	char bond_roce_lag_path[256] = {0};
@@ -1496,7 +1496,7 @@ bool net_device_val::verify_eth_qp_creation(const char* ifname)
 	struct ibv_comp_channel *channel = NULL;
 	struct ibv_qp* qp = NULL;
 
-	struct ibv_qp_init_attr qp_init_attr;
+	vma_ibv_qp_init_attr qp_init_attr;
 	memset(&qp_init_attr, 0, sizeof(qp_init_attr));
 
 	vma_ibv_cq_init_attr attr;
@@ -1508,7 +1508,7 @@ bool net_device_val::verify_eth_qp_creation(const char* ifname)
 	qp_init_attr.cap.max_send_sge = MCE_DEFAULT_TX_NUM_SGE;
 	qp_init_attr.cap.max_recv_sge = MCE_DEFAULT_RX_NUM_SGE;
 	qp_init_attr.sq_sig_all = 0;
-	qp_init_attr.qp_type = IBV_QPT_RAW_PACKET;
+	qp_init_attr.qp_type = qp_type;
 
 	//find ib_cxt
 	char base_ifname[IFNAMSIZ];
@@ -1517,7 +1517,7 @@ bool net_device_val::verify_eth_qp_creation(const char* ifname)
 
 	if (!p_ib_ctx) {
 		nd_logdbg("Cant find ib_ctx for interface %s", base_ifname);
-		if (m_bond != NO_BOND && check_bond_roce_lag_exist(bond_roce_lag_path, sizeof(bond_roce_lag_path), get_ifname_link(), ifname)) {
+		if (qp_type == IBV_QPT_RAW_PACKET && m_bond != NO_BOND && check_bond_roce_lag_exist(bond_roce_lag_path, sizeof(bond_roce_lag_path), get_ifname_link(), ifname)) {
 			vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 			vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", get_ifname_link());
 			vlog_printf(VLOG_WARNING,"* VMA cannot offload the device while RoCE LAG is enabled.\n");
@@ -1540,9 +1540,20 @@ bool net_device_val::verify_eth_qp_creation(const char* ifname)
 		nd_logdbg("cq creation failed for interface %s (errno=%d %m)", ifname, errno);
 		goto release_resources;
 	}
+
+	vma_ibv_qp_init_attr_comp_mask(p_ib_ctx->get_ibv_pd(), qp_init_attr);
 	qp_init_attr.recv_cq = cq;
 	qp_init_attr.send_cq = cq;
-	qp = ibv_create_qp(p_ib_ctx->get_ibv_pd(), &qp_init_attr);
+
+	// Set source qpn for mlx5 IPoIB devices
+	if (qp_type == IBV_QPT_UD && !strncmp(p_ib_ctx->get_ibname(), "mlx5", 4)) {
+		unsigned char hw_addr[IPOIB_HW_ADDR_LEN];
+		get_local_ll_addr(get_ifname(), hw_addr, IPOIB_HW_ADDR_LEN, false);
+		IPoIB_addr ipoib_addr(hw_addr);
+		ibv_source_qpn_set(qp_init_attr, ipoib_addr.get_qpn());
+	}
+
+	qp = vma_ibv_create_qp(p_ib_ctx->get_ibv_pd(), &qp_init_attr);
 	if (qp) {
 		success = true;
 		if (!priv_ibv_query_flow_tag_supported(qp, get_port_from_ifname(base_ifname))) {
@@ -1564,12 +1575,16 @@ bool net_device_val::verify_eth_qp_creation(const char* ifname)
 			vlog_printf(VLOG_WARNING,"* Read the RAW_PACKET QP root access enforcement section in the VMA's User Manual for more information\n");
 			vlog_printf(VLOG_WARNING,"******************************************************************************************************\n");
 		}
-		else if (err == EPERM) {
-			// file doesn't exists, print msg if errno is a permission problem
+		else if (validate_user_has_cap_net_raw_privliges() == 0 || err == EPERM) {
 			vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 			vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", ifname);
 			vlog_printf(VLOG_WARNING,"* Offloaded resources are restricted to root or user with CAP_NET_RAW privileges\n");
 			vlog_printf(VLOG_WARNING,"* Read the CAP_NET_RAW and root access section in the VMA's User Manual for more information\n");
+			vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+		} else {
+			vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+			vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", ifname);
+			vlog_printf(VLOG_WARNING,"* VMA was not able to create QP for this device (errno = %d).\n", err);
 			vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 		}
 	}

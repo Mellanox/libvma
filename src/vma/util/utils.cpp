@@ -55,6 +55,10 @@
 #include "vma/sock/sock-redirect.h"
 #include "vma/util/vtypes.h"
 
+#ifdef HAVE_SYS_CAPABILITY_H
+	#include <sys/capability.h>
+#endif
+
 using namespace std;
 
 #undef  MODULE_NAME
@@ -957,6 +961,28 @@ int validate_raw_qp_privliges()
 		return 0;
 	}
 	return 1;
+}
+
+bool validate_user_has_cap_net_raw_privliges()
+{
+#ifdef HAVE_SYS_CAPABILITY_H
+	struct __user_cap_header_struct cap_header;
+	cap_user_header_t cap_header_ptr = &cap_header;
+	struct __user_cap_data_struct cap_data;
+	cap_user_data_t cap_data_ptr = &cap_data;
+	cap_header_ptr->pid = getpid();
+	cap_header_ptr->version = _LINUX_CAPABILITY_VERSION;
+	 if(capget(cap_header_ptr, cap_data_ptr)  < 0) {
+		 __log_dbg("error getting cap_net_raw permissions (%d %m)", errno);
+		 return false;
+	 } else {
+		 __log_dbg("successfully got cap_net_raw permissions. Effective=%X Permitted=%X", cap_data_ptr->effective, cap_data_ptr->permitted);
+	 }
+	 return ((cap_data_ptr->effective & CAP_TO_MASK(CAP_NET_RAW)) != 0);
+#else
+	 __log_dbg("libcap-devel library is not installed, skipping cap_net_raw permission checks");
+	 return false;
+#endif
 }
 
 loops_timer::loops_timer()

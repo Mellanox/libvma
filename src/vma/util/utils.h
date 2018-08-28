@@ -314,6 +314,8 @@ int validate_ipoib_prop(const char* ifname, unsigned int ifflags,
 
 int validate_raw_qp_privliges();
 
+bool validate_user_has_cap_net_raw_privliges();
+
 static inline int get_procname(int pid, char *proc, size_t size)
 {
 	char app_full_name[PATH_MAX] = {0};
