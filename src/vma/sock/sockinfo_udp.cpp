@@ -1232,6 +1232,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 	case IPPROTO_UDP:
 		switch (__optname) {
 		case UDP_MAP_ADD:
+		{
 			if (! __optval) {
 				si_udp_loginfo("UDP_MAP_ADD __optval = NULL");
 				break;
@@ -1256,8 +1257,9 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 			}
 			m_port_map_lock.unlock();
 			return 0;
-
+		}
 		case UDP_MAP_REMOVE:
+		{
 			if (! __optval) {
 				si_udp_loginfo("UDP_MAP_REMOVE __optval = NULL");
 				break;
@@ -1276,6 +1278,11 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 			}
 			m_port_map_lock.unlock();
 			return 0;
+		}
+		default:
+			si_udp_logdbg("IPPROTO_UDP, optname=%s (%d)", setsockopt_ip_opt_to_str(__optname), __optname);
+			supported = false;
+			break;
 		} // case IPPROTO_UDP
 		break;
 
