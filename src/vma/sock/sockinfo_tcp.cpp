@@ -531,6 +531,10 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 
 	do_wakeup();
 
+	if (m_econtext) {
+		m_econtext->fd_closed(m_fd);
+	}
+
 	unlock_tcp_con();
 
 	return (is_closable());
