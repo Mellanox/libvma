@@ -242,8 +242,7 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	m_curr_rx_wr = 0;
 
 #ifdef DEFINED_SOCKETXTREME
-	struct verbs_qp *vqp = (struct verbs_qp *)m_qp;
-	m_mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
+	m_mlx5_hw_qp = to_mqp(m_qp);
 #endif //DEFINED_SOCKETXTREME
 	if (m_p_cq_mgr_tx) {
 		m_p_cq_mgr_tx->add_qp_tx(this);
