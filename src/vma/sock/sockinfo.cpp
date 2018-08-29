@@ -507,9 +507,8 @@ int sockinfo::getsockopt(int __level, int __optname, void *__optval, socklen_t *
 ////////////////////////////////////////////////////////////////////////////////
 bool sockinfo::try_un_offloading() // un-offload the socket if possible
 {
-	if (! this->isPassthrough()) {
+	if (!this->isPassthrough()) {
 		setPassthrough();
-		handle_close(m_fd, false, true); // will leave it for passthrough
 	}
 
 	return true;
