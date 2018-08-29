@@ -561,8 +561,7 @@ int cq_mgr_mlx5::poll_and_process_element_tx(uint64_t* p_cq_poll_sn)
 void cq_mgr_mlx5::set_qp_rq(qp_mgr* qp)
 {
 	struct ibv_cq *ibcq = m_p_ibv_cq;
-	struct verbs_qp *vqp = (struct verbs_qp *)qp->m_qp;
-	struct mlx5_qp *mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
+	struct mlx5_qp *mlx5_hw_qp = to_mqp(qp->m_qp);
 
 	m_mlx5_cq = to_mcq(ibcq);
 	m_rq = &mlx5_hw_qp->rq;

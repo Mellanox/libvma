@@ -91,8 +91,7 @@ void qp_mgr_eth_mlx5::init_sq()
 			qpi.qpn, qpi.dbrec, qpi.sq.buf, qpi.sq.wqe_cnt, qpi.sq.stride, qpi.bf.reg, qpi.bf.need_lock);
 	}
 
-	struct verbs_qp *vqp = (struct verbs_qp *)m_qp;
-	m_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
+	m_hw_qp = to_mqp(m_qp);
 	m_qp_num	 = m_hw_qp->ctrl_seg.qp_num;
 	m_sq_wqes	 = (struct mlx5_wqe64 (*)[])(uintptr_t)m_hw_qp->gen_data.sqstart;
 	m_sq_wqe_hot	 = &(*m_sq_wqes)[0];
