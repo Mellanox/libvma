@@ -231,7 +231,7 @@ sockinfo_tcp::sockinfo_tcp(int fd):
 	m_iomux_ready_fd_array = NULL;
 
 	/* SNDBUF accounting */
-	m_sndbuff_max = 0;
+	m_sndbuff_max = safe_mce_sys().sysctl_reader.get_tcp_wmem()->default_value;
 	/* RCVBUF accounting */
 	m_rcvbuff_max = safe_mce_sys().sysctl_reader.get_tcp_rmem()->default_value;
 
