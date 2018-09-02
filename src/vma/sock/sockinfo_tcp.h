@@ -85,8 +85,23 @@ enum tcp_conn_state_e {
 	TCP_CONN_RESETED
 };
 
-typedef std::map<tcp_pcb*, int>		ready_pcb_map_t;
-typedef std::map<flow_tuple, tcp_pcb*>	syn_received_map_t;
+struct socket_option_t {
+	const int level;
+	const int optname;
+	const socklen_t optlen;
+	void *optval;
+
+	socket_option_t(const int _level, const int _optname, const void *_optval, const socklen_t _optlen) :
+		level(_level), optname(_optname), optlen(_optlen), optval(malloc(optlen)) {
+		memcpy(optval, _optval, optlen);
+	}
+
+	~socket_option_t() { if (optval) free(optval); }
+};
+
+typedef std::deque<socket_option_t*> socket_options_list_t;
+typedef std::map<tcp_pcb*, int> ready_pcb_map_t;
+typedef std::map<flow_tuple, tcp_pcb*> syn_received_map_t;
 typedef std::map<peer_key, vma_desc_list_t> peer_map_t;
 
 /* taken from inet_ecn.h in kernel */
@@ -221,6 +236,7 @@ protected:
 private:
 	//lwip specific things
 	struct tcp_pcb m_pcb;
+	socket_options_list_t m_socket_options_list;
 	tcp_sock_offload_e m_sock_offload;
 	tcp_sock_state_e m_sock_state;
 	sockinfo_tcp *m_parent;
@@ -335,6 +351,7 @@ private:
         
 	// Be sure that m_pcb is initialized
 	void set_conn_properties_from_pcb();
+	void set_sock_options(sockinfo_tcp *new_sock);
 
 	//Register to timer
 	void register_timer();
