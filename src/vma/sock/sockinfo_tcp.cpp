@@ -1551,7 +1551,8 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 	mem_buf_desc_t *p_curr_desc = p_first_desc;
 
 	pbuf *p_curr_buff = p;
-	conn->m_connected.get_sa(p_first_desc->rx.src);
+	p_first_desc->rx.src.sin_addr.s_addr = conn->m_connected.get_in_addr();
+	p_first_desc->rx.src.sin_port = conn->m_connected.get_in_port();
 
 	while (p_curr_buff) {
 #ifdef DEFINED_SOCKETXTREME		
@@ -1568,14 +1569,18 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 	vma_recv_callback_retval_t callback_retval = VMA_PACKET_RECV;
 	
 	if (conn->m_rx_callback && !conn->m_vma_thr && !conn->m_n_rx_pkt_ready_list_count) {
+		struct sockaddr_in src, dst;
 		mem_buf_desc_t *tmp;
 		vma_info_t pkt_info;
 		int nr_frags = 0;
 
+		set_sockaddr_in(src, p_first_desc->rx.src);
+		set_sockaddr_in(dst, p_first_desc->rx.dst);
+
 		pkt_info.struct_sz = sizeof(pkt_info);
 		pkt_info.packet_id = (void*)p_first_desc;
-		pkt_info.src = &p_first_desc->rx.src;
-		pkt_info.dst = &p_first_desc->rx.dst;
+		pkt_info.src = &src;
+		pkt_info.dst = &dst;
 		pkt_info.socket_ready_queue_pkt_count = conn->m_p_socket_stats->n_rx_ready_pkt_count;
 		pkt_info.socket_ready_queue_byte_count = conn->m_p_socket_stats->n_rx_ready_byte_count;
 
@@ -1614,7 +1619,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 		if (!buf_lst) {
 			completion->packet.buff_lst = (struct vma_buff_t*)p_first_desc;
 			completion->packet.total_len = p->tot_len;
-			completion->src = p_first_desc->rx.src;
+			set_sockaddr_in(completion->src, p_first_desc->rx.src);
 			completion->packet.num_bufs = p_first_desc->rx.n_frags;
 			NOTIFY_ON_EVENTS(conn, VMA_SOCKETXTREME_PACKET);
 			conn->save_stats_rx_offload(completion->packet.total_len);

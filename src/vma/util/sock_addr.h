@@ -39,6 +39,12 @@
 #include <netinet/in.h>
 #include "vma/util/vtypes.h"
 
+/* Structure describing an Internet socket address.  */
+struct vma_sockaddr_in {
+       in_port_t sin_port;         /* Port number.  */
+       struct in_addr sin_addr;    /* Internet address.  */
+};
+
 class sock_addr
 {
 public:
@@ -201,5 +207,12 @@ static inline in_port_t get_sa_port(const struct sockaddr& addr)
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif
+
+static inline void set_sockaddr_in(struct sockaddr_in& dst_addr, const vma_sockaddr_in& src_addr)
+{
+       dst_addr.sin_family = AF_INET;
+       dst_addr.sin_port = src_addr.sin_port;
+       dst_addr.sin_addr = src_addr.sin_addr;
+}
 
 #endif /*SOCK_ADDR_H*/

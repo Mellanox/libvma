@@ -336,9 +336,11 @@ protected:
 	//TODO need to copy this function from util
 	//int validate_ipoib_prop(char* ifname, unsigned int ifflags, const char param_file[], const char *val, int size, char *filename, char * base_ifname);
 
-	inline void fetch_peer_info(sockaddr_in *p_peer_addr, sockaddr_in *__from, socklen_t *__fromlen)
+	inline void fetch_peer_info(vma_sockaddr_in *p_peer_addr, sockaddr_in *__from, socklen_t *__fromlen)
 	{
-		*__from = *p_peer_addr;
+		__from->sin_addr = p_peer_addr->sin_addr;
+		__from->sin_port = p_peer_addr->sin_port;
+		__from->sin_family = AF_INET;
 		*__fromlen = sizeof(sockaddr_in);
 	}
 

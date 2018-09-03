@@ -2106,12 +2106,16 @@ inline void sockinfo_udp::process_timestamps(mem_buf_desc_t* p_desc)
  */
 inline vma_recv_callback_retval_t sockinfo_udp::inspect_by_user_cb(mem_buf_desc_t* p_desc)
 {
+	struct sockaddr_in src, dst;
 	vma_info_t pkt_info;
+
+	set_sockaddr_in(src, p_desc->rx.src);
+	set_sockaddr_in(dst, p_desc->rx.dst);
 
 	pkt_info.struct_sz = sizeof(pkt_info);
 	pkt_info.packet_id = (void*)p_desc;
-	pkt_info.src = &p_desc->rx.src;
-	pkt_info.dst = &p_desc->rx.dst;
+	pkt_info.src = &src;
+	pkt_info.dst = &dst;
 	pkt_info.socket_ready_queue_pkt_count = m_p_socket_stats->n_rx_ready_pkt_count;
 	pkt_info.socket_ready_queue_byte_count = m_p_socket_stats->n_rx_ready_byte_count;
 
@@ -2153,7 +2157,7 @@ inline void sockinfo_udp::fill_completion(mem_buf_desc_t* p_desc)
 
 	completion->packet.num_bufs = p_desc->rx.n_frags;
 	completion->packet.total_len = 0;
-	completion->src = p_desc->rx.src;
+	set_sockaddr_in(completion->src, p_desc->rx.src);
 
 	if (m_n_tsing_flags & SOF_TIMESTAMPING_RAW_HARDWARE) {
 		completion->packet.hw_timestamp = p_desc->rx.udp.hw_timestamp;

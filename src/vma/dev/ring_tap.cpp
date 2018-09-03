@@ -762,11 +762,9 @@ bool ring_tap::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_r
 				struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
 
 				// Update the L3 and L4 info
-				p_rx_wc_buf_desc->rx.src.sin_family      = AF_INET;
 				p_rx_wc_buf_desc->rx.src.sin_port        = p_tcp_h->source;
 				p_rx_wc_buf_desc->rx.src.sin_addr.s_addr = p_ip_h->saddr;
 
-				p_rx_wc_buf_desc->rx.dst.sin_family      = AF_INET;
 				p_rx_wc_buf_desc->rx.dst.sin_port        = p_tcp_h->dest;
 				p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr = p_ip_h->daddr;
 				// Update packet descriptor with datagram base address and length
@@ -793,11 +791,9 @@ bool ring_tap::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_r
 				p_udp_h = (struct udphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
 
 				// Update the L3 and L4 info
-				p_rx_wc_buf_desc->rx.src.sin_family      = AF_INET;
 				p_rx_wc_buf_desc->rx.src.sin_port        = p_udp_h->source;
 				p_rx_wc_buf_desc->rx.src.sin_addr.s_addr = p_ip_h->saddr;
 
-				p_rx_wc_buf_desc->rx.dst.sin_family      = AF_INET;
 				p_rx_wc_buf_desc->rx.dst.sin_port        = p_udp_h->dest;
 				p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr = p_ip_h->daddr;
 				// Update packet descriptor with datagram base address and length
@@ -990,9 +986,7 @@ bool ring_tap::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_r
 	rfs* p_rfs = NULL;
 
 	// Update the L3 info
-	p_rx_wc_buf_desc->rx.src.sin_family      = AF_INET;
 	p_rx_wc_buf_desc->rx.src.sin_addr.s_addr = p_ip_h->saddr;
-	p_rx_wc_buf_desc->rx.dst.sin_family      = AF_INET;
 	p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr = p_ip_h->daddr;
 
 	switch (p_ip_h->protocol) {

@@ -37,6 +37,7 @@
 #include <netinet/in.h>
 #include "utils/atomic.h"
 #include "vma/util/vma_list.h"
+#include "vma/util/sock_addr.h"
 #include "vma/lwip/pbuf.h"
 
 class ring_slave;
@@ -73,8 +74,8 @@ public:
 
 	union {
 		struct {
-			sockaddr_in	src; // L3 info
-			sockaddr_in	dst; // L3 info
+			vma_sockaddr_in	src; // L3 info
+			vma_sockaddr_in	dst; // L3 info
 
 			iovec 		frag; // Datagram part base address and length
 			size_t		sz_payload; // This is the total amount of data of the packet, if (sz_payload>sz_data) means fragmented packet.
