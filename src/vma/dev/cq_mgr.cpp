@@ -94,9 +94,7 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 #ifdef DEFINED_SOCKETXTREME
 	,m_rx_hot_buff(NULL)
 	,m_qp(NULL)
-	,m_mlx5_cq(NULL)
 	,m_cq_sz(cq_size)
-	,m_cq_ci(0)
 	,m_mlx5_cqes(NULL)
 	,m_cq_db(0)
 #endif
@@ -114,6 +112,9 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 		__log_info_panic("invalid lkey found %lu", m_rx_lkey);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
+#ifdef DEFINED_SOCKETXTREME
+	memset(&m_mlx5_cq, 0, sizeof(m_mlx5_cq));
+#endif
 	memset(&m_cq_stat_static, 0, sizeof(m_cq_stat_static));
 	memset(&m_qp_rec, 0, sizeof(m_qp_rec));
 	m_rx_queue.set_id("cq_mgr (%p) : m_rx_queue", this);
@@ -157,10 +158,12 @@ void cq_mgr::configure(int cq_size)
 	}
 	
 #ifdef DEFINED_SOCKETXTREME
-	struct ibv_cq *ibcq = m_p_ibv_cq;
-	m_mlx5_cq = to_mcq(ibcq);
-	m_cq_db = m_mlx5_cq->dbrec;
-	m_mlx5_cqes = (volatile struct mlx5_cqe64 (*)[])(uintptr_t)m_mlx5_cq->active_buf->buf;
+	if (0 != vma_ib_mlx5_get_cq(m_p_ibv_cq, &m_mlx5_cq)) {
+		cq_logpanic("vma_ib_mlx5_get_cq failed (errno=%d %m)", errno);
+	}
+	m_cq_db = m_mlx5_cq.dbrec;
+	m_mlx5_cqes = (volatile struct mlx5_cqe64 (*)[])m_mlx5_cq.cq_buf;
+	m_cq_sz = m_mlx5_cq.cqe_count;
 #endif
 
 	if (m_b_is_rx) {
@@ -947,7 +950,7 @@ inline void cq_mgr::mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, vma_ib
 	wc->vendor_err = ecqe->vendor_err_synd;
 }
 
-volatile struct mlx5_cqe64 *cq_mgr::mlx5_check_error_completion(volatile struct mlx5_cqe64 *cqe, volatile uint16_t *ci, uint8_t op_own)
+volatile struct mlx5_cqe64 *cq_mgr::mlx5_check_error_completion(volatile struct mlx5_cqe64 *cqe, uint32_t *ci, uint8_t op_own)
 {
 	switch (op_own >> 4) {
 		case MLX5_CQE_INVALID:
@@ -956,7 +959,7 @@ volatile struct mlx5_cqe64 *cq_mgr::mlx5_check_error_completion(volatile struct 
 		case MLX5_CQE_RESP_ERR:
 			++(*ci);
 			rmb();
-			*m_cq_db = htonl(m_cq_ci);
+			*m_cq_db = htonl((*ci));
 			return cqe;
 		default:
 			return NULL;
@@ -970,18 +973,18 @@ inline volatile struct mlx5_cqe64 *cq_mgr::mlx5_get_cqe64(void)
 	uint8_t op_own;
 
 	cqes = *m_mlx5_cqes;
-	cqe = &cqes[m_cq_ci & (m_cq_sz - 1)];
+	cqe = &cqes[m_mlx5_cq.cq_ci & (m_cq_sz - 1)];
 	op_own = cqe->op_own;
 
-	if (unlikely((op_own & MLX5_CQE_OWNER_MASK) == !(m_cq_ci & m_cq_sz))) {
+	if (unlikely((op_own & MLX5_CQE_OWNER_MASK) == !(m_mlx5_cq.cq_ci & m_cq_sz))) {
 		return NULL;
 	} else if (unlikely((op_own >> 4) == MLX5_CQE_INVALID)) {
 		return NULL;
 	}
 
-	++m_cq_ci;
+	++m_mlx5_cq.cq_ci;
 	rmb();
-	*m_cq_db = htonl(m_cq_ci);
+	*m_cq_db = htonl(m_mlx5_cq.cq_ci);
 
 	return cqe;
 }
@@ -993,20 +996,20 @@ inline volatile struct mlx5_cqe64 *cq_mgr::mlx5_get_cqe64(volatile struct mlx5_c
 	uint8_t op_own;
 
 	cqes = *m_mlx5_cqes;
-	cqe = &cqes[m_cq_ci & (m_cq_sz - 1)];
+	cqe = &cqes[m_mlx5_cq.cq_ci & (m_cq_sz - 1)];
 	op_own = cqe->op_own;
 
 	*cqe_err = NULL;
-	if (unlikely((op_own & MLX5_CQE_OWNER_MASK) == !(m_cq_ci & m_cq_sz))) {
+	if (unlikely((op_own & MLX5_CQE_OWNER_MASK) == !(m_mlx5_cq.cq_ci & m_cq_sz))) {
 		return NULL;
 	} else if (unlikely(op_own & 0x80)) {
-		*cqe_err = mlx5_check_error_completion(cqe, &m_cq_ci, op_own);
+		*cqe_err = mlx5_check_error_completion(cqe, &m_mlx5_cq.cq_ci, op_own);
 		return NULL;
 	}
 
-	++m_cq_ci;
+	++m_mlx5_cq.cq_ci;
 	rmb();
-	*m_cq_db = htonl(m_cq_ci);
+	*m_cq_db = htonl(m_mlx5_cq.cq_ci);
 
 	return cqe;
 }
@@ -1075,7 +1078,7 @@ int cq_mgr::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/
 			if (cqe_arr[i]) {
 				++ret;
 				wmb();
-				*m_cq_db = htonl(m_cq_ci);
+				*m_cq_db = htonl(m_mlx5_cq.cq_ci);
 				if (m_b_is_rx) {
 					++m_qp->m_mlx5_hw_qp->rq.tail;
 				}

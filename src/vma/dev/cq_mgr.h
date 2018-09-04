@@ -140,7 +140,7 @@ public:
 #ifdef DEFINED_SOCKETXTREME
 	inline volatile struct mlx5_cqe64 *mlx5_get_cqe64(void);
 	inline volatile struct mlx5_cqe64 *mlx5_get_cqe64(volatile struct mlx5_cqe64 **cqe_err);
-	volatile struct mlx5_cqe64 *mlx5_check_error_completion(volatile struct mlx5_cqe64 *cqe, volatile uint16_t *ci, uint8_t op_own);
+	volatile struct mlx5_cqe64 *mlx5_check_error_completion(volatile struct mlx5_cqe64 *cqe, uint32_t *ci, uint8_t op_own);
 	inline void mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, vma_ibv_wc *wce);
 	int mlx5_poll_and_process_error_element_rx(volatile struct mlx5_cqe64 *cqe, void* pv_fd_ready_array);
 #endif // DEFINED_SOCKETXTREME
@@ -241,9 +241,8 @@ private:
 #ifdef DEFINED_SOCKETXTREME
 	mem_buf_desc_t* 	m_rx_hot_buff;
 	qp_mgr*			m_qp;
-	struct mlx5_cq* 	m_mlx5_cq;
+	vma_ib_mlx5_cq_t  m_mlx5_cq;
 	int 			m_cq_sz;
-	uint16_t		m_cq_ci;
 	volatile struct		mlx5_cqe64 	(*m_mlx5_cqes)[];
 	volatile uint32_t 	*m_cq_db;
 #endif // DEFINED_SOCKETXTREME

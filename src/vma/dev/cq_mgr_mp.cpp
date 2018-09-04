@@ -148,8 +148,8 @@ int cq_mgr_mp::poll_mp_cq(uint16_t &size, uint32_t &strides_used,
 				m_p_cq_stat->n_rx_pkt_drop++;
 			}
 		}
-		++m_cq_cons_index;
-		prefetch((uint8_t*)m_cqes + ((m_cq_cons_index & (m_cq_size - 1)) << m_cqe_log_sz));
+		++m_mlx5_cq.cq_ci;
+		prefetch((uint8_t*)m_cqes + ((m_mlx5_cq.cq_ci & (m_cq_size - 1)) << m_cqe_log_sz));
 	} else {
 		size = 0;
 		flags = 0;
@@ -163,7 +163,7 @@ void cq_mgr_mp::update_dbell()
 {
 	wmb();
 	++m_rq->tail;
-	*m_cq_dbell = htonl(m_cq_cons_index & 0xffffff);
+	*m_cq_dbell = htonl(m_mlx5_cq.cq_ci & 0xffffff);
 }
 
 cq_mgr_mp::~cq_mgr_mp()
