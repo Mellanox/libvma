@@ -61,6 +61,7 @@ static int vma_ib_mlx5dv_get_qp(struct ibv_qp *qp, struct mlx5dv_qp *mlx5_qp)
 {
 	int ret = 0;
 	struct ibv_mlx5_qp_info ibv_qp_info;
+	struct mlx5_qp *mqp = to_mqp(qp);
 
 	ret = ibv_mlx5_exp_get_qp_info(qp, &ibv_qp_info);
 	if (ret != 0) {
@@ -68,7 +69,9 @@ static int vma_ib_mlx5dv_get_qp(struct ibv_qp *qp, struct mlx5dv_qp *mlx5_qp)
 	}
 
 	mlx5_qp->dbrec      = ibv_qp_info.dbrec;
-	mlx5_qp->sq.buf     = ibv_qp_info.sq.buf;
+	mlx5_qp->sq.buf     = (mqp->sq_buf_size ?
+			(void *)((uintptr_t)mqp->sq_buf.buf) : /* IBV_QPT_RAW_PACKET */
+			(void *)((uintptr_t)mqp->buf.buf + mqp->sq.offset));
 	mlx5_qp->sq.wqe_cnt = ibv_qp_info.sq.wqe_cnt;
 	mlx5_qp->sq.stride  = ibv_qp_info.sq.stride;
 	mlx5_qp->rq.buf     = ibv_qp_info.rq.buf;

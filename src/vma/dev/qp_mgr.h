@@ -144,7 +144,7 @@ protected:
 	uint64_t            m_rq_wqe_counter;
 	uint64_t*           m_rq_wqe_idx_to_wrid;
 #ifdef DEFINED_SOCKETXTREME
-	struct mlx5_qp*	    m_mlx5_hw_qp;
+	vma_ib_mlx5_qp_t    m_mlx5_qp;
 #endif // DEFINED_SOCKETXTREME
 	struct ibv_qp*      m_qp;
 

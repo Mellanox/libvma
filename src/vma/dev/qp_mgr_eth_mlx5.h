@@ -63,7 +63,7 @@ public:
 protected:
 	void		trigger_completion_for_all_sent_packets();
 	void		init_sq();
-	struct mlx5_qp*	m_hw_qp;
+	vma_ib_mlx5_qp_t m_mlx5_qp;
 	uint64_t*	m_sq_wqe_idx_to_wrid;
 
 private:

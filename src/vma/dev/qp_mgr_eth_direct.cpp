@@ -102,36 +102,27 @@ void qp_mgr_eth_direct::down()
 
 bool qp_mgr_eth_direct::fill_hw_descriptors(vma_mlx_hw_device_data &data)
 {
-	ibv_mlx5_qp_info qpi;
-
-	memset(&qpi, 0, sizeof(qpi));
-	if (ibv_mlx5_exp_get_qp_info(m_qp, &qpi)) {
-		return false;
-	}
 	qp_logdbg("QPN: %d dbrec: %p QP.info.SQ. buf: %p wqe_cnt: %d "
-		"stride: %d bf.reg: %p bf.need_lock: %d",
-		qpi.qpn, qpi.dbrec, qpi.sq.buf, qpi.sq.wqe_cnt,
-		qpi.sq.stride, qpi.bf.reg, qpi.bf.need_lock);
+		"stride: %d bf.reg: %p",
+		m_mlx5_qp.qpn, m_mlx5_qp.sq.dbrec, m_mlx5_qp.sq.buf, m_mlx5_qp.sq.wqe_cnt,
+		m_mlx5_qp.sq.stride, m_mlx5_qp.bf.reg);
 
-	data.sq_data.sq_num = qpi.qpn;
-	// bug in mlx5_hw
-	// data.sq_data.wq_data.buf = qpi.sq.buf;
-	data.sq_data.wq_data.buf = m_hw_qp->sq_buf.buf;
-	data.sq_data.wq_data.dbrec = &qpi.dbrec[MLX5_SND_DBR];
-	data.sq_data.wq_data.stride = qpi.sq.stride;
-	data.sq_data.wq_data.wqe_cnt = qpi.sq.wqe_cnt;
+	data.sq_data.sq_num = m_mlx5_qp.qpn;
+	data.sq_data.wq_data.dbrec = m_mlx5_qp.sq.dbrec;
+	data.sq_data.wq_data.buf = m_mlx5_qp.sq.buf;
+	data.sq_data.wq_data.stride = m_mlx5_qp.sq.stride;
+	data.sq_data.wq_data.wqe_cnt = m_mlx5_qp.sq.wqe_cnt;
 
-	data.sq_data.bf.reg = qpi.bf.reg;
-	data.sq_data.bf.offset = m_hw_qp->gen_data.bf->offset;
-	data.sq_data.bf.size = qpi.bf.size;
+	data.sq_data.bf.reg = m_mlx5_qp.bf.reg;
+	data.sq_data.bf.offset = m_mlx5_qp.bf.offset;
+	data.sq_data.bf.size = m_mlx5_qp.bf.size;
 
-	data.rq_data.wq_data.buf = qpi.rq.buf;
-	data.rq_data.wq_data.dbrec = &qpi.dbrec[MLX5_RCV_DBR];
-	data.rq_data.wq_data.stride = qpi.rq.stride;
-	data.rq_data.wq_data.wqe_cnt = qpi.rq.wqe_cnt;
-
-	data.rq_data.head = &m_hw_qp->rq.head;
-	data.rq_data.tail = &m_hw_qp->rq.tail;
+	data.rq_data.wq_data.buf = m_mlx5_qp.rq.buf;
+	data.rq_data.wq_data.dbrec = m_mlx5_qp.rq.dbrec;
+	data.rq_data.wq_data.stride = m_mlx5_qp.rq.stride;
+	data.rq_data.wq_data.wqe_cnt = m_mlx5_qp.rq.wqe_cnt;
+	data.rq_data.head = &m_mlx5_qp.rq.head;
+	data.rq_data.tail = &m_mlx5_qp.rq.tail;
 
 	return true;
 }
