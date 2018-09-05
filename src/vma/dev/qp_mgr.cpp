@@ -65,9 +65,6 @@ qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context,
 		const uint8_t port_num, const uint32_t tx_num_wr):
 	 m_rq_wqe_counter(0)
 	,m_rq_wqe_idx_to_wrid(NULL)
-#ifdef DEFINED_SOCKETXTREME
-	,m_mlx5_hw_qp(NULL)
-#endif
 	,m_qp(NULL)
 	,m_p_ring((ring_simple*)p_ring)
 	,m_port_num((uint8_t)port_num)
@@ -97,6 +94,7 @@ qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context,
 	memset(&m_rate_limit, 0, sizeof(struct vma_rate_limit_t));
 
 #ifdef DEFINED_SOCKETXTREME
+	memset(&m_mlx5_qp, 0, sizeof(m_mlx5_qp));
 	m_rq_wqe_idx_to_wrid = (uint64_t*)mmap(NULL, m_rx_num_wr * sizeof(*m_rq_wqe_idx_to_wrid),
 		PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 	if (m_rq_wqe_idx_to_wrid == MAP_FAILED) {
@@ -242,7 +240,9 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	m_curr_rx_wr = 0;
 
 #ifdef DEFINED_SOCKETXTREME
-	m_mlx5_hw_qp = to_mqp(m_qp);
+	if (0 != vma_ib_mlx5_get_qp(m_qp, &m_mlx5_qp)) {
+		qp_logpanic("vma_ib_mlx5_get_qp failed (errno=%d %m)", errno);
+	}
 #endif //DEFINED_SOCKETXTREME
 	if (m_p_cq_mgr_tx) {
 		m_p_cq_mgr_tx->add_qp_tx(this);

@@ -85,25 +85,22 @@ static inline uint64_t align_to_WQEBB_up(uint64_t val)
 //
 void qp_mgr_eth_mlx5::init_sq()
 {
-	struct ibv_mlx5_qp_info qpi;
-	if (!ibv_mlx5_exp_get_qp_info(m_qp, &qpi)) {
-		qp_logfunc("QPN: %d dbrec: %p QP.info.SQ. buf: %p wqe_cnt: %d stride: %d bf.reg: %p bf.need_lock: %d",
-			qpi.qpn, qpi.dbrec, qpi.sq.buf, qpi.sq.wqe_cnt, qpi.sq.stride, qpi.bf.reg, qpi.bf.need_lock);
+	if (0 != vma_ib_mlx5_get_qp(m_qp, &m_mlx5_qp)) {
+		qp_logpanic("vma_ib_mlx5_get_qp failed (errno=%d %m)", errno);
 	}
 
-	m_hw_qp = to_mqp(m_qp);
-	m_qp_num	 = m_hw_qp->ctrl_seg.qp_num;
-	m_sq_wqes	 = (struct mlx5_wqe64 (*)[])(uintptr_t)m_hw_qp->gen_data.sqstart;
+	m_qp_num	 = m_mlx5_qp.qpn;
+	m_sq_wqes	 = (struct mlx5_wqe64 (*)[])(uintptr_t)m_mlx5_qp.sq.buf;
 	m_sq_wqe_hot	 = &(*m_sq_wqes)[0];
-	m_sq_wqes_end	 = (uint8_t*)m_hw_qp->gen_data.sqend;
+	m_sq_wqes_end	 = (uint8_t*)((uintptr_t)m_mlx5_qp.sq.buf + m_mlx5_qp.sq.wqe_cnt * m_mlx5_qp.sq.stride);
 	m_sq_wqe_counter = 0;
 
-	m_sq_db		 = &m_hw_qp->gen_data.db[MLX5_SND_DBR];
-	m_sq_bf_reg	 = m_hw_qp->gen_data.bf->reg;
-	m_sq_bf_buf_size = m_hw_qp->gen_data.bf->buf_size;
+	m_sq_db		 = m_mlx5_qp.sq.dbrec;
+	m_sq_bf_reg	 = m_mlx5_qp.bf.reg;
+	m_sq_bf_buf_size = m_mlx5_qp.bf.size;
 
 	m_sq_wqe_hot_index = 0;
-	m_sq_bf_offset	 = m_hw_qp->gen_data.bf->offset;
+	m_sq_bf_offset	 = 0;
 
 	m_tx_num_wr = (m_sq_wqes_end-(uint8_t *)m_sq_wqe_hot)/WQEBB;
 	/* Maximum BF inlining consists of:
@@ -145,7 +142,6 @@ qp_mgr_eth_mlx5::qp_mgr_eth_mlx5(const ring_simple* p_ring,
 		struct ibv_comp_channel* p_rx_comp_event_channel,
 		const uint32_t tx_num_wr, const uint16_t vlan, bool call_configure):
 	qp_mgr_eth(p_ring, p_context, port_num, p_rx_comp_event_channel, tx_num_wr, vlan, false)
-	,m_hw_qp(NULL)
 	,m_sq_wqe_idx_to_wrid(NULL)
 	,m_sq_wqes(NULL)
 	,m_sq_wqe_hot(NULL)
@@ -162,6 +158,8 @@ qp_mgr_eth_mlx5::qp_mgr_eth_mlx5(const ring_simple* p_ring,
 	if (call_configure && configure(p_rx_comp_event_channel)) {
 		throw_vma_exception("failed creating qp_mgr_eth");
 	}
+
+	memset(&m_mlx5_qp, 0, sizeof(m_mlx5_qp));
 
 	qp_logfunc("m_p_cq_mgr_tx= %p", m_p_cq_mgr_tx);
 }
