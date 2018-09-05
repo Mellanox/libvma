@@ -1548,7 +1548,7 @@ bool net_device_val::verify_qp_creation(const char* ifname, enum ibv_qp_type qp_
 	// Set source qpn for mlx5 IPoIB devices
 	if (qp_type == IBV_QPT_UD && !strncmp(p_ib_ctx->get_ibname(), "mlx5", 4)) {
 		unsigned char hw_addr[IPOIB_HW_ADDR_LEN];
-		get_local_ll_addr(get_ifname(), hw_addr, IPOIB_HW_ADDR_LEN, false);
+		get_local_ll_addr(ifname, hw_addr, IPOIB_HW_ADDR_LEN, false);
 		IPoIB_addr ipoib_addr(hw_addr);
 		ibv_source_qpn_set(qp_init_attr, ipoib_addr.get_qpn());
 	}
