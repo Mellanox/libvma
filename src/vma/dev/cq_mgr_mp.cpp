@@ -162,7 +162,7 @@ int cq_mgr_mp::poll_mp_cq(uint16_t &size, uint32_t &strides_used,
 void cq_mgr_mp::update_dbell()
 {
 	wmb();
-	++(*m_qp->m_mlx5_qp.rq.tail);
+	++m_qp->m_mlx5_qp.rq.tail;
 	*m_cq_dbell = htonl(m_mlx5_cq.cq_ci & 0xffffff);
 }
 

@@ -470,7 +470,11 @@ void qp_mgr::post_recv_buffer(mem_buf_desc_t* p_mem_buf_desc)
 
 		m_curr_rx_wr = 0;
 		struct ibv_recv_wr *bad_wr = NULL;
+#ifdef DEFINED_SOCKETXTREME
+		IF_VERBS_FAILURE(vma_ib_mlx5_post_recv(&m_mlx5_qp, &m_ibv_rx_wr_array[0], &bad_wr)) {
+#else
 		IF_VERBS_FAILURE(ibv_post_recv(m_qp, &m_ibv_rx_wr_array[0], &bad_wr)) {
+#endif // DEFINED_SOCKETXTREME
 			uint32_t n_pos_bad_rx_wr = ((uint8_t*)bad_wr - (uint8_t*)m_ibv_rx_wr_array) / sizeof(struct ibv_recv_wr);
 			qp_logerr("failed posting list (errno=%d %m)", errno);
 			qp_logerr("bad_wr is %d in submitted list (bad_wr=%p, m_ibv_rx_wr_array=%p, size=%d)", n_pos_bad_rx_wr, bad_wr, m_ibv_rx_wr_array, sizeof(struct ibv_recv_wr));
