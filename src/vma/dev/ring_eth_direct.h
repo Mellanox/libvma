@@ -36,6 +36,8 @@
 #include <tr1/unordered_map>
 #include "dev/ring_simple.h"
 
+#if defined(HAVE_DIRECT_RING)
+
 typedef std::pair<void*, size_t> pair_void_size_t;
 typedef std::pair<uint32_t, int> pair_mr_ref_t;
 namespace std { namespace tr1 {
@@ -75,5 +77,7 @@ private:
 	vma_external_mem_attr	m_ring_attr;
 	addr_len_mr_map_t	m_mr_map;
 };
+
+#endif /* HAVE_DIRECT_RING */
 
 #endif /* SRC_VMA_DEV_RING_ETH_DIRECT_H_ */
