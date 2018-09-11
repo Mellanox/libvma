@@ -242,7 +242,6 @@ private:
 	mem_buf_desc_t* 	m_rx_hot_buff;
 	qp_mgr*			m_qp;
 	vma_ib_mlx5_cq_t  m_mlx5_cq;
-	struct mlx5_wq*         m_rq;
 	int 			m_cq_sz;
 	volatile struct		mlx5_cqe64 	(*m_mlx5_cqes)[];
 	volatile uint32_t 	*m_cq_db;

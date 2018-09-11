@@ -54,14 +54,13 @@ cq_mgr_mlx5::cq_mgr_mlx5(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler,
 			 uint32_t cq_size, struct ibv_comp_channel* p_comp_event_channel,
 			 bool is_rx, bool call_configure):
 	cq_mgr(p_ring, p_ib_ctx_handler, cq_size, p_comp_event_channel, is_rx, call_configure)
+	,m_qp(NULL)
 	,m_cq_size(cq_size)
 	,m_cqes(NULL)
 	,m_cq_dbell(NULL)
-	,m_rq(NULL)
 	,m_cqe_log_sz(0)
 	,m_rx_hot_buffer(NULL)
 	,m_p_rq_wqe_idx_to_wrid(NULL)
-	,m_qp(NULL)
 {
 	cq_logfunc("");
 
@@ -75,16 +74,14 @@ uint32_t cq_mgr_mlx5::clean_cq()
 	mem_buf_desc_t* buff;
 
 	if (m_b_is_rx) {
-		if (m_rq) {
-			buff_status_e status = BS_OK;
-			while((buff = poll(status))) {
-				if (process_cq_element_rx( buff, status)) {
-					m_rx_queue.push_back(buff);
-				}
-				++ret_total;
+		buff_status_e status = BS_OK;
+		while((buff = poll(status))) {
+			if (process_cq_element_rx( buff, status)) {
+				m_rx_queue.push_back(buff);
 			}
-			update_global_sn(cq_poll_sn, ret_total);
+			++ret_total;
 		}
+		update_global_sn(cq_poll_sn, ret_total);
 	} else {//Tx
 		int ret = 0;
 		/* coverity[stack_use_local_overflow] */
@@ -106,7 +103,6 @@ cq_mgr_mlx5::~cq_mgr_mlx5()
 {
 	cq_logfunc("");
 	cq_logdbg("destroying CQ as %s", (m_b_is_rx?"Rx":"Tx"));
-	m_rq = NULL;
 }
 
 mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
@@ -122,8 +118,8 @@ mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
 #endif //RDTSC_MEASURE_RX_VERBS_READY_POLL || RDTSC_MEASURE_RX_VERBS_IDLE_POLL
 
 	if (unlikely(NULL == m_rx_hot_buffer)) {
-		if (likely(m_rq->tail != m_rq->head)) {
-			uint32_t index = m_rq->tail & (m_qp_rec.qp->m_rx_num_wr - 1);
+		if (likely((*m_qp->m_mlx5_qp.rq.tail) != (*m_qp->m_mlx5_qp.rq.head))) {
+			uint32_t index = (*m_qp->m_mlx5_qp.rq.tail) & (m_qp_rec.qp->m_rx_num_wr - 1);
 			m_rx_hot_buffer = (mem_buf_desc_t *)m_p_rq_wqe_idx_to_wrid[index];
 			m_p_rq_wqe_idx_to_wrid[index] = 0;
 			prefetch((void*)m_rx_hot_buffer);
@@ -148,8 +144,10 @@ mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
 		++m_mlx5_cq.cq_ci;
 		rmb();
 		cqe64_to_mem_buff_desc(cqe, m_rx_hot_buffer, status);
-		++m_rq->tail;
+
+		++(*m_qp->m_mlx5_qp.rq.tail);
 		*m_cq_dbell = htonl(m_mlx5_cq.cq_ci & 0xffffff);
+
 		buff = m_rx_hot_buffer;
 		m_rx_hot_buffer = NULL;
 
@@ -561,9 +559,7 @@ int cq_mgr_mlx5::poll_and_process_element_tx(uint64_t* p_cq_poll_sn)
 
 void cq_mgr_mlx5::set_qp_rq(qp_mgr* qp)
 {
-	struct mlx5_qp *mlx5_hw_qp = to_mqp(qp->m_qp);
-
-	m_rq = &mlx5_hw_qp->rq;
+	m_qp = static_cast<qp_mgr_eth_mlx5*> (qp);
 	m_p_rq_wqe_idx_to_wrid = qp->m_rq_wqe_idx_to_wrid;
 	qp->m_rq_wqe_counter = 0; /* In case of bonded qp, wqe_counter must be reset to zero */
 	m_rx_hot_buffer = NULL;
@@ -575,6 +571,8 @@ void cq_mgr_mlx5::set_qp_rq(qp_mgr* qp)
 	m_cqes = m_mlx5_cq.cq_buf;
 	m_cq_size = m_mlx5_cq.cqe_count;
 	m_cqe_log_sz = m_mlx5_cq.cqe_size_log;
+
+	cq_logfunc("qp_mgr=%p m_cq_dbell=%p m_cqes=%p", m_qp, m_cq_dbell, m_cqes);
 }
 
 void cq_mgr_mlx5::add_qp_rx(qp_mgr* qp)
@@ -606,7 +604,6 @@ void cq_mgr_mlx5::add_qp_tx(qp_mgr* qp)
 {
 	//Assume locked!
 	cq_mgr::add_qp_tx(qp);
-
 	m_qp = static_cast<qp_mgr_eth_mlx5*> (qp);
 
 	if (0 != vma_ib_mlx5_get_cq(m_p_ibv_cq, &m_mlx5_cq)) {

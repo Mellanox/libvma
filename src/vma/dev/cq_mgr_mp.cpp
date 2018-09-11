@@ -162,7 +162,7 @@ int cq_mgr_mp::poll_mp_cq(uint16_t &size, uint32_t &strides_used,
 void cq_mgr_mp::update_dbell()
 {
 	wmb();
-	++m_rq->tail;
+	++(*m_qp->m_mlx5_qp.rq.tail);
 	*m_cq_dbell = htonl(m_mlx5_cq.cq_ci & 0xffffff);
 }
 
@@ -176,7 +176,6 @@ cq_mgr_mp::~cq_mgr_mp()
 		ret = poll_mp_cq(size, strides_used, flags, out_cqe64);
 	} while (size > 0 || ret);
 	// prevents seg fault in mlx5 destructor
-	m_rq = NULL;
 }
 #endif // HAVE_MP_RQ
 

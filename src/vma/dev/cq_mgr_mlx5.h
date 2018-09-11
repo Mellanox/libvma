@@ -75,19 +75,18 @@ public:
 	virtual bool                fill_cq_hw_descriptors(struct hw_cq_data &data);
 
 protected:
+	qp_mgr_eth_mlx5*            m_qp;
 	vma_ib_mlx5_cq_t            m_mlx5_cq;
 	inline struct mlx5_cqe64*   check_cqe(void);
 
 	uint32_t                    m_cq_size;
 	void*                       m_cqes;
 	volatile uint32_t*          m_cq_dbell;
-	struct mlx5_wq*             m_rq;
 	int                         m_cqe_log_sz;
 
 private:
 	mem_buf_desc_t              *m_rx_hot_buffer;
 	uint64_t                    *m_p_rq_wqe_idx_to_wrid;
-	qp_mgr_eth_mlx5*            m_qp; //for tx
 
 	void                        cqe64_to_vma_wc(struct mlx5_cqe64 *cqe, vma_ibv_wc *wc);
 	inline struct mlx5_cqe64*   check_error_completion(struct mlx5_cqe64 *cqe, uint32_t *ci, uint8_t op_own);
