@@ -33,6 +33,7 @@
 #include "ring_eth_direct.h"
 #include "qp_mgr_eth_direct.h"
 
+#if defined(HAVE_DIRECT_RING)
 
 #undef  MODULE_NAME
 #define MODULE_NAME		"ring_direct"
@@ -157,3 +158,5 @@ ring_eth_direct::~ring_eth_direct()
 	}
 	m_mr_map.clear();
 }
+
+#endif /* HAVE_DIRECT_RING */
