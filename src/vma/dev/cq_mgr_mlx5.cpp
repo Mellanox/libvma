@@ -205,7 +205,6 @@ inline void cq_mgr_mlx5::cqe64_to_mem_buff_desc(struct mlx5_cqe64 *cqe, mem_buf_
 			break;
 		}
 		case MLX5_CQE_REQ:
-		case MLX5_CQE_SIG_ERR:
 		case MLX5_CQE_REQ_ERR:
 		case MLX5_CQE_RESP_ERR:
 		default:
