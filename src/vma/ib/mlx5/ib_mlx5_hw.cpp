@@ -70,7 +70,7 @@ static int vma_ib_mlx5dv_get_qp(struct ibv_qp *qp, struct mlx5dv_qp *mlx5_qp)
 
 	mlx5_qp->dbrec      = ibv_qp_info.dbrec;
 	mlx5_qp->sq.buf     = (mqp->sq_buf_size ?
-			(void *)((uintptr_t)mqp->sq_buf.buf) : /* IBV_QPT_RAW_PACKET */
+			(void *)((uintptr_t)mqp->sq_buf.buf) : /* IBV_QPT_RAW_PACKET or Underly QP */
 			(void *)((uintptr_t)mqp->buf.buf + mqp->sq.offset));
 	mlx5_qp->sq.wqe_cnt = ibv_qp_info.sq.wqe_cnt;
 	mlx5_qp->sq.stride  = ibv_qp_info.sq.stride;
@@ -102,18 +102,11 @@ static int vma_ib_mlx5dv_get_cq(struct ibv_cq *cq, struct mlx5dv_cq *mlx5_cq)
 	return ret;
 }
 
-unsigned* vma_ib_mlx5_get_rq_head(struct ibv_qp *qp)
+void vma_ib_mlx5_update_cq_ci(struct ibv_cq *cq, unsigned cq_ci)
 {
-	struct mlx5_qp *mqp = to_mqp(qp);
+	struct mlx5_cq *mcq = to_mcq(cq);
 
-	return &mqp->rq.head;
-}
-
-unsigned* vma_ib_mlx5_get_rq_tail(struct ibv_qp *qp)
-{
-	struct mlx5_qp *mqp = to_mqp(qp);
-
-	return &mqp->rq.tail;
+	mcq->cons_index = cq_ci;
 }
 
 #endif /* (DEFINED_DIRECT_VERBS == 2) */

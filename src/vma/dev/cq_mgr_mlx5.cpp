@@ -118,8 +118,8 @@ mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
 #endif //RDTSC_MEASURE_RX_VERBS_READY_POLL || RDTSC_MEASURE_RX_VERBS_IDLE_POLL
 
 	if (unlikely(NULL == m_rx_hot_buffer)) {
-		if (likely((*m_qp->m_mlx5_qp.rq.tail) != (*m_qp->m_mlx5_qp.rq.head))) {
-			uint32_t index = (*m_qp->m_mlx5_qp.rq.tail) & (m_qp_rec.qp->m_rx_num_wr - 1);
+		if (likely(m_qp->m_mlx5_qp.rq.tail != (m_qp->m_mlx5_qp.rq.head))) {
+			uint32_t index = m_qp->m_mlx5_qp.rq.tail & (m_qp_rec.qp->m_rx_num_wr - 1);
 			m_rx_hot_buffer = (mem_buf_desc_t *)m_p_rq_wqe_idx_to_wrid[index];
 			m_p_rq_wqe_idx_to_wrid[index] = 0;
 			prefetch((void*)m_rx_hot_buffer);
@@ -145,7 +145,7 @@ mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
 		rmb();
 		cqe64_to_mem_buff_desc(cqe, m_rx_hot_buffer, status);
 
-		++(*m_qp->m_mlx5_qp.rq.tail);
+		++m_qp->m_mlx5_qp.rq.tail;
 		*m_cq_dbell = htonl(m_mlx5_cq.cq_ci & 0xffffff);
 
 		buff = m_rx_hot_buffer;

@@ -33,9 +33,10 @@
 #ifndef SRC_VMA_IB_MLX5_H_
 #define SRC_VMA_IB_MLX5_H_
 
+#if defined(DEFINED_DIRECT_VERBS)
+
 #include <infiniband/verbs.h>
 
-#if defined(DEFINED_DIRECT_VERBS)
 #if (DEFINED_DIRECT_VERBS == 2)
 #include <infiniband/mlx5_hw.h>
 #include "vma/ib/mlx5/ib_mlx5_hw.h"
@@ -45,7 +46,9 @@
 #else
 #error "Unsupported Direct VERBS parameter"
 #endif
-#endif /* DEFINED_DIRECT_VERBS */
+
+#include <utils/asm.h>
+#include <vma/util/vtypes.h>
 
 /* ib/mlx5 layer is used by other VMA code that needs
  * direct access to mlx5 resources.
@@ -61,9 +64,16 @@
  */
 int vma_ib_mlx5dv_init_obj(struct mlx5dv_obj *obj, uint64_t type);
 
+enum {
+   VMA_IB_MLX5_QP_FLAGS_USE_UNDERLAY = 0x01
+};
+
 /* Queue pair */
 typedef struct vma_ib_mlx5_qp {
+	struct ibv_qp *qp;
 	uint32_t qpn;
+	uint32_t flags;
+	struct ibv_qp_cap cap;
 	struct {
 		volatile uint32_t *dbrec;
 		void *buf;
@@ -75,8 +85,9 @@ typedef struct vma_ib_mlx5_qp {
 		void *buf;
 		uint32_t wqe_cnt;
 		uint32_t stride;
-		unsigned *head;
-		unsigned *tail;
+		uint32_t wqe_shift;
+		unsigned head;
+		unsigned tail;
 	} rq;
 	struct {
 		void *reg;
@@ -96,11 +107,12 @@ typedef struct vma_ib_mlx5_cq {
     volatile uint32_t  *dbrec;
 } vma_ib_mlx5_cq_t;
 
-int vma_ib_mlx5_get_qp(struct ibv_qp *qp, vma_ib_mlx5_qp_t *mlx5_qp);
-unsigned* vma_ib_mlx5_get_rq_head(struct ibv_qp *qp);
-unsigned* vma_ib_mlx5_get_rq_tail(struct ibv_qp *qp);
+int vma_ib_mlx5_get_qp(struct ibv_qp *qp, vma_ib_mlx5_qp_t *mlx5_qp, uint32_t flags = 0);
+int vma_ib_mlx5_post_recv(vma_ib_mlx5_qp_t *mlx5_qp, struct ibv_recv_wr *wr, struct ibv_recv_wr **bad_wr);
 
 int vma_ib_mlx5_get_cq(struct ibv_cq *cq, vma_ib_mlx5_cq_t *mlx5_cq);
 void vma_ib_mlx5_update_cq_ci(struct ibv_cq *cq, unsigned cq_ci);
+
+#endif /* DEFINED_DIRECT_VERBS */
 
 #endif /* SRC_VMA_IB_MLX5_H_ */

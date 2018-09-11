@@ -98,7 +98,9 @@ case "$vma_cv_verbs" in
                 [vma_cv_directverbs=$vma_cv_verbs], [], [[#include <infiniband/mlx5_hw.h>]])])
         ;;
     3)
-        AC_CHECK_HEADER([infiniband/mlx5dv.h], [vma_cv_directverbs=$vma_cv_verbs])
+        AC_CHECK_HEADER([infiniband/mlx5dv.h],
+            [AC_CHECK_LIB(mlx5,
+                mlx5dv_init_obj, [VERBS_LIBS="$VERBS_LIBS -lmlx5" vma_cv_directverbs=$vma_cv_verbs])])
         ;;
     *)
         AC_MSG_ERROR([Unrecognized parameter 'vma_cv_verbs' as $vma_cv_verbs])

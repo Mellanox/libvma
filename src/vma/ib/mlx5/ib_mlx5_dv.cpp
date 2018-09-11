@@ -47,4 +47,10 @@ int vma_ib_mlx5dv_init_obj(struct mlx5dv_obj *obj, uint64_t type)
 	return ret;
 }
 
+void vma_ib_mlx5_update_cq_ci(struct ibv_cq *cq, unsigned cq_ci)
+{
+	cq = cq;
+	cq_ci = cq_ci;
+}
+
 #endif /* (DEFINED_DIRECT_VERBS == 3) */
