@@ -121,8 +121,8 @@ bool qp_mgr_eth_direct::fill_hw_descriptors(vma_mlx_hw_device_data &data)
 	data.rq_data.wq_data.dbrec = m_mlx5_qp.rq.dbrec;
 	data.rq_data.wq_data.stride = m_mlx5_qp.rq.stride;
 	data.rq_data.wq_data.wqe_cnt = m_mlx5_qp.rq.wqe_cnt;
-	data.rq_data.head = &m_mlx5_qp.rq.head;
-	data.rq_data.tail = &m_mlx5_qp.rq.tail;
+	data.rq_data.head = m_mlx5_qp.rq.head;
+	data.rq_data.tail = m_mlx5_qp.rq.tail;
 
 	return true;
 }

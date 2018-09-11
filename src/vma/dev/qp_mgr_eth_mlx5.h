@@ -60,10 +60,10 @@ public:
 	virtual ~qp_mgr_eth_mlx5();
 	virtual void	up();
 	virtual void	down();
+	vma_ib_mlx5_qp_t m_mlx5_qp;
 protected:
 	void		trigger_completion_for_all_sent_packets();
 	void		init_sq();
-	vma_ib_mlx5_qp_t m_mlx5_qp;
 	uint64_t*	m_sq_wqe_idx_to_wrid;
 
 private:

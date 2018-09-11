@@ -94,7 +94,6 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 #ifdef DEFINED_SOCKETXTREME
 	,m_rx_hot_buff(NULL)
 	,m_qp(NULL)
-	,m_rq(NULL)
 	,m_cq_sz(cq_size)
 	,m_mlx5_cqes(NULL)
 	,m_cq_db(0)
@@ -295,7 +294,6 @@ void cq_mgr::add_qp_rx(qp_mgr* qp)
 	// Add qp_mgr to map
 #ifdef DEFINED_SOCKETXTREME
 	m_qp = qp;
-	m_rq = &(to_mqp(qp->m_qp))->rq;
 #endif // DEFINED_SOCKETXTREME
 	m_qp_rec.qp = qp;
 	m_qp_rec.debt = 0;
@@ -707,7 +705,7 @@ int cq_mgr::socketxtreme_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 	int packets_num = 0;
 
 	if (unlikely(m_rx_hot_buff == NULL)) {
-		int index = m_rq->tail & (m_qp->m_rx_num_wr - 1);
+		int index = (*m_qp->m_mlx5_qp.rq.tail) & (m_qp->m_rx_num_wr - 1);
 		m_rx_hot_buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_rq_wqe_idx_to_wrid[index];
 		m_rx_hot_buff->rx.context = NULL;
 		m_rx_hot_buff->rx.is_vma_thr = false;
@@ -729,7 +727,7 @@ int cq_mgr::socketxtreme_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 
 	if (likely(cqe)) {
 		++m_n_wce_counter;
-		++m_rq->tail;
+		++(*m_qp->m_mlx5_qp.rq.tail);
 		m_rx_hot_buff->sz_data = ntohl(cqe->byte_cnt);
 		m_rx_hot_buff->rx.hw_raw_timestamp = ntohll(cqe->timestamp);
 		m_rx_hot_buff->rx.flow_tag_id = vma_get_flow_tag(cqe);
@@ -790,7 +788,7 @@ int cq_mgr::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_read
 	}
 
 	if (unlikely(m_rx_hot_buff == NULL)) {
-		int index = m_rq->tail & (m_qp->m_rx_num_wr - 1);
+		int index = (*m_qp->m_mlx5_qp.rq.tail) & (m_qp->m_rx_num_wr - 1);
 		m_rx_hot_buff = (mem_buf_desc_t*)(uintptr_t)m_qp->m_rq_wqe_idx_to_wrid[index];
 		m_rx_hot_buff->rx.context = NULL;
 		m_rx_hot_buff->rx.is_vma_thr = false;
@@ -802,7 +800,7 @@ int cq_mgr::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_read
 
 		if (likely(cqe)) {
 			++m_n_wce_counter;
-			++m_rq->tail;
+			++(*m_qp->m_mlx5_qp.rq.tail);
 			m_rx_hot_buff->sz_data = ntohl(cqe->byte_cnt);
 			m_rx_hot_buff->rx.flow_tag_id = vma_get_flow_tag(cqe);
 			m_rx_hot_buff->rx.is_sw_csum_need = !(m_b_is_rx_hw_csum_on &&
@@ -900,7 +898,7 @@ int cq_mgr::mlx5_poll_and_process_error_element_rx(volatile struct mlx5_cqe64 *c
 	mlx5_cqe64_to_vma_wc(cqe, &wce);
 
 	++m_n_wce_counter;
-	++m_rq->tail;
+	++(*m_qp->m_mlx5_qp.rq.tail);
 
 	m_rx_hot_buff = process_cq_element_rx(&wce);
 	if (m_rx_hot_buff) {
@@ -1079,7 +1077,7 @@ int cq_mgr::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/
 				wmb();
 				*m_cq_db = htonl(m_mlx5_cq.cq_ci);
 				if (m_b_is_rx) {
-					++m_rq->tail;
+					++(*m_qp->m_mlx5_qp.rq.tail);
 				}
 			}
 			else {

@@ -75,8 +75,8 @@ typedef struct vma_ib_mlx5_qp {
 		void *buf;
 		uint32_t wqe_cnt;
 		uint32_t stride;
-		uint32_t head;
-		uint32_t tail;
+		unsigned *head;
+		unsigned *tail;
 	} rq;
 	struct {
 		void *reg;
@@ -97,6 +97,9 @@ typedef struct vma_ib_mlx5_cq {
 } vma_ib_mlx5_cq_t;
 
 int vma_ib_mlx5_get_qp(struct ibv_qp *qp, vma_ib_mlx5_qp_t *mlx5_qp);
+unsigned* vma_ib_mlx5_get_rq_head(struct ibv_qp *qp);
+unsigned* vma_ib_mlx5_get_rq_tail(struct ibv_qp *qp);
+
 int vma_ib_mlx5_get_cq(struct ibv_cq *cq, vma_ib_mlx5_cq_t *mlx5_cq);
 void vma_ib_mlx5_update_cq_ci(struct ibv_cq *cq, unsigned cq_ci);
 
