@@ -302,10 +302,8 @@ AC_ARG_ENABLE([vmapoll],
 AC_ARG_ENABLE([socketxtreme],
     AC_HELP_STRING([--enable-socketxtreme],
         [Enable alternative API to standard sockets API for receiving packets (default=no)]))
-if test "x$enable_socketxtreme" = xyes; then
-    AC_CHECK_HEADER([infiniband/mlx5_hw.h],
-        [AC_DEFINE([DEFINED_SOCKETXTREME], 1, [Define to 1 if socketxtreme was enabled at configure time])],
-        [AC_MSG_ERROR([socketxtreme mode is not supported with the current installed OFED version])])
+if test "x$enable_socketxtreme" = xyes -a "$vma_cv_directverbs" -ne 0; then
+    AC_DEFINE([DEFINED_SOCKETXTREME], 1, [Define to 1 if socketxtreme was enabled at configure time])
 else
     enable_socketxtreme=no
 fi
