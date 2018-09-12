@@ -1,3 +1,25 @@
+Version 8.7.1-0:
+Date + Time 2018-09-12
+=============================================================
+Added:
+        - RM #1510731 Enhance IPoIB devices validation process
+        - RM #1390052 Add Windows Hypervisor VMs to Jenkins
+        - RM #1441462 Add mlx5 IPoIB support for upstream
+        - RM #1417620 Enable UDP/TCP connection on same VM w/o SRIOV
+        - RM #1507004 General code cleanup
+        - RM #1498330 Update driver restart recommendations
+        - RM #1469556 Add sendfile/sendfile64 support
+        - RM #1491767 Increase SO_RCVTIMEO for agent socket
+        - RM #1471640 Add inbox OFED detection during VMA configuration
+        - RM #1471640 Improve OFED location detection
+        - RM #1498320 Set RDMAV_ALLOW_DISASSOC_DESTROY env for upstream
+        - RM #1489419 Use macro to detect exp arguments in verbs.m4
+        - RM #1480982 Add cq_moderation support for upstream
+Fixed:
+        - RM #1516726 Fix bond traffic not offloaded over IPoIB
+        - RM #1175479 Inherit missing properties from the parent
+        - RM #1087466 Fix VMA_EXCEPTION_HANDLING=2 mode handling
+
 Version 8.7.0-0:
 Date + Time 2018-07-31
 =============================================================
