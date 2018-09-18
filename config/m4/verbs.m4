@@ -93,7 +93,9 @@ case "$vma_cv_verbs" in
     1)
         ;;
     2)
-        AC_CHECK_HEADER([infiniband/mlx5_hw.h], [vma_cv_directverbs=$vma_cv_verbs])
+        AC_CHECK_HEADER([infiniband/mlx5_hw.h],
+            [AC_CHECK_DECL([MLX5_ETH_INLINE_HEADER_SIZE],
+                [vma_cv_directverbs=$vma_cv_verbs], [], [[#include <infiniband/mlx5_hw.h>]])])
         ;;
     3)
         AC_CHECK_HEADER([infiniband/mlx5dv.h], [vma_cv_directverbs=$vma_cv_verbs])
