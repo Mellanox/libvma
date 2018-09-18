@@ -178,6 +178,14 @@
    fun:ibv_create_qp
 }
 {
+   libmlx5 Cond ibv_exp_cmd_query_device
+   Memcheck:Cond
+   fun:ibv_exp_cmd_query_device
+   obj:*/libmlx*.so*
+   ...
+   fun:ibv_open_device
+}
+{
    libmlx Cond ibv_exp_modify_qp
    Memcheck:Cond
    obj:*/libmlx*.so*
