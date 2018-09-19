@@ -76,11 +76,9 @@ private:
 	virtual void	dm_release_data(mem_buf_desc_t* buff) { m_dm_mgr.release_data(buff); }
 
 	inline void	set_signal_in_next_send_wqe();
-
 	int		send_to_wire(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr, bool request_comp);
 	inline int	fill_wqe(vma_ibv_send_wr* p_send_wqe);
-	inline void	send_by_bf(uint64_t* addr, int num_wqebb);
-	inline void	send_by_bf_wrap_up(uint64_t* bottom_addr, int num_wqebb_bottom, int num_wqebb_top);
+	inline void	ring_doorbell(uint64_t* wqe, int num_wqebb, int num_wqebb_top = 0);
 	inline int	fill_inl_segment(sg_array &sga, uint8_t *cur_seg, uint8_t* data_addr, int max_inline_len, int inline_len);
 	inline int	fill_ptr_segment(sg_array &sga, struct mlx5_wqe_data_seg* dp_seg, uint8_t* data_addr, int data_len, mem_buf_desc_t* buffer);
 
@@ -92,6 +90,10 @@ private:
 	uint16_t            m_sq_wqe_counter;
 	dm_mgr              m_dm_mgr;
 	bool                m_dm_enabled;
+	enum {
+		MLX5_DB_METHOD_BF,
+		MLX5_DB_METHOD_DB
+	} m_db_method;
 };
 #endif //defined(DEFINED_DIRECT_VERBS)
 #endif //QP_MGR_ETH_MLX5_H

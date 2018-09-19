@@ -133,7 +133,6 @@ protected:
 	lock_spin_recursive	m_lock_ring_rx;
 	cq_mgr*			m_p_cq_mgr_tx;
 	lock_spin_recursive	m_lock_ring_tx;
-	bool			m_b_is_hypervisor;
 private:
 	inline void		send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe);
 	inline mem_buf_desc_t*	get_tx_buffers(uint32_t n_num_mem_bufs);
