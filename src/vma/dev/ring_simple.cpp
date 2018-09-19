@@ -103,7 +103,7 @@ inline void ring_simple::send_status_handler(int ret, vma_ibv_send_wr* p_send_wq
 qp_mgr* ring_eth::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel)
 {
 #if defined(DEFINED_DIRECT_VERBS)
-	if (!m_b_is_hypervisor && qp_mgr::is_lib_mlx5(((ib_ctx_handler*)ib_ctx)->get_ibname())) {
+	if (qp_mgr::is_lib_mlx5(((ib_ctx_handler*)ib_ctx)->get_ibname())) {
 		return new qp_mgr_eth_mlx5(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), get_partition());
 	}
 #endif
@@ -139,7 +139,6 @@ ring_simple::ring_simple(int if_index, ring* parent, ring_type_t type):
 	m_lock_ring_rx("ring_simple:lock_rx"),
 	m_p_cq_mgr_tx(NULL),
 	m_lock_ring_tx("ring_simple:lock_tx"),
-	m_b_is_hypervisor(safe_mce_sys().hypervisor),
 	m_lock_ring_tx_buf_wait("ring:lock_tx_buf_wait"), m_tx_num_bufs(0), m_tx_num_wr(0), m_tx_num_wr_free(0),
 	m_b_qp_tx_first_flushed_completion_handled(false), m_missing_buf_ref_count(0),
 	m_tx_lkey(0),
