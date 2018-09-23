@@ -77,6 +77,10 @@ event_handler_manager* g_p_event_handler_manager = NULL;
 
 pthread_t g_n_internal_thread_id = 0;
 
+static void update_global_exit(int sig) {
+        evh_logdbg("Catch Signal: SIGINT (%d)", sig);
+        g_b_exit = true;
+}
 
 void* event_handler_manager::register_timer_event(int timeout_msec, timer_handler* handler, 
 						  timer_req_type_t req_type, void* user_data,
@@ -871,7 +875,6 @@ void event_handler_manager::process_rdma_cm_event(event_handler_map_t::iterator 
 	evh_logdbg("[%d] Completed rdma_cm event %s (%d)", cma_channel->fd, priv_rdma_cm_event_type_str(cma_event.event), cma_event.event);
 }
 
-
 /*
 The main loop actions:
 	1) update timeout + handle registers that theire timeout expiered
@@ -894,6 +897,8 @@ void* event_handler_manager::thread_loop()
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 	
+	signal(SIGINT, update_global_exit);
+
 	poll_fd.events  = POLLIN | POLLPRI;
 	poll_fd.revents = 0;
 	while (m_b_continue_running) {
