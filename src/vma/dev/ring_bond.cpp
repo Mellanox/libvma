@@ -595,6 +595,13 @@ bool ring_bond::reclaim_recv_buffers(descq_t *rx_reuse)
 	return true;
 }
 
+bool ring_bond::reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst)
+{
+	/* TODO: not supported */
+	NOT_IN_USE(rx_reuse_lst);
+	return false;
+}
+
 void ring_bond::update_max_tx_inline(ring_slave *slave)
 {
 	if (m_min_devices_tx_inline < 0) {
