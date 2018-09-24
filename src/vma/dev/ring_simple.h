@@ -69,13 +69,13 @@ public:
 	virtual int		request_notification(cq_type_t cq_type, uint64_t poll_sn);
 	virtual int		poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	virtual void		adapt_cq_moderation();
+	virtual bool		reclaim_recv_buffers(descq_t *rx_reuse);
+	virtual bool		reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst);
 	bool			reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst); // No locks
+	virtual int		reclaim_recv_single_buffer(mem_buf_desc_t* rx_reuse); // No locks
 #ifdef DEFINED_SOCKETXTREME	
 	virtual int 		socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);	
-	virtual int		socketxtreme_reclaim_single_recv_buffer(mem_buf_desc_t* rx_reuse_lst); // No locks
-	virtual void		socketxtreme_reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst); // No locks
 #endif // DEFINED_SOCKETXTREME
-	virtual bool		reclaim_recv_buffers(descq_t *rx_reuse);
 	virtual int		drain_and_proccess();
 	virtual int		wait_for_notification_and_process_element(int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	// Tx completion handling at the qp_mgr level is just re listing the desc+data buffer in the free lists
@@ -170,10 +170,6 @@ private:
 	flow_spec_udp_map_t	m_flow_udp_uc_map;
 	const bool		m_b_sysvar_eth_mc_l2_only_rules;
 	const bool		m_b_sysvar_mc_force_flowtag;
-#ifdef DEFINED_SOCKETXTREME
-	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_head;
-	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_tail;
-#endif // DEFINED_SOCKETXTREME		
 	bool			m_flow_tag_enabled;
 };
 

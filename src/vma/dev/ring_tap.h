@@ -55,6 +55,10 @@ public:
 	virtual int drain_and_proccess();
 	virtual bool reclaim_recv_buffers(descq_t *rx_reuse);
 	virtual bool reclaim_recv_buffers(mem_buf_desc_t *buff);
+	virtual int		reclaim_recv_single_buffer(mem_buf_desc_t* rx_reuse) {
+		NOT_IN_USE(rx_reuse);
+		return -1;
+	}
 	virtual bool rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array);
 
 	virtual void send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr);

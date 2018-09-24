@@ -661,9 +661,7 @@ bool ring_tap::reclaim_recv_buffers(mem_buf_desc_t *buff)
 				temp->reset_ref_count();
 				temp->rx.tcp.gro = 0;
 				temp->rx.is_vma_thr = false;
-#ifdef DEFINED_SOCKETXTREME
 				temp->rx.socketxtreme_polled = false;
-#endif // DEFINED_SOCKETXTREME
 				temp->rx.flow_tag_id = 0;
 				temp->rx.tcp.p_ip_h = NULL;
 				temp->rx.tcp.p_tcp_h = NULL;
