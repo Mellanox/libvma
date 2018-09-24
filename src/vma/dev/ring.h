@@ -104,6 +104,7 @@ public:
 	virtual bool 		get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe) = 0;
 	virtual int		request_notification(cq_type_t cq_type, uint64_t poll_sn) = 0;
 	virtual bool		reclaim_recv_buffers(descq_t *rx_reuse) = 0;
+	virtual bool		reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst) = 0;
 	virtual int		drain_and_proccess() = 0;
 	virtual int		wait_for_notification_and_process_element(int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL) = 0;
 	virtual int		poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL) = 0;
@@ -123,8 +124,6 @@ public:
 	virtual int		dereg_mr(void *addr, size_t length) { NOT_IN_USE(addr);NOT_IN_USE(length); return -1;};
 #ifdef DEFINED_SOCKETXTREME		
 	virtual int		socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags) = 0;
-	virtual int		socketxtreme_reclaim_single_recv_buffer(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return -1;}
-	virtual void		socketxtreme_reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst) {NOT_IN_USE(rx_reuse_lst); return;}
 
 	inline void set_vma_active(bool flag) {m_vma_active = flag;}
 	inline bool get_vma_active(void) {return m_vma_active;}

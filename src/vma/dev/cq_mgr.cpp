@@ -106,6 +106,8 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 	,m_rx_lkey(g_buffer_pool_rx->find_lkey_by_ib_ctx_thread_safe(m_p_ib_ctx_handler))
 	,m_b_sysvar_cq_keep_qp_full(safe_mce_sys().cq_keep_qp_full)
 	,m_n_out_of_free_bufs_warning(0)
+	,m_rx_buffs_rdy_for_free_head(NULL)
+	,m_rx_buffs_rdy_for_free_tail(NULL)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_rx_lkey == 0) {
@@ -213,6 +215,10 @@ cq_mgr::~cq_mgr()
 {
 	cq_logfunc("");
 	cq_logdbg("destroying CQ as %s", (m_b_is_rx?"Rx":"Tx"));
+
+	if (m_rx_buffs_rdy_for_free_head) {
+		reclaim_recv_buffers(m_rx_buffs_rdy_for_free_head);
+	}
 
 	m_b_was_drained = true;
 	if (m_rx_queue.size() + m_rx_pool.size()) {
@@ -591,14 +597,8 @@ bool cq_mgr::compensate_qp_poll_success(mem_buf_desc_t* buff_cur)
 
 void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 {
-	// Assume locked!!!
 	if (buff->dec_ref_count() <= 1 && (buff->lwip_pbuf.pbuf.ref-- <= 1)) {
-		//we need to verify that the buffer is returned to the right CQ (in case of HA ring's active CQ can change)
-#ifdef DEFINED_SOCKETXTREME
 		if (likely(buff->p_desc_owner == m_p_ring)) {
-#else
-		if (likely(buff->rx.context == this)) {
-#endif // DEFINED_SOCKETXTREME
 			mem_buf_desc_t* temp = NULL;
 			while (buff) {
 				VLIST_DEBUG_CQ_MGR_PRINT_ERROR_IS_MEMBER;
@@ -629,44 +629,6 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 		}
 	}
 }
-
-#ifdef DEFINED_SOCKETXTREME
-void cq_mgr::socketxtreme_reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
-{
-	if (buff->dec_ref_count() <= 1) {
-		mem_buf_desc_t* temp = NULL;
-		while (buff) {
-			VLIST_DEBUG_CQ_MGR_PRINT_ERROR_IS_MEMBER
-			if(buff->lwip_pbuf_dec_ref_count() <= 0) {
-				temp = buff;
-				buff = temp->p_next_desc;
-				temp->p_next_desc = NULL;
-				temp->p_prev_desc = NULL;
-				temp->reset_ref_count();
-				temp->rx.tcp.gro = 0;
-				temp->rx.is_vma_thr = false;
-				temp->rx.socketxtreme_polled = false;
-				temp->rx.flow_tag_id = 0;
-				temp->rx.tcp.p_ip_h = NULL;
-				temp->rx.tcp.p_tcp_h = NULL;
-				temp->rx.timestamps.sw.tv_nsec = 0;
-				temp->rx.timestamps.sw.tv_sec = 0;
-				temp->rx.timestamps.hw.tv_nsec = 0;
-				temp->rx.timestamps.hw.tv_sec = 0;
-				temp->rx.hw_raw_timestamp = 0;
-				free_lwip_pbuf(&temp->lwip_pbuf);
-				m_rx_pool.push_back(temp);
-			}
-			else {
-				buff->reset_ref_count();
-				buff = buff->p_next_desc;
-			}
-		}
-		return_extra_buffers();
-		m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
-	}
-}
-#endif // DEFINED_SOCKETXTREME
 
 void cq_mgr::process_tx_buffer_list(mem_buf_desc_t* p_mem_buf_desc)
 {
@@ -1016,11 +978,47 @@ inline volatile struct mlx5_cqe64 *cq_mgr::mlx5_get_cqe64(volatile struct mlx5_c
 
 bool cq_mgr::reclaim_recv_buffers(mem_buf_desc_t *rx_reuse_lst)
 {
+	if (m_rx_buffs_rdy_for_free_head) {
+		reclaim_recv_buffer_helper(m_rx_buffs_rdy_for_free_head);
+		m_rx_buffs_rdy_for_free_head = m_rx_buffs_rdy_for_free_tail = NULL;
+	}
+	reclaim_recv_buffer_helper(rx_reuse_lst);
+	return_extra_buffers();
+
+	return true;
+}
+
+bool cq_mgr::reclaim_recv_buffers_no_lock(mem_buf_desc_t *rx_reuse_lst)
+{
 	if (likely(rx_reuse_lst)) {
 		reclaim_recv_buffer_helper(rx_reuse_lst);
 		return true;
 	}
 	return false;
+}
+
+int cq_mgr::reclaim_recv_single_buffer(mem_buf_desc_t* rx_reuse)
+{
+	int ret_val = 0;
+
+	ret_val = rx_reuse->lwip_pbuf_dec_ref_count();
+	if ((ret_val == 0) && (rx_reuse->get_ref_count() <= 0)) {
+ 		/*if ((safe_mce_sys().thread_mode > THREAD_MODE_SINGLE)) {
+		 m_lock_ring_rx.lock();
+		}*/
+ 		if (!m_rx_buffs_rdy_for_free_head) {
+ 			m_rx_buffs_rdy_for_free_head = m_rx_buffs_rdy_for_free_tail = rx_reuse;
+ 		}
+ 		else {
+			m_rx_buffs_rdy_for_free_tail->p_next_desc = rx_reuse;
+			m_rx_buffs_rdy_for_free_tail = rx_reuse;
+		}
+ 		m_rx_buffs_rdy_for_free_tail->p_next_desc = NULL;
+		/*if ((safe_mce_sys().thread_mode > THREAD_MODE_SINGLE)) {
+			m_lock_ring_rx.lock();
+		}*/
+	}
+	return ret_val;
 }
 
 bool cq_mgr::reclaim_recv_buffers(descq_t *rx_reuse)

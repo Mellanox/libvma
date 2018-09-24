@@ -177,6 +177,8 @@ public:
 
 	bool	reclaim_recv_buffers(descq_t *rx_reuse);
 	bool	reclaim_recv_buffers(mem_buf_desc_t *rx_reuse_lst);
+	bool	reclaim_recv_buffers_no_lock(mem_buf_desc_t *rx_reuse_lst);
+	int	reclaim_recv_single_buffer(mem_buf_desc_t* rx_reuse);
 
 	//maps between qpn and vlan id to the local interface
 	void	map_vlan_and_qpn_to_local_if(int qp_num, uint16_t vlan_id, in_addr_t local_if);
@@ -261,15 +263,18 @@ private:
 	cq_stats_t 		m_cq_stat_static;
 	static atomic_t		m_n_cq_id_counter;
 
+	/* This fields are needed to track internal memory buffers
+	 * represented as struct vma_buff_t
+	 * from user application by special VMA extended API
+	 */
+	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_head;
+	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_tail;
+
 #ifdef DEFINED_SOCKETXTREME
 	int	socketxtreme_and_process_element_rx(mem_buf_desc_t **p_desc_lst);
 #endif // DEFINED_SOCKETXTREME
 
 	void		handle_tcp_ctl_packets(uint32_t rx_processed, void* pv_fd_ready_array);
-
-#ifdef DEFINED_SOCKETXTREME
-	void		socketxtreme_reclaim_recv_buffer_helper(mem_buf_desc_t* buff);
-#endif // DEFINED_SOCKETXTREME
 
 	// requests safe_mce_sys().qp_compensation_level buffers from global pool
 	bool 		request_more_buffers() __attribute__((noinline));
