@@ -73,9 +73,7 @@ public:
 	virtual bool		reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst);
 	bool			reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst); // No locks
 	virtual int		reclaim_recv_single_buffer(mem_buf_desc_t* rx_reuse); // No locks
-#ifdef DEFINED_SOCKETXTREME	
 	virtual int 		socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);	
-#endif // DEFINED_SOCKETXTREME
 	virtual int		drain_and_proccess();
 	virtual int		wait_for_notification_and_process_element(int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	// Tx completion handling at the qp_mgr level is just re listing the desc+data buffer in the free lists
@@ -102,6 +100,7 @@ public:
 	virtual int		get_tx_channel_fd() const { return m_p_tx_comp_event_channel ? m_p_tx_comp_event_channel->fd : -1; };
 	struct ibv_comp_channel* get_tx_comp_event_channel() { return m_p_tx_comp_event_channel; }
 	int			get_ring_descriptors(vma_mlx_hw_device_data &data);
+
 	friend class cq_mgr;
 	friend class cq_mgr_mlx5;
 	friend class qp_mgr;
@@ -126,6 +125,7 @@ protected:
 	void			set_partition(uint16_t partition) { m_partition = partition; }
 	uint16_t		get_partition() { return m_partition; }
 	uint32_t		get_mtu() { return m_mtu; }
+
 	ib_ctx_handler*		m_p_ib_ctx;
 	qp_mgr*			m_p_qp_mgr;
 	struct cq_moderation_info m_cq_moderation_info;
@@ -133,7 +133,63 @@ protected:
 	lock_spin_recursive	m_lock_ring_rx;
 	cq_mgr*			m_p_cq_mgr_tx;
 	lock_spin_recursive	m_lock_ring_tx;
+
 private:
+	bool is_socketxtreme(void) {return m_socketxtreme.active;}
+
+	void put_ec(struct ring_ec *ec)
+	{
+		m_socketxtreme.lock_ec_list.lock();
+		list_add_tail(&ec->list, &m_socketxtreme.ec_list);
+		m_socketxtreme.lock_ec_list.unlock();
+	}
+
+	void del_ec(struct ring_ec *ec)
+	{
+		m_socketxtreme.lock_ec_list.lock();
+		list_del_init(&ec->list);
+		ec->clear();
+		m_socketxtreme.lock_ec_list.unlock();
+	}
+
+	inline ring_ec* get_ec(void)
+	{
+		struct ring_ec *ec = NULL;
+
+		m_socketxtreme.lock_ec_list.lock();
+		if (!list_empty(&m_socketxtreme.ec_list)) {
+			ec = list_entry(m_socketxtreme.ec_list.next, struct ring_ec, list);
+			list_del_init(&ec->list);
+		}
+		m_socketxtreme.lock_ec_list.unlock();
+		return ec;
+	}
+
+	struct vma_completion_t *get_comp(void)
+	{
+		return m_socketxtreme.completion;
+	}
+
+	struct {
+		/* queue of event completion elements
+		 * this queue is stored events related different sockinfo (sockets)
+		 * In current implementation every sockinfo (socket) can have single event
+		 * in this queue
+		 */
+		struct list_head         ec_list;
+
+		/* Thread-safety lock for get/put operations under the queue */
+		lock_spin                lock_ec_list;
+
+		/* This completion is introduced to process events directly w/o
+		 * storing them in the queue of event completion elements
+		 */
+		struct vma_completion_t* completion;
+
+		/* This flag is enabled in case socketxtreme_poll() call is done */
+		bool                     active;
+	} m_socketxtreme;
+
 	inline void		send_status_handler(int ret, vma_ibv_send_wr* p_send_wqe);
 	inline mem_buf_desc_t*	get_tx_buffers(uint32_t n_num_mem_bufs);
 	inline int		put_tx_buffers(mem_buf_desc_t* buff_list);

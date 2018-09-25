@@ -1888,7 +1888,6 @@ inline vma_recv_callback_retval_t sockinfo_udp::inspect_by_user_cb(mem_buf_desc_
 	return m_rx_callback(m_fd, nr_frags, iov, &pkt_info, m_rx_callback_context);
 }
 
-#ifdef DEFINED_SOCKETXTREME
 /* Update vma_completion with
  * VMA_SOCKETXTREME_PACKET related data
  */
@@ -1897,12 +1896,12 @@ inline void sockinfo_udp::fill_completion(mem_buf_desc_t* p_desc)
 	struct vma_completion_t *completion;
 
 	/* Try to process socketxtreme_poll() completion directly */
-	m_socketxtreme_completion = m_p_rx_ring->get_comp();
+	m_socketxtreme.completion = m_p_rx_ring->get_comp();
 
-	if (m_socketxtreme_completion) {
-		completion = m_socketxtreme_completion;
+	if (m_socketxtreme.completion) {
+		completion = m_socketxtreme.completion;
 	} else {
-		completion = &m_ec.completion;
+		completion = &m_socketxtreme.ec.completion;
 	}
 
 	completion->packet.num_bufs = p_desc->rx.n_frags;
@@ -1913,7 +1912,7 @@ inline void sockinfo_udp::fill_completion(mem_buf_desc_t* p_desc)
 		completion->packet.hw_timestamp = p_desc->rx.timestamps.hw;
 	}
 
-	for(mem_buf_desc_t *tmp_p=p_desc; tmp_p; tmp_p=tmp_p->p_next_desc) {
+	for(mem_buf_desc_t *tmp_p = p_desc; tmp_p; tmp_p = tmp_p->p_next_desc) {
 		completion->packet.total_len        += tmp_p->rx.sz_payload;
 		completion->packet.buff_lst          = (struct vma_buff_t*)tmp_p;
 		completion->packet.buff_lst->next    = (struct vma_buff_t*)tmp_p->p_next_desc;
@@ -1924,10 +1923,9 @@ inline void sockinfo_udp::fill_completion(mem_buf_desc_t* p_desc)
 	NOTIFY_ON_EVENTS(this, VMA_SOCKETXTREME_PACKET);
 
 	save_stats_rx_offload(completion->packet.total_len);
-	m_socketxtreme_completion = NULL;
-	m_socketxtreme_last_buff_lst = NULL;
+	m_socketxtreme.completion = NULL;
+	m_socketxtreme.last_buff_lst = NULL;
 }
-#endif //DEFINED_SOCKETXTREME
 
 /**
  *	Performs packet processing for NON-SOCKETXTREME cases and store packet
@@ -2018,13 +2016,10 @@ inline bool sockinfo_udp::rx_process_udp_packet_full(mem_buf_desc_t* p_desc, voi
 	//  to prevent race condition with the 'if( (--ref_count) <= 0)' in ib_comm_mgr
 	p_desc->inc_ref_count();
 
-#ifdef DEFINED_SOCKETXTREME
 	if (p_desc->rx.socketxtreme_polled) {
 		fill_completion(p_desc);
 		p_desc->rx.socketxtreme_polled = false;
-	} else
-#endif
-	{
+	} else {
 		update_ready(p_desc, pv_fd_ready_array, cb_ret);
 	}
 	return true;
@@ -2051,13 +2046,10 @@ inline bool sockinfo_udp::rx_process_udp_packet_partial(mem_buf_desc_t* p_desc, 
 	//  to prevent race condition with the 'if( (--ref_count) <= 0)' in ib_comm_mgr
 	p_desc->inc_ref_count();
 
-#ifdef DEFINED_SOCKETXTREME
 	if (p_desc->rx.socketxtreme_polled) {
 		fill_completion(p_desc);
 		p_desc->rx.socketxtreme_polled = false;
-	} else
-#endif
-	{
+	} else {
 		update_ready(p_desc, pv_fd_ready_array, cb_ret);
 	}
 	return true;

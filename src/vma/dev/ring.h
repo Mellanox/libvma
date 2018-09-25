@@ -59,7 +59,6 @@ typedef enum {
 
 typedef int ring_user_id_t;
 
-#ifdef DEFINED_SOCKETXTREME	
 /* Ring event completion */
 struct ring_ec {
 	struct list_head list;
@@ -73,7 +72,6 @@ struct ring_ec {
 		last_buff_lst = NULL;
 	}
 };
-#endif // DEFINED_SOCKETXTREME	
 
 class ring
 {
@@ -122,45 +120,13 @@ public:
 	virtual bool		is_ratelimit_supported(struct vma_rate_limit_t &rate_limit) = 0;
 	virtual int		reg_mr(void *addr, size_t length, uint32_t &lkey) { NOT_IN_USE(addr); NOT_IN_USE(length); NOT_IN_USE(lkey); return -1;};
 	virtual int		dereg_mr(void *addr, size_t length) { NOT_IN_USE(addr);NOT_IN_USE(length); return -1;};
-#ifdef DEFINED_SOCKETXTREME		
+
 	virtual int		socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags) = 0;
 
-	inline void set_vma_active(bool flag) {m_vma_active = flag;}
-	inline bool get_vma_active(void) {return m_vma_active;}
-
-	inline void put_ec(struct ring_ec *ec)
-	{
-		m_lock_ec_list.lock();
-		list_add_tail(&ec->list, &m_ec_list);
-		m_lock_ec_list.unlock();
-	}
-
-	inline void del_ec(struct ring_ec *ec)
-	{
-		m_lock_ec_list.lock();
-		list_del_init(&ec->list);
-		ec->clear();
-		m_lock_ec_list.unlock();
-	}
-
-	inline ring_ec* get_ec(void)
-	{
-		struct ring_ec *ec = NULL;
-
-		m_lock_ec_list.lock();
-		if (!list_empty(&m_ec_list)) {
-			ec = list_entry(m_ec_list.next, struct ring_ec, list);
-			list_del_init(&ec->list);
-		}
-		m_lock_ec_list.unlock();
-		return ec;
-	}
-
-	struct vma_completion_t *get_comp(void)
-	{
-		return m_socketxtreme_completion;
-	}
-#endif // DEFINED_SOCKETXTREME	
+	virtual bool is_socketxtreme(void) = 0;
+	virtual void put_ec(struct ring_ec *ec) = 0;
+	virtual void del_ec(struct ring_ec *ec) = 0;
+	virtual struct vma_completion_t *get_comp(void) = 0;
 
 	inline int get_if_index() { return m_if_index; }
 
@@ -173,25 +139,6 @@ protected:
 	bool			m_is_mp_ring;
 
 	int                 m_if_index;     /* Interface index */
-#ifdef DEFINED_SOCKETXTREME
-	/* queue of event completion elements
-	 * this queue is stored events related different sockinfo (sockets)
-	 * In current implementation every sockinfo (socket) can have single event
-	 * in this queue
-	 */
-	struct list_head         m_ec_list;
-
-	/* Thread-safity lock for get/put operations under the queue */
-	lock_spin                m_lock_ec_list;
-
-	/* This completion is introduced to process events directly w/o
-	 * storing them in the queue of event completion elements
-	 */
-	struct vma_completion_t* m_socketxtreme_completion;
-private:
-	/* This flag is enabled in case socketxtreme_poll() call is done */
-	bool                     m_vma_active;
-#endif // DEFINED_SOCKETXTREME
 };
 
 #endif /* RING_H */

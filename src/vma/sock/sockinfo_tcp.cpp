@@ -1619,58 +1619,63 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 	// In ZERO COPY case we let the user's application manage the ready queue
 	}
 	else {
-#ifdef DEFINED_SOCKETXTREME
-		/* Update vma_completion with
-		 * VMA_SOCKETXTREME_PACKET related data
-		 */
-		struct vma_completion_t *completion;
-		struct vma_buff_t *buf_lst;
+		if (conn->is_socketxtreme()) {
+			/* Update vma_completion with
+			 * VMA_SOCKETXTREME_PACKET related data
+			 */
+			struct vma_completion_t *completion;
+			struct vma_buff_t *buf_lst;
 
-		if (conn->m_socketxtreme_completion) {
-			completion = conn->m_socketxtreme_completion;
-			buf_lst = conn->m_socketxtreme_last_buff_lst;
-		} else {
-			completion = &conn->m_ec.completion;
-			buf_lst = conn->m_ec.last_buff_lst;
-		}
-
-		if (!buf_lst) {
-			completion->packet.buff_lst = (struct vma_buff_t*)p_first_desc;
-			completion->packet.total_len = p->tot_len;
-			completion->src = p_first_desc->rx.src;
-			completion->packet.num_bufs = p_first_desc->rx.n_frags;
-
-			if (conn->m_n_tsing_flags & SOF_TIMESTAMPING_RAW_HARDWARE) {
-				completion->packet.hw_timestamp = p_first_desc->rx.timestamps.hw;
+			if (conn->m_socketxtreme.completion) {
+				completion = conn->m_socketxtreme.completion;
+				buf_lst = conn->m_socketxtreme.last_buff_lst;
+			} else {
+				completion = &conn->m_socketxtreme.ec.completion;
+				buf_lst = conn->m_socketxtreme.ec.last_buff_lst;
 			}
 
-			NOTIFY_ON_EVENTS(conn, VMA_SOCKETXTREME_PACKET);
-			conn->save_stats_rx_offload(completion->packet.total_len);
+			if (!buf_lst) {
+				completion->packet.buff_lst = (struct vma_buff_t*)p_first_desc;
+				completion->packet.total_len = p->tot_len;
+				completion->src = p_first_desc->rx.src;
+				completion->packet.num_bufs = p_first_desc->rx.n_frags;
+
+                	        if (conn->m_n_tsing_flags & SOF_TIMESTAMPING_RAW_HARDWARE) {
+        	                        completion->packet.hw_timestamp = p_first_desc->rx.timestamps.hw;
+	                        }
+
+				NOTIFY_ON_EVENTS(conn, VMA_SOCKETXTREME_PACKET);
+				conn->save_stats_rx_offload(completion->packet.total_len);
+			}
+			else {
+				mem_buf_desc_t* prev_lst_tail_desc = (mem_buf_desc_t*)buf_lst;
+				mem_buf_desc_t* list_head_desc = (mem_buf_desc_t*)completion->packet.buff_lst;
+				prev_lst_tail_desc->p_next_desc = p_first_desc;
+				list_head_desc->rx.n_frags += p_first_desc->rx.n_frags;
+				p_first_desc->rx.n_frags = 0;
+				completion->packet.total_len += p->tot_len;
+				completion->packet.num_bufs += list_head_desc->rx.n_frags;
+				pbuf_cat((pbuf*)completion->packet.buff_lst, p);
+			}
 		}
 		else {
-			mem_buf_desc_t* prev_lst_tail_desc = (mem_buf_desc_t*)buf_lst;
-			mem_buf_desc_t* list_head_desc = (mem_buf_desc_t*)completion->packet.buff_lst;
-			prev_lst_tail_desc->p_next_desc = p_first_desc;
-			list_head_desc->rx.n_frags += p_first_desc->rx.n_frags;
-			p_first_desc->rx.n_frags = 0;
-			completion->packet.total_len += p->tot_len;
-			completion->packet.num_bufs += list_head_desc->rx.n_frags;
-			pbuf_cat((pbuf*)completion->packet.buff_lst, p);
+			if (callback_retval == VMA_PACKET_RECV) {
+				// Save rx packet info in our ready list
+				conn->m_rx_pkt_ready_list.push_back(p_first_desc);
+				conn->m_n_rx_pkt_ready_list_count++;
+				conn->m_rx_ready_byte_count += p->tot_len;
+				conn->m_p_socket_stats->n_rx_ready_byte_count += p->tot_len;
+				conn->m_p_socket_stats->n_rx_ready_pkt_count++;
+				conn->m_p_socket_stats->counters.n_rx_ready_pkt_max =
+						max((uint32_t)conn->m_p_socket_stats->n_rx_ready_pkt_count,
+								conn->m_p_socket_stats->counters.n_rx_ready_pkt_max);
+				conn->m_p_socket_stats->counters.n_rx_ready_byte_max =
+						max((uint32_t)conn->m_p_socket_stats->n_rx_ready_byte_count,
+								conn->m_p_socket_stats->counters.n_rx_ready_byte_max);
+			}
+			// notify io_mux
+			NOTIFY_ON_EVENTS(conn, EPOLLIN);
 		}
-#else
-		if (callback_retval == VMA_PACKET_RECV) {
-			// Save rx packet info in our ready list
-			conn->m_rx_pkt_ready_list.push_back(p_first_desc);
-			conn->m_n_rx_pkt_ready_list_count++;
-			conn->m_rx_ready_byte_count += p->tot_len;
-			conn->m_p_socket_stats->n_rx_ready_byte_count += p->tot_len;
-			conn->m_p_socket_stats->n_rx_ready_pkt_count++;
-			conn->m_p_socket_stats->counters.n_rx_ready_pkt_max = max((uint32_t)conn->m_p_socket_stats->n_rx_ready_pkt_count, conn->m_p_socket_stats->counters.n_rx_ready_pkt_max);
-			conn->m_p_socket_stats->counters.n_rx_ready_byte_max = max((uint32_t)conn->m_p_socket_stats->n_rx_ready_byte_count, conn->m_p_socket_stats->counters.n_rx_ready_byte_max);
-		}
-		// notify io_mux
-		NOTIFY_ON_EVENTS(conn, EPOLLIN);
-#endif // DEFINED_SOCKETXTREME				
 		io_mux_call::update_fd_array(conn->m_iomux_ready_fd_array, conn->m_fd);
 
 		if (callback_retval != VMA_PACKET_HOLD) {
@@ -1898,13 +1903,11 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 
 	m_iomux_ready_fd_array = (fd_array_t*)pv_fd_ready_array;
 
-#ifdef DEFINED_SOCKETXTREME
 	/* Try to process socketxtreme_poll() completion directly */
 	if (p_rx_pkt_mem_buf_desc_info->rx.socketxtreme_polled) {
-		m_socketxtreme_completion = m_p_rx_ring->get_comp();
-		m_socketxtreme_last_buff_lst = NULL;
+		m_socketxtreme.completion = m_p_rx_ring->get_comp();
+		m_socketxtreme.last_buff_lst = NULL;
 	}
-#endif // DEFINED_SOCKETXTREME
 
 	if (unlikely(get_tcp_state(&m_pcb) == LISTEN)) {
 		pcb = get_syn_received_pcb(p_rx_pkt_mem_buf_desc_info->rx.src.sin_addr.s_addr,
@@ -1932,20 +1935,16 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 				// TODO: consider check if we can now drain into Q of established
 				si_tcp_logdbg("SYN/CTL packet drop. established-backlog=%d (limit=%d) num_con_waiting=%d (limit=%d)",
 						(int)m_syn_received.size(), m_backlog, num_con_waiting, MAX_SYN_RCVD);
-#ifdef DEFINED_SOCKETXTREME
-				m_socketxtreme_completion = NULL;
-				m_socketxtreme_last_buff_lst = NULL;
-#endif // DEFINED_SOCKETXTREME
+				m_socketxtreme.completion = NULL;
+				m_socketxtreme.last_buff_lst = NULL;
 				unlock_tcp_con();
 				return false;// return without inc_ref_count() => packet will be dropped
 			}
 		}
 		if (m_sysvar_tcp_ctl_thread > CTL_THREAD_DISABLE || established_backlog_full) { /* 2nd check only worth when MAX_SYN_RCVD>0 for non tcp_ctl_thread  */
 			queue_rx_ctl_packet(pcb, p_rx_pkt_mem_buf_desc_info); // TODO: need to trigger queue pulling from accept in case no tcp_ctl_thread
-#ifdef DEFINED_SOCKETXTREME
-			m_socketxtreme_completion = NULL;
-			m_socketxtreme_last_buff_lst = NULL;
-#endif // DEFINED_SOCKETXTREME
+			m_socketxtreme.completion = NULL;
+			m_socketxtreme.last_buff_lst = NULL;
 			unlock_tcp_con();
 			return true;
 		}
@@ -1989,21 +1988,17 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
 	sock->m_vma_thr = false;
 
 	if (sock != this) {
-#ifdef DEFINED_SOCKETXTREME		
-		if (unlikely(sock->m_socketxtreme_completion)) {
-			sock->m_socketxtreme_completion = NULL;
-			sock->m_socketxtreme_last_buff_lst = NULL;
+		if (unlikely(sock->m_socketxtreme.completion)) {
+			sock->m_socketxtreme.completion = NULL;
+			sock->m_socketxtreme.last_buff_lst = NULL;
 		}
-#endif // DEFINED_SOCKETXTREME			
 		sock->m_tcp_con_lock.unlock();
 	}
 
 	m_iomux_ready_fd_array = NULL;
-#ifdef DEFINED_SOCKETXTREME		
-	m_socketxtreme_completion = NULL;
-	m_socketxtreme_last_buff_lst = NULL;
+	m_socketxtreme.completion = NULL;
+	m_socketxtreme.last_buff_lst = NULL;
 	p_rx_pkt_mem_buf_desc_info->rx.socketxtreme_polled = false;
-#endif // DEFINED_SOCKETXTREME			
 
 	while (dropped_count--) {
 		mem_buf_desc_t* p_rx_pkt_desc = m_rx_cb_dropped_list.get_and_pop_front();
@@ -2648,22 +2643,22 @@ void sockinfo_tcp::auto_accept_connection(sockinfo_tcp *parent, sockinfo_tcp *ch
 	child->m_p_socket_stats->connected_port = child->m_connected.get_in_port();
 	child->m_p_socket_stats->bound_if = child->m_bound.get_in_addr();
 	child->m_p_socket_stats->bound_port = child->m_bound.get_in_port();
-	if (child->m_socketxtreme_completion) {
-		child->m_connected.get_sa(parent->m_socketxtreme_completion->src);
+	if (child->m_socketxtreme.completion) {
+		child->m_connected.get_sa(parent->m_socketxtreme.completion->src);
 	} else {
-		child->m_connected.get_sa(parent->m_ec.completion.src);
+		child->m_connected.get_sa(parent->m_socketxtreme.ec.completion.src);
 	}
 
 	/* Update vma_completion with
 	 * VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED related data
 	 */
 	if (likely(child->m_parent)) {
-		if (child->m_socketxtreme_completion) {
-			child->m_socketxtreme_completion->src = parent->m_socketxtreme_completion->src;
-			child->m_socketxtreme_completion->listen_fd = child->m_parent->get_fd();
+		if (child->m_socketxtreme.completion) {
+			child->m_socketxtreme.completion->src = parent->m_socketxtreme.completion->src;
+			child->m_socketxtreme.completion->listen_fd = child->m_parent->get_fd();
 		} else {
-			child->m_ec.completion.src = parent->m_ec.completion.src;
-			child->m_ec.completion.listen_fd = child->m_parent->get_fd();
+			child->m_socketxtreme.ec.completion.src = parent->m_socketxtreme.ec.completion.src;
+			child->m_socketxtreme.ec.completion.listen_fd = child->m_parent->get_fd();
 		}
 		child->set_events(VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED);
 	}

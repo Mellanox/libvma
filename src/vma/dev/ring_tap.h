@@ -80,7 +80,6 @@ public:
 	}
 	virtual void adapt_cq_moderation() {}
 
-#ifdef DEFINED_SOCKETXTREME
 	virtual int socketxtreme_poll(struct vma_completion_t *vma_completions,
 			unsigned int ncompletions, int flags) {
 		NOT_IN_USE(vma_completions);
@@ -88,7 +87,6 @@ public:
 		NOT_IN_USE(flags);
 		return 0;
 	}
-#endif // DEFINED_SOCKETXTREME
 
 	virtual int modify_ratelimit(struct vma_rate_limit_t &rate_limit) {
 		NOT_IN_USE(rate_limit);
@@ -119,6 +117,11 @@ private:
 	void flow_tcp_del_all();
 	void tap_create(net_device_val* p_ndev);
 	void tap_destroy();
+
+	bool is_socketxtreme(void) { return false; }
+	void put_ec(struct ring_ec *ec) { NOT_IN_USE(ec); }
+	void del_ec(struct ring_ec *ec) { NOT_IN_USE(ec); }
+	struct vma_completion_t *get_comp(void) { return NULL; }
 
 	/* These fields are NETVSC mode specific */
 	int m_tap_fd;                    /* file descriptor of tap device */

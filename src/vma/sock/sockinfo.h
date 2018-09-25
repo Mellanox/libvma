@@ -248,14 +248,15 @@ protected:
 	ring_alloc_logic_attr			m_ring_alloc_log_rx;
 	ring_alloc_logic_attr			m_ring_alloc_log_tx;
 	uint32_t				m_pcp;
-#ifdef DEFINED_SOCKETXTREME
-	/* Track internal events to return in socketxtreme_poll()
-	 * Current design support single event for socket at a particular time
-	 */
-	struct ring_ec m_ec;
-	struct vma_completion_t* m_socketxtreme_completion;
-	struct vma_buff_t*       m_socketxtreme_last_buff_lst;
-#endif // DEFINED_SOCKETXTREME
+
+	struct {
+		/* Track internal events to return in socketxtreme_poll()
+		 * Current design support single event for socket at a particular time
+		 */
+		struct ring_ec ec;
+		struct vma_completion_t* completion;
+		struct vma_buff_t*       last_buff_lst;
+	} m_socketxtreme;
 
 	// Callback function pointer to support VMA extra API (vma_extra.h)
 	vma_recv_callback_t	m_rx_callback;
@@ -337,36 +338,32 @@ protected:
 	void            process_timestamps(mem_buf_desc_t* p_desc);
 
 	virtual bool try_un_offloading(); // un-offload the socket if possible
-#ifdef DEFINED_SOCKETXTREME	
-	virtual inline void do_wakeup()
-	{
-		/* TODO: Let consider if we really need this check */
-		if (!check_vma_active()) {
+
+	virtual inline void do_wakeup()	{
+		if (!is_socketxtreme()) {
 			wakeup_pipe::do_wakeup();
 		}
 	}
 
-	inline bool check_vma_active(void)
-	{
-		return (m_p_rx_ring && m_p_rx_ring->get_vma_active());
+	inline bool is_socketxtreme() {
+		return (m_p_rx_ring && m_p_rx_ring->is_socketxtreme());
 	}
 
-	inline void set_events(uint64_t events)
-	{
+	inline void set_events(uint64_t events) {
 		/* Collect all events if rx ring is enabled */
 		if (m_p_rx_ring) {
-			if (m_socketxtreme_completion) {
-				if (!m_socketxtreme_completion->events) {
-					m_socketxtreme_completion->user_data = (uint64_t)m_fd_context;
+			if (m_socketxtreme.completion) {
+				if (!m_socketxtreme.completion->events) {
+					m_socketxtreme.completion->user_data = (uint64_t)m_fd_context;
 				}
-				m_socketxtreme_completion->events |= events;
+				m_socketxtreme.completion->events |= events;
 			}
 			else {
-				if (!m_ec.completion.events) {
-					m_ec.completion.user_data = (uint64_t)m_fd_context;
-					m_p_rx_ring->put_ec(&m_ec);
+				if (!m_socketxtreme.ec.completion.events) {
+					m_socketxtreme.ec.completion.user_data = (uint64_t)m_fd_context;
+					m_p_rx_ring->put_ec(&m_socketxtreme.ec);
 				}
-				m_ec.completion.events |= events;
+				m_socketxtreme.ec.completion.events |= events;
 			}
 		}
 
@@ -375,16 +372,13 @@ protected:
 		}
 	}
 
-	inline uint64_t get_events(void)
-	{
-		return m_ec.completion.events;
+	inline uint64_t get_events(void) {
+		return m_socketxtreme.ec.completion.events;
 	}
 
-	inline void clear_events(void)
-	{
-		m_ec.completion.events = 0;
+	inline void clear_events(void) {
+		m_socketxtreme.ec.completion.events = 0;
 	}
-#endif // DEFINED_SOCKETXTREME	
 
 	// This function validates the ipoib's properties
 	// Input params:
@@ -630,7 +624,7 @@ protected:
 #ifdef DEFINED_SOCKETXTREME
 #define NOTIFY_ON_EVENTS(context, events) context->set_events(events)
 #else
-#define NOTIFY_ON_EVENTS(context, events) context->notify_epoll_context(events)
+#define NOTIFY_ON_EVENTS(context, events) context->notify_epoll_context((uint32_t)events)
 #endif // DEFINED_SOCKETXTREME
 
 #endif /* BASE_SOCKINFO_H */
