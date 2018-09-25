@@ -701,6 +701,11 @@ void sockinfo_tcp::put_agent_msg(void *arg)
 	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)arg;
 	struct vma_msg_state data;
 
+	/* Ignore listen socket at the moment */
+	if (p_si_tcp->is_server() || get_tcp_state(&p_si_tcp->m_pcb) == LISTEN) {
+		return ;
+	}
+
 	data.hdr.code = VMA_MSG_STATE;
 	data.hdr.ver = VMA_AGENT_VER;
 	data.hdr.pid = getpid();

@@ -145,15 +145,6 @@ private:
 	 */
 	int m_msg_num;
 
-	/* number of messages to grow */
-	int m_msg_grow;
-
-	/* periodic time for establishment connection attempts (in sec) */
-	int m_inactive_treshold;
-
-	/* periodic time for alive check (in sec) */
-	int m_alive_treshold;
-
 	int create_agent_socket(void);
 	int send(agent_msg_t *msg);
 	int send_msg_init(void);

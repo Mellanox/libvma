@@ -54,9 +54,10 @@
 #define MODULE_HDR      MODULE_NAME "%d:%s() "
 
 #define AGENT_DEFAULT_MSG_NUM    (512)
-#define AGENT_DEFAULT_MSG_GROW   (16)
-#define AGENT_DEFAULT_INACTIVE   (10)
-#define AGENT_DEFAULT_ALIVE      (10)
+#define AGENT_DEFAULT_MSG_GROW   (16) /* number of messages to grow */
+#define AGENT_DEFAULT_INACTIVE   (10) /* periodic time for establishment connection attempts (in sec) */
+#define AGENT_DEFAULT_ALIVE      (1)  /* periodic time for alive check (in sec) */
+
 
 /* Force system call */
 #define sys_call(_result, _func, ...) \
@@ -86,8 +87,7 @@ agent* g_p_agent = NULL;
 
 agent::agent() :
 		m_state(AGENT_CLOSED), m_sock_fd(-1), m_pid_fd(-1),
-		m_msg_num(AGENT_DEFAULT_MSG_NUM), m_msg_grow(AGENT_DEFAULT_MSG_GROW),
-		m_inactive_treshold(AGENT_DEFAULT_INACTIVE), m_alive_treshold(AGENT_DEFAULT_ALIVE)
+		m_msg_num(AGENT_DEFAULT_MSG_NUM)
 {
 	int rc = 0;
 	agent_msg_t *msg = NULL;
@@ -331,7 +331,7 @@ int agent::put(const void *data, size_t length, intptr_t tag)
 	if (AGENT_ACTIVE == m_state) {
 		/* allocate new message in case free queue is empty */
 		if (list_empty(&m_free_queue)) {
-			for (i = 0; i < m_msg_grow; i++) {
+			for (i = 0; i < AGENT_DEFAULT_MSG_GROW; i++) {
 				/* coverity[overwrite_var] */
 				msg = (agent_msg_t *)malloc(sizeof(*msg));
 				if (NULL == msg) {
@@ -382,8 +382,8 @@ void agent::progress(void)
 		/* Attempt can be done less often than progress in active state */
 		if (tv_cmp(&tv_inactive_elapsed, &tv_now, <)) {
 			tv_inactive_elapsed = tv_now;
-			tv_inactive_elapsed.tv_sec += m_inactive_treshold;
-			if (0 == send_msg_init()) {
+			tv_inactive_elapsed.tv_sec += AGENT_DEFAULT_INACTIVE;
+			if (0 <= send_msg_init()) {
 				progress_cb();
 				goto go;
 			}
@@ -399,13 +399,13 @@ go:
 		}
 	} else {
 		tv_alive_elapsed = tv_now;
-		tv_alive_elapsed.tv_sec += m_alive_treshold;
+		tv_alive_elapsed.tv_sec += AGENT_DEFAULT_ALIVE;
 
 		/* Process all messages that are in wait queue */
 		m_msg_lock.lock();
 		while (!list_empty(&m_wait_queue)) {
 			msg = list_first_entry(&m_wait_queue, agent_msg_t, item);
-			if (0 != send(msg)) {
+			if (0 > send(msg)) {
 				break;
 			}
 			list_del_init(&msg->item);
@@ -453,6 +453,7 @@ int agent::send(agent_msg_t *msg)
 				errno, strerror(errno));
 		rc = -errno;
 		m_state = AGENT_INACTIVE;
+		__log_dbg("Agent is inactivated. state = %d\n", m_state);
 		goto err;
 	}
 
@@ -534,6 +535,7 @@ int agent::send_msg_init(void)
 	}
 
 	m_state = AGENT_ACTIVE;
+	__log_dbg("Agent is activated. state = %d\n", m_state);
 
 err:
 	return rc;
@@ -553,6 +555,7 @@ int agent::send_msg_exit(void)
 	}
 
 	m_state = AGENT_INACTIVE;
+	__log_dbg("Agent is inactivated. state = %d\n", m_state);
 
 	memset(&data, 0, sizeof(data));
 	data.hdr.code = VMA_MSG_EXIT;
@@ -703,5 +706,6 @@ void agent::check_link(void)
 		__log_dbg("Failed to connect() errno %d (%s)\n",
 				errno, strerror(errno));
 		m_state = AGENT_INACTIVE;
+		__log_dbg("Agent is inactivated. state = %d\n", m_state);
 	}
 }
