@@ -453,7 +453,7 @@ int agent::send(agent_msg_t *msg)
 				errno, strerror(errno));
 		rc = -errno;
 		m_state = AGENT_INACTIVE;
-		__log_dbg("Agent is inactivated. state = %d\n", m_state);
+		__log_dbg("Agent is inactivated. state = %d", m_state);
 		goto err;
 	}
 
@@ -535,7 +535,7 @@ int agent::send_msg_init(void)
 	}
 
 	m_state = AGENT_ACTIVE;
-	__log_dbg("Agent is activated. state = %d\n", m_state);
+	__log_dbg("Agent is activated. state = %d", m_state);
 
 err:
 	return rc;
@@ -555,7 +555,7 @@ int agent::send_msg_exit(void)
 	}
 
 	m_state = AGENT_INACTIVE;
-	__log_dbg("Agent is inactivated. state = %d\n", m_state);
+	__log_dbg("Agent is inactivated. state = %d", m_state);
 
 	memset(&data, 0, sizeof(data));
 	data.hdr.code = VMA_MSG_EXIT;
@@ -703,9 +703,9 @@ void agent::check_link(void)
 	sys_call(rc, connect, m_sock_fd, (struct sockaddr *)&server_addr,
 			sizeof(struct sockaddr_un));
 	if (rc < 0) {
-		__log_dbg("Failed to connect() errno %d (%s)\n",
+		__log_dbg("Failed to connect() errno %d (%s)",
 				errno, strerror(errno));
 		m_state = AGENT_INACTIVE;
-		__log_dbg("Agent is inactivated. state = %d\n", m_state);
+		__log_dbg("Agent is inactivated. state = %d", m_state);
 	}
 }
