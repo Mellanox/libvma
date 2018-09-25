@@ -1052,7 +1052,7 @@ int cq_mgr::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/
 	 */
 
 	/* Check if we are in socketxtreme_poll() usage mode */
-	if (true == m_p_ring->get_vma_active()) {
+	if (true == m_p_ring->is_socketxtreme()) {
 		return 0;
 	}
 #endif
