@@ -79,15 +79,14 @@ public:
 	virtual bool 		get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe);
 	virtual int		modify_ratelimit(struct vma_rate_limit_t &rate_limit);
 	virtual bool		is_ratelimit_supported(struct vma_rate_limit_t &rate_limit);
-#ifdef DEFINED_SOCKETXTREME		
 	int 			socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);
-#endif // DEFINED_SOCKETXTREME		
 	virtual void    slave_create(int if_index) = 0;
 	virtual void    slave_destroy(int if_index);
 protected:
 	void			update_max_tx_inline(ring_slave *slave);
 	void			update_rx_channel_fds();
 	void			popup_active_rings();
+
 	ring_slave_vector_t     m_bond_rings;
 	std::vector<struct flow_sink_t> m_rx_flows;
 	int			m_min_devices_tx_inline;
@@ -95,6 +94,11 @@ protected:
 private:
 	void devide_buffers_helper(descq_t *rx_reuse, descq_t *buffer_per_ring);
 	int devide_buffers_helper(mem_buf_desc_t *p_mem_buf_desc_list, mem_buf_desc_t** buffer_per_ring);
+
+	bool is_socketxtreme(void) { return false; }
+	void put_ec(struct ring_ec *ec) { NOT_IN_USE(ec); }
+	void del_ec(struct ring_ec *ec) { NOT_IN_USE(ec); }
+	struct vma_completion_t *get_comp(void) { return NULL; }
 
 	net_device_val::bond_type m_type;
 	net_device_val::bond_xmit_hash_policy m_xmit_hash_policy;

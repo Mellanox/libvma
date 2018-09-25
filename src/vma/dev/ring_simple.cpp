@@ -175,8 +175,18 @@ ring_simple::ring_simple(int if_index, ring* parent, ring_type_t type):
 	m_local_if = p_ndev->get_local_addr();
 	m_mtu = p_ndev->get_mtu();
 
-	 // coverity[uninit_member]
+	// coverity[uninit_member]
 	m_tx_pool.set_id("ring_simple (%p) : m_tx_pool", this);
+
+	memset(&m_cq_moderation_info, 0, sizeof(m_cq_moderation_info));
+
+#ifdef DEFINED_SOCKETXTREME
+        m_socketxtreme.active = true;
+#else
+        m_socketxtreme.active = false;
+#endif // DEFINED_SOCKETXTREME
+	INIT_LIST_HEAD(&m_socketxtreme.ec_list);
+	m_socketxtreme.completion = NULL;
 }
 
 ring_simple::~ring_simple()
@@ -253,6 +263,16 @@ ring_simple::~ring_simple()
 	m_lock_ring_rx.unlock();
 	m_lock_ring_tx.unlock();
 
+	ring_logdbg("queue of event completion elements is %s",
+			(list_empty(&m_socketxtreme.ec_list) ? "empty" : "not empty"));
+	while (!list_empty(&m_socketxtreme.ec_list)) {
+		struct ring_ec *ec = NULL;
+		ec = get_ec();
+		if (ec) {
+			del_ec(ec);
+		}
+	}
+
 	ring_logdbg("delete ring_simple() completed");
 }
 
@@ -282,8 +302,6 @@ void ring_simple::create_resources()
 	}
 
 	m_tx_num_wr_free = m_tx_num_wr;
-
-	memset(&m_cq_moderation_info, 0, sizeof(m_cq_moderation_info));
 
 	m_flow_tag_enabled = m_p_ib_ctx->get_flow_tag_capability();
 
@@ -1108,29 +1126,27 @@ int ring_simple::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd
 	return ret;
 }
 
-#ifdef DEFINED_SOCKETXTREME
 int ring_simple::socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags)
 {
 	int ret = 0;
 	int i = 0;
-	mem_buf_desc_t *desc;
 
 	NOT_IN_USE(flags);
 
 	if (likely(vma_completions) && ncompletions) {
 		struct ring_ec *ec = NULL;
 
-		m_socketxtreme_completion = vma_completions;
+		m_socketxtreme.completion = vma_completions;
 
 		while (!g_b_exit && (i < (int)ncompletions)) {
-			m_socketxtreme_completion->events = 0;
+			m_socketxtreme.completion->events = 0;
 			/* Check list size to avoid locking */
-			if (!list_empty(&m_ec_list)) {
+			if (!list_empty(&m_socketxtreme.ec_list)) {
 				ec = get_ec();
 				if (ec) {
-					memcpy(m_socketxtreme_completion, &ec->completion, sizeof(ec->completion));
+					memcpy(m_socketxtreme.completion, &ec->completion, sizeof(ec->completion));
 					ec->clear();
-					m_socketxtreme_completion++;
+					m_socketxtreme.completion++;
 					i++;
 				}
 			} else {
@@ -1139,20 +1155,23 @@ int ring_simple::socketxtreme_poll(struct vma_completion_t *vma_completions, uns
 				 * in right order. It is done to avoid locking and
 				 * may be it is not so critical
 				 */
+#ifdef DEFINED_SOCKETXTREME
+				mem_buf_desc_t *desc;
 				if (likely(m_p_cq_mgr_rx->socketxtreme_and_process_element_rx(&desc))) {
 					desc->rx.socketxtreme_polled = true;
 					rx_process_buffer(desc, NULL);
-					if (m_socketxtreme_completion->events) {
-						m_socketxtreme_completion++;
+					if (m_socketxtreme.completion->events) {
+						m_socketxtreme.completion++;
 						i++;
 					}
 				} else {
 					break;
 				}
+#endif // DEFINED_SOCKETXTREME
 			}
 		}
 
-		m_socketxtreme_completion = NULL;
+		m_socketxtreme.completion = NULL;
 
 		ret = i;
 	}
@@ -1163,7 +1182,6 @@ int ring_simple::socketxtreme_poll(struct vma_completion_t *vma_completions, uns
 
 	return ret;
 }
-#endif // DEFINED_SOCKETXTREME
 
 int ring_simple::wait_for_notification_and_process_element(int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array /*NULL*/)
 {

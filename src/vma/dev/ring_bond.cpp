@@ -787,7 +787,6 @@ bool ring_bond::is_ratelimit_supported(struct vma_rate_limit_t &rate_limit)
 	return true;
 }
 
-#ifdef DEFINED_SOCKETXTREME	
 int ring_bond::socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags)
 {
 	NOT_IN_USE(vma_completions);
@@ -796,7 +795,6 @@ int ring_bond::socketxtreme_poll(struct vma_completion_t *vma_completions, unsig
 
 	return 0;
 }
-#endif // DEFINED_SOCKETXTREME	
 
 void ring_bond::slave_destroy(int if_index)
 {
