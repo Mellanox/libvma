@@ -141,12 +141,11 @@ public:
 	virtual void        dm_release_data(mem_buf_desc_t* buff) { NOT_IN_USE(buff); }
 	virtual bool        fill_hw_descriptors(vma_mlx_hw_device_data &data) {NOT_IN_USE(data);return false;};
 protected:
-	uint64_t            m_rq_wqe_counter;
-	uint64_t*           m_rq_wqe_idx_to_wrid;
 #ifdef DEFINED_SOCKETXTREME
 	vma_ib_mlx5_qp_t    m_mlx5_qp;
 #endif // DEFINED_SOCKETXTREME
 	struct ibv_qp*      m_qp;
+	uint64_t*           m_p_rq_wqe_idx_to_wrid;
 
 	ring_simple*        m_p_ring;
 	uint8_t             m_port_num;
