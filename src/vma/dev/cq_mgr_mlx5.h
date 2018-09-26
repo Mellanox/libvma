@@ -84,7 +84,6 @@ protected:
 
 private:
 	mem_buf_desc_t              *m_rx_hot_buffer;
-	uint64_t                    *m_p_rq_wqe_idx_to_wrid;
 
 	void                        cqe64_to_vma_wc(struct mlx5_cqe64 *cqe, vma_ibv_wc *wc);
 	inline struct mlx5_cqe64*   check_error_completion(struct mlx5_cqe64 *cqe, uint32_t *ci, uint8_t op_own);
