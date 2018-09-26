@@ -60,7 +60,6 @@ cq_mgr_mlx5::cq_mgr_mlx5(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler,
 	,m_cq_dbell(NULL)
 	,m_cqe_log_sz(0)
 	,m_rx_hot_buffer(NULL)
-	,m_p_rq_wqe_idx_to_wrid(NULL)
 {
 	cq_logfunc("");
 
@@ -127,8 +126,8 @@ mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
 	if (unlikely(NULL == m_rx_hot_buffer)) {
 		if (likely(m_qp->m_mlx5_qp.rq.tail != (m_qp->m_mlx5_qp.rq.head))) {
 			uint32_t index = m_qp->m_mlx5_qp.rq.tail & (m_qp_rec.qp->m_rx_num_wr - 1);
-			m_rx_hot_buffer = (mem_buf_desc_t *)m_p_rq_wqe_idx_to_wrid[index];
-			m_p_rq_wqe_idx_to_wrid[index] = 0;
+			m_rx_hot_buffer = (mem_buf_desc_t *)m_qp->m_p_rq_wqe_idx_to_wrid[index];
+			m_qp->m_p_rq_wqe_idx_to_wrid[index] = 0;
 			prefetch((void*)m_rx_hot_buffer);
 			prefetch((uint8_t*)m_cqes + ((m_mlx5_cq.cq_ci & (m_cq_size - 1)) << m_cqe_log_sz));
 		} else {
@@ -566,8 +565,8 @@ int cq_mgr_mlx5::poll_and_process_element_tx(uint64_t* p_cq_poll_sn)
 void cq_mgr_mlx5::set_qp_rq(qp_mgr* qp)
 {
 	m_qp = static_cast<qp_mgr_eth_mlx5*> (qp);
-	m_p_rq_wqe_idx_to_wrid = qp->m_rq_wqe_idx_to_wrid;
-	qp->m_rq_wqe_counter = 0; /* In case of bonded qp, wqe_counter must be reset to zero */
+
+	m_qp->m_rq_wqe_counter = 0; /* In case of bonded qp, wqe_counter must be reset to zero */
 	m_rx_hot_buffer = NULL;
 
 	if (0 != vma_ib_mlx5_get_cq(m_p_ibv_cq, &m_mlx5_cq)) {
@@ -591,7 +590,6 @@ void cq_mgr_mlx5::add_qp_rx(qp_mgr* qp)
 void cq_mgr_mlx5::del_qp_rx(qp_mgr *qp)
 {
 	cq_mgr::del_qp_rx(qp);
-	m_p_rq_wqe_idx_to_wrid = NULL;
 }
 
 void cq_mgr_mlx5::add_qp_tx(qp_mgr* qp)

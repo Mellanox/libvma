@@ -67,7 +67,9 @@ public:
 protected:
 	void		trigger_completion_for_all_sent_packets();
 	void		init_sq();
-	uint64_t*	m_sq_wqe_idx_to_wrid;
+	uint64_t*   m_sq_wqe_idx_to_wrid;
+	uint64_t    m_rq_wqe_counter;
+	uint64_t*   m_rq_wqe_idx_to_wrid;
 
 private:
 	cq_mgr*		init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_channel);
