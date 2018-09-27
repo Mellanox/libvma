@@ -119,7 +119,7 @@ public:
 
 	void configure(int cq_size);
 
-	ibv_cq *get_ibv_cq_hndl();
+	inline ibv_cq *get_ibv_cq_hndl() { return vma_ibv_get_cq(m_p_ibv_cq); }
 	int	get_channel_fd();
 
 	/**
@@ -202,7 +202,7 @@ protected:
 	 * @p_cq_poll_sn global unique wce id that maps last wce polled
 	 * @return Number of successfully polled wce
 	 */
-	virtual int     poll(vma_ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn);
+	virtual int     poll(vma_wc_context* p_wcc, int num_entries, uint64_t* p_cq_poll_sn);
 	inline void     compensate_qp_poll_failed();
 	inline void     process_recv_buffer(mem_buf_desc_t* buff, void* pv_fd_ready_array = NULL);
 
@@ -211,8 +211,8 @@ protected:
 	 *   and deliver them to their owner for further processing (sockinfo on Tx path and ib_conn_mgr on Rx path)
 	 * - for Tx wce the data buffers will be released to the associated ring before the mem_buf_desc are returned
 	 */
-	mem_buf_desc_t* process_cq_element_tx(vma_ibv_wc* p_wce);
-	virtual         mem_buf_desc_t* process_cq_element_rx(vma_ibv_wc* p_wce);
+	mem_buf_desc_t* process_cq_element_tx(vma_wc_context* p_wcc);
+	mem_buf_desc_t* process_cq_element_rx(vma_wc_context* p_wcc);
 	void            reclaim_recv_buffer_helper(mem_buf_desc_t* buff);
 
 	// Returns true if the given buffer was used,
@@ -220,11 +220,11 @@ protected:
 	bool		compensate_qp_poll_success(mem_buf_desc_t* buff);
 	inline uint32_t process_recv_queue(void* pv_fd_ready_array = NULL);
 
-	virtual void	prep_ibv_cq(vma_ibv_cq_init_attr &attr) const;
+	virtual void	prep_ibv_cq(vma_ibv_cq_init_attr &attr, int cq_size);
 	//returns list of buffers to the owner.
 	void		process_tx_buffer_list(mem_buf_desc_t* p_mem_buf_desc);
 
-	struct ibv_cq*		m_p_ibv_cq;
+	vma_ibv_cq*		m_p_ibv_cq;
 	bool			m_b_is_rx;
 	descq_t			m_rx_queue;
 	static uint64_t		m_n_global_sn;
@@ -234,6 +234,8 @@ protected:
 	uint32_t		m_n_wce_counter;
 	bool			m_b_was_drained;
 	bool			m_b_is_rx_hw_csum_on;
+	bool			m_b_is_rx_ts_on;
+	const bool		m_b_is_flow_tag_on;
 	qp_rec			m_qp_rec;
 	const uint32_t		m_n_sysvar_cq_poll_batch_max;
 	const uint32_t		m_n_sysvar_progress_engine_wce_max;
@@ -292,7 +294,7 @@ private:
 	//Finds and sets the vma if to which the buff is addressed (according to qpn).
 	inline void	find_buff_dest_vma_if_ctx(mem_buf_desc_t * buff);
 
-	void		process_cq_element_log_helper(mem_buf_desc_t* p_mem_buf_desc, vma_ibv_wc* p_wce);
+	void		process_cq_element_log_helper(mem_buf_desc_t* p_mem_buf_desc, vma_wc_context* p_wcc);
 };
 
 // Helper gunction to extract the Tx cq_mgr from the CQ event,

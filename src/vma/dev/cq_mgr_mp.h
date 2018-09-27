@@ -53,7 +53,7 @@ public:
 	void update_max_drain(uint32_t t) { m_p_cq_stat->n_rx_drained_at_once_max =
 			std::max(m_p_cq_stat->n_rx_drained_at_once_max, t);}
 protected:
-	virtual void	prep_ibv_cq(vma_ibv_cq_init_attr &attr) const;
+	virtual void	prep_ibv_cq(vma_ibv_cq_init_attr &attr, int cq_size);
 	virtual void	add_qp_rx(qp_mgr *qp);
 private:
 	const ring_eth_cb		*m_p_ring;

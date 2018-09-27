@@ -112,12 +112,7 @@ qp_mgr* ring_eth::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, 
 
 bool ring_eth::is_ratelimit_supported(struct vma_rate_limit_t &rate_limit)
 {
-#ifdef DEFINED_IBV_EXP_QP_RATE_LIMIT
-	return m_p_qp_mgr->is_ratelimit_supported(m_p_ib_ctx->get_ibv_device_attr(), rate_limit);
-#else
-	NOT_IN_USE(rate_limit);
-	return false;
-#endif
+	return m_p_qp_mgr->is_ratelimit_supported(m_p_ib_ctx->get_ibv_device_attr_ex(), rate_limit);
 }
 
 qp_mgr* ring_ib::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel)
@@ -1899,7 +1894,7 @@ int ring_simple::get_ring_descriptors(vma_mlx_hw_device_data &d)
 {
 	d.dev_data.vendor_id = m_p_ib_ctx->get_ibv_device_attr()->vendor_id;
 	d.dev_data.vendor_part_id = m_p_ib_ctx->get_ibv_device_attr()->vendor_part_id;
-	if (vma_is_packet_pacing_supported(m_p_ib_ctx->get_ibv_device_attr())) {
+	if (vma_is_packet_pacing_supported(m_p_ib_ctx->get_ibv_device_attr_ex())) {
 		d.dev_data.device_cap |= VMA_HW_PP_EN;
 	}
 	if (vma_is_umr_supported(m_p_ib_ctx->get_ibv_device_attr())) {

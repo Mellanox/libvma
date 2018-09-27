@@ -135,17 +135,15 @@ typedef struct ibv_qp_init_attr                     vma_ibv_qp_init_attr;
 #endif
 
 //ibv_query_device
-#define vma_ibv_query_device(context, attr)	ibv_query_device(context, attr)
 typedef struct ibv_device_attr			vma_ibv_device_attr;
 #define vma_ibv_device_attr_comp_mask(attr)	NOT_IN_USE(attr)
 //ibv_modify_qp
 #define vma_ibv_modify_qp(qp, attr, mask)	ibv_modify_qp(qp, attr, mask)
 typedef struct ibv_qp_attr			vma_ibv_qp_attr;
 //ibv_poll_cq
-#define vma_ibv_poll_cq(cq, num, wc)		ibv_poll_cq(cq, num, wc)
 typedef struct ibv_wc				vma_ibv_wc;
-#define vma_wc_flags(wc)			(wc).wc_flags
-#define vma_wc_opcode(wc)			(wc).opcode
+#define vma_wc_flags(wc)			(wc)->wc_flags
+#define vma_wc_opcode(wc)			(wc)->opcode
 #define VMA_IBV_WC_RECV				IBV_WC_RECV
 //csum offload
 #ifdef DEFINED_IBV_DEVICE_RAW_IP_CSUM
@@ -156,8 +154,22 @@ typedef struct ibv_wc				vma_ibv_wc;
 #define vma_wc_rx_hw_csum_ok(wc)		(1)
 #endif
 
+// Cq ex
+#ifdef DEFINED_IBV_EX_CQ
+typedef struct ibv_cq_init_attr_ex            vma_ibv_cq_init_attr;
+#define vma_ibv_create_cq(context, cqe, cq_context, channel, comp_vector, attr) ibv_create_cq_ex(context, attr)
+#define vma_ibv_poll_cq(cq, num, wc, attr) 	ibv_start_poll(cq, attr)
+
+//ibv_query_device
+#define vma_ibv_query_device(context, attr)	ibv_query_device_ex(context, NULL, attr)
+#else
 typedef int            vma_ibv_cq_init_attr;
 #define vma_ibv_create_cq(context, cqe, cq_context, channel, comp_vector, attr) ibv_create_cq(context, cqe, cq_context, channel, comp_vector)
+#define vma_ibv_poll_cq(cq, num, wc, attr)	ibv_poll_cq(cq, num, wc)
+
+//ibv_query_device
+#define vma_ibv_query_device(context, attr)	ibv_query_device(context, attr)
+#endif // DEFINED_IBV_EX_CQ
 
 //rx hw timestamp
 #define VMA_IBV_WC_WITH_TIMESTAMP              0
@@ -203,8 +215,15 @@ typedef struct ibv_flow_spec_ib			vma_ibv_flow_spec_ib;
 typedef struct ibv_flow_spec_eth		vma_ibv_flow_spec_eth;
 typedef struct ibv_flow_spec_ipv4		vma_ibv_flow_spec_ipv4;
 typedef struct ibv_flow_spec_tcp_udp		vma_ibv_flow_spec_tcp_udp;
+
+// Flow tag
 #define vma_get_flow_tag			0
+#ifdef DEFINED_IBV_FLOW_TAG
+#define VMA_IBV_FLOW_SPEC_ACTION_TAG  IBV_FLOW_SPEC_ACTION_TAG
+typedef struct ibv_flow_spec_action_tag 	vma_ibv_flow_spec_action_tag;
+#else
 typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_tag;
+#endif // DEFINED_IBV_FLOW_TAG
 
 #ifdef DEFINED_IBV_CQ_ATTR_MODERATE
 typedef struct ibv_modify_cq_attr               vma_ibv_cq_attr;
@@ -251,10 +270,10 @@ typedef struct ibv_exp_qp_attr			vma_ibv_qp_attr;
 
 //ibv_exp_poll_cq
 #ifdef DEFINED_IBV_EXP_CQ
-#define vma_ibv_poll_cq(cq, num, wc)		ibv_exp_poll_cq(cq, num, wc, sizeof(struct ibv_exp_wc))
+#define vma_ibv_poll_cq(cq, num, wc, attr)	ibv_exp_poll_cq(cq, num, wc, sizeof(struct ibv_exp_wc))
 typedef struct ibv_exp_wc			vma_ibv_wc;
-#define vma_wc_flags(wc)			(wc).exp_wc_flags
-#define vma_wc_opcode(wc)			(wc).exp_opcode
+#define vma_wc_flags(wc)			(wc)->exp_wc_flags
+#define vma_wc_opcode(wc)			(wc)->exp_opcode
 #define VMA_IBV_WC_RECV				IBV_EXP_WC_RECV
 
 //experimental cq
@@ -262,16 +281,16 @@ typedef struct ibv_exp_cq_init_attr           vma_ibv_cq_init_attr;
 #define vma_ibv_create_cq(context, cqe, cq_context, channel, comp_vector, attr) ibv_exp_create_cq(context, cqe, cq_context, channel, comp_vector, attr)
 #else
 //ibv_poll_cq
-#define vma_ibv_poll_cq(cq, num, wc)		ibv_poll_cq(cq, num, wc)
+#define vma_ibv_poll_cq(cq, num, wc, attr)	ibv_poll_cq(cq, num, wc)
 typedef struct ibv_wc				vma_ibv_wc;
-#define vma_wc_flags(wc)			(wc).wc_flags
-#define vma_wc_opcode(wc)			(wc).opcode
+#define vma_wc_flags(wc)			(wc)->wc_flags
+#define vma_wc_opcode(wc)			(wc)->opcode
 #define VMA_IBV_WC_RECV				IBV_WC_RECV
 
 //verbs cq
 typedef int            vma_ibv_cq_init_attr;
 #define vma_ibv_create_cq(context, cqe, cq_context, channel, comp_vector, attr) ibv_create_cq(context, cqe, cq_context, channel, comp_vector)
-#endif
+#endif // DEFINED_IBV_EXP_CQ
 
 #ifdef DEFINED_IBV_EXP_DEVICE_RX_CSUM_L4_PKT
 #define vma_wc_rx_hw_csum_ok(wc)		((vma_wc_flags(wc) & IBV_EXP_L3_RX_CSUM_OK) && (vma_wc_flags(wc) & IBV_EXP_L4_RX_CSUM_OK))
@@ -284,9 +303,9 @@ typedef int            vma_ibv_cq_init_attr;
 #endif
 
 //rx hw timestamp
-#ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
+#ifdef DEFINED_IBV_CQ_TIMESTAMP
 #define VMA_IBV_WC_WITH_TIMESTAMP              IBV_EXP_WC_WITH_TIMESTAMP
-#define vma_wc_timestamp(wc)			(wc).timestamp
+#define vma_wc_timestamp(wc)			(wc)->timestamp
 #else
 #define VMA_IBV_WC_WITH_TIMESTAMP		0
 #define vma_wc_timestamp(wc)			0
@@ -346,14 +365,15 @@ typedef struct ibv_exp_flow_spec_ib		vma_ibv_flow_spec_ib;
 typedef struct ibv_exp_flow_spec_eth		vma_ibv_flow_spec_eth;
 typedef struct ibv_exp_flow_spec_ipv4		vma_ibv_flow_spec_ipv4;
 typedef struct ibv_exp_flow_spec_tcp_udp	vma_ibv_flow_spec_tcp_udp;
-//Flow tag
-#ifdef DEFINED_IBV_EXP_FLOW_TAG
+
+#ifdef DEFINED_IBV_FLOW_TAG
+#define VMA_IBV_FLOW_SPEC_ACTION_TAG  IBV_EXP_FLOW_SPEC_ACTION_TAG
 #define vma_get_flow_tag(wc)			ntohl((uint32_t)(wc->sop_drop_qpn))
 typedef struct ibv_exp_flow_spec_action_tag	vma_ibv_flow_spec_action_tag;
 #else
 #define vma_get_flow_tag(cqe)			0
 typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_tag;
-#endif //DEFINED_IBV_EXP_FLOW_TAG
+#endif //DEFINED_IBV_FLOW_TAG
 
 #endif /* DEFINED_VERBS_VERSION */
 
@@ -372,17 +392,100 @@ typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_ta
 #define vma_is_mp_rq_supported(attr)		(0)
 #endif
 
-#ifdef DEFINED_IBV_EXP_QP_RATE_LIMIT
+#ifdef DEFINED_IBV_PACKET_PACING_CAPS
 #define vma_is_packet_pacing_supported(attr)	((attr)->packet_pacing_caps.qp_rate_limit_min)
+
+#ifdef DEFINED_IBV_EX_CQ
+#define VMA_IBV_QP_RATE_LIMIT IBV_QP_RATE_LIMIT
+#define vma_is_pacing_caps_supported(attr)		(attr->packet_pacing_caps.qp_rate_limit_min)
+typedef struct ibv_packet_pacing_caps	vma_ibv_packet_pacing_caps;
+#else
+#define VMA_IBV_QP_RATE_LIMIT IBV_EXP_QP_RATE_LIMIT
+#define vma_is_pacing_caps_supported(attr)		((attr)->comp_mask & IBV_EXP_DEVICE_ATTR_PACKET_PACING_CAPS)
+typedef struct ibv_exp_packet_pacing_caps	vma_ibv_packet_pacing_caps;
+#endif // DEFINED_IBV_EX_CQ
+
 #else
 #define vma_is_packet_pacing_supported(attr)	(0)
-#endif
+#endif // DEFINED_IBV_PACKET_PACING_CAPS
 
 #if defined(HAVE_IBV_EXP_GET_DEVICE_LIST)
 #define vma_ibv_get_device_list(num)		ibv_exp_get_device_list(num)
 #else
 #define vma_ibv_get_device_list(num)		ibv_get_device_list(num)
 #endif
+
+// Cq ex
+#ifdef DEFINED_IBV_EX_CQ
+#define vma_ibv_get_cq(cq)                    ibv_cq_ex_to_cq(cq)
+typedef struct ibv_cq_ex                      vma_ibv_cq;
+typedef struct ibv_cq_ex                      vma_wc_context;
+typedef struct ibv_poll_cq_attr               vma_poll_cq_attr;
+
+#define VMA_WC_CONTEXT_PREPARE
+#define VMA_WC_CONTEXT_INIT                   m_p_ibv_cq
+#define VMA_WC_CONTEXT_CHECK_STATUS           ret
+#define VMA_WC_CONTEXT_LOOP                   count = 0; !ret ; count++, ret = ibv_next_poll(wce)
+#define VMA_WC_CONTEXT_END                    ibv_end_poll(wce)
+
+#define vma_wc_context_opcode(cq_ex)          ibv_wc_read_opcode(cq_ex)
+#define vma_wc_context_flags(cq_ex)           ibv_wc_read_wc_flags(cq_ex)
+#define vma_wc_context_timestamp(cq_ex)       ibv_wc_read_completion_ts(cq_ex)
+#define vma_wc_context_rx_hw_csum_ok(cq_ex)  (vma_wc_context_flags(cq_ex) & IBV_WC_IP_CSUM_OK)
+#define vma_wc_context_vendor_err(cq_ex)      ibv_wc_read_vendor_err(cq_ex)
+#define vma_wc_context_byte_len(cq_ex)        ibv_wc_read_byte_len(cq_ex)
+#define vma_wc_context_imm_data(cq_ex)        ibv_wc_read_imm_data(cq_ex)
+#define vma_wc_context_qp_num(cq_ex)          ibv_wc_read_qp_num(cq_ex)
+#define vma_wc_context_src_qp(cq_ex)          ibv_wc_read_src_qp(cq_ex)
+#define vma_wc_context_pkey_index(cq_ex)      0
+#define vma_wc_context_dlid_path_bits(cq_ex)  ibv_wc_read_dlid_path_bits(cq_ex)
+#define vma_wc_context_flow_tag(cq_ex)        ibv_wc_read_flow_tag(cq_ex)
+
+typedef struct ibv_device_attr_ex             vma_ibv_device_attr_ex;
+#define vma_get_device_orig_attr(device_attr) &device_attr->orig_attr
+
+#define VMA_IBV_DEVICE_ATTR_HCA_CORE_CLOCK    0
+#define VMA_IBV_VALUES_MASK_RAW_CLOCK         IBV_VALUES_MASK_RAW_CLOCK
+#define vma_ibv_query_values(ctx, values)     ibv_query_rt_values_ex(ctx, values)
+#define vma_get_ts_val(values)                values.raw_clock.tv_nsec
+#define vma_contain_ts(wcc, is_supported)     is_supported
+typedef struct ibv_values_ex                  vma_ts_values;
+
+#else
+typedef struct ibv_cq                         vma_ibv_cq;
+typedef vma_ibv_wc                            vma_wc_context;
+typedef struct ibv_poll_cq_attr_dummy {}      vma_poll_cq_attr;
+
+#define VMA_WC_CONTEXT_PREPARE                vma_ibv_wc wce_ctx[MCE_MAX_CQ_POLL_BATCH]
+#define VMA_WC_CONTEXT_INIT                   wce_ctx
+#define VMA_WC_CONTEXT_CHECK_STATUS           ret <= 0
+#define VMA_WC_CONTEXT_LOOP                   count = 0; count < ret; count++, wce++
+#define VMA_WC_CONTEXT_END
+
+#define vma_ibv_get_cq(cq)                    (cq)
+#define vma_wc_context_opcode                 vma_wc_opcode
+#define vma_wc_context_flags                  vma_wc_flags
+#define vma_wc_context_rx_hw_csum_ok          vma_wc_rx_hw_csum_ok
+#define vma_wc_context_timestamp              vma_wc_timestamp
+#define vma_wc_context_vendor_err(wcc)        (wcc)->vendor_err
+#define vma_wc_context_byte_len(wcc)          (wcc)->byte_len
+#define vma_wc_context_imm_data(wcc)          (wcc)->imm_data
+#define vma_wc_context_qp_num(wcc)            (wcc)->qp_num
+#define vma_wc_context_src_qp(wcc)            (wcc)->src_qp
+#define vma_wc_context_pkey_index(wcc)        (wcc)->pkey_index
+#define vma_wc_context_dlid_path_bits(wcc)    (wcc)->dlid_path_bits
+#define vma_wc_context_flow_tag(wcc)          0
+
+typedef vma_ibv_device_attr                   vma_ibv_device_attr_ex;
+#define vma_get_device_orig_attr(device_attr) device_attr
+
+#define VMA_IBV_DEVICE_ATTR_HCA_CORE_CLOCK    IBV_EXP_DEVICE_ATTR_WITH_HCA_CORE_CLOCK
+#define VMA_IBV_VALUES_MASK_RAW_CLOCK         0
+#define vma_ibv_query_values(ctx, values)     ibv_exp_query_values(ctx, IBV_EXP_VALUES_HW_CLOCK, values)
+#define vma_get_ts_val(values)                values.hwclock
+#define vma_contain_ts(wcc, is_supported)     vma_wc_context_flags(wcc) & VMA_IBV_WC_WITH_TIMESTAMP
+typedef struct ibv_exp_values                 vma_ts_values;
+#endif // DEFINED_IBV_EX_CQ
 
 typedef enum {
 	RL_RATE = 1<<0,
@@ -405,13 +508,41 @@ inline bool is_set(vma_wr_tx_packet_attr state_, vma_wr_tx_packet_attr tx_mode_)
 
 int vma_rdma_lib_reset();
 
-static inline void init_vma_ibv_cq_init_attr(vma_ibv_cq_init_attr* attr)
+static inline void init_vma_ibv_cq_init_attr_ts(vma_ibv_cq_init_attr* attr)
 {
-#ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
-		attr->flags |= IBV_EXP_CQ_TIMESTAMP;
-		attr->comp_mask |= IBV_EXP_CQ_INIT_ATTR_FLAGS;
+#ifdef DEFINED_IBV_CQ_TIMESTAMP
+#ifdef DEFINED_IBV_EX_CQ
+	attr->wc_flags |= IBV_WC_EX_WITH_COMPLETION_TIMESTAMP;
 #else
-		NOT_IN_USE(attr);
+	attr->flags |= IBV_EXP_CQ_TIMESTAMP;
+	attr->comp_mask |= IBV_EXP_CQ_INIT_ATTR_FLAGS;
+#endif
+#endif
+	NOT_IN_USE(attr);
+}
+
+static inline void init_vma_ibv_cq_init_attr_flow_tag(vma_ibv_cq_init_attr* attr)
+{
+#if defined(DEFINED_IBV_EX_CQ) && defined(DEFINED_IBV_FLOW_TAG)
+	attr->wc_flags |= IBV_WC_EX_WITH_FLOW_TAG;
+#else
+	NOT_IN_USE(attr);
+#endif
+}
+
+static inline void init_vma_ibv_cq_init_attr(vma_ibv_cq_init_attr* attr, int cq_size, void* cq_context, struct ibv_comp_channel *channel)
+{
+#ifdef DEFINED_IBV_EX_CQ
+	attr->cqe = cq_size;
+	attr->cq_context = cq_context;
+	attr->channel = channel;
+	attr->wc_flags = IBV_WC_EX_WITH_BYTE_LEN | IBV_WC_EX_WITH_IMM |
+			IBV_WC_EX_WITH_QP_NUM | IBV_WC_EX_WITH_SRC_QP | IBV_WC_EX_WITH_DLID_PATH_BITS;
+#else
+	NOT_IN_USE(attr);
+	NOT_IN_USE(cq_size);
+	NOT_IN_USE(cq_context);
+	NOT_IN_USE(channel);
 #endif
 }
 
@@ -473,11 +604,12 @@ static inline void ibv_flow_spec_flow_tag_set(vma_ibv_flow_spec_action_tag* flow
 	NOT_IN_USE(tag_id);
 	if (flow_tag == NULL)
 		return;
-#ifdef DEFINED_IBV_EXP_FLOW_TAG
-	flow_tag->type = IBV_EXP_FLOW_SPEC_ACTION_TAG;
+
+#ifdef DEFINED_IBV_FLOW_TAG
+	flow_tag->type = VMA_IBV_FLOW_SPEC_ACTION_TAG;
 	flow_tag->size = sizeof(vma_ibv_flow_spec_action_tag);
 	flow_tag->tag_id = tag_id;
-#endif //DEFINED_IBV_EXP_FLOW_TAG
+#endif //DEFINED_IBV_FLOW_TAG
 }
 
 

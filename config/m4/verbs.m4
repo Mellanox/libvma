@@ -27,7 +27,12 @@ AC_DEFUN([CHECK_VERBS_ATTRIBUTE], [
     ])
 ])
 
-
+# Check attributes
+# Usage: CHECK_VERBS_MEMBER([attribute], [header file], [definition])
+#
+AC_DEFUN([CHECK_VERBS_MEMBER], [
+    AC_CHECK_MEMBER( $1, [AC_DEFINE_UNQUOTED([DEFINED_$3], [1], [Define to 1 if attribute $1 is supported])], [], [#include <$2>])
+])
 
 ##########################
 # Configure ofed capabilities
@@ -120,11 +125,11 @@ AC_ARG_ENABLE([exp-cq],
 AS_IF([test "x$enable_exp_cq" == xyes],
     [AC_DEFINE([DEFINED_IBV_EXP_CQ], 1, [Define to 1 if Experimental Verbs CQ was enabled at configure time])]
 
-    CHECK_VERBS_ATTRIBUTE([IBV_EXP_CQ_TIMESTAMP], [infiniband/verbs_exp.h])
+    CHECK_VERBS_ATTRIBUTE([IBV_EXP_CQ_TIMESTAMP], [infiniband/verbs_exp.h], [IBV_CQ_TIMESTAMP])
     CHECK_VERBS_ATTRIBUTE([IBV_EXP_VALUES_CLOCK_INFO], [infiniband/verbs_exp.h])
     CHECK_VERBS_ATTRIBUTE([IBV_EXP_DEVICE_RX_CSUM_L4_PKT], [infiniband/verbs_exp.h])
     CHECK_VERBS_ATTRIBUTE([IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT], [infiniband/verbs_exp.h])
-    CHECK_VERBS_ATTRIBUTE([IBV_EXP_FLOW_SPEC_ACTION_TAG], [infiniband/verbs_exp.h], [IBV_EXP_FLOW_TAG])
+    CHECK_VERBS_ATTRIBUTE([IBV_EXP_FLOW_SPEC_ACTION_TAG], [infiniband/verbs_exp.h], [IBV_FLOW_TAG])
 )
 
 # Check <verbs.h>
@@ -137,6 +142,10 @@ CHECK_VERBS_ATTRIBUTE([IBV_QP_CREATE_SOURCE_QPN], [infiniband/verbs.h], [IBV_QP_
 CHECK_VERBS_ATTRIBUTE([IBV_FLOW_SPEC_IB], [infiniband/verbs.h], [IBV_FLOW_SPEC_IB])
 CHECK_VERBS_ATTRIBUTE([IBV_DEVICE_RAW_IP_CSUM], [infiniband/verbs.h])
 CHECK_VERBS_ATTRIBUTE([IBV_SEND_IP_CSUM], [infiniband/verbs.h])
+CHECK_VERBS_ATTRIBUTE([IBV_WC_EX_WITH_BYTE_LEN], [infiniband/verbs.h], [IBV_EX_CQ])
+CHECK_VERBS_ATTRIBUTE([IBV_WC_EX_WITH_COMPLETION_TIMESTAMP], [infiniband/verbs.h], [IBV_CQ_TIMESTAMP])
+CHECK_VERBS_ATTRIBUTE([IBV_WC_EX_WITH_FLOW_TAG], [infiniband/verbs.h], [IBV_FLOW_TAG])
+CHECK_VERBS_MEMBER([struct ibv_device_attr_ex.packet_pacing_caps], [infiniband/verbs.h], [IBV_PACKET_PACING_CAPS])
 
 # Check <verbs_exp.h>
 #
@@ -147,7 +156,7 @@ CHECK_VERBS_ATTRIBUTE([IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN], [infiniband/verbs_e
 CHECK_VERBS_ATTRIBUTE([IBV_EXP_FLOW_SPEC_IB], [infiniband/verbs_exp.h], [IBV_FLOW_SPEC_IB])
 CHECK_VERBS_ATTRIBUTE([IBV_EXP_SEND_IP_CSUM], [infiniband/verbs_exp.h])
 CHECK_VERBS_ATTRIBUTE([IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE], [infiniband/verbs_exp.h], [IBV_DM])
-CHECK_VERBS_ATTRIBUTE([IBV_EXP_QP_RATE_LIMIT], [infiniband/verbs_exp.h])
+CHECK_VERBS_ATTRIBUTE([IBV_EXP_QP_RATE_LIMIT], [infiniband/verbs_exp.h], [IBV_PACKET_PACING_CAPS])
 CHECK_VERBS_ATTRIBUTE([IBV_EXP_QP_SUPPORT_BURST], [infiniband/verbs_exp.h])
 
 # Check for <mlx5/wqe.h>

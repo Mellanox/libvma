@@ -86,17 +86,19 @@ uint32_t cq_mgr_mlx5::clean_cq()
 			update_global_sn(cq_poll_sn, ret_total);
 		}
 	} else {//Tx
-		int ret = 0;
+		int ret = 0, count = 0;
 		/* coverity[stack_use_local_overflow] */
-		vma_ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
-		while ((ret = cq_mgr::poll(wce, MCE_MAX_CQ_POLL_BATCH, &cq_poll_sn)) > 0) {
-			for (int i = 0; i < ret; i++) {
-				buff = process_cq_element_tx(&wce[i]);
+		VMA_WC_CONTEXT_PREPARE;
+		vma_wc_context* wce = VMA_WC_CONTEXT_INIT;
+		while ((ret = cq_mgr::poll(wce, MCE_MAX_CQ_POLL_BATCH, &cq_poll_sn)) >= 0) {
+			for (VMA_WC_CONTEXT_LOOP) {
+				buff = process_cq_element_tx(wce);
 				if (buff)
 					m_rx_queue.push_back(buff);
 			}
-			ret_total += ret;
+			ret_total += count;
 		}
+		VMA_WC_CONTEXT_END;
 	}
 
 	return ret_total;
@@ -431,7 +433,7 @@ inline void cq_mgr_mlx5::cqe64_to_vma_wc(struct mlx5_cqe64 *cqe, vma_ibv_wc *wc)
 	case MLX5_CQE_RESP_SEND:
 	case MLX5_CQE_RESP_SEND_IMM:
 	case MLX5_CQE_RESP_SEND_INV:
-		vma_wc_opcode(*wc) = VMA_IBV_WC_RECV;
+		vma_wc_opcode(wc) = VMA_IBV_WC_RECV;
 		wc->byte_len = ntohl(cqe->byte_cnt);
 		wc->status = IBV_WC_SUCCESS;
 		return;
@@ -565,7 +567,7 @@ int cq_mgr_mlx5::poll_and_process_element_tx(uint64_t* p_cq_poll_sn)
 
 void cq_mgr_mlx5::set_qp_rq(qp_mgr* qp)
 {
-	struct ibv_cq *ibcq = m_p_ibv_cq; // ibcp is used in next macro: _to_mxxx
+	struct ibv_cq *ibcq = get_ibv_cq_hndl(); // ibcp is used in next macro: _to_mxxx
 	m_mlx5_cq = _to_mxxx(cq, cq);
 	struct verbs_qp *vqp = (struct verbs_qp *)qp->m_qp;
 	struct mlx5_qp *mlx5_hw_qp = (struct mlx5_qp*)container_of(vqp, struct mlx5_qp, verbs_qp);
@@ -577,7 +579,7 @@ void cq_mgr_mlx5::set_qp_rq(qp_mgr* qp)
 	m_cq_dbell = m_mlx5_cq->dbrec;
 	m_cqe_log_sz = ilog_2(m_mlx5_cq->cqe_sz);
 	m_cqes = ((uint8_t*)m_mlx5_cq->active_buf->buf) + m_mlx5_cq->cqe_sz - sizeof(struct mlx5_cqe64);
-	m_cq_size = m_p_ibv_cq->cqe + 1;
+	m_cq_size = get_ibv_cq_hndl()->cqe + 1;
 }
 
 void cq_mgr_mlx5::add_qp_rx(qp_mgr* qp)
@@ -615,7 +617,7 @@ void cq_mgr_mlx5::add_qp_tx(qp_mgr* qp)
 {
 	//Assume locked!
 	cq_mgr::add_qp_tx(qp);
-	struct ibv_cq *ibcq = m_p_ibv_cq; // ibcp is used in next macro: _to_mxxx
+	struct ibv_cq *ibcq = get_ibv_cq_hndl(); // ibcp is used in next macro: _to_mxxx
 	m_mlx5_cq = _to_mxxx(cq, cq);
 	m_qp = static_cast<qp_mgr_eth_mlx5*> (qp);
 	m_cq_dbell = m_mlx5_cq->dbrec;
@@ -632,7 +634,7 @@ bool cq_mgr_mlx5::fill_cq_hw_descriptors(struct hw_cq_data &data)
 
 	memset(&cq_info, 0, sizeof(cq_info));
 
-	if (ibv_mlx5_exp_get_cq_info(m_p_ibv_cq, &cq_info)) {
+	if (ibv_mlx5_exp_get_cq_info(get_ibv_cq_hndl(), &cq_info)) {
 		cq_logerr("ibv_mlx5_exp_get_cq_info failed,"
 			"cq was already used, cannot use it in direct mode, "
 					"%p", m_p_ibv_cq);
