@@ -137,13 +137,6 @@ public:
 	 */
 	int	wait_for_notification_and_process_element(uint64_t* p_cq_poll_sn,
 	   	                                          void* pv_fd_ready_array = NULL);
-#ifdef DEFINED_SOCKETXTREME
-	inline volatile struct mlx5_cqe64 *mlx5_get_cqe64(void);
-	inline volatile struct mlx5_cqe64 *mlx5_get_cqe64(volatile struct mlx5_cqe64 **cqe_err);
-	volatile struct mlx5_cqe64 *mlx5_check_error_completion(volatile struct mlx5_cqe64 *cqe, uint32_t *ci, uint8_t op_own);
-	inline void mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, vma_ibv_wc *wce);
-	int mlx5_poll_and_process_error_element_rx(volatile struct mlx5_cqe64 *cqe, void* pv_fd_ready_array);
-#endif // DEFINED_SOCKETXTREME
 
 	/**
 	 * This will poll n_num_poll time on the cq or stop early if it gets
@@ -154,6 +147,10 @@ public:
 	 */
 	virtual int	poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	virtual int	poll_and_process_element_tx(uint64_t* p_cq_poll_sn);
+	virtual int	poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst) {
+		NOT_IN_USE(p_desc_lst);
+		return 0;
+	}
 
 	/**
 	 * This will check if the cq was drained, and if it wasn't it will drain it.
@@ -207,7 +204,7 @@ protected:
 	 * - for Tx wce the data buffers will be released to the associated ring before the mem_buf_desc are returned
 	 */
 	mem_buf_desc_t* process_cq_element_tx(vma_ibv_wc* p_wce);
-	virtual         mem_buf_desc_t* process_cq_element_rx(vma_ibv_wc* p_wce);
+	mem_buf_desc_t* process_cq_element_rx(vma_ibv_wc* p_wce);
 	void            reclaim_recv_buffer_helper(mem_buf_desc_t* buff);
 
 	// Returns true if the given buffer was used,
@@ -239,22 +236,11 @@ protected:
 	const uint32_t		m_n_sysvar_rx_prefetch_bytes;
 	size_t			m_sz_transport_header;
 
-private:
-#ifdef DEFINED_SOCKETXTREME
-	mem_buf_desc_t* 	m_rx_hot_buff;
-	qp_mgr*			m_qp;
-	vma_ib_mlx5_cq_t  m_mlx5_cq;
-	int 			m_cq_sz;
-	volatile struct		mlx5_cqe64 	(*m_mlx5_cqes)[];
-	volatile uint32_t 	*m_cq_db;
-#endif // DEFINED_SOCKETXTREME
 protected:
 	ib_ctx_handler*		m_p_ib_ctx_handler;
+private:
 	struct ibv_comp_channel *m_comp_event_channel;
 	bool			m_b_notification_armed;
-private:
-	const uint32_t		m_n_sysvar_rx_num_wr_to_post_recv;
-
 	const uint32_t		m_n_sysvar_qp_compensation_level;
 	const uint32_t		m_rx_lkey;
 	const bool		m_b_sysvar_cq_keep_qp_full;
@@ -269,10 +255,6 @@ private:
 	 */
 	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_head;
 	mem_buf_desc_t*		m_rx_buffs_rdy_for_free_tail;
-
-#ifdef DEFINED_SOCKETXTREME
-	int	socketxtreme_and_process_element_rx(mem_buf_desc_t **p_desc_lst);
-#endif // DEFINED_SOCKETXTREME
 
 	void		handle_tcp_ctl_packets(uint32_t rx_processed, void* pv_fd_ready_array);
 

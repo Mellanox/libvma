@@ -61,6 +61,9 @@ public:
 	inline void                 cqe64_to_mem_buff_desc(struct mlx5_cqe64 *cqe, mem_buf_desc_t* p_rx_wc_buf_desc, enum buff_status_e& status);
 	virtual int                 drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id = NULL);
 	virtual int                 poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
+#ifdef DEFINED_SOCKETXTREME
+	virtual int                 poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst);
+#endif // DEFINED_SOCKETXTREME
 	virtual int                 poll_and_process_element_tx(uint64_t* p_cq_poll_sn);
 	int                         poll_and_process_error_element_tx(struct mlx5_cqe64 *cqe, uint64_t* p_cq_poll_sn);
 
@@ -71,6 +74,13 @@ public:
 	virtual void                add_qp_tx(qp_mgr* qp);
 	virtual uint32_t            clean_cq();
 	virtual bool                fill_cq_hw_descriptors(struct hw_cq_data &data);
+#ifdef DEFINED_SOCKETXTREME
+	inline volatile struct mlx5_cqe64 *mlx5_get_cqe64(void);
+	inline volatile struct mlx5_cqe64 *mlx5_get_cqe64(volatile struct mlx5_cqe64 **cqe_err);
+	volatile struct mlx5_cqe64 *mlx5_check_error_completion(volatile struct mlx5_cqe64 *cqe, uint32_t *ci, uint8_t op_own);
+	inline void mlx5_cqe64_to_vma_wc(volatile struct mlx5_cqe64 *cqe, vma_ibv_wc *wce);
+	int mlx5_poll_and_process_error_element_rx(volatile struct mlx5_cqe64 *cqe, void* pv_fd_ready_array);
+#endif // DEFINED_SOCKETXTREME
 
 protected:
 	qp_mgr_eth_mlx5*            m_qp;
@@ -83,6 +93,13 @@ protected:
 	int                         m_cqe_log_sz;
 
 private:
+	const uint32_t		m_n_sysvar_rx_num_wr_to_post_recv;
+#ifdef DEFINED_SOCKETXTREME
+	mem_buf_desc_t* 	m_rx_hot_buff;
+	int 			m_cq_sz;
+	volatile struct		mlx5_cqe64 	(*m_mlx5_cqes)[];
+	volatile uint32_t 	*m_cq_db;
+#endif // DEFINED_SOCKETXTREME
 	mem_buf_desc_t              *m_rx_hot_buffer;
 
 	void                        cqe64_to_vma_wc(struct mlx5_cqe64 *cqe, vma_ibv_wc *wc);

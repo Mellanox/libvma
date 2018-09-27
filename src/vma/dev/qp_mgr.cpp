@@ -240,11 +240,6 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 
 	m_curr_rx_wr = 0;
 
-#ifdef DEFINED_SOCKETXTREME
-	if (0 != vma_ib_mlx5_get_qp(m_qp, &m_mlx5_qp)) {
-		qp_logpanic("vma_ib_mlx5_get_qp failed (errno=%d %m)", errno);
-	}
-#endif //DEFINED_SOCKETXTREME
 	if (m_p_cq_mgr_tx) {
 		m_p_cq_mgr_tx->add_qp_tx(this);
 	}

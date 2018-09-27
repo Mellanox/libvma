@@ -61,12 +61,11 @@ public:
 	virtual void	up();
 	virtual void	down();
 	virtual void    post_recv_buffer(mem_buf_desc_t* p_mem_buf_desc); // Post for receive single mem_buf_desc
-#ifndef DEFINED_SOCKETXTREME
 	vma_ib_mlx5_qp_t    m_mlx5_qp;
-#endif // DEFINED_SOCKETXTREME
 protected:
 	void		trigger_completion_for_all_sent_packets();
 	void		init_sq();
+
 	uint64_t*   m_sq_wqe_idx_to_wrid;
 	uint64_t    m_rq_wqe_counter;
 	uint64_t*   m_rq_wqe_idx_to_wrid;
