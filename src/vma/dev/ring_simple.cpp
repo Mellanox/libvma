@@ -1155,9 +1155,8 @@ int ring_simple::socketxtreme_poll(struct vma_completion_t *vma_completions, uns
 				 * in right order. It is done to avoid locking and
 				 * may be it is not so critical
 				 */
-#ifdef DEFINED_SOCKETXTREME
 				mem_buf_desc_t *desc;
-				if (likely(m_p_cq_mgr_rx->socketxtreme_and_process_element_rx(&desc))) {
+				if (likely(m_p_cq_mgr_rx->poll_and_process_element_rx(&desc))) {
 					desc->rx.socketxtreme_polled = true;
 					rx_process_buffer(desc, NULL);
 					if (m_socketxtreme.completion->events) {
@@ -1167,7 +1166,6 @@ int ring_simple::socketxtreme_poll(struct vma_completion_t *vma_completions, uns
 				} else {
 					break;
 				}
-#endif // DEFINED_SOCKETXTREME
 			}
 		}
 
