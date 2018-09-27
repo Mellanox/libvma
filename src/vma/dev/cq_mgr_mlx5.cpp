@@ -417,7 +417,8 @@ int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=N
 				/* We process immediately all non udp/ip traffic.. */
 				if (procces_now) {
 					buff->rx.is_vma_thr = true;
-					if (!compensate_qp_poll_success(buff)) {
+					if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
+							!compensate_qp_poll_success(buff)) {
 						process_recv_buffer(buff, NULL);
 					}
 				}
@@ -425,7 +426,8 @@ int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=N
 					m_rx_queue.push_back(buff);
 					mem_buf_desc_t* buff_cur = m_rx_queue.front();
 					m_rx_queue.pop_front();
-					if (!compensate_qp_poll_success(buff_cur)) {
+					if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
+							!compensate_qp_poll_success(buff_cur)) {
 						m_rx_queue.push_front(buff_cur);
 					}
 				}
@@ -588,7 +590,8 @@ int cq_mgr_mlx5::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd
 		if (buff) {
 			++ret;
 			if (process_cq_element_rx(buff, status)) {
-				if (!compensate_qp_poll_success(buff)) {
+				if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
+						!compensate_qp_poll_success(buff)) {
 					process_recv_buffer(buff, pv_fd_ready_array);
 				}
 			}
