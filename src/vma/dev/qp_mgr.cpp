@@ -207,7 +207,7 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 
 	// Check device capabilities for max SG elements
 	uint32_t tx_max_inline = safe_mce_sys().tx_max_inline;
-	uint32_t rx_num_sge = (IS_SOCKETXTREME) ? 1 : MCE_DEFAULT_RX_NUM_SGE;
+	uint32_t rx_num_sge = (m_p_ring->is_socketxtreme() ? 1 : MCE_DEFAULT_RX_NUM_SGE);
 	uint32_t tx_num_sge = MCE_DEFAULT_TX_NUM_SGE;
 
 	qp_init_attr.cap.max_send_wr = m_tx_num_wr;
