@@ -274,7 +274,7 @@ int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=N
 
 		for (int i = 0; i < MCE_MAX_CQ_POLL_BATCH; ++i)
 		{
-			cqe_arr[i] = mlx5_get_cqe64();
+			cqe_arr[i] = get_cqe64();
 			if (cqe_arr[i]) {
 				++ret;
 				wmb();
@@ -727,20 +727,19 @@ inline struct mlx5_cqe64 *cq_mgr_mlx5::get_cqe64(struct mlx5_cqe64 **cqe_err)
 			((m_mlx5_cq.cq_ci & (m_mlx5_cq.cqe_count - 1)) << m_mlx5_cq.cqe_size_log));
 	uint8_t op_own = cqe->op_own;
 
-	if (unlikely((op_own & MLX5_CQE_OWNER_MASK) == !(m_mlx5_cq.cq_ci & m_mlx5_cq.cqe_count))) {
-		return NULL;
-	} else if (unlikely(op_own & 0x80)) {
-		if (cqe_err) {
-			*cqe_err = check_error_completion(cqe, &m_mlx5_cq.cq_ci, op_own);
-		}
-		return NULL;
+	if (likely(op_own >> 4 != MLX5_CQE_INVALID) &&
+			((op_own & MLX5_CQE_OWNER_MASK) != !(m_mlx5_cq.cq_ci & m_mlx5_cq.cqe_count))) {
+		++m_mlx5_cq.cq_ci;
+		rmb();
+		*m_mlx5_cq.dbrec = htonl(m_mlx5_cq.cq_ci);
+
+		return cqe;
+	}
+	if ((op_own & 0x80) && cqe_err) {
+		*cqe_err = check_error_completion(cqe, &m_mlx5_cq.cq_ci, op_own);
 	}
 
-	++m_mlx5_cq.cq_ci;
-	rmb();
-	*m_mlx5_cq.dbrec = htonl(m_mlx5_cq.cq_ci);
-
-	return cqe;
+	return NULL;
 }
 
 int cq_mgr_mlx5::poll_and_process_error_element_tx(struct mlx5_cqe64 *cqe, uint64_t* p_cq_poll_sn)
@@ -897,25 +896,6 @@ int cq_mgr_mlx5::poll_and_process_error_element_rx(struct mlx5_cqe64 *cqe, void*
 	m_rx_hot_buffer = NULL;
 
 	return 1;
-}
-
-inline struct mlx5_cqe64 *cq_mgr_mlx5::mlx5_get_cqe64(void)
-{
-	struct mlx5_cqe64 *cqe = (struct mlx5_cqe64 *)(((uint8_t*)m_mlx5_cq.cq_buf) +
-		((m_mlx5_cq.cq_ci & (m_mlx5_cq.cqe_count - 1)) << m_mlx5_cq.cqe_size_log));
-	uint8_t op_own = cqe->op_own;
-
-	if (unlikely((op_own & MLX5_CQE_OWNER_MASK) == !(m_mlx5_cq.cq_ci & m_mlx5_cq.cqe_count))) {
-		return NULL;
-	} else if (unlikely((op_own >> 4) == MLX5_CQE_INVALID)) {
-		return NULL;
-	}
-
-	++m_mlx5_cq.cq_ci;
-	rmb();
-	*m_mlx5_cq.dbrec = htonl(m_mlx5_cq.cq_ci);
-
-	return cqe;
 }
 
 #endif /* DEFINED_DIRECT_VERBS */
