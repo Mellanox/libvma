@@ -85,11 +85,6 @@ protected:
 	vma_ib_mlx5_cq_t            m_mlx5_cq;
 	inline struct mlx5_cqe64*   check_cqe(void);
 
-	uint32_t                    m_cq_size;
-	void*                       m_cqes;
-	volatile uint32_t*          m_cq_dbell;
-	int                         m_cqe_log_sz;
-
 private:
 	const uint32_t		m_n_sysvar_rx_num_wr_to_post_recv;
 	mem_buf_desc_t              *m_rx_hot_buffer;

@@ -55,10 +55,6 @@ cq_mgr_mlx5::cq_mgr_mlx5(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler,
 			 bool is_rx, bool call_configure):
 	cq_mgr(p_ring, p_ib_ctx_handler, cq_size, p_comp_event_channel, is_rx, call_configure)
 	,m_qp(NULL)
-	,m_cq_size(cq_size)
-	,m_cqes(NULL)
-	,m_cq_dbell(NULL)
-	,m_cqe_log_sz(0)
 	,m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv)
 	,m_rx_hot_buffer(NULL)
 {
@@ -134,7 +130,7 @@ mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
 			m_rx_hot_buffer = (mem_buf_desc_t *)m_qp->m_p_rq_wqe_idx_to_wrid[index];
 			m_qp->m_p_rq_wqe_idx_to_wrid[index] = 0;
 			prefetch((void*)m_rx_hot_buffer);
-			prefetch((uint8_t*)m_cqes + ((m_mlx5_cq.cq_ci & (m_cq_size - 1)) << m_cqe_log_sz));
+			prefetch((uint8_t*)m_mlx5_cq.cq_buf + ((m_mlx5_cq.cq_ci & (m_mlx5_cq.cqe_count - 1)) << m_mlx5_cq.cqe_size_log));
 		} else {
 #ifdef RDTSC_MEASURE_RX_VERBS_IDLE_POLL
 			RDTSC_TAKE_END(RDTSC_FLOW_RX_VERBS_IDLE_POLL);
@@ -157,7 +153,7 @@ mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
 		cqe64_to_mem_buff_desc(cqe, m_rx_hot_buffer, status);
 
 		++m_qp->m_mlx5_qp.rq.tail;
-		*m_cq_dbell = htonl(m_mlx5_cq.cq_ci & 0xffffff);
+		*m_mlx5_cq.dbrec = htonl(m_mlx5_cq.cq_ci & 0xffffff);
 
 		buff = m_rx_hot_buffer;
 		m_rx_hot_buffer = NULL;
@@ -182,7 +178,7 @@ mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
 		prefetch((void*)m_rx_hot_buffer);
 	}
 
-	prefetch((uint8_t*)m_cqes + ((m_mlx5_cq.cq_ci & (m_cq_size - 1)) << m_cqe_log_sz));
+	prefetch((uint8_t*)m_mlx5_cq.cq_buf + ((m_mlx5_cq.cq_ci & (m_mlx5_cq.cqe_count - 1)) << m_mlx5_cq.cqe_size_log));
 
 	return buff;
 }
@@ -282,7 +278,7 @@ int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=N
 			if (cqe_arr[i]) {
 				++ret;
 				wmb();
-				*m_cq_dbell = htonl(m_mlx5_cq.cq_ci);
+				*m_mlx5_cq.dbrec = htonl(m_mlx5_cq.cq_ci);
 				if (m_b_is_rx) {
 					++m_qp->m_mlx5_qp.rq.tail;
 				}
@@ -718,7 +714,7 @@ inline struct mlx5_cqe64* cq_mgr_mlx5::check_error_completion(struct mlx5_cqe64 
 	case MLX5_CQE_RESP_ERR:
 		++(*ci);
 		rmb();
-		*m_cq_dbell = htonl((*ci));
+		*m_mlx5_cq.dbrec = htonl((*ci));
 		return cqe;
 
 	case MLX5_CQE_INVALID:
@@ -729,12 +725,12 @@ inline struct mlx5_cqe64* cq_mgr_mlx5::check_error_completion(struct mlx5_cqe64 
 
 inline struct mlx5_cqe64 *cq_mgr_mlx5::get_cqe64(struct mlx5_cqe64 **cqe_err)
 {
-	struct mlx5_cqe64 *cqe = (struct mlx5_cqe64 *)(((uint8_t*)m_cqes) +
-			((m_mlx5_cq.cq_ci & (m_cq_size - 1)) << m_cqe_log_sz));
+	struct mlx5_cqe64 *cqe = (struct mlx5_cqe64 *)(((uint8_t*)m_mlx5_cq.cq_buf) +
+			((m_mlx5_cq.cq_ci & (m_mlx5_cq.cqe_count - 1)) << m_mlx5_cq.cqe_size_log));
 	uint8_t op_own = cqe->op_own;
 
 	*cqe_err = NULL;
-	if (unlikely((op_own & MLX5_CQE_OWNER_MASK) == !(m_mlx5_cq.cq_ci & m_cq_size))) {
+	if (unlikely((op_own & MLX5_CQE_OWNER_MASK) == !(m_mlx5_cq.cq_ci & m_mlx5_cq.cqe_count))) {
 		return NULL;
 	} else if (unlikely(op_own & 0x80)) {
 		*cqe_err = check_error_completion(cqe, &m_mlx5_cq.cq_ci, op_own);
@@ -743,7 +739,7 @@ inline struct mlx5_cqe64 *cq_mgr_mlx5::get_cqe64(struct mlx5_cqe64 **cqe_err)
 
 	++m_mlx5_cq.cq_ci;
 	rmb();
-	*m_cq_dbell = htonl(m_mlx5_cq.cq_ci);
+	*m_mlx5_cq.dbrec = htonl(m_mlx5_cq.cq_ci);
 
 	return cqe;
 }
@@ -831,12 +827,8 @@ void cq_mgr_mlx5::set_qp_rq(qp_mgr* qp)
 	if (0 != vma_ib_mlx5_get_cq(m_p_ibv_cq, &m_mlx5_cq)) {
 		cq_logpanic("vma_ib_mlx5_get_cq failed (errno=%d %m)", errno);
 	}
-	m_cq_dbell = m_mlx5_cq.dbrec;
-	m_cqes = m_mlx5_cq.cq_buf;
-	m_cq_size = m_mlx5_cq.cqe_count;
-	m_cqe_log_sz = m_mlx5_cq.cqe_size_log;
 
-	cq_logfunc("qp_mgr=%p m_cq_dbell=%p m_cqes=%p", m_qp, m_cq_dbell, m_cqes);
+	cq_logfunc("qp_mgr=%p m_mlx5_cq.dbrec=%p m_mlx5_cq.cq_buf=%p", m_qp, m_mlx5_cq.dbrec, m_mlx5_cq.cq_buf);
 }
 
 void cq_mgr_mlx5::add_qp_rx(qp_mgr* qp)
@@ -860,12 +852,8 @@ void cq_mgr_mlx5::add_qp_tx(qp_mgr* qp)
 	if (0 != vma_ib_mlx5_get_cq(m_p_ibv_cq, &m_mlx5_cq)) {
 		cq_logpanic("vma_ib_mlx5_get_cq failed (errno=%d %m)", errno);
 	}
-	m_cq_dbell = m_mlx5_cq.dbrec;
-	m_cqes = m_mlx5_cq.cq_buf;
-	m_cq_size = m_mlx5_cq.cqe_count;
-	m_cqe_log_sz = m_mlx5_cq.cqe_size_log;
 
-	cq_logfunc("qp_mgr=%p m_cq_dbell=%p m_cqes=%p", m_qp, m_cq_dbell, m_cqes);
+	cq_logfunc("qp_mgr=%p m_mlx5_cq.dbrec=%p m_mlx5_cq.cq_buf=%p", m_qp, m_mlx5_cq.dbrec, m_mlx5_cq.cq_buf);
 }
 
 bool cq_mgr_mlx5::fill_cq_hw_descriptors(struct hw_cq_data &data)
@@ -955,7 +943,7 @@ struct mlx5_cqe64 *cq_mgr_mlx5::mlx5_check_error_completion(struct mlx5_cqe64 *c
 		case MLX5_CQE_RESP_ERR:
 			++(*ci);
 			rmb();
-			*m_cq_dbell = htonl((*ci));
+			*m_mlx5_cq.dbrec = htonl((*ci));
 			return cqe;
 		default:
 			return NULL;
@@ -964,11 +952,11 @@ struct mlx5_cqe64 *cq_mgr_mlx5::mlx5_check_error_completion(struct mlx5_cqe64 *c
 
 inline struct mlx5_cqe64 *cq_mgr_mlx5::mlx5_get_cqe64(void)
 {
-	struct mlx5_cqe64 *cqe = (struct mlx5_cqe64 *)(((uint8_t*)m_cqes) +
-		((m_mlx5_cq.cq_ci & (m_cq_size - 1)) << m_cqe_log_sz));
+	struct mlx5_cqe64 *cqe = (struct mlx5_cqe64 *)(((uint8_t*)m_mlx5_cq.cq_buf) +
+		((m_mlx5_cq.cq_ci & (m_mlx5_cq.cqe_count - 1)) << m_mlx5_cq.cqe_size_log));
 	uint8_t op_own = cqe->op_own;
 
-	if (unlikely((op_own & MLX5_CQE_OWNER_MASK) == !(m_mlx5_cq.cq_ci & m_cq_size))) {
+	if (unlikely((op_own & MLX5_CQE_OWNER_MASK) == !(m_mlx5_cq.cq_ci & m_mlx5_cq.cqe_count))) {
 		return NULL;
 	} else if (unlikely((op_own >> 4) == MLX5_CQE_INVALID)) {
 		return NULL;
@@ -976,19 +964,19 @@ inline struct mlx5_cqe64 *cq_mgr_mlx5::mlx5_get_cqe64(void)
 
 	++m_mlx5_cq.cq_ci;
 	rmb();
-	*m_cq_dbell = htonl(m_mlx5_cq.cq_ci);
+	*m_mlx5_cq.dbrec = htonl(m_mlx5_cq.cq_ci);
 
 	return cqe;
 }
 
 inline struct mlx5_cqe64 *cq_mgr_mlx5::mlx5_get_cqe64(struct mlx5_cqe64 **cqe_err)
 {
-        struct mlx5_cqe64 *cqe = (struct mlx5_cqe64 *)(((uint8_t*)m_cqes) +
-                ((m_mlx5_cq.cq_ci & (m_cq_size - 1)) << m_cqe_log_sz));
+        struct mlx5_cqe64 *cqe = (struct mlx5_cqe64 *)(((uint8_t*)m_mlx5_cq.cq_buf) +
+                ((m_mlx5_cq.cq_ci & (m_mlx5_cq.cqe_count - 1)) << m_mlx5_cq.cqe_size_log));
         uint8_t op_own = cqe->op_own;
 
 	*cqe_err = NULL;
-	if (unlikely((op_own & MLX5_CQE_OWNER_MASK) == !(m_mlx5_cq.cq_ci & m_cq_size))) {
+	if (unlikely((op_own & MLX5_CQE_OWNER_MASK) == !(m_mlx5_cq.cq_ci & m_mlx5_cq.cqe_count))) {
 		return NULL;
 	} else if (unlikely(op_own & 0x80)) {
 		*cqe_err = mlx5_check_error_completion(cqe, &m_mlx5_cq.cq_ci, op_own);
@@ -997,7 +985,7 @@ inline struct mlx5_cqe64 *cq_mgr_mlx5::mlx5_get_cqe64(struct mlx5_cqe64 **cqe_er
 
 	++m_mlx5_cq.cq_ci;
 	rmb();
-	*m_cq_dbell = htonl(m_mlx5_cq.cq_ci);
+	*m_mlx5_cq.dbrec = htonl(m_mlx5_cq.cq_ci);
 
 	return cqe;
 }
