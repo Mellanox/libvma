@@ -622,6 +622,19 @@ void mce_sys_var::get_env_params()
 
 	read_hv();
 
+	/* Configure enable_socketxtreme as first because
+	 * this mode has some special predefined parameter limitations
+	 */
+	if((env_ptr = getenv(SYS_VAR_SOCKETXTREME )) != NULL) {
+		enable_socketxtreme = atoi(env_ptr) ? true : false;
+	}
+	if (enable_socketxtreme) {
+		/* Set following parameters as default for SocketXtreme mode */
+		rx_num_wr = 1024;
+		gro_streams_max = 0;
+		progress_engine_interval_msec = MCE_CQ_DRAIN_INTERVAL_DISABLED;
+	}
+
 	if ((env_ptr = getenv(SYS_VAR_SPEC)) != NULL){
 		mce_spec = (uint32_t)vma_spec::from_str(env_ptr, MCE_SPEC_NONE);
 	}
@@ -750,14 +763,6 @@ void mce_sys_var::get_env_params()
 	case MCE_SPEC_NONE:
 	default:
 		break;
-	}
-
-	if((env_ptr = getenv(SYS_VAR_SOCKETXTREME )) != NULL) {
-		enable_socketxtreme = atoi(env_ptr) ? true : false;
-	}
-	if (enable_socketxtreme) {
-		rx_num_wr = 1024;
-		gro_streams_max = 0;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_SPEC_PARAM1)) != NULL)
@@ -1064,6 +1069,11 @@ void mce_sys_var::get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_PROGRESS_ENGINE_INTERVAL)) != NULL)
 		progress_engine_interval_msec = (uint32_t)atoi(env_ptr);
+	if (enable_socketxtreme && (progress_engine_interval_msec != MCE_CQ_DRAIN_INTERVAL_DISABLED)) {
+		progress_engine_interval_msec = MCE_CQ_DRAIN_INTERVAL_DISABLED;
+		vlog_printf(VLOG_DEBUG,"%s parameter is forced to %d in case %s is enabled\n",
+				SYS_VAR_PROGRESS_ENGINE_INTERVAL, progress_engine_interval_msec, SYS_VAR_SOCKETXTREME);
+	}
 
 	if ((env_ptr = getenv(SYS_VAR_PROGRESS_ENGINE_WCE_MAX)) != NULL)
 		progress_engine_wce_max = (uint32_t)atoi(env_ptr);
