@@ -68,7 +68,6 @@ protected:
 
 	uint64_t*   m_sq_wqe_idx_to_wrid;
 	uint64_t    m_rq_wqe_counter;
-	uint64_t*   m_rq_wqe_idx_to_wrid;
 private:
 	cq_mgr*		init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_channel);
 	virtual cq_mgr*	init_tx_cq_mgr(void);

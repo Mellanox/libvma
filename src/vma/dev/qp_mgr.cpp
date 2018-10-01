@@ -65,7 +65,7 @@
 qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context,
 		const uint8_t port_num, const uint32_t tx_num_wr):
 	m_qp(NULL)
-	,m_p_rq_wqe_idx_to_wrid(NULL)
+	,m_rq_wqe_idx_to_wrid(NULL)
 	,m_p_ring((ring_simple*)p_ring)
 	,m_port_num((uint8_t)port_num)
 	,m_p_ib_ctx_handler((ib_ctx_handler*)p_context)

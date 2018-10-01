@@ -229,8 +229,8 @@ protected:
 
 protected:
 	ib_ctx_handler*		m_p_ib_ctx_handler;
-private:
 	const uint32_t		m_n_sysvar_rx_num_wr_to_post_recv;
+private:
 	struct ibv_comp_channel *m_comp_event_channel;
 	bool			m_b_notification_armed;
 	const uint32_t		m_n_sysvar_qp_compensation_level;
