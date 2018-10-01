@@ -180,11 +180,7 @@ ring_simple::ring_simple(int if_index, ring* parent, ring_type_t type):
 
 	memset(&m_cq_moderation_info, 0, sizeof(m_cq_moderation_info));
 
-#ifdef DEFINED_SOCKETXTREME
-        m_socketxtreme.active = true;
-#else
-        m_socketxtreme.active = false;
-#endif // DEFINED_SOCKETXTREME
+	m_socketxtreme.active = safe_mce_sys().enable_socketxtreme;
 	INIT_LIST_HEAD(&m_socketxtreme.ec_list);
 	m_socketxtreme.completion = NULL;
 }
