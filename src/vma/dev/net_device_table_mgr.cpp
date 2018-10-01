@@ -554,16 +554,7 @@ void net_device_table_mgr::handle_timer_expired(void* user_data)
 	int timer_type = (uint64_t)user_data;
 	switch (timer_type) {
 	case RING_PROGRESS_ENGINE_TIMER:
-#ifdef DEFINED_SOCKETXTREME
-#if 0 /* TODO: see explanation */
-		/* Do not call draining RX logic from internal thread for socketxtreme mode
-		 * It is disable by default
-		 * See: cq_mgr::drain_and_proccess()
-		 */
-#endif // 0
-#else
 		global_ring_drain_and_procces();
-#endif // DEFINED_SOCKETXTREME		
 		break;
 	case RING_ADAPT_CQ_MODERATION_TIMER:
 		global_ring_adapt_cq_moderation();

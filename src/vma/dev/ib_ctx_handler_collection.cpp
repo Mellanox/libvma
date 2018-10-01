@@ -120,13 +120,12 @@ void ib_ctx_handler_collection::update_tbl(const char *ifa_name)
 			continue;
 		}
 
-#ifdef DEFINED_SOCKETXTREME
 		// only support mlx5 device in this mode
-		if(strncmp(dev_list[i]->name, "mlx4", 4) == 0) {
+		if(safe_mce_sys().enable_socketxtreme && strncmp(dev_list[i]->name, "mlx4", 4) == 0) {
 			ibchc_logdbg("Blocking offload: mlx4 interfaces in socketxtreme mode");
 			continue;
 		}
-#endif // DEFINED_SOCKETXTREME
+
 		/* 3. Add new ib devices */
 		p_ib_ctx_handler = new ib_ctx_handler(&desc);
 		if (!p_ib_ctx_handler) {
