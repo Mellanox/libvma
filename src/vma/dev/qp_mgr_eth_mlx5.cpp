@@ -119,7 +119,6 @@ qp_mgr_eth_mlx5::qp_mgr_eth_mlx5(const ring_simple* p_ring,
         qp_mgr_eth(p_ring, p_context, port_num, p_rx_comp_event_channel, tx_num_wr, vlan, false)
         ,m_sq_wqe_idx_to_wrid(NULL)
         ,m_rq_wqe_counter(0)
-        ,m_rq_wqe_idx_to_wrid(NULL)
         ,m_sq_wqes(NULL)
         ,m_sq_wqe_hot(NULL)
         ,m_sq_wqes_end(NULL)
@@ -284,7 +283,6 @@ cq_mgr* qp_mgr_eth_mlx5::init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event
 		qp_logerr("Failed allocating m_rq_wqe_idx_to_wrid (errno=%d %m)", errno);
 		return NULL;
 	}
-	m_p_rq_wqe_idx_to_wrid = m_rq_wqe_idx_to_wrid;
 
 	return new cq_mgr_mlx5(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
 }

@@ -78,7 +78,7 @@ protected:
 	inline struct mlx5_cqe64*   check_cqe(void);
 
 private:
-	const uint32_t		m_n_sysvar_rx_num_wr_to_post_recv;
+	const bool                  m_b_sysvar_enable_socketxtreme;
 	mem_buf_desc_t              *m_rx_hot_buffer;
 
 	inline struct mlx5_cqe64*   get_cqe64(struct mlx5_cqe64 **cqe_err = NULL);

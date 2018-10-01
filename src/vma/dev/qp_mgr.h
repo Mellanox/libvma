@@ -142,7 +142,7 @@ public:
 	virtual bool        fill_hw_descriptors(vma_mlx_hw_device_data &data) {NOT_IN_USE(data);return false;};
 protected:
 	struct ibv_qp*      m_qp;
-	uint64_t*           m_p_rq_wqe_idx_to_wrid;
+	uint64_t*           m_rq_wqe_idx_to_wrid;
 
 	ring_simple*        m_p_ring;
 	uint8_t             m_port_num;
