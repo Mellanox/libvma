@@ -752,6 +752,14 @@ void mce_sys_var::get_env_params()
 		break;
 	}
 
+	if((env_ptr = getenv(SYS_VAR_SOCKETXTREME )) != NULL) {
+		enable_socketxtreme = atoi(env_ptr) ? true : false;
+	}
+	if (enable_socketxtreme) {
+		rx_num_wr = 1024;
+		gro_streams_max = 0;
+	}
+
 	if ((env_ptr = getenv(SYS_VAR_SPEC_PARAM1)) != NULL)
 		mce_spec_param1 = (uint32_t)atoi(env_ptr);
 
@@ -1208,9 +1216,6 @@ void mce_sys_var::get_env_params()
 
 	if((env_ptr = getenv(SYS_VAR_IPOIB )) != NULL)
 		enable_ipoib = atoi(env_ptr) ? true : false;
-
-	if((env_ptr = getenv(SYS_VAR_SOCKETXTREME )) != NULL)
-		enable_socketxtreme = atoi(env_ptr) ? true : false;
 
 	if ((env_ptr = getenv(SYS_VAR_CLOSE_ON_DUP2)) != NULL)
 		close_on_dup2 = atoi(env_ptr) ? true : false;
