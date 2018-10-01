@@ -375,10 +375,18 @@ int vma_free_packets(int __fd, struct vma_packet_t *pkts, size_t count)
 	return -1;
 }
 
+static int dummy_vma_socketxtreme_poll(int fd, struct vma_completion_t* completions, unsigned int ncompletions, int flags)
+{
+	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG,
+			"socketXtreme was not enabled during runtime. Set %s to use. Ignoring...", SYS_VAR_SOCKETXTREME,
+			fd, completions, ncompletions, flags);
+	errno = EOPNOTSUPP;
+	return -1;
+}
+
 extern "C"
 int vma_socketxtreme_poll(int fd, struct vma_completion_t* completions, unsigned int ncompletions, int flags)
 {
-#ifdef DEFINED_SOCKETXTREME
 	int ret_val = -1;
 	cq_channel_info* cq_ch_info = NULL;
 
@@ -409,17 +417,20 @@ int vma_socketxtreme_poll(int fd, struct vma_completion_t* completions, unsigned
 		errno = EBADFD;
 		return ret_val;
 	}
-#else
-	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG, "socketXtreme was not enabled during configuration time. ignoring...", fd, completions, ncompletions, flags);
+}
+
+static int dummy_vma_socketxtreme_free_vma_packets(struct vma_packet_desc_t *packets, int num)
+{
+	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG,
+			"socketXtreme was not enabled during runtime. Set %s to use. Ignoring...", SYS_VAR_SOCKETXTREME,
+			packets, num);
 	errno = EOPNOTSUPP;
 	return -1;
-#endif // DEFINED_SOCKETXTREME
 }
 
 extern "C"
 int vma_socketxtreme_free_vma_packets(struct vma_packet_desc_t *packets, int num)
 {
-#ifdef DEFINED_SOCKETXTREME
 	mem_buf_desc_t* desc = NULL;
 	socket_fd_api* p_socket_object = NULL;
 
@@ -451,17 +462,20 @@ int vma_socketxtreme_free_vma_packets(struct vma_packet_desc_t *packets, int num
 err:
 	errno = EINVAL;
 	return -1;
-#else
-	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG, "socketXtreme was not enabled during configuration time. ignoring...", packets, num);
+}
+
+static int dummy_vma_socketxtreme_ref_vma_buff(vma_buff_t *buff)
+{
+	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG,
+			"socketXtreme was not enabled during runtime. Set %s to use. Ignoring...", SYS_VAR_SOCKETXTREME,
+			buff);
 	errno = EOPNOTSUPP;
 	return -1;
-#endif // DEFINED_SOCKETXTREME
 }
 
 extern "C"
 int vma_socketxtreme_ref_vma_buff(vma_buff_t *buff)
 {
-#ifdef DEFINED_SOCKETXTREME
 	int ret_val = 0;
 	mem_buf_desc_t* desc = NULL;
 
@@ -474,17 +488,20 @@ int vma_socketxtreme_ref_vma_buff(vma_buff_t *buff)
 		ret_val = -1;
 	}
 	return ret_val;
-#else
-	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG, "socketXtreme was not enabled during configuration time. ignoring...", buff);
+}
+
+static int dummy_vma_socketxtreme_free_vma_buff(vma_buff_t *buff)
+{
+	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG,
+			"socketXtreme was not enabled during runtime. Set %s to use. Ignoring...", SYS_VAR_SOCKETXTREME,
+			buff);
 	errno = EOPNOTSUPP;
 	return -1;
-#endif // DEFINED_SOCKETXTREME
 }
 
 extern "C"
 int vma_socketxtreme_free_vma_buff(vma_buff_t *buff)
 {
-#ifdef DEFINED_SOCKETXTREME
 	int ret_val = 0;
 	mem_buf_desc_t* desc = NULL;
 
@@ -498,11 +515,6 @@ int vma_socketxtreme_free_vma_buff(vma_buff_t *buff)
 		ret_val = -1;
 	}
 	return ret_val;
-#else
-	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG, "socketXtreme was not enabled during configuration time. ignoring...", buff);
-	errno = EOPNOTSUPP;
-	return -1;
-#endif // DEFINED_SOCKETXTREME
 }
 
 extern "C"
@@ -1057,10 +1069,18 @@ int getsockopt(int __fd, int __level, int __optname,
 		vma_api->get_ring_direct_descriptors = vma_get_ring_direct_descriptors;
 		vma_api->register_memory_on_ring = vma_reg_mr_on_ring;
 		vma_api->deregister_memory_on_ring = vma_dereg_mr_on_ring;
-		vma_api->socketxtreme_free_vma_packets = vma_socketxtreme_free_vma_packets;
-		vma_api->socketxtreme_poll = vma_socketxtreme_poll;
-		vma_api->socketxtreme_ref_vma_buff = vma_socketxtreme_ref_vma_buff;
-		vma_api->socketxtreme_free_vma_buff = vma_socketxtreme_free_vma_buff;
+		vma_api->socketxtreme_free_vma_packets = (safe_mce_sys().enable_socketxtreme ?
+				vma_socketxtreme_free_vma_packets :
+				dummy_vma_socketxtreme_free_vma_packets);
+		vma_api->socketxtreme_poll = (safe_mce_sys().enable_socketxtreme ?
+				vma_socketxtreme_poll :
+				dummy_vma_socketxtreme_poll);
+		vma_api->socketxtreme_ref_vma_buff = (safe_mce_sys().enable_socketxtreme ?
+				vma_socketxtreme_ref_vma_buff :
+				dummy_vma_socketxtreme_ref_vma_buff);
+		vma_api->socketxtreme_free_vma_buff = (safe_mce_sys().enable_socketxtreme ?
+				vma_socketxtreme_free_vma_buff :
+				dummy_vma_socketxtreme_free_vma_buff);
 		vma_api->dump_fd_stats = vma_dump_fd_stats;
 		vma_api->vma_cyclic_buffer_read = vma_cyclic_buffer_read;
 		vma_api->get_mem_info = vma_get_mem_info;
