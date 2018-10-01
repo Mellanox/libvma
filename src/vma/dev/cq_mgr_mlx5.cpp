@@ -55,7 +55,7 @@ cq_mgr_mlx5::cq_mgr_mlx5(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler,
 			 bool is_rx, bool call_configure):
 	cq_mgr(p_ring, p_ib_ctx_handler, cq_size, p_comp_event_channel, is_rx, call_configure)
 	,m_qp(NULL)
-	,m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv)
+	,m_b_sysvar_enable_socketxtreme(safe_mce_sys().enable_socketxtreme)
 	,m_rx_hot_buffer(NULL)
 {
 	cq_logfunc("");
@@ -123,8 +123,8 @@ mem_buf_desc_t* cq_mgr_mlx5::poll(enum buff_status_e& status)
 	if (unlikely(NULL == m_rx_hot_buffer)) {
 		if (likely(m_qp->m_mlx5_qp.rq.tail != (m_qp->m_mlx5_qp.rq.head))) {
 			uint32_t index = m_qp->m_mlx5_qp.rq.tail & (m_qp_rec.qp->m_rx_num_wr - 1);
-			m_rx_hot_buffer = (mem_buf_desc_t *)m_qp->m_p_rq_wqe_idx_to_wrid[index];
-			m_qp->m_p_rq_wqe_idx_to_wrid[index] = 0;
+			m_rx_hot_buffer = (mem_buf_desc_t *)m_qp->m_rq_wqe_idx_to_wrid[index];
+			m_qp->m_rq_wqe_idx_to_wrid[index] = 0;
 			prefetch((void*)m_rx_hot_buffer);
 			prefetch((uint8_t*)m_mlx5_cq.cq_buf + ((m_mlx5_cq.cq_ci & (m_mlx5_cq.cqe_count - 1)) << m_mlx5_cq.cqe_size_log));
 		} else {
@@ -241,120 +241,7 @@ inline void cq_mgr_mlx5::cqe64_to_mem_buff_desc(struct mlx5_cqe64 *cqe, mem_buf_
 
 int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/)
 {
-#ifdef DEFINED_SOCKETXTREME
 	cq_logfuncall("cq was %s drained. %d processed wce since last check. %d wce in m_rx_queue", (m_b_was_drained?"":"not "), m_n_wce_counter, m_rx_queue.size());
-
-	// CQ polling loop until max wce limit is reached for this interval or CQ is drained
-	uint32_t ret_total = 0;
-	//uint64_t cq_poll_sn = 0;
-
-	if (p_recycle_buffers_last_wr_id != NULL) {
-		m_b_was_drained = false;
-	}
-
-	while ((m_n_sysvar_progress_engine_wce_max && (m_n_sysvar_progress_engine_wce_max > m_n_wce_counter)) &&
-		!m_b_was_drained) {
-		int ret = 0;
-		mlx5_cqe64 *cqe_arr[MCE_MAX_CQ_POLL_BATCH];
-
-		for (int i = 0; i < MCE_MAX_CQ_POLL_BATCH; ++i)
-		{
-			cqe_arr[i] = get_cqe64();
-			if (cqe_arr[i]) {
-				++ret;
-				wmb();
-				*m_mlx5_cq.dbrec = htonl(m_mlx5_cq.cq_ci);
-				if (m_b_is_rx) {
-					++m_qp->m_mlx5_qp.rq.tail;
-				}
-			}
-			else {
-				break;
-			}
-		}
-
-		if (!ret) {
-			m_b_was_drained = true;
-			return ret_total;
-		}
-
-
-		m_n_wce_counter += ret;
-		if (ret < MCE_MAX_CQ_POLL_BATCH)
-			m_b_was_drained = true;
-
-		for (int i = 0; i < ret; i++) {
-			uint32_t wqe_sz = 0;
-			mlx5_cqe64 *cqe = cqe_arr[i];
-			vma_ibv_wc wce;
-
-			uint16_t wqe_ctr = ntohs(cqe->wqe_counter);
-			if (m_b_is_rx) {
-				wqe_sz = m_qp->m_rx_num_wr;
-			}
-			else {
-				wqe_sz = m_qp->m_tx_num_wr;
-			}
-
-			int index = wqe_ctr & (wqe_sz - 1);
-
-			/* We need to processes rx data in case
-			 * wce.status == IBV_WC_SUCCESS
-			 * and release buffers to rx pool
-			 * in case failure
-			 */
-			m_rx_hot_buffer = (mem_buf_desc_t*)(uintptr_t)m_qp->m_p_rq_wqe_idx_to_wrid[index];
-			memset(&wce, 0, sizeof(wce));
-			wce.wr_id = (uintptr_t)m_rx_hot_buffer;
-			cqe64_to_vma_wc(cqe, &wce);
-
-			m_rx_hot_buffer = cq_mgr::process_cq_element_rx(&wce);
-			if (m_rx_hot_buffer) {
-				if (p_recycle_buffers_last_wr_id) {
-					m_p_cq_stat->n_rx_pkt_drop++;
-					reclaim_recv_buffer_helper(m_rx_hot_buffer);
-				} else {
-					bool procces_now = false;
-					if (m_transport_type == VMA_TRANSPORT_ETH) {
-						procces_now = is_eth_tcp_frame(m_rx_hot_buffer);
-					}
-					if (m_transport_type == VMA_TRANSPORT_IB) {
-						procces_now = is_ib_tcp_frame(m_rx_hot_buffer);
-					}
-					// We process immediately all non udp/ip traffic..
-					if (procces_now) {
-						m_rx_hot_buffer->rx.is_vma_thr = true;
-						if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
-							!compensate_qp_poll_success(m_rx_hot_buffer)) {
-							process_recv_buffer(m_rx_hot_buffer, NULL);
-						}
-					}
-					else { //udp/ip traffic we just put in the cq's rx queue
-						m_rx_queue.push_back(m_rx_hot_buffer);
-						mem_buf_desc_t* buff_cur = m_rx_queue.get_and_pop_front();
-						if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
-							!compensate_qp_poll_success(buff_cur)) {
-							m_rx_queue.push_front(buff_cur);
-						}
-					}
-				}
-			}
-			if (p_recycle_buffers_last_wr_id) {
-				*p_recycle_buffers_last_wr_id = (uintptr_t)wce.wr_id;
-			}
-		}
-		ret_total += ret;
-	}
-	m_n_wce_counter = 0;
-	m_b_was_drained = false;
-
-	// Update cq statistics
-	m_p_cq_stat->n_rx_sw_queue_len = m_rx_queue.size();
-	m_p_cq_stat->n_rx_drained_at_once_max = std::max(ret_total, m_p_cq_stat->n_rx_drained_at_once_max);
-
-	return ret_total;
-#else
-	cq_logfuncall("cq was %sdrained. %d processed wce since last check. %d wce in m_rx_queue", (m_b_was_drained?"":"not "), m_n_wce_counter, m_rx_queue.size());
 
 	/* CQ polling loop until max wce limit is reached for this interval or CQ is drained */
 	uint32_t ret_total = 0;
@@ -364,71 +251,170 @@ int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=N
 		m_b_was_drained = false;
 	}
 
-	while ((m_n_sysvar_progress_engine_wce_max > m_n_wce_counter) &&
-		!m_b_was_drained) {
-		buff_status_e status = BS_OK;
-		mem_buf_desc_t* buff = poll(status);
-		if (NULL == buff) {
-			update_global_sn(cq_poll_sn, ret_total);
-			m_b_was_drained = true;
-			m_p_ring->m_gro_mgr.flush_all(NULL);
-			return ret_total;
-		}
+	if (m_b_sysvar_enable_socketxtreme) {
+		while ((m_n_sysvar_progress_engine_wce_max && (m_n_sysvar_progress_engine_wce_max > m_n_wce_counter)) &&
+			!m_b_was_drained) {
+			int ret = 0;
+			mlx5_cqe64 *cqe_arr[MCE_MAX_CQ_POLL_BATCH];
 
-		++m_n_wce_counter;
-
-		if (process_cq_element_rx(buff, status)) {
-			if (p_recycle_buffers_last_wr_id) {
-				m_p_cq_stat->n_rx_pkt_drop++;
-				reclaim_recv_buffer_helper(buff);
-			} else {
-				bool procces_now = false;
-				if (m_transport_type == VMA_TRANSPORT_ETH) {
-					procces_now = is_eth_tcp_frame(buff);
-				}
-				if (m_transport_type == VMA_TRANSPORT_IB) {
-					procces_now = is_ib_tcp_frame(buff);
-				}
-				/* We process immediately all non udp/ip traffic.. */
-				if (procces_now) {
-					buff->rx.is_vma_thr = true;
-					if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
-							!compensate_qp_poll_success(buff)) {
-						process_recv_buffer(buff, NULL);
+			for (int i = 0; i < MCE_MAX_CQ_POLL_BATCH; ++i)
+			{
+				cqe_arr[i] = get_cqe64();
+				if (cqe_arr[i]) {
+					++ret;
+					wmb();
+					*m_mlx5_cq.dbrec = htonl(m_mlx5_cq.cq_ci);
+					if (m_b_is_rx) {
+						++m_qp->m_mlx5_qp.rq.tail;
 					}
 				}
-				else { /* udp/ip traffic we just put in the cq's rx queue */
-					m_rx_queue.push_back(buff);
-					mem_buf_desc_t* buff_cur = m_rx_queue.front();
-					m_rx_queue.pop_front();
-					if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
-							!compensate_qp_poll_success(buff_cur)) {
-						m_rx_queue.push_front(buff_cur);
+				else {
+					break;
+				}
+			}
+
+			if (!ret) {
+				m_b_was_drained = true;
+				return ret_total;
+			}
+
+
+			m_n_wce_counter += ret;
+			if (ret < MCE_MAX_CQ_POLL_BATCH)
+				m_b_was_drained = true;
+
+			for (int i = 0; i < ret; i++) {
+				uint32_t wqe_sz = 0;
+				mlx5_cqe64 *cqe = cqe_arr[i];
+				vma_ibv_wc wce;
+
+				uint16_t wqe_ctr = ntohs(cqe->wqe_counter);
+				if (m_b_is_rx) {
+					wqe_sz = m_qp->m_rx_num_wr;
+				}
+				else {
+					wqe_sz = m_qp->m_tx_num_wr;
+				}
+
+				int index = wqe_ctr & (wqe_sz - 1);
+
+				/* We need to processes rx data in case
+				 * wce.status == IBV_WC_SUCCESS
+				 * and release buffers to rx pool
+				 * in case failure
+				 */
+				m_rx_hot_buffer = (mem_buf_desc_t*)(uintptr_t)m_qp->m_rq_wqe_idx_to_wrid[index];
+				memset(&wce, 0, sizeof(wce));
+				wce.wr_id = (uintptr_t)m_rx_hot_buffer;
+				cqe64_to_vma_wc(cqe, &wce);
+
+				m_rx_hot_buffer = cq_mgr::process_cq_element_rx(&wce);
+				if (m_rx_hot_buffer) {
+					if (p_recycle_buffers_last_wr_id) {
+						m_p_cq_stat->n_rx_pkt_drop++;
+						reclaim_recv_buffer_helper(m_rx_hot_buffer);
+					} else {
+						bool procces_now = false;
+						if (m_transport_type == VMA_TRANSPORT_ETH) {
+							procces_now = is_eth_tcp_frame(m_rx_hot_buffer);
+						}
+						if (m_transport_type == VMA_TRANSPORT_IB) {
+							procces_now = is_ib_tcp_frame(m_rx_hot_buffer);
+						}
+						// We process immediately all non udp/ip traffic..
+						if (procces_now) {
+							m_rx_hot_buffer->rx.is_vma_thr = true;
+							if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
+								!compensate_qp_poll_success(m_rx_hot_buffer)) {
+								process_recv_buffer(m_rx_hot_buffer, NULL);
+							}
+						}
+						else { //udp/ip traffic we just put in the cq's rx queue
+							m_rx_queue.push_back(m_rx_hot_buffer);
+							mem_buf_desc_t* buff_cur = m_rx_queue.get_and_pop_front();
+							if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
+								!compensate_qp_poll_success(buff_cur)) {
+								m_rx_queue.push_front(buff_cur);
+							}
+						}
+					}
+				}
+				if (p_recycle_buffers_last_wr_id) {
+					*p_recycle_buffers_last_wr_id = (uintptr_t)wce.wr_id;
+				}
+			}
+			ret_total += ret;
+		}
+	} else {
+		if (p_recycle_buffers_last_wr_id != NULL) {
+			m_b_was_drained = false;
+		}
+
+		while ((m_n_sysvar_progress_engine_wce_max > m_n_wce_counter) &&
+			!m_b_was_drained) {
+			buff_status_e status = BS_OK;
+			mem_buf_desc_t* buff = poll(status);
+			if (NULL == buff) {
+				update_global_sn(cq_poll_sn, ret_total);
+				m_b_was_drained = true;
+				m_p_ring->m_gro_mgr.flush_all(NULL);
+				return ret_total;
+			}
+
+			++m_n_wce_counter;
+
+			if (process_cq_element_rx(buff, status)) {
+				if (p_recycle_buffers_last_wr_id) {
+					m_p_cq_stat->n_rx_pkt_drop++;
+					reclaim_recv_buffer_helper(buff);
+				} else {
+					bool procces_now = false;
+					if (m_transport_type == VMA_TRANSPORT_ETH) {
+						procces_now = is_eth_tcp_frame(buff);
+					}
+					if (m_transport_type == VMA_TRANSPORT_IB) {
+						procces_now = is_ib_tcp_frame(buff);
+					}
+					/* We process immediately all non udp/ip traffic.. */
+					if (procces_now) {
+						buff->rx.is_vma_thr = true;
+						if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
+								!compensate_qp_poll_success(buff)) {
+							process_recv_buffer(buff, NULL);
+						}
+					}
+					else { /* udp/ip traffic we just put in the cq's rx queue */
+						m_rx_queue.push_back(buff);
+						mem_buf_desc_t* buff_cur = m_rx_queue.front();
+						m_rx_queue.pop_front();
+						if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
+								!compensate_qp_poll_success(buff_cur)) {
+							m_rx_queue.push_front(buff_cur);
+						}
 					}
 				}
 			}
+
+			if (p_recycle_buffers_last_wr_id) {
+				*p_recycle_buffers_last_wr_id = (uintptr_t)buff;
+			}
+
+			++ret_total;
 		}
 
-		if (p_recycle_buffers_last_wr_id) {
-			*p_recycle_buffers_last_wr_id = (uintptr_t)buff;
-		}
+		update_global_sn(cq_poll_sn, ret_total);
 
-		++ret_total;
+		m_p_ring->m_gro_mgr.flush_all(NULL);
 	}
-
-	update_global_sn(cq_poll_sn, ret_total);
-
-	m_p_ring->m_gro_mgr.flush_all(NULL);
 
 	m_n_wce_counter = 0;
 	m_b_was_drained = false;
 
-	/* Update cq statistics */
+	// Update cq statistics
 	m_p_cq_stat->n_rx_sw_queue_len = m_rx_queue.size();
 	m_p_cq_stat->n_rx_drained_at_once_max = std::max(ret_total, m_p_cq_stat->n_rx_drained_at_once_max);
 
 	return ret_total;
-#endif // DEFINED_SOCKETXTREME
 }
 
 inline void cq_mgr_mlx5::update_global_sn(uint64_t& cq_poll_sn, uint32_t num_polled_cqes)
@@ -493,57 +479,6 @@ int cq_mgr_mlx5::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd
 	/* Assume locked!!! */
 	cq_logfuncall("");
 
-#ifdef DEFINED_SOCKETXTREME
-	NOT_IN_USE(p_cq_poll_sn);
-
-	/* coverity[stack_use_local_overflow] */
-	uint32_t ret_rx_processed = process_recv_queue(pv_fd_ready_array);
-	if (unlikely(ret_rx_processed >= m_n_sysvar_cq_poll_batch_max)) {
-		m_p_ring->m_gro_mgr.flush_all(pv_fd_ready_array);
-		return ret_rx_processed;
-	}
-
-	if (m_p_next_rx_desc_poll) {
-		prefetch_range((uint8_t*)m_p_next_rx_desc_poll->p_buffer,safe_mce_sys().rx_prefetch_bytes_before_poll);
-	}
-
-	if (unlikely(m_rx_hot_buffer == NULL)) {
-		int index = m_qp->m_mlx5_qp.rq.tail & (m_qp->m_rx_num_wr - 1);
-		m_rx_hot_buffer = (mem_buf_desc_t*)(uintptr_t)m_qp->m_p_rq_wqe_idx_to_wrid[index];
-		m_rx_hot_buffer->rx.context = NULL;
-		m_rx_hot_buffer->rx.is_vma_thr = false;
-		m_rx_hot_buffer->rx.socketxtreme_polled = false;
-	}
-	else {
-		mlx5_cqe64 *cqe_err = NULL;
-		mlx5_cqe64 *cqe = get_cqe64(&cqe_err);
-
-		if (likely(cqe)) {
-			++m_n_wce_counter;
-			++m_qp->m_mlx5_qp.rq.tail;
-			m_rx_hot_buffer->sz_data = ntohl(cqe->byte_cnt);
-			m_rx_hot_buffer->rx.flow_tag_id = vma_get_flow_tag(cqe);
-			m_rx_hot_buffer->rx.is_sw_csum_need = !(m_b_is_rx_hw_csum_on &&
-					(cqe->hds_ip_ext & MLX5_CQE_L4_OK) && (cqe->hds_ip_ext & MLX5_CQE_L3_OK));
-
-			if (unlikely(++m_qp_rec.debt >= (int)m_n_sysvar_rx_num_wr_to_post_recv)) {
-				compensate_qp_poll_success(m_rx_hot_buffer);
-			}
-			process_recv_buffer(m_rx_hot_buffer, pv_fd_ready_array);
-			++ret_rx_processed;
-			m_rx_hot_buffer = NULL;
-		}
-		else if (cqe_err) {
-			ret_rx_processed += poll_and_process_error_element_rx(cqe_err, pv_fd_ready_array);
-		}
-		else {
-			compensate_qp_poll_failed();
-		}
-
-	}
-
-	return ret_rx_processed;
-#else
 	uint32_t ret_rx_processed = process_recv_queue(pv_fd_ready_array);
 	if (unlikely(ret_rx_processed >= m_n_sysvar_cq_poll_batch_max)) {
 		m_p_ring->m_gro_mgr.flush_all(pv_fd_ready_array);
@@ -554,36 +489,72 @@ int cq_mgr_mlx5::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd
 		prefetch_range((uint8_t*)m_p_next_rx_desc_poll->p_buffer, m_n_sysvar_rx_prefetch_bytes_before_poll);
 	}
 
-	buff_status_e status = BS_OK;
-	uint32_t ret = 0;
-	while (ret < m_n_sysvar_cq_poll_batch_max) {
-		mem_buf_desc_t *buff = poll(status);
-		if (buff) {
-			++ret;
-			if (process_cq_element_rx(buff, status)) {
-				if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
-						!compensate_qp_poll_success(buff)) {
-					process_recv_buffer(buff, pv_fd_ready_array);
+	if (m_b_sysvar_enable_socketxtreme) {
+		if (unlikely(m_rx_hot_buffer == NULL)) {
+			int index = m_qp->m_mlx5_qp.rq.tail & (m_qp->m_rx_num_wr - 1);
+			m_rx_hot_buffer = (mem_buf_desc_t*)(uintptr_t)m_qp->m_rq_wqe_idx_to_wrid[index];
+			m_rx_hot_buffer->rx.context = NULL;
+			m_rx_hot_buffer->rx.is_vma_thr = false;
+			m_rx_hot_buffer->rx.socketxtreme_polled = false;
+		}
+		else {
+			mlx5_cqe64 *cqe_err = NULL;
+			mlx5_cqe64 *cqe = get_cqe64(&cqe_err);
+
+			if (likely(cqe)) {
+				++m_n_wce_counter;
+				++m_qp->m_mlx5_qp.rq.tail;
+				m_rx_hot_buffer->sz_data = ntohl(cqe->byte_cnt);
+				m_rx_hot_buffer->rx.flow_tag_id = vma_get_flow_tag(cqe);
+				m_rx_hot_buffer->rx.is_sw_csum_need = !(m_b_is_rx_hw_csum_on &&
+						(cqe->hds_ip_ext & MLX5_CQE_L4_OK) && (cqe->hds_ip_ext & MLX5_CQE_L3_OK));
+
+				if (unlikely(++m_qp_rec.debt >= (int)m_n_sysvar_rx_num_wr_to_post_recv)) {
+					(void)compensate_qp_poll_success(m_rx_hot_buffer);
 				}
+				process_recv_buffer(m_rx_hot_buffer, pv_fd_ready_array);
+				++ret_rx_processed;
+				m_rx_hot_buffer = NULL;
 			}
+			else if (cqe_err) {
+				ret_rx_processed += poll_and_process_error_element_rx(cqe_err, pv_fd_ready_array);
+			}
+			else {
+				compensate_qp_poll_failed();
+			}
+
+		}
+	} else {
+		buff_status_e status = BS_OK;
+		uint32_t ret = 0;
+		while (ret < m_n_sysvar_cq_poll_batch_max) {
+			mem_buf_desc_t *buff = poll(status);
+			if (buff) {
+				++ret;
+				if (process_cq_element_rx(buff, status)) {
+					if ((++m_qp_rec.debt < (int)m_n_sysvar_rx_num_wr_to_post_recv) ||
+							!compensate_qp_poll_success(buff)) {
+						process_recv_buffer(buff, pv_fd_ready_array);
+					}
+				}
+			} else {
+				m_b_was_drained = true;
+				break;
+			}
+		}
+
+		update_global_sn(*p_cq_poll_sn, ret);
+
+		if (likely(ret > 0)) {
+			ret_rx_processed += ret;
+			m_n_wce_counter += ret;
+			m_p_ring->m_gro_mgr.flush_all(pv_fd_ready_array);
 		} else {
-			m_b_was_drained = true;
-			break;
+			compensate_qp_poll_failed();
 		}
 	}
 
-	update_global_sn(*p_cq_poll_sn, ret);
-
-	if (likely(ret > 0)) {
-		ret_rx_processed += ret;
-		m_n_wce_counter += ret;
-		m_p_ring->m_gro_mgr.flush_all(pv_fd_ready_array);
-	} else {
-		compensate_qp_poll_failed();
-	}
-
 	return ret_rx_processed;
-#endif // DEFINED_SOCKETXTREME
 }
 
 int cq_mgr_mlx5::poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
@@ -592,7 +563,7 @@ int cq_mgr_mlx5::poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 
 	if (unlikely(m_rx_hot_buffer == NULL)) {
 		int index = m_qp->m_mlx5_qp.rq.tail & (m_qp->m_rx_num_wr - 1);
-		m_rx_hot_buffer = (mem_buf_desc_t*)(uintptr_t)m_qp->m_p_rq_wqe_idx_to_wrid[index];
+		m_rx_hot_buffer = (mem_buf_desc_t*)(uintptr_t)m_qp->m_rq_wqe_idx_to_wrid[index];
 		m_rx_hot_buffer->rx.context = NULL;
 		m_rx_hot_buffer->rx.is_vma_thr = false;
 	}
@@ -621,7 +592,7 @@ int cq_mgr_mlx5::poll_and_process_element_rx(mem_buf_desc_t **p_desc_lst)
 		m_rx_hot_buffer->rx.is_sw_csum_need = !(m_b_is_rx_hw_csum_on && (cqe->hds_ip_ext & MLX5_CQE_L4_OK) && (cqe->hds_ip_ext & MLX5_CQE_L3_OK));
 
 		if (unlikely(++m_qp_rec.debt >= (int)m_n_sysvar_rx_num_wr_to_post_recv)) {
-			compensate_qp_poll_success(m_rx_hot_buffer);
+			(void)compensate_qp_poll_success(m_rx_hot_buffer);
 		}
 		++packets_num;
 		*p_desc_lst = m_rx_hot_buffer;
