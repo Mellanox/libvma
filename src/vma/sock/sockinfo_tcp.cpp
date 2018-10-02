@@ -2096,12 +2096,6 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 		return -1;
 	}
 
-#ifndef DEFINED_SOCKETXTREME	// if not defined
-	if (m_rx_ring_map.size() == 1) {
-		rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.begin();
-		m_p_rx_ring = rx_ring_iter->first;
-	}
-#endif // DEFINED_SOCKETXTREME
 	in_addr_t peer_ip_addr = m_connected.get_in_addr();
 	fit_rcv_wnd(true);
 
@@ -2350,26 +2344,6 @@ int sockinfo_tcp::listen(int backlog)
 	tcp_clone_conn((struct tcp_pcb_listen*)(&m_pcb), sockinfo_tcp::clone_conn_cb);
 
 	bool success = attach_as_uc_receiver(ROLE_TCP_SERVER);
-#ifndef DEFINED_SOCKETXTREME // if not defiend
-/*TODO ALEXR
- *
- 	if (attach_as_uc_receiver(ROLE_TCP_SERVER)) {
-		si_tcp_logdbg("Fallback the connection to os");
-		setPassthrough();
-		return orig_os_api.listen(m_fd, orig_backlog);
-	}
-*/
-	if (m_rx_ring_map.size()) {
-		if (m_rx_ring_map.size() == 1) {
-			rx_ring_map_t::iterator rx_ring_iter = m_rx_ring_map.begin();
-			m_p_rx_ring = rx_ring_iter->first;
-		}
-		si_tcp_logdbg("sock state = %d success = %d", get_tcp_state(&m_pcb), success);
-		success = true;
-	} else {
-		success = false;
-	}
-#endif // DEFINED_SOCKETXTREME
 
 	if (!success) {
 		/* we will get here if attach_as_uc_receiver failed */
@@ -2717,13 +2691,6 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 	/* if attach failed, we should continue getting traffic through the listen socket */
 	// todo register as 3-tuple rule for the case the listener is gone?
 	new_sock->attach_as_uc_receiver(role_t (NULL), true);
-
-#ifndef DEFINED_SOCKETXTREME // if not defined
-	if (new_sock->m_rx_ring_map.size() == 1) {
-		rx_ring_map_t::iterator rx_ring_iter = new_sock->m_rx_ring_map.begin();
-		new_sock->m_p_rx_ring = rx_ring_iter->first;
-	}
-#endif // DEFINED_SOCKETXTREME
 
 	if (new_sock->m_sysvar_tcp_ctl_thread > CTL_THREAD_DISABLE) {
 		new_sock->m_vma_thr = true;
@@ -3576,7 +3543,6 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			} else {
 				m_so_bindtodevice_ip = sockaddr.sin_addr.s_addr;
 
-#ifdef DEFINED_SOCKETXTREME
 				if (!is_connected()) {
 					/* Current implementation allows to create separate rings for tx and rx.
 					 * tx ring is created basing on destination ip during connect() call,
@@ -3596,11 +3562,10 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 					 * just reference counter for p_nd_resources is updated on attach/detach
 					 */
 					if (NULL == create_nd_resources((const ip_address)local_ip)) {
-						si_tcp_logerr("Failed to get net device resources on ip %s", local_ip.to_str().c_str());
+						si_tcp_logdbg("Failed to get net device resources on ip %s", local_ip.to_str().c_str());
 					}
 					unlock_tcp_con();
 				}
-#endif // DEFINED_SOCKETXTREME				
 			}
 			// handle TX side
 			if (m_p_connected_dst_entry) {
