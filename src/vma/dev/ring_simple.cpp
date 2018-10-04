@@ -103,7 +103,7 @@ inline void ring_simple::send_status_handler(int ret, vma_ibv_send_wr* p_send_wq
 qp_mgr* ring_eth::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel)
 {
 #if defined(HAVE_INFINIBAND_MLX5_HW_H)
-	if (qp_mgr_eth::is_mlx5_qp_supported(ib_ctx)) {
+	if (qp_mgr_eth::is_mlx5_qp_supported((ib_ctx_handler*)ib_ctx)) {
 		return new qp_mgr_eth_mlx5(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), get_partition());
 	}
 #endif

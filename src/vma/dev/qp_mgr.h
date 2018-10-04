@@ -215,19 +215,28 @@ public:
 			throw_vma_exception("failed creating qp");
 	};
 
-	static bool     is_mlx5_qp_supported(const ib_ctx_handler* ib_ctx) {
-		#define VMA_MLX5_MMAP_GET_WC_PAGES_CMD  2
-		#define VMA_MLX5_IB_MMAP_CMD_SHIFT      8
+	static bool     is_mlx5_qp_supported(ib_ctx_handler* ib_ctx) {
+		#define VMA_MLX5_MMAP_GET_WC_PAGES_CMD  2 // Corresponding to MLX5_MMAP_GET_WC_PAGES_CMD
+		#define VMA_MLX5_IB_MMAP_CMD_SHIFT      8 // Corresponding to MLX5_IB_MMAP_CMD_SHIFT
 
-		if (strstr(((ib_ctx_handler*)ib_ctx)->get_ibname(), "mlx5")) {
+		// Verify mlx5 device
+		if (strstr(ib_ctx->get_ibname(), "mlx5")) {
+
+			/*
+			 * The following logic was taken from libmlx5 library and its purpose is to check whether
+			 * the use of BF is supported for the device.
+			 */
 			static int page_size = sysconf(_SC_PAGESIZE);
 			static off_t offset = VMA_MLX5_MMAP_GET_WC_PAGES_CMD << VMA_MLX5_IB_MMAP_CMD_SHIFT;
-			void *addr = mmap(NULL, page_size, PROT_WRITE, MAP_SHARED, ((ib_ctx_handler*)ib_ctx)->get_ibv_context()->cmd_fd, page_size * offset);
+			void *addr = mmap(NULL, page_size, PROT_WRITE, MAP_SHARED, ib_ctx->get_ibv_context()->cmd_fd, page_size * offset);
 
 			if (addr != MAP_FAILED) {
-				munmap(addr, page_size);
+				if (munmap(addr, page_size) < 0) {
+					vlog_printf(VLOG_DEBUG, "munmap for dev %s returned with error %m", ib_ctx->get_ibname());
+				}
 				return true;
 			}
+			vlog_printf(VLOG_DEBUG, "mmmap for dev %s returned with error %m", ib_ctx->get_ibname());
 		}
 
 		return false;
