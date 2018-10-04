@@ -36,6 +36,7 @@
 
 #include <errno.h>
 #include <ifaddrs.h>
+#include <sys/mman.h>
 
 #include "vlogger/vlogger.h"
 #include "utils/atomic.h"
@@ -141,7 +142,6 @@ public:
 	uint32_t            is_ratelimit_change(struct vma_rate_limit_t &rate_limit);
 	bool                is_ratelimit_supported(vma_ibv_device_attr *attr, struct vma_rate_limit_t &rate_limit);
 	int                 modify_qp_ratelimit(struct vma_rate_limit_t &rate_limit, uint32_t rl_changes);
-	static inline bool  is_lib_mlx5(const char* device_name) {return strstr(device_name, "mlx5");}
 	virtual void        dm_release_data(mem_buf_desc_t* buff) { NOT_IN_USE(buff); }
 	virtual bool        fill_hw_descriptors(vma_mlx_hw_device_data &data) {NOT_IN_USE(data);return false;};
 protected:
@@ -214,6 +214,33 @@ public:
 		if(call_configure && configure(p_rx_comp_event_channel))
 			throw_vma_exception("failed creating qp");
 	};
+
+	static bool     is_mlx5_qp_supported(ib_ctx_handler* ib_ctx) {
+		#define VMA_MLX5_MMAP_GET_WC_PAGES_CMD  2 // Corresponding to MLX5_MMAP_GET_WC_PAGES_CMD
+		#define VMA_MLX5_IB_MMAP_CMD_SHIFT      8 // Corresponding to MLX5_IB_MMAP_CMD_SHIFT
+
+		// Verify mlx5 device
+		if (strstr(ib_ctx->get_ibname(), "mlx5")) {
+
+			/*
+			 * The following logic was taken from libmlx5 library and its purpose is to check whether
+			 * the use of BF is supported for the device.
+			 */
+			static int page_size = sysconf(_SC_PAGESIZE);
+			static off_t offset = VMA_MLX5_MMAP_GET_WC_PAGES_CMD << VMA_MLX5_IB_MMAP_CMD_SHIFT;
+			void *addr = mmap(NULL, page_size, PROT_WRITE, MAP_SHARED, ib_ctx->get_ibv_context()->cmd_fd, page_size * offset);
+
+			if (addr != MAP_FAILED) {
+				if (munmap(addr, page_size) < 0) {
+					vlog_printf(VLOG_DEBUG, "munmap for dev %s returned with error %m", ib_ctx->get_ibname());
+				}
+				return true;
+			}
+			vlog_printf(VLOG_DEBUG, "mmmap for dev %s returned with error %m", ib_ctx->get_ibname());
+		}
+
+		return false;
+	}
 
 	virtual ~qp_mgr_eth() {}
 
