@@ -125,7 +125,7 @@ public:
 	 *         ==1 cq not armed (cq poll_sn out of sync)
 	 *         < 0 on error
 	 */
-	virtual int	request_notification(uint64_t poll_sn);
+	int	request_notification(uint64_t poll_sn);
 
 	/**
 	 * Block on the CQ's notification channel for the next event and process
@@ -135,7 +135,7 @@ public:
 	 *         < 0 error or if channel not armed or channel would block
 	 *             (on non-blocked channel) (some other thread beat you to it)
 	 */
-	virtual int	wait_for_notification_and_process_element(uint64_t* p_cq_poll_sn,
+	int	wait_for_notification_and_process_element(uint64_t* p_cq_poll_sn,
 	   	                                          void* pv_fd_ready_array = NULL);
 #ifdef DEFINED_SOCKETXTREME
 	inline volatile struct mlx5_cqe64 *mlx5_get_cqe64(void);
@@ -248,10 +248,11 @@ private:
 #endif // DEFINED_SOCKETXTREME
 protected:
 	ib_ctx_handler*		m_p_ib_ctx_handler;
-private:
-	const uint32_t		m_n_sysvar_rx_num_wr_to_post_recv;
 	struct ibv_comp_channel *m_comp_event_channel;
 	bool			m_b_notification_armed;
+private:
+	const uint32_t		m_n_sysvar_rx_num_wr_to_post_recv;
+
 	const uint32_t		m_n_sysvar_qp_compensation_level;
 	const uint32_t		m_rx_lkey;
 	const bool		m_b_sysvar_cq_keep_qp_full;
@@ -285,6 +286,12 @@ private:
 	inline void	find_buff_dest_vma_if_ctx(mem_buf_desc_t * buff);
 
 	void		process_cq_element_log_helper(mem_buf_desc_t* p_mem_buf_desc, vma_ibv_wc* p_wce);
+
+	virtual int	req_notify_cq() {
+		return ibv_req_notify_cq(m_p_ibv_cq, 0);
+	};
+
+	virtual void	get_cq_event() {};
 };
 
 // Helper gunction to extract the Tx cq_mgr from the CQ event,

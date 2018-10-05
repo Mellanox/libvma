@@ -70,8 +70,6 @@ public:
 	void                        set_qp_rq(qp_mgr* qp);
 	virtual void                add_qp_tx(qp_mgr* qp);
 	virtual uint32_t            clean_cq();
-	virtual int                 request_notification(uint64_t poll_sn);
-	virtual int                 wait_for_notification_and_process_element(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	virtual bool                fill_cq_hw_descriptors(struct hw_cq_data &data);
 
 protected:
@@ -91,6 +89,14 @@ private:
 	void                        cqe64_to_vma_wc(struct mlx5_cqe64 *cqe, vma_ibv_wc *wc);
 	inline struct mlx5_cqe64*   check_error_completion(struct mlx5_cqe64 *cqe, uint32_t *ci, uint8_t op_own);
 	inline void                 update_global_sn(uint64_t& cq_poll_sn, uint32_t rettotal);
+
+	virtual int	req_notify_cq() {
+		return vma_ib_mlx5_req_notify_cq(&m_mlx5_cq, 0);
+	};
+
+	virtual void	get_cq_event() {
+		vma_ib_mlx5_get_cq_event(&m_mlx5_cq);
+	};
 };
 
 #endif /* DEFINED_DIRECT_VERBS */

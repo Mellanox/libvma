@@ -587,18 +587,6 @@ void cq_mgr_mlx5::del_qp_rx(qp_mgr *qp)
 	m_p_rq_wqe_idx_to_wrid = NULL;
 }
 
-int cq_mgr_mlx5::request_notification(uint64_t poll_sn)
-{
-	vma_ib_mlx5_update_cq_ci(m_p_ibv_cq, m_mlx5_cq.cq_ci);
-	return cq_mgr::request_notification(poll_sn);
-}
-
-int cq_mgr_mlx5::wait_for_notification_and_process_element(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array/* = NULL*/)
-{
-	vma_ib_mlx5_update_cq_ci(m_p_ibv_cq, m_mlx5_cq.cq_ci);
-	return cq_mgr::wait_for_notification_and_process_element(p_cq_poll_sn, pv_fd_ready_array);
-}
-
 void cq_mgr_mlx5::add_qp_tx(qp_mgr* qp)
 {
 	//Assume locked!

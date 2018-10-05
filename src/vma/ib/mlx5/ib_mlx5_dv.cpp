@@ -47,10 +47,34 @@ int vma_ib_mlx5dv_init_obj(struct mlx5dv_obj *obj, uint64_t type)
 	return ret;
 }
 
-void vma_ib_mlx5_update_cq_ci(struct ibv_cq *cq, unsigned cq_ci)
+int vma_ib_mlx5_req_notify_cq(vma_ib_mlx5_cq_t *mlx5_cq, int solicited)
 {
-	cq = cq;
-	cq_ci = cq_ci;
+	uint64_t doorbell;
+	uint32_t sn;
+	uint32_t ci;
+	uint32_t cmd;
+
+	sn  = mlx5_cq->cq_sn & 3;
+	ci  = mlx5_cq->cq_ci & 0xffffff;
+	cmd = solicited ? MLX5_CQ_DB_REQ_NOT_SOL : MLX5_CQ_DB_REQ_NOT;
+
+	doorbell = sn << 28 | cmd | ci;
+	doorbell <<= 32;
+	doorbell |= mlx5_cq->cq_num;
+
+	mlx5_cq->dbrec[VMA_IB_MLX5_CQ_ARM_DB] = htonl(sn << 28 | cmd | ci);
+
+	/*
+	 * Make sure that the doorbell record in host memory is
+	 * written before ringing the doorbell via PCI WC MMIO.
+	 */
+	wmb();
+
+	*(uint64_t *)((uint8_t *)mlx5_cq->uar + MLX5_CQ_DOORBELL) = htonll(doorbell);
+
+	wc_wmb();
+
+	return 0;
 }
 
 #endif /* (DEFINED_DIRECT_VERBS == 3) */

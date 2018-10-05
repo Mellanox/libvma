@@ -110,12 +110,15 @@ int vma_ib_mlx5_get_cq(struct ibv_cq *cq, vma_ib_mlx5_cq_t *mlx5_cq)
 		return ret;
 	}
 
+	mlx5_cq->cq           = cq;
 	mlx5_cq->cq_num       = dcq.cqn;
 	mlx5_cq->cq_ci        = 0;
+	mlx5_cq->cq_sn        = 0;
 	mlx5_cq->cqe_count    = dcq.cqe_cnt;
 	mlx5_cq->cqe_size     = dcq.cqe_size;
 	mlx5_cq->cqe_size_log = ilog_2(dcq.cqe_size);
 	mlx5_cq->dbrec        = dcq.dbrec;
+	mlx5_cq->uar          = dcq.cq_uar;
 
 	/* Move buffer forward for 128b CQE, so we would get pointer to the 2nd
 	 * 64b when polling.
