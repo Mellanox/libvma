@@ -269,6 +269,30 @@ private:
 	virtual		timestamps_t* get_socket_timestamps();
 	virtual		void update_socket_timestamps(timestamps_t *) {};
 
+    inline void return_reuse_buffers_postponed() {
+	    if (!m_rx_reuse_buf_postponed)
+		    return;
+
+            //for the parallel reclaim mechanism from internal thread, used for "silent" sockets
+	    set_rx_reuse_pending(false);
+
+		m_rx_reuse_buf_postponed = false;
+
+		rx_ring_map_t::iterator iter = m_rx_ring_map.begin();
+		while (iter != m_rx_ring_map.end()) {
+				descq_t *rx_reuse = &iter->second->rx_reuse_info.rx_reuse;
+				int& n_buff_num = iter->second->rx_reuse_info.n_buff_num;
+			if (n_buff_num >= m_n_sysvar_rx_num_buffs_reuse) {
+				if (iter->first->reclaim_recv_buffers(rx_reuse)) {
+					n_buff_num = 0;
+				} else {
+					m_rx_reuse_buf_postponed = true;
+				}
+			}
+			++iter;
+		}
+    }
+
 	inline bool	rx_process_udp_packet_full(mem_buf_desc_t* p_desc, void* pv_fd_ready_array);
 	inline bool	rx_process_udp_packet_partial(mem_buf_desc_t* p_desc, void* pv_fd_ready_array);
 	inline bool	inspect_uc_packet(mem_buf_desc_t* p_desc);
