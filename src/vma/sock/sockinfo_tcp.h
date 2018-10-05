@@ -387,6 +387,41 @@ private:
 	virtual mem_buf_desc_t *get_next_desc(mem_buf_desc_t *p_desc);
 	virtual	mem_buf_desc_t* get_next_desc_peek(mem_buf_desc_t *p_desc, int& rx_pkt_ready_list_idx);
 	virtual timestamps_t* get_socket_timestamps();
+
+	inline void return_reuse_buffers_postponed() {
+		if (!m_rx_reuse_buf_postponed)
+			return;
+
+		//for the parallel reclaim mechanism from internal thread, used for "silent" sockets
+		set_rx_reuse_pending(false);
+
+		m_rx_reuse_buf_postponed = false;
+
+		if (m_p_rx_ring) {
+			if (m_rx_reuse_buff.n_buff_num >= m_n_sysvar_rx_num_buffs_reuse) {
+				if (m_p_rx_ring->reclaim_recv_buffers(&m_rx_reuse_buff.rx_reuse)) {
+					 m_rx_reuse_buff.n_buff_num = 0;
+				} else {
+					m_rx_reuse_buf_postponed = true;
+				}
+			}
+		} else {
+			rx_ring_map_t::iterator iter = m_rx_ring_map.begin();
+			while (iter != m_rx_ring_map.end()) {
+		        	descq_t *rx_reuse = &iter->second->rx_reuse_info.rx_reuse;
+		        	int& n_buff_num = iter->second->rx_reuse_info.n_buff_num;
+				if (n_buff_num >= m_n_sysvar_rx_num_buffs_reuse) {
+					if (iter->first->reclaim_recv_buffers(rx_reuse)) {
+						n_buff_num = 0;
+					} else {
+						m_rx_reuse_buf_postponed = true;
+					}
+				}
+				++iter;
+			}
+		}
+	}
+
 	virtual void 	post_deqeue(bool release_buff);
 	virtual int 	zero_copy_rx(iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags);
 	struct tcp_pcb* get_syn_received_pcb(const flow_tuple &key) const;

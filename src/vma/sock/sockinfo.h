@@ -507,41 +507,6 @@ protected:
         }
     }
 
-    inline void return_reuse_buffers_postponed()
-    {
-	    if (!m_rx_reuse_buf_postponed)
-		    return;
-
-            //for the parallel reclaim mechanism from internal thread, used for "silent" sockets
-	    set_rx_reuse_pending(false);
-
-            m_rx_reuse_buf_postponed = false;
-
-	    if (m_p_rx_ring) {
-		    if (m_rx_reuse_buff.n_buff_num >= m_n_sysvar_rx_num_buffs_reuse) {
-			    if (m_p_rx_ring->reclaim_recv_buffers(&m_rx_reuse_buff.rx_reuse)) {
-			    	   m_rx_reuse_buff.n_buff_num = 0;
-			    } else {
-				   m_rx_reuse_buf_postponed = true;
-			    }	
-		    }
-	    } else {
-		    rx_ring_map_t::iterator iter = m_rx_ring_map.begin();
-		    while (iter != m_rx_ring_map.end()) {
-		            descq_t *rx_reuse = &iter->second->rx_reuse_info.rx_reuse;
-		            int& n_buff_num = iter->second->rx_reuse_info.n_buff_num;
-			    if (n_buff_num >= m_n_sysvar_rx_num_buffs_reuse) {
-				    if (iter->first->reclaim_recv_buffers(rx_reuse)) {
-					    n_buff_num = 0;
-				    } else {
-					    m_rx_reuse_buf_postponed = true;
-				    }
-			    }
-			    ++iter;
-		    }
-	    }
-    }
-
     inline void move_owned_descs(ring* p_ring, descq_t *toq, descq_t *fromq)
     {
     	// Assume locked by owner!!!
