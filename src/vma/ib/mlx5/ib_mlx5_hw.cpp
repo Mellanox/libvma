@@ -97,16 +97,17 @@ static int vma_ib_mlx5dv_get_cq(struct ibv_cq *cq, struct mlx5dv_cq *mlx5_cq)
 	mlx5_cq->dbrec    = ibv_cq_info.dbrec;
 	mlx5_cq->cqe_cnt  = ibv_cq_info.cqe_cnt;
 	mlx5_cq->cqe_size = ibv_cq_info.cqe_size;
+	mlx5_cq->cq_uar   = NULL;
 	mlx5_cq->cqn      = ibv_cq_info.cqn;
 
 	return ret;
 }
 
-void vma_ib_mlx5_update_cq_ci(struct ibv_cq *cq, unsigned cq_ci)
+int vma_ib_mlx5_req_notify_cq(vma_ib_mlx5_cq_t *mlx5_cq, int solicited)
 {
-	struct mlx5_cq *mcq = to_mcq(cq);
-
-	mcq->cons_index = cq_ci;
+	struct mlx5_cq *mcq = to_mcq(mlx5_cq->cq);
+ 	mcq->cons_index = mlx5_cq->cq_ci;
+	return ibv_req_notify_cq(mlx5_cq->cq, solicited);
 }
 
 #endif /* (DEFINED_DIRECT_VERBS == 2) */

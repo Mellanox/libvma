@@ -68,6 +68,11 @@ enum {
    VMA_IB_MLX5_QP_FLAGS_USE_UNDERLAY = 0x01
 };
 
+enum {
+	VMA_IB_MLX5_CQ_SET_CI    = 0,
+	VMA_IB_MLX5_CQ_ARM_DB    = 1
+};
+
 /* Queue pair */
 typedef struct vma_ib_mlx5_qp {
 	struct ibv_qp *qp;
@@ -98,20 +103,27 @@ typedef struct vma_ib_mlx5_qp {
 
 /* Completion queue */
 typedef struct vma_ib_mlx5_cq {
-    void               *cq_buf;
-    unsigned           cq_num;
-    unsigned           cq_ci;
-    unsigned           cqe_count;
-    unsigned           cqe_size;
-    unsigned           cqe_size_log;
-    volatile uint32_t  *dbrec;
+	struct ibv_cq      *cq;
+	void               *cq_buf;
+	unsigned           cq_num;
+	unsigned           cq_ci;
+	unsigned           cq_sn;
+	unsigned           cqe_count;
+	unsigned           cqe_size;
+	unsigned           cqe_size_log;
+	volatile uint32_t  *dbrec;
+	void               *uar;
 } vma_ib_mlx5_cq_t;
 
 int vma_ib_mlx5_get_qp(struct ibv_qp *qp, vma_ib_mlx5_qp_t *mlx5_qp, uint32_t flags = 0);
 int vma_ib_mlx5_post_recv(vma_ib_mlx5_qp_t *mlx5_qp, struct ibv_recv_wr *wr, struct ibv_recv_wr **bad_wr);
 
 int vma_ib_mlx5_get_cq(struct ibv_cq *cq, vma_ib_mlx5_cq_t *mlx5_cq);
-void vma_ib_mlx5_update_cq_ci(struct ibv_cq *cq, unsigned cq_ci);
+int vma_ib_mlx5_req_notify_cq(vma_ib_mlx5_cq_t *mlx5_cq, int solicited);
+static inline void vma_ib_mlx5_get_cq_event(vma_ib_mlx5_cq_t *mlx5_cq)
+{
+	mlx5_cq->cq_sn++;
+}
 
 #endif /* DEFINED_DIRECT_VERBS */
 

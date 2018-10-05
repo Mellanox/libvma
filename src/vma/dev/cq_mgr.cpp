@@ -99,9 +99,9 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 	,m_cq_db(0)
 #endif
 	,m_p_ib_ctx_handler(p_ib_ctx_handler)
-	,m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv)
 	,m_comp_event_channel(p_comp_event_channel)
 	,m_b_notification_armed(false)
+	,m_n_sysvar_rx_num_wr_to_post_recv(safe_mce_sys().rx_num_wr_to_post_recv)
 	,m_n_sysvar_qp_compensation_level(safe_mce_sys().qp_compensation_level)
 	,m_rx_lkey(g_buffer_pool_rx->find_lkey_by_ib_ctx_thread_safe(m_p_ib_ctx_handler))
 	,m_b_sysvar_cq_keep_qp_full(safe_mce_sys().cq_keep_qp_full)
@@ -1244,6 +1244,7 @@ int cq_mgr::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/
 int cq_mgr::request_notification(uint64_t poll_sn)
 {
 	int ret = -1;
+
 	cq_logfuncall("");
 
 	if ((m_n_global_sn > 0 && poll_sn != m_n_global_sn)) {
@@ -1257,7 +1258,7 @@ int cq_mgr::request_notification(uint64_t poll_sn)
 		cq_logfunc("arming cq_mgr notification channel");
 
 		// Arm the CQ notification channel
-		IF_VERBS_FAILURE(ibv_req_notify_cq(m_p_ibv_cq, 0)) {
+		IF_VERBS_FAILURE(req_notify_cq()) {
 			cq_logerr("Failure arming the qp_mgr notification channel (errno=%d %m)", errno);
 		}
 		else {
@@ -1277,9 +1278,10 @@ int cq_mgr::request_notification(uint64_t poll_sn)
 
 int cq_mgr::wait_for_notification_and_process_element(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array)
 {
+	int ret = -1;
+
 	cq_logfunc("");
 
-	int ret = -1;
 	if (m_b_notification_armed) {
 		cq_mgr* p_cq_mgr_context = NULL;
 		struct ibv_cq* p_cq_hndl = NULL;
@@ -1290,6 +1292,7 @@ int cq_mgr::wait_for_notification_and_process_element(uint64_t* p_cq_poll_sn, vo
 			cq_logfunc("waiting on cq_mgr event returned with error (errno=%d %m)", errno);
 		}
 		else {
+			get_cq_event();
 			p_cq_mgr_context = (cq_mgr*)p;
 			if (p_cq_mgr_context != this) {
 				cq_logerr("mismatch with cq_mgr returned from new event (event->cq_mgr->%p)", p_cq_mgr_context);
