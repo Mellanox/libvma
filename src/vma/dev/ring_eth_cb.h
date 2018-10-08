@@ -58,7 +58,8 @@ class ring_eth_cb : public ring_eth
 {
 public:
 	ring_eth_cb(int if_index,
-		    vma_cyclic_buffer_ring_attr *mp_ring, ring *parent = NULL);
+		    vma_cyclic_buffer_ring_attr *mp_ring, iovec *mem_sec = NULL,
+		    ring *parent = NULL);
 	virtual		~ring_eth_cb();
 	ibv_exp_res_domain* get_res_domain() const {return m_res_domain;};
 	uint32_t	get_wq_count() const {return m_wq_count;};
@@ -72,6 +73,7 @@ public:
 	int		get_mem_info(ibv_sge &mem_info);
 	int		cyclic_buffer_read(vma_completion_cb_t &completion,
 					   size_t min, size_t max, int flags);
+	void*		allocate_memory(iovec *mem_desc, size_t buffer_size);
 protected:
 	virtual		qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx,
 					      uint8_t port_num,
@@ -108,7 +110,7 @@ private:
 	inline mp_loop_result		mp_loop_padded(size_t limit);
 	inline bool			reload_wq();
 	int				allocate_umr_mem(vma_cyclic_buffer_ring_attr *cb_ring,
-							 uint16_t net_len);
+							 iovec *mem_desc, uint16_t net_len);
 	void				remove_umr_res();
 };
 

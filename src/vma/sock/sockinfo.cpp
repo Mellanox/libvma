@@ -100,8 +100,7 @@ sockinfo::sockinfo(int fd):
 	m_p_socket_stats->inode = fd2inode(m_fd);
 	m_p_socket_stats->b_blocking = m_b_blocking;
 	m_rx_reuse_buff.n_buff_num = 0;
-	memset(&m_so_ratelimit, 0, sizeof(struct vma_rate_limit_t));
-
+	memset(&m_so_ratelimit, 0, sizeof(vma_rate_limit_t));
 #ifdef DEFINED_SOCKETXTREME 
 	m_ec.clear();
 	m_socketxtreme_completion = NULL;
@@ -241,6 +240,30 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 				ret = 0;
 			} else {
 				errno = EINVAL;
+			}
+			break;
+		case SO_VMA_RING_USER_MEMORY:
+			if (__optval) {
+				if (__optlen == sizeof(iovec)) {
+					iovec *attr = (iovec *)__optval;
+					m_ring_alloc_log_rx.set_memory_descriptor(*attr);
+					if (m_p_rx_ring || m_rx_ring_map.size()) {
+						si_logwarn("user asked to assign memory for "
+							   "RX ring but ring already exists");
+					}
+					return 0;
+				}
+				else {
+					errno = EINVAL;
+					si_logdbg("SOL_SOCKET, SO_VMA_RING_USER_MEMORY - "
+						  "bad length expected %d got %d",
+						  sizeof(iovec), __optlen);
+					break;
+				}
+			}
+			else {
+				errno = EINVAL;
+				si_logdbg("SOL_SOCKET, SO_VMA_RING_USER_MEMORY - NOT HANDLED, optval == NULL");
 			}
 			break;
 		default:

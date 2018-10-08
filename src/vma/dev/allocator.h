@@ -44,11 +44,11 @@ class vma_allocator {
 public:
 	vma_allocator();
 	~vma_allocator();
-	void* alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h);
+	void* alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h, void *ptr = NULL);
 	void* get_ptr() const {return m_data_block;}
 	uint32_t find_lkey_by_ib_ctx(ib_ctx_handler *p_ib_ctx_h) const;
 	ibv_mr* find_ibv_mr_by_ib_ctx(ib_ctx_handler *p_ib_ctx_h) const;
-	bool register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint64_t access);
+	void register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint64_t access);
 	void deregister_memory();
 private:
 	void align_simple_malloc(size_t sz_bytes);

@@ -917,14 +917,14 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 						return set_ring_attr(attr);
 					}
 					else {
-						si_udp_logdbg("VMA_MP_RQ, %s=\"???\" - bad length expected %d got %d",
+						si_udp_logdbg("SOL_SOCKET, %s=\"???\" - bad length expected %d got %d",
 							      setsockopt_so_opt_to_str(__optname),
 							      sizeof(vma_ring_alloc_logic_attr), __optlen);
 						break;
 					}
 				}
 				else {
-					si_udp_logdbg("VMA_MP_RQ, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
+					si_udp_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
 				}
 				break;
 			case SO_MAX_PACING_RATE:
