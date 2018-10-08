@@ -59,6 +59,8 @@ vma_allocator::~vma_allocator()
 		return;
 	}
 	switch (m_mem_alloc_type) {
+		case ALLOC_TYPE_EXTERNAL:
+			// not allocated by us
 		case ALLOC_TYPE_CONTIG:
 			// freed as part of deregister_memory
 			break;
@@ -86,11 +88,16 @@ vma_allocator::~vma_allocator()
 	__log_info_dbg("Done");
 }
 
-void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
+void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h, void *ptr /* NULL */)
 {
 	uint64_t access = VMA_IBV_ACCESS_LOCAL_WRITE;
 
 	switch (m_mem_alloc_type) {
+	case ALLOC_TYPE_EXTERNAL:
+		m_data_block = ptr;
+		m_mem_alloc_type = ALLOC_TYPE_EXTERNAL;
+		register_memory(size, p_ib_ctx_h, access);
+		break;
 	case ALLOC_TYPE_HUGEPAGES:
 		if (!hugetlb_alloc(size)) {
 			__log_info_dbg("Failed allocating huge pages, "
@@ -99,25 +106,17 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
 		else {
 			__log_info_dbg("Huge pages allocation passed successfully");
 			m_mem_alloc_type = ALLOC_TYPE_HUGEPAGES;
-			if (!register_memory(size, p_ib_ctx_h, access)) {
-				__log_info_dbg("failed registering huge pages data memory block");
-				throw_vma_exception("failed registering huge pages data memory"
-						" block");
-			}
+			register_memory(size, p_ib_ctx_h, access);
 			break;
 		}
 	// fallthrough
 	case ALLOC_TYPE_CONTIG:
 #ifdef VMA_IBV_ACCESS_ALLOCATE_MR
 		if (mce_sys_var::HYPER_MSHV != safe_mce_sys().hypervisor) {
-			if (!register_memory(size, p_ib_ctx_h, (access | VMA_IBV_ACCESS_ALLOCATE_MR))) {
-				__log_info_dbg("Failed allocating contiguous pages");
-			}
-			else {
-				__log_info_dbg("Contiguous pages allocation passed successfully");
-				m_mem_alloc_type = ALLOC_TYPE_CONTIG;
-				break;
-			}
+			register_memory(size, p_ib_ctx_h, (access | VMA_IBV_ACCESS_ALLOCATE_MR));
+			__log_info_dbg("Contiguous pages allocation passed successfully");
+			m_mem_alloc_type = ALLOC_TYPE_CONTIG;
+			break;
 		}
 #endif
 	// fallthrough
@@ -126,10 +125,7 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h)
 		__log_info_dbg("allocating memory using malloc()");
 		align_simple_malloc(size); // if fail will raise exception
 		m_mem_alloc_type = ALLOC_TYPE_ANON;
-		if (!register_memory(size, p_ib_ctx_h, access)) {
-			__log_info_dbg("failed registering data memory block");
-			throw_vma_exception("failed registering data memory block");
-		}
+		register_memory(size, p_ib_ctx_h, access);
 		break;
 	}
 	__log_info_dbg("allocated memory using type: %d at %p, size %zd",
@@ -282,7 +278,7 @@ void vma_allocator::align_simple_malloc(size_t sz_bytes)
 	__log_info_dbg("allocated memory using malloc()");
 }
 
-bool vma_allocator::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h,
+void vma_allocator::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h,
 				    uint64_t access)
 {
 	ib_context_map_t *ib_ctx_map = NULL;
@@ -349,7 +345,7 @@ bool vma_allocator::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h,
 		throw_vma_exception("Failed registering memory");
 	}
 
-	return true;
+	return;
 }
 
 void vma_allocator::deregister_memory()

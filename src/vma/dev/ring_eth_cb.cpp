@@ -47,8 +47,8 @@
 #define MAX_MP_WQES		(20) // limit max used memory
 #define MIN_MP_WQES		(4)
 
-ring_eth_cb::ring_eth_cb(int if_index,
-			 vma_cyclic_buffer_ring_attr *cb_ring, ring *parent):
+ring_eth_cb::ring_eth_cb(int if_index, vma_cyclic_buffer_ring_attr *cb_ring,
+			 iovec *mem_desc, ring *parent):
 			 ring_eth(if_index, parent, RING_ETH_CB, false)
 			,m_curr_wqe_used_strides(0)
 			,m_curr_packets(0)
@@ -138,16 +138,22 @@ ring_eth_cb::ring_eth_cb(int if_index,
 	memset(&m_curr_hw_timestamp, 0, sizeof(m_curr_hw_timestamp));
 	if (m_packet_receive_mode == PADDED_PACKET) {
 		size_t buffer_size = m_stride_size * m_strides_num * m_wq_count;
-		m_sge_ptrs[CB_UMR_PAYLOAD] =
-			(uint64_t)(uintptr_t)m_alloc.alloc_and_reg_mr(buffer_size,
-					m_p_ib_ctx);
-		m_packet_size = cb_ring->stride_bytes + net_len;
-		m_payload_len = m_stride_size;
+		m_sge_ptrs[CB_UMR_PAYLOAD] = (uint64_t)allocate_memory(mem_desc, buffer_size);
+		if (unlikely(!m_sge_ptrs[CB_UMR_PAYLOAD])) {
+			throw_vma_exception("user provided to small memory");
+		}
 		m_buff_data.addr = m_sge_ptrs[CB_UMR_PAYLOAD];
 		m_buff_data.length = m_stride_size * m_strides_num;
 		m_buff_data.lkey = get_mem_lkey(m_p_ib_ctx);
+		m_packet_size = cb_ring->stride_bytes + net_len;
+		m_payload_len = m_stride_size;
+		if (unlikely(m_buff_data.lkey == (uint32_t)(-1))) {
+			ring_logerr("got invalid lkey for memory %p size %zd",
+				    mem_desc->iov_base, mem_desc->iov_len);
+			throw_vma_exception("failed retrieving lkey");
+		}
 		ring_logdbg("using buffer size %zd", buffer_size);
-	} else if (allocate_umr_mem(cb_ring, net_len)) {
+	} else if (allocate_umr_mem(cb_ring, mem_desc, net_len)) {
 		ring_logerr("failed creating UMR QP");
 		throw_vma_exception("failed creating UMR QP");
 	}
@@ -156,6 +162,23 @@ ring_eth_cb::ring_eth_cb(int if_index,
 	ring_simple::create_resources();
 
 	m_is_mp_ring = true;
+}
+
+void* ring_eth_cb::allocate_memory(iovec *mem_desc, size_t buffer_size)
+{
+	if (mem_desc && mem_desc->iov_len) {
+		if (unlikely(mem_desc->iov_len < buffer_size)) {
+			ring_logerr("user provided to small memory "
+				    "expected %zd but got %zd",
+				    buffer_size, mem_desc->iov_len);
+			errno = EINVAL;
+			return NULL;
+		}
+		return m_alloc.alloc_and_reg_mr(mem_desc->iov_len, m_p_ib_ctx,
+					 mem_desc->iov_base);
+	} else {
+		return m_alloc.alloc_and_reg_mr(buffer_size, m_p_ib_ctx);
+	}
 }
 
 qp_mgr* ring_eth_cb::create_qp_mgr(const ib_ctx_handler *ib_ctx,
@@ -200,7 +223,9 @@ int ring_eth_cb::get_mem_info(ibv_sge &mem_info)
  * |	...			|
  * +----------------------------+
  */
-int ring_eth_cb::allocate_umr_mem(vma_cyclic_buffer_ring_attr *cb_ring, uint16_t net_len)
+int ring_eth_cb::allocate_umr_mem(vma_cyclic_buffer_ring_attr *cb_ring,
+				  iovec *mem_desc,
+				  uint16_t net_len)
 {
 	ibv_exp_create_mr_in mrin;
 	ibv_exp_mem_repeat_block* p_mem_rep_list = NULL;
@@ -265,7 +290,10 @@ int ring_eth_cb::allocate_umr_mem(vma_cyclic_buffer_ring_attr *cb_ring, uint16_t
 	// allocate buffer
 	buffer_size = m_packet_size * packets_num;
 	// will raise an exception on failure
-	base_ptr = (uint64_t)m_alloc.alloc_and_reg_mr(buffer_size, m_p_ib_ctx);
+	base_ptr = (uint64_t)allocate_memory(mem_desc, buffer_size);
+	if (unlikely(!base_ptr)) {
+		goto cleanup;
+	}
 	ring_logdbg("using buffer parameters, buffer_size %zd "
 		    "pad len %d packet size %d stride size %d",
 		    buffer_size, pad_len, m_packet_size, m_stride_size);

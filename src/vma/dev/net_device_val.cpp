@@ -75,14 +75,20 @@
 ring_alloc_logic_attr::ring_alloc_logic_attr():
 				m_ring_alloc_logic(RING_LOGIC_PER_INTERFACE),
 				m_ring_profile_key(0),
-				m_user_id_key(0) {
+				m_user_id_key(0)
+{
+	m_mem_desc.iov_base = NULL;
+	m_mem_desc.iov_len = 0;
 	init();
 }
 
 ring_alloc_logic_attr::ring_alloc_logic_attr(ring_logic_t ring_logic):
 				m_ring_alloc_logic(ring_logic),
 				m_ring_profile_key(0),
-				m_user_id_key(0) {
+				m_user_id_key(0)
+{
+	m_mem_desc.iov_base = NULL;
+	m_mem_desc.iov_len = 0;
 	init();
 }
 
@@ -90,7 +96,8 @@ ring_alloc_logic_attr::ring_alloc_logic_attr(const ring_alloc_logic_attr &other)
 	m_hash(other.m_hash),
 	m_ring_alloc_logic(other.m_ring_alloc_logic),
 	m_ring_profile_key(other.m_ring_profile_key),
-	m_user_id_key(other.m_user_id_key)
+	m_user_id_key(other.m_user_id_key),
+	m_mem_desc(other.m_mem_desc)
 {
 	snprintf(m_str, RING_ALLOC_STR_SIZE, "%s", other.m_str);
 }
@@ -102,10 +109,12 @@ void ring_alloc_logic_attr::init()
 	char buff[RING_ALLOC_STR_SIZE];
 
 	snprintf(m_str, RING_ALLOC_STR_SIZE,
-		 "allocation logic %d profile %d key %ld", m_ring_alloc_logic,
-		 m_ring_profile_key, m_user_id_key);
-	snprintf(buff, RING_ALLOC_STR_SIZE, "%d%d%ld", m_ring_alloc_logic,
-		 m_ring_profile_key, m_user_id_key);
+		 "allocation logic %d profile %d key %ld user address %p "
+		 "user length %zd", m_ring_alloc_logic, m_ring_profile_key,
+		 m_user_id_key, m_mem_desc.iov_base, m_mem_desc.iov_len);
+	snprintf(buff, RING_ALLOC_STR_SIZE, "%d%d%ld%p%zd", m_ring_alloc_logic,
+		 m_ring_profile_key, m_user_id_key, m_mem_desc.iov_base,
+		 m_mem_desc.iov_len);
 	const char* chr = buff;
 	while ((c = *chr++))
 		h = ((h << 5) + h) + c; /* m_hash * 33 + c */
@@ -124,6 +133,15 @@ void ring_alloc_logic_attr::set_ring_profile_key(vma_ring_profile_key profile)
 {
 	if (m_ring_profile_key != profile) {
 		m_ring_profile_key = profile;
+		init();
+	}
+}
+
+void ring_alloc_logic_attr::set_memory_descriptor(iovec &mem_desc)
+{
+	if (m_mem_desc.iov_base != mem_desc.iov_base ||
+	    m_mem_desc.iov_len != mem_desc.iov_len) {
+		m_mem_desc = mem_desc;
 		init();
 	}
 }
@@ -1219,7 +1237,8 @@ ring* net_device_val_eth::create_ring(resource_allocation_key *key)
 #ifdef HAVE_MP_RQ
 			case VMA_RING_CYCLIC_BUFFER:
 				ring = new ring_eth_cb(get_if_idx(),
-						       &prof->get_desc()->ring_cyclicb);
+						       &prof->get_desc()->ring_cyclicb,
+						       key->get_memory_descriptor());
 			break;
 #endif
 			case VMA_RING_EXTERNAL_MEM:
@@ -1335,7 +1354,6 @@ ring* net_device_val_ib::create_ring(resource_allocation_key *key)
 	ring* ring = NULL;
 
 	NOT_IN_USE(key);
-
 	try {
 		switch (m_bond) {
 		case NO_BOND:

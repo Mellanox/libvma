@@ -64,7 +64,8 @@ typedef enum {
 	ALLOC_TYPE_ANON = 0,
 	ALLOC_TYPE_CONTIG,
 	ALLOC_TYPE_HUGEPAGES,
-	ALLOC_TYPE_LAST,
+	ALLOC_TYPE_LAST_ALLOWED_TO_USE,
+	ALLOC_TYPE_EXTERNAL, /* not allowed as a global parameter */
 } alloc_mode_t;
 
 typedef enum {

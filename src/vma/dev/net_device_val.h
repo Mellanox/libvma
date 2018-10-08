@@ -66,16 +66,20 @@ public:
 	ring_alloc_logic_attr(const ring_alloc_logic_attr &other);
 	void set_ring_alloc_logic(ring_logic_t logic);
 	void set_ring_profile_key(vma_ring_profile_key profile);
+	void set_memory_descriptor(iovec &mem_desc);
 	void set_user_id_key(uint64_t user_id_key);
 	inline ring_logic_t get_ring_alloc_logic() { return m_ring_alloc_logic;}
 	inline vma_ring_profile_key get_ring_profile_key() { return m_ring_profile_key;}
+	inline iovec* get_memory_descriptor() { return &m_mem_desc;}
 	inline uint64_t get_user_id_key() { return m_user_id_key;}
 
 	bool operator==(const ring_alloc_logic_attr& other) const
 	{
 		return (m_ring_alloc_logic == other.m_ring_alloc_logic &&
 			m_ring_profile_key == other.m_ring_profile_key &&
-			m_user_id_key == other.m_user_id_key);
+			m_user_id_key == other.m_user_id_key &&
+			m_mem_desc.iov_base == other.m_mem_desc.iov_base &&
+			m_mem_desc.iov_len == other.m_mem_desc.iov_len);
 	}
 
 	bool operator!=(const ring_alloc_logic_attr& other) const
@@ -90,6 +94,8 @@ public:
 			m_ring_profile_key = other.m_ring_profile_key;
 			m_user_id_key = other.m_user_id_key;
 			m_hash = other.m_hash;
+			m_mem_desc.iov_base = other.m_mem_desc.iov_base;
+			m_mem_desc.iov_len = other.m_mem_desc.iov_len;
 			snprintf(m_str, RING_ALLOC_STR_SIZE, "%s", other.m_str);
 		}
 		return *this;
@@ -119,6 +125,7 @@ private:
 	/* either user_idx or key as defined in ring_logic_t */
 	uint64_t		m_user_id_key;
 	char			m_str[RING_ALLOC_STR_SIZE];
+	iovec			m_mem_desc;
 	void			init();
 };
 

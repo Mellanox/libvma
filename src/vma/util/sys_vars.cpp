@@ -1187,7 +1187,7 @@ void mce_sys_var::get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_MEM_ALLOC_TYPE)) != NULL)
 		mem_alloc_type = (alloc_mode_t)atoi(env_ptr);
-	if (mem_alloc_type < 0 || mem_alloc_type >= ALLOC_TYPE_LAST)
+	if (mem_alloc_type < 0 || mem_alloc_type >= ALLOC_TYPE_LAST_ALLOWED_TO_USE)
 		mem_alloc_type = MCE_DEFAULT_MEM_ALLOC_TYPE;
 	if (mce_sys_var::HYPER_MSHV == hypervisor && mem_alloc_type == ALLOC_TYPE_CONTIG) {
 		char mem_str[sizeof(int) + 1] = {0};
