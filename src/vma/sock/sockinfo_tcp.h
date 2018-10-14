@@ -358,6 +358,11 @@ private:
 
 	void handle_socket_linger();
 
+	/*
+	 * Supported only for UDP
+	 */
+	virtual void handle_ip_pktinfo(struct cmsg_state *) {};
+
 	int handle_rx_error();
 
 	/** Function prototype for tcp error callback functions. Called when the pcb
