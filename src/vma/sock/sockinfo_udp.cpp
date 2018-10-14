@@ -1901,10 +1901,10 @@ inline vma_recv_callback_retval_t sockinfo_udp::inspect_by_user_cb(mem_buf_desc_
 	pkt_info.socket_ready_queue_byte_count = m_p_socket_stats->n_rx_ready_byte_count;
 
 	if (m_n_tsing_flags & SOF_TIMESTAMPING_RAW_HARDWARE) {
-		pkt_info.hw_timestamp = p_desc->rx.hw_timestamp;
+		pkt_info.hw_timestamp = p_desc->rx.timestamps.hw;
 	}
-	if (p_desc->rx.sw_timestamp.tv_sec) {
-		pkt_info.sw_timestamp = p_desc->rx.sw_timestamp;
+	if (p_desc->rx.timestamps.sw.tv_sec) {
+		pkt_info.sw_timestamp = p_desc->rx.timestamps.sw;
 	}
 
 	// fill io vector array with data buffer pointers
@@ -1941,7 +1941,7 @@ inline void sockinfo_udp::fill_completion(mem_buf_desc_t* p_desc)
 	completion->src = p_desc->rx.src;
 
 	if (m_n_tsing_flags & SOF_TIMESTAMPING_RAW_HARDWARE) {
-		completion->packet.hw_timestamp = p_desc->rx.hw_timestamp;
+		completion->packet.hw_timestamp = p_desc->rx.timestamps.hw;
 	}
 
 	for(mem_buf_desc_t *tmp_p=p_desc; tmp_p; tmp_p=tmp_p->p_next_desc) {
@@ -2488,6 +2488,15 @@ mem_buf_desc_t* sockinfo_udp::get_next_desc_peek(mem_buf_desc_t *p_desc, int& rx
 {
 	NOT_IN_USE(rx_pkt_ready_list_idx);
 	return p_desc->p_next_desc;
+}
+
+timestamps_t* sockinfo_udp::get_socket_timestamps()
+{
+	if (unlikely(m_rx_pkt_ready_list.empty())) {
+		si_udp_logdbg("m_rx_pkt_ready_list empty");
+		return NULL;
+	}
+	return &m_rx_pkt_ready_list.front()->rx.timestamps;
 }
 
 void sockinfo_udp::post_deqeue(bool release_buff)

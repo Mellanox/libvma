@@ -240,6 +240,8 @@ sockinfo_tcp::sockinfo_tcp(int fd):
 	m_protocol = PROTO_TCP;
 	m_p_socket_stats->socket_type = SOCK_STREAM;
 
+	memset(&m_rx_timestamps, 0, sizeof(m_rx_timestamps));
+
 	m_sock_state = TCP_SOCK_INITED;
 	m_conn_state = TCP_CONN_INIT;
 	m_conn_timeout = CONNECT_DEFAULT_TIMEOUT_MS;
@@ -1568,6 +1570,7 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 		p_curr_desc->rx.frag.iov_base = p_curr_buff->payload;
 		p_curr_desc->rx.frag.iov_len = p_curr_buff->len;
 		p_curr_desc->p_next_desc = (mem_buf_desc_t *)p_curr_buff->next;
+		conn->process_timestamps(p_curr_desc);
 		p_curr_buff = p_curr_buff->next;
 		p_curr_desc = p_curr_desc->p_next_desc;
 	}
@@ -1585,6 +1588,13 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 		pkt_info.dst = &p_first_desc->rx.dst;
 		pkt_info.socket_ready_queue_pkt_count = conn->m_p_socket_stats->n_rx_ready_pkt_count;
 		pkt_info.socket_ready_queue_byte_count = conn->m_p_socket_stats->n_rx_ready_byte_count;
+
+		if (conn->m_n_tsing_flags & SOF_TIMESTAMPING_RAW_HARDWARE) {
+			pkt_info.hw_timestamp = p_first_desc->rx.timestamps.hw;
+		}
+		if (p_first_desc->rx.timestamps.sw.tv_sec) {
+			pkt_info.sw_timestamp = p_first_desc->rx.timestamps.sw;
+		}
 
 		// fill io vector array with data buffer pointers
 		iovec iov[p_first_desc->rx.n_frags];
@@ -1623,6 +1633,11 @@ err_t sockinfo_tcp::rx_lwip_cb(void *arg, struct tcp_pcb *pcb,
 			completion->packet.total_len = p->tot_len;
 			completion->src = p_first_desc->rx.src;
 			completion->packet.num_bufs = p_first_desc->rx.n_frags;
+
+			if (conn->m_n_tsing_flags & SOF_TIMESTAMPING_RAW_HARDWARE) {
+				completion->packet.hw_timestamp = p_first_desc->rx.timestamps.hw;
+			}
+
 			NOTIFY_ON_EVENTS(conn, VMA_SOCKETXTREME_PACKET);
 			conn->save_stats_rx_offload(completion->packet.total_len);
 		}
@@ -1805,6 +1820,7 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 	si_tcp_logfunc("something in rx queues: %d %p", m_n_rx_pkt_ready_list_count, m_rx_pkt_ready_list.front());
 
 	total_rx = dequeue_packet(p_iov, sz_iov, (sockaddr_in *)__from, __fromlen, in_flags, &out_flags);
+	if (__msg) handle_cmsg(__msg);
 
 	/*
 	* RCVBUFF Accounting: Going 'out' of the internal buffer: if some bytes are not tcp_recved yet  - do that.
@@ -4067,6 +4083,11 @@ mem_buf_desc_t* sockinfo_tcp::get_next_desc_peek(mem_buf_desc_t *pdesc, int& rx_
 	}
 
 	return pdesc;
+}
+
+timestamps_t* sockinfo_tcp::get_socket_timestamps()
+{
+	return &m_rx_timestamps;
 }
 
 void sockinfo_tcp::post_deqeue(bool release_buff)

@@ -216,6 +216,11 @@ public:
 		return m_sock_state == TCP_SOCK_ACCEPT_READY || m_sock_state == TCP_SOCK_ACCEPT_SHUT;
 	}
 
+	virtual void update_socket_timestamps(timestamps_t * ts)
+	{
+		m_rx_timestamps = *ts;
+	}
+
 	static const int CONNECT_DEFAULT_TIMEOUT_MS = 10000;
 	virtual inline fd_type_t get_type()
 	{
@@ -237,6 +242,7 @@ private:
 	//lwip specific things
 	struct tcp_pcb m_pcb;
 	socket_options_list_t m_socket_options_list;
+	timestamps_t m_rx_timestamps;
 	tcp_sock_offload_e m_sock_offload;
 	tcp_sock_state_e m_sock_state;
 	sockinfo_tcp *m_parent;
@@ -383,6 +389,7 @@ private:
 	inline void 	reuse_buffer(mem_buf_desc_t *buff);
 	virtual mem_buf_desc_t *get_next_desc(mem_buf_desc_t *p_desc);
 	virtual	mem_buf_desc_t* get_next_desc_peek(mem_buf_desc_t *p_desc, int& rx_pkt_ready_list_idx);
+	virtual timestamps_t* get_socket_timestamps();
 	virtual void 	post_deqeue(bool release_buff);
 	virtual int 	zero_copy_rx(iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags);
 	struct tcp_pcb* get_syn_received_pcb(const flow_tuple &key) const;

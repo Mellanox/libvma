@@ -266,6 +266,8 @@ private:
 	virtual inline void			reuse_buffer(mem_buf_desc_t *buff);
 	virtual 	mem_buf_desc_t*	get_next_desc (mem_buf_desc_t *p_desc);
 	virtual		mem_buf_desc_t* get_next_desc_peek(mem_buf_desc_t *p_desc, int& rx_pkt_ready_list_idx);
+	virtual		timestamps_t* get_socket_timestamps();
+	virtual		void update_socket_timestamps(timestamps_t *) {};
 
 	inline bool	rx_process_udp_packet_full(mem_buf_desc_t* p_desc, void* pv_fd_ready_array);
 	inline bool	rx_process_udp_packet_partial(mem_buf_desc_t* p_desc, void* pv_fd_ready_array);

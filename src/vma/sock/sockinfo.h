@@ -283,7 +283,8 @@ protected:
 	virtual void            set_dst_entry_ttl() = 0;
 	virtual mem_buf_desc_t *get_next_desc (mem_buf_desc_t *p_desc) = 0;
 	virtual	mem_buf_desc_t* get_next_desc_peek(mem_buf_desc_t *p_desc, int& rx_pkt_ready_list_idx) = 0;
-	
+	virtual timestamps_t* get_socket_timestamps() = 0;
+	virtual void          update_socket_timestamps(timestamps_t * ts) = 0;
 	virtual void 	post_deqeue (bool release_buff) = 0;
 	
 	virtual int 	zero_copy_rx (iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags) = 0;
@@ -437,10 +438,11 @@ protected:
 					m_rx_pkt_ready_offset += nbytes;
 					bytes_left -= nbytes;
 					iov_base = (uint8_t*)iov_base + nbytes;
+					if (m_b_rcvtstamp || m_n_tsing_flags) update_socket_timestamps(&pdesc->rx.timestamps);
 					if(bytes_left <= 0) {
 						if (unlikely(is_peek)) {
 							pdesc = get_next_desc_peek(pdesc, rx_pkt_ready_list_idx);
-						}else {
+						} else {
 							pdesc = get_next_desc(pdesc);
 						}
 						m_rx_pkt_ready_offset = 0;

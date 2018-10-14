@@ -1524,15 +1524,15 @@ void sockinfo::process_timestamps(mem_buf_desc_t* p_desc)
 	if ((m_b_rcvtstamp ||
 		 (m_n_tsing_flags &
 		  (SOF_TIMESTAMPING_RX_SOFTWARE | SOF_TIMESTAMPING_SOFTWARE))) &&
-		!p_desc->rx.sw_timestamp.tv_sec) {
-		clock_gettime(CLOCK_REALTIME, &(p_desc->rx.sw_timestamp));
+		!p_desc->rx.timestamps.sw.tv_sec) {
+		clock_gettime(CLOCK_REALTIME, &(p_desc->rx.timestamps.sw));
 	}
 
 	// convert hw timestamp to system time
 	if (m_n_tsing_flags & SOF_TIMESTAMPING_RAW_HARDWARE) {
 		ring_simple* owner_ring = (ring_simple*) p_desc->p_desc_owner;
 		if (owner_ring) {
-			owner_ring->convert_hw_time_to_system_time(p_desc->rx.hw_raw_timestamp, &p_desc->rx.hw_timestamp);
+			owner_ring->convert_hw_time_to_system_time(p_desc->rx.hw_raw_timestamp, &p_desc->rx.timestamps.hw);
 		}
 	}
 }
@@ -1547,13 +1547,8 @@ void sockinfo::handle_recv_timestamping(struct cmsg_state *cm_state)
 
 	memset(&tsing, 0, sizeof(tsing));
 
-	mem_buf_desc_t* packet = get_front_m_rx_pkt_ready_list();
-	if (unlikely(!packet)) {
-		si_logdbg("m_rx_pkt_ready_list empty");
-		return ;
-	}
-
-	struct timespec* packet_systime = &packet->rx.sw_timestamp;
+	timestamps_t* packet_timestamps = get_socket_timestamps();
+	struct timespec* packet_systime = &packet_timestamps->sw;
 
 	// Only fill in SO_TIMESTAMPNS if both requested.
 	// This matches the kernel behavior.
@@ -1574,11 +1569,11 @@ void sockinfo::handle_recv_timestamping(struct cmsg_state *cm_state)
 	}
 
 	if (m_n_tsing_flags & SOF_TIMESTAMPING_SOFTWARE) {
-		tsing.systime = packet->rx.sw_timestamp;
+		tsing.systime = packet_timestamps->sw;
 	}
 
 	if (m_n_tsing_flags & SOF_TIMESTAMPING_RAW_HARDWARE) {
-		tsing.hwtimeraw = packet->rx.hw_timestamp;
+		tsing.hwtimeraw = packet_timestamps->hw;
 	}
 
 	insert_cmsg(cm_state, SOL_SOCKET, SO_TIMESTAMPING, &tsing, sizeof(tsing));
