@@ -41,6 +41,12 @@
 
 class ring_slave;
 
+struct timestamps_t
+{
+	struct timespec sw;
+	struct timespec	hw;
+};
+
 /**
  * mem_buf_desc_t struct is used as the mapping of the wr_id in the wce to:
  * (1) p_desc_owner - to notify the owner of this mem_buf_desc of a completion of this WR
@@ -79,8 +85,7 @@ public:
 			iovec 		frag; // Datagram part base address and length
 			size_t		sz_payload; // This is the total amount of data of the packet, if (sz_payload>sz_data) means fragmented packet.
 			uint64_t	hw_raw_timestamp;
-			struct timespec sw_timestamp;
-			struct timespec	hw_timestamp;
+			timestamps_t	timestamps;
 			void* 		context;
 			uint32_t	flow_tag_id; // Flow Tag ID of this received packet
 
