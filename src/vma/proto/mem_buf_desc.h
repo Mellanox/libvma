@@ -79,6 +79,8 @@ public:
 			iovec 		frag; // Datagram part base address and length
 			size_t		sz_payload; // This is the total amount of data of the packet, if (sz_payload>sz_data) means fragmented packet.
 			uint64_t	hw_raw_timestamp;
+			struct timespec sw_timestamp;
+			struct timespec	hw_timestamp;
 			void* 		context;
 			uint32_t	flow_tag_id; // Flow Tag ID of this received packet
 
@@ -88,13 +90,9 @@ public:
 					struct tcphdr* 	p_tcp_h;
 					size_t		n_transport_header_len;
 					bool		gro;
-					bool		pad[7];
 				} tcp;
 				struct {
-					struct timespec sw_timestamp;
-					struct timespec	hw_timestamp;
 					in_addr_t	local_if; // L3 info
-					uint32_t	pad;
 				} udp;
 			};
 

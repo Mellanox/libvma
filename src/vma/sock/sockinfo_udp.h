@@ -85,13 +85,6 @@ struct mc_pending_pram
 typedef std::list<struct mc_pending_pram> mc_pram_list_t;
 typedef std::tr1::unordered_map<in_addr_t, std::tr1::unordered_map<in_addr_t, int> > mc_memberships_map_t;
 
-struct cmsg_state
-{
-	struct msghdr	*mhdr;
-	struct cmsghdr	*cmhdr;
-	size_t		cmsg_bytes_consumed;
-};
-
 /**
  * @class udp sockinfo
  * Represents an udp socket.
@@ -231,10 +224,6 @@ private:
 
 	chunk_list_t<mem_buf_desc_t *>	m_rx_pkt_ready_list;
 
-	bool		m_b_pktinfo;
-	bool		m_b_rcvtstamp;
-	bool		m_b_rcvtstampns;
-	uint8_t		m_n_tsing_flags;
 	uint8_t		m_tos;
 
 	const uint32_t	m_n_sysvar_rx_poll_yield_loops;
@@ -283,7 +272,6 @@ private:
 	inline bool	inspect_uc_packet(mem_buf_desc_t* p_desc);
 	inline bool	inspect_connected(mem_buf_desc_t* p_desc);
 	inline bool	inspect_mc_packet(mem_buf_desc_t* p_desc);
-	inline void	process_timestamps(mem_buf_desc_t* p_desc);
 	inline vma_recv_callback_retval_t inspect_by_user_cb(mem_buf_desc_t* p_desc);
 	inline void	fill_completion(mem_buf_desc_t* p_desc);
 	inline void	update_ready(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array, vma_recv_callback_retval_t cb_ret);
@@ -291,11 +279,7 @@ private:
 	virtual void 	post_deqeue (bool release_buff);
 	virtual int 	zero_copy_rx (iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags);
 	virtual size_t	handle_msg_trunc(size_t total_rx, size_t payload_size, int in_flags, int* p_out_flags);
-
-	inline void	handle_ip_pktinfo(struct cmsg_state *cm_state);
-	inline void	handle_recv_timestamping(struct cmsg_state *cm_state);
-	inline void	insert_cmsg(struct cmsg_state *cm_state, int level, int type, void *data, int len);
-	inline void	handle_cmsg(struct msghdr * msg);
+	virtual void	handle_ip_pktinfo(struct cmsg_state *cm_state);
 
 	virtual	mem_buf_desc_t* get_front_m_rx_pkt_ready_list();
 	virtual	size_t get_size_m_rx_pkt_ready_list();

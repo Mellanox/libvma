@@ -667,10 +667,10 @@ bool ring_tap::reclaim_recv_buffers(mem_buf_desc_t *buff)
 				temp->rx.flow_tag_id = 0;
 				temp->rx.tcp.p_ip_h = NULL;
 				temp->rx.tcp.p_tcp_h = NULL;
-				temp->rx.udp.sw_timestamp.tv_nsec = 0;
-				temp->rx.udp.sw_timestamp.tv_sec = 0;
-				temp->rx.udp.hw_timestamp.tv_nsec = 0;
-				temp->rx.udp.hw_timestamp.tv_sec = 0;
+				temp->rx.sw_timestamp.tv_nsec = 0;
+				temp->rx.sw_timestamp.tv_sec = 0;
+				temp->rx.hw_timestamp.tv_nsec = 0;
+				temp->rx.hw_timestamp.tv_sec = 0;
 				temp->rx.hw_raw_timestamp = 0;
 				free_lwip_pbuf(&temp->lwip_pbuf);
 				m_rx_pool.push_back(temp);

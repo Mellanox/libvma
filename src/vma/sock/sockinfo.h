@@ -45,7 +45,7 @@
 #include "vma/proto/mem_buf_desc.h"
 #include "vma/proto/dst_entry.h"
 #include "vma/dev/net_device_table_mgr.h"
-#include "vma/dev/ring_slave.h"
+#include "vma/dev/ring_simple.h"
 #include "vma/dev/ring_allocation_logic.h"
 
 #include "socket_fd_api.h"
@@ -59,6 +59,42 @@
 #define SI_RX_EPFD_EVENT_MAX		16
 #define BYTE_TO_KB(byte_value)		((byte_value) / 125)
 #define KB_TO_BYTE(kbit_value)		((kbit_value) * 125)
+
+#if DEFINED_MISSING_NET_TSTAMP
+enum {
+	SOF_TIMESTAMPING_TX_HARDWARE = (1<<0),
+	SOF_TIMESTAMPING_TX_SOFTWARE = (1<<1),
+	SOF_TIMESTAMPING_RX_HARDWARE = (1<<2),
+	SOF_TIMESTAMPING_RX_SOFTWARE = (1<<3),
+	SOF_TIMESTAMPING_SOFTWARE = (1<<4),
+	SOF_TIMESTAMPING_SYS_HARDWARE = (1<<5),
+	SOF_TIMESTAMPING_RAW_HARDWARE = (1<<6),
+	SOF_TIMESTAMPING_MASK =
+			(SOF_TIMESTAMPING_RAW_HARDWARE - 1) |
+			SOF_TIMESTAMPING_RAW_HARDWARE
+};
+#else
+#include <linux/net_tstamp.h>
+#endif
+
+#ifndef SO_TIMESTAMPNS
+#define SO_TIMESTAMPNS		35
+#endif
+
+#ifndef SO_TIMESTAMPING
+#define SO_TIMESTAMPING		37
+#endif
+
+#ifndef SO_REUSEPORT
+#define SO_REUSEPORT		15
+#endif
+
+struct cmsg_state
+{
+	struct msghdr	*mhdr;
+	struct cmsghdr	*cmhdr;
+	size_t		cmsg_bytes_consumed;
+};
 
 struct buff_info_t {
 		buff_info_t(){
@@ -155,6 +191,10 @@ public:
 protected:
 	bool			m_b_closed;
 	bool 			m_b_blocking;
+	bool 			m_b_pktinfo;
+	bool 			m_b_rcvtstamp;
+	bool 			m_b_rcvtstampns;
+	uint8_t 		m_n_tsing_flags;
 	in_protocol_t		m_protocol;
 
 	lock_spin_recursive	m_lock_rcv;
@@ -276,6 +316,12 @@ protected:
 
 	void 			move_owned_rx_ready_descs(ring* p_ring, descq_t* toq); // Move all owner's rx ready packets ro 'toq'
 	void			set_sockopt_prio(__const void *__optval, socklen_t __optlen);
+
+	virtual void    handle_ip_pktinfo(struct cmsg_state *cm_state) = 0;
+	inline  void    handle_recv_timestamping(struct cmsg_state *cm_state);
+	void            insert_cmsg(struct cmsg_state *cm_state, int level, int type, void *data, int len);
+	void            handle_cmsg(struct msghdr * msg);
+	void            process_timestamps(mem_buf_desc_t* p_desc);
 
 	virtual bool try_un_offloading(); // un-offload the socket if possible
 #ifdef DEFINED_SOCKETXTREME	
@@ -510,6 +556,25 @@ protected:
     		else
     			fromq->push_back(temp);
     	}
+    }
+
+    static const char * setsockopt_so_opt_to_str(int opt)
+    {
+    	switch (opt) {
+    	case SO_REUSEADDR: 		return "SO_REUSEADDR";
+    	case SO_REUSEPORT: 		return "SO_REUSEPORT";
+    	case SO_BROADCAST:	 	return "SO_BROADCAST";
+    	case SO_RCVBUF:			return "SO_RCVBUF";
+    	case SO_SNDBUF:			return "SO_SNDBUF";
+    	case SO_TIMESTAMP:		return "SO_TIMESTAMP";
+    	case SO_TIMESTAMPNS:		return "SO_TIMESTAMPNS";
+    	case SO_BINDTODEVICE:		return "SO_BINDTODEVICE";
+    	case SO_VMA_RING_ALLOC_LOGIC:	return "SO_VMA_RING_ALLOC_LOGIC";
+    	case SO_MAX_PACING_RATE:	return "SO_MAX_PACING_RATE";
+    	case SO_VMA_FLOW_TAG:           return "SO_VMA_FLOW_TAG";
+    	default:			break;
+    	}
+    	return "UNKNOWN SO opt";
     }
 
     inline void move_not_owned_descs(ring* p_ring, descq_t *toq, descq_t *fromq)
