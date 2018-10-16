@@ -89,18 +89,12 @@ void qp_mgr_eth_mlx5::init_sq()
 		qp_logpanic("vma_ib_mlx5_get_qp failed (errno=%d %m)", errno);
 	}
 
-	m_qp_num	 = m_mlx5_qp.qpn;
 	m_sq_wqes	 = (struct mlx5_wqe64 (*)[])(uintptr_t)m_mlx5_qp.sq.buf;
 	m_sq_wqe_hot	 = &(*m_sq_wqes)[0];
 	m_sq_wqes_end	 = (uint8_t*)((uintptr_t)m_mlx5_qp.sq.buf + m_mlx5_qp.sq.wqe_cnt * m_mlx5_qp.sq.stride);
 	m_sq_wqe_counter = 0;
 
-	m_sq_db		 = m_mlx5_qp.sq.dbrec;
-	m_sq_bf_reg	 = m_mlx5_qp.bf.reg;
-	m_sq_bf_buf_size = m_mlx5_qp.bf.size;
-
 	m_sq_wqe_hot_index = 0;
-	m_sq_bf_offset	 = 0;
 
 	m_tx_num_wr = (m_sq_wqes_end-(uint8_t *)m_sq_wqe_hot)/WQEBB;
 	/* Maximum BF inlining consists of:
@@ -128,13 +122,13 @@ void qp_mgr_eth_mlx5::init_sq()
 
 	memset((void *)(uintptr_t)m_sq_wqe_hot, 0, sizeof(struct mlx5_wqe64));
 	m_sq_wqe_hot->ctrl.data[0] = htonl(MLX5_OPCODE_SEND);
-	m_sq_wqe_hot->ctrl.data[1] = htonl((m_qp_num << 8) | 4);
+	m_sq_wqe_hot->ctrl.data[1] = htonl((m_mlx5_qp.qpn << 8) | 4);
 	m_sq_wqe_hot->ctrl.data[2] = 0;
 	m_sq_wqe_hot->eseg.inline_hdr_sz = htons(MLX5_ETH_INLINE_HEADER_SIZE);
 	m_sq_wqe_hot->eseg.cs_flags = VMA_TX_PACKET_L3_CSUM | VMA_TX_PACKET_L4_CSUM;
 
 	qp_logfunc("%p allocated for %d QPs sq_wqes:%p sq_wqes_end: %p and configured %d WRs BlueFlame: %p buf_size: %d offset: %d",
-			m_qp, m_qp_num, m_sq_wqes, m_sq_wqes_end,  m_tx_num_wr, m_sq_bf_reg, m_sq_bf_buf_size, m_sq_bf_offset);
+			m_qp, m_mlx5_qp.qpn, m_sq_wqes, m_sq_wqes_end,  m_tx_num_wr, m_mlx5_qp.bf.reg, m_mlx5_qp.bf.size, m_mlx5_qp.bf.offset);
 }
 
 qp_mgr_eth_mlx5::qp_mgr_eth_mlx5(const ring_simple* p_ring,
@@ -146,12 +140,7 @@ qp_mgr_eth_mlx5::qp_mgr_eth_mlx5(const ring_simple* p_ring,
 	,m_sq_wqes(NULL)
 	,m_sq_wqe_hot(NULL)
 	,m_sq_wqes_end(NULL)
-	,m_sq_db(NULL)
-	,m_sq_bf_reg(NULL)
-	,m_qp_num(0)
 	,m_sq_wqe_hot_index(0)
-	,m_sq_bf_offset(0)
-	,m_sq_bf_buf_size(0)
 	,m_sq_wqe_counter(0)
 	,m_dm_enabled(0)
 {
@@ -305,11 +294,11 @@ inline void qp_mgr_eth_mlx5::send_by_bf(uint64_t* addr, int num_wqebb)
 	// Make sure that descriptors are written before
 	// updating doorbell record and ringing the doorbell
 	wmb();
-	*m_sq_db = htonl(m_sq_wqe_counter);
+	*m_mlx5_qp.sq.dbrec = htonl(m_sq_wqe_counter);
 	// This wc_wmb ensures ordering between DB record and BF copy
 	wc_wmb();
 
-	copy_bf((uint64_t*)((uint8_t*)m_sq_bf_reg + m_sq_bf_offset), addr, num_wqebb);
+	copy_bf((uint64_t*)((uint8_t*)m_mlx5_qp.bf.reg + m_mlx5_qp.bf.offset), addr, num_wqebb);
 	dbg_dump_wqe((uint32_t*)addr, num_wqebb*WQEBB);
 
 	/* Use wc_wmb() to ensure write combining buffers are flushed out
@@ -317,7 +306,7 @@ inline void qp_mgr_eth_mlx5::send_by_bf(uint64_t* addr, int num_wqebb)
 	 * sfence instruction affects only the WC buffers of the CPU that executes it
 	 */
 	wc_wmb();
-	m_sq_bf_offset ^= m_sq_bf_buf_size;
+	m_mlx5_qp.bf.offset ^= m_mlx5_qp.bf.size;
 }
 
 inline void qp_mgr_eth_mlx5::send_by_bf_wrap_up(uint64_t* bottom_addr, int num_wqebb_bottom, int num_wqebb_top)
@@ -326,19 +315,19 @@ inline void qp_mgr_eth_mlx5::send_by_bf_wrap_up(uint64_t* bottom_addr, int num_w
 	// Make sure that descriptors are written before
 	// updating doorbell record and ringing the doorbell
 	wmb();
-	*m_sq_db = htonl(m_sq_wqe_counter);
+	*m_mlx5_qp.sq.dbrec = htonl(m_sq_wqe_counter);
 
 	// This wc_wmb ensures ordering between DB record and BF copy */
 	wc_wmb();
 	// Copying two times for wrap-up, first at the end of SQ and second from the start
-	copy_bf2((uint64_t*)((uint8_t*)m_sq_bf_reg+m_sq_bf_offset), bottom_addr, (uint64_t*)m_sq_wqes, num_wqebb_bottom, num_wqebb_top);
+	copy_bf2((uint64_t*)((uint8_t*)m_mlx5_qp.bf.reg+m_mlx5_qp.bf.offset), bottom_addr, (uint64_t*)m_sq_wqes, num_wqebb_bottom, num_wqebb_top);
 
 	/* Use wc_wmb() to ensure write combining buffers are flushed out
 	 * of the running CPU.
 	 * sfence instruction affects only the WC buffers of the CPU that executes it
 	 */
 	wc_wmb();
-	m_sq_bf_offset ^= m_sq_bf_buf_size;
+	m_mlx5_qp.bf.offset ^= m_mlx5_qp.bf.size;
 }
 
 inline int qp_mgr_eth_mlx5::fill_inl_segment(sg_array &sga, uint8_t *cur_seg, uint8_t* data_addr,
@@ -434,7 +423,7 @@ inline int qp_mgr_eth_mlx5::fill_wqe(vma_ibv_send_wr *pswr)
 			wqe_size += rest_space/OCTOWORD;
 			//assert((data_len-inline_len)==0);
 			// configuring control
-			m_sq_wqe_hot->ctrl.data[1] = htonl((m_qp_num << 8) | wqe_size);
+			m_sq_wqe_hot->ctrl.data[1] = htonl((m_mlx5_qp.qpn << 8) | wqe_size);
 			rest_space = align_to_WQEBB_up(wqe_size)/4;
 			qp_logfunc("data_len: %d inline_len: %d wqe_size: %d wqebbs: %d",
 				data_len-inline_len, inline_len, wqe_size, rest_space);
@@ -474,7 +463,7 @@ inline int qp_mgr_eth_mlx5::fill_wqe(vma_ibv_send_wr *pswr)
 				data_addr, data_len-wrap_up_size, wqe_size, inline_len+wrap_up_size, rest_space, max_inline_len);
 			//assert((data_len-wrap_up_size)==0);
 			// configuring control
-			m_sq_wqe_hot->ctrl.data[1] = htonl((m_qp_num << 8) | wqe_size);
+			m_sq_wqe_hot->ctrl.data[1] = htonl((m_mlx5_qp.qpn << 8) | wqe_size);
 
 			dbg_dump_wqe((uint32_t*)m_sq_wqe_hot, rest_space*4*16);
 			dbg_dump_wqe((uint32_t*)m_sq_wqes, max_inline_len*4*16);
@@ -491,7 +480,7 @@ inline int qp_mgr_eth_mlx5::fill_wqe(vma_ibv_send_wr *pswr)
 		qp_logfunc("data_addr: %p data_len: %d rest_space: %d wqe_size: %d",
 			data_addr, data_len, inline_len, wqe_size);
 		// configuring control
-		m_sq_wqe_hot->ctrl.data[1] = htonl((m_qp_num << 8) | wqe_size);
+		m_sq_wqe_hot->ctrl.data[1] = htonl((m_mlx5_qp.qpn << 8) | wqe_size);
 		inline_len = align_to_WQEBB_up(wqe_size)/4;
 		send_by_bf((uint64_t*)m_sq_wqe_hot, inline_len);
 		dbg_dump_wqe((uint32_t *)m_sq_wqe_hot, wqe_size*16);
