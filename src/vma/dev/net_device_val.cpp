@@ -854,6 +854,7 @@ bool net_device_val::update_active_slaves()
 void net_device_val::update_netvsc_slaves(int if_index, int if_flags)
 {
 	slave_data_t* s = NULL;
+	bool found = false;
 	ib_ctx_handler *ib_ctx = NULL, *up_ib_ctx = NULL;
 	char if_name[IFNAMSIZ] = {0};
 
@@ -873,6 +874,7 @@ void net_device_val::update_netvsc_slaves(int if_index, int if_flags)
 
 			g_buffer_pool_rx->register_memory(s->p_ib_ctx);
 			g_buffer_pool_tx->register_memory(s->p_ib_ctx);
+			found = true;
 		}
 	} else {
 		if (!m_slaves.empty()) {
@@ -883,10 +885,16 @@ void net_device_val::update_netvsc_slaves(int if_index, int if_flags)
 
 			ib_ctx = s->p_ib_ctx;
 			delete s;
+			found = true;
 		}
 	}
 
 	m_lock.unlock();
+
+	if (!found) {
+		nd_logdbg("Unable to detect any changes for interface %d. ignoring", if_index);
+		return;
+	}
 
 	/* restart if status changed */
 	m_p_L2_addr = create_L2_address(get_ifname());
