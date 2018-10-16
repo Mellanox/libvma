@@ -88,13 +88,7 @@ private:
 	struct mlx5_wqe64*	m_sq_wqe_hot;
 	uint8_t*		m_sq_wqes_end;
 
-	volatile uint32_t*	m_sq_db;
-	volatile void*		m_sq_bf_reg;
-
-	unsigned int        m_qp_num;
 	int                 m_sq_wqe_hot_index;
-	uint16_t            m_sq_bf_offset;
-	uint16_t            m_sq_bf_buf_size;
 	uint16_t            m_sq_wqe_counter;
 	dm_mgr              m_dm_mgr;
 	bool                m_dm_enabled;
