@@ -74,7 +74,8 @@ atomic_t cq_mgr::m_n_cq_id_counter = ATOMIC_INIT(1);
 
 uint64_t cq_mgr::m_n_global_sn = 0;
 
-cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_size, struct ibv_comp_channel* p_comp_event_channel, bool is_rx, bool config) :
+cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, uint32_t *cq_size,
+		struct ibv_comp_channel* p_comp_event_channel, bool is_rx, bool config /* = true */) :
 	m_p_ibv_cq(NULL)
 	,m_b_is_rx(is_rx)
 	,m_cq_id(0)
@@ -123,7 +124,7 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 		configure(cq_size);
 }
 
-void cq_mgr::configure(int cq_size)
+void cq_mgr::configure(uint32_t *cq_size)
 {
 	vma_ibv_cq_init_attr attr;
 	memset(&attr, 0, sizeof(attr));
@@ -131,7 +132,22 @@ void cq_mgr::configure(int cq_size)
 	prep_ibv_cq(attr);
 
 	m_p_ibv_cq = vma_ibv_create_cq(m_p_ib_ctx_handler->get_ibv_context(),
-			cq_size - 1, (void *)this, m_comp_event_channel, 0, &attr);
+			*cq_size - 1, (void *)this, m_comp_event_channel, 0, &attr);
+
+	if (!m_p_ibv_cq && safe_mce_sys().hypervisor == mce_sys_var::HYPER_MSHV && !strncmp(m_p_ib_ctx_handler->get_ibname(), "mlx4", 4)) {
+		// This is a workaround for an issue with cq creation of mlx4 devices on upstream-driver
+		// VMs over Windows Hypervisor.
+		static uint32_t max_upstream_cq_size = 8192;
+		if (*cq_size > max_upstream_cq_size) {
+			cq_logdbg("cq creation failed with cq_size of %d. retrying with size of %d",
+					*cq_size, max_upstream_cq_size);
+
+			*cq_size = max_upstream_cq_size;
+			m_p_ibv_cq = vma_ibv_create_cq(m_p_ib_ctx_handler->get_ibv_context(),
+					*cq_size - 1, (void *)this, m_comp_event_channel, 0, &attr);
+		}
+	}
+
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_p_ibv_cq) {
 		cq_logpanic("ibv_create_cq failed (errno=%d %m)", errno);
@@ -168,7 +184,7 @@ void cq_mgr::configure(int cq_size)
 		cq_logdbg("RX CSUM support = %d", m_b_is_rx_hw_csum_on);
 	}
 
-	cq_logdbg("Created CQ as %s with fd[%d] and of size %d elements (ibv_cq_hndl=%p)", (m_b_is_rx?"Rx":"Tx"), get_channel_fd(), cq_size, m_p_ibv_cq);
+	cq_logdbg("Created CQ as %s with fd[%d] and of size %d elements (ibv_cq_hndl=%p)", (m_b_is_rx?"Rx":"Tx"), get_channel_fd(), *cq_size, m_p_ibv_cq);
 }
 
 void cq_mgr::prep_ibv_cq(vma_ibv_cq_init_attr& attr) const
