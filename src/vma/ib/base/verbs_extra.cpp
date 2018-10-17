@@ -276,7 +276,7 @@ int priv_ibv_query_flow_tag_supported(struct ibv_qp *qp, uint8_t port_num)
 	NOT_IN_USE(port_num);
 	int res = -1;
 
-#ifdef DEFINED_IBV_EXP_FLOW_TAG
+#ifdef DEFINED_IBV_FLOW_TAG
 
 	// Create
 	struct __attribute__ ((packed)) {
@@ -313,7 +313,7 @@ int priv_ibv_query_flow_tag_supported(struct ibv_qp *qp, uint8_t port_num)
 		res = 0;
 		vma_ibv_destroy_flow(ibv_flow);
 	}
-#endif // DEFINED_IBV_EXP_FLOW_TAG
+#endif // DEFINED_IBV_FLOW_TAG
 
 	return res;
 }
