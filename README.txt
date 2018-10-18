@@ -765,7 +765,7 @@ Use value of -1 for just handling at DEBUG severity.
 Use value of 0 to log DEBUG message and try recovering via Kernel network stack (un-offloading the socket).
 Use value of 1 to log ERROR message and try recovering via Kernel network stack (un-offloading the socket).
 Use value of 2 to log ERROR message and return API respectful error code.
-Use value of 3 to log ERROR message and abort application (throw vma_error exception).
+Use value of 3 to log PANIC message and abort application (throw vma_error exception).
 Default value is -1 (notice, that in the future the default value will be changed to 0)
 
 VMA_AVOID_SYS_CALLS_ON_TCP_FD

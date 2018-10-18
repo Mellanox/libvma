@@ -776,13 +776,14 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 	if (unlikely(m_b_closed) || unlikely(g_b_exit))
 		return orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
 
+	auto_unlocker lock_tx(m_lock_snd);
+	auto_unlocker lock_rx(m_lock_rcv);
+
 	if (0 == sockinfo::setsockopt(__level, __optname, __optval, __optlen)) {
 		return 0;
 	}
 
-	auto_unlocker lock_tx(m_lock_snd);
-	auto_unlocker lock_rx(m_lock_rcv);
-
+	int ret = 0;
 	bool supported = true;
 	switch (__level) {
 
@@ -830,6 +831,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					si_udp_logdbg("SOL_SOCKET: SO_RCVTIMEO=%d", m_loops_timer.get_timeout_msec());
 				}
 				else {
+					ret = -1;
 					si_udp_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
 				}
 				break;
@@ -843,6 +845,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					si_udp_logdbg("SOL_SOCKET, %s=%s", setsockopt_so_opt_to_str(__optname), (m_b_rcvtstamp ? "true" : "false"));
 				}
 				else {
+					ret = -1;
 					si_udp_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
 				}
 				break;
@@ -876,6 +879,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					si_udp_logdbg("SOL_SOCKET, SO_TIMESTAMPING=%u", m_n_tsing_flags);
 				}
 				else {
+					ret = -1;
 					si_udp_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
 				}
 				break;
@@ -886,6 +890,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					if (__optlen == 0 || ((char*)__optval)[0] == '\0') {
 						m_so_bindtodevice_ip = INADDR_ANY;
 					} else if (get_ipv4_from_ifname((char*)__optval, &sockaddr)) {
+						ret = -1;
 						si_udp_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, cannot find if_name", setsockopt_so_opt_to_str(__optname));
 						break;
 					} else {
@@ -907,6 +912,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					// handle RX side - TODO
 				}
 				else {
+					ret = -1;
 					si_udp_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
 				}
 				break;
@@ -917,6 +923,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 						return set_ring_attr(attr);
 					}
 					else {
+						ret = -1;
 						si_udp_logdbg("VMA_MP_RQ, %s=\"???\" - bad length expected %d got %d",
 							      setsockopt_so_opt_to_str(__optname),
 							      sizeof(vma_ring_alloc_logic_attr), __optlen);
@@ -924,6 +931,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					}
 				}
 				else {
+					ret = -1;
 					si_udp_logdbg("VMA_MP_RQ, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
 				}
 				break;
@@ -976,11 +984,12 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					return 0;
 				}
 				else {
+					ret = -1;
 					si_udp_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
 				}
 				break;
 			case SO_PRIORITY:
-				set_sockopt_prio(__optval, __optlen);
+				ret = set_sockopt_prio(__optval, __optlen);
 			break;
 			default:
 				si_udp_logdbg("SOL_SOCKET, optname=%s (%d)", setsockopt_so_opt_to_str(__optname), __optname);
@@ -1000,6 +1009,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					memset(&mreqn, 0, sizeof(mreqn));
 
 					if (!__optval || __optlen < sizeof(struct in_addr)) {
+						ret = -1;
 						si_udp_loginfo("IPPROTO_IP, %s=\"???\", optlen:%d", setsockopt_ip_opt_to_str(__optname), (int)__optlen);
 						break;
 					}
@@ -1047,6 +1057,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 						si_udp_logdbg("IPPROTO_IP, %s=%d", setsockopt_ip_opt_to_str(__optname), m_n_mc_ttl);
 					}
 					else {
+						ret = -1;
 						si_udp_loginfo("IPPROTO_IP, %s=\"???\"", setsockopt_ip_opt_to_str(__optname));
 					}
 				}
@@ -1061,6 +1072,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 						si_udp_logdbg("IPPROTO_IP, %s=%s", setsockopt_ip_opt_to_str(__optname), (m_b_mc_tx_loop ? "true" : "false"));
 					}
 					else {
+						ret = -1;
 						si_udp_loginfo("IPPROTO_IP, %s=\"???\"", setsockopt_ip_opt_to_str(__optname));
 					}
 				}
@@ -1073,11 +1085,13 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 				{
 					if (!m_sock_offload) {
 						si_udp_logdbg("VMA Rx Offload is Disabled! calling OS setsockopt() for IPPROTO_IP, %s", setsockopt_ip_opt_to_str(__optname));
+						ret = -1;
 						break;
 					}
 
 					if (NULL == __optval) {
 						si_udp_logdbg("IPPROTO_IP, %s; Bad optval! calling OS setsockopt()", setsockopt_ip_opt_to_str(__optname));
+						ret = -1;
 						break;
 					}
 
@@ -1089,6 +1103,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					// structure (present since Linux 1.2) is still supported; it differs from ip_mreqn only by not
 					// including the imr_ifindex field.
 					if (__optlen < sizeof(struct ip_mreq)) {
+						ret = -1;
 						si_udp_logdbg("IPPROTO_IP, %s; Bad optlen! calling OS setsockopt() with optlen=%d (required optlen=%d)",
 							setsockopt_ip_opt_to_str(__optname), __optlen, sizeof(struct ip_mreq));
 						break;
@@ -1099,6 +1114,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 						    (__optlen < sizeof(struct ip_mreq_source))) {
 						si_udp_logdbg("IPPROTO_IP, %s; Bad optlen! calling OS setsockopt() with optlen=%d (required optlen=%d)",
 							setsockopt_ip_opt_to_str(__optname), __optlen, sizeof(struct ip_mreq_source));
+						ret = -1;
 						break;
 					}
 
@@ -1120,6 +1136,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 									if (get_ipv4_from_ifindex(p_mreqn->imr_ifindex, &src_addr) == 0) {
 										mreqprm.imr_interface.s_addr = src_addr.sin_addr.s_addr;
 									} else {
+										ret = -1;
 										si_udp_logdbg("setsockopt(%s) will be passed to OS for handling, can't get address of interface index %d ",
 												setsockopt_ip_opt_to_str(__optname), p_mreqn->imr_ifindex);
 										break;
@@ -1137,6 +1154,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					mc_if  = mreqprm.imr_interface.s_addr;
 
 					if (!IN_MULTICAST_N(mc_grp)) {
+						ret = -1;
 						si_udp_logdbg("setsockopt(%s) will be passed to OS for handling, IP %d.%d.%d.%d is not MC ",
 								setsockopt_ip_opt_to_str(__optname),  NIPQUAD(mc_grp));
 						break;
@@ -1165,6 +1183,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					// Add multicast group membership
 					if (mc_change_membership_start_helper(mc_grp, __optname)) {
 						return -1;
+						// todo maybe fallback to OS
 					}
 
 					bool goto_os = false;
@@ -1186,19 +1205,20 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					// offloaded, check if need to pend
 					else if (INPORT_ANY == m_bound.get_in_port()) {
 						// Delay attaching to this MC group until we have bound UDP port
-						int ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
-						if (ret) return ret;
+						int ret2 = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
+						if (ret2) return ret2;
 						mc_change_pending_mreq(&mcpram);
 					}
 					// Handle attach to this MC group now
 					else if (mc_change_membership( &mcpram )) {
 						// Opps, failed in attaching??? call orig setsockopt()
 						goto_os = true;
+						ret = -1;
 					}
 
 					if (goto_os) {
-						int ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
-						if (ret) return ret;
+						// need to consider Exception vma variable for that
+						break;
 					}
 
 					mc_change_membership_end_helper(mc_grp, __optname, mreqprm.imr_sourceaddr.s_addr);
@@ -1211,11 +1231,15 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 						m_b_pktinfo = true;
 					else
 						m_b_pktinfo = false;
+				} else {
+					ret = -1;
 				}
 				break;
 			case IP_TOS:
 				if (__optlen <= sizeof(int)) {
 					m_tos =(uint8_t) *(int *)__optval;
+				} else {
+					ret = -1;
 				}
 				break;
 			default:
@@ -1233,6 +1257,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 		case UDP_MAP_ADD:
 		{
 			if (! __optval) {
+				ret = -1;
 				si_udp_loginfo("UDP_MAP_ADD __optval = NULL");
 				break;
 			}
@@ -1260,6 +1285,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 		case UDP_MAP_REMOVE:
 		{
 			if (! __optval) {
+				ret = -1;
 				si_udp_loginfo("UDP_MAP_REMOVE __optval = NULL");
 				break;
 			}
@@ -1292,7 +1318,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 		}
 		break;
 	}
-	return setsockopt_kernel(__level, __optname, __optval, __optlen, supported, false);
+	return setsockopt_kernel(__level, __optname, __optval, __optlen, supported, ret, false);
 }
 
 int sockinfo_udp::getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen)
@@ -1354,18 +1380,11 @@ int sockinfo_udp::getsockopt(int __level, int __optname, void *__optval, socklen
 		break;
 	}
 
-	if (! supported) {
-		char buf[256];
-		snprintf(buf, sizeof(buf), "unimplemented getsockopt __level=%#x, __optname=%#x, __optlen=%d", (unsigned)__level, (unsigned)__optname, __optlen ? *__optlen : 0);
-		buf[ sizeof(buf)-1 ] = '\0';
-
-		VLOG_PRINTF_INFO(safe_mce_sys().exception_handling.get_log_severity(), "%s", buf);
-		int rc = handle_exception_flow();
-		switch (rc) {
-		case -1:
+	if (!supported) {
+		int rc = handle_exception_flow(__level, __optname, *__optlen,
+					       "setsockopt");
+		if (rc) {
 			return rc;
-		case -2:
-			vma_throw_object_with_msg(vma_unsupported_api, buf);
 		}
 	}
 

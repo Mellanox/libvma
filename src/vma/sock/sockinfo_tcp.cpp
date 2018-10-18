@@ -3640,7 +3640,8 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 
 	if (safe_mce_sys().avoid_sys_calls_on_tcp_fd && ret != SOCKOPT_HANDLE_BY_OS && is_connected())
 		return ret;
-	return setsockopt_kernel(__level, __optname, __optval, __optlen, supported, allow_privileged_sock_opt);
+	return setsockopt_kernel(__level, __optname, __optval, __optlen, supported,
+				 ret, allow_privileged_sock_opt);
 }
 
 int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
@@ -3788,20 +3789,11 @@ int sockinfo_tcp::getsockopt(int __level, int __optname, void *__optval,
 		socklen_t *__optlen)
 {
 	int ret = getsockopt_offload(__level, __optname, __optval, __optlen);
-	if (ret != SOCKOPT_HANDLE_BY_OS)
-		return ret;
-	else {
-		char buf[256];
-		snprintf(buf, sizeof(buf), "unimplemented getsockopt __level=%#x, __optname=%#x, __optlen=%d", (unsigned)__level, (unsigned)__optname, __optlen ? *__optlen : 0);
-		buf[ sizeof(buf)-1 ] = '\0';
-
-		VLOG_PRINTF_INFO(safe_mce_sys().exception_handling.get_log_severity(), "%s", buf);
-		int rc = handle_exception_flow();
-		switch (rc) {
-		case -1:
-			return rc;
-		case -2:
-			vma_throw_object_with_msg(vma_unsupported_api, buf);
+	if (ret != SOCKOPT_HANDLE_BY_OS) {
+		ret = handle_exception_flow(__level, __optname, *__optlen,
+				"setsockopt");
+		if (ret) {
+			return ret;
 		}
 	}
 

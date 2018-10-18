@@ -100,7 +100,7 @@ void assign_dlsym(T &ptr, const char *name) {
 	if (__res) { \
 		vlog_printf(VLOG_ERROR, "%s vma failed to start errno: %m\n", \
 			__FUNCTION__, errno); \
-		if (safe_mce_sys().exception_handling == vma_exception_handling::MODE_EXIT) { \
+		if (safe_mce_sys().exception_handling == VMA_EXCEPTION_MODE_EXIT) { \
 			exit(-1); \
 		} \
 		return -1; \

@@ -199,6 +199,18 @@ namespace vma_spec {
 	const char * to_str(vma_spec_t level);
 }
 
+typedef enum {
+	VMA_EXCEPTION_MODE_FIRST = -3,
+	VMA_EXCEPTION_MODE_EXIT = -2,
+	VMA_EXCEPTION_MODE_DEBUG = -1,
+	VMA_EXCEPTION_MODE_UNOFFLOAD = 0,
+	VMA_EXCEPTION_MODE_LOG_ERROR_AND_UNOFFLOAD = 1,
+	VMA_EXCEPTION_MODE_RETURN_ERROR = 2,
+	VMA_EXCEPTION_MODE_ABORT = 3,
+	VMA_EXCEPTION_MODE_LAST = 4,
+
+	VMA_EXCEPTION_MODE_DEFAULT = VMA_EXCEPTION_MODE_DEBUG
+} vma_exception_mode;
 ////////////////////////////////////////////////////////////////////////////////
 class vma_exception_handling
 {
@@ -212,71 +224,46 @@ public:
 		return "VMA_EXCEPTION_HANDLING";
 	}
 
-	typedef enum {
-		MODE_FIRST = -3,
-		MODE_EXIT = -2,
-		MODE_DEBUG = -1,
-		MODE_UNOFFLOAD = 0,
-		MODE_LOG_ERROR,
-		MODE_RETURN_ERROR,
-		MODE_ABORT,
-		MODE_LAST,
 
-		MODE_DEFAULT = MODE_DEBUG
-	} mode;
 
 	const char* to_str()
 	{
 		switch (m_mode) {
-		case MODE_EXIT:         return "(exit on failed startup)";
-		case MODE_DEBUG:        return "(just log debug message)";
-		case MODE_UNOFFLOAD:    return "(log debug and un-offload)";
-		case MODE_LOG_ERROR:    return "(log error and un-offload)";
-		case MODE_RETURN_ERROR: return "(Log Error and return error)";
-		case MODE_ABORT:        return "(Log error and Abort!)";
-		default:				break;
+		case VMA_EXCEPTION_MODE_EXIT:			return "(exit on failed startup)";
+		case VMA_EXCEPTION_MODE_DEBUG:			return "(just log debug message)";
+		case VMA_EXCEPTION_MODE_UNOFFLOAD:		return "(log debug and un-offload)";
+		case VMA_EXCEPTION_MODE_LOG_ERROR_AND_UNOFFLOAD:return "(log error and un-offload)";
+		case VMA_EXCEPTION_MODE_RETURN_ERROR:		return "(Log Error and return error)";
+		case VMA_EXCEPTION_MODE_ABORT:			return "(Log Panic and Abort!)";
+		default:					break;
 		}
 		return "unsupported";
 	}
 
 	bool is_suit_un_offloading() {
-		return m_mode ==  MODE_UNOFFLOAD || m_mode == MODE_LOG_ERROR;
-	}
-
-	vlog_levels_t get_log_severity() {
-		switch (m_mode) {
-		case MODE_EXIT:
-		case MODE_DEBUG:
-		case MODE_UNOFFLOAD:
-			return VLOG_DEBUG;
-		case MODE_LOG_ERROR:
-		case MODE_RETURN_ERROR:
-		case MODE_ABORT:
-		default:
-			return VLOG_ERROR;
-		}
+		return m_mode ==  VMA_EXCEPTION_MODE_UNOFFLOAD || m_mode == VMA_EXCEPTION_MODE_LOG_ERROR_AND_UNOFFLOAD;
 	}
 
 	//
 	// cast constructors and cast operators
 	//
 
-	vma_exception_handling(mode _mode = MODE_DEFAULT) : m_mode(_mode) {
-		if (m_mode >= MODE_LAST || m_mode <= MODE_FIRST)
-			m_mode = MODE_DEFAULT;
+	vma_exception_handling(vma_exception_mode _mode = VMA_EXCEPTION_MODE_DEFAULT) : m_mode(_mode) {
+		if (m_mode >= VMA_EXCEPTION_MODE_LAST || m_mode <= VMA_EXCEPTION_MODE_FIRST)
+			m_mode = VMA_EXCEPTION_MODE_DEFAULT;
 	}
 
-	explicit vma_exception_handling(int _mode) : m_mode((mode)_mode) {
-		if (m_mode >= MODE_LAST || m_mode <= MODE_FIRST)
-			m_mode = MODE_DEFAULT;
+	explicit vma_exception_handling(int _mode) : m_mode((vma_exception_mode)_mode) {
+		if (m_mode >= VMA_EXCEPTION_MODE_LAST || m_mode <= VMA_EXCEPTION_MODE_FIRST)
+			m_mode = VMA_EXCEPTION_MODE_DEFAULT;
 	}
 
-	operator mode() const {
-		return m_mode;
+	operator int() const {
+		return (int)m_mode;
 	}
 
 private:
-	mode m_mode;
+	vma_exception_mode m_mode;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

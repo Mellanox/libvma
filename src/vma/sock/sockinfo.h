@@ -215,7 +215,9 @@ protected:
 	virtual int 		fcntl(int __cmd, unsigned long int __arg);
 	virtual int 		ioctl(unsigned long int __request, unsigned long int __arg);
 	virtual int setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen);
-	int setsockopt_kernel(int __level, int __optname, const void *__optval, socklen_t __optlen, int supported, bool allow_priv);
+	int setsockopt_kernel(int __level, int __optname, const void *__optval,
+			      socklen_t __optlen, bool supported, int vma_ret,
+			      bool allow_priv);
 	virtual int getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen);
 
 	virtual	mem_buf_desc_t* get_front_m_rx_pkt_ready_list() = 0;
@@ -266,9 +268,16 @@ protected:
 	int 			modify_ratelimit(dst_entry* p_dst_entry, struct vma_rate_limit_t &rate_limit);
 
 	void 			move_owned_rx_ready_descs(ring* p_ring, descq_t* toq); // Move all owner's rx ready packets ro 'toq'
-	void			set_sockopt_prio(__const void *__optval, socklen_t __optlen);
+	int			set_sockopt_prio(__const void *__optval, socklen_t __optlen);
 
-	virtual bool try_un_offloading(); // un-offload the socket if possible
+	virtual bool		try_un_offloading(); // un-offload the socket if possible
+	int			get_sock_by_L3_L4(in_protocol_t protocol,
+						  in_addr_t ip, in_port_t port);
+
+	int			handle_exception_flow(int __level, int __optname,
+						      socklen_t __optlen,
+						      const char *function);
+
 #ifdef DEFINED_SOCKETXTREME	
 	virtual inline void do_wakeup()
 	{
@@ -518,25 +527,6 @@ protected:
     			toq->push_back(temp);
     	}
     }
-
-
-    int			get_sock_by_L3_L4(in_protocol_t protocol, in_addr_t ip, in_port_t  port);
-
-    //////////////////////////////////////////////////////////////////
-    int handle_exception_flow(){
-		if (safe_mce_sys().exception_handling.is_suit_un_offloading()) {
-			try_un_offloading();
-		}
-		if (safe_mce_sys().exception_handling == vma_exception_handling::MODE_RETURN_ERROR) {
-			errno = EINVAL;
-			return -1;
-		}
-		if (safe_mce_sys().exception_handling == vma_exception_handling::MODE_ABORT) {
-			return -2;
-		}
-		return 0;
-    }
-    //////////////////////////////////////////////////////////////////
 };
 
 #ifdef DEFINED_SOCKETXTREME

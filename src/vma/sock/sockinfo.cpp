@@ -163,19 +163,10 @@ int sockinfo::fcntl(int __cmd, unsigned long int __arg)
 		break;
 
 	default:
-		char buf[128];
-		snprintf(buf, sizeof(buf), "unimplemented fcntl cmd=%#x, arg=%#x", (unsigned)__cmd, (unsigned)__arg);
-		buf[ sizeof(buf)-1 ] = '\0';
-
-		VLOG_PRINTF_INFO(safe_mce_sys().exception_handling.get_log_severity(), "%s", buf);
-		int rc = handle_exception_flow();
-		switch (rc) {
-		case -1:
+		int rc = handle_exception_flow(__cmd, __arg, 0, "fcntl");
+		if (rc) {
 			return rc;
-		case -2:
-			vma_throw_object_with_msg(vma_unsupported_api, buf);
 		}
-		break;
 	}
 	si_logdbg("going to OS for fcntl cmd=%d, arg=%#x", __cmd, __arg);
 	return orig_os_api.fcntl(m_fd, __cmd, __arg);
@@ -210,22 +201,14 @@ int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg)
 		break;
 
 	default:
-		char buf[128];
-		snprintf(buf, sizeof(buf), "unimplemented ioctl request=%#x, flags=%#x", (unsigned)__request, (unsigned)__arg);
-		buf[ sizeof(buf)-1 ] = '\0';
-
-		VLOG_PRINTF_INFO(safe_mce_sys().exception_handling.get_log_severity(), "%s", buf);
-		int rc = handle_exception_flow();
-		switch (rc) {
-		case -1:
+		int rc = handle_exception_flow(__request, __arg, 0, "ioctl");
+		if (rc) {
 			return rc;
-		case -2:
-			vma_throw_object_with_msg(vma_unsupported_api, buf);
 		}
 		break;
 	}
 
-    si_logdbg("going to OS for ioctl request=%d, flags=%x", __request, __arg);
+	si_logdbg("going to OS for ioctl request=%d, flags=%x", __request, __arg);
 	return orig_os_api.ioctl(m_fd, __request, __arg);
 }
 
@@ -332,6 +315,49 @@ int sockinfo::get_sock_by_L3_L4(in_protocol_t protocol, in_addr_t ip, in_port_t 
 		if (protocol == s->m_protocol && ip == s->m_bound.get_in_addr() && port == s->m_bound.get_in_port()) return i;
 	}
 	return -1;
+}
+
+int sockinfo::handle_exception_flow(int __level, int __optname,
+				    socklen_t __optlen, const char *__function)
+{
+	char buf[256] = {0};
+	if (__optlen) {
+		snprintf(buf, sizeof(buf) - 1, "unimplemented %s __level=%#x, "
+			 "__optname=%#x, __optlen=%d", __function, (unsigned)__level,
+			 (unsigned)__optname, __optlen);
+	} else {
+		snprintf(buf, sizeof(buf) - 1, "unimplemented %s cmd=%#x, "
+			 "arg=%#x", __function, (unsigned)__level,
+			 (unsigned)__optname);
+	}
+	int rc = 0;
+	vlog_levels_t level = VLOG_DEBUG;
+
+	switch (safe_mce_sys().exception_handling) {
+	case VMA_EXCEPTION_MODE_DEBUG:
+		break;
+	case VMA_EXCEPTION_MODE_UNOFFLOAD:
+		try_un_offloading();
+		break;
+	case VMA_EXCEPTION_MODE_LOG_ERROR_AND_UNOFFLOAD:
+		level = VLOG_ERROR;
+		try_un_offloading();
+		break;
+	case VMA_EXCEPTION_MODE_RETURN_ERROR:
+		level = VLOG_ERROR;
+		rc = -1;
+		break;
+	case VMA_EXCEPTION_MODE_ABORT:
+		si_logpanic("%s", buf); // will throw exception
+		break;
+	case VMA_EXCEPTION_MODE_FIRST:
+	case VMA_EXCEPTION_MODE_LAST:
+	case VMA_EXCEPTION_MODE_EXIT: // should not happen here
+	default:
+		break;
+	}
+	VLOG_PRINTF_INFO(level, "%s", buf);
+	return rc;
 }
 
 #if _BullseyeCoverage
@@ -1338,23 +1364,16 @@ int sockinfo::get_socket_network_ptr(void *ptr, uint16_t &len)
 }
 
 int sockinfo::setsockopt_kernel(int __level, int __optname, const void *__optval,
-		socklen_t __optlen, int supported, bool allow_privileged)
+				socklen_t __optlen, bool supported, int vma_ret,
+				bool allow_privileged)
 {
-	if (!supported) {
-		char buf[256];
-		snprintf(buf, sizeof(buf), "unimplemented setsockopt __level=%#x, __optname=%#x, [__optlen (%d) bytes of __optval=%.*s]", (unsigned)__level, (unsigned)__optname, __optlen, __optlen, (char*)__optval);
-		buf[ sizeof(buf)-1 ] = '\0';
-
-		VLOG_PRINTF_INFO(safe_mce_sys().exception_handling.get_log_severity(), "%s", buf);
-		int rc = handle_exception_flow();
-		switch (rc) {
-		case -1:
+	if (!supported || vma_ret) {
+		int rc = handle_exception_flow(__level, __optname, __optlen,
+					       "setsockopt");
+		if (rc) {
 			return rc;
-		case -2:
-			vma_throw_object_with_msg(vma_unsupported_api, buf);
 		}
 	}
-
 	si_logdbg("going to OS for setsockopt level %d optname %d", __level, __optname);
 	int ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -1373,7 +1392,7 @@ int sockinfo::setsockopt_kernel(int __level, int __optname, const void *__optval
 	return ret;
 }
 
-void sockinfo::set_sockopt_prio(__const void *__optval, socklen_t __optlen)
+int sockinfo::set_sockopt_prio(__const void *__optval, socklen_t __optlen)
 {
 	int val = -1;
 
@@ -1384,9 +1403,11 @@ void sockinfo::set_sockopt_prio(__const void *__optval, socklen_t __optlen)
 	} else {
 		/* error flow is handled in kernel setsockopt */
 		si_logdbg("bad parameter size in set_sockopt_prio");
+		return -1;
 	}
 	if (val >= 0 && val <= 6) {
 		m_pcp = (uint8_t)val;
 		si_logdbg("set socket pcp to be %d", m_pcp);
 	}
+	return 0;
 }
