@@ -163,7 +163,7 @@ cq_mgr* qp_mgr::handle_cq_initialization(uint32_t *num_wr, struct ibv_comp_chann
 	} catch (vma_exception& e) {
 		// This is a workaround for an issue with cq creation of mlx4 devices on
 		// upstream-driver VMs over Windows Hypervisor.
-		if (safe_mce_sys().hypervisor == mce_sys_var::HYPER_MSHV && !is_lib_mlx5(m_p_ib_ctx_handler->get_ibname()) &&
+		if (safe_mce_sys().hypervisor == mce_sys_var::HYPER_MSHV && !strncmp(m_p_ib_ctx_handler->get_ibname(), "mlx4", 4) &&
 				*num_wr > MAX_UPSTREAM_CQ_MSHV_SIZE) {
 			qp_logdbg("cq creation failed with cq_size of %d. retrying with size of %d", *num_wr, MAX_UPSTREAM_CQ_MSHV_SIZE);
 			*num_wr = MAX_UPSTREAM_CQ_MSHV_SIZE;
