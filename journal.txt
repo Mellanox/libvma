@@ -1,3 +1,29 @@
+Version 8.7.2-0:
+Date + Time 2018-10-18
+=============================================================
+Added:
+        - RM #1537043 Improve qp_mgr_mlx5 class
+        - RM #1537043 Add mlx5 req_notify_cq()
+        - RM #1537043 Enable socketxtreme mode for rdma-core (upstream)
+        - RM #1537043 Support direct verbs
+        - RM #1537043 Detect direct ring support during configure
+        - RM #1537043 Remove MLX5_CQE_SIG_ERR usage
+        - RM #1537043 Introduce access to head and tail of qp.rq
+        - RM #1537043 Introduce vma_ib_mlx5_qp_t
+        - RM #1537043 Introduce vma_ib_mlx5_cq_t
+        - RM #1537043 Use to_mqp() to convert ibv_qp to mlx5_qp
+        - RM #1537043 Introduce ib layer
+        - RM #1537043 Start direct mlx5 support since MOFED 3.4
+        - RM #1537043 Add direct verbs support for upstream OFED
+        - RM #1537043 Cleanup hw/mlx5 folder
+        - RM #1537043 Cleanup MLX5_HW_ETH_WQE_HEADER definition
+        - RM #915305 Add connection with daemon on the fly
+        - RM #807132 Clean unused code from lwip pbuf.c and tcp.c
+        - RM #807132 Remove all LWIP Non TCP related options
+        - RM #807132 Remove LWIP BACKLOG handling which is not in use
+        - RM #807132 Remove LWIP pcbs lists which are not in use
+        - RM #1522890 Update valgrind suppression file
+
 Version 8.7.1-0:
 Date + Time 2018-09-12
 =============================================================
