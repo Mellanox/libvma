@@ -155,13 +155,13 @@ qp_mgr::~qp_mgr()
 cq_mgr* qp_mgr::init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_channel)
 {
 	qp_logfunc("");
-	return new cq_mgr(m_p_ring, m_p_ib_ctx_handler, &m_rx_num_wr, p_rx_comp_event_channel, true);
+	return new cq_mgr(m_p_ring, m_p_ib_ctx_handler, m_rx_num_wr, p_rx_comp_event_channel, true);
 }
 
 cq_mgr* qp_mgr::init_tx_cq_mgr()
 {
 	qp_logfunc("");
-	return new cq_mgr(m_p_ring, m_p_ib_ctx_handler, &m_tx_num_wr, m_p_ring->get_tx_comp_event_channel(), false);
+	return new cq_mgr(m_p_ring, m_p_ib_ctx_handler, m_tx_num_wr, m_p_ring->get_tx_comp_event_channel(), false);
 }
 
 int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)

@@ -113,11 +113,11 @@ class cq_mgr
 
 public:
 	cq_mgr(ring_simple *p_ring, ib_ctx_handler *p_ib_ctx_handler,
-	       uint32_t* cq_size, struct ibv_comp_channel *p_comp_event_channel,
-	       bool is_rx, bool config = true);
+	       int cq_size, struct ibv_comp_channel *p_comp_event_channel,
+	       bool is_rx, bool config=true);
 	virtual ~cq_mgr();
 
-	void configure(uint32_t *cq_size);
+	void configure(int cq_size);
 
 	ibv_cq *get_ibv_cq_hndl();
 	int	get_channel_fd();
