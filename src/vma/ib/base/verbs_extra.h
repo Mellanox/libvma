@@ -170,8 +170,17 @@ typedef int            vma_ibv_cq_init_attr;
 #define vma_ibv_create_cq(context, cqe, cq_context, channel, comp_vector, attr) ibv_create_cq(context, cqe, cq_context, channel, comp_vector)
 
 //rx hw timestamp
-#define VMA_IBV_WC_WITH_TIMESTAMP              0
-#define vma_wc_timestamp(wc)			0
+#define VMA_IBV_WC_WITH_TIMESTAMP             0
+#define vma_wc_timestamp(wc)                  0
+#define vma_ibv_cq_init_ts_attr(attr)         { NOT_IN_USE(attr); }
+
+#ifdef DEFINED_IBV_CQ_TIMESTAMP
+#define VMA_IBV_DEVICE_ATTR_HCA_CORE_CLOCK    0
+#define VMA_IBV_VALUES_MASK_RAW_CLOCK         IBV_VALUES_MASK_RAW_CLOCK
+#define vma_ibv_query_values(ctx, values)     ibv_query_rt_values_ex(ctx, values)
+#define vma_get_ts_val(values)                values.raw_clock.tv_nsec
+typedef struct ibv_values_ex                  vma_ts_values;
+#endif
 
 //ibv_post_send
 #define VMA_IBV_SEND_SIGNALED			IBV_SEND_SIGNALED
@@ -303,12 +312,19 @@ typedef int            vma_ibv_cq_init_attr;
 #endif
 
 //rx hw timestamp
-#ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
-#define VMA_IBV_WC_WITH_TIMESTAMP              IBV_EXP_WC_WITH_TIMESTAMP
-#define vma_wc_timestamp(wc)			(wc).timestamp
+#ifdef DEFINED_IBV_CQ_TIMESTAMP
+#define VMA_IBV_WC_WITH_TIMESTAMP             IBV_EXP_WC_WITH_TIMESTAMP
+#define vma_wc_timestamp(wc)                  (wc).timestamp
+#define VMA_IBV_DEVICE_ATTR_HCA_CORE_CLOCK    IBV_EXP_DEVICE_ATTR_WITH_HCA_CORE_CLOCK
+#define VMA_IBV_VALUES_MASK_RAW_CLOCK         0
+#define vma_ibv_query_values(ctx, values)     ibv_exp_query_values(ctx, IBV_EXP_VALUES_HW_CLOCK, values)
+#define vma_get_ts_val(values)                values.hwclock
+typedef struct ibv_exp_values                 vma_ts_values;
+#define vma_ibv_cq_init_ts_attr(attr)         { (attr)->flags |= IBV_EXP_CQ_TIMESTAMP; (attr)->comp_mask |= IBV_EXP_CQ_INIT_ATTR_FLAGS; }
 #else
-#define VMA_IBV_WC_WITH_TIMESTAMP		0
-#define vma_wc_timestamp(wc)			0
+#define VMA_IBV_WC_WITH_TIMESTAMP             0
+#define vma_wc_timestamp(wc)                  0
+#define vma_ibv_cq_init_ts_attr(attr)         { NOT_IN_USE(attr); }
 #endif
 
 #ifdef DEFINED_IBV_CQ_ATTR_MODERATE
@@ -425,16 +441,6 @@ inline bool is_set(vma_wr_tx_packet_attr state_, vma_wr_tx_packet_attr tx_mode_)
 }
 
 int vma_rdma_lib_reset();
-
-static inline void init_vma_ibv_cq_init_attr(vma_ibv_cq_init_attr* attr)
-{
-#ifdef DEFINED_IBV_EXP_CQ_TIMESTAMP
-		attr->flags |= IBV_EXP_CQ_TIMESTAMP;
-		attr->comp_mask |= IBV_EXP_CQ_INIT_ATTR_FLAGS;
-#else
-		NOT_IN_USE(attr);
-#endif
-}
 
 #ifdef DEFINED_IBV_FLOW_SPEC_IB
 static inline void ibv_flow_spec_ib_set_by_dst_gid(vma_ibv_flow_spec_ib* ib, uint8_t* dst_gid)
