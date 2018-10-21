@@ -193,6 +193,8 @@ protected:
 	virtual cq_mgr* init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_channel);
 	virtual cq_mgr* init_tx_cq_mgr(void);
 
+	cq_mgr* handle_cq_initialization(uint32_t *num_wr, struct ibv_comp_channel* comp_event_channel, bool is_rx);
+
 	virtual int     post_qp_create(void) { return 0;};
 	virtual int     send_to_wire(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr, bool request_comp);
 	virtual bool    is_completion_need() { return !m_n_unsignaled_count; };
