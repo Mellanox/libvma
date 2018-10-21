@@ -27,7 +27,12 @@ AC_DEFUN([CHECK_VERBS_ATTRIBUTE], [
     ])
 ])
 
-
+# Check attributes
+# Usage: CHECK_VERBS_MEMBER([attribute], [header file], [definition])
+#
+AC_DEFUN([CHECK_VERBS_MEMBER], [
+    AC_CHECK_MEMBER( $1, [AC_DEFINE_UNQUOTED([DEFINED_$3], [1], [Define to 1 if attribute $1 is supported])], [], [[#include <$2>]])
+])
 
 ##########################
 # Configure ofed capabilities
@@ -126,6 +131,7 @@ CHECK_VERBS_ATTRIBUTE([IBV_FLOW_SPEC_IB], [infiniband/verbs.h], [IBV_FLOW_SPEC_I
 CHECK_VERBS_ATTRIBUTE([IBV_DEVICE_RAW_IP_CSUM], [infiniband/verbs.h])
 CHECK_VERBS_ATTRIBUTE([IBV_SEND_IP_CSUM], [infiniband/verbs.h])
 CHECK_VERBS_ATTRIBUTE([IBV_FLOW_SPEC_ACTION_TAG], [infiniband/verbs.h], [IBV_FLOW_TAG])
+CHECK_VERBS_MEMBER([struct ibv_device_attr_ex.orig_attr], [infiniband/verbs.h], [IBV_DEVICE_ATTR_EX])
 
 # Check <verbs_exp.h>
 #
