@@ -177,7 +177,7 @@ void cq_mgr::configure(int cq_size)
 void cq_mgr::prep_ibv_cq(vma_ibv_cq_init_attr& attr) const
 {
 	if (m_p_ib_ctx_handler->get_ctx_time_converter_status()) {
-		init_vma_ibv_cq_init_attr(&attr);
+		vma_ibv_cq_init_ts_attr(&attr);
 	}
 }
 
