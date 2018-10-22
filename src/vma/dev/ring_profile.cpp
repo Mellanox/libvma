@@ -101,7 +101,7 @@ bool ring_profile::operator==(const vma_ring_type_attr &p2)
 {
 	ring_profile other(&p2);
 
-	return m_str.compare(other.to_str());
+	return (m_str.compare(other.to_str()) == 0);
 }
 
 ring_profiles_collection::ring_profiles_collection(): m_curr_idx(START_RING_INDEX) {
