@@ -341,6 +341,7 @@ static int config_set(int argc, char **argv)
 	}
 
 	log_debug("CONFIGURATION:\n");
+	log_debug("package version: %s\n", PACKAGE_VERSION);
 	log_debug("mode: %d\n", daemon_cfg.opt.mode);
 	log_debug("log level: %d\n", daemon_cfg.opt.log_level);
 	log_debug("max pid: %d\n", daemon_cfg.opt.max_pid_num);
@@ -349,7 +350,7 @@ static int config_set(int argc, char **argv)
 	log_debug("lock file: %s\n", daemon_cfg.lock_file);
 	log_debug("sock file: %s\n", daemon_cfg.sock_file);
 	log_debug("notify dir: %s\n", daemon_cfg.notify_dir);
-	log_debug("version: 0x%X\n", VMA_AGENT_VER);
+	log_debug("format version: 0x%X\n", VMA_AGENT_VER);
 
 	if (0 != rc) {
 		usage();
@@ -360,6 +361,10 @@ static int config_set(int argc, char **argv)
 
 static void usage(void)
 {
+	printf(MODULE_NAME " is a part of Mellanox's Messaging Accelerator (VMA) product\n"
+		"that boosts performance for message-based and streaming applications.\n");
+	printf("version: %s (0x%X)\n\n", PACKAGE_VERSION, VMA_AGENT_VER);
+
 	printf("Usage: " MODULE_NAME " [options]\n"
 		"\t--console               Enable foreground mode (default: %s)\n"
 		"\t--notify-dir            Sets the outout dir used by vmad (default: %s)\n"
