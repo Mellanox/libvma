@@ -178,12 +178,19 @@ void qp_mgr_eth_mlx5::up()
 	init_sq();
 	qp_mgr::up();
 
-	m_dm_enabled = m_dm_mgr.allocate_resources(m_p_ib_ctx_handler, m_p_ring->m_p_ring_stat);
+	/* This limitation is done because of a observation
+	 * that dm_copy takes a lot of time on VMs w/o BF (RM:1542628)
+	 */
+	if (m_db_method == MLX5_DB_METHOD_BF) {
+		m_dm_enabled = m_dm_mgr.allocate_resources(m_p_ib_ctx_handler, m_p_ring->m_p_ring_stat);
+	}
 }
 
 void qp_mgr_eth_mlx5::down()
 {
-	m_dm_mgr.release_resources();
+	if (m_dm_enabled) {
+		m_dm_mgr.release_resources();
+	}
 
 	qp_mgr::down();
 }
