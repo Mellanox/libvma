@@ -366,8 +366,9 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 
 	uint32_t flow_tag_id = si->get_flow_tag_val(); // spec will not be attached to rule
 
-	ring_logdbg("flow: %s, with sink (%p), m_flow_tag_enabled: %d",
-		    flow_spec_5t.to_str(), si, m_flow_tag_enabled);
+	ring_logdbg("flow: %s, with sink (%p), flow tag id %d "
+		    "m_flow_tag_enabled: %d", flow_spec_5t.to_str(), si,
+		    flow_tag_id, m_flow_tag_enabled);
 
 	/*
 	 * //auto_unlocker lock(m_lock_ring_rx);
@@ -480,7 +481,7 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 			m_lock_ring_rx.unlock();
 			if (safe_mce_sys().tcp_3t_rules) {
 				flow_tuple tcp_3t_only(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port(), 0, 0, flow_spec_5t.get_protocol());
-				tcp_dst_port_filter = new (std::nothrow)rfs_rule_filter(m_tcp_dst_port_attach_map, rule_key.key, tcp_3t_only);
+				tcp_dst_port_filter = new rfs_rule_filter(m_tcp_dst_port_attach_map, rule_key.key, tcp_3t_only);
 			}
 			if(safe_mce_sys().gro_streams_max && flow_spec_5t.is_5_tuple()) {
 				// When the gro mechanism is being used, packets must be processed in the rfs

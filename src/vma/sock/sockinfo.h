@@ -213,7 +213,7 @@ protected:
 	bool			m_tcp_flow_is_5t; // to bypass packet analysis
 
 	int*			m_p_rings_fds;
-	bool					m_user_def_flow_tag;
+	bool			m_user_def_flow_tag;
 	virtual void 		set_blocking(bool is_blocked);
 	virtual int 		fcntl(int __cmd, unsigned long int __arg);
 	virtual int 		ioctl(unsigned long int __request, unsigned long int __arg);

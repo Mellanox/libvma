@@ -272,16 +272,17 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 		case SO_VMA_FLOW_TAG:
 			if (__optval) {
 				if (__optlen == sizeof(uint32_t)) {
-					if (!set_flow_tag(*(uint32_t*)__optval)) {
-						ret = -1;
-						errno = EINVAL;
-					} else {
+					if (set_flow_tag(*(uint32_t*)__optval)) {
 						m_user_def_flow_tag = true;
 						si_logdbg("SO_VMA_FLOW_TAG, set "
 							  "socket %s to flow id %d",
 							  m_fd, m_flow_tag_id);
+						// not supported in OS
+						return 0;
 					}
+					errno = EINVAL;
 				} else {
+					errno = EINVAL;
 					si_logdbg("SO_VMA_FLOW_TAG, bad length "
 						  "expected %d got %d",
 						  sizeof(uint32_t), __optlen);

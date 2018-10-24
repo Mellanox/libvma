@@ -51,7 +51,7 @@
 #define SO_VMA_USER_DATA	2801
 #define SO_VMA_RING_ALLOC_LOGIC 2810
 #define SO_VMA_RING_USER_MEMORY 2811
-#define SO_VMA_FLOW_TAG		2820
+#define SO_VMA_FLOW_TAG	2820
 
 /*
  * Flags for Dummy send API
