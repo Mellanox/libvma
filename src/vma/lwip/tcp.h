@@ -450,6 +450,10 @@ err_t lwip_tcp_event(void *arg, struct tcp_pcb *pcb,
 
 #endif /* LWIP_EVENT_API */
 
+#if defined(__GNUC__) && (((__GNUC__ == 4) && (__GNUC_MINOR__ >= 4)) || (__GNUC__ > 4))
+#pragma GCC visibility push(hidden)
+#endif
+
 /*Initialization of tcp_pcb structure*/
 void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio);
 
@@ -499,6 +503,10 @@ err_t            tcp_write   (struct tcp_pcb *pcb, const void *dataptr, u32_t le
 err_t            tcp_output  (struct tcp_pcb *pcb);
 
 s32_t            tcp_is_wnd_available(struct tcp_pcb *pcb, u32_t data_len);
+
+#if defined(__GNUC__) && (((__GNUC__ == 4) && (__GNUC_MINOR__ >= 4)) || (__GNUC__ > 4))
+#pragma GCC visibility pop
+#endif
 
 #define get_tcp_state(pcb) ((pcb)->private_state)
 #define set_tcp_state(pcb, state) external_tcp_state_observer((pcb)->my_container, (pcb)->private_state = state)
