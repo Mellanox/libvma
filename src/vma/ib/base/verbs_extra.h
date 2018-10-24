@@ -203,8 +203,16 @@ typedef struct ibv_flow_spec_ib			vma_ibv_flow_spec_ib;
 typedef struct ibv_flow_spec_eth		vma_ibv_flow_spec_eth;
 typedef struct ibv_flow_spec_ipv4		vma_ibv_flow_spec_ipv4;
 typedef struct ibv_flow_spec_tcp_udp		vma_ibv_flow_spec_tcp_udp;
-#define vma_get_flow_tag(cqe)			0
-typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_tag;
+
+// Flow tag
+#ifdef DEFINED_IBV_FLOW_TAG
+#define VMA_IBV_FLOW_SPEC_ACTION_TAG               IBV_FLOW_SPEC_ACTION_TAG
+typedef struct ibv_flow_spec_action_tag            vma_ibv_flow_spec_action_tag;
+#define vma_get_flow_tag(cqe)                      ntohl((uint32_t)(cqe->sop_drop_qpn))
+#else
+typedef struct ibv_flow_spec_action_tag_dummy {}   vma_ibv_flow_spec_action_tag;
+#define vma_get_flow_tag(cqe)                      0
+#endif // DEFINED_IBV_FLOW_TAG
 
 #ifdef DEFINED_IBV_CQ_ATTR_MODERATE
 typedef struct ibv_modify_cq_attr               vma_ibv_cq_attr;
@@ -346,14 +354,16 @@ typedef struct ibv_exp_flow_spec_ib		vma_ibv_flow_spec_ib;
 typedef struct ibv_exp_flow_spec_eth		vma_ibv_flow_spec_eth;
 typedef struct ibv_exp_flow_spec_ipv4		vma_ibv_flow_spec_ipv4;
 typedef struct ibv_exp_flow_spec_tcp_udp	vma_ibv_flow_spec_tcp_udp;
+
 //Flow tag
-#ifdef DEFINED_IBV_EXP_FLOW_TAG
-#define vma_get_flow_tag(wc)			ntohl((uint32_t)(wc->sop_drop_qpn))
-typedef struct ibv_exp_flow_spec_action_tag	vma_ibv_flow_spec_action_tag;
+#ifdef DEFINED_IBV_FLOW_TAG
+#define VMA_IBV_FLOW_SPEC_ACTION_TAG                    IBV_EXP_FLOW_SPEC_ACTION_TAG
+#define vma_get_flow_tag(cqe)                           ntohl((uint32_t)(cqe->sop_drop_qpn))
+typedef struct ibv_exp_flow_spec_action_tag             vma_ibv_flow_spec_action_tag;
 #else
-#define vma_get_flow_tag(cqe)			0
-typedef struct ibv_exp_flow_spec_action_tag_dummy {}	vma_ibv_flow_spec_action_tag;
-#endif //DEFINED_IBV_EXP_FLOW_TAG
+#define vma_get_flow_tag(cqe)                           0
+typedef struct ibv_exp_flow_spec_action_tag_dummy {}    vma_ibv_flow_spec_action_tag;
+#endif //DEFINED_IBV_FLOW_TAG
 
 #endif /* DEFINED_VERBS_VERSION */
 
@@ -473,11 +483,11 @@ static inline void ibv_flow_spec_flow_tag_set(vma_ibv_flow_spec_action_tag* flow
 	NOT_IN_USE(tag_id);
 	if (flow_tag == NULL)
 		return;
-#ifdef DEFINED_IBV_EXP_FLOW_TAG
-	flow_tag->type = IBV_EXP_FLOW_SPEC_ACTION_TAG;
+#ifdef DEFINED_IBV_FLOW_TAG
+	flow_tag->type = VMA_IBV_FLOW_SPEC_ACTION_TAG;
 	flow_tag->size = sizeof(vma_ibv_flow_spec_action_tag);
 	flow_tag->tag_id = tag_id;
-#endif //DEFINED_IBV_EXP_FLOW_TAG
+#endif //DEFINED_IBV_FLOW_TAG
 }
 
 

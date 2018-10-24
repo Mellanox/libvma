@@ -125,6 +125,7 @@ CHECK_VERBS_ATTRIBUTE([IBV_QP_CREATE_SOURCE_QPN], [infiniband/verbs.h], [IBV_QP_
 CHECK_VERBS_ATTRIBUTE([IBV_FLOW_SPEC_IB], [infiniband/verbs.h], [IBV_FLOW_SPEC_IB])
 CHECK_VERBS_ATTRIBUTE([IBV_DEVICE_RAW_IP_CSUM], [infiniband/verbs.h])
 CHECK_VERBS_ATTRIBUTE([IBV_SEND_IP_CSUM], [infiniband/verbs.h])
+CHECK_VERBS_ATTRIBUTE([IBV_FLOW_SPEC_ACTION_TAG], [infiniband/verbs.h], [IBV_FLOW_TAG])
 
 # Check <verbs_exp.h>
 #
@@ -156,7 +157,7 @@ if test "x$vma_cv_verbs" == x2; then
         CHECK_VERBS_ATTRIBUTE([IBV_EXP_VALUES_CLOCK_INFO], [infiniband/verbs_exp.h])
         CHECK_VERBS_ATTRIBUTE([IBV_EXP_DEVICE_RX_CSUM_L4_PKT], [infiniband/verbs_exp.h])
         CHECK_VERBS_ATTRIBUTE([IBV_EXP_DEVICE_RX_CSUM_TCP_UDP_PKT], [infiniband/verbs_exp.h])
-        CHECK_VERBS_ATTRIBUTE([IBV_EXP_FLOW_SPEC_ACTION_TAG], [infiniband/verbs_exp.h], [IBV_EXP_FLOW_TAG])
+        CHECK_VERBS_ATTRIBUTE([IBV_EXP_FLOW_SPEC_ACTION_TAG], [infiniband/verbs_exp.h], [IBV_FLOW_TAG])
     )
 
     have_mp_rq=yes
