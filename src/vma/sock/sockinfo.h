@@ -123,11 +123,14 @@ public:
 
 	inline bool tcp_flow_is_5t(void) { return m_tcp_flow_is_5t; }
 	inline void set_tcp_flow_is_5t(void) { m_tcp_flow_is_5t = true; }
-	inline void set_flow_tag(int flow_tag_id) {
-		if ( flow_tag_id && (flow_tag_id != FLOW_TAG_MASK)) {
+	inline bool set_flow_tag(uint32_t flow_tag_id) {
+		if (flow_tag_id && (flow_tag_id != FLOW_TAG_MASK)) {
 			m_flow_tag_id = flow_tag_id;
 			m_flow_tag_enabled = true;
+			return true;
 		}
+		m_flow_tag_id = FLOW_TAG_MASK;
+		return false;
 	}
 	inline bool flow_tag_enabled(void) { return m_flow_tag_enabled; }
 	inline int get_rx_epfd(void) { return m_rx_epfd; }
@@ -142,7 +145,7 @@ public:
 	virtual bool check_rings() {return true;}
 	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);
 #endif
-
+	uint32_t get_flow_tag_val() { return m_flow_tag_id; }
 protected:
 	bool			m_b_closed;
 	bool 			m_b_blocking;
@@ -210,6 +213,7 @@ protected:
 	bool			m_tcp_flow_is_5t; // to bypass packet analysis
 
 	int*			m_p_rings_fds;
+	bool			m_user_def_flow_tag;
 	virtual void 		set_blocking(bool is_blocked);
 	virtual int 		fcntl(int __cmd, unsigned long int __arg);
 	virtual int 		ioctl(unsigned long int __request, unsigned long int __arg);

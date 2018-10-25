@@ -359,36 +359,17 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	rfs* p_rfs;
 	rfs* p_tmp_rfs = NULL;
 	sockinfo* si = static_cast<sockinfo*> (sink);
-	uint32_t flow_tag_id = 0; // spec will not be attached to rule
 
-	ring_logdbg("flow: %s, with sink (%p), m_flow_tag_enabled: %d",
-		    flow_spec_5t.to_str(), si, m_flow_tag_enabled);
-
-	if( si == NULL )
+	if (si == NULL)
 		return false;
 
-	// If m_flow_tag_enabled==true then flow tag is supported and flow_tag_id is guaranteed
-	// to have a !0 value which will results in a flow id being added to the flow spec.
-	// Otherwise, flow tag is not supported, flow_tag_id=0 and no flow id will be set in the flow spec.
-	if (m_flow_tag_enabled) {
-		// sockfd=0 is valid too but flow_tag_id=0 is invalid, increment it
-		// effectively limiting our sockfd range to FLOW_TAG_MASK-1
-		int flow_tag_id_candidate = si->get_fd() + 1;
-		if (flow_tag_id_candidate > 0) {
-			flow_tag_id = flow_tag_id_candidate & FLOW_TAG_MASK;
-			if ((uint32_t)flow_tag_id_candidate != flow_tag_id) {
-				// tag_id is out of the range by mask, will not use it
-				ring_logdbg("flow_tag disabled as tag_id: %d is out of mask (%x) range!",
-					    flow_tag_id, FLOW_TAG_MASK);
-				flow_tag_id = FLOW_TAG_MASK;
-			}
-			ring_logdbg("sock_fd:%d enabled:%d with id:%d",
-				    flow_tag_id_candidate-1, m_flow_tag_enabled, flow_tag_id);
-		} else {
-			flow_tag_id = FLOW_TAG_MASK; // FLOW_TAG_MASK - modal, FT to be attached but will not be used
-			ring_logdbg("flow_tag:%d disabled as flow_tag_id_candidate:%d", flow_tag_id, flow_tag_id_candidate);
-		}
+	uint32_t flow_tag_id = si->get_flow_tag_val(); // spec will not be attached to rule
+	if (!m_flow_tag_enabled) {
+		flow_tag_id = 0;
 	}
+	ring_logdbg("flow: %s, with sink (%p), flow tag id %d "
+		    "m_flow_tag_enabled: %d", flow_spec_5t.to_str(), si,
+		    flow_tag_id, m_flow_tag_enabled);
 
 	/*
 	 * //auto_unlocker lock(m_lock_ring_rx);
@@ -468,13 +449,11 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 			} catch(vma_exception& e) {
 				ring_logerr("%s", e.message);
 				return false;
-			}
-			BULLSEYE_EXCLUDE_BLOCK_START
-			if (p_tmp_rfs == NULL) {
+			} catch(const std::bad_alloc &e) {
+				NOT_IN_USE(e);
 				ring_logerr("Failed to allocate rfs!");
 				return false;
 			}
-			BULLSEYE_EXCLUDE_BLOCK_END
 			m_lock_ring_rx.lock();
 			p_rfs = m_flow_udp_mc_map.get(key_udp_mc, NULL);
 			if (p_rfs) {
@@ -512,10 +491,10 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 					flow_tag_id = FLOW_TAG_MASK;
 					ring_logdbg("flow_tag_id = %d is disabled to enable TCP GRO socket to be processed on RFS!", flow_tag_id);
 				}
-				p_tmp_rfs = new rfs_uc_tcp_gro(&flow_spec_5t, this, tcp_dst_port_filter, flow_tag_id);
+				p_tmp_rfs = new (std::nothrow)rfs_uc_tcp_gro(&flow_spec_5t, this, tcp_dst_port_filter, flow_tag_id);
 			} else {
 				try {
-					p_tmp_rfs = new rfs_uc(&flow_spec_5t, this, tcp_dst_port_filter, flow_tag_id);
+					p_tmp_rfs = new (std::nothrow)rfs_uc(&flow_spec_5t, this, tcp_dst_port_filter, flow_tag_id);
 				} catch(vma_exception& e) {
 					ring_logerr("%s", e.message);
 					return false;

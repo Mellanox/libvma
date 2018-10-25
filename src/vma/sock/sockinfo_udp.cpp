@@ -351,6 +351,7 @@ const char * setsockopt_so_opt_to_str(int opt)
 	case SO_BINDTODEVICE:		return "SO_BINDTODEVICE";
 	case SO_VMA_RING_ALLOC_LOGIC:	return "SO_VMA_RING_ALLOC_LOGIC";
 	case SO_MAX_PACING_RATE:	return "SO_MAX_PACING_RATE";
+	case SO_VMA_FLOW_TAG:		return "SO_VMA_FLOW_TAG";
 	default:			break;
 	}
 	return "UNKNOWN SO opt";
@@ -776,12 +777,11 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 	if (unlikely(m_b_closed) || unlikely(g_b_exit))
 		return orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
 
+	auto_unlocker lock_tx(m_lock_snd);
+	auto_unlocker lock_rx(m_lock_rcv);
 	if (0 == sockinfo::setsockopt(__level, __optname, __optval, __optlen)) {
 		return 0;
 	}
-
-	auto_unlocker lock_tx(m_lock_snd);
-	auto_unlocker lock_rx(m_lock_rcv);
 
 	bool supported = true;
 	switch (__level) {
@@ -796,7 +796,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 				break;
 
 			case SO_REUSEPORT:
-				set_reuseaddr(*(bool*)__optval);
+				set_reuseport(*(bool*)__optval);
 				si_udp_logdbg("SOL_SOCKET, %s=%s", setsockopt_so_opt_to_str(__optname), (*(bool*)__optval ? "true" : "false"));
 				break;
 
