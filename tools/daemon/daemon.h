@@ -72,7 +72,7 @@
 
 #define PID_MAX         499    /**< Default maximum number of processes
                                     per node (should be prime number) */
-#define FID_MAX         2203   /**< Default maximum number of sockets
+#define FID_MAX         65599  /**< Default maximum number of sockets
                                     per process (should be prime number) */
 
 #ifndef HAVE_LINUX_LIMITS_H
