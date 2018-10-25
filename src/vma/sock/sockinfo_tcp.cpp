@@ -3432,9 +3432,11 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 	bool supported = true;
 	bool allow_privileged_sock_opt = false;
 
-	if (0 == sockinfo::setsockopt(__level, __optname, __optval, __optlen)) {
-		return 0;
+	if ((ret = sockinfo::setsockopt(__level, __optname, __optval, __optlen)) != SOCKOPT_PASS_TO_OS) {
+		return ret;
 	}
+
+	ret = 0;
 
 	if (__level == IPPROTO_IP) {
 		switch(__optname) {

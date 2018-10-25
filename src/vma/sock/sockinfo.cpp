@@ -233,15 +233,16 @@ int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg)
 
 int sockinfo::setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen)
 {
-	int ret = -1;
+	int ret = SOCKOPT_PASS_TO_OS;
 
 	if (__level == SOL_SOCKET) {
 		switch(__optname) {
 		case SO_VMA_USER_DATA:
 			if (__optlen == sizeof(m_fd_context)) {
 				m_fd_context = *(void **)__optval;
-				ret = 0;
+				ret = SOCKOPT_INTERNAL_VMA_SUPPORT;
 			} else {
+				ret = SOCKOPT_NO_VMA_SUPPORT;
 				errno = EINVAL;
 			}
 			break;
@@ -254,19 +255,19 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 						si_logwarn("user asked to assign memory for "
 							   "RX ring but ring already exists");
 					}
-					return 0;
+					ret = SOCKOPT_INTERNAL_VMA_SUPPORT;
 				} else {
+					ret = SOCKOPT_NO_VMA_SUPPORT;
 					errno = EINVAL;
 					si_logdbg("SOL_SOCKET, SO_VMA_RING_USER_MEMORY - "
 						  "bad length expected %d got %d",
 						  sizeof(iovec), __optlen);
-					break;
 				}
 			}
 			else {
+				ret = SOCKOPT_NO_VMA_SUPPORT;
 				errno = EINVAL;
 				si_logdbg("SOL_SOCKET, SO_VMA_RING_USER_MEMORY - NOT HANDLED, optval == NULL");
-
 			}
 			break;
 		case SO_VMA_FLOW_TAG:
@@ -278,10 +279,13 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 							  "socket %s to flow id %d",
 							  m_fd, m_flow_tag_id);
 						// not supported in OS
-						return 0;
+						ret = SOCKOPT_INTERNAL_VMA_SUPPORT;
+					} else {
+						ret = SOCKOPT_NO_VMA_SUPPORT;
+						errno = EINVAL;
 					}
-					errno = EINVAL;
 				} else {
+					ret = SOCKOPT_NO_VMA_SUPPORT;
 					errno = EINVAL;
 					si_logdbg("SO_VMA_FLOW_TAG, bad length "
 						  "expected %d got %d",
@@ -289,6 +293,7 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 					break;
 				}
 			} else {
+				ret = SOCKOPT_NO_VMA_SUPPORT;
 				errno = EINVAL;
 				si_logdbg("SO_VMA_FLOW_TAG - NOT HANDLED, "
 					  "optval == NULL");
@@ -301,10 +306,12 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 		switch(__optname) {
 		case IP_TTL:
 			if (__optlen < sizeof(m_n_uc_ttl)) {
+				ret = SOCKOPT_NO_VMA_SUPPORT;
 				errno = EINVAL;
 			} else {
 				int val = __optlen < sizeof(val) ?  (uint8_t) *(uint8_t *)__optval : (int) *(int *)__optval;
 				if (val != -1 && (val < 1 || val > 255)) {
+					ret = SOCKOPT_NO_VMA_SUPPORT;
 					errno = EINVAL;
 				} else {
 					m_n_uc_ttl = (val == -1) ? safe_mce_sys().sysctl_reader.get_net_ipv4_ttl() : (uint8_t) val;
@@ -317,6 +324,7 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 			break;
 		}
 	}
+
 	si_logdbg("ret (%d)", ret);
 	return ret;
 }
