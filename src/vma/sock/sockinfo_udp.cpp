@@ -774,13 +774,16 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 {
 	si_udp_logfunc("level=%d, optname=%d", __level, __optname);
 
+	int ret = 0;
+
 	if (unlikely(m_b_closed) || unlikely(g_b_exit))
 		return orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
 
 	auto_unlocker lock_tx(m_lock_snd);
 	auto_unlocker lock_rx(m_lock_rcv);
-	if (0 == sockinfo::setsockopt(__level, __optname, __optval, __optlen)) {
-		return 0;
+
+	if ((ret = sockinfo::setsockopt(__level, __optname, __optval, __optlen)) != SOCKOPT_PASS_TO_OS) {
+		return ret;
 	}
 
 	bool supported = true;
@@ -1186,7 +1189,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					// offloaded, check if need to pend
 					else if (INPORT_ANY == m_bound.get_in_port()) {
 						// Delay attaching to this MC group until we have bound UDP port
-						int ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
+						ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
 						if (ret) return ret;
 						mc_change_pending_mreq(&mcpram);
 					}
@@ -1197,7 +1200,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					}
 
 					if (goto_os) {
-						int ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
+						ret = orig_os_api.setsockopt(m_fd, __level, __optname, __optval, __optlen);
 						if (ret) return ret;
 					}
 
