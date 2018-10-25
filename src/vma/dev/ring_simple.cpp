@@ -365,7 +365,9 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		return false;
 
 	uint32_t flow_tag_id = si->get_flow_tag_val(); // spec will not be attached to rule
-
+	if (!m_flow_tag_enabled) {
+		flow_tag_id = 0;
+	}
 	ring_logdbg("flow: %s, with sink (%p), flow tag id %d "
 		    "m_flow_tag_enabled: %d", flow_spec_5t.to_str(), si,
 		    flow_tag_id, m_flow_tag_enabled);
