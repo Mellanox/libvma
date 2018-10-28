@@ -1,3 +1,27 @@
+Version 8.7.3-0:
+Date + Time 2018-11-01
+=============================================================
+Added:
+        - RM #1471639 Add TCP Rx Timestamp support
+        - RM #1471639 Move Rx timestamp handling to sockinfo
+        - RM #1541702 Change the visibility of global TCP names
+        - RM #1513181 Increased FID_MAX for daemon
+        - RM #1521601 Allow user to change the flow_id
+        - RM #1542628 Do not use memic on devices w/o blue flame
+        - RM #1512054 Enable direct mlx5 processing on VMs
+        - RM #1540484 Add UDP Rx Hw timestamp support for upstream
+        - RM #1540484 Add ibv_device_attr_ex support
+        - RM #1540483 Add flow tag support for upstream
+        - RM #1536822 Add Daemon version to help output
+        - RM #1521396 Add external memory for MP_RQ ring
+        - RM #1536838 Enable plugin on upstream after reboot
+Fixed:
+        - RM #1521601 Fix user defined flow tag handling
+        - RM #1541163 Fix return value from sockinfo:setsockopt()
+        - RM #1526810 Fix stride calculation when using KLM
+        - RM #1541768 Fix bad operator== in ring_profile
+        - RM #1498311 Fix crash during CQ creation on upstream
+
 Version 8.7.2-0:
 Date + Time 2018-10-18
 =============================================================
