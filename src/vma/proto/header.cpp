@@ -39,12 +39,16 @@ void header::init()
 	memset(&m_header, 0, sizeof(m_header));
 	m_ip_header_len = 0;
 	m_transport_header_len = 0;
-	m_udp_header_len = 0;
 	m_total_hdr_len = 0;
 	m_aligned_l2_l3_len = 40;
+	m_is_vlan_enabled = false;
 }
 
-header::header() : m_actual_hdr_addr(0), m_transport_header_tx_offset(0), m_transport_type(VMA_TRANSPORT_UNKNOWN)
+header::header() :
+	m_actual_hdr_addr(0),
+	m_transport_header_tx_offset(0),
+	m_is_vlan_enabled(false),
+	m_transport_type(VMA_TRANSPORT_UNKNOWN)
 {
 	init();
 }
@@ -52,12 +56,12 @@ header::header() : m_actual_hdr_addr(0), m_transport_header_tx_offset(0), m_tran
 header::header(const header &h): tostr()
 {
 	m_header = h.m_header;
-	m_udp_header_len = h.m_udp_header_len;
 	m_ip_header_len = h.m_ip_header_len;
 	m_transport_header_len = h.m_transport_header_len;
 	m_total_hdr_len = h.m_total_hdr_len;
 	m_aligned_l2_l3_len = h.m_aligned_l2_l3_len;
 	m_transport_header_tx_offset = h.m_transport_header_tx_offset;
+	m_is_vlan_enabled = h.m_is_vlan_enabled;
 	m_transport_type = h.m_transport_type;
 	update_actual_hdr_addr();
 }
@@ -72,8 +76,7 @@ void header::configure_udp_header(uint16_t dest_port, uint16_t src_port)
 	p_udp_hdr->source = src_port;
 	p_udp_hdr->check = 0;
 
-	m_udp_header_len = sizeof(udphdr);
-	m_total_hdr_len += m_udp_header_len;
+	m_total_hdr_len += sizeof(udphdr);
 }
 
 void header::configure_tcp_ports(uint16_t dest_port, uint16_t src_port)
@@ -134,12 +137,19 @@ void header::set_ip_ttl(uint8_t ttl)
 	p_hdr->ttl = ttl;
 }
 
+void header::set_ip_tos(uint8_t tos)
+{
+	iphdr* p_hdr = &m_header.hdr.m_ip_hdr;
+
+	p_hdr->tos = tos;
+}
+
 void header::configure_eth_headers(const L2_address &src, const L2_address &dst, uint16_t encapsulated_proto/*=ETH_P_IP*/)
 {
 	eth_hdr_template_t *p_eth_hdr = &m_header.hdr.m_l2_hdr.eth_hdr;
 	p_eth_hdr->m_eth_hdr.h_proto = htons(encapsulated_proto);
+	m_is_vlan_enabled = false;
 	set_mac_to_eth_header(src, dst, p_eth_hdr->m_eth_hdr);
-
 	m_transport_header_tx_offset = sizeof(p_eth_hdr->m_alignment);
 	m_total_hdr_len += m_transport_header_len;
 
@@ -159,10 +169,25 @@ void header::configure_vlan_eth_headers(const L2_address &src, const L2_address 
 	p_vlan_eth_hdr->m_vlan_hdr.h_vlan_TCI = htons(tos);
 	p_vlan_eth_hdr->m_eth_hdr.h_proto = htons(ETH_P_8021Q);
 	p_vlan_eth_hdr->m_vlan_hdr.h_vlan_encapsulated_proto = htons(encapsulated_proto);
-
+	m_is_vlan_enabled = true;
 	m_transport_header_tx_offset = sizeof(p_vlan_eth_hdr->m_alignment);
 	m_transport_header_len += sizeof(p_vlan_eth_hdr->m_vlan_hdr);
 	m_total_hdr_len += m_transport_header_len;
 	update_actual_hdr_addr();
 }
 
+
+bool header::set_vlan_pcp(uint8_t pcp)
+{
+	if (!m_is_vlan_enabled) {
+		return false;
+	}
+	vlan_eth_hdr_template_t* p_vlan_eth_hdr =
+			&m_header.hdr.m_l2_hdr.vlan_eth_hdr;
+	// zero old pcp and set new one
+	uint16_t vlan_pcp = ((uint16_t)pcp << NET_ETH_VLAN_PCP_OFFSET) |
+			(htons(p_vlan_eth_hdr->m_vlan_hdr.h_vlan_TCI) & 0x1fff);
+	p_vlan_eth_hdr->m_vlan_hdr.h_vlan_TCI = htons(vlan_pcp);
+
+	return true;
+}

@@ -174,7 +174,7 @@ public:
 	static void tcp_state_observer(void* pcb_container, enum tcp_state new_state);
 	static uint16_t get_route_mtu(struct tcp_pcb *pcb);
 
-	virtual void set_dst_entry_ttl();
+	virtual void update_header_field(data_updater *updater);
 	virtual bool rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void* pv_fd_ready_array);
 	virtual void set_rx_packet_processor(void) { }
 

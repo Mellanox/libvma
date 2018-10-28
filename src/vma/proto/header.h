@@ -54,7 +54,7 @@
 #define NET_IB_IP_ALIGN_SZ		16
 #define NET_ETH_IP_ALIGN_SZ		 6
 #define NET_ETH_VLAN_IP_ALIGN_SZ	 2
-
+#define NET_ETH_VLAN_PCP_OFFSET	13
 
 struct __attribute__ ((packed)) ib_hdr_template_t  {		// Offeset  Size
 	char		m_alignment[NET_IB_IP_ALIGN_SZ];	//    0      16  = 16
@@ -111,9 +111,10 @@ public:
 	void configure_ipoib_headers(uint32_t ipoib_header = IPOIB_HEADER);
 	void set_mac_to_eth_header(const L2_address &src, const L2_address &dst, ethhdr &eth_header);
 	void set_ip_ttl(uint8_t ttl);
+	void set_ip_tos(uint8_t tos);
 	void configure_eth_headers(const L2_address &src, const L2_address &dst, uint16_t encapsulated_proto = ETH_P_IP);
 	void configure_vlan_eth_headers(const L2_address &src, const L2_address &dst, uint16_t tci, uint16_t encapsulated_proto = ETH_P_IP);
-
+	bool set_vlan_pcp(uint8_t pcp);
 	void update_actual_hdr_addr();
 
 	inline void copy_l2_ip_hdr(tx_packet_template_t *p_hdr)
@@ -151,12 +152,12 @@ public:
 
 	uintptr_t m_actual_hdr_addr;
 	tx_packet_template_t m_header;
-	size_t m_udp_header_len;
-	size_t m_ip_header_len;
-	size_t m_transport_header_len;
-	size_t m_total_hdr_len;
-	size_t m_aligned_l2_l3_len;
-	size_t m_transport_header_tx_offset;
+	uint16_t m_ip_header_len;
+	uint16_t m_transport_header_len;
+	uint16_t m_total_hdr_len;
+	uint16_t m_aligned_l2_l3_len;
+	uint16_t m_transport_header_tx_offset;
+	bool m_is_vlan_enabled;
 	transport_type_t m_transport_type;
 };
 
