@@ -366,7 +366,8 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 					errno = EINVAL;
 				} else {
 					m_n_uc_ttl = (val == -1) ? safe_mce_sys().sysctl_reader.get_net_ipv4_ttl() : (uint8_t) val;
-					set_dst_entry_ttl();
+					header_ttl_updater du(m_n_uc_ttl);
+					update_header_field(&du);
 					si_logdbg("IPPROTO_IP, optname=IP_TTL (%d)", m_n_uc_ttl);
 				}
 			}
@@ -1497,7 +1498,7 @@ int sockinfo::setsockopt_kernel(int __level, int __optname, const void *__optval
 	return ret;
 }
 
-void sockinfo::set_sockopt_prio(__const void *__optval, socklen_t __optlen)
+int sockinfo::set_sockopt_prio(__const void *__optval, socklen_t __optlen)
 {
 	int val = -1;
 
@@ -1508,11 +1509,16 @@ void sockinfo::set_sockopt_prio(__const void *__optval, socklen_t __optlen)
 	} else {
 		/* error flow is handled in kernel setsockopt */
 		si_logdbg("bad parameter size in set_sockopt_prio");
+		return -1;
 	}
-	if (val >= 0 && val <= 6) {
+	if (m_pcp != (uint8_t)val) {
 		m_pcp = (uint8_t)val;
 		si_logdbg("set socket pcp to be %d", m_pcp);
+		header_pcp_updater du(m_pcp);
+		update_header_field(&du);
 	}
+	return 0;
+
 }
 
 /**

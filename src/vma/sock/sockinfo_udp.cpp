@@ -882,7 +882,9 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 				}
 				break;
 			case SO_PRIORITY:
-				set_sockopt_prio(__optval, __optlen);
+				if (set_sockopt_prio(__optval, __optlen)) {
+					return -1;
+				}
 			break;
 			default:
 				si_udp_logdbg("SOL_SOCKET, optname=%s (%d)", setsockopt_so_opt_to_str(__optname), __optname);
@@ -939,13 +941,20 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 			case IP_MULTICAST_TTL:
 				{
 					int n_mc_ttl = -1;
-					if (__optlen == 1)
+					if (__optlen == sizeof(m_n_mc_ttl))
 						n_mc_ttl = *(char*)__optval;
-					else if (__optlen >= 1)
+					else if (__optlen == sizeof(int))
 						n_mc_ttl = *(int*)__optval;
-
-					if (__optval && (n_mc_ttl >= 0 && n_mc_ttl <= 255)) {
+					else {
+						break;
+					}
+					if (n_mc_ttl == -1) {
+						n_mc_ttl = 1;
+					}
+					if (n_mc_ttl >= 0 && n_mc_ttl <= 255) {
 						m_n_mc_ttl = n_mc_ttl;
+						header_tos_updater du(m_n_mc_ttl);
+						update_header_field(&du);
 						si_udp_logdbg("IPPROTO_IP, %s=%d", setsockopt_ip_opt_to_str(__optname), m_n_mc_ttl);
 					}
 					else {
@@ -1116,8 +1125,21 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 				}
 				break;
 			case IP_TOS:
-				if (__optlen <= sizeof(int)) {
-					m_tos =(uint8_t) *(int *)__optval;
+				{
+					int val;
+					if (__optlen == sizeof(int)) {
+						val = *(int *)__optval;
+					} else if (__optlen == sizeof(uint8_t)) {
+						val = *(uint8_t *)__optval;
+					} else {
+						break;
+					}
+					m_tos =(uint8_t)val;
+					header_tos_updater du(m_pcp);
+					update_header_field(&du);
+					// lists.openwall.net/netdev/2009/12/21/59
+					int new_prio = ip_tos2prio[IPTOS_TOS(m_tos) >> 1];
+					set_sockopt_prio(&new_prio, sizeof(new_prio));
 				}
 				break;
 			default:
@@ -2612,18 +2634,15 @@ bool sockinfo_udp::prepare_to_close(bool process_shutdown) {
 	return is_closable();
 }
 
-void sockinfo_udp::set_dst_entry_ttl()
+void sockinfo_udp::update_header_field(data_updater *updater)
 {
-	auto_unlocker _lock(m_lock_snd);
-
 	dst_entry_map_t::iterator dst_entry_iter;
-	for (dst_entry_iter = m_dst_entry_map.begin(); dst_entry_iter != m_dst_entry_map.end(); dst_entry_iter++) {
-		if (!IN_MULTICAST_N(dst_entry_iter->second->get_dst_addr())) {
-			dst_entry_iter->second->set_ip_ttl(m_n_uc_ttl);
-		}
+	dst_entry_iter = m_dst_entry_map.begin();
+	for (; dst_entry_iter != m_dst_entry_map.end(); dst_entry_iter++) {
+		updater->update_field(*dst_entry_iter->second);
 	}
 
-	if (m_p_connected_dst_entry && !IN_MULTICAST_N(m_p_connected_dst_entry->get_dst_addr())) {
-		m_p_connected_dst_entry->set_ip_ttl(m_n_uc_ttl);
+	if (m_p_connected_dst_entry) {
+		updater->update_field(*m_p_connected_dst_entry);
 	}
 }

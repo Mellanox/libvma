@@ -376,7 +376,9 @@ bool dst_entry::conf_l2_hdr_and_snd_wqe_eth()
 		if (src && dst) {
 		BULLSEYE_EXCLUDE_BLOCK_END
 			if (netdevice_eth->get_vlan()) { //vlan interface
-				uint16_t vlan_tci = (m_pcp << 12) | netdevice_eth->get_vlan();
+				uint16_t vlan_tci =
+						((uint16_t)m_pcp << NET_ETH_VLAN_PCP_OFFSET) |
+						netdevice_eth->get_vlan();
 				m_header.configure_vlan_eth_headers(*src, *dst, vlan_tci);
 			}
 			else {

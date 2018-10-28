@@ -103,7 +103,9 @@ public:
 
 	void		return_buffers_pool();
 	int		get_route_mtu();
-	inline void 	set_ip_ttl(uint8_t ttl) { m_header.set_ip_ttl(ttl); };
+	inline void 	set_ip_ttl(uint8_t ttl) { m_header.set_ip_ttl(ttl); }
+	inline void 	set_ip_tos(uint8_t tos) { m_header.set_ip_tos(tos); }
+	inline bool 	set_pcp(uint8_t pcp) { return m_header.set_vlan_pcp(pcp); }
 	inline header*	get_network_header() { return &m_header;}
 	inline ring*	get_ring() { return m_p_ring;}
 protected:
