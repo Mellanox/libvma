@@ -151,8 +151,8 @@ protected:
 	virtual uint8_t 	get_protocol_type() const = 0;
 	virtual bool 		get_net_dev_val();
 	virtual uint32_t 	get_inline_sge_num() = 0;
-	virtual ibv_sge*	get_sge_lst_4_inline_send() = 0;
 	virtual ibv_sge*	get_sge_lst_4_not_inline_send() = 0;
+	ibv_sge*		get_sge_lst_4_inline_send() { return m_sge; };
 
 	virtual bool 		offloaded_according_to_rules();
 	virtual void 		init_members();

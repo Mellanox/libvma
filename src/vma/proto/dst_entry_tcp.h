@@ -61,7 +61,6 @@ protected:
 	transport_t 		get_transport(sockaddr_in to);
 	virtual uint8_t 	get_protocol_type() const { return IPPROTO_TCP; };
 	virtual uint32_t 	get_inline_sge_num() { return 1; };
-	virtual ibv_sge*	get_sge_lst_4_inline_send() { return m_sge; };
 	virtual ibv_sge*	get_sge_lst_4_not_inline_send() { return m_sge; };
 
 	virtual void		configure_headers();
