@@ -3462,12 +3462,27 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 	if (__level == IPPROTO_IP) {
 		switch(__optname) {
 		case IP_TOS: /* might be missing ECN logic */
-			if (__optlen <= sizeof(int)) {
-				val = *(int *)__optval;
-				val &= ~INET_ECN_MASK;
-				m_pcb.tos |= val & INET_ECN_MASK;
-			}
 			ret = SOCKOPT_HANDLE_BY_OS;
+			if (__optlen == sizeof(int)) {
+				val = *(int *)__optval;
+			} else if (__optlen == sizeof(uint8_t)) {
+				val = *(uint8_t *)__optval;
+			} else {
+				break;
+			}
+			val &= ~INET_ECN_MASK;
+			val |= m_pcb.tos & INET_ECN_MASK;
+			if (m_pcb.tos != val) {
+				lock_tcp_con();
+				m_pcb.tos = val;
+				header_tos_updater du(m_pcb.tos);
+				update_header_field(&du);
+				// lists.openwall.net/netdev/2009/12/21/59
+				int new_prio = ip_tos2prio[IPTOS_TOS(m_pcb.tos) >> 1];
+				set_sockopt_prio(&new_prio, sizeof(new_prio));
+				unlock_tcp_con();
+
+			}
 		break;
 		default:
 			ret = SOCKOPT_HANDLE_BY_OS;
@@ -3647,7 +3662,12 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			return ret;
 		}
 		case SO_PRIORITY: {
-			set_sockopt_prio(__optval, __optlen);
+			lock_tcp_con();
+			if (set_sockopt_prio(__optval, __optlen)) {
+				unlock_tcp_con();
+				return -1;
+			}
+			unlock_tcp_con();
 			ret = SOCKOPT_HANDLE_BY_OS;
 			break;
 		}
@@ -4639,12 +4659,12 @@ void tcp_timers_collection::remove_timer(timer_node_t* node)
 	free(node);
 }
 
-void sockinfo_tcp::set_dst_entry_ttl()
+void sockinfo_tcp::update_header_field(data_updater *updater)
 {
 	lock_tcp_con();
 
 	if (m_p_connected_dst_entry) {
-		m_p_connected_dst_entry->set_ip_ttl(m_n_uc_ttl);
+		updater->update_field(*m_p_connected_dst_entry);
 	}
 
 	unlock_tcp_con();

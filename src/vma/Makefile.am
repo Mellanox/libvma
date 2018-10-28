@@ -165,6 +165,7 @@ libvma_la_SOURCES := \
 	util/instrumentation.cpp \
 	util/sys_vars.cpp \
 	util/agent.cpp \
+	util/data_updater.cpp \
 	\
 	libvma.c \
 	main.cpp \
@@ -308,6 +309,7 @@ libvma_la_SOURCES := \
 	util/wakeup_pipe.h \
 	util/agent.h \
 	util/agent_def.h \
+	util/data_updater.h \
 	\
 	config_parser.h \
 	main.h \

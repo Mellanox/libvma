@@ -37,6 +37,7 @@
 #include "vlogger/vlogger.h"
 #include "utils/lock_wrapper.h"
 #include "vma/vma_extra.h"
+#include "vma/util/data_updater.h"
 #include "vma/util/sock_addr.h"
 #include "vma/util/vma_stats.h"
 #include "vma/util/sys_vars.h"
@@ -142,6 +143,14 @@ typedef struct {
 } ring_info_t;
 
 typedef std::tr1::unordered_map<ring*, ring_info_t*> rx_ring_map_t;
+
+// see route.c in Linux kernel
+const uint8_t ip_tos2prio[16] = {
+	0, 0, 0, 0,
+	2, 2, 2, 2,
+	6, 6, 6, 6,
+	4, 4, 4, 4
+};
 
 class sockinfo : public socket_fd_api, public pkt_rcvr_sink, public pkt_sndr_source, public wakeup_pipe
 {
@@ -279,7 +288,7 @@ protected:
 	void 			save_stats_rx_offload(int nbytes);
 
 	virtual int             rx_verify_available_data() = 0;
-	virtual void            set_dst_entry_ttl() = 0;
+	virtual void            update_header_field(data_updater *updater) = 0;
 	virtual mem_buf_desc_t *get_next_desc (mem_buf_desc_t *p_desc) = 0;
 	virtual	mem_buf_desc_t* get_next_desc_peek(mem_buf_desc_t *p_desc, int& rx_pkt_ready_list_idx) = 0;
 	virtual timestamps_t* get_socket_timestamps() = 0;
@@ -315,7 +324,7 @@ protected:
 	int 			modify_ratelimit(dst_entry* p_dst_entry, struct vma_rate_limit_t &rate_limit);
 
 	void 			move_owned_rx_ready_descs(ring* p_ring, descq_t* toq); // Move all owner's rx ready packets ro 'toq'
-	void			set_sockopt_prio(__const void *__optval, socklen_t __optlen);
+	int			set_sockopt_prio(__const void *__optval, socklen_t __optlen);
 
 	virtual void    handle_ip_pktinfo(struct cmsg_state *cm_state) = 0;
 	inline  void    handle_recv_timestamping(struct cmsg_state *cm_state);
