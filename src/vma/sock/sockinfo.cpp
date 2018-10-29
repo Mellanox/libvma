@@ -84,8 +84,7 @@ sockinfo::sockinfo(int fd):
 		m_flow_tag_enabled(false),
 		m_n_uc_ttl(safe_mce_sys().sysctl_reader.get_net_ipv4_ttl()),
 		m_tcp_flow_is_5t(false),
-		m_p_rings_fds(NULL),
-		m_user_def_flow_tag(false)
+		m_p_rings_fds(NULL)
 
 {
 	m_ring_alloc_logic = ring_allocation_logic_rx(get_fd(), m_ring_alloc_log_rx, this);
@@ -273,7 +272,6 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 			if (__optval) {
 				if (__optlen == sizeof(uint32_t)) {
 					if (set_flow_tag(*(uint32_t*)__optval)) {
-						m_user_def_flow_tag = true;
 						si_logdbg("SO_VMA_FLOW_TAG, set "
 							  "socket %s to flow id %d",
 							  m_fd, m_flow_tag_id);
@@ -560,13 +558,6 @@ bool sockinfo::attach_receiver(flow_tuple_with_local_if &flow_key)
 	// Attach tuple
 	BULLSEYE_EXCLUDE_BLOCK_START
 	unlock_rx_q();
-	if (m_user_def_flow_tag) {
-		ring_simple *p_ring = dynamic_cast<ring_simple*>(p_nd_resources->p_ring);
-		if (p_ring) {
-			p_ring->disable_flow_tag();
-		}
-
-	}
 	if (!p_nd_resources->p_ring->attach_flow(flow_key, this)) {
 		lock_rx_q();
 		si_logdbg("Failed to attach %s to ring %p", flow_key.to_str(), p_nd_resources->p_ring);
