@@ -1262,6 +1262,7 @@ mem_buf_desc_t* ring_tap::mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_
 		request_more_tx_buffers();
 
 		if (unlikely((int)m_tx_pool.size() < n_num_mem_bufs)) {
+			m_lock_ring_tx.unlock();
 			return head;
 		}
 	}
