@@ -982,24 +982,27 @@ ring* net_device_val::reserve_ring(resource_allocation_key *key)
 bool net_device_val::release_ring(resource_allocation_key *key)
 {
 	nd_logfunc("");
+
+	resource_allocation_key *red_key;
+
 	auto_unlocker lock(m_lock);
-	key = ring_key_redirection_release(key);
+	red_key = get_ring_key_redirection(key);
 	ring* the_ring = NULL;
-	rings_hash_map_t::iterator ring_iter = m_h_ring_map.find(key);
+	rings_hash_map_t::iterator ring_iter = m_h_ring_map.find(red_key);
 
 	if (m_h_ring_map.end() != ring_iter) {
 		DEC_RING_REF_CNT;
-		the_ring = GET_THE_RING(key);
+		the_ring = GET_THE_RING(red_key);
 
 		nd_logdbg("0x%X: if_index %d parent 0x%X ref %d key %s",
 				the_ring, the_ring->get_if_index(),
-				the_ring->get_parent(), RING_REF_CNT, key->to_str());
+				the_ring->get_parent(), RING_REF_CNT, red_key->to_str());
 
 		if ( TEST_REF_CNT_ZERO ) {
 			int num_ring_rx_fds = the_ring->get_num_resources();
 			int *ring_rx_fds_array = the_ring->get_rx_channel_fds();
 			nd_logdbg("Deleting RING %p for key %s and removing notification fd from global_table_mgr_epfd (epfd=%d)",
-					the_ring, key->to_str(), g_p_net_device_table_mgr->global_ring_epfd_get());
+					the_ring, red_key->to_str(), g_p_net_device_table_mgr->global_ring_epfd_get());
 			for (int i = 0; i < num_ring_rx_fds; i++) {
 				int cq_ch_fd = ring_rx_fds_array[i];
 				BULLSEYE_EXCLUDE_BLOCK_START
@@ -1009,6 +1012,8 @@ bool net_device_val::release_ring(resource_allocation_key *key)
 				}
 				BULLSEYE_EXCLUDE_BLOCK_END
 			}
+
+			ring_key_redirection_release(key);
 
 			delete the_ring;
 			delete ring_iter->first;
@@ -1068,7 +1073,7 @@ resource_allocation_key* net_device_val::ring_key_redirection_reserve(resource_a
 	return min_key;
 }
 
-resource_allocation_key* net_device_val::ring_key_redirection_release(resource_allocation_key *key)
+resource_allocation_key* net_device_val::get_ring_key_redirection(resource_allocation_key *key)
 {
 	resource_allocation_key *ret_key = key;
 
@@ -1080,17 +1085,21 @@ resource_allocation_key* net_device_val::ring_key_redirection_release(resource_a
 		return ret_key;
 	}
 
-	nd_logdbg("release redirecting key=%s (ref-count:%d) to key=%s", key->to_str(),
-		m_h_ring_key_redirection_map[key].second,
-		m_h_ring_key_redirection_map[key].first->to_str());
 	ret_key = m_h_ring_key_redirection_map[key].first;
-	if (--m_h_ring_key_redirection_map[key].second == 0) {
+
+	return ret_key;
+}
+
+void net_device_val::ring_key_redirection_release(resource_allocation_key *key)
+{
+	if (safe_mce_sys().ring_limit_per_interface && --m_h_ring_key_redirection_map[key].second == 0) {
 		// this is allocated in ring_key_redirection_reserve
+		nd_logdbg("release redirecting key=%s (ref-count:%d) to key=%s", key->to_str(),
+			m_h_ring_key_redirection_map[key].second,
+			m_h_ring_key_redirection_map[key].first->to_str());
 		delete m_h_ring_key_redirection_map[key].first;
 		m_h_ring_key_redirection_map.erase(key);
 	}
-
-	return ret_key;
 }
 
 int net_device_val::global_ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_ready_array /*=NULL*/)
