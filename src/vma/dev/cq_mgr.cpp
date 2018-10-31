@@ -227,7 +227,7 @@ cq_mgr::~cq_mgr()
 
 	cq_logfunc("destroying ibv_cq");
 	IF_VERBS_FAILURE_EX(ibv_destroy_cq(m_p_ibv_cq), EIO) {
-		cq_logerr("destroy cq failed (errno=%d %m)", errno);
+		cq_logdbg("destroy cq failed (errno=%d %m)", errno);
 	} ENDIF_VERBS_FAILURE;
 	VALGRIND_MAKE_MEM_UNDEFINED(m_p_ibv_cq, sizeof(ibv_cq));
 	

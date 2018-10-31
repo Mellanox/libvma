@@ -345,7 +345,7 @@ void qp_mgr::release_rx_buffers()
 	uintptr_t last_polled_rx_wr_id = 0;
 	while (m_p_cq_mgr_rx &&
 			last_polled_rx_wr_id != m_last_posted_rx_wr_id &&
-			errno != EIO) {
+			(errno != EIO && !m_p_ib_ctx_handler->is_removed())) {
 
 		// Process the FLUSH'ed WQE's
 		int ret = m_p_cq_mgr_rx->drain_and_proccess(&last_polled_rx_wr_id);
@@ -368,7 +368,7 @@ void qp_mgr::release_tx_buffers()
 	qp_logdbg("draining tx cq_mgr %p", m_p_cq_mgr_tx);
 	while (m_p_cq_mgr_tx && m_qp &&
 			((ret = m_p_cq_mgr_tx->poll_and_process_element_tx(&poll_sn)) > 0) &&
-			errno != EIO) {
+			(errno != EIO && !m_p_ib_ctx_handler->is_removed())) {
 		qp_logdbg("draining completed on tx cq_mgr (%d wce)", ret);
 	}
 }
