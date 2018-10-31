@@ -1071,7 +1071,7 @@ resource_allocation_key* net_device_val::ring_key_redirection_reserve(resource_a
 		}
 		ring_iter++;
 	}
-	m_h_ring_key_redirection_map[key] = std::make_pair(min_key, 1);
+	m_h_ring_key_redirection_map[key] = std::make_pair(new resource_allocation_key(*min_key), 1);
 	nd_logdbg("redirecting key=%s (ref-count:1) to key=%s",
 		  key->to_str(), min_key->to_str());
 	return min_key;
@@ -1079,24 +1079,21 @@ resource_allocation_key* net_device_val::ring_key_redirection_reserve(resource_a
 
 resource_allocation_key* net_device_val::get_ring_key_redirection(resource_allocation_key *key)
 {
-	resource_allocation_key *ret_key = key;
-
-	if (!safe_mce_sys().ring_limit_per_interface) return ret_key;
+	if (!safe_mce_sys().ring_limit_per_interface) return key;
 
 	if (m_h_ring_key_redirection_map.find(key) == m_h_ring_key_redirection_map.end()) {
 		nd_logdbg("key = %s is not found in the redirection map",
 			  key->to_str());
-		return ret_key;
+		return key;
 	}
 
-	ret_key = m_h_ring_key_redirection_map[key].first;
-
-	return ret_key;
+	return m_h_ring_key_redirection_map[key].first;
 }
 
 void net_device_val::ring_key_redirection_release(resource_allocation_key *key)
 {
-	if (safe_mce_sys().ring_limit_per_interface && --m_h_ring_key_redirection_map[key].second == 0) {
+	if (safe_mce_sys().ring_limit_per_interface && m_h_ring_key_redirection_map.find(key) != m_h_ring_key_redirection_map.end()
+		&& --m_h_ring_key_redirection_map[key].second == 0) {
 		// this is allocated in ring_key_redirection_reserve
 		nd_logdbg("release redirecting key=%s (ref-count:%d) to key=%s", key->to_str(),
 			m_h_ring_key_redirection_map[key].second,
