@@ -301,7 +301,8 @@ private:
 	bool 			verify_enable_ipoib(const char* ifname);
 
 	resource_allocation_key* ring_key_redirection_reserve(resource_allocation_key *key);
-	resource_allocation_key* ring_key_redirection_release(resource_allocation_key *key);
+	resource_allocation_key* get_ring_key_redirection(resource_allocation_key *key);
+	void ring_key_redirection_release(resource_allocation_key *key);
 
 	bool get_up_and_active_slaves(bool* up_and_active_slaves, size_t size);
 
