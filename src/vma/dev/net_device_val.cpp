@@ -62,6 +62,10 @@
 #include "vma/proto/neighbour_table_mgr.h"
 #include "ring_profile.h"
 
+#ifdef HAVE_LIBNL3
+#include <netlink/route/link/vlan.h>
+#endif
+
 #define MODULE_NAME             "ndv"
 
 #define nd_logpanic           __log_panic
@@ -1205,6 +1209,9 @@ void net_device_val_eth::configure()
 	create_br_address(get_ifname());
 
 	m_vlan = get_vlan_id_from_ifname(get_ifname());
+	if (m_vlan) {
+		parse_prio_egress_map();
+	}
 	if (m_vlan && m_bond != NO_BOND && m_bond_fail_over_mac == 1) {
 		vlog_printf(VLOG_WARNING, " ******************************************************************\n");
 		vlog_printf(VLOG_WARNING, "%s: vlan over bond while fail_over_mac=1 is not offloaded\n", get_ifname());
@@ -1221,6 +1228,65 @@ void net_device_val_eth::configure()
 		//in case vlan is configured on slave
 		m_vlan = get_vlan_id_from_ifname(if_name);
 	}
+}
+
+int net_device_val::get_priority_by_tc_class(uint32_t tc_class)
+{
+	tc_class_priority_map::iterator it = m_class_prio_map.find(tc_class);
+	if (it == m_class_prio_map.end()) {
+		return VMA_DEFAULT_ENGRESS_MAP_PRIO;
+	}
+	return it->second;
+}
+
+void net_device_val_eth::parse_prio_egress_map()
+{
+#ifdef HAVE_LIBNL3
+	int len, ret;
+	nl_cache *cache = NULL;
+	rtnl_link *link;
+	vlan_map *map;
+
+	nl_socket_handle *nl_socket = nl_socket_handle_alloc();
+	if (!nl_socket) {
+		nd_logdbg("unable to allocate socket socket %m", errno);
+		goto out;
+	}
+	nl_socket_set_local_port(nl_socket, 0);
+	ret = nl_connect(nl_socket, NETLINK_ROUTE);
+	if (ret < 0) {
+		nd_logdbg("unable to connect to libnl socket %d %m", ret, errno);
+		goto out;
+	}
+	ret = rtnl_link_alloc_cache(nl_socket, AF_UNSPEC, &cache);
+	if (!cache) {
+		nd_logdbg("unable to create libnl cache %d %m", ret, errno);
+		goto out;
+	}
+	link = rtnl_link_get_by_name(cache, get_ifname());
+	if (!link) {
+		nd_logdbg("unable to get libnl link %d %m", ret, errno);
+		goto out;
+	}
+	map = rtnl_link_vlan_get_egress_map(link, &len);
+	if (!map || !len) {
+		nd_logdbg("no egress map found %d %p",len, map);
+		goto out;
+	}
+	for (int i = 0; i < len; i++) {
+		m_class_prio_map[map[i].vm_from] = map[i].vm_to;
+	}
+out:
+	if (cache) {
+		nl_cache_free(cache);
+	}
+	if (nl_socket) {
+		nl_socket_handle_free(nl_socket);
+	}
+#else
+	nd_logdbg("libnl3 not found, cannot read engress map, "
+		  "SO_PRIORITY will not work properly");
+#endif
 }
 
 ring* net_device_val_eth::create_ring(resource_allocation_key *key)

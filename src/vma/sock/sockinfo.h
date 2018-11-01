@@ -247,7 +247,7 @@ protected:
 	const int32_t				m_n_sysvar_rx_poll_num;
 	ring_alloc_logic_attr			m_ring_alloc_log_rx;
 	ring_alloc_logic_attr			m_ring_alloc_log_tx;
-	uint8_t					m_pcp;
+	uint32_t				m_pcp;
 #ifdef DEFINED_SOCKETXTREME
 	/* Track internal events to return in socketxtreme_poll()
 	 * Current design support single event for socket at a particular time

@@ -376,8 +376,8 @@ bool dst_entry::conf_l2_hdr_and_snd_wqe_eth()
 		if (src && dst) {
 		BULLSEYE_EXCLUDE_BLOCK_END
 			if (netdevice_eth->get_vlan()) { //vlan interface
-				uint16_t vlan_tci =
-						((uint16_t)m_pcp << NET_ETH_VLAN_PCP_OFFSET) |
+				uint32_t prio = get_priority_by_tc_class(m_pcp);
+				uint16_t vlan_tci = (prio << NET_ETH_VLAN_PCP_OFFSET) |
 						netdevice_eth->get_vlan();
 				m_header.configure_vlan_eth_headers(*src, *dst, vlan_tci);
 			}
@@ -770,4 +770,13 @@ int dst_entry::modify_ratelimit(struct vma_rate_limit_t &rate_limit)
 		return m_p_ring->modify_ratelimit(rate_limit);
 	}
 	return 0;
+}
+
+int dst_entry::get_priority_by_tc_class(uint32_t pcp)
+{
+	// translate class to priority
+	if (m_p_net_dev_val) {
+		return m_p_net_dev_val->get_priority_by_tc_class(pcp);
+	}
+	return VMA_DEFAULT_ENGRESS_MAP_PRIO;
 }

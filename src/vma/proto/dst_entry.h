@@ -59,7 +59,7 @@ struct socket_data {
 	int	fd;
 	uint8_t ttl;
 	uint8_t	tos;
-	uint8_t	pcp;
+	uint32_t pcp;
 };
 
 class dst_entry : public cache_observer, public tostr, public neigh_observer
@@ -103,9 +103,10 @@ public:
 
 	void		return_buffers_pool();
 	int		get_route_mtu();
-	inline void 	set_ip_ttl(uint8_t ttl) { m_header.set_ip_ttl(ttl); }
-	inline void 	set_ip_tos(uint8_t tos) { m_header.set_ip_tos(tos); }
-	inline bool 	set_pcp(uint8_t pcp) { return m_header.set_vlan_pcp(pcp); }
+	inline void	set_ip_ttl(uint8_t ttl) { m_header.set_ip_ttl(ttl); }
+	inline void	set_ip_tos(uint8_t tos) { m_header.set_ip_tos(tos); }
+	inline bool	set_pcp(uint32_t pcp) {
+		return m_header.set_vlan_pcp(get_priority_by_tc_class(pcp)); }
 	inline header*	get_network_header() { return &m_header;}
 	inline ring*	get_ring() { return m_p_ring;}
 protected:
@@ -177,7 +178,7 @@ protected:
 
 	void			do_ring_migration(lock_base& socket_lock);
 	inline void		set_tx_buff_list_pending(bool is_pending = true) {m_b_tx_mem_buf_desc_list_pending = is_pending;}
-
+	int			get_priority_by_tc_class(uint32_t tc_clas);
 	inline void		send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 	{
 		if (unlikely(is_set(attr, VMA_TX_PACKET_DUMMY))) {
