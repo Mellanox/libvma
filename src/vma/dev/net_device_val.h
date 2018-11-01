@@ -177,7 +177,8 @@ typedef struct ip_data {
 
 typedef std::vector<ip_data_t*> ip_data_vector_t;
 
-
+#define VMA_DEFAULT_ENGRESS_MAP_PRIO	(0)
+typedef std::tr1::unordered_map<uint32_t, uint32_t> tc_class_priority_map;
 /*
  * Represents Offloading capable device such as eth4, ib1, eth3.5, eth5:6
  */
@@ -269,7 +270,7 @@ public:
 	void 			update_netvsc_slaves(int if_index, int if_flags);
 	void 			register_to_ibverbs_events(event_handler_ibverbs *handler);
 	void 			unregister_to_ibverbs_events(event_handler_ibverbs *handler);
-
+	int			get_priority_by_tc_class(uint32_t tc_class);
 protected:
 
 	void set_slave_array();
@@ -281,15 +282,16 @@ protected:
 	L2_address* 		m_p_br_addr;
 	transport_type_t	m_transport_type;
 	lock_mutex_recursive	m_lock;
-	rings_hash_map_t        m_h_ring_map;
+	rings_hash_map_t	m_h_ring_map;
 	rings_key_redirection_hash_map_t        m_h_ring_key_redirection_map;
 
-	state            m_state;          /* device current state */
-	bond_type        m_bond;           /* type of the device as simple, bond, etc */
+	state			m_state;          /* device current state */
+	bond_type		m_bond;           /* type of the device as simple, bond, etc */
 	slave_data_vector_t	m_slaves;      /* array of slaves */
-	int              m_if_active;      /* ifindex of active slave (only for active-backup) */
-	bond_xmit_hash_policy m_bond_xmit_hash_policy;
-	int m_bond_fail_over_mac;
+	int			m_if_active;      /* ifindex of active slave (only for active-backup) */
+	bond_xmit_hash_policy	m_bond_xmit_hash_policy;
+	int			m_bond_fail_over_mac;
+	tc_class_priority_map	m_class_prio_map;
 
 private:
 	void 			verify_bonding_mode();
@@ -335,7 +337,7 @@ public:
 
 protected:
 	virtual ring*		create_ring(resource_allocation_key *key);
-
+	void			parse_prio_egress_map();
 private:
 	void			configure();
 	L2_address*		create_L2_address(const char* ifname);

@@ -1494,19 +1494,14 @@ int sockinfo::setsockopt_kernel(int __level, int __optname, const void *__optval
 
 int sockinfo::set_sockopt_prio(__const void *__optval, socklen_t __optlen)
 {
-	int val = -1;
-
-	if (__optlen == 1) {
-		val = *(uint8_t*)__optval;
-	} else if (__optlen >= 1) {
-		val = *(int*)__optval;
-	} else {
-		/* error flow is handled in kernel setsockopt */
+	if (__optlen < sizeof(int)) {
 		si_logdbg("bad parameter size in set_sockopt_prio");
+		errno = EINVAL;
 		return -1;
 	}
-	if (m_pcp != (uint8_t)val) {
-		m_pcp = (uint8_t)val;
+	uint32_t val = *(uint32_t*)__optval;
+	if (m_pcp != val) {
+		m_pcp = val;
 		si_logdbg("set socket pcp to be %d", m_pcp);
 		header_pcp_updater du(m_pcp);
 		update_header_field(&du);
