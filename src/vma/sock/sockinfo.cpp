@@ -35,6 +35,7 @@
 
 #include <sys/epoll.h>
 #include <netdb.h>
+#include <linux/sockios.h>
 
 #include "utils/bullseye.h"
 #include "vlogger/vlogger.h"
@@ -215,7 +216,8 @@ int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg)
 			return ret;
 		}
 		break;
-
+	case SIOCGIFVLAN: /* prevent error print */
+		break;
 	default:
 		char buf[128];
 		snprintf(buf, sizeof(buf), "unimplemented ioctl request=%#x, flags=%#x", (unsigned)__request, (unsigned)__arg);
