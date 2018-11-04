@@ -881,6 +881,9 @@ void net_device_val::update_netvsc_slaves(int if_index, int if_flags)
 	if (if_indextoname(if_index, if_name) && (if_flags & IFF_UP) && (if_flags & IFF_RUNNING)) {
 		nd_logdbg("slave %d is up", if_index);
 
+		/* Sleep one second to ensure mlx modules are initialized */
+		sleep(1);
+
 		g_p_ib_ctx_handler_collection->update_tbl(if_name);
 		if ((up_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(if_name))) {
 			s = new slave_data_t(if_index);
