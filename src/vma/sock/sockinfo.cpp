@@ -258,6 +258,7 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 				if (__optlen == sizeof(iovec)) {
 					iovec *attr = (iovec *)__optval;
 					m_ring_alloc_log_rx.set_memory_descriptor(*attr);
+					m_ring_alloc_logic = ring_allocation_logic_rx(get_fd(), m_ring_alloc_log_rx, this);
 					if (m_p_rx_ring || m_rx_ring_map.size()) {
 						si_logwarn("user asked to assign memory for "
 							   "RX ring but ring already exists");
