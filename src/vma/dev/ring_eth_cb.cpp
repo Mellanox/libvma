@@ -233,7 +233,6 @@ int ring_eth_cb::allocate_umr_mem(vma_cyclic_buffer_ring_attr *cb_ring,
 	size_t curr_data_len = 0, packet_len, pad_len, buffer_size;
 	size_t packets_num = m_strides_num * m_wq_count;
 	uint64_t base_ptr, prev_addr, pad_addr;
-	uint16_t written_size;
 	int index = 0, count = 1, umr_blocks;
 	const int ndim = 1; // we only use one dimension see UMR docs
 	int retval = 0;
@@ -277,16 +276,17 @@ int ring_eth_cb::allocate_umr_mem(vma_cyclic_buffer_ring_attr *cb_ring,
 
 	m_payload_len = cb_ring->stride_bytes;
 	m_hdr_len = cb_ring->hdr_bytes;
+	m_packet_size = m_payload_len + m_hdr_len;
 
-	written_size = m_payload_len + m_hdr_len + net_len;
+	if (m_packet_receive_mode != STRIP_NETWORK_HDRS) {
+		m_packet_size += net_len;
+	}
 	// in case stride smaller then packet size
-	while ((m_stride_size * count) <= written_size) {
+	while ((m_stride_size * count) <= m_packet_size) {
 		++count;
 	}
-
-	pad_len = (m_stride_size * count) - written_size;
 	// no need to allocate padding
-	m_packet_size = (m_stride_size * count) - pad_len;
+	pad_len = (m_stride_size * count) - m_packet_size;
 	// allocate buffer
 	buffer_size = m_packet_size * packets_num;
 	// will raise an exception on failure
