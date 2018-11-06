@@ -94,11 +94,6 @@ void ib_ctx_handler_collection::update_tbl(const char *ifa_name)
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!dev_list) {
-		if (safe_mce_sys().hypervisor == mce_sys_var::HYPER_MSHV) {
-			 // MLX modules are not started after reboot when SRIOV is disabled on upstream-driver
-			 // VMs over Windows Hypervisor.
-			goto out;
-		}
 		ibchc_logwarn("Failure in vma_ibv_get_device_list() (error=%d %m)", errno);
 		ibchc_logwarn("Please check OFED installation");
 		throw_vma_exception("No IB capable devices found!");
@@ -142,7 +137,6 @@ void ib_ctx_handler_collection::update_tbl(const char *ifa_name)
 		m_ib_ctx_map[p_ib_ctx_handler->get_ibv_device()] = p_ib_ctx_handler;
 	}
 
-out:
 	ibchc_logdbg("Check completed. Found %d offload capable IB devices", m_ib_ctx_map.size());
 
 	if (dev_list) {

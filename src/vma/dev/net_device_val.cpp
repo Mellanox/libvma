@@ -245,7 +245,7 @@ net_device_val::net_device_val(struct net_device_val_desc *desc) : m_lock("net_d
 		if (get_type() == ARPHRD_ETHER) {
 			char slave_ifname[IFNAMSIZ] = {0};
 			unsigned int slave_flags = 0;
-			valid = true; /* it is valid flow to operate w/o SRIOV */
+			/* valid = true; uncomment it is valid flow to operate w/o SRIOV */
 			if (get_netvsc_slave(get_ifname_link(), slave_ifname, slave_flags)) {
 				valid = verify_qp_creation(slave_ifname, IBV_QPT_RAW_PACKET);
 			}
