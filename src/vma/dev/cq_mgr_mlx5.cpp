@@ -74,6 +74,14 @@ uint32_t cq_mgr_mlx5::clean_cq()
 	mem_buf_desc_t* buff;
 
 	if (m_b_is_rx) {
+		/* Sanity check for cq: initialization of tx and rx cq
+		 * has difference
+		 * tx - is done in qp_mgr::configure()
+		 * rx - is done in qp_mgr::up()
+		 * as a result rx cq can be created but not initialized
+		 */
+		if (NULL == m_qp) return 0;
+
 		buff_status_e status = BS_OK;
 		while((buff = poll(status))) {
 			if (process_cq_element_rx( buff, status)) {
