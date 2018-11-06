@@ -94,15 +94,14 @@ void ib_ctx_handler_collection::update_tbl(const char *ifa_name)
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!dev_list) {
-		ibchc_logwarn("Failure in vma_ibv_get_device_list() (error=%d %m)", errno);
-		ibchc_logwarn("Please check OFED installation");
+		ibchc_logerr("Failure in vma_ibv_get_device_list() (error=%d %m)", errno);
+		ibchc_logerr("Please check rdma configuration");
 		throw_vma_exception("No IB capable devices found!");
 	}
 	if (!num_devices) {
-		ibchc_logdbg("*************************************************************");
-		ibchc_logdbg("* VMA does not detect IB capable devices                    *");
-		ibchc_logdbg("* No performance gain is expected in current configuration  *");
-		ibchc_logdbg("*************************************************************");
+		vlog_levels_t _level = ifa_name ? VLOG_DEBUG : VLOG_ERROR; // Print an error only during initialization.
+		vlog_printf(_level, "VMA does not detect IB capable devices\n");
+		vlog_printf(_level, "No performance gain is expected in current configuration\n");
 	}
 
 	BULLSEYE_EXCLUDE_BLOCK_END
