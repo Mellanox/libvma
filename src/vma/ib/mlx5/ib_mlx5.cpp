@@ -100,6 +100,17 @@ int vma_ib_mlx5_get_cq(struct ibv_cq *cq, vma_ib_mlx5_cq_t *mlx5_cq)
 	struct mlx5dv_obj obj;
 	struct mlx5dv_cq dcq;
 
+	/* Initialization of cq can be done once to protect
+	 * internal data from corruption.
+	 * cq field is used to detect one time initialization
+	 * For example: this function can be called when QP is moved
+	 * from ERROR state to RESET so cq_ci or cq_sn should not be
+	 * updated
+	 */
+	if (mlx5_cq == NULL || mlx5_cq->cq == cq) {
+		return 0;
+	}
+
 	memset(&obj, 0, sizeof(obj));
 	memset(&dcq, 0, sizeof(dcq));
 
