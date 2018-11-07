@@ -45,13 +45,12 @@ class time_converter_ptp : public time_converter
 {
 public:
 	time_converter_ptp(struct ibv_context* ctx);
-	virtual ~time_converter_ptp();
+	virtual ~time_converter_ptp() {};
 
 	inline void               convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime);
 	virtual void              handle_timer_expired(void* user_data);
 
 private:
-	void*                     m_timer_handle;
 	struct ibv_context*       m_p_ibv_context;
 
 	struct ibv_exp_values     m_ibv_exp_values[2];

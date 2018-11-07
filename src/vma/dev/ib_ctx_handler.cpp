@@ -198,7 +198,7 @@ ib_ctx_handler::~ib_ctx_handler()
 		m_p_ibv_pd = NULL;
 	}
 
-	delete m_p_ctx_time_converter;
+	m_p_ctx_time_converter->clean_obj();
 	delete m_p_ibv_device_attr;
 
 	ibv_close_device(m_p_ibv_context);
