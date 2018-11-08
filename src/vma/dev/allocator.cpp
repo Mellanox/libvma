@@ -92,10 +92,12 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h, v
 {
 	uint64_t access = VMA_IBV_ACCESS_LOCAL_WRITE;
 
+	if (ptr) {
+		m_mem_alloc_type = ALLOC_TYPE_EXTERNAL;
+	}
 	switch (m_mem_alloc_type) {
 	case ALLOC_TYPE_EXTERNAL:
 		m_data_block = ptr;
-		m_mem_alloc_type = ALLOC_TYPE_EXTERNAL;
 		register_memory(size, p_ib_ctx_h, access);
 		break;
 	case ALLOC_TYPE_HUGEPAGES:
