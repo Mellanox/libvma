@@ -779,10 +779,10 @@ bool get_bond_active_slave_name(IN const char* bond_name, OUT char* active_slave
 	return true;
 }
 
-bool check_bond_roce_lag_exist(OUT char* bond_roce_lag_path, int sz, IN const char* bond_name, IN const char* slave_name)
+bool check_bond_roce_lag_exist(OUT char* bond_roce_lag_path, int sz, IN const char* slave_name)
 {
 	char sys_res[1024] = {0};
-	snprintf(bond_roce_lag_path, sz, BONDING_ROCE_LAG_FILE, bond_name, slave_name);
+	snprintf(bond_roce_lag_path, sz, BONDING_ROCE_LAG_FILE, slave_name);
 	if (priv_read_file(bond_roce_lag_path, sys_res, 1024, VLOG_FUNC) > 0) {
 		if (strtol(sys_res, NULL,10) > 0 && errno != ERANGE) {
 			return true;

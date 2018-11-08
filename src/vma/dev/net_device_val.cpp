@@ -1546,13 +1546,23 @@ bool net_device_val::verify_qp_creation(const char* ifname, enum ibv_qp_type qp_
 
 	if (!p_ib_ctx) {
 		nd_logdbg("Cant find ib_ctx for interface %s", base_ifname);
-		if (qp_type == IBV_QPT_RAW_PACKET && m_bond != NO_BOND && check_bond_roce_lag_exist(bond_roce_lag_path, sizeof(bond_roce_lag_path), get_ifname_link(), ifname)) {
-			vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
-			vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", get_ifname_link());
-			vlog_printf(VLOG_WARNING,"* VMA cannot offload the device while RoCE LAG is enabled.\n");
-			vlog_printf(VLOG_WARNING,"* In order to disable RoCE LAG please use:\n");
-			vlog_printf(VLOG_WARNING,"* echo 0 > %s\n", bond_roce_lag_path);
-			vlog_printf(VLOG_WARNING,"******************************************************************************************************\n");
+		if (qp_type == IBV_QPT_RAW_PACKET && m_bond != NO_BOND) {
+			if (check_bond_roce_lag_exist(bond_roce_lag_path, sizeof(bond_roce_lag_path), ifname)) {
+				vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+				vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", get_ifname_link());
+				vlog_printf(VLOG_WARNING,"* VMA cannot offload the device while RoCE LAG is enabled.\n");
+				vlog_printf(VLOG_WARNING,"* In order to disable RoCE LAG please use:\n");
+				vlog_printf(VLOG_WARNING,"* echo 0 > %s\n", bond_roce_lag_path);
+				vlog_printf(VLOG_WARNING,"******************************************************************************************************\n");
+			} else if ((p_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(get_ifname_link()))
+					&& strstr(p_ib_ctx->get_ibname(), "bond")) {
+				vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+				vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", get_ifname_link());
+				vlog_printf(VLOG_WARNING,"* VMA cannot offload the device while RoCE LAG is enabled.\n");
+				vlog_printf(VLOG_WARNING,"* Please refer to VMA Release Notes for more info\n");
+				vlog_printf(VLOG_WARNING,"******************************************************************************************************\n");
+
+			}
 		}
 		goto release_resources;
 	} else if (port_num > p_ib_ctx->get_ibv_device_attr()->phys_port_cnt) {
