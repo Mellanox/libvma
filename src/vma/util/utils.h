@@ -301,7 +301,7 @@ size_t get_local_ll_addr(const char* ifname, unsigned char* addr, int addr_len, 
 bool get_bond_active_slave_name(IN const char* bond_name, OUT char* active_slave_name, IN int sz);
 bool get_bond_slave_state(IN const char* slave_name, OUT char* curr_state, IN int sz);
 bool get_bond_slaves_name_list(IN const char* bond_name, OUT char* slaves_list, IN int sz);
-bool check_bond_roce_lag_exist(OUT char* bond_roce_lag_path, int sz, IN const char* bond_name, IN const char* slave_name);
+bool check_bond_roce_lag_exist(OUT char* bond_roce_lag_path, int sz, IN const char* slave_name);
 bool check_device_exist(const char* ifname, const char *path);
 bool check_device_name_ib_name(const char* ifname, const char* ibname);
 bool check_netvsc_device_exist(const char* ifname);
