@@ -1541,6 +1541,7 @@ bool net_device_val::verify_qp_creation(const char* ifname, enum ibv_qp_type qp_
 	//find ib_cxt
 	char base_ifname[IFNAMSIZ];
 	get_base_interface_name((const char*)(ifname), base_ifname, sizeof(base_ifname));
+	int port_num = get_port_from_ifname(base_ifname);
 	ib_ctx_handler* p_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(base_ifname);
 
 	if (!p_ib_ctx) {
@@ -1549,8 +1550,18 @@ bool net_device_val::verify_qp_creation(const char* ifname, enum ibv_qp_type qp_
 			vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 			vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", get_ifname_link());
 			vlog_printf(VLOG_WARNING,"* VMA cannot offload the device while RoCE LAG is enabled.\n");
-			vlog_printf(VLOG_WARNING,"* In order to disable RoCE LAG please use:\n", get_ifname_link());
+			vlog_printf(VLOG_WARNING,"* In order to disable RoCE LAG please use:\n");
 			vlog_printf(VLOG_WARNING,"* echo 0 > %s\n", bond_roce_lag_path);
+			vlog_printf(VLOG_WARNING,"******************************************************************************************************\n");
+		}
+		goto release_resources;
+	} else if (port_num > p_ib_ctx->get_ibv_device_attr()->phys_port_cnt) {
+		nd_logdbg("Invalid port for interface %s", base_ifname);
+		if (qp_type == IBV_QPT_RAW_PACKET && m_bond != NO_BOND && !strncmp(p_ib_ctx->get_ibname(), "mlx4", 4)) {
+			vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+			vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", get_ifname_link());
+			vlog_printf(VLOG_WARNING,"* VMA cannot offload the device while RoCE LAG is enabled.\n");
+			vlog_printf(VLOG_WARNING,"* Please refer to VMA Release Notes for more info\n");
 			vlog_printf(VLOG_WARNING,"******************************************************************************************************\n");
 		}
 		goto release_resources;
@@ -1583,12 +1594,12 @@ bool net_device_val::verify_qp_creation(const char* ifname, enum ibv_qp_type qp_
 
 	qp = vma_ibv_create_qp(p_ib_ctx->get_ibv_pd(), &qp_init_attr);
 	if (qp) {
-		if (qp_type == IBV_QPT_UD && priv_ibv_create_flow_supported(qp, get_port_from_ifname(base_ifname)) == -1) {
+		if (qp_type == IBV_QPT_UD && priv_ibv_create_flow_supported(qp, port_num) == -1) {
 			nd_logdbg("Create_ibv_flow failed on interface %s (errno=%d %m), Traffic will not be offloaded", ifname, errno);
 			goto qp_failure;
 		} else {
 			success = true;
-			if (qp_type == IBV_QPT_RAW_PACKET && !priv_ibv_query_flow_tag_supported(qp, get_port_from_ifname(base_ifname))) {
+			if (qp_type == IBV_QPT_RAW_PACKET && !priv_ibv_query_flow_tag_supported(qp, port_num)) {
 				p_ib_ctx->set_flow_tag_capability(true);
 
 			}
