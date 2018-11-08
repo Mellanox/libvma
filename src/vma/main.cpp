@@ -143,11 +143,12 @@ static int free_libvma_resources()
 		usleep(50000);
 	}
 
+	if (g_p_event_handler_manager)
+		g_p_event_handler_manager->stop_thread();
+
 	if (g_tcp_timers_collection) g_tcp_timers_collection->clean_obj();
 	g_tcp_timers_collection = NULL;
 
-	if (g_p_event_handler_manager)
-		g_p_event_handler_manager->stop_thread();
 	// Block all sock-redicrt API calls into our offloading core
 	fd_collection* g_p_fd_collection_temp = g_p_fd_collection;
 	g_p_fd_collection = NULL;
