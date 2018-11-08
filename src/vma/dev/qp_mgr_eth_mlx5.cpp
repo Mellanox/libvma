@@ -85,18 +85,22 @@ static bool is_bf(struct ibv_context *ib_ctx)
 {
 #define VMA_MLX5_MMAP_GET_WC_PAGES_CMD  2 // Corresponding to MLX5_MMAP_GET_WC_PAGES_CMD
 #define VMA_MLX5_IB_MMAP_CMD_SHIFT      8 // Corresponding to MLX5_IB_MMAP_CMD_SHIFT
-
-	/*
-	 * The following logic was taken from libmlx5 library and its purpose is to check whether
-	 * the use of BF is supported for the device.
-	 */
 	static int page_size = sysconf(_SC_PAGESIZE);
 	static off_t offset = VMA_MLX5_MMAP_GET_WC_PAGES_CMD << VMA_MLX5_IB_MMAP_CMD_SHIFT;
-	void *addr = mmap(NULL, page_size, PROT_WRITE, MAP_SHARED,
-			ib_ctx->cmd_fd, page_size * offset);
-	if (addr != MAP_FAILED) {
-		(void)munmap(addr, page_size);
-		return true;
+	char *env;
+
+	env = getenv("MLX5_SHUT_UP_BF");
+	if (!env || !strcmp(env, "0")) {
+		/*
+		 * The following logic was taken from libmlx5 library and its purpose is to check whether
+		 * the use of BF is supported for the device.
+		 */
+		void *addr = mmap(NULL, page_size, PROT_WRITE, MAP_SHARED,
+				ib_ctx->cmd_fd, page_size * offset);
+		if (addr != MAP_FAILED) {
+			(void)munmap(addr, page_size);
+			return true;
+		}
 	}
 	return false;
 }
@@ -124,7 +128,6 @@ qp_mgr_eth_mlx5::qp_mgr_eth_mlx5(const ring_simple* p_ring,
 	qp_logdbg("m_db_method=%d", m_db_method);
 }
 
-//
 void qp_mgr_eth_mlx5::init_sq()
 {
 	if (0 != vma_ib_mlx5_get_qp(m_qp, &m_mlx5_qp)) {
