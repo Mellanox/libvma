@@ -53,7 +53,7 @@
 #define IB_CTX_TC_DEVIATION_THRESHOLD 10
 
 time_converter_ib_ctx::time_converter_ib_ctx(struct ibv_context* ctx, ts_conversion_mode_t ctx_time_converter_mode, uint64_t hca_core_clock) :
-	m_timer_handle(NULL), m_p_ibv_context(ctx), m_ctx_parmeters_id(0)
+	m_p_ibv_context(ctx), m_ctx_parmeters_id(0)
 {
 #ifdef DEFINED_IBV_CQ_TIMESTAMP
 	if (ctx_time_converter_mode != TS_CONVERSION_MODE_DISABLE) {
@@ -81,15 +81,13 @@ time_converter_ib_ctx::time_converter_ib_ctx(struct ibv_context* ctx, ts_convers
 	}
 }
 
-time_converter_ib_ctx::~time_converter_ib_ctx() {
-	if (m_timer_handle) {
-		g_p_event_handler_manager->unregister_timer_event(this, m_timer_handle);
-		m_timer_handle = NULL;
-	}
-}
-
 void time_converter_ib_ctx::handle_timer_expired(void* user_data) {
 	NOT_IN_USE(user_data);
+
+	if (is_cleaned()) {
+		return;
+	}
+
 	fix_hw_clock_deviation();
 }
 

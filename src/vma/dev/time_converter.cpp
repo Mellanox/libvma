@@ -141,3 +141,14 @@ ts_conversion_mode_t time_converter::get_devices_converter_status(struct ibv_dev
 	return ctx_time_conversion_mode;
 }
 
+void time_converter::clean_obj()
+{
+	set_cleaned();
+
+	if (m_timer_handle && g_p_event_handler_manager->is_running()) {
+		g_p_event_handler_manager->unregister_timers_event_and_delete(this);
+		m_timer_handle = NULL;
+	} else {
+		cleanable_obj::clean_obj();
+	}
+}

@@ -44,14 +44,13 @@ class time_converter_ib_ctx : public time_converter
 public:
 	time_converter_ib_ctx(struct ibv_context* ctx, ts_conversion_mode_t ctx_time_converter_mode, uint64_t hca_core_clock);
 
-	virtual ~time_converter_ib_ctx();
+	virtual ~time_converter_ib_ctx() {};
 
 	void                      convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime);
 	void                      handle_timer_expired(void* user_data);
 	uint64_t                  get_hca_core_clock();
 
 private:
-	void*                     m_timer_handle;
 	struct ibv_context*       m_p_ibv_context;
 	ctx_timestamping_params_t m_ctx_convert_parmeters[2];
 	int                       m_ctx_parmeters_id;

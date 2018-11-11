@@ -55,7 +55,7 @@
 
 
 time_converter_ptp::time_converter_ptp(struct ibv_context* ctx) :
-	m_timer_handle(NULL), m_p_ibv_context(ctx), m_ibv_exp_values_id(0)
+	m_p_ibv_context(ctx), m_ibv_exp_values_id(0)
 {
 	for (size_t i=0; i < ARRAY_SIZE(m_ibv_exp_values); i++) {
 		memset(&m_ibv_exp_values[i], 0, sizeof(m_ibv_exp_values[i]));
@@ -69,15 +69,13 @@ time_converter_ptp::time_converter_ptp(struct ibv_context* ctx) :
 	m_converter_status = TS_CONVERSION_MODE_PTP;
 }
 
-time_converter_ptp::~time_converter_ptp() {
-	if (m_timer_handle) {
-		g_p_event_handler_manager->unregister_timer_event(this, m_timer_handle);
-		m_timer_handle = NULL;
-	}
-}
-
 void time_converter_ptp::handle_timer_expired(void* user_data) {
+
 	NOT_IN_USE(user_data);
+
+	if (is_cleaned()) {
+		return;
+	}
 
 	int ret = 0;
 	ret = ibv_exp_query_values(m_p_ibv_context, IBV_EXP_VALUES_CLOCK_INFO, &m_ibv_exp_values[1 - m_ibv_exp_values_id]);

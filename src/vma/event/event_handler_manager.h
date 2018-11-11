@@ -173,6 +173,7 @@ public:
 
 	void*   thread_loop();
 	void    stop_thread();
+	bool    is_running() {return m_b_continue_running; };
 
 	void    update_epfd(int fd, int operation, int events);
 
