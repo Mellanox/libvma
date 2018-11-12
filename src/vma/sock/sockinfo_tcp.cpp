@@ -105,6 +105,11 @@ static bool is_inherited_option(int __level, int __optname)
 		case TCP_NODELAY:
 			ret = true;
 		}
+	} else if (__level == IPPROTO_IP) {
+		switch (__optname) {
+		case IP_TTL:
+			ret = true;
+		}
 	}
 
 	return ret;
