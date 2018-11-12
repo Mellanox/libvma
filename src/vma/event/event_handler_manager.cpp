@@ -752,6 +752,35 @@ void event_handler_manager::handle_registration_action(reg_action_t& reg_action)
 	return;
 }
 
+void event_handler_manager::query_for_ibverbs_event(int async_fd)
+{
+	evh_logfunc_entry("");
+
+	struct pollfd poll_fd;
+	event_handler_map_t::iterator i;
+
+	poll_fd.events  = POLLIN | POLLPRI;
+	poll_fd.revents = 0;
+	poll_fd.fd = async_fd;
+
+	// ibverbs events should be read only from the internal thread context
+	if (pthread_self() != m_event_handler_tid) {
+		return;
+	}
+
+	// Check for ready events
+	if (orig_os_api.poll(&poll_fd, 1, 0) <= 0) {
+		return;
+	}
+
+	// Verify handler exists in map
+	if ((i = m_event_handler_map.find(async_fd)) == m_event_handler_map.end()) {
+		return;
+	}
+
+	process_ibverbs_event(i);
+}
+
 void event_handler_manager::process_ibverbs_event(event_handler_map_t::iterator &i)
 {
 	evh_logfunc_entry("");
