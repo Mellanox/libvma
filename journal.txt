@@ -4,6 +4,8 @@ Date + Time 2018-11-13
 Added:
         - RM #1438405 Parse vlan priority mapping file
         - RM #1438405 Allow dynamic updating header bits after ring creation
+        - RM #1557652 BF is not supported for upstream on VMs
+        - RM #1557652 Check MLX5_SHUT_UP_BF env
         - RM #1178933 Print warning while mlx5 RoCE lag is enabled
         - RM #1540213 Print warning while mlx4 RoCE lag is enabled
         - RM #1521396 Reduce MP_RQ allocated size when stripping
@@ -13,6 +15,7 @@ Added:
         - RM #1523707 Improve plugout processing
         - RM #1552382 Redirect ioctl SIOCGIFVLAN
 Fixed:
+        - RM #1557668 Fix infinite polling loop during plugout
         - RM #1564259 Fix IP_TTL socket option inheritance
         - RM #1557681 Fix timer converter Segmentation fault
         - RM #1521396 Fix user memory passing to socket
