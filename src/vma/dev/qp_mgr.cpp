@@ -109,11 +109,6 @@ qp_mgr::~qp_mgr()
 {
 	qp_logfunc("");
 
-	// Don't assume anything
-	// release_tx/rx_buffers() - poll and process the CQ's
-	release_tx_buffers();
-	release_rx_buffers();
-
 	if (m_p_cq_mgr_rx) {
 		m_p_cq_mgr_rx->clean_cq();
 	}
@@ -343,9 +338,8 @@ void qp_mgr::release_rx_buffers()
 	// Wait for all FLUSHed WQE on Rx CQ
 	qp_logdbg("draining rx cq_mgr %p (last_posted_rx_wr_id = %p)", m_p_cq_mgr_rx, m_last_posted_rx_wr_id);
 	uintptr_t last_polled_rx_wr_id = 0;
-	while (m_p_cq_mgr_rx &&
-			last_polled_rx_wr_id != m_last_posted_rx_wr_id &&
-			(errno != EIO && !m_p_ib_ctx_handler->is_removed())) {
+	while (m_p_cq_mgr_rx && last_polled_rx_wr_id != m_last_posted_rx_wr_id &&
+			errno != EIO && !m_p_ib_ctx_handler->is_removed()) {
 
 		// Process the FLUSH'ed WQE's
 		int ret = m_p_cq_mgr_rx->drain_and_proccess(&last_polled_rx_wr_id);
@@ -353,11 +347,16 @@ void qp_mgr::release_rx_buffers()
 
 		total_ret += ret;
 
+		if (!ret) {
+			// Query context for ib_verbs events (especially for IBV_EVENT_DEVICE_FATAL)
+			g_p_event_handler_manager->query_for_ibverbs_event(m_p_ib_ctx_handler->get_ibv_context()->async_fd);
+		}
+
 		// Add short delay (500 usec) to allow for WQE's to be flushed to CQ every poll cycle
 		const struct timespec short_sleep = {0, 500000}; // 500 usec
 		nanosleep(&short_sleep, NULL);
 	}
-	m_last_posted_rx_wr_id = 0; // Clear the posted WR_ID flag, we just clear the entier RQ
+	m_last_posted_rx_wr_id = 0; // Clear the posted WR_ID flag, we just clear the entire RQ
 	qp_logdbg("draining completed with a total of %d wce's on rx cq_mgr", total_ret);
 }
 

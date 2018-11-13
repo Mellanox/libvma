@@ -176,6 +176,7 @@ public:
 	bool    is_running() {return m_b_continue_running; };
 
 	void    update_epfd(int fd, int operation, int events);
+	void	query_for_ibverbs_event(int async_fd);
 
 private:
 	pthread_t		m_event_handler_tid;
