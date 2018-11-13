@@ -120,7 +120,7 @@ inline int sockinfo_udp::rx_wait(bool blocking)
 	int32_t	loops = 0;
 	int32_t loops_to_go = blocking ? m_loops_to_go : 1;
 	epoll_event rx_epfd_events[SI_RX_EPFD_EVENT_MAX];
-	uint64_t poll_sn;
+	uint64_t poll_sn = 0;
 
         m_loops_timer.start();
 
@@ -1328,7 +1328,7 @@ ssize_t sockinfo_udp::rx(const rx_call_t call_type, iovec* p_iov,ssize_t sz_iov,
                      int* p_flags, sockaddr *__from ,socklen_t *__fromlen, struct msghdr *__msg)
 {
 	int ret;
-	uint64_t poll_sn;
+	uint64_t poll_sn = 0;
 	int out_flags = 0;
 	int in_flags = *p_flags;
 
