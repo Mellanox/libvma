@@ -109,9 +109,6 @@ qp_mgr::~qp_mgr()
 {
 	qp_logfunc("");
 
-	if (m_p_cq_mgr_rx) {
-		m_p_cq_mgr_rx->clean_cq();
-	}
 	qp_logdbg("calling ibv_destroy_qp(qp=%p)", m_qp);
 	if (m_qp) {
 		IF_VERBS_FAILURE_EX(ibv_destroy_qp(m_qp), EIO) {
