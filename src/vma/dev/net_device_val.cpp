@@ -1509,7 +1509,7 @@ bool net_device_val::verify_bond_ipoib_or_eth_qp_creation()
 	}
 	if (!bond_ok) {
 		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
-		vlog_printf(VLOG_WARNING,"* Bond %s will not be offloaded due to problem with it's slaves.\n", get_ifname());
+		vlog_printf(VLOG_WARNING,"* Bond %s will not be offloaded due to problem with its slaves.\n", get_ifname());
 		vlog_printf(VLOG_WARNING,"* Check warning messages for more information.\n");
 		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 	}
