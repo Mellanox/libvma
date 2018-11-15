@@ -4,6 +4,7 @@ Date + Time 2018-11-15
 Added:
         - RM #1571657 Suppress failure error of ibv_get_async_event
 Fixed:
+        - RM #1571899 Fix a typo in bond warning message
         - RM #1566916 Fix CQ cleanup ordering issue
 
 Version 8.7.4-0:
