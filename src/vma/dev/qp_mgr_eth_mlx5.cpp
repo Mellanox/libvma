@@ -34,6 +34,7 @@
 #if defined(DEFINED_DIRECT_VERBS)
 
 #include <sys/mman.h>
+#include "utils/asm.h"
 #include "cq_mgr_mlx5.h"
 #include "vma/util/utils.h"
 #include "vlogger/vlogger.h"
@@ -323,11 +324,11 @@ inline void qp_mgr_eth_mlx5::ring_doorbell(uint64_t* wqe, int num_wqebb, int num
 		 * which do not guarantee order of copying.
 		 */
 		while (num_wqebb--) {
-			COPY_64B_NT(dst, src);
+			memory_copy64(dst, src);
 		}
 		src = (uint64_t*)m_sq_wqes;
 		while (num_wqebb_top--) {
-			COPY_64B_NT(dst, src);
+			memory_copy64(dst, src);
 		}
 	} else {
 		*dst = *src;

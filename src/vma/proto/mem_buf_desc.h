@@ -130,7 +130,7 @@ public:
 	// Rx: cq_mgr owns the mem_buf_desc and the associated data buffer
 	ring_slave* p_desc_owner;
 
-	inline int get_ref_count() const {return atomic_read(&n_ref_count);}
+	inline int get_ref_count() {return atomic_read(&n_ref_count);}
 	inline void  reset_ref_count() {atomic_set(&n_ref_count, 0);}
 	inline int inc_ref_count() {return atomic_fetch_and_inc(&n_ref_count);}
 	inline int dec_ref_count() {return atomic_fetch_and_dec(&n_ref_count);}

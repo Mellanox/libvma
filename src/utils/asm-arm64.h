@@ -37,21 +37,11 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#define COPY_64B_NT(dst, src)	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++
 
 #define mb()	asm volatile("dsb sy" ::: "memory")
 #define rmb()	asm volatile("dsb ld" ::: "memory")
 #define wmb()	asm volatile("dsb st" ::: "memory")
 #define wc_wmb() wmb()
-
 
 /**
  * Read RDTSC register
@@ -83,7 +73,5 @@ static inline void prefetch_range(void *addr, size_t len)
 	for (; cp < end; cp += L1_CACHE_BYTES)
 		prefetch(cp);
 }
-
-
 
 #endif

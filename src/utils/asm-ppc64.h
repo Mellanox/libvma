@@ -37,15 +37,6 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#define COPY_64B_NT(dst, src)	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++
 
 #define mb()	 asm volatile("sync" ::: "memory")
 #define rmb()	 asm volatile("lwsync" ::: "memory")

@@ -34,6 +34,8 @@
 #ifndef ASM_H_
 #define ASM_H_
 
+#include "utils/compiler.h"
+
 #ifndef __has_builtin
   #define __has_builtin(x) 0
 #endif
@@ -53,5 +55,19 @@ typedef atomic_int                   atomic_t;
 #else
 #error No architecture specific memory barrier definitions found!
 #endif
+
+#ifndef __vma_memory_copy64
+	#define memory_copy64(dst, src)	\
+		*dst++ = *src++;	\
+		*dst++ = *src++;	\
+		*dst++ = *src++;	\
+		*dst++ = *src++;	\
+		*dst++ = *src++;	\
+		*dst++ = *src++;	\
+		*dst++ = *src++;	\
+		*dst++ = *src++
+#else
+	#define memory_copy64   __vma_memory_copy64
+#endif /* atomic_load_explicit */
 
 #endif

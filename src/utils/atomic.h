@@ -36,29 +36,33 @@
 
 #include "asm.h"
 
+#if defined(__clang__) && __has_builtin(__atomic_load_n)             \
+                       && __has_builtin(__atomic_store_n)            \
+                       && __has_builtin(__atomic_add_fetch)          \
+                       && __has_builtin(__atomic_exchange_n)         \
+                       && __has_builtin(__atomic_compare_exchange_n) \
+                       && defined(__ATOMIC_RELAXED)                  \
+                       && defined(__ATOMIC_CONSUME)                  \
+                       && defined(__ATOMIC_ACQUIRE)                  \
+                       && defined(__ATOMIC_RELEASE)                  \
+                       && defined(__ATOMIC_ACQ_REL)                  \
+                       && defined(__ATOMIC_SEQ_CST)
+  #define USE_BUILTIN_ATOMIC
+#elif defined(__GNUC__) && \
+	((__GNUC__ >= 5) || (__GNUC__ >= 4 && __GNUC_MINOR__ >= 7))
+  #define USE_BUILTIN_ATOMIC
+#else
+  #define __ATOMIC_RELAXED		0
+  #define __ATOMIC_CONSUME		1
+  #define __ATOMIC_ACQUIRE		2
+  #define __ATOMIC_RELEASE		3
+  #define __ATOMIC_ACQ_REL		4
+  #define __ATOMIC_SEQ_CST		5
+#endif
 
 /*
  *  C++11 memory model
  */
-#ifndef __ATOMIC_RELAXED
-#define __ATOMIC_RELAXED		0
-#endif
-#ifndef __ATOMIC_CONSUME
-#define __ATOMIC_CONSUME		1
-#endif
-#ifndef __ATOMIC_ACQUIRE
-#define __ATOMIC_ACQUIRE		2
-#endif
-#ifndef __ATOMIC_RELEASE
-#define __ATOMIC_RELEASE		3
-#endif
-#ifndef __ATOMIC_ACQ_REL
-#define __ATOMIC_ACQ_REL		4
-#endif
-#ifndef __ATOMIC_SEQ_CST
-#define __ATOMIC_SEQ_CST		5
-#endif
-
 enum memory_order {
 	/* memory_order_relaxed:
 	 * Only atomicity is provided there are no constraints on reordering of memory
@@ -84,11 +88,11 @@ enum memory_order {
 #define ATOMIC_INIT(i)  { (i) }
 
 #ifndef __vma_atomic_fetch_add_explicit
-	#if defined(__ATOMIC_RELAXED)
-		#define atomic_fetch_add_explicit(_obj, _operand, _order)                     \
+	#if defined(USE_BUILTIN_ATOMIC)
+		#define atomic_fetch_add_explicit(_obj, _operand, _order)                      \
 			__atomic_fetch_add(&(obj)->value, _operand, _order)
 	#elif defined(__GNUC__) || defined(__clang__) || defined(__INTEL_COMPILER)
-		#define atomic_fetch_add_explicit(_obj, _order)                               \
+		#define atomic_fetch_add_explicit(_obj, _order)                                \
 			__sync_fetch_and_add(&(_obj)->value, _operand)
 	#else
 		#error "atomic_fetch_add_explicit() is not supported"
@@ -105,7 +109,7 @@ enum memory_order {
  * @param _order memory order.
  */
 #ifndef __vma_atomic_store_explicit
-	#if defined(__ATOMIC_RELAXED)
+	#if defined(USE_BUILTIN_ATOMIC)
 		#define atomic_store_explicit(_obj, _val, _order)                              \
 			__atomic_store_n(&(_obj)->value, (_val), (_order))
 	#elif defined(__GNUC__) || defined(__clang__) || defined(__INTEL_COMPILER)
@@ -130,12 +134,12 @@ enum memory_order {
  * @return Value before add.
  */
 #ifndef __vma_atomic_load_explicit
-	#if defined(__ATOMIC_RELAXED)
-		#define atomic_load_explicit(_obj, _order)                                    \
+	#if defined(USE_BUILTIN_ATOMIC)
+		#define atomic_load_explicit(_obj, _order)                                     \
 			__atomic_load_n(&(_obj)->value, (_order))
 	#elif defined(__GNUC__) || defined(__clang__) || defined(__INTEL_COMPILER)
-		#define atomic_load_explicit(_obj, _order)                                    \
-			__sync_fetch_and_add(&(object)->value, 0)
+		#define atomic_load_explicit(_obj, _order)                                     \
+			__sync_fetch_and_add(&(_obj)->value, 0)
 	#else
 		#error "atomic_load_explicit() is not supported"
 	#endif
