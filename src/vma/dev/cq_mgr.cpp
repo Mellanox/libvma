@@ -309,6 +309,8 @@ void cq_mgr::del_qp_rx(qp_mgr *qp)
 	BULLSEYE_EXCLUDE_BLOCK_END
 	cq_logdbg("qp_mgr=%p", m_qp_rec.qp);
 	return_extra_buffers();
+
+	clean_cq();
 	memset(&m_qp_rec, 0, sizeof(m_qp_rec));
 }
 
