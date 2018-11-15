@@ -36,9 +36,7 @@
 
 #include <stdint.h>
 #include <unistd.h>
-#include "utils/bullseye.h"
 
-#define __xg(x) ((volatile long *)(x))
 
 #define mb()	 asm volatile("" ::: "memory")
 #define rmb()	 mb()
@@ -59,36 +57,6 @@
 	dst += 8;			\
 	src += 8
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-/**
- * Atomic swap
- */
-static inline unsigned long xchg(unsigned long x, volatile void *ptr)
-{
-	__asm__ __volatile__("xchg %0,%1"
-			    :"=r" (x)
-			    :"m" (*__xg(ptr)), "0" (x)
-			    :"memory");
-	return x;
-}
-
-/**
- * Atomic compare-and-swap
- */
-static inline bool cmpxchg(unsigned long old_value, unsigned long new_value, volatile void *ptr)
-{
-	unsigned long prev_value = old_value;
-	__asm__ __volatile__("lock; cmpxchg %1,%2"
-			    : "=a"(prev_value)
-			    : "r"(new_value), "m"(*__xg(ptr)), "0"(old_value)
-			    : "memory");
-	return prev_value == old_value;
-}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 /**
  * Add to the atomic variable.
@@ -96,13 +64,15 @@ static inline bool cmpxchg(unsigned long old_value, unsigned long new_value, vol
  * @param v pointer of type atomic_t.
  * @return Value before add.
  */
-static inline int atomic_fetch_and_add(int x, volatile int *ptr)
+#define __vma_atomic_fetch_add_explicit    __x86_atomic_fetch_and_add
+static inline int __x86_atomic_fetch_and_add(atomic_t *obj, int val, int order)
 {
+	(void)order;
 	__asm__ __volatile__("lock; xaddl %0,%1"
-			    : "=r"(x)
-			    : "m"(*ptr), "0"(x)
+			    : "=r"(val)
+			    : "m"(obj->value), "0"(val)
 			    : "memory");
-	return x;
+	return val;
 }
 
 /**
@@ -146,7 +116,5 @@ static inline void prefetch_range(void *addr, size_t len)
 	for (; cp < end; cp += L1_CACHE_BYTES)
 		prefetch(cp);
 }
-
-
 
 #endif

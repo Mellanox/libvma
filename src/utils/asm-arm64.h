@@ -52,16 +52,6 @@
 #define wmb()	asm volatile("dsb st" ::: "memory")
 #define wc_wmb() wmb()
 
-/**
- * Add to the atomic variable.
- * @param i integer value to add.
- * @param v pointer of type atomic_t.
- * @return Value before add.
- */
-static inline int atomic_fetch_and_add(int i, volatile int *ptr)
-{
-	return __atomic_fetch_add(ptr, i, __ATOMIC_ACQUIRE);
-}
 
 /**
  * Read RDTSC register

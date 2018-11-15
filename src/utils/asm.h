@@ -34,6 +34,16 @@
 #ifndef ASM_H_
 #define ASM_H_
 
+#ifndef __has_builtin
+  #define __has_builtin(x) 0
+#endif
+
+#define	vma_atomic_type(_type)          \
+	struct { volatile __typeof__(_type) value; }
+
+typedef vma_atomic_type(int)         atomic_int;
+typedef atomic_int                   atomic_t;
+
 #if defined(__aarch64__)
 #include "asm-arm64.h"
 #elif defined(__powerpc64__)
