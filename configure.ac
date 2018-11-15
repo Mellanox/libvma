@@ -88,6 +88,7 @@ m4_include([config/m4/opt.m4])
 m4_include([config/m4/verbs.m4])
 m4_include([config/m4/nl.m4])
 m4_include([config/m4/prof.m4])
+m4_include([config/m4/compiler.m4])
 
 FUNC_CONFIGURE_INIT()
 
@@ -163,6 +164,7 @@ case $CC in
         ;;
 esac
 
+COMPILER_CAPABILITY_SETUP()
 
 dnl===-----------------------------------------------------------------------===
 dnl===
@@ -375,22 +377,6 @@ dnl=== SECTION 8: Checking for types and structures
 dnl===
 dnl===-----------------------------------------------------------------------===
 show_section_title "Check for functions, types and structures"
-
-# Does this compiler have built-in functions for atomic memory access?
-AC_MSG_CHECKING([for atomic memory access (__sync_bool_compare_and_swap) support])
-AC_TRY_LINK(,
-[
-  int variable = 1;
-  return (__sync_bool_compare_and_swap(&variable, 1, 2)
-         && __sync_add_and_fetch(&variable, 1)) ? 1 : 0;
-],
-[
-  AC_MSG_RESULT([yes])
-  AC_DEFINE(HAVE_BUILTIN_ATOMIC, 1, [Define to 1 if gcc supports __sync_bool_compare_and_swap() a.o.])
-],
-[
-  AC_MSG_RESULT([no])
-])
 
 AC_MSG_CHECKING([for SOF_TIMESTAMPING_SOFTWARE support])
 AC_TRY_LINK(
