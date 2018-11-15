@@ -792,7 +792,8 @@ void event_handler_manager::process_ibverbs_event(event_handler_map_t::iterator 
 	struct ibv_async_event ibv_event;
 
 	IF_VERBS_FAILURE(ibv_get_async_event(hca, &ibv_event)) {
-		evh_logerr("[%d] Received HCA event but failed to get it (errno=%d %m)", hca->async_fd, errno);
+		vlog_levels_t _level = (errno == EBADF) ? VLOG_DEBUG : VLOG_ERROR; // EBADF may returned during plugout
+		vlog_printf(_level, "[%d] Received HCA event but failed to get it (errno=%d %m)\n", hca->async_fd, errno);
 		return;
 	} ENDIF_VERBS_FAILURE;
 	evh_logdbg("[%d] Received ibverbs event %s (%d)", hca->async_fd, priv_ibv_event_desc_str(ibv_event.event_type), ibv_event.event_type);
