@@ -726,10 +726,11 @@ void epfd_info::clean_obj()
 void epfd_info::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 {
 	size_t num_rings, num_ready_fds, num_ready_cq_fd;
-	int offloaded_str_place = 0, offloaded_str_cell_size = 2 + sizeof(int);
+	int offloaded_str_place = 0, offloaded_str_cell_size = std::max<int>(10, (2 + sizeof(int)) * m_n_offloaded_fds);
 	char offloaded_str[offloaded_str_cell_size];
 
 	// Prepare data
+	memset(offloaded_str, 0, sizeof(offloaded_str));
 	num_rings = m_ring_map.size();
 	iomux_func_stats_t temp_iomux_stats = m_stats->stats;
 	num_ready_fds = m_ready_fds.size();
