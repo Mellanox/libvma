@@ -721,8 +721,8 @@ net_device_resources_t* sockinfo::create_nd_resources(const ip_address ip_local)
 		} else {
 			key = m_ring_alloc_logic.create_new_key(ip_local.get_in_addr());
 		}
-		nd_resources.p_ring = nd_resources.p_ndv->reserve_ring(key);
 		m_rx_ring_map_lock.unlock();
+		nd_resources.p_ring = nd_resources.p_ndv->reserve_ring(key);
 		lock_rx_q();
 		if (!nd_resources.p_ring) {
 			si_logdbg("Failed to reserve ring for allocation key %s on ip %s",
@@ -934,7 +934,7 @@ int sockinfo::add_epoll_context(epfd_info *epfd)
 	int ret = 0;
 	rx_ring_map_t::const_iterator sock_ring_map_iter;
 
-	m_rx_ring_map_lock.lock();
+	auto_unlocker locker(m_rx_ring_map_lock);
 	lock_rx_q();
 
 	ret = socket_fd_api::add_epoll_context(epfd);
@@ -951,19 +951,17 @@ int sockinfo::add_epoll_context(epfd_info *epfd)
 unlock_locks:
 
 	unlock_rx_q();
-	m_rx_ring_map_lock.unlock();
 
 	return ret;
 }
 
 void sockinfo::remove_epoll_context(epfd_info *epfd)
 {
-	m_rx_ring_map_lock.lock();
+	auto_unlocker locker(m_rx_ring_map_lock);
 	lock_rx_q();
 
 	if (!notify_epoll_context_verify(epfd)) {
 		unlock_rx_q();
-		m_rx_ring_map_lock.unlock();
 		return;
 	}
 
@@ -976,7 +974,6 @@ void sockinfo::remove_epoll_context(epfd_info *epfd)
 	socket_fd_api::remove_epoll_context(epfd);
 
 	unlock_rx_q();
-	m_rx_ring_map_lock.unlock();
 }
 
 #ifndef DEFINED_SOCKETXTREME // if not defined
