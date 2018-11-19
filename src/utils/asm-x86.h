@@ -203,9 +203,7 @@ VMA_ATTRIBUTE_OPTIMIZE_NONE
 #define __vma_memory_copy64(_dst, _src) \
 { \
 	static int is_wc_simd = cpuid_flags() &                \
-			(CPU_FLAG_SSE3 | CPU_FLAG_SSSE3 |              \
-					CPU_FLAG_SSE41 | CPU_FLAG_SSE42 |      \
-					CPU_FLAG_AVX | CPU_FLAG_AVX2);         \
+			(CPU_FLAG_SSE41 | CPU_FLAG_SSE42);             \
                                                            \
 	if (is_wc_simd) {                                      \
 		__asm__ __volatile__ (                             \
