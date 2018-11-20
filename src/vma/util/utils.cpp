@@ -43,6 +43,7 @@
 #include <linux/if_vlan.h>
 #include <linux/sockios.h>
 #include <limits>
+#include <dirent.h>
 #include <math.h>
 #include <linux/ip.h>  //IP  header (struct  iphdr) definition
 #include <netinet/tcp.h>
@@ -898,6 +899,34 @@ bool check_device_name_ib_name(const char* ifname, const char* ibname)
 	}
 
 	return false;
+}
+
+bool check_device_oper_state(IN const char* device)
+{
+	int n;
+	DIR *d;
+	struct dirent *dir;
+	char dirpath[IBV_SYSFS_PATH_MAX] = {0};
+	bool ret = false;
+
+	n = snprintf(dirpath, sizeof(dirpath), "/sys/class/infiniband/%s/device/net/", device);
+	if (likely((0 < n) && (n < (int)sizeof(dirpath)))) {
+		if ((d = opendir(dirpath))) {
+			while ((dir = readdir(d)) != NULL) {
+				if (strcmp(".", dir->d_name) && strcmp("..", dir->d_name)) {
+					char oper_state[5] = {0};
+					get_interface_oper_state(dir->d_name, oper_state, sizeof(oper_state));
+					if (strstr(oper_state, "up")) {
+						ret = true;
+						break;
+					}
+				}
+			}
+			closedir(d);
+		}
+	}
+
+	return ret;
 }
 
 bool get_interface_oper_state(IN const char* interface_name, OUT char* curr_state, IN int sz)

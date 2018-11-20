@@ -83,21 +83,30 @@ ib_ctx_handler_collection::~ib_ctx_handler_collection()
 
 void ib_ctx_handler_collection::update_tbl(const char *ifa_name)
 {
-	struct ibv_device **dev_list = NULL;
+	struct ibv_device **orig_dev_list = NULL, **dev_list = NULL;
 	ib_ctx_handler * p_ib_ctx_handler = NULL;
-	int num_devices = 0;
-	int i;
+	int orig_num_devices = 0, num_devices = 0, i;
 
 	ibchc_logdbg("Checking for offload capable IB devices...");
 
-	dev_list = vma_ibv_get_device_list(&num_devices);
+	orig_dev_list = vma_ibv_get_device_list(&orig_num_devices);
 
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if (!dev_list) {
+	if (!orig_dev_list) {
 		ibchc_logerr("Failure in vma_ibv_get_device_list() (error=%d %m)", errno);
 		ibchc_logerr("Please check rdma configuration");
 		throw_vma_exception("No IB capable devices found!");
 	}
+
+	// Extract UP device list
+	dev_list = (struct ibv_device **) malloc(orig_num_devices * sizeof(struct ibv_device *));
+	for (i = 0; i < orig_num_devices; i ++) {
+		if (check_device_oper_state(orig_dev_list[i]->name)) {
+			dev_list[num_devices] = orig_dev_list[i];
+			num_devices++;
+		}
+	}
+
 	if (!num_devices) {
 		vlog_levels_t _level = ifa_name ? VLOG_DEBUG : VLOG_ERROR; // Print an error only during initialization.
 		vlog_printf(_level, "VMA does not detect IB capable devices\n");
@@ -139,7 +148,11 @@ void ib_ctx_handler_collection::update_tbl(const char *ifa_name)
 	ibchc_logdbg("Check completed. Found %d offload capable IB devices", m_ib_ctx_map.size());
 
 	if (dev_list) {
-		ibv_free_device_list(dev_list);
+		free(dev_list);
+	}
+
+	if (orig_dev_list) {
+		ibv_free_device_list(orig_dev_list);
 	}
 }
 
