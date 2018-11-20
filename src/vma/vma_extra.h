@@ -517,7 +517,7 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * @param config_line A char buffer with the exact format as defined in libvma.conf, and should end with '\0'.
 	 * @return 0 on success, or error code on failure.
 	 */
-	int (*add_conf_rule)(char *config_line);
+	int (*add_conf_rule)(const char *config_line);
 
 
 	/*

@@ -278,7 +278,7 @@ int __vma_config_empty(void);
 
 int __vma_parse_config_file(const char *config_file);
 
-int __vma_parse_config_line(char *config_line);
+int __vma_parse_config_line(const char *config_line);
 
 void __vma_print_conf_file(struct dbl_lst conf_lst);
 

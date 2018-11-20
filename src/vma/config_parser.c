@@ -2204,12 +2204,13 @@ int __vma_parse_config_file (const char *fileName) {
 	return(parse_err);
 }
 
-int __vma_parse_config_line (char *line) {
+int __vma_parse_config_line (const char *line) {
 	extern FILE * libvma_yyin;
 	
 	__vma_rule_push_head = 1;
 	
-	libvma_yyin = fmemopen(line, strlen(line), "r");
+	/* The below casting is valid because we open the stream as read-only. */
+	libvma_yyin = fmemopen((void*)line, strlen(line), "r");
 	
 	if (!libvma_yyin) {
 		printf("libvma Error: Fail to parse line:%s\n", line);
