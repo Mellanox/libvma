@@ -45,6 +45,7 @@
 #endif
 
 #include "hash.h"
+#include "tc.h"
 #include "daemon.h"
 
 
@@ -276,6 +277,8 @@ static int config_def(void)
 	daemon_cfg.raw_fd = -1;
 	daemon_cfg.notify_fd = -1;
 	daemon_cfg.notify_dir = VMA_AGENT_PATH;
+	daemon_cfg.ht = NULL;
+	daemon_cfg.tc = NULL;
 
 	return rc;
 }

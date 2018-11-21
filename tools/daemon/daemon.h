@@ -37,6 +37,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <errno.h>
@@ -66,6 +67,10 @@
 
 #define EXIT_SUCCESS 0
 #define EXIT_FAILURE 1
+
+#ifndef NOT_IN_USE
+#define NOT_IN_USE(P) ((void)(P))
+#endif
 
 #define INVALID_VALUE (-1)
 #define STATE_ESTABLISHED	4
@@ -110,6 +115,19 @@
 			sys_log(LOG_INFO, "[DEBUG ] " fmt, ##__VA_ARGS__);    \
 	} while (0)
 
+#define log_trace(fmt, ...) \
+	do {                                                         \
+		if (daemon_cfg.opt.log_level > 5)                               \
+			sys_log(LOG_INFO, "[TRACE ] " fmt, ##__VA_ARGS__);    \
+	} while (0)
+
+#define log_hexdump(_ptr, _size) \
+	do {                                                         \
+		if (daemon_cfg.opt.log_level > 5)                               \
+			sys_hexdump((_ptr), (_size));    \
+	} while (0)
+
+
 /**
  * @struct module_cfg
  * @brief Configuration parameters in global values
@@ -135,6 +153,7 @@ struct module_cfg {
 	int notify_fd;
 	const char *notify_dir;
 	hash_t ht;
+	tc_t tc;
 	struct list_head if_list;
 };
 
@@ -282,7 +301,7 @@ static inline char *sys_exec(const char * format, ...)
 
 	/* execute command */
 	file = popen(cmd, "r");
-	log_debug("Run command: %s\n", cmd);
+	log_trace("Run command: %s\n", cmd);
 	free(cmd);
 	if (NULL == file) {
 		goto err;
@@ -359,6 +378,57 @@ static inline int sys_iplocal(uint32_t addr)
 	}
 
 	return rc;
+}
+
+static inline void sys_hexdump(void *ptr, int buflen)
+{
+	unsigned char *buf = (unsigned char *)ptr;
+	char out_buf[256];
+	int ret = 0;
+	int out_pos = 0;
+	int i, j;
+
+	log_trace("dump data at %p\n", ptr);
+	for (i = 0; i < buflen; i += 16) {
+		out_pos = 0;
+		ret = sprintf(out_buf + out_pos, "%06x: ", i);
+		if (ret < 0) {
+			return;
+		}
+		out_pos += ret;
+		for (j = 0; j < 16; j++) {
+			if (i + j < buflen) {
+				ret = sprintf(out_buf + out_pos, "%02x ", buf[i + j]);
+			} else {
+				ret = sprintf(out_buf + out_pos, "   ");
+			}
+			if (ret < 0) {
+				return;
+			}
+			out_pos += ret;
+		}
+		ret = sprintf(out_buf + out_pos, " ");
+		if (ret < 0) {
+			return;
+		}
+		out_pos += ret;
+		for (j = 0; j < 16; j++)
+			if (i + j < buflen) {
+				ret = sprintf(out_buf + out_pos, "%c",
+						isprint(buf[i+j]) ?
+								buf[i + j] :
+								'.');
+			if (ret < 0) {
+				return;
+			}
+			out_pos += ret;
+		}
+		ret = sprintf(out_buf + out_pos, "\n");
+		if (ret < 0) {
+			return;
+		}
+		log_trace("%s", out_buf);
+	}
 }
 
 #endif /* TOOLS_DAEMON_DAEMON_H_ */

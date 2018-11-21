@@ -42,6 +42,7 @@
 
 
 #include "hash.h"
+#include "tc.h"
 #include "daemon.h"
 
 
