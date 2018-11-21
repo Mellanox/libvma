@@ -45,24 +45,9 @@
 
 #include "hash.h"
 #include "bitmap.h"
+#include "tc.h"
 #include "daemon.h"
 
-
-#define KERNEL_HT 0x800
-#define MAX_BKT 0xFF
-#define MAX_ID  0xFFE
-#define HANDLE_INVALID    (uint32_t)(-1)
-
-#define HANDLE_SET(ht, bkt, id)  \
-	(                                          \
-	(((uint32_t)(ht)  << 20) & 0xFFF00000) |   \
-	(((uint32_t)(bkt) << 12) & 0x000FF000) |   \
-	(((uint32_t)(id)  << 0)  & 0x00000FFF)     \
-	)
-
-#define HANDLE_HT(value)          ((((uint32_t)(value)) & 0xFFF00000) >> 20)  /* 12bits by offset 20 */
-#define HANDLE_BKT(value)         ((((uint32_t)(value)) & 0x000FF000) >> 12)  /* 8bits by offset 12 */
-#define HANDLE_ID(value)          ((((uint32_t)(value)) & 0x00000FFF) >> 0)   /* 12bits by offset 0 */
 
 /**
  * @struct htid_node_t
@@ -120,13 +105,25 @@ static inline int get_node(struct list_head **list);
 
 int open_flow(void)
 {
-	INIT_LIST_HEAD(&daemon_cfg.if_list);
+	int rc = 0;
 
-	return 0;
+	INIT_LIST_HEAD(&daemon_cfg.if_list);
+	daemon_cfg.tc = tc_create();
+	if (NULL == daemon_cfg.tc) {
+		rc = -EFAULT;
+		log_error("Failed to create TC object %d (%s)\n", errno,
+				strerror(errno));
+		goto err;
+	}
+
+err:
+	return rc;
 }
 
 void close_flow(void)
 {
+	tc_destroy(daemon_cfg.tc);
+	daemon_cfg.tc = NULL;
 }
 
 int add_flow(struct store_pid *pid_value, struct store_flow *value)
@@ -189,13 +186,11 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 		}
 
 		/* Cleanup from possible failure during last daemon session */
-		sys_exec("tc qdisc del dev %s handle ffff: ingress > /dev/null 2>&1 || echo $?", if_name);
+		tc_del_qdisc(daemon_cfg.tc, value->if_id);
 
 		/* Create filter to redirect traffic from netvsc device to tap device */
-		out_buf = sys_exec("tc qdisc add dev %s handle ffff: ingress > /dev/null 2>&1 || echo $?", if_name);
-		if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
-			log_error("[%d] failed tc qdisc add dev %s output: %s\n",
-					pid, if_name, (out_buf ? out_buf : "n/a"));
+		if (tc_add_qdisc(daemon_cfg.tc, value->if_id) < 0) {
+			log_error("[%d] failed tc_add_qdisc() errno = %d\n", pid, errno);
 			free(cur_element);
 			rc = -EFAULT;
 			goto err;
@@ -255,11 +250,8 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 
 		get_htid(ctx, get_prio(value), &ht_internal, &ht);
 
-		out_buf = sys_exec("tc filter add dev %s parent ffff: prio %d handle %x: protocol ip u32 divisor 256 > /dev/null 2>&1 || echo $?",
-							if_name, get_prio(value), ht);
-		if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
-			log_error("[%d] failed add ht dev %s prio %d handle %x output: %s\n",
-					pid, if_name, get_prio(value), ht, (out_buf ? out_buf : "n/a"));
+		if (tc_add_filter_divisor(daemon_cfg.tc, value->if_id, get_prio(value), ht) < 0) {
+			log_error("[%d] failed tc_add_filter_divisor() errno = %d\n", pid, errno);
 			free(cur_element);
 			rc = -EFAULT;
 			goto err;
@@ -413,7 +405,6 @@ int del_flow(struct store_pid *pid_value, struct store_flow *value)
 	struct flow_element *save_element[3];
 	struct list_head *save_entry[3];
 	char if_name[IF_NAMESIZE];
-	char *out_buf = NULL;
 	uint32_t ip = value->flow.dst_ip;
 	int ht = HANDLE_HT(value->handle);
 	int bkt = HANDLE_BKT(value->handle);
@@ -502,11 +493,8 @@ int del_flow(struct store_pid *pid_value, struct store_flow *value)
 							pid, cur_element, cur_element->value[0], cur_element->value[1], cur_element->ref);
 					if (list_empty(&cur_element->list) && (cur_element->ref <=0 )) {
 
-						out_buf = sys_exec("tc filter del dev %s parent ffff: protocol ip prio %d handle %x:%x:%x u32 > /dev/null 2>&1 || echo $?",
-											if_name, get_prio(value), ht, bkt, id);
-						if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
-							log_warn("[%d] remove filter dev %s prio %d handle %x:%x:%x output: %s\n",
-									pid, if_name, get_prio(value), ht, bkt, id, (out_buf ? out_buf : "n/a"));
+						if (tc_del_filter(daemon_cfg.tc, value->if_id, get_prio(value), ht, bkt, id) < 0) {
+							log_warn("[%d] failed tc_del_filter() errno = %d\n", pid, errno);
 							rc = -EFAULT;
 						}
 
@@ -535,11 +523,8 @@ int del_flow(struct store_pid *pid_value, struct store_flow *value)
 					pid, cur_element, cur_element->value[0], cur_element->value[1], cur_element->ref);
 			if (list_empty(&cur_element->list) && (cur_element->ref <=0 )) {
 
-				out_buf = sys_exec("tc filter del dev %s parent ffff: protocol ip prio %d handle %x::%x u32 > /dev/null 2>&1 || echo $?",
-									if_name, get_prio(value), ht_internal, ht);
-				if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
-					log_warn("[%d] unlink table dev %s prio %d handle ::%x output: %s\n",
-							pid, if_name, get_prio(value), ht, (out_buf ? out_buf : "n/a"));
+				if (tc_del_filter(daemon_cfg.tc, value->if_id, get_prio(value), ht_internal, 0, ht) < 0) {
+					log_warn("[%d] failed tc_del_filter() errno = %d\n", pid, errno);
 					rc = -EFAULT;
 				}
 
@@ -559,10 +544,8 @@ int del_flow(struct store_pid *pid_value, struct store_flow *value)
 				pid, cur_element, cur_element->value[0], cur_element->ref);
 		if (list_empty(&cur_element->list) && (cur_element->ref <=0 )) {
 
-			out_buf = sys_exec("tc qdisc del dev %s handle ffff: ingress > /dev/null 2>&1 || echo $?", if_name);
-			if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
-				log_warn("[%d] failed tc qdisc del dev %s output: %s\n",
-						pid, if_name, (out_buf ? out_buf : "n/a"));
+			if (tc_del_qdisc(daemon_cfg.tc, value->if_id) < 0) {
+				log_warn("[%d] failed tc_del_qdisc() errno = %d\n", pid, errno);
 				rc = -EFAULT;
 			}
 
@@ -622,13 +605,11 @@ static int add_flow_egress(struct store_pid *pid_value, struct store_flow *value
 		int handle = 1;
 
 		/* This cleanup is done just to support verification */
-		sys_exec("tc qdisc del dev %s handle ffff: ingress > /dev/null 2>&1 || echo $?", tap_name);
+		tc_del_qdisc(daemon_cfg.tc, value->tap_id);
 
 		/* Create rules to process ingress trafic on tap device */
-		out_buf = sys_exec("tc qdisc add dev %s handle ffff: ingress > /dev/null 2>&1 || echo $?", tap_name);
-		if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
-			log_error("[%d] failed tc qdisc add dev %s output: %s\n",
-					pid, tap_name, (out_buf ? out_buf : "n/a"));
+		if (tc_add_qdisc(daemon_cfg.tc, value->tap_id) < 0) {
+			log_error("[%d] failed tc_add_qdisc() errno = %d\n", pid, errno);
 			rc = -EFAULT;
 			goto err;
 		}
@@ -718,7 +699,6 @@ static inline void get_htid(struct flow_ctx *ctx, int prio, int *ht_krn, int *ht
 
 static inline void free_pending_list(pid_t pid, struct flow_ctx *ctx, char* if_name)
 {
-	char *out_buf = NULL;
 	struct htid_node_t *cur_element = NULL;
 	struct list_head *cur_entry = NULL, *tmp_entry = NULL;
 
@@ -726,9 +706,7 @@ static inline void free_pending_list(pid_t pid, struct flow_ctx *ctx, char* if_n
 		list_for_each_safe(cur_entry, tmp_entry, &ctx->pending_list) {
 			cur_element = list_entry(cur_entry, struct htid_node_t, node);
 
-			out_buf = sys_exec("tc filter del dev %s parent ffff: protocol ip prio %d handle %x: u32 > /dev/null 2>&1 || echo $?",
-					if_name, cur_element->prio, cur_element->htid);
-			if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
+			if (tc_del_filter(daemon_cfg.tc, if_nametoindex(if_name), cur_element->prio, cur_element->htid, 0, 0) < 0) {
 				continue;
 			}
 

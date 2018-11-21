@@ -46,6 +46,7 @@
 
 #include "vma/lwip/tcp.h"    /* display TCP states */
 #include "hash.h"
+#include "tc.h"
 #include "daemon.h"
 
 

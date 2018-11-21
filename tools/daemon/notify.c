@@ -51,6 +51,7 @@
 
 
 #include "hash.h"
+#include "tc.h"
 #include "daemon.h"
 
 #ifndef KERNEL_O_LARGEFILE

@@ -42,6 +42,7 @@
 #include <sys/un.h>
 
 #include "hash.h"
+#include "tc.h"
 #include "daemon.h"
 
 extern int open_store(void);
