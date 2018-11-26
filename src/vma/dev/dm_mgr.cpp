@@ -54,7 +54,7 @@
 
 dm_mgr::dm_mgr() :
 	m_p_dm_mr(NULL),
-	m_p_mlx5_dm(NULL),
+	m_p_ibv_dm(NULL),
 	m_p_ring_stat(NULL),
 	m_allocation(0),
 	m_used(0),
@@ -69,7 +69,6 @@ bool dm_mgr::allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* ring_stats
 	size_t allocation_size = DM_ALIGN_SIZE(safe_mce_sys().ring_dev_mem_tx, DM_MEMORY_MASK_64);
 	struct ibv_exp_alloc_dm_attr dm_attr = {allocation_size, 0};
 	struct ibv_exp_reg_mr_in mr_in;
-	struct ibv_exp_dm *ibv_dm;
 	m_p_ring_stat = ring_stats;
 	if (!allocation_size) {
 		// On Device Memory usage was disabled by the user
@@ -82,8 +81,8 @@ bool dm_mgr::allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* ring_stats
 	}
 
 	// Allocate on device memory buffer
-	ibv_dm = ibv_exp_alloc_dm(ib_ctx->get_ibv_context(), &dm_attr);
-	if (!ibv_dm) {
+	m_p_ibv_dm = ibv_exp_alloc_dm(ib_ctx->get_ibv_context(), &dm_attr);
+	if (!m_p_ibv_dm) {
 		// Memory allocation can fail if we have already allocated the maximum possible.
 		dm_logdbg("ibv_exp_alloc_dm() error - On Device Memory allocation failed, %d %m", errno);
 		errno = 0;
@@ -95,18 +94,18 @@ bool dm_mgr::allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* ring_stats
 	mr_in.pd = ib_ctx->get_ibv_pd();
 	mr_in.comp_mask = IBV_EXP_REG_MR_DM;
 	mr_in.length = allocation_size;
-	mr_in.dm = ibv_dm;
+	mr_in.dm = m_p_ibv_dm;
 
 	// Register On Device Memory MR
 	m_p_dm_mr = ibv_exp_reg_mr(&mr_in);
 	if (!m_p_dm_mr) {
-		ibv_exp_free_dm(ibv_dm);
+		ibv_exp_free_dm(m_p_ibv_dm);
+		m_p_ibv_dm = NULL;
 		dm_logerr("ibv_exp_free_dm error - dm_mr registration failed, %d %m", errno);
 		return false;
 	}
 
 	m_allocation = allocation_size;
-	m_p_mlx5_dm = reinterpret_cast<struct vma_mlx5_dm *> (ibv_dm);
 	m_p_ring_stat->simple.n_tx_dev_mem_allocated = m_allocation;
 
 	dm_logdbg("Device memory allocation completed successfully! device[%s] bytes[%zu] dm_mr handle[%d] dm_mr lkey[%d]",
@@ -129,13 +128,13 @@ void dm_mgr::release_resources()
 		m_p_dm_mr = NULL;
 	}
 
-	if (m_p_mlx5_dm) {
-		if (ibv_exp_free_dm((struct ibv_exp_dm*) m_p_mlx5_dm)) {
+	if (m_p_ibv_dm) {
+		if (ibv_exp_free_dm(m_p_ibv_dm)) {
 			dm_logerr("ibv_free_dm failed %d %m", errno);
 		} else {
 			dm_logdbg("ibv_free_dm success");
 		}
-		m_p_mlx5_dm = NULL;
+		m_p_ibv_dm = NULL;
 	}
 
 	m_p_ring_stat = NULL;
@@ -190,9 +189,8 @@ void dm_mgr::release_resources()
  */
 bool dm_mgr::copy_data(struct mlx5_wqe_data_seg* seg, uint8_t* src, uint32_t length, mem_buf_desc_t* buff)
 {
+	struct ibv_exp_memcpy_dm_attr memcpy_attr;
 	uint32_t length_aligned_8 = DM_ALIGN_SIZE(length, DM_MEMORY_MASK_8);
-	uint32_t offset = 0;
-	uint64_t data_64 = 0;
 	size_t continuous_left = 0;
 	size_t &dev_mem_length = buff->tx.dev_mem_length = 0;
 
@@ -217,17 +215,18 @@ bool dm_mgr::copy_data(struct mlx5_wqe_data_seg* seg, uint8_t* src, uint32_t len
 		goto dev_mem_oob;
 	}
 
-	/* Copy data into the On Device Memory buffer.
-	 * The copy is done using a volatile pointer (and not using memcpy of the whole buffer) to prevent any
-	 * optimizations which can lead to unaligned writes.
-	 * The first memcpy is to support architectures without unaligned access support - this should be optimized
-	 * out for architectures with unaligned access.
-	 */
-	while (offset < length_aligned_8) {
-		memcpy(&data_64, src + offset, sizeof(data_64));
-		*((volatile typeof(data_64) *)(m_p_mlx5_dm->start_va + m_head + offset)) = data_64;
-		offset += sizeof(data_64);
-	};
+	// Initialize memcopy attributes
+	memset(&memcpy_attr, 0, sizeof(memcpy_attr));
+	memcpy_attr.memcpy_dir = IBV_EXP_DM_CPY_TO_DEVICE;
+	memcpy_attr.host_addr = src;
+	memcpy_attr.dm_offset = m_head;
+	memcpy_attr.length = length_aligned_8;
+
+	// Copy data into the On Device Memory buffer.
+	if (ibv_exp_memcpy_dm(m_p_ibv_dm, &memcpy_attr)) {
+		dm_logfunc("Failed to memcopy data into the memic buffer %m");
+		return false;
+	}
 
 	// Update values
 	seg->lkey = htonl(m_p_dm_mr->lkey);
