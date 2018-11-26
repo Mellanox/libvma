@@ -256,6 +256,28 @@ typedef struct mlx5dv_clock_info                    vma_ibv_clock_info;
 #define vma_ibv_convert_ts_to_ns(clock_info, hw_ts) mlx5dv_ts_to_ns(clock_info, hw_ts)
 #endif //DEFINED_IBV_CLOCK_INFO
 
+// ibv_dm
+#ifdef DEFINED_IBV_DM
+#define vma_ibv_alloc_dm(ctx, attr)      ibv_alloc_dm(ctx, attr)
+#define vma_ibv_free_dm(dm)              ibv_free_dm(dm)
+#define vma_ibv_reg_dm_mr(mr)            ibv_reg_dm_mr((mr)->pd, (mr)->dm, 0, (mr)->length, IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_ZERO_BASED)
+#define vma_ibv_memcpy_dm(dm, attr)      ibv_memcpy_to_dm(dm, (attr)->dm_offset, (attr)->host_addr, (attr)->length)
+#define vma_ibv_init_memcpy_dm(attr, src, head, size)          { attr.host_addr = src; attr.dm_offset = head; attr.length = size; }
+#define vma_ibv_init_dm_mr(in_mr, ctx_pd, size, allocated_dm)  { in_mr.pd = ctx_pd; in_mr.length = size; in_mr.dm = allocated_dm; }
+typedef struct ibv_alloc_dm_attr         vma_ibv_alloc_dm_attr;
+typedef struct ibv_dm                    vma_ibv_dm;
+typedef struct {
+	void * host_addr;
+	uint64_t dm_offset;
+	size_t length;
+} vma_ibv_memcpy_dm_attr;
+typedef struct {
+	struct ibv_pd *pd;
+	size_t      length;
+	vma_ibv_dm *dm;
+} vma_ibv_reg_mr_in;
+#endif
+
 #else /* DEFINED_VERBS_VERSION */
 
 //ibv_create_qp
@@ -415,6 +437,20 @@ typedef struct ibv_exp_values                       vma_ibv_clock_info;
 #define vma_ibv_convert_ts_to_ns(info, hw_ts)       ibv_exp_cqe_ts_to_ns(&((info)->clock_info), hw_ts)
 #define vma_ibv_query_clock_info(ctx, clock_info)   ibv_exp_query_values(ctx, IBV_EXP_VALUES_CLOCK_INFO, clock_info)
 #endif //DEFINED_IBV_CLOCK_INFO
+
+// ibv_dm
+#ifdef DEFINED_IBV_DM
+#define vma_ibv_alloc_dm(ctx, attr)      ibv_exp_alloc_dm(ctx, attr)
+#define vma_ibv_free_dm(dm)              ibv_exp_free_dm(dm)
+#define vma_ibv_reg_dm_mr(mr)            ibv_exp_reg_mr(mr)
+#define vma_ibv_memcpy_dm(dm, attr)      ibv_exp_memcpy_dm(dm, attr)
+#define vma_ibv_init_memcpy_dm(attr, src, head, size)          { attr.memcpy_dir = IBV_EXP_DM_CPY_TO_DEVICE; attr.host_addr = src; attr.dm_offset = head; attr.length = size; }
+#define vma_ibv_init_dm_mr(in_mr, ctx_pd, size, allocated_dm)  { in_mr.pd = ctx_pd; in_mr.comp_mask = IBV_EXP_REG_MR_DM; in_mr.length = size; in_mr.dm = allocated_dm; }
+typedef struct ibv_exp_alloc_dm_attr     vma_ibv_alloc_dm_attr;
+typedef struct ibv_exp_memcpy_dm_attr    vma_ibv_memcpy_dm_attr;
+typedef struct ibv_exp_dm                vma_ibv_dm;
+typedef struct ibv_exp_reg_mr_in         vma_ibv_reg_mr_in;
+#endif
 
 #endif /* DEFINED_VERBS_VERSION */
 
