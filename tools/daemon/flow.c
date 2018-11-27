@@ -256,12 +256,8 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 			rc = -EFAULT;
 			goto err;
 		}
-		out_buf = sys_exec("tc filter add dev %s protocol ip parent ffff: prio %d handle ::%x u32 ht %x:: match ip dst %s/32 hashkey mask 0x000000ff at 20 link %x: > /dev/null 2>&1 || echo $?",
-							if_name, get_prio(value), ht, ht_internal,
-							sys_ip2str(ip), ht);
-		if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
-			log_error("[%d] failed link ht dev %s prio %d handle %x:: dst %s output: %s\n",
-					pid, if_name, get_prio(value), ht, sys_ip2str(ip), (out_buf ? out_buf : "n/a"));
+		if (tc_add_filter_link(daemon_cfg.tc, value->if_id, get_prio(value), ht_internal, ht, ip) < 0) {
+			log_error("[%d] failed tc operation errno = %d\n", pid, errno);
 			free(cur_element);
 			rc = -EFAULT;
 			goto err;

@@ -47,7 +47,7 @@
  * 0 - tc application
  * 1 - netlink api
  */
-#define USE_NETLINK 0
+#define USE_NETLINK 1
 
 /**
  * @struct tc_object
@@ -57,6 +57,11 @@ struct tc_object {
 	nl_t nl;                  /**< netlink object */
 	struct nl_req req;        /**< netlink request storage */
 };
+
+#if defined(USE_NETLINK) && (USE_NETLINK == 1)
+static int pack_key(struct tc_u32_sel *sel, uint32_t  key, uint32_t mask, int off, int offmask);
+#endif /* USE_NETLINK */
+
 
 tc_t tc_create(void)
 {
@@ -260,6 +265,70 @@ err:
 	return rc;
 }
 
+int tc_add_filter_link(tc_t tc, int ifindex, int prio, int ht, int id, uint32_t ip)
+{
+	int rc = 0;
+
+#if defined(USE_NETLINK) && (USE_NETLINK == 1)
+	struct tc_qdisc qdisc = {HANDLE_SET(0, 0, id), 0xffff0000, prio};
+	char opt_kind[] = "u32";
+	uint32_t opt_link = HANDLE_SET(id, 0, 0);
+	uint32_t opt_ht = HANDLE_SET(ht, 0, 0);
+	struct rtattr *opts = NULL;
+	struct {
+		struct tc_u32_sel sel;
+		struct tc_u32_key keys[5];
+	} opt_sel;
+
+	tc_req(tc, ifindex, RTM_NEWTFILTER ,
+			(NLM_F_REQUEST | NLM_F_ACK | NLM_F_EXCL | NLM_F_CREATE),
+			qdisc);
+
+	nl_attr_add(&tc->req.hdr, TCA_KIND, opt_kind, sizeof(opt_kind));
+
+	opts = nl_attr_nest_start(&tc->req.hdr, TCA_OPTIONS);
+	nl_attr_add(&tc->req.hdr, TCA_U32_LINK, &opt_link, sizeof(opt_link));
+	nl_attr_add(&tc->req.hdr, TCA_U32_HASH, &opt_ht, sizeof(opt_ht));
+	memset(&opt_sel, 0, sizeof(opt_sel));
+	opt_sel.sel.hmask = htonl(0x000000ff);
+	opt_sel.sel.hoff = 20;
+	pack_key(&opt_sel.sel, ip, 0xffffffff, 16, 0);
+	nl_attr_add(&tc->req.hdr, TCA_U32_SEL, &opt_sel, sizeof(opt_sel.sel) + opt_sel.sel.nkeys * sizeof(opt_sel.sel.keys[0]));
+	nl_attr_nest_end(&tc->req.hdr, opts);
+
+	if (nl_send(tc->nl, &tc->req.hdr) < 0) {
+		rc = -1;
+		goto err;
+	}
+	if (nl_recv(tc->nl, NULL, NULL) < 0) {
+		rc = -1;
+		goto err;
+	}
+#else
+	char *out_buf = NULL;
+	char if_name[IF_NAMESIZE];
+
+	UNREFERENCED_PARAMETER(tc);
+
+	if (NULL == if_indextoname(ifindex, if_name)) {
+		rc = -errno;
+		goto err;
+	}
+
+	out_buf = sys_exec("tc filter add dev %s protocol ip parent ffff: prio %d handle ::%x u32 "
+			"ht %x:: match ip dst %s/32 hashkey mask 0x000000ff at 20 link %x: "
+			"> /dev/null 2>&1 || echo $?",
+			if_name, prio, id, ht, sys_ip2str(ip), id);
+	if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
+		rc = -1;
+		goto err;
+	}
+#endif /* USE_NETLINK */
+
+err:
+	return rc;
+}
+
 int tc_del_filter(tc_t tc, int ifindex, int prio, int ht, int bkt, int id)
 {
 	int rc = 0;
@@ -307,3 +376,36 @@ int tc_del_filter(tc_t tc, int ifindex, int prio, int ht, int bkt, int id)
 err:
 	return rc;
 }
+
+#if defined(USE_NETLINK) && (USE_NETLINK == 1)
+static int pack_key(struct tc_u32_sel *sel, uint32_t  key, uint32_t mask, int off, int offmask)
+{
+	int i;
+
+	key &= mask;
+
+	for (i = 0; i < sel->nkeys; i++) {
+		if ((sel->keys[i].off == off) && (sel->keys[i].offmask == offmask)) {
+			uint32_t intersect = mask & sel->keys[i].mask;
+
+			if ((key ^ sel->keys[i].val) & intersect) {
+				return -1;
+			}
+			sel->keys[i].val |= key;
+			sel->keys[i].mask |= mask;
+			return 0;
+		}
+	}
+
+	if (off % 4) {
+		return -1;
+	}
+	sel->keys[sel->nkeys].val = key;
+	sel->keys[sel->nkeys].mask = mask;
+	sel->keys[sel->nkeys].off = off;
+	sel->keys[sel->nkeys].offmask = offmask;
+	sel->nkeys++;
+
+	return 0;
+}
+#endif /* USE_NETLINK */
