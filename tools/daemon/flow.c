@@ -568,24 +568,8 @@ static int add_flow_egress(struct store_pid *pid_value, struct store_flow *value
 	pid_t pid = pid_value->pid;
 	struct list_head *cur_entry = NULL;
 	struct store_flow *cur_flow = NULL;
-	char if_name[IF_NAMESIZE];
-	char tap_name[IF_NAMESIZE];
-	char *out_buf = NULL;
 
 	errno = 0;
-	if (NULL == if_indextoname(value->if_id, if_name)) {
-		log_error("[%d] network interface is not found by index %d errno %d (%s)\n",
-				pid, value->if_id, errno, strerror(errno));
-		rc = -errno;
-		goto err;
-	}
-
-	if (NULL == if_indextoname(value->tap_id, tap_name)) {
-		log_error("[%d] tap interface is not found by index %d errno %d (%s)\n",
-				pid, value->tap_id, errno, strerror(errno));
-		rc = -errno;
-		goto err;
-	}
 
 	/* Egress rules should be created for new tap device
 	 */
@@ -597,7 +581,6 @@ static int add_flow_egress(struct store_pid *pid_value, struct store_flow *value
 	}
 	if (cur_entry == &pid_value->flow_list) {
 		struct ifaddrs *ifaddr, *ifa;
-		char *addr = NULL;
 		int handle = 1;
 
 		/* This cleanup is done just to support verification */
@@ -615,17 +598,13 @@ static int add_flow_egress(struct store_pid *pid_value, struct store_flow *value
 				if (ifa->ifa_addr->sa_family == AF_INET &&
 						!(ifa->ifa_flags & IFF_LOOPBACK) &&
 						value->if_id == if_nametoindex(ifa->ifa_name)) {
-					addr = inet_ntoa(((struct sockaddr_in *)ifa->ifa_addr)->sin_addr);
 
-					/* Create filter to redirect traffic from tap device to lo device in case destination address relates netvsc */
-					out_buf = sys_exec("tc filter add dev %s protocol ip parent ffff: prio 1 "
-								"handle ::%d u32 ht 800:: "
-								"match ip dst %s/32 action mirred egress redirect dev %s "
-								"> /dev/null 2>&1 || echo $?",
-								tap_name, handle, addr, sys_lo_ifname());
-					if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
-						log_error("[%d] failed tc filter add dev %s redirect to lo output: %s\n",
-								pid, tap_name, (out_buf ? out_buf : "n/a"));
+					/* Create filter to redirect traffic from tap device to lo device
+					 * in case destination address relates netvsc
+					 */
+					if (tc_add_filter_tap2dev(daemon_cfg.tc, value->tap_id, 1, handle,
+							((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr, sys_lo_ifindex()) < 0) {
+						log_error("[%d] failed tc operation errno = %d\n", pid, errno);
 						rc = -EFAULT;
 						goto err;
 					}
@@ -639,14 +618,9 @@ static int add_flow_egress(struct store_pid *pid_value, struct store_flow *value
 		 * Use another prio value for common filter just to separate one
 		 * actually the same value should work too
 		 */
-		out_buf = sys_exec("tc filter add dev %s protocol ip parent ffff: prio 2 "
-					"handle ::%d u32 ht 800:: "
-					"match u8 0 0 action mirred egress redirect dev %s "
-					"> /dev/null 2>&1 || echo $?",
-					tap_name, handle, if_name);
-		if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
-			log_error("[%d] failed tc filter add dev %s redirect to %s output: %s\n",
-					pid, tap_name, if_name, (out_buf ? out_buf : "n/a"));
+		if (tc_add_filter_tap2dev(daemon_cfg.tc, value->tap_id, 2, handle,
+				0, value->if_id) < 0) {
+			log_error("[%d] failed tc operation errno = %d\n", pid, errno);
 			rc = -EFAULT;
 			goto err;
 		}
