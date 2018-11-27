@@ -95,8 +95,8 @@ int del_flow(struct store_pid *pid_value, struct store_flow *value);
 static int add_flow_egress(struct store_pid *pid_value, struct store_flow *value);
 static inline void get_htid(struct flow_ctx *ctx, int prio, int *ht_krn, int *ht_id);
 static inline void free_htid(struct flow_ctx *ctx, int ht_id);
-static inline void add_pending_list(pid_t pid, struct flow_ctx *ctx, char* if_name, int ht_id, int prio, int *rc);
-static inline void free_pending_list(pid_t pid, struct flow_ctx *ctx, char* if_name);
+static inline void add_pending_list(pid_t pid, struct flow_ctx *ctx, int if_index, int ht_id, int prio, int *rc);
+static inline void free_pending_list(pid_t pid, struct flow_ctx *ctx, int if_index);
 static inline int get_prio(struct store_flow *value);
 static inline int get_bkt(struct store_flow *value);
 static inline int get_protocol(struct store_flow *value);
@@ -133,7 +133,6 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 	struct list_head *cur_head = NULL;
 	struct flow_element *cur_element = NULL;
 	struct list_head *cur_entry = NULL;
-	char if_name[IF_NAMESIZE];
 	uint32_t ip = value->flow.dst_ip;
 	int ht = HANDLE_HT(value->handle);
 	int bkt = HANDLE_BKT(value->handle);
@@ -148,12 +147,6 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 	}
 
 	errno = 0;
-	if (NULL == if_indextoname(value->if_id, if_name)) {
-		log_error("[%d] network interface is not found by index %d errno %d (%s)\n",
-				pid, value->if_id, errno, strerror(errno));
-		rc = -errno;
-		goto err;
-	}
 
 	/* interface list processing
 	 * use interface index as unique identifier
@@ -247,7 +240,7 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 			goto err;
 		}
 		if (tc_add_filter_link(daemon_cfg.tc, value->if_id, get_prio(value), ht_internal, ht, ip) < 0) {
-			log_error("[%d] failed tc operation errno = %d\n", pid, errno);
+			log_error("[%d] failed tc_add_filter_link() errno = %d\n", pid, errno);
 			free(cur_element);
 			rc = -EFAULT;
 			goto err;
@@ -340,7 +333,7 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 			break;
 		}
 		if (rc < 0) {
-			log_error("[%d] failed tc operation errno = %d\n", pid, errno);
+			log_error("[%d] failed tc_add_filter_dev2tap() errno = %d\n", pid, errno);
 			free(cur_element);
 			rc = -EFAULT;
 			goto err;
@@ -357,7 +350,7 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 	log_debug("[%d] add flow (node): 0x%p value: %d ref: %d\n",
 			pid, cur_element, cur_element->value[0], cur_element->ref);
 
-	free_pending_list(pid, ctx, if_name);
+	free_pending_list(pid, ctx, value->if_id);
 
 err:
 
@@ -377,7 +370,6 @@ int del_flow(struct store_pid *pid_value, struct store_flow *value)
 	struct list_head *cur_entry = NULL;
 	struct flow_element *save_element[3];
 	struct list_head *save_entry[3];
-	char if_name[IF_NAMESIZE];
 	uint32_t ip = value->flow.dst_ip;
 	int ht = HANDLE_HT(value->handle);
 	int bkt = HANDLE_BKT(value->handle);
@@ -387,12 +379,6 @@ int del_flow(struct store_pid *pid_value, struct store_flow *value)
 	int found = 0;
 
 	errno = 0;
-	if (NULL == if_indextoname(value->if_id, if_name)) {
-		log_error("[%d] network interface is not found by index %d errno %d (%s)\n",
-				pid, value->if_id, errno, strerror(errno));
-		rc = -errno;
-		goto err;
-	}
 
 	/* interface list processing */
 	found = 0;
@@ -502,7 +488,7 @@ int del_flow(struct store_pid *pid_value, struct store_flow *value)
 				}
 
 				/* Device busy error is returned while trying to remove table in this location */
-				add_pending_list(pid, ctx, if_name, ht, get_prio(value), &rc);
+				add_pending_list(pid, ctx, value->if_id, ht, get_prio(value), &rc);
 
 				list_del_init(cur_entry);
 				free(cur_element);
@@ -529,9 +515,7 @@ int del_flow(struct store_pid *pid_value, struct store_flow *value)
 		}
 	}
 
-	free_pending_list(pid, ctx, if_name);
-
-err:
+	free_pending_list(pid, ctx, value->if_id);
 
 	log_debug("[%d] del flow filter: %x:%x:%x rc=%d\n",
 			pid, ht, bkt, id, rc);
@@ -581,7 +565,7 @@ static int add_flow_egress(struct store_pid *pid_value, struct store_flow *value
 					 */
 					if (tc_add_filter_tap2dev(daemon_cfg.tc, value->tap_id, 1, handle,
 							((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr, sys_lo_ifindex()) < 0) {
-						log_error("[%d] failed tc operation errno = %d\n", pid, errno);
+						log_error("[%d] failed tc_add_filter_tap2dev() errno = %d\n", pid, errno);
 						rc = -EFAULT;
 						goto err;
 					}
@@ -597,7 +581,7 @@ static int add_flow_egress(struct store_pid *pid_value, struct store_flow *value
 		 */
 		if (tc_add_filter_tap2dev(daemon_cfg.tc, value->tap_id, 2, handle,
 				0, value->if_id) < 0) {
-			log_error("[%d] failed tc operation errno = %d\n", pid, errno);
+			log_error("[%d] failed tc_add_filter_tap2dev() errno = %d\n", pid, errno);
 			rc = -EFAULT;
 			goto err;
 		}
@@ -644,7 +628,7 @@ static inline void get_htid(struct flow_ctx *ctx, int prio, int *ht_krn, int *ht
 	}
 }
 
-static inline void free_pending_list(pid_t pid, struct flow_ctx *ctx, char* if_name)
+static inline void free_pending_list(pid_t pid, struct flow_ctx *ctx, int if_index)
 {
 	struct htid_node_t *cur_element = NULL;
 	struct list_head *cur_entry = NULL, *tmp_entry = NULL;
@@ -653,12 +637,12 @@ static inline void free_pending_list(pid_t pid, struct flow_ctx *ctx, char* if_n
 		list_for_each_safe(cur_entry, tmp_entry, &ctx->pending_list) {
 			cur_element = list_entry(cur_entry, struct htid_node_t, node);
 
-			if (tc_del_filter(daemon_cfg.tc, if_nametoindex(if_name), cur_element->prio, cur_element->htid, 0, 0) < 0) {
+			if (tc_del_filter(daemon_cfg.tc, if_index, cur_element->prio, cur_element->htid, 0, 0) < 0) {
 				continue;
 			}
 
-			log_debug("[%d] del flow request was removed successfully : dev %s htid %d prio %d\n",
-									pid, if_name, cur_element->htid, cur_element->prio);
+			log_debug("[%d] del flow request was removed successfully: if %d htid %d prio %d\n",
+									pid, if_index, cur_element->htid, cur_element->prio);
 
 			list_del_init(&cur_element->node);
 			free_htid(ctx, cur_element->htid);
@@ -667,7 +651,7 @@ static inline void free_pending_list(pid_t pid, struct flow_ctx *ctx, char* if_n
 	}
 }
 
-static inline void add_pending_list(pid_t pid, struct flow_ctx *ctx, char* if_name, int ht_id, int prio, int *rc)
+static inline void add_pending_list(pid_t pid, struct flow_ctx *ctx, int if_index, int ht_id, int prio, int *rc)
 {
 	struct htid_node_t *htid_node = (void *)calloc(1, sizeof(struct htid_node_t));
 	if (NULL == htid_node) {
@@ -681,8 +665,8 @@ static inline void add_pending_list(pid_t pid, struct flow_ctx *ctx, char* if_na
 
 	list_add(&htid_node->node, &ctx->pending_list);
 
-	log_debug("[%d] del flow request was added to the pending list : dev %s htid %d prio %d\n",
-							pid, if_name, ht_id, prio);
+	log_debug("[%d] del flow request was added to the pending list: if %d htid %d prio %d\n",
+							pid, if_index, ht_id, prio);
 }
 
 static inline void free_htid(struct flow_ctx *ctx, int ht_id)

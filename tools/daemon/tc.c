@@ -275,6 +275,8 @@ int tc_add_filter_link(tc_t tc, int ifindex, int prio, int ht, int id, uint32_t 
 {
 	int rc = 0;
 
+	log_debug("add link filter using if_id: %d\n", ifindex);
+
 #if defined(USE_NETLINK) && (USE_NETLINK == 1)
 	struct tc_qdisc qdisc = {HANDLE_SET(0, 0, id), 0xffff0000, prio};
 	char opt_kind[] = "u32";
@@ -322,7 +324,7 @@ int tc_add_filter_link(tc_t tc, int ifindex, int prio, int ht, int id, uint32_t 
 	char *out_buf = NULL;
 	char if_name[IF_NAMESIZE];
 
-	UNREFERENCED_PARAMETER(tc);
+	NOT_IN_USE(tc);
 
 	if (NULL == if_indextoname(ifindex, if_name)) {
 		rc = -errno;
@@ -346,6 +348,8 @@ err:
 int tc_add_filter_tap2dev(tc_t tc, int ifindex, int prio, int id, uint32_t ip, int ifindex_to)
 {
 	int rc = 0;
+
+	log_debug("add filter to redirect traffic from if_id: %d to if_id: %d\n", ifindex, ifindex_to);
 
 #if defined(USE_NETLINK) && (USE_NETLINK == 1)
 	struct tc_qdisc qdisc = {HANDLE_SET(0, 0, id), 0xffff0000, prio};
@@ -371,12 +375,12 @@ int tc_add_filter_tap2dev(tc_t tc, int ifindex, int prio, int id, uint32_t ip, i
 		/* [action] options filling */
 		opts_action = nl_attr_nest_start(&tc->req.hdr, TCA_U32_ACT);
 		{
-			int prio = 0;
+			int opt_prio = 0;
 			char opt_act_kind[] = "mirred";
 			struct rtattr *opts_action_prio = NULL;
 
 			/* [mirred] options filling */
-			opts_action_prio = nl_attr_nest_start(&tc->req.hdr, ++prio);
+			opts_action_prio = nl_attr_nest_start(&tc->req.hdr, ++opt_prio);
 			nl_attr_add(&tc->req.hdr, TCA_ACT_KIND, opt_act_kind, sizeof(opt_act_kind));
 			{
 				struct rtattr *opts_action_prio_mirred = NULL;
@@ -427,7 +431,7 @@ int tc_add_filter_tap2dev(tc_t tc, int ifindex, int prio, int id, uint32_t ip, i
 	char if_name[IF_NAMESIZE];
 	char tap_name[IF_NAMESIZE];
 
-	UNREFERENCED_PARAMETER(tc);
+	NOT_IN_USE(tc);
 
 	if (NULL == if_indextoname(ifindex_to, if_name)) {
 		rc = -errno;
@@ -493,12 +497,12 @@ int tc_add_filter_dev2tap(tc_t tc, int ifindex, int prio, int ht, int bkt, int i
 		/* [action] options filling */
 		opts_action = nl_attr_nest_start(&tc->req.hdr, TCA_U32_ACT);
 		{
-			int prio = 0;
+			int opt_prio = 0;
 			char opt_act_kind[] = "mirred";
 			struct rtattr *opts_action_prio = NULL;
 
 			/* [mirred] options filling */
-			opts_action_prio = nl_attr_nest_start(&tc->req.hdr, ++prio);
+			opts_action_prio = nl_attr_nest_start(&tc->req.hdr, ++opt_prio);
 			nl_attr_add(&tc->req.hdr, TCA_ACT_KIND, opt_act_kind, sizeof(opt_act_kind));
 			{
 				struct rtattr *opts_action_prio_mirred = NULL;
@@ -555,7 +559,7 @@ int tc_add_filter_dev2tap(tc_t tc, int ifindex, int prio, int ht, int bkt, int i
 	char tap_name[IF_NAMESIZE];
 	char str_tmp[100];
 
-	UNREFERENCED_PARAMETER(tc);
+	NOT_IN_USE(tc);
 
 	if (NULL == if_indextoname(ifindex, if_name)) {
 		rc = -errno;

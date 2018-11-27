@@ -196,7 +196,6 @@ int tc_add_filter_link(tc_t tc, int ifindex, int prio, int ht, int id, uint32_t 
  */
 int tc_add_filter_tap2dev(tc_t tc, int ifindex, int prio, int id, uint32_t ip, int ifindex_to);
 
-
 /**
  * Add filter to redirect traffic from ethernet device
  * to tap device using 3tuple or 5tuple as TC request.
