@@ -111,7 +111,9 @@ void stats_data_reader::handle_timer_expired(void *ctx)
 	}
 
 	if (g_sh_mem->fd_dump != STATS_FD_STATISTICS_DISABLED) {
-		vma_get_api()->dump_fd_stats(g_sh_mem->fd_dump, g_sh_mem->fd_dump_log_level);
+		if (g_p_event_handler_manager) {
+			g_p_event_handler_manager->statistics_print(g_sh_mem->fd_dump, g_sh_mem->fd_dump_log_level);
+		}
 		g_sh_mem->fd_dump = STATS_FD_STATISTICS_DISABLED;
 		g_sh_mem->fd_dump_log_level = STATS_FD_STATISTICS_LOG_LEVEL_DEFAULT;
 	}
