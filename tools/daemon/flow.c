@@ -134,15 +134,12 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 	struct flow_element *cur_element = NULL;
 	struct list_head *cur_entry = NULL;
 	char if_name[IF_NAMESIZE];
-	char tap_name[IF_NAMESIZE];
-	char *out_buf = NULL;
 	uint32_t ip = value->flow.dst_ip;
 	int ht = HANDLE_HT(value->handle);
 	int bkt = HANDLE_BKT(value->handle);
 	int id = HANDLE_ID(value->handle);
 	int ht_internal = KERNEL_HT;
 	struct flow_ctx *ctx = NULL;
-	char str_tmp[100];
 
 	/* Egress rules should be created for new tap device
 	 */
@@ -154,13 +151,6 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 	if (NULL == if_indextoname(value->if_id, if_name)) {
 		log_error("[%d] network interface is not found by index %d errno %d (%s)\n",
 				pid, value->if_id, errno, strerror(errno));
-		rc = -errno;
-		goto err;
-	}
-
-	if (NULL == if_indextoname(value->tap_id, tap_name)) {
-		log_error("[%d] tap interface is not found by index %d errno %d (%s)\n",
-				pid, value->tap_id, errno, strerror(errno));
 		rc = -errno;
 		goto err;
 	}
@@ -334,36 +324,23 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 		switch (value->type) {
 		case VMA_MSG_FLOW_TCP_3T:
 		case VMA_MSG_FLOW_UDP_3T:
-			out_buf = sys_exec("tc filter add dev %s parent ffff: protocol ip "
-								"prio %d handle ::%x u32 ht %x:%x: "
-								"match ip protocol %d 0xff "
-								"match ip nofrag "
-								"match ip dst %s/32 match ip dport %d 0xffff "
-								"action mirred egress redirect dev %s > /dev/null 2>&1 || echo $?",
-								if_name, get_prio(value), id, ht, bkt, get_protocol(value),
-								sys_ip2str(value->flow.dst_ip), ntohs(value->flow.dst_port), tap_name);
+			rc = tc_add_filter_dev2tap(daemon_cfg.tc, value->if_id,
+					get_prio(value), ht, bkt, id,
+					get_protocol(value), value->flow.dst_ip, value->flow.dst_port,
+					0, 0, value->tap_id);
 			break;
 		case VMA_MSG_FLOW_TCP_5T:
 		case VMA_MSG_FLOW_UDP_5T:
-			strncpy(str_tmp, sys_ip2str(value->flow.t5.src_ip), sizeof(str_tmp));
-			str_tmp[sizeof(str_tmp) - 1] = '\0';
-			out_buf = sys_exec("tc filter add dev %s parent ffff: protocol ip "
-								"prio %d handle ::%x u32 ht %x:%x: "
-								"match ip protocol %d 0xff "
-								"match ip nofrag "
-								"match ip src %s/32 match ip sport %d 0xffff "
-								"match ip dst %s/32 match ip dport %d 0xffff "
-								"action mirred egress redirect dev %s > /dev/null 2>&1 || echo $?",
-								if_name, get_prio(value), id, ht, bkt, get_protocol(value),
-								str_tmp, ntohs(value->flow.t5.src_port),
-								sys_ip2str(value->flow.dst_ip), ntohs(value->flow.dst_port), tap_name);
+			rc = tc_add_filter_dev2tap(daemon_cfg.tc, value->if_id,
+					get_prio(value), ht, bkt, id,
+					get_protocol(value), value->flow.dst_ip, value->flow.dst_port,
+					value->flow.t5.src_ip, value->flow.t5.src_port, value->tap_id);
 			break;
 		default:
 			break;
 		}
-		if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
-			log_error("[%d] failed add filter dev %s prio %d handle %x:%x:%x output: %s\n",
-					pid, if_name, get_prio(value), ht, bkt, id, (out_buf ? out_buf : "n/a"));
+		if (rc < 0) {
+			log_error("[%d] failed tc operation errno = %d\n", pid, errno);
 			free(cur_element);
 			rc = -EFAULT;
 			goto err;

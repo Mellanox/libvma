@@ -59,7 +59,13 @@ struct tc_object {
 };
 
 #if defined(USE_NETLINK) && (USE_NETLINK == 1)
+/* Use iproute2 / tc implementation as a reference
+ * to pack data for specific attribute
+ */
 static int pack_key(struct tc_u32_sel *sel, uint32_t  key, uint32_t mask, int off, int offmask);
+static int pack_key8(struct tc_u32_sel *sel, uint32_t key, uint32_t mask, int off, int offmask);
+static int pack_key16(struct tc_u32_sel *sel, uint32_t key, uint32_t mask, int off, int offmask);
+static int pack_key32(struct tc_u32_sel *sel, uint32_t key, uint32_t mask, int off, int offmask);
 #endif /* USE_NETLINK */
 
 
@@ -300,7 +306,7 @@ int tc_add_filter_link(tc_t tc, int ifindex, int prio, int ht, int id, uint32_t 
 	 * dst: 16
 	 * addr/mask: ip/0xffffffff
 	 */
-	pack_key(&opt_sel.sel, ip, 0xffffffff, 16, 0);
+	pack_key32(&opt_sel.sel, ntohl(ip), 0xffffffff, 16, 0);
 	nl_attr_add(&tc->req.hdr, TCA_U32_SEL, &opt_sel, sizeof(opt_sel.sel) + opt_sel.sel.nkeys * sizeof(opt_sel.sel.keys[0]));
 	nl_attr_nest_end(&tc->req.hdr, opts);
 
@@ -399,9 +405,9 @@ int tc_add_filter_tap2dev(tc_t tc, int ifindex, int prio, int id, uint32_t ip, i
 	 * addr/mask: ip/0xffffffff
 	 */
 	if (ip) {
-		pack_key(&opt_sel.sel, ip, 0xffffffff, 16, 0);
+		pack_key32(&opt_sel.sel, ntohl(ip), 0xffffffff, 16, 0);
 	} else {
-		pack_key(&opt_sel.sel, ip, 0, 0, 0);
+		pack_key32(&opt_sel.sel, ntohl(ip), 0, 0, 0);
 	}
 	opt_sel.sel.flags |= TC_U32_TERMINAL;
 	nl_attr_add(&tc->req.hdr, TCA_U32_SEL, &opt_sel, sizeof(opt_sel.sel) + opt_sel.sel.nkeys * sizeof(opt_sel.sel.keys[0]));
@@ -445,6 +451,146 @@ int tc_add_filter_tap2dev(tc_t tc, int ifindex, int prio, int id, uint32_t ip, i
 					"match u8 0 0 action mirred egress redirect dev %s "
 					"> /dev/null 2>&1 || echo $?",
 					tap_name, prio, id, if_name);
+	}
+	if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
+		rc = -1;
+		goto err;
+	}
+#endif /* USE_NETLINK */
+
+err:
+	return rc;
+}
+
+int tc_add_filter_dev2tap(tc_t tc, int ifindex, int prio, int ht, int bkt, int id,
+		int proto, uint32_t dst_ip, uint16_t dst_port, uint32_t src_ip, uint16_t src_port, int ifindex_to)
+{
+	int rc = 0;
+
+	log_debug("add filter to redirect traffic from if_id: %d to if_id: %d\n", ifindex, ifindex_to);
+
+#if defined(USE_NETLINK) && (USE_NETLINK == 1)
+	struct tc_qdisc qdisc = {HANDLE_SET(0, 0, id), 0xffff0000, prio};
+	char opt_kind[] = "u32";
+	uint32_t opt_ht = HANDLE_SET(ht, bkt, 0);
+	struct rtattr *opts = NULL;
+	struct {
+		struct tc_u32_sel sel;
+		struct tc_u32_key keys[10];
+	} opt_sel;
+
+	tc_req(tc, ifindex, RTM_NEWTFILTER,
+			(NLM_F_REQUEST | NLM_F_ACK | NLM_F_EXCL | NLM_F_CREATE),
+			qdisc);
+
+	nl_attr_add(&tc->req.hdr, TCA_KIND, opt_kind, sizeof(opt_kind));
+
+	/* [filter] options filling */
+	opts = nl_attr_nest_start(&tc->req.hdr, TCA_OPTIONS);
+	{
+		struct rtattr *opts_action = NULL;
+
+		/* [action] options filling */
+		opts_action = nl_attr_nest_start(&tc->req.hdr, TCA_U32_ACT);
+		{
+			int prio = 0;
+			char opt_act_kind[] = "mirred";
+			struct rtattr *opts_action_prio = NULL;
+
+			/* [mirred] options filling */
+			opts_action_prio = nl_attr_nest_start(&tc->req.hdr, ++prio);
+			nl_attr_add(&tc->req.hdr, TCA_ACT_KIND, opt_act_kind, sizeof(opt_act_kind));
+			{
+				struct rtattr *opts_action_prio_mirred = NULL;
+				struct tc_mirred opt_mirred;
+
+				opts_action_prio_mirred = nl_attr_nest_start(&tc->req.hdr, TCA_ACT_OPTIONS);
+				memset(&opt_mirred, 0, sizeof(opt_mirred));
+				opt_mirred.eaction = TCA_EGRESS_REDIR;
+				opt_mirred.action = TC_ACT_STOLEN;
+				opt_mirred.ifindex = ifindex_to;
+				nl_attr_add(&tc->req.hdr, TCA_MIRRED_PARMS, &opt_mirred, sizeof(opt_mirred));
+
+				nl_attr_nest_end(&tc->req.hdr, opts_action_prio_mirred);
+			}
+
+			nl_attr_nest_end(&tc->req.hdr, opts_action_prio);
+		}
+
+		nl_attr_nest_end(&tc->req.hdr, opts_action);
+	}
+
+	nl_attr_add(&tc->req.hdr, TCA_U32_HASH, &opt_ht, sizeof(opt_ht));
+	memset(&opt_sel, 0, sizeof(opt_sel));
+	/* [match] protocol option */
+	pack_key8(&opt_sel.sel, proto, 0xff, 9, 0);
+	/* [match] nofrag option */
+	pack_key16(&opt_sel.sel, 0, 0x3fff, 6, 0);
+	if (src_port) {
+		/* [match] src option */
+		pack_key32(&opt_sel.sel, ntohl(src_ip), 0xffffffff, 12, 0);
+		/* [match] sport option */
+		pack_key16(&opt_sel.sel, ntohs(src_port), 0xffff, 20, 0);
+	}
+	/* [match] dst option */
+	pack_key32(&opt_sel.sel, ntohl(dst_ip), 0xffffffff, 16, 0);
+	/* [match] dport option */
+	pack_key16(&opt_sel.sel, ntohs(dst_port), 0xffff, 22, 0);
+	opt_sel.sel.flags |= TC_U32_TERMINAL;
+	nl_attr_add(&tc->req.hdr, TCA_U32_SEL, &opt_sel, sizeof(opt_sel.sel) + opt_sel.sel.nkeys * sizeof(opt_sel.sel.keys[0]));
+
+	nl_attr_nest_end(&tc->req.hdr, opts);
+
+	if (nl_send(tc->nl, &tc->req.hdr) < 0) {
+		rc = -1;
+		goto err;
+	}
+	if (nl_recv(tc->nl, NULL, NULL) < 0) {
+		rc = -1;
+		goto err;
+	}
+#else
+	char *out_buf = NULL;
+	char if_name[IF_NAMESIZE];
+	char tap_name[IF_NAMESIZE];
+	char str_tmp[100];
+
+	UNREFERENCED_PARAMETER(tc);
+
+	if (NULL == if_indextoname(ifindex, if_name)) {
+		rc = -errno;
+		goto err;
+	}
+
+	if (NULL == if_indextoname(ifindex_to, tap_name)) {
+		rc = -errno;
+		goto err;
+	}
+
+	if (src_port) {
+		strncpy(str_tmp, sys_ip2str(src_ip), sizeof(str_tmp));
+		str_tmp[sizeof(str_tmp) - 1] = '\0';
+		out_buf = sys_exec("tc filter add dev %s parent ffff: protocol ip "
+							"prio %d handle ::%x u32 ht %x:%x: "
+							"match ip protocol %d 0xff "
+							"match ip nofrag "
+							"match ip src %s/32 match ip sport %d 0xffff "
+							"match ip dst %s/32 match ip dport %d 0xffff "
+							"action mirred egress redirect dev %s "
+							"> /dev/null 2>&1 || echo $?",
+							if_name, prio, id, ht, bkt, proto,
+							str_tmp, src_port,
+							sys_ip2str(dst_ip), ntohs(dst_port), tap_name);
+	} else {
+		out_buf = sys_exec("tc filter add dev %s parent ffff: protocol ip "
+							"prio %d handle ::%x u32 ht %x:%x: "
+							"match ip protocol %d 0xff "
+							"match ip nofrag "
+							"match ip dst %s/32 match ip dport %d 0xffff "
+							"action mirred egress redirect dev %s "
+							"> /dev/null 2>&1 || echo $?",
+							if_name, prio, id, ht, bkt, proto,
+							sys_ip2str(dst_ip), ntohs(dst_port), tap_name);
 	}
 	if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
 		rc = -1;
@@ -534,5 +680,45 @@ static int pack_key(struct tc_u32_sel *sel, uint32_t  key, uint32_t mask, int of
 	sel->nkeys++;
 
 	return 0;
+}
+
+static int pack_key8(struct tc_u32_sel *sel, uint32_t key, uint32_t mask, int off, int offmask)
+{
+	if ((off & 3) == 0) {
+		key <<= 24;
+		mask <<= 24;
+	} else if ((off & 3) == 1) {
+		key <<= 16;
+		mask <<= 16;
+	} else if ((off & 3) == 2) {
+		key <<= 8;
+		mask <<= 8;
+	}
+	off &= ~3;
+	key = htonl(key);
+	mask = htonl(mask);
+
+	return pack_key(sel, key, mask, off, offmask);
+}
+
+static int pack_key16(struct tc_u32_sel *sel, uint32_t key, uint32_t mask, int off, int offmask)
+{
+	if ((off & 3) == 0) {
+		key <<= 16;
+		mask <<= 16;
+	}
+	off &= ~3;
+	key = htonl(key);
+	mask = htonl(mask);
+
+	return pack_key(sel, key, mask, off, offmask);
+}
+
+static int pack_key32(struct tc_u32_sel *sel, uint32_t key, uint32_t mask, int off, int offmask)
+{
+	key = htonl(key);
+	mask = htonl(mask);
+
+	return pack_key(sel, key, mask, off, offmask);
 }
 #endif /* USE_NETLINK */
