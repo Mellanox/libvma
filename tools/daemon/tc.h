@@ -196,6 +196,40 @@ int tc_add_filter_link(tc_t tc, int ifindex, int prio, int ht, int id, uint32_t 
  */
 int tc_add_filter_tap2dev(tc_t tc, int ifindex, int prio, int id, uint32_t ip, int ifindex_to);
 
+
+/**
+ * Add filter to redirect traffic from ethernet device
+ * to tap device using 3tuple or 5tuple as TC request.
+ *
+ * @param[in] tc
+ *   The TC object.
+ * @param[in] ifindex
+ *   The netdevice ifindex where the rule will be applied.
+ * @param[in] prio
+ *   Priority value.
+ * @param[in] ht
+ *   Hash table index.
+ * @param[in] id
+ *   Item index.
+ * @param[in] proto
+ *   Protocol type as tcp, udp etc.
+ * @param[in] dst_ip
+ *   Destination ip.
+ * @param[in] dst_port
+ *   Destination port.
+ * @param[in] src_ip
+ *   Source ip.
+ * @param[in] src_port
+ *   Source port.
+ * @param[in] ifindex
+ *   The tap device ifindex.
+ *
+ * @return
+ *   0 on success, -1 otherwise with errno set.
+ */
+int tc_add_filter_dev2tap(tc_t tc, int ifindex, int prio, int ht, int bkt, int id,
+		int proto, uint32_t dst_ip, uint16_t dst_port, uint32_t src_ip, uint16_t src_port, int ifindex_to);
+
 /**
  * Remove specific filter as a TC request.
  *
