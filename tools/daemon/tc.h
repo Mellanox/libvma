@@ -36,6 +36,7 @@
 #include <linux/pkt_sched.h> /* for the TC_H_* macros */
 #include <linux/pkt_cls.h>
 #include <linux/if_ether.h>
+#include <linux/tc_act/tc_mirred.h>
 
 
 /* The tc_t opaque data type
@@ -166,6 +167,34 @@ int tc_add_filter_divisor(tc_t tc, int ifindex, int prio, int ht);
  *   0 on success, -1 otherwise with errno set.
  */
 int tc_add_filter_link(tc_t tc, int ifindex, int prio, int ht, int id, uint32_t ip);
+
+/**
+ * Add filter to redirect traffic from tap device
+ * to Interface device as TC request.
+ *
+ * @param[in] tc
+ *   The TC object.
+ * @param[in] ifindex
+ *   The tap device ifindex.
+ * @param[in] prio
+ *   Priority value.
+ * @param[in] ht
+ *   Hash table index.
+ * @param[in] id
+ *   Item index.
+ * @param[in] proto
+ *   Protocol type as tcp, udp etc.
+ * @param[in] proto
+ *   Destination ip.
+ * @param[in] proto
+ *   Destination port.
+ * @param[in] ifindex
+ *   The netdevice ifindex where the rule will be applied.
+ *
+ * @return
+ *   0 on success, -1 otherwise with errno set.
+ */
+int tc_add_filter_tap2dev(tc_t tc, int ifindex, int prio, int id, uint32_t ip, int ifindex_to);
 
 /**
  * Remove specific filter as a TC request.

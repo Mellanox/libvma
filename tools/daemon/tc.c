@@ -280,7 +280,7 @@ int tc_add_filter_link(tc_t tc, int ifindex, int prio, int ht, int id, uint32_t 
 		struct tc_u32_key keys[5];
 	} opt_sel;
 
-	tc_req(tc, ifindex, RTM_NEWTFILTER ,
+	tc_req(tc, ifindex, RTM_NEWTFILTER,
 			(NLM_F_REQUEST | NLM_F_ACK | NLM_F_EXCL | NLM_F_CREATE),
 			qdisc);
 
@@ -290,8 +290,16 @@ int tc_add_filter_link(tc_t tc, int ifindex, int prio, int ht, int id, uint32_t 
 	nl_attr_add(&tc->req.hdr, TCA_U32_LINK, &opt_link, sizeof(opt_link));
 	nl_attr_add(&tc->req.hdr, TCA_U32_HASH, &opt_ht, sizeof(opt_ht));
 	memset(&opt_sel, 0, sizeof(opt_sel));
+	/* hashkey option:
+	 * mask: 0x000000ff
+	 * at: 20
+	 */
 	opt_sel.sel.hmask = htonl(0x000000ff);
 	opt_sel.sel.hoff = 20;
+	/* match option for ip protocol:
+	 * dst: 16
+	 * addr/mask: ip/0xffffffff
+	 */
 	pack_key(&opt_sel.sel, ip, 0xffffffff, 16, 0);
 	nl_attr_add(&tc->req.hdr, TCA_U32_SEL, &opt_sel, sizeof(opt_sel.sel) + opt_sel.sel.nkeys * sizeof(opt_sel.sel.keys[0]));
 	nl_attr_nest_end(&tc->req.hdr, opts);
@@ -319,6 +327,125 @@ int tc_add_filter_link(tc_t tc, int ifindex, int prio, int ht, int id, uint32_t 
 			"ht %x:: match ip dst %s/32 hashkey mask 0x000000ff at 20 link %x: "
 			"> /dev/null 2>&1 || echo $?",
 			if_name, prio, id, ht, sys_ip2str(ip), id);
+	if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
+		rc = -1;
+		goto err;
+	}
+#endif /* USE_NETLINK */
+
+err:
+	return rc;
+}
+
+int tc_add_filter_tap2dev(tc_t tc, int ifindex, int prio, int id, uint32_t ip, int ifindex_to)
+{
+	int rc = 0;
+
+#if defined(USE_NETLINK) && (USE_NETLINK == 1)
+	struct tc_qdisc qdisc = {HANDLE_SET(0, 0, id), 0xffff0000, prio};
+	char opt_kind[] = "u32";
+	uint32_t opt_ht = HANDLE_SET(0x800, 0, 0);
+	struct rtattr *opts = NULL;
+	struct {
+		struct tc_u32_sel sel;
+		struct tc_u32_key keys[5];
+	} opt_sel;
+
+	tc_req(tc, ifindex, RTM_NEWTFILTER,
+			(NLM_F_REQUEST | NLM_F_ACK | NLM_F_EXCL | NLM_F_CREATE),
+			qdisc);
+
+	nl_attr_add(&tc->req.hdr, TCA_KIND, opt_kind, sizeof(opt_kind));
+
+	/* [filter] options filling */
+	opts = nl_attr_nest_start(&tc->req.hdr, TCA_OPTIONS);
+	{
+		struct rtattr *opts_action = NULL;
+
+		/* [action] options filling */
+		opts_action = nl_attr_nest_start(&tc->req.hdr, TCA_U32_ACT);
+		{
+			int prio = 0;
+			char opt_act_kind[] = "mirred";
+			struct rtattr *opts_action_prio = NULL;
+
+			/* [mirred] options filling */
+			opts_action_prio = nl_attr_nest_start(&tc->req.hdr, ++prio);
+			nl_attr_add(&tc->req.hdr, TCA_ACT_KIND, opt_act_kind, sizeof(opt_act_kind));
+			{
+				struct rtattr *opts_action_prio_mirred = NULL;
+				struct tc_mirred opt_mirred;
+
+				opts_action_prio_mirred = nl_attr_nest_start(&tc->req.hdr, TCA_ACT_OPTIONS);
+				memset(&opt_mirred, 0, sizeof(opt_mirred));
+				opt_mirred.eaction = TCA_EGRESS_REDIR;
+				opt_mirred.action = TC_ACT_STOLEN;
+				opt_mirred.ifindex = ifindex_to;
+				nl_attr_add(&tc->req.hdr, TCA_MIRRED_PARMS, &opt_mirred, sizeof(opt_mirred));
+
+				nl_attr_nest_end(&tc->req.hdr, opts_action_prio_mirred);
+			}
+
+			nl_attr_nest_end(&tc->req.hdr, opts_action_prio);
+		}
+
+		nl_attr_nest_end(&tc->req.hdr, opts_action);
+	}
+
+	nl_attr_add(&tc->req.hdr, TCA_U32_HASH, &opt_ht, sizeof(opt_ht));
+	memset(&opt_sel, 0, sizeof(opt_sel));
+	/* match option for ip protocol:
+	 * dst: 16
+	 * addr/mask: ip/0xffffffff
+	 */
+	if (ip) {
+		pack_key(&opt_sel.sel, ip, 0xffffffff, 16, 0);
+	} else {
+		pack_key(&opt_sel.sel, ip, 0, 0, 0);
+	}
+	opt_sel.sel.flags |= TC_U32_TERMINAL;
+	nl_attr_add(&tc->req.hdr, TCA_U32_SEL, &opt_sel, sizeof(opt_sel.sel) + opt_sel.sel.nkeys * sizeof(opt_sel.sel.keys[0]));
+
+	nl_attr_nest_end(&tc->req.hdr, opts);
+
+	if (nl_send(tc->nl, &tc->req.hdr) < 0) {
+		rc = -1;
+		goto err;
+	}
+	if (nl_recv(tc->nl, NULL, NULL) < 0) {
+		rc = -1;
+		goto err;
+	}
+#else
+	char *out_buf = NULL;
+	char if_name[IF_NAMESIZE];
+	char tap_name[IF_NAMESIZE];
+
+	UNREFERENCED_PARAMETER(tc);
+
+	if (NULL == if_indextoname(ifindex_to, if_name)) {
+		rc = -errno;
+		goto err;
+	}
+
+	if (NULL == if_indextoname(ifindex, tap_name)) {
+		rc = -errno;
+		goto err;
+	}
+
+	if (ip) {
+		out_buf = sys_exec("tc filter add dev %s protocol ip parent ffff: prio %d "
+					"handle ::%d u32 ht 800:: "
+					"match ip dst %s/32 action mirred egress redirect dev %s "
+					"> /dev/null 2>&1 || echo $?",
+					tap_name, prio, id, sys_ip2str(ip), if_name);
+	} else {
+		out_buf = sys_exec("tc filter add dev %s protocol ip parent ffff: prio %d "
+					"handle ::%d u32 ht 800:: "
+					"match u8 0 0 action mirred egress redirect dev %s "
+					"> /dev/null 2>&1 || echo $?",
+					tap_name, prio, id, if_name);
+	}
 	if (NULL == out_buf || (out_buf[0] != '\0' && out_buf[0] != '0')) {
 		rc = -1;
 		goto err;
