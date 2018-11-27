@@ -147,6 +147,27 @@ int tc_del_qdisc(tc_t tc, int ifindex);
 int tc_add_filter_divisor(tc_t tc, int ifindex, int prio, int ht);
 
 /**
+ * Add filter link as a TC request.
+ *
+ * @param[in] tc
+ *   The TC object.
+ * @param[in] ifindex
+ *   The netdevice ifindex where the rule will be applied.
+ * @param[in] prio
+ *   Priority value.
+ * @param[in] ht
+ *   Hash table index.
+ * @param[in] id
+ *   Index in link table.
+ * @param[in] ip
+ *   Destination ip address.
+ *
+ * @return
+ *   0 on success, -1 otherwise with errno set.
+ */
+int tc_add_filter_link(tc_t tc, int ifindex, int prio, int ht, int id, uint32_t ip);
+
+/**
  * Remove specific filter as a TC request.
  *
  * @param[in] tc
