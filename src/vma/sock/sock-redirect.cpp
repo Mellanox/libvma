@@ -552,7 +552,7 @@ int vma_get_socket_tx_ring_fd(int sock_fd, struct sockaddr *to, socklen_t tolen)
 }
 
 extern "C"
-int vma_add_conf_rule(char *config_line)
+int vma_add_conf_rule(const char *config_line)
 {
 	srdr_logdbg("adding conf rule: %s", config_line);
 
