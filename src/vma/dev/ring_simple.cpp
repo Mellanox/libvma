@@ -1297,7 +1297,7 @@ mem_buf_desc_t* ring_simple::mem_buf_tx_get(ring_user_id_t id, bool b_block, int
 	NOT_IN_USE(id);
 	int ret = 0;
 	mem_buf_desc_t* buff_list = NULL;
-	uint64_t poll_sn;
+	uint64_t poll_sn = 0;
 
 	ring_logfuncall("n_num_mem_bufs=%d", n_num_mem_bufs);
 
@@ -1549,7 +1549,7 @@ void ring_simple::flow_tcp_del_all()
 bool ring_simple::is_available_qp_wr(bool b_block)
 {
 	int ret = 0;
-	uint64_t poll_sn;
+	uint64_t poll_sn = 0;
 
 	while (m_tx_num_wr_free <= 0) {
 		// Try to poll once in the hope that we get a few freed tx mem_buf_desc
