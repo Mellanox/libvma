@@ -1112,7 +1112,7 @@ void sockinfo_tcp::err_lwip_cb(void *pcb_container, err_t err)
 			if (conn->m_sock_state == TCP_SOCK_ASYNC_CONNECT)
 				NOTIFY_ON_EVENTS(conn, (EPOLLIN|EPOLLERR|EPOLLHUP));
 			else
-				NOTIFY_ON_EVENTS(conn, (EPOLLIN|EPOLLHUP|EPOLLRDHUP));
+				NOTIFY_ON_EVENTS(conn, (EPOLLIN|EPOLLERR|EPOLLHUP|EPOLLRDHUP));
 		/* TODO what about no route to host type of errors, need to add EPOLLERR in this case ? */
 		} else { // ERR_TIMEOUT
 			NOTIFY_ON_EVENTS(conn, (EPOLLIN|EPOLLHUP));
