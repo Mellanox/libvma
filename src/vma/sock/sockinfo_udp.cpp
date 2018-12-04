@@ -1525,7 +1525,7 @@ bool sockinfo_udp::is_readable(uint64_t *p_poll_sn, fd_array_t* p_fd_ready_array
 		consider_rings_migration();
 		si_udp_logfuncall("try poll rx cq's");
 		rx_ring_map_t::iterator rx_ring_iter;
-		auto_unlocker locker(m_rx_ring_map_lock);
+		m_rx_ring_map_lock.lock();
 		for (rx_ring_iter = m_rx_ring_map.begin(); rx_ring_iter != m_rx_ring_map.end(); rx_ring_iter++) {
 			if (rx_ring_iter->second->refcnt <= 0)
 				continue;
@@ -1542,10 +1542,12 @@ bool sockinfo_udp::is_readable(uint64_t *p_poll_sn, fd_array_t* p_fd_ready_array
 				if (m_n_rx_pkt_ready_list_count) {
 					// Get out of the CQ polling loop
 					si_udp_logfunc("=> polled true (ready count = %d packets / %d bytes)", m_n_rx_pkt_ready_list_count, m_p_socket_stats->n_rx_ready_byte_count);
+					m_rx_ring_map_lock.unlock();
 					return true;
 				}
 			}
 		}
+		m_rx_ring_map_lock.unlock();
 	}
 
 	// Check local list of ready rx packets
@@ -1566,7 +1568,7 @@ int sockinfo_udp::rx_request_notification(uint64_t poll_sn)
 	si_udp_logfuncall("");
 	int ring_ready_count = 0, ring_armed_count = 0;
 	rx_ring_map_t::iterator rx_ring_iter;
-	auto_unlocker locker(m_rx_ring_map_lock);
+	m_rx_ring_map_lock.lock();
 	for (rx_ring_iter = m_rx_ring_map.begin(); rx_ring_iter != m_rx_ring_map.end(); rx_ring_iter++) {
 		ring* p_ring = rx_ring_iter->first;
 		int ret = p_ring->request_notification(CQT_RX, poll_sn);
@@ -1582,6 +1584,7 @@ int sockinfo_udp::rx_request_notification(uint64_t poll_sn)
 			si_udp_logerr("failure from ring[%p]->request_notification() (errno=%d %m)", p_ring, errno);
 		}
 	}
+	m_rx_ring_map_lock.unlock();
 
 	si_udp_logfunc("armed or busy %d ring(s) and %d ring are pending processing", ring_armed_count, ring_ready_count);
 	return ring_ready_count;

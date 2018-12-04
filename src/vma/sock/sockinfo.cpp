@@ -934,7 +934,7 @@ int sockinfo::add_epoll_context(epfd_info *epfd)
 	int ret = 0;
 	rx_ring_map_t::const_iterator sock_ring_map_iter;
 
-	auto_unlocker locker(m_rx_ring_map_lock);
+	m_rx_ring_map_lock.lock();
 	lock_rx_q();
 
 	ret = socket_fd_api::add_epoll_context(epfd);
@@ -951,17 +951,19 @@ int sockinfo::add_epoll_context(epfd_info *epfd)
 unlock_locks:
 
 	unlock_rx_q();
+	m_rx_ring_map_lock.unlock();
 
 	return ret;
 }
 
 void sockinfo::remove_epoll_context(epfd_info *epfd)
 {
-	auto_unlocker locker(m_rx_ring_map_lock);
+	m_rx_ring_map_lock.lock();
 	lock_rx_q();
 
 	if (!notify_epoll_context_verify(epfd)) {
 		unlock_rx_q();
+		m_rx_ring_map_lock.unlock();
 		return;
 	}
 
@@ -974,6 +976,7 @@ void sockinfo::remove_epoll_context(epfd_info *epfd)
 	socket_fd_api::remove_epoll_context(epfd);
 
 	unlock_rx_q();
+	m_rx_ring_map_lock.unlock();
 }
 
 #ifndef DEFINED_SOCKETXTREME // if not defined
