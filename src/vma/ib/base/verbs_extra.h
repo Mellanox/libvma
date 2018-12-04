@@ -195,8 +195,16 @@ typedef struct ibv_values_ex                  vma_ts_values;
 #define VMA_IBV_WR_SEND				IBV_WR_SEND
 #define vma_ibv_wr_opcode			ibv_wr_opcode
 #define vma_send_wr_opcode(wr)			(wr).opcode
-// Use 0 as "default" opcode since IBV_WR_NOP is not defined.
-#define VMA_IBV_WR_NOP				(vma_ibv_wr_opcode)(0)
+
+// Dummy send
+#ifdef DEFINED_IBV_WR_NOP
+#define vma_is_nop_supported(device_attr)    1
+#define VMA_IBV_WR_NOP                      (vma_ibv_wr_opcode)MLX5_OPCODE_NOP
+#else
+#define vma_is_nop_supported(device_attr)    0
+#define VMA_IBV_WR_NOP                      (vma_ibv_wr_opcode)(0) // Use 0 as "default" opcode when NOP is not defined.
+#endif
+
 #define vma_ibv_post_send(qp, wr, bad_wr)	ibv_post_send(qp, wr, bad_wr)
 typedef struct ibv_send_wr			vma_ibv_send_wr;
 //ibv_reg_mr
@@ -349,11 +357,13 @@ typedef struct ibv_exp_cq_attr                  vma_ibv_cq_attr;
 #define vma_ibv_wr_opcode			ibv_exp_wr_opcode
 #define vma_send_wr_opcode(wr)			(wr).exp_opcode
 
-#ifdef DEFINED_IBV_EXP_WR_NOP
-#define VMA_IBV_WR_NOP				IBV_EXP_WR_NOP
+// Dummy send
+#ifdef DEFINED_IBV_WR_NOP
+#define vma_is_nop_supported(device_attr)    ((device_attr)->exp_device_cap_flags & IBV_EXP_DEVICE_NOP)
+#define VMA_IBV_WR_NOP                       IBV_EXP_WR_NOP
 #else
-// Use 0 as "default" opcode when NOP is not defined.
-#define VMA_IBV_WR_NOP				(vma_ibv_wr_opcode)(0)
+#define vma_is_nop_supported(device_attr)    0
+#define VMA_IBV_WR_NOP                      (vma_ibv_wr_opcode)(0) // Use 0 as "default" opcode when NOP is not defined.
 #endif
 
 #define vma_ibv_post_send(qp, wr, bad_wr)	ibv_exp_post_send(qp, wr, bad_wr)

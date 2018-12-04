@@ -138,7 +138,7 @@ CHECK_VERBS_MEMBER([struct ibv_device_attr_ex.orig_attr], [infiniband/verbs.h], 
 #
 if test "x$vma_cv_verbs" == x2; then
     CHECK_VERBS_ATTRIBUTE([IBV_EXP_CQ_MODERATION], [infiniband/verbs_exp.h], [IBV_CQ_ATTR_MODERATE])
-    CHECK_VERBS_ATTRIBUTE([IBV_EXP_WR_NOP], [infiniband/verbs_exp.h])
+    CHECK_VERBS_ATTRIBUTE([IBV_EXP_WR_NOP], [infiniband/verbs_exp.h], [IBV_WR_NOP])
     CHECK_VERBS_ATTRIBUTE([IBV_EXP_ACCESS_ALLOCATE_MR], [infiniband/verbs_exp.h])
     CHECK_VERBS_ATTRIBUTE([IBV_EXP_QP_INIT_ATTR_ASSOCIATED_QPN], [infiniband/verbs_exp.h], [IBV_QP_INIT_SOURCE_QPN])
     CHECK_VERBS_ATTRIBUTE([IBV_EXP_FLOW_SPEC_IB], [infiniband/verbs_exp.h], [IBV_FLOW_SPEC_IB])
@@ -196,6 +196,12 @@ if test "x$vma_cv_verbs" == x2; then
 
     AC_CHECK_FUNCS([rdma_lib_reset])
     AC_CHECK_FUNCS([ibv_exp_get_device_list])
+fi
+
+# Check <mlx5dv.h>
+#
+if test "x$vma_cv_verbs" == x3; then
+    CHECK_VERBS_ATTRIBUTE([MLX5_OPCODE_NOP], [infiniband/mlx5dv.h], [IBV_WR_NOP])
 fi
 
 # Restore LIBS
