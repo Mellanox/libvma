@@ -781,6 +781,13 @@ void event_handler_manager::query_for_ibverbs_event(int async_fd)
 	process_ibverbs_event(i);
 }
 
+void event_handler_manager::statistics_print(int fd, vlog_levels_t log_level)
+{
+	if (m_b_continue_running && g_p_fd_collection) {
+		g_p_fd_collection->statistics_print(fd, log_level);
+	}
+}
+
 void event_handler_manager::process_ibverbs_event(event_handler_map_t::iterator &i)
 {
 	evh_logfunc_entry("");

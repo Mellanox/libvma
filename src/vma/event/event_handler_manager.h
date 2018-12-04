@@ -36,6 +36,7 @@
 
 #include <map>
 #include <deque>
+#include "vlogger/vlogger.h"
 #include "utils/lock_wrapper.h"
 #include "vma/util/wakeup_pipe.h"
 #include "vma/netlink/netlink_wrapper.h"
@@ -177,6 +178,7 @@ public:
 
 	void    update_epfd(int fd, int operation, int events);
 	void	query_for_ibverbs_event(int async_fd);
+	void	statistics_print(int fd, vlog_levels_t log_level);
 
 private:
 	pthread_t		m_event_handler_tid;
