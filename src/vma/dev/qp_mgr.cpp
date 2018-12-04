@@ -360,7 +360,7 @@ void qp_mgr::release_rx_buffers()
 void qp_mgr::release_tx_buffers()
 {
 	int ret = 0;
-	uint64_t poll_sn;
+	uint64_t poll_sn = 0;
 	qp_logdbg("draining tx cq_mgr %p", m_p_cq_mgr_tx);
 	while (m_p_cq_mgr_tx && m_qp &&
 			((ret = m_p_cq_mgr_tx->poll_and_process_element_tx(&poll_sn)) > 0) &&
