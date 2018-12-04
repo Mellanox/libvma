@@ -1,14 +1,5 @@
 # libvma issues to fix
 {
-   RM #1072426
-   Memcheck:Leak
-   match-leak-kinds: definite
-   ...
-   fun:_ZN20net_device_table_mgr16create_new_entryEj
-   fun:_ZN15cache_table_mgrI10ip_addressP14net_device_valE17register_observerES0_PK14cache_observerPP19cache_entry_subjectIS0_S2_E
-   fun:_ZN11route_entry22register_to_net_deviceEv
-}
-{
    RM #1284069
    Memcheck:Leak
    match-leak-kinds: definite
