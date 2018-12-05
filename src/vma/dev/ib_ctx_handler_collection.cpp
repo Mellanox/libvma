@@ -101,6 +101,19 @@ void ib_ctx_handler_collection::update_tbl(const char *ifa_name)
 	// Extract UP device list
 	dev_list = (struct ibv_device **) malloc(orig_num_devices * sizeof(struct ibv_device *));
 	for (i = 0; i < orig_num_devices; i ++) {
+		// Skip existing devices (compare by name)
+		if (ifa_name && !check_device_name_ib_name(ifa_name, orig_dev_list[i]->name)) {
+			continue;
+		}
+
+#ifdef DEFINED_SOCKETXTREME
+		// Only support mlx5 devices in this mode
+		if(strncmp(orig_dev_list[i]->name, "mlx4", 4) == 0) {
+			ibchc_logdbg("Blocking offload: mlx4 interfaces in socketxtreme mode");
+			continue;
+		}
+#endif // DEFINED_SOCKETXTREME
+
 		if (check_device_oper_state(orig_dev_list[i]->name)) {
 			dev_list[num_devices] = orig_dev_list[i];
 			num_devices++;
@@ -124,18 +137,6 @@ void ib_ctx_handler_collection::update_tbl(const char *ifa_name)
 	for (i = 0; i < num_devices; i++) {
 		struct ib_ctx_handler::ib_ctx_handler_desc desc = {dev_list[i], m_ctx_time_conversion_mode};
 
-		/* 2. Skip existing devices (compare by name) */
-		if (ifa_name && !check_device_name_ib_name(ifa_name, dev_list[i]->name)) {
-			continue;
-		}
-
-#ifdef DEFINED_SOCKETXTREME
-		// only support mlx5 device in this mode
-		if(strncmp(dev_list[i]->name, "mlx4", 4) == 0) {
-			ibchc_logdbg("Blocking offload: mlx4 interfaces in socketxtreme mode");
-			continue;
-		}
-#endif // DEFINED_SOCKETXTREME
 		/* 3. Add new ib devices */
 		p_ib_ctx_handler = new ib_ctx_handler(&desc);
 		if (!p_ib_ctx_handler) {
