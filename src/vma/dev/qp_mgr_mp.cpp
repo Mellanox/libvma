@@ -88,11 +88,6 @@ int qp_mgr_mp::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 	wq_init_attr.max_recv_sge = 1;
 	wq_init_attr.pd = m_p_ib_ctx_handler->get_ibv_pd();
 	wq_init_attr.cq = m_p_cq_mgr_rx->get_ibv_cq_hndl();
-	if (m_p_ib_ctx_handler->get_ibv_device_attr()->wq_vlan_offloads_cap &
-	    IBV_EXP_RECEIVE_WQ_CVLAN_STRIP) {
-		wq_init_attr.comp_mask |= IBV_EXP_CREATE_WQ_VLAN_OFFLOADS;
-		wq_init_attr.vlan_offloads |= IBV_EXP_RECEIVE_WQ_CVLAN_STRIP;
-	}
 	wq_init_attr.comp_mask |= IBV_EXP_CREATE_WQ_RES_DOMAIN;
 	wq_init_attr.res_domain = m_p_mp_ring->get_res_domain();
 
