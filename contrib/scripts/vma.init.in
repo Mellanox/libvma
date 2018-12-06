@@ -54,7 +54,7 @@ function check_running()
 
 function check_permission()
 {
-    [ "$(whoami)" = "root" ]
+    [ "$(id -u)" = "0" ]
 }
 
 function do_start()
