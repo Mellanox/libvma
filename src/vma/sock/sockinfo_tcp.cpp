@@ -3077,10 +3077,10 @@ bool sockinfo_tcp::is_readable(uint64_t *p_poll_sn, fd_array_t* p_fd_array)
 		state = m_ready_conn_cnt == 0 ? false : true; 
 		if (state) {
 			si_tcp_logdbg("accept ready");
-			goto noblock_nolock;
+			return true;
 		}
 
-		if (m_sock_state == TCP_SOCK_ACCEPT_SHUT) goto noblock_nolock;
+		if (m_sock_state == TCP_SOCK_ACCEPT_SHUT) return true;
 
 		return false;
 	} 
@@ -3093,11 +3093,11 @@ bool sockinfo_tcp::is_readable(uint64_t *p_poll_sn, fd_array_t* p_fd_array)
 		// unconnected tcp sock is always ready for read!
 		// return its fd as ready
 		si_tcp_logdbg("block check on unconnected socket");
-		goto noblock_nolock;
+		return true;
 	}
 
 	if (m_n_rx_pkt_ready_list_count)
-		goto noblock_nolock;
+		return true;
 
 	if (!p_poll_sn)
 		return false;
@@ -3106,16 +3106,13 @@ bool sockinfo_tcp::is_readable(uint64_t *p_poll_sn, fd_array_t* p_fd_array)
 
 	m_rx_ring_map_lock.lock();
 	while(!g_b_exit && is_rtr()) {
-	   if (likely(m_p_rx_ring)) {
-		   // likely scenario: rx socket bound to specific cq
-		   ret = m_p_rx_ring->poll_and_process_element_rx(p_poll_sn, p_fd_array);
-		   if (m_n_rx_pkt_ready_list_count)
-			   goto noblock;
-		   if (ret <= 0) {
-			   break;
-		   }
-		}
-		else {
+		if (likely(m_p_rx_ring)) {
+			// likely scenario: rx socket bound to specific cq
+			ret = m_p_rx_ring->poll_and_process_element_rx(p_poll_sn, p_fd_array);
+			if (m_n_rx_pkt_ready_list_count || ret <= 0) {
+				break;
+			}
+		} else if (!m_rx_ring_map.empty()) {
 			rx_ring_map_t::iterator rx_ring_iter;
 			for (rx_ring_iter = m_rx_ring_map.begin(); rx_ring_iter != m_rx_ring_map.end(); rx_ring_iter++) {
 				if (rx_ring_iter->second->refcnt <= 0) {
@@ -3124,20 +3121,21 @@ bool sockinfo_tcp::is_readable(uint64_t *p_poll_sn, fd_array_t* p_fd_array)
 				ring* p_ring =  rx_ring_iter->first;
 				//g_p_lwip->do_timers();
 				ret = p_ring->poll_and_process_element_rx(p_poll_sn, p_fd_array);
-				if (m_n_rx_pkt_ready_list_count)
-					goto noblock;
-				if (ret <= 0)
+				if (m_n_rx_pkt_ready_list_count || ret <= 0) {
 					break;
+				}
 			}
+		} else {
+			// No available rx rings, break loop.
+			break;
 		}
 	}
+
+	m_rx_ring_map_lock.unlock();
 	if (!m_n_rx_pkt_ready_list_count) {
-		m_rx_ring_map_lock.unlock();
 		return false;
 	}
-noblock:
-	m_rx_ring_map_lock.unlock();
-noblock_nolock:
+
 	return true;
 }
 

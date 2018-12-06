@@ -721,8 +721,8 @@ net_device_resources_t* sockinfo::create_nd_resources(const ip_address ip_local)
 		} else {
 			key = m_ring_alloc_logic.create_new_key(ip_local.get_in_addr());
 		}
-		nd_resources.p_ring = nd_resources.p_ndv->reserve_ring(key);
 		m_rx_ring_map_lock.unlock();
+		nd_resources.p_ring = nd_resources.p_ndv->reserve_ring(key);
 		lock_rx_q();
 		if (!nd_resources.p_ring) {
 			si_logdbg("Failed to reserve ring for allocation key %s on ip %s",
