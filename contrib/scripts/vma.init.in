@@ -130,11 +130,11 @@ case "$1" in
     status)
         do_status
 	    ;;
-    restart)
+    restart | force-reload)
 	    do_restart
 	    ;;
     *)
-	    echo $"Usage: $0 {start|stop|status|restart}"
+	    echo $"Usage: $0 {start|stop|status|restart|force-reload}"
 	    RETVAL=1
 	    ;;
 esac
