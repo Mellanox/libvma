@@ -4588,7 +4588,11 @@ void tcp_timers_collection::clean_obj()
 {
 	set_cleaned();
 
-	g_p_event_handler_manager->unregister_timers_event_and_delete(this);
+	if (g_p_event_handler_manager->is_running()) {
+		g_p_event_handler_manager->unregister_timers_event_and_delete(this);
+	} else {
+		cleanable_obj::clean_obj();
+	}
 }
 
 void tcp_timers_collection::handle_timer_expired(void* user_data)
