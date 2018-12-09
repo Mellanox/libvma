@@ -114,7 +114,7 @@ void ib_ctx_handler_collection::update_tbl(const char *ifa_name)
 		}
 #endif // DEFINED_SOCKETXTREME
 
-		if (check_device_oper_state(orig_dev_list[i]->name)) {
+		if (check_device_oper_state(orig_dev_list[i])) {
 			dev_list[num_devices] = orig_dev_list[i];
 			num_devices++;
 		}
@@ -217,4 +217,43 @@ void ib_ctx_handler_collection::del_ib_ctx(ib_ctx_handler* ib_ctx)
 			m_ib_ctx_map.erase(ib_ctx_iter);
 		}
 	}
+}
+
+bool ib_ctx_handler_collection::check_device_oper_state(struct ibv_device *device)
+{
+	vma_ibv_device_attr_ex device_att;
+	ibv_port_attr port_attr;
+	ibv_context* context = NULL;
+	int port_index, active_ports = 0;
+
+	context = ibv_open_device(device);
+	if (!context) {
+		ibchc_logdbg("Open context failed for %s", ibv_get_device_name(device));
+		goto out;
+	}
+
+	if (vma_ibv_query_device(context, &device_att)) {
+		ibchc_logdbg("Failed to query the device");
+		goto out;
+	}
+
+	for (port_index = 1; port_index <= vma_get_device_orig_attr(&device_att)->phys_port_cnt; port_index++) {
+		if (ibv_query_port(context, port_index, &port_attr)) {
+			ibchc_logdbg("Failed to query the port %d", port_index);
+			goto out;
+
+		}
+		if (port_attr.state == IBV_PORT_ACTIVE) {
+			active_ports++;
+		}
+	}
+
+out:
+	if (context) {
+		ibv_close_device(context);
+	}
+
+	ibchc_logdbg("Actice ports %d dev %s", active_ports, device->name);
+
+	return active_ports;
 }

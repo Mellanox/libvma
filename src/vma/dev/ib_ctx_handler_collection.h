@@ -65,6 +65,8 @@ public:
 
 private:
 
+	bool check_device_oper_state(struct ibv_device *device);
+
 	ib_context_map_t	m_ib_ctx_map;
 	ts_conversion_mode_t m_ctx_time_conversion_mode;
 };

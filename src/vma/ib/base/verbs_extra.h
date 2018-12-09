@@ -141,11 +141,11 @@ typedef struct ibv_device_attr                vma_ibv_device_attr;
 #ifdef DEFINED_IBV_DEVICE_ATTR_EX
 #define vma_ibv_query_device(context, attr)   ibv_query_device_ex(context, NULL, attr)
 typedef struct ibv_device_attr_ex             vma_ibv_device_attr_ex;
-#define vma_get_device_orig_attr(device_attr) &device_attr->orig_attr
+#define vma_get_device_orig_attr(device_attr) (&(device_attr)->orig_attr)
 #else
 #define vma_ibv_query_device(context, attr)   ibv_query_device(context, attr)
 typedef vma_ibv_device_attr                   vma_ibv_device_attr_ex;
-#define vma_get_device_orig_attr(device_attr) device_attr
+#define vma_get_device_orig_attr(device_attr) (device_attr)
 #endif
 
 //ibv_modify_qp
@@ -259,7 +259,7 @@ typedef struct ibv_exp_qp_init_attr             vma_ibv_qp_init_attr;
 #define vma_ibv_query_device(context, attr)   ibv_exp_query_device(context, attr)
 typedef struct ibv_exp_device_attr            vma_ibv_device_attr;
 typedef vma_ibv_device_attr                   vma_ibv_device_attr_ex;
-#define vma_get_device_orig_attr(device_attr) device_attr
+#define vma_get_device_orig_attr(device_attr) (device_attr)
 #define vma_ibv_device_attr_comp_mask(attr)   { (attr)->comp_mask = IBV_EXP_DEVICE_ATTR_RESERVED - 1; }
 
 #ifdef DEFINED_IBV_EXP_DEVICE_RX_CSUM_L4_PKT

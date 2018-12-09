@@ -305,7 +305,6 @@ bool check_bond_roce_lag_exist(OUT char* bond_roce_lag_path, int sz, IN const ch
 bool check_device_exist(const char* ifname, const char *path);
 bool check_device_name_ib_name(const char* ifname, const char* ibname);
 bool check_netvsc_device_exist(const char* ifname);
-bool check_device_oper_state(IN const char* device);
 bool get_netvsc_slave(IN const char* ifname, OUT char* slave_name, OUT unsigned int &slave_flags);
 bool get_interface_oper_state(IN const char* interface_name, OUT char* slaves_list, IN int sz);
 
