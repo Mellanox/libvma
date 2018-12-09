@@ -232,12 +232,14 @@ bool ib_ctx_handler_collection::check_device_oper_state(struct ibv_device *devic
 		goto out;
 	}
 
+	memset(&device_att, 0, sizeof(device_att));
 	if (vma_ibv_query_device(context, &device_att)) {
 		ibchc_logdbg("Failed to query the device");
 		goto out;
 	}
 
 	for (port_index = 1; port_index <= vma_get_device_orig_attr(&device_att)->phys_port_cnt; port_index++) {
+		memset(&port_attr, 0, sizeof(port_attr));
 		if (ibv_query_port(context, port_index, &port_attr)) {
 			ibchc_logdbg("Failed to query the port %d", port_index);
 			goto out;
