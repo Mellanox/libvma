@@ -32,6 +32,7 @@
 
 #include <vector>
 
+#include "util/valgrind.h"
 #include "utils/bullseye.h"
 #include "vlogger/vlogger.h"
 #include "ib_ctx_handler_collection.h"
@@ -101,6 +102,8 @@ void ib_ctx_handler_collection::update_tbl(const char *ifa_name)
 	// Extract UP device list
 	dev_list = (struct ibv_device **) malloc(orig_num_devices * sizeof(struct ibv_device *));
 	for (i = 0; i < orig_num_devices; i ++) {
+		VALGRIND_MAKE_MEM_DEFINED(orig_dev_list[i], sizeof(struct ibv_device));
+
 		// Skip existing devices (compare by name)
 		if (ifa_name && !check_device_name_ib_name(ifa_name, orig_dev_list[i]->name)) {
 			continue;
