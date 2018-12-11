@@ -533,6 +533,7 @@ void net_device_val::print_val()
 	nd_logdbg("  ring list: %s", (m_h_ring_map.empty() ? "empty " : ""));
 	for (ring_iter = m_h_ring_map.begin(); ring_iter != m_h_ring_map.end(); ring_iter++) {
 		ring *cur_ring = ring_iter->second.first;
+		NOT_IN_USE(cur_ring); // Suppress --enable-opt-log=high warning
 		nd_logdbg("    %d: 0x%X: parent 0x%X ref %d",
 				cur_ring->get_if_index(), cur_ring, cur_ring->get_parent(), ring_iter->second.second);
 	}
@@ -1541,6 +1542,7 @@ bool net_device_val::verify_enable_ipoib(const char* interface_name)
 {
 	char filename[256] = "\0";
 	char ifname[IFNAMSIZ] = "\0";
+	NOT_IN_USE(interface_name); // Suppress --enable-opt-log=high warning
 
 	if(!safe_mce_sys().enable_ipoib) {
 		nd_logdbg("Blocking offload: IPoIB interfaces ('%s')", interface_name);
