@@ -198,10 +198,12 @@ if test "x$vma_cv_verbs" == x2; then
     AC_CHECK_FUNCS([ibv_exp_get_device_list])
 fi
 
-# Check <mlx5dv.h>
+# Check Upstream
 #
 if test "x$vma_cv_verbs" == x3; then
-    CHECK_VERBS_ATTRIBUTE([MLX5_OPCODE_NOP], [infiniband/mlx5dv.h], [IBV_WR_NOP])
+    if test "x$vma_cv_directverbs" == x3; then
+        CHECK_VERBS_ATTRIBUTE([MLX5_OPCODE_NOP], [infiniband/mlx5dv.h], [IBV_WR_NOP])
+    fi
 fi
 
 # Restore LIBS
