@@ -19,7 +19,12 @@ if [ -x /usr/bin/dpkg-buildpackage ]; then
     set +e
     ${WORKSPACE}/build/build_deb.sh 2> "${rpm_dir}/rpm-deb.err" 1> "${rpm_dir}/rpm-deb.log"
     rc=$((rc + $?))
-    do_archive "${rpm_dir}/*.err" "${rpm_dir}/*.log"
+    if [ -f "${WORKSPACE}/build_debian/build_debian.log" ]; then
+        cp ${WORKSPACE}/build_debian/build_debian.log ${rpm_dir}/rpm-deb.out
+    else
+        echo "file: ${WORKSPACE}/build_debian/build_debian.log is not found" > ${rpm_dir}/rpm-deb.out
+    fi
+    do_archive "${rpm_dir}/*.err" "${rpm_dir}/*.log" "${rpm_dir}/rpm-deb.out"
     set -e
 	echo "1..1" > $rpm_tap
 	if [ $rc -gt 0 ]; then
