@@ -745,7 +745,11 @@ void epfd_info::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 	while (i < m_n_offloaded_fds) {
 		memset(offloaded_str, 0, sizeof(offloaded_str));
 		for (offloaded_str_place = 0; offloaded_str_place < EPFD_MAX_OFFLOADED_STR && i < m_n_offloaded_fds; i++) {
-			offloaded_str_place += snprintf(&offloaded_str[offloaded_str_place], sizeof(offloaded_str) - offloaded_str_place - 1, " %d", m_p_offloaded_fds[i]);
+			int n = snprintf(&offloaded_str[offloaded_str_place], sizeof(offloaded_str) - offloaded_str_place - 1, " %d", m_p_offloaded_fds[i]);
+			if (!likely((0 < n) && (n < (int)(sizeof(offloaded_str) - offloaded_str_place - 1)))) {
+				break;
+			}
+			offloaded_str_place += n;
 		}
 
 		offloaded_str[offloaded_str_place] = '\0';
