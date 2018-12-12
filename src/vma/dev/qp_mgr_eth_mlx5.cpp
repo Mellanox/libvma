@@ -125,6 +125,9 @@ qp_mgr_eth_mlx5::qp_mgr_eth_mlx5(const ring_simple* p_ring,
         ,m_sq_wqe_counter(0)
         ,m_dm_enabled(0)
 {
+	// Check device capabilities for dummy send support
+	m_hw_dummy_send_support = vma_is_nop_supported(m_p_ib_ctx_handler->get_ibv_device_attr());
+
 	if (call_configure && configure(p_rx_comp_event_channel)) {
 		throw_vma_exception("failed creating qp_mgr_eth");
 	}
