@@ -102,8 +102,6 @@ void ib_ctx_handler_collection::update_tbl(const char *ifa_name)
 	// Extract UP device list
 	dev_list = (struct ibv_device **) malloc(orig_num_devices * sizeof(struct ibv_device *));
 	for (i = 0; i < orig_num_devices; i ++) {
-		VALGRIND_MAKE_MEM_DEFINED(orig_dev_list[i], sizeof(struct ibv_device));
-
 		// Skip existing devices (compare by name)
 		if (ifa_name && !check_device_name_ib_name(ifa_name, orig_dev_list[i]->name)) {
 			continue;
@@ -248,6 +246,8 @@ bool ib_ctx_handler_collection::check_device_oper_state(struct ibv_device *devic
 			goto out;
 
 		}
+
+		VALGRIND_MAKE_MEM_DEFINED(&port_attr, sizeof(port_attr));
 		if (port_attr.state == IBV_PORT_ACTIVE) {
 			active_ports++;
 		}
