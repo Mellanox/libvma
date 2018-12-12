@@ -177,6 +177,7 @@ void ring_bond::restart()
 				int fd = -1;
 				int rc = 0;
 				size_t i, j, k;
+				NOT_IN_USE(rc); // Suppress --enable-opt-log=high warning
 
 				if (slaves.empty()) {
 					num_ring_rx_fds = p_ring_bond_netvsc->m_vf_ring->get_num_resources();

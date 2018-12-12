@@ -602,6 +602,7 @@ uint32_t net_device_table_mgr::get_max_mtu()
 
 void net_device_table_mgr::del_link_event(const netlink_link_info* info)
 {
+	NOT_IN_USE(info); // Suppress --enable-opt-log=high warning
 	ndtm_logdbg("netlink event: RTM_DELLINK if_index: %d", info->ifindex);
 }
 
