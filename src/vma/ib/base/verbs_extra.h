@@ -401,6 +401,7 @@ typedef struct ibv_exp_cq_attr                  vma_ibv_cq_attr;
 #define vma_ibv_send_flags			ibv_exp_send_flags
 #define vma_send_wr_send_flags(wr)		(wr).exp_send_flags
 #define VMA_IBV_WR_SEND				IBV_EXP_WR_SEND
+#define VMA_IBV_WR_SEND_TSO			IBV_EXP_WR_TSO
 #define vma_ibv_wr_opcode			ibv_exp_wr_opcode
 #define vma_send_wr_opcode(wr)			(wr).exp_opcode
 
