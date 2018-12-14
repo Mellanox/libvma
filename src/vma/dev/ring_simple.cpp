@@ -261,13 +261,15 @@ void ring_simple::create_resources()
 
 	memset(&m_tso, 0, sizeof(m_tso));
 #ifdef HAVE_TSO
-	if (m_p_ib_ctx->get_ibv_device_attr()->comp_mask & IBV_EXP_DEVICE_ATTR_TSO_CAPS) {
-		const struct ibv_exp_tso_caps *caps = &m_p_ib_ctx->get_ibv_device_attr()->tso_caps;
-		if (ibv_is_qpt_supported(caps->supported_qpts, IBV_QPT_RAW_PACKET) ||
-			ibv_is_qpt_supported(caps->supported_qpts, IBV_QPT_UD)) {
-			m_tso.max_payload_sz = caps->max_tso;
-			/* ETH(14) + IP(20) + TCP(20) + TCP OPTIONS(40) */
-			m_tso.max_header_sz = 94;
+	if (1 == validate_tso(get_if_index())) {
+		if (m_p_ib_ctx->get_ibv_device_attr()->comp_mask & IBV_EXP_DEVICE_ATTR_TSO_CAPS) {
+			const struct ibv_exp_tso_caps *caps = &m_p_ib_ctx->get_ibv_device_attr()->tso_caps;
+			if (ibv_is_qpt_supported(caps->supported_qpts, IBV_QPT_RAW_PACKET) ||
+				ibv_is_qpt_supported(caps->supported_qpts, IBV_QPT_UD)) {
+				m_tso.max_payload_sz = caps->max_tso;
+				/* ETH(14) + IP(20) + TCP(20) + TCP OPTIONS(40) */
+				m_tso.max_header_sz = 94;
+			}
 		}
 	}
 #endif /* HAVE_TSO */

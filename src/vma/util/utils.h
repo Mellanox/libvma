@@ -319,6 +319,14 @@ int validate_raw_qp_privliges();
 
 bool validate_user_has_cap_net_raw_privliges();
 
+/**
+ * Get TSO support using interface index
+ *
+ * @param if_index input interface index
+ * @return 0/1 or -1 on failure
+ */
+int validate_tso(int if_index);
+
 static inline int get_procname(int pid, char *proc, size_t size)
 {
 	char app_full_name[PATH_MAX] = {0};
