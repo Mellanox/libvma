@@ -131,7 +131,7 @@ private:
 typedef ring_alloc_logic_attr resource_allocation_key;
 // each ring has a ref count
 typedef std::tr1::unordered_map<resource_allocation_key *, std::pair<ring*, int>, ring_alloc_logic_attr, ring_alloc_logic_attr> rings_hash_map_t;
-
+typedef std::tr1::unordered_map<uint64_t, std::vector<std::string> > sys_image_guid_map_t;
 typedef std::tr1::unordered_map<resource_allocation_key *, std::pair<resource_allocation_key *, int> ,ring_alloc_logic_attr, ring_alloc_logic_attr> rings_key_redirection_hash_map_t;
 
 #define THE_RING                        ring_iter->second.first
@@ -283,6 +283,7 @@ protected:
 	transport_type_t	m_transport_type;
 	lock_mutex_recursive	m_lock;
 	rings_hash_map_t	m_h_ring_map;
+	sys_image_guid_map_t	m_sys_image_guid_map;
 	rings_key_redirection_hash_map_t        m_h_ring_key_redirection_map;
 
 	state			m_state;          /* device current state */
