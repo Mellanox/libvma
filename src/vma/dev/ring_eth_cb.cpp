@@ -276,11 +276,8 @@ int ring_eth_cb::allocate_umr_mem(vma_cyclic_buffer_ring_attr *cb_ring,
 
 	m_payload_len = cb_ring->stride_bytes;
 	m_hdr_len = cb_ring->hdr_bytes;
-	m_packet_size = m_payload_len + m_hdr_len;
+	m_packet_size = m_payload_len + m_hdr_len + net_len;
 
-	if (m_packet_receive_mode != STRIP_NETWORK_HDRS) {
-		m_packet_size += net_len;
-	}
 	// in case stride smaller then packet size
 	while ((m_stride_size * count) <= m_packet_size) {
 		++count;
@@ -288,7 +285,11 @@ int ring_eth_cb::allocate_umr_mem(vma_cyclic_buffer_ring_attr *cb_ring,
 	// no need to allocate padding
 	pad_len = (m_stride_size * count) - m_packet_size;
 	// allocate buffer
-	buffer_size = m_packet_size * packets_num;
+	if (m_packet_receive_mode == STRIP_NETWORK_HDRS) {
+		buffer_size = (m_packet_size - net_len) * packets_num;
+	} else {
+		buffer_size = m_packet_size * packets_num;
+	}
 	// will raise an exception on failure
 	base_ptr = (uint64_t)allocate_memory(mem_desc, buffer_size);
 	if (unlikely(!base_ptr)) {
@@ -620,7 +621,7 @@ int ring_eth_cb::cyclic_buffer_read(vma_completion_cb_t &completion,
 		errno = EMSGSIZE;
 		ring_logerr("got unexpected packet size, expected "
 			    "packet size %u but got %d, user data is "
-			    "corrupted", size, m_packet_size);
+			    "corrupted", m_packet_size, size);
 		return -1;
 	}
 	if (unlikely(ret == -1)) {
