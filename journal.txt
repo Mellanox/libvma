@@ -1,3 +1,23 @@
+Version 8.8.0-0:
+Date + Time 2018-12-16
+=============================================================
+Added:
+        - RM #1592040 Add mlx5 Dummy-send support for upstream
+        - RM #1435293 Do not start daemon during package installation
+        - RM #1584343 Disable vlan stripping in MP_RQ
+        - RM #1072426 Update valgrind suppression file
+        - RM #1575618 Modify add_conf_rule() input param type
+Fixed:
+        - RM #1600817 Resolve --enable-opt-log=high compilation errors
+        - RM #1574908 Fix buffer overflow in epfd_info::statistics_print()
+        - RM #1575056 Fix infinite loop in TCP is_readable()
+        - RM #1073005 Fix memory leak in g_tcp_timers_collection
+        - RM #1546495 Fix VMA_RING_LIMIT_PER_INTERFACE segmentation fault
+        - RM #1537051 Fix VMA_RING_LIMIT_PER_INTERFACE VMA ERROR
+        - RM #1583027 Fix crash while "vma_stats -S" is used
+        - RM #1580794 Fix EPOLL events for RST packets
+        - RM #1566648 Fix missing initialization of poll_sn variable
+
 Version 8.7.5-0:
 Date + Time 2018-11-15
 =============================================================
