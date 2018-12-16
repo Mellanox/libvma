@@ -1519,6 +1519,20 @@ bool net_device_val::verify_bond_ipoib_or_eth_qp_creation()
 		vlog_printf(VLOG_WARNING,"* Bond %s will not be offloaded due to problem with its slaves.\n", get_ifname());
 		vlog_printf(VLOG_WARNING,"* Check warning messages for more information.\n");
 		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
+	} else {
+		/*
+		 * Print warning message while bond device contains two slaves of the same HCA
+		 * while RoCE LAG is enabled for both slaves.
+		 */
+		sys_image_guid_map_t::iterator guid_iter;
+		for (guid_iter = m_sys_image_guid_map.begin(); guid_iter != m_sys_image_guid_map.end(); guid_iter++) {
+			char bond_roce_lag_path[256] = {0};
+			if (guid_iter->second.size() > 1 &&
+					check_bond_roce_lag_exist(bond_roce_lag_path, sizeof(bond_roce_lag_path), guid_iter->second.front().c_str()) &&
+					check_bond_roce_lag_exist(bond_roce_lag_path, sizeof(bond_roce_lag_path), guid_iter->second.back().c_str())) {
+				print_roce_lag_warnings(get_ifname_link(), bond_roce_lag_path, guid_iter->second.front().c_str(), guid_iter->second.back().c_str());
+			}
+		}
 	}
 	return bond_ok;
 }
@@ -1635,6 +1649,11 @@ bool net_device_val::verify_qp_creation(const char* ifname, enum ibv_qp_type qp_
 			print_roce_lag_warnings(get_ifname_link());
 		}
 		goto release_resources;
+	}
+
+	// Add to guid map in order to detect roce lag issue
+	if (qp_type == IBV_QPT_RAW_PACKET && m_bond != NO_BOND) {
+		m_sys_image_guid_map[p_ib_ctx->get_ibv_device_attr()->sys_image_guid].push_back(base_ifname);
 	}
 
 	//create qp resources
