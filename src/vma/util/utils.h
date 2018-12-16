@@ -299,7 +299,7 @@ size_t get_vlan_base_name_from_ifname(const char* ifname, char* base_ifname, siz
 size_t get_local_ll_addr(const char* ifname, unsigned char* addr, int addr_len,  bool is_broadcast);
 
 /* Print warning while RoCE Lag is enabled */
-void print_roce_lag_warnings(char* interface, char* disable_path = NULL);
+void print_roce_lag_warnings(char* interface, char* disable_path = NULL, const char* port1 = NULL, const char* port2 = NULL);
 
 bool get_bond_active_slave_name(IN const char* bond_name, OUT char* active_slave_name, IN int sz);
 bool get_bond_slave_state(IN const char* slave_name, OUT char* curr_state, IN int sz);
