@@ -34,12 +34,14 @@
 #include "time_converter.h"
 
 #include <stdlib.h>
-#include <vlogger/vlogger.h>
-#include "vma/event/event_handler_manager.h"
-#include <vma/util/sys_vars.h>
-#include "vma/ib/base/verbs_extra.h"
+#include "vlogger/vlogger.h"
 #include "utils/rdtsc.h"
+
+#include "vma/util/sys_vars.h"
 #include "vma/util/instrumentation.h"
+#include "vma/event/event_handler_manager.h"
+#include "vma/ib/base/verbs_extra.h"
+#include "vma/dev/net_device_table_mgr.h"
 
 #define MODULE_NAME             "time_converter"
 
@@ -84,61 +86,72 @@ uint32_t time_converter::get_single_converter_status(struct ibv_context* ctx) {
 #else
 	NOT_IN_USE(ctx);
 #endif
+
 	return dev_status;
 }
 
-ts_conversion_mode_t time_converter::get_devices_converter_status(struct ibv_device** ibv_dev_list, int num_devices) {
+ts_conversion_mode_t time_converter::get_devices_converter_status(net_device_map_t& net_devices)
+{
+	ibchtc_logdbg("Checking RX HW time stamp status for all devices [%d]", net_devices.size());
+	ts_conversion_mode_t ts_conversion_mode = TS_CONVERSION_MODE_DISABLE;
 
-	ts_conversion_mode_t ctx_time_conversion_mode;
+	if (net_devices.empty()) {
+		ibchtc_logdbg("No supported devices was found, return");
+		return ts_conversion_mode;
+	}
+
+
 #ifdef DEFINED_IBV_CQ_TIMESTAMP
-	uint32_t devs_status = 0;
 
-        ibchtc_logdbg("time_converter::get_devices_converter_status : Checking RX UDP HW time stamp "
-                        "status for all devices [%d], ibv_dev_list = %p\n", num_devices, ibv_dev_list);
+	if (safe_mce_sys().hw_ts_conversion_mode != TS_CONVERSION_MODE_DISABLE) {
+		uint32_t devs_status = VMA_QUERY_DEVICE_SUPPORTED | VMA_QUERY_VALUES_SUPPORTED;
 
-	if (safe_mce_sys().hw_ts_conversion_mode != TS_CONVERSION_MODE_DISABLE){
-		devs_status = VMA_QUERY_DEVICE_SUPPORTED | VMA_QUERY_VALUES_SUPPORTED;
-		for (int i = 0; i < num_devices; i++) {
-			struct ibv_context *ibv_ctx = ibv_open_device(ibv_dev_list[i]);
-			if (ibv_ctx == NULL) {
-				ibchtc_logdbg("ibv_ctx is invalid");
-				continue;
+		/* Get common time conversion mode for all devices */
+		for (net_device_map_index_t::iterator dev_iter = net_devices.begin(); dev_iter != net_devices.end(); dev_iter++) {
+			if (dev_iter->second->get_state() == net_device_val::RUNNING) {
+				slave_data_vector_t slaves = dev_iter->second->get_slave_array();
+				for (slave_data_vector_t::iterator slaves_iter = slaves.begin(); slaves_iter != slaves.end(); slaves_iter++) {
+					devs_status &= get_single_converter_status((*slaves_iter)->p_ib_ctx->get_ibv_context());
+				}
 			}
-			devs_status &= get_single_converter_status(ibv_ctx);
-			ibv_close_device(ibv_ctx);
+		}
+
+		switch (safe_mce_sys().hw_ts_conversion_mode) {
+		case TS_CONVERSION_MODE_RAW:
+			ts_conversion_mode = devs_status & VMA_QUERY_DEVICE_SUPPORTED ? TS_CONVERSION_MODE_RAW : TS_CONVERSION_MODE_DISABLE;
+			break;
+		case TS_CONVERSION_MODE_BEST_POSSIBLE:
+			if (devs_status == (VMA_QUERY_DEVICE_SUPPORTED | VMA_QUERY_VALUES_SUPPORTED)) {
+				ts_conversion_mode = TS_CONVERSION_MODE_SYNC;
+			} else {
+				ts_conversion_mode = devs_status & VMA_QUERY_DEVICE_SUPPORTED ? TS_CONVERSION_MODE_RAW : TS_CONVERSION_MODE_DISABLE;
+			}
+			break;
+		case TS_CONVERSION_MODE_SYNC:
+			ts_conversion_mode = devs_status == (VMA_QUERY_DEVICE_SUPPORTED | VMA_QUERY_VALUES_SUPPORTED) ? TS_CONVERSION_MODE_SYNC : TS_CONVERSION_MODE_DISABLE;
+			break;
+		case TS_CONVERSION_MODE_PTP:
+			ts_conversion_mode = devs_status == (VMA_QUERY_DEVICE_SUPPORTED | VMA_QUERY_VALUES_SUPPORTED) ? TS_CONVERSION_MODE_PTP : TS_CONVERSION_MODE_DISABLE;
+			break;
+		default:
+			ts_conversion_mode = TS_CONVERSION_MODE_DISABLE;
+			break;
 		}
 	}
 
-	switch (safe_mce_sys().hw_ts_conversion_mode) {
-	case TS_CONVERSION_MODE_RAW:
-		ctx_time_conversion_mode = devs_status & VMA_QUERY_DEVICE_SUPPORTED ? TS_CONVERSION_MODE_RAW : TS_CONVERSION_MODE_DISABLE;
-		break;
-	case TS_CONVERSION_MODE_BEST_POSSIBLE:
-		if (devs_status == (VMA_QUERY_DEVICE_SUPPORTED | VMA_QUERY_VALUES_SUPPORTED)) {
-			ctx_time_conversion_mode = TS_CONVERSION_MODE_SYNC;
-		} else {
-			ctx_time_conversion_mode = devs_status & VMA_QUERY_DEVICE_SUPPORTED ? TS_CONVERSION_MODE_RAW : TS_CONVERSION_MODE_DISABLE;
-		}
-		break;
-	case TS_CONVERSION_MODE_SYNC:
-		ctx_time_conversion_mode = devs_status == (VMA_QUERY_DEVICE_SUPPORTED | VMA_QUERY_VALUES_SUPPORTED) ? TS_CONVERSION_MODE_SYNC : TS_CONVERSION_MODE_DISABLE;
-		break;
-	case TS_CONVERSION_MODE_PTP:
-		ctx_time_conversion_mode = devs_status == (VMA_QUERY_DEVICE_SUPPORTED |
-				VMA_QUERY_VALUES_SUPPORTED) ?
-						TS_CONVERSION_MODE_PTP : TS_CONVERSION_MODE_DISABLE;
-		break;
-	default:
-		ctx_time_conversion_mode = TS_CONVERSION_MODE_DISABLE;
-		break;
-	}
-#else
-	NOT_IN_USE(ibv_dev_list);
-	NOT_IN_USE(num_devices);
-	ctx_time_conversion_mode = TS_CONVERSION_MODE_DISABLE;
 #endif
 
-	return ctx_time_conversion_mode;
+	ibchtc_logdbg("Conversion status was set to %d", ts_conversion_mode);
+
+	for (net_device_map_index_t::iterator dev_iter = net_devices.begin(); dev_iter != net_devices.end(); dev_iter++) {
+		slave_data_vector_t slaves = dev_iter->second->get_slave_array();
+		for (slave_data_vector_t::iterator slaves_iter = slaves.begin(); slaves_iter != slaves.end(); slaves_iter++) {
+			ts_conversion_mode_t dev_ts_conversion_mode = dev_iter->second->get_state() == net_device_val::RUNNING ? ts_conversion_mode : TS_CONVERSION_MODE_DISABLE;
+			(*slaves_iter)->p_ib_ctx->set_ctx_time_converter_status(dev_ts_conversion_mode);
+		}
+	}
+
+	return ts_conversion_mode;
 }
 
 void time_converter::clean_obj()

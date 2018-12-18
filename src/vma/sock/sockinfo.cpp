@@ -330,7 +330,7 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 				}
 
 				if (val & (SOF_TIMESTAMPING_RAW_HARDWARE | SOF_TIMESTAMPING_RX_HARDWARE)) {
-					if (g_p_ib_ctx_handler_collection->get_ctx_time_conversion_mode() == TS_CONVERSION_MODE_DISABLE){
+					if (g_p_net_device_table_mgr->get_ctx_time_conversion_mode() == TS_CONVERSION_MODE_DISABLE){
 						if (safe_mce_sys().hw_ts_conversion_mode ==  TS_CONVERSION_MODE_DISABLE) {
 							ret = SOCKOPT_NO_VMA_SUPPORT;
 							errno = EPERM;

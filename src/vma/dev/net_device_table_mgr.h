@@ -108,6 +108,10 @@ public:
 
 	uint32_t get_max_mtu();
 
+	inline ts_conversion_mode_t get_ctx_time_conversion_mode() {
+		return m_time_conversion_mode;
+	};
+
 private:
 	void del_link_event(const netlink_link_info* info);
 	void new_link_event(const netlink_link_info* info);
@@ -116,6 +120,7 @@ private:
 	void                            set_max_mtu(uint32_t);
 	
 	lock_mutex                      m_lock;
+	ts_conversion_mode_t            m_time_conversion_mode;
 	net_device_map_addr_t           m_net_device_map_addr;
 	net_device_map_index_t          m_net_device_map_index;
 	int                             m_num_devices;

@@ -54,6 +54,7 @@
 
 class L2_address;
 class ring;
+class ib_ctx_handler;
 class neigh_ib_broadcast;
 
 #define RING_ALLOC_STR_SIZE	256

@@ -59,14 +59,10 @@ public:
 	inline size_t get_num_devices() {
 		return m_ib_ctx_map.size();
 	};
-	inline ts_conversion_mode_t get_ctx_time_conversion_mode() {
-		return m_ctx_time_conversion_mode;
-	};
 
 private:
 
 	ib_context_map_t	m_ib_ctx_map;
-	ts_conversion_mode_t m_ctx_time_conversion_mode;
 };
 
 extern ib_ctx_handler_collection* g_p_ib_ctx_handler_collection;
