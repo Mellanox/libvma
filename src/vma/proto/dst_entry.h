@@ -86,7 +86,7 @@ public:
 		return m_pkt_src_ip;
 	}
 	int		modify_ratelimit(struct vma_rate_limit_t &rate_limit);
-	bool		update_ring_alloc_logic(int fd, lock_base& socket_lock, resource_allocation_key &ring_alloc_logic);
+	bool		update_ring_alloc_logic(int fd, lock_base & socket_lock, resource_allocation_key & ring_alloc_logic);
 
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off

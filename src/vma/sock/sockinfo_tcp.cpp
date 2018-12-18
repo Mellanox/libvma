@@ -3404,6 +3404,10 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 		m_socket_options_list.push_back(new socket_option_t(__level, __optname,__optval, __optlen));
 
 	if ((ret = sockinfo::setsockopt(__level, __optname, __optval, __optlen)) != SOCKOPT_PASS_TO_OS) {
+		if (ret == SOCKOPT_INTERNAL_VMA_SUPPORT &&
+		    m_sock_state <= TCP_SOCK_ACCEPT_READY && __optval != NULL &&
+		    is_inherited_option(__level, __optname))
+			m_socket_options_list.push_back(new socket_option_t(__level, __optname,__optval, __optlen));
 		return ret;
 	}
 

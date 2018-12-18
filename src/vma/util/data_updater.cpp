@@ -79,3 +79,22 @@ bool header_tos_updater::update_field(dst_entry &dst)
 	return true;
 }
 
+ring_alloc_logic_updater::ring_alloc_logic_updater(int fd, lock_base & socket_lock,
+						   resource_allocation_key & ring_alloc_logic,
+						   socket_stats_t* socket_stats)
+	: data_updater()
+	, m_fd(fd)
+	, m_socket_lock(socket_lock)
+	, m_key(ring_alloc_logic)
+	, m_sock_stats(socket_stats)
+{
+
+}
+
+bool ring_alloc_logic_updater::update_field(dst_entry &dst)
+{
+	if (dst.update_ring_alloc_logic(m_fd, m_socket_lock, m_key))
+		m_sock_stats->counters.n_tx_migrations++;
+
+	return true;
+}

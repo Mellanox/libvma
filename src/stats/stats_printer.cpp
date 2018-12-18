@@ -38,6 +38,7 @@
 #include "vma/util/vma_stats.h"
 #include "vma/lwip/tcp.h"
 #include "vma/vma_extra.h"
+#include "vma/util/sys_vars.h"
 
 typedef enum {
 	e_K = 1024,
@@ -124,9 +125,9 @@ void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, 
 	// Ring Allocation Logic information
 	//
 	fprintf(filename, "- RX: ring alloc logic = %s, ring user ID = %lu\n",
-			to_str_ring_alloc_logic(p_si_stats->ring_alloc_logic_rx), p_si_stats->ring_user_id_rx);
+			ring_logic_str(p_si_stats->ring_alloc_logic_rx), p_si_stats->ring_user_id_rx);
 	fprintf(filename, "- TX: ring alloc logic = %s, ring user ID = %lu\n",
-			to_str_ring_alloc_logic(p_si_stats->ring_alloc_logic_tx), p_si_stats->ring_user_id_tx);
+			ring_logic_str(p_si_stats->ring_alloc_logic_tx), p_si_stats->ring_user_id_tx);
 
 	//
 	// Bounded + Connected information

@@ -197,9 +197,10 @@ int sockinfo::set_ring_attr(vma_ring_alloc_logic_attr *attr)
 {
 	if ((attr->comp_mask & VMA_RING_ALLOC_MASK_RING_ENGRESS) && attr->engress) {
 		if (set_ring_attr_helper(&m_ring_alloc_log_tx, attr)) {
-			return -1;
+			return SOCKOPT_NO_VMA_SUPPORT;
 		}
-		update_dst_entries_ring_logic();
+		ring_alloc_logic_updater du(get_fd(), m_lock_snd, m_ring_alloc_log_tx, m_p_socket_stats);
+		update_header_field(&du);
 		m_p_socket_stats->ring_alloc_logic_tx = m_ring_alloc_log_tx.get_ring_alloc_logic();
 		m_p_socket_stats->ring_user_id_tx =
 			ring_allocation_logic_tx(get_fd(), m_ring_alloc_log_tx, this).calc_res_key_by_logic();
@@ -208,7 +209,7 @@ int sockinfo::set_ring_attr(vma_ring_alloc_logic_attr *attr)
 		ring_alloc_logic_attr old_key(*m_ring_alloc_logic.get_key());
 
 		if (set_ring_attr_helper(&m_ring_alloc_log_rx, attr)) {
-			return -1;
+			return SOCKOPT_NO_VMA_SUPPORT;
 		}
 		m_ring_alloc_logic = ring_allocation_logic_rx(get_fd(), m_ring_alloc_log_rx, this);
 		
@@ -219,7 +220,7 @@ int sockinfo::set_ring_attr(vma_ring_alloc_logic_attr *attr)
 		m_p_socket_stats->ring_user_id_rx =  m_ring_alloc_logic.calc_res_key_by_logic();
 	}
 
-	return 0;
+	return SOCKOPT_INTERNAL_VMA_SUPPORT;
 }
 
 int sockinfo::set_ring_attr_helper(ring_alloc_logic_attr *sock_attr,
@@ -411,6 +412,7 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 					return set_ring_attr(attr);
 				}
 				else {
+					ret = SOCKOPT_NO_VMA_SUPPORT;
 					si_logdbg("SOL_SOCKET, %s=\"???\" - bad length expected %d got %d",
 						  setsockopt_so_opt_to_str(__optname),
 						  sizeof(vma_ring_alloc_logic_attr), __optlen);
@@ -418,6 +420,7 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 				}
 			}
 			else {
+				ret = SOCKOPT_NO_VMA_SUPPORT;
 				si_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
 			}
 			break;
