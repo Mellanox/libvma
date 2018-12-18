@@ -175,6 +175,7 @@ public:
 	static uint16_t get_route_mtu(struct tcp_pcb *pcb);
 
 	virtual void update_header_field(data_updater *updater);
+	virtual void update_dst_entries_ring_logic();
 	virtual bool rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void* pv_fd_ready_array);
 	virtual void set_rx_packet_processor(void) { }
 

@@ -597,7 +597,8 @@ bool dst_entry::prepare_to_send(struct vma_rate_limit_t &rate_limit, bool skip_r
 bool dst_entry::try_migrate_ring(lock_base& socket_lock)
 {
 	if (m_ring_alloc_logic.should_migrate_ring()) {
-		do_ring_migration(socket_lock);
+		resource_allocation_key old_key(*m_ring_alloc_logic.get_key());
+		do_ring_migration(socket_lock, old_key);
 		return true;
 	}
 	return false;
@@ -611,7 +612,7 @@ int dst_entry::get_route_mtu()
 	return m_p_net_dev_val->get_mtu();
 }
 
-void dst_entry::do_ring_migration(lock_base& socket_lock)
+void dst_entry::do_ring_migration(lock_base& socket_lock, resource_allocation_key &old_key)
 {
 	m_slow_path_lock.lock();
 
@@ -623,12 +624,11 @@ void dst_entry::do_ring_migration(lock_base& socket_lock)
 	resource_allocation_key *new_key = m_ring_alloc_logic.get_key();
 	uint64_t new_calc_id = m_ring_alloc_logic.calc_res_key_by_logic();
 	// Check again if migration is needed before migration
-	if (new_key->get_user_id_key() == new_calc_id) {
+	if (old_key.get_user_id_key() == new_calc_id &&
+	    old_key.get_ring_alloc_logic() == new_key->get_ring_alloc_logic()) {
 		m_slow_path_lock.unlock();
 		return;
 	}
-	// Save old key for release
-	resource_allocation_key old_key(*m_ring_alloc_logic.get_key());
 	// Update key to new ID
 	new_key->set_user_id_key(new_calc_id);
 	m_slow_path_lock.unlock();
@@ -779,4 +779,18 @@ int dst_entry::get_priority_by_tc_class(uint32_t pcp)
 		return m_p_net_dev_val->get_priority_by_tc_class(pcp);
 	}
 	return VMA_DEFAULT_ENGRESS_MAP_PRIO;
+}
+
+bool dst_entry::update_ring_alloc_logic(int fd, lock_base& socket_lock, resource_allocation_key &ring_alloc_logic)
+{
+	resource_allocation_key old_key(*m_ring_alloc_logic.get_key());
+
+	m_ring_alloc_logic = ring_allocation_logic_tx(fd, ring_alloc_logic, this);
+
+	if (*m_ring_alloc_logic.get_key() != old_key) {
+		do_ring_migration(socket_lock, old_key);
+		return true;
+	}
+
+	return false;
 }

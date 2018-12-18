@@ -107,6 +107,11 @@ sockinfo::sockinfo(int fd):
 	m_p_socket_stats->fd = m_fd;
 	m_p_socket_stats->inode = fd2inode(m_fd);
 	m_p_socket_stats->b_blocking = m_b_blocking;
+	m_p_socket_stats->ring_alloc_logic_rx = m_ring_alloc_log_rx.get_ring_alloc_logic();
+	m_p_socket_stats->ring_alloc_logic_tx = m_ring_alloc_log_tx.get_ring_alloc_logic();
+	m_p_socket_stats->ring_user_id_rx = m_ring_alloc_logic.calc_res_key_by_logic();
+	m_p_socket_stats->ring_user_id_tx =
+			ring_allocation_logic_tx(get_fd(), m_ring_alloc_log_tx, this).calc_res_key_by_logic();
 	m_rx_reuse_buff.n_buff_num = 0;
 	memset(&m_so_ratelimit, 0, sizeof(vma_rate_limit_t));
 	set_flow_tag(m_fd + 1);
@@ -187,6 +192,55 @@ int sockinfo::fcntl(int __cmd, unsigned long int __arg)
 	}
 	si_logdbg("going to OS for fcntl cmd=%d, arg=%#x", __cmd, __arg);
 	return orig_os_api.fcntl(m_fd, __cmd, __arg);
+}
+
+int sockinfo::set_ring_attr(vma_ring_alloc_logic_attr *attr)
+{
+	if ((attr->comp_mask & VMA_RING_ALLOC_MASK_RING_ENGRESS) && attr->engress) {
+		if (set_ring_attr_helper(&m_ring_alloc_log_tx, attr)) {
+			return -1;
+		}
+		update_dst_entries_ring_logic();
+		m_p_socket_stats->ring_alloc_logic_tx = m_ring_alloc_log_tx.get_ring_alloc_logic();
+		m_p_socket_stats->ring_user_id_tx =
+			ring_allocation_logic_tx(get_fd(), m_ring_alloc_log_tx, this).calc_res_key_by_logic();
+	}
+	if ((attr->comp_mask & VMA_RING_ALLOC_MASK_RING_INGRESS) && attr->ingress) {
+		ring_alloc_logic_attr old_key(*m_ring_alloc_logic.get_key());
+
+		if (set_ring_attr_helper(&m_ring_alloc_log_rx, attr)) {
+			return -1;
+		}
+		m_ring_alloc_logic = ring_allocation_logic_rx(get_fd(), m_ring_alloc_log_rx, this);
+		
+		if (m_rx_nd_map.size())
+			do_rings_migration(old_key);
+
+		m_p_socket_stats->ring_alloc_logic_rx = m_ring_alloc_log_rx.get_ring_alloc_logic();
+		m_p_socket_stats->ring_user_id_rx =  m_ring_alloc_logic.calc_res_key_by_logic();
+	}
+
+	return 0;
+}
+
+int sockinfo::set_ring_attr_helper(ring_alloc_logic_attr *sock_attr,
+				   vma_ring_alloc_logic_attr *user_attr)
+{
+	if (user_attr->comp_mask & VMA_RING_ALLOC_MASK_RING_PROFILE_KEY) {
+		if (sock_attr->get_ring_profile_key()) {
+			si_logdbg("ring_profile_key is already set and "
+				  "cannot be changed");
+			return -1;
+		}
+		sock_attr->set_ring_profile_key(user_attr->ring_profile_key);
+	}
+
+	sock_attr->set_ring_alloc_logic(user_attr->ring_alloc_logic);
+
+	if (user_attr->comp_mask & VMA_RING_ALLOC_MASK_RING_USER_ID)
+		sock_attr->set_user_id_key(user_attr->user_id);
+
+	return 0;
 }
 
 int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg)
@@ -346,6 +400,23 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 
 				m_n_tsing_flags  = val;
 				si_logdbg("SOL_SOCKET, SO_TIMESTAMPING=%u", m_n_tsing_flags);
+			}
+			else {
+				si_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
+			}
+			break;
+		case SO_VMA_RING_ALLOC_LOGIC:
+			if (__optval) {
+				if (__optlen == sizeof(vma_ring_alloc_logic_attr)) {
+					vma_ring_alloc_logic_attr *attr = (vma_ring_alloc_logic_attr *)__optval;
+					return set_ring_attr(attr);
+				}
+				else {
+					si_logdbg("SOL_SOCKET, %s=\"???\" - bad length expected %d got %d",
+						  setsockopt_so_opt_to_str(__optname),
+						  sizeof(vma_ring_alloc_logic_attr), __optlen);
+					break;
+				}
 			}
 			else {
 				si_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
@@ -814,20 +885,19 @@ bool sockinfo::destroy_nd_resources(const ip_address ip_local)
 	return true;
 }
 
-void sockinfo::do_rings_migration()
+void sockinfo::do_rings_migration(resource_allocation_key &old_key)
 {
 	lock_rx_q();
 
 	resource_allocation_key *new_key = m_ring_alloc_logic.get_key();
 	uint64_t new_calc_id = m_ring_alloc_logic.calc_res_key_by_logic();
 	// Check again if migration is needed before migration
-	if (new_key->get_user_id_key() == new_calc_id) {
+	if (old_key.get_user_id_key() == new_calc_id &&
+	    old_key.get_ring_alloc_logic() == new_key->get_ring_alloc_logic()) {
 		unlock_rx_q();
 		return;
 	}
 
-	// Save old key for release
-	resource_allocation_key old_key(*m_ring_alloc_logic.get_key());
 	// Update key to new ID
 	new_key->set_user_id_key(new_calc_id);
 	rx_net_device_map_t::iterator rx_nd_iter = m_rx_nd_map.begin();
@@ -919,13 +989,14 @@ void sockinfo::do_rings_migration()
 	}
 
 	unlock_rx_q();
+	m_p_socket_stats->counters.n_rx_migrations++;
 }
 
 void sockinfo::consider_rings_migration()
 {
 	if (m_ring_alloc_logic.should_migrate_ring()) {
-		do_rings_migration();
-		m_p_socket_stats->counters.n_rx_migrations++;
+		ring_alloc_logic_attr old_key(*m_ring_alloc_logic.get_key());
+		do_rings_migration(old_key);
 	}
 }
 

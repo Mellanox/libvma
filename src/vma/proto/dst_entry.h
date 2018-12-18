@@ -86,6 +86,7 @@ public:
 		return m_pkt_src_ip;
 	}
 	int		modify_ratelimit(struct vma_rate_limit_t &rate_limit);
+	bool		update_ring_alloc_logic(int fd, lock_base& socket_lock, resource_allocation_key &ring_alloc_logic);
 
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
@@ -109,6 +110,7 @@ public:
 		return m_header.set_vlan_pcp(get_priority_by_tc_class(pcp)); }
 	inline header*	get_network_header() { return &m_header;}
 	inline ring*	get_ring() { return m_p_ring;}
+	inline ring_allocation_logic_tx* get_ring_alloc_logic() { return &m_ring_alloc_logic;}
 protected:
 	ip_address 		m_dst_ip;
 	uint16_t 		m_dst_port;
@@ -176,7 +178,7 @@ protected:
 	bool 			alloc_transport_dep_res();
 	bool 			alloc_neigh_val(transport_type_t tranport);
 
-	void			do_ring_migration(lock_base& socket_lock);
+	void			do_ring_migration(lock_base& socket_lock, resource_allocation_key &old_key);
 	inline void		set_tx_buff_list_pending(bool is_pending = true) {m_b_tx_mem_buf_desc_list_pending = is_pending;}
 	int			get_priority_by_tc_class(uint32_t tc_clas);
 	inline void		send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)

@@ -37,6 +37,7 @@
 #include "vma/util/utils.h"
 #include "vma/util/vma_stats.h"
 #include "vma/lwip/tcp.h"
+#include "vma/vma_extra.h"
 
 typedef enum {
 	e_K = 1024,
@@ -65,6 +66,22 @@ const char* to_str_socket_type_netstat_like(int type)
 	case SOCK_STREAM:	return "tcp";
 	case SOCK_DGRAM:	return "udp";
 	case SOCK_RAW:		return "raw";
+	default:
+		break;
+	}
+	return "???";
+}
+
+const char* to_str_ring_alloc_logic(ring_logic_t logic)
+{
+	switch (logic) {
+	case RING_LOGIC_PER_INTERFACE: return "RING_PER_IF";
+	case RING_LOGIC_PER_IP: return "RING_PER_IP";
+	case RING_LOGIC_PER_SOCKET: return "RING_PER_SOCKET";
+	case RING_LOGIC_PER_USER_ID: return "RING_PER_USER_ID";
+	case RING_LOGIC_PER_THREAD: return "RING_PER_THREAD";
+	case RING_LOGIC_PER_CORE: return "RING_PER_CORE";
+	case RING_LOGIC_PER_CORE_ATTACH_THREADS: return "RING_PER_CORE_ATTACH_THREADS";
 	default:
 		break;
 	}
@@ -102,6 +119,14 @@ void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, 
 		}
 	}
 	fprintf(filename, "\n");
+
+	//
+	// Ring Allocation Logic information
+	//
+	fprintf(filename, "- RX: ring alloc logic = %s, ring user ID = %lu\n",
+			to_str_ring_alloc_logic(p_si_stats->ring_alloc_logic_rx), p_si_stats->ring_user_id_rx);
+	fprintf(filename, "- TX: ring alloc logic = %s, ring user ID = %lu\n",
+			to_str_ring_alloc_logic(p_si_stats->ring_alloc_logic_tx), p_si_stats->ring_user_id_tx);
 
 	//
 	// Bounded + Connected information
