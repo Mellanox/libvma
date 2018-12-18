@@ -178,6 +178,7 @@ public:
 	virtual bool prepare_to_close(bool process_shutdown = false);
 	virtual int get_socket_tx_ring_fd(struct sockaddr *to, socklen_t tolen);
 	virtual void update_header_field(data_updater *updater);
+	virtual void update_dst_entries_ring_logic();
 
 private:
 
@@ -245,9 +246,6 @@ private:
 	int on_sockname_change(struct sockaddr *__name, socklen_t __namelen);
 	void handle_pending_mreq();
 	void original_os_setsockopt_helper( void* pram, int pram_size, int optname);
-	int set_ring_attr(vma_ring_alloc_logic_attr *attr);
-	int set_ring_attr_helper(ring_alloc_logic_attr *sock_attr,
-				  vma_ring_alloc_logic_attr *attr);
 	/* helper functions */
 	void 		set_blocking(bool is_blocked);
 

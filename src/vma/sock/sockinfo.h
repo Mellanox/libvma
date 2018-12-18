@@ -288,6 +288,7 @@ protected:
 
 	virtual int             rx_verify_available_data() = 0;
 	virtual void            update_header_field(data_updater *updater) = 0;
+	virtual void            update_dst_entries_ring_logic() = 0;
 	virtual mem_buf_desc_t *get_next_desc (mem_buf_desc_t *p_desc) = 0;
 	virtual	mem_buf_desc_t* get_next_desc_peek(mem_buf_desc_t *p_desc, int& rx_pkt_ready_list_idx) = 0;
 	virtual timestamps_t* get_socket_timestamps() = 0;
@@ -303,7 +304,10 @@ protected:
 	bool 			detach_receiver(flow_tuple_with_local_if &flow_key);
 	net_device_resources_t* create_nd_resources(const ip_address ip_local);
 	bool                    destroy_nd_resources(const ip_address ip_local);
-	void			do_rings_migration();
+	void			do_rings_migration(resource_allocation_key &old_key);
+	int			set_ring_attr(vma_ring_alloc_logic_attr *attr);
+	int			set_ring_attr_helper(ring_alloc_logic_attr *sock_attr,
+				  		     vma_ring_alloc_logic_attr *attr);
 
 	// Attach to all relevant rings for offloading receive flows - always used from slow path
 	// According to bounded information we need to attach to all UC relevant flows
