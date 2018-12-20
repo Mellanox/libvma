@@ -177,6 +177,7 @@ public:
 	virtual int         reclaim_recv_single_buffer(mem_buf_desc_t* rx_reuse) = 0;
 
 	inline bool         is_simple() const { return m_type != RING_TAP; }
+	inline bool         is_mp_ring() const  { return m_type == RING_ETH_CB; }
 	transport_type_t    get_transport_type() const { return m_transport_type; }
 
 

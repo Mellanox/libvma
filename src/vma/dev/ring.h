@@ -115,7 +115,6 @@ public:
 	ring*			get_parent() { return m_parent; };
 	ring_user_id_t		generate_id() { return 0; };
 	virtual ring_user_id_t	generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port) = 0;
-	bool			is_mp_ring() {return m_is_mp_ring;};
 	virtual int		modify_ratelimit(struct vma_rate_limit_t &rate_limit) = 0;
 	virtual bool		is_ratelimit_supported(struct vma_rate_limit_t &rate_limit) = 0;
 	virtual int		reg_mr(void *addr, size_t length, uint32_t &lkey) { NOT_IN_USE(addr); NOT_IN_USE(length); NOT_IN_USE(lkey); return -1;};
@@ -136,7 +135,6 @@ protected:
 
 	int*			m_p_n_rx_channel_fds;
 	ring*			m_parent;
-	bool			m_is_mp_ring;
 
 	int                 m_if_index;     /* Interface index */
 };
