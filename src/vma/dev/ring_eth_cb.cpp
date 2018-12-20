@@ -160,8 +160,6 @@ ring_eth_cb::ring_eth_cb(int if_index, vma_cyclic_buffer_ring_attr *cb_ring,
 
 	/* Complete resources initialization */
 	ring_simple::create_resources();
-
-	m_is_mp_ring = true;
 }
 
 void* ring_eth_cb::allocate_memory(iovec *mem_desc, size_t buffer_size)
