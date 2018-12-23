@@ -74,8 +74,6 @@ operator==(ibv_gid const& key1, ibv_gid const& key2) {
     #pragma BullseyeCoverage on
 #endif
 
-typedef hash_map<ibv_gid, uint32_t> mgid_ref_count_map_t;
-
 /**
  * @class qp_mgr
  *
@@ -183,8 +181,6 @@ protected:
 	uint16_t            m_n_ip_id_base;
 	uint16_t            m_n_ip_id_offset;
 	struct vma_rate_limit_t m_rate_limit;
-
-	mgid_ref_count_map_t  m_attach_mc_grp_ref_cnt;
 
 	int             configure(struct ibv_comp_channel* p_rx_comp_event_channel);
 	virtual int     prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr) = 0;

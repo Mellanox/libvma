@@ -30,28 +30,14 @@
  * SOFTWARE.
  */
 
-
-#include <errno.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-
-#include "utils/bullseye.h"
 #include "utils/rdtsc.h"
 #include "vlogger/vlogger.h"
-#include "vma/util/vtypes.h"
-#include "vma/util/utils.h"
-#include "vma/proto/route_table_mgr.h"
-#include "vma/proto/rule_table_mgr.h"
-#include "vma/event/event_handler_manager.h"
-#include "vma/dev/ib_ctx_handler_collection.h"
-#include "vma/sock/sock-redirect.h"
-#include "vma/iomux/io_mux_call.h"
-#include "vma_lwip.h"
 
+#include "vma/event/event_handler_manager.h"
 #include "vma/sock/sockinfo_tcp.h"
 #include "vma/lwip/init.h"
 #include "vma/lwip/tcp_impl.h"
+#include "vma_lwip.h"
 
 // debugging macros
 #define MODULE_NAME 		"lwip"
@@ -69,24 +55,8 @@
 #define lwip_logfunc              __log_info_func
 #define lwip_logfuncall           __log_info_funcall
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
 int32_t enable_wnd_scale = 0;
 u32_t rcv_wnd_scale = 0;
-
-/* required system support functions for LWIP */
-u32_t sys_jiffies(void)
-{
-	tscval_t now;
-
-	gettimeoftsc(&now);
-	return (u32_t)now;
-}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 u32_t vma_lwip::sys_now(void)
 {
@@ -173,26 +143,6 @@ void vma_lwip::free_lwip_resources(void)
 {
 	/* TODO - revert the constructor */
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
-int vma_lwip::sockaddr2ipaddr(const sockaddr *__to, socklen_t __tolen, ip_addr_t &ip, uint16_t &port)
-{
-	NOT_IN_USE(__tolen);
-	if (get_sa_family(__to)	 != AF_INET)
-		return -1;
-
-	ip.addr = get_sa_ipv4_addr(__to);
-	port = htons(get_sa_port(__to));
-	return 0;
-}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 
 void vma_lwip::handle_timer_expired(void* user_data) {
 	NOT_IN_USE(user_data);
