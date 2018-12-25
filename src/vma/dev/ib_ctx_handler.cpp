@@ -96,51 +96,50 @@ ib_ctx_handler::ib_ctx_handler(struct ib_ctx_handler_desc *desc) :
 			  m_p_ibv_device, m_p_ibv_context, errno);
 		goto err;
 	} ENDIF_VERBS_FAILURE;
-
-#ifdef DEFINED_IBV_CQ_TIMESTAMP
-	switch (desc->ctx_time_converter_mode) {
-	case TS_CONVERSION_MODE_DISABLE:
-		m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context, TS_CONVERSION_MODE_DISABLE, 0);
-	break;
-	case TS_CONVERSION_MODE_PTP: {
-#ifdef DEFINED_IBV_CLOCK_INFO
-		if (!strncmp(get_ibname(), "mlx4", 4)) {
-			m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context, TS_CONVERSION_MODE_SYNC, m_p_ibv_device_attr->hca_core_clock);
-			ibch_logwarn("ptp is not supported for mlx4 devices, reverting to mode TS_CONVERSION_MODE_SYNC (ibv context %p)",
-					m_p_ibv_context);
-		} else {
-			vma_ibv_clock_info clock_info;
-			memset(&clock_info, 0, sizeof(clock_info));
-			int ret = vma_ibv_query_clock_info(m_p_ibv_context, &clock_info);
-			if (!ret) {
-				m_p_ctx_time_converter = new time_converter_ptp(m_p_ibv_context);
-			} else {
-				m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context, TS_CONVERSION_MODE_SYNC, m_p_ibv_device_attr->hca_core_clock);
-				ibch_logwarn("vma_ibv_query_clock_info failure for clock_info, reverting to mode TS_CONVERSION_MODE_SYNC (ibv context %p) (ret %d)",
-						m_p_ibv_context, ret);
-			}
-		}
-# else
-		m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context, TS_CONVERSION_MODE_SYNC, m_p_ibv_device_attr->hca_core_clock);
-		ibch_logwarn("PTP is not supported by the underlying Infiniband verbs. DEFINED_IBV_CLOCK_INFO not defined. "
-				"reverting to mode TS_CONVERSION_MODE_SYNC");
-# endif // DEFINED_IBV_CLOCK_INFO
-	}
-	break;
-	default:
-		m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context,
-				desc->ctx_time_converter_mode,
-				m_p_ibv_device_attr->hca_core_clock);
-		break;
-	}
-#else
-	m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context, TS_CONVERSION_MODE_DISABLE, 0);
+#ifndef DEFINED_IBV_CLOCK_INFO
+	desc->ctx_time_converter_mode = TS_CONVERSION_MODE_SYNC;
+#endif
+#ifndef DEFINED_IBV_CQ_TIMESTAMP
 	if (desc->ctx_time_converter_mode != TS_CONVERSION_MODE_DISABLE) {
 		ibch_logwarn("time converter mode not applicable (configuration "
 				"value=%d). set to TS_CONVERSION_MODE_DISABLE.",
 				desc->ctx_time_converter_mode);
 	}
-#endif // DEFINED_IBV_CQ_TIMESTAMP
+	desc->ctx_time_converter_mode = TS_CONVERSION_MODE_DISABLE;
+#endif
+
+	switch (desc->ctx_time_converter_mode) {
+	case TS_CONVERSION_MODE_PTP: {
+		if (strncmp(get_ibname(), "mlx4", 4)) {
+			vma_ibv_clock_info clock_info;
+			memset(&clock_info, 0, sizeof(clock_info));
+			int ret = vma_ibv_query_clock_info(m_p_ibv_context, &clock_info);
+			if (ret) {
+				ibch_logwarn("vma_ibv_query_clock_info failure for clock_info, "
+					     "reverting to mode TS_CONVERSION_MODE_SYNC (ibv context %p) (ret %d)",
+					     m_p_ibv_context, ret);
+				desc->ctx_time_converter_mode = TS_CONVERSION_MODE_SYNC;
+			} else {
+				m_p_ctx_time_converter = new time_converter_ptp(m_p_ibv_context);
+				break;
+
+			}
+		} else {
+			ibch_logwarn("ptp is not supported for mlx4 devices, reverting to mode TS_CONVERSION_MODE_SYNC (ibv context %p)",
+					m_p_ibv_context);
+			desc->ctx_time_converter_mode = TS_CONVERSION_MODE_SYNC;
+		}
+	}
+	// fallthrough
+	default:
+		m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context, desc->ctx_time_converter_mode, vma_core_clock(m_p_ibv_device_attr));
+		break;
+	}
+	if (desc->ctx_time_converter_mode != TS_CONVERSION_MODE_DISABLE) {
+		ibch_logwarn("time converter mode not applicable (configuration "
+				"value=%d). set to TS_CONVERSION_MODE_DISABLE.",
+				desc->ctx_time_converter_mode);
+	}
 	// update device memory capabilities
 	m_on_device_memory = vma_ibv_dm_size(m_p_ibv_device_attr);
 

@@ -42,8 +42,6 @@
 #include "vma/ib/base/verbs_extra.h"
 
 
-#ifdef DEFINED_IBV_CLOCK_INFO
-
 #define MODULE_NAME             "tc_ptp"
 
 #define ibchtc_logerr __log_err
@@ -69,7 +67,8 @@ time_converter_ptp::time_converter_ptp(struct ibv_context* ctx) :
 	m_converter_status = TS_CONVERSION_MODE_PTP;
 }
 
-void time_converter_ptp::handle_timer_expired(void* user_data) {
+void time_converter_ptp::handle_timer_expired(void* user_data)
+{
 
 	NOT_IN_USE(user_data);
 
@@ -85,12 +84,14 @@ void time_converter_ptp::handle_timer_expired(void* user_data) {
 	m_clock_values_id = 1 - m_clock_values_id;
 }
 
-void time_converter_ptp::convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) {
+void time_converter_ptp::convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime)
+{
 	uint64_t sync_hw_clock = vma_ibv_convert_ts_to_ns(&m_clock_values[m_clock_values_id], hwtime);
 	systime->tv_sec = sync_hw_clock / NSEC_PER_SEC;
 	systime->tv_nsec = sync_hw_clock % NSEC_PER_SEC;
 
 	ibchtc_logfunc("hwtime: 	%09ld", hwtime);
 	ibchtc_logfunc("systime:	%lld.%.9ld", systime->tv_sec, systime->tv_nsec);
+	NOT_IN_USE(hwtime);
+	NOT_IN_USE(systime);
 }
-#endif //DEFINED_IBV_CLOCK_INFO

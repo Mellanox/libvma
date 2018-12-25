@@ -39,8 +39,6 @@
 #include <vma/util/sys_vars.h>
 #include "time_converter.h"
 
-#ifdef DEFINED_IBV_CLOCK_INFO
-
 class time_converter_ptp : public time_converter
 {
 public:
@@ -57,5 +55,4 @@ private:
 	int                       m_clock_values_id;
 };
 
-#endif // DEFINED_IBV_CLOCK_INFO
 #endif // TIME_CONVERTER_PTP_H

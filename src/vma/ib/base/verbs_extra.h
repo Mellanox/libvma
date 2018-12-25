@@ -254,9 +254,22 @@ typedef struct ibv_modify_cq_attr               vma_ibv_cq_attr;
 typedef struct mlx5dv_clock_info                    vma_ibv_clock_info;
 #define vma_ibv_query_clock_info(ctx, clock_info)   mlx5dv_get_clock_info(ctx, clock_info)
 #define vma_ibv_convert_ts_to_ns(clock_info, hw_ts) mlx5dv_ts_to_ns(clock_info, hw_ts)
+#define vma_core_clock(x)                           (x)->hca_core_clock
+#else
+typedef int                     vma_ibv_clock_info;
+#define vma_ibv_query_clock_info(ctx, clock_info)   false
+#define vma_ibv_convert_ts_to_ns(clock_info, hw_ts) false
+#define vma_core_clock(x)                           0
 #endif //DEFINED_IBV_CLOCK_INFO
 
 #else /* DEFINED_VERBS_VERSION */
+
+#ifndef DEFINED_IBV_CLOCK_INFO
+typedef int                     vma_ibv_clock_info;
+#define vma_ibv_query_clock_info(ctx, clock_info) false
+#define vma_ibv_convert_ts_to_ns(clock_info, hw_ts) false
+#define vma_core_clock(x)	(x)->hca_core_clock
+#endif //DEFINED_IBV_CLOCK_INFO
 
 //ibv_create_qp
 #define vma_ibv_create_qp(pd, attr)             ibv_exp_create_qp((pd)->context, attr)
@@ -414,6 +427,12 @@ typedef struct ibv_exp_flow_spec_action_tag_dummy {}    vma_ibv_flow_spec_action
 typedef struct ibv_exp_values                       vma_ibv_clock_info;
 #define vma_ibv_convert_ts_to_ns(info, hw_ts)       ibv_exp_cqe_ts_to_ns(&((info)->clock_info), hw_ts)
 #define vma_ibv_query_clock_info(ctx, clock_info)   ibv_exp_query_values(ctx, IBV_EXP_VALUES_CLOCK_INFO, clock_info)
+#define vma_core_clock(x)                           (x)->hca_core_clock
+#else
+typedef int                                         vma_ibv_clock_info;
+#define vma_ibv_query_clock_info(ctx, clock_info)   false
+#define vma_ibv_convert_ts_to_ns(clock_info, hw_ts) false
+#define vma_core_clock(x)                           0
 #endif //DEFINED_IBV_CLOCK_INFO
 
 #endif /* DEFINED_VERBS_VERSION */
