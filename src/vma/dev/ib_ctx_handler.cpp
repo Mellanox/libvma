@@ -104,7 +104,7 @@ ib_ctx_handler::ib_ctx_handler(struct ib_ctx_handler_desc *desc) :
 	break;
 	case TS_CONVERSION_MODE_PTP: {
 #ifdef DEFINED_IBV_CLOCK_INFO
-		if (!strncmp(get_ibname(), "mlx4", 4)) {
+		if (strncmp(get_ibname(), "mlx4", 4) == 0) {
 			m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context, TS_CONVERSION_MODE_SYNC, m_p_ibv_device_attr->hca_core_clock);
 			ibch_logwarn("ptp is not supported for mlx4 devices, reverting to mode TS_CONVERSION_MODE_SYNC (ibv context %p)",
 					m_p_ibv_context);
@@ -112,7 +112,7 @@ ib_ctx_handler::ib_ctx_handler(struct ib_ctx_handler_desc *desc) :
 			vma_ibv_clock_info clock_info;
 			memset(&clock_info, 0, sizeof(clock_info));
 			int ret = vma_ibv_query_clock_info(m_p_ibv_context, &clock_info);
-			if (!ret) {
+			if (ret == 0) {
 				m_p_ctx_time_converter = new time_converter_ptp(m_p_ibv_context);
 			} else {
 				m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context, TS_CONVERSION_MODE_SYNC, m_p_ibv_device_attr->hca_core_clock);
