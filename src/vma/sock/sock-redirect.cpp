@@ -80,7 +80,6 @@ using namespace std;
 #define srdr_logfunc_exit	__log_exit_func
 
 #define EP_MAX_EVENTS (int)((INT_MAX / sizeof(struct epoll_event)))
-#define SENDFILE_BUFFER_SIZE 1460
 
 struct os_api orig_os_api;
 struct sigaction g_act_prev;
@@ -1779,8 +1778,8 @@ inline ssize_t sendfile_helper(socket_fd_api* p_socket_object, int in_fd, __off6
 {
 	__off64_t orig = 0;
 	iovec piov[1];
-	char buf[SENDFILE_BUFFER_SIZE];
-	ssize_t toRead, numRead, numSent, totSent = 0;
+	char buf[count];
+	ssize_t numRead, numSent;
 
 	if (offset != NULL) {
 		/* Save current file offset and set offset to value in '*offset' */
@@ -1791,28 +1790,19 @@ inline ssize_t sendfile_helper(socket_fd_api* p_socket_object, int in_fd, __off6
 			return -1;
 	}
 
+	// Read from the file
+	numRead = orig_os_api.read(in_fd, buf, count);
+	if (numRead == -1)
+		return -1;
+
+	// Update iovec
 	piov[0].iov_base = (void*) buf;
+	piov[0].iov_len = numRead;
 
-	while (count > 0) {
-		toRead = min(sizeof(buf), count);
-		numRead = orig_os_api.read(in_fd, buf, toRead);
-		if (numRead == -1)
-			return -1;
-		if (numRead == 0)
-			break;                      /* EOF */
-
-		// Update iovec size before send
-		piov[0].iov_len = numRead;
-
-		numSent = p_socket_object->tx(TX_WRITE, piov, 1);
-		if (numSent == -1)
-			return -1;
-		if (numSent == 0)               /* Should never happen */
-			srdr_logdbg("sendfile: write() transferred 0 bytes");
-
-		count -= numSent;
-		totSent += numSent;
-	}
+	// Send to the socket
+	numSent = p_socket_object->tx(TX_WRITE, piov, 1);
+	if (numSent == -1)
+		return -1;
 
 	if (offset != NULL) {
 		/* Return updated file offset in '*offset', and reset the file offset
@@ -1824,7 +1814,7 @@ inline ssize_t sendfile_helper(socket_fd_api* p_socket_object, int in_fd, __off6
 			return -1;
 	}
 
-	return totSent;
+	return numSent;
 }
 
 extern "C"
