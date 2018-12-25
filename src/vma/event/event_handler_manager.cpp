@@ -897,7 +897,9 @@ void* event_handler_manager::thread_loop()
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 	
-	signal(SIGINT, update_global_exit);
+	if (signal(SIGINT, update_global_exit) == SIG_ERR){
+		evh_logdbg("Failed to register signal function");
+	}
 
 	poll_fd.events  = POLLIN | POLLPRI;
 	poll_fd.revents = 0;
