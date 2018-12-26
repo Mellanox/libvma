@@ -42,26 +42,26 @@
 #include "vma/ib/base/verbs_extra.h"
 
 
-#ifdef DEFINED_IBV_EXP_VALUES_CLOCK_INFO
+#ifdef DEFINED_IBV_CLOCK_INFO
 
-#define MODULE_NAME             "time_converter_ptp"
+#define MODULE_NAME             "tc_ptp"
 
 #define ibchtc_logerr __log_err
 #define ibchtc_logwarn __log_warn
 #define ibchtc_loginfo __log_info
-#define ibchtc_logdbg __log_dbg
+#define ibchtc_logdbg __log_info_dbg
+#define ibchtc_logfunc __log_info_func
 
 #define UPDATE_HW_TIMER_PTP_PERIOD_MS 100
 
 
 time_converter_ptp::time_converter_ptp(struct ibv_context* ctx) :
-	m_p_ibv_context(ctx), m_ibv_exp_values_id(0)
+	m_p_ibv_context(ctx), m_clock_values_id(0)
 {
-	for (size_t i=0; i < ARRAY_SIZE(m_ibv_exp_values); i++) {
-		memset(&m_ibv_exp_values[i], 0, sizeof(m_ibv_exp_values[i]));
-		if (ibv_exp_query_values(m_p_ibv_context, IBV_EXP_VALUES_CLOCK_INFO, &m_ibv_exp_values[i])) {
-			ibchtc_logerr("ibv_exp_query_values failure for clock_info, (ibv context %p)",
-					m_p_ibv_context);
+	for (size_t i=0; i < ARRAY_SIZE(m_clock_values); i++) {
+		memset(&m_clock_values[i], 0, sizeof(m_clock_values[i]));
+		if (vma_ibv_query_clock_info(m_p_ibv_context, &m_clock_values[i])) {
+			ibchtc_logerr("vma_ibv_query_clock_info failure for clock_info, (ibv context %p)", m_p_ibv_context);
 		}
 	}
 
@@ -78,20 +78,19 @@ void time_converter_ptp::handle_timer_expired(void* user_data) {
 	}
 
 	int ret = 0;
-	ret = ibv_exp_query_values(m_p_ibv_context, IBV_EXP_VALUES_CLOCK_INFO, &m_ibv_exp_values[1 - m_ibv_exp_values_id]);
+	ret = vma_ibv_query_clock_info(m_p_ibv_context, &m_clock_values[1 - m_clock_values_id]);
 	if (ret)
-		ibchtc_logerr("ibv_exp_query_values failure for clock_info, (ibv context %p) (return value=%d)",
-				m_p_ibv_context, ret);
+		ibchtc_logerr("vma_ibv_query_clock_info failure for clock_info, (ibv context %p) (return value=%d)", m_p_ibv_context, ret);
 
-	m_ibv_exp_values_id = 1 - m_ibv_exp_values_id;
+	m_clock_values_id = 1 - m_clock_values_id;
 }
 
 void time_converter_ptp::convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime) {
-	uint64_t sync_hw_clock = ibv_exp_cqe_ts_to_ns(&m_ibv_exp_values[m_ibv_exp_values_id].clock_info, hwtime);
+	uint64_t sync_hw_clock = vma_ibv_convert_ts_to_ns(&m_clock_values[m_clock_values_id], hwtime);
 	systime->tv_sec = sync_hw_clock / NSEC_PER_SEC;
 	systime->tv_nsec = sync_hw_clock % NSEC_PER_SEC;
 
-	ibchtc_logdbg("hwtime:	.%09ld", hwtime);
-	ibchtc_logdbg("systime after clock fix:	%lld.%.9ld", systime->tv_sec, systime->tv_nsec);
+	ibchtc_logfunc("hwtime: 	%09ld", hwtime);
+	ibchtc_logfunc("systime:	%lld.%.9ld", systime->tv_sec, systime->tv_nsec);
 }
-#endif //DEFINED_IBV_EXP_VALUES_CLOCK_INFO
+#endif //DEFINED_IBV_CLOCK_INFO

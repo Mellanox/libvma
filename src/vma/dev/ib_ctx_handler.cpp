@@ -103,31 +103,28 @@ ib_ctx_handler::ib_ctx_handler(struct ib_ctx_handler_desc *desc) :
 		m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context, TS_CONVERSION_MODE_DISABLE, 0);
 	break;
 	case TS_CONVERSION_MODE_PTP: {
-# ifdef DEFINED_IBV_EXP_VALUES_CLOCK_INFO
-		struct ibv_exp_values ibv_exp_values_tmp;
-		memset(&ibv_exp_values_tmp, 0, sizeof(ibv_exp_values_tmp));
-		int ret = ibv_exp_query_values(m_p_ibv_context,
-					       IBV_EXP_VALUES_CLOCK_INFO,
-					       &ibv_exp_values_tmp);
-		if (!ret) {
-			m_p_ctx_time_converter = new time_converter_ptp(m_p_ibv_context);
-		} else { // revert to mode TS_CONVERSION_MODE_SYNC
-			m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context,
-							TS_CONVERSION_MODE_SYNC,
-							m_p_ibv_device_attr->hca_core_clock);
-			ibch_logwarn("ibv_exp_query_values failure for clock_info, "
-					"reverting to mode TS_CONVERSION_MODE_SYNC "
-					"(ibv context %p) (return value=%d)",
-					m_p_ibv_context, ret);
+#ifdef DEFINED_IBV_CLOCK_INFO
+		if (strncmp(get_ibname(), "mlx4", 4) == 0) {
+			m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context, TS_CONVERSION_MODE_SYNC, m_p_ibv_device_attr->hca_core_clock);
+			ibch_logwarn("ptp is not supported for mlx4 devices, reverting to mode TS_CONVERSION_MODE_SYNC (ibv context %p)",
+					m_p_ibv_context);
+		} else {
+			vma_ibv_clock_info clock_info;
+			memset(&clock_info, 0, sizeof(clock_info));
+			int ret = vma_ibv_query_clock_info(m_p_ibv_context, &clock_info);
+			if (ret == 0) {
+				m_p_ctx_time_converter = new time_converter_ptp(m_p_ibv_context);
+			} else {
+				m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context, TS_CONVERSION_MODE_SYNC, m_p_ibv_device_attr->hca_core_clock);
+				ibch_logwarn("vma_ibv_query_clock_info failure for clock_info, reverting to mode TS_CONVERSION_MODE_SYNC (ibv context %p) (ret %d)",
+						m_p_ibv_context, ret);
+			}
 		}
 # else
-		m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context,
-				TS_CONVERSION_MODE_SYNC,
-				m_p_ibv_device_attr->hca_core_clock);
-		ibch_logwarn("PTP is not supported by the underlying Infiniband "
-				"verbs. IBV_EXP_VALUES_CLOCK_INFO not defined. "
+		m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context, TS_CONVERSION_MODE_SYNC, m_p_ibv_device_attr->hca_core_clock);
+		ibch_logwarn("PTP is not supported by the underlying Infiniband verbs. DEFINED_IBV_CLOCK_INFO not defined. "
 				"reverting to mode TS_CONVERSION_MODE_SYNC");
-# endif // DEFINED_IBV_EXP_VALUES_CLOCK_INFO
+# endif // DEFINED_IBV_CLOCK_INFO
 	}
 	break;
 	default:
