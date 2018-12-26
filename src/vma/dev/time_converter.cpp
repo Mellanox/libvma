@@ -66,7 +66,7 @@ uint32_t time_converter::get_single_converter_status(struct ibv_context* ctx) {
 
 	if ((rval = vma_ibv_query_device(ctx ,&device_attr)) || !device_attr.hca_core_clock) {
 		ibchtc_logdbg("time_converter::get_single_converter_status :Error in querying hca core clock "
-				"(ibv_exp_query_device() return value=%d ) (ibv context %p) (errno=%d %m)\n", rval, ctx, errno);
+				"(vma_ibv_query_device() return value=%d ) (ibv context %p) (errno=%d %m)\n", rval, ctx, errno);
 	} else {
 		dev_status |= VMA_QUERY_DEVICE_SUPPORTED;
 	}
@@ -77,7 +77,7 @@ uint32_t time_converter::get_single_converter_status(struct ibv_context* ctx) {
 	queried_values.comp_mask = VMA_IBV_VALUES_MASK_RAW_CLOCK;
 	if ((rval = vma_ibv_query_values(ctx, &queried_values)) || !vma_get_ts_val(queried_values)) {
 		ibchtc_logdbg("time_converter::get_single_converter_status :Error in querying hw clock, can't convert"
-				" hw time to system time (ibv_exp_query_values() return value=%d ) (ibv context %p) (errno=%d %m)\n", rval, ctx, errno);
+				" hw time to system time (vma_ibv_query_values() return value=%d ) (ibv context %p) (errno=%d %m)\n", rval, ctx, errno);
 	} else {
 		dev_status |= VMA_QUERY_VALUES_SUPPORTED;
 	}

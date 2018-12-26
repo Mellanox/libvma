@@ -514,11 +514,8 @@ Default value is 100
 
 VMA_HW_TS_CONVERSION
 The above parameter defines the time stamp conversion method.
-Experimental verbs is required for converting the time stamp from hardware time (Hz)
-to system time (seconds.nano_seconds). Hence, hardware support is not guaranteed.
 The value of VMA_HW_TS_CONVERSION is determined by all devices - i.e if the hardware of
 one device does not support the conversion, then it will be disabled for the other devices.
-Currently only UDP RX flow is supported.
 Options = [0,1,2,3,4]:
 0 = Disabled
 1 = Raw-HW time                           - only convert the time stamp to seconds.nano_seconds time
@@ -526,7 +523,7 @@ Options = [0,1,2,3,4]:
 2 = Best possible - Raw-HW or system time - Sync to system time, then Raw hardware time -
                                             disable if none of them are supported by hardware.
 3 = Sync to system time                   - convert the time stamp to seconds.nano_seconds time units.
-                                            comparable to UDP receive software timestamp.
+                                            comparable to receive software timestamp.
                                             disable if hardware does not supports.
 4 = PTP Sync                              - convert the time stamp to seconds.nano_seconds time units.
                                             in case it is not supported - will apply option 3 (or disable
