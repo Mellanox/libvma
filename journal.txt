@@ -1,3 +1,35 @@
+Version 8.8.1-0:
+Date + Time 2018-12-26
+=============================================================
+Added:
+        - RM # Simplify is_mp_ring() method
+        - RM # Cleanup performance counters
+        - RM # Improve UDP performance
+        - RM # Improve rx ring creation flow
+        - RM # Unify poll_and_process_element_rx() and drain_and_process()
+        - RM # Unify rfs_uc::rx_dispatch_packet()
+        - RM # Use single event update method
+        - RM # Disable draining for SocketXtreme
+        - RM # Add SocketXtreme API usage check
+        - RM # Set default parameters for SocketXtreme mode
+        - RM # Add VMA_SOCKETXTREME environment variable
+        - RM # Unify clean_cq() function
+        - RM # Add sanity check for correct SocketXtreme mode usage
+        - RM # Unify setting rx.context
+        - RM # Optimize get_cqe64()
+        - RM # Remove socketxtreme specific methods in cq_mgr_mlx5
+        - RM # Use m_mlx5_cq fields
+        - RM # Remove socketXtreme specific fields in cq_mgr_mlx5
+        - RM # Improve performance of cqe processing
+        - RM # Move socketxtreme cq processing to cq_mgr_mlx5
+        - RM # Use post_recv() in socketxtreme mode from qp_mgr_mlx5
+        - RM # Unify sockinfo code
+        - RM # Enable socketxtreme_poll() for all modes
+        - RM # Unify reclaim rx buffers
+
+Fixed:
+        - RM #1603531 Fix pad length in umr mode
+
 Version 8.8.0-0:
 Date + Time 2018-12-16
 =============================================================
