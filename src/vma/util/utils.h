@@ -298,6 +298,9 @@ size_t get_vlan_base_name_from_ifname(const char* ifname, char* base_ifname, siz
 /* Upon success - returns the actual address len in bytes; Upon error - returns zero*/
 size_t get_local_ll_addr(const char* ifname, unsigned char* addr, int addr_len,  bool is_broadcast);
 
+/* Print warning while RoCE Lag is enabled */
+void print_roce_lag_warnings(char* interface, char* disable_path = NULL);
+
 bool get_bond_active_slave_name(IN const char* bond_name, OUT char* active_slave_name, IN int sz);
 bool get_bond_slave_state(IN const char* slave_name, OUT char* curr_state, IN int sz);
 bool get_bond_slaves_name_list(IN const char* bond_name, OUT char* slaves_list, IN int sz);

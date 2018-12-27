@@ -163,6 +163,19 @@ int get_base_interface_name(const char *if_name, char *base_ifname, size_t sz_ba
 	return 0;
 }
 
+void print_roce_lag_warnings(char* interface, char* disable_path /* = NULL */)
+{
+	vlog_printf(VLOG_WARNING,"******************************************************************************************************\n");
+	vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", interface);
+	vlog_printf(VLOG_WARNING,"* VMA cannot offload the device while RoCE LAG is enabled.\n");
+	vlog_printf(VLOG_WARNING,"* Please refer to VMA Release Notes for more info\n");
+	if (disable_path) {
+		vlog_printf(VLOG_WARNING,"* In order to disable RoCE LAG please use:\n");
+		vlog_printf(VLOG_WARNING,"* echo 0 > %s\n", disable_path);
+	}
+	vlog_printf(VLOG_WARNING,"******************************************************************************************************\n");
+}
+
 void compute_tx_checksum(mem_buf_desc_t* p_mem_buf_desc, bool l3_csum, bool l4_csum)
 {
 	// L3
