@@ -231,6 +231,7 @@ private:
 	const uint32_t	m_n_sysvar_rx_ready_byte_min_limit;
 	const uint32_t	m_n_sysvar_rx_cq_drain_rate_nsec;
 	const uint32_t	m_n_sysvar_rx_delta_tsc_between_cq_polls;
+	const bool  	m_b_is_multithreaded;
 
 	bool		m_reuseaddr; // to track setsockopt with SO_REUSEADDR
 	bool		m_reuseport; // to track setsockopt with SO_REUSEPORT
@@ -253,8 +254,11 @@ private:
 
 	void 		rx_ready_byte_count_limit_update(size_t n_rx_ready_bytes_limit); // Drop rx ready packets from head of queue
 
-	void 		save_stats_threadid_rx(); // ThreadId will only saved if logger is at least in DEBUG(4) level
-	void 		save_stats_threadid_tx(); // ThreadId will only saved if logger is at least in DEBUG(4) level
+	inline void 	save_stats_threadid_rx(); // ThreadId will only saved if logger is at least in DEBUG(4) level
+	inline void 	save_stats_threadid_tx(); // ThreadId will only saved if logger is at least in DEBUG(4) level
+
+	inline void 	snd_lock();
+	inline void 	snd_unlock();
 
 	void 		save_stats_tx_offload(int bytes, bool is_dummy);
 

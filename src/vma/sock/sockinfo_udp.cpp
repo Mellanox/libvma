@@ -346,6 +346,7 @@ sockinfo_udp::sockinfo_udp(int fd):
 	,m_n_sysvar_rx_ready_byte_min_limit(safe_mce_sys().rx_ready_byte_min_limit)
 	,m_n_sysvar_rx_cq_drain_rate_nsec(safe_mce_sys().rx_cq_drain_rate_nsec)
 	,m_n_sysvar_rx_delta_tsc_between_cq_polls(safe_mce_sys().rx_delta_tsc_between_cq_polls)
+	,m_b_is_multithreaded(safe_mce_sys().thread_mode != THREAD_MODE_SINGLE)
 	,m_reuseaddr(false)
 	,m_reuseport(false)
 	,m_sockopt_mapped(false)
@@ -1599,7 +1600,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 
 	si_udp_logfunc("");
 
-	m_lock_snd.lock();
+	snd_lock();
 
 	save_stats_threadid_tx();
 
@@ -1665,7 +1666,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 						INC_ERR_TX_COUNT;
 #endif
 						errno = EAGAIN;
-						m_lock_snd.unlock();
+						snd_unlock();
 						return -1;
 					}
 				}
@@ -1748,8 +1749,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 #ifdef VMA_TIME_MEASURE
 		TAKE_T_TX_END;
 #endif
-		m_lock_snd.unlock();
-
+		snd_unlock();
 		return ret;
 	}
 	else {
@@ -1765,7 +1765,7 @@ tx_packet_to_os:
 
 tx_packet_to_os_stats:
 	save_stats_tx_os(ret);
-	m_lock_snd.unlock();
+	snd_unlock();
 	return ret;
 }
 
@@ -2440,18 +2440,32 @@ void sockinfo_udp::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 			m_b_rcvtstamp ? "true" : "false" , m_b_rcvtstampns ? "true" : "false", m_n_tsing_flags);
 }
 
-void sockinfo_udp::save_stats_threadid_rx()
+inline void sockinfo_udp::save_stats_threadid_rx()
 {
 	// Save Thread Id for statistics module
 	if (g_vlogger_level >= VLOG_DEBUG)
 		m_p_socket_stats->threadid_last_rx = gettid();
 }
 
-void sockinfo_udp::save_stats_threadid_tx()
+inline void sockinfo_udp::save_stats_threadid_tx()
 {
 	// Save Thread Id for statistics module
 	if (g_vlogger_level >= VLOG_DEBUG)
 		m_p_socket_stats->threadid_last_tx = gettid();
+}
+
+inline void sockinfo_udp::snd_lock()
+{
+	if (m_b_is_multithreaded) {
+		m_lock_snd.lock();
+	}
+}
+
+inline void sockinfo_udp::snd_unlock()
+{
+	if (m_b_is_multithreaded) {
+		m_lock_snd.unlock();
+	}
 }
 
 void sockinfo_udp::save_stats_tx_offload(int bytes, bool is_dummy)
