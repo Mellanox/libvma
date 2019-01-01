@@ -2542,7 +2542,10 @@ int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 static void handle_signal(int signum)
 {
 	srdr_logdbg_entry("Caught signal! signum=%d", signum);
-	g_b_exit = true;
+
+	if (signum == SIGINT) {
+		g_b_exit = true;
+	}
 
 	if (g_sighandler) {
 		g_sighandler(signum);
