@@ -170,7 +170,7 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, bool 
 
 out:
 	if (unlikely(is_rexmit)) {
-		m_p_ring->inc_tx_retransmissions(m_id);
+		m_p_ring->inc_tx_retransmissions_stats(m_id);
 	}
 
 	return ret;

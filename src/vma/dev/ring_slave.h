@@ -172,9 +172,10 @@ public:
 	virtual ring_user_id_t	generate_id();
 	virtual ring_user_id_t	generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port);
 	virtual bool        is_up() = 0;
-	virtual void        inc_tx_retransmissions(ring_user_id_t id);
-	virtual bool        rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array) = 0;
+	virtual void        inc_tx_retransmissions_stats(ring_user_id_t id);
+	virtual bool        rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array);
 	virtual int         reclaim_recv_single_buffer(mem_buf_desc_t* rx_reuse) = 0;
+	virtual void        inc_cq_moderation_stats(size_t sz_data) = 0;
 	virtual uint32_t    get_underly_qpn() = 0;
 	virtual bool        attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
 	virtual bool        detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
