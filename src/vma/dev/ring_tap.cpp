@@ -78,8 +78,7 @@ ring_tap::ring_tap(int if_index, ring* parent):
 	m_rx_pool.set_id("ring_tap (%p) : m_rx_pool", this);
 
 	/* Initialize TX buffer poll */
-	request_more_tx_buffers();
-	m_tx_pool.set_id("ring_tap (%p) : m_tx_pool", this);
+	request_more_tx_buffers(m_sysvar_qp_compensation_level, 0);
 
 	/* Update ring statistics */
 	m_p_ring_stat->tap.n_tap_fd = m_tap_fd;
@@ -109,9 +108,6 @@ ring_tap::~ring_tap()
 
 	/* Release RX buffer poll */
 	g_buffer_pool_rx->put_buffers_thread_safe(&m_rx_pool, m_rx_pool.size());
-
-	/* Release TX buffer poll */
-	g_buffer_pool_tx->put_buffers_thread_safe(&m_tx_pool, m_tx_pool.size());
 
 	delete[] m_p_n_rx_channel_fds;
 
@@ -477,21 +473,6 @@ bool ring_tap::request_more_rx_buffers()
 	return true;
 }
 
-bool ring_tap::request_more_tx_buffers()
-{
-	ring_logfuncall("Allocating additional %d buffers for internal use",
-			m_sysvar_qp_compensation_level);
-
-	bool res = g_buffer_pool_tx->get_buffers_thread_safe(m_tx_pool,
-			this, m_sysvar_qp_compensation_level, 0);
-	if (!res) {
-		ring_logfunc("Out of mem_buf_desc from TX free pool for internal object pool");
-		return false;
-	}
-
-	return true;
-}
-
 mem_buf_desc_t* ring_tap::mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_num_mem_bufs)
 {
 	mem_buf_desc_t* head = NULL;
@@ -504,7 +485,7 @@ mem_buf_desc_t* ring_tap::mem_buf_tx_get(ring_user_id_t id, bool b_block, int n_
 	m_lock_ring_tx.lock();
 
 	if (unlikely((int)m_tx_pool.size() < n_num_mem_bufs)) {
-		request_more_tx_buffers();
+		request_more_tx_buffers(m_sysvar_qp_compensation_level, 0);
 
 		if (unlikely((int)m_tx_pool.size() < n_num_mem_bufs)) {
 			m_lock_ring_tx.unlock();

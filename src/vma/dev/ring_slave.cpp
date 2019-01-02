@@ -107,6 +107,8 @@ ring_slave::ring_slave(int if_index, ring* parent, ring_type_t type):
 		m_ring_stat.p_ring_master = m_parent;
 	}
 
+	m_tx_pool.set_id("ring_slave (%p) : m_tx_pool", this);
+
 	vma_stats_instance_create_ring_block(m_p_ring_stat);
 
 	print_val();
@@ -119,6 +121,9 @@ ring_slave::~ring_slave()
 	if (m_p_ring_stat) {
 		vma_stats_instance_remove_ring_block(m_p_ring_stat);
 	}
+
+	/* Release TX buffer poll */
+	g_buffer_pool_tx->put_buffers_thread_safe(&m_tx_pool, m_tx_pool.size());
 }
 
 void ring_slave::print_val()
@@ -946,4 +951,17 @@ void ring_slave::flow_tcp_del_all()
 			ring_logdbg("Could not find rfs object to delete in ring tcp hash map!");
 		}
 	}
+}
+
+bool ring_slave::request_more_tx_buffers(uint32_t count, uint32_t lkey)
+{
+	ring_logfuncall("Allocating additional %d buffers for internal use", count);
+
+	bool res = g_buffer_pool_tx->get_buffers_thread_safe(m_tx_pool, this, count, lkey);
+	if (!res) {
+		ring_logfunc("Out of mem_buf_desc from TX free pool for internal object pool");
+		return false;
+	}
+
+	return true;
 }
