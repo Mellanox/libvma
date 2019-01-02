@@ -35,7 +35,6 @@
 #include "vma/proto/ip_frag.h"
 #include "vma/proto/igmp_mgr.h"
 #include "vma/dev/rfs_mc.h"
-#include "vma/dev/rfs_uc.h"
 #include "vma/dev/rfs_uc_tcp_gro.h"
 #include "vma/sock/fd_collection.h"
 #include "vma/sock/sockinfo.h"
@@ -139,10 +138,8 @@ void ring_slave::restart()
 	ring_logpanic("Can't restart a slave ring");
 }
 
-bool ring_slave::is_active_member(ring_slave* rng, ring_user_id_t id)
+bool ring_slave::is_active_member(ring_slave* rng, ring_user_id_t)
 {
-	NOT_IN_USE(id);
-
 	return (this == rng);
 }
 
@@ -156,25 +153,13 @@ ring_user_id_t ring_slave::generate_id()
 	return 0;
 }
 
-ring_user_id_t ring_slave::generate_id(const address_t src_mac, const address_t dst_mac,
-				uint16_t eth_proto, uint16_t encap_proto,
-				uint32_t src_ip, uint32_t dst_ip,
-				uint16_t src_port, uint16_t dst_port)
+ring_user_id_t ring_slave::generate_id(const address_t, const address_t,
+				uint16_t, uint16_t, uint32_t, uint32_t, uint16_t, uint16_t)
 {
-	NOT_IN_USE(src_mac);
-	NOT_IN_USE(dst_mac);
-	NOT_IN_USE(eth_proto);
-	NOT_IN_USE(encap_proto);
-	NOT_IN_USE(src_ip);
-	NOT_IN_USE(dst_ip);
-	NOT_IN_USE(src_port);
-	NOT_IN_USE(dst_port);
-
 	return 0;
 }
 
-void ring_slave::inc_tx_retransmissions_stats(ring_user_id_t id) {
-	NOT_IN_USE(id);
+void ring_slave::inc_tx_retransmissions_stats(ring_user_id_t) {
 	m_p_ring_stat->n_tx_retransmits++;
 }
 

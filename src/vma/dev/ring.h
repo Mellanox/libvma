@@ -39,9 +39,6 @@
 #include "vma/sock/socket_fd_api.h"
 
 class pkt_rcvr_sink;
-class ib_ctx_handler;
-class L2_address;
-class ring_slave;
 
 #define ring_logpanic 		__log_info_panic
 #define ring_logerr			__log_info_err

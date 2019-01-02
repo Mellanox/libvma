@@ -31,22 +31,8 @@
  */
 
 #include "ring_bond.h"
-#include <netinet/tcp.h>
-#include <netinet/udp.h>
-#include <netinet/igmp.h>
 
-#include "utils/bullseye.h"
-#include "vma/util/utils.h"
-#include "vma/proto/ip_frag.h"
-#include "vma/proto/L2_address.h"
-#include "vma/proto/igmp_mgr.h"
-#include "vma/sock/sockinfo_tcp.h"
-#include "vma/sock/fd_collection.h"
-#include "vma/dev/rfs_mc.h"
-#include "vma/dev/rfs_uc.h"
-#include "vma/dev/rfs_uc_tcp_gro.h"
-#include "vma/dev/cq_mgr.h"
-#include "vma/dev/ring_slave.h"
+#include "vma/sock/sockinfo.h"
 #include "vma/dev/ring_simple.h"
 #include "vma/dev/ring_tap.h"
 
@@ -57,7 +43,6 @@
 
 /* Set limitation for number of rings for bonding device */
 #define MAX_NUM_RING_RESOURCES 10
-
 
 ring_bond::ring_bond(int if_index) :
 	ring(),
@@ -595,10 +580,9 @@ bool ring_bond::reclaim_recv_buffers(descq_t *rx_reuse)
 	return true;
 }
 
-bool ring_bond::reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst)
+bool ring_bond::reclaim_recv_buffers(mem_buf_desc_t*)
 {
 	/* TODO: not supported */
-	NOT_IN_USE(rx_reuse_lst);
 	return false;
 }
 
@@ -788,12 +772,8 @@ bool ring_bond::is_ratelimit_supported(struct vma_rate_limit_t &rate_limit)
 	return true;
 }
 
-int ring_bond::socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags)
+int ring_bond::socketxtreme_poll(struct vma_completion_t *, unsigned int, int)
 {
-	NOT_IN_USE(vma_completions);
-	NOT_IN_USE(ncompletions);
-	NOT_IN_USE(flags);
-
 	return 0;
 }
 

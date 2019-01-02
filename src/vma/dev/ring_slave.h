@@ -34,8 +34,8 @@
 #define RING_SLAVE_H_
 
 #include "ring.h"
-#include "vma/dev/net_device_table_mgr.h"
 
+#include "vma/dev/net_device_table_mgr.h"
 
 class rfs;
 
@@ -162,10 +162,8 @@ public:
 	ring_slave(int if_index, ring* parent, ring_type_t type);
 	virtual ~ring_slave();
 
-	virtual void print_val();
-
+	virtual void        print_val();
 	virtual void        restart();
-
 	virtual int         get_num_resources() const { return 1; };
 	virtual bool        is_member(ring_slave* rng);
 	virtual bool        is_active_member(ring_slave* rng, ring_user_id_t id);
@@ -183,7 +181,6 @@ public:
 	inline bool         is_simple() const { return m_type != RING_TAP; }
 	inline bool         is_mp_ring() const  { return m_type == RING_ETH_CB; }
 	transport_type_t    get_transport_type() const { return m_transport_type; }
-
 
 	bool                m_active;         /* State indicator */
 
