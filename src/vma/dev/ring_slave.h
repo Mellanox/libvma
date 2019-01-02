@@ -189,6 +189,7 @@ public:
 
 protected:
 
+	bool			request_more_tx_buffers(uint32_t count, uint32_t lkey);
 	void			flow_udp_del_all();
 	void			flow_tcp_del_all();
 
@@ -202,6 +203,7 @@ protected:
 	rule_filter_map_t	m_l2_mc_ip_attach_map;
 	rule_filter_map_t	m_tcp_dst_port_attach_map;
 
+	descq_t             m_tx_pool;
 	transport_type_t    m_transport_type; /* transport ETH/IB */
 	ring_stats_t*       m_p_ring_stat;
 	lock_spin_recursive	m_lock_ring_rx;

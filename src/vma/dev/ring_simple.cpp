@@ -166,9 +166,6 @@ ring_simple::ring_simple(int if_index, ring* parent, ring_type_t type):
 	/* initialization basing on ndev information */
 	m_mtu = p_ndev->get_mtu();
 
-	// coverity[uninit_member]
-	m_tx_pool.set_id("ring_simple (%p) : m_tx_pool", this);
-
 	memset(&m_cq_moderation_info, 0, sizeof(m_cq_moderation_info));
 
 	m_socketxtreme.active = safe_mce_sys().enable_socketxtreme;
@@ -233,9 +230,6 @@ ring_simple::~ring_simple()
 			m_tx_num_wr_free, m_tx_num_wr,
 			((m_tx_num_wr - m_tx_num_wr_free) ? "bad accounting!!":"good accounting"), (m_tx_num_wr - m_tx_num_wr_free));
 	ring_logdbg("Rx buffer pool: %d free global buffers available", m_tx_pool.size());
-
-	// Release Tx buffers
-	g_buffer_pool_tx->put_buffers_thread_safe(&m_tx_pool, m_tx_pool.size());
 
 	// Release verbs resources
 	if (m_p_tx_comp_event_channel) {
@@ -312,15 +306,6 @@ void ring_simple::create_resources()
 		g_p_fd_collection->add_cq_channel_fd(m_p_tx_comp_event_channel->fd, this);
 	}
 
-#if 0
-TODO:
-The following 3 lines were copied form below. Can it be OK for experimental if these lines
-remain below as in master?
-	m_tx_lkey = g_buffer_pool_tx->find_lkey_by_ib_ctx_thread_safe(p_ring_info->p_ib_ctx);
-
-	request_more_tx_buffers(RING_TX_BUFS_COMPENSATE);
-	m_tx_num_bufs = m_tx_pool.size();
-#endif // 0
 	m_p_qp_mgr = create_qp_mgr(m_p_ib_ctx, p_slave->port_num, m_p_rx_comp_event_channel);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_p_qp_mgr == NULL) {
@@ -800,23 +785,9 @@ bool ring_simple::is_available_qp_wr(bool b_block)
 	return true;
 }
 
-//call under m_lock_ring_tx lock
-bool ring_simple::request_more_tx_buffers(uint32_t count)
-{
-	ring_logfuncall("Allocating additional %d buffers for internal use", count);
-
-	bool res = g_buffer_pool_tx->get_buffers_thread_safe(m_tx_pool, this, count, m_tx_lkey);
-	if (!res) {
-		ring_logfunc("Out of mem_buf_desc from TX free pool for internal object pool");
-		return false;
-	}
-
-	return true;
-}
-
 void ring_simple::init_tx_buffers(uint32_t count)
 {
-	request_more_tx_buffers(count);
+	request_more_tx_buffers(count, m_tx_lkey);
 	m_tx_num_bufs = m_tx_pool.size();
 }
 
@@ -832,7 +803,7 @@ mem_buf_desc_t* ring_simple::get_tx_buffers(uint32_t n_num_mem_bufs)
 	mem_buf_desc_t* head = NULL;
 	if (unlikely(m_tx_pool.size() < n_num_mem_bufs)) {
 		int count = MAX(RING_TX_BUFS_COMPENSATE, n_num_mem_bufs);
-		if (request_more_tx_buffers(count)) {
+		if (request_more_tx_buffers(count, m_tx_lkey)) {
 			m_tx_num_bufs += count;
 		}
 
