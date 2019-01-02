@@ -175,6 +175,8 @@ public:
 	virtual void        inc_tx_retransmissions(ring_user_id_t id);
 	virtual bool        rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array) = 0;
 	virtual int         reclaim_recv_single_buffer(mem_buf_desc_t* rx_reuse) = 0;
+	virtual uint32_t    get_underly_qpn() = 0;
+	virtual bool        attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink);
 
 	inline bool         is_simple() const { return m_type != RING_TAP; }
 	inline bool         is_mp_ring() const  { return m_type == RING_ETH_CB; }
