@@ -1,6 +1,6 @@
 # opt.m4 - Macros to control optimization
 # 
-# Copyright (C) Mellanox Technologies Ltd. 2001-2018.  ALL RIGHTS RESERVED.
+# Copyright (C) Mellanox Technologies Ltd. 2001-2019.  ALL RIGHTS RESERVED.
 # See file LICENSE for terms.
 #
 
