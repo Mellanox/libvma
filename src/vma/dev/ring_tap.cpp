@@ -34,19 +34,13 @@
 
 #include <linux/if_tun.h>
 #include "vma/util/sg_array.h"
-#include "vma/dev/net_device_table_mgr.h"
-#include "vma/dev/rfs.h"
-#include "vma/dev/rfs_mc.h"
-#include "vma/dev/rfs_uc.h"
-#include "vma/dev/rfs_uc_tcp_gro.h"
-#include "vma/proto/ip_frag.h"
 #include "vma/sock/fd_collection.h"
+#include "vma/dev/net_device_table_mgr.h"
 
 #undef  MODULE_NAME
 #define MODULE_NAME "ring_tap"
 #undef  MODULE_HDR
 #define MODULE_HDR MODULE_NAME "%d:%s() "
-
 
 ring_tap::ring_tap(int if_index, ring* parent):
 	ring_slave(if_index, parent, RING_TAP),
@@ -282,17 +276,13 @@ bool ring_tap::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 	return ret;
 }
 
-int ring_tap::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array)
+int ring_tap::poll_and_process_element_rx(uint64_t*, void* pv_fd_ready_array)
 {
-	NOT_IN_USE(p_cq_poll_sn);
 	return process_element_rx(pv_fd_ready_array);
 }
 
-int ring_tap::wait_for_notification_and_process_element(int cq_channel_fd,
-		uint64_t* p_cq_poll_sn, void* pv_fd_ready_array)
+int ring_tap::wait_for_notification_and_process_element(int, uint64_t*, void* pv_fd_ready_array)
 {
-	NOT_IN_USE(cq_channel_fd);
-	NOT_IN_USE(p_cq_poll_sn);
 	return process_element_rx(pv_fd_ready_array);
 }
 

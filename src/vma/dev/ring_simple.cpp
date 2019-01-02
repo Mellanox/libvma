@@ -33,26 +33,11 @@
 
 #include "ring_simple.h"
 
-#include <netinet/tcp.h>
-#include <netinet/udp.h>
-#include <netinet/igmp.h>
-
-#include "utils/bullseye.h"
-#include "vma/util/utils.h"
 #include "vma/util/valgrind.h"
 #include "vma/util/sg_array.h"
-#include "vma/proto/ip_frag.h"
-#include "vma/proto/L2_address.h"
-#include "vma/proto/igmp_mgr.h"
-#include "vma/sock/pkt_rcvr_sink.h"
-#include "vma/sock/sockinfo_tcp.h"
 #include "vma/sock/fd_collection.h"
-#include "vma/dev/rfs_mc.h"
-#include "vma/dev/rfs_uc.h"
-#include "vma/dev/rfs_uc_tcp_gro.h"
-#include "vma/dev/cq_mgr.h"
 #if defined(DEFINED_DIRECT_VERBS)
-#include "qp_mgr_eth_mlx5.h"
+#include "vma/dev/qp_mgr_eth_mlx5.h"
 #endif
 
 #undef  MODULE_NAME
@@ -65,9 +50,6 @@
 
 #define RING_LOCK_AND_RUN(__lock__, __func_and_params__) 	\
 		__lock__.lock(); __func_and_params__; __lock__.unlock();
-
-#define RING_LOCK_RUN_AND_UPDATE_RET(__lock__, __func_and_params__) 	\
-		__lock__.lock(); ret = __func_and_params__; __lock__.unlock();
 
 #define RING_TRY_LOCK_RUN_AND_UPDATE_RET(__lock__, __func_and_params__) \
 		if (!__lock__.trylock()) { ret = __func_and_params__; __lock__.unlock(); } \
@@ -598,6 +580,7 @@ mem_buf_desc_t* ring_simple::mem_buf_tx_get(ring_user_id_t id, bool b_block, int
 	// Increase counter in order to keep track of how many buffers ring is missing when reclaiming them during ring->restart()
 	m_missing_buf_ref_count += n_num_mem_bufs;
 
+	/* coverity[double_unlock] TODO: RM#1049980 */
 	m_lock_ring_tx.unlock();
 	return buff_list;
 }

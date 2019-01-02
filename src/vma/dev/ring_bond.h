@@ -34,9 +34,8 @@
 #define RING_BOND_H
 
 #include "ring.h"
-#include "ring_slave.h"
-#include "ring_tap.h"
-#include "vma/util/agent.h"
+
+#include "vma/dev/ring_tap.h"
 #include "vma/dev/net_device_table_mgr.h"
 
 typedef std::vector<ring_slave*> ring_slave_vector_t;
@@ -45,7 +44,6 @@ struct flow_sink_t {
 	flow_tuple flow;
 	pkt_rcvr_sink *sink;
 };
-
 
 class ring_bond : public ring {
 

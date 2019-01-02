@@ -34,14 +34,9 @@
 #define RING_SIMPLE_H
 
 #include "ring_slave.h"
-#include <vector>
 
-#include "vma/ib/base/verbs_extra.h"
 #include "vma/dev/gro_mgr.h"
-#include "vma/util/utils.h"
-#include "vma/vma_extra.h"
 #include "vma/dev/net_device_table_mgr.h"
-
 
 struct cq_moderation_info {
 	uint32_t period;
