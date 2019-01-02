@@ -84,6 +84,7 @@ using namespace std;
 
 struct os_api orig_os_api;
 struct sigaction g_act_prev;
+sighandler_t g_sighandler = NULL;
 class ring_simple;
 class ring_eth_cb;
 class ring_eth_direct;
@@ -176,6 +177,7 @@ void get_orig_funcs()
 	GET_ORIG_FUNC(vfork);
 	GET_ORIG_FUNC(daemon);
 	GET_ORIG_FUNC(sigaction);
+	GET_ORIG_FUNC(signal);
 }
 
 const char* socket_get_domain_str(int domain)
@@ -2535,4 +2537,35 @@ int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 			srdr_logdbg_exit("failed (errno=%d %m)", errno);
 	}
 	return ret;
+}
+
+static void handle_signal(int signum)
+{
+	srdr_logdbg_entry("Caught signal! signum=%d", signum);
+
+	if (signum == SIGINT) {
+		g_b_exit = true;
+	}
+
+	if (g_sighandler) {
+		g_sighandler(signum);
+	}
+}
+
+extern "C"
+sighandler_t signal(int signum, sighandler_t handler)
+{
+	srdr_logdbg_entry("signum=%d, handler=%p", signum, handler);
+
+	if (!orig_os_api.signal) get_orig_funcs();
+
+	if (handler && handler != SIG_ERR && handler != SIG_DFL && handler != SIG_IGN) {
+		// Only SIGINT is supported for now
+		if (signum == SIGINT) {
+			g_sighandler = handler;
+			return orig_os_api.signal(SIGINT, &handle_signal);
+		}
+	}
+
+	return orig_os_api.signal(signum, handler);
 }

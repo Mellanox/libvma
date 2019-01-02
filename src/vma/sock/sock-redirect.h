@@ -159,6 +159,7 @@ struct os_api {
 	int (*daemon) (int __nochdir, int __noclose);
 
 	int (*sigaction) (int signum, const struct sigaction *act, struct sigaction *oldact);
+	sighandler_t (*signal) (int signum, sighandler_t handler);
 };
 
 /**
