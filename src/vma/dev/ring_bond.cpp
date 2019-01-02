@@ -552,12 +552,12 @@ int ring_bond::request_notification(cq_type_t cq_type, uint64_t poll_sn)
 	return ret;
 }
 
-void ring_bond::inc_tx_retransmissions(ring_user_id_t id)
+void ring_bond::inc_tx_retransmissions_stats(ring_user_id_t id)
 {
 	auto_unlocker lock(m_lock_ring_tx);
 	ring_slave* active_ring = m_bond_rings[id];
 	if (likely(active_ring->m_active)) {
-		active_ring->inc_tx_retransmissions(id);
+		active_ring->inc_tx_retransmissions_stats(id);
 	}
 }
 
