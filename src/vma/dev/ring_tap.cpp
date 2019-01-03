@@ -179,7 +179,7 @@ void ring_tap::tap_create(net_device_val* p_ndev)
 
 	/* Disable Ipv6 for TAP interface */
 	snprintf(command_str, TAP_STR_LENGTH, TAP_DISABLE_IPV6, tap_name);
-	if (run_and_retreive_system_command(command_str, return_str, TAP_STR_LENGTH)  < 0) {
+	if (run_and_retreive_system_command(command_str, return_str, TAP_STR_LENGTH)  < 0 && errno != ECHILD) {
 		ring_logerr("sysctl ipv6 failed fd = %d, %m", m_tap_fd);
 		rc = -errno;
 		goto error;
