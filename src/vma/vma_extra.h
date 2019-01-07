@@ -266,6 +266,33 @@ typedef enum {
 	VMA_CB_EXTERNAL_MEM = (1 << 1),
 } vma_cb_ring_attr_mask;
 
+typedef enum {
+    VMA_MODIFY_RING_CQ_MODERATION = (1 << 0),
+    VMA_MODIFY_RING_CQ_ARM = (1 << 1),
+} vma_modify_ring_mask;
+
+struct vma_cq_moderation_attr {
+	uint32_t cq_moderation_count;
+	uint32_t cq_moderation_period_usec;
+};
+
+struct vma_cq_arm_attr {
+};
+
+/**
+ * @param comp_mask - what fields should be read when processing this sturct
+ * 	see @ref vma_modify_ring_mask
+ * @param ring_fd - ring fd
+ */
+struct vma_modify_ring_attr {
+	uint32_t	comp_bit_mask;
+	int ring_fd;
+	union {
+		struct vma_cq_moderation_attr cq_moderation;
+		struct vma_cq_arm_attr cq_arm;
+	};
+};
+
 /**
  * @param comp_mask - what fields are read when processing this sturct see @ref vma_cb_ring_attr_mask
  * @param num - Minimum number of elements allocated in the circular buffer
@@ -775,6 +802,15 @@ struct __attribute__ ((packed)) vma_api_t {
 	 *
 	 */
 	int (*get_mem_info)(int fd, void **addr, size_t *length, uint32_t *lkey);
+
+	/**
+	 * perform ring modifications
+	 *
+	 * @param mr_data ring modification parameters
+	 *
+	 * @return 0 on success -1 on failure
+	 */
+	int (*vma_modify_ring)(struct vma_modify_ring_attr *mr_data);
 };
 
 

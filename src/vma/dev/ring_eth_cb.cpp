@@ -469,6 +469,12 @@ int ring_eth_cb::poll_and_process_element_rx(uint64_t* p_cq_poll_sn,
 	return 0;
 }
 
+int ring_eth_cb::request_notification(cq_type_t cq_type, uint64_t poll_sn)
+{
+ 	NOT_IN_USE(cq_type);
+	return ring_simple::request_notification(CQT_RX, poll_sn);
+}
+
 /**
  * loop poll_cq
  * @param limit

@@ -70,6 +70,7 @@ public:
 	uint32_t	get_mem_lkey(ib_ctx_handler* ib_ctx) const {return m_alloc.find_lkey_by_ib_ctx(ib_ctx);}
 	virtual int	drain_and_proccess();
 	virtual int	poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
+	virtual int	request_notification(cq_type_t cq_type, uint64_t poll_sn);
 	int		get_mem_info(ibv_sge &mem_info);
 	int		cyclic_buffer_read(vma_completion_cb_t &completion,
 					   size_t min, size_t max, int flags);

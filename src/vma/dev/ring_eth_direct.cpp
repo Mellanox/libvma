@@ -94,6 +94,12 @@ int ring_eth_direct::poll_and_process_element_rx(uint64_t* p_cq_poll_sn,
 	return 0;
 }
 
+int ring_eth_direct::request_notification(cq_type_t cq_type, uint64_t poll_sn)
+{
+	NOT_IN_USE(cq_type);
+	return ring_simple::request_notification(CQT_TX, poll_sn);
+}
+
 int ring_eth_direct::reg_mr(void *addr, size_t length, uint32_t &lkey)
 {
 	ring_logdbg("reg_mr()");
