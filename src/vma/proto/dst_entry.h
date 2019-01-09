@@ -110,7 +110,6 @@ public:
 		return m_header.set_vlan_pcp(get_priority_by_tc_class(pcp)); }
 	inline header*	get_network_header() { return &m_header;}
 	inline ring*	get_ring() { return m_p_ring;}
-	inline ring_allocation_logic_tx* get_ring_alloc_logic() { return &m_ring_alloc_logic;}
 protected:
 	ip_address 		m_dst_ip;
 	uint16_t 		m_dst_port;

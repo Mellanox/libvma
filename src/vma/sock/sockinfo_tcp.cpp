@@ -3400,9 +3400,6 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 	bool supported = true;
 	bool allow_privileged_sock_opt = false;
 
-	if (m_sock_state <= TCP_SOCK_ACCEPT_READY && __optval != NULL && is_inherited_option(__level, __optname))
-		m_socket_options_list.push_back(new socket_option_t(__level, __optname,__optval, __optlen));
-
 	if ((ret = sockinfo::setsockopt(__level, __optname, __optval, __optlen)) != SOCKOPT_PASS_TO_OS) {
 		if (ret == SOCKOPT_INTERNAL_VMA_SUPPORT &&
 		    m_sock_state <= TCP_SOCK_ACCEPT_READY && __optval != NULL &&
@@ -4617,14 +4614,4 @@ void sockinfo_tcp::update_header_field(data_updater *updater)
 	}
 
 	unlock_tcp_con();
-}
-
-void sockinfo_tcp::update_dst_entries_ring_logic()
-{
-	if (m_p_connected_dst_entry &&
-	    m_p_connected_dst_entry->update_ring_alloc_logic(m_fd, m_tcp_con_lock, m_ring_alloc_log_tx)) {
-		    m_p_socket_stats->counters.n_tx_migrations++;
-	}
-
-	return;
 }

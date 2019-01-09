@@ -73,22 +73,6 @@ const char* to_str_socket_type_netstat_like(int type)
 	return "???";
 }
 
-const char* to_str_ring_alloc_logic(ring_logic_t logic)
-{
-	switch (logic) {
-	case RING_LOGIC_PER_INTERFACE: return "RING_PER_IF";
-	case RING_LOGIC_PER_IP: return "RING_PER_IP";
-	case RING_LOGIC_PER_SOCKET: return "RING_PER_SOCKET";
-	case RING_LOGIC_PER_USER_ID: return "RING_PER_USER_ID";
-	case RING_LOGIC_PER_THREAD: return "RING_PER_THREAD";
-	case RING_LOGIC_PER_CORE: return "RING_PER_CORE";
-	case RING_LOGIC_PER_CORE_ATTACH_THREADS: return "RING_PER_CORE_ATTACH_THREADS";
-	default:
-		break;
-	}
-	return "???";
-}
-
 // Print statistics for offloaded sockets
 void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, FILE* filename)
 {
