@@ -43,10 +43,10 @@ public:
 			socket_data &sock_data, resource_allocation_key &ring_alloc_logic);
 	virtual ~dst_entry_udp();
 
-	virtual ssize_t slow_send(const iovec* p_iov, size_t sz_iov, struct vma_rate_limit_t &rate_limit,
-			vma_wr_tx_packet_attr attr, int flags = 0,
+        ssize_t fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_send_attr attr);
+	ssize_t slow_send(const iovec* p_iov, const ssize_t sz_iov, vma_send_attr attr,
+			struct vma_rate_limit_t &rate_limit, int flags = 0,
 			socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF);
-	virtual ssize_t 	fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_wr_tx_packet_attr attr);
 
 protected:
 	virtual transport_t 	get_transport(sockaddr_in to);
@@ -56,7 +56,7 @@ protected:
 	virtual ibv_sge*	get_sge_lst_4_not_inline_send() { return &m_sge[1]; };
 	virtual void 		configure_headers();
 	virtual void 		init_sge();
-	virtual ssize_t 	pass_buff_to_neigh(const iovec *p_iov, size_t & sz_iov, uint16_t packet_id = 0);
+	virtual ssize_t 	pass_buff_to_neigh(const iovec *p_iov, size_t sz_iov, uint16_t packet_id = 0);
 	atomic_t m_a_tx_ip_id;
 	size_t m_n_tx_ip_id;
 

@@ -41,7 +41,7 @@ typedef struct tcp_iovec
 {
 	struct iovec iovec;
 	mem_buf_desc_t* p_desc;
-}tcp_iovec;
+} tcp_iovec;
 
 class dst_entry_tcp : public dst_entry
 {
@@ -50,9 +50,9 @@ public:
 		      socket_data &data, resource_allocation_key &ring_alloc_logic);
 	virtual ~dst_entry_tcp();
 
-	virtual ssize_t fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_wr_tx_packet_attr attr);
-	ssize_t slow_send(const iovec* p_iov, size_t sz_iov, struct vma_rate_limit_t &rate_limit,
-			vma_wr_tx_packet_attr attr, int flags = 0,
+	ssize_t fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_send_attr attr);
+	ssize_t slow_send(const iovec* p_iov, const ssize_t sz_iov, vma_send_attr attr,
+			struct vma_rate_limit_t &rate_limit, int flags = 0,
 			socket_fd_api* sock = 0, tx_call_t call_type = TX_UNDEF);
 	ssize_t slow_send_neigh(const iovec* p_iov, size_t sz_iov, struct vma_rate_limit_t &rate_limit);
 
@@ -67,7 +67,7 @@ protected:
 	virtual ibv_sge*	get_sge_lst_4_not_inline_send() { return m_sge; };
 
 	virtual void		configure_headers();
-	virtual ssize_t 	pass_buff_to_neigh(const iovec *p_iov, size_t & sz_iov, uint16_t packet_id = 0);
+	virtual ssize_t 	pass_buff_to_neigh(const iovec *p_iov, size_t sz_iov, uint16_t packet_id = 0);
 
 private:
 	const uint32_t       m_n_sysvar_tx_bufs_batch_tcp;

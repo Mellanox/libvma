@@ -66,7 +66,7 @@ transport_t dst_entry_tcp::get_transport(sockaddr_in to)
 	return TRANS_VMA;
 }
 
-ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_wr_tx_packet_attr attr)
+ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_send_attr attr)
 {
 	int ret = 0;
 	tx_packet_template_t* p_pkt;
@@ -81,7 +81,7 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_w
 
 	p_tcp_iov = (tcp_iovec*)p_iov;
 
-	if (likely(sz_iov == 1 && !is_set(attr, VMA_TX_PACKET_REXMIT))) {
+	if (likely(sz_iov == 1 && !is_set(attr.flags, VMA_TX_PACKET_REXMIT))) {
 		if (unlikely(!m_p_ring->is_active_member(p_tcp_iov->p_desc->p_desc_owner, m_id))) {
 			no_copy = false;
 			dst_tcp_logdbg("p_desc=%p wrong desc_owner=%p, this ring=%p. did migration occurred?", p_tcp_iov->p_desc, p_tcp_iov->p_desc->p_desc_owner, m_p_ring);
@@ -91,7 +91,7 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_w
 		no_copy = false;
 	}
 
-	attr = (vma_wr_tx_packet_attr)(attr | VMA_TX_PACKET_L3_CSUM | VMA_TX_PACKET_L4_CSUM);
+	attr.flags = (vma_wr_tx_packet_attr)(attr.flags | VMA_TX_PACKET_L3_CSUM | VMA_TX_PACKET_L4_CSUM);
 
 	if (likely(no_copy)) {
 		vma_ibv_send_wr send_wqe;
@@ -143,7 +143,7 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_w
                 p_tcp_iov[0].p_desc->tx.p_ip_h = &p_pkt->hdr.m_ip_hdr;
                 p_tcp_iov[0].p_desc->tx.p_tcp_h =(struct tcphdr*)((uint8_t*)(&(p_pkt->hdr.m_ip_hdr))+sizeof(p_pkt->hdr.m_ip_hdr));
 
-		send_lwip_buffer(m_id, m_p_send_wqe, attr);
+		send_lwip_buffer(m_id, m_p_send_wqe, attr.flags);
 
 		/* for DEBUG */
 		if ((uint8_t*)m_sge[0].addr < p_tcp_iov[0].p_desc->p_buffer || (uint8_t*)p_pkt < p_tcp_iov[0].p_desc->p_buffer) {
@@ -157,7 +157,7 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_w
 		mem_buf_desc_t *p_mem_buf_desc;
 		size_t total_packet_len = 0;
 
-		p_mem_buf_desc = get_buffer(is_set(attr, VMA_TX_PACKET_BLOCK));
+		p_mem_buf_desc = get_buffer(is_set(attr.flags, VMA_TX_PACKET_BLOCK));
 		if (p_mem_buf_desc == NULL) {
 			ret = -1;
 			goto out;
@@ -186,7 +186,7 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_w
 		m_p_send_wqe = &m_not_inline_send_wqe;
 		m_p_send_wqe->wr_id = (uintptr_t)p_mem_buf_desc;
 		
-		send_ring_buffer(m_id, m_p_send_wqe, attr);
+		send_ring_buffer(m_id, m_p_send_wqe, attr.flags);
 
 		/* for DEBUG */
 		if ((uint8_t*)m_sge[0].addr < p_mem_buf_desc->p_buffer) {
@@ -200,11 +200,11 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_w
 
 	if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
 		m_p_tx_mem_buf_desc_list = m_p_ring->mem_buf_tx_get(m_id,
-				is_set(attr, VMA_TX_PACKET_BLOCK), m_n_sysvar_tx_bufs_batch_tcp);
+				is_set(attr.flags, VMA_TX_PACKET_BLOCK), m_n_sysvar_tx_bufs_batch_tcp);
 	}
 
 out:
-	if (unlikely(is_set(attr, VMA_TX_PACKET_REXMIT))) {
+	if (unlikely(is_set(attr.flags, VMA_TX_PACKET_REXMIT))) {
 		m_p_ring->inc_tx_retransmissions_stats(m_id);
 	}
 
@@ -213,8 +213,8 @@ out:
 
 
 
-ssize_t dst_entry_tcp::slow_send(const iovec* p_iov, size_t sz_iov,
-		struct vma_rate_limit_t &rate_limit, vma_wr_tx_packet_attr attr, int flags /*= 0*/,
+ssize_t dst_entry_tcp::slow_send(const iovec* p_iov, const ssize_t sz_iov, vma_send_attr attr,
+		struct vma_rate_limit_t &rate_limit, int flags /*= 0*/,
 		socket_fd_api* sock /*= 0*/, tx_call_t call_type /*= 0*/)
 {
 	ssize_t ret_val = -1;
@@ -269,7 +269,7 @@ void dst_entry_tcp::configure_headers()
 	dst_entry::configure_headers();
 }
 
-ssize_t dst_entry_tcp::pass_buff_to_neigh(const iovec * p_iov, size_t & sz_iov, uint16_t packet_id)
+ssize_t dst_entry_tcp::pass_buff_to_neigh(const iovec * p_iov, size_t sz_iov, uint16_t packet_id)
 {
 	NOT_IN_USE(packet_id);
 	m_header_neigh.init();

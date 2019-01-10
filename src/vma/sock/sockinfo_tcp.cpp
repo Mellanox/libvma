@@ -975,9 +975,9 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, uint16_t flags)
 {
 	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)(((struct tcp_pcb*)v_p_conn)->my_container);
 	dst_entry *p_dst = p_si_tcp->m_p_connected_dst_entry;
-	vma_wr_tx_packet_attr attr;
 	int max_count = p_si_tcp->m_pcb.tso.max_send_sge;
 	tcp_iovec lwip_iovec[max_count];
+	vma_send_attr attr = {(vma_wr_tx_packet_attr)0, 0};
 	int count = 0;
 
 	/* maximum number of sge can not exceed this value */
@@ -995,18 +995,19 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, uint16_t flags)
 		return ERR_OK;
 	}
 
-	attr = (vma_wr_tx_packet_attr)flags;
+	attr.flags = (vma_wr_tx_packet_attr)flags;
+	attr.mss = p_si_tcp->m_pcb.mss;
 	if (likely((p_dst->is_valid()))) {
 		p_dst->fast_send((struct iovec *)lwip_iovec, count, attr);
 	} else {
-		p_dst->slow_send((struct iovec *)lwip_iovec, count, p_si_tcp->m_so_ratelimit, attr);
+		p_dst->slow_send((struct iovec *)lwip_iovec, count, attr, p_si_tcp->m_so_ratelimit);
 	}
 
 	if (p_dst->try_migrate_ring(p_si_tcp->m_tcp_con_lock)) {
 		p_si_tcp->m_p_socket_stats->counters.n_tx_migrations++;
 	}
 
-	if (is_set(attr, VMA_TX_PACKET_REXMIT)) {
+	if (is_set(attr.flags, VMA_TX_PACKET_REXMIT)) {
 		p_si_tcp->m_p_socket_stats->counters.n_tx_retransmits++;
 	}
 
