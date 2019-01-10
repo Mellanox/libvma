@@ -69,6 +69,7 @@ public:
 
 	virtual int modify_ratelimit(struct vma_rate_limit_t &rate_limit) { NOT_IN_USE(rate_limit); return 0; }
 	void inc_cq_moderation_stats(size_t sz_data) { NOT_IN_USE(sz_data); }
+	virtual uint32_t get_tx_lkey(ring_user_id_t id) { NOT_IN_USE(id); return 0; }
 	virtual uint32_t get_underly_qpn() { return -1; }
         virtual uint32_t get_max_inline_data() { return 0; }
         virtual uint32_t get_max_send_sge(void) { return 1; }
