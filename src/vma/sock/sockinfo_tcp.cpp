@@ -973,38 +973,33 @@ tx_packet_to_os:
 
 err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, uint16_t flags)
 {
-	iovec iovec[64];
-	struct iovec* p_iovec = iovec;
-	tcp_iovec tcp_iovec_temp; //currently we pass p_desc only for 1 size iovec, since for bigger size we allocate new buffers
 	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)(((struct tcp_pcb*)v_p_conn)->my_container);
 	dst_entry *p_dst = p_si_tcp->m_p_connected_dst_entry;
-	int count = 1;
 	vma_wr_tx_packet_attr attr;
+	int max_count = p_si_tcp->m_pcb.tso.max_send_sge;
+	tcp_iovec lwip_iovec[max_count];
+	int count = 0;
 
-	if (likely(!p->next)) { // We should hit this case 99% of cases
-		tcp_iovec_temp.iovec.iov_base = p->payload;
-		tcp_iovec_temp.iovec.iov_len = p->len;
-		tcp_iovec_temp.p_desc = (mem_buf_desc_t*)p;
-		p_iovec = (struct iovec*)&tcp_iovec_temp;
-	} else {
-		for (count = 0; count < 64 && p; ++count) {
-			iovec[count].iov_base = p->payload;
-			iovec[count].iov_len = p->len;
-			p = p->next;
-		}
+	/* maximum number of sge can not exceed this value */
+	while (p && (count < max_count)) {
+		lwip_iovec[count].iovec.iov_base = p->payload;
+		lwip_iovec[count].iovec.iov_len = p->len;
+		lwip_iovec[count].p_desc = (mem_buf_desc_t*)p;
+		p = p->next;
+		count++;
+	}
 
-		// We don't expect pbuf chain at all
-		if (p) {
-			vlog_printf(VLOG_ERROR, "pbuf chain size > 64!!! silently dropped.");
-			return ERR_OK;
-		}
+	/* Sanity check */
+	if (unlikely(p)) {
+		vlog_printf(VLOG_ERROR, "Number of buffers in request exceed  %d, so silently dropped.", max_count);
+		return ERR_OK;
 	}
 
 	attr = (vma_wr_tx_packet_attr)flags;
 	if (likely((p_dst->is_valid()))) {
-		p_dst->fast_send(p_iovec, count, attr);
+		p_dst->fast_send((struct iovec *)lwip_iovec, count, attr);
 	} else {
-		p_dst->slow_send(p_iovec, count, p_si_tcp->m_so_ratelimit, attr);
+		p_dst->slow_send((struct iovec *)lwip_iovec, count, p_si_tcp->m_so_ratelimit, attr);
 	}
 
 	if (p_dst->try_migrate_ring(p_si_tcp->m_tcp_con_lock)) {

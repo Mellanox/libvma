@@ -669,7 +669,6 @@ void ring_simple::send_ring_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wq
 	}
 
 	auto_unlocker lock(m_lock_ring_tx);
-	p_send_wqe->sg_list[0].lkey = m_tx_lkey;	// The ring keeps track of the current device lkey (In case of bonding event...)
 	int ret = send_buffer(p_send_wqe, attr);
 	send_status_handler(ret, p_send_wqe);
 }
@@ -684,7 +683,6 @@ void ring_simple::send_lwip_buffer(ring_user_id_t id, vma_ibv_send_wr* p_send_wq
 #endif
 
 	auto_unlocker lock(m_lock_ring_tx);
-	p_send_wqe->sg_list[0].lkey = m_tx_lkey; // The ring keeps track of the current device lkey (In case of bonding event...)
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t*)(p_send_wqe->wr_id);
 	p_mem_buf_desc->lwip_pbuf.pbuf.ref++;
 	int ret = send_buffer(p_send_wqe, attr);

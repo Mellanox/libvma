@@ -119,6 +119,7 @@ inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const
 		//so we just need to update the payload addr + len
 		m_sge[1].length = p_iov[0].iov_len;
 		m_sge[1].addr = (uintptr_t)p_iov[0].iov_base;
+		m_sge[1].lkey = m_p_ring->get_tx_lkey(m_id);
 	} else {
 		m_p_send_wqe = &m_not_inline_send_wqe;
 
@@ -144,6 +145,7 @@ inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const
 		// Update the payload addr + len
 		m_sge[1].length = sz_data_payload + hdr_len;
 		m_sge[1].addr = (uintptr_t)(p_mem_buf_desc->p_buffer + (uint8_t)m_header.m_transport_header_tx_offset);
+		m_sge[1].lkey = m_p_ring->get_tx_lkey(m_id);
 
 		// Calc payload start point (after the udp header if present else just after ip header)
 		uint8_t* p_payload = p_mem_buf_desc->p_buffer + m_header.m_transport_header_tx_offset + hdr_len;
@@ -268,6 +270,7 @@ ssize_t dst_entry_udp::fast_send_fragmented(const iovec* p_iov, const ssize_t sz
 
 		m_sge[1].addr = (uintptr_t)(p_mem_buf_desc->p_buffer + (uint8_t)m_header.m_transport_header_tx_offset);
 		m_sge[1].length = sz_user_data_to_copy + hdr_len;
+		m_sge[1].lkey = m_p_ring->get_tx_lkey(m_id);
 		m_p_send_wqe->wr_id = (uintptr_t)p_mem_buf_desc;
 
 		dst_udp_logfunc("%s packet_sz=%d, payload_sz=%d, ip_offset=%d id=%d", m_header.to_str().c_str(),
@@ -353,6 +356,7 @@ void dst_entry_udp::init_sge()
 {
 	m_sge[0].length = m_header.m_total_hdr_len;
 	m_sge[0].addr = m_header.m_actual_hdr_addr;
+	m_sge[0].lkey = m_p_ring->get_tx_lkey(m_id);
 }
 
 ssize_t dst_entry_udp::pass_buff_to_neigh(const iovec *p_iov, size_t & sz_iov, uint16_t packet_id)
