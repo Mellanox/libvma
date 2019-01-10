@@ -504,6 +504,7 @@ bool neigh_entry::post_send_udp(neigh_send_data *n_send_data)
 
 		m_sge.addr = (uintptr_t)(p_mem_buf_desc->p_buffer + (uint8_t)h->m_transport_header_tx_offset);
 		m_sge.length = sz_user_data_to_copy + hdr_len;
+		m_sge.lkey = m_p_ring->get_tx_lkey(m_id);
 		m_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
 
 		neigh_logdbg("%s packet_sz=%d, payload_sz=%d, ip_offset=%d id=%d", h->to_str().c_str(),
@@ -569,6 +570,7 @@ bool neigh_entry::post_send_tcp(neigh_send_data *p_data)
 	size_t hdr_alignment_diff = h->m_aligned_l2_l3_len - h->m_total_hdr_len;
 	m_sge.addr = (uintptr_t)((uint8_t*)p_pkt + hdr_alignment_diff);
 	m_sge.length = total_packet_len;
+	m_sge.lkey = m_p_ring->get_tx_lkey(m_id);
 
 	/* for DEBUG */
 	if ((uint8_t*)m_sge.addr < p_mem_buf_desc->p_buffer) {
