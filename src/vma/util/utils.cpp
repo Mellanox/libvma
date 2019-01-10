@@ -739,8 +739,13 @@ int run_and_retreive_system_command(const char* cmd_line, char* return_str, int 
 				return_str[0] = '\0';
 			}
 		}
+
 		// Check exit status code
 		rc = pclose(file);
+		if (rc == -1 && errno == ECHILD) {
+			/* suppress a case when termination status can be unavailable to pclose() */
+			rc = 0;
+		}
 
 		for (int i = 0; environ[i]; i++) {
 			if (strstr(environ[i], "_D_PRELOAD=")) {
