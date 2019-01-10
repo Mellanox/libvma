@@ -87,22 +87,6 @@ for target_v in "${target_list[@]}"; do
     echo "======================================================"
     set -x
 
-    if [ "${target_name}" = "socketxtreme" ]; then
-        if [ $(bc <<< "${jenkins_ofed} < 3.3") == 1 ]; then
-            set +x
-            echo "======================================================"
-            echo "Jenkins is skipping [${target_name}] target ..."
-            echo "Reason: unsupported OFED version [${jenkins_ofed}]"
-            echo "======================================================"
-            set -x
-            continue
-        fi
-        jenkins_test_gtest="no"
-        jenkins_test_run="no"
-        jenkins_test_vg="no"
-        jenkins_test_tool="no"
-    fi
-
     # check building and exit immediately in case failure
     #
     if [ "$jenkins_test_build" = "yes" ]; then
