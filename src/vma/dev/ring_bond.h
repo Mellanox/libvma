@@ -75,6 +75,7 @@ public:
 	virtual ring_user_id_t	generate_id(const address_t src_mac, const address_t dst_mac, uint16_t eth_proto, uint16_t encap_proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port);
 	virtual bool 		get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe);
 	virtual int		modify_ratelimit(struct vma_rate_limit_t &rate_limit);
+	virtual uint32_t        get_tx_lkey(ring_user_id_t id) { return m_bond_rings[id]->get_tx_lkey(id); }
         virtual uint32_t	get_max_inline_data();
         virtual uint32_t	get_max_send_sge(void);
         virtual uint32_t	get_max_payload_sz(void);
