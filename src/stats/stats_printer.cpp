@@ -108,10 +108,11 @@ void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, 
 	//
 	// Ring Allocation Logic information
 	//
-	fprintf(filename, "- RX: ring alloc logic = %s, ring user ID = %lu\n",
-			ring_logic_str(p_si_stats->ring_alloc_logic_rx), p_si_stats->ring_user_id_rx);
-	fprintf(filename, "- TX: ring alloc logic = %s, ring user ID = %lu\n",
-			ring_logic_str(p_si_stats->ring_alloc_logic_tx), p_si_stats->ring_user_id_tx);
+	//
+	if (p_si_stats->ring_alloc_logic_rx == RING_LOGIC_PER_USER_ID)
+		fprintf(filename, "- RX: Ring User ID = %lu\n", p_si_stats->ring_user_id_rx);
+	if (p_si_stats->ring_alloc_logic_tx == RING_LOGIC_PER_USER_ID)
+		fprintf(filename, "- TX: Ring user ID = %lu\n", p_si_stats->ring_user_id_tx);
 
 	//
 	// Bounded + Connected information

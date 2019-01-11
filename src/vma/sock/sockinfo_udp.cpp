@@ -2584,19 +2584,3 @@ void sockinfo_udp::update_header_field(data_updater *updater)
 		updater->update_field(*m_p_connected_dst_entry);
 	}
 }
-
-void sockinfo_udp::update_dst_entries_ring_logic()
-{
-	dst_entry_map_t::iterator dst_entry_iter = m_dst_entry_map.begin();
-	for (; dst_entry_iter != m_dst_entry_map.end(); dst_entry_iter++) {
-		if (dst_entry_iter->second->update_ring_alloc_logic(m_fd, m_lock_snd, m_ring_alloc_log_tx))
-			m_p_socket_stats->counters.n_tx_migrations++;
-	}
-
-	if (m_p_connected_dst_entry &&
-	    m_p_connected_dst_entry->update_ring_alloc_logic(m_fd, m_lock_snd, m_ring_alloc_log_tx)) {
-		    m_p_socket_stats->counters.n_tx_migrations++;
-	}
-
-	return;
-}

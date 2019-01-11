@@ -288,7 +288,6 @@ protected:
 
 	virtual int             rx_verify_available_data() = 0;
 	virtual void            update_header_field(data_updater *updater) = 0;
-	virtual void            update_dst_entries_ring_logic() = 0;
 	virtual mem_buf_desc_t *get_next_desc (mem_buf_desc_t *p_desc) = 0;
 	virtual	mem_buf_desc_t* get_next_desc_peek(mem_buf_desc_t *p_desc, int& rx_pkt_ready_list_idx) = 0;
 	virtual timestamps_t* get_socket_timestamps() = 0;
