@@ -305,8 +305,7 @@ protected:
 	bool                    destroy_nd_resources(const ip_address ip_local);
 	void			do_rings_migration(resource_allocation_key &old_key);
 	int			set_ring_attr(vma_ring_alloc_logic_attr *attr);
-	int			set_ring_attr_helper(ring_alloc_logic_attr *sock_attr,
-				  		     vma_ring_alloc_logic_attr *attr);
+	int			set_ring_attr_helper(ring_alloc_logic_attr *sock_attr, vma_ring_alloc_logic_attr *attr);
 
 	// Attach to all relevant rings for offloading receive flows - always used from slow path
 	// According to bounded information we need to attach to all UC relevant flows

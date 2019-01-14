@@ -496,6 +496,22 @@ int sockinfo::getsockopt(int __level, int __optname, void *__optval, socklen_t *
 				errno = EINVAL;
 			}
 		break;
+		case SO_VMA_RING_ALLOC_LOGIC:
+			if (*__optlen == sizeof(struct vma_ring_alloc_logic_t)) {
+				(*(struct vma_ring_alloc_logic_t*)__optval).logic_rx = m_ring_alloc_log_rx.get_ring_alloc_logic();
+				(*(struct vma_ring_alloc_logic_t*)__optval).logic_tx = m_ring_alloc_log_tx.get_ring_alloc_logic();
+				(*(struct vma_ring_alloc_logic_t*)__optval).user_id_rx = m_ring_alloc_logic.calc_res_key_by_logic();
+				(*(struct vma_ring_alloc_logic_t*)__optval).user_id_tx =
+						ring_allocation_logic_tx(get_fd(), m_ring_alloc_log_tx, this).calc_res_key_by_logic();
+				si_logdbg("(SO_SO_VMA_RING_ALLOC_LOGIC) value: %d, %d, %d, %d",
+					  (*(struct vma_ring_alloc_logic_t*)__optval).logic_rx,
+					  (*(struct vma_ring_alloc_logic_t*)__optval).logic_tx,
+					  (*(struct vma_ring_alloc_logic_t*)__optval).user_id_rx,
+					  (*(struct vma_ring_alloc_logic_t*)__optval).user_id_tx);
+				ret = 0;
+			} else {
+				errno = EINVAL;
+			}
 		}
 	}
 
@@ -883,8 +899,8 @@ void sockinfo::do_rings_migration(resource_allocation_key &old_key)
 {
 	lock_rx_q();
 
-	resource_allocation_key *new_key = m_ring_alloc_logic.get_key();
 	uint64_t new_calc_id = m_ring_alloc_logic.calc_res_key_by_logic();
+	resource_allocation_key *new_key = m_ring_alloc_logic.get_key();
 	// Check again if migration is needed before migration
 	if (old_key.get_user_id_key() == new_calc_id &&
 	    old_key.get_ring_alloc_logic() == new_key->get_ring_alloc_logic()) {

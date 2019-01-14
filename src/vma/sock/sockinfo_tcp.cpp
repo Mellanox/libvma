@@ -3627,6 +3627,9 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 		}
 	}
 
+	if (m_sock_state <= TCP_SOCK_ACCEPT_READY && __optval != NULL && is_inherited_option(__level, __optname))
+		m_socket_options_list.push_back(new socket_option_t(__level, __optname,__optval, __optlen));
+
 	if (safe_mce_sys().avoid_sys_calls_on_tcp_fd && ret != SOCKOPT_HANDLE_BY_OS && is_connected())
 		return ret;
 	return setsockopt_kernel(__level, __optname, __optval, __optlen, supported, allow_privileged_sock_opt);

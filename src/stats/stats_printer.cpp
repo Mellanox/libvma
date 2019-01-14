@@ -106,15 +106,6 @@ void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, 
 	fprintf(filename, "\n");
 
 	//
-	// Ring Allocation Logic information
-	//
-	//
-	if (p_si_stats->ring_alloc_logic_rx == RING_LOGIC_PER_USER_ID)
-		fprintf(filename, "- RX: Ring User ID = %lu\n", p_si_stats->ring_user_id_rx);
-	if (p_si_stats->ring_alloc_logic_tx == RING_LOGIC_PER_USER_ID)
-		fprintf(filename, "- TX: Ring user ID = %lu\n", p_si_stats->ring_user_id_tx);
-
-	//
 	// Bounded + Connected information
 	//
 	if (p_si_stats->bound_if || p_si_stats->bound_port) {
@@ -196,6 +187,16 @@ void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, 
 	if (b_any_activiy == false) {
 		fprintf(filename, "Rx and Tx where not active\n");
 	}
+
+	//
+	// Ring Allocation Logic information
+	//
+	//
+	if (p_si_stats->ring_alloc_logic_rx == RING_LOGIC_PER_USER_ID)
+		fprintf(filename, "- RX: Ring User ID = %lu\n", p_si_stats->ring_user_id_rx);
+	if (p_si_stats->ring_alloc_logic_tx == RING_LOGIC_PER_USER_ID)
+		fprintf(filename, "- TX: Ring user ID = %lu\n", p_si_stats->ring_user_id_tx);
+
 }
 
 // Print statistics headers for all sockets - used in case view mode is e_netstat_like
