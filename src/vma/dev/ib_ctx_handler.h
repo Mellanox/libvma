@@ -51,7 +51,6 @@ class ib_ctx_handler : public event_handler_ibverbs
 public:
 	struct ib_ctx_handler_desc {
 		struct ibv_device *device;
-		ts_conversion_mode_t ctx_time_converter_mode;
 	};
 public:
 	ib_ctx_handler(struct ib_ctx_handler_desc *desc);
@@ -71,6 +70,7 @@ public:
 	void                    mem_dereg(uint32_t lkey);
 	struct ibv_mr*          get_mem_reg(uint32_t lkey);
 	bool                    is_removed() { return m_removed;}
+	void                    set_ctx_time_converter_status(ts_conversion_mode_t conversion_mode);
 	ts_conversion_mode_t    get_ctx_time_converter_status();
 	void                    set_flow_tag_capability(bool flow_tag_capability); 
 	bool                    get_flow_tag_capability() { return m_flow_tag_enabled; } // m_flow_tag_capability

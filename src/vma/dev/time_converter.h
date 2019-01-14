@@ -34,11 +34,15 @@
 #ifndef TIME_CONVERTER_H
 #define TIME_CONVERTER_H
 
+#include <tr1/unordered_map>
 #include <infiniband/verbs.h>
-#include <vma/sock/cleanable_obj.h>
-#include "vma/event/timer_handler.h"
-#include <vma/util/sys_vars.h>
 
+#include "vma/util/sys_vars.h"
+#include "vma/sock/cleanable_obj.h"
+#include "vma/event/timer_handler.h"
+
+class net_device_val;
+typedef std::tr1::unordered_map<int, net_device_val*> net_device_map_t;
 
 class ctx_timestamping_params_t {
 public:
@@ -64,7 +68,7 @@ public:
 	virtual void              clean_obj();
 	ts_conversion_mode_t      get_converter_status() { return m_converter_status; };
 
-	static ts_conversion_mode_t     get_devices_converter_status(struct ibv_device** ibv_dev_list, int num_devices);
+	static ts_conversion_mode_t update_device_converters_status(net_device_map_t& net_devices);
 
 protected:
 	void*                     m_timer_handle;

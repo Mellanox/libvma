@@ -53,8 +53,7 @@
 
 ib_ctx_handler_collection* g_p_ib_ctx_handler_collection = NULL;
 
-ib_ctx_handler_collection::ib_ctx_handler_collection() :
-		m_ctx_time_conversion_mode(TS_CONVERSION_MODE_DISABLE)
+ib_ctx_handler_collection::ib_ctx_handler_collection()
 {
 	ibchc_logdbg("");
 
@@ -106,14 +105,8 @@ void ib_ctx_handler_collection::update_tbl(const char *ifa_name)
 
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	if (!ifa_name) {
-		/* Get common time conversion mode for all devices */
-		m_ctx_time_conversion_mode = time_converter::get_devices_converter_status(dev_list, num_devices);
-		ibchc_logdbg("TS converter status was set to %d", m_ctx_time_conversion_mode);
-	}
-
 	for (i = 0; i < num_devices; i++) {
-		struct ib_ctx_handler::ib_ctx_handler_desc desc = {dev_list[i], m_ctx_time_conversion_mode};
+		struct ib_ctx_handler::ib_ctx_handler_desc desc = {dev_list[i]};
 
 		/* 2. Skip existing devices (compare by name) */
 		if (ifa_name && !check_device_name_ib_name(ifa_name, dev_list[i]->name)) {

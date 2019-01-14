@@ -69,7 +69,10 @@ enum net_device_table_mgr_timers {
 	RING_ADAPT_CQ_MODERATION_TIMER
 };
 
-net_device_table_mgr::net_device_table_mgr() : cache_table_mgr<ip_address,net_device_val*>("net_device_table_mgr"), m_lock("net_device_table_mgr")
+net_device_table_mgr::net_device_table_mgr() :
+		cache_table_mgr<ip_address,net_device_val*>("net_device_table_mgr"),
+		m_lock("net_device_table_mgr"),
+		m_time_conversion_mode(TS_CONVERSION_MODE_DISABLE)
 {
 	m_num_devices = 0;
 	m_global_ring_epfd = 0;
@@ -116,6 +119,9 @@ net_device_table_mgr::net_device_table_mgr() : cache_table_mgr<ip_address,net_de
 
 	//Print table
 	print_val_tbl();
+
+	// Calculate and update time conversion mode
+	m_time_conversion_mode = time_converter::update_device_converters_status(m_net_device_map_index);
 
 	// register to netlink event
 	g_p_netlink_handler->register_event(nlgrpLINK, this);
