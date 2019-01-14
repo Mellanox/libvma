@@ -51,8 +51,7 @@ class pkt_rcvr_sink;
 
 typedef enum {
 	CQT_RX,
-	CQT_TX,
-	CQT_RX_TX
+	CQT_TX
 } cq_type_t;
 
 typedef int ring_user_id_t;

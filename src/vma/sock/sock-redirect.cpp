@@ -680,7 +680,7 @@ int vma_add_ring_profile(vma_ring_type_attr *profile, vma_ring_profile_key *res)
 extern "C"
 int vma_modify_ring(struct vma_modify_ring_attr *mr_data)
 {
-	srdr_logdbg_entry("ring_fd=%d, mr_data=%p ", mr_data->ring_fd, mr_data);
+	srdr_logfunc_entry("ring_fd=%d, mr_data=%p ", mr_data->ring_fd, mr_data);
 	int ret = -1;
 	cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(mr_data->ring_fd);
 	if (likely(p_cq_ch_info)) {
@@ -691,7 +691,14 @@ int vma_modify_ring(struct vma_modify_ring_attr *mr_data)
 						mr_data->cq_moderation.cq_moderation_count);
 				ret = 0;
 			} else if (VMA_MODIFY_RING_CQ_ARM & mr_data->comp_bit_mask) {
-				return p_ring->request_notification(CQT_RX_TX, 0);
+				if (RING_ETH_CB == p_ring->get_type()) {
+					ret = p_ring->request_notification(CQT_RX, 0);
+				} else if (RING_ETH_DIRECT == p_ring->get_type()) {
+					ret = p_ring->request_notification(CQT_TX, 0);
+				} else {
+					vlog_printf(VLOG_ERROR, "Ring type [%d] is not supported\n",
+							p_ring->get_type());
+				}
 			} else {
 				vlog_printf(VLOG_ERROR, "comp_mask [0x%x] is not supported\n",
 						mr_data->comp_bit_mask);

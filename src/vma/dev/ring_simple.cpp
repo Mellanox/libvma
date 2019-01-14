@@ -306,7 +306,7 @@ int ring_simple::request_notification(cq_type_t cq_type, uint64_t poll_sn)
 		RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_rx,
 				m_p_cq_mgr_rx->request_notification(poll_sn);
 				++m_p_ring_stat->simple.n_rx_interrupt_requests);
-	} else if (CQT_TX == cq_type) {
+	} else {
 		RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_tx, m_p_cq_mgr_tx->request_notification(poll_sn));
 	}
 

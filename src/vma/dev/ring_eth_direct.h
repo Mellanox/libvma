@@ -73,7 +73,6 @@ public:
 	virtual int	drain_and_proccess(cq_type_t cq_type);
 	virtual int	poll_and_process_element_rx(uint64_t* p_cq_poll_sn,
 					void* pv_fd_ready_array);
-	virtual int	request_notification(cq_type_t cq_type, uint64_t poll_sn);
 private:
 	vma_external_mem_attr	m_ring_attr;
 	addr_len_mr_map_t	m_mr_map;

@@ -280,12 +280,12 @@ struct vma_cq_arm_attr {
 };
 
 /**
- * @param comp_mask - what fields should be read when processing this sturct
+ * @param comp_mask - what fields should be read when processing this struct
  * 	see @ref vma_modify_ring_mask
  * @param ring_fd - ring fd
  */
 struct vma_modify_ring_attr {
-	uint32_t	comp_bit_mask;
+	uint32_t comp_bit_mask;
 	int ring_fd;
 	union {
 		struct vma_cq_moderation_attr cq_moderation;

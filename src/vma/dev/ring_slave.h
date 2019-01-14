@@ -181,6 +181,7 @@ public:
 	inline bool         is_simple() const { return m_type != RING_TAP; }
 	inline bool         is_mp_ring() const  { return m_type == RING_ETH_CB; }
 	transport_type_t    get_transport_type() const { return m_transport_type; }
+	inline ring_type_t  get_type() const { return m_type; }
 
 	bool                m_active;         /* State indicator */
 
