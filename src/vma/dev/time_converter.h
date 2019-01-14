@@ -68,7 +68,7 @@ public:
 	virtual void              clean_obj();
 	ts_conversion_mode_t      get_converter_status() { return m_converter_status; };
 
-	static ts_conversion_mode_t get_devices_converter_status(net_device_map_t& net_devices);
+	static ts_conversion_mode_t update_device_converters_status(net_device_map_t& net_devices);
 
 protected:
 	void*                     m_timer_handle;

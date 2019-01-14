@@ -120,8 +120,8 @@ net_device_table_mgr::net_device_table_mgr() :
 	//Print table
 	print_val_tbl();
 
-	// Calculate time conversion mode
-	m_time_conversion_mode = time_converter::get_devices_converter_status(m_net_device_map_index);
+	// Calculate and update time conversion mode
+	m_time_conversion_mode = time_converter::update_device_converters_status(m_net_device_map_index);
 
 	// register to netlink event
 	g_p_netlink_handler->register_event(nlgrpLINK, this);
