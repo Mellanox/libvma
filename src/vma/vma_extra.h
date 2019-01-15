@@ -181,13 +181,6 @@ struct vma_rate_limit_t {
 	uint16_t typical_pkt_sz;		/* typical packet size in bytes */
 };
 
-struct vma_ring_alloc_logic_t{
-	uint16_t	logic_rx;
-	uint16_t	logic_tx;
-	uint32_t	user_id_rx;
-	uint32_t	user_id_tx;
-};
-
 typedef enum {
 	VMA_CB_MASK_TIMESTAMP = (1 << 0),
 } vma_completion_cb_mask;

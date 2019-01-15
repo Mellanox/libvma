@@ -206,6 +206,7 @@ typedef struct {
 		memset(&counters, 0, sizeof(counters));
 		mc_grp_map.reset();
 		ring_user_id_rx = ring_user_id_tx = 0;
+		ring_alloc_logic_rx = ring_alloc_logic_tx = RING_LOGIC_PER_INTERFACE;
 	};
 } socket_stats_t;
 

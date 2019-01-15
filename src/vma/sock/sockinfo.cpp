@@ -496,22 +496,6 @@ int sockinfo::getsockopt(int __level, int __optname, void *__optval, socklen_t *
 				errno = EINVAL;
 			}
 		break;
-		case SO_VMA_RING_ALLOC_LOGIC:
-			if (*__optlen == sizeof(struct vma_ring_alloc_logic_t)) {
-				(*(struct vma_ring_alloc_logic_t*)__optval).logic_rx = m_ring_alloc_log_rx.get_ring_alloc_logic();
-				(*(struct vma_ring_alloc_logic_t*)__optval).logic_tx = m_ring_alloc_log_tx.get_ring_alloc_logic();
-				(*(struct vma_ring_alloc_logic_t*)__optval).user_id_rx = m_ring_alloc_logic.calc_res_key_by_logic();
-				(*(struct vma_ring_alloc_logic_t*)__optval).user_id_tx =
-						ring_allocation_logic_tx(get_fd(), m_ring_alloc_log_tx, this).calc_res_key_by_logic();
-				si_logdbg("(SO_SO_VMA_RING_ALLOC_LOGIC) value: %d, %d, %d, %d",
-					  (*(struct vma_ring_alloc_logic_t*)__optval).logic_rx,
-					  (*(struct vma_ring_alloc_logic_t*)__optval).logic_tx,
-					  (*(struct vma_ring_alloc_logic_t*)__optval).user_id_rx,
-					  (*(struct vma_ring_alloc_logic_t*)__optval).user_id_tx);
-				ret = 0;
-			} else {
-				errno = EINVAL;
-			}
 		}
 	}
 
@@ -1083,6 +1067,11 @@ void sockinfo::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 	if (m_p_connected_dst_entry) {
 		vlog_printf(log_level, "Is offloaded : %s\n", m_p_connected_dst_entry->is_offloaded() ? "true" : "false");
 	}
+
+	if (m_p_socket_stats->ring_alloc_logic_rx == RING_LOGIC_PER_USER_ID)
+		vlog_printf(log_level, "RX Ring User ID : %lu\n", m_p_socket_stats->ring_user_id_rx);
+	if (m_p_socket_stats->ring_alloc_logic_tx == RING_LOGIC_PER_USER_ID)
+		vlog_printf(log_level, "TX Ring User ID : %lu\n", m_p_socket_stats->ring_user_id_tx);
 
 	if (m_p_socket_stats->counters.n_tx_sent_byte_count || m_p_socket_stats->counters.n_tx_sent_pkt_count || m_p_socket_stats->counters.n_tx_errors || m_p_socket_stats->counters.n_tx_drops ) {
 		vlog_printf(log_level, "Tx Offload : %d KB / %d / %d / %d [bytes/packets/drops/errors]\n", m_p_socket_stats->counters.n_tx_sent_byte_count/1024, m_p_socket_stats->counters.n_tx_sent_pkt_count, m_p_socket_stats->counters.n_tx_drops, m_p_socket_stats->counters.n_tx_errors);
