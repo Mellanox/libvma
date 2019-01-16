@@ -4220,7 +4220,7 @@ void sockinfo_tcp::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 				pcb.rcv_wnd_max, RCV_WND_SCALE(&pcb, pcb.rcv_wnd_max),  pcb.rcv_wnd_max_desired, RCV_WND_SCALE(&pcb, pcb.rcv_wnd_max_desired));
 
 		vlog_printf(log_level, "Send window : snd_wnd %u (%u), snd_wnd_max %u (%u)\n",
-				pcb.snd_wnd, RCV_WND_SCALE(&pcb, pcb.snd_wnd), pcb.snd_wnd_max, RCV_WND_SCALE(&pcb, pcb.snd_wnd_max));
+				pcb.snd_wnd, (pcb.snd_wnd >> pcb.snd_scale), pcb.snd_wnd_max, (pcb.snd_wnd_max >> pcb.snd_scale));
 	} else {
 		vlog_printf(log_level, "Window scaling : DISABLED\n");
 
