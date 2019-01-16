@@ -676,22 +676,26 @@ inline struct mlx5_cqe64* cq_mgr_mlx5::check_error_completion(struct mlx5_cqe64 
 inline struct mlx5_cqe64 *cq_mgr_mlx5::get_cqe64(struct mlx5_cqe64 **cqe_err)
 {
 	struct mlx5_cqe64 *cqe = (struct mlx5_cqe64 *)(((uint8_t*)m_mlx5_cq.cq_buf) +
-			((m_mlx5_cq.cq_ci & (m_mlx5_cq.cqe_count - 1)) << m_mlx5_cq.cqe_size_log));
+		((m_mlx5_cq.cq_ci & (m_mlx5_cq.cqe_count - 1)) << m_mlx5_cq.cqe_size_log));
 	uint8_t op_own = cqe->op_own;
 
-	if (likely(op_own >> 4 != MLX5_CQE_INVALID) &&
-			((op_own & MLX5_CQE_OWNER_MASK) != !(m_mlx5_cq.cq_ci & m_mlx5_cq.cqe_count))) {
-		++m_mlx5_cq.cq_ci;
-		rmb();
-		*m_mlx5_cq.dbrec = htonl(m_mlx5_cq.cq_ci);
-
-		return cqe;
-	}
-	if ((op_own & 0x80) && cqe_err) {
+	/* Check ownership and invalid opcode
+	 * Return cqe_err for 0x80 - MLX5_CQE_REQ_ERR, MLX5_CQE_RESP_ERR or MLX5_CQE_INVALID
+	 */
+ 	if (unlikely((op_own & MLX5_CQE_OWNER_MASK) == !(m_mlx5_cq.cq_ci & m_mlx5_cq.cqe_count))) {
+		return NULL;
+	} else if (unlikely((op_own >> 4) == MLX5_CQE_INVALID)) {
+		return NULL;
+	} else if (cqe_err && (op_own & 0x80)) {
 		*cqe_err = check_error_completion(cqe, &m_mlx5_cq.cq_ci, op_own);
+		return NULL;
 	}
 
-	return NULL;
+ 	++m_mlx5_cq.cq_ci;
+	rmb();
+	*m_mlx5_cq.dbrec = htonl(m_mlx5_cq.cq_ci);
+
+ 	return cqe;
 }
 
 int cq_mgr_mlx5::poll_and_process_error_element_tx(struct mlx5_cqe64 *cqe, uint64_t* p_cq_poll_sn)
