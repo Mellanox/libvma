@@ -37,6 +37,8 @@
 #include "vma/util/utils.h"
 #include "vma/util/vma_stats.h"
 #include "vma/lwip/tcp.h"
+#include "vma/vma_extra.h"
+#include "vma/util/sys_vars.h"
 
 typedef enum {
 	e_K = 1024,
@@ -125,6 +127,15 @@ void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, 
 	if ((p_si_stats->threadid_last_rx != 0) || (p_si_stats->threadid_last_tx != 0)) {
 		fprintf(filename, "- Thread Id Rx: %5u, Tx: %5u\n", p_si_stats->threadid_last_rx, p_si_stats->threadid_last_tx);
 	}
+
+	//
+	// Ring Allocation Logic information
+	//
+	//
+	if (p_si_stats->ring_alloc_logic_rx == RING_LOGIC_PER_USER_ID)
+		fprintf(filename, "- RX: Ring User ID = %lu\n", p_si_stats->ring_user_id_rx);
+	if (p_si_stats->ring_alloc_logic_tx == RING_LOGIC_PER_USER_ID)
+		fprintf(filename, "- TX: Ring User ID = %lu\n", p_si_stats->ring_user_id_tx);
 
 	//
 	// Socket statistics

@@ -97,6 +97,7 @@ static bool is_inherited_option(int __level, int __optname)
 		case SO_RCVLOWAT:
 		case SO_SNDBUF:
 		case SO_SNDLOWAT:
+		case SO_VMA_RING_ALLOC_LOGIC:
 			ret = true;
 		}
 	} else if (__level == IPPROTO_TCP) {
@@ -3400,6 +3401,10 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 	bool allow_privileged_sock_opt = false;
 
 	if ((ret = sockinfo::setsockopt(__level, __optname, __optval, __optlen)) != SOCKOPT_PASS_TO_OS) {
+		if (ret == SOCKOPT_INTERNAL_VMA_SUPPORT &&
+		    m_sock_state <= TCP_SOCK_ACCEPT_READY && __optval != NULL &&
+		    is_inherited_option(__level, __optname))
+			m_socket_options_list.push_back(new socket_option_t(__level, __optname,__optval, __optlen));
 		return ret;
 	}
 

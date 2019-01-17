@@ -69,4 +69,18 @@ public:
 private:
     uint8_t m_tos;
 };
+
+class ring_alloc_logic_updater: public data_updater {
+public:
+    ring_alloc_logic_updater(int fd, lock_base & socket_lock,
+    			     resource_allocation_key & ring_alloc_logic,
+			     socket_stats_t* socket_stats);
+    virtual ~ring_alloc_logic_updater() {};
+    virtual bool update_field(dst_entry &hdr);
+private:
+    int m_fd;
+    lock_base & m_socket_lock;
+    resource_allocation_key & m_key;
+    socket_stats_t* m_sock_stats;
+};
 #endif /* SRC_VMA_UTIL_DATA_UPDATER_H_ */

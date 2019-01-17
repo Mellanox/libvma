@@ -42,6 +42,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <vlogger/vlogger.h>
+#include <vma/vma_extra.h>
 
 #define NUM_OF_SUPPORTED_CQS                        16
 #define NUM_OF_SUPPORTED_RINGS                      16
@@ -188,6 +189,10 @@ typedef struct {
 	uint32_t                     n_tx_ready_byte_count;
 	socket_counters_t            counters;
 	std::bitset<MC_TABLE_SIZE>   mc_grp_map;
+	ring_logic_t                 ring_alloc_logic_rx;
+	ring_logic_t                 ring_alloc_logic_tx;
+	uint64_t                     ring_user_id_rx;
+	uint64_t                     ring_user_id_tx;
 
 	void reset() {
 		fd = 0;
@@ -200,6 +205,8 @@ typedef struct {
 		n_rx_ready_pkt_count = n_rx_ready_byte_count = n_rx_ready_byte_limit = n_rx_zcopy_pkt_count = n_tx_ready_byte_count = 0;
 		memset(&counters, 0, sizeof(counters));
 		mc_grp_map.reset();
+		ring_user_id_rx = ring_user_id_tx = 0;
+		ring_alloc_logic_rx = ring_alloc_logic_tx = RING_LOGIC_PER_INTERFACE;
 	};
 } socket_stats_t;
 
