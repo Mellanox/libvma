@@ -330,6 +330,15 @@ void ib_ctx_handler::set_burst_capability(bool burst)
 	m_pacing_caps.burst = burst;
 }
 
+bool ib_ctx_handler::is_packet_pacing_supported(uint32_t rate)
+{
+	if (rate) {
+		return m_pacing_caps.rate_limit_min <= rate && rate <= m_pacing_caps.rate_limit_max;
+	} else {
+		return true;
+	}
+}
+
 bool ib_ctx_handler::is_active(int port_num)
 {
 	ibv_port_attr port_attr;

@@ -84,7 +84,7 @@ public:
 	bool                    get_flow_tag_capability() { return m_flow_tag_enabled; } // m_flow_tag_capability
 	void                    set_burst_capability(bool burst);
 	bool                    get_burst_capability() { return m_pacing_caps.burst; }
-	bool                    is_packet_pacing_supported(uint32_t rate) { return m_pacing_caps.rate_limit_min >= rate && rate <= m_pacing_caps.rate_limit_max; }
+	bool                    is_packet_pacing_supported(uint32_t rate);
 	size_t                  get_on_device_memory_size() { return m_on_device_memory; }
 	bool                    is_active(int port_num);
 	virtual void            handle_event_ibverbs_cb(void *ev_data, void *ctx);
