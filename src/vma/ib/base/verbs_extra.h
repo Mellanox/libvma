@@ -112,6 +112,7 @@ void priv_ibv_modify_cq_moderation(struct ibv_cq* cq, uint32_t period, uint32_t 
 #define FLOW_TAG_MASK     ((1 << 20) -1)
 int priv_ibv_query_flow_tag_supported(struct ibv_qp *qp, uint8_t port_num);
 int priv_ibv_create_flow_supported(struct ibv_qp *qp, uint8_t port_num);
+int priv_ibv_query_burst_supported(struct ibv_qp *qp, uint8_t port_num);
 
 /* DEFINED_VERBS_VERSION:
  * 1 - Legacy Verbs API

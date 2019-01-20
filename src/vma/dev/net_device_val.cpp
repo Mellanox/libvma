@@ -1608,7 +1608,6 @@ bool net_device_val::verify_qp_creation(const char* ifname, enum ibv_qp_type qp_
 {
 	bool success = false;
 	char bond_roce_lag_path[256] = {0};
-	struct vma_rate_limit_t rate = {1000, 100, 100};
 	struct ibv_cq* cq = NULL;
 	struct ibv_comp_channel *channel = NULL;
 	struct ibv_qp* qp = NULL;
@@ -1695,7 +1694,7 @@ bool net_device_val::verify_qp_creation(const char* ifname, enum ibv_qp_type qp_
 			}
 			nd_logdbg("verified interface %s for flow tag capabilities : %s", ifname, p_ib_ctx->get_flow_tag_capability() ? "enabled" : "disabled");
 
-			if (qp_type == IBV_QPT_RAW_PACKET && !priv_ibv_modify_qp_ratelimit(qp, rate, RL_RATE | RL_BURST_SIZE | RL_PKT_SIZE)) {
+			if (qp_type == IBV_QPT_RAW_PACKET && !priv_ibv_query_burst_supported(qp, port_num)) {
 				p_ib_ctx->set_burst_capability(true);
 			}
 			nd_logdbg("verified interface %s for burst capabilities : %s", ifname, p_ib_ctx->get_burst_capability() ? "enabled" : "disabled");
