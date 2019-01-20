@@ -100,6 +100,13 @@ ib_ctx_handler::ib_ctx_handler(struct ib_ctx_handler_desc *desc) :
 	// update device memory capabilities
 	m_on_device_memory = vma_ibv_dm_size(m_p_ibv_device_attr);
 
+#ifdef DEFINED_IBV_EXP_QP_RATE_LIMIT
+	if (get_ibv_device_attr()->comp_mask & IBV_EXP_DEVICE_ATTR_PACKET_PACING_CAPS) {
+		m_pacing_caps.rate_limit_min = get_ibv_device_attr()->packet_pacing_caps.qp_rate_limit_min;
+		m_pacing_caps.rate_limit_max = get_ibv_device_attr()->packet_pacing_caps.qp_rate_limit_max;
+	}
+#endif
+
 	g_p_event_handler_manager->register_ibverbs_event(m_p_ibv_context->async_fd,
 						this, m_p_ibv_context, 0);
 
@@ -164,7 +171,7 @@ ib_ctx_handler::~ib_ctx_handler()
 
 void ib_ctx_handler::set_str()
 {
-	char str_x[255] = {0};
+	char str_x[512] = {0};
 
 	m_str[0] = '\0';
 
@@ -190,6 +197,10 @@ void ib_ctx_handler::set_str()
 
 	str_x[0] = '\0';
 	sprintf(str_x, " on_device_memory: %zu", m_on_device_memory);
+	strcat(m_str, str_x);
+
+	str_x[0] = '\0';
+	sprintf(str_x, " packet_pacing_caps: min rate %u, max rate %u, burst %u", m_pacing_caps.rate_limit_min, m_pacing_caps.rate_limit_max, m_pacing_caps.burst);
 	strcat(m_str, str_x);
 }
 
@@ -312,6 +323,11 @@ struct ibv_mr* ib_ctx_handler::get_mem_reg(uint32_t lkey)
 void ib_ctx_handler::set_flow_tag_capability(bool flow_tag_capability)
 {
 	m_flow_tag_enabled = flow_tag_capability;
+}
+
+void ib_ctx_handler::set_burst_capability(bool burst)
+{
+	m_pacing_caps.burst = burst;
 }
 
 bool ib_ctx_handler::is_active(int port_num)

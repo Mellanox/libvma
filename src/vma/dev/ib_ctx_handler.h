@@ -44,6 +44,14 @@
 
 typedef std::tr1::unordered_map<uint32_t, struct ibv_mr*> mr_map_lkey_t;
 
+struct pacing_caps_t {
+	uint32_t rate_limit_min;
+	uint32_t rate_limit_max;
+	bool burst;
+
+	pacing_caps_t() : rate_limit_min(0), rate_limit_max(0), burst(false) {};
+};
+
 // client to event manager 'command' invoker (??)
 //
 class ib_ctx_handler : public event_handler_ibverbs
@@ -74,6 +82,9 @@ public:
 	ts_conversion_mode_t    get_ctx_time_converter_status();
 	void                    set_flow_tag_capability(bool flow_tag_capability); 
 	bool                    get_flow_tag_capability() { return m_flow_tag_enabled; } // m_flow_tag_capability
+	void                    set_burst_capability(bool burst);
+	bool                    get_burst_capability() { return m_pacing_caps.burst; }
+	bool                    is_packet_pacing_supported(uint32_t rate) { return m_pacing_caps.rate_limit_min >= rate && rate <= m_pacing_caps.rate_limit_max; }
 	size_t                  get_on_device_memory_size() { return m_on_device_memory; }
 	bool                    is_active(int port_num);
 	virtual void            handle_event_ibverbs_cb(void *ev_data, void *ctx);
@@ -93,6 +104,7 @@ private:
 	vma_ibv_device_attr_ex* m_p_ibv_device_attr;
 	ibv_pd*                 m_p_ibv_pd;
 	bool                    m_flow_tag_enabled;
+	pacing_caps_t           m_pacing_caps;
 	size_t                  m_on_device_memory;
 	bool                    m_removed;
 	lock_spin               m_lock_umr;

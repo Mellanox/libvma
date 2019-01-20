@@ -386,7 +386,7 @@ int priv_ibv_modify_qp_ratelimit(struct ibv_qp *qp, struct vma_rate_limit_t &rat
 #endif
 	BULLSEYE_EXCLUDE_BLOCK_START
 	IF_VERBS_FAILURE(vma_ibv_modify_qp(qp, &qp_attr, exp_attr_mask)) {
-		vlog_printf(VLOG_WARNING, "failed setting rate limit\n");
+		vlog_printf(VLOG_DEBUG, "failed setting rate limit\n");
 		return -2;
 	} ENDIF_VERBS_FAILURE;
 	BULLSEYE_EXCLUDE_BLOCK_END

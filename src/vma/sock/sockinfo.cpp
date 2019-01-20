@@ -1425,11 +1425,6 @@ int sockinfo::modify_ratelimit(dst_entry* p_dst_entry, struct vma_rate_limit_t &
 {
 	if (m_ring_alloc_log_tx.get_ring_alloc_logic() == RING_LOGIC_PER_SOCKET ||
 	    m_ring_alloc_log_tx.get_ring_alloc_logic() == RING_LOGIC_PER_USER_ID) {
-		// check in qp attr that device supports
-		if (m_p_rx_ring && !m_p_rx_ring->is_ratelimit_supported(rate_limit)) {
-			si_logwarn("device doesn't support packet pacing or bad value, run ibv_devinfo -v");
-			return -1;
-		}
 
 		if (p_dst_entry) {
 			int ret = p_dst_entry->modify_ratelimit(rate_limit);
