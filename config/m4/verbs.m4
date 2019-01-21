@@ -134,6 +134,7 @@ CHECK_VERBS_ATTRIBUTE([IBV_FLOW_SPEC_ACTION_TAG], [infiniband/verbs.h], [IBV_FLO
 CHECK_VERBS_ATTRIBUTE([IBV_WC_EX_WITH_COMPLETION_TIMESTAMP], [infiniband/verbs.h], [IBV_CQ_TIMESTAMP])
 CHECK_VERBS_MEMBER([struct ibv_device_attr_ex.orig_attr], [infiniband/verbs.h], [IBV_DEVICE_ATTR_EX])
 CHECK_VERBS_MEMBER([struct ibv_alloc_dm_attr.length], [infiniband/verbs.h], [IBV_DM])
+CHECK_VERBS_MEMBER([struct ibv_packet_pacing_caps.qp_rate_limit_min], [infiniband/verbs.h], [IBV_PACKET_PACING_CAPS])
 
 # Check <verbs_exp.h>
 #
@@ -145,7 +146,7 @@ if test "x$vma_cv_verbs" == x2; then
     CHECK_VERBS_ATTRIBUTE([IBV_EXP_FLOW_SPEC_IB], [infiniband/verbs_exp.h], [IBV_FLOW_SPEC_IB])
     CHECK_VERBS_ATTRIBUTE([IBV_EXP_SEND_IP_CSUM], [infiniband/verbs_exp.h])
     CHECK_VERBS_ATTRIBUTE([IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE], [infiniband/verbs_exp.h], [IBV_DM])
-    CHECK_VERBS_ATTRIBUTE([IBV_EXP_QP_RATE_LIMIT], [infiniband/verbs_exp.h])
+    CHECK_VERBS_ATTRIBUTE([IBV_EXP_QP_RATE_LIMIT], [infiniband/verbs_exp.h], [IBV_PACKET_PACING_CAPS])
     CHECK_VERBS_ATTRIBUTE([IBV_EXP_QP_SUPPORT_BURST], [infiniband/verbs_exp.h])
 
     #

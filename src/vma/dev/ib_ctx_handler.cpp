@@ -100,12 +100,12 @@ ib_ctx_handler::ib_ctx_handler(struct ib_ctx_handler_desc *desc) :
 	// update device memory capabilities
 	m_on_device_memory = vma_ibv_dm_size(m_p_ibv_device_attr);
 
-#ifdef DEFINED_IBV_EXP_QP_RATE_LIMIT
-	if (get_ibv_device_attr()->comp_mask & IBV_EXP_DEVICE_ATTR_PACKET_PACING_CAPS) {
-		m_pacing_caps.rate_limit_min = get_ibv_device_attr()->packet_pacing_caps.qp_rate_limit_min;
-		m_pacing_caps.rate_limit_max = get_ibv_device_attr()->packet_pacing_caps.qp_rate_limit_max;
+#ifdef DEFINED_IBV_PACKET_PACING_CAPS
+	if (vma_is_pacing_caps_supported(m_p_ibv_device_attr)) {
+		m_pacing_caps.rate_limit_min = m_p_ibv_device_attr->packet_pacing_caps.qp_rate_limit_min;
+		m_pacing_caps.rate_limit_max = m_p_ibv_device_attr->packet_pacing_caps.qp_rate_limit_max;
 	}
-#endif
+#endif // DEFINED_IBV_PACKET_PACING_CAPS
 
 	g_p_event_handler_manager->register_ibverbs_event(m_p_ibv_context->async_fd,
 						this, m_p_ibv_context, 0);
