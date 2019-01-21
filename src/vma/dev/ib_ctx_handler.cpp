@@ -200,7 +200,7 @@ void ib_ctx_handler::set_str()
 	strcat(m_str, str_x);
 
 	str_x[0] = '\0';
-	sprintf(str_x, " packet_pacing_caps: min rate %u, max rate %u, burst %u", m_pacing_caps.rate_limit_min, m_pacing_caps.rate_limit_max, m_pacing_caps.burst);
+	sprintf(str_x, " packet_pacing_caps: min rate %u, max rate %u", m_pacing_caps.rate_limit_min, m_pacing_caps.rate_limit_max);
 	strcat(m_str, str_x);
 }
 
@@ -330,7 +330,7 @@ void ib_ctx_handler::set_burst_capability(bool burst)
 	m_pacing_caps.burst = burst;
 }
 
-bool ib_ctx_handler::is_packet_pacing_supported(uint32_t rate)
+bool ib_ctx_handler::is_packet_pacing_supported(uint32_t rate /* =1 */)
 {
 	if (rate) {
 		return m_pacing_caps.rate_limit_min <= rate && rate <= m_pacing_caps.rate_limit_max;
