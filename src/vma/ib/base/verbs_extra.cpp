@@ -382,9 +382,9 @@ int vma_rdma_lib_reset() {
 // be advised that this method will change packet pacing value and also change state to RTS
 int priv_ibv_modify_qp_ratelimit(struct ibv_qp *qp, struct vma_rate_limit_t &rate_limit, uint32_t rl_changes)
 {
-#ifdef DEFINED_IBV_EXP_QP_RATE_LIMIT
+#ifdef DEFINED_IBV_PACKET_PACING_CAPS
 	vma_ibv_qp_attr qp_attr;
-	uint64_t exp_attr_mask = IBV_QP_STATE;
+	uint64_t attr_mask = IBV_QP_STATE;
 
 	if (priv_ibv_query_qp_state(qp) != IBV_QPS_RTS) {
 		vlog_printf(VLOG_DEBUG, "failed querying QP\n");
@@ -395,7 +395,7 @@ int priv_ibv_modify_qp_ratelimit(struct ibv_qp *qp, struct vma_rate_limit_t &rat
 
 	if (rate_limit.rate && (rl_changes & RL_RATE)) {
 		qp_attr.rate_limit = rate_limit.rate;
-		exp_attr_mask |= IBV_EXP_QP_RATE_LIMIT;
+		attr_mask |= VMA_IBV_QP_RATE_LIMIT;
 	}
 #ifdef DEFINED_IBV_EXP_QP_SUPPORT_BURST
 	if (rate_limit.max_burst_sz && rate_limit.typical_pkt_sz && (rl_changes & (RL_BURST_SIZE | RL_PKT_SIZE))) {
@@ -405,7 +405,7 @@ int priv_ibv_modify_qp_ratelimit(struct ibv_qp *qp, struct vma_rate_limit_t &rat
 	}
 #endif
 	BULLSEYE_EXCLUDE_BLOCK_START
-	IF_VERBS_FAILURE(vma_ibv_modify_qp(qp, &qp_attr, exp_attr_mask)) {
+	IF_VERBS_FAILURE(vma_ibv_modify_qp(qp, &qp_attr, attr_mask)) {
 		vlog_printf(VLOG_DEBUG, "failed setting rate limit\n");
 		return -2;
 	} ENDIF_VERBS_FAILURE;
@@ -423,7 +423,7 @@ int priv_ibv_modify_qp_ratelimit(struct ibv_qp *qp, struct vma_rate_limit_t &rat
 	NOT_IN_USE(rate_limit);
 	NOT_IN_USE(rl_changes);
 	return 0;
-#endif
+#endif // DEFINED_IBV_PACKET_PACING_CAPS
 }
 
 void priv_ibv_modify_cq_moderation(struct ibv_cq* cq, uint32_t period, uint32_t count)

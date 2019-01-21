@@ -279,6 +279,11 @@ typedef struct {
 } vma_ibv_reg_mr_in;
 #endif
 
+#ifdef DEFINED_IBV_PACKET_PACING_CAPS
+#define VMA_IBV_QP_RATE_LIMIT                IBV_QP_RATE_LIMIT
+#define vma_is_pacing_caps_supported(attr)   (attr->packet_pacing_caps.qp_rate_limit_min)
+#endif // DEFINED_IBV_PACKET_PACING_CAPS
+
 #else /* DEFINED_VERBS_VERSION */
 
 //ibv_create_qp
@@ -452,6 +457,11 @@ typedef struct ibv_exp_memcpy_dm_attr    vma_ibv_memcpy_dm_attr;
 typedef struct ibv_exp_dm                vma_ibv_dm;
 typedef struct ibv_exp_reg_mr_in         vma_ibv_reg_mr_in;
 #endif
+
+#ifdef DEFINED_IBV_PACKET_PACING_CAPS
+#define VMA_IBV_QP_RATE_LIMIT                IBV_EXP_QP_RATE_LIMIT
+#define vma_is_pacing_caps_supported(attr)   ((attr)->comp_mask & IBV_EXP_DEVICE_ATTR_PACKET_PACING_CAPS)
+#endif // DEFINED_IBV_PACKET_PACING_CAPS
 
 #endif /* DEFINED_VERBS_VERSION */
 
