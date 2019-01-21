@@ -470,12 +470,6 @@ typedef struct ibv_exp_reg_mr_in         vma_ibv_reg_mr_in;
 #define vma_is_mp_rq_supported(attr)		(0)
 #endif
 
-#ifdef DEFINED_IBV_EXP_QP_RATE_LIMIT
-#define vma_is_packet_pacing_supported(attr)	((attr)->packet_pacing_caps.qp_rate_limit_min)
-#else
-#define vma_is_packet_pacing_supported(attr)	(0)
-#endif
-
 #if defined(HAVE_IBV_EXP_GET_DEVICE_LIST)
 #define vma_ibv_get_device_list(num)		ibv_exp_get_device_list(num)
 #else
