@@ -996,6 +996,9 @@ int ring_simple::get_ring_descriptors(vma_mlx_hw_device_data &d)
 	if (m_p_ib_ctx->is_packet_pacing_supported()) {
 		d.dev_data.device_cap |= VMA_HW_PP_EN;
 	}
+	if (m_p_ib_ctx->get_burst_capability()) {
+		d.dev_data.device_cap |= VMA_HW_PP_BURST_EN;
+	}
 	if (vma_is_umr_supported(m_p_ib_ctx->get_ibv_device_attr())) {
 		d.dev_data.device_cap |= VMA_HW_UMR_EN;
 	}
