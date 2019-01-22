@@ -692,9 +692,9 @@ int vma_modify_ring(struct vma_modify_ring_attr *mr_data)
 				ret = 0;
 			} else if (VMA_MODIFY_RING_CQ_ARM & mr_data->comp_bit_mask) {
 				if (RING_ETH_CB == p_ring->get_type()) {
-					ret = p_ring->request_notification(CQT_RX, 0);
+					ret = p_ring->request_notification_blocking(CQT_RX, 0);
 				} else if (RING_ETH_DIRECT == p_ring->get_type()) {
-					ret = p_ring->request_notification(CQT_TX, 0);
+					ret = p_ring->request_notification_blocking(CQT_TX, 0);
 				} else {
 					vlog_printf(VLOG_ERROR, "Ring type [%d] is not supported\n",
 							p_ring->get_type());
