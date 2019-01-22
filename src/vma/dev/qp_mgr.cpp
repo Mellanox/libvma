@@ -589,7 +589,6 @@ void qp_mgr_eth::modify_qp_to_ready_state()
 		qp_logpanic("failed to modify QP from INIT to RTS state (ret = %d)", ret);
 	}
 
-	modify_qp_ratelimit(m_rate_limit, RL_RATE | RL_BURST_SIZE | RL_PKT_SIZE);
 	BULLSEYE_EXCLUDE_BLOCK_END
 }
 
@@ -747,40 +746,6 @@ uint32_t qp_mgr::is_ratelimit_change(struct vma_rate_limit_t &rate_limit)
 	}
 
 	return rl_changes;
-}
-
-bool qp_mgr::is_ratelimit_supported(vma_ibv_device_attr *attr, struct vma_rate_limit_t &rate_limit)
-{
-#ifdef DEFINED_IBV_EXP_QP_RATE_LIMIT
-	if (!(attr->comp_mask & IBV_EXP_DEVICE_ATTR_PACKET_PACING_CAPS))
-		return false;
-
-	ibv_exp_packet_pacing_caps pp_caps = attr->packet_pacing_caps;
-
-	/* for any rate limit settings the rate must be between the supported min and max values */
-	if (rate_limit.rate < pp_caps.qp_rate_limit_min || pp_caps.qp_rate_limit_max < rate_limit.rate) {
-		return false;
-	}
-
-	uint32_t rl_changes = is_ratelimit_change(rate_limit);
-
-	/* burst support capability is required to handle any burst/packet size change */
-	if (rl_changes & (RL_BURST_SIZE | RL_PKT_SIZE)) {
-#ifdef DEFINED_IBV_EXP_QP_SUPPORT_BURST
-		if (!(pp_caps.cap_flags & IBV_EXP_QP_SUPPORT_BURST)) {
-			return false;
-		}
-#else
-		return false;
-#endif
-	}
-
-	return true;
-#else
-	NOT_IN_USE(attr);
-	NOT_IN_USE(rate_limit);
-	return false;
-#endif
 }
 
 int qp_mgr::modify_qp_ratelimit(struct vma_rate_limit_t &rate_limit, uint32_t rl_changes)

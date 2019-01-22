@@ -761,17 +761,6 @@ int ring_bond::modify_ratelimit(struct vma_rate_limit_t &rate_limit) {
 	return 0;
 }
 
-bool ring_bond::is_ratelimit_supported(struct vma_rate_limit_t &rate_limit)
-{
-	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
-		if (m_bond_rings[i] &&
-		    !m_bond_rings[i]->is_ratelimit_supported(rate_limit)) {
-				return false;
-		}
-	}
-	return true;
-}
-
 int ring_bond::socketxtreme_poll(struct vma_completion_t *, unsigned int, int)
 {
 	return 0;

@@ -112,6 +112,7 @@ void priv_ibv_modify_cq_moderation(struct ibv_cq* cq, uint32_t period, uint32_t 
 #define FLOW_TAG_MASK     ((1 << 20) -1)
 int priv_ibv_query_flow_tag_supported(struct ibv_qp *qp, uint8_t port_num);
 int priv_ibv_create_flow_supported(struct ibv_qp *qp, uint8_t port_num);
+int priv_ibv_query_burst_supported(struct ibv_qp *qp, uint8_t port_num);
 
 /* DEFINED_VERBS_VERSION:
  * 1 - Legacy Verbs API
@@ -467,12 +468,6 @@ typedef struct ibv_exp_reg_mr_in         vma_ibv_reg_mr_in;
 #else
 #define vma_is_umr_supported(attr)		(0)
 #define vma_is_mp_rq_supported(attr)		(0)
-#endif
-
-#ifdef DEFINED_IBV_EXP_QP_RATE_LIMIT
-#define vma_is_packet_pacing_supported(attr)	((attr)->packet_pacing_caps.qp_rate_limit_min)
-#else
-#define vma_is_packet_pacing_supported(attr)	(0)
 #endif
 
 #if defined(HAVE_IBV_EXP_GET_DEVICE_LIST)

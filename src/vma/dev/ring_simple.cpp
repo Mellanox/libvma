@@ -92,25 +92,9 @@ qp_mgr* ring_eth::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, 
 	return new qp_mgr_eth(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), m_partition);
 }
 
-bool ring_eth::is_ratelimit_supported(struct vma_rate_limit_t &rate_limit)
-{
-#ifdef DEFINED_IBV_EXP_QP_RATE_LIMIT
-	return m_p_qp_mgr->is_ratelimit_supported(m_p_ib_ctx->get_ibv_device_attr(), rate_limit);
-#else
-	NOT_IN_USE(rate_limit);
-	return false;
-#endif
-}
-
 qp_mgr* ring_ib::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel)
 {
 	return new qp_mgr_ib(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), m_partition);
-}
-
-bool ring_ib::is_ratelimit_supported(struct vma_rate_limit_t &rate_limit)
-{
-	NOT_IN_USE(rate_limit);
-	return false;
 }
 
 ring_simple::ring_simple(int if_index, ring* parent, ring_type_t type):
@@ -987,6 +971,16 @@ bool ring_simple::is_up() {
 
 int ring_simple::modify_ratelimit(struct vma_rate_limit_t &rate_limit)
 {
+	if (!m_p_ib_ctx->is_packet_pacing_supported(rate_limit.rate)) {
+		ring_logwarn("Packet pacing is not supported for this device");
+		return -1;
+	}
+
+	if ((rate_limit.max_burst_sz || rate_limit.typical_pkt_sz) && !m_p_ib_ctx->get_burst_capability()) {
+		ring_logwarn("Burst is not supported for this device");
+		return -1;
+	}
+
 	uint32_t rl_changes = m_p_qp_mgr->is_ratelimit_change(rate_limit);
 
 	if (m_up && rl_changes)
@@ -999,7 +993,7 @@ int ring_simple::get_ring_descriptors(vma_mlx_hw_device_data &d)
 {
 	d.dev_data.vendor_id = m_p_ib_ctx->get_ibv_device_attr()->vendor_id;
 	d.dev_data.vendor_part_id = m_p_ib_ctx->get_ibv_device_attr()->vendor_part_id;
-	if (vma_is_packet_pacing_supported(m_p_ib_ctx->get_ibv_device_attr())) {
+	if (m_p_ib_ctx->is_packet_pacing_supported()) {
 		d.dev_data.device_cap |= VMA_HW_PP_EN;
 	}
 	if (vma_is_umr_supported(m_p_ib_ctx->get_ibv_device_attr())) {
