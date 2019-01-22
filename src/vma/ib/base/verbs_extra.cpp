@@ -272,7 +272,7 @@ int priv_ibv_query_qp_state(struct ibv_qp *qp)
 
 int priv_ibv_query_burst_supported(struct ibv_qp *qp, uint8_t port_num)
 {
-#ifdef	DEFINED_IBV_EXP_QP_SUPPORT_BURST
+#ifdef	DEFINED_IBV_QP_SUPPORT_BURST
 	if (priv_ibv_modify_qp_from_err_to_init_raw(qp, port_num) == 0) {
 		if (priv_ibv_modify_qp_from_init_to_rts(qp, 0) == 0) {
 			struct vma_rate_limit_t rate = {1000, 100, 100};
@@ -383,7 +383,7 @@ int vma_rdma_lib_reset() {
 int priv_ibv_modify_qp_ratelimit(struct ibv_qp *qp, struct vma_rate_limit_t &rate_limit, uint32_t rl_changes)
 {
 #ifdef DEFINED_IBV_PACKET_PACING_CAPS
-	vma_ibv_qp_attr qp_attr;
+	vma_ibv_rate_limit_attr qp_attr;
 	uint64_t attr_mask = IBV_QP_STATE;
 
 	if (priv_ibv_query_qp_state(qp) != IBV_QPS_RTS) {
@@ -391,26 +391,24 @@ int priv_ibv_modify_qp_ratelimit(struct ibv_qp *qp, struct vma_rate_limit_t &rat
 		return -1;
 	}
 	memset(&qp_attr, 0, sizeof(qp_attr));
-	qp_attr.qp_state = IBV_QPS_RTS;
+	vma_ibv_init_qps_attr(qp_attr);
 
 	if (rate_limit.rate && (rl_changes & RL_RATE)) {
 		qp_attr.rate_limit = rate_limit.rate;
 		attr_mask |= VMA_IBV_QP_RATE_LIMIT;
 	}
-#ifdef DEFINED_IBV_EXP_QP_SUPPORT_BURST
+#ifdef DEFINED_IBV_QP_SUPPORT_BURST
 	if (rate_limit.max_burst_sz && rate_limit.typical_pkt_sz && (rl_changes & (RL_BURST_SIZE | RL_PKT_SIZE))) {
-		qp_attr.burst_info.max_burst_sz = rate_limit.max_burst_sz;
-		qp_attr.burst_info.typical_pkt_sz = rate_limit.typical_pkt_sz;
-		qp_attr.comp_mask |= IBV_EXP_QP_ATTR_BURST_INFO;
+		vma_ibv_init_burst_attr(qp_attr, rate_limit);
 	}
 #endif
 	BULLSEYE_EXCLUDE_BLOCK_START
-	IF_VERBS_FAILURE(vma_ibv_modify_qp(qp, &qp_attr, attr_mask)) {
+	IF_VERBS_FAILURE(vma_ibv_modify_qp_rate_limit(qp, &qp_attr, attr_mask)) {
 		vlog_printf(VLOG_DEBUG, "failed setting rate limit\n");
 		return -2;
 	} ENDIF_VERBS_FAILURE;
 	BULLSEYE_EXCLUDE_BLOCK_END
-#ifdef DEFINED_IBV_EXP_QP_SUPPORT_BURST
+#ifdef DEFINED_IBV_QP_SUPPORT_BURST
 	vlog_printf(VLOG_DEBUG, "qp was set to rate limit %d, burst size %d, packet size %d\n",
 			rate_limit.rate, rate_limit.max_burst_sz, rate_limit.typical_pkt_sz);
 #else

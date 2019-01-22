@@ -282,6 +282,18 @@ typedef struct {
 #ifdef DEFINED_IBV_PACKET_PACING_CAPS
 #define VMA_IBV_QP_RATE_LIMIT                IBV_QP_RATE_LIMIT
 #define vma_is_pacing_caps_supported(attr)   (attr->packet_pacing_caps.qp_rate_limit_min)
+
+#ifdef DEFINED_IBV_QP_SUPPORT_BURST
+#define vma_ibv_init_burst_attr(qp_attr, rate_limit)    { qp_attr.max_burst_sz = rate_limit.max_burst_sz; qp_attr.typical_pkt_sz = rate_limit.typical_pkt_sz; }
+typedef struct ibv_qp_rate_limit_attr                   vma_ibv_rate_limit_attr;
+#define vma_ibv_modify_qp_rate_limit(qp, attr, mask)    ibv_modify_qp_rate_limit(qp, attr)
+#define vma_ibv_init_qps_attr(qp_attr)                  { NOT_IN_USE(qp_attr); }
+#else
+typedef vma_ibv_qp_attr                                 vma_ibv_rate_limit_attr;
+#define vma_ibv_modify_qp_rate_limit(qp, attr, mask)    vma_ibv_modify_qp(qp, attr, mask)
+#define vma_ibv_init_qps_attr(qp_attr)                  { qp_attr.qp_state = IBV_QPS_RTS; }
+#endif // DEFINED_IBV_QP_SUPPORT_BURST
+
 #endif // DEFINED_IBV_PACKET_PACING_CAPS
 
 #else /* DEFINED_VERBS_VERSION */
@@ -461,7 +473,14 @@ typedef struct ibv_exp_reg_mr_in         vma_ibv_reg_mr_in;
 #ifdef DEFINED_IBV_PACKET_PACING_CAPS
 #define VMA_IBV_QP_RATE_LIMIT                IBV_EXP_QP_RATE_LIMIT
 #define vma_is_pacing_caps_supported(attr)   ((attr)->comp_mask & IBV_EXP_DEVICE_ATTR_PACKET_PACING_CAPS)
+typedef vma_ibv_qp_attr                                 vma_ibv_rate_limit_attr;
+#define vma_ibv_modify_qp_rate_limit(qp, attr, mask)    vma_ibv_modify_qp(qp, attr, mask)
+#define vma_ibv_init_qps_attr(qp_attr)                  { qp_attr.qp_state = IBV_QPS_RTS; }
 #endif // DEFINED_IBV_PACKET_PACING_CAPS
+
+#ifdef DEFINED_IBV_QP_SUPPORT_BURST
+#define vma_ibv_init_burst_attr(qp_attr, rate_limit)    { qp_attr.burst_info.max_burst_sz = rate_limit.max_burst_sz; qp_attr.burst_info.typical_pkt_sz = rate_limit.typical_pkt_sz; qp_attr.comp_mask |= IBV_EXP_QP_ATTR_BURST_INFO; }
+#endif // DEFINED_IBV_QP_SUPPORT_BURST
 
 #endif /* DEFINED_VERBS_VERSION */
 
