@@ -123,6 +123,7 @@ Example:
  VMA DETAILS: TCP max syn rate               0 (no limit)               [VMA_TCP_MAX_SYN_RATE]
  VMA DETAILS: Tx Mem Segs TCP                1000000                    [VMA_TX_SEGS_TCP]
  VMA DETAILS: Tx Mem Bufs                    200000                     [VMA_TX_BUFS]
+ VMA DETAILS: Tx Mem Buf size                0                          [VMA_TX_BUF_SIZE]
  VMA DETAILS: Tx QP WRE                      2048                       [VMA_TX_WRE]
  VMA DETAILS: Tx QP WRE Batching             64                         [VMA_TX_WRE_BATCHING]
  VMA DETAILS: Tx Max QP INLINE               204                        [VMA_TX_MAX_INLINE]
@@ -360,6 +361,11 @@ Default value is 1000000
 VMA_TX_BUFS
 Number of global Tx data buffer elements allocation.
 Default value is 200000
+
+VMA_TX_BUF_SIZE
+Size of Tx data buffer elements allocation.
+Can not be less then MTU (Maximum Transfer Unit) and greater than 0xFF00.
+Default value is calculated basing on VMA_MTU and VMA_MSS.
 
 VMA_TX_WRE
 Number of Work Request Elements allocated in all transmit QP's.

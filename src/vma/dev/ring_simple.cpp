@@ -136,6 +136,7 @@ ring_simple::ring_simple(int if_index, ring* parent, ring_type_t type):
 	m_mtu = p_ndev->get_mtu();
 
 	memset(&m_cq_moderation_info, 0, sizeof(m_cq_moderation_info));
+	memset(&m_tso, 0, sizeof(m_tso));
 
 	m_socketxtreme.active = safe_mce_sys().enable_socketxtreme;
 	INIT_LIST_HEAD(&m_socketxtreme.ec_list);

@@ -461,6 +461,7 @@ void print_vma_global_settings()
 
 	VLOG_PARAM_NUMBER("Tx Mem Segs TCP", safe_mce_sys().tx_num_segs_tcp, MCE_DEFAULT_TX_NUM_SEGS_TCP, SYS_VAR_TX_NUM_SEGS_TCP);
 	VLOG_PARAM_NUMBER("Tx Mem Bufs", safe_mce_sys().tx_num_bufs, MCE_DEFAULT_TX_NUM_BUFS, SYS_VAR_TX_NUM_BUFS);
+	VLOG_PARAM_NUMBER("Tx Mem Buf size", safe_mce_sys().tx_buf_size, MCE_DEFAULT_TX_BUF_SIZE, SYS_VAR_TX_BUF_SIZE);
 	VLOG_PARAM_NUMBER("Tx QP WRE", safe_mce_sys().tx_num_wr, MCE_DEFAULT_TX_NUM_WRE, SYS_VAR_TX_NUM_WRE);
 	VLOG_PARAM_NUMBER("Tx QP WRE Batching", safe_mce_sys().tx_num_wr_to_signal, MCE_DEFAULT_TX_NUM_WRE_TO_SIGNAL, SYS_VAR_TX_NUM_WRE_TO_SIGNAL);
 	VLOG_PARAM_NUMBER("Tx Max QP INLINE", safe_mce_sys().tx_max_inline, MCE_DEFAULT_TX_MAX_INLINE, SYS_VAR_TX_MAX_INLINE);
@@ -807,10 +808,20 @@ static void do_global_ctors_helper()
 
 	NEW_CTOR(g_p_igmp_mgr, igmp_mgr());
 
-	NEW_CTOR(g_buffer_pool_rx, buffer_pool(safe_mce_sys().rx_num_bufs, RX_BUF_SIZE(g_p_net_device_table_mgr->get_max_mtu()), buffer_pool::free_rx_lwip_pbuf_custom));
+	NEW_CTOR(g_buffer_pool_rx, buffer_pool(safe_mce_sys().rx_num_bufs,
+			RX_BUF_SIZE(g_p_net_device_table_mgr->get_max_mtu()),
+			buffer_pool::free_rx_lwip_pbuf_custom));
  	g_buffer_pool_rx->set_RX_TX_for_stats(true);
 
- 	NEW_CTOR(g_buffer_pool_tx, buffer_pool(safe_mce_sys().tx_num_bufs, get_lwip_tcp_mss(g_p_net_device_table_mgr->get_max_mtu(), safe_mce_sys().lwip_mss) + 92, buffer_pool::free_tx_lwip_pbuf_custom));
+ 	safe_mce_sys().tx_buf_size = MIN((int)safe_mce_sys().tx_buf_size, (int)0xFF00);
+ 	if (safe_mce_sys().tx_buf_size <= get_lwip_tcp_mss(g_p_net_device_table_mgr->get_max_mtu(), safe_mce_sys().lwip_mss)) {
+ 		safe_mce_sys().tx_buf_size = 0;
+ 	}
+ 	NEW_CTOR(g_buffer_pool_tx, buffer_pool(safe_mce_sys().tx_num_bufs,
+ 			TX_BUF_SIZE(safe_mce_sys().tx_buf_size ?
+ 					safe_mce_sys().tx_buf_size :
+					get_lwip_tcp_mss(g_p_net_device_table_mgr->get_max_mtu(), safe_mce_sys().lwip_mss)),
+			buffer_pool::free_tx_lwip_pbuf_custom));
  	g_buffer_pool_tx->set_RX_TX_for_stats(false);
 
  	NEW_CTOR(g_tcp_seg_pool,  tcp_seg_pool(safe_mce_sys().tx_num_segs_tcp));

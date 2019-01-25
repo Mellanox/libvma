@@ -123,15 +123,6 @@
 #define PBUF_POOL_SIZE                 	0 //256000
 #endif
 
-/**
- * PBUF_POOL_BUFSIZE: the size of each pbuf in the pbuf pool. The default is
- * designed to accomodate single full size TCP frame in one pbuf, including
- * TCP_MSS, IP header, and link header.
- */
-//#define PBUF_POOL_BUFSIZE               LWIP_MEM_ALIGN_SIZE(TCP_MSS+40+PBUF_LINK_HLEN)
-#define PBUF_POOL_BUFSIZE               LWIP_MEM_ALIGN_SIZE(CONST_TCP_MSS+40+PBUF_LINK_HLEN)
-//#define PBUF_POOL_BUFSIZE              	2048
-
 
 /** ETH_PAD_SIZE: number of bytes added before the ethernet header to ensure
  * alignment of payload after that header. Since the header is 14 bytes long,
@@ -598,17 +589,6 @@
 #endif
 
 /**
- * TCP_MSS: TCP Maximum segment size. (default is 536, a conservative default,
- * you might want to increase this.)
- * For the receive side, this MSS is advertised to the remote side
- * when opening a connection. For the transmit size, this MSS sets
- * an upper limit on the MSS advertised by the remote host.
- */
-#ifndef LWIP_TCP_MSS
-#define LWIP_TCP_MSS                         536
-#endif
-
-/**
  * TCP_CALCULATE_EFF_SEND_MSS: "The maximum size of a segment that TCP really
  * sends, the 'effective send MSS,' MUST be the smaller of the send MSS (which
  * reflects the available reassembly buffer size at the remote host) and the
@@ -717,16 +697,6 @@
 #define PBUF_LINK_HLEN                  (14 + ETH_PAD_SIZE)
 #endif
 
-/**
- * PBUF_POOL_BUFSIZE: the size of each pbuf in the pbuf pool. The default is
- * designed to accomodate single full size TCP frame in one pbuf, including
- * TCP_MSS, IP header, and link header.
- */
-#ifndef PBUF_POOL_BUFSIZE
-#error make sure PBUF_POLL_BUFSIZE is not defined here
-/* If ever this definition is effective - please note that LWIP_TCP_MSS may be 0 */
-#define PBUF_POOL_BUFSIZE               LWIP_MEM_ALIGN_SIZE(LWIP_TCP_MSS+40+PBUF_LINK_HLEN)
-#endif
 
 /*
    ------------------------------------

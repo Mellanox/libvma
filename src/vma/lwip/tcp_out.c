@@ -358,6 +358,28 @@ tcp_write_checks(struct tcp_pcb *pcb, u32_t len)
   return ERR_OK;
 }
 
+static inline u16_t tcp_xmit_size_goal(struct tcp_pcb *pcb)
+{
+  u16_t size = pcb->mss;
+
+#if LWIP_TCP_TIMESTAMPS
+  if ((pcb->flags & TF_TIMESTAMP)) {
+    /* ensure that segments can hold at least one data byte... */
+    size = LWIP_MAX(size, LWIP_TCP_OPT_LEN_TS + 1);
+  }
+#endif /* LWIP_TCP_TIMESTAMPS */
+
+  if (tcp_tso(pcb) && pcb->tso.max_buf_sz) {
+    /* use maximum buffer size in case TSO */
+    size = LWIP_MAX(size, pcb->tso.max_buf_sz);
+  }
+
+  /* don't allocate segments bigger than half the maximum window we ever received */
+  size = LWIP_MIN(size, (pcb->snd_wnd_max >> 1));
+
+  return size;
+}
+
 /**
  * Write data for sending (but does not send it immediately).
  *
@@ -391,15 +413,12 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t is_dummy)
   u16_t concat_chksummed = 0;
 #endif /* TCP_CHECKSUM_ON_COPY */
   err_t err;
-  /* don't allocate segments bigger than half the maximum window we ever received */
-  u16_t mss_local = LWIP_MIN(pcb->mss, pcb->snd_wnd_max/2);
-  mss_local = mss_local ? mss_local : pcb->mss;
+  u16_t mss_local = 0;
+  int tot_p = 0;
 
   int byte_queued = pcb->snd_nxt - pcb->lastack;
   if ( len < pcb->mss && !is_dummy)
           pcb->snd_sml_add = (pcb->unacked ? pcb->unacked->len : 0) + byte_queued;
-
-  optflags |= is_dummy ? TF_SEG_OPTS_DUMMY_MSG : 0;
 
   LWIP_DEBUGF(TCP_OUTPUT_DEBUG, ("tcp_write(pcb=%p, data=%p, len=%"U16_F", is_dummy=%"U16_F")\n",
     (void *)pcb, arg, len, (u16_t)is_dummy));
@@ -412,13 +431,16 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t is_dummy)
   }
   queuelen = pcb->snd_queuelen;
 
+  mss_local = tcp_xmit_size_goal(pcb);
+
+  optflags |= is_dummy ? TF_SEG_OPTS_DUMMY_MSG : 0;
+
 #if LWIP_TCP_TIMESTAMPS
   if ((pcb->flags & TF_TIMESTAMP)) {
     optflags |= TF_SEG_OPTS_TS;
-    /* ensure that segments can hold at least one data byte... */
-    mss_local = LWIP_MAX(mss_local, LWIP_TCP_OPT_LEN_TS + 1);
   }
 #endif /* LWIP_TCP_TIMESTAMPS */
+
   optlen = LWIP_TCP_OPT_LENGTH( optflags );
 
   /*
@@ -457,6 +479,8 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t is_dummy)
     unsent_optlen = LWIP_TCP_OPT_LENGTH(pcb->last_unsent->flags);
     LWIP_ASSERT("mss_local is too small", mss_local >= pcb->last_unsent->len + unsent_optlen);
     space = mss_local - (pcb->last_unsent->len + unsent_optlen);
+    seg = pcb->last_unsent;
+    tot_p = pbuf_clen(seg->p);
 
     /*
      * Phase 1: Copy data directly into an oversized pbuf.
@@ -474,7 +498,6 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t is_dummy)
     oversize = pcb->unsent_oversize;
     if (oversize > 0) {
       LWIP_ASSERT("inconsistent oversize vs. space", oversize_used <= space);
-      seg = pcb->last_unsent;
       oversize_used = oversize < len ? oversize : len;
       pos += oversize_used;
       oversize -= oversize_used;
@@ -491,9 +514,9 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t is_dummy)
      * (len==0). The new pbuf is kept in concat_p and pbuf_cat'ed at
      * the end.
      */
-    if ((pos < len) && (space > 0) && (pcb->last_unsent->len > 0)) {
+    if ((pos < len) && (space > 0) && (pcb->last_unsent->len > 0) &&
+        (tot_p < (int)pcb->tso.max_send_sge)) {
       u16_t seglen = space < len - pos ? space : len - pos;
-      seg = pcb->last_unsent;
 
       /* Create a pbuf with a copy or reference to seglen bytes. We
        * can use PBUF_RAW here since the data appears in the middle of
@@ -540,7 +563,7 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t is_dummy)
 
     /* If copy is set, memory should be allocated and data copied
      * into pbuf */
-    if ((p = tcp_pbuf_prealloc(seglen + optlen, mss_local, &oversize, pcb, TCP_WRITE_FLAG_MORE, queue == NULL)) == NULL) {
+    if ((p = tcp_pbuf_prealloc(seglen + optlen, max_len, &oversize, pcb, TCP_WRITE_FLAG_MORE, queue == NULL)) == NULL) {
     	LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_write : could not allocate memory for pbuf copy size %"U16_F"\n", seglen));
     	goto memerr;
     }
@@ -884,7 +907,7 @@ tcp_send_empty_ack(struct tcp_pcb *pcb)
  * @return pbuf with p->payload being the tcp_hdr
  */
 static void
-tcp_join_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
+tcp_tso_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
 {
   struct pbuf *p = NULL;
   struct pbuf *cur_p = NULL;
@@ -894,14 +917,28 @@ tcp_join_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
   u32_t tot_len = 0;
   int tot_p = 0;
 
-  /* Join only:
+
+  /* Large memory buffer:
+   * All segments that greater than MSS must be processed as TSO segments
+   */
+  if (cur_seg->len > pcb->mss) {
+    cur_seg->flags |= TF_SEG_OPTS_TSO;
+    return ;
+  }
+
+  /* Join MSS adjusted segments:
    * 1. two segments and more,
    * 2. total data size and number of buffers in the list attached to segment
    * are limited by TSO capability,
    * 3. Ignore dummy segments
    * 4. Ignore TSO segments (could be in unsent queue in case retransmission)
    */
-  while (cur_seg &&
+  if (((int)(4 * pcb->mss) >= (int)(wnd - (cur_seg->len + cur_seg->seqno - pcb->lastack)))) {
+    return ;
+  }
+
+  while (cur_seg && cur_seg->next &&
+		  TCP_SEQ_GEQ(cur_seg->seqno, pcb->snd_nxt) &&
           !(cur_seg->flags & (TF_SEG_OPTS_TSO | TF_SEG_OPTS_DUMMY_MSG)) &&
           ((TCPH_FLAGS(cur_seg->tcphdr) & (TCP_SYN | TCP_FIN | TCP_RST)) == 0) &&
           (cur_seg->len == pcb->mss)) {
@@ -965,105 +1002,7 @@ err:
   return;
 }
 
-/**
- * Called by tcp_output() to shrink TCP segment to lastackno.
- * This call should process retransmitted TSO segment.
- *
- * @param pcb the tcp_pcb for the TCP connection used to send the segment
- * @param seg the tcp_seg to send
- * @param ackqno current ackqno
- * @return number of freed pbufs
- */
-static u32_t
-tcp_shrink_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t ackno)
-{
-  struct pbuf *cur_p = NULL;
-  struct pbuf *p = NULL;
-  u32_t len = 0;
-  u32_t count = 0;
-
-  if ((NULL == seg) || (NULL == seg->p) || (seg->p->ref > 1) ||
-      !(TCP_SEQ_GT(ackno, seg->seqno) && TCP_SEQ_LT(ackno, seg->seqno + TCP_TCPLEN(seg)))) {
-    return count;
-  }
-
-  /* Just shrink first pbuf */
-  if ((seg->seqno + seg->p->len - TCP_HLEN) > ackno) {
-    len = ackno - seg->seqno;
-    seg->len -= len;
-    seg->p->len -= len;
-    seg->p->tot_len -= len;
-	seg->seqno = ackno;
-    seg->tcphdr->seqno = htonl(seg->seqno);
-    MEMCPY(seg->dataptr, (char *)seg->dataptr + len, seg->p->len);
-
-    return count;
-  }
-
-  /* Process more than first pbuf */
-  seg->len -= (seg->p->len - TCP_HLEN);
-  seg->p->tot_len -= (seg->p->len - TCP_HLEN);
-  seg->seqno += (seg->p->len - TCP_HLEN);
-  seg->tcphdr->seqno = htonl(seg->seqno);
-  seg->p->len = TCP_HLEN;
-
-  cur_p = seg->p->next;
-  while (cur_p) {
-    if ((seg->seqno + cur_p->len) > ackno) {
-      break;
-    } else {
-      seg->len -= cur_p->len;
-      seg->p->tot_len -= cur_p->len;
-      seg->p->next = cur_p->next;
-      seg->seqno += cur_p->len;
-      seg->tcphdr->seqno = htonl(seg->seqno);
-
-      p = cur_p;
-      cur_p = p->next;
-      seg->p->next = cur_p;
-      p->next = NULL;
-
-      if (p->type  == PBUF_RAM) {
-        external_tcp_tx_pbuf_free(pcb, p);
-      } else {
-        pbuf_free(p);
-      }
-      count++;
-    }
-  }
-
-  if (cur_p) {
-    len = ackno - seg->seqno;
-    seg->len -= len;
-    seg->p->len = TCP_HLEN + cur_p->len - len;
-    seg->p->tot_len -= len;
-    seg->seqno = ackno;
-    seg->tcphdr->seqno = htonl(seg->seqno);
-    MEMCPY(seg->dataptr, (char *)cur_p->payload + len, cur_p->len - len);
-
-    p = cur_p;
-    cur_p = p->next;
-    seg->p->next = cur_p;
-    p->next = NULL;
-
-    if (p->type  == PBUF_RAM) {
-      external_tcp_tx_pbuf_free(pcb, p);
-    } else {
-      pbuf_free(p);
-    }
-    count++;
-  }
-
-#if TCP_TSO_DEBUG
-    LWIP_DEBUGF(TCP_TSO_DEBUG | LWIP_DBG_TRACE,
-                ("tcp_shrink: count: %-5d unsent %s\n",
-                		count, _dump_seg(pcb->unsent)));
-#endif /* TCP_TSO_DEBUG */
-
-  return count;
-}
-
-/**
+ /**
  * Called by tcp_output() to process TCP segment with ref > 1.
  * This call should process retransmitted TSO segment.
  *
@@ -1121,7 +1060,7 @@ tcp_rexmit_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
                 		pcb->cwnd, _dump_seg(pcb->unsent)));
 #endif /* TCP_TSO_DEBUG */
 
-  return seg;
+   return seg;
 }
 #endif /* LWIP_TSO */
 
@@ -1369,17 +1308,13 @@ tcp_output(struct tcp_pcb *pcb)
   }
 #endif /* TCP_TSO_DEBUG */
 
-  while (seg){
-
+  while (seg) {
 #if LWIP_TSO
     /* TSO segment can be in unsent queue only in case retransmission
-     * The purpose of this processing is to avoid to send again
-     * data from TSO segment that is partially acknowledged.
-     * This TSO segment was not released in tcp_receive() because
-     * input data processing releases whole acknowledged segment only.
+     * The purpose of this processing is to avoid to send TSO segment
+     * during retransmition.
      */
     if (seg->flags & TF_SEG_OPTS_TSO) {
-      pcb->snd_queuelen -= tcp_shrink_segment(pcb, seg, pcb->lastack);
       seg = tcp_rexmit_segment(pcb, seg, wnd);
     }
 #endif /* LWIP_TSO */
@@ -1417,15 +1352,14 @@ tcp_output(struct tcp_pcb *pcb)
        }
 
 #if LWIP_TSO
-       /* Use TSO send operation in case:
-        * 1. TSO is enabled
-        * 2. There are more than single segment in unset queue
-        * 3. Actual window greater than N * mss
+       /* Use TSO send operation in case TSO is enabled
+        * and current segment is not retransmitted
         */
        if (tcp_tso(pcb) &&
-           (NULL != seg->next) &&
-           ((int)(4 * pcb->mss) < (int)(wnd - (seg->len + seg->seqno - pcb->lastack)))) {
-         tcp_join_segment(pcb, seg, wnd);
+           TCP_SEQ_GEQ(seg->seqno, pcb->snd_nxt) &&
+           !(seg->flags & (TF_SEG_OPTS_TSO | TF_SEG_OPTS_DUMMY_MSG)) &&
+           ((TCPH_FLAGS(seg->tcphdr) & (TCP_SYN | TCP_FIN | TCP_RST)) == 0)) {
+         tcp_tso_segment(pcb, seg, wnd);
        }
 #endif /* LWIP_TSO */
 
@@ -1626,7 +1560,7 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
 #if LWIP_TSO
   flags |= seg->flags & TF_SEG_OPTS_TSO;
 #endif /* LWIP_TSO */
-  flags |= (seg->seqno < pcb->snd_nxt ? TCP_WRITE_REXMIT : 0);
+  flags |= (TCP_SEQ_LT(seg->seqno, pcb->snd_nxt) ? TCP_WRITE_REXMIT : 0);
   pcb->ip_output(seg->p, pcb, flags);
 }
 

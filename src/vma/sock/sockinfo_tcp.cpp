@@ -505,7 +505,7 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 	 * send buffer and sends an RST to the peer, not the normal four-packet connection
 	 * termination sequence
 	 */
-	if (get_tcp_state(&m_pcb) != LISTEN && m_linger.l_onoff && !m_linger.l_linger) {
+        if (get_tcp_state(&m_pcb) != LISTEN && m_linger.l_onoff && !m_linger.l_linger) {
 		abort_connection();
 	} else {
 		tcp_close(&m_pcb);
@@ -656,6 +656,8 @@ bool sockinfo_tcp::prepare_dst_to_send(bool is_accepted_socket /* = false */)
 			/* dst_entry has resolved tx ring,
 			 * so it is a time to provide TSO information to PCB
 			 */
+			m_pcb.tso.max_buf_sz = std::min(safe_mce_sys().tx_buf_size,
+					m_p_connected_dst_entry->get_ring()->get_max_payload_sz());
 			m_pcb.tso.max_payload_sz = m_p_connected_dst_entry->get_ring()->get_max_payload_sz();
 			m_pcb.tso.max_header_sz = m_p_connected_dst_entry->get_ring()->get_max_header_sz();
 			m_pcb.tso.max_send_sge = m_p_connected_dst_entry->get_ring()->get_max_send_sge();
@@ -671,7 +673,7 @@ unsigned sockinfo_tcp::tx_wait(int & err, bool is_blocking)
 	int poll_count = 0;
 	si_tcp_logfunc("sz = %d rx_count=%d", sz, m_n_rx_pkt_ready_list_count);
 	err = 0;
-	while(is_rts() && (sz = tcp_sndbuf(&m_pcb)) == 0) {
+	while (is_rts() && (sz = tcp_sndbuf(&m_pcb)) == 0) {
 		err = rx_wait(poll_count, is_blocking);
 		//AlexV:Avoid from going to sleep, for the blocked socket of course, since
 		// progress engine may consume an arrived credit and it will not wakeup the
@@ -905,8 +907,9 @@ retry_write:
 					return -1;
 					 */
 				}
-				if (total_tx > 0) 
+				if (total_tx > 0) {
 					goto done;
+				}
 
 				ret = rx_wait(poll_count, BLOCK_THIS_RUN(m_b_blocking, flags));
 				if (ret < 0)
