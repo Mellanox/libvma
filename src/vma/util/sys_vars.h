@@ -328,6 +328,7 @@ public:
 
 	uint32_t 	tx_num_segs_tcp;
 	uint32_t 	tx_num_bufs;
+	uint32_t 	tx_buf_size;
 	uint32_t 	tx_num_wr;
 	uint32_t	tx_num_wr_to_signal;
 	uint32_t 	tx_max_inline;
@@ -422,7 +423,6 @@ public:
 	bool		rx_poll_on_tx_tcp;
 	hyper_t		hypervisor;
 	bool		trigger_dummy_send_getsockname;
-
 private:
 	void print_vma_load_failure_msg();
 	int list_to_cpuset(char *cpulist, cpu_set_t *cpu_set);
@@ -469,6 +469,7 @@ extern mce_sys_var & safe_mce_sys();
 
 #define SYS_VAR_TX_NUM_SEGS_TCP				"VMA_TX_SEGS_TCP"
 #define SYS_VAR_TX_NUM_BUFS				"VMA_TX_BUFS"
+#define SYS_VAR_TX_BUF_SIZE				"VMA_TX_BUF_SIZE"
 #define SYS_VAR_TX_NUM_WRE				"VMA_TX_WRE"
 #define SYS_VAR_TX_NUM_WRE_TO_SIGNAL			"VMA_TX_WRE_BATCHING"
 #define SYS_VAR_TX_MAX_INLINE				"VMA_TX_MAX_INLINE"
@@ -581,6 +582,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_TCP_MAX_SYN_RATE                	(0)
 #define MCE_DEFAULT_TX_NUM_SEGS_TCP			(1000000)
 #define MCE_DEFAULT_TX_NUM_BUFS				(200000)
+#define MCE_DEFAULT_TX_BUF_SIZE				(0)
 #define MCE_DEFAULT_TX_NUM_WRE				(2048)
 #define MCE_DEFAULT_TX_NUM_WRE_TO_SIGNAL		(64)
 #define MCE_DEFAULT_TX_MAX_INLINE			(204) //+18(always inline ETH header) = 222
@@ -689,8 +691,8 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_TRIGGER_DUMMY_SEND_GETSOCKNAME	(false)
 
 #define MCE_ALIGNMENT					((unsigned long)63)
-#define RX_BUF_SIZE(mtu)				(mtu + IPOIB_HDR_LEN + GRH_HDR_LEN) // RX buffers are larger in IB
-#define TX_BUF_SIZE(mtu)				(mtu + ETH_HDR_LEN) // Tx buffers are larger in Ethernet (they include L2 for RAW QP)
+#define RX_BUF_SIZE(mtu)				((mtu) + IPOIB_HDR_LEN + GRH_HDR_LEN) // RX buffers are larger in IB
+#define TX_BUF_SIZE(mtu)				((mtu) + 92) // Tx buffers are larger in Ethernet (they include L2 for RAW QP)
 #define NUM_TX_WRE_TO_SIGNAL_MAX			64
 #define NUM_RX_WRE_TO_POST_RECV_MAX			1024
 #define TCP_MAX_SYN_RATE_TOP_LIMIT			100000

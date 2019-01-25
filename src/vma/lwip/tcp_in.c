@@ -742,6 +742,104 @@ tcp_oos_insert_segment(struct tcp_pcb *pcb, struct tcp_seg *cseg, struct tcp_seg
 #endif /* TCP_QUEUE_OOSEQ */
 
 /**
+ * Called by tcp_output() to shrink TCP segment to lastackno.
+ * This call should process retransmitted TSO segment.
+ *
+ * @param pcb the tcp_pcb for the TCP connection used to send the segment
+ * @param seg the tcp_seg to send
+ * @param ackqno current ackqno
+ * @return number of freed pbufs
+ */
+static u32_t
+tcp_shrink_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t ackno)
+{
+  struct pbuf *cur_p = NULL;
+  struct pbuf *p = NULL;
+  u32_t len = 0;
+  u32_t count = 0;
+
+  if ((NULL == seg) || (NULL == seg->p) ||
+      !(TCP_SEQ_GT(ackno, seg->seqno) && TCP_SEQ_LT(ackno, seg->seqno + TCP_TCPLEN(seg)))) {
+    return count;
+  }
+
+  /* Just shrink first pbuf */
+  if ((seg->seqno + seg->p->len - TCP_HLEN) > ackno) {
+    len = ackno - seg->seqno;
+    seg->len -= len;
+    seg->p->len -= len;
+    seg->p->tot_len -= len;
+	seg->seqno = ackno;
+    seg->tcphdr->seqno = htonl(seg->seqno);
+    MEMCPY(seg->dataptr, (char *)seg->dataptr + len, seg->p->len);
+
+    return count;
+  }
+
+  /* Process more than first pbuf */
+  seg->len -= (seg->p->len - TCP_HLEN);
+  seg->p->tot_len -= (seg->p->len - TCP_HLEN);
+  seg->seqno += (seg->p->len - TCP_HLEN);
+  seg->tcphdr->seqno = htonl(seg->seqno);
+  seg->p->len = TCP_HLEN;
+
+  cur_p = seg->p->next;
+  while (cur_p) {
+    if ((seg->seqno + cur_p->len) > ackno) {
+      break;
+    } else {
+      seg->len -= cur_p->len;
+      seg->p->tot_len -= cur_p->len;
+      seg->p->next = cur_p->next;
+      seg->seqno += cur_p->len;
+      seg->tcphdr->seqno = htonl(seg->seqno);
+
+      p = cur_p;
+      cur_p = p->next;
+      seg->p->next = cur_p;
+      p->next = NULL;
+
+      if (p->type  == PBUF_RAM) {
+        external_tcp_tx_pbuf_free(pcb, p);
+      } else {
+        pbuf_free(p);
+      }
+      count++;
+    }
+  }
+
+  if (cur_p) {
+    len = ackno - seg->seqno;
+    seg->len -= len;
+    seg->p->len = TCP_HLEN + cur_p->len - len;
+    seg->p->tot_len -= len;
+    seg->seqno = ackno;
+    seg->tcphdr->seqno = htonl(seg->seqno);
+    MEMCPY(seg->dataptr, (char *)cur_p->payload + len, cur_p->len - len);
+
+    p = cur_p;
+    cur_p = p->next;
+    seg->p->next = cur_p;
+    p->next = NULL;
+
+    if (p->type  == PBUF_RAM) {
+      external_tcp_tx_pbuf_free(pcb, p);
+    } else {
+      pbuf_free(p);
+    }
+    count++;
+  }
+
+#if TCP_TSO_DEBUG
+    LWIP_DEBUGF(TCP_TSO_DEBUG | LWIP_DBG_TRACE,
+                ("tcp_shrink: count: %-5d unsent %s\n",
+                		count, _dump_seg(pcb->unsent)));
+#endif /* TCP_TSO_DEBUG */
+
+  return count;
+}
+
+/**
  * Called by tcp_process. Checks if the given segment is an ACK for outstanding
  * data, and if so frees the memory of the buffered data. Next, is places the
  * segment on any of the receive queues (pcb->recved or pcb->ooseq). If the segment
@@ -924,6 +1022,17 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
       /* Remove segment from the unacknowledged list if the incoming
          ACK acknowlegdes them. */
       while (pcb->unacked != NULL) {
+
+#if LWIP_TSO
+        /* The purpose of this processing is to avoid to send again
+         * data from TSO segment that is partially acknowledged.
+         * This TSO segment was not released in tcp_receive() because
+         * input data processing releases whole acknowledged segment only.
+         */
+        if (pcb->unacked->flags & TF_SEG_OPTS_TSO) {
+            pcb->snd_queuelen -= tcp_shrink_segment(pcb, pcb->unacked, in_data->ackno);
+        }
+#endif /* LWIP_TSO */
 
         if (!(TCP_SEQ_LEQ(pcb->unacked->seqno + TCP_TCPLEN(pcb->unacked), in_data->ackno))) {
           break;

@@ -417,8 +417,11 @@ struct tcp_pcb {
 #if LWIP_TSO
   /* TSO description */
   struct {
+    /* Maximum length of memory buffer */
+    u32_t max_buf_sz;
+
     /* Maximum length of TCP payload for TSO */
-	u32_t max_payload_sz;
+    u32_t max_payload_sz;
 
     /* Maximum length of header for TSO */
     u16_t max_header_sz;
@@ -467,6 +470,7 @@ err_t lwip_tcp_event(void *arg, struct tcp_pcb *pcb,
 #if defined(__GNUC__) && (((__GNUC__ == 4) && (__GNUC_MINOR__ >= 4)) || (__GNUC__ > 4))
 #pragma GCC visibility push(hidden)
 #endif
+
 
 /*Initialization of tcp_pcb structure*/
 void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio);
