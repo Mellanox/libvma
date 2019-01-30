@@ -239,11 +239,9 @@ public:
 	inline int get_if_idx() { return m_if_idx; }
 	inline int get_flags() { return m_flags; }
 	inline int get_mtu() { return m_mtu; }
-	inline int get_if_link() { return m_if_link; }
 	inline char* get_ifname() { return (char *)m_name.c_str(); }
 	inline char* get_ifname_link() { return m_base_name; }
 	inline uint8_t* get_l2_if_addr() { return m_l2_if_addr; }
-	inline uint8_t* get_l2_bc_addr() { return m_l2_bc_addr; }
 	const ip_data_vector_t& get_ip_array() const { return m_ip; }
 	const slave_data_vector_t& get_slave_array() const { return m_slaves; }
 	const slave_data_t* get_slave(int if_index);

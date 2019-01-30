@@ -83,11 +83,6 @@ private:
 	
 	void		rt_mgr_update_source_ip();
 
-	void 		update_invalid_entries();
-	void 		delete_rt_entry_val(route_val *p_val);
-	void 		add_rt_entry_val(route_val *p_val);
-
-
 	void 		new_route_event(route_val* netlink_route_val);
 };
 

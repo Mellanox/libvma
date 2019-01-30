@@ -414,24 +414,6 @@ void event_handler_manager::update_epfd(int fd, int operation, int events)
 	BULLSEYE_EXCLUDE_BLOCK_END
 }
 
-const char* event_handler_manager::reg_action_str(event_action_type_e reg_action_type)
-{
-	switch (reg_action_type) {
-	case REGISTER_TIMER:					return "REGISTER_TIMER";
-	case UNREGISTER_TIMER:					return "UNREGISTER_TIMER";
-	case UNREGISTER_TIMERS_AND_DELETE:			return "UNREGISTER_TIMERS_AND_DELETE";
-	case REGISTER_IBVERBS:					return "REGISTER_IBVERBS";
-	case UNREGISTER_IBVERBS:				return "UNREGISTER_IBVERBS";
-	case REGISTER_RDMA_CM:					return "REGISTER_RDMA_CM";
-	case UNREGISTER_RDMA_CM:				return "UNREGISTER_RDMA_CM";
-	case REGISTER_COMMAND:					return "REGISTER_COMMAND";
-	case UNREGISTER_COMMAND:				return "UNREGISTER_COMMAND";
-	BULLSEYE_EXCLUDE_BLOCK_START
-	default:						return "UNKNOWN";
-	BULLSEYE_EXCLUDE_BLOCK_END
-	}
-}
-
 //get new action of event (register / unregister), and post to the thread's pipe
 void event_handler_manager::post_new_reg_action(reg_action_t& reg_action)
 {

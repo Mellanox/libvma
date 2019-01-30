@@ -56,12 +56,7 @@ public:
 	ib_ctx_handler* get_ib_ctx(const char *ifa_name);
 	void del_ib_ctx(ib_ctx_handler* ib_ctx);
 
-	inline size_t get_num_devices() {
-		return m_ib_ctx_map.size();
-	};
-
 private:
-
 	ib_context_map_t	m_ib_ctx_map;
 };
 
