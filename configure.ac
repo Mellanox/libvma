@@ -294,22 +294,11 @@ PROF_IBPROF_SETUP()
 
 # VMA SocketXtreme configuration
 #
-AC_ARG_ENABLE([vmapoll],
-    AC_HELP_STRING([--enable-vmapoll],
-        [(Deprecated) Please use --enable-socketxtreme instead]),
-    AC_MSG_ERROR([--enable-vmapoll option is deprecated: please use --enable-socketxtreme instead]))
+AC_ARG_ENABLE([vmapoll],,
+    AC_MSG_ERROR([--enable-vmapoll option is deprecated. Please use VMA_SOCKETXTREME=1 environment variable]))
 
-AC_ARG_ENABLE([socketxtreme],
-    AC_HELP_STRING([--enable-socketxtreme],
-        [Enable alternative API to standard sockets API for receiving packets (default=no)]))
-if test "x$enable_socketxtreme" = xyes -a "$vma_cv_directverbs" -ne 0; then
-    AC_DEFINE([DEFINED_SOCKETXTREME], 1, [Define to 1 if socketxtreme was enabled at configure time])
-else
-    enable_socketxtreme=no
-fi
-AC_MSG_CHECKING([for socketxtreme API support])
-AC_MSG_RESULT([$enable_socketxtreme])
-
+AC_ARG_ENABLE([socketxtreme],,
+    AC_MSG_ERROR([--enable-socketxtreme option is deprecated. Please use VMA_SOCKETXTREME=1 environment variable]))
 
 # Thread locking control
 #
