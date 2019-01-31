@@ -4516,13 +4516,14 @@ tcp_timers_collection::~tcp_timers_collection()
 void tcp_timers_collection::free_tta_resources(void)
 {
 	if (m_n_count) {
-		__log_dbg("not all TCP timers have been removed, count=%d", m_n_count);
-
 		for (int i = 0; i < m_n_intervals_size; i++) {
-			while (m_p_intervals[i]) {
-				m_p_intervals[i]->group = NULL;
-				m_p_intervals[i] = m_p_intervals[i]->next;
+			if (m_p_intervals[i]) {
+				remove_timer(m_p_intervals[i]);
 			}
+		}
+
+		if (m_n_count) {
+			__log_dbg("not all TCP timers have been removed, count=%d", m_n_count);
 		}
 	}
 
