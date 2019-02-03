@@ -55,6 +55,7 @@ public:
 	~buffer_pool();
 
 	void register_memory(ib_ctx_handler *p_ib_ctx_h);
+	void print_val_tbl();
 
 	uint32_t	find_lkey_by_ib_ctx_thread_safe(ib_ctx_handler* p_ib_ctx_h);
 
