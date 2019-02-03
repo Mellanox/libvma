@@ -51,6 +51,9 @@
 #define RING_LOCK_AND_RUN(__lock__, __func_and_params__) 	\
 		__lock__.lock(); __func_and_params__; __lock__.unlock();
 
+#define RING_LOCK_RUN_AND_UPDATE_RET(__lock__, __func_and_params__) \
+		__lock__.lock(); ret = __func_and_params__; __lock__.unlock();
+
 #define RING_TRY_LOCK_RUN_AND_UPDATE_RET(__lock__, __func_and_params__) \
 		if (!__lock__.trylock()) { ret = __func_and_params__; __lock__.unlock(); } \
 		else { errno = EBUSY; }
@@ -306,10 +309,24 @@ int ring_simple::request_notification(cq_type_t cq_type, uint64_t poll_sn)
 		RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_rx,
 				m_p_cq_mgr_rx->request_notification(poll_sn);
 				++m_p_ring_stat->simple.n_rx_interrupt_requests);
-	}
-	else {
+	} else {
 		RING_TRY_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_tx, m_p_cq_mgr_tx->request_notification(poll_sn));
 	}
+
+	return ret;
+}
+
+int ring_simple::request_notification_blocking(cq_type_t cq_type, uint64_t poll_sn)
+{
+	int ret = -1;
+	if (likely(CQT_RX == cq_type)) {
+		RING_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_rx,
+				m_p_cq_mgr_rx->request_notification(poll_sn);
+				++m_p_ring_stat->simple.n_rx_interrupt_requests);
+	} else {
+		RING_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_tx, m_p_cq_mgr_tx->request_notification(poll_sn));
+	}
+
 	return ret;
 }
 

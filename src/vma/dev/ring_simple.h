@@ -62,6 +62,7 @@ public:
 	virtual ~ring_simple();
 
 	virtual int		request_notification(cq_type_t cq_type, uint64_t poll_sn);
+	virtual int		request_notification_blocking(cq_type_t cq_type, uint64_t poll_sn);
 	virtual int		poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	virtual void		adapt_cq_moderation();
 	virtual bool		reclaim_recv_buffers(descq_t *rx_reuse);
@@ -94,6 +95,7 @@ public:
 	virtual int		get_tx_channel_fd() const { return m_p_tx_comp_event_channel ? m_p_tx_comp_event_channel->fd : -1; };
 	struct ibv_comp_channel* get_tx_comp_event_channel() { return m_p_tx_comp_event_channel; }
 	int			get_ring_descriptors(vma_mlx_hw_device_data &data);
+	void			modify_cq_moderation(uint32_t period, uint32_t count);
 
 	friend class cq_mgr;
 	friend class cq_mgr_mlx5;
@@ -180,7 +182,6 @@ private:
 	inline int		put_tx_single_buffer(mem_buf_desc_t* buff);
 	inline void		return_to_global_pool();
 	bool			is_available_qp_wr(bool b_block);
-	void			modify_cq_moderation(uint32_t period, uint32_t count);
 	void			save_l2_address(const L2_address* p_l2_addr) { delete_l2_address(); m_p_l2_addr = p_l2_addr->clone(); };
 	void			delete_l2_address() { if (m_p_l2_addr) delete m_p_l2_addr; m_p_l2_addr = NULL; };
 
