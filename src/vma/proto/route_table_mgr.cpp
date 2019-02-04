@@ -444,19 +444,6 @@ route_entry* route_table_mgr::create_new_entry(route_rule_table_key key, const o
 	return p_ent;
 }
 
-void route_table_mgr::update_invalid_entries()
-{
-	route_entry *p_ent;
-	rt_tbl_cach_entry_map_t::iterator cache_itr;
-
-	for (cache_itr = m_cache_tbl.begin(); cache_itr != m_cache_tbl.end(); cache_itr++) {
-		p_ent = (route_entry *)cache_itr->second;
-		if(!p_ent->is_valid()) {
-			update_entry(p_ent);
-		}
-	}
-}
-
 void route_table_mgr::new_route_event(route_val* netlink_route_val)
 {
 	if (!netlink_route_val) {

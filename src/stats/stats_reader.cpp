@@ -850,16 +850,6 @@ void show_mc_group_stats(mc_grp_info_t* p_mc_grp_info , socket_instance_block_t*
 	delete [] mc_group_fds;
 }
 
-void print_command_line(int argc, char** argv)
-{
-	if (argv != NULL)
-	{	printf("Cmd Line: ");
-		for (int i = 0; i < argc; i++)
-			printf("%s ",argv[i]);
-	}
-	printf("\n");
-}
-
 int print_app_name(int pid)
 {
 	char app_base_name[FILE_NAME_MAX_SIZE];

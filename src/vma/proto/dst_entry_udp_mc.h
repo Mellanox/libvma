@@ -50,7 +50,6 @@ protected:
 	ip_address 	m_mc_tx_if_ip;
 	bool 		m_b_mc_loopback_enabled;
 
-	virtual bool 	get_net_dev_val();
 	virtual void	set_src_addr();
 	virtual bool 	resolve_net_dev(bool is_connect=false);
 };

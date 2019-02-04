@@ -120,7 +120,6 @@ public:
 	struct ibv_qp*      get_ibv_qp() const { return m_qp; };
 	class cq_mgr*       get_tx_cq_mgr() const { return m_p_cq_mgr_tx; }
 	class cq_mgr*       get_rx_cq_mgr() const { return m_p_cq_mgr_rx; }
-	ib_ctx_handler*     get_ib_ctx_handler() const { return m_p_ib_ctx_handler; }
 	virtual uint32_t    get_rx_max_wr_num();
 	// This function can be replaced with a parameter during ring creation.
 	// chain of calls may serve as cache warm for dummy send feature.
@@ -186,7 +185,6 @@ protected:
 
 	cq_mgr* handle_cq_initialization(uint32_t *num_wr, struct ibv_comp_channel* comp_event_channel, bool is_rx);
 
-	virtual int     post_qp_create(void) { return 0;};
 	virtual int     send_to_wire(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr, bool request_comp);
 	virtual bool    is_completion_need() { return !m_n_unsignaled_count; };
 };
@@ -226,13 +224,6 @@ public:
 
 	virtual void 		modify_qp_to_ready_state();
 	virtual uint16_t	get_partiton() const { return m_pkey; };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	virtual uint16_t	get_pkey_index() const { return m_pkey_index; };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 	virtual uint32_t	get_underly_qpn() const { return m_underly_qpn; };
 
 protected:

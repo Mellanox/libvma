@@ -43,6 +43,8 @@ ring::ring() :
 	m_p_n_rx_channel_fds(NULL), m_parent(NULL)
 {
 	m_if_index = 0;
+
+	print_val();
 }
 
 ring::~ring()

@@ -324,43 +324,6 @@ public:
 	~lock_mutex_recursive()	{};
 };
 
-
-/**
- * pthread condition with mutex
- */
-class lock_mutex_cond : public lock_mutex
-{
-public:
-	lock_mutex_cond(const char *name = "lock_mutex_cond") : lock_mutex(name) {
-		pthread_cond_init(&m_cond, NULL);
-	};
-	~lock_mutex_cond() {
-		pthread_cond_destroy(&m_cond);
-	};
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	int signal() {
-		return pthread_cond_signal(&m_cond);
-	}
-	;
-	int broadcast() {
-		return pthread_cond_broadcast(&m_cond);
-	};
-	int wait() {
-		return pthread_cond_wait(&m_cond, &m_lock);
-	};
-	int timedwait(const struct timespec *__restrict abstime) {
-		return pthread_cond_timedwait(&m_cond, &m_lock, abstime);
-	};
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
-protected:
-	pthread_cond_t		m_cond;
-};
-
 /**
  * automatic unlock at end of scope where this object was defined on
  * Input: lock_base of lock kind as reference

@@ -113,6 +113,8 @@ buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, pbuf_free_custom_
 		ptr_desc += sizeof(mem_buf_desc_t);
 	}
 
+	print_val_tbl();
+
 	__log_info_func("done");
 }
 

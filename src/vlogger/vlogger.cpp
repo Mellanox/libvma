@@ -278,30 +278,3 @@ void vlog_stop(void)
 	//fix for using LD_PRELOAD with LBM. Unset the pointer given by the parent process, so a child could get his own pointer without issues.
 	unsetenv(VMA_LOG_CB_ENV_VAR);
 }
-
-const tscval_t LogDuration::TSC_RATE_PER_USEC = get_tsc_rate_per_second() / 1000 / 1000;
-
-LogDuration::LogDuration(const char * label, vlog_levels_t log_level) : m_label(label), m_log_level(log_level), m_printCounter(0)
-{
-	gettimeoftsc(&m_startTime);
-	gettimeoftsc(&m_lastPrint);
-}
-
-void LogDuration::print()
-{
-	tscval_t currTime;
-	gettimeoftsc(&currTime);
-
-	tscval_t duration = (currTime - m_lastPrint) / TSC_RATE_PER_USEC;
-	vlog_printf(m_log_level, "\t [%2u] >> LogDuration=%llu usec label=%s\n", m_printCounter++, (unsigned long long)duration, m_label);
-	m_lastPrint = currTime;
-}
-
-LogDuration::~LogDuration()
-{
-	tscval_t endTime;
-	gettimeoftsc(&endTime);
-
-	tscval_t duration = (endTime - m_startTime) / TSC_RATE_PER_USEC;
-	vlog_printf(m_log_level, " >> LogDuration=%llu usec label=%s\n", (unsigned long long)duration, m_label);
-}
