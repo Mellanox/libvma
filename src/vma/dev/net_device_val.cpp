@@ -258,7 +258,7 @@ net_device_val::net_device_val(struct net_device_val_desc *desc) : m_lock("net_d
 	case LAG_8023ad:
 	case ACTIVE_BACKUP:
 		// this is a bond interface (or a vlan/alias over bond), find the slaves
-		valid = (bool)(ib_ctx && verify_bond_ipoib_or_eth_qp_creation());
+		valid = verify_bond_ipoib_or_eth_qp_creation();
 		break;
 	default:
 		valid = (bool)(ib_ctx && verify_ipoib_or_eth_qp_creation(get_ifname_link()));
