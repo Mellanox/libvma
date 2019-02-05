@@ -219,7 +219,7 @@ void ib_ctx_handler::set_ctx_time_converter_status(ts_conversion_mode_t conversi
 	break;
 	case TS_CONVERSION_MODE_PTP: {
 #ifdef DEFINED_IBV_CLOCK_INFO
-		if (strncmp(get_ibname(), "mlx4", 4) == 0) {
+		if (is_mlx4()) {
 			m_p_ctx_time_converter = new time_converter_ib_ctx(m_p_ibv_context, TS_CONVERSION_MODE_SYNC, m_p_ibv_device_attr->hca_core_clock);
 			ibch_logwarn("ptp is not supported for mlx4 devices, reverting to mode TS_CONVERSION_MODE_SYNC (ibv context %p)",
 					m_p_ibv_context);
