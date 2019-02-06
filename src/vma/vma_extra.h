@@ -229,7 +229,7 @@ typedef enum {
  * @brief pass this struct to vma using setsockopt with @ref SO_VMA_RING_ALLOC_LOGIC
  * 	to set the allocation logic of this FD when he requests a ring.
  * 	@note ring_alloc_logic is a mandatory
- * @param comp_mask - what fields are read when processing this sturct
+ * @param comp_mask - what fields are read when processing this struct
  * 	see @ref vma_ring_alloc_logic_attr_comp_mask
  * @param ring_alloc_logic- allocation ratio to use
  * @param ring_profile_key - what ring profile to use - get the profile when
@@ -294,7 +294,7 @@ struct vma_modify_ring_attr {
 };
 
 /**
- * @param comp_mask - what fields are read when processing this sturct see @ref vma_cb_ring_attr_mask
+ * @param comp_mask - what fields are read when processing this struct see @ref vma_cb_ring_attr_mask
  * @param num - Minimum number of elements allocated in the circular buffer
  * @param hdr_bytes - Bytes separated from UDP payload which are
  * 	part of the application header
@@ -368,7 +368,7 @@ typedef enum {
 } vma_ring_type;
 
 /**
- * @param comp_mask - what fields are read when processing this sturct
+ * @param comp_mask - what fields are read when processing this struct
  * 	see @ref vma_ring_type_attr_mask
  * @param ring_type - use cyclic buffer ring or default packets ring
  *
@@ -444,6 +444,30 @@ struct vma_mlx_hw_device_data {
 	struct hw_sq_data sq_data;
 	struct hw_rq_data rq_data;
 };
+
+typedef enum {
+	VMA_EXTRA_API_REGISTER_RECV_CALLBACK         = (1 << 0),
+	VMA_EXTRA_API_RECVFROM_ZCOPY                 = (1 << 1),
+	VMA_EXTRA_API_FREE_PACKETS                   = (1 << 2),
+	VMA_EXTRA_API_ADD_CONF_RULE                  = (1 << 3),
+	VMA_EXTRA_API_THREAD_OFFLOAD                 = (1 << 4),
+	VMA_EXTRA_API_DUMP_FD_STATS                  = (1 << 5),
+	VMA_EXTRA_API_SOCKETXTREME_POLL              = (1 << 6),
+	VMA_EXTRA_API_SOCKETXTREME_FREE_VMA_PACKETS  = (1 << 7),
+	VMA_EXTRA_API_SOCKETXTREME_REF_VMA_BUFF      = (1 << 8),
+	VMA_EXTRA_API_SOCKETXTREME_FREE_VMA_BUFF     = (1 << 9),
+	VMA_EXTRA_API_GET_SOCKET_RINGS_NUM           = (1 << 10),
+	VMA_EXTRA_API_GET_SOCKET_RINGS_FDS           = (1 << 11),
+	VMA_EXTRA_API_GET_SOCKET_TX_RING_FD          = (1 << 12),
+	VMA_EXTRA_API_GET_SOCKET_NETWORK_HEADER      = (1 << 13),
+	VMA_EXTRA_API_GET_RING_DIRECT_DESCRIPTORS    = (1 << 14),
+	VMA_EXTRA_API_CYCLIC_BUFFER_READ             = (1 << 15),
+	VMA_EXTRA_API_ADD_RING_PROFILE               = (1 << 16),
+	VMA_EXTRA_API_REGISTER_MEMORY_ON_RING        = (1 << 17),
+	VMA_EXTRA_API_DEREGISTER_MEMORY_ON_RING      = (1 << 18),
+	VMA_EXTRA_API_GET_MEM_INFO                   = (1 << 19),
+	VMA_EXTRA_API_MODIFY_RING                    = (1 << 20)
+} vma_extra_api_mask;
 
 /** 
  *  
@@ -812,6 +836,12 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * @return 0 on success -1 on failure
 	 */
 	int (*vma_modify_ring)(struct vma_modify_ring_attr *mr_data);
+
+	/**
+	 * Used to identify which methods were initialized by VMA as part of vma_get_api().
+	 * The value content is based on vma_extra_api_mask enum.
+	 */
+	uint64_t vma_extra_supported_mask;
 };
 
 

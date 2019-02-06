@@ -121,6 +121,11 @@ void assign_dlsym(T &ptr, const char *name) {
 		} \
 	}
 
+#define SET_EXTRA_API(dst, func, mask) do { \
+		vma_api->dst = func; \
+		vma_api->vma_extra_supported_mask |= mask; \
+} while(0);
+
 void get_orig_funcs()
 {
 	// Save pointer to original functions
@@ -1092,39 +1097,32 @@ int getsockopt(int __fd, int __level, int __optname,
 	if (__fd == -1 && __level == SOL_SOCKET && __optname == SO_VMA_GET_API &&
 	    __optlen && *__optlen >= sizeof(struct vma_api_t*)) {
 		DO_GLOBAL_CTORS();
+		bool enable_socketxtreme = safe_mce_sys().enable_socketxtreme;
 		srdr_logdbg("User request for VMA Extra API pointers");
 		struct vma_api_t *vma_api = new struct vma_api_t();
 
-		vma_api->register_recv_callback = vma_register_recv_callback;
-		vma_api->recvfrom_zcopy = vma_recvfrom_zcopy;
-		vma_api->free_packets = vma_free_packets;
-		vma_api->add_conf_rule = vma_add_conf_rule;
-		vma_api->thread_offload = vma_thread_offload;
-
-		vma_api->get_socket_rings_num = vma_get_socket_rings_num;
-		vma_api->get_socket_rings_fds = vma_get_socket_rings_fds;
-		vma_api->get_socket_tx_ring_fd = vma_get_socket_tx_ring_fd;
-		vma_api->vma_add_ring_profile = vma_add_ring_profile;
-		vma_api->get_socket_network_header = vma_get_socket_netowrk_header;
-		vma_api->get_ring_direct_descriptors = vma_get_ring_direct_descriptors;
-		vma_api->register_memory_on_ring = vma_reg_mr_on_ring;
-		vma_api->deregister_memory_on_ring = vma_dereg_mr_on_ring;
-		vma_api->socketxtreme_free_vma_packets = (safe_mce_sys().enable_socketxtreme ?
-				vma_socketxtreme_free_vma_packets :
-				dummy_vma_socketxtreme_free_vma_packets);
-		vma_api->socketxtreme_poll = (safe_mce_sys().enable_socketxtreme ?
-				vma_socketxtreme_poll :
-				dummy_vma_socketxtreme_poll);
-		vma_api->socketxtreme_ref_vma_buff = (safe_mce_sys().enable_socketxtreme ?
-				vma_socketxtreme_ref_vma_buff :
-				dummy_vma_socketxtreme_ref_vma_buff);
-		vma_api->socketxtreme_free_vma_buff = (safe_mce_sys().enable_socketxtreme ?
-				vma_socketxtreme_free_vma_buff :
-				dummy_vma_socketxtreme_free_vma_buff);
-		vma_api->dump_fd_stats = vma_dump_fd_stats;
-		vma_api->vma_cyclic_buffer_read = vma_cyclic_buffer_read;
-		vma_api->get_mem_info = vma_get_mem_info;
-		vma_api->vma_modify_ring = vma_modify_ring;
+		vma_api->vma_extra_supported_mask = 0;
+		SET_EXTRA_API(register_recv_callback, vma_register_recv_callback, VMA_EXTRA_API_REGISTER_RECV_CALLBACK);
+		SET_EXTRA_API(recvfrom_zcopy, vma_recvfrom_zcopy, VMA_EXTRA_API_RECVFROM_ZCOPY);
+		SET_EXTRA_API(free_packets, vma_free_packets, VMA_EXTRA_API_FREE_PACKETS);
+		SET_EXTRA_API(add_conf_rule, vma_add_conf_rule, VMA_EXTRA_API_ADD_CONF_RULE);
+		SET_EXTRA_API(thread_offload, vma_thread_offload, VMA_EXTRA_API_THREAD_OFFLOAD);
+		SET_EXTRA_API(get_socket_rings_num, vma_get_socket_rings_num, VMA_EXTRA_API_GET_SOCKET_RINGS_NUM);
+		SET_EXTRA_API(get_socket_rings_fds, vma_get_socket_rings_fds, VMA_EXTRA_API_GET_SOCKET_RINGS_FDS);
+		SET_EXTRA_API(get_socket_tx_ring_fd, vma_get_socket_tx_ring_fd, VMA_EXTRA_API_GET_SOCKET_TX_RING_FD);
+		SET_EXTRA_API(vma_add_ring_profile, vma_add_ring_profile, VMA_EXTRA_API_ADD_RING_PROFILE);
+		SET_EXTRA_API(get_socket_network_header, vma_get_socket_netowrk_header, VMA_EXTRA_API_GET_SOCKET_NETWORK_HEADER);
+		SET_EXTRA_API(get_ring_direct_descriptors, vma_get_ring_direct_descriptors, VMA_EXTRA_API_GET_RING_DIRECT_DESCRIPTORS);
+		SET_EXTRA_API(register_memory_on_ring, vma_reg_mr_on_ring, VMA_EXTRA_API_REGISTER_MEMORY_ON_RING);
+		SET_EXTRA_API(deregister_memory_on_ring, vma_dereg_mr_on_ring, VMA_EXTRA_API_REGISTER_MEMORY_ON_RING);
+		SET_EXTRA_API(socketxtreme_free_vma_packets, enable_socketxtreme ? vma_socketxtreme_free_vma_packets : dummy_vma_socketxtreme_free_vma_packets, VMA_EXTRA_API_SOCKETXTREME_FREE_VMA_PACKETS);
+		SET_EXTRA_API(socketxtreme_poll, enable_socketxtreme ? vma_socketxtreme_poll : dummy_vma_socketxtreme_poll, VMA_EXTRA_API_SOCKETXTREME_POLL);
+		SET_EXTRA_API(socketxtreme_ref_vma_buff, enable_socketxtreme ? vma_socketxtreme_ref_vma_buff : dummy_vma_socketxtreme_ref_vma_buff, VMA_EXTRA_API_SOCKETXTREME_REF_VMA_BUFF);
+		SET_EXTRA_API(socketxtreme_free_vma_buff, enable_socketxtreme ? vma_socketxtreme_free_vma_buff : dummy_vma_socketxtreme_free_vma_buff, VMA_EXTRA_API_SOCKETXTREME_FREE_VMA_BUFF);
+		SET_EXTRA_API(dump_fd_stats, vma_dump_fd_stats, VMA_EXTRA_API_DUMP_FD_STATS);
+		SET_EXTRA_API(vma_cyclic_buffer_read, vma_cyclic_buffer_read, VMA_EXTRA_API_CYCLIC_BUFFER_READ);
+		SET_EXTRA_API(get_mem_info, vma_get_mem_info, VMA_EXTRA_API_GET_MEM_INFO);
+		SET_EXTRA_API(vma_modify_ring, vma_modify_ring, VMA_EXTRA_API_MODIFY_RING);
 		*((vma_api_t**)__optval) = vma_api;
 		return 0;
 	}
