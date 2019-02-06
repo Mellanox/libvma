@@ -1567,7 +1567,7 @@ bool net_device_val::verify_enable_ipoib(const char* interface_name)
 #ifndef DEFINED_IBV_QP_INIT_SOURCE_QPN
 	// Dont offload mlx5 devices if source qpn is not defined.
 	ib_ctx_handler* ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(get_ifname_link());
-	if (!p_ib_ctx->is_mlx4()) {
+	if (!ib_ctx->is_mlx4()) {
 		nd_logwarn("Blocking offload: SOURCE_QPN is not supported for this driver ('%s')", interface_name);
 		return false;
 	}
