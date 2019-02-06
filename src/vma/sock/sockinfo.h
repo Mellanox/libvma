@@ -206,7 +206,7 @@ protected:
 
 	lock_spin_recursive	m_lock_rcv;
 	lock_mutex		m_lock_snd;
-	lock_mutex_recursive	m_rx_migration_lock;
+	lock_mutex		m_rx_migration_lock;
 
 	sock_addr 		m_bound;
 	sock_addr 		m_connected;

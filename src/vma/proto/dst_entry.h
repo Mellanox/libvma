@@ -120,7 +120,7 @@ protected:
 	in_addr_t		m_route_src_ip; // source IP used to register in route manager
 	in_addr_t		m_pkt_src_ip; // source IP address copied into IP header
 	lock_mutex_recursive 	m_slow_path_lock;
-	lock_mutex_recursive 	m_tx_migration_lock;
+	lock_mutex		m_tx_migration_lock;
 	vma_ibv_send_wr 	m_inline_send_wqe;
 	vma_ibv_send_wr 	m_not_inline_send_wqe;
 	vma_ibv_send_wr 	m_fragmented_send_wqe;
