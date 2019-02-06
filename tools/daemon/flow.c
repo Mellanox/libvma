@@ -115,7 +115,7 @@ static inline void free_pending_list(pid_t pid, struct flow_ctx *ctx, char* if_n
 static inline int get_prio(struct store_flow *value);
 static inline int get_bkt(struct store_flow *value);
 static inline int get_protocol(struct store_flow *value);
-static inline int get_node(struct store_flow *value, struct list_head **list);
+static inline int get_node(struct list_head **list);
 
 
 int open_flow(void)
@@ -331,7 +331,7 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 	 * direct a place in the list where new entry should be inserted
 	 */
 	cur_head = &cur_element->list;
-	id = get_node(value, &cur_head);
+	id = get_node(&cur_head);
 	if (id <= 0) {
 		log_warn("[%d] invalid flow id: %d\n",
 				pid, id);
@@ -791,50 +791,35 @@ static inline int get_protocol(struct store_flow *value)
 	}
 }
 
-static inline int get_node(struct store_flow *value, struct list_head **cur_head)
+static inline int get_node(struct list_head **cur_head)
 {
-	int id = 0;
+	int id = 1;
 	struct flow_element *cur_element = NULL;
 	struct list_head *cur_entry = NULL;
 
-	switch (value->type) {
-	case VMA_MSG_FLOW_TCP_3T:
-	case VMA_MSG_FLOW_UDP_3T:
-		/* node id selection for this flow type is based
-		 * port value
-		 */
-		id = ((ntohs(value->flow.dst_port) >> 8) & 0xFF) + 1;
-		break;
-	case VMA_MSG_FLOW_TCP_5T:
-	case VMA_MSG_FLOW_UDP_5T:
-		/* node id logic is smart (keep list entry in ascending order)
-		 * there are two ways as
-		 * 1 - simply take last entry in the list and increment id value until
-		 * maximum value is not achieved
-		 * 2 - if last entry has maximum possible value try look for first free
-		 * entry from start in the list
-		 */
-		id = 1;
-		if (!list_empty((*cur_head))) {
-			cur_entry = (*cur_head)->prev;
-			cur_element = list_entry(cur_entry, struct flow_element, item);
-			if (cur_element->value[0] < MAX_ID) {
-				id = cur_element->value[0] + 1;
-			} else {
-				id = 1;
-				list_for_each(cur_entry, (*cur_head)) {
-					cur_element = list_entry(cur_entry, struct flow_element, item);
-					if ((int)cur_element->value[0] > id) {
-						*cur_head = cur_entry;
-						break;
-					}
-					id++;
+	/* node id logic is smart (keep list entry in ascending order)
+	 * there are two ways as
+	 * 1 - simply take last entry in the list and increment id value until
+	 * maximum value is not achieved
+	 * 2 - if last entry has maximum possible value try look for first free
+	 * entry from start in the list
+	 */
+	if (!list_empty((*cur_head))) {
+		cur_entry = (*cur_head)->prev;
+		cur_element = list_entry(cur_entry, struct flow_element, item);
+		if (cur_element->value[0] < MAX_ID) {
+			id = cur_element->value[0] + 1;
+		} else {
+			id = 1;
+			list_for_each(cur_entry, (*cur_head)) {
+				cur_element = list_entry(cur_entry, struct flow_element, item);
+				if ((int)cur_element->value[0] > id) {
+					*cur_head = cur_entry;
+					break;
 				}
+				id++;
 			}
 		}
-		break;
-	default:
-		return -EINVAL;
 	}
 
 	if ((0 >= id) || (id > MAX_ID)) {
