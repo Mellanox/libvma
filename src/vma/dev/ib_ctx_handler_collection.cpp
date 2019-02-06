@@ -138,7 +138,7 @@ void ib_ctx_handler_collection::update_tbl(const char *ifa_name)
 		}
 
 		if (ib_ctx_handler::is_mlx4(dev_list[i]->name)) {
-			// only support mlx5 device in this mode
+			// Note: mlx4 does not support this capability.
 			if(safe_mce_sys().enable_socketxtreme) {
 				ibchc_logdbg("Blocking offload: mlx4 interfaces in socketxtreme mode");
 				continue;
