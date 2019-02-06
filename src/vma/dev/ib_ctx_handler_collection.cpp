@@ -144,8 +144,11 @@ void ib_ctx_handler_collection::update_tbl(const char *ifa_name)
 				continue;
 			}
 
-			// Check if mlx4 steering is supported
-			check_flow_steering_log_num_mgm_entry_size();
+			// Check if mlx4 steering creation is supported.
+			// Those setting are passed to the VM by the Hypervisor - NO NEED to specify the param on the VM.
+			if (safe_mce_sys().hypervisor == mce_sys_var::HYPER_NONE) {
+				check_flow_steering_log_num_mgm_entry_size();
+			}
 		}
 
 		/* 3. Add new ib devices */
