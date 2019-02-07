@@ -1565,9 +1565,9 @@ bool net_device_val::verify_enable_ipoib(const char* interface_name)
 	}
 
 #ifndef DEFINED_IBV_QP_INIT_SOURCE_QPN
-	// Dont offload mlx5 devices if source qpn is not defined.
+	// Note: mlx4 does not support this capability
 	ib_ctx_handler* ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(get_ifname_link());
-	if (!strncmp(ib_ctx->get_ibname(), "mlx5", 4)) {
+	if (!ib_ctx->is_mlx4()) {
 		nd_logwarn("Blocking offload: SOURCE_QPN is not supported for this driver ('%s')", interface_name);
 		return false;
 	}
@@ -1646,7 +1646,7 @@ bool net_device_val::verify_qp_creation(const char* ifname, enum ibv_qp_type qp_
 		goto release_resources;
 	} else if (port_num > p_ib_ctx->get_ibv_device_attr()->phys_port_cnt) {
 		nd_logdbg("Invalid port for interface %s", base_ifname);
-		if (qp_type == IBV_QPT_RAW_PACKET && m_bond != NO_BOND && !strncmp(p_ib_ctx->get_ibname(), "mlx4", 4)) {
+		if (qp_type == IBV_QPT_RAW_PACKET && m_bond != NO_BOND && p_ib_ctx->is_mlx4()) {
 			print_roce_lag_warnings(get_ifname_link());
 		}
 		goto release_resources;
@@ -1674,8 +1674,8 @@ bool net_device_val::verify_qp_creation(const char* ifname, enum ibv_qp_type qp_
 	qp_init_attr.recv_cq = cq;
 	qp_init_attr.send_cq = cq;
 
-	// Set source qpn for mlx5 IPoIB devices
-	if (qp_type == IBV_QPT_UD && !strncmp(p_ib_ctx->get_ibname(), "mlx5", 4)) {
+	// Set source qpn for non mlx4 IPoIB devices
+	if (qp_type == IBV_QPT_UD && !p_ib_ctx->is_mlx4()) {
 		unsigned char hw_addr[IPOIB_HW_ADDR_LEN];
 		get_local_ll_addr(ifname, hw_addr, IPOIB_HW_ADDR_LEN, false);
 		IPoIB_addr ipoib_addr(hw_addr);

@@ -87,6 +87,8 @@ public:
 	bool                    is_packet_pacing_supported(uint32_t rate = 1);
 	size_t                  get_on_device_memory_size() { return m_on_device_memory; }
 	bool                    is_active(int port_num);
+	bool                    is_mlx4(){ return is_mlx4(get_ibname()); }
+	static bool             is_mlx4(const char *dev) { return strncmp(dev, "mlx4", 4) == 0; }
 	virtual void            handle_event_ibverbs_cb(void *ev_data, void *ctx);
 
 	void set_str();

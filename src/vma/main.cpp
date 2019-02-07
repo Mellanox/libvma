@@ -302,25 +302,6 @@ void check_locked_mem()
 	}
 }
 
-void check_flow_steering_log_num_mgm_entry_size()
-{
-	char flow_steering_val[4] = {0};
-	if (priv_safe_try_read_file((const char*)FLOW_STEERING_MGM_ENTRY_SIZE_PARAM_FILE, flow_steering_val, sizeof(flow_steering_val)) == -1) {
-		vlog_printf(VLOG_DEBUG, "Flow steering option for mlx4 driver does not exist in current OFED version\n");
-	}
-	else if (flow_steering_val[0] != '-' || (strtol(&flow_steering_val[1], NULL, 0) % 2) == 0) {
-		vlog_printf(VLOG_WARNING, "***************************************************************************************\n");
-		vlog_printf(VLOG_WARNING, "* VMA will not operate properly while flow steering option is disabled                *\n");
-		vlog_printf(VLOG_WARNING, "* In order to enable flow steering please restart your VMA applications after running *\n");
-		vlog_printf(VLOG_WARNING, "* the following:                                                                      *\n");
-		vlog_printf(VLOG_WARNING, "* For your information the following steps will restart your network interface        *\n");
-		vlog_printf(VLOG_WARNING, "* 1. \"echo options mlx4_core log_num_mgm_entry_size=-1 > /etc/modprobe.d/mlnx.conf\"   *\n");
-		vlog_printf(VLOG_WARNING, "* 2. Restart openibd or rdma service depending on your system configuration           *\n");
-		vlog_printf(VLOG_WARNING, "* Read more about the Flow Steering support in the VMA's User Manual                  *\n");
-		vlog_printf(VLOG_WARNING, "***************************************************************************************\n");
-	}
-}
-
 const char* thread_mode_str(thread_mode_t thread_mode)
 {
 	switch (thread_mode) {
@@ -995,7 +976,6 @@ extern "C" int main_init(void)
 	check_debug();
 	check_cpu_speed();
 	check_locked_mem();
-	check_flow_steering_log_num_mgm_entry_size();
 	check_netperf_flags();
 
 	if (*safe_mce_sys().stats_filename) {
