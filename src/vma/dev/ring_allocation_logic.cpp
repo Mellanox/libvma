@@ -134,14 +134,6 @@ resource_allocation_key* ring_allocation_logic::create_new_key(in_addr_t addr, i
  */
 bool ring_allocation_logic::should_migrate_ring()
 {
-	if (!is_logic_support_migration()) {
-		return false;
-	}
-
-	if (m_ring_migration_ratio < 0) {
-		return false;
-	}
-
 	ral_logfuncall("currently accessed from thread=%lu, cpu=%d", pthread_self(), sched_getcpu());
 
 	int count_max = m_ring_migration_ratio;

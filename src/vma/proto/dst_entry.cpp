@@ -596,12 +596,18 @@ bool dst_entry::prepare_to_send(struct vma_rate_limit_t &rate_limit, bool skip_r
 
 bool dst_entry::try_migrate_ring(lock_base& socket_lock)
 {
-	if (m_ring_alloc_logic.should_migrate_ring()) {
-		resource_allocation_key old_key(*m_ring_alloc_logic.get_key());
-		do_ring_migration(socket_lock, old_key);
-		return true;
+	bool ret = false;
+	if (m_ring_alloc_logic.is_logic_support_migration()) {
+		if (!m_tx_migration_lock.trylock()) {
+			if (m_ring_alloc_logic.should_migrate_ring()) {
+				resource_allocation_key old_key(*m_ring_alloc_logic.get_key());
+				do_ring_migration(socket_lock, old_key);
+				ret = true;
+			}
+			m_tx_migration_lock.unlock();
+		}
 	}
-	return false;
+	return ret;
 }
 
 int dst_entry::get_route_mtu()
@@ -788,6 +794,7 @@ bool dst_entry::update_ring_alloc_logic(int fd, lock_base& socket_lock, resource
 	m_ring_alloc_logic = ring_allocation_logic_tx(fd, ring_alloc_logic, this);
 
 	if (*m_ring_alloc_logic.get_key() != old_key) {
+		auto_unlocker locker(m_tx_migration_lock);
 		do_ring_migration(socket_lock, old_key);
 		return true;
 	}

@@ -213,8 +213,10 @@ int sockinfo::set_ring_attr(vma_ring_alloc_logic_attr *attr)
 		}
 		m_ring_alloc_logic = ring_allocation_logic_rx(get_fd(), m_ring_alloc_log_rx, this);
 		
-		if (m_rx_nd_map.size())
+		if (m_rx_nd_map.size()) {
+			auto_unlocker locker(m_rx_migration_lock);
 			do_rings_migration(old_key);
+		}
 
 		m_p_socket_stats->ring_alloc_logic_rx = m_ring_alloc_log_rx.get_ring_alloc_logic();
 		m_p_socket_stats->ring_user_id_rx =  m_ring_alloc_logic.calc_res_key_by_logic();
@@ -988,9 +990,14 @@ void sockinfo::do_rings_migration(resource_allocation_key &old_key)
 
 void sockinfo::consider_rings_migration()
 {
-	if (m_ring_alloc_logic.should_migrate_ring()) {
-		ring_alloc_logic_attr old_key(*m_ring_alloc_logic.get_key());
-		do_rings_migration(old_key);
+	if (m_ring_alloc_logic.is_logic_support_migration()) {
+		if(!m_rx_migration_lock.trylock()) {
+			if (m_ring_alloc_logic.should_migrate_ring()) {
+				ring_alloc_logic_attr old_key(*m_ring_alloc_logic.get_key());
+				do_rings_migration(old_key);
+			}
+			m_rx_migration_lock.unlock();
+		}
 	}
 }
 

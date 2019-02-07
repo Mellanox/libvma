@@ -80,7 +80,7 @@ public:
 	resource_allocation_key* get_key() { return &m_res_key; }
 
 	bool			should_migrate_ring();
-	bool			is_logic_support_migration() { return m_res_key.get_ring_alloc_logic() >= RING_LOGIC_PER_THREAD; }
+	bool			is_logic_support_migration() { return m_res_key.get_ring_alloc_logic() >= RING_LOGIC_PER_THREAD && m_ring_migration_ratio > 0;}
 	uint64_t		calc_res_key_by_logic();
 protected:
 	string			m_tostr;
