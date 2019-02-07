@@ -1114,7 +1114,7 @@ int getsockopt(int __fd, int __level, int __optname,
 		SET_EXTRA_API(get_socket_network_header, vma_get_socket_netowrk_header, VMA_EXTRA_API_GET_SOCKET_NETWORK_HEADER);
 		SET_EXTRA_API(get_ring_direct_descriptors, vma_get_ring_direct_descriptors, VMA_EXTRA_API_GET_RING_DIRECT_DESCRIPTORS);
 		SET_EXTRA_API(register_memory_on_ring, vma_reg_mr_on_ring, VMA_EXTRA_API_REGISTER_MEMORY_ON_RING);
-		SET_EXTRA_API(deregister_memory_on_ring, vma_dereg_mr_on_ring, VMA_EXTRA_API_REGISTER_MEMORY_ON_RING);
+		SET_EXTRA_API(deregister_memory_on_ring, vma_dereg_mr_on_ring, VMA_EXTRA_API_DEREGISTER_MEMORY_ON_RING);
 		SET_EXTRA_API(socketxtreme_free_vma_packets, enable_socketxtreme ? vma_socketxtreme_free_vma_packets : dummy_vma_socketxtreme_free_vma_packets, VMA_EXTRA_API_SOCKETXTREME_FREE_VMA_PACKETS);
 		SET_EXTRA_API(socketxtreme_poll, enable_socketxtreme ? vma_socketxtreme_poll : dummy_vma_socketxtreme_poll, VMA_EXTRA_API_SOCKETXTREME_POLL);
 		SET_EXTRA_API(socketxtreme_ref_vma_buff, enable_socketxtreme ? vma_socketxtreme_ref_vma_buff : dummy_vma_socketxtreme_ref_vma_buff, VMA_EXTRA_API_SOCKETXTREME_REF_VMA_BUFF);
