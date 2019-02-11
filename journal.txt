@@ -1,3 +1,44 @@
+Version 8.8.2-0:
+Date + Time 2019-02-20
+=============================================================
+Added:
+        - RM #1684500 Remove useless inlining
+        - RM #1684500 Remove useless inlining in daemon
+        - RM #1684500 Remove inlining for vlog_printf()
+        - RM #1582418 Add Burst-Packet-Pacing support for upstream
+        - RM #1582417 Add Packet Pacing support for upstream
+        - RM #1557652 Improve flow processing
+        - RM #1557652 Add tc_add_filter_dev2tap() operation
+        - RM #1557652 Add tc_add_filter_tap2dev() operation
+        - RM #1557652 Add tc_add_filter_link() operation
+        - RM #1557652 Use netlink API to control TC rules
+        - RM #1380243 Ignore events of a closed socket for SocketXtreme
+        - RM #1677457 Add methods mask to VMA extra api
+        - RM #1671069 Verify mlx4 steering creation for bare-metal
+        - RM #1426871 Include Debian log file into jenkins artifact
+        - RM #1426871 Update debian/control file
+        - RM #1426871 Update debian copyright
+        - RM #1426871 Enable service status for non root
+        - RM #1426871 Add debian watch file
+        - RM #1426871 Improve init script
+        - RM #1426871 Add service mandatory option as force-reload
+        - RM #1426871 Improve vma service support on different systems
+        - RM #1661438 General redundant deadcode cleanup
+        - RM #1628881 Add ring modification function to vma_extra api
+        - RM #1631600 Cleanup socketxtreme and vmapoll configuration parameters
+        - RM #1651457 Add burst capabilty check to get_ring_descriptors
+
+Fixed:
+        - RM #1682300 Fix double free in free_libvma_resources
+        - RM #931123  Fix filter multicast packets after bind
+        - RM #1087459 Fix VMA_EXCEPTION_HANDLING=0/1 generates core
+        - RM #1679709 Fix missing update of CQ consumer index
+        - RM #1653789 Fix Rx and Tx migrations thread safety
+        - RM #1426871 Fix root detection
+        - RM #1668925 Fix RoCE lag warning is not presented
+        - RM #1599446 Fix RX TAP migration failure for 3t connections
+        - RM #1073005 Fix g_tcp_timers_collection destructor cleanup
+
 Version 8.7.7-0:
 Date + Time 2019-01-30
 =============================================================
