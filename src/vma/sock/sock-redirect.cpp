@@ -126,6 +126,14 @@ void assign_dlsym(T &ptr, const char *name) {
 		vma_api->vma_extra_supported_mask |= mask; \
 } while(0);
 
+#define VERIFY_PASSTROUGH_CHANGED(__ret, __func_and_params__) do { \
+		bool passthrough = p_socket_object->isPassthrough(); \
+		__ret = __func_and_params__; \
+		if (!passthrough && p_socket_object->isPassthrough()) { \
+			handle_close(__fd, false, true); \
+		} \
+} while(0);
+
 void get_orig_funcs()
 {
 	// Save pointer to original functions
@@ -1069,11 +1077,7 @@ int setsockopt(int __fd, int __level, int __optname,
 
 	p_socket_object = fd_collection_get_sockfd(__fd);
 	if (p_socket_object) {
-		bool passthrough = p_socket_object->isPassthrough();
-		ret = p_socket_object->setsockopt(__level, __optname, __optval, __optlen);
-		if (!passthrough && p_socket_object->isPassthrough()) {
-			handle_close(__fd, false, true); // will leave it for passthrough
-		}
+		VERIFY_PASSTROUGH_CHANGED(ret, p_socket_object->setsockopt(__level, __optname, __optval, __optlen));
 	}
 	else {
 		BULLSEYE_EXCLUDE_BLOCK_START
@@ -1135,11 +1139,7 @@ int getsockopt(int __fd, int __level, int __optname,
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
 	if (p_socket_object) {
-		bool passthrough = p_socket_object->isPassthrough();
-		ret = p_socket_object->getsockopt(__level, __optname, __optval, __optlen);
-		if (!passthrough && p_socket_object->isPassthrough()) {
-			handle_close(__fd, false, true); // will leave it for passthrough
-		}
+		VERIFY_PASSTROUGH_CHANGED(ret, p_socket_object->getsockopt(__level, __optname, __optval, __optlen));
 	} else {
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (!orig_os_api.getsockopt) get_orig_funcs();
@@ -1179,11 +1179,7 @@ int fcntl(int __fd, int __cmd, ...)
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
 	if (p_socket_object) {
-		bool passthrough = p_socket_object->isPassthrough();
-		res = p_socket_object->fcntl(__cmd, arg);
-		if (!passthrough && p_socket_object->isPassthrough()) {
-			handle_close(__fd, false, true); // will leave it for passthrough
-		}
+		VERIFY_PASSTROUGH_CHANGED(res, p_socket_object->fcntl(__cmd, arg));
 	} else {
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (!orig_os_api.fcntl) get_orig_funcs();
@@ -1221,11 +1217,7 @@ int ioctl (int __fd, unsigned long int __request, ...)
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
 	if (p_socket_object && arg) {
-		bool passthrough = p_socket_object->isPassthrough();
-		res = p_socket_object->ioctl(__request, arg);
-		if (!passthrough && p_socket_object->isPassthrough()) {
-			handle_close(__fd, false, true); // will leave it for passthrough
-		}
+		VERIFY_PASSTROUGH_CHANGED(res, p_socket_object->ioctl(__request, arg));
 	} else {
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (!orig_os_api.ioctl) get_orig_funcs();
