@@ -175,6 +175,7 @@ public:
 	void 	unmap_vlan_and_qpn(int qp_num, uint16_t vlan_id);
 
 	virtual bool fill_cq_hw_descriptors(struct hw_cq_data &data) {NOT_IN_USE(data);return false;};
+	virtual void get_cq_event() {};
 
 protected:
 
@@ -226,8 +227,6 @@ protected:
 	const uint32_t		m_n_sysvar_rx_prefetch_bytes_before_poll;
 	const uint32_t		m_n_sysvar_rx_prefetch_bytes;
 	size_t			m_sz_transport_header;
-
-protected:
 	ib_ctx_handler*		m_p_ib_ctx_handler;
 	const uint32_t		m_n_sysvar_rx_num_wr_to_post_recv;
 private:
@@ -269,8 +268,6 @@ private:
 	virtual int	req_notify_cq() {
 		return ibv_req_notify_cq(m_p_ibv_cq, 0);
 	};
-
-	virtual void	get_cq_event() {};
 };
 
 // Helper gunction to extract the Tx cq_mgr from the CQ event,

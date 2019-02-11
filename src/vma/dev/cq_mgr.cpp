@@ -933,6 +933,7 @@ cq_mgr* get_cq_mgr_from_cq_event(struct ibv_comp_channel* p_cq_channel)
 	}
 	else {
 		p_cq_mgr = (cq_mgr*)p_context; // Save the cq_mgr
+		p_cq_mgr->get_cq_event();
 		ibv_ack_cq_events(p_cq_hndl, 1); // Ack the ibv event
 	} ENDIF_VERBS_FAILURE;
 
