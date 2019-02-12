@@ -521,6 +521,7 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 		}
 	}
 
+	m_state = SOCKINFO_CLOSING;
 	NOTIFY_ON_EVENTS(this, EPOLLHUP);
 
 	do_wakeup();
@@ -622,7 +623,7 @@ void sockinfo_tcp::unlock_rx_q()
 
 void sockinfo_tcp::tcp_timer()
 {
-	if (m_b_closed) {
+	if (m_state == SOCKINFO_CLOSED) {
 		return;
 	}
 

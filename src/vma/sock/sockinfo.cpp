@@ -63,7 +63,6 @@
 
 sockinfo::sockinfo(int fd):
 		socket_fd_api(fd),
-		m_b_closed(false),
 		m_b_blocking(true),
 		m_b_pktinfo(false),
 		m_b_rcvtstamp(false),
@@ -72,6 +71,7 @@ sockinfo::sockinfo(int fd):
 		m_protocol(PROTO_UNDEFINED),
 		m_lock_rcv(MODULE_NAME "::m_lock_rcv"),
 		m_lock_snd(MODULE_NAME "::m_lock_snd"),
+		m_state(SOCKINFO_OPENED),
 		m_p_connected_dst_entry(NULL),
 		m_so_bindtodevice_ip(INADDR_ANY),
 		m_p_rx_ring(0),
@@ -123,7 +123,7 @@ sockinfo::sockinfo(int fd):
 
 sockinfo::~sockinfo()
 {
-	m_b_closed = true;
+	m_state = SOCKINFO_CLOSED;
 
 	// Change to non-blocking socket so calling threads can exit
 	m_b_blocking = false;
@@ -1059,6 +1059,13 @@ void sockinfo::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 	  "PROTO_TCP",
 	  "PROTO_ALL",
 	};
+
+	const char * const m_state_str[] = {
+	  "SOCKINFO_OPENED",
+	  "SOCKINFO_CLOSING",
+	  "SOCKINFO_CLOSED",
+	};
+
 	bool b_any_activity = false;
 
 	socket_fd_api::statistics_print(log_level);
@@ -1066,7 +1073,7 @@ void sockinfo::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 	vlog_printf(log_level, "Bind info : %s\n", m_bound.to_str());
 	vlog_printf(log_level, "Connection info : %s\n", m_connected.to_str());
 	vlog_printf(log_level, "Protocol : %s\n", in_protocol_str[m_protocol]);
-	vlog_printf(log_level, "Is closed : %s\n", m_b_closed ? "true" : "false");
+	vlog_printf(log_level, "Is closed : %s\n", m_state_str[m_state]);
 	vlog_printf(log_level, "Is blocking : %s\n", m_b_blocking ? "true" : "false");
 	vlog_printf(log_level, "Rx reuse buffer pending : %s\n", m_rx_reuse_buf_pending ? "true" : "false");
 	vlog_printf(log_level, "Rx reuse buffer postponed : %s\n", m_rx_reuse_buf_postponed ? "true" : "false");
