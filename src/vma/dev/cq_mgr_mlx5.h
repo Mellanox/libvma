@@ -71,6 +71,7 @@ public:
 	virtual void                add_qp_tx(qp_mgr* qp);
 	virtual uint32_t            clean_cq();
 	virtual bool                fill_cq_hw_descriptors(struct hw_cq_data &data);
+	virtual void                get_cq_event() { vma_ib_mlx5_get_cq_event(&m_mlx5_cq); };
 
 protected:
 	qp_mgr_eth_mlx5*            m_qp;
@@ -89,10 +90,6 @@ private:
 
 	virtual int	req_notify_cq() {
 		return vma_ib_mlx5_req_notify_cq(&m_mlx5_cq, 0);
-	};
-
-	virtual void	get_cq_event() {
-		vma_ib_mlx5_get_cq_event(&m_mlx5_cq);
 	};
 };
 

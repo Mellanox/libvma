@@ -122,10 +122,7 @@ int vma_ib_mlx5_post_recv(vma_ib_mlx5_qp_t *mlx5_qp, struct ibv_recv_wr *wr, str
 
 int vma_ib_mlx5_get_cq(struct ibv_cq *cq, vma_ib_mlx5_cq_t *mlx5_cq);
 int vma_ib_mlx5_req_notify_cq(vma_ib_mlx5_cq_t *mlx5_cq, int solicited);
-static inline void vma_ib_mlx5_get_cq_event(vma_ib_mlx5_cq_t *mlx5_cq)
-{
-	mlx5_cq->cq_sn++;
-}
+void vma_ib_mlx5_get_cq_event(vma_ib_mlx5_cq_t *mlx5_cq);
 
 #endif /* DEFINED_DIRECT_VERBS */
 

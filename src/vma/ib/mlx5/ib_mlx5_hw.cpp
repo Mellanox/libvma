@@ -110,4 +110,9 @@ int vma_ib_mlx5_req_notify_cq(vma_ib_mlx5_cq_t *mlx5_cq, int solicited)
 	return ibv_req_notify_cq(mlx5_cq->cq, solicited);
 }
 
+void vma_ib_mlx5_get_cq_event(vma_ib_mlx5_cq_t *)
+{
+	// no need in operation with cq_sn as far as it is managed by driver code for now
+}
+
 #endif /* (DEFINED_DIRECT_VERBS == 2) */
