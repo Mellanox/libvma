@@ -2311,12 +2311,16 @@ int sockinfo_udp::mc_change_membership(const mc_pending_pram *p_mc_pram)
 		// The address specified in bind() has a filtering role.
 		// i.e. sockets should discard datagrams which sent to an unbound ip address.
 		if (!m_bound.is_anyaddr() && mc_grp != m_bound.get_in_addr()) {
-			return -1; // Socket was bound to a different ip address
+			// Ignore for socketXtreme beacause m_bound is used as part of the legacy implementation
+			if (!safe_mce_sys().enable_socketxtreme) {
+				return -1; // Socket was bound to a different ip address
+			}
 		}
 
 		flow_tuple_with_local_if flow_key(mc_grp, m_bound.get_in_port(), m_connected.get_in_addr(), m_connected.get_in_port(), PROTO_UDP, mc_if);
 		if (!attach_receiver(flow_key)) {
-			return -1; // we will get RX from OS
+			// we will get RX from OS
+			return -1;
 		}
 		vma_stats_mc_group_add(mc_grp, m_p_socket_stats);
 		original_os_setsockopt_helper( &mreq_src, pram_size, p_mc_pram->optname);
@@ -2327,7 +2331,8 @@ int sockinfo_udp::mc_change_membership(const mc_pending_pram *p_mc_pram)
 	{
 		flow_tuple_with_local_if flow_key(mc_grp, m_bound.get_in_port(), 0, 0, PROTO_UDP, mc_if);
 		if (!attach_receiver(flow_key)) {
-			return -1; // we will get RX from OS
+			// we will get RX from OS
+			return -1;
 		}
 		vma_stats_mc_group_add(mc_grp, m_p_socket_stats);
 		pram_size = sizeof(ip_mreq_source);
