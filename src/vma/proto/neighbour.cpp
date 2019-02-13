@@ -280,8 +280,13 @@ void neigh_entry::clean_obj()
 	m_lock.lock();
 	set_cleaned();
 	m_timer_handle = NULL;
-	g_p_event_handler_manager->unregister_timers_event_and_delete(this);
-	m_lock.unlock();
+	if (g_p_event_handler_manager->is_running()) {
+		g_p_event_handler_manager->unregister_timers_event_and_delete(this);
+		m_lock.unlock();
+	} else {
+		m_lock.unlock();
+		cleanable_obj::clean_obj();
+	}
 }
 
 int neigh_entry::send(neigh_send_info &s_info)
