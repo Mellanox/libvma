@@ -2305,7 +2305,16 @@ int sockinfo_udp::mc_change_membership(const mc_pending_pram *p_mc_pram)
 	case IP_ADD_MEMBERSHIP:
 	{
 		if ((m_mc_memberships_map.find(mc_grp) != m_mc_memberships_map.end()) && (0 < m_mc_memberships_map[mc_grp].size())) {
-				return -1; // Same group with source filtering is already exist
+			return -1; // Same group with source filtering is already exist
+		}
+
+		// The address specified in bind() has a filtering role.
+		// i.e. sockets should discard datagrams which sent to an unbound ip address.
+		if (!m_bound.is_anyaddr() && mc_grp != m_bound.get_in_addr()) {
+			// Ignore for socketXtreme because m_bound is used as part of the legacy implementation
+			if (!safe_mce_sys().enable_socketxtreme) {
+				return -1; // Socket was bound to a different ip address
+			}
 		}
 
 		flow_tuple_with_local_if flow_key(mc_grp, m_bound.get_in_port(), m_connected.get_in_addr(), m_connected.get_in_port(), PROTO_UDP, mc_if);
