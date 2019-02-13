@@ -375,7 +375,12 @@ void sockinfo_tcp::clean_obj()
 		g_p_event_handler_manager->unregister_timer_event(this, m_timer_handle);
 		m_timer_handle = NULL;
 	}
-	g_p_event_handler_manager->unregister_timers_event_and_delete(this);
+
+	if (g_p_event_handler_manager->is_running()) {
+		g_p_event_handler_manager->unregister_timers_event_and_delete(this);
+	} else {
+		cleanable_obj::clean_obj();
+	}
 }
 
 bool sockinfo_tcp::prepare_listen_to_close()

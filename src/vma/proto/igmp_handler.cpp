@@ -157,7 +157,12 @@ void igmp_handler::clean_obj()
 {
 	set_cleaned();
 	m_timer_handle = NULL;
-	g_p_event_handler_manager->unregister_timers_event_and_delete(this);
+
+	if (g_p_event_handler_manager->is_running()) {
+		g_p_event_handler_manager->unregister_timers_event_and_delete(this);
+	} else {
+		cleanable_obj::clean_obj();
+	}
 }
 
 void igmp_handler::handle_timer_expired(void* user_data)
