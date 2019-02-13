@@ -169,6 +169,13 @@ public:
 #if _BullseyeCoverage
     #pragma BullseyeCoverage on
 #endif
+
+	enum sockinfo_state {
+		SOCKINFO_OPENED,
+		SOCKINFO_CLOSING,
+		SOCKINFO_CLOSED
+	};
+
 	virtual void consider_rings_migration();
 
 	virtual int add_epoll_context(epfd_info *epfd);
@@ -196,7 +203,6 @@ public:
 	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);
 	uint32_t get_flow_tag_val() { return m_flow_tag_id; }
 protected:
-	bool			m_b_closed;
 	bool 			m_b_blocking;
 	bool 			m_b_pktinfo;
 	bool 			m_b_rcvtstamp;
@@ -208,6 +214,7 @@ protected:
 	lock_mutex		m_lock_snd;
 	lock_mutex		m_rx_migration_lock;
 
+	sockinfo_state		m_state; // socket current state
 	sock_addr 		m_bound;
 	sock_addr 		m_connected;
 	dst_entry*		m_p_connected_dst_entry;
@@ -349,7 +356,7 @@ protected:
 	inline void set_events(uint64_t events) {
 		static int enable_socketxtreme = safe_mce_sys().enable_socketxtreme;
 
-		if (enable_socketxtreme) {
+		if (enable_socketxtreme && m_state == SOCKINFO_OPENED) {
 			/* Collect all events if rx ring is enabled */
 			if (is_socketxtreme()) {
 				if (m_socketxtreme.completion) {
