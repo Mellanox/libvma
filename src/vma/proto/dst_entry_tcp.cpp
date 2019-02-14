@@ -71,7 +71,6 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_s
 	int ret = 0;
 	tx_packet_template_t* p_pkt;
 	tcp_iovec* p_tcp_iov = NULL;
-	bool no_copy = true;
 	size_t hdr_alignment_diff = 0;
 
 	/* The header is aligned for fast copy but we need to maintain this diff
@@ -80,16 +79,6 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_s
 	hdr_alignment_diff = m_header.m_aligned_l2_l3_len - m_header.m_total_hdr_len;
 
 	p_tcp_iov = (tcp_iovec*)p_iov;
-
-	if (likely(sz_iov == 1 && !is_set(attr.flags, (vma_wr_tx_packet_attr)(VMA_TX_PACKET_TSO | VMA_TX_PACKET_REXMIT)))) {
-		if (unlikely(!m_p_ring->is_active_member(p_tcp_iov->p_desc->p_desc_owner, m_id))) {
-			no_copy = false;
-			dst_tcp_logdbg("p_desc=%p wrong desc_owner=%p, this ring=%p. did migration occurred?", p_tcp_iov->p_desc, p_tcp_iov->p_desc->p_desc_owner, m_p_ring);
-			//todo can we handle this in migration (by going over all buffers lwip hold) instead for every send?
-		}
-	} else {
-		no_copy = false;
-	}
 
 	attr.flags = (vma_wr_tx_packet_attr)(attr.flags | VMA_TX_PACKET_L3_CSUM | VMA_TX_PACKET_L4_CSUM);
 
@@ -102,52 +91,9 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_s
 	 * 3. Simple:
 	 *    Use intermediate buffers for data send
 	 */
-	if (likely(no_copy)) {
-		size_t total_packet_len = 0;
-
-		/* iov_base is a pointer to TCP header and data
-		 * so p_pkt should point to L2
-		 */
-		p_pkt = (tx_packet_template_t*)((uint8_t*)p_tcp_iov[0].iovec.iov_base - m_header.m_aligned_l2_l3_len);
-
-		/* iov_len is a size of TCP header and data
-		 * m_total_hdr_len is a size of L2/L3 header
-		 */
-		total_packet_len = p_tcp_iov[0].iovec.iov_len + m_header.m_total_hdr_len;
-
-		/* copy just L2/L3 headers to p_pkt */
-		m_header.copy_l2_ip_hdr(p_pkt);
-
-		/* update L3(Total Length) with total size of L3 header, TCP header and data */
-		p_pkt->hdr.m_ip_hdr.tot_len = (htons)(p_tcp_iov[0].iovec.iov_len + m_header.m_ip_header_len);
-
-		/* select predefined send work request */
-		m_p_send_wqe = (total_packet_len < m_max_inline ? &m_inline_send_wqe : &m_not_inline_send_wqe);
-
-		/* set wr_id as a pointer to memory descriptor */
-		m_p_send_wqe->wr_id = (uintptr_t)p_tcp_iov[0].p_desc;
-
-		/* save pointers to ip and tcp headers for software checksum calculation */
-		p_tcp_iov[0].p_desc->tx.p_ip_h = &p_pkt->hdr.m_ip_hdr;
-		p_tcp_iov[0].p_desc->tx.p_tcp_h =(struct tcphdr*)((uint8_t*)(&(p_pkt->hdr.m_ip_hdr)) + sizeof(p_pkt->hdr.m_ip_hdr));
-
-		/* Update scatter gather element list */
-		m_sge[0].addr = (uintptr_t)((uint8_t*)p_pkt + hdr_alignment_diff);
-		m_sge[0].length = total_packet_len;
-		m_sge[0].lkey = m_p_ring->get_tx_lkey(m_id);
-		p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.ref++;
-
-		send_lwip_buffer(m_id, m_p_send_wqe, attr.flags);
-
-		/* for DEBUG */
-		if ((uint8_t*)m_sge[0].addr < p_tcp_iov[0].p_desc->p_buffer || (uint8_t*)p_pkt < p_tcp_iov[0].p_desc->p_buffer) {
-			dst_tcp_logerr("p_buffer - addr=%d, m_total_hdr_len=%zd, p_buffer=%p, type=%d, len=%d, tot_len=%d, payload=%p, hdr_alignment_diff=%zd\n",
-					(int)(p_tcp_iov[0].p_desc->p_buffer - (uint8_t*)m_sge[0].addr), m_header.m_total_hdr_len,
-					p_tcp_iov[0].p_desc->p_buffer, p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.type,
-					p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.len, p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.tot_len,
-					p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.payload, hdr_alignment_diff);
-		}
-	} else if (is_set(attr.flags, VMA_TX_PACKET_TSO)) {
+	if (likely(m_p_ring->is_active_member(p_tcp_iov->p_desc->p_desc_owner, m_id) &&
+			(is_set(attr.flags, (vma_wr_tx_packet_attr)(VMA_TX_PACKET_TSO)) ||
+			(sz_iov == 1 && !is_set(attr.flags, (vma_wr_tx_packet_attr)(VMA_TX_PACKET_REXMIT)))))) {
 		size_t total_packet_len = 0;
 		vma_ibv_send_wr send_wqe;
 		wqe_send_handler send_wqe_h;
@@ -171,7 +117,11 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_s
 		 */
 		p_pkt->hdr.m_ip_hdr.tot_len = (htons)(p_tcp_iov[0].iovec.iov_len + m_header.m_ip_header_len);
 
-		if (total_packet_len >= m_max_inline) {
+		if ((total_packet_len < m_max_inline) && (1 == sz_iov)) {
+			m_p_send_wqe = &m_inline_send_wqe;
+			m_sge[0].addr = (uintptr_t)((uint8_t*)p_pkt + hdr_alignment_diff);
+			m_sge[0].length = total_packet_len;
+		} else if (is_set(attr.flags, (vma_wr_tx_packet_attr)(VMA_TX_PACKET_TSO))) {
 			/* update send work request. do not expect noninlined scenario */
 			send_wqe_h.init_not_inline_wqe(send_wqe, m_sge, sz_iov);
 			send_wqe_h.enable_tso(send_wqe,
@@ -182,24 +132,24 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_s
 			m_sge[0].addr = (uintptr_t)((uint8_t *)&p_pkt->hdr.m_tcp_hdr + p_pkt->hdr.m_tcp_hdr.doff * 4);
 			m_sge[0].length = p_tcp_iov[0].iovec.iov_len - p_pkt->hdr.m_tcp_hdr.doff * 4;
 		} else {
-			m_p_send_wqe = &m_inline_send_wqe;
+			m_p_send_wqe = &m_not_inline_send_wqe;
 			m_sge[0].addr = (uintptr_t)((uint8_t*)p_pkt + hdr_alignment_diff);
 			m_sge[0].length = total_packet_len;
 		}
 
-		/* set wr_id as a pointer to memory descriptor */
-		m_p_send_wqe->wr_id = (uintptr_t)p_tcp_iov[0].p_desc;
-
 		/* save pointers to ip and tcp headers for software checksum calculation */
 		p_tcp_iov[0].p_desc->tx.p_ip_h = &p_pkt->hdr.m_ip_hdr;
 		p_tcp_iov[0].p_desc->tx.p_tcp_h =(struct tcphdr*)((uint8_t*)(&(p_pkt->hdr.m_ip_hdr)) + sizeof(p_pkt->hdr.m_ip_hdr));
+		p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.ref++;
+
+		/* set wr_id as a pointer to memory descriptor */
+		m_p_send_wqe->wr_id = (uintptr_t)p_tcp_iov[0].p_desc;
 
 		/* Update scatter gather element list
 		 * ref counter is incremented for the first memory descriptor only because it is needed
 		 * for processing send wr completion (tx batching mode)
 		 */
 		m_sge[0].lkey = m_p_ring->get_tx_lkey(m_id);
-		p_tcp_iov[0].p_desc->lwip_pbuf.pbuf.ref++;
 		for (int i = 1; i < sz_iov; ++i) {
 			m_sge[i].addr = (uintptr_t)p_tcp_iov[i].iovec.iov_base;
 			m_sge[i].length = p_tcp_iov[i].iovec.iov_len;
@@ -243,14 +193,6 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_s
 		
 		send_ring_buffer(m_id, m_p_send_wqe, attr.flags);
 
-		/* for DEBUG */
-		if ((uint8_t*)m_sge[0].addr < p_mem_buf_desc->p_buffer) {
-			dst_tcp_logerr("p_buffer - addr=%d, m_total_hdr_len=%zd, p_buffer=%p, type=%d, len=%d, tot_len=%d, payload=%p, hdr_alignment_diff=%zd\n",
-					(int)(p_mem_buf_desc->p_buffer - (uint8_t*)m_sge[0].addr), m_header.m_total_hdr_len,
-					p_mem_buf_desc->p_buffer, p_mem_buf_desc->lwip_pbuf.pbuf.type,
-					p_mem_buf_desc->lwip_pbuf.pbuf.len, p_mem_buf_desc->lwip_pbuf.pbuf.tot_len,
-					p_mem_buf_desc->lwip_pbuf.pbuf.payload, hdr_alignment_diff);
-		}
 	}
 
 	if (unlikely(m_p_tx_mem_buf_desc_list == NULL)) {
