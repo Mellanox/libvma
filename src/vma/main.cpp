@@ -241,6 +241,7 @@ static int free_libvma_resources()
 		//cosmetics - remove when adding iomux block
 		fprintf(g_stats_file, "======================================================\n");
 		fclose (g_stats_file);
+		g_stats_file = NULL;
 	}
 
 	return 0;
