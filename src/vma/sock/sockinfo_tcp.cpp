@@ -582,16 +582,6 @@ void sockinfo_tcp::force_close()
 	lock_tcp_con();
 	if (!is_closable()) abort_connection();
 	unlock_tcp_con();
-
-	//print the statistics of the socket to vma_stats file
-	vma_stats_instance_remove_socket_block(m_p_socket_stats);
-
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (m_call_orig_close_on_dtor) {
-		si_tcp_logdbg("calling orig_os_close on dup %d of %d",m_call_orig_close_on_dtor, m_fd);
-		orig_os_api.close(m_call_orig_close_on_dtor);
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
 }
 
 // This method will be on syn received on the passive side of a TCP connection
