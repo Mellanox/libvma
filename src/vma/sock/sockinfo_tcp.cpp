@@ -1808,11 +1808,13 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 	}
 
 	si_tcp_logfunc("rx: iov=%p niovs=%d", p_iov, sz_iov);
-	 /* poll rx queue till we have something */
-	lock_tcp_con();
-	return_reuse_buffers_postponed();
-	unlock_tcp_con();
 
+	if (m_rx_reuse_buf_postponed && m_tcp_con_lock.trylock() == 0) {
+		return_reuse_buffers_postponed();
+		unlock_tcp_con();
+	}
+
+	/* poll rx queue till we have something */
 	while (m_rx_ready_byte_count < total_iov_sz) {
 		if (unlikely(g_b_exit ||!is_rtr() || (rx_wait_lockless(poll_count, block_this_run) < 0))) {
 			return handle_rx_error();
