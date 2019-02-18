@@ -14,7 +14,3 @@ libutils_la_SOURCES = \
 	lock_wrapper.h \
 	rdtsc.h \
 	types.h
-
-noinst_PROGRAMS = timetest
-timetest_LDADD = -lrt libutils.la
-timetest_SOURCES = timetest.cpp
