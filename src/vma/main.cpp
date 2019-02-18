@@ -874,12 +874,10 @@ int do_global_ctors()
 	}
 	catch (const vma_exception& error) {
 		vlog_printf(VLOG_DETAILS, "Error: %s", error.what());
-		free_libvma_resources();
 		return -1;
 	}
 	catch (const std::exception& error ) {
 		vlog_printf(VLOG_ERROR, "%s", error.what());
-		free_libvma_resources();
 		return -1;
 	}
 	return 0;
