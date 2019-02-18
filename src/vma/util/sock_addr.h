@@ -43,22 +43,9 @@ class sock_addr
 {
 public:
 	sock_addr() : m_p_sa_in((struct sockaddr_in*)&m_sa) { memset(m_p_sa_in, 0, get_socklen()); m_str[0]='\0'; m_str_in_addr[0]='\0'; m_str_in_port[0]='\0';  };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	sock_addr(struct sockaddr& other) : m_sa(other), m_p_sa_in((struct sockaddr_in*)&m_sa) { m_str[0]='\0'; m_str_in_addr[0]='\0'; m_str_in_port[0]='\0'; };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
+
 	// coverity[uninit_member]
 	sock_addr(const struct sockaddr* other) : m_sa(*other), m_p_sa_in((struct sockaddr_in*)&m_sa) { m_str[0]='\0'; };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	sock_addr(struct sockaddr_in other) : m_sa_in(other), m_p_sa_in((struct sockaddr_in*)&m_sa) { m_str[0]='\0'; m_str_in_addr[0]='\0'; m_str_in_port[0]='\0'; };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 	sock_addr(sa_family_t f, in_addr_t a, in_port_t p) : m_p_sa_in((struct sockaddr_in*)&m_sa)
 		{ memset(m_p_sa_in, 0, get_socklen()); set_sa_family(f); set_in_addr(a); set_in_port(p); m_str[0]='\0'; m_str_in_addr[0]='\0'; m_str_in_port[0]='\0'; };
 	~sock_addr() {};
@@ -74,17 +61,6 @@ public:
 
 	bool 		is_anyaddr() { return (INADDR_ANY == m_p_sa_in->sin_addr.s_addr); };
 	bool 		is_mc() { return (IN_MULTICAST_N(m_p_sa_in->sin_addr.s_addr)); };
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	bool 		is_bc() { return (IS_BROADCAST_N(m_p_sa_in->sin_addr.s_addr)); };
-	bool 		is_local_loopback() { return (LOOPBACK_N(m_p_sa_in->sin_addr.s_addr)); };
-	bool 		is_anyport() { return (INPORT_ANY == m_p_sa_in->sin_port); };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 
 	void 		set(struct sockaddr& sa) { m_sa = sa; }
 	void 		set_sa_family(sa_family_t family) { m_sa_in.sin_family = family; }
@@ -109,25 +85,6 @@ public:
 			(p_sa_in->sin_addr.s_addr == p_sa_in_other->sin_addr.s_addr) &&
 			(p_sa_in->sin_family == p_sa_in_other->sin_family);
 	}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	bool operator <(sock_addr const& other) const
-	{
-		struct sockaddr_in* p_sa_in = (struct sockaddr_in*)&m_sa;
-		struct sockaddr_in* p_sa_in_other = (struct sockaddr_in*)&other.m_sa;
-
-		if (p_sa_in->sin_port < p_sa_in_other->sin_port)		return true;
-		if (p_sa_in->sin_port > p_sa_in_other->sin_port)		return false;
-		if (p_sa_in->sin_addr.s_addr < p_sa_in_other->sin_addr.s_addr)	return true;
-		if (p_sa_in->sin_addr.s_addr > p_sa_in_other->sin_addr.s_addr)	return false;
-		if (p_sa_in->sin_family < p_sa_in_other->sin_family)		return true;
-		return false;
-	}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 	size_t hash(void)
 	{
@@ -165,17 +122,6 @@ static inline sa_family_t get_sa_family(const struct sockaddr* addr)
    	return ((struct sockaddr_in*)addr)->sin_family;
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-static inline sa_family_t get_sa_family(const struct sockaddr& addr)
-{
-   	return ((struct sockaddr_in*)&addr)->sin_family;
-}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 static inline in_addr_t get_sa_ipv4_addr(const struct sockaddr* addr)
 {
    	return ((struct sockaddr_in*)addr)->sin_addr.s_addr;
@@ -190,16 +136,5 @@ static inline in_port_t get_sa_port(const struct sockaddr* addr)
 {
    	return ((struct sockaddr_in*)addr)->sin_port;
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-static inline in_port_t get_sa_port(const struct sockaddr& addr)
-{
-   	return ((struct sockaddr_in*)&addr)->sin_port;
-}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 #endif /*SOCK_ADDR_H*/

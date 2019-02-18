@@ -265,10 +265,6 @@ bool epoll_wait_call::is_timeout(const timeval &elapsed)
 	return m_timeout >= 0 && m_timeout <= tv_to_msec(&elapsed);
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
 void epoll_wait_call::set_offloaded_rfd_ready(int fd_index)
 {
 	// Empty - event inserted via event callback
@@ -299,10 +295,6 @@ void epoll_wait_call::set_efd_ready(int fd, int errors)
 	NOT_IN_USE(fd);
 	NOT_IN_USE(errors);
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 void epoll_wait_call::lock()
 {

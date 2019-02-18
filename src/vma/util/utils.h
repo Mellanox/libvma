@@ -126,47 +126,6 @@ bool compare_double(double a, double b);
  */
 int run_and_retreive_system_command(const char* cmd_line, char* return_str, int return_str_len);
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-/**
- * Copy buffer to iovec
- * Returns total bytes copyed
- */
-static inline int memcpy_toiovec(u_int8_t* p_src, iovec* p_iov, size_t sz_iov,
-                                 size_t sz_dst_start_offset, size_t sz_data)
-{
-	/* Skip to start offset  */
-	int n_iovpos = 0;
-	while (n_iovpos < (int)sz_iov && sz_dst_start_offset >= p_iov[n_iovpos].iov_len) {
-		sz_dst_start_offset -= p_iov[n_iovpos].iov_len;
-		n_iovpos++;
-	}
-
-	/* Copy len size into iovec */
-	int n_total = 0;
-	while (n_iovpos < (int)sz_iov && sz_data > 0) {
-		if (p_iov[n_iovpos].iov_len)
-		{
-			u_int8_t* p_dst = ((u_int8_t*)(p_iov[n_iovpos].iov_base)) + sz_dst_start_offset;
-			int sz_data_block_to_copy = std::min(sz_data, p_iov[n_iovpos].iov_len - sz_dst_start_offset);
-			sz_dst_start_offset = 0;
-
-			memcpy(p_dst, p_src, sz_data_block_to_copy);
-
-			p_src += sz_data_block_to_copy;
-			sz_data -= sz_data_block_to_copy;
-			n_total += sz_data_block_to_copy;
-		}
-		n_iovpos++;
-	}
-	return n_total;
-}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 const char* iphdr_protocol_type_to_str(const int type);
 
 /**

@@ -72,19 +72,6 @@ typedef struct local_if_info_t {
 	uint32_t    attached_grp_ref_cnt;
 } local_if_info_t;
 
-#if _BullseyeCoverage
- #pragma BullseyeCoverage off
-#endif
-
-inline bool
-operator==(local_if_info_key_t const& key1, local_if_info_key_t const& key2) {
-	return key1.first == key2.first && key1.second == key2.second;
-}
-
-#if _BullseyeCoverage
- #pragma BullseyeCoverage on
-#endif
-
 struct qp_rec {
 	qp_mgr  *qp;
 	int     debt;

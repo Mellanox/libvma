@@ -83,13 +83,6 @@ public:
 	virtual int lock() =  0;
 	virtual int trylock() = 0;
 	virtual int unlock() = 0;
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	const char* to_str() { return m_lock_name; }
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 private:
 	const char*             m_lock_name;
 };

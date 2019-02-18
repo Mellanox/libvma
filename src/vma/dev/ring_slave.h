@@ -86,23 +86,6 @@ operator==(flow_spec_udp_key_t const& key1, flow_spec_udp_key_t const& key2)
 		(key1.dst_ip == key2.dst_ip);
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
-inline bool
-operator<(flow_spec_udp_key_t const& key1, flow_spec_udp_key_t const& key2)
-{
-	if (key1.dst_ip < key2.dst_ip)		return true;
-	if (key1.dst_ip > key2.dst_ip)		return false;
-	if (key1.dst_port < key2.dst_port)	return true;
-	return false;
-}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 typedef hash_map<flow_spec_udp_key_t, rfs*> flow_spec_udp_map_t;
 
 
@@ -115,27 +98,6 @@ operator==(flow_spec_tcp_key_t const& key1, flow_spec_tcp_key_t const& key2)
 		(key1.dst_port == key2.dst_port) &&
 		(key1.dst_ip == key2.dst_ip);
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
-inline bool
-operator<(flow_spec_tcp_key_t const& key1, flow_spec_tcp_key_t const& key2)
-{
-	if (key1.src_ip < key2.src_ip)		return true;
-	if (key1.src_ip > key2.src_ip)		return false;
-	if (key1.dst_port < key2.dst_port)	return true;
-	if (key1.dst_port > key2.dst_port)	return false;
-	if (key1.dst_ip < key2.dst_ip)		return true;
-	if (key1.dst_ip > key2.dst_ip)		return false;
-	if (key1.src_port < key2.src_port)	return true;
-	return false;
-}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 typedef hash_map<flow_spec_tcp_key_t, rfs*> flow_spec_tcp_map_t;
 

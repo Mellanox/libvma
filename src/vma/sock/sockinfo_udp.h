@@ -147,7 +147,6 @@ public:
 	 * Check that a call to this sockinof rx() will not block
 	 * -> meaning, we got a ready rx packet
 	 */
-	bool tx_check_if_would_not_block();
 	void rx_add_ring_cb(flow_tuple_with_local_if& flow_key, ring* p_ring, bool is_migration = false);
 	void rx_del_ring_cb(flow_tuple_with_local_if& flow_key, ring* p_ring, bool is_migration = false);
 	virtual int rx_verify_available_data();

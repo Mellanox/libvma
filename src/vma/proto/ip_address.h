@@ -54,26 +54,9 @@ public:
 	}
 
 	in_addr_t 	get_in_addr() const { return m_ip; };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	in_addr_t 	get_actual_key() { return get_in_addr(); };
-	bool		is_anyaddr() { return (INADDR_ANY == m_ip); };
 	bool 		is_mc() { return (IN_MULTICAST_N(m_ip)); };
-	bool 		is_local_loopback() { return (LOOPBACK_N(m_ip)); };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 	bool operator==(const ip_address &ip) const { return (m_ip == ip.get_in_addr()); };
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	bool operator<(const ip_address &ip) const { return (m_ip < ip.get_in_addr()); };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 private:
 	in_addr_t m_ip;

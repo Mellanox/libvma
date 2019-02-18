@@ -278,19 +278,12 @@ inline ring_tap* fd_collection::get_tapfd(int fd)
 	return get(fd, m_p_tap_map);
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
 inline int fd_collection::get_fd_map_size()
 {
 	return m_n_fd_map_size;
 }
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 extern fd_collection* g_p_fd_collection;
-
 
 inline socket_fd_api* fd_collection_get_sockfd(int fd)
 {

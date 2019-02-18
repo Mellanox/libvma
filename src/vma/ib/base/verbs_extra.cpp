@@ -105,26 +105,6 @@ const char* priv_ibv_event_desc_str(enum ibv_event_type type)
 	BULLSEYE_EXCLUDE_BLOCK_END
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-const char* priv_ibv_port_state_str(enum ibv_port_state state)
-{
-	switch (state) {
-	case IBV_PORT_NOP:			return "PORT_NOP";
-	case IBV_PORT_DOWN:			return "PORT_DOWN";
-	case IBV_PORT_INIT:			return "PORT_INIT";
-	case IBV_PORT_ARMED:			return "PORT_ARMED";
-	case IBV_PORT_ACTIVE:			return "PORT_ACTIVE";
-	case IBV_PORT_ACTIVE_DEFER:		return "PORT_ACTIVE_DEFER";
-	default:				break;
-	}
-	return "PORT_STATE_UNKNOWN";
-}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 int priv_ibv_find_pkey_index(struct ibv_context *verbs, uint8_t port_num, uint16_t pkey, uint16_t *pkey_index)
 {
 	int ret, i;

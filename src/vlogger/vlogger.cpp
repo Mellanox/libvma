@@ -147,6 +147,10 @@ pid_t gettid(void)
 	return syscall(__NR_gettid);
 }
 
+#if _BullseyeCoverage
+    #pragma BullseyeCoverage off
+#endif
+
 // Credit for the C++ de-mangler go to: http://tombarta.wordpress.com/2008/08/01/c-stack-traces-with-gcc/
 #include <cxxabi.h>
 void printf_backtrace(void)
@@ -206,6 +210,10 @@ void printf_backtrace(void)
 	}
 	free(backtrace_strings);
 }
+
+#if _BullseyeCoverage
+    #pragma BullseyeCoverage on
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 // NOTE: this function matches 'bool vma_log_set_cb_func(vma_log_cb_t log_cb)' that

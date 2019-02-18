@@ -165,18 +165,7 @@ public:
 					return 0;
 	}
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	void 			set_ah(ibv_ah* ah) 	{ m_ah = ah; };
-	void			set_qkey(uint32_t qkey) { m_qkey = qkey; };
-	void			set_ah_attr(ibv_ah_attr & ah_attr){ m_ah_attr = ah_attr; };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 	neigh_val & operator=(const neigh_val & val);
-
 
 private:
 	friend			class neigh_ib;
@@ -246,28 +235,14 @@ public:
 	virtual bool 		is_deletable();
 	virtual void 		clean_obj();
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
 	//Implementation of pure virtual function: Don't use get_val function, instead use get_peer_info
 	virtual bool 		get_val(INOUT neigh_val * & val){ NOT_IN_USE(val); return false;};
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 	virtual bool 		get_peer_info(neigh_val * val);
 	// Overriding subject's register_observer
 	virtual bool 		register_observer(const observer* const new_observer);
 	//Overriding tostr to_str()
 	virtual const std::string to_str() const;
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	transport_type_t 	get_type() { return m_trans_type; };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 	const char* 		event_to_str(event_t event) const;
 	const char* 		state_to_str(state_t state) const;
@@ -331,13 +306,8 @@ protected:
 
 	void			event_handler(event_t event, void* p_event_info = NULL);
 	void			priv_event_handler_no_locks(event_t event, void* p_event_info = NULL);
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
+
 	virtual bool 		priv_handle_neigh_is_l2_changed(address_t) { return false; };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 	void 			priv_handle_neigh_reachable_event();
 	void 			priv_destroy_cma_id();
 	virtual void* 		priv_register_timer_event(int timeout_msec, timer_handler* handler, timer_req_type_t req_type, void* user_data);

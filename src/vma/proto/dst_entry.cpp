@@ -462,28 +462,6 @@ bool dst_entry::conf_hdrs_and_snd_wqe()
 	return ret_val;
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
-bool dst_entry::get_net_dev_val()
-{
-	bool ret_val = false;
-
-	if (m_p_rt_entry) {
-		m_p_rt_entry->get_val(m_p_rt_val);
-		ret_val = true;
-	}
-	else {
-		dst_logdbg("%s doesn't use route table to resolve netdev", to_str().c_str());
-	}
-	return ret_val;
-}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 //Implementation of pure virtual function of neigh_observer
 transport_type_t dst_entry::get_obs_transport_type() const
 {
@@ -491,25 +469,6 @@ transport_type_t dst_entry::get_obs_transport_type() const
 		return(m_p_net_dev_val->get_transport_type());
 	return VMA_TRANSPORT_UNKNOWN;
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
-flow_tuple dst_entry::get_flow_tuple() const
-{
-	in_addr_t dst_ip = 0;
-	in_protocol_t protocol = PROTO_UNDEFINED;
-
-	dst_ip = m_dst_ip.get_in_addr();
-	protocol = (in_protocol_t)get_protocol_type();
-
-	return flow_tuple(dst_ip, m_dst_port, m_pkt_src_ip, m_src_port, protocol);
-}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 bool dst_entry::offloaded_according_to_rules()
 {
