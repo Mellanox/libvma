@@ -52,17 +52,11 @@ public:
 
 	inline void set_dst_addr(in_addr_t const &dst_addr) 	{ m_dst_addr = dst_addr; };
 	inline void set_src_addr(in_addr_t const &src_addr) 	{ m_src_addr = src_addr; };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
 	inline void set_protocol(unsigned char protocol) 	{ m_protocol = protocol; };
 	inline void set_scope(unsigned char scope) 		{ m_scope = scope; };
 	inline void set_type(unsigned char type) 		{ m_type = type; };
 	inline void set_tos(unsigned char tos) 			{ m_tos = tos; };
 	inline void set_table_id(uint32_t table_id) 		{ m_table_id = table_id; };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 	inline void set_iif_name(char *iif_name) 		{ memcpy(m_iif_name, iif_name, IFNAMSIZ); };
 	inline void set_oif_name(char *oif_name) 		{ memcpy(m_oif_name, oif_name, IFNAMSIZ); };
 	inline void set_priority(uint32_t priority) 		{ m_priority = priority; };

@@ -77,15 +77,7 @@ void netlink_link_info::fill(struct rtnl_link* link)
 	}
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
 const std::string netlink_link_info::get_operstate2str() const {
 	char operstate_str[256];
 	return rtnl_link_operstate2str(operstate,operstate_str, 255);
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif

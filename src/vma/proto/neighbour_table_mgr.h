@@ -54,26 +54,7 @@ private:
 	 * 2. get netdev from route entry
 	 * 3. get transport type from netdev
 	 */
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	transport_type_t 	get_neigh_transport_type(ip_address peer_ip) { NOT_IN_USE(peer_ip); return VMA_TRANSPORT_ETH; };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 	neigh_entry*		create_new_entry(neigh_key neigh_key, const observer* dst);
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	void 			monitor_neighs() {};
-	void 			keep_active() {};
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
-	void 			compare_L2_address();
 };
 
 extern neigh_table_mgr *g_p_neigh_table_mgr;

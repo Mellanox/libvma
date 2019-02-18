@@ -162,10 +162,6 @@ void ip_frag_manager::print_statistics()
 	frag_dbg("free desc=%d, free holes=%d, map size=%d, frags=%d", desc_free_list_count, hole_free_list_count, m_frags.size(), g_ip_frag_count_check);
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 void ip_frag_manager::free_frag(mem_buf_desc_t *frag)
 {
 	mem_buf_desc_t *tail;
@@ -538,3 +534,6 @@ void ip_frag_manager::handle_timer_expired(void* user_data)
 	return_buffers_to_owners(temp_buff_map);
 }
 
+#if _BullseyeCoverage
+    #pragma BullseyeCoverage on
+#endif

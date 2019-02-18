@@ -288,10 +288,6 @@ static inline uint32_t vlog_get_usec_since_start()
 
 void vlog_output(vlog_levels_t log_level, const char* fmt , ... );
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
 static inline void vlog_print_buffer(vlog_levels_t log_level, const char* msg_header, const char* msg_tail, const char* buf_user, int buf_len)
 {
 	if (g_vlogger_level < log_level)
@@ -345,10 +341,6 @@ static inline void vlog_print_buffer(vlog_levels_t log_level, const char* msg_he
 	}
 
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 #ifdef __cplusplus
 };

@@ -50,30 +50,17 @@ class event : public tostr  {
 
 		type m_type;
                 event(void* notifier=NULL) : m_type(UNKNOWN_EVENT), m_notifier(notifier) {}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-                const void* get_notifier() { return m_notifier; }
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
                 virtual ~event() {};
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
+
                 virtual  const std::string to_str() const
                 {
                 	char outstr[1024];
                 	sprintf(outstr, "EVENT_TYPE=%s NOTIFIER_PTR=%llu", typeid(*this).name(), (long long unsigned int)m_notifier);
                 	return std::string(outstr);
                 }
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
         private:
                 void* m_notifier;
-
 };
 
 

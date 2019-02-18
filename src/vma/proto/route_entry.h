@@ -56,14 +56,6 @@ public:
 
 	net_device_val* get_net_dev_val()	{ return m_p_net_dev_val; }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	inline bool 	is_net_dev_offloaded()	{ return m_b_offloaded_net_dev; };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 	inline void 	set_entry_valid() 	{ m_is_valid = true; }
 	inline bool	is_valid()		{ return m_is_valid && m_val && m_val->is_valid(); }; //m_val is NULL at first
 

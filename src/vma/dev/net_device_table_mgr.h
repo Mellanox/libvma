@@ -68,8 +68,6 @@ public:
 
 	local_ip_list_t     get_ip_list(int if_index = 0); // return list of the table_mgr managed ips
 
-	std::string 		to_str();
-
 	/**
 	 * Arm ALL the managed CQ's notification channel
 	 * This call will also check for race condition by polling each CQ after arming the notification channel.
@@ -129,14 +127,6 @@ private:
 	int 			    m_global_ring_pipe_fds[2];
 
 	uint32_t			m_max_mtu;
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	const std::string 	to_str() const { return std::string("nd_mgr");};
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 };
 
 extern net_device_table_mgr* g_p_net_device_table_mgr; 

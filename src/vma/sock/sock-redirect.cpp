@@ -239,9 +239,6 @@ static int dbg_check_if_need_to_send_mcpkt_setting = -1; // 1-Init, 0-Disabled, 
 static int dbg_check_if_need_to_send_mcpkt_counter = 1;
 static int dbg_check_if_need_to_send_mcpkt_prevent_nested_calls = 0;
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
 void dbg_send_mcpkt()
 {
 	int fd = 0;
@@ -273,9 +270,6 @@ void dbg_send_mcpkt()
 		vlog_printf(VLOG_ERROR, "sendto mc_packet failed! errno %m\n", errno);
 	close(fd);
 }
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 void dbg_check_if_need_to_send_mcpkt()
 {
@@ -876,11 +870,6 @@ int close(int __fd)
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	srdr_logdbg_entry("fd=%d", __fd);
-
-	/*
-	socket_fd_api* sock = fd_collection_get_sockfd(__fd);
-	if (sock) sock->delay_orig_close_to_dtor();
-	*/
 
 	handle_close(__fd);
 

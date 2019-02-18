@@ -79,8 +79,6 @@ const char* priv_ibv_wc_status_str(enum ibv_wc_status status);
 // See - IB Arch Spec - 11.6.3 ASYNCHRONOUS EVENTS
 const char* priv_ibv_event_desc_str(enum ibv_event_type type);
 
-const char* priv_ibv_port_state_str(enum ibv_port_state state);
-
 #define priv_rdma_cm_event_type_str(__rdma_cm_ev_t__)	\
 				rdma_event_str(__rdma_cm_ev_t__)
 

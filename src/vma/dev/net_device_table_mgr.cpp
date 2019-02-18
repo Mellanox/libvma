@@ -380,26 +380,6 @@ net_device_entry* net_device_table_mgr::create_new_entry(ip_address local_ip, co
 	return NULL;
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
-std::string net_device_table_mgr::to_str()
-{
-	std::string rv("net_device_table_mgr:\n");
-	net_device_map_addr_t::iterator net_device_iter = m_net_device_map_addr.begin();
-	while (net_device_iter != m_net_device_map_addr.end()) {
-		rv += net_device_iter->second->to_str();
-		rv += "\n";
-		net_device_iter++;
-	}
-	return rv;
-}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 local_ip_list_t net_device_table_mgr::get_ip_list(int if_index)
 {
 	net_device_map_index_t::iterator iter;

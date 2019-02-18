@@ -237,7 +237,6 @@ public:
 
 	uint32_t 		get_num_of_sinks() const { return m_n_sinks_list_entries; }
 	virtual bool 		rx_dispatch_packet(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array) = 0;
-	const char*		to_str();
 
 protected:
 	flow_tuple		m_flow_tuple;

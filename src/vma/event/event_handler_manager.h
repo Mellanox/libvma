@@ -170,7 +170,6 @@ public:
 	void 	unregister_rdma_cm_event(int fd, void* id);
 
 	void 	register_command_event(int fd, command* cmd);
-	void 	unregister_command_event(int fd);
 
 	void*   thread_loop();
 	void    stop_thread();

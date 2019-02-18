@@ -46,6 +46,10 @@
 #undef	__INFO__
 #define __INFO__		m_fd
 
+#if _BullseyeCoverage
+    #pragma BullseyeCoverage off
+#endif
+
 socket_fd_api::socket_fd_api(int fd) : m_epoll_event_flags(0), m_fd(fd), m_n_sysvar_select_poll_os_ratio(safe_mce_sys().select_poll_os_ratio), m_econtext(NULL)
 {
 }
@@ -54,15 +58,10 @@ socket_fd_api::~socket_fd_api()
 {
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
+
 void socket_fd_api::destructor_helper()
 {
 }
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 int socket_fd_api::shutdown(int __how)
 {
@@ -73,10 +72,6 @@ int socket_fd_api::shutdown(int __how)
 	}
 	return ret;
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
 
 int socket_fd_api::bind(const sockaddr *__addr, socklen_t __addrlen)
 {
@@ -118,10 +113,6 @@ int socket_fd_api::accept4(struct sockaddr *__addr, socklen_t *__addrlen, int __
        return ret;
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 int socket_fd_api::listen(int backlog)
 {
        __log_info_func("");
@@ -131,10 +122,6 @@ int socket_fd_api::listen(int backlog)
        }
        return ret;
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
 
 int socket_fd_api::getsockname(sockaddr *__name, socklen_t *__namelen)
 {
@@ -187,10 +174,6 @@ bool socket_fd_api::is_readable(uint64_t *p_poll_sn, fd_array_t* p_fd_array)
 	return false;
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 void socket_fd_api::set_immediate_os_sample()
 {
 	__log_info_funcall("");
@@ -202,19 +185,6 @@ void socket_fd_api::unset_immediate_os_sample()
 	__log_info_funcall("");
 	return;
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-int socket_fd_api::rx_request_notification(uint64_t poll_sn)
-{
-	NOT_IN_USE(poll_sn);
-	__log_info_funcall("");
-	return false;
-}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 bool socket_fd_api::is_writeable()
 {
@@ -324,10 +294,6 @@ ssize_t socket_fd_api::tx_os(const tx_call_t call_type,
 	return (ssize_t) -1;
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
 int socket_fd_api::register_callback(vma_recv_callback_t callback, void *context)
 {
 	NOT_IN_USE(callback);
@@ -347,10 +313,6 @@ int socket_fd_api::free_buffs(uint16_t len)
 	NOT_IN_USE(len);
 	return -1;
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 int socket_fd_api::add_epoll_context(epfd_info *epfd)
 {
@@ -410,3 +372,7 @@ int socket_fd_api::get_epoll_context_fd() {
 	}
 	return 0;
 }
+
+#if _BullseyeCoverage
+    #pragma BullseyeCoverage on
+#endif

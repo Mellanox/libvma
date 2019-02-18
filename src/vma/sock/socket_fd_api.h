@@ -172,8 +172,6 @@ public:
 	// it should be called only once
 	virtual void force_close() {}
 
-	virtual int rx_request_notification(uint64_t poll_sn);
-
 	virtual ssize_t tx(const tx_call_t call_type, const iovec* iov,
 			   const ssize_t iovlen, int __flags = 0,
 			   __CONST_SOCKADDR_ARG   __to = NULL,
@@ -201,14 +199,6 @@ public:
 	virtual int add_epoll_context(epfd_info *epfd);
 	virtual void remove_epoll_context(epfd_info *epfd);
 	int get_epoll_context_fd();
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	virtual bool delay_orig_close_to_dtor() {return false;}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 	// Calling OS transmit
 	ssize_t tx_os(const tx_call_t call_type, const iovec* p_iov,

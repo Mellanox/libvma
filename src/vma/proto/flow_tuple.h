@@ -58,13 +58,7 @@ public:
 	in_port_t	get_dst_port() { return m_dst_port; }
 	in_port_t	get_src_port() { return m_src_port; }
 	in_protocol_t 	get_protocol() { return m_protocol; }
-/*
-	void		set_dst_ip(in_addr_t dst_ip);
-	void		set_src_ip(in_addr_t src_ip);
-	void		set_dst_port(in_port_t dst_port);
-	void		set_src_port(in_port_t src_port);
-	void		set_protocol(in_protocol_t protocol);
-*/
+
 	bool		is_tcp();
 	bool		is_udp_uc();
 	bool		is_udp_mc();
@@ -83,9 +77,6 @@ public:
 			(m_protocol == other.m_protocol);
 	}
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
 	virtual bool operator <(flow_tuple const& other) const
 	{
 		if (m_dst_port != other.m_dst_port)
@@ -106,9 +97,6 @@ public:
 		for (size_t i = 0; i < (sizeof(flow_tuple) - sizeof(m_str)); ++i, ++pval) { csum ^= *pval; }
 		return csum;
 	}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 	const char*	to_str() { return m_str; };
 
