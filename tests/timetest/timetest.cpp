@@ -34,7 +34,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
-#include "clock.h"
+#include "utils/clock.h"
 #include "utils/rdtsc.h"
 
 #define ITERATION_NUM 10000000
