@@ -61,6 +61,10 @@ struct atomic_t {
 
 #if 0
 
+#if _BullseyeCoverage
+    #pragma BullseyeCoverage off
+#endif
+
 /**
  *  Returns current contents of addr and replaces contents with value.
  *  @param value Values to set.
@@ -102,9 +106,6 @@ static inline int atomic_fetch_and_inc(atomic_t *v)
 	return atomic_fetch_and_add(1, &v->counter);
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
 /**
  * Add to the atomic variable.
  * @param i integer value to add.
@@ -115,9 +116,5 @@ static inline int atomic_fetch_and_dec(atomic_t *v)
 {
 	return atomic_fetch_and_add(-1, &v->counter);
 }
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 
 #endif /* ATOMIC_H_ */

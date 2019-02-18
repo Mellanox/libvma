@@ -227,25 +227,6 @@ void event_handler_manager::register_command_event(int fd, command* cmd)
 
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
-void event_handler_manager::unregister_command_event(int fd)
-{
-	reg_action_t reg_action;
-
-	memset(&reg_action, 0, sizeof(reg_action));
-	reg_action.type = UNREGISTER_COMMAND;
-	reg_action.info.cmd.fd = fd;
-	post_new_reg_action(reg_action);
-
-}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 event_handler_manager::event_handler_manager() :
 		m_reg_action_q_lock("reg_action_q_lock"),
 		m_b_sysvar_internal_thread_arm_cq_enabled(safe_mce_sys().internal_thread_arm_cq_enabled),

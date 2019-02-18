@@ -62,19 +62,6 @@ class ring_eth_cb;
 #define MAX_SUPPORTED_IB_INLINE_SIZE	884
 #endif
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
-inline bool
-operator==(ibv_gid const& key1, ibv_gid const& key2) {
-	return !memcmp(key1.raw, key2.raw, sizeof key1);
-}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 /**
  * @class qp_mgr
  *
@@ -118,15 +105,8 @@ public:
 	uint32_t            get_max_inline_data() const {return m_max_inline_data; }
 #endif /* DEFINED_TSO */
 	int                 get_port_num() const { return m_port_num; }
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	virtual uint16_t    get_pkey_index() const { return 0; };
 	virtual uint16_t    get_partiton() const { return 0; };
 	virtual uint32_t    get_underly_qpn() const { return 0; };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 	struct ibv_qp*      get_ibv_qp() const { return m_qp; };
 	class cq_mgr*       get_tx_cq_mgr() const { return m_p_cq_mgr_tx; }
 	class cq_mgr*       get_rx_cq_mgr() const { return m_p_cq_mgr_rx; }

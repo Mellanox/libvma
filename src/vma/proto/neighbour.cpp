@@ -646,9 +646,6 @@ bool neigh_entry::get_peer_info(neigh_val * p_val)
 	return false;
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
 // Overriding subject's register_observer
 bool neigh_entry::register_observer(const observer* const new_observer)
 {
@@ -673,10 +670,6 @@ const std::string neigh_entry::to_str() const
 {
 	return m_to_str;
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 void neigh_entry::handle_neigh_event(neigh_nl_event* nl_ev)
 {
@@ -2169,9 +2162,6 @@ bool neigh_ib_broadcast::get_peer_info(neigh_val * p_val)
 	return false;
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
 int neigh_ib_broadcast::send(neigh_send_info &s_info)
 {
 	NOT_IN_USE(s_info);
@@ -2183,6 +2173,3 @@ void neigh_ib_broadcast::send_arp()
 {
 	neigh_logerr("We should not call for this function, something is wrong");
 }
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif

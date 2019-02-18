@@ -305,16 +305,3 @@ bool rfs::destroy_ibv_flow()
 	rfs_logdbg("ibv_destroy_flow with flow %s", m_flow_tuple.to_str());
 	return true;
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
-const char* rfs::to_str()
-{
-	return m_flow_tuple.to_str();
-}
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif

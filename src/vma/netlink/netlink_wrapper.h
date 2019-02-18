@@ -135,21 +135,6 @@ private:
 	static void notify_observers(netlink_event *p_new_event, e_netlink_event_type type);
 
 	void notify_neigh_cache_entries();
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	static const char* get_event_type_name(e_netlink_event_type type)
-	{
-		static const char *event_type_string[] =
-		{ "NEIGH", "LINK", "ROUTE", "ADDRESS", "PREFIX", };
-
-		return event_type_string[type];
-
-	}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 };
 
 extern netlink_wrapper* g_p_netlink_handler;

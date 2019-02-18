@@ -190,7 +190,6 @@ public:
 	bool inline is_writeable();
 	bool inline is_errorable(int *errors);
 	bool is_closable() { return get_tcp_state(&m_pcb) == CLOSED && m_syn_received.empty() && m_accepted_conns.empty(); }
-	int rx_request_notification(uint64_t poll_sn);
 	bool skip_os_select()
 	{
 		// calling os select on offloaded TCP sockets makes no sense unless it's a listen socket
@@ -231,8 +230,6 @@ public:
 	}
 
 	void handle_timer_expired(void* user_data);
-
-	virtual bool delay_orig_close_to_dtor();
 
 	list_node<sockinfo_tcp, sockinfo_tcp::accepted_conns_node_offset> accepted_conns_node;
 

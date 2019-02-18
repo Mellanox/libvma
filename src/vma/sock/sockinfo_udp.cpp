@@ -1743,18 +1743,6 @@ tx_packet_to_os_stats:
 	return ret;
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-bool sockinfo_udp::tx_check_if_would_not_block()
-{
-	si_udp_logfuncall("");
-	return true;
-}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 int sockinfo_udp::rx_verify_available_data()
 {
 	int ret;

@@ -63,18 +63,6 @@ public:
 
 	virtual bool 	compare(L2_address const& other) const;
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	virtual void 	operator=(L2_address const& other)
-	{
-		m_len = other.m_len;
-		memcpy(m_p_raw_address, other.m_p_raw_address, sizeof(m_p_raw_address));
-	}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 protected:
 	addrlen_t	m_len;
 	unsigned char	m_p_raw_address[L2_ADDR_MAX];
@@ -96,16 +84,12 @@ public:
 class IPoIB_addr : public L2_address
 {
 public:
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
+
 	IPoIB_addr(): L2_address(), m_qpn(0)
 	{
 
 	}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
+
 	//This constructor is for UC
 	IPoIB_addr(address_t const address) : L2_address(address, 20), m_qpn(0)
 	{
@@ -123,17 +107,6 @@ public:
 
 	void 		set_qpn(uint32_t qpn) { m_qpn = qpn; };
 	uint32_t 	get_qpn() { return m_qpn; };
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	virtual void 	operator=(IPoIB_addr const& other)
-	{
-		m_qpn = other.m_qpn;
-	}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 	const std::string to_str() const;
 

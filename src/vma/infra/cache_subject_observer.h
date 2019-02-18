@@ -57,24 +57,10 @@ public:
 	virtual 		~cache_observer() {};
 
 	inline bool 		is_valid() { return m_is_valid; };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	inline ticks_t 		get_last_access_time() { return(m_last_access_time); }; // cache_collection_mgr will ask for the tick
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 	inline void 		notify_cb(event * ev) { NOT_IN_USE(ev); set_state(false); };
 
 protected:
 	inline void		set_state(IN bool state) { m_is_valid = state; };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	inline void 		update_last_access_time(ticks_t new_time) { m_last_access_time = new_time; };  // sockinfo will update the tick
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 private:
 	ticks_t 		m_last_access_time;
@@ -150,25 +136,12 @@ protected:
 	virtual void			stop_garbage_collector();
 	virtual void 			handle_timer_expired(void *);
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	/* Need to run this periodically or after getting event from the OS that data has been updated */
-	virtual int 			get_data_from_db() { return 1; };
-
-	virtual int 			get_entry_from_db(IN Key) { return 1; };
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 private:
 	cache_table_mgr(const cache_table_mgr<Key, Val> & ); // block copy constructor
 
 	void 				try_to_remove_cache_entry(IN typename std::tr1::unordered_map<Key, cache_entry_subject<Key, Val> *>::iterator &);
 	void *				m_timer_handle;
 };
-
-
 
 // ########################################################################################## //
 // ##################################### implementation ##################################### //
@@ -315,10 +288,6 @@ bool cache_table_mgr <Key, Val>::unregister_observer(IN Key key, IN const cache_
 	return true;
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
 template <typename Key, typename Val>
 cache_entry_subject<Key, Val>*  cache_table_mgr <Key, Val>::get_entry(Key key)
 {
@@ -328,10 +297,6 @@ cache_entry_subject<Key, Val>*  cache_table_mgr <Key, Val>::get_entry(Key key)
 		ret_entry = m_cache_tbl.find(key)->second;
 	return ret_entry;
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 template <typename Key, typename Val>
 void cache_table_mgr <Key, Val>::print_tbl()

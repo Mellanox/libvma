@@ -135,30 +135,20 @@ private:
 
 };
 
-
 class link_nl_event: public netlink_event
 {
 public:
 	link_nl_event(struct nlmsghdr* hdr, struct rtnl_link* rt_link,
 	                void* notifier);
 
-
 	virtual ~link_nl_event();
 
 	virtual  const std::string to_str() const;
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
 	const netlink_link_info* get_link_info() const { return m_link_info; }
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 private:
 	netlink_link_info* m_link_info;
-
-
 };
 
 #endif /* NETLINK_EVENT_H_ */

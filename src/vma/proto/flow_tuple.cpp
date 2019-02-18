@@ -88,38 +88,6 @@ flow_tuple& flow_tuple::operator=(const flow_tuple &ft)
 	return *this;
 }
 
-/*
-void flow_tuple::set_dst_ip(in_addr_t dst_ip)
-{
-	m_flow_tuple.local_if = m_dst_ip = dst_ip;
-	set_str();
-}
-
-void flow_tuple::set_src_ip(in_addr_t src_ip)
-{
-	m_flow_tuple.peer_ip = m_src_ip = src_ip;
-	set_str();
-}
-
-void flow_tuple::set_dst_port(in_port_t dst_port)
-{
-	m_flow_tuple.local_port = m_dst_port = dst_port;
-	set_str();
-}
-
-void flow_tuple::set_src_port(in_port_t src_port)
-{
-	m_flow_tuple.peer_port = m_src_port = src_port;
-	set_str();
-}
-
-void flow_tuple::set_protocol(in_protocol_t protocol)
-{
-	m_protocol = protocol;
-	set_str();
-}
-*/
-
 bool flow_tuple::is_tcp()
 {
 	return (m_protocol == PROTO_TCP);
@@ -145,18 +113,10 @@ bool flow_tuple::is_5_tuple()
 	return (m_src_ip != INADDR_ANY && m_src_port != INPORT_ANY);
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
 bool flow_tuple::is_3_tuple()
 {
 	return (m_src_ip == INADDR_ANY && m_src_port == INPORT_ANY);
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 void flow_tuple::set_str()
 {
@@ -166,7 +126,6 @@ void flow_tuple::set_str()
 			NIPQUAD(m_src_ip), ntohs(m_src_port),
 			__vma_get_protocol_str(m_protocol));
 }
-
 
 void flow_tuple_with_local_if::set_str()
 {

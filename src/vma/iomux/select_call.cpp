@@ -314,10 +314,6 @@ void select_call::set_rfd_ready(int fd)
 	}
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
 void select_call::set_offloaded_wfd_ready(int fd_index)
 {
 	if (m_p_offloaded_modes[fd_index] & OFF_WRITE) { //TODO: consider removing
@@ -330,10 +326,6 @@ void select_call::set_offloaded_wfd_ready(int fd_index)
 		}
 	}
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
 
 void select_call::set_wfd_ready(int fd)
 {

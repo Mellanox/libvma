@@ -51,10 +51,6 @@ netlink_event::netlink_event(struct nlmsghdr* hdr, void* notifier) :
 
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
 const std::string netlink_event::to_str() const
 {
 	char outstr[TOSTR_MAX_SIZE];
@@ -97,10 +93,6 @@ const std::string route_nl_event::to_str() const
 	return std::string(outstr);
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 neigh_nl_event::neigh_nl_event(struct nlmsghdr* hdr, struct rtnl_neigh* neigh,
                 void* notifier) :
 		netlink_event(hdr, notifier), m_neigh_info(NULL)
@@ -140,10 +132,6 @@ link_nl_event::~link_nl_event() {
 		delete m_link_info;
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-
 const std::string link_nl_event::to_str() const
 {
 	char outstr[TOSTR_MAX_SIZE];
@@ -159,8 +147,3 @@ const std::string link_nl_event::to_str() const
 
 	return std::string(outstr);
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-

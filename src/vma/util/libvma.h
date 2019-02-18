@@ -135,41 +135,6 @@ static inline const char *__vma_get_protocol_str(in_protocol_t protocol)
 	return ("unknown-protocol");
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-/* some state to string functions */
-static inline const char *__vma_get_dev_conf_mode_str(dev_conf_mode_t mode )
-{
-	switch ( mode ) {
-	case DEV_CLONE:
-		return "clone";
-		break;
-	case DEV_REPLACE:
-		return "replace";
-		break;
-	}
-	return ( "unknown-mode" );
-}
-
-/* some state to string functions */
-static inline const char *__vma_get_dev_address_alloc_mode_str(
-		in_addr_alloc_mode_t mode )
-{
-	switch ( mode ) {
-	case IN_ADDR_DHCP:
-		return "dhcp";
-		break;
-	case IN_ADDR_STATIC:
-		return "static";
-		break;
-	}
-	return ( "unknown-mode" );
-}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 static inline const char *__vma_get_role_str(int role)
 {
 	switch (role) {

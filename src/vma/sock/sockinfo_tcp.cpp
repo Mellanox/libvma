@@ -1528,23 +1528,6 @@ void sockinfo_tcp::handle_timer_expired(void* user_data)
 	}
 }
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-bool sockinfo_tcp::delay_orig_close_to_dtor()
-{
-	if (is_connected() && !m_call_orig_close_on_dtor) {
-		int fd = dup(m_fd);
-		if (fd != -1) {
-			m_call_orig_close_on_dtor = fd;
-		}
-	}
-	return m_call_orig_close_on_dtor;
-}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 void sockinfo_tcp::abort_connection()
 {
 	tcp_abort(&(m_pcb));
@@ -3302,19 +3285,6 @@ bool sockinfo_tcp::is_errorable(int *errors)
 
 	return *errors;
 }
-
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-int sockinfo_tcp::rx_request_notification(uint64_t poll_sn)
-{
-	NOT_IN_USE(poll_sn);
-	si_tcp_logpanic("not implemented");
-}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 
 /*
  * FIXME: need to split sock connected state in two: TCP_SOCK_CON_TX/RX
