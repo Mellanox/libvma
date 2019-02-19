@@ -278,3 +278,65 @@ void vlog_stop(void)
 	//fix for using LD_PRELOAD with LBM. Unset the pointer given by the parent process, so a child could get his own pointer without issues.
 	unsetenv(VMA_LOG_CB_ENV_VAR);
 }
+
+void vlog_output(vlog_levels_t log_level, const char* fmt , ... )
+{
+	int len = 0;
+	char buf[VLOGGER_STR_SIZE];
+
+	// Format header
+
+	// Set color scheme
+	if (g_vlogger_log_in_colors)
+		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, "%s", log_level::get_color(log_level));
+
+	switch (g_vlogger_details) {
+	case 3: // Time
+		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, " Time: %9.3f", ((float)vlog_get_usec_since_start())/1000); // fallthrough
+	case 2: // Pid
+		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, " Pid: %5u", getpid()); // fallthrough
+	case 1: // Tid
+		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, " Tid: %5u", gettid()); // fallthrough
+	case 0: // Func
+	default:
+		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, " %s %s: ", g_vlogger_module_name, log_level::to_str(log_level));
+	}
+
+	if (len < 0) {
+		return ;
+	}
+	buf[len+1] = '\0';
+
+	// Format body
+	va_list ap;
+	va_start(ap, fmt);
+	if (fmt != NULL)
+		len += vsnprintf(buf+len, VLOGGER_STR_SIZE-len, fmt, ap);
+	va_end(ap);
+
+	// Reset color scheme
+	if (g_vlogger_log_in_colors) {
+		// Save enough room for color code termination and EOL
+	        if (len > VLOGGER_STR_SIZE - VLOGGER_STR_TERMINATION_SIZE)
+	                len = VLOGGER_STR_SIZE - VLOGGER_STR_TERMINATION_SIZE - 1;
+
+		len = snprintf(buf + len, VLOGGER_STR_TERMINATION_SIZE, VLOGGER_STR_COLOR_TERMINATION_STR);
+		if (len < 0) {
+			return ;
+		}
+	}
+
+	if (g_vlogger_cb)
+	{
+		g_vlogger_cb(log_level, buf);
+	}
+	else if (g_vlogger_file)
+	{
+		// Print out
+		fprintf(g_vlogger_file, "%s", buf);
+		fflush(g_vlogger_file);
+	}
+	else {
+		printf("%s", buf);
+	}
+}
