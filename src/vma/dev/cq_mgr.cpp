@@ -554,6 +554,20 @@ bool cq_mgr::compensate_qp_poll_success(mem_buf_desc_t* buff_cur)
 	return false;
 }
 
+void cq_mgr::compensate_qp_poll_failed()
+{
+	// Assume locked!!!
+	// Compensate QP for all completions debt
+	if (m_qp_rec.debt) {
+		if (likely(m_rx_pool.size() || request_more_buffers())) {
+			size_t buffers = std::min<size_t>(m_qp_rec.debt, m_rx_pool.size());
+			m_qp_rec.qp->post_recv_buffers(&m_rx_pool, buffers);
+			m_qp_rec.debt -= buffers;
+			m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
+		}
+	}
+}
+
 void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 {
 	if (buff->dec_ref_count() <= 1 && (buff->lwip_pbuf.pbuf.ref-- <= 1)) {
