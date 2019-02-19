@@ -78,13 +78,11 @@
 class lock_base
 {
 public:
-	lock_base(const char *_lock_name = NULL) : m_lock_name(_lock_name) {};
+	lock_base(const char *) {};
 	virtual ~lock_base() {};
 	virtual int lock() =  0;
 	virtual int trylock() = 0;
 	virtual int unlock() = 0;
-private:
-	const char*             m_lock_name;
 };
 
 #else //NO_LOCK_STATS
