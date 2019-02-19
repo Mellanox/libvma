@@ -385,3 +385,97 @@ static void usage(void)
 
 	exit(EXIT_SUCCESS);
 }
+
+
+void sys_log(int level, const char *format, ...)
+{
+	va_list args;
+	va_start(args, format);
+
+	if (0 == daemon_cfg.opt.mode) {
+		vsyslog(level, format, args);
+	} else {
+		vprintf(format, args);
+	}
+	va_end(args);
+}
+
+ssize_t sys_sendto(int sockfd,
+		const void *buf, size_t len, int flags,
+		const struct sockaddr *dest_addr, socklen_t addrlen)
+{
+	char *data = (char *)buf;
+	int n, nb;
+
+	nb = 0;
+	do {
+		n = sendto(sockfd, data, len, flags, dest_addr, addrlen);
+		if (n <= 0) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+				if (flags & MSG_DONTWAIT) {
+					break;
+				}
+				continue;
+			}
+			return -errno;
+		}
+		len -= n;
+		data += n;
+		nb += n;
+	} while (!(flags & MSG_DONTWAIT) && (len > 0));
+
+	return nb;
+}
+
+char *sys_exec(const char * format, ...)
+{
+	static __thread char outbuf[256];
+	FILE *file = NULL;
+	va_list va;
+	char *cmd;
+	int ret;
+
+	/* calculate needed size for command buffer */
+	va_start(va, format);
+	ret = vsnprintf(NULL, 0, format, va);
+	va_end(va);
+	if (ret <= 0) {
+		goto err;
+	}
+
+	/* allocate command buffer */
+	ret += 1;
+	cmd = malloc(ret);
+	if (NULL == cmd) {
+		goto err;
+	}
+
+	/* fill command buffer */
+	va_start(va, format);
+	ret = vsnprintf(cmd, ret, format, va);
+	va_end(va);
+	if (ret <= 0) {
+		free(cmd);
+		goto err;
+	}
+
+	/* execute command */
+	file = popen(cmd, "r");
+	log_trace("Run command: %s\n", cmd);
+	free(cmd);
+	if (NULL == file) {
+		goto err;
+	}
+
+	/* save output */
+	memset(outbuf, 0, sizeof(outbuf));
+	if ((NULL == fgets(outbuf, sizeof(outbuf) - 1, file)) && (ferror(file))) {
+		pclose(file);
+		goto err;
+	}
+	pclose(file);
+
+	return outbuf;
+err:
+	return NULL;
+}
