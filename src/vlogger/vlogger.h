@@ -66,6 +66,13 @@
 #undef	__INFO__
 #define __INFO__		this
 
+#define vlog_printf(_log_level, _format, ... ) \
+	do { \
+		if (g_vlogger_level >= (_log_level)) { \
+			vlog_output((_log_level), _format, ##__VA_ARGS__); \
+		} \
+	} while (0)
+
 #define VLOG_PRINTF(     log_level, log_fmt, log_args...) 	vlog_printf(log_level, MODULE_HDR       log_fmt "\n",           __LINE__, __FUNCTION__, ##log_args)
 #define VLOG_PRINTF_INFO(log_level, log_fmt, log_args...) 	vlog_printf(log_level, MODULE_HDR_INFO  log_fmt "\n", __INFO__, __LINE__, __FUNCTION__, ##log_args)
 #define VLOG_PRINTF_INFO_ONCE_THEN_ALWAYS(log_level_once, log_level, log_fmt,log_args...) \
@@ -279,76 +286,7 @@ static inline uint32_t vlog_get_usec_since_start()
 
 #define VLOGGER_STR_SIZE    512
 
-static inline void vlog_printf(vlog_levels_t log_level, const char* fmt , ... )
-{
-	if (g_vlogger_level < log_level)
-		return;
-
-	int len = 0;
-	char buf[VLOGGER_STR_SIZE];
-
-	// Format header
-
-	// Set color scheme
-	if (g_vlogger_log_in_colors) 
-		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, "%s", log_level::get_color(log_level));
-
-	switch (g_vlogger_details) {
-	case 3: // Time
-		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, " Time: %9.3f", ((float)vlog_get_usec_since_start())/1000); // fallthrough
-	case 2: // Pid
-		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, " Pid: %5u", getpid()); // fallthrough
-	case 1: // Tid
-		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, " Tid: %5u", gettid()); // fallthrough
-	case 0: // Func
-	default:
-		len += snprintf(buf+len, VLOGGER_STR_SIZE-len-1, " %s %s: ", g_vlogger_module_name, log_level::to_str(log_level));
-	}
-
-	if (len < 0) {
-		return ;
-	}
-	buf[len+1] = '\0';
-
-	// Format body
-	va_list ap;
-	va_start(ap, fmt);
-	if (fmt != NULL)
-		len += vsnprintf(buf+len, VLOGGER_STR_SIZE-len, fmt, ap);
-	va_end(ap);
-
-	// Reset color scheme
-	if (g_vlogger_log_in_colors) {
-		// Save enough room for color code termination and EOL
-	        if (len > VLOGGER_STR_SIZE - VLOGGER_STR_TERMINATION_SIZE) 
-	                len = VLOGGER_STR_SIZE - VLOGGER_STR_TERMINATION_SIZE - 1;
-
-		len = snprintf(buf + len, VLOGGER_STR_TERMINATION_SIZE, VLOGGER_STR_COLOR_TERMINATION_STR);
-		if (len < 0) {
-			return ;
-		}
-	}
-
-	if (g_vlogger_cb)
-	{
-		g_vlogger_cb(log_level, buf);
-	}
-	else if (g_vlogger_file)
-	{
-		// Print out
-		fprintf(g_vlogger_file, "%s", buf);
-		fflush(g_vlogger_file);
-	}
-	else {
-		printf("%s", buf);
-	}
-
-/*
-	if (log_level <= VLOG_WARNING) {
-		printf_backtrace();
-	}
-*/
-}
+void vlog_output(vlog_levels_t log_level, const char* fmt , ... );
 
 #if _BullseyeCoverage
     #pragma BullseyeCoverage off
