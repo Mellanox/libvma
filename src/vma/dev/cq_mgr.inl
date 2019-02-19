@@ -52,20 +52,6 @@ inline void cq_mgr::process_recv_buffer(mem_buf_desc_t* p_mem_buf_desc, void* pv
 	}
 }
 
-inline void cq_mgr::compensate_qp_poll_failed()
-{
-	// Assume locked!!!
-	// Compensate QP for all completions debt
-	if (m_qp_rec.debt) {
-		if (likely(m_rx_pool.size() || request_more_buffers())) {
-			size_t buffers = std::min<size_t>(m_qp_rec.debt, m_rx_pool.size());
-			m_qp_rec.qp->post_recv_buffers(&m_rx_pool, buffers);
-			m_qp_rec.debt -= buffers;
-			m_p_cq_stat->n_buffer_pool_len = m_rx_pool.size();
-		}
-	}
-}
-
 inline uint32_t cq_mgr::process_recv_queue(void* pv_fd_ready_array)
 {
 	// Assume locked!!!

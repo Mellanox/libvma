@@ -187,7 +187,7 @@ protected:
 	 * @return Number of successfully polled wce
 	 */
 	virtual int     poll(vma_ibv_wc* p_wce, int num_entries, uint64_t* p_cq_poll_sn);
-	inline void     compensate_qp_poll_failed();
+	void		compensate_qp_poll_failed();
 	inline void     process_recv_buffer(mem_buf_desc_t* buff, void* pv_fd_ready_array = NULL);
 
 	/* Process a WCE... meaning...
