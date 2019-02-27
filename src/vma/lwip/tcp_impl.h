@@ -279,7 +279,6 @@ PACK_STRUCT_END
 struct tcp_seg {
   struct tcp_seg *next;    /* used when putting segements on a queue */
   struct pbuf *p;          /* buffer containing data + TCP header */
-  void *dataptr;           /* pointer to the TCP data in the pbuf */
   u32_t seqno;
   u32_t len;               /* the TCP length of this segment should allow >64K size */
 #if TCP_OVERSIZE_DBGCHECK
@@ -309,10 +308,18 @@ struct tcp_seg {
 #define LWIP_TCP_OPT_LEN_TS     10
 #endif
 
+/* This macro calculates total length of tcp additional options
+ * basing on option flags
+ */
 #define LWIP_TCP_OPT_LENGTH(flags)                    \
 		  (flags & TF_SEG_OPTS_MSS ? 4  : 0) +        \
 		  (flags & TF_SEG_OPTS_WNDSCALE  ? 1+3 : 0) + \
 		  (flags & TF_SEG_OPTS_TS  ? 12 : 0)
+
+/* This macro calculates total length of tcp header including
+ * additional options
+ */
+#define LWIP_TCP_HDRLEN(_tcphdr)	(TCPH_HDRLEN(((struct tcp_hdr *)(_tcphdr))) * 4)
 
 /** This returns a TCP header option for MSS in an u32_t */
 #define TCP_BUILD_MSS_OPTION(x, mss) (x) = PP_HTONL(((u32_t)2 << 24) |          \

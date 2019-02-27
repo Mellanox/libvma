@@ -238,7 +238,6 @@ tcp_create_segment(struct tcp_pcb *pcb, struct pbuf *p, u8_t flags, u32_t seqno,
 
   seg->flags = optflags;
   seg->p = p;
-  seg->dataptr = p->payload;
   seg->len = p->tot_len - optlen;
   seg->seqno = seqno;
 
@@ -915,8 +914,14 @@ tcp_tso_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
   struct tcp_seg *drop_seg = NULL;
   u32_t max_payload_sz = LWIP_MIN(pcb->tso.max_payload_sz, (wnd - (seg->seqno - pcb->lastack)));
   u32_t tot_len = 0;
+  u8_t flags = seg->flags;
   int tot_p = 0;
 
+  if (TCP_SEQ_LT(seg->seqno, pcb->snd_nxt) ||
+      (seg->flags & (TF_SEG_OPTS_TSO | TF_SEG_OPTS_DUMMY_MSG)) ||
+      ((TCPH_FLAGS(seg->tcphdr) & (~(TCP_ACK | TCP_PSH))) != 0)) {
+    return ;
+  }
 
   /* Large memory buffer:
    * All segments that greater than MSS must be processed as TSO segments
@@ -938,9 +943,8 @@ tcp_tso_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
   }
 
   while (cur_seg && cur_seg->next &&
-		  TCP_SEQ_GEQ(cur_seg->seqno, pcb->snd_nxt) &&
-          !(cur_seg->flags & (TF_SEG_OPTS_TSO | TF_SEG_OPTS_DUMMY_MSG)) &&
-          ((TCPH_FLAGS(cur_seg->tcphdr) & (TCP_SYN | TCP_FIN | TCP_RST)) == 0) &&
+          (cur_seg->flags == flags) &&
+          ((TCPH_FLAGS(cur_seg->tcphdr) & (~(TCP_ACK | TCP_PSH))) == 0) &&
           (cur_seg->len == pcb->mss)) {
 
     tot_len += cur_seg->len;
@@ -967,7 +971,7 @@ tcp_tso_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
       p->next = drop_seg->p;
 
       /* Update the first pbuf of current segment */
-      drop_seg->p->payload = drop_seg->dataptr;
+      drop_seg->p->payload = (u8_t *)drop_seg->tcphdr + LWIP_TCP_HDRLEN(drop_seg->tcphdr);
       drop_seg->p->len = drop_seg->len - (drop_seg->p->tot_len - drop_seg->p->len);
       drop_seg->p->tot_len = drop_seg->len;
 
@@ -1090,8 +1094,13 @@ tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
 
   optlen += LWIP_TCP_OPT_LENGTH( optflags );
 
-  if (seg->p->len > ((TCP_HLEN + optlen) + lentosend)) {/* First buffer is too big, split it */
+  if (seg->p->len > lentosend) {/* First buffer is too big, split it */
     u32_t lentoqueue = seg->p->len - (TCP_HLEN + optlen) - lentosend;
+
+    if (seg->p->len <= ((TCP_HLEN + optlen) + lentosend)) {
+      LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_split_segment: Segment data is too small %"U16_F", %"U16_F"\n", seg->p->len, lentosend));
+      return;
+    }
 
     if (NULL == (p = tcp_pbuf_prealloc(lentoqueue + optlen, mss_local, &oversize, pcb, 0, 0))) {
       LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_split_segment: could not allocate memory for pbuf copy size %"U16_F"\n", (lentoqueue + optlen)));
@@ -1099,7 +1108,7 @@ tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
     }
 
     /* Copy the data from the original buffer */
-    TCP_DATA_COPY2((char *)p->payload + optlen, (u8_t *)seg->dataptr + lentosend, lentoqueue , &chksum, &chksum_swapped);
+    TCP_DATA_COPY2((char *)p->payload + optlen, (u8_t *)seg->tcphdr + LWIP_TCP_HDRLEN(seg->tcphdr) + lentosend, lentoqueue , &chksum, &chksum_swapped);
 
     /* Update new buffer */
     p->tot_len = seg->p->tot_len - lentosend - TCP_HLEN ;
@@ -1355,10 +1364,7 @@ tcp_output(struct tcp_pcb *pcb)
        /* Use TSO send operation in case TSO is enabled
         * and current segment is not retransmitted
         */
-       if (tcp_tso(pcb) &&
-           TCP_SEQ_GEQ(seg->seqno, pcb->snd_nxt) &&
-           !(seg->flags & (TF_SEG_OPTS_TSO | TF_SEG_OPTS_DUMMY_MSG)) &&
-           ((TCPH_FLAGS(seg->tcphdr) & (TCP_SYN | TCP_FIN | TCP_RST)) == 0)) {
+       if (tcp_tso(pcb)) {
          tcp_tso_segment(pcb, seg, wnd);
        }
 #endif /* LWIP_TSO */
@@ -1857,7 +1863,7 @@ tcp_zero_window_probe(struct tcp_pcb *pcb)
     TCPH_FLAGS_SET(tcphdr, TCP_ACK | TCP_FIN);
   } else {
     /* Data segment, copy in one byte from the head of the unacked queue */
-    *((char *)p->payload + TCP_HLEN) = *(char *)seg->dataptr;
+    *((char *)p->payload + TCP_HLEN) = *(char *)((u8_t *)seg->tcphdr + LWIP_TCP_HDRLEN(seg->tcphdr));
   }
 
    /* The byte may be acknowledged without the window being opened. */
