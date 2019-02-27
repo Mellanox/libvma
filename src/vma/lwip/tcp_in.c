@@ -160,7 +160,6 @@ L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb)
 			/* Set up a tcp_seg structure. */
 			in_data.inseg.next = NULL;
 			in_data.inseg.len = p->tot_len;
-			in_data.inseg.dataptr = p->payload;
 			in_data.inseg.p = p;
 			in_data.inseg.tcphdr = in_data.tcphdr;
 
@@ -733,7 +732,7 @@ tcp_oos_insert_segment(struct tcp_pcb *pcb, struct tcp_seg *cseg, struct tcp_seg
     if (next &&
         TCP_SEQ_GT(in_data->seqno + cseg->len, next->tcphdr->seqno)) {
       /* We need to trim the incoming segment. */
-      cseg->len = (u16_t)(next->tcphdr->seqno - in_data->seqno);
+      cseg->len = (u32_t)(next->tcphdr->seqno - in_data->seqno);
       pbuf_realloc(cseg->p, cseg->len);
     }
   }
@@ -764,28 +763,31 @@ tcp_shrink_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t ackno)
   }
 
   /* Just shrink first pbuf */
-  if ((seg->seqno + seg->p->len - TCP_HLEN) > ackno) {
+  if (TCP_SEQ_GT((seg->seqno + seg->p->len - TCP_HLEN), ackno)) {
+    u8_t *dataptr = (u8_t *)seg->tcphdr + LWIP_TCP_HDRLEN(seg->tcphdr);
     len = ackno - seg->seqno;
     seg->len -= len;
     seg->p->len -= len;
     seg->p->tot_len -= len;
-	seg->seqno = ackno;
+    seg->seqno = ackno;
     seg->tcphdr->seqno = htonl(seg->seqno);
-    MEMCPY(seg->dataptr, (char *)seg->dataptr + len, seg->p->len);
-
+    MEMCPY(dataptr, dataptr + len, seg->p->len);
     return count;
   }
 
-  /* Process more than first pbuf */
-  seg->len -= (seg->p->len - TCP_HLEN);
-  seg->p->tot_len -= (seg->p->len - TCP_HLEN);
-  seg->seqno += (seg->p->len - TCP_HLEN);
-  seg->tcphdr->seqno = htonl(seg->seqno);
-  seg->p->len = TCP_HLEN;
-
   cur_p = seg->p->next;
+
+  if (cur_p) {
+    /* Process more than first pbuf */
+    seg->len -= (seg->p->len - TCP_HLEN);
+    seg->p->tot_len -= (seg->p->len - TCP_HLEN);
+    seg->seqno += (seg->p->len - TCP_HLEN);
+    seg->tcphdr->seqno = htonl(seg->seqno);
+    seg->p->len = TCP_HLEN;
+  }
+
   while (cur_p) {
-    if ((seg->seqno + cur_p->len) > ackno) {
+    if (TCP_SEQ_GT((seg->seqno + cur_p->len), ackno)) {
       break;
     } else {
       seg->len -= cur_p->len;
@@ -809,13 +811,14 @@ tcp_shrink_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t ackno)
   }
 
   if (cur_p) {
+    u8_t *dataptr = (u8_t *)seg->tcphdr + LWIP_TCP_HDRLEN(seg->tcphdr);
     len = ackno - seg->seqno;
     seg->len -= len;
     seg->p->len = TCP_HLEN + cur_p->len - len;
     seg->p->tot_len -= len;
     seg->seqno = ackno;
     seg->tcphdr->seqno = htonl(seg->seqno);
-    MEMCPY(seg->dataptr, (char *)cur_p->payload + len, cur_p->len - len);
+    MEMCPY(dataptr, dataptr + len, cur_p->len - len);
 
     p = cur_p;
     cur_p = p->next;
@@ -1230,7 +1233,6 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
       }
       /* KJM following line changed to use p->payload rather than inseg->p->payload
          to fix bug #9076 */
-      in_data->inseg.dataptr = p->payload;
       in_data->inseg.len -= (u16_t)(pcb->rcv_nxt - in_data->seqno);
       in_data->inseg.tcphdr->seqno = in_data->seqno = pcb->rcv_nxt;
     }
@@ -1315,7 +1317,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
                 TCP_SEQ_GT(in_data->seqno + in_data->tcplen,
                            next->tcphdr->seqno)) {
               /* inseg cannot have FIN here (already processed above) */
-              in_data->inseg.len = (u16_t)(next->tcphdr->seqno - in_data->seqno);
+              in_data->inseg.len = (u32_t)(next->tcphdr->seqno - in_data->seqno);
               if (TCPH_FLAGS(in_data->inseg.tcphdr) & TCP_SYN) {
                 in_data->inseg.len -= 1;
               }
@@ -1479,7 +1481,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
                   if (cseg != NULL) {
                     if (TCP_SEQ_GT(prev->tcphdr->seqno + prev->len, in_data->seqno)) {
                       /* We need to trim the prev segment. */
-                      prev->len = (u16_t)(in_data->seqno - prev->tcphdr->seqno);
+                      prev->len = (u32_t)(in_data->seqno - prev->tcphdr->seqno);
                       pbuf_realloc(prev->p, prev->len);
                     }
                     prev->next = cseg;
@@ -1501,7 +1503,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
                 if (next->next != NULL) {
                   if (TCP_SEQ_GT(next->tcphdr->seqno + next->len, in_data->seqno)) {
                     /* We need to trim the last segment. */
-                    next->len = (u16_t)(in_data->seqno - next->tcphdr->seqno);
+                    next->len = (u32_t)(in_data->seqno - next->tcphdr->seqno);
                     pbuf_realloc(next->p, next->len);
                   }
                   /* check if the remote side overruns our receive window */
