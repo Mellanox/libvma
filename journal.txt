@@ -1,4 +1,12 @@
-Version 8.4.101-0:
+Version 8.4.102-0:
+Date + Time 2019-02-27
+=============================================================
+Added:
+        - RM #1242606 Disable TCP congestion control using VMA parameter
+
+Fixed:
+        - RM #1687458 Fix double free of TCP timer event
+
 Date + Time 2018-02-05
 =============================================================
 Fixed:
