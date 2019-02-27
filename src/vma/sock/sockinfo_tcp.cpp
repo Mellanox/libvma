@@ -306,12 +306,12 @@ sockinfo_tcp::~sockinfo_tcp()
 {
 	si_tcp_logfunc("");
 
+	lock_tcp_con();
+
 	if (!is_closable()) {
 		//prepare to close wasn't called?
 		prepare_to_close();
 	}
-
-	lock_tcp_con();
 
 	do_wakeup();
 
@@ -356,13 +356,18 @@ sockinfo_tcp::~sockinfo_tcp()
 
 void sockinfo_tcp::clean_obj()
 {
+	lock_tcp_con();
+
 	set_cleaned();
 
 	if (m_timer_handle) {
 		g_p_event_handler_manager->unregister_timer_event(this, m_timer_handle);
 		m_timer_handle = NULL;
 	}
+
 	g_p_event_handler_manager->unregister_timers_event_and_delete(this);
+
+	unlock_tcp_con();
 }
 
 bool sockinfo_tcp::prepare_listen_to_close()
@@ -554,13 +559,13 @@ void sockinfo_tcp::force_close()
 {
 	si_tcp_logdbg("can't reach dtor - force closing the socket");
 
+	lock_tcp_con();
+
 	//if the socket is not closed yet, send RST to remote host before exit.
 	//we have to do this because we don't have VMA deamon
 	//to progress connection closure after process termination
 
-	lock_tcp_con();
 	if (!is_closable()) abort_connection();
-	unlock_tcp_con();
 
 	//print the statistics of the socket to vma_stats file
 	vma_stats_instance_remove_socket_block(m_p_socket_stats);
@@ -571,6 +576,8 @@ void sockinfo_tcp::force_close()
 		orig_os_api.close(m_call_orig_close_on_dtor);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
+
+	unlock_tcp_con();
 }
 
 // This method will be on syn received on the passive side of a TCP connection
@@ -1121,8 +1128,12 @@ void sockinfo_tcp::err_lwip_cb(void *pcb_container, err_t err)
 	}
 
 	if (conn->m_timer_handle) {
-		g_p_event_handler_manager->unregister_timer_event(conn, conn->m_timer_handle);
-		conn->m_timer_handle = NULL;
+		conn->lock_tcp_con();
+		if (conn->m_timer_handle) {
+			g_p_event_handler_manager->unregister_timer_event(conn, conn->m_timer_handle);
+			conn->m_timer_handle = NULL;
+		}
+		conn->unlock_tcp_con();
 	}
 
 	conn->do_wakeup();
