@@ -908,10 +908,7 @@ tcp_send_empty_ack(struct tcp_pcb *pcb)
 static void
 tcp_tso_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
 {
-  struct pbuf *p = NULL;
-  struct pbuf *cur_p = NULL;
   struct tcp_seg *cur_seg = seg;
-  struct tcp_seg *drop_seg = NULL;
   u32_t max_payload_sz = LWIP_MIN(pcb->tso.max_payload_sz, (wnd - (seg->seqno - pcb->lastack)));
   u32_t tot_len = 0;
   u8_t flags = seg->flags;
@@ -923,29 +920,9 @@ tcp_tso_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
     return ;
   }
 
-  /* Large memory buffer:
-   * All segments that greater than MSS must be processed as TSO segments
-   */
-  if (cur_seg->len > pcb->mss) {
-    cur_seg->flags |= TF_SEG_OPTS_TSO;
-    return ;
-  }
-
-  /* Join MSS adjusted segments:
-   * 1. two segments and more,
-   * 2. total data size and number of buffers in the list attached to segment
-   * are limited by TSO capability,
-   * 3. Ignore dummy segments
-   * 4. Ignore TSO segments (could be in unsent queue in case retransmission)
-   */
-  if (((int)(4 * pcb->mss) >= (int)(wnd - (cur_seg->len + cur_seg->seqno - pcb->lastack)))) {
-    return ;
-  }
-
   while (cur_seg && cur_seg->next &&
           (cur_seg->flags == flags) &&
-          ((TCPH_FLAGS(cur_seg->tcphdr) & (~(TCP_ACK | TCP_PSH))) == 0) &&
-          (cur_seg->len == pcb->mss)) {
+          ((TCPH_FLAGS(cur_seg->tcphdr) & (~(TCP_ACK | TCP_PSH))) == 0)) {
 
     tot_len += cur_seg->len;
     if (tot_len > max_payload_sz) {
@@ -957,50 +934,42 @@ tcp_tso_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
       goto err;
     }
 
-    cur_p = cur_seg->p;
-    drop_seg = cur_seg;
-    cur_seg = drop_seg->next;
+    if (seg != cur_seg) {
+        /* Update the original segment with current segment details */
+        seg->next = cur_seg->next;
+        seg->len += cur_seg->len;
 
-    if (p && seg->p) {
-      /* Update the original segment with current segment details */
-      seg->next = drop_seg->next;
-      seg->len += drop_seg->len;
-      seg->p->tot_len += drop_seg->len;
+        /* Update the first pbuf of current segment */
+        cur_seg->p->payload = (u8_t *)cur_seg->tcphdr + LWIP_TCP_HDRLEN(cur_seg->tcphdr);
+        cur_seg->p->len = cur_seg->len - (cur_seg->p->tot_len - cur_seg->p->len);
+        cur_seg->p->tot_len = cur_seg->len;
 
-      /* Attach current segment pbuf chain to the original segment */
-      p->next = drop_seg->p;
+        /* Concatenate two pbufs (each may be a pbuf chain) and
+         * update tot_len values for all pbuf in the chain
+         */
+        pbuf_cat(seg->p, cur_seg->p);
 
-      /* Update the first pbuf of current segment */
-      drop_seg->p->payload = (u8_t *)drop_seg->tcphdr + LWIP_TCP_HDRLEN(drop_seg->tcphdr);
-      drop_seg->p->len = drop_seg->len - (drop_seg->p->tot_len - drop_seg->p->len);
-      drop_seg->p->tot_len = drop_seg->len;
-
-      /* Free joined segment w/o releasing pbuf
-       * tcp_seg_free() and tcp_segs_free() release pbuf chain
-       */
-      external_tcp_seg_free(pcb, drop_seg);
+        /* Free joined segment w/o releasing pbuf
+         * tcp_seg_free() and tcp_segs_free() release pbuf chain
+         */
+        external_tcp_seg_free(pcb, cur_seg);
     }
-
-    p = cur_p;
+    cur_seg = seg->next;
   }
 
 err:
-  if (p && seg->p) {
-    tot_len = 0;
-    seg->flags |= TF_SEG_OPTS_TSO;
 
-    /* Update tot_len values for all pbuf in the chain */
-    cur_p = seg->p;
-    while (cur_p->next) {
-      cur_p->tot_len = seg->p->tot_len - tot_len;
-      tot_len += cur_p->len;
-      cur_p = cur_p->next;
-    }
 #if TCP_TSO_DEBUG
     LWIP_DEBUGF(TCP_TSO_DEBUG | LWIP_DBG_TRACE,
                 ("tcp_join:   max: %-5d unsent %s\n",
                 		max_payload_sz, _dump_seg(pcb->unsent)));
 #endif /* TCP_TSO_DEBUG */
+
+  /* All segments that greater than MSS or consist of more than one memory buffer
+   * must be processed as TSO segments
+   */
+  if (seg->len > pcb->mss) {
+    seg->flags |= TF_SEG_OPTS_TSO;
   }
 
   return;
