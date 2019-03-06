@@ -409,20 +409,32 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 			break;
 		case SO_VMA_RING_ALLOC_LOGIC:
 			if (__optval) {
-				if (__optlen == sizeof(vma_ring_alloc_logic_attr)) {
-					vma_ring_alloc_logic_attr *attr = (vma_ring_alloc_logic_attr *)__optval;
-					return set_ring_attr(attr);
+				uint32_t val = ((vma_ring_alloc_logic_attr*) __optval)->comp_mask;
+
+				if (val & (VMA_RING_ALLOC_MASK_RING_PROFILE_KEY | VMA_RING_ALLOC_MASK_RING_USER_ID |
+					   VMA_RING_ALLOC_MASK_RING_INGRESS | VMA_RING_ALLOC_MASK_RING_ENGRESS)) {
+					if (__optlen == sizeof(vma_ring_alloc_logic_attr)) {
+						vma_ring_alloc_logic_attr *attr = (vma_ring_alloc_logic_attr *)__optval;
+						return set_ring_attr(attr);
+					}
+					else {
+						ret = SOCKOPT_NO_VMA_SUPPORT;
+						errno = EINVAL;
+						si_logdbg("SOL_SOCKET, %s=\"???\" - bad length expected %d got %d",
+							  setsockopt_so_opt_to_str(__optname),
+							  sizeof(vma_ring_alloc_logic_attr), __optlen);
+						break;
+					}
 				}
 				else {
 					ret = SOCKOPT_NO_VMA_SUPPORT;
-					si_logdbg("SOL_SOCKET, %s=\"???\" - bad length expected %d got %d",
-						  setsockopt_so_opt_to_str(__optname),
-						  sizeof(vma_ring_alloc_logic_attr), __optlen);
-					break;
+					errno = EINVAL;
+					si_logdbg("SOL_SOCKET, %s=\"???\" - bad optval (%d)", setsockopt_so_opt_to_str(__optname), val);
 				}
 			}
 			else {
 				ret = SOCKOPT_NO_VMA_SUPPORT;
+				errno = EINVAL;
 				si_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
 			}
 			break;
