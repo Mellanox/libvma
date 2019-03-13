@@ -653,13 +653,12 @@ int qp_mgr_eth::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 
 	qp_init_attr.qp_type = IBV_QPT_RAW_PACKET;
 	vma_ibv_qp_init_attr_comp_mask(m_p_ib_ctx_handler->get_ibv_pd(), qp_init_attr);
-#ifdef HAVE_TSO
+
 	if (m_p_ring->is_tso()) {
-		qp_init_attr.comp_mask |= IBV_EXP_QP_INIT_ATTR_MAX_TSO_HEADER;
-		qp_init_attr.max_tso_header = m_p_ring->get_max_header_sz();
-		qp_logdbg("create qp with max_tso_header = %d", qp_init_attr.max_tso_header);
+		vma_ibv_qp_init_attr_tso(qp_init_attr, m_p_ring->get_max_header_sz());
+		qp_logdbg("create qp with max_tso_header = %d", m_p_ring->get_max_header_sz());
 	}
-#endif /* HAVE_TSO */
+
 	m_qp = vma_ibv_create_qp(m_p_ib_ctx_handler->get_ibv_pd(), &qp_init_attr);
 
 	BULLSEYE_EXCLUDE_BLOCK_START
@@ -703,13 +702,10 @@ int qp_mgr_ib::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 	qp_init_attr.qp_type = IBV_QPT_UD;
 	vma_ibv_qp_init_attr_comp_mask(m_p_ib_ctx_handler->get_ibv_pd(), qp_init_attr);
 
-#ifdef HAVE_TSO
 	if (m_p_ring->is_tso()) {
-		qp_init_attr.comp_mask |= IBV_EXP_QP_INIT_ATTR_MAX_TSO_HEADER;
-		qp_init_attr.max_tso_header = m_p_ring->get_max_header_sz();
-		qp_logdbg("create qp with max_tso_header = %d", qp_init_attr.max_tso_header);
+		vma_ibv_qp_init_attr_tso(qp_init_attr, m_p_ring->get_max_header_sz());
+		qp_logdbg("create qp with max_tso_header = %d", m_p_ring->get_max_header_sz());
 	}
-#endif /* HAVE_TSO */
 
 	if (m_underly_qpn) {
 		ibv_source_qpn_set(qp_init_attr, m_underly_qpn);
