@@ -105,6 +105,11 @@ void cq_mgr_mp::add_qp_rx(qp_mgr *qp)
 	}
 }
 
+uint32_t cq_mgr_mp::clean_cq()
+{
+	return 0;
+}
+
 /**
  * this function polls the CQ, and extracts the needed fields
  * upon CQE error state it will return -1

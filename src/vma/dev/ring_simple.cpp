@@ -165,9 +165,11 @@ ring_simple::~ring_simple()
 		/* TODO: consider avoid using sleep */
 		/* coverity[sleep] */
 		m_p_qp_mgr->down();
+
+		// Release QP/CQ resources
+		delete m_p_qp_mgr;
+		m_p_qp_mgr = NULL;
 	}
-	// Release QP/CQ resources
-	delete m_p_qp_mgr;
 
 	delete_l2_address();
 

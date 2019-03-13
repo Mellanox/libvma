@@ -792,11 +792,6 @@ void cq_mgr_mlx5::add_qp_rx(qp_mgr* qp)
 	cq_mgr::add_qp_rx(qp);
 }
 
-void cq_mgr_mlx5::del_qp_rx(qp_mgr *qp)
-{
-	cq_mgr::del_qp_rx(qp);
-}
-
 void cq_mgr_mlx5::add_qp_tx(qp_mgr* qp)
 {
 	//Assume locked!

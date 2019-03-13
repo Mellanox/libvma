@@ -55,6 +55,7 @@ public:
 protected:
 	virtual void	prep_ibv_cq(vma_ibv_cq_init_attr &attr) const;
 	virtual void	add_qp_rx(qp_mgr *qp);
+	virtual uint32_t  clean_cq();
 private:
 	const ring_eth_cb		*m_p_ring;
 	bool				m_external_mem;

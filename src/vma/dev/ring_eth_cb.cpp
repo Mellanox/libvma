@@ -710,11 +710,6 @@ ring_eth_cb::~ring_eth_cb()
 		ring_logdbg("call to ibv_exp_destroy_res_domain returned %d", res);
 	}
 
-	// explicitly destroy the qp and cq before this destructor finshes
-	// since it will release the memory allocated
-	delete m_p_qp_mgr;
-	m_p_qp_mgr = NULL;
-
 	remove_umr_res();
 }
 #endif /* HAVE_MP_RQ */
