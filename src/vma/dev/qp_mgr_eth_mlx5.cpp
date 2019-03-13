@@ -119,10 +119,10 @@ static inline uint32_t get_mlx5_opcode(vma_ibv_wr_opcode verbs_opcode)
 	switch (verbs_opcode) {
 	case VMA_IBV_WR_SEND:
 		return MLX5_OPCODE_SEND;
-#ifdef HAVE_TSO
-	case VMA_IBV_WR_SEND_TSO:
+#ifdef DEFINED_TSO
+	case VMA_IBV_WR_TSO:
 		return MLX5_OPCODE_TSO;
-#endif /* HAVE_TSO */
+#endif /* DEFINED_TSO */
 	case VMA_IBV_WR_NOP:
 		return MLX5_OPCODE_NOP;
 	default:
@@ -545,7 +545,7 @@ inline int qp_mgr_eth_mlx5::fill_wqe(vma_ibv_send_wr *pswr)
 //! Filling wqe for LSO
 inline int qp_mgr_eth_mlx5::fill_wqe_lso(vma_ibv_send_wr* pswr)
 {
-#ifdef HAVE_TSO
+#ifdef DEFINED_TSO
 	struct mlx5_wqe_eth_seg* eth_seg = (struct mlx5_wqe_eth_seg*)((uint8_t*)m_sq_wqe_hot + sizeof(struct mlx5_wqe_ctrl_seg));
 	struct mlx5_wqe_data_seg* dp_seg = NULL;
 	uint8_t* cur_seg = (uint8_t*)eth_seg;
@@ -611,7 +611,7 @@ inline int qp_mgr_eth_mlx5::fill_wqe_lso(vma_ibv_send_wr* pswr)
 #else
 	NOT_IN_USE(pswr);
 	return 0;
-#endif /* HAVE_TSO */
+#endif /* DEFINED_TSO */
 }
 
 //! Send one RAW packet by MLX5 BlueFlame

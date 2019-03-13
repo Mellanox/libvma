@@ -149,6 +149,7 @@ if test "x$vma_cv_verbs" == x2; then
     CHECK_VERBS_ATTRIBUTE([IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE], [infiniband/verbs_exp.h], [IBV_DM])
     CHECK_VERBS_ATTRIBUTE([IBV_EXP_QP_RATE_LIMIT], [infiniband/verbs_exp.h], [IBV_PACKET_PACING_CAPS])
     CHECK_VERBS_ATTRIBUTE([IBV_EXP_QP_SUPPORT_BURST], [infiniband/verbs_exp.h], [IBV_QP_SUPPORT_BURST])
+    CHECK_VERBS_ATTRIBUTE([IBV_EXP_WR_TSO], [infiniband/verbs_exp.h], [TSO])
 
     #
     # Experimental Verbs CQ
@@ -197,15 +198,6 @@ if test "x$vma_cv_verbs" == x2; then
         [AC_MSG_RESULT([no])]
     )
 
-    AC_CHECK_DECL([IBV_EXP_DEVICE_ATTR_TSO_CAPS],
-        [], [], [[#include <infiniband/verbs_exp.h>]])
-    AC_MSG_CHECKING([for tso support])
-    AS_IF([test "x$ac_cv_have_decl_IBV_EXP_DEVICE_ATTR_TSO_CAPS" = "xyes" -a "x$vma_cv_directverbs" == x2],
-        [AC_DEFINE_UNQUOTED([HAVE_TSO], [1], [Define to 1 if tso is supported])]
-        [AC_MSG_RESULT([yes])],
-        [AC_MSG_RESULT([no])]
-    )
-
     AC_CHECK_FUNCS([rdma_lib_reset])
     AC_CHECK_FUNCS([ibv_exp_get_device_list])
 fi
@@ -213,6 +205,8 @@ fi
 # Check Upstream
 #
 if test "x$vma_cv_verbs" == x3; then
+    CHECK_VERBS_ATTRIBUTE([IBV_WR_TSO], [infiniband/verbs.h], [TSO])
+
     if test "x$vma_cv_directverbs" == x3; then
         CHECK_VERBS_ATTRIBUTE([MLX5_OPCODE_NOP], [infiniband/mlx5dv.h], [IBV_WR_NOP])
         CHECK_VERBS_MEMBER([struct mlx5dv_clock_info.last_cycles], [infiniband/mlx5dv.h], [IBV_CLOCK_INFO])

@@ -197,13 +197,29 @@ typedef struct ibv_values_ex                  vma_ts_values;
 #define vma_ibv_wr_opcode			ibv_wr_opcode
 #define vma_send_wr_opcode(wr)			(wr).opcode
 
+#ifdef DEFINED_TSO
+  #define VMA_IBV_WR_TSO                  (vma_ibv_wr_opcode)IBV_WR_TSO
+  #define vma_check_dev_attr_tso(_attr)   1
+  #define vma_get_tso_caps(_attr)         (((vma_ibv_device_attr_ex *)(_attr))->tso_caps)
+  #define vma_ibv_qp_init_attr_tso(_attr, _max_tso_header) \
+		do { \
+			_attr.comp_mask |= IBV_QP_INIT_ATTR_MAX_TSO_HEADER; \
+			_attr.max_tso_header = _max_tso_header;   \
+		} while (0)
+  typedef struct ibv_tso_caps             vma_ibv_tso_caps;
+#else
+  #define VMA_IBV_WR_TSO                  (vma_ibv_wr_opcode)VMA_IBV_WR_SEND
+  #define vma_check_dev_attr_tso(_attr)   0
+  #define vma_ibv_qp_init_attr_tso(_attr, _max_tso_header) ((void)0)
+#endif /* DEFINED_TSO */
+
 // Dummy send
 #ifdef DEFINED_IBV_WR_NOP
 #define vma_is_nop_supported(device_attr)    1
-#define VMA_IBV_WR_NOP                      (vma_ibv_wr_opcode)MLX5_OPCODE_NOP
+#define VMA_IBV_WR_NOP                       (vma_ibv_wr_opcode)MLX5_OPCODE_NOP
 #else
 #define vma_is_nop_supported(device_attr)    0
-#define VMA_IBV_WR_NOP                      (vma_ibv_wr_opcode)(0) // Use 0 as "default" opcode when NOP is not defined.
+#define VMA_IBV_WR_NOP                       (vma_ibv_wr_opcode)(0) // Use 0 as "default" opcode when NOP is not defined.
 #endif
 
 #define vma_ibv_post_send(qp, wr, bad_wr)	ibv_post_send(qp, wr, bad_wr)
@@ -401,9 +417,24 @@ typedef struct ibv_exp_cq_attr                  vma_ibv_cq_attr;
 #define vma_ibv_send_flags			ibv_exp_send_flags
 #define vma_send_wr_send_flags(wr)		(wr).exp_send_flags
 #define VMA_IBV_WR_SEND				IBV_EXP_WR_SEND
-#define VMA_IBV_WR_SEND_TSO			IBV_EXP_WR_TSO
 #define vma_ibv_wr_opcode			ibv_exp_wr_opcode
 #define vma_send_wr_opcode(wr)			(wr).exp_opcode
+
+#ifdef DEFINED_TSO
+  #define VMA_IBV_WR_TSO                  (vma_ibv_wr_opcode)IBV_EXP_WR_TSO
+  #define vma_check_dev_attr_tso(_attr)   ((_attr)->comp_mask & IBV_EXP_DEVICE_ATTR_TSO_CAPS)
+  #define vma_get_tso_caps(_attr)         (((vma_ibv_device_attr_ex *)(_attr))->tso_caps)
+  #define vma_ibv_qp_init_attr_tso(_attr, _max_tso_header) \
+		do { \
+			_attr.comp_mask |= IBV_EXP_QP_INIT_ATTR_MAX_TSO_HEADER; \
+			_attr.max_tso_header = _max_tso_header;   \
+		} while (0)
+  typedef struct ibv_exp_tso_caps         vma_ibv_tso_caps;
+#else
+  #define VMA_IBV_WR_TSO                  (vma_ibv_wr_opcode)VMA_IBV_WR_SEND
+  #define vma_check_dev_attr_tso(_attr)   0
+  #define vma_ibv_qp_init_attr_tso(_attr, _max_tso_header) ((void)0)
+#endif /* DEFINED_TSO */
 
 // Dummy send
 #ifdef DEFINED_IBV_WR_NOP
