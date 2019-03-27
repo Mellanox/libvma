@@ -195,8 +195,15 @@ void qp_mgr_eth_mlx5::up()
 	/* This limitation is done because of a observation
 	 * that dm_copy takes a lot of time on VMs w/o BF (RM:1542628)
 	 */
-	if (m_db_method == MLX5_DB_METHOD_BF) {
-		m_dm_enabled = m_dm_mgr.allocate_resources(m_p_ib_ctx_handler, m_p_ring->m_p_ring_stat);
+	if (m_p_ib_ctx_handler->get_on_device_memory_size() > 0) {
+		if (m_db_method == MLX5_DB_METHOD_BF) {
+			m_dm_enabled = m_dm_mgr.allocate_resources(m_p_ib_ctx_handler, m_p_ring->m_p_ring_stat);
+
+		} else {
+#if defined(DEFINED_IBV_DM)
+			VLOG_PRINTF_ONCE_THEN_DEBUG(VLOG_WARNING, "Device Memory functionality is not used on devices w/o Blue Flame support\n");
+#endif /* DEFINED_IBV_DM */
+		}
 	}
 }
 
