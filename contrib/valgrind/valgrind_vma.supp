@@ -289,6 +289,14 @@
    ...
    fun:_ZN14ib_ctx_handlerD1Ev
 }
+{
+   ring direct destroy
+   Memcheck:Cond
+   obj:*/libmlx5.so*
+   fun:*qp_mgr_eth_direct*
+   ...
+   fun:*release_ringEP21ring_alloc_logic_attr*
+}
 ###########################################################
 ##### libmlx4 only
 {
