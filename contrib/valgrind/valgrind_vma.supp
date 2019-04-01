@@ -292,10 +292,10 @@
 {
    ring direct destroy
    Memcheck:Cond
-   obj:*/libmlx*.so*
+   obj:*/libmlx5.so*
    fun:*qp_mgr_eth_direct*
    ...
-   fun:*sockinfo*
+   fun:*release_ringEP21ring_alloc_logic_attr*
 }
 ###########################################################
 ##### libmlx4 only
