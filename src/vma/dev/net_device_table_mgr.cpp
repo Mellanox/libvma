@@ -599,16 +599,42 @@ uint32_t net_device_table_mgr::get_max_mtu()
 
 void net_device_table_mgr::del_link_event(const netlink_link_info* info)
 {
-	NOT_IN_USE(info); // Suppress --enable-opt-log=high warning
 	ndtm_logdbg("netlink event: RTM_DELLINK if_index: %d", info->ifindex);
+
+	/* This flow is actual when interface is removed quickly
+	 * w/o moving it in DOWN state.
+	 * Usually interface is removed during sequence of RTM_NEWLINK events
+	 * that puts it in DOWN state. In this case VMA has more time to release
+	 * resources correctly.
+	 */
+	if (info->flags & IFF_SLAVE) {
+		net_device_val* net_dev = NULL;
+		int if_index = info->ifindex;
+
+		ndtm_logdbg("netlink event: if_index: %d state: %s",
+				info->ifindex, (info->flags & IFF_RUNNING ? "Up" : "Down"));
+
+		net_dev = get_net_device_val(if_index);
+		if (net_dev &&
+				(if_index != net_dev->get_if_idx()) &&
+				(net_dev->get_is_bond() == net_device_val::NETVSC) &&
+				(net_dev->get_slave(if_index))) {
+			ndtm_logdbg("found entry [%p]: if_index: %d : %s",
+					net_dev, net_dev->get_if_idx(), net_dev->get_ifname());
+			net_dev->update_netvsc_slaves(info->ifindex, info->flags);
+		}
+	}
 }
 
 void net_device_table_mgr::new_link_event(const netlink_link_info* info)
 {
 	ndtm_logdbg("netlink event: RTM_NEWLINK if_index: %d", info->ifindex);
 
+	/* This flow is used to process interface UP and DOWN scenarios.
+	 * It is important that interface can be removed w/o putting it into
+	 * DOWN state (see RTM_DELLINK).
+	 */
 	if (info->flags & IFF_SLAVE) {
-		net_device_map_index_t::iterator itr;
 		net_device_val* net_dev = NULL;
 		int if_index = info->ifindex;
 
