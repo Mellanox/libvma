@@ -65,13 +65,16 @@ static bool get_cpu_hz(double &hz_min, double &hz_max)
 	}
 
 	while (fgets(buf, sizeof(buf), f)) {
-		double mhz;
-		int rc;
+		double mhz = 0;
+		int rc = 0;
 
 #if defined(__ia64__)
 		rc = sscanf(buf, "itc MHz : %lf", &mhz);
 #elif defined(__powerpc__)
 		rc = sscanf(buf, "clock : %lf", &mhz);
+#elif defined(__aarch64__)
+		rc = sscanf(buf, "BogoMIPS : %lf", &mhz);
+		mhz /= 2;
 #else
 		rc = sscanf(buf, "cpu MHz : %lf", &mhz);
 #endif
