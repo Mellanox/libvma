@@ -869,6 +869,7 @@ static void do_global_ctors_helper()
 
 int do_global_ctors()
 {
+	int errno_backup = errno;
 	try {
 		do_global_ctors_helper();
 	}
@@ -880,6 +881,8 @@ int do_global_ctors()
 		vlog_printf(VLOG_ERROR, "%s", error.what());
 		return -1;
 	}
+	/* do not return internal errno in case constructor is executed successfully */
+	errno = errno_backup;
 	return 0;
 }
 
