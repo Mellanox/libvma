@@ -716,40 +716,40 @@ ring_user_id_t ring_bond::generate_id(const address_t src_mac, const address_t d
 	ring_logdbg("generate_id for policy %d from src_mac=" ETH_HW_ADDR_PRINT_FMT ", dst_mac=" ETH_HW_ADDR_PRINT_FMT ", eth_proto=%#x, encap_proto=%#x, src_ip=%d.%d.%d.%d, dst_ip=%d.%d.%d.%d, src_port=%d, dst_port=%d",
 			m_xmit_hash_policy, ETH_HW_ADDR_PRINT_ADDR(src_mac), ETH_HW_ADDR_PRINT_ADDR(dst_mac), ntohs(eth_proto), ntohs(encap_proto), NIPQUAD(src_ip), NIPQUAD(dst_ip), ntohs(src_port), ntohs(dst_port));
 
-	uint32_t hash = 0;
+	uint32_t user_id = 0;
 
 	if (m_xmit_hash_policy > net_device_val::XHP_LAYER_2_3 && eth_proto == htons(ETH_P_8021Q)) {
 		eth_proto = encap_proto;
 	}
 
 	if (eth_proto != htons(ETH_P_IP)) {
-		hash = dst_mac[5] ^ src_mac[5] ^ eth_proto;
-		return hash % m_bond_rings.size();
+		user_id = dst_mac[5] ^ src_mac[5] ^ eth_proto;
+		return user_id % m_bond_rings.size();
 	}
 
 	switch (m_xmit_hash_policy) {
 	case(net_device_val::XHP_LAYER_2):
-		hash = dst_mac[5] ^ src_mac[5] ^ eth_proto;
+		user_id = dst_mac[5] ^ src_mac[5] ^ eth_proto;
 		break;
 	case(net_device_val::XHP_LAYER_2_3):
 	case(net_device_val::XHP_ENCAP_2_3):
-		hash = dst_mac[5] ^ src_mac[5] ^ eth_proto;
-		hash ^= dst_ip ^ src_ip;
-		hash ^= (hash >> 16);
-		hash ^= (hash >> 8);
+		user_id = dst_mac[5] ^ src_mac[5] ^ eth_proto;
+		user_id ^= dst_ip ^ src_ip;
+		user_id ^= (user_id >> 16);
+		user_id ^= (user_id >> 8);
 		break;
 	case(net_device_val::XHP_LAYER_3_4):
 	case(net_device_val::XHP_ENCAP_3_4):
-		hash = src_port | (dst_port << 16);
-		hash ^= dst_ip ^ src_ip;
-		hash ^= (hash >> 16);
-		hash ^= (hash >> 8);
+		user_id = src_port | (dst_port << 16);
+		user_id ^= dst_ip ^ src_ip;
+		user_id ^= (user_id >> 16);
+		user_id ^= (user_id >> 8);
 		break;
 	default:
 		return ring::generate_id();
 	}
 
-	return hash % m_bond_rings.size();
+	return user_id % m_bond_rings.size();
 }
 
 int ring_bond::modify_ratelimit(struct vma_rate_limit_t &rate_limit) {
