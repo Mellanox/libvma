@@ -1,3 +1,18 @@
+Version 8.8.3-0:
+Date + Time 2019-04-15
+=============================================================
+Added:
+        - RM #1512054 Add warning in case Device Memory can not be used
+        - RM #1718617 Update valgrind suppression file
+        - RM #1701456 Enable mlx4 flow steering warning for VM
+
+Fixed:
+        - RM #1732395 Detect CPU Frequency for aarch64
+        - RM #1564149 Add RTM_DELLINK processing
+        - RM #1566916 Do not call ibv_get_async_event() after getting IBV_EVENT_DEVICE_FATAL
+        - RM #1663915 Fix destroy qp collision for ring_eth_cb
+        - RM #1687458 Fix double free of TCP timer event
+
 Version 8.8.2-0:
 Date + Time 2019-02-20
 =============================================================
