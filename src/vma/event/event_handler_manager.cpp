@@ -140,6 +140,18 @@ void event_handler_manager::unregister_timer_event(timer_handler* handler, void*
 	reg_action.type = UNREGISTER_TIMER;
 	reg_action.info.timer.handler = handler;
 	reg_action.info.timer.node = node;
+
+	/* Special protection is needed to avoid scenario when deregistration is done
+	 * during timer_handler object destruction, timer node itself is not removed
+	 * and time for this timer node is expired. In this case there is no guarantee
+	 * to operate with timer_handler object.
+	 * See timer::process_registered_timers()
+	 */
+	timer_node_t* timer_node = (timer_node_t*)node;
+	while (0 != atomic_fetch_and_inc(&timer_node->ref)) {
+		atomic_fetch_and_dec(&timer_node->ref);
+	}
+
 	post_new_reg_action(reg_action);
 }
 
