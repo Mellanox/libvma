@@ -79,7 +79,6 @@ timer::~timer()
 
 void timer::add_new_timer(unsigned int timeout_msec, timer_node_t* node, timer_handler* handler, void* user_data, timer_req_type_t req_type)
 {
-	memset(node, 0, sizeof(*node));
 	node->handler = handler;
 	node->req_type = req_type;
 	node->user_data = user_data;
@@ -234,8 +233,17 @@ void timer::process_registered_timers()
 	while (iter && (iter->delta_time_msec == 0)) {
 		tmr_logfuncall("timer expired on %p", iter->handler);
 
-		if (iter->handler){
+		/* Special check is need to protect
+		 * from using destroyed object pointed by handler
+		 * See unregister_timer_event()
+		 * Object can be destoyed from another thread (lock protection)
+		 * and from current thread (lock and lock count condition)
+		 */
+		if (iter->handler &&
+			!iter->lock_timer.trylock() &&
+			(1 == iter->lock_timer.is_locked_by_me())) {
 			iter->handler->handle_timer_expired(iter->user_data);
+			iter->lock_timer.unlock();
 		}
 		next_iter = iter->next;
 

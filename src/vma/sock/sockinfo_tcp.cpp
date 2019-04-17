@@ -1264,6 +1264,12 @@ void sockinfo_tcp::err_lwip_cb(void *pcb_container, err_t err)
 		conn->m_sock_state = TCP_SOCK_INITED;
 	}
 
+	/* In general VMA should avoid calling unregister_timer_event() for the same timer handle twice.
+	 * It is protected by checking m_timer_handle for NULL value that should be under lock.
+	 * In order to save locking time a quick check is done first to ensure that indeed the specific
+	 * timer has not been freed (avoiding the lock/unlock).
+	 * The 2nd check is to avoid a race of the timer been freed while the lock has been taken.
+	 */
 	if (conn->m_timer_handle) {
 		conn->lock_tcp_con();
 		if (conn->m_timer_handle) {
@@ -4642,6 +4648,7 @@ tcp_timers_collection::tcp_timers_collection(int period, int resolution)
 	m_n_period = period;
 	m_n_resolution = resolution;
 	m_n_intervals_size = period/resolution;
+	m_timer_handle = NULL;
 	m_p_intervals = new timer_node_t*[m_n_intervals_size];
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!m_p_intervals) {
@@ -4681,8 +4688,12 @@ void tcp_timers_collection::free_tta_resources(void)
 
 void tcp_timers_collection::clean_obj()
 {
-	set_cleaned();
+	if (is_cleaned()) {
+		return ;
+	}
 
+	set_cleaned();
+	m_timer_handle = NULL;
 	if (g_p_event_handler_manager->is_running()) {
 		g_p_event_handler_manager->unregister_timers_event_and_delete(this);
 	} else {
@@ -4720,7 +4731,7 @@ void tcp_timers_collection::add_new_timer(timer_node_t* node, timer_handler* han
 	m_n_next_insert_bucket = (m_n_next_insert_bucket + 1) % m_n_intervals_size;
 
 	if (m_n_count == 0) {
-		g_p_event_handler_manager->register_timer_event(m_n_resolution , this, PERIODIC_TIMER, NULL);
+		m_timer_handle = g_p_event_handler_manager->register_timer_event(m_n_resolution , this, PERIODIC_TIMER, NULL);
 	}
 	m_n_count++;
 
@@ -4750,7 +4761,10 @@ void tcp_timers_collection::remove_timer(timer_node_t* node)
 
 	m_n_count--;
 	if (m_n_count == 0) {
-		g_p_event_handler_manager->unregister_timer_event(this, NULL);
+		if (m_timer_handle) {
+			g_p_event_handler_manager->unregister_timer_event(this, m_timer_handle);
+			m_timer_handle = NULL;
+		}
 	}
 
 	__log_dbg("TCP timer handler [%p] was removed", node->handler);

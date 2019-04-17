@@ -35,6 +35,7 @@
 #define DELTA_TIMER_H
 
 #include <time.h>
+#include "utils/lock_wrapper.h"
 
 #define INFINITE_TIMEOUT (-1)
 
@@ -53,11 +54,19 @@ enum timer_req_type_t {
 };
 
 struct timer_node_t {
-	unsigned int            delta_time_msec;/* delta time from the previous node (millisec) */
-	unsigned int            orig_time_msec;	/* the orig timer requested (saved in order to re-register periodic timers) */
-	timer_handler*          handler;	/* link to the context registered */  
+	/* delta time from the previous node (millisec) */
+	unsigned int            delta_time_msec;
+	/* the orig timer requested (saved in order to re-register periodic timers) */
+	unsigned int            orig_time_msec;
+	/* control thread-safe access to handler. Recursive because unregister_timer_event()
+	 * can be called from handle_timer_expired()
+	 * that is under trylock() inside process_registered_timers
+	 */
+	lock_spin_recursive     lock_timer;
+	/* link to the context registered */
+	timer_handler*          handler;
 	void*                   user_data;
-	timers_group*		group;
+	timers_group*           group;
 	timer_req_type_t        req_type;
 	struct timer_node_t*    next;
 	struct timer_node_t*    prev;
