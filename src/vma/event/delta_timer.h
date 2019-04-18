@@ -35,6 +35,7 @@
 #define DELTA_TIMER_H
 
 #include <time.h>
+#include "utils/lock_wrapper.h"
 
 #define INFINITE_TIMEOUT (-1)
 
@@ -53,10 +54,10 @@ enum timer_req_type_t {
 };
 
 struct timer_node_t {
-	unsigned int            delta_time_msec;/* delta time from the previous node (millisec) */
-	unsigned int            orig_time_msec;	/* the orig timer requested (saved in order to re-register periodic timers) */
-	atomic_t                ref;            /* control thread-safe access to handler */
-	timer_handler*          handler;	    /* link to the context registered */
+	unsigned int            delta_time_msec; /* delta time from the previous node (millisec) */
+	unsigned int            orig_time_msec;	 /* the orig timer requested (saved in order to re-register periodic timers) */
+	lock_spin               lock_timer;      /* control thread-safe access to handler */
+	timer_handler*          handler;         /* link to the context registered */
 	void*                   user_data;
 	timers_group*           group;
 	timer_req_type_t        req_type;

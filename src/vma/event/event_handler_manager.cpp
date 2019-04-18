@@ -146,11 +146,10 @@ void event_handler_manager::unregister_timer_event(timer_handler* handler, void*
 	 * and time for this timer node is expired. In this case there is no guarantee
 	 * to operate with timer_handler object.
 	 * See timer::process_registered_timers()
+	 * Do just lock() to protect timer_handler inside process_registered_timers()
 	 */
 	timer_node_t* timer_node = (timer_node_t*)node;
-	while (0 != atomic_fetch_and_inc(&timer_node->ref)) {
-		atomic_fetch_and_dec(&timer_node->ref);
-	}
+	timer_node->lock_timer.lock();
 
 	post_new_reg_action(reg_action);
 }

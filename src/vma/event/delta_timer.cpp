@@ -80,7 +80,8 @@ timer::~timer()
 void timer::add_new_timer(unsigned int timeout_msec, timer_node_t* node, timer_handler* handler, void* user_data, timer_req_type_t req_type)
 {
 	memset(node, 0, sizeof(*node));
-	atomic_set(&node->ref, 0);
+
+	node->lock_timer=lock_spin("timer");
 	node->handler = handler;
 	node->req_type = req_type;
 	node->user_data = user_data;
@@ -235,10 +236,12 @@ void timer::process_registered_timers()
 	while (iter && (iter->delta_time_msec == 0)) {
 		tmr_logfuncall("timer expired on %p", iter->handler);
 
-		if (iter->handler && (0 == atomic_fetch_and_inc(&iter->ref))){
-			iter->handler->handle_timer_expired(iter->user_data);
+		if (!iter->lock_timer.trylock()){
+			if (iter->handler) {
+				iter->handler->handle_timer_expired(iter->user_data);
+			}
+			iter->lock_timer.unlock();
 		}
-		atomic_fetch_and_dec(&iter->ref);
 		next_iter = iter->next;
 
 		switch (iter->req_type) {
