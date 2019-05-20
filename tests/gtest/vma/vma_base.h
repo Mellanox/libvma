@@ -35,7 +35,13 @@
 
 #include <vma_extra.h>
 
+/**
+ * To enable vma tests you need to set below VMA_EXTRA_API_ENABLED to 1
+ * or you can add the following CPPFLAG during compilation 'make CPPFLAGS="-DVMA_EXTRA_API_ENABLED=1"'
+ */
+#ifndef VMA_EXTRA_API_ENABLED
 #define VMA_EXTRA_API_ENABLED 0
+#endif
 
 /**
  * VMA Base class for tests
