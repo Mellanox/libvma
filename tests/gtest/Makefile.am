@@ -44,6 +44,7 @@ gtest_SOURCES = \
 	vma/vma_base.cc \
 	vma/vma_ring.cc \
 	vma/vma_poll.cc \
+	vma/vma_sockopt.cc \
 	\
 	vmad/vmad_base.cc \
 	vmad/vmad_bitmap.cc \
@@ -143,7 +144,7 @@ list: gtest
 test: libvma gtest
 	@rm -f core.*
 	env $(LAUNCHER) $(abs_builddir)/gtest $(GTEST_ARGS)
-	
+
 #
 # Run unit tests with GDB
 #
