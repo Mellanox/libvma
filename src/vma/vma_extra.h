@@ -30,7 +30,6 @@
  * SOFTWARE.
  */
 
-
 #ifndef VMA_EXTRA_H
 #define VMA_EXTRA_H
 
@@ -108,16 +107,16 @@ struct vma_packet_desc_t {
  */
 struct vma_completion_t {
 	/* Packet is valid in case VMA_SOCKETXTREME_PACKET event is set
-         */
+	 */
 	struct vma_packet_desc_t packet;
 	/* Set of events
-         */
-	uint64_t                 events;
+	 */
+	uint64_t events;
 	/* User provided data.
-         * By default this field has FD of the socket
-         * User is able to change the content using setsockopt()
-         * with level argument SOL_SOCKET and opname as SO_VMA_USER_DATA
-         */ 
+	 * By default this field has FD of the socket
+	 * User is able to change the content using setsockopt()
+	 * with level argument SOL_SOCKET and opname as SO_VMA_USER_DATA
+	 */
 	uint64_t                 user_data;
 	/* Source address (in network byte order) set for:
 	 * VMA_SOCKETXTREME_PACKET and VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED events
@@ -125,7 +124,7 @@ struct vma_completion_t {
 	struct sockaddr_in       src;
 	/* Connected socket's parent/listen socket fd number.
 	 * Valid in case VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED event is set.
-	*/
+	 */
 	int 			listen_fd;
 };
 
@@ -140,7 +139,6 @@ struct __attribute__ ((packed)) vma_packet_t {
 	size_t		sz_iov;			// number of fragments
 	struct iovec	iov[];			// fragments size+data
 };
-
 
 /**
  * Represents received packets in VMA
@@ -208,14 +206,14 @@ struct vma_completion_cb_t {
 typedef int vma_ring_profile_key;
 
 typedef enum {
-	RING_LOGIC_PER_INTERFACE = 0,           //!< RING_LOGIC_PER_INTERFACE
-	RING_LOGIC_PER_IP = 1,                  //!< RING_LOGIC_PER_IP
-	RING_LOGIC_PER_SOCKET = 10,             //!< RING_LOGIC_PER_SOCKET
-	RING_LOGIC_PER_USER_ID = 11,            //!< RING_LOGIC_PER_USER_ID
-	RING_LOGIC_PER_THREAD = 20,             //!< RING_LOGIC_PER_THREAD
-	RING_LOGIC_PER_CORE = 30,               //!< RING_LOGIC_PER_CORE
-	RING_LOGIC_PER_CORE_ATTACH_THREADS = 31,//!< RING_LOGIC_PER_CORE_ATTACH_THREADS
-	RING_LOGIC_LAST                         //!< RING_LOGIC_LAST
+	RING_LOGIC_PER_INTERFACE = 0,            //!< RING_LOGIC_PER_INTERFACE
+	RING_LOGIC_PER_IP = 1,                   //!< RING_LOGIC_PER_IP
+	RING_LOGIC_PER_SOCKET = 10,              //!< RING_LOGIC_PER_SOCKET
+	RING_LOGIC_PER_USER_ID = 11,             //!< RING_LOGIC_PER_USER_ID
+	RING_LOGIC_PER_THREAD = 20,              //!< RING_LOGIC_PER_THREAD
+	RING_LOGIC_PER_CORE = 30,                //!< RING_LOGIC_PER_CORE
+	RING_LOGIC_PER_CORE_ATTACH_THREADS = 31, //!< RING_LOGIC_PER_CORE_ATTACH_THREADS
+	RING_LOGIC_LAST                          //!< RING_LOGIC_LAST
 } ring_logic_t;
 
 typedef enum {
@@ -267,8 +265,8 @@ typedef enum {
 } vma_cb_ring_attr_mask;
 
 typedef enum {
-    VMA_MODIFY_RING_CQ_MODERATION = (1 << 0),
-    VMA_MODIFY_RING_CQ_ARM = (1 << 1),
+	VMA_MODIFY_RING_CQ_MODERATION = (1 << 0),
+	VMA_MODIFY_RING_CQ_ARM = (1 << 1),
 } vma_modify_ring_mask;
 
 struct vma_cq_moderation_attr {
@@ -499,9 +497,8 @@ typedef enum {
  *   if working with zero copy logic.
  */
 typedef vma_recv_callback_retval_t 
-(*vma_recv_callback_t) (int fd, size_t sz_iov, struct iovec iov[], 
+(*vma_recv_callback_t)(int fd, size_t sz_iov, struct iovec iov[],
                         struct vma_info_t* vma_info, void *context);
-
 
 /**
  * VMA Extended Socket API
@@ -537,9 +534,9 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * 
 	 * If zero copy is performed (MSG_VMA_ZCOPY flag is returned), the buffer 
 	 * is filled with a vma_packets_t structure, holding as much fragments 
-         * as `len' allows. The total size of all fragments is returned.
-         * Otherwise the MSG_VMA_ZCOPY flag is not set and the buffer is filled
-         * with actual data and it's size is returned (same as recvfrom())
+	 * as `len' allows. The total size of all fragments is returned.
+	 * Otherwise the MSG_VMA_ZCOPY flag is not set and the buffer is filled
+	 * with actual data and it's size is returned (same as recvfrom())
 	 * If no data was received the return value is zero.
 	 * 
 	 * NOTE: The returned packet must be freed with free_packet() after
@@ -561,7 +558,6 @@ struct __attribute__ ((packed)) vma_api_t {
 	 */
 	int (*free_packets)(int s, struct vma_packet_t *pkts, size_t count);
 
-
 	/*
 	 * Add a libvma.conf rule to the top of the list.
 	 * This rule will not apply to existing sockets which already considered the conf rules.
@@ -571,7 +567,6 @@ struct __attribute__ ((packed)) vma_api_t {
 	 */
 	int (*add_conf_rule)(const char *config_line);
 
-
 	/*
 	 * Create sockets on pthread tid as offloaded/not-offloaded.
 	 * This does not affect existing sockets.
@@ -580,7 +575,6 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * @return 0 on success, or error code on failure.
 	 */
 	int (*thread_offload)(int offload, pthread_t tid);
-
 
 	/**
 	 * socketxtreme_poll() polls for VMA completions
@@ -603,8 +597,9 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * Packet descriptor points to VMA buffers that contain data scattered
 	 * by HW, so the data is deliver to application with zero copy.
 	 * Notice: after application finished using the returned packets
-	 * and their buffers it must free them using socketxtreme_free_vma_packets()/socketxtreme_free_vma_buff()
-	 * functions.
+	 * and their buffers it must free them using socketxtreme_free_vma_packets(),
+	 * socketxtreme_free_vma_buff() functions.
+	 *
 	 * If VMA_SOCKETXTREME_PACKET flag is disabled vma_completion_t.packet field is
 	 * reserved.
 	 *
@@ -629,7 +624,7 @@ struct __attribute__ ((packed)) vma_api_t {
 	 */
 	int (*socketxtreme_poll)(int fd, struct vma_completion_t* completions, unsigned int ncompletions, int flags);
 
-	 /**
+	/**
 	 * Returns the amount of rings that are associated with socket.
 	 *
 	 * @param fd File Descriptor number of the socket.
@@ -640,7 +635,7 @@ struct __attribute__ ((packed)) vma_api_t {
 	 */
 	int (*get_socket_rings_num)(int fd);
 
-	 /**
+	/**
 	 * Returns FDs of the RX rings that are associated with the socket.
 	 *
 	 * This function gets socket FD + int array + array size and populates
@@ -648,7 +643,7 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * with the socket.
 	 *
 	 * @param fd File Descriptor number.
-	 * @param ring_fds Int array of ring fds
+	 * @param ring_fds Array of ring fds
 	 * @param ring_fds_sz Size of the array
 	 * @return On success, return the number populated array entries.
 	 * 	   On error, -1 is returned.
@@ -683,11 +678,11 @@ struct __attribute__ ((packed)) vma_api_t {
 	 *   the packet.
 	 * - Frees vma buffer list that is associated with the packet.
 	 *   Notice: for each buffer in buffer list VMA decreases buffer's
-	 *   ref count and only buffers with ref count zero are deallocated.
+	 *   reference count and only buffers with reference count zero are deallocated.
 	 *   Notice:
 	 *   - Application can increase buffer reference count,
 	 *     in order to hold the buffer even after socketxtreme_free_vma_packets()
-	 *     was called for the buffer, using vma_buff_ref().
+	 *     was called for the buffer, using socketxtreme_ref_vma_buff().
 	 *   - Application is responsible to free buffers, that
 	 *     couldn't be deallocated during socketxtreme_free_vma_packets() due to
 	 *     non zero reference count, using socketxtreme_free_vma_buff() function.
@@ -699,9 +694,9 @@ struct __attribute__ ((packed)) vma_api_t {
 
 	/* This function increments the reference count of the buffer.
 	 * This function should be used in order to hold the buffer
-	 * even after vma_free_packets() call.
+	 * even after socketxtreme_free_vma_packets() call.
 	 * When buffer is not needed any more it should be freed via
-	 * vma_buff_free().
+	 * socketxtreme_free_vma_buff().
 	 *
 	 * @param buff Buffer to update.
 	 * @return On success, return buffer's reference count after the change
@@ -735,7 +730,7 @@ struct __attribute__ ((packed)) vma_api_t {
 	 *
 	 * errno is set to: EOPNOTSUPP - Function is not supported when socketXtreme is enabled.
 	 */
-	int (*dump_fd_stats) (int fd, int log_level);
+	int (*dump_fd_stats)(int fd, int log_level);
 
 	/**
 	 * Get data from the MP_RQ cyclic buffer
@@ -844,8 +839,6 @@ struct __attribute__ ((packed)) vma_api_t {
 	uint64_t vma_extra_supported_mask;
 };
 
-
-
 /**
  * Retrieve VMA extended API.
  *
@@ -863,323 +856,5 @@ static inline struct vma_api_t* vma_get_api()
 	}
 	return api_ptr;
 }
-
-
-/* 
- ********************************
- * socketxtreme_poll() Demo Usage
- ********************************
-
-
-struct vma_api_t* vma_api = NULL;
-
-
- *
- * Main loop
- *
-myapp_socket_main_loop()
-{
-	int flags = 0;
-	char buf[256];
-	int rings;
-	vma_completion_t comp;
-	int ready_comp = 0;
-	bool to_exit = false;
-
-
-	// Try to find if VMA is loaded and the Extra API is available
-	vma_api = vma_get_api();
-
-	// Create my application's  socket
-	int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_IP)
-
-	//Configure/connect the socket
-	setsockopt()
-	connect()
-	...
-
-	//Get socket's ring, we skip reading the number of rings
-	//since connected TCP socket is associated with a single ring
-	if (vma_api) {
-		vma_api->get_socket_rings_fds(fd, &ring, 1);
-	}
-	else {
-		exit...
-	}
-
-	// Main traffic processing loop going into VMA engine
-	while (!to_exit) {
-
-		ready_comp = vma_api->socketxtreme_poll(ring_fd, &comp, 1, flags);
-
-		// recv path socket API...
-		if (ready_comp > 0) {
-			if (comp.events & VMA_COMPLETION_TYPE_PACKET) {
-				myapp_processes_packet_func(comp.user_data, &comp.packet);
-
-				//Hold the buffers
-				vma_buff_t curr_buff = comp.packet.buff_lst;
-				while (curr_buff) {
-					vma_api->vma_buff_ref(curr_buff);
-					curr_buff = curr_buff->next;
-				}
-				//Update socket's TCP window size
-				vma_api->socketxtreme_free_vma_packets(socket_fd, &comp.packet, 1);
-			}
-			myapp_processes_events_func(comp.user_data,comp.events);
-
-			//The buffers are not needed any more, deallocate them
-			vma_buff_t curr_buff = comp.packet.buff_lst;
-			while (curr_buff) {
-				//Free the buffer
-				vma_api->vma_buff_ref(curr_buff);
-				curr_buff = curr_buff->next;
-			}
-		}
-		else if (ready_comp < 0) {
-			to_exit = true;
-		}
-	}
-}
-
- *
- * Process VMA buffer
- *
-myapp_processes_packet_func(
-	int socket,
-	vma_packet_t* packet)
-{
-	vma_buff_t* curr_buff = packet->buff_lst;
-
-	printf("[fd=%d] Received packet from: %s:%d \n", socket, inet_ntoa(packet->src.sin_addr), ntohs(packet->src.sin_port));
-	printf("Packet total length is: %u\n", packet->total_len);
-	printf("Packet's buffers: \n");
-	while (curr_buff) {
-		printf("Address: %p, Length: %u\n", curr_buff->payload, curr_buff->len);
-		curr_buff = curr_buff->next;
-	}
-
-}
-
- *
- * Process VMA event
- *
-myapp_processes_events_func(
-	int socket,
-	uint64_t events)
-{
-	if (comp.events & EPOLLHUP){
-		printf("[fd=%d] EPOLLHUP event occurred\n", socket);
-	}
-}
-
-
- *
- * socketxtreme_poll() UDP Demo Usage
- *
-
-
-struct vma_api_t* vma_api = NULL;
-
-
- *
- * Main loop
- *
-myapp_socket_main_loop()
-{
-	int flags = 0;
-	char buf[256];
-	int rings;
-	vma_completion_t comp;
-	int ready_comp = 0;
-	bool to_exit = false;
-
-
-	// Try to find if VMA is loaded and the Extra API is available
-	vma_api = vma_get_api();
-
-	// Create my application's  socket
-	int fd = socket(AF_INET, SOCK_DGRAM, 0)
-
-	//Bind the socket
-	...
-
-	//Get socket's ring, we skip reading the number of rings
-	//since connected UDP socket is associated with a single ring
-	if (vma_api) {
-		vma_api->get_socket_rings_fds(fd, &ring, 1);
-	}
-	else {
-		exit...
-	}
-
-	// Main traffic processing loop going into VMA engine
-	while (!to_exit) {
-
-		ready_comp = vma_api->socketxtreme_poll(ring_fd, &comp, 1, flags);
-
-		// recv path socket API...
-		if (ready_comp > 0) {
-			if (comp.events & VMA_SOCKETXTREME_PACKET) {
-				myapp_processes_packet_func(comp.user_data, &comp.packet);
-
-				//Hold the buffers
-				vma_buff_t curr_buff = comp.packet.buff_lst;
-				while (curr_buff) {
-					vma_api->vma_buff_ref(curr_buff);
-					curr_buff = curr_buff->next;
-				}
-			}
-			myapp_processes_events_func(comp.user_data,comp.events);
-
-			//The buffers are not needed any more, deallocate them
-			vma_buff_t curr_buff = comp.packet.buff_lst;
-			while (curr_buff) {
-				//Free the buffer
-				vma_api->vma_buff_ref(curr_buff);
-				curr_buff = curr_buff->next;
-			}
-		}
-		else if (ready_comp < 0) {
-			to_exit = true;
-		}
-	}
-}
-
- *
- * Process VMA buffer
- *
-myapp_processes_packet_func(
-	int socket,
-	vma_packet_t* packet)
-{
-	vma_buff_t* curr_buff = packet->buff_lst;
-
-	printf("[fd=%d] Received packet from: %s:%d \n", socket, inet_ntoa(packet->src.sin_addr), ntohs(packet->src.sin_port));
-	printf("Packet total length is: %u\n", packet->total_len);
-	printf("Packet's buffers: \n");
-	while (curr_buff) {
-		printf("Address: %p, Length: %u\n", curr_buff->payload, curr_buff->len);
-		curr_buff = curr_buff->next;
-	}
-}
-
- *
- * Process VMA event
- *
-myapp_processes_events_func(
-	int socket,
-	uint64_t events)
-{
-	if (comp.events){
-		printf("[fd=%d] event occurred\n", socket);
-	}
-}
-
-
- *********************************************
- * VMA callback + recvfrom_zcopy Demo Usage
- *********************************************
-
-
-struct vma_api_t* vma_api = NULL;
-
-
- *
- * Your application receive notification callback function
- *
-
-vma_recv_callback_retval_t myapp_vma_recv_pkt_notify_callback(
-	int fd, 
-	size_t sz_iov, 
-	struct iovec iov[], 
-	struct vma_info_t* vma_info, 
-	void *context)
-{
-	// Check info structure version
-	if (vma_info->struct_sz < sizeof(vma_info_t)) {
-		printf("VMA's info struct is not something we recognize so un register the application's callback function");
-		void* option_value = NULL;
-		vma_api->register_recv_callback(fd, option_value, &fd);
-		return VMA_PACKET_RECV;
-	}
-
-	if ("rule to check if packet should be dropped") {
-		return VMA_PACKET_DROP; 
-	}
-
-	if ("Do we support zero copy logic?") {
-		// Application must duplicate the iov' & 'vma_info' parameters for later usage
-		struct iovec* my_iov = calloc(iov_sz, sizeof(struct iovec));
-		memcpy(my_iov, iov, sizeof(struct iovec)*iov_sz);
-		myapp_processes_packet_func(my_iov, iov_sz, vma_info->packet_id);
-		return VMA_PACKET_HOLD;
-	}
-
-	return VMA_PACKET_RECV;
-}
-
- 
- * 
- * Register appliction callback with VMA"
- *
-myapp_socket_main_loop()
-{
-	int flags = 0;
-	char buf[256];
-
-	// Try to find if VMA is loaded and the Extra API is avilable
-	vma_api = vma_get_api();
-
-	// Create my application's multicast socket
-	int fd = socket("My Multicast socket")
-	setsockopt(fd, IP_ADD_MEMBERSHIP, ...)
-	...
-
-	// Try to register with VMA's special receive notification callback logic
-	if (vma_api && (vma_api->register_recv_callback(fd, myapp_vma_recv_pkt_notify_callback, &fd) < 0)) {
-		printf("VMA does not support the receive packet notify callback!");
-	}
-	...
-
-	// Main traffic processesing loop going into VMA engine
-	while () {
-	
-		select(...); // VMA callback will be called form this context!!
-
-		// recv path socket API...
-		flags = 0;
-		int ret = vma_api->recvfrom_zcopy(fd, buf, 256, &flags, NULL, NULL);
-		if (flags == MSG_VMA_ZCOPY) {
-			vma_packets_t* vma_packets = (vma_packets_t*)buf;
-			for (int i = 0; i < vma_packets->n_packet_num; i++) {
-				vma_packet_t* vma_packet = &vma_packets->pkts[i];
-				myapp_processes_packet_func(vma_packet->iov, vma_packet->iov_sz,
-							    vma_packet->packet_id);
-			}
-		}
-	}
-}
-
-
-
- * 
- * Process and Release VMA buffer
- *
-myapp_processes_packet_func(
-	struct iovec* iov, 
-	size_t iov_sz, 
-	void* packet_id)
-{
-	myapp_processes_packet_func(.....);
-
-	// Return zero copied packet buffer back to VMA
-	// Would be better to collect a bunch of buffers and return them all at once
-	// which will save locks inside VMA
-	vma_api->free_packets(s, &packet_id, 1);
-}
-
-
-*/
 
 #endif /* VMA_EXTRA_H */
