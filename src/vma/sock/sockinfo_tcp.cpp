@@ -325,8 +325,10 @@ sockinfo_tcp::~sockinfo_tcp()
 	lock_tcp_con();
 
 	if (!is_closable()) {
-		//prepare to close wasn't called?
-		prepare_to_close();
+		/* Force closing TCP connection
+		 * tcp state should be as CLOSED after finishing this call
+		 */
+		prepare_to_close(true);
 	}
 
 	do_wakeup();
@@ -369,18 +371,24 @@ sockinfo_tcp::~sockinfo_tcp()
 
 void sockinfo_tcp::clean_obj()
 {
+	if (is_cleaned()) {
+		return ;
+	}
+
 	lock_tcp_con();
-
 	set_cleaned();
-
 	if (m_timer_handle) {
 		g_p_event_handler_manager->unregister_timer_event(this, m_timer_handle);
 		m_timer_handle = NULL;
 	}
 
-	g_p_event_handler_manager->unregister_timers_event_and_delete(this);
-
-	unlock_tcp_con();
+	if (g_p_event_handler_manager->is_running()) {
+		g_p_event_handler_manager->unregister_timers_event_and_delete(this);
+		unlock_tcp_con();
+	} else {
+		unlock_tcp_con();
+		cleanable_obj::clean_obj();
+	}
 }
 
 bool sockinfo_tcp::prepare_listen_to_close()
@@ -504,8 +512,10 @@ bool sockinfo_tcp::prepare_to_close(bool process_shutdown /* = false */)
 	 * That is, TCP discards any data still remaining in the socket
 	 * send buffer and sends an RST to the peer, not the normal four-packet connection
 	 * termination sequence
+	 * If process_shutdown is set as True do abort() with setting tcp state as CLOSED
 	 */
-        if (get_tcp_state(&m_pcb) != LISTEN && m_linger.l_onoff && !m_linger.l_linger) {
+	if (get_tcp_state(&m_pcb) != LISTEN &&
+		(process_shutdown || (m_linger.l_onoff && !m_linger.l_linger))) {
 		abort_connection();
 	} else {
 		tcp_close(&m_pcb);
@@ -578,17 +588,6 @@ void sockinfo_tcp::force_close()
 	//to progress connection closure after process termination
 
 	if (!is_closable()) abort_connection();
-
-	//print the statistics of the socket to vma_stats file
-	vma_stats_instance_remove_socket_block(m_p_socket_stats);
-
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (m_call_orig_close_on_dtor) {
-		si_tcp_logdbg("calling orig_os_close on dup %d of %d",m_call_orig_close_on_dtor, m_fd);
-		orig_os_api.close(m_call_orig_close_on_dtor);
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-
 	unlock_tcp_con();
 }
 
