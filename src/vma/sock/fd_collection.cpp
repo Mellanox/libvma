@@ -92,8 +92,8 @@ fd_collection::~fd_collection()
 {
 	fdcoll_logfunc("");
 
-	m_n_fd_map_size = -1;
 	clear();
+	m_n_fd_map_size = -1;
 
 	delete [] m_p_sockfd_map;
 	m_p_sockfd_map = NULL;
@@ -148,26 +148,29 @@ void fd_collection::clear()
 		m_timer_handle = 0;
 	}
 
-	//internal thread should be already dead and these sockets should have been deleted through the internal thread.
-	sock_fd_api_list_t::iterator itr;
-	for (itr = m_pendig_to_remove_lst.begin(); itr != m_pendig_to_remove_lst.end(); itr++) {
-		(*itr)->force_close();
+	/* internal thread should be already dead and
+	 * these sockets can not been deleted through the it.
+	 */
+	while (!m_pendig_to_remove_lst.empty()) {
+		socket_fd_api *p_sfd_api = m_pendig_to_remove_lst.get_and_pop_back();
+		p_sfd_api->clean_obj();
 	}
 
-	// Clean up all left overs sockinfo
+	/* Clean up all left overs sockinfo
+	 */
 	for (fd = 0; fd < m_n_fd_map_size; ++fd) {
 		if (m_p_sockfd_map[fd]) {
 			if(!g_is_forked_child) {
 				socket_fd_api *p_sfd_api = get_sockfd(fd);
 				if (p_sfd_api) {
 					p_sfd_api->statistics_print();
-					p_sfd_api->destructor_helper();
+					p_sfd_api->clean_obj();
 				}
 			}
-	/**** Problem here - if one sockinfo is in a blocked call rx()/tx() then this will block too!!!
-	 * also - statistics_print() and destructor_helper() should not be called in two lines above, because they are called from the dtor
-			delete m_p_sockfd_map[fd];
-	*/
+			/**** Problem here - if one sockinfo is in a blocked call rx()/tx() then this will block too!!!
+			 * also - statistics_print() and destructor_helper() should not be called in two lines above, because they are called from the dtor
+			 *delete m_p_sockfd_map[fd];
+			 */
 			m_p_sockfd_map[fd] = NULL;
 			fdcoll_logdbg("destroyed fd=%d", fd);
 		}

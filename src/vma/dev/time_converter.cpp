@@ -156,11 +156,14 @@ ts_conversion_mode_t time_converter::update_device_converters_status(net_device_
 
 void time_converter::clean_obj()
 {
-	set_cleaned();
+	if (is_cleaned()) {
+		return ;
+	}
 
-	if (m_timer_handle && g_p_event_handler_manager->is_running()) {
-		g_p_event_handler_manager->unregister_timers_event_and_delete(this);
+	set_cleaned();
+	if (g_p_event_handler_manager->is_running()) {
 		m_timer_handle = NULL;
+		g_p_event_handler_manager->unregister_timers_event_and_delete(this);
 	} else {
 		cleanable_obj::clean_obj();
 	}
