@@ -283,8 +283,6 @@ private:
 
 	bool report_connected; //used for reporting 'connected' on second non-blocking call to connect.
 
-	int m_call_orig_close_on_dtor;
-
 	int m_error_status;
 
 	const buffer_batching_mode_t m_sysvar_buffer_batching_mode;
