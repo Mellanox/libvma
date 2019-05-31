@@ -283,8 +283,6 @@ sockinfo_tcp::sockinfo_tcp(int fd):
 	m_backlog = INT_MAX;
 	report_connected = false;
 
-	m_call_orig_close_on_dtor = 0;
-
 	m_error_status = 0;
 
 	m_tcp_seg_count = 0;
@@ -352,13 +350,6 @@ sockinfo_tcp::~sockinfo_tcp()
 	}
 
 	unlock_tcp_con();
-
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (m_call_orig_close_on_dtor) {
-		si_tcp_logdbg("calling orig_os_close on dup %d of %d",m_call_orig_close_on_dtor, m_fd);
-		orig_os_api.close(m_call_orig_close_on_dtor);
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
 
 	if (m_n_rx_pkt_ready_list_count || m_rx_ready_byte_count || m_rx_pkt_ready_list.size() || m_rx_ring_map.size() || m_rx_reuse_buff.n_buff_num || m_rx_reuse_buff.rx_reuse.size() || m_rx_cb_dropped_list.size() || m_rx_ctl_packets_list.size() || m_rx_peer_packets.size() || m_rx_ctl_reuse_list.size())
 		si_tcp_logerr("not all buffers were freed. protocol=TCP. m_n_rx_pkt_ready_list_count=%d, m_rx_ready_byte_count=%d, m_rx_pkt_ready_list.size()=%d, m_rx_ring_map.size()=%d, m_rx_reuse_buff.n_buff_num=%d, m_rx_reuse_buff.rx_reuse.size=%d, m_rx_cb_dropped_list.size=%d, m_rx_ctl_packets_list.size=%d, m_rx_peer_packets.size=%d, m_rx_ctl_reuse_list.size=%d",
