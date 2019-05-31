@@ -2110,10 +2110,21 @@ bool sockinfo_tcp::rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void*
  */ 
 int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 {
+	int ret = 0;
 
 	NOT_IN_USE(__tolen);
 
 	lock_tcp_con();
+
+	/* Connection was closed by RST, timeout, ICMP error
+	 * or another process disconnected us.
+	 * Socket should be recreated.
+	 */
+	if (report_connected && is_errorable(&ret)) {
+		errno = ECONNABORTED;
+		unlock_tcp_con();
+		return -1;
+	}
 
 	// Calling connect more than once should return error codes
 	if (m_sock_state != TCP_SOCK_INITED && m_sock_state != TCP_SOCK_BOUND) {
