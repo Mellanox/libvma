@@ -579,22 +579,6 @@ void sockinfo_tcp::handle_socket_linger() {
 	}
 }
 
-// call this function if you won't be able to go through si_tcp dtor
-// do not call this function twice
-void sockinfo_tcp::force_close()
-{
-	si_tcp_logdbg("can't reach dtor - force closing the socket");
-
-	lock_tcp_con();
-
-	//if the socket is not closed yet, send RST to remote host before exit.
-	//we have to do this because we don't have VMA deamon
-	//to progress connection closure after process termination
-
-	if (!is_closable()) abort_connection();
-	unlock_tcp_con();
-}
-
 // This method will be on syn received on the passive side of a TCP connection
 void sockinfo_tcp::create_dst_entry()
 {

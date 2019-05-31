@@ -136,7 +136,6 @@ public:
 	//In this method we just kikstarting the TCP connection termination (empty the unsent/unacked, senf FIN...)
 	//Return val: true is the socket is already closable and false otherwise
 	virtual bool prepare_to_close(bool process_shutdown = false);
-	virtual void force_close();
 	void create_dst_entry();
 	bool prepare_dst_to_send(bool is_accepted_socket = false);
 

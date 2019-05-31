@@ -168,10 +168,6 @@ public:
 	//Return val: true is the socket is already closable and false otherwise
 	virtual bool prepare_to_close(bool process_shutdown = false) { NOT_IN_USE(process_shutdown); return is_closable(); }
 
-	// this function is called when you can't go through destructor
-	// it should be called only once
-	virtual void force_close() {}
-
 	virtual ssize_t tx(const tx_call_t call_type, const iovec* iov,
 			   const ssize_t iovlen, int __flags = 0,
 			   __CONST_SOCKADDR_ARG   __to = NULL,
