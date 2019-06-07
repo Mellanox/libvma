@@ -495,10 +495,12 @@ protected:
 	void remove_timer(timer_node_t* node);
 
 private:
+	void* m_timer_handle;
+	timer_node_t** m_p_intervals;
+
 	int m_n_period;
 	int m_n_resolution;
 	int m_n_intervals_size;
-	timer_node_t** m_p_intervals;
 	int m_n_location;
 	int m_n_count;
 	int m_n_next_insert_bucket;

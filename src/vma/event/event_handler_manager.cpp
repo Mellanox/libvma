@@ -92,15 +92,17 @@ void* event_handler_manager::register_timer_event(int timeout_msec, timer_handle
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	// malloc here the timer list node in order to return it to the app
-	void* node = malloc(sizeof(struct timer_node_t)); 
+	void* node = calloc(1, sizeof(struct timer_node_t)); 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!node) {
 		evh_logdbg("malloc failure");
 		throw_vma_exception("malloc failure");
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
+
 	timer_node_t* timer_node = (timer_node_t*)node;
-	memset(timer_node, 0, sizeof(*timer_node));
+	timer_node->lock_timer=lock_spin_recursive("timer");
+
 	reg_action_t reg_action;
 	memset(&reg_action, 0, sizeof(reg_action));
 	reg_action.type = REGISTER_TIMER;
@@ -148,8 +150,10 @@ void event_handler_manager::unregister_timer_event(timer_handler* handler, void*
 	 * See timer::process_registered_timers()
 	 * Do just lock() to protect timer_handler inside process_registered_timers()
 	 */
-	timer_node_t* timer_node = (timer_node_t*)node;
-	timer_node->lock_timer.lock();
+	if (node) {
+		timer_node_t* timer_node = (timer_node_t*)node;
+		timer_node->lock_timer.lock();
+	}
 
 	post_new_reg_action(reg_action);
 }
