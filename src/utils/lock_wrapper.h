@@ -74,26 +74,19 @@
 #ifdef NO_LOCK_STATS
 
 // pthread lock stats counter for debugging
-
 class lock_base
 {
 public:
-	lock_base(const char *_lock_name = NULL) : m_lock_name(_lock_name) {};
+	lock_base(const char *_lock_name = NULL) : m_lock_name(_lock_name) {};	
 	virtual ~lock_base() {};
 	virtual int lock() =  0;
 	virtual int trylock() = 0;
 	virtual int unlock() = 0;
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	const char* to_str() { return m_lock_name; }
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-private:
+
+	const char* to_str() { return m_lock_name; }	
+private:	
 	const char*             m_lock_name;
 };
-
 #else //NO_LOCK_STATS
 
 

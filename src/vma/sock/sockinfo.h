@@ -160,16 +160,6 @@ public:
 	sockinfo(int fd);
 	virtual ~sockinfo();
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	// don't put mt lock around sockinfo just yet
-	void lock(){};
-	void unlock() {};
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 	enum sockinfo_state {
 		SOCKINFO_OPENED,
 		SOCKINFO_CLOSING,
@@ -289,9 +279,6 @@ protected:
 	virtual	size_t get_size_m_rx_pkt_ready_list() = 0;
 	virtual	void pop_front_m_rx_pkt_ready_list() = 0;
 	virtual	void push_back_m_rx_pkt_ready_list(mem_buf_desc_t* buff) = 0;
-
-	int 			rx_wait(int &poll_count, bool is_blocking = true);
-	int 			rx_wait_helper(int &poll_count, bool is_blocking = true);
 
 	void 			save_stats_rx_os(int bytes);
 	void 			save_stats_tx_os(int bytes);
