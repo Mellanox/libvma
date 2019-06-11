@@ -100,19 +100,7 @@ public:
 	int		modify_ratelimit(struct vma_rate_limit_t &rate_limit);
 	bool		update_ring_alloc_logic(int fd, lock_base & socket_lock, resource_allocation_key & ring_alloc_logic);
 
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage off
-#endif
-	net_device_val*	get_net_dev()
-	{
-		return m_p_net_dev_val;
-	}
-#if _BullseyeCoverage
-    #pragma BullseyeCoverage on
-#endif
-
 	virtual transport_type_t get_obs_transport_type() const;
-	virtual flow_tuple get_flow_tuple() const;
 
 	void		return_buffers_pool();
 	int		get_route_mtu();
@@ -165,7 +153,6 @@ protected:
 
 	virtual transport_t 	get_transport(sockaddr_in to) = 0;
 	virtual uint8_t 	get_protocol_type() const = 0;
-	virtual bool 		get_net_dev_val();
 	virtual uint32_t 	get_inline_sge_num() = 0;
 	virtual ibv_sge*	get_sge_lst_4_inline_send() = 0;
 	virtual ibv_sge*	get_sge_lst_4_not_inline_send() = 0;
