@@ -125,6 +125,9 @@ static int free_libvma_resources()
 		g_p_fd_collection->prepare_to_close();
 	}
 
+	/* Probably this timeout is needless as far as all TCP connections
+	 * are closed with shutdown option (tcp_abort()->tcp_abandon())
+	 */
 	usleep(50000);
 
 	//Handle pending received data, this is critical for proper TCP connection termination
@@ -150,8 +153,6 @@ static int free_libvma_resources()
 	g_p_fd_collection = NULL;
 	if (g_p_fd_collection_temp) delete g_p_fd_collection_temp;
 
-	usleep(50000);
-
 	if (g_p_lwip) delete g_p_lwip;
 	g_p_lwip = NULL;
 
@@ -164,33 +165,6 @@ static int free_libvma_resources()
 	if(g_p_net_device_table_mgr) delete g_p_net_device_table_mgr;
 	g_p_net_device_table_mgr = NULL;
 	
-// XXX YossiE later- unite all stats to mux_stats
-#if 0
-	// Print select() related stat counters (only if we got some calls to select)
-	if (g_p_socket_select_stats != NULL) {
-		if (g_p_socket_select_stats->n_select_os_rx_ready || g_p_socket_select_stats->n_select_rx_ready)
-			vlog_printf(VLOG_DEBUG, "select() Rx fds ready: %d / %d [os/offload]\n", g_p_socket_select_stats->n_select_os_rx_ready, g_p_socket_select_stats->n_select_rx_ready);
-		if (g_p_socket_select_stats->n_select_timeouts || g_p_socket_select_stats->n_select_errors)
-			vlog_printf(VLOG_DEBUG, "select() : %d / %d [timeouts/errors]\n", g_p_socket_select_stats->n_select_timeouts, g_p_socket_select_stats->n_select_errors);
-		if (g_p_socket_select_stats->n_select_poll_miss + g_p_socket_select_stats->n_select_poll_hit) {
-			float select_poll_hit_percentage = (float)(g_p_socket_select_stats->n_select_poll_hit * 100) / (float)(g_p_socket_select_stats->n_select_poll_miss + g_p_socket_select_stats->n_select_poll_hit);
-			vlog_printf(VLOG_DEBUG, "select() poll: %d / %d (%2.2f%%) [miss/hit]\n", g_p_socket_select_stats->n_select_poll_miss, g_p_socket_select_stats->n_select_poll_hit, select_poll_hit_percentage);
-		}
-	}
-
-	// Print epoll() related stat counters (only if we got some calls to epoll)
-	if (g_p_socket_epoll_stats != NULL) {
-		if (g_p_socket_epoll_stats->n_select_os_rx_ready || g_p_socket_epoll_stats->n_select_rx_ready)
-			vlog_printf(VLOG_DEBUG, "epoll() Rx fds ready: %d / %d [os/offload]\n", g_p_socket_epoll_stats->n_select_os_rx_ready, g_p_socket_epoll_stats->n_select_rx_ready);
-		if (g_p_socket_epoll_stats->n_select_timeouts || g_p_socket_epoll_stats->n_select_errors)
-			vlog_printf(VLOG_DEBUG, "epoll() : %d / %d [timeouts/errors]\n", g_p_socket_epoll_stats->n_select_timeouts, g_p_socket_epoll_stats->n_select_errors);
-		if (g_p_socket_epoll_stats->n_select_poll_miss + g_p_socket_epoll_stats->n_select_poll_hit) {
-			float epoll_poll_hit_percentage = (float)(g_p_socket_epoll_stats->n_select_poll_hit * 100) / (float)(g_p_socket_epoll_stats->n_select_poll_miss + g_p_socket_epoll_stats->n_select_poll_hit);
-			vlog_printf(VLOG_DEBUG, "epoll() poll: %d / %d (%2.2f%%) [miss/hit]\n", g_p_socket_epoll_stats->n_select_poll_miss, g_p_socket_epoll_stats->n_select_poll_hit, epoll_poll_hit_percentage);
-		}
-	}
-#endif
-
 	ip_frag_manager* g_p_ip_frag_manager_temp = g_p_ip_frag_manager;
 	g_p_ip_frag_manager = NULL;
 	if (g_p_ip_frag_manager_temp) delete g_p_ip_frag_manager_temp;
