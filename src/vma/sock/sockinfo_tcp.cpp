@@ -368,11 +368,13 @@ void sockinfo_tcp::clean_obj()
 
 	lock_tcp_con();
 	set_cleaned();
-	if (m_timer_handle) {
+
+	/* Remove group timers from g_tcp_timers_collection */
+	if (g_p_event_handler_manager->is_running() && m_timer_handle) {
 		g_p_event_handler_manager->unregister_timer_event(this, m_timer_handle);
-		m_timer_handle = NULL;
 	}
 
+	m_timer_handle = NULL;
 	if (g_p_event_handler_manager->is_running()) {
 		g_p_event_handler_manager->unregister_timers_event_and_delete(this);
 		unlock_tcp_con();
