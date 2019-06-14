@@ -941,7 +941,7 @@ void* event_handler_manager::thread_loop()
 		evh_logfuncall("orig_os_api.epoll found %d ready fds", ret);
 
 		// check pipe
-		for (int idx = 0; idx < ret ; ++idx) {
+		for (int idx = 0; (idx < ret) && (m_b_continue_running); ++idx) {
 			if(m_b_sysvar_internal_thread_arm_cq_enabled && p_events[idx].data.fd == m_cq_epfd && g_p_net_device_table_mgr){
 				g_p_net_device_table_mgr->global_ring_wait_for_notification_and_process_element(&poll_sn, NULL);
 			}
@@ -966,14 +966,14 @@ void* event_handler_manager::thread_loop()
 			}
 		}
 
-		if (m_timer.update_timeout() == 0) {
+		if ((m_timer.update_timeout() == 0) && (m_b_continue_running)) {
 			// at least one timer has expired!
 			m_timer.process_registered_timers();
 		}
 
 
 		// process ready event channels
-		for (int idx = 0; idx < ret ; ++idx) {
+		for (int idx = 0; (idx < ret) && (m_b_continue_running); ++idx) {
 			//if (p_events[idx].events & (EPOLLERR|EPOLLHUP))
 			//	evh_logdbg("error in fd %d",p_events[idx].data.fd );
 
@@ -982,9 +982,6 @@ void* event_handler_manager::thread_loop()
 			if(m_b_sysvar_internal_thread_arm_cq_enabled && fd == m_cq_epfd) continue;
 
 			evh_logfunc("Processing fd %d", fd);
-
-			if (!m_b_continue_running) // the thread isn't getting out! TODO: find nicer way
-				break;
 
 			if (is_wakeup_fd(fd))	// the pipe was already handled
 				continue;
