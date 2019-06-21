@@ -2522,8 +2522,26 @@ int sockinfo_tcp::accept_helper(struct sockaddr *__addr, socklen_t *__addrlen, i
 
 	if (__addr && __addrlen) {
 		if ((ret = ns->getpeername(__addr, __addrlen)) < 0) {
+			int errno_tmp = errno;
 			ns->unlock_tcp_con();
 			close(ns->get_fd());
+			errno = errno_tmp;
+
+			/* According accept() man description ECONNABORTED is expected
+			 * error value in case connection was aborted.
+			 */
+			switch (errno) {
+			case ENOTCONN:
+				/* accept() expected result
+				 * If connection was established in background and client
+				 * closed connection forcibly (using RST)
+				 */
+				errno = ECONNABORTED;
+				break;
+			default:
+				break;
+			}
+
 			return ret;
 		}
 	}
