@@ -897,6 +897,7 @@ void reset_globals()
 	g_tcp_timers_collection = NULL;
 	g_p_vlogger_timer_handler = NULL;
 	g_p_event_handler_manager = NULL;
+	g_p_agent = NULL;
 	g_p_route_table_mgr = NULL;
 	g_p_rule_table_mgr = NULL;
 	g_stats_file = NULL;
