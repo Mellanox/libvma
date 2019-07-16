@@ -101,7 +101,22 @@
    ...
    fun:rdma_destroy_id
 }
-
+{
+   rdma_create_event_channel
+   Memcheck:Cond
+   obj:/*librdmacm.so*
+   ...
+   fun:rdma_create_event_channel
+   fun:_ZN15neigh_table_mgrC1Ev
+}
+{
+   rdma_create_event_channel
+   Memcheck:Value8
+   obj:/*librdmacm.so*
+   ...
+   fun:rdma_create_event_channel
+   fun:_ZN15neigh_table_mgrC1Ev
+}
 # false positive verbs
 {
    libibverbs Param ibv_exp_cmd_create_qp
@@ -297,6 +312,25 @@
    ...
    fun:*release_ringEP21ring_alloc_logic_attr*
 }
+{
+   query mlx5 device
+   Memcheck:Cond
+   fun:ibv_exp_cmd_query_device
+   fun:mlx5_exp_query_device
+}
+{
+   mlx5_lock_cqs
+   Memcheck:Cond
+   fun:mlx5_lock_cqs
+   fun:mlx5_destroy_qp
+}
+{
+   mlx5_unlock_cqs
+   Memcheck:Cond
+   fun:mlx5_unlock_cqs
+   fun:mlx5_destroy_qp
+}
+
 ###########################################################
 ##### libmlx4 only
 {

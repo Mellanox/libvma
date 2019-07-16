@@ -33,7 +33,7 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
-
+#include "util/valgrind.h"
 #if defined(DEFINED_DIRECT_VERBS)
 
 #include "vma/util/valgrind.h"
@@ -59,7 +59,7 @@ int vma_ib_mlx5_get_qp(struct ibv_qp *qp, vma_ib_mlx5_qp_t *mlx5_qp, uint32_t fl
 	if (ret != 0) {
 		goto out;
 	}
-
+	VALGRIND_MAKE_MEM_DEFINED(&dqp, sizeof(dqp));
 	mlx5_qp->qp           = qp;
 	mlx5_qp->qpn          = qp->qp_num;
 	mlx5_qp->flags        = flags;
@@ -120,7 +120,7 @@ int vma_ib_mlx5_get_cq(struct ibv_cq *cq, vma_ib_mlx5_cq_t *mlx5_cq)
 	if (ret != 0) {
 		return ret;
 	}
-
+	VALGRIND_MAKE_MEM_DEFINED(&dcq, sizeof(dcq));
 	mlx5_cq->cq           = cq;
 	mlx5_cq->cq_num       = dcq.cqn;
 	mlx5_cq->cq_ci        = 0;

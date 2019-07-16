@@ -350,6 +350,7 @@ bool ib_ctx_handler::is_active(int port_num)
 		ibch_logdbg("ibv_query_port failed on ibv device %p, port %d "
 			    "(errno=%d)", m_p_ibv_context, port_num, errno);
 	}ENDIF_VERBS_FAILURE;
+	VALGRIND_MAKE_MEM_DEFINED(&port_attr.state, sizeof(port_attr.state));
 	return port_attr.state == IBV_PORT_ACTIVE;
 }
 
