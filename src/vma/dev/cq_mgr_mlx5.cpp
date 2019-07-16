@@ -781,7 +781,7 @@ void cq_mgr_mlx5::set_qp_rq(qp_mgr* qp)
 	if (0 != vma_ib_mlx5_get_cq(m_p_ibv_cq, &m_mlx5_cq)) {
 		cq_logpanic("vma_ib_mlx5_get_cq failed (errno=%d %m)", errno);
 	}
-
+	VALGRIND_MAKE_MEM_DEFINED(&m_mlx5_cq, sizeof(m_mlx5_cq));
 	cq_logfunc("qp_mgr=%p m_mlx5_cq.dbrec=%p m_mlx5_cq.cq_buf=%p", m_qp, m_mlx5_cq.dbrec, m_mlx5_cq.cq_buf);
 }
 

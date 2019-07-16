@@ -39,6 +39,7 @@
 #include "buffer_pool.h"
 #include "cq_mgr.h"
 #include "ring_simple.h"
+#include "util/valgrind.h"
 
 #undef  MODULE_NAME
 #define MODULE_NAME 		"qpm"
@@ -621,6 +622,7 @@ int qp_mgr_eth::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 			qp_logerr("ibv_query_qp failed (errno=%d %m)", errno);
 			return -1;
 	} ENDIF_VERBS_FAILURE;
+	VALGRIND_MAKE_MEM_DEFINED(&tmp_ibv_qp_attr, sizeof(tmp_ibv_qp_attr));
 	uint32_t tx_max_inline = safe_mce_sys().tx_max_inline;
 	m_max_inline_data = min(tmp_ibv_qp_attr.cap.max_inline_data, tx_max_inline);
 	qp_logdbg("requested max inline = %d QP, actual max inline = %d, "

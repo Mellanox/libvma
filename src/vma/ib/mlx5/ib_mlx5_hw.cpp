@@ -33,7 +33,7 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
-
+#include "util/valgrind.h"
 #if defined(DEFINED_DIRECT_VERBS) && (DEFINED_DIRECT_VERBS == 2)
 
 #include "vma/ib/mlx5/ib_mlx5.h"
@@ -67,7 +67,7 @@ static int vma_ib_mlx5dv_get_qp(struct ibv_qp *qp, struct mlx5dv_qp *mlx5_qp)
 	if (ret != 0) {
 		return ret;
 	}
-
+	VALGRIND_MAKE_MEM_DEFINED(&ibv_qp_info, sizeof(ibv_qp_info));
 	mlx5_qp->dbrec      = ibv_qp_info.dbrec;
 	mlx5_qp->sq.buf     = (mqp->sq_buf_size ?
 			(void *)((uintptr_t)mqp->sq_buf.buf) : /* IBV_QPT_RAW_PACKET or Underly QP */
@@ -92,7 +92,7 @@ static int vma_ib_mlx5dv_get_cq(struct ibv_cq *cq, struct mlx5dv_cq *mlx5_cq)
 	if (ret != 0) {
 		return ret;
 	}
-
+	VALGRIND_MAKE_MEM_DEFINED(&ibv_cq_info, sizeof(ibv_cq_info));
 	mlx5_cq->buf      = ibv_cq_info.buf;
 	mlx5_cq->dbrec    = ibv_cq_info.dbrec;
 	mlx5_cq->cqe_cnt  = ibv_cq_info.cqe_cnt;
