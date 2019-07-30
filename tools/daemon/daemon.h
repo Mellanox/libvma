@@ -143,6 +143,7 @@ struct module_cfg {
 	                                     * reaction on spoofed SYN
 	                                     * 1 - form and send internal RST
 	                                     * based on SeqNo */
+		int retry_interval;         /**< daemon time interval between spoofed SYN packets */
 	} opt;
 	volatile sig_atomic_t sig;
 	const char *lock_file;

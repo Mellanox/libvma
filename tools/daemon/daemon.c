@@ -268,6 +268,8 @@ static int config_def(void)
 	daemon_cfg.opt.max_pid_num = PID_MAX;
 	daemon_cfg.opt.max_fid_num = FID_MAX;
 	daemon_cfg.opt.force_rst = 0;
+	daemon_cfg.opt.retry_interval = 1000;
+
 
 	daemon_cfg.lock_file = "/var/lock/" MODULE_NAME ".lock";
 	daemon_cfg.lock_fd = -1;
@@ -287,19 +289,20 @@ static int config_set(int argc, char **argv)
 {
 	int rc = 0;
 	static struct option long_options[] = {
-		{"console",      no_argument,       &daemon_cfg.opt.mode,      1},
-		{"notify-dir",   required_argument, 0,                         'n'},
-		{"verbose",      required_argument, 0,                         'v'},
-		{"pid",          required_argument, 0,                         'p'},
-		{"fid",          required_argument, 0,                         'f'},
-		{"force-rst",    no_argument,       &daemon_cfg.opt.force_rst, 1},
-		{"help",         no_argument,       0,                         'h'},
+		{"console",        no_argument,       &daemon_cfg.opt.mode,           1},
+		{"notify-dir",     required_argument, 0,                              'n'},
+		{"verbose",        required_argument, 0,                              'v'},
+		{"pid",            required_argument, 0,                              'p'},
+		{"fid",            required_argument, 0,                              'f'},
+		{"force-rst",      no_argument,       &daemon_cfg.opt.force_rst,      1},
+		{"retry-interval", required_argument, &daemon_cfg.opt.retry_interval, 'r'},
+		{"help",           no_argument,       0,                              'h'},
 		{ 0, 0, 0, 0 }
 	};
 	int op;
 	int option_index;
 
-	while ((op = getopt_long(argc, argv, "v:n:p:f:h", long_options, &option_index)) != -1) {
+	while ((op = getopt_long(argc, argv, "v:n:p:f:r:h", long_options, &option_index)) != -1) {
 		switch (op) {
 			case 'v':
 				errno = 0;
@@ -329,6 +332,13 @@ static int config_set(int argc, char **argv)
 					rc = -EINVAL;
 				}
 				break;
+			case 'r':
+				errno = 0;
+				daemon_cfg.opt.retry_interval = strtol(optarg, NULL, 0);
+				if (0 != errno) {
+					rc = -EINVAL;
+				}
+				break;
 			case 'h':
 				usage();
 				break;
@@ -350,6 +360,7 @@ static int config_set(int argc, char **argv)
 	log_debug("max pid: %d\n", daemon_cfg.opt.max_pid_num);
 	log_debug("max fid: %d\n", daemon_cfg.opt.max_fid_num);
 	log_debug("force rst: %d\n", daemon_cfg.opt.force_rst);
+	log_debug("retry interval: %d ms \n", daemon_cfg.opt.retry_interval);
 	log_debug("lock file: %s\n", daemon_cfg.lock_file);
 	log_debug("sock file: %s\n", daemon_cfg.sock_file);
 	log_debug("notify dir: %s\n", daemon_cfg.notify_dir);
@@ -369,19 +380,21 @@ static void usage(void)
 	printf("version: %s (0x%X)\n\n", PACKAGE_VERSION, VMA_AGENT_VER);
 
 	printf("Usage: " MODULE_NAME " [options]\n"
-		"\t--console               Enable foreground mode (default: %s)\n"
-		"\t--notify-dir            Sets the outout dir used by vmad (default: %s)\n"
-		"\t--pid,-p <num>          Set prime number as maximum of processes per node. (default: %d).\n"
-		"\t--fid,-f <num>          Set prime number as maximum of sockets per process. (default: %d).\n"
-		"\t--force-rst             Force internal RST. (default: %s).\n"
-		"\t--verbose,-v <level>    Output verbose level (default: %d).\n"
-		"\t--help,-h               Print help and exit\n",
+		"\t--console                       Enable foreground mode (default: %s)\n"
+		"\t--notify-dir                    Sets the outout dir used by vmad (default: %s)\n"
+		"\t--pid,-p <num>                  Set prime number as maximum of processes per node. (default: %d).\n"
+		"\t--fid,-f <num>                  Set prime number as maximum of sockets per process. (default: %d).\n"
+		"\t--force-rst                     Force internal RST. (default: %s).\n"
+		"\t--verbose,-v <level>            Output verbose level (default: %d).\n"
+		"\t--retry-interval,-r <num>       Set SYN pkt retry interval in [ms] (default: %d).\n"
+		"\t--help,-h                       Print help and exit\n",
 			(daemon_cfg.opt.mode ? "on" : "off"),
 			VMA_AGENT_PATH,
 			daemon_cfg.opt.max_pid_num,
 			daemon_cfg.opt.max_fid_num,
 			(daemon_cfg.opt.force_rst ? "on" : "off"),
-			daemon_cfg.opt.log_level);
+			daemon_cfg.opt.log_level,
+			daemon_cfg.opt.retry_interval);
 
 	exit(EXIT_SUCCESS);
 }
