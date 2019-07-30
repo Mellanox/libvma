@@ -418,6 +418,7 @@ static int get_seqno(struct rst_info *rst)
 	int attempt = 3; /* Do maximum number of attempts */
 	struct timeval t_end = TIMEVAL_INITIALIZER;
 	struct timeval t_now = TIMEVAL_INITIALIZER;
+	struct timeval t_wait = TIMEVAL_INITIALIZER; /* Defines wait interval, holds difference between t_now and t_end */
 
 	/* zero out the packet */
 	memset(&msg, 0, sizeof(msg));
@@ -471,34 +472,41 @@ static int get_seqno(struct rst_info *rst)
 			goto out;
 		}
 		log_debug("send SYN to: %s\n", sys_addr2str(&rst->remote_addr));
-
+		t_wait.tv_sec = daemon_cfg.opt.retry_interval / 1000;
+		t_wait.tv_usec = (daemon_cfg.opt.retry_interval % 1000) * 1000;
 		gettimeofday(&t_end, NULL);
-		t_end.tv_sec += 1;
+
+		/* Account for wrapping of tv_usec, use libvma utils macro for timeradd() */
+		tv_add(&t_end, &t_wait, &t_end);
+
 		do {
 			struct tcp_msg msg_recv;
 			struct sockaddr_in gotaddr;
 			socklen_t addrlen = sizeof(gotaddr);
 			fd_set readfds;
-			struct timeval tv;
 
 			FD_ZERO(&readfds);
 			FD_SET(daemon_cfg.raw_fd, &readfds);
 
-			tv.tv_sec = 1;
-			tv.tv_usec = 0;
-
+			/* Use t_difference to determine timeout for select so we don't wait longer than t_wait */
+			rc = select(daemon_cfg.raw_fd + 1, &readfds, NULL, NULL, &t_wait);
 			gettimeofday(&t_now, NULL);
-			rc = select(daemon_cfg.raw_fd + 1, &readfds, NULL, NULL, &tv);
+
+			/**
+			 * Determine and save difference between t_now and t_end for select on next iteration.
+			 */
+			tv_sub(&t_end, &t_now, &t_wait);
+
 			if (rc == 0) {
 				continue;
 			}
+
 			memcpy(&gotaddr, &rst->remote_addr, addrlen);
 			memset(&msg_recv, 0, sizeof(msg_recv));
 			rc = recvfrom(daemon_cfg.raw_fd, &msg_recv, sizeof(msg_recv), 0, (struct sockaddr *)&gotaddr, &addrlen);
 			if (rc < 0) {
 				goto out;
 			}
-
 			if (msg_recv.ip.version == 4 &&
 					msg_recv.ip.ihl == 5 &&
 					msg_recv.ip.protocol == IPPROTO_TCP &&
