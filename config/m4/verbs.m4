@@ -19,6 +19,7 @@ AC_DEFUN([CHECK_VERBS_ATTRIBUTE], [
 
     AC_MSG_CHECKING([for attribute $1])
     AC_MSG_RESULT([$vma_cv_attribute_$1])
+    AS_IF([test "x$3" != "x"], [vma_cv_attribute_ex_$3=$vma_cv_attribute_$1])
     AS_IF([test "x$vma_cv_attribute_$1" = "xyes"], [
         AS_IF([test "x$3" = "x"],
             [AC_DEFINE_UNQUOTED([DEFINED_$1], [1], [Define to 1 if attribute $1 is supported])],
@@ -149,7 +150,7 @@ if test "x$vma_cv_verbs" == x2; then
     CHECK_VERBS_ATTRIBUTE([IBV_EXP_DEVICE_ATTR_MAX_DM_SIZE], [infiniband/verbs_exp.h], [IBV_DM])
     CHECK_VERBS_ATTRIBUTE([IBV_EXP_QP_RATE_LIMIT], [infiniband/verbs_exp.h], [IBV_PACKET_PACING_CAPS])
     CHECK_VERBS_ATTRIBUTE([IBV_EXP_QP_SUPPORT_BURST], [infiniband/verbs_exp.h], [IBV_QP_SUPPORT_BURST])
-    CHECK_VERBS_ATTRIBUTE([IBV_EXP_WR_TSO], [infiniband/verbs_exp.h], [TSO])
+    CHECK_VERBS_ATTRIBUTE([IBV_EXP_WR_TSO], [infiniband/verbs_exp.h], [OPCODE_TSO])
 
     #
     # Experimental Verbs CQ
@@ -205,7 +206,7 @@ fi
 # Check Upstream
 #
 if test "x$vma_cv_verbs" == x3; then
-    CHECK_VERBS_ATTRIBUTE([IBV_WR_TSO], [infiniband/verbs.h], [TSO])
+    CHECK_VERBS_ATTRIBUTE([IBV_WR_TSO], [infiniband/verbs.h], [OPCODE_TSO])
 
     if test "x$vma_cv_directverbs" == x3; then
         CHECK_VERBS_ATTRIBUTE([MLX5_OPCODE_NOP], [infiniband/mlx5dv.h], [IBV_WR_NOP])
