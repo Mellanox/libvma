@@ -652,6 +652,7 @@ bool sockinfo_tcp::prepare_dst_to_send(bool is_accepted_socket /* = false */)
 			ret_val = m_p_connected_dst_entry->prepare_to_send(m_so_ratelimit, false, true);
 		}
 
+#ifdef DEFINED_TSO
 		if (ret_val) {
 			/* dst_entry has resolved tx ring,
 			 * so it is a time to provide TSO information to PCB
@@ -662,6 +663,7 @@ bool sockinfo_tcp::prepare_dst_to_send(bool is_accepted_socket /* = false */)
 			m_pcb.tso.max_header_sz = m_p_connected_dst_entry->get_ring()->get_max_header_sz();
 			m_pcb.tso.max_send_sge = m_p_connected_dst_entry->get_ring()->get_max_send_sge();
 		}
+#endif /* DEFINED_TSO */
 	}
 	return ret_val;
 }
@@ -978,7 +980,11 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, uint16_t flags)
 {
 	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)(((struct tcp_pcb*)v_p_conn)->my_container);
 	dst_entry *p_dst = p_si_tcp->m_p_connected_dst_entry;
+#ifdef DEFINED_TSO
 	int max_count = p_si_tcp->m_pcb.tso.max_send_sge;
+#else
+	int max_count = 1;
+#endif /* DEFINED_TSO */
 	tcp_iovec lwip_iovec[max_count];
 	vma_send_attr attr = {(vma_wr_tx_packet_attr)0, 0};
 	int count = 0;

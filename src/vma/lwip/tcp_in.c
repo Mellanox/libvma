@@ -1026,7 +1026,6 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
          ACK acknowlegdes them. */
       while (pcb->unacked != NULL) {
 
-#if LWIP_TSO
         /* The purpose of this processing is to avoid to send again
          * data from TSO segment that is partially acknowledged.
          * This TSO segment was not released in tcp_receive() because
@@ -1035,7 +1034,6 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
         if (pcb->unacked->flags & TF_SEG_OPTS_TSO) {
             pcb->snd_queuelen -= tcp_shrink_segment(pcb, pcb->unacked, in_data->ackno);
         }
-#endif /* LWIP_TSO */
 
         if (!(TCP_SEQ_LEQ(pcb->unacked->seqno + TCP_TCPLEN(pcb->unacked), in_data->ackno))) {
           break;

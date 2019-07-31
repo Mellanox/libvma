@@ -95,8 +95,10 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_s
 			(is_set(attr.flags, (vma_wr_tx_packet_attr)(VMA_TX_PACKET_TSO)) ||
 			(sz_iov == 1 && !is_set(attr.flags, (vma_wr_tx_packet_attr)(VMA_TX_PACKET_REXMIT)))))) {
 		size_t total_packet_len = 0;
+#ifdef DEFINED_TSO
 		vma_ibv_send_wr send_wqe;
 		wqe_send_handler send_wqe_h;
+#endif /* DEFINED_TSO */
 
 		/* iov_base is a pointer to TCP header and data
 		 * so p_pkt should point to L2
@@ -121,6 +123,7 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_s
 			m_p_send_wqe = &m_inline_send_wqe;
 			m_sge[0].addr = (uintptr_t)((uint8_t*)p_pkt + hdr_alignment_diff);
 			m_sge[0].length = total_packet_len;
+#ifdef DEFINED_TSO
 		} else if (is_set(attr.flags, (vma_wr_tx_packet_attr)(VMA_TX_PACKET_TSO))) {
 			/* update send work request. do not expect noninlined scenario */
 			send_wqe_h.init_not_inline_wqe(send_wqe, m_sge, sz_iov);
@@ -131,6 +134,7 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_s
 			m_p_send_wqe = &send_wqe;
 			m_sge[0].addr = (uintptr_t)((uint8_t *)&p_pkt->hdr.m_tcp_hdr + p_pkt->hdr.m_tcp_hdr.doff * 4);
 			m_sge[0].length = p_tcp_iov[0].iovec.iov_len - p_pkt->hdr.m_tcp_hdr.doff * 4;
+#endif /* DEFINED_TSO */
 		} else {
 			m_p_send_wqe = &m_not_inline_send_wqe;
 			m_sge[0].addr = (uintptr_t)((uint8_t*)p_pkt + hdr_alignment_diff);
@@ -149,7 +153,9 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_s
 		 * ref counter is incremented for the first memory descriptor only because it is needed
 		 * for processing send wr completion (tx batching mode)
 		 */
+#ifdef DEFINED_TSO
 		m_sge[0].lkey = m_p_ring->get_tx_lkey(m_id);
+#endif /* DEFINED_TSO */
 		for (int i = 1; i < sz_iov; ++i) {
 			m_sge[i].addr = (uintptr_t)p_tcp_iov[i].iovec.iov_base;
 			m_sge[i].length = p_tcp_iov[i].iovec.iov_len;
@@ -180,7 +186,9 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_s
 
 		m_sge[0].addr = (uintptr_t)(p_mem_buf_desc->p_buffer + hdr_alignment_diff);
 		m_sge[0].length = total_packet_len - hdr_alignment_diff;
+#ifdef DEFINED_TSO
 		m_sge[0].lkey = m_p_ring->get_tx_lkey(m_id); 
+#endif /* DEFINED_TSO */
 
 		p_pkt = (tx_packet_template_t*)((uint8_t*)p_mem_buf_desc->p_buffer);
 		p_pkt->hdr.m_ip_hdr.tot_len = (htons)(m_sge[0].length - m_header.m_transport_header_len);

@@ -530,7 +530,9 @@ void mce_sys_var::get_env_params()
 
 	tx_num_segs_tcp         = MCE_DEFAULT_TX_NUM_SEGS_TCP;
 	tx_num_bufs             = MCE_DEFAULT_TX_NUM_BUFS;
+#ifdef DEFINED_TSO
 	tx_buf_size             = MCE_DEFAULT_TX_BUF_SIZE;
+#endif /* DEFINED_TSO */
 	tx_num_wr               = MCE_DEFAULT_TX_NUM_WRE;
 	tx_num_wr_to_signal     = MCE_DEFAULT_TX_NUM_WRE_TO_SIGNAL;
 	tx_max_inline		= MCE_DEFAULT_TX_MAX_INLINE;
@@ -599,7 +601,9 @@ void mce_sys_var::get_env_params()
 	mem_alloc_type          = MCE_DEFAULT_MEM_ALLOC_TYPE;
 	enable_ipoib		= MCE_DEFAULT_IPOIB_FLAG;
 	enable_socketxtreme	= MCE_DEFAULT_SOCKETXTREME;
+#ifdef DEFINED_TSO
 	enable_tso		= MCE_DEFAULT_TSO;
+#endif /* DEFINED_TSO */
 	handle_fork		= MCE_DEFAULT_FORK_SUPPORT;
 	handle_bf		= MCE_DEFAULT_BF_FLAG;
 	close_on_dup2		= MCE_DEFAULT_CLOSE_ON_DUP2;
@@ -655,7 +659,9 @@ void mce_sys_var::get_env_params()
 		rx_num_wr               = 256; //MCE_DEFAULT_RX_NUM_WRE (16000)
 		rx_num_wr_to_post_recv  = 4; //MCE_DEFAULT_RX_NUM_WRE_TO_POST_RECV (64)
 		rx_poll_num             = -1; //MCE_DEFAULT_RX_NUM_POLLS
+#ifdef DEFINED_TSO
 		enable_tso              = false; //MCE_DEFAULT_TSO (true)
+#endif /* DEFINED_TSO */
 		rx_udp_poll_os_ratio    = 0; //MCE_DEFAULT_RX_UDP_POLL_OS_RATIO
 		rx_prefetch_bytes	= MCE_DEFAULT_RX_PREFETCH_BYTES; //(256)
 		rx_prefetch_bytes_before_poll = 256; //MCE_DEFAULT_RX_PREFETCH_BYTES_BEFORE_POLL 0
@@ -682,7 +688,9 @@ void mce_sys_var::get_env_params()
 		rx_num_wr               = 256; //MCE_DEFAULT_RX_NUM_WRE (16000)
 		rx_num_wr_to_post_recv  = 4;   //MCE_DEFAULT_RX_NUM_WRE_TO_POST_RECV (64)
 		rx_poll_num             = -1;  //MCE_DEFAULT_RX_NUM_POLLS (100000)
+#ifdef DEFINED_TSO
 		enable_tso              = false; //MCE_DEFAULT_TSO (true)
+#endif /* DEFINED_TSO */
 		rx_prefetch_bytes_before_poll = 256; //MCE_DEFAULT_RX_PREFETCH_BYTES_BEFORE_POLL (0)
 		select_poll_num         = -1;  //MCE_DEFAULT_SELECT_NUM_POLLS (100000)
 		avoid_sys_calls_on_tcp_fd = true; //MCE_DEFAULT_AVOID_SYS_CALLS_ON_TCP_FD (false)
@@ -832,8 +840,10 @@ void mce_sys_var::get_env_params()
 	if ((env_ptr = getenv(SYS_VAR_TX_NUM_BUFS)) != NULL)
 		tx_num_bufs = (uint32_t)atoi(env_ptr);
 
+#ifdef DEFINED_TSO
 	if ((env_ptr = getenv(SYS_VAR_TX_BUF_SIZE)) != NULL)
 		tx_buf_size = (uint32_t)atoi(env_ptr);
+#endif /* DEFINED_TSO */
 
 	if ((env_ptr = getenv(SYS_VAR_TX_NUM_WRE)) != NULL)
 		tx_num_wr = (uint32_t)atoi(env_ptr);
@@ -1234,8 +1244,10 @@ void mce_sys_var::get_env_params()
 	if((env_ptr = getenv(SYS_VAR_IPOIB )) != NULL)
 		enable_ipoib = atoi(env_ptr) ? true : false;
 
+#ifdef DEFINED_TSO
 	if((env_ptr = getenv(SYS_VAR_TSO)) != NULL)
 		enable_tso = atoi(env_ptr) ? true : false;
+#endif /* DEFINED_TSO */
 
 	if ((env_ptr = getenv(SYS_VAR_CLOSE_ON_DUP2)) != NULL)
 		close_on_dup2 = atoi(env_ptr) ? true : false;
@@ -1314,4 +1326,3 @@ void set_env_params()
 		break;
 	}
 }
-
