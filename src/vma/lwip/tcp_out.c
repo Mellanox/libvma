@@ -368,10 +368,12 @@ static inline u16_t tcp_xmit_size_goal(struct tcp_pcb *pcb)
   }
 #endif /* LWIP_TCP_TIMESTAMPS */
 
+#if LWIP_TSO
   if (tcp_tso(pcb) && pcb->tso.max_buf_sz) {
     /* use maximum buffer size in case TSO */
     size = LWIP_MAX(size, pcb->tso.max_buf_sz);
   }
+#endif /* LWIP_TSO */
 
   /* don't allocate segments bigger than half the maximum window we ever received */
   size = LWIP_MIN(size, (pcb->snd_wnd_max >> 1));
@@ -514,7 +516,12 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t is_dummy)
      * the end.
      */
     if ((pos < len) && (space > 0) && (pcb->last_unsent->len > 0) &&
+#if LWIP_TSO
         (tot_p < (int)pcb->tso.max_send_sge)) {
+#else
+        (tot_p)) {
+#endif /* LWIP_TSO */
+
       u16_t seglen = space < len - pos ? space : len - pos;
 
       /* Create a pbuf with a copy or reference to seglen bytes. We

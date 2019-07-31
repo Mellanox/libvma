@@ -115,9 +115,11 @@ public:
 	virtual uint32_t	get_tx_lkey(ring_user_id_t id) = 0;
         virtual uint32_t	get_max_inline_data() = 0;
         virtual uint32_t	get_max_send_sge(void) = 0;
+#ifdef DEFINED_TSO
         virtual uint32_t	get_max_payload_sz(void) = 0;
         virtual uint16_t	get_max_header_sz(void) = 0;
         virtual bool		is_tso(void) = 0;
+#endif /* DEFINED_TSO */
 	virtual int		reg_mr(void *addr, size_t length, uint32_t &lkey) { NOT_IN_USE(addr); NOT_IN_USE(length); NOT_IN_USE(lkey); return -1;};
 	virtual int		dereg_mr(void *addr, size_t length) { NOT_IN_USE(addr);NOT_IN_USE(length); return -1;};
 

@@ -78,9 +78,11 @@ public:
 	virtual uint32_t        get_tx_lkey(ring_user_id_t id) { return m_bond_rings[id]->get_tx_lkey(id); }
         virtual uint32_t	get_max_inline_data();
         virtual uint32_t	get_max_send_sge(void);
+#ifdef DEFINED_TSO
         virtual uint32_t	get_max_payload_sz(void);
         virtual uint16_t	get_max_header_sz(void);
         virtual bool		is_tso(void);
+#endif /* DEFINED_TSO */
 	int 			socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);
 	virtual void    slave_create(int if_index) = 0;
 	virtual void    slave_destroy(int if_index);

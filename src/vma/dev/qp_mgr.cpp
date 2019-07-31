@@ -89,8 +89,12 @@ qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context,
 {
 	memset(&m_qp_cap, 0, sizeof(m_qp_cap));
 	m_qp_cap.max_inline_data = safe_mce_sys().tx_max_inline;
+#ifdef DEFINED_TSO
 	m_qp_cap.max_send_sge = (m_p_ring->is_tso() ?
 		m_p_ib_ctx_handler->get_ibv_device_attr()->max_sge : MCE_DEFAULT_TX_NUM_SGE);
+#else
+	m_qp_cap.max_send_sge = MCE_DEFAULT_TX_NUM_SGE;
+#endif /* DEFINED_TSO */
         m_qp_cap.max_recv_sge = (m_p_ring->is_socketxtreme()) ? 1 : MCE_DEFAULT_RX_NUM_SGE;
 
 	m_ibv_rx_sg_array = new ibv_sge[m_n_sysvar_rx_num_wr_to_post_recv];
@@ -221,6 +225,7 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	qp_init_attr.send_cq = m_p_cq_mgr_tx->get_ibv_cq_hndl();
 	qp_init_attr.sq_sig_all = 0;
 
+#ifdef DEFINED_TSO
 	// In case of enabled TSO we need to take into account amount of SGE together with header inline
 	// Per PRM maximum of CTRL + ETH + ETH_HEADER_INLINE+DATA_PTR*NUM_SGE+MAX_INLINE+INLINE_SIZE
 	// MLX5 return 32678 WQEBBs at max so minimal number 
@@ -230,6 +235,9 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 	if (num_wr < (signed)m_tx_num_wr) {
 		qp_init_attr.cap.max_send_wr = num_wr; // force min for create_qp or you will have error of memory allocation
 	}
+#else
+	qp_init_attr.cap.max_send_wr = m_qp_cap.max_send_wr;
+#endif /* DEFINED_TSO */
 	qp_logdbg("Requested QP parameters: "
 			"wre: tx = %d rx = %d "
 			"sge: tx = %d rx = %d "
@@ -654,10 +662,12 @@ int qp_mgr_eth::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 	qp_init_attr.qp_type = IBV_QPT_RAW_PACKET;
 	vma_ibv_qp_init_attr_comp_mask(m_p_ib_ctx_handler->get_ibv_pd(), qp_init_attr);
 
+#ifdef DEFINED_TSO
 	if (m_p_ring->is_tso()) {
 		vma_ibv_qp_init_attr_tso(qp_init_attr, m_p_ring->get_max_header_sz());
 		qp_logdbg("create qp with max_tso_header = %d", m_p_ring->get_max_header_sz());
 	}
+#endif /* DEFINED_TSO */
 
 	m_qp = vma_ibv_create_qp(m_p_ib_ctx_handler->get_ibv_pd(), &qp_init_attr);
 
@@ -702,10 +712,12 @@ int qp_mgr_ib::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 	qp_init_attr.qp_type = IBV_QPT_UD;
 	vma_ibv_qp_init_attr_comp_mask(m_p_ib_ctx_handler->get_ibv_pd(), qp_init_attr);
 
+#ifdef DEFINED_TSO
 	if (m_p_ring->is_tso()) {
 		vma_ibv_qp_init_attr_tso(qp_init_attr, m_p_ring->get_max_header_sz());
 		qp_logdbg("create qp with max_tso_header = %d", m_p_ring->get_max_header_sz());
 	}
+#endif /* DEFINED_TSO */
 
 	if (m_underly_qpn) {
 		ibv_source_qpn_set(qp_init_attr, m_underly_qpn);

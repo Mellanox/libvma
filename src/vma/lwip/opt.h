@@ -38,6 +38,9 @@
 #ifndef __LWIP_OPT_H__
 #define __LWIP_OPT_H__
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 /*
    ------------------------------------
@@ -839,7 +842,11 @@
  * LWIP_TSO: Enable Large Segment Offload capability.
  */
 #ifndef LWIP_TSO
+#ifdef DEFINED_TSO
 #define LWIP_TSO                        1
+#else
+#define LWIP_TSO                        0
+#endif /* DEFINED_TSO */
 #endif
 
 /* Define platform endianness */
