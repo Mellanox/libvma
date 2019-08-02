@@ -40,6 +40,7 @@
 
 #if defined(DEFINED_DIRECT_VERBS)
 
+
 struct mlx5_wqe64 {
 	union {
 		struct mlx5_wqe_ctrl_seg ctrl;
@@ -75,7 +76,9 @@ private:
 
 	int		send_to_wire(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr, bool request_comp);
 	inline int	fill_wqe(vma_ibv_send_wr* p_send_wqe);
-	inline int	fill_wqe_lso(vma_ibv_send_wr* pswr);
+#ifdef DEFINED_TSO
+	int		fill_wqe_lso(vma_ibv_send_wr* pswr);
+#endif /* DEFINED_TSO */
 	inline void	set_signal_in_next_send_wqe();
 	inline void	ring_doorbell(uint64_t* wqe, int db_method, int num_wqebb, int num_wqebb_top = 0);
 	inline int	fill_inl_segment(sg_array &sga, uint8_t *cur_seg, uint8_t* data_addr, int max_inline_len, int inline_len);

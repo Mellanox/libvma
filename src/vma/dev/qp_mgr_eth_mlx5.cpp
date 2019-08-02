@@ -533,19 +533,21 @@ inline int qp_mgr_eth_mlx5::fill_wqe(vma_ibv_send_wr *pswr)
 			m_sq_wqe_hot->ctrl.data[1] = htonl((m_mlx5_qp.qpn << 8) | wqe_size);
 			inline_len = align_to_WQEBB_up(wqe_size)/4;
 			ring_doorbell((uint64_t*)m_sq_wqe_hot, m_db_method, inline_len);
+#ifdef DEFINED_TSO
 		} else {
 			// We supporting also VMA_IBV_WR_SEND_TSO, it is the case
 			wqe_size = fill_wqe_lso(pswr);
 			return wqe_size;
+#endif /* DEFINED_TSO */
 		}
 	}
 	return 1;
 }
 
+#ifdef DEFINED_TSO
 //! Filling wqe for LSO
 inline int qp_mgr_eth_mlx5::fill_wqe_lso(vma_ibv_send_wr* pswr)
 {
-#ifdef DEFINED_TSO
 	struct mlx5_wqe_eth_seg* eth_seg = (struct mlx5_wqe_eth_seg*)((uint8_t*)m_sq_wqe_hot + sizeof(struct mlx5_wqe_ctrl_seg));
 	struct mlx5_wqe_data_seg* dp_seg = NULL;
 	uint8_t* cur_seg = (uint8_t*)eth_seg;
@@ -608,11 +610,8 @@ inline int qp_mgr_eth_mlx5::fill_wqe_lso(vma_ibv_send_wr* pswr)
 		ring_doorbell((uint64_t*)m_sq_wqe_hot, MLX5_DB_METHOD_DB, inline_len);
 	}
 	return wqe_size;
-#else
-	NOT_IN_USE(pswr);
-	return 0;
-#endif /* DEFINED_TSO */
 }
+#endif /* DEFINED_TSO */
 
 //! Send one RAW packet by MLX5 BlueFlame
 //
