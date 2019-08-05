@@ -74,7 +74,9 @@ public:
 	inline char*            get_ibname() { return (m_p_ibv_device ? m_p_ibv_device->name : (char *)""); }
 	struct ibv_context*     get_ibv_context() { return m_p_ibv_context; }
 	vma_ibv_device_attr*    get_ibv_device_attr() { return vma_get_device_orig_attr(m_p_ibv_device_attr); }
+#ifdef DEFINED_TSO
 	vma_ibv_device_attr_ex* get_ibv_device_attr_ex() { return m_p_ibv_device_attr; }
+#endif /* DEFINED_TSO */
 	uint32_t                mem_reg(void *addr, size_t length, uint64_t access);
 	void                    mem_dereg(uint32_t lkey);
 	struct ibv_mr*          get_mem_reg(uint32_t lkey);

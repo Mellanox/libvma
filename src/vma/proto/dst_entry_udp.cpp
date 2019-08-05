@@ -362,7 +362,9 @@ void dst_entry_udp::init_sge()
 {
 	m_sge[0].length = m_header.m_total_hdr_len;
 	m_sge[0].addr = m_header.m_actual_hdr_addr;
+#ifdef DEFINED_TSO
 	m_sge[0].lkey = m_p_ring->get_tx_lkey(m_id);
+#endif /* DEFINED_TSO */
 }
 
 ssize_t dst_entry_udp::pass_buff_to_neigh(const iovec *p_iov, size_t sz_iov, uint16_t packet_id)
