@@ -58,7 +58,7 @@ libvma_la_LDFLAGS := -no-undefined -version-number @VMA_LIBRARY_MAJOR@:@VMA_LIBR
 endif
 
 libvma_la_LIBADD = \
-	-lrt -ldl -lpthread $(LIBNL_LIBS) $(VERBS_LIBS) \
+	-lrt -ldl -lpthread $(LIBNL_LIBS) $(VERBS_LIBS) $(DPCP_LIBS)\
 	$(top_builddir)/src/utils/libutils.la \
 	$(top_builddir)/src/vlogger/libvlogger.la \
 	$(top_builddir)/src/state_machine/libstate_machine.la \
@@ -87,6 +87,8 @@ libvma_la_SOURCES := \
 	dev/time_converter_ptp.cpp \
 	dev/time_converter_ib_ctx.cpp \
 	dev/ib_ctx_handler.cpp \
+	dev/ib_dpcp_ctx_handler.cpp \
+	dev/ib_verbs_ctx_handler.cpp \
 	dev/ib_ctx_handler_collection.cpp \
 	dev/net_device_val.cpp \
 	dev/net_device_entry.cpp \
@@ -179,8 +181,10 @@ libvma_la_SOURCES := \
 	dev/gro_mgr.h \
 	dev/ib_ctx_handler_collection.h \
 	dev/ib_ctx_handler.h \
+	dev/ib_dpcp_ctx_handler.h \
+	dev/ib_verbs_ctx_handler.h \
 	dev/time_converter.h \
-        dev/time_converter_ptp.h \
+	dev/time_converter_ptp.h \
 	dev/time_converter_ib_ctx.h \
 	dev/net_device_entry.h \
 	dev/net_device_table_mgr.h \

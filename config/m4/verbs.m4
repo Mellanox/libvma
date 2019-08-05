@@ -207,6 +207,25 @@ if test "x$vma_cv_verbs" == x3; then
     if test "x$vma_cv_directverbs" == x3; then
         CHECK_VERBS_ATTRIBUTE([MLX5_OPCODE_NOP], [infiniband/mlx5dv.h], [IBV_WR_NOP])
         CHECK_VERBS_MEMBER([struct mlx5dv_clock_info.last_cycles], [infiniband/mlx5dv.h], [IBV_CLOCK_INFO])
+        enable_dpcp=no
+        AC_ARG_WITH(dpcp, AS_HELP_STRING([--with-dpcp], [Use DPCP library]), [enable_dpcp=yes])
+        AC_LANG_PUSH([C++])
+        AS_IF([test "x$enable_dpcp" == xyes],
+              [AC_CHECK_HEADER([mellanox/dpcp.h],
+                               [AC_MSG_CHECKING([for libdpcp.so])
+                                LIBS="-ldpcp -lmlx5 $LIBS"
+                                AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <mellanox/dpcp.h>]],
+                                               [[dpcp::provider *provider;
+                                                 dpcp::provider::get_instance(provider);]])],
+                                               [],
+                                               [enable_dpcp=no])
+                                AS_IF([test "x$enable_dpcp" == xyes],
+                                      [AC_DEFINE([HAVE_DPCP], [1],[Define to 1 if dpcp is supported])
+                                       AC_SUBST([DPCP_LIBS], ["-ldpcp"])],
+                                      [AC_MSG_FAILURE([Failed finding libdpcp])])],
+                               [AC_MSG_FAILURE([Failed finding dpcp.h file])])],
+              [])
+        AC_LANG_POP()
     fi
 fi
 
