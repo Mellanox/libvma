@@ -976,15 +976,12 @@ tx_packet_to_os:
 	return ret;
 }
 
+#ifdef DEFINED_TSO
 err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, uint16_t flags)
 {
 	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)(((struct tcp_pcb*)v_p_conn)->my_container);
 	dst_entry *p_dst = p_si_tcp->m_p_connected_dst_entry;
-#ifdef DEFINED_TSO
 	int max_count = p_si_tcp->m_pcb.tso.max_send_sge;
-#else
-	int max_count = 1;
-#endif /* DEFINED_TSO */
 	tcp_iovec lwip_iovec[max_count];
 	vma_send_attr attr = {(vma_wr_tx_packet_attr)0, 0};
 	int count = 0;
@@ -1063,6 +1060,93 @@ err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, uint16_t f
 
 	return ERR_OK;
 }
+#else
+err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit, uint8_t is_dummy)
+{
+	iovec iovec[64];
+	struct iovec* p_iovec = iovec;
+	tcp_iovec tcp_iovec_temp; //currently we pass p_desc only for 1 size iovec, since for bigger size we allocate new buffers
+	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)(((struct tcp_pcb*)v_p_conn)->my_container);
+	dst_entry *p_dst = p_si_tcp->m_p_connected_dst_entry;
+	int count = 1;
+
+	if (likely(!p->next)) { // We should hit this case 99% of cases
+		tcp_iovec_temp.iovec.iov_base = p->payload;
+		tcp_iovec_temp.iovec.iov_len = p->len;
+		tcp_iovec_temp.p_desc = (mem_buf_desc_t*)p;
+		p_iovec = (struct iovec*)&tcp_iovec_temp;
+	} else {
+		for (count = 0; count < 64 && p; ++count) {
+			iovec[count].iov_base = p->payload;
+			iovec[count].iov_len = p->len;
+			p = p->next;
+		}
+
+		// We don't expect pbuf chain at all
+		if (p) {
+			vlog_printf(VLOG_ERROR, "pbuf chain size > 64!!! silently dropped.");
+			return ERR_OK;
+		}
+	}
+
+	if (likely((p_dst->is_valid()))) {
+		p_dst->fast_send(p_iovec, count, is_dummy, false, is_rexmit);
+	} else {
+		p_dst->slow_send(p_iovec, count, is_dummy, p_si_tcp->m_so_ratelimit, false, is_rexmit);
+	}
+
+	if (p_dst->try_migrate_ring(p_si_tcp->m_tcp_con_lock)) {
+		p_si_tcp->m_p_socket_stats->counters.n_tx_migrations++;
+	}
+
+	if (is_rexmit) {
+		p_si_tcp->m_p_socket_stats->counters.n_tx_retransmits++;
+	}
+
+	return ERR_OK;
+}
+
+err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rexmit, uint8_t is_dummy)
+{
+	NOT_IN_USE(is_dummy);
+
+	iovec iovec[64];
+	struct iovec* p_iovec = iovec;
+	tcp_iovec tcp_iovec_temp; //currently we pass p_desc only for 1 size iovec, since for bigger size we allocate new buffers
+	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)(((struct tcp_pcb*)v_p_conn)->my_container);
+	dst_entry *p_dst = p_si_tcp->m_p_connected_dst_entry;
+	int count = 1;
+
+	//ASSERT_NOT_LOCKED(p_si_tcp->m_tcp_con_lock);
+
+	if (likely(!p->next)) { // We should hit this case 99% of cases
+		tcp_iovec_temp.iovec.iov_base = p->payload;
+		tcp_iovec_temp.iovec.iov_len = p->len;
+		tcp_iovec_temp.p_desc = (mem_buf_desc_t*)p;
+		__log_dbg("p_desc=%p,p->len=%d ", p, p->len);
+		p_iovec = (struct iovec*)&tcp_iovec_temp;
+	} else {
+		for (count = 0; count < 64 && p; ++count) {
+			iovec[count].iov_base = p->payload;
+			iovec[count].iov_len = p->len;
+			p = p->next;
+		}
+
+		// We don't expect pbuf chain at all
+		if (p) {
+			vlog_printf(VLOG_ERROR, "pbuf chain size > 64!!! silently dropped.");
+			return ERR_OK;
+		}
+	}
+
+	if (is_rexmit)
+		p_si_tcp->m_p_socket_stats->counters.n_tx_retransmits++;
+
+	((dst_entry_tcp*)p_dst)->slow_send_neigh(p_iovec, count, p_si_tcp->m_so_ratelimit);
+
+	return ERR_OK;
+}
+#endif /* DEFINED_TSO */
 
 /*static*/void sockinfo_tcp::tcp_state_observer(void* pcb_container, enum tcp_state new_state)
 {
