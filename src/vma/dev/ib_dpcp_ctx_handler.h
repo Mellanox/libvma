@@ -40,7 +40,16 @@
 #include <mellanox/dpcp.h>
 
 class ib_dpcp_ctx_handler: public ib_ctx_handler {
-
+public:
+	ib_dpcp_ctx_handler(struct ib_ctx_handler_desc *desc, dpcp::adapter *adapter);
+	virtual                 ~ib_dpcp_ctx_handler();
+	virtual bool            can_delete() { return m_copied_ext; }
+	void                    set_used_ext() { m_copied_ext = true;}
+	dpcp::adapter*          get_adapter() { return m_p_adapter; }
+	virtual bool            post_umr_wr(vma_ibv_send_wr &wr);
+private:
+	dpcp::adapter *m_p_adapter;
+	bool m_copied_ext;
 };
 
 #endif /* HAVE_DPCP */

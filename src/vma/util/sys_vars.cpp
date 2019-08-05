@@ -54,7 +54,6 @@
 #include "vma/event/event_handler_manager.h"
 #include "vma/event/vlogger_timer_handler.h"
 #include "vma/dev/buffer_pool.h"
-#include "vma/dev/ib_ctx_handler_collection.h"
 #include "vma/dev/net_device_table_mgr.h"
 #include "vma/proto/ip_frag.h"
 #include "vma/proto/vma_lwip.h"

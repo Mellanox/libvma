@@ -61,7 +61,6 @@
 #include "vma/iomux/epfd_info.h"
 #include "vma/iomux/io_mux_call.h"
 #include "vma/util/instrumentation.h"
-#include "vma/dev/ib_ctx_handler_collection.h"
 
 /* useful debugging macros */
 

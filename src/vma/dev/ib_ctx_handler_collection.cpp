@@ -31,10 +31,15 @@
  */
 
 #include <vector>
-
+#include "config.h"
+#ifdef HAVE_DPCP
+#include <mellanox/dpcp.h>
+#endif
 #include "utils/bullseye.h"
 #include "vlogger/vlogger.h"
 #include "ib_ctx_handler_collection.h"
+#include "ib_dpcp_ctx_handler.h"
+#include "ib_verbs_ctx_handler.h"
 
 #include "vma/ib/base/verbs_extra.h"
 #include "vma/util/utils.h"
@@ -50,6 +55,8 @@
 #define ibchc_logdbg             __log_info_dbg
 #define ibchc_logfunc            __log_info_func
 #define ibchc_logfuncall         __log_info_funcall
+
+class ib_ctx_handler;
 
 ib_ctx_handler_collection* g_p_ib_ctx_handler_collection = NULL;
 
@@ -119,14 +126,28 @@ ib_ctx_handler_collection::~ib_ctx_handler_collection()
 void ib_ctx_handler_collection::update_tbl(const char *ifa_name)
 {
 	struct ibv_device **dev_list = NULL;
-	ib_ctx_handler * p_ib_ctx_handler = NULL;
 	int num_devices = 0;
 	int i;
 
 	ibchc_logdbg("Checking for offload capable IB devices...");
 
 	dev_list = vma_ibv_get_device_list(&num_devices);
-
+#ifdef HAVE_DPCP
+	dpcp::provider *p_provider;
+	dpcp::status stat = dpcp::provider::get_instance(p_provider);
+	if (stat != dpcp::DPCP_OK) {
+		ibchc_logerr("failed getting provider");
+	}
+	size_t adapters_num = 0;
+	stat = p_provider->get_adapter_info_lst(NULL, adapters_num);
+	dpcp::adapter_info* dpcp_lst = NULL;
+	dpcp_lst  = new(std::nothrow) dpcp::adapter_info[adapters_num];
+	if (dpcp_lst) {
+		stat = p_provider->get_adapter_info_lst(dpcp_lst, adapters_num);
+	} else {
+		ibchc_logerr("Failed allocating memory for devices");
+	}
+#endif
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!dev_list) {
 		ibchc_logerr("Failure in vma_ibv_get_device_list() (error=%d %m)", errno);
@@ -142,7 +163,8 @@ void ib_ctx_handler_collection::update_tbl(const char *ifa_name)
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	for (i = 0; i < num_devices; i++) {
-		struct ib_ctx_handler::ib_ctx_handler_desc desc = {dev_list[i]};
+		ib_ctx_handler * p_ib_ctx_handler = NULL;
+		struct ib_ctx_handler_desc desc = {dev_list[i]};
 
 		/* 2. Skip existing devices (compare by name) */
 		if (ifa_name && !check_device_name_ib_name(ifa_name, dev_list[i]->name)) {
@@ -159,11 +181,36 @@ void ib_ctx_handler_collection::update_tbl(const char *ifa_name)
 			// Check if mlx4 steering creation is supported.
 			check_flow_steering_log_num_mgm_entry_size();
 		}
-
+#ifdef HAVE_DPCP
+		// check if we have this in dpcp
+		for (size_t ii = 0; ii < adapters_num; ++ii) {
+			if (dpcp_lst[ii].name == desc.device->name) {
+				dpcp::adapter *adapter;
+				stat = p_provider->open_adapter(dpcp_lst[ii].name,
+								adapter);
+				if (stat == dpcp::DPCP_OK) {
+					p_ib_ctx_handler =
+						new (std::nothrow)ib_dpcp_ctx_handler(&desc,
+										      adapter);
+				} else {
+					ibchc_logdbg("failed opening dpcp adapter using verbs");
+				}
+				break;
+			}
+		}
+#endif
 		/* 3. Add new ib devices */
-		p_ib_ctx_handler = new ib_ctx_handler(&desc);
+		if (!p_ib_ctx_handler) {
+			p_ib_ctx_handler = new (std::nothrow)ib_verbs_ctx_handler(&desc);
+		}
 		if (!p_ib_ctx_handler) {
 			ibchc_logerr("failed allocating new ib_ctx_handler (errno=%d %m)", errno);
+			continue;
+		}
+
+		if (!p_ib_ctx_handler->init() || !p_ib_ctx_handler->is_ok()) {
+			delete p_ib_ctx_handler;
+			ibchc_logerr("failed creating ib_ctx");
 			continue;
 		}
 		m_ib_ctx_map[p_ib_ctx_handler->get_ibv_device()] = p_ib_ctx_handler;
@@ -174,6 +221,9 @@ void ib_ctx_handler_collection::update_tbl(const char *ifa_name)
 	if (dev_list) {
 		ibv_free_device_list(dev_list);
 	}
+#ifdef HAVE_DPCP
+	delete[] dpcp_lst;
+#endif
 }
 
 void ib_ctx_handler_collection::print_val_tbl()

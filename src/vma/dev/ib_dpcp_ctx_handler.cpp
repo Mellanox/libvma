@@ -48,4 +48,57 @@ using namespace dpcp;
 #define ibdp_logfunc            __log_info_func
 #define ibdp_logfuncall         __log_info_funcall
 
+ib_dpcp_ctx_handler::ib_dpcp_ctx_handler(ib_ctx_handler_desc *desc,
+					 dpcp::adapter *adapter)
+	: ib_ctx_handler(desc),
+	  m_p_adapter(adapter),
+	  m_copied_ext(false)
+{
+	if (!m_p_ibv_device) {
+		return;
+	}
+	m_is_ok = false;
+	dpcp::status stat = adapter->open();
+	if (stat != DPCP_OK) {
+	    ibdp_logerr("failed opening dpcp adapter %s got %d",
+	                adapter->get_name().c_str(), stat);
+	    return;
+	}
+	m_p_ibv_context = (ibv_context*)m_p_adapter->get_ctx_handle();
+	m_p_ibv_pd = ibv_alloc_pd(m_p_ibv_context);
+	if (m_p_ibv_pd == NULL) {
+		ibdp_logerr("ibv device %p pd allocation failure (ibv context %p) (errno=%d %m)",
+			    m_p_ibv_device, m_p_ibv_context, errno);
+		return;
+	}
+	VALGRIND_MAKE_MEM_DEFINED(m_p_ibv_pd, sizeof(struct ibv_pd));
+	// get PD num and TD num and replace with the once inside adapter
+	mlx5dv_obj mlx5_obj;
+	mlx5_obj.pd.in = m_p_ibv_pd;
+	mlx5dv_pd out_pd;
+	mlx5_obj.pd.out = &out_pd;
+	int ret = vma_ib_mlx5dv_init_obj(&mlx5_obj, MLX5DV_OBJ_PD);
+	if (ret) {
+		ibdp_logerr("failed getting mlx5_pd for %p (errno=%d %m) ",
+			    m_p_ibv_pd, errno);
+		return;
+	}
+	m_p_adapter->set_pd(out_pd.pdn);
+	m_is_ok = true;
+}
+
+bool ib_dpcp_ctx_handler::post_umr_wr(vma_ibv_send_wr &wr)
+{
+	NOT_IN_USE(wr);
+	return false;
+}
+
+ib_dpcp_ctx_handler::~ib_dpcp_ctx_handler() {
+	clean();
+	if (m_p_ibv_pd) {
+		ibv_dealloc_pd(m_p_ibv_pd);
+	}
+	delete m_p_adapter;
+}
+
 #endif /* HAVE_DPCP */

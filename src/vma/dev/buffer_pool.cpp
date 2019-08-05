@@ -40,12 +40,14 @@
 #include "vlogger/vlogger.h"
 #include "vma/util/sys_vars.h"
 #include "vma/proto/mem_buf_desc.h"
-#include "ib_ctx_handler_collection.h"
+
 
 #define MODULE_NAME 	"bpool"
 
 buffer_pool *g_buffer_pool_rx = NULL;
 buffer_pool *g_buffer_pool_tx = NULL;
+
+class ib_ctx_handler;
 
 // inlining a function only help in case it come before using it...
 inline void buffer_pool::put_buffer_helper(mem_buf_desc_t *buff)

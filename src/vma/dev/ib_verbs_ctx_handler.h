@@ -46,6 +46,22 @@
 
 class ib_verbs_ctx_handler : public ib_ctx_handler
 {
+
+public:
+	ib_verbs_ctx_handler(struct ib_ctx_handler_desc *desc);
+	virtual ~ib_verbs_ctx_handler();
+
+	/*
+	 * on init or constructor:
+	 *      register to event manager with m_channel and this.
+	 * */
+	virtual bool            post_umr_wr(vma_ibv_send_wr &wr);
+private:
+	bool                    create_umr_qp();
+	lock_spin               m_lock_umr;
+	struct ibv_cq*          m_umr_cq;
+	struct ibv_qp*          m_umr_qp;
+
 };
 
 #endif

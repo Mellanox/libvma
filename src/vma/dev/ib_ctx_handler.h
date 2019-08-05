@@ -52,14 +52,12 @@ struct pacing_caps_t {
 	pacing_caps_t() : rate_limit_min(0), rate_limit_max(0), burst(false) {};
 };
 
-// client to event manager 'command' invoker (??)
-//
+struct ib_ctx_handler_desc {
+	struct ibv_device *device;
+};
+
 class ib_ctx_handler : public event_handler_ibverbs
 {
-public:
-	struct ib_ctx_handler_desc {
-		struct ibv_device *device;
-	};
 public:
 	ib_ctx_handler(struct ib_ctx_handler_desc *desc);
 	virtual ~ib_ctx_handler();
@@ -68,8 +66,9 @@ public:
 	 * on init or constructor:
 	 *      register to event manager with m_channel and this.
 	 * */
+	bool                    init();
 	ibv_pd*                 get_ibv_pd() { return m_p_ibv_pd; }
-	bool                    post_umr_wr(struct ibv_exp_send_wr &wr);
+	virtual bool            post_umr_wr(vma_ibv_send_wr &wr) = 0;
 	ibv_device*             get_ibv_device() { return m_p_ibv_device; }
 	inline char*            get_ibname() { return (m_p_ibv_device ? m_p_ibv_device->name : (char *)""); }
 	struct ibv_context*     get_ibv_context() { return m_p_ibv_context; }
@@ -89,17 +88,19 @@ public:
 	bool                    is_active(int port_num);
 	bool                    is_mlx4(){ return is_mlx4(get_ibname()); }
 	static bool             is_mlx4(const char *dev) { return strncmp(dev, "mlx4", 4) == 0; }
-	virtual void            handle_event_ibverbs_cb(void *ev_data, void *ctx);
+	void                    handle_event_ibverbs_cb(void *ev_data, void *ctx);
 
-	void set_str();
-	void print_val();
-
+	void                    set_str();
+	void                    print_val();
+	bool                    is_ok() { return m_is_ok; }
+	virtual bool            can_delete() { return true;}
 	inline void convert_hw_time_to_system_time(uint64_t hwtime, struct timespec* systime)
 	{
 		m_p_ctx_time_converter->convert_hw_time_to_system_time(hwtime, systime);
 	}
-private:
-	bool                    create_umr_qp();
+protected:
+	bool                    m_is_ok;
+	void                    clean();
 	void                    handle_event_device_fatal();
 	ibv_device*             m_p_ibv_device; // HCA handle
 	struct ibv_context*     m_p_ibv_context;
@@ -109,12 +110,8 @@ private:
 	pacing_caps_t           m_pacing_caps;
 	size_t                  m_on_device_memory;
 	bool                    m_removed;
-	lock_spin               m_lock_umr;
-	struct ibv_cq*          m_umr_cq;
-	struct ibv_qp*          m_umr_qp;
 	time_converter*         m_p_ctx_time_converter;
 	mr_map_lkey_t           m_mr_map_lkey;
-
 	char m_str[255];
 };
 

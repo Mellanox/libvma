@@ -929,7 +929,12 @@ void net_device_val::update_netvsc_slaves(int if_index, int if_flags)
 	}
 
 	if (ib_ctx) {
-		g_p_ib_ctx_handler_collection->del_ib_ctx(ib_ctx);
+		if (likely(ib_ctx->can_delete())) {
+			g_p_ib_ctx_handler_collection->del_ib_ctx(ib_ctx);
+		} else {
+			nd_logerr("Could not remove device %s, removal blocked",
+				  ib_ctx->get_ibname());
+		}
 	}
 }
 

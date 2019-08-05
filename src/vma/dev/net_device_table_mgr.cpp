@@ -49,8 +49,6 @@
 #include "vma/dev/ring.h"
 #include "net_device_table_mgr.h"
 
-#include "ib_ctx_handler_collection.h"
-
 #define MODULE_NAME             "ndtm"
 
 
