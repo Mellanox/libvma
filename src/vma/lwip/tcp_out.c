@@ -898,7 +898,11 @@ tcp_send_empty_ack(struct tcp_pcb *pcb)
     opts += 3;
   }
 #endif 
+#if LWIP_TSO
   pcb->ip_output(p, pcb, 0);
+#else
+  pcb->ip_output(p, pcb, 0, 0);
+#endif /* LWIP_TSO */
   tcp_tx_pbuf_free(pcb, p);
 
   (void)opts; /* Fix warning -Wunused-but-set-variable */
@@ -1462,7 +1466,6 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
 {
   u16_t len;
   u32_t *opts;
-  u16_t flags = 0;
 
   /* The TCP header has already been constructed, but the ackno and
    wnd fields remain. */
@@ -1542,12 +1545,15 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
 
   TCP_STATS_INC(tcp.xmit);
 
-  flags |= seg->flags & TF_SEG_OPTS_DUMMY_MSG;
 #if LWIP_TSO
+  u16_t flags = 0;
+  flags |= seg->flags & TF_SEG_OPTS_DUMMY_MSG;
   flags |= seg->flags & TF_SEG_OPTS_TSO;
-#endif /* LWIP_TSO */
   flags |= (TCP_SEQ_LT(seg->seqno, pcb->snd_nxt) ? TCP_WRITE_REXMIT : 0);
   pcb->ip_output(seg->p, pcb, flags);
+#else
+  pcb->ip_output(seg->p, pcb, seg->seqno < pcb->snd_nxt, LWIP_IS_DUMMY_SEGMENT(seg));
+#endif /* LWIP_TSO */
 }
 
 /**
@@ -1602,7 +1608,11 @@ tcp_rst(u32_t seqno, u32_t ackno, u16_t local_port, u16_t remote_port, struct tc
 
   TCP_STATS_INC(tcp.xmit);
    /* Send output with hardcoded TTL since we have no access to the pcb */
+#if LWIP_TSO
   if(pcb) pcb->ip_output(p, pcb, 0);
+#else
+  if(pcb) pcb->ip_output(p, pcb, 0, 0);
+#endif /* LWIP_TSO */
   /* external_ip_output(p, NULL, local_ip, remote_ip, TCP_TTL, 0, IP_PROTO_TCP) */;
   tcp_tx_pbuf_free(pcb, p);
   LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_rst: seqno %"U32_F" ackno %"U32_F".\n", seqno, ackno));
@@ -1771,7 +1781,11 @@ tcp_keepalive(struct tcp_pcb *pcb)
   TCP_STATS_INC(tcp.xmit);
 
   /* Send output to IP */
+#if LWIP_TSO
   pcb->ip_output(p, pcb, 0);
+#else
+  pcb->ip_output(p, pcb, 0, 0);
+#endif /* LWIP_TSO */
 
   tcp_tx_pbuf_free(pcb, p);
 
@@ -1859,7 +1873,11 @@ tcp_zero_window_probe(struct tcp_pcb *pcb)
   TCP_STATS_INC(tcp.xmit);
 
   /* Send output to IP */
+#if LWIP_TSO
   pcb->ip_output(p, pcb, 0);
+#else
+  pcb->ip_output(p, pcb, 0, 0);
+#endif /* LWIP_TSO */
 
   tcp_tx_pbuf_free(pcb, p);
 

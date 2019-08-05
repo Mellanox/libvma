@@ -1668,6 +1668,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 	}
 
 	{
+#ifdef DEFINED_TSO
 		vma_send_attr attr = {(vma_wr_tx_packet_attr)0, 0};
 		bool b_blocking = m_b_blocking;
 		if (unlikely(__flags & MSG_DONTWAIT))
@@ -1682,6 +1683,20 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 			// updates the dst_entry internal information and packet headers
 			ret = p_dst_entry->slow_send(p_iov, sz_iov, attr, m_so_ratelimit, __flags, this, call_type);
 		}
+#else
+		bool b_blocking = m_b_blocking;
+		if (unlikely(__flags & MSG_DONTWAIT))
+			b_blocking = false;
+
+		if (likely(p_dst_entry->is_valid())) {
+			// All set for fast path packet sending - this is our best performance flow
+			ret = p_dst_entry->fast_send((iovec*)p_iov, sz_iov, is_dummy, b_blocking);
+		}
+		else {
+			// updates the dst_entry internal information and packet headers
+			ret = p_dst_entry->slow_send(p_iov, sz_iov, is_dummy, m_so_ratelimit, b_blocking, false, __flags, this, call_type);
+		}
+#endif /* DEFINED_TSO */
 
 		if (unlikely(p_dst_entry->try_migrate_ring(m_lock_snd))) {
 			m_p_socket_stats->counters.n_tx_migrations++;
