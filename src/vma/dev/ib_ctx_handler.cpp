@@ -104,6 +104,9 @@ void ib_ctx_handler::clean()
 
 bool ib_ctx_handler::init()
 {
+	if (!m_p_ibv_context) {
+		return false;
+	}
 	m_p_ibv_device_attr = new (std::nothrow) vma_ibv_device_attr_ex();
 	if (m_p_ibv_device_attr == NULL) {
 		ibch_logerr("m_p_ibv_device_attr allocation failure");
@@ -121,9 +124,6 @@ bool ib_ctx_handler::init()
 	}
 #endif // DEFINED_IBV_PACKET_PACING_CAPS
 	m_on_device_memory = vma_ibv_dm_size(m_p_ibv_device_attr);
-
-	g_p_event_handler_manager->register_ibverbs_event(m_p_ibv_context->async_fd,
-						this, m_p_ibv_context, 0);
 	return true;
 }
 

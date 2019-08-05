@@ -58,13 +58,7 @@ ib_dpcp_ctx_handler::ib_dpcp_ctx_handler(ib_ctx_handler_desc *desc,
 		return;
 	}
 	m_is_ok = false;
-	dpcp::status stat = adapter->open();
-	if (stat != DPCP_OK) {
-	    ibdp_logerr("failed opening dpcp adapter %s got %d",
-	                adapter->get_name().c_str(), stat);
-	    return;
-	}
-	m_p_ibv_context = (ibv_context*)m_p_adapter->get_ctx_handle();
+	m_p_ibv_context = (ibv_context*)m_p_adapter->get_ibv_context();
 	m_p_ibv_pd = ibv_alloc_pd(m_p_ibv_context);
 	if (m_p_ibv_pd == NULL) {
 		ibdp_logerr("ibv device %p pd allocation failure (ibv context %p) (errno=%d %m)",
@@ -84,6 +78,12 @@ ib_dpcp_ctx_handler::ib_dpcp_ctx_handler(ib_ctx_handler_desc *desc,
 		return;
 	}
 	m_p_adapter->set_pd(out_pd.pdn);
+	dpcp::status stat = adapter->open();
+	if (stat != DPCP_OK) {
+		ibdp_logerr("failed opening dpcp adapter %s got %d",
+			    adapter->get_name().c_str(), stat);
+		return;
+	}
 	m_is_ok = true;
 }
 

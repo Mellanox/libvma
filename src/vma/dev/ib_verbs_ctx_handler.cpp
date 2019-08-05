@@ -78,6 +78,8 @@ ib_verbs_ctx_handler::ib_verbs_ctx_handler(struct ib_ctx_handler_desc *desc) :
 		m_is_ok = false;
 		return;
 	}
+    g_p_event_handler_manager->register_ibverbs_event(m_p_ibv_context->async_fd,
+                        this, m_p_ibv_context, 0);
 }
 
 ib_verbs_ctx_handler::~ib_verbs_ctx_handler()

@@ -38,23 +38,25 @@
 #include <iostream>
 
 #include "utils/lock_wrapper.h"
-#include <vma/proto/ip_frag.h>
-#include <vma/dev/buffer_pool.h>
-#include <vma/dev/ring_eth_cb.h>
-#include <vma/dev/ring_profile.h>
-#include <vma/event/event_handler_manager.h>
-#include <vma/event/vlogger_timer_handler.h>
-#include <vma/iomux/poll_call.h>
-#include <vma/iomux/select_call.h>
-#include <vma/iomux/epfd_info.h>
-#include <vma/iomux/epoll_wait_call.h>
-#include <vma/util/sys_vars.h>
-#include <vma/proto/route_table_mgr.h>
-#include <vma/proto/vma_lwip.h>
-#include <vma/main.h>
+#include "vma/proto/ip_frag.h"
+#include "vma/dev/buffer_pool.h"
+#include "vma/dev/ib_ctx_handler_collection.h"
+#include "vma/dev/ib_dpcp_ctx_handler.h"
+#include "vma/dev/ring_eth_cb.h"
+#include "vma/dev/ring_profile.h"
+#include "vma/event/event_handler_manager.h"
+#include "vma/event/vlogger_timer_handler.h"
+#include "vma/iomux/poll_call.h"
+#include "vma/iomux/select_call.h"
+#include "vma/iomux/epfd_info.h"
+#include "vma/iomux/epoll_wait_call.h"
+#include "vma/util/sys_vars.h"
+#include "vma/proto/route_table_mgr.h"
+#include "vma/proto/vma_lwip.h"
+#include "vma/main.h"
 #include "vma/vma_extra.h"
 
-#include <vma/sock/sockinfo_tcp.h>
+#include "vma/sock/sockinfo_tcp.h"
 
 #include "fd_collection.h"
 #include "vma/util/instrumentation.h"
@@ -729,6 +731,41 @@ int vma_modify_ring(struct vma_modify_ring_attr *mr_data)
 }
 
 extern "C"
+int vma_get_dpcp_devices(uintptr_t **devices, size_t *devices_num)
+{
+#ifdef HAVE_DPCP
+	if (!devices_num) {
+		return EINVAL;
+	}
+	size_t found_devs = 0;
+	ib_context_map_t map = g_p_ib_ctx_handler_collection->get_ib_ctx_map();
+	ib_context_map_t::iterator it = map.begin();
+	while (it != map.end()) {
+		ib_dpcp_ctx_handler *device = dynamic_cast<ib_dpcp_ctx_handler*>(it->second);
+		if (device) {
+			srdr_logdbg_entry("found dpcp device");
+			 /* user gave enough memory */
+			if (found_devs < *devices_num && devices) {
+				devices[found_devs] = (uintptr_t*)device->get_adapter();
+			}
+			found_devs++;
+		} else {
+			srdr_logdbg_entry("found non dpcp device");
+		}
+		++it;
+	}
+	*devices_num = found_devs;
+	srdr_logdbg_entry("returned %zd devices", found_devs);
+	return 0;
+#else
+	NOT_IN_USE(devices);
+	NOT_IN_USE(devices_num);
+	errno = ENOSYS;
+	return -1;
+#endif
+}
+
+extern "C"
 int vma_get_socket_netowrk_header(int __fd, void *ptr, uint16_t *len)
 {
 	srdr_logdbg_entry("fd=%d, ptr=%p len=%d", __fd, ptr, len);
@@ -1131,6 +1168,7 @@ int getsockopt(int __fd, int __level, int __optname,
 		SET_EXTRA_API(vma_cyclic_buffer_read, vma_cyclic_buffer_read, VMA_EXTRA_API_CYCLIC_BUFFER_READ);
 		SET_EXTRA_API(get_mem_info, vma_get_mem_info, VMA_EXTRA_API_GET_MEM_INFO);
 		SET_EXTRA_API(vma_modify_ring, vma_modify_ring, VMA_EXTRA_API_MODIFY_RING);
+		SET_EXTRA_API(get_dpcp_devices, vma_get_dpcp_devices, VMA_EXTRA_API_GET_DPCP_DEVICES);
 		*((vma_api_t**)__optval) = vma_api;
 		return 0;
 	}

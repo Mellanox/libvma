@@ -464,7 +464,8 @@ typedef enum {
 	VMA_EXTRA_API_REGISTER_MEMORY_ON_RING        = (1 << 17),
 	VMA_EXTRA_API_DEREGISTER_MEMORY_ON_RING      = (1 << 18),
 	VMA_EXTRA_API_GET_MEM_INFO                   = (1 << 19),
-	VMA_EXTRA_API_MODIFY_RING                    = (1 << 20)
+	VMA_EXTRA_API_MODIFY_RING                    = (1 << 20),
+	VMA_EXTRA_API_GET_DPCP_DEVICES               = (1 << 21),
 } vma_extra_api_mask;
 
 /** 
@@ -837,6 +838,21 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * The value content is based on vma_extra_api_mask enum.
 	 */
 	uint64_t vma_extra_supported_mask;
+
+	/**
+	 * get dpcp devices allocated by VMA
+	 * @param devices - pointer to write the data to. can be NULL see notes
+	 * @param devices_num - IN\OUT parameter
+	 * 	IN - devices size given by user
+	 * 	OUT- devices returned to user
+	 * @return 0 on success -1 otherwise
+	 * @note application can:
+	 * call twice once with devices == NULL and get the size needed to allocate
+	 * and call again to get the data.
+	 * if application called with big enough buffer vma will update the
+	 * size actually used.
+	 */
+	int (*get_dpcp_devices)(uintptr_t **devices, size_t *devices_num);
 };
 
 /**
