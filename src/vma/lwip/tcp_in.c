@@ -740,6 +740,7 @@ tcp_oos_insert_segment(struct tcp_pcb *pcb, struct tcp_seg *cseg, struct tcp_seg
 }
 #endif /* TCP_QUEUE_OOSEQ */
 
+#if LWIP_TSO
 /**
  * Called by tcp_output() to shrink TCP segment to lastackno.
  * This call should process retransmitted TSO segment.
@@ -841,6 +842,7 @@ tcp_shrink_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t ackno)
 
   return count;
 }
+#endif /* LWIP_TSO */
 
 /**
  * Called by tcp_process. Checks if the given segment is an ACK for outstanding
@@ -1024,6 +1026,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
 
       /* Remove segment from the unacknowledged list if the incoming
          ACK acknowlegdes them. */
+#if LWIP_TSO
       while (pcb->unacked != NULL) {
 
         /* The purpose of this processing is to avoid to send again
@@ -1038,6 +1041,10 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
         if (!(TCP_SEQ_LEQ(pcb->unacked->seqno + TCP_TCPLEN(pcb->unacked), in_data->ackno))) {
           break;
         }
+#else
+      while (pcb->unacked != NULL &&
+             TCP_SEQ_LEQ(pcb->unacked->seqno + TCP_TCPLEN(pcb->unacked), in_data->ackno)) {
+#endif /* LWIP_TSO */
         LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_receive: removing %"U32_F":%"U32_F" from pcb->unacked\n",
                                       ntohl(pcb->unacked->tcphdr->seqno),
                                       ntohl(pcb->unacked->tcphdr->seqno) +

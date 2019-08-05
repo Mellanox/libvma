@@ -415,7 +415,9 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t is_dummy)
 #endif /* TCP_CHECKSUM_ON_COPY */
   err_t err;
   u16_t mss_local = 0;
+#if LWIP_TSO
   int tot_p = 0;
+#endif /* LWIP_TSO */
 
   int byte_queued = pcb->snd_nxt - pcb->lastack;
   if ( len < pcb->mss && !is_dummy)
@@ -481,7 +483,9 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t is_dummy)
     LWIP_ASSERT("mss_local is too small", mss_local >= pcb->last_unsent->len + unsent_optlen);
     space = mss_local - (pcb->last_unsent->len + unsent_optlen);
     seg = pcb->last_unsent;
+#if LWIP_TSO
     tot_p = pbuf_clen(seg->p);
+#endif /* LWIP_TSO */
 
     /*
      * Phase 1: Copy data directly into an oversized pbuf.
@@ -515,11 +519,11 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t is_dummy)
      * (len==0). The new pbuf is kept in concat_p and pbuf_cat'ed at
      * the end.
      */
-    if ((pos < len) && (space > 0) && (pcb->last_unsent->len > 0) &&
 #if LWIP_TSO
+    if ((pos < len) && (space > 0) && (pcb->last_unsent->len > 0) &&
         (tot_p < (int)pcb->tso.max_send_sge)) {
 #else
-        (tot_p)) {
+    if ((pos < len) && (space > 0) && (pcb->last_unsent->len > 0)) {
 #endif /* LWIP_TSO */
 
       u16_t seglen = space < len - pos ? space : len - pos;
