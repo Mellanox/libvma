@@ -67,8 +67,6 @@ public:
 		wr.tso.hdr_sz = hdr_sz;
 		wr.tso.mss = mss;
 	}
-#else
-	inline void  enable_tso(vma_ibv_send_wr &, void *, uint16_t, uint16_t) {}
 #endif /* DEFINED_TSO */
 
 	inline void enable_inline (vma_ibv_send_wr &send_wqe) { vma_send_wr_send_flags(send_wqe) |= VMA_IBV_SEND_INLINE; }

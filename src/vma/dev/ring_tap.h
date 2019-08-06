@@ -71,8 +71,8 @@ public:
 	void inc_cq_moderation_stats(size_t sz_data) { NOT_IN_USE(sz_data); }
 	virtual uint32_t get_underly_qpn() { return -1; }
         virtual uint32_t get_max_inline_data() { return 0; }
-        virtual uint32_t get_max_send_sge(void) { return 1; }
 #ifdef DEFINED_TSO
+        virtual uint32_t get_max_send_sge(void) { return 1; }
         virtual uint32_t get_max_payload_sz(void) { return 0; }
         virtual uint16_t get_max_header_sz(void) { return 0; }
 	virtual uint32_t get_tx_lkey(ring_user_id_t id) { NOT_IN_USE(id); return 0; }

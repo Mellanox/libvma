@@ -93,8 +93,8 @@ public:
 	virtual int		modify_ratelimit(struct vma_rate_limit_t &rate_limit);
 	virtual int		get_tx_channel_fd() const { return m_p_tx_comp_event_channel ? m_p_tx_comp_event_channel->fd : -1; };
         virtual uint32_t	get_max_inline_data();
-        virtual uint32_t	get_max_send_sge(void);
 #ifdef DEFINED_TSO
+        virtual uint32_t	get_max_send_sge(void);
         virtual uint32_t	get_max_payload_sz(void);
         virtual uint16_t	get_max_header_sz(void);
 	virtual uint32_t	get_tx_lkey(ring_user_id_t id) { NOT_IN_USE(id); return m_tx_lkey; }
