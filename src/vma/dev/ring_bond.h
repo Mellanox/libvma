@@ -76,8 +76,8 @@ public:
 	virtual bool 		get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe);
 	virtual int		modify_ratelimit(struct vma_rate_limit_t &rate_limit);
         virtual uint32_t	get_max_inline_data();
-        virtual uint32_t	get_max_send_sge(void);
 #ifdef DEFINED_TSO
+        virtual uint32_t	get_max_send_sge(void);
         virtual uint32_t	get_max_payload_sz(void);
         virtual uint16_t	get_max_header_sz(void);
 	virtual uint32_t        get_tx_lkey(ring_user_id_t id) { return m_bond_rings[id]->get_tx_lkey(id); }
@@ -94,7 +94,9 @@ protected:
 	ring_slave_vector_t     m_bond_rings;
 	std::vector<struct flow_sink_t> m_rx_flows;
         uint32_t    m_max_inline_data;
+#ifdef DEFINED_TSO
         uint32_t    m_max_send_sge;
+#endif /* DEFINED_TSO */
 
 private:
 	void devide_buffers_helper(descq_t *rx_reuse, descq_t *buffer_per_ring);

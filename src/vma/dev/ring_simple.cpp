@@ -1071,12 +1071,12 @@ uint32_t ring_simple::get_max_inline_data()
 	return m_p_qp_mgr->get_max_inline_data();
 }
 
+#ifdef DEFINED_TSO
 uint32_t ring_simple::get_max_send_sge(void)
 {
 	return m_p_qp_mgr->get_max_send_sge();
 }
 
-#ifdef DEFINED_TSO
 uint32_t ring_simple::get_max_payload_sz(void)
 {
 	return m_tso.max_payload_sz;
