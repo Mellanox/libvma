@@ -357,6 +357,7 @@ tcp_write_checks(struct tcp_pcb *pcb, u32_t len)
   return ERR_OK;
 }
 
+#if LWIP_TSO
 static inline u16_t tcp_xmit_size_goal(struct tcp_pcb *pcb)
 {
   u16_t size = pcb->mss;
@@ -380,6 +381,7 @@ static inline u16_t tcp_xmit_size_goal(struct tcp_pcb *pcb)
 
   return size;
 }
+#endif /* LWIP_TSO */
 
 /**
  * Write data for sending (but does not send it immediately).
@@ -434,13 +436,23 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t is_dummy)
   }
   queuelen = pcb->snd_queuelen;
 
+#if LWIP_TSO
   mss_local = tcp_xmit_size_goal(pcb);
+#else
+  mss_local = LWIP_MIN(pcb->mss, pcb->snd_wnd_max/2);
+  mss_local = mss_local ? mss_local : pcb->mss;
+#endif /* LWIP_TSO */
 
   optflags |= is_dummy ? TF_SEG_OPTS_DUMMY_MSG : 0;
 
 #if LWIP_TCP_TIMESTAMPS
   if ((pcb->flags & TF_TIMESTAMP)) {
     optflags |= TF_SEG_OPTS_TS;
+#if LWIP_TSO
+#else
+    /* ensure that segments can hold at least one data byte... */
+    mss_local = LWIP_MAX(mss_local, LWIP_TCP_OPT_LEN_TS + 1);
+#endif /* LWIP_TSO */
   }
 #endif /* LWIP_TCP_TIMESTAMPS */
 
