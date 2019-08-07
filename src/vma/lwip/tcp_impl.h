@@ -279,8 +279,15 @@ PACK_STRUCT_END
 struct tcp_seg {
   struct tcp_seg *next;    /* used when putting segements on a queue */
   struct pbuf *p;          /* buffer containing data + TCP header */
+#if LWIP_TSO
   u32_t seqno;
   u32_t len;               /* the TCP length of this segment should allow >64K size */
+#else
+  void *dataptr;           /* pointer to the TCP data in the pbuf */
+  u32_t seqno;
+  u16_t len;               /* the TCP length of this segment should allow >64K size */
+#endif /* LWIP_TSO */
+
 #if TCP_OVERSIZE_DBGCHECK
   u16_t oversize_left;     /* Extra bytes available at the end of the last
                               pbuf in unsent (used for asserting vs.
