@@ -238,6 +238,10 @@ tcp_create_segment(struct tcp_pcb *pcb, struct pbuf *p, u8_t flags, u32_t seqno,
 
   seg->flags = optflags;
   seg->p = p;
+#if LWIP_TSO
+#else
+  seg->dataptr = p->payload;
+#endif /* LWIP_TSO */
   seg->len = p->tot_len - optlen;
   seg->seqno = seqno;
 
@@ -494,8 +498,8 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t is_dummy)
     unsent_optlen = LWIP_TCP_OPT_LENGTH(pcb->last_unsent->flags);
     LWIP_ASSERT("mss_local is too small", mss_local >= pcb->last_unsent->len + unsent_optlen);
     space = mss_local - (pcb->last_unsent->len + unsent_optlen);
-    seg = pcb->last_unsent;
 #if LWIP_TSO
+    seg = pcb->last_unsent;
     tot_p = pbuf_clen(seg->p);
 #endif /* LWIP_TSO */
 
@@ -515,6 +519,10 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t is_dummy)
     oversize = pcb->unsent_oversize;
     if (oversize > 0) {
       LWIP_ASSERT("inconsistent oversize vs. space", oversize_used <= space);
+#if LWIP_TSO
+#else
+      seg = pcb->last_unsent;
+#endif /* LWIP_TSO */
       oversize_used = oversize < len ? oversize : len;
       pos += oversize_used;
       oversize -= oversize_used;
@@ -539,6 +547,10 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t is_dummy)
 #endif /* LWIP_TSO */
 
       u16_t seglen = space < len - pos ? space : len - pos;
+#if LWIP_TSO
+#else
+      seg = pcb->last_unsent;
+#endif /* LWIP_TSO */
 
       /* Create a pbuf with a copy or reference to seglen bytes. We
        * can use PBUF_RAW here since the data appears in the middle of
@@ -1104,7 +1116,11 @@ tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
     }
 
     /* Copy the data from the original buffer */
+#if LWIP_TSO
     TCP_DATA_COPY2((char *)p->payload + optlen, (u8_t *)seg->tcphdr + LWIP_TCP_HDRLEN(seg->tcphdr) + lentosend, lentoqueue , &chksum, &chksum_swapped);
+#else
+    TCP_DATA_COPY2((char *)p->payload + optlen, (u8_t *)seg->dataptr + lentosend, lentoqueue , &chksum, &chksum_swapped);
+#endif /* LWIP_TSO */
 
     /* Update new buffer */
     p->tot_len = seg->p->tot_len - lentosend - TCP_HLEN ;
@@ -1869,7 +1885,11 @@ tcp_zero_window_probe(struct tcp_pcb *pcb)
     TCPH_FLAGS_SET(tcphdr, TCP_ACK | TCP_FIN);
   } else {
     /* Data segment, copy in one byte from the head of the unacked queue */
+#if LWIP_TSO
     *((char *)p->payload + TCP_HLEN) = *(char *)((u8_t *)seg->tcphdr + LWIP_TCP_HDRLEN(seg->tcphdr));
+#else
+    *((char *)p->payload + TCP_HLEN) = *(char *)seg->dataptr;
+#endif /* LWIP_TSO */
   }
 
    /* The byte may be acknowledged without the window being opened. */
