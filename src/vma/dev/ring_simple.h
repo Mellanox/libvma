@@ -120,7 +120,9 @@ protected:
 	void			create_resources();
 	virtual void		init_tx_buffers(uint32_t count);
 	virtual void		inc_cq_moderation_stats(size_t sz_data);
+#ifdef DEFINED_TSO
         void                    set_tx_num_wr(int32_t num_wr) { m_tx_num_wr = m_tx_num_wr_free = num_wr; }
+#endif /* DEFINED_TSO */
 	uint32_t		get_tx_num_wr() { return m_tx_num_wr; }
 	uint32_t		get_mtu() { return m_mtu; }
 
