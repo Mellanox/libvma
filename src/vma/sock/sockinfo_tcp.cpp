@@ -1738,7 +1738,7 @@ err_t sockinfo_tcp::rx_drop_lwip_cb(void *arg, struct tcp_pcb *tpcb,
 	return ERR_CONN;
 }
 
-int sockinfo_tcp::handle_rx_error()
+int sockinfo_tcp::handle_rx_error(bool is_blocking)
 {
 	int ret = -1;
 
@@ -1762,6 +1762,10 @@ int sockinfo_tcp::handle_rx_error()
 			si_tcp_logdbg("RX on disconnected socket - EOF");
 			ret = 0;
 		}
+	}
+
+	if ((errno == EBUSY || errno == EWOULDBLOCK) && !is_blocking) {
+		errno = EAGAIN;
 	}
 
 #ifdef VMA_TIME_MEASURE
@@ -1826,7 +1830,7 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 
 	while (m_rx_ready_byte_count < total_iov_sz) {
 		if (unlikely(g_b_exit ||!is_rtr() || (rx_wait_lockless(poll_count, block_this_run) < 0))) {
-			return handle_rx_error();
+			return handle_rx_error(block_this_run);
 		}
 	}
 
