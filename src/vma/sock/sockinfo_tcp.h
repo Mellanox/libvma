@@ -365,7 +365,7 @@ private:
 	 */
 	virtual void handle_ip_pktinfo(struct cmsg_state *) {};
 
-	int handle_rx_error();
+	int handle_rx_error(bool is_blocking);
 
 	/** Function prototype for tcp error callback functions. Called when the pcb
 	 * receives a RST or is unexpectedly closed for any other reason.
