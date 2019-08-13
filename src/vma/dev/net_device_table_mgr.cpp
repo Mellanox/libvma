@@ -491,7 +491,7 @@ int net_device_table_mgr::global_ring_wait_for_notification_and_process_element(
 				// Handle the CQ notification channel
 				int ret = p_ready_ring->wait_for_notification_and_process_element(fd, p_poll_sn, pv_fd_ready_array);
 				if (ret < 0) {
-					if (errno == EAGAIN || errno == EBUSY) {
+					if (errno == EAGAIN) {
 						ndtm_logdbg("Error in ring[%d]->wait_for_notification_and_process_element() of %p (errno=%d %m)", event_idx, p_ready_ring, errno);
 					}
 					else {
@@ -531,7 +531,7 @@ int net_device_table_mgr::global_ring_drain_and_procces()
 	net_device_map_index_t::iterator net_dev_iter;
         for (net_dev_iter=m_net_device_map_index.begin(); m_net_device_map_index.end() != net_dev_iter; net_dev_iter++) {
 		int ret = net_dev_iter->second->ring_drain_and_proccess();
-		if (ret < 0 && errno!= EBUSY) {
+		if (ret < 0 && errno != EAGAIN) {
 			ndtm_logerr("Error in ring[%p]->drain() (errno=%d %m)", net_dev_iter->second, errno);
 			return ret;
 		}

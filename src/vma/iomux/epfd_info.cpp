@@ -624,7 +624,7 @@ int epfd_info::ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_re
 
 	m_ring_map_lock.unlock();
 
-	if (m_sysvar_thread_mode == THREAD_MODE_PLENTY && ret_total == 0 && errno == EBUSY) pthread_yield();
+	if (m_sysvar_thread_mode == THREAD_MODE_PLENTY && ret_total == 0 && errno == EAGAIN) pthread_yield();
 
 	if (ret_total) {
 		__log_func("ret_total=%d", ret_total);
@@ -685,7 +685,7 @@ int epfd_info::ring_wait_for_notification_and_process_element(uint64_t *p_poll_s
 			// Handle the CQ notification channel
 			int ret = p_ready_ring->wait_for_notification_and_process_element(fd, p_poll_sn, pv_fd_ready_array);
 			if (ret < 0) {
-				if (errno == EAGAIN || errno == EBUSY) {
+				if (errno == EAGAIN) {
 					__log_dbg("Error in ring->wait_for_notification_and_process_element() of %p (errno=%d %m)", p_ready_ring, errno);
 				}
 				else {
