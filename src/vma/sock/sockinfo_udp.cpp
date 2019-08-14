@@ -1274,6 +1274,7 @@ void sockinfo_udp::rx_ready_byte_count_limit_update(size_t n_rx_ready_bytes_limi
 ssize_t sockinfo_udp::rx(const rx_call_t call_type, iovec* p_iov,ssize_t sz_iov, 
                      int* p_flags, sockaddr *__from ,socklen_t *__fromlen, struct msghdr *__msg)
 {
+	int errno_tmp = errno;
 	int ret;
 	uint64_t poll_sn = 0;
 	int out_flags = 0;
@@ -1406,6 +1407,9 @@ out:
 #ifdef VMA_TIME_MEASURE
 		TAKE_T_RX_END;
 #endif
+		/* Restore errno on function entry in case success */
+		errno = errno_tmp;
+
 		si_udp_logfunc("returning with: %d", ret);
 	}
 	return ret;
@@ -1540,6 +1544,7 @@ int sockinfo_udp::rx_request_notification(uint64_t poll_sn)
 ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ssize_t sz_iov,
 		     const int __flags /*=0*/, const struct sockaddr *__dst /*=NULL*/, const socklen_t __dstlen /*=0*/)
 {
+	int errno_tmp = errno;
 	int ret = 0;
 	bool is_dummy = IS_DUMMY_PACKET(__flags);
 	dst_entry* p_dst_entry = m_p_connected_dst_entry; // Default for connected() socket but we'll update it on a specific sendTO(__to) call
@@ -1696,6 +1701,11 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 		TAKE_T_TX_END;
 #endif
 		m_lock_snd.unlock();
+
+		/* Restore errno on function entry in case success */
+		if (ret >= 0) {
+			errno = errno_tmp;
+		}
 
 		return ret;
 	}
