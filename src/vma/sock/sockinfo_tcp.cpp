@@ -736,6 +736,7 @@ void sockinfo_tcp::put_agent_msg(void *arg)
 
 ssize_t sockinfo_tcp::tx(const tx_call_t call_type, const iovec* p_iov, const ssize_t sz_iov, const int flags, const struct sockaddr *__to, const socklen_t __tolen)
 {
+	int errno_tmp = errno;
 	int total_tx = 0;
 	unsigned tx_size;
 	err_t err;
@@ -929,6 +930,8 @@ done:
 #ifdef VMA_TIME_MEASURE	
 	TAKE_T_TX_END;
 #endif
+	/* Restore errno on function entry in case success */
+	errno = errno_tmp;
 
 	return total_tx; 
 
@@ -1788,6 +1791,7 @@ int sockinfo_tcp::handle_rx_error(bool is_blocking)
 //
 ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov, int* p_flags, sockaddr *__from, socklen_t *__fromlen, struct msghdr *__msg)
 {
+	int errno_tmp = errno;
 	int total_rx = 0;
 	int poll_count = 0;
 	int bytes_to_tcp_recved;
@@ -1865,6 +1869,8 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 	if (0 < total_rx)
 		TAKE_T_RX_END;
 #endif
+	/* Restore errno on function entry in case success */
+	errno = errno_tmp;
 
 	return total_rx;
 }
