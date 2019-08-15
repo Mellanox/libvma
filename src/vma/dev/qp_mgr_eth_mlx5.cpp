@@ -699,7 +699,7 @@ inline int qp_mgr_eth_mlx5::fill_wqe(vma_ibv_send_wr *pswr)
 
 #ifdef DEFINED_TSO
 //! Filling wqe for LSO
-inline int qp_mgr_eth_mlx5::fill_wqe_lso(vma_ibv_send_wr* pswr)
+int qp_mgr_eth_mlx5::fill_wqe_lso(vma_ibv_send_wr* pswr)
 {
 	struct mlx5_wqe_eth_seg* eth_seg = (struct mlx5_wqe_eth_seg*)((uint8_t*)m_sq_wqe_hot + sizeof(struct mlx5_wqe_ctrl_seg));
 	struct mlx5_wqe_data_seg* dp_seg = NULL;

@@ -765,6 +765,8 @@ tcp_shrink_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t ackno)
   struct pbuf *p = NULL;
   u32_t len = 0;
   u32_t count = 0;
+  u8_t optflags = 0;
+  u8_t optlen = 0;
 
   if ((NULL == seg) || (NULL == seg->p) ||
       !(TCP_SEQ_GT(ackno, seg->seqno) && TCP_SEQ_LT(ackno, seg->seqno + TCP_TCPLEN(seg)))) {
@@ -784,15 +786,23 @@ tcp_shrink_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t ackno)
     return count;
   }
 
+#if LWIP_TCP_TIMESTAMPS
+  if ((pcb->flags & TF_TIMESTAMP)) {
+    optflags |= TF_SEG_OPTS_TS;
+  }
+#endif /* LWIP_TCP_TIMESTAMPS */
+
+  optlen += LWIP_TCP_OPT_LENGTH(optflags);
+
   cur_p = seg->p->next;
 
   if (cur_p) {
     /* Process more than first pbuf */
-    seg->len -= (seg->p->len - TCP_HLEN);
-    seg->p->tot_len -= (seg->p->len - TCP_HLEN);
-    seg->seqno += (seg->p->len - TCP_HLEN);
+    seg->len -= (seg->p->len - TCP_HLEN - optlen);
+    seg->p->tot_len -= (seg->p->len - TCP_HLEN - optlen);
+    seg->seqno += (seg->p->len - TCP_HLEN - optlen);
     seg->tcphdr->seqno = htonl(seg->seqno);
-    seg->p->len = TCP_HLEN;
+    seg->p->len = TCP_HLEN + optlen;
   }
 
   while (cur_p) {
@@ -823,11 +833,11 @@ tcp_shrink_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t ackno)
     u8_t *dataptr = (u8_t *)seg->tcphdr + LWIP_TCP_HDRLEN(seg->tcphdr);
     len = ackno - seg->seqno;
     seg->len -= len;
-    seg->p->len = TCP_HLEN + cur_p->len - len;
+    seg->p->len = TCP_HLEN + optlen + cur_p->len - len;
     seg->p->tot_len -= len;
     seg->seqno = ackno;
     seg->tcphdr->seqno = htonl(seg->seqno);
-    MEMCPY(dataptr, dataptr + len, cur_p->len - len);
+    MEMCPY(dataptr, cur_p->payload + len, cur_p->len - len);
 
     p = cur_p;
     cur_p = p->next;
