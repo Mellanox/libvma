@@ -1030,6 +1030,7 @@ tcp_rexmit_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
   struct tcp_seg *new_seg = NULL;
   struct pbuf *cur_p = NULL;
   u8_t optflags = 0;
+  u8_t optlen = 0;
 
   if ((NULL == seg) || (NULL == seg->p) ||
       ((seg->p->ref == 1) && ((seg->len + seg->seqno - pcb->lastack) <= wnd))) {
@@ -1042,12 +1043,17 @@ tcp_rexmit_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
   }
 #endif /* LWIP_TCP_TIMESTAMPS */
 
+  optlen += LWIP_TCP_OPT_LENGTH(optflags);
+
   cur_seg = seg;
   cur_seg->flags &= (~TF_SEG_OPTS_TSO);
   cur_p = seg->p->next;
   while (cur_p) {
     /* Allocate memory for tcp_seg and fill in fields. */
-    if (NULL == (new_seg = tcp_create_segment(pcb, cur_p, 0,  cur_seg->seqno + cur_seg->p->len - TCP_HLEN, optflags))) {
+    cur_p->len += optlen;
+    cur_p->tot_len = cur_p->len;
+    cur_p->payload = (u8_t *)cur_p->payload - optlen;
+    if (NULL == (new_seg = tcp_create_segment(pcb, cur_p, 0,  cur_seg->seqno + cur_seg->p->len - TCP_HLEN - optlen, optflags))) {
       LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_split_segment: could not allocate memory for segment\n"));
       return seg;
     }
@@ -1058,7 +1064,7 @@ tcp_rexmit_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
 
     /* Original segment update */
     cur_seg->next = new_seg;
-    cur_seg->len = cur_seg->p->len - TCP_HLEN;
+    cur_seg->len = cur_seg->p->len - TCP_HLEN - optlen;
     cur_seg->p->tot_len = cur_seg->p->len;
 
     cur_seg->p->next = NULL;
