@@ -1,3 +1,18 @@
+Version 8.9.1-0:
+Date + Time 2019-08-20
+=============================================================
+Added:
+        - RM #1772199 Add socketxtreme example
+
+Fixed:
+        - RM #1718617 Update valgrind suppression file
+        - RM #1772805 Fix return code for non blocking recv()/send()
+        - RM #1797193 Return ECONNABORTED as error value for accept()
+        - RM #1798908 Fix daemon agent initialization in case fork() usage
+        - RM #1699062 Handle RING_LOGIC_PER_USER_ID unsupported optval
+        - RM #1772199 Cleanup vma_extra.h
+        - RM #1734397 Fix csbuild 2.3.0 issues
+
 Version 8.8.3-0:
 Date + Time 2019-04-15
 =============================================================
