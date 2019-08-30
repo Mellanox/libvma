@@ -1247,6 +1247,12 @@ void mce_sys_var::get_env_params()
 #ifdef DEFINED_TSO
 	if((env_ptr = getenv(SYS_VAR_TSO)) != NULL)
 		enable_tso = atoi(env_ptr) ? true : false;
+
+	if (enable_tso && (ring_migration_ratio_tx != -1)) {
+		ring_migration_ratio_tx = -1;
+		vlog_printf(VLOG_DEBUG,"%s parameter is forced to %d in case %s is enabled\n",
+				SYS_VAR_RING_MIGRATION_RATIO_TX, -1, SYS_VAR_TSO);
+	}
 #endif /* DEFINED_TSO */
 
 	if ((env_ptr = getenv(SYS_VAR_CLOSE_ON_DUP2)) != NULL)
