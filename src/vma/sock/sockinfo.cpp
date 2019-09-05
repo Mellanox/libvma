@@ -897,6 +897,7 @@ void sockinfo::do_rings_migration(resource_allocation_key &old_key)
 	lock_rx_q();
 
 	uint64_t new_calc_id = m_ring_alloc_logic.calc_res_key_by_logic();
+	uint64_t old_calc_id = old_key.get_user_id_key();
 	resource_allocation_key *new_key = m_ring_alloc_logic.get_key();
 	// Check again if migration is needed before migration
 	if (old_key.get_user_id_key() == new_calc_id &&
@@ -917,6 +918,7 @@ void sockinfo::do_rings_migration(resource_allocation_key &old_key)
 			if (!p_nd_resources->p_ndv->release_ring(&old_key)) {
 				si_logerr("Failed to release ring for allocation key %s",
 						old_key.to_str());
+				new_key->set_user_id_key(old_calc_id);
 			}
 			lock_rx_q();
 			rx_nd_iter++;
@@ -927,6 +929,7 @@ void sockinfo::do_rings_migration(resource_allocation_key &old_key)
 			ip_address ip_local(rx_nd_iter->first);
 			si_logerr("Failed to reserve ring for allocation key %s on lip %s",
 				  new_key->to_str(), ip_local.to_str().c_str());
+			new_key->set_user_id_key(old_calc_id);
 			lock_rx_q();
 			rx_nd_iter++;
 			continue;
@@ -950,10 +953,14 @@ void sockinfo::do_rings_migration(resource_allocation_key &old_key)
 			BULLSEYE_EXCLUDE_BLOCK_START
 			unlock_rx_q();
 			if (!new_ring->attach_flow(flow_key, this)) {
-				lock_rx_q();
 				si_logerr("Failed to attach %s to ring %p", flow_key.to_str(), new_ring);
-				rx_flow_iter++; // Pop next flow rule
-				continue;
+				rx_del_ring_cb(flow_key, new_ring, true);
+				if (!p_nd_resources->p_ndv->release_ring(new_key)) {
+					si_logerr("Failed to release ring for allocation key %s",
+							new_key->to_str());
+				}
+				new_ring = NULL;
+				break;
 			}
 			lock_rx_q();
 			BULLSEYE_EXCLUDE_BLOCK_END
@@ -971,6 +978,16 @@ void sockinfo::do_rings_migration(resource_allocation_key &old_key)
 			rx_del_ring_cb(flow_key, p_old_ring, true);
 
 			rx_flow_iter++; // Pop next flow rule;
+		}
+
+		if (!new_ring) {
+			ip_address ip_local(rx_nd_iter->first);
+			si_logerr("Failed to reserve ring for allocation key %s on lip %s",
+				  new_key->to_str(), ip_local.to_str().c_str());
+			new_key->set_user_id_key(old_calc_id);
+			lock_rx_q();
+			rx_nd_iter++;
+			continue;
 		}
 
 		unlock_rx_q();
