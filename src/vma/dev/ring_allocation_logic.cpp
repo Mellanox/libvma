@@ -54,6 +54,7 @@ ring_allocation_logic::ring_allocation_logic():m_ring_migration_ratio(0),
 						m_source(-1),
 						m_migration_try_count(0),
 						m_migration_candidate(0),
+						m_active(true),
 						m_res_key() {}
 
 ring_allocation_logic::ring_allocation_logic(ring_logic_t allocation_logic,
@@ -69,6 +70,8 @@ ring_allocation_logic::ring_allocation_logic(ring_logic_t allocation_logic,
 	m_res_key = resource_allocation_key(ring_profile);
 	m_migration_candidate = 0;
 	m_res_key.set_user_id_key(calc_res_key_by_logic());
+
+	m_active = true;
 }
 
 /**
@@ -135,6 +138,10 @@ resource_allocation_key* ring_allocation_logic::create_new_key(in_addr_t addr, i
 bool ring_allocation_logic::should_migrate_ring()
 {
 	ral_logfuncall("currently accessed from thread=%lu, cpu=%d", pthread_self(), sched_getcpu());
+
+	if (false == m_active) {
+		return false;
+	}
 
 	int count_max = m_ring_migration_ratio;
 	if (m_migration_candidate) {
