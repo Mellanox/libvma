@@ -919,6 +919,8 @@ void sockinfo::do_rings_migration(resource_allocation_key &old_key)
 				si_logerr("Failed to release ring for allocation key %s",
 						old_key.to_str());
 				new_key->set_user_id_key(old_calc_id);
+				m_ring_alloc_logic.enable_migration(false);
+				si_logwarn("Migration is disabled due to failure");
 			}
 			lock_rx_q();
 			rx_nd_iter++;
@@ -930,6 +932,8 @@ void sockinfo::do_rings_migration(resource_allocation_key &old_key)
 			si_logerr("Failed to reserve ring for allocation key %s on lip %s",
 				  new_key->to_str(), ip_local.to_str().c_str());
 			new_key->set_user_id_key(old_calc_id);
+			m_ring_alloc_logic.enable_migration(false);
+			si_logwarn("Migration is disabled due to failure");
 			lock_rx_q();
 			rx_nd_iter++;
 			continue;
@@ -985,6 +989,8 @@ void sockinfo::do_rings_migration(resource_allocation_key &old_key)
 			si_logerr("Failed to reserve ring for allocation key %s on lip %s",
 				  new_key->to_str(), ip_local.to_str().c_str());
 			new_key->set_user_id_key(old_calc_id);
+			m_ring_alloc_logic.enable_migration(false);
+			si_logwarn("Migration is disabled due to failure");
 			lock_rx_q();
 			rx_nd_iter++;
 			continue;
