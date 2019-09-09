@@ -613,6 +613,9 @@ int vma_dump_fd_stats(int fd, int log_level)
 	return -1;
 }
 
+/* Multi Packet Receive Queue functionality is deprecated
+ * and is not going to be supported in the future releases
+ */
 extern "C"
 int vma_cyclic_buffer_read(int fd, struct vma_completion_cb_t *completion,
 			   size_t min, size_t max, int flags)
@@ -641,6 +644,9 @@ int vma_cyclic_buffer_read(int fd, struct vma_completion_cb_t *completion,
 #endif // HAVE_MP_RQ
 }
 
+/* Multi Packet Receive Queue functionality is deprecated
+ * and is not going to be supported in the future releases
+ */
 extern "C"
 int vma_get_mem_info(int fd, void **addr, size_t *length, uint32_t *lkey)
 {
