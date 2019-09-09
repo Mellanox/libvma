@@ -186,7 +186,7 @@ if test "x$vma_cv_verbs" == x2; then
 
     AC_MSG_CHECKING([for multi packet RQ support])
     AS_IF([test "x$have_mp_rq" == xyes -a "x$enable_exp_cq" == xyes -a "x$vma_cv_directverbs" == x2],
-	    [AC_DEFINE([HAVE_MP_RQ], 1, [MP_RQ QP supported])] [AC_MSG_RESULT([yes])],
+	    [AC_DEFINE([HAVE_MP_RQ], 1, [MP_RQ QP supported])] [AC_MSG_RESULT([yes (warning: this feature is deprecated and will be removed in a future release)])],
 	    [AC_MSG_RESULT([no])]
 	)
 
