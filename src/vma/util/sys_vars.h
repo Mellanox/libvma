@@ -42,6 +42,7 @@
 #include "vtypes.h"
 #include "config.h"
 
+#include "utils/compiler.h"
 #include "vma/ib/base/verbs_extra.h"
 #include "vma/util/sysctl_reader.h"
 #include "vma/vma_extra.h"
@@ -434,8 +435,8 @@ private:
 	int env_to_cpuset(char *orig_start, cpu_set_t *cpu_set);
 	void read_env_variable_with_pid(char* mce_sys_name, size_t mce_sys_max_size, char* env_ptr);
 	bool check_cpuinfo_flag(const char* flag);
-	bool cpuid_hv();
-	const char* cpuid_hv_vendor();
+	bool cpuid_hv() VMA_ATTRIBUTE_OPTIMIZE_NONE;
+	const char* cpuid_hv_vendor() VMA_ATTRIBUTE_OPTIMIZE_NONE;
 	void read_hv();
 
 	// prevent unautothrized creation of objects

@@ -34,6 +34,7 @@
 #if defined(DEFINED_DIRECT_VERBS)
 
 #include <sys/mman.h>
+#include "utils/asm.h"
 #include "cq_mgr_mlx5.h"
 #include "vma/util/utils.h"
 #include "vlogger/vlogger.h"
@@ -88,13 +89,6 @@ static bool is_bf(struct ibv_context *ib_ctx)
 	static int page_size = sysconf(_SC_PAGESIZE);
 	static off_t offset = VMA_MLX5_MMAP_GET_WC_PAGES_CMD << VMA_MLX5_IB_MMAP_CMD_SHIFT;
 	char *env;
-
-#if defined(DEFINED_VERBS_VERSION) && (DEFINED_VERBS_VERSION == 3)
-	/* This limitation is done for RM: 1557652 */
-	if (safe_mce_sys().hypervisor != mce_sys_var::HYPER_NONE) {
-		return false;
-	}
-#endif
 
 	env = getenv("MLX5_SHUT_UP_BF");
 	if (!env || !strcmp(env, "0")) {
@@ -392,11 +386,11 @@ inline void qp_mgr_eth_mlx5::ring_doorbell(uint64_t* wqe, int num_wqebb, int num
 		 * which do not guarantee order of copying.
 		 */
 		while (num_wqebb--) {
-			COPY_64B_NT(dst, src);
+			memory_copy64(dst, src);
 		}
 		src = (uint64_t*)m_sq_wqes;
 		while (num_wqebb_top--) {
-			COPY_64B_NT(dst, src);
+			memory_copy64(dst, src);
 		}
 	} else {
 		*dst = *src;

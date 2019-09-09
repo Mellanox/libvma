@@ -37,35 +37,11 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#define COPY_64B_NT(dst, src)	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++;	\
-	*dst++ = *src++
 
 #define mb()	 asm volatile("sync" ::: "memory")
 #define rmb()	 asm volatile("lwsync" ::: "memory")
 #define wmb()	 rmb()
 #define wc_wmb() mb()
-
-/**
- * Add to the atomic variable.
- * @param i integer value to add.
- * @param v pointer of type atomic_t.
- * @return Value before add.
- */
-static inline int atomic_fetch_and_add(int i, volatile int *ptr)
-{
-#ifdef __ATOMIC_ACQUIRE
-	return __atomic_fetch_add(ptr, i, __ATOMIC_ACQUIRE);
-#else
-        return __sync_fetch_and_add(ptr, i);
-#endif
-}
 
 
 /**
@@ -96,7 +72,5 @@ static inline void prefetch_range(void *addr, size_t len)
 	for (; cp < end; cp += L1_CACHE_BYTES)
 		prefetch(cp);
 }
-
-
 
 #endif

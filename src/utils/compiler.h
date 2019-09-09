@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2019 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2018 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -31,47 +31,13 @@
  */
 
 
-#ifndef ASMARM64_H_
-#define ASMARM64_H_
+#ifndef SRC_UTILS_COMPILER_H_
+#define SRC_UTILS_COMPILER_H_
 
-#include <stdint.h>
-#include <unistd.h>
-
-
-#define mb()	asm volatile("dsb sy" ::: "memory")
-#define rmb()	asm volatile("dsb ld" ::: "memory")
-#define wmb()	asm volatile("dsb st" ::: "memory")
-#define wc_wmb() wmb()
-
-/**
- * Read RDTSC register
- */
-static inline void gettimeoftsc(unsigned long long *p_tscval)
-{
-	// Read Time Stamp Counter
-	asm volatile("isb" : : : "memory");
-	asm volatile("mrs %0, cntvct_el0" : "=r" ((unsigned long long)*p_tscval));
-}
-
-/**
- * Cache Line Prefetch - Arch specific!
- */
-#ifndef L1_CACHE_BYTES
-#define L1_CACHE_BYTES		64
+#if defined(DEFINED_ATTRIBUTE_OPTIMIZE)
+  #define VMA_ATTRIBUTE_OPTIMIZE_NONE __attribute__((optimize("O0")))
+#else
+  #define VMA_ATTRIBUTE_OPTIMIZE_NONE
 #endif
 
-static inline void prefetch(void *x)
-{
-	//__builtin_prefetch();
-	asm volatile("prfm pldl1keep, %a0\n" : : "p" (x));
-}
-
-static inline void prefetch_range(void *addr, size_t len)
-{
-	char *cp = (char*)addr;
-	char *end = (char*)addr + len;
-	for (; cp < end; cp += L1_CACHE_BYTES)
-		prefetch(cp);
-}
-
-#endif
+#endif /* SRC_UTILS_COMPILER_H_ */

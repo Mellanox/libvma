@@ -13,7 +13,8 @@ libutils_la_SOURCES = \
 	clock.h \
 	lock_wrapper.h \
 	rdtsc.h \
-	types.h
+	types.h \
+	compiler.h
 
 noinst_PROGRAMS = timetest
 timetest_LDADD = -lrt libutils.la
