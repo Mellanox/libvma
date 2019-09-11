@@ -958,7 +958,7 @@ tcp_tso_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
   if (TCP_SEQ_LT(seg->seqno, pcb->snd_nxt) ||
       (seg->flags & (TF_SEG_OPTS_TSO | TF_SEG_OPTS_DUMMY_MSG)) ||
       ((TCPH_FLAGS(seg->tcphdr) & (~(TCP_ACK | TCP_PSH))) != 0)) {
-    return ;
+    goto err;
   }
 
   while (cur_seg && cur_seg->next &&
@@ -1000,19 +1000,18 @@ tcp_tso_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
 
 err:
 
-#if TCP_TSO_DEBUG
-    LWIP_DEBUGF(TCP_TSO_DEBUG | LWIP_DBG_TRACE,
-                ("tcp_join:   max: %-5d unsent %s\n",
-                		max_payload_sz, _dump_seg(pcb->unsent)));
-#endif /* TCP_TSO_DEBUG */
-
-  /* All segments that greater than MSS or consist of more than one memory buffer
-   * must be processed as TSO segments
+  /* All segments that greater than MSS must be processed as TSO segments
    * For example it can be actual for segments with large (more than MSS) buffer size
    */
   if (seg->len > pcb->mss) {
     seg->flags |= TF_SEG_OPTS_TSO;
   }
+
+#if TCP_TSO_DEBUG
+    LWIP_DEBUGF(TCP_TSO_DEBUG | LWIP_DBG_TRACE,
+                ("tcp_join:   max: %-5d unsent %s\n",
+                		max_payload_sz, _dump_seg(pcb->unsent)));
+#endif /* TCP_TSO_DEBUG */
 
   return;
 }
