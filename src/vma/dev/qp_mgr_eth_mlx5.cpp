@@ -89,12 +89,10 @@ static bool is_bf(struct ibv_context *ib_ctx)
 	static off_t offset = VMA_MLX5_MMAP_GET_WC_PAGES_CMD << VMA_MLX5_IB_MMAP_CMD_SHIFT;
 	char *env;
 
-#if defined(DEFINED_VERBS_VERSION) && (DEFINED_VERBS_VERSION == 3)
-	/* This limitation is done for RM: 1557652 */
-	if (safe_mce_sys().hypervisor != mce_sys_var::HYPER_NONE) {
+	/* This limitation is done for RM: 1557652, 1894523, 1914464 */
+	if (safe_mce_sys().hypervisor == mce_sys_var::HYPER_KVM) {
 		return false;
 	}
-#endif
 
 	env = getenv("MLX5_SHUT_UP_BF");
 	if (!env || !strcmp(env, "0")) {
