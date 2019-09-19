@@ -38,7 +38,6 @@
 #include "cq_mgr.inl"
 #include "cq_mgr_mlx5.inl"
 #include "qp_mgr.h"
-#include "qp_mgr_eth_direct.h"
 #include "qp_mgr_eth_mlx5.h"
 #include "ring_simple.h"
 
@@ -774,9 +773,9 @@ int cq_mgr_mlx5::poll_and_process_element_tx(uint64_t* p_cq_poll_sn)
 
 void cq_mgr_mlx5::set_qp_rq(qp_mgr* qp)
 {
-	m_qp = static_cast<qp_mgr_eth_mlx5*> (qp);
 	qp_mgr_eth_mlx5* qp_ptr = dynamic_cast<qp_mgr_eth_mlx5*>(qp);
 	if (qp_ptr) {
+		m_qp = static_cast<qp_mgr_eth_mlx5*> (qp);
 		m_qp->m_rq_wqe_counter = 0; /* In case of bonded qp, wqe_counter must be reset to zero */
 	}
 	m_rx_hot_buffer = NULL;
