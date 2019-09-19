@@ -29,7 +29,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
+#include "vma/util/valgrind.h"
 #include "dev/cq_mgr_mp.h"
 #include "dev/cq_mgr_mlx5.inl"
 #include "dev/qp_mgr_mp.h"
@@ -66,8 +66,10 @@ cq_mgr_mp::cq_mgr_mp(const ring_eth_cb *p_ring, ib_ctx_handler *p_ib_ctx_handler
 		     bool is_rx, bool external_mem):
 		     cq_mgr_mlx5((ring_simple*)p_ring, p_ib_ctx_handler,
 				 cq_size , p_comp_event_channel, is_rx, false),
+		     m_rq_tail(0),
 		     m_p_ring(p_ring),
-			 m_external_mem(external_mem)
+		     m_external_mem(external_mem),
+		     m_qp(NULL)
 {
 	// must call from derive in order to call derived hooks
 	m_p_cq_stat->n_buffer_pool_len = cq_size;
@@ -164,10 +166,24 @@ int cq_mgr_mp::poll_mp_cq(uint16_t &size, uint32_t &strides_used,
 	return 0;
 }
 
+void cq_mgr_mp::set_qp_rq(qp_mgr* qp)
+{
+	m_qp = static_cast<qp_mgr_mp*> (qp);
+	
+	mlx5_rwq *mrwq = container_of(m_qp->get_wq(), struct mlx5_rwq, wq);
+	m_rq_tail = &mrwq->rq.tail;
+
+	if (0 != vma_ib_mlx5_get_cq(m_p_ibv_cq, &m_mlx5_cq)) {
+		cq_logpanic("vma_ib_mlx5_get_cq failed (errno=%d %m)", errno);
+	}
+	VALGRIND_MAKE_MEM_DEFINED(&m_mlx5_cq, sizeof(m_mlx5_cq));
+	cq_logfunc("qp_mgr=%p m_mlx5_cq.dbrec=%p m_mlx5_cq.cq_buf=%p", m_qp, m_mlx5_cq.dbrec, m_mlx5_cq.cq_buf);
+}
+
 void cq_mgr_mp::update_dbell()
 {
 	wmb();
-	++m_qp->m_mlx5_qp.rq.tail;
+	(*m_rq_tail)++;
 	*m_mlx5_cq.dbrec = htonl(m_mlx5_cq.cq_ci & 0xffffff);
 }
 

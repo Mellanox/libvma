@@ -60,6 +60,7 @@ public:
 	virtual void	up();
 	int		post_recv(uint32_t sg_index, uint32_t num_of_sge);
 	int		get_wq_count() {return m_p_mp_ring->get_wq_count();}
+	ibv_exp_wq*	get_wq() {return m_p_wq;}
 protected:
 	virtual cq_mgr* init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_channel);
 	virtual int	prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr);
