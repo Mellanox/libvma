@@ -1,3 +1,17 @@
+Version 8.9.3-0:
+Date + Time 2019-09-19
+=============================================================
+Added:
+        - RM #1902084 Add deprecated message for Multi Packet RQ
+
+Fixed:
+        - RM #1894523 Disable BF usage for KVM VMs
+        - RM #1908481 Improve error processing tcp_rexmit_segment()
+        - RM #1859490 Disable migration in case failure
+        - RM #1843623 Fix tcp_split_segment()
+        - RM #1903593 Set TSO operation for all segments large MSS
+        - RM #1890471 Fix retransmission TSO segment with large buffer
+
 Version 8.9.2-0:
 Date + Time 2019-08-26
 =============================================================
