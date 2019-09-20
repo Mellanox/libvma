@@ -303,8 +303,6 @@ net_device_val::net_device_val(struct net_device_val_desc *desc) : m_lock("net_d
 
 net_device_val::~net_device_val()
 {
-	auto_unlocker lock(m_lock);
-
 	rings_hash_map_t::iterator ring_iter;
 	while ((ring_iter = m_h_ring_map.begin()) != m_h_ring_map.end()) {
 		delete THE_RING;
