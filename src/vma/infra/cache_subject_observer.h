@@ -300,8 +300,6 @@ bool cache_table_mgr <Key, Val>::unregister_observer(IN Key key, IN const cache_
 		return false;
 	}
 
-	auto_unlocker lock(m_lock);
-
 	typename std::tr1::unordered_map<Key, cache_entry_subject<Key, Val> *>::iterator cache_itr = m_cache_tbl.find(key);
 	if (cache_itr == m_cache_tbl.end()) {
 		__log_dbg("Couldn't unregister observer, the cache_entry (Key = %s) doesn't exist", key.to_str().c_str());
