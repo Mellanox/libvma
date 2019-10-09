@@ -761,6 +761,7 @@ ssize_t sockinfo_tcp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 	int ret = 0;
 	int poll_count = 0;
 	bool is_dummy = IS_DUMMY_PACKET(flags);
+	bool block_this_run = BLOCK_THIS_RUN(m_b_blocking, flags);
 
 	/* Let allow OS to process all invalid scenarios to avoid any
 	 * inconsistencies in setting errno values
@@ -830,8 +831,16 @@ retry_is_ready:
 
 		pos = 0;
 		while (pos < p_iov[i].iov_len) {
-			//tx_size = tx_wait();
 			tx_size = tcp_sndbuf(&m_pcb);
+
+			/* Process a case when space is not available at the sending socket
+			 * to hold the message to be transmitted
+			 * Nonblocking socket:
+			 *    - no data is buffered: return (-1) and EAGAIN
+			 *    - some data is buffered: return number of bytes ready to be sent
+			 * Blocking socket:
+			 *    - block until space is available
+			 */
 			if (tx_size == 0) {
 				if (unlikely(!is_rts())) {
 					si_tcp_logdbg("TX on disconnected socket");
@@ -842,9 +851,10 @@ retry_is_ready:
 				//force out TCP data before going on wait()
 				tcp_output(&m_pcb);
 
-				if (!BLOCK_THIS_RUN(m_b_blocking, flags)) {
+				/* Set return values for nonblocking socket and finish processing */
+				if (!block_this_run) {
 					// non blocking socket should return inorder not to tx_wait()
-					if ( total_tx ) {
+					if (total_tx > 0) {
 						m_tx_consecutive_eagain_count = 0;
 						goto done;
 					}
@@ -861,13 +871,12 @@ retry_is_ready:
 					}
 				}
 
-				tx_size = tx_wait(ret, BLOCK_THIS_RUN(m_b_blocking, flags));
-				if (ret < 0)
-					goto err;
+				tx_size = tx_wait(ret, true);
 			}
 
-			if (tx_size > p_iov[i].iov_len - pos)
+			if (tx_size > p_iov[i].iov_len - pos) {
 				tx_size = p_iov[i].iov_len - pos;
+			}
 retry_write:
 			if (unlikely(!is_rts())) {
 				si_tcp_logdbg("TX on disconnected socket");
@@ -886,8 +895,9 @@ retry_write:
 				if (unlikely(err == ERR_CONN)) { // happens when remote drops during big write
 					si_tcp_logdbg("connection closed: tx'ed = %d", total_tx);
 					shutdown(SHUT_WR);
-					if (total_tx > 0)
+					if (total_tx > 0) {
 						goto done;
+					}
 					errno = EPIPE;
 					unlock_tcp_con();
 #ifdef VMA_TIME_MEASURE
@@ -900,31 +910,25 @@ retry_write:
 					BULLSEYE_EXCLUDE_BLOCK_START
 					si_tcp_logpanic("tcp_write return: %d", err);
 					BULLSEYE_EXCLUDE_BLOCK_END
-					//coverity unreachable code
-					/*
-					unlock_tcp_con();
-#ifdef VMA_TIME_MEASURE
-					INC_ERR_TX_COUNT;
-#endif					
-					return -1;
-					 */
 				}
-				if (total_tx > 0) {
-					goto done;
+				/* Set return values for nonblocking socket and finish processing */
+				if (!block_this_run) {
+					if (total_tx > 0) {
+						goto done;
+					} else {
+						ret = -1;
+						errno = EAGAIN;
+						goto err;
+					}
 				}
 
-				ret = rx_wait(poll_count, BLOCK_THIS_RUN(m_b_blocking, flags));
-				if (ret < 0)
-					goto err;
+				rx_wait(poll_count, true);
 
 				//AlexV:Avoid from going to sleep, for the blocked socket of course, since
 				// progress engine may consume an arrived credit and it will not wakeup the
 				//transmit thread.
-				if (BLOCK_THIS_RUN(m_b_blocking, flags)) {
-					poll_count = 0;
-				}
-				//tcp_output(m_sock); // force data out
-				//tcp_si_logerr("++ nomem tcp_write return: %d", err);
+				poll_count = 0;
+
 				goto retry_write;
 			}
 			pos += tx_size;
@@ -1902,7 +1906,7 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 	size_t total_iov_sz = 1;
 	int out_flags = 0;
 	int in_flags = *p_flags;
-	bool block_this_run = m_b_blocking && !(in_flags & MSG_DONTWAIT);
+	bool block_this_run = BLOCK_THIS_RUN(m_b_blocking, in_flags);
 
 	m_loops_timer.start();
 
