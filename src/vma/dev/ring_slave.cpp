@@ -630,20 +630,20 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 //			printf("\n");
 //		}
 
-		uint16_t* p_h_proto = &p_eth_h->h_proto;
+		uint16_t h_proto = p_eth_h->h_proto;
 
 		ring_logfunc("Rx buffer Ethernet dst=" ETH_HW_ADDR_PRINT_FMT " <- src=" ETH_HW_ADDR_PRINT_FMT " type=%#x",
 				ETH_HW_ADDR_PRINT_ADDR(p_eth_h->h_dest),
 				ETH_HW_ADDR_PRINT_ADDR(p_eth_h->h_source),
-				htons(*p_h_proto));
+				htons(h_proto));
 
 		// Handle VLAN header as next protocol
 		struct vlanhdr* p_vlan_hdr = NULL;
 		uint16_t packet_vlan = 0;
-		if (*p_h_proto == htons(ETH_P_8021Q)) {
+		if (h_proto == htons(ETH_P_8021Q)) {
 			p_vlan_hdr = (struct vlanhdr*)((uint8_t*)p_eth_h + ETH_HDR_LEN);
 			transport_header_len = ETH_VLAN_HDR_LEN;
-			p_h_proto = &p_vlan_hdr->h_vlan_encapsulated_proto;
+			h_proto = p_vlan_hdr->h_vlan_encapsulated_proto;
 			packet_vlan = (htons(p_vlan_hdr->h_vlan_TCI) & VLAN_VID_MASK);
 		} else {
 			transport_header_len = ETH_HDR_LEN;
@@ -656,7 +656,7 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 		}
 
 		// Validate IP header as next protocol
-		if (unlikely(*p_h_proto != htons(ETH_P_IP))) {
+		if (unlikely(h_proto != htons(ETH_P_IP))) {
 			ring_logwarn("Rx buffer dropped - Invalid Ethr Type (%#x : %#x)", p_eth_h->h_proto, htons(ETH_P_IP));
 			return false;
 		}
