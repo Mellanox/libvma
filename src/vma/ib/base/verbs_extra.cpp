@@ -299,7 +299,7 @@ int priv_ibv_query_flow_tag_supported(struct ibv_qp *qp, uint8_t port_num)
 #ifdef DEFINED_IBV_FLOW_TAG
 
 	// Create
-	struct __attribute__ ((packed)) {
+	struct {
 		vma_ibv_flow_attr             attr;
 		vma_ibv_flow_spec_eth         eth;
 		vma_ibv_flow_spec_ipv4        ipv4;
@@ -342,7 +342,7 @@ int priv_ibv_create_flow_supported(struct ibv_qp *qp, uint8_t port_num)
 {
 	int res = -1;
 
-	struct __attribute__ ((packed)) {
+	struct {
 		vma_ibv_flow_attr             attr;
 		vma_ibv_flow_spec_ipv4        ipv4;
 		vma_ibv_flow_spec_tcp_udp     tcp_udp;

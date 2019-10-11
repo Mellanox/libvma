@@ -58,10 +58,10 @@ class pkt_rcvr_sink;
 
 /* ETHERNET
  */
-typedef struct __attribute__ ((packed)) attach_flow_data_eth_ipv4_tcp_udp_t {
+typedef struct attach_flow_data_eth_ipv4_tcp_udp_t {
 	struct ibv_flow *                       ibv_flow;
 	qp_mgr*                                 p_qp_mgr;
-	struct __attribute__ ((packed)) ibv_flow_attr_eth_ipv4_tcp_udp {
+	struct ibv_flow_attr_eth_ipv4_tcp_udp {
 		vma_ibv_flow_attr             attr;
 		vma_ibv_flow_spec_eth         eth;
 		vma_ibv_flow_spec_ipv4        ipv4;
@@ -89,10 +89,10 @@ typedef struct __attribute__ ((packed)) attach_flow_data_eth_ipv4_tcp_udp_t {
 
 /* IPOIB (MC)
  */
-typedef struct __attribute__ ((packed)) attach_flow_data_ib_v2_t {
+typedef struct attach_flow_data_ib_v2_t {
 	struct ibv_flow *                       ibv_flow;
 	qp_mgr*                                 p_qp_mgr;
-	struct __attribute__ ((packed)) ibv_flow_attr_ib_v2 {
+	struct ibv_flow_attr_ib_v2 {
 		vma_ibv_flow_attr             attr;
 		vma_ibv_flow_spec_ipv4        ipv4;
 		vma_ibv_flow_spec_tcp_udp     tcp_udp;
@@ -114,10 +114,10 @@ typedef struct __attribute__ ((packed)) attach_flow_data_ib_v2_t {
 } attach_flow_data_ib_v2_t;
 
 #ifdef DEFINED_IBV_FLOW_SPEC_IB
-typedef struct __attribute__ ((packed)) attach_flow_data_ib_v1_t {
+typedef struct attach_flow_data_ib_v1_t {
 	struct ibv_flow *                       ibv_flow;
 	qp_mgr*                                 p_qp_mgr;
-	struct __attribute__ ((packed)) ibv_flow_attr_ib_v1 {
+	struct ibv_flow_attr_ib_v1 {
 		vma_ibv_flow_attr             attr;
 		vma_ibv_flow_spec_ib          ib;
 
@@ -140,10 +140,10 @@ typedef struct __attribute__ ((packed)) attach_flow_data_ib_v1_t {
 
 /* IPOIB (UC)
  */
-typedef struct __attribute__ ((packed)) attach_flow_data_ib_ipv4_tcp_udp_v2_t {
+typedef struct attach_flow_data_ib_ipv4_tcp_udp_v2_t {
 	struct ibv_flow *                       ibv_flow;
 	qp_mgr*                                 p_qp_mgr;
-	struct __attribute__ ((packed)) ibv_flow_attr_ib_ipv4_tcp_udp_v2 {
+	struct ibv_flow_attr_ib_ipv4_tcp_udp_v2 {
 
 		vma_ibv_flow_attr             attr;
 		vma_ibv_flow_spec_ipv4        ipv4;
@@ -165,10 +165,10 @@ typedef struct __attribute__ ((packed)) attach_flow_data_ib_ipv4_tcp_udp_v2_t {
 } attach_flow_data_ib_ipv4_tcp_udp_v2_t;
 
 #ifdef DEFINED_IBV_FLOW_SPEC_IB
-typedef struct __attribute__ ((packed)) attach_flow_data_ib_ipv4_tcp_udp_v1_t {
+typedef struct attach_flow_data_ib_ipv4_tcp_udp_v1_t {
 	struct ibv_flow *                       ibv_flow;
 	qp_mgr*                                 p_qp_mgr;
-	struct __attribute__ ((packed)) ibv_flow_attr_ib_ipv4_tcp_udp_v1 {
+	struct ibv_flow_attr_ib_ipv4_tcp_udp_v1 {
 
 		vma_ibv_flow_attr             attr;
 		vma_ibv_flow_spec_ib          ib;
@@ -191,7 +191,7 @@ typedef struct __attribute__ ((packed)) attach_flow_data_ib_ipv4_tcp_udp_v1_t {
 } attach_flow_data_ib_ipv4_tcp_udp_v1_t;
 #endif /* DEFINED_IBV_FLOW_SPEC_IB */
 
-typedef struct __attribute__ ((packed)) attach_flow_data_t {
+typedef struct attach_flow_data_t {
 	vma_ibv_flow *                       ibv_flow;
 	qp_mgr*                                 p_qp_mgr;
 	vma_ibv_flow_attr                    ibv_flow_attr;

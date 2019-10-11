@@ -72,17 +72,17 @@ inline uint32_t cq_mgr::process_recv_queue(void* pv_fd_ready_array)
 inline bool is_eth_tcp_frame(mem_buf_desc_t* buff)
 {
 	struct ethhdr* p_eth_h = (struct ethhdr*)(buff->p_buffer);
-	uint16_t* p_h_proto = &p_eth_h->h_proto;
+	uint16_t h_proto = p_eth_h->h_proto;
 
 	size_t transport_header_len = ETH_HDR_LEN;
 	struct vlanhdr* p_vlan_hdr = NULL;
-	if (*p_h_proto == htons(ETH_P_8021Q)) {
+	if (h_proto == htons(ETH_P_8021Q)) {
 		p_vlan_hdr = (struct vlanhdr*)((uint8_t*)p_eth_h + transport_header_len);
 		transport_header_len = ETH_VLAN_HDR_LEN;
-		p_h_proto = &p_vlan_hdr->h_vlan_encapsulated_proto;
+		h_proto = p_vlan_hdr->h_vlan_encapsulated_proto;
 	}
 	struct iphdr *p_ip_h = (struct iphdr*)(buff->p_buffer + transport_header_len);
-	if (likely(*p_h_proto == htons(ETH_P_IP)) && (p_ip_h->protocol == IPPROTO_TCP)) {
+	if (likely(h_proto == htons(ETH_P_IP)) && (p_ip_h->protocol == IPPROTO_TCP)) {
 		return true;
 	}
 	return false;

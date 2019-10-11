@@ -44,7 +44,7 @@
 
 #define IGMP_TIMER_ID	0
 
-struct __attribute__ ((packed)) ip_igmp_tx_hdr_template_t {
+struct __attribute__ ((packed, aligned)) ip_igmp_tx_hdr_template_t {
 	iphdr			m_ip_hdr;
 	uint32_t		m_ip_hdr_ext;
 	igmphdr			m_igmp_hdr;

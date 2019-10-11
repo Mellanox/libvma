@@ -75,13 +75,13 @@ struct __attribute__ ((packed)) vlan_eth_hdr_template_t  {	// Offeset  Size
 //	iphdr		m_ip_hdr;				//   20      20  = 40
 };
 
-union __attribute__ ((packed)) l2_hdr_template_t  {
+union l2_hdr_template_t  {
 	ib_hdr_template_t	ib_hdr;
 	eth_hdr_template_t	eth_hdr;
 	vlan_eth_hdr_template_t	vlan_eth_hdr;
 };
 
-struct __attribute__ ((packed)) tx_hdr_template_t  {		// Offeset  Size
+struct __attribute__ ((packed, aligned)) tx_hdr_template_t  {		// Offeset  Size
 	l2_hdr_template_t	m_l2_hdr;			//    0      20
 	iphdr			m_ip_hdr;			//   20      20
 	union {
