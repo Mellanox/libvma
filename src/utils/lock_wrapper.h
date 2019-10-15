@@ -263,7 +263,7 @@ public:
 	inline int is_locked_by_me() {
 		DEFINED_NO_THREAD_LOCK_RETURN_1
 		pthread_t self = pthread_self();
-		return (m_owner == self && m_lock_count);
+		return ((m_owner == self && m_lock_count) ? m_lock_count : 0);
 	};
 
 protected:

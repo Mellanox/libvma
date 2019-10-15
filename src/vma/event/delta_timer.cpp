@@ -233,7 +233,15 @@ void timer::process_registered_timers()
 	while (iter && (iter->delta_time_msec == 0)) {
 		tmr_logfuncall("timer expired on %p", iter->handler);
 
-		if (iter->handler && !iter->lock_timer.trylock()){
+		/* Special check is need to protect
+		 * from using destroyed object pointed by handler
+		 * See unregister_timer_event()
+		 * Object can be destoyed from another thread (lock protection)
+		 * and from current thread (lock and lock count condition)
+		 */
+		if (iter->handler &&
+			!iter->lock_timer.trylock() &&
+			(1 == iter->lock_timer.is_locked_by_me())) {
 			iter->handler->handle_timer_expired(iter->user_data);
 			iter->lock_timer.unlock();
 		}
