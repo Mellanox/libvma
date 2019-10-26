@@ -705,19 +705,19 @@ int vma_modify_ring(struct vma_modify_ring_attr *mr_data)
 	if (likely(p_cq_ch_info)) {
 		ring_simple* p_ring = dynamic_cast<ring_simple*>(p_cq_ch_info->get_ring());
 		if (likely(p_ring)) {
-			if (VMA_MODIFY_RING_CQ_MODERATION & mr_data->comp_bit_mask) {
-				p_ring->modify_cq_moderation(mr_data->cq_moderation.cq_moderation_period_usec,
-						mr_data->cq_moderation.cq_moderation_count);
-				ret = 0;
-			} else if (VMA_MODIFY_RING_CQ_ARM & mr_data->comp_bit_mask) {
+			if (VMA_MODIFY_RING_CQ_ARM & mr_data->comp_bit_mask) {
 				if (RING_ETH_CB == p_ring->get_type()) {
-					ret = p_ring->request_notification_blocking(CQT_RX, 0);
+					ret = p_ring->ack_and_arm_cq(CQT_RX);
 				} else if (RING_ETH_DIRECT == p_ring->get_type()) {
-					ret = p_ring->request_notification_blocking(CQT_TX, 0);
+					ret = p_ring->ack_and_arm_cq(CQT_TX);
 				} else {
 					vlog_printf(VLOG_ERROR, "Ring type [%d] is not supported\n",
 							p_ring->get_type());
 				}
+			} else if (VMA_MODIFY_RING_CQ_MODERATION & mr_data->comp_bit_mask) {
+				p_ring->modify_cq_moderation(mr_data->cq_moderation.cq_moderation_period_usec,
+						mr_data->cq_moderation.cq_moderation_count);
+				ret = 0;
 			} else {
 				vlog_printf(VLOG_ERROR, "comp_mask [0x%x] is not supported\n",
 						mr_data->comp_bit_mask);

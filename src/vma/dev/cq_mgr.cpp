@@ -853,6 +853,35 @@ int cq_mgr::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/
 	return ret_total;
 }
 
+//  1 -> busy
+//  0 -> ok
+// -1 -> error
+int cq_mgr::ack_and_request_notification()
+{
+	int res, cq_ev_count = 0;
+	ibv_cq* ib_cq;
+	void *cq_context;
+	do {
+		res = ibv_get_cq_event(m_comp_event_channel, &ib_cq, &cq_context);
+		if (res == 0) {
+			++cq_ev_count;
+		}
+	} while (res == 0);
+	if (errno != EAGAIN) {
+		return -1;
+	}
+	if (cq_ev_count > 0) {
+		get_cq_event(cq_ev_count);
+		ibv_ack_cq_events(m_p_ibv_cq, cq_ev_count);
+		return 1;
+	}
+	IF_VERBS_FAILURE(req_notify_cq()) {
+		cq_logerr("Failure arming the qp_mgr notification channel (errno=%d %m)", errno);
+		return -1;
+	}
+	ENDIF_VERBS_FAILURE
+	return 0;
+}
 
 int cq_mgr::request_notification(uint64_t poll_sn)
 {
