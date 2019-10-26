@@ -77,9 +77,9 @@ int vma_ib_mlx5_req_notify_cq(vma_ib_mlx5_cq_t *mlx5_cq, int solicited)
 	return 0;
 }
 
-void vma_ib_mlx5_get_cq_event(vma_ib_mlx5_cq_t *mlx5_cq)
+void vma_ib_mlx5_get_cq_event(vma_ib_mlx5_cq_t *mlx5_cq, int count)
 {
-	mlx5_cq->cq_sn++;
+	mlx5_cq->cq_sn += count;
 }
 
 #endif /* (DEFINED_DIRECT_VERBS == 3) */

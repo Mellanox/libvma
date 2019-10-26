@@ -70,7 +70,7 @@ public:
 	virtual void                add_qp_tx(qp_mgr* qp);
 	virtual uint32_t            clean_cq();
 	virtual bool                fill_cq_hw_descriptors(struct hw_cq_data &data);
-	virtual void                get_cq_event() { vma_ib_mlx5_get_cq_event(&m_mlx5_cq); };
+	virtual void                get_cq_event(int count = 1) { vma_ib_mlx5_get_cq_event(&m_mlx5_cq, count); };
 
 protected:
 	qp_mgr_eth_mlx5*            m_qp;

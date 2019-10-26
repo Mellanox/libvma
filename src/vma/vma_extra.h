@@ -828,7 +828,7 @@ struct __attribute__ ((packed)) vma_api_t {
 	 *
 	 * @param mr_data ring modification parameters
 	 *
-	 * @return 0 on success -1 on failure
+	 * @return 0 on success -1 on failure 1 on busy
 	 */
 	int (*vma_modify_ring)(struct vma_modify_ring_attr *mr_data);
 

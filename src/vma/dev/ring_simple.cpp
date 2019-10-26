@@ -341,18 +341,12 @@ int ring_simple::request_notification(cq_type_t cq_type, uint64_t poll_sn)
 	return ret;
 }
 
-int ring_simple::request_notification_blocking(cq_type_t cq_type, uint64_t poll_sn)
+int ring_simple::ack_and_arm_cq(cq_type_t cq_type)
 {
-	int ret = -1;
-	if (likely(CQT_RX == cq_type)) {
-		RING_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_rx,
-				m_p_cq_mgr_rx->request_notification(poll_sn);
-				++m_p_ring_stat->simple.n_rx_interrupt_requests);
-	} else {
-		RING_LOCK_RUN_AND_UPDATE_RET(m_lock_ring_tx, m_p_cq_mgr_tx->request_notification(poll_sn));
+	if (CQT_RX == cq_type) {
+		return m_p_cq_mgr_rx->ack_and_request_notification();
 	}
-
-	return ret;
+	return m_p_cq_mgr_tx->ack_and_request_notification();
 }
 
 int ring_simple::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array /*NULL*/)

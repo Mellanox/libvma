@@ -62,7 +62,6 @@ public:
 	virtual ~ring_simple();
 
 	virtual int		request_notification(cq_type_t cq_type, uint64_t poll_sn);
-	virtual int		request_notification_blocking(cq_type_t cq_type, uint64_t poll_sn);
 	virtual int		poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	virtual void		adapt_cq_moderation();
 	virtual bool		reclaim_recv_buffers(descq_t *rx_reuse);
@@ -104,7 +103,7 @@ public:
 	struct ibv_comp_channel* get_tx_comp_event_channel() { return m_p_tx_comp_event_channel; }
 	int			get_ring_descriptors(vma_mlx_hw_device_data &data);
 	void			modify_cq_moderation(uint32_t period, uint32_t count);
-
+	int			ack_and_arm_cq(cq_type_t cq_type);
 	friend class cq_mgr;
 	friend class cq_mgr_mlx5;
 	friend class qp_mgr;

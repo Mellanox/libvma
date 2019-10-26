@@ -108,7 +108,8 @@ public:
 
 	ibv_cq *get_ibv_cq_hndl();
 	int	get_channel_fd();
-
+	// ack events and rearm CQ
+	int ack_and_request_notification();
 	/**
 	 * Arm the managed CQ's notification channel
 	 * Calling this more then once without get_event() will return without
@@ -175,7 +176,7 @@ public:
 	void 	unmap_vlan_and_qpn(int qp_num, uint16_t vlan_id);
 
 	virtual bool fill_cq_hw_descriptors(struct hw_cq_data &data) {NOT_IN_USE(data);return false;};
-	virtual void get_cq_event() {};
+	virtual void get_cq_event(int count = 1) {NOT_IN_USE(count);};
 
 protected:
 
