@@ -1,3 +1,12 @@
+Version 8.9.5-0:
+Date + Time 2019-10-28
+=============================================================
+Fixed:
+        - RM #1946579 Fix event notification logic used by extra API
+        - RM #1909532 Resolve gcc 9.x issues
+        - RM #1734068 Fix inaccurate timer_handler unregistration
+        - RM #1930072 Fix send() operations processing
+
 Version 8.9.4-0:
 Date + Time 2019-09-23
 =============================================================
