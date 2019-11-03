@@ -1323,12 +1323,10 @@ ring* net_device_val_eth::create_ring(resource_allocation_key *key)
 						       key->get_memory_descriptor());
 			break;
 #endif
-#ifdef HAVE_DIRECT_RING
 			case VMA_RING_EXTERNAL_MEM:
 				ring = new ring_eth_direct(get_if_idx(),
 							   &prof->get_desc()->ring_ext);
 			break;
-#endif
 			default:
 				nd_logdbg("Unknown ring type");
 				break;

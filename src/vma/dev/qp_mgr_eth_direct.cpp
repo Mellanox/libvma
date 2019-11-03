@@ -35,8 +35,6 @@
 #include "cq_mgr_mlx5.h"
 #include "ring_simple.h"
 
-#if defined(HAVE_DIRECT_RING)
-
 #undef  MODULE_NAME
 #define MODULE_NAME 	"qp_mgr_direct"
 #define qp_logpanic 	__log_info_panic
@@ -74,9 +72,13 @@ int qp_mgr_eth_direct::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 	qp_init_attr.cap.max_send_sge = 1;
 	qp_init_attr.cap.max_recv_sge = 1;
 	qp_init_attr.cap.max_inline_data = 0;
+#if defined(HAVE_DIRECT_RING)
 	qp_init_attr.comp_mask |= IBV_EXP_QP_INIT_ATTR_CREATE_FLAGS;
 	qp_init_attr.exp_create_flags |= IBV_EXP_QP_CREATE_CROSS_CHANNEL;
 	qp_logdbg("using IBV_EXP_QP_CREATE_CROSS_CHANNEL in qp");
+#else
+	qp_logdbg("IBV_EXP_QP_CREATE_CROSS_CHANNEL not supported in qp");
+#endif
 	return qp_mgr_eth_mlx5::prepare_ibv_qp(qp_init_attr);
 }
 
@@ -141,5 +143,3 @@ qp_mgr_eth_direct::~qp_mgr_eth_direct()
 	delete m_p_cq_mgr_rx;
 	m_p_cq_mgr_rx = NULL;
 }
-
-#endif /* HAVE_DIRECT_RING */
