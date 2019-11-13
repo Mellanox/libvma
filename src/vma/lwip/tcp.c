@@ -588,8 +588,9 @@ tcp_connect(struct tcp_pcb *pcb, ip_addr_t *ipaddr, u16_t port,
   iss = tcp_next_iss();
   pcb->rcv_nxt = 0;
   pcb->snd_nxt = iss;
-  pcb->lastack = iss - 1;
-  pcb->snd_lbb = iss - 1;
+  pcb->lastack = iss;
+  pcb->snd_wl2 = iss;
+  pcb->snd_lbb = iss;
   pcb->rcv_ann_right_edge = pcb->rcv_nxt;
   pcb->snd_wnd = TCP_WND;
   /* 
