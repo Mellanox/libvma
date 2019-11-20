@@ -34,3 +34,25 @@ EOF
 }
 
 ])
+
+# FUNC_CHECK_WITHDIR(name, direcory, file)
+# ----------------------------------------------------
+AC_DEFUN([FUNC_CHECK_WITHDIR],[
+    AC_MSG_CHECKING([for $1 location])
+    AS_IF([test "$2" = "yes" || test "$2" = "no" || test "x$2" = "x"],
+          [AC_MSG_RESULT([(system default)])],
+          [AS_IF([test ! -d "$2"],
+                 [AC_MSG_RESULT([not found])
+                  AC_MSG_WARN([Directory $2 not found])
+                  AC_MSG_ERROR([Cannot continue])],
+                 [AS_IF([test "x`ls $2/$3 2> /dev/null`" = "x"],
+                        [AC_MSG_RESULT([not found])
+                         AC_MSG_WARN([Expected file $2/$3 not found])
+                         AC_MSG_ERROR([Cannot continue])],
+                        [AC_MSG_RESULT([($2)])]
+                       )
+                 ]
+                )
+          ]
+         )
+])
