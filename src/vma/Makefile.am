@@ -58,7 +58,7 @@ libvma_la_LDFLAGS := -no-undefined -version-number @VMA_LIBRARY_MAJOR@:@VMA_LIBR
 endif
 
 libvma_la_LIBADD = \
-	-lrt -ldl -lpthread $(LIBNL_LIBS) $(VERBS_LIBS) \
+	-lrt -ldl -lpthread $(LIBNL_LIBS) $(VERBS_LIBS) $(DPCP_LIBS) \
 	$(top_builddir)/src/utils/libutils.la \
 	$(top_builddir)/src/vlogger/libvlogger.la \
 	$(top_builddir)/src/state_machine/libstate_machine.la \

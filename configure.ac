@@ -86,6 +86,7 @@ m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 m4_include([config/m4/func.m4])
 m4_include([config/m4/opt.m4])
 m4_include([config/m4/verbs.m4])
+m4_include([config/m4/dpcp.m4])
 m4_include([config/m4/nl.m4])
 m4_include([config/m4/prof.m4])
 
@@ -346,6 +347,12 @@ if test "x$enable_tso" = xyes -a "x$vma_cv_attribute_ex_OPCODE_TSO" = xyes; then
     AC_MSG_RESULT([yes])
 else
     AC_MSG_RESULT([no])
+fi
+
+# DPCP Library support
+#
+if test "x$vma_cv_directverbs" == x3; then
+    DPCP_CAPABILITY_SETUP()
 fi
 
 AC_MSG_CHECKING([for md5 version of VMA statistics is])
