@@ -42,6 +42,11 @@
 #include "vma/ib/base/verbs_extra.h"
 #include "utils/lock_wrapper.h"
 
+#ifdef DEFINED_DPCP
+#include <mellanox/dpcp.h>
+#endif /* DEFINED_DPCP */
+
+
 typedef std::tr1::unordered_map<uint32_t, struct ibv_mr*> mr_map_lkey_t;
 
 struct pacing_caps_t {
@@ -73,6 +78,10 @@ public:
 	ibv_device*             get_ibv_device() { return m_p_ibv_device; }
 	inline char*            get_ibname() { return (m_p_ibv_device ? m_p_ibv_device->name : (char *)""); }
 	struct ibv_context*     get_ibv_context() { return m_p_ibv_context; }
+#ifdef DEFINED_DPCP
+	dpcp::adapter*          set_dpcp_adapter();
+	dpcp::adapter*          get_dpcp_adapter() { return m_p_adapter; }
+#endif /* DEFINED_DPCP */
 	vma_ibv_device_attr*    get_ibv_device_attr() { return vma_get_device_orig_attr(m_p_ibv_device_attr); }
 #ifdef DEFINED_TSO
 	vma_ibv_device_attr_ex* get_ibv_device_attr_ex() { return m_p_ibv_device_attr; }
@@ -106,6 +115,9 @@ private:
 	void                    handle_event_device_fatal();
 	ibv_device*             m_p_ibv_device; // HCA handle
 	struct ibv_context*     m_p_ibv_context;
+#ifdef DEFINED_DPCP
+	dpcp::adapter          *m_p_adapter;
+#endif /* DEFINED_DPCP */
 	vma_ibv_device_attr_ex* m_p_ibv_device_attr;
 	ibv_pd*                 m_p_ibv_pd;
 	bool                    m_flow_tag_enabled;
