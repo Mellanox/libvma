@@ -35,7 +35,7 @@
 #include "cq_mgr_mlx5.h"
 #include "ring_simple.h"
 
-#if defined(HAVE_DIRECT_RING)
+#if defined(DEFINED_DIRECT_VERBS)
 
 #undef  MODULE_NAME
 #define MODULE_NAME 	"qp_mgr_direct"
@@ -74,9 +74,13 @@ int qp_mgr_eth_direct::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 	qp_init_attr.cap.max_send_sge = 1;
 	qp_init_attr.cap.max_recv_sge = 1;
 	qp_init_attr.cap.max_inline_data = 0;
+#if defined(DEFINED_IBV_DEVICE_CROSS_CHANNEL)
 	qp_init_attr.comp_mask |= IBV_EXP_QP_INIT_ATTR_CREATE_FLAGS;
 	qp_init_attr.exp_create_flags |= IBV_EXP_QP_CREATE_CROSS_CHANNEL;
-	qp_logdbg("using IBV_EXP_QP_CREATE_CROSS_CHANNEL in qp");
+	qp_logdbg("Cross-Channel is in qp");
+#else
+	qp_logdbg("Cross-Channel is not supported in qp");
+#endif /* DEFINED_IBV_DEVICE_CROSS_CHANNEL */
 	return qp_mgr_eth_mlx5::prepare_ibv_qp(qp_init_attr);
 }
 
@@ -142,4 +146,4 @@ qp_mgr_eth_direct::~qp_mgr_eth_direct()
 	m_p_cq_mgr_rx = NULL;
 }
 
-#endif /* HAVE_DIRECT_RING */
+#endif /* DEFINED_DIRECT_VERBS */
