@@ -34,7 +34,7 @@
 
 #include "qp_mgr_eth_mlx5.h"
 
-#if defined(HAVE_DIRECT_RING)
+#if defined(DEFINED_DIRECT_VERBS)
 
 class qp_mgr_eth_direct: public qp_mgr_eth_mlx5
 {
