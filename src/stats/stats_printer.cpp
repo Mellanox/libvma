@@ -199,6 +199,7 @@ void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, 
 
 #ifdef DEFINED_EXTRA_STATS
 	if (p_si_stats->socket_type == SOCK_STREAM && b_any_activity) {
+		fprintf(filename, "TCP --------------------------------\n");
 		fprintf(filename, "TCP n_rto: %u\n", p_si_stats->tcp_stats.n_rto);
 		fprintf(filename, "TCP n_rtx_fast: %u\n", p_si_stats->tcp_stats.n_rtx_fast);
 		fprintf(filename, "TCP n_rtx_rto: %u\n", p_si_stats->tcp_stats.n_rtx_rto);

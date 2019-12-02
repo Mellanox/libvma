@@ -52,12 +52,9 @@ class stats_data_reader : public timer_handler
                 void    handle_timer_expired(void *ctx);
                 void    register_to_timer();
                 void    add_data_reader(void* local_addr, void* shm_addr, int size);
-                void*   find_data_reader(void* local_addr);
                 void*   pop_data_reader(void* local_addr);
 
         private:
-                void*   find_data_reader_unlocked(void* local_addr);
-
                 void*  m_timer_handler;
                 stats_read_map_t m_data_map;
                 lock_spin m_lock_data_map;

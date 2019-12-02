@@ -153,7 +153,7 @@ typedef struct socket_tcp_stats socket_tcp_stats_t;
 #define EXTRA_STATS_INC(x) do {} while (0)
 #endif /* DEFINED_EXTRA_STATS */
 
-#define PCB_STATS_INC(x) EXTRA_STATS_INC(pcb->stats.x)
+#define PCB_STATS_INC(x) EXTRA_STATS_INC(pcb->p_stats->x)
 
 #ifdef __cplusplus
 }

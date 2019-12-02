@@ -109,30 +109,39 @@ const u8_t tcp_persist_backoff[7] = { 3, 6, 12, 24, 48, 96, 120 };
 struct tcp_pcb *tcp_tmp_pcb;
 
 #ifdef DEFINED_EXTRA_STATS
+void register_tcp_stats_instance(struct tcp_pcb *pcb, socket_tcp_stats_t *stats)
+{
+    pcb->p_stats = stats;
+}
+
 static void copy_tcp_metrics(struct tcp_pcb *pcb)
 {
   struct tcp_seg *seg;
+  socket_tcp_stats_t *stats = pcb->p_stats;
   u32_t n;
 
-  pcb->stats.n_mss = pcb->mss;
-  pcb->stats.n_rto_timer = pcb->rto * slow_tmr_interval;
-  pcb->stats.n_snd_wnd = pcb->snd_wnd;
-  pcb->stats.n_cwnd = pcb->cwnd;
-  pcb->stats.n_ssthresh = pcb->ssthresh;
-  pcb->stats.n_snd_nxt = pcb->snd_nxt;
-  pcb->stats.n_lastack = pcb->lastack;
+  if (stats == NULL)
+    return;
+
+  stats->n_mss = pcb->mss;
+  stats->n_rto_timer = pcb->rto * slow_tmr_interval;
+  stats->n_snd_wnd = pcb->snd_wnd;
+  stats->n_cwnd = pcb->cwnd;
+  stats->n_ssthresh = pcb->ssthresh;
+  stats->n_snd_nxt = pcb->snd_nxt;
+  stats->n_lastack = pcb->lastack;
 
   for (seg = pcb->unsent, n = 0; seg != NULL; seg = seg->next, ++n);
-  pcb->stats.n_unsent_q = n;
+  stats->n_unsent_q = n;
   for (seg = pcb->unacked, n = 0; seg != NULL; seg = seg->next, ++n);
-  pcb->stats.n_unacked_q = n;
+  stats->n_unacked_q = n;
   for (seg = pcb->ooseq, n = 0; seg != NULL; seg = seg->next, ++n);
-  pcb->stats.n_ooseq_q = n;
+  stats->n_ooseq_q = n;
 }
 #else /* DEFINED_EXTRA_STATS */
 static void copy_tcp_metrics(struct tcp_pcb *pcb)
 {
-  /* Do nothing is extra statistics is off. */
+  /* Do nothing if extra statistics is off. */
   (void)pcb;
 }
 #endif /* DEFINED_EXTRA_STATS */

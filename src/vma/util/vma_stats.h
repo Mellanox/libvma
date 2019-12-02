@@ -381,10 +381,6 @@ void vma_shmem_stats_close();
 
 void vma_stats_instance_create_socket_block(socket_stats_t*);
 void vma_stats_instance_remove_socket_block(socket_stats_t*);
-#ifdef DEFINED_EXTRA_STATS
-void vma_stats_instance_add_tcp(socket_tcp_stats_t*, socket_stats_t*);
-void vma_stats_instance_del_tcp(socket_tcp_stats_t*);
-#endif /* DEFINED_EXTRA_STATS */
 
 void vma_stats_mc_group_add(in_addr_t mc_grp, socket_stats_t* p_socket_stats);
 void vma_stats_mc_group_remove(in_addr_t mc_grp, socket_stats_t* p_socket_stats);

@@ -312,6 +312,9 @@ private:
 	inline void unlock_tcp_con();
 	void tcp_timer();
 
+	// Increment retransmit counters
+	void on_retransmit();
+
 	bool prepare_listen_to_close();
 
 	//Builds rfs key

@@ -300,7 +300,7 @@ struct tcp_pcb {
 #define TF_WND_SCALE   ((u16_t)0x0100U) /* Window Scale option enabled */
 
 #ifdef DEFINED_EXTRA_STATS
-  socket_tcp_stats_t stats;
+  socket_tcp_stats_t *p_stats;
 #endif /* DEFINED_EXTRA_STATS */
 
   /* the rest of the fields are in host byte order
@@ -487,6 +487,11 @@ err_t lwip_tcp_event(void *arg, struct tcp_pcb *pcb,
 
 /*Initialization of tcp_pcb structure*/
 void tcp_pcb_init (struct tcp_pcb* pcb, u8_t prio);
+
+#ifdef DEFINED_EXTRA_STATS
+/* Set pointer to extra TCP stats instance */
+void register_tcp_stats_instance(struct tcp_pcb *pcb, socket_tcp_stats_t *stats);
+#endif /* DEFINED_EXTRA_STATS */
 
 void             tcp_arg     		(struct tcp_pcb *pcb, void *arg);
 void             tcp_ip_output          (struct tcp_pcb *pcb, ip_output_fn ip_output);
