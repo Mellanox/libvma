@@ -235,13 +235,18 @@ void pipeinfo::handle_timer_expired(void* user_data)
 	m_lock_tx.unlock();
 }
 
-ssize_t pipeinfo::tx(const tx_call_t call_type, const iovec* p_iov, const ssize_t sz_iov,
-		     const int __flags, const sockaddr *__to ,const socklen_t __tolen)
+ssize_t pipeinfo::tx(vma_tx_call_attr_t &tx_arg)
 {
+	const iovec* p_iov = tx_arg.attr.msg.iov;
+	const ssize_t sz_iov = tx_arg.attr.msg.sz_iov;
+	const int __flags = tx_arg.attr.msg.flags;
+	const struct sockaddr *__to = tx_arg.attr.msg.addr;
+	const socklen_t __tolen = tx_arg.attr.msg.len;
+	ssize_t ret = -1;
+
 	pi_logfunc("");
 	m_lock_tx.lock();
-	ssize_t ret = -1;
-	switch (call_type) {
+	switch (tx_arg.opcode) {
 	case  TX_WRITE:
 
 		if ((safe_mce_sys().mce_spec == MCE_SPEC_29WEST_LBM_29 || safe_mce_sys().mce_spec == MCE_SPEC_WOMBAT_FH_LBM_554) && 
@@ -283,7 +288,7 @@ ssize_t pipeinfo::tx(const tx_call_t call_type, const iovec* p_iov, const ssize_
 	case  TX_SENDTO:
 	case  TX_SENDMSG:
 	default:
-		ret = socket_fd_api::tx_os(call_type, p_iov, sz_iov, __flags, __to, __tolen);
+		ret = socket_fd_api::tx_os(tx_arg.opcode, p_iov, sz_iov, __flags, __to, __tolen);
 		break;
 	}
 

@@ -164,7 +164,7 @@ public:
 
 	struct tcp_pcb* get_syn_received_pcb(in_addr_t src_addr, in_port_t src_port, in_addr_t dest_addr, in_port_t dest_port);
 
-	ssize_t tx(const tx_call_t call_type, const iovec *p_iov, const ssize_t sz_iov, const int flags = 0, const struct sockaddr *__to = NULL, const socklen_t __tolen = 0);
+	ssize_t tx(vma_tx_call_attr_t &tx_arg);
 	ssize_t rx(const rx_call_t call_type, iovec *p_iov, ssize_t sz_iov, int *p_flags, sockaddr *__from = NULL, socklen_t *__fromlen = NULL, struct msghdr *__msg = NULL);
 #ifdef DEFINED_TSO
 	static err_t ip_output(struct pbuf *p, void* v_p_conn, uint16_t flags);

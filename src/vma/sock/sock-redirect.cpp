@@ -36,6 +36,7 @@
 #include <sys/time.h>
 #include <dlfcn.h>
 #include <iostream>
+#include <fcntl.h>
 
 #include "utils/lock_wrapper.h"
 #include <vma/proto/ip_frag.h>
@@ -80,7 +81,6 @@ using namespace std;
 #define srdr_logfunc_exit	__log_exit_func
 
 #define EP_MAX_EVENTS (int)((INT_MAX / sizeof(struct epoll_event)))
-#define SENDFILE_BUFFER_SIZE 1460
 
 struct os_api orig_os_api;
 struct sigaction g_act_prev;
@@ -1677,10 +1677,14 @@ ssize_t write(int __fd, __const void *__buf, size_t __nbytes)
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
 	if (p_socket_object) {
-		iovec piov[1];
-		piov[0].iov_base = (void*)__buf;
-		piov[0].iov_len = __nbytes;
-		return p_socket_object->tx(TX_WRITE, piov, 1);
+		struct iovec piov[1] = {(void*)__buf, __nbytes};
+		vma_tx_call_attr_t tx_arg;
+
+		tx_arg.opcode = TX_WRITE;
+		tx_arg.attr.msg.iov = piov;
+		tx_arg.attr.msg.sz_iov = 1;
+
+		return p_socket_object->tx(tx_arg);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.write) get_orig_funcs();
@@ -1701,7 +1705,13 @@ ssize_t writev(int __fd, const struct iovec *iov, int iovcnt)
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
 	if (p_socket_object) {
-		return p_socket_object->tx(TX_WRITEV, iov, iovcnt);
+		vma_tx_call_attr_t tx_arg;
+
+		tx_arg.opcode = TX_WRITEV;
+		tx_arg.attr.msg.iov = (struct iovec *)iov;
+		tx_arg.attr.msg.sz_iov = iovcnt;
+
+		return p_socket_object->tx(tx_arg);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.writev) get_orig_funcs();
@@ -1723,10 +1733,15 @@ ssize_t send(int __fd, __const void *__buf, size_t __nbytes, int __flags)
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
 	if (p_socket_object) {
-		iovec piov[1];
-		piov[0].iov_base = (void*)__buf;
-		piov[0].iov_len = __nbytes;
-		return p_socket_object->tx(TX_SEND, piov, 1, __flags);
+		struct iovec piov[1] = {(void*)__buf, __nbytes};
+		vma_tx_call_attr_t tx_arg;
+
+		tx_arg.opcode = TX_SEND;
+		tx_arg.attr.msg.iov = piov;
+		tx_arg.attr.msg.sz_iov = 1;
+		tx_arg.attr.msg.flags = __flags;
+
+		return p_socket_object->tx(tx_arg);
 	}
 
 	// Ignore dummy messages for OS
@@ -1754,7 +1769,16 @@ ssize_t sendmsg(int __fd, __const struct msghdr *__msg, int __flags)
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
 	if (p_socket_object) {
-		return p_socket_object->tx(TX_SENDMSG, __msg->msg_iov, __msg->msg_iovlen, __flags, (__CONST_SOCKADDR_ARG)__msg->msg_name, (socklen_t)__msg->msg_namelen);
+		vma_tx_call_attr_t tx_arg;
+
+		tx_arg.opcode = TX_SENDMSG;
+		tx_arg.attr.msg.iov = __msg->msg_iov;
+		tx_arg.attr.msg.sz_iov = (ssize_t)__msg->msg_iovlen;
+		tx_arg.attr.msg.flags = __flags;
+		tx_arg.attr.msg.addr = (struct sockaddr *)(__CONST_SOCKADDR_ARG)__msg->msg_name;
+		tx_arg.attr.msg.len = (socklen_t)__msg->msg_namelen;
+
+		return p_socket_object->tx(tx_arg);
 	}
 
 	// Ignore dummy messages for OS
@@ -1792,8 +1816,16 @@ int sendmmsg(int __fd, struct mmsghdr *__mmsghdr, unsigned int __vlen, int __fla
 	p_socket_object = fd_collection_get_sockfd(__fd);
 	if (p_socket_object) {
 		for (unsigned int i=0; i<__vlen; i++) {
-			int ret = p_socket_object->tx(TX_SENDMSG, __mmsghdr[i].msg_hdr.msg_iov, __mmsghdr[i].msg_hdr.msg_iovlen, __flags,
-					(__SOCKADDR_ARG)__mmsghdr[i].msg_hdr.msg_name, (socklen_t)__mmsghdr[i].msg_hdr.msg_namelen);
+			vma_tx_call_attr_t tx_arg;
+
+			tx_arg.opcode = TX_SENDMSG;
+			tx_arg.attr.msg.iov = __mmsghdr[i].msg_hdr.msg_iov;
+			tx_arg.attr.msg.sz_iov = (ssize_t)__mmsghdr[i].msg_hdr.msg_iovlen;
+			tx_arg.attr.msg.flags = __flags;
+			tx_arg.attr.msg.addr = (struct sockaddr *)(__SOCKADDR_ARG)__mmsghdr[i].msg_hdr.msg_name;
+			tx_arg.attr.msg.len = (socklen_t)__mmsghdr[i].msg_hdr.msg_namelen;
+
+			int ret = p_socket_object->tx(tx_arg);
 			if (ret < 0){
 				if (num_of_msg)
 					return num_of_msg;
@@ -1839,10 +1871,17 @@ ssize_t sendto(int __fd, __const void *__buf, size_t __nbytes, int __flags,
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
 	if (p_socket_object) {
-		iovec piov[1];
-		piov[0].iov_base = (void*)__buf;
-		piov[0].iov_len = __nbytes;
-		return p_socket_object->tx(TX_SENDTO, piov, 1, __flags, __to, __tolen);
+		struct iovec piov[1] = {(void*)__buf, __nbytes};
+		vma_tx_call_attr_t tx_arg;
+
+		tx_arg.opcode = TX_SENDTO;
+		tx_arg.attr.msg.iov = piov;
+		tx_arg.attr.msg.sz_iov = 1;
+		tx_arg.attr.msg.flags = __flags;
+		tx_arg.attr.msg.addr = (struct sockaddr *)__to;
+		tx_arg.attr.msg.len = __tolen;
+
+		return p_socket_object->tx(tx_arg);
 	}
 
 	// Ignore dummy messages for OS
@@ -1857,11 +1896,11 @@ ssize_t sendto(int __fd, __const void *__buf, size_t __nbytes, int __flags,
 	return orig_os_api.sendto(__fd, __buf, __nbytes, __flags, __to, __tolen);
 }
 
+
 inline ssize_t sendfile_helper(socket_fd_api* p_socket_object, int in_fd, __off64_t *offset, size_t count)
 {
 	__off64_t orig = 0;
-	iovec piov[1];
-	char buf[SENDFILE_BUFFER_SIZE];
+	char buf[1460];
 	ssize_t toRead, numRead, numSent, totSent = 0;
 
 	if (offset != NULL) {
@@ -1873,8 +1912,6 @@ inline ssize_t sendfile_helper(socket_fd_api* p_socket_object, int in_fd, __off6
 			return -1;
 	}
 
-	piov[0].iov_base = (void*) buf;
-
 	while (count > 0) {
 		toRead = min(sizeof(buf), count);
 		numRead = orig_os_api.read(in_fd, buf, toRead);
@@ -1883,10 +1920,14 @@ inline ssize_t sendfile_helper(socket_fd_api* p_socket_object, int in_fd, __off6
 		if (numRead == 0)
 			break;                      /* EOF */
 
-		// Update iovec size before send
-		piov[0].iov_len = numRead;
+		struct iovec piov[1] = {(void*)buf, (size_t)numRead};
+		vma_tx_call_attr_t tx_arg;
 
-		numSent = p_socket_object->tx(TX_WRITE, piov, 1);
+		tx_arg.opcode = TX_WRITE;
+		tx_arg.attr.msg.iov = piov;
+		tx_arg.attr.msg.sz_iov = 1;
+
+		numSent = p_socket_object->tx(tx_arg);
 		if (numSent == -1)
 			return -1;
 		if (numSent == 0)               /* Should never happen */

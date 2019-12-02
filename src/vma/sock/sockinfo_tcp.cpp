@@ -731,8 +731,13 @@ void sockinfo_tcp::put_agent_msg(void *arg)
 	g_p_agent->put((const void*)&data, sizeof(data), (intptr_t)data.fid);
 }
 
-ssize_t sockinfo_tcp::tx(const tx_call_t call_type, const iovec* p_iov, const ssize_t sz_iov, const int flags, const struct sockaddr *__to, const socklen_t __tolen)
+ssize_t sockinfo_tcp::tx(vma_tx_call_attr_t &tx_arg)
 {
+	const iovec* p_iov = tx_arg.attr.msg.iov;
+	const ssize_t sz_iov = tx_arg.attr.msg.sz_iov;
+	const int __flags = tx_arg.attr.msg.flags;
+	const struct sockaddr *__dst = tx_arg.attr.msg.addr;
+	const socklen_t __dstlen = tx_arg.attr.msg.len;
 	int errno_tmp = errno;
 	int total_tx = 0;
 	unsigned tx_size;
@@ -740,8 +745,8 @@ ssize_t sockinfo_tcp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 	unsigned pos = 0;
 	int ret = 0;
 	int poll_count = 0;
-	bool is_dummy = IS_DUMMY_PACKET(flags);
-	bool block_this_run = BLOCK_THIS_RUN(m_b_blocking, flags);
+	bool is_dummy = IS_DUMMY_PACKET(__flags);
+	bool block_this_run = BLOCK_THIS_RUN(m_b_blocking, __flags);
 
 	/* Let allow OS to process all invalid scenarios to avoid any
 	 * inconsistencies in setting errno values
@@ -792,7 +797,7 @@ retry_is_ready:
 
 	lock_tcp_con();
 
-	if (unlikely(is_dummy) && !check_dummy_send_conditions(flags, p_iov, sz_iov)) {
+	if (unlikely(is_dummy) && !check_dummy_send_conditions(__flags, p_iov, sz_iov)) {
 		unlock_tcp_con();
 		errno = EAGAIN;
 		return -1;
@@ -955,7 +960,7 @@ tx_packet_to_os:
 	INC_GO_TO_OS_TX_COUNT;
 #endif
 
-	ret = socket_fd_api::tx_os(call_type, p_iov, sz_iov, flags, __to, __tolen);
+	ret = socket_fd_api::tx_os(tx_arg.opcode, p_iov, sz_iov, __flags, __dst, __dstlen);
 	save_stats_tx_os(ret);
 	return ret;
 }

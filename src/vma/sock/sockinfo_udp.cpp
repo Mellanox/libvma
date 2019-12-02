@@ -1541,9 +1541,13 @@ int sockinfo_udp::rx_request_notification(uint64_t poll_sn)
 	return ring_ready_count;
 }
 
-ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ssize_t sz_iov,
-		     const int __flags /*=0*/, const struct sockaddr *__dst /*=NULL*/, const socklen_t __dstlen /*=0*/)
+ssize_t sockinfo_udp::tx(vma_tx_call_attr_t &tx_arg)
 {
+	const iovec* p_iov = tx_arg.attr.msg.iov;
+	const ssize_t sz_iov = tx_arg.attr.msg.sz_iov;
+	const int __flags = tx_arg.attr.msg.flags;
+	const struct sockaddr *__dst = tx_arg.attr.msg.addr;
+	const socklen_t __dstlen = tx_arg.attr.msg.len;
 	int errno_tmp = errno;
 	int ret = 0;
 	bool is_dummy = IS_DUMMY_PACKET(__flags);
@@ -1681,7 +1685,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 		}
 		else {
 			// updates the dst_entry internal information and packet headers
-			ret = p_dst_entry->slow_send(p_iov, sz_iov, attr, m_so_ratelimit, __flags, this, call_type);
+			ret = p_dst_entry->slow_send(p_iov, sz_iov, attr, m_so_ratelimit, __flags, this, tx_arg.opcode);
 		}
 #else
 		bool b_blocking = m_b_blocking;
@@ -1694,7 +1698,7 @@ ssize_t sockinfo_udp::tx(const tx_call_t call_type, const iovec* p_iov, const ss
 		}
 		else {
 			// updates the dst_entry internal information and packet headers
-			ret = p_dst_entry->slow_send(p_iov, sz_iov, is_dummy, m_so_ratelimit, b_blocking, false, __flags, this, call_type);
+			ret = p_dst_entry->slow_send(p_iov, sz_iov, is_dummy, m_so_ratelimit, b_blocking, false, __flags, this, tx_arg.opcode);
 		}
 #endif /* DEFINED_TSO */
 
@@ -1735,7 +1739,7 @@ tx_packet_to_os:
 	INC_GO_TO_OS_TX_COUNT;
 #endif
 	// Calling OS transmit
-	ret = socket_fd_api::tx_os(call_type, p_iov, sz_iov, __flags, __dst, __dstlen);
+	ret = socket_fd_api::tx_os(tx_arg.opcode, p_iov, sz_iov, __flags, __dst, __dstlen);
 
 tx_packet_to_os_stats:
 	save_stats_tx_os(ret);
