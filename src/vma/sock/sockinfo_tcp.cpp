@@ -256,6 +256,10 @@ sockinfo_tcp::sockinfo_tcp(int fd):
 
 	tcp_pcb_init(&m_pcb, TCP_PRIO_NORMAL);
 
+#ifdef DEFINED_EXTRA_STATS
+	vma_stats_instance_add_tcp(&m_pcb.stats, m_p_socket_stats);
+#endif /* DEFINED_EXTRA_STATS */
+
 	si_tcp_logdbg("new pcb %p pcb state %d", &m_pcb, get_tcp_state(&m_pcb));
 	tcp_arg(&m_pcb, this);
 	tcp_ip_output(&m_pcb, sockinfo_tcp::ip_output);
@@ -328,6 +332,10 @@ sockinfo_tcp::~sockinfo_tcp()
 		 */
 		prepare_to_close(true);
 	}
+
+#ifdef DEFINED_EXTRA_STATS
+	vma_stats_instance_del_tcp(&m_pcb.stats);
+#endif /* DEFINED_EXTRA_STATS */
 
 	do_wakeup();
 
@@ -846,6 +854,7 @@ retry_is_ready:
 					errno = ECONNRESET;
 					goto err;
 				}
+				EXTRA_STATS_INC(m_pcb.stats.n_blocked_sndbuf);
 				//force out TCP data before going on wait()
 				tcp_output(&m_pcb);
 
@@ -1105,6 +1114,8 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, int is_rexmit, uin
 
 	if (is_rexmit) {
 		p_si_tcp->m_p_socket_stats->counters.n_tx_retransmits++;
+		if (p_si_tcp->m_pcb.cwnd < p_si_tcp->m_pcb.ssthresh)
+			EXTRA_STATS_INC(p_si_tcp->m_pcb.stats.n_rtx_ss);
 	}
 
 	return ERR_OK;

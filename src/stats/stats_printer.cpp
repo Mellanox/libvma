@@ -79,7 +79,7 @@ void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, 
 
 	if (!filename) return;
 
-	bool b_any_activiy = false;
+	bool b_any_activity = false;
 	char post_fix[3] = "";
 
 	if (user_params.print_details_mode == e_deltas)
@@ -143,44 +143,44 @@ void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, 
 	if (p_si_stats->counters.n_tx_sent_byte_count || p_si_stats->counters.n_tx_sent_pkt_count || p_si_stats->counters.n_tx_drops || p_si_stats->counters.n_tx_errors)
 	{
 		fprintf(filename, "Tx Offload: %u / %u / %u / %u [kilobytes/packets/drops/errors]%s\n", p_si_stats->counters.n_tx_sent_byte_count/BYTES_TRAFFIC_UNIT,p_si_stats->counters.n_tx_sent_pkt_count, p_si_stats->counters.n_tx_drops, p_si_stats->counters.n_tx_errors, post_fix);
-		b_any_activiy = true;
+		b_any_activity = true;
 	}
 	if (p_si_stats->counters.n_tx_os_bytes || p_si_stats->counters.n_tx_os_packets || p_si_stats->counters.n_tx_os_eagain || p_si_stats->counters.n_tx_os_errors)
 	{
 		fprintf(filename, "Tx OS info: %u / %u / %u / %u [kilobytes/packets/eagains/errors]%s\n",  p_si_stats->counters.n_tx_os_bytes/BYTES_TRAFFIC_UNIT,  p_si_stats->counters.n_tx_os_packets, p_si_stats->counters.n_tx_os_eagain, p_si_stats->counters.n_tx_os_errors, post_fix);
-		b_any_activiy = true;
+		b_any_activity = true;
 	}
 	if (p_si_stats->counters.n_tx_dummy) {
 		fprintf(filename, "Tx Dummy messages : %d\n", p_si_stats->counters.n_tx_dummy);
-		b_any_activiy = true;
+		b_any_activity = true;
 	}
 	if (p_si_stats->counters.n_rx_bytes || p_si_stats->counters.n_rx_packets || p_si_stats->counters.n_rx_eagain || p_si_stats->counters.n_rx_errors)
 	{
 		fprintf(filename, "Rx Offload: %u / %u / %u / %u [kilobytes/packets/eagains/errors]%s\n",  p_si_stats->counters.n_rx_bytes/BYTES_TRAFFIC_UNIT,  p_si_stats->counters.n_rx_packets, p_si_stats->counters.n_rx_eagain,  p_si_stats->counters.n_rx_errors, post_fix);
-		b_any_activiy = true;
+		b_any_activity = true;
 	}
 	if (p_si_stats->counters.n_rx_os_bytes || p_si_stats->counters.n_rx_os_packets || p_si_stats->counters.n_rx_os_eagain || p_si_stats->counters.n_rx_os_errors)
 	{
 		fprintf(filename, "Rx OS info: %u / %u / %u / %u [kilobytes/packets/eagains/errors]%s\n",  p_si_stats->counters.n_rx_os_bytes/BYTES_TRAFFIC_UNIT,  p_si_stats->counters.n_rx_os_packets, p_si_stats->counters.n_rx_os_eagain, p_si_stats->counters.n_rx_os_errors, post_fix);
-		b_any_activiy = true;
+		b_any_activity = true;
 	}
 	if (p_si_stats->counters.n_rx_packets || p_si_stats->n_rx_ready_pkt_count)
 	{
 		fprintf(filename, "Rx byte: cur %u / max %u / dropped%s %u / limit %u\n", p_si_stats->n_rx_ready_byte_count, p_si_stats->counters.n_rx_ready_byte_max, post_fix,p_si_stats->counters.n_rx_ready_byte_drop, p_si_stats->n_rx_ready_byte_limit);
 		fprintf(filename, "Rx pkt : cur %u / max %u / dropped%s %u\n", p_si_stats->n_rx_ready_pkt_count, p_si_stats->counters.n_rx_ready_pkt_max, post_fix,p_si_stats->counters.n_rx_ready_pkt_drop);
-		b_any_activiy = true;
+		b_any_activity = true;
 	}
 	if (p_si_stats->n_rx_zcopy_pkt_count)
 	{
 		fprintf(filename, "Rx zero copy buffers: cur %u\n", p_si_stats->n_rx_zcopy_pkt_count);
-		b_any_activiy = true;
+		b_any_activity = true;
 	}
 	if (p_si_stats->counters.n_rx_poll_miss || p_si_stats->counters.n_rx_poll_hit)
 	{
 		double rx_poll_hit = (double)p_si_stats->counters.n_rx_poll_hit;
 		double rx_poll_hit_percentage = (rx_poll_hit / (rx_poll_hit + (double)p_si_stats->counters.n_rx_poll_miss)) * 100;
 		fprintf(filename, "Rx poll: %u / %u (%2.2f%%) [miss/hit]\n",  p_si_stats->counters.n_rx_poll_miss, p_si_stats->counters.n_rx_poll_hit, rx_poll_hit_percentage);
-		b_any_activiy = true;
+		b_any_activity = true;
 	}
 
 	if (p_si_stats->counters.n_rx_migrations || p_si_stats->counters.n_tx_migrations)
@@ -193,9 +193,44 @@ void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, 
 		fprintf(filename, "Retransmissions: %u\n", p_si_stats->counters.n_tx_retransmits);
 	}
 
-	if (b_any_activiy == false) {
+	if (b_any_activity == false) {
 		fprintf(filename, "Rx and Tx where not active\n");
 	}
+
+#ifdef DEFINED_EXTRA_STATS
+	if (p_si_stats->socket_type == SOCK_STREAM && b_any_activity) {
+		fprintf(filename, "TCP n_rto: %u\n", p_si_stats->tcp_stats.n_rto);
+		fprintf(filename, "TCP n_rtx_fast: %u\n", p_si_stats->tcp_stats.n_rtx_fast);
+		fprintf(filename, "TCP n_rtx_rto: %u\n", p_si_stats->tcp_stats.n_rtx_rto);
+		fprintf(filename, "TCP n_rtx_ss: %u\n", p_si_stats->tcp_stats.n_rtx_ss);
+		fprintf(filename, "TCP n_rtx_spurious: %u\n", p_si_stats->tcp_stats.n_rtx_spurious);
+		fprintf(filename, "TCP n_recovered_fast: %u\n", p_si_stats->tcp_stats.n_recovered_fast);
+		fprintf(filename, "TCP n_dupacks: %u\n", p_si_stats->tcp_stats.n_dupacks);
+		fprintf(filename, "TCP n_ofo: %u\n", p_si_stats->tcp_stats.n_ofo);
+		fprintf(filename, "TCP n_underruns: %u\n", p_si_stats->tcp_stats.n_underruns);
+		fprintf(filename, "TCP n_blocked_cwnd: %u\n", p_si_stats->tcp_stats.n_blocked_cwnd);
+		fprintf(filename, "TCP n_blocked_rwnd: %u\n", p_si_stats->tcp_stats.n_blocked_rwnd);
+		fprintf(filename, "TCP n_blocked_sndbuf: %u\n", p_si_stats->tcp_stats.n_blocked_sndbuf);
+		fprintf(filename, "TCP n_updates_rtt: %u\n", p_si_stats->tcp_stats.n_updates_rtt);
+		fprintf(filename, "TCP n_rst: %u\n", p_si_stats->tcp_stats.n_rst);
+		fprintf(filename, "TCP --------------------------------\n");
+		fprintf(filename, "TCP n_rx_ignored: %u\n", p_si_stats->tcp_stats.n_rx_ignored);
+		fprintf(filename, "TCP n_dropped: %u\n", p_si_stats->tcp_stats.n_dropped);
+		fprintf(filename, "TCP n_memerr_pbuf: %u\n", p_si_stats->tcp_stats.n_memerr_pbuf);
+		fprintf(filename, "TCP n_memerr_seg: %u\n", p_si_stats->tcp_stats.n_memerr_seg);
+		fprintf(filename, "TCP --------------------------------\n");
+		fprintf(filename, "TCP n_mss: %u\n", p_si_stats->tcp_stats.n_mss);
+		fprintf(filename, "TCP n_rto_timer(ms): %u\n", p_si_stats->tcp_stats.n_rto_timer);
+		fprintf(filename, "TCP n_snd_wnd: %u\n", p_si_stats->tcp_stats.n_snd_wnd);
+		fprintf(filename, "TCP n_cwnd: %u\n", p_si_stats->tcp_stats.n_cwnd);
+		fprintf(filename, "TCP n_ssthresh: %u\n", p_si_stats->tcp_stats.n_ssthresh);
+		fprintf(filename, "TCP n_snd_nxt: %u\n", p_si_stats->tcp_stats.n_snd_nxt);
+		fprintf(filename, "TCP n_lastack: %u\n", p_si_stats->tcp_stats.n_lastack);
+		fprintf(filename, "TCP n_unsent_q: %u\n", p_si_stats->tcp_stats.n_unsent_q);
+		fprintf(filename, "TCP n_unacked_q: %u\n", p_si_stats->tcp_stats.n_unacked_q);
+		fprintf(filename, "TCP n_ooseq_q: %u\n", p_si_stats->tcp_stats.n_ooseq_q);
+	}
+#endif /* DEFINED_EXTRA_STATS */
 }
 
 // Print statistics headers for all sockets - used in case view mode is e_netstat_like

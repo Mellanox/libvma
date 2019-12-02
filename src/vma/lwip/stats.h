@@ -110,6 +110,51 @@ void stats_display_proto(struct stats_proto *proto, char *name);
 #define stats_display_proto(proto, name)
 #endif /* LWIP_STATS_DISPLAY */
 
+#ifdef DEFINED_EXTRA_STATS
+
+struct socket_tcp_stats {
+  u32_t n_rto;            /* number of RTO */
+  u32_t n_rtx_fast;       /* fast retransmits */
+  u32_t n_rtx_rto;        /* retransmits caused by RTO */
+  u32_t n_rtx_ss;         /* retransmits in slow start phase */
+  u32_t n_rtx_spurious;   /* number of segments removed from unsent queue */
+  u32_t n_recovered_fast; /* recovered after fast retransmit without RTO */
+  u32_t n_dupacks;        /* duplicate ACKs */
+  u32_t n_ofo;            /* out of order segments */
+  u32_t n_underruns;      /* underruns (no segments to send) */
+  u32_t n_blocked_cwnd;   /* sending blocked by cwnd */
+  u32_t n_blocked_rwnd;   /* sending blocked by rwnd */
+  u32_t n_blocked_sndbuf; /* sending blocked by snd_buf */
+  u32_t n_updates_rtt;    /* RTT measurements */
+  u32_t n_rst;            /* RST segments */
+
+  u32_t n_rx_ignored;     /* ignored incoming segments */
+  u32_t n_dropped;        /* dropped segments due to an error */
+  u32_t n_memerr_pbuf;    /* pbuf allocation errors */
+  u32_t n_memerr_seg;     /* segment allocation errors */
+
+  u32_t n_mss;
+  u32_t n_rto_timer;
+  u32_t n_snd_wnd;
+  u32_t n_cwnd;
+  u32_t n_ssthresh;
+  u32_t n_snd_nxt;
+  u32_t n_lastack;
+  u32_t n_unsent_q;
+  u32_t n_unacked_q;
+  u32_t n_ooseq_q;
+};
+
+typedef struct socket_tcp_stats socket_tcp_stats_t;
+
+#define EXTRA_STATS_INC(x) ++x
+
+#else /* DEFINED_EXTRA_STATS */
+#define EXTRA_STATS_INC(x) do {} while (0)
+#endif /* DEFINED_EXTRA_STATS */
+
+#define PCB_STATS_INC(x) EXTRA_STATS_INC(pcb->stats.x)
+
 #ifdef __cplusplus
 }
 #endif

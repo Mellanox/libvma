@@ -263,6 +263,20 @@ if test  ${revision:-0} -ne 0 ; then
     	CXXFLAGS="-DVMA_SVN_REVISION=$revision $CXXFLAGS"
 fi
 
+# Extra TCP statistics
+#
+AC_ARG_ENABLE([extra-stats],
+    AC_HELP_STRING([--enable-extra-stats],
+        [Enable extra TCP statistics (default=no)]))
+AC_MSG_CHECKING(
+    [for extra TCP statistics support])
+if test "x$enable_extra_stats" = xyes; then
+    AC_DEFINE_UNQUOTED([DEFINED_EXTRA_STATS], [1], [Define to 1 to provide extra TCP statistics])
+    AC_MSG_RESULT([yes])
+else
+    AC_MSG_RESULT([no])
+fi
+
 # OFED configuration.
 #
 AC_MSG_CHECKING([for OFED path])

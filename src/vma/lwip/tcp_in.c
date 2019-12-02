@@ -120,6 +120,7 @@ L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb)
         LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_input: short packet (%"U16_F" bytes) discarded\n", (u16_t)p->tot_len));
         TCP_STATS_INC(tcp.lenerr);
         TCP_STATS_INC(tcp.drop);
+        PCB_STATS_INC(n_dropped);
         pbuf_free(p);
         return;
     }
@@ -132,6 +133,7 @@ L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb)
         LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_input: short packet\n"));
         TCP_STATS_INC(tcp.lenerr);
         TCP_STATS_INC(tcp.drop);
+        PCB_STATS_INC(n_dropped);
         pbuf_free(p);
         return;
     }
@@ -187,7 +189,8 @@ L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb)
 					/* if err == ERR_ABRT, 'pcb' is already deallocated */
 					/* drop incoming packets, because pcb is "full" */
 					LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_input: drop incoming packets, because pcb is \"full\"\n"));
-					TCP_STATS_INC(tcp.drop);;
+					TCP_STATS_INC(tcp.drop);
+					PCB_STATS_INC(n_dropped);
 					pbuf_free(p);
 					return;
 				}
@@ -314,6 +317,7 @@ L3_level_tcp_input(struct pbuf *p, struct tcp_pcb* pcb)
         if (!(TCPH_FLAGS(in_data.tcphdr) & TCP_RST)) {
             TCP_STATS_INC(tcp.proterr);
             TCP_STATS_INC(tcp.drop);
+            PCB_STATS_INC(n_dropped);
             tcp_rst(in_data.ackno, in_data.seqno + in_data.tcplen, in_data.tcphdr->dest,
             		in_data.tcphdr->src, pcb);
         }
@@ -956,6 +960,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
             /* Clause 5 */
             if (pcb->lastack == in_data->ackno) {
               found_dupack = 1;
+              PCB_STATS_INC(n_dupacks);
               if ((u8_t)(pcb->dupacks + 1) > pcb->dupacks)
                 ++pcb->dupacks;
               if (pcb->dupacks > 3) {
@@ -1098,6 +1103,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
       pcb->polltmr = 0;
     } else {
       /* Out of sequence ACK, didn't really ack anything */
+      PCB_STATS_INC(n_rx_ignored);
       pcb->acked = 0;
       tcp_send_empty_ack(pcb);
     }
@@ -1130,6 +1136,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
       }
       pcb->snd_queuelen -= pbuf_clen(next->p);
       tcp_tx_seg_free(pcb, next);
+      PCB_STATS_INC(n_rtx_spurious);
       LWIP_DEBUGF(TCP_QLEN_DEBUG, ("%"U16_F" (after freeing unsent)\n", (u32_t)pcb->snd_queuelen));
       if (pcb->snd_queuelen != 0) {
         LWIP_ASSERT("tcp_receive: valid queue length",
@@ -1165,6 +1172,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
       pcb->sv += m;
       pcb->rto = (pcb->sa >> 3) + pcb->sv;
 
+      PCB_STATS_INC(n_updates_rtt);
       LWIP_DEBUGF(TCP_RTO_DEBUG, ("tcp_receive: RTO %"U16_F" (%"U16_F" milliseconds)\n",
                                   pcb->rto, pcb->rto * slow_tmr_interval));
 
@@ -1268,6 +1276,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
         /* the whole segment is < rcv_nxt */
         /* must be a duplicate of a packet that has already been correctly handled */
 
+        PCB_STATS_INC(n_rx_ignored);
         LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_receive: duplicate seqno %"U32_F"\n", in_data->seqno));
         tcp_ack_now(pcb);
       }
@@ -1440,6 +1449,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
 
       } else {
         /* We get here if the incoming segment is out-of-sequence. */
+        PCB_STATS_INC(n_ofo);
         tcp_send_empty_ack(pcb);
 #if TCP_QUEUE_OOSEQ
         /* We queue the segment on the ->ooseq queue. */
@@ -1575,6 +1585,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
       }
     } else {
       /* The incoming segment is not withing the window. */
+      PCB_STATS_INC(n_rx_ignored);
       tcp_send_empty_ack(pcb);
     }
   } else {
@@ -1583,6 +1594,7 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
     /*if (TCP_SEQ_GT(pcb->rcv_nxt, seqno) ||
       TCP_SEQ_GEQ(seqno, pcb->rcv_nxt + pcb->rcv_wnd)) {*/
     if(!TCP_SEQ_BETWEEN(in_data->seqno, pcb->rcv_nxt, pcb->rcv_nxt + pcb->rcv_wnd-1)){
+      PCB_STATS_INC(n_rx_ignored);
       tcp_ack_now(pcb);
     }
   }

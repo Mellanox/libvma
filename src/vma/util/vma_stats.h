@@ -43,6 +43,7 @@
 #include <sys/stat.h>
 #include <vlogger/vlogger.h>
 #include <vma/vma_extra.h>
+#include <vma/lwip/stats.h>
 
 #define NUM_OF_SUPPORTED_CQS                        16
 #define NUM_OF_SUPPORTED_RINGS                      16
@@ -188,6 +189,9 @@ typedef struct {
 	uint32_t                     n_rx_zcopy_pkt_count;
 	uint32_t                     n_tx_ready_byte_count;
 	socket_counters_t            counters;
+#ifdef DEFINED_EXTRA_STATS
+	socket_tcp_stats_t           tcp_stats;
+#endif /* DEFINED_EXTRA_STATS */
 	std::bitset<MC_TABLE_SIZE>   mc_grp_map;
 	ring_logic_t                 ring_alloc_logic_rx;
 	ring_logic_t                 ring_alloc_logic_tx;
@@ -204,6 +208,9 @@ typedef struct {
 		threadid_last_rx = threadid_last_tx = pid_t(0);
 		n_rx_ready_pkt_count = n_rx_ready_byte_count = n_rx_ready_byte_limit = n_rx_zcopy_pkt_count = n_tx_ready_byte_count = 0;
 		memset(&counters, 0, sizeof(counters));
+#ifdef DEFINED_EXTRA_STATS
+		memset(&tcp_stats, 0, sizeof(tcp_stats));
+#endif /* DEFINED_EXTRA_STATS */
 		mc_grp_map.reset();
 		ring_user_id_rx = ring_user_id_tx = 0;
 		ring_alloc_logic_rx = ring_alloc_logic_tx = RING_LOGIC_PER_INTERFACE;
@@ -374,6 +381,10 @@ void vma_shmem_stats_close();
 
 void vma_stats_instance_create_socket_block(socket_stats_t*);
 void vma_stats_instance_remove_socket_block(socket_stats_t*);
+#ifdef DEFINED_EXTRA_STATS
+void vma_stats_instance_add_tcp(socket_tcp_stats_t*, socket_stats_t*);
+void vma_stats_instance_del_tcp(socket_tcp_stats_t*);
+#endif /* DEFINED_EXTRA_STATS */
 
 void vma_stats_mc_group_add(in_addr_t mc_grp, socket_stats_t* p_socket_stats);
 void vma_stats_mc_group_remove(in_addr_t mc_grp, socket_stats_t* p_socket_stats);

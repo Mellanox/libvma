@@ -138,13 +138,30 @@ void stats_data_reader::add_data_reader(void* local_addr, void* shm_addr, int si
 	m_lock_data_map.unlock();
 }
 
-void* stats_data_reader::pop_data_reader(void* local_addr)
-{       
-	void* rv = NULL;
-	m_lock_data_map.lock();
+void* stats_data_reader::find_data_reader_unlocked(void* local_addr)
+{
 	stats_read_map_t::iterator iter = m_data_map.find(local_addr);
 	if (iter != m_data_map.end()) {//found
-		rv = SHM_DATA_ADDRESS;
+		return SHM_DATA_ADDRESS;
+	}
+	return NULL;
+}
+
+void* stats_data_reader::find_data_reader(void* local_addr)
+{
+	void* rv;
+	m_lock_data_map.lock();
+	rv = find_data_reader_unlocked(local_addr);
+	m_lock_data_map.unlock();
+	return rv;
+}
+
+void* stats_data_reader::pop_data_reader(void* local_addr)
+{       
+	void* rv;
+	m_lock_data_map.lock();
+	rv = find_data_reader_unlocked(local_addr);
+	if (rv) {
 		m_data_map.erase(local_addr);
 	}
 	m_lock_data_map.unlock();
@@ -380,6 +397,25 @@ void vma_stats_instance_remove_socket_block(socket_stats_t* local_addr)
 	vlog_printf(VLOG_ERROR, "%s:%d: Could not find user pointer (%p)\n", __func__, __LINE__, p_skt_stats);
 	g_lock_skt_inst_arr.unlock();
 }
+
+#ifdef DEFINED_EXTRA_STATS
+void vma_stats_instance_add_tcp(socket_tcp_stats_t* tcp_stats_addr, socket_stats_t* stats_addr)
+{
+	socket_stats_t* p_skt_stats;
+
+	p_skt_stats = (socket_stats_t*)g_p_stats_data_reader->find_data_reader(stats_addr);
+	if (p_skt_stats) {
+		g_p_stats_data_reader->add_data_reader(tcp_stats_addr,
+						       &p_skt_stats->tcp_stats,
+						       sizeof(socket_tcp_stats_t));
+	}
+}
+
+void vma_stats_instance_del_tcp(socket_tcp_stats_t* tcp_stats_addr)
+{
+	(void)g_p_stats_data_reader->pop_data_reader(tcp_stats_addr);
+}
+#endif /* DEFINED_EXTRA_STATS */
 
 void vma_stats_mc_group_add(in_addr_t mc_grp, socket_stats_t* p_socket_stats)
 {
