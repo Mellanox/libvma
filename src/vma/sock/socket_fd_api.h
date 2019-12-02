@@ -76,8 +76,36 @@ struct epoll_fd_rec
 };
 
 typedef enum {
-	TX_WRITE = 13, TX_WRITEV, TX_SEND, TX_SENDTO, TX_SENDMSG, TX_UNDEF
+	TX_WRITE = 13, TX_WRITEV, TX_SEND, TX_SENDTO, TX_SENDMSG, TX_FILE, TX_UNDEF
 } tx_call_t;
+
+/* This structure describes an attributes of send operation
+ * Used attributes can depend on a type of operation
+ * attr.file - is used by TX_FILE
+ * attr.msg - is used by TX_WRITE, TX_WRITEV, TX_SEND, TX_SENDTO, TX_SENDMSG
+ */
+typedef struct vma_tx_call_attr {
+	tx_call_t opcode;
+	union {
+		struct {
+			struct iovec *iov;
+			ssize_t sz_iov;
+			int flags;
+			struct sockaddr * addr;
+			socklen_t len;
+		} msg;
+		struct {
+			int fd;
+			__off64_t *offset;
+			size_t count;
+		} file;
+	} attr;
+
+	vma_tx_call_attr() {
+		opcode = TX_UNDEF;
+		memset(&attr, 0, sizeof(attr));
+	}
+} vma_tx_call_attr_t;
 
 typedef enum {
 	RX_READ = 23, RX_READV, RX_RECV, RX_RECVFROM, RX_RECVMSG
@@ -168,10 +196,7 @@ public:
 	//Return val: true is the socket is already closable and false otherwise
 	virtual bool prepare_to_close(bool process_shutdown = false) { NOT_IN_USE(process_shutdown); return is_closable(); }
 
-	virtual ssize_t tx(const tx_call_t call_type, const iovec* iov,
-			   const ssize_t iovlen, int __flags = 0,
-			   __CONST_SOCKADDR_ARG   __to = NULL,
-			   const socklen_t __tolen = 0) = 0;
+	virtual ssize_t tx(vma_tx_call_attr_t &tx_arg) = 0;
 
 	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);
 

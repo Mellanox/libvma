@@ -57,9 +57,7 @@ public:
 
 	// Process a Tx request, handle all that is needed to send the packet, we might block
 	// until the connection info is ready or a tx buffer is releast (if sockinfo::m_b_blocking == true)
-	ssize_t	tx(const tx_call_t call_type, const struct iovec* p_iov, 
-	       	   const ssize_t sz_iov, const int flags = 0, 
-	       	   const struct sockaddr *__to = NULL, const socklen_t __tolen = 0);
+	ssize_t tx(vma_tx_call_attr_t &tx_arg);
 
 	void	statistics_print();
 
