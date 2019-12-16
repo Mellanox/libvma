@@ -32,6 +32,8 @@
 #ifndef __LWIP_TCP_H__
 #define __LWIP_TCP_H__
 
+#include <sys/uio.h>
+
 #include "vma/lwip/opt.h"
 
 #if LWIP_TCP /* don't build if not configured for use in lwipopts.h */
@@ -57,6 +59,9 @@ typedef err_t (*ip_output_fn)(struct pbuf *p, void* p_conn, u16_t flags);
 typedef err_t (*ip_output_fn)(struct pbuf *p, void* p_conn, int is_rexmit, u8_t is_dummy);
 #endif /* LWIP_TSO */
 void register_ip_output(ip_output_fn fn);
+
+typedef ssize_t (*sys_readv_fn)(int __fd, const struct iovec *iov, int iovcnt);
+void register_sys_readv(sys_readv_fn fn);
 
 #endif
 
