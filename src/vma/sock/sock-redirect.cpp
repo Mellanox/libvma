@@ -1896,55 +1896,110 @@ ssize_t sendto(int __fd, __const void *__buf, size_t __nbytes, int __flags,
 	return orig_os_api.sendto(__fd, __buf, __nbytes, __flags, __to, __tolen);
 }
 
-
-inline ssize_t sendfile_helper(socket_fd_api* p_socket_object, int in_fd, __off64_t *offset, size_t count)
+static ssize_t sendfile_helper(socket_fd_api* p_socket_object, int in_fd, __off64_t *offset, size_t count)
 {
-	__off64_t orig = 0;
-	char buf[1460];
-	ssize_t toRead, numRead, numSent, totSent = 0;
+	ssize_t totSent = 0;
+	struct stat64 stat_buf;
+	__off64_t orig_offset = 0;
+	__off64_t cur_offset = 0;
+	struct iovec piov[1] = {(void*)&in_fd, count};
+	vma_tx_call_attr_t tx_arg;
 
-	if (offset != NULL) {
-		/* Save current file offset and set offset to value in '*offset' */
-		orig = lseek64(in_fd, 0, SEEK_CUR);
-		if (orig == -1)
-			return -1;
-		if (lseek64(in_fd, *offset, SEEK_SET) == -1)
-			return -1;
+	orig_offset = lseek64(in_fd, 0, SEEK_CUR);
+	if (orig_offset < 0) {
+		return -1;
 	}
 
-	while (count > 0) {
-		toRead = min(sizeof(buf), count);
-		numRead = orig_os_api.read(in_fd, buf, toRead);
-		if (numRead == -1)
-			return -1;
-		if (numRead == 0)
-			break;                      /* EOF */
+	cur_offset = (offset ? *offset : orig_offset);
+	if (offset && (lseek64(in_fd, cur_offset, SEEK_SET) == -1)) {
+		errno = EINVAL;
+		return -1;
+	}
 
-		struct iovec piov[1] = {(void*)buf, (size_t)numRead};
-		vma_tx_call_attr_t tx_arg;
+	if ((fstat64(in_fd, &stat_buf) == -1) ||
+		((__off64_t)stat_buf.st_size < (__off64_t)(cur_offset + count))) {
+		errno = EOVERFLOW;
+		return -1;
+	}
+
+	if (PROTO_TCP == s->get_protocol()) {
+		tx_arg.opcode = TX_FILE;
+		tx_arg.attr.msg.iov = piov;
+		tx_arg.attr.msg.sz_iov = 1;
+
+		piov[0].iov_base = (void *)&in_fd;
+		piov[0].iov_len = count;
+
+		totSent = p_socket_object->tx(tx_arg);
+	} else {
+		__off64_t pa_offset = 0;
+		size_t pa_count = 0;
+		struct flock64 lock;
 
 		tx_arg.opcode = TX_WRITE;
 		tx_arg.attr.msg.iov = piov;
 		tx_arg.attr.msg.sz_iov = 1;
 
-		numSent = p_socket_object->tx(tx_arg);
-		if (numSent == -1)
-			return -1;
-		if (numSent == 0)               /* Should never happen */
-			srdr_logdbg("sendfile: write() transferred 0 bytes");
+		/* The off argument of mmap() is constrained to be aligned and
+		 * sized according to the value returned by sysconf()
+		 */
+		pa_offset = cur_offset & ~(sysconf(_SC_PAGE_SIZE) - 1);
+		pa_count = count + cur_offset - pa_offset;
 
-		count -= numSent;
-		totSent += numSent;
-	}
+		lock.l_type = F_RDLCK;
+		lock.l_whence = SEEK_SET;
+		lock.l_start = pa_offset;
+		lock.l_len = pa_count;
+		lock.l_pid = 0;
 
-	if (offset != NULL) {
-		/* Return updated file offset in '*offset', and reset the file offset
-           to the value it had when we were called. */
-		*offset = lseek64(in_fd, 0, SEEK_CUR);
-		if (*offset == -1)
-			return -1;
-		if (lseek64(in_fd, orig, SEEK_SET) == -1)
-			return -1;
+		/* try to use mmap() approach */
+		if (-1 != (fcntl(in_fd, F_SETLK, &lock))) {
+			void *addr = NULL;
+			addr = mmap64(NULL, pa_count, PROT_READ, MAP_SHARED | MAP_NORESERVE, in_fd, pa_offset);
+			if (MAP_FAILED != addr) {
+				ssize_t toRead, numSent = 0;
+
+				while (count > 0) {
+					toRead = min(sysconf(_SC_PAGE_SIZE), (ssize_t)count);
+
+					piov[0].iov_base = (void *)((uintptr_t)addr + cur_offset - pa_offset + totSent);
+					piov[0].iov_len = toRead;
+
+					numSent = p_socket_object->tx(tx_arg);
+					if (numSent == -1) {
+						break;
+					}
+
+					count -= numSent;
+					totSent += numSent;
+				}
+				(void)munmap(addr, pa_count);
+			}
+			lock.l_type = F_UNLCK;
+			(void)fcntl(in_fd, F_SETLK, &lock);
+		}
+
+		/* fallback on read() approach */
+		if (totSent <= 0) {
+			char buf[sysconf(_SC_PAGE_SIZE)];
+			ssize_t toRead, numRead, numSent = 0;
+
+			while (count > 0) {
+				toRead = min(sizeof(buf), count);
+				numRead = orig_os_api.read(in_fd, buf, toRead);
+				if (numRead <= 0) {
+					break;
+				}
+
+	totSent = p_socket_object->tx(tx_arg);
+
+	if (totSent > 0) {
+		if (offset != NULL) {
+			lseek64(in_fd, (orig_offset), SEEK_SET);
+			*offset = *offset + totSent;
+		} else {
+			lseek64(in_fd, (orig_offset + totSent), SEEK_SET);
+		}
 	}
 
 	return totSent;

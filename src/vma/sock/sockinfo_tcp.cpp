@@ -733,11 +733,11 @@ void sockinfo_tcp::put_agent_msg(void *arg)
 
 ssize_t sockinfo_tcp::tx(vma_tx_call_attr_t &tx_arg)
 {
-	const iovec* p_iov = tx_arg.attr.msg.iov;
-	const ssize_t sz_iov = tx_arg.attr.msg.sz_iov;
-	const int __flags = tx_arg.attr.msg.flags;
-	const struct sockaddr *__dst = tx_arg.attr.msg.addr;
-	const socklen_t __dstlen = tx_arg.attr.msg.len;
+	iovec* p_iov = tx_arg.attr.msg.iov;
+	ssize_t sz_iov = tx_arg.attr.msg.sz_iov;
+	int __flags = tx_arg.attr.msg.flags;
+	struct sockaddr *__dst = tx_arg.attr.msg.addr;
+	socklen_t __dstlen = tx_arg.attr.msg.len;
 	int errno_tmp = errno;
 	int total_tx = 0;
 	unsigned tx_size;
@@ -746,8 +746,9 @@ ssize_t sockinfo_tcp::tx(vma_tx_call_attr_t &tx_arg)
 	int ret = 0;
 	int poll_count = 0;
 	uint8_t apiflags = 0;
-	bool is_dummy = IS_DUMMY_PACKET(__flags);
-	bool block_this_run = BLOCK_THIS_RUN(m_b_blocking, __flags);
+	bool is_dummy = false;
+	bool block_this_run = false;
+	void *tx_ptr = NULL;
 
 	/* Let allow OS to process all invalid scenarios to avoid any
 	 * inconsistencies in setting errno values
@@ -798,6 +799,9 @@ retry_is_ready:
 
 	lock_tcp_con();
 
+	is_dummy = IS_DUMMY_PACKET(__flags);
+	block_this_run = BLOCK_THIS_RUN(m_b_blocking, __flags);
+
 	if (unlikely(is_dummy)) {
 		apiflags |= VMA_TX_PACKET_DUMMY;
 		if (!check_dummy_send_conditions(__flags, p_iov, sz_iov)) {
@@ -805,6 +809,10 @@ retry_is_ready:
 			errno = EAGAIN;
 			return -1;
 		}
+	}
+
+	if (tx_arg.opcode == TX_FILE) {
+		apiflags |= VMA_TX_FILE;
 	}
 
 #ifdef DEFINED_TCP_TX_WND_AVAILABILITY
@@ -819,6 +827,7 @@ retry_is_ready:
 		si_tcp_logfunc("iov:%d base=%p len=%d", i, p_iov[i].iov_base, p_iov[i].iov_len);
 
 		pos = 0;
+		tx_ptr = p_iov[i].iov_base;
 		while (pos < p_iov[i].iov_len) {
 			tx_size = tcp_sndbuf(&m_pcb);
 
@@ -879,7 +888,8 @@ retry_write:
 				si_tcp_logdbg("returning with: EINTR");
 				goto err;
 			}
-			err = tcp_write(&m_pcb, (char *)p_iov[i].iov_base + pos, tx_size, apiflags);
+
+			err = tcp_write(&m_pcb, tx_ptr, tx_size, apiflags);
 			if (unlikely(err != ERR_OK)) {
 				if (unlikely(err == ERR_CONN)) { // happens when remote drops during big write
 					si_tcp_logdbg("connection closed: tx'ed = %d", total_tx);
@@ -920,6 +930,7 @@ retry_write:
 
 				goto retry_write;
 			}
+			tx_ptr = (tx_arg.opcode == TX_FILE ? tx_ptr : (void *)((char *)tx_ptr + tx_size));
 			pos += tx_size;
 			total_tx += tx_size;
 		}	

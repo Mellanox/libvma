@@ -46,6 +46,7 @@
 #include "vma/lwip/stats.h"
 
 #include <string.h>
+#include <errno.h>
 
 /* Define some copy-macros for checksum-on-copy so that the code looks
    nicer by preventing too many ifdef's. */
@@ -434,6 +435,11 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
 #if LWIP_TSO
   int tot_p = 0;
 #endif /* LWIP_TSO */
+  const int piov_max_size = 512;
+  const int piov_max_len = 65536;
+  struct iovec piov[piov_max_size];
+  int piov_cur_index = 0;
+  int piov_cur_len = 0;
 
   int byte_queued = pcb->snd_nxt - pcb->lastack;
   if ( len < pcb->mss && !(apiflags & TCP_WRITE_DUMMY))
@@ -508,8 +514,8 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
     unsent_optlen = LWIP_TCP_OPT_LENGTH(pcb->last_unsent->flags);
     LWIP_ASSERT("mss_local is too small", mss_local >= pcb->last_unsent->len + unsent_optlen);
     space = mss_local - (pcb->last_unsent->len + unsent_optlen);
-#if LWIP_TSO
     seg = pcb->last_unsent;
+#if LWIP_TSO
     tot_p = pbuf_clen(seg->p);
 #endif /* LWIP_TSO */
 
@@ -526,17 +532,16 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
     LWIP_ASSERT("unsent_oversize mismatch (pcb vs. last_unsent)",
                 pcb->unsent_oversize == pcb->last_unsent->oversize_left);
 #endif /* TCP_OVERSIZE_DBGCHECK */
-    oversize = pcb->unsent_oversize;
-    if (oversize > 0) {
-      LWIP_ASSERT("inconsistent oversize vs. space", oversize_used <= space);
-#if LWIP_TSO
-#else
-      seg = pcb->last_unsent;
-#endif /* LWIP_TSO */
-      oversize_used = oversize < len ? oversize : len;
-      pos += oversize_used;
-      oversize -= oversize_used;
-      space -= oversize_used;
+
+    if (pcb->unsent_oversize > 0) {
+      if (!(apiflags & TCP_WRITE_FILE)) {
+        oversize = pcb->unsent_oversize;
+        LWIP_ASSERT("inconsistent oversize vs. space", oversize_used <= space);
+        oversize_used = oversize < len ? oversize : len;
+        pos += oversize_used;
+        oversize -= oversize_used;
+        space -= oversize_used;
+      }
     }
     /* now we are either finished or oversize is zero */
     LWIP_ASSERT("inconsistend oversize vs. len", (oversize == 0) || (pos == len));
@@ -557,10 +562,6 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
 #endif /* LWIP_TSO */
 
       u16_t seglen = space < len - pos ? space : len - pos;
-#if LWIP_TSO
-#else
-      seg = pcb->last_unsent;
-#endif /* LWIP_TSO */
 
       /* Create a pbuf with a copy or reference to seglen bytes. We
        * can use PBUF_RAW here since the data appears in the middle of
@@ -611,7 +612,28 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
     }
     LWIP_ASSERT("tcp_write: check that first pbuf can hold the complete seglen",
     		(p->len >= seglen));
-    TCP_DATA_COPY2((char *)p->payload + optlen, (u8_t*)arg + pos, seglen, &chksum, &chksum_swapped);
+    if (apiflags & TCP_WRITE_FILE) {
+       piov[piov_cur_index].iov_base = (void *)((char *)p->payload + optlen);
+       piov[piov_cur_index].iov_len = seglen;
+
+       piov_cur_index++;
+       piov_cur_len += seglen;
+       if ((left <= seglen ) || (piov_cur_index >= piov_max_size) || (piov_cur_len >= piov_max_len)) {
+           int ret = 0;
+           int fd = *(int *)arg;
+           ret = sys_readv(fd, piov, piov_cur_index);
+           /* Set as failure any unexpected return values because tcp_write() function
+            * does not support partial write
+            */
+           if (ret != piov_cur_len) {
+             goto memerr;
+           }
+           piov_cur_index = 0;
+           piov_cur_len = 0;
+       }
+    } else {
+       TCP_DATA_COPY2((char *)p->payload + optlen, (u8_t*)arg + pos, seglen, &chksum, &chksum_swapped);
+    }
 
     queuelen += pbuf_clen(p);
 
