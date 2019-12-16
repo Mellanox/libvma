@@ -94,11 +94,6 @@ typedef struct vma_tx_call_attr {
 			struct sockaddr * addr;
 			socklen_t len;
 		} msg;
-		struct {
-			int fd;
-			__off64_t *offset;
-			size_t count;
-		} file;
 	} attr;
 
 	vma_tx_call_attr() {
