@@ -398,11 +398,15 @@ static inline u16_t tcp_xmit_size_goal(struct tcp_pcb *pcb, int use_max)
  * @param pcb Protocol control block for the TCP connection to enqueue data for.
  * @param arg Pointer to the data to be enqueued for sending.
  * @param len Data length in bytes
- * @param is_dummy indicates if the packet is a dummy packet
+ * @param apiflags combination of following flags :
+ * - TCP_WRITE_FLAG_COPY (0x01) data will be copied into memory belonging to the stack
+ * - TCP_WRITE_FLAG_MORE (0x02) for TCP connection, PSH flag will be set on last segment sent
+ * - TCP_WRITE_DUMMY (0x10) indicates if the packet is a dummy packet
+ * - TCP_WRITE_FILE (0x40) data should be taken from file
  * @return ERR_OK if enqueued, another err_t on error
  */
 err_t
-tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t is_dummy)
+tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
 {
   struct pbuf *concat_p = NULL;
   struct tcp_seg *seg = NULL, *prev_seg = NULL, *queue = NULL;
@@ -426,11 +430,11 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t is_dummy)
 #endif /* LWIP_TSO */
 
   int byte_queued = pcb->snd_nxt - pcb->lastack;
-  if ( len < pcb->mss && !is_dummy)
+  if ( len < pcb->mss && !(apiflags & TCP_WRITE_DUMMY))
           pcb->snd_sml_add = (pcb->unacked ? pcb->unacked->len : 0) + byte_queued;
 
-  LWIP_DEBUGF(TCP_OUTPUT_DEBUG, ("tcp_write(pcb=%p, data=%p, len=%"U16_F", is_dummy=%"U16_F")\n",
-    (void *)pcb, arg, len, (u16_t)is_dummy));
+  LWIP_DEBUGF(TCP_OUTPUT_DEBUG, ("tcp_write(pcb=%p, data=%p, len=%"U16_F", apiflags=%"U16_F")\n",
+    (void *)pcb, arg, len, (u16_t)apiflags));
   LWIP_ERROR("tcp_write: arg == NULL (programmer violates API)", 
              arg != NULL, return ERR_ARG;);
 
@@ -447,7 +451,7 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t is_dummy)
   mss_local = mss_local ? mss_local : pcb->mss;
 #endif /* LWIP_TSO */
 
-  optflags |= is_dummy ? TF_SEG_OPTS_DUMMY_MSG : 0;
+  optflags |= (apiflags & TCP_WRITE_DUMMY ? TF_SEG_OPTS_DUMMY_MSG : 0);
 
 #if LWIP_TCP_TIMESTAMPS
   if ((pcb->flags & TF_TIMESTAMP)) {
@@ -592,8 +596,6 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t is_dummy)
     u32_t left = len - pos;
     u16_t max_len = mss_local - optlen;
     u16_t seglen = left > max_len ? max_len : left;
-
-    LWIP_ASSERT("tcp_write: dummy packet should not be split", !(is_dummy && pos));
 
     /* If copy is set, memory should be allocated and data copied
      * into pbuf */
