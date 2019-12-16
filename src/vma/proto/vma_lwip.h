@@ -40,22 +40,26 @@
 #include "vma/lwip/tcp.h"
 
 typedef enum vma_wr_tx_packet_attr {
-	/* 6 bits are reserved for TCP flags (see lwip/tcp.h)  */
-	/* nop send operation. this option should be synchronized with lwip/tcp value */
-	VMA_TX_PACKET_DUMMY   = TCP_WRITE_DUMMY,
+	/* 8 bits are reserved for TCP flags (see lwip/tcp.h)
+	 * this option should be synchronized with lwip/tcp value
+	 */
 	/* retransmit operation. */
-	VMA_TX_PACKET_REXMIT  = TCP_WRITE_REXMIT,
+	VMA_TX_PACKET_REXMIT  = TCP_WRITE_REXMIT, /* 0x08 */
+	/* nop send operation. */
+	VMA_TX_PACKET_DUMMY   = TCP_WRITE_DUMMY, /* 0x10 */
 	/* large segment offload operation. */
-	VMA_TX_PACKET_TSO  = TCP_WRITE_TSO,
+	VMA_TX_PACKET_TSO  = TCP_WRITE_TSO, /* 0x20 */
+	/* sendfile operation. */
+	VMA_TX_FILE  = TCP_WRITE_FILE, /* 0x40 */
 
 	/* MLX5_ETH_WQE_L3_CSUM offload to HW L3 (IP) header checksum */
-	VMA_TX_PACKET_L3_CSUM = (1 << 6), /* hardcoded values */
+	VMA_TX_PACKET_L3_CSUM = (1 << 6), /* hardcoded values. It is the same as VMA_TX_FILE but there is no conflict */
 	/* MLX5_ETH_WQE_L4_CSUM offload to HW L4 (TCP/UDP) header checksum */
 	VMA_TX_PACKET_L4_CSUM = (1 << 7), /* hardcoded values */
-        /* blocking send operation */
-        VMA_TX_PACKET_BLOCK   = (1 << 8),
-        /* Force SW checksum */
-        VMA_TX_SW_CSUM        = (1 << 9),
+	/* blocking send operation */
+	VMA_TX_PACKET_BLOCK   = (1 << 8),
+	/* Force SW checksum */
+	VMA_TX_SW_CSUM        = (1 << 9),
 } vma_wr_tx_packet_attr;
 
 static inline bool is_set(vma_wr_tx_packet_attr state_, vma_wr_tx_packet_attr tx_mode_)

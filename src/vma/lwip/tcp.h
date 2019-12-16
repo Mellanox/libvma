@@ -522,9 +522,10 @@ err_t            tcp_shutdown(struct tcp_pcb *pcb, int shut_rx, int shut_tx);
 #define TCP_WRITE_REXMIT    0x08
 #define TCP_WRITE_DUMMY     0x10
 #define TCP_WRITE_TSO       0x20
+#define TCP_WRITE_FILE      0x40
 
 err_t            tcp_write   (struct tcp_pcb *pcb, const void *dataptr, u32_t len,
-                              u8_t is_dummy);
+                              u8_t apiflags);
 
 #define TCP_PRIO_MIN    1
 #define TCP_PRIO_NORMAL 64

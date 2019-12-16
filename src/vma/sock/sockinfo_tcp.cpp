@@ -745,6 +745,7 @@ ssize_t sockinfo_tcp::tx(vma_tx_call_attr_t &tx_arg)
 	unsigned pos = 0;
 	int ret = 0;
 	int poll_count = 0;
+	uint8_t apiflags = 0;
 	bool is_dummy = IS_DUMMY_PACKET(__flags);
 	bool block_this_run = BLOCK_THIS_RUN(m_b_blocking, __flags);
 
@@ -789,7 +790,7 @@ retry_is_ready:
 
 		return -1;
 	}
-	si_tcp_logfunc("tx: iov=%p niovs=%d dummy=%d", p_iov, sz_iov, is_dummy);
+	si_tcp_logfunc("tx: iov=%p niovs=%d", p_iov, sz_iov);
 
 	if (unlikely(m_sysvar_rx_poll_on_tx_tcp)) {
 		rx_wait_helper(poll_count, false);
@@ -797,10 +798,13 @@ retry_is_ready:
 
 	lock_tcp_con();
 
-	if (unlikely(is_dummy) && !check_dummy_send_conditions(__flags, p_iov, sz_iov)) {
-		unlock_tcp_con();
-		errno = EAGAIN;
-		return -1;
+	if (unlikely(is_dummy)) {
+		apiflags |= VMA_TX_PACKET_DUMMY;
+		if (!check_dummy_send_conditions(__flags, p_iov, sz_iov)) {
+			unlock_tcp_con();
+			errno = EAGAIN;
+			return -1;
+		}
 	}
 
 #ifdef DEFINED_TCP_TX_WND_AVAILABILITY
@@ -875,7 +879,7 @@ retry_write:
 				si_tcp_logdbg("returning with: EINTR");
 				goto err;
 			}
-			err = tcp_write(&m_pcb, (char *)p_iov[i].iov_base + pos, tx_size, is_dummy);
+			err = tcp_write(&m_pcb, (char *)p_iov[i].iov_base + pos, tx_size, apiflags);
 			if (unlikely(err != ERR_OK)) {
 				if (unlikely(err == ERR_CONN)) { // happens when remote drops during big write
 					si_tcp_logdbg("connection closed: tx'ed = %d", total_tx);
