@@ -118,6 +118,12 @@ void register_ip_route_mtu(ip_route_mtu_fn fn)
 {
     external_ip_route_mtu = fn;
 }
+
+sys_readv_fn sys_readv;
+void register_sys_readv(sys_readv_fn fn)
+{
+	sys_readv = fn;
+}
 #endif
 
 /* Forward declarations.*/
