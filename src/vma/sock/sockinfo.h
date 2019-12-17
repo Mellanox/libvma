@@ -329,6 +329,7 @@ protected:
 	virtual void		lock_rx_q() {m_lock_rcv.lock();}
 	virtual void		unlock_rx_q() {m_lock_rcv.unlock();}
 
+	void			shutdown_rx();
 	void 			destructor_helper();
 	int 			modify_ratelimit(dst_entry* p_dst_entry, struct vma_rate_limit_t &rate_limit);
 
@@ -543,6 +544,7 @@ protected:
     	case SO_VMA_RING_ALLOC_LOGIC:	return "SO_VMA_RING_ALLOC_LOGIC";
     	case SO_MAX_PACING_RATE:	return "SO_MAX_PACING_RATE";
     	case SO_VMA_FLOW_TAG:           return "SO_VMA_FLOW_TAG";
+    	case SO_VMA_SHUTDOWN_RX:        return "SO_VMA_SHUTDOWN_RX";
     	default:			break;
     	}
     	return "UNKNOWN SO opt";

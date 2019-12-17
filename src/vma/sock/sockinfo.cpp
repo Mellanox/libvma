@@ -438,6 +438,10 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 				si_logdbg("SOL_SOCKET, %s=\"???\" - NOT HANDLED, optval == NULL", setsockopt_so_opt_to_str(__optname));
 			}
 			break;
+		case SO_VMA_SHUTDOWN_RX:
+			shutdown_rx();
+			ret = SOCKOPT_INTERNAL_VMA_SUPPORT;
+			break;
 		default:
 			break;
 		}
@@ -1439,8 +1443,7 @@ transport_t sockinfo::find_target_family(role_t role, struct sockaddr* sock_addr
 	return target_family;
 }
 
-
-void sockinfo::destructor_helper()
+void sockinfo::shutdown_rx()
 {
 	// Unregister this receiver from all ring's in our list
 	rx_flow_map_t::iterator rx_flow_iter = m_rx_flow_map.begin();
@@ -1454,10 +1457,16 @@ void sockinfo::destructor_helper()
 	if (m_rx_nd_map.size()) {
 		destroy_nd_resources(m_so_bindtodevice_ip);
 	}
+	si_logdbg("shutdown RX");
+}
 
+void sockinfo::destructor_helper()
+{
+	shutdown_rx();
 	// Delete all dst_entry in our list
-	if (m_p_connected_dst_entry)
+	if (m_p_connected_dst_entry) {
 		delete m_p_connected_dst_entry;
+	}
 	m_p_connected_dst_entry = NULL;
 }
 
