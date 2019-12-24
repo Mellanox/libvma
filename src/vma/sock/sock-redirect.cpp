@@ -1677,7 +1677,7 @@ ssize_t write(int __fd, __const void *__buf, size_t __nbytes)
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
 	if (p_socket_object) {
-		struct iovec piov[1] = {(void*)__buf, __nbytes};
+		struct iovec piov[1] = {{(void*)__buf, __nbytes}};
 		vma_tx_call_attr_t tx_arg;
 
 		tx_arg.opcode = TX_WRITE;
@@ -1733,7 +1733,7 @@ ssize_t send(int __fd, __const void *__buf, size_t __nbytes, int __flags)
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
 	if (p_socket_object) {
-		struct iovec piov[1] = {(void*)__buf, __nbytes};
+		struct iovec piov[1] = {{(void*)__buf, __nbytes}};
 		vma_tx_call_attr_t tx_arg;
 
 		tx_arg.opcode = TX_SEND;
@@ -1871,7 +1871,7 @@ ssize_t sendto(int __fd, __const void *__buf, size_t __nbytes, int __flags,
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
 	if (p_socket_object) {
-		struct iovec piov[1] = {(void*)__buf, __nbytes};
+		struct iovec piov[1] = {{(void*)__buf, __nbytes}};
 		vma_tx_call_attr_t tx_arg;
 
 		tx_arg.opcode = TX_SENDTO;
@@ -1902,11 +1902,18 @@ static ssize_t sendfile_helper(socket_fd_api* p_socket_object, int in_fd, __off6
 	struct stat64 stat_buf;
 	__off64_t orig_offset = 0;
 	__off64_t cur_offset = 0;
-	struct iovec piov[1] = {(void*)&in_fd, count};
+	struct iovec piov[1] = {{NULL, 0}};
 	vma_tx_call_attr_t tx_arg;
+	sockinfo* s = (sockinfo*)p_socket_object;
+
+	if (p_socket_object->get_type() != FD_TYPE_SOCKET) {
+		errno = EBADF;
+		return -1;
+	}
 
 	orig_offset = lseek64(in_fd, 0, SEEK_CUR);
 	if (orig_offset < 0) {
+		errno = ESPIPE;
 		return -1;
 	}
 
@@ -1991,14 +1998,26 @@ static ssize_t sendfile_helper(socket_fd_api* p_socket_object, int in_fd, __off6
 					break;
 				}
 
-	totSent = p_socket_object->tx(tx_arg);
+				piov[0].iov_base = (void *)buf;
+				piov[0].iov_len = numRead;
+
+				numSent = p_socket_object->tx(tx_arg);
+				if (numSent == -1) {
+					break;
+				}
+
+				count -= numSent;
+				totSent += numSent;
+			}
+		}
+	}
 
 	if (totSent > 0) {
 		if (offset != NULL) {
-			lseek64(in_fd, (orig_offset), SEEK_SET);
+			(void)lseek64(in_fd, (orig_offset), SEEK_SET);
 			*offset = *offset + totSent;
 		} else {
-			lseek64(in_fd, (orig_offset + totSent), SEEK_SET);
+			(void)lseek64(in_fd, (orig_offset + totSent), SEEK_SET);
 		}
 	}
 

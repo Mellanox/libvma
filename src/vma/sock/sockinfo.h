@@ -202,6 +202,8 @@ public:
 	virtual bool check_rings() {return m_p_rx_ring ? true: false;}
 	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);
 	uint32_t get_flow_tag_val() { return m_flow_tag_id; }
+	inline in_protocol_t get_protocol(void) { return m_protocol; }
+
 protected:
 	bool 			m_b_blocking;
 	bool 			m_b_pktinfo;
