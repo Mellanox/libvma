@@ -2,7 +2,7 @@
 #
 # Testing script for VMA, to run from Jenkins CI
 #
-# Copyright (C) Mellanox Technologies Ltd. 2001-2019.  ALL RIGHTS RESERVED.
+# Copyright (C) Mellanox Technologies Ltd. 2001-2020.  ALL RIGHTS RESERVED.
 #
 # See file LICENSE for terms.
 #

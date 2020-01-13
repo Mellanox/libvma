@@ -1,6 +1,6 @@
 # dpcp.m4 - Library to operate with DevX
 # 
-# Copyright (C) Mellanox Technologies Ltd. 2001-2019.  ALL RIGHTS RESERVED.
+# Copyright (C) Mellanox Technologies Ltd. 2001-2020.  ALL RIGHTS RESERVED.
 # See file LICENSE for terms.
 #
 
