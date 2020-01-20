@@ -1,3 +1,31 @@
+Version 9.0.1-0:
+Date + Time 2020-01-20
+=============================================================
+Added:
+        - RM #2053834 Update License date to 2020
+        - RM #1606044 Adapt sendfile() for UDP
+        - RM #1606044 Optimize sendfile() for TCP
+        - RM #1606044 Introduce lwip:register_sys_readv()
+        - RM #1606044 Pass bitwise flag into lwip:tcp_write()
+        - RM #1606044 Change tx() function prototype
+        - RM #1971409 Add ring_eth_direct support for upstream
+        - RM #1971409 Add vma_get_dpcp_devices() extra api
+        - RM #1971409 Add dpcp adapter initialization
+        - RM #1971409 Add --with-dpcp configuration option
+        - RM #1858709 Add daemon option to set spoofed SYN retry interval on cleanup
+
+Fixed:
+        - RM #2016629 Add setsockopt to shutdown socket's RX side
+        - RM #1794728 Fix calling unregister_timer_event() twice
+        - RM #1775713 Remove useless timeout during VMA destructor
+        - RM #1775713 Remove useless code related m_call_orig_close_on_dtor
+        - RM #1775713 Return ECONNABORTED on connect() for errorable socket
+        - RM #1775713 Remove force_close() usage
+        - RM #1264894 Cleanup socket fd from epoll
+        - RM #1264894 Resolve fd collection cleanup issues
+        - RM #1684348 Remove BullseyeCoverage redundant excludes
+        - RM #1684349 Move timetest to tests dir
+
 Version 8.9.5-0:
 Date + Time 2019-10-28
 =============================================================
