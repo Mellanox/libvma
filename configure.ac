@@ -12,9 +12,9 @@ dnl===-----------------------------------------------------------------------===
 
 # Update version number here:
 #
-define([vma_ver_major], 8)
-define([vma_ver_minor], 9)
-define([vma_ver_revision], 5)
+define([vma_ver_major], 9)
+define([vma_ver_minor], 0)
+define([vma_ver_revision], 1)
 define([vma_ver_release], 0)
 
 
@@ -28,9 +28,9 @@ AC_INIT(libvma, [vma_ver_major.vma_ver_minor.vma_ver_revision], support@mellanox
 #
 AC_CONFIG_HEADER([config.h])
 
-VMA_LIBRARY_MAJOR=8
-VMA_LIBRARY_MINOR=9
-VMA_LIBRARY_REVISION=5
+VMA_LIBRARY_MAJOR=9
+VMA_LIBRARY_MINOR=0
+VMA_LIBRARY_REVISION=1
 VMA_LIBRARY_RELEASE=0
 
 AC_DEFINE_UNQUOTED(VMA_LIBRARY_MAJOR, ${VMA_LIBRARY_MAJOR}, [VMA Major Version])
