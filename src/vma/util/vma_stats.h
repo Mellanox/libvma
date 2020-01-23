@@ -183,10 +183,10 @@ typedef struct {
 	pid_t                        threadid_last_rx;
 	pid_t                        threadid_last_tx;
 	uint32_t                     n_rx_ready_pkt_count;
-	uint32_t                     n_rx_ready_byte_count;
+	uint64_t                     n_rx_ready_byte_count;
 	uint32_t                     n_rx_ready_byte_limit;
 	uint32_t                     n_rx_zcopy_pkt_count;
-	uint32_t                     n_tx_ready_byte_count;
+	uint64_t                     n_tx_ready_byte_count;
 	socket_counters_t            counters;
 	std::bitset<MC_TABLE_SIZE>   mc_grp_map;
 	ring_logic_t                 ring_alloc_logic_rx;

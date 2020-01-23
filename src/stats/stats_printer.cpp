@@ -166,7 +166,7 @@ void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, 
 	}
 	if (p_si_stats->counters.n_rx_packets || p_si_stats->n_rx_ready_pkt_count)
 	{
-		fprintf(filename, "Rx byte: cur %u / max %u / dropped%s %u / limit %u\n", p_si_stats->n_rx_ready_byte_count, p_si_stats->counters.n_rx_ready_byte_max, post_fix,p_si_stats->counters.n_rx_ready_byte_drop, p_si_stats->n_rx_ready_byte_limit);
+		fprintf(filename, "Rx byte: cur %lu / max %u / dropped%s %u / limit %u\n", p_si_stats->n_rx_ready_byte_count, p_si_stats->counters.n_rx_ready_byte_max, post_fix,p_si_stats->counters.n_rx_ready_byte_drop, p_si_stats->n_rx_ready_byte_limit);
 		fprintf(filename, "Rx pkt : cur %u / max %u / dropped%s %u\n", p_si_stats->n_rx_ready_pkt_count, p_si_stats->counters.n_rx_ready_pkt_max, post_fix,p_si_stats->counters.n_rx_ready_pkt_drop);
 		b_any_activiy = true;
 	}
@@ -202,7 +202,7 @@ void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, 
 void print_netstat_like_headers(FILE* file)
 {
 	static bool already_printed = false;
-	if(!already_printed) fprintf(file, "Proto Offloaded Recv-Q Send-Q Local Address          Foreign Address       State       Inode      PID/Program name\n");
+	if (!already_printed) fprintf(file,"%-5s %-9s %-20s %-20s %-22s %-21s %-11s %-10s %s", "Proto", "Offloaded", "Recv-Q", "Send-Q", "Local Address", "Foreign Address", "State", "Inode", "PID/Program name\n");
 	already_printed = true;
 }
 
@@ -215,7 +215,7 @@ void print_netstat_like(socket_stats_t* p_si_stats, mc_grp_info_t* , FILE* file,
 	if(! p_si_stats->inode) return; // shmem is not updated yet
 
 	fprintf(file, "%-5s %-9s ", to_str_socket_type_netstat_like(p_si_stats->socket_type), p_si_stats->b_is_offloaded ? "Yes" : "No");
-	fprintf(file, "%-6d %-6d ", (int)p_si_stats->n_rx_ready_byte_count, (int)p_si_stats->n_tx_ready_byte_count);
+	fprintf(file, "%-20lu %-20lu ", p_si_stats->n_rx_ready_byte_count, p_si_stats->n_tx_ready_byte_count);
 
 	//
 	// Bounded + Connected information
