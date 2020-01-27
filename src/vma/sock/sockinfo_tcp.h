@@ -140,6 +140,7 @@ public:
 	bool prepare_dst_to_send(bool is_accepted_socket = false);
 
 	virtual int fcntl(int __cmd, unsigned long int __arg);
+	virtual int fcntl64(int __cmd, unsigned long int __arg);
 	virtual int ioctl(unsigned long int __request, unsigned long int __arg);
 	virtual int setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen);
 	virtual int getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen);
@@ -238,6 +239,8 @@ protected:
 	virtual bool try_un_offloading(); // un-offload the socket if possible
 
 private:
+	int fcntl_helper(int __cmd, unsigned long int __arg, bool& bexit);
+
 	//lwip specific things
 	struct tcp_pcb m_pcb;
 	socket_options_list_t m_socket_options_list;

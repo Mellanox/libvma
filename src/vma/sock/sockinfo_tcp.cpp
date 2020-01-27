@@ -75,6 +75,7 @@
 #define BLOCK_THIS_RUN(blocking, flags) (blocking && !(flags & MSG_DONTWAIT))
 #define TCP_SEG_COMPENSATION 64
 
+
 tcp_seg_pool *g_tcp_seg_pool = NULL;
 tcp_timers_collection* g_tcp_timers_collection = NULL;
 
@@ -3390,6 +3391,48 @@ bad_state:
 	return -1;
 }
 
+
+int sockinfo_tcp::fcntl_helper(int __cmd, unsigned long int __arg, bool &bexit)
+{
+	switch (__cmd) {
+	case F_SETFL:		/* Set file status flags. */ 
+		{
+			si_tcp_logdbg("cmd=F_SETFL, arg=%#x", __arg);
+			if (__arg & O_NONBLOCK)
+				set_blocking(false);
+			else
+				set_blocking(true);
+
+			bexit = true;
+
+			return 0;
+		}
+		break;
+	case F_GETFL:		/* Get file status flags. */
+		{
+			si_tcp_logdbg("cmd=F_GETFL");
+			if (m_b_blocking)
+			{
+				bexit = true;
+				return 0;
+			}
+			else
+			{
+				bexit = true;
+				return O_NONBLOCK;
+			}
+		}
+		break;
+	default:
+		break;
+	}
+    
+	bexit = false;
+	return 0;
+}
+
+
+
 /* 
  * TCP options from netinet/tcp.h
  * including file directly conflicts with lwipopts.h (TCP_MSS define)
@@ -3415,31 +3458,27 @@ int sockinfo_tcp::fcntl(int __cmd, unsigned long int __arg)
 	if (!safe_mce_sys().avoid_sys_calls_on_tcp_fd || !is_connected())
 		return sockinfo::fcntl(__cmd, __arg);
 
-	switch (__cmd) {
-	case F_SETFL:		/* Set file status flags.  */
-		{
-			si_tcp_logdbg("cmd=F_SETFL, arg=%#x", __arg);
-			if (__arg & O_NONBLOCK)
-				set_blocking(false);
-			else
-				set_blocking(true);
-			return 0;
-		}
-		break;
-	case F_GETFL:		/* Get file status flags.  */
-		{
-			si_tcp_logdbg("cmd=F_GETFL");
-			if (m_b_blocking)
-				return 0;
-			else
-				return O_NONBLOCK;
-		}
-		break;
-	default:
-		break;
-	}
+	bool bexit = false;
+	int ret_val = fcntl_helper(__cmd, __arg, bexit);
+	if (bexit)
+		return ret_val;
+
 	return sockinfo::fcntl(__cmd, __arg);
 }
+
+int sockinfo_tcp::fcntl64(int __cmd, unsigned long int __arg)
+{
+	if (!safe_mce_sys().avoid_sys_calls_on_tcp_fd || !is_connected())
+		return sockinfo::fcntl64(__cmd, __arg);
+
+	bool bexit = false;
+	int ret_val = fcntl_helper(__cmd, __arg, bexit);
+	if (bexit)
+		return ret_val;
+
+	return sockinfo::fcntl64(__cmd, __arg);
+}
+
 
 int sockinfo_tcp::ioctl(unsigned long int __request, unsigned long int __arg)
 {

@@ -150,6 +150,7 @@ void get_orig_funcs()
 	GET_ORIG_FUNC(setsockopt);
 	GET_ORIG_FUNC(getsockopt);
 	GET_ORIG_FUNC(fcntl);
+	GET_ORIG_FUNC(fcntl64);
 	GET_ORIG_FUNC(ioctl);
 	GET_ORIG_FUNC(getsockname);
 	GET_ORIG_FUNC(getpeername);
@@ -1234,6 +1235,53 @@ int fcntl(int __fd, int __cmd, ...)
 		srdr_logfunc_exit("failed (errno=%d %m)", errno);
 	return res;
 }
+
+/* Do the file control operation described by CMD on FD.
+   The remaining arguments are interpreted depending on CMD.
+
+   This function is a cancellation point and therefore not marked with
+   __THROW.
+   NOTE: VMA throw will never occur during handling of any command.
+   VMA will only throw in case VMA doesn't know to handle a command and the
+   user requested explicitly that VMA will throw an exception in such a case
+   by setting VMA_EXCEPTION_HANDLING accordingly (see README.txt)
+   */
+
+extern "C"
+int fcntl64(int __fd, int __cmd, ...)
+{
+	srdr_logfunc_entry("fd=%d, cmd=%d", __fd, __cmd);
+
+	int res = -1;
+	va_list va;
+	va_start(va, __cmd);
+	unsigned long int arg = va_arg(va, unsigned long int);
+	va_end(va);
+
+	int ret = 0;
+	socket_fd_api* p_socket_object = NULL;
+	p_socket_object = fd_collection_get_sockfd(__fd);
+	if (p_socket_object) {
+		VERIFY_PASSTROUGH_CHANGED(res, p_socket_object->fcntl64(__cmd, arg));
+	}
+	else {
+		BULLSEYE_EXCLUDE_BLOCK_START
+			if (!orig_os_api.fcntl64) get_orig_funcs();
+		BULLSEYE_EXCLUDE_BLOCK_END
+			res = orig_os_api.fcntl64(__fd, __cmd, arg);
+	}
+
+	if (__cmd == F_DUPFD) {
+		handle_close(__fd);
+	}
+
+	if (ret >= 0)
+		srdr_logfunc_exit("returned with %d", ret);
+	else
+		srdr_logfunc_exit("failed (errno=%d %m)", errno);
+	return res;
+}
+
 
 /* Perform the I/O control operation specified by REQUEST on FD.
    One argument may follow; its presence and type depend on REQUEST.

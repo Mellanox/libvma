@@ -117,6 +117,7 @@ struct os_api {
 	int (*setsockopt) (int __fd, int __level, int __optname, __const void *__optval, socklen_t __optlen);
 	int (*getsockopt) (int __fd, int __level, int __optname, void *__optval, socklen_t *__optlen);
 	int (*fcntl) (int __fd, int __cmd, ...);
+	int (*fcntl64) (int __fd, int __cmd, ...);
 	int (*ioctl) (int __fd, unsigned long int __request, ...);
 	int (*getsockname) (int __fd, struct sockaddr *__name,socklen_t *__namelen);
 	int (*getpeername) (int __fd, struct sockaddr *__name,socklen_t *__namelen);

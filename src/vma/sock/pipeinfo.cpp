@@ -151,8 +151,9 @@ void pipeinfo::clean_obj()
 	}
 }
 
-int pipeinfo::fcntl(int __cmd, unsigned long int __arg)
+int pipeinfo::fcntl_helper(int __cmd, unsigned long int __arg, bool &bexit)
 {
+
 	switch (__cmd) {
 	case F_SETFL:
 		{
@@ -186,7 +187,31 @@ int pipeinfo::fcntl(int __cmd, unsigned long int __arg)
 		break;
 	}
 
+	bexit = false;
+	return 0;
+}
+
+
+int pipeinfo::fcntl(int __cmd, unsigned long int __arg)
+{
+
+	bool bexit = false;
+	int ret_val = fcntl_helper(__cmd, __arg, bexit);
+	if (bexit)
+		return ret_val;
+
 	return orig_os_api.fcntl(m_fd, __cmd, __arg);
+}
+
+int pipeinfo::fcntl64(int __cmd, unsigned long int __arg)
+{ 
+
+	bool bexit = false;
+	int ret_val = fcntl_helper(__cmd, __arg, bexit);
+	if (bexit)
+		return ret_val;
+
+	return orig_os_api.fcntl64(m_fd, __cmd, __arg);
 }
 
 int pipeinfo::ioctl(unsigned long int __request, unsigned long int __arg)

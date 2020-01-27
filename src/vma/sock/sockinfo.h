@@ -204,6 +204,9 @@ public:
 	uint32_t get_flow_tag_val() { return m_flow_tag_id; }
 	inline in_protocol_t get_protocol(void) { return m_protocol; }
 
+private:
+	int				fcntl_helper(int __cmd, unsigned long int __arg, bool& bexit);
+
 protected:
 	bool 			m_b_blocking;
 	bool 			m_b_pktinfo;
@@ -279,6 +282,7 @@ protected:
 	int*			m_p_rings_fds;
 	virtual void 		set_blocking(bool is_blocked);
 	virtual int 		fcntl(int __cmd, unsigned long int __arg);
+	virtual int 		fcntl64(int __cmd, unsigned long int __arg);
 	virtual int 		ioctl(unsigned long int __request, unsigned long int __arg);
 	virtual int setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen);
 	int setsockopt_kernel(int __level, int __optname, const void *__optval, socklen_t __optlen, int supported, bool allow_priv);

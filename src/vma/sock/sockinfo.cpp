@@ -60,7 +60,6 @@
 #define si_logfunc		__log_info_func
 #define si_logfuncall		__log_info_funcall
 
-
 sockinfo::sockinfo(int fd):
 		socket_fd_api(fd),
 		m_b_blocking(true),
@@ -150,7 +149,8 @@ void sockinfo::set_blocking(bool is_blocked)
 	m_p_socket_stats->b_blocking = m_b_blocking;
 }
 
-int sockinfo::fcntl(int __cmd, unsigned long int __arg)
+
+int sockinfo::fcntl_helper(int __cmd, unsigned long int __arg, bool &bexit)
 {
 	switch (__cmd) {
 	case F_SETFL:
@@ -162,7 +162,7 @@ int sockinfo::fcntl(int __cmd, unsigned long int __arg)
 				set_blocking(true);
 		}
 		break;
-	case F_GETFL:		/* Get file status flags.  */
+	case F_GETFL:		/* Get file status flags.   */
 		si_logfunc("cmd=F_GETFL, arg=%#x", __arg);
 		break;
 
@@ -177,21 +177,48 @@ int sockinfo::fcntl(int __cmd, unsigned long int __arg)
 	default:
 		char buf[128];
 		snprintf(buf, sizeof(buf), "unimplemented fcntl cmd=%#x, arg=%#x", (unsigned)__cmd, (unsigned)__arg);
-		buf[ sizeof(buf)-1 ] = '\0';
+		buf[sizeof(buf) - 1] = '\0';
 
 		VLOG_PRINTF_INFO(safe_mce_sys().exception_handling.get_log_severity(), "%s", buf);
 		int rc = handle_exception_flow();
 		switch (rc) {
 		case -1:
+			bexit = true;
 			return rc;
 		case -2:
+			bexit = true;
 			vma_throw_object_with_msg(vma_unsupported_api, buf);
 		}
 		break;
 	}
+
+	bexit = false;
+	return 0;
+}
+
+
+int sockinfo::fcntl(int __cmd, unsigned long int __arg)
+{
+	bool bexit = false;
+	int ret_val = fcntl_helper(__cmd, __arg, bexit);
+	if (bexit)
+		return ret_val;
+
 	si_logdbg("going to OS for fcntl cmd=%d, arg=%#x", __cmd, __arg);
 	return orig_os_api.fcntl(m_fd, __cmd, __arg);
 }
+
+int sockinfo::fcntl64(int __cmd, unsigned long int __arg)
+{
+	bool bexit = false;
+	int ret_val = fcntl_helper(__cmd, __arg, bexit);
+	if (bexit)
+		return ret_val;
+	
+	si_logdbg("going to OS for fcntl64 cmd=%d, arg=%#x", __cmd, __arg);
+	return orig_os_api.fcntl64(m_fd, __cmd, __arg);
+}
+
 
 int sockinfo::set_ring_attr(vma_ring_alloc_logic_attr *attr)
 {
