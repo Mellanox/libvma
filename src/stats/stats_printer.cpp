@@ -202,7 +202,7 @@ void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, 
 void print_netstat_like_headers(FILE* file)
 {
 	static bool already_printed = false;
-	if (!already_printed) fprintf(file,"%-1s %-1s %-20s %-20s %-22s %-21s %-11s %-10s %s", "Proto", "Offloaded", "Recv-Q", "Send-Q", "Local Address", "Foreign Address", "State", "Inode", "PID/Program name\n");
+	if (!already_printed) fprintf(file,"%-5s %-9s %-20s %-20s %-22s %-21s %-11s %-10s %s", "Proto", "Offloaded", "Recv-Q", "Send-Q", "Local Address", "Foreign Address", "State", "Inode", "PID/Program name\n");
 	already_printed = true;
 }
 
