@@ -89,8 +89,8 @@ static bool is_bf(struct ibv_context *ib_ctx)
 	static off_t offset = VMA_MLX5_MMAP_GET_WC_PAGES_CMD << VMA_MLX5_IB_MMAP_CMD_SHIFT;
 	char *env;
 
-	/* This limitation is done for RM: 1557652, 1894523, 1914464 */
-	if (safe_mce_sys().hypervisor == mce_sys_var::HYPER_KVM) {
+	/* This limitation is done for RM: 1557652, 1894523, 1914464, 2069198 */
+	if (safe_mce_sys().hypervisor != mce_sys_var::HYPER_NONE) {
 		return false;
 	}
 
