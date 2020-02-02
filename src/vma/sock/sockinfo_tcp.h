@@ -132,6 +132,8 @@ public:
 	int prepareListen();
 	int shutdown(int __how);
 
+	int fcntl_helper(int __cmd, unsigned long int __arg, bool &bexit);
+
 	//Not always we can close immediately TCP socket: we can do that only after the TCP connection in closed.
 	//In this method we just kikstarting the TCP connection termination (empty the unsent/unacked, senf FIN...)
 	//Return val: true is the socket is already closable and false otherwise
@@ -140,6 +142,7 @@ public:
 	bool prepare_dst_to_send(bool is_accepted_socket = false);
 
 	virtual int fcntl(int __cmd, unsigned long int __arg);
+	virtual int fcntl64(int __cmd, unsigned long int __arg);
 	virtual int ioctl(unsigned long int __request, unsigned long int __arg);
 	virtual int setsockopt(int __level, int __optname, const void *__optval, socklen_t __optlen);
 	virtual int getsockopt(int __level, int __optname, void *__optval, socklen_t *__optlen);

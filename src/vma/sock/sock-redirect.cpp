@@ -1236,7 +1236,9 @@ int fcntl(int __fd, int __cmd, ...)
 	return res;
 }
 
-/* Do the file control operation described by CMD on FD.
+/* fcntl64 Implementation for Fedora 29 / (GLIBC 2.28)
+
+   Do the file control operation described by CMD on FD.
    The remaining arguments are interpreted depending on CMD.
 
    This function is a cancellation point and therefore not marked with
@@ -1262,13 +1264,13 @@ int fcntl64(int __fd, int __cmd, ...)
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
 	if (p_socket_object) {
-		VERIFY_PASSTROUGH_CHANGED(res, p_socket_object->fcntl(__cmd, arg));
+		VERIFY_PASSTROUGH_CHANGED(res, p_socket_object->fcntl64(__cmd, arg));
 	}
 	else {
 		BULLSEYE_EXCLUDE_BLOCK_START
-			if (!orig_os_api.fcntl) get_orig_funcs();
+			if (!orig_os_api.fcntl64) get_orig_funcs();
 		BULLSEYE_EXCLUDE_BLOCK_END
-			res = orig_os_api.fcntl(__fd, __cmd, arg);
+			res = orig_os_api.fcntl64(__fd, __cmd, arg);
 	}
 
 	if (__cmd == F_DUPFD) {

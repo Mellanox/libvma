@@ -47,7 +47,10 @@ public:
 
 	virtual void clean_obj();
 
+	int fcntl_helper(int __cmd, unsigned long int __arg, bool &bexit);
+
 	int	fcntl(int __cmd, unsigned long int __arg);
+	int	fcntl64(int __cmd, unsigned long int __arg);
 	int 	ioctl(unsigned long int __request, unsigned long int __arg);
 
 	// Process a Rx request, we might have a ready packet, or we might block until

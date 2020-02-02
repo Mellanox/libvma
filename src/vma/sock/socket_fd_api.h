@@ -162,6 +162,7 @@ public:
 	virtual int getsockopt(int __level, int __optname, void *__optval,
 			       socklen_t *__optlen);
 	virtual int fcntl(int __cmd, unsigned long int __arg) = 0;
+	virtual int fcntl64(int __cmd, unsigned long int __arg) = 0;
 
 	virtual int ioctl(unsigned long int __request, unsigned long int __arg) = 0;
 
