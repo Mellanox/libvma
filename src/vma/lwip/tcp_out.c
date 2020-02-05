@@ -555,10 +555,10 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
      * the end.
      */
 #if LWIP_TSO
-    if ((pos < len) && (space > 0) && (pcb->last_unsent->len > 0) &&
+    if (!(apiflags & TCP_WRITE_FILE) && (pos < len) && (space > 0) && (pcb->last_unsent->len > 0) &&
         (tot_p < (int)pcb->tso.max_send_sge)) {
 #else
-    if ((pos < len) && (space > 0) && (pcb->last_unsent->len > 0)) {
+    if (!(apiflags & TCP_WRITE_FILE) && (pos < len) && (space > 0) && (pcb->last_unsent->len > 0)) {
 #endif /* LWIP_TSO */
 
       u16_t seglen = space < len - pos ? space : len - pos;
