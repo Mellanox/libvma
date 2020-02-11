@@ -154,14 +154,14 @@ int sockinfo::fcntl_helper(int __cmd, unsigned long int __arg, bool &bexit)
 {
 	switch (__cmd) {
 	case F_SETFL:
-	{
-		si_logdbg("cmd=F_SETFL, arg=%#x", __arg);
-		if (__arg & O_NONBLOCK)
-			set_blocking(false);
-		else
-			set_blocking(true);
-	}
-	break;
+		{
+			si_logdbg("cmd=F_SETFL, arg=%#x", __arg);
+			if (__arg & O_NONBLOCK)
+				set_blocking(false);
+			else
+				set_blocking(true);
+		}
+		break;
 	case F_GETFL:		/* Get file status flags.   */
 		si_logfunc("cmd=F_GETFL, arg=%#x", __arg);
 		break;
@@ -193,7 +193,7 @@ int sockinfo::fcntl_helper(int __cmd, unsigned long int __arg, bool &bexit)
 	}
 
 	bexit = false;
-	return 1;
+	return 0;
 }
 
 

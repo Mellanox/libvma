@@ -156,19 +156,19 @@ int pipeinfo::fcntl_helper(int __cmd, unsigned long int __arg, bool &bexit)
 
 	switch (__cmd) {
 	case F_SETFL:
-	{
-		pi_logfunc("cmd=F_SETFL, arg=%#x", __cmd, __arg);
-		if (__arg & O_NONBLOCK) {
-			pi_logdbg("set to non-blocking mode");
-			m_b_blocking = false;
+		{
+			pi_logfunc("cmd=F_SETFL, arg=%#x", __cmd, __arg);
+			if (__arg & O_NONBLOCK) {
+				pi_logdbg("set to non-blocking mode");
+				m_b_blocking = false;
+			}
+			else {
+				pi_logdbg("set to blocked mode");
+				m_b_blocking = true;
+			}
+			m_p_socket_stats->b_blocking = m_b_blocking;
 		}
-		else {
-			pi_logdbg("set to blocked mode");
-			m_b_blocking = true;
-		}
-		m_p_socket_stats->b_blocking = m_b_blocking;
-	}
-	break;
+		break;
 
 	case F_GETFL:		/* Get file status flags.  */
 		pi_logfunc("F_GETFL, arg=%#x", __arg);
@@ -188,7 +188,7 @@ int pipeinfo::fcntl_helper(int __cmd, unsigned long int __arg, bool &bexit)
 	}
 
 	bexit = false;
-	return 1;
+	return 0;
 }
 
 

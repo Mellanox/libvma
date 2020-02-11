@@ -3396,39 +3396,39 @@ int sockinfo_tcp::fcntl_helper(int __cmd, unsigned long int __arg, bool &bexit)
 {
 	switch (__cmd) {
 	case F_SETFL:		/* Set file status flags. */ 
-	{
-		si_tcp_logdbg("cmd=F_SETFL, arg=%#x", __arg);
-		if (__arg & O_NONBLOCK)
-			set_blocking(false);
-		else
-			set_blocking(true);
-
-		bexit = true;
-
-		return 0;
-	}
-	break;
-	case F_GETFL:		/* Get file status flags. */
-	{
-		si_tcp_logdbg("cmd=F_GETFL");
-		if (m_b_blocking)
 		{
+			si_tcp_logdbg("cmd=F_SETFL, arg=%#x", __arg);
+			if (__arg & O_NONBLOCK)
+				set_blocking(false);
+			else
+				set_blocking(true);
+
 			bexit = true;
+
 			return 0;
 		}
-		else
+		break;
+	case F_GETFL:		/* Get file status flags. */
 		{
-			bexit = true;
-			return O_NONBLOCK;
+			si_tcp_logdbg("cmd=F_GETFL");
+			if (m_b_blocking)
+			{
+				bexit = true;
+				return 0;
+			}
+			else
+			{
+				bexit = true;
+				return O_NONBLOCK;
+			}
 		}
-	}
-	break;
+		break;
 	default:
 		break;
 	}
     
 	bexit = false;
-	return 1;
+	return 0;
 }
 
 

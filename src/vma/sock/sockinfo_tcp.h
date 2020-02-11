@@ -132,8 +132,6 @@ public:
 	int prepareListen();
 	int shutdown(int __how);
 
-	int fcntl_helper(int __cmd, unsigned long int __arg, bool &bexit);
-
 	//Not always we can close immediately TCP socket: we can do that only after the TCP connection in closed.
 	//In this method we just kikstarting the TCP connection termination (empty the unsent/unacked, senf FIN...)
 	//Return val: true is the socket is already closable and false otherwise
@@ -241,6 +239,8 @@ protected:
 	virtual bool try_un_offloading(); // un-offload the socket if possible
 
 private:
+	int fcntl_helper(int __cmd, unsigned long int __arg, bool& bexit);
+
 	//lwip specific things
 	struct tcp_pcb m_pcb;
 	socket_options_list_t m_socket_options_list;

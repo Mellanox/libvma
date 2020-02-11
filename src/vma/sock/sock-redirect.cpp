@@ -1236,9 +1236,7 @@ int fcntl(int __fd, int __cmd, ...)
 	return res;
 }
 
-/* fcntl64 Implementation for Fedora 29 / (GLIBC 2.28)
-
-   Do the file control operation described by CMD on FD.
+/* Do the file control operation described by CMD on FD.
    The remaining arguments are interpreted depending on CMD.
 
    This function is a cancellation point and therefore not marked with
