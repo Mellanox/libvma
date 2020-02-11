@@ -70,6 +70,7 @@ cq_mgr* qp_mgr_eth_direct::init_tx_cq_mgr()
 
 int qp_mgr_eth_direct::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 {
+	qp_init_attr.cap.max_recv_wr = 0; // Wrapper Round for Bugs SW #2080510,SW #2020853 issue,[VMA - Feature #2076088] Support creation of VMA Direct QP only with TX HW resources 
 	qp_init_attr.cap.max_send_wr = m_p_ib_ctx_handler->get_ibv_device_attr()->max_qp_wr;
 	qp_init_attr.cap.max_send_sge = 1;
 	qp_init_attr.cap.max_recv_sge = 1;
