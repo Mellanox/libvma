@@ -1117,11 +1117,6 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
 
       next = pcb->unsent;
       pcb->unsent = pcb->unsent->next;
-#if TCP_OVERSIZE
-      if (pcb->unsent == NULL) {
-        pcb->unsent_oversize = 0;
-      }
-#endif /* TCP_OVERSIZE */
       LWIP_DEBUGF(TCP_QLEN_DEBUG, ("tcp_receive: queuelen %"U32_F" ... ", (u32_t)pcb->snd_queuelen));
       LWIP_ASSERT("pcb->snd_queuelen >= pbuf_clen(next->p)", (pcb->snd_queuelen >= pbuf_clen(next->p)));
       /* Prevent ACK for FIN to generate a sent event */
@@ -1135,6 +1130,13 @@ tcp_receive(struct tcp_pcb *pcb, tcp_in_data* in_data)
         LWIP_ASSERT("tcp_receive: valid queue length",
           pcb->unacked != NULL || pcb->unsent != NULL);
       }
+    }
+    if (pcb->unsent == NULL) {
+      /* We have sent all pending segments, reflect it in last_unsent */
+      pcb->last_unsent = NULL;
+#if TCP_OVERSIZE
+      pcb->unsent_oversize = 0;
+#endif /* TCP_OVERSIZE */
     }
     /* End of ACK for new data processing. */
 
