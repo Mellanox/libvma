@@ -782,7 +782,7 @@ tcp_shrink_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t ackno)
     seg->p->tot_len -= len;
     seg->seqno = ackno;
     seg->tcphdr->seqno = htonl(seg->seqno);
-    MEMCPY(dataptr, dataptr + len, seg->p->len);
+    MEMMOVE(dataptr, dataptr + len, seg->p->len);
     return count;
   }
 

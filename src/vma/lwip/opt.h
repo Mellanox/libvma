@@ -332,6 +332,15 @@
 #endif
 
 /**
+ * MEMMOVE: override this if you have a faster implementation at hand than the
+ * one included in your C library
+ * Use this function instead of MEMCPY() when memory areas may overlap
+ */
+#ifndef MEMMOVE
+#define MEMMOVE(dst,src,len)             memmove(dst,src,len)
+#endif
+
+/**
  * MEMCPY: override this if you have a faster implementation at hand than the
  * one included in your C library
  */
