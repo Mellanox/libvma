@@ -1021,7 +1021,10 @@ tcp_tso_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
         pbuf_cat(seg->p, cur_seg->p);
 
         /* Free joined segment w/o releasing pbuf
-         * tcp_seg_free() and tcp_segs_free() release pbuf chain
+         * tcp_seg_free() and tcp_segs_free() release pbuf chain.
+         * Note, this code doesn't join the last unsent segment and thus
+         * pcb->last_unsent is left unchanged. Otherwise, we would have
+         * to update the last_unsent pointer to keep it valid.
          */
         external_tcp_seg_free(pcb, cur_seg);
     }
@@ -1051,6 +1054,7 @@ tcp_split_one_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t lentosend,
 {
   struct tcp_seg *cur_seg = NULL;
   struct tcp_seg *new_seg = NULL;
+  struct tcp_seg *result = NULL;
   struct pbuf *cur_p = NULL;
   u16_t max_length = 0;
   u16_t oversize = 0;
@@ -1064,7 +1068,7 @@ tcp_split_one_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t lentosend,
     /* Allocate memory for p_buf and fill in fields. */
     if (NULL == (cur_p = tcp_pbuf_prealloc(lentoqueue + optlen, max_length, &oversize, pcb, 0, 0))) {
       LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_split_one_segment: could not allocate memory for pbuf copy size %"U16_F"\n", (lentoqueue + optlen)));
-      goto err;
+      goto out;
     }
 
     /* Do prefetch to avoid no memory issue during segment creation with
@@ -1074,7 +1078,7 @@ tcp_split_one_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t lentosend,
       if (NULL == (pcb->seg_alloc = tcp_create_segment(pcb, NULL, 0, 0, 0))) {
         LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_split_one_segment: could not allocate memory for segment\n"));
         tcp_tx_pbuf_free(pcb, cur_p);
-        goto err;
+        goto out;
       }
     }
 
@@ -1090,7 +1094,7 @@ tcp_split_one_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t lentosend,
      */
     if (NULL == (new_seg = tcp_create_segment(pcb, cur_p, 0,  cur_seg->seqno + lentosend, optflags))) {
       LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_split_one_segment: could not allocate memory for segment\n"));
-      goto err;
+      goto out;
     }
 
     /* New segment update */
@@ -1110,21 +1114,22 @@ tcp_split_one_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t lentosend,
 
     /* Update number of buffer to be send */
     pcb->snd_queuelen++;
-
-    /* Update last unsent segment */
-    if (pcb->last_unsent == seg) {
-      pcb->last_unsent = new_seg;
-      pcb->unsent_oversize = oversize;
-    }
   }
 
-  return seg;
+  result = seg;
 
-err:
+out:
   if (cur_seg->len > pcb->mss) {
     cur_seg->flags |= TF_SEG_OPTS_TSO;
   }
-  return NULL;
+  if (pcb->last_unsent == seg) {
+    /* We have split the last unsent segment, update last_unsent */
+    pcb->last_unsent = cur_seg;
+#if TCP_OVERSIZE
+    pcb->unsent_oversize = result ? oversize : 0;
+#endif /* TCP_OVERSIZE */
+  }
+  return result;
 }
 
  /**
@@ -1213,8 +1218,16 @@ tcp_rexmit_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
     cur_seg->next = new_seg;
     cur_seg->len = cur_seg->p->len - TCP_HLEN - optlen;
     cur_seg->p->tot_len = cur_seg->p->len;
-
     cur_seg->p->next = NULL;
+
+    if (pcb->last_unsent == cur_seg) {
+      /* We have split the last unsent segment, update last_unsent */
+      pcb->last_unsent = new_seg;
+#if TCP_OVERSIZE
+      pcb->unsent_oversize = 0;
+#endif /* TCP_OVERSIZE */
+    }
+
     if (NULL == tcp_split_one_segment(pcb, cur_seg, mss_local, optflags, optlen)) {
         LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_split_one_segment: could not allocate memory for segment\n"));
         if (new_seg->len > pcb->mss) {
@@ -1322,10 +1335,12 @@ tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
     /* Update number of buffer to be send */
     pcb->snd_queuelen++;
 
-    /* Update last unsent segment */
     if (pcb->last_unsent == seg) {
+      /* We have split the last unsent segment, update last_unsent */
       pcb->last_unsent = newseg;
+#if TCP_OVERSIZE
       pcb->unsent_oversize = oversize;
+#endif /* TCP_OVERSIZE */
     }
   }
   else if (seg->p->next) {
@@ -1631,12 +1646,13 @@ tcp_output(struct tcp_pcb *pcb)
     }
   }
 
-#if TCP_OVERSIZE
   if (pcb->unsent == NULL) {
-    /* last unsent has been removed, reset unsent_oversize */
+    /* We have sent all pending segments, reset last_unsent */
+    pcb->last_unsent = NULL;
+#if TCP_OVERSIZE
     pcb->unsent_oversize = 0;
-  }
 #endif /* TCP_OVERSIZE */
+  }
 
   pcb->flags &= ~TF_NAGLEMEMERR;
 
@@ -1837,12 +1853,13 @@ tcp_rexmit_rto(struct tcp_pcb *pcb)
   for (seg = pcb->unacked; seg->next != NULL; seg = seg->next);
   /* concatenate unsent queue after unacked queue */
   seg->next = pcb->unsent;
-#if TCP_OVERSIZE && TCP_OVERSIZE_DBGCHECK
-  /* if last unsent changed, we need to update unsent_oversize */
   if (pcb->unsent == NULL) {
+    /* If there are no unsent segments, update last_unsent to the last unacked */
+    pcb->last_unsent = seg;
+#if TCP_OVERSIZE && TCP_OVERSIZE_DBGCHECK
     pcb->unsent_oversize = seg->oversize_left;
-  }
 #endif /* TCP_OVERSIZE && TCP_OVERSIZE_DBGCHECK*/
+  }
   /* unsent queue is the concatenated queue (of unacked, unsent) */
   pcb->unsent = pcb->unacked;
   /* unacked queue is now empty */
@@ -1887,12 +1904,13 @@ tcp_rexmit(struct tcp_pcb *pcb)
   }
   seg->next = *cur_seg;
   *cur_seg = seg;
-#if TCP_OVERSIZE
   if (seg->next == NULL) {
-    /* the retransmitted segment is last in unsent, so reset unsent_oversize */
+    /* The retransmitted segment is the last in the unsent queue, update last_unsent */
+    pcb->last_unsent = seg;
+#if TCP_OVERSIZE
     pcb->unsent_oversize = 0;
-  }
 #endif /* TCP_OVERSIZE */
+  }
 
   ++pcb->nrtx;
 
