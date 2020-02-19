@@ -1146,11 +1146,24 @@ tcp_rexmit_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
   u8_t optflags = 0;
   u8_t optlen = 0;
 
-  /* Use ref = 1 or TCP_SEQ_LT(seg->seqno, pcb->snd_nxt) can be used as
-   * retransmission attribute
+  LWIP_ASSERT("tcp_rexmit_segment: sanity check", (seg && seg->p));
+
+  mss_local = tcp_xmit_size_goal(pcb, 0);
+
+  /* TCP_SEQ_LT(seg->seqno, pcb->snd_nxt) can be used as
+   * retransmission attribute but according current design
+   * checking this condition is needless.
+   * Following check makes a decision to retransmit TSO segment as is or
+   * convert one into a sequence of none TSO segments
+   * Keep TSO segment w/o change in case:
+   * 1. current TSO segment was sent and send operation
+   * was completed
+   * 2. current wnd is enough to send this segment as is
    */
-  if ((NULL == seg) || (NULL == seg->p) ||
-      ((seg->p->ref == 1) && ((seg->len + seg->seqno - pcb->lastack) <= wnd))) {
+  if ((seg->p->ref == 1) && ((seg->len + seg->seqno - pcb->lastack) <= wnd)) {
+    if (seg->len <= mss_local) {
+      seg->flags &= (~TF_SEG_OPTS_TSO);
+    }
     return seg;
   }
 
@@ -1161,8 +1174,6 @@ tcp_rexmit_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
 #endif /* LWIP_TCP_TIMESTAMPS */
 
   optlen += LWIP_TCP_OPT_LENGTH(optflags);
-
-  mss_local = tcp_xmit_size_goal(pcb, 0);
 
   cur_seg = seg;
   cur_seg->flags &= (~TF_SEG_OPTS_TSO);
@@ -1241,8 +1252,9 @@ tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
   u8_t  optlen = 0, optflags = 0;
   u16_t mss_local = 0;
 
-  if ((NULL == seg) || (NULL == seg->p) ||
-      ((seg->seqno - pcb->lastack) >= wnd) || (seg->p->ref > 1)) {
+  LWIP_ASSERT("tcp_split_segment: sanity check", (seg && seg->p));
+
+  if (((seg->seqno - pcb->lastack) >= wnd) || (seg->p->ref > 1)) {
     return ;
   }
 
