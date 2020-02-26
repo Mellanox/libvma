@@ -86,7 +86,10 @@ bool dm_mgr::allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* ring_stats
 	m_p_ibv_dm = vma_ibv_alloc_dm(ib_ctx->get_ibv_context(), &dm_attr);
 	if (!m_p_ibv_dm) {
 		// Memory allocation can fail if we have already allocated the maximum possible.
-		dm_logdbg("ibv_alloc_dm error - On Device Memory allocation failed, %d %m", errno);
+		VLOG_PRINTF_ONCE_THEN_DEBUG(VLOG_WARNING, "**************************************************************\n");
+		VLOG_PRINTF_ONCE_THEN_DEBUG(VLOG_WARNING, "Not enough memory on device to allocate %d bytes              \n", allocation_size);
+		VLOG_PRINTF_ONCE_THEN_DEBUG(VLOG_WARNING, "VMA will continue working without on Device Memory usage      \n");
+		VLOG_PRINTF_ONCE_THEN_DEBUG(VLOG_WARNING, "**************************************************************\n");
 		errno = 0;
 		return false;
 	}
