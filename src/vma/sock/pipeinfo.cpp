@@ -329,8 +329,8 @@ void pipeinfo::write_lbm_pipe_enhance()
 void pipeinfo::statistics_print()
 {
 	bool b_any_activiy = false;
-	if (m_p_socket_stats->counters.n_tx_sent_byte_count || m_p_socket_stats->counters.n_tx_sent_pkt_count || m_p_socket_stats->counters.n_tx_errors || m_p_socket_stats->counters.n_tx_drops) {
-		pi_logdbg_no_funcname("Tx Offload: %d KB / %d / %d / %d [bytes/packets/errors/drops]", m_p_socket_stats->counters.n_tx_sent_byte_count/1024, m_p_socket_stats->counters.n_tx_sent_pkt_count, m_p_socket_stats->counters.n_tx_errors, m_p_socket_stats->counters.n_tx_drops);
+	if (m_p_socket_stats->counters.n_tx_sent_byte_count || m_p_socket_stats->counters.n_tx_sent_pkt_count || m_p_socket_stats->counters.n_tx_errors || m_p_socket_stats->counters.n_tx_eagain) {
+		pi_logdbg_no_funcname("Tx Offload: %d KB / %d / %d / %d [bytes/packets/errors/eagains]", m_p_socket_stats->counters.n_tx_sent_byte_count/1024, m_p_socket_stats->counters.n_tx_sent_pkt_count, m_p_socket_stats->counters.n_tx_errors, m_p_socket_stats->counters.n_tx_eagain);
 		b_any_activiy = true;
 	}
 	if (m_p_socket_stats->counters.n_tx_os_bytes || m_p_socket_stats->counters.n_tx_os_packets || m_p_socket_stats->counters.n_tx_os_errors) {

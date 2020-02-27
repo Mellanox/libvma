@@ -155,7 +155,7 @@ typedef struct {
 	uint32_t    n_tx_sent_pkt_count;
 	uint32_t    n_tx_sent_byte_count;
 	uint32_t    n_tx_errors;
-	uint32_t    n_tx_drops;
+	uint32_t    n_tx_eagain;
 	uint32_t    n_tx_retransmits;
 	uint32_t    n_tx_os_packets;
 	uint32_t    n_tx_os_bytes;

@@ -1125,8 +1125,8 @@ void sockinfo::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 	if (m_p_socket_stats->ring_alloc_logic_tx == RING_LOGIC_PER_USER_ID)
 		vlog_printf(log_level, "TX Ring User ID : %lu\n", m_p_socket_stats->ring_user_id_tx);
 
-	if (m_p_socket_stats->counters.n_tx_sent_byte_count || m_p_socket_stats->counters.n_tx_sent_pkt_count || m_p_socket_stats->counters.n_tx_errors || m_p_socket_stats->counters.n_tx_drops ) {
-		vlog_printf(log_level, "Tx Offload : %d KB / %d / %d / %d [bytes/packets/drops/errors]\n", m_p_socket_stats->counters.n_tx_sent_byte_count/1024, m_p_socket_stats->counters.n_tx_sent_pkt_count, m_p_socket_stats->counters.n_tx_drops, m_p_socket_stats->counters.n_tx_errors);
+	if (m_p_socket_stats->counters.n_tx_sent_byte_count || m_p_socket_stats->counters.n_tx_sent_pkt_count || m_p_socket_stats->counters.n_tx_errors || m_p_socket_stats->counters.n_tx_eagain ) {
+		vlog_printf(log_level, "Tx Offload : %d KB / %d / %d / %d [bytes/packets/eagains/errors]\n", m_p_socket_stats->counters.n_tx_sent_byte_count/1024, m_p_socket_stats->counters.n_tx_sent_pkt_count, m_p_socket_stats->counters.n_tx_eagain, m_p_socket_stats->counters.n_tx_errors);
 		b_any_activity = true;
 	}
 	if (m_p_socket_stats->counters.n_tx_os_bytes || m_p_socket_stats->counters.n_tx_os_packets || m_p_socket_stats->counters.n_tx_os_errors) {
