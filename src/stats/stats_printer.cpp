@@ -140,9 +140,9 @@ void print_full_stats(socket_stats_t* p_si_stats, mc_grp_info_t* p_mc_grp_info, 
 	//
 	// Socket statistics
 	//
-	if (p_si_stats->counters.n_tx_sent_byte_count || p_si_stats->counters.n_tx_sent_pkt_count || p_si_stats->counters.n_tx_drops || p_si_stats->counters.n_tx_errors)
+	if (p_si_stats->counters.n_tx_sent_byte_count || p_si_stats->counters.n_tx_sent_pkt_count || p_si_stats->counters.n_tx_eagain || p_si_stats->counters.n_tx_errors)
 	{
-		fprintf(filename, "Tx Offload: %u / %u / %u / %u [kilobytes/packets/drops/errors]%s\n", p_si_stats->counters.n_tx_sent_byte_count/BYTES_TRAFFIC_UNIT,p_si_stats->counters.n_tx_sent_pkt_count, p_si_stats->counters.n_tx_drops, p_si_stats->counters.n_tx_errors, post_fix);
+		fprintf(filename, "Tx Offload: %u / %u / %u / %u [kilobytes/packets/eagains/errors]%s\n", p_si_stats->counters.n_tx_sent_byte_count/BYTES_TRAFFIC_UNIT,p_si_stats->counters.n_tx_sent_pkt_count, p_si_stats->counters.n_tx_eagain, p_si_stats->counters.n_tx_errors, post_fix);
 		b_any_activiy = true;
 	}
 	if (p_si_stats->counters.n_tx_os_bytes || p_si_stats->counters.n_tx_os_packets || p_si_stats->counters.n_tx_os_eagain || p_si_stats->counters.n_tx_os_errors)

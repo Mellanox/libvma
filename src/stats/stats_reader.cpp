@@ -176,7 +176,7 @@ void update_delta_stat(socket_stats_t* p_curr_stat, socket_stats_t* p_prev_stat)
 	int delay = INTERVAL;
 	p_prev_stat->counters.n_tx_sent_byte_count = (p_curr_stat->counters.n_tx_sent_byte_count - p_prev_stat->counters.n_tx_sent_byte_count) / delay;
 	p_prev_stat->counters.n_tx_sent_pkt_count = (p_curr_stat->counters.n_tx_sent_pkt_count - p_prev_stat->counters.n_tx_sent_pkt_count) / delay;
-	p_prev_stat->counters.n_tx_drops = (p_curr_stat->counters.n_tx_drops - p_prev_stat->counters.n_tx_drops) / delay;
+	p_prev_stat->counters.n_tx_eagain = (p_curr_stat->counters.n_tx_eagain - p_prev_stat->counters.n_tx_eagain) / delay;
 	p_prev_stat->counters.n_tx_errors = (p_curr_stat->counters.n_tx_errors - p_prev_stat->counters.n_tx_errors) / delay;
 	p_prev_stat->counters.n_tx_dummy = (p_curr_stat->counters.n_tx_dummy - p_prev_stat->counters.n_tx_dummy) / delay;
 	p_prev_stat->counters.n_tx_os_bytes = (p_curr_stat->counters.n_tx_os_bytes - p_prev_stat->counters.n_tx_os_bytes) / delay;
@@ -387,7 +387,7 @@ void print_basic_stats(socket_stats_t* p_stats)
 			p_stats->counters.n_rx_os_eagain,p_stats->counters.n_rx_os_errors);
 	
 	printf(TX_SHORT_VIEW," ", "Tx:",p_stats->counters.n_tx_sent_pkt_count,
-			p_stats->counters.n_tx_sent_byte_count/BYTES_TRAFFIC_UNIT,p_stats->counters.n_tx_drops,
+			p_stats->counters.n_tx_sent_byte_count/BYTES_TRAFFIC_UNIT,p_stats->counters.n_tx_eagain,
 			p_stats->counters.n_tx_errors," ",
 			p_stats->counters.n_tx_os_packets,p_stats->counters.n_tx_os_bytes / BYTES_TRAFFIC_UNIT,
 			p_stats->counters.n_tx_os_eagain,p_stats->counters.n_tx_os_errors);
@@ -413,7 +413,7 @@ void print_medium_total_stats(socket_stats_t* p_stats)
 			p_stats->counters.n_rx_os_eagain,p_stats->counters.n_rx_os_errors);
 	
 	printf(TX_MEDIUM_VIEW," ", "Tx:",p_stats->counters.n_tx_sent_pkt_count,
-			p_stats->counters.n_tx_sent_byte_count/BYTES_TRAFFIC_UNIT,p_stats->counters.n_tx_drops,
+			p_stats->counters.n_tx_sent_byte_count/BYTES_TRAFFIC_UNIT,p_stats->counters.n_tx_eagain,
 			p_stats->counters.n_tx_errors," ",
 			p_stats->counters.n_tx_os_packets,p_stats->counters.n_tx_os_bytes / BYTES_TRAFFIC_UNIT,
 			p_stats->counters.n_tx_os_eagain,p_stats->counters.n_tx_os_errors);

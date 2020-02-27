@@ -964,7 +964,7 @@ err:
 
 	// nothing send  nb mode or got some other error
 	if (errno == EAGAIN)
-		m_p_socket_stats->counters.n_tx_drops++;
+		m_p_socket_stats->counters.n_tx_eagain++;
 	else
 		m_p_socket_stats->counters.n_tx_errors++;
 	unlock_tcp_con();
