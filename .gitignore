@@ -46,10 +46,17 @@ libtool
 cov-int/
 jenkins/
 
-# Project/Eclipse
+# IDE files
 .cproject
 .project
 tags
+.vs/
+obj/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+VTune Profiler Results/
 
 # VMA specific
 src/utils/timetest
@@ -62,3 +69,6 @@ stamp-h1
 VMA_VERSION
 build/libvma.spec
 debian/changelog
+contrib/scripts/vma.init
+contrib/scripts/vma.service
+tools/daemon/vmad
