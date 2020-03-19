@@ -113,9 +113,15 @@ void assign_dlsym(T &ptr, const char *name) {
 		dlerror(); \
 		assign_dlsym(orig_os_api.__name, #__name); \
 		char *dlerror_str = dlerror(); \
-		if (dlerror_str) { \
-			__log_warn("dlsym returned with error '%s' when looking for '%s'", \
-			           dlerror_str, #__name); \
+		if (!orig_os_api.__name || dlerror_str) { \
+			if (strcmp("fcntl64", #__name) != 0) { \
+				__log_warn("dlsym returned with error '%s' when looking for '%s'", \
+			           (!dlerror_str? "":dlerror_str), #__name); \
+			} \
+			else { \
+				__log_dbg("dlsym returned with error '%s' when looking for '%s'", \
+					(!dlerror_str? "":dlerror_str), #__name); \
+			} \
 		} else { \
 			__log_dbg("dlsym found %p for '%s()'", orig_os_api.__name , #__name); \
 		} \
@@ -1261,14 +1267,24 @@ int fcntl64(int __fd, int __cmd, ...)
 	int ret = 0;
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
-	if (p_socket_object) {
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (!orig_os_api.fcntl64) get_orig_funcs();
+	BULLSEYE_EXCLUDE_BLOCK_END
+	if (p_socket_object && orig_os_api.fcntl64) {
 		VERIFY_PASSTROUGH_CHANGED(res, p_socket_object->fcntl64(__cmd, arg));
 	}
 	else {
-		BULLSEYE_EXCLUDE_BLOCK_START
-			if (!orig_os_api.fcntl64) get_orig_funcs();
-		BULLSEYE_EXCLUDE_BLOCK_END
-			res = orig_os_api.fcntl64(__fd, __cmd, arg);
+			if (!orig_os_api.fcntl64) {
+				srdr_logfunc_exit("failed (errno=%d %m)", errno);
+				VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_ERROR, VLOG_DEBUG,
+					"fcntl64 was not found during runtime. Set %s to appripriate debug level to see datails. Ignoring...", SYS_VAR_LOG_LEVEL,
+					__fd, __cmd);
+				errno = EOPNOTSUPP;
+				return -1;
+			}
+			else {
+				res = orig_os_api.fcntl64(__fd, __cmd, arg);
+			}
 	}
 
 	if (__cmd == F_DUPFD) {
