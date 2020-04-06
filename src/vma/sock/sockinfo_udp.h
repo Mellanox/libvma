@@ -164,7 +164,6 @@ public:
 	{
 		return (this->*m_rx_packet_processor)(p_rx_wc_buf_desc, pv_fd_ready_array);
 	}
-	inline void set_rx_packet_processor(void);
 
 	// This call will handle all rdma related events (bind->listen->connect_req->accept)
 	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);
@@ -242,6 +241,7 @@ private:
 	int mc_change_membership_end_helper(in_addr_t mc_grp, int optname, in_addr_t mc_src = 0);
 	int mc_change_pending_mreq(const mc_pending_pram *p_mc_pram);
 	int on_sockname_change(struct sockaddr *__name, socklen_t __namelen);
+	inline void set_rx_packet_processor(void);
 	void handle_pending_mreq();
 	void original_os_setsockopt_helper( void* pram, int pram_size, int optname);
 	/* helper functions */

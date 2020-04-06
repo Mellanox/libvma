@@ -179,7 +179,6 @@ public:
 
 	virtual void update_header_field(data_updater *updater);
 	virtual bool rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void* pv_fd_ready_array);
-	virtual void set_rx_packet_processor(void) { }
 
 	static struct pbuf * tcp_tx_pbuf_alloc(void* p_conn);
 	static void tcp_tx_pbuf_free(void* p_conn, struct pbuf *p_buff);
