@@ -739,25 +739,24 @@ bool sockinfo::attach_receiver(flow_tuple_with_local_if &flow_key)
 		si_logdbg("Failed to attach %s to ring %p", flow_key.to_str(), p_nd_resources->p_ring);
 		return false;
 	}
-	set_rx_packet_processor();
 	lock_rx_q();
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	// Registered as receiver successfully
 	si_logdbg("Attached %s to ring %p", flow_key.to_str(), p_nd_resources->p_ring);
 
-
-        // Verify 5 tuple over 3 tuple
-        if (flow_key.is_5_tuple())
-        {
-        	// Check and remove lesser 3 tuple
-        	flow_tuple_with_local_if flow_key_3t(flow_key.get_dst_ip(), flow_key.get_dst_port(), INADDR_ANY, INPORT_ANY, flow_key.get_protocol(), flow_key.get_local_if());
-        	rx_flow_map_t::iterator rx_flow_iter = m_rx_flow_map.find(flow_key_3t);
-        	if (rx_flow_iter != m_rx_flow_map.end()) {
-        		si_logdbg("Removing (and detaching) 3 tuple now that we added a stronger 5 tuple");
-        		detach_receiver(flow_key_3t);
-        	}
-        }
+	/* Verify 5 tuple over 3 tuple
+	 * and replace flow rule with the strongest
+	 */
+	if (flow_key.is_5_tuple()) {
+		// Check and remove lesser 3 tuple
+		flow_tuple_with_local_if flow_key_3t(flow_key.get_dst_ip(), flow_key.get_dst_port(), INADDR_ANY, INPORT_ANY, flow_key.get_protocol(), flow_key.get_local_if());
+		rx_flow_map_t::iterator rx_flow_iter = m_rx_flow_map.find(flow_key_3t);
+		if (rx_flow_iter != m_rx_flow_map.end()) {
+			si_logdbg("Removing (and detaching) 3 tuple now that we added a stronger 5 tuple");
+			detach_receiver(flow_key_3t);
+		}
+	}
 
 	return true;
 }

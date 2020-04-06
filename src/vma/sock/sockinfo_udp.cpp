@@ -503,21 +503,6 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 		m_connected.set_in_port(INPORT_ANY);
 		m_p_socket_stats->connected_port = m_connected.get_in_port();
 
-/* TODO ALEXR REMOVE ME - DONE IN DST_ENTRY
-
-	if (ZERONET_N(connect_to.get_in_addr())) {
-		si_udp_logdbg("VMA does not offload zero net IP address");
-		si_udp_logdbg("'connect()' to zero net address [%s] will be handled by the OS", connect_to.to_str());
-		return 0; // zero returned from orig_connect()
-	}
-
-	if (LOOPBACK_N(connect_to.get_in_addr())) {
-		si_udp_logdbg("VMA does not offload local loopback IP address");
-		si_udp_logdbg("'connect()' to local loopback address [%s] will be handled by the OS", connect_to.to_str());
-		return 0; // zero returned from orig_connect()
-	}
-*/
-
 		in_addr_t dst_ip = connect_to.get_in_addr();
 		in_port_t dst_port = connect_to.get_in_port();
 
@@ -596,6 +581,7 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 		m_p_connected_dst_entry->prepare_to_send(m_so_ratelimit, false, true);
 		return 0;
 	}
+
 	return 0;
 }
 
@@ -674,6 +660,11 @@ int sockinfo_udp::on_sockname_change(struct sockaddr *__name, socklen_t __namele
 		// Attach UDP port pending MC groups to offloaded interface (set by ADD_MEMBERSHIP before bind() was called)
 		handle_pending_mreq();
 	}
+
+	/* Update rx processing after changing m_is_connected, m_sockopt_mapped, m_multicast
+	 * It can be done at setsockopt(), bind() and connect()
+	 */
+	set_rx_packet_processor();
 
 	return 0;
 }

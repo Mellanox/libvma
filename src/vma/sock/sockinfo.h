@@ -325,7 +325,6 @@ protected:
 	// According to bounded information we need to attach to all UC relevant flows
 	// If local_ip is ANY then we need to attach to all offloaded interfaces OR to the one our connected_ip is routed to
 	bool			attach_as_uc_receiver(role_t role, bool skip_rules = false);
-	virtual void		set_rx_packet_processor(void) = 0;
 	transport_t 		find_target_family(role_t role, struct sockaddr *sock_addr_first, struct sockaddr *sock_addr_second = NULL);
 
 	// This callback will notify that socket is ready to receive and map the cq.
