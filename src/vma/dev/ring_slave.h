@@ -115,6 +115,9 @@ struct rule_key_t {
 	}
 };
 
+typedef flow_spec_tcp_key_t flow_spec_udp_uc_key_t;
+typedef flow_spec_tcp_map_t flow_spec_udp_uc_map_t;
+
 typedef std::tr1::unordered_map<uint64_t, struct counter_and_ibv_flows> rule_filter_map_t;
 
 
@@ -155,13 +158,14 @@ protected:
 
 	flow_spec_tcp_map_t	m_flow_tcp_map;
 	flow_spec_udp_map_t	m_flow_udp_mc_map;
-	flow_spec_udp_map_t	m_flow_udp_uc_map;
+	flow_spec_udp_uc_map_t	m_flow_udp_uc_map;
 
 	// For IB MC flow, the port is zeroed in the ibv_flow_spec when calling to ibv_flow_spec().
 	// It means that for every MC group, even if we have sockets with different ports - only one rule in the HW.
 	// So the hash map below keeps track of the number of sockets per rule so we know when to call ibv_attach and ibv_detach
 	rule_filter_map_t	m_l2_mc_ip_attach_map;
 	rule_filter_map_t	m_tcp_dst_port_attach_map;
+	rule_filter_map_t	m_udp_uc_dst_port_attach_map;
 
 	descq_t             m_tx_pool;
 	transport_type_t    m_transport_type; /* transport ETH/IB */

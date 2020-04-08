@@ -192,11 +192,14 @@ bool ring_slave::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 
 	/* Get the appropriate hash map (tcp, uc or mc) from the 5t details */
 	if (flow_spec_5t.is_udp_uc()) {
-		flow_spec_udp_key_t key_udp_uc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
+		flow_spec_udp_uc_key_t key_udp_uc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_src_ip(),
+				flow_spec_5t.get_dst_port(), flow_spec_5t.get_src_port());
+
 		if (flow_tag_id && si->flow_in_reuse()) {
 			flow_tag_id = FLOW_TAG_MASK;
 			ring_logdbg("UC flow tag for socketinfo=%p is disabled: SO_REUSEADDR or SO_REUSEPORT were enabled", si);
 		}
+
 		p_rfs = m_flow_udp_uc_map.get(key_udp_uc, NULL);
 		if (p_rfs == NULL) {
 			// No rfs object exists so a new one must be created and inserted in the flow map
@@ -358,7 +361,8 @@ bool ring_slave::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 
 	/* Get the appropriate hash map (tcp, uc or mc) from the 5t details */
 	if (flow_spec_5t.is_udp_uc()) {
-		flow_spec_udp_key_t key_udp_uc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
+		flow_spec_udp_uc_key_t key_udp_uc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_src_ip(),
+				flow_spec_5t.get_dst_port(), flow_spec_5t.get_src_port());
 		p_rfs = m_flow_udp_uc_map.get(key_udp_uc, NULL);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (p_rfs == NULL) {
@@ -788,18 +792,25 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 		ring_logfunc("Rx udp datagram info: src_port=%d, dst_port=%d, payload_sz=%d, csum=%#x",
 				ntohs(p_udp_h->source), ntohs(p_udp_h->dest), sz_payload, p_udp_h->check);
 
-		// Update the L3 info
-		p_rx_wc_buf_desc->rx.udp.local_if        = m_local_if;
-
 		// Update the L4 info
 		p_rx_wc_buf_desc->rx.src.sin_port        = p_udp_h->source;
 		p_rx_wc_buf_desc->rx.dst.sin_port        = p_udp_h->dest;
 		p_rx_wc_buf_desc->rx.sz_payload          = sz_payload;
 
+		// Update the protocol info
+		p_rx_wc_buf_desc->rx.udp.local_if        = m_local_if;
+
 		// Find the relevant hash map and pass the packet to the rfs for dispatching
 		if (!(IN_MULTICAST_N(p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr))) {      // This is UDP UC packet
-			p_rfs = m_flow_udp_uc_map.get(flow_spec_udp_key_t(p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr,
-				p_rx_wc_buf_desc->rx.dst.sin_port), NULL);
+			p_rfs = m_flow_udp_uc_map.get(flow_spec_udp_uc_key_t(p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr,
+					p_rx_wc_buf_desc->rx.src.sin_addr.s_addr, p_rx_wc_buf_desc->rx.dst.sin_port,
+					p_rx_wc_buf_desc->rx.src.sin_port), NULL);
+
+			// If we didn't find a match for 5T, look for a match with 3T
+			if (unlikely(p_rfs == NULL)) {
+				p_rfs = m_flow_udp_uc_map.get(flow_spec_udp_uc_key_t(p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr, 0,
+						p_rx_wc_buf_desc->rx.dst.sin_port, 0), NULL);
+			}
 		} else {        // This is UDP MC packet
 			p_rfs = m_flow_udp_mc_map.get(flow_spec_udp_key_t(p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr,
 				p_rx_wc_buf_desc->rx.dst.sin_port), NULL);
@@ -833,6 +844,8 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 		p_rx_wc_buf_desc->rx.dst.sin_port        = p_tcp_h->dest;
 		p_rx_wc_buf_desc->rx.sz_payload          = sz_payload;
 
+		// Update the protocol info
+		p_rx_wc_buf_desc->rx.tcp.n_transport_header_len = transport_header_len;
 		p_rx_wc_buf_desc->rx.tcp.p_ip_h = p_ip_h;
 		p_rx_wc_buf_desc->rx.tcp.p_tcp_h = p_tcp_h;
 
@@ -841,9 +854,8 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 				p_rx_wc_buf_desc->rx.src.sin_addr.s_addr, p_rx_wc_buf_desc->rx.dst.sin_port,
 				p_rx_wc_buf_desc->rx.src.sin_port), NULL);
 
-		p_rx_wc_buf_desc->rx.tcp.n_transport_header_len = transport_header_len;
-
-		if (unlikely(p_rfs == NULL)) {	// If we didn't find a match for TCP 5T, look for a match with TCP 3T
+		// If we didn't find a match for 5T, look for a match with 3T
+		if (unlikely(p_rfs == NULL)) {
 			p_rfs = m_flow_tcp_map.get(flow_spec_tcp_key_t(p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr, 0,
 					p_rx_wc_buf_desc->rx.dst.sin_port, 0), NULL);
 		}
@@ -889,20 +901,22 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 
 void ring_slave::flow_udp_del_all()
 {
+	flow_spec_udp_uc_key_t map_key_udp_uc;
+	flow_spec_udp_uc_map_t::iterator itr_udp_uc;
 	flow_spec_udp_key_t map_key_udp;
 	flow_spec_udp_map_t::iterator itr_udp;
 
-	itr_udp = m_flow_udp_uc_map.begin();
-	while (itr_udp != m_flow_udp_uc_map.end()) {
-		rfs *p_rfs = itr_udp->second;
-		map_key_udp = itr_udp->first;
+	itr_udp_uc = m_flow_udp_uc_map.begin();
+	while (itr_udp_uc != m_flow_udp_uc_map.end()) {
+		rfs *p_rfs = itr_udp_uc->second;
+		map_key_udp_uc = itr_udp_uc->first;
 		if (p_rfs) {
 			delete p_rfs;
 		}
-		if (!(m_flow_udp_uc_map.del(map_key_udp))) {
+		if (!(m_flow_udp_uc_map.del(map_key_udp_uc))) {
 			ring_logdbg("Could not find rfs object to delete in ring udp uc hash map!");
 		}
-		itr_udp =  m_flow_udp_uc_map.begin();
+		itr_udp_uc =  m_flow_udp_uc_map.begin();
 	}
 
 	itr_udp = m_flow_udp_mc_map.begin();
