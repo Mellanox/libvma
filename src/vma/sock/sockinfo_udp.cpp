@@ -637,7 +637,6 @@ int sockinfo_udp::on_sockname_change(struct sockaddr *__name, socklen_t __namele
 		m_bound.set_in_addr(bound_if);
 		m_p_socket_stats->bound_if = bound_if;
 	}
-
 	// Check if this is the new 'name' (local port) of the socket
 	if ((m_is_connected || is_bound_modified) && bound_port != INPORT_ANY) {
 

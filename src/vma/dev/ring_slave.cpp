@@ -194,6 +194,15 @@ bool ring_slave::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	if (flow_spec_5t.is_udp_uc()) {
 		flow_spec_udp_uc_key_t key_udp_uc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_src_ip(),
 				flow_spec_5t.get_dst_port(), flow_spec_5t.get_src_port());
+		rule_key_t rule_key(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
+		rfs_rule_filter* dst_port_filter = NULL;
+
+		rule_filter_map_t::iterator dst_port_filter_iter = m_udp_uc_dst_port_attach_map.find(rule_key.key);
+		if (dst_port_filter_iter == m_udp_uc_dst_port_attach_map.end()) {
+			m_udp_uc_dst_port_attach_map[rule_key.key].counter = 1;
+		} else {
+			m_udp_uc_dst_port_attach_map[rule_key.key].counter = ((dst_port_filter_iter->second.counter) + 1);
+		}
 
 		if (flow_tag_id && si->flow_in_reuse()) {
 			flow_tag_id = FLOW_TAG_MASK;
@@ -204,8 +213,10 @@ bool ring_slave::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		if (p_rfs == NULL) {
 			// No rfs object exists so a new one must be created and inserted in the flow map
 			m_lock_ring_rx.unlock();
+			flow_tuple tcp_3t_only(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port(), 0, 0, flow_spec_5t.get_protocol());
+			dst_port_filter = new rfs_rule_filter(m_udp_uc_dst_port_attach_map, rule_key.key, tcp_3t_only);
 			try {
-				p_tmp_rfs = new rfs_uc(&flow_spec_5t, this, NULL, flow_tag_id);
+				p_tmp_rfs = new (std::nothrow)rfs_uc(&flow_spec_5t, this, dst_port_filter, flow_tag_id);
 			} catch(vma_exception& e) {
 				ring_logerr("%s", e.message);
 				return false;
@@ -361,20 +372,34 @@ bool ring_slave::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 
 	/* Get the appropriate hash map (tcp, uc or mc) from the 5t details */
 	if (flow_spec_5t.is_udp_uc()) {
-		flow_spec_udp_uc_key_t key_udp_uc(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_src_ip(),
+		int keep_in_map = 1;
+		flow_spec_udp_uc_key_t key_tcp(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_src_ip(),
 				flow_spec_5t.get_dst_port(), flow_spec_5t.get_src_port());
-		p_rfs = m_flow_udp_uc_map.get(key_udp_uc, NULL);
+		rule_key_t rule_key(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port());
+		rule_filter_map_t::iterator dst_port_iter = m_udp_uc_dst_port_attach_map.find(rule_key.key);
+
+		if (dst_port_iter == m_udp_uc_dst_port_attach_map.end()) {
+			ring_logdbg("Could not find matching counter for UDP src port!");
+		} else {
+			keep_in_map = m_udp_uc_dst_port_attach_map[rule_key.key].counter = MAX(0 , ((dst_port_iter->second.counter) - 1));
+		}
+
+		p_rfs = m_flow_udp_uc_map.get(key_tcp, NULL);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (p_rfs == NULL) {
 			ring_logdbg("Could not find rfs object to detach!");
 			return false;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
+
 		p_rfs->detach_flow(sink);
+		if(!keep_in_map){
+			m_udp_uc_dst_port_attach_map.erase(m_udp_uc_dst_port_attach_map.find(rule_key.key));
+		}
 		if (p_rfs->get_num_of_sinks() == 0) {
 			BULLSEYE_EXCLUDE_BLOCK_START
-			if (!(m_flow_udp_uc_map.del(key_udp_uc))) {
-				ring_logdbg("Could not find rfs object to delete in ring udp uc hash map!");
+			if (!(m_flow_udp_uc_map.del(key_tcp))) {
+				ring_logdbg("Could not find rfs object to delete in ring udp hash map!");
 			}
 			BULLSEYE_EXCLUDE_BLOCK_END
 			delete p_rfs;
