@@ -117,6 +117,14 @@ sockinfo::sockinfo(int fd):
 	m_socketxtreme.ec.clear();
 	m_socketxtreme.completion = NULL;
 	m_socketxtreme.last_buff_lst = NULL;
+
+	m_connected.set_in_addr(INADDR_ANY);
+	m_connected.set_in_port(INPORT_ANY);
+	m_connected.set_sa_family(AF_INET);
+
+	m_bound.set_in_addr(INADDR_ANY);
+	m_bound.set_in_port(INPORT_ANY);
+	m_bound.set_sa_family(AF_INET);
 }
 
 sockinfo::~sockinfo()

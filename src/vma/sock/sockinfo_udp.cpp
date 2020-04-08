@@ -639,7 +639,7 @@ int sockinfo_udp::on_sockname_change(struct sockaddr *__name, socklen_t __namele
 	}
 
 	// Check if this is the new 'name' (local port) of the socket
-	if (is_bound_modified && bound_port != INPORT_ANY) {
+	if ((m_is_connected || is_bound_modified) && bound_port != INPORT_ANY) {
 
 		// Attach UDP unicast port to offloaded interface
 		// 1. Check if local_if is offloadable OR is on INADDR_ANY which means attach to ALL
