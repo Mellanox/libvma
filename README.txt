@@ -144,6 +144,7 @@ Example:
  VMA DETAILS: Rx CQ Drain Rate               Disabled                   [VMA_RX_CQ_DRAIN_RATE_NSEC]
  VMA DETAILS: GRO max streams                32                         [VMA_GRO_STREAMS_MAX]
  VMA DETAILS: TCP 3T rules                   Disabled                   [VMA_TCP_3T_RULES]
+ VMA DETAILS: UDP 3T rules                   Enabled                    [VMA_UDP_3T_RULES]
  VMA DETAILS: ETH MC L2 only rules           Disabled                   [VMA_ETH_MC_L2_ONLY_RULES]
  VMA DETAILS: Force Flowtag for MC           Disabled                   [VMA_MC_FORCE_FLOWTAG]
  VMA DETAILS: Select Poll (usec)             100000                     [VMA_SELECT_POLL]
@@ -602,6 +603,15 @@ VMA_TCP_3T_RULES
 Use only 3 tuple rules for TCP, instead of using 5 tuple rules.
 This can improve performance for a server with listen socket which accept many
 connections.
+Default: 0 (Disable)
+
+VMA_UDP_3T_RULES
+This parameter can be relevant in case application uses connected udp sockets.
+3 tuple rules are used in hardware flow steering rule when the parameter is enabled and
+5 tuple flow steering rule when it is disabled.
+Enabling this option can reduce hardware flow steering resources.
+But when it is disabled application might see benefits in latency and cycles per packet.
+Default: 1 (Enable)
 
 VMA_ETH_MC_L2_ONLY_RULES
 Use only L2 rules for Ethernet Multicast.
