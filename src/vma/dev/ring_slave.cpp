@@ -286,6 +286,15 @@ bool ring_slave::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 			}
 		}
 
+		if (flow_tag_id &&
+			(flow_spec_5t.is_3_tuple() ||
+			safe_mce_sys().gro_streams_max ||
+			safe_mce_sys().tcp_3t_rules)) {
+				ring_logdbg("flow tag id = %d is disabled for socket fd = %d to be processed on RFS!",
+					flow_tag_id, si->get_fd());
+				flow_tag_id = FLOW_TAG_MASK;
+		}
+
 		p_rfs = m_flow_tcp_map.get(key_tcp, NULL);
 		if (p_rfs == NULL) {		// It means that no rfs object exists so I need to create a new one and insert it to the flow map
 			m_lock_ring_rx.unlock();
@@ -293,21 +302,15 @@ bool ring_slave::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 				flow_tuple tcp_3t_only(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port(), 0, 0, flow_spec_5t.get_protocol());
 				tcp_dst_port_filter = new rfs_rule_filter(m_tcp_dst_port_attach_map, rule_key.key, tcp_3t_only);
 			}
-			if(safe_mce_sys().gro_streams_max && flow_spec_5t.is_5_tuple() && is_simple()) {
-				// When the gro mechanism is being used, packets must be processed in the rfs
-				// layer. This must not be bypassed by using flow tag.
-				if (flow_tag_id) {
-					flow_tag_id = FLOW_TAG_MASK;
-					ring_logdbg("flow_tag_id = %d is disabled to enable TCP GRO socket to be processed on RFS!", flow_tag_id);
-				}
-				p_tmp_rfs = new (std::nothrow)rfs_uc_tcp_gro(&flow_spec_5t, this, tcp_dst_port_filter, flow_tag_id);
-			} else {
-				try {
+			try {
+				if(safe_mce_sys().gro_streams_max && is_simple()) {
+					p_tmp_rfs = new (std::nothrow)rfs_uc_tcp_gro(&flow_spec_5t, this, tcp_dst_port_filter, flow_tag_id);
+				} else {
 					p_tmp_rfs = new (std::nothrow)rfs_uc(&flow_spec_5t, this, tcp_dst_port_filter, flow_tag_id);
-				} catch(vma_exception& e) {
-					ring_logerr("%s", e.message);
-					return false;
 				}
+			} catch(vma_exception& e) {
+				ring_logerr("%s", e.message);
+				return false;
 			}
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (p_tmp_rfs == NULL) {
@@ -339,11 +342,6 @@ bool ring_slave::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 			// A flow with FlowTag was attached succesfully, check stored rfs for fast path be tag_id
 			si->set_flow_tag(flow_tag_id);
 			ring_logdbg("flow_tag: %d registration is done!", flow_tag_id);
-		}
-		if (flow_spec_5t.is_tcp() && !flow_spec_5t.is_3_tuple()) {
-			// save the single 5tuple TCP connected socket for improved fast path
-			si->set_tcp_flow_is_5t();
-			ring_logdbg("single 5T TCP update m_tcp_flow_is_5t m_flow_tag_enabled: %d", m_flow_tag_enabled);
 		}
 	} else {
 		ring_logerr("attach_flow=%d failed!", ret);
@@ -496,6 +494,7 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 	struct ethhdr* p_eth_h = (struct ethhdr*)(p_rx_wc_buf_desc->p_buffer);
 	struct iphdr* p_ip_h = NULL;
 	struct udphdr* p_udp_h = NULL;
+	struct tcphdr* p_tcp_h = NULL;
 
 	// Validate buffer size
 	sz_data = p_rx_wc_buf_desc->sz_data;
@@ -534,12 +533,11 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 			ip_hdr_len = 20; //(int)(p_ip_h->ihl)*4;
 			ip_tot_len = ntohs(p_ip_h->tot_len);
 
-			ring_logfunc("FAST PATH Rx packet info: transport_header_len: %d, IP_header_len: %d L3 proto: %d tcp_5t: %d",
-				transport_header_len, p_ip_h->ihl, p_ip_h->protocol, si->tcp_flow_is_5t());
+			ring_logfunc("FAST PATH Rx packet info: transport_header_len: %d, IP_header_len: %d L3 proto: %d flow_tag_id: %d",
+				transport_header_len, p_ip_h->ihl, p_ip_h->protocol, p_rx_wc_buf_desc->rx.flow_tag_id);
 
-			if (likely(si->tcp_flow_is_5t())) {
-				// we have a single 5tuple TCP connected socket, use simpler fast path
-				struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
+			if (likely(p_ip_h->protocol==IPPROTO_TCP)) {
+				p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
 
 				// Update the L3 and L4 info
 				p_rx_wc_buf_desc->rx.src.sin_family      = AF_INET;
@@ -549,6 +547,7 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 				p_rx_wc_buf_desc->rx.dst.sin_family      = AF_INET;
 				p_rx_wc_buf_desc->rx.dst.sin_port        = p_tcp_h->dest;
 				p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr = p_ip_h->daddr;
+
 				// Update packet descriptor with datagram base address and length
 				p_rx_wc_buf_desc->rx.frag.iov_base = (uint8_t*)p_tcp_h + sizeof(struct tcphdr);
 				p_rx_wc_buf_desc->rx.frag.iov_len  = ip_tot_len - ip_hdr_len - sizeof(struct tcphdr);
@@ -568,8 +567,9 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 
 				return check_rx_packet(si, p_rx_wc_buf_desc, pv_fd_ready_array);
 
-			} else if (likely(p_ip_h->protocol==IPPROTO_UDP)) {
-				// Get the udp header pointer + udp payload size
+			}
+
+			if (likely(p_ip_h->protocol==IPPROTO_UDP)) {
 				p_udp_h = (struct udphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
 
 				// Update the L3 and L4 info
@@ -580,6 +580,7 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 				p_rx_wc_buf_desc->rx.dst.sin_family      = AF_INET;
 				p_rx_wc_buf_desc->rx.dst.sin_port        = p_udp_h->dest;
 				p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr = p_ip_h->daddr;
+
 				// Update packet descriptor with datagram base address and length
 				p_rx_wc_buf_desc->rx.frag.iov_base = (uint8_t*)p_udp_h + sizeof(struct udphdr);
 				p_rx_wc_buf_desc->rx.frag.iov_len  = ip_tot_len - ip_hdr_len - sizeof(struct udphdr);
@@ -812,7 +813,7 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 	case IPPROTO_TCP:
 	{
 		// Get the tcp header pointer + tcp payload size
-		struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
+		p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
 
 		if (p_rx_wc_buf_desc->rx.is_sw_csum_need && compute_tcp_checksum(p_ip_h, (unsigned short*) p_tcp_h)) {
 			return false; // false tcp checksum
@@ -877,7 +878,6 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 		ring_logwarn("Rx packet dropped - undefined protocol = %d", p_ip_h->protocol);
 		return false;
 	}
-
 	if (unlikely(p_rfs == NULL)) {
 		ring_logdbg("Rx packet dropped - rfs object not found: dst:%d.%d.%d.%d:%d, src%d.%d.%d.%d:%d, proto=%s[%d]",
 				NIPQUAD(p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr), ntohs(p_rx_wc_buf_desc->rx.dst.sin_port),

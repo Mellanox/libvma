@@ -181,8 +181,6 @@ public:
 	virtual int add_epoll_context(epfd_info *epfd);
 	virtual void remove_epoll_context(epfd_info *epfd);
 
-	inline bool tcp_flow_is_5t(void) { return m_tcp_flow_is_5t; }
-	inline void set_tcp_flow_is_5t(void) { m_tcp_flow_is_5t = true; }
 	inline bool set_flow_tag(uint32_t flow_tag_id) {
 		if (flow_tag_id && (flow_tag_id != FLOW_TAG_MASK)) {
 			m_flow_tag_id = flow_tag_id;
@@ -277,7 +275,6 @@ protected:
 	uint32_t		m_flow_tag_id;	// Flow Tag for this socket
 	bool			m_flow_tag_enabled; // for this socket
 	uint8_t			m_n_uc_ttl; // time to live
-	bool			m_tcp_flow_is_5t; // to bypass packet analysis
 
 	int*			m_p_rings_fds;
 	virtual void 		set_blocking(bool is_blocked);
