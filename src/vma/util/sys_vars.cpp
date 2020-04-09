@@ -561,6 +561,7 @@ void mce_sys_var::get_env_params()
 	gro_streams_max		= MCE_DEFAULT_GRO_STREAMS_MAX;
 
 	tcp_3t_rules		= MCE_DEFAULT_TCP_3T_RULES;
+	udp_3t_rules		= MCE_DEFAULT_UDP_3T_RULES;
 	eth_mc_l2_only_rules	= MCE_DEFAULT_ETH_MC_L2_ONLY_RULES;
 	mc_force_flowtag	= MCE_DEFAULT_MC_FORCE_FLOWTAG;
 
@@ -991,6 +992,9 @@ void mce_sys_var::get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_TCP_3T_RULES)) != NULL)
 		tcp_3t_rules = atoi(env_ptr) ? true : false;
+
+	if ((env_ptr = getenv(SYS_VAR_UDP_3T_RULES)) != NULL)
+		udp_3t_rules = atoi(env_ptr) ? true : false;
 
 	if ((env_ptr = getenv(SYS_VAR_ETH_MC_L2_ONLY_RULES)) != NULL)
 		eth_mc_l2_only_rules = atoi(env_ptr) ? true : false;

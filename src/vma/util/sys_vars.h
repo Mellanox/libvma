@@ -359,6 +359,7 @@ public:
 	uint32_t	gro_streams_max;
 
 	bool		tcp_3t_rules;
+	bool		udp_3t_rules;
 	bool		eth_mc_l2_only_rules;
 	bool		mc_force_flowtag;
 
@@ -500,6 +501,7 @@ extern mce_sys_var & safe_mce_sys();
 #define SYS_VAR_RX_CQ_DRAIN_RATE_NSEC			"VMA_RX_CQ_DRAIN_RATE_NSEC"
 #define SYS_VAR_GRO_STREAMS_MAX				"VMA_GRO_STREAMS_MAX"
 #define SYS_VAR_TCP_3T_RULES				"VMA_TCP_3T_RULES"
+#define SYS_VAR_UDP_3T_RULES				"VMA_UDP_3T_RULES"
 #define SYS_VAR_ETH_MC_L2_ONLY_RULES			"VMA_ETH_MC_L2_ONLY_RULES"
 #define SYS_VAR_MC_FORCE_FLOWTAG			"VMA_MC_FORCE_FLOWTAG"
 
@@ -619,6 +621,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_RX_CQ_DRAIN_RATE			(MCE_RX_CQ_DRAIN_RATE_DISABLED)
 #define MCE_DEFAULT_GRO_STREAMS_MAX			(32)
 #define MCE_DEFAULT_TCP_3T_RULES			(false)
+#define MCE_DEFAULT_UDP_3T_RULES			(true)
 #define MCE_DEFAULT_ETH_MC_L2_ONLY_RULES		(false)
 #define MCE_DEFAULT_MC_FORCE_FLOWTAG			(false)
 #define MCE_DEFAULT_SELECT_NUM_POLLS			(100000)
