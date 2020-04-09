@@ -340,11 +340,6 @@ bool ring_slave::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 			si->set_flow_tag(flow_tag_id);
 			ring_logdbg("flow_tag: %d registration is done!", flow_tag_id);
 		}
-		if (flow_spec_5t.is_tcp() && !flow_spec_5t.is_3_tuple()) {
-			// save the single 5tuple TCP connected socket for improved fast path
-			si->set_tcp_flow_is_5t();
-			ring_logdbg("single 5T TCP update m_tcp_flow_is_5t m_flow_tag_enabled: %d", m_flow_tag_enabled);
-		}
 	} else {
 		ring_logerr("attach_flow=%d failed!", ret);
 	}
@@ -496,6 +491,7 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 	struct ethhdr* p_eth_h = (struct ethhdr*)(p_rx_wc_buf_desc->p_buffer);
 	struct iphdr* p_ip_h = NULL;
 	struct udphdr* p_udp_h = NULL;
+	struct tcphdr* p_tcp_h = NULL;
 
 	// Validate buffer size
 	sz_data = p_rx_wc_buf_desc->sz_data;
@@ -534,12 +530,11 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 			ip_hdr_len = 20; //(int)(p_ip_h->ihl)*4;
 			ip_tot_len = ntohs(p_ip_h->tot_len);
 
-			ring_logfunc("FAST PATH Rx packet info: transport_header_len: %d, IP_header_len: %d L3 proto: %d tcp_5t: %d",
-				transport_header_len, p_ip_h->ihl, p_ip_h->protocol, si->tcp_flow_is_5t());
+			ring_logfunc("FAST PATH Rx packet info: transport_header_len: %d, IP_header_len: %d L3 proto: %d flow_tag_id: %d",
+				transport_header_len, p_ip_h->ihl, p_ip_h->protocol, p_rx_wc_buf_desc->rx.flow_tag_id);
 
-			if (likely(si->tcp_flow_is_5t())) {
-				// we have a single 5tuple TCP connected socket, use simpler fast path
-				struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
+			if (likely(p_ip_h->protocol==IPPROTO_TCP)) {
+				p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
 
 				// Update the L3 and L4 info
 				p_rx_wc_buf_desc->rx.src.sin_family      = AF_INET;
@@ -549,6 +544,7 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 				p_rx_wc_buf_desc->rx.dst.sin_family      = AF_INET;
 				p_rx_wc_buf_desc->rx.dst.sin_port        = p_tcp_h->dest;
 				p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr = p_ip_h->daddr;
+
 				// Update packet descriptor with datagram base address and length
 				p_rx_wc_buf_desc->rx.frag.iov_base = (uint8_t*)p_tcp_h + sizeof(struct tcphdr);
 				p_rx_wc_buf_desc->rx.frag.iov_len  = ip_tot_len - ip_hdr_len - sizeof(struct tcphdr);
@@ -568,8 +564,9 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 
 				return check_rx_packet(si, p_rx_wc_buf_desc, pv_fd_ready_array);
 
-			} else if (likely(p_ip_h->protocol==IPPROTO_UDP)) {
-				// Get the udp header pointer + udp payload size
+			}
+
+			if (likely(p_ip_h->protocol==IPPROTO_UDP)) {
 				p_udp_h = (struct udphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
 
 				// Update the L3 and L4 info
@@ -580,6 +577,7 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 				p_rx_wc_buf_desc->rx.dst.sin_family      = AF_INET;
 				p_rx_wc_buf_desc->rx.dst.sin_port        = p_udp_h->dest;
 				p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr = p_ip_h->daddr;
+
 				// Update packet descriptor with datagram base address and length
 				p_rx_wc_buf_desc->rx.frag.iov_base = (uint8_t*)p_udp_h + sizeof(struct udphdr);
 				p_rx_wc_buf_desc->rx.frag.iov_len  = ip_tot_len - ip_hdr_len - sizeof(struct udphdr);
@@ -812,7 +810,7 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 	case IPPROTO_TCP:
 	{
 		// Get the tcp header pointer + tcp payload size
-		struct tcphdr* p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
+		p_tcp_h = (struct tcphdr*)((uint8_t*)p_ip_h + ip_hdr_len);
 
 		if (p_rx_wc_buf_desc->rx.is_sw_csum_need && compute_tcp_checksum(p_ip_h, (unsigned short*) p_tcp_h)) {
 			return false; // false tcp checksum
