@@ -329,7 +329,6 @@ tscval_t g_si_tscv_last_poll = 0;
 
 sockinfo_udp::sockinfo_udp(int fd):
 	sockinfo(fd)
-	,m_rx_packet_processor(&sockinfo_udp::rx_process_udp_packet_full)
 	,m_mc_tx_if(INADDR_ANY)
 	,m_b_mc_tx_loop(safe_mce_sys().tx_mc_loopback_default) // default value is 'true'. User can change this with config parameter SYS_VAR_TX_MC_LOOPBACK
 	,m_n_mc_ttl(DEFAULT_MC_TTL)
@@ -659,11 +658,6 @@ int sockinfo_udp::on_sockname_change(struct sockaddr *__name, socklen_t __namele
 		// Attach UDP port pending MC groups to offloaded interface (set by ADD_MEMBERSHIP before bind() was called)
 		handle_pending_mreq();
 	}
-
-	/* Update rx processing after changing m_is_connected, m_sockopt_mapped, m_multicast
-	 * It can be done at setsockopt(), bind() and connect()
-	 */
-	set_rx_packet_processor();
 
 	return 0;
 }
@@ -1109,8 +1103,6 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 				}
 				if (m_port_map.empty()) {
 					m_sockopt_mapped = true;
-					// set full versus partial RX UDP handling due to updates in m_socket_mapped
-					set_rx_packet_processor();
 				}
 				si_udp_logdbg("found UDP_MAP_ADD socket fd for port %d. fd is %d", ntohs(port_socket.port), port_socket.fd);
 				m_port_map.push_back(port_socket);
@@ -1132,8 +1124,6 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 				m_port_map.erase(iter);
 				if (m_port_map.empty()) {
 					m_sockopt_mapped = false;
-					// set full versus partial RX UDP handling due to updates in m_socket_mapped
-					set_rx_packet_processor();
 				}
 			}
 			m_port_map_lock.unlock();
@@ -1777,93 +1767,6 @@ int sockinfo_udp::rx_verify_available_data()
 }
 
 /**
- * sockinfo_udp::inspect_uc_packet inspects the input packet for basic rules,
- * common for all cases. Its applicable for UC case as well.
- */
-inline bool sockinfo_udp::inspect_uc_packet(mem_buf_desc_t* p_desc)
-{
-	// Check that sockinfo is bound to the packets dest port
-	// This protects the case where a socket is closed and a new one is rapidly opened
-	// receiving the same socket id.
-	// In this case packets arriving for the old sockets should be dropped.
-	// This distinction assumes that the OS guarantees the old and new sockets to receive different
-	// port numbers from bind().
-	// If the user requests to bind the new socket to the same port number as the old one it will be
-	// impossible to identify packets designated for the old socket in this way.
-	if (unlikely(p_desc->rx.dst.sin_port != m_bound.get_in_port())) {
-		si_udp_logfunc("rx packet discarded - not socket's bound port (pkt: %d, sock:%s)",
-			   ntohs(p_desc->rx.dst.sin_port), m_bound.to_str_in_port());
-		return false;
-	}
-
-	// Check if sockinfo rx byte quato reached - then disregard this packet
-	if (unlikely(m_p_socket_stats->n_rx_ready_byte_count >= m_p_socket_stats->n_rx_ready_byte_limit)) {
-		si_udp_logfunc("rx packet discarded - socket limit reached (%d bytes)", m_p_socket_stats->n_rx_ready_byte_limit);
-		m_p_socket_stats->counters.n_rx_ready_byte_drop += p_desc->rx.sz_payload;
-		m_p_socket_stats->counters.n_rx_ready_pkt_drop++;
-		return false;
-	}
-
-	if (unlikely(m_state == SOCKINFO_CLOSED) || unlikely(g_b_exit)) {
-		si_udp_logfunc("rx packet discarded - fd closed");
-		return false;
-	}
-	return true;
-}
-
-/**
- *	Inspects UDP packets in case socket was connected
- *
- */
-inline bool sockinfo_udp::inspect_connected(mem_buf_desc_t* p_desc)
-{
-	if ((m_connected.get_in_port() != INPORT_ANY) && (m_connected.get_in_addr() != INADDR_ANY)) {
-		if (unlikely(m_connected.get_in_port() != p_desc->rx.src.sin_port)) {
-			si_udp_logfunc("rx packet discarded - not socket's connected port (pkt: %d, sock:%s)",
-				   ntohs(p_desc->rx.src.sin_port), m_connected.to_str_in_port());
-			return false;
-		}
-
-		if (unlikely(m_connected.get_in_addr() != p_desc->rx.src.sin_addr.s_addr)) {
-			si_udp_logfunc("rx packet discarded - not socket's connected port (pkt: [%d:%d:%d:%d], sock:[%s])",
-				   NIPQUAD(p_desc->rx.src.sin_addr.s_addr), m_connected.to_str_in_addr());
-			return false;
-		}
-	}
-	return true;
-}
-
-/**
- *	Inspects multicast packets
- *
- */
-inline bool sockinfo_udp::inspect_mc_packet(mem_buf_desc_t* p_desc)
-{
-	// if loopback is disabled, discard loopback packets.
-	// in linux, loopback control (set by setsockopt) is done in TX flow.
-	// since we currently can't control it in TX, we behave like windows, which filter on RX
-	if (unlikely(!m_b_mc_tx_loop && p_desc->rx.udp.local_if == p_desc->rx.src.sin_addr.s_addr)) {
-		si_udp_logfunc("rx packet discarded - loopback is disabled (pkt: [%d:%d:%d:%d], sock:%s)",
-			NIPQUAD(p_desc->rx.src.sin_addr.s_addr), m_bound.to_str_in_addr());
-		return false;
-	}
-	if (m_mc_num_grp_with_src_filter) {
-		in_addr_t mc_grp = p_desc->rx.dst.sin_addr.s_addr;
-		if (IN_MULTICAST_N(mc_grp)) {
-			in_addr_t mc_src = p_desc->rx.src.sin_addr.s_addr;
-
-			if ((m_mc_memberships_map.find(mc_grp) == m_mc_memberships_map.end()) ||
-				((0 < m_mc_memberships_map[mc_grp].size()) &&
-				(m_mc_memberships_map[mc_grp].find(mc_src) == m_mc_memberships_map[mc_grp].end()))) {
-				si_udp_logfunc("rx packet discarded - multicast source mismatch");
-				return false;
-			}
-		}
-	}
-	return true;
-}
-
-/**
  *	Performs inspection by registered user callback
  *
  */
@@ -1973,22 +1876,79 @@ inline void sockinfo_udp::update_ready(mem_buf_desc_t* p_desc, void* pv_fd_ready
 	si_udp_logfunc("rx ready count = %d packets / %d bytes", m_n_rx_pkt_ready_list_count, m_p_socket_stats->n_rx_ready_byte_count);
 }
 
-/**
- *	Performs full inspection and processing for generic UDP
- *	It will be bypassing some inspections if appropriate flags were
- *	not set.
- */
-inline bool sockinfo_udp::rx_process_udp_packet_full(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
+bool sockinfo_udp::rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
 {
-	if (!inspect_uc_packet(p_desc))
+	if (unlikely((m_state == SOCKINFO_CLOSED) || g_b_exit)) {
+		si_udp_logfunc("rx packet discarded - fd closed");
 		return false;
+	}
 
-	if (m_is_connected && !inspect_connected(p_desc))
+	/* Check if sockinfo rx byte SO_RCVBUF reached - then disregard this packet */
+	if (unlikely(m_p_socket_stats->n_rx_ready_byte_count >= m_p_socket_stats->n_rx_ready_byte_limit)) {
+		si_udp_logfunc("rx packet discarded - socket limit reached (%d bytes)", m_p_socket_stats->n_rx_ready_byte_limit);
+		m_p_socket_stats->counters.n_rx_ready_byte_drop += p_desc->rx.sz_payload;
+		m_p_socket_stats->counters.n_rx_ready_pkt_drop++;
 		return false;
+	}
 
-	if (m_multicast && !inspect_mc_packet(p_desc))
+	/* Check that sockinfo is bound to the packets dest port
+	 * This protects the case where a socket is closed and a new one is rapidly opened
+	 * receiving the same socket fd.
+	 * In this case packets arriving for the old sockets should be dropped.
+	 * This distinction assumes that the OS guarantees the old and new sockets to receive different
+	 * port numbers from bind().
+	 * If the user requests to bind the new socket to the same port number as the old one it will be
+	 * impossible to identify packets designated for the old socket in this way.
+	 */
+	if (unlikely(p_desc->rx.dst.sin_port != m_bound.get_in_port())) {
+		si_udp_logfunc("rx packet discarded - not socket's bound port (pkt: %d, sock:%s)",
+			   ntohs(p_desc->rx.dst.sin_port), m_bound.to_str_in_port());
 		return false;
+	}
 
+	/* Inspects UDP packets in case socket was connected */
+	if (m_is_connected &&
+			(m_connected.get_in_port() != INPORT_ANY) && (m_connected.get_in_addr() != INADDR_ANY)) {
+		if (unlikely(m_connected.get_in_port() != p_desc->rx.src.sin_port)) {
+			si_udp_logfunc("rx packet discarded - not socket's connected port (pkt: %d, sock:%s)",
+				   ntohs(p_desc->rx.src.sin_port), m_connected.to_str_in_port());
+			return false;
+		}
+
+		if (unlikely(m_connected.get_in_addr() != p_desc->rx.src.sin_addr.s_addr)) {
+			si_udp_logfunc("rx packet discarded - not socket's connected port (pkt: [%d:%d:%d:%d], sock:[%s])",
+				   NIPQUAD(p_desc->rx.src.sin_addr.s_addr), m_connected.to_str_in_addr());
+			return false;
+		}
+	}
+
+	/* Inspects multicast packets */
+	if (m_multicast) {
+		/* if loopback is disabled, discard loopback packets.
+		 * in linux, loopback control (set by setsockopt) is done in TX flow.
+		 * since we currently can't control it in TX, we behave like windows, which filter on RX
+		 */
+		if (unlikely(!m_b_mc_tx_loop && p_desc->rx.udp.local_if == p_desc->rx.src.sin_addr.s_addr)) {
+			si_udp_logfunc("rx packet discarded - loopback is disabled (pkt: [%d:%d:%d:%d], sock:%s)",
+				NIPQUAD(p_desc->rx.src.sin_addr.s_addr), m_bound.to_str_in_addr());
+			return false;
+		}
+		if (m_mc_num_grp_with_src_filter) {
+			in_addr_t mc_grp = p_desc->rx.dst.sin_addr.s_addr;
+			if (IN_MULTICAST_N(mc_grp)) {
+				in_addr_t mc_src = p_desc->rx.src.sin_addr.s_addr;
+
+				if ((m_mc_memberships_map.find(mc_grp) == m_mc_memberships_map.end()) ||
+					((0 < m_mc_memberships_map[mc_grp].size()) &&
+					(m_mc_memberships_map[mc_grp].find(mc_src) == m_mc_memberships_map[mc_grp].end()))) {
+					si_udp_logfunc("rx packet discarded - multicast source mismatch");
+					return false;
+				}
+			}
+		}
+	}
+
+	/* Process socket with option UDP_MAP_ADD */
 	if (m_sockopt_mapped) {
 		// Check port mapping - redirecting packets to another socket
 		while (!m_port_map.empty()) {
@@ -2009,7 +1969,7 @@ inline bool sockinfo_udp::rx_process_udp_packet_full(mem_buf_desc_t* p_desc, voi
 			}
 			m_port_map_lock.unlock();
 			p_desc->rx.dst.sin_port = new_port;
-			return ((sockinfo_udp*)sock_api)->rx_process_udp_packet_full(p_desc, pv_fd_ready_array);
+			return ((sockinfo_udp*)sock_api)->rx_input_cb(p_desc, pv_fd_ready_array);
 		}
 	}
 
@@ -2032,57 +1992,6 @@ inline bool sockinfo_udp::rx_process_udp_packet_full(mem_buf_desc_t* p_desc, voi
 		update_ready(p_desc, pv_fd_ready_array, cb_ret);
 	}
 	return true;
-}
-
-/**
- *	Performs inspection and processing for simple UC UDP case
- *	bypassing all other inspections
- */
-inline bool sockinfo_udp::rx_process_udp_packet_partial(mem_buf_desc_t* p_desc, void* pv_fd_ready_array)
-{
-	if (!inspect_uc_packet(p_desc))
-		return false;
-
-	process_timestamps(p_desc);
-
-	vma_recv_callback_retval_t cb_ret = VMA_PACKET_RECV;
-	if (m_rx_callback && ((cb_ret = inspect_by_user_cb(p_desc)) == VMA_PACKET_DROP)) {
-		si_udp_logfunc("rx packet discarded - by user callback");
-		return false;
-	}
-	// Yes, we want to keep this packet!
-	// And we must increment ref_counter before pushing this packet into the ready queue
-	//  to prevent race condition with the 'if( (--ref_count) <= 0)' in ib_comm_mgr
-	p_desc->inc_ref_count();
-
-	if (p_desc->rx.socketxtreme_polled) {
-		fill_completion(p_desc);
-		p_desc->rx.socketxtreme_polled = false;
-	} else {
-		update_ready(p_desc, pv_fd_ready_array, cb_ret);
-	}
-	return true;
-}
-
-/**
- *	set packet inspector and processor
- */
-inline void sockinfo_udp::set_rx_packet_processor(void)
-{
-	si_udp_logdbg("is_connected: %d mapped: %d multicast: %d",
-		      m_is_connected, m_sockopt_mapped, m_multicast);
-	// Select partial or full packet processing.
-	// Full packet processing is selected in case of:
-	// - connect() was done on the UDP socket
-	//   In this case the UDP 3-tuple is not sufficient for the packet matching.
-	// - In the case that socket mapping is enabled extra processing is required
-	// - Multicast packets
-	// For simple UC traffic reduced packet processing is selected.
-	if (m_is_connected || m_sockopt_mapped || m_multicast) {
-		m_rx_packet_processor = &sockinfo_udp::rx_process_udp_packet_full;
-	} else {
-		m_rx_packet_processor = &sockinfo_udp::rx_process_udp_packet_partial;
-	}
 }
 
 void sockinfo_udp::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool is_migration /* = false */)
@@ -2380,9 +2289,7 @@ int sockinfo_udp::mc_change_membership(const mc_pending_pram *p_mc_pram)
 		return -1;
 	BULLSEYE_EXCLUDE_BLOCK_END
 	}
-	
-	// set full versus partial RX UDP handling due to potential updates in m_multicast
-	set_rx_packet_processor();
+
 	return 0;
 }
 

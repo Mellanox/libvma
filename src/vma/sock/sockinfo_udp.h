@@ -151,19 +151,15 @@ public:
 	void rx_del_ring_cb(flow_tuple_with_local_if& flow_key, ring* p_ring, bool is_migration = false);
 	virtual int rx_verify_available_data();
 
-	// This callback will handle ready rx packet notification from any ib_conn_mgr
 	/**
-	 *	Method sockinfo_udp::rx_process_packet run packet processor
-	 *	with inspection, in case packet is OK, completion for SOCKETXTREME mode
+	 *	This callback will handle ready rx packet notification,
+	 *	in case packet is OK, completion for SOCKETXTREME mode
 	 *	will be filled or in other cases packet go to ready queue.
 	 *	If packet to be discarded, packet ref. counter will not be
 	 *	incremented and method returns false.
 	 *	Normally it is single point from sockinfo to be called from ring level.
 	 */
-	inline bool rx_input_cb(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array)
-	{
-		return (this->*m_rx_packet_processor)(p_rx_wc_buf_desc, pv_fd_ready_array);
-	}
+	bool rx_input_cb(mem_buf_desc_t* p_desc, void* pv_fd_ready_array);
 
 	// This call will handle all rdma related events (bind->listen->connect_req->accept)
 	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);
@@ -189,15 +185,6 @@ private:
 			return port == r_port;
 		}
 	};
-
-/*	in_addr_t 	m_bound_if;
-	in_port_t 	m_bound_port;
-	in_addr_t 	m_connected_ip;
-	in_port_t 	m_connected_port;
-*/
-	typedef bool (sockinfo_udp::* udp_rx_packet_processor_t)(mem_buf_desc_t* p_desc, void* pv_fd_ready_array);
-
-	udp_rx_packet_processor_t	m_rx_packet_processor; // to inspect and process incoming packet
 
 	in_addr_t 	m_mc_tx_if;
 	bool 		m_b_mc_tx_loop;
@@ -241,7 +228,6 @@ private:
 	int mc_change_membership_end_helper(in_addr_t mc_grp, int optname, in_addr_t mc_src = 0);
 	int mc_change_pending_mreq(const mc_pending_pram *p_mc_pram);
 	int on_sockname_change(struct sockaddr *__name, socklen_t __namelen);
-	inline void set_rx_packet_processor(void);
 	void handle_pending_mreq();
 	void original_os_setsockopt_helper( void* pram, int pram_size, int optname);
 	/* helper functions */
@@ -289,11 +275,6 @@ private:
 		}
     }
 
-	inline bool	rx_process_udp_packet_full(mem_buf_desc_t* p_desc, void* pv_fd_ready_array);
-	inline bool	rx_process_udp_packet_partial(mem_buf_desc_t* p_desc, void* pv_fd_ready_array);
-	inline bool	inspect_uc_packet(mem_buf_desc_t* p_desc);
-	inline bool	inspect_connected(mem_buf_desc_t* p_desc);
-	inline bool	inspect_mc_packet(mem_buf_desc_t* p_desc);
 	inline vma_recv_callback_retval_t inspect_by_user_cb(mem_buf_desc_t* p_desc);
 	inline void	fill_completion(mem_buf_desc_t* p_desc);
 	inline void	update_ready(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd_ready_array, vma_recv_callback_retval_t cb_ret);
