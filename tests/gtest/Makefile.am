@@ -38,6 +38,7 @@ gtest_SOURCES = \
 	\
 	udp/udp_base.cc \
 	udp/udp_bind.cc \
+	udp/udp_connect.cc \
 	udp/udp_send.cc \
 	udp/udp_sendto.cc \
 	\
