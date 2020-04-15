@@ -37,19 +37,18 @@
 
 #include "udp_base.h"
 
-
-class udp_send : public udp_base {};
+class udp_connect : public udp_base {};
 
 /**
- * @test udp_send.ti_1
+ * @test udp_connect.ti_1
  * @brief
- *    send() successful call
+ *    Loop of blocking connect() to ip on the same node
  * @details
  */
-TEST_F(udp_send, ti_1) {
+TEST_F(udp_connect, ti_1) {
 	int rc = EOK;
 	int fd;
-	char buf[] = "hello";
+	int i;
 
 	fd = udp_base::sock_create();
 	ASSERT_LE(0, fd);
@@ -64,24 +63,28 @@ TEST_F(udp_send, ti_1) {
 	EXPECT_EQ(EOK, errno);
 	EXPECT_EQ(0, rc);
 
-	errno = EOK;
-	rc = send(fd, (void *)buf, sizeof(buf), 0);
-	EXPECT_EQ(EOK, errno);
-	EXPECT_EQ(sizeof(buf), rc);
+	for (i = 0; i < 10; i++) {
+		rc = connect(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+		ASSERT_EQ(EOK, errno) <<
+				"connect() attempt = " << i << "\n" << close(fd);
+		ASSERT_EQ(0, rc) <<
+				"connect() attempt = " << i << "\n" << close(fd);
+		usleep(500);
+	}
 
 	close(fd);
 }
 
 /**
- * @test udp_send.ti_2
+ * @test udp_connect.ti_2
  * @brief
- *    send() invalid socket fd
+ *    Loop of blocking connect() to remote ip
  * @details
  */
-TEST_F(udp_send, ti_2) {
+TEST_F(udp_connect, ti_2) {
 	int rc = EOK;
 	int fd;
-	char buf[] = "hello";
+	int i;
 
 	fd = udp_base::sock_create();
 	ASSERT_LE(0, fd);
@@ -92,28 +95,32 @@ TEST_F(udp_send, ti_2) {
 	EXPECT_EQ(0, rc);
 
 	errno = EOK;
-	rc = connect(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+	rc = connect(fd, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
 	EXPECT_EQ(EOK, errno);
 	EXPECT_EQ(0, rc);
 
-	errno = EOK;
-	rc = send(0xFF, (void *)buf, sizeof(buf), 0);
-	EXPECT_EQ(EBADF, errno);
-	EXPECT_EQ(-1, rc);
+	for (i = 0; i < 10; i++) {
+		rc = connect(fd, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
+		ASSERT_EQ(EOK, errno) <<
+				"connect() attempt = " << i << "\n" << close(fd);
+		ASSERT_EQ(0, rc) <<
+				"connect() attempt = " << i << "\n" << close(fd);
+		usleep(500);
+	}
 
 	close(fd);
 }
 
 /**
- * @test udp_send.ti_3
+ * @test udp_connect.ti_3
  * @brief
- *    send() invalid buffer length (>65,507 bytes)
+ *    Loop of blocking connect() to unreachable ip
  * @details
  */
-TEST_F(udp_send, ti_3) {
+TEST_F(udp_connect, ti_3) {
 	int rc = EOK;
 	int fd;
-	char buf[65508] = "hello";
+	int i;
 
 	fd = udp_base::sock_create();
 	ASSERT_LE(0, fd);
@@ -124,92 +131,31 @@ TEST_F(udp_send, ti_3) {
 	EXPECT_EQ(0, rc);
 
 	errno = EOK;
-	rc = connect(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+	rc = connect(fd, (struct sockaddr *)&bogus_addr, sizeof(bogus_addr));
 	EXPECT_EQ(EOK, errno);
 	EXPECT_EQ(0, rc);
 
-	errno = EOK;
-	rc = send(fd, (void *)buf, 65507, 0);
-	EXPECT_EQ(EOK, errno);
-	EXPECT_EQ(65507, rc);
-
-	errno = EOK;
-	rc = send(fd, (void *)buf, sizeof(buf), 0);
-	EXPECT_EQ(EMSGSIZE, errno);
-	EXPECT_EQ(-1, rc);
+	for (i = 0; i < 10; i++) {
+		rc = connect(fd, (struct sockaddr *)&bogus_addr, sizeof(bogus_addr));
+		ASSERT_EQ(EOK, errno) <<
+				"connect() attempt = " << i << "\n" << close(fd);
+		ASSERT_EQ(0, rc) <<
+				"connect() attempt = " << i << "\n" << close(fd);
+		usleep(500);
+	}
 
 	close(fd);
 }
 
 /**
- * @test udp_send.ti_4
+ * @test udp_connect.ti_4
  * @brief
- *    send() invalid address length
+ *    Loop of blocking connect() to zero port
  * @details
  */
-TEST_F(udp_send, ti_4) {
+TEST_F(udp_connect, ti_4) {
 	int rc = EOK;
 	int fd;
-	char buf[] = "hello";
-
-	fd = udp_base::sock_create();
-	ASSERT_LE(0, fd);
-
-	errno = EOK;
-	rc = bind(fd, (struct sockaddr *)&client_addr, sizeof(client_addr));
-	EXPECT_EQ(EOK, errno);
-	EXPECT_EQ(0, rc);
-
-	errno = EOK;
-	rc = connect(fd, (struct sockaddr *)&server_addr, sizeof(server_addr) - 1);
-	EXPECT_EQ(EINVAL, errno);
-	EXPECT_EQ(-1, rc);
-
-	close(fd);
-}
-
-/**
- * @test udp_send.ti_5
- * @brief
- *    send() invalid flag set
- * @details
- */
-TEST_F(udp_send, ti_5) {
-	int rc = EOK;
-	int fd;
-	char buf[] = "hello";
-
-	fd = udp_base::sock_create();
-	ASSERT_LE(0, fd);
-
-	errno = EOK;
-	rc = bind(fd, (struct sockaddr *)&client_addr, sizeof(client_addr));
-	EXPECT_EQ(EOK, errno);
-	EXPECT_EQ(0, rc);
-
-	errno = EOK;
-	rc = connect(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
-	EXPECT_EQ(EOK, errno);
-	EXPECT_EQ(0, rc);
-
-	errno = EOK;
-	rc = send(fd, (void *)buf, sizeof(buf), 0x000000FF);
-	EXPECT_EQ(EOPNOTSUPP, errno);
-	EXPECT_EQ(-1, rc);
-
-	close(fd);
-}
-
-/**
- * @test udp_send.ti_6
- * @brief
- *    send() to zero port
- * @details
- */
-TEST_F(udp_send, ti_6) {
-	int rc = EOK;
-	int fd;
-	char buf[] = "hello";
 	struct sockaddr_in addr;
 
 	fd = udp_base::sock_create();
@@ -227,11 +173,6 @@ TEST_F(udp_send, ti_6) {
 	rc = connect(fd, (struct sockaddr *)&addr, sizeof(addr));
 	EXPECT_EQ(EOK, errno);
 	EXPECT_EQ(0, rc);
-
-	errno = EOK;
-	rc = send(fd, (void *)buf, sizeof(buf), 0);
-	EXPECT_EQ(EOK, errno);
-	EXPECT_EQ(sizeof(buf), rc);
 
 	close(fd);
 }

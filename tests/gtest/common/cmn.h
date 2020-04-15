@@ -41,17 +41,18 @@ namespace cmn {
 
 class test_skip_exception : public std::exception {
 public:
-    test_skip_exception(const std::string& reason = "") : m_reason(reason) {
+    test_skip_exception(const std::string& reason = "") : m_reason("[  SKIPPED ] ") {
+        m_reason += reason;
     }
-    virtual ~test_skip_exception() throw() {
+    virtual ~test_skip_exception() _GLIBCXX_NOTHROW {
     }
 
-    virtual const char* what() const throw() {
-        return (std::string("[  SKIPPED ] ") + m_reason).c_str();
+    const char* what() const _GLIBCXX_NOTHROW {
+        return m_reason.c_str();
     }
 
 private:
-    const std::string m_reason;
+    std::string m_reason;
 };
 
 #define SKIP_TRUE(_expr, _reason) \

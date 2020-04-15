@@ -185,3 +185,35 @@ TEST_F(udp_sendto, ti_5) {
 
 	close(fd);
 }
+
+/**
+ * @test udp_sendto.ti_6
+ * @brief
+ *    sendto() to sero port
+ * @details
+ */
+TEST_F(udp_sendto, ti_6) {
+	int rc = EOK;
+	int fd;
+	char buf[] = "hello";
+	struct sockaddr_in addr;
+
+	fd = udp_base::sock_create();
+	ASSERT_LE(0, fd);
+
+	errno = EOK;
+	rc = bind(fd, (struct sockaddr *)&client_addr, sizeof(client_addr));
+	EXPECT_EQ(EOK, errno);
+	EXPECT_EQ(0, rc);
+
+	memcpy(&addr, &server_addr, sizeof(addr));
+	addr.sin_port = 0;
+
+	errno = EOK;
+	rc = sendto(fd, (void *)buf, sizeof(buf), 0,
+			(struct sockaddr *)&addr, sizeof(addr));
+	EXPECT_EQ(EINVAL, errno);
+	EXPECT_GT(0, rc);
+
+	close(fd);
+}

@@ -74,7 +74,7 @@ TEST_F(vmad_hash, ti_2) {
 
 TEST_F(vmad_hash, ti_3) {
 	hash_t ht;
-	struct element element[] = {{12345, 1}, {-12345, 2}, {0, 3}};
+	struct element element[] = {{12345, 1}, {(hash_key_t)-12345, 2}, {0, 3}};
 	int i;
 
 	ht = hash_create(NULL, 5);
@@ -180,7 +180,7 @@ TEST_F(vmad_hash, ti_7) {
 
 TEST_F(vmad_hash, ti_8) {
 	hash_t ht;
-	struct element element[] = {{12345, 1}, {-12345, 2}, {0, 3}};
+	struct element element[] = {{12345, 1}, {(hash_key_t)-12345, 2}, {0, 3}};
 	int i;
 
 	ht = hash_create(NULL, 5);
