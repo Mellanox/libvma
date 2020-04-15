@@ -1079,7 +1079,11 @@ int connect(int __fd, const struct sockaddr *__to, socklen_t __tolen)
 	int ret = 0;
 	socket_fd_api* p_socket_object = NULL;
 	p_socket_object = fd_collection_get_sockfd(__fd);
-	if (__to && __to->sa_family == AF_INET && p_socket_object) {
+
+	/* Zero port is reserved and can not be used as destination port
+	 * but it is not checked here to be consistent with Linux behaivour
+	 */
+	if (__to && (get_sa_family(__to) == AF_INET) && p_socket_object) {
 		ret = p_socket_object->connect(__to, __tolen);
 		if (p_socket_object->isPassthrough()) {
 			handle_close(__fd, false, true);

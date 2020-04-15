@@ -1571,6 +1571,10 @@ ssize_t sockinfo_udp::tx(vma_tx_call_attr_t &tx_arg)
 			si_udp_logdbg("to->sin_family != AF_INET (tx-ing to os)");
 			goto tx_packet_to_os;
 		}
+                if (unlikely(get_sa_port(__dst) == 0)) {
+                        si_udp_logdbg("to->sin_port == 0 (tx-ing to os)");
+                        goto tx_packet_to_os;
+                }
 
 		sock_addr dst((struct sockaddr*)__dst);
 
