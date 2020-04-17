@@ -1,114 +1,108 @@
-%global version @VERSION@
-%global release @VMA_LIBRARY_RELEASE@
-%global pkgname @PACKAGE@
-%global major_release @VMA_LIBRARY_MAJOR@
-%global revision @VMA_LIBRARY_REVISION@
-%define date __DATE
-%define time __TIME
+%{!?configure_options: %global configure_options %{nil}}
+%{!?use_extralib: %global use_extralib 0}
 
-%global pmake %{__make} %{?_smp_mflags} %{?mflags} V=1
-
-%global include_dir %{_includedir}/mellanox
-%global vma_ver_rel %{name}-%{version}-%{release}
-%global vma_datadir %{_datadir}/%{vma_ver_rel}
-
-%global ofed_ver %(eval 'ofed_info -s 2> /dev/null || echo "unknown"')
-%global ofed_dir %{?_ofed_dir}%{?!_ofed_dir:%{_prefix}}
-
-%global _use_internal_dependency_generator 0
+%{!?make_build: %global make_build %{__make} %{?_smp_mflags} %{?mflags} V=1}
+%{!?run_ldconfig: %global run_ldconfig %ldconfig}
+%{!?_pkgdocdir: %global _pkgdocdir %{_docdir}/%{name}-%{version}}
 %global use_systemd %(if ( test -d "%{_unitdir}" > /dev/null); then echo -n '1'; else echo -n '0'; fi)
 
-Summary: A library for boosting TCP and UDP traffic (over RDMA hardware)
 Name: libvma
-Version: %{version}
+Version: @VERSION@
 Release: 1%{?dist}
-License: GPLv2
+Summary: A library for boosting TCP and UDP traffic (over RDMA hardware)
+%if 0%{?rhl}%{?fedora} == 0
 Group: System Environment/Libraries
-Url: https://github.com/Mellanox/libvma
+%endif
+
+License: GPLv2 or BSD
+Url: https://github.com/Mellanox/%{name}
+Source0: %{url}/archive/%{version}/%{name}-%{version}.tar.gz
+
+%if 0%{?rhl}%{?fedora} == 0
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
-Source: %{pkgname}-%{version}.tar.gz
-Requires(post): /sbin/ldconfig
-Requires(postun): /sbin/ldconfig
-Prefix: %{_prefix}
+%endif
+
+# libvma currently supports only the following architectures
+ExclusiveArch: x86_64 ppc64le ppc64 aarch64
+
+BuildRequires: pkgconfig
+BuildRequires: automake
+BuildRequires: autoconf
+BuildRequires: libtool
+BuildRequires: gcc-c++
+BuildRequires: libibverbs-devel
+BuildRequires: rdma-core-devel
+%if 0%{?rhel} >= 7 || 0%{?fedora} >= 24 || 0%{?suse_version} >= 1500
+BuildRequires: libnl3-devel
+%endif
 
 %description
+libvma is a LD_PRELOAD-able library that boosts performance of TCP and
+UDP traffic. It allows application written over standard socket API to
+handle fast path data traffic from user space over Ethernet and/or
+Infiniband with full network stack bypass and get better throughput,
+latency and packets/sec rate.
 
-VMA library is a performance booster of TCP and UDP traffic
-Part of Mellanox's enhanced services
-Allows application written over standard socket API
-To run over Infiniband/Ethernet from userspace with full network stack bypass
-and get better throughput, latency and packets/sec rate
+No application binary change is required for that.
+libvma is supported by RDMA capable devices that support "verbs"
+IBV_QPT_RAW_PACKET QP for Ethernet and/or IBV_QPT_UD QP for IPoIB.
 
 %package devel
-Summary: Header files and link required to develop with Libvma
+Summary: Header files required to develop with libvma
+%if 0%{?rhl}%{?fedora} == 0
 Group: System Environment/Libraries
+%endif
 Requires: %{name}%{?_isa} = %{version}-%{release}
 
 %description devel
-Headers and symbolink link required to compile and link with the Libvma library.
+This package includes headers for building programs with libvma's
+interfaces.
 
 %package utils
-Summary: Libvma utilities
+Summary: Utilities used with libvma
+%if 0%{?rhl}%{?fedora} == 0
 Group: System Environment/Libraries
+%endif
 Requires: %{name}%{?_isa} = %{version}-%{release}
 
 %description utils
-Example tests and tools for collecting and analyzing Libvma statistic
+This package contains the tool for collecting and analyzing libvma statistic.
 
 %prep
 %setup -q
 
 %build
-
 export revision=1
-#export CFLAGS CXXFLAGS LDFLAGS
-export CXXFLAGS='%{optflags}'
+[ -f configure ] || ./autogen.sh
 
-%configure --with-ofed=%{ofed_dir} --enable-opt-log=none
-%{pmake}
+%if "%{use_extralib}" == "1"
+%configure --enable-opt-log=none \
+           %{?configure_options}
+%{make_build}
 cp -f src/vma/.libs/%{name}.so %{name}-debug.so
-%{pmake} clean
+%{make_build} clean
+%endif
 
-%configure --with-ofed=%{ofed_dir} --docdir=%{_docdir}/%{name}-%{version}
-%{pmake}
+%configure --docdir=%{_pkgdocdir} \
+	%{?configure_options}
+%{make_build}
 
 %install
+%if 0%{?rhl}%{?fedora} == 0
 [ "${RPM_BUILD_ROOT}" != "/" -a -d ${RPM_BUILD_ROOT} ] && rm -rf ${RPM_BUILD_ROOT}
+%endif
 
-mkdir -p $RPM_BUILD_ROOT%{include_dir}
-mkdir -p $RPM_BUILD_ROOT%{vma_datadir}/scripts
-mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}
-mkdir -p $RPM_BUILD_ROOT%{_libdir}
+%{make_build} DESTDIR=${RPM_BUILD_ROOT} install
 
-%{pmake} DESTDIR=${RPM_BUILD_ROOT} install
+find $RPM_BUILD_ROOT%{_libdir} -name '*.la' -delete
 
-rm -f $RPM_BUILD_ROOT%{_libdir}/*.la
-
-install -m 755 tests/vma_perf_envelope/vma_perf_envelope.sh $RPM_BUILD_ROOT/%{vma_datadir}/scripts/vma_perf_envelope.sh
-install -m 644 src/vma/vma_extra.h $RPM_BUILD_ROOT/%{include_dir}/vma_extra.h
-install -m 644 src/vma/util/libvma.conf $RPM_BUILD_ROOT/%{_sysconfdir}/
-install -s -m 755 src/stats/vma_stats $RPM_BUILD_ROOT/%{_bindir}/vma_stats
-install -s -m 755 tools/daemon/vmad $RPM_BUILD_ROOT/%{_sbindir}/vmad
+%if %{use_extralib} > 0
 install -m 755 ./%{name}-debug.so $RPM_BUILD_ROOT/%{_libdir}/%{name}-debug.so
-%if "%{use_systemd}" == "1"
-install -D -m 644 contrib/scripts/vma.service $RPM_BUILD_ROOT/%{_unitdir}/vma.service
-install -m 755 contrib/scripts/vma.init $RPM_BUILD_ROOT/%{_sbindir}/vma
-%else
-install -m 755 contrib/scripts/vma.init $RPM_BUILD_ROOT/%{_sysconfdir}/init.d/vma
 %endif
 
 %post
-if [ `grep memlock /etc/security/limits.conf |grep unlimited |wc -l` -le 0 ]; then
-        echo "*             -   memlock        unlimited" >> /etc/security/limits.conf
-        echo "*          soft   memlock        unlimited" >> /etc/security/limits.conf
-        echo "*          hard   memlock        unlimited" >> /etc/security/limits.conf
-        echo "- Changing max locked memory to unlimited (in /etc/security/limits.conf)"
-        echo "  Please log out from the shell and login again in order to update this change "
-        echo "  Read more about this topic in the VMA's User Manual"
-fi
-/sbin/ldconfig
+%{run_ldconfig}
 
-# Package setup, not upgrade
 if [ $1 = 1 ]; then
     if type systemctl >/dev/null 2>&1; then
         systemctl --no-reload enable vma.service >/dev/null 2>&1 || true
@@ -117,51 +111,48 @@ if [ $1 = 1 ]; then
     elif [ -e /usr/sbin/update-rc.d ]; then
         /usr/sbin/update-rc.d vma defaults
     else
-        /usr/lib/lsb/install_initd /etc/init.d/vma
+        %{_libdir}/lsb/install_initd %{_sysconfdir}/init.d/vma
     fi
 fi
 
 %preun
-# Package removal, not upgrade
 if [ $1 = 0 ]; then
     if type systemctl >/dev/null 2>&1; then
         systemctl --no-reload disable vma.service >/dev/null 2>&1 || true
         systemctl stop vma.service || true
     elif [ -e /sbin/chkconfig ]; then
-        /etc/init.d/vma stop
+        %{_sysconfdir}/init.d/vma stop
         /sbin/chkconfig --del vma
     elif [ -e /usr/sbin/update-rc.d ]; then
-        /etc/init.d/vma stop
+        %{_sysconfdir}/init.d/vma stop
         /usr/sbin/update-rc.d -f vma remove
     else
-        /etc/init.d/vma stop
-        /usr/lib/lsb/remove_initd /etc/init.d/vma
+        %{_sysconfdir}/init.d/vma stop
+        %{_libdir}/lsb/remove_initd %{_sysconfdir}/init.d/vma
     fi
-    rm -f /var/cache/vma/*
 fi
 
-
 %clean
+%if 0%{?rhl}%{?fedora} == 0
 [ "${RPM_BUILD_ROOT}" != "/" -a -d ${RPM_BUILD_ROOT} ] && rm -rf ${RPM_BUILD_ROOT}
+%endif
 
 %postun
-# Package upgrade
-/sbin/ldconfig
+%{run_ldconfig}
 if type systemctl >/dev/null 2>&1; then
     systemctl --system daemon-reload >/dev/null 2>&1 || true
 fi
 
-
 %files
-%defattr(-,root,root,-)
-%{_libdir}/%{name}*.so.*
-%{_libdir}/%{name}.so
-%{_libdir}/%{name}-debug.so
-%{_docdir}/%{name}-%{version}/README.txt
-%{_docdir}/%{name}-%{version}/journal.txt
-%{_docdir}/%{name}-%{version}/VMA_VERSION
+%{_libdir}/%{name}.so*
+%dir %{_pkgdocdir}
+%doc %{_pkgdocdir}/README.txt
+%doc %{_pkgdocdir}/journal.txt
+%doc %{_pkgdocdir}/VMA_VERSION
 %config(noreplace) %{_sysconfdir}/libvma.conf
-%{_sysconfdir}/security/limits.d/30-libvma-limits.conf
+%dir %{_sysconfdir}/security
+%dir %{_sysconfdir}/security/limits.d
+%config(noreplace) %{_sysconfdir}/security/limits.d/30-libvma-limits.conf
 %{_sbindir}/vmad
 %if "%{use_systemd}" == "1"
 %{_prefix}/lib/systemd/system/vma.service
@@ -171,19 +162,35 @@ fi
 %endif
 %{_mandir}/man7/vma.*
 %{_mandir}/man8/vmad.*
+%if 0%{?rhel} >= 7 || 0%{?fedora} >= 24 || 0%{?suse_version} >= 1500
+%license COPYING
+%endif
 
 %files devel
-%defattr(-,root,root,-)
-%{include_dir}/vma_extra.h
+%dir %{_includedir}/mellanox
+%{_includedir}/mellanox/vma_extra.h
+%if "%{use_extralib}" == "1"
+%{_libdir}/%{name}-debug.so
+%endif
 
 %files utils
-%defattr(-,root,root)
 %{_bindir}/vma_stats
-%{vma_datadir}/scripts/vma_perf_envelope.sh
 %{_mandir}/man8/vma_stats.*
 
 %changelog
-* Mon Nov 28 2016 Igor Ivanov <igor.ivanov.va@gmail.com>
+* Fri Apr 17 2020 Igor Ivanov <igor.ivanov.va@gmail.com> 9.0.2-1
+- Align with Fedora guidelines
+
+* Thu Feb 7 2019 Igor Ivanov <igor.ivanov.va@gmail.com> 8.8.2-1
+- Improve package update processing
+
+* Tue Dec 19 2017 Igor Ivanov <igor.ivanov.va@gmail.com> 8.5.1-1
+- Add systemd support
+
+* Tue May 9 2017 Ophir Munk <ophirmu@mellanox.com> 8.3.4-1
+- Add libvma-debug.so installation
+
+* Mon Nov 28 2016 Igor Ivanov <igor.ivanov.va@gmail.com> 8.2.2-1
 - Add daemon
 
 * Mon Jan  4 2016 Avner BenHanoch <avnerb@mellanox.com> 7.0.12-1
