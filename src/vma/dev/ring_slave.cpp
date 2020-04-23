@@ -305,6 +305,15 @@ bool ring_slave::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 			}
 		}
 
+		if (flow_tag_id &&
+			(flow_spec_5t.is_3_tuple() ||
+			safe_mce_sys().gro_streams_max ||
+			safe_mce_sys().tcp_3t_rules)) {
+				ring_logdbg("flow tag id = %d is disabled for socket fd = %d to be processed on RFS!",
+					flow_tag_id, si->get_fd());
+				flow_tag_id = FLOW_TAG_MASK;
+		}
+
 		p_rfs = m_flow_tcp_map.get(rfs_key, NULL);
 		if (p_rfs == NULL) {		// It means that no rfs object exists so I need to create a new one and insert it to the flow map
 			m_lock_ring_rx.unlock();
@@ -312,21 +321,15 @@ bool ring_slave::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 				flow_tuple tcp_3t_only(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port(), 0, 0, flow_spec_5t.get_protocol());
 				dst_port_filter = new rfs_rule_filter(m_tcp_dst_port_attach_map, rule_key.key, tcp_3t_only);
 			}
-			if(safe_mce_sys().gro_streams_max && flow_spec_5t.is_5_tuple() && is_simple()) {
-				// When the gro mechanism is being used, packets must be processed in the rfs
-				// layer. This must not be bypassed by using flow tag.
-				if (flow_tag_id) {
-					flow_tag_id = FLOW_TAG_MASK;
-					ring_logdbg("flow_tag_id = %d is disabled to enable TCP GRO socket to be processed on RFS!", flow_tag_id);
-				}
-				p_tmp_rfs = new (std::nothrow)rfs_uc_tcp_gro(&flow_spec_5t, this, dst_port_filter, flow_tag_id);
-			} else {
-				try {
+			try {
+				if(safe_mce_sys().gro_streams_max && is_simple()) {
+					p_tmp_rfs = new (std::nothrow)rfs_uc_tcp_gro(&flow_spec_5t, this, dst_port_filter, flow_tag_id);
+				} else {
 					p_tmp_rfs = new (std::nothrow)rfs_uc(&flow_spec_5t, this, dst_port_filter, flow_tag_id);
-				} catch(vma_exception& e) {
-					ring_logerr("%s", e.message);
-					return false;
 				}
+			} catch(vma_exception& e) {
+				ring_logerr("%s", e.message);
+				return false;
 			}
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (p_tmp_rfs == NULL) {
@@ -919,7 +922,6 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 		ring_logwarn("Rx packet dropped - undefined protocol = %d", p_ip_h->protocol);
 		return false;
 	}
-
 	if (unlikely(p_rfs == NULL)) {
 		ring_logdbg("Rx packet dropped - rfs object not found: dst:%d.%d.%d.%d:%d, src%d.%d.%d.%d:%d, proto=%s[%d]",
 				NIPQUAD(p_rx_wc_buf_desc->rx.dst.sin_addr.s_addr), ntohs(p_rx_wc_buf_desc->rx.dst.sin_port),
