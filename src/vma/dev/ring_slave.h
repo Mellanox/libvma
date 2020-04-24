@@ -164,11 +164,12 @@ protected:
 	rule_filter_map_t	m_tcp_dst_port_attach_map;
 	rule_filter_map_t	m_udp_uc_dst_port_attach_map;
 
+	lock_spin_recursive	m_lock_ring_rx;
+	lock_spin_recursive	m_lock_ring_tx;
+
 	descq_t             m_tx_pool;
 	transport_type_t    m_transport_type; /* transport ETH/IB */
 	ring_stats_t*       m_p_ring_stat;
-	lock_spin_recursive	m_lock_ring_rx;
-	lock_spin_recursive	m_lock_ring_tx;
 	in_addr_t           m_local_if;
 	uint16_t            m_partition;
 	bool                m_flow_tag_enabled;
