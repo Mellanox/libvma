@@ -492,7 +492,7 @@ AC_CONFIG_FILES([
 		doc/man/Makefile
 		contrib/scripts/vma.init
 		contrib/scripts/vma.service
-		build/libvma.spec
+		contrib/scripts/libvma.spec
 		debian/changelog
 		VMA_VERSION
 		])
