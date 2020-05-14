@@ -7,7 +7,6 @@ noinst_SCRIPTS = \
 	$(wildcard contrib/scripts/*)
 
 EXTRA_DIST = \
-	build \
 	contrib \
 	debian \
 	install.sh \
@@ -57,6 +56,3 @@ demo:
 	$(MAKE)
 	$(MAKE) -C src/vma/infra
 
-rpmspec: build/libvma.spec
-
-debian: debian/changelog
