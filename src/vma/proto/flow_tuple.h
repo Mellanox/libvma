@@ -90,15 +90,8 @@ public:
 		return m_protocol < other.m_protocol;
 	}
 
-	virtual size_t hash(void)
-	{
-		uint8_t csum = 0;
-		uint8_t* pval = (uint8_t*)this;
-		for (size_t i = 0; i < (sizeof(flow_tuple) - sizeof(m_str)); ++i, ++pval) { csum ^= *pval; }
-		return csum;
-	}
-
-	const char*	to_str() { return m_str; };
+	virtual size_t		hash(void);
+	virtual const char*	to_str();
 
 protected:
 	in_addr_t	m_dst_ip;
@@ -108,7 +101,7 @@ protected:
 	in_protocol_t 	m_protocol;
 
 	char		m_str[STR_MAX_LENGTH];
-	virtual void 	set_str();
+	void		set_str();
 };
 
 typedef std::list<flow_tuple> flow_tuple_list_t;
@@ -139,17 +132,11 @@ public:
 		return (*((flow_tuple*)this) < ((flow_tuple)other));
 	}
 
-	virtual size_t 	hash(void)
-	{
-		uint8_t csum = 0;
-		uint8_t* pval = (uint8_t*)this;
-		for (size_t i = 0; i < (sizeof(flow_tuple_with_local_if) - sizeof(m_str)); ++i, ++pval) { csum ^= *pval; }
-		return csum;
-	}
+	virtual size_t		hash(void);
+	virtual const char*	to_str();
 
 protected:
 	in_addr_t	m_local_if;
-	virtual void 	set_str();
 };
 
 

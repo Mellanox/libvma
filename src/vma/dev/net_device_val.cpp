@@ -103,26 +103,33 @@ ring_alloc_logic_attr::ring_alloc_logic_attr(const ring_alloc_logic_attr &other)
 	m_user_id_key(other.m_user_id_key),
 	m_mem_desc(other.m_mem_desc)
 {
-	snprintf(m_str, RING_ALLOC_STR_SIZE, "%s", other.m_str);
+	m_str[0] = '\0';
 }
 
 void ring_alloc_logic_attr::init()
 {
 	size_t h = 5381;
-	int c;
-	char buff[RING_ALLOC_STR_SIZE];
 
-	snprintf(m_str, RING_ALLOC_STR_SIZE,
-		 "allocation logic %d profile %d key %ld user address %p "
-		 "user length %zd", m_ring_alloc_logic, m_ring_profile_key,
-		 m_user_id_key, m_mem_desc.iov_base, m_mem_desc.iov_len);
-	snprintf(buff, RING_ALLOC_STR_SIZE, "%d%d%ld%p%zd", m_ring_alloc_logic,
-		 m_ring_profile_key, m_user_id_key, m_mem_desc.iov_base,
-		 m_mem_desc.iov_len);
-	const char* chr = buff;
-	while ((c = *chr++))
-		h = ((h << 5) + h) + c; /* m_hash * 33 + c */
+	m_str[0] = '\0';
+
+#define HASH_ITER(val)				\
+do {						\
+	size_t x = (size_t)val;			\
+	do {					\
+		/* m_hash * 33 + byte */	\
+		h = (h << 5) + h + (x & 0xff);	\
+		x >>= 8;			\
+	} while (x != 0);			\
+} while (0)
+
+	HASH_ITER(m_ring_alloc_logic);
+	HASH_ITER(m_ring_profile_key);
+	HASH_ITER(m_user_id_key);
+	HASH_ITER(m_mem_desc.iov_base);
+	HASH_ITER(m_mem_desc.iov_len);
+
 	m_hash = h;
+#undef HASH_ITER
 }
 
 void ring_alloc_logic_attr::set_ring_alloc_logic(ring_logic_t logic)
@@ -156,6 +163,17 @@ void ring_alloc_logic_attr::set_user_id_key(uint64_t user_id_key)
 		m_user_id_key = user_id_key;
 		init();
 	}
+}
+
+const char* ring_alloc_logic_attr::to_str()
+{
+	if (unlikely(m_str[0] == '\0')) {
+		snprintf(m_str, RING_ALLOC_STR_SIZE,
+			 "allocation logic %d profile %d key %ld user address %p "
+			 "user length %zd", m_ring_alloc_logic, m_ring_profile_key,
+			 m_user_id_key, m_mem_desc.iov_base, m_mem_desc.iov_len);
+	}
+	return m_str;
 }
 
 net_device_val::net_device_val(struct net_device_val_desc *desc) : m_lock("net_device_val lock")
