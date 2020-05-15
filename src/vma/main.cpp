@@ -94,11 +94,7 @@ const char *vma_version_str = "VMA_VERSION: " PACKAGE_VERSION "-" STR(VMA_LIBRAR
 #endif
 
 			      " built on "
-#ifdef VMA_DATE_TIME
-			      VMA_DATE_TIME
-#else
 			      __DATE__ " " __TIME__
-#endif
 
 #ifdef _DEBUG
 			      " -*- DEBUG -*-"

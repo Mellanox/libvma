@@ -869,9 +869,7 @@ void print_version(int pid)
 		#ifdef VMA_SVN_REVISION
 		log_msg("Revision: %d", VMA_SVN_REVISION);
 		#endif
-		#ifdef VMA_DATE_TIME
-		log_msg("Build Date: %s", VMA_DATE_TIME);
-		#endif
+		log_msg("Build Date: %s", __DATE__ " " __TIME__);
 	}
 	else {
 		printf(MODULE_NAME ": stats for ");

@@ -251,11 +251,6 @@ else
     fi
 fi
 
-if test  ${date:-""} != "" ; then
-	CFLAGS="-DVMA_DATE_TIME='\"$date-$time\"' $CFLAGS"
-	CXXFLAGS="-DVMA_DATE_TIME='\"$date-$time\"' $CXXFLAGS"
-fi
-
 if test  ${revision:-0} -ne 0 ; then
 	CFLAGS="-DVMA_SVN_REVISION=$revision $CFLAGS"
     	CXXFLAGS="-DVMA_SVN_REVISION=$revision $CXXFLAGS"
