@@ -87,7 +87,7 @@ const char *vma_version_str = "VMA_VERSION: " PACKAGE_VERSION "-" STR(VMA_LIBRAR
 #if _BullseyeCoverage
 			      " Bullseye"
 #endif
-#ifdef VMA_SVN_REVISION
+#if defined(VMA_LIBRARY_RELEASE) && (VMA_LIBRARY_RELEASE > 0)
 			      " Release"
 #else
 			      " Development Snapshot"
@@ -353,7 +353,7 @@ void print_vma_global_settings()
 
 	// Use DEBUG level logging with more details in RPM release builds
 	vlog_levels_t log_level = VLOG_DEBUG;
-#ifndef VMA_SVN_REVISION
+#if !defined(VMA_LIBRARY_RELEASE) || (VMA_LIBRARY_RELEASE == 0)
 	// If non RPM (development builds) use more verbosity
 	log_level = VLOG_DEFAULT;
 #endif
@@ -874,10 +874,6 @@ void check_netperf_flags()
 extern "C" int main_init(void)
 {
 
-#ifndef VMA_SVN_REVISION
-	// Force GCC's malloc() to check the consistency of dynamic memory in development build (Non Release)
-	//mcheck(vma_mcheck_abort_cb);
-#endif
 	get_orig_funcs();
 	safe_mce_sys();
 

@@ -158,7 +158,8 @@ if [ $opt_srcpkg -eq 1 -a "$rc" -eq 0 ]; then
         eval rpmbuild -bs $rpmmacros $rpmopts $rpmspec $opt_defines >> ${pkg_log} 2>&1
     else
         IFS=$':'
-        env $(echo $opt_exports | xargs) dpkg-buildpackage -us -uc --build=source >> ${pkg_log} 2>&1
+        env $(echo $opt_exports | xargs) dpkg-buildpackage -us -uc -S >> ${pkg_log} 2>&1
+        rc=$((rc + $?))
         unset IFS
     fi
     rc=$((rc + $?))
@@ -170,7 +171,8 @@ if [ $opt_binpkg -eq 1 -a "$rc" -eq 0 ]; then
         eval rpmbuild -bb $rpmmacros $rpmopts $rpmspec $opt_defines >> ${pkg_log} 2>&1
     else
         IFS=$':'
-        env $(echo $opt_exports | xargs) dpkg-buildpackage -us -uc --build=binary >> ${pkg_log} 2>&1
+        env $(echo $opt_exports | xargs) dpkg-buildpackage -us -uc -b >> ${pkg_log} 2>&1
+        rc=$((rc + $?))
         unset IFS
     fi
     rc=$((rc + $?))
@@ -185,5 +187,6 @@ popd > /dev/null 2>&1
 
 echo ${pkg_label} "Result: ${pkg_outdir}"
 echo ${pkg_label} "Log file: ${pkg_log}"
+echo ${pkg_label} "Version: $(cat ${pkg_dir}/VMA_VERSION | head -n1)"
 echo ${pkg_label} "Exit: $rc"
 exit $rc

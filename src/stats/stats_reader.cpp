@@ -866,9 +866,6 @@ void print_version(int pid)
 {
 	if (pid == -1) {
 		log_msg("Linked with VMA version: %d.%d.%d.%d", VMA_LIBRARY_MAJOR, VMA_LIBRARY_MINOR, VMA_LIBRARY_REVISION, VMA_LIBRARY_RELEASE);
-		#ifdef VMA_SVN_REVISION
-		log_msg("Revision: %d", VMA_SVN_REVISION);
-		#endif
 		log_msg("Build Date: %s", __DATE__ " " __TIME__);
 	}
 	else {

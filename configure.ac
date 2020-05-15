@@ -15,7 +15,7 @@ dnl===-----------------------------------------------------------------------===
 define([vma_ver_major], 9)
 define([vma_ver_minor], 0)
 define([vma_ver_revision], 2)
-define([vma_ver_release], 0)
+define([vma_ver_release], esyscmd([echo ${VMA_RELEASE:=0}]))
 
 
 # Initialize autoconf and define the package name, version number and
@@ -28,10 +28,10 @@ AC_INIT(libvma, [vma_ver_major.vma_ver_minor.vma_ver_revision], support@mellanox
 #
 AC_CONFIG_HEADER([config.h])
 
-VMA_LIBRARY_MAJOR=9
-VMA_LIBRARY_MINOR=0
-VMA_LIBRARY_REVISION=2
-VMA_LIBRARY_RELEASE=0
+VMA_LIBRARY_MAJOR=vma_ver_major
+VMA_LIBRARY_MINOR=vma_ver_minor
+VMA_LIBRARY_REVISION=vma_ver_revision
+VMA_LIBRARY_RELEASE=vma_ver_release
 
 AC_DEFINE_UNQUOTED(VMA_LIBRARY_MAJOR, ${VMA_LIBRARY_MAJOR}, [VMA Major Version])
 AC_SUBST(VMA_LIBRARY_MAJOR)
@@ -249,11 +249,6 @@ else
         CFLAGS="-g $CFLAGS"
         CXXFLAGS="-g $CXXFLAGS"
     fi
-fi
-
-if test  ${revision:-0} -ne 0 ; then
-	CFLAGS="-DVMA_SVN_REVISION=$revision $CFLAGS"
-    	CXXFLAGS="-DVMA_SVN_REVISION=$revision $CXXFLAGS"
 fi
 
 # OFED configuration.

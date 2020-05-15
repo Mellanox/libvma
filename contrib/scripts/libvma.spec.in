@@ -1,14 +1,15 @@
 %{!?configure_options: %global configure_options %{nil}}
-%{!?use_extralib: %global use_extralib 0}
+%{!?use_extralib: %global use_extralib @VMA_LIBRARY_RELEASE@}
+%{!?use_rel: %global use_rel @VMA_LIBRARY_RELEASE@}
 
 %{!?make_build: %global make_build %{__make} %{?_smp_mflags} %{?mflags} V=1}
-%{!?run_ldconfig: %global run_ldconfig %ldconfig}
+%{!?run_ldconfig: %global run_ldconfig %{?ldconfig}}
 %{!?_pkgdocdir: %global _pkgdocdir %{_docdir}/%{name}-%{version}}
 %global use_systemd %(if ( test -d "%{_unitdir}" > /dev/null); then echo -n '1'; else echo -n '0'; fi)
 
 Name: libvma
 Version: @VERSION@
-Release: 1%{?dist}
+Release: %{use_rel}%{?dist}
 Summary: A library for boosting TCP and UDP traffic (over RDMA hardware)
 %if 0%{?rhl}%{?fedora} == 0
 Group: System Environment/Libraries
@@ -72,10 +73,11 @@ This package contains the tool for collecting and analyzing libvma statistic.
 %setup -q
 
 %build
-export revision=1
-[ -f configure ] || ./autogen.sh
+if [ ! -e configure ] && [ -e autogen.sh ]; then
+    VMA_RELEASE=%{use_rel} ./autogen.sh
+fi
 
-%if "%{use_extralib}" == "1"
+%if %{use_extralib} > 0
 %configure --enable-opt-log=none \
            %{?configure_options}
 %{make_build}
@@ -169,7 +171,7 @@ fi
 %files devel
 %dir %{_includedir}/mellanox
 %{_includedir}/mellanox/vma_extra.h
-%if "%{use_extralib}" == "1"
+%if %{use_extralib} > 0
 %{_libdir}/%{name}-debug.so
 %endif
 
