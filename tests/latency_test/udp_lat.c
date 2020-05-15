@@ -349,9 +349,7 @@ void print_version()
 #else 
 	log_msg("No version info");
 #endif
-#ifdef VMA_DATE_TIME
-	log_msg("Build Date: %s", VMA_DATE_TIME);
-#endif
+	log_msg("Build Date: %s", __DATE__ " " __TIME__);
 }
 
 void cleanup()
