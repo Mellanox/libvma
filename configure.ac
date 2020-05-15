@@ -42,8 +42,6 @@ AC_SUBST(VMA_LIBRARY_REVISION)
 AC_DEFINE_UNQUOTED(VMA_LIBRARY_RELEASE, ${VMA_LIBRARY_RELEASE}, [VMA Release])
 AC_SUBST(VMA_LIBRARY_RELEASE)
 
-AM_CONDITIONAL(IS_RELEASE_ZERO, test ${VMA_LIBRARY_RELEASE} -eq 0)
-
 GIT_VER=`git describe --long --abbrev=40 --dirty --tags 2> /dev/null || echo ""`
 if test -n "$GIT_VER"; then GIT_VER=`echo $GIT_VER | sed -e 's/-dirty/+/' | sed s/.*-g//`; else  GIT_VER=""; fi
 
