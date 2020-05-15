@@ -40,7 +40,7 @@
 #undef  MODULE_HDR_INFO
 #define MODULE_HDR_INFO 	MODULE_NAME "%s:%d:%s() "
 #undef	__INFO__
-#define __INFO__		m_tostr.c_str()
+#define __INFO__		to_str()
 
 #define ral_logpanic		__log_info_panic
 #define ral_logerr		__log_info_err
@@ -50,17 +50,22 @@
 #define ral_logfunc		__log_info_func
 #define ral_logfuncall		__log_info_funcall
 
-ring_allocation_logic::ring_allocation_logic():m_ring_migration_ratio(0),
+ring_allocation_logic::ring_allocation_logic(): m_owner(NULL),
+						m_ring_migration_ratio(0),
 						m_source(-1),
 						m_migration_try_count(0),
 						m_migration_candidate(0),
 						m_active(true),
-						m_res_key() {}
+						m_res_key()
+{
+	m_str[0] = '\0';
+	m_type = "";
+}
 
 ring_allocation_logic::ring_allocation_logic(ring_logic_t allocation_logic,
 					     int ring_migration_ratio, source_t source,
 					     resource_allocation_key &ring_profile):
-	m_tostr("base"), m_ring_migration_ratio(ring_migration_ratio),
+	m_owner(NULL), m_ring_migration_ratio(ring_migration_ratio),
 	m_source(source), m_migration_try_count(ring_migration_ratio)
 {
 	if (ring_profile.get_ring_alloc_logic() == RING_LOGIC_PER_INTERFACE &&
@@ -70,6 +75,9 @@ ring_allocation_logic::ring_allocation_logic(ring_logic_t allocation_logic,
 	m_res_key = resource_allocation_key(ring_profile);
 	m_migration_candidate = 0;
 	m_res_key.set_user_id_key(calc_res_key_by_logic());
+
+	m_str[0] = '\0';
+	m_type = "";
 
 	m_active = true;
 }
@@ -180,6 +188,14 @@ bool ring_allocation_logic::should_migrate_ring()
 	m_migration_candidate = 0;
 
 	return true;
+}
+
+const char* ring_allocation_logic::to_str()
+{
+	if (unlikely(m_str[0] == '\0')) {
+		snprintf(m_str, sizeof(m_str), "[%s=%p]", m_type, m_owner);
+	}
+	return m_str;
 }
 
 cpu_manager g_cpu_manager;

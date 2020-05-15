@@ -68,6 +68,7 @@ public:
 	void set_ring_profile_key(vma_ring_profile_key profile);
 	void set_memory_descriptor(iovec &mem_desc);
 	void set_user_id_key(uint64_t user_id_key);
+	const char* to_str();
 	inline ring_logic_t get_ring_alloc_logic() { return m_ring_alloc_logic;}
 	inline vma_ring_profile_key get_ring_profile_key() { return m_ring_profile_key;}
 	inline iovec* get_memory_descriptor() { return &m_mem_desc;}
@@ -96,15 +97,9 @@ public:
 			m_hash = other.m_hash;
 			m_mem_desc.iov_base = other.m_mem_desc.iov_base;
 			m_mem_desc.iov_len = other.m_mem_desc.iov_len;
-			snprintf(m_str, RING_ALLOC_STR_SIZE, "%s", other.m_str);
+			m_str[0] = '\0';
 		}
 		return *this;
-	}
-
-	const char* to_str() const
-	{
-
-		return m_str;
 	}
 
 	size_t operator()(const ring_alloc_logic_attr *key) const

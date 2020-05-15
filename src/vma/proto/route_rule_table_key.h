@@ -93,26 +93,13 @@ class hash<route_rule_table_key>
 public:
 	size_t operator()(const route_rule_table_key &key) const
 	{
-		hash<string>_hash;
-		char s[40] = {0};
-		/*
-		Build string from exist parameter (destination IP, source IP, TOS)
-		which is unique for different route-rule entries.
-		*/
-		/* cppcheck-suppress wrongPrintfScanfArgNum */
-		sprintf(s, "%d.%d.%d.%d", NIPQUAD(key.get_dst_ip()));
-		if (key.get_src_ip()) {
-			char sx[20] = {0};
-			/* cppcheck-suppress wrongPrintfScanfArgNum */
-			sprintf(sx, " %d.%d.%d.%d", NIPQUAD(key.get_src_ip()));
-			strcat(s, sx);
-		}
-		if (key.get_tos()) {
-			char sx[20] = {0};
-			sprintf(sx, " %u", key.get_tos());
-			strcat(s, sx);
-		}
-		return _hash(std::string(s));// Use built in hash function for string input.
+		hash<uint64_t>_hash;
+		uint64_t val;
+
+		val = ((uint64_t)key.get_dst_ip() << 32ULL) |
+			((uint64_t)key.get_src_ip() ^
+			((uint64_t)key.get_tos() << 24ULL));
+		return _hash(val);
 	}
 };
 }}

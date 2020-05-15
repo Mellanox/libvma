@@ -41,8 +41,7 @@
 #include "vma_extra.h"
 
 #define CANDIDATE_STABILITY_ROUNDS 20
-
-#define RAL_TOSTR(to, type, owner) {char buf[100];sprintf(buf, "[%s=%p]",(type),(owner));(to) = buf;}
+#define RAL_STR_MAX_LENGTH 100
 
 #define MAX_CPU CPU_SETSIZE
 #define NO_CPU -1
@@ -83,8 +82,12 @@ public:
 	bool			is_logic_support_migration() { return m_res_key.get_ring_alloc_logic() >= RING_LOGIC_PER_THREAD && m_ring_migration_ratio > 0;}
 	uint64_t		calc_res_key_by_logic();
 	inline void		enable_migration(bool active) { m_active = active; }
+	const char*		to_str();
+
 protected:
-	string			m_tostr;
+	char			m_str[RAL_STR_MAX_LENGTH];
+	const char*		m_type;
+	const void*		m_owner;
 
 private:
 	int			m_ring_migration_ratio;
@@ -103,7 +106,8 @@ public:
 		ring_allocation_logic(safe_mce_sys().ring_allocation_logic_rx,
 				      safe_mce_sys().ring_migration_ratio_rx,
 				      source, ring_profile) {
-		RAL_TOSTR(m_tostr, "Rx", owner);
+		m_type = "Rx";
+		m_owner = owner;
 	}
 };
 
@@ -115,7 +119,8 @@ public:
 		ring_allocation_logic(safe_mce_sys().ring_allocation_logic_tx,
 				      safe_mce_sys().ring_migration_ratio_tx,
 				      source, ring_profile) {
-		RAL_TOSTR(m_tostr, "Tx",owner);
+		m_type = "Tx";
+		m_owner = owner;
 	}
 };
 
