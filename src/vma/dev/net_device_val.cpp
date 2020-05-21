@@ -112,9 +112,9 @@ void ring_alloc_logic_attr::init()
 
 	m_str[0] = '\0';
 
-#define HASH_ITER(val)				\
+#define HASH_ITER(val, type)			\
 do {						\
-	size_t x = (size_t)val;			\
+	type x = (type)val;			\
 	do {					\
 		/* m_hash * 33 + byte */	\
 		h = (h << 5) + h + (x & 0xff);	\
@@ -122,11 +122,14 @@ do {						\
 	} while (x != 0);			\
 } while (0)
 
-	HASH_ITER(m_ring_alloc_logic);
-	HASH_ITER(m_ring_profile_key);
-	HASH_ITER(m_user_id_key);
-	HASH_ITER(m_mem_desc.iov_base);
-	HASH_ITER(m_mem_desc.iov_len);
+#undef HASH_ITER
+#define HASH_ITER(val, type) h = h * 19 + (size_t)val;
+
+	HASH_ITER(m_ring_alloc_logic, size_t);
+	HASH_ITER(m_ring_profile_key, size_t);
+	HASH_ITER(m_user_id_key, uint64_t);
+	HASH_ITER(m_mem_desc.iov_base, uintptr_t);
+	HASH_ITER(m_mem_desc.iov_len, size_t);
 
 	m_hash = h;
 #undef HASH_ITER
