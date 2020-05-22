@@ -137,14 +137,24 @@ void flow_tuple::set_str()
 
 const char* flow_tuple::to_str()
 {
+	int rc;
+
 	if (unlikely(m_str[0] == '\0')) {
 		/* cppcheck-suppress wrongPrintfScanfArgNum */
-		snprintf(m_str, sizeof(m_str),
+		rc = snprintf(m_str, sizeof(m_str),
 			"dst:%hhu.%hhu.%hhu.%hhu:%hu, "
 			"src:%hhu.%hhu.%hhu.%hhu:%hu, proto:%s",
 			NIPQUAD(m_dst_ip), ntohs(m_dst_port),
 			NIPQUAD(m_src_ip), ntohs(m_src_port),
 			__vma_get_protocol_str(m_protocol));
+		if (rc < 0) {
+			/*
+			 * If snprintf() fails for unknown reason, cache a
+			 * constant string not to call snprintf() in the future
+			 */
+			strncpy(m_str, "FAILED", sizeof(m_str));
+			m_str[sizeof(m_str) - 1] = '\0';
+		}
 	}
 	return m_str;
 }
@@ -156,9 +166,11 @@ size_t flow_tuple_with_local_if::hash(void)
 
 const char* flow_tuple_with_local_if::to_str()
 {
+	int rc;
+
 	if (unlikely(m_str[0] == '\0')) {
 		/* cppcheck-suppress wrongPrintfScanfArgNum */
-		snprintf(m_str, sizeof(m_str),
+		rc = snprintf(m_str, sizeof(m_str),
 			"dst:%hhu.%hhu.%hhu.%hhu:%hu, "
 			"src:%hhu.%hhu.%hhu.%hhu:%hu, proto:%s, "
 			"if:%hhu.%hhu.%hhu.%hhu",
@@ -166,6 +178,14 @@ const char* flow_tuple_with_local_if::to_str()
 			NIPQUAD(m_src_ip), ntohs(m_src_port),
 			__vma_get_protocol_str(m_protocol),
 			NIPQUAD(m_local_if));
+		if (rc < 0) {
+			/*
+			 * If snprintf() fails for unknown reason, cache a
+			 * constant string not to call snprintf() in the future
+			 */
+			strncpy(m_str, "FAILED", sizeof(m_str));
+			m_str[sizeof(m_str) - 1] = '\0';
+		}
 	}
 	return m_str;
 };

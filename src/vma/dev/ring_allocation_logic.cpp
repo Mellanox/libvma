@@ -192,8 +192,18 @@ bool ring_allocation_logic::should_migrate_ring()
 
 const char* ring_allocation_logic::to_str()
 {
+	int rc;
+
 	if (unlikely(m_str[0] == '\0')) {
-		snprintf(m_str, sizeof(m_str), "[%s=%p]", m_type, m_owner);
+		rc = snprintf(m_str, sizeof(m_str), "[%s=%p]", m_type, m_owner);
+		if (rc < 0) {
+			/*
+			 * If snprintf() fails for unknown reason, cache a
+			 * constant string not to call snprintf() in the future
+			 */
+			strncpy(m_str, "[RAL]", sizeof(m_str));
+			m_str[sizeof(m_str) - 1] = '\0';
+		}
 	}
 	return m_str;
 }

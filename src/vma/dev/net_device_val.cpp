@@ -170,11 +170,21 @@ void ring_alloc_logic_attr::set_user_id_key(uint64_t user_id_key)
 
 const char* ring_alloc_logic_attr::to_str()
 {
+	int rc;
+
 	if (unlikely(m_str[0] == '\0')) {
-		snprintf(m_str, RING_ALLOC_STR_SIZE,
-			 "allocation logic %d profile %d key %ld user address %p "
-			 "user length %zd", m_ring_alloc_logic, m_ring_profile_key,
-			 m_user_id_key, m_mem_desc.iov_base, m_mem_desc.iov_len);
+		rc = snprintf(m_str, RING_ALLOC_STR_SIZE,
+			"allocation logic %d profile %d key %ld user address %p "
+			"user length %zd", m_ring_alloc_logic, m_ring_profile_key,
+			m_user_id_key, m_mem_desc.iov_base, m_mem_desc.iov_len);
+		if (rc < 0) {
+			/*
+			 * If snprintf() fails for unknown reason, cache a
+			 * constant string not to call snprintf() in the future
+			 */
+			strncpy(m_str, "FAILED", sizeof(m_str));
+			m_str[sizeof(m_str) - 1] = '\0';
+		}
 	}
 	return m_str;
 }
