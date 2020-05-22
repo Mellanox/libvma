@@ -387,12 +387,12 @@ show_section_title "Check for functions, types and structures"
 
 # Does this compiler have built-in functions for atomic memory access?
 AC_MSG_CHECKING([for atomic memory access (__sync_bool_compare_and_swap) support])
-AC_TRY_LINK(,
-[
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[]],
+[[
   int variable = 1;
   return (__sync_bool_compare_and_swap(&variable, 1, 2)
          && __sync_add_and_fetch(&variable, 1)) ? 1 : 0;
-],
+]])],
 [
   AC_MSG_RESULT([yes])
   AC_DEFINE(HAVE_BUILTIN_ATOMIC, 1, [Define to 1 if gcc supports __sync_bool_compare_and_swap() a.o.])
@@ -402,13 +402,13 @@ AC_TRY_LINK(,
 ])
 
 AC_MSG_CHECKING([for SOF_TIMESTAMPING_SOFTWARE support])
-AC_TRY_LINK(
-#include <linux/net_tstamp.h>
-,
-[
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+  #include <linux/net_tstamp.h>
+]],
+[[
   int ts = (int)SOF_TIMESTAMPING_SOFTWARE;
   ts = ts;
-],
+]])],
 [
   AC_MSG_RESULT([yes])
   AC_DEFINE(DEFINED_MISSING_NET_TSTAMP, 0, [Define to 0 if linux/net_tstamp.h exists])
@@ -419,13 +419,13 @@ AC_TRY_LINK(
 ])
 
 AC_MSG_CHECKING([for FRA_OIFNAME enum value support])
-AC_TRY_LINK(
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 #include <linux/fib_rules.h>
-,
-[
+]],
+[[
   int oif = (int)FRA_OIFNAME;
   oif = oif;
-],
+]])],
 [
   AC_MSG_RESULT([yes])
   AC_DEFINE(DEFINED_FRA_OIFNAME, 1, [Define to 1 if enum value FRA_OIFNAME exists in linux/fib_rules.h])
@@ -438,13 +438,13 @@ AC_TRY_LINK(
 AC_CHECK_TYPES([struct mmsghdr],[],[],[#include <sys/socket.h>])
 
 AC_MSG_CHECKING([for 'struct timespec' for recvmmsg() const])
-AC_TRY_LINK(
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 #include <sys/socket.h>
-,
-[
+]],
+[[
   const struct timespec ts = {0,0};
   recvmmsg(0,0,0,0,&ts);
-],
+]])],
 [
   AC_MSG_RESULT([yes])
   AC_DEFINE(RECVMMSG_WITH_CONST_TIMESPEC, 1, [Define to 1 if 'struct timespec' for recvmmsg() is 'const struct timespec'])

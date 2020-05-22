@@ -11,9 +11,9 @@
 # - [definition] can be omitted if it is equal to attribute
 #
 AC_DEFUN([CHECK_VERBS_ATTRIBUTE], [
-    AC_TRY_LINK(
-        [#include <$2>],
-        [int attr = (int)$1; attr = attr;],
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([
+        [#include <$2>]],
+        [[int attr = (int)$1; attr = attr;]])],
         [vma_cv_attribute_$1=yes],
         [vma_cv_attribute_$1=no])
 
@@ -66,13 +66,13 @@ LIBS="$LIBS $VERBS_LIBS"
 #
 vma_cv_verbs=0
 vma_cv_verbs_str="None"
-AC_TRY_LINK(
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 #include <infiniband/verbs_exp.h>
-,
-[
+]],
+[[
     int access = (int)IBV_EXP_ACCESS_ALLOCATE_MR;
     access = access;
-],
+]])],
 [
     vma_cv_verbs=2
     vma_cv_verbs_str="Experimental"
