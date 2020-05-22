@@ -10,7 +10,7 @@
 AC_DEFUN([PROF_IBPROF_SETUP],
 [
 AC_ARG_WITH([ibprof],
-    AC_HELP_STRING([--with-ibprof],
+    AS_HELP_STRING([--with-ibprof],
                    [Search ibprof location (default NO)]),
     [],
     [with_ibprof=no]
@@ -69,7 +69,7 @@ AC_DEFUN([PROF_RDTSC_SETUP],
 [
 AC_MSG_CHECKING([if rdtsc-rx-cqe-recvfrom is enabled])
 AC_ARG_WITH([rdtsc-rx-cqe-recvfrom],
-    AC_HELP_STRING([--with-rdtsc-rx-cqe-recvfrom],
+    AS_HELP_STRING([--with-rdtsc-rx-cqe-recvfrom],
                    [Enable rdtsc measurement of rx CQE recvfrom]),
     [],
     [with_rdtsc_rx_cqe_recvfrom=no]
@@ -85,7 +85,7 @@ AS_IF([test "x$with_rdtsc_rx_cqe_recvfrom" == xyes],
 
 AC_MSG_CHECKING([if rdtsc-rx-verbs-idle-poll is enabled])
 AC_ARG_WITH([rdtsc-rx-verbs-idle-poll],
-    AC_HELP_STRING([--with-rdtsc-rx-verbs-idle-poll],
+    AS_HELP_STRING([--with-rdtsc-rx-verbs-idle-poll],
                    [Enable rdtsc measurement of rx verbs idle poll]),
     [],
     [with_rdtsc_rx_verbs_idle_poll=no]
@@ -100,7 +100,7 @@ AS_IF([test "x$with_rdtsc_rx_verbs_idle_poll" == xyes],
 
 AC_MSG_CHECKING([if rdtsc-rx-verbs-ready-poll is enabled])
 AC_ARG_WITH([rdtsc-rx-verbs-ready-poll],
-    AC_HELP_STRING([--with-rdtsc-rx-verbs-ready-poll],
+    AS_HELP_STRING([--with-rdtsc-rx-verbs-ready-poll],
                    [Enable rdtsc measurement of rx verbs ready poll]),
     [],
     [with_rdtsc_rx_verbs_ready_poll=no]
@@ -115,7 +115,7 @@ AS_IF([test "x$with_rdtsc_rx_verbs_ready_poll" == xyes],
 
 AC_MSG_CHECKING([if rdtsc-rx-lwip is enabled])
 AC_ARG_WITH([rdtsc-rx-lwip],
-    AC_HELP_STRING([--with-rdtsc-rx-lwip],
+    AS_HELP_STRING([--with-rdtsc-rx-lwip],
                    [Enable rdtsc measurement of rx lwip]),
     [],
     [with_rdtsc_rx_lwip=no]
@@ -130,7 +130,7 @@ AS_IF([test "x$with_rdtsc_rx_lwip" == xyes],
 
 AC_MSG_CHECKING([if rdtsc-rx-dispatch-packet is enabled])
 AC_ARG_WITH([rdtsc-rx-dispatch-packet],
-    AC_HELP_STRING([--with-rdtsc-rx-dispatch-packet],
+    AS_HELP_STRING([--with-rdtsc-rx-dispatch-packet],
                    [Enable rdtsc measurement of rx dispatch packet]),
     [],
     [with_rdtsc_rx_dispatch_packet=no]
@@ -145,7 +145,7 @@ AS_IF([test "x$with_rdtsc_rx_dispatch_packet" == xyes],
 
 AC_MSG_CHECKING([if rdtsc-rx-after-process-buffer-to-receivefrom is enabled])
 AC_ARG_WITH([rdtsc-rx-after-process-buffer-to-receivefrom],
-    AC_HELP_STRING([--with-rdtsc-rx-after-process-buffer-to-receivefrom],
+    AS_HELP_STRING([--with-rdtsc-rx-after-process-buffer-to-receivefrom],
                    [Enable rdtsc measurement of rx after process buffer to receivefrom]),
     [],
     [with_rdtsc_rx_after_process_buffer_to_receivefrom=no]
@@ -160,7 +160,7 @@ AS_IF([test "x$with_rdtsc_rx_after_process_buffer_to_receivefrom" == xyes],
 
 AC_MSG_CHECKING([if rdtsc-rx-vma-tcp-idle-poll is enabled])
 AC_ARG_WITH([rdtsc-rx-vma-tcp-idle-poll],
-    AC_HELP_STRING([--with-rdtsc-rx-vma-tcp-idle-poll],
+    AS_HELP_STRING([--with-rdtsc-rx-vma-tcp-idle-poll],
                    [Enable rdtsc measurement of rx vma tcp idle poll]),
     [],
     [with_rdtsc_rx_vma_tcp_idle_poll=no]
@@ -175,7 +175,7 @@ AS_IF([test "x$with_rdtsc_rx_vma_tcp_idle_poll" == xyes],
 
 AC_MSG_CHECKING([if rdtsc-rx-ready-poll-to-lwip is enabled])
 AC_ARG_WITH([rdtsc-rx-ready-poll-to-lwip],
-    AC_HELP_STRING([--with-rdtsc-rx-ready-poll-to-lwip],
+    AS_HELP_STRING([--with-rdtsc-rx-ready-poll-to-lwip],
                    [Enable rdtsc measurement of rx ready poll to lwip]),
     [],
     [with_rdtsc_rx_ready_poll_to_lwip=no]
@@ -190,7 +190,7 @@ AS_IF([test "x$with_rdtsc_rx_ready_poll_to_lwip" == xyes],
 
 AC_MSG_CHECKING([if rdtsc-rx-lwip-to-receivefrom is enabled])
 AC_ARG_WITH([rdtsc-rx-lwip-to-receivefrom],
-    AC_HELP_STRING([--with-rdtsc-rx-lwip-to-receivefrom],
+    AS_HELP_STRING([--with-rdtsc-rx-lwip-to-receivefrom],
                    [Enable rdtsc measurement of rx lwip to receivefrom]),
     [],
     [with_rdtsc_rx_lwip_to_receivefrom=no]
@@ -206,7 +206,7 @@ AS_IF([test "x$with_rdtsc_rx_lwip_to_receivefrom" == xyes],
  
 AC_MSG_CHECKING([if rdtsc-tx-sendto-to-after-post-send is enabled])
 AC_ARG_WITH([rdtsc-tx-sendto-to-after-post-send],
-    AC_HELP_STRING([--with-rdtsc-tx-sendto-to-after-post-send],
+    AS_HELP_STRING([--with-rdtsc-tx-sendto-to-after-post-send],
                    [Enable rdtsc measurement of tx sendto to after post send]),
     [],
     [with_rdtsc_tx_sendto_to_after_post_send=no]
@@ -221,7 +221,7 @@ AS_IF([test "x$with_rdtsc_tx_sendto_to_after_post_send" == xyes],
 
 AC_MSG_CHECKING([if rdtsc-tx-verbs-post-send is enabled])
 AC_ARG_WITH([rdtsc-tx-verbs-post-send],
-    AC_HELP_STRING([--with-rdtsc-tx-verbs-post-send],
+    AS_HELP_STRING([--with-rdtsc-tx-verbs-post-send],
                    [Enable rdtsc measurement of tx verbs post send]),
     [],
     [with_rdtsc_tx_verbs_post_send=no]
@@ -237,7 +237,7 @@ AS_IF([test "x$with_rdtsc_tx_verbs_post_send" == xyes],
 
 AC_MSG_CHECKING([if rdtsc-receivefrom-to-sendto is enabled])
 AC_ARG_WITH([rdtsc-receivefrom-to-sendto],
-    AC_HELP_STRING([--with-rdtsc-receivefrom-to-sendto],
+    AS_HELP_STRING([--with-rdtsc-receivefrom-to-sendto],
                    [Enable rdtsc measurement of receivefrom to sendto]),
     [],
     [with_rdtsc_receivefrom_to_sendto=no]

@@ -24,7 +24,7 @@ AC_DEFINE(DEFINED_VLOG_FINER,       7, VMA Log Finer Definition)
 AC_DEFINE(DEFINED_VLOG_ALL,         8, VMA Log All Definition)
 
 AC_ARG_ENABLE([opt-log],
-    AC_HELP_STRING([--enable-opt-log],
+    AS_HELP_STRING([--enable-opt-log],
         [Optimize latency (none, medium, high) by limiting max log level (default=medium)]),,
     enableval=medium)
 AC_MSG_CHECKING([for logging optimization])
