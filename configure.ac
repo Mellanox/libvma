@@ -180,7 +180,7 @@ CXXFLAGS="-D_GNU_SOURCE -fPIC $CXXFLAGS"
 AC_MSG_CHECKING(
     [for gcov support])
 AC_ARG_ENABLE([gcov],
-    AC_HELP_STRING([--enable-gcov],
+    AS_HELP_STRING([--enable-gcov],
         [turn on code coverage analysis tools]),
     [CFLAGS+=" --coverage -O0"; CXXFLAGS+=" --coverage -O0"; LIBS+=" -lgcov"; VMA_GCOV=1;
      AC_MSG_RESULT([yes])],
@@ -193,7 +193,7 @@ AC_ARG_ENABLE([gcov],
 AC_MSG_CHECKING(
     [for time measurement support])
 AC_ARG_ENABLE([time_measure],
-    AC_HELP_STRING([--enable-time-measure],
+    AS_HELP_STRING([--enable-time-measure],
         [turn on time measuring]),
     [CPPFLAGS+=" -DVMA_TIME_MEASURE";
      AC_MSG_RESULT([yes])],
@@ -203,7 +203,7 @@ AC_ARG_ENABLE([time_measure],
 # Valgrind support
 #
 AC_ARG_WITH([valgrind],
-    AC_HELP_STRING([--with-valgrind],
+    AS_HELP_STRING([--with-valgrind],
         [Enable Valgrind annotations (small runtime overhead, default NO)]),
     [],
     [with_valgrind=no]
@@ -229,12 +229,12 @@ AS_IF([test "x$with_valgrind" == xno],
 with_debug_info=yes
 with_debug=no
 AC_ARG_ENABLE([debug],
-	AC_HELP_STRING([--enable-debug],
+	AS_HELP_STRING([--enable-debug],
 	    [Enable debug mode build]),
 	[with_debug=yes])
 
 AC_ARG_ENABLE([debuginfo],
-    AC_HELP_STRING([--disable-debuginfo],
+    AS_HELP_STRING([--disable-debuginfo],
         [Don't include debug information]),
 	[with_debug_info=no; with_debug=no])
 
@@ -255,7 +255,7 @@ fi
 #
 AC_MSG_CHECKING([for OFED path])
 AC_ARG_WITH(ofed,
-    AC_HELP_STRING([--with-ofed], [Path to OFED install]),
+    AS_HELP_STRING([--with-ofed], [Path to OFED install]),
     [ac_cv_ofed_path=$withval],
     [if test -e "/etc/infiniband/info" ; then
          ac_cv_ofed_path=`grep prefix /etc/infiniband/info | awk -F "=" '{print $2}'`
@@ -292,7 +292,7 @@ AC_ARG_ENABLE([socketxtreme],,
 # Thread locking control
 #
 AC_ARG_ENABLE([thread-lock],
-    AC_HELP_STRING([--enable-thread-lock],
+    AS_HELP_STRING([--enable-thread-lock],
         [Enable thread locking (default=yes)]))
 AC_MSG_CHECKING(
     [for thread locking support])
@@ -310,7 +310,7 @@ fi
 # Enable tcp tx window availability
 #
 AC_ARG_ENABLE([tcp-tx-wnd-availability],
-    AC_HELP_STRING([--enable-tcp-tx-wnd-availability],
+    AS_HELP_STRING([--enable-tcp-tx-wnd-availability],
         [Enable TCP Tx window availability
          (TCP packets will only be sent if their size (hdr options + data) is less than or equal to the window size.
          Otherwise -1 is returned and errno is set to EAGAIN)  (default=no)]))
@@ -326,7 +326,7 @@ fi
 # Control TSO usage
 #
 AC_ARG_ENABLE([tso],
-    AC_HELP_STRING([--enable-tso],
+    AS_HELP_STRING([--enable-tso],
         [Enable TSO availability (default=no)]))
 AC_MSG_CHECKING(
     [for tso support])

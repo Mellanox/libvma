@@ -157,7 +157,7 @@ if test "x$vma_cv_verbs" == x2; then
     # Experimental Verbs CQ
     #
     AC_ARG_ENABLE([exp-cq],
-        AC_HELP_STRING([--disable-exp-cq],
+        AS_HELP_STRING([--disable-exp-cq],
                        [Disable experimental Verbs CQ (disables UDP RX HW Timestamp, RX CSUM verification offload and Multi Packet RQ)]),
         [enable_exp_cq=no],
         [enable_exp_cq=yes]

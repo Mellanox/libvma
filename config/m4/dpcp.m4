@@ -10,7 +10,7 @@
 AC_DEFUN([DPCP_CAPABILITY_SETUP],
 [
 AC_ARG_WITH([dpcp],
-    AC_HELP_STRING([--with-dpcp(=DIR)],
+    AS_HELP_STRING([--with-dpcp(=DIR)],
                    [Search for dpcp headers and libraries in DIR (default NO)]),
     [],
     [with_dpcp=no]
