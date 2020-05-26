@@ -7,10 +7,15 @@
 	dh $@
 
 build: build-debug
-	./configure --with-ofed=/usr --prefix=/usr --libdir=/usr/lib --includedir=/usr/include --sysconfdir=/etc
+	@echo "Using extra configuration options: ${configure_options}"
+	./configure --with-ofed=/usr --prefix=/usr \
+		--libdir=/usr/lib --includedir=/usr/include --sysconfdir=/etc \
+		${configure_options}
 
 build-debug:
-	./configure --enable-opt-log=none --with-ofed=/usr --prefix=/usr --libdir=/usr/lib --includedir=/usr/include --sysconfdir=/etc
+	./configure --with-ofed=/usr --prefix=/usr \
+		--libdir=/usr/lib --includedir=/usr/include --sysconfdir=/etc \
+		--enable-opt-log=none ${configure_options}
 	make
 	cp -f src/vma/.libs/libvma.so libvma-debug.so
 	make clean

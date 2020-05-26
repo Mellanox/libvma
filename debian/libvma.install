@@ -9,4 +9,3 @@ etc/
 contrib/scripts/vma.service lib/systemd/system
 usr/share/man/man7/vma.*
 usr/share/man/man8/vmad.*
-libvma-debug.so usr/lib
