@@ -15,16 +15,21 @@ AC_ARG_WITH([dpcp],
     [],
     [with_dpcp=no]
 )
-if test -z "$with_dpcp" || test "$with_dpcp" = "yes"; then
-    with_dpcp=/usr
-fi
 
-FUNC_CHECK_WITHDIR([dpcp], [$with_dpcp], [include/mellanox/dpcp.h])
+if test "x$vma_cv_directverbs" != x3 && test "x$with_dpcp" != xno; then
+    AC_MSG_ERROR([dpcp can be used under RDMA-core subsystem only])
+fi
 
 vma_cv_dpcp=0
 AS_IF([test "x$with_dpcp" == xno],
     [],
     [
+    if test -z "$with_dpcp" || test "$with_dpcp" = "yes"; then
+        with_dpcp=/usr
+    fi
+
+    FUNC_CHECK_WITHDIR([dpcp], [$with_dpcp], [include/mellanox/dpcp.h])
+
     vma_cv_dpcp_save_CPPFLAGS="$CPPFLAGS"
     vma_cv_dpcp_save_CXXFLAGS="$CXXFLAGS"
     vma_cv_dpcp_save_CFLAGS="$CFLAGS"
@@ -68,6 +73,8 @@ if test "$vma_cv_dpcp" -ne 0; then
     AC_DEFINE_UNQUOTED([DEFINED_DPCP], [1], [Define to 1 to use DPCP])
     AC_MSG_RESULT([yes])
 else
-    AC_MSG_RESULT([no])
+    AS_IF([test "x$with_dpcp" == xno],
+        [AC_MSG_RESULT([no])],
+        [AC_MSG_ERROR([dpcp support requested but not present])])
 fi
 ])

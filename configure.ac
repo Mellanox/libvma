@@ -287,6 +287,7 @@ AC_MSG_RESULT($ac_cv_ofed_path)
 VERBS_CAPABILITY_SETUP()
 OPT_VMA_LOGGING()
 PROF_IBPROF_SETUP()
+DPCP_CAPABILITY_SETUP()
 
 # Enable internal performance counters
 # Note: uncomment setup to activate this ability
@@ -347,12 +348,6 @@ if test "x$enable_tso" = xyes -a "x$vma_cv_attribute_ex_OPCODE_TSO" = xyes; then
     AC_MSG_RESULT([yes])
 else
     AC_MSG_RESULT([no])
-fi
-
-# DPCP Library support
-#
-if test "x$vma_cv_directverbs" == x3; then
-    DPCP_CAPABILITY_SETUP()
 fi
 
 AC_MSG_CHECKING([for md5 version of VMA statistics is])
