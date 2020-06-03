@@ -13,8 +13,8 @@ dnl===-----------------------------------------------------------------------===
 # Update version number here:
 #
 define([vma_ver_major], 9)
-define([vma_ver_minor], 0)
-define([vma_ver_revision], 2)
+define([vma_ver_minor], 1)
+define([vma_ver_revision], 0)
 define([vma_ver_release], esyscmd([echo ${VMA_RELEASE:=0}]))
 
 
