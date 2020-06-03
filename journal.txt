@@ -1,3 +1,28 @@
+Version 9.1.0-0:
+Date + Time 2020-06-03
+=============================================================
+Added:
+        - RM #2175248 Reduce usage of snprintf() in hash calculation
+        - RM #2136792 Update libvma package creation
+        - RM #928161  Add man pages
+        - RM #2136324 Refuse sendto() operation to zero port.
+        - RM #2133466 Rework udp rx data processing function
+        - RM #2133466 Introduce VMA_UDP_3T_RULES option
+        - RM #2133466 Use 5 tuple for udp
+        - RM #2083706 Show warning when memory on device can not be allocated
+
+Fixed:
+        - RM #2132032 Fix UDP rx unicast processing for connected sockets
+        - RM #1928915 Keep pcb->last_unsent valid
+        - RM #2009931 fcntl64() does not work on Fedora 29 (GLIBC 2.28)
+        - RM #2074332 Fix incorrect retransmits count
+        - RM #2078456 Do not retransmit small TSO segments
+        - RM #2078456 Improve tcp_shrink_segment()
+        - RM #2076916 Fix sendfile() processing in lwip
+        - RM #2080510 Performance Degradation of VMA Direct RAW ETH QP Creation
+        - RM #1973965 Replace drops statistic info with egains
+        - RM #1900224 Bug fix of negative values displayed by vma_stats
+
 Version 9.0.2-0:
 Date + Time 2020-02-06
 =============================================================
