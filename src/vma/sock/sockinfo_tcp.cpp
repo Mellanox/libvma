@@ -2770,7 +2770,7 @@ void sockinfo_tcp::auto_accept_connection(sockinfo_tcp *parent, sockinfo_tcp *ch
 			child->m_socketxtreme.ec.completion.src = parent->m_socketxtreme.ec.completion.src;
 			child->m_socketxtreme.ec.completion.listen_fd = child->m_parent->get_fd();
 		}
-		child->set_events(VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED);
+		NOTIFY_ON_EVENTS(child, VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED);
 	}
 	else {
 		vlog_printf(VLOG_ERROR, "VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED: can't find listen socket for new connected socket with [fd=%d]",
