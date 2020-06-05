@@ -1673,7 +1673,7 @@ void sockinfo::insert_cmsg(struct cmsg_state * cm_state, int level, int type, vo
 		cm_state->cmhdr = next;
 }
 
-void sockinfo::handle_cmsg(struct msghdr * msg)
+void sockinfo::handle_cmsg(struct msghdr * msg, int flags)
 {
 	struct cmsg_state cm_state;
 

@@ -330,7 +330,7 @@ protected:
 	virtual void    handle_ip_pktinfo(struct cmsg_state *cm_state) = 0;
 	inline  void    handle_recv_timestamping(struct cmsg_state *cm_state);
 	void            insert_cmsg(struct cmsg_state *cm_state, int level, int type, void *data, int len);
-	void            handle_cmsg(struct msghdr * msg);
+	void            handle_cmsg(struct msghdr * msg, int flags);
 	void            process_timestamps(mem_buf_desc_t* p_desc);
 
 	virtual bool try_un_offloading(); // un-offload the socket if possible
