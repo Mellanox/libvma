@@ -248,7 +248,21 @@ protected:
 	ring_alloc_logic_attr			m_ring_alloc_log_tx;
 	uint32_t				m_pcp;
 
+	/* Socket error queue that keeps local errors and internal data required
+	 * to provide notification ability.
+	 */
 	descq_t    m_error_queue;
+
+	/* TX zcopy counter
+	 * The notification itself for tx zcopy operation is a simple scalar value.
+	 * Each socket maintains an internal unsigned 32-bit counter.
+	 * Each send call with MSG_ZEROCOPY that successfully sends data increments
+	 * the counter. The counter is not incremented on failure or if called with
+	 * length zero.
+	 * The counter counts system call invocations, not bytes.
+	 * It wraps after UINT_MAX calls.
+	 */
+	atomic_t   m_zckey;
 
 	struct {
 		/* Track internal events to return in socketxtreme_poll()

@@ -114,6 +114,8 @@ sockinfo::sockinfo(int fd):
 	memset(&m_so_ratelimit, 0, sizeof(vma_rate_limit_t));
 	set_flow_tag(m_fd + 1);
 
+	atomic_set(&m_zckey, 0);
+
 	m_socketxtreme.ec.clear();
 	m_socketxtreme.completion = NULL;
 	m_socketxtreme.last_buff_lst = NULL;

@@ -64,6 +64,7 @@ public:
 	enum flags {
 		TYPICAL = 0,
 		CLONED  = 0x01,
+		ZCOPY   = 0x02
 	};
 
 public:
@@ -134,6 +135,20 @@ public:
 				struct		udphdr* p_udp_h;
 				struct		tcphdr* p_tcp_h;
 			};
+			struct {
+				/* This structure allows to track tx zerocopy flow
+				 * including start send id and range in count field
+				 * with total bytes length as len
+				 * where
+				 * id -> ee.ee_info
+				 * id + count -1 -> ee.ee_data
+				 */
+				uint32_t id;
+				uint32_t len;
+				uint16_t count;
+				void *ctx;
+				void (*callback)(mem_buf_desc_t *);
+			} zc;
 		} tx;
 	};
 
