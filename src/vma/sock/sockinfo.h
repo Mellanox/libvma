@@ -248,6 +248,8 @@ protected:
 	ring_alloc_logic_attr			m_ring_alloc_log_tx;
 	uint32_t				m_pcp;
 
+	descq_t    m_error_queue;
+
 	struct {
 		/* Track internal events to return in socketxtreme_poll()
 		 * Current design support single event for socket at a particular time

@@ -35,6 +35,8 @@
 #define MEM_BUF_DESC_H
 
 #include <netinet/in.h>
+#include <linux/errqueue.h>
+
 #include "utils/atomic.h"
 #include "vma/util/vma_list.h"
 #include "vma/lwip/pbuf.h"
@@ -59,22 +61,41 @@ struct timestamps_t
  */
 class mem_buf_desc_t {
 public:
+	enum flags {
+		TYPICAL = 0,
+		CLONED  = 0x01,
+	};
+
+public:
 	mem_buf_desc_t(uint8_t *buffer, size_t size,  pbuf_free_custom_fn custom_free_function) :
-		p_buffer(buffer), lkey(0), p_next_desc(0),
-		p_prev_desc(0), sz_buffer(size), sz_data(0),
+		p_buffer(buffer),
+		m_flags(mem_buf_desc_t::TYPICAL),
+		lkey(0),
+		p_next_desc(0),
+		p_prev_desc(0),
+		sz_buffer(size),
+		sz_data(0),
 		p_desc_owner(0) {
+
 		memset(&lwip_pbuf, 0, sizeof(lwip_pbuf));
 		memset(&rx, 0, sizeof(rx));
 		memset(&tx, 0, sizeof(tx));
+		memset(&ee, 0, sizeof(ee));
 		reset_ref_count();
 
 		lwip_pbuf.custom_free_function = custom_free_function;
 	}
 
-	struct pbuf_custom lwip_pbuf;	//Do not change the location of this field.
+	/* This filed should be first in this class
+	 * It encapsulates pbuf structure from lwip
+	 * and extra fields to proceed customer specific requirements
+	 */
+	struct pbuf_custom lwip_pbuf;
 	uint8_t* const	p_buffer;
 
-	static inline size_t buffer_node_offset(void) {return NODE_OFFSET(mem_buf_desc_t, buffer_node);}
+	static inline size_t buffer_node_offset(void) {
+		return NODE_OFFSET(mem_buf_desc_t, buffer_node);
+	}
 	list_node<mem_buf_desc_t, mem_buf_desc_t::buffer_node_offset> buffer_node;
 
 	union {
@@ -116,10 +137,14 @@ public:
 		} tx;
 	};
 
+	/* This field is needed for error queue processing */
+	struct sock_extended_err	ee;
+
 private:
 	atomic_t	n_ref_count;	// number of interested receivers (sockinfo) [can be modified only in cq_mgr context]
-public:
 
+public:
+	int    m_flags; /* object description */
 	uint32_t	lkey;      	// Buffers lkey for QP access
 	mem_buf_desc_t* p_next_desc;	// A general purpose linked list of mem_buf_desc
 	mem_buf_desc_t* p_prev_desc;
@@ -130,14 +155,43 @@ public:
 	// Rx: cq_mgr owns the mem_buf_desc and the associated data buffer
 	ring_slave* p_desc_owner;
 
-	inline int get_ref_count() const {return atomic_read(&n_ref_count);}
-	inline void  reset_ref_count() {atomic_set(&n_ref_count, 0);}
-	inline int inc_ref_count() {return atomic_fetch_and_inc(&n_ref_count);}
-	inline int dec_ref_count() {return atomic_fetch_and_dec(&n_ref_count);}
+	inline mem_buf_desc_t* clone() {
+		mem_buf_desc_t* p_desc = new mem_buf_desc_t(*this);
+		INIT_LIST_HEAD(&p_desc->buffer_node.head);
+		p_desc->m_flags |= mem_buf_desc_t::CLONED;
+		return p_desc;
+	}
 
-	inline unsigned int lwip_pbuf_inc_ref_count() {return ++lwip_pbuf.pbuf.ref;}
-	inline unsigned int lwip_pbuf_dec_ref_count() {if (likely(lwip_pbuf.pbuf.ref)) --lwip_pbuf.pbuf.ref; return lwip_pbuf.pbuf.ref;}
-	inline unsigned int lwip_pbuf_get_ref_count() const {return lwip_pbuf.pbuf.ref;}
+	inline int get_ref_count() const {
+		return atomic_read(&n_ref_count);
+	}
+
+	inline void  reset_ref_count() {
+		atomic_set(&n_ref_count, 0);
+	}
+
+	inline int inc_ref_count() {
+		return atomic_fetch_and_inc(&n_ref_count);
+	}
+
+	inline int dec_ref_count() {
+		return atomic_fetch_and_dec(&n_ref_count);
+	}
+
+	inline unsigned int lwip_pbuf_inc_ref_count() {
+		return ++lwip_pbuf.pbuf.ref;
+	}
+
+	inline unsigned int lwip_pbuf_dec_ref_count() {
+		if (likely(lwip_pbuf.pbuf.ref)) {
+			--lwip_pbuf.pbuf.ref;
+		}
+		return lwip_pbuf.pbuf.ref;
+	}
+
+	inline unsigned int lwip_pbuf_get_ref_count() const {
+		return lwip_pbuf.pbuf.ref;
+	}
 };
 
 typedef vma_list_t<mem_buf_desc_t, mem_buf_desc_t::buffer_node_offset> descq_t;
