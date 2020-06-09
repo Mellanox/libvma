@@ -308,6 +308,12 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_s
 {
 	// Calc user data payload size
 	ssize_t sz_data_payload = 0;
+
+	/* Suppress flags that should not be used anymore
+	 * to avoid conflicts with VMA_TX_PACKET_L3_CSUM and VMA_TX_PACKET_L4_CSUM
+	 */
+	attr.flags = (vma_wr_tx_packet_attr)(attr.flags & ~(VMA_TX_PACKET_ZEROCOPY | VMA_TX_FILE));
+
 	for (ssize_t i = 0; i < sz_iov; i++)
 		sz_data_payload += p_iov[i].iov_len;
 
@@ -324,7 +330,7 @@ ssize_t dst_entry_udp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_s
 		attr.flags = (vma_wr_tx_packet_attr)(attr.flags | VMA_TX_PACKET_L3_CSUM | VMA_TX_PACKET_L4_CSUM);
 		return fast_send_not_fragmented(p_iov, sz_iov, attr.flags, sz_udp_payload, sz_data_payload);
 	} else {
-                attr.flags = (vma_wr_tx_packet_attr)(attr.flags | VMA_TX_PACKET_L3_CSUM);
+		attr.flags = (vma_wr_tx_packet_attr)(attr.flags | VMA_TX_PACKET_L3_CSUM);
 		return fast_send_fragmented(p_iov, sz_iov, attr.flags, sz_udp_payload, sz_data_payload);
 	}
 }
