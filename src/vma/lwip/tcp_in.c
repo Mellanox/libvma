@@ -820,7 +820,7 @@ tcp_shrink_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t ackno)
       seg->p->next = cur_p;
       p->next = NULL;
 
-      if (p->type  == PBUF_RAM) {
+      if (p->type == PBUF_RAM || p->type == PBUF_ZEROCOPY) {
         external_tcp_tx_pbuf_free(pcb, p);
       } else {
         pbuf_free(p);
@@ -844,7 +844,7 @@ tcp_shrink_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t ackno)
     seg->p->next = cur_p;
     p->next = NULL;
 
-    if (p->type  == PBUF_RAM) {
+    if (p->type == PBUF_RAM || p->type == PBUF_ZEROCOPY) {
       external_tcp_tx_pbuf_free(pcb, p);
     } else {
       pbuf_free(p);

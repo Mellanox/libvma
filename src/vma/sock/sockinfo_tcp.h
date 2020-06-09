@@ -180,7 +180,7 @@ public:
 	virtual void update_header_field(data_updater *updater);
 	virtual bool rx_input_cb(mem_buf_desc_t* p_rx_pkt_mem_buf_desc_info, void* pv_fd_ready_array);
 
-	static struct pbuf * tcp_tx_pbuf_alloc(void* p_conn);
+	static struct pbuf * tcp_tx_pbuf_alloc(void* p_conn, pbuf_type type);
 	static void tcp_tx_pbuf_free(void* p_conn, struct pbuf *p_buff);
 	static struct tcp_seg * tcp_seg_alloc(void* p_conn);
 	static void tcp_seg_free(void* p_conn, struct tcp_seg * seg);

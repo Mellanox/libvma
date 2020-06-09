@@ -66,7 +66,7 @@ void register_sys_readv(sys_readv_fn fn);
 #endif
 
 #if LWIP_3RD_PARTY_BUFS
-typedef struct pbuf * (*tcp_tx_pbuf_alloc_fn)(void* p_conn);
+typedef struct pbuf * (*tcp_tx_pbuf_alloc_fn)(void* p_conn, pbuf_type type);
 
 void register_tcp_tx_pbuf_alloc(tcp_tx_pbuf_alloc_fn fn);
 
