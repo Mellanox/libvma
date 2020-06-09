@@ -66,6 +66,7 @@ sockinfo::sockinfo(int fd):
 		m_b_pktinfo(false),
 		m_b_rcvtstamp(false),
 		m_b_rcvtstampns(false),
+		m_b_zc(false),
 		m_n_tsing_flags(0),
 		m_protocol(PROTO_UNDEFINED),
 		m_lock_rcv(MODULE_NAME "::m_lock_rcv"),

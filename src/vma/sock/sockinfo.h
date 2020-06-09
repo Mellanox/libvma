@@ -216,6 +216,7 @@ protected:
 	bool 			m_b_pktinfo;
 	bool 			m_b_rcvtstamp;
 	bool 			m_b_rcvtstampns;
+	bool			m_b_zc;
 	uint8_t 		m_n_tsing_flags;
 	in_protocol_t		m_protocol;
 
@@ -563,6 +564,7 @@ protected:
     	case SO_TIMESTAMP:		return "SO_TIMESTAMP";
     	case SO_TIMESTAMPNS:		return "SO_TIMESTAMPNS";
     	case SO_BINDTODEVICE:		return "SO_BINDTODEVICE";
+    	case SO_ZEROCOPY:		return "SO_ZEROCOPY";
     	case SO_VMA_RING_ALLOC_LOGIC:	return "SO_VMA_RING_ALLOC_LOGIC";
     	case SO_MAX_PACING_RATE:	return "SO_MAX_PACING_RATE";
     	case SO_VMA_FLOW_TAG:           return "SO_VMA_FLOW_TAG";

@@ -3795,6 +3795,15 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			ret = SOCKOPT_HANDLE_BY_OS;
 			break;
 		}
+		case SO_ZEROCOPY:
+			if (__optval) {
+				lock_tcp_con();
+				m_b_zc = *(bool *)__optval;
+				unlock_tcp_con();
+			}
+			ret = SOCKOPT_HANDLE_BY_OS;
+			si_tcp_logdbg("(SO_ZEROCOPY) m_b_zc: %d", m_b_zc);
+			break;
 		default:
 			ret = SOCKOPT_HANDLE_BY_OS;
 			supported = false;
@@ -3925,6 +3934,15 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 			break;
 		case SO_MAX_PACING_RATE:
 			ret = sockinfo::getsockopt(__level, __optname, __optval, __optlen);
+			break;
+		case SO_ZEROCOPY:
+			if (*__optlen >= sizeof(int)) {
+				*(int *)__optval = m_b_zc;
+				si_tcp_logdbg("(SO_ZEROCOPY) m_b_zc: %d", m_b_zc);
+				ret = 0;
+			} else {
+				errno = EINVAL;
+			}
 			break;
 		default:
 			ret = SOCKOPT_HANDLE_BY_OS;
