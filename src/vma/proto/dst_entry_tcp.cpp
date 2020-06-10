@@ -463,7 +463,7 @@ void dst_entry_tcp::put_buffer(mem_buf_desc_t * p_desc)
 
 		if (p_desc->lwip_pbuf.pbuf.ref == 0) {
 			p_desc->p_next_desc = NULL;
-			g_buffer_pool_tx->put_buffers_thread_safe(p_desc);
+			buffer_pool::free_tx_lwip_pbuf_custom(&p_desc->lwip_pbuf.pbuf);
 		}
 	}
 }

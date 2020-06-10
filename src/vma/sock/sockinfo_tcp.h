@@ -185,6 +185,9 @@ public:
 	static struct tcp_seg * tcp_seg_alloc(void* p_conn);
 	static void tcp_seg_free(void* p_conn, struct tcp_seg * seg);
 
+	mem_buf_desc_t* tcp_tx_zc_alloc(mem_buf_desc_t* p_desc);
+	static void tcp_tx_zc_callback(mem_buf_desc_t* p_desc);
+
 	bool inline is_readable(uint64_t *p_poll_sn, fd_array_t *p_fd_array = NULL);
 	bool inline is_writeable();
 	bool inline is_errorable(int *errors);

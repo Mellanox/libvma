@@ -200,6 +200,9 @@ pbuf_header(struct pbuf *p, s16_t header_size_increment)
       return 1;
     /* AlexV: we need to check that the header EXPANTION is legal for PBUF_REF & PBUF_ROM pbufs! */
     p->payload = (u8_t *)p->payload - header_size_increment;
+  } else if (type == PBUF_ZEROCOPY) {
+    /* temporary do the same as for PBUF_RAM until zcopy support is not ready */
+    p->payload = (u8_t *)p->payload - header_size_increment;
   } else {
     /* Unknown type */
     LWIP_ASSERT("bad pbuf type", 0);
