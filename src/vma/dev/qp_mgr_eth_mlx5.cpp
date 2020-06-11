@@ -887,7 +887,6 @@ void qp_mgr_eth_mlx5::trigger_completion_for_all_sent_packets()
 
 		// Close the Tx unsignaled send list
 		set_unsignaled_count();
-		m_p_last_tx_mem_buf_desc = NULL;
 
 		if (!m_p_ring->m_tx_num_wr_free) {
 			qp_logdbg("failed to trigger completion for all packets due to no available wr");
