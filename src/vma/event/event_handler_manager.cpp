@@ -431,6 +431,8 @@ const char* event_handler_manager::reg_action_str(event_action_type_e reg_action
 //get new action of event (register / unregister), and post to the thread's pipe
 void event_handler_manager::post_new_reg_action(reg_action_t& reg_action)
 {
+	bool empty;
+
 	if (!m_b_continue_running)
 		return;
 
@@ -439,9 +441,11 @@ void event_handler_manager::post_new_reg_action(reg_action_t& reg_action)
 	evh_logfunc("add event action %s (%d)", reg_action_str(reg_action.type), reg_action.type);
 
 	m_reg_action_q_lock.lock();
+	empty = m_reg_action_q.empty();
 	m_reg_action_q.push_back(reg_action);
 	m_reg_action_q_lock.unlock();
-	do_wakeup();
+	if (empty)
+		do_wakeup();
 }
 
 void event_handler_manager::priv_register_timer_handler(timer_reg_info_t& info)
