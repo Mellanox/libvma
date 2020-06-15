@@ -90,6 +90,22 @@ enum {
 #define SO_REUSEPORT		15
 #endif
 
+#ifndef SO_EE_ORIGIN_ZEROCOPY
+#define SO_EE_ORIGIN_ZEROCOPY		5
+#endif
+
+#ifndef SO_ZEROCOPY
+#define SO_ZEROCOPY	59
+#endif
+
+#ifndef SO_EE_CODE_ZEROCOPY_COPIED
+#define SO_EE_CODE_ZEROCOPY_COPIED	1
+#endif
+
+#ifndef MSG_ZEROCOPY
+#define MSG_ZEROCOPY	0x4000000
+#endif
+
 struct cmsg_state
 {
 	struct msghdr	*mhdr;
