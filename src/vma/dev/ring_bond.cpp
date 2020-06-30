@@ -451,6 +451,31 @@ int ring_bond::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_r
 	}
 }
 
+int ring_bond::poll_and_process_element_tx(uint64_t* p_cq_poll_sn)
+{
+	if (m_lock_ring_tx.trylock()) {
+		errno = EAGAIN;
+		return 0;
+	}
+
+	int temp = 0;
+	int ret = 0;
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
+		if (m_bond_rings[i]->is_up()) {
+			temp = m_bond_rings[i]->poll_and_process_element_tx(p_cq_poll_sn);
+			if (temp > 0) {
+				ret += temp;
+			}
+		}
+	}
+	m_lock_ring_tx.unlock();
+	if (ret > 0) {
+		return ret;
+	} else {
+		return temp;
+	}
+}
+
 int ring_bond::drain_and_proccess()
 {
 	if (m_lock_ring_rx.trylock()) {
