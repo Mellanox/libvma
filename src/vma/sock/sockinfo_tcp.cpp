@@ -956,8 +956,13 @@ done:
 	 * data increments the counter.
 	 * The counter is not incremented on failure or if called with length zero.
 	 */
-	if ((apiflags & VMA_TX_PACKET_ZEROCOPY) && (total_tx > 0)) {
-		atomic_fetch_and_inc(&m_zckey);
+	if ((apiflags & VMA_TX_PACKET_ZEROCOPY) &&
+			(total_tx > 0)) {
+		if (m_last_zcdesc->tx.zc.id != (uint32_t)atomic_read(&m_zckey)) {
+			si_tcp_logerr("Invalid tx zcopy operation");
+		} else {
+			atomic_fetch_and_inc(&m_zckey);
+		}
 	}
 
 	unlock_tcp_con();
@@ -4592,6 +4597,15 @@ mem_buf_desc_t* sockinfo_tcp::tcp_tx_zc_alloc(mem_buf_desc_t* p_desc)
 	p_desc->tx.zc.len = p_desc->lwip_pbuf.pbuf.len;
 	p_desc->tx.zc.ctx = (void *)this;
 	p_desc->tx.zc.callback = tcp_tx_zc_callback;
+
+	if (m_last_zcdesc &&
+			(m_last_zcdesc != p_desc) &&
+			(m_last_zcdesc->lwip_pbuf.pbuf.ref > 0) &&
+			(m_last_zcdesc->tx.zc.id == p_desc->tx.zc.id)) {
+		m_last_zcdesc->tx.zc.len = m_last_zcdesc->lwip_pbuf.pbuf.len;
+		m_last_zcdesc->tx.zc.count = 0;
+	}
+	m_last_zcdesc = p_desc;
 
 	return p_desc;
 }

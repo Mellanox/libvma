@@ -465,6 +465,7 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
 #endif /* LWIP_TSO */
 
   optflags |= (apiflags & TCP_WRITE_DUMMY ? TF_SEG_OPTS_DUMMY_MSG : 0);
+  optflags |= (apiflags & TCP_WRITE_ZEROCOPY ? TF_SEG_OPTS_ZEROCOPY : 0);
 
 #if LWIP_TCP_TIMESTAMPS
   if ((pcb->flags & TF_TIMESTAMP)) {
@@ -535,7 +536,7 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
 #endif /* TCP_OVERSIZE_DBGCHECK */
 
     if (pcb->unsent_oversize > 0) {
-      if (!(apiflags & TCP_WRITE_FILE)) {
+      if (!(apiflags & (TCP_WRITE_FILE | TCP_WRITE_ZEROCOPY))) {
         oversize = pcb->unsent_oversize;
         LWIP_ASSERT("inconsistent oversize vs. space", oversize_used <= space);
         oversize_used = oversize < len ? oversize : len;
@@ -556,10 +557,10 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u32_t len, u8_t apiflags)
      * the end.
      */
 #if LWIP_TSO
-    if (!(apiflags & TCP_WRITE_FILE) && (pos < len) && (space > 0) && (pcb->last_unsent->len > 0) &&
+    if (!(apiflags & (TCP_WRITE_FILE | TCP_WRITE_ZEROCOPY)) && (pos < len) && (space > 0) && (pcb->last_unsent->len > 0) &&
         (tot_p < (int)pcb->tso.max_send_sge)) {
 #else
-    if (!(apiflags & TCP_WRITE_FILE) && (pos < len) && (space > 0) && (pcb->last_unsent->len > 0)) {
+    if (!(apiflags & (TCP_WRITE_FILE | TCP_WRITE_ZEROCOPY)) && (pos < len) && (space > 0) && (pcb->last_unsent->len > 0)) {
 #endif /* LWIP_TSO */
 
       u16_t seglen = space < len - pos ? space : len - pos;

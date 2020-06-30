@@ -116,6 +116,7 @@ sockinfo::sockinfo(int fd):
 	set_flow_tag(m_fd + 1);
 
 	atomic_set(&m_zckey, 0);
+	m_last_zcdesc = NULL;
 
 	m_socketxtreme.ec.clear();
 	m_socketxtreme.completion = NULL;

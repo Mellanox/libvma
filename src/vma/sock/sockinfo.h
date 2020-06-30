@@ -281,6 +281,9 @@ protected:
 	 */
 	atomic_t   m_zckey;
 
+	/* Last memory descriptor with zcopy operation method */
+	mem_buf_desc_t* m_last_zcdesc;
+
 	struct {
 		/* Track internal events to return in socketxtreme_poll()
 		 * Current design support single event for socket at a particular time
