@@ -583,7 +583,7 @@ void mce_sys_var::get_env_params()
 	progress_engine_wce_max	= MCE_DEFAULT_PROGRESS_ENGINE_WCE_MAX;
 	cq_keep_qp_full		= MCE_DEFAULT_CQ_KEEP_QP_FULL;
 	qp_compensation_level	= MCE_DEFAULT_QP_COMPENSATION_LEVEL;
-	internal_thread_arm_cq_enabled	= MCE_DEFAULT_INTERNAL_THREAD_ARM_CQ_ENABLED;
+	internal_thread_arm_cq	= MCE_DEFAULT_INTERNAL_THREAD_ARM_CQ;
 
 	offloaded_sockets	= MCE_DEFAULT_OFFLOADED_SOCKETS;
 	timer_resolution_msec	= MCE_DEFAULT_TIMER_RESOLUTION_MSEC;
@@ -1161,12 +1161,16 @@ void mce_sys_var::get_env_params()
 		tcp_timer_resolution_msec = timer_resolution_msec;
 	}
 
-	if ((env_ptr = getenv(SYS_VAR_INTERNAL_THREAD_ARM_CQ)) != NULL)
-		internal_thread_arm_cq_enabled = atoi(env_ptr) ? true : false;
+	if ((env_ptr = getenv(SYS_VAR_INTERNAL_THREAD_ARM_CQ)) != NULL) {
+		internal_thread_arm_cq = (arm_cq_t)atoi(env_ptr);
+		if (internal_thread_arm_cq < 0 || internal_thread_arm_cq > mce_sys_var::ARM_CQ_ALL) {
+			internal_thread_arm_cq = MCE_DEFAULT_INTERNAL_THREAD_ARM_CQ;
+		}
+	}
 
-        if ((env_ptr = getenv(SYS_VAR_INTERNAL_THREAD_CPUSET)) != NULL) {
-               snprintf(internal_thread_cpuset, FILENAME_MAX, "%s", env_ptr);
-        }
+	if ((env_ptr = getenv(SYS_VAR_INTERNAL_THREAD_CPUSET)) != NULL) {
+		snprintf(internal_thread_cpuset, FILENAME_MAX, "%s", env_ptr);
+	}
 
 	// handle internal thread affinity - default is CPU-0
 	if ((env_ptr = getenv(SYS_VAR_INTERNAL_THREAD_AFFINITY)) != NULL) {

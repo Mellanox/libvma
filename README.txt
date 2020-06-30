@@ -830,11 +830,15 @@ timer expiration (once every 100ms).  Application threads may be blocked till in
 Default value is 0 (deferred handling)
 
 VMA_INTERNAL_THREAD_ARM_CQ
-Wakeup the internal thread for each packet that the CQ receive.
+Wakeup the internal thread for activity on TX/RX CQ.
 Poll and process the packet and bring it to the socket layer.
 This can minimize latency in case of a busy application which is not available to
 receive the packet when it arrived.
 However, this might decrease performance in case of high pps rate application.
+Disable Arm CQ is 0
+Check RX CQ is 1
+Check TX CQ is 2
+Check all CQs is 3
 Default value is 0 (Disabled)
 
 VMA_WAIT_AFTER_JOIN_MSEC

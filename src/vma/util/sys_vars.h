@@ -296,6 +296,25 @@ public:
 		HYPER_VMWARE
 	};
 
+	enum arm_cq_t {
+		ARM_CQ_OFF = 0,
+		ARM_CQ_RX  = 0x01,
+		ARM_CQ_TX  = 0x02,
+		ARM_CQ_ALL = 0x03
+	} ;
+
+	inline const char* arm_cq_str(arm_cq_t value)
+	{
+		switch (value) {
+		case ARM_CQ_OFF: return "(Disabled)";
+		case ARM_CQ_RX: return "(Arm RX CQ)";
+		case ARM_CQ_TX: return "(Arm TX CQ)";
+		case ARM_CQ_ALL: return "(Arm All)";
+		default:				break;
+		}
+		return "unsupported";
+	}
+
 public:
 	void		get_env_params();
 
@@ -406,7 +425,7 @@ public:
 	char		internal_thread_cpuset[FILENAME_MAX];
 	char		internal_thread_affinity_str[FILENAME_MAX];
 	cpu_set_t	internal_thread_affinity;
-	bool		internal_thread_arm_cq_enabled;
+	int		internal_thread_arm_cq;
 	internal_thread_tcp_timer_handling_t internal_thread_tcp_timer_handling;	
 	bool 		handle_bf;
 
@@ -647,7 +666,7 @@ extern mce_sys_var & safe_mce_sys();
 #define MCE_DEFAULT_PROGRESS_ENGINE_WCE_MAX		(10000)
 #define MCE_DEFAULT_CQ_KEEP_QP_FULL			(true)
 #define MCE_DEFAULT_QP_COMPENSATION_LEVEL		(256)
-#define MCE_DEFAULT_INTERNAL_THREAD_ARM_CQ_ENABLED	(false)
+#define MCE_DEFAULT_INTERNAL_THREAD_ARM_CQ	(mce_sys_var::ARM_CQ_OFF)
 #define MCE_DEFAULT_QP_FORCE_MC_ATTACH			(false)
 #define MCE_DEFAULT_OFFLOADED_SOCKETS			(true)
 #define MCE_DEFAULT_TIMER_RESOLUTION_MSEC		(10)
