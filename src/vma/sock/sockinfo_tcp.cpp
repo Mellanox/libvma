@@ -1910,7 +1910,7 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 	int total_rx = 0;
 	int poll_count = 0;
 	int bytes_to_tcp_recved;
-	size_t total_iov_sz = 1;
+	size_t total_iov_sz = 0;
 	int out_flags = 0;
 	int in_flags = *p_flags;
 	bool block_this_run = BLOCK_THIS_RUN(m_b_blocking, in_flags);
@@ -1932,23 +1932,43 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 	TAKE_T_RX_START;
 #endif
 
-	if (unlikely((in_flags & MSG_WAITALL) && !(in_flags & MSG_PEEK))) {
-		total_iov_sz = 0;
-		for (int i = 0; i < sz_iov; i++) {
-			total_iov_sz += p_iov[i].iov_len;
+	/* In general, without any special flags, socket options, or ioctls being set,
+	 * a recv call on a blocking TCP socket will return any number of bytes less than
+	 * or equal to the size being requested. But unless the socket is closed remotely,
+	 * interrupted by signal, or in an error state,
+	 * it will block until at least 1 byte is available.
+	 * With MSG_ERRQUEUE flag user application can request just information from
+	 * error queue without any income data.
+	 */
+	if (p_iov && (sz_iov > 0)) {
+		total_iov_sz = 1;
+		if (unlikely((in_flags & MSG_WAITALL) && !(in_flags & MSG_PEEK))) {
+			total_iov_sz = 0;
+			for (int i = 0; i < sz_iov; i++) {
+				total_iov_sz += p_iov[i].iov_len;
+			}
+			if (total_iov_sz == 0)
+				return 0;
 		}
-		if (total_iov_sz == 0)
-			return 0;
 	}
 
 	si_tcp_logfunc("rx: iov=%p niovs=%d", p_iov, sz_iov);
-	 /* poll rx queue till we have something */
+
+	/* poll rx queue till we have something */
 	lock_tcp_con();
+	if (__msg) {
+		handle_cmsg(__msg, in_flags);
+		if (__msg->msg_controllen == 0) {
+			errno = EAGAIN;
+			unlock_tcp_con();
+			return -1;
+		}
+	}
 	return_reuse_buffers_postponed();
 	unlock_tcp_con();
 
 	while (m_rx_ready_byte_count < total_iov_sz) {
-		if (unlikely(g_b_exit ||!is_rtr() || (rx_wait_lockless(poll_count, block_this_run) < 0))) {
+		if (unlikely(g_b_exit || !is_rtr() || (rx_wait_lockless(poll_count, block_this_run) < 0))) {
 			return handle_rx_error(block_this_run);
 		}
 	}
@@ -1957,8 +1977,9 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 
 	si_tcp_logfunc("something in rx queues: %d %p", m_n_rx_pkt_ready_list_count, m_rx_pkt_ready_list.front());
 
-	total_rx = dequeue_packet(p_iov, sz_iov, (sockaddr_in *)__from, __fromlen, in_flags, &out_flags);
-	if (__msg) handle_cmsg(__msg, in_flags);
+	if (total_iov_sz > 0) {
+		total_rx = dequeue_packet(p_iov, sz_iov, (sockaddr_in *)__from, __fromlen, in_flags, &out_flags);
+	}
 
 	/*
 	* RCVBUFF Accounting: Going 'out' of the internal buffer: if some bytes are not tcp_recved yet  - do that.
