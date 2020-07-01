@@ -3329,7 +3329,8 @@ bool sockinfo_tcp::is_errorable(int *errors)
 		*errors |= POLLHUP;
 	}
 
-	if (m_conn_state == TCP_CONN_ERROR) {
+	if ((m_conn_state == TCP_CONN_ERROR) ||
+			(!m_error_queue.empty())) {
 		*errors |= POLLERR;
 	}
 
