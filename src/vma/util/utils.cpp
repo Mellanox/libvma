@@ -979,6 +979,7 @@ int validate_ipoib_prop(const char* ifname, unsigned int ifflags,
 	}
 }
 
+#if defined(DEFINED_VERBS_VERSION) && (DEFINED_VERBS_VERSION == 2)
 //NOTE RAW_QP_PRIVLIGES_PARAM_FILE does not exist on upstream drivers
 int validate_raw_qp_privliges()
 {
@@ -992,6 +993,7 @@ int validate_raw_qp_privliges()
 	}
 	return 1;
 }
+#endif /* DEFINED_VERBS_VERSION */
 
 bool validate_user_has_cap_net_raw_privliges()
 {

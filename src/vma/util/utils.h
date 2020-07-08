@@ -274,7 +274,9 @@ int validate_ipoib_prop(const char* ifname, unsigned int ifflags,
 		const char prop_file[], const char *expected_val,
 		int val_size, char *filename, char* base_ifname);
 
+#if defined(DEFINED_VERBS_VERSION) && (DEFINED_VERBS_VERSION == 2)
 int validate_raw_qp_privliges();
+#endif /* DEFINED_VERBS_VERSION */
 
 bool validate_user_has_cap_net_raw_privliges();
 

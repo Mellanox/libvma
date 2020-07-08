@@ -729,7 +729,9 @@ extern mce_sys_var & safe_mce_sys();
 #define L2_ADDR_FILE_FMT                                "/sys/class/net/%.*s/address"
 #define L2_BR_ADDR_FILE_FMT                                   "/sys/class/net/%.*s/broadcast"
 #define OPER_STATE_PARAM_FILE				"/sys/class/net/%s/operstate"
+#if defined(DEFINED_VERBS_VERSION) && (DEFINED_VERBS_VERSION == 2)
 #define RAW_QP_PRIVLIGES_PARAM_FILE			"/sys/module/ib_uverbs/parameters/disable_raw_qp_enforcement"
+#endif /* DEFINED_VERBS_VERSION */
 #define FLOW_STEERING_MGM_ENTRY_SIZE_PARAM_FILE		"/sys/module/mlx4_core/parameters/log_num_mgm_entry_size"
 #define VIRTUAL_DEVICE_FOLDER			"/sys/devices/virtual/net/%s/"
 #define BOND_DEVICE_FILE				"/proc/net/bonding/%s"

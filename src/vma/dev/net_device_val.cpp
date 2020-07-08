@@ -1723,6 +1723,7 @@ bool net_device_val::verify_qp_creation(const char* ifname, enum ibv_qp_type qp_
 		nd_logdbg("QP creation failed on interface %s (errno=%d %m), Traffic will not be offloaded", ifname, errno);
 qp_failure:
 		int err = errno; //verify_raw_qp_privliges can overwrite errno so keep it before the call
+#if defined(DEFINED_VERBS_VERSION) && (DEFINED_VERBS_VERSION == 2)
 		if (validate_raw_qp_privliges() == 0) {
 			// MLNX_OFED raw_qp_privliges file exist with bad value
 			vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
@@ -1733,8 +1734,9 @@ qp_failure:
 			vlog_printf(VLOG_WARNING,"* 2. Restart openibd or rdma service depending on your system configuration\n");
 			vlog_printf(VLOG_WARNING,"* Read the RAW_PACKET QP root access enforcement section in the VMA's User Manual for more information\n");
 			vlog_printf(VLOG_WARNING,"******************************************************************************************************\n");
-		}
-		else if (validate_user_has_cap_net_raw_privliges() == 0 || err == EPERM) {
+		} else
+#endif /* DEFINED_VERBS_VERSION */
+		if (validate_user_has_cap_net_raw_privliges() == 0 || err == EPERM) {
 			vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 			vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded.\n", ifname);
 			vlog_printf(VLOG_WARNING,"* Offloaded resources are restricted to root or user with CAP_NET_RAW privileges\n");
