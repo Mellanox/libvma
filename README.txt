@@ -1068,23 +1068,6 @@ VMA_TRACELEVEL variable value is set to 4 or more.
 In order to fix it - set VMA_TRACELEVEL to it's default value: 3
 
 
-* Ethernet RAW_PACKET_QP limited to privilege users
-
- VMA WARNING: ******************************************************************************
- VMA WARNING: * Verbs RAW_PACKET QP type creation is limited for root user access          *
- VMA WARNING: * Working in this mode might causes VMA malfunction over Ethernet interfaces *
- VMA WARNING: * WARNING: the following steps will restart your network interface!          *
- VMA WARNING: * 1. "echo options ib_uverbs disable_raw_qp_enforcement=1 > /etc/modprobe.d/ib_uverbs.conf" *
- VMA WARNING: * 2. "/etc/init.d/openibd restart"                                           *
- VMA WARNING: * Read the RAW_PACKET QP root access enforcement section in the VMA's User Manual for more information *
- VMA WARNING: ******************************************************************************
-This warning message means that VMA tried to create a HW QP resource over Eth
-interface while the kernel requires this operation to be done only by privileged
-users. root can enable this for regular users as well by:
- 1. "echo options ib_uverbs disable_raw_qp_enforcement=1 > /etc/modprobe.d/ib_uverbs.conf"
- 2. Restart openibd or rdma service depending on your system configuration
-
-
 * CAP_NET_RAW and root access
 
 VMA_WARNING: ******************************************************************************
