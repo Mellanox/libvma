@@ -1,3 +1,9 @@
+Version 9.1.1-0:
+Date + Time 2020-07-09
+=============================================================
+Fixed:
+        - RM #2234519 Remove disable_raw_qp_enforcement option for rdma-core
+
 Version 9.1.0-0:
 Date + Time 2020-06-03
 =============================================================
