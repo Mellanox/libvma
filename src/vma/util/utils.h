@@ -280,6 +280,8 @@ int validate_raw_qp_privliges();
 
 bool validate_user_has_cap_net_raw_privliges();
 
+size_t default_huge_page_size(void);
+
 /**
  * Get TSO support using interface index
  *
