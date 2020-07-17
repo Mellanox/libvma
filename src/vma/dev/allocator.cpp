@@ -158,7 +158,15 @@ uint32_t vma_allocator::find_lkey_by_ib_ctx(ib_ctx_handler *p_ib_ctx_h) const
 
 bool vma_allocator::hugetlb_alloc(size_t sz_bytes)
 {
-	const size_t hugepagemask = 4 * 1024 * 1024 - 1;
+	static size_t hugepagemask = 0;
+
+	if (!hugepagemask) {
+		hugepagemask = default_huge_page_size();
+		if (!hugepagemask) {
+			return false;
+		}
+		hugepagemask -= 1;
+	}
 
 	m_length = (sz_bytes + hugepagemask) & (~hugepagemask);
 

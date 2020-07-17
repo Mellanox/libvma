@@ -1017,6 +1017,34 @@ bool validate_user_has_cap_net_raw_privliges()
 #endif
 }
 
+size_t default_huge_page_size(void)
+{
+	static size_t hugepage_sz = 0;
+#ifdef MAP_HUGETLB
+
+	if (!hugepage_sz) {
+		char str[1024];
+		unsigned long sz;
+		FILE *file;
+
+		file = fopen("/proc/meminfo", "rt");
+		if (file) {
+			while (fgets(str, sizeof(str), file) != NULL) {
+				if (sscanf(str, "Hugepagesize:   %8lu kB", &sz) == 1) {
+					hugepage_sz = sz * 1024;
+					break;
+				}
+			}
+			fclose(file);
+		}
+	}
+#endif
+
+	__log_dbg("Detect default Hugepage size: %d", hugepage_sz);
+
+	return hugepage_sz;
+}
+
 int validate_tso(int if_index)
 {
 #ifdef HAVE_LINUX_ETHTOOL_H
