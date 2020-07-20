@@ -869,6 +869,7 @@ tcp_enqueue_flags(struct tcp_pcb *pcb, u8_t flags)
     for (useg = pcb->unsent; useg->next != NULL; useg = useg->next);
     useg->next = seg;
   }
+  pcb->last_unsent = seg;
 #if TCP_OVERSIZE
   /* The new unsent tail has no space */
   pcb->unsent_oversize = 0;
