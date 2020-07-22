@@ -58,7 +58,6 @@ typedef err_t (*ip_output_fn)(struct pbuf *p, void* p_conn, u16_t flags);
 #else
 typedef err_t (*ip_output_fn)(struct pbuf *p, void* p_conn, int is_rexmit, u8_t is_dummy);
 #endif /* LWIP_TSO */
-void register_ip_output(ip_output_fn fn);
 
 typedef ssize_t (*sys_readv_fn)(int __fd, const struct iovec *iov, int iovcnt);
 void register_sys_readv(sys_readv_fn fn);

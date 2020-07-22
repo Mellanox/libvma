@@ -120,7 +120,6 @@ vma_lwip::vma_lwip()
 	register_tcp_tx_pbuf_free(sockinfo_tcp::tcp_tx_pbuf_free);
 	register_tcp_seg_alloc(sockinfo_tcp::tcp_seg_alloc);
 	register_tcp_seg_free(sockinfo_tcp::tcp_seg_free);
-	register_ip_output(sockinfo_tcp::ip_output);
 	register_tcp_state_observer(sockinfo_tcp::tcp_state_observer);
 	register_ip_route_mtu(sockinfo_tcp::get_route_mtu);
 	register_sys_now(sys_now);

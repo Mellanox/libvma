@@ -106,13 +106,6 @@ void register_sys_now(sys_now_fn fn)
 }
 
 #if LWIP_3RD_PARTY_L3
-ip_output_fn external_ip_output;
-
-void register_ip_output(ip_output_fn fn)
-{
-    external_ip_output = fn;
-}
-
 ip_route_mtu_fn external_ip_route_mtu;
 
 void register_ip_route_mtu(ip_route_mtu_fn fn)
@@ -1785,7 +1778,7 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
  * most other segment output functions.
  *
  * The pcb is given only when its valid and from an output context.
- * It is used with the external_ip_output function.
+ * It is used with the pcb->ip_output() function.
  *
  * @param seqno the sequence number to use for the outgoing segment
  * @param ackno the acknowledge number to use for the outgoing segment
@@ -1828,7 +1821,6 @@ tcp_rst(u32_t seqno, u32_t ackno, u16_t local_port, u16_t remote_port, struct tc
 #else
   if(pcb) pcb->ip_output(p, pcb, 0, 0);
 #endif /* LWIP_TSO */
-  /* external_ip_output(p, NULL, local_ip, remote_ip, TCP_TTL, 0, IP_PROTO_TCP) */;
   tcp_tx_pbuf_free(pcb, p);
   LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_rst: seqno %"U32_F" ackno %"U32_F".\n", seqno, ackno));
 }

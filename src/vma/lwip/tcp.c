@@ -329,7 +329,6 @@ tcp_abandon(struct tcp_pcb *pcb, int reset)
 {
   u32_t seqno, ackno;
   u16_t remote_port, local_port;
-  ip_addr_t remote_ip, local_ip;
 #if LWIP_CALLBACK_API  
   tcp_err_fn errf;
 #endif /* LWIP_CALLBACK_API */
@@ -347,8 +346,6 @@ tcp_abandon(struct tcp_pcb *pcb, int reset)
     int send_rst = reset && (get_tcp_state(pcb) != CLOSED);
     seqno = pcb->snd_nxt;
     ackno = pcb->rcv_nxt;
-    ip_addr_copy(local_ip, pcb->local_ip);
-    ip_addr_copy(remote_ip, pcb->remote_ip);
     local_port = pcb->local_port;
     remote_port = pcb->remote_port;
 #if LWIP_CALLBACK_API
@@ -356,27 +353,12 @@ tcp_abandon(struct tcp_pcb *pcb, int reset)
 #endif /* LWIP_CALLBACK_API */
     errf_arg = pcb->my_container;
     tcp_pcb_remove(pcb);
-    if (pcb->unacked != NULL) {
-      tcp_tx_segs_free(pcb, pcb->unacked);
-      pcb->unacked = NULL;
-    }
-    if (pcb->unsent != NULL) {
-      tcp_tx_segs_free(pcb, pcb->unsent);
-      pcb->unsent = NULL;
-    }
-#if TCP_QUEUE_OOSEQ    
-    if (pcb->ooseq != NULL) {
-      tcp_segs_free(pcb, pcb->ooseq);
-    }
-#endif /* TCP_QUEUE_OOSEQ */
     TCP_EVENT_ERR(errf, errf_arg, ERR_ABRT);
     if (send_rst) {
       LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_abandon: sending RST\n"));
       tcp_rst(seqno, ackno, local_port, remote_port, pcb);
     }
   }
-  (void)local_ip;  /* Fix warning -Wunused-but-set-variable */
-  (void)remote_ip; /* Fix warning -Wunused-but-set-variable */
 }
 
 /**
