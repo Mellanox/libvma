@@ -390,6 +390,7 @@ void print_vma_global_settings()
 	VLOG_STR_PARAM_STRING("Stats File", safe_mce_sys().stats_filename, MCE_DEFAULT_STATS_FILE, SYS_VAR_STATS_FILENAME, safe_mce_sys().stats_filename);
 	VLOG_STR_PARAM_STRING("Stats shared memory directory", safe_mce_sys().stats_shmem_dirname, MCE_DEFAULT_STATS_SHMEM_DIR, SYS_VAR_STATS_SHMEM_DIRNAME, safe_mce_sys().stats_shmem_dirname);
 	VLOG_STR_PARAM_STRING("VMAD output directory", safe_mce_sys().vmad_notify_dir, MCE_DEFAULT_VMAD_FOLDER, SYS_VAR_VMAD_DIR, safe_mce_sys().vmad_notify_dir);
+	VLOG_PARAM_STRING("VMAD support", safe_mce_sys().vmad_enabled, MCE_DEFAULT_VMAD_ENABLED, SYS_VAR_VMAD_ENABLED, safe_mce_sys().vmad_enabled ? "Enabled" : "Disabled");
 	VLOG_PARAM_NUMBER("Stats FD Num (max)", safe_mce_sys().stats_fd_num_max, MCE_DEFAULT_STATS_FD_NUM, SYS_VAR_STATS_FD_NUM);
 	VLOG_STR_PARAM_STRING("Conf File", safe_mce_sys().conf_filename, MCE_DEFAULT_CONF_FILE, SYS_VAR_CONF_FILENAME, safe_mce_sys().conf_filename);
 	VLOG_STR_PARAM_STRING("Application ID", safe_mce_sys().app_id, MCE_DEFAULT_APP_ID, SYS_VAR_APPLICATION_ID, safe_mce_sys().app_id);
@@ -674,9 +675,19 @@ static void do_global_ctors_helper()
 		g_is_forked_child = false;
 
 	/* Open communication with daemon */
-	NEW_CTOR(g_p_agent, agent());
-	vlog_printf(VLOG_DEBUG,"Agent setup state: g_p_agent=%p active=%d\n",
-			g_p_agent, (g_p_agent ? g_p_agent->state() : -1));
+	if (safe_mce_sys().vmad_enabled) {
+		NEW_CTOR(g_p_agent, agent());
+		vlog_printf(VLOG_DEBUG, "Agent setup state: g_p_agent=%p active=%d\n",
+				g_p_agent, (g_p_agent ? g_p_agent->state() : -1));
+	} else {
+		vlog_printf(VLOG_DEBUG, "Agent is disabled");
+		if (mce_sys_var::HYPER_MSHV == safe_mce_sys().hypervisor) {
+			vlog_printf(VLOG_WARNING, "*************************************************************\n");
+			vlog_printf(VLOG_WARNING, "* VMA agent is disabled on Hyper-V system, but shouldn't be.*\n");
+			vlog_printf(VLOG_WARNING, "* Consider using VMA_VMAD_ENABLED=1 option.                 *\n");
+			vlog_printf(VLOG_WARNING, "*************************************************************\n");
+		}
+	}
 
 	// Create all global managment objects
 	NEW_CTOR(g_p_event_handler_manager, event_handler_manager());

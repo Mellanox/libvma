@@ -313,7 +313,9 @@ sockinfo_tcp::sockinfo_tcp(int fd):
 	}
 
 	si_tcp_logdbg("TCP PCB FLAGS: 0x%x", m_pcb.flags);
-	g_p_agent->register_cb((agent_cb_t)&sockinfo_tcp::put_agent_msg, (void *)this);
+	if (g_p_agent != NULL) {
+		g_p_agent->register_cb((agent_cb_t)&sockinfo_tcp::put_agent_msg, (void *)this);
+	}
 	si_tcp_logfunc("done");
 }
 
@@ -356,8 +358,9 @@ sockinfo_tcp::~sockinfo_tcp()
 		si_tcp_logerr("not all buffers were freed. protocol=TCP. m_n_rx_pkt_ready_list_count=%d, m_rx_ready_byte_count=%d, m_rx_pkt_ready_list.size()=%d, m_rx_ring_map.size()=%d, m_rx_reuse_buff.n_buff_num=%d, m_rx_reuse_buff.rx_reuse.size=%d, m_rx_cb_dropped_list.size=%d, m_rx_ctl_packets_list.size=%d, m_rx_peer_packets.size=%d, m_rx_ctl_reuse_list.size=%d",
 				m_n_rx_pkt_ready_list_count, m_rx_ready_byte_count, (int)m_rx_pkt_ready_list.size() ,(int)m_rx_ring_map.size(), m_rx_reuse_buff.n_buff_num, m_rx_reuse_buff.rx_reuse.size(), m_rx_cb_dropped_list.size(), m_rx_ctl_packets_list.size(), m_rx_peer_packets.size(), m_rx_ctl_reuse_list.size());
 
-	g_p_agent->unregister_cb((agent_cb_t)&sockinfo_tcp::put_agent_msg, (void *)this);
-
+	if (g_p_agent != NULL) {
+		g_p_agent->unregister_cb((agent_cb_t)&sockinfo_tcp::put_agent_msg, (void *)this);
+	}
 	si_tcp_logdbg("sock closed");
 }
 
@@ -1159,7 +1162,7 @@ err_t sockinfo_tcp::ip_output_syn_ack(struct pbuf *p, void* v_p_conn, int is_rex
 	p_si_tcp->m_p_socket_stats->tcp_state = new_state;
 
 	/* Update daemon about actual state for offloaded connection */
-	if (likely(p_si_tcp->m_sock_offload == TCP_SOCK_LWIP)) {
+	if (g_p_agent != NULL && likely(p_si_tcp->m_sock_offload == TCP_SOCK_LWIP)) {
 		p_si_tcp->put_agent_msg((void *)p_si_tcp);
 	}
 }
@@ -4733,7 +4736,8 @@ void tcp_timers_collection::handle_timer_expired(void* user_data)
 	m_n_location = (m_n_location + 1) % m_n_intervals_size;
 
 	/* Processing all messages for the daemon */
-	g_p_agent->progress();
+	if (g_p_agent != NULL)
+		g_p_agent->progress();
 }
 
 void tcp_timers_collection::add_new_timer(timer_node_t* node, timer_handler* handler, void* user_data)

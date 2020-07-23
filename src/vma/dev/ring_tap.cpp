@@ -371,6 +371,9 @@ int ring_tap::prepare_flow_message(vma_msg_flow& data, msg_flow_t flow_action,
 {
 	int rc = 0;
 
+	if (unlikely(g_p_agent == NULL))
+		return 0;
+
 	memset(&data, 0, sizeof(data));
 	data.hdr.code = VMA_MSG_FLOW;
 	data.hdr.ver = VMA_AGENT_VER;
@@ -399,6 +402,9 @@ int ring_tap::prepare_flow_message(vma_msg_flow& data, msg_flow_t flow_action,
 int ring_tap::prepare_flow_message(vma_msg_flow& data, msg_flow_t flow_action)
 {
 	int rc = 0;
+
+	if (unlikely(g_p_agent == NULL))
+		return 0;
 
 	memset(&data, 0, sizeof(data));
 	data.hdr.code = VMA_MSG_FLOW;

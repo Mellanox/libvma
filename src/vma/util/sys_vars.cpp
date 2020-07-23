@@ -518,6 +518,7 @@ void mce_sys_var::get_env_params()
 	handle_sigintr 		= MCE_DEFAULT_HANDLE_SIGINTR;
 	handle_segfault		= MCE_DEFAULT_HANDLE_SIGFAULT;
 	stats_fd_num_max	= MCE_DEFAULT_STATS_FD_NUM;
+	vmad_enabled		= MCE_DEFAULT_VMAD_ENABLED;
 
 	ring_allocation_logic_tx= MCE_DEFAULT_RING_ALLOCATION_LOGIC_TX;
 	ring_allocation_logic_rx= MCE_DEFAULT_RING_ALLOCATION_LOGIC_RX;
@@ -802,6 +803,10 @@ void mce_sys_var::get_env_params()
 
 	if ((env_ptr = getenv(SYS_VAR_VMAD_DIR)) != NULL){
 		read_env_variable_with_pid(vmad_notify_dir, sizeof(vmad_notify_dir), env_ptr);
+	}
+
+	if ((env_ptr = getenv(SYS_VAR_VMAD_ENABLED)) != NULL){
+		vmad_enabled = atoi(env_ptr) ? true : false;
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_LOG_LEVEL)) != NULL)
