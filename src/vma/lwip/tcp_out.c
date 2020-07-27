@@ -965,6 +965,17 @@ tcp_send_empty_ack(struct tcp_pcb *pcb)
   return ERR_OK;
 }
 
+/* Used by split functions to move FIN/RST flags to the rightmost segment. */
+static void tcp_seg_move_flags(struct tcp_seg *from, struct tcp_seg *to, u8_t flags)
+{
+  u16_t from_flags = TCPH_FLAGS(from->tcphdr) & flags;
+
+  if ((from != to) && (to != NULL) && from_flags) {
+    TCPH_SET_FLAG(to->tcphdr, from_flags);
+    TCPH_UNSET_FLAG(from->tcphdr, flags);
+  }
+}
+
 #if LWIP_TSO
 /**
  * Called by tcp_output() to actually join few following TCP segments
@@ -1130,6 +1141,7 @@ out:
     pcb->unsent_oversize = result ? oversize : 0;
 #endif /* TCP_OVERSIZE */
   }
+  tcp_seg_move_flags(seg, cur_seg, TCP_FIN | TCP_RST);
   return result;
 }
 
@@ -1228,6 +1240,8 @@ tcp_rexmit_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
       pcb->unsent_oversize = 0;
 #endif /* TCP_OVERSIZE */
     }
+
+    tcp_seg_move_flags(cur_seg, new_seg, TCP_FIN | TCP_RST);
 
     if (NULL == tcp_split_one_segment(pcb, cur_seg, mss_local, optflags, optlen)) {
         LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_split_one_segment: could not allocate memory for segment\n"));
@@ -1399,6 +1413,8 @@ tcp_split_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
   else {
     LWIP_ASSERT("tcp_split_segment: We should not be here [else]",0);
   }
+
+  tcp_seg_move_flags(seg, newseg, TCP_FIN | TCP_RST);
 
 #if TCP_TSO_DEBUG
   LWIP_DEBUGF(TCP_TSO_DEBUG | LWIP_DBG_TRACE,
