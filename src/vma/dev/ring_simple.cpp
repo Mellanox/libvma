@@ -371,15 +371,7 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		    "m_flow_tag_enabled: %d", flow_spec_5t.to_str(), si,
 		    flow_tag_id, m_flow_tag_enabled);
 
-	/*
-	 * //auto_unlocker lock(m_lock_ring_rx);
-	 * todo instead of locking the whole function which have many "new" calls,
-	 * we'll only lock the parts that touch the ring members.
-	 * if some of the constructors need the ring locked, we need to modify
-	 * and add separate functions for that, which will be called after ctor with ring locked.
-	 * currently we assume the ctors does not require the ring to be locked.
-	 */
-	m_lock_ring_rx.lock();
+	auto_unlocker lock(m_lock_ring_rx);
 
 	/* Get the appropriate hash map (tcp, uc or mc) from the 5t details */
 	if (flow_spec_5t.is_udp_uc()) {
@@ -391,7 +383,6 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		p_rfs = m_flow_udp_uc_map.get(key_udp_uc, NULL);
 		if (p_rfs == NULL) {
 			// No rfs object exists so a new one must be created and inserted in the flow map
-			m_lock_ring_rx.unlock();
 			try {
 				p_tmp_rfs = new rfs_uc(&flow_spec_5t, this, NULL, flow_tag_id);
 			} catch(vma_exception& e) {
@@ -404,7 +395,6 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 				return false;
 			}
 			BULLSEYE_EXCLUDE_BLOCK_END
-			m_lock_ring_rx.lock();
 			p_rfs = m_flow_udp_uc_map.get(key_udp_uc, NULL);
 			if (p_rfs) {
 				delete p_tmp_rfs;
@@ -440,7 +430,6 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		}
 		p_rfs = m_flow_udp_mc_map.get(key_udp_mc, NULL);
 		if (p_rfs == NULL) {		// It means that no rfs object exists so I need to create a new one and insert it to the flow map
-			m_lock_ring_rx.unlock();
 			if ((m_transport_type == VMA_TRANSPORT_IB && 0 == m_p_qp_mgr->get_underly_qpn()) || m_b_sysvar_eth_mc_l2_only_rules) {
 				l2_mc_ip_filter = new rfs_rule_filter(m_l2_mc_ip_attach_map, key_udp_mc.dst_ip, flow_spec_5t);
 			}
@@ -454,7 +443,6 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 				ring_logerr("Failed to allocate rfs!");
 				return false;
 			}
-			m_lock_ring_rx.lock();
 			p_rfs = m_flow_udp_mc_map.get(key_udp_mc, NULL);
 			if (p_rfs) {
 				delete p_tmp_rfs;
@@ -479,7 +467,6 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 
 		p_rfs = m_flow_tcp_map.get(key_tcp, NULL);
 		if (p_rfs == NULL) {		// It means that no rfs object exists so I need to create a new one and insert it to the flow map
-			m_lock_ring_rx.unlock();
 			if (safe_mce_sys().tcp_3t_rules) {
 				flow_tuple tcp_3t_only(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port(), 0, 0, flow_spec_5t.get_protocol());
 				tcp_dst_port_filter = new rfs_rule_filter(m_tcp_dst_port_attach_map, rule_key.key, tcp_3t_only);
@@ -506,8 +493,6 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 				return false;
 			}
 			BULLSEYE_EXCLUDE_BLOCK_END
-			/* coverity[double_lock] TODO: RM#1049980 */
-			m_lock_ring_rx.lock();
 			p_rfs = m_flow_tcp_map.get(key_tcp, NULL);
 			if (p_rfs) {
 				delete p_tmp_rfs;
@@ -518,7 +503,6 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		}
 	BULLSEYE_EXCLUDE_BLOCK_START
 	} else {
-		m_lock_ring_rx.unlock();
 		ring_logerr("Could not find map (TCP, UC or MC) for requested flow");
 		return false;
 	}
@@ -539,8 +523,6 @@ bool ring_simple::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 	} else {
 		ring_logerr("attach_flow=%d failed!", ret);
 	}
-	/* coverity[double_unlock] TODO: RM#1049980 */
-	m_lock_ring_rx.unlock();
 	return ret;
 }
 
