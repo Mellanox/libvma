@@ -312,7 +312,7 @@ dpcp::adapter* ib_ctx_handler::set_dpcp_adapter()
 					goto err;
 				}
 
-				adapter->set_pd(out_pd.pdn);
+				adapter->set_pd(out_pd.pdn, pd);
 				status = adapter->open();
 				if (dpcp::DPCP_OK != status) {
 					ibch_logerr("failed opening dpcp adapter %s got %d",
