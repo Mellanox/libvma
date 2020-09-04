@@ -1976,6 +1976,8 @@ tcp_keepalive(struct tcp_pcb *pcb)
 {
   struct pbuf *p;
   struct tcp_hdr *tcphdr;
+  u8_t optlen = 0;
+  u32_t *opts;
 
   LWIP_DEBUGF(TCP_DEBUG, ("tcp_keepalive: sending KEEPALIVE probe to %"U16_F".%"U16_F".%"U16_F".%"U16_F"\n",
                           ip4_addr1_16(&pcb->remote_ip), ip4_addr2_16(&pcb->remote_ip),
@@ -1984,13 +1986,28 @@ tcp_keepalive(struct tcp_pcb *pcb)
   LWIP_DEBUGF(TCP_DEBUG, ("tcp_keepalive: tcp_ticks %"U32_F"   pcb->tmr %"U32_F" pcb->keep_cnt_sent %"U16_F"\n",
                           tcp_ticks, pcb->tmr, pcb->keep_cnt_sent));
 
-  p = tcp_output_alloc_header(pcb, 0, 0, htonl(pcb->snd_nxt - 1));
+#if LWIP_TCP_TIMESTAMPS
+  if (pcb->flags & TF_TIMESTAMP) {
+    optlen = LWIP_TCP_OPT_LENGTH(TF_SEG_OPTS_TS);
+  }
+#endif
+
+  p = tcp_output_alloc_header(pcb, optlen, 0, htonl(pcb->snd_nxt - 1));
   if(p == NULL) {
     LWIP_DEBUGF(TCP_DEBUG,
                 ("tcp_keepalive: could not allocate memory for pbuf\n"));
     return;
   }
   tcphdr = (struct tcp_hdr *)p->payload;
+  opts = (u32_t *)(void *)(tcphdr + 1);
+
+#if LWIP_TCP_TIMESTAMPS
+  pcb->ts_lastacksent = pcb->rcv_nxt;
+  if (pcb->flags & TF_TIMESTAMP) {
+    tcp_build_timestamp_option(pcb, opts );
+    opts += 3;
+  }
+#endif
 
 #if CHECKSUM_GEN_TCP
   tcphdr->chksum = inet_chksum_pseudo(p, &pcb->local_ip, &pcb->remote_ip,
@@ -2010,6 +2027,7 @@ tcp_keepalive(struct tcp_pcb *pcb)
   LWIP_DEBUGF(TCP_DEBUG, ("tcp_keepalive: seqno %"U32_F" ackno %"U32_F".\n",
                           pcb->snd_nxt - 1, pcb->rcv_nxt));
   (void)tcphdr; /* Fix warning -Wunused-but-set-variable*/
+  (void)opts; /* Fix warning -Wunused-but-set-variable */
 }
 
 
@@ -2030,6 +2048,8 @@ tcp_zero_window_probe(struct tcp_pcb *pcb)
   u16_t len;
   u8_t is_fin;
   u32_t snd_nxt;
+  u8_t optlen = 0;
+  u32_t *opts;
 
   LWIP_DEBUGF(TCP_DEBUG,
               ("tcp_zero_window_probe: sending ZERO WINDOW probe to %"
@@ -2053,6 +2073,12 @@ tcp_zero_window_probe(struct tcp_pcb *pcb)
   /* we want to send one seqno: either FIN or data (no options) */
   len = is_fin ? 0 : 1;
 
+#if LWIP_TCP_TIMESTAMPS
+  if (pcb->flags & TF_TIMESTAMP) {
+    optlen = LWIP_TCP_OPT_LENGTH(TF_SEG_OPTS_TS);
+  }
+#endif
+
  /**
   * While sending probe of 1 byte we must split the first unsent segment.
   * This change is commented out because tcp_zero_window_probe() was replaced
@@ -2063,12 +2089,21 @@ tcp_zero_window_probe(struct tcp_pcb *pcb)
   * }
   */
 
-  p = tcp_output_alloc_header(pcb, 0, len, seg->tcphdr->seqno);
+  p = tcp_output_alloc_header(pcb, optlen, len, seg->tcphdr->seqno);
   if(p == NULL) {
     LWIP_DEBUGF(TCP_DEBUG, ("tcp_zero_window_probe: no memory for pbuf\n"));
     return;
   }
   tcphdr = (struct tcp_hdr *)p->payload;
+  opts = (u32_t *)(void *)(tcphdr + 1);
+
+#if LWIP_TCP_TIMESTAMPS
+  pcb->ts_lastacksent = pcb->rcv_nxt;
+  if (pcb->flags & TF_TIMESTAMP) {
+    tcp_build_timestamp_option(pcb, opts );
+    opts += 3;
+  }
+#endif
 
   if (is_fin) {
     /* FIN segment, no data */
@@ -2076,9 +2111,9 @@ tcp_zero_window_probe(struct tcp_pcb *pcb)
   } else {
     /* Data segment, copy in one byte from the head of the unacked queue */
 #if LWIP_TSO
-    *((char *)p->payload + TCP_HLEN) = *(char *)((u8_t *)seg->tcphdr + LWIP_TCP_HDRLEN(seg->tcphdr));
+    *((char *)p->payload + TCP_HLEN + optlen) = *(char *)((u8_t *)seg->tcphdr + LWIP_TCP_HDRLEN(seg->tcphdr));
 #else
-    *((char *)p->payload + TCP_HLEN) = *(char *)seg->dataptr;
+    *((char *)p->payload + TCP_HLEN + optlen) = *(char *)seg->dataptr;
 #endif /* LWIP_TSO */
   }
 
@@ -2106,5 +2141,6 @@ tcp_zero_window_probe(struct tcp_pcb *pcb)
   LWIP_DEBUGF(TCP_DEBUG, ("tcp_zero_window_probe: seqno %"U32_F
                           " ackno %"U32_F".\n",
                           pcb->snd_nxt - 1, pcb->rcv_nxt));
+  (void)opts; /* Fix warning -Wunused-but-set-variable */
 }
 #endif /* LWIP_TCP */
