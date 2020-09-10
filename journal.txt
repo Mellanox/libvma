@@ -1,3 +1,10 @@
+Version 8.4.103-0:
+Date + Time 2020-09-10
+=============================================================
+Fixed:
+        - RM #1338066 Disable flow tag for unicast flows
+        - RM #1262198 Fix epoll_wait returns fd EPOLLOUT event twice
+
 Version 8.4.101-0:
 Date + Time 2018-02-05
 =============================================================
