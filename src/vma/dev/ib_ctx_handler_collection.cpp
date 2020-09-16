@@ -215,7 +215,9 @@ ib_ctx_handler* ib_ctx_handler_collection::get_ib_ctx(const char *ifa_name)
 			if (save_ptr) *save_ptr = '\0'; // Remove the tailing 'new line" char
 			strncpy(active_slave, slave_name, sizeof(active_slave) - 1);
 		}
+#if !(defined(DEFINED_DIRECT_VERBS) && defined(DEFINED_VERBS_VERSION) && (DEFINED_VERBS_VERSION == 3))
 		ifa_name = (const char *)active_slave;
+#endif
 	}
 
 	for (ib_ctx_iter = m_ib_ctx_map.begin(); ib_ctx_iter != m_ib_ctx_map.end(); ib_ctx_iter++) {

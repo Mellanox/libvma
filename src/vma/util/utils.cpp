@@ -926,6 +926,20 @@ bool check_device_name_ib_name(const char* ifname, const char* ibname)
 		}
 	}
 
+#if (defined(DEFINED_DIRECT_VERBS) && defined(DEFINED_VERBS_VERSION) && (DEFINED_VERBS_VERSION == 3))
+	n = snprintf(ib_path, sizeof(ib_path), "/sys/class/infiniband/%s/ports/1/gid_attrs/ndevs/0", ibname);
+	if (likely((0 < n) && (n < (int)sizeof(ib_path)))) {
+		char sys_res[1024] = {0};
+		if (priv_read_file(ib_path, sys_res, 1024, VLOG_FUNC) > 0) {
+			char* p = strchr(sys_res, '\n');
+			if (p) *p = '\0'; // Remove the tailing 'new line" char
+			if (strcmp(sys_res, ifname) == 0) {
+				return true;
+			}
+		}
+	}
+#endif
+
 	return false;
 }
 
