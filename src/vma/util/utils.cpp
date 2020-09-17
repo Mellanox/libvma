@@ -793,6 +793,37 @@ size_t get_local_ll_addr(IN const char * ifname, OUT unsigned char* addr, IN int
 	return bytes_len; // success
 }
 
+bool get_bond_name(IN const char* ifname, OUT char* bond_name, IN int sz)
+{
+	char upper_path[256];
+	char base_ifname[IFNAMSIZ];
+	get_base_interface_name(ifname, base_ifname, sizeof(base_ifname));
+	struct ifaddrs *ifaddr, *ifa;
+	bool ret = false;
+
+	if (getifaddrs(&ifaddr) == -1) {
+		__log_err("getifaddrs() failed (errno = %d %m)", errno);
+		return ret;
+	}
+
+	for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+		snprintf(upper_path, sizeof(upper_path), NETVSC_DEVICE_UPPER_FILE, base_ifname, ifa->ifa_name);
+		int fd = open(upper_path, O_RDONLY);
+		if (fd >= 0) {
+			close(fd);
+			if (IFNAMSIZ <= sz ) {
+				memcpy(bond_name, ifa->ifa_name, IFNAMSIZ);
+			}
+			ret = true;
+			break;
+		}
+	}
+
+	freeifaddrs(ifaddr);
+
+	return ret;
+}
+
 bool get_bond_active_slave_name(IN const char* bond_name, OUT char* active_slave_name, IN int sz)
 {
 	char active_slave_path[256] = {0};
@@ -810,6 +841,12 @@ bool get_bond_active_slave_name(IN const char* bond_name, OUT char* active_slave
 
 bool check_bond_roce_lag_exist(OUT char* bond_roce_lag_path, int sz, IN const char* slave_name)
 {
+#if defined(DEFINED_DIRECT_VERBS) && defined(DEFINED_VERBS_VERSION) && (DEFINED_VERBS_VERSION == 3)
+	NOT_IN_USE(bond_roce_lag_path);
+	NOT_IN_USE(sz);
+	NOT_IN_USE(slave_name);
+	return true;
+#else
 	char sys_res[1024] = {0};
 	snprintf(bond_roce_lag_path, sz, BONDING_ROCE_LAG_FILE, slave_name);
 	if (priv_read_file(bond_roce_lag_path, sys_res, 1024, VLOG_FUNC) > 0) {
@@ -817,6 +854,7 @@ bool check_bond_roce_lag_exist(OUT char* bond_roce_lag_path, int sz, IN const ch
 			return true;
 		}
 	}
+#endif
 
 	return false;
 }
@@ -915,9 +953,14 @@ bool check_device_name_ib_name(const char* ifname, const char* ibname)
 	int n = -1;
 	int fd = -1;
 	char ib_path[IBV_SYSFS_PATH_MAX]= {0};
+	const char *str_ifname = ifname;
 
+	/* Case #1:
+	 * Direct mapping between if device and ib device
+	 * For example: ens4f1 -> mlx5_3
+	 */
 	n = snprintf(ib_path, sizeof(ib_path), "/sys/class/infiniband/%s/device/net/%s/ifindex",
-			ibname, ifname);
+			ibname, str_ifname);
 	if (likely((0 < n) && (n < (int)sizeof(ib_path)))) {
 		fd = open(ib_path, O_RDONLY);
 		if (fd >= 0) {
@@ -927,13 +970,27 @@ bool check_device_name_ib_name(const char* ifname, const char* ibname)
 	}
 
 #if (defined(DEFINED_DIRECT_VERBS) && defined(DEFINED_VERBS_VERSION) && (DEFINED_VERBS_VERSION == 3))
+	/* Case #2:
+	 * When device is a slave interface
+	 * For example: ens4f1(bond0) -> mlx5_bond_0
+	 */
+	char buf[IFNAMSIZ];
+
+	if (get_bond_name(str_ifname, buf, sizeof(buf))) {
+		str_ifname = buf;
+	}
+
+	/* Case #3:
+	 * When device is a bonding interface
+	 * For example: bond0 -> mlx5_bond_0
+	 */
 	n = snprintf(ib_path, sizeof(ib_path), "/sys/class/infiniband/%s/ports/1/gid_attrs/ndevs/0", ibname);
 	if (likely((0 < n) && (n < (int)sizeof(ib_path)))) {
 		char sys_res[1024] = {0};
 		if (priv_read_file(ib_path, sys_res, 1024, VLOG_FUNC) > 0) {
 			char* p = strchr(sys_res, '\n');
 			if (p) *p = '\0'; // Remove the tailing 'new line" char
-			if (strcmp(sys_res, ifname) == 0) {
+			if (strcmp(sys_res, str_ifname) == 0) {
 				return true;
 			}
 		}

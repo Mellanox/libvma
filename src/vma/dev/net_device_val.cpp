@@ -1671,10 +1671,12 @@ bool net_device_val::verify_qp_creation(const char* ifname, enum ibv_qp_type qp_
 		goto release_resources;
 	}
 
+#if !(defined(DEFINED_DIRECT_VERBS) && defined(DEFINED_VERBS_VERSION) && (DEFINED_VERBS_VERSION == 3))
 	// Add to guid map in order to detect roce lag issue
 	if (qp_type == IBV_QPT_RAW_PACKET && m_bond != NO_BOND) {
 		m_sys_image_guid_map[p_ib_ctx->get_ibv_device_attr()->sys_image_guid].push_back(base_ifname);
 	}
+#endif
 
 	//create qp resources
 	channel = ibv_create_comp_channel(p_ib_ctx->get_ibv_context());
