@@ -140,13 +140,14 @@ typedef std::tr1::unordered_map<resource_allocation_key *, std::pair<resource_al
 #define MAX_SLAVES 16
 
 typedef struct slave_data {
-        int         if_index;
+        int             if_index;
         ib_ctx_handler* p_ib_ctx;
-        int 		port_num;
-        L2_address* 	p_L2_addr;
-        bool 		active;
+        int             port_num;
+        L2_address*     p_L2_addr;
+        int             lag_tx_port_affinity;
+        bool            active;
 	slave_data(int _if_index) :
-		if_index(_if_index), p_ib_ctx(NULL), port_num(-1), p_L2_addr(NULL), active(false) {}
+		if_index(_if_index), p_ib_ctx(NULL), port_num(-1), p_L2_addr(NULL), lag_tx_port_affinity(0), active(false) {}
 	~slave_data() {
 		delete p_L2_addr;
 		p_L2_addr = NULL;

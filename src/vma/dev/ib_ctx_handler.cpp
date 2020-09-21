@@ -73,16 +73,25 @@ ib_ctx_handler::ib_ctx_handler(struct ib_ctx_handler_desc *desc) :
 		ibch_logpanic("m_p_ibv_device is invalid");
 	}
 
+	m_p_ibv_context = NULL;
 #ifdef DEFINED_DPCP
 	m_p_adapter = set_dpcp_adapter();
 	if (NULL == m_p_adapter)
 #endif /* DEFINED_DPCP */
 	{
-		m_p_ibv_context = ibv_open_device(m_p_ibv_device);
+#if defined(DEFINED_ROCE_LAG)
+		struct mlx5dv_context_attr dv_attr;
+
+		memset(&dv_attr, 0, sizeof(dv_attr));
+		dv_attr.flags |= MLX5DV_CONTEXT_FLAGS_DEVX;
+		m_p_ibv_context = mlx5dv_open_device(m_p_ibv_device, &dv_attr);
+#endif /* DEFINED_ROCE_LAG */
+		if (m_p_ibv_context == NULL) {
+			m_p_ibv_context = ibv_open_device(m_p_ibv_device);
+		}
 		if (m_p_ibv_context == NULL) {
 			ibch_logpanic("m_p_ibv_context is invalid");
 		}
-
 		// Create pd for this device
 		m_p_ibv_pd = ibv_alloc_pd(m_p_ibv_context);
 		if (m_p_ibv_pd == NULL) {

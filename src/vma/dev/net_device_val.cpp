@@ -648,6 +648,12 @@ void net_device_val::set_slave_array()
 
 		m_slaves[i]->p_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(base_ifname);
 		m_slaves[i]->port_num = get_port_from_ifname(base_ifname);
+#if defined(DEFINED_ROCE_LAG)
+		if (m_bond != NO_BOND) {
+			m_slaves[i]->port_num = get_port_from_ifname(get_ifname_link());
+			m_slaves[i]->lag_tx_port_affinity = i + 1;
+		}
+#endif /* DEFINED_ROCE_LAG */
 		if (m_slaves[i]->port_num < 1) {
 			nd_logdbg("Error: port %d ==> ifname=%s base_ifname=%s",
 					m_slaves[i]->port_num, if_name, base_ifname);
@@ -1513,6 +1519,7 @@ std::string net_device_val_ib::to_str()
 bool net_device_val::verify_bond_ipoib_or_eth_qp_creation()
 {
 	char slaves[IFNAMSIZ * MAX_SLAVES] = {0};
+
 	if (!get_bond_slaves_name_list(get_ifname_link(), slaves, sizeof slaves)) {
 		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 		vlog_printf(VLOG_WARNING,"* Interface %s will not be offloaded, slave list or bond name could not be found\n", get_ifname());
@@ -1540,6 +1547,11 @@ bool net_device_val::verify_bond_ipoib_or_eth_qp_creation()
 		vlog_printf(VLOG_WARNING,"* Check warning messages for more information.\n");
 		vlog_printf(VLOG_WARNING,"*******************************************************************************************************\n");
 	} else {
+#if defined(DEFINED_ROCE_LAG)
+		/* Sanity check for image guid is not correct
+		 * for RoCE LAG on upstream rdma-core
+		 */
+#else
 		/*
 		 * Print warning message while bond device contains two slaves of the same HCA
 		 * while RoCE LAG is enabled for both slaves.
@@ -1553,6 +1565,7 @@ bool net_device_val::verify_bond_ipoib_or_eth_qp_creation()
 				print_roce_lag_warnings(get_ifname_link(), bond_roce_lag_path, guid_iter->second.front().c_str(), guid_iter->second.back().c_str());
 			}
 		}
+#endif /* DEFINED_ROCE_LAG */
 	}
 	return bond_ok;
 }
@@ -1671,12 +1684,10 @@ bool net_device_val::verify_qp_creation(const char* ifname, enum ibv_qp_type qp_
 		goto release_resources;
 	}
 
-#if !(defined(DEFINED_DIRECT_VERBS) && defined(DEFINED_VERBS_VERSION) && (DEFINED_VERBS_VERSION == 3))
 	// Add to guid map in order to detect roce lag issue
 	if (qp_type == IBV_QPT_RAW_PACKET && m_bond != NO_BOND) {
 		m_sys_image_guid_map[p_ib_ctx->get_ibv_device_attr()->sys_image_guid].push_back(base_ifname);
 	}
-#endif
 
 	//create qp resources
 	channel = ibv_create_comp_channel(p_ib_ctx->get_ibv_context());
