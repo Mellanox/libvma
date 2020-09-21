@@ -310,6 +310,28 @@ int qp_mgr::configure(struct qp_mgr_desc *desc)
 		m_rx_num_wr, rx_num_sge);
 #endif /* DEFINED_TSO */
 
+#if defined(DEFINED_ROCE_LAG)
+	if (desc->slave && desc->slave->lag_tx_port_affinity > 0) {
+			const slave_data_t * p_slave = desc->slave;
+			struct mlx5dv_context attr_out;
+
+			memset(&attr_out, 0, sizeof(attr_out));
+			attr_out.comp_mask |= MLX5DV_CONTEXT_MASK_NUM_LAG_PORTS;
+			if (!mlx5dv_query_device(p_slave->p_ib_ctx->get_ibv_context(), &attr_out)) {
+				qp_logdbg("QP ROCE LAG port: %d of %d", p_slave->lag_tx_port_affinity, attr_out.num_lag_ports);
+
+				if (!mlx5dv_modify_qp_lag_port(m_qp, p_slave->lag_tx_port_affinity)) {
+					uint8_t current_port_num = 0;
+					uint8_t active_port_num = 0;
+
+					if (!mlx5dv_query_qp_lag_port(m_qp, &current_port_num, &active_port_num)) {
+						qp_logdbg("QP ROCE LAG port affinity: %d => %d", current_port_num, active_port_num);
+					}
+				}
+			}
+		}
+#endif /* DEFINED_ROCE_LAG */
+
 	// All buffers will be allocated from this qp_mgr buffer pool so we can already set the Rx & Tx lkeys
 	for (uint32_t wr_idx = 0; wr_idx < m_n_sysvar_rx_num_wr_to_post_recv; wr_idx++) {
 		m_ibv_rx_wr_array[wr_idx].sg_list = &m_ibv_rx_sg_array[wr_idx];

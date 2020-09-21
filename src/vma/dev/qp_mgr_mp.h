@@ -47,7 +47,7 @@ public:
 		  qp_mgr_eth(desc, tx_num_wr, vlan, false),
 		  m_p_wq(NULL), m_p_wq_family(NULL), m_p_rwq_ind_tbl(NULL),
 		  m_buff_data(buff_d), m_external_mem(external_mem) {
-		m_p_mp_ring = p_ring;
+		m_p_mp_ring = static_cast<const ring_eth_cb*>(desc->ring);
 		m_n_sysvar_rx_num_wr_to_post_recv = m_p_mp_ring->get_wq_count();
 		if (configure(desc))
 			throw_vma_exception("failed creating mp qp");
