@@ -63,13 +63,12 @@
 
 #define MAX_UPSTREAM_CQ_MSHV_SIZE 8192
 
-qp_mgr::qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context,
-		const uint8_t port_num, const uint32_t tx_num_wr):
+qp_mgr::qp_mgr(struct qp_mgr_desc *desc, const uint32_t tx_num_wr):
 	m_qp(NULL)
 	,m_rq_wqe_idx_to_wrid(NULL)
-	,m_p_ring((ring_simple*)p_ring)
-	,m_port_num((uint8_t)port_num)
-	,m_p_ib_ctx_handler((ib_ctx_handler*)p_context)
+	,m_p_ring((ring_simple*)desc->ring)
+	,m_port_num((uint8_t)desc->slave->port_num)
+	,m_p_ib_ctx_handler((ib_ctx_handler*)desc->slave->p_ib_ctx)
 	,m_max_qp_wr(0)
 	,m_p_cq_mgr_rx(NULL)
 	,m_p_cq_mgr_tx(NULL)
@@ -173,7 +172,7 @@ cq_mgr* qp_mgr::init_tx_cq_mgr()
 	return handle_cq_initialization(&m_tx_num_wr, m_p_ring->get_tx_comp_event_channel(), false);
 }
 
-int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
+int qp_mgr::configure(struct qp_mgr_desc *desc)
 {
 	qp_logdbg("Creating QP of transport type '%s' on ibv device '%s' [%p] on port %d",
 			priv_vma_transport_type_str(m_p_ring->get_transport_type()),
@@ -198,7 +197,7 @@ int qp_mgr::configure(struct ibv_comp_channel* p_rx_comp_event_channel)
 		qp_logerr("Failed allocating m_p_cq_mgr_tx (errno=%d %m)", errno);
 		return -1;
 	}
-	m_p_cq_mgr_rx = init_rx_cq_mgr(p_rx_comp_event_channel);
+	m_p_cq_mgr_rx = init_rx_cq_mgr(desc->rx_comp_event_channel);
 	if (!m_p_cq_mgr_rx) {
 		qp_logerr("Failed allocating m_p_cq_mgr_rx (errno=%d %m)", errno);
 		return -1;

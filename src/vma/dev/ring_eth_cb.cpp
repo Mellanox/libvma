@@ -179,11 +179,9 @@ void* ring_eth_cb::allocate_memory(iovec *mem_desc, size_t buffer_size)
 	}
 }
 
-qp_mgr* ring_eth_cb::create_qp_mgr(const ib_ctx_handler *ib_ctx,
-				   uint8_t port_num,
-				   struct ibv_comp_channel *p_rx_comp_event_channel)
+qp_mgr* ring_eth_cb::create_qp_mgr(struct qp_mgr_desc *desc)
 {
-	return new qp_mgr_mp(this, ib_ctx, port_num, p_rx_comp_event_channel,
+	return new qp_mgr_mp(desc,
 			get_tx_num_wr(), m_partition, m_buff_data,
 			m_external_mem);
 }
