@@ -39,8 +39,7 @@
 class qp_mgr_eth_direct: public qp_mgr_eth_mlx5
 {
 public:
-	qp_mgr_eth_direct(const ring_simple* p_ring, const ib_ctx_handler* p_context,
-			  const uint8_t port_num, ibv_comp_channel* p_rx_comp_event_channel,
+	qp_mgr_eth_direct(struct qp_mgr_desc *desc,
 			  const uint32_t tx_num_wr, const uint16_t vlan);
 	virtual ~qp_mgr_eth_direct();
 	virtual cq_mgr*		init_tx_cq_mgr(void);

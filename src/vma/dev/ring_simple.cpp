@@ -85,19 +85,22 @@ inline void ring_simple::send_status_handler(int ret, vma_ibv_send_wr* p_send_wq
 	BULLSEYE_EXCLUDE_BLOCK_END
 }
 
-qp_mgr* ring_eth::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel)
+qp_mgr* ring_eth::create_qp_mgr(struct qp_mgr_desc *desc)
 {
 #if defined(DEFINED_DIRECT_VERBS)
-	if (qp_mgr::is_lib_mlx5(((ib_ctx_handler*)ib_ctx)->get_ibname())) {
-		return new qp_mgr_eth_mlx5(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), m_partition);
+	if (qp_mgr::is_lib_mlx5(((ib_ctx_handler*)desc->slave->p_ib_ctx)->get_ibname())) {
+		return new qp_mgr_eth_mlx5(desc,
+				get_tx_num_wr(), m_partition);
 	}
 #endif
-	return new qp_mgr_eth(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), m_partition);
+	return new qp_mgr_eth(desc,
+			get_tx_num_wr(), m_partition);
 }
 
-qp_mgr* ring_ib::create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel)
+qp_mgr* ring_ib::create_qp_mgr(struct qp_mgr_desc *desc)
 {
-	return new qp_mgr_ib(this, ib_ctx, port_num, p_rx_comp_event_channel, get_tx_num_wr(), m_partition);
+	return new qp_mgr_ib(desc,
+			get_tx_num_wr(), m_partition);
 }
 
 ring_simple::ring_simple(int if_index, ring* parent, ring_type_t type):
@@ -300,7 +303,12 @@ void ring_simple::create_resources()
 		g_p_fd_collection->add_cq_channel_fd(m_p_tx_comp_event_channel->fd, this);
 	}
 
-	m_p_qp_mgr = create_qp_mgr(m_p_ib_ctx, p_slave->port_num, m_p_rx_comp_event_channel);
+	struct qp_mgr_desc desc;
+	memset(&desc, 0, sizeof(desc));
+	desc.ring = this;
+	desc.slave = p_slave;
+	desc.rx_comp_event_channel = m_p_rx_comp_event_channel;
+	m_p_qp_mgr = create_qp_mgr(&desc);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_p_qp_mgr == NULL) {
 		ring_logerr("Failed to allocate qp_mgr!");

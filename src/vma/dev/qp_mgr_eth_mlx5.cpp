@@ -128,11 +128,9 @@ static inline uint32_t get_mlx5_opcode(vma_ibv_wr_opcode verbs_opcode)
 	}
 }
 
-qp_mgr_eth_mlx5::qp_mgr_eth_mlx5(const ring_simple* p_ring,
-                const ib_ctx_handler* p_context, const uint8_t port_num,
-                struct ibv_comp_channel* p_rx_comp_event_channel,
+qp_mgr_eth_mlx5::qp_mgr_eth_mlx5(struct qp_mgr_desc *desc,
                 const uint32_t tx_num_wr, const uint16_t vlan, bool call_configure):
-        qp_mgr_eth(p_ring, p_context, port_num, p_rx_comp_event_channel, tx_num_wr, vlan, false)
+        qp_mgr_eth(desc, tx_num_wr, vlan, false)
         ,m_sq_wqe_idx_to_wrid(NULL)
         ,m_rq_wqe_counter(0)
         ,m_sq_wqes(NULL)
@@ -145,12 +143,12 @@ qp_mgr_eth_mlx5::qp_mgr_eth_mlx5(const ring_simple* p_ring,
 	// Check device capabilities for dummy send support
 	m_hw_dummy_send_support = vma_is_nop_supported(m_p_ib_ctx_handler->get_ibv_device_attr());
 
-	if (call_configure && configure(p_rx_comp_event_channel)) {
+	if (call_configure && configure(desc)) {
 		throw_vma_exception("failed creating qp_mgr_eth");
 	}
 
 	memset(&m_mlx5_qp, 0, sizeof(m_mlx5_qp));
-	m_db_method = (is_bf(((ib_ctx_handler*)p_context)->get_ibv_context()) ? MLX5_DB_METHOD_BF : MLX5_DB_METHOD_DB);
+	m_db_method = (is_bf(((ib_ctx_handler*)desc->slave->p_ib_ctx)->get_ibv_context()) ? MLX5_DB_METHOD_BF : MLX5_DB_METHOD_DB);
 
 	qp_logdbg("m_db_method=%d", m_db_method);
 }

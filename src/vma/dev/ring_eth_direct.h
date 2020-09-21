@@ -60,9 +60,7 @@ public:
 	ring_eth_direct(int if_index,
 		    vma_external_mem_attr *ext_ring_attr, ring *parent = NULL);
 	virtual		~ring_eth_direct();
-	virtual qp_mgr*	create_qp_mgr(const ib_ctx_handler* ib_ctx,
-					      uint8_t port_num,
-					      struct ibv_comp_channel* p_rx_comp_event_channel);
+	virtual qp_mgr*	create_qp_mgr(struct qp_mgr_desc *desc);
 	// memory handler
 	virtual int	reg_mr(void *addr, size_t length, uint32_t &lkey);
 	virtual int	dereg_mr(void *addr, size_t length);

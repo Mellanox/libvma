@@ -75,9 +75,7 @@ public:
 					   size_t min, size_t max, int flags);
 	void*		allocate_memory(iovec *mem_desc, size_t buffer_size);
 protected:
-	virtual		qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx,
-					      uint8_t port_num,
-					      struct ibv_comp_channel* p_rx_comp_event_channel);
+	virtual		qp_mgr* create_qp_mgr(struct qp_mgr_desc *desc);
 private:
 	uint32_t			m_curr_wqe_used_strides;
 	size_t				m_curr_packets;

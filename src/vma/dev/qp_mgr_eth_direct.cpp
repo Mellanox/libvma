@@ -47,15 +47,12 @@
 #define qp_logfunc	__log_info_func
 #define qp_logfuncall	__log_info_funcall
 
-qp_mgr_eth_direct::qp_mgr_eth_direct(const ring_simple* p_ring,
-		const ib_ctx_handler* p_context, const uint8_t port_num,
-		ibv_comp_channel* p_rx_comp_event_channel,
+qp_mgr_eth_direct::qp_mgr_eth_direct(struct qp_mgr_desc *desc,
 		const uint32_t tx_num_wr, const uint16_t vlan):
-			qp_mgr_eth_mlx5(p_ring, p_context, port_num,
-				p_rx_comp_event_channel, tx_num_wr, vlan, false)
+			qp_mgr_eth_mlx5(desc, tx_num_wr, vlan, false)
 {
 	// must be called from this class to call derived prepare_ibv_qp
-	if (configure(p_rx_comp_event_channel)) {
+	if (configure(desc)) {
 		throw_vma_exception("failed creating qp_mgr_eth");
 	}
 

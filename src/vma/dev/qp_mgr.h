@@ -54,6 +54,7 @@
 
 class buffer_pool;
 class cq_mgr;
+struct slave_data;
 class ring;
 class ring_simple;
 class ring_eth_cb;
@@ -61,6 +62,12 @@ class ring_eth_cb;
 #ifndef MAX_SUPPORTED_IB_INLINE_SIZE
 #define MAX_SUPPORTED_IB_INLINE_SIZE	884
 #endif
+
+struct qp_mgr_desc {
+	ring_simple* ring;
+	const struct slave_data* slave;
+	struct ibv_comp_channel* rx_comp_event_channel;
+};
 
 /**
  * @class qp_mgr
@@ -84,7 +91,7 @@ friend class cq_mgr;
 friend class cq_mgr_mlx5;
 friend class cq_mgr_mp;
 public:
-	qp_mgr(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num, const uint32_t tx_num_wr);
+	qp_mgr(struct qp_mgr_desc *desc, const uint32_t tx_num_wr);
 	virtual ~qp_mgr();
 
 	virtual void        up();
@@ -170,7 +177,7 @@ protected:
 	uint16_t            m_n_ip_id_offset;
 	struct vma_rate_limit_t m_rate_limit;
 
-	int             configure(struct ibv_comp_channel* p_rx_comp_event_channel);
+	int             configure(struct qp_mgr_desc *desc);
 	virtual int     prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr) = 0;
 	inline void     set_unsignaled_count(void) { m_n_unsignaled_count = m_n_sysvar_tx_num_wr_to_signal - 1;	}
 
@@ -186,13 +193,11 @@ protected:
 class qp_mgr_eth : public qp_mgr
 {
 public:
-	qp_mgr_eth(const ring_simple* p_ring, const ib_ctx_handler* p_context,
-		   const uint8_t port_num,
-		   struct ibv_comp_channel* p_rx_comp_event_channel,
+	qp_mgr_eth(struct qp_mgr_desc *desc,
 		   const uint32_t tx_num_wr, const uint16_t vlan,
 		   bool call_configure = true):
-			qp_mgr(p_ring, p_context, port_num, tx_num_wr), m_vlan(vlan) {
-		if(call_configure && configure(p_rx_comp_event_channel))
+			qp_mgr(desc, tx_num_wr), m_vlan(vlan) {
+		if(call_configure && configure(desc))
 			throw_vma_exception("failed creating qp");
 	};
 
@@ -210,11 +215,11 @@ private:
 class qp_mgr_ib : public qp_mgr
 {
 public:
-	qp_mgr_ib(const ring_simple* p_ring, const ib_ctx_handler* p_context, const uint8_t port_num,
-			struct ibv_comp_channel* p_rx_comp_event_channel, const uint32_t tx_num_wr, const uint16_t pkey):
-	qp_mgr(p_ring, p_context, port_num, tx_num_wr), m_pkey(pkey), m_underly_qpn(0) {
+	qp_mgr_ib(struct qp_mgr_desc *desc,
+			const uint32_t tx_num_wr, const uint16_t pkey):
+	qp_mgr(desc, tx_num_wr), m_pkey(pkey), m_underly_qpn(0) {
 		update_pkey_index();
-		if(configure(p_rx_comp_event_channel)) throw_vma_exception("failed creating qp"); };
+		if(configure(desc)) throw_vma_exception("failed creating qp"); };
 
 	virtual void 		modify_qp_to_ready_state();
 	virtual uint16_t	get_partiton() const { return m_pkey; };

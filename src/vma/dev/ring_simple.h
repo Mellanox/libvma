@@ -36,6 +36,7 @@
 #include "ring_slave.h"
 
 #include "vma/dev/gro_mgr.h"
+#include "vma/dev/qp_mgr.h"
 #include "vma/dev/net_device_table_mgr.h"
 
 struct cq_moderation_info {
@@ -115,7 +116,7 @@ public:
 	friend class ring_bond;
 
 protected:
-	virtual qp_mgr*		create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel) = 0;
+	virtual qp_mgr*		create_qp_mgr(struct qp_mgr_desc *desc) = 0;
 	void			create_resources();
 	virtual void		init_tx_buffers(uint32_t count);
 	virtual void		inc_cq_moderation_stats(size_t sz_data);
@@ -242,7 +243,7 @@ public:
 		}
 	}
 protected:
-	virtual qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel);
+	virtual qp_mgr* create_qp_mgr(struct qp_mgr_desc *desc);
 };
 
 class ring_ib : public ring_simple
@@ -259,7 +260,7 @@ public:
 		}
 	}
 protected:
-	virtual qp_mgr* create_qp_mgr(const ib_ctx_handler* ib_ctx, uint8_t port_num, struct ibv_comp_channel* p_rx_comp_event_channel);
+	virtual qp_mgr* create_qp_mgr(struct qp_mgr_desc *desc);
 };
 
 #endif //RING_SIMPLE_H
