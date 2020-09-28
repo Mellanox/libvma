@@ -50,6 +50,9 @@
 #endif
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
+#ifdef HAVE_LIBNL3
+#include <netlink/route/link.h>
+#endif
 
 #include "utils/bullseye.h"
 #include "vlogger/vlogger.h"
@@ -109,7 +112,7 @@ int get_base_interface_name(const char *if_name, char *base_ifname, size_t sz_ba
 
 	//Am I already the base (not virtual, not alias, can be bond)
 	if ((!check_device_exist(if_name, VIRTUAL_DEVICE_FOLDER) ||
-		check_device_exist(if_name, BOND_DEVICE_FILE)) && !strstr(if_name, ":")) {
+		check_bond_device_exist(if_name)) && !strstr(if_name, ":")) {
 		snprintf(base_ifname, sz_base_ifname, "%s" ,if_name);
 		return 0;
 	}
@@ -138,7 +141,7 @@ int get_base_interface_name(const char *if_name, char *base_ifname, size_t sz_ba
 
 			if (check_device_exist(ifa->ifa_name, VIRTUAL_DEVICE_FOLDER)) {
 				//virtual
-				if (!check_device_exist(ifa->ifa_name, BOND_DEVICE_FILE)) {
+				if (!check_bond_device_exist(ifa->ifa_name)) {
 					continue;
 				}
 			}
@@ -793,6 +796,55 @@ size_t get_local_ll_addr(IN const char * ifname, OUT unsigned char* addr, IN int
 	return bytes_len; // success
 }
 
+bool check_bond_device_exist(const char* ifname)
+{
+#ifdef HAVE_LIBNL3
+	int ret = 0;
+	struct nl_cache *cache = NULL;
+	struct rtnl_link *link = NULL;
+	char *link_type = NULL;
+
+	struct nl_sock *nl_socket = nl_socket_alloc();
+	if (!nl_socket) {
+		goto out;
+	}
+	nl_socket_set_local_port(nl_socket, 0);
+	ret = nl_connect(nl_socket, NETLINK_ROUTE);
+	if (ret < 0) {
+		goto out;
+	}
+	ret = rtnl_link_alloc_cache(nl_socket, AF_UNSPEC, &cache);
+	if (!cache) {
+		goto out;
+	}
+	link = rtnl_link_get_by_name(cache, ifname);
+	if (!link) {
+		goto out;
+	}
+	link_type = rtnl_link_get_type(link);
+	if (link_type &&
+		(strcmp(link_type, "bond") != 0) &&
+		(strcmp(link_type, "team") != 0)) {
+		link_type = NULL;
+	}
+out:
+	if (link) {
+		rtnl_link_put(link);
+	}
+	if (cache) {
+		nl_cache_free(cache);
+	}
+	if (nl_socket) {
+		nl_socket_free(nl_socket);
+	}
+
+	return ((bool)link_type);
+#else
+	return check_device_exist(ifname, BOND_DEVICE_FILE);
+#endif
+}
+
+
 bool get_bond_name(IN const char* ifname, OUT char* bond_name, IN int sz)
 {
 	char upper_path[256];
@@ -938,13 +990,20 @@ bool get_bond_slaves_name_list(IN const char* bond_name, OUT char* slaves_list, 
 bool check_device_exist(const char* ifname, const char *path)
 {
 	char device_path[256] = {0};
-	sprintf(device_path, path, ifname);
-	int fd = orig_os_api.open(device_path, O_RDONLY);
-	if (fd >= 0)
-		orig_os_api.close(fd);
-	if (fd < 0 && errno == EMFILE) {
-		__log_warn("There are no free fds in the system. This may cause unexpected behavior");
+	int fd = -1;
+	int n = -1;
+
+	n = snprintf(device_path, sizeof(device_path), path, ifname);
+	if (likely((0 < n) && (n < (int)sizeof(device_path)))) {
+		fd = orig_os_api.open(device_path, O_RDONLY);
+		if (fd >= 0) {
+			orig_os_api.close(fd);
+		}
+		if (fd < 0 && errno == EMFILE) {
+			__log_warn("There are no free fds in the system. This may cause unexpected behavior");
+		}
 	}
+
 	return (fd > 0);
 }
 

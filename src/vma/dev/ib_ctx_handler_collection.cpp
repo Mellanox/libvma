@@ -196,7 +196,7 @@ ib_ctx_handler* ib_ctx_handler_collection::get_ib_ctx(const char *ifa_name)
 			return NULL;
 		}
 		ifa_name = (const char *)active_slave;
-	} else if (check_device_exist(ifa_name, BOND_DEVICE_FILE)) {
+	} else if (check_bond_device_exist(ifa_name)) {
 		/* active/backup: return active slave */
 		if (!get_bond_active_slave_name(ifa_name, active_slave, sizeof(active_slave))) {
 			char slaves[IFNAMSIZ * 16] = {0};
