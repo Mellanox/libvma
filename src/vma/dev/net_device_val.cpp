@@ -250,7 +250,7 @@ net_device_val::net_device_val(struct net_device_val_desc *desc) : m_lock("net_d
 	}
 
 	/* Identify device type */
-	if ((get_flags() & IFF_MASTER) || check_device_exist(get_ifname_link(), BOND_DEVICE_FILE)) {
+	if ((get_flags() & IFF_MASTER) || check_bond_device_exist(get_ifname_link())) {
 		verify_bonding_mode();
 	} else if (check_netvsc_device_exist(get_ifname_link())) {
 		m_bond = NETVSC;
