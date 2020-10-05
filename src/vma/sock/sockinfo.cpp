@@ -1663,7 +1663,9 @@ void sockinfo::handle_recv_errqueue(struct cmsg_state *cm_state)
 		return;
 	}
 
+	m_error_queue_lock.lock();
 	buff = m_error_queue.get_and_pop_front();
+	m_error_queue_lock.unlock();
 
 	if (!(buff->m_flags & mem_buf_desc_t::CLONED)) {
 		si_logerr("Detected invalid element in socket error queue as %p with flags 0x%x",

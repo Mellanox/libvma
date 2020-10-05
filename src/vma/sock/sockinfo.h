@@ -269,6 +269,7 @@ protected:
 	 * to provide notification ability.
 	 */
 	descq_t    m_error_queue;
+	lock_spin  m_error_queue_lock;
 
 	/* TX zcopy counter
 	 * The notification itself for tx zcopy operation is a simple scalar value.

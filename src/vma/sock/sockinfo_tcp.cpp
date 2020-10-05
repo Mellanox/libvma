@@ -4635,10 +4635,6 @@ mem_buf_desc_t* sockinfo_tcp::tcp_tx_zc_alloc(mem_buf_desc_t* p_desc)
 
 void sockinfo_tcp::tcp_tx_zc_callback(mem_buf_desc_t* p_desc)
 {
-	uint32_t lo, hi;
-	uint16_t count;
-	uint32_t prev_lo, prev_hi;
-	mem_buf_desc_t* err_queue = NULL;
 	sockinfo_tcp* sock = NULL;
 
 	if (!p_desc) {
@@ -4655,6 +4651,22 @@ void sockinfo_tcp::tcp_tx_zc_callback(mem_buf_desc_t* p_desc)
 		goto cleanup;
 	}
 
+	sock->tcp_tx_zc_handle(p_desc);
+
+cleanup:
+        /* Clean up */
+        p_desc->m_flags &= ~mem_buf_desc_t::ZCOPY;
+        memset(&p_desc->tx.zc, 0, sizeof(p_desc->tx.zc));
+}
+
+void sockinfo_tcp::tcp_tx_zc_handle(mem_buf_desc_t* p_desc)
+{
+	uint32_t lo, hi;
+	uint16_t count;
+	uint32_t prev_lo, prev_hi;
+	mem_buf_desc_t* err_queue = NULL;
+	sockinfo_tcp* sock = this;
+
 	count = p_desc->tx.zc.count;
 	lo = p_desc->tx.zc.id;
 	hi = lo + count - 1;
@@ -4664,6 +4676,8 @@ void sockinfo_tcp::tcp_tx_zc_callback(mem_buf_desc_t* p_desc)
 	p_desc->ee.ee_data = hi;
 	p_desc->ee.ee_info = lo;
 //	p_desc->ee.ee_code |= SO_EE_CODE_ZEROCOPY_COPIED;
+
+	m_error_queue_lock.lock();
 
 	/* Update last error queue element in case it has the same type */
 	err_queue = sock->m_error_queue.back();
@@ -4691,14 +4705,11 @@ void sockinfo_tcp::tcp_tx_zc_callback(mem_buf_desc_t* p_desc)
 		sock->m_error_queue.push_back(err_queue);
 	}
 
+	m_error_queue_lock.unlock();
+
 	/* Signal events on socket */
 	NOTIFY_ON_EVENTS(sock, EPOLLERR);
 	sock->do_wakeup();
-
-cleanup:
-        /* Clean up */
-        p_desc->m_flags &= ~mem_buf_desc_t::ZCOPY;
-        memset(&p_desc->tx.zc, 0, sizeof(p_desc->tx.zc));
 }
 
 struct tcp_seg * sockinfo_tcp::tcp_seg_alloc(void* p_conn)
