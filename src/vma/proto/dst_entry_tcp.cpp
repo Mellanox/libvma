@@ -109,10 +109,10 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_s
 		 */
 		p_pkt = (tx_packet_template_t*)((uint8_t*)p_tcp_iov[0].iovec.iov_base - m_header.m_aligned_l2_l3_len);
 
-		/* iov_len is a size of TCP header and data
+		/* attr.length is payload size and L4 header size
 		 * m_total_hdr_len is a size of L2/L3 header
 		 */
-		total_packet_len = p_tcp_iov[0].iovec.iov_len + m_header.m_total_hdr_len;
+		total_packet_len = attr.length + m_header.m_total_hdr_len;
 
 		/* copy just L2/L3 headers to p_pkt */
 		m_header.copy_l2_ip_hdr(p_pkt);
@@ -130,10 +130,17 @@ ssize_t dst_entry_tcp::fast_send(const iovec* p_iov, const ssize_t sz_iov, vma_s
 		} else if (is_set(attr.flags, (vma_wr_tx_packet_attr)(VMA_TX_PACKET_TSO))) {
 			/* update send work request. do not expect noninlined scenario */
 			send_wqe_h.init_not_inline_wqe(send_wqe, m_sge, sz_iov);
-			send_wqe_h.enable_tso(send_wqe,
-				(void *)((uint8_t*)p_pkt + hdr_alignment_diff),
-				m_header.m_total_hdr_len + p_pkt->hdr.m_tcp_hdr.doff * 4,
-				attr.mss);
+			if (attr.mss < (attr.length - p_pkt->hdr.m_tcp_hdr.doff * 4)) {
+				send_wqe_h.enable_tso(send_wqe,
+					(void *)((uint8_t*)p_pkt + hdr_alignment_diff),
+					m_header.m_total_hdr_len + p_pkt->hdr.m_tcp_hdr.doff * 4,
+					attr.mss);
+			} else {
+				send_wqe_h.enable_tso(send_wqe,
+					(void *)((uint8_t*)p_pkt + hdr_alignment_diff),
+					m_header.m_total_hdr_len + p_pkt->hdr.m_tcp_hdr.doff * 4,
+					0);
+			}
 			m_p_send_wqe = &send_wqe;
 			m_sge[0].addr = (uintptr_t)((uint8_t *)&p_pkt->hdr.m_tcp_hdr + p_pkt->hdr.m_tcp_hdr.doff * 4);
 			m_sge[0].length = p_tcp_iov[0].iovec.iov_len - p_pkt->hdr.m_tcp_hdr.doff * 4;

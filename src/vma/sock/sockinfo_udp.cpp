@@ -1657,7 +1657,7 @@ ssize_t sockinfo_udp::tx(vma_tx_call_attr_t &tx_arg)
 
 	{
 #ifdef DEFINED_TSO
-		vma_send_attr attr = {(vma_wr_tx_packet_attr)0, 0};
+		vma_send_attr attr = {(vma_wr_tx_packet_attr)0, 0, 0};
 		bool b_blocking = m_b_blocking;
 		if (unlikely(__flags & MSG_DONTWAIT))
 			b_blocking = false;
