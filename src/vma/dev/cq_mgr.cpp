@@ -580,17 +580,7 @@ void cq_mgr::reclaim_recv_buffer_helper(mem_buf_desc_t* buff)
 				temp->p_next_desc = NULL;
 				temp->p_prev_desc = NULL;
 				temp->reset_ref_count();
-				temp->rx.tcp.gro = 0;
-				temp->rx.is_vma_thr = false;
-				temp->rx.socketxtreme_polled = false;
-				temp->rx.flow_tag_id = 0;
-				temp->rx.tcp.p_ip_h = NULL;
-				temp->rx.tcp.p_tcp_h = NULL;
-				temp->rx.timestamps.sw.tv_nsec = 0;
-				temp->rx.timestamps.sw.tv_sec = 0;
-				temp->rx.timestamps.hw.tv_nsec = 0;
-				temp->rx.timestamps.hw.tv_sec = 0;
-				temp->rx.hw_raw_timestamp = 0;
+				memset(&temp->rx, 0, sizeof(temp->rx));
 				free_lwip_pbuf(&temp->lwip_pbuf);
 				m_rx_pool.push_back(temp);
 			}

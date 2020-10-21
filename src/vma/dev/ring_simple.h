@@ -69,6 +69,7 @@ public:
 	virtual bool		reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst);
 	bool			reclaim_recv_buffers_no_lock(mem_buf_desc_t* rx_reuse_lst); // No locks
 	virtual int		reclaim_recv_single_buffer(mem_buf_desc_t* rx_reuse); // No locks
+	virtual void		mem_buf_rx_release(mem_buf_desc_t* p_mem_buf_desc);
 	virtual int 		socketxtreme_poll(struct vma_completion_t *vma_completions, unsigned int ncompletions, int flags);	
 	virtual int		drain_and_proccess();
 	virtual int		wait_for_notification_and_process_element(int cq_channel_fd, uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);

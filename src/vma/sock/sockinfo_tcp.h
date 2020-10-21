@@ -182,6 +182,7 @@ public:
 
 	static struct pbuf * tcp_tx_pbuf_alloc(void* p_conn);
 	static void tcp_tx_pbuf_free(void* p_conn, struct pbuf *p_buff);
+	static void tcp_rx_pbuf_free(struct pbuf *p_buff);
 	static struct tcp_seg * tcp_seg_alloc(void* p_conn);
 	static void tcp_seg_free(void* p_conn, struct tcp_seg * seg);
 

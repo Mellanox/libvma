@@ -143,6 +143,8 @@ inline void sockinfo_tcp::init_pbuf_custom(mem_buf_desc_t *p_desc)
 	p_desc->lwip_pbuf.pbuf.type = PBUF_REF;
 	p_desc->lwip_pbuf.pbuf.next = NULL;
 	p_desc->lwip_pbuf.pbuf.payload = (u8_t *)p_desc->p_buffer + p_desc->rx.tcp.n_transport_header_len;
+	/* Override default free function to return rx pbuf to the CQ cache */
+	p_desc->lwip_pbuf.custom_free_function = sockinfo_tcp::tcp_rx_pbuf_free;
 }
 
 /* change default rx_wait impl to flow based one */
@@ -4525,6 +4527,16 @@ struct pbuf * sockinfo_tcp::tcp_tx_pbuf_alloc(void* p_conn)
 		p_desc = p_dst->get_buffer();
 	}
 	return (struct pbuf *)p_desc;
+}
+
+void sockinfo_tcp::tcp_rx_pbuf_free(struct pbuf *p_buff)
+{
+	mem_buf_desc_t *desc = (mem_buf_desc_t *)p_buff;
+
+	if (desc->p_desc_owner != NULL)
+		desc->p_desc_owner->mem_buf_rx_release(desc);
+	else
+		buffer_pool::free_rx_lwip_pbuf_custom(p_buff);
 }
 
 //single buffer only

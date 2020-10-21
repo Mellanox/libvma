@@ -376,6 +376,21 @@ int ring_bond::mem_buf_tx_release(mem_buf_desc_t* p_mem_buf_desc_list, bool b_ac
 	return ret;
 }
 
+void ring_bond::mem_buf_rx_release(mem_buf_desc_t* p_mem_buf_desc)
+{
+	uint32_t i;
+
+	for (i = 0; i < m_bond_rings.size(); i++) {
+		if (m_bond_rings[i] == p_mem_buf_desc->p_desc_owner) {
+			m_bond_rings[i]->mem_buf_rx_release(p_mem_buf_desc);
+			break;
+		}
+	}
+	if (i == m_bond_rings.size()) {
+		buffer_pool::free_rx_lwip_pbuf_custom(&p_mem_buf_desc->lwip_pbuf.pbuf);
+	}
+}
+
 void ring_bond::mem_buf_desc_return_single_to_owner_tx(mem_buf_desc_t* p_mem_buf_desc)
 {
 	p_mem_buf_desc->p_desc_owner->mem_buf_desc_return_single_to_owner_tx(p_mem_buf_desc);
