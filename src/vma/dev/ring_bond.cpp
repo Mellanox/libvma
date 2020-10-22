@@ -186,12 +186,10 @@ void ring_bond::restart()
 					for (j = 0; j < m_rx_flows.size(); j++) {
 						sockinfo* si = static_cast<sockinfo*> (m_rx_flows[j].sink);
 						for (k = 0; k < num_ring_rx_fds; k++ ) {
-							epfd = si->get_rx_epfd();
-							if (epfd > 0) {
-								fd = ring_rx_fds_array[k];
-								rc = orig_os_api.epoll_ctl(epfd, EPOLL_CTL_DEL, fd, NULL);
-								ring_logdbg("Remove fd=%d from epfd=%d rc=%d errno=%d", fd, epfd, rc, errno);
-							}
+							fd = ring_rx_fds_array[k];
+							//it may not work with concurrent poll()
+							si->delete_fd_from_poll_array(fd);
+
 							epfd = si->get_epoll_context_fd();
 							if (epfd > 0) {
 								fd = ring_rx_fds_array[k];
@@ -230,15 +228,7 @@ void ring_bond::restart()
 								sockinfo* si = static_cast<sockinfo*> (m_rx_flows[j].sink);
 								p_ring_bond_netvsc->m_vf_ring->attach_flow(m_rx_flows[j].flow, m_rx_flows[j].sink);
 								for (k = 0; k < num_ring_rx_fds; k++ ) {
-									epfd = si->get_rx_epfd();
-									if (epfd > 0) {
-										epoll_event ev = {0, {0}};
-										fd = ring_rx_fds_array[k];
-										ev.events = EPOLLIN;
-										ev.data.fd = fd;
-										rc = orig_os_api.epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev);
-										ring_logdbg("Add fd=%d from epfd=%d rc=%d errno=%d", fd, epfd, rc, errno);
-									}
+									si->add_fd_to_poll_array(ring_rx_fds_array[k]);
 									epfd = si->get_epoll_context_fd();
 									if (epfd > 0) {
 										#define CQ_FD_MARK 0xabcd /* see socket_fd_api */

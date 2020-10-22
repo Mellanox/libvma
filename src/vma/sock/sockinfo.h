@@ -41,7 +41,7 @@
 #include "vma/util/sock_addr.h"
 #include "vma/util/vma_stats.h"
 #include "vma/util/sys_vars.h"
-#include "vma/util/wakeup_pipe.h"
+#include "vma/util/wakeup_eventfd.h"
 #include "vma/proto/flow_tuple.h"
 #include "vma/proto/mem_buf_desc.h"
 #include "vma/proto/dst_entry.h"
@@ -57,9 +57,10 @@
 #ifndef BASE_SOCKINFO_H
 #define BASE_SOCKINFO_H
 
-#define SI_RX_EPFD_EVENT_MAX		16
 #define BYTE_TO_KB(byte_value)		((byte_value) / 125)
 #define KB_TO_BYTE(kbit_value)		((kbit_value) * 125)
+
+#define DEFAULT_FDS_ARR_SIZE 10
 
 #if DEFINED_MISSING_NET_TSTAMP
 enum {
@@ -154,7 +155,7 @@ const uint8_t ip_tos2prio[16] = {
 	4, 4, 4, 4
 };
 
-class sockinfo : public socket_fd_api, public pkt_rcvr_sink, public pkt_sndr_source, public wakeup_pipe
+class sockinfo : public socket_fd_api, public pkt_rcvr_sink, public pkt_sndr_source, public wakeup_eventfd
 {
 public:
 	sockinfo(int fd);
@@ -181,8 +182,28 @@ public:
 		return false;
 	}
 	inline bool flow_tag_enabled(void) { return m_flow_tag_enabled; }
-	inline int get_rx_epfd(void) { return m_rx_epfd; }
-	
+	inline pollfd* get_poll_fds_array(void) { return m_poll_fds_array; }
+	inline int add_fd_to_poll_array(int fd) {
+		if (m_poll_fds_array_size >= m_poll_fds_array_capacity) {
+			m_poll_fds_array_capacity *= 2;
+			m_poll_fds_array = (pollfd *)realloc(m_poll_fds_array, m_poll_fds_array_capacity * sizeof(pollfd));
+		}
+		m_poll_fds_array[m_poll_fds_array_size].fd = fd;
+		m_poll_fds_array[m_poll_fds_array_size].events = POLLIN;
+		return ++m_poll_fds_array_size;
+	}
+	inline int delete_fd_from_poll_array(int fd) {
+		int i;
+		if (unlikely(m_poll_fds_array_size == 0)) { return 0; }
+		for (i = 0; i < m_poll_fds_array_size && m_poll_fds_array[i].fd != fd; i++) ;
+		//safe for overlapping memory blocks
+		if (i < m_poll_fds_array_size - 1) {
+			memmove(&m_poll_fds_array[i], &m_poll_fds_array[i + 1], (m_poll_fds_array_size - i - 1) * sizeof(m_poll_fds_array[0]));
+		}
+		if (i < m_poll_fds_array_size) { m_poll_fds_array_size--; }
+		return m_poll_fds_array_size;
+	}
+	inline int get_poll_fds_array_size() { return m_poll_fds_array_size; }
 	virtual bool flow_in_reuse(void) { return false;};
 	virtual int* get_rings_fds(int &res_length);
 	virtual int get_rings_num();
@@ -217,7 +238,10 @@ protected:
 	socket_stats_t		m_socket_stats;
 	socket_stats_t*		m_p_socket_stats;
 
-	int			m_rx_epfd;
+	struct pollfd*          m_poll_fds_array;
+	int                     m_poll_fds_array_size;
+	int                     m_poll_fds_array_capacity;
+
 	cache_observer 		m_rx_nd_observer;
 	rx_net_device_map_t	m_rx_nd_map;
 	rx_flow_map_t		m_rx_flow_map;
@@ -335,7 +359,7 @@ protected:
 
 	virtual inline void do_wakeup()	{
 		if (!is_socketxtreme()) {
-			wakeup_pipe::do_wakeup();
+			wakeup_eventfd::do_wakeup();
 		}
 	}
 
