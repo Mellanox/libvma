@@ -30,13 +30,11 @@
  * SOFTWARE.
  */
 
-
-#include "utils/bullseye.h"
+#include <sys/eventfd.h>
 #include "vlogger/vlogger.h"
-#include "wakeup.h"
-#include <vma/sock/sock-redirect.h>
+#include "wakeup_eventfd.h"
 
-#define MODULE_NAME "wakeup"
+#define MODULE_NAME "wakeup_eventfd"
 
 #define wkup_logpanic             __log_info_panic
 #define wkup_logerr               __log_info_err
@@ -52,25 +50,36 @@
 #undef	__INFO__
 #define __INFO__	m_wakeup_fd
 
-wakeup::wakeup()
+wakeup_eventfd::wakeup_eventfd()
 {
-	m_wakeup_fd = 0;
-	m_is_sleeping = 0;
-}
-void wakeup::going_to_sleep()
-{
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if(likely(m_wakeup_fd))
-		m_is_sleeping++;
-	else
-	{
-		wkup_logerr(" m_wakeup_fd is not initialized - cannot use wakeup mechanism\n");
-                m_is_sleeping = 0;
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
+	m_wakeup_fd = eventfd(0, 0);
 }
 
-void wakeup::wakeup_set_fd(int fd)
+void wakeup_eventfd::do_wakeup()
 {
-	m_wakeup_fd = fd;
+	wkup_logfuncall("");
+	if (!m_is_sleeping) {
+		wkup_logfunc("There is no thread in poll_wait, therefore not calling for wakeup");
+		return;
+	}
+	wkup_entry_dbg("");
+	uint64_t inc = 1;
+	if (write(m_wakeup_fd, &inc, sizeof(uint64_t)) != sizeof(uint64_t)) {
+		wkup_logerr("Failed to increase counter wakeup fd");
+	}
+}
+
+void wakeup_eventfd::remove_wakeup_fd()
+{
+	if (m_is_sleeping) return;
+	wkup_entry_dbg("");
+	uint64_t inc;
+	if (read(m_wakeup_fd, &inc, sizeof(uint64_t)) != sizeof(uint64_t)) {
+		wkup_logerr("Failed to reduce counter wakeup fd");
+	}
+}
+
+wakeup_eventfd::~wakeup_eventfd()
+{
+	close(m_wakeup_fd);
 }

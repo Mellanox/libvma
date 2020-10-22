@@ -88,7 +88,7 @@ epfd_info::epfd_info(int epfd, int size) :
 	// Register this socket to read nonoffloaded data
 	g_p_event_handler_manager->update_epfd(m_epfd, EPOLL_CTL_ADD, EPOLLIN | EPOLLPRI | EPOLLONESHOT);
 
-	wakeup_set_epoll_fd(m_epfd);
+	wakeup_set_fd(m_epfd);
 }
 
 epfd_info::~epfd_info()

@@ -97,7 +97,7 @@ sockinfo::sockinfo(int fd):
 	if (unlikely(m_rx_epfd == -1)) {
 	  throw_vma_exception("create internal epoll");
 	}
-	wakeup_set_epoll_fd(m_rx_epfd);
+	wakeup_set_fd(m_rx_epfd);
 
 	m_p_socket_stats = &m_socket_stats; // Save stats as local copy and allow state publisher to copy from this location
 	vma_stats_instance_create_socket_block(m_p_socket_stats);
