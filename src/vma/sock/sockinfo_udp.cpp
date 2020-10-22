@@ -119,7 +119,6 @@ inline int sockinfo_udp::rx_wait(bool blocking)
 	ssize_t ret = 0;
 	int32_t	loops = 0;
 	int32_t loops_to_go = blocking ? m_loops_to_go : 1;
-	epoll_event rx_epfd_events[SI_RX_EPFD_EVENT_MAX];
 	uint64_t poll_sn = 0;
 
         m_loops_timer.start();
@@ -213,7 +212,7 @@ inline int sockinfo_udp::rx_wait(bool blocking)
 			continue;
 		}
 
-		ret = orig_os_api.epoll_wait(m_rx_epfd, rx_epfd_events, SI_RX_EPFD_EVENT_MAX, m_loops_timer.time_left_msec());
+		ret = orig_os_api.poll(m_poll_fds_array, m_poll_fds_array_size, m_loops_timer.time_left_msec());
 
 		/* coverity[double_lock] TODO: RM#1049980 */
 		m_lock_rcv.lock();
@@ -251,34 +250,36 @@ inline int sockinfo_udp::rx_wait(bool blocking)
 			}
 
 			// Run through all ready fd's
-			for (int event_idx = 0; event_idx < ret; ++event_idx) {
-				int fd = rx_epfd_events[event_idx].data.fd;
-				if (is_wakeup_fd(fd)) {
-					/* coverity[double_lock] TODO: RM#1049980 */
-					m_lock_rcv.lock();
-					remove_wakeup_fd();
-					/* coverity[double_unlock] TODO: RM#1049980 */
-					m_lock_rcv.unlock();
-					continue;
-				}
-
-				// Check if OS fd is ready for reading
-				if (fd == m_fd) {
-					m_rx_udp_poll_os_ratio_counter = 0;
-					return 1;
-				}
-
-				// All that is left is our CQ offloading channel fd's
-				// poll cq. fd == cq channel fd.
-				// Process one wce on the relevant CQ
-				// The Rx CQ channel is non-blocking so this will always return quickly
-				cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(fd);
-				if (p_cq_ch_info) {
-					ring* p_ring = p_cq_ch_info->get_ring();
-					if (p_ring) {
-						p_ring->wait_for_notification_and_process_element(fd, &poll_sn);
+			for (int event_idx = 0; event_idx < m_poll_fds_array_size; ++event_idx) {
+				if (m_poll_fds_array[event_idx].revents & POLLIN) {
+					int fd = m_poll_fds_array[event_idx].fd;
+					if (is_wakeup_fd(fd)) {
+						/* coverity[double_lock] TODO: RM#1049980 */
+						m_lock_rcv.lock();
+						remove_wakeup_fd();
+						/* coverity[double_unlock] TODO: RM#1049980 */
+						m_lock_rcv.unlock();
+						continue;
 					}
-				}
+
+					// Check if OS fd is ready for reading
+					if (fd == m_fd) {
+						m_rx_udp_poll_os_ratio_counter = 0;
+						return 1;
+					}
+
+					// All that is left is our CQ offloading channel fd's
+					// poll cq. fd == cq channel fd.
+					// Process one wce on the relevant CQ
+					// The Rx CQ channel is non-blocking so this will always return quickly
+					cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(fd);
+					if (p_cq_ch_info) {
+						ring* p_ring = p_cq_ch_info->get_ring();
+						if (p_ring) {
+							p_ring->wait_for_notification_and_process_element(fd, &poll_sn);
+						}
+					}
+					}
 			}
 		}
 
@@ -370,17 +371,8 @@ sockinfo_udp::sockinfo_udp(int fd):
 	si_udp_logdbg("Sockets RCVBUF = %d bytes", n_so_rcvbuf_bytes);
 	rx_ready_byte_count_limit_update(n_so_rcvbuf_bytes);
 
-	epoll_event ev = {0, {0}};
-
-	ev.events = EPOLLIN;
-
 	// Add the user's orig fd to the rx epfd handle
-	ev.data.fd = m_fd;
-
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (unlikely(orig_os_api.epoll_ctl(m_rx_epfd, EPOLL_CTL_ADD, ev.data.fd, &ev)))
-		si_udp_logpanic("failed to add user's fd to internal epfd errno=%d (%m)", errno);
-	BULLSEYE_EXCLUDE_BLOCK_END
+	add_fd_to_poll_array(m_fd);
 
 	si_udp_logfunc("done");
 }
