@@ -16,5 +16,5 @@ Have a question? please open a [github issue](https://github.com/Mellanox/libvma
 
 ### Additional Information
 * Refer to the libvma [README.txt](https://github.com/Mellanox/libvma/blob/master/README.txt)
-* Main VMA page on Mellanox.com: http://www.mellanox.com/vma/
+* Messaging Accelerator [VMA](https://www.mellanox.com/products/software/accelerator-software/vma?mtag=vma) page
 * Check out the rest of the Wiki pages in this project
