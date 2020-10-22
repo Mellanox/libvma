@@ -249,7 +249,7 @@ event_handler_manager::event_handler_manager() :
 	m_b_continue_running = true;
 	m_event_handler_tid = 0;
 
-	wakeup_set_epoll_fd(m_epfd);
+	wakeup_set_fd(m_epfd);
 	going_to_sleep();
 
 	return;

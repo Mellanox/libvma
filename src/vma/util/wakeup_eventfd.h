@@ -31,46 +31,23 @@
  */
 
 
-#include "utils/bullseye.h"
-#include "vlogger/vlogger.h"
+#ifndef WAKEUP_EVENTFD_H
+#define WAKEUP_EVENTFD_H
+
 #include "wakeup.h"
-#include <vma/sock/sock-redirect.h>
 
-#define MODULE_NAME "wakeup"
-
-#define wkup_logpanic             __log_info_panic
-#define wkup_logerr               __log_info_err
-#define wkup_logwarn              __log_info_warn
-#define wkup_loginfo              __log_info_info
-#define wkup_logdbg               __log_info_dbg
-#define wkup_logfunc              __log_info_func
-#define wkup_logfuncall           __log_info_funcall
-#define wkup_entry_dbg		  __log_entry_dbg
-
-#undef  MODULE_HDR_INFO
-#define MODULE_HDR_INFO 	MODULE_NAME "[wakeup_fd=%d]:%d:%s() "
-#undef	__INFO__
-#define __INFO__	m_wakeup_fd
-
-wakeup::wakeup()
+class wakeup_eventfd : public wakeup
 {
-	m_wakeup_fd = 0;
-	m_is_sleeping = 0;
-}
-void wakeup::going_to_sleep()
-{
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if(likely(m_wakeup_fd))
-		m_is_sleeping++;
-	else
+public:
+	wakeup_eventfd(void);
+	~wakeup_eventfd();
+	virtual void do_wakeup();
+	virtual inline bool is_wakeup_fd(int fd)
 	{
-		wkup_logerr(" m_wakeup_fd is not initialized - cannot use wakeup mechanism\n");
-                m_is_sleeping = 0;
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
-}
+		return fd == m_wakeup_fd;
+	};
+	virtual void remove_wakeup_fd();
+	virtual inline int wakeup_get_fd() { return m_wakeup_fd; };
+};
 
-void wakeup::wakeup_set_fd(int fd)
-{
-	m_wakeup_fd = fd;
-}
+#endif /* WAKEUP_EVENTFD_H */
