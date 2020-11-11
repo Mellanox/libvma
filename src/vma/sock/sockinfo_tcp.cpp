@@ -4691,7 +4691,8 @@ void sockinfo_tcp::tcp_tx_zc_handle(mem_buf_desc_t* p_desc)
 		sum_count = prev_hi - prev_lo + 1ULL + count;
 
 		if (lo == prev_lo) {
-			err_queue->ee.ee_data = hi;
+			if (hi > prev_hi)
+				err_queue->ee.ee_data = hi;
 		} else if ((sum_count >= (1ULL << 32)) || (lo != prev_hi + 1)) {
 			err_queue = NULL;
 		} else {
