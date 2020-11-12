@@ -1,3 +1,13 @@
+Version 9.2.0-0:
+Date + Time 2020-11-12
+=============================================================
+Added:
+        - RM #2233904 Support Bonding over RDMA-Core
+
+Fixed:
+        - RM #1775713 Fix synchronization issue in attach/detach flow
+        - RM #2233349 Detect default hugepage size
+
 Version 9.1.1-0:
 Date + Time 2020-07-09
 =============================================================
