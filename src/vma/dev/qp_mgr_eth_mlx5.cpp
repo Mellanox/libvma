@@ -83,10 +83,6 @@ static inline uint64_t align_to_WQEBB_up(uint64_t val)
 
 static bool is_bf(struct ibv_context *ib_ctx)
 {
-#define VMA_MLX5_MMAP_GET_WC_PAGES_CMD  2 // Corresponding to MLX5_MMAP_GET_WC_PAGES_CMD
-#define VMA_MLX5_IB_MMAP_CMD_SHIFT      8 // Corresponding to MLX5_IB_MMAP_CMD_SHIFT
-	static int page_size = sysconf(_SC_PAGESIZE);
-	static off_t offset = VMA_MLX5_MMAP_GET_WC_PAGES_CMD << VMA_MLX5_IB_MMAP_CMD_SHIFT;
 	char *env;
 
 	/* This limitation is done for RM: 1557652, 1894523, 1914464, 2069198 */
@@ -96,6 +92,18 @@ static bool is_bf(struct ibv_context *ib_ctx)
 
 	env = getenv("MLX5_SHUT_UP_BF");
 	if (!env || !strcmp(env, "0")) {
+#if defined(DEFINED_DIRECT_VERBS) && (DEFINED_DIRECT_VERBS == 3) && defined(MLX5DV_UAR_ALLOC_TYPE_BF)
+		struct mlx5dv_devx_uar *uar = mlx5dv_devx_alloc_uar(ib_ctx, MLX5DV_UAR_ALLOC_TYPE_BF);
+		if (uar) {
+			mlx5dv_devx_free_uar(uar);
+			return true;
+		}
+#else
+#define VMA_MLX5_MMAP_GET_WC_PAGES_CMD  2 // Corresponding to MLX5_MMAP_GET_WC_PAGES_CMD
+#define VMA_MLX5_IB_MMAP_CMD_SHIFT      8 // Corresponding to MLX5_IB_MMAP_CMD_SHIFT
+		static int page_size = sysconf(_SC_PAGESIZE);
+		static off_t offset = VMA_MLX5_MMAP_GET_WC_PAGES_CMD << VMA_MLX5_IB_MMAP_CMD_SHIFT;
+
 		/*
 		 * The following logic was taken from libmlx5 library and its purpose is to check whether
 		 * the use of BF is supported for the device.
@@ -106,6 +114,7 @@ static bool is_bf(struct ibv_context *ib_ctx)
 			(void)munmap(addr, page_size);
 			return true;
 		}
+#endif /* DEFINED_DIRECT_VERBS */
 	}
 	return false;
 }
