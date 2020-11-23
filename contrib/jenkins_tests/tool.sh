@@ -24,29 +24,49 @@ function check_daemon()
     rm -rf ${out_log}
     sudo pkill -9 vmad
 
+    echo "daemon check output: ${service}" > ${out_log}
+
     if type systemctl >/dev/null 2>&1; then
-        service=${install_dir}/sbin/vma
+        service=${install_dir}/sbin/vmad
+        service_arg=${install_dir}/lib/systemd/system/vma.service
+
+        if [ $(sudo systemd-analyze verify ${service_arg} >>${out_log} 2>&1 || echo $?) ]; then
+            ret=1
+        fi
+        sleep 3
+        if [ $(sudo ${service} >>${out_log} 2>&1 || echo $?) ]; then
+            ret=1
+        fi
+        sleep 3
+        if [ "0" == "$ret" -a "" == "$(pgrep vmad)" ]; then
+            ret=1
+        fi
+        sudo pkill -9 vmad >>${out_log} 2>&1
+        sleep 3
+        if [ "0" == "$ret" -a "" != "$(pgrep vmad)" ]; then
+            ret=1
+        fi
     else
         service=${install_dir}/etc/init.d/vma
-    fi
+        service_arg=""
 
-    echo "daemon check output: ${service}" > ${out_log}
-    if [ $(sudo ${service} start >>${out_log} 2>&1 || echo $?) ]; then
-        ret=1
-    fi
-    sleep 3
-    if [ "0" == "$ret" -a "" == "$(pgrep vmad)" ]; then
-        ret=1
-    fi
-    if [ $(sudo ${service} status >>${out_log} 2>&1 || echo $?) ]; then
-        ret=1
-    fi
-    if [ $(sudo ${service} stop >>${out_log} 2>&1 || echo $?) ]; then
-        ret=1
-    fi
-    sleep 3
-    if [ "0" == "$ret" -a "" != "$(pgrep vmad)" ]; then
-        ret=1
+        if [ $(sudo ${service} start ${service_arg} >>${out_log} 2>&1 || echo $?) ]; then
+            ret=1
+        fi
+        sleep 3
+        if [ "0" == "$ret" -a "" == "$(pgrep vmad)" ]; then
+            ret=1
+        fi
+        if [ $(sudo ${service} status ${service_arg} >>${out_log} 2>&1 || echo $?) ]; then
+            ret=1
+        fi
+        if [ $(sudo ${service} stop ${service_arg} >>${out_log} 2>&1 || echo $?) ]; then
+            ret=1
+        fi
+        sleep 3
+        if [ "0" == "$ret" -a "" != "$(pgrep vmad)" ]; then
+            ret=1
+        fi
     fi
 
     sudo pkill -9 vmad
