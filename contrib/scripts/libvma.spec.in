@@ -1,5 +1,4 @@
 %{!?configure_options: %global configure_options %{nil}}
-%{!?use_extralib: %global use_extralib @VMA_LIBRARY_RELEASE@}
 %{!?use_rel: %global use_rel @VMA_LIBRARY_RELEASE@}
 
 %{!?make_build: %global make_build %{__make} %{?_smp_mflags} %{?mflags} V=1}
@@ -27,10 +26,11 @@ BuildRequires: automake
 BuildRequires: autoconf
 BuildRequires: libtool
 BuildRequires: gcc-c++
-BuildRequires: libibverbs-devel
 BuildRequires: rdma-core-devel
+BuildRequires: systemd-rpm-macros
 %if 0%{?rhel} >= 7 || 0%{?fedora} >= 24 || 0%{?suse_version} >= 1500
-BuildRequires: libnl3-devel
+BuildRequires: pkgconfig(libnl-3.0)
+BuildRequires: pkgconfig(libnl-route-3.0)
 %endif
 
 %description
@@ -73,7 +73,7 @@ if [ ! -e configure ] && [ -e autogen.sh ]; then
     VMA_RELEASE=%{use_rel} ./autogen.sh
 fi
 
-%if %{use_extralib} > 0
+%if %{use_rel} > 0
 %configure --enable-opt-log=none \
            %{?configure_options}
 %{make_build}
@@ -86,12 +86,11 @@ cp -f src/vma/.libs/%{name}.so %{name}-debug.so
 %{make_build}
 
 %install
-
-%{make_build} DESTDIR=${RPM_BUILD_ROOT} install
+%{make_install}
 
 find $RPM_BUILD_ROOT%{_libdir} -name '*.la' -delete
 
-%if %{use_extralib} > 0
+%if %{use_rel} > 0
 install -m 755 ./%{name}-debug.so $RPM_BUILD_ROOT/%{_libdir}/%{name}-debug.so
 %endif
 
@@ -159,7 +158,7 @@ fi
 %files devel
 %dir %{_includedir}/mellanox
 %{_includedir}/mellanox/vma_extra.h
-%if %{use_extralib} > 0
+%if %{use_rel} > 0
 %{_libdir}/%{name}-debug.so
 %endif
 
