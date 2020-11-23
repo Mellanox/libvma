@@ -22,8 +22,6 @@ mydoc_DATA = README.txt journal.txt VMA_VERSION
 
 install-exec-hook:
 	if type systemctl >/dev/null 2>&1; then \
-		cp $(top_builddir)/contrib/scripts/vma.init $(DESTDIR)$(sbindir)/vma; \
-		chmod 755 $(DESTDIR)$(sbindir)/vma; \
 		mkdir -p $(DESTDIR)$(prefix)/lib/systemd/system/; \
 		cp $(top_builddir)/contrib/scripts/vma.service $(DESTDIR)$(prefix)/lib/systemd/system/vma.service; \
 		chmod 644 $(DESTDIR)$(prefix)/lib/systemd/system/vma.service; \
@@ -35,7 +33,6 @@ install-exec-hook:
 
 uninstall-hook:
 	if type systemctl >/dev/null 2>&1; then \
-		rm -rf $(DESTDIR)$(sbindir)/vma; \
 		rm -rf $(DESTDIR)$(prefix)/lib/systemd/system/vma.service; \
 	else \
 		rm -rf $(DESTDIR)$(sysconfdir)/init.d/vma; \
