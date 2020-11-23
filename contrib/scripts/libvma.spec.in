@@ -139,9 +139,6 @@ fi
 %doc %{_pkgdocdir}/journal.txt
 %doc %{_pkgdocdir}/VMA_VERSION
 %config(noreplace) %{_sysconfdir}/libvma.conf
-%dir %{_sysconfdir}/security
-%dir %{_sysconfdir}/security/limits.d
-%config(noreplace) %{_sysconfdir}/security/limits.d/30-libvma-limits.conf
 %{_sbindir}/vmad
 %if "%{use_systemd}" == "1"
 %{_prefix}/lib/systemd/system/vma.service
