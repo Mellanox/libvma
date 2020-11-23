@@ -66,11 +66,6 @@ int main(int argc, char *argv[])
 	/* Setup syslog logging */
 	openlog(MODULE_NAME, LOG_PID, LOG_LOCAL5);
 
-	/* already a daemon */
-	if (getppid() == 1) {
-		return 0;
-	}
-
 	/* command line parsing... */
 	config_def();
 	log_info("Starting\n");
