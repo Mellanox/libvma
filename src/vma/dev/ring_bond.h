@@ -89,13 +89,30 @@ public:
 protected:
 	void			update_cap(ring_slave *slave = NULL);
 	void			update_rx_channel_fds();
-	void			popup_active_rings();
 
+	/* Fill m_xmit_rings array */
+	void			popup_xmit_rings();
+
+	/* Array of all aggregated rings
+	 * Every ring can be Active or Backup
+	 */
 	ring_slave_vector_t     m_bond_rings;
+	/* Array of rings used for data transmission
+	 * Every element in this array points to ring that actually used to transfer data
+	 * - active-backup or #1:
+	 *   Sets an active-backup policy for fault tolerance. Transmissions are received and sent
+	 *   out through the first available bonded slave interface.
+	 *   Another bonded slave interface is only used if the active bonded slave interface fails.
+	 * - 802.3ad or #4:
+	 *   Sets an IEEE 802.3ad dynamic link aggregation policy to load balance the traffic
+	 *   in addition to providing failover.
+	 */
+	ring_slave_vector_t     m_xmit_rings;
+
 	std::vector<struct flow_sink_t> m_rx_flows;
-        uint32_t    m_max_inline_data;
+	uint32_t    m_max_inline_data;
 #ifdef DEFINED_TSO
-        uint32_t    m_max_send_sge;
+	uint32_t    m_max_send_sge;
 #endif /* DEFINED_TSO */
 
 private:
