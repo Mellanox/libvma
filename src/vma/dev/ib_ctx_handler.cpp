@@ -352,6 +352,17 @@ err:
 
 void ib_ctx_handler::set_ctx_time_converter_status(ts_conversion_mode_t conversion_mode)
 {
+	if (m_p_ctx_time_converter != NULL) {
+		/*
+		 * Don't override time_converter object. Current method may be
+		 * called more than once if multiple slaves point to the same
+		 * ib_context.
+		 * If we overrode the time_converter we would lose the object
+		 * and wouldn't be able to stop its timer and destroy it.
+		 */
+		return;
+	}
+
 #ifdef DEFINED_IBV_CQ_TIMESTAMP
 	switch (conversion_mode) {
 	case TS_CONVERSION_MODE_DISABLE:
@@ -518,6 +529,8 @@ void ib_ctx_handler::handle_event_device_fatal()
 	 * object destruction function.
 	 */
 	g_p_event_handler_manager->unregister_ibverbs_event(m_p_ibv_context->async_fd, this);
+	m_p_ctx_time_converter->clean_obj();
+	m_p_ctx_time_converter = NULL;
 }
 
 bool ib_ctx_handler::post_umr_wr(struct ibv_exp_send_wr &wr)
