@@ -984,10 +984,10 @@ ring* net_device_val::reserve_ring(resource_allocation_key *key)
 		m_h_ring_map[new_key] = std::make_pair(the_ring, 0); // each ring is born with ref_count = 0
 		ring_iter = m_h_ring_map.find(new_key);
 		epoll_event ev = {0, {0}};
-		int num_ring_rx_fds = the_ring->get_num_resources();
-		int *ring_rx_fds_array = the_ring->get_rx_channel_fds();
+		size_t num_ring_rx_fds;
+		int *ring_rx_fds_array = the_ring->get_rx_channel_fds(num_ring_rx_fds);
 		ev.events = EPOLLIN;
-		for (int i = 0; i < num_ring_rx_fds; i++) {
+		for (size_t i = 0; i < num_ring_rx_fds; i++) {
 			int cq_ch_fd = ring_rx_fds_array[i];
 			ev.data.fd = cq_ch_fd;
 			BULLSEYE_EXCLUDE_BLOCK_START
@@ -1032,11 +1032,11 @@ bool net_device_val::release_ring(resource_allocation_key *key)
 				the_ring->get_parent(), RING_REF_CNT, red_key->to_str());
 
 		if ( TEST_REF_CNT_ZERO ) {
-			int num_ring_rx_fds = the_ring->get_num_resources();
-			int *ring_rx_fds_array = the_ring->get_rx_channel_fds();
+			size_t num_ring_rx_fds;
+			int *ring_rx_fds_array = the_ring->get_rx_channel_fds(num_ring_rx_fds);
 			nd_logdbg("Deleting RING %p for key %s and removing notification fd from global_table_mgr_epfd (epfd=%d)",
 					the_ring, red_key->to_str(), g_p_net_device_table_mgr->global_ring_epfd_get());
-			for (int i = 0; i < num_ring_rx_fds; i++) {
+			for (size_t i = 0; i < num_ring_rx_fds; i++) {
 				int cq_ch_fd = ring_rx_fds_array[i];
 				BULLSEYE_EXCLUDE_BLOCK_START
 				if (unlikely(orig_os_api.epoll_ctl(g_p_net_device_table_mgr->global_ring_epfd_get(),
