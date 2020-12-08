@@ -1149,10 +1149,10 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 		// Add this new CQ channel fd to the rx epfd handle (no need to wake up any sleeping thread about this new fd)
 		epoll_event ev = {0, {0}};
 		ev.events = EPOLLIN;
-		int num_ring_rx_fds = p_ring->get_num_resources();
-		int *ring_rx_fds_array = p_ring->get_rx_channel_fds();
+		size_t num_ring_rx_fds;
+		int *ring_rx_fds_array = p_ring->get_rx_channel_fds(num_ring_rx_fds);
 
-		for (int i = 0; i < num_ring_rx_fds; i++) {
+		for (size_t i = 0; i < num_ring_rx_fds; i++) {
 			int cq_ch_fd = ring_rx_fds_array[i];
 
 			ev.data.fd = cq_ch_fd;
@@ -1222,10 +1222,10 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 				si_logerr("possible buffer leak, p_ring_info->rx_reuse_buff still contain %d buffers.", p_ring_info->rx_reuse_info.rx_reuse.size());
 			}
 
-			int num_ring_rx_fds = base_ring->get_num_resources();
-			int *ring_rx_fds_array = base_ring->get_rx_channel_fds();
+			size_t num_ring_rx_fds;
+			int *ring_rx_fds_array = base_ring->get_rx_channel_fds(num_ring_rx_fds);
 
-			for (int i = 0; i < num_ring_rx_fds; i++) {
+			for (size_t i = 0; i < num_ring_rx_fds; i++) {
 				int cq_ch_fd = ring_rx_fds_array[i];
 				BULLSEYE_EXCLUDE_BLOCK_START
 				if (unlikely( orig_os_api.epoll_ctl(m_rx_epfd, EPOLL_CTL_DEL, cq_ch_fd, NULL))) {
@@ -1451,6 +1451,7 @@ int sockinfo::modify_ratelimit(dst_entry* p_dst_entry, struct vma_rate_limit_t &
 int sockinfo::get_rings_num()
 {
 	int count = 0;
+	size_t num_rx_channel_fds;
 
 	if (is_socketxtreme()) {
 		/* socketXtreme mode support just single ring */
@@ -1458,7 +1459,8 @@ int sockinfo::get_rings_num()
 	}
 	rx_ring_map_t::iterator it = m_rx_ring_map.begin();
 	for (; it != m_rx_ring_map.end(); ++it) {
-		count += it->first->get_num_resources();
+		(void)it->first->get_rx_channel_fds(num_rx_channel_fds);
+		count += (int)num_rx_channel_fds;
 	}
 	return count;
 }
@@ -1467,11 +1469,12 @@ int* sockinfo::get_rings_fds(int &res_length)
 {
 	res_length = 0;
 	int index = 0;
+	size_t num_rx_channel_fds;
 
 	if (is_socketxtreme()) {
 		/* socketXtreme mode support just single ring */
 		res_length = 1;
-		return m_p_rx_ring->get_rx_channel_fds();
+		return m_p_rx_ring->get_rx_channel_fds(num_rx_channel_fds);
 	}
 
 	if (m_p_rings_fds) {
@@ -1482,8 +1485,8 @@ int* sockinfo::get_rings_fds(int &res_length)
 
 	rx_ring_map_t::iterator it = m_rx_ring_map.begin();
 	for (; it != m_rx_ring_map.end(); ++it) {
-		int *p_n_rx_channel_fds = it->first->get_rx_channel_fds();
-		for (int j = 0; j < it->first->get_num_resources(); ++j) {
+		int *p_n_rx_channel_fds = it->first->get_rx_channel_fds(num_rx_channel_fds);
+		for (size_t j = 0; j < num_rx_channel_fds; ++j) {
 			int fd = p_n_rx_channel_fds[j];
 			if (fd != -1) {
 				m_p_rings_fds[index] = fd;

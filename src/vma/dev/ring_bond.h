@@ -92,7 +92,10 @@ protected:
 
 	/* Fill m_xmit_rings array */
 	void			popup_xmit_rings();
+	void			check_roce_lag_mode(const slave_data_vector_t& slaves);
 
+	/* Whether bonding works in RoCE LAG mode */
+	bool			m_b_roce_lag;
 	/* Array of all aggregated rings
 	 * Every ring can be Active or Backup
 	 */
@@ -140,6 +143,7 @@ public:
 		if (p_ndev) {
 			const slave_data_vector_t& slaves = p_ndev->get_slave_array();
 			update_cap();
+			check_roce_lag_mode(slaves);
 			for (size_t i = 0; i < slaves.size(); i++) {
 				slave_create(slaves[i]->if_index);
 			}
@@ -160,6 +164,7 @@ public:
 		if (p_ndev) {
 			const slave_data_vector_t& slaves = p_ndev->get_slave_array();
 			update_cap();
+			check_roce_lag_mode(slaves);
 			for (size_t i = 0; i < slaves.size(); i++) {
 				slave_create(slaves[i]->if_index);
 			}

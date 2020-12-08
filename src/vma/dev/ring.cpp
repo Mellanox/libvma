@@ -40,7 +40,7 @@
 #define MODULE_HDR      MODULE_NAME "%d:%s() "
 
 ring::ring() :
-	m_p_n_rx_channel_fds(NULL), m_parent(NULL)
+	m_p_n_rx_channel_fds(NULL), m_parent(NULL), m_n_rx_rings(0)
 {
 	m_if_index = 0;
 

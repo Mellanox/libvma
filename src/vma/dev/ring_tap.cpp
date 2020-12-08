@@ -60,6 +60,7 @@ ring_tap::ring_tap(int if_index, ring* parent):
 	/* Register tap ring to the internal thread */
 	m_p_n_rx_channel_fds = new int[1];
 	m_p_n_rx_channel_fds[0] = m_tap_fd;
+	m_n_rx_rings = 1;
 
 	if (m_tap_fd >= 0) {
 		g_p_fd_collection->addtapfd(m_tap_fd, this);
@@ -104,6 +105,7 @@ ring_tap::~ring_tap()
 	g_buffer_pool_rx->put_buffers_thread_safe(&m_rx_pool, m_rx_pool.size());
 
 	delete[] m_p_n_rx_channel_fds;
+	m_n_rx_rings = 0;
 
 	/* TAP device release */
 	tap_destroy();

@@ -315,9 +315,9 @@ void epfd_info::increase_ring_ref_count(ring* ring)
 		m_ring_map[ring] = 1;
 
 		// add cq channel fd to the epfd
-		int num_ring_rx_fds = ring->get_num_resources();
-		int *ring_rx_fds_array = ring->get_rx_channel_fds();
-		for (int i = 0; i < num_ring_rx_fds; i++) {
+		size_t num_ring_rx_fds;
+		int *ring_rx_fds_array = ring->get_rx_channel_fds(num_ring_rx_fds);
+		for (size_t i = 0; i < num_ring_rx_fds; i++) {
 			epoll_event evt = {0, {0}};
 			evt.events = EPOLLIN | EPOLLPRI;
 			int fd = ring_rx_fds_array[i];
@@ -355,9 +355,9 @@ void epfd_info::decrease_ring_ref_count(ring* ring)
 		m_ring_map.erase(iter);
 
 		// remove cq channel fd from the epfd
-		int num_ring_rx_fds = ring->get_num_resources();
-		int *ring_rx_fds_array = ring->get_rx_channel_fds();
-		for (int i = 0; i < num_ring_rx_fds; i++) {
+		size_t num_ring_rx_fds;
+		int *ring_rx_fds_array = ring->get_rx_channel_fds(num_ring_rx_fds);
+		for (size_t i = 0; i < num_ring_rx_fds; i++) {
 			// delete cq fd from epfd
 			int ret = orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_DEL, ring_rx_fds_array[i], NULL);
 			BULLSEYE_EXCLUDE_BLOCK_START
