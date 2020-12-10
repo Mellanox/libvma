@@ -1,3 +1,13 @@
+Version 9.2.1-0:
+Date + Time 2020-12-11
+=============================================================
+Fixed:
+        - RM #2371869 Fix RX duplicates for RoCE LAG 802.3ad
+        - RM #2380172 Resolve SIGBUS issue in RoCE LAG mode
+        - RM #2373738 Fix bonding 802.3ad transmission
+        - RM #2336287 Modify VMA official web page
+        - RM #2355289 Improve check for BlueFlame support
+
 Version 9.2.0-0:
 Date + Time 2020-11-12
 =============================================================
