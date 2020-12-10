@@ -53,6 +53,7 @@ public:
 
 	virtual void print_val();
 
+	virtual int*		get_rx_channel_fds(size_t &length) const { length = m_n_used_rx_rings; return m_p_n_rx_channel_fds; };
 	virtual int		request_notification(cq_type_t cq_type, uint64_t poll_sn);
 	virtual int		poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	virtual void		adapt_cq_moderation();
@@ -94,6 +95,11 @@ protected:
 	void			popup_xmit_rings();
 	void			check_roce_lag_mode(const slave_data_vector_t& slaves);
 
+	/*
+	 * Number of used RX rings which is 1 for RoCE LAG mode and number of
+	 * slave rings for other modes.
+	 */
+	uint32_t		m_n_used_rx_rings;
 	/* Whether bonding works in RoCE LAG mode */
 	bool			m_b_roce_lag;
 	/* Array of all aggregated rings

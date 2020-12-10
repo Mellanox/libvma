@@ -197,7 +197,6 @@ ring_simple::~ring_simple()
 	}
 
 	delete[] m_p_n_rx_channel_fds;
-	m_n_rx_rings = 0;
 
 	ring_logdbg("Tx buffer poll: free count = %u, sender_has = %d, total = %d, %s (%d)",
 			m_tx_pool.size(), m_missing_buf_ref_count, m_tx_num_bufs,
@@ -297,7 +296,6 @@ void ring_simple::create_resources()
 	VALGRIND_MAKE_MEM_DEFINED(m_p_rx_comp_event_channel, sizeof(struct ibv_comp_channel));
 	m_p_n_rx_channel_fds = new int[1];
 	m_p_n_rx_channel_fds[0] = m_p_rx_comp_event_channel->fd;
-	m_n_rx_rings = 1;
 	// Add the rx channel fd to the global fd collection
 	if (g_p_fd_collection) {
 		// Create new cq_channel info in the global fd collection

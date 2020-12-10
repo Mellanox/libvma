@@ -93,7 +93,7 @@ public:
 
 	// Funcs taken from cq_mgr.h
 	virtual int		get_num_resources() const = 0;
-	int*			get_rx_channel_fds(size_t &length) const { length = m_n_rx_rings; return m_p_n_rx_channel_fds; };
+	virtual int*		get_rx_channel_fds(size_t &length) const { length = 1; return m_p_n_rx_channel_fds; };
 	virtual int		get_tx_channel_fd() const { return -1; };
 	virtual bool 		get_hw_dummy_send_support(ring_user_id_t id, vma_ibv_send_wr* p_send_wqe) = 0;
 	virtual int		request_notification(cq_type_t cq_type, uint64_t poll_sn) = 0;
@@ -138,7 +138,6 @@ protected:
 
 	int*			m_p_n_rx_channel_fds;
 	ring*			m_parent;
-	uint32_t		m_n_rx_rings;
 
 	int                 m_if_index;     /* Interface index */
 };
