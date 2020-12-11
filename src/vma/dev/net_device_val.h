@@ -260,6 +260,7 @@ public:
 	L2_address*		get_l2_address() { return m_p_L2_addr; };
 	L2_address* 		get_br_address() { return m_p_br_addr; };
 	inline bond_type  get_is_bond() { return m_bond; }
+	inline int		get_fail_over_mac() { return m_bond_fail_over_mac; }
 	inline bond_xmit_hash_policy get_bond_xmit_hash_policy() { return m_bond_xmit_hash_policy; }
 	bool 			update_active_slaves();
 	void 			update_netvsc_slaves(int if_index, int if_flags);

@@ -837,6 +837,17 @@ int ring_bond::socketxtreme_poll(struct vma_completion_t *, unsigned int, int)
 void ring_bond::check_roce_lag_mode(const slave_data_vector_t& slaves)
 {
 #if defined(DEFINED_ROCE_LAG)
+	if (m_type == net_device_val::ACTIVE_BACKUP) {
+		net_device_val *p_ndev = g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
+		if (p_ndev->get_fail_over_mac() > 0) {
+			/*
+			 * Skip active-backup mode with failover_mac=1
+			 * because we have to create rules for all MAC
+			 * addresses.
+			 */
+			return;
+		}
+	}
 	m_b_roce_lag = slaves.size() > 1;
 	for (uint32_t i = 1; i < slaves.size(); i++) {
 		if (slaves[i]->p_ib_ctx != slaves[0]->p_ib_ctx) {
