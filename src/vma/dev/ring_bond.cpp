@@ -266,12 +266,7 @@ void ring_bond::restart()
 		for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
 			ring_simple* tmp_ring = dynamic_cast<ring_simple*>(m_bond_rings[i]);
 
-			if (!tmp_ring || (m_b_roce_lag && i == 0)) {
-				/*
-				 * In RoCE LAG mode we can't stop QP for the
-				 * first slave since it's used for RX regardless
-				 * of the active state.
-				 */
+			if (!tmp_ring) {
 				continue;
 			}
 
@@ -281,13 +276,23 @@ void ring_bond::restart()
 					continue;
 				}
 
+				/*
+				 * For RoCE LAG mode we always keep the first ring active
+				 * for RX, however, we have to remove shutdown ring from
+				 * the xmit_rings. Therefore, set m_active field and use
+				 * it for TX.
+				 */
 				if (slaves[j]->active) {
 					ring_logdbg("ring %d active", i);
-					tmp_ring->start_active_qp_mgr();
+					if (!(m_b_roce_lag && i == 0)) {
+						tmp_ring->start_active_qp_mgr();
+					}
 					m_bond_rings[i]->m_active = true;
 				} else {
 					ring_logdbg("ring %d not active", i);
-					tmp_ring->stop_active_qp_mgr();
+					if (!(m_b_roce_lag && i == 0)) {
+						tmp_ring->stop_active_qp_mgr();
+					}
 					m_bond_rings[i]->m_active = false;
 				}
 			}
