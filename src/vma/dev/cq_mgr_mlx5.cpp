@@ -247,13 +247,20 @@ int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=N
 	uint32_t ret_total = 0;
 	uint64_t cq_poll_sn = 0;
 
-	if (p_recycle_buffers_last_wr_id != NULL) {
-		m_b_was_drained = false;
-	}
+	/* drain_and_proccess() is mainly called in following cases as
+	 * Internal thread:
+	 *   Frequency of real polling can be controlled by
+	 *   VMA_PROGRESS_ENGINE_INTERVAL and VMA_PROGRESS_ENGINE_WCE_MAX.
+	 * socketxtreme:
+	 *   User does socketxtreme_poll()
+	 * Cleanup:
+	 *   QP down logic to release rx buffers should force polling to do this.
+	 *   Not null argument indicates one.
+	 */
 
 	if (m_b_sysvar_enable_socketxtreme) {
-		while ((m_n_sysvar_progress_engine_wce_max && (m_n_sysvar_progress_engine_wce_max > m_n_wce_counter)) &&
-			!m_b_was_drained) {
+		while (((m_n_sysvar_progress_engine_wce_max > m_n_wce_counter) && (!m_b_was_drained)) ||
+			(p_recycle_buffers_last_wr_id)) {
 			int ret = 0;
 			mlx5_cqe64 *cqe_arr[MCE_MAX_CQ_POLL_BATCH];
 
@@ -346,12 +353,8 @@ int cq_mgr_mlx5::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=N
 			ret_total += ret;
 		}
 	} else {
-		if (p_recycle_buffers_last_wr_id != NULL) {
-			m_b_was_drained = false;
-		}
-
-		while ((m_n_sysvar_progress_engine_wce_max > m_n_wce_counter) &&
-			!m_b_was_drained) {
+		while (((m_n_sysvar_progress_engine_wce_max > m_n_wce_counter) && (!m_b_was_drained)) ||
+			(p_recycle_buffers_last_wr_id)) {
 			buff_status_e status = BS_OK;
 			mem_buf_desc_t* buff = poll(status);
 			if (NULL == buff) {
