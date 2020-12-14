@@ -784,11 +784,18 @@ int cq_mgr::drain_and_proccess(uintptr_t* p_recycle_buffers_last_wr_id /*=NULL*/
 	uint32_t ret_total = 0;
 	uint64_t cq_poll_sn = 0;
 
-	if (p_recycle_buffers_last_wr_id != NULL) {
-		m_b_was_drained = false;
-	}
-
-	while ((m_n_sysvar_progress_engine_wce_max > m_n_wce_counter) && (!m_b_was_drained)) {
+	/* drain_and_proccess() is mainly called in following cases as
+	 * Internal thread:
+	 *   Frequency of real polling can be controlled by
+	 *   VMA_PROGRESS_ENGINE_INTERVAL and VMA_PROGRESS_ENGINE_WCE_MAX.
+	 * socketxtreme:
+	 *   User does socketxtreme_poll()
+	 * Cleanup:
+	 *   QP down logic to release rx buffers should force polling to do this.
+	 *   Not null argument indicates one.
+	 */
+	while (((m_n_sysvar_progress_engine_wce_max > m_n_wce_counter) && (!m_b_was_drained)) ||
+		(p_recycle_buffers_last_wr_id)) {
 
 		/* coverity[stack_use_local_overflow] */
 		vma_ibv_wc wce[MCE_MAX_CQ_POLL_BATCH];
