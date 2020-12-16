@@ -46,8 +46,6 @@
 
 ring_bond::ring_bond(int if_index) :
 	ring(),
-	m_n_used_rx_rings(0),
-	m_b_roce_lag(false),
 	m_lock_ring_rx("ring_bond:lock_rx"), m_lock_ring_tx("ring_bond:lock_tx")
 {
 	net_device_val* p_ndev = NULL;
@@ -65,6 +63,7 @@ ring_bond::ring_bond(int if_index) :
 	/* Configure ring_bond() fields */
 	m_bond_rings.clear();
 	m_xmit_rings.clear();
+	m_recv_rings.clear();
 	m_type = p_ndev->get_is_bond();
 	m_xmit_hash_policy = p_ndev->get_bond_xmit_hash_policy();
 	m_max_inline_data = 0;
@@ -87,10 +86,10 @@ ring_bond::~ring_bond()
 	}
 	m_bond_rings.clear();
 	m_xmit_rings.clear();
+	m_recv_rings.clear();
 
 	if (m_p_n_rx_channel_fds) {
 		delete[] m_p_n_rx_channel_fds;
-		m_n_used_rx_rings = 0;
 	}
 }
 
@@ -112,8 +111,8 @@ bool ring_bond::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 	/* Map flow in local map */
 	m_rx_flows.push_back(value);
 
-	for (uint32_t i = 0; i < m_n_used_rx_rings; i++) {
-		bool step_ret = m_bond_rings[i]->attach_flow(flow_spec_5t, sink);
+	for (uint32_t i = 0; i < m_recv_rings.size(); i++) {
+		bool step_ret = m_recv_rings[i]->attach_flow(flow_spec_5t, sink);
 		ret = ret && step_ret;
 	}
 
@@ -136,8 +135,8 @@ bool ring_bond::detach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink* sink)
 		}
 	}
 
-	for (uint32_t i = 0; i < m_n_used_rx_rings; i++) {
-		bool step_ret = m_bond_rings[i]->detach_flow(flow_spec_5t, sink);
+	for (uint32_t i = 0; i < m_recv_rings.size(); i++) {
+		bool step_ret = m_recv_rings[i]->detach_flow(flow_spec_5t, sink);
 		ret = ret && step_ret;
 	}
 
@@ -276,25 +275,26 @@ void ring_bond::restart()
 					continue;
 				}
 
-				/*
-				 * For RoCE LAG mode we always keep the first ring active
-				 * for RX, however, we have to remove shutdown ring from
-				 * the xmit_rings. Therefore, set m_active field and use
-				 * it for TX.
+				/* For RoCE LAG device income data is processed by single ring only
+				 * Consider using ring related slave with lag_tx_port_affinity = 1
+				 * even if slave is not active.
+				 * Always keep this ring active for RX
+				 * but keep common logic for TX
 				 */
 				if (slaves[j]->active) {
 					ring_logdbg("ring %d active", i);
-					if (!(m_b_roce_lag && i == 0)) {
+					if (slaves[j]->lag_tx_port_affinity != 1) {
 						tmp_ring->start_active_qp_mgr();
 					}
 					m_bond_rings[i]->m_active = true;
 				} else {
 					ring_logdbg("ring %d not active", i);
-					if (!(m_b_roce_lag && i == 0)) {
+					if (slaves[j]->lag_tx_port_affinity != 1) {
 						tmp_ring->stop_active_qp_mgr();
 					}
 					m_bond_rings[i]->m_active = false;
 				}
+				break;
 			}
 		}
 		popup_xmit_rings();
@@ -445,10 +445,10 @@ int ring_bond::poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_r
 	int temp = 0;
 	int ret = 0;
 
-	for (uint32_t i = 0; i < m_n_used_rx_rings; i++) {
-		if (m_bond_rings[i]->is_up()) {
+	for (uint32_t i = 0; i < m_recv_rings.size(); i++) {
+		if (m_recv_rings[i]->is_up()) {
 			//TODO consider returning immediately after finding something, continue next time from next ring
-			temp = m_bond_rings[i]->poll_and_process_element_rx(p_cq_poll_sn, pv_fd_ready_array);
+			temp = m_recv_rings[i]->poll_and_process_element_rx(p_cq_poll_sn, pv_fd_ready_array);
 			if (temp > 0) {
 				ret += temp;
 			}
@@ -472,9 +472,9 @@ int ring_bond::drain_and_proccess()
 	int temp = 0;
 	int ret = 0;
 
-	for (uint32_t i = 0; i < m_n_used_rx_rings; i++) {
-		if (m_bond_rings[i]->is_up()) {
-			temp = m_bond_rings[i]->drain_and_proccess();
+	for (uint32_t i = 0; i < m_recv_rings.size(); i++) {
+		if (m_recv_rings[i]->is_up()) {
+			temp = m_recv_rings[i]->drain_and_proccess();
 			if (temp > 0) {
 				ret += temp;
 			}
@@ -499,9 +499,9 @@ int ring_bond::wait_for_notification_and_process_element(int cq_channel_fd, uint
 	int temp = 0;
 	int ret = 0;
 
-	for (uint32_t i = 0; i < m_n_used_rx_rings; i++) {
-		if (m_bond_rings[i]->is_up()) {
-			temp = m_bond_rings[i]->wait_for_notification_and_process_element(cq_channel_fd, p_cq_poll_sn, pv_fd_ready_array);
+	for (uint32_t i = 0; i < m_recv_rings.size(); i++) {
+		if (m_recv_rings[i]->is_up()) {
+			temp = m_recv_rings[i]->wait_for_notification_and_process_element(cq_channel_fd, p_cq_poll_sn, pv_fd_ready_array);
 			if (temp > 0) {
 				ret += temp;
 			}
@@ -517,9 +517,9 @@ int ring_bond::wait_for_notification_and_process_element(int cq_channel_fd, uint
 
 int ring_bond::request_notification(cq_type_t cq_type, uint64_t poll_sn)
 {
+	ring_slave_vector_t     *bond_rings;
 	int ret = 0;
 	int temp;
-	uint32_t nr;
 
 	if (likely(CQT_RX == cq_type)) {
 		if (m_lock_ring_rx.trylock()) {
@@ -533,10 +533,10 @@ int ring_bond::request_notification(cq_type_t cq_type, uint64_t poll_sn)
 		}
 	}
 
-	nr = cq_type == CQT_RX ? m_n_used_rx_rings : m_bond_rings.size();
-	for (uint32_t i = 0; i < nr; i++) {
-		if (m_bond_rings[i]->is_up()) {
-			temp = m_bond_rings[i]->request_notification(cq_type, poll_sn);
+	bond_rings = (cq_type == CQT_RX ? &m_recv_rings : &m_xmit_rings);
+	for (uint32_t i = 0; i < (*bond_rings).size(); i++) {
+		if ((*bond_rings)[i]->is_up()) {
+			temp = (*bond_rings)[i]->request_notification(cq_type, poll_sn);
 			if (temp < 0) {
 				ret = temp;
 				break;
@@ -720,17 +720,47 @@ void ring_bond::popup_xmit_rings()
 	}
 }
 
+void ring_bond::popup_recv_rings()
+{
+	net_device_val* p_ndev =
+			g_p_net_device_table_mgr->get_net_device_val(m_parent->get_if_index());
+
+	m_recv_rings.clear();
+	if (NULL == p_ndev) {
+		return;
+	}
+	const slave_data_vector_t& slaves = p_ndev->get_slave_array();
+
+	/* Copy rings from m_bond_rings to m_recv_rings
+	 * that is active to process RX flow.
+	 * For RoCE LAG device (lag_tx_port_affinity > 0) income data is processed by single ring only
+	 * Consider using ring related slave with lag_tx_port_affinity = 1
+	 * even if slave is not active.
+	 */
+	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
+		for (uint32_t j = 0; j < slaves.size() ; j ++) {
+			if (slaves[j]->if_index != m_bond_rings[i]->get_if_index()) {
+				continue;
+			}
+			if (slaves[j]->lag_tx_port_affinity < 2) {
+				m_recv_rings.push_back(m_bond_rings[i]);
+			}
+			break;
+		}
+	}
+}
+
 void ring_bond::update_rx_channel_fds()
 {
 	if (m_p_n_rx_channel_fds) {
 		delete[] m_p_n_rx_channel_fds;
 	}
-	if (m_bond_rings.size() == 0) {
+	if (m_recv_rings.size() == 0) {
 		return;
 	}
-	m_n_used_rx_rings = m_b_roce_lag ? 1 : m_bond_rings.size();
-	m_p_n_rx_channel_fds = new int[m_n_used_rx_rings];
-	for (uint32_t i = 0; i < m_n_used_rx_rings; i++) {
+
+	m_p_n_rx_channel_fds = new int[m_recv_rings.size()];
+	for (uint32_t i = 0; i < m_recv_rings.size(); i++) {
 		size_t num_rx_channel_fds;
 		int *p_rx_channel_fds = m_bond_rings[i]->get_rx_channel_fds(num_rx_channel_fds);
 		/* Assume that a slave ring contains exactly 1 channel fd. */
@@ -839,21 +869,6 @@ int ring_bond::socketxtreme_poll(struct vma_completion_t *, unsigned int, int)
 	return 0;
 }
 
-void ring_bond::check_roce_lag_mode(const slave_data_vector_t& slaves)
-{
-#if defined(DEFINED_ROCE_LAG)
-	m_b_roce_lag = slaves.size() > 1;
-	for (uint32_t i = 1; i < slaves.size(); i++) {
-		if (slaves[i]->p_ib_ctx != slaves[0]->p_ib_ctx) {
-			m_b_roce_lag = false;
-			break;
-		}
-	}
-#else
-	NOT_IN_USE(slaves);
-#endif
-}
-
 void ring_bond::slave_destroy(int if_index)
 {
 	ring_slave *cur_slave = NULL;
@@ -865,6 +880,7 @@ void ring_bond::slave_destroy(int if_index)
 			delete cur_slave;
 			m_bond_rings.erase(iter);
 			popup_xmit_rings();
+			popup_recv_rings();
 			update_rx_channel_fds();
 			break;
 		}
@@ -874,19 +890,12 @@ void ring_bond::slave_destroy(int if_index)
 void ring_bond_eth::slave_create(int if_index)
 {
 	ring_slave *cur_slave;
-	ring_simple *cur_simple;
 
-	cur_slave = cur_simple = new ring_eth(if_index, this);
+	cur_slave = new ring_eth(if_index, this);
 	if (cur_slave == NULL) {
 		ring_logpanic("Error creating bond ring: memory allocation error");
 	}
-	if (m_b_roce_lag && m_bond_rings.empty() && !cur_simple->is_up()) {
-		/*
-		 * Force the first slave of RoCE LAG bonding to activate QP
-		 * since we use it for serving RX completions.
-		 */
-		cur_simple->start_active_qp_mgr();
-	}
+
 	update_cap(cur_slave);
 	m_bond_rings.push_back(cur_slave);
 
@@ -895,6 +904,7 @@ void ring_bond_eth::slave_create(int if_index)
 	}
 
 	popup_xmit_rings();
+	popup_recv_rings();
 	update_rx_channel_fds();
 }
 
@@ -907,13 +917,7 @@ void ring_bond_ib::slave_create(int if_index)
 	if (cur_slave == NULL) {
 		ring_logpanic("Error creating bond ring: memory allocation error");
 	}
-	if (m_b_roce_lag && m_bond_rings.empty() && !cur_simple->is_up()) {
-		/*
-		 * Force the first slave of RoCE LAG bonding to activate QP
-		 * since we use it for serving RX completions.
-		 */
-		cur_simple->start_active_qp_mgr();
-	}
+
 	update_cap(cur_slave);
 	m_bond_rings.push_back(cur_slave);
 
@@ -922,6 +926,7 @@ void ring_bond_ib::slave_create(int if_index)
 	}
 
 	popup_xmit_rings();
+	popup_recv_rings();
 	update_rx_channel_fds();
 }
 
@@ -951,5 +956,6 @@ void ring_bond_netvsc::slave_create(int if_index)
 	}
 
 	popup_xmit_rings();
+	popup_recv_rings();
 	update_rx_channel_fds();
 }

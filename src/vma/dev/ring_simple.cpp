@@ -162,20 +162,17 @@ ring_simple::~ring_simple()
 	// Was done in order to allow iperf's FIN packet to be sent.
 	usleep(25000);
 
-        /* coverity[double_lock] TODO: RM#1049980 */
-	m_lock_ring_rx.lock();
-	m_lock_ring_tx.lock();
-
 	if (m_p_qp_mgr) {
-		// 'down' the active QP/CQ
-		/* TODO: consider avoid using sleep */
-		/* coverity[sleep] */
-		m_p_qp_mgr->down();
+		stop_active_qp_mgr();
 
 		// Release QP/CQ resources
 		delete m_p_qp_mgr;
 		m_p_qp_mgr = NULL;
 	}
+
+	/* coverity[double_lock] TODO: RM#1049980 */
+	m_lock_ring_rx.lock();
+	m_lock_ring_tx.lock();
 
 	delete_l2_address();
 
@@ -218,8 +215,8 @@ ring_simple::~ring_simple()
 	}
 
 	/* coverity[double_unlock] TODO: RM#1049980 */
-	m_lock_ring_rx.unlock();
 	m_lock_ring_tx.unlock();
+	m_lock_ring_rx.unlock();
 
 	ring_logdbg("queue of event completion elements is %s",
 			(list_empty(&m_socketxtreme.ec_list) ? "empty" : "not empty"));
@@ -326,10 +323,13 @@ void ring_simple::create_resources()
 		modify_cq_moderation(safe_mce_sys().cq_moderation_period_usec, safe_mce_sys().cq_moderation_count);
 	}
 
-	if (p_slave->active) {
-		// 'up' the active QP/CQ resource
-		m_up = true;
-		m_p_qp_mgr->up();
+	/* For RoCE LAG device income data is processed by single ring only
+	 * Consider using ring related slave with lag_tx_port_affinity = 1
+	 * even if slave is not active
+	 */
+	if (p_slave->active ||
+			(p_slave->lag_tx_port_affinity == 1)) {
+		start_active_qp_mgr();
 	}
 
 	ring_logdbg("new ring_simple() completed");
