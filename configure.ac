@@ -144,8 +144,12 @@ AC_MSG_CHECKING([for compiler])
 case $CC in
     gcc*|g++*)
         AC_MSG_RESULT([gcc])
-        CFLAGS="$CFLAGS -Wall -Wextra -Werror -Wundef -ffunction-sections -fdata-sections -Wsequence-point -pipe -Winit-self -Wmissing-include-dirs"
-        CXXFLAGS="$CXXFLAGS -Wshadow -Wall -Wextra -Werror -Wundef -ffunction-sections -fdata-sections -Wsequence-point -pipe -Winit-self -Wmissing-include-dirs"
+        CFLAGS="$CFLAGS -Wall -Wextra -Werror -Wundef \
+                -ffunction-sections -fdata-sections -Wsequence-point -pipe -Winit-self -Wmissing-include-dirs \
+                -Wno-free-nonheap-object "
+        CXXFLAGS="$CXXFLAGS -Wshadow -Wall -Wextra -Werror -Wundef \
+                -ffunction-sections -fdata-sections -Wsequence-point -pipe -Winit-self -Wmissing-include-dirs \
+                -Wno-free-nonheap-object "
         ;;
     icc*|icpc*)
         AC_MSG_RESULT([icc])

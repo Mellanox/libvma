@@ -235,7 +235,7 @@ unsigned short compute_ip_checksum(const unsigned short *buf, unsigned int nshor
  * */
 unsigned short compute_tcp_checksum(const struct iphdr *p_iphdr, const uint16_t *p_ip_payload)
 {
-    register unsigned long sum = 0;
+    unsigned long sum = 0;
     uint16_t tcpLen = ntohs(p_iphdr->tot_len) - (p_iphdr->ihl<<2); // shift left 2 will multiply by 4 for converting to octets
 
     //add the pseudo header
@@ -277,7 +277,7 @@ unsigned short compute_tcp_checksum(const struct iphdr *p_iphdr, const uint16_t 
  */
 unsigned short compute_udp_checksum_rx(const struct iphdr *p_iphdr, const struct udphdr *udphdrp, mem_buf_desc_t* p_rx_wc_buf_desc)
 {
-    register unsigned long sum = 0;
+    unsigned long sum = 0;
     unsigned short udp_len = htons(udphdrp->len);
     const uint16_t *p_ip_payload = (const uint16_t *) udphdrp;
     mem_buf_desc_t *p_ip_frag = p_rx_wc_buf_desc;

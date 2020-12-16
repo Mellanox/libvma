@@ -969,7 +969,7 @@ void net_device_val::update_netvsc_slaves(int if_index, int if_flags)
 
 std::string net_device_val::to_str()
 {
-	return std::string("Net Device: " + m_name);
+	return std::string("Net Device: ") + m_name;
 }
 
 ring* net_device_val::reserve_ring(resource_allocation_key *key)
@@ -1421,7 +1421,7 @@ void net_device_val_eth::create_br_address(const char* ifname)
 }
 std::string net_device_val_eth::to_str()
 {
-	return std::string("ETH: " + net_device_val::to_str());
+	return std::string("ETH: ") + net_device_val::to_str();
 }
 
 net_device_val_ib::~net_device_val_ib()
@@ -1519,7 +1519,7 @@ void net_device_val_ib::create_br_address(const char* ifname)
 
 std::string net_device_val_ib::to_str()
 {
-	return std::string("IB: " + net_device_val::to_str());
+	return std::string("IB: ") + net_device_val::to_str();
 }
 
 
