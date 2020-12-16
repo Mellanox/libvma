@@ -1031,26 +1031,27 @@ bool check_device_name_ib_name(const char* ifname, const char* ibname)
 #if (defined(DEFINED_DIRECT_VERBS) && defined(DEFINED_VERBS_VERSION) && (DEFINED_VERBS_VERSION == 3))
 	/* Case #2:
 	 * When device is a slave interface
-	 * For example: ens4f1(bond0) -> mlx5_bond_0
+	 * For example: ens4f1(bondX) -> mlx5_bond_X
 	 */
 	char buf[IFNAMSIZ];
 
-	if (get_bond_name(str_ifname, buf, sizeof(buf))) {
+	if (strstr(ibname, "bond") &&
+		get_bond_name(str_ifname, buf, sizeof(buf))) {
 		str_ifname = buf;
-	}
 
-	/* Case #3:
-	 * When device is a bonding interface
-	 * For example: bond0 -> mlx5_bond_0
-	 */
-	n = snprintf(ib_path, sizeof(ib_path), "/sys/class/infiniband/%s/ports/1/gid_attrs/ndevs/0", ibname);
-	if (likely((0 < n) && (n < (int)sizeof(ib_path)))) {
-		char sys_res[1024] = {0};
-		if (priv_read_file(ib_path, sys_res, 1024, VLOG_FUNC) > 0) {
-			char* p = strchr(sys_res, '\n');
-			if (p) *p = '\0'; // Remove the tailing 'new line" char
-			if (strcmp(sys_res, str_ifname) == 0) {
-				return true;
+		/* Case #3:
+		 * When device is a bonding interface
+		 * For example: bondX -> mlx5_bond_X
+		 */
+		n = snprintf(ib_path, sizeof(ib_path), "/sys/class/infiniband/%s/ports/1/gid_attrs/ndevs/0", ibname);
+		if (likely((0 < n) && (n < (int)sizeof(ib_path)))) {
+			char sys_res[1024] = {0};
+			if (priv_read_file(ib_path, sys_res, 1024, VLOG_FUNC) > 0) {
+				char* p = strchr(sys_res, '\n');
+				if (p) *p = '\0'; // Remove the tailing 'new line" char
+				if (strcmp(sys_res, str_ifname) == 0) {
+					return true;
+				}
 			}
 		}
 	}

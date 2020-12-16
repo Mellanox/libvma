@@ -547,8 +547,11 @@ void net_device_val::print_val()
 
 		if_name[0] = '\0';
 		if_indextoname(m_slaves[i]->if_index, if_name);
-		nd_logdbg("    %d: %s: %s active: %d",
-				m_slaves[i]->if_index, if_name, m_slaves[i]->p_L2_addr->to_str().c_str(), m_slaves[i]->active);
+		nd_logdbg("    %d: %s: %s active: %d ib: %s",
+				m_slaves[i]->if_index, if_name,
+				m_slaves[i]->p_L2_addr->to_str().c_str(),
+				m_slaves[i]->active,
+				(m_slaves[i]->p_ib_ctx ? m_slaves[i]->p_ib_ctx->get_ibname() : "n/a"));
 	}
 
 	nd_logdbg("  ring list: %s", (m_h_ring_map.empty() ? "empty " : ""));
@@ -647,16 +650,21 @@ void net_device_val::set_slave_array()
 		}
 
 		m_slaves[i]->p_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(base_ifname);
+		if (!m_slaves[i]->p_ib_ctx) {
+			nd_logerr("Can not find ib device by index=%d", m_slaves[i]->if_index);
+			continue;
+		}
+
 		m_slaves[i]->port_num = get_port_from_ifname(base_ifname);
-#if defined(DEFINED_ROCE_LAG)
-		if (m_bond != NO_BOND) {
+		if (m_slaves[i]->port_num < 1) {
+			nd_logdbg("Error: incorrect port: %d for ifname=%s base_ifname=%s",
+					m_slaves[i]->port_num, if_name, base_ifname);
+		}
+
+		/* Initialization for RoCE LAG device */
+		if (m_bond != NO_BOND && strstr(m_slaves[i]->p_ib_ctx->get_ibname(), "bond")) {
 			m_slaves[i]->port_num = get_port_from_ifname(get_ifname_link());
 			m_slaves[i]->lag_tx_port_affinity = i + 1;
-		}
-#endif /* DEFINED_ROCE_LAG */
-		if (m_slaves[i]->port_num < 1) {
-			nd_logdbg("Error: port %d ==> ifname=%s base_ifname=%s",
-					m_slaves[i]->port_num, if_name, base_ifname);
 		}
 	}
 
