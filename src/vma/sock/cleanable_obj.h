@@ -44,7 +44,14 @@ public:
 
 	virtual ~cleanable_obj(){};
 
-	virtual void clean_obj(){ set_cleaned(); delete this; };
+	/* This function should be used just for objects that
+	 * was allocated via new() (not by new[], nor by placement new, nor a local object on the stack,
+	 * nor a namespace-scope / global, nor a member of another object; but by plain ordinary new)
+	 */
+	virtual void clean_obj(){
+		set_cleaned();
+		delete this;
+	};
 
 	bool is_cleaned(){ return m_b_cleaned; };
 

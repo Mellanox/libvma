@@ -110,7 +110,7 @@ static inline int atomic_fetch_and_add(int x, volatile int *ptr)
  */
 static inline void gettimeoftsc(unsigned long long *p_tscval)
 {
-	register uint32_t upper_32, lower_32;
+	uint32_t upper_32, lower_32;
 
 	// ReaD Time Stamp Counter (RDTCS)
 	__asm__ __volatile__("rdtsc" : "=a" (lower_32), "=d" (upper_32));
