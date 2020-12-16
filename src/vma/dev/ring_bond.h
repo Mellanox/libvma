@@ -53,7 +53,7 @@ public:
 
 	virtual void print_val();
 
-	virtual int*		get_rx_channel_fds(size_t &length) const { length = m_n_used_rx_rings; return m_p_n_rx_channel_fds; };
+	virtual int*		get_rx_channel_fds(size_t &length) const { length = m_recv_rings.size(); return m_p_n_rx_channel_fds; };
 	virtual int		request_notification(cq_type_t cq_type, uint64_t poll_sn);
 	virtual int		poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
 	virtual void		adapt_cq_moderation();
@@ -93,19 +93,15 @@ protected:
 
 	/* Fill m_xmit_rings array */
 	void			popup_xmit_rings();
-	void			check_roce_lag_mode(const slave_data_vector_t& slaves);
 
-	/*
-	 * Number of used RX rings which is 1 for RoCE LAG mode and number of
-	 * slave rings for other modes.
-	 */
-	uint32_t		m_n_used_rx_rings;
-	/* Whether bonding works in RoCE LAG mode */
-	bool			m_b_roce_lag;
+	/* Fill m_recv_rings array */
+	void			popup_recv_rings();
+
 	/* Array of all aggregated rings
 	 * Every ring can be Active or Backup
 	 */
 	ring_slave_vector_t     m_bond_rings;
+
 	/* Array of rings used for data transmission
 	 * Every element in this array points to ring that actually used to transfer data
 	 * - active-backup or #1:
@@ -117,6 +113,11 @@ protected:
 	 *   in addition to providing failover.
 	 */
 	ring_slave_vector_t     m_xmit_rings;
+
+	/* Array of rings used for income data processing
+	 * - For RoCE LAG rings the only single is used with lag_tx_port_affinity=1
+	 */
+	ring_slave_vector_t     m_recv_rings;
 
 	std::vector<struct flow_sink_t> m_rx_flows;
 	uint32_t    m_max_inline_data;
@@ -149,7 +150,6 @@ public:
 		if (p_ndev) {
 			const slave_data_vector_t& slaves = p_ndev->get_slave_array();
 			update_cap();
-			check_roce_lag_mode(slaves);
 			for (size_t i = 0; i < slaves.size(); i++) {
 				slave_create(slaves[i]->if_index);
 			}
@@ -170,7 +170,6 @@ public:
 		if (p_ndev) {
 			const slave_data_vector_t& slaves = p_ndev->get_slave_array();
 			update_cap();
-			check_roce_lag_mode(slaves);
 			for (size_t i = 0; i < slaves.size(); i++) {
 				slave_create(slaves[i]->if_index);
 			}

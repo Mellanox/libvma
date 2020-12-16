@@ -651,7 +651,6 @@ void net_device_val::set_slave_array()
 
 		m_slaves[i]->p_ib_ctx = g_p_ib_ctx_handler_collection->get_ib_ctx(base_ifname);
 		if (!m_slaves[i]->p_ib_ctx) {
-			nd_logerr("Can not find ib device by index=%d", m_slaves[i]->if_index);
 			continue;
 		}
 
