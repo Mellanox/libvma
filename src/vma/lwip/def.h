@@ -119,6 +119,19 @@ u32_t lwip_ntohl(u32_t x);
 
 #endif /* BYTE_ORDER == BIG_ENDIAN */
 
+static inline u32_t read32_be(const void *addr)
+{
+	const u8_t *p = (const u8_t *)addr;
+	u32_t ret = 0;
+
+	ret |= (u32_t)p[3];
+	ret |= (u32_t)p[2] << 8U;
+	ret |= (u32_t)p[1] << 16U;
+	ret |= (u32_t)p[0] << 24U;
+
+	return ret;
+}
+
 #ifdef __cplusplus
 }
 #endif
