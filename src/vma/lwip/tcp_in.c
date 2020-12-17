@@ -1670,15 +1670,14 @@ tcp_parseopt(struct tcp_pcb *pcb, tcp_in_data* in_data)
           return;
         }
         /* TCP timestamp option with valid length */
-        tsval = (opts[c+2]) | (opts[c+3] << 8) | 
-          (opts[c+4] << 16) | (opts[c+5] << 24);
+        tsval = read32_be(&opts[c + 2]);
         if (in_data->flags & TCP_SYN) {
           if (pcb->enable_ts_opt) {
-            pcb->ts_recent = ntohl(tsval);
+            pcb->ts_recent = tsval;
             pcb->flags |= TF_TIMESTAMP;
           }
         } else if (TCP_SEQ_BETWEEN(pcb->ts_lastacksent, in_data->seqno, in_data->seqno+in_data->tcplen)) {
-          pcb->ts_recent = ntohl(tsval);
+          pcb->ts_recent = tsval;
         }
         /* Advance to next option */
         c += 0x0A;
