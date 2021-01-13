@@ -3,7 +3,7 @@ Upstream-Name: libvma
 Source: https://github.com/Mellanox/libvma
 
 Files: *
-Copyright: 2001-2020 Mellanox Technologies, Ltd.
+Copyright: 2001-2021 Mellanox Technologies, Ltd.
 License: GPLv2-and-2BSD
 
 Files:
