@@ -15,7 +15,7 @@ build: build-debug
 build-debug:
 	./configure --with-ofed=/usr --prefix=/usr \
 		--libdir=/usr/lib --includedir=/usr/include --sysconfdir=/etc \
-		--enable-opt-log=none ${configure_options}
+		--enable-opt-log=none --enable-debug ${configure_options}
 	make
 	cp -f src/vma/.libs/libvma.so libvma-debug.so
 	make clean
