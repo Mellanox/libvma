@@ -87,6 +87,7 @@ m4_include([config/m4/verbs.m4])
 m4_include([config/m4/dpcp.m4])
 m4_include([config/m4/nl.m4])
 m4_include([config/m4/prof.m4])
+m4_include([config/m4/compiler.m4])
 
 FUNC_CONFIGURE_INIT()
 
@@ -166,6 +167,7 @@ case $CC in
         ;;
 esac
 
+COMPILER_CAPABILITY_SETUP()
 
 dnl===-----------------------------------------------------------------------===
 dnl===
