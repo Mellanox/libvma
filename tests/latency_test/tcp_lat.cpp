@@ -326,7 +326,7 @@ void run_select_server()
 	}
 
 	/* listen on any port */
-        memset(&addr, sizeof(addr), 0);
+        memset(&addr, 0, sizeof(addr));
         addr.sin_family = PF_INET;
         addr.sin_addr.s_addr = INADDR_ANY;
 	addr.sin_port = htons(tcp_lat_port);
@@ -421,7 +421,7 @@ static void run_tcp_server()
 	}
 
 	/* listen on any port */
-        memset(&addr, sizeof(addr), 0);
+        memset(&addr, 0, sizeof(addr));
         addr.sin_family = PF_INET;
         addr.sin_addr.s_addr = INADDR_ANY;
 	addr.sin_port = htons(tcp_lat_port);
