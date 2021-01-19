@@ -82,7 +82,7 @@ if [ ! -e configure ] && [ -e autogen.sh ]; then
 fi
 
 %if %{use_rel} > 0
-%configure --enable-opt-log=none \
+%configure --enable-opt-log=none --enable-debug \
            %{?configure_options}
 %{make_build}
 cp -f src/vma/.libs/%{name}.so %{name}-debug.so

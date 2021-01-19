@@ -82,7 +82,7 @@ if [ $opt_binrpm -eq 1 ]; then
 fi
 
 if [ $opt_checkpkg -eq 1 ]; then
-    test_exec="env PRJ_RELEASE=1 ${WORKSPACE}/contrib/build_pkg.sh -b -s -i ${WORKSPACE} -o ${rpm_dir}/dist-pkg"
+    test_exec="env VMA_RELEASE=1 ${WORKSPACE}/contrib/build_pkg.sh -b -s -i ${WORKSPACE} -o ${rpm_dir}/dist-pkg"
     do_check_result "$test_exec" "$test_id" "checkpkg" "$rpm_tap" "${rpm_dir}/rpm-${test_id}"
     test_id=$((test_id+1))
 fi

@@ -99,6 +99,12 @@ dnl===
 dnl===-----------------------------------------------------------------------===
 show_section_title "Configure build tools"
 
+# Cleanup predefined compilation flags
+#
+: ${CPPFLAGS=""}
+: ${CFLAGS=""}
+: ${CXXFLAGS=""}
+
 # Find compiler, libtools, etc
 #
 LT_INIT([disable-static])
@@ -141,32 +147,6 @@ dnl===
 dnl===-----------------------------------------------------------------------===
 show_section_title "Setting compiler specific options"
 
-AC_MSG_CHECKING([for compiler])
-case $CC in
-    gcc*|g++*)
-        AC_MSG_RESULT([gcc])
-        CFLAGS="$CFLAGS -Wall -Wextra -Werror -Wundef \
-                -ffunction-sections -fdata-sections -Wsequence-point -pipe -Winit-self -Wmissing-include-dirs \
-                -Wno-free-nonheap-object "
-        CXXFLAGS="$CXXFLAGS -Wshadow -Wall -Wextra -Werror -Wundef \
-                -ffunction-sections -fdata-sections -Wsequence-point -pipe -Winit-self -Wmissing-include-dirs \
-                -Wno-free-nonheap-object "
-        ;;
-    icc*|icpc*)
-        AC_MSG_RESULT([icc])
-        CFLAGS="$CFLAGS -Wall -Werror"
-        CXXFLAGS="$CXXFLAGS -Wall -Werror"
-        ;;
-    clang*|clang++*)
-        AC_MSG_RESULT([clang])
-        CFLAGS="$CFLAGS -Wall -Werror -Wno-format-security -Wno-self-assign"
-        CXXFLAGS="$CXXFLAGS -Wall -Werror -Wno-overloaded-virtual"
-        ;;
-    *)
-        AC_MSG_RESULT([unknown])
-        ;;
-esac
-
 COMPILER_CAPABILITY_SETUP()
 
 dnl===-----------------------------------------------------------------------===
@@ -175,24 +155,6 @@ dnl=== SECTION 5: Checking for project configuration
 dnl===
 dnl===-----------------------------------------------------------------------===
 show_section_title "Configure project"
-
-OS=`cat /etc/issue | awk '{ print $3}'`
-
-CFLAGS="-D_GNU_SOURCE -fPIC $CFLAGS"
-CXXFLAGS="-D_GNU_SOURCE -fPIC $CXXFLAGS"
-
-# gcov support
-#
-AC_MSG_CHECKING(
-    [for gcov support])
-AC_ARG_ENABLE([gcov],
-    AS_HELP_STRING([--enable-gcov],
-        [turn on code coverage analysis tools]),
-    [CFLAGS+=" --coverage -O0"; CXXFLAGS+=" --coverage -O0"; LIBS+=" -lgcov"; VMA_GCOV=1;
-     AC_MSG_RESULT([yes])],
-    [VMA_GCOV=0
-     AC_MSG_RESULT([no])]
-)
 
 # Performance time points support
 #
@@ -229,33 +191,6 @@ AS_IF([test "x$with_valgrind" == xno],
        AC_MSG_RESULT([yes])
       ]
 )
-
-# Debug configuration.
-#
-with_debug_info=yes
-with_debug=no
-AC_ARG_ENABLE([debug],
-	AS_HELP_STRING([--enable-debug],
-	    [Enable debug mode build]),
-	[with_debug=yes])
-
-AC_ARG_ENABLE([debuginfo],
-    AS_HELP_STRING([--disable-debuginfo],
-        [Don't include debug information]),
-	[with_debug_info=no; with_debug=no])
-
-if test "x${with_debug}" = "xyes" ; then
-    CFLAGS="-g -D_DEBUG $CFLAGS"
-    CXXFLAGS="-g -D_DEBUG $CXXFLAGS"
-else
-    CFLAGS="$CFLAGS -O3"
-    CXXFLAGS="$CXXFLAGS -O3"
-	
-    if test "x${with_debug_info}" = "xyes" ; then
-        CFLAGS="-g $CFLAGS"
-        CXXFLAGS="-g $CXXFLAGS"
-    fi
-fi
 
 # OFED configuration.
 #
@@ -389,22 +324,6 @@ show_section_title "Check for functions, types and structures"
 # Check fortified glibc functions
 #
 AC_CHECK_FUNCS(__read_chk __recv_chk __recvfrom_chk __poll_chk __ppoll_chk)
-
-# Does this compiler have built-in functions for atomic memory access?
-AC_MSG_CHECKING([for atomic memory access (__sync_bool_compare_and_swap) support])
-AC_LINK_IFELSE([AC_LANG_PROGRAM([[]],
-[[
-  int variable = 1;
-  return (__sync_bool_compare_and_swap(&variable, 1, 2)
-         && __sync_add_and_fetch(&variable, 1)) ? 1 : 0;
-]])],
-[
-  AC_MSG_RESULT([yes])
-  AC_DEFINE(HAVE_BUILTIN_ATOMIC, 1, [Define to 1 if gcc supports __sync_bool_compare_and_swap() a.o.])
-],
-[
-  AC_MSG_RESULT([no])
-])
 
 AC_MSG_CHECKING([for SOF_TIMESTAMPING_SOFTWARE support])
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[
