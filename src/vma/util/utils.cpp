@@ -822,9 +822,7 @@ bool check_bond_device_exist(const char* ifname)
 		goto out;
 	}
 	link_type = rtnl_link_get_type(link);
-	if (link_type &&
-		(strcmp(link_type, "bond") != 0) &&
-		(strcmp(link_type, "team") != 0)) {
+	if (link_type && (strcmp(link_type, "bond") != 0)) {
 		link_type = NULL;
 	}
 out:
