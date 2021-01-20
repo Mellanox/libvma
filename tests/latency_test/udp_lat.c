@@ -2425,7 +2425,8 @@ int main(int argc, char *argv[])
 	   if (user_params.mthread_server) {
 	           server_select_per_thread();
 	           break;
-	   }	   
+	   }
+	   /* fall through */
 	case MODE_BRIDGE:		
 		server_handler(fd_min, fd_max, fd_num); 
 		break;
