@@ -645,7 +645,7 @@ int main(int argc, char *argv[]) {
 			}
 			break;
 		case 'r':
-			strncpy(send_rate, optarg, MAX_PATH_LENGTH);
+			strncpy(send_rate, optarg, MAX_PATH_LENGTH - 1);
 			user_params.sendRate=get_send_rate(send_rate);
 			
 			if (user_params.sendRateDetails == (char)KBYTE)
