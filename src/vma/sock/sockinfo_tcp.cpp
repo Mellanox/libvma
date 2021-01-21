@@ -1957,9 +1957,13 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 
 	/* poll rx queue till we have something */
 	lock_tcp_con();
-	if (__msg) {
-		handle_cmsg(__msg, in_flags);
-		if (__msg->msg_controllen == 0) {
+
+	/* error queue request should be handled first
+	 * It allows to return immediately during failure with correct
+	 * error notification without data processing
+	 */
+	if (__msg && __msg->msg_control && (in_flags & MSG_ERRQUEUE)) {
+		if (m_error_queue.empty()) {
 			errno = EAGAIN;
 			unlock_tcp_con();
 			return -1;
@@ -1980,6 +1984,11 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 
 	if (total_iov_sz > 0) {
 		total_rx = dequeue_packet(p_iov, sz_iov, (sockaddr_in *)__from, __fromlen, in_flags, &out_flags);
+	}
+
+	/* Handle all control message requests */
+	if (__msg && __msg->msg_control) {
+		handle_cmsg(__msg, in_flags);
 	}
 
 	/*
