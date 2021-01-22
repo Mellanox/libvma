@@ -48,6 +48,9 @@
 #include <sys/types.h>
 #include <sys/epoll.h>
 #include <sys/select.h>
+#include <sys/wait.h>    // WIFEXITED, etc.
+#include <sys/eventfd.h>
+#include <sys/prctl.h> // prctl(), PR_SET_PDEATHSIG
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>

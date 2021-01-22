@@ -35,6 +35,8 @@
 #include "common/sys.h"
 #include "base.h"
 
+int test_base::m_break_signal = 0;
+
 test_base::test_base()
 {
 	port = gtest_conf.port;
@@ -46,10 +48,16 @@ test_base::test_base()
 	bogus_addr.sin_family = PF_INET;
 	bogus_addr.sin_addr.s_addr = inet_addr("1.1.1.1");
 	bogus_addr.sin_port = 0;
+
+	m_efd_signal = 0;
+	m_efd = eventfd(m_efd_signal, 0);
+
+	m_break_signal = 0;
 }
 
 test_base::~test_base()
 {
+	m_break_signal = 0;
 }
 
 void *test_base::thread_func(void *arg)
@@ -88,13 +96,13 @@ int test_base::sock_noblock(int fd)
 	flag = fcntl(fd, F_GETFL);
 	if (flag < 0) {
 		rc = -errno;
-		log_error("failed to get socket flags %s\n", strerror(errno));
+		log_error("failed to get socket flags errno: %s\n", strerror(errno));
 	}
 	flag |= O_NONBLOCK;
 	rc = fcntl(fd, F_SETFL, flag);
 	if (rc < 0) {
 		rc = -errno;
-		log_error("failed to set socket flags %s\n", strerror(errno));
+		log_error("failed to set socket flags errno: %s\n", strerror(errno));
 	}
 
 	return rc;
@@ -115,13 +123,13 @@ int test_base::event_wait(struct epoll_event *event)
 	efd = epoll_create1(0);
 	rc = epoll_ctl(efd, EPOLL_CTL_ADD, fd, event);
 	if (rc < 0) {
-		log_error("failed epoll_ctl() %s\n", strerror(errno));
+		log_error("failed epoll_ctl() errno: %s\n", strerror(errno));
 		goto err;
 	}
 
 	rc = epoll_wait(efd, event, 1, timeout);
 	if (rc < 0) {
-		log_error("failed epoll_wait() %s\n", strerror(errno));
+		log_error("failed epoll_wait() errno: %s\n", strerror(errno));
 	}
 
 	epoll_ctl(efd, EPOLL_CTL_DEL, fd, NULL);
@@ -130,4 +138,54 @@ err:
 	close(efd);
 
 	return rc;
+}
+
+int test_base::wait_fork(int pid)
+{
+	int status;
+
+	pid = waitpid(pid, &status, 0);
+	if (0 > pid) {
+		log_error("failed waitpid() errno: %s\n", strerror(errno));
+		return (-1);
+	}
+	if (WIFEXITED(status)) {
+		const int exit_status = WEXITSTATUS(status);
+		if (exit_status != 0) {
+			log_trace("non-zero exit status: %d from waitpid() errno: %s\n", exit_status, strerror(errno));
+		}
+		return exit_status;
+	} else {
+		log_error("non-normal exit from child process errno: %s\n", strerror(errno));
+		return (-2);
+	}
+}
+
+void test_base::barrier_fork(int pid)
+{
+	m_break_signal = 0;
+	if (0 == pid) {
+		prctl(PR_SET_PDEATHSIG, SIGTERM);
+		do {
+			read(m_efd, &m_efd_signal, sizeof(m_efd_signal));
+		} while (0 == m_efd_signal);
+		m_efd_signal = 0;
+		write(m_efd, &m_efd_signal, sizeof(m_efd_signal));
+	} else {
+		signal(SIGCHLD, handle_signal);
+		m_efd_signal++;
+		write(m_efd, &m_efd_signal, sizeof(m_efd_signal));
+	}
+}
+
+void test_base::handle_signal(int signo)
+{
+	switch (signo) {
+	case SIGCHLD:
+		/* Child is exiting so parent should complete test too */
+		m_break_signal++;
+		break;
+	default:
+		return;
+	}
 }
