@@ -40,7 +40,17 @@
 
 #if defined(VMA_EXTRA_API_ENABLED) && (VMA_EXTRA_API_ENABLED == 1)
 
-class vma_ring : public vma_base {};
+class vma_ring : public vma_base
+{
+protected:
+	void SetUp()
+	{
+		SKIP_TRUE((getenv("VMA_SOCKETXTREME")), "This test requires VMA_SOCKETXTREME=1");
+	}
+	void TearDown()
+	{
+	}
+};
 
 TEST_F(vma_ring, ti_1) {
 	int rc = EOK;

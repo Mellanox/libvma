@@ -41,6 +41,9 @@ class test_base {
 public:
 	static int sock_noblock(int fd);
 	static int event_wait(struct epoll_event *event);
+	static int wait_fork(int pid);
+	static void handle_signal(int signo);
+	static int m_break_signal;
 
 protected:
 	test_base();
@@ -50,6 +53,7 @@ protected:
 	virtual void cleanup();
 	virtual void init();
 	bool barrier();
+	void barrier_fork(int);
 
 	struct sockaddr_in client_addr;
 	struct sockaddr_in server_addr;
@@ -61,7 +65,9 @@ protected:
 private:
 	static void *thread_func(void *arg);
 
-	pthread_barrier_t    m_barrier;
+	pthread_barrier_t m_barrier;
+	int m_efd;
+	uint64_t m_efd_signal;
 };
 
 #endif /* TESTS_GTEST_COMMON_BASE_H_ */
