@@ -85,7 +85,6 @@ TEST_F(vma_ring, ti_3) {
 	ASSERT_LE(0, fd);
 
 	rc = bind(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
-	ASSERT_EQ(EOK, errno);
 	ASSERT_EQ(0, rc);
 
 	rc = vma_api->get_socket_rings_fds(fd, &ring_fd, 1);
@@ -104,7 +103,6 @@ TEST_F(vma_ring, ti_4) {
 	ASSERT_LE(0, fd);
 
 	rc = connect(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
-	ASSERT_EQ(EOK, errno);
 	ASSERT_EQ(0, rc);
 
 	rc = vma_api->get_socket_rings_fds(fd, &ring_fd, 1);
@@ -126,7 +124,6 @@ TEST_F(vma_ring, ti_5) {
 	ASSERT_EQ(0, rc);
 
 	rc = connect(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
-	ASSERT_EQ(EOK, errno);
 	ASSERT_EQ(0, rc);
 
 	rc = vma_api->get_socket_rings_fds(fd, &ring_fd, 1);
@@ -160,7 +157,27 @@ TEST_F(vma_ring, ti_7) {
 	ASSERT_LE(0, fd);
 
 	rc = bind(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
-	ASSERT_EQ(EOK, errno);
+	ASSERT_EQ(0, rc);
+
+	rc = vma_api->get_socket_rings_fds(fd, &ring_fd, 1);
+	EXPECT_GE(0, rc);
+	EXPECT_EQ(UNDEFINED_VALUE, ring_fd);
+
+	close(fd);
+}
+
+TEST_F(vma_ring, ti_8) {
+	int rc = EOK;
+	int ring_fd = UNDEFINED_VALUE;
+	int fd;
+
+	fd = socket(PF_INET, SOCK_STREAM, IPPROTO_IP);
+	ASSERT_LE(0, fd);
+
+	rc = bind(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+	ASSERT_EQ(0, rc);
+
+	rc = listen(fd, 5);
 	ASSERT_EQ(0, rc);
 
 	rc = vma_api->get_socket_rings_fds(fd, &ring_fd, 1);
@@ -170,7 +187,7 @@ TEST_F(vma_ring, ti_7) {
 	close(fd);
 }
 
-TEST_F(vma_ring, ti_8) {
+TEST_F(vma_ring, ti_9) {
 	int rc = EOK;
 	int ring_fd = UNDEFINED_VALUE;
 	int fd;
@@ -192,7 +209,7 @@ TEST_F(vma_ring, ti_8) {
 	close(fd);
 }
 
-TEST_F(vma_ring, ti_9) {
+TEST_F(vma_ring, ti_10) {
 	int rc = EOK;
 	int ring_fd = UNDEFINED_VALUE;
 	int fd;
@@ -210,74 +227,14 @@ TEST_F(vma_ring, ti_9) {
 	log_trace("SO_BINDTODEVICE: fd=%d as %s on %s\n",
 			fd, sys_addr2str((struct sockaddr_in *) &server_addr), opt_val);
 
+	errno = EOK;
 	rc = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, (void *)opt_val, opt_len);
 	ASSERT_EQ(EOK, errno);
 	ASSERT_EQ(0, rc);
 
 	rc = vma_api->get_socket_rings_fds(fd, &ring_fd, 1);
-	EXPECT_GE(0, rc);
-	EXPECT_EQ(UNDEFINED_VALUE, ring_fd);
-
-	close(fd);
-}
-
-TEST_F(vma_ring, ti_10) {
-	int rc = EOK;
-	int ring_fd_bind = UNDEFINED_VALUE;
-	int ring_fd_bind_opt = UNDEFINED_VALUE;
-	int ring_fd_connect = UNDEFINED_VALUE;
-	int fd;
-	char opt_val[100];
-	socklen_t opt_len;
-
-	SKIP_TRUE(sys_rootuser(), "This test requires root permission");
-
-	fd = socket(PF_INET, SOCK_STREAM, IPPROTO_IP);
-	ASSERT_LE(0, fd);
-
-	opt_val[0] = '\0';
-	opt_len = sizeof(opt_val);
-	ASSERT_TRUE(sys_addr2dev(&server_addr, opt_val, opt_len));
-
-	log_trace("bind(): fd=%d as %s on %s\n",
-			fd, sys_addr2str((struct sockaddr_in *) &server_addr), opt_val);
-
-	rc = bind(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
-	ASSERT_EQ(EOK, errno);
-	ASSERT_EQ(0, rc);
-
-	rc = vma_api->get_socket_rings_fds(fd, &ring_fd_bind, 1);
-	EXPECT_GE(1, rc);
-	EXPECT_LE(0, ring_fd_bind);
-
-	opt_val[0] = '\0';
-	opt_len = sizeof(opt_val);
-	ASSERT_TRUE(sys_addr2dev(&client_addr, opt_val, opt_len));
-
-	log_trace("SO_BINDTODEVICE: fd=%d as %s on %s\n",
-			fd, sys_addr2str((struct sockaddr_in *) &client_addr), opt_val);
-
-	rc = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, (void *)opt_val, opt_len);
-	ASSERT_EQ(EOK, errno);
-	ASSERT_EQ(0, rc);
-
-	rc = vma_api->get_socket_rings_fds(fd, &ring_fd_bind_opt, 1);
-	EXPECT_GE(1, rc);
-	EXPECT_LE(0, ring_fd_bind_opt);
-
-	rc = test_base::sock_noblock(fd);
-	ASSERT_EQ(0, rc);
-
-	rc = connect(fd, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
-	ASSERT_EQ(EINPROGRESS, errno);
-	ASSERT_EQ((-1), rc);
-
-	rc = vma_api->get_socket_rings_fds(fd, &ring_fd_connect, 1);
 	EXPECT_EQ(1, rc);
-	EXPECT_LE(0, ring_fd_connect);
-
-	EXPECT_TRUE(ring_fd_bind == ring_fd_bind_opt);
-	EXPECT_TRUE(ring_fd_bind == ring_fd_connect);
+	EXPECT_LE(0, ring_fd);
 
 	close(fd);
 }
@@ -300,16 +257,78 @@ TEST_F(vma_ring, ti_11) {
 	opt_len = sizeof(opt_val);
 	ASSERT_TRUE(sys_addr2dev(&server_addr, opt_val, opt_len));
 
-	log_trace("SO_BINDTODEVICE: fd=%d as %s on %s\n",
+	log_trace("bind(): fd=%d as %s on %s\n",
 			fd, sys_addr2str((struct sockaddr_in *) &server_addr), opt_val);
 
+	rc = bind(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+	ASSERT_EQ(0, rc);
+
+	rc = vma_api->get_socket_rings_fds(fd, &ring_fd_bind, 1);
+	EXPECT_GE(0, rc);
+	EXPECT_EQ(UNDEFINED_VALUE, ring_fd_bind);
+
+	opt_val[0] = '\0';
+	opt_len = sizeof(opt_val);
+	ASSERT_TRUE(sys_addr2dev(&client_addr, opt_val, opt_len));
+
+	log_trace("SO_BINDTODEVICE: fd=%d as %s on %s\n",
+			fd, sys_addr2str((struct sockaddr_in *) &client_addr), opt_val);
+
+	errno = EOK;
 	rc = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, (void *)opt_val, opt_len);
 	ASSERT_EQ(EOK, errno);
 	ASSERT_EQ(0, rc);
 
 	rc = vma_api->get_socket_rings_fds(fd, &ring_fd_bind_opt, 1);
-	EXPECT_GE(0, rc);
-	EXPECT_EQ(UNDEFINED_VALUE, ring_fd_bind_opt);
+	EXPECT_EQ(1, rc);
+	EXPECT_LE(0, ring_fd_bind_opt);
+
+	rc = test_base::sock_noblock(fd);
+	ASSERT_EQ(0, rc);
+
+	rc = connect(fd, (struct sockaddr *)&remote_addr, sizeof(remote_addr));
+	ASSERT_EQ(EINPROGRESS, errno);
+	ASSERT_EQ((-1), rc);
+
+	rc = vma_api->get_socket_rings_fds(fd, &ring_fd_connect, 1);
+	EXPECT_EQ(1, rc);
+	EXPECT_LE(0, ring_fd_connect);
+
+	EXPECT_FALSE(ring_fd_bind == ring_fd_bind_opt);
+	EXPECT_TRUE(ring_fd_bind_opt == ring_fd_connect);
+
+	close(fd);
+}
+
+TEST_F(vma_ring, ti_12) {
+	int rc = EOK;
+	int ring_fd_bind = UNDEFINED_VALUE;
+	int ring_fd_bind_opt = UNDEFINED_VALUE;
+	int ring_fd_connect = UNDEFINED_VALUE;
+	int fd;
+	char opt_val[100];
+	socklen_t opt_len;
+
+	SKIP_TRUE(sys_rootuser(), "This test requires root permission");
+
+	fd = socket(PF_INET, SOCK_STREAM, IPPROTO_IP);
+	ASSERT_LE(0, fd);
+
+	opt_val[0] = '\0';
+	opt_len = sizeof(opt_val);
+	ASSERT_TRUE(sys_addr2dev(&server_addr, opt_val, opt_len));
+
+	log_trace("SO_BINDTODEVICE: fd=%d as %s on %s\n",
+			fd, sys_addr2str((struct sockaddr_in *) &server_addr), opt_val);
+
+	errno = EOK;
+	rc = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, (void *)opt_val, opt_len);
+	ASSERT_EQ(EOK, errno);
+	ASSERT_EQ(0, rc);
+
+	rc = vma_api->get_socket_rings_fds(fd, &ring_fd_bind_opt, 1);
+	EXPECT_EQ(1, rc);
+	EXPECT_LE(0, ring_fd_bind_opt);
 
 	opt_val[0] = '\0';
 	opt_len = sizeof(opt_val);
@@ -319,7 +338,6 @@ TEST_F(vma_ring, ti_11) {
 			fd, sys_addr2str((struct sockaddr_in *) &client_addr), opt_val);
 
 	rc = bind(fd, (struct sockaddr *)&client_addr, sizeof(client_addr));
-	ASSERT_EQ(EOK, errno);
 	ASSERT_EQ(0, rc);
 
 	rc = vma_api->get_socket_rings_fds(fd, &ring_fd_bind, 1);
@@ -337,7 +355,7 @@ TEST_F(vma_ring, ti_11) {
 	EXPECT_EQ(1, rc);
 	EXPECT_LE(0, ring_fd_connect);
 
-	EXPECT_TRUE(ring_fd_bind != ring_fd_bind_opt);
+	EXPECT_TRUE(ring_fd_bind == ring_fd_bind_opt);
 	EXPECT_TRUE(ring_fd_bind == ring_fd_connect);
 
 	close(fd);
