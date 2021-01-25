@@ -46,6 +46,7 @@ protected:
 	void SetUp()
 	{
 		SKIP_TRUE((getenv("VMA_SOCKETXTREME")), "This test requires VMA_SOCKETXTREME=1");
+		vma_base::SetUp();
 	}
 	void TearDown()
 	{

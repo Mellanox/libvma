@@ -42,8 +42,6 @@ void vma_base::SetUp()
 {
 	errno = EOK;
 
-	SKIP_TRUE((getenv("VMA_SOCKETXTREME")), "This test requires VMA_SOCKETXTREME=1");
-
 #if defined(VMA_EXTRA_API_ENABLED) && (VMA_EXTRA_API_ENABLED == 1)
 	vma_api = vma_get_api();
 	ASSERT_TRUE(vma_api) <<
