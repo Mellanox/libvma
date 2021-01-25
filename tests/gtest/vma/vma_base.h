@@ -52,7 +52,9 @@ protected:
 	virtual void TearDown();
 
 protected:
+#if defined(VMA_EXTRA_API_ENABLED) && (VMA_EXTRA_API_ENABLED == 1)
 	struct vma_api_t *vma_api;
+#endif /* VMA_EXTRA_API_ENABLED */
 };
 
 #endif /* TESTS_GTEST_VMA_BASE_H_ */

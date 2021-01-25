@@ -34,15 +34,23 @@
 #include "common/log.h"
 #include "common/sys.h"
 #include "common/base.h"
+#include "common/cmn.h"
 
 #include "vma_base.h"
 
 void vma_base::SetUp()
 {
 	errno = EOK;
+
+	SKIP_TRUE((getenv("VMA_SOCKETXTREME")), "This test requires VMA_SOCKETXTREME=1");
+
+#if defined(VMA_EXTRA_API_ENABLED) && (VMA_EXTRA_API_ENABLED == 1)
 	vma_api = vma_get_api();
 	ASSERT_TRUE(vma_api) <<
 			"vma test suite should be launched under libvma.so";
+#else
+	SKIP_TRUE(0, "Tests should be compiled as make CPPFLAGS=-DVMA_EXTRA_API_ENABLED=1")
+#endif /* VMA_EXTRA_API_ENABLED */
 }
 
 void vma_base::TearDown()
