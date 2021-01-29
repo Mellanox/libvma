@@ -51,6 +51,7 @@
 #include <sys/wait.h>    // WIFEXITED, etc.
 #include <sys/eventfd.h>
 #include <sys/prctl.h> // prctl(), PR_SET_PDEATHSIG
+#include <sys/sendfile.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -70,6 +71,8 @@
 #include <signal.h>
 
 #include "common/gtest.h" /* Google framework header */
+
+#include "config.h"
 
 #define INLINE  __inline
 

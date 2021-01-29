@@ -206,9 +206,7 @@ static int _set_config(int argc, char **argv)
 		_usage();
 	} else {
 	    srand(gtest_conf.random_seed);
-	    gtest_conf.client_addr.sin_port = htons(gtest_conf.port);
 	    gtest_conf.server_addr.sin_port = htons(gtest_conf.port);
-	    gtest_conf.remote_addr.sin_port = htons(gtest_conf.port);
 		log_info("CONFIGURATION:\n");
 		log_info("log level: %d\n", gtest_conf.log_level);
 		log_info("seed: %d\n", gtest_conf.random_seed);

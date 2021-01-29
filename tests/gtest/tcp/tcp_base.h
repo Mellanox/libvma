@@ -45,6 +45,18 @@ public:
 protected:
 	virtual void SetUp();
 	virtual void TearDown();
+	void peer_wait(int fd) {
+		char keep_alive_check = 1;
+		struct timeval tv;
+
+		tv.tv_sec = 3;
+		tv.tv_usec = 0;
+		setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (const char*)&tv, sizeof tv);
+		while (0 < send(fd, &keep_alive_check, sizeof(keep_alive_check), MSG_NOSIGNAL)) {
+			usleep(100);
+		}
+		return ;
+	}
 };
 
 #endif /* TESTS_GTEST_TCP_BASE_H_ */

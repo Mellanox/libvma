@@ -360,8 +360,8 @@ show_section_title "Check for header files"
 #
 AC_HEADER_STDC
 
-AC_CHECK_HEADERS([sys/prctl.h sys/inotify.h sys/fanotify.h sys/capability.h linux/ethtool.h])
-
+AC_CHECK_HEADERS([sys/prctl.h sys/inotify.h sys/fanotify.h sys/capability.h])
+AC_CHECK_HEADERS([linux/ethtool.h linux/tls.h])
 
 dnl===-----------------------------------------------------------------------===
 dnl===
