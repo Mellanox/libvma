@@ -322,7 +322,10 @@ protected:
 	void 			destructor_helper();
 	int 			modify_ratelimit(dst_entry* p_dst_entry, struct vma_rate_limit_t &rate_limit);
 
-	void 			move_owned_rx_ready_descs(ring* p_ring, descq_t* toq); // Move all owner's rx ready packets ro 'toq'
+	void            move_descs(ring* p_ring, descq_t *toq, descq_t *fromq, bool own);
+	void            pop_descs_from_rx_ready(descq_t *cache, ring* p_ring = NULL);
+	void            push_descs_from_rx_ready(descq_t *cache);
+	void            reuse_descs(ring* p_ring, descq_t *reuse);
 	int			set_sockopt_prio(__const void *__optval, socklen_t __optlen);
 
 	virtual void    handle_ip_pktinfo(struct cmsg_state *cm_state) = 0;
@@ -503,22 +506,6 @@ protected:
         }
     }
 
-    inline void move_owned_descs(ring* p_ring, descq_t *toq, descq_t *fromq)
-    {
-    	// Assume locked by owner!!!
-
-    	mem_buf_desc_t *temp;
-    	const size_t size = fromq->size();
-    	for (size_t i = 0 ; i < size; i++) {
-    		temp = fromq->front();
-    		fromq->pop_front();
-    		if (p_ring->is_member(temp->p_desc_owner))
-    			toq->push_back(temp);
-    		else
-    			fromq->push_back(temp);
-    	}
-    }
-
     static const char * setsockopt_so_opt_to_str(int opt)
     {
     	switch (opt) {
@@ -538,23 +525,6 @@ protected:
     	}
     	return "UNKNOWN SO opt";
     }
-
-    inline void move_not_owned_descs(ring* p_ring, descq_t *toq, descq_t *fromq)
-    {
-    	// Assume locked by owner!!!
-
-    	mem_buf_desc_t *temp;
-    	const size_t size = fromq->size();
-    	for (size_t i = 0 ; i < size; i++) {
-    		temp = fromq->front();
-    		fromq->pop_front();
-    		if (p_ring->is_member(temp->p_desc_owner))
-    			fromq->push_back(temp);
-    		else
-    			toq->push_back(temp);
-    	}
-    }
-
 
     int			get_sock_by_L3_L4(in_protocol_t protocol, in_addr_t ip, in_port_t  port);
 
