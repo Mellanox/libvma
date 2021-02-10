@@ -862,12 +862,14 @@ void sockinfo::do_rings_migration(resource_allocation_key &old_key)
 	new_key->set_user_id_key(new_calc_id);
 	rx_net_device_map_t::iterator rx_nd_iter = m_rx_nd_map.begin();
 	while (rx_nd_iter != m_rx_nd_map.end()) {
+		int rc = 0;
 		net_device_resources_t* p_nd_resources = &(rx_nd_iter->second);
 		ring* p_old_ring = p_nd_resources->p_ring;
 		unlock_rx_q();
 		ring* new_ring = p_nd_resources->p_ndv->reserve_ring(new_key);
 		if (new_ring == p_old_ring) {
-			if (p_nd_resources->p_ndv->release_ring(&old_key) < 0) {
+			rc = p_nd_resources->p_ndv->release_ring(&old_key);
+			if (rc < 0) {
 				si_logerr("Failed to release ring for allocation key %s",
 						old_key.to_str());
 				new_key->set_user_id_key(old_calc_id);
@@ -911,7 +913,8 @@ void sockinfo::do_rings_migration(resource_allocation_key &old_key)
 			if (!new_ring->attach_flow(flow_key, this)) {
 				si_logerr("Failed to attach %s to ring %p", flow_key.to_str(), new_ring);
 				rx_del_ring_cb(flow_key, new_ring, true);
-				if (p_nd_resources->p_ndv->release_ring(new_key) < 0) {
+				rc = p_nd_resources->p_ndv->release_ring(new_key);
+				if (rc < 0) {
 					si_logerr("Failed to release ring for allocation key %s",
 							new_key->to_str());
 				}
@@ -959,7 +962,8 @@ void sockinfo::do_rings_migration(resource_allocation_key &old_key)
 
 		// Release ring reference
 		BULLSEYE_EXCLUDE_BLOCK_START
-		if (p_nd_resources->p_ndv->release_ring(&old_key) < 0) {
+		rc = p_nd_resources->p_ndv->release_ring(&old_key);
+		if (rc < 0) {
 			ip_address ip_local(rx_nd_iter->first);
 			si_logerr("Failed to release ring for allocation key %s on lip %s",
 				  old_key.to_str(), ip_local.to_str().c_str());
@@ -1212,12 +1216,16 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 		// Is this the last reference to this cq_mgr?
 		if (p_ring_info->refcnt == 0) {
 
-			// Get rid of all rx ready buffers from this cq_mgr owner
-			if (!is_migration) move_owned_rx_ready_descs(base_ring, &temp_rx_reuse);
+			/* It is special optimization to save income data
+			 * Try to avoid removing buffers from m_rx_pkt_ready_list
+			 * during migration because in some case after migration
+			 * ring can be valid and usable
+			 */
+			if (!is_migration) pop_descs_from_rx_ready(&temp_rx_reuse, base_ring);
 
 			// Move all cq_mgr->rx_reuse buffers to temp reuse queue related to p_rx_cq_mgr
-			move_owned_descs(base_ring, &temp_rx_reuse, &p_ring_info->rx_reuse_info.rx_reuse);
-			move_not_owned_descs(base_ring, &temp_rx_reuse_global, &p_ring_info->rx_reuse_info.rx_reuse);
+			move_descs(base_ring, &temp_rx_reuse, &p_ring_info->rx_reuse_info.rx_reuse, true);
+			move_descs(base_ring, &temp_rx_reuse_global, &p_ring_info->rx_reuse_info.rx_reuse, false);
 			if (p_ring_info->rx_reuse_info.rx_reuse.size()) {
 				si_logerr("possible buffer leak, p_ring_info->rx_reuse_buff still contain %d buffers.", p_ring_info->rx_reuse_info.rx_reuse.size());
 			}
@@ -1252,8 +1260,8 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 					m_p_rx_ring = NULL;
 				}
 
-				move_owned_descs(base_ring, &temp_rx_reuse, &m_rx_reuse_buff.rx_reuse);
-				move_not_owned_descs(base_ring, &temp_rx_reuse_global, &m_rx_reuse_buff.rx_reuse);
+				move_descs(base_ring, &temp_rx_reuse, &m_rx_reuse_buff.rx_reuse, true);
+				move_descs(base_ring, &temp_rx_reuse_global, &m_rx_reuse_buff.rx_reuse, false);
 
 				m_rx_reuse_buff.n_buff_num = m_rx_reuse_buff.rx_reuse.size();
 			}
@@ -1272,18 +1280,8 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 		notify_epoll_context_remove_ring(base_ring);
 	}
 
-	if (temp_rx_reuse.size() > 0) { // no need for m_lock_rcv since temp_rx_reuse is on the stack
-		// Get rig of all rx reuse buffers from temp reuse queue
-		// Without m_lock_rcv.lock()!!!
-		unsigned int counter = 1<<20;
-		while (temp_rx_reuse.size() > 0 && counter--) {
-			if (base_ring->reclaim_recv_buffers(&temp_rx_reuse))
-				break;
-			sched_yield();
-		}
-		if (temp_rx_reuse.size() > 0) //Awareness: we do this without buffer_poll lock after all other tries failed
-			g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&temp_rx_reuse);
-	}
+	// no need for m_lock_rcv since temp_rx_reuse is on the stack
+	reuse_descs(base_ring, &temp_rx_reuse);
 
 	if (temp_rx_reuse_global.size() > 0) {
 		g_buffer_pool_rx->put_buffers_after_deref_thread_safe(&temp_rx_reuse_global);
@@ -1292,17 +1290,33 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 	lock_rx_q();
 }
 
-// Move all owner's rx ready packets to 'toq'
-void sockinfo::move_owned_rx_ready_descs(ring* p_ring, descq_t *toq)
+void sockinfo::move_descs(ring* p_ring, descq_t *toq, descq_t *fromq, bool own)
 {
 	// Assume locked by owner!!!
+#define __xor(_a, _b) ((!(_a) && (_b)) || ((_a) && !(_b)))
 
 	mem_buf_desc_t *temp;
+	const size_t size = fromq->size();
+	for (size_t i = 0 ; i < size; i++) {
+		temp = fromq->front();
+		fromq->pop_front();
+		if (!__xor(own, p_ring->is_member(temp->p_desc_owner)))
+			toq->push_back(temp);
+		else
+			fromq->push_back(temp);
+	}
+}
+
+void sockinfo::pop_descs_from_rx_ready(descq_t *cache, ring* p_ring)
+{
+	// Assume locked by owner!!!
+	mem_buf_desc_t *temp;
 	const size_t size = get_size_m_rx_pkt_ready_list();
+
 	for (size_t i = 0 ; i < size; i++) {
 		temp = get_front_m_rx_pkt_ready_list();
 		pop_front_m_rx_pkt_ready_list();
-		if (!p_ring->is_member(temp->p_desc_owner)) {
+		if (p_ring && !p_ring->is_member(temp->p_desc_owner)) {
 			push_back_m_rx_pkt_ready_list(temp);
 			continue;
 		}
@@ -1311,7 +1325,41 @@ void sockinfo::move_owned_rx_ready_descs(ring* p_ring, descq_t *toq)
 
 		m_rx_ready_byte_count -= temp->rx.sz_payload;
 		m_p_socket_stats->n_rx_ready_byte_count -= temp->rx.sz_payload;
-		toq->push_back(temp);
+		cache->push_back(temp);
+	}
+}
+
+void sockinfo::push_descs_from_rx_ready(descq_t *cache)
+{
+	// Assume locked by owner!!!
+	mem_buf_desc_t *temp;
+	const size_t size = (cache ? cache->size() : 0);
+
+	for (size_t i = 0 ; i < size; i++) {
+		temp = cache->front();
+		cache->pop_front();
+		m_n_rx_pkt_ready_list_count++;
+		m_p_socket_stats->n_rx_ready_pkt_count++;
+
+		m_rx_ready_byte_count += temp->rx.sz_payload;
+		m_p_socket_stats->n_rx_ready_byte_count += temp->rx.sz_payload;
+		push_back_m_rx_pkt_ready_list(temp);
+	}
+}
+
+void sockinfo::reuse_descs(ring* p_ring, descq_t *reuseq)
+{
+	if (reuseq && reuseq->size() > 0) {
+		unsigned int counter = 1 << 20;
+		while (reuseq->size() > 0 && p_ring && counter--) {
+			if (p_ring->reclaim_recv_buffers(reuseq)) {
+				break;
+			}
+			sched_yield();
+		}
+		if (reuseq->size() > 0) {
+			g_buffer_pool_rx->put_buffers_after_deref_thread_safe(reuseq);
+		}
 	}
 }
 
