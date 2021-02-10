@@ -312,8 +312,8 @@ protected:
 	transport_t 		find_target_family(role_t role, struct sockaddr *sock_addr_first, struct sockaddr *sock_addr_second = NULL);
 
 	// This callback will notify that socket is ready to receive and map the cq.
-	virtual void		rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool is_migration = false);
-	virtual void 		rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, bool is_migration = false);
+	virtual void		rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring);
+	virtual void 		rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring);
 
 	virtual void		lock_rx_q() {m_lock_rcv.lock();}
 	virtual void		unlock_rx_q() {m_lock_rcv.unlock();}
@@ -323,9 +323,9 @@ protected:
 	int 			modify_ratelimit(dst_entry* p_dst_entry, struct vma_rate_limit_t &rate_limit);
 
 	void            move_descs(ring* p_ring, descq_t *toq, descq_t *fromq, bool own);
-	void            pop_descs_from_rx_ready(descq_t *cache, ring* p_ring = NULL);
-	void            push_descs_from_rx_ready(descq_t *cache);
-	void            reuse_descs(ring* p_ring, descq_t *reuse);
+	void            pop_descs_rx_ready(descq_t *cache, ring* p_ring = NULL);
+	void            push_descs_rx_ready(descq_t *cache);
+	void            reuse_descs(descq_t *reuseq, ring* p_ring = NULL);
 	int			set_sockopt_prio(__const void *__optval, socklen_t __optlen);
 
 	virtual void    handle_ip_pktinfo(struct cmsg_state *cm_state) = 0;
