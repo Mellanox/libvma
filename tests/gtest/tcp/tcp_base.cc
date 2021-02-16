@@ -51,7 +51,6 @@ int tcp_base::sock_create(void)
 	int rc;
 	int fd;
 	int opt_val = 0;
-	socklen_t opt_len;
 
 	fd = socket(PF_INET, SOCK_STREAM, IPPROTO_IP);
 	if (fd < 0) {
@@ -59,7 +58,7 @@ int tcp_base::sock_create(void)
 		goto err;
 	}
 
-	rc = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt_val, sizeof(opt_len));
+	rc = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt_val, sizeof(opt_val));
 	if (rc < 0) {
 		log_error("failed setsockopt(SO_REUSEADDR) %s\n", strerror(errno));
 		goto err;
@@ -78,7 +77,6 @@ int tcp_base::sock_create_nb(void)
 	int rc;
 	int fd;
 	int opt_val = 0;
-	socklen_t opt_len;
 
 	fd = socket(PF_INET, SOCK_STREAM, IPPROTO_IP);
 	if (fd < 0) {
@@ -86,7 +84,7 @@ int tcp_base::sock_create_nb(void)
 		goto err;
 	}
 
-	rc = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt_val, sizeof(opt_len));
+	rc = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt_val, sizeof(opt_val));
 	if (rc < 0) {
 		log_error("failed setsockopt(SO_REUSEADDR) %s\n", strerror(errno));
 		goto err;
