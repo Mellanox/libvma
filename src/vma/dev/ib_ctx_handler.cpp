@@ -507,6 +507,8 @@ void ib_ctx_handler::handle_event_device_fatal()
 {
 	m_removed = true;
 
+	ibch_logdbg("IBV_EVENT_DEVICE_FATAL for ib_ctx_handler=%p", this);
+
 	/* After getting IBV_EVENT_DEVICE_FATAL event rdma library returns
 	 * an EIO from destroy commands when the kernel resources were already released.
 	 * This comes to prevent memory leakage in the
@@ -515,6 +517,8 @@ void ib_ctx_handler::handle_event_device_fatal()
 	 * object destruction function.
 	 */
 	g_p_event_handler_manager->unregister_ibverbs_event(m_p_ibv_context->async_fd, this);
-	m_p_ctx_time_converter->clean_obj();
-	m_p_ctx_time_converter = NULL;
+	if (m_p_ctx_time_converter) {
+		m_p_ctx_time_converter->clean_obj();
+		m_p_ctx_time_converter = NULL;
+	}
 }
