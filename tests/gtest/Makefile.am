@@ -35,6 +35,7 @@ gtest_SOURCES = \
 	tcp/tcp_event.cc \
 	tcp/tcp_send.cc \
 	tcp/tcp_sendto.cc \
+	tcp/tcp_send_zc.cc \
 	tcp/tcp_tls.cc \
 	\
 	udp/udp_base.cc \
