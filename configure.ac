@@ -476,7 +476,7 @@ AC_CONFIG_FILES([
 		tests/throughput_test/Makefile
 		tools/Makefile
 		tools/daemon/Makefile
-		doc/man/Makefile
+		docs/man/Makefile
 		contrib/scripts/vma.init
 		contrib/scripts/vma.service
 		contrib/scripts/libvma.spec
