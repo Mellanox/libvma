@@ -1,22 +1,87 @@
 noinst_PROGRAMS = gtest
 
-CXXFLAGS = $(GTEST_CXXFLAGS)
+CXXFLAGS =
 
-gtest_LDADD =
+AM_CXXFLAGS = \
+	-Wno-error=sign-compare \
+	-Wno-error=missing-field-initializers \
+	-g -O3 -std=c++11
+
+AM_CPPFLAGS = \
+	-DGTEST_LANG_CXX11=0 \
+	-DGTEST_HAS_PTHREAD=1 \
+	-DGTEST_USE_OWN_TR1_TUPLE=0 \
+	-DGTEST_HAS_TR1_TUPLE=1 \
+	-DGTEST_ENV_HAS_STD_TUPLE_=0 \
+	-DGTEST_USES_SIMPLE_RE=0 \
+	-DPTHREADS \
+	\
+	-DGTEST_DONT_DEFINE_ASSERT_GT=0 \
+	-DGTEST_DONT_DEFINE_ASSERT_GE=0 \
+	-DGTEST_DONT_DEFINE_ASSERT_LT=0 \
+	-DGTEST_DONT_DEFINE_ASSERT_LE=0 \
+	-DGTEST_DONT_DEFINE_ASSERT_NE=0 \
+	-DGTEST_DONT_DEFINE_ASSERT_EQ=0 \
+	-DGTEST_DONT_DEFINE_SUCCEED=0 \
+	-DGTEST_DONT_DEFINE_FAIL=0 \
+	-DGTEST_DONT_DEFINE_TEST=0 \
+	\
+	-DGTEST_HAS_STD_WSTRING=0 \
+	-DGTEST_HAS_GLOBAL_STRING=0 \
+	\
+	-DGTEST_OS_WINDOWS=0 \
+	-DGTEST_OS_LINUX_ANDROID=0 \
+	-DGTEST_OS_CYGWIN=0 \
+	-DGTEST_OS_SOLARIS=0 \
+	-DGTEST_OS_SYMBIAN=0 \
+	-DGTEST_OS_WINDOWS_MOBILE=0 \
+	-DGTEST_OS_QNX=0 \
+	-DGTEST_OS_MAC=0 \
+	-DGTEST_OS_IOS=0 \
+	-DGTEST_OS_ZOS
+
+
+
+# lgtest
+noinst_LTLIBRARIES = libgtest.la
+
+libgtest_la_CPPFLAGS = \
+	-I$(top_srcdir)/tests/gtest/googletest \
+	-I$(top_srcdir)/tests/gtest/googletest/include \
+	$(AM_CPPFLAGS)
+
+libgtest_la_LDFLAGS = -pthread -static
+libgtest_la_CXXFLAGS = \
+	$(AM_CXXFLAGS)
+
+EXTRA_DIST = \
+	googletest/include \
+	googletest/src \
+	googletest/README.md \
+	googletest/LICENSE
+
+libgtest_la_SOURCES = \
+	googletest/src/gtest-all.cc \
+	googletest/src/gtest_main.cc
+
+# gtest
+gtest_LDADD = libgtest.la
 
 gtest_CPPFLAGS = \
 	-I$(top_srcdir)/ \
 	-I$(top_srcdir)/src \
 	-I$(top_srcdir)/src/vma \
-	-I$(top_srcdir)/tests/gtest
+	-I$(top_srcdir)/tests/gtest \
+	-I$(top_srcdir)/tests/gtest/googletest/include \
+	$(AM_CPPFLAGS)
 
-gtest_LDFLAGS  = $(GTEST_LDFLAGS) -no-install
-gtest_CXXFLAGS = $(GTEST_CXXFLAGS) -g -O3 -fno-tree-vectorize
+gtest_LDFLAGS = -no-install
+gtest_CXXFLAGS = \
+	$(AM_CXXFLAGS)
 
 gtest_SOURCES = \
 	main.cc \
 	\
-	common/gtest-all.cc \
 	common/sys.cc \
 	\
 	common/base.cc \
@@ -58,7 +123,6 @@ gtest_SOURCES = \
 	vmad/vmad_flow.cc
 
 noinst_HEADERS = \
-	common/gtest.h \
 	common/tap.h \
 	common/def.h \
 	common/sys.h \
@@ -77,6 +141,8 @@ noinst_HEADERS = \
 	\
 	vma/vma_base.h
 
+gtest_DEPENDENCIES = \
+	libgtest.la
 
 # This workaround allows to compile files located
 # at another directory.
@@ -89,78 +155,3 @@ CLEANFILES = hash.c
 hash.c:
 	@echo "#include \"$(top_builddir)/tools/daemon/$@\"" >$@
 
-
-.PHONY: test gdb valgrind
-
-
-all-local: gtest
-
-
-#
-# List variables
-#
-GTEST_FILTER        ?= *
-GTEST_EXTRA_ARGS    =
-LAUNCHER            = LD_PRELOAD=$(abs_top_builddir)/src/vma/.libs/libvma.so
-VALGRIND_EXTRA_ARGS =
-
-GTEST_ARGS = \
-	--gtest_filter=$(GTEST_FILTER) \
-	$(GTEST_EXTRA_ARGS)
-
-VALGRIND_ARGS = \
-	--tool=memcheck \
-	--leak-check=full \
-	--track-origins=yes \
-	--fair-sched=try \
-	$(VALGRIND_EXTRA_ARGS)
-
-#
-# List of rules
-#
-libvma:
-	$(MAKE) -C $(top_builddir)
-
-help:
-	@echo
-	@echo "Targets:"
-	@echo "  list          : List unit tests."
-	@echo "  test          : Run unit tests."
-	@echo "  test_gdb      : Run unit tests with GDB."
-	@echo "  test_valgrind : Run unit tests with Valgrind."
-	@echo
-	@echo "Environment variables:"
-	@echo "  GTEST_FILTER        : Unit tests filter (\"$(GTEST_FILTER)\")"
-	@echo "  GTEST_EXTRA_ARGS    : Additional arguments for gtest (\"$(GTEST_EXTRA_ARGS)\")"
-	@echo "  LAUNCHER            : Custom launcher for gtest executable (\"$(LAUNCHER)\")"
-	@echo "  VALGRIND_EXTRA_ARGS : Additional arguments for Valgrind (\"$(VALGRIND_EXTRA_ARGS)\")"
-	@echo
-
-#
-# List unit tests
-#
-list: gtest
-	$(abs_builddir)/gtest --gtest_list_tests $(GTEST_ARGS)
-
-#
-# Run unit tests
-#
-test: libvma gtest
-	@rm -f core.*
-	env $(LAUNCHER) $(abs_builddir)/gtest $(GTEST_ARGS)
-
-#
-# Run unit tests with GDB
-#
-test_gdb: libvma gtest
-	echo -e 'r\ninit-if-undefined $$_exitcode=-1\nif $$_exitcode>=0\n\tq\nend' > .gdbcommands
-	env $(LAUNCHER) \
-		gdb -x .gdbcommands --args $(GDB_ARGS) \
-			$(abs_builddir)/gtest $(GTEST_ARGS)
-
-#
-# Run unit tests with valgrind
-#
-test_valgrind: libvma gtest
-	env $(LAUNCHER) LD_LIBRARY_PATH="$(VALGRIND_LIBPATH):${LD_LIBRARY_PATH}" \
-	valgrind $(VALGRIND_ARGS) $(abs_builddir)/gtest $(GTEST_ARGS)
