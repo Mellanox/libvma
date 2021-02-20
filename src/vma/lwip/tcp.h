@@ -66,7 +66,7 @@ void register_sys_readv(sys_readv_fn fn);
 #endif
 
 #if LWIP_3RD_PARTY_BUFS
-typedef struct pbuf * (*tcp_tx_pbuf_alloc_fn)(void* p_conn);
+typedef struct pbuf * (*tcp_tx_pbuf_alloc_fn)(void* p_conn, pbuf_type type);
 
 void register_tcp_tx_pbuf_alloc(tcp_tx_pbuf_alloc_fn fn);
 
@@ -528,6 +528,7 @@ err_t            tcp_shutdown(struct tcp_pcb *pcb, int shut_rx, int shut_tx);
 #define TCP_WRITE_DUMMY     0x10
 #define TCP_WRITE_TSO       0x20
 #define TCP_WRITE_FILE      0x40
+#define TCP_WRITE_ZEROCOPY  0x80
 
 err_t            tcp_write   (struct tcp_pcb *pcb, const void *dataptr, u32_t len,
                               u8_t apiflags);

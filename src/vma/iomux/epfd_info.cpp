@@ -55,10 +55,13 @@ int epfd_info::remove_fd_from_epoll_os(int fd)
 
 epfd_info::epfd_info(int epfd, int size) :
 	lock_mutex_recursive("epfd_info"), m_epfd(epfd), m_size(size), m_ring_map_lock("epfd_ring_map_lock"),
-	m_lock_poll_os("epfd_lock_poll_os"), m_sysvar_thread_mode(safe_mce_sys().thread_mode),
-	m_b_os_data_available(false)
+	m_lock_poll_os("epfd_lock_poll_os"),
+	m_b_os_data_available(false),
+	m_sysvar_thread_mode(safe_mce_sys().thread_mode),
+	m_sysvar_internal_thread_arm_cq(safe_mce_sys().internal_thread_arm_cq)
 {
 	__log_funcall("");
+
 	int max_sys_fd = get_sys_max_fd_num();
 	if (m_size<=max_sys_fd)
 	{
@@ -609,17 +612,35 @@ int epfd_info::ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_re
 	m_ring_map_lock.lock();
 
 	for (ring_map_t::iterator iter = m_ring_map.begin(); iter != m_ring_map.end(); iter++) {
-		int ret = iter->first->poll_and_process_element_rx(p_poll_sn, pv_fd_ready_array);
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (ret < 0 && errno != EAGAIN) {
-			__log_err("Error in ring->poll_and_process_element() of %p (errno=%d %m)", iter->first, errno);
-			m_ring_map_lock.unlock();
-			return ret;
+		if (m_sysvar_internal_thread_arm_cq & mce_sys_var::ARM_CQ_RX) {
+			int ret = iter->first->poll_and_process_element_rx(p_poll_sn, pv_fd_ready_array);
+			BULLSEYE_EXCLUDE_BLOCK_START
+			if (ret < 0 && errno != EAGAIN) {
+				__log_err("Error in RX ring->poll_and_process_element() of %p (errno=%d %m)", iter->first, errno);
+				m_ring_map_lock.unlock();
+				return ret;
+			}
+			BULLSEYE_EXCLUDE_BLOCK_END
+			if (ret > 0) {
+				__log_func("ring[%p] RX Returned with: %d (sn=%d)", iter->first, ret, *p_poll_sn);
+				ret_total += ret;
+			}
 		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-		if (ret > 0)
-			__log_func("ring[%p] Returned with: %d (sn=%d)", iter->first, ret, *p_poll_sn);
-		ret_total += ret;
+
+		if (m_sysvar_internal_thread_arm_cq & mce_sys_var::ARM_CQ_TX) {
+			int ret = iter->first->poll_and_process_element_tx(p_poll_sn);
+			BULLSEYE_EXCLUDE_BLOCK_START
+			if (ret < 0 && errno != EAGAIN) {
+				__log_err("Error in TX ring->poll_and_process_element() of %p (errno=%d %m)", iter->first, errno);
+				m_ring_map_lock.unlock();
+				return ret;
+			}
+			BULLSEYE_EXCLUDE_BLOCK_END
+			if (ret > 0) {
+				__log_func("ring[%p] TX Returned with: %d (sn=%d)", iter->first, ret, *p_poll_sn);
+				ret_total += ret;
+			}
+		}
 	}
 
 	m_ring_map_lock.unlock();
@@ -646,16 +667,31 @@ int epfd_info::ring_request_notification(uint64_t poll_sn)
 	m_ring_map_lock.lock();
 
 	for (ring_map_t::iterator iter = m_ring_map.begin(); iter != m_ring_map.end(); iter++) {
-		int ret = iter->first->request_notification(CQT_RX, poll_sn);
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (ret < 0) {
-			__log_err("Error ring[%p]->request_notification() (errno=%d %m)", iter->first, errno);
-			m_ring_map_lock.unlock();
-			return ret;
+		if (m_sysvar_internal_thread_arm_cq & mce_sys_var::ARM_CQ_RX) {
+			int ret = iter->first->request_notification(CQT_RX, poll_sn);
+			BULLSEYE_EXCLUDE_BLOCK_START
+			if (ret < 0) {
+				__log_err("Error RX ring[%p]->request_notification() (errno=%d %m)", iter->first, errno);
+				m_ring_map_lock.unlock();
+				return ret;
+			}
+			BULLSEYE_EXCLUDE_BLOCK_END
+			__log_func("ring[%p] RX Returned with: %d (sn=%d)", iter->first, ret, poll_sn);
+			ret_total += ret;
 		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-		__log_func("ring[%p] Returned with: %d (sn=%d)", iter->first, ret, poll_sn);
-		ret_total += ret;
+
+		if (m_sysvar_internal_thread_arm_cq & mce_sys_var::ARM_CQ_TX) {
+			int ret = iter->first->request_notification(CQT_TX, poll_sn);
+			BULLSEYE_EXCLUDE_BLOCK_START
+			if (ret < 0) {
+				__log_err("Error TX ring[%p]->request_notification() (errno=%d %m)", iter->first, errno);
+				m_ring_map_lock.unlock();
+				return ret;
+			}
+			BULLSEYE_EXCLUDE_BLOCK_END
+			__log_func("ring[%p] TX Returned with: %d (sn=%d)", iter->first, ret, poll_sn);
+			ret_total += ret;
+		}
 	}
 
 	m_ring_map_lock.unlock();

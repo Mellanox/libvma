@@ -129,12 +129,15 @@ private:
 	ring_map_t             m_ring_map;
 	lock_mutex_recursive   m_ring_map_lock;
 	lock_spin              m_lock_poll_os;
-	const thread_mode_t    m_sysvar_thread_mode;
 	ready_cq_fd_q_t        m_ready_cq_fd_q;
 	epoll_stats_t          m_local_stats;
 	epoll_stats_t          *m_stats;
 	int                    m_log_invalid_events;
 	bool                   m_b_os_data_available; // true when non offloaded data is available
+
+	/* Global environment variables section */
+	const thread_mode_t    m_sysvar_thread_mode;
+	const int m_sysvar_internal_thread_arm_cq;
 
 	int add_fd(int fd, epoll_event *event);
 	int del_fd(int fd, bool passthrough = false);

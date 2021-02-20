@@ -117,6 +117,15 @@ int epoll_wait_call::get_current_events()
 			mutual_events &= ~EPOLLOUT;
 		}
 
+		// handle zcopy notification mechanism
+		if (mutual_events & EPOLLERR) {
+			int unused;
+			if (handle_epoll_event(p_socket_object->is_errorable(&unused), EPOLLERR, p_socket_object, i)) {
+				got_event = true;
+			}
+			mutual_events &= ~EPOLLERR;
+		}
+
 		if (mutual_events) {
 			if (handle_epoll_event(true, mutual_events, p_socket_object, i)) {
 				got_event = true;

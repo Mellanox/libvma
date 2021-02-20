@@ -55,7 +55,8 @@ public:
 
 	virtual int*		get_rx_channel_fds(size_t &length) const { length = m_n_used_rx_rings; return m_p_n_rx_channel_fds; };
 	virtual int		request_notification(cq_type_t cq_type, uint64_t poll_sn);
-	virtual int		poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
+	virtual int poll_and_process_element_rx(uint64_t* p_cq_poll_sn, void* pv_fd_ready_array = NULL);
+	virtual int poll_and_process_element_tx(uint64_t* p_cq_poll_sn);
 	virtual void		adapt_cq_moderation();
 	virtual bool		reclaim_recv_buffers(descq_t *rx_reuse);
 	virtual bool		reclaim_recv_buffers(mem_buf_desc_t* rx_reuse_lst);

@@ -824,6 +824,10 @@ retry_is_ready:
 	}
 #endif
 
+	if ((__flags & MSG_ZEROCOPY) && (m_b_zc)) {
+		apiflags |= VMA_TX_PACKET_ZEROCOPY;
+	}
+
 	for (int i = 0; i < sz_iov; i++) {
 		si_tcp_logfunc("iov:%d base=%p len=%d", i, p_iov[i].iov_base, p_iov[i].iov_len);
 
@@ -948,6 +952,19 @@ done:
 		m_p_socket_stats->n_tx_ready_byte_count += total_tx;
 	}
 
+	/* Each send call with MSG_ZEROCOPY that successfully sends
+	 * data increments the counter.
+	 * The counter is not incremented on failure or if called with length zero.
+	 */
+	if ((apiflags & VMA_TX_PACKET_ZEROCOPY) &&
+			(total_tx > 0)) {
+		if (m_last_zcdesc->tx.zc.id != (uint32_t)atomic_read(&m_zckey)) {
+			si_tcp_logerr("Invalid tx zcopy operation");
+		} else {
+			atomic_fetch_and_inc(&m_zckey);
+		}
+	}
+
 	unlock_tcp_con();
 
 #ifdef VMA_TIME_MEASURE	
@@ -988,7 +1005,7 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, uint16_t flags)
 	dst_entry *p_dst = p_si_tcp->m_p_connected_dst_entry;
 	int max_count = p_si_tcp->m_pcb.tso.max_send_sge;
 	tcp_iovec lwip_iovec[max_count];
-	vma_send_attr attr = {(vma_wr_tx_packet_attr)0, 0};
+	vma_send_attr attr = {(vma_wr_tx_packet_attr)0, 0, 0};
 	int count = 0;
 
 	/* maximum number of sge can not exceed this value */
@@ -996,6 +1013,7 @@ err_t sockinfo_tcp::ip_output(struct pbuf *p, void* v_p_conn, uint16_t flags)
 		lwip_iovec[count].iovec.iov_base = p->payload;
 		lwip_iovec[count].iovec.iov_len = p->len;
 		lwip_iovec[count].p_desc = (mem_buf_desc_t*)p;
+		attr.length += p->len;
 		p = p->next;
 		count++;
 	}
@@ -1893,7 +1911,7 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 	int total_rx = 0;
 	int poll_count = 0;
 	int bytes_to_tcp_recved;
-	size_t total_iov_sz = 1;
+	size_t total_iov_sz = 0;
 	int out_flags = 0;
 	int in_flags = *p_flags;
 	bool block_this_run = BLOCK_THIS_RUN(m_b_blocking, in_flags);
@@ -1915,23 +1933,47 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 	TAKE_T_RX_START;
 #endif
 
-	if (unlikely((in_flags & MSG_WAITALL) && !(in_flags & MSG_PEEK))) {
-		total_iov_sz = 0;
-		for (int i = 0; i < sz_iov; i++) {
-			total_iov_sz += p_iov[i].iov_len;
+	/* In general, without any special flags, socket options, or ioctls being set,
+	 * a recv call on a blocking TCP socket will return any number of bytes less than
+	 * or equal to the size being requested. But unless the socket is closed remotely,
+	 * interrupted by signal, or in an error state,
+	 * it will block until at least 1 byte is available.
+	 * With MSG_ERRQUEUE flag user application can request just information from
+	 * error queue without any income data.
+	 */
+	if (p_iov && (sz_iov > 0)) {
+		total_iov_sz = 1;
+		if (unlikely((in_flags & MSG_WAITALL) && !(in_flags & MSG_PEEK))) {
+			total_iov_sz = 0;
+			for (int i = 0; i < sz_iov; i++) {
+				total_iov_sz += p_iov[i].iov_len;
+			}
+			if (total_iov_sz == 0)
+				return 0;
 		}
-		if (total_iov_sz == 0)
-			return 0;
 	}
 
 	si_tcp_logfunc("rx: iov=%p niovs=%d", p_iov, sz_iov);
-	 /* poll rx queue till we have something */
+
+	/* poll rx queue till we have something */
 	lock_tcp_con();
+
+	/* error queue request should be handled first
+	 * It allows to return immediately during failure with correct
+	 * error notification without data processing
+	 */
+	if (__msg && __msg->msg_control && (in_flags & MSG_ERRQUEUE)) {
+		if (m_error_queue.empty()) {
+			errno = EAGAIN;
+			unlock_tcp_con();
+			return -1;
+		}
+	}
 	return_reuse_buffers_postponed();
 	unlock_tcp_con();
 
 	while (m_rx_ready_byte_count < total_iov_sz) {
-		if (unlikely(g_b_exit ||!is_rtr() || (rx_wait_lockless(poll_count, block_this_run) < 0))) {
+		if (unlikely(g_b_exit || !is_rtr() || (rx_wait_lockless(poll_count, block_this_run) < 0))) {
 			return handle_rx_error(block_this_run);
 		}
 	}
@@ -1940,8 +1982,14 @@ ssize_t sockinfo_tcp::rx(const rx_call_t call_type, iovec* p_iov, ssize_t sz_iov
 
 	si_tcp_logfunc("something in rx queues: %d %p", m_n_rx_pkt_ready_list_count, m_rx_pkt_ready_list.front());
 
-	total_rx = dequeue_packet(p_iov, sz_iov, (sockaddr_in *)__from, __fromlen, in_flags, &out_flags);
-	if (__msg) handle_cmsg(__msg);
+	if (total_iov_sz > 0) {
+		total_rx = dequeue_packet(p_iov, sz_iov, (sockaddr_in *)__from, __fromlen, in_flags, &out_flags);
+	}
+
+	/* Handle all control message requests */
+	if (__msg && __msg->msg_control) {
+		handle_cmsg(__msg, in_flags);
+	}
 
 	/*
 	* RCVBUFF Accounting: Going 'out' of the internal buffer: if some bytes are not tcp_recved yet  - do that.
@@ -2770,7 +2818,7 @@ void sockinfo_tcp::auto_accept_connection(sockinfo_tcp *parent, sockinfo_tcp *ch
 			child->m_socketxtreme.ec.completion.src = parent->m_socketxtreme.ec.completion.src;
 			child->m_socketxtreme.ec.completion.listen_fd = child->m_parent->get_fd();
 		}
-		child->set_events(VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED);
+		NOTIFY_ON_EVENTS(child, VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED);
 	}
 	else {
 		vlog_printf(VLOG_ERROR, "VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED: can't find listen socket for new connected socket with [fd=%d]",
@@ -3291,7 +3339,8 @@ bool sockinfo_tcp::is_errorable(int *errors)
 		*errors |= POLLHUP;
 	}
 
-	if (m_conn_state == TCP_CONN_ERROR) {
+	if ((m_conn_state == TCP_CONN_ERROR) ||
+			(!m_error_queue.empty())) {
 		*errors |= POLLERR;
 	}
 
@@ -3795,6 +3844,15 @@ int sockinfo_tcp::setsockopt(int __level, int __optname,
 			ret = SOCKOPT_HANDLE_BY_OS;
 			break;
 		}
+		case SO_ZEROCOPY:
+			if (__optval) {
+				lock_tcp_con();
+				m_b_zc = *(bool *)__optval;
+				unlock_tcp_con();
+			}
+			ret = SOCKOPT_HANDLE_BY_OS;
+			si_tcp_logdbg("(SO_ZEROCOPY) m_b_zc: %d", m_b_zc);
+			break;
 		default:
 			ret = SOCKOPT_HANDLE_BY_OS;
 			supported = false;
@@ -3925,6 +3983,15 @@ int sockinfo_tcp::getsockopt_offload(int __level, int __optname, void *__optval,
 			break;
 		case SO_MAX_PACING_RATE:
 			ret = sockinfo::getsockopt(__level, __optname, __optval, __optlen);
+			break;
+		case SO_ZEROCOPY:
+			if (*__optlen >= sizeof(int)) {
+				*(int *)__optval = m_b_zc;
+				si_tcp_logdbg("(SO_ZEROCOPY) m_b_zc: %d", m_b_zc);
+				ret = 0;
+			} else {
+				errno = EINVAL;
+			}
 			break;
 		default:
 			ret = SOCKOPT_HANDLE_BY_OS;
@@ -4516,13 +4583,17 @@ int sockinfo_tcp::free_buffs(uint16_t len)
 	return 0;
 }
 
-struct pbuf * sockinfo_tcp::tcp_tx_pbuf_alloc(void* p_conn)
+struct pbuf * sockinfo_tcp::tcp_tx_pbuf_alloc(void* p_conn, pbuf_type type)
 {
 	sockinfo_tcp *p_si_tcp = (sockinfo_tcp *)(((struct tcp_pcb*)p_conn)->my_container);
 	dst_entry_tcp *p_dst = (dst_entry_tcp *)(p_si_tcp->m_p_connected_dst_entry);
 	mem_buf_desc_t* p_desc = NULL;
+
 	if (likely(p_dst)) {
 		p_desc = p_dst->get_buffer();
+		if (p_desc && (type == PBUF_ZEROCOPY)) {
+			p_desc = p_si_tcp->tcp_tx_zc_alloc(p_desc);
+		}
 	}
 	return (struct pbuf *)p_desc;
 }
@@ -4545,9 +4616,110 @@ void sockinfo_tcp::tcp_tx_pbuf_free(void* p_conn, struct pbuf *p_buff)
 
 		if (p_desc->lwip_pbuf.pbuf.ref == 0) {
 			p_desc->p_next_desc = NULL;
-			g_buffer_pool_tx->put_buffers_thread_safe(p_desc);
+			buffer_pool::free_tx_lwip_pbuf_custom(p_buff);
 		}
 	}
+}
+
+mem_buf_desc_t* sockinfo_tcp::tcp_tx_zc_alloc(mem_buf_desc_t* p_desc)
+{
+	p_desc->m_flags |= mem_buf_desc_t::ZCOPY;
+	p_desc->tx.zc.id = atomic_read(&m_zckey);
+	p_desc->tx.zc.count = 1;
+	p_desc->tx.zc.len = p_desc->lwip_pbuf.pbuf.len;
+	p_desc->tx.zc.ctx = (void *)this;
+	p_desc->tx.zc.callback = tcp_tx_zc_callback;
+
+	if (m_last_zcdesc &&
+			(m_last_zcdesc != p_desc) &&
+			(m_last_zcdesc->lwip_pbuf.pbuf.ref > 0) &&
+			(m_last_zcdesc->tx.zc.id == p_desc->tx.zc.id)) {
+		m_last_zcdesc->tx.zc.len = m_last_zcdesc->lwip_pbuf.pbuf.len;
+		m_last_zcdesc->tx.zc.count = 0;
+	}
+	m_last_zcdesc = p_desc;
+
+	return p_desc;
+}
+
+void sockinfo_tcp::tcp_tx_zc_callback(mem_buf_desc_t* p_desc)
+{
+	sockinfo_tcp* sock = NULL;
+
+	if (!p_desc) {
+		return;
+	}
+
+	if (!p_desc->tx.zc.ctx || !p_desc->tx.zc.count) {
+		goto cleanup;
+	}
+
+	sock = (sockinfo_tcp *)p_desc->tx.zc.ctx;
+
+	if (sock->m_state != SOCKINFO_OPENED) {
+		goto cleanup;
+	}
+
+	sock->tcp_tx_zc_handle(p_desc);
+
+cleanup:
+        /* Clean up */
+        p_desc->m_flags &= ~mem_buf_desc_t::ZCOPY;
+        memset(&p_desc->tx.zc, 0, sizeof(p_desc->tx.zc));
+}
+
+void sockinfo_tcp::tcp_tx_zc_handle(mem_buf_desc_t* p_desc)
+{
+	uint32_t lo, hi;
+	uint16_t count;
+	uint32_t prev_lo, prev_hi;
+	mem_buf_desc_t* err_queue = NULL;
+	sockinfo_tcp* sock = this;
+
+	count = p_desc->tx.zc.count;
+	lo = p_desc->tx.zc.id;
+	hi = lo + count - 1;
+	memset(&p_desc->ee, 0, sizeof(p_desc->ee));
+	p_desc->ee.ee_errno = 0;
+	p_desc->ee.ee_origin = SO_EE_ORIGIN_ZEROCOPY;
+	p_desc->ee.ee_data = hi;
+	p_desc->ee.ee_info = lo;
+//	p_desc->ee.ee_code |= SO_EE_CODE_ZEROCOPY_COPIED;
+
+	m_error_queue_lock.lock();
+
+	/* Update last error queue element in case it has the same type */
+	err_queue = sock->m_error_queue.back();
+	if (err_queue &&
+		(err_queue->ee.ee_origin == p_desc->ee.ee_origin) &&
+		(err_queue->ee.ee_code == p_desc->ee.ee_code)) {
+		uint64_t sum_count = 0;
+
+		prev_hi = err_queue->ee.ee_data;
+		prev_lo = err_queue->ee.ee_info;
+		sum_count = prev_hi - prev_lo + 1ULL + count;
+
+		if (lo == prev_lo) {
+			if (hi > prev_hi)
+				err_queue->ee.ee_data = hi;
+		} else if ((sum_count >= (1ULL << 32)) || (lo != prev_hi + 1)) {
+			err_queue = NULL;
+		} else {
+			err_queue->ee.ee_data += count;
+		}
+	}
+
+	/* Add  information into error queue element */
+	if (!err_queue) {
+		err_queue = p_desc->clone();
+		sock->m_error_queue.push_back(err_queue);
+	}
+
+	m_error_queue_lock.unlock();
+
+	/* Signal events on socket */
+	NOTIFY_ON_EVENTS(sock, EPOLLERR);
+	sock->do_wakeup();
 }
 
 struct tcp_seg * sockinfo_tcp::tcp_seg_alloc(void* p_conn)

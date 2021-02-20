@@ -90,6 +90,22 @@ enum {
 #define SO_REUSEPORT		15
 #endif
 
+#ifndef SO_EE_ORIGIN_ZEROCOPY
+#define SO_EE_ORIGIN_ZEROCOPY		5
+#endif
+
+#ifndef SO_ZEROCOPY
+#define SO_ZEROCOPY	59
+#endif
+
+#ifndef SO_EE_CODE_ZEROCOPY_COPIED
+#define SO_EE_CODE_ZEROCOPY_COPIED	1
+#endif
+
+#ifndef MSG_ZEROCOPY
+#define MSG_ZEROCOPY	0x4000000
+#endif
+
 struct cmsg_state
 {
 	struct msghdr	*mhdr;
@@ -200,6 +216,7 @@ protected:
 	bool 			m_b_pktinfo;
 	bool 			m_b_rcvtstamp;
 	bool 			m_b_rcvtstampns;
+	bool			m_b_zc;
 	uint8_t 		m_n_tsing_flags;
 	in_protocol_t		m_protocol;
 
@@ -247,6 +264,26 @@ protected:
 	ring_alloc_logic_attr			m_ring_alloc_log_rx;
 	ring_alloc_logic_attr			m_ring_alloc_log_tx;
 	uint32_t				m_pcp;
+
+	/* Socket error queue that keeps local errors and internal data required
+	 * to provide notification ability.
+	 */
+	descq_t    m_error_queue;
+	lock_spin  m_error_queue_lock;
+
+	/* TX zcopy counter
+	 * The notification itself for tx zcopy operation is a simple scalar value.
+	 * Each socket maintains an internal unsigned 32-bit counter.
+	 * Each send call with MSG_ZEROCOPY that successfully sends data increments
+	 * the counter. The counter is not incremented on failure or if called with
+	 * length zero.
+	 * The counter counts system call invocations, not bytes.
+	 * It wraps after UINT_MAX calls.
+	 */
+	atomic_t   m_zckey;
+
+	/* Last memory descriptor with zcopy operation method */
+	mem_buf_desc_t* m_last_zcdesc;
 
 	struct {
 		/* Track internal events to return in socketxtreme_poll()
@@ -327,8 +364,9 @@ protected:
 
 	virtual void    handle_ip_pktinfo(struct cmsg_state *cm_state) = 0;
 	inline  void    handle_recv_timestamping(struct cmsg_state *cm_state);
+	inline  void    handle_recv_errqueue(struct cmsg_state *cm_state);
 	void            insert_cmsg(struct cmsg_state *cm_state, int level, int type, void *data, int len);
-	void            handle_cmsg(struct msghdr * msg);
+	void            handle_cmsg(struct msghdr * msg, int flags);
 	void            process_timestamps(mem_buf_desc_t* p_desc);
 
 	virtual bool try_un_offloading(); // un-offload the socket if possible
@@ -530,6 +568,7 @@ protected:
     	case SO_TIMESTAMP:		return "SO_TIMESTAMP";
     	case SO_TIMESTAMPNS:		return "SO_TIMESTAMPNS";
     	case SO_BINDTODEVICE:		return "SO_BINDTODEVICE";
+    	case SO_ZEROCOPY:		return "SO_ZEROCOPY";
     	case SO_VMA_RING_ALLOC_LOGIC:	return "SO_VMA_RING_ALLOC_LOGIC";
     	case SO_MAX_PACING_RATE:	return "SO_MAX_PACING_RATE";
     	case SO_VMA_FLOW_TAG:           return "SO_VMA_FLOW_TAG";

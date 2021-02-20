@@ -305,6 +305,7 @@ struct tcp_seg {
 #define TF_SEG_OPTS_WNDSCALE	(u8_t)0x08U /* Include window scaling option */
 #define TF_SEG_OPTS_DUMMY_MSG	(u8_t)TCP_WRITE_DUMMY /* Include dummy send option */
 #define TF_SEG_OPTS_TSO         (u8_t)TCP_WRITE_TSO /* Use TSO send mode */
+#define TF_SEG_OPTS_ZEROCOPY    (u8_t)TCP_WRITE_ZEROCOPY /* Use zerocopy send mode */
 
   struct tcp_hdr *tcphdr;  /* the TCP header */
 };

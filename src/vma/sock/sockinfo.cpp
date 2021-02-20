@@ -66,6 +66,7 @@ sockinfo::sockinfo(int fd):
 		m_b_pktinfo(false),
 		m_b_rcvtstamp(false),
 		m_b_rcvtstampns(false),
+		m_b_zc(false),
 		m_n_tsing_flags(0),
 		m_protocol(PROTO_UNDEFINED),
 		m_lock_rcv(MODULE_NAME "::m_lock_rcv"),
@@ -114,6 +115,9 @@ sockinfo::sockinfo(int fd):
 	memset(&m_so_ratelimit, 0, sizeof(vma_rate_limit_t));
 	set_flow_tag(m_fd + 1);
 
+	atomic_set(&m_zckey, 0);
+	m_last_zcdesc = NULL;
+
 	m_socketxtreme.ec.clear();
 	m_socketxtreme.completion = NULL;
 	m_socketxtreme.last_buff_lst = NULL;
@@ -138,7 +142,18 @@ sockinfo::~sockinfo()
 		delete[] m_p_rings_fds;
 		m_p_rings_fds = NULL;
 	}
-        vma_stats_instance_remove_socket_block(m_p_socket_stats);
+
+	while (!m_error_queue.empty()) {
+		mem_buf_desc_t* buff = m_error_queue.get_and_pop_front();
+		if (buff->m_flags & mem_buf_desc_t::CLONED) {
+			delete buff;
+		} else {
+			si_logerr("Detected invalid element in socket error queue as %p with flags 0x%x",
+					buff, buff->m_flags);
+		}
+	}
+
+	vma_stats_instance_remove_socket_block(m_p_socket_stats);
 }
 
 void sockinfo::set_blocking(bool is_blocked)
@@ -1643,6 +1658,30 @@ void sockinfo::handle_recv_timestamping(struct cmsg_state *cm_state)
 	insert_cmsg(cm_state, SOL_SOCKET, SO_TIMESTAMPING, &tsing, sizeof(tsing));
 }
 
+void sockinfo::handle_recv_errqueue(struct cmsg_state *cm_state)
+{
+	mem_buf_desc_t *buff = NULL;
+
+	if (m_error_queue.empty()) {
+		return;
+	}
+
+	m_error_queue_lock.lock();
+	buff = m_error_queue.get_and_pop_front();
+	m_error_queue_lock.unlock();
+
+	if (!(buff->m_flags & mem_buf_desc_t::CLONED)) {
+		si_logerr("Detected invalid element in socket error queue as %p with flags 0x%x",
+				buff, buff->m_flags);
+		return;
+	}
+
+	insert_cmsg(cm_state, 0, IP_RECVERR, &buff->ee, sizeof(buff->ee));
+	cm_state->mhdr->msg_flags |= MSG_ERRQUEUE;
+
+	delete buff;
+}
+
 void sockinfo::insert_cmsg(struct cmsg_state * cm_state, int level, int type, void *data, int len)
 {
 	if (!cm_state->cmhdr ||
@@ -1676,7 +1715,7 @@ void sockinfo::insert_cmsg(struct cmsg_state * cm_state, int level, int type, vo
 		cm_state->cmhdr = next;
 }
 
-void sockinfo::handle_cmsg(struct msghdr * msg)
+void sockinfo::handle_cmsg(struct msghdr * msg, int flags)
 {
 	struct cmsg_state cm_state;
 
@@ -1686,6 +1725,7 @@ void sockinfo::handle_cmsg(struct msghdr * msg)
 
 	if (m_b_pktinfo) handle_ip_pktinfo(&cm_state);
 	if (m_b_rcvtstamp || m_n_tsing_flags) handle_recv_timestamping(&cm_state);
+	if (flags & MSG_ERRQUEUE) handle_recv_errqueue(&cm_state);
 
 	cm_state.mhdr->msg_controllen = cm_state.cmsg_bytes_consumed;
 }

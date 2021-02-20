@@ -65,6 +65,7 @@ struct socket_data {
 typedef struct {
 	vma_wr_tx_packet_attr flags;
 	uint16_t mss;
+	uint32_t length;
 } vma_send_attr;
 
 class dst_entry : public cache_observer, public tostr, public neigh_observer

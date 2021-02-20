@@ -179,7 +179,10 @@ protected:
 
 	int             configure(struct qp_mgr_desc *desc);
 	virtual int     prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr) = 0;
-	inline void     set_unsignaled_count(void) { m_n_unsignaled_count = m_n_sysvar_tx_num_wr_to_signal - 1;	}
+	inline void     set_unsignaled_count(void) {
+		m_n_unsignaled_count = m_n_sysvar_tx_num_wr_to_signal - 1;
+		m_p_last_tx_mem_buf_desc = NULL;
+	}
 
 	virtual cq_mgr* init_rx_cq_mgr(struct ibv_comp_channel* p_rx_comp_event_channel);
 	virtual cq_mgr* init_tx_cq_mgr(void);

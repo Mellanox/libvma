@@ -51,11 +51,25 @@ typedef enum vma_wr_tx_packet_attr {
 	VMA_TX_PACKET_TSO  = TCP_WRITE_TSO, /* 0x20 */
 	/* sendfile operation. */
 	VMA_TX_FILE  = TCP_WRITE_FILE, /* 0x40 */
+	/* zcopy write operation (MSG_ZEROCOPY). */
+	VMA_TX_PACKET_ZEROCOPY = TCP_WRITE_ZEROCOPY, /* 0x80 */
 
-	/* MLX5_ETH_WQE_L3_CSUM offload to HW L3 (IP) header checksum */
-	VMA_TX_PACKET_L3_CSUM = (1 << 6), /* hardcoded values. It is the same as VMA_TX_FILE but there is no conflict */
-	/* MLX5_ETH_WQE_L4_CSUM offload to HW L4 (TCP/UDP) header checksum */
-	VMA_TX_PACKET_L4_CSUM = (1 << 7), /* hardcoded values */
+	/* MLX5_ETH_WQE_L3_CSUM offload to HW L3 (IP) header checksum
+	 * Important:
+	 *  - hardcoded value used directly to program send to wire
+	 *  - it is the same as VMA_TX_FILE but there is no conflict as far as
+	 *    VMA_TX_FILE is passed into dst_entry::fast_send() operation
+	 *    and it is not needed later doing send to wire
+	 */
+	VMA_TX_PACKET_L3_CSUM = (1 << 6),
+	/* MLX5_ETH_WQE_L4_CSUM offload to HW L4 (TCP/UDP) header checksum
+	 * Important:
+	 *  - hardcoded value used directly to program send to wire
+	 *  - it is the same as TCP_WRITE_ZEROCOPY but there is no conflict as far as
+	 *    TCP_WRITE_ZEROCOPY is passed into dst_entry::fast_send() operation
+	 *    and it is not needed later doing send to wire
+	 */
+	VMA_TX_PACKET_L4_CSUM = (1 << 7),
 	/* blocking send operation */
 	VMA_TX_PACKET_BLOCK   = (1 << 8),
 	/* Force SW checksum */

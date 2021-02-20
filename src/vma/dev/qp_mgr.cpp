@@ -99,7 +99,6 @@ qp_mgr::qp_mgr(struct qp_mgr_desc *desc, const uint32_t tx_num_wr):
 	m_ibv_rx_sg_array = new ibv_sge[m_n_sysvar_rx_num_wr_to_post_recv];
 	m_ibv_rx_wr_array = new ibv_recv_wr[m_n_sysvar_rx_num_wr_to_post_recv];
 
-	set_unsignaled_count();
 	memset(&m_rate_limit, 0, sizeof(struct vma_rate_limit_t));
 
 	qp_logfunc("");
@@ -357,7 +356,6 @@ void qp_mgr::up()
 	release_tx_buffers();
 
 	/* clean any link to completions with error we might have */
-	set_unsignaled_count();
 	m_p_last_tx_mem_buf_desc = NULL;
 
 	modify_qp_to_ready_state();
@@ -518,7 +516,6 @@ void qp_mgr::trigger_completion_for_all_sent_packets()
 
 		// Close the Tx unsignaled send list
 		set_unsignaled_count();
-		m_p_last_tx_mem_buf_desc = NULL;
 
 		if (!m_p_ring->m_tx_num_wr_free) {
 			qp_logdbg("failed to trigger completion for all packets due to no available wr");
@@ -620,9 +617,19 @@ inline int qp_mgr::send_to_wire(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_at
 int qp_mgr::send(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 {
 	mem_buf_desc_t* p_mem_buf_desc = (mem_buf_desc_t *)p_send_wqe->wr_id;
+	/* Control tx completions:
+	 * - VMA_TX_WRE_BATCHING - The number of Tx Work Request Elements used
+	 *   until a completion signal is requested.
+	 * - ZCOPY packets should notify application as soon as possible to
+	 *   confirm one that user buffers are free to reuse. So force completion
+	 *   signal for such work requests.
+	 * - First call of send() should do completion. It means that
+	 *   m_n_unsignaled_count must be zero for this time.
+	 */
+	bool request_comp = (is_completion_need() ||
+			(p_mem_buf_desc->m_flags & mem_buf_desc_t::ZCOPY));
 
 	qp_logfunc("VERBS send, unsignaled_count: %d", m_n_unsignaled_count);
-	bool request_comp = is_completion_need();
 
 #ifdef VMA_TIME_MEASURE
 	TAKE_T_TX_POST_SEND_START;
@@ -657,7 +664,6 @@ int qp_mgr::send(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_attr attr)
 		int ret;
 
 		set_unsignaled_count();
-		m_p_last_tx_mem_buf_desc = NULL;
 
 		// Poll the Tx CQ
 		uint64_t dummy_poll_sn = 0;

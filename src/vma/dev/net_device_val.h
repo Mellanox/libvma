@@ -317,6 +317,9 @@ private:
 	std::string      m_name;           /* container for ifname */
 	char             m_str[BUFF_SIZE]; /* detailed information about device */
 	char             m_base_name[IFNAMSIZ]; /* base name of device basing ifname */
+
+	/* Global environment variables section */
+	const int m_sysvar_internal_thread_arm_cq;
 };
 
 class net_device_val_eth : public net_device_val

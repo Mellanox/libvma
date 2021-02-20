@@ -179,7 +179,9 @@ const char* ring_alloc_logic_attr::to_str()
 	return m_str;
 }
 
-net_device_val::net_device_val(struct net_device_val_desc *desc) : m_lock("net_device_val lock")
+net_device_val::net_device_val(struct net_device_val_desc *desc) :
+		m_lock("net_device_val lock"),
+		m_sysvar_internal_thread_arm_cq(safe_mce_sys().internal_thread_arm_cq)
 {
 	bool valid = false;
 	ib_ctx_handler* ib_ctx;
@@ -1139,16 +1141,33 @@ int net_device_val::global_ring_poll_and_process_element(uint64_t *p_poll_sn, vo
 	auto_unlocker lock(m_lock);
 	rings_hash_map_t::iterator ring_iter;
 	for (ring_iter = m_h_ring_map.begin(); ring_iter != m_h_ring_map.end(); ring_iter++) {
-		int ret = THE_RING->poll_and_process_element_rx(p_poll_sn, pv_fd_ready_array);
-		BULLSEYE_EXCLUDE_BLOCK_START
-		if (ret < 0 && errno != EAGAIN) {
-			nd_logerr("Error in ring->poll_and_process_element() of %p (errno=%d %m)", THE_RING, errno);
-			return ret;
+		if (m_sysvar_internal_thread_arm_cq & mce_sys_var::ARM_CQ_RX) {
+			int ret = THE_RING->poll_and_process_element_rx(p_poll_sn, pv_fd_ready_array);
+			BULLSEYE_EXCLUDE_BLOCK_START
+			if (ret < 0 && errno != EAGAIN) {
+				nd_logerr("Error in RX ring->poll_and_process_element() of %p (errno=%d %m)", THE_RING, errno);
+				return ret;
+			}
+			BULLSEYE_EXCLUDE_BLOCK_END
+			if (ret > 0) {
+				nd_logfunc("ring[%p] RX Returned with: %d (sn=%d)", THE_RING, ret, *p_poll_sn);
+				ret_total += ret;
+			}
 		}
-		BULLSEYE_EXCLUDE_BLOCK_END
-		if (ret > 0)
-			nd_logfunc("ring[%p] Returned with: %d (sn=%d)", THE_RING, ret, *p_poll_sn);
-		ret_total += ret;
+
+		if (m_sysvar_internal_thread_arm_cq & mce_sys_var::ARM_CQ_TX) {
+			int ret = THE_RING->poll_and_process_element_tx(p_poll_sn);
+			BULLSEYE_EXCLUDE_BLOCK_START
+			if (ret < 0 && errno != EAGAIN) {
+				nd_logerr("Error in TX ring->poll_and_process_element() of %p (errno=%d %m)", THE_RING, errno);
+				return ret;
+			}
+			BULLSEYE_EXCLUDE_BLOCK_END
+			if (ret > 0) {
+				nd_logfunc("ring[%p] TX Returned with: %d (sn=%d)", THE_RING, ret, *p_poll_sn);
+				ret_total += ret;
+			}
+		}
 	}
 	return ret_total;
 }
@@ -1159,13 +1178,29 @@ int net_device_val::global_ring_request_notification(uint64_t poll_sn)
 	auto_unlocker lock(m_lock);
 	rings_hash_map_t::iterator ring_iter;
 	for (ring_iter = m_h_ring_map.begin(); ring_iter != m_h_ring_map.end(); ring_iter++) {
-		int ret = THE_RING->request_notification(CQT_RX, poll_sn);
-		if (ret < 0) {
-			nd_logerr("Error ring[%p]->request_notification() (errno=%d %m)", THE_RING, errno);
-			return ret;
+		if (m_sysvar_internal_thread_arm_cq & mce_sys_var::ARM_CQ_RX) {
+			int ret = THE_RING->request_notification(CQT_RX, poll_sn);
+			BULLSEYE_EXCLUDE_BLOCK_START
+			if (ret < 0) {
+				nd_logerr("Error RX ring[%p]->request_notification() (errno=%d %m)", THE_RING, errno);
+				return ret;
+			}
+			BULLSEYE_EXCLUDE_BLOCK_END
+			nd_logfunc("ring[%p] RX Returned with: %d (sn=%d)", THE_RING, ret, poll_sn);
+			ret_total += ret;
 		}
-		nd_logfunc("ring[%p] Returned with: %d (sn=%d)", THE_RING, ret, poll_sn);
-		ret_total += ret;
+
+		if (m_sysvar_internal_thread_arm_cq & mce_sys_var::ARM_CQ_TX) {
+			int ret = THE_RING->request_notification(CQT_TX, poll_sn);
+			BULLSEYE_EXCLUDE_BLOCK_START
+			if (ret < 0) {
+				nd_logerr("Error TX ring[%p]->request_notification() (errno=%d %m)", THE_RING, errno);
+				return ret;
+			}
+			BULLSEYE_EXCLUDE_BLOCK_END
+			nd_logfunc("ring[%p] TX Returned with: %d (sn=%d)", THE_RING, ret, poll_sn);
+			ret_total += ret;
+		}
 	}
 	return ret_total;
 }

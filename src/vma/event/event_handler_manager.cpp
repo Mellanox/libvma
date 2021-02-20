@@ -229,7 +229,7 @@ void event_handler_manager::register_command_event(int fd, command* cmd)
 
 event_handler_manager::event_handler_manager() :
 		m_reg_action_q_lock("reg_action_q_lock"),
-		m_b_sysvar_internal_thread_arm_cq_enabled(safe_mce_sys().internal_thread_arm_cq_enabled),
+		m_b_sysvar_internal_thread_arm_cq_enabled(safe_mce_sys().internal_thread_arm_cq),
 		m_n_sysvar_vma_time_measure_num_samples(safe_mce_sys().vma_time_measure_num_samples),
 		m_n_sysvar_timer_resolution_msec(safe_mce_sys().timer_resolution_msec)
 {

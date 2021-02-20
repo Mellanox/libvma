@@ -71,7 +71,7 @@ poll_call::poll_call(int *off_rfds_buffer, offloaded_mode_t *off_modes_buffer, i
 		socket_fd_api* temp_sock_fd_api = fd_collection_get_sockfd(fd);
   			if (temp_sock_fd_api && (temp_sock_fd_api->get_type()==FD_TYPE_SOCKET)) {
   				offloaded_mode_t off_mode  = OFF_NONE;
-  				if (m_orig_fds[i].events & POLLIN)
+  				if (m_orig_fds[i].events & (POLLIN | POLLERR | POLLHUP))
   					off_mode = (offloaded_mode_t)(off_mode | OFF_READ);
   				if (m_orig_fds[i].events & POLLOUT)
   					off_mode = (offloaded_mode_t)(off_mode | OFF_WRITE);
