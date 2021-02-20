@@ -32,7 +32,8 @@
 
 #include <getopt.h>
 
-#include "common/gtest.h"
+#include "googletest/include/gtest/gtest.h"
+
 #include "common/tap.h"
 #include "common/def.h"
 #include "common/log.h"

@@ -70,7 +70,7 @@
 #include <time.h>
 #include <signal.h>
 
-#include "common/gtest.h" /* Google framework header */
+#include "googletest/include/gtest/gtest.h"
 
 #include "config.h"
 

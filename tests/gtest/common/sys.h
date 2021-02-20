@@ -97,9 +97,10 @@ pid_t sys_procpid(const char* name);
 
 static INLINE char *sys_addr2str(struct sockaddr_in *addr)
 {
-	static __thread char addrbuf[100];
-	inet_ntop(AF_INET, &addr->sin_addr, addrbuf, sizeof(addrbuf));
-	sprintf(addrbuf,"%s:%d", addrbuf, ntohs(addr->sin_port));
+	static char buf[100];
+	static __thread char addrbuf[sizeof(buf) + sizeof(addr->sin_port) + 5];
+	inet_ntop(AF_INET, &addr->sin_addr, buf, sizeof(buf) - 1);
+	sprintf(addrbuf, "%s:%d", buf, ntohs(addr->sin_port));
 
 	return addrbuf;
 }
