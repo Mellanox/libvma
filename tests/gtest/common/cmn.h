@@ -57,7 +57,8 @@ private:
 
 #define SKIP_TRUE(_expr, _reason) \
     if (!(_expr)) { \
-        throw cmn::test_skip_exception(_reason); \
+		log_warn(_reason "\n"); \
+		GTEST_SKIP(); \
     }
 
 } /* namespace: cmn */
