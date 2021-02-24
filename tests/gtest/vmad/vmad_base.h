@@ -43,7 +43,7 @@ protected:
 	virtual void TearDown();
 
 	int msg_init(pid_t pid);
-    int msg_exit(pid_t pid);
+	int msg_exit(pid_t pid);
 
 protected:
 	pid_t m_self_pid;

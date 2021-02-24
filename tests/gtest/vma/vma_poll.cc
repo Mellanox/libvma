@@ -47,11 +47,13 @@ class vma_poll : public vma_base
 protected:
 	void SetUp()
 	{
-		SKIP_TRUE((getenv("VMA_SOCKETXTREME")), "This test requires VMA_SOCKETXTREME=1");
 		vma_base::SetUp();
+
+		SKIP_TRUE((getenv("VMA_SOCKETXTREME")), "This test requires VMA_SOCKETXTREME=1");
 	}
 	void TearDown()
 	{
+		vma_base::TearDown();
 	}
 };
 
@@ -121,7 +123,7 @@ TEST_F(vma_poll, ti_1) {
 
 		barrier_fork(pid);
 		rc = 0;
-		while (rc == 0 && !test_base::m_break_signal) {
+		while (rc == 0 && !child_fork_exit()) {
 			rc = vma_api->socketxtreme_poll(_vma_ring_fd, &vma_comps, 1, 0);
 			if (vma_comps.events & VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED) {
 				EXPECT_EQ(fd, (int)vma_comps.listen_fd);
@@ -202,12 +204,12 @@ TEST_F(vma_poll, ti_2) {
 
 		barrier_fork(pid);
 		rc = 0;
-		while (rc == 0 && !test_base::m_break_signal) {
+		while (rc == 0 && !child_fork_exit()) {
 			rc = vma_api->socketxtreme_poll(_vma_ring_fd, &vma_comps, 1, 0);
 			if ((vma_comps.events & EPOLLERR) ||
 					(vma_comps.events & EPOLLHUP) ||
 					(vma_comps.events & EPOLLRDHUP)) {
-				log_trace("Close connection: fd=%d event: 0x%x\n", (int)vma_comps.user_data, vma_comps.events);
+				log_trace("Close connection: fd=%d event: 0x%lx\n", (int)vma_comps.user_data, vma_comps.events);
 				rc = 0;
 				break;
 			}
@@ -226,7 +228,7 @@ TEST_F(vma_poll, ti_2) {
 				EXPECT_EQ(sizeof(msg), vma_comps.packet.total_len);
 				EXPECT_TRUE(vma_comps.packet.buff_lst->payload);
 				log_trace("Received data: fd=%d data: %s\n",
-						(int)vma_comps.user_data, vma_comps.packet.buff_lst->payload);
+						(int)vma_comps.user_data, (char *)vma_comps.packet.buff_lst->payload);
 				rc = 0;
 			}
 		}
@@ -281,7 +283,7 @@ TEST_F(vma_poll, ti_3) {
 	} else {  /* I am the parent */
 		int _vma_ring_fd = -1;
 		struct vma_completion_t vma_comps;
-		int fd_peer;
+		int fd_peer = -1;
 		struct sockaddr peer_addr;
 		const char *user_data = "This is a data";
 
@@ -301,12 +303,12 @@ TEST_F(vma_poll, ti_3) {
 
 		barrier_fork(pid);
 		rc = 0;
-		while (rc == 0 && !test_base::m_break_signal) {
+		while (rc == 0 && !child_fork_exit()) {
 			rc = vma_api->socketxtreme_poll(_vma_ring_fd, &vma_comps, 1, 0);
 			if ((vma_comps.events & EPOLLERR) ||
 					(vma_comps.events & EPOLLHUP) ||
 					(vma_comps.events & EPOLLRDHUP)) {
-				log_trace("Close connection: event: 0x%x\n", vma_comps.events);
+				log_trace("Close connection: event: 0x%lx\n", vma_comps.events);
 				rc = 0;
 				break;
 			}
@@ -330,7 +332,7 @@ TEST_F(vma_poll, ti_3) {
 				EXPECT_EQ(sizeof(msg), vma_comps.packet.total_len);
 				EXPECT_TRUE(vma_comps.packet.buff_lst->payload);
 				log_trace("Received data: user_data: %p data: %s\n",
-						(void *)((uintptr_t)vma_comps.user_data), vma_comps.packet.buff_lst->payload);
+						(void *)((uintptr_t)vma_comps.user_data), (char *)vma_comps.packet.buff_lst->payload);
 				rc = 0;
 			}
 		}
@@ -379,8 +381,7 @@ TEST_F(vma_poll, ti_4) {
 	} else {  /* I am the parent */
 		int _vma_ring_fd = -1;
 		struct vma_completion_t vma_comps;
-		int fd_peer;
-		struct sockaddr peer_addr;
+		int fd_peer = -1;
 
 		fd = udp_base::sock_create_nb();
 		ASSERT_LE(0, fd);
@@ -394,12 +395,12 @@ TEST_F(vma_poll, ti_4) {
 
 		barrier_fork(pid);
 		rc = 0;
-		while (rc == 0 && !test_base::m_break_signal) {
+		while (rc == 0 && !child_fork_exit()) {
 			rc = vma_api->socketxtreme_poll(_vma_ring_fd, &vma_comps, 1, 0);
 			if ((vma_comps.events & EPOLLERR) ||
 					(vma_comps.events & EPOLLHUP) ||
 					(vma_comps.events & EPOLLRDHUP)) {
-				log_trace("Close connection: fd=%d event: 0x%x\n", (int)vma_comps.user_data, vma_comps.events);
+				log_trace("Close connection: fd=%d event: 0x%lx\n", (int)vma_comps.user_data, vma_comps.events);
 				rc = 0;
 				break;
 			}
@@ -409,7 +410,7 @@ TEST_F(vma_poll, ti_4) {
 				EXPECT_EQ(sizeof(msg), vma_comps.packet.total_len);
 				EXPECT_TRUE(vma_comps.packet.buff_lst->payload);
 				log_trace("Received data: fd=%d data: %s\n",
-						(int)vma_comps.user_data, vma_comps.packet.buff_lst->payload);
+						(int)vma_comps.user_data, (char *)vma_comps.packet.buff_lst->payload);
 				rc = 0;
 			}
 		}

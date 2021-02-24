@@ -99,10 +99,10 @@ TEST_F(mix_list, ti_4) {
 
 TEST_F(mix_list, ti_5) {
 	struct list_head head;
-	struct element element[2];
+	int reference[] = {-12345, 12345, 0};
+	struct element element[sizeof(reference)];
 	struct list_head *cur_entry = NULL;
 	struct element *cur_element = NULL;
-	int reference[] = {-12345, 12345, 0};
 	int i = 0;
 
 	INIT_LIST_HEAD(&head);
@@ -143,7 +143,6 @@ TEST_F(mix_list, ti_6) {
 TEST_F(mix_list, ti_7) {
 	struct list_head head;
 	struct element element;
-	struct element *cur_element = NULL;
 
 	INIT_LIST_HEAD(&head);
 	element.value = 12345;
@@ -155,10 +154,10 @@ TEST_F(mix_list, ti_7) {
 
 TEST_F(mix_list, ti_8) {
 	struct list_head head;
-	struct element element[2];
+	int reference[] = {-12345, 12345, 0};
+	struct element element[sizeof(reference)];
 	struct list_head *cur_entry = NULL;
 	struct element *cur_element = NULL;
-	int reference[] = {-12345, 12345, 0};
 	int i = 0;
 
 	INIT_LIST_HEAD(&head);

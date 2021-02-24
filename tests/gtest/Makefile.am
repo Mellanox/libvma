@@ -1,7 +1,7 @@
 noinst_PROGRAMS = gtest
 
-CXXFLAGS =
-
+#CXXFLAGS =
+# google test shows some warnings that are suppressed
 AM_CXXFLAGS = \
 	-Wno-error=sign-compare \
 	-Wno-error=missing-field-initializers \
@@ -94,6 +94,7 @@ gtest_SOURCES = \
 	mix/mix_list.cc \
 	\
 	tcp/tcp_base.cc \
+	tcp/tcp_socket.cc \
 	tcp/tcp_bind.cc \
 	tcp/tcp_connect.cc \
 	tcp/tcp_connect_nb.cc \
@@ -139,7 +140,9 @@ noinst_HEADERS = \
 	\
 	udp/udp_base.h \
 	\
-	vma/vma_base.h
+	vma/vma_base.h \
+	\
+	vmad/vmad_base.h
 
 gtest_DEPENDENCIES = \
 	libgtest.la

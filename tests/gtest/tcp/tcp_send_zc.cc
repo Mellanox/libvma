@@ -51,6 +51,8 @@ protected:
 		int rc = EOK;
 		int opt_val = 1;
 
+		tcp_base::SetUp();
+
 		fd = tcp_base::sock_create();
 		ASSERT_LE(0, fd);
 
@@ -73,6 +75,8 @@ protected:
 		if (m_test_file >= 0) {
 			close(m_test_file);
 		}
+
+		tcp_base::TearDown();
 	}
 	int do_recv_completion(int fd, uint32_t &lo, uint32_t &hi) {
 		int ret = 0;
@@ -160,13 +164,12 @@ protected:
 	int create_tmp_file(size_t size) {
 		char filename[] = "/tmp/mytemp.XXXXXX";
 		int fd = mkstemp(filename);
-		int rc = 0;
 
 		if (fd >= 0) {
 			unlink(filename);
 			while (size--) {
 				char buf = size % 255;
-				rc = write(fd, &buf, sizeof(buf));
+				write(fd, &buf, sizeof(buf));
 			}
 			fsync(fd);
 		}
@@ -575,7 +578,7 @@ TEST_F(tcp_send_zc, ti_4_mass_send_check_every_call) {
 	};
 	int i = 0;
 
-	for (i = 0; (i < sizeof(test_scenario)/sizeof(test_scenario[0])); i++) {
+	for (i = 0; (i < (int)(sizeof(test_scenario) / sizeof(test_scenario[0]))); i++) {
 		int test_buf_size = test_scenario[i].buf_size;
 		int test_buf_chunk = test_scenario[i].buf_chunk;
 		int test_call = test_scenario[i].num_op;
@@ -656,7 +659,6 @@ TEST_F(tcp_send_zc, ti_4_mass_send_check_every_call) {
 			int l_fd;
 			struct sockaddr peer_addr;
 			socklen_t socklen;
-			int i = 0;
 			char *buf = NULL;
 
 			buf = (char *)malloc(test_buf_size);
@@ -721,7 +723,7 @@ TEST_F(tcp_send_zc, ti_5_mass_send_check_last_call) {
 	};
 	int i = 0;
 
-	for (i = 0; (i < sizeof(test_scenario)/sizeof(test_scenario[0])); i++) {
+	for (i = 0; (i < (int)(sizeof(test_scenario) / sizeof(test_scenario[0]))); i++) {
 		int test_buf_size = test_scenario[i].buf_size;
 		int test_buf_chunk = test_scenario[i].buf_chunk;
 		int test_call = (test_buf_size + (test_buf_chunk - 1)) / test_buf_chunk;
@@ -798,7 +800,6 @@ TEST_F(tcp_send_zc, ti_5_mass_send_check_last_call) {
 			int l_fd;
 			struct sockaddr peer_addr;
 			socklen_t socklen;
-			int i = 0;
 			char *buf = NULL;
 
 			buf = (char *)malloc(test_buf_size);

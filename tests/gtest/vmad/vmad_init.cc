@@ -43,11 +43,10 @@
 
 class vmad_init : public vmad_base {
 protected:
-	struct vma_msg_init m_data;
-	pid_t m_pid;
-	vmad_init()
+	void SetUp()
 	{
 		uint8_t *version;
+		vmad_base::SetUp();
 
 		m_pid = 0x494E4954;
 		memset(&m_data, 0, sizeof(m_data));
@@ -60,7 +59,14 @@ protected:
 		version[2] = VMA_LIBRARY_RELEASE;
 		version[3] = VMA_LIBRARY_REVISION;
 	}
+	void TearDown()
+	{
+		vmad_base::TearDown();
+	}
 
+protected:
+	struct vma_msg_init m_data;
+	pid_t m_pid;
 };
 
 /**

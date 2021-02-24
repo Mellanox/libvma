@@ -34,6 +34,7 @@ set +eE
 
 ${WORKSPACE}/configure --prefix=$install_dir
 make -C tests/gtest
+rc=$(($rc+$?))
 
 eval "sudo pkill -9 vmad"
 eval "sudo ${install_dir}/sbin/vmad --console -v5 &"
@@ -44,6 +45,7 @@ rc=$(($rc+$?))
 
 make -C tests/gtest clean
 make -C tests/gtest CPPFLAGS="-DVMA_EXTRA_API_ENABLED=1"
+rc=$(($rc+$?))
 
 # Verify VMA EXTRA API tests
 eval "$timeout_exe env GTEST_TAP=2 LD_PRELOAD=$gtest_lib $gtest_app $gtest_opt --gtest_filter=vma_*:-vma_poll.*:vma_ring.*"

@@ -50,7 +50,7 @@ class vmad_hash : public ::testing::Test {};
 TEST_F(vmad_hash, ti_1) {
 	hash_t ht;
 	int reference[] = {3, 5, 107, 199};
-	int i = 0;
+	size_t i = 0;
 
 	for (i = 0; i < ARRAY_SIZE(reference); i++) {
 		ht = hash_create(NULL, reference[i]);
@@ -64,7 +64,7 @@ TEST_F(vmad_hash, ti_1) {
 TEST_F(vmad_hash, ti_2) {
 	hash_t ht;
 	int reference[] = {4, 12, 100, 200};
-	int i = 0;
+	size_t i = 0;
 
 	for (i = 0; i < ARRAY_SIZE(reference); i++) {
 		ht = hash_create(NULL, reference[i]);
@@ -75,7 +75,7 @@ TEST_F(vmad_hash, ti_2) {
 TEST_F(vmad_hash, ti_3) {
 	hash_t ht;
 	struct element element[] = {{12345, 1}, {(hash_key_t)-12345, 2}, {0, 3}};
-	int i;
+	size_t i;
 
 	ht = hash_create(NULL, 5);
 	ASSERT_TRUE(ht);
@@ -92,7 +92,7 @@ TEST_F(vmad_hash, ti_3) {
 TEST_F(vmad_hash, ti_4) {
 	hash_t ht;
 	struct element element[] = {{12345, 1}, {123, 2}, {12, 3}};
-	int i;
+	size_t i;
 
 	ht = hash_create(NULL, 5);
 	ASSERT_TRUE(ht);
@@ -113,7 +113,7 @@ TEST_F(vmad_hash, ti_4) {
 TEST_F(vmad_hash, ti_5) {
 	hash_t ht;
 	struct element element[] = {{12345, 1}, {0, 2}, {12, 3}, {77, 4}};
-	int i;
+	size_t i;
 
 	ht = hash_create(NULL, 3);
 	ASSERT_TRUE(ht);
@@ -134,7 +134,7 @@ TEST_F(vmad_hash, ti_6) {
 	hash_t ht;
 	struct element element[] = {{12345, 1}, {0, 2}, {12, 3}};
 	struct element *e;
-	int i;
+	size_t i;
 
 	ht = hash_create(NULL, 5);
 	ASSERT_TRUE(ht);
@@ -160,7 +160,7 @@ TEST_F(vmad_hash, ti_6) {
 TEST_F(vmad_hash, ti_7) {
 	hash_t ht;
 	struct element element[] = {{12345, 1}, {123, 2}, {1234, 3}};
-	int i;
+	size_t i;
 
 	ht = hash_create(NULL, 5);
 	ASSERT_TRUE(ht);
@@ -181,7 +181,7 @@ TEST_F(vmad_hash, ti_7) {
 TEST_F(vmad_hash, ti_8) {
 	hash_t ht;
 	struct element element[] = {{12345, 1}, {(hash_key_t)-12345, 2}, {0, 3}};
-	int i;
+	size_t i;
 
 	ht = hash_create(NULL, 5);
 	ASSERT_TRUE(ht);
@@ -204,7 +204,7 @@ TEST_F(vmad_hash, ti_9) {
 	hash_t ht;
 	struct element element[] = {{12345, 1}, {1234, 2}, {12, 3}};
 	struct element *e;
-	int i;
+	size_t i;
 
 	ht = hash_create(NULL, 3);
 	ASSERT_TRUE(ht);

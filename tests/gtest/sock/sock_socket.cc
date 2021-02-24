@@ -101,8 +101,13 @@ TEST_F(sock_socket, ti_4) {
 
 	errno = EOK;
 	fd = socket(PF_INET, SOCK_RAW, IPPROTO_TCP);
-	EXPECT_EQ((sys_rootuser() ? 0 : -1), fd);
-	EXPECT_EQ((sys_rootuser() ? EOK : EPERM), errno);
+	if (sys_rootuser()) {
+		EXPECT_LE(0, fd);
+		EXPECT_EQ(EOK, errno);
+	} else {
+		EXPECT_EQ(-1, fd);
+		EXPECT_EQ(EPERM, errno);
+	}
 
 	close(fd);
 }

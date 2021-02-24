@@ -43,6 +43,8 @@ class tcp_sendfile : public tcp_base {
 protected:
 	void SetUp()
 	{
+		tcp_base::SetUp();
+
 		errno = EOK;
 		m_fd = -1;
 		m_test_file = -1;
@@ -58,17 +60,18 @@ protected:
 		if (m_test_file >= 0) {
 			close(m_test_file);
 		}
+
+		tcp_base::TearDown();
 	}
 	int create_tmp_file(size_t size) {
 		char filename[] = "/tmp/mytemp.XXXXXX";
 		int fd = mkstemp(filename);
-		int rc = 0;
 
 		if (fd >= 0) {
 			unlink(filename);
 			while (size--) {
 				char buf = size % 255;
-				rc = write(fd, &buf, sizeof(buf));
+				write(fd, &buf, sizeof(buf));
 			}
 			fsync(fd);
 		}
@@ -76,7 +79,7 @@ protected:
 	}
 	void* create_tmp_buffer(size_t size) {
 		char *ptr = NULL;
-		int i = 0;
+		size_t i = 0;
 
 		ptr = (char *)mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, 0, 0);
 		if (ptr != MAP_FAILED) {
@@ -219,7 +222,7 @@ TEST_F(tcp_sendfile, ti_2_vary_size) {
 	};
 	int i = 0;
 
-	for (i = 0; (i < sizeof(test_scenario)/sizeof(test_scenario[0])); i++) {
+	for (i = 0; (i < (int)(sizeof(test_scenario) / sizeof(test_scenario[0]))); i++) {
 		void *file_ptr = NULL;
 		int test_chunk = test_scenario[i].chunk_size;
 		int test_file_size = test_scenario[i].chunk_size + test_scenario[i].extra_size;
@@ -295,13 +298,13 @@ TEST_F(tcp_sendfile, ti_2_vary_size) {
 			log_trace("Accepted connection: fd=%d from %s\n",
 					m_fd, sys_addr2str((struct sockaddr_in *)&peer_addr));
 
-			int i = test_file_size;
-			while (i > 0 && !child_fork_exit()) {
-				rc = recv(m_fd, (void *)test_buf, i, MSG_WAITALL);
+			int s = test_file_size;
+			while (s > 0 && !child_fork_exit()) {
+				rc = recv(m_fd, (void *)test_buf, s, MSG_WAITALL);
 				EXPECT_GE(rc, 0);
-				i -= rc;
+				s -= rc;
 			}
-			EXPECT_EQ(0, i);
+			EXPECT_EQ(0, s);
 			EXPECT_EQ(memcmp(test_buf, file_ptr, test_file_size), 0);
 
 			close(m_fd);

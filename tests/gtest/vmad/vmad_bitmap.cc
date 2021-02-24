@@ -77,7 +77,7 @@ TEST_F(vmad_bitmap, ti_3) {
 TEST_F(vmad_bitmap, ti_4) {
 	bitmap_t *bm = NULL;
 	int bits[] = {0, 7, 31, 32, 64};
-	int i;
+	size_t i;
 
 	bitmap_create(&bm, 64);
 	ASSERT_TRUE(bm);
@@ -94,7 +94,7 @@ TEST_F(vmad_bitmap, ti_4) {
 TEST_F(vmad_bitmap, ti_5) {
 	bitmap_t *bm = NULL;
 	int bits[] = {0, 7, 31, 32, 64};
-	int i;
+	size_t i;
 
 	bitmap_create(&bm, 64);
 	ASSERT_TRUE(bm);
@@ -113,7 +113,7 @@ TEST_F(vmad_bitmap, ti_5) {
 TEST_F(vmad_bitmap, ti_6) {
 	bitmap_t *bm = NULL;
 	int bits[] = {0, 7, 31, 32, 64};
-	int i;
+	size_t i;
 
 	bitmap_create(&bm, 64);
 	ASSERT_TRUE(bm);
