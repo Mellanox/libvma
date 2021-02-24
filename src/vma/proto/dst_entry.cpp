@@ -341,10 +341,7 @@ bool dst_entry::release_ring()
 				m_p_tx_mem_buf_desc_list = NULL;
 			}
 			dst_logdbg("releasing a ring");
-			if (m_p_net_dev_val->release_ring(m_ring_alloc_logic.get_key())) {
-				dst_logerr("Failed to release ring for allocation key %s",
-					   m_ring_alloc_logic.get_key()->to_str());
-			}
+			m_p_net_dev_val->release_ring(m_ring_alloc_logic.get_key());
 			m_p_ring = NULL;
 		}
 		ret_val = true;
@@ -621,7 +618,7 @@ void dst_entry::do_ring_migration(lock_base& socket_lock, resource_allocation_ke
 		return;
 	}
 	if (new_ring == m_p_ring) {
-		if (!m_p_net_dev_val->release_ring(&old_key)) {
+		if (m_p_net_dev_val->release_ring(&old_key) < 0) {
 			dst_logerr("Failed to release ring for allocation key %s",
 				  old_key.to_str());
 		}
