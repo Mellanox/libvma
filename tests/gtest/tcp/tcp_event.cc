@@ -37,9 +37,6 @@
 
 #include "tcp_base.h"
 
-static void _proc_server(void *ptr);
-static void _proc_client(void *ptr);
-
 class tcp_event : public tcp_base {};
 
 TEST_F(tcp_event, DISABLED_ti_1) {
@@ -129,6 +126,12 @@ TEST_F(tcp_event, DISABLED_ti_4) {
 	close(fd);
 }
 
+/* VMA does not work as server/client from single process
+ * in addition gcc 8.x reports 'cast between incompatible function types' warning
+ * but _proc_server() and _proc_client() can not return void* due to google test
+ * limitations as all functions using EXPECT_X, ASSERT_X should return void
+ */
+#if 0
 static void _proc_server(void *ptr)
 {
 	int rc = EOK;
@@ -198,10 +201,11 @@ TEST_F(tcp_event, DISABLED_ti_5) {
 	pthread_t server_thread = 0;
 	pthread_t client_thread = 0;
 
-	pthread_create(&server_thread, NULL, (void* (*)(void*))_proc_server, NULL);
+	pthread_create(&server_thread, NULL, (void *(*) (void *))_proc_server, NULL);
 	sleep(1);
-	pthread_create(&client_thread, NULL, (void* (*)(void*))_proc_client, NULL);
+	pthread_create(&client_thread, NULL, (void *(*) (void *))_proc_client, NULL);
 
 	pthread_join(server_thread, NULL);
 	pthread_join(client_thread, NULL);
 }
+#endif

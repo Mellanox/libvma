@@ -43,6 +43,7 @@ test_base::test_base()
 	memcpy(&client_addr, &gtest_conf.client_addr, sizeof(client_addr));
 	memcpy(&server_addr, &gtest_conf.server_addr, sizeof(server_addr));
 	memcpy(&remote_addr, &gtest_conf.remote_addr, sizeof(remote_addr));
+	remote_addr.sin_port = htons(17000);
 
 	bogus_port = 49999;
 	bogus_addr.sin_family = PF_INET;

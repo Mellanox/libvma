@@ -43,17 +43,24 @@
 
 class vmad_state : public vmad_base {
 protected:
-	struct vma_msg_state m_data;
-	pid_t m_pid;
-	vmad_state()
+	void SetUp()
 	{
+		vmad_base::SetUp();
+
 		m_pid = 0x53544154;
 		memset(&m_data, 0, sizeof(m_data));
 		m_data.hdr.code = VMA_MSG_STATE;
 		m_data.hdr.ver = VMA_AGENT_VER;
 		m_data.hdr.pid = m_pid;
 	}
+	void TearDown()
+	{
+		vmad_base::TearDown();
+	}
 
+protected:
+	struct vma_msg_state m_data;
+	pid_t m_pid;
 };
 
 /**

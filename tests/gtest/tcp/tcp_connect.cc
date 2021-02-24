@@ -59,7 +59,7 @@ TEST_F(tcp_connect, DISABLED_ti_1) {
 
 	for (i = 0; i < 10; i++) {
 		rc = connect(fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
-		ASSERT_EQ(ECONNREFUSED, errno) <<
+		ASSERT_TRUE(ECONNREFUSED == errno) <<
 				"connect() attempt = " << i;
 		ASSERT_EQ((-1), rc) <<
 				"connect() attempt = " << i;

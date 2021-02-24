@@ -53,13 +53,12 @@ public:
 	static int create_tmp_file(size_t size) {
 		char filename[] = "/tmp/mytemp.XXXXXX";
 		int fd = mkstemp(filename);
-		int rc = 0;
 
 		if (fd >= 0) {
 			unlink(filename);
 			while (size--) {
 				char buf = size % 255;
-				rc = write(fd, &buf, sizeof(buf));
+				write(fd, &buf, sizeof(buf));
 			}
 			fsync(fd);
 		}
@@ -69,6 +68,8 @@ public:
 protected:
 	void SetUp()
 	{
+		tcp_base::SetUp();
+
 		errno = EOK;
 		fd = -1;
 		test_buf = NULL;
@@ -81,6 +82,8 @@ protected:
 		if (test_file >= 0) {
 			close(test_file);
 		}
+
+		tcp_base::TearDown();
 	}
 
 protected:
@@ -512,7 +515,7 @@ TEST_F(tcp_tls, ti_6_12_gcm_sendfile) {
 	int rc = EOK;
 	struct tls12_crypto_info_aes_gcm_128 crypto_info;
 	int test_file_size = 0x10000;
-	int test_file = create_tmp_file(test_file_size);
+	test_file = create_tmp_file(test_file_size);
 
 	EXPECT_GE(test_file, 0);
 
@@ -633,10 +636,10 @@ TEST_F(tcp_tls, ti_7_12_gcm_sendfile_chunk) {
 	crypto_info.info.version = TLS_1_2_VERSION;
 	crypto_info.info.cipher_type = TLS_CIPHER_AES_GCM_128;
 
-	for (i = 0; (i < sizeof(test_scenario)/sizeof(test_scenario[0])); i++) {
+	for (i = 0; (i < (int)(sizeof(test_scenario) / sizeof(test_scenario[0]))); i++) {
 		int test_chunk = test_scenario[i].chunk_size;
 		int test_file_size = test_scenario[i].chunk_size + test_scenario[i].extra_size;
-		int test_file = create_tmp_file(test_file_size);
+		test_file = create_tmp_file(test_file_size);
 		EXPECT_GE(test_file, 0);
 
 		log_trace("Test case [%d]: chunk size: %d file size: %d\n",
@@ -982,7 +985,7 @@ TEST_F(tcp_tls, ti_10_12_gcm_control_msg) {
 	char test_msg[] = "Hello test";
 	struct tls12_crypto_info_aes_gcm_128 crypto_info;
 	uint8_t record_type = 100;
-    struct msghdr msg = { 0 };
+	struct msghdr msg;
     int cmsg_len = sizeof(record_type);
     struct cmsghdr *cmsg;
     char cbuf[CMSG_SPACE(cmsg_len)];

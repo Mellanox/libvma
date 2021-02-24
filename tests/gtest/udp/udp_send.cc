@@ -150,7 +150,6 @@ TEST_F(udp_send, ti_3) {
 TEST_F(udp_send, ti_4) {
 	int rc = EOK;
 	int fd;
-	char buf[] = "hello";
 
 	fd = udp_base::sock_create();
 	ASSERT_LE(0, fd);
