@@ -246,7 +246,7 @@ public:
 	void print_val();
 
 	ring*                   reserve_ring(resource_allocation_key*); // create if not exists
-	bool 			release_ring(resource_allocation_key*); // delete from m_hash if ref_cnt == 0
+	int                     release_ring(resource_allocation_key*); // delete from m_hash if ref_cnt == 0
 	state                   get_state() const  { return m_state; } // not sure, look at state init at c'tor
 	virtual std::string     to_str();
 	inline void set_transport_type(transport_type_t value) { m_transport_type = value; }

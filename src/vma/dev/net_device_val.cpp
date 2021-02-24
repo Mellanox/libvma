@@ -1019,7 +1019,7 @@ ring* net_device_val::reserve_ring(resource_allocation_key *key)
 	return the_ring;
 }
 
-bool net_device_val::release_ring(resource_allocation_key *key)
+int net_device_val::release_ring(resource_allocation_key *key)
 {
 	nd_logfunc("");
 
@@ -1058,10 +1058,12 @@ bool net_device_val::release_ring(resource_allocation_key *key)
 			delete the_ring;
 			delete ring_iter->first;
 			m_h_ring_map.erase(ring_iter);
+
+			return 0;
 		}
-		return true;
+		return RING_REF_CNT;
 	}
-	return false;
+	return (-1);
 }
 
 /*
