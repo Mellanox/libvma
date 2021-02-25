@@ -85,7 +85,6 @@ struct os_api orig_os_api;
 struct sigaction g_act_prev;
 sighandler_t g_sighandler = NULL;
 class ring_simple;
-class ring_eth_cb;
 class ring_eth_direct;
 
 template<typename T>
@@ -645,47 +644,6 @@ int vma_cyclic_buffer_read(int fd, struct vma_completion_cb_t *completion,
 #endif // HAVE_MP_RQ
 }
 
-/* Multi Packet Receive Queue functionality is deprecated
- * and is not going to be supported in the future releases
- */
-extern "C"
-int vma_get_mem_info(int fd, void **addr, size_t *length, uint32_t *lkey)
-{
-#ifdef HAVE_MP_RQ
-	cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(fd);
-	if (!length || !lkey || !addr) {
-		vlog_printf(VLOG_ERROR, "invalid pointers given. fd: %d, addr "
-			    "%p length %p lkey %p\n", fd, addr, length, lkey);
-		return -1;
-	}
-	if (p_cq_ch_info) {
-		ring_eth_cb *p_ring = dynamic_cast<ring_eth_cb*>(p_cq_ch_info->get_ring());
-		ibv_sge mem_info;
-		if (likely(p_ring && p_ring->get_mem_info(mem_info) == 0)) {
-			*addr = (void*)mem_info.addr;
-			*length = mem_info.length;
-			*lkey = mem_info.lkey;
-			return 0;
-		} else {
-			vlog_printf(VLOG_ERROR, "could not find ring_eth_cb, "
-					"got fd %d\n", fd);
-		}
-	} else {
-		vlog_printf(VLOG_ERROR, "could not find p_cq_ch_info, got fd "
-							"%d\n", fd);
-	}
-	return -1;
-#else
-	NOT_IN_USE(addr);
-	NOT_IN_USE(length);
-	NOT_IN_USE(lkey);
-	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG,
-			"vma_get_mem_info is no supported with this ring", fd);
-	errno = EOPNOTSUPP;
-	return -1;
-#endif // HAVE_MP_RQ
-}
-
 extern "C"
 int vma_add_ring_profile(vma_ring_type_attr *profile, vma_ring_profile_key *res)
 {
@@ -1176,7 +1134,6 @@ int getsockopt(int __fd, int __level, int __optname,
 		SET_EXTRA_API(socketxtreme_free_vma_buff, enable_socketxtreme ? vma_socketxtreme_free_vma_buff : dummy_vma_socketxtreme_free_vma_buff, VMA_EXTRA_API_SOCKETXTREME_FREE_VMA_BUFF);
 		SET_EXTRA_API(dump_fd_stats, vma_dump_fd_stats, VMA_EXTRA_API_DUMP_FD_STATS);
 		SET_EXTRA_API(vma_cyclic_buffer_read, vma_cyclic_buffer_read, VMA_EXTRA_API_CYCLIC_BUFFER_READ);
-		SET_EXTRA_API(get_mem_info, vma_get_mem_info, VMA_EXTRA_API_GET_MEM_INFO);
 		SET_EXTRA_API(vma_modify_ring, vma_modify_ring, VMA_EXTRA_API_MODIFY_RING);
 		SET_EXTRA_API(get_dpcp_devices, vma_get_dpcp_devices, VMA_EXTRA_API_GET_DPCP_DEVICES);
 		*((vma_api_t**)__optval) = vma_api;
