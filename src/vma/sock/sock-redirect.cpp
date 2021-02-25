@@ -613,37 +613,6 @@ int vma_dump_fd_stats(int fd, int log_level)
 	return -1;
 }
 
-/* Multi Packet Receive Queue functionality is deprecated
- * and is not going to be supported in the future releases
- */
-extern "C"
-int vma_cyclic_buffer_read(int fd, struct vma_completion_cb_t *completion,
-			   size_t min, size_t max, int flags)
-{
-#ifdef HAVE_MP_RQ
-	cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(fd);
-	if (p_cq_ch_info) {
-		ring_eth_cb* p_ring = (ring_eth_cb *)p_cq_ch_info->get_ring();
-		if (likely(p_ring && p_ring->is_mp_ring())) {
-			return p_ring->cyclic_buffer_read(*completion, min, max,
-					flags);
-		} else {
-			vlog_printf(VLOG_ERROR, "could not find ring, got fd "
-					"%d\n", fd);
-			return -1;
-		}
-	} else {
-		vlog_printf(VLOG_ERROR, "could not find p_cq_ch_info, got fd "
-							"%d\n", fd);
-		return -1;
-	}
-#else
-	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG, "Striding RQ is no supported. ignoring...", fd, completion, min, max, flags);
-	errno = EOPNOTSUPP;
-	return -1;
-#endif // HAVE_MP_RQ
-}
-
 extern "C"
 int vma_add_ring_profile(vma_ring_type_attr *profile, vma_ring_profile_key *res)
 {
@@ -665,9 +634,7 @@ int vma_modify_ring(struct vma_modify_ring_attr *mr_data)
 		ring_simple* p_ring = dynamic_cast<ring_simple*>(p_cq_ch_info->get_ring());
 		if (likely(p_ring)) {
 			if (VMA_MODIFY_RING_CQ_ARM & mr_data->comp_bit_mask) {
-				if (RING_ETH_CB == p_ring->get_type()) {
-					ret = p_ring->ack_and_arm_cq(CQT_RX);
-				} else if (RING_ETH_DIRECT == p_ring->get_type()) {
+				if (RING_ETH_DIRECT == p_ring->get_type()) {
 					ret = p_ring->ack_and_arm_cq(CQT_TX);
 				} else {
 					vlog_printf(VLOG_ERROR, "Ring type [%d] is not supported\n",
@@ -1133,7 +1100,6 @@ int getsockopt(int __fd, int __level, int __optname,
 		SET_EXTRA_API(socketxtreme_ref_vma_buff, enable_socketxtreme ? vma_socketxtreme_ref_vma_buff : dummy_vma_socketxtreme_ref_vma_buff, VMA_EXTRA_API_SOCKETXTREME_REF_VMA_BUFF);
 		SET_EXTRA_API(socketxtreme_free_vma_buff, enable_socketxtreme ? vma_socketxtreme_free_vma_buff : dummy_vma_socketxtreme_free_vma_buff, VMA_EXTRA_API_SOCKETXTREME_FREE_VMA_BUFF);
 		SET_EXTRA_API(dump_fd_stats, vma_dump_fd_stats, VMA_EXTRA_API_DUMP_FD_STATS);
-		SET_EXTRA_API(vma_cyclic_buffer_read, vma_cyclic_buffer_read, VMA_EXTRA_API_CYCLIC_BUFFER_READ);
 		SET_EXTRA_API(vma_modify_ring, vma_modify_ring, VMA_EXTRA_API_MODIFY_RING);
 		SET_EXTRA_API(get_dpcp_devices, vma_get_dpcp_devices, VMA_EXTRA_API_GET_DPCP_DEVICES);
 		*((vma_api_t**)__optval) = vma_api;
