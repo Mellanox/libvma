@@ -462,7 +462,6 @@ typedef enum {
 	VMA_EXTRA_API_ADD_RING_PROFILE               = (1 << 16),
 	VMA_EXTRA_API_REGISTER_MEMORY_ON_RING        = (1 << 17),
 	VMA_EXTRA_API_DEREGISTER_MEMORY_ON_RING      = (1 << 18),
-	VMA_EXTRA_API_GET_MEM_INFO                   = (1 << 19),
 	VMA_EXTRA_API_MODIFY_RING                    = (1 << 20),
 	VMA_EXTRA_API_GET_DPCP_DEVICES               = (1 << 21)
 } vma_extra_api_mask;
@@ -813,15 +812,6 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * @note - this function doens't free the memory
 	 */
 	int (*deregister_memory_on_ring)(int fd, void *addr, size_t length);
-
-	/**
-	 * returns memory information for the ring fd
-	 * @param fd - ring fd
-	 * @param addr - the buffer address used
-	 * @return 0 on success, -1 on failure
-	 *
-	 */
-	int (*get_mem_info)(int fd, void **addr, size_t *length, uint32_t *lkey);
 
 	/**
 	 * perform ring modifications
