@@ -384,8 +384,6 @@ struct vma_ring_type_attr {
 
 typedef enum {
 	VMA_HW_PP_EN = (1 << 0),
-	VMA_HW_UMR_EN = (1 << 1),
-	VMA_HW_MP_RQ_EN = (1 << 2),
 	VMA_HW_PP_BURST_EN = (1 << 3),
 } mlx_hw_device_cap;
 

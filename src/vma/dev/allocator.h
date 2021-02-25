@@ -46,7 +46,6 @@ public:
 	~vma_allocator();
 	void* alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h, void *ptr = NULL);
 	uint32_t find_lkey_by_ib_ctx(ib_ctx_handler *p_ib_ctx_h) const;
-	ibv_mr* find_ibv_mr_by_ib_ctx(ib_ctx_handler *p_ib_ctx_h) const;
 	void register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h, uint64_t access);
 	void deregister_memory();
 private:

@@ -41,7 +41,6 @@
 #include "utils/lock_wrapper.h"
 #include <vma/proto/ip_frag.h>
 #include <vma/dev/buffer_pool.h>
-#include <vma/dev/ring_eth_cb.h>
 #include <vma/dev/ring_profile.h>
 #include <vma/event/event_handler_manager.h>
 #include <vma/event/vlogger_timer_handler.h>

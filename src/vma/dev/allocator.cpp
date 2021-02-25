@@ -136,16 +136,6 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h, v
 	return m_data_block;
 }
 
-ibv_mr* vma_allocator::find_ibv_mr_by_ib_ctx(ib_ctx_handler *p_ib_ctx_h) const
-{
-	lkey_map_ib_ctx_map_t::const_iterator iter = m_lkey_map_ib_ctx.find(p_ib_ctx_h);
-	if (iter != m_lkey_map_ib_ctx.end()) {
-		return p_ib_ctx_h->get_mem_reg(iter->second);
-	}
-
-	return NULL;
-}
-
 uint32_t vma_allocator::find_lkey_by_ib_ctx(ib_ctx_handler *p_ib_ctx_h) const
 {
 	lkey_map_ib_ctx_map_t::const_iterator iter = m_lkey_map_ib_ctx.find(p_ib_ctx_h);
