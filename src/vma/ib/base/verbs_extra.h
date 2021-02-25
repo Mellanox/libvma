@@ -521,14 +521,6 @@ typedef vma_ibv_qp_attr                                 vma_ibv_rate_limit_attr;
 #define vma_ibv_dm_size(attr)			(0)
 #endif
 
-#ifdef HAVE_MP_RQ
-#define vma_is_umr_supported(attr)		((attr)->umr_caps.max_klm_list_size)
-#define vma_is_mp_rq_supported(attr)		((attr)->comp_mask & IBV_EXP_DEVICE_ATTR_MP_RQ)
-#else
-#define vma_is_umr_supported(attr)		(0)
-#define vma_is_mp_rq_supported(attr)		(0)
-#endif
-
 #if defined(HAVE_IBV_EXP_GET_DEVICE_LIST)
 #define vma_ibv_get_device_list(num)		ibv_exp_get_device_list(num)
 #else

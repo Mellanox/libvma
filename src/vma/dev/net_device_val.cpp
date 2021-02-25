@@ -53,7 +53,6 @@
 #include "vma/dev/ib_ctx_handler_collection.h"
 #include "vma/dev/ring_tap.h"
 #include "vma/dev/ring_simple.h"
-#include "vma/dev/ring_eth_cb.h"
 #include "vma/dev/ring_eth_direct.h"
 #include "vma/dev/ring_slave.h"
 #include "vma/dev/ring_bond.h"
@@ -1352,13 +1351,6 @@ ring* net_device_val_eth::create_ring(resource_allocation_key *key)
 		}
 		try {
 			switch (prof->get_ring_type()) {
-#ifdef HAVE_MP_RQ
-			case VMA_RING_CYCLIC_BUFFER:
-				ring = new ring_eth_cb(get_if_idx(),
-						       &prof->get_desc()->ring_cyclicb,
-						       key->get_memory_descriptor());
-			break;
-#endif
 			case VMA_RING_EXTERNAL_MEM:
 				ring = new ring_eth_direct(get_if_idx(),
 							   &prof->get_desc()->ring_ext);

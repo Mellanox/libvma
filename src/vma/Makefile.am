@@ -65,12 +65,10 @@ libvma_la_SOURCES := \
 	dev/buffer_pool.cpp \
 	dev/cq_mgr.cpp \
 	dev/cq_mgr_mlx5.cpp \
-	dev/cq_mgr_mp.cpp \
 	dev/dm_mgr.cpp \
 	dev/qp_mgr.cpp \
 	dev/qp_mgr_eth_mlx5.cpp \
 	dev/qp_mgr_eth_direct.cpp \
-	dev/qp_mgr_mp.cpp \
 	dev/gro_mgr.cpp \
 	dev/rfs.cpp \
 	dev/rfs_uc.cpp \
@@ -91,7 +89,6 @@ libvma_la_SOURCES := \
 	dev/ring_slave.cpp \
 	dev/ring_simple.cpp \
 	dev/ring_tap.cpp \
-	dev/ring_eth_cb.cpp \
 	dev/ring_eth_direct.cpp \
 	dev/ring_profile.cpp \
 	dev/ring_allocation_logic.cpp \
@@ -167,13 +164,12 @@ libvma_la_SOURCES := \
 	dev/buffer_pool.h \
 	dev/cq_mgr.h \
 	dev/cq_mgr_mlx5.h \
-	dev/cq_mgr_mp.h \
 	dev/dm_mgr.h \
 	dev/gro_mgr.h \
 	dev/ib_ctx_handler_collection.h \
 	dev/ib_ctx_handler.h \
 	dev/time_converter.h \
-        dev/time_converter_ptp.h \
+	dev/time_converter_ptp.h \
 	dev/time_converter_ib_ctx.h \
 	dev/net_device_entry.h \
 	dev/net_device_table_mgr.h \
@@ -181,7 +177,6 @@ libvma_la_SOURCES := \
 	dev/qp_mgr.h \
 	dev/qp_mgr_eth_mlx5.h \
 	dev/qp_mgr_eth_direct.h \
-	dev/qp_mgr_mp.h \
 	dev/rfs.h \
 	dev/rfs_mc.h \
 	dev/rfs_uc.h \
@@ -191,7 +186,6 @@ libvma_la_SOURCES := \
 	dev/ring_slave.h \
 	dev/ring_simple.h \
 	dev/ring_tap.h \
-	dev/ring_eth_cb.h \
 	dev/ring_eth_direct.h \
 	dev/ring_profile.h \
 	dev/ring_allocation_logic.h \
