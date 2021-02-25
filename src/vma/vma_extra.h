@@ -180,30 +180,6 @@ struct vma_rate_limit_t {
 	uint16_t typical_pkt_sz;		/* typical packet size in bytes */
 };
 
-typedef enum {
-	VMA_CB_MASK_TIMESTAMP = (1 << 0),
-} vma_completion_cb_mask;
-
-/**
- * @param comp_mask attributes you want to get from @ref vma_cyclic_buffer_read.
- * 	see @ref vma_completion_cb_mask
- * @param payload_ptr pointer to user data not including user header
- * @param payload_length size of payload_ptr
- * @param packets how many packets arrived
- * @param usr_hdr_ptr points to the user header defined when creating the ring
- * @param usr_hdr_ptr_length user header length
- * @param hw_timestamp the HW time stamp of the first packet arrived
- */
-struct vma_completion_cb_t {
-	uint32_t	comp_mask;
-	void*		payload_ptr;
-	size_t		payload_length;
-	size_t		packets;
-	void*		usr_hdr_ptr;
-	size_t		usr_hdr_ptr_length;
-	struct timespec	hw_timestamp;
-};
-
 typedef int vma_ring_profile_key;
 
 typedef enum {
@@ -250,21 +226,6 @@ struct vma_ring_alloc_logic_attr {
 	uint32_t	reserved:30;
 };
 
-/*
- * @note you cannot use RAW_PACKET with hdr_bytes > 0
- */
-typedef enum {
-	RAW_PACKET,            // Full wire packet in payload_ptr cyclic buffer
-	STRIP_NETWORK_HDRS,    // Strip down packet's network headers in cyclic buffers.
-	SEPERATE_NETWORK_HDRS, // Expose the packet's network headers in headers_ptr
-	PADDED_PACKET,         // Full packet with padding to power of 2
-} vma_cb_packet_rec_mode;
-
-typedef enum {
-	VMA_CB_HDR_BYTE = (1 << 0),
-	VMA_CB_EXTERNAL_MEM = (1 << 1),
-} vma_cb_ring_attr_mask;
-
 typedef enum {
 	VMA_MODIFY_RING_CQ_MODERATION = (1 << 0),
 	VMA_MODIFY_RING_CQ_ARM = (1 << 1),
@@ -292,61 +253,6 @@ struct vma_modify_ring_attr {
 	};
 };
 
-/**
- * @param comp_mask - what fields are read when processing this struct see @ref vma_cb_ring_attr_mask
- * @param num - Minimum number of elements allocated in the circular buffer
- * @param hdr_bytes - Bytes separated from UDP payload which are
- * 	part of the application header
- * 	@note this will be accesable from headers_ptr in @ref vma_completion_cb_t
- * @param stride_bytes - Bytes separated for each ingress payload for alignment
- * 	control (does not include the hdr_bytes). Should be smaller
- * 	than MTU.
- *
- * @note your packet will be written to the memory in a different way depending
- * on the packet_receive_mode and hdr_bytes.
- * In all modes all the packets and\or headers will be contiguous in the memory.
- * The number of headers\packets is equal to packets in @ref vma_completion_cb_t.
- * the packet memory layout has five options:
- * 1. RAW_PACKET - payload_ptr will point to the raw packet containing the
- *     network headers and user payload.
- * 2. STRIP_NETWORK_HDRS - network headers will be ignored by VMA.
- *      payload_ptr - will point to the first packet which it size is defined in
- *          stride_bytes.
- *      a. hdr_bytes > 0
- *          usr_hdr_ptr will point to the first header.
- *      b. hdr_bytes = 0
- *          usr_hdr_ptr is NULL
- * 3. SEPERATE_NETWORK_HDRS - network headers will be dropped
- *     payload_ptr - will point to the first packet as it size is defined
- *     in stride_bytes.
- *     a. hdr_bytes > 0
- *         usr_hdr_ptr will point to the first network header + user header
- *         (contiguous in memory).
- *     b. hdr_bytes = 0
- *         usr_hdr_ptr will point to the first network header.
- * 4. PADDED_PACKET - packet will be written to memory and additional padding
- *     will be added to the end of it to match the nearest power of two.
- *     e.g. if stride_bytes is 1400 then and the network size is 42 (eth+ip+udp)
- *     the padding will be 2048 - 1400 - 42 -> 606.
- *     This mode has the best performance and causes less PCI bus back pressure.
- *     In this mode hdr_bytes is ignored and usr_hdr_ptr is NULL.
- *     packet layout in PADDED_PACKET mode
- * +--------------------------------------------------------------------------+
- * #| mac+ip+udp |               datagram payload                 |  alignment|
- * +--------------------------------------------------------------------------+
- * 1|            | e.g. RTP header    | e.g. RTP payload          | alignment |
- * 2|            | e.g. RTP header    | e.g. RTP payload          | alignment |
- * +--------------------------------------------------------------------------+
- *
- */
-struct vma_cyclic_buffer_ring_attr {
-	uint32_t		comp_mask;
-	uint32_t		num;
-	uint16_t		stride_bytes;
-	uint16_t		hdr_bytes;
-	vma_cb_packet_rec_mode	packet_receive_mode;
-};
-
 struct vma_packet_queue_ring_attr {
 	uint32_t	comp_mask;
 };
@@ -362,7 +268,6 @@ typedef enum {
 
 typedef enum {
 	VMA_RING_PACKET,
-	VMA_RING_CYCLIC_BUFFER,
 	VMA_RING_EXTERNAL_MEM,
 } vma_ring_type;
 
@@ -376,7 +281,6 @@ struct vma_ring_type_attr {
 	uint32_t	comp_mask;
 	vma_ring_type	ring_type;
 	union {
-		struct vma_cyclic_buffer_ring_attr	ring_cyclicb;
 		struct vma_packet_queue_ring_attr	ring_pktq;
 		struct vma_external_mem_attr		ring_ext;
 	};
@@ -458,7 +362,6 @@ typedef enum {
 	VMA_EXTRA_API_GET_SOCKET_TX_RING_FD          = (1 << 12),
 	VMA_EXTRA_API_GET_SOCKET_NETWORK_HEADER      = (1 << 13),
 	VMA_EXTRA_API_GET_RING_DIRECT_DESCRIPTORS    = (1 << 14),
-	VMA_EXTRA_API_CYCLIC_BUFFER_READ             = (1 << 15),
 	VMA_EXTRA_API_ADD_RING_PROFILE               = (1 << 16),
 	VMA_EXTRA_API_REGISTER_MEMORY_ON_RING        = (1 << 17),
 	VMA_EXTRA_API_DEREGISTER_MEMORY_ON_RING      = (1 << 18),
@@ -730,22 +633,6 @@ struct __attribute__ ((packed)) vma_api_t {
 	 * errno is set to: EOPNOTSUPP - Function is not supported when socketXtreme is enabled.
 	 */
 	int (*dump_fd_stats)(int fd, int log_level);
-
-	/**
-	 * Get data from the MP_RQ cyclic buffer
-	 * @param fd - the fd of the ring to query - get it using @ref get_socket_rings_fds
-	 * @param completion results see @ref struct vma_completion_cb_t
-	 * @param min min number of packet to return, if not available
-	 * 	will return 0 packets
-	 * @param max max packets to return
-	 * @param flags can be MSG_DONTWAIT, MSG_WAITALL (not yet supported), MSG_PEEK (not yet supported)
-	 * @return 0 on success -1 on failure
-	 *
-	 * errno is set to: EOPNOTSUPP - Striding RQ is no supported.
-	 */
-	int (*vma_cyclic_buffer_read)(int fd,
-				      struct vma_completion_cb_t *completion,
-				      size_t min, size_t max, int flags);
 
 	/**
 	 * add a ring profile to VMA ring profile list. you can use this

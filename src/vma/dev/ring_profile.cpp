@@ -39,20 +39,6 @@ ring_profile::ring_profile(const vma_ring_type_attr *ring_desc) {
 	m_ring_desc.comp_mask = ring_desc->comp_mask;
 	m_ring_desc.ring_type = ring_desc->ring_type;
 	switch (ring_desc->ring_type) {
-	case VMA_RING_CYCLIC_BUFFER: {
-		vma_cyclic_buffer_ring_attr &r = m_ring_desc.ring_cyclicb;
-
-		memset(&r, 0, sizeof(m_ring_desc.ring_cyclicb));
-		r.comp_mask = ring_desc->ring_cyclicb.comp_mask;
-		r.num = ring_desc->ring_cyclicb.num;
-		r.stride_bytes = ring_desc->ring_cyclicb.stride_bytes;
-		r.packet_receive_mode = ring_desc->ring_cyclicb.packet_receive_mode;
-
-		if (r.comp_mask & VMA_CB_HDR_BYTE) {
-			r.hdr_bytes = ring_desc->ring_cyclicb.hdr_bytes;
-		}
-		break;
-	}
 	case VMA_RING_PACKET:
 		m_ring_desc.ring_pktq.comp_mask = ring_desc->ring_pktq.comp_mask;
 		break;
@@ -69,7 +55,6 @@ const char* ring_profile::get_vma_ring_type_str()
 {
 	switch (m_ring_desc.ring_type) {
 	case VMA_RING_PACKET:	return "VMA_PKTS_RING";
-	case VMA_RING_CYCLIC_BUFFER:	return "VMA_CB_RING";
 	case VMA_RING_EXTERNAL_MEM:	return "VMA_EXTERNAL_MEM_RING";
 	default:		return "";
 	}
@@ -89,11 +74,6 @@ void ring_profile::create_string()
 	ostringstream s;
 
 	s<<get_vma_ring_type_str();
-	if (m_ring_desc.ring_type == VMA_RING_CYCLIC_BUFFER) {
-		s<<" packets_num:"<<m_ring_desc.ring_cyclicb.num
-		 <<" stride_bytes:"<<m_ring_desc.ring_cyclicb.stride_bytes
-		 <<" hdr size:"<<m_ring_desc.ring_cyclicb.hdr_bytes;
-	}
 	m_str = s.str();
 }
 
