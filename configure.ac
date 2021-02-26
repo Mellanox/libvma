@@ -481,7 +481,6 @@ AC_CONFIG_FILES([
 		contrib/scripts/vma.service
 		contrib/scripts/libvma.spec
 		debian/changelog
-		VMA_VERSION
 		])
 
 AC_OUTPUT

@@ -27,14 +27,7 @@ Build:
 1. ./autogen.sh
 2. ./configure --with-ofed=/usr --prefix=/usr --libdir=/usr/lib64 --includedir=/usr/include --docdir=/usr/share/doc/libvma --sysconfdir=/etc
 3. make
-
-You will find libvma.so in path_to_vma_dir/src/vma/.libs/libvma.so.
-
-Install:
-1. sudo make install
-
-Tip:
-./install.sh can do the build and install steps for you.
+4. sudo make install
 
 
 Install libvma from rpm or debian
@@ -55,8 +48,7 @@ Install the package as any other rpm or debian package [rpm -i libvma.X.Y.Z-R.rp
 The installation copies the VMA library to: /usr/lib[64]/libvma.so
 The VMA monitoring utility is installed at: /usr/bin/vma_stat
 The VMA extra socket API is located at: /usr/include/mellanox/vma_extra.h
-The installation location of the README.txt and version information file
-(VMA_VERSION), are as follows:
+The installation location of the README.txt and journal.txt, are as follows:
 - Redhat: /usr/share/doc/libvma-X.Y.Z-R/
 - SuSE:   /usr/share/doc/packages/libvma-X.Y.Z-R/
 

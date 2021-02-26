@@ -9,16 +9,14 @@ noinst_SCRIPTS = \
 EXTRA_DIST = \
 	contrib \
 	debian \
-	install.sh \
 	journal.txt \
-	README.txt \
-	VMA_VERSION
+	README.txt
 
 
 .PHONY: tests
 
 mydocdir = $(if $(docdir),$(docdir),${datadir}/doc/$(distdir))
-mydoc_DATA = README.txt journal.txt VMA_VERSION
+mydoc_DATA = README.txt journal.txt
 
 install-exec-hook:
 	if type systemctl >/dev/null 2>&1; then \

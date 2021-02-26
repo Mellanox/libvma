@@ -187,6 +187,5 @@ popd > /dev/null 2>&1
 
 echo ${pkg_label} "Result: ${pkg_outdir}"
 echo ${pkg_label} "Log file: ${pkg_log}"
-echo ${pkg_label} "Version: $(cat ${pkg_dir}/VMA_VERSION | head -n1)"
 echo ${pkg_label} "Exit: $rc"
 exit $rc

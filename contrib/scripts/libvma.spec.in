@@ -159,7 +159,6 @@ fi
 %dir %{_pkgdocdir}
 %doc %{_pkgdocdir}/README.txt
 %doc %{_pkgdocdir}/journal.txt
-%doc %{_pkgdocdir}/VMA_VERSION
 %config(noreplace) %{_sysconfdir}/libvma.conf
 %{_sbindir}/vmad
 %if "%{use_systemd}" == "1"
