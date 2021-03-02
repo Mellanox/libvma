@@ -48,7 +48,7 @@ Install the package as any other rpm or debian package [rpm -i libvma.X.Y.Z-R.rp
 The installation copies the VMA library to: /usr/lib[64]/libvma.so
 The VMA monitoring utility is installed at: /usr/bin/vma_stat
 The VMA extra socket API is located at: /usr/include/mellanox/vma_extra.h
-The installation location of the README.txt and journal.txt, are as follows:
+The installation location of the README and CHANGES, are as follows:
 - Redhat: /usr/share/doc/libvma-X.Y.Z-R/
 - SuSE:   /usr/share/doc/packages/libvma-X.Y.Z-R/
 

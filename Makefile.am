@@ -9,14 +9,14 @@ noinst_SCRIPTS = \
 EXTRA_DIST = \
 	contrib \
 	debian \
-	journal.txt \
-	README.txt
+	CHANGES \
+	README
 
 
 .PHONY: tests
 
 mydocdir = $(if $(docdir),$(docdir),${datadir}/doc/$(distdir))
-mydoc_DATA = README.txt journal.txt
+mydoc_DATA = README CHANGES
 
 install-exec-hook:
 	if type systemctl >/dev/null 2>&1; then \

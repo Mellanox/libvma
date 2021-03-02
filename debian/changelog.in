@@ -1,5 +1,5 @@
 libvma (@VERSION@-@VMA_LIBRARY_RELEASE@) release; urgency=low
 
-  * Please refer to journal.txt for full changelog.
+  * Please refer to CHANGES for full changelog.
 
  -- Liran Oz <lirano@mellanox.com>  @BUILD_DATE_CHANGELOG@
