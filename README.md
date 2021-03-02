@@ -15,6 +15,6 @@ or some quick instruction in order to [build VMA from source](https://github.com
 Have a question? please open a [github issue](https://github.com/Mellanox/libvma/issues) or contact support@mellanox.com.  
 
 ### Additional Information
-* Refer to the libvma [README.txt](https://github.com/Mellanox/libvma/blob/master/README.txt)
+* Refer to the libvma [README](https://github.com/Mellanox/libvma/blob/master/README)
 * Messaging Accelerator [VMA](https://www.mellanox.com/products/software/accelerator-software/vma?mtag=vma) page
 * Check out the rest of the Wiki pages in this project
