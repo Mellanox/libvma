@@ -509,7 +509,10 @@ int del_flow(struct store_pid *pid_value, struct store_flow *value)
 			}
 
 			bitmap_destroy(cur_element->ctx->ht);
+			assert(ctx == cur_element->ctx);
+			free_pending_list(pid, cur_element->ctx, value->if_id);
 			free(cur_element->ctx);
+			ctx = NULL;
 			list_del_init(cur_entry);
 			free(cur_element);
 		}
