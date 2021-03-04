@@ -182,28 +182,56 @@ public:
 		return false;
 	}
 	inline bool flow_tag_enabled(void) { return m_flow_tag_enabled; }
-	inline pollfd* get_poll_fds_array(void) { return m_poll_fds_array; }
-	inline int add_fd_to_poll_array(int fd) {
+	inline void add_fd_to_poll_array(int fd) {
 		if (m_poll_fds_array_size >= m_poll_fds_array_capacity) {
 			m_poll_fds_array_capacity *= 2;
-			m_poll_fds_array = (pollfd *)realloc(m_poll_fds_array, m_poll_fds_array_capacity * sizeof(pollfd));
+			pollfd* new_m_poll_fds_array = static_cast<pollfd*>(realloc(m_poll_fds_array, m_poll_fds_array_capacity * sizeof(pollfd)));
+			if (new_m_poll_fds_array == NULL) {
+				vlog_printf(VLOG_ERROR, "%s:%d: Realloc cannot find enough space\n", __func__, __LINE__);
+				return ;
+			} else {
+				m_poll_fds_array = new_m_poll_fds_array;
+			}
 		}
 		m_poll_fds_array[m_poll_fds_array_size].fd = fd;
 		m_poll_fds_array[m_poll_fds_array_size].events = POLLIN;
-		return ++m_poll_fds_array_size;
+		++m_poll_fds_array_size;
 	}
-	inline int delete_fd_from_poll_array(int fd) {
-		int i;
-		if (unlikely(m_poll_fds_array_size == 0)) { return 0; }
-		for (i = 0; i < m_poll_fds_array_size && m_poll_fds_array[i].fd != fd; i++) ;
-		//safe for overlapping memory blocks
-		if (i < m_poll_fds_array_size - 1) {
-			memmove(&m_poll_fds_array[i], &m_poll_fds_array[i + 1], (m_poll_fds_array_size - i - 1) * sizeof(m_poll_fds_array[0]));
+	inline void delete_fds_from_poll_array() {
+		int j;
+		if (unlikely(m_poll_fds_array_size == 0)) {
+			return ;
 		}
-		if (i < m_poll_fds_array_size) { m_poll_fds_array_size--; }
-		return m_poll_fds_array_size;
+		if (unlikely(m_poll_fds_delete_array_size != 0)) {
+			for (int i = 0; i < m_poll_fds_delete_array_size; i++) {
+				for (j = 0; j < m_poll_fds_array_size && m_poll_fds_array[j].fd != m_poll_fds_delete_array[i]; j++) ;
+				//safe for overlapping memory blocks
+				if (j < m_poll_fds_array_size - 1) {
+					memmove(&m_poll_fds_array[j], &m_poll_fds_array[j + 1], (m_poll_fds_array_size - j - 1) * sizeof(m_poll_fds_array[0]));
+				}
+				if (j < m_poll_fds_array_size) {
+					m_poll_fds_array_size--;
+				}
+			}
+			memset(m_poll_fds_delete_array, 0, m_poll_fds_delete_array_size * sizeof(int));
+			m_poll_fds_delete_array_size = 0;
+		}
 	}
-	inline int get_poll_fds_array_size() { return m_poll_fds_array_size; }
+	inline void delete_fd_from_poll_array_deferred(int fd) {
+		if (m_poll_fds_delete_array_size >= m_poll_fds_array_capacity) {
+			m_poll_fds_array_capacity *= 2;
+			int* new_m_poll_fds_delete_array = static_cast<int*>(realloc(m_poll_fds_delete_array, m_poll_fds_array_capacity * sizeof(int)));
+			if (new_m_poll_fds_delete_array == NULL) {
+				vlog_printf(VLOG_ERROR, "%s:%d: Realloc cannot find enough space\n", __func__, __LINE__);
+				return ;
+			} else {
+				m_poll_fds_delete_array = new_m_poll_fds_delete_array;
+			}
+
+		}
+		m_poll_fds_delete_array[m_poll_fds_delete_array_size] = fd;
+		++m_poll_fds_delete_array_size;
+	}
 	virtual bool flow_in_reuse(void) { return false;};
 	virtual int* get_rings_fds(int &res_length);
 	virtual int get_rings_num();
@@ -212,6 +240,11 @@ public:
 	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);
 	uint32_t get_flow_tag_val() { return m_flow_tag_id; }
 	inline in_protocol_t get_protocol(void) { return m_protocol; }
+	virtual inline void do_wakeup()	{
+		if (!is_socketxtreme()) {
+			wakeup_eventfd::do_wakeup();
+		}
+	}
 
 private:
 	int				fcntl_helper(int __cmd, unsigned long int __arg, bool& bexit);
@@ -241,6 +274,8 @@ protected:
 	struct pollfd*          m_poll_fds_array;
 	int                     m_poll_fds_array_size;
 	int                     m_poll_fds_array_capacity;
+	int*                    m_poll_fds_delete_array;
+	int                     m_poll_fds_delete_array_size;
 
 	cache_observer 		m_rx_nd_observer;
 	rx_net_device_map_t	m_rx_nd_map;
@@ -356,12 +391,6 @@ protected:
 	void            process_timestamps(mem_buf_desc_t* p_desc);
 
 	virtual bool try_un_offloading(); // un-offload the socket if possible
-
-	virtual inline void do_wakeup()	{
-		if (!is_socketxtreme()) {
-			wakeup_eventfd::do_wakeup();
-		}
-	}
 
 	inline bool is_socketxtreme() {
 		return (m_p_rx_ring && m_p_rx_ring->is_socketxtreme());

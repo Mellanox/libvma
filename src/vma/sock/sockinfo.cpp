@@ -94,7 +94,9 @@ sockinfo::sockinfo(int fd):
 	m_ring_alloc_logic = ring_allocation_logic_rx(get_fd(), m_ring_alloc_log_rx, this);
 	m_poll_fds_array_capacity = DEFAULT_FDS_ARR_SIZE;
 	m_poll_fds_array = (pollfd *)malloc(DEFAULT_FDS_ARR_SIZE * sizeof(pollfd));
+	m_poll_fds_delete_array = (int *)malloc(DEFAULT_FDS_ARR_SIZE * sizeof(int));
 	m_poll_fds_array_size = 0;
+	m_poll_fds_delete_array_size = 0;
 	add_fd_to_poll_array(wakeup_get_fd());
 
 	m_p_socket_stats = &m_socket_stats; // Save stats as local copy and allow state publisher to copy from this location
@@ -135,7 +137,11 @@ sockinfo::~sockinfo()
 		delete[] m_p_rings_fds;
 		m_p_rings_fds = NULL;
 	}
-        vma_stats_instance_remove_socket_block(m_p_socket_stats);
+
+	free(m_poll_fds_array);
+	free(m_poll_fds_delete_array);
+
+	vma_stats_instance_remove_socket_block(m_p_socket_stats);
 }
 
 void sockinfo::set_blocking(bool is_blocked)
@@ -1211,10 +1217,10 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring, 
 			size_t num_ring_rx_fds;
 			int *ring_rx_fds_array = base_ring->get_rx_channel_fds(num_ring_rx_fds);
 
-			// it may not work with concurrent poll()
 			for (int i = 0; i < (int)num_ring_rx_fds; i++) {
-				delete_fd_from_poll_array(ring_rx_fds_array[i]);
+				delete_fd_from_poll_array_deferred(ring_rx_fds_array[i]);
 			}
+			do_wakeup();
 
 			notify_epoll = true;
 

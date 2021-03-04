@@ -257,6 +257,8 @@ inline int sockinfo_udp::rx_wait(bool blocking)
 						/* coverity[double_lock] TODO: RM#1049980 */
 						m_lock_rcv.lock();
 						remove_wakeup_fd();
+						delete_fds_from_poll_array();
+
 						/* coverity[double_unlock] TODO: RM#1049980 */
 						m_lock_rcv.unlock();
 						continue;

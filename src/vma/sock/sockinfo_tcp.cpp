@@ -4149,6 +4149,7 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 			{ // wakeup event
 				lock_tcp_con();
 				remove_wakeup_fd();
+				delete_fds_from_poll_array();
 				unlock_tcp_con();
 				continue;
 			}
