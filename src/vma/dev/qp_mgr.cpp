@@ -130,7 +130,7 @@ qp_mgr::~qp_mgr()
 	delete[] m_ibv_rx_sg_array;
 	delete[] m_ibv_rx_wr_array;
 
-	qp_logdbg("Rx buffer poll: %d free global buffers available", g_buffer_pool_rx->get_free_count());
+	qp_logdbg("Rx buffer poll: %ld free global buffers available", g_buffer_pool_rx->get_free_count());
 	qp_logdbg("delete done");
 }
 
@@ -409,14 +409,14 @@ void qp_mgr::release_rx_buffers()
 		}
 	}
 	// Wait for all FLUSHed WQE on Rx CQ
-	qp_logdbg("draining rx cq_mgr %p (last_posted_rx_wr_id = %p)", m_p_cq_mgr_rx, m_last_posted_rx_wr_id);
+	qp_logdbg("draining rx cq_mgr %p (last_posted_rx_wr_id = %lu)", m_p_cq_mgr_rx, m_last_posted_rx_wr_id);
 	uintptr_t last_polled_rx_wr_id = 0;
 	while (m_p_cq_mgr_rx && last_polled_rx_wr_id != m_last_posted_rx_wr_id &&
 			errno != EIO && !m_p_ib_ctx_handler->is_removed()) {
 
 		// Process the FLUSH'ed WQE's
 		int ret = m_p_cq_mgr_rx->drain_and_proccess(&last_polled_rx_wr_id);
-		qp_logdbg("draining completed on rx cq_mgr (%d wce) last_polled_rx_wr_id = %p", ret, last_polled_rx_wr_id);
+		qp_logdbg("draining completed on rx cq_mgr (%d wce) last_polled_rx_wr_id = %lu", ret, last_polled_rx_wr_id);
 
 		total_ret += ret;
 
@@ -566,8 +566,8 @@ void qp_mgr::post_recv_buffer(mem_buf_desc_t* p_mem_buf_desc)
 		IF_VERBS_FAILURE(ibv_post_recv(m_qp, &m_ibv_rx_wr_array[0], &bad_wr)) {
 			uint32_t n_pos_bad_rx_wr = ((uint8_t*)bad_wr - (uint8_t*)m_ibv_rx_wr_array) / sizeof(struct ibv_recv_wr);
 			qp_logerr("failed posting list (errno=%d %m)", errno);
-			qp_logerr("bad_wr is %d in submitted list (bad_wr=%p, m_ibv_rx_wr_array=%p, size=%d)", n_pos_bad_rx_wr, bad_wr, m_ibv_rx_wr_array, sizeof(struct ibv_recv_wr));
-			qp_logerr("bad_wr info: wr_id=%#x, next=%p, addr=%#x, length=%d, lkey=%#x", bad_wr[0].wr_id, bad_wr[0].next, bad_wr[0].sg_list[0].addr, bad_wr[0].sg_list[0].length, bad_wr[0].sg_list[0].lkey);
+			qp_logerr("bad_wr is %d in submitted list (bad_wr=%p, m_ibv_rx_wr_array=%p, size=%zu)", n_pos_bad_rx_wr, bad_wr, m_ibv_rx_wr_array, sizeof(struct ibv_recv_wr));
+			qp_logerr("bad_wr info: wr_id=%#lx, next=%p, addr=%#lx, length=%d, lkey=%#x", bad_wr[0].wr_id, bad_wr[0].next, bad_wr[0].sg_list[0].addr, bad_wr[0].sg_list[0].length, bad_wr[0].sg_list[0].lkey);
 			qp_logerr("QP current state: %d", priv_ibv_query_qp_state(m_qp));
 
 			// Fix broken linked list of rx_wr
@@ -605,8 +605,8 @@ inline int qp_mgr::send_to_wire(vma_ibv_send_wr* p_send_wqe, vma_wr_tx_packet_at
 	IF_VERBS_FAILURE(vma_ibv_post_send(m_qp, p_send_wqe, &bad_wr)) {
 		qp_logerr("failed post_send%s (errno=%d %m)\n", ((vma_send_wr_send_flags(*p_send_wqe) & VMA_IBV_SEND_INLINE)?"(+inline)":""), errno);
 		if (bad_wr) {
-			qp_logerr("bad_wr info: wr_id=%#x, send_flags=%#x, addr=%#x, length=%d, lkey=%#x, max_inline_data=%d",
-			bad_wr->wr_id, vma_send_wr_send_flags(*bad_wr), bad_wr->sg_list[0].addr, bad_wr->sg_list[0].length, bad_wr->sg_list[0].lkey, get_max_inline_data());
+			qp_logerr("bad_wr info: wr_id=%#lx, send_flags=%#lx, addr=%#lx, length=%d, lkey=%#x, max_inline_data=%d",
+			bad_wr->wr_id, (unsigned long)vma_send_wr_send_flags(*bad_wr), bad_wr->sg_list[0].addr, bad_wr->sg_list[0].length, bad_wr->sg_list[0].lkey, get_max_inline_data());
 		}
 		ret = -1;
 	} ENDIF_VERBS_FAILURE;
@@ -801,7 +801,7 @@ int qp_mgr_ib::prepare_ibv_qp(vma_ibv_qp_init_attr& qp_init_attr)
 		VLOG_PRINTF_INFO_ONCE_THEN_ALWAYS(
 				VLOG_ERROR, VLOG_DEBUG,
 				"failed to modify QP from ERR to INIT state (ret = %d) check number of available fds (ulimit -n)",
-				ret, errno);
+				ret);
 		return ret;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END

@@ -212,7 +212,7 @@ void nl_attr_add(struct nlmsghdr *nl_msg, unsigned short type,
 	struct rtattr *rta;
 
 	if ((NLMSG_ALIGN(nl_msg->nlmsg_len) + RTA_ALIGN(RTA_LENGTH(data_len))) > NLMSG_BUF) {
-		log_error("Message size is: %d that exceeds limit: %d\n",
+		log_error("Message size is: %zu that exceeds limit: %d\n",
 				(NLMSG_ALIGN(nl_msg->nlmsg_len) + RTA_ALIGN(RTA_LENGTH(data_len))), NLMSG_BUF);
 		return ;
 	}

@@ -55,7 +55,7 @@ void L2_address::set(address_t const address, addrlen_t const len)
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (len <= 0 || len > L2_ADDR_MAX)
-		L2_panic("len = %d", len);
+		L2_panic("len = %lu", len);
 
 	if (address == NULL)
 		L2_panic("address == NULL");

@@ -228,10 +228,10 @@ inline int sockinfo_udp::rx_wait(bool blocking)
 
 		if (unlikely(ret == -1)) {
 			if (errno == EINTR) {
-				si_udp_logdbg("EINTR from blocked epoll_wait() (ret=%d, errno=%d %m)", ret, errno);
+				si_udp_logdbg("EINTR from blocked epoll_wait() (ret=%zd, errno=%d %s)", ret, errno, strerror(errno));
 			}
 			else {
-				si_udp_logdbg("error from blocked epoll_wait() (ret=%d, errno=%d %m)", ret, errno);
+				si_udp_logdbg("error from blocked epoll_wait() (ret=%zd, errno=%d %s)", ret, errno, strerror(errno));
 			}
 
 			m_p_socket_stats->counters.n_rx_os_errors++;
@@ -390,7 +390,7 @@ sockinfo_udp::~sockinfo_udp()
 	si_udp_logfunc("");
 
 	// Remove all RX ready queue buffers (Push into reuse queue per ring)
-	si_udp_logdbg("Releasing %d ready rx packets (total of %d bytes)", m_n_rx_pkt_ready_list_count, m_p_socket_stats->n_rx_ready_byte_count);
+	si_udp_logdbg("Releasing %d ready rx packets (total of %lu bytes)", m_n_rx_pkt_ready_list_count, m_p_socket_stats->n_rx_ready_byte_count);
 	rx_ready_byte_count_limit_update(0);
 
 
@@ -422,7 +422,7 @@ sockinfo_udp::~sockinfo_udp()
 	statistics_print();
 
 	if (m_n_rx_pkt_ready_list_count || m_rx_ready_byte_count || m_rx_pkt_ready_list.size() || m_rx_ring_map.size() || m_rx_reuse_buff.n_buff_num)
-		si_udp_logerr("not all buffers were freed. protocol=UDP. m_n_rx_pkt_ready_list_count=%d, m_rx_ready_byte_count=%d, m_rx_pkt_ready_list.size()=%d, m_rx_ring_map.size()=%d, m_rx_reuse_buff.n_buff_num=%d",
+		si_udp_logerr("not all buffers were freed. protocol=UDP. m_n_rx_pkt_ready_list_count=%d, m_rx_ready_byte_count=%lu, m_rx_pkt_ready_list.size()=%d, m_rx_ring_map.size()=%d, m_rx_reuse_buff.n_buff_num=%d",
 				m_n_rx_pkt_ready_list_count, m_rx_ready_byte_count, (int)m_rx_pkt_ready_list.size() ,(int)m_rx_ring_map.size(), m_rx_reuse_buff.n_buff_num);
 
 	si_udp_logfunc("done");
@@ -562,7 +562,7 @@ int sockinfo_udp::connect(const struct sockaddr *__to, socklen_t __tolen)
 
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (!m_p_connected_dst_entry) {
-			si_udp_logerr("Failed to create dst_entry(dst_ip:%s, dst_port:%d, src_port:%d)", NIPQUAD(dst_ip), ntohs(dst_port), ntohs(src_port));
+			si_udp_logerr("Failed to create dst_entry(dst_ip:%d.%d.%d.%d, dst_port:%d, src_port:%d)", NIPQUAD(dst_ip), ntohs(dst_port), ntohs(src_port));
 			m_connected.set_in_addr(INADDR_ANY);
 			m_p_socket_stats->connected_ip = INADDR_ANY;
 			m_connected.set_in_port(INPORT_ANY);
@@ -931,7 +931,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					// structure (present since Linux 1.2) is still supported; it differs from ip_mreqn only by not
 					// including the imr_ifindex field.
 					if (__optlen < sizeof(struct ip_mreq)) {
-						si_udp_logdbg("IPPROTO_IP, %s; Bad optlen! calling OS setsockopt() with optlen=%d (required optlen=%d)",
+						si_udp_logdbg("IPPROTO_IP, %s; Bad optlen! calling OS setsockopt() with optlen=%d (required optlen=%zu)",
 							setsockopt_ip_opt_to_str(__optname), __optlen, sizeof(struct ip_mreq));
 						break;
 					}
@@ -939,7 +939,7 @@ int sockinfo_udp::setsockopt(int __level, int __optname, __const void *__optval,
 					// but fields have different meaning
 					if (((IP_ADD_SOURCE_MEMBERSHIP == __optname) || (IP_DROP_SOURCE_MEMBERSHIP == __optname)) &&
 						    (__optlen < sizeof(struct ip_mreq_source))) {
-						si_udp_logdbg("IPPROTO_IP, %s; Bad optlen! calling OS setsockopt() with optlen=%d (required optlen=%d)",
+						si_udp_logdbg("IPPROTO_IP, %s; Bad optlen! calling OS setsockopt() with optlen=%d (required optlen=%zu)",
 							setsockopt_ip_opt_to_str(__optname), __optlen, sizeof(struct ip_mreq_source));
 						break;
 					}
@@ -1174,7 +1174,7 @@ int sockinfo_udp::getsockopt(int __level, int __optname, void *__optval, socklen
 					si_udp_logdbg("SOL_SOCKET, SO_RCVBUF=%d", n_so_rcvbuf_bytes);
 
 					if (m_p_socket_stats->n_rx_ready_byte_count > n_so_rcvbuf_bytes)
-						si_udp_logdbg("Releasing at least %d bytes from ready rx packets queue", m_p_socket_stats->n_rx_ready_byte_count - n_so_rcvbuf_bytes);
+						si_udp_logdbg("Releasing at least %lu bytes from ready rx packets queue", m_p_socket_stats->n_rx_ready_byte_count - n_so_rcvbuf_bytes);
 
 					rx_ready_byte_count_limit_update(n_so_rcvbuf_bytes);
 				}
@@ -1633,7 +1633,7 @@ ssize_t sockinfo_udp::tx(vma_tx_call_attr_t &tx_arg)
 				}
 				BULLSEYE_EXCLUDE_BLOCK_START
 				if (!p_dst_entry) {
-					si_udp_logerr("Failed to create dst_entry(dst_ip:%s, dst_port:%d, src_port:%d)", dst.to_str_in_addr(), dst.to_str_in_port(), ntohs(src_port));
+					si_udp_logerr("Failed to create dst_entry(dst_ip:%s, dst_port:%s, src_port:%d)", dst.to_str_in_addr(), dst.to_str_in_port(), ntohs(src_port));
 					goto tx_packet_to_os;
 				}
 				BULLSEYE_EXCLUDE_BLOCK_END
@@ -2310,7 +2310,7 @@ void sockinfo_udp::statistics_print(vlog_levels_t log_level /* = VLOG_DEBUG */)
 	sockinfo::statistics_print(log_level);
 
 	// Socket data
-	vlog_printf(log_level, "Rx ready list size : %u\n", m_rx_pkt_ready_list.size());
+	vlog_printf(log_level, "Rx ready list size : %zu\n", m_rx_pkt_ready_list.size());
 
 	vlog_printf(log_level, "Socket timestamp : m_b_rcvtstamp %s, m_b_rcvtstampns %s, m_n_tsing_flags %u\n",
 			m_b_rcvtstamp ? "true" : "false" , m_b_rcvtstampns ? "true" : "false", m_n_tsing_flags);

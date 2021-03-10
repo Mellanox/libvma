@@ -82,7 +82,7 @@ void* event_handler_manager::register_timer_event(int timeout_msec, timer_handle
 						  timer_req_type_t req_type, void* user_data,
 						  timers_group* group /* = NULL */)
 {
-	evh_logdbg("timer handler '%p' registered %s timer for %d msec (user data: %X)",
+	evh_logdbg("timer handler '%p' registered %s timer for %d msec (user data: %p)",
 		   handler, timer_req_type_str(req_type), timeout_msec, user_data);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!handler || (req_type < 0 || req_type >= INVALID_TIMER)) {
@@ -597,7 +597,7 @@ void event_handler_manager::priv_register_rdma_cm_events(rdma_cm_reg_info_t& inf
 	// Handle the new registration
 	event_handler_map_t::iterator iter_fd = m_event_handler_map.find(info.fd);
 	if (iter_fd == m_event_handler_map.end()) {
-		evh_logdbg("Adding new channel (fd %d, id %#x, handler %p)", info.fd, info.id, info.handler);
+		evh_logdbg("Adding new channel (fd %d, id %p, handler %p)", info.fd, info.id, info.handler);
 		event_data_t map_value;
 
 		map_value.type = EV_RDMA_CM;
@@ -619,15 +619,15 @@ void event_handler_manager::priv_register_rdma_cm_events(rdma_cm_reg_info_t& inf
 		}
 		event_handler_rdma_cm_map_t::iterator iter_id = iter_fd->second.rdma_cm_ev.map_rdma_cm_id.find(info.id);
 		if (iter_id == iter_fd->second.rdma_cm_ev.map_rdma_cm_id.end()) {
-			evh_logdbg("Adding to exitsing channel fd %d (id %#x, handler %p)", info.fd, info.id, info.handler);
+			evh_logdbg("Adding to exitsing channel fd %d (id %p, handler %p)", info.fd, info.id, info.handler);
 			iter_fd->second.rdma_cm_ev.map_rdma_cm_id[info.id] = info.handler;
 			iter_fd->second.rdma_cm_ev.n_ref_count++;
 			if (iter_fd->second.rdma_cm_ev.cma_channel != info.cma_channel) {
-				evh_logerr("Trying to change the channel processing cb's on a registered fd %d (by id %#x)", info.fd, info.id);
+				evh_logerr("Trying to change the channel processing cb's on a registered fd %d (by id %p)", info.fd, info.id);
 			}
 		}
 		else {
-			evh_logerr("Channel-id pair <%d, %#x> already registered (handler %p)", info.fd, info.id, info.handler);
+			evh_logerr("Channel-id pair <%d, %p> already registered (handler %p)", info.fd, info.id, info.handler);
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
 	}
@@ -831,11 +831,11 @@ void event_handler_manager::process_rdma_cm_event(event_handler_map_t::iterator 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	// Get rdma_cm event
 	if (rdma_get_cm_event(cma_channel, &p_tmp_cm_event)) {
-		evh_logerr("rdma_get_cm_event failed on cma_channel %d (fd = %d) (errno=%d %m)", cma_channel, cma_channel->fd, errno);
+		evh_logerr("rdma_get_cm_event failed on cma_channel %p (fd = %d) (errno=%d %s)", cma_channel, cma_channel->fd, errno, strerror(errno));
 		return;
 	}
 	if (!p_tmp_cm_event) {
-		evh_logpanic("rdma_get_cm_event succeeded but the returned event is NULL on cma_channel %d (fd = %d) (errno=%d %m)", cma_channel, cma_channel->fd, errno);
+		evh_logpanic("rdma_get_cm_event succeeded but the returned event is NULL on cma_channel %p (fd = %d) (errno=%d %s)", cma_channel, cma_channel->fd, errno, strerror(errno));
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
@@ -862,7 +862,7 @@ void event_handler_manager::process_rdma_cm_event(event_handler_map_t::iterator 
 				handler->handle_event_rdma_cm_cb(&cma_event);
 		}
 		else {
-			evh_logdbg("Can't find event_handler for ready event_handler_id %d (fd=%d)", cma_id, iter_fd->first);
+			evh_logdbg("Can't find event_handler for ready event_handler_id %p (fd=%d)", cma_id, iter_fd->first);
 		}
 	}
 

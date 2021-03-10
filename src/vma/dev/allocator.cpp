@@ -265,14 +265,14 @@ void vma_allocator::align_simple_malloc(size_t sz_bytes)
 		}
 	}
 	__log_info_dbg("failed allocating memory with posix_memalign size %zd "
-			"returned %d (errno=%d %m) ", m_length, ret, errno);
+			"returned %d (errno=%d %s) ", m_length, ret, errno, strerror(errno));
 
 	m_length = sz_bytes;
 	m_data_block = malloc(sz_bytes);
 
 	if (m_data_block == NULL) {
 		__log_info_dbg("failed allocating data memory block "
-				"(size=%d bytes) (errno=%d %m)", sz_bytes, errno);
+				"(size=%lu bytes) (errno=%d %s)", sz_bytes, errno, strerror(errno));
 		throw_vma_exception("failed allocating data memory block");
 	}
 	__log_info_dbg("allocated memory using malloc()");
@@ -297,7 +297,7 @@ void vma_allocator::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h,
 			}
 			lkey = p_ib_ctx_h->mem_reg(m_data_block, size, access);
 			if (lkey == (uint32_t)(-1)) {
-				__log_info_warn("Failure during memory registration on dev: %s addr=%p length=%d",
+				__log_info_warn("Failure during memory registration on dev: %s addr=%p length=%lu",
 						p_ib_ctx_h->get_ibname(), m_data_block, size);
 				failed = true;
 				break;
@@ -314,7 +314,7 @@ void vma_allocator::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h,
 					access &= ~VMA_IBV_ACCESS_ALLOCATE_MR;
 				}
 #endif
-				__log_info_dbg("Registered memory on dev: %s addr=%p length=%d",
+				__log_info_dbg("Registered memory on dev: %s addr=%p length=%lu",
 						p_ib_ctx_h->get_ibname(), m_data_block, size);
 			}
 			if (p_ib_ctx_h == p_ib_ctx_h_ref) {
@@ -339,8 +339,8 @@ void vma_allocator::register_memory(size_t size, ib_ctx_handler *p_ib_ctx_h,
 				"for more info");
 		if (m_data_block) {
 			__log_info_dbg("Failed registering memory block with device "
-					"(ptr=%p size=%ld%s) (errno=%d %m)",
-					m_data_block, size, errno);
+					"(ptr=%p size=%ld) (errno=%d %s)",
+					m_data_block, size, errno, strerror(errno));
 		}
 		throw_vma_exception("Failed registering memory");
 	}

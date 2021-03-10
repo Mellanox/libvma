@@ -557,7 +557,7 @@ void net_device_val::print_val()
 	for (ring_iter = m_h_ring_map.begin(); ring_iter != m_h_ring_map.end(); ring_iter++) {
 		ring *cur_ring = ring_iter->second.first;
 		NOT_IN_USE(cur_ring); // Suppress --enable-opt-log=high warning
-		nd_logdbg("    %d: 0x%X: parent 0x%X ref %d",
+		nd_logdbg("    %d: %p: parent %p ref %d",
 				cur_ring->get_if_index(), cur_ring, cur_ring->get_parent(), ring_iter->second.second);
 	}
 }
@@ -999,7 +999,7 @@ ring* net_device_val::reserve_ring(resource_allocation_key *key)
 			BULLSEYE_EXCLUDE_BLOCK_START
 			if (unlikely( orig_os_api.epoll_ctl(g_p_net_device_table_mgr->global_ring_epfd_get(),
 					EPOLL_CTL_ADD, cq_ch_fd, &ev))) {
-				nd_logerr("Failed to add RING notification fd to global_table_mgr_epfd (errno=%d %m)", errno);
+				nd_logerr("Failed to add RING notification fd to global_table_mgr_epfd (errno=%d %s)", errno, strerror(errno));
 			}
 			BULLSEYE_EXCLUDE_BLOCK_END
 		}
@@ -1011,7 +1011,7 @@ ring* net_device_val::reserve_ring(resource_allocation_key *key)
 	ADD_RING_REF_CNT;
 	the_ring = GET_THE_RING(key);
 
-	nd_logdbg("0x%X: if_index %d parent 0x%X ref %d key %s",
+	nd_logdbg("%p: if_index %d parent %p ref %d key %s",
 			the_ring, the_ring->get_if_index(),
 			the_ring->get_parent(), RING_REF_CNT, key->to_str());
 
@@ -1033,7 +1033,7 @@ int net_device_val::release_ring(resource_allocation_key *key)
 		DEC_RING_REF_CNT;
 		the_ring = GET_THE_RING(red_key);
 
-		nd_logdbg("0x%X: if_index %d parent 0x%X ref %d key %s",
+		nd_logdbg("%p: if_index %d parent %p ref %d key %s",
 				the_ring, the_ring->get_if_index(),
 				the_ring->get_parent(), RING_REF_CNT, red_key->to_str());
 
@@ -1047,7 +1047,7 @@ int net_device_val::release_ring(resource_allocation_key *key)
 				BULLSEYE_EXCLUDE_BLOCK_START
 				if (unlikely(orig_os_api.epoll_ctl(g_p_net_device_table_mgr->global_ring_epfd_get(),
 						EPOLL_CTL_DEL, cq_ch_fd, NULL))) {
-					nd_logerr("Failed to delete RING notification fd to global_table_mgr_epfd (errno=%d %m)", errno);
+					nd_logerr("Failed to delete RING notification fd to global_table_mgr_epfd (errno=%d %s)", errno, strerror(errno));
 				}
 				BULLSEYE_EXCLUDE_BLOCK_END
 			}
@@ -1150,7 +1150,7 @@ int net_device_val::global_ring_poll_and_process_element(uint64_t *p_poll_sn, vo
 		int ret = THE_RING->poll_and_process_element_rx(p_poll_sn, pv_fd_ready_array);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (ret < 0 && errno != EAGAIN) {
-			nd_logerr("Error in ring->poll_and_process_element() of %p (errno=%d %m)", THE_RING, errno);
+			nd_logerr("Error in ring->poll_and_process_element() of %p (errno=%d %s)", THE_RING, errno, strerror(errno));
 			return ret;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
@@ -1169,7 +1169,7 @@ int net_device_val::global_ring_request_notification(uint64_t poll_sn)
 	for (ring_iter = m_h_ring_map.begin(); ring_iter != m_h_ring_map.end(); ring_iter++) {
 		int ret = THE_RING->request_notification(CQT_RX, poll_sn);
 		if (ret < 0) {
-			nd_logerr("Error ring[%p]->request_notification() (errno=%d %m)", THE_RING, errno);
+			nd_logerr("Error ring[%p]->request_notification() (errno=%d %s)", THE_RING, errno, strerror(errno));
 			return ret;
 		}
 		nd_logfunc("ring[%p] Returned with: %d (sn=%d)", THE_RING, ret, poll_sn);
@@ -1292,23 +1292,23 @@ void net_device_val_eth::parse_prio_egress_map()
 
 	nl_socket_handle *nl_socket = nl_socket_handle_alloc();
 	if (!nl_socket) {
-		nd_logdbg("unable to allocate socket socket %m", errno);
+		nd_logdbg("unable to allocate socket socket %s", strerror(errno));
 		goto out;
 	}
 	nl_socket_set_local_port(nl_socket, 0);
 	ret = nl_connect(nl_socket, NETLINK_ROUTE);
 	if (ret < 0) {
-		nd_logdbg("unable to connect to libnl socket %d %m", ret, errno);
+		nd_logdbg("unable to connect to libnl socket %d %s", ret, strerror(errno));
 		goto out;
 	}
 	ret = rtnl_link_alloc_cache(nl_socket, AF_UNSPEC, &cache);
 	if (!cache) {
-		nd_logdbg("unable to create libnl cache %d %m", ret, errno);
+		nd_logdbg("unable to create libnl cache %d %s", ret, strerror(errno));
 		goto out;
 	}
 	link = rtnl_link_get_by_name(cache, get_ifname());
 	if (!link) {
-		nd_logdbg("unable to get libnl link %d %m", ret, errno);
+		nd_logdbg("unable to get libnl link %d %s", ret, strerror(errno));
 		goto out;
 	}
 	map = rtnl_link_vlan_get_egress_map(link, &len);
@@ -1693,13 +1693,13 @@ bool net_device_val::verify_qp_creation(const char* ifname, enum ibv_qp_type qp_
 	//create qp resources
 	channel = ibv_create_comp_channel(p_ib_ctx->get_ibv_context());
 	if (!channel) {
-		nd_logdbg("channel creation failed for interface %s (errno=%d %m)", ifname, errno);
+		nd_logdbg("channel creation failed for interface %s (errno=%d %s)", ifname, errno, strerror(errno));
 		goto release_resources;
 	}
 	VALGRIND_MAKE_MEM_DEFINED(channel, sizeof(ibv_comp_channel));
 	cq = vma_ibv_create_cq(p_ib_ctx->get_ibv_context(), safe_mce_sys().tx_num_wr, (void*)this, channel, 0, &attr);
 	if (!cq) {
-		nd_logdbg("cq creation failed for interface %s (errno=%d %m)", ifname, errno);
+		nd_logdbg("cq creation failed for interface %s (errno=%d %s)", ifname, errno, strerror(errno));
 		goto release_resources;
 	}
 
@@ -1718,7 +1718,7 @@ bool net_device_val::verify_qp_creation(const char* ifname, enum ibv_qp_type qp_
 	qp = vma_ibv_create_qp(p_ib_ctx->get_ibv_pd(), &qp_init_attr);
 	if (qp) {
 		if (qp_type == IBV_QPT_UD && priv_ibv_create_flow_supported(qp, port_num) == -1) {
-			nd_logdbg("Create_ibv_flow failed on interface %s (errno=%d %m), Traffic will not be offloaded", ifname, errno);
+			nd_logdbg("Create_ibv_flow failed on interface %s (errno=%d %s), Traffic will not be offloaded", ifname, errno, strerror(errno));
 			goto qp_failure;
 		} else {
 			success = true;
@@ -1734,7 +1734,7 @@ bool net_device_val::verify_qp_creation(const char* ifname, enum ibv_qp_type qp_
 			nd_logdbg("verified interface %s for burst capabilities : %s", ifname, p_ib_ctx->get_burst_capability() ? "enabled" : "disabled");
 		}
 	} else {
-		nd_logdbg("QP creation failed on interface %s (errno=%d %m), Traffic will not be offloaded", ifname, errno);
+		nd_logdbg("QP creation failed on interface %s (errno=%d %s), Traffic will not be offloaded", ifname, errno, strerror(errno));
 qp_failure:
 		int err = errno; //verify_raw_qp_privliges can overwrite errno so keep it before the call
 #if defined(DEFINED_VERBS_VERSION) && (DEFINED_VERBS_VERSION == 2)
@@ -1767,19 +1767,19 @@ qp_failure:
 release_resources:
 	if(qp) {
 		IF_VERBS_FAILURE(ibv_destroy_qp(qp)) {
-			nd_logdbg("qp destroy failed on interface %s (errno=%d %m)", ifname, errno);
+			nd_logdbg("qp destroy failed on interface %s (errno=%d %s)", ifname, errno, strerror(errno));
 			success = false;
 		} ENDIF_VERBS_FAILURE;
 	}
 	if (cq) {
 		IF_VERBS_FAILURE(ibv_destroy_cq(cq)) {
-			nd_logdbg("cq destroy failed on interface %s (errno=%d %m)", ifname, errno);
+			nd_logdbg("cq destroy failed on interface %s (errno=%d %s)", ifname, errno, strerror(errno));
 			success = false;
 		} ENDIF_VERBS_FAILURE;
 	}
 	if (channel) {
 		IF_VERBS_FAILURE(ibv_destroy_comp_channel(channel)) {
-			nd_logdbg("channel destroy failed on interface %s (errno=%d %m)", ifname, errno);
+			nd_logdbg("channel destroy failed on interface %s (errno=%d %s)", ifname, errno, strerror(errno));
 			success = false;
 		} ENDIF_VERBS_FAILURE;
 		VALGRIND_MAKE_MEM_UNDEFINED(channel, sizeof(ibv_comp_channel));

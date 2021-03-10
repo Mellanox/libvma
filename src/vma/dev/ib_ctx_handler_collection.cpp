@@ -169,7 +169,7 @@ void ib_ctx_handler_collection::update_tbl(const char *ifa_name)
 		m_ib_ctx_map[p_ib_ctx_handler->get_ibv_device()] = p_ib_ctx_handler;
 	}
 
-	ibchc_logdbg("Check completed. Found %d offload capable IB devices", m_ib_ctx_map.size());
+	ibchc_logdbg("Check completed. Found %lu offload capable IB devices", m_ib_ctx_map.size());
 
 	if (dev_list) {
 		ibv_free_device_list(dev_list);

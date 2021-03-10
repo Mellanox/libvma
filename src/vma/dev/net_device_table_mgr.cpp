@@ -281,7 +281,7 @@ next:
 ret:
 
 	m_lock.unlock();
-	ndtm_logdbg("Check completed. Found %d offload capable network interfaces", m_net_device_map_index.size());
+	ndtm_logdbg("Check completed. Found %ld offload capable network interfaces", m_net_device_map_index.size());
 
 	orig_os_api.close(fd);
 }

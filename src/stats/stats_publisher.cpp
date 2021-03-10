@@ -191,7 +191,7 @@ void vma_shmem_stats_open(vlog_levels_t** p_p_vma_log_level, uint8_t** p_p_vma_l
 	g_sh_mem_info.p_sh_stats = MAP_FAILED;
 	ret = snprintf(g_sh_mem_info.filename_sh_stats, sizeof(g_sh_mem_info.filename_sh_stats), "%s/vmastat.%d", safe_mce_sys().stats_shmem_dirname, getpid());
 	if (!((0 < ret) && (ret < (int)sizeof(g_sh_mem_info.filename_sh_stats)))) {
-		vlog_printf(VLOG_ERROR, "%s: Could not create file under %s %m\n", __func__, safe_mce_sys().stats_shmem_dirname, errno);
+		vlog_printf(VLOG_ERROR, "%s: Could not create file under %s %s\n", __func__, safe_mce_sys().stats_shmem_dirname, strerror(errno));
 		goto no_shmem;
 	}
 	saved_mode = umask(0);
@@ -201,7 +201,7 @@ void vma_shmem_stats_open(vlog_levels_t** p_p_vma_log_level, uint8_t** p_p_vma_l
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (g_sh_mem_info.fd_sh_stats < 0) {
-		vlog_printf(VLOG_ERROR, "%s: Could not open %s %m\n", __func__, g_sh_mem_info.filename_sh_stats, errno);
+		vlog_printf(VLOG_ERROR, "%s: Could not open %s %s\n", __func__, g_sh_mem_info.filename_sh_stats, strerror(errno));
 		goto no_shmem;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -210,7 +210,7 @@ void vma_shmem_stats_open(vlog_levels_t** p_p_vma_log_level, uint8_t** p_p_vma_l
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (ret < 0) {
-		vlog_printf(VLOG_ERROR, "%s: Could not write to %s - %m\n", __func__, g_sh_mem_info.filename_sh_stats, errno);
+		vlog_printf(VLOG_ERROR, "%s: Could not write to %s - %s\n", __func__, g_sh_mem_info.filename_sh_stats, strerror(errno));
 		goto no_shmem;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -219,7 +219,7 @@ void vma_shmem_stats_open(vlog_levels_t** p_p_vma_log_level, uint8_t** p_p_vma_l
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (g_sh_mem_info.p_sh_stats == MAP_FAILED) {
-		vlog_printf(VLOG_ERROR, "%s: MAP_FAILED for %s - %m\n", __func__, g_sh_mem_info.filename_sh_stats);
+		vlog_printf(VLOG_ERROR, "%s: MAP_FAILED for %s - %s\n", __func__, g_sh_mem_info.filename_sh_stats, strerror(errno));
 		goto no_shmem;
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END

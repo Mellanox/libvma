@@ -127,7 +127,7 @@ ring_slave::~ring_slave()
 
 void ring_slave::print_val()
 {
-	ring_logdbg("%d: 0x%X: parent 0x%X type %s",
+	ring_logdbg("%d: %p: parent %p type %s",
 			m_if_index, this,
 			((uintptr_t)this == (uintptr_t)m_parent ? 0 : m_parent),
 			ring_type_str[m_type]);
@@ -521,7 +521,7 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 		if (sz_data == IP_FRAG_FREED) {
 			ring_logfuncall("Rx buffer dropped - old fragment part");
 		} else {
-			ring_logwarn("Rx buffer dropped - buffer too small (%d, %d)", sz_data, p_rx_wc_buf_desc->sz_buffer);
+			ring_logwarn("Rx buffer dropped - buffer too small (%zu, %lu)", sz_data, p_rx_wc_buf_desc->sz_buffer);
 		}
 		return false;
 	}
@@ -692,7 +692,7 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 
 	// Validate size for IPv4 header
 	if (unlikely(sz_data < sizeof(struct iphdr))) {
-		ring_logwarn("Rx buffer dropped - buffer too small for IPv4 header (%d, %d)", sz_data, sizeof(struct iphdr));
+		ring_logwarn("Rx buffer dropped - buffer too small for IPv4 header (%zu, %zu)", sz_data, sizeof(struct iphdr));
 		return false;
 	}
 
@@ -708,8 +708,8 @@ bool ring_slave::rx_process_buffer(mem_buf_desc_t* p_rx_wc_buf_desc, void* pv_fd
 	// Check that received buffer size is not smaller then the ip datagram total size
 	ip_tot_len = ntohs(p_ip_h->tot_len);
 	if (unlikely(sz_data < ip_tot_len)) {
-		ring_logwarn("Rx packet dropped - buffer too small for received datagram (RxBuf:%d IP:%d)", sz_data, ip_tot_len);
-		ring_loginfo("Rx packet info (buf->%p, bufsize=%d), id=%d", p_rx_wc_buf_desc->p_buffer, p_rx_wc_buf_desc->sz_data, ntohs(p_ip_h->id));
+		ring_logwarn("Rx packet dropped - buffer too small for received datagram (RxBuf:%zu IP:%d)", sz_data, ip_tot_len);
+		ring_loginfo("Rx packet info (buf->%p, bufsize=%zu), id=%d", p_rx_wc_buf_desc->p_buffer, p_rx_wc_buf_desc->sz_data, ntohs(p_ip_h->id));
 		vlog_print_buffer(VLOG_INFO, "rx packet data: ", "\n", (const char*)p_rx_wc_buf_desc->p_buffer, min(112, (int)p_rx_wc_buf_desc->sz_data));
 		return false;
 	} else if (sz_data > ip_tot_len) {
