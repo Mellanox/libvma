@@ -659,7 +659,7 @@ static int proc_fanotify(void *buffer, int nbyte)
 				goto err;
 			}
 
-			log_debug("getting event ([0x%x] pid: %d fd: %d name: %s)\n",
+			log_debug("getting event ([0x%llx] pid: %d fd: %d name: %s)\n",
 					data->mask, data->pid, data->fd, pathname);
 
 			rc = snprintf(buf, sizeof(buf) - 1, "%s/%s.%d.pid",

@@ -311,7 +311,7 @@ bool fd_collection::create_offloaded_sockets()
  */
 void fd_collection::offloading_rule_change_thread(bool offloaded, pthread_t tid)
 {
-	fdcoll_logdbg("tid=%ul, offloaded=%d", tid, offloaded);
+	fdcoll_logdbg("tid=%lu, offloaded=%d", tid, offloaded);
 
 	lock();
 	if (offloaded == m_b_sysvar_offloaded_sockets) {

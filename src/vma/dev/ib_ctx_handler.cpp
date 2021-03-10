@@ -424,7 +424,7 @@ uint32_t ib_ctx_handler::mem_reg(void *addr, size_t length, uint64_t access)
 		m_mr_map_lkey[mr->lkey] = mr;
 		lkey = mr->lkey;
 
-		ibch_logdbg("dev:%s (%p) addr=%p length=%d pd=%p",
+		ibch_logdbg("dev:%s (%p) addr=%p length=%lu pd=%p",
 				get_ibname(), m_p_ibv_device, addr, length, m_p_ibv_pd);
 	}
 
@@ -436,7 +436,7 @@ void ib_ctx_handler::mem_dereg(uint32_t lkey)
 	mr_map_lkey_t::iterator iter = m_mr_map_lkey.find(lkey);
 	if (iter != m_mr_map_lkey.end()) {
 		struct ibv_mr* mr = iter->second;
-		ibch_logdbg("dev:%s (%p) addr=%p length=%d pd=%p",
+		ibch_logdbg("dev:%s (%p) addr=%p length=%lu pd=%p",
 				get_ibname(), m_p_ibv_device, mr->addr, mr->length, m_p_ibv_pd);
 		IF_VERBS_FAILURE_EX(ibv_dereg_mr(mr), EIO) {
 			ibch_logdbg("failed de-registering a memory region "

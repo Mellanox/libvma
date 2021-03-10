@@ -353,7 +353,7 @@ sockinfo_tcp::~sockinfo_tcp()
 	unlock_tcp_con();
 
 	if (m_n_rx_pkt_ready_list_count || m_rx_ready_byte_count || m_rx_pkt_ready_list.size() || m_rx_ring_map.size() || m_rx_reuse_buff.n_buff_num || m_rx_reuse_buff.rx_reuse.size() || m_rx_cb_dropped_list.size() || m_rx_ctl_packets_list.size() || m_rx_peer_packets.size() || m_rx_ctl_reuse_list.size())
-		si_tcp_logerr("not all buffers were freed. protocol=TCP. m_n_rx_pkt_ready_list_count=%d, m_rx_ready_byte_count=%d, m_rx_pkt_ready_list.size()=%d, m_rx_ring_map.size()=%d, m_rx_reuse_buff.n_buff_num=%d, m_rx_reuse_buff.rx_reuse.size=%d, m_rx_cb_dropped_list.size=%d, m_rx_ctl_packets_list.size=%d, m_rx_peer_packets.size=%d, m_rx_ctl_reuse_list.size=%d",
+		si_tcp_logerr("not all buffers were freed. protocol=TCP. m_n_rx_pkt_ready_list_count=%d, m_rx_ready_byte_count=%lu, m_rx_pkt_ready_list.size()=%d, m_rx_ring_map.size()=%d, m_rx_reuse_buff.n_buff_num=%d, m_rx_reuse_buff.rx_reuse.size=%lu, m_rx_cb_dropped_list.size=%lu, m_rx_ctl_packets_list.size=%lu, m_rx_peer_packets.size=%lu, m_rx_ctl_reuse_list.size=%lu",
 				m_n_rx_pkt_ready_list_count, m_rx_ready_byte_count, (int)m_rx_pkt_ready_list.size() ,(int)m_rx_ring_map.size(), m_rx_reuse_buff.n_buff_num, m_rx_reuse_buff.rx_reuse.size(), m_rx_cb_dropped_list.size(), m_rx_ctl_packets_list.size(), m_rx_peer_packets.size(), m_rx_ctl_reuse_list.size());
 
 	g_p_agent->unregister_cb((agent_cb_t)&sockinfo_tcp::put_agent_msg, (void *)this);
@@ -2774,7 +2774,7 @@ void sockinfo_tcp::auto_accept_connection(sockinfo_tcp *parent, sockinfo_tcp *ch
 	}
 	else {
 		vlog_printf(VLOG_ERROR, "VMA_SOCKETXTREME_NEW_CONNECTION_ACCEPTED: can't find listen socket for new connected socket with [fd=%d]",
-				__func__, __LINE__, child->get_fd());
+				child->get_fd());
 	}
 
 	child->unlock_tcp_con();
@@ -2796,7 +2796,7 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 	__log_dbg("initial state=%x\n", get_tcp_state(&conn->m_pcb));
 	__log_dbg("accept cb: arg=%p, new pcb=%p err=%d\n", arg, child_pcb, err);
 	if (err != ERR_OK) {
-		vlog_printf(VLOG_ERROR, "%s:d: accept cb failed\n", __func__, __LINE__);
+		vlog_printf(VLOG_ERROR, "%s:%d: accept cb failed\n", __func__, __LINE__);
 		return err;
 	}
 	if (conn->m_sock_state != TCP_SOCK_ACCEPT_READY) {
@@ -2808,7 +2808,7 @@ err_t sockinfo_tcp::accept_lwip_cb(void *arg, struct tcp_pcb *child_pcb, err_t e
 	new_sock = (sockinfo_tcp*)child_pcb->my_container;
 
 	if (!new_sock) {
-		vlog_printf(VLOG_ERROR, "%s:d: failed to clone socket\n", __func__, __LINE__);
+		vlog_printf(VLOG_ERROR, "%s:%d: failed to clone socket\n", __func__, __LINE__);
 		return ERR_RST;
 	}
 
@@ -3397,7 +3397,7 @@ int sockinfo_tcp::fcntl_helper(int __cmd, unsigned long int __arg, bool &bexit)
 	switch (__cmd) {
 	case F_SETFL:		/* Set file status flags. */ 
 		{
-			si_tcp_logdbg("cmd=F_SETFL, arg=%#x", __arg);
+			si_tcp_logdbg("cmd=F_SETFL, arg=%#lx", __arg);
 			if (__arg & O_NONBLOCK)
 				set_blocking(false);
 			else

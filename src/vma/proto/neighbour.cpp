@@ -424,7 +424,7 @@ bool neigh_entry::post_send_udp(neigh_send_data *n_send_data)
 	size_t max_ip_payload_size = ((n_send_data->m_mtu - sizeof(struct iphdr)) & ~0x7);
 
 	if (sz_data_payload > 65536) {
-		neigh_logdbg("sz_data_payload=%d exceeds max of 64KB", sz_data_payload);
+		neigh_logdbg("sz_data_payload=%zd exceeds max of 64KB", sz_data_payload);
 		errno = EMSGSIZE;
 		return false;
 	}
@@ -437,7 +437,7 @@ bool neigh_entry::post_send_udp(neigh_send_data *n_send_data)
 		n_num_frags = (sz_udp_payload + max_ip_payload_size - 1) / max_ip_payload_size;
 	}
 
-	neigh_logdbg("udp info: payload_sz=%d, frags=%d, scr_port=%d, dst_port=%d", sz_data_payload, n_num_frags, ntohs(h->m_header.hdr.m_udp_hdr.source), ntohs(h->m_header.hdr.m_udp_hdr.dest));
+	neigh_logdbg("udp info: payload_sz=%zd, frags=%d, scr_port=%d, dst_port=%d", sz_data_payload, n_num_frags, ntohs(h->m_header.hdr.m_udp_hdr.source), ntohs(h->m_header.hdr.m_udp_hdr.dest));
 
 	// Get all needed tx buf descriptor and data buffers
 	p_mem_buf_desc = m_p_ring->mem_buf_tx_get(m_id, false, n_num_frags);
@@ -491,7 +491,7 @@ bool neigh_entry::post_send_udp(neigh_send_data *n_send_data)
 		int ret = memcpy_fromiovec(p_payload, &n_send_data->m_iov, 1, sz_user_data_offset, sz_user_data_to_copy);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (ret != (int)sz_user_data_to_copy) {
-			neigh_logerr("memcpy_fromiovec error (sz_user_data_to_copy=%d, ret=%d)", sz_user_data_to_copy, ret);
+			neigh_logerr("memcpy_fromiovec error (sz_user_data_to_copy=%zd, ret=%d)", sz_user_data_to_copy, ret);
 			m_p_ring->mem_buf_tx_release(p_mem_buf_desc, true);
 			errno = EINVAL;
 			return false;
@@ -518,7 +518,7 @@ bool neigh_entry::post_send_udp(neigh_send_data *n_send_data)
 #endif /* DEFINED_TSO */
 		m_send_wqe.wr_id = (uintptr_t)p_mem_buf_desc;
 
-		neigh_logdbg("%s packet_sz=%d, payload_sz=%d, ip_offset=%d id=%d", h->to_str().c_str(),
+		neigh_logdbg("%s packet_sz=%d, payload_sz=%zd, ip_offset=%d id=%d", h->to_str().c_str(),
 				m_sge.length - h->m_transport_header_len, sz_user_data_to_copy,
 				n_ip_frag_offset, ntohs(p_pkt->hdr.m_ip_hdr.id));
 
@@ -587,7 +587,7 @@ bool neigh_entry::post_send_tcp(neigh_send_data *p_data)
 
 	/* for DEBUG */
 	if ((uint8_t*)m_sge.addr < p_mem_buf_desc->p_buffer) {
-		neigh_logerr("p_buffer - addr=%d, m_total_hdr_len=%zd, p_buffer=%p, type=%d, len=%d, tot_len=%d, payload=%p, hdr_alignment_diff=%zd\n",
+		neigh_logerr("p_buffer - addr=%d, m_total_hdr_len=%u, p_buffer=%p, type=%d, len=%d, tot_len=%d, payload=%p, hdr_alignment_diff=%zd\n",
 				(int)(p_mem_buf_desc->p_buffer - (uint8_t*)m_sge.addr), h->m_total_hdr_len,
 				p_mem_buf_desc->p_buffer, p_mem_buf_desc->lwip_pbuf.pbuf.type,
 				p_mem_buf_desc->lwip_pbuf.pbuf.len, p_mem_buf_desc->lwip_pbuf.pbuf.tot_len,
@@ -1742,7 +1742,7 @@ bool neigh_ib::post_send_arp(bool is_broadcast)
 
 	wqe_send_ib_handler wqe_sh;
 	wqe_sh.init_ib_wqe(m_send_wqe, &m_sge, 1, ah, qpn, qkey);
-	neigh_logdbg("ARP: ah=%#x, qkey=%#x, qpn=%#x", ah ,qkey, qpn);
+	neigh_logdbg("ARP: ah=%p, qkey=%#x, qpn=%#x", ah ,qkey, qpn);
 	header h;
 	h.init();
 	h.configure_ipoib_headers(IPOIB_ARP_HEADER);
@@ -1952,13 +1952,11 @@ int neigh_ib::build_mc_neigh_val(struct rdma_cm_event* event_data,
 		return -1;
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	neigh_logdbg("IB multicast neigh params are : ah=%#x, qkey=%#x, sl=%#x, rate=%#x, port_num = %#x,  qpn=%#x dlid=%#x dgid = " IPOIB_HW_ADDR_PRINT_FMT_16,
+	neigh_logdbg("IB multicast neigh params are : ah=%p, qkey=%#x, sl=%#x, rate=%#x, port_num = %#x,  qpn=%#x dlid=%#x dgid = " IPOIB_HW_ADDR_PRINT_FMT_16,
 				((neigh_ib_val *) m_val)->m_ah, ((neigh_ib_val *) m_val)->m_qkey, ((neigh_ib_val *) m_val)->m_ah_attr.sl, ((neigh_ib_val *) m_val)->m_ah_attr.static_rate,
 				((neigh_ib_val *) m_val)->m_ah_attr.port_num, ((neigh_ib_val *) m_val)->get_qpn(), ((neigh_ib_val *) m_val)->m_ah_attr.dlid,
 				IPOIB_HW_ADDR_PRINT_ADDR_16(((neigh_ib_val *) m_val)->m_ah_attr.grh.dgid.raw));
-	/*neigh_logerr("flow_label = %#x, sgid_index=%#x, hop_limit=%#x, traffic_class=%#x", ((neigh_ib_val *) m_val)->m_ah_attr.grh.flow_label, ((neigh_ib_val *) m_val)->m_ah_attr.grh.sgid_index,
-				((neigh_ib_val *) m_val)->m_ah_attr.grh.hop_limit, ((neigh_ib_val *) m_val)->m_ah_attr.grh.traffic_class);
-	*/
+
 	wait_after_join_msec = m_n_sysvar_wait_after_join_msec;
 
 	return 0;
@@ -2012,7 +2010,7 @@ int neigh_ib::build_uc_neigh_val(struct rdma_cm_event* event_data,
 		return -1;
 	BULLSEYE_EXCLUDE_BLOCK_END
 
-	neigh_logdbg("IB unicast neigh params  ah=%#x, qkey=%#x, qpn=%#x, dlid=%#x", ((neigh_ib_val *) m_val)->m_ah,
+	neigh_logdbg("IB unicast neigh params  ah=%p, qkey=%#x, qpn=%#x, dlid=%#x", ((neigh_ib_val *) m_val)->m_ah,
 			((neigh_ib_val *) m_val)->m_qkey, ((neigh_ib_val *) m_val)->get_qpn(), ((neigh_ib_val *) m_val)->m_ah_attr.dlid);
 
 	wait_after_join_msec = 0;
@@ -2138,14 +2136,10 @@ void neigh_ib_broadcast::build_mc_neigh_val()
 		return;
 	}
 
-	/*neigh_logerr("m_pd = %p,  flow_label = %#x, sgid_index=%#x, hop_limit=%#x, traffic_class=%#x",
-			m_pd, ((neigh_ib_val *) m_val)->m_ah_attr.grh.flow_label, ((neigh_ib_val *) m_val)->m_ah_attr.grh.sgid_index,
-			((neigh_ib_val *) m_val)->m_ah_attr.grh.hop_limit, ((neigh_ib_val *) m_val)->m_ah_attr.grh.traffic_class);
-	*/
 	if (create_ah())
 		return;
 
-	neigh_logdbg("IB broadcast neigh params are : ah=%#x, qkey=%#x, sl=%#x, rate=%#x, port_num = %#x,  qpn=%#x,  dlid=%#x dgid = " IPOIB_HW_ADDR_PRINT_FMT_16,
+	neigh_logdbg("IB broadcast neigh params are : ah=%p, qkey=%#x, sl=%#x, rate=%#x, port_num = %#x,  qpn=%#x,  dlid=%#x dgid = " IPOIB_HW_ADDR_PRINT_FMT_16,
 			((neigh_ib_val *) m_val)->m_ah, ((neigh_ib_val *) m_val)->m_qkey, ((neigh_ib_val *) m_val)->m_ah_attr.sl,
 			((neigh_ib_val *) m_val)->m_ah_attr.static_rate,((neigh_ib_val *) m_val)->m_ah_attr.port_num,
 			((neigh_ib_val *) m_val)->get_qpn(), ((neigh_ib_val *) m_val)->m_ah_attr.dlid, IPOIB_HW_ADDR_PRINT_ADDR_16(((neigh_ib_val *) m_val)->m_ah_attr.grh.dgid.raw) );

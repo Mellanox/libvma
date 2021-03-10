@@ -162,7 +162,7 @@ int sockinfo::fcntl_helper(int __cmd, unsigned long int __arg, bool &bexit)
 	switch (__cmd) {
 	case F_SETFL:
 		{
-			si_logdbg("cmd=F_SETFL, arg=%#x", __arg);
+			si_logdbg("cmd=F_SETFL, arg=%#lx", __arg);
 			if (__arg & O_NONBLOCK)
 				set_blocking(false);
 			else
@@ -211,7 +211,7 @@ int sockinfo::fcntl(int __cmd, unsigned long int __arg)
 	if (bexit)
 		return ret_val;
 
-	si_logdbg("going to OS for fcntl cmd=%d, arg=%#x", __cmd, __arg);
+	si_logdbg("going to OS for fcntl cmd=%d, arg=%#lx", __cmd, __arg);
 	return orig_os_api.fcntl(m_fd, __cmd, __arg);
 }
 
@@ -222,7 +222,7 @@ int sockinfo::fcntl64(int __cmd, unsigned long int __arg)
 	if (bexit)
 		return ret_val;
 	
-	si_logdbg("going to OS for fcntl64 cmd=%d, arg=%#x", __cmd, __arg);
+	si_logdbg("going to OS for fcntl64 cmd=%d, arg=%#lx", __cmd, __arg);
 	return orig_os_api.fcntl64(m_fd, __cmd, __arg);
 }
 
@@ -324,7 +324,7 @@ int sockinfo::ioctl(unsigned long int __request, unsigned long int __arg)
 		break;
 	}
 
-    si_logdbg("going to OS for ioctl request=%d, flags=%x", __request, __arg);
+	si_logdbg("going to OS for ioctl request=%lu, flags=%#lx", __request, __arg);
 	return orig_os_api.ioctl(m_fd, __request, __arg);
 }
 
@@ -358,7 +358,7 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 					ret = SOCKOPT_NO_VMA_SUPPORT;
 					errno = EINVAL;
 					si_logdbg("SOL_SOCKET, SO_VMA_RING_USER_MEMORY - "
-						  "bad length expected %d got %d",
+						  "bad length expected %zu got %d",
 						  sizeof(iovec), __optlen);
 				}
 			}
@@ -373,7 +373,7 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 				if (__optlen == sizeof(uint32_t)) {
 					if (set_flow_tag(*(uint32_t*)__optval)) {
 						si_logdbg("SO_VMA_FLOW_TAG, set "
-							  "socket %s to flow id %d",
+							  "socket fd: %d to flow id: %d",
 							  m_fd, m_flow_tag_id);
 						// not supported in OS
 						ret = SOCKOPT_INTERNAL_VMA_SUPPORT;
@@ -385,7 +385,7 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 					ret = SOCKOPT_NO_VMA_SUPPORT;
 					errno = EINVAL;
 					si_logdbg("SO_VMA_FLOW_TAG, bad length "
-						  "expected %d got %d",
+						  "expected %zu got %d",
 						  sizeof(uint32_t), __optlen);
 					break;
 				}
@@ -454,7 +454,7 @@ int sockinfo::setsockopt(int __level, int __optname, const void *__optval, sockl
 					else {
 						ret = SOCKOPT_NO_VMA_SUPPORT;
 						errno = EINVAL;
-						si_logdbg("SOL_SOCKET, %s=\"???\" - bad length expected %d got %d",
+						si_logdbg("SOL_SOCKET, %s=\"???\" - bad length expected %zu got %d",
 							  setsockopt_so_opt_to_str(__optname),
 							  sizeof(vma_ring_alloc_logic_attr), __optlen);
 						break;
@@ -1241,7 +1241,7 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring)
 			move_descs(base_ring, &temp_rx_reuse, &p_ring_info->rx_reuse_info.rx_reuse, true);
 			move_descs(base_ring, &temp_rx_reuse_global, &p_ring_info->rx_reuse_info.rx_reuse, false);
 			if (p_ring_info->rx_reuse_info.rx_reuse.size()) {
-				si_logerr("possible buffer leak, p_ring_info->rx_reuse_buff still contain %d buffers.", p_ring_info->rx_reuse_info.rx_reuse.size());
+				si_logerr("possible buffer leak, p_ring_info->rx_reuse_buff still contain %lu buffers.", p_ring_info->rx_reuse_info.rx_reuse.size());
 			}
 
 			size_t num_ring_rx_fds;
@@ -1251,7 +1251,7 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring)
 				int cq_ch_fd = ring_rx_fds_array[i];
 				BULLSEYE_EXCLUDE_BLOCK_START
 				if (unlikely( orig_os_api.epoll_ctl(m_rx_epfd, EPOLL_CTL_DEL, cq_ch_fd, NULL))) {
-					si_logerr("failed to delete cq channel fd from internal epfd (errno=%d %m)", errno);
+					si_logerr("failed to delete cq channel fd from internal epfd (errno=%d %s)", errno, strerror(errno));
 				}
 				BULLSEYE_EXCLUDE_BLOCK_END
 			}

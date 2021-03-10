@@ -92,7 +92,7 @@ uint32_t time_converter::get_single_converter_status(struct ibv_context* ctx) {
 
 ts_conversion_mode_t time_converter::update_device_converters_status(net_device_map_t& net_devices)
 {
-	ibchtc_logdbg("Checking RX HW time stamp status for all devices [%d]", net_devices.size());
+	ibchtc_logdbg("Checking RX HW time stamp status for all devices [%lu]", net_devices.size());
 	ts_conversion_mode_t ts_conversion_mode = TS_CONVERSION_MODE_DISABLE;
 
 	if (net_devices.empty()) {

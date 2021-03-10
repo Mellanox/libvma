@@ -419,7 +419,7 @@ class loops_timer {
                         //update timer
                         gettime(&m_current);
                         ts_sub(&m_current, &m_start, &m_elapsed);
-                        vlog_printf(VLOG_FUNC_ALL, "update loops_timer (elapsed time=%d sec %d usec \n", ts_to_sec(&m_elapsed), ts_to_usec(&m_elapsed));
+                        vlog_printf(VLOG_FUNC_ALL, "update loops_timer (elapsed time=%ld sec %ld usec\n", ts_to_sec(&m_elapsed), ts_to_usec(&m_elapsed));
 
 
 

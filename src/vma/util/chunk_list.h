@@ -71,7 +71,7 @@ private:
 	int               m_back;              // Index of the last element.
 
 	size_t allocate(int containers = 1) {
-		clist_logfunc("Allocating %d containers of %d bytes each", containers, CHUNK_LIST_CONTAINER_SIZE * sizeof(T));
+		clist_logfunc("Allocating %d containers of %zu bytes each", containers, CHUNK_LIST_CONTAINER_SIZE * sizeof(T));
 
 		container* cont;
 		T* data;

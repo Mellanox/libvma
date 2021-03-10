@@ -97,8 +97,8 @@ void assign_dlsym(T &ptr, const char *name) {
 #define DO_GLOBAL_CTORS() do { \
 	int __res = do_global_ctors(); \
 	if (__res) { \
-		vlog_printf(VLOG_ERROR, "%s vma failed to start errno: %m\n", \
-			__FUNCTION__, errno); \
+		vlog_printf(VLOG_ERROR, "%s vma failed to start errno: %s\n", \
+			__FUNCTION__, strerror(errno)); \
 		if (safe_mce_sys().exception_handling == vma_exception_handling::MODE_EXIT) { \
 			exit(-1); \
 		} \
@@ -273,7 +273,7 @@ void dbg_send_mcpkt()
 
 	vlog_printf(VLOG_WARNING, "send_mc_packet_test:%d: Sending MC test packet to address: %d.%d.%d.%d [%s]\n", __LINE__, NIPQUAD(get_sa_ipv4_addr(p_addr)), VMA_DBG_SEND_MCPKT_MCGROUP_STR);
 	if (sendto(fd, msgbuf, strlen(msgbuf), 0, p_addr, sizeof(struct sockaddr)) < 0)
-		vlog_printf(VLOG_ERROR, "sendto mc_packet failed! errno %m\n", errno);
+		vlog_printf(VLOG_ERROR, "sendto mc_packet failed! errno %d %s\n", errno, strerror(errno));
 	close(fd);
 }
 
@@ -392,9 +392,12 @@ int vma_free_packets(int __fd, struct vma_packet_t *pkts, size_t count)
 
 static int dummy_vma_socketxtreme_poll(int fd, struct vma_completion_t* completions, unsigned int ncompletions, int flags)
 {
+	NOT_IN_USE(fd);
+        NOT_IN_USE(completions);
+        NOT_IN_USE(ncompletions);
+        NOT_IN_USE(flags);
 	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG,
-			"socketXtreme was not enabled during runtime. Set %s to use. Ignoring...", SYS_VAR_SOCKETXTREME,
-			fd, completions, ncompletions, flags);
+			"socketXtreme was not enabled during runtime. Set %s to use. Ignoring...", SYS_VAR_SOCKETXTREME);
 	errno = EOPNOTSUPP;
 	return -1;
 }
@@ -436,9 +439,10 @@ int vma_socketxtreme_poll(int fd, struct vma_completion_t* completions, unsigned
 
 static int dummy_vma_socketxtreme_free_vma_packets(struct vma_packet_desc_t *packets, int num)
 {
+	NOT_IN_USE(packets);
+	NOT_IN_USE(num);
 	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG,
-			"socketXtreme was not enabled during runtime. Set %s to use. Ignoring...", SYS_VAR_SOCKETXTREME,
-			packets, num);
+			"socketXtreme was not enabled during runtime. Set %s to use. Ignoring...", SYS_VAR_SOCKETXTREME);
 	errno = EOPNOTSUPP;
 	return -1;
 }
@@ -481,9 +485,9 @@ err:
 
 static int dummy_vma_socketxtreme_ref_vma_buff(vma_buff_t *buff)
 {
+	NOT_IN_USE(buff);
 	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG,
-			"socketXtreme was not enabled during runtime. Set %s to use. Ignoring...", SYS_VAR_SOCKETXTREME,
-			buff);
+			"socketXtreme was not enabled during runtime. Set %s to use. Ignoring...", SYS_VAR_SOCKETXTREME);
 	errno = EOPNOTSUPP;
 	return -1;
 }
@@ -507,9 +511,9 @@ int vma_socketxtreme_ref_vma_buff(vma_buff_t *buff)
 
 static int dummy_vma_socketxtreme_free_vma_buff(vma_buff_t *buff)
 {
+	NOT_IN_USE(buff);
 	VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_WARNING, VLOG_DEBUG,
-			"socketXtreme was not enabled during runtime. Set %s to use. Ignoring...", SYS_VAR_SOCKETXTREME,
-			buff);
+			"socketXtreme was not enabled during runtime. Set %s to use. Ignoring...", SYS_VAR_SOCKETXTREME);
 	errno = EOPNOTSUPP;
 	return -1;
 }
@@ -663,7 +667,7 @@ int vma_modify_ring(struct vma_modify_ring_attr *mr_data)
 extern "C"
 int vma_get_socket_netowrk_header(int __fd, void *ptr, uint16_t *len)
 {
-	srdr_logdbg_entry("fd=%d, ptr=%p len=%d", __fd, ptr, len);
+	srdr_logdbg_entry("fd=%d, ptr=%p len=%d", __fd, ptr, *len);
 
 	socket_fd_api* p_socket_object = fd_collection_get_sockfd(__fd);
 
@@ -1204,8 +1208,7 @@ int fcntl64(int __fd, int __cmd, ...)
 			if (!orig_os_api.fcntl64) {
 				srdr_logfunc_exit("failed (errno=%d %m)", errno);
 				VLOG_PRINTF_ONCE_THEN_ALWAYS(VLOG_ERROR, VLOG_DEBUG,
-					"fcntl64 was not found during runtime. Set %s to appripriate debug level to see datails. Ignoring...", SYS_VAR_LOG_LEVEL,
-					__fd, __cmd);
+					"fcntl64 was not found during runtime. Set %s to appripriate debug level to see datails. Ignoring...", SYS_VAR_LOG_LEVEL);
 				errno = EOPNOTSUPP;
 				return -1;
 			}
@@ -2586,8 +2589,8 @@ pid_t fork(void)
 		safe_mce_sys().get_env_params();
 		vlog_start("VMA", safe_mce_sys().log_level, safe_mce_sys().log_filename, safe_mce_sys().log_details, safe_mce_sys().log_colors);
 		if (vma_rdma_lib_reset()) {
-			srdr_logerr("Child Process: rdma_lib_reset failed %m",
-					errno);
+			srdr_logerr("Child Process: rdma_lib_reset failed %d %s",
+					errno, strerror(errno));
 		}
 		srdr_logdbg_exit("Child Process: starting with %d", getpid());
 		g_is_forked_child = false;
@@ -2644,8 +2647,8 @@ int daemon(int __nochdir, int __noclose)
 		safe_mce_sys().get_env_params();
 		vlog_start("VMA", safe_mce_sys().log_level, safe_mce_sys().log_filename, safe_mce_sys().log_details, safe_mce_sys().log_colors);
 		if (vma_rdma_lib_reset()) {
-			srdr_logerr("Child Process: rdma_lib_reset failed %m",
-					errno);
+			srdr_logerr("Child Process: rdma_lib_reset failed %d %s",
+					errno, strerror(errno));
 		}
 		srdr_logdbg_exit("Child Process: starting with %d", getpid());
 		g_is_forked_child = false;

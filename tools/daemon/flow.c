@@ -448,7 +448,7 @@ int del_flow(struct store_pid *pid_value, struct store_flow *value)
 
 					cur_element->ref--;
 
-					log_debug("[%d] del flow (node): 0x%p value: %d ref: %d\n",
+					log_debug("[%d] del flow (node): 0x%p value: %d:%d ref: %d\n",
 							pid, cur_element, cur_element->value[0], cur_element->value[1], cur_element->ref);
 					if (list_empty(&cur_element->list) && (cur_element->ref <=0 )) {
 

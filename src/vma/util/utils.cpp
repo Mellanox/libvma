@@ -165,7 +165,6 @@ int get_base_interface_name(const char *if_name, char *base_ifname, size_t sz_ba
 		freeifaddrs(ifaddr);
 	}
 	snprintf(base_ifname, sz_base_ifname, "%s" ,if_name);
-	__log_dbg("no base for %s", base_ifname, if_name);
 	return 0;
 }
 
@@ -392,7 +391,7 @@ void set_fd_block_mode(int fd, bool b_block)
 	int ret = orig_os_api.fcntl(fd, F_SETFL, flags);
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (ret < 0) {
-		__log_err("failed changing fd[%d] to %sblocking mode (rc=%d errno=%d %m)", fd, b_block?"":"non-", flags, ret, errno);
+		__log_err("failed changing fd[%d] to %sblocking mode (rc=%d errno=%d %s)", fd, b_block?"":"non-", ret, errno, strerror(errno));
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
@@ -774,7 +773,7 @@ size_t get_local_ll_addr(IN const char * ifname, OUT unsigned char* addr, IN int
 
 	int len = priv_read_file(l2_addr_path, buf, sizeof(buf));
 	int bytes_len = (len + 1) / 3; // convert len from semantic of hex format L2 address with ':' delimiter (and optional newline character) into semantic of byte array
-	__log_dbg("ifname=%s un-aliased-ifname=%.*s l2_addr_path=%s l2-addr=%s (addr-bytes_len=%d)", ifname, ifname_len, ifname, l2_addr_path, buf, bytes_len);
+	__log_dbg("ifname=%s un-aliased-ifname=%zu l2_addr_path=%s l2-addr=%s (addr-bytes_len=%d)", ifname, ifname_len, ifname, l2_addr_path, bytes_len);
 
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (len < 0) return 0; // failure in priv_read_file
@@ -1169,7 +1168,7 @@ size_t default_huge_page_size(void)
 	}
 #endif
 
-	__log_dbg("Detect default Hugepage size: %d", hugepage_sz);
+	__log_dbg("Detect default Hugepage size: %zd", hugepage_sz);
 
 	return hugepage_sz;
 }

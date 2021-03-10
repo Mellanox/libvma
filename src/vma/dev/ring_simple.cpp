@@ -131,7 +131,7 @@ ring_simple::ring_simple(int if_index, ring* parent, ring_type_t type):
 
 	m_tx_lkey = g_buffer_pool_tx->find_lkey_by_ib_ctx_thread_safe(m_p_ib_ctx);
 	if (m_tx_lkey == 0) {
-		__log_info_panic("invalid lkey found %lu", m_tx_lkey);
+		__log_info_panic("invalid lkey found %u", m_tx_lkey);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
@@ -195,7 +195,7 @@ ring_simple::~ring_simple()
 
 	delete[] m_p_n_rx_channel_fds;
 
-	ring_logdbg("Tx buffer poll: free count = %u, sender_has = %d, total = %d, %s (%d)",
+	ring_logdbg("Tx buffer poll: free count = %lu, sender_has = %u, total = %d, %s (%lu)",
 			m_tx_pool.size(), m_missing_buf_ref_count, m_tx_num_bufs,
 			((m_tx_num_bufs - m_tx_pool.size() - m_missing_buf_ref_count) ?
 					"bad accounting!!" : "good accounting"),
@@ -203,7 +203,7 @@ ring_simple::~ring_simple()
 	ring_logdbg("Tx WR num: free count = %d, total = %d, %s (%d)",
 			m_tx_num_wr_free, m_tx_num_wr,
 			((m_tx_num_wr - m_tx_num_wr_free) ? "bad accounting!!":"good accounting"), (m_tx_num_wr - m_tx_num_wr_free));
-	ring_logdbg("Rx buffer pool: %d free global buffers available", m_tx_pool.size());
+	ring_logdbg("Rx buffer pool: %lu free global buffers available", m_tx_pool.size());
 
 	// Release verbs resources
 	if (m_p_tx_comp_event_channel) {
@@ -251,7 +251,7 @@ void ring_simple::create_resources()
 	uint32_t max_qp_wr = ALIGN_WR_DOWN(m_p_ib_ctx->get_ibv_device_attr()->max_qp_wr - 1);
 	m_tx_num_wr = safe_mce_sys().tx_num_wr;
 	if (m_tx_num_wr > max_qp_wr) {
-		ring_logwarn("Allocating only %d Tx QP work requests while user requested %s=%d for QP on interface %d.%d.%d.%d",
+		ring_logwarn("Allocating only %d Tx QP work requests while user requested %s=%d for QP on interface",
 			max_qp_wr, SYS_VAR_TX_NUM_WRE, m_tx_num_wr);
 		m_tx_num_wr = max_qp_wr;
 	}

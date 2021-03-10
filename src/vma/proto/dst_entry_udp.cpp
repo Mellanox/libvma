@@ -158,7 +158,7 @@ inline ssize_t dst_entry_udp::fast_send_not_fragmented(const iovec* p_iov, const
 		int ret = memcpy_fromiovec(p_payload, p_iov, sz_iov, 0, sz_data_payload);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (ret != (int)sz_data_payload) {
-			dst_udp_logerr("memcpy_fromiovec error (sz_user_data_to_copy=%d, ret=%d)", sz_data_payload, ret);
+			dst_udp_logerr("memcpy_fromiovec error (sz_user_data_to_copy=%lu, ret=%d)", sz_data_payload, ret);
 			m_p_ring->mem_buf_tx_release(p_mem_buf_desc, true);
 			errno = EINVAL;
 			return -1;
@@ -261,7 +261,7 @@ ssize_t dst_entry_udp::fast_send_fragmented(const iovec* p_iov, const ssize_t sz
 		int ret = memcpy_fromiovec(p_payload, p_iov, sz_iov, sz_user_data_offset, sz_user_data_to_copy);
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (ret != (int)sz_user_data_to_copy) {
-			dst_udp_logerr("memcpy_fromiovec error (sz_user_data_to_copy=%d, ret=%d)", sz_user_data_to_copy, ret);
+			dst_udp_logerr("memcpy_fromiovec error (sz_user_data_to_copy=%lu, ret=%d)", sz_user_data_to_copy, ret);
 			m_p_ring->mem_buf_tx_release(p_mem_buf_desc, true);
 			errno = EINVAL;
 			return -1;

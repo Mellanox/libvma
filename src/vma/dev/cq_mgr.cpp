@@ -104,7 +104,7 @@ cq_mgr::cq_mgr(ring_simple* p_ring, ib_ctx_handler* p_ib_ctx_handler, int cq_siz
 {
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (m_rx_lkey == 0) {
-		__log_info_panic("invalid lkey found %lu", m_rx_lkey);
+		__log_info_panic("invalid lkey found %u", m_rx_lkey);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
 
@@ -200,7 +200,7 @@ cq_mgr::~cq_mgr()
 
 	m_b_was_drained = true;
 	if (m_rx_queue.size() + m_rx_pool.size()) {
-		cq_logdbg("Returning %d buffers to global Rx pool (ready queue %d, free pool %d))", m_rx_queue.size() + m_rx_pool.size(), m_rx_queue.size(), m_rx_pool.size());
+		cq_logdbg("Returning %lu buffers to global Rx pool (ready queue %lu, free pool %lu))", m_rx_queue.size() + m_rx_pool.size(), m_rx_queue.size(), m_rx_pool.size());
 
 		g_buffer_pool_rx->put_buffers_thread_safe(&m_rx_queue, m_rx_queue.size());
 		m_p_cq_stat->n_rx_sw_queue_len = m_rx_queue.size();
@@ -226,7 +226,7 @@ void cq_mgr::statistics_print()
 {
 	if (m_p_cq_stat->n_rx_pkt_drop || m_p_cq_stat->n_rx_sw_queue_len || 
 	    m_p_cq_stat->n_rx_drained_at_once_max || m_p_cq_stat->n_buffer_pool_len) {
-		cq_logdbg_no_funcname("Packets dropped: %12llu", m_p_cq_stat->n_rx_pkt_drop);
+		cq_logdbg_no_funcname("Packets dropped: %12llu", (unsigned long long int)m_p_cq_stat->n_rx_pkt_drop);
 		cq_logdbg_no_funcname("Drained max: %17u",  m_p_cq_stat->n_rx_drained_at_once_max);
 	}
 }
@@ -408,19 +408,19 @@ void cq_mgr::process_cq_element_log_helper(mem_buf_desc_t* p_mem_buf_desc, vma_i
 	BULLSEYE_EXCLUDE_BLOCK_START
 	// wce with bad status value
 	if (p_wce->status == IBV_WC_SUCCESS) {
-		cq_logdbg("wce: wr_id=%#x, status=%#x, vendor_err=%#x, qp_num=%#x", p_wce->wr_id, p_wce->status, p_wce->vendor_err, p_wce->qp_num);
+		cq_logdbg("wce: wr_id=%#lx, status=%#x, vendor_err=%#x, qp_num=%#x", p_wce->wr_id, p_wce->status, p_wce->vendor_err, p_wce->qp_num);
 		if (m_b_is_rx_hw_csum_on && ! vma_wc_rx_hw_csum_ok(*p_wce))
 			cq_logdbg("wce: bad rx_csum");
-		cq_logdbg("wce: opcode=%#x, byte_len=%#d, src_qp=%#x, wc_flags=%#x", vma_wc_opcode(*p_wce), p_wce->byte_len, p_wce->src_qp, vma_wc_flags(*p_wce));
+		cq_logdbg("wce: opcode=%#x, byte_len=%u, src_qp=%#x, wc_flags=%#lx", vma_wc_opcode(*p_wce), p_wce->byte_len, p_wce->src_qp, (unsigned long)vma_wc_flags(*p_wce));
 		cq_logdbg("wce: pkey_index=%#x, slid=%#x, sl=%#x, dlid_path_bits=%#x, imm_data=%#x", p_wce->pkey_index, p_wce->slid, p_wce->sl, p_wce->dlid_path_bits, p_wce->imm_data);
-		cq_logdbg("mem_buf_desc: lkey=%#x, p_buffer=%p, sz_buffer=%#x", p_mem_buf_desc->lkey, p_mem_buf_desc->p_buffer, p_mem_buf_desc->sz_buffer);
+		cq_logdbg("mem_buf_desc: lkey=%#x, p_buffer=%p, sz_buffer=%lu", p_mem_buf_desc->lkey, p_mem_buf_desc->p_buffer, p_mem_buf_desc->sz_buffer);
 	} else if (p_wce->status != IBV_WC_WR_FLUSH_ERR) {
-		cq_logwarn("wce: wr_id=%#x, status=%#x, vendor_err=%#x, qp_num=%#x", p_wce->wr_id, p_wce->status, p_wce->vendor_err, p_wce->qp_num);
-		cq_loginfo("wce: opcode=%#x, byte_len=%#d, src_qp=%#x, wc_flags=%#x", vma_wc_opcode(*p_wce), p_wce->byte_len, p_wce->src_qp, vma_wc_flags(*p_wce));
+		cq_logwarn("wce: wr_id=%#lx, status=%#x, vendor_err=%#x, qp_num=%#x", p_wce->wr_id, p_wce->status, p_wce->vendor_err, p_wce->qp_num);
+		cq_loginfo("wce: opcode=%#x, byte_len=%u, src_qp=%#x, wc_flags=%#lx", vma_wc_opcode(*p_wce), p_wce->byte_len, p_wce->src_qp, (unsigned long)vma_wc_flags(*p_wce));
 		cq_loginfo("wce: pkey_index=%#x, slid=%#x, sl=%#x, dlid_path_bits=%#x, imm_data=%#x", p_wce->pkey_index, p_wce->slid, p_wce->sl, p_wce->dlid_path_bits, p_wce->imm_data);
 
 		if (p_mem_buf_desc) {
-			cq_logwarn("mem_buf_desc: lkey=%#x, p_buffer=%p, sz_buffer=%#x", p_mem_buf_desc->lkey, p_mem_buf_desc->p_buffer, p_mem_buf_desc->sz_buffer);
+			cq_logwarn("mem_buf_desc: lkey=%#x, p_buffer=%p, sz_buffer=%lu", p_mem_buf_desc->lkey, p_mem_buf_desc->p_buffer, p_mem_buf_desc->sz_buffer);
 		}
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -448,7 +448,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_tx(vma_ibv_wc* p_wce)
 		} else {
 			// AlexR: can this wce have a valid mem_buf_desc pointer?
 			// AlexR: are we throwing away a data buffer and a mem_buf_desc element?
-			cq_logdbg("no desc_owner(wr_id=%p, qp_num=%x)", p_wce->wr_id, p_wce->qp_num);
+			cq_logdbg("no desc_owner(wr_id=%lu, qp_num=%x)", p_wce->wr_id, p_wce->qp_num);
 		}
 
 		return NULL;
@@ -493,7 +493,7 @@ mem_buf_desc_t* cq_mgr::process_cq_element_rx(vma_ibv_wc* p_wce)
 		}
 		// AlexR: can this wce have a valid mem_buf_desc pointer?
 		// AlexR: are we throwing away a data buffer and a mem_buf_desc element?
-		cq_logdbg("no desc_owner(wr_id=%p, qp_num=%x)", p_wce->wr_id, p_wce->qp_num);
+		cq_logdbg("no desc_owner(wr_id=%lu, qp_num=%x)", p_wce->wr_id, p_wce->qp_num);
 		return NULL;
 	}
 

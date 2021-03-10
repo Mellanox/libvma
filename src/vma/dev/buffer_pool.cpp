@@ -146,7 +146,7 @@ void buffer_pool::register_memory(ib_ctx_handler *p_ib_ctx_h)
 
 void buffer_pool::print_val_tbl()
 {
-	__log_info_dbg("pool 0x%X size: %ld buffers: %lu", this, m_size, m_n_buffers);
+	__log_info_dbg("pool %p size: %ld buffers: %lu", this, m_size, m_n_buffers);
 }
 
 bool buffer_pool::get_buffers_thread_safe(descq_t &pDeque, ring_slave* desc_owner, size_t count, uint32_t lkey)
