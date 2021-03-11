@@ -291,7 +291,9 @@ void net_device_table_mgr::print_val_tbl()
 	net_device_map_index_t::iterator itr;
 	for (itr = m_net_device_map_index.begin(); itr != m_net_device_map_index.end(); itr++) {
 		net_device_val* p_ndev = dynamic_cast <net_device_val *>(itr->second);
-		p_ndev->print_val();
+		if (p_ndev) {
+			p_ndev->print_val();
+		}
 	}
 }
 
