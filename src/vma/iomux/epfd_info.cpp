@@ -397,8 +397,20 @@ int epfd_info::del_fd(int fd, bool passthrough)
 		errno = ENOENT;
 		return -1;
 	}
-	
-	if (temp_sock_fd_api && temp_sock_fd_api->get_epoll_context_fd() == m_epfd) {
+
+	if (fi->offloaded_index > 0) {
+		assert(temp_sock_fd_api);
+		assert(temp_sock_fd_api->get_epoll_context_fd() == m_epfd);
+
+		/* Firstly remove epoll context from socket
+		 * to avoid new events insertion into m_ready_fds queue
+		 */
+		unlock();
+		m_ring_map_lock.lock();
+		temp_sock_fd_api->remove_epoll_context(this);
+		m_ring_map_lock.unlock();
+		lock();
+
 		m_fd_offloaded_list.erase(temp_sock_fd_api);
 		if (passthrough) {
 			// In case the socket is not offloaded we must copy it to the non offloaded sockets map.
@@ -406,20 +418,11 @@ int epfd_info::del_fd(int fd, bool passthrough)
 			m_fd_non_offloaded_map[fd] = *fi;
 			m_fd_non_offloaded_map[fd].offloaded_index = -1;
 		}
-	} else {
-		fd_info_map_t::iterator fd_iter = m_fd_non_offloaded_map.find(fd);
-		if (fd_iter != m_fd_non_offloaded_map.end()) {
-			m_fd_non_offloaded_map.erase(fd_iter);
+
+		if (temp_sock_fd_api->ep_ready_fd_node.is_list_member()) {
+			temp_sock_fd_api->m_epoll_event_flags = 0;
+			m_ready_fds.erase(temp_sock_fd_api);
 		}
-	}
-
-	if (temp_sock_fd_api && temp_sock_fd_api->ep_ready_fd_node.is_list_member()) {
-		temp_sock_fd_api->m_epoll_event_flags = 0;
-		m_ready_fds.erase(temp_sock_fd_api);
-	}
-
-	// handle offloaded fds
-	if (fi->offloaded_index > 0) {
 
 		//check if the index of fd, which is being removed, is the last one.
 		//if does, it is enough to decrease the val of m_n_offloaded_fds in order
@@ -439,15 +442,12 @@ int epfd_info::del_fd(int fd, bool passthrough)
 		}
 
 		--m_n_offloaded_fds;
-	}
-
-	if (temp_sock_fd_api) {
-		temp_sock_fd_api->m_fd_rec.reset();
-		unlock();
-		m_ring_map_lock.lock();
-		temp_sock_fd_api->remove_epoll_context(this);
-		m_ring_map_lock.unlock();
-		lock();
+		fi->reset();
+	} else {
+		fd_info_map_t::iterator fd_iter = m_fd_non_offloaded_map.find(fd);
+		if (fd_iter != m_fd_non_offloaded_map.end()) {
+			m_fd_non_offloaded_map.erase(fd_iter);
+		}
 	}
 
 	__log_func("fd %d removed from epfd %d", fd, m_epfd);
