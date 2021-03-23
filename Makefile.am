@@ -19,7 +19,7 @@ mydocdir = $(if $(docdir),$(docdir),${datadir}/doc/$(distdir))
 mydoc_DATA = README CHANGES
 
 install-exec-hook:
-	if type systemctl >/dev/null 2>&1; then \
+	if systemctl >/dev/null 2>&1; then \
 		mkdir -p $(DESTDIR)$(prefix)/lib/systemd/system/; \
 		cp $(top_builddir)/contrib/scripts/vma.service $(DESTDIR)$(prefix)/lib/systemd/system/vma.service; \
 		chmod 644 $(DESTDIR)$(prefix)/lib/systemd/system/vma.service; \
@@ -30,7 +30,7 @@ install-exec-hook:
 	fi
 
 uninstall-hook:
-	if type systemctl >/dev/null 2>&1; then \
+	if systemctl >/dev/null 2>&1; then \
 		rm -rf $(DESTDIR)$(prefix)/lib/systemd/system/vma.service; \
 	else \
 		rm -rf $(DESTDIR)$(sysconfdir)/init.d/vma; \
