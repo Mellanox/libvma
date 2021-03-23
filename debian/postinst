@@ -2,7 +2,7 @@
 
 /sbin/ldconfig
 
-if type systemctl >/dev/null 2>&1; then
+if systemctl >/dev/null 2>&1; then
     systemctl --no-reload enable vma.service >/dev/null 2>&1 || true
 elif [ -e /sbin/chkconfig ]; then
     /sbin/chkconfig --add vma
