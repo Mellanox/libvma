@@ -214,7 +214,7 @@ protected:
  *    Send data using single send(MSG_ZEROCOPY)
  * @details
  */
-TEST_F(tcp_send_zc, ti_1_send_once) {
+TEST_F(tcp_send_zc, DISABLED_ti_1_send_once) {
 	int rc = EOK;
 	char test_msg[] = "Hello test";
 
@@ -314,7 +314,7 @@ TEST_F(tcp_send_zc, ti_1_send_once) {
  *    Send data using few sendmsg(MSG_ZEROCOPY)
  * @details
  */
-TEST_F(tcp_send_zc, ti_2_few_send) {
+TEST_F(tcp_send_zc, DISABLED_ti_2_few_send) {
 	int rc = EOK;
 	int test_iter = 3;
 	int test_msg_size = 16;
@@ -440,7 +440,7 @@ TEST_F(tcp_send_zc, ti_2_few_send) {
  *    single call
  * @details
  */
-TEST_F(tcp_send_zc, ti_3_large_send) {
+TEST_F(tcp_send_zc, DISABLED_ti_3_large_send) {
 	int rc = EOK;
 
 	m_test_buf_chunk = 0x1000;
@@ -566,7 +566,7 @@ TEST_F(tcp_send_zc, ti_3_large_send) {
  *    notification after every call
  * @details
  */
-TEST_F(tcp_send_zc, ti_4_mass_send_check_every_call) {
+TEST_F(tcp_send_zc, DISABLED_ti_4_mass_send_check_every_call) {
 	int rc = EOK;
 	struct {
 		int num_op;
@@ -712,7 +712,7 @@ TEST_F(tcp_send_zc, ti_4_mass_send_check_every_call) {
  *    notification after last call
  * @details
  */
-TEST_F(tcp_send_zc, ti_5_mass_send_check_last_call) {
+TEST_F(tcp_send_zc, DISABLED_ti_5_mass_send_check_last_call) {
 	int rc = EOK;
 	struct {
 		int buf_size;
