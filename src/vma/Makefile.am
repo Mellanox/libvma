@@ -150,6 +150,7 @@ libvma_la_SOURCES := \
 	\
 	util/wakeup.cpp \
 	util/wakeup_pipe.cpp \
+	util/wakeup_eventfd.cpp \
 	util/match.cpp \
 	util/utils.cpp \
 	util/instrumentation.cpp \
@@ -294,6 +295,7 @@ libvma_la_SOURCES := \
 	util/vtypes.h \
 	util/wakeup.h \
 	util/wakeup_pipe.h \
+	util/wakeup_eventfd.h \
 	util/agent.h \
 	util/agent_def.h \
 	util/data_updater.h \

@@ -2491,24 +2491,7 @@ int sockinfo_tcp::listen(int backlog)
 	BULLSEYE_EXCLUDE_BLOCK_END
 
 	// Add the user's orig fd to the rx epfd handle
-	epoll_event ev = {0, {0}};
-	ev.events = EPOLLIN;
-	ev.data.fd = m_fd;
-	int ret = orig_os_api.epoll_ctl(m_rx_epfd, EPOLL_CTL_ADD, ev.data.fd, &ev);
-	BULLSEYE_EXCLUDE_BLOCK_START
-	if (unlikely(ret)) {
-		if (errno == EEXIST) {
-			si_tcp_logdbg("failed to add user's fd to internal epfd errno=%d (%m)", errno);
-		} else {
-			si_tcp_logerr("failed to add user's fd to internal epfd errno=%d (%m)", errno);
-			si_tcp_logdbg("Fallback the connection to os");
-			destructor_helper();
-			setPassthrough();
-			unlock_tcp_con();
-			return 0;
-		}
-	}
-	BULLSEYE_EXCLUDE_BLOCK_END
+	add_fd_to_poll_array(m_fd);
 
 	if (m_sysvar_tcp_ctl_thread > CTL_THREAD_DISABLE)
 		m_timer_handle = g_p_event_handler_manager->register_timer_event(safe_mce_sys().timer_resolution_msec , this, PERIODIC_TIMER, 0, NULL);
@@ -4047,7 +4030,6 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 	int n;
 	uint64_t poll_sn = 0;
 	rx_ring_map_t::iterator rx_ring_iter;
-	epoll_event rx_epfd_events[SI_RX_EPFD_EVENT_MAX];
 
 	// poll for completion
 	__log_info_func("");
@@ -4145,7 +4127,7 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 	}
 
 	//sleep on different CQs and OS listen socket
-	ret = orig_os_api.epoll_wait(m_rx_epfd, rx_epfd_events, SI_RX_EPFD_EVENT_MAX, m_loops_timer.time_left_msec());
+	ret = orig_os_api.poll(m_poll_fds_array, m_poll_fds_array_size, m_loops_timer.time_left_msec());
 
 	lock_tcp_con();
 	return_from_sleep();
@@ -4158,28 +4140,32 @@ int sockinfo_tcp::rx_wait_helper(int &poll_count, bool is_blocking)
 	if(m_n_rx_pkt_ready_list_count)
 		return 0;
 
-	for (int event_idx = 0; event_idx < ret; event_idx++)
+	for (int event_idx = 0; event_idx < m_poll_fds_array_size; event_idx++)
 	{
-		int fd = rx_epfd_events[event_idx].data.fd;
-		if (is_wakeup_fd(fd))
-		{ // wakeup event
-			lock_tcp_con();
-			remove_wakeup_fd();
-			unlock_tcp_con();
-			continue;
-		}
+		if (m_poll_fds_array[event_idx].revents & POLLIN) {
+			m_poll_fds_array[event_idx].revents = 0;
+			int fd = m_poll_fds_array[event_idx].fd;
+			if (is_wakeup_fd(fd))
+			{ // wakeup event
+				lock_tcp_con();
+				remove_wakeup_fd();
+				delete_fds_from_poll_array();
+				unlock_tcp_con();
+				continue;
+			}
 
-		// Check if OS fd is ready for reading
-		if (fd == m_fd) {
-			continue;
-		}
+			// Check if OS fd is ready for reading
+			if (fd == m_fd) {
+				continue;
+			}
 
-		// poll cq. fd == cq channel fd.
-		cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(fd);
-		if (p_cq_ch_info) {
-			ring* p_ring = p_cq_ch_info->get_ring();
-			if (p_ring) {
-				p_ring->wait_for_notification_and_process_element(fd, &poll_sn);
+			// poll cq. fd == cq channel fd.
+			cq_channel_info* p_cq_ch_info = g_p_fd_collection->get_cq_channel_fd(fd);
+			if (p_cq_ch_info) {
+				ring* p_ring = p_cq_ch_info->get_ring();
+				if (p_ring) {
+					p_ring->wait_for_notification_and_process_element(fd, &poll_sn);
+				}
 			}
 		}
 	}

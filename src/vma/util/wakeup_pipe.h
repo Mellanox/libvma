@@ -55,6 +55,7 @@ public:
 private:
 	static int g_wakeup_pipes[2];
 	static atomic_t ref_count;
+	struct epoll_event m_ev;
 };
 
 #endif /* WAKEUP_PIPE_H */

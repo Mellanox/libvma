@@ -33,7 +33,6 @@
 
 #include "sockinfo.h"
 
-#include <sys/epoll.h>
 #include <netdb.h>
 #include <linux/sockios.h>
 
@@ -93,11 +92,12 @@ sockinfo::sockinfo(int fd):
 
 {
 	m_ring_alloc_logic = ring_allocation_logic_rx(get_fd(), m_ring_alloc_log_rx, this);
-	m_rx_epfd = orig_os_api.epoll_create(128);
-	if (unlikely(m_rx_epfd == -1)) {
-	  throw_vma_exception("create internal epoll");
-	}
-	wakeup_set_epoll_fd(m_rx_epfd);
+	m_poll_fds_array_capacity = DEFAULT_FDS_ARR_SIZE;
+	m_poll_fds_array = (pollfd *)malloc(DEFAULT_FDS_ARR_SIZE * sizeof(pollfd));
+	m_poll_fds_delete_array = (int *)malloc(DEFAULT_FDS_ARR_SIZE * sizeof(int));
+	m_poll_fds_array_size = 0;
+	m_poll_fds_delete_array_size = 0;
+	add_fd_to_poll_array(wakeup_get_fd());
 
 	m_p_socket_stats = &m_socket_stats; // Save stats as local copy and allow state publisher to copy from this location
 	vma_stats_instance_create_socket_block(m_p_socket_stats);
@@ -133,12 +133,15 @@ sockinfo::~sockinfo()
 
 	// Change to non-blocking socket so calling threads can exit
 	m_b_blocking = false;
-	orig_os_api.close(m_rx_epfd); // this will wake up any blocked thread in rx() call to orig_os_api.epoll_wait()
 	if (m_p_rings_fds) {
 		delete[] m_p_rings_fds;
 		m_p_rings_fds = NULL;
 	}
-        vma_stats_instance_remove_socket_block(m_p_socket_stats);
+
+	free(m_poll_fds_array);
+	free(m_poll_fds_delete_array);
+
+	vma_stats_instance_remove_socket_block(m_p_socket_stats);
 }
 
 void sockinfo::set_blocking(bool is_blocked)
@@ -1171,22 +1174,11 @@ void sockinfo::rx_add_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring)
 
 		notify_epoll = true;
 
-		// Add this new CQ channel fd to the rx epfd handle (no need to wake up any sleeping thread about this new fd)
-		epoll_event ev = {0, {0}};
-		ev.events = EPOLLIN;
 		size_t num_ring_rx_fds;
 		int *ring_rx_fds_array = p_ring->get_rx_channel_fds(num_ring_rx_fds);
 
-		for (size_t i = 0; i < num_ring_rx_fds; i++) {
-			int cq_ch_fd = ring_rx_fds_array[i];
-
-			ev.data.fd = cq_ch_fd;
-
-			BULLSEYE_EXCLUDE_BLOCK_START
-			if (unlikely( orig_os_api.epoll_ctl(m_rx_epfd, EPOLL_CTL_ADD, cq_ch_fd, &ev))) {
-				si_logerr("failed to add cq channel fd to internal epfd errno=%d (%m)", errno);
-			}
-			BULLSEYE_EXCLUDE_BLOCK_END
+		for (int i = 0; i < (int)num_ring_rx_fds; i++) {
+			add_fd_to_poll_array(ring_rx_fds_array[i]);
 		}
 
 		do_wakeup(); // A ready wce can be pending due to the drain logic (cq channel will not wake up by itself)
@@ -1247,14 +1239,10 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring)
 			size_t num_ring_rx_fds;
 			int *ring_rx_fds_array = base_ring->get_rx_channel_fds(num_ring_rx_fds);
 
-			for (size_t i = 0; i < num_ring_rx_fds; i++) {
-				int cq_ch_fd = ring_rx_fds_array[i];
-				BULLSEYE_EXCLUDE_BLOCK_START
-				if (unlikely( orig_os_api.epoll_ctl(m_rx_epfd, EPOLL_CTL_DEL, cq_ch_fd, NULL))) {
-					si_logerr("failed to delete cq channel fd from internal epfd (errno=%d %m)", errno);
-				}
-				BULLSEYE_EXCLUDE_BLOCK_END
+			for (int i = 0; i < (int)num_ring_rx_fds; i++) {
+				delete_fd_from_poll_array_deferred(ring_rx_fds_array[i]);
 			}
+			do_wakeup();
 
 			notify_epoll = true;
 

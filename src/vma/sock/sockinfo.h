@@ -41,7 +41,7 @@
 #include "vma/util/sock_addr.h"
 #include "vma/util/vma_stats.h"
 #include "vma/util/sys_vars.h"
-#include "vma/util/wakeup_pipe.h"
+#include "vma/util/wakeup_eventfd.h"
 #include "vma/proto/flow_tuple.h"
 #include "vma/proto/mem_buf_desc.h"
 #include "vma/proto/dst_entry.h"
@@ -57,9 +57,10 @@
 #ifndef BASE_SOCKINFO_H
 #define BASE_SOCKINFO_H
 
-#define SI_RX_EPFD_EVENT_MAX		16
 #define BYTE_TO_KB(byte_value)		((byte_value) / 125)
 #define KB_TO_BYTE(kbit_value)		((kbit_value) * 125)
+
+#define DEFAULT_FDS_ARR_SIZE 10
 
 #if DEFINED_MISSING_NET_TSTAMP
 enum {
@@ -154,7 +155,7 @@ const uint8_t ip_tos2prio[16] = {
 	4, 4, 4, 4
 };
 
-class sockinfo : public socket_fd_api, public pkt_rcvr_sink, public pkt_sndr_source, public wakeup_pipe
+class sockinfo : public socket_fd_api, public pkt_rcvr_sink, public pkt_sndr_source, public wakeup_eventfd
 {
 public:
 	sockinfo(int fd);
@@ -181,8 +182,56 @@ public:
 		return false;
 	}
 	inline bool flow_tag_enabled(void) { return m_flow_tag_enabled; }
-	inline int get_rx_epfd(void) { return m_rx_epfd; }
-	
+	inline void add_fd_to_poll_array(int fd) {
+		if (m_poll_fds_array_size >= m_poll_fds_array_capacity) {
+			m_poll_fds_array_capacity *= 2;
+			pollfd* new_m_poll_fds_array = static_cast<pollfd*>(realloc(m_poll_fds_array, m_poll_fds_array_capacity * sizeof(pollfd)));
+			if (new_m_poll_fds_array == NULL) {
+				vlog_printf(VLOG_ERROR, "%s:%d: Realloc cannot find enough space\n", __func__, __LINE__);
+				return ;
+			} else {
+				m_poll_fds_array = new_m_poll_fds_array;
+			}
+		}
+		m_poll_fds_array[m_poll_fds_array_size].fd = fd;
+		m_poll_fds_array[m_poll_fds_array_size].events = POLLIN;
+		++m_poll_fds_array_size;
+	}
+	inline void delete_fds_from_poll_array() {
+		int j;
+		if (unlikely(m_poll_fds_array_size == 0)) {
+			return ;
+		}
+		if (unlikely(m_poll_fds_delete_array_size != 0)) {
+			for (int i = 0; i < m_poll_fds_delete_array_size; i++) {
+				for (j = 0; j < m_poll_fds_array_size && m_poll_fds_array[j].fd != m_poll_fds_delete_array[i]; j++) ;
+				//safe for overlapping memory blocks
+				if (j < m_poll_fds_array_size - 1) {
+					memmove(&m_poll_fds_array[j], &m_poll_fds_array[j + 1], (m_poll_fds_array_size - j - 1) * sizeof(m_poll_fds_array[0]));
+				}
+				if (j < m_poll_fds_array_size) {
+					m_poll_fds_array_size--;
+				}
+			}
+			memset(m_poll_fds_delete_array, 0, m_poll_fds_delete_array_size * sizeof(int));
+			m_poll_fds_delete_array_size = 0;
+		}
+	}
+	inline void delete_fd_from_poll_array_deferred(int fd) {
+		if (m_poll_fds_delete_array_size >= m_poll_fds_array_capacity) {
+			m_poll_fds_array_capacity *= 2;
+			int* new_m_poll_fds_delete_array = static_cast<int*>(realloc(m_poll_fds_delete_array, m_poll_fds_array_capacity * sizeof(int)));
+			if (new_m_poll_fds_delete_array == NULL) {
+				vlog_printf(VLOG_ERROR, "%s:%d: Realloc cannot find enough space\n", __func__, __LINE__);
+				return ;
+			} else {
+				m_poll_fds_delete_array = new_m_poll_fds_delete_array;
+			}
+
+		}
+		m_poll_fds_delete_array[m_poll_fds_delete_array_size] = fd;
+		++m_poll_fds_delete_array_size;
+	}
 	virtual bool flow_in_reuse(void) { return false;};
 	virtual int* get_rings_fds(int &res_length);
 	virtual int get_rings_num();
@@ -191,6 +240,11 @@ public:
 	virtual void statistics_print(vlog_levels_t log_level = VLOG_DEBUG);
 	uint32_t get_flow_tag_val() { return m_flow_tag_id; }
 	inline in_protocol_t get_protocol(void) { return m_protocol; }
+	virtual inline void do_wakeup()	{
+		if (!is_socketxtreme()) {
+			wakeup_eventfd::do_wakeup();
+		}
+	}
 
 private:
 	int				fcntl_helper(int __cmd, unsigned long int __arg, bool& bexit);
@@ -217,7 +271,12 @@ protected:
 	socket_stats_t		m_socket_stats;
 	socket_stats_t*		m_p_socket_stats;
 
-	int			m_rx_epfd;
+	struct pollfd*          m_poll_fds_array;
+	int                     m_poll_fds_array_size;
+	int                     m_poll_fds_array_capacity;
+	int*                    m_poll_fds_delete_array;
+	int                     m_poll_fds_delete_array_size;
+
 	cache_observer 		m_rx_nd_observer;
 	rx_net_device_map_t	m_rx_nd_map;
 	rx_flow_map_t		m_rx_flow_map;
@@ -335,12 +394,6 @@ protected:
 	void            process_timestamps(mem_buf_desc_t* p_desc);
 
 	virtual bool try_un_offloading(); // un-offload the socket if possible
-
-	virtual inline void do_wakeup()	{
-		if (!is_socketxtreme()) {
-			wakeup_pipe::do_wakeup();
-		}
-	}
 
 	inline bool is_socketxtreme() {
 		return (m_p_rx_ring && m_p_rx_ring->is_socketxtreme());

@@ -48,9 +48,9 @@
 #define wkup_entry_dbg		  __log_entry_dbg
 
 #undef  MODULE_HDR_INFO
-#define MODULE_HDR_INFO 	MODULE_NAME "[epfd=%d]:%d:%s() "
+#define MODULE_HDR_INFO 	MODULE_NAME "[wakeup_fd=%d]:%d:%s() "
 #undef	__INFO__
-#define __INFO__	m_epfd
+#define __INFO__	m_wakeup_fd
 #define UNINIT_PIPE_FD (-1)
 
 int wakeup_pipe::g_wakeup_pipes[2] = {UNINIT_PIPE_FD, UNINIT_PIPE_FD};
@@ -58,6 +58,7 @@ atomic_t wakeup_pipe::ref_count = ATOMIC_INIT(0);
 
 wakeup_pipe::wakeup_pipe()
 {
+	memset(&m_ev, 0, sizeof(m_ev));
 	int ref = atomic_fetch_and_inc(&ref_count);
 	if (ref == 0) {
 		BULLSEYE_EXCLUDE_BLOCK_START
@@ -98,7 +99,7 @@ void wakeup_pipe::do_wakeup()
 
 	int errno_tmp = errno; //don't let wakeup affect errno, as this can fail with EEXIST
 	BULLSEYE_EXCLUDE_BLOCK_START
-	if ((orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_ADD, g_wakeup_pipes[0], &m_ev)) && (errno != EEXIST)) {
+	if ((orig_os_api.epoll_ctl(m_wakeup_fd, EPOLL_CTL_ADD, g_wakeup_pipes[0], &m_ev)) && (errno != EEXIST)) {
 		wkup_logerr("Failed to add wakeup fd to internal epfd (errno=%d %m)", errno);
 	}
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -113,7 +114,7 @@ void wakeup_pipe::remove_wakeup_fd()
 	if (m_is_sleeping) return;
 	wkup_entry_dbg("");
 	int tmp_errno = errno;
-	if (orig_os_api.epoll_ctl(m_epfd, EPOLL_CTL_DEL, g_wakeup_pipes[0], NULL))
+	if (orig_os_api.epoll_ctl(m_wakeup_fd, EPOLL_CTL_DEL, g_wakeup_pipes[0], NULL))
 	{
 		BULLSEYE_EXCLUDE_BLOCK_START
 		if (errno == ENOENT) {

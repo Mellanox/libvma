@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2021 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2020 Mellanox Technologies, Ltd. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -31,33 +31,23 @@
  */
 
 
-#ifndef WAKEUP_H
-#define WAKEUP_H
+#ifndef WAKEUP_EVENTFD_H
+#define WAKEUP_EVENTFD_H
 
-/**
- * wakeup class that adds a wakeup functionality to socket (tcp and udp) and epoll.
- */
-#include <sys/epoll.h>
-#include "utils/lock_wrapper.h"
+#include "wakeup.h"
 
-class wakeup
+class wakeup_eventfd : public wakeup
 {
 public:
-	wakeup(void);
-	virtual ~wakeup() {};
-	virtual void do_wakeup() = 0;
-	virtual bool is_wakeup_fd(int fd) = 0;
-	virtual void remove_wakeup_fd() = 0;
-	void going_to_sleep();
-	void return_from_sleep() { --m_is_sleeping; };
-
-protected:
-	virtual void wakeup_set_fd(int fd);
-	int m_is_sleeping;
-
-	//lock_spin_recursive m_wakeup_lock; This lock is not needed for now. Maybe we will need it for epoll.
-
-	int m_wakeup_fd;
+	wakeup_eventfd(void);
+	~wakeup_eventfd();
+	virtual void do_wakeup();
+	virtual inline bool is_wakeup_fd(int fd)
+	{
+		return fd == m_wakeup_fd;
+	};
+	virtual void remove_wakeup_fd();
+	virtual inline int wakeup_get_fd() { return m_wakeup_fd; };
 };
 
-#endif /* WAKEUP_H */
+#endif /* WAKEUP_EVENTFD_H */
