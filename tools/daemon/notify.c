@@ -175,6 +175,8 @@ int proc_notify(void)
 
 	memset((void *)&msg_recv, 0, sizeof(msg_recv));
 again:
+	/* coverity[tainted_argument] */
+	/* coverity[tainted_data_argument] */
 	/* coverity[tainted_string_argument] */
 	len = read(daemon_cfg.notify_fd, msg_recv, sizeof(msg_recv));
 	if (len <= 0) {

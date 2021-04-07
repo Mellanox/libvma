@@ -941,12 +941,14 @@ bool get_netvsc_slave(IN const char* ifname, OUT char* slave_name, OUT unsigned 
 
 bool check_netvsc_device_exist(const char* ifname)
 {
+	int ret = -1;
 	char device_path[256] = {0};
 	char base_ifname[IFNAMSIZ];
 	get_base_interface_name(ifname, base_ifname, sizeof(base_ifname));
 	sprintf(device_path, NETVSC_DEVICE_CLASS_FILE, base_ifname);
 	char sys_res[1024] = {0};
-	if (priv_read_file(device_path, sys_res, 1024, VLOG_FUNC) > 0) {
+	if ((ret = priv_read_file(device_path, sys_res, sizeof(sys_res) - 1, VLOG_FUNC)) > 0) {
+		sys_res[ret] = '\0';
 		if (strcmp(sys_res, NETVSC_ID) == 0) {
 			return true;
 		}
@@ -1042,8 +1044,10 @@ bool check_device_name_ib_name(const char* ifname, const char* ibname)
 		 */
 		n = snprintf(ib_path, sizeof(ib_path), "/sys/class/infiniband/%s/ports/1/gid_attrs/ndevs/0", ibname);
 		if (likely((0 < n) && (n < (int)sizeof(ib_path)))) {
+			int ret = -1;
 			char sys_res[1024] = {0};
-			if (priv_read_file(ib_path, sys_res, 1024, VLOG_FUNC) > 0) {
+			if ((ret = priv_read_file(ib_path, sys_res, sizeof(sys_res) - 1, VLOG_FUNC)) > 0) {
+				sys_res[ret] = '\0';
 				char* p = strchr(sys_res, '\n');
 				if (p) *p = '\0'; // Remove the tailing 'new line" char
 				if (strcmp(sys_res, str_ifname) == 0) {
