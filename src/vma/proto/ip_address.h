@@ -39,6 +39,7 @@
 #include "vma/util/vtypes.h"
 #include <tr1/unordered_map>
 
+/* coverity[missing_move_assignment] */
 class ip_address : public tostr
 {
 public:

@@ -38,6 +38,7 @@
 
 #include <string>
 
+/* coverity[missing_move_assignment] */
 class tostr
 {
 public:
