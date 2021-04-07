@@ -1633,7 +1633,7 @@ yyparse ()
 
       YYDPRINTF ((stderr, "Stack size increased to %lu\n",
 		  (unsigned long int) yystacksize));
-
+      /* coverity[illegal_address] */
       if (yyss + yystacksize - 1 <= yyssp)
 	YYABORT;
     }
@@ -1736,6 +1736,7 @@ yyreduce:
      users should not rely upon it.  Assigning to YYVAL
      unconditionally makes the parser a bit smaller, and it avoids a
      GCC warning that YYVAL may be used uninitialized.  */
+  /* coverity[uninit_use] */
   yyval = yyvsp[1-yylen];
 
 
@@ -2210,6 +2211,7 @@ int __vma_parse_config_line (const char *line) {
 	__vma_rule_push_head = 1;
 	
 	/* The below casting is valid because we open the stream as read-only. */
+	/* coverity[alloc_strlen] */
 	libvma_yyin = fmemopen((void*)line, strlen(line), "r");
 	
 	if (!libvma_yyin) {
