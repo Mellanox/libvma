@@ -336,9 +336,9 @@ int qp_mgr::configure(struct qp_mgr_desc *desc)
 	for (uint32_t wr_idx = 0; wr_idx < m_n_sysvar_rx_num_wr_to_post_recv; wr_idx++) {
 		m_ibv_rx_wr_array[wr_idx].sg_list = &m_ibv_rx_sg_array[wr_idx];
 		m_ibv_rx_wr_array[wr_idx].num_sge = 1;
-		m_ibv_rx_wr_array[wr_idx].next = &m_ibv_rx_wr_array[wr_idx+1]; // pre-define the linked list
+		m_ibv_rx_wr_array[wr_idx].next = (wr_idx < (m_n_sysvar_rx_num_wr_to_post_recv - 1) ?
+					&m_ibv_rx_wr_array[wr_idx+1] : NULL); // pre-define the linked list
 	}
-	m_ibv_rx_wr_array[m_n_sysvar_rx_num_wr_to_post_recv-1].next = NULL; // end linked list
 
 	m_curr_rx_wr = 0;
 

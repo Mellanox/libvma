@@ -4,8 +4,8 @@ source $(dirname $0)/globals.sh
 
 do_check_filter "Checking for coverity ..." "on"
 
-#do_module "tools/cov-8.7"
-PATH=${PATH}:/hpc/local/commercial/coverity/cov-2020.06/bin/
+do_module "tools/cov-latest"
+
 cd $WORKSPACE
 
 rm -rf $cov_dir
@@ -71,7 +71,7 @@ fi
 echo Coverity report: $cov_url
 printf "%s\t%s\n" Coverity $cov_url >> jenkins_sidelinks.txt
 
-#module unload tools/cov-8.7
+module unload "tools/cov-latest"
 
 do_archive "$( find ${cov_build}/output -type f -name "*.txt" -or -name "*.html" -or -name "*.xml" )"
 
