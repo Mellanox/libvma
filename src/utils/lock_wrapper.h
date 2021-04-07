@@ -74,6 +74,7 @@
 #ifdef NO_LOCK_STATS
 
 // pthread lock stats counter for debugging
+/* coverity[missing_move_assignment] */
 class lock_base
 {
 public:
@@ -169,6 +170,7 @@ protected:
 /**
  * pthread spinlock
  */
+/* coverity[missing_move_assignment] */
 class lock_spin : public lock_base
 {
 public:
@@ -205,6 +207,7 @@ protected:
 /**
  * pthread spinlock
  */
+/* coverity[missing_move_assignment] */
 class lock_spin_recursive : public lock_spin
 {
 public:

@@ -87,6 +87,7 @@ public :
 };
 
 template<typename T, size_t offset(void)>
+/* coverity[missing_move_assignment] */
 class list_iterator_t : public std::iterator<std::random_access_iterator_tag, T, std::ptrdiff_t, T*, T&>
 {
 public:

@@ -44,6 +44,7 @@
 
 // Looks at the packet in the ingress flow (in regards to dst and src)
 // Practically a 'five tuple' key
+/* coverity[missing_move_assignment] */
 class flow_tuple
 {
 public:
