@@ -1,3 +1,24 @@
+Version 9.3.0-0:
+Date + Time 2021-05-11
+=============================================================
+Added:
+        - RM #2563722 Remove multi packets (MP-RQ) deprecated code
+        - RM #2443982 Add tests for vma_socketxtreme_poll()
+        - RM #2497142 Move to google test 1.7.0 usage
+        - RM #2368612 Align rpm spec with last Fedora requirements
+        - RM #2432813 Update License date to 2021
+
+Fixed:
+        - RM #2568298 Fix issue detected by cov-2020.06
+        - RM #2246994 Set proper FIN/RST flags for split segments
+        - RM #2366027 Fix big-endian support for TIMESTAMP option
+        - RM #2280628 Add missed TIMESTAMP option
+        - RM #2446197 Skip team interface when check bonding
+        - RM #2449153 Fix lkey getter in ring_bond
+        - RM #2409546 Fix usage of memory after it is freed in daemon
+        - RM #2460203 Fix issue in migration logic
+        - RM #2130901 Fix issue in logic VMA_PROGRESS_ENGINE_WCE_MAX=0
+
 Version 9.2.2-0:
 Date + Time 2020-12-12
 =============================================================
