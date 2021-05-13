@@ -4242,7 +4242,8 @@ void sockinfo_tcp::post_deqeue(bool release_buff)
 	NOT_IN_USE(release_buff);
 }
 
-int sockinfo_tcp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags) {
+int sockinfo_tcp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags)
+{
 	NOT_IN_USE(p_flags);
 	int total_rx = 0, offset = 0;
 	int len = p_iov[0].iov_len - sizeof(vma_packets_t) - sizeof(vma_packet_t) - sizeof(iovec);
@@ -4255,9 +4256,10 @@ int sockinfo_tcp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags
 		return -1;
 	}
 	
-	pdesc->rx.frag.iov_base 	= (uint8_t*)pdesc->rx.frag.iov_base + m_rx_pkt_ready_offset;
-	pdesc->rx.frag.iov_len 	-= m_rx_pkt_ready_offset;
+	pdesc->rx.frag.iov_base = (uint8_t*)pdesc->rx.frag.iov_base + m_rx_pkt_ready_offset;
+	pdesc->rx.frag.iov_len -= m_rx_pkt_ready_offset;
 	p_desc_iter = pdesc;
+	prev = pdesc;
 	
 	// Copy iov pointers to user buffer
 	vma_packets_t *p_packets = (vma_packets_t*)p_iov[0].iov_base;
@@ -4277,28 +4279,28 @@ int sockinfo_tcp::zero_copy_rx(iovec *p_iov, mem_buf_desc_t *pdesc, int *p_flags
 			
 			prev 		= p_desc_iter;
 			p_desc_iter = p_desc_iter->p_next_desc;	
-			if (p_desc_iter) {
-				p_desc_iter->lwip_pbuf.pbuf.tot_len = prev->lwip_pbuf.pbuf.tot_len - prev->lwip_pbuf.pbuf.len;
-				p_desc_iter->rx.n_frags = --prev->rx.n_frags;
-				p_desc_iter->rx.src = prev->rx.src;
-				p_desc_iter->inc_ref_count();
-				prev->lwip_pbuf.pbuf.next = NULL;
-				prev->p_next_desc = NULL;
-				prev->rx.n_frags = 1;
-			}
 			len -= sizeof(iovec);
 			offset += sizeof(iovec);
 		}
+
+		m_rx_pkt_ready_list.pop_front();
+		m_p_socket_stats->n_rx_zcopy_pkt_count++;
 		
 		if (len < 0 && p_desc_iter){
-			m_rx_pkt_ready_list.pop_front();
+			p_desc_iter->lwip_pbuf.pbuf.tot_len = prev->lwip_pbuf.pbuf.tot_len - prev->lwip_pbuf.pbuf.len;
+			p_desc_iter->rx.n_frags = --prev->rx.n_frags;
+			p_desc_iter->rx.src = prev->rx.src;
+			p_desc_iter->inc_ref_count();
+			prev->lwip_pbuf.pbuf.next = NULL;
+			prev->p_next_desc = NULL;
+			prev->rx.n_frags = 1;
+
 			m_rx_pkt_ready_list.push_front(p_desc_iter);
 			break;
 		}	
-		m_rx_pkt_ready_list.pop_front();
+
 		m_n_rx_pkt_ready_list_count--;
 		m_p_socket_stats->n_rx_ready_pkt_count--;
-		m_p_socket_stats->n_rx_zcopy_pkt_count++;
 
 		if (m_n_rx_pkt_ready_list_count) 	
 			p_desc_iter = m_rx_pkt_ready_list.front();
