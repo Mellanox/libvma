@@ -52,7 +52,11 @@ inline static void free_lwip_pbuf(struct pbuf_custom *pbuf_custom)
 class buffer_pool
 {
 public:
-	buffer_pool(size_t buffer_count, size_t size, pbuf_free_custom_fn custom_free_function);
+	buffer_pool(size_t buffer_count,
+		size_t size,
+		pbuf_free_custom_fn custom_free_function,
+		vma_allocator::alloc_t alloc_func = NULL,
+		vma_allocator::free_t free_func = NULL);
 	~buffer_pool();
 
 	void register_memory(ib_ctx_handler *p_ib_ctx_h);

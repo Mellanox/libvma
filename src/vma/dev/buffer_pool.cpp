@@ -75,11 +75,16 @@ void buffer_pool::free_tx_lwip_pbuf_custom(struct pbuf *p_buff)
 	g_buffer_pool_tx->put_buffers_thread_safe((mem_buf_desc_t *)p_buff);
 }
 
-buffer_pool::buffer_pool(size_t buffer_count, size_t buf_size, pbuf_free_custom_fn custom_free_function) :
+buffer_pool::buffer_pool(size_t buffer_count,
+			size_t buf_size,
+			pbuf_free_custom_fn custom_free_function,
+			vma_allocator::alloc_t alloc_func,
+			vma_allocator::free_t free_func) :
 			m_lock_spin("buffer_pool"),
 			m_n_buffers(0),
 			m_n_buffers_created(buffer_count),
-			m_p_head(NULL)
+			m_p_head(NULL),
+			m_allocator(alloc_func, free_func)
 {
 	size_t sz_aligned_element = 0;
 	uint8_t *ptr_buff, *ptr_desc;

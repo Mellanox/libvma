@@ -45,6 +45,26 @@ vma_allocator::vma_allocator()
 	m_length = 0;
 	m_data_block = NULL;
 	m_mem_alloc_type = safe_mce_sys().mem_alloc_type;
+	m_memalloc = NULL;
+	m_memfree = NULL;
+
+	__log_info_dbg("Done");
+}
+
+vma_allocator::vma_allocator(alloc_t alloc_func, free_t free_func)
+{
+	__log_info_dbg("");
+
+	m_shmid = -1;
+	m_length = 0;
+	m_data_block = NULL;
+	m_mem_alloc_type = safe_mce_sys().mem_alloc_type;
+	m_memalloc = alloc_func;
+	m_memfree = free_func;
+	if (m_memalloc && m_memfree) {
+		m_mem_alloc_type = ALLOC_TYPE_EXTERNAL;
+		__log_info_dbg("allocator uses external functions to allocate and free memory");
+	}
 
 	__log_info_dbg("Done");
 }
@@ -62,6 +82,9 @@ vma_allocator::~vma_allocator()
 	switch (m_mem_alloc_type) {
 		case ALLOC_TYPE_REGISTER_MEMORY:
 			// not allocated by us
+			break;
+		case ALLOC_TYPE_EXTERNAL:
+			m_memfree(m_data_block);
 			break;
 		case ALLOC_TYPE_CONTIG:
 			// freed as part of deregister_memory
@@ -102,6 +125,18 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h, v
 		m_data_block = ptr;
 		register_memory(size, p_ib_ctx_h, access);
 		break;
+	case ALLOC_TYPE_EXTERNAL:
+		ptr = m_memalloc(size);
+		if (NULL == ptr) {
+			__log_info_dbg("Failed allocating using external functions, "
+				       "falling back to another memory allocation method");
+		} else {
+			m_data_block = ptr;
+			m_length = size;
+			register_memory(m_length, p_ib_ctx_h, access);
+			break;
+		}
+	// fallthrough
 	case ALLOC_TYPE_HUGEPAGES:
 		if (!hugetlb_alloc(size)) {
 			__log_info_dbg("Failed allocating huge pages, "
