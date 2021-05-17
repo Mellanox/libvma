@@ -60,8 +60,9 @@ vma_allocator::~vma_allocator()
 		return;
 	}
 	switch (m_mem_alloc_type) {
-		case ALLOC_TYPE_EXTERNAL:
+		case ALLOC_TYPE_REGISTER_MEMORY:
 			// not allocated by us
+			break;
 		case ALLOC_TYPE_CONTIG:
 			// freed as part of deregister_memory
 			break;
@@ -94,10 +95,10 @@ void* vma_allocator::alloc_and_reg_mr(size_t size, ib_ctx_handler *p_ib_ctx_h, v
 	uint64_t access = VMA_IBV_ACCESS_LOCAL_WRITE;
 
 	if (ptr) {
-		m_mem_alloc_type = ALLOC_TYPE_EXTERNAL;
+		m_mem_alloc_type = ALLOC_TYPE_REGISTER_MEMORY;
 	}
 	switch (m_mem_alloc_type) {
-	case ALLOC_TYPE_EXTERNAL:
+	case ALLOC_TYPE_REGISTER_MEMORY:
 		m_data_block = ptr;
 		register_memory(size, p_ib_ctx_h, access);
 		break;
