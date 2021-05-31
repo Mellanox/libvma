@@ -90,6 +90,7 @@ ring_bond::~ring_bond()
 
 	if (m_p_n_rx_channel_fds) {
 		delete[] m_p_n_rx_channel_fds;
+		m_p_n_rx_channel_fds = NULL;
 	}
 }
 
@@ -756,6 +757,7 @@ void ring_bond::update_rx_channel_fds()
 {
 	if (m_p_n_rx_channel_fds) {
 		delete[] m_p_n_rx_channel_fds;
+		m_p_n_rx_channel_fds = NULL;
 	}
 	if (m_recv_rings.size() == 0) {
 		return;
