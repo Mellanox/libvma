@@ -148,7 +148,7 @@ else
                --define='_builddir ${pkg_dir}/BUILD' \
                --define='_tmppath ${pkg_dir}/_tmp' \
                --define='dist %{nil}'"
-    rpmopts="--nodeps --buildroot='${pkg_dir}/BUILDROOT'"
+    rpmopts="--buildroot='${pkg_dir}/BUILDROOT'"
     pkg_cleanup="${pkg_cleanup} ${pkg_dir}/BUILD ${pkg_dir}/BUILDROOT ${pkg_dir}/SOURCES ${pkg_dir}/SPECS"
 fi
 

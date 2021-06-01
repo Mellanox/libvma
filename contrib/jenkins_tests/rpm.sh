@@ -33,7 +33,7 @@ else
                --define='_specdir ${rpm_dir}' \
                --define='_builddir ${rpm_dir}' \
                --define='_tmppath ${rpm_dir}/_tmp'"
-    rpmopts="--nodeps --buildroot='${rpm_dir}/_rpm'"
+    rpmopts="--buildroot='${rpm_dir}/_rpm'"
 fi
 
 echo "1..$(($opt_tarball + $opt_srcrpm + $opt_binrpm + $opt_checkpkg))" > $rpm_tap
