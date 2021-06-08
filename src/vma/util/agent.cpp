@@ -72,12 +72,12 @@
 #define output_fatal() \
 	do { \
 		vlog_levels_t _level = (mce_sys_var::HYPER_MSHV == safe_mce_sys().hypervisor ?          \
-						VLOG_WARNING : VLOG_DEBUG);                                             \
+						VLOG_WARNING : VLOG_DEBUG); \
 		vlog_printf(_level, "*************************************************************\n"); \
-		if (rc == -EPROTONOSUPPORT)													        \
-			vlog_printf(_level, "* Protocol version mismatch was found between vma and vmad. *\n"); \
+		if (rc == -EPROTONOSUPPORT) \
+			vlog_printf(_level, "* Protocol version mismatch was found between the library and the service. *\n"); \
 		else 																			        \
-			vlog_printf(_level, "* Can not establish connection with the daemon (vmad).      *\n"); \
+			vlog_printf(_level, "* Can not establish connection with the service.      *\n"); \
 		vlog_printf(_level, "* UDP/TCP connections are likely to be limited.             *\n"); \
 		vlog_printf(_level, "*************************************************************\n"); \
 	} while (0)
@@ -100,7 +100,7 @@ agent::agent() :
 	/* Fill free queue with empty messages */
 	i = m_msg_num;
 	m_msg_num = 0;
-	const char *path = safe_mce_sys().vmad_notify_dir;
+	const char *path = safe_mce_sys().service_notify_dir;
 	while (i--) {
 		/* coverity[overwrite_var] */
 		msg = (agent_msg_t *)calloc(1, sizeof(*msg));
@@ -528,7 +528,7 @@ int agent::send_msg_init(void)
 	}
 
 	if (data.hdr.ver < VMA_AGENT_VER) {
-		__log_dbg("Protocol version mismatch: agent ver = 0x%X vmad ver = 0x%X",
+		__log_dbg("Protocol version mismatch: agent ver = 0x%X service ver = 0x%X",
 				VMA_AGENT_VER, data.hdr.ver);
 		rc = -EPROTONOSUPPORT;
 		goto err;
