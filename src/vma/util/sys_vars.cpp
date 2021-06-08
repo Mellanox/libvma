@@ -503,9 +503,9 @@ void mce_sys_var::get_env_params()
 	memset(log_filename, 0, sizeof(log_filename));
 	memset(stats_filename, 0, sizeof(stats_filename));
 	memset(stats_shmem_dirname, 0, sizeof(stats_shmem_dirname));
-	memset(vmad_notify_dir, 0, sizeof(vmad_notify_dir));
+	memset(service_notify_dir, 0, sizeof(service_notify_dir));
 	strcpy(stats_filename, MCE_DEFAULT_STATS_FILE);
-	strcpy(vmad_notify_dir, MCE_DEFAULT_VMAD_FOLDER);
+	strcpy(service_notify_dir, MCE_DEFAULT_SERVICE_FOLDER);
 	strcpy(stats_shmem_dirname, MCE_DEFAULT_STATS_SHMEM_DIR);
 	strcpy(conf_filename, MCE_DEFAULT_CONF_FILE);
 	strcpy(app_id, MCE_DEFAULT_APP_ID);
@@ -800,8 +800,8 @@ void mce_sys_var::get_env_params()
 		read_env_variable_with_pid(conf_filename, sizeof(conf_filename), env_ptr);
 	}
 
-	if ((env_ptr = getenv(SYS_VAR_VMAD_DIR)) != NULL){
-		read_env_variable_with_pid(vmad_notify_dir, sizeof(vmad_notify_dir), env_ptr);
+	if ((env_ptr = getenv(SYS_VAR_SERVICE_DIR)) != NULL){
+		read_env_variable_with_pid(service_notify_dir, sizeof(service_notify_dir), env_ptr);
 	}
 
 	if ((env_ptr = getenv(SYS_VAR_LOG_LEVEL)) != NULL)
