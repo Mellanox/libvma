@@ -624,7 +624,7 @@ int epfd_info::ring_poll_and_process_element(uint64_t *p_poll_sn, void* pv_fd_re
 
 	m_ring_map_lock.unlock();
 
-	if (m_sysvar_thread_mode == THREAD_MODE_PLENTY && ret_total == 0 && errno == EAGAIN) pthread_yield();
+	if (m_sysvar_thread_mode == THREAD_MODE_PLENTY && ret_total == 0 && errno == EAGAIN) sched_yield();
 
 	if (ret_total) {
 		__log_func("ret_total=%d", ret_total);
