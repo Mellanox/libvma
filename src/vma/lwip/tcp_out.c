@@ -1154,7 +1154,7 @@ out:
  * @param wnd current window size
  * @return current segment to proceed
  */
-static struct tcp_seg *
+__attribute__((unused)) static struct tcp_seg *
 tcp_rexmit_segment(struct tcp_pcb *pcb, struct tcp_seg *seg, u32_t wnd)
 {
   struct tcp_seg *cur_seg = NULL;
@@ -1538,12 +1538,12 @@ tcp_output(struct tcp_pcb *pcb)
 
   while (seg) {
 #if LWIP_TSO
-    /* TSO segment can be in unsent queue only in case retransmission
-     * The purpose of this processing is to avoid to send TSO segment
-     * during retransmition.
+    /* TSO segment can be in unsent queue only in case of retransmission.
+     * Clear TSO flag, tcp_split_segment() and tcp_tso_segment() will handle
+     * all scenarios further.
      */
     if (seg->flags & TF_SEG_OPTS_TSO) {
-      seg = tcp_rexmit_segment(pcb, seg, wnd);
+      seg->flags &= ~TF_SEG_OPTS_TSO;
     }
 #endif /* LWIP_TSO */
 
