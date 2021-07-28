@@ -179,7 +179,9 @@ void get_orig_funcs()
 	GET_ORIG_FUNC(select);
 	GET_ORIG_FUNC(pselect);
 	GET_ORIG_FUNC(poll);
+	GET_ORIG_FUNC(__poll_chk);
 	GET_ORIG_FUNC(ppoll);
+	GET_ORIG_FUNC(__ppoll_chk);
 	GET_ORIG_FUNC(epoll_create);
 	GET_ORIG_FUNC(epoll_create1);
 	GET_ORIG_FUNC(epoll_ctl);
@@ -1350,6 +1352,7 @@ ssize_t read(int __fd, void *__buf, size_t __nbytes)
 	return orig_os_api.read(__fd, __buf, __nbytes);
 }
 
+#if defined HAVE___READ_CHK
 /* Checks that the buffer is big enough to contain the number of bytes
  * the user requests to read. If the buffer is too small, aborts,
  * else read NBYTES into BUF from FD.  Return the
@@ -1383,6 +1386,7 @@ ssize_t __read_chk(int __fd, void *__buf, size_t __nbytes, size_t __buflen)
 
 	return orig_os_api.__read_chk(__fd, __buf, __nbytes, __buflen);
 }
+#endif
 
 /* Read COUNT blocks into VECTOR from FD.  Return the
    number of bytes read, -1 for errors or 0 for EOF.
@@ -1434,6 +1438,7 @@ ssize_t recv(int __fd, void *__buf, size_t __nbytes, int __flags)
 	return orig_os_api.recv(__fd, __buf, __nbytes, __flags);
 }
 
+#if defined HAVE___RECV_CHK
 /* Checks that the buffer is big enough to contain the number of bytes
    the user requests to read. If the buffer is too small, aborts,
    else read N bytes into BUF from socket FD.
@@ -1466,6 +1471,7 @@ ssize_t __recv_chk(int __fd, void *__buf, size_t __nbytes, size_t __buflen, int 
 
 	return orig_os_api.__recv_chk(__fd, __buf, __nbytes, __buflen, __flags);
 }
+#endif
 
 /* Receive a message as described by MESSAGE from socket FD.
    Returns the number of bytes read or -1 for errors.
@@ -1623,6 +1629,7 @@ ssize_t recvfrom(int __fd, void *__buf, size_t __nbytes, int __flags,
 	return ret_val;
 }
 
+#if defined HAVE___RECVFROM_CHK
 /* Checks that the buffer is big enough to contain the number of bytes
    the user requests to read. If the buffer is too small, aborts,
    else read N bytes into BUF through socket FD.
@@ -1658,6 +1665,7 @@ ssize_t __recvfrom_chk(int __fd, void *__buf, size_t __nbytes, size_t __buflen, 
 
 	return orig_os_api.__recvfrom_chk(__fd, __buf, __nbytes, __buflen, __flags, __from, __fromlen);
 }
+#endif
 
 /* Write N bytes of BUF to FD.  Return the number written, or -1.
 
@@ -2229,6 +2237,29 @@ int poll(struct pollfd *__fds, nfds_t __nfds, int __timeout)
 	return poll_helper(__fds, __nfds, __timeout);
 }
 
+#if defined HAVE___POLL_CHK
+extern "C"
+int __poll_chk(struct pollfd *__fds, nfds_t __nfds, int __timeout, size_t __fdslen)
+{
+	if (!g_p_fd_collection) {
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (!orig_os_api.__poll_chk) get_orig_funcs();
+		BULLSEYE_EXCLUDE_BLOCK_END
+		return orig_os_api.__poll_chk(__fds, __nfds, __timeout, __fdslen);
+	}
+
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (__fdslen / sizeof(*__fds) < __nfds) {
+	    srdr_logpanic("buffer overflow detected");
+	}
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	srdr_logfunc_entry("nfds=%d, timeout=(%d milli-sec)", __nfds, __timeout);
+
+	return poll_helper(__fds, __nfds, __timeout);
+}
+#endif
+
 extern "C"
 int ppoll(struct pollfd *__fds, nfds_t __nfds, const struct timespec *__timeout, const sigset_t *__sigmask)
 {
@@ -2246,6 +2277,33 @@ int ppoll(struct pollfd *__fds, nfds_t __nfds, const struct timespec *__timeout,
 
 	return poll_helper(__fds, __nfds, timeout, __sigmask);
 }
+
+#if defined HAVE___PPOLL_CHK
+extern "C"
+int __ppoll_chk(struct pollfd *__fds, nfds_t __nfds, const struct timespec *__timeout, const sigset_t *__sigmask, size_t __fdslen)
+{
+	if (!g_p_fd_collection) {
+		BULLSEYE_EXCLUDE_BLOCK_START
+		if (!orig_os_api.__ppoll_chk) get_orig_funcs();
+		BULLSEYE_EXCLUDE_BLOCK_END
+		return orig_os_api.__ppoll_chk(__fds, __nfds, __timeout, __sigmask, __fdslen);
+	}
+
+	BULLSEYE_EXCLUDE_BLOCK_START
+	if (__fdslen / sizeof(*__fds) < __nfds) {
+	    srdr_logpanic("buffer overflow detected");
+	}
+
+	BULLSEYE_EXCLUDE_BLOCK_END
+
+	int timeout = (__timeout == NULL) ? -1 :
+	           (__timeout->tv_sec * 1000 + __timeout->tv_nsec / 1000000);
+
+	srdr_logfunc_entry("nfds=%d, timeout=(%d milli-sec)", __nfds, timeout);
+
+	return poll_helper(__fds, __nfds, timeout, __sigmask);
+}
+#endif
 
 void vma_epoll_create(int epfd, int size)
 {
