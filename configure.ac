@@ -384,6 +384,10 @@ dnl===
 dnl===-----------------------------------------------------------------------===
 show_section_title "Check for functions, types and structures"
 
+# Check fortified glibc functions
+#
+AC_CHECK_FUNCS(__read_chk __recv_chk __recvfrom_chk __poll_chk __ppoll_chk)
+
 # Does this compiler have built-in functions for atomic memory access?
 AC_MSG_CHECKING([for atomic memory access (__sync_bool_compare_and_swap) support])
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[]],
