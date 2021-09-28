@@ -2,7 +2,7 @@
 
 source $(dirname $0)/globals.sh
 
-do_check_filter "Checking for rpm ..." "off"
+echo "Checking for rpm ..."
 
 cd $WORKSPACE
 
@@ -18,7 +18,7 @@ opt_binrpm=1
 opt_checkpkg=1
 opt_rpm=0
 
-cd ${build_dir}/0
+${WORKSPACE}/configure --prefix=${rpm_dir}/install $jenkins_test_custom_configure > "${rpm_dir}/cov.log" 2>&1
 
 if [ -x /usr/bin/dpkg-buildpackage ]; then
     echo "Build on debian"
@@ -52,7 +52,6 @@ if [ $opt_tarball -eq 1 ]; then
     fi
 
     do_check_result "$test_exec" "$test_id" "tarball" "$rpm_tap" "${rpm_dir}/rpm-${test_id}"
-    eval $timeout_exe cp libvma*.tar.gz ${rpm_dir}
     test_id=$((test_id+1))
 fi
 
@@ -83,7 +82,7 @@ if [ $opt_binrpm -eq 1 ]; then
 fi
 
 if [ $opt_checkpkg -eq 1 ]; then
-    test_exec="${WORKSPACE}/contrib/build_pkg.sh -b -s -i ${WORKSPACE} -o ${rpm_dir}/deb-dist-pkg"
+    test_exec="env PRJ_RELEASE=1 ${WORKSPACE}/contrib/build_pkg.sh -b -s -i ${WORKSPACE} -o ${rpm_dir}/dist-pkg"
     do_check_result "$test_exec" "$test_id" "checkpkg" "$rpm_tap" "${rpm_dir}/rpm-${test_id}"
     test_id=$((test_id+1))
 fi

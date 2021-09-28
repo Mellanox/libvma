@@ -239,7 +239,7 @@ start_server()
 {
 	local env=$1 local ipaddr=$2 local port=$3 local proto=$4 local log_file=$5 local tsnv=$6
 
-	server_cmd="env ${env} ${SERVER_DIR}/sockperf sr -i ${ipaddr} -p ${port} --tcp --load-vma=${SERVER_DIR}/libvma.so"
+	server_cmd="env ${env} ${SERVER_DIR}/sockperf sr -i ${ipaddr} -p ${port} --tcp --load-vma=${SERVER_DIR}/${prj_lib}"
 
 	server_pid=$(ssh root@${ipaddr} ps -ax | grep -i sockperf | grep ${port} | awk '{print $1}')
 	[ ! -z "${server_pid}" ] && ssh root@${ipaddr} kill -9 ${server_pid}

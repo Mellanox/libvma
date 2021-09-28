@@ -1,22 +1,9 @@
 #!/bin/bash
 
-WORKSPACE=${WORKSPACE:=$PWD}
-if [ -z "$BUILD_NUMBER" ]; then
-    echo Running interactive
-    BUILD_NUMBER=1
-    WS_URL=file://$WORKSPACE
-    JENKINS_RUN_TESTS=yes
-else
-    echo Running under jenkins
-    WS_URL=$JOB_URL/ws
-fi
-
-TARGET=${TARGET:=all}
-i=0
-if [ "$TARGET" == "all" -o "$TARGET" == "default" ]; then
-	target_list[$i]="default: "
-	i=$((i+1))
-fi
+main()
+{
+WORKSPACE=${WORKSPACE:=$(pwd)}
+BUILD_NUMBER=${BUILD_NUMBER:=0}
 
 # exit code
 rc=0
@@ -37,7 +24,10 @@ csbuild_dir=${WORKSPACE}/${prefix}/csbuild
 vg_dir=${WORKSPACE}/${prefix}/vg
 style_dir=${WORKSPACE}/${prefix}/style
 tool_dir=${WORKSPACE}/${prefix}/tool
+commit_dir=${WORKSPACE}/${prefix}/commit
 
+prj_lib=libvma.so
+prj_service=vmad
 
 nproc=$(grep processor /proc/cpuinfo|wc -l)
 make_opt="-j$(($nproc / 2 + 1))"
@@ -46,6 +36,7 @@ if [ $(command -v timeout >/dev/null 2>&1 && echo $?) ]; then
 fi
 
 trap "on_exit" INT TERM ILL KILL FPE SEGV ALRM
+}
 
 function on_exit()
 {
@@ -53,6 +44,7 @@ function on_exit()
     echo "[${0##*/}]..................exit code = $rc"
     pkill -9 sockperf
     pkill -9 vma
+    pkill -9 ${prj_service}
 }
 
 function do_cmd()
@@ -80,30 +72,6 @@ function do_archive()
     set +e
     eval $cmd >> /dev/null 2>&1
     set -e
-}
-
-function do_github_status()
-{
-    echo "Calling: github $1"
-    eval "local $1"
-
-    local token=""
-    if [ -z "$tokenfile" ]; then
-        tokenfile="$HOME/.mellanox-github"
-    fi
-
-    if [ -r "$tokenfile" ]; then
-        token="$(cat $tokenfile)"
-    else
-        echo Error: Unable to read tokenfile: $tokenfile
-        return
-    fi
-
-    curl \
-    -X POST \
-    -H "Content-Type: application/json" \
-    -d "{\"state\": \"$state\", \"context\": \"$context\",\"description\": \"$info\", \"target_url\": \"$target_url\"}" \
-    "https://api.github.com/repos/$repo/statuses/${sha1}?access_token=$token"
 }
 
 # Test if an environment module exists and load it if yes.
@@ -170,8 +138,15 @@ function do_check_env()
         echo "environment [NOT OK]"
         exit 1
     fi
-    if [ $(sudo pwd >/dev/null 2>&1 || echo $?) ]; then
-        echo "sudo does not work"
+
+    if [ "$(whoami)" == "root" ]; then
+        export sudo_cmd=""
+    else
+        export sudo_cmd="sudo"
+    fi
+
+    if [ $(${sudo_cmd} pwd >/dev/null 2>&1 || echo $?) ]; then
+        echo "${sudo_cmd} does not work"
         echo "environment [NOT OK]"
         exit 1
     fi
@@ -185,25 +160,6 @@ function do_check_env()
     fi
 
     echo "environment [OK]"
-}
-
-# Check if the unit should be proccesed
-# $1 - output message
-# $2 - [on|off] if on - skip this case if JENKINS_RUN_TESTS variable is OFF
-#
-function do_check_filter()
-{
-    local msg=$1
-    local filter=$2
-
-    if [ -n "$filter" -a "$filter" == "on" ]; then
-        if [ -z "$JENKINS_RUN_TESTS" -o "$JENKINS_RUN_TESTS" == "no" ]; then
-            echo "$msg [SKIP]"
-            exit 0
-        fi
-    fi
-
-    echo "$msg [OK]"
 }
 
 # Launch command and detect result of execution
@@ -302,3 +258,70 @@ function do_get_ip()
         fi
     done
 }
+
+do_version_check()
+{
+    local version="$1" operator="$2" value="$3"
+    awk -vv1="$version" -vv2="$value" 'BEGIN {
+        split(v1, a, /\./); split(v2, b, /\./);
+        if (a[1] == b[1]) {
+            exit (a[2] '$operator' b[2]) ? 0 : 1
+        }
+        else {
+            exit (a[1] '$operator' b[1]) ? 0 : 1
+        }
+    }'
+}
+
+do_check_dpcp()
+{
+    local ret=0
+    local version=$(echo "${jenkins_ofed}" | cut -f1-2 -d.)
+
+    if do_version_check $version '<' '5.2' ; then
+        return
+    fi
+    echo "Checking dpcp usage"
+
+    ret=0
+    pushd $(pwd) > /dev/null 2>&1
+    dpcp_dir=${WORKSPACE}/${prefix}/dpcp
+    mkdir -p ${dpcp_dir} > /dev/null 2>&1
+    cd ${dpcp_dir}
+
+    set +e
+    if [ $ret -eq 0 ]; then
+        eval "timeout -s SIGKILL 20s git clone git@github.com:Mellanox/dpcp.git . " > /dev/null 2>&1
+        ret=$?
+    fi
+
+    if [ $ret -eq 0 ]; then
+        last_tag=$(git tag -l --format "%(refname:short)" --sort=-version:refname | head -n1)
+        if [ -z "$last_tag" ]; then
+            ret=1
+        fi
+    fi
+
+    if [ $ret -eq 0 ]; then
+        eval "git checkout $last_tag" > /dev/null 2>&1
+        ret=$?
+    fi
+
+    if [ $ret -eq 0 ]; then
+        eval "./autogen.sh && ./configure --prefix=${dpcp_dir}/install && make $make_opt install" > /dev/null 2>&1
+        ret=$?
+    fi
+    set -e
+
+    popd > /dev/null 2>&1
+    if [ $ret -eq 0 ]; then
+        eval "$1=${dpcp_dir}/install"
+        echo "dpcp: $last_tag : ${dpcp_dir}/install"
+    else
+        echo "dpcp: no"
+    fi
+}
+
+#######################################################
+#
+main "$@"
