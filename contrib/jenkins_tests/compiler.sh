@@ -2,7 +2,7 @@
 
 source $(dirname $0)/globals.sh
 
-do_check_filter "Checking for compiler ..." "on"
+echo "Checking for compiler ..."
 
 do_module "intel/ics-15.0.1"
 

@@ -2,7 +2,7 @@
 
 source $(dirname $0)/globals.sh
 
-do_check_filter "Checking for codying style ..." "on"
+echo "Checking for codying style ..."
 
 cd $WORKSPACE
 
@@ -55,7 +55,6 @@ if [ -e $checkpatch ]; then
     echo "1..$(echo $check_files | wc -w)" > $style_tap
     i=0
     status="success"
-    gh_url="$BUILD_URL/console"
     nerrors=0
 
     for file in $check_files; do
@@ -77,11 +76,6 @@ if [ -e $checkpatch ]; then
     done
 
     rc=$(($rc+$nerrors))
-
-    if [ -n "$ghprbGhRepository" ]; then
-        context="MellanoxLab/codestyle"
-        do_github_status "repo='$ghprbGhRepository' sha1='$ghprbActualCommit' target_url='$gh_url' state='$status' info='$info' context='$context'"
-    fi
 
 fi
 

@@ -2,7 +2,11 @@
 
 source $(dirname $0)/globals.sh
 
-do_check_filter "Checking for test ..." "on"
+echo "Checking for test ..."
+if [ $(test -d ${install_dir} >/dev/null 2>&1 || echo $?) ]; then
+	echo "[SKIP] Not found ${install_dir} : build should be done before this stage"
+	exit 1
+fi
 
 if [ $(command -v ibdev2netdev >/dev/null 2>&1 || echo $?) ]; then
 	echo "[SKIP] ibdev2netdev tool does not exist"
@@ -30,7 +34,7 @@ fi
 
 test_ip_list=""
 test_list="tcp-pp tcp-tp tcp-ul"
-test_lib=$install_dir/lib/libvma.so
+test_lib=$install_dir/lib/${prj_lib}
 
 if [ ! -z "${test_remote_ip}" ] ; then
 	[[ "${test_remote_ip}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || {\
@@ -42,28 +46,28 @@ if [ ! -z "${test_remote_ip}" ] ; then
 	sperf_exec_dir="/tmp/sockperf_exec_${NODE_NAME}"
 	rmt_user=root
  
-	rmt_os=$(sudo ssh ${rmt_user}@${test_remote_ip} ". /etc/os-release ; echo \${NAME,,} | awk '{print \$1}'")
+	rmt_os=$(${sudo_cmd} ssh ${rmt_user}@${test_remote_ip} ". /etc/os-release ; echo \${NAME,,} | awk '{print \$1}'")
 	[ ! -z "${test_remote_rebuild}" ] && rmt_os="rebuld"
 	local_os=$(. /etc/os-release ; echo ${NAME,,} | awk '{print $1}')
 
 	#skip_remote_prep=1
 	if [ -z "${skip_remote_prep}" ] ; then
-		sudo ssh ${rmt_user}@${test_remote_ip} "rm -rf ${sperf_exec_dir} && mkdir ${sperf_exec_dir}"
+		${sudo_cmd} ssh ${rmt_user}@${test_remote_ip} "rm -rf ${sperf_exec_dir} && mkdir ${sperf_exec_dir}"
 
 		if [[ "${rmt_os}" =~ .*"${local_os}".* ]] ; then
-			sudo scp -q ${test_app} ${rmt_user}@${test_remote_ip}:${sperf_exec_dir}
-			sudo scp -q ${test_lib} ${rmt_user}@${test_remote_ip}:${sperf_exec_dir}
-			eval "pid=$(sudo ssh ${rmt_user}@${test_remote_ip} pidof vmad)"
+			${sudo_cmd} scp -q ${test_app} ${rmt_user}@${test_remote_ip}:${sperf_exec_dir}
+			${sudo_cmd} scp -q ${test_lib} ${rmt_user}@${test_remote_ip}:${sperf_exec_dir}
+			eval "pid=$(${sudo_cmd} ssh ${rmt_user}@${test_remote_ip} pidof ${prj_service})"
 			if [ ! -z "${pid}" ] ;  then 
-				echo "vmad pid=${pid}"
-				eval "sudo ssh ${rmt_user}@${test_remote_ip} kill -9 ${pid}"
+				echo "${prj_service} pid=${pid}"
+				eval "${sudo_cmd} ssh ${rmt_user}@${test_remote_ip} kill -9 ${pid}"
 			fi
-			sudo scp -q ${install_dir}/sbin/vmad ${rmt_user}@${test_remote_ip}:${sperf_exec_dir}
-			eval "sudo ssh ${rmt_user}@${test_remote_ip} sudo ${sperf_exec_dir}/vmad &"
+			${sudo_cmd} scp -q ${install_dir}/sbin/${prj_service} ${rmt_user}@${test_remote_ip}:${sperf_exec_dir}
+			eval "${sudo_cmd} ssh ${rmt_user}@${test_remote_ip} ${sudo_cmd} ${sperf_exec_dir}/${prj_service} &"
 		else
-			sudo -E rsync -q -I -a -r --exclude jenkins --exclude '*.o' --exclude '.deps' --exclude '*.l*' \
+			${sudo_cmd} -E rsync -q -I -a -r --exclude jenkins --exclude '*.o' --exclude '.deps' --exclude '*.l*' \
 			-e ssh ${WORKSPACE} ${rmt_user}@${test_remote_ip}:${sperf_exec_dir}
-			sudo scp -q ${test_dir}/sockperf_v2.zip ${rmt_user}@${test_remote_ip}:${sperf_exec_dir}
+			${sudo_cmd} scp -q ${test_dir}/sockperf_v2.zip ${rmt_user}@${test_remote_ip}:${sperf_exec_dir}
 			if [ $? -eq 0 ] ; then
 				subdir=${WORKSPACE##*/}
 				cmd="cd ${sperf_exec_dir}/${subdir} && "
@@ -72,7 +76,7 @@ if [ ! -z "${test_remote_ip}" ] ; then
 				cmd+="cd ${sperf_exec_dir} && "
 				cmd+="unzip sockperf_v2.zip && cd sockperf-sockperf_v2 && "
 				cmd+="./autogen.sh && ./configure && make ${make_opt} && cp sockperf ${sperf_exec_dir}"
-				sudo ssh ${rmt_user}@${test_remote_ip} "${cmd}"
+				${sudo_cmd} ssh ${rmt_user}@${test_remote_ip} "${cmd}"
 			else
 				exit 1
 			fi
@@ -97,23 +101,23 @@ for test_link in $test_ip_list; do
 
 		if [ ! -z "${test_remote_ip}" ] ; then
 
-			eval "pid=$(sudo pidof vmad)"
-			[ ! -z "${pid}" ] && eval "sudo kill -9 ${pid}" 
-			eval "sudo ${install_dir}/sbin/vmad --console -v5 & "
+			eval "pid=$(${sudo_cmd} pidof ${prj_service})"
+			[ ! -z "${pid}" ] && eval "${sudo_cmd} kill -9 ${pid}" 
+			eval "${sudo_cmd} ${install_dir}/sbin/${prj_service} --console -v5 & "
 
 			echo "BUILD_NUMBER=${BUILD_NUMBER}"
-			eval "pid=$(sudo ssh ${rmt_user}@${test_remote_ip} pidof vmad)"
+			eval "pid=$(${sudo_cmd} ssh ${rmt_user}@${test_remote_ip} pidof ${prj_service})"
 			if [ ! -z "${pid}" ] ;  then
-				echo "vmad pid=${pid}"
-				eval "sudo ssh ${rmt_user}@${test_remote_ip} kill -9 ${pid}"
+				echo "${prj_service} pid=${pid}"
+				eval "${sudo_cmd} ssh ${rmt_user}@${test_remote_ip} kill -9 ${pid}"
 			fi
-			sudo scp -q ${install_dir}/sbin/vmad ${rmt_user}@${test_remote_ip}:${sperf_exec_dir}
-			eval "sudo ssh ${rmt_user}@${test_remote_ip} sudo ${sperf_exec_dir}/vmad &"
+			${sudo_cmd} scp -q ${install_dir}/sbin/${prj_service} ${rmt_user}@${test_remote_ip}:${sperf_exec_dir}
+			eval "${sudo_cmd} ssh ${rmt_user}@${test_remote_ip} ${sudo_cmd} ${sperf_exec_dir}/${prj_service} &"
 
 			vutil="$(dirname $0)/vutil.sh"
 			[ ! -e "${vutil}" ] && { echo "error vutil not found" ; exit 1 ; }
 
-			sudo $timeout_exe ${vutil}  -a "${test_app}" -x "--load-vma=${test_lib} " -t "${test}:tc[1-9]$" \
+			${sudo_cmd} $timeout_exe ${vutil}  -a "${test_app}" -x "--load-vma=${test_lib} " -t "${test}:tc[1-9]$" \
 					-s "${test_remote_ip}" -p "${test_remote_port}" -l "${test_dir}/${test_name}.log" \
 					-e "VMA_TX_BUFS=20000 VMA_RX_BUFS=20000"
 	

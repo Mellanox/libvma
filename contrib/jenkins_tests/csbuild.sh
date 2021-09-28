@@ -2,7 +2,7 @@
 
 source $(dirname $0)/globals.sh
 
-do_check_filter "Checking for csbuild ..." "on"
+echo "Checking for csbuild ..."
 
 # This unit requires csbuild so check for existence
 if [ $(command -v csbuild >/dev/null 2>&1 || echo $?) ]; then

@@ -2,7 +2,7 @@
 
 source $(dirname $0)/globals.sh
 
-do_check_filter "Checking for cppcheck ..." "on"
+echo "Checking for cppcheck ..."
 
 # This unit requires cppcheck so check for existence
 if [ $(command -v cppcheck >/dev/null 2>&1 || echo $?) ]; then

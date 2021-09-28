@@ -2,7 +2,7 @@
 
 source $(dirname $0)/globals.sh
 
-do_check_filter "Checking for valgrind ..." "on"
+echo "Checking for valgrind ..."
 
 do_module "tools/valgrind-3.12.0"
 
@@ -28,7 +28,7 @@ if [ ! -z "$(do_get_ip 'eth' 'mlx5')" ]; then
 	test_ip_list="${test_ip_list} eth:$(do_get_ip 'eth' 'mlx5')"
 fi
 test_list="tcp:--tcp udp:"
-test_lib=${vg_dir}/install/lib/libvma.so
+test_lib=${vg_dir}/install/lib/${prj_lib}
 test_app=sockperf
 test_app_path=${test_dir}/sockperf/install/bin/sockperf
 
@@ -70,17 +70,17 @@ for test_link in $test_ip_list; do
 
 		if [ `ps -ef | grep $test_app | wc -l` -gt 1 ];
 		then
-			sudo pkill -SIGINT -f $test_app 2>/dev/null || true
+			${sudo_cmd} pkill -9 -f $test_app 2>/dev/null || true
 			sleep 10
 			# in case SIGINT didn't work
 			if [ `ps -ef | grep $test_app | wc -l` -gt 1 ];
 			then
-				sudo pkill -SIGTERM -f $test_app 2>/dev/null || true
+				${sudo_cmd} pkill -SIGTERM -f $test_app 2>/dev/null || true
 				sleep 3
 			fi
 			if [ `ps -ef | grep $test_app | wc -l` -gt 1 ];
 			then
-				sudo pkill -SIGKILL -f $test_app 2>/dev/null || true
+				${sudo_cmd} pkill -SIGKILL -f $test_app 2>/dev/null || true
 			fi
 		fi
 
@@ -106,13 +106,6 @@ if [ $nerrors -gt 0 ]; then
 else
 	info="Valgrind found no issues"
 	status="success"
-fi
-
-vg_url="$BUILD_URL/valgrindResult/"
-
-if [ -n "$ghprbGhRepository" ]; then
-	context="MellanoxLab/valgrind"
-	do_github_status "repo='$ghprbGhRepository' sha1='$ghprbActualCommit' target_url='$vg_url' state='$status' info='$info' context='$context'"
 fi
 
 module unload tools/valgrind-3.12.0

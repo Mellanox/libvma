@@ -2,11 +2,17 @@
 
 source $(dirname $0)/globals.sh
 
-do_check_filter "Checking for gtest ..." "on"
+echo "Checking for gtest ..."
+
+# Check dependencies
+if [ $(test -d ${install_dir} >/dev/null 2>&1 || echo $?) ]; then
+	echo "[SKIP] Not found ${install_dir} : build should be done before this stage"
+	exit 1
+fi
 
 if [ $(command -v ibdev2netdev >/dev/null 2>&1 || echo $?) ]; then
 	echo "[SKIP] ibdev2netdev tool does not exist"
-	exit 0
+	exit 1
 fi
 
 cd $WORKSPACE
@@ -16,7 +22,7 @@ mkdir -p $gtest_dir
 cd $gtest_dir
 
 gtest_app="$PWD/tests/gtest/gtest"
-gtest_lib=$install_dir/lib/libvma.so
+gtest_lib=$install_dir/lib/${prj_lib}
 
 gtest_ip_list=""
 if [ ! -z $(do_get_ip 'eth') ]; then
@@ -36,11 +42,11 @@ ${WORKSPACE}/configure --prefix=$install_dir
 make -C tests/gtest
 rc=$(($rc+$?))
 
-eval "sudo pkill -9 vmad"
-eval "sudo ${install_dir}/sbin/vmad --console -v5 &"
+eval "${sudo_cmd} pkill -9 ${prj_service} 2>/dev/null || true"
+eval "${sudo_cmd} ${install_dir}/sbin/${prj_service} --console -v5 &"
 
 # Exclude VMA EXTRA API tests
-eval "$timeout_exe env GTEST_TAP=2 LD_PRELOAD=$gtest_lib $gtest_app $gtest_opt --gtest_filter=-vma_*"
+eval "$timeout_exe env GTEST_TAP=2 LD_PRELOAD=$gtest_lib $gtest_app $gtest_opt --gtest_filter=-vma_* --gtest_output=xml:${WORKSPACE}/${prefix}/test-basic.xml"
 rc=$(($rc+$?))
 
 make -C tests/gtest clean
@@ -48,14 +54,14 @@ make -C tests/gtest CPPFLAGS="-DVMA_EXTRA_API_ENABLED=1"
 rc=$(($rc+$?))
 
 # Verify VMA EXTRA API tests
-eval "$timeout_exe env GTEST_TAP=2 LD_PRELOAD=$gtest_lib $gtest_app $gtest_opt --gtest_filter=vma_*:-vma_poll.*:vma_ring.*"
+eval "$timeout_exe env GTEST_TAP=2 LD_PRELOAD=$gtest_lib $gtest_app $gtest_opt --gtest_filter=vma_*:-vma_poll.*:vma_ring.* --gtest_output=xml:${WORKSPACE}/${prefix}/test-extra.xml"
 rc=$(($rc+$?))
 
 # Verify VMA EXTRA API socketxtreme mode tests
-eval "sudo $timeout_exe env VMA_SOCKETXTREME=1 GTEST_TAP=2 LD_PRELOAD=$gtest_lib $gtest_app $gtest_opt --gtest_filter=vma_poll.*:vma_ring.*"
+eval "sudo $timeout_exe env VMA_SOCKETXTREME=1 GTEST_TAP=2 LD_PRELOAD=$gtest_lib $gtest_app $gtest_opt --gtest_filter=vma_poll.*:vma_ring.* --gtest_output=xml:${WORKSPACE}/${prefix}/test-socketxtreme.xml"
 rc=$(($rc+$?))
 
-eval "sudo pkill -9 vmad"
+eval "${sudo_cmd} pkill -9 ${prj_service} 2>/dev/null || true"
 
 set -eE
 
