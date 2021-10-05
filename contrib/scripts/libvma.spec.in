@@ -204,6 +204,9 @@ fi
 %{_mandir}/man8/vma_stats.*
 
 %changelog
+* Tue Oct 5 2021 Igor Ivanov <igori@nvidia.com> 9.4.0-1
+- Bump 9.4.0
+
 * Thu Jun 3 2021 Igor Ivanov <igor.ivanov.va@gmail.com> 9.3.1-1
 - Bump 9.3.1
 - Remove dependencies from systemd-rpm-macros for old OSs

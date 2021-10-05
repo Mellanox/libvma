@@ -1,3 +1,13 @@
+Version 9.4.0-0:
+Date + Time 2021-10-05
+=============================================================
+Fixed:
+        - RM #2485156 Fix fc35 issues
+        - RM #2740920 Add support for fortified glibc functions
+        - RM #1714768 Fix issue in vma_recvfrom_zcopy()
+        - RM #2690914 Fix data corruption in shrink operation
+        - RM #2647722 Workaround for segfault on IBV_EVENT_DEVICE_FATAL
+
 Version 9.3.1-0:
 Date + Time 2021-06-03
 =============================================================
