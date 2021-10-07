@@ -957,6 +957,8 @@ int accept4(int __fd, struct sockaddr *__addr, socklen_t *__addrlen, int __flags
 extern "C"
 int bind(int __fd, const struct sockaddr *__addr, socklen_t __addrlen)
 {
+	int errno_tmp = errno;
+
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.bind) get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -981,10 +983,14 @@ int bind(int __fd, const struct sockaddr *__addr, socklen_t __addrlen)
 		ret = orig_os_api.bind(__fd, __addr, __addrlen);
 	}
 
-	if (ret >= 0)
+	if (ret >= 0) {
+		/* Restore errno on function entry in case success */
+		errno = errno_tmp;
 		srdr_logdbg_exit("returned with %d", ret);
-	else
+	} else {
 		srdr_logdbg_exit("failed (errno=%d %m)", errno);
+	}
+
 	return ret;
 }
 
@@ -998,6 +1004,8 @@ int bind(int __fd, const struct sockaddr *__addr, socklen_t __addrlen)
 extern "C"
 int connect(int __fd, const struct sockaddr *__to, socklen_t __tolen)
 {
+	int errno_tmp = errno;
+
 	BULLSEYE_EXCLUDE_BLOCK_START
 	if (!orig_os_api.connect) get_orig_funcs();
 	BULLSEYE_EXCLUDE_BLOCK_END
@@ -1029,10 +1037,14 @@ int connect(int __fd, const struct sockaddr *__to, socklen_t __tolen)
 		ret = orig_os_api.connect(__fd, __to, __tolen);
 	}
 
-	if (ret >= 0)
+	if (ret >= 0) {
+		/* Restore errno on function entry in case success */
+		errno = errno_tmp;
 		srdr_logdbg_exit("returned with %d", ret);
-	else
+	} else {
 		srdr_logdbg_exit("failed (errno=%d %m)", errno);
+	}
+
 	return ret;
 }
 
