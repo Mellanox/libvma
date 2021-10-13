@@ -1250,7 +1250,8 @@ void sockinfo::rx_del_ring_cb(flow_tuple_with_local_if &flow_key, ring* p_ring)
 			for (size_t i = 0; i < num_ring_rx_fds; i++) {
 				int cq_ch_fd = ring_rx_fds_array[i];
 				BULLSEYE_EXCLUDE_BLOCK_START
-				if (unlikely( orig_os_api.epoll_ctl(m_rx_epfd, EPOLL_CTL_DEL, cq_ch_fd, NULL))) {
+				if (unlikely((orig_os_api.epoll_ctl(m_rx_epfd, EPOLL_CTL_DEL, cq_ch_fd, NULL)) &&
+							 (!(errno == ENOENT || errno == EBADF)))) {
 					si_logerr("failed to delete cq channel fd from internal epfd (errno=%d %s)", errno, strerror(errno));
 				}
 				BULLSEYE_EXCLUDE_BLOCK_END
