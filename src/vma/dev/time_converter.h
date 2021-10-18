@@ -34,7 +34,7 @@
 #ifndef TIME_CONVERTER_H
 #define TIME_CONVERTER_H
 
-#include <tr1/unordered_map>
+#include <unordered_map>
 #include <infiniband/verbs.h>
 
 #include "vma/util/sys_vars.h"
@@ -42,7 +42,7 @@
 #include "vma/event/timer_handler.h"
 
 class net_device_val;
-typedef std::tr1::unordered_map<int, net_device_val*> net_device_map_t;
+typedef std::unordered_map<int, net_device_val*> net_device_map_t;
 
 class ctx_timestamping_params_t {
 public:

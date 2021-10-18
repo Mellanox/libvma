@@ -36,7 +36,7 @@
 
 #include <unistd.h>
 #include <bits/sockaddr.h>
-#include <tr1/unordered_map>
+#include <unordered_map>
 #include "vma/infra/cache_subject_observer.h"
 #include "vma/netlink/netlink_wrapper.h"
 #include "vma/event/netlink_event.h"
@@ -45,8 +45,8 @@
 
 #define ADDR_LEN 46 // needs 16-bytes for IPv4, and 46-bytes for IPv6
 
-typedef std::tr1::unordered_map<in_addr_t, route_entry*> in_addr_route_entry_map_t;
-typedef std::tr1::unordered_map<route_rule_table_key, cache_entry_subject<route_rule_table_key, route_val*> *> rt_tbl_cach_entry_map_t;
+typedef std::unordered_map<in_addr_t, route_entry*> in_addr_route_entry_map_t;
+typedef std::unordered_map<route_rule_table_key, cache_entry_subject<route_rule_table_key, route_val*> *> rt_tbl_cach_entry_map_t;
 
 struct route_result {
 	in_addr_t	p_src;

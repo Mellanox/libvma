@@ -32,13 +32,13 @@
 
 
 #include "vma/proto/igmp_handler.h"
-#include <tr1/unordered_map>
+#include <unordered_map>
 
 #ifndef IGMP_MANAGER_H
 #define IGMP_MANAGER_H
 
 
-typedef std::tr1::unordered_map<igmp_key, igmp_handler *> igmp_hdlr_map_t;
+typedef std::unordered_map<igmp_key, igmp_handler *> igmp_hdlr_map_t;
 
 class igmp_mgr : public lock_mutex
 {
