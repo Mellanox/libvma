@@ -47,6 +47,10 @@
             default: true
             description: "Run static analysis using cppcheck tool."
         - bool:
+            name: "do_csbuild"
+            default: true
+            description: "Run static analysis using csbuild tool."
+        - bool:
             name: "do_service"
             default: true
             description: "Verify service."

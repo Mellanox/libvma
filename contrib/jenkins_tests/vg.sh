@@ -4,7 +4,7 @@ source $(dirname $0)/globals.sh
 
 echo "Checking for valgrind ..."
 
-do_module "tools/valgrind-3.12.0"
+#do_module "tools/valgrind-3.12.0"
 
 set +eE
 
@@ -31,12 +31,25 @@ test_list="tcp:--tcp udp:"
 test_lib=${vg_dir}/install/lib/${prj_lib}
 test_app=sockperf
 test_app_path=${test_dir}/sockperf/install/bin/sockperf
+vg_tool=/bin/valgrind
 
 if [ $(command -v $test_app_path >/dev/null 2>&1 || echo $?) ]; then
 	test_app_path=sockperf
 	if [ $(command -v $test_app_path >/dev/null 2>&1 || echo $?) ]; then
-		echo can not find $test_app_path
-		exit 1
+		do_cmd "wget -O sockperf_v2.zip https://github.com/Mellanox/sockperf/archive/sockperf_v2.zip && unzip sockperf_v2.zip && mv sockperf-sockperf_v2 sockperf"
+		cd sockperf
+
+		./autogen.sh
+		./configure --prefix=$PWD/install CPPFLAGS="-I${install_dir}/include"
+		make install
+		test_app_path="$PWD/install/bin/sockperf"
+
+		cd $vg_dir
+
+		if [ $(command -v $test_app_path >/dev/null 2>&1 || echo $?) ]; then
+			echo can not find $test_app_path
+			exit 1
+		fi
 	fi
 fi
 
@@ -60,12 +73,12 @@ for test_link in $test_ip_list; do
 			--fullpath-after=${WORKSPACE} --gen-suppressions=all \
 			--suppressions=${WORKSPACE}/contrib/valgrind/valgrind_vma.supp \
 			"
-		eval "LD_PRELOAD=$test_lib \
-			valgrind --log-file=${vg_dir}/${test_name}-valgrind-sr.log $vg_args \
+		eval "${sudo_cmd} LD_PRELOAD=$test_lib \
+			${vg_tool} --log-file=${vg_dir}/${test_name}-valgrind-sr.log $vg_args \
 			$test_app_path sr ${test_opt} -i ${test_ip} > /dev/null 2>&1 &"
 		sleep 20
-		eval "LD_PRELOAD=$test_lib \
-			valgrind --log-file=${vg_dir}/${test_name}-valgrind-cl.log $vg_args \
+		eval "${sudo_cmd} LD_PRELOAD=$test_lib \
+			${vg_tool} --log-file=${vg_dir}/${test_name}-valgrind-cl.log $vg_args \
 			$test_app_path pp ${test_opt} -i ${test_ip} -t 10"
 
 		if [ `ps -ef | grep $test_app | wc -l` -gt 1 ];
@@ -108,7 +121,7 @@ else
 	status="success"
 fi
 
-module unload tools/valgrind-3.12.0
+#module unload tools/valgrind-3.12.0
 
 rc=$(($rc+$nerrors))
 set -eE

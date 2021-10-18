@@ -11,7 +11,8 @@ kubernetes:
 
 volumes:
   - {mountPath: /hpc/local/bin, hostPath: /hpc/local/bin}
-  - {mountPath: /hpc/local/oss/vma/, hostPath: /hpc/local/oss/vma/}
+  - {mountPath: /hpc/local/oss, hostPath: /hpc/local/oss}
+  - {mountPath: /hpc/local/oss/vma, hostPath: /hpc/local/oss/vma}
   - {mountPath: /auto/sw_tools/Commercial, hostPath: /auto/sw_tools/Commercial}
   - {mountPath: /hpc/local/commercial, hostPath: /hpc/local/commercial}
   - {mountPath: /hpc/local/etc/modulefiles, hostPath: /hpc/local/etc/modulefiles}
@@ -20,25 +21,29 @@ env:
   build_dockers: false
 
 runs_on_dockers:
+# mofed
   - {name: 'rhel8.3-mofed-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:mofed-5.2-0.5.3.0', category: 'base', arch: 'x86_64'}
   - {name: 'sl15sp2-mofed-x86_64', url: 'harbor.mellanox.com/swx-infra/x86_64/sles15sp2/builder:mofed-5.2-2.2.0.0', category: 'base', arch: 'x86_64'}
   - {name: 'fc31-mofed-x86_64',    url: 'harbor.mellanox.com/swx-infra/x86_64/fedora31/builder:mofed-5.1-1.0.7.0', category: 'base', arch: 'x86_64'}
+  - {name: 'ub20.04-mofed-x86_64', url: 'harbor.mellanox.com/sw-linux-devops/mofed-5.5-0.3.0.0:ubuntu20.04-amd64', category: 'base', arch: 'x86_64'}
 
   - {name: 'ub20.04-mofed-x86_64', url: 'harbor.mellanox.com/swx-infra/x86_64/ubuntu20.04/builder:mofed-5.2-2.2.0.0', category: 'base', arch: 'x86_64'}
 #  - {name: 'ub20.04-mofed-aarch64', url: 'harbor.mellanox.com/swx-infra/aarch64/ubuntu20.04/builder:mofed-5.2-1.0.4.0', category: 'base', arch: 'aarch64'}
 #  - {name: 'ub20.04-mofed-ppc64le', url: 'harbor.mellanox.com/swx-infra/ppc64le/ubuntu20.04/builder:mofed-5.2-1.0.4.0', category: 'base', arch: 'ppc64le'}
-
-  - {name: 'rhel8.3-inbox-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:inbox', category: 'base', arch: 'x86_64'}
+# inbox
+  - {name: 'ub21.10-inbox-x86_64',  url: 'harbor.mellanox.com/hpcx/x86_64/ubuntu21.10/builder:inbox', category: 'base', arch: 'x86_64'}
+  - {name: 'rhel8.3-inbox-x86_64',  url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:inbox', category: 'base', arch: 'x86_64'}
   - {name: 'rhel8.3-inbox-aarch64', url: 'harbor.mellanox.com/hpcx/aarch64/rhel8.3/builder:inbox', category: 'base', arch: 'aarch64'}
-
+# legacy
   - {name: 'rhel7.6-mofed-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel7.6/builder:mofed-5.1-0.6.6.0', category: 'base', arch: 'x86_64'}
   - {name: 'rhel7.6-inbox-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel7.6/builder:inbox', category: 'base', arch: 'x86_64'}
-
+# tool
   - {name: 'coverity', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:inbox', category: 'tool', arch: 'x86_64'}
+  - {name: 'compiler', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:inbox', category: 'tool', arch: 'x86_64'}
   - {name: 'blackduck', url: 'harbor.mellanox.com/toolbox/ngci-centos:7.9.2009.2', category: 'tool', arch: 'x86_64'}
 
 runs_on_agents:
-  - {nodeLabel: 'r-aa-zorro014', category: 'base'}
+  - {nodeLabel: 'r-aa-fatty09', category: 'base'}
   - {nodeLabel: 'r-aa-fatty22-005', category: 'azure'}
   - {nodeLabel: 'r-aa-fatty22-006', category: 'azure'}
 
@@ -147,7 +152,7 @@ steps:
   - name: Style
     enable: ${do_style}
     agentSelector:
-      - "{nodeLabel: 'r-aa-zorro014'}"
+      - "{nodeLabel: 'r-aa-fatty09'}"
     run: |
       [ "x${do_style}" == "xtrue" ] && action=yes || action=no
       env WORKSPACE=$PWD TARGET=${flags} jenkins_test_style=${action} ./contrib/test_jenkins.sh
@@ -170,7 +175,7 @@ steps:
   - name: Compiler
     enable: ${do_compiler}
     agentSelector:
-      - "{nodeLabel: 'r-aa-zorro014'}"
+      - "{nodeLabel: 'r-aa-fatty09'}"
     run: |
       [ "x${do_compiler}" == "xtrue" ] && action=yes || action=no
       env WORKSPACE=$PWD TARGET=${flags} jenkins_test_compiler=${action} ./contrib/test_jenkins.sh
@@ -214,10 +219,56 @@ steps:
     archiveTap-onfail: |
       jenkins/**/*.tap
 
+  - name: Cppcheck
+    enable: ${do_cppcheck}
+    agentSelector:
+      - "{nodeLabel: 'r-aa-fatty09', variant:1}"
+    run: |
+      [ "x${do_cppcheck}" == "xtrue" ] && action=yes || action=no
+      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_cppcheck=${action} ./contrib/test_jenkins.sh
+    parallel: false
+    onfail: |
+      if [ -d jenkins ]; then
+        gzip -f ./jenkins/*.tar 2>/dev/null || true
+        cd ./jenkins/ ;
+          for f in *.tar.gz ; do [ -e "$f" ] && mv "$f" "${flags}/arch-${name}-$f" ; done ;
+        cd ..
+        cd ./jenkins/${flags};
+          for f in *.tap ; do [ -e "$f" ] && mv "$f" "${flags}-${name}-$f" ; done ;
+        cd ../..
+      fi
+    archiveArtifacts-onfail: |
+      jenkins/**/arch-*.tar.gz
+    archiveTap-onfail: |
+      jenkins/**/*.tap
+
+  - name: Csbuild
+    enable: ${do_csbuild}
+    agentSelector:
+      - "{nodeLabel: 'r-aa-fatty09', variant:1}"
+    run: |
+      [ "x${do_csbuild}" == "xtrue" ] && action=yes || action=no
+      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_cppcheck=${action} ./contrib/test_jenkins.sh
+    parallel: false
+    onfail: |
+      if [ -d jenkins ]; then
+        gzip -f ./jenkins/*.tar 2>/dev/null || true
+        cd ./jenkins/ ;
+          for f in *.tar.gz ; do [ -e "$f" ] && mv "$f" "${flags}/arch-${name}-$f" ; done ;
+        cd ..
+        cd ./jenkins/${flags};
+          for f in *.tap ; do [ -e "$f" ] && mv "$f" "${flags}-${name}-$f" ; done ;
+        cd ../..
+      fi
+    archiveArtifacts-onfail: |
+      jenkins/**/arch-*.tar.gz
+    archiveTap-onfail: |
+      jenkins/**/*.tap
+
   - name: Test
     enable: ${do_test}
     agentSelector:
-      - "{nodeLabel: 'r-aa-zorro014', variant:1}"
+      - "{nodeLabel: 'r-aa-fatty09', variant:1}"
     run: |
       [ "x${do_test}" == "xtrue" ] && action=yes || action=no
       env WORKSPACE=$PWD TARGET=${flags} jenkins_test_run=${action} ./contrib/test_jenkins.sh
@@ -240,7 +291,7 @@ steps:
   - name: Gtest
     enable: ${do_gtest}
     agentSelector:
-      - "{nodeLabel: 'r-aa-zorro014', variant:1}"
+      - "{nodeLabel: 'r-aa-fatty09', variant:1}"
     run: |
       [ "x${do_gtest}" == "xtrue" ] && action=yes || action=no
       env WORKSPACE=$PWD TARGET=${flags} jenkins_test_gtest=${action} ./contrib/test_jenkins.sh
@@ -266,7 +317,7 @@ steps:
   - name: Valgrind
     enable: ${do_valgrind}
     agentSelector:
-      - "{nodeLabel: 'r-aa-zorro014', variant:1}"
+      - "{nodeLabel: 'r-aa-fatty09', variant:1}"
     run: |
       [ "x${do_valgrind}" == "xtrue" ] && action=yes || action=no
       env WORKSPACE=$PWD TARGET=${flags} jenkins_test_vg=${action} ./contrib/test_jenkins.sh

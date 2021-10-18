@@ -46,7 +46,7 @@ eval "${sudo_cmd} pkill -9 ${prj_service} 2>/dev/null || true"
 eval "${sudo_cmd} ${install_dir}/sbin/${prj_service} --console -v5 &"
 
 # Exclude VMA EXTRA API tests
-eval "$timeout_exe env GTEST_TAP=2 LD_PRELOAD=$gtest_lib $gtest_app $gtest_opt --gtest_filter=-vma_* --gtest_output=xml:${WORKSPACE}/${prefix}/test-basic.xml"
+eval "${sudo_cmd} $timeout_exe env GTEST_TAP=2 LD_PRELOAD=$gtest_lib $gtest_app $gtest_opt --gtest_filter=-vma_*:tcp_send_zc* --gtest_output=xml:${WORKSPACE}/${prefix}/test-basic.xml"
 rc=$(($rc+$?))
 
 make -C tests/gtest clean
@@ -54,11 +54,11 @@ make -C tests/gtest CPPFLAGS="-DVMA_EXTRA_API_ENABLED=1"
 rc=$(($rc+$?))
 
 # Verify VMA EXTRA API tests
-eval "$timeout_exe env GTEST_TAP=2 LD_PRELOAD=$gtest_lib $gtest_app $gtest_opt --gtest_filter=vma_*:-vma_poll.*:vma_ring.* --gtest_output=xml:${WORKSPACE}/${prefix}/test-extra.xml"
+eval "${sudo_cmd} $timeout_exe env GTEST_TAP=2 LD_PRELOAD=$gtest_lib $gtest_app $gtest_opt --gtest_filter=vma_*:-vma_poll.*:vma_ring.*:vma_send_zc.* --gtest_output=xml:${WORKSPACE}/${prefix}/test-extra.xml"
 rc=$(($rc+$?))
 
 # Verify VMA EXTRA API socketxtreme mode tests
-eval "sudo $timeout_exe env VMA_SOCKETXTREME=1 GTEST_TAP=2 LD_PRELOAD=$gtest_lib $gtest_app $gtest_opt --gtest_filter=vma_poll.*:vma_ring.* --gtest_output=xml:${WORKSPACE}/${prefix}/test-socketxtreme.xml"
+eval "${sudo_cmd} $timeout_exe env VMA_SOCKETXTREME=1 GTEST_TAP=2 LD_PRELOAD=$gtest_lib $gtest_app $gtest_opt --gtest_filter=vma_poll.*:vma_ring.* --gtest_output=xml:${WORKSPACE}/${prefix}/test-socketxtreme.xml"
 rc=$(($rc+$?))
 
 eval "${sudo_cmd} pkill -9 ${prj_service} 2>/dev/null || true"

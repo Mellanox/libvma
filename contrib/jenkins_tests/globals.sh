@@ -80,6 +80,8 @@ function do_archive()
 #
 function do_module()
 {
+    [ -z "$1" ] && return
+
     echo "Checking module $1"
     if [[ $(module avail 2>&1 | grep "$1" -q > /dev/null || echo $?) ]]; then
 	    echo "[SKIP] module tool does not exist"
