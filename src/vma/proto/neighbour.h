@@ -35,7 +35,6 @@
 #define NEIGHBOUR_H
 
 #include <rdma/rdma_cma.h>
-#include <unordered_map>
 
 #include "state_machine/sm.h"
 #include "vma/util/sys_vars.h"

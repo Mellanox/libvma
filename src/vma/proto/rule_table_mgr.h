@@ -36,7 +36,6 @@
 
 #include <unistd.h>
 #include <bits/sockaddr.h>
-#include <unordered_map>
 #include "vma/infra/cache_subject_observer.h"
 #include "vma/proto/netlink_socket_mgr.h"
 #include "rule_entry.h"

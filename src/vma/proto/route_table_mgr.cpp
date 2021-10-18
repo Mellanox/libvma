@@ -85,7 +85,7 @@ route_table_mgr::route_table_mgr() : netlink_socket_mgr<route_val>(ROUTE_DATA_TY
 			in_addr_t dst_ip	= src_addr;
 			in_addr_t src_ip	= 0;
 			uint8_t tos		= 0;
-			m_rte_list_for_each_net_dev.insert(pair<in_addr_t, route_entry*> (src_addr, create_new_entry(route_rule_table_key(dst_ip, src_ip, tos), NULL)));
+			m_rte_list_for_each_net_dev[src_addr] = create_new_entry(route_rule_table_key(dst_ip, src_ip, tos), NULL);
 		}
 	}
 
