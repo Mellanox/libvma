@@ -30,7 +30,7 @@
  * SOFTWARE.
  */
 
-#include <tr1/unordered_map>
+#include <unordered_map>
 #include <ifaddrs.h>
 
 #include "config.h"
@@ -116,7 +116,7 @@ typedef struct {
 	int 			refcnt;
 } net_device_resources_t;
 
-typedef std::tr1::unordered_map<in_addr_t, net_device_resources_t> rx_net_device_map_t;
+typedef std::unordered_map<in_addr_t, net_device_resources_t> rx_net_device_map_t;
 
 /*
  * Sockinfo setsockopt() return values
@@ -125,7 +125,7 @@ typedef std::tr1::unordered_map<in_addr_t, net_device_resources_t> rx_net_device
 #define	SOCKOPT_NO_VMA_SUPPORT       -1    // Socket option was found but not supported, error should be returned to user.
 #define	SOCKOPT_PASS_TO_OS            1	   // Should pass to TCP/UDP level or OS.
 
-namespace std { namespace tr1 {
+namespace std {
 template<>
 class hash<flow_tuple_with_local_if>
 {
@@ -136,15 +136,15 @@ public:
 		return tmp_key->hash();
 	}
 };
-}}
-typedef std::tr1::unordered_map<flow_tuple_with_local_if, ring*> rx_flow_map_t;
+}
+typedef std::unordered_map<flow_tuple_with_local_if, ring*> rx_flow_map_t;
 
 typedef struct {
 	int 			refcnt;
 	buff_info_t 		rx_reuse_info;
 } ring_info_t;
 
-typedef std::tr1::unordered_map<ring*, ring_info_t*> rx_ring_map_t;
+typedef std::unordered_map<ring*, ring_info_t*> rx_ring_map_t;
 
 // see route.c in Linux kernel
 const uint8_t ip_tos2prio[16] = {

@@ -36,7 +36,6 @@
 
 #include <list>
 #include <vector>
-#include <tr1/unordered_map>
 #include <netinet/in.h>
 
 #include "config.h"
@@ -57,7 +56,6 @@
 
 // Send flow dst_entry map
 namespace std {
- namespace tr1 {
   template<>
    class hash<sock_addr>
    {
@@ -68,9 +66,8 @@ namespace std {
 		return tmp_key->hash();
 	}
    };
- }
 }
-typedef std::tr1::unordered_map<sock_addr, dst_entry*> dst_entry_map_t;
+typedef std::unordered_map<sock_addr, dst_entry*> dst_entry_map_t;
 
 
 struct mc_pending_pram
@@ -83,7 +80,7 @@ struct mc_pending_pram
 
 // Multicast pending list
 typedef std::list<struct mc_pending_pram> mc_pram_list_t;
-typedef std::tr1::unordered_map<in_addr_t, std::tr1::unordered_map<in_addr_t, int> > mc_memberships_map_t;
+typedef std::unordered_map<in_addr_t, std::unordered_map<in_addr_t, int> > mc_memberships_map_t;
 
 /**
  * @class udp sockinfo

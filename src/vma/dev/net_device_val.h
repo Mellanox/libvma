@@ -37,7 +37,7 @@
 
 #include <string>
 #include <vector>
-#include <tr1/unordered_map>
+#include <unordered_map>
 #include <sstream>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -126,9 +126,9 @@ private:
 
 typedef ring_alloc_logic_attr resource_allocation_key;
 // each ring has a ref count
-typedef std::tr1::unordered_map<resource_allocation_key *, std::pair<ring*, int>, ring_alloc_logic_attr, ring_alloc_logic_attr> rings_hash_map_t;
-typedef std::tr1::unordered_map<uint64_t, std::vector<std::string> > sys_image_guid_map_t;
-typedef std::tr1::unordered_map<resource_allocation_key *, std::pair<resource_allocation_key *, int> ,ring_alloc_logic_attr, ring_alloc_logic_attr> rings_key_redirection_hash_map_t;
+typedef std::unordered_map<resource_allocation_key *, std::pair<ring*, int>, ring_alloc_logic_attr, ring_alloc_logic_attr> rings_hash_map_t;
+typedef std::unordered_map<uint64_t, std::vector<std::string> > sys_image_guid_map_t;
+typedef std::unordered_map<resource_allocation_key *, std::pair<resource_allocation_key *, int> ,ring_alloc_logic_attr, ring_alloc_logic_attr> rings_key_redirection_hash_map_t;
 
 #define THE_RING                        ring_iter->second.first
 #define GET_THE_RING(key)               m_h_ring_map[key].first
@@ -175,7 +175,7 @@ typedef struct ip_data {
 typedef std::vector<ip_data_t*> ip_data_vector_t;
 
 #define VMA_DEFAULT_ENGRESS_MAP_PRIO	(0)
-typedef std::tr1::unordered_map<uint32_t, uint32_t> tc_class_priority_map;
+typedef std::unordered_map<uint32_t, uint32_t> tc_class_priority_map;
 /*
  * Represents Offloading capable device such as eth4, ib1, eth3.5, eth5:6
  */

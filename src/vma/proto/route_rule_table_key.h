@@ -40,7 +40,7 @@
 
 #include "vma/util/to_str.h"
 #include "vma/util/vtypes.h"
-#include <tr1/unordered_map>
+#include <unordered_map>
 
 /*
 * This class is used as key for route and rule table cashed history
@@ -86,7 +86,7 @@ private:
 	uint8_t		m_tos;
 };
 
-namespace std { namespace tr1 {
+namespace std {
 template<>
 class hash<route_rule_table_key>
 {
@@ -102,7 +102,7 @@ public:
 		return _hash(val);
 	}
 };
-}}
+}
 
 
 #endif /* ROUTE_RULE_TABLE_KEY_H */

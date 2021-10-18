@@ -35,7 +35,7 @@
 #define CACHE_SUBJECT_OBSERVER_H
 
 #include <stdio.h>
-#include <tr1/unordered_map>
+#include <unordered_map>
 #include "vlogger/vlogger.h"
 #include "utils/lock_wrapper.h"
 #include "vma/util/vtypes.h"
@@ -124,7 +124,7 @@ public:
 protected:
 	// stats - Need to define structure for statistics
 
-	std::tr1::unordered_map<Key, cache_entry_subject<Key, Val> *> m_cache_tbl;
+	std::unordered_map<Key, cache_entry_subject<Key, Val> *> m_cache_tbl;
 
 	lock_mutex_recursive		m_lock;
 
@@ -139,7 +139,7 @@ protected:
 private:
 	cache_table_mgr(const cache_table_mgr<Key, Val> & ); // block copy constructor
 
-	void 				try_to_remove_cache_entry(IN typename std::tr1::unordered_map<Key, cache_entry_subject<Key, Val> *>::iterator &);
+	void 				try_to_remove_cache_entry(IN typename std::unordered_map<Key, cache_entry_subject<Key, Val> *>::iterator &);
 	void *				m_timer_handle;
 };
 
@@ -178,7 +178,7 @@ cache_table_mgr <Key, Val>::~cache_table_mgr()
 
 //This function should be called under lock
 template <typename Key, typename Val>
-void cache_table_mgr <Key, Val>::try_to_remove_cache_entry(IN typename std::tr1::unordered_map<Key, cache_entry_subject<Key, Val> *>::iterator & itr)
+void cache_table_mgr <Key, Val>::try_to_remove_cache_entry(IN typename std::unordered_map<Key, cache_entry_subject<Key, Val> *>::iterator & itr)
 {
 	cache_entry_subject<Key, Val> * cache_entry = itr->second;
 	Key key = itr->first;
@@ -196,7 +196,7 @@ template <typename Key, typename Val>
 void cache_table_mgr<Key, Val>::run_garbage_collector()
 {
 	__log_dbg("");
-	typename std::tr1::unordered_map<Key, cache_entry_subject<Key, Val> *>::iterator cache_itr, cache_itr_tmp;
+	typename std::unordered_map<Key, cache_entry_subject<Key, Val> *>::iterator cache_itr, cache_itr_tmp;
 	auto_unlocker lock(m_lock);
 	for (cache_itr = m_cache_tbl.begin(); cache_itr != m_cache_tbl.end(); ) {
 		cache_itr_tmp = cache_itr;
@@ -275,7 +275,7 @@ bool cache_table_mgr <Key, Val>::unregister_observer(IN Key key, IN const cache_
 
 	auto_unlocker lock(m_lock);
 
-	typename std::tr1::unordered_map<Key, cache_entry_subject<Key, Val> *>::iterator cache_itr = m_cache_tbl.find(key);
+	typename std::unordered_map<Key, cache_entry_subject<Key, Val> *>::iterator cache_itr = m_cache_tbl.find(key);
 	if (cache_itr == m_cache_tbl.end()) {
 		__log_dbg("Couldn't unregister observer, the cache_entry (Key = %s) doesn't exist", key.to_str().c_str());
 		return false;
@@ -302,7 +302,7 @@ template <typename Key, typename Val>
 void cache_table_mgr <Key, Val>::print_tbl()
 {
 	auto_unlocker lock(m_lock);
-	typename std::tr1::unordered_map<Key, cache_entry_subject<Key, Val> *>::iterator cache_itr = m_cache_tbl.begin();
+	typename std::unordered_map<Key, cache_entry_subject<Key, Val> *>::iterator cache_itr = m_cache_tbl.begin();
 	if (cache_itr != m_cache_tbl.end()) {
 		__log_dbg("%s contains:", to_str().c_str());
 		for (; cache_itr != m_cache_tbl.end(); cache_itr++)

@@ -33,7 +33,7 @@
 #ifndef SRC_VMA_DEV_RING_PROFILE_H_
 #define SRC_VMA_DEV_RING_PROFILE_H_
 
-#include <tr1/unordered_map>
+#include <unordered_map>
 #include "net_device_val.h"
 #include "vma_extra.h"
 
@@ -43,7 +43,7 @@ class ring_profile;
 class ring_profiles_collection;
 
 
-typedef std::tr1::unordered_map<vma_ring_profile_key, ring_profile *> ring_profile_map_t;
+typedef std::unordered_map<vma_ring_profile_key, ring_profile *> ring_profile_map_t;
 
 extern ring_profiles_collection *g_p_ring_profile;
 

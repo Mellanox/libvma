@@ -35,7 +35,7 @@
 #include "flow_tuple.h"
 #include <vma/util/vtypes.h>
 #include <vlogger/vlogger.h>
-#include <tr1/unordered_map> /* hash */
+#include <unordered_map> /* hash */
 
 
 #define MODULE_NAME "flow_tuple"
@@ -121,7 +121,7 @@ bool flow_tuple::is_3_tuple()
 
 size_t flow_tuple::hash(void)
 {
-	std::tr1::hash<uint64_t> _hash;
+	std::hash<uint64_t> _hash;
 	uint64_t val;
 
 	val = ((((uint64_t)m_dst_ip ^ ((uint64_t)m_dst_port << 16ULL)) << 32ULL) |

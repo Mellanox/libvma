@@ -36,7 +36,7 @@
 #ifndef SUBJECT_OBSERVER_H
 #define SUBJECT_OBSERVER_H
 
-#include <tr1/unordered_set>
+#include <unordered_set>
 #include "utils/lock_wrapper.h"
 #include "vma/util/vtypes.h"
 #include "vma/util/to_str.h"
@@ -50,7 +50,7 @@ public:
 	virtual void 		notify_cb(event * ev) { NOT_IN_USE(ev); notify_cb(); };
 };
 
-typedef std::tr1::unordered_set<observer *> observers_t;
+typedef std::unordered_set<observer *> observers_t;
 
 class subject
 {
