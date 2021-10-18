@@ -175,7 +175,7 @@ steps:
   - name: Compiler
     enable: ${do_compiler}
     agentSelector:
-      - "{nodeLabel: 'r-aa-fatty09'}"
+      - "{name: 'compiler', category: 'tool'}"
     run: |
       [ "x${do_compiler}" == "xtrue" ] && action=yes || action=no
       env WORKSPACE=$PWD TARGET=${flags} jenkins_test_compiler=${action} ./contrib/test_jenkins.sh
