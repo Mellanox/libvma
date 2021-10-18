@@ -35,7 +35,7 @@
 #define NEIGHBOUR_H
 
 #include <rdma/rdma_cma.h>
-#include <tr1/unordered_map>
+#include <unordered_map>
 
 #include "state_machine/sm.h"
 #include "vma/util/sys_vars.h"
@@ -87,7 +87,7 @@ private:
 	net_device_val* m_p_net_dev_val;
 };
 
-namespace std { namespace tr1 {
+namespace std {
 template<>
 class hash<neigh_key>
 {
@@ -98,7 +98,7 @@ public:
 		return tmp_key->hash();
 	}
 };
-}}
+}
 
 class neigh_val : public tostr
 {

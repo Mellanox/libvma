@@ -33,13 +33,13 @@
 #ifndef SRC_VMA_DEV_RING_ETH_DIRECT_H_
 #define SRC_VMA_DEV_RING_ETH_DIRECT_H_
 
-#include <tr1/unordered_map>
+#include <unordered_map>
 #include "dev/ring_simple.h"
 
 
 typedef std::pair<void*, size_t> pair_void_size_t;
 typedef std::pair<uint32_t, int> pair_mr_ref_t;
-namespace std { namespace tr1 {
+namespace std {
 template<>
 class hash<pair_void_size_t>
 {
@@ -50,9 +50,9 @@ public:
 		return _hash((uint64_t)key.first ^ key.second);
 	}
 };
-}}
+}
 
-typedef std::tr1::unordered_map<pair_void_size_t, pair_mr_ref_t> addr_len_mr_map_t;
+typedef std::unordered_map<pair_void_size_t, pair_mr_ref_t> addr_len_mr_map_t;
 
 class ring_eth_direct : public ring_eth
 {

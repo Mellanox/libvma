@@ -115,7 +115,7 @@ struct rule_key_t {
 	}
 };
 
-typedef std::tr1::unordered_map<uint64_t, struct counter_and_ibv_flows> rule_filter_map_t;
+typedef std::unordered_map<uint64_t, struct counter_and_ibv_flows> rule_filter_map_t;
 
 
 class ring_slave : public ring

@@ -38,7 +38,7 @@
 
 
 class ib_ctx_handler;
-typedef std::tr1::unordered_map<ib_ctx_handler*, uint32_t> lkey_map_ib_ctx_map_t;
+typedef std::unordered_map<ib_ctx_handler*, uint32_t> lkey_map_ib_ctx_map_t;
 
 class vma_allocator {
 public:

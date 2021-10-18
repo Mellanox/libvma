@@ -36,7 +36,7 @@
 
 #include <list>
 #include <string>
-#include <tr1/unordered_map>
+#include <unordered_map>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
@@ -47,8 +47,8 @@
 #include "net_device_val.h"
 #include "net_device_entry.h"
 
-typedef std::tr1::unordered_map<in_addr_t, net_device_val*> net_device_map_addr_t;
-typedef std::tr1::unordered_map<int, net_device_val*> net_device_map_index_t;
+typedef std::unordered_map<in_addr_t, net_device_val*> net_device_map_addr_t;
+typedef std::unordered_map<int, net_device_val*> net_device_map_index_t;
 typedef std::list<ip_data_t> local_ip_list_t;
 
 class net_device_table_mgr : public cache_table_mgr<ip_address, net_device_val*>, public observer

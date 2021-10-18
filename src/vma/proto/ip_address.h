@@ -37,7 +37,7 @@
 #include <stdio.h>
 #include "vma/util/to_str.h"
 #include "vma/util/vtypes.h"
-#include <tr1/unordered_map>
+#include <unordered_map>
 
 /* coverity[missing_move_assignment] */
 class ip_address : public tostr
@@ -63,7 +63,7 @@ private:
 	in_addr_t m_ip;
 };
 
-namespace std { namespace tr1 {
+namespace std {
 template<>
 class hash<ip_address>
 {
@@ -74,7 +74,7 @@ public:
 		return _hash(key.get_in_addr());
 	}
 };
-}}
+}
 
 
 #endif /* IP_ADDRESS_H */
