@@ -40,7 +40,6 @@
 
 #include "vma/util/to_str.h"
 #include "vma/util/vtypes.h"
-#include <unordered_map>
 
 /*
 * This class is used as key for route and rule table cashed history

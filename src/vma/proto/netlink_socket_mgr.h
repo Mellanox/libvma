@@ -36,7 +36,6 @@
 
 #include <unistd.h>
 #include <bits/sockaddr.h>
-#include <unordered_map>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>

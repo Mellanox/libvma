@@ -140,7 +140,7 @@ igmp_handler* igmp_mgr::get_igmp_handler(const igmp_key &key, uint8_t igmp_code)
 			return p_igmp_hdlr;
 		}
 		BULLSEYE_EXCLUDE_BLOCK_END
-		m_igmp_hash.insert(igmp_hdlr_map_t::value_type(key, p_igmp_hdlr));
+		m_igmp_hash[key] = p_igmp_hdlr;
 		igmp_mgr_logdbg("Created new igmp handler '%s'", p_igmp_hdlr->to_str().c_str());
 	}
 	unlock();
