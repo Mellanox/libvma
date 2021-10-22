@@ -254,7 +254,7 @@ TEST_F(tcp_send_zc, DISABLED_ti_1_send_once) {
 		event.data.fd = m_fd;
 		rc = test_base::event_wait(&event);
 		EXPECT_LT(0, rc);
-		EXPECT_TRUE(EPOLLOUT | event.events);
+		EXPECT_TRUE(EPOLLOUT & event.events);
 
 		rc = do_recv_expected_completion(m_fd, lo, hi, 1);
 		EXPECT_EQ(1, rc);
@@ -374,7 +374,7 @@ TEST_F(tcp_send_zc, DISABLED_ti_2_few_send) {
 		event.data.fd = m_fd;
 		rc = test_base::event_wait(&event);
 		EXPECT_LT(0, rc);
-		EXPECT_TRUE(EPOLLOUT | event.events);
+		EXPECT_TRUE(EPOLLOUT & event.events);
 
 		rc = do_recv_expected_completion(m_fd, lo, hi, test_iter);
 		EXPECT_EQ(test_iter, rc);
@@ -499,7 +499,7 @@ TEST_F(tcp_send_zc, DISABLED_ti_3_large_send) {
 		event.data.fd = m_fd;
 		rc = test_base::event_wait(&event);
 		EXPECT_LT(0, rc);
-		EXPECT_TRUE(EPOLLOUT | event.events);
+		EXPECT_TRUE(EPOLLOUT & event.events);
 
 		rc = do_recv_expected_completion(m_fd, lo, hi, 1);
 		EXPECT_EQ(1, rc);
@@ -639,7 +639,7 @@ TEST_F(tcp_send_zc, DISABLED_ti_4_mass_send_check_every_call) {
 				event.data.fd = m_fd;
 				rc = test_base::event_wait(&event);
 				EXPECT_LT(0, rc);
-				EXPECT_TRUE(EPOLLOUT | event.events);
+				EXPECT_TRUE(EPOLLOUT & event.events);
 
 				rc = do_recv_expected_completion(m_fd, lo, hi, 1);
 				EXPECT_EQ(1, rc);
@@ -781,7 +781,7 @@ TEST_F(tcp_send_zc, DISABLED_ti_5_mass_send_check_last_call) {
 			event.data.fd = m_fd;
 			rc = test_base::event_wait(&event);
 			EXPECT_LT(0, rc);
-			EXPECT_TRUE(EPOLLOUT | event.events);
+			EXPECT_TRUE(EPOLLOUT & event.events);
 
 			rc = do_recv_expected_completion(m_fd, lo, hi, test_call);
 			EXPECT_EQ(test_call, rc);
@@ -840,6 +840,115 @@ TEST_F(tcp_send_zc, DISABLED_ti_5_mass_send_check_last_call) {
 
 			ASSERT_EQ(0, wait_fork(pid));
 		}
+	}
+}
+
+/**
+ * @test tcp_send_zc.ti_6
+ * @brief
+ *    Verify epoll notification
+ * @details
+ */
+TEST_F(tcp_send_zc, DISABLED_ti_6_epoll_notification) {
+	int rc = EOK;
+	char test_msg[] = "Hello test";
+
+	m_test_buf = (char *)create_tmp_buffer(sizeof(test_msg), &m_test_buf_size);
+	ASSERT_TRUE(m_test_buf);
+
+	memcpy(m_test_buf, test_msg, sizeof(test_msg));
+
+	int pid = fork();
+
+	if (0 == pid) {  /* I am the child */
+		int opt_val = 1;
+		uint32_t lo, hi;
+		struct epoll_event event;
+
+		barrier_fork(pid);
+
+		m_fd = tcp_base::sock_create();
+		ASSERT_LE(0, m_fd);
+
+		rc = bind(m_fd, (struct sockaddr *)&client_addr, sizeof(client_addr));
+		ASSERT_EQ(0, rc);
+
+		rc = connect(m_fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+		ASSERT_EQ(0, rc);
+
+		log_trace("Established connection: fd=%d to %s\n",
+				m_fd, sys_addr2str((struct sockaddr_in *)&server_addr));
+
+		rc = setsockopt(m_fd, SOL_SOCKET, SO_ZEROCOPY, &opt_val, sizeof(opt_val));
+		ASSERT_EQ(0, rc);
+
+		rc = send(m_fd, (void *)m_test_buf, sizeof(test_msg), MSG_DONTWAIT | MSG_ZEROCOPY);
+		EXPECT_EQ(sizeof(test_msg), rc);
+
+		/* Let TCP/IP stack receive ACK to the segment and insert
+		 * message into error queue.
+		 */
+		usleep(1000);
+
+		/* Verify that we receive EPOLLERR event if we add socket to the
+		 * waiters list after the notification is inserted into the
+		 * error queue
+		 */
+		event.events = EPOLLERR;
+		event.data.fd = m_fd;
+		rc = test_base::event_wait(&event);
+		EXPECT_LT(0, rc);
+		EXPECT_TRUE(EPOLLERR & event.events);
+
+		rc = do_recv_expected_completion(m_fd, lo, hi, 1);
+		EXPECT_EQ(1, rc);
+		EXPECT_EQ(0, lo);
+		EXPECT_EQ(0, hi);
+
+		peer_wait(m_fd);
+
+		close(m_fd);
+
+		/* This exit is very important, otherwise the fork
+		 * keeps running and may duplicate other tests.
+		 */
+		exit(testing::Test::HasFailure());
+	} else {  /* I am the parent */
+		int l_fd;
+		struct sockaddr peer_addr;
+		socklen_t socklen;
+		char buf[sizeof(test_msg)];
+
+		l_fd = tcp_base::sock_create();
+		ASSERT_LE(0, l_fd);
+
+		rc = bind(l_fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+		ASSERT_EQ(0, rc);
+
+		rc = listen(l_fd, 5);
+		ASSERT_EQ(0, rc);
+
+		barrier_fork(pid);
+
+		socklen = sizeof(peer_addr);
+		m_fd = accept(l_fd, &peer_addr, &socklen);
+		ASSERT_LE(0, m_fd);
+		close(l_fd);
+
+		log_trace("Accepted connection: fd=%d from %s\n",
+				m_fd, sys_addr2str((struct sockaddr_in *)&peer_addr));
+
+		rc = recv(m_fd, (void *)buf, sizeof(buf), 0);
+		EXPECT_EQ(sizeof(test_msg), rc);
+
+		log_trace("Test check: expected: '%s' actual: '%s'\n",
+				test_msg, buf);
+
+		EXPECT_EQ(memcmp(buf, m_test_buf, rc), 0);
+
+		close(m_fd);
+
+		ASSERT_EQ(0, wait_fork(pid));
 	}
 }
 

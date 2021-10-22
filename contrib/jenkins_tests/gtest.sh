@@ -50,7 +50,7 @@ eval "${sudo_cmd} $timeout_exe env GTEST_TAP=2 LD_PRELOAD=$gtest_lib $gtest_app 
 rc=$(($rc+$?))
 
 make -C tests/gtest clean
-make -C tests/gtest CPPFLAGS="-DVMA_EXTRA_API_ENABLED=1"
+make -C tests/gtest CPPFLAGS="-DEXTRA_API_ENABLED=1"
 rc=$(($rc+$?))
 
 # Verify VMA EXTRA API tests

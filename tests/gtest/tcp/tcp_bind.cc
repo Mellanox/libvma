@@ -130,7 +130,7 @@ TEST_F(tcp_bind, ti_4) {
 	ASSERT_LE(0, fd);
 
 	memcpy(&addr, &client_addr, sizeof(addr));
-	addr.sin_port = htons(17001);
+	addr.sin_port = htons(17003);
 
 	errno = EOK;
 	rc = bind(fd, (struct sockaddr *)&addr, sizeof(addr));

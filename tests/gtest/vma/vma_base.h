@@ -36,25 +36,25 @@
 #include <vma_extra.h>
 
 /**
- * To enable vma tests you need to set below VMA_EXTRA_API_ENABLED to 1
- * or you can add the following CPPFLAG during compilation 'make CPPFLAGS="-DVMA_EXTRA_API_ENABLED=1"'
+ * To enable vma tests you need to set below EXTRA_API_ENABLED to 1
+ * or you can add the following CPPFLAG during compilation 'make CPPFLAGS="-DEXTRA_API_ENABLED=1"'
  */
-#ifndef VMA_EXTRA_API_ENABLED
-#define VMA_EXTRA_API_ENABLED 0
+#ifndef EXTRA_API_ENABLED
+#define EXTRA_API_ENABLED 0
 #endif
 
 /**
  * VMA Base class for tests
  */
-class vma_base : public testing::Test, public test_base {
+class vma_base : virtual public testing::Test, virtual public test_base {
 protected:
 	virtual void SetUp();
 	virtual void TearDown();
 
 protected:
-#if defined(VMA_EXTRA_API_ENABLED) && (VMA_EXTRA_API_ENABLED == 1)
+#if defined(EXTRA_API_ENABLED) && (EXTRA_API_ENABLED == 1)
 	struct vma_api_t *vma_api;
-#endif /* VMA_EXTRA_API_ENABLED */
+#endif /* EXTRA_API_ENABLED */
 };
 
 #endif /* TESTS_GTEST_VMA_BASE_H_ */
