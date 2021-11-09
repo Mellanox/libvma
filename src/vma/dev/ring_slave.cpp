@@ -207,9 +207,9 @@ bool ring_slave::attach_flow(flow_tuple& flow_spec_5t, pkt_rcvr_sink *sink)
 		p_rfs = m_flow_udp_uc_map.get(rfs_key, NULL);
 		if (p_rfs == NULL) {
 			// No rfs object exists so a new one must be created and inserted in the flow map
-			if (safe_mce_sys().tcp_3t_rules) {
-				flow_tuple tcp_3t_only(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port(), 0, 0, flow_spec_5t.get_protocol());
-				dst_port_filter = new rfs_rule_filter(m_udp_uc_dst_port_attach_map, rule_key.key, tcp_3t_only);
+			if (safe_mce_sys().udp_3t_rules) {
+				flow_tuple udp_3t_only(flow_spec_5t.get_dst_ip(), flow_spec_5t.get_dst_port(), 0, 0, flow_spec_5t.get_protocol());
+				dst_port_filter = new rfs_rule_filter(m_udp_uc_dst_port_attach_map, rule_key.key, udp_3t_only);
 			}
 			try {
 				p_tmp_rfs = new (std::nothrow)rfs_uc(&flow_spec_5t, this, dst_port_filter, flow_tag_id);
