@@ -54,10 +54,10 @@ protected:
 		m_data.hdr.ver = VMA_AGENT_VER;
 		m_data.hdr.pid = m_pid;
 		version = (uint8_t *)&m_data.ver;
-		version[0] = VMA_LIBRARY_MAJOR;
-		version[1] = VMA_LIBRARY_MINOR;
-		version[2] = VMA_LIBRARY_RELEASE;
-		version[3] = VMA_LIBRARY_REVISION;
+		version[0] = PRJ_LIBRARY_MAJOR;
+		version[1] = PRJ_LIBRARY_MINOR;
+		version[2] = PRJ_LIBRARY_RELEASE;
+		version[3] = PRJ_LIBRARY_REVISION;
 	}
 	void TearDown()
 	{

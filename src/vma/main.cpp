@@ -82,12 +82,12 @@ void check_netperf_flags();
 // Start of vma_version_str - used in "$ strings libvma.so | grep VMA_VERSION"
 #define STR_EXPAND(x) #x
 #define STR(x) STR_EXPAND(x)
-const char *vma_version_str = "VMA_VERSION: " PACKAGE_VERSION "-" STR(VMA_LIBRARY_RELEASE)
+const char *vma_version_str = "VMA_VERSION: " PACKAGE_VERSION "-" STR(PRJ_LIBRARY_RELEASE)
 
 #if _BullseyeCoverage
 			      " Bullseye"
 #endif
-#if defined(VMA_LIBRARY_RELEASE) && (VMA_LIBRARY_RELEASE > 0)
+#if defined(PRJ_LIBRARY_RELEASE) && (PRJ_LIBRARY_RELEASE > 0)
 			      " Release"
 #else
 			      " Development Snapshot"
@@ -346,14 +346,14 @@ void print_vma_global_settings()
 	
 	vlog_printf(VLOG_INFO,"---------------------------------------------------------------------------\n");
 	vlog_printf(VLOG_INFO,"%s\n", vma_version_str);
-	if (VMA_GIT_VERSION[0]) {
-		vlog_printf(VLOG_INFO,"%s\n", "Git: " VMA_GIT_VERSION);
+	if (PRJ_GIT_VERSION[0]) {
+		vlog_printf(VLOG_INFO,"%s\n", "Git: " PRJ_GIT_VERSION);
 	}
 	vlog_printf(VLOG_INFO,"Cmd Line: %s\n", safe_mce_sys().app_name);
 
 	// Use DEBUG level logging with more details in RPM release builds
 	vlog_levels_t log_level = VLOG_DEBUG;
-#if !defined(VMA_LIBRARY_RELEASE) || (VMA_LIBRARY_RELEASE == 0)
+#if !defined(PRJ_LIBRARY_RELEASE) || (PRJ_LIBRARY_RELEASE == 0)
 	// If non RPM (development builds) use more verbosity
 	log_level = VLOG_DEFAULT;
 #endif

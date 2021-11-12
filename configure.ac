@@ -12,40 +12,40 @@ dnl===-----------------------------------------------------------------------===
 
 # Update version number here:
 #
-define([vma_ver_major], 9)
-define([vma_ver_minor], 4)
-define([vma_ver_revision], 0)
-define([vma_ver_release], esyscmd([echo ${VMA_RELEASE:=0}]))
+define([prj_ver_major], 9)
+define([prj_ver_minor], 4)
+define([prj_ver_revision], 0)
+define([prj_ver_release], esyscmd([echo ${PRJ_RELEASE:=0}]))
 
 
 # Initialize autoconf and define the package name, version number and
 # email address for reporting bugs.
 #
-AC_INIT(libvma, [vma_ver_major.vma_ver_minor.vma_ver_revision], support@mellanox.com)
+AC_INIT(libvma, [prj_ver_major.prj_ver_minor.prj_ver_revision], support@mellanox.com)
 
 # Definitions will be placed in this file rather than
 # in the DEFS variable
 #
 AC_CONFIG_HEADER([config.h])
 
-VMA_LIBRARY_MAJOR=vma_ver_major
-VMA_LIBRARY_MINOR=vma_ver_minor
-VMA_LIBRARY_REVISION=vma_ver_revision
-VMA_LIBRARY_RELEASE=vma_ver_release
+PRJ_LIBRARY_MAJOR=prj_ver_major
+PRJ_LIBRARY_MINOR=prj_ver_minor
+PRJ_LIBRARY_REVISION=prj_ver_revision
+PRJ_LIBRARY_RELEASE=prj_ver_release
 
-AC_DEFINE_UNQUOTED(VMA_LIBRARY_MAJOR, ${VMA_LIBRARY_MAJOR}, [VMA Major Version])
-AC_SUBST(VMA_LIBRARY_MAJOR)
-AC_DEFINE_UNQUOTED(VMA_LIBRARY_MINOR, ${VMA_LIBRARY_MINOR}, [VMA Minor Version])
-AC_SUBST(VMA_LIBRARY_MINOR)
-AC_DEFINE_UNQUOTED(VMA_LIBRARY_REVISION, ${VMA_LIBRARY_REVISION}, [VMA Revision])
-AC_SUBST(VMA_LIBRARY_REVISION)
-AC_DEFINE_UNQUOTED(VMA_LIBRARY_RELEASE, ${VMA_LIBRARY_RELEASE}, [VMA Release])
-AC_SUBST(VMA_LIBRARY_RELEASE)
+AC_DEFINE_UNQUOTED(PRJ_LIBRARY_MAJOR, ${PRJ_LIBRARY_MAJOR}, [VMA Major Version])
+AC_SUBST(PRJ_LIBRARY_MAJOR)
+AC_DEFINE_UNQUOTED(PRJ_LIBRARY_MINOR, ${PRJ_LIBRARY_MINOR}, [VMA Minor Version])
+AC_SUBST(PRJ_LIBRARY_MINOR)
+AC_DEFINE_UNQUOTED(PRJ_LIBRARY_REVISION, ${PRJ_LIBRARY_REVISION}, [VMA Revision])
+AC_SUBST(PRJ_LIBRARY_REVISION)
+AC_DEFINE_UNQUOTED(PRJ_LIBRARY_RELEASE, ${PRJ_LIBRARY_RELEASE}, [VMA Release])
+AC_SUBST(PRJ_LIBRARY_RELEASE)
 
 GIT_VER=`git describe --long --abbrev=40 --dirty --tags 2> /dev/null || echo ""`
 if test -n "$GIT_VER"; then GIT_VER=`echo $GIT_VER | sed -e 's/-dirty/+/' | sed s/.*-g//`; else  GIT_VER=""; fi
 
-AC_DEFINE_UNQUOTED(VMA_GIT_VERSION, "${GIT_VER}", [VMA Git Version])
+AC_DEFINE_UNQUOTED(PRJ_GIT_VERSION, "${GIT_VER}", [VMA Git Version])
 
 dateopt=""
     if test -n "$SOURCE_DATE_EPOCH" ; then
@@ -222,14 +222,6 @@ DPCP_CAPABILITY_SETUP()
 # Note: uncomment setup to activate this ability
 #
 #PROF_RDTSC_SETUP()
-
-# VMA SocketXtreme configuration
-#
-AC_ARG_ENABLE([vmapoll],,
-    AC_MSG_ERROR([--enable-vmapoll option is deprecated. Please use VMA_SOCKETXTREME=1 environment variable]))
-
-AC_ARG_ENABLE([socketxtreme],,
-    AC_MSG_ERROR([--enable-socketxtreme option is deprecated. Please use VMA_SOCKETXTREME=1 environment variable]))
 
 # Thread locking control
 #

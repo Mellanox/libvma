@@ -344,8 +344,8 @@ static void usage(const char *argv0)
 
 void print_version()
 {
-#ifdef VMA_LIBRARY_MAJOR
-	log_msg("Linked with VMA version: %d.%d.%d.%d", VMA_LIBRARY_MAJOR, VMA_LIBRARY_MINOR, VMA_LIBRARY_REVISION, VMA_LIBRARY_RELEASE);
+#ifdef PRJ_LIBRARY_MAJOR
+	log_msg("Linked with VMA version: %d.%d.%d.%d", PRJ_LIBRARY_MAJOR, PRJ_LIBRARY_MINOR, PRJ_LIBRARY_REVISION, PRJ_LIBRARY_RELEASE);
 #else 
 	log_msg("No version info");
 #endif

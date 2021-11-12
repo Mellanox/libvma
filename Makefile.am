@@ -9,6 +9,7 @@ noinst_SCRIPTS = \
 EXTRA_DIST = \
 	contrib \
 	debian \
+	LICENSE \
 	CHANGES \
 	README
 
