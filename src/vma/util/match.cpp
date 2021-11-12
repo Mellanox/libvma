@@ -143,9 +143,9 @@ void get_address_port_rule_str(char *addr_buf, char *ports_buf, struct address_p
 
 	if (rule->match_by_port)
 		if (rule->eport > rule->sport)
-			sprintf(ports_buf, "%d-%d", rule->sport, rule->eport);
+			sprintf(ports_buf, "%u-%u", rule->sport, rule->eport);
 		else
-			sprintf(ports_buf, "%d", rule->sport);
+			sprintf(ports_buf, "%u", rule->sport);
 	else
 		sprintf(ports_buf, "*");
 }
@@ -158,9 +158,9 @@ static void get_rule_str(struct use_family_rule *rule, char *buf, size_t len)
 	}
 
 	char addr_buf_first[MAX_ADDR_STR_LEN];
-	char ports_buf_first[16];
+	char ports_buf_first[17];
 	char addr_buf_second[MAX_ADDR_STR_LEN];
-	char ports_buf_second[16];
+	char ports_buf_second[17];
 	const char *target = __vma_get_transport_str(rule->target_transport);
 	const char *protocol = __vma_get_protocol_str(rule->protocol);
 

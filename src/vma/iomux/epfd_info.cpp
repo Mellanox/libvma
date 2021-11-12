@@ -398,8 +398,7 @@ int epfd_info::del_fd(int fd, bool passthrough)
 		return -1;
 	}
 
-	if (fi->offloaded_index > 0) {
-		assert(temp_sock_fd_api);
+	if (temp_sock_fd_api && (fi->offloaded_index > 0)) {
 		assert(temp_sock_fd_api->get_epoll_context_fd() == m_epfd);
 
 		/* Firstly remove epoll context from socket
