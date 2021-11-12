@@ -1057,7 +1057,7 @@ int neigh_entry::priv_enter_addr_resolved()
 
 	m_lock.lock();
 
-	int state;
+	int state = 0;
 
 	if (!priv_get_neigh_state(state) || !priv_is_reachable(state)) {
 		neigh_logdbg("got addr_resolved but state=%d", state);
@@ -1158,7 +1158,7 @@ int neigh_entry::priv_enter_ready()
 	m_state = true;
 	empty_unsent_queue();
 
-	int state;
+	int state = 0;
 	// Need to send ARP in case neigh state is not REACHABLE and this is not MC neigh
 	// This is the case when VMA was started with neigh in STALE state and
 	// rdma_adress_resolve() in this case will not initiate ARP
