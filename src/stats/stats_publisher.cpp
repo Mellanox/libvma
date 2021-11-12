@@ -153,10 +153,10 @@ void* stats_data_reader::pop_data_reader(void* local_addr)
 
 void write_version_details_to_shmem(version_info_t* p_ver_info)
 {	
-	p_ver_info->vma_lib_maj = VMA_LIBRARY_MAJOR;
-	p_ver_info->vma_lib_min = VMA_LIBRARY_MINOR;
-	p_ver_info->vma_lib_rev = VMA_LIBRARY_REVISION;
-	p_ver_info->vma_lib_rel = VMA_LIBRARY_RELEASE;	
+	p_ver_info->vma_lib_maj = PRJ_LIBRARY_MAJOR;
+	p_ver_info->vma_lib_min = PRJ_LIBRARY_MINOR;
+	p_ver_info->vma_lib_rev = PRJ_LIBRARY_REVISION;
+	p_ver_info->vma_lib_rel = PRJ_LIBRARY_RELEASE;	
 }
 
 void vma_shmem_stats_open(vlog_levels_t** p_p_vma_log_level, uint8_t** p_p_vma_log_details)

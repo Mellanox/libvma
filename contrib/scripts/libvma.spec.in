@@ -1,5 +1,5 @@
 %{!?configure_options: %global configure_options %{nil}}
-%{!?use_rel: %global use_rel @VMA_LIBRARY_RELEASE@}
+%{!?use_rel: %global use_rel @PRJ_LIBRARY_RELEASE@}
 
 %{!?make_build: %global make_build %{__make} %{?_smp_mflags} %{?mflags} V=1}
 %{!?run_ldconfig: %global run_ldconfig %{?ldconfig}}
@@ -78,7 +78,7 @@ This package contains the tool for collecting and analyzing libvma statistic.
 
 %build
 if [ ! -e configure ] && [ -e autogen.sh ]; then
-    VMA_RELEASE=%{use_rel} ./autogen.sh
+    PRJ_RELEASE=%{use_rel} ./autogen.sh
 fi
 
 %if %{use_rel} > 0
@@ -189,7 +189,7 @@ fi
 %{_mandir}/man7/vma.*
 %{_mandir}/man8/vmad.*
 %if 0%{?rhel} >= 7 || 0%{?fedora} >= 24 || 0%{?suse_version} >= 1500
-%license COPYING
+%license LICENSE
 %endif
 
 %files devel

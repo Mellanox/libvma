@@ -48,7 +48,7 @@ lib_LTLIBRARIES = libvma.la
 AM_CPPFLAGS := \
 	-I$(top_srcdir)/src ${LIBNL_CFLAGS}
 
-libvma_la_LDFLAGS := -no-undefined -version-number @VMA_LIBRARY_MAJOR@:@VMA_LIBRARY_MINOR@:@VMA_LIBRARY_REVISION@ 
+libvma_la_LDFLAGS := -no-undefined -version-number @PRJ_LIBRARY_MAJOR@:@PRJ_LIBRARY_MINOR@:@PRJ_LIBRARY_REVISION@ 
 
 libvma_la_LIBADD = \
 	-lrt -ldl -lpthread $(LIBNL_LIBS) $(VERBS_LIBS) $(DPCP_LIBS) \

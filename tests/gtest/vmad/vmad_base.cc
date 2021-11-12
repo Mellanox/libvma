@@ -126,10 +126,10 @@ int vmad_base::msg_init(pid_t pid)
 	data.hdr.ver = VMA_AGENT_VER;
 	data.hdr.pid = pid;
 	version = (uint8_t *)&data.ver;
-	version[0] = VMA_LIBRARY_MAJOR;
-	version[1] = VMA_LIBRARY_MINOR;
-	version[2] = VMA_LIBRARY_RELEASE;
-	version[3] = VMA_LIBRARY_REVISION;
+	version[0] = PRJ_LIBRARY_MAJOR;
+	version[1] = PRJ_LIBRARY_MINOR;
+	version[2] = PRJ_LIBRARY_RELEASE;
+	version[3] = PRJ_LIBRARY_REVISION;
 
 	errno = 0;
 	rc = send(m_sock_fd, &data, sizeof(data), 0);

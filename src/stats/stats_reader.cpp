@@ -865,7 +865,7 @@ int print_app_name(int pid)
 void print_version(int pid)
 {
 	if (pid == -1) {
-		log_msg("Linked with VMA version: %d.%d.%d.%d", VMA_LIBRARY_MAJOR, VMA_LIBRARY_MINOR, VMA_LIBRARY_REVISION, VMA_LIBRARY_RELEASE);
+		log_msg("Linked with VMA version: %d.%d.%d.%d", PRJ_LIBRARY_MAJOR, PRJ_LIBRARY_MINOR, PRJ_LIBRARY_REVISION, PRJ_LIBRARY_RELEASE);
 		log_msg("Build Date: %s", __DATE__ " " __TIME__);
 	}
 	else {
@@ -876,12 +876,12 @@ void print_version(int pid)
 	}
 }
 
-int check_vma_ver_compatability(version_info_t* p_stat_ver_info)
+int check_prj_ver_compatability(version_info_t* p_stat_ver_info)
 {
-	return (p_stat_ver_info->vma_lib_maj == VMA_LIBRARY_MAJOR &&
-		p_stat_ver_info->vma_lib_min == VMA_LIBRARY_MINOR &&
-		p_stat_ver_info->vma_lib_rel == VMA_LIBRARY_RELEASE &&
-		p_stat_ver_info->vma_lib_rev == VMA_LIBRARY_REVISION);	
+	return (p_stat_ver_info->vma_lib_maj == PRJ_LIBRARY_MAJOR &&
+		p_stat_ver_info->vma_lib_min == PRJ_LIBRARY_MINOR &&
+		p_stat_ver_info->vma_lib_rel == PRJ_LIBRARY_RELEASE &&
+		p_stat_ver_info->vma_lib_rev == PRJ_LIBRARY_REVISION);	
 }
 
 void cleanup(sh_mem_info* p_sh_mem_info)
@@ -1666,10 +1666,10 @@ int  init_print_process_stats(sh_mem_info_t & sh_mem_info)
 			version_check = 0;
 		}
 	} else {
-		if (!check_vma_ver_compatability(&sh_mem->ver_info)) {
+		if (!check_prj_ver_compatability(&sh_mem->ver_info)) {
 			log_err("Version %d.%d.%d.%d is not compatible with VMA version %d.%d.%d.%d\n",
-					VMA_LIBRARY_MAJOR, VMA_LIBRARY_MINOR,
-					VMA_LIBRARY_REVISION, VMA_LIBRARY_RELEASE,
+					PRJ_LIBRARY_MAJOR, PRJ_LIBRARY_MINOR,
+					PRJ_LIBRARY_REVISION, PRJ_LIBRARY_RELEASE,
 					sh_mem->ver_info.vma_lib_maj, sh_mem->ver_info.vma_lib_min,
 					sh_mem->ver_info.vma_lib_rev, sh_mem->ver_info.vma_lib_rel);
 			version_check = 0;

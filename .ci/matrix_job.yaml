@@ -412,8 +412,8 @@ steps:
     module: ngci
     run: NGCIBlackDuckScan
     args:
-      projectName: "libvma"
-      projectVersion: "0.1.0"
+      projectName: ${jjb_proj}
+      projectVersion: ${ghprbPullId}
       projectSrcPath: "src"
       attachArtifact: true
       reportName: "BlackDuck report"
