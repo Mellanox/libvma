@@ -32,8 +32,8 @@ AC_DEFUN([CHECK_COMPILER_ATTRIBUTE], [
     AC_MSG_RESULT([$vma_cv_attribute_$1])
     AS_IF([test "x$vma_cv_attribute_$1" = "xyes"], [
         AS_IF([test "x$3" = "x"],
-            [AC_DEFINE_UNQUOTED([DEFINED_$1], [1], [Define to 1 if attribute $1 is supported])],
-            [AC_DEFINE_UNQUOTED([DEFINED_$3], [1], [Define to 1 if attribute $1 is supported])]
+            [AC_DEFINE_UNQUOTED([HAVE_$1], [1], [Define to 1 if attribute $1 is supported])],
+            [AC_DEFINE_UNQUOTED([HAVE_$3], [1], [Define to 1 if attribute $1 is supported])]
         )
     ])
 ])
@@ -177,6 +177,33 @@ else
     AC_MSG_RESULT([no])
     CFLAGS="$CFLAGS -g -O3 -DNDEBUG"
     CXXFLAGS="$CXXFLAGS -g -O3 -DNDEBUG"
+fi
+
+# Control symbols visibility
+#
+AC_ARG_ENABLE([symbol_visibility],
+    AC_HELP_STRING([--enable-symbol-visibility],
+        [Enable symbols visibility (default=no)]), [], [enable_symbol_visibility=no])
+if test "x$enable_symbol_visibility" = xno; then
+    CHECK_COMPILER_ATTRIBUTE([visibility],
+        [extern __attribute__((__visibility__("hidden"))) int hiddenvar;
+         extern __attribute__((__visibility__("default"))) int exportedvar;
+         extern __attribute__((__visibility__("hidden"))) int hiddenfunc (void);
+         extern __attribute__((__visibility__("default"))) int exportedfunc (void);
+         void dummyfunc (void) {}],
+        [ATTRIBUTE_VISIBILITY])
+    AC_MSG_CHECKING([for symbols visibility])
+    AS_IF([test "x$vma_cv_attribute_visibility" = "xyes"],
+        [CXXFLAGS="$CXXFLAGS -fvisibility=hidden"
+         CFLAGS="$CFLAGS -fvisibility=hidden"
+         AC_DEFINE_UNQUOTED([DEFINED_EXPORT_SYMBOL], [1], [Define to 1 to hide symbols])
+         AC_MSG_RESULT([no])
+        ],
+        [AC_MSG_ERROR([A compiler with -fvisibility option is required])]
+    )
+else
+    AC_MSG_CHECKING([for symbols visibility])
+    AC_MSG_RESULT([yes])
 fi
 
 CHECK_COMPILER_CXX([11], [std], [])
