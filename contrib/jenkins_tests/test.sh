@@ -122,7 +122,7 @@ for test_link in $test_ip_list; do
 					-e "VMA_TX_BUFS=20000 VMA_RX_BUFS=20000"
 	
 		else
-			$timeout_exe $PWD/tests/verifier/verifier.pl -a ${test_app} -x " --load-vma=$test_lib " \
+			${sudo_cmd} $timeout_exe $PWD/tests/verifier/verifier.pl -a ${test_app} -x " --load-vma=$test_lib " \
 				-t ${test}:tc[1-9]$ -s ${test_ip} -l ${test_dir}/${test_name}.log \
 				-e " VMA_TX_BUFS=20000 VMA_RX_BUFS=20000 " \
 				--progress=0

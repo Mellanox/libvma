@@ -1,6 +1,8 @@
 ---
 job: LIBVMA
 
+step_allow_single_selector: false
+
 registry_host: harbor.mellanox.com
 registry_auth: swx-storage
 
@@ -151,6 +153,8 @@ steps:
 
   - name: Style
     enable: ${do_style}
+    containerSelector:
+      - "{name: 'skip-container'}"
     agentSelector:
       - "{nodeLabel: 'r-aa-fatty09'}"
     run: |
@@ -174,8 +178,10 @@ steps:
 
   - name: Compiler
     enable: ${do_compiler}
-    agentSelector:
+    containerSelector:
       - "{name: 'compiler', category: 'tool'}"
+    agentSelector:
+      - "{nodeLabel: 'skip-agent'}"
     run: |
       [ "x${do_compiler}" == "xtrue" ] && action=yes || action=no
       env WORKSPACE=$PWD TARGET=${flags} jenkins_test_compiler=${action} ./contrib/test_jenkins.sh
@@ -199,6 +205,8 @@ steps:
     enable: ${do_coverity}
     containerSelector:
       - "{name: 'coverity', category: 'tool'}"
+    agentSelector:
+      - "{nodeLabel: 'skip-agent'}"
     run: |
       [ "x${do_coverity}" == "xtrue" ] && action=yes || action=no
       env WORKSPACE=$PWD TARGET=${flags} jenkins_test_cov=${action} ./contrib/test_jenkins.sh
@@ -221,6 +229,8 @@ steps:
 
   - name: Cppcheck
     enable: ${do_cppcheck}
+    containerSelector:
+      - "{name: 'skip-container'}"
     agentSelector:
       - "{nodeLabel: 'r-aa-fatty09', variant:1}"
     run: |
@@ -244,6 +254,8 @@ steps:
 
   - name: Csbuild
     enable: ${do_csbuild}
+    containerSelector:
+      - "{name: 'skip-container'}"
     agentSelector:
       - "{nodeLabel: 'r-aa-fatty09', variant:1}"
     run: |
@@ -267,6 +279,8 @@ steps:
 
   - name: Test
     enable: ${do_test}
+    containerSelector:
+      - "{name: 'skip-container'}"
     agentSelector:
       - "{nodeLabel: 'r-aa-fatty09', variant:1}"
     run: |
@@ -290,6 +304,8 @@ steps:
 
   - name: Gtest
     enable: ${do_gtest}
+    containerSelector:
+      - "{name: 'skip-container'}"
     agentSelector:
       - "{nodeLabel: 'r-aa-fatty09', variant:1}"
     run: |
@@ -316,6 +332,8 @@ steps:
 
   - name: Valgrind
     enable: ${do_valgrind}
+    containerSelector:
+      - "{name: 'skip-container'}"
     agentSelector:
       - "{nodeLabel: 'r-aa-fatty09', variant:1}"
     run: |
@@ -342,6 +360,8 @@ steps:
     enable: ${do_commit}
     containerSelector:
       - "{name: 'coverity', category:'tool', variant:1}"
+    agentSelector:
+      - "{nodeLabel: 'skip-agent'}"
     run: |
       [ "x${do_commit}" == "xtrue" ] && action=yes || action=no
       env WORKSPACE=$PWD TARGET=${flags} jenkins_test_commit=${action} ./contrib/test_jenkins.sh
@@ -384,13 +404,16 @@ steps:
 
   - name: Blackduck
     enable: ${do_blackduck}
-    containerSelector: "{name: 'blackduck', category:'tool', variant:1}"
+    containerSelector:
+      - "{name: 'blackduck', category:'tool', variant:1}"
+    agentSelector:
+      - "{nodeLabel: 'skip-agent'}"
     shell: action
     module: ngci
     run: NGCIBlackDuckScan
     args:
-      projectName: ${jjb_proj}
-      projectVersion: ${ghprbPullId}
+      projectName: "libvma"
+      projectVersion: "0.1.0"
       projectSrcPath: "src"
       attachArtifact: true
       reportName: "BlackDuck report"
