@@ -37,7 +37,7 @@
 /**
  * TCP Base class for tests
  */
-class tcp_base : public testing::Test, public test_base {
+class tcp_base : virtual public testing::Test, virtual public test_base {
 public:
     static int sock_create(void);
     static int sock_create_nb(void);

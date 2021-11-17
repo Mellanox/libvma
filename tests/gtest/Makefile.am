@@ -65,7 +65,7 @@ libgtest_la_SOURCES = \
 	googletest/src/gtest_main.cc
 
 # gtest
-gtest_LDADD = libgtest.la
+gtest_LDADD = libgtest.la  $(VERBS_LIBS)
 
 gtest_CPPFLAGS = \
 	-I$(top_srcdir)/ \

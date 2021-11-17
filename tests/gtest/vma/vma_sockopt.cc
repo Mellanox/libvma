@@ -38,7 +38,7 @@
 
 #include "vma_base.h"
 
-#if defined(VMA_EXTRA_API_ENABLED) && (VMA_EXTRA_API_ENABLED == 1)
+#if defined(EXTRA_API_ENABLED) && (EXTRA_API_ENABLED == 1)
 
 class vma_sockopt : public vma_base {};
 
@@ -114,4 +114,4 @@ TEST_F(vma_sockopt, ti_2) {
 	close(fd);
 }
 
-#endif /* VMA_EXTRA_API_ENABLED */
+#endif /* EXTRA_API_ENABLED */

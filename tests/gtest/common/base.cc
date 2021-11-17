@@ -128,6 +128,7 @@ int test_base::event_wait(struct epoll_event *event)
 		goto err;
 	}
 
+	event->events = 0;
 	rc = epoll_wait(efd, event, 1, timeout);
 	if (rc < 0) {
 		log_error("failed epoll_wait() errno: %s\n", strerror(errno));
@@ -164,18 +165,25 @@ int test_base::wait_fork(int pid)
 
 void test_base::barrier_fork(int pid)
 {
+	ssize_t ret;
+
 	m_break_signal = 0;
 	if (0 == pid) {
 		prctl(PR_SET_PDEATHSIG, SIGTERM);
 		do {
-			read(m_efd, &m_efd_signal, sizeof(m_efd_signal));
+			ret = read(m_efd, &m_efd_signal, sizeof(m_efd_signal));
+			if (ret == -1 && errno == EINTR)
+				continue;
 		} while (0 == m_efd_signal);
 		m_efd_signal = 0;
-		write(m_efd, &m_efd_signal, sizeof(m_efd_signal));
+		ret = write(m_efd, &m_efd_signal, sizeof(m_efd_signal));
 	} else {
 		signal(SIGCHLD, handle_signal);
 		m_efd_signal++;
-		write(m_efd, &m_efd_signal, sizeof(m_efd_signal));
+		ret = write(m_efd, &m_efd_signal, sizeof(m_efd_signal));
+	}
+	if (ret != sizeof(m_efd_signal)) {
+		log_error("write() failed\n");
 	}
 }
 
