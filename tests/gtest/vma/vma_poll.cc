@@ -40,7 +40,7 @@
 #include "udp/udp_base.h"
 #include "vma_base.h"
 
-#if defined(VMA_EXTRA_API_ENABLED) && (VMA_EXTRA_API_ENABLED == 1)
+#if defined(EXTRA_API_ENABLED) && (EXTRA_API_ENABLED == 1)
 
 class vma_poll : public vma_base
 {
@@ -422,4 +422,4 @@ TEST_F(vma_poll, ti_4) {
 	}
 }
 
-#endif /* VMA_EXTRA_API_ENABLED */
+#endif /* EXTRA_API_ENABLED */

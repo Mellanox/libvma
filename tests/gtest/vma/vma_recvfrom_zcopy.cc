@@ -36,7 +36,7 @@
 #include "common/base.h"
 #include "common/cmn.h"
 
-#if defined(VMA_EXTRA_API_ENABLED) && (VMA_EXTRA_API_ENABLED == 1)
+#if defined(EXTRA_API_ENABLED) && (EXTRA_API_ENABLED == 1)
 
 #include "tcp/tcp_base.h"
 #include "vma_base.h"
@@ -441,4 +441,4 @@ TEST_F(vma_tcp_recvfrom_zcopy, ti_3_large_data) {
 	}
 }
 
-#endif /* VMA_EXTRA_API_ENABLED */
+#endif /* EXTRA_API_ENABLED */

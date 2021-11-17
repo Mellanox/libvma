@@ -53,12 +53,14 @@ public:
 	static int create_tmp_file(size_t size) {
 		char filename[] = "/tmp/mytemp.XXXXXX";
 		int fd = mkstemp(filename);
+		ssize_t ret;
 
 		if (fd >= 0) {
 			unlink(filename);
 			while (size--) {
 				char buf = size % 255;
-				write(fd, &buf, sizeof(buf));
+				ret = write(fd, &buf, sizeof(buf));
+				(void)ret;
 			}
 			fsync(fd);
 		}

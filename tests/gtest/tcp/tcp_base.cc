@@ -55,7 +55,7 @@ int tcp_base::sock_create(void)
 	fd = socket(PF_INET, SOCK_STREAM, IPPROTO_IP);
 	if (fd < 0) {
 		log_error("failed socket() %s\n", strerror(errno));
-		goto err;
+		return -1;
 	}
 
 	rc = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt_val, sizeof(opt_val));
