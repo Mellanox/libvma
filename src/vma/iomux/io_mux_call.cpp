@@ -348,6 +348,7 @@ void io_mux_call::polling_loops()
 				break;
 			}
 
+			/* cppcheck-suppress syntaxError */
 			if (finite_polling && (tv_cmp(&poll_duration, &m_elapsed, <=))) {
 				__if_dbg("2nd scenario reached max poll duration (loop %d, elapsed %d)", poll_counter, m_elapsed.tv_usec);
 				__if_dbg("timeout reached max poll duration (loop %d, elapsed %d)", poll_counter, m_elapsed.tv_usec);

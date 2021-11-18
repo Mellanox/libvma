@@ -380,6 +380,7 @@ void agent::progress(void)
 	/* Attempt to establish connection with daemon */
 	if (AGENT_INACTIVE == m_state) {
 		/* Attempt can be done less often than progress in active state */
+		/* cppcheck-suppress syntaxError */
 		if (tv_cmp(&tv_inactive_elapsed, &tv_now, <)) {
 			tv_inactive_elapsed = tv_now;
 			tv_inactive_elapsed.tv_sec += AGENT_DEFAULT_INACTIVE;

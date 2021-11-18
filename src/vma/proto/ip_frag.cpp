@@ -52,7 +52,7 @@
 	vlog_printf(VLOG_ERROR, "%s:%d : " fmt "\n", __FUNCTION__, __LINE__,  ##args)
 
 #define frag_panic(fmt, args...) \
-	{vlog_printf(VLOG_PANIC, "%s:%d : " fmt "\n", __FUNCTION__, __LINE__,  ##args); throw;}
+	do { vlog_printf(VLOG_PANIC, "%s:%d : " fmt "\n", __FUNCTION__, __LINE__,  ##args); throw; } while (0)
 
 
 #ifdef IP_FRAG_DEBUG
