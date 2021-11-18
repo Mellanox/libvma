@@ -18,7 +18,7 @@ opt_binrpm=1
 opt_checkpkg=1
 opt_rpm=0
 
-${WORKSPACE}/configure --prefix=${rpm_dir}/install $jenkins_test_custom_configure > "${rpm_dir}/cov.log" 2>&1
+${WORKSPACE}/configure --prefix=${rpm_dir}/install $jenkins_test_custom_configure > "${rpm_dir}/rpm.log" 2>&1
 
 if [ -x /usr/bin/dpkg-buildpackage ]; then
     echo "Build on debian"

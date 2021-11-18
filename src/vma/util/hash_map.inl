@@ -146,6 +146,7 @@ inline int hash_map<K, V>::calc_hash(const K &key) {
 		++pval;
 	}
 	// to 12 bit
+	/* cppcheck-suppress objectIndex */
 	csum = (csum8[0] ^ csum8[1]) | ((((csum >> 4) ^ (csum >> 8)) & 0xf) << 8);
 	// or modolu prime close to 4096
 	//csum %= 4093;

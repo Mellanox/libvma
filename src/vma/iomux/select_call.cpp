@@ -287,6 +287,7 @@ bool select_call::wait(const timeval &elapsed)
 
 bool select_call::is_timeout(const timeval &elapsed)
 {
+	/* cppcheck-suppress syntaxError */
 	return m_timeout && tv_cmp(m_timeout, &elapsed, <=);
 }
 

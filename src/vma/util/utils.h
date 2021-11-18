@@ -348,7 +348,6 @@ inline void create_multicast_mac_from_ip(unsigned char* mc_mac, in_addr_t ip)
 
 static inline void create_mgid_from_ipv4_mc_ip(uint8_t *mgid, uint16_t pkey, uint32_t ip)
 {
-
 //  +--------+----+----+-----------------+---------+-------------------+
 //  |   8    |  4 |  4 |     16 bits     | 16 bits |      80 bits      |
 //  +--------+----+----+-----------------+---------+-------------------+
@@ -367,6 +366,7 @@ static inline void create_mgid_from_ipv4_mc_ip(uint8_t *mgid, uint16_t pkey, uin
 
 	//P_Key
 	mgid[4] = (((unsigned char *)(&pkey))[0]);
+	/* cppcheck-suppress objectIndex */
 	mgid[5] = (((unsigned char *)(&pkey))[1]);
 
 	//group ID - relevant only for ipv4

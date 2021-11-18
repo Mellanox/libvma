@@ -66,6 +66,7 @@ private:
 
 #else
 
+/* cppcheck-suppress ctuOneDefinitionRuleViolation */
 class dm_mgr {
 public:
 	inline bool   allocate_resources(ib_ctx_handler* ib_ctx, ring_stats_t* ring_stats) { NOT_IN_USE(ib_ctx); NOT_IN_USE(ring_stats); return false; };

@@ -180,7 +180,7 @@ pbuf_header(struct pbuf *p, s16_t header_size_increment)
   if (header_size_increment < 0){
     increment_magnitude = -header_size_increment;
     /* Check that we aren't going to move off the end of the pbuf */
-    LWIP_ERROR("increment_magnitude <= p->len", (increment_magnitude <= p->len), return 1;);
+    LWIP_ERROR("increment_magnitude <= p->len", (increment_magnitude <= p->len), return 1);
   } else {
     increment_magnitude = header_size_increment;
   }
