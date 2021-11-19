@@ -467,7 +467,6 @@ int agent::send_msg_init(void)
 	int rc = 0;
 	struct sockaddr_un server_addr;
 	struct vma_msg_init data;
-	uint8_t *version;
 
 	if (AGENT_ACTIVE == m_state) {
 		return 0;
@@ -495,11 +494,8 @@ int agent::send_msg_init(void)
 	data.hdr.code = VMA_MSG_INIT;
 	data.hdr.ver = VMA_AGENT_VER;
 	data.hdr.pid = getpid();
-	version = (uint8_t *)&data.ver;
-	version[0] = PRJ_LIBRARY_MAJOR;
-	version[1] = PRJ_LIBRARY_MINOR;
-	version[2] = PRJ_LIBRARY_RELEASE;
-	version[3] = PRJ_LIBRARY_REVISION;
+	data.ver = (PRJ_LIBRARY_MAJOR << 12) | (PRJ_LIBRARY_MINOR << 8) |
+		(PRJ_LIBRARY_RELEASE << 4) | PRJ_LIBRARY_REVISION;
 
 	/* send(VMA_MSG_INIT) in blocking manner */
 	sys_call(rc, send, m_sock_fd, &data, sizeof(data), 0);

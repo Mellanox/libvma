@@ -142,6 +142,7 @@ inline int hash_map<K, V>::calc_hash(const K &key) {
 	pval = (uint8_t*)&key;
 	// start toggle from 1, as the keys are usually succeders, and gone through htons 
 	for (i = 0, j = 1; i < sizeof(K); ++i, j ^= 1) {
+		/* cppcheck-suppress objectIndex */
 		csum8[j] ^= *pval;
 		++pval;
 	}

@@ -823,6 +823,7 @@ bool net_device_val::get_up_and_active_slaves(bool* up_and_active_slaves, size_t
 		char slave_state[10] = {0};
 		char if_name[IFNAMSIZ] = {0};
 
+		up_slaves[i] = false;
 		if (!if_indextoname(m_slaves[i]->if_index, if_name)) {
 			nd_logerr("Can not find interface name by index=%d", m_slaves[i]->if_index);
 			continue;
@@ -833,8 +834,6 @@ bool net_device_val::get_up_and_active_slaves(bool* up_and_active_slaves, size_t
 		if (strstr(oper_state, "up")) {
 			num_up++;
 			up_slaves[i] = true;
-		} else {
-			up_slaves[i] = false;
 		}
 
 		active_slaves[i] = true;

@@ -247,6 +247,7 @@ bool select_call::wait(const timeval &elapsed)
 	if (m_readfds)
 		FD_SET(m_cqepfd, m_readfds);
 	if (m_timeout) {
+		timeout.tv_sec = timeout.tv_usec = 0;
 		tv_sub(m_timeout, &elapsed, &timeout);
 		if (timeout.tv_sec < 0 || timeout.tv_usec < 0) {
 			// Already reached timeout
