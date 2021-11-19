@@ -813,7 +813,7 @@ bool check_bond_device_exist(const char* ifname)
 		goto out;
 	}
 	ret = rtnl_link_alloc_cache(nl_socket, AF_UNSPEC, &cache);
-	if (!cache) {
+	if (!cache || (ret < 0)) {
 		goto out;
 	}
 	link = rtnl_link_get_by_name(cache, ifname);

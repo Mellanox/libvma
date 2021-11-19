@@ -76,7 +76,7 @@ for test_link in $test_ip_list; do
 		eval "${sudo_cmd} LD_PRELOAD=$test_lib \
 			${vg_tool} --log-file=${vg_dir}/${test_name}-valgrind-sr.log $vg_args \
 			$test_app_path sr ${test_opt} -i ${test_ip} > /dev/null 2>&1 &"
-		sleep 20
+		sleep 30
 		eval "${sudo_cmd} LD_PRELOAD=$test_lib \
 			${vg_tool} --log-file=${vg_dir}/${test_name}-valgrind-cl.log $vg_args \
 			$test_app_path pp ${test_opt} -i ${test_ip} -t 10"
@@ -97,6 +97,7 @@ for test_link in $test_ip_list; do
 			fi
 		fi
 
+		sleep 10
 		ret=$(cat ${vg_dir}/${test_name}-valgrind*.log | awk '/ERROR SUMMARY: [0-9]+ errors?/ { sum += $4 } END { print sum }')
 
 		do_archive "${vg_dir}/${test_name}-valgrind*.log"

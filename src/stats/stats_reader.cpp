@@ -551,24 +551,27 @@ int show_socket_stats(socket_instance_block_t* p_instance, socket_instance_block
 	for (uint32_t i=0; i < num_of_obj; i++) {
 		size_t fd = (size_t)p_instance[i].skt_stats.fd;
 		if (p_instance[i].b_enabled && g_fd_mask[fd]) {
-			num_act_inst++;			
-			switch (user_params.view_mode) {
-				case e_basic: 
-					show_basic_stats(&p_instance[i], &p_prev_instance_block[i]);
-					*p_printed_lines_num += BASIC_STATS_LINES_NUM;
-					break;
-				case e_medium:
-					print_medium_stats(&p_instance[i], &p_prev_instance_block[i]);
-					*p_printed_lines_num += MEDIUM_STATS_LINES_NUM;
-					break;
-				case e_full:
-					show_full_stats(&p_instance[i], &p_prev_instance_block[i], p_mc_grp_info);	
-					break;
-				case e_netstat_like:
-					print_netstat_like(&p_instance[i].skt_stats, p_mc_grp_info, g_stats_file, pid);
-					break;
-				default:
-					break;
+			socket_instance_block_t* p_prev_instance = &p_prev_instance_block[i];
+			if (p_prev_instance) {
+				num_act_inst++;
+				switch (user_params.view_mode) {
+					case e_basic: 
+						show_basic_stats(&p_instance[i], p_prev_instance);
+						*p_printed_lines_num += BASIC_STATS_LINES_NUM;
+						break;
+					case e_medium:
+						print_medium_stats(&p_instance[i], p_prev_instance);
+						*p_printed_lines_num += MEDIUM_STATS_LINES_NUM;
+						break;
+					case e_full:
+						show_full_stats(&p_instance[i], p_prev_instance, p_mc_grp_info);
+						break;
+					case e_netstat_like:
+						print_netstat_like(&p_instance[i].skt_stats, p_mc_grp_info, g_stats_file, pid);
+						break;
+					default:
+						break;
+				}
 			}			
 		}		
 	}

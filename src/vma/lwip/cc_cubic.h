@@ -164,7 +164,7 @@ cubic_k(unsigned long wmax_pkts)
 	    (((s * s * 120) >> CUBIC_SHIFT) >> CUBIC_SHIFT);
 
 	/* Multiply by 2^p to undo the rebasing of s from above. */
-	return (K <<= p);
+	return (K << p);
 }
 
 /*

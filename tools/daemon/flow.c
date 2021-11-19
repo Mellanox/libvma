@@ -202,7 +202,10 @@ int add_flow(struct store_pid *pid_value, struct store_flow *value)
 		INIT_LIST_HEAD(&(cur_element->ctx->pending_list));
 		list_add_tail(&cur_element->item, cur_head);
 	}
-	assert(cur_element);
+	if (NULL == cur_element) {
+		rc = -EFAULT;
+		goto err;
+	}
 	cur_element->ref++;
 	ctx = cur_element->ctx;
 
@@ -508,9 +511,9 @@ int del_flow(struct store_pid *pid_value, struct store_flow *value)
 				rc = -EFAULT;
 			}
 
-			bitmap_destroy(cur_element->ctx->ht);
 			assert(ctx == cur_element->ctx);
 			free_pending_list(pid, cur_element->ctx, value->if_id);
+			bitmap_destroy(cur_element->ctx->ht);
 			free(cur_element->ctx);
 			ctx = NULL;
 			list_del_init(cur_entry);

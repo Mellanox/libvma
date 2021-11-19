@@ -34,11 +34,10 @@ eval "csgrep --quiet --event 'error|warning' \
 	--path '^${WORKSPACE}' --strip-path-prefix '${WORKSPACE}' \
 	--remove-duplicates '${csbuild_dir}/csbuild.log' | \
 	csgrep --invert-match --path '^ksh-.*[0-9]+\.c$' | \
-	csgrep --invert-match --checker CLANG_WARNING --event error | \
 	csgrep --invert-match --checker CLANG_WARNING --msg \"internal warning\" | \
-	csgrep --invert-match --checker COMPILER_WARNING --msg \"-Woverloaded-virtual\" | \
-	csgrep --invert-match --checker COMPILER_WARNING --msg \"-Wformat-nonliteral\" | \
-	csgrep --invert-match --checker CPPCHECK_WARNING --event 'preprocessorErrorDirective|syntaxError' | \
+	csgrep --invert-match --checker CLANG_WARNING --event \"warning\[deadcode.DeadStores\]\" | \
+	csgrep --invert-match --checker COMPILER_WARNING --event \"warning\[-Woverloaded-virtual\]\" | \
+	csgrep --invert-match --checker COMPILER_WARNING --event \"warning\[-Wformat-nonliteral\]\" | \
 	csgrep --mode=grep --invert-match --event 'internal warning' --prune-events=1 | \
 	cssort --key=path > ${csbuild_dir}/csbuild.err 2>&1 \
 	"

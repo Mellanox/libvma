@@ -231,16 +231,16 @@ tcp_create_segment(struct tcp_pcb *pcb, struct pbuf *p, u8_t flags, u32_t seqno,
     LWIP_ASSERT("invalid optflags passed: TF_SEG_DATA_CHECKSUMMED",
               (optflags & TF_SEG_DATA_CHECKSUMMED) == 0);
 #endif /* TCP_CHECKSUM_ON_COPY */
-
-    if (p == NULL) {
-      // Request a new segment in order to update seg_alloc for the next packet.
-      seg->p = NULL;
-      return seg;
-    }
   } else {
     // seg_alloc is valid, we dont need to allocate a new segment element.
     seg = pcb->seg_alloc;
     pcb->seg_alloc = NULL;
+  }
+
+  if (p == NULL) {
+    // Request a new segment in order to update seg_alloc for the next packet.
+    seg->p = NULL;
+    return seg;
   }
 
   seg->flags = optflags;

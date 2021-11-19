@@ -1928,7 +1928,9 @@ static void libvma_yy_load_buffer_state  (void)
 
 {
 	int oerrno = errno;
-    
+
+	if (!b) return;
+
 	libvma_yy_flush_buffer(b );
 
 	b->yy_input_file = file;

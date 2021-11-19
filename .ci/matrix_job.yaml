@@ -40,8 +40,7 @@ runs_on_dockers:
   - {name: 'rhel7.6-mofed-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel7.6/builder:mofed-5.1-0.6.6.0', category: 'base', arch: 'x86_64'}
   - {name: 'rhel7.6-inbox-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel7.6/builder:inbox', category: 'base', arch: 'x86_64'}
 # tool
-  - {name: 'coverity', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:inbox', category: 'tool', arch: 'x86_64'}
-  - {name: 'compiler', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:inbox', category: 'tool', arch: 'x86_64'}
+  - {name: 'toolbox', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:inbox', category: 'tool', arch: 'x86_64'}
   - {name: 'blackduck', url: 'harbor.mellanox.com/toolbox/ngci-centos:7.9.2009.2', category: 'tool', arch: 'x86_64'}
 
 runs_on_agents:
@@ -179,7 +178,7 @@ steps:
   - name: Compiler
     enable: ${do_compiler}
     containerSelector:
-      - "{name: 'compiler', category: 'tool'}"
+      - "{name: 'toolbox', category: 'tool'}"
     agentSelector:
       - "{nodeLabel: 'skip-agent'}"
     run: |
@@ -204,7 +203,7 @@ steps:
   - name: Coverity
     enable: ${do_coverity}
     containerSelector:
-      - "{name: 'coverity', category: 'tool'}"
+      - "{name: 'toolbox', category: 'tool'}"
     agentSelector:
       - "{nodeLabel: 'skip-agent'}"
     run: |
@@ -260,7 +259,7 @@ steps:
       - "{nodeLabel: 'r-aa-fatty09', variant:1}"
     run: |
       [ "x${do_csbuild}" == "xtrue" ] && action=yes || action=no
-      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_cppcheck=${action} ./contrib/test_jenkins.sh
+      env WORKSPACE=$PWD TARGET=${flags} jenkins_test_csbuild=${action} ./contrib/test_jenkins.sh
     parallel: false
     onfail: |
       if [ -d jenkins ]; then
