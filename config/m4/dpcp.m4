@@ -43,7 +43,7 @@ AS_IF([test "x$with_dpcp" == xno],
         vma_cv_dpcp_LDFLAGS="-L$with_dpcp/lib64 -Wl,--rpath,$with_dpcp/lib64"
     fi
 
-    CPPFLAGS="$vma_cv_dpcp_CPPFLAGS $CPPFLAGS"
+    CPPFLAGS="-std=c++11 $vma_cv_dpcp_CPPFLAGS $CPPFLAGS"
     CXXFLAGS="-std=c++11 $CXXFLAGS"
     LDFLAGS="$vma_cv_dpcp_LDFLAGS $LDFLAGS"
     LIBS="$vma_cv_dpcp_LIBS $LIBS"
