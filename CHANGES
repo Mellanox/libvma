@@ -1,3 +1,13 @@
+Version 9.5.0-1:
+Date + Time 2022-02-14
+=============================================================
+Added:
+        - RM #2436876 Add C++11 Support requirement to a compiler
+        - RM #928148 Export symbols from socket api only
+
+Fixed:
+        - RM #2945718 Fix gcc12 compilation issue
+
 Version 9.4.0-0:
 Date + Time 2021-10-05
 =============================================================
