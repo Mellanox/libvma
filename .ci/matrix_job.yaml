@@ -27,9 +27,8 @@ runs_on_dockers:
   - {name: 'rhel8.3-mofed-x86_64', url: 'harbor.mellanox.com/hpcx/x86_64/rhel8.3/builder:mofed-5.2-0.5.3.0', category: 'base', arch: 'x86_64'}
   - {name: 'sl15sp2-mofed-x86_64', url: 'harbor.mellanox.com/swx-infra/x86_64/sles15sp2/builder:mofed-5.2-2.2.0.0', category: 'base', arch: 'x86_64'}
   - {name: 'fc31-mofed-x86_64',    url: 'harbor.mellanox.com/swx-infra/x86_64/fedora31/builder:mofed-5.1-1.0.7.0', category: 'base', arch: 'x86_64'}
-  - {name: 'ub20.04-mofed-x86_64', url: 'harbor.mellanox.com/sw-linux-devops/mofed-5.5-0.3.0.0:ubuntu20.04-amd64', category: 'base', arch: 'x86_64'}
-
   - {name: 'ub20.04-mofed-x86_64', url: 'harbor.mellanox.com/swx-infra/x86_64/ubuntu20.04/builder:mofed-5.2-2.2.0.0', category: 'base', arch: 'x86_64'}
+
 #  - {name: 'ub20.04-mofed-aarch64', url: 'harbor.mellanox.com/swx-infra/aarch64/ubuntu20.04/builder:mofed-5.2-1.0.4.0', category: 'base', arch: 'aarch64'}
 #  - {name: 'ub20.04-mofed-ppc64le', url: 'harbor.mellanox.com/swx-infra/ppc64le/ubuntu20.04/builder:mofed-5.2-1.0.4.0', category: 'base', arch: 'ppc64le'}
 # inbox
