@@ -199,7 +199,10 @@ if test "x$enable_symbol_visibility" = xno; then
          AC_DEFINE_UNQUOTED([DEFINED_EXPORT_SYMBOL], [1], [Define to 1 to hide symbols])
          AC_MSG_RESULT([no])
         ],
-        [AC_MSG_ERROR([A compiler with -fvisibility option is required])]
+        [
+         AC_MSG_RESULT([yes])
+         AC_MSG_WARN([A compiler with -fvisibility option is required for this feature])
+        ]
     )
 else
     AC_MSG_CHECKING([for symbols visibility])
