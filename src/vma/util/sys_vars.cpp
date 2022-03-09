@@ -393,11 +393,12 @@ exit:
 bool mce_sys_var::cpuid_hv()
 {
 #if defined(__x86_64__)
-	uint32_t _ecx;
-	__asm__ __volatile__("cpuid" \
-            : "=c"(_ecx) \
-	        : "a"(0x01));
-	usleep(0);
+	uint32_t _eax, _ebx, _ecx, _edx;
+	__asm__(
+		"cpuid"
+		: "=a" (_eax), "=b" (_ebx), "=c" (_ecx), "=d" (_edx)
+		: "a" (0x1)
+	);
 	return (bool)((_ecx >> 31) & 0x1);
 #else
 	return check_cpuinfo_flag(VIRTUALIZATION_FLAG);
