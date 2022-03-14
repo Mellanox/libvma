@@ -1,3 +1,11 @@
+Version 9.5.1-1:
+Date + Time 2022-03-14
+=============================================================
+Fixed:
+        - RM #2972951 Fix hypervisor check under x86_64
+        - RM #2945718 Fix gcc12 compilation issue
+        - RM #2789483 Fix VMA_UDP_3T_RULES logic for UDP UC
+
 Version 9.5.0-1:
 Date + Time 2022-02-14
 =============================================================
