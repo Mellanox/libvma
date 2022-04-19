@@ -738,11 +738,15 @@ void ring_bond::popup_recv_rings()
 	 * Consider using ring related slave with lag_tx_port_affinity = 1
 	 * even if slave is not active.
 	 * - For NETVSC device all rings (vf and tap) should be ready for receive.
+	 * when SRIOV is off slaves.size() can be zero.
 	 */
 	for (uint32_t i = 0; i < m_bond_rings.size(); i++) {
-		for (uint32_t j = 0; j < slaves.size() ; j ++) {
-			if ((slaves[j]->if_index != m_bond_rings[i]->get_if_index()) &&
-				((p_ndev->get_is_bond() != net_device_val::NETVSC))) {
+		if (p_ndev->get_is_bond() == net_device_val::NETVSC) {
+			m_recv_rings.push_back(m_bond_rings[i]);
+			continue;
+		}
+		for (uint32_t j = 0; j < slaves.size(); j ++) {
+			if (slaves[j]->if_index != m_bond_rings[i]->get_if_index()) {
 				continue;
 			}
 			if (slaves[j]->lag_tx_port_affinity < 2) {
