@@ -2,14 +2,14 @@
 .\"
 .TH VMA 7 "#BUILD_DATE#" libvma "VMA(#VMA_LIBRARY_MAJOR#.#VMA_LIBRARY_MINOR#.#VMA_LIBRARY_REVISION#) User's Manual"
 .SH NAME
-VMA \- Mellanox's Messaging Accelerator (VMA) library.
+VMA \- NVIDIA Messaging Accelerator (VMA) library.
 
 .SH SYNOPSIS
 .B libvma.so
 
 .SH DESCRIPTION
 .B VMA
-Mellanox's Messaging Accelerator (VMA) boosts performance for message-based
+NVIDIA Messaging Accelerator (VMA) boosts performance for message-based
 and streaming applications such as those found in financial services market
 data environments and Web2.0 clusters. It allows application written over
 standard socket API to run over Ethernet and/or Infiniband from user-space

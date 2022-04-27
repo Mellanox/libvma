@@ -756,13 +756,13 @@ int libvma_yy_flex_debug = 0;
 char *libvma_yytext;
 /* Line 1 of config_scanner.l */
 /*
- * Copyright (c) 2001-2021 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2001-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
  * General Public License (GPL) Version 2, available from the file
  * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
+ * BSD license below:
  *
  *     Redistribution and use in source and binary forms, with or
  *     without modification, are permitted provided that the following
@@ -790,7 +790,7 @@ char *libvma_yytext;
  */
 /* Line 36 of config_scanner.l */
 
-//#define DEBUG 1  
+//#define DEBUG 1
 
 #define yyparse libvma_yyparse
 #define libvma_yylex   libvma_yylex

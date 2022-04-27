@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2021 Mellanox Technologies, Ltd. All rights reserved.
+ * Copyright (c) 2001-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -54,7 +54,7 @@ extern "C" {
 
 /* ib/mlx5 layer is used by other VMA code that needs
  * direct access to mlx5 resources.
- * It hides differences in rdma-core(Upstream OFED) and mlx5(Mellanox OFED) 
+ * It hides differences in rdma-core(Upstream OFED) and mlx5(OFED)
  * mlx5 provider implementations.
  * rdma-core(Upstream OFED) structures/macro/enum etc are taken as basis
  * inside this layer

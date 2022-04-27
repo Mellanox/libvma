@@ -3,7 +3,7 @@ Update: 12 Aug 2018
 Introduction
 ============
 
-Mellanox's Messaging Accelerator (VMA) is dynamically linked user space Linux
+NVIDIA Messaging Accelerator (VMA) is dynamically linked user space Linux
 library for transparently enhancing the performance of networking-heavy
 applications. It boosts performance for message-based and streaming applications
 such as those found in financial services market data environments and Web2.0
@@ -870,7 +870,7 @@ OFED will also try to allocate QP & CQ memory accordingly:
 To override OFED use: (MLX_QP_ALLOC_TYPE, MLX_CQ_ALLOC_TYPE)
 Default value is 1 (Contiguous pages)
 
-The following VMA neigh parameters are for advanced users or Mellanox support only:
+The following VMA neigh parameters are for advanced users or internal support only:
 
 VMA_NEIGH_UC_ARP_QUATA
 VMA will send UC ARP in case neigh state is NUD_STALE.

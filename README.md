@@ -2,7 +2,7 @@
 [![Coverity Scan Build Status](https://scan.coverity.com/projects/8025/badge.svg)](https://scan.coverity.com/projects/libvma)
 
 ### Introduction
-Mellanox's Messaging Accelerator (VMA) boosts performance for message-based and streaming applications such as those found in financial services market data environments and Web2.0 clusters. It allows application written over standard socket API
+NVIDIA Messaging Accelerator (VMA) boosts performance for message-based and streaming applications such as those found in financial services market data environments and Web2.0 clusters. It allows application written over standard socket API
 to run over Ethernet and/or Infiniband from user-space with full network stack bypass. 
   
 The [VMA architecture](https://github.com/Mellanox/libvma/wiki/Architecture) page includes additional information.  

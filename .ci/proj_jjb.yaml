@@ -86,6 +86,10 @@
             name: "do_blackduck"
             default: true
             description: "Run BlackDuck."
+        - bool:
+            name: "do_copyrights"
+            default: true
+            description: "Check copyrights in source headers"
     triggers:
         - github-pull-request:
             cron: 'H/5 * * * *'
