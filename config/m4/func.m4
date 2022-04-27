@@ -1,6 +1,6 @@
 # func.m4 - Collection of functions
 # 
-# Copyright (C) Mellanox Technologies Ltd. 2001-2021. ALL RIGHTS RESERVED.
+# Copyright (c) 2001-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # See file LICENSE for terms.
 #
 
@@ -25,7 +25,7 @@ show_summary_title()
 {
     cat <<EOF
 
-Mellanox VMA library
+VMA library
 ============================================================================
 Version: ${PRJ_LIBRARY_MAJOR}.${PRJ_LIBRARY_MINOR}.${PRJ_LIBRARY_REVISION}.${PRJ_LIBRARY_RELEASE}
 Git: ${GIT_VER}
