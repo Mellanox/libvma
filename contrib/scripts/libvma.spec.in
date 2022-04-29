@@ -204,6 +204,9 @@ fi
 %{_mandir}/man8/vma_stats.*
 
 %changelog
+* Fri Apr 29 2022 Igor Ivanov <igori@nvidia.com> 9.5.3-1
+- Bump 9.5.3
+
 * Mon Apr 4 2022 Igor Ivanov <igori@nvidia.com> 9.5.2-1
 - Bump 9.5.2
 
