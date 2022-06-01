@@ -143,8 +143,9 @@ bool rfs_uc::prepare_flow_spec()
 			   attach_flow_data_eth->ibv_flow_attr.attr.num_of_specs,
 			   m_flow_tag_id);
 	}
-        rfs_logfunc("transport type: %d, num_of_specs: %d flow_tag_id: %d", type,
-			   attach_flow_data_eth->ibv_flow_attr.attr.num_of_specs,
+        rfs_logfunc("transport type: %s, num_of_specs: %d flow_tag_id: %d",
+			   priv_vma_transport_type_str(type),
+			   p_attach_flow_data->ibv_flow_attr.num_of_specs,
 			   m_flow_tag_id);
 
 	m_attach_flow_data_vector.push_back(p_attach_flow_data);
