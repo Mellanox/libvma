@@ -96,7 +96,7 @@ int sys_get_addr(char *dst, struct sockaddr_in *addr)
 
 	rc = getaddrinfo(dst, NULL, NULL, &res);
 	if (rc) {
-		log_error("getaddrinfo failed - invalid hostname or IP address\n");
+		log_error("getaddrinfo failed - invalid hostname or IP address %s\n", dst);
 		return rc;
 	}
 

@@ -2156,7 +2156,7 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 		case TCP_SOCK_CONNECTED_RD:
 		case TCP_SOCK_CONNECTED_WR:
 		case TCP_SOCK_CONNECTED_RDWR:
-			if (report_connected) {
+			if (report_connected && !m_b_blocking) {
 				report_connected = false;
 				unlock_tcp_con();
 				return 0;
@@ -2241,16 +2241,18 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 	if (err != ERR_OK) {
 		//todo consider setPassthrough and go to OS
 		destructor_helper();
+		m_conn_state = TCP_CONN_FAILED;
 		errno = ECONNREFUSED;
+		report_connected = true;
 		si_tcp_logerr("bad connect, err=%d", err);
 		unlock_tcp_con();
 		return -1;
 	}
 
-	//Now we should register socket to TCP timer
-	register_timer();
-
 	if (!m_b_blocking) {
+		// Now we should register socket to TCP timer for non-blocking socket.
+		register_timer();
+
 		errno = EINPROGRESS;
 		m_error_status = EINPROGRESS;
 		m_sock_state = TCP_SOCK_ASYNC_CONNECT;
@@ -2260,16 +2262,25 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 		return -1;
 	}
 
-	// if (target_family == USE_VMA || target_family == USE_ULP || arget_family == USE_DEFAULT)
-	int rc = wait_for_conn_ready();
+	int rc = wait_for_conn_ready_blocking();
 	// handle ret from async connect
 	if (rc < 0) {
-		//todo consider setPassthrough and go to OS
+		// Interuppted wait for blocking socket currently considered as failure.
+		if (rc < -1) {
+			m_conn_state = TCP_CONN_FAILED;
+		}
+
 		destructor_helper();
+		report_connected = true;
 		unlock_tcp_con();
-		// errno is set inside wait_for_conn_ready
+		si_tcp_logdbg("Blocking connect error, m_sock_state=%d", static_cast<int>(m_sock_state));
+		// errno is set inside wait_for_conn_ready_blocking
 		return -1;
 	}
+
+	// Now we should register socket to TCP timer for connected blocking socket.
+	register_timer();
+
 	setPassthrough(false);
 	unlock_tcp_con();
 	return 0;
@@ -3126,7 +3137,7 @@ err_t sockinfo_tcp::connect_lwip_cb(void *arg, struct tcp_pcb *tpcb, err_t err)
 	return ERR_OK;
 }
 
-int sockinfo_tcp::wait_for_conn_ready()
+int sockinfo_tcp::wait_for_conn_ready_blocking()
 {
 	int poll_count = 0;
 
@@ -3139,12 +3150,12 @@ int sockinfo_tcp::wait_for_conn_ready()
 		 */
 		if (rx_wait(poll_count, m_b_blocking) < 0) {
 			si_tcp_logdbg("connect interrupted");
-			return -1;
+			return -2;
 		}
 
 		if (unlikely(g_b_exit)) {
 			errno = EINTR;
-			return -1;
+			return -2;
 		}
 	}
 	if (m_sock_state == TCP_SOCK_INITED) {
@@ -3158,8 +3169,8 @@ int sockinfo_tcp::wait_for_conn_ready()
 
 	}
 	if (m_conn_state != TCP_CONN_CONNECTED) {
+		m_conn_state = TCP_CONN_FAILED;
 		if (m_conn_state == TCP_CONN_TIMEOUT) {
-			m_conn_state = TCP_CONN_FAILED;
 			errno = ETIMEDOUT;
 		} else {
 			errno = ECONNREFUSED;

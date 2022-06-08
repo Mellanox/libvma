@@ -46,11 +46,11 @@ void tcp_base::TearDown()
 {
 }
 
-int tcp_base::sock_create(void)
+int tcp_base::sock_create(bool reuse_addr)
 {
 	int rc;
 	int fd;
-	int opt_val = 0;
+	int opt_val = (reuse_addr ? 1 : 0);
 
 	fd = socket(PF_INET, SOCK_STREAM, IPPROTO_IP);
 	if (fd < 0) {
