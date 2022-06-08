@@ -283,7 +283,9 @@ private:
 	lock_spin_recursive m_tcp_con_lock;
 	bool m_timer_pending;
 
-	bool report_connected; //used for reporting 'connected' on second non-blocking call to connect.
+	// used for reporting 'connected' on second non-blocking call to connect or
+	// second call to failed connect blocking socket.
+	bool report_connected;
 
 	int m_error_status;
 
@@ -338,7 +340,7 @@ private:
 	// clone socket in accept call
 	sockinfo_tcp *accept_clone();
 	// connect() helper & callback func
-	int wait_for_conn_ready();
+	int wait_for_conn_ready_blocking();
 	static err_t connect_lwip_cb(void *arg, struct tcp_pcb *tpcb, err_t err);
 	//tx
 	unsigned tx_wait(int & err, bool is_blocking);

@@ -163,12 +163,12 @@ int test_base::wait_fork(int pid)
 	}
 }
 
-void test_base::barrier_fork(int pid)
+void test_base::barrier_fork(int pid, bool sync_parent)
 {
 	ssize_t ret;
 
 	m_break_signal = 0;
-	if (0 == pid) {
+	if ((0 == pid && !sync_parent) || (0 != pid && sync_parent)) {
 		prctl(PR_SET_PDEATHSIG, SIGTERM);
 		do {
 			ret = read(m_efd, &m_efd_signal, sizeof(m_efd_signal));
