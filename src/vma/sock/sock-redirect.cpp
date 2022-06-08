@@ -2873,15 +2873,17 @@ extern "C"
 EXPORT_SYMBOL
 sighandler_t signal(int signum, sighandler_t handler)
 {
-	srdr_logdbg_entry("signum=%d, handler=%p", signum, handler);
-
 	if (!orig_os_api.signal) get_orig_funcs();
 
-	if (handler && handler != SIG_ERR && handler != SIG_DFL && handler != SIG_IGN) {
-		// Only SIGINT is supported for now
-		if (signum == SIGINT) {
-			g_sighandler = handler;
-			return orig_os_api.signal(SIGINT, &handle_signal);
+	if (safe_mce_sys().handle_sigintr) {
+		srdr_logdbg_entry("signum=%d, handler=%p", signum, handler);
+
+		if (handler && handler != SIG_ERR && handler != SIG_DFL && handler != SIG_IGN) {
+			// Only SIGINT is supported for now
+			if (signum == SIGINT) {
+				g_sighandler = handler;
+				return orig_os_api.signal(SIGINT, &handle_signal);
+			}
 		}
 	}
 
