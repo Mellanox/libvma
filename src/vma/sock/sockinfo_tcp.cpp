@@ -3169,12 +3169,12 @@ int sockinfo_tcp::wait_for_conn_ready_blocking()
 
 	}
 	if (m_conn_state != TCP_CONN_CONNECTED) {
-		m_conn_state = TCP_CONN_FAILED;
 		if (m_conn_state == TCP_CONN_TIMEOUT) {
 			errno = ETIMEDOUT;
 		} else {
 			errno = ECONNREFUSED;
 		}
+		m_conn_state = TCP_CONN_FAILED;
 		si_tcp_logdbg("bad connect -> timeout or none listening");
 		return -1;
 	}
