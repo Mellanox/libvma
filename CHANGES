@@ -1,3 +1,11 @@
+Version 9.6.1-1:
+Date + Time 2022-06-23
+=============================================================
+Fixed:
+        - RM #3092555 Fix blocking socket connect timer race
+        - RM #3092554 Use VMA_HANDLE_SIGINTR for signal() API
+        - RM #3115037 Fix segfault when IPoIB is used along with extra logging
+
 Version 9.6.0-1:
 Date + Time 2022-05-18
 =============================================================
