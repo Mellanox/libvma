@@ -2236,6 +2236,7 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 
 	in_addr_t peer_ip_addr = m_connected.get_in_addr();
 	fit_rcv_wnd(true);
+	report_connected = true;
 
 	int err = tcp_connect(&m_pcb, (ip_addr_t*)(&peer_ip_addr), ntohs(m_connected.get_in_port()), /*(tcp_connected_fn)*/sockinfo_tcp::connect_lwip_cb);
 	if (err != ERR_OK) {
@@ -2243,43 +2244,42 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 		destructor_helper();
 		m_conn_state = TCP_CONN_FAILED;
 		errno = ECONNREFUSED;
-		report_connected = true;
 		si_tcp_logerr("bad connect, err=%d", err);
 		unlock_tcp_con();
 		return -1;
 	}
 
-	if (!m_b_blocking) {
-		// Now we should register socket to TCP timer for non-blocking socket.
-		register_timer();
+	// Now we should register socket to TCP timer.
+	// It is important to register it before wait_for_conn_ready_blocking(),
+	// since wait_for_conn_ready_blocking may block on epoll_wait and the timer sends SYN rexmits.
+	register_timer();
 
+	if (!m_b_blocking) {
 		errno = EINPROGRESS;
 		m_error_status = EINPROGRESS;
 		m_sock_state = TCP_SOCK_ASYNC_CONNECT;
-		report_connected = true;
 		unlock_tcp_con();
 		si_tcp_logdbg("NON blocking connect");
 		return -1;
 	}
 
+	// Blocking Path
 	int rc = wait_for_conn_ready_blocking();
-	// handle ret from async connect
+	// Handle ret from async connect
 	if (rc < 0) {
 		// Interuppted wait for blocking socket currently considered as failure.
-		if (rc < -1) {
+		if (errno == EINTR || errno == EAGAIN) {
 			m_conn_state = TCP_CONN_FAILED;
 		}
 
+		set_tcp_state(&m_pcb, CLOSED);
+
 		destructor_helper();
-		report_connected = true;
 		unlock_tcp_con();
 		si_tcp_logdbg("Blocking connect error, m_sock_state=%d", static_cast<int>(m_sock_state));
-		// errno is set inside wait_for_conn_ready_blocking
+		// The errno is set inside wait_for_conn_ready_blocking
 		return -1;
 	}
-
-	// Now we should register socket to TCP timer for connected blocking socket.
-	register_timer();
 
 	setPassthrough(false);
 	unlock_tcp_con();
@@ -3148,14 +3148,23 @@ int sockinfo_tcp::wait_for_conn_ready_blocking()
 		 * therefore in this case the m_conn_state will not be changed only
 		 * m_sock_state
 		 */
-		if (rx_wait(poll_count, m_b_blocking) < 0) {
+		if (rx_wait(poll_count, true) < 0) {
 			si_tcp_logdbg("connect interrupted");
-			return -2;
+
+			// Internally rx_wait uses epoll_wait wich may return unrecoverable error.
+			// However, we do not want to expose internal errors due to epoll usage to the outside.
+			// Consequently, since this method is used by blocking connect, we rewrite the errno
+			// with one that is compatible with connect() API.
+			if (errno != EINTR && errno != EAGAIN) {
+				errno = EIO;
+				m_conn_state = TCP_CONN_FAILED;
+			}
+			return -1;
 		}
 
 		if (unlikely(g_b_exit)) {
 			errno = EINTR;
-			return -2;
+			return -1;
 		}
 	}
 	if (m_sock_state == TCP_SOCK_INITED) {
@@ -3173,8 +3182,11 @@ int sockinfo_tcp::wait_for_conn_ready_blocking()
 			errno = ETIMEDOUT;
 		} else {
 			errno = ECONNREFUSED;
+			if (m_conn_state < TCP_CONN_FAILED) {
+				m_conn_state = TCP_CONN_FAILED;
+			}
 		}
-		m_conn_state = TCP_CONN_FAILED;
+
 		si_tcp_logdbg("bad connect -> timeout or none listening");
 		return -1;
 	}
