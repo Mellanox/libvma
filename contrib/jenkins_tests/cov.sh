@@ -24,7 +24,7 @@ make clean >> "${cov_dir}/cov.log" 2>&1
 sleep 1
 eval "cov-configure --config ${cov_dir}/coverity_config.xml --gcc >> ${cov_dir}/cov.log 2>&1"
 sleep 1
-eval "cov-build --config ${cov_dir}/coverity_config.xml --dir ${cov_build} make -j >> ${cov_dir}/cov.log 2>&1"
+eval "cov-build --config ${cov_dir}/coverity_config.xml --dir ${cov_build} make $make_opt >> ${cov_dir}/cov.log 2>&1"
 rc=$(($rc+$?))
 
 for excl in $cov_exclude_file_list; do
