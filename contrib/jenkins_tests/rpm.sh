@@ -63,7 +63,7 @@ fi
 
 if [ $opt_srcrpm -eq 1 ]; then
     if [ $opt_rpm -eq 1 ]; then
-        test_exec="rpmbuild -bs $rpmmacros $rpmopts $rpmspec"
+        test_exec="env RPM_BUILD_NCPUS=${NPROC} rpmbuild -bs $rpmmacros $rpmopts $rpmspec"
     else
         test_exec="dpkg-buildpackage -us -uc -S"
     fi
@@ -73,16 +73,16 @@ fi
 
 if [ $opt_binrpm -eq 1 ]; then
     if [ $opt_rpm -eq 1 ]; then
-        test_exec="rpmbuild -bb $rpmmacros $rpmopts $rpmspec"
+        test_exec="env RPM_BUILD_NCPUS=${NPROC} rpmbuild -bb $rpmmacros $rpmopts $rpmspec"
     else
-        test_exec="dpkg-buildpackage -us -uc -b"
+        test_exec="dpkg-buildpackage -us -uc -b $make_opt"
     fi
     do_check_result "$test_exec" "$test_id" "binrpm" "$rpm_tap" "${rpm_dir}/rpm-${test_id}"
     test_id=$((test_id+1))
 fi
 
 if [ $opt_checkpkg -eq 1 ]; then
-    test_exec="env VMA_RELEASE=1 ${WORKSPACE}/contrib/build_pkg.sh -b -s -i ${WORKSPACE} -o ${rpm_dir}/dist-pkg"
+    test_exec="env RPM_BUILD_NCPUS=${NPROC} VMA_RELEASE=1 ${WORKSPACE}/contrib/build_pkg.sh -b -s -i ${WORKSPACE} -o ${rpm_dir}/dist-pkg"
     do_check_result "$test_exec" "$test_id" "checkpkg" "$rpm_tap" "${rpm_dir}/rpm-${test_id}"
     test_id=$((test_id+1))
 fi

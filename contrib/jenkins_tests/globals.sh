@@ -29,8 +29,8 @@ commit_dir=${WORKSPACE}/${prefix}/commit
 prj_lib=libvma.so
 prj_service=vmad
 
-nproc=$(grep processor /proc/cpuinfo|wc -l)
-make_opt="-j$(($nproc / 2 + 1))"
+NPROC=8
+make_opt="-j${NPROC}"
 if [ $(command -v timeout >/dev/null 2>&1 && echo $?) ]; then
     timeout_exe="timeout -s SIGKILL 20m"
 fi
