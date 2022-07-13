@@ -2272,7 +2272,7 @@ int sockinfo_tcp::connect(const sockaddr *__to, socklen_t __tolen)
 			m_conn_state = TCP_CONN_FAILED;
 		}
 
-		set_tcp_state(&m_pcb, CLOSED);
+		tcp_close(&m_pcb);
 
 		destructor_helper();
 		unlock_tcp_con();
