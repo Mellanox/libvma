@@ -721,6 +721,8 @@ void sockinfo_tcp::put_agent_msg(void *arg)
 	data.hdr.code = VMA_MSG_STATE;
 	data.hdr.ver = VMA_AGENT_VER;
 	data.hdr.pid = getpid();
+	data.hdr.status = 0;
+	data.hdr.reserve[0] = 0; // Suppress coverity warning
 	data.fid = p_si_tcp->get_fd();
 	data.state = get_tcp_state(&p_si_tcp->m_pcb);
 	data.type = SOCK_STREAM;
