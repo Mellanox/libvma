@@ -204,6 +204,9 @@ fi
 %{_mandir}/man8/vma_stats.*
 
 %changelog
+* Wed Jul 13 2022 Alexander Grissik <agrissik@nvidia.com> 9.6.3-1
+- Bump 9.6.3
+
 * Wed Jul 6 2022 Alexander Grissik <agrissik@nvidia.com> 9.6.2-1
 - Bump 9.6.2
 
