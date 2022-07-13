@@ -1,3 +1,9 @@
+Version 9.6.3-1:
+Date + Time 2022-07-13
+=============================================================
+Fixed:
+        - RM #3092555 Fixing pcb resources leak for failed blocking connect
+
 Version 9.6.2-1:
 Date + Time 2022-07-06
 =============================================================
